@@ -1,0 +1,14 @@
+ID,ScriptName,AttachType,PivotX,PivotY,PivotZ,ArmLength,ArmYaw,ArmPitch,SocketX,SocketY,SocketZ,SelfYaw,SelfPitch,SelfRoll,Fov
+string,string,string,float,float,float,float,float,float,float,float,float,float,float,float,float
+编号,名称,瞄准类型,瞄准点偏移X,瞄准点偏移Y,瞄准点偏移Z,相机臂长度,相机臂偏航角,相机臂俯仰角,相机偏移X,相机偏移Y,相机偏移Z,相机自偏航角,相机自俯仰角,相机自翻滚角,视野大小
+2m_Self_Shoulder_Mid_R,隔2米-主角说话-Npc越肩视角-中景-右轴,Listener,0,0,0,1.2,43,-15,-0.62,0.38,0,0,0,0,65
+2m_Npc_Shoulder_Mid_R,隔2米-Npc说话-主角越肩视角-中景-右轴,Listener,0,0,0,1.2,-43,-15,0.62,0.38,0,0,0,0,65
+xm_Self_Side30_Mid_R,任意米-主角说话-Npc侧30视角-中景-右轴,Speaker,0,0,0,1.5,-150,-15,0.57,0,0,0,0,0,45
+xm_Npc_Side30_Mid_R,任意米-Npc说话-主角侧30视角-中景-右轴,Speaker,0,0,0,1.5,150,-15,-0.57,0,0,0,0,0,45
+sp_lordshall,城主间专用-主角背面,Player,0,0,0,2.5,0,-15,0,-1.58,-0.76,0,0,0,65
+sp_lordshall_side,城主间专用-主角和城主侧面,Player,0,0,0,2.9,-90,0,2.65,0,0.88,0,0,-10,90
+xm_Any_Side90_Full_R,任意米-任意说话-90度角旁观-全景-右轴-替换SocketX为x/2,Player,0,0,0,2.5,-90,0,1,0,0,0,0,-6,75
+xm_Npc_Side30_Far_R,多人对话远景45度Npc说话,Speaker,0,0,0,6,-45,-15,1.15,0,0,0,0,0,65
+xm_Self_Side30_Far_R,多人对话远景45度主角说话,Speaker,0,0,0,6,45,-15,-1.15,0,0,0,0,0,65
+sp_eye,完全代入听者视角,Listener,0,0,0,0,0,0,0,0.2,0,0,0,0,65
+xm_Any_Side45_Far_R,主角侧45俯视角,Player,0,0,0,6,-45,-15,0,0,0,0,0,0,65
