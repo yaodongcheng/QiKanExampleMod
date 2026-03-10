@@ -1,0 +1,811 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SPCultures>	
+			 
+	<Culture id="pirate" name="{=my_Pirate}Pirate" is_main_culture="false" can_have_settlement="true"  
+			 elite_basic_troop="NPCCharacter.guard"
+			 basic_troop="NPCCharacter.guard"
+			 militia_party_template="PartyTemplate.militia_template"
+			 default_party_template="PartyTemplate.kingdom_hero_party_kinai_template"
+			 encounter_background_mesh="encounter_sho_lord"
+			 default_battle_equipment_roster="EquipmentRoster.neutral_culture_bat_template_medium_male"
+			 default_civilian_equipment_roster="EquipmentRoster.neutral_culture_civ_template_default_male">
+			 <banner_bearer_replacement_weapons>
+				<item id="Item.sho_wakizashi_1"/>
+			</banner_bearer_replacement_weapons>
+	</Culture>	
+	<Culture id="ninja"
+			 name="{=my_Ninja}Ninja"
+			 is_main_culture="true"
+			 color="0xffcfb12e"
+			 color2="0xff070905"
+			 faction_banner_key="11.163.166.1528.1528.764.764.1.0.0.670.171.171.483.483.764.764.0.0.0"
+			 elite_basic_troop="NPCCharacter.kinai_jizamurai"
+			 basic_troop="NPCCharacter.kinai_militia_peasant"
+			 melee_militia_troop="NPCCharacter.yari_ashigaru"
+			 ranged_militia_troop="NPCCharacter.trained_yumi_ashigaru"
+			 melee_elite_militia_troop="NPCCharacter.trained_yari_ashigaru"
+			 ranged_elite_militia_troop="NPCCharacter.veteran_yumi_ashigaru"
+			 can_have_settlement="true"
+			 town_edge_number="16"
+			 villager_party_template="PartyTemplate.villager_template"
+			 default_party_template="PartyTemplate.kingdom_hero_party_kinai_template"
+			 caravan_party_template="PartyTemplate.caravan_template"
+			 elite_caravan_party_template="PartyTemplate.elite_caravan_template"
+			 militia_party_template="PartyTemplate.militia_template"
+			 rebels_party_template="PartyTemplate.rebels_template"
+			 vassal_reward_party_template="PartyTemplate.vassal_reward_troops_kinai"
+			 prosperity_bonus="1"
+			 encounter_background_mesh="encounter_sho_lord"
+			 default_face_key="0000F80E4000000EB8708BD6CD185229D3F98B3ABDFE344CD22D3D5038898868007776030796723B00000000000000000000000000000000000000003EFC1000"
+			 text="{=2FMOGwys}The Kinki people reside in the central part of Honshu representing the cultural, economic, and political heart of Japan. The direct heirs of the potentates who once ruled over the entire country, the Kinki benefit from the power structures left behind by their forebears, making it easier for them to consolidate their control over the different regions of Japan. The poetic tradition that flourished around Kyoto contributes to a growing renown of victorious warlords who emulate the deeds of legendary heroes. Nevertheless, years of armed clashes and political scheming for power make it consistently difficult for the Kinki lords to put aside their differences and unite against a common enemy."
+			 tournament_master="NPCCharacter.tournament_master_saikai"
+			 villager="NPCCharacter.townsman_saikai"
+			 caravan_master="NPCCharacter.saikai_mounted_samurai"
+			 armed_trader="NPCCharacter.saikai_mounted_samurai"
+			 caravan_guard="NPCCharacter.saikai_mounted_samurai"
+			 veteran_caravan_guard="NPCCharacter.saikai_mounted_samurai"
+			 prison_guard="NPCCharacter.prison_guard_kinai"
+			 guard="NPCCharacter.guard_kinai"
+			 blacksmith="NPCCharacter.blacksmith_saikai"
+			 weaponsmith="NPCCharacter.weaponsmith_saikai"
+			 townswoman="NPCCharacter.townswoman_saikai"
+			 townswoman_infant="NPCCharacter.townswoman_infant_saikai"
+			 townswoman_child="NPCCharacter.townswoman_child_saikai"
+			 townswoman_teenager="NPCCharacter.townswoman_teenager_saikai"
+			 townsman="NPCCharacter.townsman_saikai"
+			 townsman_infant="NPCCharacter.townsman_infant_saikai"
+			 townsman_child="NPCCharacter.townsman_child_saikai"
+			 village_woman="NPCCharacter.townswoman_saikai"
+			 villager_male_child="NPCCharacter.townsman_child_saikai"
+			 villager_male_teenager="NPCCharacter.townsman_teenager_saikai"
+			 villager_female_child="NPCCharacter.townswoman_child_saikai"
+			 villager_female_teenager="NPCCharacter.townswoman_teenager_saikai"
+			 townsman_teenager="NPCCharacter.townsman_teenager_saikai"
+			 ransom_broker="NPCCharacter.ransom_broker_saikai"
+			 gangleader_bodyguard="NPCCharacter.gangleader_bodyguard_kinai"
+			 merchant_notary="NPCCharacter.merchant_notary_saikai"
+			 artisan_notary="NPCCharacter.townsman_saikai"
+			 preacher_notary="NPCCharacter.townsman_saikai"
+			 rural_notable_notary="NPCCharacter.townsman_saikai"
+			 shop_worker="NPCCharacter.shop_worker_saikai"
+			 tavernkeeper="NPCCharacter.tavernkeeper_saikai"
+			 taverngamehost="NPCCharacter.taverngamehost_saikai"
+			 musician="NPCCharacter.musician_saikai"
+			 tavern_wench="NPCCharacter.tavern_wench_saikai"
+			 armorer="NPCCharacter.armorer_saikai"
+			 horseMerchant="NPCCharacter.horseMerchant_saikai"
+			 barber="NPCCharacter.barber_saikai"
+			 merchant="NPCCharacter.merchant_saikai"
+			 beggar="NPCCharacter.beggar_saikai"
+			 female_beggar="NPCCharacter.female_beggar_saikai"
+			 female_dancer="NPCCharacter.townswoman_saikai"
+			 gear_practice_dummy="NPCCharacter.gear_practice_dummy_kinai"
+			 weapon_practice_stage_1="NPCCharacter.weapon_practice_stage_1"
+			 weapon_practice_stage_2="NPCCharacter.weapon_practice_stage_2"
+			 weapon_practice_stage_3="NPCCharacter.weapon_practice_stage_3"
+			 gear_dummy="NPCCharacter.gear_practice_dummy_kinai"
+			 default_battle_equipment_roster="EquipmentRoster.kinai_bat_template_medium_male"
+			 default_civilian_equipment_roster="EquipmentRoster.kinai_civ_template_default_male"
+			 duel_preset_equipment_roster="EquipmentRoster.npc_armed_wanderer_equipment_template_kinai"
+			 board_game_type="Tablut">
+		<vassal_reward_items>
+			<item id="Item.sho_tachi_tiger"/>
+		</vassal_reward_items>
+		<banner_bearer_replacement_weapons>
+			<item id="Item.sho_wakizashi_1"/>
+		</banner_bearer_replacement_weapons>
+		<default_policies>
+			<policy id="policy_lords_privy_council"/>
+			<policy id="policy_cantons"/>
+		</default_policies>
+		<male_names>
+			<name name="{=686xcJ5S}Taro"/>
+			<name name="{=xbwRkO5Z}Ichiro"/>
+			<name name="{=0T1OCfRY}Jiro"/>
+			<name name="{=1187gbgM}Saburo"/>
+			<name name="{=BN54hR9V}Shiro"/>
+			<name name="{=OfanclyF}Goro"/>
+			<name name="{=9wz88kH7}Rokuro"/>
+			<name name="{=pEnQ7qL8}Shichiro"/>
+			<name name="{=BQEJpaKM}Hachiro"/>
+			<name name="{=Zf6pqP1S}Kuro"/>
+			<name name="{=F4wYBL82}Juro"/>
+			<name name="{=3cTGorVo}Jusuke"/>
+			<name name="{=4yJsfsiM}Suketaro"/>
+			<name name="{=XBtOokns}Sukejiro"/>
+			<name name="{=5P5FkBwH}Sukesaburo"/>
+			<name name="{=tubOfaxz}Sukeshiro"/>
+			<name name="{=3R5j7RYA}Sukegoro"/>
+			<name name="{=Ds3cZg6r}Sukebei"/>
+			<name name="{=nKMOkNFw}Sukezaemon"/>
+			<name name="{=7iiIq9r6}Sukeemon"/>
+			<name name="{=kD70iJ3J}Shintaro"/>
+			<name name="{=fpdWiWfz}Shinichiro"/>
+			<name name="{=A2GoIvbc}Shinjiro"/>
+			<name name="{=Bti8upGR}Sinsaburo"/>
+			<name name="{=OMBLQ8zN}Shingoro"/>
+			<name name="{=CeFXPZ4y}Shinjuro"/>
+			<name name="{=8AWswCXB}Shinsuke"/>
+			<name name="{=u6o96I4Y}Shinnosuke"/>
+			<name name="{=KT8o8D8j}Shinkichi"/>
+			<name name="{=QXoI9qum}Shinzo"/>
+			<name name="{=l4hS80xv}Shinbei"/>
+			<name name="{=xGgjfTcH}Shinzaemon"/>
+			<name name="{=nP12n3Fs}Shinemon"/>
+			<name name="{=2HEjtotK}Kantaro"/>
+			<name name="{=ctzwdIKa}Kanichiro"/>
+			<name name="{=nWOBDgpj}Kanjiro"/>
+			<name name="{=NbvnNk2S}Kanzaburo"/>
+			<name name="{=kN3o6xzR}Kangoro"/>
+			<name name="{=rtGBo128}Kanjuro"/>
+			<name name="{=YRDygFj6}Kansuke"/>
+			<name name="{=cGq2zXGn}Kannosuke"/>
+			<name name="{=2BhHfnxd}Kankichi"/>
+			<name name="{=eZOVCTrX}Kanzo"/>
+			<name name="{=4Nkceif9}Kanbei"/>
+			<name name="{=nP12n3Fs}Shinemon"/>
+			<name name="{=xGgjfTcH}Shinzaemon"/>
+			<name name="{=pr5IdVlQ}Choutaro"/>
+			<name name="{=6get6Y8E}Chouichiro"/>
+			<name name="{=b9VnjeKp}Choujiro"/>
+			<name name="{=ZjsS13ws}Chouzaburo"/>
+			<name name="{=QP1vL1Z5}Chougoro"/>
+			<name name="{=onoKVXjp}Choujuro"/>
+			<name name="{=8Lqk2NsA}Chousuke"/>
+			<name name="{=XWldYuhm}Chouunosuke"/>
+			<name name="{=q1a85TXt}Choukichi"/>
+			<name name="{=QCC1D0p5}Chouzo"/>
+			<name name="{=uA1I8WpX}Choubei"/>
+			<name name="{=S34Gm8bG}Chouzaemon"/>
+			<name name="{=7wmjr9N6}Chouemon"/>
+			<name name="{=FyfAPTam}Yotaro"/>
+			<name name="{=5yIPZNOC}Yoichiro"/>
+			<name name="{=lK7DyjrE}Yojiro"/>
+			<name name="{=MJ1Oqpvu}Yosaburo"/>
+			<name name="{=JNR0uO1t}Yogoro"/>
+			<name name="{=73ORmCAk}Yojuro"/>
+			<name name="{=ZMYEFBjO}Yosuke"/>
+			<name name="{=EgvAhszY}Yonosuke"/>
+			<name name="{=NC96SIAV}Yokichi"/>
+			<name name="{=Xr2ZmWZw}Yozo"/>
+			<name name="{=29MCqLs8}Yohei"/>
+			<name name="{=RPKbRH8T}Yozaemon"/>
+			<name name="{=FcRcfWZy}Yoemon"/>
+			<name name="{=DhCSfZzt}Gentaro"/>
+			<name name="{=DvyQIA3d}Genichiro"/>
+			<name name="{=ItTycCE3}Genjiro"/>
+			<name name="{=8p1CMJc0}Genzaburo"/>
+			<name name="{=TZVh0WX4}Gengoro"/>
+			<name name="{=WFx5O7js}Genjuro"/>
+			<name name="{=cJ2lc6t0}Gensuke"/>
+			<name name="{=geoBdNT4}Gennosuke"/>
+			<name name="{=m7TQ90rZ}Genzo"/>
+			<name name="{=TkJw9Duw}Gennai"/>
+			<name name="{=Z1zN5otw}Genbei"/>
+			<name name="{=AbuVBtV8}Genzaemon"/>
+			<name name="{=AtsmKH9M}Genemon"/>
+			<name name="{=HG9UGvJg}Kotaro"/>
+			<name name="{=8kVtgCIk}Koichiro"/>
+			<name name="{=6vARoohf}Kojiro"/>
+			<name name="{=Ak4DXEag}Kosaburo"/>
+			<name name="{=xYhQ9Gab}Kogoro"/>
+			<name name="{=KFlqyj5C}Kojuro"/>
+			<name name="{=88kt2fqY}Shotaro"/>
+			<name name="{=lUXZJHsr}Shoichiro"/>
+			<name name="{=yylgHdJi}Shojiro"/>
+			<name name="{=WJocHKZm}Shosaburo"/>
+			<name name="{=aoezMSUO}Shogoro"/>
+			<name name="{=rKb72D2I}Shojuro"/>
+			<name name="{=8ZO6U0MK}Shosuke"/>
+			<name name="{=FKcnKXmS}Shonosuke"/>
+			<name name="{=w3AqbTQs}Shokichi"/>
+			<name name="{=m10TL2CQ}Shozo"/>
+			<name name="{=enQ9CtYF}Shobei"/>
+			<name name="{=yOuFJRP1}Shozaemon"/>
+			<name name="{=nitvYEGB}Shoemon"/>
+			<name name="{=V8VowuPM}Toutaro"/>
+			<name name="{=TaQeyQCL}Touichiro"/>
+			<name name="{=qXPONqPW}Toujiro"/>
+			<name name="{=FZDkXvEM}Tousaburo"/>
+			<name name="{=2z2LglVH}Tougoro"/>
+			<name name="{=V9bQ7Maa}Toujuro"/>
+			<name name="{=1QBVd4da}Tousuke"/>
+			<name name="{=SmVurwZt}Tounosuke"/>
+			<name name="{=Wq5qYwL7}Toukichi"/>
+			<name name="{=n1btMUnd}Touzo"/>
+			<name name="{=wsOx7Udj}Tounai"/>
+			<name name="{=ffaLCN8L}Toubei"/>
+			<name name="{=WdoaF6Up}Touzaemon"/>
+			<name name="{=0TrEYRKe}Touemon"/>
+			<name name="{=cousoQ4k}Mataichiro"/>
+			<name name="{=7GGb9pks}Matajiro"/>
+			<name name="{=Mi6jEdGA}Matasaburo"/>
+			<name name="{=50m6bXju}Matagoro"/>
+			<name name="{=HEpg6hFQ}Matajuro"/>
+			<name name="{=EjYlRDvH}Matasuke"/>
+			<name name="{=irRONE36}Matanosuke"/>
+			<name name="{=XGQmrAxZ}Matakichi"/>
+			<name name="{=Faecpmvv}Matazo"/>
+			<name name="{=hDYNv8cs}Matabei"/>
+			<name name="{=iXpL1lbL}Matazaemon"/>
+			<name name="{=P4kQzauj}Mataemon"/>
+			<name name="{=5i4ToX51}Tokutaro"/>
+			<name name="{=pMvZ04mm}Tokuichiro"/>
+			<name name="{=INK1MJlR}Tokujiro"/>
+			<name name="{=jlDVjQnu}Tokusaburo"/>
+			<name name="{=HQ7qfRgD}Tokugoro"/>
+			<name name="{=clrovKXi}Tokujuro"/>
+			<name name="{=FQlRLvY9}Tokusuke"/>
+			<name name="{=CCUwTZYL}Tokunosuke"/>
+			<name name="{=9qQ9evZv}Tokukichi"/>
+			<name name="{=ijnOHHSh}Tokuzo"/>
+			<name name="{=30Z0KoSI}Tokubei"/>
+			<name name="{=lIvG7CnE}Tokuzaemon"/>
+			<name name="{=RdMNMHrY}Tokuemon"/>
+			<name name="{=U58ZOdQG}Yataro"/>
+			<name name="{=ny1aqEL7}Yaichiro"/>
+			<name name="{=k0kehmUu}Yajiro"/>
+			<name name="{=XKMzktuD}Yasaburo"/>
+			<name name="{=EfW7Ru9p}Yagoro"/>
+			<name name="{=UUNZapL6}Yajuro"/>
+			<name name="{=4TAPNSDP}Yasuke"/>
+			<name name="{=STLLrKL8}Yanosuke"/>
+			<name name="{=fPHEbh56}Yakichi"/>
+			<name name="{=dhkBuvlk}Yazo"/>
+			<name name="{=Nh4tadmB}Yahei"/>
+			<name name="{=u1LJWWKJ}Yazaemon"/>
+			<name name="{=12lLmL2X}Yaemon"/>
+			<name name="{=9CL8y7uV}Magotaro"/>
+			<name name="{=W1Uk2bMW}Magoichiro"/>
+			<name name="{=CpstFlRL}Magojiro"/>
+			<name name="{=myxmbqU0}Magozaburo"/>
+			<name name="{=BewFYzJe}Magogoro"/>
+			<name name="{=k2aKue4A}Magojuro"/>
+			<name name="{=Mszofuwe}Magosuke"/>
+			<name name="{=PG1lH9J9}Magonosuke"/>
+			<name name="{=DnJOcAzi}Magokichi"/>
+			<name name="{=PM82Pqwb}Magozo"/>
+			<name name="{=zIfoLUIX}Magobei"/>
+			<name name="{=TTt1dATj}Magozaemon"/>
+			<name name="{=7nUQ4by7}Magoemon"/>
+			<name name="{=kISlg1tA}Zenichiro"/>
+			<name name="{=w6XY8Pw4}Zenjiro"/>
+			<name name="{=Qm5bAnQX}Zenzaburo"/>
+			<name name="{=Z3BeJBAS}Zengoro"/>
+			<name name="{=aFnWRxFk}Zenjuro"/>
+			<name name="{=6xE2RZ7l}Zensuke"/>
+			<name name="{=XJ9ajAGZ}Zennosuke"/>
+			<name name="{=UhAHri58}Zenkichi"/>
+			<name name="{=8dQZUa4y}Zenzo"/>
+			<name name="{=WfUZsGO1}Zennai"/>
+			<name name="{=E2TB5J7F}Zenbei"/>
+			<name name="{=cs1H4EqR}Zenzaemon"/>
+			<name name="{=6sEaLkkL}Zenemon"/>
+			<name name="{=i62ROvkh}Kiichiro"/>
+			<name name="{=usXhU7cq}Kizaburo"/>
+			<name name="{=siR5eu2H}Kijuro"/>
+			<name name="{=rptigya9}Kisuke"/>
+			<name name="{=JRFFb5Yp}Kinosuke"/>
+			<name name="{=aexJxPzD}Kizo"/>
+			<name name="{=5iJKF6OL}Souichiro"/>
+			<name name="{=bOaRvMKu}Soujiro"/>
+			<name name="{=KOYIX6bo}Souzaburo"/>
+			<name name="{=hQ8J9ehd}Sougoro"/>
+			<name name="{=WpNXQ2Wg}Soujuro"/>
+			<name name="{=MSQw9m26}Sousuke"/>
+			<name name="{=MSA98yTk}Sounosuke"/>
+			<name name="{=BcZmXIib}Soukichi"/>
+			<name name="{=FDNTSgX5}Souzo"/>
+			<name name="{=QQyFUrjM}Soubei"/>
+			<name name="{=95u0n5Gw}Souzaemon"/>
+			<name name="{=UuJecsoc}Souemon"/>
+			<name name="{=rC6bGIYr}Jinichiro"/>
+			<name name="{=tUuATMXL}Jinjiro"/>
+			<name name="{=5CILZ1Mw}Jinzaburo"/>
+			<name name="{=xntsULXS}Jingoro"/>
+			<name name="{=3kZ6KnLw}Jinjuro"/>
+			<name name="{=1YstbZrT}Jinsuke"/>
+			<name name="{=ZUSD95RW}Jinnosuke"/>
+			<name name="{=CifluU3w}Jinkichi"/>
+			<name name="{=RtC7Igb8}Jinzo"/>
+			<name name="{=WYjJfaRF}Jinbei"/>
+			<name name="{=li6FcW6d}Jinzaemon"/>
+			<name name="{=OFRiI1ZH}Jinemon"/>
+			<name name="{=PT48Pdyv}Hikoichiro"/>
+			<name name="{=qOHD4hmz}Hikojiro"/>
+			<name name="{=claatCYX}Hikozaburo"/>
+			<name name="{=LVSnchon}Hikogoro"/>
+			<name name="{=Md3I4b9A}Hikojuro"/>
+			<name name="{=NOhSVuEd}Hikosuke"/>
+			<name name="{=IyWeSdrc}Hikonosuke"/>
+			<name name="{=Wz5ivE3j}Hikozo"/>
+			<name name="{=4LySx3FC}Hikobei"/>
+			<name name="{=0PkorrCr}Hikozaemon"/>
+			<name name="{=leI5JyG8}Hikoemon"/>
+			<name name="{=nrW2LLb4}Seiichiro"/>
+			<name name="{=YqIBnGJg}Seijiro"/>
+			<name name="{=eZf87dj4}Seizaburo"/>
+			<name name="{=CiuuF7Zt}Seigoro"/>
+			<name name="{=Xtf9w0UQ}Seijuro"/>
+			<name name="{=ryPxfNOi}Seisuke"/>
+			<name name="{=OMsFEksS}Seinosuke"/>
+			<name name="{=Bt3wxgJc}Seizo"/>
+			<name name="{=qctPhh4n}Seibei"/>
+			<name name="{=iwo72hty}Seizaemon"/>
+			<name name="{=23onjdyq}Seiemon"/>
+			<name name="{=RP6oIBv1}Sentaro"/>
+			<name name="{=1XiYQZec}Senjiro"/>
+			<name name="{=PHWNIb1U}Senzaburo"/>
+			<name name="{=aIRIvtzt}Sengoro"/>
+			<name name="{=jXS4Xyuz}Senjuro"/>
+			<name name="{=wOXwXos9}Sensuke"/>
+			<name name="{=o6ipx7CX}Sennosuke"/>
+			<name name="{=GbzQmodT}Senzo"/>
+			<name name="{=6HSVwyHm}Senbei"/>
+			<name name="{=k0QkYUKf}Senzaemon"/>
+			<name name="{=HDO43hmP}Senemon"/>
+			<name name="{=BZenLkHE}Mantaro"/>
+			<name name="{=EaxgVhEA}Manjiro"/>
+			<name name="{=oHVTd16T}Manzaburo"/>
+			<name name="{=W1f3Xyka}Mangoro"/>
+			<name name="{=KQJB6tIF}Manjuro"/>
+			<name name="{=Dgnokr0s}Mansuke"/>
+			<name name="{=ZuY3PKvk}Mannosuke"/>
+			<name name="{=2zvbXuvD}Manzo"/>
+			<name name="{=DemRvjqX}Manbei"/>
+			<name name="{=xqLuC100}Manzaemon"/>
+			<name name="{=bKpT7ydh}Manemon"/>
+			<name name="{=qTjJ6VNB}Kouichiro"/>
+			<name name="{=9YfwfCjt}Koujiro"/>
+			<name name="{=OiQWNnCC}Kouzaburo"/>
+			<name name="{=alsRXQfE}Kougoro"/>
+			<name name="{=tiQigL4M}Koujuro"/>
+			<name name="{=5vy1Kcut}Kousuke"/>
+			<name name="{=ewIhSqSg}Kounosuke"/>
+			<name name="{=uUuyf0oq}Kouzo"/>
+			<name name="{=6JYI2cM1}Koubei"/>
+			<name name="{=Ucc1XJtA}Kouzaemon"/>
+			<name name="{=c0POyeDy}Kouemon"/>
+			<name name="{=8r6KNpJu}Ichitaro"/>
+			<name name="{=adSaxUtg}Ichijiro"/>
+			<name name="{=PHZYnyJG}Ichisaburo"/>
+			<name name="{=2Zz5tOGM}Ichigoro"/>
+			<name name="{=UE8Q9iLC}Ichijuro"/>
+			<name name="{=A38aKm8V}Ichisuke"/>
+			<name name="{=6maHAom2}Ichinosuke"/>
+			<name name="{=jGDO6UVX}Ichizo"/>
+			<name name="{=fRC2Sv0I}Ichibei"/>
+			<name name="{=vvLImum3}Ichizaemon"/>
+			<name name="{=qzEnN6b2}Ichiemon"/>
+			<name name="{=Bv1SBqYA}Dentaro"/>
+			<name name="{=0iGkPeDd}Denichiro"/>
+			<name name="{=1jKdOkXK}Denjiro"/>
+			<name name="{=oS7aAM2u}Densaburo"/>
+			<name name="{=0676hgZd}Dengoro"/>
+			<name name="{=4rt2PIJj}Denjuro"/>
+			<name name="{=vrNgITIa}Densuke"/>
+			<name name="{=bSnAdlUv}Dennosuke"/>
+			<name name="{=n8ygcUdT}Denzo"/>
+			<name name="{=uL8OvdBZ}Dennai"/>
+			<name name="{=ENaKTTDb}Denbei"/>
+			<name name="{=EVBmSHD1}Denzaemon"/>
+			<name name="{=F3NFayMh}Denemon"/>
+			<name name="{=5YYTcaY5}Buntaro"/>
+			<name name="{=5PkRFEfl}Bunichiro"/>
+			<name name="{=3kNHKBLR}Bunjiro"/>
+			<name name="{=bxtXeEFE}Bunsaburo"/>
+			<name name="{=0iBcR9Oj}Bungoro"/>
+			<name name="{=Fg3jIKFw}Bunjuro"/>
+			<name name="{=rvIN9ZTT}Bunsuke"/>
+			<name name="{=7I5vZfW3}Bunnosuke"/>
+			<name name="{=6wEnMxwM}Bunzo"/>
+			<name name="{=csOTlDG2}Bunnai"/>
+			<name name="{=Ild4lSX7}Bunbei"/>
+			<name name="{=IhUPTgiY}Bunzaemon"/>
+			<name name="{=xwzqFQHe}Bunemon"/>
+			<name name="{=xNuFAChh}Kyutaro"/>
+			<name name="{=PGONDRwL}Kyuichiro"/>
+			<name name="{=YphWCH0O}Kyujiro"/>
+			<name name="{=RK9XaxfL}Kyusaburo"/>
+			<name name="{=jCPhfeQe}Kyugoro"/>
+			<name name="{=whdi1PqW}Kyujuro"/>
+			<name name="{=qboKlFcb}Kyusuke"/>
+			<name name="{=IqtNcUKR}Kyunosuke"/>
+			<name name="{=EnAKh2jl}Kyuzo"/>
+			<name name="{=kmP42SIm}Kyunai"/>
+			<name name="{=6lv28NaV}Kyubei"/>
+			<name name="{=WtrhY68f}Kyuzaemon"/>
+			<name name="{=UoyQxG88}Kyuemon"/>
+			<name name="{=RgM49V8I}Risuke"/>
+			<name name="{=rOuEyl4j}Rihei"/>
+			<name name="{=WtGggyWu}Tomotaro"/>
+			<name name="{=FALveYtm}Tomoichiro"/>
+			<name name="{=cPCDrqQ9}Tomojiro"/>
+			<name name="{=FrCZl1Kc}Tomosaburo"/>
+			<name name="{=aTLCRfbo}Tomogoro"/>
+			<name name="{=VJ8JjKdn}Tomojuro"/>
+			<name name="{=eybQD7fW}Tomosuke"/>
+			<name name="{=ouJSaXMs}Tomonosuke"/>
+			<name name="{=5cUv40An}Tomozo"/>
+			<name name="{=EkbEmCds}Mosuke"/>
+			<name name="{=jskM3d0i}Mohei"/>
+			<name name="{=NrA6HIZh}Kintaro"/>
+			<name name="{=848CJxJF}Kinichiro"/>
+			<name name="{=7Y0EXAUF}Kinjiro"/>
+			<name name="{=YscUSvVM}Kinsaburo"/>
+			<name name="{=XFTScKgz}Kingoro"/>
+			<name name="{=NGdaEade}Kinjuro"/>
+			<name name="{=TZ1EuCNG}Kinsuke"/>
+			<name name="{=4MflqKiV}Kinnosuke"/>
+			<name name="{=FNMFahJE}Kinzo"/>
+			<name name="{=cRihXQNl}Kinbei"/>
+			<name name="{=4CONhzCA}Kinzaemon"/>
+			<name name="{=96CxYziS}Kinemon"/>
+			<name name="{=x0UuCfZy}Kametaro"/>
+			<name name="{=ZfUBVs4h}Kameichiro"/>
+			<name name="{=a01TqKHx}Kamejiro"/>
+			<name name="{=OfQZK6DU}Kamesaburo"/>
+			<name name="{=xyMCyFya}Kamegoro"/>
+			<name name="{=4enmAjQG}Kamejuro"/>
+			<name name="{=2RTqEBHZ}Kamesuke"/>
+			<name name="{=DsdZZ7ls}Kamenosuke"/>
+			<name name="{=nhWIvnQN}Kamezo"/>
+			<name name="{=22qdH8rc}Tsurutaro"/>
+			<name name="{=sAfPsIZ8}Tsuruichiro"/>
+			<name name="{=kfHjrOIs}Tsurujiro"/>
+			<name name="{=5CSrGJfb}Tsurusaburo"/>
+			<name name="{=wkcqyrPI}Tsurugoro"/>
+			<name name="{=EugzWPXo}Tsurujuro"/>
+			<name name="{=p0vR6eJa}Tsurusuke"/>
+			<name name="{=7N515T5W}Tsurunosuke"/>
+			<name name="{=oUA7SxtT}Tsuruzo"/>
+			<name name="{=oTCqcyRD}Sakutaro"/>
+			<name name="{=jJYN1RwQ}Sakuichiro"/>
+			<name name="{=VHEgq8bQ}Sakujiro"/>
+			<name name="{=7qfdlqBi}Sakusaburo"/>
+			<name name="{=WeUjfIJ1}Sakugoro"/>
+			<name name="{=ZzfKmRnj}Sakujuro"/>
+			<name name="{=vSeWlxFv}Sakusuke"/>
+			<name name="{=PruyWPPU}Sakunosuke"/>
+			<name name="{=IqqhbpKT}Sakuzo"/>
+			<name name="{=Jts7a19A}Sakubei"/>
+			<name name="{=uzEmlox6}Iichiro"/>
+			<name name="{=9iBq0QQK}Izaburo"/>
+			<name name="{=2AiJGGSn}Ijuro"/>
+			<name name="{=CTOORbUG}Isuke"/>
+			<name name="{=jGQAK7wi}Inosuke"/>
+			<name name="{=ZzQtwy55}Izo"/>
+			<name name="{=1DpmL0dT}Ihei"/>
+			<name name="{=M24CQ7LC}Izaemon"/>
+			<name name="{=0HhVmhAb}Iemon"/>
+			<name name="{=M7NqDxH8}Sasuke"/>
+			<name name="{=mCtJGBTR}Tarozaemon"/>
+			<name name="{=0dcfuOXl}Taroemon"/>
+			<name name="{=MvkAmOXM}Jirozaemon"/>
+			<name name="{=6xKoyc6E}Hiroemon"/>
+			<name name="{=hNnejvkq}Saburozaemon"/>
+			<name name="{=h8G0fO3K}Saburoemon"/>
+			<name name="{=kNjiQUn5}Shirozaemon"/>
+			<name name="{=KeKB3A1g}Shiroemon"/>
+			<name name="{=p2JXgAFZ}Gorozaemon"/>
+			<name name="{=Z62OstUb}Goroemon"/>
+		</male_names>
+		<female_names>
+			<name name="{=ab4sZWzd}Ai"/>
+			<name name="{=japJIRRy}Ao"/>
+			<name name="{=VHbcxIU1}Aka"/>
+			<name name="{=CMxdilZo}Aki"/>
+			<name name="{=oldI3981}Asa"/>
+			<name name="{=IrnQzBvz}Ashi"/>
+			<name name="{=ONWqd9Hd}Aso"/>
+			<name name="{=u9Pq27aa}Ama"/>
+			<name name="{=bLckTBYg}Ami"/>
+			<name name="{=Yk5AaGis}Aya"/>
+			<name name="{=9spwFIMF}Ayu"/>
+			<name name="{=icH6H6qJ}Ara"/>
+			<name name="{=UgdrhMLn}Awa"/>
+			<name name="{=Anthc16w}Iki"/>
+			<name name="{=qimV9Hxm}Iku"/>
+			<name name="{=T6f6o1Bn}Isi"/>
+			<name name="{=G3bhQAAE}Ise"/>
+			<name name="{=c7q2fLjb}Iso"/>
+			<name name="{=p3I674Qb}Iti"/>
+			<name name="{=0rDc1SBx}Ito"/>
+			<name name="{=B3kJ5DP4}Ina"/>
+			<name name="{=soDfj3wG}Ine"/>
+			<name name="{=Tz4Dextk}Ino"/>
+			<name name="{=gK8vPJRo}Ima"/>
+			<name name="{=TQiCvmEX}Iyo"/>
+			<name name="{=fif8CY4b}Iwa"/>
+			<name name="{=hL7n98V7}Uki"/>
+			<name name="{=Rjj08KZk}Usu"/>
+			<name name="{=1tp1eT1f}Uta"/>
+			<name name="{=FNz4NI40}Une"/>
+			<name name="{=HnHrluJJ}Umi"/>
+			<name name="{=gE3Hqou8}Ume"/>
+			<name name="{=1I8FC31x}Uya"/>
+			<name name="{=Sl3saZgp}Ura"/>
+			<name name="{=qfFDtDwr}Uri"/>
+			<name name="{=RJSAXUMm}Uzu"/>
+			<name name="{=Tr73jAZQ}Udo"/>
+			<name name="{=j4HdI45k}Ena"/>
+			<name name="{=L7msLwYi}Ema"/>
+			<name name="{=LT0jytMw}Emi"/>
+			<name name="{=HFBFS90C}Oki"/>
+			<name name="{=DsOfIrAJ}Oku"/>
+			<name name="{=s9l9Q3k4}Otu"/>
+			<name name="{=TxdyO9Ap}Oto"/>
+			<name name="{=gyuAycqs}Kai"/>
+			<name name="{=up78idxc}Kane"/>
+			<name name="{=VT6HjYzj}Kano"/>
+			<name name="{=8k3FCmKN}Kaho"/>
+			<name name="{=KSdRaHkS}Kame"/>
+			<name name="{=ujfb2pFG}Kaya"/>
+			<name name="{=IOqdIxCq}Kayo"/>
+			<name name="{=kv3ndFaH}Kiku"/>
+			<name name="{=Pv7ea4X6}Kisi"/>
+			<name name="{=EW5X2f0M}Kise"/>
+			<name name="{=zdb2NTCA}Kiso"/>
+			<name name="{=jLY0MV0K}Kita"/>
+			<name name="{=6wI9KqdW}Kiti"/>
+			<name name="{=FEKGGq4E}Kitu"/>
+			<name name="{=UmIltDrq}Kina"/>
+			<name name="{=RI8N5c4R}Kima"/>
+			<name name="{=8WfG5S6b}Kinu"/>
+			<name name="{=sfFxUyMo}Kine"/>
+			<name name="{=mWIkRnp4}Kino"/>
+			<name name="{=KmjDf7sk}Kiyo"/>
+			<name name="{=1I1ml2CF}Kin"/>
+			<name name="{=TelT9dGO}Kusi"/>
+			<name name="{=gJqMupbd}Kuni"/>
+			<name name="{=ClZg7i2D}Kuma"/>
+			<name name="{=evYMHyLJ}Kuri"/>
+			<name name="{=0VtFmtbM}Kura"/>
+			<name name="{=zKgtrFlM}Kuwa"/>
+			<name name="{=XvOb3Vwc}Kesa"/>
+			<name name="{=1JS0UhVH}Koi"/>
+			<name name="{=bmxZofcA}Kosi"/>
+			<name name="{=3O8nA90w}Koto"/>
+			<name name="{=9mxqMpWp}Sai"/>
+			<name name="{=5m4AaikN}Sae"/>
+			<name name="{=6RyBbZzh}Saki"/>
+			<name name="{=TlcOPE8V}Sati"/>
+			<name name="{=b5jjvG8v}Sato"/>
+			<name name="{=A0nnN1Bs}Sana"/>
+			<name name="{=TuSOLp1h}Sano"/>
+			<name name="{=3ZG5q6fC}Sane"/>
+			<name name="{=4Qq2nraH}Saya"/>
+			<name name="{=LTGg9VfY}Sayo"/>
+			<name name="{=te1zrRcu}Sawa"/>
+			<name name="{=V8ZjxSqh}San"/>
+			<name name="{=uH3PP2vd}Sii"/>
+			<name name="{=cltMCIte}Sie"/>
+			<name name="{=eIRxHAfM}Sino"/>
+			<name name="{=p0pwjEGg}Sima"/>
+			<name name="{=LkpYelD5}Sira"/>
+			<name name="{=qq7IhZqX}Sige"/>
+			<name name="{=txd54Uxq}Sizu"/>
+			<name name="{=Rpp0GkVb}Sue"/>
+			<name name="{=DsMiOMAl}Sumi"/>
+			<name name="{=Co6CVsTn}Suwa"/>
+			<name name="{=9PFPNnut}Suzu"/>
+			<name name="{=LciAOoxg}Seki"/>
+			<name name="{=dZN5LLR7}Seto"/>
+			<name name="{=90tYcZnV}Sena"/>
+			<name name="{=C0WToKkS}Seri"/>
+			<name name="{=ALmaRDqh}Sen"/>
+			<name name="{=LdhmLcqT}Sono"/>
+			<name name="{=p7HhzIOW}Some"/>
+			<name name="{=qJl74TrM}Sora"/>
+			<name name="{=hFoAOFav}Tae"/>
+			<name name="{=euu2KEpY}Taka"/>
+			<name name="{=BdezqiyJ}Taki"/>
+			<name name="{=KxoQul8K}Take"/>
+			<name name="{=gHTh0qbu}Tatu"/>
+			<name name="{=rqJlNuAP}Tani"/>
+			<name name="{=DBzh6GCw}Tane"/>
+			<name name="{=gGpyeF6m}Tama"/>
+			<name name="{=BtvJlQvJ}Tami"/>
+			<name name="{=788TRav9}Tame"/>
+			<name name="{=3ndapyaU}Tie"/>
+			<name name="{=gSk9DM6l}Tika"/>
+			<name name="{=FPFqiv7a}Tise"/>
+			<name name="{=aHHPOcUo}Tita"/>
+			<name name="{=cfJP1a1D}Tino"/>
+			<name name="{=OyxDo16q}Tiyo"/>
+			<name name="{=UZrCJPZv}Tuki"/>
+			<name name="{=fJzk4BNs}Tuta"/>
+			<name name="{=whxtdqVI}Tuna"/>
+			<name name="{=ZBK2n7tg}Tune"/>
+			<name name="{=Imo98lXX}Tuya"/>
+			<name name="{=PZbf10XQ}Tuyu"/>
+			<name name="{=6HSzptnS}Turu"/>
+			<name name="{=J0UsxkRC}Tei"/>
+			<name name="{=g1qXRvel}Teru"/>
+			<name name="{=a3VKcfJa}Toi"/>
+			<name name="{=T62NIiA6}Toki"/>
+			<name name="{=TFs4nM7I}Toku"/>
+			<name name="{=ZzRx1abW}Tosa"/>
+			<name name="{=ecTaQB7j}Tosi"/>
+			<name name="{=TJMitVon}Tose"/>
+			<name name="{=XZlG26oj}Toti"/>
+			<name name="{=kFitx5pm}Tone"/>
+			<name name="{=8BeZLj90}Tomi"/>
+			<name name="{=VRx7ynCm}Tome"/>
+			<name name="{=iqkzFqot}Toyo"/>
+			<name name="{=VwDXADid}Tora"/>
+			<name name="{=Di20AtpT}Towa"/>
+			<name name="{=ZzWzXLht}Nae"/>
+			<name name="{=nDpHHmR1}Nao"/>
+			<name name="{=ZEmO4WfN}Naka"/>
+			<name name="{=QsnLEOc2}Nata"/>
+			<name name="{=3x8xcHOj}Natu"/>
+			<name name="{=tT546r7c}Nana"/>
+			<name name="{=eVbD6jeL}Nami"/>
+			<name name="{=gvK789wT}Nara"/>
+			<name name="{=VPUvGEii}Nawa"/>
+			<name name="{=kVvV6i76}Nisi"/>
+			<name name="{=NyCRcnms}Nei"/>
+			<name name="{=AiQKTb3M}Nene"/>
+			<name name="{=HEKsNIc0}Noe"/>
+			<name name="{=nFeGwvdW}Noto"/>
+			<name name="{=CGlpxIRk}Haku"/>
+			<name name="{=4RaBnJJd}Hasu"/>
+			<name name="{=bucIcjxy}Hata"/>
+			<name name="{=oA19rmhg}Hatu"/>
+			<name name="{=2uCie4Q2}Hana"/>
+			<name name="{=OcCRaagX}Haru"/>
+			<name name="{=ue0urULM}Hisa"/>
+			<name name="{=EJpUBSCs}Hisi"/>
+			<name name="{=6HoPLMn3}Hina"/>
+			<name name="{=vY9Bp6uB}Fuki"/>
+			<name name="{=9LTZ9XB7}Fuku"/>
+			<name name="{=4UmAhqew}Fusa"/>
+			<name name="{=UohnfxGD}Fusi"/>
+			<name name="{=XCHQC5f3}Futi"/>
+			<name name="{=KyQ1C73j}Funa"/>
+			<name name="{=Gnl8tupV}Fune"/>
+			<name name="{=4akZ5HEq}Fumi"/>
+			<name name="{=kLALO29g}Fuzi"/>
+			<name name="{=88hLDKtN}Mai"/>
+			<name name="{=5OrsY3Wz}Maki"/>
+			<name name="{=gxfZ2w3W}Masa"/>
+			<name name="{=yJXssD0P}Masu"/>
+			<name name="{=LJyp9AKZ}Matu"/>
+			<name name="{=bj63fnCB}Mana"/>
+			<name name="{=4rWDHouO}Mame"/>
+			<name name="{=qXNWMbUO}Mayu"/>
+			<name name="{=wblnzRnV}Mari"/>
+			<name name="{=ufNTpzmv}Mie"/>
+			<name name="{=ZqMNObKk}Miki"/>
+			<name name="{=LuePJv7g}Miti"/>
+			<name name="{=PV5iDOtM}Mitu"/>
+			<name name="{=D7la9JKQ}Mina"/>
+			<name name="{=Gu1BKtTu}Mine"/>
+			<name name="{=6kg6dx0j}Miya"/>
+			<name name="{=ZMQ1VDUl}Miyo"/>
+			<name name="{=DvL7f4QU}Moto"/>
+			<name name="{=aq9b50cV}Momo"/>
+			<name name="{=wRPynz1h}Yae"/>
+			<name name="{=eHd1rxID}Yasu"/>
+			<name name="{=sufwawfp}Yui"/>
+			<name name="{=vOc88PUp}Yuki"/>
+			<name name="{=q8EmtRbW}Yuna"/>
+			<name name="{=vnjOoU7B}Yumi"/>
+			<name name="{=0b9APW9w}Yume"/>
+			<name name="{=yjmoZDpL}Yuri"/>
+			<name name="{=y3LihP27}Yosi"/>
+			<name name="{=ynSceRn1}Yona"/>
+			<name name="{=llXWtjvk}Yone"/>
+			<name name="{=keDd7GwF}Yono"/>
+			<name name="{=p2YaumtD}Rie"/>
+			<name name="{=6BuhQ3yC}Riku"/>
+			<name name="{=LVLqSHsN}Risa"/>
+			<name name="{=dUUYeeqh}Ritu"/>
+			<name name="{=xdlCLqcy}Rin"/>
+			<name name="{=zLwhd8EY}Rui"/>
+			<name name="{=IVbOeER4}Ruri"/>
+		</female_names>
+		<clan_names>
+			<name name="{=JuSWnmm9}Kozukuri"/>
+			<name name="{=TwGHHEo4}Hosono"/>
+			<name name="{=t93lkmYo}Tsuge"/>
+			<name name="{=4ryYW6y1}Ōkouchi"/>
+			<name name="{=yMlYRwy8}Akahori"/>
+			<name name="{=Z01eNIVq}Takashima"/>
+			<name name="{=jahoJ9Op}Kutsuki"/>
+			<name name="{=kJ7GSg2b}Taga"/>
+			<name name="{=DQfBZni2}Tarao"/>
+			<name name="{=0kkYlPDX}Minobe"/>
+			<name name="{=jmMlhdFh}Megata"/>
+			<name name="{=k8yscTyR}Shinjo"/>
+			<name name="{=qiAah3xb}Shiomi"/>
+			<name name="{=RJSAXUMm}Uzu"/>
+			<name name="{=XCr8m7yN}Hosomi"/>
+			<name name="{=bxr9GN0j}Hashio"/>
+			<name name="{=gP7ZPOEA}Fuse"/>
+			<name name="{=1lijcoPq}Itami"/>
+			<name name="{=g2tcLbk9}Tamaki"/>
+			<name name="{=WepUrVKw}Kakiya"/>
+		</clan_names>
+		<cultural_feats>
+			<feat id="kinai_different_culture_feat"/>
+			<feat id="kinai_renown_battle_income"/>
+			<feat id="kinai_increased_army_influence_cost"/>
+		</cultural_feats>
+		<possible_clan_banner_icon_ids>
+			<icon id="596"/>
+			<icon id="634"/>
+			<icon id="651"/>
+			<icon id="623"/>
+			<icon id="618"/>
+			<icon id="647"/>
+			<icon id="644"/>
+			<icon id="597"/>
+			<icon id="646"/>
+		</possible_clan_banner_icon_ids>
+		<notable_and_wanderer_templates>
+			<template name="NPCCharacter.spc_wanderer_kinai_0"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_1"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_2"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_3"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_4"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_5"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_6"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_7"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_8"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_9"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_10"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_11"/>
+			<template name="NPCCharacter.spc_wanderer_kinai_12"/>
+			<template name="NPCCharacter.spc_notable_kinai_0"/>
+			<template name="NPCCharacter.spc_notable_kinai_0b"/>
+			<template name="NPCCharacter.spc_notable_kinai_1"/>
+			<template name="NPCCharacter.spc_notable_kinai_1b"/>
+			<template name="NPCCharacter.spc_notable_kinai_2"/>
+			<template name="NPCCharacter.spc_notable_kinai_2b"/>
+			<template name="NPCCharacter.spc_notable_kinai_3"/>
+			<template name="NPCCharacter.spc_notable_kinai_3b"/>
+			<template name="NPCCharacter.spc_notable_kinai_4"/>
+			<template name="NPCCharacter.spc_notable_kinai_4b"/>
+			<template name="NPCCharacter.spc_notable_kinai_5"/>
+			<template name="NPCCharacter.spc_notable_kinai_6"/>
+			<template name="NPCCharacter.spc_notable_kinai_7"/>
+			<template name="NPCCharacter.spc_notable_kinai_8"/>
+			<template name="NPCCharacter.spc_notable_kinai_9"/>
+			<template name="NPCCharacter.spc_notable_kinai_10"/>
+			<template name="NPCCharacter.spc_notable_kinai_11"/>
+			<template name="NPCCharacter.spc_notable_kinai_12"/>
+			<template name="NPCCharacter.spc_notable_kinai_13"/>
+			<template name="NPCCharacter.spc_notable_kinai_21"/>
+			<template name="NPCCharacter.spc_notable_kinai_22"/>
+			<template name="NPCCharacter.spc_notable_kinai_gl1"/>
+			<template name="NPCCharacter.spc_notable_kinai_gl4"/>
+			<template name="NPCCharacter.spc_kinai_headman_1"/>
+			<template name="NPCCharacter.spc_kinai_headman_2"/>
+			<template name="NPCCharacter.spc_kinai_headman_3"/>
+		</notable_and_wanderer_templates>
+		<lord_templates>
+			<template name="NPCCharacter.lord_template_kinai_male"/>
+			<template name="NPCCharacter.lord_template_kinai_female"/>
+		</lord_templates>
+		<rebellion_hero_templates>
+			<template name="NPCCharacter.lord_template_kinai_male"/>
+			<template name="NPCCharacter.lord_template_kinai_female"/>
+		</rebellion_hero_templates>
+		<tournament_team_templates_one_participant>
+			<template name="NPCCharacter.tournament_template_kinai_one_participant_set_v1"/>
+		</tournament_team_templates_one_participant>
+		<tournament_team_templates_two_participant>
+			<template name="NPCCharacter.tournament_template_kinai_one_participant_set_v1"/>
+		</tournament_team_templates_two_participant>
+		<tournament_team_templates_four_participant>
+			<template name="NPCCharacter.tournament_template_kinai_one_participant_set_v1"/>
+		</tournament_team_templates_four_participant>
+		<basic_mercenary_troops>
+			<template name="NPCCharacter.yumi_ashigaru"/>
+			<template name="NPCCharacter.yumi_ashigaru"/>
+			<template name="NPCCharacter.yumi_ashigaru"/>
+		</basic_mercenary_troops>
+	</Culture>
+</SPCultures>

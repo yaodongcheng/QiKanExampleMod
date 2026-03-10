@@ -1,0 +1,198 @@
+<Prefab>
+  <Window>
+    <!-- 全屏根容器 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+
+        <!-- ================================================================= -->
+        <!-- 部分 A: 选项列表容器 (动态绑定)                                   -->
+        <!-- ================================================================= -->
+        <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                HorizontalAlignment="Right" VerticalAlignment="Top"
+                MarginRight="0" MarginTop="300" DoNotAcceptEvents="true"
+                IsVisible="@AreOptionsVisible">
+          <Children>
+            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" 
+                       StackLayout.LayoutMethod="VerticalTopToBottom"
+                       DataSource="{OptionList}">
+                
+                <ItemTemplate>
+				
+		
+                    <!-- 单个选项按钮模板 -->
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="500" SuggestedHeight="50"
+                                  Brush="Simple.Button.Bg"  
+                                  Command.Click="ExecuteOption"
+								  Command.HoverBegin="ExecuteHoverBegin"
+							      Command.HoverEnd="ExecuteHoverEnd"
+                                  VerticalAlignment="Center" MarginBottom="10">
+                      <Children>
+					  
+					   <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                   HorizontalAlignment="Right" 
+                   MarginRight="20"
+                   StackLayout.LayoutMethod="HorizontalRightToLeft"
+                   DoNotAcceptEvents="true">
+					  <Children>
+                         <!-- 选项文字 -->
+                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                    Text="@OptionText" Brush="Simple.Button.Text" Brush.TextHorizontalAlignment="Right"
+                                    DoNotAcceptEvents="true" HorizontalAlignment="Center" VerticalAlignment="Center"  MarginRight="70" />
+                      
+					  <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedWidth="500" SuggestedHeight="50" IsVisible="@ShouldExpand"
+							Sprite="BlankWhiteSquare_9" Color="#000000EE" VerticalAlignment="Center" DoNotAcceptEvents="true" 
+							 MarginRight="10">
+					  <Children>
+						<TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" DoNotAcceptEvents="true" 
+									Text="@PredictText" 
+									Brush="MyBrush_16_Left" TextColor="#CCCCCCFF"   
+									VerticalAlignment="Center" HorizontalAlignment="Center"
+									MarginLeft="10" MarginRight="10"/>
+					  </Children>
+					</Widget>
+					  
+					  
+					  
+					  </Children>
+					  </ListPanel>
+					  </Children>
+                    </ButtonWidget>
+					
+					<!-- 2. 文本面板 (向左展开) -->
+					<!-- 关键点：IsVisible="@ShouldExpand" 只有鼠标放上去才显示 -->
+					
+					
+					
+					
+					
+                </ItemTemplate>
+
+            </ListPanel>
+          </Children>
+        </Widget>
+
+        <!-- ================================================================= -->
+        <!-- 部分 B: 底部对话框 (动态绑定)                                      -->
+        <!-- ================================================================= -->
+      
+		
+		
+		<ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="1920"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom"  IsVisible = "@IsVisible"  Command.Click="ExecuteClick"
+            MarginBottom="80">
+      <Children>
+        <!-- 2. 背景板 (深色半透明) -->
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"  DoNotAcceptEvents="true"
+                Sprite="BlankWhiteSquare_9" Color="#00000000">
+            <Children>
+                
+                <!-- 3. 内容布局 (垂直排列：名字在上，内容在下，但是因为是Bottom，所以会反着来) -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                           LayoutMethod="VerticalTopToBottom" StackLayout.LayoutMethod="VerticalTopToBottom" DoNotAcceptEvents="true"
+                           PaddingLeft="40" PaddingRight="40" PaddingTop="20" PaddingBottom="30">
+                    <Children>
+						
+                        <!-- 使用 RichTextWidget 支持换行和富文本、中文 -->
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        Text="@DialogueContent" 
+                                        Brush="Brush_DialogText"
+                                        TextColor="#EFEFEFFF" DoNotAcceptEvents="true"
+                                        />						
+
+                        <!-- 装饰线 (可选，用高度为2的Widget模拟) -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="5" DoNotAcceptEvents="true"
+                                Sprite="order_popup_card_default_9" Color="#FFFFFF88"  HorizontalAlignment="Center"  MarginTop="15"
+                                MarginBottom="15"
+                               />
+
+                        <!-- 3.2 对话内容 (白色) -->
+                        
+						<!-- 3.1 说话人名字 (金色/醒目色) -->
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                    Text="@SpeakerName" 
+                                    Brush="Brush_DialogName" 
+                                    TextColor="#FFD700FF"                    DoNotAcceptEvents="true"                 
+                                    MarginBottom="0"/>
+                    </Children>
+                </ListPanel>
+
+            </Children>
+        </Widget>
+
+      </Children>
+    </ButtonWidget>
+	
+	
+	<!-- ================================================================= -->
+        <!-- 部分 C: 左上角冲突状态面板 (新增)                                  -->
+        <!-- ================================================================= -->
+        <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                HorizontalAlignment="Left" VerticalAlignment="Top"
+                MarginLeft="50" MarginTop="50" Sprite="BlankWhiteSquare_9" Color="#000000AA"
+                IsVisible="@IsConflictInfoVisible" DoNotAcceptEvents="true">
+            <Children>
+                
+                <!-- 垂直布局容器 -->
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                           MarginLeft="20" MarginRight="20" MarginTop="15" MarginBottom="15">
+                    <Children>
+
+                        <!-- 1. 目标文本 -->
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                    Text="@ConflictGoalText"
+                                    Brush="Brush_DialogText" 
+                                    TextColor="#FFD700FF" 
+                                    MarginBottom="10" />
+
+                        <!-- 2. 说服进度条容器 (整体) -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="400" SuggestedHeight="30"
+                                MarginBottom="10">
+                            <Children>
+                                <!-- 2.1 进度条槽位 (深灰色背景) -->
+                                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                        Sprite="BlankWhiteSquare_9" Color="#333333FF" />
+                                
+                                <!-- 2.2 实际进度条 (绿色, 动态宽度) -->
+                                <!-- 绑定 SuggestedWidth 到 ConflictBarWidth -->
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                        SuggestedWidth="@ConflictBarWidth"
+                                        HorizontalAlignment="Left"
+                                        Sprite="BlankWhiteSquare_9" Color="#228B22FF" />
+                                
+								<!-- [新增] 2.4 预测增量区间 (黄色半透明, 叠加在实际进度条之后) IsVisible="@IsPredictionVisible"  SuggestedWidth="@PredictionBarWidth"  MarginLeft="@ConflictBarWidth"-->
+							<Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+									SuggestedWidth="@PredictionBarWidth"
+									MarginLeft="@ConflictBarWidth"
+									HorizontalAlignment="Left" IsVisible="@IsPredictionVisible"
+									Sprite="BlankWhiteSquare_9" Color="#FFD70088" 
+									 /> 
+								
+								
+								
+                                <!-- 2.3 进度分数文本 (居中显示) -->
+                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                            Text="@ConflictProgressText"
+                                            Brush="Brush_DialogText" 
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            TextColor="#FFFFFFFF" />
+                            </Children>
+                        </Widget>
+
+                        <!-- 3. NPC耐心文本 -->
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                    Text="@ConflictPatienceText"
+                                    Brush="Brush_DialogName" 
+                                    TextColor="#FF6347FF" /> <!-- 番茄红 -->
+
+                    </Children>
+                </ListPanel>
+            </Children>
+        </Widget>
+	
+	
+    
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

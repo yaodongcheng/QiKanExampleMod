@@ -1,0 +1,225 @@
+<Prefab>
+  <Window>
+    <!-- 全屏容器 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            DoNotAcceptEvents="true">      
+      <Children>
+          
+          <!-- 1. 全屏黑色遮罩 (半透明) -->
+          <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                  Sprite="BlankWhiteSquare_9" Color="#000000AA" 
+                  DoNotAcceptEvents="false" /> 
+
+          <!-- 2. 主面板 (1100x750) -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="1100" SuggestedHeight="750" 
+                  HorizontalAlignment="Center" VerticalAlignment="Center"  
+                  Sprite="BlankWhiteSquare_9" Color="#101010BB"
+                  DoNotAcceptEvents="true">
+            
+            <Children>
+                
+                <!-- 三列布局容器 -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                           DoNotAcceptEvents="true">
+                    <Children>
+
+                        <!-- ================= 左侧：警惕值 (Suspicion) ================= -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="60" SuggestedHeight="600"
+                                MarginLeft="20" MarginTop="20" MarginBottom="20"
+                                Sprite="BlankWhiteSquare_9" Color="#33333388"
+                                DoNotAcceptEvents="true">
+                            <Children>
+                                <!-- 红色进度条 (动态高度) -->
+                                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" VerticalAlignment="Bottom" DoNotAcceptEvents="true">
+                                    <Children>
+                                        <!-- 关键绑定：SuggestedHeight="@SuspicionHeight" -->
+                                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" 
+                                                SuggestedHeight="@SuspicionHeight"
+                                                Sprite="BlankWhiteSquare_9" Color="#8B0000FF"
+                                                VerticalAlignment="Bottom" DoNotAcceptEvents="true" />
+                                    </Children>
+                                </Widget>
+                                
+                                <!-- 警惕图标 -->
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40"
+                                        Sprite="General\Mission\PersonalKillfeed\friendly_fire_icon" Color="#FF4444FF"
+                                        HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="10"
+                                        DoNotAcceptEvents="true"/>
+                                
+                                <!-- 百分比文字 (绑定了 SuspicionText) -->
+                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50"
+                                            Text="@SuspicionText" TextColor="#FFFFFFFF" Brush.FontSize="18"
+                                            HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="@SuspicionHeight"
+                                            DoNotAcceptEvents="true"/>
+                            </Children>
+                        </Widget>
+
+                        <!-- ================= 中间：核心博弈区 ================= -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="660"
+                                MarginLeft="20" MarginRight="20" DoNotAcceptEvents="true">
+                            <Children>
+                                
+                                <!-- Top: 雷达眼 (状态栏) -->
+                                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="100"
+                                        MarginTop="10" Sprite="BlankWhiteSquare_9" Color="#00000055"
+                                        DoNotAcceptEvents="true">
+                                    <Children>
+                                        <!-- 眼睛图标 -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40"
+                                                Sprite="MPGeneral\MPScoreboard\view_profile_icon" Color="#FF0000FF" MarginBottom="40"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true" />
+                                        
+                                        <!-- 标题文本绑定 -->
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                    Text="@CenterTitleText" Brush="MyBrush_18_White"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="5"
+                                                    DoNotAcceptEvents="true"/>
+                                    </Children>
+                                </Widget>
+
+                                <!-- Middle: 当前盲盒 / 物品展示 -->
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="400" SuggestedHeight="400"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        Sprite="BlankWhiteSquare_9" Color="#444444AA"
+                                        DoNotAcceptEvents="true">
+                                    <Children>
+                                        
+                                        <!-- 状态 A: 未知 (问号) - IsVisible="@IsItemHidden" -->
+                                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                    Text="?" TextColor="#00000055"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                    Brush.FontSize="180" DoNotAcceptEvents="true" 
+                                                    IsVisible="@IsItemHidden" />
+                                        
+                                        <!-- 状态 B: 已知 (图片) - IsVisible="@IsItemRevealed" -->
+                                        <ImageIdentifierWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                                               DataSource="{CurrentItemImage}" 
+                                                               IsVisible="@IsItemRevealed" MarginLeft="20" MarginRight="20" MarginTop="20" MarginBottom="100"/>
+
+                                        <!-- 动态信息文本 (触感/重量/价值) -->
+                                        <!-- 替换了原本静态的 ListPanel，使用 RichTextWidget 承载后台发来的多行文本 -->
+                                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@CenterInfoText" Brush="MyBrush_24" Brush.TextHorizontalAlignment="Center"
+                                                        VerticalAlignment="Bottom" MarginBottom="20" MarginLeft="10" MarginRight="10"
+                                                        DoNotAcceptEvents="true"/>
+                                    </Children>
+                                </Widget>
+
+                                <!-- Bottom: 操作按钮组 -->
+                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                           HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="40"
+                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                           DoNotAcceptEvents="true">
+                                    <Children>
+
+                                        <!-- 按钮1: 摸索 (Investigate) -->
+                                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="240" SuggestedHeight="60" 
+                                                      Brush="Test.Button2" MarginRight="10"
+                                                      Command.Click="ExecuteInvestigate" IsEnabled="@CanInvestigate">
+                                            <Children>
+                                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" 
+                                                           StackLayout.LayoutMethod="HorizontalLeftToRight" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true">
+                                                    <Children>
+                                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="35" SuggestedHeight="35"
+                                                                Sprite="General\EquipmentIcons\equipment_type_hand_armor" Color="#FFFFFF88" 
+                                                                VerticalAlignment="Center" MarginRight="5" DoNotAcceptEvents="true"/>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@InvestigateBtnText" Brush="MyBrush_24" Brush.FontSize="20"
+                                                                    VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                                                    </Children>
+                                                </ListPanel>
+                                            </Children>
+                                        </ButtonWidget>
+
+                                        <!-- 按钮2: 拿走 (Take) -->
+                                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="240" SuggestedHeight="60" 
+                                                      Brush="Test.Button2" MarginRight="10"
+                                                      Command.Click="ExecuteTake" IsEnabled="@IsItemRevealed">
+                                            <Children>
+                                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" 
+                                                           StackLayout.LayoutMethod="HorizontalLeftToRight" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true">
+                                                    <Children>
+                                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="35" SuggestedHeight="35"
+                                                                Sprite="SPGeneral\GameMenu\bribeandescape_icon" Color="#FFCCCCFF"
+                                                                VerticalAlignment="Center" MarginRight="5" DoNotAcceptEvents="true"/>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@TakeBtnText" Brush="MyBrush_24" Brush.FontSize="20"
+                                                                    VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                                                    </Children>
+                                                </ListPanel>
+                                            </Children>
+                                        </ButtonWidget>                                       
+
+                                    </Children>
+                                </ListPanel>
+
+                            </Children>
+                        </Widget>
+
+                        <!-- ================= 右侧：战利品与逃跑 ================= -->
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                MarginRight="20" MarginTop="20" MarginBottom="20"
+                                Sprite="BlankWhiteSquare_9" Color="#33333388"
+                                DoNotAcceptEvents="true">
+                            <Children>
+                                
+                                <!-- 顶部：带着战利品离开按钮 -->
+                                <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="80" Brush="Test.Button2"
+                                               MarginTop="10" MarginLeft="10" MarginRight="10"
+                                               Command.Click="ExecuteLeave">
+                                    <Children>
+                                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                   StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   DoNotAcceptEvents="true">
+                                            <Children>
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40"
+                                                        Sprite="General\Mission\exit" Color="#FFFFFFFF"
+                                                        VerticalAlignment="Center" MarginRight="10" DoNotAcceptEvents="true"/>
+                                                
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" 
+                                                            Text="收手离开" TextColor="#FFFFFFFF" Brush.FontSize="24"
+                                                            VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                                            </Children>
+                                        </ListPanel>
+                                    </Children>
+                                </ButtonWidget>
+
+                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40"
+                                            Text="临时口袋"  Brush="MyBrush_24"
+                                            HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="95"
+                                            DoNotAcceptEvents="true"/>
+
+                                <!-- 战利品列表区域 (改为显示动态日志) -->
+                                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                           MarginTop="135" MarginLeft="10" MarginRight="10" MarginBottom="10" VerticalAlignment="Top"
+                                           DoNotAcceptEvents="true">
+                                    <Children>
+                                        <!-- 半透明底板让字更清晰 -->
+                                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="BlankWhiteSquare_9" Color="#00000055" />
+                                        
+										 <!-- 简单的修补：使用 VerticalAlignment="Bottom" 让最新日志显示在底部 -->
+										<!-- 如果要完美的滚动效果，需要 ScrollablePanel，但比较复杂。 -->
+										<!-- 这里的改动是让文字从底部向上堆叠，这样最新的总能看到 -->
+										 <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                          MarginTop="60" MarginLeft="10" MarginRight="10" MarginBottom="10"
+                                          Text="@LootLogText" 
+                                          VerticalAlignment="Top" 
+                                          Brush="MyBrush_16_Left" /> 
+                                    </Children>
+                                </Widget>
+
+                            </Children>
+                        </Widget>
+
+                    </Children>
+                </ListPanel>
+
+            </Children>
+          </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

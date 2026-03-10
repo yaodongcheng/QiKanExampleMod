@@ -1,0 +1,265 @@
+﻿using System;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using HarmonyLib;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Issues;
+using TaleWorlds.CampaignSystem.Settlements;
+using \u200D\u200B\u206C\u202B\u200D\u200B\u206A\u206B\u206E\u206E\u206B\u200B\u206D\u202B\u206C\u202B\u206B\u202C\u200F\u202B\u200D\u202C\u202B\u200F\u206B\u202C\u200E\u202A\u206A\u206A\u200F\u202C\u206B\u200B\u200F\u200E\u200C\u200E\u202E\u202A\u202E;
+using \u202C\u200B\u200B\u200D\u206B\u202A\u202D\u200E\u202E\u200E\u200D\u206A\u206C\u206A\u202C\u206A\u206D\u206B\u206C\u200E\u206C\u200F\u200F\u206E\u206E\u206C\u206F\u206E\u202E\u206E\u202C\u200D\u202A\u202B\u200B\u200C\u206A\u202D\u202B\u202D\u202E;
+
+namespace AIInfluence.Patches.Issues
+{
+	// Token: 0x020002DA RID: 730
+	[HarmonyPatch]
+	public static class MerchantArmyOfPoachersIssuePatch
+	{
+		// Token: 0x0600145D RID: 5213 RVA: 0x00127C28 File Offset: 0x00125E28
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static Type \u200B\u202E\u202C\u206C\u200B\u206C\u206E\u200F\u206C\u206D\u202B\u206D\u202C\u200D\u206F\u202D\u200C\u202A\u206B\u206D\u206A\u200D\u200C\u202C\u202B\u202E\u202D\u206C\u202B\u200C\u202A\u202D\u202B\u202E\u202C\u206B\u200C\u200F\u206F\u202A\u202E()
+		{
+			Type type = \u200D\u206B\u206E\u202E\u206C\u206C\u200D\u200B\u206B\u202D\u206F\u200F\u202C\u206A\u200D\u200C\u206D\u202C\u206B\u200B\u206F\u206B\u202D\u206B\u202B\u202D\u200F\u206B\u202B\u206E\u206A\u202C\u206C\u206F\u206E\u200E\u202B\u206D\u202B\u202E\u202E.ß\u001A\u00BF\u00A3F(\u200C\u202A\u202A\u200E\u206F\u206E\u202C\u206A\u206D\u200C\u200B\u202E\u202D\u202D\u200F\u200B\u206C\u202E\u200F\u200E\u206C\u206E\u202D\u206A\u206F\u202E\u200D\u200D\u206C\u202A\u200D\u202C\u200F\u206F\u206C\u202E\u200C\u200C\u206D\u200D\u202E.\u008Cu\u0095hÌ(\u202E\u206C\u206C\u206C\u206C\u206C\u200E\u202A\u202B\u202E\u200E\u200C\u200F\u200D\u202D\u200D\u200B\u202B\u200D\u202B\u202E\u206F\u202D\u206E\u200E\u200D\u200B\u202E\u200D\u200C\u206C\u206F\u206F\u206C\u200D\u202D\u200C\u200E\u202B\u202B\u202E.Ü\u001D<ïL(typeof(IssueBase).TypeHandle)), <Module>.\u206C\u206C\u206B\u200E\u200D\u206E\u206D\u202E\u202E\u206D\u206F\u200C\u202C\u206B\u200B\u206D\u200D\u202E\u202E\u200D\u200C\u206D\u200D\u202C\u206F\u200B\u202A\u200F\u206E\u206C\u206C\u202D\u200B\u206B\u200B\u206C\u202A\u206D\u206A\u200F\u202E<string>(-410187223));
+			bool flag = \u206B\u200D\u206C\u200D\u200D\u202D\u202B\u206B\u206B\u200C\u206D\u200B\u202E\u206C\u206D\u206E\u206A\u202A\u202C\u206A\u202E\u206C\u200D\u206D\u200E\u206B\u206E\u202C\u200D\u202A\u200C\u206E\u202C\u200B\u206D\u200E\u200B\u206E\u202E\u206E\u202E.\u00BF\u000D\u00BF(j(type, null);
+			if (flag)
+			{
+				goto IL_41;
+			}
+			goto IL_BC;
+			int num2;
+			Type result;
+			for (;;)
+			{
+				IL_46:
+				int num = num2;
+				uint num3;
+				bool flag2;
+				switch ((num3 = (uint)(-(uint)(num * -341790403 - ((-1603418657 ^ 1496927674) - (792669753 ^ -1336577241)) + 2065304973))) % 10U)
+				{
+				case 0U:
+				{
+					Type type2;
+					flag2 = \u206B\u200D\u206C\u200D\u200D\u202D\u202B\u206B\u206B\u200C\u206D\u200B\u202E\u206C\u206D\u206E\u206A\u202A\u202C\u206A\u202E\u206C\u200D\u206D\u200E\u206B\u206E\u202C\u200D\u202A\u200C\u206E\u202C\u200B\u206D\u200E\u200B\u206E\u202E\u206E\u202E.\u0003\u008EQ\u000A\u008C(\u202E\u206C\u206C\u206C\u206C\u206C\u200E\u202A\u202B\u202E\u200E\u200C\u200F\u200D\u202D\u200D\u200B\u202B\u200D\u202B\u202E\u206F\u202D\u206E\u200E\u200D\u200B\u202E\u200D\u200C\u206C\u206F\u206F\u206C\u200D\u202D\u200C\u200E\u202B\u202B\u202E.Ü\u001D<ïL(typeof(IssueBase).TypeHandle), type2);
+					goto IL_109;
+				}
+				case 1U:
+				{
+					Type[] array = \u206C\u200C\u206B\u200D\u206C\u202D\u202D\u206B\u206F\u200E\u200C\u200D\u206D\u200F\u202C\u202A\u206E\u206E\u200B\u200E\u200F\u206C\u200B\u206A\u206D\u200E\u202E\u202E\u202C\u206F\u200E\u202B\u206B\u206F\u200D\u206A\u202E\u206A\u200E\u200E\u202E.)\u009Døy\u0084(type, BindingFlags.Public | BindingFlags.NonPublic);
+					Type[] array2 = array;
+					int num4 = 0;
+					num2 = (int)(num3 * 1298705224U ^ 3054794299U);
+					continue;
+				}
+				case 2U:
+				{
+					Type[] array2;
+					int num4;
+					Type type2 = array2[num4];
+					if (\u200E\u206F\u200C\u206D\u202D\u206C\u200E\u202E\u200B\u200D\u200C\u200E\u206E\u202A\u202C\u206A\u206C\u206A\u202E\u202B\u200B\u202B\u202B\u202A\u206A\u200E\u206C\u206B\u202B\u200E\u200C\u206E\u202A\u202B\u206E\u200C\u206A\u206A\u206F\u206A\u202E.\u008A\u0016\u00B1ùô(\u200C\u202D\u200E\u206C\u202B\u206A\u202B\u206B\u202D\u200B\u200D\u202D\u206A\u200E\u200C\u202E\u202E\u202B\u206E\u206D\u206B\u206B\u206D\u200F\u200F\u202D\u202D\u200C\u200F\u206D\u202E\u200F\u200F\u200B\u200C\u206D\u200F\u200E\u206B\u206D\u202E.ßa/\u0093\u00B0(type2), <Module>.\u206C\u206C\u206B\u200E\u200D\u206E\u206D\u202E\u202E\u206D\u206F\u200C\u202C\u206B\u200B\u206D\u200D\u202E\u202E\u200D\u200C\u206D\u200D\u202C\u206F\u200B\u202A\u200F\u206E\u206C\u206C\u202D\u200B\u206B\u200B\u206C\u202A\u206D\u206A\u200F\u202E<string>(-1862424981)))
+					{
+						num2 = 43370330;
+						continue;
+					}
+					flag2 = false;
+					goto IL_109;
+				}
+				case 3U:
+					goto IL_41;
+				case 4U:
+					num2 = (int)(num3 * 696134966U ^ 213150083U);
+					continue;
+				case 5U:
+				{
+					Type[] array2;
+					int num4;
+					num2 = ((num4 < array2.Length) ? 1781627180 : 1050434168);
+					continue;
+				}
+				case 6U:
+				{
+					Type type2;
+					result = type2;
+					num2 = (int)(num3 * 1506675849U ^ 379672243U);
+					continue;
+				}
+				case 8U:
+				{
+					int num4;
+					num4++;
+					num2 = -199446061;
+					continue;
+				}
+				case 9U:
+					goto IL_BC;
+				}
+				break;
+				IL_109:
+				num2 = (flag2 ? 781420790 : -680842636);
+			}
+			return result;
+			IL_41:
+			num2 = 2120432809;
+			goto IL_46;
+			IL_BC:
+			result = null;
+			num2 = -859816625;
+			goto IL_46;
+		}
+
+		// Token: 0x0600145E RID: 5214 RVA: 0x00127DD4 File Offset: 0x00125FD4
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static MethodBase \u202E\u200E\u200E\u206B\u200B\u200F\u206C\u200E\u200E\u202C\u206A\u200F\u202D\u206E\u202C\u202E\u202B\u206C\u202C\u206C\u202C\u202B\u202E\u202D\u202B\u200E\u200E\u202C\u202D\u202A\u206B\u206D\u200B\u202E\u200B\u206E\u200D\u202D\u206B\u202B\u202E()
+		{
+			Type type = MerchantArmyOfPoachersIssuePatch.\u200B\u202E\u202C\u206C\u200B\u206C\u206E\u200F\u206C\u206D\u202B\u206D\u202C\u200D\u206F\u202D\u200C\u202A\u206B\u206D\u206A\u200D\u200C\u202C\u202B\u202E\u202D\u206C\u202B\u200C\u202A\u202D\u202B\u202E\u202C\u206B\u200C\u200F\u206F\u202A\u202E();
+			bool flag = \u206B\u200D\u206C\u200D\u200D\u202D\u202B\u206B\u206B\u200C\u206D\u200B\u202E\u206C\u206D\u206E\u206A\u202A\u202C\u206A\u202E\u206C\u200D\u206D\u200E\u206B\u206E\u202C\u200D\u202A\u200C\u206E\u202C\u200B\u206D\u200E\u200B\u206E\u202E\u206E\u202E.\u00BF\u000D\u00BF(j(type, null);
+			if (flag)
+			{
+				goto IL_1A;
+			}
+			goto IL_D7;
+			int num2;
+			MethodBase result;
+			for (;;)
+			{
+				IL_1F:
+				int num = num2;
+				switch ((~(-num) - (-1303805033 ^ -1626432468) + 661778497) % 7)
+				{
+				case 0:
+					goto IL_1A;
+				case 1:
+					MerchantArmyOfPoachersIssuePatch.\u202E\u200F\u200D\u202A\u200E\u202B\u202E\u200C\u206F\u206D\u202E\u202C\u200C\u206B\u206E\u202C\u202A\u206B\u206C\u200B\u206D\u202C\u200D\u200C\u202C\u200E\u206C\u206F\u206C\u206D\u200C\u202B\u206B\u206C\u206F\u206B\u200C\u200D\u202A\u200F\u202E(<Module>.\u206F\u202C\u206B\u202A\u202D\u200D\u200E\u200D\u200F\u200B\u202D\u202A\u202B\u206C\u202B\u206F\u206F\u200C\u202A\u206B\u202C\u202B\u202D\u202D\u206A\u202B\u202D\u200D\u200F\u206C\u200F\u200D\u200E\u206E\u202C\u206D\u200D\u206C\u200E\u202D\u202E<string>(-456273213));
+					num2 = 169112232;
+					continue;
+				case 2:
+				{
+					MethodInfo methodInfo;
+					result = methodInfo;
+					num2 = 1811432887;
+					continue;
+				}
+				case 3:
+				{
+					MethodInfo methodInfo = \u206F\u200B\u200D\u200C\u200E\u200B\u202A\u200F\u206A\u202D\u200D\u202C\u200B\u200F\u202C\u206E\u206B\u206C\u206D\u202E\u206D\u200F\u202E\u206A\u200C\u200C\u200C\u200D\u202E\u202A\u200C\u200B\u206E\u200E\u202B\u202B\u200C\u202B\u200E\u206A\u202E.\u00A7ý\u0002.a(type, <Module>.\u202A\u200D\u206F\u200C\u200E\u202E\u206B\u206C\u206E\u202A\u206D\u200E\u200F\u200F\u200E\u200E\u202C\u202C\u202C\u200E\u206B\u200C\u202C\u202E\u206C\u202C\u202E\u200E\u202C\u200D\u202A\u202D\u206C\u202B\u206D\u202B\u206C\u202A\u206D\u206C\u202E<string>(-802445052), null, null);
+					num2 = (\u200B\u200F\u206D\u200D\u206F\u200B\u206E\u206C\u202D\u206F\u202A\u206D\u200E\u200B\u202A\u202D\u202C\u206F\u202D\u200B\u206E\u200E\u206E\u206B\u206F\u200E\u200B\u206B\u202A\u200D\u202D\u200E\u202D\u206C\u200C\u206A\u200D\u206A\u206F\u202C\u202E.\u0084\u00BB9gD(methodInfo, null) ? 2075898033 : 1318658643);
+					continue;
+				}
+				case 4:
+					goto IL_D7;
+				case 6:
+					MerchantArmyOfPoachersIssuePatch.\u202E\u200F\u200D\u202A\u200E\u202B\u202E\u200C\u206F\u206D\u202E\u202C\u200C\u206B\u206E\u202C\u202A\u206B\u206C\u200B\u206D\u202C\u200D\u200C\u202C\u200E\u206C\u206F\u206C\u206D\u200C\u202B\u206B\u206C\u206F\u206B\u200C\u200D\u202A\u200F\u202E(<Module>.\u206F\u202C\u206B\u202A\u202D\u200D\u200E\u200D\u200F\u200B\u202D\u202A\u202B\u206C\u202B\u206F\u206F\u200C\u202A\u206B\u202C\u202B\u202D\u202D\u206A\u202B\u202D\u200D\u200F\u206C\u200F\u200D\u200E\u206E\u202C\u206D\u200D\u206C\u200E\u202D\u202E<string>(-1620354190));
+					num2 = 169112232;
+					continue;
+				}
+				break;
+			}
+			return result;
+			IL_1A:
+			num2 = 1506429627;
+			goto IL_1F;
+			IL_D7:
+			MerchantArmyOfPoachersIssuePatch.\u202E\u200F\u200D\u202A\u200E\u202B\u202E\u200C\u206F\u206D\u202E\u202C\u200C\u206B\u206E\u202C\u202A\u206B\u206C\u200B\u206D\u202C\u200D\u200C\u202C\u200E\u206C\u206F\u206C\u206D\u200C\u202B\u206B\u206C\u206F\u206B\u200C\u200D\u202A\u200F\u202E(<Module>.\u206C\u206C\u206B\u200E\u200D\u206E\u206D\u202E\u202E\u206D\u206F\u200C\u202C\u206B\u200B\u206D\u200D\u202E\u202E\u200D\u200C\u206D\u200D\u202C\u206F\u200B\u202A\u200F\u206E\u206C\u206C\u202D\u200B\u206B\u200B\u206C\u202A\u206D\u206A\u200F\u202E<string>(905327298));
+			result = null;
+			num2 = 1811432887;
+			goto IL_1F;
+		}
+
+		// Token: 0x0600145F RID: 5215 RVA: 0x00127EE8 File Offset: 0x001260E8
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		private static bool \u206C\u202D\u206B\u200F\u206C\u202D\u206A\u202A\u202C\u200F\u200F\u206D\u202D\u200E\u200C\u200D\u206F\u200B\u206E\u202D\u206F\u200E\u206A\u202E\u200F\u200D\u202B\u206C\u202E\u200D\u202A\u202D\u206D\u200B\u206B\u202C\u206C\u200F\u202C\u206A\u202E(IssueBase A_0, ref bool A_1)
+		{
+			bool result;
+			try
+			{
+				if (A_0 == null)
+				{
+					goto IL_08;
+				}
+				Hero hero = \u200E\u206A\u206C\u200C\u200C\u200D\u200D\u200E\u202A\u202E\u206B\u200B\u206A\u200B\u202B\u202C\u200F\u200B\u202B\u200F\u200E\u206C\u206E\u200C\u206A\u206E\u206A\u206E\u200C\u206A\u202B\u206B\u200F\u202D\u206E\u202C\u200E\u202B\u202B\u202B\u202E.øyÌºl(A_0);
+				goto IL_F3;
+				int num2;
+				Hero hero2;
+				for (;;)
+				{
+					IL_0D:
+					int num = num2;
+					uint num3;
+					switch ((num3 = (uint)(-(uint)(-(uint)num))) % 10U)
+					{
+					case 0U:
+						goto IL_4B;
+					case 2U:
+						goto IL_E5;
+					case 3U:
+						goto IL_124;
+					case 4U:
+					{
+						Settlement settlement = \u200C\u206E\u202E\u206A\u200D\u200B\u200B\u206F\u206D\u202E\u200E\u200D\u202B\u206E\u202B\u200F\u206E\u202C\u202B\u202A\u200D\u206D\u200B\u202C\u206D\u206E\u206E\u200B\u200F\u202E\u200D\u206E\u200D\u206C\u202B\u202C\u200B\u200C\u202B\u206F\u202E.\u00A1jéë\u0015(hero2);
+						bool flag = settlement == null;
+						num2 = ((!flag) ? 1260657395 : 484041998);
+						continue;
+					}
+					case 5U:
+					{
+						Settlement settlement;
+						Town town = settlement.Town;
+						bool flag2 = town == null;
+						num2 = ((!flag2) ? 1109589201 : 1955798460);
+						continue;
+					}
+					case 6U:
+						num2 = (int)(num3 * 1408754559U ^ 1350098119U);
+						continue;
+					case 7U:
+						goto IL_08;
+					case 8U:
+						num2 = (int)(num3 * 3566914514U ^ 2765157905U);
+						continue;
+					case 9U:
+						goto IL_67;
+					}
+					break;
+				}
+				goto IL_13F;
+				IL_4B:
+				A_1 = false;
+				return false;
+				IL_67:
+				A_1 = false;
+				return false;
+				IL_E5:
+				hero = null;
+				goto IL_F3;
+				IL_124:
+				A_1 = false;
+				return false;
+				IL_13F:
+				return true;
+				IL_08:
+				num2 = 1213283462;
+				goto IL_0D;
+				IL_F3:
+				hero2 = hero;
+				bool flag3 = hero2 == null;
+				num2 = ((!flag3) ? 2116260204 : 2022142856);
+				goto IL_0D;
+			}
+			catch (Exception ex)
+			{
+				MerchantArmyOfPoachersIssuePatch.\u202E\u200F\u200D\u202A\u200E\u202B\u202E\u200C\u206F\u206D\u202E\u202C\u200C\u206B\u206E\u202C\u202A\u206B\u206C\u200B\u206D\u202C\u200D\u200C\u202C\u200E\u206C\u206F\u206C\u206D\u200C\u202B\u206B\u206C\u206F\u206B\u200C\u200D\u202A\u200F\u202E(\u206F\u206F\u206B\u202A\u200E\u200D\u206E\u206E\u206F\u206F\u202D\u206B\u206B\u200B\u202E\u206B\u206F\u202E\u202A\u202D\u200E\u200C\u206C\u200C\u200E\u200E\u200C\u200B\u200D\u206B\u202B\u206B\u200B\u206C\u206E\u200B\u206F\u200D\u202E._fØ\u00BBÜ(<Module>.\u202A\u200D\u206F\u200C\u200E\u202E\u206B\u206C\u206E\u202A\u206D\u200E\u200F\u200F\u200E\u200E\u202C\u202C\u202C\u200E\u206B\u200C\u202C\u202E\u206C\u202C\u202E\u200E\u202C\u200D\u202A\u202D\u206C\u202B\u206D\u202B\u206C\u202A\u206D\u206C\u202E<string>(887389982), \u200D\u202C\u200D\u200B\u200B\u206F\u202A\u202B\u200D\u206E\u206C\u206E\u206A\u200E\u206E\u206F\u202C\u200E\u200E\u200F\u206B\u200F\u206F\u202C\u200E\u200C\u200F\u200D\u200D\u200B\u200D\u202B\u206A\u206B\u206F\u202A\u200C\u206D\u206F\u206C\u202E.Wý\u00B9\u009Bh(ex)));
+				A_1 = false;
+				result = false;
+			}
+			return result;
+		}
+
+		// Token: 0x06001460 RID: 5216 RVA: 0x0012808C File Offset: 0x0012628C
+		private static void \u202E\u200F\u200D\u202A\u200E\u202B\u202E\u200C\u206F\u206D\u202E\u202C\u200C\u206B\u206E\u202C\u202A\u206B\u206C\u200B\u206D\u202C\u200D\u200C\u202C\u200E\u206C\u206F\u206C\u206D\u200C\u202B\u206B\u206C\u206F\u206B\u200C\u200D\u202A\u200F\u202E(string A_0)
+		{
+			AIInfluenceBehavior instance = AIInfluenceBehavior.Instance;
+			if (instance != null)
+			{
+				instance.LogMessage(A_0);
+			}
+		}
+	}
+}

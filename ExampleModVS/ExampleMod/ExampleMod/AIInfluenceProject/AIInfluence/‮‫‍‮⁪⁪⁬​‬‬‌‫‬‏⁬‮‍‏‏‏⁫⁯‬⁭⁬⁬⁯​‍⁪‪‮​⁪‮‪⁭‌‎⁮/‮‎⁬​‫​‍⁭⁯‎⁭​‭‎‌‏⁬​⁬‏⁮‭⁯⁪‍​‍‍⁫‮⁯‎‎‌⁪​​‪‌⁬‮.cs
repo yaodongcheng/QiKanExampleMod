@@ -1,0 +1,48 @@
+6F\u206E\u206A\u206F\u200C\u206C\u200C\u206C\u206F\u202E.Add(\u206E\u206C\u200F\u202D\u200E\u206C\u206C\u206F\u200D\u206D\u202E\u206F\u202D\u200C\u206D\u206D\u206D\u206F\u200F\u206E\u202A\u200F\u206C\u206D\u202C\u206F\u206D\u206D\u202B\u202A\u206F\u206C\u206C\u200F\u206D\u200B\u206D\u202A\u206F\u200C\u202E.Ôés[}(base.TargetHero));
+					num2 = (int)(num3 * 756263348U ^ 4056080973U);
+					continue;
+				case 2U:
+					goto IL_4C;
+				}
+				break;
+			}
+			return;
+			IL_4C:
+			flag = !\u206B\u200F\u202A\u202D\u206E\u202E\u200D\u200D\u206F\u202E\u202C\u206B\u202B\u202E\u206D\u206A\u200B\u200F\u202A\u200D\u206B\u206E\u202A\u200D\u202B\u206B\u206A\u206A\u202E\u202A\u202E\u206E\u206E\u200F\u206E\u200E\u202C\u200B\u200B\u206C\u202E.<\u0098R\u00AB\u0019(\u206E\u206C\u200F\u202D\u200E\u206C\u206C\u206F\u200D\u206D\u202E\u206F\u202D\u200C\u206D\u206D\u206D\u206F\u200F\u206E\u202A\u200F\u206C\u206D\u202C\u206F\u206D\u206D\u202B\u202A\u206F\u206C\u206C\u200F\u206D\u200B\u206D\u202A\u206F\u200C\u202E.Ôés[}(base.TargetHero));
+			goto IL_6C;
+			IL_09:
+			num2 = -1815583404;
+			goto IL_0E;
+			IL_6C:
+			bool flag2 = flag;
+			num2 = ((!flag2) ? 1120641849 : 820549483);
+			goto IL_0E;
+		}
+
+		// Token: 0x060015BB RID: 5563 RVA: 0x0014AA98 File Offset: 0x00148C98
+		private void \u206D\u206D\u206B\u200C\u202C\u206E\u206B\u206E\u206F\u206F\u200E\u206B\u200D\u202E\u206D\u206E\u200F\u200C\u206F\u200B\u206F\u206B\u200E\u202D\u206D\u200B\u200D\u202E\u206E\u206E\u202C\u206E\u200B\u202D\u202A\u206F\u202B\u206B\u206D\u202E\u202E()
+		{
+			if (base.TargetHero != null)
+			{
+				goto IL_09;
+			}
+			bool flag = false;
+			goto IL_7A;
+			int num2;
+			bool flag2;
+			for (;;)
+			{
+				IL_0E:
+				int num = num2;
+				uint num3;
+				switch ((num3 = (uint)((-(num - (535512199 * (1855728210 ^ 766748912) - 1422263932)) ^ -1101575197 + -1407054853) - -1195745734)) % 5U)
+				{
+				case 0U:
+					goto IL_09;
+				case 1U:
+					num2 = (int)((flag2 ? 569411927U : 152514171U) ^ num3 * 2165832752U);
+					continue;
+				case 2U:
+					goto IL_5A;
+				case 4U:
+					ReturnToPlayerAction.\u206E\u206E\u202D\u200E\u202E\u202C\u206D\u206C\u200B\u206F\u202E\u206F\u202C\u206C\u200F\u206B\u202E\u202E\u202D\u206E\u206F\u202E\u206D\u206D\u202A\u202C\u206A\u206F\u202A\u200E\u202A\u206F\u206E\u206A\u206F\u200C\u206C\u200C\u206C\u206F\u202E.Remove(\u206E\u206C\u200F\u202D\u200E\u206C\u206C\u206F\u200D\u206D\u202E\u206F\u202D\u200C\u206D\u206D\u206D\u206F\u200F\u206E\u202A\u200F\u206C\u206D\u202C\u206F\u206D\u206D\u202B\u202A\u206F\u206C\u

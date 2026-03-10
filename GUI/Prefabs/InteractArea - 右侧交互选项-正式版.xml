@@ -1,0 +1,77 @@
+<Prefab>
+  <Window>
+    <!-- 1. 右下角容器 -->
+    <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+            HorizontalAlignment="Right" VerticalAlignment="Bottom"
+            MarginRight="0" MarginBottom="150">
+      <Children>
+
+        <!-- 2. 主列表：从下往上排列 (名字在最下，选项在上方) -->
+        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalTopToBottom"
+                   LayoutMethod="VerticalBottomToTop">
+            <Children>
+
+                 <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="30"
+                                    Text="@TargetName"
+                                    Brush="MyBrush_24"
+                                    TextColor="#FFFFFFFF"
+                                    HorizontalAlignment="Right"/>
+
+	       <!-- 装饰线 -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="5"
+                                Sprite="BlankWhiteSquare_9" Color="#FFFFFF88"  HorizontalAlignment="Right"  MarginTop="15"
+                                MarginBottom="5"
+                               />
+
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           DataSource="{InteractionList}"
+                           LayoutMethod="VerticalBottomToTop" StackLayout.LayoutMethod="VerticalBottomToTop"
+                           MarginBottom="20"
+                           ItemGap="5">
+                    
+                    <ItemTemplate>
+
+
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                   LayoutMethod="HorizontalRightToLeft" StackLayout.LayoutMethod="HorizontalRightToLeft"
+                                   HorizontalAlignment="Right">
+                            <Children>
+
+
+								<!-- 按键提示 (例如 "[F]") -->
+                                <!-- 这里的背景模拟按键图标 -->
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30"
+                                        Sprite="BlankWhiteCircle" Color="#FFFFFF33">
+                                    <Children>
+                                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                    Text="@KeyText"
+                                                    Brush="MyBrush_24"
+                                                    TextColor="#FFFFFFFF"
+                                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Children>
+                                </Widget>
+								
+                                <!-- 动作名称 (例如 "交谈") -->
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            Text="@ActionText"
+                                            Brush="MyBrush_24"
+                                            TextColor="#DDDDDDFF"
+                                            VerticalAlignment="Center"
+                                            MarginRight="10"/>
+
+                                
+
+                            </Children>
+                        </ListPanel>
+						
+						   </ItemTemplate>
+
+                </ListPanel>
+
+            </Children>
+        </ListPanel>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

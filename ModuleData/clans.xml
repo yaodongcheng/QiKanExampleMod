@@ -1,0 +1,11 @@
+<Factions>
+  <Faction 
+    id="clan_test_1"
+    name="测试家族"
+    tier="5"
+    owner="Hero.lord_5_89"
+    culture="Culture.battania"
+    super_faction="Kingdom.battania"
+    is_noble="true"
+    banner_key="11.101.75.4345.4345.764.764.1.0.0.412.39.0.454.454.764.764.0.0.180" />
+</Factions>

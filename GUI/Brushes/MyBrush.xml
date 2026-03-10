@@ -1,0 +1,326 @@
+<Brushes>
+
+	<Brush Name="MyBrush_18"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#000000FF"
+                   TextOutlineAmount="0.2"
+                   TextOutlineColor="#FFFFFFFF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="1"
+                   TextShadowAngle="60"
+				   FontSize="18"
+                    />
+        </Styles>
+    </Brush>
+	<Brush Name="MyBrush_18_White"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
+                   TextOutlineAmount="0.1"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="1"
+                   TextShadowAngle="60"
+				   FontSize="18"
+                    />
+        </Styles>
+    </Brush>
+	    <Brush Name="MyBrush_24"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
+                   TextOutlineAmount="0.3"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="1"
+                   TextShadowAngle="60"
+				   FontSize="24"
+                    />
+        </Styles>
+    </Brush>
+	
+	<Brush Name="MyBrush_16_Left"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Left">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
+                   TextOutlineAmount="0.3"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="1"
+                   TextShadowAngle="60"
+				   FontSize="16"
+                    />
+        </Styles>
+    </Brush>
+	
+	<Brush Name="MyBrush_22_Left"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Left">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
+                   TextOutlineAmount="0.3"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="1"
+                   TextShadowAngle="60"
+				   FontSize="22"
+                    />
+        </Styles>
+    </Brush>
+	
+	    <Brush Name="Brush_DialogName"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#B8860BFF"
+                   TextOutlineAmount="0.3"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="0.1"
+                   TextShadowAngle="60"
+				   FontSize="22"
+                    />
+        </Styles>
+    </Brush>
+	
+	 <Brush Name="Brush_HeadName"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFD700FF"
+                   TextOutlineAmount="0.3"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="0.1"
+                   TextShadowAngle="60"
+				   FontSize="18"
+                    />
+        </Styles>
+    </Brush>
+	
+	
+	
+	   <Brush Name="Brush_DialogText"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
+                   TextOutlineAmount="0.05"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="0"
+                   TextShadowAngle="0"
+				   FontSize="24"
+                    />
+        </Styles>
+    </Brush>
+	
+	
+	   <Brush Name="Brush_HeadText"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
+                   TextOutlineAmount="0.05"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="0"
+                   TextShadowAngle="0"
+				   FontSize="18"
+                    />
+        </Styles>
+    </Brush>
+	
+	<Brush Name="Brush_CircleButton_NinjaReport">
+        <Layers>
+            <BrushLayer Name="Default"
+                        Sprite="SPGeneral\MapNotification\notification_illustration_back_alley"></BrushLayer>
+        </Layers>
+        <Styles>
+            <Style Name="Default">
+                <BrushLayer Name="Default"
+                            Color="#888888FF"/>
+            </Style>
+            <Style Name="Hovered">
+                <BrushLayer Name="Default"
+                            Color="#888888FF" />
+            </Style>
+            <Style Name="Pressed">
+                <BrushLayer Name="Default"
+                            ColorFactor="0.8" />
+            </Style>
+            <Style Name="Selected">
+                <BrushLayer Name="Default"
+                            Sprite="order_popup_card_selected_9"/>
+            </Style>
+        </Styles>
+    </Brush>
+		<Brush Name="Brush_CircleButton_Close">
+        <Layers>
+            <BrushLayer Name="Default"
+                        Sprite="StdAssets\close_button_hover"></BrushLayer>
+        </Layers>
+        <Styles>
+            <Style Name="Default">
+                <BrushLayer Name="Default"
+                            Color="#333333FF"/>
+            </Style>
+            <Style Name="Hovered">
+                <BrushLayer Name="Default"
+                            Color="#888888FF" Sprite="StdAssets\close_button_hover" />
+            </Style>
+            <Style Name="Pressed">
+                <BrushLayer Name="Default"
+                            ColorFactor="0.8" />
+            </Style>
+            <Style Name="Selected">
+                <BrushLayer Name="Default"
+                            Sprite="order_popup_card_selected_9"/>
+            </Style>
+        </Styles>
+    </Brush>
+	
+	
+	
+	<Brush Name="Test.Button1">
+        <Layers>
+            <BrushLayer Name="Default"
+                        Sprite="BlankWhiteSquare_9"></BrushLayer>
+        </Layers>
+        <Styles>
+            <Style Name="Default">
+                <BrushLayer Name="Default"
+                            Color="#00000000"/>
+            </Style>
+            <Style Name="Hovered">
+                <BrushLayer Name="Default"
+                            Color="#FFFF11FF" />
+            </Style>
+            <Style Name="Pressed">
+                <BrushLayer Name="Default"
+                            ColorFactor="0.8" />
+            </Style>
+            <Style Name="Selected">
+                <BrushLayer Name="Default"
+                            Sprite="order_popup_card_selected_9"/>
+            </Style>
+        </Styles>
+    </Brush>
+
+<Brush Name="Test.Button2">
+        <Layers>
+            <BrushLayer Name="Default"
+                        Sprite="BlankWhiteSquare_9"></BrushLayer>
+        </Layers>
+        <Styles>
+            <Style Name="Default">
+                <BrushLayer Name="Default"
+                            Color="#FFFFFFFF"/>
+            </Style>
+            <Style Name="Hovered">
+                <BrushLayer Name="Default"
+                            Color="#FFFF11FF" />
+            </Style>
+            <Style Name="Pressed">
+                <BrushLayer Name="Default"
+                            ColorFactor="0.8" />
+            </Style>
+            <Style Name="Selected">
+                <BrushLayer Name="Default"
+                            Sprite="order_popup_card_selected_9"/>
+            </Style>
+        </Styles>
+    </Brush>
+
+	  <!-- ========================================== -->
+    <!-- 1. 按钮背景画刷：控制背景颜色变化 -->
+    <!-- ========================================== -->
+    <Brush Name="Simple.Button.Bg">
+        <Layers>
+            <!-- 使用 9宫格切片图 BlankWhiteSquare_9 作为底图，方便染色 -->
+            <BrushLayer Name="Default" Sprite="BlankWhiteSquare_9" />
+        </Layers>
+        <Styles>
+            <!-- 【默认状态】：半透明黑色背景 -->
+            <Style Name="Default">
+                <BrushLayer Name="Default" Color="#00000000" />
+            </Style>
+            
+            <!-- 【悬浮状态】：变为亮灰色/半透明白色，提示玩家已选中 -->
+            <Style Name="Hovered">
+                <BrushLayer Name="Default" Color="#BFAD6FFF" /> 
+            </Style>
+
+            <!-- 【按下状态】：稍微变深 -->
+            <Style Name="Pressed">
+                <BrushLayer Name="Default" Color="#000000FF" />
+            </Style>
+        </Styles>
+    </Brush>
+
+    <!-- ========================================== -->
+    <!-- 2. 按钮文字画刷：控制文字颜色变化 -->
+    <!-- ========================================== -->
+    <Brush Name="Simple.Button.Text" 
+           Font="FiraSansExtraCondensed-Regular" 
+           TextHorizontalAlignment="Center" 
+           TextVerticalAlignment="Center">
+        <Styles>
+            <!-- 【默认状态】：普通的白色文字 -->
+            <Style Name="Default" 
+                   FontColor="#FFFFFFFF" 
+                   FontSize="24" />
+            
+            <!-- 【悬浮状态】：文字变为金色/黄色 -->
+            <Style Name="Hovered" 
+                   FontColor="#000000FF" 
+                   FontSize="24" />
+                   
+            <!-- 【按下状态】：文字变灰 -->
+            <Style Name="Pressed" 
+                   FontColor="#AAAAAAFF" 
+                   FontSize="24" />
+        </Styles>
+    </Brush>
+</Brushes>

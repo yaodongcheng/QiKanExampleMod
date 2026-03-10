@@ -1,0 +1,96 @@
+<NPCCharacters>
+    <!-- 定义NPC角色 -->
+    <NPCCharacter id="lord_1_a1" default_group="HorseArcher" age="33" voice="ironic" culture="Culture.empire" is_female="true" occupation="Lord" name="{=OWM00021}Saint·Maria" face_mesh_cache="true">
+
+        <!-- 角色面部特征 -->
+        <face>
+            <BodyProperties version="4" age="33.18" weight="0.2055" build="0.4416" key="..." />
+            <!-- 面部特征详细参数 -->
+        </face>
+
+        <!-- 角色技能 -->
+        <skills>
+            <skill id="OneHanded" value="75" />
+            <!-- 单手武器技能 -->
+            <skill id="TwoHanded" value="15" />
+            <!-- 双手武器技能 -->
+            <skill id="Polearm" value="98" />
+            <!-- 长柄武器技能 -->
+            <skill id="Bow" value="105" />
+            <!-- 弓技能 -->
+            <skill id="Crossbow" value="100" />
+            <!-- 弩技能 -->
+            <skill id="Throwing" value="30" />
+            <!-- 投掷武器技能 -->
+            <skill id="Riding" value="128" />
+            <!-- 骑术技能 -->
+            <skill id="Athletics" value="153" />
+            <!-- 跑动技能 -->
+            <skill id="Crafting" value="0" />
+            <!-- 锻造技能 -->
+            <skill id="Tactics" value="28" />
+            <!-- 战术技能 -->
+            <skill id="Scouting" value="73" />
+            <!-- 侦察技能 -->
+            <skill id="Roguery" value="0" />
+            <!-- 流氓技能 -->
+            <skill id="Leadership" value="100" />
+            <!-- 统率技能 -->
+            <skill id="Charm" value="274" />
+            <!-- 魅力技能 -->
+            <skill id="Trade" value="0" />
+            <!-- 贸易技能 -->
+            <skill id="Steward" value="80" />
+            <!-- 管理技能 -->
+            <skill id="Medicine" value="1000" />
+            <!-- 医学技能 -->
+            <skill id="Engineering" value="0" />
+            <!-- 工程技能 -->
+        </skills>
+
+        <!-- 角色特质 -->
+        <Traits>
+            <Trait id="Calculating" value="2" />
+            <!-- 策略特质 -->
+            <Trait id="Valor" value="0" />
+            <!-- 勇气特质 -->
+            <Trait id="Honor" value="2" />
+            <!-- 荣誉特质 -->
+            <Trait id="Generosity" value="2" />
+            <!-- 慷慨特质 -->
+            <Trait id="Mercy" value="2" />
+            <!-- 仁慈特质 -->
+        </Traits>
+
+        <!-- 角色装备 -->
+        <Equipments>
+            <EquipmentRoster>
+                <!-- 主要装备，包括武器和防具 -->
+                <equipment slot="Item0" id="mace_rc_oh_t6" />
+                <!-- 武器1 -->
+                <equipment slot="Item1" id="Item.leather_round_shield" />
+                <!-- 武器2/防具 -->
+                <equipment slot="Item2" id="Item.distress_bow" />
+                <!-- 武器3 -->
+                <equipment slot="Item3" id="Item.lumbago_arrows" />
+                <!-- 武器4 -->
+                <equipment id="Item.royal_crown" slot="Head"/>
+                <!-- 头部装备 -->
+                <equipment id="Item.dummy_armor_max_333" slot="Body"/>
+                <!-- 身体装备 -->
+                <equipment id="Item.thomund_pauldron_over_scale_armor" slot="Cape"/>
+                <!-- 披风/斗篷 -->
+                <equipment id="Item.commander_decorated_imperial_gauntlets" slot="Gloves"/>
+                <!-- 手套 -->
+                <equipment id="Item.commander_imperial_boots" slot="Leg"/>
+                <!-- 靴子 -->
+                <equipment id="Item.shark_tyrant_Buddy" slot="Horse"/>
+                <!-- 坐骑 -->
+                <equipment id="Item.shark_tyrant_barding" slot="HorseHarness"/>
+                <!-- 马鞍 -->
+            </EquipmentRoster>
+            <!-- 日常装备，当角色不在战场时使用 -->
+            <EquipmentSet id="s_emp_king_template_civ_f" civilian="true" />
+        </Equipments>
+    </NPCCharacter>
+</NPCCharacters>

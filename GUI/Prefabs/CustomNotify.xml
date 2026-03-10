@@ -1,0 +1,66 @@
+<Prefab>
+  <Window>
+    <!-- 全屏容器，用于定位 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+        
+        <!-- 主布局：右对齐，从右向左排列 (RightToLeft) -->
+        <ListPanel HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="20" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" 
+                   LayoutMethod="HorizontalRightToLeft" StackLayout.LayoutMethod="HorizontalRightToLeft" DoNotAcceptEvents="true"> 
+          <Children>
+
+            <!-- 1. 忍者圆形按钮 (主按钮) -->
+            <!-- 绑定 HoverBegin/End 来控制状态 -->
+			 <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="130" SuggestedHeight="130"  DoNotAcceptEvents="true"
+                    Sprite="SPGeneral\MapNotification\notification_ring"    Color="#FFFFFFFF" >
+				   <Children>
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="100" SuggestedHeight="100"
+                          Color="#FF0000FF" Brush="Brush_CircleButton_NinjaReport" HorizontalAlignment="Center" VerticalAlignment="Center"
+                          Command.Click="ExecuteSelect"
+                          Command.HoverBegin="ExecuteOnHoverBegin"
+                          Command.HoverEnd="ExecuteOnHoverEnd">
+              <Children>
+                
+                <!-- 1.1 可选：中间的忍者图标 (如果不也是Brush的一部分的话) -->
+                <!-- <ImageWidget ... /> -->
+
+                <!-- 1.2 关闭按钮 (X) -->
+                <!-- 关键点：它在圆圈按钮内部，定位在右上角，默认根据 IsHovered 显示 -->
+                <ButtonWidget Id="CloseButton"
+                              WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30"
+                              HorizontalAlignment="Right" VerticalAlignment="Top"
+                              PositionXOffset="-5" PositionYOffset="5"
+                              Brush="Popup.CloseButton"
+                              IsVisible="@ShouldExpand"
+                              Command.Click="ExecuteClose"
+								Command.HoverBegin="ExecuteOnCloseHoverBegin"
+                          Command.HoverEnd="ExecuteOnCloseHoverEnd"
+
+							  /> 
+							  
+							  
+              </Children>
+            </ButtonWidget>
+</Children>
+			</Widget>
+            <!-- 2. 文本面板 (向左展开) -->
+            <!-- 关键点：IsVisible="@ShouldExpand" 只有鼠标放上去才显示 -->
+            <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="100" 
+                    Sprite="BlankWhiteSquare_9" Color="#000000EE" VerticalAlignment="Center"
+                    IsVisible="@ShouldExpand" MarginRight="10">
+              <Children>
+                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            Text="@ReportText" 
+                            Brush="Sho.Debug.Text" TextColor="#CCCCCCFF" 
+                            VerticalAlignment="Center" HorizontalAlignment="Center"
+                            MarginLeft="10" MarginRight="10"/>
+              </Children>
+            </Widget>
+
+          </Children>
+        </ListPanel>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

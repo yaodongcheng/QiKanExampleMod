@@ -1,0 +1,168 @@
+<Prefab>
+  <Window>
+    <!-- 全屏容器 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+      <Children>
+
+        <!-- === 核心容器：右侧对齐 === -->
+        <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="500"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                   MarginRight="100" LayoutMethod = "VerticalTopToBottom"
+                   StackLayout.LayoutMethod="VerticalTopToBottom">
+            <Children>                
+				
+
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60"
+                        Sprite="BlankWhiteSquare_9" Color="#000000AA" MarginBottom="20">
+                    <Children>
+                        <!-- 水平排列属性 -->
+                        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                   HorizontalAlignment="Center"
+                                   StackLayout.LayoutMethod="HorizontalLeftToRight">
+                            <Children>
+                                
+                                <!-- 属性示例 A：口才 -->
+                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent" MarginRight="20" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                                    <Children>
+                                        <!-- 图标占位 (黄色代表口才) -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30"
+                                                Sprite="BlankWhiteSquare_9" Color="#FFFF00FF" VerticalAlignment="Center" MarginRight="5"/>
+                                        <!-- 数值 -->
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                                    Text="15" Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                    </Children>
+                                </ListPanel>
+
+                                <!-- 属性示例 B：力量 -->
+                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent" MarginRight="20" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                                    <Children>
+                                        <!-- 图标占位 (红色代表力量) -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30"
+                                                Sprite="BlankWhiteSquare_9" Color="#FF0000FF" VerticalAlignment="Center" MarginRight="5"/>
+                                        <!-- 数值 -->
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                                    Text="22" Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                    </Children>
+                                </ListPanel>
+
+                                <!-- 属性示例 C：金钱 -->
+                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                                    <Children>
+                                        <!-- 图标占位 (金色代表钱) -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30"
+                                                Sprite="BlankWhiteSquare_9" Color="#FFD700FF" VerticalAlignment="Center" MarginRight="5"/>
+                                        <!-- 数值 -->
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                                    Text="3.5k" Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                    </Children>
+                                </ListPanel>
+
+                            </Children>
+                        </ListPanel>
+                    </Children>
+                </Widget>
+				
+				<TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" 
+                      Text="Show 1" MarginTop="0" 
+                      TextColor="#CCCCCCFF" HorizontalAlignment="Center"/>
+
+
+				<TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" 
+                      Text="Show 2" MarginTop="0" 
+                      TextColor="#CCCCCCFF" HorizontalAlignment="Center"/>
+					  
+					  
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                           StackLayout.LayoutMethod="VerticalTopToBottom">
+                    <Children>
+
+                        <!-- === 选项 A：普通对话 (无检定) === -->
+                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                      MarginBottom="5">
+                            <Children>                                
+                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                           PaddingLeft="10" PaddingRight="10" PaddingTop="15" PaddingBottom="15">
+                                    <Children>
+                                        <!-- 左侧占位 (无检定留空或显示通用图标) -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40"
+                                                MarginRight="10" AlphaFactor="0"/> <!-- 透明占位 -->
+                                        
+                                        <!-- 右侧文本 -->
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                    Text="1. Tell me what happened here." 
+                                                    Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                    </Children>
+                                </ListPanel>
+                            </Children>
+                        </ButtonWidget>
+
+                        <!-- === 选项 B：带技能检定 (困难/红色) === -->
+                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                      MarginBottom="5">
+                            <Children>                                
+                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                           PaddingLeft="10" PaddingRight="10" PaddingTop="15" PaddingBottom="15">
+                                    <Children>
+                                        <!-- 左侧：检定图标区 -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40"
+                                                MarginRight="10">
+                                            <Children>
+                                                <!-- 这里用两个方块模拟：底色表示难度(红)，中间加图标 -->
+                                                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                        Sprite="BlankWhiteSquare_9" Color="#8B0000FF"/> <!-- 深红背景 -->
+                                                <!-- 可以叠加一个 Text 显示数值或图标 -->
+                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                            Text="Difficult" Brush="Sho.Debug.Text" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Children>
+                                        </Widget>
+                                        
+                                        <!-- 右侧文本 -->
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                    Text="2. [Strength] Give me money now." 
+                                                    Brush="Sho.Debug.Text" TextColor="#CCCCCCFF" VerticalAlignment="Center"/>
+                                    </Children>
+                                </ListPanel>
+                            </Children>
+                        </ButtonWidget>
+
+                        <!-- === 选项 C：带技能检定 (容易/蓝色) === -->
+                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                      MarginBottom="5">
+                            <Children>                                
+                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                           PaddingLeft="10" PaddingRight="10" PaddingTop="15" PaddingBottom="15">
+                                    <Children>
+                                        <!-- 左侧：检定图标区 -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="40"
+                                                MarginRight="10">
+                                            <Children>
+                                                <!-- 蓝色背景表示口才/魅力 -->
+                                                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                        Sprite="BlankWhiteSquare_9" Color="#4169E1FF"/> 
+                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                            Text="Easy" Brush="Sho.Debug.Text" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            </Children>
+                                        </Widget>
+                                        
+                                        <!-- 右侧文本 -->
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                    Text="3. [Wisdom] We can coordinate。" 
+                                                    Brush="Sho.Debug.Text" TextColor="#CCCCCCFF" VerticalAlignment="Center"/>
+                                    </Children>
+                                </ListPanel>
+                            </Children>
+                        </ButtonWidget>
+
+                    </Children>
+                </ListPanel>
+
+            </Children>
+        </ListPanel>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

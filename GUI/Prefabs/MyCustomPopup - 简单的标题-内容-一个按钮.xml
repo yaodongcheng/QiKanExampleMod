@@ -1,0 +1,48 @@
+<Prefab>
+  <Window>
+	<!-- 全屏容器，用于居中 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" HorizontalAlignment="Center" VerticalAlignment="Center">      
+      <Children>
+	      <!-- 1. 背景板：不加载图片，直接用纯色 (深灰色背景 #1A1A1A) -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="400" 
+                  HorizontalAlignment="Center" VerticalAlignment="Center"  Sprite="BlankWhiteSquare_9"    Color="#1A1A1AFF" >
+            
+            <Children>
+				<!-- 2. 标题栏：红色条 #8B0000 -->
+				<Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" 
+                  Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
+					<Children>
+					<TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                           Text="@TitleText" Brush="Sho.Debug.Text" 
+                           TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+					</Children>
+				</Widget>
+			   <!-- 3. 内容区文字 -->
+			   <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" 
+                      Text="@ContentText" MarginTop="80" 
+                      TextColor="#CCCCCCFF" HorizontalAlignment="Center"/>
+				
+				<ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="100"
+              HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="50" 
+              Sprite="BlankWhiteSquare_9"
+              Color="#FF0000FF" Brush="Test.Button"
+              Command.Click="ExecuteClose">
+    
+					<Children>
+					<!-- 3. 关键：给内部文字加上 DoNotAcceptEvents="true" -->
+					<!-- 这能确保鼠标点击穿透文字，直接触发父级按钮的点击事件 -->
+							<TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+						Text="CONFIRM" TextColor="#000000FF" 
+						HorizontalAlignment="Center" VerticalAlignment="Center"
+						/>
+					</Children>
+				</ButtonWidget>
+                           
+               
+            </Children>
+            
+          </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

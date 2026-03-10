@@ -1,0 +1,26 @@
+<Heroes>
+    <!-- 
+      1. 加上 alive="true"
+      2. 加上 is_noble="true"
+      3. 暂时删掉 spouse (配偶)，除非你百分百确定那个ID存在且已加载
+      4. 补全 culture (虽然Character里有，但Hero里最好保持一致)
+    -->
+    <Hero id="lord_1_maedakeiji" 
+          name="{=MYMOD_MaedaKeiji}Maeda Keiji" 
+          faction="Faction.clan_neutralClan_1" 
+          culture="Culture.ninja"
+          alive="true" 
+		  is_noble="true"
+          occupation="Lord"
+          gold="5000"
+          age="31" /> 
+	<Hero id="lord_1_izumo_okuni" 
+          name="{=MYMOD_IzumoOkuni}IzumoOkuni" 
+          faction="Faction.clan_neutralClan_1" 
+          culture="Culture.ninja"
+          alive="true" 
+		  is_noble="true"
+          occupation="Lord"
+          gold="5000"
+          age="31" /> 
+</Heroes>

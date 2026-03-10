@@ -1,0 +1,186 @@
+<Prefab>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+            HorizontalAlignment="Center" VerticalAlignment="Center">
+      <Children>
+
+        <!-- 主背景 -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="950" SuggestedHeight="850" 
+                HorizontalAlignment="Center" VerticalAlignment="Center"  
+                Sprite="BlankWhiteSquare_9" Color="#12121280">
+          <Children>
+            
+            <!-- 标题栏 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" 
+                    Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                            Text="CAMERA DEBUGGER (FULL CONTROL)" Brush="Sho.Debug.Text" 
+                            TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Children>
+            </Widget>
+
+            <!-- 主要内容容器 (强制单列布局) -->
+            <GridWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        MarginTop="60" MarginLeft="20" MarginRight="20" MarginBottom="20"
+                        VerticalAlignment="Top"
+                        ColumnCount="1"
+                        DefaultCellWidth="900" 
+                        DefaultCellHeight="50">
+              <Children>
+
+                <!-- Info 1 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40" MarginBottom="5">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                    Text="PlayerInfoText [TEST]" Brush="Sho.Debug.Text" 
+                                    TextColor="#AAAAAAFF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                    </Children>
+                </Widget>
+
+                <!-- Info 2 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40" MarginBottom="20" 
+                        Sprite="BlankWhiteSquare_9" Color="#333333FF">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                    Text="ArmLengthText [TEST]" Brush="Sho.Debug.Text" 
+                                    TextColor="#00FF00FF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Children>
+                </Widget>             
+
+                <!-- Separator -->
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30" 
+                            Text="--- Camera Offset (Relative) ---" TextColor="#FFD700FF" HorizontalAlignment="Center"/>
+
+                <!-- Offset X -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <TextWidget SuggestedWidth="100" SuggestedHeight="50" Text="Offset X" TextColor="#55FF55FF" VerticalAlignment="Center"/>
+                    <SliderWidget SuggestedWidth="600" SuggestedHeight="40" ValueFloat="@CamOffsetX" MinValueFloat="-10.0" MaxValueFloat="10.0" 
+                                  VerticalAlignment="Center" MarginRight="20" Handle="Handle" Filler="Filler">
+                        <Children>
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="4" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#555555FF"/>
+                            <Widget Id="Filler" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="4" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#55FF55FF"/>
+                            <Widget Id="Handle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="30" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"/>
+                        </Children>
+                    </SliderWidget>
+                    <EditableTextWidget SuggestedWidth="150" SuggestedHeight="40" Text="@CamOffsetX" Sprite="BlankWhiteSquare_9" Color="#000000FF" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                  </Children>
+                </ListPanel>
+
+                <!-- Offset Y -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <TextWidget SuggestedWidth="100" SuggestedHeight="50" Text="Offset Y" TextColor="#55FF55FF" VerticalAlignment="Center"/>
+                    <SliderWidget SuggestedWidth="600" SuggestedHeight="40" ValueFloat="@CamOffsetY" MinValueFloat="-5.0" MaxValueFloat="5.0" 
+                                  VerticalAlignment="Center" MarginRight="20" Handle="Handle" Filler="Filler">
+                        <Children>
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="4" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#555555FF"/>
+                            <Widget Id="Filler" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="4" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#55FF55FF"/>
+                            <Widget Id="Handle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="30" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"/>
+                        </Children>
+                    </SliderWidget>
+                    <EditableTextWidget SuggestedWidth="150" SuggestedHeight="40" Text="@CamOffsetY" Sprite="BlankWhiteSquare_9" Color="#000000FF" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                  </Children>
+                </ListPanel>
+
+                <!-- Offset Z -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <TextWidget SuggestedWidth="100" SuggestedHeight="50" Text="Offset Z" TextColor="#5555FFFF" VerticalAlignment="Center"/>
+                    <SliderWidget SuggestedWidth="600" SuggestedHeight="40" ValueFloat="@CamOffsetZ" MinValueFloat="-2.0" MaxValueFloat="5.0" 
+                                  VerticalAlignment="Center" MarginRight="20" Handle="Handle" Filler="Filler">
+                        <Children>
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="4" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#555555FF"/>
+                            <Widget Id="Filler" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="4" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#5555FFFF"/>
+                            <Widget Id="Handle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="30" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"/>
+                        </Children>
+                    </SliderWidget>
+                    <EditableTextWidget SuggestedWidth="150" SuggestedHeight="40" Text="@CamOffsetZ" Sprite="BlankWhiteSquare_9" Color="#000000FF" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                  </Children>
+                </ListPanel>
+
+                <!-- Separator -->
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30" MarginTop="20"
+                            Text="--- Camera Rotation (Degrees) ---" TextColor="#FFD700FF" HorizontalAlignment="Center"/>
+
+                <!-- Rotation Yaw -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <TextWidget SuggestedWidth="100" SuggestedHeight="50" Text="Yaw" TextColor="#FFFF00FF" VerticalAlignment="Center"/>
+                    <SliderWidget SuggestedWidth="600" SuggestedHeight="40" ValueFloat="@CamRotYaw" MinValueFloat="-180.0" MaxValueFloat="180.0" 
+                                  VerticalAlignment="Center" MarginRight="20" Handle="Handle" Filler="Filler">
+                        <Children>
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="4" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#555555FF"/>
+                            <Widget Id="Filler" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="4" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFF00FF"/>
+                            <Widget Id="Handle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="30" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"/>
+                        </Children>
+                    </SliderWidget>
+                    <EditableTextWidget SuggestedWidth="150" SuggestedHeight="40" Text="@CamRotYaw" Sprite="BlankWhiteSquare_9" Color="#000000FF" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                  </Children>
+                </ListPanel>
+
+                <!-- Rotation Pitch -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <TextWidget SuggestedWidth="100" SuggestedHeight="50" Text="Pitch" TextColor="#FFFF00FF" VerticalAlignment="Center"/>
+                    <SliderWidget SuggestedWidth="600" SuggestedHeight="40" ValueFloat="@CamRotPitch" MinValueFloat="-90.0" MaxValueFloat="90.0" 
+                                  VerticalAlignment="Center" MarginRight="20" Handle="Handle" Filler="Filler">
+                        <Children>
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="4" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#555555FF"/>
+                            <Widget Id="Filler" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="4" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFF00FF"/>
+                            <Widget Id="Handle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="30" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"/>
+                        </Children>
+                    </SliderWidget>
+                    <EditableTextWidget SuggestedWidth="150" SuggestedHeight="40" Text="@CamRotPitch" Sprite="BlankWhiteSquare_9" Color="#000000FF" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                  </Children>
+                </ListPanel>
+
+                <!-- Rotation Roll -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <TextWidget SuggestedWidth="100" SuggestedHeight="50" Text="Roll" TextColor="#FFFF00FF" VerticalAlignment="Center"/>
+                    <SliderWidget SuggestedWidth="600" SuggestedHeight="40" ValueFloat="@CamRotRoll" MinValueFloat="-180.0" MaxValueFloat="180.0" 
+                                  VerticalAlignment="Center" MarginRight="20" Handle="Handle" Filler="Filler">
+                        <Children>
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="4" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#555555FF"/>
+                            <Widget Id="Filler" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="4" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFF00FF"/>
+                            <Widget Id="Handle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="30" VerticalAlignment="Center" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"/>
+                        </Children>
+                    </SliderWidget>
+                    <EditableTextWidget SuggestedWidth="150" SuggestedHeight="40" Text="@CamRotRoll" Sprite="BlankWhiteSquare_9" Color="#000000FF" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                  </Children>
+                </ListPanel>
+
+           <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="80"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Children>
+                    
+                    <!-- 按钮 -->
+                    <!-- VerticalAlignment="Bottom" 配合外层 80 的高度，实现了原本 MarginTop="30" 的视觉效果，
+                         同时避免了点击区域错位的问题 -->
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" 
+                                  SuggestedWidth="200" SuggestedHeight="50"
+                                  HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                  Brush="Test.Button" Command.Click="ExecuteClose"
+                                  Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
+                      <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                    Text="CLOSE" Brush="Sho.Debug.Text" 
+                                    DoNotAcceptEvents="true" IsDisabled="true" 
+                                    TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Children>
+                    </ButtonWidget>
+                    
+                  </Children>
+                </Widget>
+
+              </Children>
+            </GridWidget>
+
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

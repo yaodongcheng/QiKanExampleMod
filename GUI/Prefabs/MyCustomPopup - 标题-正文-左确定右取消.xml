@@ -1,0 +1,72 @@
+<Prefab>
+  <Window>
+    <!-- 全屏容器，用于居中 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" HorizontalAlignment="Center" VerticalAlignment="Center">      
+      <Children>
+          
+          <!-- 1. 背景板 -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="600" SuggestedHeight="400" 
+                  HorizontalAlignment="Center" VerticalAlignment="Center"  
+                  Sprite="BlankWhiteSquare_9" Color="#1A1A1AFF" >
+            
+            <Children>
+                <!-- 2. 标题栏 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50" 
+                        Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                    Text="@TitleText" Brush="Sho.Debug.Text" 
+                                    TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Children>
+                </Widget>
+
+                <!-- 3. 内容区文字 -->
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" 
+                            Text="@ContentText" MarginTop="80" 
+                            TextColor="#CCCCCCFF" HorizontalAlignment="Center"/>
+                
+                <!-- 4. 按钮区域：使用 ListPanel 实现水平排列 -->
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           HorizontalAlignment="Center" VerticalAlignment="Bottom" 
+                           MarginBottom="50"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight">
+                    <Children>
+
+                        <!-- 左边：确定按钮 (红色) -->
+                        <!-- 注意 MarginRight="20" 用来把两个按钮隔开 -->
+                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="180" SuggestedHeight="80"
+                                      Sprite="BlankWhiteSquare_9" Color="#FF0000FF" Brush="Test.Button"
+                                      MarginRight="20"
+                                      Command.Click="ExecuteConfirm">
+                            <Children>
+                                <!-- 关键：DoNotAcceptEvents="true" -->
+                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                            Text="CONFIRM" TextColor="#FFFFFFFF" 
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                            DoNotAcceptEvents="true"/>
+                            </Children>
+                        </ButtonWidget>
+
+                        <!-- 右边：取消按钮 (深灰色) -->
+                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="180" SuggestedHeight="80"
+                                      Sprite="BlankWhiteSquare_9" Color="#333333FF" Brush="Test.Button"
+                                      MarginLeft="20"
+                                      Command.Click="ExecuteCancel">
+                            <Children>
+                                <!-- 关键：DoNotAcceptEvents="true" -->
+                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                            Text="CANCEL" TextColor="#FFFFFFFF" 
+                                            HorizontalAlignment="Center" VerticalAlignment="Center" 
+                                            DoNotAcceptEvents="true"/>
+                            </Children>
+                        </ButtonWidget>
+
+                    </Children>
+                </ListPanel>
+
+            </Children>
+          </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

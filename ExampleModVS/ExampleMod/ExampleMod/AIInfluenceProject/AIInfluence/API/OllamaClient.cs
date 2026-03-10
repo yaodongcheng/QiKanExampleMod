@@ -1,0 +1,37 @@
+﻿using System;
+using System.Diagnostics;
+using System.Net.Http;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+
+namespace AIInfluence.API
+{
+	// Token: 0x020002B0 RID: 688
+	public static class OllamaClient
+	{
+		// Token: 0x0600139A RID: 5018 RVA: 0x0011D438 File Offset: 0x0011B638
+		[DebuggerStepThrough]
+		public static Task<bool> TestConnection()
+		{
+			OllamaClient.t,vQ{R7m004{*>!K+w"SBZ3m& t,vQ{R7m004{*>!K+w"SBZ3m& = new OllamaClient.t,vQ{R7m004{*>!K+w"SBZ3m&();
+			t,vQ{R7m004{*>!K+w"SBZ3m&.\u206C\u206D\u202A\u200D\u202B\u206E\u200F\u206F\u200D\u200B\u206D\u200B\u206E\u206A\u202E\u206A\u200C\u206E\u206D\u200D\u206D\u202E\u200C\u206F\u200D\u202B\u200F\u200E\u202D\u202A\u206C\u200C\u206B\u202B\u206F\u206E\u200E\u200B\u206B\u200D\u202E = AsyncTaskMethodBuilder<bool>.Create();
+			t,vQ{R7m004{*>!K+w"SBZ3m&.\u206E\u202A\u206A\u206B\u202B\u206E\u206B\u200C\u206A\u200B\u202D\u202A\u200B\u200F\u202D\u200F\u206D\u206E\u202D\u206A\u202E\u202D\u202D\u206D\u206A\u206A\u206A\u202D\u206F\u200E\u202D\u206B\u206C\u202B\u206F\u206C\u206B\u202E\u206C\u206E\u202E = -1;
+			t,vQ{R7m004{*>!K+w"SBZ3m&.\u206C\u206D\u202A\u200D\u202B\u206E\u200F\u206F\u200D\u200B\u206D\u200B\u206E\u206A\u202E\u206A\u200C\u206E\u206D\u200D\u206D\u202E\u200C\u206F\u200D\u202B\u200F\u200E\u202D\u202A\u206C\u200C\u206B\u202B\u206F\u206E\u200E\u200B\u206B\u200D\u202E.Start<OllamaClient.t,vQ{R7m004{*>!K+w"SBZ3m&>(ref t,vQ{R7m004{*>!K+w"SBZ3m&);
+			return t,vQ{R7m004{*>!K+w"SBZ3m&.\u206C\u206D\u202A\u200D\u202B\u206E\u200F\u206F\u200D\u200B\u206D\u200B\u206E\u206A\u202E\u206A\u200C\u206E\u206D\u200D\u206D\u202E\u200C\u206F\u200D\u202B\u200F\u200E\u202D\u202A\u206C\u200C\u206B\u202B\u206F\u206E\u200E\u200B\u206B\u200D\u202E.Task;
+		}
+
+		// Token: 0x0600139B RID: 5019 RVA: 0x0011D478 File Offset: 0x0011B678
+		[DebuggerStepThrough]
+		public static Task<bool> TestChatConnection()
+		{
+			OllamaClient.FV3MF*y;Gw@jf(8YX"?%fvN8) fv3MF*y;Gw@jf(8YX"?%fvN8) = new OllamaClient.FV3MF*y;Gw@jf(8YX"?%fvN8)();
+			fv3MF*y;Gw@jf(8YX"?%fvN8).\u200D\u206F\u206D\u206F\u200E\u202A\u206E\u200F\u206B\u202D\u202B\u202E\u206C\u206F\u202A\u206F\u206C\u202C\u200F\u202D\u206C\u202C\u200D\u202C\u200F\u206D\u200C\u202D\u200B\u202B\u200C\u206F\u206E\u200E\u200C\u206C\u202B\u206C\u200D\u206A\u202E = AsyncTaskMethodBuilder<bool>.Create();
+			fv3MF*y;Gw@jf(8YX"?%fvN8).\u202B\u202E\u200E\u202E\u202C\u202D\u206A\u200B\u206C\u200E\u206E\u202D\u206C\u200B\u202E\u206E\u206F\u206C\u200B\u202A\u206E\u206F\u202A\u202D\u200B\u206D\u206B\u200E\u206E\u206C\u200B\u202D\u206F\u206C\u200E\u200E\u206C\u206E\u200F\u202B\u202E = -1;
+			fv3MF*y;Gw@jf(8YX"?%fvN8).\u200D\u206F\u206D\u206F\u200E\u202A\u206E\u200F\u206B\u202D\u202B\u202E\u206C\u206F\u202A\u206F\u206C\u202C\u200F\u202D\u206C\u202C\u200D\u202C\u200F\u206D\u200C\u202D\u200B\u202B\u200C\u206F\u206E\u200E\u200C\u206C\u202B\u206C\u200D\u206A\u202E.Start<OllamaClient.FV3MF*y;Gw@jf(8YX"?%fvN8)>(ref fv3MF*y;Gw@jf(8YX"?%fvN8));
+			return fv3MF*y;Gw@jf(8YX"?%fvN8).\u200D\u206F\u206D\u206F\u200E\u202A\u206E\u200F\u206B\u202D\u202B\u202E\u206C\u206F\u202A\u206F\u206C\u202C\u200F\u202D\u206C\u202C\u200D\u202C\u200F\u206D\u200C\u202D\u200B\u202B\u200C\u206F\u206E\u200E\u200C\u206C\u202B\u206C\u200D\u206A\u202E.Task;
+		}
+
+		// Token: 0x04000DD9 RID: 3545
+		private static readonly HttpClient httpClient = new HttpClient();
+	}
+}

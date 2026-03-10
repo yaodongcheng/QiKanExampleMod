@@ -1,0 +1,174 @@
+<Prefab>
+  <Window>
+    <!-- 1. 全屏背景层：半透明黑色，阻挡视线 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+            HorizontalAlignment="Center" VerticalAlignment="Center"
+            Sprite="BlankWhiteSquare_9" Color="#000000DD">
+      <Children>
+
+        <!-- 2. 主面板：居中，超大尺寸 (1700x950) -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="1700" SuggestedHeight="950" 
+                HorizontalAlignment="Center" VerticalAlignment="Center" 
+                Sprite="BlankWhiteSquare_9" Color="#1A1A1AFF">
+          <Children>
+
+            <!-- A. 顶部标题栏 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="80" 
+                    Sprite="BlankWhiteSquare_9" Color="#333333FF" VerticalAlignment="Top">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                            Text="人物属性面板" Brush="Standard.Text" 
+                            FontSize="40" TextColor="#FFFFFFFF" 
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            DoNotAcceptEvents="true"/>
+              </Children>
+            </Widget>
+
+            <!-- B. 导航栏 (Tab页签) -->
+            <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60" 
+                       MarginTop="85" HorizontalAlignment="Center"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <Children>
+                <!-- Tab 1: 个人属性 -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="280" 
+                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectPersonal" MarginRight="5">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                Text="个人属性" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                  </Children>
+                </ButtonWidget>
+
+                <!-- Tab 2: 家族信息 -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="280" 
+                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectClan" MarginRight="5">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                Text="家族信息" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                  </Children>
+                </ButtonWidget>
+
+                <!-- Tab 3: 势力信息 -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="280" 
+                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectKingdom" MarginRight="5">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                Text="势力信息" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                  </Children>
+                </ButtonWidget>
+
+                <!-- Tab 4: 人际关系 -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="280" 
+                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectRelation" MarginRight="5">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                Text="人际关系" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                  </Children>
+                </ButtonWidget>
+
+                <!-- Tab 5: 记忆 -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="280" 
+                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectMemory" MarginRight="5">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                Text="记忆" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                  </Children>
+                </ButtonWidget>
+
+                <!-- Tab 6: 背包物品 -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="280" 
+                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectInventory">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                                Text="背包物品" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                  </Children>
+                </ButtonWidget>
+              </Children>
+            </ListPanel>
+
+            <!-- C. 内容显示区域 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                    MarginTop="160" MarginBottom="100" MarginLeft="50" MarginRight="50">
+              <Children>
+
+                <!-- ================= Tab 1: 个人属性 (Grid布局) ================= -->
+                <GridWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                            IsVisible="@IsPersonalSelected"
+                            DefaultCellWidth="500" DefaultCellHeight="80" ColumnCount="3">
+                  <Children>
+                     <!-- 左对齐：HorizontalAlignment="Left" + MarginLeft="20" -->
+                     <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="500" SuggestedHeight="80"
+                                 Text="@SelfCognitionText" Brush="Standard.Text" FontSize="24" TextColor="#EEEEEEFF"
+                                 HorizontalAlignment="Left" MarginLeft="20"/>
+                     
+                     <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="500" SuggestedHeight="80"
+                                 Text="@MotivationText" Brush="Standard.Text" FontSize="24" TextColor="#EEEEEEFF"
+                                 HorizontalAlignment="Left" MarginLeft="20"/>
+                     
+                     <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="500" SuggestedHeight="80"
+                                 Text="@AgentStateText" Brush="Standard.Text" FontSize="24" TextColor="#00FF00FF"
+                                 HorizontalAlignment="Left" MarginLeft="20"/>
+                  </Children>
+                </GridWidget>
+          
+				
+				<!-- ================= Tab 3: 家族信息 ================= -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsClanSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60"
+                                    Text="@ClanInfoText" Brush="Standard.Text" FontSize="26" HorizontalAlignment="Left" MarginLeft="20"/>
+                    </Children>
+                </ListPanel>
+				
+
+                <!-- ================= Tab 3: 王国信息 ================= -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsKingdomSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60"
+                                    Text="@KingdomInfoText" Brush="Standard.Text" FontSize="26" HorizontalAlignment="Left" MarginLeft="20"/>
+                    </Children>
+                </ListPanel>
+
+                <!-- ================= Tab 4: 人际关系 ================= -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsRelationSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60"
+                                    Text="@RelationInfoText" Brush="Standard.Text" FontSize="26" HorizontalAlignment="Left" MarginLeft="20"/>
+                    </Children>
+                </ListPanel>
+
+                <!-- ================= Tab 5: 记忆 ================= -->
+                 <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsMemorySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60"
+                                    Text="@MemoryInfoText" Brush="Standard.Text" FontSize="26" HorizontalAlignment="Left" MarginLeft="20"/>
+                    </Children>
+                </ListPanel>
+
+                <!-- ================= Tab 6: 背包物品 ================= -->
+                 <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsInventorySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                    <Children>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60"
+                                    Text="@InventoryInfoText" Brush="Standard.Text" FontSize="26" HorizontalAlignment="Left" MarginLeft="20"/>
+                    </Children>
+                </ListPanel>
+
+              </Children>
+            </Widget>
+
+            <!-- D. 底部关闭按钮 -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="80"
+                          HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20"
+                          Brush="Simple.Button.Bg" Command.Click="ExecuteClose">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                            Text="关闭面板" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            DoNotAcceptEvents="true"/>
+              </Children>
+            </ButtonWidget>
+
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

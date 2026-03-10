@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Kingdoms>
+	<Kingdom id="noKingdom"
+			 owner="Hero.lord_1_maedakeiji"
+			 banner_key="11.163.166.1528.1528.764.764.1.0.0.743.171.171.483.483.764.764.0.0.0"
+			 primary_banner_color="0xff564438"
+			 secondary_banner_color="0xfff6dfaa"
+			 label_color="FFDB8330"
+			 color="FF9E5072"
+			 color2="FFDE9953"
+			 alternative_color="FF1F1D1F"
+			 alternative_color2="FFc28446"
+			 culture="Culture.ninja"
+			 settlement_banner_mesh="encounter_flag_a"
+			 flag_mesh="info_screen_flags_a"
+			 name="{=my_noKingdom}noKingdom"
+			 short_name="{=my_noKingdom}noKingdom"
+			 title="{=my_noKingdom}noKingdom"
+			 ruler_title="{=my_noKingdom}noKingdom"
+			 text="{=my_noKingdom}noKingdom">
+		<relationships> </relationships>
+		<policies> </policies>
+	</Kingdom>
+</Kingdoms>

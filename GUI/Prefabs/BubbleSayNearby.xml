@@ -1,0 +1,96 @@
+<Prefab>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+      <ListPanel DataSource="{Bubbles}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+        <ItemTemplate>
+          
+          <!-- 锚点：尺寸为0 -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="0" SuggestedHeight="0" DoNotAcceptEvents="true">
+            <Children>
+              
+              <!-- 
+                 内容容器：负责坐标偏移 
+                 SuggestedHeight 设大一点以容纳垂直堆叠的内容
+              -->
+              <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" 
+                      SuggestedWidth="300" SuggestedHeight="150"
+                      PositionXOffset="@PosX" 
+                      PositionYOffset="@PosY"
+                      IsVisible="@IsVisible"
+                      DoNotAcceptEvents="true">
+
+                <Children>
+                  <!-- 使用 ListPanel 实现垂直堆叠：名字 -> 说话 -> 血条 -> 伤害 -->
+                  <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                             StackLayout.LayoutMethod="VerticalTopToBottom"
+                             HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Children>
+
+                      <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                                   SuggestedWidth="100"
+                                   StackLayout.LayoutMethod="VerticalTopToBottom"
+                                   HorizontalAlignment="Center">
+                          <Children>
+                          
+                            <!-- 4. 伤害数字 -->
+                            <!-- HorizontalAlignment="Left" 现在意味着靠这 100px 区域的左边 -->
+                            <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                           Brush="MyBrush_16_Left"
+                                           Text="@DamageText"
+                                           IsVisible="@ShowDamage"
+                                           HorizontalAlignment="Left"
+                                           Brush.FontSize="16"
+                                           Brush.FontColor="#FF4500FF" />
+
+                            <!-- 3. 血条区域 -->
+                            <!-- WidthSizePolicy 改为 StretchToParent，让它自动填满这个 100px 的容器 -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
+                                    SuggestedHeight="8"
+                                    HorizontalAlignment="Left"
+                                    Sprite="BlankWhiteSquare_9" Color="#000000E6" MarginTop="2" MarginBottom="2">
+                              <Children>
+                                <!-- 动画血条 -->
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                        SuggestedWidth="@CurrentHealthWidth"
+                                        HorizontalAlignment="Left"
+                                        Sprite="BlankWhiteSquare_9" Color="#8B0000FF" />
+                              </Children>
+                            </Widget>
+                            
+                          </Children>
+                        </ListPanel>
+
+                      <!-- 2. 说话文本 (中间) -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                      Brush="Brush_HeadText" 
+                                      Text="@SpeechText"
+                                      IsVisible="@ShowSpeech"
+                                      HorizontalAlignment="Center"
+                                      Brush.TextHorizontalAlignment="Center"
+                                      Brush.FontSize="20"
+                                      Brush.FontColor="#FFFFFFFF" 
+                                      MarginBottom="2"/> <!-- 白色 -->
+
+                      <!-- 1. 名字 (最上方) -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                      Brush="Brush_HeadName" 
+                                      Text="@AgentName"
+                                      HorizontalAlignment="Center"
+                                      Brush.FontSize="18"
+                                      Brush.FontColor="#FFD700FF" /> <!-- 铜金色/金黄色 -->
+
+                    </Children>
+                  </ListPanel>
+                </Children>
+                
+              </Widget>
+            </Children>
+          </Widget>
+          
+        </ItemTemplate>
+      </ListPanel>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

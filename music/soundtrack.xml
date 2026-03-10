@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PsaiProject xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <InitialExportDirectory>D:\PSAI\Assets\Resources</InitialExportDirectory>
+  <SerializedByProtocolVersion>1.0</SerializedByProtocolVersion>
+  <Properties>
+    <WarningThresholdPreBeatMillis>1500</WarningThresholdPreBeatMillis>
+    <DefaultCalculatePostAndPrebeatLengthBasedOnBeats>false</DefaultCalculatePostAndPrebeatLengthBasedOnBeats>
+    <DefaultSegmentSuitabilites>3</DefaultSegmentSuitabilites>
+    <ForceFullRebuild>false</ForceFullRebuild>
+    <VolumeBoost>0</VolumeBoost>
+    <ExportSoundQualityInPercent>100</ExportSoundQualityInPercent>
+    <DefaultPrebeats>1</DefaultPrebeats>
+    <DefaultPostbeats>4</DefaultPostbeats>
+    <DefaultBpm>100</DefaultBpm>
+    <DefaultPrebeatLengthInSamples>1000</DefaultPrebeatLengthInSamples>
+    <DefaultPostbeatLengthInSamples>3000</DefaultPostbeatLengthInSamples>
+  </Properties>
+  <Themes>
+   
+    <Theme>
+      <Name>Main Theme</Name>
+      <Id>5</Id>
+      <ThemeTypeInt>7</ThemeTypeInt>
+      <Serialization_ManuallyBlockedThemeIds />
+      <IntensityAfterRest>0.5</IntensityAfterRest>
+      <MusicPhaseSecondsAfterRest>60</MusicPhaseSecondsAfterRest>
+      <MusicPhaseSecondsGeneral>60</MusicPhaseSecondsGeneral>
+      <RestSecondsMin>30</RestSecondsMin>
+      <RestSecondsMax>60</RestSecondsMax>
+      <FadeoutMs>20</FadeoutMs>
+      <Priority>1</Priority>
+      <WeightingSwitchGroups>0.5</WeightingSwitchGroups>
+      <WeightingIntensityVsVariance>0.5</WeightingIntensityVsVariance>
+      <WeightingLowPlaycountVsRandom>0</WeightingLowPlaycountVsRandom>
+      <Groups>
+        <Group>
+          <Name>default group</Name>
+          <Segments>
+            <Segment>
+              <Name>Maintheme</Name>
+              <Id>17</Id>
+              <IsAutomaticBridgeSegment>false</IsAutomaticBridgeSegment>
+              <Intensity>0.5</Intensity>
+              <IsUsableAtStart>true</IsUsableAtStart>
+              <IsUsableInMiddle>true</IsUsableInMiddle>
+              <IsUsableAtEnd>true</IsUsableAtEnd>
+              <AudioData>
+                <_prebeatLengthInSamplesEnteredManually>0</_prebeatLengthInSamplesEnteredManually>
+                <_postbeatLengthInSamplesEnteredManually>0</_postbeatLengthInSamplesEnteredManually>
+                <Path>MAIN_THEME.ogg</Path>
+                <Bpm>100</Bpm>
+                <PreBeats>0</PreBeats>
+                <PostBeats>0</PostBeats>
+                <CalculatePostAndPrebeatLengthBasedOnBeats>false</CalculatePostAndPrebeatLengthBasedOnBeats>
+                <PreBeatLengthInSamples>0</PreBeatLengthInSamples>
+                <PostBeatLengthInSamples>0</PostBeatLengthInSamples>
+                <TotalLengthInSamples>2910600</TotalLengthInSamples>
+                <SampleRate>44100</SampleRate>
+              </AudioData>
+              <CalculatePostAndPrebeatLengthBasedOnBeats>false</CalculatePostAndPrebeatLengthBasedOnBeats>
+              <PreBeatLengthInSamples>0</PreBeatLengthInSamples>
+              <PostBeatLengthInSamples>0</PostBeatLengthInSamples>
+              <PreBeats>0</PreBeats>
+              <PostBeats>0</PostBeats>
+              <Bpm>100</Bpm>
+              <SampleRate>44100</SampleRate>
+              <BitsPerSample>16</BitsPerSample>
+              <ThemeId>5</ThemeId>
+              <Serialization_ManuallyBlockedSegmentIds />
+              <Serialization_ManuallyLinkedSegmentIds />
+              <DefaultCompatibiltyAsFollower>allowed_implicitly</DefaultCompatibiltyAsFollower>
+            </Segment>
+          </Segments>
+          <Description />
+          <Serialization_Id>10</Serialization_Id>
+          <Serialization_ManuallyBlockedGroupIds />
+          <Serialization_ManuallyLinkedGroupIds />
+          <Serialization_ManualBridgeSegmentIds />
+        </Group>
+      </Groups>
+    </Theme>
+   
+
+
+  </Themes>
+</PsaiProject>

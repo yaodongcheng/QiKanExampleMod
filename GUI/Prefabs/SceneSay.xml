@@ -1,0 +1,49 @@
+<Prefab>
+  <Window>
+    <!-- 1. 底部居中容器 -->
+    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="1920"
+            HorizontalAlignment="Center" VerticalAlignment="Bottom"  IsVisible = "@IsVisible"  Command.Click="ExecuteClick"
+            MarginBottom="80">
+      <Children>
+        <!-- 2. 背景板 (深色半透明) -->
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"  DoNotAcceptEvents="true"
+                Sprite="BlankWhiteSquare_9" Color="#00000000">
+            <Children>
+                
+                <!-- 3. 内容布局 (垂直排列：名字在上，内容在下，但是因为是Bottom，所以会反着来) -->
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                           LayoutMethod="VerticalTopToBottom" StackLayout.LayoutMethod="VerticalTopToBottom" DoNotAcceptEvents="true"
+                           PaddingLeft="40" PaddingRight="40" PaddingTop="20" PaddingBottom="30">
+                    <Children>
+						
+                        <!-- 使用 RichTextWidget 支持换行和富文本、中文 -->
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        Text="@DialogueContent" 
+                                        Brush="Brush_DialogText"
+                                        TextColor="#EFEFEFFF" DoNotAcceptEvents="true"
+                                        />						
+
+                        <!-- 装饰线 (可选，用高度为2的Widget模拟) -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="5" DoNotAcceptEvents="true"
+                                Sprite="order_popup_card_default_9" Color="#FFFFFF88"  HorizontalAlignment="Center"  MarginTop="15"
+                                MarginBottom="15"
+                               />
+
+                        <!-- 3.2 对话内容 (白色) -->
+                        
+						<!-- 3.1 说话人名字 (金色/醒目色) -->
+                        <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                    Text="@SpeakerName" 
+                                    Brush="Brush_DialogName" 
+                                    TextColor="#FFD700FF"                    DoNotAcceptEvents="true"                 
+                                    MarginBottom="0"/>
+                    </Children>
+                </ListPanel>
+
+            </Children>
+        </Widget>
+
+      </Children>
+    </ButtonWidget>
+  </Window>
+</Prefab>

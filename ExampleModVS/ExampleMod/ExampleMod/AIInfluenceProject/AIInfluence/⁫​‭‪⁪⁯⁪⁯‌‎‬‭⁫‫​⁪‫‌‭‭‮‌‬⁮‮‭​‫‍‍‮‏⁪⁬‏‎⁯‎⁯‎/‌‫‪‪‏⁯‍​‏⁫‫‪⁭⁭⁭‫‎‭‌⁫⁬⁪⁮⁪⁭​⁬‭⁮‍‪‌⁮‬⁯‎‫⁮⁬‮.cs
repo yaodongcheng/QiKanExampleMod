@@ -1,0 +1,21 @@
+arHandler.cs" />
+    <Compile Include="WorldEventEntry.cs" />
+    <Compile Include="WorldEventsUILayer.cs" />
+    <Compile Include="WorldEventsViewModel.cs" />
+    <Compile Include="WorldEventsWindowLayer.cs" />
+    <Compile Include="WorldEventsWindowViewModel.cs" />
+    <Compile Include="WorldInfoManager.cs" />
+    <Compile Include="WorldSecret.cs" />
+    <Compile Include="​​⁮‮⁭‮⁯⁭​‬⁬‬⁫⁭​⁮‭‏‏⁮‬​​‏‌‪⁯‮⁮⁪‭‮⁫‎⁯‍‮⁭‌‮.cs" />
+    <Compile Include="​‏⁭‍⁯​⁮⁬‭⁯‪⁭‎​‪‭‬⁯‭​⁮‎⁮⁫⁯‎​⁫‪‍‭‎‭⁬‌⁪‍⁪⁯‬‮.cs" />
+    <Compile Include="​‫‏⁭‭⁫‎​‍⁭‍‌‬‏‍⁮‍‎‪‮⁫⁭‪⁯‌‬‬⁬​⁯⁫‫⁫⁪‭‏‎⁬‭⁪‮.cs" />
+    <Compile Include="​‫⁪‮⁬‫⁫‌​⁬‪‌‏‌‌⁮‬​‫⁪‭⁪⁮‬⁯‬⁭‪‌​‫‬⁫‬⁮⁮‍⁪‮‭‮.cs" />
+    <Compile Include="​‫⁪⁭‭‮‮⁭⁬‬⁫⁯⁫​⁯‍⁮‫‭⁯‎‍‬‏‪⁭⁮‬‌⁯⁯​‬⁬⁪⁬‫​⁫‬‮.cs" />
+    <Compile Include="​‬‎⁪⁬‎‪‭⁬‎‬‎‪‬‮‌‪‎⁫‫‌‏⁫‍‏​⁭‌‫‬⁮⁮⁮‮‫‎‭​​‎\‭‍‍⁬‎‮⁫‌⁫⁪​‪⁪‏‎⁭‌‮​‎⁬‌⁯⁪⁮‎⁬‪‏⁯⁯⁯⁮‬‭​‪‮‭‪‮.cs" />
+    <Compile Include="​‬‎⁪⁬‎‪‭⁬‎‬‎‪‬‮‌‪‎⁫‫‌‏⁫‍‏​⁭‌‫‬⁮⁮⁮‮‫‎‭​​‎\⁫⁭‏‍‪‍‎‪‫‍‫​‍⁫⁯‏‎⁪‌‭‏‪⁬⁮‪⁬‮⁮‎⁭‌⁬⁯‌⁯‌⁬‭‌‮.cs" />
+    <Compile Include="​‬⁬⁪‮⁮​⁬⁯⁬⁮⁫‭‍​⁮⁪⁮​‮‍‎‍‎⁬‍⁬‮‫‌‮⁪⁬⁫‪⁮‎‍‮‏‮.cs" />
+    <Compile Include="​⁪‎‪⁫‭⁪​⁬⁬⁮⁬⁭⁪‏⁯⁪‬⁪‏⁬‏‮‮⁪‌‭⁬‌⁬‪‭⁭‪‌‍‎‭⁬‬‮.cs" />
+    <Compile Include="​⁭‍‭‌⁪‬‏⁪⁮‪⁫⁯⁬‭⁬‮‏‬⁯‬⁭⁭‮‮‪‍‬‫‪‭‏‍‬⁬‏‪‌‏⁫‮.cs" />
+    <Compile Include="​⁭⁪‬⁫‌​‫‌⁯‏‬‬‏‪⁮⁬⁯‎‎⁯‌⁯⁯‌‌⁪‫‎⁬‏‬‏⁬‮⁯‮⁫‬⁬‮.cs" />
+    <Compile Include="​⁮⁪⁬​‌‍‌‌‮‍​‮‍‭‬⁪⁯​⁫‫‬‏⁭‬⁯⁬‍⁯‌‮‏⁯‍‭‍‏⁮⁫⁫‮.cs" />
+    <Compile Include="‌​‏‍

@@ -1,0 +1,50 @@
+x0014C89C
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		protected override void OnStart()
+		{
+			bool flag = !this.CanExecute();
+			if (flag)
+			{
+				goto IL_11;
+			}
+			goto IL_162;
+			int num2;
+			int num;
+			for (;;)
+			{
+				IL_16:
+				num = num2;
+				switch (~(-(num - (~915675720 - -1242006217 * -680467630 + ~(--1976898396))) - ~112668763) % 9)
+				{
+				case 0:
+					goto IL_72;
+				case 1:
+					goto IL_CA;
+				case 2:
+				{
+					bool flag2 = \u206D\u206E\u206E\u206B\u202B\u200C\u206F\u202A\u202A\u200D\u206B\u206F\u206B\u202B\u200F\u206D\u206F\u202C\u206B\u206A\u200F\u200F\u202C\u202D\u202D\u200D\u200C\u200E\u200F\u206D\u206E\u202C\u202D\u206E\u206F\u202E\u200E\u202C\u206C\u206E\u202E.À\u0003â2\u00B0(this.\u202D\u206D\u206A\u206E\u202A\u200B\u202B\u206E\u200F\u200B\u200D\u206A\u200E\u200B\u206E\u202D\u206F\u200D\u206C\u206D\u202D\u200F\u206D\u202B\u202A\u206B\u200F\u200E\u200F\u202B\u206E\u200C\u206E\u202B\u200B\u206F\u200E\u200E\u206D\u202A\u202E) != null;
+					if (flag2)
+					{
+						num2 = 873648037;
+						continue;
+					}
+					goto IL_202;
+				}
+				case 3:
+					goto IL_11;
+				case 5:
+					goto IL_114;
+				case 6:
+					goto IL_F4;
+				case 7:
+					this.\u202D\u206D\u206A\u206E\u202A\u200B\u202B\u206E\u200F\u200B\u200D\u206A\u200E\u200B\u206E\u202D\u206F\u200D\u206C\u206D\u202D\u200F\u206D\u202B\u202A\u206B\u200F\u200E\u200F\u202B\u206E\u200C\u206E\u202B\u200B\u206F\u200E\u200E\u206D\u202A\u202E = \u202A\u206A\u206E\u200D\u206E\u206C\u206A\u200B\u202B\u202A\u202B\u200F\u200E\u202B\u202D\u202C\u206C\u200C\u206E\u200C\u202D\u206C\u206B\u202A\u206D\u200E\u206B\u200B\u206D\u206B\u206B\u202C\u202A\u200E\u200D\u206D\u200E\u206C\u206C\u200E\u202E.\u001Fúæ}Ç(base.TargetHero);
+					num2 = ((this.\u202D\u206D\u206A\u206E\u202A\u200B\u202B\u206E\u200F\u200B\u200D\u206A\u200E\u200B\u206E\u202D\u206F\u200D\u206C\u206D\u202D\u200F\u206D\u202B\u202A\u206B\u200F\u200E\u200F\u202B\u206E\u200C\u206E\u202B\u200B\u206F\u200E\u200E\u206D\u202A\u202E == null) ? 880112855 : -556371595);
+					continue;
+				case 8:
+					goto IL_162;
+				}
+				break;
+			}
+			goto IL_177;
+			IL_72:
+			bool flag3 = !this.\u202C\u200E\u202D\u200E\u202C\u202A\u206D\u200C\u200C\u206D\u202E\u206F\u202A

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<SpriteData>
+  <SpriteCategories>
+    <SpriteCategory>
+      <Name>ui_character_illustration</Name>
+      <SpriteSheetCount>1</SpriteSheetCount>
+      <AlwaysLoad>true</AlwaysLoad>
+    </SpriteCategory>
+  </SpriteCategories>
+  
+  <SpriteParts>
+    <SpritePart Name="taikou">
+      <Width>542</Width>
+      <Height>565</Height>
+    </SpritePart>
+  </SpriteParts>
+  
+  <Sprites>
+    <Sprite Name="taikou" Category="ui_character_illustration" SpritePartName="taikou">
+      <Width>542</Width>
+      <Height>565</Height>
+    </Sprite>
+  </Sprites>
+</SpriteData>

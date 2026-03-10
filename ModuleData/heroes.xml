@@ -1,0 +1,3 @@
+<Heroes>
+  <Hero id="lord_1_a1" father="Hero.lord_5_3_2" mother="Hero.lord_5_6" spouse="Hero.lord_6_4" faction="Faction.clan_test_1" text="...">
+</Heroes>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
+ <tags>
+  <tag language="Chinese"/>
+ </tags>
+ <strings>  
+  <string id="MYMOD_MaedaKeiji" text="前田 庆次" />  
+  <string id="MYMOD_IzumoOkuni" text="出云 阿国" />  
+	<string id="my_Ninja" text="火影忍者" />
+	
+	<string id="my_Pirate" text="海贼王" />
+	<string id="my_noKingdom" text="无之国" />
+	<string id="my_neutralClan" text="中立家族" />
+	<string id="my_shinobi_scarf" text="忍巾" />
+ </strings>
+</base>

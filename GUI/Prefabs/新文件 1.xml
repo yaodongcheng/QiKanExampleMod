@@ -1,0 +1,22 @@
+<Prefab>
+
+
+  <Window>
+    <!-- 父容器 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"   >     
+	<Children>
+      
+		
+		<ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="80" SuggestedHeight="80"  
+              Color="#FF0000FF" Brush="Brush_CircleButton_NinjaReport" 
+              Command.Click="ExecuteClose">
+			  
+			   
+			  
+		</ButtonWidget>
+		
+		
+		</Children>
+    </Widget>
+  </Window>
+</Prefab>

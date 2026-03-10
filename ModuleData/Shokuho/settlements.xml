@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Settlements>
+  <Settlement id="castle_KIN23" name="{=1VIjjKWB}Shoryuji Castle" owner="Faction.clan_hosokawa_1" posX="879.581" posY="610.833" culture="Culture.kinai" gate_posX="880.5103" gate_posY="608.9548">
+    <Components>
+      <Town id="castle_comp_KIN23" is_castle="true" level="1" background_crop_position="0.0" background_mesh="menu_empire_seaside_1" wait_mesh="wait_sho_town" gate_rotation="0.008" prosperity="738" />
+    </Components>
+    <Locations complex_template="LocationComplexTemplate.castle_complex">
+      <Location id="center" scene_name_1="sho_castle_map_b" scene_name_2="sho_castle_map_b" scene_name_3="sho_castle_map_b" />
+      <Location id="lordshall" scene_name_1="sho_keep_scene" scene_name_2="sho_keep_scene" scene_name_3="sho_keep_scene" />
+      <Location id="prison" scene_name="sho_prison_b" />
+    </Locations>
+  </Settlement>
+ </Settlements>
+ 
+ 

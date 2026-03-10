@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<NPCCharacters>				
+	<NPCCharacter id="lord_maedakeiji" default_group="HorseArcher" age="33" voice="ironic" culture="Culture.empire" is_female="true" occupation="Lord" name="{=OWM00sdfsd22}Maeda KeijiSon" face_mesh_cache="true">
+    <face>
+      <BodyProperties version="4" age="43.00" weight="0.1042" build="0.5242" key="0038E80E40000540A5638A2877B57A49616749866A793687D33A3B5558A9BD980878268907CA837A000000000000000000000000000000000000000010DC00C1"/>
+    </face>
+    <Traits>
+      <Trait id="Commander" value="5"/>
+      <Trait id="Valor" value="5"/>
+      <Trait id="Honor" value="1"/> 
+    </Traits>
+  </NPCCharacter>
+  
+</NPCCharacters>

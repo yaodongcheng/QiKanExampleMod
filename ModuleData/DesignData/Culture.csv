@@ -1,0 +1,24 @@
+ID,ScriptName,ChineseName,OtherName,LocozationName,IsMainCulture,IsShokuho
+string,string,string,string,string,string,int
+编号,剧本中文名,中文名,别名,本地化名,是否主流文化,是否织丰自带
+ashigaru,足轻,足轻,,{=gVZxlFB4}Ashigaru,FALSE,1
+saikai,西海,西海,九州,{=XM9EPZDi}Saikai,TRUE,1
+nankai,南海,南海,四国,{=DEmMv6H8}Nankai,TRUE,1
+sanyo,山阳,山阳,中国,{=NFOJEwiL}Sanyo,TRUE,1
+kinai,畿内,畿内,近畿,{=Rsom7ttN}Kinai,TRUE,1
+hokuriku,北陆,北陆,北陆,{=wIaHKYMr}Hokuriku,TRUE,1
+tosan,东山,东山,甲信,{=Z1qR2REA}Tosan,TRUE,1
+tokai,东海,东海,东海,{=701yWNGe}Tokai,TRUE,1
+kanto,关东,关东,关东,{=JSiAyodh}Kanto,TRUE,1
+ou,奥羽,奥羽,东北,{=OFkIDiZT}Ou,TRUE,1
+duelists,决斗者,决斗者,,{=ptsxzysa}Duelists,FALSE,1
+buddhists,僧侣,僧侣,,{=FlooLAMd}Monks,FALSE,1
+looters,追剥,追剥,,{=FguhKirf}Oihagi Looters,FALSE,1
+zoku,贼寇,贼寇,,{=mx7L9bFB}Zoku Thieves,FALSE,1
+yato,野盗,野盗,,{=sTvDztWN}Yato Bandits,FALSE,1
+wokou,倭寇,倭寇,,{=MEQv3Fvs}Wokou Pirates,FALSE,1
+sanzoku,山贼,山贼,,{=4S24PmMZ}Sanzoku Mountain Bandits,FALSE,1
+ochimusya,落武者狩,落武者狩,,{=rW0j3kZA}Ochimusya-gari Manhunters,FALSE,1
+neutral_culture,日本,日本,,{=CKvsb2RB}Japanese,FALSE,1
+ninja,忍者,忍者,,{=my_Ninja}Ninja,FALSE,0
+pirate,海贼,海贼,,{=my_Pirate}Pirate,FALSE,0

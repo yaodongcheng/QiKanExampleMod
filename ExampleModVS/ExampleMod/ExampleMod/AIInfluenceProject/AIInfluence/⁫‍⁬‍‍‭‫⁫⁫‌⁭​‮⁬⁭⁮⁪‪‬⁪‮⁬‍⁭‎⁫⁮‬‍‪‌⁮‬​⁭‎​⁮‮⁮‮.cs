@@ -1,0 +1,77 @@
+2C\u202E\u206F\u200B\u206B\u206B\u200B\u200F\u200D\u200B\u202B\u200D\u202B\u202D\u206A\u206B\u200F\u202E\u206F\u206B\u206D\u202C\u206E\u200D\u202E.\u200D\u206D\u206F\u202A\u200B\u202B\u206B\u200F\u202B\u202E\u202B\u202E\u206E\u200F\u202C\u200F\u202A\u206D\u200D\u206C\u202A\u200F\u202D\u206F\u206E\u206C\u206B\u206D\u202E\u200E\u206D\u206E\u206C\u206B\u200F\u200D\u202A\u202A\u202C\u200F\u202E(<Module>.\u206F\u202C\u206B\u202A\u202D\u200D\u200E\u200D\u200F\u200B\u202D\u202A\u202B\u206C\u202B\u206F\u206F\u200C\u202A\u206B\u202C\u202B\u202D\u202D\u206A\u202B\u202D\u200D\u200F\u206C\u200F\u200D\u200E\u206E\u202C\u206D\u200D\u206C\u200E\u202D\u202E<string>(1132416717), heroTask.TaskId, \u206B\u206B\u200D\u206C\u200C\u200D\u206F\u200B\u206C\u202D\u202C\u202A\u200E\u206B\u200C\u200C\u206A\u206A\u200E\u206A\u200D\u202D\u206F\u200C\u202B\u206D\u202C\u200D\u200F\u202C\u202D\u206B\u202E\u206B\u202C\u202D\u202D\u206A\u200F\u206D\u202E.Yð\u00D7\u00A1\u009B(hero), description ?? <Module>.\u200C\u202C\u206D\u206C\u206C\u200B\u200D\u200E\u202B\u202A\u206F\u206B\u206B\u206A\u202D\u202B\u202E\u202E\u206B\u206D\u202E\u206B\u206B\u200E\u202C\u200E\u200F\u206F\u202D\u202B\u200C\u202B\u202E\u200E\u206B\u202C\u206F\u202E\u200D\u200F\u202E<string>(-1891432372)));
+						num = 133013134;
+						continue;
+					}
+					case 13U:
+						goto IL_01;
+					case 14U:
+					{
+						Army army = \u202D\u206D\u200B\u202E\u206D\u202C\u206D\u206F\u202A\u202B\u202E\u202E\u202E\u200B\u206C\u200D\u200B\u202A\u206E\u202E\u200F\u200B\u202D\u200E\u202D\u206C\u206B\u200F\u200F\u206D\u200E\u202E\u200E\u200D\u206F\u202A\u206F\u200E\u202A\u206D\u202E.É}Â\u00AE\u0009(\u202A\u206A\u206E\u200D\u206E\u206C\u206A\u200B\u202B\u202A\u202B\u200F\u200E\u202B\u202D\u202C\u206C\u200C\u206E\u200C\u202D\u206C\u206B\u202A\u206D\u200E\u206B\u200B\u206D\u206B\u206B\u202C\u202A\u200E\u200D\u206D\u200E\u206C\u206C\u200E\u202E.\u001Fúæ}Ç(hero));
+						bool flag2 = \u200B\u206D\u206D\u206F\u206E\u200D\u200F\u202A\u206A\u200F\u206C\u206D\u206E\u206C\u206E\u206A\u206C\u200B\u206D\u202B\u200E\u200E\u202E\u206B\u206C\u202E\u206A\u206A\u202D\u200B\u206A\u206E\u202D\u202C\u206C\u200C\u206E\u206C\u202D\u200E\u202E.\u00BD\u0088å8&(army) == \u202A\u206A\u206E\u200D\u206E\u206C\u206A\u200B\u202B\u202A\u202B\u200F\u200E\u202B\u202D\u202C\u206C\u200C\u206E\u200C\u202D\u206C\u206B\u202A\u206D\u200E\u206B\u200B\u206D\u206B\u206B\u202C\u202A\u200E\u200D\u206D\u200E\u206C\u206C\u200E\u202E.\u001Fúæ}Ç(hero);
+						if (!flag2)
+						{
+							num = (int)(num3 * 1503766533U ^ 182555917U);
+							continue;
+						}
+						flag3 = false;
+						goto IL_2F8;
+					}
+					case 15U:
+						num = (int)(((hero == null) ? 806584947U : 120437546U) ^ num3 * 3931871045U);
+						continue;
+					}
+					return result;
+					IL_F4:
+					num = -348075878;
+					continue;
+					IL_180:
+					\u200C\u206C\u200F\u206E\u200C\u206E\u206B\u206D\u200D\u200D\u206C\u202B\u206E\u200C\u202E\u202D\u206B\u200F\u200F\u202C\u200B\u200C\u200C\u202E\u206B\u200D\u206C\u206F\u200B\u202B\u206A\u200F\u202C\u206B\u200C\u206D\u202D\u206E\u200D\u206F\u202E.ÑE\u00F7\u00D7ö(\u202A\u206A\u206E\u200D\u206E\u206C\u206A\u200B\u202B\u202A\u202B\u200F\u200E\u202B\u202D\u202C\u206C\u200C\u206E\u200C\u202D\u206C\u206B\u202A\u206D\u200E\u206B\u200B\u206D\u206B\u206B\u202C\u202A\u200E\u200D\u206D\u200E\u206C\u206C\u200E\u202E.\u001Fúæ}Ç(hero), null);
+					num = -348075878;
+					continue;
+					IL_2BA:
+					num = (flag4 ? -529829385 : 497375685);
+					continue;
+					IL_2F8:
+					bool flag5 = flag3;
+					num = ((!flag5) ? 1071490105 : 465309715);
+					continue;
+					IL_312:
+					result = heroTask;
+					num = -596589603;
+				}
+			}
+			return result;
+		}
+
+		// Token: 0x0600163A RID: 5690 RVA: 0x00150E08 File Offset: 0x0014F008
+		public HeroTask GetActiveTask(Hero hero)
+		{
+			bool flag = hero == null;
+			if (flag)
+			{
+				goto IL_09;
+			}
+			goto IL_7D;
+			int num2;
+			HeroTask result;
+			HeroTask heroTask;
+			for (;;)
+			{
+				IL_0E:
+				int num = num2;
+				uint num3;
+				switch ((num3 = (uint)((~(-1457969365 + -1852360859) - (num ^ 17000266 - 2127332541 + --39169870 + (-820603248 + ~827989008))) * 1960638121 + -76857827)) % 7U)
+				{
+				case 0U:
+					goto IL_CC;
+				case 1U:
+					result = null;
+					num2 = (int)(num3 * 2104666143U ^ 2829057149U);
+					continue;
+				case 2U:
+					goto IL_7D;
+				case 3U:
+					result = null;
+					num2 = 1736142687;
+					continue;
+				case

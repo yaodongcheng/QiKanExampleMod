@@ -1,0 +1,45 @@
+<Prefab>
+  <Window>
+    <!-- 根容器：IsVisible 绑定了 IsDuelActive，只有当它为真时，整个界面才显示 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsDuelActive">
+      
+      <!-- 顶部背景条容器 -->
+      <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="50">
+        
+        <!-- === 选手 1 (左边) === -->
+        <ListPanel LayoutImp.LayoutMethod="VerticalBottomToTop" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginRight="20">
+          <!-- 名字 -->
+          <TextWidget Text="@Fighter1Name" Brush="Mission.NameMarker.Text" Brush.FontSize="30" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center"/>
+          
+          <!-- 血条框 (灰色底) -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="20" Sprite="BlankWhiteSquare_9" Color="#333333FF">
+            <!-- 血条 (红色) - 宽度绑定 Fighter1HpWidth -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="@Fighter1HpWidth" Sprite="BlankWhiteSquare_9" Color="#FF0000FF" HorizontalAlignment="Left"/>
+          </Widget>
+          
+          <!-- 血量数值 -->
+          <TextWidget Text="@Fighter1HpText" Brush="Mission.NameMarker.Text" Brush.FontSize="20" HorizontalAlignment="Center"/>
+        </ListPanel>
+
+        <!-- VS 图标 -->
+        <TextWidget Text=" VS " Brush="Mission.NameMarker.Text" Brush.FontSize="50" VerticalAlignment="Center" MarginRight="20" MarginLeft="20"/>
+
+        <!-- === 选手 2 (右边) === -->
+        <ListPanel LayoutImp.LayoutMethod="VerticalBottomToTop" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginLeft="20">
+          <!-- 名字 -->
+          <TextWidget Text="@Fighter2Name" Brush="Mission.NameMarker.Text" Brush.FontSize="30" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center"/>
+          
+          <!-- 血条框 -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="20" Sprite="BlankWhiteSquare_9" Color="#333333FF">
+            <!-- 血条 (蓝色) - 宽度绑定 Fighter2HpWidth -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="@Fighter2HpWidth" Sprite="BlankWhiteSquare_9" Color="#0000FFFF" HorizontalAlignment="Left"/>
+          </Widget>
+          
+          <!-- 血量数值 -->
+          <TextWidget Text="@Fighter2HpText" Brush="Mission.NameMarker.Text" Brush.FontSize="20" HorizontalAlignment="Center"/>
+        </ListPanel>
+
+      </ListPanel>
+    </Widget>
+  </Window>
+</Prefab>

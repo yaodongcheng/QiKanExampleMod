@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<DialogueScript>
+  <!-- 
+    npc_id: 0 代表第一个生成的NPC，1 代表第二个
+    duration: 这句话停留的时间（秒）
+    animation: 说话时的动作 (可选，如 act_conversation_normal)
+  -->
+  <Line npc_index="0" text="你好，老朋友！好久不见。" duration="3.0" animation="act_conversation_normal_a" />
+  <Line npc_index="1" text="确实很久了。听说你在卡拉迪亚发了财？" duration="4.0" animation="act_conversation_normal_b" />
+  <Line npc_index="0" text="发财谈不上，只是勉强糊口罢了。" duration="3.0" animation="act_conversation_bemused" />
+  <Line npc_index="1" text="你还是这么谦虚。来，我们要好好喝一杯。" duration="3.0" animation="act_conversation_happy" />
+</DialogueScript>

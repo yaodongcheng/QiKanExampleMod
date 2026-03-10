@@ -1,0 +1,402 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Items> 
+	<Item id="my_fixed_helmet_01" name="BigJingasa" subtype="head_armor" mesh="sho_jingasa_a_1" scale_factor="1.30"  weight="0.5" difficulty="0" appearance="1" Type="HeadArmor">
+        <ItemComponent>
+            <Armor head_armor="12" has_gender_variations="false" modifier_group="plate" material_type="Plate" />
+        </ItemComponent>
+        <Flags Civilian="true"/>
+    </Item>
+<Item id="hr_weapon_kunai"
+        name="{=hr_weapon_kunai}Ninja Kunai"
+        body_name="bo_knife_a"
+        holster_body_name="bo_axe_short"
+        holster_mesh="throwing_dagger_quiver_1"
+		holster_mesh_with_weapon="throwing_dagger_quiver_1"
+        mesh="spear_blade_42"
+		    flying_mesh="spear_blade_42"
+        weight="0.1"
+        appearance="2"
+        Type="Thrown"
+        holster_position_shift="0,0,-0.1" 
+		    item_holsters="throwing_knife_2:throwing_knife">
+    <ItemComponent>
+      <Weapon weapon_class="Stone"
+              ammo_class="Stone"
+              stack_amount="16"
+              physics_material="metal_weapon"
+              accuracy="100"
+              thrust_speed="132"
+              speed_rating="102"
+              missile_speed="50"
+              weapon_length="29"
+              thrust_damage="80"
+              item_usage="throwing_knife"
+			  thrust_damage_type="Pierce"
+              rotation="0,0,0"
+              passby_sound_code="event:/mission/combat/missile/passby"
+              
+			        sticking_position="0,-0.1,0" 
+			        sticking_rotation="0,90,0"
+             rotation_speed="-3.0, 0, 0">
+        <WeaponFlags RangedWeapon="true"
+                     Consumable="true"
+                     AutoReload="true"
+					 LeavesTrail="true"
+                     UnloadWhenSheathed="true"
+					 AmmoSticksWhenShot="true"
+                     UseHandAsThrowBase="true" />
+      </Weapon>
+    </ItemComponent>
+    <Flags Civilian="true" />
+  </Item>
+
+<Item id="hr_weapon_kunai_2"
+        name="{=hr_weapon_kunai}Ninja Heavy Kunai"
+        body_name="bo_knife_a"
+        holster_body_name="bo_axe_short"
+        holster_mesh="throwing_dagger_quiver_4"
+		holster_mesh_with_weapon="throwing_dagger_quiver_1"
+        mesh="spear_blade_41"
+		    flying_mesh="spear_blade_41"
+        weight="0.1"
+        appearance="2"
+        Type="Thrown"
+        holster_position_shift="0,0,-0.1" 
+		    item_holsters="throwing_knife_2:throwing_knife">
+    <ItemComponent>
+      <Weapon weapon_class="Stone"
+              ammo_class="Stone"
+              stack_amount="12"
+              physics_material="metal_weapon"
+              accuracy="100"
+              thrust_speed="122"
+              speed_rating="92"
+              missile_speed="30"
+              weapon_length="40"
+              thrust_damage="110"
+              item_usage="throwing_knife"
+			  thrust_damage_type="Pierce"
+              rotation="0,0,0"
+              passby_sound_code="event:/mission/combat/missile/passby"
+              
+			        sticking_position="0,-0.1,0" 
+			        sticking_rotation="0,90,0"
+              rotation_speed="-3.0, 0, 0">
+        <WeaponFlags RangedWeapon="true"
+                     Consumable="true"
+                     AutoReload="true"
+					 LeavesTrail="true"
+                     UnloadWhenSheathed="true"
+					 AmmoSticksWhenShot="true"
+                     UseHandAsThrowBase="true" />
+      </Weapon>
+    </ItemComponent>
+    <Flags Civilian="true" />
+  </Item>
+  
+  <Item id="hr_weapon_bomb"
+        name="{=rdKSIamNT}Ninja Hikagebakudan"
+        body_name="bo_projectile_rock"
+        holster_body_name="bo_axe_short"
+        holster_mesh="sho_teppo_ammo_a"
+        holster_mesh_with_weapon="sho_teppo_ammo_a"
+        mesh="siege_ozutsu_ammo"
+        weight="1.0"
+        appearance="1"
+        Type="Thrown"
+        item_holsters="throwing_stone:throwing_stone_2"
+        value="1500"
+        is_merchandise="true">
+    <ItemComponent>
+      <Weapon weapon_class="Stone"
+              ammo_class="Stone"
+			        position="0.02, -.04, 0.01"
+              stack_amount="5"
+              physics_material="burning_jar"
+              accuracy="80"
+              thrust_speed="60"
+              speed_rating="90"
+              missile_speed="30"
+              weapon_length="120"
+              thrust_damage="60"
+              thrust_damage_type="Pierce"
+              item_usage="stone"
+              trail_particle_name="psys_game_burning_agent"
+              rotation_speed="0, -3.0, 0">
+        <WeaponFlags RangedWeapon="true"
+                     Consumable="true"
+                     AutoReload="true"
+                     LeavesTrail="true"
+                     Burning="true"
+                     AffectsAreaBig="true"
+                     UseHandAsThrowBase="true"
+                     AmmoBreaksOnBounceBack="true"
+                     CanPenetrateShield="true"
+                     MissileWithPhysics="true"
+                     CanKnockDown="true" />
+      </Weapon>
+    </ItemComponent>
+    <Flags Civilian="true" />
+  </Item>
+  
+  <Item
+		id="sho_armguard"
+		name="{=gfQDDkEY}Ninja Arm Guard"
+		using_tableau="true"
+		body_name="bo_cap_aserai_shields_h"
+		shield_body_name="bo_aserai_shields_h"
+		recalculate_body="false"
+		mesh="siege_ozutsu_ammo"
+		culture="Culture.aserai"
+		weight="0.5"
+		appearance="1"
+		Type="Shield"
+		item_holsters="shield:shield_2:shield_3:shield_4"
+		has_lower_holster_priority="true"
+		holster_position_shift="-0.1,-0.0,0">
+		<ItemComponent>
+			<Weapon
+				weapon_class="LargeShield"
+				body_armor="1"
+				thrust_speed="110"
+				thrust_damage_type="Blunt"
+				speed_rating="100"
+				physics_material="wood_shield"
+				item_usage="shield"
+				position="0.0, 0.00, 0.00"
+				rotation="0.0,10.0,40.00"
+				weapon_length="60"
+				center_of_mass="0.0,0.05,0.05"
+				hit_points="90"
+				modifier_group="shield">
+				<WeaponFlags
+					CanBlockRanged="true"
+					HasHitPoints="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			WoodenParry="true"
+			HeldInOffHand="true"
+			ForceAttachOffHandSecondaryItemBone="true" />
+	</Item>
+	
+	<Item
+		id="sho_armguard_2"
+		name="{=gfQDDkEY}Ninja Reinforced Arm Guard"
+		using_tableau="true"
+		body_name="bo_cap_aserai_shields_h"
+		shield_body_name="bo_aserai_shields_h"
+		recalculate_body="false"
+		mesh="siege_ozutsu_ammo"
+		culture="Culture.aserai"
+		weight="0.5"
+		appearance="1"
+		Type="Shield"
+		item_holsters="shield:shield_2:shield_3:shield_4"
+		has_lower_holster_priority="true"
+		holster_position_shift="-0.1,-0.0,0">
+		<ItemComponent>
+			<Weapon
+				weapon_class="LargeShield"
+				body_armor="1"
+				thrust_speed="105"
+				thrust_damage_type="Blunt"
+				speed_rating="90"
+				physics_material="wood_shield"
+				item_usage="shield"
+				position="0.0, 0.00, 0.00"
+				rotation="0.0,10.0,40.00"
+				weapon_length="60"
+				center_of_mass="0.0,0.05,0.05"
+				hit_points="120"
+				modifier_group="shield">
+				<WeaponFlags
+					CanBlockRanged="true"
+					HasHitPoints="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			WoodenParry="true"
+			HeldInOffHand="true"
+			ForceAttachOffHandSecondaryItemBone="true" />
+	</Item>
+	
+	<Item
+		id="sho_armguard_3"
+		name="{=gfQDDkEY}Ninja Steel Arm Guard"
+		using_tableau="true"
+		body_name="bo_cap_aserai_shields_h"
+		shield_body_name="bo_aserai_shields_h"
+		recalculate_body="false"
+		mesh="siege_ozutsu_ammo"
+		culture="Culture.aserai"
+		weight="0.5"
+		appearance="1"
+		Type="Shield"
+		item_holsters="shield:shield_2:shield_3:shield_4"
+		has_lower_holster_priority="true"
+		holster_position_shift="-0.1,-0.0,0">
+		<ItemComponent>
+			<Weapon
+				weapon_class="LargeShield"
+				body_armor="1"
+				thrust_speed="100"
+				thrust_damage_type="Blunt"
+				speed_rating="85"
+				physics_material="metal_shield"
+				item_usage="shield"
+				position="0.0, 0.00, 0.00"
+				rotation="0.0,10.0,40.00"
+				weapon_length="60"
+				center_of_mass="0.0,0.05,0.05"
+				hit_points="180"
+				modifier_group="shield">
+				<WeaponFlags
+					CanBlockRanged="true"
+					HasHitPoints="true" />
+			</Weapon>
+		</ItemComponent>
+		<Flags
+			WoodenParry="true"
+			HeldInOffHand="true"
+			ForceAttachOffHandSecondaryItemBone="true" />
+	</Item>
+  
+ <Item
+		id="sho_shinobi_scarf"
+		name="{=h1bcf5zn}Ninja Shinobi Eri-maki"
+		mesh="aserai_shoulder_a"
+		culture="Culture.neutral_culture"
+		subtype="body_armor"
+		weight="0.2"
+		difficulty="0"
+		appearance="2"
+		Type="Cape">
+		<ItemComponent>
+			<Armor
+				arm_armor="6"
+				body_armor="12"
+				modifier_group="cloth_unarmoured"
+				material_type="Cloth" />
+		</ItemComponent>
+		<Flags
+			Civilian="true"
+			UseTeamColor="true" />
+	</Item>
+	
+	<Item
+		id="sho_shinobi_vambraces"
+		name="{=LoUxaFeE}Ninja Leather Vambraces"
+		mesh="khuzait_leather_armor_hand"
+		culture="Culture.khuzait"
+		weight="0.5"
+		appearance="1"
+		Type="HandArmor">
+		<ItemComponent>
+			<Armor
+				arm_armor="16"
+				covers_hands="false"
+				modifier_group="leather"
+				material_type="Leather" />
+		</ItemComponent>
+		<Flags
+			Civilian="true" />
+	</Item>
+	
+	<Item
+		id="tied_head_wrapping"
+		name="{=ndfDy5B8}Ninja Tied Head Wrapping"
+		subtype="head_armor"
+		mesh="aserai_helmet_p"
+		culture="Culture.aserai"
+		weight="0.5"
+		appearance="1.3"
+		difficulty="0"
+		Type="HeadArmor">
+		<ItemComponent>
+			<Armor
+				head_armor="15"
+				has_gender_variations="false"
+				hair_cover_type="all"
+				modifier_group="cloth_unarmoured"
+				material_type="Cloth"
+				beard_cover_type="type4" />
+		</ItemComponent>
+		<Flags
+			Civilian="true"
+			UseTeamColor="true" />
+	</Item>
+
+	<Item
+		id="closed_head_scarf"
+		name="{=gUTqDROO}Ninja Closed Head Scarf"
+		subtype="head_armor"
+		mesh="aserai_helmet_d"
+		culture="Culture.aserai"
+		weight="0.6"
+		appearance="2"
+		difficulty="0"
+		Type="HeadArmor">
+		<ItemComponent>
+			<Armor
+				head_armor="15"
+				has_gender_variations="false"
+				hair_cover_type="all"
+				modifier_group="cloth_unarmoured"
+				material_type="Cloth"
+				beard_cover_type="all" />
+		</ItemComponent>
+		<Flags
+			UseTeamColor="true" />
+	</Item>
+	
+	<Item id="sho_shinobi_headwrap_b_1" name="{=Lbn87Amk}Ninja Covert Headwrap" subtype="head_armor" mesh="sho_monk_headwrap_b_1" weight="0.3" difficulty="0" appearance="1" Type="HeadArmor">
+        <ItemComponent>
+            <Armor head_armor="16" has_gender_variations="false" hair_cover_type="all" modifier_group="cloth_unarmored" material_type="Cloth"/>
+        </ItemComponent>
+        <Flags
+			Civilian="true" />
+    </Item>
+
+    <Item id="sho_shinobi_headwrap_b_2" name="{=Lbn87Amk}Ninja Covert Headwrap" subtype="head_armor" mesh="sho_monk_headwrap_b_2" weight="0.3" difficulty="0" appearance="1" Type="HeadArmor">
+        <ItemComponent>
+            <Armor head_armor="16" has_gender_variations="false" hair_cover_type="all" modifier_group="cloth_unarmored" material_type="Cloth"/>
+        </ItemComponent>
+        <Flags
+			Civilian="true" />
+    </Item>
+	
+	<Item id="sho_shinobi_mask_a" name="{=Oeo0q3wU}Ninja Hannya Mask" subtype="head_armor" mesh="oni_mask_wood" weight="0.2" difficulty="0" appearance="1" Type="HeadArmor">
+		<ItemComponent>
+			<Armor head_armor="20" has_gender_variations="false" modifier_group="cloth_unarmored" material_type="Cloth" hair_cover_type="none"/>
+		</ItemComponent>
+		<Flags
+			Civilian="true" />
+	</Item>
+	
+	<Item id="sho_shinobi_mask_c" name="{=Oeo0q3wU}Ninja Hannya Mask" subtype="head_armor" mesh="oni_mask_iron" weight="0.2" difficulty="0" appearance="1" Type="HeadArmor">
+		<ItemComponent>
+			<Armor head_armor="20" has_gender_variations="false" modifier_group="cloth_unarmored" material_type="Cloth" hair_cover_type="none"/>
+		</ItemComponent>
+		<Flags
+			Civilian="true" />
+	</Item>
+	
+	<Item id="sho_shinobi_headband" name="{=Oeo0q3wU}Ninja Hitai-ate" subtype="head_armor" mesh="khuz_headband_t2" weight="0.2" difficulty="0" appearance="1" Type="HeadArmor">
+		<ItemComponent>
+			<Armor head_armor="10" has_gender_variations="false" modifier_group="cloth_unarmored" material_type="Cloth" hair_cover_type="none"/>
+		</ItemComponent>
+		<Flags
+			Civilian="true" />
+	</Item>
+
+
+<Item id="sho_shinobi_headband_2" name="{=Oeo0q3wU}Ninja Hitai-ate to Menpo" subtype="head_armor" mesh="t4_khuzait_archer_helmet" weight="0.2" difficulty="0" appearance="1" Type="HeadArmor">
+		<ItemComponent>
+			<Armor head_armor="16" has_gender_variations="false" modifier_group="cloth_unarmored" material_type="Cloth" hair_cover_type="none"/>
+		</ItemComponent>
+		<Flags
+			Civilian="true" />
+	</Item>
+
+</Items>

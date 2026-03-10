@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Factions>
+  <Faction 
+    id="clan_test_1"
+    name="My Test Clan"
+    tier="5"
+    owner="Hero.lord_maedakeiji" culture="Culture.empire"
+    is_noble="true"
+    banner_key="11.101.75.4345.4345.764.764.1.0.0.412.39.0.454.454.764.764.0.0.180" />
+</Factions>

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<Factions>
+	<Faction id="clan_neutralClan_1" is_noble="true" name="{=my_neutralClan}NeutralClan-shi" tier="3" owner="Hero.lord_1_maedakeiji" culture="Culture.ninja" super_faction="Kingdom.noKingdom" banner_key="11.163.166.1528.1528.764.764.1.0.0.722.171.171.483.483.764.764.0.0.0"/>
+
+	<Faction id="clan_neutralClan_2" is_noble="true" name="{=my_neutralClan2}NeutralClan2-shi" tier="3" owner="Hero.lord_1_izumo_okuni" culture="Culture.ninja" super_faction="Kingdom.noKingdom" banner_key="11.163.166.1528.1528.764.764.1.0.0.722.171.171.483.483.764.764.0.0.0"/>
+
+</Factions>

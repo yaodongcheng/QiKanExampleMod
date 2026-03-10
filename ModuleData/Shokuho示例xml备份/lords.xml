@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<NPCCharacters>				
+
+  
+      <NPCCharacter id="lord_1_maedakeiji" name="{=MYMOD_MaedaKeiji}Maeda Keiji" age="31" voice="curt" default_group="Cavalry" is_hero="true" culture="Culture.ninja" occupation="Lord" face_mesh_cache="true">
+    <face>
+      <BodyProperties version="4" age="31.00" weight="0.789" build="0.7963" key="002CEC0E40000483A76466A98CA7777A62785A96888B488CD6385DC558899CA8007CC6030798C29B000000000000000000000000000000000000000064E40081"/>
+    </face>
+    <Traits>
+      <Trait id="BalancedFightingSkills" value="4"/><Trait id="Commander" value="7"/>
+      <Trait id="Politician" value="9"/>
+      <Trait id="Manager" value="8"/>
+      <Trait id="Valor" value="-1"/>
+      <Trait id="Honor" value="-1"/>
+      <Trait id="Generosity" value="0"/>
+      <Trait id="Mercy" value="0"/><Trait id="Calculating" value="-1"/><Trait id="Oligarchic" value="1"/></Traits>
+    <Equipments>
+      <EquipmentRoster/>
+      <EquipmentSet id="kinai_bat_template_medium_male"/>
+      <EquipmentSet id="kinai_civ_template_default_male" civilian="true"/>
+    </Equipments>
+  </NPCCharacter>
+  
+        <NPCCharacter id="lord_1_izumo_okuni" name="{=MYMOD_IzumoOkuni}IzumoOkuni" age="31" voice="curt" default_group="Cavalry" is_female="true" is_hero="true" culture="Culture.ninja" occupation="Lord" face_mesh_cache="true">
+    <face>
+      <BodyProperties version="4" age="31.00" weight="0.789" build="0.7963" key="002CEC0E40000483A76466A98CA7777A62785A96888B488CD6385DC558899CA8007CC6030798C29B000000000000000000000000000000000000000064E40081"/>
+    </face>
+    <Traits>
+      <Trait id="BalancedFightingSkills" value="4"/><Trait id="Commander" value="7"/>
+      <Trait id="Politician" value="9"/>
+      <Trait id="Manager" value="8"/>
+      <Trait id="Valor" value="-1"/>
+      <Trait id="Honor" value="-1"/>
+      <Trait id="Generosity" value="0"/>
+      <Trait id="Mercy" value="0"/><Trait id="Calculating" value="-1"/><Trait id="Oligarchic" value="1"/></Traits>
+    <Equipments>
+      <EquipmentRoster/>
+      <EquipmentSet id="kinai_bat_template_medium_male"/>
+      <EquipmentSet id="kinai_civ_template_default_male" civilian="true"/>
+    </Equipments>
+  </NPCCharacter>
+</NPCCharacters>
