@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Git 图形化快捷工具 - 极简弹窗版
+Git 图形化快捷工具 - 完整版
 """
 
 import tkinter as tk
-from tkinter import messagebox, simpledialog, scrolledtext
+from tkinter import messagebox, simpledialog, scrolledtext, ttk
 import subprocess
 import sys
 import os
@@ -13,24 +13,50 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Git 路径（根据您的系统调整）
-GIT_PATH = r"D:\Git\cmd\git.exe"
+# 如果 git 命令可以直接使用，设置为 None
+GIT_PATH = None
 
 
 def run_git(cmd):
     """运行 git 命令"""
-    full_cmd = cmd.replace('git ', f'"{GIT_PATH}" ', 1)
+    if GIT_PATH:
+        full_cmd = cmd.replace('git ', f'"{GIT_PATH}" ', 1)
+    else:
+        full_cmd = cmd
     result = subprocess.run(full_cmd, shell=True, capture_output=True)
     stdout = result.stdout.decode('utf-8', errors='ignore') if result.stdout else ""
     stderr = result.stderr.decode('utf-8', errors='ignore') if result.stderr else ""
     return result.returncode == 0, stdout, stderr
 
 
+def get_file_status():
+    """获取文件状态，返回（暂存区列表，工作区列表，未跟踪列表）"""
+    staged_files = []
+    modified_files = []
+    untracked_files = []
+
+    # 获取暂存区的文件
+    success, stdout, _ = run_git("git diff --cached --name-only")
+    if success and stdout:
+        staged_files = [line.strip() for line in stdout.strip().split('\n') if line.strip()]
+
+    # 获取工作区已修改但未暂存的文件
+    success, stdout, _ = run_git("git diff --name-only")
+    if success and stdout:
+        modified_files = [line.strip() for line in stdout.strip().split('\n') if line.strip()]
+
+    # 获取未跟踪的文件
+    success, stdout, _ = run_git("git ls-files --others --exclude-standard")
+    if success and stdout:
+        untracked_files = [line.strip() for line in stdout.strip().split('\n') if line.strip()]
+
+    return staged_files, modified_files, untracked_files
+
+
 def get_status():
-    """获取当前状态"""
-    success, stdout, _ = run_git("git status --porcelain")
-    if success:
-        return stdout.strip()
-    return ""
+    """获取当前状态（用于检查是否有变化）"""
+    staged, modified, untracked = get_file_status()
+    return len(staged) > 0 or len(modified) > 0 or len(untracked) > 0
 
 
 def get_branch():
@@ -41,27 +67,114 @@ def get_branch():
     return "main"
 
 
+def show_file_details():
+    """显示文件详情窗口"""
+    staged, modified, untracked = get_file_status()
+
+    detail_window = tk.Toplevel()
+    detail_window.title("文件状态详情")
+    detail_window.geometry("600x400")
+
+    # 创建标签页
+    notebook = ttk.Notebook(detail_window)
+    notebook.pack(expand=True, fill='both', padx=10, pady=10)
+
+    # 已暂存文件
+    if staged:
+        staged_frame = tk.Frame(notebook)
+        notebook.add(staged_frame, text=f"已暂存 ({len(staged)})")
+
+        text_area = scrolledtext.ScrolledText(staged_frame, wrap=tk.WORD, font=("Consolas", 9))
+        text_area.pack(expand=True, fill='both', padx=5, pady=5)
+        for f in staged:
+            text_area.insert(tk.END, f"✓ {f}\n")
+        text_area.config(state=tk.DISABLED)
+    else:
+        notebook.add(tk.Label(notebook, text="没有已暂存的文件", padx=20, pady=20), text="已暂存 (0)")
+
+    # 已修改未暂存
+    if modified:
+        modified_frame = tk.Frame(notebook)
+        notebook.add(modified_frame, text=f"已修改 ({len(modified)})")
+
+        text_area = scrolledtext.ScrolledText(modified_frame, wrap=tk.WORD, font=("Consolas", 9))
+        text_area.pack(expand=True, fill='both', padx=5, pady=5)
+        for f in modified:
+            text_area.insert(tk.END, f"⚡ {f}\n")
+        text_area.config(state=tk.DISABLED)
+    else:
+        notebook.add(tk.Label(notebook, text="没有已修改的文件", padx=20, pady=20), text="已修改 (0)")
+
+    # 未跟踪文件
+    if untracked:
+        untracked_frame = tk.Frame(notebook)
+        notebook.add(untracked_frame, text=f"未跟踪 ({len(untracked)})")
+
+        text_area = scrolledtext.ScrolledText(untracked_frame, wrap=tk.WORD, font=("Consolas", 9))
+        text_area.pack(expand=True, fill='both', padx=5, pady=5)
+        for f in untracked:
+            text_area.insert(tk.END, f"? {f}\n")
+        text_area.config(state=tk.DISABLED)
+    else:
+        notebook.add(tk.Label(notebook, text="没有未跟踪的文件", padx=20, pady=20), text="未跟踪 (0)")
+
+    tk.Button(detail_window, text="关闭", command=detail_window.destroy).pack(pady=5)
+
+
+def add_to_staging():
+    """添加所有更改到暂存区"""
+    staged, modified, untracked = get_file_status()
+
+    if not modified and not untracked:
+        messagebox.showinfo("提示", "没有需要添加的文件")
+        return
+
+    run_git("git add -A")
+    messagebox.showinfo("成功", "已添加所有更改到暂存区")
+    update_file_list()
+
+
+def clear_staging():
+    """清空暂存区"""
+    staged, modified, untracked = get_file_status()
+
+    if not staged:
+        messagebox.showinfo("提示", "暂存区为空")
+        return
+
+    run_git("git reset HEAD")
+    messagebox.showinfo("成功", "已清空暂存区")
+    update_file_list()
+
+
 def commit(push_after=False):
     """提交更改"""
-    status = get_status()
-    if not status:
+    staged, modified, untracked = get_file_status()
+
+    # 检查是否有暂存的文件
+    if not staged and not modified and not untracked:
         messagebox.showinfo("提示", "没有需要提交的更改")
         return False
-    
-    # 添加所有更改
-    run_git("git add -A")
-    
+
+    # 如果暂存区为空，但有修改或未跟踪文件，自动添加
+    if not staged and (modified or untracked):
+        if not messagebox.askyesno("提示", "暂存区为空，是否添加所有更改？"):
+            return False
+        run_git("git add -A")
+
     # 询问提交信息
     msg = simpledialog.askstring("提交", "输入提交信息:", initialvalue="更新代码")
     if not msg:
         return False
-    
+
     success, stdout, stderr = run_git(f'git commit -m "{msg}"')
     if success:
         if push_after:
             return push()
         else:
             messagebox.showinfo("成功", "本地提交成功！\n记得点击'推送'上传到 GitHub")
+            update_file_list()
+            update_status_label()
             return True
     else:
         messagebox.showerror("错误", f"提交失败:\n{stderr}")
@@ -156,78 +269,152 @@ def reset():
         messagebox.showerror("错误", f"回退失败:\n{stderr}")
 
 
+def update_file_list():
+    """更新文件列表"""
+    staged, modified, untracked = get_file_status()
+
+    file_list_text.delete(1.0, tk.END)
+
+    if staged:
+        file_list_text.insert(tk.END, "【已暂存 - 将被提交】\n", "staged_header")
+        for f in staged:
+            file_list_text.insert(tk.END, f"  ✓ {f}\n", "staged")
+        file_list_text.insert(tk.END, "\n")
+
+    if modified:
+        file_list_text.insert(tk.END, "【已修改 - 未暂存】\n", "modified_header")
+        for f in modified:
+            file_list_text.insert(tk.END, f"  ⚡ {f}\n", "modified")
+        file_list_text.insert(tk.END, "\n")
+
+    if untracked:
+        file_list_text.insert(tk.END, "【未跟踪 - 新文件】\n", "untracked_header")
+        for f in untracked:
+            file_list_text.insert(tk.END, f"  ? {f}\n", "untracked")
+        file_list_text.insert(tk.END, "\n")
+
+    if not staged and not modified and not untracked:
+        file_list_text.insert(tk.END, "工作区干净，没有未提交的更改\n", "clean")
+
+
 def update_status_label():
     """更新状态标签"""
-    status_text = get_status()
+    staged, modified, untracked = get_file_status()
     branch = get_branch()
-    if status_text:
-        status_label.config(text=f"分支: {branch} | 有未提交的更改", fg="orange")
+
+    total = len(staged) + len(modified) + len(untracked)
+    if total > 0:
+        status_label.config(
+            text=f"分支: {branch} | 已暂存: {len(staged)} | 已修改: {len(modified)} | 未跟踪: {len(untracked)}",
+            fg="orange"
+        )
     else:
         status_label.config(text=f"分支: {branch} | 工作区干净", fg="green")
 
 
 def main():
     """主界面"""
-    global status_label
-    
+    global status_label, file_list_text
+
     root = tk.Tk()
     root.title("Git 快捷工具 - lianghuaLearn")
-    root.geometry("350x400")
+    root.geometry("500x600")
     root.resizable(False, False)
-    
+
     # 居中显示
     root.update_idletasks()
-    x = (root.winfo_screenwidth() // 2) - 175
-    y = (root.winfo_screenheight() // 2) - 200
+    x = (root.winfo_screenwidth() // 2) - 250
+    y = (root.winfo_screenheight() // 2) - 300
     root.geometry(f'+{x}+{y}')
-    
+
     # 标题
-    tk.Label(root, text="🚀 Git 快捷工具", font=("Microsoft YaHei", 18, "bold"), pady=15).pack()
+    tk.Label(root, text="🚀 Git 快捷工具", font=("Microsoft YaHei", 18, "bold"), pady=10).pack()
     tk.Label(root, text="项目: lianghuaLearn", font=("Microsoft YaHei", 10), fg="gray").pack()
-    
+
     # 按钮框架
     btn_frame = tk.Frame(root)
-    btn_frame.pack(pady=20)
-    
-    btn_width = 25
+    btn_frame.pack(pady=10)
+
+    # 第一行按钮
+    row1 = tk.Frame(btn_frame)
+    row1.pack(pady=5)
+
+    btn_width = 12
     btn_height = 2
-    
-    # 提交并推送按钮
-    tk.Button(btn_frame, text="📤 提交并推送", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 11),
-              bg="#2196F3", fg="white",
-              command=commit_and_push).pack(pady=5)
-    
-    # 拉取代码按钮
-    tk.Button(btn_frame, text="📥 拉取代码", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 11),
-              command=lambda: [pull(), update_status_label()]).pack(pady=5)
-    
-    # 查看历史按钮
-    tk.Button(btn_frame, text="📜 查看提交历史", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 11),
-              command=show_log).pack(pady=5)
-    
-    # 回退版本按钮
-    tk.Button(btn_frame, text="⏪ 回退版本", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 11), bg="#f44336", fg="white",
-              command=lambda: [reset(), update_status_label()]).pack(pady=5)
-    
-    # 刷新状态按钮
-    tk.Button(btn_frame, text="🔄 刷新状态", width=btn_width, height=btn_height,
+
+    tk.Button(row1, text="📤 提交", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#4CAF50", fg="white",
+              command=commit).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row1, text="📤 提交并推送", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#2196F3", fg="white",
+              command=commit_and_push).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row1, text="📥 拉取", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#FF9800", fg="white",
+              command=lambda: [pull(), update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
+
+    # 第二行按钮
+    row2 = tk.Frame(btn_frame)
+    row2.pack(pady=5)
+
+    tk.Button(row2, text="➕ 添加到暂存", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10),
-              command=update_status_label).pack(pady=5)
-    
+              command=add_to_staging).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row2, text="❌ 清空暂存", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#FF5722", fg="white",
+              command=clear_staging).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row2, text="📜 查看历史", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10),
+              command=show_log).pack(side=tk.LEFT, padx=5)
+
+    # 第三行按钮
+    row3 = tk.Frame(btn_frame)
+    row3.pack(pady=5)
+
+    tk.Button(row3, text="⏪ 回退版本", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#f44336", fg="white",
+              command=lambda: [reset(), update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row3, text="🔄 刷新", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10),
+              command=lambda: [update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row3, text="📋 文件详情", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10),
+              command=show_file_details).pack(side=tk.LEFT, padx=5)
+
+    # 文件列表显示区
+    list_frame = tk.LabelFrame(root, text="文件状态", font=("Microsoft YaHei", 11), padx=10, pady=10)
+    list_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    file_list_text = scrolledtext.ScrolledText(list_frame, wrap=tk.WORD, font=("Consolas", 9), height=15)
+    file_list_text.pack(fill=tk.BOTH, expand=True)
+
+    # 配置文本样式
+    file_list_text.tag_config("staged_header", foreground="#4CAF50", font=("Microsoft YaHei", 10, "bold"))
+    file_list_text.tag_config("staged", foreground="#2E7D32")
+    file_list_text.tag_config("modified_header", foreground="#FF9800", font=("Microsoft YaHei", 10, "bold"))
+    file_list_text.tag_config("modified", foreground="#EF6C00")
+    file_list_text.tag_config("untracked_header", foreground="#9E9E9E", font=("Microsoft YaHei", 10, "bold"))
+    file_list_text.tag_config("untracked", foreground="#616161")
+    file_list_text.tag_config("clean", foreground="#4CAF50", font=("Microsoft YaHei", 10))
+
+    file_list_text.config(state=tk.DISABLED)
+
     # 状态显示
     status_frame = tk.Frame(root, bd=1, relief=tk.SUNKEN)
     status_frame.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
-    
+
     status_label = tk.Label(status_frame, text="正在检查状态...", font=("Microsoft YaHei", 9))
     status_label.pack(pady=5)
-    
+
     # 初始化状态
+    update_file_list()
     update_status_label()
-    
+
     root.mainloop()
 
 
