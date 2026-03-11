@@ -13,7 +13,7 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Git 路径（根据您的系统调整）
-# 如果 git 命令可以直接使用，设置为 None ，这就是终极的Git工具
+# 如果 git 命令可以直接使用，设置为 None ，这就是终极的Git工具，不错
 GIT_PATH = None
 
 
@@ -168,7 +168,11 @@ def commit(push_after=False):
     success, stdout, stderr = run_git(f'git commit -m "{msg}"')
     if success:
         if push_after:
-            return push()
+            push_success = push()
+            if push_success:
+                update_file_list()
+                update_status_label()
+            return push_success
         else:
             messagebox.showinfo("成功", "本地提交成功！\n记得点击'推送'上传到 GitHub")
             update_file_list()
