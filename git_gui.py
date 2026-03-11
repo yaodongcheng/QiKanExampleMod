@@ -13,7 +13,7 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Git 路径（根据您的系统调整）
-# 如果 git 命令可以直接使用，设置为 None
+# 如果 git 命令可以直接使用，设置为 None 姚东成测试12
 GIT_PATH = None
 
 
@@ -151,15 +151,13 @@ def commit(push_after=False):
     """提交更改"""
     staged, modified, untracked = get_file_status()
 
-    # 检查是否有暂存的文件
+    # 检查是否有文件需要提交
     if not staged and not modified and not untracked:
         messagebox.showinfo("提示", "没有需要提交的更改")
         return False
 
-    # 如果暂存区为空，但有修改或未跟踪文件，自动添加
-    if not staged and (modified or untracked):
-        if not messagebox.askyesno("提示", "暂存区为空，是否添加所有更改？"):
-            return False
+    # 自动将所有更改添加到暂存区（简化操作）
+    if modified or untracked:
         run_git("git add -A")
 
     # 询问提交信息
@@ -273,6 +271,8 @@ def update_file_list():
     """更新文件列表"""
     staged, modified, untracked = get_file_status()
 
+    # 先启用编辑模式
+    file_list_text.config(state=tk.NORMAL)
     file_list_text.delete(1.0, tk.END)
 
     if staged:
@@ -295,6 +295,9 @@ def update_file_list():
 
     if not staged and not modified and not untracked:
         file_list_text.insert(tk.END, "工作区干净，没有未提交的更改\n", "clean")
+
+    # 写完后禁用编辑模式
+    file_list_text.config(state=tk.DISABLED)
 
 
 def update_status_label():
@@ -339,52 +342,29 @@ def main():
     row1 = tk.Frame(btn_frame)
     row1.pack(pady=5)
 
-    btn_width = 12
+    btn_width = 15
     btn_height = 2
 
-    tk.Button(row1, text="📤 提交", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10), bg="#4CAF50", fg="white",
-              command=commit).pack(side=tk.LEFT, padx=5)
-
+    # 主要功能：提交并推送（一键完成）
     tk.Button(row1, text="📤 提交并推送", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10), bg="#2196F3", fg="white",
+              font=("Microsoft YaHei", 11, "bold"), bg="#2196F3", fg="white",
               command=commit_and_push).pack(side=tk.LEFT, padx=5)
 
-    tk.Button(row1, text="📥 拉取", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10), bg="#FF9800", fg="white",
+    tk.Button(row1, text="📥 拉取最新代码", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 11), bg="#FF9800", fg="white",
               command=lambda: [pull(), update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
 
-    # 第二行按钮
+    # 第二行按钮（辅助功能）
     row2 = tk.Frame(btn_frame)
     row2.pack(pady=5)
 
-    tk.Button(row2, text="➕ 添加到暂存", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10),
-              command=add_to_staging).pack(side=tk.LEFT, padx=5)
-
-    tk.Button(row2, text="❌ 清空暂存", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10), bg="#FF5722", fg="white",
-              command=clear_staging).pack(side=tk.LEFT, padx=5)
-
-    tk.Button(row2, text="📜 查看历史", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10),
-              command=show_log).pack(side=tk.LEFT, padx=5)
-
-    # 第三行按钮
-    row3 = tk.Frame(btn_frame)
-    row3.pack(pady=5)
-
-    tk.Button(row3, text="⏪ 回退版本", width=btn_width, height=btn_height,
-              font=("Microsoft YaHei", 10), bg="#f44336", fg="white",
-              command=lambda: [reset(), update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
-
-    tk.Button(row3, text="🔄 刷新", width=btn_width, height=btn_height,
+    tk.Button(row2, text="🔄 刷新状态", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10),
               command=lambda: [update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
 
-    tk.Button(row3, text="📋 文件详情", width=btn_width, height=btn_height,
+    tk.Button(row2, text="📜 提交历史", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10),
-              command=show_file_details).pack(side=tk.LEFT, padx=5)
+              command=show_log).pack(side=tk.LEFT, padx=5)
 
     # 文件列表显示区
     list_frame = tk.LabelFrame(root, text="文件状态", font=("Microsoft YaHei", 11), padx=10, pady=10)
