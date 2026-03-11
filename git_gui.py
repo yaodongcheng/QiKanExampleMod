@@ -13,7 +13,7 @@ import os
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # Git 路径（根据您的系统调整）
-# 如果 git 命令可以直接使用，设置为 None 姚东成测试12
+# 如果 git 命令可以直接使用，设置为 None ，这就是终极的Git工具
 GIT_PATH = None
 
 
@@ -217,22 +217,114 @@ def pull():
 
 
 def show_log():
-    """显示提交历史"""
+    """显示提交历史，支持回退到指定版本"""
     success, stdout, _ = run_git("git log --oneline -20 --graph")
-    if success:
-        # 创建新窗口显示日志
-        log_window = tk.Toplevel()
-        log_window.title("提交历史")
-        log_window.geometry("500x400")
-        
-        text_area = scrolledtext.ScrolledText(log_window, wrap=tk.WORD, font=("Consolas", 10))
-        text_area.pack(expand=True, fill='both', padx=10, pady=10)
-        text_area.insert(tk.END, stdout)
-        text_area.config(state=tk.DISABLED)
-        
-        tk.Button(log_window, text="关闭", command=log_window.destroy).pack(pady=5)
-    else:
+    if not success:
         messagebox.showerror("错误", "无法获取提交历史")
+        return
+
+    # 解析提交历史，提取提交哈希和消息
+    commits = []
+    for line in stdout.strip().split('\n'):
+        line = line.strip()
+        if line and not line.startswith('*') and not line.startswith('|') and not line.startswith('\\'):
+            # 提取哈希值（前7位）和提交消息
+            parts = line.split(' ', 1)
+            if len(parts) >= 2:
+                commit_hash = parts[0]
+                message = parts[1]
+                commits.append((commit_hash, message))
+        elif line and (' ' in line):
+            # 处理带 * 的行，如 "* abc1234 message"
+            clean_line = line.replace('*', '').replace('|', '').strip()
+            parts = clean_line.split(' ', 1)
+            if len(parts) >= 2 and len(parts[0]) >= 7:
+                commit_hash = parts[0]
+                message = parts[1]
+                commits.append((commit_hash, message))
+
+    # 创建新窗口
+    log_window = tk.Toplevel()
+    log_window.title("提交历史")
+    log_window.geometry("600x550")
+
+    # 说明标签
+    tk.Label(log_window, text="📋 提交历史列表",
+             font=("Microsoft YaHei", 11, "bold"), pady=10).pack()
+
+    tk.Label(log_window, text="选中一个版本，点击下方的【回退到选中版本】按钮",
+             font=("Microsoft YaHei", 9), fg="gray").pack()
+
+    # 创建列表框
+    frame = tk.Frame(log_window)
+    frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+
+    scrollbar = tk.Scrollbar(frame)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    listbox = tk.Listbox(frame, font=("Consolas", 10), yscrollcommand=scrollbar.set, selectmode=tk.SINGLE)
+    listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.config(command=listbox.yview)
+
+    # 填充列表
+    for i, (commit_hash, message) in enumerate(commits):
+        display_text = f"{commit_hash[:7]} - {message[:50]}"
+        listbox.insert(tk.END, display_text)
+
+    # 选中第一行（最新提交）
+    if commits:
+        listbox.selection_set(0)
+
+    def do_reset():
+        """执行回退操作"""
+        selection = listbox.curselection()
+        if not selection:
+            messagebox.showwarning("提示", "请先选择一个版本")
+            return
+
+        index = selection[0]
+        commit_hash, message = commits[index]
+
+        # 确认对话框（二次确认）
+        if not messagebox.askyesno("⚠️ 确认回退",
+                                   f"确定要回退到以下版本？\n\n"
+                                   f"提交哈希: {commit_hash[:7]}\n"
+                                   f"提交消息: {message[:40]}...\n\n"
+                                   f"⚠️ 警告：这将丢失当前未提交的更改！\n"
+                                   f"⚠️ 如果已推送到远程，可能需要强制推送！"):
+            return
+
+        # 再次确认（三次确认，防止误操作）
+        if not messagebox.askyesno("最终确认",
+                                   f"最后确认：真的要回退到 {commit_hash[:7]} 吗？\n\n"
+                                   f"此操作不可撤销！"):
+            return
+
+        # 执行回退
+        success, _, stderr = run_git(f"git reset --hard {commit_hash}")
+        if success:
+            messagebox.showinfo("成功", f"✅ 已回退到版本: {commit_hash[:7]}")
+            log_window.destroy()
+            update_file_list()
+            update_status_label()
+        else:
+            messagebox.showerror("错误", f"回退失败:\n{stderr}")
+
+    # 按钮区域
+    btn_frame = tk.Frame(log_window)
+    btn_frame.pack(pady=10)
+
+    tk.Button(btn_frame, text="⏪ 回退到选中版本", width=18, height=2,
+              font=("Microsoft YaHei", 10), bg="#f44336", fg="white",
+              command=do_reset).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(btn_frame, text="刷新", width=12, height=2,
+              font=("Microsoft YaHei", 10),
+              command=lambda: [log_window.destroy(), show_log()]).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(btn_frame, text="关闭", width=12, height=2,
+              font=("Microsoft YaHei", 10),
+              command=log_window.destroy).pack(side=tk.LEFT, padx=5)
 
 
 def reset():
