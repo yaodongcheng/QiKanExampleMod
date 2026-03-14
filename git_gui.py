@@ -331,6 +331,59 @@ def show_log():
               command=log_window.destroy).pack(side=tk.LEFT, padx=5)
 
 
+def discard_changes():
+    """放弃所有未提交的更改"""
+    # 检查是否有未提交的更改
+    success, stdout, stderr = run_git("git status --porcelain")
+    if not success:
+        messagebox.showerror("错误", f"无法获取状态:\n{stderr}")
+        return
+    
+    if not stdout.strip():
+        messagebox.showinfo("提示", "工作区已经是干净状态，没有需要放弃的更改")
+        return
+    
+    # 显示将要放弃的更改
+    changes = stdout.strip().split('\n')
+    change_summary = []
+    for line in changes[:20]:  # 最多显示20个文件
+        if line:
+            status = line[:2]
+            filename = line[3:]
+            change_summary.append(f"  {status} {filename}")
+    
+    if len(changes) > 20:
+        change_summary.append(f"  ... 还有 {len(changes) - 20} 个文件")
+    
+    change_text = '\n'.join(change_summary)
+    
+    # 确认对话框
+    if not messagebox.askyesno("⚠️ 确认放弃更改",
+                               f"确定要放弃以下未提交的更改吗？\n\n"
+                               f"{change_text}\n\n"
+                               f"⚠️ 警告：此操作不可撤销！\n"
+                               f"已修改的文件将恢复到上次提交的状态。"):
+        return
+    
+    # 执行放弃更改
+    success, _, stderr = run_git("git checkout -- .")
+    if success:
+        # 同时清理未跟踪的文件（可选）
+        has_untracked = any(line.startswith('??') for line in changes if line)
+        if has_untracked:
+            if messagebox.askyesno("清理未跟踪文件",
+                                   "检测到未跟踪的文件（新文件），是否同时清理？\n\n"
+                                   "选择「是」将删除这些新文件\n"
+                                   "选择「否」保留这些新文件"):
+                run_git("git clean -fd")
+        
+        messagebox.showinfo("成功", "✅ 已放弃所有更改，工作区已恢复干净状态")
+        update_file_list()
+        update_status_label()
+    else:
+        messagebox.showerror("错误", f"放弃更改失败:\n{stderr}")
+
+
 def reset():
     """回退版本"""
     # 获取最近提交
@@ -461,6 +514,10 @@ def main():
     tk.Button(row2, text="📜 提交历史", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10),
               command=show_log).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row2, text="🗑️ 放弃更改", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 10), bg="#f44336", fg="white",
+              command=discard_changes).pack(side=tk.LEFT, padx=5)
 
     # 文件列表显示区
     list_frame = tk.LabelFrame(root, text="文件状态", font=("Microsoft YaHei", 11), padx=10, pady=10)
