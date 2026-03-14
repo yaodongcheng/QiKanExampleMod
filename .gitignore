@@ -1,0 +1,28 @@
+# Visual Studio 编译输出
+ExampleModVS/bin/
+ExampleModVS/obj/
+
+# 用户特定的项目文件
+*.csproj.user
+*.user
+
+# Visual Studio 临时文件
+.vs/
+*.suo
+*.userosscache
+*.sln.docstates
+
+# 构建输出
+[Bb]in/
+[Oo]bj/
+
+# NuGet
+packages/
+*.nupkg
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.temp
