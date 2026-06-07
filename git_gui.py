@@ -16,6 +16,11 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # 如果 git 命令可以直接使用，设置为 None ，这就是终极的Git工具，不错
 GIT_PATH = None
 
+# 全局 UI 引用（在 main() 里赋值）
+status_label = None
+file_list_text = None
+push_only_btn = None
+
 
 def run_git(cmd):
     """运行 git 命令"""
@@ -65,6 +70,25 @@ def get_branch():
     if success:
         return stdout.strip()
     return "main"
+
+
+def get_project_name():
+    """从 git remote 提取项目名，失败时回退到文件夹名"""
+    success, stdout, _ = run_git("git remote get-url origin")
+    if success and stdout.strip():
+        url = stdout.strip()
+        if url.endswith('.git'):
+            url = url[:-4]
+        return url.rsplit('/', 1)[-1].rsplit(':', 1)[-1]
+    return os.path.basename(os.path.dirname(os.path.abspath(__file__)))
+
+
+def get_unpushed_count():
+    """本地领先远程的提交数（未推送的提交数）"""
+    success, stdout, _ = run_git("git rev-list --count @{u}..HEAD")
+    if success and stdout.strip().isdigit():
+        return int(stdout.strip())
+    return 0
 
 
 def show_file_details():
@@ -169,9 +193,8 @@ def commit(push_after=False):
     if success:
         if push_after:
             push_success = push()
-            if push_success:
-                update_file_list()
-                update_status_label()
+            update_file_list()
+            update_status_label()
             return push_success
         else:
             messagebox.showinfo("成功", "本地提交成功！\n记得点击'推送'上传到 GitHub")
@@ -205,6 +228,16 @@ def commit_and_push():
     """提交并推送"""
     if commit(push_after=True):
         update_status_label()
+
+
+def push_only():
+    """仅推送：用于本地已 commit 但 push 失败后的重试"""
+    if get_unpushed_count() == 0:
+        messagebox.showinfo("提示", "本地没有未推送的提交")
+        return
+    push()
+    update_file_list()
+    update_status_label()
 
 
 def pull():
@@ -450,38 +483,57 @@ def update_file_list():
 
 
 def update_status_label():
-    """更新状态标签"""
+    """更新状态标签 + 仅推送按钮的启用状态"""
     staged, modified, untracked = get_file_status()
     branch = get_branch()
+    unpushed = get_unpushed_count()
 
+    parts = [f"分支: {branch}"]
     total = len(staged) + len(modified) + len(untracked)
     if total > 0:
-        status_label.config(
-            text=f"分支: {branch} | 已暂存: {len(staged)} | 已修改: {len(modified)} | 未跟踪: {len(untracked)}",
-            fg="orange"
-        )
+        parts.append(f"已暂存: {len(staged)} | 已修改: {len(modified)} | 未跟踪: {len(untracked)}")
+    if unpushed > 0:
+        parts.append(f"⚠️ {unpushed} 个本地提交未推送")
+    if total == 0 and unpushed == 0:
+        parts.append("工作区干净")
+
+    if unpushed > 0:
+        color = "red"
+    elif total > 0:
+        color = "orange"
     else:
-        status_label.config(text=f"分支: {branch} | 工作区干净", fg="green")
+        color = "green"
+
+    status_label.config(text=" | ".join(parts), fg=color)
+
+    # 切换"仅推送"按钮状态
+    if push_only_btn is not None:
+        if unpushed > 0:
+            push_only_btn.config(state=tk.NORMAL, bg="#f44336")
+        else:
+            push_only_btn.config(state=tk.DISABLED, bg="#9E9E9E")
 
 
 def main():
     """主界面"""
-    global status_label, file_list_text
+    global status_label, file_list_text, push_only_btn
+
+    project_name = get_project_name()
 
     root = tk.Tk()
-    root.title("Git 快捷工具 - lianghuaLearn")
-    root.geometry("500x600")
+    root.title(f"Git 快捷工具 - {project_name}")
+    root.geometry("620x600")
     root.resizable(False, False)
 
     # 居中显示
     root.update_idletasks()
-    x = (root.winfo_screenwidth() // 2) - 250
+    x = (root.winfo_screenwidth() // 2) - 310
     y = (root.winfo_screenheight() // 2) - 300
     root.geometry(f'+{x}+{y}')
 
     # 标题
     tk.Label(root, text="🚀 Git 快捷工具", font=("Microsoft YaHei", 18, "bold"), pady=10).pack()
-    tk.Label(root, text="项目: lianghuaLearn", font=("Microsoft YaHei", 10), fg="gray").pack()
+    tk.Label(root, text=f"项目: {project_name}", font=("Microsoft YaHei", 10), fg="gray").pack()
 
     # 按钮框架
     btn_frame = tk.Frame(root)
@@ -506,6 +558,11 @@ def main():
     # 第二行按钮（辅助功能）
     row2 = tk.Frame(btn_frame)
     row2.pack(pady=5)
+
+    push_only_btn = tk.Button(row2, text="📤 仅推送", width=btn_width, height=btn_height,
+                              font=("Microsoft YaHei", 10), bg="#9E9E9E", fg="white",
+                              state=tk.DISABLED, command=push_only)
+    push_only_btn.pack(side=tk.LEFT, padx=5)
 
     tk.Button(row2, text="🔄 刷新状态", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 10),
