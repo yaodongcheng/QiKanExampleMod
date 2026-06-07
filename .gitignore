@@ -26,3 +26,6 @@ packages/
 # 临时文件
 *.tmp
 *.temp
+
+# 不同步 AIInfluence 子项目
+ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
