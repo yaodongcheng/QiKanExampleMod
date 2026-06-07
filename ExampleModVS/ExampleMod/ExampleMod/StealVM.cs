@@ -33,7 +33,7 @@ namespace ExampleMod
         //物品栏显示情况
         private bool _isItemRevealed;
         private bool _isItemHidden;
-        private ImageIdentifierVM _currentItemImage;
+        //private ImageIdentifierVM _currentItemImage;
         //可以摸索
         private bool _canInvestigate;
         // 被捉了
@@ -60,7 +60,7 @@ namespace ExampleMod
             LootLogText = $"你把手伸入了{_targetAgent.Name}的包裹...";
             CenterTitleText = $"正在偷:{_targetAgent.Name}\n周遭环境安全，没人注意到你";
             CenterInfoText = "点击 [摸索] 来确认物品";
-            CurrentItemImage = new ImageIdentifierVM(ImageIdentifierType.Item);
+            //CurrentItemImage = new ImageIdentifierVM(ImageIdentifierType.Item);
 
             // 初始化缺失的属性
             SuspicionText = "0%";
@@ -195,7 +195,7 @@ namespace ExampleMod
 
                     // 1. 更新图片
                     ImageIdentifier imageID = new ImageIdentifier(itemElement.Item);
-                    CurrentItemImage = new ImageIdentifierVM(imageID);
+                    //CurrentItemImage = new ImageIdentifierVM(imageID);
                     
                     float weight = itemElement.Item.Weight;
                     ItemTypeEnum type = itemElement.Item.Type;
@@ -298,7 +298,7 @@ namespace ExampleMod
             IsItemHidden = true;
             IsItemRevealed = false;
             _targetSlotIndex = null;
-            CurrentItemImage = new ImageIdentifierVM(ImageIdentifierType.Item);
+            //CurrentItemImage = new ImageIdentifierVM(ImageIdentifierType.Item);
             CenterInfoText = "点击 [摸索] 继续寻找";
         }
         // [优化] 统一处理警惕值
@@ -398,14 +398,14 @@ namespace ExampleMod
             get => _isItemHidden;
             set { _isItemHidden = value; OnPropertyChanged("IsItemHidden"); }
         }
-
+        /*
         [DataSourceProperty]
         public ImageIdentifierVM CurrentItemImage
         {
             get => _currentItemImage;
             set { if (value != _currentItemImage) { _currentItemImage = value; OnPropertyChangedWithValue(value, "CurrentItemImage"); } }
         }
-
+        */
         [DataSourceProperty]
         public bool CanInvestigate
         {
