@@ -19,87 +19,186 @@
 
 **目标产物**：
 
-- **Mod A `BannerlordInteractionPlus`**（暂名）—— **所有 .cs 代码 + 所有 GUI prefab 整体留下**，按职责重组目录；唯一的代码改动是把 PromptBuilder 中硬编码的"日本战国"字串参数化成 `Settings.WorldSettingPromptOverride`，外加 LLM 功能用 `Settings.IsLLMReady` 总闸控制（玩家未配置自定义模型时降级到 vanilla 对话）。先发布、独立迭代，原版骑砍玩家直接装上就能玩。
-- **Mod B `ShokuhoContent`**（接管 ExampleMod 的 ModuleData）—— **纯内容包**：Shokuho XMLs、StoryJson 剧本、UpdateSettlementsOwner 补丁。可选含一个 ~20 行的 DLL 用来在加载时设置 `Settings.WorldSettingPromptOverride` 和 ShokuhoCampaign GameType 注册。`<DependedModule Id="BannerlordInteractionPlus"/>`。
+- **Mod A `LivingWorldNpcs`**—— **所有 .cs 代码 + 所有 GUI prefab 整体留下**，按职责重组目录；namespace 从 `ExampleMod.*` 统一改为 `LivingWorldNpcs.*`；PromptBuilder 中硬编码的"日本战国"字串参数化成 `Settings` 中的可配置字段（默认值=卡拉迪亚中性世界观），外加 LLM 功能用 `Settings.IsLLMReady` 总闸控制（玩家未配置自定义模型时降级到 vanilla 对话）。先发布、独立迭代，原版骑砍玩家直接装上就能玩。
+- **Mod B `TaikouContent`**（接管 ExampleMod 的 ModuleData）—— **纯内容包**：Shokuho XMLs、StoryJson 剧本、UpdateSettlementsOwner 补丁。一个 ~30 行的 DLL 用来在加载时设置 `Settings` 中的世界观相关字段和 ShokuhoCampaign GameType 注册。`<DependedModule Id="LivingWorldNpcs"/>`。
+
+---
 
 ## 推荐方案
 
 ### Phase 0：目录重组（零逻辑改动）
 
-把现有 50+ 散落在根目录的 .cs 文件按职责分到子文件夹。**不改 namespace**（保持 `ExampleMod.*` 平坦命名空间，不破坏存档的 SaveableType）。仅移动文件 + 更新 .csproj 中的 `<Compile Include="..." />` 路径。
+把现有 50+ 散落在根目录的 .cs 文件按职责分到子文件夹；**namespace 从 `ExampleMod.*` 全局替换为 `LivingWorldNpcs.*`**（趁发布前改，不留历史包袱）。仅移动文件 + 更新 .csproj 中的 `<Compile Include="..." />` 路径 + 全局替换 namespace。
 
 ```
 ExampleModVS/ExampleMod/ExampleMod/
-├── Core/         Settings.cs (新建), AgentControlHelper.cs, SafeLordPartyComponent.cs
+├── Core/         MySubModule.cs, AgentControlHelper.cs, SafeLordPartyComponent.cs,
+│                 Settings.cs (新建), MyBehavior.cs
 ├── Interaction/  InteractionMissionView.cs, InteractionVM.cs,
-│                 InteractionOptionManager.cs, NPCInfoVM.cs (通用信息板)
+│                 InteractionOptionManager.cs, NPCInfoVM.cs,
+│                 InteractionController.cs (对话编排器：LLM调用+UI驱动),
+│                 StoryDialogVM.cs (对话UI的ViewModel)
 ├── Stealth/      StealManager.cs, StealVM.cs
-├── Combat/       AttackTriggerMissionLogic.cs, CombatManager.cs
+├── Combat/       AttackTriggerMissionLogic.cs, CombatManager.cs,
+│                 KillMissionLogic.cs, DuelMissionView.cs, DuelVM.cs,
+│                 ArtisanBeerMissionView.cs (战斗中按Q消耗道具回血)
 ├── AI/           AgentAIController.cs, AgentBrain.cs, GroupStageManager.cs,
 │                 Actions/AtomicAction.cs
-├── Dialog/       DialogBehavior.cs, MyCustomUIVM.cs (通用对话/选项 VM)
 ├── Bubble/       BubbleSayMissionView.cs, BubbleSayVM.cs, BubbleSayNeaybyVM.cs
+├── Notify/       NinjaNotificationMissionView.cs, NinjaNotificationVM.cs,
+│                 CustomNotify.cs (空壳，待实现)
+├── Camera/       CameraDebuggerView.cs, CameraDebuggerVM.cs,
+│                 SpringArmCameraDebuggerVM.cs, SpringArmCameraView.cs
 ├── LLM/          LLMService.cs, PromptBuilder.cs
-├── Memory/       MemoryManager.cs (含 SingNpcMemorySystem,
-│                 AllNpcMemoryManager, NPCProfile)
-├── Social/       SocialEventManager.cs (通用社交事件框架)
+├── Memory/       MemoryManager.cs → 拆为 7 个文件：
+│                 ChatMessage.cs, RecentMemory.cs,
+│                 PlayerGeneratedOption.cs, PlayerResources.cs,
+│                 NPCProfile.cs, SingNpcMemorySystem.cs,
+│                 AllNpcMemoryManager.cs
+│                 （不改逻辑，仅拆类到独立文件）
+├── Negotiation/  NegotiationSystem.cs (~1759行，完整的太阁5风格谈判小游戏：
+│                 谈判状态机、卡牌系统、筹码估值、技能检定、
+│                 NPC主动性/冲突检测、LLM输出协议)
+├── Social/       SocialEventManager.cs
 ├── Script/       ReadStory.cs (通用 JSON 脚本加载器)
 ├── Spawner/      HeroSpawnerMissionBehavior.cs
 ├── Quest/        QuestManager.cs
 ├── Story/        (= 现 StoryEngineBag/) AIStoryAdapt, AIStoryGenerator,
-│                 CommandManager, InteractionController, LogicCommands,
-│                 NegotiationSystem, StageDirector, StoryContext,
-│                 StoryDialogVM, StoryEngine, SystemCommands, Text2Anim,
-│                 VisualCommands —— 太阁5 风格剧情演出引擎，
-│                 引擎本身通用，剧本数据由 Mod B 提供
+│                 CommandManager, LogicCommands,
+│                 StageDirector, StoryContext, StoryEngine,
+│                 SystemCommands, Text2Anim, VisualCommands
+│                 —— 太阁5 风格剧情演出引擎（纯引擎，剧本数据由 Mod B 提供）
 ├── Data/         DesignDataLoad.cs
-├── Debug/        MyCommands.cs
-└── MySubModule.cs (留根)
+├── Debug/        MyCommands.cs, DebugBehavior.cs, DebugLogger.cs,
+│                 MyCustomUIVM.cs (F9 调出的测试 UI)
+└── Properties/   AssemblyInfo.cs (不动)
 ```
 
 操作清单：
-1. 新建 16 个子文件夹。
-2. 按上表移动现有文件；重命名 `StoryEngineBag/` → `Story/`。
-3. 编辑 `ExampleMod.csproj` 的 `<Compile Include>` 路径。
-4. 编译 + 启动游戏验证：所有功能与重组前完全一致。
-5. 提交 commit："refactor: 按职责重组目录"。
+1. 新建 18 个子文件夹（Properties 已存在；Dialog/ 不建——DialogBehavior.cs 已确认死代码，删除）。
+2. 按上表移动现有文件；重命名 `StoryEngineBag/` → `Story/`；**拆分 `MemoryManager.cs` 为 7 个独立文件**（不改逻辑，仅把类分到各自 .cs 文件）；**删除 `DialogBehavior.cs`**（死代码：原版对话系统测试残留 + 无人调用的反射工具），同步删除 [MySubModule.cs:139](ExampleModVS/ExampleMod/ExampleMod/MySubModule.cs#L139) 的 `AddBehavior(new DialogBehavior())` 注册。
+3. 编辑 `ExampleMod.csproj` 的 `<Compile Include>` 路径 + `<RootNamespace>` + `<AssemblyName>` 使其匹配。
+4. 全局替换 namespace：`ExampleMod` → `LivingWorldNpcs`，`ExampleMod.AI` → `LivingWorldNpcs.AI`，`ExampleMod.StoryEngineBag` → `LivingWorldNpcs.Story`。
+5. 编译 + 启动游戏验证：所有功能与重组前完全一致。
+6. 提交 commit："refactor: 目录重组 + namespace 重命名 ExampleMod→LivingWorldNpcs"。
 
-### Phase 1：通用化代码改动（仅 2 处）
+---
 
-**改动 1 —— 新增 [Core/Settings.cs](ExampleModVS/ExampleMod/ExampleMod/Core/Settings.cs)**
+### Phase 1：通用化代码改动
 
-读取 `Modules/BannerlordInteractionPlus/config.json`（不存在时用默认值）：
+#### 改动 0 —— 移除硬编码 API Key（安全修复）
+
+**现状**：[MySubModule.cs:47](ExampleModVS/ExampleMod/ExampleMod/MySubModule.cs#L47)
+
+```csharp
+LLMService.Initialize("sk-db03887a984d43caaaf2d30767e81bcd");
+```
+
+**改为**：删除此行，LLMService 的初始化推迟到需要时懒加载，从 `Settings.Instance` 读取：
+
+```csharp
+// 在 LLMService 首次调用时：
+if (Settings.Instance.IsLLMReady)
+    LLMService.Initialize(Settings.Instance.LLMApiKey);
+```
+
+---
+
+#### 改动 1 —— 新建 `Core/Settings.cs`
+
+**1a. 发布时附带的 `config.json`**（仅 LLM 连接，玩家侧的）：
 
 ```json
 {
-  "EnableCustomLLM": false,
-  "LLMEndpoint": "",
+  "LLMBaseUrl": "",
   "LLMApiKey": "",
-  "LLMModel": "",
-  "WorldSettingPromptOverride": null
+  "LLMModel": ""
 }
 ```
 
-派生属性 `IsLLMReady`：三个 LLM 字段非空时为 true。
-
-**改动 2 —— 参数化 PromptBuilder 中的世界观字串**
-
-[PromptBuilder.cs:962](ExampleModVS/ExampleMod/ExampleMod/PromptBuilder.cs#L962) 的硬编码字串 `"你是生活在骑马与砍杀2织丰Mod塑造的日本战国世界中的…"` → 改成：
+**1b. Settings.cs 结构**——LLM 配置从 JSON 读，世界观 flavor 硬编码默认值：
 
 ```csharp
-$"你是生活在 {Settings.Instance.WorldSettingPromptOverride ?? "骑马与砍杀2 卡拉迪亚中世纪世界"} 中的…"
+public class Settings {
+    public static Settings Instance { get; } = Load();
+
+    // ── 玩家 LLM 配置（从 config.json 读取）──
+    public string LLMBaseUrl { get; set; } = "";
+    public string LLMApiKey { get; set; } = "";
+    public string LLMModel { get; set; } = "";
+    public bool IsLLMReady => !string.IsNullOrWhiteSpace(LLMBaseUrl)
+                           && !string.IsNullOrWhiteSpace(LLMApiKey)
+                           && !string.IsNullOrWhiteSpace(LLMModel);
+
+    // ── 世界观 flavor（硬编码卡拉迪亚默认，供 Mod B 代码覆盖）──
+    // 不从 JSON 读取，不需要玩家关心
+    public string WorldDescription { get; set; } = "骑马与砍杀2 卡拉迪亚中世纪世界";
+    public string EraDescription { get; set; } = "中世纪卡拉迪亚大陆";
+    public string SpeechStyle { get; set; } = "风格口语化、符合中世纪背景。不要使用现代网络用语。";
+    public string WarriorTerms { get; set; } = "使用\"大人\"、\"爵士\"等符合中世纪语境的词汇。";
+    public string FemaleSelfAddress { get; set; } = "";
+}
 ```
 
-A 单独跑 → 用卡拉迪亚默认；A+B 跑 → B 启动时把 Override 设为日本战国字串。
+**设计原则**：
+- `config.json` 只管 LLM 连接三要素，默认全空 → `IsLLMReady=false` → 普通玩家无需任何配置
+- 世界观 flavor 不从 JSON 读——硬编码卡拉迪亚默认，Mod B 启动时用代码覆盖
+- 两条线完全解耦：LLM 是玩家的事，世界观是内容包的事
+- 以后接 MCM 时，MCM 只管 LLM 三个字段；世界观 flavor 也可暴露给 MCM 作为可选高级项
 
-**改动 3（可选，建议做）—— LLM 功能总闸**
+---
 
-为了让"原版骑砍玩家不配 LLM 也能跑"，在以下入口加 `if (Settings.Instance.IsLLMReady)` 守卫：
-- [InteractionMissionView.cs](ExampleModVS/ExampleMod/ExampleMod/InteractionMissionView.cs) F 键对话：未启用 LLM 时降级调用 vanilla `MissionConversationLogic.Current.StartConversation(...)` 而不是 StoryDialogVM
-- G 键自由聊天、H 键 NPC 信息板：未启用时静默忽略或显示提示
-- [DialogBehavior.cs](ExampleModVS/ExampleMod/ExampleMod/DialogBehavior.cs) / [MemoryManager.cs](ExampleModVS/ExampleMod/ExampleMod/MemoryManager.cs) / [Story/StoryEngine.cs](ExampleModVS/ExampleMod/ExampleMod/StoryEngineBag/StoryEngine.cs) 中调 LLMService 的点：包 `if (IsLLMReady)`，否则 fallback 到固定回复或跳过该路径
+#### 改动 2 —— 参数化 PromptBuilder 中的全部世界观字串
 
-**改动 4 —— 实装 [AttackTriggerMissionLogic.cs:228-232](ExampleModVS/ExampleMod/ExampleMod/AttackTriggerMissionLogic.cs#L228-L232) 翻脸逻辑**
+**范围远超规划初版估计的一处**。经 grep 确认，PromptBuilder.cs 中有 **~10 处**硬编码了日本战国内容：
+
+| 行号 | 硬编码内容 | 替换方式 |
+|------|-----------|---------|
+| 84 | `口吻符合日本战国背景……大河剧风格……妾身` | `Settings.Instance.SpeechStyle` + `Settings.Instance.FemaleSelfAddress` |
+| 134 | 同上 | 同上 |
+| 246 | `当前处于日本战国时代` | `Settings.Instance.EraDescription` |
+| 308 | 同 84 | 同 84 |
+| 662 | `日本战国RPG游戏` | `{Settings.Instance.WorldDescription} 中的RPG游戏` |
+| 815 | 同 84 | 同 84 |
+| 963 | `织丰Mod塑造的日本战国世界` | `Settings.Instance.WorldDescription` |
+| 1005 | `符合日本战国背景` | `{Settings.Instance.SpeechStyle}` |
+| 1177 | `日本战国武家风格……在下、主公、混账` | `Settings.Instance.WarriorTerms` |
+
+**实现方式**：在 PromptBuilder 顶部加一个静态引用：
+
+```csharp
+private static Settings S => Settings.Instance;
+```
+
+然后把各行的硬编码字串替换为 `S.WorldDescription`、`S.SpeechStyle` 等。Mod A 中不再残留任何"日本战国"原文。
+
+---
+
+#### 改动 3 —— LLM 功能总闸
+
+**当前代码实际行为**（经核实）：
+
+| 按键 | 当前 | 需要 LLM？ | `!IsLLMReady` 时的处理 |
+|------|------|-----------|----------------------|
+| F | `StartVanillaConversation()` → 原版对话 | **不需要** | 无改动，本来就能用 |
+| G | `StartFreeConversationFlow()` → InteractionController → LLM | **需要** | 隐藏提示/不响应，或显示"请先配置 LLM" |
+| H | `OpenNPCInfoBoard()` → 读取游戏内数据 | **不需要** | 无改动，本来就能用 |
+
+**实际只需改一处**：[InteractionMissionView.cs](ExampleModVS/ExampleMod/ExampleMod/InteractionMissionView.cs) G 键入口：
+
+```csharp
+// G 键：仅 IsLLMReady 时可用
+if (Settings.Instance.IsLLMReady)
+    _ = StartFreeConversationFlow(_lastFocusedAgent);
+else
+    InformationManager.DisplayMessage(new InformationMessage("请先在 config.json 中配置 LLM 后方可使用自由聊天。"));
+```
+
+**其他 LLM 调用点**（`MemoryManager` 记忆总结、`StoryEngine` 等）：内部已有 try-catch，LLMService 未初始化时会自然降级。不需要额外守卫。
+
+---
+
+#### 改动 4 —— 实装 `AttackTriggerMissionLogic.cs:228-232` 翻脸逻辑
 
 当前空槽（玩家攻击非敌对人类）填实：
 
@@ -118,31 +217,57 @@ AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 50, "event_ag
 
 这是通用机制（KCD2 风格"攻击平民引发整个聚落敌对"），无需任何 LLM/Shokuho 依赖。
 
-提交 commit："feat: Settings 总闸 + 世界观参数化 + 攻击翻脸逻辑"。
+---
+
+#### 改动 5 —— 清理 MySubModule.cs 和其他文件中的 Shokuho/Taikou 遗留字串
+
+| 文件 | 行 | 现状 | 改为 |
+|------|-----|------|------|
+| MySubModule.cs | 33 | `"LoadTaikouEvents"` | `"LoadStoryEvents"` |
+| MySubModule.cs | 59 | `$"[ShokuhoMod] Failed..."` | `$"[LivingWorldNpcs] Failed..."` |
+| MySubModule.cs | 173 | `"Shokuho_Actions_Dump.txt"` | `"LivingWorldNpcs_Actions_Dump.txt"` |
+| MySubModule.cs | 225/229 | `$"[Shokuho] ..."` | `$"[LivingWorldNpcs] ..."` |
+| InteractionOptionManager.cs | 119 | `太阁V风格` | 删除或改为通用描述 |
+| MemoryManager.cs | 237/511 | `太阁5` 注释 | 改为通用注释 |
+| CommandManager.cs | 37 | `太阁里通常…` | `脚本里通常…` |
+| StoryContext.cs | 55/230 | `太阁` 注释 | 改为通用注释 |
+| DialogBehavior.cs | 全文 | 死代码：原版对话测试+未使用的反射工具 | **删除整个文件**，同步删除 MySubModule.cs 中的注册 |
+
+---
+
+#### 提交
+
+commit："feat: Settings 总闸 + 世界观参数化(全部10处) + API Key移除 + 攻击翻脸逻辑 + 遗留字串清理"
+
+---
 
 ### Phase 2：物理拆分
 
 #### Mod A 收束
 
-把 `Modules/ExampleMod/` 改名为 `Modules/BannerlordInteractionPlus/`，编辑 SubModule.xml：
+`Modules/ExampleMod/` → `Modules/LivingWorldNpcs/`
 
-- `<Id value="BannerlordInteractionPlus"/>`
+**SubModule.xml**：
+- `<Id value="LivingWorldNpcs"/>`
+- `<SubModuleClassType value="LivingWorldNpcs.MySubModule"/>`
 - DependedModules 维持原样（Native/SandBoxCore/Sandbox/CustomBattle/StoryMode/StartAsAnyone）
-- **删除**所有带 `IncludedGameTypes=ShokuhoCampaign` 的 XmlNode（共 7 个：spcultures、clans、spkingdoms、lords、heroes、my_helmets、UpdateSettlementsOwner）
-- **保留**所有带 Campaign/CampaignStoryMode/Sandbox/SandBoxCore 的 XmlNode 和 `GUI/SpriteParts/ui_character_illustration`
+- **删除**所有带 `IncludedGameTypes=ShokuhoCampaign` 的 XmlNode（共 7 个）
+- **保留**所有带 Campaign/CampaignStoryMode/Sandbox/SandBoxCore 的 XmlNode 和 GUI prefab
 - **删除** `ModuleData/Shokuho/`、`ModuleData/StoryJson/`、`ModuleData/Patches/UpdateSettlementsOwner`（迁去 B）
 - **保留** `ModuleData/DesignData/`、`ModuleData/Native/`、`ModuleData/Languages/` 中通用部分
+- **附带** `config.json`（字段全空/默认）
 
-DLL 输出名：`BannerlordInteractionPlus.dll`。
+DLL 输出名：`LivingWorldNpcs.dll`。
+Namespace：`LivingWorldNpcs.*`（Phase 0 已改）。
 
 #### Mod B 创建
 
-新建 `Modules/ShokuhoContent/`：
+新建 `Modules/TaikouContent/`：
 
 ```
-Modules/ShokuhoContent/
+Modules/TaikouContent/
 ├── SubModule.xml
-├── bin/Win64_Shipping_Client/ShokuhoContent.dll  (~20 行代码)
+├── bin/Win64_Shipping_Client/TaikouContent.dll  (~30 行代码)
 └── ModuleData/
     ├── Shokuho/         (从 A 搬过来)
     │   ├── spcultures.xml
@@ -151,17 +276,17 @@ Modules/ShokuhoContent/
     │   ├── lords.xml
     │   ├── heroes.xml
     │   └── my_helmets.xml
-    ├── StoryJson/       (从 A 搬过来)
+    ├── StoryJson/       (从 A 搬过来，含全部 ~90 个 .json 剧本)
     └── Patches/
         └── UpdateSettlementsOwner.xml
 ```
 
-`SubModule.xml`：
+**SubModule.xml**：
 
 ```xml
 <Module>
-  <Name value="Shokuho Content Pack"/>
-  <Id value="ShokuhoContent"/>
+  <Name value="Taikou Content Pack"/>
+  <Id value="TaikouContent"/>
   <Version value="v1.0.0"/>
   <SingleplayerModule value="true"/>
   <DependedModules>
@@ -169,13 +294,13 @@ Modules/ShokuhoContent/
     <DependedModule Id="SandBoxCore"/>
     <DependedModule Id="Sandbox"/>
     <DependedModule Id="StoryMode"/>
-    <DependedModule Id="BannerlordInteractionPlus"/>
+    <DependedModule Id="LivingWorldNpcs"/>
   </DependedModules>
   <SubModules>
     <SubModule>
-      <Name value="ShokuhoContent"/>
-      <DLLName value="ShokuhoContent.dll"/>
-      <SubModuleClassType value="ShokuhoContent.MySubModule"/>
+      <Name value="TaikouContent"/>
+      <DLLName value="TaikouContent.dll"/>
+      <SubModuleClassType value="TaikouContent.MySubModule"/>
     </SubModule>
   </SubModules>
   <Xmls>
@@ -184,43 +309,93 @@ Modules/ShokuhoContent/
 </Module>
 ```
 
-`MySubModule.cs`（约 20 行）：
+**MySubModule.cs**（约 30 行）：
 
 ```csharp
-using ExampleMod;  // 引用 A 的 namespace
+using LivingWorldNpcs;  // 引用 A 的 namespace
 using TaleWorlds.MountAndBlade;
 
-namespace ShokuhoContent {
+namespace TaikouContent {
     public class MySubModule : MBSubModuleBase {
         protected override void OnSubModuleLoad() {
             base.OnSubModuleLoad();
-            Settings.Instance.WorldSettingPromptOverride =
+            // 注入日本战国世界观——Mod A 的 PromptBuilder 自动生效
+            Settings.Instance.WorldDescription =
                 "骑马与砍杀2织丰Mod塑造的日本战国世界";
+            Settings.Instance.EraDescription =
+                "日本战国时代";
+            Settings.Instance.SpeechStyle =
+                "风格口语化、口吻符合日本战国背景。使用符合时代的\"大河剧\"风格口语。多用反问、感叹。";
+            Settings.Instance.WarriorTerms =
+                "使用\"在下\"、\"主公\"、\"混账\"等日本战国武家词汇。";
+            Settings.Instance.FemaleSelfAddress =
+                "如果你是女子，需要有女子的说话风格，如\"妾身\"。";
         }
     }
 }
 ```
 
-#### 存档兼容关键
+**注意**：Mod B 只覆盖世界观 flavor 字段，**不碰** `LLMBaseUrl`/`LLMApiKey`/`LLMModel`——那些是玩家的私人 LLM 配置。
 
-- **保留 A 内所有 namespace 为 `ExampleMod.*`**（仅 Module Id 改成 BannerlordInteractionPlus，namespace 不动）。MemoryManager 中的 `AllNpcMemoryManager` 等 SaveableType 不能换 namespace 否则老存档读不出。
-- 老 ExampleMod 玩家存档升级路径：把老 ExampleMod 文件夹重命名为 BannerlordInteractionPlus（手动或脚本），存档仍能读，因为存档存的是 namespace 不是 Module Id。
+#### 存档兼容
+
+- **未经发布的 mod，没有老玩家存档需要兼容**。Namespace 和 Module Id 趁现在一并改掉。
+- 如果将来需要迁移自己的测试存档：Module Id 变了，旧存档不会自动关联新 mod。但 Phase 0 之前没有公开发布，这不是问题。
+
+---
+
+### Phase 3：MCM 设置界面（后续增强，不阻塞拆分发布）
+
+**目标**：让玩家在游戏原生的 Options 页面里修改 LLM 配置，无需手动编辑 JSON。
+
+**为什么 AIInfluence 不需要你额外装 MCM**：它把 MCM 的 DLL 打包在自己的 `bin/` 目录里了（或者根本没用到 MCM）。你玩的时候自然无感。
+
+**现状**：config.json 已经能满足 30% 硬核玩家的配置需求——打开文件填 API Key 即可。MCM 是锦上添花，**不是必要条件**。
+
+**如果以后要加**：
+1. 两种方式选一：
+   - **打包 DLL**（像 AIInfluence）：把 MCM 及其前置的 DLL 放进 `Modules/LivingWorldNpcs/bin/Win64_Shipping_Client/`，玩家零安装
+   - **可选依赖**（社区常见）：SubModule.xml 设 `Optional="true"`，玩家可自行安装 MCM 获得图形化设置
+2. 新建 `LLMSettingsMCM.cs`，继承 `AttributeGlobalSettings<T>`，用 `[SettingPropertyText]`（`IsPassword = true` 掩码 API Key）暴露 LLM 三个字段
+3. Settings.cs 做桥接：MCM 侧写入时同步到 `Settings.Instance`
+
+**但 Phase 2 发布时完全不需要等 MCM**。config.json 够用了。
+
+---
 
 ## 验证
 
 | 场景 | 期望 |
 |---|---|
-| 仅启用 A，未配置 LLM (IsLLMReady=false) | KCD2 提示工作；F 弹**vanilla 骑砍对话**；偷窃/搜刮/翻脸/气泡/巡逻 AI 全部工作；社交事件框架空跑（无脚本输入） |
-| 仅启用 A，配置了 LLM | F 弹 StoryDialogVM 走 LLM 自由聊天；G 自由聊；目击犯罪触发谈判；persona prompt 用"卡拉迪亚中世纪世界" |
-| A + B，未配置 LLM | 行为同"仅 A 不配 LLM"；ShokuhoCampaign 选项可见，进入后氏族/英雄/补丁加载正常；但所有 LLM 路径仍降级 |
-| A + B，配置了 LLM | persona prompt 自动变为"日本战国世界"；剧情/谈判/演出全部生效 |
-| 仅 B（不勾 A） | 启动器报缺失依赖 BannerlordInteractionPlus |
-| 老 ExampleMod 存档 + A | 存档可读（namespace 未变） |
+| 仅启用 A，未配置 LLM (IsLLMReady=false) | KCD2 提示工作；F 弹 **vanilla 骑砍对话**；偷窃/搜刮/翻脸/气泡/巡逻 AI 全部工作；社交事件框架空跑（无脚本输入） |
+| 仅启用 A，配置了 LLM | F 弹 StoryDialogVM 走 LLM 自由聊天；G 自由聊；目击犯罪触发谈判；persona prompt 用卡拉迪亚中性字串 |
+| A + B，未配置 LLM | 行为同"仅 A 不配 LLM"；ShokuhoCampaign 选项可见，进入后氏族/英雄/补丁加载正常；LLM 路径降级 |
+| A + B，配置了 LLM | persona prompt 自动变为日本战国风格（Mod B 注入）；剧情/谈判/演出全部生效 |
+| 仅 B（不勾 A） | 启动器报缺失依赖 LivingWorldNpcs |
+| 仅启用 A、config.json 全空 → 启动 | IsLLMReady=false，不崩，走全部默认值 |
+| 玩家手动修改 config.json 设 LLM 三字段 | 重启后 IsLLMReady=true，LLM 功能自动启用 |
+| 玩家设了 LLM + 附带改了 Settings | LLM 可用；世界观经由 Mod B 注入（如有） |
 
 代码层验证：
 
-- `grep -ri "Shokuho\|织丰\|日本战国\|太阁" Mod_A_工程目录` → 仅余 PromptBuilder 中默认 fallback 字串和注释；无硬编码 Shokuho 题材引用
+- `grep -ri "Shokuho\|织丰\|日本战国\|太阁" Mod_A_工程目录` → **零命中**（包括 PromptBuilder、MySubModule.cs、所有注释）
 - A 编译产物只引用 `TaleWorlds.*` + `HarmonyLib` + `Newtonsoft.Json`，无对 B 的引用
 - A 单独装入 vanilla 骑砍 2 + Sandbox → 进城看 NPC 应右下角弹"对话/偷窃/搜刮"提示
-- 删除 `Modules/BannerlordInteractionPlus/config.json` 后启动 → A 应自动用默认值，IsLLMReady=false 不崩
+- 删除 `Modules/LivingWorldNpcs/config.json` 后启动 → Settings 自动使用所有默认值，不崩
 - B 装入但不装 A → 启动器明确报错
+- PromptBuilder.cs 中所有世界观相关字串均通过 `Settings.Instance` 引用，无硬编码题材
+
+---
+
+## Mod B 注入字段速查
+
+Mod B 的 `OnSubModuleLoad` 设置的所有字段及其卡拉迪亚默认值对比：
+
+| Settings 字段 | 卡拉迪亚默认（硬编码） | Mod B 注入值 |
+|--------------|----------------------|-------------|
+| `WorldDescription` | "骑马与砍杀2 卡拉迪亚中世纪世界" | "骑马与砍杀2织丰Mod塑造的日本战国世界" |
+| `EraDescription` | "中世纪卡拉迪亚大陆" | "日本战国时代" |
+| `SpeechStyle` | 中性中世纪口语 | 大河剧风格 |
+| `WarriorTerms` | "大人"、"爵士" | "在下"、"主公"、"混账" |
+| `FemaleSelfAddress` | 空 | "妾身" |
+| `LLMBaseUrl` / `LLMApiKey` / `LLMModel` | **不碰** | **不碰** |
