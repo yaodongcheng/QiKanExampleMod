@@ -1,4 +1,4 @@
-﻿using ExampleMod.StoryEngineBag;
+﻿using LivingWorldNpcs.Story;
 using Newtonsoft.Json;
 using SandBox.Conversation.MissionLogics;
 using System;
@@ -12,7 +12,7 @@ using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using static TaleWorlds.MountAndBlade.Agent;
 
-namespace ExampleMod.AI.Actions
+namespace LivingWorldNpcs.AI.Actions
 {
     // 接口保持不变
     public interface IAtomicAction
