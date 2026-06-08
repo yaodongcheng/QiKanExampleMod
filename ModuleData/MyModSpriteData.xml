@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<SpriteData>
-    <SpriteCategory Name="ui_character_illustration">
-        <Sprite Name="taikou">
-            <Texture Name="taikou"/>
-        </Sprite>
-    </SpriteCategory>
-</SpriteData>

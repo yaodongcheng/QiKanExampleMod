@@ -1,5 +1,5 @@
-﻿using ExampleMod.AI.Actions;
-using ExampleMod.StoryEngineBag;
+﻿using LivingWorldNpcs.AI.Actions;
+using LivingWorldNpcs.Story;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +9,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
-namespace ExampleMod.AI
+namespace LivingWorldNpcs.AI
 {
     // 事件数据包，可以携带任何参数
     public struct AIEvent

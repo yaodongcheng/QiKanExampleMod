@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Module>
-  <Name value="Example Mod"/>
-  <Id value="ExampleMod"/>
+  <Name value="Living World NPCs"/>
+  <Id value="LivingWorldNpcs"/>
   <Version value="v1.0.0"/>
   <SingleplayerModule value="true"/>
   <MultiplayerModule value="false"/>
@@ -11,97 +11,24 @@
     <DependedModule Id="Sandbox"/>
     <DependedModule Id="CustomBattle"/>
     <DependedModule Id="StoryMode"/>
-	
-    <DependedModule Id="StartAsAnyone"/>
   </DependedModules>
   <SubModules>
     <SubModule>
-      <Name value="ExampleMod"/>
-      <DLLName value="ExampleMod.dll"/>
-      <SubModuleClassType value="ExampleMod.MySubModule"/>
+      <Name value="LivingWorldNpcs"/>
+      <DLLName value="LivingWorldNpcs.dll"/>
+      <SubModuleClassType value="LivingWorldNpcs.MySubModule"/>
       <Tags>
         <Tag key="DedicatedServerType" value="none"/>
         <Tag key="IsNoRenderModeElement" value="false"/>
       </Tags>
     </SubModule>
-  </SubModules>  
-<Xmls>
-<XmlNode>
-            <XmlName id="SpriteData" path="GUI/SpriteParts/ui_character_illustration"/>
-        </XmlNode>
-	
-	<XmlNode>     
-      <XmlName id="SPCultures" path="Shokuho/spcultures"/> 
-      <IncludedGameTypes>
-		 <GameType value="ShokuhoCampaign"/>
-      </IncludedGameTypes>
-    </XmlNode>	
-	<XmlNode>
-        <XmlName id="Settlements" path="Patches/UpdateSettlementsOwner" /> 
-        <IncludedGameTypes>
-           <GameType value="ShokuhoCampaign"/>
-        </IncludedGameTypes>
-    </XmlNode>
-	
- 	<XmlNode>     
-      <XmlName id="Factions" path="Shokuho/clans"/> 
-      <IncludedGameTypes>
-		 <GameType value="ShokuhoCampaign"/>
-      </IncludedGameTypes>
-    </XmlNode> 
-	<XmlNode>
-		<XmlName id="Kingdoms" path="Shokuho/spkingdoms"/>
-		<IncludedGameTypes>
-			<GameType value="ShokuhoCampaign"/>
-		</IncludedGameTypes>
-	</XmlNode>
-	<XmlNode>
-      <XmlName id="NPCCharacters" path="Shokuho/lords"/> 
-      <IncludedGameTypes>
-	   <GameType value="ShokuhoCampaign"/>
-      </IncludedGameTypes>
-	</XmlNode>
-	<XmlNode>
-	<XmlName id="Heroes" path="Shokuho/heroes"/> 
-      <IncludedGameTypes>
-	   <GameType value="ShokuhoCampaign"/>
-      </IncludedGameTypes>
-    </XmlNode>
-	
-
-	
-	
-	<XmlNode>     
-      <XmlName id="Factions" path="Native/clans"/> 
-      <IncludedGameTypes>
-         <GameType value="Campaign"/>
-		<GameType value="CampaignStoryMode"/>
-       <GameType value="Sandbox"/>
-       <GameType value="SandBoxCore"/>
-      </IncludedGameTypes>
-    </XmlNode>
-
-	
-	
-  <XmlNode>
-    <XmlName id="Items" path="Native/artisan_beer"/>
-    <IncludedGameTypes>
-      <GameType value="Campaign"/>
-	  <GameType value="CampaignStoryMode"/>
-       <GameType value="Sandbox"/>
-       <GameType value="SandBoxCore"/>
-    </IncludedGameTypes>
-  </XmlNode>
-  
+  </SubModules>
+  <Xmls>
     <XmlNode>
-    <XmlName id="Items" path="Shokuho/my_helmets"/>
-    <IncludedGameTypes>
-	   <GameType value="ShokuhoCampaign"/>
-    </IncludedGameTypes>
-  </XmlNode>
-  
+      <XmlName id="SpriteData" path="GUI/SpriteParts/ui_character_illustration"/>
+    </XmlNode>
     <XmlNode>
-      <XmlName id="NPCCharacters" path="Native/lords"/> 
+      <XmlName id="Factions" path="Native/clans"/>
       <IncludedGameTypes>
         <GameType value="Campaign"/>
         <GameType value="CampaignStoryMode"/>
@@ -109,11 +36,8 @@
         <GameType value="SandBoxCore"/>
       </IncludedGameTypes>
     </XmlNode>
-  
-
-  
-  <XmlNode>
-  <XmlName id="Heroes" path="Native/heroes"/> 
+    <XmlNode>
+      <XmlName id="Items" path="Native/artisan_beer"/>
       <IncludedGameTypes>
         <GameType value="Campaign"/>
         <GameType value="CampaignStoryMode"/>
@@ -121,8 +45,23 @@
         <GameType value="SandBoxCore"/>
       </IncludedGameTypes>
     </XmlNode>
-  
-
-	
-</Xmls>
+    <XmlNode>
+      <XmlName id="NPCCharacters" path="Native/lords"/>
+      <IncludedGameTypes>
+        <GameType value="Campaign"/>
+        <GameType value="CampaignStoryMode"/>
+        <GameType value="Sandbox"/>
+        <GameType value="SandBoxCore"/>
+      </IncludedGameTypes>
+    </XmlNode>
+    <XmlNode>
+      <XmlName id="Heroes" path="Native/heroes"/>
+      <IncludedGameTypes>
+        <GameType value="Campaign"/>
+        <GameType value="CampaignStoryMode"/>
+        <GameType value="Sandbox"/>
+        <GameType value="SandBoxCore"/>
+      </IncludedGameTypes>
+    </XmlNode>
+  </Xmls>
 </Module>
