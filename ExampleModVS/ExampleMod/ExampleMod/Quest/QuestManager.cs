@@ -383,7 +383,7 @@ namespace LivingWorldNpcs
 
             if (_data.GivenGold > 0)
             {
-                GiveGoldAction.ApplyBetweenCharacters(QuestGiver, Hero.MainHero, _data.GivenGold);
+                AgentControlHelper.TransferGold(QuestGiver, Hero.MainHero, _data.GivenGold);
                 AddLog(new TextObject($"主公赐予了 {_data.GivenGold} 两作为起始资金。"));
             }
 
@@ -392,7 +392,7 @@ namespace LivingWorldNpcs
                 ItemObject item = MBObjectManager.Instance.GetObject<ItemObject>(_data.GivenItemId);
                 if (item != null)
                 {
-                    PartyBase.MainParty.ItemRoster.AddToCounts(item, _data.GivenItemCount);
+                    AgentControlHelper.TransferItems(null, Hero.MainHero, item, _data.GivenItemCount);
                     AddLog(new TextObject($"主公赐予了 {_data.GivenItemCount} 个 {item.Name}。"));
                 }
             }
@@ -693,14 +693,14 @@ namespace LivingWorldNpcs
             AddLog(new TextObject("{=success}任务完成！主公对此表示赞赏。"));
 
             // 奖励结算
-            GiveGoldAction.ApplyBetweenCharacters(QuestGiver, Hero.MainHero, RewardGold);
+            AgentControlHelper.TransferGold(QuestGiver, Hero.MainHero, RewardGold);
             ChangeRelationAction.ApplyPlayerRelation(QuestGiver, 5);
             GainRenownAction.Apply(Hero.MainHero, 2);
 
             // 如果是赚钱任务，需要把本金+利润上交 (模拟扣除)
             if (_data.Type == QuestType.EarnMoney)
             {
-                GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, QuestGiver, _data.TargetCount);
+                AgentControlHelper.TransferGold(Hero.MainHero, QuestGiver, _data.TargetCount);
             }
             // 如果是物资任务，扣除物品
             if (_data.Type.ToString().StartsWith("DeliverItem"))
@@ -708,7 +708,7 @@ namespace LivingWorldNpcs
                 var item = MBObjectManager.Instance.GetObject<ItemObject>(_data.TargetId);
                 if (item != null)
                 {
-                    PartyBase.MainParty.ItemRoster.AddToCounts(item, -_data.TargetCount);
+                    AgentControlHelper.TransferItems(Hero.MainHero, null, item, _data.TargetCount);
                 }
             }
         }

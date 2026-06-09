@@ -496,6 +496,152 @@ namespace LivingWorldNpcs
             return sb.ToString();
         }
 
+        // ===================================================================
+        //  资源操作（铁律 4）—— 凡「看上去像资源进出」的地方都走这里，禁止业务层
+        //  裸调 Hero.ChangeHeroGold / ItemRoster.AddToCounts 等单边 API。
+        //  金钱视为「特殊物品」(Item==null)，三类操作各有纪律：
+        //   ① 转移 Transfer（守恒）：A→B，一方扣一方加，禁止半截。TransferGold / TransferItems
+        //   ② 收发 Grant/Sink（单边对接「世界」）：from/to 传 null 即虚空来源 / 去向，合法
+        //   ③ 转换 Convert（按配方非守恒）：守卫后 consume 输入 + grant 输出，整体原子。TryConvert
+        // ===================================================================
+
+        /// <summary>
+        /// 金钱守恒转移：amount 从 <paramref name="from"/> 的钱袋转移到 <paramref name="to"/> 的钱袋。
+        /// 内部封装引擎成对接口 GiveGoldAction.ApplyBetweenCharacters，保证总量守恒。
+        /// </summary>
+        /// <param name="from">付出方。传 null = 引擎认可的「虚空来源」（战利品 / 系统奖励，凭空发放）。</param>
+        /// <param name="to">接收方。传 null = 付给「虚空」（罚没 / 消耗，无人接收）。</param>
+        /// <param name="amount">期望转移的金额（&lt;=0 直接返回）。</param>
+        /// <param name="notify">是否弹引擎默认提示。</param>
+        /// <returns>实际转移的金额（付出方余额不足时会被截断为其全部余额）。</returns>
+        public static int TransferGold(Hero from, Hero to, int amount, bool notify = true)
+        {
+            if (amount <= 0) return 0;
+            // 余额保护：付出方钱不够时只转移其全部余额，绝不让其变负
+            if (from != null && from.Gold < amount)
+                amount = from.Gold;
+            if (amount <= 0) return 0;
+
+            GiveGoldAction.ApplyBetweenCharacters(from, to, amount, disableNotification: !notify);
+            return amount;
+        }
+
+        /// <summary>
+        /// 绝对设置某英雄持有金为指定值（剧本 / 调试用的「上帝指令」，非守恒）。
+        /// 仅供 Story 脚本、调试指令调用；正常玩法的给钱 / 收钱请用 <see cref="TransferGold"/>。
+        /// 内部仍走 GiveGoldAction（增钱从虚空来、减钱往虚空去），保证 gold 变更全部归口本类。
+        /// </summary>
+        public static void SetGold(Hero hero, int targetGold, bool notify = false)
+        {
+            if (hero == null) return;
+            int delta = targetGold - hero.Gold;
+            if (delta == 0) return;
+
+            // delta > 0：从虚空发放给 hero；delta < 0：hero 付给虚空
+            TransferGold(delta > 0 ? null : hero,
+                         delta > 0 ? hero : null,
+                         Math.Abs(delta), notify);
+        }
+
+        /// <summary>
+        /// 物品守恒转移：count 件 <paramref name="item"/> 从 <paramref name="from"/> 的辎重转移到
+        /// <paramref name="to"/> 的辎重。取 <see cref="EquipmentElement"/> 以保留品质修正(ItemModifier)。
+        /// </summary>
+        /// <param name="from">付出方。null = 虚空来源（战利品 / 偷窃 / 任务凭空奖励）。</param>
+        /// <param name="to">接收方。null = 付给虚空（上交 / 消耗）。</param>
+        /// <returns>实际转移数量（付出方库存不足时截断）。</returns>
+        public static int TransferItems(Hero from, Hero to, EquipmentElement item, int count)
+        {
+            if (item.IsEmpty || count <= 0) return 0;
+            ItemRoster fromRoster = from?.PartyBelongedTo?.ItemRoster;
+            ItemRoster toRoster = to?.PartyBelongedTo?.ItemRoster;
+
+            // 库存保护：付出方不够时截断（按基础物品计数）
+            if (fromRoster != null)
+            {
+                int have = fromRoster.GetItemNumber(item.Item);
+                if (have < count) count = have;
+            }
+            if (count <= 0) return 0;
+
+            fromRoster?.AddToCounts(item, -count);  // null = 虚空来源，不扣谁
+            toRoster?.AddToCounts(item, count);      // null = 虚空去向，不给谁
+            return count;
+        }
+
+        /// <summary>便捷重载：无品质修正的普通物品。</summary>
+        public static int TransferItems(Hero from, Hero to, ItemObject item, int count)
+            => item == null ? 0 : TransferItems(from, to, new EquipmentElement(item, null), count);
+
+        /// <summary>
+        /// 转换配方里的一项资源。金钱即「特殊物品」：<see cref="Item"/> 为 null 表示金钱。
+        /// </summary>
+        public struct ResourceCost
+        {
+            public ItemObject Item;   // null = 金钱
+            public int Count;
+            public static ResourceCost Gold(int n) => new ResourceCost { Item = null, Count = n };
+            public static ResourceCost Of(ItemObject item, int n) => new ResourceCost { Item = item, Count = n };
+        }
+
+        /// <summary>
+        /// 某英雄是否持有足够的某项资源（金钱或物品）。
+        /// </summary>
+        public static bool HasResource(Hero owner, ResourceCost cost)
+        {
+            if (cost.Count <= 0) return true;
+            if (owner == null) return false;
+            if (cost.Item == null) return owner.Gold >= cost.Count;
+            ItemRoster roster = owner.PartyBelongedTo?.ItemRoster;
+            return roster != null && roster.GetItemNumber(cost.Item) >= cost.Count;
+        }
+
+        /// <summary>
+        /// 转换器（铁律 4 第③类，按配方非守恒）：<paramref name="owner"/> 消耗 <paramref name="inputs"/>
+        /// 产出 <paramref name="outputs"/>。**守卫 + 原子**：任一输入不足则整体不发生，返回 false。
+        /// 引擎外的自定义资源（如饱腹值 / 疲劳：吃苹果→饱腹+10）由调用方在 <paramref name="onConverted"/>
+        /// 里施加——它仅在输入扣除成功后执行，从而与配方保持原子。
+        /// </summary>
+        /// <example>
+        /// // 吃一个苹果，饱腹 +10
+        /// TryConvert(player,
+        ///     new[] { ResourceCost.Of(appleItem, 1) },
+        ///     null,
+        ///     onConverted: () => satiety += 10);
+        /// </example>
+        public static bool TryConvert(Hero owner,
+                                      IList<ResourceCost> inputs,
+                                      IList<ResourceCost> outputs,
+                                      Action onConverted = null)
+        {
+            if (owner == null) return false;
+
+            // 1. 守卫：所有输入都得够，否则整体放弃
+            if (inputs != null)
+                foreach (ResourceCost c in inputs)
+                    if (!HasResource(owner, c)) return false;
+
+            // 2. 消耗输入（sink 到世界）
+            if (inputs != null)
+                foreach (ResourceCost c in inputs)
+                {
+                    if (c.Item == null) TransferGold(owner, null, c.Count, notify: false);
+                    else TransferItems(owner, null, c.Item, c.Count);
+                }
+
+            // 3. 产出（从世界 grant）
+            if (outputs != null)
+                foreach (ResourceCost c in outputs)
+                {
+                    if (c.Item == null) TransferGold(null, owner, c.Count, notify: false);
+                    else TransferItems(null, owner, c.Item, c.Count);
+                }
+
+            // 4. 引擎外自定义资源（饱腹 / 疲劳…）由调用方原子施加
+            onConverted?.Invoke();
+            return true;
+        }
+
         public static void ApplyDivorceMarriage(Hero targetHero)
         {
             Hero targetHeroSpouse = targetHero.Spouse;

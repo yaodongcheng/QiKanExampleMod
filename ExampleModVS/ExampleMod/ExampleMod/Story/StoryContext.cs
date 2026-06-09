@@ -425,9 +425,9 @@ namespace LivingWorldNpcs.Story
             {
                 case "持有金":
                 case "Gold":
-                    int oldGold = hero.Gold;
+                    // 剧本绝对赋值（上帝指令），统一走 AgentControlHelper 归口
                     int targetGold = int.Parse(value);
-                    hero.ChangeHeroGold(targetGold - oldGold);
+                    AgentControlHelper.SetGold(hero, targetGold);
                     return;
                 // 注意：大部分原生属性可能是只读的，或者需要特殊函数修改
                 case "親密度":

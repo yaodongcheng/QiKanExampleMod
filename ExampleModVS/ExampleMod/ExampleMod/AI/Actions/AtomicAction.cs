@@ -168,11 +168,16 @@ namespace LivingWorldNpcs.AI.Actions
         {
             var victimHeroObj = (victim.Character as CharacterObject)?.HeroObject;
             string victimName = victim.Name?.ToString() ?? "守卫";
-            int compensationGold = 200;
+            // 赔偿额 = 实际偷走的赃物市场价值（偷越贵赔越多），至少 50，避免写死 200
+            int stolenValue = StealManager.GetStolenValue(victim);
+            int compensationGold = stolenValue > 50 ? stolenValue : 50;
+
+            // NPC 的台词走通用头顶气泡接口；旁白/结算留日志，选择留模态
+            BubbleSayMissionView.AgentBubbleSay(victim, "好哇，敢偷到我头上来！你今天必须给个交代。");
 
             InformationManager.ShowInquiry(new InquiryData(
                 $"{victimName} 发现了你的偷窃行为！",
-                $"{victimName} 怒气冲冲地瞪着你，手已经按在了武器上。\n\n\"好哇，敢偷到我头上来！你今天必须给个交代。\"",
+                $"{victimName} 怒气冲冲地瞪着你，手已经按在了武器上。",
                 true,
                 true,
                 $"【破财消灾】掏出 {compensationGold} 第纳尔",
@@ -181,7 +186,9 @@ namespace LivingWorldNpcs.AI.Actions
                 {
                     if (Hero.MainHero.Gold >= compensationGold)
                     {
-                        Hero.MainHero.ChangeHeroGold(-compensationGold);
+                        // 守恒转移：钱从玩家钱袋进受害者钱袋（victimHeroObj 为 null 时付给虚空）
+                        AgentControlHelper.TransferGold(Hero.MainHero, victimHeroObj, compensationGold, notify: false);
+                        BubbleSayMissionView.AgentBubbleSay(victim, "哼，算你识相。");
                         InformationManager.DisplayMessage(
                             new InformationMessage($"你递上 {compensationGold} 第纳尔。{victimName} 掂了掂钱袋，冷哼一声让开了路。", Colors.Yellow));
                         if (victimHeroObj != null)
@@ -189,6 +196,7 @@ namespace LivingWorldNpcs.AI.Actions
                     }
                     else
                     {
+                        BubbleSayMissionView.AgentBubbleSay(victim, "没钱还敢偷？那就拿命来抵！");
                         InformationManager.DisplayMessage(
                             new InformationMessage($"你摸了摸空瘪的钱袋……{victimName} 见状大怒，拔出了武器！", Colors.Red));
                         AgentAIController.Instance?.SendEventToAgent(victim, "order_attack", Agent.Main);
@@ -197,10 +205,25 @@ namespace LivingWorldNpcs.AI.Actions
                 },
                 () =>
                 {
-                    InformationManager.DisplayMessage(
-                        new InformationMessage($"你老老实实把东西还了回去。{victimName} 鄙夷地呸了一声：\"滚！别再让我看见你。\"", Colors.Green));
-                    if (victimHeroObj != null)
-                        ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -5);
+                    // 归还财物：把本场从该受害者身上偷走的东西从背包扣回、复原到他装备上
+                    int returned = StealManager.ReturnStolenItems(victim);
+                    if (returned > 0)
+                    {
+                        BubbleSayMissionView.AgentBubbleSay(victim, "滚！别再让我看见你。");
+                        InformationManager.DisplayMessage(
+                            new InformationMessage($"你老老实实把 {returned} 件财物还了回去。{victimName} 鄙夷地呸了一声。", Colors.Green));
+                        if (victimHeroObj != null)
+                            ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -5);
+                    }
+                    else
+                    {
+                        // 东西早被卖了/丢了，还不出来——受害者更恼火
+                        BubbleSayMissionView.AgentBubbleSay(victim, "还想赖账？");
+                        InformationManager.DisplayMessage(
+                            new InformationMessage($"你摊开双手，可偷来的东西早已不在身上。{victimName} 怒极反笑。", Colors.Red));
+                        if (victimHeroObj != null)
+                            ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -8);
+                    }
                 },
                 "",
                 0f
@@ -682,7 +705,7 @@ namespace LivingWorldNpcs.AI.Actions
                 _isFinished = true;
                 return;
             }
-            InformationManager.DisplayMessage(new InformationMessage($"开始攻击 {_targetEnemy.Name}！", Colors.Yellow));
+            InformationManager.DisplayMessage(new InformationMessage($"{agent.Name}  开始攻击 {_targetEnemy.Name}！", Colors.Yellow));
             //BubbleSayMissionView.AgentBubbleSay(agent, "别碰我的老大！");
             CombatManager.StartFight(agent, _targetEnemy);
 

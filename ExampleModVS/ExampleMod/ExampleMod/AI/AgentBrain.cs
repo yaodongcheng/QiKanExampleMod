@@ -119,7 +119,7 @@ namespace LivingWorldNpcs.AI
 
                 var victimMemory = AllNpcMemoryManager.GetMemoryForAgent(victim);
                 
-                InformationManager.DisplayMessage(new InformationMessage($"event_agent_damaged: {attacker.Name} 对 {victim.Name} 造成了伤害", Colors.Yellow));
+                InformationManager.DisplayMessage(new InformationMessage($"AgentBrain - event_agent_damaged: {attacker.Name} 对 {victim.Name} 造成了伤害", Colors.Yellow));
                 // --- 核心护主逻辑 ---
 
                 bool shouldHelp = false;

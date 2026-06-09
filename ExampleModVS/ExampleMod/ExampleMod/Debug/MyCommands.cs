@@ -1205,6 +1205,61 @@ namespace LivingWorldNpcs
                 return "Exception occurred: " + ex.Message;
             }
         }
+
+        [CommandLineFunctionality.CommandLineArgumentFunction("print_focus", "custom")]
+        public static string ExecutePrintFocusDebug(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+                return "Error: not in mission.";
+
+            MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
+            if (ms == null) return "Error: no MissionScreen.";
+            Camera cam = ms.CombatCamera;
+            if (cam == null) return "Error: no CombatCamera.";
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("========== Focus Debug ==========");
+
+            Vec3 camPos = cam.Position;
+            Vec3 camDir = cam.Direction;
+            sb.AppendLine($"[Camera] Pos=({camPos.x:F2},{camPos.y:F2},{camPos.z:F2}) Dir=({camDir.x:F3},{camDir.y:F3},{camDir.z:F3})");
+
+            // --- 每个尸体的 dot 明细 ---
+            sb.AppendLine("--- Corpses dot detail (threshold=0.3, range=4m) ---");
+            float maxDistSq = 16f;
+            var corpses = AttackTriggerMissionLogic.Instance?.GetDeadAgentsRaw();
+            int corpseIdx = 0;
+            if (corpses != null)
+            {
+                foreach (Agent d in corpses)
+                {
+                    corpseIdx++;
+                    if (d == null || !d.IsHuman) continue;
+                    float distSq = d.Position.DistanceSquared(camPos);
+                    if (distSq > maxDistSq)
+                    {
+                        sb.AppendLine($"  [{corpseIdx}] {d.Name} distSq={distSq:F1} > 16 -> REJECTED (too far)");
+                        continue;
+                    }
+                    Vec3 tc = d.Position + new Vec3(0, 0, 0.8f);
+                    Vec3 toTarget = tc - camPos;
+                    toTarget.Normalize();
+                    float dot = Vec3.DotProduct(camDir, toTarget);
+                    string status = dot >= 0.3f ? "SUCCESS" : $"REJECTED (dot={dot:F3}<0.3)";
+                    sb.AppendLine($"  [{corpseIdx}] {d.Name} dist={Math.Sqrt(distSq):F2}m dot={dot:F3} -> {status}");
+                }
+            }
+            if (corpseIdx == 0) sb.AppendLine("  (no corpses)");
+            sb.AppendLine();
+
+            // --- GetFocusdAgent 最终结果 ---
+            var view = InteractionMissionView.Instance;
+            Agent focused = view?.GetFocusdAgent();
+            sb.AppendLine($"[GetFocusdAgent] => {(focused != null ? $"{focused.Name} (id:{focused.Character?.StringId})" : "null")}");
+            sb.AppendLine("==================================");
+
+            return sb.ToString();
+        }
     }
 
 

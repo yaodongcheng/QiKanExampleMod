@@ -1472,7 +1472,7 @@ namespace LivingWorldNpcs.Story
                 switch (item.Type)
                 {
                     case NegotiationCostType.PersonalGold:
-                        GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, _targetHero, item.Amount);
+                        AgentControlHelper.TransferGold(Hero.MainHero, _targetHero, item.Amount);
                         break;
                     case NegotiationCostType.SettlementOwnership:
                         // 查找 settlement 并转移

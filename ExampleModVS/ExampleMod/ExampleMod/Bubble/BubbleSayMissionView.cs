@@ -251,6 +251,7 @@ namespace LivingWorldNpcs
         {
             if (Mission.Current == null) return;
             if (agent == null) return;
+            if (Instance == null) return;   // MissionView 未注册/已销毁（如大地图），静默跳过，别崩
             Instance.AddSpeechBubble(agent, text);
 
         }

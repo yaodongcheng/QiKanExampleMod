@@ -94,7 +94,7 @@ namespace LivingWorldNpcs
         }
 
 
-        private void ProcessAgentCandidate(Agent agent, Vec3 eyePos, Vec3 lookDir, float maxDistanceSq, ref float bestDot, ref Agent bestAgent)
+        public void ProcessAgentCandidate(Agent agent, Vec3 eyePos, Vec3 lookDir, float maxDistanceSq, float minDot, ref float bestDot, ref Agent bestAgent)
         {
             // 1. 快速排除
             if (agent == null || agent == Agent.Main || !agent.IsHuman) return;
@@ -114,15 +114,17 @@ namespace LivingWorldNpcs
 
             float dot = Vec3.DotProduct(lookDir, toTarget);
 
-            // 5. 擂台法：谁更接近 1.0 (正中心)，谁就胜出
-            // 这里不仅跟阈值比，还要跟当前最好的比
+            // 5. 必须先过本类目标的最小角度阈值（活人严、尸体松）
+            if (dot < minDot) return;
+
+            // 6. 擂台法：谁更接近 1.0 (正中心)，谁就胜出
             if (dot > bestDot)
             {
                 bestDot = dot;
                 bestAgent = agent;
             }
         }
-        private Agent GetFocusdAgent()
+        public Agent GetFocusdAgent()
         {
             // 如果玩家自己都死了，就不探测了
             if (Agent.Main == null || !Agent.Main.IsActive()) return null;
@@ -147,9 +149,12 @@ namespace LivingWorldNpcs
             // =================================================================
             // 如果射线没打中，开始从周围的对象里找一个“准星最对得准”的
 
-            float interactDist = 3.0f; // 模糊搜索只搜身边3米
+            float interactDist = 4.0f; // 模糊搜索只搜身边4米
             float maxDistanceSq = interactDist * interactDist;
-            float bestDotProduct = 0.85f; // 阈值：约30度角，越接近1越准
+            // 活人要求准星较准(约31°)；尸体躺在地上、低头去看角度偏差大，放宽到约53°，否则脚边的尸体永远对不准
+            const float livingMinDot = 0.85f;
+            const float corpseMinDot = 0.3f;
+            float bestDotProduct = -1f; // 擂台初值给最低，让候选各自过阈值后再比谁更正
             Agent bestAgent = null;
 
             Vec3 eyePos = cam.Position; // 使用相机位置作为视点
@@ -161,7 +166,7 @@ namespace LivingWorldNpcs
             var corpses = AttackTriggerMissionLogic.Instance.GetDeadAgentsRaw();
             foreach (Agent agent in corpses)
             {
-                ProcessAgentCandidate(agent, eyePos, lookDir, maxDistanceSq, ref bestDotProduct, ref bestAgent);
+                ProcessAgentCandidate(agent, eyePos, lookDir, maxDistanceSq, corpseMinDot, ref bestDotProduct, ref bestAgent);
             }
 
             // -------------------------------------------------------
@@ -173,7 +178,7 @@ namespace LivingWorldNpcs
 
             foreach (Agent agent in nearbyLiving)
             {
-                ProcessAgentCandidate(agent, eyePos, lookDir, maxDistanceSq, ref bestDotProduct, ref bestAgent);
+                ProcessAgentCandidate(agent, eyePos, lookDir, maxDistanceSq, livingMinDot, ref bestDotProduct, ref bestAgent);
             }
             if (bestAgent != null)
             {
@@ -708,7 +713,7 @@ namespace LivingWorldNpcs
                     // 全部拿走回调
                     if (lootedGold > 0)
                     {
-                        GiveGoldAction.ApplyBetweenCharacters(null, Hero.MainHero, lootedGold, disableNotification: true);
+                        AgentControlHelper.TransferGold(null, Hero.MainHero, lootedGold, notify: false);
                         InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootedGold} 两钱。", Colors.Yellow));
                     }
                     if (!lootRoster.IsEmpty())
@@ -724,7 +729,7 @@ namespace LivingWorldNpcs
                     // 自己挑选回调
                     if (lootedGold > 0)
                     {
-                        GiveGoldAction.ApplyBetweenCharacters(null, Hero.MainHero, lootedGold, disableNotification: false);
+                        AgentControlHelper.TransferGold(null, Hero.MainHero, lootedGold);
                     }
 
                     if (!lootRoster.IsEmpty())
