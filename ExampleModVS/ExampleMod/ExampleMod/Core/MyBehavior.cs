@@ -27,16 +27,12 @@ namespace LivingWorldNpcs
         
         private void DailyTick()
         {
-            // InformationManager.DisplayMessage(new InformationMessage("A new day has begun in the campaign!"));
-            gold += 1;
-            Hero.MainHero.ChangeHeroGold(gold);
-            InformationManager.DisplayMessage(new InformationMessage($"you receive {gold} dollar!"));
+            AgentControlHelper.TransferGold(null, Hero.MainHero, 100, notify: false);
+            InformationManager.DisplayMessage(new InformationMessage($"每日收入 +{100}"));
         }
-        private int gold = 0;
 
         public override void SyncData(IDataStore dataStore)
         {
-            dataStore.SyncData("gold", ref gold);
         }
 
         private void OnTick(float dt)

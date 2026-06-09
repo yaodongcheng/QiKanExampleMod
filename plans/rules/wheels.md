@@ -1,0 +1,184 @@
+# 已造轮子速查
+
+> **总纲：加功能前先查本表。命中就复用，不要重写。**
+> 路径均相对 `ExampleModVS/ExampleMod/ExampleMod/`。签名为核实后的真实签名。
+
+---
+
+## 配置与世界观 — `Core/Settings.cs`
+
+全局配置单例 + 世界观参数化。
+
+```csharp
+Settings.Instance.IsLLMReady           // LLM 总闸（三字段非空才 true）
+Settings.Instance.LLMBaseUrl/LLMApiKey/LLMModel
+Settings.Instance.WorldDescription     // 默认卡拉迪亚，TaikouContent 注入战国
+Settings.Instance.EraDescription / SpeechStyle / WarriorTerms / FemaleSelfAddress
+Settings.Reload();                     // 重载 config.json
+```
+
+世界观相关字串**只能**从这里取，禁止硬编码（见 [worldview.md](worldview.md)）。需要新 flavor 字段就往 Settings 加，默认值给卡拉迪亚版。
+
+## LLM 调用 — `LLM/LLMService.cs`
+
+单例，内置 3 次重试、HttpClient 复用。
+
+```csharp
+await LLMService.Instance.ChatAsync(systemPrompt, max_tokens = 150, needJson = true);  // 通用
+await LLMService.Instance.SummarizeAsync(systemPrompt);    // 记忆总结（短）
+await LLMService.Instance.MergeMemoryAsync(systemPrompt);  // 远期记忆合并
+LLMService.CleanJson(raw);             // 静态，剥离 markdown ```json 包裹
+```
+
+调用前查 `IsLLMReady`；返回的 JSON 必须防御性处理（见 [defensive-coding.md](defensive-coding.md)）。
+
+## Prompt 构建 — `LLM/PromptBuilder.cs`
+
+按场景的静态 prompt 工厂。加新对话场景 = 在这里加一个 `BuildXxxPrompt` 静态方法，**不要在业务代码里拼 prompt 字串**。现有方法覆盖：开场冲突、技能检定结果、闲聊、谈判（核心）、社交事件分析、记忆长期化、对话总结、导演梗概、演出脚本生成。
+
+## NPC 动作 / 走位 / 朝向 — `Core/AgentControlHelper.cs`
+
+**做 NPC 演出、移动、锁定一律走这里**，不要直接调 `Agent.SetScriptedPosition` 等裸 API。
+
+```csharp
+// 动画
+AgentControlHelper.SetPose(agent, actionId);  GetPose(agent);  IsPlayingPose(agent, actionId);
+// 移动（async 自动寻路+等待）
+await AgentControlHelper.MoveTo(agent, targetVec, targetDir, stopDistance = 0.5f);
+await AgentControlHelper.MoveToActor(npc, actor, stopDistance = 0.5f);
+await AgentControlHelper.MovePrepare(npc);          // 移动前清 AI/停交互
+AgentControlHelper.MoveEndAndInteractPrepare(npc[, initPos]);  // 到位后锁定进对话
+// 朝向 / 锁定
+AgentControlHelper.LookAtAgent(agent, target);  StopLooking(agent);
+AgentControlHelper.FaceToActor(turnAgent, targetAgent);
+AgentControlHelper.ForceUnlockAgent(agent);  StopAndReset(agent);  // 恢复自由
+// 信息抽取（拼 prompt 用）
+AgentControlHelper.GetPartyInfo(hero);  GetBagInfo(hero, IsPrompt = false);
+// 资源操作（铁律4 —— 金钱=特殊物品，三类各有纪律，禁止裸调 ChangeHeroGold/ItemRoster.AddToCounts）
+// ① 转移 Transfer（守恒，贿赂/罚款/赏赐/买卖）—— null 任一端 = 对接「世界」（收发②）
+int g = AgentControlHelper.TransferGold(from, to, amount, notify = true);   // 不足自动截断、绝不变负，返回实际值
+int n = AgentControlHelper.TransferItems(from, to, item, count);            // item 可传 ItemObject 或 EquipmentElement(保品质)
+AgentControlHelper.SetGold(hero, targetGold, notify = false);               // 绝对赋值（剧本/调试上帝指令，非守恒）
+// ③ 转换 Convert（按配方非守恒，守卫+原子；引擎外自定义资源走 onConverted 钩子）
+bool ok = AgentControlHelper.TryConvert(owner, inputs, outputs, onConverted);
+//   inputs/outputs = IList<ResourceCost>；ResourceCost.Gold(n) / ResourceCost.Of(item, n)
+//   例：吃苹果回饱腹 → TryConvert(player, [ResourceCost.Of(apple,1)], null, () => satiety += 10)
+AgentControlHelper.HasResource(owner, ResourceCost.Of(item, n));            // 单项库存校验
+// 婚姻
+AgentControlHelper.ApplyMarriageLogic(h1, h2);  OnPlayerSelect_MarryNewLover(newLover);
+```
+
+## 记忆系统三件套 — `Memory/`
+
+```csharp
+// 入口：拿某 NPC 的记忆系统（惰性创建）
+SingNpcMemorySystem mem = AllNpcMemoryManager.GetMemoryForAgent(agent);
+SingNpcMemorySystem mem = AllNpcMemoryManager.GetMemory(stringId);   // 按英雄 id
+AllNpcMemoryManager.ClearTemporaryMemories();   // 清临时士兵记忆，防泄漏
+```
+
+- `SingNpcMemorySystem`：单 NPC 的 `RecentHistory`（对话）/`DynamicMemories`（近期）/`PermanentMemory`（远期）/`GlobalNews`/`CurrentNegotiationState`/`KnownEvents`。
+- `NPCProfile`：人设容器。`GetPersonaPrompt()` 聚合全部人设；`CalCurrentMotivation()` 推动机；`CalculateEstimatedValue()` 算身价；`GetCloseRelations(...)` 取关系网。
+- 给 NPC 加新「记忆维度 / 人设字段」时往这三件套加，不要另起 NPC 数据类。
+
+## 设计数据加载 — `Data/DesignDataLoad.cs`
+
+通用 CSV ORM。**新增可配置设计数据走 CSV，不要硬编码进 .cs**。
+
+```csharp
+DataTable t = GameDatabase.Heroes;            // 已有表：Heroes/Music/TagPoint/Camera/Emotion
+DynamicRecord r = t.GetByID("hero_001");      // 按英文 ID
+DynamicRecord r = t.GetByScriptName("某中文名"); // 按中文名（反向索引）
+r.GetString(key)/GetInt(key)/GetFloat(key)/GetBool(key)/GetList(key);
+GameDatabase.Initialize();                    // Mod A 启动时
+GameDatabase.LoadTablesFromPath(path);        // 内容包注入入口（TaikouContent 用）
+```
+
+## 日志 — `Debug/DebugLogger.cs`
+
+```csharp
+DebugLogger.Log("消息");   // 线程安全，落盘到 Configs/StoryEngine_RuntimeLog.txt
+```
+
+## 安全建部队 — `Core/SafeLordPartyComponent.cs`
+
+为英雄创建独立部队时用它做最小 PartyComponent（带 null 防护），避免裸建 component 崩溃。
+
+---
+
+# 两大可扩展引擎（核心资产 —— 加玩法优先挂这里）
+
+## Story 命令引擎 — `Story/`
+
+JSON 脚本驱动的剧情演出引擎，**命令模式**。`CommandManager`（注册分发）+ `StoryEngine`（栈式执行）+ `VisualCommands`/`SystemCommands`/`LogicCommands`（指令实现）+ `StageDirector`（站位/出入场）。
+
+**加一条新剧情指令的正确姿势**：
+
+```csharp
+public delegate bool CommandHandler(ScriptNode node, StoryEngine engine);
+
+// 1. 写 handler（放进对应的 Visual/System/Logic Commands 类）
+public static bool HandleMyCmd(ScriptNode node, StoryEngine engine) { /* ... */ return true; }
+
+// 2. 在 CommandManager.RegisterAll() 里注册
+Register("我的指令", VisualCommands.HandleMyCmd);
+```
+
+- 返回值约定：`true` = 阻塞、等玩家输入/动画；`false` = 立即执行下一行。
+- **禁止**改 `CommandManager.Execute` 或写 if-else 指令链——只 `Register`。
+- 已有指令：對話/自語/旁白/對話選擇、人物登场/退场/別、選擇、變量賦值/分歧/更新/代入、ＢＧＭ變更/ＳＥ開始/進入設施 等。
+
+LLM 自动生成剧本走 `Story/AIStoryGenerator.cs`（`StartGeneration` → 后台 `GenerateTaskAsync` → `PromptBuilder.BuildDirectorPrompt`/`BuildShowPrompt` → `AIStoryAdapt` 转成 `ScriptNode[]` → `StoryEngine.StartEvent`）。
+
+## AgentBrain 行为队列 — `AI/`
+
+每个 NPC 一个 `AgentBrain`（按 `Agent.Index` 存于 `AgentAIController`），用 `IAtomicAction` 队列做行为链。
+
+**加一个新 NPC 行为的正确姿势**：
+
+```csharp
+// 1. 实现接口（放进 AI/Actions/AtomicAction.cs）
+public interface IAtomicAction {
+    void OnStart(Agent agent);
+    void OnTick(Agent agent, float dt);
+    bool IsFinished(Agent agent);
+    void OnEnd(Agent agent);
+}
+
+// 2. 入队 / 触发
+AgentBrain brain = AgentAIController.GetBrainForAgent(agent);
+brain.EnqueueAction(new MyAction(...));
+brain.ClearAllActions();   // 打断当前行为链
+AgentAIController.Instance.SendEventToAgent(target, "事件名", args);  // 经事件投递
+```
+
+- **已有的 Action（先复用，别重写）**：`FollowAgentAction`、`MoveToPositionAction`、`LookAtAction`、`TurnToDirectionAction`、`PlayAnimAction`、`FightEnemyAction`、`DrawWeaponAction`、`StayAction`、`ForceTalkAction`、`PrepareOpeningAction`、`ReactionDecisionAction`。
+- **什么才该放进原子 Action 库**：只有**高可复用**（多种行为链都会用到，如移动、朝向、播放动画）或**不可再拆分**（最小行为单元，拆了就没意义）的行为，才进 `AtomicAction.cs`。一次性的、只服务某个具体玩法的复合流程**不要**塞进来——那应该是「多个原子 Action 入队组合」。
+- 复杂行为 = 多个原子 Action 入队组合，而不是写一个大 Action。
+
+---
+
+## Bannerlord 基类接入约定（加系统时照搬）
+
+| 需求 | 继承的基类 | 范本文件 |
+|------|-----------|---------|
+| 战斗内每帧逻辑 / 监听 Agent 生灭 | `MissionLogic` | `AI/AgentAIController.cs` |
+| 战斗内 UI 图层（Gauntlet） | `MissionView` | `Interaction/InteractionMissionView.cs` |
+| UI 数据绑定 | `ViewModel` | `Interaction/StoryDialogVM.cs` |
+| 大地图事件 / 存档 | `CampaignBehaviorBase` | `Core/MyBehavior.cs`、`Story/StoryContext.cs` |
+| 自定义可存档类型 | `SaveableTypeDefiner` | `Story/StoryContext.cs`（SaveDefiner） |
+
+存档：字段加 `[SaveableField(n)]`，`CampaignBehaviorBase.SyncData(IDataStore)` 里 `dataStore.SyncData("key", ref field)`，自定义类型在 `SaveDefiner` 注册。
+
+## 战斗回调职责划分
+
+引擎两个 hit 回调语义不同，**不要都往里塞**：
+
+| 回调 | 触发条件 | 职责 |
+|------|----------|------|
+| `MissionLogic.OnRegisterBlow` | 攻击判定注册（伤害为 0 也触发，和平区域也触发） | **攻击意图检测**：广播事件、触发敌对、开战信号 |
+| `MissionLogic.OnAgentHit` | 实际造成伤害时（伤害 > 0） | **伤害处理**：切磋虚拟血量、死亡收集、伤害统计 |
+
+- 和平城镇挥刀 → `OnRegisterBlow` 点火，`OnAgentHit` 不点火（引擎拦截了伤害）
+- **Team 切换不要在手写回调里做**，交给 `FightEnemyAction` → `CombatManager.StartFight` 管道处理
+- 见 `Combat/AttackTriggerMissionLogic.cs` 为实际落地案例

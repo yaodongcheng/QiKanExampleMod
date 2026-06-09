@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
@@ -13,6 +15,104 @@ namespace LivingWorldNpcs
 {
     public class StealManager
     {
+        // ----------------------------------------------------------------
+        // 0. 失窃记录：本场 Mission 内玩家从某 victim 身上偷走的物品，用于「归还」。
+        //    用 ConditionalWeakTable（弱引用键），Mission 结束 Agent 被 GC 后自动清，无泄漏。
+        // ----------------------------------------------------------------
+        private struct StolenEntry
+        {
+            public EquipmentIndex Slot;      // 物品来源槽位（金钱条目无意义）
+            public EquipmentElement Element; // 偷走的物品（带品质）；金钱条目时为空
+            public int StashTaken;           // 从受害者辎重实扣的物品数（金钱条目无意义）
+            public int Gold;                 // 偷走的金钱面额（物品条目时为 0）
+        }
+        private static readonly ConditionalWeakTable<Agent, List<StolenEntry>> _stolenLog
+            = new ConditionalWeakTable<Agent, List<StolenEntry>>();
+
+        /// <summary>本场是否从该 victim 身上偷过东西（还没归还）。</summary>
+        public static bool HasStolenItemsFrom(Agent victim)
+            => victim != null && _stolenLog.TryGetValue(victim, out var list) && list.Count > 0;
+
+        /// <summary>
+        /// 本场从该 victim 身上偷走的赃物总价值（市场基准价之和）。
+        /// 用于「破财消灾」赔偿额——偷得越贵赔得越多，而不是写死。
+        /// 注：金钱(Item==null)按面额计；物品按 ItemObject.Value（不含品质加成）。
+        /// </summary>
+        public static int GetStolenValue(Agent victim)
+        {
+            if (victim == null || !_stolenLog.TryGetValue(victim, out var list)) return 0;
+            int total = 0;
+            foreach (var e in list)
+                total += (e.Element.Item != null ? e.Element.Item.Value : e.Gold);
+            return total;
+        }
+
+        /// <summary>
+        /// 归还：把本场从 <paramref name="victim"/> 偷走的赃物从玩家背包交出，对称复原——
+        /// 复原其穿戴外观，并把当初从其 party 辎重实扣的库存还回辎重。玩家已卖/丢的跳过。
+        /// 返回实际归还件数。
+        /// </summary>
+        public static int ReturnStolenItems(Agent victim)
+        {
+            if (victim == null || !_stolenLog.TryGetValue(victim, out var list) || list.Count == 0)
+                return 0;
+
+            Hero victimHero = (victim.Character as CharacterObject)?.HeroObject;
+            Equipment newEquipment = victim.IsActive() ? victim.SpawnEquipment.Clone() : null;
+            int returned = 0;
+
+            foreach (var entry in list)
+            {
+                // 金钱条目：等额还给受害者（守恒转移）
+                if (entry.Element.Item == null && entry.Gold > 0)
+                {
+                    if (AgentControlHelper.TransferGold(Hero.MainHero, victimHero, entry.Gold, notify: false) > 0)
+                        returned++;
+                    continue;
+                }
+
+                // 1. 玩家交出赃物（穿戴件，可能带品质）：玩家背包 → 世界
+                int removed = AgentControlHelper.TransferItems(Hero.MainHero, null, entry.Element, 1);
+                if (removed <= 0) continue; // 背包里已经没有了（卖了/丢了），还不出
+
+                // 2. 复原受害者穿戴外观（仅当原槽现在为空，避免覆盖他后换上的东西）
+                if (newEquipment != null && newEquipment[entry.Slot].IsEmpty)
+                    newEquipment[entry.Slot] = entry.Element;
+
+                // 3. 把当初从其 party 辎重实扣的真实库存还回去：世界 → 受害者辎重
+                if (entry.StashTaken > 0 && victimHero?.PartyBelongedTo != null)
+                    AgentControlHelper.TransferItems(null, victimHero, entry.Element.Item, entry.StashTaken);
+
+                returned++;
+            }
+
+            // 4. 刷新受害者视觉 / 战斗属性
+            if (newEquipment != null && returned > 0)
+            {
+                victim.UpdateSpawnEquipmentAndRefreshVisuals(newEquipment);
+                victim.UpdateAgentStats();
+            }
+
+            _stolenLog.Remove(victim);
+            return returned;
+        }
+
+        private static void RecordStolen(Agent victim, EquipmentIndex slot, EquipmentElement element, int stashTaken)
+        {
+            if (victim == null || element.IsEmpty) return;
+            _stolenLog.GetOrCreateValue(victim).Add(new StolenEntry { Slot = slot, Element = element, StashTaken = stashTaken });
+        }
+
+        /// <summary>
+        /// 「偷钱」路径的失窃登记入口。当前扒窃流程只偷装备(StealSpecificItem)，
+        /// 此方法留给未来的金钱被窃路径调用——记下后 GetStolenValue 计入面额、ReturnStolenItems 等额返还。
+        /// </summary>
+        public static void RecordStolenGold(Agent victim, int amount)
+        {
+            if (victim == null || amount <= 0) return;
+            _stolenLog.GetOrCreateValue(victim).Add(new StolenEntry { Gold = amount });
+        }
+
         // ----------------------------------------------------------------
         // 1. 辅助方法：从 NPC 身上随机找一件装备的槽位 (用于“摸索”阶段)
         // ----------------------------------------------------------------
@@ -56,16 +156,21 @@ namespace LivingWorldNpcs
             EquipmentElement itemToSteal = agent.SpawnEquipment[index];
             string itemName = itemToSteal.Item.Name.ToString();
 
-            // 2. 添加到玩家队伍背包 (Party Stash)
+            // 2. 玩家获得赃物（穿戴件，带品质）：从「身上(世界)」grant 到玩家队伍背包
             if (PartyBase.MainParty != null)
             {
-                PartyBase.MainParty.ItemRoster.AddToCounts(itemToSteal, 1);
+                AgentControlHelper.TransferItems(null, Hero.MainHero, itemToSteal, 1);
             }
-            else
-            {
-                // 如果是在村庄/城镇场景且没有队伍，也可以直接加给主角 (这种情况较少)
-                // CharacterObject.PlayerCharacter.Equipment... (通常加到队伍背包更通用)
-            }
+
+            // 2b. 真实损失：受害者若有 party，从其辎重(ItemRoster)扣一件同款——保证不是「假偷」。
+            //     辎重里恰好没有同款则不扣(返回0)；记下实扣数，供归还对称还回。
+            int stashTaken = 0;
+            Hero victimHero = (agent.Character as CharacterObject)?.HeroObject;
+            if (victimHero?.PartyBelongedTo != null)
+                stashTaken = AgentControlHelper.TransferItems(victimHero, null, itemToSteal.Item, 1);
+
+            // 记录失窃（槽位 + 带品质元素 + 辎重实扣数），供「归还」对称复原
+            RecordStolen(agent, index, itemToSteal, stashTaken);
 
             // 3. 从 NPC 身上移除该物品 (修改视觉)
             Equipment newEquipment = agent.SpawnEquipment.Clone();

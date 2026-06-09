@@ -68,10 +68,19 @@ namespace LivingWorldNpcs
         }
         public override void OnAgentRemoved(Agent affectedAgent, Agent affectedAgentAffectsCalc, AgentState affectedAgentState, KillingBlow blow)
         {
-            // 当Agent彻底从场景数据中移除时
-            InformationManager.DisplayMessage(new InformationMessage($"Agent {affectedAgent.Name} 被移除，状态: {affectedAgentState}", Colors.Red));
-           
+            base.OnAgentRemoved(affectedAgent, affectedAgentAffectsCalc, affectedAgentState, blow);
 
+            // 死亡的可靠信号：被击杀 / 击晕的人类计入可搜刮尸体列表。
+            // 这是主入口（OnAgentHit 里的 Health<=0 只能兜住「最后一击恰好被本逻辑捕获」的情况，
+            // 补刀、击晕、流血致死等都会漏）。_deadAgents 是 HashSet，重复 Add 自动去重。
+            if (affectedAgent != null && affectedAgent.IsHuman
+                && (affectedAgentState == AgentState.Killed || affectedAgentState == AgentState.Unconscious))
+            {
+                lock (_deadAgents)
+                {
+                    _deadAgents.Add(affectedAgent);
+                }
+            }
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("print_death", "custom")]
@@ -92,12 +101,9 @@ namespace LivingWorldNpcs
         public override void OnAgentHit(Agent affectedAgent, Agent attackerAgent, in MissionWeapon attackerWeapon, in Blow blow, in AttackCollisionData attackCollisionData)
         {
 
-            if (affectedAgent != null && attackerAgent != null && affectedAgent != attackerAgent)
-            {
-                // 如果你有 AgentAIController 单例，调用它广播事件
-                // 参数：[0]受害者, [1]攻击者
-                AgentAIController.Instance?.BroadcastEventInRange(affectedAgent.Position,100,"event_agent_damaged", attackerAgent, affectedAgent); // 范围广播
-            }
+         
+
+            //作用一，记录死人
             if (affectedAgent.Health<=0)
             {
                 if(affectedAgent.IsHuman)
@@ -109,11 +115,11 @@ namespace LivingWorldNpcs
                     }
                 }
             }
-
-
             // 如果切磋已经结束，或者受伤的不是切磋双方，直接忽略
             if (!_isDuelActive || affectedAgent == null) return;
             if (affectedAgent != _agentA && affectedAgent != _agentB) return;
+
+            //作用二：切磋特殊的虚拟血量处理，以下内容，只有在切磋中，并且受伤者是切磋双方时才会执行
 
             // 获取本次攻击造成的伤害值
             float damage = blow.InflictedDamage;
@@ -214,8 +220,14 @@ namespace LivingWorldNpcs
             if (attacker == null || victim == null) return;
             if (!attacker.IsMainAgent || !victim.IsHuman || victim.IsMainAgent) return;
 
-            InformationManager.DisplayMessage(new InformationMessage($"OnRegisterBlow: {attacker.Name} 对 {victim.Name} 造成了伤害", Colors.Yellow));
-            AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
+
+            if (victim != null && attacker != null && victim != attacker)
+            {
+                InformationManager.DisplayMessage(new InformationMessage($"AttackTriggerMissionLogic - OnAgentHit: {attacker.Name} 对 {victim.Name} 造成了{b.InflictedDamage} 点伤害", Colors.Yellow));
+                AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim );
+                //AgentAIController.Instance?.BroadcastEventInRange(victim.Position,100,"event_agent_damaged", attacker, victim); // 范围广播
+            }
+
             // 【场景 1】当前正在切磋中
             if (_isDuelActive)
             {
@@ -231,29 +243,6 @@ namespace LivingWorldNpcs
                 // 已经是敌人了，这是一次正常的攻击，直接返回，不触发新战斗逻辑
                 return;
             }
-
-            // 玩家攻击非敌对人类 —— KCD2 风格：引发群体敌对
-            if (attacker == Agent.Main && victim.IsHuman && !victim.IsMount)
-            {
-                var victimHero = (victim.Character as CharacterObject)?.HeroObject;
-                foreach (var nearby in Mission.Current.Agents)
-                {
-                    if (!nearby.IsHuman || nearby == Agent.Main) continue;
-                    if (nearby.Position.Distance(victim.Position) > 50f) continue;
-                    var nearbyHero = (nearby.Character as CharacterObject)?.HeroObject;
-                    bool sameClan = nearbyHero?.Clan != null && nearbyHero.Clan == victimHero?.Clan;
-                    if (nearby == victim || sameClan)
-                    {
-                        nearby.SetTeam(Mission.Current.PlayerEnemyTeam, true);
-                    }
-                }
-                AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 50, "event_agent_damaged", attacker, victim);
-            }
-
-
-
-            
-
         
         }
     }
