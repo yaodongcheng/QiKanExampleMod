@@ -10,6 +10,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.CampaignSystem.Actions;
 using static TaleWorlds.MountAndBlade.Agent;
 
 namespace LivingWorldNpcs.AI.Actions
@@ -44,19 +45,26 @@ namespace LivingWorldNpcs.AI.Actions
         }
         private async Task Thinking()
         {
-            string openingPrompt = PromptBuilder.BuildOpeningPrompt(memory, self);
-            try
+            // LLM 不可用时跳过 HTTP 调用，避免 30s 超时让 NPC 原地发呆
+            if (!Settings.Instance.IsLLMReady)
             {
-                string jsonResponse = await LLMService.Instance.ChatAsync(openingPrompt,300,true);
-                jsonResponse = LLMService.CleanJson(jsonResponse); // 清洗可能存在的 markdown 符号
-                memory.CurrentInitiative.JsonResponseOpening = jsonResponse;
-
-            }
-            catch (Exception ex)
-            {
-                //在这里构造默认，todo
                 memory.CurrentInitiative.JsonResponseOpening =
-                   "{ \"npc_reply\": \"(警惕地看着你) \", \"options\": [] }";
+                   "{ \"npc_reply\": \"(警惕地看着你) \", \"player_next_options\": [] }";
+            }
+            else
+            {
+                string openingPrompt = PromptBuilder.BuildOpeningPrompt(memory, self);
+                try
+                {
+                    string jsonResponse = await LLMService.Instance.ChatAsync(openingPrompt, 300, true);
+                    jsonResponse = LLMService.CleanJson(jsonResponse);
+                    memory.CurrentInitiative.JsonResponseOpening = jsonResponse;
+                }
+                catch (Exception ex)
+                {
+                    memory.CurrentInitiative.JsonResponseOpening =
+                       "{ \"npc_reply\": \"(警惕地看着你) \", \"player_next_options\": [] }";
+                }
             }
             //反序列化
             try
@@ -114,17 +122,21 @@ namespace LivingWorldNpcs.AI.Actions
             memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
             // 1. 让 NPC 停下来，防止一边滑步一边说话
             InformationManager.DisplayMessage(new InformationMessage($"{agent.Name} 正在向准备向你问话...", Colors.Yellow));
-            // 2. 获取任务中的对话逻辑控制器
-           
+            // 2. 如果 LLM 响应已经就绪（无 LLM 时立即 fallback），跳过等待
+            if (memory.CurrentInitiative != null && memory.CurrentInitiative.IsReady)
+            {
+                _isFinished = true;
+            }
         }
 
         public void OnTick(Agent agent, float dt)
         {
+            if (_isFinished) return;
             _timer+= dt;
             if(_timer> 0.5f)
             {
                 _timer = 0f;
-                //检查生成好了没
+                //检查生成好了没（LLM 路径可能需要等待几轮）
                 if(memory.CurrentInitiative!= null && memory.CurrentInitiative.IsReady)
                 {
                     _isFinished = true;
@@ -136,16 +148,65 @@ namespace LivingWorldNpcs.AI.Actions
         {
             if (InteractionMissionView.Instance != null && Agent.Main != null && InteractionMissionView.IsChatting == false)
             {
-                // 3. 核心调用：StartConversation
-                // 参数1: talkToAgent (NPC自己)
-                // 参数2: setActions (是否设置默认的站立/对视动作，true)
-                // 参数3: isCivilian (是否是平民模式，false通常指战场或对峙，true指城镇闲聊，这里选 true/false 看你具体需求，通常 false 更通用)
+                // LLM 不可用时：KCD2/老滚 风格的本地化质问 — 固定选项 + 确定后果
+                if (!Settings.Instance.IsLLMReady)
+                {
+                    ShowVanillaConfrontation(agent);
+                    return;
+                }
                 _ = InteractionMissionView.Instance.StartFreeConversationFlow(agent, false);
 
                 InformationManager.DisplayMessage(new InformationMessage($"{agent.Name} 开启质问你...", Colors.Yellow));
             }
         }
-       
+
+        /// <summary>
+        /// 无 LLM 时的降级质问流程：模仿 KCD2 / 上古卷轴
+        /// 两个明确选项（赔钱/归还），玩家也可以直接拔刀或逃跑（游戏内即时操作）
+        /// </summary>
+        private void ShowVanillaConfrontation(Agent victim)
+        {
+            var victimHeroObj = (victim.Character as CharacterObject)?.HeroObject;
+            string victimName = victim.Name?.ToString() ?? "守卫";
+            int compensationGold = 200;
+
+            InformationManager.ShowInquiry(new InquiryData(
+                $"{victimName} 发现了你的偷窃行为！",
+                $"{victimName} 怒气冲冲地瞪着你，手已经按在了武器上。\n\n\"好哇，敢偷到我头上来！你今天必须给个交代。\"",
+                true,
+                true,
+                $"【破财消灾】掏出 {compensationGold} 第纳尔",
+                "【归还财物】双手奉还，低头认错",
+                () =>
+                {
+                    if (Hero.MainHero.Gold >= compensationGold)
+                    {
+                        Hero.MainHero.ChangeHeroGold(-compensationGold);
+                        InformationManager.DisplayMessage(
+                            new InformationMessage($"你递上 {compensationGold} 第纳尔。{victimName} 掂了掂钱袋，冷哼一声让开了路。", Colors.Yellow));
+                        if (victimHeroObj != null)
+                            ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -3);
+                    }
+                    else
+                    {
+                        InformationManager.DisplayMessage(
+                            new InformationMessage($"你摸了摸空瘪的钱袋……{victimName} 见状大怒，拔出了武器！", Colors.Red));
+                        AgentAIController.Instance?.SendEventToAgent(victim, "order_attack", Agent.Main);
+                        AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 15, "event_agent_damaged", victim, Agent.Main);
+                    }
+                },
+                () =>
+                {
+                    InformationManager.DisplayMessage(
+                        new InformationMessage($"你老老实实把东西还了回去。{victimName} 鄙夷地呸了一声：\"滚！别再让我看见你。\"", Colors.Green));
+                    if (victimHeroObj != null)
+                        ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -5);
+                },
+                "",
+                0f
+            ), true);
+        }
+
     }
     public class DrawWeaponAction : IAtomicAction
     {
