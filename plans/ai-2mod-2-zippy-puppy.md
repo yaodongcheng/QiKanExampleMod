@@ -11,6 +11,23 @@
 
 # 拆分计划：通用玩法 mod + 织丰内容包
 
+> **状态: 🔄 大部分完成** (最后更新 2026-06-09)
+>
+> | Phase | 状态 | 说明 |
+> |-------|------|------|
+> | Phase 0 — 目录重组 + namespace | ✅ 完成 | 21 子目录，namespace 已改 LivingWorldNpcs |
+> | Phase 1 — 通用化代码 | 🔄 大部分 | 见下方明细 |
+> | Phase 1 — 改动 0 API Key | ✅ | MySubModule.cs 已移除 |
+> | Phase 1 — 改动 1 Settings | ✅ | Core/Settings.cs 已建 |
+> | Phase 1 — 改动 2 PromptBuilder | 🔄 大部分 | 系统字段已参数化，示例对话仍有残留 |
+> | Phase 1 — 改动 3 LLM 总闸 | 🔄 进行中 | G 键 + ForceTalkAction 已加；其他入口可能遗漏 |
+> | Phase 1 — 改动 4 翻脸逻辑 | ✅ | AttackTriggerMissionLogic.cs 已实现 |
+> | Phase 1 — 改动 5 遗留字串 | 🔄 大部分 | DesignDataLoad.cs:260 还有一条 "织丰" |
+> | Phase 2 — 物理拆分 | ❓ 待确认 | SubModule.xml / Mod B 创建状态未知 |
+> | Phase 3 — MCM | ⏳ 未开始 | 不阻塞发布 |
+>
+> **备注**: 从本 plan 提取的持久化规则已写入 `plans/rules/`，每次会话通过 `CLAUDE.md` 引用。
+
 ## Context
 
 [ExampleMod](e:/SteamLibrary/steamapps/common/Mount%20%26%20Blade%20II%20Bannerlord/Modules/ExampleMod) 当前把通用玩法增强（KCD2 风格交互、潜行偷窃、挥刀触发战斗、AI 对话、太阁5 风格剧情演出引擎、社交事件系统、任务系统、LLM 自由聊天等）和**日本战国题材内容**（Shokuho 氏族/英雄/聚落 XMLs、StoryJson 剧本、织丰世界观 prompt 字串）耦合在一个 mod 里发布。

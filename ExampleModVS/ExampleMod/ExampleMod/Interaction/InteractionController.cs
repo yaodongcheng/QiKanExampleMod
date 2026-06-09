@@ -748,6 +748,10 @@ namespace LivingWorldNpcs.Story
                 return;
 
             var openingData = initiative.CachedOpening;
+            // LLM 响应可能缺少 player_next_options（JSON 不完整 / LLM 未配置）
+            if (openingData.PlayerNextOptions == null)
+                return;
+
             UpdateNpcVisuals(openingData.NpcReply, openingData.NpcEmotion, openingData.NpcAction, openingData.NpcThinking);
             // 3. 构建开场专属的选项列表
             var options = new List<StoryOptionVM>();

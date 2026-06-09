@@ -30,6 +30,7 @@ namespace LivingWorldNpcs
         private const int MaxPermanentLength = 300;
         private volatile bool _isSummarizing = false; // 新增标记
 
+        //开场白
         public NpcInitiative CurrentInitiative  = null;
 
         // [新增] 待处理的冲突/说服需求
