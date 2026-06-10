@@ -180,7 +180,7 @@ namespace LivingWorldNpcs
             }
             if (bestAgent != null)
             {
-                InformationManager.DisplayMessage(new InformationMessage($"吸附检测 找到了{dist}米的 {bestAgent.Character.Name}"));
+                //InformationManager.DisplayMessage(new InformationMessage($"吸附检测 找到了{dist}米的 {bestAgent.Character.Name}"));
             }
             return bestAgent;
 
@@ -324,6 +324,13 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+
+            // ----------------- 0. 库存界面关闭后的搜刮收尾 -----------------
+            if (_pendingLootCorpse != null)
+            {
+                ProcessPendingLoot();
+                return;
+            }
 
             if (thisMissionScreen == null) return;
 
@@ -625,6 +632,36 @@ namespace LivingWorldNpcs
         }
 
         private List<Agent> _lootedCorpses = new List<Agent>(); // 用于记录已经搜刮过的尸体，避免重复搜刮
+
+        // "自己挑选"库存界面关闭后的待处理状态
+        private Agent _pendingLootCorpse;
+        private ItemRoster _pendingLootRoster;
+        private bool _pendingIsStealing;
+
+        /// <summary>
+        /// "自己挑选"库存界面关闭后的收尾：标记已搜刮 + 精准扒掉被玩家拿走的装备。
+        /// </summary>
+        private void ProcessPendingLoot()
+        {
+            Agent corpse = _pendingLootCorpse;
+            ItemRoster remainingRoster = _pendingLootRoster;
+            bool isStealing = _pendingIsStealing;
+
+            _pendingLootCorpse = null;
+            _pendingLootRoster = null;
+
+            // 尸体可能已被清理（换场景等）
+            if (corpse == null) return;
+
+            if (!isStealing)
+            {
+                _lootedCorpses.Add(corpse);
+                // remainingRoster 已被 OpenScreenAsLoot 原地修改：玩家拿走的已被移除
+                // 传进去 → 只扒掉不在 roster 中的槽
+                StealManager.StripAgentEquipment(corpse, true, true, remainingRoster);
+            }
+        }
+
         private void LootAgent(Agent targetAgent, bool isStealing)
         {
             Hero targetHero = (targetAgent.Character as CharacterObject)?.HeroObject;
@@ -728,15 +765,23 @@ namespace LivingWorldNpcs
                     if (lootedGold > 0)
                     {
                         AgentControlHelper.TransferGold(null, Hero.MainHero, lootedGold);
+                        InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootedGold} 两钱。", Colors.Yellow));
                     }
 
                     if (!lootRoster.IsEmpty())
                     {
+                        // 推迟到库存界面关闭后再处理：标记已搜刮 + 精准扒掉被拿走的装备
+                        _pendingLootCorpse = targetAgent;
+                        _pendingLootRoster = lootRoster;
+                        _pendingIsStealing = isStealing;
                         var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
                         rosterDictionary.Add(PartyBase.MainParty, lootRoster);
                         InventoryManager.OpenScreenAsLoot(rosterDictionary);
-
-                        if (!isStealing) _lootedCorpses.Add(targetAgent);
+                    }
+                    else if (!isStealing)
+                    {
+                        // 没装备可挑，直接标记搜刮即可（钱已在上面转走）
+                        _lootedCorpses.Add(targetAgent);
                     }
                 },
                 "", 0f
