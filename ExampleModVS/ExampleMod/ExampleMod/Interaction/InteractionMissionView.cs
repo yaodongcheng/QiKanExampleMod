@@ -673,7 +673,7 @@ namespace LivingWorldNpcs
                 }
             }
             string partyItems = "";
-            if(targetAgent!= null)
+            if(targetHero != null)
             {
                 MobileParty party = targetHero.PartyBelongedTo;
                 if(party!=null)
