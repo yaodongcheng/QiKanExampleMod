@@ -65,10 +65,16 @@ namespace LivingWorldNpcs
             // 1. 激活 AI、举盾、警觉 (你提供的函数)
             ActivateFightMode(actor);
 
-            // 2. 清除之前的脚本标志 (防止因剧情/脚本导致的呆立)
+            // 2. 空手 agent 动态发一把近战武器（适配任意 mod 组合的物品池）
+            if (!AgentHasAnyWeapon(actor))
+            {
+                AgentControlHelper.TryGiveAnyMeleeWeapon(actor);
+            }
+
+            // 3. 清除之前的脚本标志 (防止因剧情/脚本导致的呆立)
             actor.SetScriptedCombatFlags(Agent.AISpecialCombatModeFlags.None);
 
-            // 3. 强制仇恨锁定
+            // 4. 强制仇恨锁定
             // 注意：只在敌对时锁定，否则可能导致友军互砍逻辑混乱
             if (actor.Team.IsEnemyOf(enemy.Team))
             {
@@ -83,10 +89,33 @@ namespace LivingWorldNpcs
             {
                 agent.Controller = Agent.ControllerType.AI;
                 agent.SetWatchState(Agent.WatchState.Alarmed);
-                // agent.EnforceShieldUsage(Agent.UsageDirection.DefendDown); // 原注释
             }
-            // 强制举盾防御，增加存活率
-            agent.EnforceShieldUsage(Agent.UsageDirection.DefendDown);
+            // 只对有盾牌的 agent 强制举盾，避免无盾 agent 动画冲突导致卡死
+            if (AgentHasShield(agent))
+            {
+                agent.EnforceShieldUsage(Agent.UsageDirection.DefendDown);
+            }
+        }
+
+        private static bool AgentHasShield(Agent agent)
+        {
+            for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i <= EquipmentIndex.Weapon3; i++)
+            {
+                MissionWeapon weapon = agent.Equipment[i];
+                if (!weapon.IsEmpty && weapon.IsShield())
+                    return true;
+            }
+            return false;
+        }
+
+        private static bool AgentHasAnyWeapon(Agent agent)
+        {
+            for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i <= EquipmentIndex.Weapon3; i++)
+            {
+                if (!agent.Equipment[i].IsEmpty)
+                    return true;
+            }
+            return false;
         }
 
         // --- 内部辅助逻辑 ---

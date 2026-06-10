@@ -103,7 +103,7 @@ namespace LivingWorldNpcs
                     return null;
             }
         }
-        private static string GiveWeaponToAgent(Agent agent, string itemId)
+        public static string GiveWeaponToAgent(Agent agent, string itemId)
         {
             var itemObject = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<TaleWorlds.Core.ItemObject>(itemId);
             if (itemObject == null)
@@ -135,6 +135,41 @@ namespace LivingWorldNpcs
             agent.UpdateAgentStats();
 
             return "";
+        }
+
+        /// <summary>
+        /// 动态查找并发放一把近战武器。先试预设 ID，找不到则遍历内存中已注册的所有 ItemObject，
+        /// 取第一把符合条件的单手/双手近战（排除盾牌、远程、弹药、投掷）。
+        /// 适配任意 mod 组合（织丰/Shokuho 等屏蔽原版武器后也能工作）。
+        /// </summary>
+        /// <returns>成功发放返回 true，内存中完全无近战武器返回 false</returns>
+        public static bool TryGiveAnyMeleeWeapon(Agent agent)
+        {
+            // 第一轮：尝试预设的常用村民武器（从 XML 核实过的 ID）
+            string[] preferredIds = { "peasant_hatchet_1_t1", "peasant_pickaxe_1_t1", "peasant_sickle_1_t1" };
+            foreach (string id in preferredIds)
+            {
+                var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<TaleWorlds.Core.ItemObject>(id);
+                if (item != null && item.PrimaryWeapon != null && item.PrimaryWeapon.IsMeleeWeapon)
+                {
+                    GiveWeaponToAgent(agent, id);
+                    return true;
+                }
+            }
+
+            // 第二轮：内存动态搜索 — 遍历已注册 ItemObject，找任意一把近战武器
+            var fallback = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<TaleWorlds.Core.ItemObject>(item =>
+                item.PrimaryWeapon != null
+                && item.PrimaryWeapon.IsMeleeWeapon
+                && !item.PrimaryWeapon.IsShield);
+
+            if (fallback != null)
+            {
+                GiveWeaponToAgent(agent, fallback.StringId);
+                return true;
+            }
+
+            return false;
         }
       
 
