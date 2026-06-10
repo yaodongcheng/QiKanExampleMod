@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -187,56 +188,64 @@ namespace LivingWorldNpcs
 
             return itemName;
         }
-        public static void StripAgentEquipment(Agent agent, bool stripWeapons, bool stripArmor)
+        /// <summary>
+        /// 扒掉 Agent 的装备。
+        /// remainingRoster = null → 无条件扒光所有武器/防具（"全部拿走"）。
+        /// remainingRoster 非 null → 只扒槽内物品不在 roster 中的（"自己挑选"后被拿走的）。
+        /// </summary>
+        public static void StripAgentEquipment(Agent agent, bool stripWeapons, bool stripArmor, ItemRoster remainingRoster = null)
         {
             if (agent == null) return;
 
-            // 1. 获取当前装备的深拷贝 (必须拷贝，否则修改引用可能出错)
             Equipment newEquipment = agent.SpawnEquipment.Clone();
+            bool anyChange = false;
 
-            // 2. 根据需求清空槽位
+            // 防具槽位
+            var armorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body, EquipmentIndex.Leg, EquipmentIndex.Gloves, EquipmentIndex.Cape };
+
             if (stripArmor)
             {
-                // 清空防具：头、身、腿、手、马匹
-                newEquipment[EquipmentIndex.Head] = EquipmentElement.Invalid;
-                newEquipment[EquipmentIndex.Body] = EquipmentElement.Invalid;
-                newEquipment[EquipmentIndex.Leg] = EquipmentElement.Invalid;
-                newEquipment[EquipmentIndex.Gloves] = EquipmentElement.Invalid;
-                newEquipment[EquipmentIndex.Cape] = EquipmentElement.Invalid;
-
-                // 甚至可以把马偷了
-                // newEquipment[EquipmentIndex.Horse] = EquipmentElement.Invalid;
-                // newEquipment[EquipmentIndex.HorseHarness] = EquipmentElement.Invalid;
+                foreach (var slot in armorSlots)
+                {
+                    if (TryStripSlot(agent.SpawnEquipment[slot], slot, remainingRoster, ref newEquipment))
+                        anyChange = true;
+                }
             }
 
             if (stripWeapons)
             {
-                // 清空武器槽位 (0-3)
-                for (int i = 0; i < 4; i++)
+                for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i <= EquipmentIndex.Weapon3; i++)
                 {
-                    newEquipment[i] = EquipmentElement.Invalid;
+                    if (TryStripSlot(agent.SpawnEquipment[i], i, remainingRoster, ref newEquipment))
+                        anyChange = true;
                 }
             }
 
-            // 3. 【核心】应用装备变更并刷新视觉模型
-            // 这会让 NPC 瞬间变装（变裸或者手里没武器）
-            agent.UpdateSpawnEquipmentAndRefreshVisuals(newEquipment);
-
-            // 4. 如果 Agent 正在手持武器，强制他丢掉或收起
-            // 如果不加这一步，有时候模型刷新了，但 AI 逻辑里还认为手里拿着剑
-            if (stripWeapons)
+            // remainingRoster 为 null 时始终刷新（保持原行为）；非 null 时只有变化才刷新
+            if (remainingRoster == null || anyChange)
             {
-                // 强制主手和副手丢弃物品
-                if (agent.Equipment[EquipmentIndex.WeaponItemBeginSlot].IsEmpty)
-                {
-                    // 尝试让他收刀，防止动作鬼畜
-                    agent.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
-                    agent.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
-                }
+                agent.UpdateSpawnEquipmentAndRefreshVisuals(newEquipment);
 
-                // 强制更新 AI 的武器状态
-                agent.UpdateAgentStats();
+                if (stripWeapons)
+                {
+                    if (agent.Equipment[EquipmentIndex.WeaponItemBeginSlot].IsEmpty)
+                    {
+                        agent.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+                        agent.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
+                    }
+                    agent.UpdateAgentStats();
+                }
             }
+        }
+
+        private static bool TryStripSlot(EquipmentElement element, EquipmentIndex slot, ItemRoster remainingRoster, ref Equipment newEquipment)
+        {
+            if (element.IsEmpty || element.Item == null) return false;
+            // remainingRoster 为 null → 无条件扒；非 null → 只在玩家拿走后不在 roster 中时扒
+            if (remainingRoster != null && remainingRoster.GetItemNumber(element.Item) > 0) return false;
+
+            newEquipment[slot] = EquipmentElement.Invalid;
+            return true;
         }
 
 
