@@ -15,12 +15,59 @@
 | [coding-style.md](plans/rules/coding-style.md) | 命名/单例/异步/异常/ViewModel 绑定 等编码约定 |
 | [tech-debt.md](plans/rules/tech-debt.md) | 架构待调整清单（硬编码泄漏、守卫缺失、巨型文件） |
 
-## 四条铁律
+## 五条铁律
 
 1. **LLM 不可用时游戏不能崩** — 任何 LLM 代码路径入口检查 `Settings.Instance.IsLLMReady`，不存在就降级或 return
 2. **LLM 返回的 JSON 不可信任** — 每个 `foreach` 前 null check，每个字段用 `?.` 传播
 3. **LivingWorldNpcs 是通用 mod** — 代码里不能出现 `Shokuho`/`日本战国`/`太阁`/`织丰` 等字串
 4. **资源进出统一归口、禁止半截操作** — 凡「看上去像资源进出」的地方都走 `AgentControlHelper`（**金钱 = 特殊物品**，Item==null），禁止业务层裸调 `Hero.ChangeHeroGold` / `ItemRoster.AddToCounts` 等单边 API。三类操作各有纪律：①**转移 Transfer**（贿赂/罚款/赏赐/买卖）守恒，一方扣一方加，**禁止只做半截**（钱扣了没人收）；②**收发 Grant/Sink**（战利品/凭空奖励/消耗）单边对接「世界」，用 `null` 显式标注虚空来源/去向，**合法非违规**；③**转换 Convert**（冶炼/工坊/吃苹果回饱腹）按配方刻意非守恒，但必须**守卫 + 原子**（输入不足则整体不发生）。
+5. **禁止硬编码游戏资源 ID** — 任何通过 `MBObjectManager.Instance.GetObject<T>("hardcoded_id")` 查找物品/角色/城镇/Culture 的逻辑，都可能被其他 mod（织丰/Shokuho 等）屏蔽导致返回 null。**必须使用两轮策略**：①第一轮尝试预设 ID 列表（从 XML 验证过的已知 ID）；②第二轮用 `MBObjectManager.Instance.GetObject<T>(predicate)` 动态遍历内存中已注册的对象做兜底。参看 `AgentControlHelper.TryGiveAnyMeleeWeapon` 为范本。**装备、NPC 模板、城镇、文化、兵种等全部适用此规则。**
+
+## API 探索：反编译 DLL 禁止瞎猜
+
+**骑砍2 大量 API 是 native C++ 实现，C# 层只是薄封装。** 分析 API 行为前，先用 `ilspycmd` 反编译相关 DLL 看实现和调用上下文，禁止仅凭名字推断。
+
+### 工具
+
+```bash
+# 安装（一次性，已安装 v8.2）
+dotnet tool install -g ilspycmd --version 8.2.0.7535
+
+# 反编译单个类型
+ilspycmd <dll路径> -t "TaleWorlds.MountAndBlade.Agent"
+
+# 管道搜索
+ilspycmd <dll路径> -t <类型名> | grep -A 15 "方法名"
+ilspycmd <dll路径> | grep -n "关键字"    # 全 DLL 搜索
+```
+
+### DLL 路径
+
+**不要手写 DLL 列表。** 项目引用的所有 TaleWorlds DLL 及其完整路径均以项目中的 `.csproj` 文件（`glob: **/*.csproj`）的 `<Reference>` 节点为准。游戏根目录通过 `$(MB2_PATH)` 解析，典型值：`H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord`。
+
+常用反编译目标（路径由 `.csproj` 锁定）：
+
+| 典型 DLL 文件名 | 主要内容 |
+|-----|----------|
+| `TaleWorlds.MountAndBlade.dll` | Agent, Mission, Team, HumanAIComponent 等战斗层 |
+| `TaleWorlds.Core.dll` | EquipmentIndex, AgentFlag, WeaponClass, ItemObject 等核心类型 |
+| `TaleWorlds.CampaignSystem.dll` | Hero, Clan, Settlement, CampaignBehaviorBase 等大地图层 |
+| `TaleWorlds.ObjectSystem.dll` | MBObjectManager — 所有游戏资源的注册表 |
+
+实际使用时先用 `Glob` 找 `.csproj`，再从 `<HintPath>` 取完整路径。
+
+**限制**：`MBAPI.IMBAgent.xxx` 最终调 C++ native engine，反编译看不到内部实现，只能看到**调用上下文**和**参数用法**。
+
+**动态资源查找（铁律 5 的关键 API）**：
+```csharp
+// 按 ID 查找（mod 屏蔽返回 null）
+MBObjectManager.Instance.GetObject<ItemObject>("some_id");
+
+// 按条件遍历内存中所有已注册对象（不受 mod 屏蔽影响）
+MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != null && item.PrimaryWeapon.IsMeleeWeapon);
+
+// 泛型 T 支持：ItemObject, CharacterObject, Settlement, CultureObject 等所有 MBObjectBase 子类
+```
 
 ## 工作流约定
 
