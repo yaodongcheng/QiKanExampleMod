@@ -95,7 +95,7 @@ ExampleModVS/ExampleMod/ExampleMod/
 1. 新建 18 个子文件夹（Properties 已存在；Dialog/ 不建——DialogBehavior.cs 已确认死代码，删除）。
 2. 按上表移动现有文件；重命名 `StoryEngineBag/` → `Story/`；**拆分 `MemoryManager.cs` 为 7 个独立文件**（不改逻辑，仅把类分到各自 .cs 文件）；**删除 `DialogBehavior.cs`**（死代码：原版对话系统测试残留 + 无人调用的反射工具），同步删除 [MySubModule.cs:139](ExampleModVS/ExampleMod/ExampleMod/MySubModule.cs#L139) 的 `AddBehavior(new DialogBehavior())` 注册。
 3. 编辑 `ExampleMod.csproj` 的 `<Compile Include>` 路径 + `<RootNamespace>` + `<AssemblyName>` 使其匹配。
-4. 全局替换 namespace：`ExampleMod` → `LivingWorldNpcs`，`ExampleMod.AI` → `LivingWorldNpcs.AI`，`ExampleMod.StoryEngineBag` → `LivingWorldNpcs.Story`。
+4. 全局替换 namespace：`ExampleMod` → `LivingWorldNpcs`，`ExampleMod.AI` → `LivingWorldNpcs`（后统一拍平），`ExampleMod.StoryEngineBag` → `LivingWorldNpcs.Story`。
 5. 编译 + 启动游戏验证：所有功能与重组前完全一致。
 6. 提交 commit："refactor: 目录重组 + namespace 重命名 ExampleMod→LivingWorldNpcs"。
 

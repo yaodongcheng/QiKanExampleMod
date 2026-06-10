@@ -9,7 +9,6 @@ using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
 using LivingWorldNpcs.Story;
-using LivingWorldNpcs.AI;
 
 namespace LivingWorldNpcs
 {

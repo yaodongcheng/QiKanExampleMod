@@ -21,7 +21,6 @@ using HarmonyLib;
 using psai;
 using psai.net;
 using LivingWorldNpcs.Story;
-using LivingWorldNpcs.AI;
 
 namespace LivingWorldNpcs
 {

@@ -13,7 +13,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.CampaignSystem.Actions;
 using static TaleWorlds.MountAndBlade.Agent;
 
-namespace LivingWorldNpcs.AI.Actions
+namespace LivingWorldNpcs
 {
     // 接口保持不变
     public interface IAtomicAction
@@ -750,6 +750,7 @@ namespace LivingWorldNpcs.AI.Actions
 
         public void OnEnd(Agent agent)
         {
+            _targetEnemy = null;
             AgentControlHelper.StopAndReset(agent); // 确保退出时清理状态
         }
 
