@@ -34,6 +34,7 @@ namespace LivingWorldNpcs
         // 可见性控制
         private bool _showSpeech;
         private bool _showDamage;
+        private bool _weaponDrawn;
 
         // 计时器
         private float _speechTimer;
@@ -88,12 +89,17 @@ namespace LivingWorldNpcs
             float hpPercentage = currentHp / TargetAgent.HealthLimit;
             _targetHealthWidth = MaxBarWidth * MBMath.ClampFloat(hpPercentage, 0f, 1f);
 
-            // 4. 决定是否显示 (逻辑层面的可见性)
+            //如果拔出武器了，那么血量就算满的也要显示吧
+            //但是很多村民，其实是没有武器的，我还是希望显示血条，看看要不要判定下战斗敌对状态之类的
             bool isWeaponDrawn = !TargetAgent.WieldedWeapon.IsEmpty;
+            bool isFighting = AgentAIController.GetBrainForAgent(TargetAgent)?.CurrentAction is FightEnemyAction;
+            _weaponDrawn = isWeaponDrawn || isFighting;
+
             bool isHealthLow = hpPercentage < 0.95f && currentHp > 0;
 
-            // 如果有内容要显示，就标记为可见
-            bool hasContent = (isHealthLow && (isWeaponDrawn || ShowDamage)) || ShowSpeech || ShowDamage;
+            // 四个满足一个就可见
+            //后续优化：说话可以只显示气泡，不显示血条
+            bool hasContent = isHealthLow || _weaponDrawn || ShowSpeech || ShowDamage;
 
             // 注意：这里只负责把 IsVisible 设为 true，
             // 如果 hasContent 为 false，我们暂时不强制设为 false，
@@ -112,13 +118,14 @@ namespace LivingWorldNpcs
             // 如果逻辑上都不可见，就没必要跑动画了
             if (!IsVisible) return;
 
-            // 1. 计时器更新 (必须每帧跑)
-            if (ShowDamage)
+            // 伤害显示有时间
+            if (ShowDamage )
             {
                 _damageTimer -= dt;
                 if (_damageTimer <= 0) ShowDamage = false;
             }
 
+            // 说话显示有时间
             if (ShowSpeech)
             {
                 _speechTimer -= dt;
@@ -134,107 +141,15 @@ namespace LivingWorldNpcs
 
             // 3. 最终可见性检查
             // 如果没有任何东西要显示了，才关掉 IsVisible
-            if (!ShowSpeech && !ShowDamage && _targetHealthWidth <= 0) // 举例：死人或者无内容
+            //武器拉出来了并且血量不为0，那么血量满了也要显示
+            // 血量为0了（死人—）一定不用显示了
+            // 血量不为0，但又没有拔出武器了，并且不说话不显示伤害，那么也没什么内容了，可以隐藏
+            if ((!ShowSpeech && !ShowDamage &&  !_weaponDrawn) || _targetHealthWidth <= 0)
             {
-                // 这里可以加更多条件，比如满血且没说话就隐藏
-                bool isFullHealth = _targetHealthWidth >= MaxBarWidth * 0.99f;
-                if (!ShowSpeech && !ShowDamage && isFullHealth)
-                {
-                    IsVisible = false;
-                }
+                IsVisible = false;            
             }
         }
-        public void UpdateData(float dt)
-        {
-            if (TargetAgent == null || !TargetAgent.IsActive())
-            {
-                IsVisible = false;
-                return;
-            }
-            
-            // --- 1. 获取血量数据 (支持虚拟血量逻辑) ---
-            float currentHp = TargetAgent.Health;
-            // 【优化】单例模式缓存获取，或者每帧只获取一次（这里简化为判空获取）
-            if (_cachedDuelLogic == null)
-            {
-                _cachedDuelLogic = AttackTriggerMissionLogic.Instance;
-            }
-
-            if (_cachedDuelLogic != null)
-            {
-                float? virtualHp = _cachedDuelLogic.GetVirtualHealth(TargetAgent);
-                if (virtualHp.HasValue)
-                {
-                    currentHp = virtualHp.Value;
-                    if (currentHp < 0) currentHp = 0;
-                }
-            }
-
-            // --- 2. 伤害检测 ---
-            // 只有当血量真的发生变化时才执行
-            if (Math.Abs(currentHp - _prevHealth) > 0.1f)
-            {
-                if (currentHp < _prevHealth)
-                {
-                    float damageTaken = _prevHealth - currentHp;
-                    DamageText = "-" + damageTaken.ToString("F0");
-                    ShowDamage = true;
-                    _damageTimer = 2.0f;
-                }
-                _prevHealth = currentHp;
-            }
-
-
-            // --- 3. 计时器更新 ---
-            if (ShowDamage)
-            {
-                _damageTimer -= dt;
-                if (_damageTimer <= 0) ShowDamage = false;
-            }
-
-            if (ShowSpeech)
-            {
-                _speechTimer -= dt;
-                if (_speechTimer <= 0) ShowSpeech = false;
-            }
-
-            // --- 4. 血条动画逻辑 ---
-            float hpPercentage = currentHp / TargetAgent.HealthLimit;
-
-            // 只有血条可见时才计算 Lerp 动画，节省 CPU
-            if (IsVisible)
-            {
-                _targetHealthWidth = MaxBarWidth * MBMath.ClampFloat(hpPercentage, 0f, 1f);
-
-                // 简单的浮点比较代替 Abs，性能极微小的提升
-                if (_currentHealthWidth != _targetHealthWidth)
-                {
-                    _currentHealthWidth = MBMath.Lerp(_currentHealthWidth, _targetHealthWidth, dt * 5.0f);
-                    // 如果非常接近，直接吸附，停止计算
-                    if (MathF.Abs(_currentHealthWidth - _targetHealthWidth) < 0.5f)
-                    {
-                        _currentHealthWidth = _targetHealthWidth;
-                    }
-                    OnPropertyChangedWithValue(_currentHealthWidth, "CurrentHealthWidth");
-                }
-            }
-
-            bool isWeaponDrawn = !TargetAgent.WieldedWeapon.IsEmpty;
-            bool isHealthLow = hpPercentage < 0.95f && currentHp > 0;
-            bool hasContentToShow = (isHealthLow && (isWeaponDrawn || ShowDamage)) || ShowSpeech || ShowDamage;
-
-            // 如果业务逻辑认为不该显示，直接强制隐藏
-            if (!hasContentToShow)
-            {
-                IsVisible = false;
-            }
-            else
-            {
-                IsVisible = true; // 有事可干，请求显示（最终由 View 决定是否在屏幕内）
-            }
-
-        }
-    
+       
         
         public BubbleSayVM(Agent agent)
         {

@@ -1,5 +1,4 @@
 ﻿using LivingWorldNpcs;
-using LivingWorldNpcs.AI;
 using Microsoft.VisualBasic.Devices;
 using Microsoft.VisualBasic.FileIO;
 using Newtonsoft.Json;

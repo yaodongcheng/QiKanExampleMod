@@ -10,7 +10,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.SaveSystem.Save;
 using static TaleWorlds.Library.VirtualFolders.Win64_Shipping_Client;
 
-namespace LivingWorldNpcs.AI
+namespace LivingWorldNpcs
 {
     public static class GroupStageManager
     {

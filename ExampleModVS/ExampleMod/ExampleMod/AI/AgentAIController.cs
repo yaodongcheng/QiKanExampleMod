@@ -8,7 +8,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs.AI
+namespace LivingWorldNpcs
 {
     public class AgentAIController : MissionLogic
     {

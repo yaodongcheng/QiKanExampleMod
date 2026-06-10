@@ -337,7 +337,7 @@ namespace LivingWorldNpcs
 
             // 2. 广播犯罪事件
             // 使用你现有的 AgentAIController
-            AI.AgentAIController.Instance.BroadcastEventInRange(
+            AgentAIController.Instance.BroadcastEventInRange(
                 Agent.Main.Position,
                 15f, // 广播半径
                 "WitnessCrime",
