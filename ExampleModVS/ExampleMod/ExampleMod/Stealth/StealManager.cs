@@ -200,6 +200,13 @@ namespace LivingWorldNpcs
             Equipment newEquipment = agent.SpawnEquipment.Clone();
             bool anyChange = false;
 
+            // 尸体（ragdoll）不能重新 wield 武器：UpdateSpawnEquipmentAndRefreshVisuals 内部会对
+            // SpawnEquipment 里残留的武器执行 WieldInitialWeapons → native TryToWieldWeaponInSlot，
+            // 而死人的骨骼已交给物理系统，再去握武器会操作失效内存 → AccessViolation。
+            // 因此对尸体一律清空所有武器槽（与"全部拿走"路径等价：无武器可 wield 即安全）。
+            // 昏迷(Unconscious)同样是 ragdoll，IsActive()=false 一并覆盖。
+            bool isCorpse = !agent.IsActive();
+
             // 防具槽位
             var armorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body, EquipmentIndex.Leg, EquipmentIndex.Gloves, EquipmentIndex.Cape };
 
@@ -216,7 +223,10 @@ namespace LivingWorldNpcs
             {
                 for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i <= EquipmentIndex.Weapon3; i++)
                 {
-                    if (TryStripSlot(agent.SpawnEquipment[i], i, remainingRoster, ref newEquipment))
+                    // 尸体：传 null → 无条件清空（绝不能给 ragdoll 留武器去 wield）；
+                    // 活人：按 remainingRoster 精准扒（玩家拿走的才扒，活人可正常重新 wield 剩下的）。
+                    ItemRoster slotFilter = isCorpse ? null : remainingRoster;
+                    if (TryStripSlot(agent.SpawnEquipment[i], i, slotFilter, ref newEquipment))
                         anyChange = true;
                 }
             }
