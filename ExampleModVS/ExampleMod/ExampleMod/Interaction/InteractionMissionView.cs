@@ -236,10 +236,8 @@ namespace LivingWorldNpcs
             {
                 if (_lastAgentWasAlive)
                 {
-                    if (Settings.Instance.IsLLMReady)
-                        _ = StartFreeConversationFlow(_lastFocusedAgent);
-                    else
-                        InformationManager.DisplayMessage(new InformationMessage("请先在 config.json 中配置 LLM 后方可使用自由聊天。"));
+                    // 无 LLM 也能进：菜单里的对抗意图走 C# 单次检定，闲聊走话题菜单
+                    _ = StartFreeConversationFlow(_lastFocusedAgent);
                 }
             }
             else if (TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.H))
@@ -613,8 +611,11 @@ namespace LivingWorldNpcs
                 // 切回玩家控制
                 Agent.Main.Controller = Agent.ControllerType.Player;
             }
-            SocialEvent evt = await _interactionController.GenerateEventAsync();
-            NewsSpreadSystem.Instance.BroadcastEvent(evt);
+            SocialEvent evt = null;
+            if (Settings.Instance.IsLLMReady)
+                evt = await _interactionController.GenerateEventAsync();
+            if (evt != null)
+                NewsSpreadSystem.Instance.BroadcastEvent(evt);
 
         }
 

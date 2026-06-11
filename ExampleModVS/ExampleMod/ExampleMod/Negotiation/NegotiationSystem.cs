@@ -34,6 +34,32 @@ namespace LivingWorldNpcs.Story
             public float WinChance;     // 胜率，用于显示给玩家看 (可选)
         }
 
+        /// <summary>
+        /// 唯一权威的「手段 → 主导技能」映射。SkillCheckOption 与单次检定 resolver 共用，
+        /// 避免两处各写一套 switch（见 plans 重复点 1）。
+        /// </summary>
+        public static TaleWorlds.Core.SkillObject MapTacticToSkill(NegotiationTactic tactic)
+        {
+            switch (tactic)
+            {
+                case NegotiationTactic.Threaten:
+                case NegotiationTactic.Coerce:
+                    return DefaultSkills.Roguery;       // 恐吓/施压 → 流氓习气
+                case NegotiationTactic.Reason:
+                    return DefaultSkills.Tactics;       // 说理 → 战术/逻辑
+                case NegotiationTactic.Swear:
+                    return DefaultSkills.Leadership;    // 立誓 → 统御
+                case NegotiationTactic.Flatter:
+                case NegotiationTactic.Plead:
+                case NegotiationTactic.Bribe:
+                case NegotiationTactic.Gift:
+                case NegotiationTactic.Submisson:
+                case NegotiationTactic.OfferPower:
+                default:
+                    return DefaultSkills.Charm;         // 社交类 → 魅力
+            }
+        }
+
         public static CheckResult CalculateSkillCheck(Hero player, Hero npc, NegotiationTactic tactic)
         {
             float playerScore = 0f;
@@ -1202,27 +1228,8 @@ namespace LivingWorldNpcs.Story
 
         private void CalculateChance()
         {
-            // --- 核心映射逻辑：将战术映射到游戏技能 ---
-            switch (Tactic)
-            {
-                case NegotiationTactic.Threaten:
-                case NegotiationTactic.Coerce:
-                    RelatedSkill = TaleWorlds.Core.DefaultSkills.Roguery; // 恶名/流氓习气
-                    break;
-                case NegotiationTactic.Reason:
-                case NegotiationTactic.Swear:
-                    RelatedSkill = TaleWorlds.Core.DefaultSkills.Leadership; // 统御/逻辑
-                    // 或者 DefaultSkills.Tactics
-                    break;
-                case NegotiationTactic.Flatter:
-                case NegotiationTactic.Plead:
-                case NegotiationTactic.Bribe:
-                    RelatedSkill = TaleWorlds.Core.DefaultSkills.Charm; // 魅力
-                    break;
-                default:
-                    RelatedSkill = TaleWorlds.Core.DefaultSkills.Charm;
-                    break;
-            }
+            // 手段→技能 走唯一权威映射（见 SkillCheckSystem.MapTacticToSkill）
+            RelatedSkill = SkillCheckSystem.MapTacticToSkill(Tactic);
 
             // 获取玩家角色
             var hero = Hero.MainHero;

@@ -33,6 +33,12 @@ namespace LivingWorldNpcs
 
         public override void SyncData(IDataStore dataStore)
         {
+            // 意图冷却（求婚/招募/策反失败后的冷却）跨存档持久化。
+            // 记忆系统不进存档，所以冷却走这里以 JSON 字符串保存。
+            string cooldownJson = Story.IntentCooldownStore.Serialize();
+            dataStore.SyncData("lwn_intent_cooldowns", ref cooldownJson);
+            if (dataStore.IsLoading)
+                Story.IntentCooldownStore.Deserialize(cooldownJson);
         }
 
         private void OnTick(float dt)

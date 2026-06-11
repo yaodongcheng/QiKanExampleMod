@@ -321,26 +321,185 @@ namespace LivingWorldNpcs.Story
         }
        
 
-        // 生成初始意图逻辑
+        // 生成初始意图逻辑（薄壳：全部交给意图注册表 + 资格层）
         private void RefreshInitialOptions()
         {
-            // 1. 获取数据定义
-            var defs = _optionManager.GetAvailableOptions(_targetHero, _targetAgent);
-            var vmOptions = new List<StoryOptionVM>();
+            if (_targetAgent == null) return;
+            _vm.ShowOptions(_optionManager.BuildOptionVMs(_targetAgent));
+        }
 
-            // 2. 转换为 VM
-            foreach (InteractionDefinition def in defs)
+        // ============================================================
+        // 无 LLM 单次检定：意图分发 + 结算 + 子菜单（主线程同步，见坑 P2）
+        // ============================================================
+
+        /// <summary>选项点击入口：即时类直接结算；对抗类按 LLM 是否就绪分流。</summary>
+        public void DispatchIntent(IntentBase intent, IntentContext ctx)
+        {
+            if (intent == null || ctx == null) return;
+            if (!intent.Goal.HasValue) { intent.OnInstant(ctx); return; }
+
+            if (Settings.Instance.IsLLMReady)
+                StartLLMNegotiation(intent, ctx);   // 有 LLM：走谈判博弈盘（目标已知，无需 LLM 猜）
+            else
+                ResolveAdversarialIntent(intent, ctx); // 无 LLM：单次检定
+        }
+
+        /// <summary>有 LLM：用意图已知的目标直接开一场谈判。</summary>
+        private void StartLLMNegotiation(IntentBase intent, IntentContext ctx)
+        {
+            if (ctx.Target == null) { ResolveAdversarialIntent(intent, ctx); return; }
+            _memory.CurrentNegotiationState = new NegotiationState(ctx.Agent, intent.Goal.Value.ToString(), intent.DisplayName);
+            var startCard = new NegotiationCard(intent.Tactic.ToString(), $"（{intent.DisplayName}）");
+            _vm.LockPrediction();
+            _ = Task.Run(() => HandlePlayerInputAsync($"（{intent.DisplayName}）", startCard));
+        }
+
+        /// <summary>无 LLM：一次掷骰决定成败，模板台词 + 直接结算。</summary>
+        public void ResolveAdversarialIntent(IntentBase intent, IntentContext ctx)
+        {
+            if (ctx == null || !intent.Goal.HasValue) return;
+            // P3：守卫/无人设的 agent 不能进对抗结算（对抗意图本就只对 Hero 开放，这里二次兜底）
+            if (ctx.Target == null || ctx.Profile == null)
             {
-                vmOptions.Add(new StoryOptionVM(
-                    def.DisplayName,
-                    () => def.OnAction(_targetHero, _targetAgent), // 传入自身(this)
-                    def.ToolTip
-                ));
+                InformationManager.DisplayMessage(new InformationMessage("无法与此人深谈。"));
+                return;
             }
 
-            // 这里的 Reverse 取决于 UI 是从下往上排还是从上往下，保持原样
-            vmOptions.Reverse();
-            _vm.ShowOptions(vmOptions.ToArray());
+            RollResult rr = SingleRollResolver.Compute(ctx, intent.Goal.Value, intent.Tactic, intent.GetOfferValue(ctx));
+            DebugLogger.Log(rr.Log);
+            bool success = SingleRollResolver.Roll(rr.Chance);
+            DebugLogger.Log($"[单次检定] {intent.DisplayName} 掷骰结果：{(success ? "成功" : "失败")}");
+
+            if (success) intent.OnSuccess(ctx);
+            else intent.OnFail(ctx);
+
+            // 模板台词 + 表情动作
+            string emotion;
+            string line = DialogueTemplateHelper.Get(intent.DialogueKey, success, out emotion, ctx.Target, ctx.Agent);
+            UpdateNpcVisuals(line, emotion, "NONE", "");
+
+            // 结算后的收尾选项
+            var opts = new List<StoryOptionVM>();
+            opts.Add(new StoryOptionVM("【离开】 告辞", () =>
+            {
+                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", Agent.Main);
+                GroupStageManager.Reset(Agent.Main);
+                _vm.Close();
+            }));
+            opts.Add(new StoryOptionVM("【继续】 再说点别的", () => RefreshInitialOptions()));
+            opts.Reverse();
+            _vm.ShowOptions(opts.ToArray());
+        }
+
+        /// <summary>展示一句 NPC 台词后回到主菜单（即时类用，如命令士兵）。</summary>
+        public void ShowNpcLineKeepMenu(Agent agent, string line, string emotion)
+        {
+            UpdateNpcVisuals(line, emotion, "NONE", "");
+            RefreshInitialOptions();
+        }
+
+        /// <summary>有 LLM 的自由聊天输入（从原寒暄逻辑迁出）。</summary>
+        public void OpenFreeChatInput(Agent agent)
+        {
+            string name = agent.Name.ToString();
+            InformationManager.ShowTextInquiry(new TextInquiryData(
+              "寒暄", $"你想对{name}说什么?：", true, true, "发送", "取消",
+              async (text) =>
+              {
+                  _vm.LockPrediction();
+                  await HandlePlayerInputAsync(text, null);
+              }, null));
+        }
+
+        /// <summary>无 LLM 的话题菜单（太阁5 式预设话题）。</summary>
+        public void OpenChatTopicMenu(IntentContext ctx)
+        {
+            var topics = new[]
+            {
+                new KeyValuePair<string,string>("Greeting", "问候寒暄"),
+                new KeyValuePair<string,string>("Weather",  "聊聊近况"),
+                new KeyValuePair<string,string>("Gossip",   "打听消息"),
+                new KeyValuePair<string,string>("Praise",   "恭维几句"),
+            };
+            var options = new List<StoryOptionVM>();
+            foreach (var t in topics)
+            {
+                string key = t.Key;
+                options.Add(new StoryOptionVM(t.Value, () =>
+                {
+                    string emotion;
+                    string line = DialogueTemplateHelper.Get("Chat_" + key, out emotion, ctx.Target, ctx.Agent);
+                    int delta = key == "Praise" ? 2 : 1;
+                    if (ctx.Target != null) ChangeRelationAction.ApplyPlayerRelation(ctx.Target, delta);
+                    UpdateNpcVisuals(line, emotion, "NONE", "");
+                    OpenChatTopicMenu(ctx); // 留在话题菜单
+                }));
+            }
+            options.Add(new StoryOptionVM("【返回】", () => RefreshInitialOptions()));
+            options.Reverse();
+            _vm.ShowOptions(options.ToArray());
+        }
+
+        /// <summary>送礼菜单：从背包挑物品，按价值×NPC喜好算好感增量。</summary>
+        public void OpenGiftMenu(Hero target, int page = 0)
+        {
+            if (target == null) return;
+            var options = new List<StoryOptionVM>();
+            const int per = 8;
+            var items = MobileParty.MainParty.ItemRoster
+                .Where(e => !e.IsEmpty && e.EquipmentElement.Item != null)
+                .OrderByDescending(e => e.EquipmentElement.Item.Value)
+                .ToList();
+            int total = items.Count;
+            int pages = (total + per - 1) / per;
+            if (page < 0) page = 0;
+            if (page >= pages && pages > 0) page = pages - 1;
+            int start = page * per;
+            int end = System.Math.Min(start + per, total);
+
+            for (int i = start; i < end; i++)
+            {
+                var item = items[i].EquipmentElement.Item;
+                int delta = GiftRelationDelta(target, item);
+                var captured = item;
+                options.Add(new StoryOptionVM($"{item.Name}（+{delta}）", () =>
+                {
+                    AgentControlHelper.TransferItems(Hero.MainHero, target, captured, 1);
+                    ChangeRelationAction.ApplyPlayerRelation(target, delta);
+                    InformationManager.DisplayMessage(new InformationMessage($"你将 {captured.Name} 赠予 {target.Name}，关系 +{delta}", Colors.Green));
+                    RefreshInitialOptions();
+                }, $"赠予后关系 +{delta}"));
+            }
+            if (page > 0) options.Add(new StoryOptionVM("【上一页】", () => OpenGiftMenu(target, page - 1)));
+            if (page < pages - 1) options.Add(new StoryOptionVM("【下一页】", () => OpenGiftMenu(target, page + 1)));
+            options.Add(new StoryOptionVM("【返回】", () => RefreshInitialOptions()));
+            options.Reverse();
+            _vm.ShowOptions(options.ToArray());
+        }
+
+        private int GiftRelationDelta(Hero target, ItemObject item)
+        {
+            float baseGain = item.Value / 100f;
+            float typeMult = 1.0f;
+            var mem = AllNpcMemoryManager.GetMemory(target.StringId);
+            var profile = mem != null ? mem._profile : null;
+            if (profile != null)
+            {
+                if (profile.Desire == NPCProfile.DesireEnum.Greedy) typeMult *= 1.5f;
+                if (MatchDesireType(profile.DesireType, item)) typeMult *= 1.5f;
+            }
+            return (int)MathF.Clamp(baseGain * typeMult, 1f, 30f);
+        }
+
+        private bool MatchDesireType(NPCProfile.DesireTypeEnum desire, ItemObject item)
+        {
+            switch (desire)
+            {
+                case NPCProfile.DesireTypeEnum.Weapon: return item.HasWeaponComponent;
+                case NPCProfile.DesireTypeEnum.Book: return item.ItemType == ItemObject.ItemTypeEnum.Book;
+                case NPCProfile.DesireTypeEnum.Money: return item.Value >= 1000; // 爱财者看重高价物
+                default: return false;
+            }
         }
 
 
@@ -631,8 +790,11 @@ namespace LivingWorldNpcs.Story
 
             if (selectedOption != null)
             {
-                // 限制 Multiplier 范围，防止 LLM 发疯
-                finalMultiplier = Mathf.Clamp(result.DeltaMultiplier, 0.5f, 2.0f);
+                // 性格倍率（纯 C#，命中 NPC 性格弱点/抗性）——以前写好却没人用，现在接回结算路径。
+                float traitMult = NegotiationRegistry.CalculateMultiplier(selectedOption, state);
+                // LLM 只做「润色微调」：配了才用它的 delta，没配就 1.0（纯性格驱动）。
+                float llmMult = Settings.Instance.IsLLMReady ? Mathf.Clamp(result.DeltaMultiplier, 0.5f, 2.0f) : 1.0f;
+                finalMultiplier = Mathf.Clamp(traitMult * llmMult, 0.1f, 5.0f);
                 float tacticBaseScore = state.TargetThreshold*0.02f;//比如嘴炮基础分
                 chipsValue = selectedOption.Chips.Sum(x => x.EstimatedValue);
                 calculatedDelta = (tacticBaseScore + chipsValue) * finalMultiplier;
@@ -747,6 +909,16 @@ namespace LivingWorldNpcs.Story
                 return;
 
             var openingData = initiative.CachedOpening;
+            // P8：无 LLM 时开场被填成空选项数组（非 null），原判空失效会让玩家只剩「拔刀/读心」。
+            // 这里回退到本地意图菜单（仍先放出开场台词）。
+            if (!Settings.Instance.IsLLMReady &&
+                (openingData.PlayerNextOptions == null || openingData.PlayerNextOptions.Count == 0))
+            {
+                if (!string.IsNullOrEmpty(openingData.NpcReply))
+                    UpdateNpcVisuals(openingData.NpcReply, openingData.NpcEmotion, openingData.NpcAction, openingData.NpcThinking);
+                RefreshInitialOptions();
+                return;
+            }
             // LLM 响应可能缺少 player_next_options（JSON 不完整 / LLM 未配置）
             if (openingData.PlayerNextOptions == null)
                 return;
