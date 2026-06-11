@@ -106,7 +106,7 @@ DebugLogger.Log("消息");   // 线程安全，落盘到 Configs/StoryEngine_Run
 
 ---
 
-# 两大可扩展引擎（核心资产 —— 加玩法优先挂这里）
+# 三大可扩展引擎（核心资产 —— 加玩法优先挂这里）
 
 ## Story 命令引擎 — `Story/`
 
@@ -155,6 +155,45 @@ AgentAIController.Instance.SendEventToAgent(target, "事件名", args);  // 经�
 - **已有的 Action（先复用，别重写）**：`FollowAgentAction`、`MoveToPositionAction`、`LookAtAction`、`TurnToDirectionAction`、`PlayAnimAction`、`FightEnemyAction`、`DrawWeaponAction`、`StayAction`、`ForceTalkAction`、`PrepareOpeningAction`、`ReactionDecisionAction`。
 - **什么才该放进原子 Action 库**：只有**高可复用**（多种行为链都会用到，如移动、朝向、播放动画）或**不可再拆分**（最小行为单元，拆了就没意义）的行为，才进 `AtomicAction.cs`。一次性的、只服务某个具体玩法的复合流程**不要**塞进来——那应该是「多个原子 Action 入队组合」。
 - 复杂行为 = 多个原子 Action 入队组合，而不是写一个大 Action。
+
+---
+
+## NPC 互动意图引擎 — `Interaction/Intents/`
+
+NPC 互动菜单（求婚/招募/策反/送礼/招募入伍/寒暄…）的**注册式**引擎。每个意图 = 一个类，只声明三件事：**资格(Evaluate)、目标(Goal)、成败后果(OnInstant/OnSuccess/OnFail)**；通用机制（成功率公式、掷骰、冷却、台词、置灰）在共享层。无 LLM 时对抗意图走 C# 单次检定，有 LLM 时走谈判盘。详见 [plans/no-llm-interaction.md](../no-llm-interaction.md)。
+
+**加一个新互动选项的正确姿势**：
+
+```csharp
+// 1. 写一个意图类（放进 Interaction/Intents/ 的某个分组文件）
+public class MyIntent : IntentBase {
+    public override InteractionOptionType Type => InteractionOptionType.Xxx;
+    public override InteractionCategory Category => InteractionCategory.Social;
+    public override string DisplayName => "【我的选项】...";
+    public override NegotiationGoalType? Goal => NegotiationGoalType.Xxx; // null = 即时类(不掷骰)
+    public override NegotiationTactic Tactic => NegotiationTactic.Flatter; // 对抗类用，决定查哪个属性
+
+    public override Eligibility Evaluate(IntentContext ctx) =>      // 三态
+        !ctx.IsHero ? Eligibility.Hide()
+      : ctx.Relation < 0 ? Eligibility.Grey("关系不够")
+      : Eligibility.Show();
+
+    public override void OnInstant(IntentContext ctx) { /* 即时类结算 */ }
+    public override void OnSuccess(IntentContext ctx) { /* 对抗类成功 */ }
+    // OnFail 基类默认：掉好感 + 进冷却，通常无需 override
+}
+
+// 2. 在 IntentRegistry.RegisterDefaults() 注册一行（内容包可在自己代码里 IntentRegistry.Register）
+Register(new MyIntent());
+```
+
+- **禁止**改 `RegisterAllOptions`（已删）或在 `InteractionOptionManager` 写 if-else——只 `Register`。`InteractionOptionManager.BuildOptionVMs` 是薄壳，自动把可见意图转成 `StoryOptionVM`（含成功率预览/置灰）。
+- `IntentContext`（`IntentContext.Build(agent, controller)`）：开对话时一次性算好身份/关系——`IsHero/Relation/SameFaction/EnemyFaction/IsLiege/IsClanLeader/IsWanderer/IsMarried/OppositeSex/PlayerHasNoKingdom/IsMySoldier/IsEnemyAgent/IsRecruitableCivilian`，及 `OnCooldown(goal)/CooldownDaysLeft(goal)`。资格判定直接读这些，别在意图里重复取数。
+- **单次检定公式** `SingleRollResolver.Compute(ctx, goal, tactic, offerValue)`：复用 `NegotiationState`(难度/开局/性格Trait) + `SkillCheckSystem.CalculateSkillCheck`(技能胜率) + `NegotiationRegistry.CalculateMultiplier`(性格倍率)，**不要新造第4套公式**。
+- **失败冷却** `IntentCooldownStore.IsOnCooldown/Set/DaysLeft`（per NPC+目标，经 `MyBehavior.SyncData` 跨存档）。
+- **模板台词** `DialogueTemplateHelper.Get(...)`：查 CSV（`ModuleData/DesignData/Dialogue.csv`，ID=`{Goal}_{Success/Fail}`），世界观占位符走 `Settings.Instance`，空表自动兜底。
+- **已有意图（先复用，别重写）**：求婚/送礼/茶席/切磋（Social）、登庸/劝诱倒戈/策反/要军资/仕官（Diplomacy）、情报/命令/跟随/寒暄/离开（General）、应募入伍（RecruitSoldier，普通平民花钱招文化基础兵+魅力砍价）。
+- **结算后果统一走 `ActionHandler`**（LLM 路径也用），别在意图里裸调单边 API；金钱进出走 `AgentControlHelper`。
 
 ---
 

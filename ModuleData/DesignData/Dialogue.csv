@@ -1,0 +1,18 @@
+ID,ScriptName,GoalType,Outcome,Lines,Emotion
+string,string,string,string,list,string
+编号,名称,目标类型,成败,台词(竖线分隔随机),情绪
+ProposeMarriage_Success,求婚成功,ProposeMarriage,Success,我等这句话已经很久了……我愿意。|既蒙{PLAYER}垂青 此生愿与你相守。,happy
+ProposeMarriage_Fail,求婚失败,ProposeMarriage,Fail,你我之间 怕是缘分未到。|此事……请容我再想想吧。,negative
+RecruitHero_Success,招募成功,RecruitHero,Success,承蒙看重 愿为{PLAYER}效犬马之劳。|也罢 我这身本事就交给你了。,positive
+RecruitHero_Fail,招募失败,RecruitHero,Fail,多谢美意 但我另有打算。|恕难从命 我尚不愿屈身于人。,negative
+DefectFaction_Success,倒戈成功,DefectFaction,Success,良禽择木而栖 我愿率众归附。|这腐朽的旧主 早该弃了。,positive
+DefectFaction_Fail,倒戈失败,DefectFaction,Fail,背主之事 我做不出来。|你当我是甚么人 休要再提！,threat
+Exaction_Success,索资成功,Exaction,Success,军资之事 我已为你备下 拿去吧。|为了大局 这笔钱该花。,positive
+Exaction_Fail,索资失败,Exaction,Fail,国库吃紧 此事容后再议。|这个数目 恕我无法应允。,negative
+JoinInFaction_Success,仕官成功,JoinInFaction,Success,好 从今往后你便是我的人了。|我正缺{PLAYER}这样的人才 准了。,positive
+JoinInFaction_Fail,仕官失败,JoinInFaction,Fail,你的诚意 还不足以让我接纳。|时机未到 改日再说吧。,negative
+Order,询问状况,Order,Neutral,报告 一切正常！|属下随时待命！|这一带暂无异常。,normal
+Chat_Greeting,问候,Chat,Neutral,{PLAYER} 别来无恙。|又见面了 有何贵干？,polite
+Chat_Weather,近况,Chat,Neutral,近来世道不太平啊。|这日子 也就这么过着。,normal
+Chat_Gossip,打听,Chat,Neutral,你想打听甚么？我知道的可不少。|外头的风声 我多少听过一些。,normal
+Chat_Praise,恭维,Chat,Neutral,哈哈 你这张嘴可真会说。|过奖了 不过听着倒也舒坦。,happy

@@ -232,6 +232,9 @@ namespace LivingWorldNpcs
 
         public static DataTable Emotion { get; private set; }
 
+        // 无 LLM 互动的模板台词表（ID = "{GoalType}_{Success/Fail}" 或 "Chat_xxx"）
+        public static DataTable Dialogue { get; private set; }
+
         static string moduleName = "LivingWorldNpcs";
         static string directoryPath = Path.Combine(ModuleHelper.GetModuleFullPath(moduleName), "ModuleData\\DesignData");
 
@@ -249,6 +252,11 @@ namespace LivingWorldNpcs
             Music  = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "Music.csv"), "Music");
             TagPoint = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "TagPoint.csv"), "TagPoint");
             Emotion = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "Emotion.csv"), "Emotion");
+
+            // 台词表：内容包提供了才覆盖，否则保留 Mod A 的卡拉迪亚默认版（不误清空）
+            string dialoguePath = Path.Combine(externalDesignDataPath, "Dialogue.csv");
+            if (File.Exists(dialoguePath))
+                Dialogue = CsvLoader.LoadTable(dialoguePath, "Dialogue");
         }
 
         // === 初始化：一次性加载所有表 ===
@@ -256,6 +264,8 @@ namespace LivingWorldNpcs
         {
             // Camera.csv 是唯一泛用表，始终从 Mod A 加载
             Camera = CsvLoader.LoadTable(Path.Combine(directoryPath, "Camera.csv"), "Camera");
+            // 台词表默认从 Mod A 加载卡拉迪亚版（内容包可在 LoadTablesFromPath 覆盖）
+            Dialogue = CsvLoader.LoadTable(Path.Combine(directoryPath, "Dialogue.csv"), "Dialogue");
 
             // 织丰内容表初始化为空，等待内容包注入
             Heroes   = new DataTable("Heroes");

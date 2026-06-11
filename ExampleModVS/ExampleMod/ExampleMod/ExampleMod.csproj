@@ -204,6 +204,15 @@
     <Compile Include="Debug\MyCustomUIVM.cs" />
     <!-- Interaction -->
     <Compile Include="Interaction\InteractionController.cs" />
+    <Compile Include="Interaction\Intents\IntentContext.cs" />
+    <Compile Include="Interaction\Intents\IntentBase.cs" />
+    <Compile Include="Interaction\Intents\IntentRegistry.cs" />
+    <Compile Include="Interaction\Intents\IntentCooldownStore.cs" />
+    <Compile Include="Interaction\Intents\DialogueTemplateHelper.cs" />
+    <Compile Include="Interaction\Intents\SocialIntents.cs" />
+    <Compile Include="Interaction\Intents\DiplomacyIntents.cs" />
+    <Compile Include="Interaction\Intents\GeneralIntents.cs" />
+    <Compile Include="Interaction\Intents\RecruitSoldierIntent.cs" />
     <Compile Include="Interaction\InteractionMissionView.cs" />
     <Compile Include="Interaction\InteractionOptionManager.cs" />
     <Compile Include="Interaction\InteractionVM.cs" />

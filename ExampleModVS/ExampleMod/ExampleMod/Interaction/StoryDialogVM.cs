@@ -663,11 +663,14 @@ namespace LivingWorldNpcs.Story
         private Action _onExecute;
         private string _predictText; // 新增：后果预测文本
         private bool _shouldExpand;  // 新增：是否显示后果面板
+        private bool _isEnabled = true; // 新增：是否可点击（置灰）
 
         public Action _onHoverBeginAction;
         public Action _onHoverEndAction;
         // 用于查找特定按钮的唯一标识符 (例如 "MIND_READ_BTN")
         public string Identifier { get; private set; }
+        // 置灰原因（点击禁用项时弹出）
+        public string DisableReason;
         private float _predictedProgressGain; // 该选项预计增加多少进度
 
         public StoryOptionVM(string text, Action onExecute, string predictText = "",   float predictedGain = 0,      Action onHoverBegin = null,         Action onHoverEnd = null   , string id = null)
@@ -681,6 +684,21 @@ namespace LivingWorldNpcs.Story
             _onHoverEndAction = onHoverEnd;
             _predictedProgressGain = predictedGain;
             Identifier = id;
+        }
+
+        // 新增：是否可点击。false = 置灰，点击只弹原因不执行。
+        [DataSourceProperty]
+        public bool IsEnabled
+        {
+            get => _isEnabled;
+            set
+            {
+                if (value != _isEnabled)
+                {
+                    _isEnabled = value;
+                    OnPropertyChangedWithValue(value, "IsEnabled");
+                }
+            }
         }
 
         [DataSourceProperty]
@@ -743,6 +761,13 @@ namespace LivingWorldNpcs.Story
         }
         public void ExecuteOption()
         {
+            // 置灰项：点击只弹原因，不执行
+            if (!_isEnabled)
+            {
+                if (!string.IsNullOrEmpty(DisableReason))
+                    InformationManager.DisplayMessage(new InformationMessage(DisableReason, Color.FromUint(0xFFCC5555)));
+                return;
+            }
             // 执行传入的回调（告诉引擎选了哪一项）
             _onExecute?.Invoke();
         }
