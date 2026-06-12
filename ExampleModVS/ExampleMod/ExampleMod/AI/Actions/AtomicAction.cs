@@ -361,11 +361,20 @@ namespace LivingWorldNpcs
 
         public void OnStart(Agent agent)
         {
+            // 只有自然站立/走路的 NPC 才跳过 2 秒起身延迟；
+            // 坐椅子、蹲着、躺着（自定义 pose）的都需要过渡动画时间。
+            // 注意：必须在 MovePrepare 之前判，否则 StopUsingGameObject 可能提前改状态。
+            bool needsDelay = agent.IsUsingGameObject
+                           || agent.CrouchMode
+                           || !string.IsNullOrEmpty(AgentControlHelper.GetPose(agent));
 
             _= AgentControlHelper.MovePrepare(agent);
+
+            if (!needsDelay)
+                _timer = 2.0f;
             // 调用 Helper，不再自己处理 Flags 和 NavMesh
            //AgentControlHelper.ScriptedMoveToPoint(agent, _targetPos, _run);
-           
+
         }
 
         public void OnTick(Agent agent, float dt)
@@ -453,8 +462,17 @@ namespace LivingWorldNpcs
             // 刚开始不知道距离，先不做操作，交给 OnTick 判断
             _isMoving = false;
 
+            // 只有自然站立/走路的 NPC 才跳过 2 秒起身延迟；
+            // 坐椅子、蹲着、躺着（自定义 pose）的都需要过渡动画时间。
+            // 注意：必须在 MovePrepare 之前判，否则 StopUsingGameObject 可能提前改状态。
+            bool needsDelay = agent.IsUsingGameObject
+                           || agent.CrouchMode
+                           || !string.IsNullOrEmpty(AgentControlHelper.GetPose(agent));
 
             _ = AgentControlHelper.MovePrepare(agent);
+
+            if (!needsDelay)
+                _timer = 2.0f;
         }
 
         public void OnTick(Agent agent, float dt)
@@ -590,12 +608,13 @@ namespace LivingWorldNpcs
         public void OnEnd(Agent agent)
         {
             _isMoving = false;
-            // 保持朝向瞬移
-            agent.TeleportToPosition(_currentIdealPosition);
-            Vec3 _targetDir = (_target.Position - agent.Position).NormalizedCopy();
-            // 保持朝向瞬移
-            agent.SetMovementDirection(_targetDir.AsVec2);
-
+            // 不瞬移：NPC 已在 stopDistance 内（ComeHere 默认 0.5m），
+            // 几十厘米的偏差肉眼不可见，瞬移反而比到位的视觉跳变更突兀。
+            if (_target != null && _target.IsActive())
+            {
+                Vec3 targetDir = (_target.Position - agent.Position).NormalizedCopy();
+                agent.SetMovementDirection(targetDir.AsVec2);
+            }
             AgentControlHelper.MoveEndAndInteractPrepare(agent);
         }
     }
