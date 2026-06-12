@@ -116,6 +116,10 @@ namespace LivingWorldNpcs
             mission.AddMissionBehavior(new SpringArmCameraView());
             //冒泡UI
             mission.AddMissionBehavior(new BubbleSayMissionView());
+            //统一视线引擎（必须在 InteractionMissionView 之前，订阅才能拿到）
+            NpcSightSystem sightSystem = new NpcSightSystem();
+            mission.AddMissionBehavior(sightSystem);
+            sightSystem.RegisterTrackedTarget(Agent.Main, 15f, 50f);
             //右下角交互区
             mission.AddMissionBehavior(new InteractionMissionView());
             //攻击触发

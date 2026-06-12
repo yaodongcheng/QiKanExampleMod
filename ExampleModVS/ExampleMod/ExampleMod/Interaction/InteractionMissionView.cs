@@ -63,6 +63,9 @@ namespace LivingWorldNpcs
         //聊天锁，防止其他人也想和玩家说话
         public static bool IsChatting { get; private set; } = false;
 
+        // SightBubbleConsumer：已订阅 NpcSightSystem 事件
+        private bool _sightBubbleSubscribed = false;
+
         public static InteractionMissionView Instance { get; private set; }
 
         public override void OnMissionScreenInitialize()
@@ -89,6 +92,54 @@ namespace LivingWorldNpcs
 
             Instance = this;
 
+            // SightBubbleConsumer：订阅 NpcSightSystem，NPC 看到玩家时概率冒泡
+            SubscribeSightBubble();
+
+        }
+
+        private void SubscribeSightBubble()
+        {
+            if (_sightBubbleSubscribed) return;
+            var sight = Mission.Current?.GetMissionBehavior<NpcSightSystem>();
+            if (sight == null) return;
+            _sightBubbleSubscribed = true;
+            sight.OnAgentStartObserving += OnNpcStartObservingPlayer;
+        }
+
+        private void OnNpcStartObservingPlayer(Agent observer, Agent target)
+        {
+            // 只处理 NPC 看到玩家
+            if (target != Agent.Main) return;
+            if (observer == null || !observer.IsActive()) return;
+            if (IsChatting) return; // 正在对话中不冒泡
+
+            // 查据点荣誉
+            int honor = 0;
+            if (Hero.MainHero.CurrentSettlement != null)
+                honor = SettlementHonorStore.Get(Hero.MainHero.CurrentSettlement);
+
+            // 概率 = min(0.10 + honor * 0.01, 0.25)
+            float prob = MathF.Clamp(0.10f + honor * 0.01f, 0.02f, 0.25f);
+            float roll = MBRandom.RandomFloat;
+            bool hit = roll < prob;
+
+            DebugLogger.Log($"[SightBubble] NPC={observer.Name} honor={honor} prob={prob:0.00} roll={roll:0.00} hit={hit}");
+
+            if (!hit) return;
+
+            // 构建因素
+            var factors = new DialogueFactors
+            {
+                Honor = honor >= 5 ? HonorLevel.High : (honor <= -5 ? HonorLevel.Low : HonorLevel.Neutral),
+                Gender = (observer.Character != null && observer.Character.IsFemale) ? NpcGender.Female : NpcGender.Male,
+                Identity = NpcIdentity.Civilian
+            };
+
+            string emotion;
+            string line = DialogueTemplateHelper.Get("BubbleGreet", factors, out emotion, null, observer);
+            DebugLogger.Log($"[SightBubble] 命中! NPC={observer.Name} honor={honor} 台词=\"{line}\"");
+            if (!string.IsNullOrEmpty(line))
+                BubbleSayMissionView.AgentBubbleSay(observer, line);
         }
 
 
@@ -97,7 +148,11 @@ namespace LivingWorldNpcs
             // 1. 快速排除
             if (agent == null || agent == Agent.Main || !agent.IsHuman) return;
 
-            // 2. 距离剔除 (Distance Squared)
+            // 2. 视野缓存预检查：不在玩家视野内直接跳过（NpcSightSystem ~1s 更新一次）
+            var sight = NpcSightSystem.Instance;
+            if (sight != null && !sight.IsPlayerSeeing(agent)) return;
+
+            // 3. 距离剔除 (Distance Squared)
             float distSq = agent.Position.DistanceSquared(eyePos);
             if (distSq > maxDistanceSq) return;
 

@@ -173,6 +173,7 @@
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
     <Compile Include="AI\GroupStageManager.cs" />
+    <Compile Include="AI\NpcSightSystem.cs" />
     <!-- Bubble -->
     <Compile Include="Bubble\BubbleSayMissionView.cs" />
     <Compile Include="Bubble\BubbleSayNeaybyVM.cs" />

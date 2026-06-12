@@ -16,3 +16,11 @@ Chat_Greeting,问候,Chat,Neutral,{PLAYER} 别来无恙。|又见面了 有何�
 Chat_Weather,近况,Chat,Neutral,近来世道不太平啊。|这日子 也就这么过着。,normal
 Chat_Gossip,打听,Chat,Neutral,你想打听甚么？我知道的可不少。|外头的风声 我多少听过一些。,normal
 Chat_Praise,恭维,Chat,Neutral,哈哈 你这张嘴可真会说。|过奖了 不过听着倒也舒坦。,happy
+BubbleGreet_High_Any_Any,冒泡高荣誉,BubbleGreet,High,{PLAYER} 大人 恭迎大驾！|{PLAYER}来了 大伙儿都盼着您呢！,polite
+BubbleGreet_Neutral_Any_Any,冒泡中荣誉,BubbleGreet,Neutral,来了啊……|今儿天不错。,normal
+BubbleGreet_Low_Any_Any,冒泡低荣誉,BubbleGreet,Low,（赶紧低头走开）|（假装没看见 快步绕行）,fear
+Chat_Greeting_High_Any_Any,寒暄高荣誉,Chat,High,{PLAYER}大人光临 蓬荜生辉啊！|大人有何吩咐 尽管开口！,polite
+Chat_Greeting_Low_Any_Any,寒暄低荣誉,Chat,Low,……有何贵干。|（打量了你一眼）……说吧。,negative
+RecruitSoldier_AlreadyRecruited_Any_Any_Any,已应募,RecruitSoldier,Already,某已应募入伍 莫要再问了。|我已是你帐下的人了 不必再问。,normal
+RecruitSoldier_TooYoung_Any_Any_Any,太小,RecruitSoldier,TooYoung,某年纪尚小 再过几年再来吧。|我还小呢 等长大了再说！,normal
+RecruitSoldier_Female_Any_Female_Any,木兰台词,RecruitSoldier,Female,女儿身多有不便 且学那木兰从军 请将军勿向外人道也。|换上男装 旁人看不出来 将军替我保密便好。,normal

@@ -16,6 +16,8 @@
 | [pitfalls.md](plans/rules/pitfalls.md) | **坑点速查（疑难杂症）**，踩到 AccessViolation/native 崩溃等诡异症状时按需查 |
 | [tech-debt.md](plans/rules/tech-debt.md) | 架构待调整清单（硬编码泄漏、守卫缺失、巨型文件） |
 
+**运行时调试日志**：`Debug/StoryEngine_RuntimeLog.txt`（`DebugLogger.Log` 写入，内容随调试需求变动）。排查问题或验证行为时可直接 `Read` 分析。
+
 ## 五条铁律
 
 1. **LLM 不可用时游戏不能崩** — 任何 LLM 代码路径入口检查 `Settings.Instance.IsLLMReady`，不存在就降级或 return

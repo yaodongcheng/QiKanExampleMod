@@ -1,0 +1,14 @@
+﻿[11:58:19.922] [NpcSight] 首次 tick 延迟注册玩家 Agent.Main (Index=0)，_tracked 数量=1
+[11:58:20.916] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.09 hit=True
+[11:58:20.920] [SightBubble] 命中! NPC=帝国农民 honor=5 台词="亨利 大人 恭迎大驾！"
+[11:58:29.929] [NpcSight] 目标=亨利 观察者=1 可见=6 附近总数~108
+[11:58:33.119] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[11:58:34.924] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[11:58:39.954] [NpcSight] 目标=亨利 观察者=1 可见=6 附近总数~108
+[11:58:40.957] [SightBubble] NPC=帝国农民 honor=6 prob=0.16 roll=0.62 hit=False
+[11:58:42.960] [SightBubble] NPC=帝国女农民 honor=6 prob=0.16 roll=0.16 hit=False
+[11:58:49.980] [NpcSight] 目标=亨利 观察者=1 可见=7 附近总数~108
+[11:58:54.995] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[11:59:00.001] [NpcSight] 目标=亨利 观察者=0 可见=4 附近总数~108
+[11:59:04.006] [SightBubble] NPC=帝国女农民 honor=7 prob=0.17 roll=0.25 hit=False
+[11:59:04.007] [SightBubble] NPC=帝国农民 honor=7 prob=0.17 roll=0.51 hit=False

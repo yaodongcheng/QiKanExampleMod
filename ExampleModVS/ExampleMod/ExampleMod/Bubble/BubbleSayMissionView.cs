@@ -23,10 +23,12 @@ namespace LivingWorldNpcs
 
         // 性能设置：最大显示距离（米）
         private const float MaxDisplayDistance = 30f;
-        private const float MaxDistanceSq = MaxDisplayDistance * MaxDisplayDistance;
 
         // 在类中定义一个计数器
         private int _tickCounter = 0;
+
+        // 缓存 NpcSightSystem 引用，避免每帧 GetMissionBehavior
+        private NpcSightSystem _sightSystem;
 
 
         public override void OnMissionScreenInitialize()
@@ -100,13 +102,8 @@ namespace LivingWorldNpcs
             MissionScreen currentMissionScreen = ScreenManager.TopScreen as MissionScreen;
             if (currentMissionScreen == null) return;
 
-            Camera mainCamera = currentMissionScreen.CombatCamera;
-            if (mainCamera == null) return;
-
-            // ----------------- 【优化1】循环外缓存常量 (避免在循环里重复调用 getter) -----------------
+            // ----------------- 【优化1】循环外缓存常量 -----------------
             _tickCounter++;
-            Vec3 cameraPos = mainCamera.Position;
-            Vec3 cameraDir = mainCamera.Direction;
 
             // 缓存屏幕参数
             float screenWidth = Screen.RealScreenResolutionWidth;
@@ -116,7 +113,7 @@ namespace LivingWorldNpcs
             float uiScale = _layer.UIContext.Scale;
             float invUiScale = 1.0f / uiScale;
 
-            // 预计算边界容差 (像素)，稍微留一点余地防止边缘闪烁
+            // 预计算边界容差 (像素)
             float screenPadding = 100f;
 
 
@@ -133,37 +130,24 @@ namespace LivingWorldNpcs
                     continue;
                 }
 
-                // ----------------- 【优化3】距离剔除 (使用距离平方) -----------------
-                // DistanceSquared 比 Distance 快，因为不用开根号
-                float distSq = agent.Position.DistanceSquared(cameraPos);
-                if (distSq > MaxDistanceSq)
+                // ----------------- 【优化3】视野查询：统一走 NpcSightSystem 缓存 -----------------
+                // 延迟获取（第一次 tick 时 Instance 可能尚未赋值）
+                if (_sightSystem == null)
+                    _sightSystem = NpcSightSystem.Instance;
+
+                if (_sightSystem != null && !_sightSystem.IsPlayerSeeing(agent))
                 {
                     if (bubble.IsVisible) bubble.IsVisible = false;
                     continue;
                 }
 
-                // ----------------- 【优化4】先做点积剔除 (最关键的一步) -----------------
-                // 直接使用 Agent 的位置，不创建新的 Vec3 对象
+                // ----------------- 【优化4】世界转屏幕 (仅对前方物体执行) -----------------
                 Vec3 agentPos = agent.Position;
                 // 修正高度：通常眼睛高度 + 0.3~0.5 米浮动在头顶
                 agentPos.z += agent.GetEyeGlobalHeight() + 0.1f;
-
-                // 计算向量：相机 -> Agent
-                Vec3 dirToTarget = agentPos - cameraPos;
-
-                // 点积 < 0 说明在相机背后 (钝角)，直接隐藏，不做屏幕投影
-                if (Vec3.DotProduct(cameraDir, dirToTarget) <= 0)
-                {
-                    if (bubble.IsVisible) bubble.IsVisible = false;
-                    continue;
-                }
-
-                // ----------------- 【优化5】世界转屏幕 (仅对前方物体执行) -----------------
-                // 这是一个比较昂贵的矩阵运算
-                float screenX, screenY;
                 var screenPos = currentMissionScreen.SceneLayer.WorldPointToScreenPoint(agentPos);
-                screenX = screenPos.x;
-                screenY = screenPos.y;
+                float screenX = screenPos.x;
+                float screenY = screenPos.y;
                 // WorldPointToScreenPoint 返回的是 0~1 的比例坐标，转换为像素
                 float pixelX = screenX * screenWidth;
                 float pixelY = screenY * screenHeight;
@@ -179,10 +163,9 @@ namespace LivingWorldNpcs
                 // ----------------- 【优化7】计算结果赋值 -----------------
                 // 只有真正要显示时，才去设置 UI 的属性
 
-                // 缩放计算 (使用预计算的 distSq)
-                // 使用 MathF.Sqrt 因为这里必须要真实距离了，但只对筛选后的少数 Agent 计算
+                // 缩放计算：距离越远越小。Clamp 限制防止过大或过小
+                float distSq = agent.Position.DistanceSquared(currentMissionScreen.CombatCamera?.Position ?? agent.Position);
                 float distance = MathF.Sqrt(distSq);
-                // 简单的缩放公式：距离越远越小。 Clamp 限制防止过大或过小
                 float scale = MBMath.ClampFloat(50f / (distance + 5f), 0.5f, 1.5f);
 
                 if ((i + _tickCounter) % 10 == 0)

@@ -44,6 +44,7 @@ namespace LivingWorldNpcs.Story
         public bool IsMySoldier;        // 非 Hero、且在玩家队伍(同 Team)的士兵
         public bool IsEnemyAgent;       // 战场上与玩家敌对的 agent（含非 Hero）
         public bool IsRecruitableCivilian; // 非 Hero 平民（可花钱招募为兵）
+        public bool IsChild;              // 未成年（Hero: Age<16，非Hero: Character.IsChild）
 
         public bool RelationAtLeast(int v) { return Relation >= v; }
         public bool OnCooldown(NegotiationGoalType goal) { return Target != null && IntentCooldownStore.IsOnCooldown(Target, goal); }
@@ -74,6 +75,7 @@ namespace LivingWorldNpcs.Story
                 ctx.IsMarried = ctx.Target.Spouse != null;
                 ctx.OppositeSex = ctx.Target.IsFemale != Hero.MainHero.IsFemale;
                 ctx.PlayerHasNoKingdom = Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null;
+                ctx.IsChild = ctx.Target.Age < 16f;
             }
             else
             {
@@ -91,6 +93,8 @@ namespace LivingWorldNpcs.Story
                     CultureObject culture = co.Culture as CultureObject;
                     ctx.IsRecruitableCivilian = culture != null && culture.BasicTroop != null;
                 }
+                // 小孩判定（非 Hero）：CharacterObject 无 IsChild API，降级用 Agent.Age
+                ctx.IsChild = agent != null && agent.Age < 16f;
             }
             return ctx;
         }
