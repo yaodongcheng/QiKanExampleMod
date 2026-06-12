@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem.Party;
@@ -88,13 +89,12 @@ namespace LivingWorldNpcs
         {
             try
             {
-                // 1. 确定保存路径 (保持与你的示例一致的路径结构)
-                string documentsPath = Environment.GetFolderPath(Environment.SpecialFolder.Personal);
-                string savePath = Path.Combine(documentsPath, "Mount and Blade II Bannerlord", "Configs", LogFileName);
-
-                // 确保目录存在
-                string dir = Path.GetDirectoryName(savePath);
-                if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                // 写入项目 Debug/ 目录（从 DLL 路径反推模块根目录）
+                string dllPath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+                string moduleRoot = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(dllPath), "..", ".."));
+                string debugDir = Path.Combine(moduleRoot, "Debug");
+                if (!Directory.Exists(debugDir)) Directory.CreateDirectory(debugDir);
+                string savePath = Path.Combine(debugDir, LogFileName);
 
                 // 2. 格式化内容：加上时间戳，并自动换行
                 string logEntry = $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}";

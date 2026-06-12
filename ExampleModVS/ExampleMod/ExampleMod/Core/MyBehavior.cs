@@ -39,6 +39,12 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_intent_cooldowns", ref cooldownJson);
             if (dataStore.IsLoading)
                 Story.IntentCooldownStore.Deserialize(cooldownJson);
+
+            // 据点荣誉
+            string honorJson = SettlementHonorStore.Serialize();
+            dataStore.SyncData("lwn_settlement_honor", ref honorJson);
+            if (dataStore.IsLoading)
+                SettlementHonorStore.Deserialize(honorJson);
         }
 
         private void OnTick(float dt)

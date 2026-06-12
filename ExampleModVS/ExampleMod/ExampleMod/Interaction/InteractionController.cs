@@ -411,9 +411,10 @@ namespace LivingWorldNpcs.Story
               }, null));
         }
 
-        /// <summary>无 LLM 的话题菜单（太阁5 式预设话题）。</summary>
+        /// <summary>无 LLM 的话题菜单（太阁5 式预设话题，内容由多因素框架按荣誉/性别/身份选词）。</summary>
         public void OpenChatTopicMenu(IntentContext ctx)
         {
+            var factors = DialogueFactors.FromContext(ctx);
             var topics = new[]
             {
                 new KeyValuePair<string,string>("Greeting", "问候寒暄"),
@@ -428,13 +429,42 @@ namespace LivingWorldNpcs.Story
                 options.Add(new StoryOptionVM(t.Value, () =>
                 {
                     string emotion;
-                    string line = DialogueTemplateHelper.Get("Chat_" + key, out emotion, ctx.Target, ctx.Agent);
+                    string line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Target, ctx.Agent);
                     int delta = key == "Praise" ? 2 : 1;
+                    if (factors.Honor == HonorLevel.High) delta += 1;
+                    else if (factors.Honor == HonorLevel.Low) delta = Math.Max(delta - 1, 0);
                     if (ctx.Target != null) ChangeRelationAction.ApplyPlayerRelation(ctx.Target, delta);
                     UpdateNpcVisuals(line, emotion, "NONE", "");
-                    OpenChatTopicMenu(ctx); // 留在话题菜单
+                    OpenChatTopicMenu(ctx);
                 }));
             }
+
+            // 打听声望：动态构建回复（含数值 + 解释）
+            options.Add(new StoryOptionVM("打听声望", () =>
+            {
+                int honor = 0;
+                if (Hero.MainHero.CurrentSettlement != null)
+                    honor = SettlementHonorStore.Get(Hero.MainHero.CurrentSettlement);
+                string npcName = ctx.Target != null && ctx.Target.Name != null
+                    ? ctx.Target.Name.ToString()
+                    : (ctx.Agent != null ? ctx.Agent.Name.ToString() : "对方");
+
+                string desc;
+                if (honor >= 10)
+                    desc = $"你在本地的声望极高（{honor}），乡亲们都把你当自家人，征兵能便宜一半，说话也格外热情。";
+                else if (honor >= 5)
+                    desc = $"你在本地声望不错（{honor}），大家见了你都愿意招呼一声，征兵也有折扣。";
+                else if (honor >= 0)
+                    desc = $"你在本地声望一般（{honor}），就是普通路人，没什么特别的。";
+                else if (honor >= -3)
+                    desc = $"你在本地风评不太好（{honor}），大家见你来了都不怎么搭理。";
+                else
+                    desc = $"你在本地的名声很差（{honor}），乡亲们避之不及，征兵价格也更贵。";
+
+                string line = $"{npcName} 看了看你，说道：\"{desc}\"";
+                UpdateNpcVisuals(line, "normal", "NONE", "");
+                OpenChatTopicMenu(ctx);
+            }));
             options.Add(new StoryOptionVM("【返回】", () => RefreshInitialOptions()));
             options.Reverse();
             _vm.ShowOptions(options.ToArray());
