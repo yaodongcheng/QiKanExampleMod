@@ -209,7 +209,6 @@ namespace LivingWorldNpcs
 
             // 3. 清除强制盯人 (解除 SetLookAgent)
             agent.SetLookAgent(null);
-            agent.ClearTargetFrame();
 
             // 4. 确保控制器回归 AI
             if (agent.Controller != Agent.ControllerType.Player)
@@ -247,29 +246,18 @@ namespace LivingWorldNpcs
         }
         public static void MoveEndAndInteractPrepare(Agent npcAgent)
         {
-            // 7. 锁定状态 (进入对话模式)
-            WorldPosition currentPos = npcAgent.GetWorldPosition();
-            var lockFlags = AIScriptedFrameFlags.DoNotRun |
-                            AIScriptedFrameFlags.NoAttack |
-                            AIScriptedFrameFlags.InConversation; // 关键 Flag
-
-            npcAgent.SetScriptedPosition(ref currentPos, false, lockFlags);
-            npcAgent.SetMaximumSpeedLimit(0f, false); // 锁死速度
-
-           // InformationManager.DisplayMessage(new InformationMessage($"NPC {npcAgent.Character.Name} 已锁定位置"));
+            MoveEndAndInteractPrepare(npcAgent, npcAgent.Position);
         }
-        public static void MoveEndAndInteractPrepare(Agent npcAgent,Vec3 initPos)
+        public static void MoveEndAndInteractPrepare(Agent npcAgent, Vec3 initPos)
         {
-            // 7. 锁定状态 (进入对话模式)
-            WorldPosition currentPos = new WorldPosition(npcAgent.Mission.Scene,  initPos);
+            if (npcAgent == null || !npcAgent.IsActive()) return;
+            WorldPosition currentPos = new WorldPosition(npcAgent.Mission.Scene, initPos);
             var lockFlags = AIScriptedFrameFlags.DoNotRun |
                             AIScriptedFrameFlags.NoAttack |
-                            AIScriptedFrameFlags.InConversation; // 关键 Flag
+                            AIScriptedFrameFlags.InConversation;
 
             npcAgent.SetScriptedPosition(ref currentPos, false, lockFlags);
-            npcAgent.SetMaximumSpeedLimit(0f, false); // 锁死速度
-
-            //InformationManager.DisplayMessage(new InformationMessage($"NPC {npcAgent.Character.Name} 已锁定位置"));
+            npcAgent.SetMaximumSpeedLimit(0f, false);
         }
         public static async Task MoveTo(Agent npcAgent, Vec3 targetVec, Vec2  targetDir, float stopDistance = 0.5f)
         {

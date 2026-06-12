@@ -498,8 +498,35 @@ namespace LivingWorldNpcs
             {
                 //await AgentControlHelper.MoveToActor(agent, Agent.Main);
 
-                AgentAIController.Instance.SendEventToAgent(agent, "ComeHere", Agent.Main);
-                await WaitForAgentToSettle(agent);
+                // 自然站立的 NPC 不需要起身动画，直接打断原生 AI + 清大脑，
+                // 后续同帧瞬移 + 切镜头即可到位，体感类似原生 F 对话。
+                bool usingObj = agent.IsUsingGameObject;
+                bool crouching = agent.CrouchMode;
+                string pose = AgentControlHelper.GetPose(agent) ?? "";
+                // act_none / act_stand_* / act_idle_* 是引擎默认空闲/站立动画，
+                // 不算自定义 pose；act_stand_up_* 是起身过渡，act_idle_to/from 是物品交互过渡。
+                bool isDefaultPose = string.IsNullOrEmpty(pose)
+                    || pose == "act_none"
+                    || (pose.StartsWith("act_stand_") && !pose.StartsWith("act_stand_up_"))
+                    || (pose.StartsWith("act_idle_") && !pose.StartsWith("act_idle_to_") && !pose.StartsWith("act_idle_from_"));
+                bool isStandingNaturally = !usingObj && !crouching && isDefaultPose;
+                InformationManager.DisplayMessage(new InformationMessage(
+                    $"[闲聊快速路径] {agent.Name}: obj={usingObj} crouch={crouching} pose=\"{pose}\" isDefault={isDefaultPose} → 快速={(isStandingNaturally?"YES":"NO")}",
+                    isStandingNaturally ? Colors.Green : Colors.Yellow));
+                if (isStandingNaturally)
+                {
+                    var brain = AgentAIController.GetBrainForAgent(agent);
+                    if (brain != null)
+                    {
+                        brain.InteractedAgent = Agent.Main; // EndInteraction 匹配需要
+                        brain.ClearAllActions();
+                    }
+                }
+                else
+                {
+                    AgentAIController.Instance.SendEventToAgent(agent, "ComeHere", Agent.Main);
+                    await WaitForAgentToSettle(agent);
+                }
             }
             Agent.Main.SetMovementDirection(Vec2.Zero);
             if (Agent.Main.Controller == Agent.ControllerType.Player)
@@ -516,7 +543,18 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // 3. 设置镜头 (这里填入你的自定义镜头逻辑)
+            // 3. 同帧修正 NPC 到精确位置 + 切镜头
+            //    沿玩家→NPC 连线方向放在 2m 外，玩家随后转身面对 NPC，
+            //    切镜头同一帧完成，跳变不可见。
+            Vec3 toNpc = agent.Position - Agent.Main.Position;
+            toNpc.z = 0;
+            toNpc.Normalize();
+            Vec3 idealPos = Agent.Main.Position + toNpc * 2.0f;
+            agent.TeleportToPosition(idealPos);
+            agent.SetMovementDirection(-toNpc.AsVec2);
+            agent.SetLookAgent(Agent.Main);
+            AgentControlHelper.MoveEndAndInteractPrepare(agent, idealPos);
+
             SetupCameraForDialogue(agent);
 
             // 4. 激活鼠标 (对话时需要鼠标点击选项)

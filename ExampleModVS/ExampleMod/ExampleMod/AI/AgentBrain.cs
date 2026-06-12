@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
+using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
@@ -22,7 +23,7 @@ namespace LivingWorldNpcs
     {
         public Agent Owner { get; private set; }
         public SingNpcMemorySystem _memory;
-        public Agent InteractedAgent { get; private set; } // 最近一次交互的对象
+        public Agent InteractedAgent { get; set; } // 最近一次交互的对象
         // --- 新增：通用随从属性 ---
         public Agent Leader { get; private set; } // 我的老大是谁？
         private bool _isGuardMode = true; // 是否开启护卫模式
@@ -257,15 +258,28 @@ namespace LivingWorldNpcs
 
         public void ClearAllActions()
         {
+            bool hadActions = _currentAction != null || _actionQueue.Count > 0;
+
             if (_currentAction != null) _currentAction.OnEnd(Owner);
             _currentAction = null;
             _actionQueue.Clear();
 
             //Owner.TryToSheathWeaponInHands();
 
-            // 恢复原生AI
-            Owner.ResetEnemyCaches();
-            Owner.ClearTargetFrame();
+            if (hadActions)
+            {
+                // 只在确实清掉了 Action 时才设 DoNotRun 锁 + 清原生 AI 目标。
+                // 空大脑（快速路径）NPC 的原生 AI 巡逻状态不应被干扰，
+                // 否则 EndInteraction 后无法恢复巡逻。
+                Owner.SetMaximumSpeedLimit(-1f, false);
+                WorldPosition currentPos = Owner.GetWorldPosition();
+                var lockFlags = Agent.AIScriptedFrameFlags.DoNotRun
+                              | Agent.AIScriptedFrameFlags.NoAttack;
+                Owner.SetScriptedPosition(ref currentPos, false, lockFlags);
+
+                Owner.ResetEnemyCaches();
+                Owner.ClearTargetFrame();
+            }
         }
         private void DecideDefaultBehavior()
         {
