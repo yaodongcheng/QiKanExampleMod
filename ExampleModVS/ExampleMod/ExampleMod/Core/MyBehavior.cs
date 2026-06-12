@@ -45,6 +45,30 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_settlement_honor", ref honorJson);
             if (dataStore.IsLoading)
                 SettlementHonorStore.Deserialize(honorJson);
+
+            // 委托信任系统
+            string trustJson = TrustSystem.Serialize();
+            dataStore.SyncData("lwn_commission_trust", ref trustJson);
+            if (dataStore.IsLoading)
+                TrustSystem.Deserialize(trustJson);
+
+            // 委托恶名
+            string infamyJson = InfamySystem.Serialize();
+            dataStore.SyncData("lwn_commission_infamy", ref infamyJson);
+            if (dataStore.IsLoading)
+                InfamySystem.Deserialize(infamyJson);
+
+            // 委托难度递进
+            string tierJson = CommissionTierProgression.Serialize();
+            dataStore.SyncData("lwn_commission_tiers", ref tierJson);
+            if (dataStore.IsLoading)
+                CommissionTierProgression.Deserialize(tierJson);
+
+            // 委托叙事状态
+            string narrativeJson = CommissionNarrative.Serialize();
+            dataStore.SyncData("lwn_commission_narrative", ref narrativeJson);
+            if (dataStore.IsLoading)
+                CommissionNarrative.Deserialize(narrativeJson);
         }
 
         private void OnTick(float dt)

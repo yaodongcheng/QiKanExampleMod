@@ -718,7 +718,7 @@ namespace LivingWorldNpcs
                 // 4. 结婚
                 ApplyMarriageLogic(player, newLover);
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 // 错误处理
             }

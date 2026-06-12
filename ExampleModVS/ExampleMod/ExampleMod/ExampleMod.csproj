@@ -10,6 +10,7 @@
     <RootNamespace>LivingWorldNpcs</RootNamespace>
     <AssemblyName>LivingWorldNpcs</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <LangVersion>8.0</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
@@ -240,6 +241,17 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <!-- Quest -->
     <Compile Include="Quest\QuestManager.cs" />
+    <!-- Quest\Commissions -->
+    <Compile Include="Quests\Commissions\CommissionData.cs" />
+    <Compile Include="Quests\Commissions\CommissionQuest.cs" />
+    <Compile Include="Quests\Commissions\CommissionHubIssue.cs" />
+    <Compile Include="Quests\Commissions\CommissionGenerator.cs" />
+    <Compile Include="Quests\Commissions\CommissionIntent.cs" />
+    <Compile Include="Quests\Commissions\TrustSystem.cs" />
+    <Compile Include="Quests\Commissions\InfamySystem.cs" />
+    <Compile Include="Quests\Commissions\CommissionNarrative.cs" />
+    <Compile Include="Quests\Commissions\ComplicationTable.cs" />
+    <Compile Include="Quests\Commissions\JourneyEvents.cs" />
     <!-- Script -->
     <Compile Include="Script\ReadStory.cs" />
     <!-- Social -->
