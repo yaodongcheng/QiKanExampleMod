@@ -27,6 +27,9 @@ namespace LivingWorldNpcs
         //公务（还未入仕）
         RequestWork,     // 仕官
 
+        // 委托/工作
+        FindWork,        // 找工作（NPC委托）
+
         // 公务 (对同僚/下下属)
         Slander,            // 流言
         SolicitSupport,     // 拉拢 (请求支持)
@@ -75,6 +78,7 @@ namespace LivingWorldNpcs
                 case InteractionOptionType.RequestWork:
                 case InteractionOptionType.Order:
                 case InteractionOptionType.RecruitSoldier:
+                case InteractionOptionType.FindWork:
                     return InteractionCategory.Official;
                 // 外交
                 case InteractionOptionType.RecruitHero:

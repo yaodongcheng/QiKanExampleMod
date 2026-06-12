@@ -206,7 +206,7 @@ namespace LivingWorldNpcs
                         EnqueueAction(new StayAction(thief));
                     }));
                 }
-                catch(Exception ex)
+                catch(Exception )
                 {
                    // DebugLogger.Log($"[严重错误] 处理 Agent {Owner.Name} 时发生异常: {ex.Message}\n堆栈: {ex.StackTrace}");
                 }
@@ -227,7 +227,7 @@ namespace LivingWorldNpcs
                         EnqueueAction(new StayAction(thief));
                     }));
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                  //   DebugLogger.Log($"[严重错误] 处理 Agent {Owner.Name} 时发生异常: {ex.Message}\n堆栈: {ex.StackTrace}");
                 }

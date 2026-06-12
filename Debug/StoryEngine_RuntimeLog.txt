@@ -1,24 +1,22 @@
-﻿[15:51:21.929] [NpcSight] 首次 tick 延迟注册玩家 Agent.Main (Index=0)，_tracked 数量=1
-[15:51:27.912] [SightBubble] NPC=少女 honor=5 prob=0.15 roll=0.64 hit=False
-[15:51:30.649] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[15:51:31.921] [NpcSight] 目标=亨利 观察者=1 可见=7 附近总数~108
-[15:51:33.928] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.52 hit=False
-[15:51:39.946] [SightBubble] NPC=女孩 honor=5 prob=0.15 roll=0.77 hit=False
-[15:51:41.952] [NpcSight] 目标=亨利 观察者=1 可见=4 附近总数~108
-[15:51:45.694] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[15:51:47.967] [SightBubble] NPC=少年 honor=5 prob=0.15 roll=0.34 hit=False
-[15:51:49.977] [SightBubble] NPC=男孩 honor=5 prob=0.15 roll=0.26 hit=False
-[15:51:51.274] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[15:51:51.980] [NpcSight] 目标=亨利 观察者=3 可见=3 附近总数~108
-[15:51:55.997] [SightBubble] NPC=帝国女农民 honor=5 prob=0.15 roll=0.39 hit=False
-[15:52:02.016] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.58 hit=False
-[15:52:02.017] [NpcSight] 目标=亨利 观察者=4 可见=8 附近总数~108
-[15:52:03.016] [SightBubble] NPC=帝国女农民 honor=5 prob=0.15 roll=0.70 hit=False
-[15:52:04.021] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.37 hit=False
-[15:52:04.021] [SightBubble] NPC=帝国女农民 honor=5 prob=0.15 roll=0.97 hit=False
-[15:52:06.024] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.92 hit=False
-[15:52:12.035] [NpcSight] 目标=亨利 观察者=4 可见=2 附近总数~108
-[15:52:12.168] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[15:52:16.037] [SightBubble] NPC=少年 honor=5 prob=0.15 roll=0.19 hit=False
-[15:52:16.918] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[15:52:22.058] [NpcSight] 目标=亨利 观察者=3 可见=6 附近总数~108
+﻿[20:31:24.881] [NpcSight] 首次 tick 延迟注册玩家 Agent.Main (Index=0)，_tracked 数量=1
+[20:31:34.856] [SightBubble] NPC=帝国女农民 honor=5 prob=0.15 roll=0.68 hit=False
+[20:31:34.856] [NpcSight] 目标=亨利 观察者=1 可见=3 附近总数~109
+[20:31:35.856] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.01 hit=True
+[20:31:35.859] [SightBubble] 命中! NPC=帝国农民 honor=5 台词="亨利 大人 恭迎大驾！"
+[20:31:38.867] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.55 hit=False
+[20:31:39.869] [SightBubble] NPC=帝国女农民 honor=5 prob=0.15 roll=0.96 hit=False
+[20:31:39.869] [SightBubble] NPC=少年 honor=5 prob=0.15 roll=0.92 hit=False
+[20:31:41.873] [SightBubble] NPC=帝国农民 honor=5 prob=0.15 roll=0.97 hit=False
+[20:31:44.880] [NpcSight] 目标=亨利 观察者=1 可见=2 附近总数~109
+[20:31:54.904] [NpcSight] 目标=亨利 观察者=0 可见=1 附近总数~109
+[20:32:01.923] [SightBubble] NPC=乡间公证人 honor=5 prob=0.15 roll=0.64 hit=False
+[20:32:04.936] [NpcSight] 目标=亨利 观察者=0 可见=2 附近总数~109
+[20:32:06.945] [SightBubble] NPC=帝国女农民 honor=5 prob=0.15 roll=0.86 hit=False
+[20:32:11.961] [SightBubble] NPC=乡间公证人 honor=5 prob=0.15 roll=0.77 hit=False
+[20:32:14.972] [NpcSight] 目标=亨利 观察者=1 可见=4 附近总数~109
+[20:32:17.027] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[20:32:25.005] [NpcSight] 目标=亨利 观察者=2 可见=2 附近总数~109
+[20:32:35.034] [NpcSight] 目标=亨利 观察者=2 可见=2 附近总数~109
+[20:32:45.067] [NpcSight] 目标=亨利 观察者=2 可见=2 附近总数~109
+[20:32:55.091] [NpcSight] 目标=亨利 观察者=2 可见=2 附近总数~109
+[20:32:59.101] [SightBubble] NPC=女孩 honor=5 prob=0.15 roll=0.69 hit=False

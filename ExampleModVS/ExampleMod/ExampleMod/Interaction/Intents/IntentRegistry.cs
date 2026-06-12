@@ -41,6 +41,8 @@ namespace LivingWorldNpcs.Story
             Register(new BetrayalIntent());           // 同阵营策反
             Register(new RequestFundsIntent());       // 请求军资
             Register(new RequestWorkIntent());        // 仕官
+            // ── 委托/找工作 ──
+            Register(new RequestCommissionIntent()); // NPC委托任务
             // ── 公务/通用 ──
             Register(new InfoIntent());               // 查看情报
             Register(new RecruitSoldierIntent());     // 普通平民应募入伍（花钱+魅力砍价）

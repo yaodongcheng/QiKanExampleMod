@@ -60,7 +60,7 @@ namespace LivingWorldNpcs
                     jsonResponse = LLMService.CleanJson(jsonResponse);
                     memory.CurrentInitiative.JsonResponseOpening = jsonResponse;
                 }
-                catch (Exception ex)
+                catch (Exception )
                 {
                     memory.CurrentInitiative.JsonResponseOpening =
                        "{ \"npc_reply\": \"(警惕地看着你) \", \"player_next_options\": [] }";

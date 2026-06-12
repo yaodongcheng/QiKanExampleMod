@@ -145,6 +145,9 @@ namespace LivingWorldNpcs
 
                 campaignGameStarter.AddBehavior(new AIStoryGeneratorBehavior());
 
+                // NPC 委托系统
+                campaignGameStarter.AddBehavior(new CommissionIssueBehavior());
+
                 if (!_hasDumped)
                 {
                     //DumpAllActions();
