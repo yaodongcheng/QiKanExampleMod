@@ -123,8 +123,6 @@ namespace LivingWorldNpcs
             float roll = MBRandom.RandomFloat;
             bool hit = roll < prob;
 
-            DebugLogger.Log($"[SightBubble] NPC={observer.Name} honor={honor} prob={prob:0.00} roll={roll:0.00} hit={hit}");
-
             if (!hit) return;
 
             // 构建因素
@@ -137,7 +135,6 @@ namespace LivingWorldNpcs
 
             string emotion;
             string line = DialogueTemplateHelper.Get("BubbleGreet", factors, out emotion, null, observer);
-            DebugLogger.Log($"[SightBubble] 命中! NPC={observer.Name} honor={honor} 台词=\"{line}\"");
             if (!string.IsNullOrEmpty(line))
                 BubbleSayMissionView.AgentBubbleSay(observer, line);
         }

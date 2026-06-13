@@ -226,7 +226,6 @@ namespace LivingWorldNpcs
 
         // 标记是否已完成第一次 tick（用于延迟注册玩家等）
         private bool _firstTickDone;
-        private int _debugTickCount;  // 调试用，控制日志频率
 
         public override void OnMissionTick(float dt)
         {
@@ -240,10 +239,7 @@ namespace LivingWorldNpcs
                 if (_tracked.Count == 0 && Agent.Main != null)
                 {
                     RegisterTrackedTarget(Agent.Main, 15f, 50f);
-                    DebugLogger.Log($"[NpcSight] 首次 tick 延迟注册玩家 Agent.Main (Index={Agent.Main.Index})，_tracked 数量={_tracked.Count}");
                 }
-                else
-                    DebugLogger.Log($"[NpcSight] 首次 tick: _tracked.Count={_tracked.Count}, Agent.Main={(Agent.Main != null ? Agent.Main.Index.ToString() : "null")}");
             }
 
             //1秒检查一次，性能考虑不宜过频
@@ -255,17 +251,6 @@ namespace LivingWorldNpcs
             {
                 if (tracked.Agent == null || !tracked.Agent.IsActive()) continue;
                 TickTrackedTarget(tracked);
-            }
-
-            // 调试：每 10 秒输出一次视野统计
-            _debugTickCount++;
-            if (_debugTickCount % 10 == 0)
-            {
-                foreach (var t in _tracked)
-                {
-                    if (t.Agent == null) continue;
-                    DebugLogger.Log($"[NpcSight] 目标={t.Agent.Name} 观察者={t.PrevObservers.Count} 可见={t.PrevSeen.Count} 附近总数~{Mission.Current?.Agents?.Count ?? -1}");
-                }
             }
         }
 

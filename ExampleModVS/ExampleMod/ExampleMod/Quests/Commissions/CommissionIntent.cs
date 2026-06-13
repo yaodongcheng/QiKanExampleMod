@@ -4,6 +4,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.ObjectSystem;
 
 namespace LivingWorldNpcs.Story
 {
@@ -29,6 +30,7 @@ namespace LivingWorldNpcs.Story
                 return Eligibility.Hide();
             }
             _cachedCount = count;
+            DebugLogger.Log($"[CommissionIntent] RequestCommission Evaluate: hero={ctx.Hero.Name} count={count} → Show");
             return Eligibility.Show();
         }
 
@@ -37,6 +39,8 @@ namespace LivingWorldNpcs.Story
             if (ctx.Hero == null) return;
 
             var commissions = CommissionGenerator.GenerateCommissions(ctx.Hero, 4);
+            DebugLogger.Log($"[CommissionIntent] RequestCommission OnInstant: hero={ctx.Hero.Name} generated={commissions?.Count ?? 0}");
+
             if (commissions == null || commissions.Count == 0)
             {
                 InformationManager.DisplayMessage(
@@ -44,85 +48,124 @@ namespace LivingWorldNpcs.Story
                 return;
             }
 
-            if (commissions.Count == 1)
-                ShowConfirmInquiry(commissions, 0, ctx);
-            else
-                ShowOverviewThenBrowse(commissions, ctx);
+            // 统一走逐条浏览 —— 中转人看信，直接委托人也有开场叙事
+            ShowCommissionLetter(commissions, 0, ctx);
         }
 
-        private void ShowOverviewThenBrowse(List<CommissionData> commissions, IntentContext ctx)
-        {
-            string intro = CommissionNarrative.GetIntroduction();
-            string status = CommissionNarrative.GetPlayerStatusHeader();
-
-            string body = (intro != null ? intro + "\n\n" : "") + status;
-            bool isBrokerBoard = commissions.Any(c => c.BrokerHero != null);
-            body += isBrokerBoard
-                ? $"📋 {ctx.Hero.Name} 的告示板（共 {commissions.Count} 条委托情报）：\n\n"
-                : $"{ctx.Hero.Name} 的委托清单（共 {commissions.Count} 个）：\n\n";
-
-            for (int i = 0; i < commissions.Count; i++)
-            {
-                var c = commissions[i];
-                string days = ((int)(c.TimeRemainingHours / 24f) + 1).ToString();
-                string tier = GetTierShortName(c.Tier);
-                body += $"[{i + 1}] {tier} {c.GetFlavorDescription()}\n";
-                if (c.BrokerHero != null && c.BrokerHero != c.QuestGiver)
-                {
-                    string giverLoc = c.QuestGiver?.CurrentSettlement?.Name?.ToString()
-                        ?? c.QuestGiver?.HomeSettlement?.Name?.ToString() ?? "未知地点";
-                    body += $"    委托人：{c.QuestGiver?.Name}（在 {giverLoc}）\n";
-                }
-                body += $"    报酬：{c.NegotiatedReward}G | 定金：{c.DepositAmount}G | 期限：{days}天\n\n";
-            }
-            body += isBrokerBoard
-                ? "从告示板接取后，需先找到真正的委托人听取详情，再决定是否接。"
-                : "点击「下一个」逐个浏览委托详情，选择接取或跳过。";
-
-            InformationManager.ShowInquiry(new InquiryData(
-                $"委托任务 — {ctx.Hero.Name}",
-                body,
-                true, true,
-                "下一个 →", "取消",
-                () => ShowConfirmInquiry(commissions, 0, ctx),
-                null));
-        }
-
-        private void ShowConfirmInquiry(List<CommissionData> commissions, int index, IntentContext ctx)
+        /// <summary>
+        /// 以"信"的格式逐条展示委托（替代原来的总览→逐条）。
+        /// 每条委托以第一人称叙事呈现，左按钮"接取"，右按钮"下一个 →"（末尾"合上"）。
+        /// </summary>
+        private void ShowCommissionLetter(List<CommissionData> commissions, int index, IntentContext ctx)
         {
             if (index >= commissions.Count) return;
             var c = commissions[index];
+
+            // 构建第一人称叙事：从 CSV 模板中匹配
+            string giverName = c.QuestGiver?.Name?.ToString() ?? "委托人";
+            NPCProfile giverProfile = BuildProfileFromHero(c.QuestGiver);
+            string narrativeText = CommissionNarrative.BuildOpening(c, giverProfile);
+
             string tier = GetTierFullName(c.Tier);
+            string days = ((int)(c.TimeRemainingHours / 24f) + 1).ToString();
 
-            string info = $"委托 {index + 1}/{commissions.Count}\n\n" +
-                          $"{c.GetFlavorDescription()}\n\n" +
-                          $"难度：{tier}\n报酬：{c.NegotiatedReward} 第纳尔\n" +
-                          $"定金：{c.DepositAmount} 第纳尔\n" +
-                          $"期限：{((int)(c.TimeRemainingHours / 24f) + 1)} 天\n" +
-                          $"委托人：{ctx.Hero.Name}\n\n" +
-                          (commissions.Count > 1
-                              ? "「接取」接受此委托 | 「下一个」查看其他 | 「取消」放弃"
-                              : "「接取」接受此委托 | 「取消」放弃");
+            bool isBroker = c.BrokerHero != null && c.BrokerHero != c.QuestGiver;
+            string headerLine = isBroker
+                ? $"📜 委托 {index + 1}/{commissions.Count} —— {giverName} 来信"
+                : $"📜 委托 {index + 1}/{commissions.Count} —— {giverName} 的委托";
 
-            string affirmText = "接取";
-            string negText = commissions.Count > 1 && index < commissions.Count - 1 ? "下一个 →" : "取消";
+            string letter = $"{headerLine}\n\n" +
+                           $"「{narrativeText}」\n\n" +
+                           $"──\n" +
+                           $"难度：{tier}\n" +
+                           $"报酬：{c.NegotiatedReward} 第纳尔\n" +
+                           $"期限：{days} 天\n" +
+                           (c.DepositAmount > 0 ? $"定金：{c.DepositAmount} 第纳尔\n" : "") +
+                           (isBroker
+                               ? $"\n委托人：{giverName}（在 {GetGiverLocation(c)}）\n接取后需先找到委托人当面了解详情。"
+                               : "");
+
+            bool isLast = index >= commissions.Count - 1;
+            string negText = isLast ? "合上" : "下一个 →";
 
             InformationManager.ShowInquiry(new InquiryData(
-                $"委托详情 ({index + 1}/{commissions.Count})",
-                info,
+                $"委托 — {ctx.Hero.Name}",
+                letter,
                 true, true,
-                affirmText, negText,
+                "接取",
+                negText,
                 () => AcceptCommission(c, ctx),
                 () =>
                 {
-                    if (index < commissions.Count - 1)
-                        ShowConfirmInquiry(commissions, index + 1, ctx);
+                    if (!isLast)
+                        ShowCommissionLetter(commissions, index + 1, ctx);
                 }));
+        }
+
+        private string GetGiverLocation(CommissionData c)
+        {
+            return c.QuestGiver?.CurrentSettlement?.Name?.ToString()
+                ?? c.QuestGiver?.HomeSettlement?.Name?.ToString()
+                ?? "未知地点";
+        }
+
+        /// <summary>
+        /// 第一人称叙事生成（不走 CSV，直接用硬编码模板作为兜底）。
+        /// 注意：如果 CSV 加载成功，CommissionNarrative.BuildOpening 会返回更丰富的文本。
+        /// </summary>
+        private string GenerateCommissionNarrative(CommissionData data)
+        {
+            if (data == null) return "我需要有人帮我办一件事。";
+            string targetName = data.TargetHero != null ? data.TargetHero.Name.ToString() : "目标";
+            string settlementName = !string.IsNullOrEmpty(data.TargetSettlementId)
+                ? Settlement.Find(data.TargetSettlementId)?.Name?.ToString() ?? "目的地"
+                : "某地";
+            string itemName = !string.IsNullOrEmpty(data.TargetItemId)
+                ? MBObjectManager.Instance.GetObject<ItemObject>(data.TargetItemId)?.Name?.ToString() ?? "某物"
+                : "某物";
+
+            switch (data.Category)
+            {
+                case CommissionCategory.BountyHunt:
+                    return $"有个叫 {targetName} 的家伙最近在这一带作恶多端。我出赏金，你出力——把他揪出来，活的最好死的也行。";
+                case CommissionCategory.VillageDefense:
+                    return $"匪徒盯上了 {settlementName}！村里能打的都走了……帮我们守住——能在半路截住他们更好。";
+                case CommissionCategory.CaravanEscort:
+                    return $"我有一批货要运到 {settlementName}，但路上不太平。你护送我的商队，平安到了我付你报酬。";
+                case CommissionCategory.SupplyEmergency:
+                    return $"{settlementName} 急缺 {itemName}，再不补给生意就做不下去了。帮我去市场采购一批回来，越快报酬越高。";
+                case CommissionCategory.PrisonBreak:
+                    return $"我的朋友 {targetName} 被关在 {settlementName} 的监狱里——他是被冤枉的。帮我把他救出来。";
+                case CommissionCategory.SupplyIntercept:
+                    return $"敌方补给队正运物资去 {settlementName}。截下这批货——交给我换报酬，或者你自己留着。";
+                case CommissionCategory.LegendaryHunt:
+                    return $"{targetName}——横行多年的匪王，身上带着独一无二的装备。击败他，装备归你，另有重赏。";
+                case CommissionCategory.LostItem:
+                    return $"我的 {itemName} 被偷了！最后有人看见小偷往 {settlementName} 方向跑了。帮我把东西找回来，必有重谢。";
+                case CommissionCategory.HideoutClear:
+                    return $"{settlementName} 附近有个匪窝，商队都不敢走了。清理掉它——周围生意人都凑了份子。";
+                case CommissionCategory.EmergencyDelivery:
+                    return $"{settlementName} 断粮了！{((int)(data.TimeRemainingHours / 24f) + 1)} 天内把 {itemName} 送到——越快报酬越高。";
+                case CommissionCategory.TreasureHunt:
+                    return $"我搞到一张藏宝图，地方在 {settlementName} 附近——但我一个人不敢去。你陪我去，找到对半分。";
+                case CommissionCategory.HorseAcquisition:
+                    return $"我想要一匹 {itemName}。去各大城镇马市比价——预算省下来的都归你。";
+                case CommissionCategory.ArenaSpecial:
+                    return $"我在 {settlementName} 竞技场安排了一场特别赛——禁用盾牌，纯靠身手。连赢两场，押注赚的我们对半分。";
+                case CommissionCategory.DecoyMission:
+                    return $"有人在追杀我。你带少量人引开他们注意，我趁机跑——坚持越久报酬越高。";
+                case CommissionCategory.ProcurementAgent:
+                    return $"我需要一件 {itemName}，不方便亲自出面。给你预算，去比价——花得越少你赚得越多。";
+                default:
+                    return "这事说来话长……总之，我需要一个信得过的人帮我这个忙。报酬不会少你的。";
+            }
         }
 
         private void AcceptCommission(CommissionData data, IntentContext ctx)
         {
             if (data == null || ctx.Hero == null) return;
+
+            DebugLogger.Log($"[CommissionIntent] AcceptCommission: category={data.Category} giver={data.QuestGiver?.Name} broker={data.BrokerHero?.Name} narrativePhase={data.IsNarrativePhase}");
 
             // ── 告示板接取：创建委托但进入叙事阶段，不启动 ──
             if (data.BrokerHero != null && data.BrokerHero != data.QuestGiver)
@@ -135,6 +178,8 @@ namespace LivingWorldNpcs.Story
                 var pendingQuest = new CommissionQuest(qId, data);
                 pendingQuest.StartQuest();
                 pendingQuest.BeginNarrativePhase();
+
+                DebugLogger.Log($"[CommissionIntent] Broker accept → narrative phase: questId={qId} giverLoc={giverLoc}");
 
                 InformationManager.DisplayMessage(new InformationMessage(
                     $"📋 委托情报已记录：{data.GetFlavorDescription()}", Colors.Green));
@@ -158,6 +203,8 @@ namespace LivingWorldNpcs.Story
             data.NegotiatedReward = finalReward;
             data.DepositAmount = (int)(finalReward * TrustSystem.GetDepositRatio(trust));
             data.IsNarrativePhase = false;
+
+            DebugLogger.Log($"[CommissionIntent] Direct accept: reward={finalReward} deposit={data.DepositAmount} trust={trust}");
 
             int actualDeposit = AgentControlHelper.TransferGold(ctx.Hero, Hero.MainHero, data.DepositAmount);
             data.DepositAmount = actualDeposit;
@@ -211,6 +258,13 @@ namespace LivingWorldNpcs.Story
             }
             catch { }
         }
+
+        /// <summary>从 Hero 的游戏特质构建简易 PersonalityTraits 字符串（供 CSV 叙事匹配使用）</summary>
+        public static NPCProfile BuildProfileFromHero(Hero hero)
+        {
+            var profile = new NPCProfile(hero);
+            return profile;
+        }
     }
 
     /// <summary>
@@ -236,6 +290,7 @@ namespace LivingWorldNpcs.Story
             if (pending == null) return Eligibility.Hide();
 
             _pendingDesc = pending.Data?.GetFlavorDescription() ?? "委托";
+            DebugLogger.Log($"[CommissionIntent] ConfirmCommission Evaluate: hero={ctx.Hero.Name} pending={_pendingDesc}");
             return Eligibility.Show();
         }
 
@@ -314,6 +369,84 @@ namespace LivingWorldNpcs.Story
                 default:
                     return "这事说来话长……总之，我需要一个信得过的人帮我这个忙。报酬不会少你的。";
             }
+        }
+    }
+
+    /// <summary>
+    /// 领取报酬 Intent：当玩家找到结账人时，如果委托目标已完成但未领取报酬，显示此选项。
+    /// </summary>
+    public class CollectCommissionRewardIntent : IntentBase
+    {
+        private CommissionQuest _foundQuest;
+
+        public override InteractionOptionType Type => InteractionOptionType.Info;
+        public override string DisplayName => "【领取报酬】 委托任务有结果了？";
+        public override string ToolTip => "领取已完成委托的报酬";
+        public override float CooldownDays => 0f;
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            _foundQuest = null;
+            if (!ctx.IsHero || ctx.Hero == null) return Eligibility.Hide();
+
+            foreach (var quest in Campaign.Current.QuestManager.Quests)
+            {
+                if (quest is CommissionQuest cq
+                    && cq.Data != null
+                    && cq.Data.IsObjectivesComplete
+                    && !cq.IsFinalized
+                    && cq.Data.RewardPayer == ctx.Hero) // 精确匹配结账人
+                {
+                    _foundQuest = cq;
+                    DebugLogger.Log($"[CommissionIntent] CollectReward Evaluate: hero={ctx.Hero.Name} quest={cq.Data.GetFlavorDescription()}");
+                    return Eligibility.Show();
+                }
+                // 兜底：RewardPayer 为 null 时默认用 QuestGiver
+                if (quest is CommissionQuest cq2
+                    && cq2.Data != null
+                    && cq2.Data.IsObjectivesComplete
+                    && !cq2.IsFinalized
+                    && cq2.Data.RewardPayer == null
+                    && cq2.Data.QuestGiver == ctx.Hero)
+                {
+                    _foundQuest = cq2;
+                    DebugLogger.Log($"[CommissionIntent] CollectReward Evaluate (default payer): hero={ctx.Hero.Name} quest={cq2.Data.GetFlavorDescription()}");
+                    return Eligibility.Show();
+                }
+            }
+            return Eligibility.Hide();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            if (_foundQuest == null || ctx.Hero == null) return;
+
+            var data = _foundQuest.Data;
+            string giverName = ctx.Hero.Name?.ToString() ?? "委托人";
+            var giverProfile = RequestCommissionIntent.BuildProfileFromHero(ctx.Hero);
+
+            // 用 CSV 模板生成结账叙事
+            string closureText = CommissionNarrative.BuildClosure(data, giverProfile, giverProfile, _foundQuest.FinalGrade);
+
+            string info = $"{giverName} 看到你回来，脸上露出了笑容。\n\n" +
+                          $"「{closureText}」\n\n" +
+                          $"──\n委托：{data.GetFlavorDescription()}\n" +
+                          $"报酬：{data.NegotiatedReward} 第纳尔\n" +
+                          (data.DepositAmount > 0 ? $"定金：{data.DepositAmount} 第纳尔（已支付）\n" : "") +
+                          "\n现在领取报酬？";
+
+            InformationManager.ShowInquiry(new InquiryData(
+                "领取报酬",
+                info,
+                true, true,
+                "领取",
+                "稍后再说",
+                () =>
+                {
+                    _foundQuest.CompleteWithRewardCollection();
+                    DebugLogger.Log($"[CommissionIntent] CollectReward: player collected reward from {ctx.Hero.Name} for {data.GetFlavorDescription()}");
+                },
+                null));
         }
     }
 }

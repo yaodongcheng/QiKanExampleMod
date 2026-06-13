@@ -18,6 +18,8 @@ namespace LivingWorldNpcs
             if (data == null || quest == null) return;
             if (MBRandom.RandomFloat > 0.25f) return; // 每天 25% 概率触发
 
+            DebugLogger.Log($"[CommissionQuest] JourneyEvent triggered for {data.GetFlavorDescription()}");
+
             float roll = MBRandom.RandomFloat;
 
             if (roll < 0.25f)

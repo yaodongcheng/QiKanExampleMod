@@ -392,6 +392,8 @@ namespace LivingWorldNpcs
         [SaveableField(32)] public int PhaseProgress;
         [SaveableField(33)] public ResolutionPath ChosenPath;
         [SaveableField(34)] public CommissionTier Tier;
+        [SaveableField(50)] public bool IsObjectivesComplete;   // 目标已完成，等待领报酬
+        [SaveableField(53)] public Hero RewardPayer;              // 结账人，null=默认用QuestGiver
 
         /// <summary>获取关联的模板定义</summary>
         public CommissionDef GetDef() => CommissionDef.GetByCategory(Category);

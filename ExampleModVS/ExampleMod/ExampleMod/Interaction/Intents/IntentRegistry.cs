@@ -44,6 +44,7 @@ namespace LivingWorldNpcs.Story
             // ── 委托/找工作 ──
             Register(new RequestCommissionIntent());   // 看告示板/直接接委托
             Register(new ConfirmCommissionIntent());   // 从告示板找到真正的委托人后，当面确认
+            Register(new CollectCommissionRewardIntent()); // 目标完成后，找结账人领报酬
             // ── 公务/通用 ──
             Register(new InfoIntent());               // 查看情报
             Register(new RecruitSoldierIntent());     // 普通平民应募入伍（花钱+魅力砍价）

@@ -1,6 +1,8 @@
 using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Issues;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
 
@@ -69,7 +71,10 @@ namespace LivingWorldNpcs
 
         public override bool IssueStayAliveConditions()
         {
-            return IssueOwner != null && IssueOwner.IsAlive;
+            // 信号 Issue 在 NPC 存活且有委托可接时保持活跃
+            return IssueOwner != null && IssueOwner.IsAlive
+                && CommissionGenerator.HasCommissionsFor(IssueOwner, out int count)
+                && count > 0;
         }
 
         protected override void CompleteIssueWithTimedOutConsequences()
@@ -91,34 +96,72 @@ namespace LivingWorldNpcs
         {
             CampaignEvents.OnCheckForIssueEvent.AddNonSerializedListener(this, OnCheckForIssue);
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
+            CampaignEvents.SettlementEntered.AddNonSerializedListener(this, OnSettlementEntered);
+        }
+
+        /// <summary>
+        /// 玩家进入定居点时，强制刷新所有本地 NPC 的 Issue 信号。
+        /// OnCheckForIssueEvent 只对特定 NPC 类型触发，这个钩子确保我们的委托发布者也能显示 "!"。
+        /// </summary>
+        private void OnSettlementEntered(MobileParty party, Settlement settlement, Hero hero)
+        {
+            if (party != MobileParty.MainParty) return;
+            if (settlement == null) return;
+
+            DebugLogger.Log($"[CommissionIssue] Player entered {settlement.Name}, refreshing issue signals");
+
+            // 遍历定居点所有 Hero，跳过没 Hero 的 NPC
+            foreach (var h in settlement.HeroesWithoutParty)
+            {
+                if (h == null || h == Hero.MainHero || !h.IsAlive) continue;
+                OnCheckForIssue(h);
+            }
+            foreach (var h in settlement.Notables)
+            {
+                if (h == null || h == Hero.MainHero || !h.IsAlive) continue;
+                OnCheckForIssue(h);
+            }
         }
 
         private void OnCheckForIssue(Hero hero)
         {
             if (hero == null) return;
             if (hero == Hero.MainHero) return;
-            if (hero.Issue != null) return; // 已有其他 Issue
 
-            // 检查是否已达到并发上限
+            // 检查并发上限
             int maxQuests = TrustSystem.GetMaxConcurrentQuests(TrustSystem.GetTrust(hero));
             int activeCount = CommissionQuest.GetActiveCommissionCount();
             if (activeCount >= maxQuests) return;
 
             // 检查该 NPC 是否有可接委托
-            if (CommissionGenerator.HasCommissionsFor(hero, out int count) && count > 0)
+            if (!CommissionGenerator.HasCommissionsFor(hero, out int count) || count <= 0) return;
+
+            DebugLogger.Log($"[CommissionIssue] OnCheckForIssue: hero={hero.Name} occ={hero.Occupation} commissions={count} hasExistingIssue={hero.Issue != null}");
+
+            // 如果已有我们自己的 Issue，跳过
+            if (hero.Issue is CommissionHubIssue) return;
+
+            // 注册信号 Issue
+            // 注意：对非标准 NPC 类型（商人/工匠/浪人），IssueManager 内部字典无条目会抛 KeyNotFoundException
+            try
             {
-                // 注册信号 Issue
                 Campaign.Current.IssueManager.AddPotentialIssueData(hero,
                     new PotentialIssueData(
                         (in PotentialIssueData pid, Hero issueOwner) =>
                         {
                             var issue = new CommissionHubIssue(issueOwner);
                             _activeIssues[issueOwner.StringId] = issue;
+                            DebugLogger.Log($"[CommissionIssue] Created CommissionHubIssue for {issueOwner.Name}");
                             return issue;
                         },
                         typeof(CommissionHubIssue),
                         IssueBase.IssueFrequency.Common
                     ));
+            }
+            catch (System.Collections.Generic.KeyNotFoundException)
+            {
+                // 该 NPC 不在 IssueManager 支持范围内，安全跳过
+                DebugLogger.Log($"[CommissionIssue] IssueManager doesn't support {hero.Name} (occ={hero.Occupation}), skipping '!' signal");
             }
         }
 

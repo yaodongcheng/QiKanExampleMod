@@ -235,6 +235,9 @@ namespace LivingWorldNpcs
         // 无 LLM 互动的模板台词表（ID = "{GoalType}_{Success/Fail}" 或 "Chat_xxx"）
         public static DataTable Dialogue { get; private set; }
 
+        // 委托叙事表（接取开场 + 结账结局，NPC 第一人称）
+        public static DataTable CommissionNarrative { get; private set; }
+
         static string moduleName = "LivingWorldNpcs";
         static string directoryPath = Path.Combine(ModuleHelper.GetModuleFullPath(moduleName), "ModuleData\\DesignData");
 
@@ -257,6 +260,11 @@ namespace LivingWorldNpcs
             string dialoguePath = Path.Combine(externalDesignDataPath, "Dialogue.csv");
             if (File.Exists(dialoguePath))
                 Dialogue = CsvLoader.LoadTable(dialoguePath, "Dialogue");
+
+            // 委托叙事表：内容包提供了才覆盖
+            string commissionNarrativePath = Path.Combine(externalDesignDataPath, "CommissionNarrative.csv");
+            if (File.Exists(commissionNarrativePath))
+                CommissionNarrative = CsvLoader.LoadTable(commissionNarrativePath, "CommissionNarrative");
         }
 
         // === 初始化：一次性加载所有表 ===
@@ -266,6 +274,8 @@ namespace LivingWorldNpcs
             Camera = CsvLoader.LoadTable(Path.Combine(directoryPath, "Camera.csv"), "Camera");
             // 台词表默认从 Mod A 加载卡拉迪亚版（内容包可在 LoadTablesFromPath 覆盖）
             Dialogue = CsvLoader.LoadTable(Path.Combine(directoryPath, "Dialogue.csv"), "Dialogue");
+            // 委托叙事表：接取+结账 NPC 第一人称模板
+            CommissionNarrative = CsvLoader.LoadTable(Path.Combine(directoryPath, "CommissionNarrative.csv"), "CommissionNarrative");
 
             // 织丰内容表初始化为空，等待内容包注入
             Heroes   = new DataTable("Heroes");
