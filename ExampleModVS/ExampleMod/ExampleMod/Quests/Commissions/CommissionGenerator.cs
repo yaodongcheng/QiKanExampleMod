@@ -41,11 +41,13 @@ namespace LivingWorldNpcs
             if (_cache.TryGetValue(hero.StringId, out var cached))
             {
                 count = Math.Min(cached.Count, MaxCommissionsPerNpc);
+                DebugLogger.Log($"[CommissionGen] HasCommissionsFor cache hit: hero={hero.Name} count={count}");
                 return count > 0;
             }
 
             var availableDefs = GetAvailableDefsForHero(hero);
             count = Math.Min(availableDefs.Count, MaxCommissionsPerNpc);
+            DebugLogger.Log($"[CommissionGen] HasCommissionsFor cache miss: hero={hero.Name} occ={hero.Occupation} defs={availableDefs.Count} count={count}");
             return count > 0;
         }
 
@@ -61,7 +63,10 @@ namespace LivingWorldNpcs
                 return cached.Take(maxCount).ToList();
 
             // 判断此 NPC 是告示板（中转人）还是直接委托人
-            if (IsBrokerType(hero))
+            bool isBroker = IsBrokerType(hero);
+            DebugLogger.Log($"[CommissionGen] GenerateCommissions: hero={hero.Name} isBroker={isBroker} maxCount={maxCount}");
+
+            if (isBroker)
             {
                 // 告示板模式：从此 NPC 周边的真实委托人收集委托
                 var nearbyGivers = FindNearbyQuestGivers(hero);
@@ -166,6 +171,7 @@ namespace LivingWorldNpcs
 
                 results.Add(def);
             }
+            DebugLogger.Log($"[CommissionGen] GetAvailableDefs: hero={hero?.Name} occ={hero?.Occupation} matched={results.Count}");
             return results;
         }
 
@@ -261,6 +267,12 @@ namespace LivingWorldNpcs
             float depositRatio = TrustSystem.GetDepositRatio(trust);
             data.NegotiatedReward = (int)(def.BaseRewardGold * tierMultiplier);
             data.DepositAmount = (int)(data.NegotiatedReward * depositRatio);
+
+            // 90% 概率结账人 = 委托人，10% 概率随机选同城另一个 NPC
+            data.RewardPayer = MBRandom.RandomFloat < 0.9f ? questGiver : PickAlternatePayer(questGiver);
+
+            DebugLogger.Log($"[CommissionGen] Generated commission: def={def.Id} tier={tier} giver={questGiver?.Name} broker={(brokerHero != null ? brokerHero.Name?.ToString() : "none")} reward={data.NegotiatedReward} target={data.TargetHero?.Name?.ToString() ?? data.TargetSettlementId ?? "any"} payer={data.RewardPayer?.Name?.ToString() ?? questGiver?.Name?.ToString()}");
+
             return data;
         }
 
@@ -299,6 +311,18 @@ namespace LivingWorldNpcs
 
         private static bool FillTargetHero(CommissionData data, CommissionDef def)
         {
+            // 计算目标与委托人之间的距离权重
+            Settlement giverSettlement = data.QuestGiver?.CurrentSettlement
+                ?? data.QuestGiver?.HomeSettlement;
+            float GetProximityScore(Hero h)
+            {
+                if (giverSettlement == null) return MBRandom.RandomFloat;
+                Settlement heroSettlement = h.CurrentSettlement ?? h.HomeSettlement;
+                if (heroSettlement == null) return MBRandom.RandomFloat * 100f;
+                float dist = giverSettlement.Position2D.Distance(heroSettlement.Position2D);
+                return dist * (0.5f + MBRandom.RandomFloat * 1.5f);
+            }
+
             switch (def.Category)
             {
                 case CommissionCategory.BountyHunt:
@@ -308,7 +332,8 @@ namespace LivingWorldNpcs
                             && h.PartyBelongedTo == null
                             && (h.Occupation == Occupation.Bandit || h.MapFaction != Hero.MainHero.MapFaction)
                             && !CommissionQuest.IsHeroInvolvedInActiveCommission(h, out _, out _))
-                        .OrderBy(_ => MBRandom.RandomFloat).ToList();
+                        .OrderBy(h => GetProximityScore(h))
+                        .ToList();
                     if (banditHeroes.Count == 0) return false;
                     data.TargetHero = banditHeroes.First();
                     break;
@@ -317,7 +342,8 @@ namespace LivingWorldNpcs
                     var prisoners = Hero.AllAliveHeroes
                         .Where(h => h != Hero.MainHero && h != data.QuestGiver && h.IsPrisoner
                             && !CommissionQuest.IsHeroInvolvedInActiveCommission(h, out _, out _))
-                        .OrderBy(_ => MBRandom.RandomFloat).ToList();
+                        .OrderBy(h => GetProximityScore(h))
+                        .ToList();
                     if (prisoners.Count == 0) return false;
                     data.TargetHero = prisoners.First();
                     break;
@@ -326,11 +352,13 @@ namespace LivingWorldNpcs
                     var candidates = Hero.AllAliveHeroes
                         .Where(h => h != Hero.MainHero && h != data.QuestGiver && h.IsAlive
                             && !CommissionQuest.IsHeroInvolvedInActiveCommission(h, out _, out _))
-                        .OrderBy(_ => MBRandom.RandomFloat).ToList();
+                        .OrderBy(h => GetProximityScore(h))
+                        .ToList();
                     if (candidates.Count == 0) return false;
                     data.TargetHero = candidates.First();
                     break;
             }
+            DebugLogger.Log($"[CommissionGen] FillTargetHero: category={def.Category} target={data.TargetHero?.Name} giver={data.QuestGiver?.Name}");
             return data.TargetHero != null;
         }
 
@@ -347,28 +375,69 @@ namespace LivingWorldNpcs
                 case CommissionCategory.EmergencyDelivery:
                 case CommissionCategory.SupplyEmergency:
                 case CommissionCategory.ProcurementAgent:
+                {
                     var towns = Settlement.All
                         .Where(s => (s.IsTown || s.IsCastle) && s != giverSettlement)
-                        .OrderBy(_ => MBRandom.RandomFloat).ToList();
+                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                                      * (0.5f + MBRandom.RandomFloat * 1.5f))
+                        .ToList();
                     if (towns.Count == 0) return false;
-                    data.TargetSettlementId = towns.First().StringId;
+                    // 60% 概率从最近的 3 个中选
+                    int pickIndex;
+                    float roll = MBRandom.RandomFloat;
+                    if (towns.Count > 3 && roll < 0.6f)
+                        pickIndex = MBRandom.RandomInt(0, Math.Min(3, towns.Count));
+                    else if (roll < 0.85f && towns.Count > 6)
+                        pickIndex = MBRandom.RandomInt(3, Math.Min(6, towns.Count));
+                    else
+                        pickIndex = MBRandom.RandomInt(0, towns.Count);
+                    data.TargetSettlementId = towns[pickIndex].StringId;
+                    DebugLogger.Log($"[CommissionGen] FillTargetSettlement: category={def.Category} target={towns[pickIndex].Name} dist={giverSettlement.Position2D.Distance(towns[pickIndex].Position2D):0.0} pickIndex={pickIndex}/{towns.Count}");
                     break;
+                }
+
+                case CommissionCategory.VillageDefense:
+                {
+                    // 村防应援：严格限制为附近村庄
+                    var villages = Settlement.All
+                        .Where(s => s.IsVillage && s != giverSettlement)
+                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                                      * (0.3f + MBRandom.RandomFloat * 1.2f))
+                        .ToList();
+                    if (villages.Count == 0) return false;
+                    // 优选取最近 2 个村庄
+                    int vIdx = villages.Count > 2 && MBRandom.RandomFloat < 0.7f
+                        ? MBRandom.RandomInt(0, 2) : MBRandom.RandomInt(0, villages.Count);
+                    data.TargetSettlementId = villages[vIdx].StringId;
+                    DebugLogger.Log($"[CommissionGen] FillTargetSettlement(VillageDefense): target={villages[vIdx].Name} dist={giverSettlement.Position2D.Distance(villages[vIdx].Position2D):0.0}");
+                    break;
+                }
 
                 case CommissionCategory.HideoutClear:
+                {
                     var hideouts = Settlement.All
                         .Where(s => s.IsHideout)
-                        .OrderBy(_ => MBRandom.RandomFloat).ToList();
+                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                                      * (0.5f + MBRandom.RandomFloat * 1.5f))
+                        .ToList();
                     if (hideouts.Count == 0) return false;
                     data.TargetSettlementId = hideouts.First().StringId;
+                    DebugLogger.Log($"[CommissionGen] FillTargetSettlement(Hideout): target={hideouts.First().Name} dist={giverSettlement.Position2D.Distance(hideouts.First().Position2D):0.0}");
                     break;
+                }
 
                 default:
+                {
                     var other = Settlement.All
                         .Where(s => s != giverSettlement)
-                        .OrderBy(_ => MBRandom.RandomFloat).FirstOrDefault();
+                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                                      * (0.5f + MBRandom.RandomFloat * 1.5f))
+                        .FirstOrDefault();
                     data.TargetSettlementId = other?.StringId ?? giverSettlement.StringId;
                     break;
+                }
             }
+            DebugLogger.Log($"[CommissionGen] FillTargetSettlement final: category={def.Category} target={data.TargetSettlementId} giverLoc={giverSettlement.Name}");
             return !string.IsNullOrEmpty(data.TargetSettlementId);
         }
 
@@ -431,6 +500,21 @@ namespace LivingWorldNpcs
             int finalReward = (int)(baseReward * MathF.Clamp(negotiateFactor, 0.8f, 1.4f));
             finalReward = Math.Max((int)(baseReward * 0.8f), Math.Min((int)(baseReward * 1.2f), finalReward));
             return finalReward;
+        }
+
+        /// <summary>从委托人所在定居点随机选另一个 NPC 作为结账人。</summary>
+        private static Hero PickAlternatePayer(Hero questGiver)
+        {
+            Settlement giverSettlement = questGiver?.CurrentSettlement
+                ?? questGiver?.HomeSettlement;
+            if (giverSettlement == null) return questGiver;
+
+            var candidates = giverSettlement.Notables
+                .Where(n => n != null && n != questGiver && n.IsAlive)
+                .ToList();
+            if (candidates.Count == 0) return questGiver;
+
+            return candidates[MBRandom.RandomInt(0, candidates.Count)];
         }
     }
 }

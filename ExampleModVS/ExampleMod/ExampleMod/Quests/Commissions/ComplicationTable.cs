@@ -19,6 +19,8 @@ namespace LivingWorldNpcs
 
             if (MBRandom.RandomFloat > baseChance) return;
 
+            DebugLogger.Log($"[CommissionQuest] Complication triggered for {data.GetFlavorDescription()}");
+
             // 按委托类型选择可用变故
             switch (data.Category)
             {

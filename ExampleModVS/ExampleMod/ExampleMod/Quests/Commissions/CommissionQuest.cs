@@ -31,6 +31,8 @@ namespace LivingWorldNpcs
         [SaveableField(46)] private CommissionGrade _finalGrade;
         [SaveableField(47)] private bool _depositRepaid;
         [SaveableField(48)] private string _escortPartyId; // 商队/目标部队的 ID
+        [SaveableField(51)] private bool _bribeAttempted;
+        [SaveableField(52)] private bool _bribeSuccessful;
 
         public override bool IsRemainingTimeHidden => false;
         public override TextObject Title => new TextObject(_data?.GetFlavorDescription() ?? "委托任务");
@@ -38,6 +40,7 @@ namespace LivingWorldNpcs
 
         public CommissionData Data => _data;
         public Hero CommissionGiver => _data?.QuestGiver;
+        public CommissionGrade FinalGrade => _finalGrade;
 
         public static bool IsHeroInvolvedInActiveCommission(Hero hero, out CommissionQuest foundQuest, out bool isGiver)
         {
@@ -92,6 +95,7 @@ namespace LivingWorldNpcs
         {
             string giverLoc = QuestGiver?.CurrentSettlement?.Name?.ToString()
                 ?? QuestGiver?.HomeSettlement?.Name?.ToString() ?? "未知地点";
+            DebugLogger.Log($"[CommissionQuest] BeginNarrativePhase: {_data.GetFlavorDescription()} giver={QuestGiver?.Name} at {giverLoc}");
             AddLog(new TextObject($"📋 委托情报已记录：{_data.GetFlavorDescription()}"));
             AddLog(new TextObject($"前往 {giverLoc} 找 {QuestGiver?.Name}，当面了解详情。"));
             // 不注册事件，不定金，不启动——只是占个位
@@ -102,6 +106,8 @@ namespace LivingWorldNpcs
         {
             if (_data == null || !_data.IsNarrativePhase) return;
             _data.IsNarrativePhase = false;
+
+            DebugLogger.Log($"[CommissionQuest] ConfirmQuest: {_data.GetFlavorDescription()} giver={QuestGiver?.Name} deposit={_data.DepositAmount}");
 
             // 定金到账
             if (_data.DepositAmount > 0)
@@ -241,6 +247,7 @@ namespace LivingWorldNpcs
                     break;
                 case CommissionCategory.VillageDefense:
                     CampaignEvents.MapEventEnded.AddNonSerializedListener(this, OnMapEventEnded);
+                    CampaignEvents.MapEventStarted.AddNonSerializedListener(this, OnMapEventStartedForBribe);
                     CampaignEvents.VillageLooted.AddNonSerializedListener(this, OnVillageLooted);
                     break;
                 case CommissionCategory.PrisonBreak:
@@ -252,15 +259,18 @@ namespace LivingWorldNpcs
         protected override void OnStartQuest()
         {
             SetDialogs();
+            DebugLogger.Log($"[CommissionQuest] OnStartQuest: {_data?.GetFlavorDescription()} narrativePhase={_data?.IsNarrativePhase} questId={StringId}");
 
             // 叙事阶段：不启动任何游戏逻辑，只等玩家找到委托人
             if (_data.IsNarrativePhase)
             {
                 RegisterEvents(); // 只注册 DailyTick（健壮性检查）
+                DebugLogger.Log($"[CommissionQuest] Narrative phase — waiting for player to find {QuestGiver?.Name}");
                 return;
             }
 
             _playerCasualtiesAtStart = CountPlayerWounded();
+            DebugLogger.Log($"[CommissionQuest] Full startup: giver={QuestGiver?.Name} reward={_data.NegotiatedReward} deposit={_data.DepositAmount} days={_data.TimeRemainingHours/24f:0} tier={_data.Tier}");
 
             TextObject logText = new TextObject(
                 "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n难度：{TIER}\n{EXTRA}");
@@ -315,9 +325,19 @@ namespace LivingWorldNpcs
         {
             if (QuestGiver == null) return;
 
+            // 如果走的是新流程（CompleteWithRewardCollection 已结算），跳过旧逻辑
+            if (_data != null && _data.IsObjectivesComplete)
+            {
+                DebugLogger.Log($"[CommissionQuest] OnCompleteWithSuccess: already settled via reward collection flow");
+                return;
+            }
+
+            // 旧存档兼容：直接完成（无延迟领报酬流程）
             ComputeFinalGrade();
             int reward = CalculateFinalReward();
             int trustDelta = GetGradeTrustDelta();
+
+            DebugLogger.Log($"[CommissionQuest] OnCompleteWithSuccess (legacy): {_data?.GetFlavorDescription()} grade={_finalGrade} reward={reward}");
 
             AgentControlHelper.TransferGold(QuestGiver, Hero.MainHero, reward);
             ChangeRelationAction.ApplyPlayerRelation(QuestGiver, 5);
@@ -357,6 +377,8 @@ namespace LivingWorldNpcs
 
         protected override void OnTimedOut()
         {
+            DebugLogger.Log($"[CommissionQuest] OnTimedOut: {_data?.GetFlavorDescription()} category={_data?.Category} deposit={_data?.DepositAmount} repaid={_depositRepaid}");
+
             // DecoyMission: 自然超时 = 坚持到了委托人撤离，属成功
             if (_data.Category == CommissionCategory.DecoyMission && _data.TimeRemainingHours <= 0)
             {
@@ -383,6 +405,7 @@ namespace LivingWorldNpcs
 
         public override void OnFailed()
         {
+            DebugLogger.Log($"[CommissionQuest] OnFailed: {_data?.GetFlavorDescription()} giver={QuestGiver?.Name}");
             if (QuestGiver == null) return;
             CleanupSpawnedParty();
             ChangeRelationAction.ApplyPlayerRelation(QuestGiver, -20);
@@ -400,6 +423,8 @@ namespace LivingWorldNpcs
 
             // 时间递减
             _data.TimeRemainingHours = Math.Max(0, _data.TimeRemainingHours - 24f);
+
+            DebugLogger.Log($"[CommissionQuest] DailyTick: {_data.GetFlavorDescription()} timeRemain={_data.TimeRemainingHours:0}h reward={_data.NegotiatedReward}");
 
             // 超时报酬递减
             if (_data.TimeRemainingHours <= 0 && _data.NegotiatedReward > 0)
@@ -434,6 +459,14 @@ namespace LivingWorldNpcs
             // 委托人死亡 → 委托失败
             if (QuestGiver != null && !QuestGiver.IsAlive)
             {
+                // 如果目标已完成但未领报酬，先自动支付再失败
+                if (_data != null && _data.IsObjectivesComplete)
+                {
+                    AddLog(new TextObject($"委托人 {QuestGiver.Name} 已去世，报酬自动结算。"));
+                    _data.RewardPayer = null; // 强制用 QuestGiver 遗产支付
+                    CompleteWithRewardCollection();
+                    return;
+                }
                 AddLog(new TextObject($"委托人 {QuestGiver.Name} 已去世，委托自动取消。"));
                 FailQuest();
                 return;
@@ -736,6 +769,7 @@ namespace LivingWorldNpcs
                 : $"已击败目标 {_data.TargetHero.Name}（击杀）。活捉可获得更高报酬。";
 
             AddLog(new TextObject(resultDesc));
+            DebugLogger.Log($"[CommissionQuest] BountyHuntVictory: target={_data.TargetHero?.Name} captured={_isTargetCaptured}");
         }
 
         private void HandleSupplyInterceptVictory(MapEvent mapEvent)
@@ -772,6 +806,7 @@ namespace LivingWorldNpcs
                 p.MapFaction != null && p.MapFaction.IsBanditFaction && p.Side != mapEvent.PlayerSide);
             if (raidersDefeated)
             {
+                DebugLogger.Log($"[CommissionQuest] VillageDefenseVictory: target={_data?.TargetSettlementId}");
                 UpdateProgress(_totalProgress);
                 AddLog(new TextObject("村庄防守成功！击退了来犯之敌。"));
             }
@@ -807,6 +842,80 @@ namespace LivingWorldNpcs
                 CleanupSpawnedParty();
                 FailQuest();
             }
+        }
+
+        #endregion
+
+        #region VillageDefense Bribe (大地图遭遇 → 贿赂匪徒)
+
+        private void OnMapEventStartedForBribe(MapEvent mapEvent, PartyBase attackerParty, PartyBase defenderParty)
+        {
+            if (_data == null || _data.Category != CommissionCategory.VillageDefense) return;
+            if (_bribeAttempted || _bribeSuccessful) return;
+
+            string raiderPartyId = _escortPartyId;
+            if (string.IsNullOrEmpty(raiderPartyId)) return;
+
+            bool raidersInvolved = false;
+            int raiderTroopCount = 0;
+            if (attackerParty?.MobileParty?.StringId == raiderPartyId)
+            { raidersInvolved = true; raiderTroopCount = attackerParty.MemberRoster?.TotalManCount ?? 0; }
+            if (defenderParty?.MobileParty?.StringId == raiderPartyId)
+            { raidersInvolved = true; raiderTroopCount = defenderParty.MemberRoster?.TotalManCount ?? 0; }
+            if (!raidersInvolved) return;
+
+            _bribeAttempted = true;
+            string villageName = !string.IsNullOrEmpty(_data.TargetSettlementId)
+                ? Settlement.Find(_data.TargetSettlementId)?.Name?.ToString() ?? "村庄" : "村庄";
+
+            int tierFactor = _data.Tier switch
+            { CommissionTier.Basic => 10, CommissionTier.Skilled => 15,
+              CommissionTier.Expert => 25, CommissionTier.Legendary => 40, _ => 10 };
+            int bribeCost = tierFactor * Math.Max(1, raiderTroopCount);
+            float charmSkill = Hero.MainHero.GetSkillValue(DefaultSkills.Charm);
+            float charmDiscount = 0.3f + (charmSkill / 300f) * 0.3f;
+            int charmedCost = Math.Max(50, (int)(bribeCost * (1f - charmDiscount)));
+
+            string body = $"前方出现劫掠 {villageName} 的匪徒！\n\n" +
+                          $"⚔ 战斗 —— 正面迎击匪徒\n" +
+                          $"💰 贿赂匪徒离开 —— 花费 {charmedCost} 第纳尔（原价 {bribeCost}，Charm {charmSkill:0} 减免 {(int)(charmDiscount * 100)}%）\n\n你的选择？";
+
+            DebugLogger.Log($"[CommissionQuest] VillageDefense bribe inquiry: raiders={raiderTroopCount} cost={charmedCost}/{bribeCost}");
+
+            InformationManager.ShowInquiry(new InquiryData(
+                "遭遇匪徒", body, true, true, "⚔ 战斗", $"💰 贿赂 ({charmedCost}G)",
+                () => { AddLog(new TextObject("你选择了战斗迎击匪徒。")); },
+                () => TryBribeRaiders(charmedCost, bribeCost, charmSkill, mapEvent)));
+        }
+
+        private void TryBribeRaiders(int actualCost, int baseCost, float charmSkill, MapEvent mapEvent)
+        {
+            float charmSuccessChance = 0.3f + (charmSkill / 300f) * 0.4f;
+            bool charmSuccess = MBRandom.RandomFloat < charmSuccessChance;
+            int finalCost = charmSuccess ? actualCost : baseCost;
+
+            if (Hero.MainHero.Gold < finalCost)
+            {
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"你只有 {Hero.MainHero.Gold} 第纳尔，不够（需要 {finalCost}）。", Colors.Red));
+                _bribeAttempted = false;
+                return;
+            }
+
+            AgentControlHelper.TransferGold(Hero.MainHero, null, finalCost);
+            _bribeSuccessful = true;
+            CleanupSpawnedParty();
+
+            if (charmSuccess)
+                AddLog(new TextObject($"Charm 检定成功！你将贿赂从 {baseCost} 砍到 {finalCost} 第纳尔。匪首掂了掂钱袋，招呼手下转身离去。"));
+            else
+                AddLog(new TextObject($"你花了 {finalCost} 第纳尔。匪首掂了掂钱袋，骂骂咧咧地招呼手下转身离去。"));
+
+            if (mapEvent != null)
+            { try { mapEvent.FinalizeEvent(); } catch { } }
+
+            UpdateProgress(_totalProgress);
+            DebugLogger.Log($"[CommissionQuest] VillageDefense bribe success: cost={finalCost} charmSuccess={charmSuccess}");
         }
 
         #endregion
@@ -1523,7 +1632,71 @@ namespace LivingWorldNpcs
                     _currentProgress, _totalProgress);
             }
             if (_currentProgress >= _totalProgress)
-                CompleteQuestWithSuccess();
+            {
+                // 不立即完成 —— 标记为等待领取报酬
+                _data.IsObjectivesComplete = true;
+                CleanupSpawnedParty();
+
+                // 结账人
+                Hero payer = _data.RewardPayer ?? QuestGiver;
+                string payerName = payer?.Name?.ToString() ?? "委托人";
+                string payerLoc = payer?.CurrentSettlement?.Name?.ToString()
+                    ?? payer?.HomeSettlement?.Name?.ToString() ?? "未知地点";
+
+                AddLog(new TextObject($"委托目标已完成！前往 {payerLoc} 找 {payerName} 领取报酬。"));
+                DebugLogger.Log($"[CommissionQuest] Objectives complete: {_data.GetFlavorDescription()} payer={payerName} at {payerLoc}");
+            }
+        }
+
+        /// <summary>
+        /// 玩家找到结账人后调用 —— 真正完成委托，转账报酬。
+        /// 包含原 OnCompleteWithSuccess 的全部结算逻辑。
+        /// </summary>
+        public void CompleteWithRewardCollection()
+        {
+            if (_data == null || !_data.IsObjectivesComplete) return;
+            if (QuestGiver == null) return;
+
+            ComputeFinalGrade();
+            int reward = CalculateFinalReward();
+            int trustDelta = GetGradeTrustDelta();
+
+            Hero payer = _data.RewardPayer ?? QuestGiver;
+            DebugLogger.Log($"[CommissionQuest] CompleteWithRewardCollection: {_data.GetFlavorDescription()} grade={_finalGrade} reward={reward} trustDelta={trustDelta} payer={payer?.Name}");
+
+            // 从结账人转账报酬（结账人可能就是委托人）
+            AgentControlHelper.TransferGold(payer, Hero.MainHero, reward);
+            ChangeRelationAction.ApplyPlayerRelation(QuestGiver, 5);
+            GainRenownAction.Apply(Hero.MainHero, 2);
+            int oldTrust = TrustSystem.GetTrust(QuestGiver);
+            TrustSystem.AddTrust(QuestGiver, trustDelta);
+
+            // 难度递进
+            var oldTier = CommissionTierProgression.GetAvailableTier(_data.Category);
+            CommissionTierProgression.RecordCompletion(_data.Category, _data.Tier, _finalGrade);
+            var newTier = CommissionTierProgression.GetAvailableTier(_data.Category);
+
+            // 叙事反馈
+            string milestoneMsg = CommissionNarrative.CheckTrustMilestone(QuestGiver, oldTrust,
+                TrustSystem.GetTrust(QuestGiver));
+            if (!string.IsNullOrEmpty(milestoneMsg))
+                AddLog(new TextObject(milestoneMsg));
+
+            string tierMsg = CommissionNarrative.CheckTierUnlock(_data.Category, oldTier, newTier);
+            if (!string.IsNullOrEmpty(tierMsg))
+                AddLog(new TextObject(tierMsg));
+
+            if (_data.Tier >= CommissionTier.Expert && InfamySystem.Infamy > 0)
+            {
+                InfamySystem.ReduceInfamy(1);
+                AddLog(new TextObject("完成高难度委托，恶名 -1。"));
+            }
+
+            string gradeStr = GetGradeDisplayName();
+            AddLog(new TextObject($"委托完成！评级：{gradeStr}，报酬 {reward} 第纳尔已领取。"));
+            AddLog(new TextObject($"与 {QuestGiver.Name} 的信任度 {(trustDelta >= 0 ? "+" : "")}{trustDelta}（当前：{TrustSystem.GetTrustDescription(TrustSystem.GetTrust(QuestGiver))}）"));
+
+            CompleteQuestWithSuccess();
         }
 
         private string GetExtraInfo()
