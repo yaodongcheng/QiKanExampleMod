@@ -42,7 +42,8 @@ namespace LivingWorldNpcs.Story
             Register(new RequestFundsIntent());       // 请求军资
             Register(new RequestWorkIntent());        // 仕官
             // ── 委托/找工作 ──
-            Register(new RequestCommissionIntent()); // NPC委托任务
+            Register(new RequestCommissionIntent());   // 看告示板/直接接委托
+            Register(new ConfirmCommissionIntent());   // 从告示板找到真正的委托人后，当面确认
             // ── 公务/通用 ──
             Register(new InfoIntent());               // 查看情报
             Register(new RecruitSoldierIntent());     // 普通平民应募入伍（花钱+魅力砍价）
@@ -92,7 +93,7 @@ namespace LivingWorldNpcs.Story
         public static RollResult Compute(IntentContext ctx, NegotiationGoalType goal, NegotiationTactic tactic, float offerValue)
         {
             var r = new RollResult();
-            Hero npc = ctx.Target;
+            Hero npc = ctx.Hero;
             string desc = NegotiationRegistry.GetGoalInfo(goal).Name;
 
             // 复用难度计算器（只读 阈值/开局优势/性格 三项，不跑回合循环）

@@ -42,7 +42,7 @@ namespace LivingWorldNpcs.Story
             {
                 string emotion;
                 var factors = DialogueFactors.FromContext(ctx);
-                string line = DialogueTemplateHelper.Get("RecruitSoldier_AlreadyRecruited", factors, out emotion, ctx.Target, ctx.Agent);
+                string line = DialogueTemplateHelper.Get("RecruitSoldier_AlreadyRecruited", factors, out emotion, ctx.Hero, ctx.Agent);
                 BubbleSayMissionView.AgentBubbleSay(ctx.Agent, line);
                 ctx.Controller.ShowNpcLineKeepMenu(ctx.Agent, line, emotion);
                 return;
@@ -54,7 +54,7 @@ namespace LivingWorldNpcs.Story
                 string line;
                 string emotion;
                 var factors = DialogueFactors.FromContext(ctx);
-                line = DialogueTemplateHelper.Get("RecruitSoldier_TooYoung", factors, out emotion, ctx.Target, ctx.Agent);
+                line = DialogueTemplateHelper.Get("RecruitSoldier_TooYoung", factors, out emotion, ctx.Hero, ctx.Agent);
                 ctx.Controller.ShowNpcLineKeepMenu(ctx.Agent, line, emotion);
                 return;
             }
@@ -124,9 +124,9 @@ namespace LivingWorldNpcs.Story
                     string emotion;
                     string farewell;
                     if (ctx.Agent.Character != null && ctx.Agent.Character.IsFemale)
-                        farewell = DialogueTemplateHelper.Get("RecruitSoldier_Female", factors, out emotion, ctx.Target, ctx.Agent);
+                        farewell = DialogueTemplateHelper.Get("RecruitSoldier_Female", factors, out emotion, ctx.Hero, ctx.Agent);
                     else
-                        farewell = DialogueTemplateHelper.Get("RecruitHero", true, out emotion, ctx.Target, ctx.Agent);
+                        farewell = DialogueTemplateHelper.Get("RecruitHero", true, out emotion, ctx.Hero, ctx.Agent);
                     if (!string.IsNullOrEmpty(farewell))
                         BubbleSayMissionView.AgentBubbleSay(ctx.Agent, farewell);
 

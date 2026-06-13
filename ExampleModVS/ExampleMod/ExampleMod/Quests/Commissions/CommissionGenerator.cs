@@ -11,7 +11,7 @@ namespace LivingWorldNpcs
 {
     public static class CommissionGenerator
     {
-        private const int MaxCommissionsPerNpc = 4;
+        private const int MaxCommissionsPerNpc = 1;
         // 简单缓存：避免每次 OnCheckForIssue 都重新生成
         private static Dictionary<string, List<CommissionData>> _cache = new Dictionary<string, List<CommissionData>>();
         private static float _lastCacheClearDay = -1;
@@ -22,7 +22,6 @@ namespace LivingWorldNpcs
             if (hero == null) return false;
             if (hero == Hero.MainHero) return false;
             if (!hero.IsAlive) return false;
-            if (hero.IsPrisoner) return false;
 
             if (CommissionQuest.IsHeroInvolvedInActiveCommission(hero, out _, out bool isGiver) && isGiver)
             {
@@ -61,20 +60,84 @@ namespace LivingWorldNpcs
             if (_cache.TryGetValue(hero.StringId, out var cached))
                 return cached.Take(maxCount).ToList();
 
-            var availableDefs = GetAvailableDefsForHero(hero);
-            if (availableDefs.Count == 0) return results;
-
-            int count = Math.Min(maxCount, availableDefs.Count);
-            var shuffled = availableDefs.OrderBy(_ => MBRandom.RandomFloat).ToList();
-
-            for (int i = 0; i < count; i++)
+            // 判断此 NPC 是告示板（中转人）还是直接委托人
+            if (IsBrokerType(hero))
             {
-                var def = shuffled[i];
-                var data = GenerateCommissionData(def, hero);
-                if (data != null) results.Add(data);
+                // 告示板模式：从此 NPC 周边的真实委托人收集委托
+                var nearbyGivers = FindNearbyQuestGivers(hero);
+                foreach (var giver in nearbyGivers.Take(maxCount))
+                {
+                    var defs = GetAvailableDefsForHero(giver);
+                    if (defs.Count == 0) continue;
+                    var def = defs.OrderBy(_ => MBRandom.RandomFloat).First();
+                    var data = GenerateCommissionData(def, giver, hero); // QuestGiver=giver, BrokerHero=hero
+                    if (data != null) results.Add(data);
+                }
             }
+            else
+            {
+                // 直接模式：此 NPC 就是委托人
+                var availableDefs = GetAvailableDefsForHero(hero);
+                int count = Math.Min(maxCount, availableDefs.Count);
+                var shuffled = availableDefs.OrderBy(_ => MBRandom.RandomFloat).ToList();
+                for (int i = 0; i < count; i++)
+                {
+                    var data = GenerateCommissionData(shuffled[i], hero, null); // QuestGiver=hero, BrokerHero=null
+                    if (data != null) results.Add(data);
+                }
+            }
+
             _cache[hero.StringId] = results;
             return results;
+        }
+
+        /// <summary>此 NPC 是否是告示板类型（酒馆老板 / 村长 / 浪人情报贩子）</summary>
+        private static bool IsBrokerType(Hero hero)
+        {
+            if (hero == null) return false;
+            return hero.Occupation == Occupation.Tavernkeeper  // 酒馆老板
+                || hero.Occupation == Occupation.Headman        // 村庄村长
+                || hero.IsWanderer;                              // 浪人情报贩子
+        }
+
+        /// <summary>为告示板 NPC 寻找周边有委托需求的真实委托人</summary>
+        private static List<Hero> FindNearbyQuestGivers(Hero broker)
+        {
+            var results = new List<Hero>();
+            Settlement brokerSettlement = broker.CurrentSettlement ?? broker.HomeSettlement;
+            if (brokerSettlement == null) return results;
+
+            // 收集同城 + 附近定居点的有 HeroId 的 NPC
+            var nearbySettlements = new HashSet<Settlement> { brokerSettlement };
+            foreach (var s in Settlement.All)
+            {
+                if (s == brokerSettlement) continue;
+                float distance = brokerSettlement.Position2D.Distance(s.Position2D);
+                if (distance < 50f) // 大约 2 天路程
+                    nearbySettlements.Add(s);
+            }
+
+            foreach (var settlement in nearbySettlements)
+            {
+                foreach (var hero in settlement.Notables)
+                {
+                    if (hero == null || hero == broker || hero == Hero.MainHero || !hero.IsAlive) continue;
+                    if (CommissionQuest.IsHeroInvolvedInActiveCommission(hero, out _, out bool isGiver) && isGiver) continue;
+                    if (GetAvailableDefsForHero(hero).Count > 0)
+                        results.Add(hero);
+                }
+                // 也检查该定居点所属领主
+                if (settlement.OwnerClan?.Leader != null)
+                {
+                    var lord = settlement.OwnerClan.Leader;
+                    if (lord != broker && lord.IsAlive && lord != Hero.MainHero
+                        && GetAvailableDefsForHero(lord).Count > 0
+                        && !CommissionQuest.IsHeroInvolvedInActiveCommission(lord, out _, out _))
+                        results.Add(lord);
+                }
+            }
+
+            return results.Distinct().OrderBy(_ => MBRandom.RandomFloat).ToList();
         }
 
         private static List<CommissionDef> GetAvailableDefsForHero(Hero hero)
@@ -149,7 +212,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        private static CommissionData GenerateCommissionData(CommissionDef def, Hero questGiver)
+        private static CommissionData GenerateCommissionData(CommissionDef def, Hero questGiver, Hero brokerHero)
         {
             CommissionTier tier = CommissionTierProgression.GetAvailableTier(def.Category);
             if (tier > CommissionTier.Basic && MBRandom.RandomFloat < 0.5f)
@@ -159,7 +222,9 @@ namespace LivingWorldNpcs
             {
                 DefId = def.Id,
                 Category = def.Category,
-                QuestGiver = questGiver,
+                QuestGiver = questGiver,       // 真正的委托人
+                BrokerHero = brokerHero,        // 告示板中转人（null = 直接委托）
+                IsNarrativePhase = brokerHero != null, // 通过告示板接的 → 需要先去见委托人
                 TimeRemainingHours = def.TimeLimitDays * 24f,
                 ChosenPath = PickBestPath(def.AvailablePaths),
                 Tier = tier,

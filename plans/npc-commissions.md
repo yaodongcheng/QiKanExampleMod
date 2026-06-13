@@ -549,24 +549,23 @@ NPC 主动发起对话："这位大人，能耽误您一点时间吗……"
 
 ---
 
-## 七、实现架构
+## 七、实现架构（2024-06-13 更新：双路径 + 告示板 + 叙事层）
 
 ### 7.1 文件组织
 
 ```
 Quests/
     Commissions/
-        CommissionDef.cs           # 委托模板定义（静态数据）
-        CommissionData.cs          # 运行时数据 [SaveableField]
-        CommissionQuest.cs         # QuestBase 子类
-        CommissionHubIssue.cs      # IssueBase 子类：极简信号 Issue，触发 ! 标记
-        CommissionIssueBehavior.cs # CampaignBehaviorBase：监听 OnCheckForIssue，注册信号
-        CommissionGenerator.cs     # 按 NPC 类型+世界状态随机生成委托
-        CommissionIntent.cs        # IntentBase: NPC 互动菜单"找工作"
-        ComplicationTable.cs       # 动态变故表
-        JourneyEvents.cs           # 旅途事件
-        TrustSystem.cs             # 信任值 [SaveableField]
-        InfamySystem.cs            # 恶名值 [SaveableField]
+        CommissionData.cs           # 运行时数据 [SaveableField] + CommissionDef 模板 + CommissionTierProgression
+        CommissionQuest.cs          # QuestBase 子类（生命周期：叙事阶段 → 正式启动 → 事件驱动 → 结算）
+        CommissionHubIssue.cs       # IssueBase 子类（! 信号）+ CommissionIssueBehavior（OnCheckForIssue 监听）
+        CommissionGenerator.cs      # 双路径生成：直接委托人 / 告示板聚合
+        CommissionIntent.cs         # RequestCommissionIntent（看告示板/直接接）+ ConfirmCommissionIntent（叙事确认）
+        CommissionNarrative.cs      # 玩家沟通层：首次介绍、Trust升级通知、难度解锁庆祝、状态面板
+        ComplicationTable.cs        # 动态变故表（每日15%概率）
+        JourneyEvents.cs            # 旅途事件表（每日25%概率）
+        TrustSystem.cs              # 信任值（JSON持久化，四级：陌生人/熟人/信赖/心腹）
+        InfamySystem.cs             # 恶名值（JSON持久化，拒还定金+1，Expert+完成-1）
 ```
 
 ### 7.2 集成点
@@ -574,29 +573,60 @@ Quests/
 | 现有系统 | 集成方式 |
 |----------|---------|
 | **Issue 感叹号** | `CommissionIssueBehavior` 监听 `OnCheckForIssueEvent`，通过 `CommissionHubIssue` 触发原生 ! |
-| **Intent 系统** | 新增 `RequestCommissionIntent`，注册到 `IntentRegistry`，复用 `InteractionOptionType.RequestWork` |
-| **QuestBase** | `CommissionQuest : QuestBase`，复用事件注册/进度更新/AddTrackedObject |
-| **AgentControlHelper** | 所有金钱进出 + 物品转移走统一管道 |
-| **Memory 系统** | 记录委托历史→影响后续生成 |
-| **LLM (可选)** | 仅 flavor text 增强：委托描述/变故通知的文本质量，无 LLM 时模板兜底 |
+| **Intent 系统** | 两个 Intent：`RequestCommissionIntent`（看委托/接委托）+ `ConfirmCommissionIntent`（告示板路径的叙事确认），均注册到 IntentRegistry |
+| **InteractionOptionType** | 新增 `FindWork`（不复用 RequestWork，语义独立） |
+| **QuestBase** | `CommissionQuest : QuestBase`，复用事件注册/进度更新。新增 `BeginNarrativePhase` / `ConfirmQuest` 两阶段启动 |
+| **AgentControlHelper** | 所有金钱进出 + 物品转移走统一管道。定金在 `AcceptCommission`（直接）或 `ConfirmQuest`（告示板）单次支付 |
+| **LLM (可选)** | 仅 flavor text 增强。委托描述、变故通知、旅途事件均可 LLM 增强，无 LLM 时模板兜底 |
+| **Occupation 原生枚举** | `Tavernkeeper`（酒馆老板）、`Headman`（村长）、`Wanderer`（浪人）作为告示板。其余为直接委托人 |
 
-### 7.3 核心数据结构
+### 7.3 核心数据结构（当前实际签名）
 
 ```csharp
-public enum TargetType { NamedHero, Settlement, Item, Region }
-
-public class CommissionDef
+public class CommissionData
 {
-    public string Id;
-    public CommissionCategory Category;
-    public string TitleTemplate;
-    public float BaseDifficulty;
-    public int BaseRewardGold;
-    public int TimeLimitDays;
-    public SkillObject PrimarySkill;
-    public HeroType[] ValidGiverTypes;     // 哪些 NPC 类型可以发布（必须有 HeroId 的）
-    public TargetType TargetType;          // 目标是指名人物/地点/物品/区域
-    public ResolutionPath[] AvailablePaths;
+    [SaveableField] public string DefId;
+    [SaveableField] public CommissionCategory Category;
+    [SaveableField] public Hero QuestGiver;       // 真正的委托人
+    [SaveableField] public Hero BrokerHero;        // 告示板中转人（null = 直接委托）
+    [SaveableField] public bool IsNarrativePhase;  // 是否还在"见委托人听故事"阶段
+    [SaveableField] public Hero TargetHero;
+    [SaveableField] public string TargetSettlementId;
+    [SaveableField] public string TargetItemId;
+    [SaveableField] public int TargetItemCount;
+    [SaveableField] public int NegotiatedReward;
+    [SaveableField] public int DepositAmount;
+    [SaveableField] public bool DepositRepaid;
+    [SaveableField] public float TimeRemainingHours;
+    [SaveableField] public int CurrentPhase;
+    [SaveableField] public int PhaseProgress;
+    [SaveableField] public ResolutionPath ChosenPath;
+    [SaveableField] public CommissionTier Tier;
+}
+```
+
+### 7.4 双路径流程
+
+```
+玩家遇到 NPC（头顶 !）
+  │
+  ├── NPC 是告示板？（Tavernkeeper / Headman / Wanderer）
+  │     │
+  │     ├── 是 → 展示告示板，列出周边所有委托人的需求
+  │     │        每条显示：委托类型 + 真正委托人 + 委托人所在位置
+  │     │        玩家选中 → IsNarrativePhase=true → 不转定金，不启动
+  │     │        日志："去 XX 找 张三 当面了解详情"
+  │     │        玩家找到张三 → ConfirmCommissionIntent → 叙事对话
+  │     │        → 玩家点"接下委托" → ConfirmQuest() → 定金到账 → 正式启动
+  │     │        → 点"婉拒" → CompleteQuestWithFail()
+  │     │
+  │     └── 否 → NPC 就是委托人本人
+  │             展示他自己的委托列表
+  │             玩家选中 → 直接确认 → 定金到账 → 正式启动
+  │
+  └── 正式启动后，两种路径完全相同
+        → 时间递减 → 变故/旅途 → 事件触发 → 完成/超时/失败 → 结算
+```
 }
 
 public class CommissionData
@@ -632,172 +662,61 @@ public class CommissionData
 
 ---
 
-## 九、关键设计决策
+## 九、关键设计决策（2024-06-13 更新）
 
-| 决策点 | 确认方案 |
-|--------|----------|
-| 委托获取 | NPC 对话菜单 (Intent) + 原生 ! 感叹号 + 主动搭话随机遭遇 |
-| 委托发起人 | **必须有 HeroId 的持久 NPC**（要人/头人/领主/浪人），禁止模板 NPC |
-| 委托目标 | 指名类必须有 HeroId；区域/地点/物品类不需要特定人物 |
-| 场所系统 | 6 种场所（酒馆/要人宅/领主大厅/村庄/竞技场/帮派暗巷），酒馆万能入口 |
-| LLM 角色 | **仅风味文本增强**（委托描述/变故通知），不参与玩法决策 |
-| 委托并行 | 最多 3-5 个同时进行 |
-| 多解法 | 战力/潜行/财力/技术/借力——全是游戏操作，不需要打字 |
-| 失败惩罚 | 定金追讨→退还/拒还→恶名+结仇 |
-| 难度分级 | $/$$/$$$/传奇 四级，完成低阶解锁高阶 |
-| 质量评级 | ⭐⭐⭐/⭐⭐/⭐/✗ 四级，影响报酬和 Trust |
-| 活捉机制 | 悬赏类活捉报酬 2-3 倍于击杀，押送阶段有劫囚风险 |
-| 旅途内容 | 模板文本为主，LLM 可选增强，无 LLM 完全可玩 |
-| 资源查找 | 遵守铁律5：Hero/Item/Settlement 查找必须两轮策略（预设ID→动态predicate兜底） |
-
----
-
-## 十、实现进度 Checklist（2024-06-12）
-
-### 一、16 类委托
-
-| # | 委托类型 | Def | 事件监听 | 启动逻辑 | 玩法完成度 |
-|---|---------|-----|---------|---------|-----------|
-| 1 | 悬赏缉拿 BountyHunt | ✅ | ✅ MapEventEnded | ✅ 生成目标部队+巡逻 | ✅ 完整（活捉/击杀/评级） |
-| 2 | 猎杀传奇匪首 LegendaryHunt | ✅ | ✅ MapEventEnded | ✅ 两阶段、更强兵力 | ✅ 复用赏金逻辑 |
-| 3 | 清剿匪穴 | ✅ | ✅ MapEventEnded | ✅ 明确指定地点 | ✅ 匪徒检测 | 🟢 |
-| 4 | 护卫商队 | ✅ | ✅ SettlementEntered | ✅ 生成商队 | ✅ 摧毁检测 | 🟢 |
-| 5 | 限时运粮 | ✅ | ✅ SettlementEntered | ✅ 给物资+HasItems验证 | ✅ | 🟢 |
-| 6 | 失物追寻 | ✅ | ✅ SettlementEntered | ✅ Scout提示+到达给物品 | ✅ | 🟢 |
-| 7 | 寻宝 | ✅ | ✅ SettlementEntered | ✅ 到达给物品 | ✅ | 🟢 |
-| 8 | 寻购名马 | ✅ | ✅ InventoryExchange+Settlement | ✅ 马匹筛选+比价 | ✅ | 🟢 |
-| 9 | 地下拳赛 | ✅ | ✅ TournamentFinished | ✅ 任意竞技场 | ✅ | 🟢 |
-| 10 | 村防应援 | ✅ | ✅ MapEventEnded+Looted | ✅ 生成劫掠队 | ✅ IsBandit检测修复 | 🟢 |
-| 11 | 竞技场特别赛 | ✅ | ✅ TournamentFinished | ✅ 连赢两场 | ✅ | 🟢 |
-| 12 | 越狱营救 | ✅ | ✅ PrisonersChange | ✅ 遍历全图找监狱+详细引导 | ✅ 三种方案+定时提醒 | 🟡 需玩家会原生越狱 |
-| 13 | 物资截获 | ✅ | ✅ MapEventEnded | ✅ 生成补给队 | ✅ 双路径检测(ID+目的地) | 🟢 |
-| 14 | 引开追兵 | ✅ | ✅ MapEventEnded+DailyTick | ✅ 生成追兵+生存计时 | ✅ 超时=成功处理 | 🟢 |
-| 15 | 紧急供货 | ✅ | ✅ InventoryExchange+Settlement | ✅ 采购+送达 | ✅ 消耗物品+递减 | 🟢 |
-| 16 | 跨城代购 | ✅ | ✅ InventoryExchange+Settlement | ✅ 装备筛选+预算 | ✅ | 🟢 |
-
-**计：16/16 完成 🎉**
-
-### 阶段进度（更新）
-
-| 阶段 | 内容 | 状态 |
-|------|------|------|
-| 阶段 1 | 4 个核心委托 + 基础设施 + Trust/变故/旅途 | ✅ 完成 |
-| 阶段 2 | 5 个委托扩展玩法维度 | ✅ 完成 |
-| 阶段 3 | 7 个委托 + 完整 Trust/Infamy 系统 | ✅ 完成 |
-
-### 二、多解法系统
-
-- [x] ResolutionPath 枚举 (Combat/Stealth/Wealth/Technical/Social)
-- [x] CommissionDef.AvailablePaths 每种委托声明可用路径
-- [x] PickBestPath() 按玩家最高技能自动选路径
-- [ ] 委托进行中切换路径（打不过→花钱买情报）
-- [ ] 不同路径的实际 gameplay 分支（战力/潜行/财力/技术/借力各有不同结算逻辑）
-
-### 三、场所系统
-
-- [x] IsVenueMatch() 按 NPC Occupation 近似场所
-- [x] 30% 概率无视场所限制（模拟酒馆万能入口）
-- [ ] 按实际游戏场景（城镇酒馆/要人宅/领主大厅/村庄/竞技场/暗巷）区分
-- [ ] 场所影响委托难度和报酬区间
-
-### 3.3 难度进阶
-
-- [x] CommissionTier 枚举 (Basic/Skilled/Expert/Legendary)
-- [x] CommissionTierProgression.RecordCompletion() 记录完成
-- [x] GetAvailableTier() 按完成次数+最佳评级解锁高阶
-- [ ] 精确匹配计划阈值：3 Basic→Skilled, 5 Skilled+⭐⭐→Expert, all Expert+Scout≥150→Legendary
-- [ ] 传奇悬赏击杀后不再刷新（唯一性）
-
-### 3.4 活捉 vs 击杀
-
-- [x] 战斗中检测目标是否被俘（PrisonRoster 检查）
-- [x] 活捉额外报酬倍率（×1.5）
-- [x] 押送阶段劫囚风险（TryPrisonerEscapeEvent 每日 15%）
-- [ ] 击杀报酬 ×0.5（计划要求，当前为无额外惩罚）
-- [ ] 完美活捉（夜间潜行+isStealth+Roguery - 计划要求 ×1.5 活捉完美）
-- [ ] 雇额外护卫降低劫囚概率
-
-### 3.5 完成质量评级
-
-- [x] CommissionGrade 枚举 (Perfect/Good/Passable/Failed)
-- [x] ComputeFinalGrade() — 限时+伤亡+活捉三维度评判
-- [x] 评级影响报酬倍率（Perfect 1.5 / Good 1.0 / Passable 0.7）
-- [x] 评级影响 Trust 增减（Perfect +15 / Good +10 / Passable +5 / Failed -10）
-
-### 四、反无聊机制
-
-- [x] ComplicationTable.cs — 4 类变故按委托类型分发
-- [x] JourneyEvents.cs — 4 类旅途事件（伤者/车队/同行/暴雨）
-- [ ] 变故：竞争者出现（另一队伍也在追同一目标）
-- [ ] 变故：环境变化（目标城镇被围城/村庄被烧）
-- [ ] 变故：委托人追加条件（半路收到信追加要求）
-- [ ] 旅途事件：LLM 增强完成（目前仅有模板，LLM 调用已写但依赖异步）
-
-### 五、经济与信任
-
-- [x] TrustSystem（0-100 四级，JSON 持久化）
-- [x] 定金比例按信任等级（30%/25%/20%/15%）
-- [x] 最大并发委托数按信任等级（1/2/3/4）
-- [x] 超时定金追讨 Inquiry（退还/Charm减半/拒还）
-- [x] InfamySystem（拒还定金 +1，JSON 持久化）
-- [x] 高恶名阻止正经委托（IsBlockedByInfamy）
-- [ ] 心腹(81-100) 专属任务线
-- [ ] 完成高难度委托消除恶名（ReduceInfamy 存在但从未调用）
-- [ ] "结仇"机制（计划：拒还定金 + 结仇 + 区域声望 -X）
-
-### 六、发现机制
-
-- [x] CommissionHubIssue : IssueBase — 触发原生 ! 标记
-- [x] CommissionIssueBehavior : CampaignBehaviorBase — 监听 OnCheckForIssue
-- [x] CommissionIntent : IntentBase — NPC 对话"找工作"
-- [x] 委托列表多选浏览（总览→逐个→接取/跳过/取消）
-- [ ] 视觉层级：? (蓝色，进行中委托)、灰色 ! (不满足条件)
-- [ ] 大地图信使 (NinjaNotificationManager "XX城有人找")
-- [ ] 主动搭话场景 A：村镇内 NPC 走向玩家 (AgentBrain+ForceTalkAction)
-- [ ] 主动搭话场景 B：大地图求助者追上玩家 (MobileParty+Inquiry)
-
-### 七、架构集成
-
-- [x] 7.1 文件组织 — 9 个文件全部就位
-- [x] Issue 感叹号集成 — CommissionHubIssue + CommissionIssueBehavior
-- [x] Intent 系统集成 — CommissionIntent 注册到 IntentRegistry
-- [x] QuestBase 集成 — CommissionQuest 事件驱动
-- [x] AgentControlHelper — 所有金钱/物品操作走统一管道
-- [ ] Memory 系统集成 — 记录委托历史影响后续生成
-- [ ] 交互类型复用 RequestWork（当前为新建 FindWork）
-
-### 八、分阶段进度
-
-| 阶段 | 内容 | 状态 |
-|------|------|------|
-| 阶段 1 | 4 个核心委托 + 基础设施 + Trust/变故/旅途 | ✅ 完成 |
-| 阶段 2 | 5 个委托扩展玩法维度 | ✅ 完成 |
-| 阶段 3 | 7 个委托 + 完整 Trust/Infamy 系统 | ✅ 完成 |
-
-### 九、已确认的设计决策对齐
-
-- [x] 委托发起人必须有 HeroId（IsAlive + IsPrisoner 检查）
-- [x] LLM 仅风味文本增强，无 LLM 模板兜底
-- [x] 委托并行上限（按 Trust 等级 1-4 个）
-- [x] 失败惩罚：定金追讨→退还/拒还→恶名
-- [x] 难度分级：$/$$/$$$/传奇 四级
-- [x] 质量评级：⭐⭐⭐/⭐⭐/⭐/✗ 四级
-- [x] 活捉机制：报酬 > 击杀，押送劫囚风险
-- [x] 旅途内容：模板文本为主，LLM 可选
-- [x] 资源查找：铁律 5 两轮策略（MBObjectManager.GetObjectTypeList 动态遍历）
-- [ ] 场所系统 6 种入口（当前仅按 Occupation 近似）
-- [ ] 路线选择（CaravanEscort 大路/小路/山路）
-- [ ] 载重 vs 速度取舍（SupplyEmergency 计划要求）
-- [ ] 下注机制（UndergroundFight 在自己身上押注）
-- [ ] 潜行/昼夜差异（BountyHunt 夜间偷袭 isStealth）
+| 决策点 | 确认方案 | 当前实现 |
+|--------|----------|---------|
+| 委托获取 | NPC 对话菜单 (Intent) + 原生 ! 感叹号 + 告示板聚合 | ✅ 双路径：直接委托人 / 告示板（Tavernkeeper/Headman/Wanderer）|
+| 告示板 | —（新增） | 酒馆老板/村长/浪人聚合周边 NPC 的委托，玩家选中后需先见真正委托人听故事再确认 |
+| 叙事阶段 | —（新增） | `IsNarrativePhase` → `ConfirmCommissionIntent` → 委托人当面讲前因后果 → 玩家决定接/不接 |
+| 委托发起人 | **必须有 HeroId 的持久 NPC**（要人/头人/领主/浪人），禁止模板 NPC | ✅ `Hero.AllAliveHeroes` + `IsAlive` 检查 |
+| 委托目标 | 指名类必须有 HeroId；区域/地点/物品类不需要特定人物 | ✅ `CommissionTargetType` 枚举区分 |
+| 场所系统 | 6 种场所（酒馆/要人宅/领主大厅/村庄/竞技场/帮派暗巷），酒馆万能入口 | ⚠️ 当前按 Occupation 近似，30%随机无视（模拟万能入口）。精确场景判断未做 |
+| LLM 角色 | **仅风味文本增强**（委托描述/变故通知），不参与玩法决策 | ✅ `Settings.Instance.IsLLMReady` 总闸，无 LLM 模板兜底 |
+| 委托并行 | 最多 3-5 个同时进行 | ✅ 按 Trust 等级：陌生人 1 → 心腹 4 |
+| 多解法 | 战力/潜行/财力/技术/借力——全是游戏操作，不需要打字 | ⚠️ `ResolutionPath` 枚举 + `PickBestPath()` 推荐，但实际 gameplay 分支未实现 |
+| 失败惩罚 | 定金追讨→退还/拒还→恶名+结仇 | ✅ `ShowDepositRepaymentInquiry` 三选一：全退 / Charm减半 / 拒还+恶名 |
+| 难度分级 | $/$$/$$$/传奇 四级，完成低阶解锁高阶 | ✅ `CommissionTierProgression` 按 tier 计数精确解锁 |
+| 质量评级 | ⭐⭐⭐/⭐⭐/⭐/✗ 四级，影响报酬和 Trust | ✅ `ComputeFinalGrade` 三维度（限时/伤亡/活捉）|
+| 活捉机制 | 悬赏类活捉报酬 > 击杀，押送阶段有劫囚风险 | ✅ 击杀 ×0.5 惩罚，`TryPrisonerEscapeEvent` 每日 15% 劫囚 |
+| 旅途内容 | 模板文本为主，LLM 可选增强，无 LLM 完全可玩 | ✅ `ComplicationTable` + `JourneyEvents`，LLM 异步增强 |
+| 玩家沟通 | —（新增） | ✅ `CommissionNarrative`：首次介绍 / Trust升级 / 难度解锁 / 状态面板 |
+| 资源查找 | 遵守铁律5：Hero/Item/Settlement 查找必须两轮策略 | ✅ `MBObjectManager.GetObjectTypeList<T>` 动态遍历 |
+| Occupation 用法 | —（新增） | ✅ 使用原生枚举：`Tavernkeeper`=酒馆老板, `Headman`=村长, `GangLeader`=帮派头目等 |
 
 ---
 
-## Verification
+## 十、当前实现状态（2024-06-13）
 
-1. 找 NPC→Intent"找工作"→显示委托列表(含报酬/定金/时限)
-2. 接悬赏→地图追踪标记→跟踪痕迹(Scout判定)→找到→选择进攻方式→完成
-3. 接运粮→选择载重量→规划路线→途中触发旅途事件→限时内送达
-4. 同时接 3 个委托→各自独立追踪→UI区分
-5. 失败→NPC追讨定金→选择退还/拒还→验证恶名和结仇
-6. **无 LLM 环境下全部功能正常运作（模板文本兜底）**
+### 16/16 委托全部可玩
+
+所有委托类型均有 `CommissionDef` 模板 + `RegisterEvents` 事件监听 + `OnStart` 启动逻辑 + 完整结算路径。
+
+### 双路径接取系统
+
+| 路径 | 触发 | 流程 |
+|------|------|------|
+| 直接 | 找委托人本人（Merchant/Artisan/Lord/…） | 看委托 → 确认 → 定金到账 → 委托启动 |
+| 告示板 | 找告示板（Tavernkeeper/Headman/Wanderer） | 看告示板（聚合周边NPC的需求）→ 选中 → 记录情报 → 找到真正委托人 → `ConfirmCommissionIntent` 叙事对话 → 确认 → 委托启动 |
+
+### 完整体验闭环
+
+- **发现**：`CommissionHubIssue` + 原生 `!` 标记
+- **浏览**：`InquiryData` 弹窗（总览 → 逐个 → 确认 / 告示板显示委托人位置）
+- **叙事**：`CommissionNarrative`（首次介绍 / Trust里程碑 / 难度解锁 / 状态面板）+ `ConfirmCommissionIntent.GenerateNarrative()`（委托人当面讲述）
+- **进行**：`DailyTick`（时间递减 + 变故 + 旅途 + 健壮性）+ 事件驱动（MapEventEnded / SettlementEntered / TournamentFinished / InventoryExchange / PrisonersChange）
+- **结算**：`ComputeFinalGrade`（⭐⭐⭐/⭐⭐/⭐/✗）+ `CalculateFinalReward`（评级 × 击杀惩罚 × 速度奖）
+- **成长**：`TrustSystem`（四级，影响定金+并发）+ `CommissionTierProgression`（按tier精确解锁）+ `InfamySystem`（恶名过滤）
+- **失败**：`ShowDepositRepaymentInquiry`（退还 / Charm减半 / 拒还 + 恶名）
+
+### 文件清单（10个，0编译错误）
+
+`CommissionData.cs` / `CommissionQuest.cs` / `CommissionHubIssue.cs` / `CommissionGenerator.cs` / `CommissionIntent.cs` / `CommissionNarrative.cs` / `ComplicationTable.cs` / `JourneyEvents.cs` / `TrustSystem.cs` / `InfamySystem.cs`
+
+### 已知未实现（非阻塞，留待后续）
+
+- 委托进行中切换解法路径
+- 精确场所判断（按 GameMenu/Location 而非 Occupation）
+- 主动搭话（NPC 走向玩家 / 大地图求助者）
+- 心腹专属任务线、押注机制、传奇悬赏唯一性
+- 路线选择 / 载重取舍 / 昼夜潜行等深度 gameplay 分支

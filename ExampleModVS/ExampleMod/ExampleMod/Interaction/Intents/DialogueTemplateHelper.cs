@@ -36,17 +36,17 @@ namespace LivingWorldNpcs.Story
             f.Honor = honor >= 5 ? HonorLevel.High : (honor <= -5 ? HonorLevel.Low : HonorLevel.Neutral);
 
             // 性别
-            if (ctx != null && ctx.IsHero && ctx.Target != null)
-                f.Gender = ctx.Target.IsFemale ? NpcGender.Female : NpcGender.Male;
+            if (ctx != null && ctx.IsHero && ctx.Hero != null)
+                f.Gender = ctx.Hero.IsFemale ? NpcGender.Female : NpcGender.Male;
             else if (ctx != null && ctx.Agent != null && ctx.Agent.Character != null)
                 f.Gender = ctx.Agent.Character.IsFemale ? NpcGender.Female : NpcGender.Male;
             else
                 f.Gender = NpcGender.Male;
 
             // 身份
-            if (ctx != null && ctx.IsHero && ctx.Target != null)
+            if (ctx != null && ctx.IsHero && ctx.Hero != null)
             {
-                if (ctx.Target.IsLord) f.Identity = NpcIdentity.Lord;
+                if (ctx.Hero.IsLord) f.Identity = NpcIdentity.Lord;
                 else f.Identity = NpcIdentity.Civilian;
             }
             else if (ctx != null && ctx.IsMySoldier)

@@ -60,10 +60,10 @@ namespace LivingWorldNpcs.Story
         /// <summary>对抗类失败后果。基类默认：掉好感 + 进冷却。子类可 override 但通常应调 base。</summary>
         public virtual void OnFail(IntentContext ctx)
         {
-            if (ctx.Target != null && FailRelationPenalty > 0)
-                ChangeRelationAction.ApplyPlayerRelation(ctx.Target, -FailRelationPenalty, false, true);
-            if (ctx.Target != null && Goal.HasValue)
-                IntentCooldownStore.Set(ctx.Target, Goal.Value, CooldownDays);
+            if (ctx.Hero != null && FailRelationPenalty > 0)
+                ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -FailRelationPenalty, false, true);
+            if (ctx.Hero != null && Goal.HasValue)
+                IntentCooldownStore.Set(ctx.Hero, Goal.Value, CooldownDays);
         }
     }
 }

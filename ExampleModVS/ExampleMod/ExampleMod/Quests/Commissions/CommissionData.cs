@@ -377,7 +377,9 @@ namespace LivingWorldNpcs
     {
         [SaveableField(20)] public string DefId;
         [SaveableField(21)] public CommissionCategory Category;
-        [SaveableField(22)] public Hero QuestGiver;
+        [SaveableField(22)] public Hero QuestGiver;       // 真正的委托人
+        [SaveableField(35)] public Hero BrokerHero;        // 告示板/中转人（可能与QuestGiver相同）
+        [SaveableField(36)] public bool IsNarrativePhase;  // 是否还在"听故事"阶段，未正式启动
         [SaveableField(23)] public Hero TargetHero;
         [SaveableField(24)] public string TargetSettlementId;
         [SaveableField(25)] public string TargetItemId;
