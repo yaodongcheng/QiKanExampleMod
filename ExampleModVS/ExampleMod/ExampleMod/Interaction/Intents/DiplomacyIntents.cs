@@ -18,15 +18,15 @@ namespace LivingWorldNpcs.Story
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.IsHero || !ctx.IsWanderer) return Eligibility.Hide();
-            if (ctx.Target.Clan == Clan.PlayerClan) return Eligibility.Hide();
+            if (ctx.Hero.Clan == Clan.PlayerClan) return Eligibility.Hide();
             if (ctx.OnCooldown(Goal.Value)) return Eligibility.Grey($"对方暂不愿再谈（还需 {ctx.CooldownDaysLeft(Goal.Value)} 天）");
             return Eligibility.Show();
         }
 
         public override void OnSuccess(IntentContext ctx)
         {
-            AddCompanionAction.Apply(Clan.PlayerClan, ctx.Target);
-            InformationManager.DisplayMessage(new InformationMessage($"{ctx.Target.Name} 加入了你的家族！", Colors.Green));
+            AddCompanionAction.Apply(Clan.PlayerClan, ctx.Hero);
+            InformationManager.DisplayMessage(new InformationMessage($"{ctx.Hero.Name} 加入了你的家族！", Colors.Green));
         }
     }
 
@@ -44,7 +44,7 @@ namespace LivingWorldNpcs.Story
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.IsHero || !ctx.EnemyFaction) return Eligibility.Hide();
-            if (ctx.Target == ctx.Target.MapFaction?.Leader) return Eligibility.Hide(); // 君主不可被简单劝降
+            if (ctx.Hero == ctx.Hero.MapFaction?.Leader) return Eligibility.Hide(); // 君主不可被简单劝降
             if (Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null)
                 return Eligibility.Grey("你尚无王国可供其投奔");
             if (!ctx.IsClanLeader) return Eligibility.Grey("需先说动其族长，方能撼动整族");
@@ -54,8 +54,8 @@ namespace LivingWorldNpcs.Story
 
         public override void OnSuccess(IntentContext ctx)
         {
-            ChangeKingdomAction.ApplyByJoinToKingdomByDefection(ctx.Target.Clan, Clan.PlayerClan.Kingdom);
-            InformationManager.DisplayMessage(new InformationMessage($"{ctx.Target.Name} 率众归附了你的阵营！", Colors.Green));
+            ChangeKingdomAction.ApplyByJoinToKingdomByDefection(ctx.Hero.Clan, Clan.PlayerClan.Kingdom);
+            InformationManager.DisplayMessage(new InformationMessage($"{ctx.Hero.Name} 率众归附了你的阵营！", Colors.Green));
         }
     }
 
@@ -73,7 +73,7 @@ namespace LivingWorldNpcs.Story
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.IsHero || !ctx.SameFaction) return Eligibility.Hide();
-            if (ctx.Target == Hero.MainHero || !ctx.Target.IsLord) return Eligibility.Hide();
+            if (ctx.Hero == Hero.MainHero || !ctx.Hero.IsLord) return Eligibility.Hide();
             if (!ctx.IsClanLeader) return Eligibility.Hide();
             if (ctx.OnCooldown(Goal.Value)) return Eligibility.Grey($"他仍在为上次的密谈心惊（还需 {ctx.CooldownDaysLeft(Goal.Value)} 天）");
             if (ctx.Relation < 10) return Eligibility.Grey("交情不足，他不敢与你密谋");
@@ -82,8 +82,8 @@ namespace LivingWorldNpcs.Story
 
         public override void OnSuccess(IntentContext ctx)
         {
-            ChangeKingdomAction.ApplyByLeaveKingdom(ctx.Target.Clan);
-            InformationManager.DisplayMessage(new InformationMessage($"{ctx.Target.Name} 决意脱离现主，另立旗帜！", Colors.Green));
+            ChangeKingdomAction.ApplyByLeaveKingdom(ctx.Hero.Clan);
+            InformationManager.DisplayMessage(new InformationMessage($"{ctx.Hero.Name} 决意脱离现主，另立旗帜！", Colors.Green));
         }
     }
 
@@ -101,7 +101,7 @@ namespace LivingWorldNpcs.Story
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.IsHero) return Eligibility.Hide();
-            bool isMyLiege = ctx.IsLiege || (Clan.PlayerClan != null && ctx.Target == Clan.PlayerClan.Leader && ctx.Target != Hero.MainHero);
+            bool isMyLiege = ctx.IsLiege || (Clan.PlayerClan != null && ctx.Hero == Clan.PlayerClan.Leader && ctx.Hero != Hero.MainHero);
             if (!isMyLiege) return Eligibility.Hide();
             if (ctx.OnCooldown(Goal.Value)) return Eligibility.Grey($"国库刚拨过，暂难再请（还需 {ctx.CooldownDaysLeft(Goal.Value)} 天）");
             return Eligibility.Show();
@@ -109,9 +109,9 @@ namespace LivingWorldNpcs.Story
 
         public override void OnSuccess(IntentContext ctx)
         {
-            int amount = Math.Min(ctx.Target.Gold / 2, 5000);
+            int amount = Math.Min(ctx.Hero.Gold / 2, 5000);
             if (amount < 100) amount = 100;
-            int actual = AgentControlHelper.TransferGold(ctx.Target, Hero.MainHero, amount);
+            int actual = AgentControlHelper.TransferGold(ctx.Hero, Hero.MainHero, amount);
             InformationManager.DisplayMessage(new InformationMessage($"主君拨下军资 {actual} 第纳尔。", Colors.Green));
         }
     }
@@ -128,8 +128,8 @@ namespace LivingWorldNpcs.Story
 
         private static Kingdom TargetKingdom(IntentContext ctx)
         {
-            if (ctx.Target == null) return null;
-            return ctx.Target.Clan != null ? ctx.Target.Clan.Kingdom : (ctx.Target.MapFaction as Kingdom);
+            if (ctx.Hero == null) return null;
+            return ctx.Hero.Clan != null ? ctx.Hero.Clan.Kingdom : (ctx.Hero.MapFaction as Kingdom);
         }
 
         public override Eligibility Evaluate(IntentContext ctx)

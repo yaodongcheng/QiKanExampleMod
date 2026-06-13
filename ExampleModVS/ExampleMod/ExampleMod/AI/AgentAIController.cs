@@ -193,7 +193,7 @@ namespace LivingWorldNpcs
                                     DebugLogger.Log($"Agent {brain.Owner.Name} 分配到位置: {assignedSpot.Position}");
                                 // 发送带有具体坐标参数的事件
                                 // 我们构造一个新的参数列表，把计算好的坐标传进去
-                                // 约定：Args[0]=Target, Args[1]=Pos(Vec3), Args[2]=LookDir(Vec2)
+                                // 约定：Args[0]=Hero, Args[1]=Pos(Vec3), Args[2]=LookDir(Vec2)
                                 brain.ReceiveEvent(new AIEvent
                                 {
                                     EventType = "WitnessCrime_GatherOnLook",

@@ -28,7 +28,7 @@ namespace LivingWorldNpcs.Story
 
         public override void OnSuccess(IntentContext ctx)
         {
-            MarriageAction.Apply(ctx.Player, ctx.Target);
+            MarriageAction.Apply(ctx.Player, ctx.Hero);
         }
     }
 
@@ -46,7 +46,7 @@ namespace LivingWorldNpcs.Story
 
         public override void OnInstant(IntentContext ctx)
         {
-            ctx.Controller.OpenGiftMenu(ctx.Target);
+            ctx.Controller.OpenGiftMenu(ctx.Hero);
         }
     }
 
@@ -75,8 +75,8 @@ namespace LivingWorldNpcs.Story
                 if (p.AlcoholDesire == NPCProfile.AlcoholDesireEnum.Alcoholic) delta -= 1; // 酒鬼对茶无感
             }
             if (delta < 1) delta = 1;
-            ChangeRelationAction.ApplyPlayerRelation(ctx.Target, delta);
-            InformationManager.DisplayMessage(new InformationMessage($"你与{ctx.Target.Name}共饮一盏，关系 +{delta}", Colors.Green));
+            ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, delta);
+            InformationManager.DisplayMessage(new InformationMessage($"你与{ctx.Hero.Name}共饮一盏，关系 +{delta}", Colors.Green));
         }
     }
 
@@ -93,8 +93,8 @@ namespace LivingWorldNpcs.Story
             // Hero：未受伤的领主可切磋；战场敌人也可
             if (ctx.IsHero)
             {
-                if (ctx.Target.IsWounded) return Eligibility.Grey("对方负伤在身，不宜动武");
-                if (!ctx.Target.IsLord) return Eligibility.Hide();
+                if (ctx.Hero.IsWounded) return Eligibility.Grey("对方负伤在身，不宜动武");
+                if (!ctx.Hero.IsLord) return Eligibility.Hide();
                 return Eligibility.Show();
             }
             return ctx.IsEnemyAgent ? Eligibility.Show() : Eligibility.Hide();

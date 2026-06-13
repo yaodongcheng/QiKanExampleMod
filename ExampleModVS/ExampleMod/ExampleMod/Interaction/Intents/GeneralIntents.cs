@@ -19,8 +19,8 @@ namespace LivingWorldNpcs.Story
 
         public override void OnInstant(IntentContext ctx)
         {
-            if (ctx.Target != null && Campaign.Current != null)
-                Campaign.Current.EncyclopediaManager.GoToLink(ctx.Target.EncyclopediaLink);
+            if (ctx.Hero != null && Campaign.Current != null)
+                Campaign.Current.EncyclopediaManager.GoToLink(ctx.Hero.EncyclopediaLink);
         }
     }
 
@@ -44,7 +44,7 @@ namespace LivingWorldNpcs.Story
             }
             else
             {
-                string line = DialogueTemplateHelper.Get("Order", out string emotion, ctx.Target, ctx.Agent);
+                string line = DialogueTemplateHelper.Get("Order", out string emotion, ctx.Hero, ctx.Agent);
                 ctx.Controller.ShowNpcLineKeepMenu(ctx.Agent, line, emotion);
             }
         }

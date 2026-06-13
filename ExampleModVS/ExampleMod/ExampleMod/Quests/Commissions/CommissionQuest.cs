@@ -75,6 +75,96 @@ namespace LivingWorldNpcs
             SetDialogs();
         }
 
+        /// <summary>用于扫描未确认的委托（从告示板接取后、见委托人前）</summary>
+        public static CommissionQuest FindPendingCommissionForGiver(Hero questGiver)
+        {
+            foreach (var quest in Campaign.Current.QuestManager.Quests)
+            {
+                if (quest is CommissionQuest cq && cq._data?.QuestGiver == questGiver
+                    && cq._data.IsNarrativePhase)
+                    return cq;
+            }
+            return null;
+        }
+
+        /// <summary>开始叙事阶段：不启动任务，只记录"去找委托人"</summary>
+        public void BeginNarrativePhase()
+        {
+            string giverLoc = QuestGiver?.CurrentSettlement?.Name?.ToString()
+                ?? QuestGiver?.HomeSettlement?.Name?.ToString() ?? "未知地点";
+            AddLog(new TextObject($"📋 委托情报已记录：{_data.GetFlavorDescription()}"));
+            AddLog(new TextObject($"前往 {giverLoc} 找 {QuestGiver?.Name}，当面了解详情。"));
+            // 不注册事件，不定金，不启动——只是占个位
+        }
+
+        /// <summary>委托人当面确认：叙事结束，正式启动委托</summary>
+        public void ConfirmQuest()
+        {
+            if (_data == null || !_data.IsNarrativePhase) return;
+            _data.IsNarrativePhase = false;
+
+            // 定金到账
+            if (_data.DepositAmount > 0)
+            {
+                int actualDeposit = AgentControlHelper.TransferGold(_data.QuestGiver, Hero.MainHero, _data.DepositAmount);
+                _data.DepositAmount = actualDeposit;
+                AddLog(new TextObject($"定金 {actualDeposit} 第纳尔已到账。"));
+            }
+
+            // 正式启动（事件已在 OnStartQuest 的叙事分支里注册过了，这里只补运行启动逻辑）
+            _playerCasualtiesAtStart = CountPlayerWounded();
+            PerformFullStartup();
+        }
+
+        /// <summary>执行完整的委托启动逻辑（日志、进度条、生成部队/商队等）</summary>
+        private void PerformFullStartup()
+        {
+            TextObject logText = new TextObject(
+                "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n难度：{TIER}\n{EXTRA}");
+            logText.SetTextVariable("TITLE", _data.GetFlavorDescription());
+            logText.SetTextVariable("GIVER", QuestGiver.Name);
+            logText.SetTextVariable("REWARD", _data.NegotiatedReward);
+            logText.SetTextVariable("DEPOSIT", _data.DepositAmount);
+            logText.SetTextVariable("DAYS", ((int)(_data.TimeRemainingHours / 24f) + 1));
+            logText.SetTextVariable("TIER", GetTierDisplayName());
+            logText.SetTextVariable("EXTRA", GetExtraInfo());
+            AddLog(logText);
+
+            if (_totalProgress > 0)
+            {
+                _progressLog = AddDiscreteLog(
+                    new TextObject("{=commission_progress}委托进度"),
+                    new TextObject("{=commission_progress_detail}完成度"),
+                    _currentProgress, _totalProgress);
+            }
+
+            if (_data.DepositAmount > 0)
+                AddLog(new TextObject($"定金 {_data.DepositAmount} 第纳尔已到账。"));
+
+            if (Settings.Instance.IsLLMReady)
+                _ = EnhanceFlavorText(_data.GetFlavorDescription());
+
+            switch (_data.Category)
+            {
+                case CommissionCategory.BountyHunt: OnStartBountyHunt(); break;
+                case CommissionCategory.LegendaryHunt: OnStartLegendaryHunt(); break;
+                case CommissionCategory.CaravanEscort: OnStartCaravanEscort(); break;
+                case CommissionCategory.SupplyEmergency: OnStartSupplyEmergency(); break;
+                case CommissionCategory.UndergroundFight: OnStartUndergroundFight(); break;
+                case CommissionCategory.VillageDefense: OnStartVillageDefense(); break;
+                case CommissionCategory.LostItem: OnStartLostItem(); break;
+                case CommissionCategory.PrisonBreak: OnStartPrisonBreak(); break;
+                case CommissionCategory.SupplyIntercept: OnStartSupplyIntercept(); break;
+                case CommissionCategory.HideoutClear: OnStartHideoutClear(); break;
+                case CommissionCategory.EmergencyDelivery: OnStartEmergencyDelivery(); break;
+                case CommissionCategory.TreasureHunt: OnStartTreasureHunt(); break;
+                case CommissionCategory.HorseAcquisition: OnStartHorseAcquisition(); break;
+                case CommissionCategory.ArenaSpecial: OnStartArenaSpecial(); break;
+                case CommissionCategory.DecoyMission: OnStartDecoyMission(); break;
+                case CommissionCategory.ProcurementAgent: OnStartProcurementAgent(); break;
+            }
+        }
+
         #region QuestBase Overrides
 
         protected override void SetDialogs() { }
@@ -162,6 +252,14 @@ namespace LivingWorldNpcs
         protected override void OnStartQuest()
         {
             SetDialogs();
+
+            // 叙事阶段：不启动任何游戏逻辑，只等玩家找到委托人
+            if (_data.IsNarrativePhase)
+            {
+                RegisterEvents(); // 只注册 DailyTick（健壮性检查）
+                return;
+            }
+
             _playerCasualtiesAtStart = CountPlayerWounded();
 
             TextObject logText = new TextObject(

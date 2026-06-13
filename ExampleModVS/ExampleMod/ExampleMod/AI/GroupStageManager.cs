@@ -27,7 +27,7 @@ namespace LivingWorldNpcs
             public float Score;         // 评分（用于排序，比如距离偏离度）
             public bool IsOccupied;     // 是否被分配了
         }
-        // 缓存分配结果：Key = 目标(Target), Value = { 围观者(Witness) -> 站位点(Spot) }
+        // 缓存分配结果：Key = 目标(Hero), Value = { 围观者(Witness) -> 站位点(Spot) }
         private static Dictionary<Agent, Dictionary<Agent, StagePoint>> _allocationCache = new Dictionary<Agent, Dictionary<Agent, StagePoint>>();
 
         public static StagePoint GetAssignedSpot(Agent centerAgent, Agent witness)

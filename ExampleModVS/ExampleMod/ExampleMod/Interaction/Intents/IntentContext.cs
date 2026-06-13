@@ -24,7 +24,7 @@ namespace LivingWorldNpcs.Story
     public class IntentContext
     {
         public Agent Agent;
-        public Hero Target;             // 对方是 Hero 时非 null；批量小兵为 null
+        public Hero Hero;             // 对方是 Hero 时非 null；批量小兵为 null
         public Hero Player;
         public SingNpcMemorySystem Memory;
         public NPCProfile Profile;      // Memory?._profile
@@ -47,8 +47,8 @@ namespace LivingWorldNpcs.Story
         public bool IsChild;              // 未成年（Hero: Age<16，非Hero: Character.IsChild）
 
         public bool RelationAtLeast(int v) { return Relation >= v; }
-        public bool OnCooldown(NegotiationGoalType goal) { return Target != null && IntentCooldownStore.IsOnCooldown(Target, goal); }
-        public int CooldownDaysLeft(NegotiationGoalType goal) { return Target != null ? IntentCooldownStore.DaysLeft(Target, goal) : 0; }
+        public bool OnCooldown(NegotiationGoalType goal) { return Hero != null && IntentCooldownStore.IsOnCooldown(Hero, goal); }
+        public int CooldownDaysLeft(NegotiationGoalType goal) { return Hero != null ? IntentCooldownStore.DaysLeft(Hero, goal) : 0; }
 
         public static IntentContext Build(Agent agent, InteractionController controller)
         {
@@ -56,26 +56,26 @@ namespace LivingWorldNpcs.Story
             ctx.Agent = agent;
             ctx.Player = Hero.MainHero;
             ctx.Controller = controller;
-            ctx.Target = (agent != null ? agent.Character as CharacterObject : null)?.HeroObject;
-            ctx.IsHero = ctx.Target != null;
+            ctx.Hero = (agent != null ? agent.Character as CharacterObject : null)?.HeroObject;
+            ctx.IsHero = ctx.Hero != null;
 
-            if (ctx.Target != null)
+            if (ctx.Hero != null)
             {
                 ctx.Memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
                 ctx.Profile = ctx.Memory != null ? ctx.Memory._profile : null;
 
-                ctx.Relation = ctx.Target.GetRelation(Hero.MainHero);
+                ctx.Relation = ctx.Hero.GetRelation(Hero.MainHero);
                 IFaction myFaction = Hero.MainHero.MapFaction;
-                IFaction theirFaction = ctx.Target.MapFaction;
+                IFaction theirFaction = ctx.Hero.MapFaction;
                 ctx.SameFaction = myFaction != null && theirFaction != null && myFaction == theirFaction;
                 ctx.EnemyFaction = myFaction != null && theirFaction != null && theirFaction.IsAtWarWith(myFaction);
-                ctx.IsLiege = ctx.SameFaction && ctx.Target.IsFactionLeader && ctx.Target != Hero.MainHero;
-                ctx.IsClanLeader = ctx.Target.Clan != null && ctx.Target.Clan.Leader == ctx.Target;
-                ctx.IsWanderer = ctx.Target.IsWanderer;
-                ctx.IsMarried = ctx.Target.Spouse != null;
-                ctx.OppositeSex = ctx.Target.IsFemale != Hero.MainHero.IsFemale;
+                ctx.IsLiege = ctx.SameFaction && ctx.Hero.IsFactionLeader && ctx.Hero != Hero.MainHero;
+                ctx.IsClanLeader = ctx.Hero.Clan != null && ctx.Hero.Clan.Leader == ctx.Hero;
+                ctx.IsWanderer = ctx.Hero.IsWanderer;
+                ctx.IsMarried = ctx.Hero.Spouse != null;
+                ctx.OppositeSex = ctx.Hero.IsFemale != Hero.MainHero.IsFemale;
                 ctx.PlayerHasNoKingdom = Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null;
-                ctx.IsChild = ctx.Target.Age < 16f;
+                ctx.IsChild = ctx.Hero.Age < 16f;
             }
             else
             {
