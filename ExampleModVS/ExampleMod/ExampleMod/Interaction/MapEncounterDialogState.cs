@@ -1,4 +1,5 @@
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Party;
 
 namespace LivingWorldNpcs
 {
@@ -14,10 +15,14 @@ namespace LivingWorldNpcs
         /// <summary>对方角色，用于在 mission 里精确定位 partner Agent</summary>
         public static CharacterObject Partner;
 
+        /// <summary>对方 Party，用于取 MemberRoster 生成护卫</summary>
+        public static PartyBase PartnerParty;
+
         public static void Clear()
         {
             Active = false;
             Partner = null;
+            PartnerParty = null;
         }
     }
 }

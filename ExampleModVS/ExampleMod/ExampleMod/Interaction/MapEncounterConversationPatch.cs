@@ -3,7 +3,6 @@ using SandBox.Conversation.MissionLogics;
 using System;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Conversation;
-using TaleWorlds.Core;
 using TaleWorlds.Library;
 
 namespace LivingWorldNpcs
@@ -26,22 +25,25 @@ namespace LivingWorldNpcs
             {
                 if (_reentry) return true; // 放行重入（原版分支），别再拦
 
-                Hero partnerHero = conversationPartnerData.Character?.HeroObject;
-                if (partnerHero == null) return true; // 新对话需要 Hero，无则放行原版
+                CharacterObject partnerChar = conversationPartnerData.Character;
+                if (partnerChar == null) return true; // 无角色数据则放行原版
+
+                string npcName = partnerChar.Name?.ToString() ?? "对方";
 
                 // 结构体按值捕获入闭包
                 var p = playerCharacterData;
                 var q = conversationPartnerData;
 
                 InformationManager.ShowInquiry(new InquiryData(
-                    "交涉方式",
-                    "如何与对方交涉？",
+                    $"你和{npcName}相遇了",
+                    "你想怎么和对方说话？",
                     true, true,
-                    "新版对话", "原版对话",
+                    "闲聊", "对话",
                     affirmativeAction: () =>
                     {
                         MapEncounterDialogState.Active = true;
                         MapEncounterDialogState.Partner = q.Character;
+                        MapEncounterDialogState.PartnerParty = q.Party;
                         CampaignMission.OpenConversationMission(p, q);
                     },
                     negativeAction: () =>

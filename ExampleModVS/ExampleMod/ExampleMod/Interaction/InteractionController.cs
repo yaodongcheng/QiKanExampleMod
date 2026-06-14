@@ -629,7 +629,8 @@ namespace LivingWorldNpcs.Story
             _isProcessing = true;
             _vm.AreOptionsVisible = false; // 隐藏选项防止重复点击
             _vm.LockPrediction();
-            VisualCommands.SmartCamera(Agent.Main, _targetAgent); // 镜头给玩家
+            if (!MapEncounterDialogState.Active)
+                VisualCommands.SmartCamera(Agent.Main, _targetAgent); // 镜头给玩家
             _vm.Show(Agent.Main.Name.ToString(), playerInput);
             NegotiationState state = _memory.CurrentNegotiationState;
             string npcName = _memory._profile.Name;
@@ -1687,8 +1688,9 @@ namespace LivingWorldNpcs.Story
                 ActionHandler.HandleAction(action, _targetHero, Hero.MainHero, _targetAgent);
             }
 
-            // 镜头打向NPC
-            VisualCommands.SmartCamera(_targetAgent, Agent.Main);
+            // 镜头打向NPC（地图遭遇 mission 已有固定镜头，跳过）
+            if (!MapEncounterDialogState.Active)
+                VisualCommands.SmartCamera(_targetAgent, Agent.Main);
         }
 
         private void ExecuteTransaction(DraftProposal proposal)

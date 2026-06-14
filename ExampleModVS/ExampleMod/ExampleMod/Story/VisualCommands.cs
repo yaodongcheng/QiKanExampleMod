@@ -17,6 +17,8 @@ using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.Screens;
+using TaleWorlds.ScreenSystem;
 
 namespace LivingWorldNpcs.Story
 {
@@ -814,9 +816,29 @@ namespace LivingWorldNpcs.Story
 
 
 
-            return SpringArmCameraView.UseCameraTemlate(camTemplate,speakerAgent,listenerAgent,Vec3.Zero);
-          
+            string result = SpringArmCameraView.UseCameraTemlate(camTemplate, speakerAgent, listenerAgent, Vec3.Zero);
+            LogCameraParams("SmartCamera", camTemplate);
+            return result;
+
         }
+
+        private static void LogCameraParams(string caller, string template)
+        {
+            try
+            {
+                if (Mission.Current == null) return;
+                var ms = ScreenManager.TopScreen as MissionScreen;
+                Camera cam = ms?.CustomCamera;
+                MatrixFrame frame = (cam != null) ? cam.Frame : Mission.Current.GetCameraFrame();
+                Vec3 pos = frame.origin;
+                Vec3 fwd = frame.rotation.f;
+                Vec3 up = frame.rotation.u;
+                string extra = cam != null ? " [CustomCamera]" : " [DefaultCam]";
+                DebugLogger.Log($"[Cam] {caller}({template}) pos=({pos.x:F2},{pos.y:F2},{pos.z:F2}) fwd=({fwd.x:F3},{fwd.y:F3},{fwd.z:F3}) up=({up.x:F3},{up.y:F3},{up.z:F3}){extra}");
+            }
+            catch (Exception) { }
+        }
+
         public static Agent GetAgentInMission(string stringId, string scriptName)
         {
             //先检查是不是玩家自己

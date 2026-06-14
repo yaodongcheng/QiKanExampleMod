@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.AgentOrigins;
 using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.CampaignSystem.Inventory;
@@ -161,7 +162,7 @@ namespace LivingWorldNpcs
 
             // 3. 目标中心点修正 (关键优化)
             // agent.Position 是脚底板。如果尸体躺着，或者你看着人的头，脚底板的角度偏差会很大。
-            // 我们取 Position 向上 0.5 - 1.0 米的位置作为“躯干中心”
+            // 我们取 Position 向上 0.5 - 1.0 米的位置作为"躯干中心"
             Vec3 targetCenter = agent.Position + new Vec3(0, 0, 0.8f);
 
             // 4. 计算向量与点积
@@ -203,7 +204,7 @@ namespace LivingWorldNpcs
             // =================================================================
             // 第二阶段：广域模糊搜索 (Cone/DotProduct Search)
             // =================================================================
-            // 如果射线没打中，开始从周围的对象里找一个“准星最对得准”的
+            // 如果射线没打中，开始从周围的对象里找一个"准星最对得准"的
 
             float interactDist = 4.0f; // 模糊搜索只搜身边4米
             float maxDistanceSq = interactDist * interactDist;
@@ -505,7 +506,7 @@ namespace LivingWorldNpcs
         }
         public async Task StartFreeConversationFlow(Agent agent,bool playerActive = true)
         {
-            // 1. 隐藏“按G交互”的提示
+            // 1. 隐藏"按G交互"的提示
             _interactVM.IsVisible = false;
 
             // 标记正在交互，防止 Harmony 补丁或其他逻辑干扰
@@ -519,53 +520,11 @@ namespace LivingWorldNpcs
                 // 【关键代码】强制把主手（右手）的武器收回刀鞘
                 // 使用 Instant 表示瞬间完成，不需要播放收刀动作，防止动作打断
                 mainAgent.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
-
-                // 【关键代码】如果有副手武器（比如盾牌），也瞬间收起来
-                //mainAgent.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
-
-                // 【补充】有时候即便收起来了，之前的姿态可能还会残留，可以强制重置一下动作通道（可选，视情况而定）
-                // mainAgent.SetActionChannel(0, ActionIndexCache.act_none, true, 0, 0, 1f);
             }
-
-
-
-
-            //禁用主角移动
-
 
             if (playerActive)
             {
-                //await AgentControlHelper.MoveToActor(agent, Agent.Main);
-
-                // 自然站立的 NPC 不需要起身动画，直接打断原生 AI + 清大脑，
-                // 后续同帧瞬移 + 切镜头即可到位，体感类似原生 F 对话。
-                bool usingObj = agent.IsUsingGameObject;
-                bool crouching = agent.CrouchMode;
-                string pose = AgentControlHelper.GetPose(agent) ?? "";
-                // act_none / act_stand_* / act_idle_* 是引擎默认空闲/站立动画，
-                // 不算自定义 pose；act_stand_up_* 是起身过渡，act_idle_to/from 是物品交互过渡。
-                bool isDefaultPose = string.IsNullOrEmpty(pose)
-                    || pose == "act_none"
-                    || (pose.StartsWith("act_stand_") && !pose.StartsWith("act_stand_up_"))
-                    || (pose.StartsWith("act_idle_") && !pose.StartsWith("act_idle_to_") && !pose.StartsWith("act_idle_from_"));
-                bool isStandingNaturally = !usingObj && !crouching && isDefaultPose;
-                InformationManager.DisplayMessage(new InformationMessage(
-                    $"[闲聊快速路径] {agent.Name}: obj={usingObj} crouch={crouching} pose=\"{pose}\" isDefault={isDefaultPose} → 快速={(isStandingNaturally?"YES":"NO")}",
-                    isStandingNaturally ? Colors.Green : Colors.Yellow));
-                if (isStandingNaturally)
-                {
-                    var brain = AgentAIController.GetBrainForAgent(agent);
-                    if (brain != null)
-                    {
-                        brain.InteractedAgent = Agent.Main; // EndInteraction 匹配需要
-                        brain.ClearAllActions();
-                    }
-                }
-                else
-                {
-                    AgentAIController.Instance.SendEventToAgent(agent, "ComeHere", Agent.Main);
-                    await WaitForAgentToSettle(agent);
-                }
+                await PrepareAgentForConversation(agent);
             }
             Agent.Main.SetMovementDirection(Vec2.Zero);
             if (Agent.Main.Controller == Agent.ControllerType.Player)
@@ -573,7 +532,7 @@ namespace LivingWorldNpcs
                 Agent.Main.Controller = Agent.ControllerType.AI;
                 AgentControlHelper.FaceToActor(Agent.Main, agent);
             }
-
+            Agent.Main.SetLookAgent(agent);    // 玩家持续注视 NPC，防止 AI 控头乱转
 
             // 检查 NPC 是否还在 (防止移动过程中被杀或消失)
             if (agent == null || !agent.IsActive())
@@ -594,6 +553,14 @@ namespace LivingWorldNpcs
             agent.SetLookAgent(Agent.Main);
             AgentControlHelper.MoveEndAndInteractPrepare(agent, idealPos);
 
+            // ── 大世界遭遇对话：瞬移后 spawn 护卫（位置正确）──
+            if (MapEncounterDialogState.Active)
+            {
+                SpawnEncounterBodyguards(agent);
+                LogAllAgentPositions();
+                LogCurrentCamera("EncounterEnter");
+            }
+
             SetupCameraForDialogue(agent);
 
             // 4. 激活鼠标 (对话时需要鼠标点击选项)
@@ -601,7 +568,61 @@ namespace LivingWorldNpcs
 
             // 5. 启动对话控制器 (这会设置 VM.IsVisible = true)
             _interactionController.StartInteraction(agent);
+        }
 
+        /// <summary>
+        /// 地图遭遇对话专用：跳过所有走位/瞬移/镜头逻辑，直接进对话。
+        /// 前提：ConversationMissionLogic.AfterStart() 已把双方在对话场景里摆好位。
+        /// </summary>
+        private void StartEncounterConversationFlow(Agent agent)
+        {
+            _interactVM.IsVisible = false;
+            IsHandlingInteraction = true;
+            IsChatting = true;
+
+            // 收刀
+            Agent mainAgent = Agent.Main;
+            if (mainAgent != null)
+            {
+                mainAgent.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+            }
+
+            // 激活鼠标
+            _dialogueLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+
+            // 直接启动对话控制器（对话场景已摆好位，无需走位/瞬移/镜头）
+            _interactionController.StartInteraction(agent);
+        }
+
+        /// <summary>提取自 StartFreeConversationFlow 的 NPC 走位准备逻辑</summary>
+        private async Task PrepareAgentForConversation(Agent agent)
+        {
+            bool usingObj = agent.IsUsingGameObject;
+            bool crouching = agent.CrouchMode;
+            string pose = AgentControlHelper.GetPose(agent) ?? "";
+            bool isDefaultPose = string.IsNullOrEmpty(pose)
+                || pose == "act_none"
+                || (pose.StartsWith("act_stand_") && !pose.StartsWith("act_stand_up_"))
+                || (pose.StartsWith("act_idle_") && !pose.StartsWith("act_idle_to_") && !pose.StartsWith("act_idle_from_"))
+                || pose.StartsWith("act_conversation_");    // 对话场景预设动画，等同于自然站立
+            bool isStandingNaturally = !usingObj && !crouching && isDefaultPose;
+            InformationManager.DisplayMessage(new InformationMessage(
+                $"[闲聊快速路径] {agent.Name}: obj={usingObj} crouch={crouching} pose=\"{pose}\" isDefault={isDefaultPose} → 快速={(isStandingNaturally?"YES":"NO")}",
+                isStandingNaturally ? Colors.Green : Colors.Yellow));
+            if (isStandingNaturally)
+            {
+                var brain = AgentAIController.GetBrainForAgent(agent);
+                if (brain != null)
+                {
+                    brain.InteractedAgent = Agent.Main;
+                    brain.ClearAllActions();
+                }
+            }
+            else
+            {
+                AgentAIController.Instance.SendEventToAgent(agent, "ComeHere", Agent.Main);
+                await WaitForAgentToSettle(agent);
+            }
         }
 
         // 你的自定义镜头逻辑占位符
@@ -671,7 +692,7 @@ namespace LivingWorldNpcs
             // 6. 标记状态，防止其他交互干扰
             IsHandlingInteraction = true;
 
-            // 7. 隐藏原本的“按F交互”小黑条
+            // 7. 隐藏原本的"按F交互"小黑条
             _interactVM.IsVisible = false;
 
         }
@@ -851,7 +872,7 @@ namespace LivingWorldNpcs
 
             // 活人使用的是 SpawnEquipment 或者 Equipment，尸体也是。
             // 注意：偷活人时，我们是在生成副本。如果你拿走了，NPC身上的视觉模型不会消失（除非写非常复杂的逻辑去剥离装备）
-            // 这里我们做“顺手牵羊”：你拿到了装备，但NPC还没发现自己丢了东西。
+            // 这里我们做"顺手牵羊"：你拿到了装备，但NPC还没发现自己丢了东西。
             var equipmentToInspect = targetAgent.SpawnEquipment;
             string itemsName = "";
             for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i < EquipmentIndex.NumEquipmentSetSlots; i++)
@@ -941,7 +962,160 @@ namespace LivingWorldNpcs
                 "", 0f
             ), true);
         }
-        
+
+        // ── 大世界遭遇对话：氛围护卫 spawn ──
+
+        private void SpawnEncounterBodyguards(Agent partnerAgent)
+        {
+            try
+            {
+                var playerParty = PartyBase.MainParty;
+                var npcParty = MapEncounterDialogState.PartnerParty;
+                if (playerParty == null && npcParty == null) return;
+
+                var playerTroops = PickGuardTroops(playerParty, CharacterObject.PlayerCharacter, out int playerTotal);
+                var npcTroops = PickGuardTroops(npcParty, MapEncounterDialogState.Partner, out int npcTotal);
+                if (playerTroops.Count == 0 && npcTroops.Count == 0) return;
+
+                Vec3 playerPos = Agent.Main.Position;
+                Vec3 npcPos = partnerAgent.Position;
+                Vec3 toNpc = (npcPos - playerPos).NormalizedCopy();
+                Vec3 toPlayer = -toNpc;
+                Team playerTeam = Mission.Current.PlayerTeam;
+                Team npcTeam = partnerAgent.Team;
+
+                const int maxPerRow = 5;
+
+                // 玩家护卫：站在玩家身后，面朝 NPC + 持续注视 NPC，超过 5 人则多排
+                for (int i = 0; i < playerTroops.Count; i++)
+                {
+                    int row = i / maxPerRow;
+                    int col = i % maxPerRow;
+                    int inRow = Math.Min(maxPerRow, playerTroops.Count - row * maxPerRow);
+                    float offset = (col - (inRow - 1) * 0.5f) * 1.3f;
+                    float depth = 1.0f + row * 1.5f;
+                    Vec3 pos = playerPos + toPlayer * depth + LateralOffset(toNpc, offset);
+                    SpawnGuardAgent(playerTroops[i], pos, toNpc.AsVec2, playerTeam, partnerAgent);
+                }
+
+                // NPC 护卫：站在 NPC 身后，面朝玩家 + 持续注视玩家
+                for (int i = 0; i < npcTroops.Count; i++)
+                {
+                    int row = i / maxPerRow;
+                    int col = i % maxPerRow;
+                    int inRow = Math.Min(maxPerRow, npcTroops.Count - row * maxPerRow);
+                    float offset = (col - (inRow - 1) * 0.5f) * 1.3f;
+                    float depth = 1.0f + row * 1.5f;
+                    Vec3 pos = npcPos + toNpc * depth + LateralOffset(toNpc, offset);
+                    SpawnGuardAgent(npcTroops[i], pos, toPlayer.AsVec2, npcTeam, Agent.Main);
+                }
+
+                DebugLogger.Log($"[MapConv] Guards: player={playerTroops.Count}(/{playerTotal}) npc={npcTroops.Count}(/{npcTotal})");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[MapConv] Guard spawn error: {ex}"); }
+        }
+
+        /// <summary>从 party roster 取等级最高的非 Hero 兵种，数量按部队规模 clamp [2,5]</summary>
+        private static List<CharacterObject> PickGuardTroops(PartyBase party, CharacterObject excludeLeader, out int totalManCount)
+        {
+            totalManCount = 0;
+            var result = new List<CharacterObject>();
+            if (party?.MemberRoster == null) return result;
+
+            totalManCount = party.MemberRoster.TotalManCount;
+            int guardCount = Math.Min(10, Math.Max(2, totalManCount / 10));
+
+            foreach (TroopRosterElement element in party.MemberRoster.GetTroopRoster())
+            {
+                if (element.Character == null) continue;
+                if (element.Character == excludeLeader) continue;
+                if (element.Character.IsHero) continue;
+                if (element.Character.IsPlayerCharacter) continue;
+                result.Add(element.Character);
+            }
+
+            return result.OrderByDescending(c => c.Level).Take(guardCount).ToList();
+        }
+
+        /// <summary>用 HeroSpawnerMissionBehavior 同款 API 生成一个护卫 Agent，并持续注视目标</summary>
+        private static void SpawnGuardAgent(CharacterObject character, Vec3 position, Vec2 direction, Team team, Agent lookTarget = null)
+        {
+            var origin = new SimpleAgentOrigin(character, -1, null);
+            var buildData = new AgentBuildData(origin)
+                .InitialPosition(position)
+                .InitialDirection(direction)
+                .Team(team)
+                .NoHorses(true)
+                .CivilianEquipment(character.IsFemale);
+            Agent guard = Mission.Current.SpawnAgent(buildData);
+            if (guard != null)
+            {
+                guard.SetActionChannel(0, ActionIndexCache.Create("act_conversation_normal_loop"), false, 0UL, 0f, 1f, 0f, 0.4f, MBRandom.RandomFloat, false, -0.2f, 0, true);
+                if (lookTarget != null)
+                    guard.SetLookAgent(lookTarget);
+            }
+        }
+
+        private static Vec3 LateralOffset(Vec3 forward, float offset)
+        {
+            return new Vec3(-forward.y * offset, forward.x * offset, 0);
+        }
+
+        /// <summary>打印当前 mission 所有 Agent 的坐标到日志，方便分析站位</summary>
+        private static void LogAllAgentPositions()
+        {
+            try
+            {
+                if (Mission.Current == null) return;
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("=== [MapConv] All Agent Positions ===");
+                int idx = 0;
+                foreach (Agent a in Mission.Current.Agents)
+                {
+                    if (a == null) continue;
+                    idx++;
+                    string name = a.Name?.ToString() ?? "?";
+                    string charId = a.Character?.StringId ?? "?";
+                    Vec3 p = a.Position;
+                    float distToPlayer = Agent.Main != null ? a.Position.Distance(Agent.Main.Position) : 0f;
+                    float distToPartner = 0f;
+                    if (MapEncounterDialogState.Partner != null)
+                    {
+                        foreach (Agent pa in Mission.Current.Agents)
+                        {
+                            if (pa.Character == MapEncounterDialogState.Partner && pa.IsActive())
+                            {
+                                distToPartner = a.Position.Distance(pa.Position);
+                                break;
+                            }
+                        }
+                    }
+                    sb.AppendLine($"[{idx}] {name} ({charId}) pos=({p.x:F2},{p.y:F2},{p.z:F2}) distToPlayer={distToPlayer:F1}m distToPartner={distToPartner:F1}m team={a.Team?.Side}");
+                }
+                sb.AppendLine("=====================================");
+                DebugLogger.Log(sb.ToString());
+            }
+            catch (Exception ex) { DebugLogger.Log($"[MapConv] LogAgents error: {ex}"); }
+        }
+
+        /// <summary>打印当前相机参数到日志（优先读 CustomCamera，fallback 到默认相机）</summary>
+        private static void LogCurrentCamera(string label)
+        {
+            try
+            {
+                if (Mission.Current == null) return;
+                var ms = ScreenManager.TopScreen as MissionScreen;
+                Camera cam = ms?.CustomCamera;
+                MatrixFrame frame = (cam != null) ? cam.Frame : Mission.Current.GetCameraFrame();
+                Vec3 pos = frame.origin;
+                Vec3 fwd = frame.rotation.f;
+                Vec3 up = frame.rotation.u;
+                string extra = cam != null ? " [CustomCamera]" : " [DefaultCam]";
+                DebugLogger.Log($"[Cam] {label} pos=({pos.x:F2},{pos.y:F2},{pos.z:F2}) fwd=({fwd.x:F3},{fwd.y:F3},{fwd.z:F3}) up=({up.x:F3},{up.y:F3},{up.z:F3}){extra}");
+            }
+            catch (Exception) { }
+        }
+
 
     }
     
