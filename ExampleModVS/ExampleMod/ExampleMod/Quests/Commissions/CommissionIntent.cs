@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
@@ -43,13 +44,73 @@ namespace LivingWorldNpcs.Story
 
             if (commissions == null || commissions.Count == 0)
             {
-                InformationManager.DisplayMessage(
-                    new InformationMessage($"{ctx.Hero.Name} 目前没有合适的委托给你。"));
+                // NPC 自然说没有委托
+                if (ctx.Controller != null)
+                    ctx.Controller.SceneSay("我这儿暂时没有需要帮手的活计。",
+                        new StoryOptionVM("（离开）", () => ctx.Controller.CloseDialogue()));
+                else
+                    InformationManager.DisplayMessage(
+                        new InformationMessage($"{ctx.Hero.Name} 目前没有合适的委托给你。"));
                 return;
             }
 
-            // 统一走逐条浏览 —— 中转人看信，直接委托人也有开场叙事
+            // 中转人（村长/酒馆老板/浪人）→ 开口介绍 + 弹窗告示板；直接委托人 → NPC 在对话里自己说
+            bool isBroker = commissions[0].BrokerHero != null && commissions[0].BrokerHero != commissions[0].QuestGiver;
+            if (isBroker && ctx.Controller != null)
+                ShowBrokerFlow(commissions, ctx);
+            else if (ctx.Controller == null)
+                ShowCommissionLetter(commissions, 0, ctx);
+            else
+                ShowCommissionInDialogue(commissions, 0, ctx);
+        }
+
+        /// <summary>
+        /// 中转人路径：中转人先开口介绍（SceneSay），再弹出告示板（Inquiry）列出周边委托。
+        /// 中转人本人不是委托人，只是消息灵通的人。
+        /// </summary>
+        private void ShowBrokerFlow(List<CommissionData> commissions, IntentContext ctx)
+        {
+            var ic = ctx.Controller;
+            string brokerName = ctx.Hero?.Name?.ToString() ?? "他";
+
+            // 1. 中转人开口
+            string intro = commissions.Count > 1
+                ? "想找活干？这一带还真有几个人手头缺人。来，我给你念叨念叨——"
+                : "想找活干？倒是有这么一桩，你听听看——";
+            ic.SceneSay(intro);
+
+            // 2. 弹出告示板（中转人嘴上说，手上把活计单子递给你）
             ShowCommissionLetter(commissions, 0, ctx);
+        }
+
+        /// <summary>
+        /// 直接委托人路径：NPC 在对话里自己说出委托，选项行内呈现，不弹窗。
+        /// </summary>
+        private void ShowCommissionInDialogue(List<CommissionData> commissions, int index, IntentContext ctx)
+        {
+            var ic = ctx.Controller;
+            if (ic == null) { ShowCommissionLetter(commissions, index, ctx); return; }
+            if (index >= commissions.Count) { ic.CloseDialogue(); return; }
+
+            var c = commissions[index];
+            NPCProfile giverProfile = BuildProfileFromHero(c.QuestGiver);
+            string narrative = CommissionNarrative.BuildOpening(c, giverProfile);
+            string days = ((int)(c.TimeRemainingHours / 24f) + 1).ToString();
+            string terms = $"（报酬 {c.NegotiatedReward} 第纳尔 · 期限 {days} 天"
+                         + (c.DepositAmount > 0 ? $" · 定金 {c.DepositAmount}" : "") + "）";
+            string line = $"{narrative}\n{terms}";
+
+            var options = new List<StoryOptionVM>();
+            options.Add(new StoryOptionVM("这活我接了", () =>
+            {
+                AcceptCommission(c, ctx);
+                ic.CloseDialogue();
+            }));
+            if (index < commissions.Count - 1)
+                options.Add(new StoryOptionVM("还有别的活吗？", () => ShowCommissionInDialogue(commissions, index + 1, ctx)));
+            options.Add(new StoryOptionVM("我再想想", () => ic.CloseDialogue()));
+
+            ic.SceneSay(line, options.ToArray());
         }
 
         /// <summary>
@@ -94,7 +155,19 @@ namespace LivingWorldNpcs.Story
                 true, true,
                 "接取",
                 negText,
-                () => AcceptCommission(c, ctx),
+                () =>
+                {
+                    AcceptCommission(c, ctx);
+                    // 中转人接取后，当面告诉你去哪找委托人
+                    if (isBroker && ctx.Controller != null)
+                    {
+                        string giverName = c.QuestGiver?.Name?.ToString() ?? "那人";
+                        string giverLoc = GetGiverLocation(c);
+                        string dir = $"这桩活是 {giverName} 的事。你去 {giverLoc} 找他，当面把来龙去脉问清楚——他会告诉你具体情况。";
+                        ctx.Controller.SceneSay(dir,
+                            new StoryOptionVM("知道了", () => ctx.Controller.CloseDialogue()));
+                    }
+                },
                 () =>
                 {
                     if (!isLast)
@@ -301,75 +374,49 @@ namespace LivingWorldNpcs.Story
             if (pending == null) return;
 
             var data = pending.Data;
-            string story = GenerateNarrative(data);
             string giverName = ctx.Hero.Name != null ? ctx.Hero.Name.ToString() : "委托人";
-            string info = $"{giverName} 看着你，开始讲述：\n\n" +
-                          $"「{story}」\n\n" +
-                          $"──\n报酬：{data.NegotiatedReward} 第纳尔\n" +
-                          $"定金：{data.DepositAmount} 第纳尔（确认后支付）\n" +
-                          $"期限：{((int)(data.TimeRemainingHours / 24f) + 1)} 天\n\n" +
-                          $"听完这些，你决定——";
+            var giverProfile = RequestCommissionIntent.BuildProfileFromHero(ctx.Hero);
+            string story = CommissionNarrative.BuildOpening(data, giverProfile);
+            string days = ((int)(data.TimeRemainingHours / 24f) + 1).ToString();
+            string terms = $"（报酬 {data.NegotiatedReward} 第纳尔 · 期限 {days} 天"
+                         + (data.DepositAmount > 0 ? $" · 定金 {data.DepositAmount}（确认后支付）" : "") + "）";
+            string line = $"{story}\n{terms}";
 
-            InformationManager.ShowInquiry(new InquiryData(
-                $"委托详情 — {giverName}",
-                info,
-                true, true,
-                "接下委托", "婉拒",
-                () =>
-                {
-                    int finalReward = CommissionGenerator.NegotiateReward(data.NegotiatedReward, ctx.Hero);
-                    data.NegotiatedReward = finalReward;
-                    int trust = TrustSystem.GetTrust(ctx.Hero);
-                    data.DepositAmount = (int)(finalReward * TrustSystem.GetDepositRatio(trust));
-                    pending.ConfirmQuest();
-                    InformationManager.DisplayMessage(
-                        new InformationMessage($"接取了委托：{data.GetFlavorDescription()} —— 报酬 {finalReward} 第纳尔。", Colors.Green));
-                    InformationManager.DisplayMessage(
-                        new InformationMessage($"{giverName}：拜托你了！"));
-                },
-                () =>
-                {
-                    pending.CompleteQuestWithFail();
-                    InformationManager.DisplayMessage(
-                        new InformationMessage($"你婉拒了 {giverName} 的委托。"));
-                }));
-        }
+            DebugLogger.Log($"[CommissionIntent] ConfirmCommission OnInstant: showing narrative for {data?.GetFlavorDescription()}");
 
-        private string GenerateNarrative(CommissionData data)
-        {
-            if (data == null) return "我需要有人帮我办一件事。";
-            string targetName = data.TargetHero != null ? data.TargetHero.Name.ToString() : "目标";
-
-            switch (data.Category)
+            Action onAccept = () =>
             {
-                case CommissionCategory.BountyHunt:
-                    return $"那个叫 {targetName} 的家伙，最近在这一带作恶多端。"
-                         + "我出赏金，你出力——把他揪出来。活的最好，死的也行。";
-                case CommissionCategory.CaravanEscort:
-                    return "我有一批货必须安全送到。路上盗匪猖獗，我一个人不敢走。"
-                         + "你护送我的商队，平安到了我付你报酬。";
-                case CommissionCategory.SupplyEmergency:
-                    return "城里急缺物资，再不补给我这生意就做不下去了。"
-                         + "帮我去别的城镇采购一批回来，越快报酬越高。";
-                case CommissionCategory.UndergroundFight:
-                    return "我在竞技场下了注，但我的拳手昨晚摔断了腿。"
-                         + "你替我去打——赢了奖金对半分，输了算我的。";
-                case CommissionCategory.VillageDefense:
-                    return "匪徒盯上了我们的村子。他们已经在路上了！"
-                         + "帮我们守住——你要能在半路截住他们更好。";
-                case CommissionCategory.PrisonBreak:
-                    return $"我的朋友 {targetName} 被关进了监狱。"
-                         + "他不是罪犯，是被人陷害的。帮我把他弄出来。";
-                case CommissionCategory.SupplyIntercept:
-                    return "敌方的补给队正在运物资到前线。截下这批货——"
-                         + "你可以交给我换报酬，也可以自己留着。";
-                case CommissionCategory.DecoyMission:
-                    return "有人在追杀我。他们快到了。"
-                         + "你带少量人引开追兵的注意，我趁机跑——你坚持得越久，我逃得越远，报酬越高。";
-                default:
-                    return "这事说来话长……总之，我需要一个信得过的人帮我这个忙。报酬不会少你的。";
+                int finalReward = CommissionGenerator.NegotiateReward(data.NegotiatedReward, ctx.Hero);
+                data.NegotiatedReward = finalReward;
+                int trust = TrustSystem.GetTrust(ctx.Hero);
+                data.DepositAmount = (int)(finalReward * TrustSystem.GetDepositRatio(trust));
+                pending.ConfirmQuest();
+                DebugLogger.Log($"[CommissionIntent] ConfirmCommission accepted: {data.GetFlavorDescription()} reward={finalReward}");
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"接取了委托：{data.GetFlavorDescription()} —— 报酬 {finalReward} 第纳尔。", Colors.Green));
+            };
+            Action onDecline = () =>
+            {
+                pending.CompleteQuestWithFail();
+                DebugLogger.Log($"[CommissionIntent] ConfirmCommission declined: {data.GetFlavorDescription()}");
+            };
+
+            // NPC 当面讲述（走对话系统，不弹窗）
+            if (ctx.Controller != null)
+            {
+                ctx.Controller.SceneSay(line,
+                    new StoryOptionVM("这忙我帮了", () => { onAccept(); ctx.Controller.CloseDialogue(); }),
+                    new StoryOptionVM("恕难从命", () => { onDecline(); ctx.Controller.CloseDialogue(); }));
+            }
+            else
+            {
+                InformationManager.ShowInquiry(new InquiryData(
+                    $"委托详情 — {giverName}", $"「{story}」\n\n{terms}", true, true,
+                    "接下委托", "婉拒", onAccept, onDecline));
             }
         }
+
+        // 委托叙事统一走 CommissionNarrative.BuildOpening（CSV 驱动），此处不再硬编码。
     }
 
     /// <summary>
@@ -422,31 +469,31 @@ namespace LivingWorldNpcs.Story
             if (_foundQuest == null || ctx.Hero == null) return;
 
             var data = _foundQuest.Data;
-            string giverName = ctx.Hero.Name?.ToString() ?? "委托人";
             var giverProfile = RequestCommissionIntent.BuildProfileFromHero(ctx.Hero);
 
             // 用 CSV 模板生成结账叙事
             string closureText = CommissionNarrative.BuildClosure(data, giverProfile, giverProfile, _foundQuest.FinalGrade);
+            string line = $"{closureText}\n（报酬 {data.NegotiatedReward} 第纳尔）";
 
-            string info = $"{giverName} 看到你回来，脸上露出了笑容。\n\n" +
-                          $"「{closureText}」\n\n" +
-                          $"──\n委托：{data.GetFlavorDescription()}\n" +
-                          $"报酬：{data.NegotiatedReward} 第纳尔\n" +
-                          (data.DepositAmount > 0 ? $"定金：{data.DepositAmount} 第纳尔（已支付）\n" : "") +
-                          "\n现在领取报酬？";
+            Action onCollect = () =>
+            {
+                _foundQuest.CompleteWithRewardCollection();
+                DebugLogger.Log($"[CommissionIntent] CollectReward: player collected reward from {ctx.Hero.Name} for {data.GetFlavorDescription()}");
+            };
 
-            InformationManager.ShowInquiry(new InquiryData(
-                "领取报酬",
-                info,
-                true, true,
-                "领取",
-                "稍后再说",
-                () =>
-                {
-                    _foundQuest.CompleteWithRewardCollection();
-                    DebugLogger.Log($"[CommissionIntent] CollectReward: player collected reward from {ctx.Hero.Name} for {data.GetFlavorDescription()}");
-                },
-                null));
+            // NPC 当面致谢并结算（走对话系统，不弹窗）
+            if (ctx.Controller != null)
+            {
+                ctx.Controller.SceneSay(line,
+                    new StoryOptionVM("收下报酬", () => { onCollect(); ctx.Controller.CloseDialogue(); }),
+                    new StoryOptionVM("（稍后再说）", () => ctx.Controller.CloseDialogue()));
+            }
+            else
+            {
+                InformationManager.ShowInquiry(new InquiryData(
+                    "领取报酬", $"「{closureText}」\n\n报酬：{data.NegotiatedReward} 第纳尔", true, true,
+                    "领取", "稍后再说", onCollect, null));
+            }
         }
     }
 }

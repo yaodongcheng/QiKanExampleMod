@@ -33,6 +33,8 @@ namespace LivingWorldNpcs
         [SaveableField(48)] private string _escortPartyId; // 商队/目标部队的 ID
         [SaveableField(51)] private bool _bribeAttempted;
         [SaveableField(52)] private bool _bribeSuccessful;
+        [SaveableField(49)] private JournalLog _findGiverLog;  // 阶段1：找委托人
+        [SaveableField(50)] private JournalLog _rewardLog;     // 阶段3：领报酬
 
         public override bool IsRemainingTimeHidden => false;
         public override TextObject Title => new TextObject(_data?.GetFlavorDescription() ?? "委托任务");
@@ -97,7 +99,12 @@ namespace LivingWorldNpcs
                 ?? QuestGiver?.HomeSettlement?.Name?.ToString() ?? "未知地点";
             DebugLogger.Log($"[CommissionQuest] BeginNarrativePhase: {_data.GetFlavorDescription()} giver={QuestGiver?.Name} at {giverLoc}");
             AddLog(new TextObject($"📋 委托情报已记录：{_data.GetFlavorDescription()}"));
-            AddLog(new TextObject($"前往 {giverLoc} 找 {QuestGiver?.Name}，当面了解详情。"));
+
+            // 阶段1：找到委托人（离散日志，0/1 表示是否完成）
+            _findGiverLog = AddDiscreteLog(
+                new TextObject($"第一步：前往 {giverLoc} 找 {QuestGiver?.Name} 当面了解委托详情"),
+                new TextObject($"找到 {QuestGiver?.Name}"),
+                0, 1);
             // 不注册事件，不定金，不启动——只是占个位
         }
 
@@ -108,6 +115,10 @@ namespace LivingWorldNpcs
             _data.IsNarrativePhase = false;
 
             DebugLogger.Log($"[CommissionQuest] ConfirmQuest: {_data.GetFlavorDescription()} giver={QuestGiver?.Name} deposit={_data.DepositAmount}");
+
+            // 阶段1完成：找到了委托人
+            if (_findGiverLog != null)
+                _findGiverLog.UpdateCurrentProgress(1);
 
             // 定金到账
             if (_data.DepositAmount > 0)
@@ -138,10 +149,7 @@ namespace LivingWorldNpcs
 
             if (_totalProgress > 0)
             {
-                _progressLog = AddDiscreteLog(
-                    new TextObject("{=commission_progress}委托进度"),
-                    new TextObject("{=commission_progress_detail}完成度"),
-                    _currentProgress, _totalProgress);
+                CreateObjectiveLog();
             }
 
             if (_data.DepositAmount > 0)
@@ -285,10 +293,7 @@ namespace LivingWorldNpcs
 
             if (_totalProgress > 0)
             {
-                _progressLog = AddDiscreteLog(
-                    new TextObject("{=commission_progress}委托进度"),
-                    new TextObject("{=commission_progress_detail}完成度"),
-                    _currentProgress, _totalProgress);
+                CreateObjectiveLog();
             }
 
             if (_data.DepositAmount > 0)
@@ -1633,6 +1638,7 @@ namespace LivingWorldNpcs
             }
             if (_currentProgress >= _totalProgress)
             {
+                // 阶段2完成：目标进度拉满（离散日志自动显示完成）
                 // 不立即完成 —— 标记为等待领取报酬
                 _data.IsObjectivesComplete = true;
                 CleanupSpawnedParty();
@@ -1642,6 +1648,12 @@ namespace LivingWorldNpcs
                 string payerName = payer?.Name?.ToString() ?? "委托人";
                 string payerLoc = payer?.CurrentSettlement?.Name?.ToString()
                     ?? payer?.HomeSettlement?.Name?.ToString() ?? "未知地点";
+
+                // 阶段3：找结账人领报酬
+                _rewardLog = AddDiscreteLog(
+                    new TextObject($"第三步：前往 {payerLoc} 找 {payerName} 领取报酬"),
+                    new TextObject($"领取报酬"),
+                    0, 1);
 
                 AddLog(new TextObject($"委托目标已完成！前往 {payerLoc} 找 {payerName} 领取报酬。"));
                 DebugLogger.Log($"[CommissionQuest] Objectives complete: {_data.GetFlavorDescription()} payer={payerName} at {payerLoc}");
@@ -1663,6 +1675,10 @@ namespace LivingWorldNpcs
 
             Hero payer = _data.RewardPayer ?? QuestGiver;
             DebugLogger.Log($"[CommissionQuest] CompleteWithRewardCollection: {_data.GetFlavorDescription()} grade={_finalGrade} reward={reward} trustDelta={trustDelta} payer={payer?.Name}");
+
+            // 阶段3完成：报酬已领取
+            if (_rewardLog != null)
+                _rewardLog.UpdateCurrentProgress(1);
 
             // 从结账人转账报酬（结账人可能就是委托人）
             AgentControlHelper.TransferGold(payer, Hero.MainHero, reward);
@@ -1715,6 +1731,66 @@ namespace LivingWorldNpcs
                     return "赛前练级提升技能可增加胜率。";
                 default: return "";
             }
+        }
+
+        /// <summary>阶段2目标的简短描述（用于 quest 日志步骤标题）。</summary>
+        private string GetObjectiveStepText()
+        {
+            string target = _data.TargetHero?.Name?.ToString()
+                ?? (!string.IsNullOrEmpty(_data.TargetSettlementId)
+                    ? Settlement.Find(_data.TargetSettlementId)?.Name?.ToString() ?? "目标地"
+                    : "目标");
+            string item = !string.IsNullOrEmpty(_data.TargetItemId)
+                ? MBObjectManager.Instance.GetObject<ItemObject>(_data.TargetItemId)?.Name?.ToString() ?? "物资"
+                : "物资";
+
+            switch (_data.Category)
+            {
+                case CommissionCategory.BountyHunt:
+                    return $"第二步：击败（最好活捉）{target}";
+                case CommissionCategory.LegendaryHunt:
+                    return $"第二步：讨伐匪王 {target}";
+                case CommissionCategory.HideoutClear:
+                    return $"第二步：清剿 {target} 附近的匪窝";
+                case CommissionCategory.CaravanEscort:
+                    return $"第二步：护送商队抵达 {target}";
+                case CommissionCategory.EmergencyDelivery:
+                    return $"第二步：将 {item}×{_data.TargetItemCount} 送达 {target}";
+                case CommissionCategory.SupplyEmergency:
+                    return $"第二步：采购 {item}×{_data.TargetItemCount} 送往 {target}";
+                case CommissionCategory.ProcurementAgent:
+                    return $"第二步：购得 {item} 交付";
+                case CommissionCategory.LostItem:
+                    return $"第二步：在 {target} 寻回失物";
+                case CommissionCategory.TreasureHunt:
+                    return $"第二步：在 {target} 附近寻得宝藏";
+                case CommissionCategory.HorseAcquisition:
+                    return $"第二步：寻购 {item}";
+                case CommissionCategory.UndergroundFight:
+                    return $"第二步：在竞技场获胜";
+                case CommissionCategory.ArenaSpecial:
+                    return $"第二步：在竞技场连胜";
+                case CommissionCategory.VillageDefense:
+                    return $"第二步：保卫 {target}（迎击或贿赂匪徒）";
+                case CommissionCategory.PrisonBreak:
+                    return $"第二步：从监狱救出 {target}";
+                case CommissionCategory.SupplyIntercept:
+                    return $"第二步：拦截运往 {target} 的补给队";
+                case CommissionCategory.DecoyMission:
+                    return $"第二步：引开追兵，坚持到委托人撤离";
+                default:
+                    return "第二步：完成委托目标";
+            }
+        }
+
+        /// <summary>创建阶段2目标的进度日志（带描述性标题）。</summary>
+        private void CreateObjectiveLog()
+        {
+            if (_totalProgress <= 0) return;
+            _progressLog = AddDiscreteLog(
+                new TextObject(GetObjectiveStepText()),
+                new TextObject("完成度"),
+                _currentProgress, _totalProgress);
         }
 
         private bool HasRequiredItems()
