@@ -328,6 +328,31 @@ namespace LivingWorldNpcs.Story
             _vm.ShowOptions(_optionManager.BuildOptionVMs(_targetAgent));
         }
 
+        /// <summary>
+        /// 让当前对话的 NPC 自然说一句话，并附带选项。
+        /// 用于替代 InquiryData 弹窗——除非内容确实需要弹窗（如委托书信），否则一律走此函数让 NPC 自然说话。
+        /// </summary>
+        public void SceneSay(string npcLine, params StoryOptionVM[] options)
+        {
+            if (_vm == null) return;
+            string name = _targetAgent?.Name?.ToString() ?? "";
+            _vm.Show(name, npcLine);
+            if (options != null && options.Length > 0)
+                _vm.ShowOptions(options);
+            else
+                _vm.AreOptionsVisible = false;
+        }
+
+        /// <summary>关闭当前对话 UI。</summary>
+        public void CloseDialogue()
+        {
+            _vm?.Close();
+        }
+
+        /// <summary>当前对话对象（供意图回调读取）。</summary>
+        public Agent CurrentAgent => _targetAgent;
+
+
         // ============================================================
         // 无 LLM 单次检定：意图分发 + 结算 + 子菜单（主线程同步，见坑 P2）
         // ============================================================
