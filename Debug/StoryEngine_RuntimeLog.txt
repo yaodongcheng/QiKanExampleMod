@@ -1,161 +1,126 @@
-﻿[18:17:32.189] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的那提洛斯 occ=RuralNotable matched=2
-[18:17:32.190] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的那提洛斯 occ=RuralNotable defs=2 count=1
-[18:17:32.190] [CommissionIssue] OnCheckForIssue: hero=阿拉堤斯的那提洛斯 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.217] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的涅托耳 occ=RuralNotable matched=3
-[18:17:32.217] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的涅托耳 occ=RuralNotable defs=3 count=1
-[18:17:32.217] [CommissionIssue] OnCheckForIssue: hero=阿拉堤斯的涅托耳 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.217] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的诺耳托斯 occ=Headman matched=7
-[18:17:32.217] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的诺耳托斯 occ=Headman defs=7 count=1
-[18:17:32.218] [CommissionIssue] OnCheckForIssue: hero=阿拉堤斯的诺耳托斯 occ=Headman commissions=1 hasExistingIssue=False
-[18:17:32.221] [CommissionIssue] Created CommissionHubIssue for 阿拉堤斯的那提洛斯
-[18:17:32.754] [CommissionGen] GetAvailableDefs: hero=马利齐俄斯 occ=Lord matched=8
-[18:17:32.754] [CommissionGen] HasCommissionsFor cache miss: hero=马利齐俄斯 occ=Lord defs=8 count=1
-[18:17:32.754] [CommissionIssue] OnCheckForIssue: hero=马利齐俄斯 occ=Lord commissions=1 hasExistingIssue=False
-[18:17:32.757] [CommissionGen] GetAvailableDefs: hero=普拉敦提娅 occ=Lord matched=8
-[18:17:32.757] [CommissionGen] HasCommissionsFor cache miss: hero=普拉敦提娅 occ=Lord defs=8 count=1
-[18:17:32.757] [CommissionIssue] OnCheckForIssue: hero=普拉敦提娅 occ=Lord commissions=1 hasExistingIssue=False
-[18:17:32.759] [CommissionGen] GetAvailableDefs: hero=忒阿维索斯 occ=Lord matched=8
-[18:17:32.759] [CommissionGen] HasCommissionsFor cache miss: hero=忒阿维索斯 occ=Lord defs=8 count=1
-[18:17:32.759] [CommissionIssue] OnCheckForIssue: hero=忒阿维索斯 occ=Lord commissions=1 hasExistingIssue=False
-[18:17:32.759] [CommissionGen] GetAvailableDefs: hero=塞拉诺耳 occ=Lord matched=8
-[18:17:32.759] [CommissionGen] HasCommissionsFor cache miss: hero=塞拉诺耳 occ=Lord defs=8 count=1
-[18:17:32.759] [CommissionIssue] OnCheckForIssue: hero=塞拉诺耳 occ=Lord commissions=1 hasExistingIssue=False
-[18:17:32.760] [CommissionGen] GetAvailableDefs: hero=革耳马娜 occ=Lord matched=7
-[18:17:32.760] [CommissionGen] HasCommissionsFor cache miss: hero=革耳马娜 occ=Lord defs=7 count=1
-[18:17:32.760] [CommissionIssue] OnCheckForIssue: hero=革耳马娜 occ=Lord commissions=1 hasExistingIssue=False
-[18:17:32.856] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的图瓦尔 occ=RuralNotable matched=3
-[18:17:32.857] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的图瓦尔 occ=RuralNotable defs=3 count=1
-[18:17:32.857] [CommissionIssue] OnCheckForIssue: hero=阿利斯维斯特的图瓦尔 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.857] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的安海姆 occ=RuralNotable matched=3
-[18:17:32.858] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的安海姆 occ=RuralNotable defs=3 count=1
-[18:17:32.858] [CommissionIssue] OnCheckForIssue: hero=阿利斯维斯特的安海姆 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.858] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的葛雷福特 occ=Headman matched=7
-[18:17:32.858] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的葛雷福特 occ=Headman defs=7 count=1
-[18:17:32.858] [CommissionIssue] OnCheckForIssue: hero=阿利斯维斯特的葛雷福特 occ=Headman commissions=1 hasExistingIssue=False
-[18:17:32.858] [CommissionIssue] Created CommissionHubIssue for 阿利斯维斯特的葛雷福特
-[18:17:32.889] [CommissionIssue] Player entered 特维亚, refreshing issue signals
-[18:17:32.890] [CommissionGen] GetAvailableDefs: hero=特维亚的加里托普斯 occ=Headman matched=7
-[18:17:32.890] [CommissionGen] HasCommissionsFor cache miss: hero=特维亚的加里托普斯 occ=Headman defs=7 count=1
-[18:17:32.890] [CommissionIssue] OnCheckForIssue: hero=特维亚的加里托普斯 occ=Headman commissions=1 hasExistingIssue=False
-[18:17:32.897] [CommissionIssue] IssueManager doesn't support 特维亚的加里托普斯 (occ=Headman), skipping '!' signal
-[18:17:32.897] [CommissionGen] GetAvailableDefs: hero=特维亚的奥刻洛斯 occ=RuralNotable matched=3
-[18:17:32.897] [CommissionGen] HasCommissionsFor cache miss: hero=特维亚的奥刻洛斯 occ=RuralNotable defs=3 count=1
-[18:17:32.897] [CommissionIssue] OnCheckForIssue: hero=特维亚的奥刻洛斯 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.901] [CommissionIssue] IssueManager doesn't support 特维亚的奥刻洛斯 (occ=RuralNotable), skipping '!' signal
-[18:17:32.902] [CommissionGen] GetAvailableDefs: hero=特维亚的赫卡戎 occ=RuralNotable matched=2
-[18:17:32.902] [CommissionGen] HasCommissionsFor cache miss: hero=特维亚的赫卡戎 occ=RuralNotable defs=2 count=1
-[18:17:32.902] [CommissionIssue] OnCheckForIssue: hero=特维亚的赫卡戎 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.906] [CommissionIssue] IssueManager doesn't support 特维亚的赫卡戎 (occ=RuralNotable), skipping '!' signal
-[18:17:32.906] [CommissionGen] GetAvailableDefs: hero=特维亚的加里托普斯 occ=Headman matched=7
-[18:17:32.907] [CommissionGen] HasCommissionsFor cache miss: hero=特维亚的加里托普斯 occ=Headman defs=7 count=1
-[18:17:32.907] [CommissionIssue] OnCheckForIssue: hero=特维亚的加里托普斯 occ=Headman commissions=1 hasExistingIssue=False
-[18:17:32.913] [CommissionIssue] IssueManager doesn't support 特维亚的加里托普斯 (occ=Headman), skipping '!' signal
-[18:17:32.913] [CommissionGen] GetAvailableDefs: hero=特维亚的奥刻洛斯 occ=RuralNotable matched=2
-[18:17:32.913] [CommissionGen] HasCommissionsFor cache miss: hero=特维亚的奥刻洛斯 occ=RuralNotable defs=2 count=1
-[18:17:32.913] [CommissionIssue] OnCheckForIssue: hero=特维亚的奥刻洛斯 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.919] [CommissionIssue] IssueManager doesn't support 特维亚的奥刻洛斯 (occ=RuralNotable), skipping '!' signal
-[18:17:32.919] [CommissionGen] GetAvailableDefs: hero=特维亚的赫卡戎 occ=RuralNotable matched=2
-[18:17:32.919] [CommissionGen] HasCommissionsFor cache miss: hero=特维亚的赫卡戎 occ=RuralNotable defs=2 count=1
-[18:17:32.919] [CommissionIssue] OnCheckForIssue: hero=特维亚的赫卡戎 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:17:32.924] [CommissionIssue] IssueManager doesn't support 特维亚的赫卡戎 (occ=RuralNotable), skipping '!' signal
-[18:18:43.699] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[18:18:43.706] [CommissionGen] GetAvailableDefs: hero=特维亚的赫卡戎 occ=RuralNotable matched=2
-[18:18:43.706] [CommissionGen] HasCommissionsFor cache miss: hero=特维亚的赫卡戎 occ=RuralNotable defs=2 count=1
-[18:18:43.706] [CommissionIntent] RequestCommission Evaluate: hero=特维亚的赫卡戎 count=1 → Show
-[18:18:48.422] [CommissionGen] GenerateCommissions: hero=特维亚的赫卡戎 isBroker=False maxCount=4
-[18:18:48.423] [CommissionGen] GetAvailableDefs: hero=特维亚的赫卡戎 occ=RuralNotable matched=2
-[18:18:48.428] [CommissionGen] FillTargetSettlement(VillageDefense): target=泰佩斯 dist=289.8
-[18:18:48.428] [CommissionGen] FillTargetSettlement final: category=VillageDefense target=castle_village_K4_1 giverLoc=特维亚
-[18:18:48.429] [CommissionGen] Generated commission: def=village_defense tier=Basic giver=特维亚的赫卡戎 broker=none reward=600 target=castle_village_K4_1 payer=特维亚的赫卡戎
-[18:18:48.430] [CommissionGen] FillTargetSettlement: category=EmergencyDelivery target=俄尼卡堡 dist=51.7 pickIndex=2/120
-[18:18:48.430] [CommissionGen] FillTargetSettlement final: category=EmergencyDelivery target=castle_EW3 giverLoc=特维亚
-[18:18:48.430] [CommissionGen] Generated commission: def=emergency_delivery tier=Basic giver=特维亚的赫卡戎 broker=none reward=400 target=castle_EW3 payer=特维亚的赫卡戎
-[18:18:48.430] [CommissionIntent] RequestCommission OnInstant: hero=特维亚的赫卡戎 generated=2
-[18:18:57.280] [CommissionIntent] RequestCommission OnInstant: hero=特维亚的赫卡戎 generated=2
-[18:19:00.326] [CommissionIntent] RequestCommission OnInstant: hero=特维亚的赫卡戎 generated=2
-[18:19:22.482] [CommissionIntent] AcceptCommission: category=EmergencyDelivery giver=特维亚的赫卡戎 broker= narrativePhase=False
-[18:19:22.482] [CommissionIntent] Direct accept: reward=389 deposit=116 trust=0
-[18:19:22.484] [CommissionQuest] OnStartQuest: 限时运粮：谷物 ×15 送往 俄尼卡堡 narrativePhase=False questId=commission_emergency_delivery_CharacterObject_2911_639169715624834683
-[18:19:22.485] [CommissionQuest] Full startup: giver=特维亚的赫卡戎 reward=389 deposit=116 days=5 tier=Basic
-[18:20:04.884] [CommissionQuest] DailyTick: 限时运粮：谷物 ×15 送往 俄尼卡堡 timeRemain=96h reward=389
-[18:20:04.885] [CommissionQuest] Complication triggered for 限时运粮：谷物 ×15 送往 俄尼卡堡
-[18:20:04.886] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的那提洛斯 occ=RuralNotable matched=2
-[18:20:04.887] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的那提洛斯 occ=RuralNotable defs=2 count=1
-[18:20:04.887] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的葛雷福特 occ=Headman matched=7
-[18:20:04.887] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的葛雷福特 occ=Headman defs=7 count=1
-[18:20:04.913] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的那提洛斯 occ=RuralNotable matched=3
-[18:20:04.913] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的那提洛斯 occ=RuralNotable defs=3 count=1
-[18:20:04.913] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的葛雷福特 occ=Headman matched=7
-[18:20:04.913] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的葛雷福特 occ=Headman defs=7 count=1
-[18:20:48.878] [CommissionQuest] Objectives complete: 限时运粮：谷物 ×15 送往 俄尼卡堡 payer=特维亚的赫卡戎 at 特维亚
-[18:20:48.878] [CommissionIssue] Player entered 俄尼卡堡, refreshing issue signals
-[18:21:10.271] [CommissionIssue] Player entered 俄尼卡堡, refreshing issue signals
-[18:21:35.769] [CommissionIssue] Player entered 特维亚, refreshing issue signals
-[18:21:48.744] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[18:21:48.745] [CommissionIntent] CollectReward Evaluate: hero=特维亚的赫卡戎 quest=限时运粮：谷物 ×15 送往 俄尼卡堡
-[18:21:56.804] [CommissionQuest] CompleteWithRewardCollection: 限时运粮：谷物 ×15 送往 俄尼卡堡 grade=Perfect reward=622 trustDelta=15 payer=特维亚的赫卡戎
-[18:21:56.809] [CommissionQuest] OnCompleteWithSuccess: already settled via reward collection flow
-[18:21:56.813] [CommissionIntent] CollectReward: player collected reward from 特维亚的赫卡戎 for 限时运粮：谷物 ×15 送往 俄尼卡堡
-[18:22:07.738] [CommissionGen] GetAvailableDefs: hero=底俄帕利斯的卡利玻斯 occ=RuralNotable matched=2
-[18:22:07.738] [CommissionGen] HasCommissionsFor cache miss: hero=底俄帕利斯的卡利玻斯 occ=RuralNotable defs=2 count=1
-[18:22:07.738] [CommissionIssue] OnCheckForIssue: hero=底俄帕利斯的卡利玻斯 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:07.739] [CommissionGen] GetAvailableDefs: hero=底俄帕利斯的西诺耳 occ=RuralNotable matched=2
-[18:22:07.739] [CommissionGen] HasCommissionsFor cache miss: hero=底俄帕利斯的西诺耳 occ=RuralNotable defs=2 count=1
-[18:22:07.739] [CommissionIssue] OnCheckForIssue: hero=底俄帕利斯的西诺耳 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:07.739] [CommissionGen] GetAvailableDefs: hero=底俄帕利斯的帕得摩斯 occ=Headman matched=7
-[18:22:07.739] [CommissionGen] HasCommissionsFor cache miss: hero=底俄帕利斯的帕得摩斯 occ=Headman defs=7 count=1
-[18:22:07.739] [CommissionIssue] OnCheckForIssue: hero=底俄帕利斯的帕得摩斯 occ=Headman commissions=1 hasExistingIssue=False
-[18:22:07.739] [CommissionIssue] Created CommissionHubIssue for 底俄帕利斯的帕得摩斯
-[18:22:07.925] [CommissionGen] GetAvailableDefs: hero=普里墨索斯的阿提隆 occ=RuralNotable matched=2
-[18:22:07.925] [CommissionGen] HasCommissionsFor cache miss: hero=普里墨索斯的阿提隆 occ=RuralNotable defs=2 count=1
-[18:22:07.925] [CommissionIssue] OnCheckForIssue: hero=普里墨索斯的阿提隆 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:07.925] [CommissionGen] GetAvailableDefs: hero=普里墨索斯的剌诺斯 occ=RuralNotable matched=2
-[18:22:07.925] [CommissionGen] HasCommissionsFor cache miss: hero=普里墨索斯的剌诺斯 occ=RuralNotable defs=2 count=1
-[18:22:07.925] [CommissionIssue] OnCheckForIssue: hero=普里墨索斯的剌诺斯 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:07.925] [CommissionGen] GetAvailableDefs: hero=普里墨索斯的摩律农 occ=Headman matched=7
-[18:22:07.925] [CommissionGen] HasCommissionsFor cache miss: hero=普里墨索斯的摩律农 occ=Headman defs=7 count=1
-[18:22:07.925] [CommissionIssue] OnCheckForIssue: hero=普里墨索斯的摩律农 occ=Headman commissions=1 hasExistingIssue=False
-[18:22:07.926] [CommissionIssue] Created CommissionHubIssue for 普里墨索斯的摩律农
-[18:22:08.015] [CommissionGen] GetAvailableDefs: hero=格烈登的哈明达 occ=RuralNotable matched=2
-[18:22:08.017] [CommissionGen] HasCommissionsFor cache miss: hero=格烈登的哈明达 occ=RuralNotable defs=2 count=1
-[18:22:08.017] [CommissionIssue] OnCheckForIssue: hero=格烈登的哈明达 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:08.017] [CommissionGen] GetAvailableDefs: hero=格烈登的斡洪 occ=RuralNotable matched=3
-[18:22:08.017] [CommissionGen] HasCommissionsFor cache miss: hero=格烈登的斡洪 occ=RuralNotable defs=3 count=1
-[18:22:08.017] [CommissionIssue] OnCheckForIssue: hero=格烈登的斡洪 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:08.017] [CommissionGen] GetAvailableDefs: hero=格烈登的斡罗仑 occ=Headman matched=7
-[18:22:08.017] [CommissionGen] HasCommissionsFor cache miss: hero=格烈登的斡罗仑 occ=Headman defs=7 count=1
-[18:22:08.017] [CommissionIssue] OnCheckForIssue: hero=格烈登的斡罗仑 occ=Headman commissions=1 hasExistingIssue=False
-[18:22:08.018] [CommissionIssue] Created CommissionHubIssue for 格烈登的斡罗仑
-[18:22:08.062] [CommissionGen] GetAvailableDefs: hero=利瓦斯的萨马尔 occ=RuralNotable matched=3
-[18:22:08.063] [CommissionGen] HasCommissionsFor cache miss: hero=利瓦斯的萨马尔 occ=RuralNotable defs=3 count=1
-[18:22:08.063] [CommissionIssue] OnCheckForIssue: hero=利瓦斯的萨马尔 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:08.063] [CommissionGen] GetAvailableDefs: hero=利瓦斯的坎纳尔 occ=RuralNotable matched=2
-[18:22:08.063] [CommissionGen] HasCommissionsFor cache miss: hero=利瓦斯的坎纳尔 occ=RuralNotable defs=2 count=1
-[18:22:08.063] [CommissionIssue] OnCheckForIssue: hero=利瓦斯的坎纳尔 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:08.063] [CommissionGen] GetAvailableDefs: hero=利瓦斯的鲁特瓦尔 occ=Headman matched=7
-[18:22:08.063] [CommissionGen] HasCommissionsFor cache miss: hero=利瓦斯的鲁特瓦尔 occ=Headman defs=7 count=1
-[18:22:08.063] [CommissionIssue] OnCheckForIssue: hero=利瓦斯的鲁特瓦尔 occ=Headman commissions=1 hasExistingIssue=False
-[18:22:08.108] [CommissionGen] GetAvailableDefs: hero=磨坊主萨尼翁 occ=Artisan matched=7
-[18:22:08.109] [CommissionGen] HasCommissionsFor cache miss: hero=磨坊主萨尼翁 occ=Artisan defs=7 count=1
-[18:22:08.109] [CommissionIssue] OnCheckForIssue: hero=磨坊主萨尼翁 occ=Artisan commissions=1 hasExistingIssue=False
-[18:22:08.109] [CommissionGen] GetAvailableDefs: hero=麦酒酿制工欧托斯 occ=Merchant matched=9
-[18:22:08.109] [CommissionGen] HasCommissionsFor cache miss: hero=麦酒酿制工欧托斯 occ=Merchant defs=9 count=1
-[18:22:08.109] [CommissionIssue] OnCheckForIssue: hero=麦酒酿制工欧托斯 occ=Merchant commissions=1 hasExistingIssue=False
-[18:22:08.109] [CommissionGen] GetAvailableDefs: hero=绸缎商奥奇沃斯 occ=Merchant matched=8
-[18:22:08.110] [CommissionGen] HasCommissionsFor cache miss: hero=绸缎商奥奇沃斯 occ=Merchant defs=8 count=1
-[18:22:08.110] [CommissionIssue] OnCheckForIssue: hero=绸缎商奥奇沃斯 occ=Merchant commissions=1 hasExistingIssue=False
-[18:22:08.110] [CommissionGen] GetAvailableDefs: hero=“铁锤”刻农 occ=GangLeader matched=9
-[18:22:08.110] [CommissionGen] HasCommissionsFor cache miss: hero=“铁锤”刻农 occ=GangLeader defs=9 count=1
-[18:22:08.110] [CommissionIssue] OnCheckForIssue: hero=“铁锤”刻农 occ=GangLeader commissions=1 hasExistingIssue=False
-[18:22:08.110] [CommissionGen] GetAvailableDefs: hero=“烂牙”玛威娅 occ=GangLeader matched=8
-[18:22:08.110] [CommissionGen] HasCommissionsFor cache miss: hero=“烂牙”玛威娅 occ=GangLeader defs=8 count=1
-[18:22:08.110] [CommissionIssue] OnCheckForIssue: hero=“烂牙”玛威娅 occ=GangLeader commissions=1 hasExistingIssue=False
-[18:22:08.200] [CommissionGen] GetAvailableDefs: hero=约格律斯的俄洛斯 occ=RuralNotable matched=2
-[18:22:08.200] [CommissionGen] HasCommissionsFor cache miss: hero=约格律斯的俄洛斯 occ=RuralNotable defs=2 count=1
-[18:22:08.200] [CommissionIssue] OnCheckForIssue: hero=约格律斯的俄洛斯 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:08.201] [CommissionGen] GetAvailableDefs: hero=约格律斯的马维农 occ=RuralNotable matched=2
-[18:22:08.201] [CommissionGen] HasCommissionsFor cache miss: hero=约格律斯的马维农 occ=RuralNotable defs=2 count=1
-[18:22:08.201] [CommissionIssue] OnCheckForIssue: hero=约格律斯的马维农 occ=RuralNotable commissions=1 hasExistingIssue=False
-[18:22:08.201] [CommissionGen] GetAvailableDefs: hero=约格律斯的塔利宋 occ=Headman matched=7
-[18:22:08.201] [CommissionGen] HasCommissionsFor cache miss: hero=约格律斯的塔利宋 occ=Headman defs=7 count=1
-[18:22:08.201] [CommissionIssue] OnCheckForIssue: hero=约格律斯的塔利宋 occ=Headman commissions=1 hasExistingIssue=False
+﻿[11:24:59.341] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的那提洛斯 occ=RuralNotable matched=3
+[11:24:59.341] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的那提洛斯 occ=RuralNotable defs=3 count=1
+[11:24:59.342] [CommissionIssue] OnCheckForIssue: hero=阿拉堤斯的那提洛斯 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:24:59.381] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的涅托耳 occ=RuralNotable matched=2
+[11:24:59.381] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的涅托耳 occ=RuralNotable defs=2 count=1
+[11:24:59.382] [CommissionIssue] OnCheckForIssue: hero=阿拉堤斯的涅托耳 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:24:59.382] [CommissionGen] GetAvailableDefs: hero=阿拉堤斯的诺耳托斯 occ=Headman matched=7
+[11:24:59.383] [CommissionGen] HasCommissionsFor cache miss: hero=阿拉堤斯的诺耳托斯 occ=Headman defs=7 count=1
+[11:24:59.383] [CommissionIssue] OnCheckForIssue: hero=阿拉堤斯的诺耳托斯 occ=Headman commissions=1 hasExistingIssue=False
+[11:24:59.387] [CommissionIssue] Created CommissionHubIssue for 阿拉堤斯的诺耳托斯
+[11:24:59.924] [CommissionGen] GetAvailableDefs: hero=马利齐俄斯 occ=Lord matched=8
+[11:24:59.925] [CommissionGen] HasCommissionsFor cache miss: hero=马利齐俄斯 occ=Lord defs=8 count=1
+[11:24:59.925] [CommissionIssue] OnCheckForIssue: hero=马利齐俄斯 occ=Lord commissions=1 hasExistingIssue=False
+[11:24:59.930] [CommissionGen] GetAvailableDefs: hero=普拉敦提娅 occ=Lord matched=7
+[11:24:59.930] [CommissionGen] HasCommissionsFor cache miss: hero=普拉敦提娅 occ=Lord defs=7 count=1
+[11:24:59.930] [CommissionIssue] OnCheckForIssue: hero=普拉敦提娅 occ=Lord commissions=1 hasExistingIssue=False
+[11:24:59.932] [CommissionGen] GetAvailableDefs: hero=忒阿维索斯 occ=Lord matched=8
+[11:24:59.932] [CommissionGen] HasCommissionsFor cache miss: hero=忒阿维索斯 occ=Lord defs=8 count=1
+[11:24:59.932] [CommissionIssue] OnCheckForIssue: hero=忒阿维索斯 occ=Lord commissions=1 hasExistingIssue=False
+[11:24:59.933] [CommissionGen] GetAvailableDefs: hero=塞拉诺耳 occ=Lord matched=8
+[11:24:59.933] [CommissionGen] HasCommissionsFor cache miss: hero=塞拉诺耳 occ=Lord defs=8 count=1
+[11:24:59.933] [CommissionIssue] OnCheckForIssue: hero=塞拉诺耳 occ=Lord commissions=1 hasExistingIssue=False
+[11:24:59.934] [CommissionGen] GetAvailableDefs: hero=革耳马娜 occ=Lord matched=7
+[11:24:59.935] [CommissionGen] HasCommissionsFor cache miss: hero=革耳马娜 occ=Lord defs=7 count=1
+[11:24:59.935] [CommissionIssue] OnCheckForIssue: hero=革耳马娜 occ=Lord commissions=1 hasExistingIssue=False
+[11:25:00.028] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的图瓦尔 occ=RuralNotable matched=3
+[11:25:00.028] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的图瓦尔 occ=RuralNotable defs=3 count=1
+[11:25:00.028] [CommissionIssue] OnCheckForIssue: hero=阿利斯维斯特的图瓦尔 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.030] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的安海姆 occ=RuralNotable matched=3
+[11:25:00.030] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的安海姆 occ=RuralNotable defs=3 count=1
+[11:25:00.031] [CommissionIssue] OnCheckForIssue: hero=阿利斯维斯特的安海姆 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.031] [CommissionGen] GetAvailableDefs: hero=阿利斯维斯特的葛雷福特 occ=Headman matched=7
+[11:25:00.031] [CommissionGen] HasCommissionsFor cache miss: hero=阿利斯维斯特的葛雷福特 occ=Headman defs=7 count=1
+[11:25:00.031] [CommissionIssue] OnCheckForIssue: hero=阿利斯维斯特的葛雷福特 occ=Headman commissions=1 hasExistingIssue=False
+[11:25:00.032] [CommissionIssue] Created CommissionHubIssue for 阿利斯维斯特的图瓦尔
+[11:25:00.538] [CommissionGen] GetAvailableDefs: hero=萨万特的阿马尔杜夫 occ=RuralNotable matched=3
+[11:25:00.538] [CommissionGen] HasCommissionsFor cache miss: hero=萨万特的阿马尔杜夫 occ=RuralNotable defs=3 count=1
+[11:25:00.540] [CommissionIssue] OnCheckForIssue: hero=萨万特的阿马尔杜夫 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.540] [CommissionGen] GetAvailableDefs: hero=萨万特的于瓦尔 occ=RuralNotable matched=2
+[11:25:00.541] [CommissionGen] HasCommissionsFor cache miss: hero=萨万特的于瓦尔 occ=RuralNotable defs=2 count=1
+[11:25:00.544] [CommissionIssue] OnCheckForIssue: hero=萨万特的于瓦尔 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.544] [CommissionGen] GetAvailableDefs: hero=萨万特的冈特里克 occ=Headman matched=7
+[11:25:00.544] [CommissionGen] HasCommissionsFor cache miss: hero=萨万特的冈特里克 occ=Headman defs=7 count=1
+[11:25:00.545] [CommissionIssue] OnCheckForIssue: hero=萨万特的冈特里克 occ=Headman commissions=1 hasExistingIssue=False
+[11:25:00.545] [CommissionIssue] Created CommissionHubIssue for 萨万特的阿马尔杜夫
+[11:25:00.791] [CommissionGen] GetAvailableDefs: hero=庞斯的欧托斯 occ=RuralNotable matched=2
+[11:25:00.792] [CommissionGen] HasCommissionsFor cache miss: hero=庞斯的欧托斯 occ=RuralNotable defs=2 count=1
+[11:25:00.792] [CommissionIssue] OnCheckForIssue: hero=庞斯的欧托斯 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.793] [CommissionGen] GetAvailableDefs: hero=庞斯的达利得斯 occ=RuralNotable matched=2
+[11:25:00.793] [CommissionGen] HasCommissionsFor cache miss: hero=庞斯的达利得斯 occ=RuralNotable defs=2 count=1
+[11:25:00.793] [CommissionIssue] OnCheckForIssue: hero=庞斯的达利得斯 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.794] [CommissionGen] GetAvailableDefs: hero=庞斯的若瓦里翁 occ=Headman matched=7
+[11:25:00.794] [CommissionGen] HasCommissionsFor cache miss: hero=庞斯的若瓦里翁 occ=Headman defs=7 count=1
+[11:25:00.794] [CommissionIssue] OnCheckForIssue: hero=庞斯的若瓦里翁 occ=Headman commissions=1 hasExistingIssue=False
+[11:25:00.795] [CommissionIssue] Created CommissionHubIssue for 庞斯的达利得斯
+[11:25:00.837] [CommissionGen] GetAvailableDefs: hero=阿兰塔斯的奥斯里克 occ=RuralNotable matched=2
+[11:25:00.837] [CommissionGen] HasCommissionsFor cache miss: hero=阿兰塔斯的奥斯里克 occ=RuralNotable defs=2 count=1
+[11:25:00.838] [CommissionIssue] OnCheckForIssue: hero=阿兰塔斯的奥斯里克 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.838] [CommissionGen] GetAvailableDefs: hero=阿兰塔斯的奥雷斯特 occ=RuralNotable matched=2
+[11:25:00.839] [CommissionGen] HasCommissionsFor cache miss: hero=阿兰塔斯的奥雷斯特 occ=RuralNotable defs=2 count=1
+[11:25:00.839] [CommissionIssue] OnCheckForIssue: hero=阿兰塔斯的奥雷斯特 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:00.839] [CommissionGen] GetAvailableDefs: hero=阿兰塔斯的卡罗热尔 occ=Headman matched=7
+[11:25:00.841] [CommissionGen] HasCommissionsFor cache miss: hero=阿兰塔斯的卡罗热尔 occ=Headman defs=7 count=1
+[11:25:00.841] [CommissionIssue] OnCheckForIssue: hero=阿兰塔斯的卡罗热尔 occ=Headman commissions=1 hasExistingIssue=False
+[11:25:01.063] [CommissionGen] GetAvailableDefs: hero=耶拉科斯的列乌忒洛斯 occ=RuralNotable matched=3
+[11:25:01.063] [CommissionGen] HasCommissionsFor cache miss: hero=耶拉科斯的列乌忒洛斯 occ=RuralNotable defs=3 count=1
+[11:25:01.064] [CommissionIssue] OnCheckForIssue: hero=耶拉科斯的列乌忒洛斯 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:01.064] [CommissionGen] GetAvailableDefs: hero=耶拉科斯的马提斯 occ=RuralNotable matched=2
+[11:25:01.065] [CommissionGen] HasCommissionsFor cache miss: hero=耶拉科斯的马提斯 occ=RuralNotable defs=2 count=1
+[11:25:01.065] [CommissionIssue] OnCheckForIssue: hero=耶拉科斯的马提斯 occ=RuralNotable commissions=1 hasExistingIssue=False
+[11:25:01.065] [CommissionGen] GetAvailableDefs: hero=耶拉科斯的那弥斯 occ=Headman matched=7
+[11:25:01.066] [CommissionGen] HasCommissionsFor cache miss: hero=耶拉科斯的那弥斯 occ=Headman defs=7 count=1
+[11:25:01.066] [CommissionIssue] OnCheckForIssue: hero=耶拉科斯的那弥斯 occ=Headman commissions=1 hasExistingIssue=False
+[11:25:01.145] [CommissionIssue] Player entered 吕卡隆, refreshing issue signals
+[11:25:01.146] [CommissionGen] GetAvailableDefs: hero=维里娜 occ=Lord matched=7
+[11:25:01.146] [CommissionGen] HasCommissionsFor cache miss: hero=维里娜 occ=Lord defs=7 count=1
+[11:25:01.147] [CommissionIssue] OnCheckForIssue: hero=维里娜 occ=Lord commissions=1 hasExistingIssue=False
+[11:25:01.169] [CommissionIssue] IssueManager doesn't support 维里娜 (occ=Lord), skipping '!' signal
+[11:25:01.169] [CommissionGen] GetAvailableDefs: hero=维维安娜 occ=Lord matched=9
+[11:25:01.169] [CommissionGen] HasCommissionsFor cache miss: hero=维维安娜 occ=Lord defs=9 count=1
+[11:25:01.170] [CommissionIssue] OnCheckForIssue: hero=维维安娜 occ=Lord commissions=1 hasExistingIssue=False
+[11:25:01.176] [CommissionIssue] IssueManager doesn't support 维维安娜 (occ=Lord), skipping '!' signal
+[11:25:01.177] [CommissionGen] GetAvailableDefs: hero=“流浪者”赞迪娜 occ=Wanderer matched=8
+[11:25:01.177] [CommissionGen] HasCommissionsFor cache miss: hero=“流浪者”赞迪娜 occ=Wanderer defs=8 count=1
+[11:25:01.177] [CommissionIssue] OnCheckForIssue: hero=“流浪者”赞迪娜 occ=Wanderer commissions=1 hasExistingIssue=False
+[11:25:01.185] [CommissionIssue] IssueManager doesn't support “流浪者”赞迪娜 (occ=Wanderer), skipping '!' signal
+[11:25:01.185] [CommissionGen] GetAvailableDefs: hero=木匠安德洛斯 occ=Artisan matched=6
+[11:25:01.186] [CommissionGen] HasCommissionsFor cache miss: hero=木匠安德洛斯 occ=Artisan defs=6 count=1
+[11:25:01.186] [CommissionIssue] OnCheckForIssue: hero=木匠安德洛斯 occ=Artisan commissions=1 hasExistingIssue=False
+[11:25:01.192] [CommissionIssue] IssueManager doesn't support 木匠安德洛斯 (occ=Artisan), skipping '!' signal
+[11:25:01.192] [CommissionGen] GetAvailableDefs: hero=木匠达利得斯 occ=Merchant matched=8
+[11:25:01.193] [CommissionGen] HasCommissionsFor cache miss: hero=木匠达利得斯 occ=Merchant defs=8 count=1
+[11:25:01.193] [CommissionIssue] OnCheckForIssue: hero=木匠达利得斯 occ=Merchant commissions=1 hasExistingIssue=False
+[11:25:01.200] [CommissionIssue] IssueManager doesn't support 木匠达利得斯 (occ=Merchant), skipping '!' signal
+[11:25:01.201] [CommissionGen] GetAvailableDefs: hero=麦酒酿制工浦里奥斯 occ=Merchant matched=8
+[11:25:01.201] [CommissionGen] HasCommissionsFor cache miss: hero=麦酒酿制工浦里奥斯 occ=Merchant defs=8 count=1
+[11:25:01.201] [CommissionIssue] OnCheckForIssue: hero=麦酒酿制工浦里奥斯 occ=Merchant commissions=1 hasExistingIssue=False
+[11:25:01.207] [CommissionIssue] IssueManager doesn't support 麦酒酿制工浦里奥斯 (occ=Merchant), skipping '!' signal
+[11:25:01.208] [CommissionGen] GetAvailableDefs: hero=“酪乳”阿法倪斯 occ=GangLeader matched=9
+[11:25:01.208] [CommissionGen] HasCommissionsFor cache miss: hero=“酪乳”阿法倪斯 occ=GangLeader defs=9 count=1
+[11:25:01.209] [CommissionIssue] OnCheckForIssue: hero=“酪乳”阿法倪斯 occ=GangLeader commissions=1 hasExistingIssue=True
+[11:25:01.215] [CommissionIssue] IssueManager doesn't support “酪乳”阿法倪斯 (occ=GangLeader), skipping '!' signal
+[11:25:01.216] [CommissionGen] GetAvailableDefs: hero=“赤眼”得尔提索斯 occ=GangLeader matched=9
+[11:25:01.216] [CommissionGen] HasCommissionsFor cache miss: hero=“赤眼”得尔提索斯 occ=GangLeader defs=9 count=1
+[11:25:01.216] [CommissionIssue] OnCheckForIssue: hero=“赤眼”得尔提索斯 occ=GangLeader commissions=1 hasExistingIssue=False
+[11:25:01.222] [CommissionIssue] IssueManager doesn't support “赤眼”得尔提索斯 (occ=GangLeader), skipping '!' signal
+[11:25:01.222] [CommissionGen] GetAvailableDefs: hero=木匠安德洛斯 occ=Artisan matched=7
+[11:25:01.223] [CommissionGen] HasCommissionsFor cache miss: hero=木匠安德洛斯 occ=Artisan defs=7 count=1
+[11:25:01.223] [CommissionIssue] OnCheckForIssue: hero=木匠安德洛斯 occ=Artisan commissions=1 hasExistingIssue=False
+[11:25:01.230] [CommissionIssue] IssueManager doesn't support 木匠安德洛斯 (occ=Artisan), skipping '!' signal
+[11:25:01.231] [CommissionGen] GetAvailableDefs: hero=木匠达利得斯 occ=Merchant matched=9
+[11:25:01.231] [CommissionGen] HasCommissionsFor cache miss: hero=木匠达利得斯 occ=Merchant defs=9 count=1
+[11:25:01.231] [CommissionIssue] OnCheckForIssue: hero=木匠达利得斯 occ=Merchant commissions=1 hasExistingIssue=False
+[11:25:01.237] [CommissionIssue] IssueManager doesn't support 木匠达利得斯 (occ=Merchant), skipping '!' signal
+[11:25:01.237] [CommissionGen] GetAvailableDefs: hero=麦酒酿制工浦里奥斯 occ=Merchant matched=8
+[11:25:01.238] [CommissionGen] HasCommissionsFor cache miss: hero=麦酒酿制工浦里奥斯 occ=Merchant defs=8 count=1
+[11:25:01.238] [CommissionIssue] OnCheckForIssue: hero=麦酒酿制工浦里奥斯 occ=Merchant commissions=1 hasExistingIssue=False
+[11:25:01.246] [CommissionIssue] IssueManager doesn't support 麦酒酿制工浦里奥斯 (occ=Merchant), skipping '!' signal
+[11:25:01.247] [CommissionGen] GetAvailableDefs: hero=“酪乳”阿法倪斯 occ=GangLeader matched=8
+[11:25:01.247] [CommissionGen] HasCommissionsFor cache miss: hero=“酪乳”阿法倪斯 occ=GangLeader defs=8 count=1
+[11:25:01.248] [CommissionIssue] OnCheckForIssue: hero=“酪乳”阿法倪斯 occ=GangLeader commissions=1 hasExistingIssue=True
+[11:25:01.255] [CommissionIssue] IssueManager doesn't support “酪乳”阿法倪斯 (occ=GangLeader), skipping '!' signal
+[11:25:01.255] [CommissionGen] GetAvailableDefs: hero=“赤眼”得尔提索斯 occ=GangLeader matched=9
+[11:25:01.256] [CommissionGen] HasCommissionsFor cache miss: hero=“赤眼”得尔提索斯 occ=GangLeader defs=9 count=1
+[11:25:01.256] [CommissionIssue] OnCheckForIssue: hero=“赤眼”得尔提索斯 occ=GangLeader commissions=1 hasExistingIssue=False
+[11:25:01.262] [CommissionIssue] IssueManager doesn't support “赤眼”得尔提索斯 (occ=GangLeader), skipping '!' signal

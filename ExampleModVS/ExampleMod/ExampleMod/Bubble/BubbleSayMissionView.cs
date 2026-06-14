@@ -42,15 +42,16 @@ namespace LivingWorldNpcs
             MissionScreen missionScreen = ScreenManager.TopScreen as MissionScreen;
             missionScreen.AddLayer(_layer);
 
-            _=DelayScan();
-
-
+            // 初始扫描延迟 3 秒，由 OnMissionTick 在主线程执行，避免线程池操作 MBBindingList 导致 GauntletUI StackLayout 崩溃
+            _pendingInitialScan = true;
+            _initialScanTimer = 0f;
         }
 
-        private Task DelayScan()
-        {
-            return Task.Delay(3000).ContinueWith(_ => ScanForNewAgents());
-        }
+        // 线程安全：DelayScan 的回调在线程池执行，不能直接操作 MBBindingList。
+        // 改为设置标志位，由 OnMissionTick 在主线程执行实际的 ScanForNewAgents。
+        private bool _pendingInitialScan = true;
+        private float _initialScanTimer = 0f;
+        private const float InitialScanDelay = 3f;
 
         private void ScanForNewAgents()
         {
@@ -97,6 +98,17 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+            // 初始扫描延迟（主线程安全，避免线程池操作 MBBindingList 与 GauntletUI ParallelUpdateLayouts 竞态）
+            if (_pendingInitialScan)
+            {
+                _initialScanTimer += dt;
+                if (_initialScanTimer >= InitialScanDelay)
+                {
+                    _pendingInitialScan = false;
+                    ScanForNewAgents();
+                }
+            }
+
             if (_dataSource == null || _dataSource.Bubbles.Count == 0) return;
 
             MissionScreen currentMissionScreen = ScreenManager.TopScreen as MissionScreen;
@@ -116,6 +128,8 @@ namespace LivingWorldNpcs
             // 预计算边界容差 (像素)
             float screenPadding = 100f;
 
+            // 延迟移除列表：不在遍历中直接 RemoveAt，避免与 GauntletUI 并行布局竞态
+            List<int> removeIndices = null;
 
             // ----------------- 【优化2】倒序遍历 -----------------
             for (int i = _dataSource.Bubbles.Count - 1; i >= 0; i--)
@@ -126,7 +140,8 @@ namespace LivingWorldNpcs
                 // 基础校验
                 if (agent == null || !agent.IsActive())
                 {
-                    _dataSource.Bubbles.RemoveAt(i);
+                    if (removeIndices == null) removeIndices = new List<int>();
+                    removeIndices.Add(i);
                     continue;
                 }
 
@@ -182,7 +197,16 @@ namespace LivingWorldNpcs
                 }
             }
 
-            
+            // 延迟批量移除：遍历结束后统一移除，避免在 ParallelUpdateLayouts 运行期间修改 MBBindingList
+            if (removeIndices != null && removeIndices.Count > 0)
+            {
+                foreach (int idx in removeIndices)
+                {
+                    if (idx < _dataSource.Bubbles.Count)
+                        _dataSource.Bubbles.RemoveAt(idx);
+                }
+            }
+
         }
         // 对外接口：让某人说话
         
