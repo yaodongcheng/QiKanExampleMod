@@ -221,3 +221,38 @@ Register(new MyIntent());
 - 和平城镇挥刀 → `OnRegisterBlow` 点火，`OnAgentHit` 不点火（引擎拦截了伤害）
 - **Team 切换不要在手写回调里做**，交给 `FightEnemyAction` → `CombatManager.StartFight` 管道处理
 - 见 `Combat/AttackTriggerMissionLogic.cs` 为实际落地案例
+
+## 大世界地图对话 → 真对话 Mission 接入
+
+**咽喉补丁 `CampaignMapConversation.OpenConversation` + inquiry 分流 + 真 Mission + 自定义对话管线复用。**
+
+覆盖场景：玩家在大世界沙盘遇到中立/未开战部队时，弹 inquiry 让玩家选「原版对话 / 新版对话」，选新版则开真对话 Mission（真实 Agent + MissionScreen），自动触发本 mod 的 `InteractionMissionView` 自定义对话管线，零重构复用现有 Agent 演出/镜头/意图引擎。
+
+```csharp
+// 1. 设置静态标志（在 inquiry 回调里，开 mission 前）
+MapEncounterDialogState.Active = true;
+MapEncounterDialogState.Partner = conversationPartnerData.Character;
+CampaignMission.OpenConversationMission(p, q);   // 开真对话 mission
+
+// 2. Harmony 拦截咽喉（自动生效，PatchAll 注册）
+[HarmonyPatch(typeof(CampaignMapConversation), nameof(CampaignMapConversation.OpenConversation))]
+public static class MapEncounterConversationPatch { /* Prefix 弹 inquiry */ }
+
+// 3. Harmony 抑制原版 ConversationMissionLogic.OnMissionTick（仅对我们的 mission）
+[HarmonyPatch(typeof(ConversationMissionLogic), "OnMissionTick")]
+public static class SuppressVanillaConversationMissionPatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix() => !MapEncounterDialogState.Active; // Active → 跳过原版 tick
+}
+
+// 4. InteractionMissionView 自动触发 + 收尾（已在 OnMissionTick/OnDialogueEnded/Finalize 中集成）
+//    - OnMissionTick：检测 Active → 按 Partner CharacterObject 在 Mission.Current.Agents 中精确定位 partner Agent
+//    - StartFreeConversationFlow(partnerAgent)：复用现有对话管线（VM/控制器/镜头/意图引擎）
+//    - OnDialogueEnded：MapEventHelper.OnConversationEnd() → Mission.Current.EndMission() → 回大地图
+//    - OnMissionScreenFinalize：安全清标志（防 ESC 退出泄漏）
+```
+
+**关键文件**：`Interaction/MapEncounterDialogState.cs`（静态标志）、`Interaction/MapEncounterConversationPatch.cs`（两个 Harmony 补丁）、`Interaction/InteractionMissionView.cs`（自动触发/收尾）。
+
+**边界**：只对 Hero 生效（无 Hero 放行原版）；仅自家的 conversation mission 抑制（静态 gate）；settlement 内点 NPC / 请求会面不受影响；LLM 路径走 `IsLLMReady` 总闸。

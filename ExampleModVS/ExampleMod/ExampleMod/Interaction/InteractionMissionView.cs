@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Encounters;
 using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.CampaignSystem.Inventory;
 using TaleWorlds.CampaignSystem.Party;
@@ -65,6 +66,11 @@ namespace LivingWorldNpcs
 
         // SightBubbleConsumer：已订阅 NpcSightSystem 事件
         private bool _sightBubbleSubscribed = false;
+
+        // Map encounter dialog auto-trigger gate — 防止 OnMissionTick 重复拉起
+        private bool _encounterDialogStarted = false;
+        private int _encounterPartnerSearchFrames = 0;
+        private const int MaxEncounterPartnerSearchFrames = 300; // ~5s at 60fps
 
         public static InteractionMissionView Instance { get; private set; }
 
@@ -374,6 +380,42 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+            // ── 大世界遭遇对话：自动触发自定义对话 ──
+            if (MapEncounterDialogState.Active && !_encounterDialogStarted)
+            {
+                _encounterPartnerSearchFrames++;
+                if (_encounterPartnerSearchFrames > MaxEncounterPartnerSearchFrames)
+                {
+                    DebugLogger.Log("[MapConv] Partner agent not found within timeout, ending mission");
+                    MapEncounterDialogState.Clear();
+                    Mission.Current?.EndMission();
+                    return;
+                }
+
+                Agent partnerAgent = null;
+                CharacterObject partnerChar = MapEncounterDialogState.Partner;
+                if (partnerChar != null && Mission.Current != null)
+                {
+                    foreach (Agent a in Mission.Current.Agents)
+                    {
+                        if (a.Character == partnerChar && a.IsActive())
+                        {
+                            partnerAgent = a;
+                            break;
+                        }
+                    }
+                }
+
+                if (partnerAgent != null)
+                {
+                    _encounterDialogStarted = true;
+                    DebugLogger.Log($"[MapConv] Partner agent found: {partnerAgent.Name}, starting custom dialog flow");
+                    _ = StartFreeConversationFlow(partnerAgent);
+                }
+                // 未找到则等下一帧
+                return;
+            }
+
 
             // ----------------- 0. 库存界面关闭后的搜刮收尾 -----------------
             if (_pendingLootCorpse != null)
@@ -654,6 +696,14 @@ namespace LivingWorldNpcs
         public override void OnMissionScreenFinalize()
         {
             base.OnMissionScreenFinalize();
+
+            // ── 大世界遭遇对话安全网：防玩家 ESC 直接退 mission 时标志泄漏 ──
+            if (MapEncounterDialogState.Active)
+            {
+                DebugLogger.Log("[MapConv] Finalize with Active=true — clearing state (ESC exit?)");
+                MapEncounterDialogState.Clear();
+            }
+
             if (_interact_layer != null)
             {
                 thisMissionScreen.RemoveLayer(_interact_layer);
@@ -706,6 +756,19 @@ namespace LivingWorldNpcs
                 evt = await _interactionController.GenerateEventAsync();
             if (evt != null)
                 NewsSpreadSystem.Instance.BroadcastEvent(evt);
+
+            // ── 大世界遭遇对话收尾：结束 encounter + 关 mission 回大地图 ──
+            if (MapEncounterDialogState.Active)
+            {
+                try
+                {
+                    Helpers.MapEventHelper.OnConversationEnd();
+                    DebugLogger.Log($"[MapConv] end: enc={PlayerEncounter.Current != null} leave={PlayerEncounter.LeaveEncounter}");
+                }
+                catch (Exception ex) { DebugLogger.Log($"[MapConv] teardown error: {ex}"); }
+                finally { MapEncounterDialogState.Clear(); }
+                Mission.Current?.EndMission();
+            }
 
         }
 

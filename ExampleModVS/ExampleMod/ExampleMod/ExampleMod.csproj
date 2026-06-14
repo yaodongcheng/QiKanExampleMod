@@ -218,6 +218,8 @@
     <Compile Include="Interaction\InteractionMissionView.cs" />
     <Compile Include="Interaction\InteractionOptionManager.cs" />
     <Compile Include="Interaction\InteractionVM.cs" />
+    <Compile Include="Interaction\MapEncounterConversationPatch.cs" />
+    <Compile Include="Interaction\MapEncounterDialogState.cs" />
     <Compile Include="Interaction\NpcInfoVM.cs" />
     <Compile Include="Interaction\StoryDialogVM.cs" />
     <!-- LLM -->
