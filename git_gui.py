@@ -91,6 +91,54 @@ def get_unpushed_count():
     return 0
 
 
+def get_behind_count():
+    """远程领先本地的提交数（本地落后远程、需要拉取的提交数）
+
+    注意：基于本地缓存的远程跟踪引用 @{u}，若未先 fetch 则可能过期。
+    """
+    success, stdout, _ = run_git("git rev-list --count HEAD..@{u}")
+    if success and stdout.strip().isdigit():
+        return int(stdout.strip())
+    return 0
+
+
+def fetch_remote():
+    """从远程拉取最新引用信息（只更新 remote-tracking ref，不合并到工作区）"""
+    success, _, stderr = run_git("git fetch")
+    return success, stderr
+
+
+def check_updates():
+    """检查本地是否为最新：先 fetch 刷新远程引用，再比较领先/落后"""
+    success, stderr = fetch_remote()
+    if not success:
+        messagebox.showerror("错误", f"获取远程信息失败:\n{stderr}")
+        return
+
+    ahead = get_unpushed_count()
+    behind = get_behind_count()
+
+    # 刷新界面，让状态栏反映最新的领先/落后情况
+    update_file_list()
+    update_status_label()
+
+    if behind == 0 and ahead == 0:
+        messagebox.showinfo("检查结果", "✅ 本地已是最新，与远程完全一致")
+    elif behind > 0 and ahead == 0:
+        messagebox.showwarning("检查结果",
+                               f"⬇️ 本地落后远程 {behind} 个提交\n\n"
+                               f"远程有新内容，点击「📥 拉取最新代码」更新到最新")
+    elif behind == 0 and ahead > 0:
+        messagebox.showinfo("检查结果",
+                            f"⬆️ 本地领先远程 {ahead} 个提交\n\n"
+                            f"你有未推送的提交，点击「📤 仅推送」上传")
+    else:
+        messagebox.showwarning("检查结果",
+                               f"⚠️ 本地与远程已分叉\n\n"
+                               f"本地领先 {ahead} 个、落后 {behind} 个提交\n"
+                               f"建议先「📥 拉取最新代码」合并，再推送")
+
+
 def show_file_details():
     """显示文件详情窗口"""
     staged, modified, untracked = get_file_status()
@@ -487,6 +535,7 @@ def update_status_label():
     staged, modified, untracked = get_file_status()
     branch = get_branch()
     unpushed = get_unpushed_count()
+    behind = get_behind_count()
 
     parts = [f"分支: {branch}"]
     total = len(staged) + len(modified) + len(untracked)
@@ -494,10 +543,12 @@ def update_status_label():
         parts.append(f"已暂存: {len(staged)} | 已修改: {len(modified)} | 未跟踪: {len(untracked)}")
     if unpushed > 0:
         parts.append(f"⚠️ {unpushed} 个本地提交未推送")
-    if total == 0 and unpushed == 0:
+    if behind > 0:
+        parts.append(f"⬇️ 落后远程 {behind} 个提交")
+    if total == 0 and unpushed == 0 and behind == 0:
         parts.append("工作区干净")
 
-    if unpushed > 0:
+    if behind > 0 or unpushed > 0:
         color = "red"
     elif total > 0:
         color = "orange"
@@ -554,6 +605,10 @@ def main():
     tk.Button(row1, text="📥 拉取最新代码", width=btn_width, height=btn_height,
               font=("Microsoft YaHei", 11), bg="#FF9800", fg="white",
               command=lambda: [pull(), update_file_list(), update_status_label()]).pack(side=tk.LEFT, padx=5)
+
+    tk.Button(row1, text="🔍 检查更新", width=btn_width, height=btn_height,
+              font=("Microsoft YaHei", 11), bg="#4CAF50", fg="white",
+              command=check_updates).pack(side=tk.LEFT, padx=5)
 
     # 第二行按钮（辅助功能）
     row2 = tk.Frame(btn_frame)
