@@ -984,7 +984,7 @@ namespace LivingWorldNpcs
                 Team playerTeam = Mission.Current.PlayerTeam;
                 Team npcTeam = partnerAgent.Team;
 
-                const int maxPerRow = 5;
+                const int maxPerRow = 4;
 
                 // 玩家护卫：站在玩家身后，面朝 NPC + 持续注视 NPC，超过 5 人则多排
                 for (int i = 0; i < playerTroops.Count; i++)
@@ -992,7 +992,7 @@ namespace LivingWorldNpcs
                     int row = i / maxPerRow;
                     int col = i % maxPerRow;
                     int inRow = Math.Min(maxPerRow, playerTroops.Count - row * maxPerRow);
-                    float offset = (col - (inRow - 1) * 0.5f) * 1.3f;
+                    float offset = (col - (inRow - 1) * 0.5f) * 1.8f;
                     float depth = 1.0f + row * 1.5f;
                     Vec3 pos = playerPos + toPlayer * depth + LateralOffset(toNpc, offset);
                     SpawnGuardAgent(playerTroops[i], pos, toNpc.AsVec2, playerTeam, partnerAgent);
@@ -1004,7 +1004,7 @@ namespace LivingWorldNpcs
                     int row = i / maxPerRow;
                     int col = i % maxPerRow;
                     int inRow = Math.Min(maxPerRow, npcTroops.Count - row * maxPerRow);
-                    float offset = (col - (inRow - 1) * 0.5f) * 1.3f;
+                    float offset = (col - (inRow - 1) * 0.5f) * 1.8f;
                     float depth = 1.0f + row * 1.5f;
                     Vec3 pos = npcPos + toNpc * depth + LateralOffset(toNpc, offset);
                     SpawnGuardAgent(npcTroops[i], pos, toPlayer.AsVec2, npcTeam, Agent.Main);

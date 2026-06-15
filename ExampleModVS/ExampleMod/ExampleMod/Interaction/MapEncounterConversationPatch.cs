@@ -44,7 +44,10 @@ namespace LivingWorldNpcs
                         MapEncounterDialogState.Active = true;
                         MapEncounterDialogState.Partner = q.Character;
                         MapEncounterDialogState.PartnerParty = q.Party;
-                        CampaignMission.OpenConversationMission(p, q);
+                        // 掐掉引擎自带的 2 个护卫（位置不对），全用我们的
+                        var p2 = new ConversationCharacterData(p.Character, p.Party, p.NoHorse, p.NoWeapon, p.SpawnedAfterFight, p.IsCivilianEquipmentRequiredForLeader, p.IsCivilianEquipmentRequiredForBodyGuardCharacters, noBodyguards: true);
+                        var q2 = new ConversationCharacterData(q.Character, q.Party, q.NoHorse, q.NoWeapon, q.SpawnedAfterFight, q.IsCivilianEquipmentRequiredForLeader, q.IsCivilianEquipmentRequiredForBodyGuardCharacters, noBodyguards: true);
+                        CampaignMission.OpenConversationMission(p2, q2);
                     },
                     negativeAction: () =>
                     {
