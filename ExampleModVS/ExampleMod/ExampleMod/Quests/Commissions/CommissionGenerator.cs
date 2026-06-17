@@ -30,6 +30,13 @@ namespace LivingWorldNpcs
                 if (existingCount >= MaxCommissionsPerNpc) return false;
             }
 
+            // 世界事件驱动：NPC 是附近活跃事件的受害者 → 强制显示 !
+            if (IsHeroInNearbyWorldEvent(hero))
+            {
+                count = 1;
+                return true;
+            }
+
             // 每日清缓存（委托列表每天刷新）
             float currentDay = (float)CampaignTime.Now.ToDays;
             if (Math.Abs(currentDay - _lastCacheClearDay) > 0.5f)
@@ -41,13 +48,11 @@ namespace LivingWorldNpcs
             if (_cache.TryGetValue(hero.StringId, out var cached))
             {
                 count = Math.Min(cached.Count, MaxCommissionsPerNpc);
-                DebugLogger.Log($"[CommissionGen] HasCommissionsFor cache hit: hero={hero.Name} count={count}");
                 return count > 0;
             }
 
             var availableDefs = GetAvailableDefsForHero(hero);
             count = Math.Min(availableDefs.Count, MaxCommissionsPerNpc);
-            DebugLogger.Log($"[CommissionGen] HasCommissionsFor cache miss: hero={hero.Name} occ={hero.Occupation} defs={availableDefs.Count} count={count}");
             return count > 0;
         }
 
@@ -64,7 +69,6 @@ namespace LivingWorldNpcs
 
             // 判断此 NPC 是告示板（中转人）还是直接委托人
             bool isBroker = IsBrokerType(hero);
-            DebugLogger.Log($"[CommissionGen] GenerateCommissions: hero={hero.Name} isBroker={isBroker} maxCount={maxCount}");
 
             if (isBroker)
             {
@@ -171,7 +175,6 @@ namespace LivingWorldNpcs
 
                 results.Add(def);
             }
-            DebugLogger.Log($"[CommissionGen] GetAvailableDefs: hero={hero?.Name} occ={hero?.Occupation} matched={results.Count}");
             return results;
         }
 
@@ -186,7 +189,7 @@ namespace LivingWorldNpcs
                 case CommissionCategory.LegendaryHunt:
                 case CommissionCategory.HideoutClear:
                     return occ == Occupation.GangLeader || occ == Occupation.Headman ||
-                           occ == Occupation.Lord || occ == Occupation.Wanderer;
+                           occ == Occupation.Lord || occ == Occupation.Wanderer || occ == Occupation.RuralNotable;
 
                 case CommissionCategory.CaravanEscort:
                 case CommissionCategory.EmergencyDelivery:
@@ -239,10 +242,17 @@ namespace LivingWorldNpcs
             switch (def.TargetType)
             {
                 case CommissionTargetType.NamedHero:
-                    if (!FillTargetHero(data, def)) return null;
+                    // 第一优先：尝试匹配真实世界事件
+                    if (!TryMatchWorldEvent(data, def, questGiver))
+                    {
+                        if (!FillTargetHero(data, def)) return null;
+                    }
                     break;
                 case CommissionTargetType.Settlement:
-                    if (!FillTargetSettlement(data, def, questGiver)) return null;
+                    if (!TryMatchWorldEvent(data, def, questGiver))
+                    {
+                        if (!FillTargetSettlement(data, def, questGiver)) return null;
+                    }
                     break;
                 case CommissionTargetType.Item:
                     if (!FillTargetItem(data, def)) return null;
@@ -331,7 +341,8 @@ namespace LivingWorldNpcs
                         .Where(h => h != Hero.MainHero && h != data.QuestGiver && h.IsAlive
                             && h.PartyBelongedTo == null
                             && (h.Occupation == Occupation.Bandit || h.MapFaction != Hero.MainHero.MapFaction)
-                            && !CommissionQuest.IsHeroInvolvedInActiveCommission(h, out _, out _))
+                            && !CommissionQuest.IsHeroInvolvedInActiveCommission(h, out _, out _)
+                            && !IsHeroBusyInWorldEvent(h))  // 排除已被世界事件占用的 hero
                         .OrderBy(h => GetProximityScore(h))
                         .ToList();
                     if (banditHeroes.Count == 0) return false;
@@ -358,8 +369,109 @@ namespace LivingWorldNpcs
                     data.TargetHero = candidates.First();
                     break;
             }
-            DebugLogger.Log($"[CommissionGen] FillTargetHero: category={def.Category} target={data.TargetHero?.Name} giver={data.QuestGiver?.Name}");
             return data.TargetHero != null;
+        }
+
+        /// <summary>检查 Hero 是否已被世界事件占用（作为目标或加害方）。</summary>
+        private static bool IsHeroBusyInWorldEvent(Hero hero)
+        {
+            if (hero == null || string.IsNullOrEmpty(hero.StringId)) return false;
+            return WorldEventDatabase.ActiveEvents.Any(e =>
+                e.InstigatorHeroId == hero.StringId || e.TargetHeroId == hero.StringId);
+        }
+
+        /// <summary>检查 Hero 是否在附近活跃世界事件中作为受害者（用于 ! 标记显示）。</summary>
+        private static bool IsHeroInNearbyWorldEvent(Hero hero)
+        {
+            if (hero == null || string.IsNullOrEmpty(hero.StringId)) return false;
+            Settlement heroSettlement = hero.CurrentSettlement ?? hero.HomeSettlement;
+            if (heroSettlement == null) return false;
+            return WorldEventDatabase.ActiveEvents.Any(e =>
+                e.TargetHeroId == hero.StringId
+                && e.TargetSettlement != null
+                && e.TargetSettlement.Position2D.Distance(heroSettlement.Position2D) < 80f);
+        }
+
+        /// <summary>
+        /// 第一优先路径：尝试匹配附近的真实 WorldEvent。
+        /// 匹配成功 → 使用事件的目标/加害方/定居点，设置 WorldEventId。
+        /// 匹配失败 → 返回 false，调用方回退旧的随机 Fill 逻辑。
+        ///
+        /// 事件类型 → 委托类别映射（阶段 3 MVP：只有 BanditRaid → BountyHunt）：
+        ///   BanditRaid → BountyHunt, VillageDefense
+        ///   后续扩展：Kidnapping → BountyHunt, DecoyMission 等
+        /// </summary>
+        private static bool TryMatchWorldEvent(CommissionData data, CommissionDef def, Hero questGiver)
+        {
+            // 委托人所在地点
+            Settlement giverSettlement = questGiver?.CurrentSettlement
+                ?? questGiver?.HomeSettlement;
+            if (giverSettlement == null) return false;
+
+            // 查附近活跃事件
+            var nearbyEvents = WorldEventDatabase.GetActiveEventsNear(giverSettlement, maxDistance: 80f);
+            if (nearbyEvents.Count == 0) return false;
+
+            // 按委托类别筛选匹配的事件
+            foreach (var worldEvent in nearbyEvents)
+            {
+                if (!IsWorldEventMatchForCategory(worldEvent.EventType, def.Category))
+                    continue;
+
+                // 匹配！填充 CommissionData
+                data.WorldEventId = worldEvent.EventId;
+                data.IsGenericInstigator = worldEvent.IsGenericInstigator;
+
+                switch (def.TargetType)
+                {
+                    case CommissionTargetType.NamedHero:
+                        // 目标 = 加害方（匪首/绑匪/背叛者…）
+                        var instigator = worldEvent.InstigatorHero;
+                        if (instigator != null && instigator.IsAlive)
+                        {
+                            data.TargetHero = instigator;
+                        }
+                        else if (worldEvent.IsGenericInstigator)
+                        {
+                            // 🐛 修复：通用匪帮没有真实 Hero，但仍应匹配事件。
+                            // 将目标落脚点设为目标定居点（匪帮最后出现在受害人所在地附近），
+                            // 委托叙事层通过 WorldEventId 输出事件专属文本。
+                            data.TargetSettlementId = worldEvent.TargetSettlementId;
+                            DebugLogger.Log($"[CommissionGen] Matched WorldEvent with generic instigator: category={def.Category} event={worldEvent.EventType} settlement={data.TargetSettlementId}");
+                        }
+                        else
+                        {
+                            return false;
+                        }
+                        break;
+
+                    case CommissionTargetType.Settlement:
+                        // 目标 = 受害定居点
+                        data.TargetSettlementId = worldEvent.TargetSettlementId;
+                        break;
+
+                    default:
+                        // 其他目标类型暂不匹配 WorldEvent
+                        return false;
+                }
+
+                DebugLogger.Log($"[CommissionGen] Matched WorldEvent! category={def.Category} event={worldEvent.EventType} eventId={worldEvent.EventId} target={data.TargetHero?.Name?.ToString() ?? data.TargetSettlementId}");
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>检查 WorldEventType 是否匹配 CommissionCategory。</summary>
+        private static bool IsWorldEventMatchForCategory(WorldEventType eventType, CommissionCategory category)
+        {
+            var config = WorldEventConfig.Get(eventType);
+            if (config?.MatchingCommissions == null) return false;
+
+            foreach (var c in config.MatchingCommissions)
+                if (c == category) return true;
+
+            return false;
         }
 
         private static bool FillTargetSettlement(CommissionData data, CommissionDef def, Hero questGiver)
@@ -392,7 +504,6 @@ namespace LivingWorldNpcs
                     else
                         pickIndex = MBRandom.RandomInt(0, towns.Count);
                     data.TargetSettlementId = towns[pickIndex].StringId;
-                    DebugLogger.Log($"[CommissionGen] FillTargetSettlement: category={def.Category} target={towns[pickIndex].Name} dist={giverSettlement.Position2D.Distance(towns[pickIndex].Position2D):0.0} pickIndex={pickIndex}/{towns.Count}");
                     break;
                 }
 
@@ -409,7 +520,6 @@ namespace LivingWorldNpcs
                     int vIdx = villages.Count > 2 && MBRandom.RandomFloat < 0.7f
                         ? MBRandom.RandomInt(0, 2) : MBRandom.RandomInt(0, villages.Count);
                     data.TargetSettlementId = villages[vIdx].StringId;
-                    DebugLogger.Log($"[CommissionGen] FillTargetSettlement(VillageDefense): target={villages[vIdx].Name} dist={giverSettlement.Position2D.Distance(villages[vIdx].Position2D):0.0}");
                     break;
                 }
 
@@ -422,7 +532,6 @@ namespace LivingWorldNpcs
                         .ToList();
                     if (hideouts.Count == 0) return false;
                     data.TargetSettlementId = hideouts.First().StringId;
-                    DebugLogger.Log($"[CommissionGen] FillTargetSettlement(Hideout): target={hideouts.First().Name} dist={giverSettlement.Position2D.Distance(hideouts.First().Position2D):0.0}");
                     break;
                 }
 
@@ -437,7 +546,6 @@ namespace LivingWorldNpcs
                     break;
                 }
             }
-            DebugLogger.Log($"[CommissionGen] FillTargetSettlement final: category={def.Category} target={data.TargetSettlementId} giverLoc={giverSettlement.Name}");
             return !string.IsNullOrEmpty(data.TargetSettlementId);
         }
 

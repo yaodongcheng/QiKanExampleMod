@@ -69,6 +69,44 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_commission_narrative", ref narrativeJson);
             if (dataStore.IsLoading)
                 CommissionNarrative.Deserialize(narrativeJson);
+
+            // 世界事件数据库
+            string worldEventsJson = WorldEventDatabase.Serialize();
+            dataStore.SyncData("lwn_world_events", ref worldEventsJson);
+            if (dataStore.IsLoading)
+                WorldEventDatabase.Deserialize(worldEventsJson);
+
+            // 世界事件导演状态
+            string directorJson = WorldEventDirector.Serialize();
+            dataStore.SyncData("lwn_world_director", ref directorJson);
+            if (dataStore.IsLoading)
+                WorldEventDirector.Deserialize(directorJson);
+
+            // 宿敌追踪器
+            string nemesisJson = HeroNemesisTracker.Serialize();
+            dataStore.SyncData("lwn_nemesis", ref nemesisJson);
+            if (dataStore.IsLoading)
+                HeroNemesisTracker.Deserialize(nemesisJson);
+
+            // 幕后黑手机制
+            string conspiracyJson = ConspiracyManager.Serialize();
+            dataStore.SyncData("lwn_conspiracy", ref conspiracyJson);
+            if (dataStore.IsLoading)
+                ConspiracyManager.Deserialize(conspiracyJson);
+
+            // 卧底叛变
+            string infiltrationJson = StrategicInfiltration.Serialize();
+            dataStore.SyncData("lwn_infiltration", ref infiltrationJson);
+            if (dataStore.IsLoading)
+                StrategicInfiltration.Deserialize(infiltrationJson);
+
+            // 区域稳定性
+            string stabilityJson = WorldEventSimulator.SerializeStability();
+            dataStore.SyncData("lwn_stability", ref stabilityJson);
+            if (dataStore.IsLoading)
+                WorldEventSimulator.DeserializeStability(stabilityJson);
+            if (dataStore.IsLoading)
+                StrategicInfiltration.Deserialize(infiltrationJson);
         }
 
         private void OnTick(float dt)

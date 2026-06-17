@@ -110,36 +110,42 @@ namespace LivingWorldNpcs
 
             DebugLogger.Log($"[CommissionIssue] Player entered {settlement.Name}, refreshing issue signals");
 
-            // 遍历定居点所有 Hero，跳过没 Hero 的 NPC
+            int scanned = 0;
+            int created = 0;
             foreach (var h in settlement.HeroesWithoutParty)
             {
                 if (h == null || h == Hero.MainHero || !h.IsAlive) continue;
-                OnCheckForIssue(h);
+                scanned++;
+                if (TryAddIssue(h)) created++;
             }
             foreach (var h in settlement.Notables)
             {
                 if (h == null || h == Hero.MainHero || !h.IsAlive) continue;
-                OnCheckForIssue(h);
+                scanned++;
+                if (TryAddIssue(h)) created++;
             }
+
+            if (created > 0)
+                DebugLogger.Log($"[CommissionIssue] {settlement.Name}: scanned {scanned} NPCs, created {created} issues");
         }
 
         private void OnCheckForIssue(Hero hero)
         {
-            if (hero == null) return;
-            if (hero == Hero.MainHero) return;
+            TryAddIssue(hero);
+        }
 
-            // 检查并发上限
+        private bool TryAddIssue(Hero hero)
+        {
+            if (hero == null) return false;
+            if (hero == Hero.MainHero) return false;
+
             int maxQuests = TrustSystem.GetMaxConcurrentQuests(TrustSystem.GetTrust(hero));
             int activeCount = CommissionQuest.GetActiveCommissionCount();
-            if (activeCount >= maxQuests) return;
+            if (activeCount >= maxQuests) return false;
 
-            // 检查该 NPC 是否有可接委托
-            if (!CommissionGenerator.HasCommissionsFor(hero, out int count) || count <= 0) return;
+            if (!CommissionGenerator.HasCommissionsFor(hero, out int count) || count <= 0) return false;
 
-            DebugLogger.Log($"[CommissionIssue] OnCheckForIssue: hero={hero.Name} occ={hero.Occupation} commissions={count} hasExistingIssue={hero.Issue != null}");
-
-            // 如果已有我们自己的 Issue，跳过
-            if (hero.Issue is CommissionHubIssue) return;
+            if (hero.Issue is CommissionHubIssue) return false;
 
             // 注册信号 Issue
             // 注意：对非标准 NPC 类型（商人/工匠/浪人），IssueManager 内部字典无条目会抛 KeyNotFoundException
@@ -157,12 +163,12 @@ namespace LivingWorldNpcs
                         typeof(CommissionHubIssue),
                         IssueBase.IssueFrequency.Common
                     ));
+                return true;
             }
             catch (System.Collections.Generic.KeyNotFoundException)
             {
-                // 该 NPC 不在 IssueManager 支持范围内，安全跳过
-                DebugLogger.Log($"[CommissionIssue] IssueManager doesn't support {hero.Name} (occ={hero.Occupation}), skipping '!' signal");
             }
+            return false;
         }
 
         private void OnDailyTick()

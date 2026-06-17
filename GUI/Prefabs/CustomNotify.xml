@@ -43,17 +43,16 @@
             </ButtonWidget>
 </Children>
 			</Widget>
-            <!-- 2. 文本面板 (向左展开) -->
-            <!-- 关键点：IsVisible="@ShouldExpand" 只有鼠标放上去才显示 -->
-            <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedWidth="200" SuggestedHeight="100" 
-                    Sprite="BlankWhiteSquare_9" Color="#000000EE" VerticalAlignment="Center"
+            <!-- 2. 文本面板 (向左展开，hover 时显示简短摘要) -->
+            <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="36"
+                    Sprite="BlankWhiteSquare_9" Color="#000000DD" VerticalAlignment="Center"
                     IsVisible="@ShouldExpand" MarginRight="10">
               <Children>
-                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                            Text="@ReportText" 
-                            Brush="Sho.Debug.Text" TextColor="#CCCCCCFF" 
+                <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            Text="@ReportText"
+                            Brush="Brush_DialogText" TextColor="#CCCCCCFF"
                             VerticalAlignment="Center" HorizontalAlignment="Center"
-                            MarginLeft="10" MarginRight="10"/>
+                            MarginLeft="12" MarginRight="12"/>
               </Children>
             </Widget>
 

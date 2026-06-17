@@ -71,6 +71,48 @@ namespace LivingWorldNpcs.Story
 
         // 添加一个关闭事件
         public event Action OnDialogClosed;
+
+        /// <summary>
+        /// NPC 说完话后玩家点"继续"的回调。
+        /// InteractionController 在非 StoryEngine 场景下通过此回调驱动流程。
+        /// StoryEngine 驱动时此值为 null，走 StoryEngine.Instance.OnPlayerClick()。
+        /// </summary>
+        public Action OnClickContinue;
+
+        /// <summary>
+        /// 右下角"点击继续"提示文字。
+        /// 选项可见时（AreOptionsVisible=true）自动隐藏，因为此时玩家应该选选项而不是点继续。
+        /// </summary>
+        private string _continueHintText;
+        [DataSourceProperty]
+        public string ContinueHintText
+        {
+            get => _continueHintText;
+            set
+            {
+                if (value != _continueHintText)
+                {
+                    _continueHintText = value;
+                    OnPropertyChangedWithValue(value, "ContinueHintText");
+                }
+            }
+        }
+
+        /// <summary>是否显示"点击继续"提示（选项不可见 + 有回调时才显示）。</summary>
+        private bool _showContinueHint;
+        [DataSourceProperty]
+        public bool ShowContinueHint
+        {
+            get => _showContinueHint;
+            set
+            {
+                if (value != _showContinueHint)
+                {
+                    _showContinueHint = value;
+                    OnPropertyChangedWithValue(value, "ShowContinueHint");
+                }
+            }
+        }
         public StoryDialogVM()
         {
             SpeakerName = "no speaker name";
@@ -364,6 +406,8 @@ namespace LivingWorldNpcs.Story
             }
             IsVisible = false;
             AreOptionsVisible = false;
+            ShowContinueHint = false;
+            OnClickContinue = null;
             OptionList.Clear();
             IsConflictInfoVisible = false;
             HidePrediction(); // 清理预测状态
@@ -382,6 +426,7 @@ namespace LivingWorldNpcs.Story
                 OptionList.Add(opt);
             }
             AreOptionsVisible = true;
+            ShowContinueHint = false; // 选项出现了，不需要点继续
         }
 
 
@@ -389,14 +434,20 @@ namespace LivingWorldNpcs.Story
         {
             if (AreOptionsVisible)
             {
-                // 可以播放一个 "禁止" 的音效，或者无视
                 return;
             }
 
-           // InformationManager.DisplayMessage(new InformationMessage($"点击继续", Color.FromUint(0xFFFFFF)));
+            // 优先走 InteractionController 的回调（非 StoryEngine 场景）
+            if (OnClickContinue != null)
+            {
+                var cb = OnClickContinue;
+                OnClickContinue = null; // 只触发一次
+                cb.Invoke();
+                return;
+            }
 
-            // 通知引擎继续下一句
-            StoryEngine.Instance.OnPlayerClick();
+            // 回退：StoryEngine 驱动的对话
+            StoryEngine.Instance?.OnPlayerClick();
         }
 
         public void Show(string name, string content)
@@ -404,6 +455,8 @@ namespace LivingWorldNpcs.Story
             SpeakerName = name;
             DialogueContent = content;
             IsVisible = true;
+            ContinueHintText = "— 点击屏幕任意位置继续 —";
+            ShowContinueHint = OnClickContinue != null; // 有回调 = NPC 在说话，需要点继续
         }
 
         public void UpdateConflictStatus(NegotiationState state,float predictedVal, bool shouldAnimate = true)

@@ -29,3 +29,63 @@ UpdateSpawnEquipmentAndRefreshVisuals(newEquipment)
 - 活人不受限制，照常刷新（活人能正常重新 wield 剩余武器）。
 - 落地范例：`Stealth/StealManager.cs` → `StripAgentEquipment`（`bool isCorpse = !agent.IsActive();` 时武器槽过滤器传 `null`）。
 - 同理：任何对尸体调 `UpdateSpawnEquipmentAndRefreshVisuals` 的新路径（如未来 `StealSpecificItem` 作用到尸体），都要先清武器槽。
+
+---
+
+## `InitializeMobilePartyAtPosition + Clear()` → 0xc00000ff 栈溢出
+
+**症状**
+- `Bannerlord.exe` 崩溃在 `ntdll.dll`，异常码 **`0xc00000ff` = `STATUS_STACK_BUFFER_OVERRUN`**（栈金丝雀检测到越界写）。
+- 不在任何 mod DLL 里崩，而是在 Windows 系统调用层——栈被更早的 native 操作破坏，下一次系统调用时才触发 canary。
+- 崩溃时机随机：可能在生成 party 后几秒到几分钟，游戏 tick 更新 party 时触发。
+
+**根因**
+```csharp
+// ❌ 危险模式：
+party.InitializeMobilePartyAtPosition(template, party.Position2D);  // native，按模板在本地分配 N 个 troop 槽
+party.MemberRoster.Clear();      // 只清 C# 管理侧列表，本地内存大小仍为 N
+party.MemberRoster.AddToCounts(looterTier1, M);  // 写入 M 个 troop（M ≠ N）
+// → 本地 buffer 大小与写入量不匹配 → 引擎后续读 roster 时越界写栈 → 0xc00000ff
+```
+
+- `InitializeMobilePartyAtPosition` 是 native C++ 方法，按 `PartyTemplateObject` 在本地堆/栈上分配 troop 数组。
+- `MemberRoster.Clear()` 只操作管理侧（C# wrapper），**不会同步释放/缩小本地 buffer**。
+- 随后 `AddToCounts` 往本地 buffer 写不同数量 → 如果 M > N，写越界；如果 M < N，留下未初始化的空洞。
+
+**规避**
+- **`MobileParty.CreateParty` 已经返回合法空 party**，不需要再调 `InitializeMobilePartyAtPosition`。
+- 自定义部队直接用 `Clear()` + `AddToCounts()` 即可，跳过模板初始化。
+- 落地范例：`WorldEventSimulator.FillPartyTroops` / `FillGenericPartyTroops`（删掉了 `InitializeMobilePartyAtPosition` 调用）。
+- 如果确有场景需要模板初始化，则 **不要 Clear**，在模板部队之上叠加即可。
+
+---
+
+## WorldEvent → 委托匹配失败：职业/venue 过滤与事件匹配的断层
+
+**症状**
+- 玩家在城镇看到事件相关 NPC 头上有 `!`，但问到的委托和该事件完全无关。
+- 日志：`[CommissionIntent] RequestCommission Evaluate` 显示 `Show`，但生成的委托全是随机类型。
+
+**根因**
+事件匹配（`TryMatchWorldEvent`）和委托可用性检查（`GetAvailableDefsForHero`）之间存在两层过滤，事件匹配的 CommissionDef 可能根本**没进入候选池**：
+
+```
+HasCommissionsFor → IsHeroInNearbyWorldEvent → count=1, 显示 "!"
+GenerateCommissions → GetAvailableDefsForHero
+  ├─ ① ValidGiverOccupations 不含此 NPC 职业 → 过滤掉
+  ├─ ② IsVenueMatch 不含此 NPC 职业 → 70% 概率过滤掉（30% 随机放行）
+  └─ ③ 剩余 defs 走到 GenerateCommissionData → TryMatchWorldEvent
+       → 但事件匹配的 def 早已在 ①/② 被过滤，根本不会执行到这里
+```
+
+- Kidnapping 匹配 BountyHunt + DecoyMission，但这俩的 `ValidGiverOccupations` 和 `IsVenueMatch` 都不含 `RuralNotable`。
+- 受害人 NPC（RuralNotable）能显示 `!`（因为 `IsHeroInNearbyWorldEvent` 只看事件存在与否），但**开不出匹配的委托**（因为职业过滤把事件相关 def 全拦掉了）。
+- 这是一条设计原则：**事件系统的"可见性"和"可用性"必须共享同一份职业门禁逻辑，否则就会出现看得见但摸不着的断层**。
+
+**规避**
+- 新增 WorldEvent 类型时，反查其 `MatchingCommissions` 列表，确认每个匹配的 CommissionDef 的 `ValidGiverOccupations` 和 `IsVenueMatch` 都覆盖了目标 NPC 可能的职业。
+- 事件受害人最可能是 `RuralNotable` / `Headman`，这两个职业应始终在事件相关委托的职业白名单中。
+- 落地范例：
+  - [CommissionData.cs](ExampleModVS/ExampleMod/ExampleMod/Quests/Commissions/CommissionData.cs) — BountyHunt 的 `ValidGiverOccupations` 加了 `RuralNotable`
+  - [CommissionGenerator.cs](ExampleModVS/ExampleMod/ExampleMod/Quests/Commissions/CommissionGenerator.cs) — `IsVenueMatch` 的 BountyHunt 簇加了 `RuralNotable`
+- 另一个匹配阻断点：`TryMatchWorldEvent` 里 generic instigator（找不到真人 bandit）直接 `return false`。修复为设置 `TargetSettlementId` 代替 `TargetHero`，让委托叙事层通过 `WorldEventId` 输出事件文本。

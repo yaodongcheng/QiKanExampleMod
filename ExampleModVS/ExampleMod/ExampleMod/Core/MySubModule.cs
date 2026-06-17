@@ -148,6 +148,9 @@ namespace LivingWorldNpcs
                 // NPC 委托系统
                 campaignGameStarter.AddBehavior(new CommissionIssueBehavior());
 
+                // 世界事件模拟器（BanditRaid 等）
+                campaignGameStarter.AddBehavior(new WorldEventSimulator());
+
                 if (!_hasDumped)
                 {
                     //DumpAllActions();

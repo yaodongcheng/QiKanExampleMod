@@ -1260,6 +1260,125 @@ namespace LivingWorldNpcs
 
             return sb.ToString();
         }
+
+        // ═══════════════════════════════════════════════════════
+        // 世界事件调试指令
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 列出所有活跃世界事件。
+        /// 用法: custom.worldevent_list
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("worldevent_list", "custom")]
+        public static string ListWorldEvents(List<string> args)
+        {
+            if (Campaign.Current == null) return "Error: Campaign not loaded.";
+
+            var active = WorldEventDatabase.ActiveEvents;
+            if (active.Count == 0)
+                return "No active world events. (Use worldevent_force to create one)";
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"\n=== Active World Events ({active.Count}) ===");
+
+            foreach (var e in active)
+            {
+                float daysLeft = e.ExpiryDay - (float)CampaignTime.Now.ToDays;
+                string loc = e.TargetSettlement?.Name?.ToString() ?? "???";
+                string target = e.TargetHero?.Name?.ToString() ?? "-";
+                string instigator = e.IsGenericInstigator ? "generic" : (e.InstigatorHero?.Name?.ToString() ?? "generic");
+                string daysStr = daysLeft > 0 ? $"{daysLeft:F1}d left" : "EXPIRED";
+
+                sb.AppendLine($"  [{e.EventType}] {loc} | target={target} instigator={instigator}");
+                sb.AppendLine($"    sev={e.Severity}/10 {daysStr} party={e.GeneratedPartyId ?? "none"} id={e.EventId}");
+
+                if (e.HasHiddenMastermind)
+                    sb.AppendLine($"    ⚠ has hidden mastermind: {e.HiddenMastermindId}");
+            }
+
+            sb.AppendLine($"\nResolved: {WorldEventDatabase.ResolvedEvents.Count} | Expired: {WorldEventDatabase.ActiveEvents.Count(e => e.IsExpired)} | Total: {WorldEventDatabase.TotalEventCount}");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 强制生成一个世界事件（调试用）。
+        /// 用法:
+        ///   custom.worldevent_force                  → 生成 BanditRaid
+        ///   custom.worldevent_force Kidnapping       → 生成 Kidnapping
+        ///   custom.worldevent_force BanditRaid 8     → 生成 severity=8 的 BanditRaid
+        /// 可用类型: BanditRaid Kidnapping Famine Betrayal DebtTrap RomanticConflict
+        ///           FalseAccusation InheritanceDispute Fugitive TradeDispute
+        ///           NobleConflict SacredTheft Assassination
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("worldevent_force", "custom")]
+        public static string ForceWorldEvent(List<string> args)
+        {
+            if (Campaign.Current == null) return "Error: Campaign not loaded.";
+
+            WorldEventType type = WorldEventType.BanditRaid;
+            int severity = -1;
+
+            if (args.Count >= 1)
+            {
+                if (!Enum.TryParse(args[0], true, out type))
+                    return $"Error: Unknown event type '{args[0]}'. Valid: {string.Join(", ", Enum.GetNames(typeof(WorldEventType)))}";
+            }
+            if (args.Count >= 2)
+            {
+                if (!int.TryParse(args[1], out severity) || severity < 1 || severity > 10)
+                    return "Error: severity must be 1-10.";
+            }
+
+            string result = WorldEventSimulator.ForceGenerateEvent(type, severity);
+            InformationManager.DisplayMessage(new InformationMessage($"[WorldEvent] Force generated: {result}"));
+            return result;
+        }
+
+        /// <summary>
+        /// 显示世界事件模拟器内部状态。
+        /// 用法: custom.worldevent_status
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("worldevent_status", "custom")]
+        public static string WorldEventStatus(List<string> args)
+        {
+            if (Campaign.Current == null) return "Error: Campaign not loaded.";
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("\n=== WorldEvent Simulator Status ===");
+
+            // 从 simulator 实例获取状态
+            var simulator = Campaign.Current.GetCampaignBehavior<WorldEventSimulator>();
+            if (simulator != null)
+            {
+                // 通过反射或公开属性获取内部状态...
+                // 使用 WorldEventDatabase 的公开信息
+            }
+
+            float currentDay = (float)CampaignTime.Now.ToDays;
+            sb.AppendLine($"Current Day: {currentDay:F1}");
+            sb.AppendLine($"Active Events: {WorldEventDatabase.ActiveEvents.Count}");
+            sb.AppendLine($"Total Events (all time): {WorldEventDatabase.TotalEventCount}");
+            sb.AppendLine($"Resolved: {WorldEventDatabase.ResolvedEvents.Count}");
+            sb.AppendLine($"Director Idle: {WorldEventDirector.IsIdle}");
+            sb.AppendLine($"Director Last Commission Day: {WorldEventDirector.LastCommissionDay:F1}");
+
+            // 统计各类型事件数
+            var byType = WorldEventDatabase.ActiveEvents
+                .GroupBy(e => e.EventType)
+                .ToDictionary(g => g.Key, g => g.Count());
+            sb.AppendLine("\nActive by type:");
+            foreach (var kv in byType)
+                sb.AppendLine($"  {kv.Key}: {kv.Value}");
+
+            // 宿敌
+            var nemeses = HeroNemesisTracker.GetLivingNemeses();
+            sb.AppendLine($"\nLiving Nemeses: {nemeses.Count}");
+            foreach (var n in nemeses.Take(5))
+                sb.AppendLine($"  {n.HeroName} Lv{(int)n.Level} encounters={n.TimesEncountered} scar={n.HasScar}");
+
+            return sb.ToString();
+        }
     }
 
 
