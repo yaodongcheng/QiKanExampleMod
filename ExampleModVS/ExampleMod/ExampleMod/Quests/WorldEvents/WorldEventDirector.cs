@@ -69,7 +69,7 @@ namespace LivingWorldNpcs
             var playerPos = MobileParty.MainParty.Position2D;
             float currentDay = (float)CampaignTime.Now.ToDays;
 
-            // 阶段 1：定居点事件汇总（距离 < 30，有冷却）
+            // 阶段 1：从活跃事件里面，挑选30距离以内的，按照定居点ID排序，然后按照事件类型去重
             var veryCloseEvents = WorldEventDatabase.ActiveEvents
                 .Where(e =>
                 {
@@ -87,15 +87,17 @@ namespace LivingWorldNpcs
 
                 int count = group.Count();
                 var types = group.Select(e => EventTypeShortName(e.EventType)).Distinct().ToList();
+                //基于数量来生成不同的提示文本
                 string summary = count switch
                 {
                     1 => $"你靠近了{settlement.Name}——这里正面临{types[0]}的威胁。",
                     _ => $"你靠近了{settlement.Name}——这里同时面临{string.Join("、", types)}等多重危机。这个村子正在崩溃边缘。"
                 };
 
-                // 冷却检查：同一个定居点不重复显示
+                // 冷却检查：触发过提示之后短时间内不重复触发
                 if (currentDay - _lastApproachNotifyDay > APPROACH_COOLDOWN)
                 {
+                    //就是左下角的一个Message
                     InformationManager.DisplayMessage(new InformationMessage(summary));
                     _lastApproachNotifyDay = currentDay;
                 }
@@ -131,12 +133,31 @@ namespace LivingWorldNpcs
                         $"你遇到了一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}逃出来的人——他说有人被暗杀了，现在镇上人人自危。",
                     WorldEventType.Fugitive =>
                         $"路边藏着一个人——他自称是被冤枉的，追捕他的人就在不远。他是逃犯还是无辜者？",
+                    WorldEventType.NobleConflict =>
+                        $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！",
+                    WorldEventType.SacredTheft =>
+                        $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的圣物被人盗走了！那是他们宗族的命根子……",
+                    WorldEventType.RomanticConflict =>
+                        $"一个年轻人请求你的帮助——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}有人为情所困，两家人的脸面都挂不住了。",
+                    WorldEventType.FalseAccusation =>
+                        $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}有冤案——一个无辜的人就要被定罪了，时间不多了！",
+                    WorldEventType.InheritanceDispute =>
+                        $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}的老族长走了——继承人们已经撕破脸，怕是收不了场。",
+                    WorldEventType.TradeDispute =>
+                        $"你遇到了一个破产的商人——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的市场被人垄断，小商人们活不下去了。",
                     _ => $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}出事了——有人向你求救。"
                 };
 
                 if (selected.Severity >= 6)
                 {
-                    NinjaNotificationManager.Show(msg, () => { });
+                    // 点击弹出 Inquiry 详情，让玩家知道具体发生了什么
+                    var capturedEvent = selected;
+                    string fullNarrative = NotificationPipeline.BuildEventNarrativePublic(selected);
+                    DebugLogger.Log($"[Player] NinjaReport(intercept): {msg}");
+                    NinjaNotificationManager.Show(msg, () =>
+                    {
+                        WorldEventNotificationController.ShowEventInquiry(capturedEvent, fullNarrative);
+                    });
                 }
                 else
                 {

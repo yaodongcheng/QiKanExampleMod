@@ -37,6 +37,15 @@ namespace LivingWorldNpcs
                 return true;
             }
 
+            // 世界事件代理：NPC 所在定居点是活跃事件的目标，但受害者（lord）不在场 →
+            // 此 NPC 作为代理人提供委托（头人/村长替不在场的领主发布任务）
+            if (IsHeroProxyForWorldEvent(hero))
+            {
+                count = 1;
+                DebugLogger.Log($"[CommissionIssue] Proxy: {hero.Name} in {hero.CurrentSettlement?.Name} acts as contact for a WorldEvent (victim not present)");
+                return true;
+            }
+
             // 每日清缓存（委托列表每天刷新）
             float currentDay = (float)CampaignTime.Now.ToDays;
             if (Math.Abs(currentDay - _lastCacheClearDay) > 0.5f)
@@ -390,6 +399,38 @@ namespace LivingWorldNpcs
                 e.TargetHeroId == hero.StringId
                 && e.TargetSettlement != null
                 && e.TargetSettlement.Position2D.Distance(heroSettlement.Position2D) < 80f);
+        }
+
+        /// <summary>
+        /// 检查 NPC 是否可作为世界事件的代理人。
+        /// 当定居点是活跃事件的目标但受害者（lord）不在场时，
+        /// 定居点内的 Notable 可作为代理人发布委托——玩家到地方不会找不到人。
+        /// </summary>
+        private static bool IsHeroProxyForWorldEvent(Hero hero)
+        {
+            if (hero == null || string.IsNullOrEmpty(hero.StringId)) return false;
+            Settlement heroSettlement = hero.CurrentSettlement;
+            if (heroSettlement == null) return false;
+
+            // 只对定居点内的 Notable 生效（头人、商人、工匠等），lord 不需要代理
+            if (!hero.IsNotable && hero.Occupation != Occupation.Headman) return false;
+
+            // 检查是否有活跃事件以此定居点为目标，且受害者不在此定居点
+            return WorldEventDatabase.ActiveEvents.Any(e =>
+                e.TargetSettlementId == heroSettlement.StringId
+                && e.TargetHeroId != hero.StringId  // 不是受害者本人
+                && !IsHeroPresentInSettlement(e.TargetHeroId, heroSettlement)); // 受害者不在场
+        }
+
+        /// <summary>检查指定 Hero 是否在某个定居点中。</summary>
+        private static bool IsHeroPresentInSettlement(string heroStringId, Settlement settlement)
+        {
+            if (string.IsNullOrEmpty(heroStringId) || settlement == null) return false;
+            foreach (var h in settlement.HeroesWithoutParty)
+                if (h.StringId == heroStringId) return true;
+            foreach (var h in settlement.Notables)
+                if (h.StringId == heroStringId) return true;
+            return false;
         }
 
         /// <summary>

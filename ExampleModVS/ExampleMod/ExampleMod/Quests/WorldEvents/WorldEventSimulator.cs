@@ -45,8 +45,8 @@ namespace LivingWorldNpcs
 
         #region CampaignBehaviorBase
 
-        private float _lastRoadInterceptCheckDay = -1f;
-        private const float ROAD_INTERCEPT_INTERVAL_DAYS = 0.04f; // ~1 游戏小时
+        private float _roadInterceptAccumDt;
+        private const float ROAD_INTERCEPT_INTERVAL_SEC = 2f; // 每2秒 1 次
         private float _lastPeriodicDigestDay = -1f;
         private const float PERIODIC_DIGEST_INTERVAL = 3f; // 每 3 天推送一次世界摘要
 
@@ -81,15 +81,15 @@ namespace LivingWorldNpcs
 
         #region Tick
 
-        /// <summary>高频检查：路途拦截 + 酒馆自动传闻 + 事件创建通知（玩家移动时更易触发）。</summary>
+        /// <summary>路途拦截 + 酒馆传闻：dt 累积到 1 秒执行一次（不再依赖游戏时间）。</summary>
         private void OnCampaignTick(float dt)
         {
             try
             {
-                float currentDay = (float)CampaignTime.Now.ToDays;
-                if (currentDay - _lastRoadInterceptCheckDay > ROAD_INTERCEPT_INTERVAL_DAYS)
+                _roadInterceptAccumDt += dt;
+                if (_roadInterceptAccumDt >= ROAD_INTERCEPT_INTERVAL_SEC)
                 {
-                    _lastRoadInterceptCheckDay = currentDay;
+                    _roadInterceptAccumDt = 0f;
                     WorldEventDirector.CheckRoadIntercept();
                     WorldEventDirector.CheckTavernAmbientTrigger();
                 }
@@ -203,7 +203,41 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[WorldEventSimulator] Party arrived! {evt.EventType} at {evt.TargetSettlement?.Name} — triggering consequences");
                 ApplyExpiryConsequences(evt, isArrival: true);
                 WorldEventDatabase.ExpireEvent(evt.EventId);
+
+                // ── 忍者报告：部队到达！──
+                float dist = MobileParty.MainParty?.Position2D.Distance(evt.TargetSettlement.Position2D) ?? float.MaxValue;
+                if (dist < 100f) // 近处才有 NinjaReport，远处走 DisplayMessage（已在 ApplyExpiryConsequences 中）
+                {
+                    string arrivalSummary = BuildArrivalSummary(evt);
+                    string fullNarrative = NotificationPipeline.BuildEventNarrativePublic(evt);
+                    DebugLogger.Log($"[Player] NinjaReport(arrival): {arrivalSummary}");
+                    NinjaNotificationManager.Show(arrivalSummary, () =>
+                    {
+                        WorldEventNotificationController.ShowEventInquiry(evt,
+                            $"⚔ 部队已到达！\n\n{fullNarrative}\n\n——\n后果已经发生。");
+                    });
+                }
             }
+        }
+
+        /// <summary>构建到达通知摘要（TK5 忍者通报风格）。</summary>
+        private static string BuildArrivalSummary(WorldEventData e)
+        {
+            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
+            string instigator = e.IsGenericInstigator ? "一伙歹徒" : (e.InstigatorHero?.Name?.ToString() ?? "加害方");
+            string victim = e.TargetHero?.Name?.ToString() ?? loc;
+
+            return e.EventType switch
+            {
+                WorldEventType.BanditRaid => $"⚔ {instigator} 已抵达{loc}——劫掠开始！",
+                WorldEventType.Kidnapping => $"⚔ {instigator} 带走了{victim}——绑匪已经得手！",
+                WorldEventType.NobleConflict => $"⚔ {instigator} 的军队已开进{loc}——与{victim}短兵相接！",
+                WorldEventType.Assassination => $"🗡 {victim}遇刺——{instigator}的刺客在{loc}得手了……",
+                WorldEventType.SacredTheft => $"🔮 {instigator} 已从{loc}带走圣物——传承断绝。",
+                WorldEventType.Betrayal => $"💔 {instigator} 背叛了{victim}——事成定局。",
+                WorldEventType.Famine => $"⚠ {loc}粮食耗尽——饥荒已至。",
+                _ => $"⚔ {instigator} 的行动已在{loc}得手。"
+            };
         }
 
         /// <summary>检查到期事件，施加各类型的物理后果。</summary>

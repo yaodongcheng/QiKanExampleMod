@@ -11,18 +11,19 @@ namespace LivingWorldNpcs
     /// <summary>
     /// 世界事件 → 通知系统桥接。
     ///
-    /// 核心改动：去掉距离门控。世界哪里出事玩家都应该知道——
-    /// 近处弹窗，远处传谣言。不做"靠近了才知道"的被动设计。
+    /// 核心原则：世界哪里出事玩家都应该知道——近处 NinjaReport 弹窗，远处谣言。
     ///
     /// 分级规则：
-    ///   近（&lt;100 单位）：NinjaNotification 全屏弹窗 + 详细叙事
-    ///   中（100-300 单位）：InformationMessage 带地名和事件类型
+    ///   近（&lt;100 单位）：NinjaNotification 弹窗 + Inquiry 详情（"过去看看"可移镜头）
+    ///   中（100-300 单位）：severity≥7→NinjaNotification；severity&lt;7→InformationMessage
     ///   远（&gt;300 单位）：InformationMessage 模糊谣言
+    ///
+    /// 事件升级/解决通知：近处也走 NinjaNotification，不再静默。
     /// </summary>
     public static class WorldEventNotificationController
     {
-        private const float NEAR_DIST = 100f;   // 近距离 → 全屏弹窗
-        private const float MID_DIST = 300f;    // 中距离 → 带地名消息
+        private const float NEAR_DIST = 100f;   // 近距离 → NinjaNotification
+        private const float MID_DIST = 300f;    // 中距离 → 高严重度 NinjaNotification / 低严重度消息
         // > MID_DIST → 远方谣言
 
         /// <summary>新事件创建时的通知（全局，不门控）。</summary>
@@ -37,39 +38,45 @@ namespace LivingWorldNpcs
 
             if (dist < NEAR_DIST)
             {
-                // 近距离：NinjaNotification 显示简短摘要（hover 可见），点击弹 Inquiry 书信
+                // 近距离：一律 NinjaNotification（不再按 severity 门控）
                 string shortSummary = BuildShortSummary(worldEvent);
                 string fullNarrative = NotificationPipeline.BuildEventNarrativePublic(worldEvent);
 
-                if (worldEvent.Severity >= 5)
+                DebugLogger.Log($"[Player] NinjaReport: {shortSummary}");
+                NinjaNotificationManager.Show(shortSummary, () =>
                 {
-                    DebugLogger.Log($"[Player] NinjaReport: {shortSummary}");
+                    ShowEventInquiry(worldEvent, fullNarrative);
+                });
+            }
+            else if (dist < MID_DIST)
+            {
+                if (worldEvent.Severity >= 7)
+                {
+                    // 中距离高严重度：也走 NinjaNotification
+                    string shortSummary = BuildShortSummary(worldEvent);
+                    string fullNarrative = NotificationPipeline.BuildEventNarrativePublic(worldEvent);
+                    DebugLogger.Log($"[Player] NinjaReport(mid): {shortSummary}");
                     NinjaNotificationManager.Show(shortSummary, () =>
                     {
-                        // 点击通知 → 弹 Inquiry 书信（双按钮）
                         ShowEventInquiry(worldEvent, fullNarrative);
                     });
                 }
                 else
                 {
-                    InformationManager.DisplayMessage(new InformationMessage(fullNarrative));
+                    // 中距离低严重度：带地名和事件类型的消息
+                    string msg = BuildMidRangeMessage(worldEvent);
+                    InformationManager.DisplayMessage(new InformationMessage(msg));
                 }
-            }
-            else if (dist < MID_DIST)
-            {
-                // 中距离：带地名和事件类型的消息
-                string msg = BuildMidRangeMessage(worldEvent);
-                InformationManager.DisplayMessage(new InformationMessage(msg));
             }
             else
             {
-                // 远距离：模糊谣言——但玩家仍然会知道"世界上出事了"
+                // 远距离：模糊谣言
                 string msg = BuildFarRumor(worldEvent);
                 InformationManager.DisplayMessage(new InformationMessage(msg));
             }
         }
 
-        /// <summary>事件升级通知（全局）。</summary>
+        /// <summary>事件升级通知（全局）。近处走 NinjaNotification，远处走谣言。</summary>
         public static void OnEventEscalated(WorldEventData worldEvent)
         {
             if (worldEvent == null) return;
@@ -79,18 +86,24 @@ namespace LivingWorldNpcs
 
             float dist = MobileParty.MainParty?.Position2D.Distance(settlement.Position2D) ?? float.MaxValue;
 
-            string msg;
+            string msg = worldEvent.EventType switch
+            {
+                WorldEventType.BanditRaid => $"⚠ 局势恶化！{settlement.Name} 的匪患已升级，匪徒越聚越多！",
+                WorldEventType.Kidnapping => $"⚠ 时间不多了！{settlement.Name} 的绑匪发出了最后通牒……",
+                WorldEventType.Famine => $"⚠ {settlement.Name} 的饥荒持续恶化——再没有粮食就要死人了！",
+                WorldEventType.Assassination => $"⚠ {settlement.Name} 的暗杀事件引发了更多混乱！",
+                _ => $"⚠ 局势恶化！{settlement.Name} 的事件已升级。"
+            };
+
             if (dist < NEAR_DIST)
             {
-                msg = worldEvent.EventType switch
+                // 近处升级：NinjaNotification 弹窗
+                string shortSummary = $"⚠ 局势恶化 · {settlement.Name}";
+                DebugLogger.Log($"[Player] NinjaReport(escalated): {shortSummary}");
+                NinjaNotificationManager.Show(shortSummary, () =>
                 {
-                    WorldEventType.BanditRaid => $"⚠ 局势恶化！{settlement.Name} 的匪患已升级，匪徒越聚越多！",
-                    WorldEventType.Kidnapping => $"⚠ 时间不多了！{settlement.Name} 的绑匪发出了最后通牒……",
-                    WorldEventType.Famine => $"⚠ {settlement.Name} 的饥荒持续恶化——再没有粮食就要死人了！",
-                    WorldEventType.Assassination => $"⚠ {settlement.Name} 的暗杀事件引发了更多混乱！",
-                    _ => $"⚠ 局势恶化！{settlement.Name} 的事件已升级。"
-                };
-                InformationManager.DisplayMessage(new InformationMessage(msg));
+                    ShowEventInquiry(worldEvent, msg);
+                });
             }
             else
             {
@@ -101,7 +114,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>事件解决通知（全局）。</summary>
+        /// <summary>事件解决通知（全局）。近处走 NinjaNotification，远处走消息。</summary>
         public static void OnEventResolved(WorldEventData worldEvent)
         {
             if (worldEvent == null) return;
@@ -111,15 +124,22 @@ namespace LivingWorldNpcs
 
             float dist = MobileParty.MainParty?.Position2D.Distance(settlement.Position2D) ?? float.MaxValue;
 
+            string msg = worldEvent.EventType switch
+            {
+                WorldEventType.BanditRaid =>
+                    $"✅ {settlement.Name} 的匪患已平息。百姓终于能睡个安稳觉了。",
+                _ => $"✅ {settlement.Name} 的事件已解决。"
+            };
+
             if (dist < NEAR_DIST)
             {
-                string msg = worldEvent.EventType switch
+                // 近处解决：NinjaNotification 弹窗（简版，仅确认）
+                string shortSummary = $"✅ 事件解决 · {settlement.Name}";
+                DebugLogger.Log($"[Player] NinjaReport(resolved): {shortSummary}");
+                NinjaNotificationManager.Show(shortSummary, () =>
                 {
-                    WorldEventType.BanditRaid =>
-                        $"✅ {settlement.Name} 的匪患已平息。百姓终于能睡个安稳觉了。",
-                    _ => $"✅ {settlement.Name} 的事件已解决。"
-                };
-                InformationManager.DisplayMessage(new InformationMessage(msg));
+                    InformationManager.DisplayMessage(new InformationMessage(msg));
+                });
             }
             else
             {
@@ -214,10 +234,43 @@ namespace LivingWorldNpcs
 
         #region Inquiry 书信 + 简短摘要
 
-        /// <summary>构建简短摘要（一行，给 NinjaNotification hover 显示）。</summary>
+        /// <summary>
+        /// 构建简短摘要（一行，给 NinjaNotification hover 显示）。
+        /// 有真人 actor 时用 TK5 忍者通报风格：{谁} {动作} {谁/哪里}
+        /// 通用模板时回退地点+类型。
+        /// </summary>
         private static string BuildShortSummary(WorldEventData e)
         {
             string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
+            string sevMark = e.Severity >= 8 ? "‼" : e.Severity >= 5 ? "⚠" : "";
+
+            // ── 有真人时：TK5 忍者通报风格（谁 对 谁 做了什么）──
+            if (!e.IsGenericInstigator && !string.IsNullOrEmpty(e.InstigatorHeroId))
+            {
+                string instigator = e.InstigatorHero?.Name?.ToString() ?? "某人";
+                string target = e.TargetHero?.Name?.ToString() ?? loc;
+
+                string action = e.EventType switch
+                {
+                    WorldEventType.BanditRaid => $"率匪劫掠{loc}",
+                    WorldEventType.Kidnapping => $"绑走了{loc}的{target}",
+                    WorldEventType.Betrayal => $"背叛了{target}",
+                    WorldEventType.DebtTrap => $"逼债{target}",
+                    WorldEventType.RomanticConflict => $"与{target}情仇难解",
+                    WorldEventType.FalseAccusation => $"诬告{target}",
+                    WorldEventType.InheritanceDispute => $"争夺{target}的继承权",
+                    WorldEventType.Fugitive => $"追捕{target}",
+                    WorldEventType.TradeDispute => $"垄断{loc}市场",
+                    WorldEventType.NobleConflict => $"出兵征讨{target}",
+                    WorldEventType.SacredTheft => $"盗走{loc}圣物",
+                    WorldEventType.Assassination => $"在{loc}刺杀{target}",
+                    WorldEventType.NemesisRevenge => $"猎杀你！",
+                    _ => $"在{loc}引发事件"
+                };
+                return $"{sevMark} {instigator} {action}";
+            }
+
+            // ── 通用模板 / 无人名：回退地点+类型 ──
             string typeName = e.EventType switch
             {
                 WorldEventType.BanditRaid => "匪患",
@@ -236,15 +289,14 @@ namespace LivingWorldNpcs
                 WorldEventType.NemesisRevenge => "宿敌来袭",
                 _ => "事件"
             };
-            string sevMark = e.Severity >= 8 ? "‼" : e.Severity >= 5 ? "⚠" : "";
             return $"{sevMark} {loc} · {typeName}";
         }
 
         /// <summary>
         /// 弹出 Inquiry 书信——CK3 风格双按钮事件详情。
-        /// 左侧"过去看看"移动镜头到事件地点，右侧"知道了"关闭。
+        /// 左侧"过去看看"动画移动镜头到事件现场，右侧"知道了"关闭。
         /// </summary>
-        private static void ShowEventInquiry(WorldEventData worldEvent, string fullNarrative)
+        public static void ShowEventInquiry(WorldEventData worldEvent, string fullNarrative)
         {
             if (worldEvent == null) return;
 
@@ -299,27 +351,39 @@ namespace LivingWorldNpcs
                 "知道了",
                 () =>
                 {
-                    DebugLogger.Log($"[Player] Inquiry: '过去看看' — {targetSettlement.Name} {worldEvent.EventType}");
+                    DebugLogger.Log($"[Player] Inquiry: '过去看看' — {targetSettlement?.Name} {worldEvent.EventType}");
                     try
                     {
                         if (GameStateManager.Current?.ActiveState is MapState mapState
                             && targetSettlement != null)
                         {
-                            mapState.Handler.TeleportCameraToMainParty();
-                            // 在大地图上高亮显示目标定居点的方向
-                            string dirHint = GetDirectionToEvent(worldEvent);
-                            InformationManager.DisplayMessage(
-                                new InformationMessage($"📍 事件地点：{targetSettlement.Name}（{dirHint}方）。打开百科可查看位置。"));
+                            // 优先移动到事件 party 的位置（如果生成了 party），否则移动到目标定居点
+                            Vec2 targetPos;
+                            MobileParty eventParty = worldEvent.GeneratedParty;
+                            if (eventParty != null)
+                            {
+                                targetPos = eventParty.Position2D;
+                                DebugLogger.Log($"[WorldEvent] Camera animating to event party: {eventParty.Name} at {targetPos}");
+                            }
+                            else
+                            {
+                                targetPos = targetSettlement.Position2D;
+                                DebugLogger.Log($"[WorldEvent] Camera animating to settlement: {targetSettlement.Name} at {targetPos}");
+                            }
+
+                            // 使用 campaign.focus_hero 同款的底层镜头动画 API
+                            // StartCameraAnimation：平滑移动镜头到目标位置并停留（秒）
+                            mapState.Handler.StartCameraAnimation(targetPos, 3.0f);
                         }
                     }
                     catch (Exception ex)
                     {
-                        DebugLogger.Log($"[WorldEvent] Camera teleport failed: {ex.Message}");
+                        DebugLogger.Log($"[WorldEvent] Camera animation failed: {ex.Message}");
                     }
                 },
                 () =>
                 {
-                    DebugLogger.Log($"[Player] Inquiry: '知道了' — {targetSettlement.Name} {worldEvent.EventType}");
+                    DebugLogger.Log($"[Player] Inquiry: '知道了' — {targetSettlement?.Name} {worldEvent.EventType}");
                 }));
         }
 

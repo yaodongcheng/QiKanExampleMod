@@ -1,11 +1,44 @@
-﻿[10:38:29.447] [CommissionIssue] Created CommissionHubIssue for 马利齐俄斯
-[10:38:29.490] [CommissionIssue] Created CommissionHubIssue for 阿利斯维斯特的图瓦尔
-[10:38:30.141] [CommissionIssue] Created CommissionHubIssue for 萨万特的于瓦尔
-[10:38:30.185] [CommissionIssue] Created CommissionHubIssue for 庞斯的若瓦里翁
-[10:38:30.910] [CommissionIssue] Created CommissionHubIssue for 迪纳尔的伊勒德力木
-[10:38:33.244] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECC19864A2350_8541 settlement=town_A2
-[10:38:33.245] [WorldEvent] Motivated conflict: 额撒彻 → SacredTheft → 贾沃勒的比利耶 (relation=-100) at 侯森·富勒格
-[10:38:33.248] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECC19864AA59B_5332 settlement=town_ES2
-[10:38:33.253] [Player] NinjaReport: ‼ 沃斯特鲁姆 · 贵族冲突
-[10:38:33.254] [WorldEvent] Motivated conflict: 纳延泰 → NobleConflict → 瓦拉里娅 (relation=-100) at 沃斯特鲁姆
-[10:38:44.650] [Player] Inquiry: '过去看看' — 沃斯特鲁姆 NobleConflict
+﻿[18:17:57.285] [CommissionIssue] Created CommissionHubIssue for 乌瑟莱姆的卢伊汉
+[18:17:57.294] [CommissionIssue] Created CommissionHubIssue for 阿利斯维斯特的葛雷福特
+[18:17:57.794] [CommissionIssue] Created CommissionHubIssue for 萨万特的于瓦尔
+[18:17:57.838] [CommissionIssue] Created CommissionHubIssue for 庞斯的若瓦里翁
+[18:18:02.350] [WorldEventSimulator] Redirecting party of 居福耳 → 撒纳拉 (dist=307, boosted)
+[18:18:02.351] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECC59B6C2153A_2946 settlement=town_A6
+[18:18:02.356] [Player] NinjaReport(mid): ‼ 居福耳 盗走撒纳拉圣物
+[18:18:02.357] [WorldEvent] Motivated conflict: 居福耳 → SacredTheft → 暗影之子的乌苏尔 (relation=-100) at 撒纳拉
+[18:18:02.358] [WorldEventSimulator] Redirecting party of 埃卡朗 → 萨哥特 (dist=139, boosted)
+[18:18:02.358] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECC59B6C32D22_8079 settlement=town_V1
+[18:18:02.358] [Player] NinjaReport(mid): ‼ 埃卡朗 出兵征讨萨哥特
+[18:18:02.359] [WorldEvent] Motivated conflict: 埃卡朗 → NobleConflict → 森民的阿只埃 (relation=-100) at 萨哥特
+[18:18:08.747] [Player] Inquiry: '过去看看' — 萨哥特 NobleConflict
+[18:18:08.748] [WorldEvent] Camera animating to event party: 埃卡朗的征讨军 at (Vec2) X: 194.2514 Y: 521.8196
+[18:18:30.781] [Player] NinjaReport(intercept): 前方萨哥特边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[18:18:34.403] [Player] Inquiry: '过去看看' — 萨哥特 NobleConflict
+[18:18:34.403] [WorldEvent] Camera animating to event party: 埃卡朗的征讨军 at (Vec2) X: 187.4115 Y: 519.9879
+[18:18:46.514] [Player] NinjaReport(intercept): 前方萨哥特边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[18:18:57.004] [Player] Inquiry: '过去看看' — 萨哥特 NobleConflict
+[18:18:57.005] [WorldEvent] Camera animating to event party: 埃卡朗的征讨军 at (Vec2) X: 183.1332 Y: 520.9161
+[18:19:09.413] [CommissionIssue] Proxy: 铁匠索加尔 in 萨哥特 acts as contact for a WorldEvent (victim not present)
+[18:19:09.413] [CommissionIssue] Proxy: 制革匠马尔贝尔 in 萨哥特 acts as contact for a WorldEvent (victim not present)
+[18:19:09.413] [CommissionIssue] Proxy: 货郎伊西甘德 in 萨哥特 acts as contact for a WorldEvent (victim not present)
+[18:19:09.414] [CommissionIssue] Proxy: “断指”兀仑图 in 萨哥特 acts as contact for a WorldEvent (victim not present)
+[18:19:09.414] [CommissionIssue] Proxy: “巨石”热特琳 in 萨哥特 acts as contact for a WorldEvent (victim not present)
+[18:19:13.466] [CommissionIssue] Created CommissionHubIssue for 阿瓦辛顿的卡姆农
+[18:19:48.031] [WorldEvent] New event: Assassination id=evt_motiv_assassination_8DECC59F5BF9533_2691 settlement=town_ES2
+[18:19:48.032] [WorldEvent] Motivated conflict: 列奥提娅 → Assassination → 图里亚多斯 (relation=-100) at 沃斯特鲁姆
+[18:19:52.748] [CommissionIssue] Proxy: 杂货商尼德尔 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
+[18:19:52.749] [CommissionIssue] Proxy: 银器匠阿提斯 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
+[18:19:52.749] [CommissionIssue] Proxy: 喜怒无常的萨义德 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
+[18:19:52.749] [CommissionIssue] Proxy: “酸酒”苏尔 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
+[18:20:06.049] [CommissionIssue] Proxy: 磨坊主萨尼翁 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
+[18:20:06.049] [CommissionIssue] Proxy: 麦酒酿制工欧托斯 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
+[18:20:06.050] [CommissionIssue] Proxy: 绸缎商奥奇沃斯 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
+[18:20:06.050] [CommissionIssue] Proxy: “铁锤”刻农 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
+[18:20:06.050] [CommissionIssue] Proxy: “烂牙”玛威娅 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
+[18:20:14.340] [WorldEventSimulator] Redirecting party of 维杜尔 → 撒纳拉 (dist=385, boosted)
+[18:20:14.341] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECC5A056E2695_398 settlement=town_A6
+[18:20:14.341] [Player] NinjaReport(mid): ‼ 维杜尔 出兵征讨撒纳拉
+[18:20:14.342] [WorldEvent] Motivated conflict: 维杜尔 → NobleConflict → 艾亚姆 (relation=-66) at 撒纳拉
+[18:20:22.572] [Player] Inquiry: '过去看看' — 撒纳拉 NobleConflict
+[18:20:22.572] [WorldEvent] Camera animating to event party: 维杜尔的征讨军 at (Vec2) X: 317.7441 Y: 583.1661
+[18:20:38.318] [CommissionIssue] Created CommissionHubIssue for 奥赞

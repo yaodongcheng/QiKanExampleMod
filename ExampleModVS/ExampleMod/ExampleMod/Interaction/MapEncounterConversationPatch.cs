@@ -28,15 +28,35 @@ namespace LivingWorldNpcs
                 CharacterObject partnerChar = conversationPartnerData.Character;
                 if (partnerChar == null) return true; // 无角色数据则放行原版
 
-                string npcName = partnerChar.Name?.ToString() ?? "对方";
+                // ── 如果 party 有 leader Hero，重定向对话对象到 leader ──
+                // 否则大地图遇敌对话对象会是通用士兵（hero=none），无法触发事件相关对话。
+                Hero partyLeader = conversationPartnerData.Party?.MobileParty?.LeaderHero;
+                if (partyLeader != null && partyLeader.CharacterObject != partnerChar)
+                {
+                    DebugLogger.Log($"[MapConvPatch] Redirecting conversation from '{partnerChar.Name}' (hero=none) to party leader '{partyLeader.Name}'");
+                    partnerChar = partyLeader.CharacterObject;
+                }
+
+                string npcName = partnerChar?.Name?.ToString() ?? "对方";
 
                 // 结构体按值捕获入闭包
                 var p = playerCharacterData;
                 var q = conversationPartnerData;
+                // 如果用 leader 重写了角色，也同步更新 q
+                if (partyLeader != null && partyLeader.CharacterObject != conversationPartnerData.Character)
+                {
+                    q = new ConversationCharacterData(
+                        partyLeader.CharacterObject,
+                        q.Party,
+                        q.NoHorse, q.NoWeapon, q.SpawnedAfterFight,
+                        q.IsCivilianEquipmentRequiredForLeader,
+                        q.IsCivilianEquipmentRequiredForBodyGuardCharacters,
+                        noBodyguards: true);
+                }
 
                 InformationManager.ShowInquiry(new InquiryData(
                     $"你和{npcName}相遇了",
-                    "你想怎么和对方说话？",
+                    $"你想怎么和{npcName}说话？",
                     true, true,
                     "闲聊", "对话",
                     affirmativeAction: () =>
