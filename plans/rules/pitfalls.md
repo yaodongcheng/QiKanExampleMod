@@ -89,3 +89,49 @@ GenerateCommissions → GetAvailableDefsForHero
   - [CommissionData.cs](ExampleModVS/ExampleMod/ExampleMod/Quests/Commissions/CommissionData.cs) — BountyHunt 的 `ValidGiverOccupations` 加了 `RuralNotable`
   - [CommissionGenerator.cs](ExampleModVS/ExampleMod/ExampleMod/Quests/Commissions/CommissionGenerator.cs) — `IsVenueMatch` 的 BountyHunt 簇加了 `RuralNotable`
 - 另一个匹配阻断点：`TryMatchWorldEvent` 里 generic instigator（找不到真人 bandit）直接 `return false`。修复为设置 `TargetSettlementId` 代替 `TargetHero`，让委托叙事层通过 `WorldEventId` 输出事件文本。
+
+---
+
+## .NET Framework 4.8 不支持的 API
+
+**症状**：编译错误 `CS0117: "Math"未包含"Clamp"的定义` / `CS1061: "MobileParty"未包含"Leader"的定义`
+
+**根因**：Bannerlord 基于 .NET Framework 4.8（非 .NET Core）。以下 API 不存在：
+- `Math.Clamp(int, min, max)` → 使用项目中已有的 `ClampInt(value, min, max)`（`WorldEventSimulator.cs` 末尾）
+- `MathF.Abs() / MathF.Clamp()` → 使用 `Math.Abs()`（但 `StoryDialogVM` 里已用了 `MathF`——那是 TaleWorlds 自带的兼容层，OK）
+- `MobileParty.Leader` → Bannerlord API 属性名是 **`LeaderHero`**
+- `IMapStateHandler.TeleportCameraToPosition()` → 不存在，只有 `TeleportCameraToMainParty()`。镜头移动用 `mapState.Handler.TeleportCameraToMainParty()` + `InformationMessage` 提示方向
+
+**规避**：写新代码时，不确定 API 名称先 `grep` 项目中的已有用法；不确定是否存在先反编译 DLL。
+
+---
+
+## `GameStateManager` 需要 `using TaleWorlds.Core`
+
+**症状**：`CS0103: 当前上下文中不存在名称"GameStateManager"`
+
+**根因**：`GameStateManager` 在 `TaleWorlds.Core` 命名空间，不在 `TaleWorlds.CampaignSystem.GameState`。两个 using 都要加。
+
+---
+
+## Edit 工具 `replace_all: true` 可能吃掉其他代码
+
+**症状**：一次 Edit 后大片方法消失，后续出现 `CS1022: 应输入类型、命名空间定义或文件尾`。
+
+**根因**：`replace_all: true` 匹配到的 `old_string` 如果不是全局唯一的，会在**所有匹配位置**做替换。如果某处的上下文不同（缩进不同、注释不同），替换结果可能破坏代码结构。
+
+**规避**：
+- `replace_all` 前确认 `old_string` 在所有匹配位置**逐字符一致**（含缩进、注释）
+- `old_string` 尽量包含足够的上下文行（前后各 2-3 行）以保证唯一性
+- 如果文件是 untracked（`??`），git checkout 无法恢复——只能在 IDE 里 Ctrl+Z
+- 一次改多处时，用多次独立 Edit 比一次 replace_all 更安全
+
+---
+
+## CampaignEvents 委托签名必须完全匹配
+
+**症状**：`CS0407: "bool XXX.OnCheckForIssue(Hero)"的返回类型错误`
+
+**根因**：`CampaignEvents.OnCheckForIssueEvent` 的委托签名是 `void`。给事件处理函数加 `bool` 返回值会导致签名不匹配。
+
+**规避**：事件处理器保持原始签名。需要返回值的逻辑包装成内部方法（如 `TryAddIssue` → 事件处理器 `OnCheckForIssue` 调它）。

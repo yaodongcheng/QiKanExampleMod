@@ -256,3 +256,102 @@ public static class SuppressVanillaConversationMissionPatch
 **关键文件**：`Interaction/MapEncounterDialogState.cs`（静态标志）、`Interaction/MapEncounterConversationPatch.cs`（两个 Harmony 补丁）、`Interaction/InteractionMissionView.cs`（自动触发/收尾）。
 
 **边界**：只对 Hero 生效（无 Hero 放行原版）；仅自家的 conversation mission 抑制（静态 gate）；settlement 内点 NPC / 请求会面不受影响；LLM 路径走 `IsLLMReady` 总闸。
+
+---
+
+# 世界事件引擎 — `Quests/WorldEvents/`
+
+## 架构
+
+四层：**模拟器**（DailyTick 生成事件 + party）→ **数据库**（Event CRUD + JSON 持久化）→ **导演**（五种推送控制可见性）+ **通知控制器**（NinjaReport → Inquiry 书信）→ **宿敌追踪**（交手记录 → 伤疤 → 复仇）。
+
+## 核心入口
+
+```csharp
+// 生成管线（WorldEventSimulator.TryGenerateNewEvent）
+// ① 动机驱动真人冲突（优先！）
+TryGenerateMotivatedEvent()  // 扫 Hero 关系/仇恨/性格 → 真人冲突（NobleConflict/Betrayal/Assassination…）
+// ② 回落随机事件
+roll → 选类型 → 选定居点 → 选人 → SpawnEventParty → 存入 DB
+
+// 动机扫描四层：跨clan仇恨 → 同clan内斗 → 经济冲突 → 野心扩张
+
+// 征用真人部队（WorldEventSimulator.SpawnEventParty）
+// instigator 正带队 → 调遣真实部队（LeaderHero、Scouting=300加速、不改位置）
+// instigator 在定居点 → 新建 party（定位目标附近）
+// 到场才触发后果：CheckEventPartyArrivals → dist < 3 单位 → ApplyExpiryConsequences
+
+// 控制台调试
+custom.worldevent_list       // 列出所有活跃事件
+custom.worldevent_force [类型] [严重度]  // 强制生成（默认BanditRaid）
+custom.worldevent_status     // 内部状态
+```
+
+## 给世界事件加新婚事件的正确姿势
+
+1. 在 `WorldEventType` 枚举加类型
+2. 在 `WorldEventConfig` 静态构造里 `Register(new WorldEventConfig{...})`
+3. 在 `WorldEventDirector` / `WorldEventNotificationController` 的 switch 里加对应文本
+4. 在 `Narrative.csv` 加 `WorldEvent_Greeting_{Type}_Victim` / `Instigator` 条目
+
+---
+
+# UI 交互模式
+
+## NinjaNotification → Inquiry 书信流
+
+**一切重要通知的标准流**：右侧悬浮环（hover 一行摘要）→ 点击弹 Inquiry 书信（详情 + 双按钮）。
+
+```csharp
+// 不要直接往 NinjaNotification 塞长文本！走这个模式：
+string shortSummary = "⚠ 雷别莱特村 · 匪患";  // 一行，hover 显示
+string fullBody = "德瑟特·哈米尔正带人劫掠…";   // 详情，Inquiry 显示
+
+NinjaNotificationManager.Show(shortSummary, () =>
+{
+    InformationManager.ShowInquiry(new InquiryData(
+        "标题", fullBody,
+        hasOk, hasCancel, "去看看", "知道了",
+        onOk, onCancel));
+});
+```
+
+**关键文件**：`Notify/NinjaNotificationMissionView.cs`（管理器）、`Notify/NinjaNotificationVM.cs`（VM）、`GUI/Prefabs/CustomNotify.xml`（Prefab）。
+
+## KCD2 式轮次对话
+
+**所有 NPC 交互统一流程**：NPC 先说开场白（右侧无选项）→ 玩家点"继续" → 选项出现。
+
+```csharp
+// StartInteraction 模式：
+_vm.Show(name, openingLine);       // NPC 说话
+_vm.AreOptionsVisible = false;      // 隐藏选项
+
+_vm.OnClickContinue = () =>         // 玩家点"继续"
+{
+    RefreshInitialOptions();         // 选项出现
+};
+```
+
+**关键文件**：`Interaction/StoryDialogVM.cs`（`OnClickContinue` 回调 + `ShowContinueHint` 属性）、`Interaction/InteractionController.cs`（`StartInteraction`）。
+
+---
+
+# 日志纪律
+
+**铁律**：① `DebugLogger.Log` 只记录玩家可感知的事 + 关键后台状态变更。② Per-NPC 循环日志是垃圾——每轮扫描最多一条汇总。③ 错误始终记录。
+
+```csharp
+// ✅ 好的日志
+DebugLogger.Log($"[Player] NinjaReport: {summary}");            // 玩家看到通知
+DebugLogger.Log($"[Player] Inquiry: '去看看' — {loc}");          // 玩家做出选择
+DebugLogger.Log($"[Player] Talk to: {npcName}");                 // 玩家跟谁说话
+DebugLogger.Log($"[WorldEvent] New event: {type} at {loc}");     // 事件创建
+DebugLogger.Log($"[WorldEvent] Motivated conflict: A → B");     // 真人冲突
+DebugLogger.Log($"[CommissionIssue] {settlement}: scanned {n} NPCs, created {m} issues"); // 轮次汇总
+
+// ❌ 垃圾日志（每条占一行，2500行淹没13行有用信息）
+// GetAvailableDefs / HasCommissionsFor / OnCheckForIssue — 逐NPC日志全砍
+```
+
+**日志前缀约定**：`[Player]` = 玩家感知事件，`[WorldEvent]` = 世界事件生命周期，`[Commission*]` = 委托系统关键节点。
