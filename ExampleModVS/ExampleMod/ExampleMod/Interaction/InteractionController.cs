@@ -288,6 +288,8 @@ namespace LivingWorldNpcs.Story
             _targetAgent = target;
             _targetHero = (_targetAgent.Character as CharacterObject)?.HeroObject;
 
+            DebugLogger.Log($"[Player] Talk to: {_targetAgent.Name} (hero={_targetHero?.Name?.ToString() ?? "none"})");
+
             _memory = AllNpcMemoryManager.GetMemoryForAgent(target);
 
             _memory.CurrentNegotiationState = null;
@@ -304,16 +306,41 @@ namespace LivingWorldNpcs.Story
             }
             else
             {
-                // === 正常模式 ===
-                initialText = "（看着你，似乎在揣测你的想法...）";
-                _vm.Show(displayName, initialText);
+                // === 统一轮次制（KCD2 式）：NPC 先说开场白 → 玩家点"继续" → 选项出现 ===
 
-                // 生成通用选项
-                /*
-                var options = GenerateInitialIntents(target);
-                _vm.ShowOptions(options.ToArray());
-                */
-                RefreshInitialOptions();
+                // 世界事件上下文：优先查 Hero 级别，查不到用 Party 级别（通用匪帮无 Hero）
+                string eventUrgentLine = WorldEventDirector.GetEventAwareDialogue(_targetHero, "Greeting");
+
+                if (string.IsNullOrEmpty(eventUrgentLine))
+                {
+                    // Party 级别匹配：大地图遇敌走 MapEncounterDialogState，定居点场景走 Hero.PartyBelongedTo
+                    MobileParty npcParty = _targetHero?.PartyBelongedTo;
+                    if (npcParty == null && MapEncounterDialogState.Active)
+                        npcParty = MapEncounterDialogState.PartnerParty?.MobileParty;
+
+                    eventUrgentLine = WorldEventDirector.GetEventAwareDialogueForParty(npcParty, "Greeting");
+                }
+
+                if (!string.IsNullOrEmpty(eventUrgentLine))
+                {
+                    initialText = eventUrgentLine;
+                }
+                else
+                {
+                    // 普通 NPC：上下文感知开场白，基于关系/荣誉/声望/职业
+                    string contextual = WorldEventDirector.GetContextualOpening(_targetHero);
+                    initialText = !string.IsNullOrEmpty(contextual)
+                        ? contextual
+                        : "（看着你，似乎在揣测你的想法...）";
+                }
+
+                _vm.Show(displayName, initialText);
+                _vm.AreOptionsVisible = false;
+
+                _vm.OnClickContinue = () =>
+                {
+                    RefreshInitialOptions();
+                };
             }
 
             
@@ -454,7 +481,39 @@ namespace LivingWorldNpcs.Story
                 options.Add(new StoryOptionVM(t.Value, () =>
                 {
                     string emotion;
-                    string line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Hero, ctx.Agent);
+                    string line;
+
+                    // ── 世界事件上下文：NPC 是事件当事人 → 对话反映其处境 ──
+                    string eventLine = null;
+                    if (key == "Greeting" || key == "Weather")
+                    {
+                        eventLine = WorldEventDirector.GetEventAwareDialogue(ctx.Hero, key);
+                    }
+
+                    // 打听消息：优先用 WorldEvent 真实传闻，查不到再回退 CSV 通用台词
+                    if (key == "Gossip")
+                    {
+                        string rumor = WorldEventDirector.GetTavernRumor(ctx.Hero);
+                        if (!string.IsNullOrEmpty(rumor))
+                        {
+                            line = rumor;
+                            emotion = "normal";
+                        }
+                        else
+                        {
+                            line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Hero, ctx.Agent);
+                        }
+                    }
+                    else if (!string.IsNullOrEmpty(eventLine))
+                    {
+                        // NPC 涉及世界事件 → 用事件上下文对话
+                        line = eventLine;
+                        emotion = key == "Greeting" ? "urgent" : "sad";
+                    }
+                    else
+                    {
+                        line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Hero, ctx.Agent);
+                    }
                     int delta = key == "Praise" ? 2 : 1;
                     if (factors.Honor == HonorLevel.High) delta += 1;
                     else if (factors.Honor == HonorLevel.Low) delta = Math.Max(delta - 1, 0);

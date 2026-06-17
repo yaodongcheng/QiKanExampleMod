@@ -113,7 +113,7 @@ namespace LivingWorldNpcs
                 BaseRewardGold = 500,
                 TimeLimitDays = 15,
                 PrimarySkill = DefaultSkills.Scouting,
-                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.GangLeader, Occupation.Headman, Occupation.Artisan },
+                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.GangLeader, Occupation.Headman, Occupation.Artisan, Occupation.RuralNotable },
                 AvailablePaths = new[] { ResolutionPath.Combat, ResolutionPath.Wealth, ResolutionPath.Stealth },
             });
 
@@ -394,6 +394,8 @@ namespace LivingWorldNpcs
         [SaveableField(34)] public CommissionTier Tier;
         [SaveableField(50)] public bool IsObjectivesComplete;   // 目标已完成，等待领报酬
         [SaveableField(53)] public Hero RewardPayer;              // 结账人，null=默认用QuestGiver
+        [SaveableField(60)] public string WorldEventId;           // 关联的 WorldEventData.EventId（因果链）
+        [SaveableField(61)] public bool IsGenericInstigator;      // 目标是否为通用模板（无真实 Hero）
 
         /// <summary>获取关联的模板定义</summary>
         public CommissionDef GetDef() => CommissionDef.GetByCategory(Category);

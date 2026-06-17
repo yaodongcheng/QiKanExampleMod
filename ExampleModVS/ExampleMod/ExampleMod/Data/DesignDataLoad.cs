@@ -232,10 +232,13 @@ namespace LivingWorldNpcs
 
         public static DataTable Emotion { get; private set; }
 
-        // 无 LLM 互动的模板台词表（ID = "{GoalType}_{Success/Fail}" 或 "Chat_xxx"）
+        // 统一叙事文本表（所有维度列可选）
+        public static DataTable Narrative { get; private set; }
+
+        // 对话台词视图：由 Narrative 表筛选生成（Category 列为空的行）
         public static DataTable Dialogue { get; private set; }
 
-        // 委托叙事表（接取开场 + 结账结局，NPC 第一人称）
+        // 委托叙事视图：由 Narrative 表筛选生成（Category 列非空的行）
         public static DataTable CommissionNarrative { get; private set; }
 
         static string moduleName = "LivingWorldNpcs";
@@ -256,15 +259,13 @@ namespace LivingWorldNpcs
             TagPoint = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "TagPoint.csv"), "TagPoint");
             Emotion = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "Emotion.csv"), "Emotion");
 
-            // 台词表：内容包提供了才覆盖，否则保留 Mod A 的卡拉迪亚默认版（不误清空）
-            string dialoguePath = Path.Combine(externalDesignDataPath, "Dialogue.csv");
-            if (File.Exists(dialoguePath))
-                Dialogue = CsvLoader.LoadTable(dialoguePath, "Dialogue");
-
-            // 委托叙事表：内容包提供了才覆盖
-            string commissionNarrativePath = Path.Combine(externalDesignDataPath, "CommissionNarrative.csv");
-            if (File.Exists(commissionNarrativePath))
-                CommissionNarrative = CsvLoader.LoadTable(commissionNarrativePath, "CommissionNarrative");
+            // 统一叙事表：内容包提供了才覆盖，否则保留 Mod A 的卡拉迪亚默认版
+            string narrativePath = Path.Combine(externalDesignDataPath, "Narrative.csv");
+            if (File.Exists(narrativePath))
+            {
+                Narrative = CsvLoader.LoadTable(narrativePath, "Narrative");
+                BuildLegacyTablesFromNarrative();
+            }
         }
 
         // === 初始化：一次性加载所有表 ===
@@ -272,16 +273,55 @@ namespace LivingWorldNpcs
         {
             // Camera.csv 是唯一泛用表，始终从 Mod A 加载
             Camera = CsvLoader.LoadTable(Path.Combine(directoryPath, "Camera.csv"), "Camera");
-            // 台词表默认从 Mod A 加载卡拉迪亚版（内容包可在 LoadTablesFromPath 覆盖）
-            Dialogue = CsvLoader.LoadTable(Path.Combine(directoryPath, "Dialogue.csv"), "Dialogue");
-            // 委托叙事表：接取+结账 NPC 第一人称模板
-            CommissionNarrative = CsvLoader.LoadTable(Path.Combine(directoryPath, "CommissionNarrative.csv"), "CommissionNarrative");
+
+            // 统一叙事表
+            Narrative = CsvLoader.LoadTable(Path.Combine(directoryPath, "Narrative.csv"), "Narrative");
+
+            // 从 Narrative 表筛选构建 Dialogue 和 CommissionNarrative 视图
+            BuildLegacyTablesFromNarrative();
 
             // 织丰内容表初始化为空，等待内容包注入
             Heroes   = new DataTable("Heroes");
             Music    = new DataTable("Music");
             TagPoint = new DataTable("TagPoint");
             Emotion  = new DataTable("Emotion");
+        }
+
+        /// <summary>
+        /// 从 Narrative 表筛选构建 Dialogue 和 CommissionNarrative 表，确保旧代码无缝运行。
+        /// Dialogue = Category 列为空的行（纯对话）。
+        /// CommissionNarrative = Category 列非空的行（委托叙事）。
+        /// </summary>
+        private static void BuildLegacyTablesFromNarrative()
+        {
+            Dialogue = new DataTable("Dialogue");
+            CommissionNarrative = new DataTable("CommissionNarrative");
+
+            if (Narrative == null) return;
+
+            foreach (var record in Narrative.GetAll())
+            {
+                string id = record.GetString("ID");
+                string scriptName = record.GetString("EventName");
+                string category = record.GetString("Category");
+
+                if (string.IsNullOrEmpty(category))
+                {
+                    // 对话行：Category 为空
+                    Dialogue.AddRecord(id, scriptName, record);
+                }
+                else
+                {
+                    // 委托叙事行：Category 非空
+                    CommissionNarrative.AddRecord(id, scriptName, record);
+                }
+            }
+        }
+
+        /// <summary>重新从 Narrative 构建旧表（内容包覆盖 Narrative 后调用）。</summary>
+        public static void RebuildLegacyTables()
+        {
+            BuildLegacyTablesFromNarrative();
         }
 
 

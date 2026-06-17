@@ -168,12 +168,12 @@ namespace LivingWorldNpcs
         {
             var victimHeroObj = (victim.Character as CharacterObject)?.HeroObject;
             string victimName = victim.Name?.ToString() ?? "守卫";
-            // 赔偿额 = 实际偷走的赃物市场价值（偷越贵赔越多），至少 50，避免写死 200
             int stolenValue = StealManager.GetStolenValue(victim);
             int compensationGold = stolenValue > 50 ? stolenValue : 50;
 
-            // NPC 的台词走通用头顶气泡接口；旁白/结算留日志，选择留模态
-            BubbleSayMissionView.AgentBubbleSay(victim, "好哇，敢偷到我头上来！你今天必须给个交代。");
+            // 使用 NarrativeResolver 获取叙事文本
+            string openingBubble = NarrativeResolver.GetDialogue("Steal_Caught", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
+            BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(openingBubble) ? "好哇，敢偷到我头上来！你今天必须给个交代。" : openingBubble);
 
             InformationManager.ShowInquiry(new InquiryData(
                 $"{victimName} 发现了你的偷窃行为！",
@@ -186,17 +186,20 @@ namespace LivingWorldNpcs
                 {
                     if (Hero.MainHero.Gold >= compensationGold)
                     {
-                        // 守恒转移：钱从玩家钱袋进受害者钱袋（victimHeroObj 为 null 时付给虚空）
                         AgentControlHelper.TransferGold(Hero.MainHero, victimHeroObj, compensationGold, notify: false);
-                        BubbleSayMissionView.AgentBubbleSay(victim, "哼，算你识相。");
-                        InformationManager.DisplayMessage(
-                            new InformationMessage($"你递上 {compensationGold} 第纳尔。{victimName} 掂了掂钱袋，冷哼一声让开了路。", Colors.Yellow));
+                        string payBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
+                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(payBubble) ? "哼，算你识相。" : payBubble);
+                        string payNarrator = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_Narrator", DialogueFactors.FromContext(null), out _)
+                            .Replace("{GIVER}", compensationGold.ToString())
+                            .Replace("{NPC}", victimName);
+                        InformationManager.DisplayMessage(new InformationMessage(payNarrator, Colors.Yellow));
                         if (victimHeroObj != null)
                             ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -3);
                     }
                     else
                     {
-                        BubbleSayMissionView.AgentBubbleSay(victim, "没钱还敢偷？那就拿命来抵！");
+                        string tooPoorBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_TooPoor", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
+                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(tooPoorBubble) ? "没钱还敢偷？那就拿命来抵！" : tooPoorBubble);
                         InformationManager.DisplayMessage(
                             new InformationMessage($"你摸了摸空瘪的钱袋……{victimName} 见状大怒，拔出了武器！", Colors.Red));
                         AgentAIController.Instance?.SendEventToAgent(victim, "order_attack", Agent.Main);
@@ -205,22 +208,25 @@ namespace LivingWorldNpcs
                 },
                 () =>
                 {
-                    // 归还财物：把本场从该受害者身上偷走的东西从背包扣回、复原到他装备上
                     int returned = StealManager.ReturnStolenItems(victim);
                     if (returned > 0)
                     {
-                        BubbleSayMissionView.AgentBubbleSay(victim, "滚！别再让我看见你。");
-                        InformationManager.DisplayMessage(
-                            new InformationMessage($"你老老实实把 {returned} 件财物还了回去。{victimName} 鄙夷地呸了一声。", Colors.Green));
+                        string returnBubble = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
+                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(returnBubble) ? "滚！别再让我看见你。" : returnBubble);
+                        string returnNarrator = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems_Narrator", DialogueFactors.FromContext(null), out _)
+                            .Replace("{COUNT}", returned.ToString())
+                            .Replace("{NPC}", victimName);
+                        InformationManager.DisplayMessage(new InformationMessage(returnNarrator, Colors.Green));
                         if (victimHeroObj != null)
                             ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -5);
                     }
                     else
                     {
-                        // 东西早被卖了/丢了，还不出来——受害者更恼火
-                        BubbleSayMissionView.AgentBubbleSay(victim, "还想赖账？");
-                        InformationManager.DisplayMessage(
-                            new InformationMessage($"你摊开双手，可偷来的东西早已不在身上。{victimName} 怒极反笑。", Colors.Red));
+                        string refuseBubble = NarrativeResolver.GetDialogue("Steal_Caught_Refuse", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
+                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(refuseBubble) ? "还想赖账？" : refuseBubble);
+                        string refuseNarrator = NarrativeResolver.GetDialogue("Steal_Caught_Refuse_Narrator", DialogueFactors.FromContext(null), out _)
+                            .Replace("{NPC}", victimName);
+                        InformationManager.DisplayMessage(new InformationMessage(refuseNarrator, Colors.Red));
                         if (victimHeroObj != null)
                             ChangeRelationAction.ApplyPlayerRelation(victimHeroObj, -8);
                     }

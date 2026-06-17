@@ -686,37 +686,49 @@ public class CommissionData
 
 ---
 
-## 十、当前实现状态（2024-06-13）
+## 十、实现审计（2026-06-15 更新）
 
-### 16/16 委托全部可玩
+### ✅ 已完成
 
-所有委托类型均有 `CommissionDef` 模板 + `RegisterEvents` 事件监听 + `OnStart` 启动逻辑 + 完整结算路径。
-
-### 双路径接取系统
-
-| 路径 | 触发 | 流程 |
+| 系统 | 状态 | 文件 |
 |------|------|------|
-| 直接 | 找委托人本人（Merchant/Artisan/Lord/…） | 看委托 → 确认 → 定金到账 → 委托启动 |
-| 告示板 | 找告示板（Tavernkeeper/Headman/Wanderer） | 看告示板（聚合周边NPC的需求）→ 选中 → 记录情报 → 找到真正委托人 → `ConfirmCommissionIntent` 叙事对话 → 确认 → 委托启动 |
+| 16/16 委托类型 | ✅ 全部有 `CommissionDef` + `RegisterEvents` + `OnStart` + 结算 | `CommissionData.cs` |
+| 双路径接取 | ✅ 直接委托人 + 告示板（Tavernkeeper/Headman/Wanderer） | `CommissionIntent.cs`, `CommissionGenerator.cs` |
+| 叙事阶段 | ✅ `IsNarrativePhase` → `ConfirmCommissionIntent` → 当面确认 | `CommissionQuest.cs`, `CommissionIntent.cs` |
+| ! 感叹号 | ✅ `CommissionHubIssue` + 原生 `OnCheckForIssue` + `SettlementEntered` 强制激活 | `CommissionHubIssue.cs` |
+| 告示板→信格式 | ✅ `ShowCommissionLetter` 逐封浏览 | `CommissionIntent.cs` |
+| 直接委托人对话叙事 | ✅ NPC 在对话里自己说，不弹窗 | `CommissionIntent.cs` |
+| 结账分离 | ✅ `RewardPayer` 字段 + `IsObjectivesComplete` + `CollectCommissionRewardIntent` | `CommissionData.cs`, `CommissionQuest.cs`, `CommissionIntent.cs` |
+| NPC 第一人称叙事 | ✅ `BuildOpening` / `BuildClosure` + CSV 驱动，覆盖全部 16 类 | `CommissionNarrative.cs`, `ModuleData/DesignData/CommissionNarrative.csv` |
+| 距离加权目标选取 | ✅ `FillTargetSettlement` / `FillTargetHero` 按 `distance * (0.5 + Random * 1.5)` 排序，60% 就近 | `CommissionGenerator.cs` |
+| 村防贿赂 | ✅ 大地图遭遇→Inquiry 弹窗→Charm 砍价→贿赂/战斗 | `CommissionQuest.cs` |
+| 完成质量评级 | ✅ `ComputeFinalGrade` ⭐⭐⭐/⭐⭐/⭐/✗ | `CommissionQuest.cs` |
+| 活捉机制 | ✅ 击杀 ×0.5，`TryPrisonerEscapeEvent` 每日 15% 劫囚 | `CommissionQuest.cs` |
+| 动态变故+旅途事件 | ✅ `ComplicationTable` (每日 15%) + `JourneyEvents` (每日 25%) | `ComplicationTable.cs`, `JourneyEvents.cs` |
+| Trust 四级成长 | ✅ 陌生人/熟人/信赖/心腹 → 影响定金比例 + 并发数 | `TrustSystem.cs` |
+| 难度递进 | ✅ `CommissionTierProgression` Basic→Skilled→Expert→Legendary | `CommissionData.cs` |
+| 恶名系统 | ✅ 拒还定金 +1，Expert+ 完成 -1 | `InfamySystem.cs` |
+| 定金追讨 | ✅ `ShowDepositRepaymentInquiry` 退还/Charm减半/拒还 | `CommissionQuest.cs` |
+| 日志 | ✅ 全链路 ~22 条（启动/确认/完成/超时/失败/每日/胜利/结算/部队生成/变故） | `CommissionQuest.cs` |
+| NpcSight 刷屏日志 | ✅ 已删 | `NpcSightSystem.cs`, `InteractionMissionView.cs` |
+| 资源查找 | ✅ 遵守铁律 5：两轮策略 | 全局 |
 
-### 完整体验闭环
+### ⚠️ 部分完成
 
-- **发现**：`CommissionHubIssue` + 原生 `!` 标记
-- **浏览**：`InquiryData` 弹窗（总览 → 逐个 → 确认 / 告示板显示委托人位置）
-- **叙事**：`CommissionNarrative`（首次介绍 / Trust里程碑 / 难度解锁 / 状态面板）+ `ConfirmCommissionIntent.GenerateNarrative()`（委托人当面讲述）
-- **进行**：`DailyTick`（时间递减 + 变故 + 旅途 + 健壮性）+ 事件驱动（MapEventEnded / SettlementEntered / TournamentFinished / InventoryExchange / PrisonersChange）
-- **结算**：`ComputeFinalGrade`（⭐⭐⭐/⭐⭐/⭐/✗）+ `CalculateFinalReward`（评级 × 击杀惩罚 × 速度奖）
-- **成长**：`TrustSystem`（四级，影响定金+并发）+ `CommissionTierProgression`（按tier精确解锁）+ `InfamySystem`（恶名过滤）
-- **失败**：`ShowDepositRepaymentInquiry`（退还 / Charm减半 / 拒还 + 恶名）
+| 系统 | 现状 | 差距 |
+|------|------|------|
+| CSV 叙事模板 | 56 行 / ~112 行目标（50%），全部 16 类覆盖但多数只有一个 opening 变体 | 多数类别缺少 personality 变体，closure 极少有 ≥3 评级覆盖 |
+| 村防贿赂→3D 对话 | 当前：Inquiry 弹窗 | 设计目标：`OpenConversationMission` → 3D 场景 → ForceTalkAction |
+| 场所系统 | 按 Occupation 近似 + 30% 随机无视 | 精确 GameMenu/Location 判断未做 |
 
-### 文件清单（10个，0编译错误）
-
-`CommissionData.cs` / `CommissionQuest.cs` / `CommissionHubIssue.cs` / `CommissionGenerator.cs` / `CommissionIntent.cs` / `CommissionNarrative.cs` / `ComplicationTable.cs` / `JourneyEvents.cs` / `TrustSystem.cs` / `InfamySystem.cs`
-
-### 已知未实现（非阻塞，留待后续）
+### ❌ 已知未实现（留待后续）
 
 - 委托进行中切换解法路径
 - 精确场所判断（按 GameMenu/Location 而非 Occupation）
 - 主动搭话（NPC 走向玩家 / 大地图求助者）
 - 心腹专属任务线、押注机制、传奇悬赏唯一性
 - 路线选择 / 载重取舍 / 昼夜潜行等深度 gameplay 分支
+
+### 文件清单（10个，0编译错误）
+
+`CommissionData.cs` / `CommissionQuest.cs` / `CommissionHubIssue.cs` / `CommissionGenerator.cs` / `CommissionIntent.cs` / `CommissionNarrative.cs` / `ComplicationTable.cs` / `JourneyEvents.cs` / `TrustSystem.cs` / `InfamySystem.cs`

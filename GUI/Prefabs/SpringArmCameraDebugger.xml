@@ -16,7 +16,7 @@
                     Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                            Text="ADVANCED CAMERA DEBUGGER (Spring Arm)" Brush="Sho.Debug.Text" 
+                            Text="ADVANCED CAMERA DEBUGGER (Spring Arm)" Brush="Brush_DialogText" 
                             TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Children>
             </Widget>
@@ -75,7 +75,7 @@
 
                     <!-- 当前状态显示 -->
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                                Text="@CurrentAnchorModeStr" Brush="Sho.Debug.Text" 
+                                Text="@CurrentAnchorModeStr" Brush="Brush_DialogText" 
                                 TextColor="#00FF00FF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                   </Children>
                 </ListPanel>
@@ -324,7 +324,7 @@
                                   Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
                       <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                                    Text="CLOSE DEBUGGER" Brush="Sho.Debug.Text" 
+                                    Text="CLOSE DEBUGGER" Brush="Brush_DialogText" 
                                     DoNotAcceptEvents="true" IsDisabled="true" 
                                     TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Children>

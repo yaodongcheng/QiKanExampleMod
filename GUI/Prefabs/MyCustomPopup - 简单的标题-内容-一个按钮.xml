@@ -13,7 +13,7 @@
                   Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
 					<Children>
 					<TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                           Text="@TitleText" Brush="Sho.Debug.Text" 
+                           Text="@TitleText" Brush="Brush_DialogText" 
                            TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 					</Children>
 				</Widget>

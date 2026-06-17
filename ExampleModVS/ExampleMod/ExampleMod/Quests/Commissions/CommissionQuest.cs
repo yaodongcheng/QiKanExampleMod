@@ -280,6 +280,9 @@ namespace LivingWorldNpcs
             _playerCasualtiesAtStart = CountPlayerWounded();
             DebugLogger.Log($"[CommissionQuest] Full startup: giver={QuestGiver?.Name} reward={_data.NegotiatedReward} deposit={_data.DepositAmount} days={_data.TimeRemainingHours/24f:0} tier={_data.Tier}");
 
+            // 记录世界事件导演：玩家接受了委托
+            WorldEventDirector.RecordCommissionAccepted();
+
             TextObject logText = new TextObject(
                 "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n难度：{TIER}\n{EXTRA}");
             logText.SetTextVariable("TITLE", _data.GetFlavorDescription());
@@ -574,6 +577,100 @@ namespace LivingWorldNpcs
                 case CommissionCategory.DecoyMission:
                     HandleDecoyFightResult(mapEvent);
                     break;
+            }
+
+            // 宿敌追踪：记录战斗中所有对立 Hero 的交手结果
+            RecordNemesisOutcomes(mapEvent);
+
+            // 卧底叛变：检查是否有可触发的内应
+            TryTriggerInfiltration(mapEvent);
+        }
+
+        /// <summary>检查并触发卧底叛变。</summary>
+        private void TryTriggerInfiltration(MapEvent mapEvent)
+        {
+            try
+            {
+                var infiltrator = StrategicInfiltration.CheckBattlefieldTrigger();
+                if (infiltrator != null && infiltrator.Clan != null)
+                {
+                    // Hero 切换阵营支援玩家
+                    infiltrator.Clan = Clan.PlayerClan;
+                    NinjaNotificationManager.Show(
+                        $"战场上，一个熟悉的身影转向了你这边——{infiltrator.Name}倒戈了！",
+                        () => { });
+                    DebugLogger.Log($"[Infiltration] {infiltrator.Name} switched sides in battle!");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Infiltration] Trigger error: {ex.Message}");
+            }
+        }
+
+        /// <summary>记录 MapEvent 中的所有对立 Hero 与玩家的交火结果。</summary>
+        private void RecordNemesisOutcomes(MapEvent mapEvent)
+        {
+            if (mapEvent == null || _data == null) return;
+            try
+            {
+                bool playerWon = mapEvent.WinningSide == mapEvent.PlayerSide;
+
+                // 核心：记录委托目标 Hero
+                if (_data.TargetHero != null && _data.TargetHero != Hero.MainHero)
+                {
+                    bool killed = !_data.TargetHero.IsAlive;
+                    HeroNemesisTracker.RecordBattleOutcome(_data.TargetHero, playerWon, killed);
+                }
+
+                // 记录委托中涉及的 instigator（加害方）
+                if (!string.IsNullOrEmpty(_data.WorldEventId))
+                {
+                    var evt = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                    if (evt != null && !string.IsNullOrEmpty(evt.InstigatorHeroId))
+                    {
+                        var instigator = Hero.FindFirst(h => h.StringId == evt.InstigatorHeroId);
+                        if (instigator != null && instigator != _data.TargetHero && instigator != Hero.MainHero)
+                        {
+                            bool killed = !instigator.IsAlive;
+                            HeroNemesisTracker.RecordBattleOutcome(instigator, playerWon, killed);
+
+                            // 宿敌复仇事件：玩家赢了但没杀死 → 宿敌升级，下次更强更快
+                            if (evt.EventType == WorldEventType.NemesisRevenge && playerWon && !killed)
+                            {
+                                var record = HeroNemesisTracker.GetRecord(instigator);
+                                if (record != null && record.Level < NemesisLevel.Legendary)
+                                {
+                                    record.Level = (NemesisLevel)(Math.Min((int)record.Level + 1, (int)NemesisLevel.Legendary));
+                                    // 下次复仇间隔缩短
+                                    HeroNemesisTracker.ScheduleRevenge(record);
+                                    string escalateMsg = record.Level >= NemesisLevel.ArchNemesis
+                                        ? $"{instigator.Name}又逃了——你们之间的恩怨已到了不死不休的地步。"
+                                        : $"{instigator.Name}再次逃脱了。他知道你更强了——下一次他会带更多人来。";
+                                    NinjaNotificationManager.Show(escalateMsg, () => { });
+                                    DebugLogger.Log($"[Nemesis] {instigator.Name} escaped again, escalated to {record.Level}");
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 检查卧底叛变触发：敌方阵营中有已策反的 Hero → 切换阵营（不限于 WorldEvent 委托）
+                if (playerWon)
+                {
+                    var defector = StrategicInfiltration.CheckBattlefieldTrigger();
+                    if (defector != null)
+                    {
+                        string defectMsg = $"{defector.Name}在战场上倒戈了！——这就是策反的代价。";
+                        NinjaNotificationManager.Show(defectMsg, () => { });
+                        InformationManager.DisplayMessage(new InformationMessage(defectMsg));
+                        DebugLogger.Log($"[Infiltration] Defector triggered in battle: {defector.Name}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Nemesis] RecordNemesisOutcomes error: {ex.Message}");
             }
         }
 
@@ -1035,7 +1132,20 @@ namespace LivingWorldNpcs
         {
             if (_data.TargetHero == null) return;
 
-            // 在大地图上生成目标部队
+            // 如果关联了 WorldEvent，使用已有的 party，不重复生成
+            if (!string.IsNullOrEmpty(_data.WorldEventId))
+            {
+                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.GeneratedPartyId))
+                {
+                    _escortPartyId = worldEvent.GeneratedPartyId;
+                    AddLog(new TextObject($"目标 {_data.TargetHero.Name} 的匪帮正在劫掠{worldEvent.TargetSettlement?.Name?.ToString() ?? "附近"}。快去阻止他们！"));
+                    AddLog(new TextObject("提示：活捉目标可获得额外报酬。可使用 Roguery 技能夜间偷袭增加活捉概率。"));
+                    return;
+                }
+            }
+
+            // 无 WorldEvent 关联 → 在大地图上生成目标部队
             SpawnBountyTargetParty();
 
             AddLog(new TextObject($"目标 {_data.TargetHero.Name} 的部队已出现在附近。追踪并击败他们！"));
@@ -1366,12 +1476,13 @@ namespace LivingWorldNpcs
                     ?? Clan.BanditFactions.FirstOrDefault();
                 if (banditClan == null) return;
 
-                // 使用自定义 PartyComponent
-                var component = new CustomPartyComponent();
+                // 使用自定义 PartyComponent（泛型匪帮，无 Hero leader）
+                string raiderName = $"劫掠{targetVillage.Name}的匪帮";
+                var component = new CustomPartyComponent(targetVillage, raiderName);
                 MobileParty raiderParty = MobileParty.CreateParty(partyId, component,
                     delegate (MobileParty party)
                     {
-                        party.SetCustomName(new TextObject($"劫掠{targetVillage.Name}的匪帮"));
+                        party.SetCustomName(new TextObject(raiderName));
                     });
 
                 if (raiderParty == null) return;
@@ -1422,7 +1533,7 @@ namespace LivingWorldNpcs
                     ?? Clan.BanditFactions.FirstOrDefault();
                 if (enemyClan == null) enemyClan = Clan.PlayerClan;
 
-                var component = new CustomPartyComponent();
+                var component = new CustomPartyComponent(targetSettlement, "敌方补给队");
                 MobileParty supplyParty = MobileParty.CreateParty(partyId, component,
                     delegate (MobileParty party)
                     {
@@ -1471,7 +1582,10 @@ namespace LivingWorldNpcs
                     ?? Clan.BanditFactions.FirstOrDefault();
                 if (banditClan == null) return;
 
-                var component = new CustomPartyComponent();
+                Settlement home = Settlement.Find(_data?.TargetSettlementId)
+                    ?? MobileParty.MainParty?.CurrentSettlement
+                    ?? Settlement.All.FirstOrDefault();
+                var component = new CustomPartyComponent(home, "追兵");
                 MobileParty pursuerParty = MobileParty.CreateParty(partyId, component,
                     delegate (MobileParty party)
                     {
@@ -1519,6 +1633,14 @@ namespace LivingWorldNpcs
         private void CleanupSpawnedParty()
         {
             if (string.IsNullOrEmpty(_escortPartyId)) return;
+
+            // 如果关联了 WorldEvent，不清理事件 party（事件仍需 AI 或其他委托解决）
+            if (!string.IsNullOrEmpty(_data?.WorldEventId))
+            {
+                DebugLogger.Log($"[CommissionQuest] Skipping party cleanup for WorldEvent-linked quest: {_data.WorldEventId}");
+                return;
+            }
+
             try
             {
                 MobileParty party = null;
@@ -1711,6 +1833,38 @@ namespace LivingWorldNpcs
             string gradeStr = GetGradeDisplayName();
             AddLog(new TextObject($"委托完成！评级：{gradeStr}，报酬 {reward} 第纳尔已领取。"));
             AddLog(new TextObject($"与 {QuestGiver.Name} 的信任度 {(trustDelta >= 0 ? "+" : "")}{trustDelta}（当前：{TrustSystem.GetTrustDescription(TrustSystem.GetTrust(QuestGiver))}）"));
+
+            // 关联了 WorldEvent → 结算事件
+            if (!string.IsNullOrEmpty(_data.WorldEventId))
+            {
+                WorldEventDatabase.ResolveEvent(_data.WorldEventId);
+
+                // 检查卧底叛变条件（玩家帮 instigator 解决了事件 → 可以策反）
+                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.InstigatorHeroId))
+                {
+                    var instigator = Hero.FindFirst(h => h.StringId == worldEvent.InstigatorHeroId);
+                    if (instigator != null)
+                        StrategicInfiltration.CheckAvailability(instigator, _data.WorldEventId);
+                }
+
+                // 尝试发现阴谋线索
+                if (ConspiracyManager.TryDiscoverClue(_data.WorldEventId, out string clueMsg))
+                {
+                    AddLog(new TextObject(clueMsg));
+                }
+
+                // 检查是否应解锁幕后黑手对决
+                if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.ConspiracyId)
+                    && ConspiracyManager.CheckUnlockConfrontation(worldEvent.ConspiracyId, out var mastermind, out var hint))
+                {
+                    NinjaNotificationManager.Show(hint, () => { });
+                    AddLog(new TextObject($"🔍 {hint}"));
+                }
+
+                AddLog(new TextObject("关联的世界事件已解决。"));
+                DebugLogger.Log($"[CommissionQuest] Resolved WorldEvent: {_data.WorldEventId}");
+            }
 
             CompleteQuestWithSuccess();
         }

@@ -15,7 +15,7 @@
                     Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                            Text="CAMERA DEBUGGER (FULL CONTROL)" Brush="Sho.Debug.Text" 
+                            Text="CAMERA DEBUGGER (FULL CONTROL)" Brush="Brush_DialogText" 
                             TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Children>
             </Widget>
@@ -33,7 +33,7 @@
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40" MarginBottom="5">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                                    Text="PlayerInfoText [TEST]" Brush="Sho.Debug.Text" 
+                                    Text="PlayerInfoText [TEST]" Brush="Brush_DialogText" 
                                     TextColor="#AAAAAAFF" HorizontalAlignment="Left" VerticalAlignment="Center"/>
                     </Children>
                 </Widget>
@@ -43,7 +43,7 @@
                         Sprite="BlankWhiteSquare_9" Color="#333333FF">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                                    Text="ArmLengthText [TEST]" Brush="Sho.Debug.Text" 
+                                    Text="ArmLengthText [TEST]" Brush="Brush_DialogText" 
                                     TextColor="#00FF00FF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Children>
                 </Widget>             
@@ -166,7 +166,7 @@
                                   Sprite="BlankWhiteSquare_9" Color="#8B0000FF">
                       <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                                    Text="CLOSE" Brush="Sho.Debug.Text" 
+                                    Text="CLOSE" Brush="Brush_DialogText" 
                                     DoNotAcceptEvents="true" IsDisabled="true" 
                                     TextColor="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Children>

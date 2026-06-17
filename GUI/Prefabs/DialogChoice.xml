@@ -83,10 +83,19 @@
                                     MarginBottom="15"/>
                             <!-- 说话人名字 -->
                             <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                        Text="@SpeakerName" 
-                                        Brush="Brush_DialogName" 
-                                        TextColor="#FFD700FF" DoNotAcceptEvents="true"                 
+                                        Text="@SpeakerName"
+                                        Brush="Brush_DialogName"
+                                        TextColor="#FFD700FF" DoNotAcceptEvents="true"
                                         MarginBottom="0"/>
+                            <!-- "点击继续" 提示（NPC 说话中显示，选项出现时隐藏） -->
+                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        Text="@ContinueHintText"
+                                        IsVisible="@ShowContinueHint"
+                                        Brush="Brush_DialogText"
+                                        TextColor="#88888888"
+                                        HorizontalAlignment="Right"
+                                        MarginTop="8" MarginRight="10"
+                                        DoNotAcceptEvents="true"/>
                         </Children>
                     </ListPanel>
                 </Children>

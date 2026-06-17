@@ -196,6 +196,7 @@
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\MySubModule.cs" />
     <Compile Include="Core\SafeLordPartyComponent.cs" />
+    <Compile Include="Core\CustomPartyComponent.cs" />
     <Compile Include="Core\Settings.cs" />
     <!-- Data -->
     <Compile Include="Data\DesignDataLoad.cs" />
@@ -211,6 +212,7 @@
     <Compile Include="Interaction\Intents\IntentRegistry.cs" />
     <Compile Include="Interaction\Intents\IntentCooldownStore.cs" />
     <Compile Include="Interaction\Intents\DialogueTemplateHelper.cs" />
+    <Compile Include="Interaction\Intents\NarrativeResolver.cs" />
     <Compile Include="Interaction\Intents\SocialIntents.cs" />
     <Compile Include="Interaction\Intents\DiplomacyIntents.cs" />
     <Compile Include="Interaction\Intents\GeneralIntents.cs" />
@@ -254,6 +256,16 @@
     <Compile Include="Quests\Commissions\CommissionNarrative.cs" />
     <Compile Include="Quests\Commissions\ComplicationTable.cs" />
     <Compile Include="Quests\Commissions\JourneyEvents.cs" />
+    <Compile Include="Quests\Commissions\NotificationPipeline.cs" />
+    <!-- Quests\WorldEvents -->
+    <Compile Include="Quests\WorldEvents\WorldEventDatabase.cs" />
+    <Compile Include="Quests\WorldEvents\WorldEventSimulator.cs" />
+    <Compile Include="Quests\WorldEvents\WorldEventConfig.cs" />
+    <Compile Include="Quests\WorldEvents\WorldEventDirector.cs" />
+    <Compile Include="Quests\WorldEvents\WorldEventNotificationController.cs" />
+    <Compile Include="Quests\WorldEvents\HeroNemesisTracker.cs" />
+    <Compile Include="Quests\WorldEvents\ConspiracyManager.cs" />
+    <Compile Include="Quests\WorldEvents\StrategicInfiltration.cs" />
     <!-- Script -->
     <Compile Include="Script\ReadStory.cs" />
     <!-- Social -->

@@ -173,32 +173,33 @@ BuildClosure: Category + Grade 精确 > PersonalityTrait 精确 > Trust 区间 >
 
 ---
 
-## 实施顺序
+## 实施审计（2026-06-15 更新）
 
-| 顺序 | 点 | 理由 |
-|------|-----|------|
-| 1 | Point 7 收尾 | 剩余 CommissionQuest 日志，快速完成 |
-| 2 | Point 5 | 纯数据层，无副作用 |
-| 3 | Point 8 | CSV 叙事模板 → Point 2/3/4 都依赖它 |
-| 4 | Point 2+4 | 委托 UI/对话流（中转→信，直接→对话叙事） |
-| 5 | Point 1 | "!" 标记修复 |
-| 6 | Point 3 | 结账分离 + 报酬领取，依赖 Point 8 的 Closure 模板 |
-| 7 | Point 6 | 最复杂：需反编译 + 遭遇→对话桥接 |
+| # | 状态 | 内容 | 验证 |
+|---|------|------|------|
+| 1 | ✅ 完成 | NPC 感叹号修复 | `SettlementEntered` 钩子 + 遍历名人/领主/浪人 + `hero.Issue` 强制赋值 |
+| 2 | ✅ 完成 | 直接委托人对话叙事 | 检测直接委托人 → 不弹窗，在对话中展示 `BuildOpening` 叙事 |
+| 3 | ✅ 完成 | 报酬领取 + 结账人分离 | `RewardPayer`(SaveableField 53) + `IsObjectivesComplete`(SaveableField 50) + `CollectCommissionRewardIntent` 注册到 IntentRegistry |
+| 4 | ✅ 完成 | 中转人信格式 | `ShowCommissionLetter(index)` 逐封浏览，删除总览页 |
+| 5 | ✅ 完成 | 就近选取目标 | `FillTargetSettlement`: 排序 `distance * (0.5 + Random * 1.5)`, 护送/供货 60% top 3, 村防严格附近村庄 |
+| 6 | ⚠️ 半完成 | 大地图遭遇→3D对话→贿赂 | 当前：`InformationManager.ShowInquiry` 弹窗。设计目标：`OpenConversationMission` → 3D场景 → ForceTalkAction。Inquiry 版功能完整但缺少真实对话场景的沉浸感 |
+| 7 | ✅ 完成 | 日志大修 | NpcSight/InteractionMission 刷屏日志已删；CommissionQuest 全链路 ~22 条日志（启动/确认/完成/超时/失败/每日/胜/部队/结算） |
+| 8 | ✅ 框架 / ⚠️ 内容 | CSV 叙事 | `BuildOpening` + `BuildClosure` 方法已实现，全部 16 类覆盖。56 行（~53 条数据）vs 目标 ~112 条。多类仅 1 Opening + 1 Closure，缺少 personality 变体和各评级 closure |
 
 ---
 
 ## 涉及文件
 
-| 文件 | Points |
-|------|--------|
-| `Quests/Commissions/CommissionQuest.cs` | 2, 3, 6, 7 |
-| `Quests/Commissions/CommissionIntent.cs` | 2, 4, 7 |
-| `Quests/Commissions/CommissionGenerator.cs` | 5, 7 |
-| `Quests/Commissions/CommissionHubIssue.cs` | 1, 7 |
-| `Quests/Commissions/CommissionNarrative.cs` | 8（新增 BuildOpening / BuildClosure 两个方法） |
-| `Quests/Commissions/CommissionData.cs` | 3（新增 RewardPayer、IsObjectivesComplete 字段） |
-| `Interaction/Intents/IntentRegistry.cs` | 3（新增 CollectCommissionRewardIntent 注册） |
-| **新增** `ModuleData/DesignData/CommissionNarrative.csv` | 8 |
-| `Core/GameDatabase.cs` / `Data/DesignDataLoad.cs` | 8（注册新表） |
-| `AI/NpcSightSystem.cs` | 7（仅删 3 行日志，文件其余不变） |
-| `Interaction/InteractionMissionView.cs` | 7（仅删 2 行日志，文件其余不变） |
+| 文件 | Points | 状态 |
+|------|--------|------|
+| `Quests/Commissions/CommissionQuest.cs` | 2, 3, 6, 7 | ✅ 3/4（6 半完成） |
+| `Quests/Commissions/CommissionIntent.cs` | 2, 4, 7 | ✅ 全部完成 |
+| `Quests/Commissions/CommissionGenerator.cs` | 5, 7 | ✅ 全部完成 |
+| `Quests/Commissions/CommissionHubIssue.cs` | 1, 7 | ✅ 全部完成 |
+| `Quests/Commissions/CommissionNarrative.cs` | 8 | ✅ 方法完成 |
+| `Quests/Commissions/CommissionData.cs` | 3 | ✅ 全部完成 |
+| `Interaction/Intents/IntentRegistry.cs` | 3 | ✅ 全部完成 |
+| **新增** `ModuleData/DesignData/CommissionNarrative.csv` | 8 | ⚠️ 内容量 ~50% |
+| `Core/GameDatabase.cs` / `Data/DesignDataLoad.cs` | 8 | ✅ 表注册完成 |
+| `AI/NpcSightSystem.cs` | 7 | ✅ 已清理 |
+| `Interaction/InteractionMissionView.cs` | 7 | ✅ 已清理 |

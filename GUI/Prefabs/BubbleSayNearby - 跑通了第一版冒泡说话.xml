@@ -24,7 +24,7 @@
                 <Children>
                   <!-- 文本内容 -->
                   <RichTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
-                                  Brush="Sho.Debug.Text" FontSize="@Scale"
+                                  Brush="Brush_DialogText" FontSize="@Scale"
                                   Text="@Text"
                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Children>

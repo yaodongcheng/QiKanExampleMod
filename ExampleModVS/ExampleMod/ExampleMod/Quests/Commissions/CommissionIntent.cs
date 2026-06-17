@@ -94,7 +94,11 @@ namespace LivingWorldNpcs.Story
 
             var c = commissions[index];
             NPCProfile giverProfile = BuildProfileFromHero(c.QuestGiver);
+
+            DebugLogger.Log($"[CommissionIntent] ShowCommissionInDialogue: before BuildOpening index={index} category={c.Category} giver={c.QuestGiver?.Name}");
             string narrative = CommissionNarrative.BuildOpening(c, giverProfile);
+            DebugLogger.Log($"[CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len={narrative?.Length ?? 0}");
+
             string days = ((int)(c.TimeRemainingHours / 24f) + 1).ToString();
             string terms = $"（报酬 {c.NegotiatedReward} 第纳尔 · 期限 {days} 天"
                          + (c.DepositAmount > 0 ? $" · 定金 {c.DepositAmount}" : "") + "）";
@@ -110,7 +114,9 @@ namespace LivingWorldNpcs.Story
                 options.Add(new StoryOptionVM("还有别的活吗？", () => ShowCommissionInDialogue(commissions, index + 1, ctx)));
             options.Add(new StoryOptionVM("我再想想", () => ic.CloseDialogue()));
 
+            DebugLogger.Log($"[CommissionIntent] ShowCommissionInDialogue: before SceneSay line len={line?.Length ?? 0}");
             ic.SceneSay(line, options.ToArray());
+            DebugLogger.Log($"[CommissionIntent] ShowCommissionInDialogue: after SceneSay OK");
         }
 
         /// <summary>
@@ -171,7 +177,22 @@ namespace LivingWorldNpcs.Story
                 () =>
                 {
                     if (!isLast)
+                    {
                         ShowCommissionLetter(commissions, index + 1, ctx);
+                    }
+                    else
+                    {
+                        // 🐛 修复：「合上」后对话卡死——需要恢复选项或关闭对话
+                        if (ctx.Controller != null)
+                        {
+                            string closeLine = isBroker
+                                ? "这些就是眼下能打听到的活了。有想接的随时跟我说。"
+                                : "你慢慢考虑，想好了随时来找我。";
+                            ctx.Controller.SceneSay(closeLine,
+                                new StoryOptionVM("我再看看", () => ctx.Controller.CloseDialogue()),
+                                new StoryOptionVM("（离开）", () => ctx.Controller.CloseDialogue()));
+                        }
+                    }
                 }));
         }
 

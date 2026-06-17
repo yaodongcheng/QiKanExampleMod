@@ -29,7 +29,7 @@
                                                 Sprite="BlankWhiteSquare_9" Color="#FFFF00FF" VerticalAlignment="Center" MarginRight="5"/>
                                         <!-- 数值 -->
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
-                                                    Text="15" Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                                    Text="15" Brush="Brush_DialogText" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
                                     </Children>
                                 </ListPanel>
 
@@ -41,7 +41,7 @@
                                                 Sprite="BlankWhiteSquare_9" Color="#FF0000FF" VerticalAlignment="Center" MarginRight="5"/>
                                         <!-- 数值 -->
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
-                                                    Text="22" Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                                    Text="22" Brush="Brush_DialogText" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
                                     </Children>
                                 </ListPanel>
 
@@ -53,7 +53,7 @@
                                                 Sprite="BlankWhiteSquare_9" Color="#FFD700FF" VerticalAlignment="Center" MarginRight="5"/>
                                         <!-- 数值 -->
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
-                                                    Text="3.5k" Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                                    Text="3.5k" Brush="Brush_DialogText" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
                                     </Children>
                                 </ListPanel>
 
@@ -91,7 +91,7 @@
                                         <!-- 右侧文本 -->
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                     Text="1. Tell me what happened here." 
-                                                    Brush="Sho.Debug.Text" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
+                                                    Brush="Brush_DialogText" TextColor="#FFFFFFFF" VerticalAlignment="Center"/>
                                     </Children>
                                 </ListPanel>
                             </Children>
@@ -114,14 +114,14 @@
                                                         Sprite="BlankWhiteSquare_9" Color="#8B0000FF"/> <!-- 深红背景 -->
                                                 <!-- 可以叠加一个 Text 显示数值或图标 -->
                                                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                                                            Text="Difficult" Brush="Sho.Debug.Text" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            Text="Difficult" Brush="Brush_DialogText" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Children>
                                         </Widget>
                                         
                                         <!-- 右侧文本 -->
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                     Text="2. [Strength] Give me money now." 
-                                                    Brush="Sho.Debug.Text" TextColor="#CCCCCCFF" VerticalAlignment="Center"/>
+                                                    Brush="Brush_DialogText" TextColor="#CCCCCCFF" VerticalAlignment="Center"/>
                                     </Children>
                                 </ListPanel>
                             </Children>
@@ -143,14 +143,14 @@
                                                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                                         Sprite="BlankWhiteSquare_9" Color="#4169E1FF"/> 
                                                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                                                            Text="Easy" Brush="Sho.Debug.Text" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                            Text="Easy" Brush="Brush_DialogText" FontSize="20" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                             </Children>
                                         </Widget>
                                         
                                         <!-- 右侧文本 -->
                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                     Text="3. [Wisdom] We can coordinate。" 
-                                                    Brush="Sho.Debug.Text" TextColor="#CCCCCCFF" VerticalAlignment="Center"/>
+                                                    Brush="Brush_DialogText" TextColor="#CCCCCCFF" VerticalAlignment="Center"/>
                                     </Children>
                                 </ListPanel>
                             </Children>
