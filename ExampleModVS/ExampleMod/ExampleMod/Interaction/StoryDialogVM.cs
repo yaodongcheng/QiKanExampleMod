@@ -821,6 +821,7 @@ namespace LivingWorldNpcs.Story
                     InformationManager.DisplayMessage(new InformationMessage(DisableReason, Color.FromUint(0xFFCC5555)));
                 return;
             }
+            DebugLogger.Log($"[Dialog] Player clicked option: \"{_optionText}\"");
             // 执行传入的回调（告诉引擎选了哪一项）
             _onExecute?.Invoke();
         }

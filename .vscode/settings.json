@@ -1,0 +1,22 @@
+{
+  // === 方案：根据你装的扩展选一条启用 ===
+
+  // 如果装了 C# Dev Kit (新版):
+  "dotnet.defaultSolution": "ExampleModVS/ExampleMod/ExampleMod.sln",
+
+  // 如果装了 C# (经典 OmniSharp 版):
+  // "omnisharp.solution": "ExampleModVS/ExampleMod/ExampleMod.sln",
+
+  // OmniSharp 不自动按需加载项目 — 强制启动时就加载
+  "omnisharp.enableMsBuildLoadProjectsOnDemand": false,
+
+  // 排除 bin/obj 目录避免 OmniSharp 重复索引
+  "files.watcherExclude": {
+    "**/bin/**": true,
+    "**/obj/**": true
+  },
+  "files.exclude": {
+    "**/bin": true,
+    "**/obj": true
+  }
+}

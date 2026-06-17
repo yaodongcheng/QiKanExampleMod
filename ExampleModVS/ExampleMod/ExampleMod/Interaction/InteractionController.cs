@@ -335,6 +335,7 @@ namespace LivingWorldNpcs.Story
                 }
 
                 _vm.Show(displayName, initialText);
+                DebugLogger.Log($"[Dialog] NPC says (opening): \"{initialText}\"");
                 _vm.AreOptionsVisible = false;
 
                 _vm.OnClickContinue = () =>
@@ -352,7 +353,9 @@ namespace LivingWorldNpcs.Story
         private void RefreshInitialOptions()
         {
             if (_targetAgent == null) return;
-            _vm.ShowOptions(_optionManager.BuildOptionVMs(_targetAgent));
+            var opts = _optionManager.BuildOptionVMs(_targetAgent);
+            _vm.ShowOptions(opts);
+            DebugLogger.Log($"[Dialog] Options shown ({opts.Length}): {string.Join(" | ", opts.Select(o => o.OptionText))}");
         }
 
         /// <summary>
@@ -364,8 +367,12 @@ namespace LivingWorldNpcs.Story
             if (_vm == null) return;
             string name = _targetAgent?.Name?.ToString() ?? "";
             _vm.Show(name, npcLine);
+            DebugLogger.Log($"[Dialog] NPC says: \"{npcLine}\"");
             if (options != null && options.Length > 0)
+            {
                 _vm.ShowOptions(options);
+                DebugLogger.Log($"[Dialog] Options ({options.Length}): {string.Join(" | ", options.Select(o => o.OptionText))}");
+            }
             else
                 _vm.AreOptionsVisible = false;
         }
@@ -388,6 +395,7 @@ namespace LivingWorldNpcs.Story
         public void DispatchIntent(IntentBase intent, IntentContext ctx)
         {
             if (intent == null || ctx == null) return;
+            DebugLogger.Log($"[Dialog] Player clicked: \"{intent.DisplayName}\" (goal={intent.Goal}, category={intent.Category})");
             if (!intent.Goal.HasValue) { intent.OnInstant(ctx); return; }
 
             if (Settings.Instance.IsLLMReady)
@@ -518,6 +526,7 @@ namespace LivingWorldNpcs.Story
                     if (factors.Honor == HonorLevel.High) delta += 1;
                     else if (factors.Honor == HonorLevel.Low) delta = Math.Max(delta - 1, 0);
                     if (ctx.Hero != null) ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, delta);
+                    DebugLogger.Log($"[Dialog] Player chose chat topic: \"{t.Value}\" → NPC reply: \"{line}\"");
                     UpdateNpcVisuals(line, emotion, "NONE", "");
                     OpenChatTopicMenu(ctx);
                 }));
