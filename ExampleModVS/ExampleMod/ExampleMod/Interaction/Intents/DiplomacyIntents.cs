@@ -17,6 +17,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero || !ctx.IsWanderer) return Eligibility.Hide();
             if (ctx.Hero.Clan == Clan.PlayerClan) return Eligibility.Hide();
             if (ctx.OnCooldown(Goal.Value)) return Eligibility.Grey($"对方暂不愿再谈（还需 {ctx.CooldownDaysLeft(Goal.Value)} 天）");
@@ -43,6 +44,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero || !ctx.EnemyFaction) return Eligibility.Hide();
             if (ctx.Hero == ctx.Hero.MapFaction?.Leader) return Eligibility.Hide(); // 君主不可被简单劝降
             if (Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null)
@@ -72,6 +74,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero || !ctx.SameFaction) return Eligibility.Hide();
             if (ctx.Hero == Hero.MainHero || !ctx.Hero.IsLord) return Eligibility.Hide();
             if (!ctx.IsClanLeader) return Eligibility.Hide();
@@ -100,6 +103,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero) return Eligibility.Hide();
             bool isMyLiege = ctx.IsLiege || (Clan.PlayerClan != null && ctx.Hero == Clan.PlayerClan.Leader && ctx.Hero != Hero.MainHero);
             if (!isMyLiege) return Eligibility.Hide();
@@ -134,6 +138,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero) return Eligibility.Hide();
             if (!ctx.PlayerHasNoKingdom) return Eligibility.Hide();   // 已有王国不能再仕官
             if (TargetKingdom(ctx) == null) return Eligibility.Grey("对方并无主家可引荐");

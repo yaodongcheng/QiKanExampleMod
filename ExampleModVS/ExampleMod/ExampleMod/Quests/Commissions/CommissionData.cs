@@ -113,7 +113,7 @@ namespace LivingWorldNpcs
                 BaseRewardGold = 500,
                 TimeLimitDays = 15,
                 PrimarySkill = DefaultSkills.Scouting,
-                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.GangLeader, Occupation.Headman, Occupation.Artisan, Occupation.RuralNotable },
+                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.GangLeader, Occupation.Headman, Occupation.Artisan, Occupation.RuralNotable, Occupation.Lord },
                 AvailablePaths = new[] { ResolutionPath.Combat, ResolutionPath.Wealth, ResolutionPath.Stealth },
             });
 
@@ -211,7 +211,7 @@ namespace LivingWorldNpcs
                 BaseRewardGold = 300,
                 TimeLimitDays = 10,
                 PrimarySkill = DefaultSkills.Scouting,
-                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.Artisan, Occupation.Headman, Occupation.Wanderer },
+                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.Artisan, Occupation.Headman, Occupation.Wanderer, Occupation.Lord },
                 AvailablePaths = new[] { ResolutionPath.Technical, ResolutionPath.Wealth, ResolutionPath.Combat },
             });
 

@@ -46,6 +46,11 @@ namespace LivingWorldNpcs.Story
         public bool IsRecruitableCivilian; // 非 Hero 平民（可花钱招募为兵）
         public bool IsChild;              // 未成年（Hero: Age<16，非Hero: Character.IsChild）
 
+        /// <summary>NPC 当前是否被世界事件缠身（作为加害方或受害者）。从 NPC memory 的 CurrentUrgentEvent 读取。</summary>
+        public bool HasUrgentWorldEvent;
+        /// <summary>用户是否已点击"有别的事找你"展开全部选项。仅当 HasUrgentWorldEvent 时有效。</summary>
+        public bool ExpandedOptions;
+
         public bool RelationAtLeast(int v) { return Relation >= v; }
         public bool OnCooldown(NegotiationGoalType goal) { return Hero != null && IntentCooldownStore.IsOnCooldown(Hero, goal); }
         public int CooldownDaysLeft(NegotiationGoalType goal) { return Hero != null ? IntentCooldownStore.DaysLeft(Hero, goal) : 0; }
@@ -76,19 +81,34 @@ namespace LivingWorldNpcs.Story
                 ctx.OppositeSex = ctx.Hero.IsFemale != Hero.MainHero.IsFemale;
                 ctx.PlayerHasNoKingdom = Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null;
                 ctx.IsChild = ctx.Hero.Age < 16f;
+                ctx.HasUrgentWorldEvent = ctx.Memory?.CurrentUrgentEvent != null;
+                ctx.ExpandedOptions = false;
             }
             else
             {
                 // 非 Hero：判断是不是自己人 / 战场敌人
                 CharacterObject co = agent != null ? agent.Character as CharacterObject : null;
                 bool isSoldier = co != null && co.IsSoldier;
+
+                // 在对话场景中，所有 agent 同队 → IsEnemyAgent 永远 false。
+                // 用战役层面的 party 敌对关系纠正，防止敌方部队被误判为可招募平民。
+                bool isHostileParty = false;
+                if (co != null && !isSoldier && MapEncounterDialogState.Active && MapEncounterDialogState.PartnerParty != null)
+                {
+                    var partyFaction = MapEncounterDialogState.PartnerParty.MapFaction;
+                    var playerFaction = Hero.MainHero.MapFaction;
+                    isHostileParty = partyFaction != null && playerFaction != null
+                        && partyFaction.IsAtWarWith(playerFaction);
+                }
+
                 if (isSoldier && agent != null && agent.Team != null && Agent.Main != null && Agent.Main.Team != null)
                 {
-                    ctx.IsMySoldier = agent.Team == Agent.Main.Team;
-                    ctx.IsEnemyAgent = agent.Team.IsEnemyOf(Agent.Main.Team);
+                    // 对话场景中所有人同队，必须以战役层面敌对关系为准
+                    ctx.IsMySoldier = !isHostileParty && agent.Team == Agent.Main.Team;
+                    ctx.IsEnemyAgent = isHostileParty || agent.Team.IsEnemyOf(Agent.Main.Team);
                 }
-                // 可招募平民：非士兵、非敌对、其文化有基础兵
-                if (co != null && !isSoldier && !ctx.IsEnemyAgent)
+                // 可招募平民：非士兵、非敌对（战役层面）、其文化有基础兵
+                if (co != null && !isSoldier && !ctx.IsEnemyAgent && !isHostileParty)
                 {
                     CultureObject culture = co.Culture as CultureObject;
                     ctx.IsRecruitableCivilian = culture != null && culture.BasicTroop != null;

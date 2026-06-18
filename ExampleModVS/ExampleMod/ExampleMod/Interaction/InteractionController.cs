@@ -308,26 +308,35 @@ namespace LivingWorldNpcs.Story
             {
                 // === 统一轮次制（KCD2 式）：NPC 先说开场白 → 玩家点"继续" → 选项出现 ===
 
-                // 世界事件上下文：优先查 Hero 级别，查不到用 Party 级别（通用匪帮无 Hero）
-                string eventUrgentLine = WorldEventDirector.GetEventAwareDialogue(_targetHero, "Greeting");
-
-                if (string.IsNullOrEmpty(eventUrgentLine))
+                // 第一优先：从 NPC 自身记忆读取最紧迫的世界事件（由 WorldEventDatabase 在事件创建时推送）
+                var urgentEvent = _memory?.CurrentUrgentEvent;
+                if (urgentEvent != null)
                 {
-                    // Party 级别匹配：大地图遇敌走 MapEncounterDialogState，定居点场景走 Hero.PartyBelongedTo
+                    initialText = WorldEventDirector.BuildEventOpeningLine(urgentEvent, _targetHero, "Greeting");
+                }
+
+                // 如果事件驱动未产出有效文本（兜底），尝试 Party 级别匹配
+                if (string.IsNullOrEmpty(initialText))
+                {
                     MobileParty npcParty = _targetHero?.PartyBelongedTo;
                     if (npcParty == null && MapEncounterDialogState.Active)
                         npcParty = MapEncounterDialogState.PartnerParty?.MobileParty;
 
-                    eventUrgentLine = WorldEventDirector.GetEventAwareDialogueForParty(npcParty, "Greeting");
+                    string partyLine = WorldEventDirector.GetEventAwareDialogueForParty(npcParty, "Greeting");
+                    if (!string.IsNullOrEmpty(partyLine))
+                        initialText = partyLine;
                 }
 
-                if (!string.IsNullOrEmpty(eventUrgentLine))
+                // 如果事件文本生成失败但有事件缠身 → 保底事件句，绝不回退到普通寒暄
+                if (string.IsNullOrEmpty(initialText) && urgentEvent != null)
                 {
-                    initialText = eventUrgentLine;
+                    initialText = "（一脸凝重，似乎被什么事深深困扰着……）";
+                    DebugLogger.Log($"[EventAware] WARNING: NPC={_targetHero?.Name} has urgent event {urgentEvent.EventType} but text generation returned empty, using fallback");
                 }
-                else
+
+                // 无事件 → 普通上下文感知开场白
+                if (string.IsNullOrEmpty(initialText))
                 {
-                    // 普通 NPC：上下文感知开场白，基于关系/荣誉/声望/职业
                     string contextual = WorldEventDirector.GetContextualOpening(_targetHero);
                     initialText = !string.IsNullOrEmpty(contextual)
                         ? contextual
@@ -350,7 +359,7 @@ namespace LivingWorldNpcs.Story
        
 
         // 生成初始意图逻辑（薄壳：全部交给意图注册表 + 资格层）
-        private void RefreshInitialOptions()
+        public void RefreshInitialOptions()
         {
             if (_targetAgent == null) return;
             var opts = _optionManager.BuildOptionVMs(_targetAgent);

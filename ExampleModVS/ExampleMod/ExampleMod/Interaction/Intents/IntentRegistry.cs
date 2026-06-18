@@ -48,9 +48,11 @@ namespace LivingWorldNpcs.Story
             // ── 公务/通用 ──
             Register(new InfoIntent());               // 查看情报
             Register(new RecruitSoldierIntent());     // 普通平民应募入伍（花钱+魅力砍价）
+            Register(new PersuadeSurrenderIntent()); // 劝降敌方士兵
             Register(new OrderSoldierIntent());       // 命令士兵
             Register(new FollowIntent());             // 跟随
             Register(new ChatIntent());               // 寒暄/话题
+            Register(new ExpandOptionsIntent());      // 危机时展开折叠的选项
             Register(new LeaveIntent());              // 离开（永远最后）
         }
 

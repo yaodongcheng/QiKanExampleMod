@@ -35,6 +35,7 @@ namespace LivingWorldNpcs
         }
 
         public override Hero PartyOwner => _leader;
+        public override Hero Leader => _leader;  // MobileParty.LeaderHero 读的是 Leader，不是 PartyOwner
 
         // 可选：如果你希望这个部队算作玩家家族的部队
         // 这个属性通常由 Base 类处理，但为了保险起见，我们不做额外修改，保持默认即可
