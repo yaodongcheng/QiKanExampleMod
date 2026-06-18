@@ -30,6 +30,13 @@ namespace LivingWorldNpcs
                 if (existingCount >= MaxCommissionsPerNpc) return false;
             }
 
+            // 事件优先（新架构）：NPC 自身有紧迫事件缠身（作为加害方或受害者） → 强制显示 !
+            if (AllNpcMemoryManager.GetMemory(hero.StringId)?.CurrentUrgentEvent != null)
+            {
+                count = 1;
+                return true;
+            }
+
             // 世界事件驱动：NPC 是附近活跃事件的受害者 → 强制显示 !
             if (IsHeroInNearbyWorldEvent(hero))
             {
@@ -95,6 +102,65 @@ namespace LivingWorldNpcs
             {
                 // 直接模式：此 NPC 就是委托人
                 var availableDefs = GetAvailableDefsForHero(hero);
+
+                // 事件优先：如果此 NPC 有活跃世界事件缠身，事件匹配的 defs 排在前面
+                var urgentEvent = AllNpcMemoryManager.GetMemory(hero.StringId)?.CurrentUrgentEvent;
+                if (urgentEvent != null)
+                {
+                    var eventConfig = WorldEventConfig.Get(urgentEvent.EventType);
+                    if (eventConfig?.MatchingCommissions != null && eventConfig.MatchingCommissions.Length > 0)
+                    {
+                        var matchingDefs = new List<CommissionDef>();
+                        var nonMatchingDefs = new List<CommissionDef>();
+                        foreach (var def in availableDefs)
+                        {
+                            if (eventConfig.MatchingCommissions.Contains(def.Category))
+                                matchingDefs.Add(def);
+                            else
+                                nonMatchingDefs.Add(def);
+                        }
+
+                        // 事件匹配 defs 排前面；同一 category 可通过不同 tier/path 出变体来填满
+                        var eventDefs = new List<CommissionDef>();
+                        int perCategoryMax = Math.Max(1, maxCount / Math.Max(1, matchingDefs.Select(d => d.Category).Distinct().Count()));
+                        foreach (var def in matchingDefs)
+                        {
+                            int alreadyOfCategory = eventDefs.Count(d => d.Category == def.Category);
+                            if (alreadyOfCategory < perCategoryMax)
+                                eventDefs.Add(def);
+                        }
+                        // 补足以 maxCount
+                        while (eventDefs.Count < maxCount && matchingDefs.Count > 0)
+                        {
+                            var extra = matchingDefs.Where(d => !eventDefs.Contains(d)).OrderBy(_ => MBRandom.RandomFloat).FirstOrDefault();
+                            if (extra == null) break;
+                            eventDefs.Add(extra);
+                        }
+                        // 事件 defs 不够，用非匹配的补位
+                        if (eventDefs.Count < maxCount)
+                        {
+                            var fillers = nonMatchingDefs.OrderBy(_ => MBRandom.RandomFloat).ToList();
+                            foreach (var filler in fillers)
+                            {
+                                if (eventDefs.Count >= maxCount) break;
+                                eventDefs.Add(filler);
+                            }
+                        }
+
+                        var finalDefs = eventDefs.Take(maxCount).ToList();
+                        for (int i = 0; i < finalDefs.Count; i++)
+                        {
+                            var data = GenerateCommissionData(finalDefs[i], hero, null);
+                            if (data != null) results.Add(data);
+                        }
+
+                        DebugLogger.Log($"[CommissionGen] Event-first generation: hero={hero.Name} event={urgentEvent.EventType} matchingDefs={matchingDefs.Count} nonMatching={nonMatchingDefs.Count} result={results.Count}");
+                        _cache[hero.StringId] = results;
+                        return results;
+                    }
+                }
+
+                // 无事件或事件无匹配委托：保持现有随机逻辑
                 int count = Math.Min(maxCount, availableDefs.Count);
                 var shuffled = availableDefs.OrderBy(_ => MBRandom.RandomFloat).ToList();
                 for (int i = 0; i < count; i++)

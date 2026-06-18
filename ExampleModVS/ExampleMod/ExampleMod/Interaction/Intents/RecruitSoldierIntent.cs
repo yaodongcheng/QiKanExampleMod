@@ -25,6 +25,7 @@ namespace LivingWorldNpcs.Story
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx == null) return Eligibility.Hide();
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (ctx.IsChild) return Eligibility.Hide();
             if (!ctx.IsRecruitableCivilian) return Eligibility.Hide();
             // 已招募仍可点击——会进 OnInstant 走台词 bubblesay 路线

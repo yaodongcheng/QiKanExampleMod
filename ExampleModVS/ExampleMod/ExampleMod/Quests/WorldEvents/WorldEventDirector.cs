@@ -661,9 +661,8 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 获取 NPC 的世界事件上下文对话（问候/近况时用）。
         ///
-        /// 如果此 NPC 是某活跃 WorldEvent 的受害者或加害方，
-        /// 返回情境相关的对话文本，替代通用的"别来无恙"之类。
-        /// 返回 null 表示此 NPC 不涉及任何事件，使用常规对话即可。
+        /// 从 NPC 自身的 SingNpcMemorySystem.CurrentUrgentEvent 读取（由 WorldEventDatabase 在事件创建时推送），
+        /// 不再直接查询全局数据库。如果此 NPC 无事件缠身，返回 null。
         /// </summary>
         /// <param name="npc">要检查的 NPC</param>
         /// <param name="topic">对话主题："Greeting" 或 "Weather"</param>
@@ -672,14 +671,37 @@ namespace LivingWorldNpcs
         {
             if (npc == null || string.IsNullOrEmpty(npc.StringId)) return null;
 
-            // 查此 NPC 涉及的所有活跃事件（作为受害者或加害方）
-            var involvedEvents = WorldEventDatabase.ActiveEvents
-                .Where(e => e.TargetHeroId == npc.StringId || e.InstigatorHeroId == npc.StringId)
-                .ToList();
+            // 从 NPC 自身的记忆读取最紧迫事件（由 WorldEventDatabase 在事件创建时推送）
+            var mem = AllNpcMemoryManager.GetMemory(npc.StringId);
+            var urgentEvent = mem?.CurrentUrgentEvent;
+            if (urgentEvent == null) return null;
 
-            if (involvedEvents.Count == 0) return null;
+            return BuildEventOpeningLine(urgentEvent, npc, topic);
+        }
 
-            return BuildEventDialogueFromEvents(involvedEvents, npc, topic);
+        /// <summary>
+        /// 直接从事件数据和 NPC 生成事件感知开场白（不查询数据库）。
+        /// 供 InteractionController 等已有 NPC memory 的调用方使用，减少重复查询。
+        /// </summary>
+        public static string BuildEventOpeningLine(WorldEventData evt, Hero npc, string topic = "Greeting")
+        {
+            if (evt == null || npc == null) return null;
+
+            bool isVictim = evt.TargetHeroId == npc.StringId;
+            bool isInstigator = evt.InstigatorHeroId == npc.StringId;
+
+            // 优先从 Narrative.csv 查表
+            string csvText = TryGetEventAwareDialogueFromCSV(evt, isVictim, isInstigator, topic);
+            if (!string.IsNullOrEmpty(csvText))
+            {
+                DebugLogger.Log($"[EventAware] NPC={npc.Name} event={evt.EventType} role={(isVictim ? "Victim" : "Instigator")} source=CSV text=\"{csvText}\"");
+                return csvText;
+            }
+
+            // 兜底硬编码
+            string fallback = BuildEventAwareDialogueFallback(evt, isVictim, isInstigator, topic);
+            DebugLogger.Log($"[EventAware] NPC={npc.Name} event={evt.EventType} role={(isVictim ? "Victim" : "Instigator")} source=Fallback text=\"{fallback}\"");
+            return fallback;
         }
 
         /// <summary>
@@ -704,39 +726,53 @@ namespace LivingWorldNpcs
 
         private static string BuildEventDialogueFromEvents(List<WorldEventData> involvedEvents, Hero npc, string topic)
         {
-            // 取最严重的一个事件
+            // 此方法已废弃，由 BuildEventOpeningLine 替代。
+            // 保留以兼容可能的旧调用方；内部委托给 BuildEventOpeningLine。
             var primaryEvent = involvedEvents.OrderByDescending(e => e.Severity).First();
-            bool isVictim = primaryEvent.TargetHeroId == npc.StringId;
-            bool isInstigator = primaryEvent.InstigatorHeroId == npc.StringId;
-
-            // 优先从 Narrative.csv 查表
-            string csvText = TryGetEventAwareDialogueFromCSV(primaryEvent, isVictim, isInstigator, topic);
-            if (!string.IsNullOrEmpty(csvText))
-                return csvText;
-
-            // 兜底硬编码
-            return BuildEventAwareDialogueFallback(primaryEvent, isVictim, isInstigator, topic);
+            return BuildEventOpeningLine(primaryEvent, npc, topic);
         }
 
-        /// <summary>从 Narrative.csv 查询事件上下文对话（ID: WorldEvent_Greeting_{EventType}_{Victim|Instigator}）。</summary>
+        /// <summary>
+        /// 从 Narrative.csv 查询事件上下文对话（ID: WorldEvent_Greeting_{EventType}_{Victim|Instigator}）。
+        /// 直接按 ID 列精确匹配，不经过 NarrativeResolver 的 fallback 链——
+        /// 因为事件对话的硬编码兜底（BuildEventAwareDialogueFallback）已覆盖全部 14 种事件 × 2 角色，
+        /// 不需要 NarrativeResolver.GetCodeFallback 的通用兜底句来干扰。
+        /// 返回 null = CSV 无此条目，调用方直接走硬编码。
+        /// </summary>
         private static string TryGetEventAwareDialogueFromCSV(WorldEventData evt, bool isVictim, bool isInstigator, string topic)
         {
             try
             {
                 string role = isVictim ? "Victim" : "Instigator";
                 string eventId = $"WorldEvent_{topic}_{evt.EventType}_{role}";
-                var filters = new NarrativeFilters { EventName = eventId };
-                var result = NarrativeResolver.Resolve(filters);
-                if (result != null && !string.IsNullOrEmpty(result.Text) && result.Text != "……")
-                {
-                    string text = result.Text;
-                    string loc = evt.TargetSettlement?.Name?.ToString() ?? "这里";
-                    string instigatorName = evt.IsGenericInstigator ? "那帮人" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
-                    string victimName = evt.TargetHero?.Name?.ToString() ?? "我们";
-                    return text.Replace("{LOCATION}", loc)
-                               .Replace("{INSTIGATOR}", instigatorName)
-                               .Replace("{VICTIM}", victimName);
-                }
+
+                // 直接查 CSV，不经过 NarrativeResolver（它会 fallback 到 GetCodeFallback 污染结果）
+                var table = GameDatabase.Narrative;
+                if (table == null) return null;
+                var allRows = table.GetAll().ToList();
+                if (allRows.Count == 0) return null;
+
+                // 按 ID 列精确匹配
+                var match = allRows.FirstOrDefault(r =>
+                    string.Equals(r.GetString("ID"), eventId, StringComparison.OrdinalIgnoreCase));
+                if (match == null) return null;
+
+                // 读取 Text 列（list 类型，| 分隔随机选一条）
+                var lines = match.GetList("Text");
+                string text = "";
+                if (lines != null && lines.Count > 0)
+                    text = lines[MBRandom.RandomInt(lines.Count)];
+                if (string.IsNullOrEmpty(text))
+                    text = match.GetString("Text");
+                if (string.IsNullOrEmpty(text) || text == "Any")
+                    return null;
+
+                string loc = evt.TargetSettlement?.Name?.ToString() ?? "这里";
+                string instigatorName = evt.IsGenericInstigator ? "那帮人" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
+                string victimName = evt.TargetHero?.Name?.ToString() ?? "我们";
+                return text.Replace("{LOCATION}", loc)
+                           .Replace("{INSTIGATOR}", instigatorName)
+                           .Replace("{VICTIM}", victimName);
             }
             catch { }
             return null;
@@ -751,7 +787,7 @@ namespace LivingWorldNpcs
 
             if (isVictim)
             {
-                // 受害者视角：慌张、求助
+                // 受害者视角：慌张、求助、愤怒、悲痛
                 string[] greetings = evt.EventType switch
                 {
                     WorldEventType.BanditRaid => new[] {
@@ -774,9 +810,41 @@ namespace LivingWorldNpcs
                         $"{instigatorName}逼债逼到了家门口……再不还钱，{victimName}的地就要被收走了。",
                         $"你看起来是个有本事的人——{victimName}被{instigatorName}的高利贷压得快喘不过气了。能帮一把吗？"
                     },
+                    WorldEventType.RomanticConflict => new[] {
+                        $"感情的事……比刀剑更伤人。{instigatorName}和我之间的事，不是几句话能说清的。",
+                        $"你谈过那种让你夜不能寐的感情吗？{instigatorName}现在就是我心头的一根刺。"
+                    },
+                    WorldEventType.FalseAccusation => new[] {
+                        $"我是被冤枉的！{instigatorName}编造的罪名根本没有证据，{loc}的人却都信了……",
+                        $"你相信我吗？{instigatorName}说我做了那件事，但我连碰都没碰过。{loc}现在没人敢替我说话。"
+                    },
+                    WorldEventType.InheritanceDispute => new[] {
+                        $"那本该是我的……{instigatorName}用卑鄙手段夺走了继承权，{loc}的老人全都知道。",
+                        $"家族的遗产被{instigatorName}一个人霸占了。我不在乎钱——但这口气咽不下去。"
+                    },
+                    WorldEventType.Fugitive => new[] {
+                        $"我知道{instigatorName}过去犯了事……但他本性不坏。{loc}的人只要肯给他一个机会……",
+                        $"有人说{instigatorName}是逃犯、是祸害。但他在{loc}帮了我很多——是那些追他的人不讲道理。"
+                    },
+                    WorldEventType.TradeDispute => new[] {
+                        $"{instigatorName}抢了我在{loc}的生意——不是用刀，是用骗的。商人也有商人的仗要打。",
+                        $"生意场上的事，有时候比战场还脏。{instigatorName}在{loc}压价、断货、散布谣言——这是要赶尽杀绝。"
+                    },
+                    WorldEventType.NobleConflict => new[] {
+                        $"{instigatorName}的大军已经在{loc}外集结了……这不是私人恩怨，是整个地区的灾难。",
+                        $"贵族之间的冲突，从来都是平民遭殃。{instigatorName}要的不过是面子，可{loc}的人要付出的是命。"
+                    },
+                    WorldEventType.SacredTheft => new[] {
+                        $"那不只是件东西……那是{loc}的魂。{instigatorName}把它偷走了，等于把我们的根也拔了。",
+                        $"传家之物被{instigatorName}盗走了——{loc}的老人说，丢了它，整个地方都会遭厄运。"
+                    },
                     WorldEventType.Assassination => new[] {
                         $"{victimName}死了……被人刺杀的。{loc}现在人人自危，都在猜下一个是谁。",
                         $"出大事了——{victimName}被暗杀了。{loc}现在乱成一团，没人知道该信谁。"
+                    },
+                    WorldEventType.NemesisRevenge => new[] {
+                        $"那个人回来了……{instigatorName}。我以为这辈子再也不会听到他的名字——但他到{loc}来了。",
+                        $"有些恩怨，过多少年都不会散。{instigatorName}是冲着我来的——{loc}只是刚好在路中间。"
                     },
                     _ => new[] {
                         $"{loc}出事了……{victimName}现在真的很需要帮助。",
@@ -788,7 +856,7 @@ namespace LivingWorldNpcs
 
             if (isInstigator)
             {
-                // 加害方视角：威胁、嚣张
+                // 加害方视角：威胁、嚣张、傲慢、辩护、不屑
                 string[] lines = evt.EventType switch
                 {
                     WorldEventType.BanditRaid => new[] {
@@ -799,6 +867,10 @@ namespace LivingWorldNpcs
                         $"你是来赎人的？钱带来了吗？没带钱就滚——{victimName}的命可是有价的。",
                         $"想救人？没那么容易。{victimName}在我手上，想要人——先拿钱来。"
                     },
+                    WorldEventType.Famine => new[] {
+                        $"看什么看？{loc}的粮食又不是我烧的——天不下雨，怪我？要怪就怪他们自己种不出东西来。",
+                        $"你也想替{loc}的人说话？粮价就是这样——嫌贵就别吃。这是生意，不是慈善。"
+                    },
                     WorldEventType.Betrayal => new[] {
                         $"你是{victimName}派来的？告诉他——钱我已经花了，有本事来拿。",
                         $"叛徒？哈！我只是比{victimName}更懂得怎么活下去。弱者就该被淘汰。"
@@ -807,9 +879,41 @@ namespace LivingWorldNpcs
                         $"你是来替{victimName}还钱的？{victimName}欠的可不是小数目——利滚利，到今天已经翻了几倍了。",
                         $"怎么，你也想替{victimName}求情？契约白纸黑字，欠债还钱天经地义。"
                     },
+                    WorldEventType.RomanticConflict => new[] {
+                        $"这是我和{victimName}之间的事——感情的事，外人少插嘴。",
+                        $"你懂什么？{victimName}辜负我在先。有些伤不是刀剑留下的，却比刀剑更深。"
+                    },
+                    WorldEventType.FalseAccusation => new[] {
+                        $"你说我冤枉了{victimName}？证据摆在那里——{loc}的人都看着呢。你想替他翻案？",
+                        $"正义？哈！{victimName}做的事他自己清楚。我只是让{loc}的人看清真相而已。"
+                    },
+                    WorldEventType.InheritanceDispute => new[] {
+                        $"{victimName}有什么资格来争？论血统、论能力、论贡献——哪一样比得上我？{loc}的产业落在我手里才是正道。",
+                        $"继承的事，外人少管。{victimName}不过是不甘心罢了——但规矩就是规矩，{loc}的一切现在是我的。"
+                    },
+                    WorldEventType.Fugitive => new[] {
+                        $"我知道有人在追我——但{loc}是个藏身的好地方。你不是来抓我的吧？最好不是。",
+                        $"每个人都有过去。我在{loc}就是想重新开始——但要是有人追到这里来，我不介意再沾一次血。"
+                    },
+                    WorldEventType.TradeDispute => new[] {
+                        $"生意就是生意——{victimName}在{loc}的买卖做不下去是他自己没本事。我的手段都合规矩，有本事他也可以学。",
+                        $"你看起来不像商人——别被{victimName}的一面之词骗了。{loc}的市场谁占上风，凭的是脑子，不是眼泪。"
+                    },
+                    WorldEventType.NobleConflict => new[] {
+                        $"你是{victimName}的说客？回去告诉他——{loc}的事，战场上见分晓。刀剑比嘴皮子管用。",
+                        $"这是贵族之间的事。{victimName}在{loc}的所作所为已经越过底线了——没有人可以这样践踏我的荣誉而不付出代价。"
+                    },
+                    WorldEventType.SacredTheft => new[] {
+                        $"那东西在{loc}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。",
+                        $"你说这是偷？我只是替{loc}保管一件他们不配拥有的东西。历史会证明我是对的。"
+                    },
                     WorldEventType.Assassination => new[] {
                         $"你也在打听{victimName}的事？我劝你别多问——知道太多的人，往往活不长。",
                         $"{victimName}死了。下一个就是你——如果你继续多管闲事的话。"
+                    },
+                    WorldEventType.NemesisRevenge => new[] {
+                        $"我和{victimName}的账，不是一天两天了。这是我私人的事——{loc}只是刚好成了清算的舞台。",
+                        $"你认识{victimName}？那你最好给他带句话——不管他躲到哪里，该还的迟早要还。"
                     },
                     _ => new[] {
                         $"这事跟你没关系。{loc}的事让{loc}的人自己解决。",

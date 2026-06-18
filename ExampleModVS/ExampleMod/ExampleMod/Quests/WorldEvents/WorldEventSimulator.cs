@@ -1134,7 +1134,22 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
-                        // instigator 没有自己的队伍（在定居点 / 在别人军队里）→ 新建
+                        // instigator 没有自己的队伍（在定居点 / 在别人军队里 / 被俘）→ 尝试拉出来新建
+                        string unavailReason = GetHeroUnavailabilityReason(instigatorHero);
+                        if (!string.IsNullOrEmpty(unavailReason))
+                        {
+                            DebugLogger.Log($"[WorldEventSimulator] WARNING: instigator {instigatorHero.Name} not available for party creation: {unavailReason}. Attempting extraction...");
+                        }
+
+                        // 尝试将 hero 从当前占用中解放
+                        if (!TryExtractHeroForParty(instigatorHero))
+                        {
+                            DebugLogger.Log($"[WorldEventSimulator] ERROR: Failed to extract {instigatorHero.Name} for event party. Hero is {unavailReason}. Falling back to generic party.");
+                            party = CreateGenericEventParty(partyId, config, targetSettlement, targetHero, severity);
+                            if (party != null) return party;
+                            return null;
+                        }
+
                         if (instigatorHero.Clan == null)
                             instigatorHero.Clan = Clan.BanditFactions.FirstOrDefault() ?? Clan.PlayerClan;
 
@@ -1142,9 +1157,25 @@ namespace LivingWorldNpcs
                         string nameTemplate = GetPartyNameTemplate(config, instigatorHero, targetSettlement, targetHero);
                         party = MobileParty.CreateParty(partyId, component,
                             delegate (MobileParty p) { p.SetCustomName(new TextObject(nameTemplate)); });
-                        if (party == null) return null;
+                        if (party == null)
+                        {
+                            DebugLogger.Log($"[WorldEventSimulator] ERROR: MobileParty.CreateParty returned null for {instigatorHero.Name}");
+                            return null;
+                        }
                         party.ActualClan = instigatorHero.Clan;
                         FillPartyTroops(party, instigatorHero, severity);
+
+                        // 验证 hero 确实进入了 party
+                        if (party.LeaderHero != instigatorHero || party.MemberRoster.GetTroopCount(instigatorHero.CharacterObject) == 0)
+                        {
+                            DebugLogger.Log($"[WorldEventSimulator] ERROR: {instigatorHero.Name} failed to join created party. LeaderHero={party.LeaderHero?.Name?.ToString() ?? "null"}, inRoster={party.MemberRoster.GetTroopCount(instigatorHero.CharacterObject)}. Reason: {unavailReason}");
+                            party.RemoveParty();
+                            party = CreateGenericEventParty(partyId, config, targetSettlement, targetHero, severity);
+                            if (party != null) return party;
+                            return null;
+                        }
+
+                        DebugLogger.Log($"[WorldEventSimulator] Created new party for {instigatorHero.Name} ({party.MemberRoster.TotalManCount} troops) → {targetSettlement.Name}");
 
                         // 定位：在目标周围找可通行位置，投影到导航网格避免卡山/卡水
                         float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
@@ -1156,18 +1187,8 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    string nameTemplate = GetGenericPartyName(config, targetSettlement, targetHero);
-                    var component = new CustomPartyComponent(targetSettlement, nameTemplate);
-                    party = MobileParty.CreateParty(partyId, component,
-                        delegate (MobileParty p) { p.SetCustomName(new TextObject(nameTemplate)); });
+                    party = CreateGenericEventParty(partyId, config, targetSettlement, targetHero, severity);
                     if (party == null) return null;
-                    var banditClan = Clan.BanditFactions.FirstOrDefault();
-                    if (banditClan != null) party.ActualClan = banditClan;
-                    FillGenericPartyTroops(party, severity);
-
-                    // 定位
-                    Vec2 offset = new Vec2((MBRandom.RandomFloat - 0.5f) * 20f, (MBRandom.RandomFloat - 0.5f) * 20f);
-                    party.Position2D = targetSettlement.Position2D + offset;
                 }
 
                 // AI 行为
@@ -1399,7 +1420,86 @@ namespace LivingWorldNpcs
 
         #endregion
 
+        /// <summary>
+        /// 创建通用模板 party（无 hero leader），用于 hero 无法带队时的降级方案。
+        /// </summary>
+        private MobileParty CreateGenericEventParty(string partyId, WorldEventConfig config,
+            Settlement targetSettlement, Hero targetHero, int severity)
+        {
+            string nameTemplate = GetGenericPartyName(config, targetSettlement, targetHero);
+            var component = new CustomPartyComponent(targetSettlement, nameTemplate);
+            var party = MobileParty.CreateParty(partyId, component,
+                delegate (MobileParty p) { p.SetCustomName(new TextObject(nameTemplate)); });
+            if (party == null) return null;
+            var banditClan = Clan.BanditFactions.FirstOrDefault();
+            if (banditClan != null) party.ActualClan = banditClan;
+            FillGenericPartyTroops(party, severity);
+
+            Vec2 offset = new Vec2((MBRandom.RandomFloat - 0.5f) * 20f, (MBRandom.RandomFloat - 0.5f) * 20f);
+            party.Position2D = targetSettlement.Position2D + offset;
+            return party;
+        }
+
         #region Utility
+
+        /// <summary>
+        /// 诊断 hero 为何无法带队：返回可读原因，若 hero 可自由行动则返回 null。
+        /// </summary>
+        private static string GetHeroUnavailabilityReason(Hero hero)
+        {
+            if (hero == null) return "hero is null";
+            if (!hero.IsAlive) return "hero is dead";
+            if (hero.IsPrisoner) return $"hero is prisoner at {(hero.PartyBelongedToAsPrisoner?.Name?.ToString() ?? "unknown")}";
+            if (hero.IsFugitive) return "hero is fugitive";
+            if (hero.PartyBelongedTo != null)
+            {
+                if (hero.PartyBelongedTo.LeaderHero != hero)
+                    return $"hero is guest in {hero.PartyBelongedTo.LeaderHero?.Name?.ToString() ?? "unknown"}'s party '{hero.PartyBelongedTo.Name}'";
+                // LeaderHero == hero but we're in the fallback path — should not happen, but log
+                return $"hero leads existing party '{hero.PartyBelongedTo.Name}' but LeaderHero check failed";
+            }
+            if (hero.CurrentSettlement != null)
+                return $"hero is staying at settlement '{hero.CurrentSettlement.Name}'";
+            return null; // free to create party
+        }
+
+        /// <summary>
+        /// 尝试将 hero 从当前占用中解放（离开定居点/离开别人的军队），
+        /// 使其可以被创建为新 party 的 leader。返回是否成功。
+        /// </summary>
+        private static bool TryExtractHeroForParty(Hero hero)
+        {
+            try
+            {
+                // 被俘 → 无法解放
+                if (hero.IsPrisoner) return false;
+                // 逃亡中 → 等待状态自然恢复
+                if (hero.IsFugitive) return false;
+                // 已死亡 → 不可能
+                if (!hero.IsAlive) return false;
+
+                // 在定居点中 → 移除
+                if (hero.CurrentSettlement != null)
+                {
+                    hero.StayingInSettlement = null;
+                    DebugLogger.Log($"[WorldEventSimulator] Extracted {hero.Name} from settlement for event party");
+                }
+
+                // 在别人的队伍里（非 leader）→ 从原队伍移除
+                if (hero.PartyBelongedTo != null && hero.PartyBelongedTo.LeaderHero != hero)
+                {
+                    hero.PartyBelongedTo.MemberRoster.RemoveTroop(hero.CharacterObject);
+                    DebugLogger.Log($"[WorldEventSimulator] Extracted {hero.Name} from guest role in '{hero.PartyBelongedTo.Name}' for event party");
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[WorldEventSimulator] TryExtractHeroForParty({hero?.Name}) error: {ex.Message}");
+                return false;
+            }
+        }
 
         /// <summary>获取定居点繁荣度（兼容 Village 和 Town）。</summary>
         private static float GetSettlementProsperity(Settlement s)

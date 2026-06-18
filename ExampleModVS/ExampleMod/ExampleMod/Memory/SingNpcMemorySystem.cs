@@ -52,6 +52,14 @@ namespace LivingWorldNpcs
         // 4. 对玩家的隐藏态度 (独立于游戏原本的好感度)
         public int HiddenAttitudeTowardPlayer { get; set; } = 0;
 
+        /// <summary>
+        /// 当前最紧迫的世界事件（作为加害方或受害者）。
+        /// null = 无事件缠身。
+        /// 由 WorldEventDatabase 在事件创建/解决/过期时同步推送，是本 NPC "当前最关切的事"。
+        /// 对话系统、委托系统、UI 选项等均从此读取，不再各自查询全局数据库。
+        /// </summary>
+        public WorldEventData CurrentUrgentEvent { get; set; } = null;
+
 
 
         public SingNpcMemorySystem(NPCProfile profile)

@@ -1,5 +1,9 @@
+using System;
+using System.Linq;
 using LivingWorldNpcs;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -14,6 +18,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             return ctx.IsHero ? Eligibility.Show() : Eligibility.Hide();
         }
 
@@ -33,6 +38,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             return ctx.IsMySoldier ? Eligibility.Show() : Eligibility.Hide();
         }
 
@@ -59,6 +65,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             return (ctx.IsHero || ctx.IsMySoldier) ? Eligibility.Show() : Eligibility.Hide();
         }
 
@@ -82,6 +89,8 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            // 危机时折叠——开场白已传达事件信息，寒暄不提供增量价值
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             return Eligibility.Show();
         }
 
@@ -91,6 +100,115 @@ namespace LivingWorldNpcs.Story
                 ctx.Controller.OpenFreeChatInput(ctx.Agent);
             else
                 ctx.Controller.OpenChatTopicMenu(ctx);
+        }
+    }
+
+    // ── 展开折叠选项：危机时显示，点击后展开"有别的事找你" ──
+    public class ExpandOptionsIntent : IntentBase
+    {
+        public override InteractionOptionType Type { get { return InteractionOptionType.Chat; } }
+        public override string DisplayName { get { return "【其他事情】 有别的事找你..."; } }
+        public override string ToolTip { get { return "展开更多选项"; } }
+        public override NegotiationGoalType? Goal => null;
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            // 仅当 NPC 有紧迫事件且尚未展开时显示
+            if (!ctx.HasUrgentWorldEvent || ctx.ExpandedOptions) return Eligibility.Hide();
+            return Eligibility.Show();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            ctx.ExpandedOptions = true;
+            ctx.Controller.RefreshInitialOptions();
+        }
+    }
+
+    // ── 劝降：威吓敌方士兵投降（即时类）──
+    public class PersuadeSurrenderIntent : IntentBase
+    {
+        public override InteractionOptionType Type { get { return InteractionOptionType.PersuadeSurrender; } }
+        public override string DisplayName { get { return "【劝降】 放下武器，饶你不死"; } }
+        public override string ToolTip { get { return "威吓敌方士兵投降——兵力悬殊时成功率更高"; } }
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
+            if (!ctx.IsEnemyAgent) return Eligibility.Hide();
+            if (ctx.IsHero) return Eligibility.Hide();
+            return Eligibility.Show();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            try
+            {
+                var enemyParty = MapEncounterDialogState.PartnerParty?.MobileParty;
+                int playerTroops = MobileParty.MainParty?.MemberRoster.TotalHealthyCount ?? 1;
+                int enemyTroops = enemyParty?.MemberRoster.TotalHealthyCount ?? 10;
+
+                float ratio = (float)playerTroops / Math.Max(enemyTroops, 1);
+                float baseChance = Math.Max(0.05f, Math.Min(0.9f, ratio * 0.7f));
+                float charmBonus = (Hero.MainHero.GetSkillValue(DefaultSkills.Charm) / 300f) * 0.3f;
+                float rogueryBonus = (Hero.MainHero.GetSkillValue(DefaultSkills.Roguery) / 300f) * 0.2f;
+                float finalChance = baseChance + charmBonus + rogueryBonus;
+                bool success = MBRandom.RandomFloat < finalChance;
+
+                if (success)
+                {
+                    int captured = 1 + MBRandom.RandomInt(Math.Min(5, enemyTroops));
+                    if (enemyParty != null && MobileParty.MainParty != null)
+                    {
+                        for (int i = 0; i < captured && enemyParty.MemberRoster.TotalRegulars > 0; i++)
+                        {
+                            CharacterObject firstNonHero = null;
+                            foreach (var t in enemyParty.MemberRoster.GetTroopRoster())
+                            {
+                                if (!t.Character.IsHero) { firstNonHero = t.Character; break; }
+                            }
+                            if (firstNonHero == null) break;
+                            // 从敌方移除
+                            enemyParty.MemberRoster.AddToCounts(firstNonHero, -1);
+                            // 加入玩家俘虏
+                            MobileParty.MainParty.PrisonRoster.AddToCounts(firstNonHero, 1);
+                        }
+                    }
+
+                    // 投降比例高 → 敌军溃散，遭遇战结束
+                    float surrenderRatio = (float)captured / Math.Max(enemyTroops, 1);
+                    if (surrenderRatio > 0.3f || enemyParty == null || enemyParty.MemberRoster.TotalRegulars <= 1)
+                    {
+                        string line = captured > 1
+                            ? $"「……我们投降！别杀我们——」对方战意全失，{captured} 人放下武器束手就擒。"
+                            : $"「……我投降！」对方颤抖着扔下武器，束手就擒。";
+                        ctx.Controller.SceneSay(line,
+                            new StoryOptionVM("（离开）", () => ctx.Controller._vm.Close()));
+                    }
+                    else
+                    {
+                        string line = captured > 1
+                            ? $"「……我们投降！」有 {captured} 人扔下武器，被押入你的俘虏队。"
+                            : $"「……饶命！」对方跪地求饶，成了你的俘虏。";
+                        ctx.Controller.SceneSay(line);
+                    }
+                    DebugLogger.Log($"[PersuadeSurrender] SUCCESS: captured {captured}/{enemyTroops} from {enemyParty?.Name}, chance={finalChance:P0}");
+                }
+                else
+                {
+                    // 失败：对方被激怒，对话强制结束
+                    string line = enemyTroops > 20
+                        ? $"「就凭你？」对方大笑，战意反而更盛。交涉破裂。"
+                        : $"「……滚。」对方握紧了武器，拒绝再谈。";
+                    ctx.Controller.SceneSay(line,
+                        new StoryOptionVM("（离开）", () => ctx.Controller._vm.Close()));
+                    DebugLogger.Log($"[PersuadeSurrender] FAIL: chance={finalChance:P0}");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PersuadeSurrender] error: {ex.Message}");
+            }
         }
     }
 

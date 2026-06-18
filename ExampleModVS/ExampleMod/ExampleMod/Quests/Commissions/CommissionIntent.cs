@@ -12,26 +12,33 @@ namespace LivingWorldNpcs.Story
     public class RequestCommissionIntent : IntentBase
     {
         private int _cachedCount = 0;
+        private bool _hasUrgentEvent = false;
 
         public override InteractionOptionType Type => InteractionOptionType.FindWork;
         public override string DisplayName =>
-            _cachedCount > 0
-                ? $"【找工作】 打听委托（{_cachedCount}个可接）"
-                : "【找工作】 打听委托";
-        public override string ToolTip => "向对方打听是否有委托可接";
+            _hasUrgentEvent
+                ? "【关于当前的事】 我能帮上什么忙？"
+                : _cachedCount > 0
+                    ? $"【找工作】 打听委托（{_cachedCount}个可接）"
+                    : "【找工作】 打听委托";
+        public override string ToolTip =>
+            _hasUrgentEvent
+                ? "对方正被事件困扰——询问需要你做什么"
+                : "向对方打听是否有委托可接";
         public override float CooldownDays => 0.5f;
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.IsHero) return Eligibility.Hide();
             if (ctx.Hero == null) return Eligibility.Hide();
+            _hasUrgentEvent = ctx.HasUrgentWorldEvent;
             if (!CommissionGenerator.HasCommissionsFor(ctx.Hero, out int count) || count <= 0)
             {
                 _cachedCount = 0;
                 return Eligibility.Hide();
             }
             _cachedCount = count;
-            DebugLogger.Log($"[CommissionIntent] RequestCommission Evaluate: hero={ctx.Hero.Name} count={count} → Show");
+            DebugLogger.Log($"[CommissionIntent] RequestCommission Evaluate: hero={ctx.Hero.Name} count={count} urgentEvent={_hasUrgentEvent} → Show");
             return Eligibility.Show();
         }
 

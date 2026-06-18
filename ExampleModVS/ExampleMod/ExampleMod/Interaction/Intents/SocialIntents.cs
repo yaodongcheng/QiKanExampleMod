@@ -19,6 +19,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero) return Eligibility.Hide();
             if (!ctx.OppositeSex || ctx.IsMarried || Hero.MainHero.Spouse != null) return Eligibility.Hide();
             if (ctx.OnCooldown(Goal.Value)) return Eligibility.Grey($"对方仍在回避你（还需 {ctx.CooldownDaysLeft(Goal.Value)} 天）");
@@ -41,6 +42,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             return ctx.IsHero ? Eligibility.Show() : Eligibility.Hide();
         }
 
@@ -59,6 +61,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero) return Eligibility.Hide();
             if (ctx.EnemyFaction) return Eligibility.Grey("敌对之人，岂会与你共饮");
             return Eligibility.Show();
@@ -89,6 +92,7 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
+            if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (ctx.Agent == null) return Eligibility.Hide();
             // Hero：未受伤的领主可切磋；战场敌人也可
             if (ctx.IsHero)

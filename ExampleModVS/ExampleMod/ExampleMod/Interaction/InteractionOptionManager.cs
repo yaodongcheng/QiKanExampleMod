@@ -43,6 +43,7 @@ namespace LivingWorldNpcs
         Order,             // 命令（询问士兵状态，触发士兵对话）
         Order_Follow,        // 跟随（命令士兵跟随自己）
         RecruitSoldier,      // 招募平民入伍
+        PersuadeSurrender,   // 劝降敌方士兵
     }
 
     /// <summary>

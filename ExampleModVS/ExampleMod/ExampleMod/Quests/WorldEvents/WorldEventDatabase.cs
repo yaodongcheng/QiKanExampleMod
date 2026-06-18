@@ -176,6 +176,9 @@ namespace LivingWorldNpcs
 
             // 通知系统
             WorldEventNotificationController.OnEventCreated(evt);
+
+            // 推送到涉事 NPC 的记忆系统
+            SyncEventToNpcMemory(evt);
         }
 
         /// <summary>将事件标记为已解决。</summary>
@@ -198,9 +201,10 @@ namespace LivingWorldNpcs
 
             // 通知系统
             WorldEventNotificationController.OnEventResolved(evt);
-        }
 
-        /// <summary>将事件标记为已过期（到期未解决）。</summary>
+            // 清除涉事 NPC 的记忆
+            ClearEventFromNpcMemory(evt);
+        }
         public static void ExpireEvent(string eventId)
         {
             var evt = _activeEvents.FirstOrDefault(e => e.EventId == eventId);
@@ -213,6 +217,9 @@ namespace LivingWorldNpcs
             // 清理关联的 party
             RemoveEventParty(evt);
             DebugLogger.Log($"[WorldEvent] Expired: {evt.EventType} id={eventId}");
+
+            // 清除涉事 NPC 的记忆
+            ClearEventFromNpcMemory(evt);
         }
 
         /// <summary>将事件标记为升级。</summary>
@@ -325,6 +332,83 @@ namespace LivingWorldNpcs
         {
             if (string.IsNullOrEmpty(heroStringId)) return new List<WorldEventData>();
             return _activeEvents.Where(e => e.TargetHeroId == heroStringId).ToList();
+        }
+
+        #endregion
+
+        #region NPC Memory Sync
+
+        /// <summary>
+        /// 将事件推送到涉事 NPC 的 SingNpcMemorySystem.CurrentUrgentEvent。
+        /// 如果 NPC 已有更严重的事件则不覆盖；否则写入。
+        /// 通过 AllNpcMemoryManager.GetMemory 惰性创建记忆（若玩家从未与此 NPC 对话）。
+        /// </summary>
+        private static void SyncEventToNpcMemory(WorldEventData evt)
+        {
+            try
+            {
+                var heroes = new List<Hero>();
+                if (evt.InstigatorHero != null) heroes.Add(evt.InstigatorHero);
+                if (evt.TargetHero != null && evt.TargetHero != evt.InstigatorHero) heroes.Add(evt.TargetHero);
+
+                foreach (var hero in heroes)
+                {
+                    if (string.IsNullOrEmpty(hero.StringId)) continue;
+                    var mem = AllNpcMemoryManager.GetMemory(hero.StringId);
+                    if (mem == null) continue;
+
+                    // 如果 NPC 当前无事件，或新事件严重度 ≥ 当前事件 → 覆盖
+                    if (mem.CurrentUrgentEvent == null || evt.Severity >= mem.CurrentUrgentEvent.Severity)
+                    {
+                        mem.CurrentUrgentEvent = evt;
+                        DebugLogger.Log($"[WorldEvent] Synced to NPC memory: {hero.Name} ← {evt.EventType} (severity={evt.Severity}, role={(hero == evt.InstigatorHero ? "Instigator" : "Victim")})");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[WorldEvent] SyncEventToNpcMemory error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 从涉事 NPC 的记忆中清除指定事件。
+        /// 如果 NPC 还涉及其它活跃事件，取最严重者作为新的 CurrentUrgentEvent；
+        /// 否则置 null。
+        /// </summary>
+        private static void ClearEventFromNpcMemory(WorldEventData evt)
+        {
+            try
+            {
+                var heroes = new List<Hero>();
+                if (evt.InstigatorHero != null) heroes.Add(evt.InstigatorHero);
+                if (evt.TargetHero != null && evt.TargetHero != evt.InstigatorHero) heroes.Add(evt.TargetHero);
+
+                foreach (var hero in heroes)
+                {
+                    if (string.IsNullOrEmpty(hero.StringId)) continue;
+                    var mem = AllNpcMemoryManager.GetMemory(hero.StringId);
+                    if (mem == null || mem.CurrentUrgentEvent == null) continue;
+
+                    // 只有当 NPC 当前记忆的就是这个事件时才清理
+                    if (mem.CurrentUrgentEvent.EventId == evt.EventId)
+                    {
+                        // 查找此 NPC 是否还涉及其它活跃事件，取最严重的
+                        var remaining = _activeEvents
+                            .Where(e => e.EventId != evt.EventId
+                                && (e.InstigatorHeroId == hero.StringId || e.TargetHeroId == hero.StringId))
+                            .OrderByDescending(e => e.Severity)
+                            .FirstOrDefault();
+
+                        mem.CurrentUrgentEvent = remaining;
+                        DebugLogger.Log($"[WorldEvent] Cleared from NPC memory: {hero.Name} ← {evt.EventType} (replaced with {(remaining != null ? remaining.EventType.ToString() : "none")})");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[WorldEvent] ClearEventFromNpcMemory error: {ex.Message}");
+            }
         }
 
         #endregion
