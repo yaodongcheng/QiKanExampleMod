@@ -125,8 +125,7 @@ namespace LivingWorldNpcs
                 if (TryAddIssue(h)) created++;
             }
 
-            if (created > 0)
-                DebugLogger.Log($"[CommissionIssue] {settlement.Name}: scanned {scanned} NPCs, created {created} issues");
+            DebugLogger.Log($"[CommissionIssue] {settlement.Name}: scanned {scanned} NPCs, created {created} issues");
         }
 
         private void OnCheckForIssue(Hero hero)
@@ -157,7 +156,6 @@ namespace LivingWorldNpcs
                         {
                             var issue = new CommissionHubIssue(issueOwner);
                             _activeIssues[issueOwner.StringId] = issue;
-                            DebugLogger.Log($"[CommissionIssue] Created CommissionHubIssue for {issueOwner.Name}");
                             return issue;
                         },
                         typeof(CommissionHubIssue),

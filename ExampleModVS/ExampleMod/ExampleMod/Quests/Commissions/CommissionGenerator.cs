@@ -42,7 +42,6 @@ namespace LivingWorldNpcs
             if (IsHeroProxyForWorldEvent(hero))
             {
                 count = 1;
-                DebugLogger.Log($"[CommissionIssue] Proxy: {hero.Name} in {hero.CurrentSettlement?.Name} acts as contact for a WorldEvent (victim not present)");
                 return true;
             }
 
