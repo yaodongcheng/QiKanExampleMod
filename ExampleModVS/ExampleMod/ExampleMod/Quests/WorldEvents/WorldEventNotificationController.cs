@@ -65,6 +65,7 @@ namespace LivingWorldNpcs
                 {
                     // 中距离低严重度：带地名和事件类型的消息
                     string msg = BuildMidRangeMessage(worldEvent);
+                    DebugLogger.Log($"[Player] DisplayMessage(mid): {msg}");
                     InformationManager.DisplayMessage(new InformationMessage(msg));
                 }
             }
@@ -72,6 +73,7 @@ namespace LivingWorldNpcs
             {
                 // 远距离：模糊谣言
                 string msg = BuildFarRumor(worldEvent);
+                DebugLogger.Log($"[Player] DisplayMessage(far): {msg}");
                 InformationManager.DisplayMessage(new InformationMessage(msg));
             }
         }
@@ -385,6 +387,8 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[Player] Inquiry: '知道了' — {targetSettlement?.Name} {worldEvent.EventType}");
                 }));
+
+            DebugLogger.Log($"[Player] Inquiry shown: \"{loc} — {typeName}\"\n{body}");
         }
 
         #endregion

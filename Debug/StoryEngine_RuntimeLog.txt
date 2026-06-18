@@ -1,44 +1,165 @@
-﻿[18:17:57.285] [CommissionIssue] Created CommissionHubIssue for 乌瑟莱姆的卢伊汉
-[18:17:57.294] [CommissionIssue] Created CommissionHubIssue for 阿利斯维斯特的葛雷福特
-[18:17:57.794] [CommissionIssue] Created CommissionHubIssue for 萨万特的于瓦尔
-[18:17:57.838] [CommissionIssue] Created CommissionHubIssue for 庞斯的若瓦里翁
-[18:18:02.350] [WorldEventSimulator] Redirecting party of 居福耳 → 撒纳拉 (dist=307, boosted)
-[18:18:02.351] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECC59B6C2153A_2946 settlement=town_A6
-[18:18:02.356] [Player] NinjaReport(mid): ‼ 居福耳 盗走撒纳拉圣物
-[18:18:02.357] [WorldEvent] Motivated conflict: 居福耳 → SacredTheft → 暗影之子的乌苏尔 (relation=-100) at 撒纳拉
-[18:18:02.358] [WorldEventSimulator] Redirecting party of 埃卡朗 → 萨哥特 (dist=139, boosted)
-[18:18:02.358] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECC59B6C32D22_8079 settlement=town_V1
-[18:18:02.358] [Player] NinjaReport(mid): ‼ 埃卡朗 出兵征讨萨哥特
-[18:18:02.359] [WorldEvent] Motivated conflict: 埃卡朗 → NobleConflict → 森民的阿只埃 (relation=-100) at 萨哥特
-[18:18:08.747] [Player] Inquiry: '过去看看' — 萨哥特 NobleConflict
-[18:18:08.748] [WorldEvent] Camera animating to event party: 埃卡朗的征讨军 at (Vec2) X: 194.2514 Y: 521.8196
-[18:18:30.781] [Player] NinjaReport(intercept): 前方萨哥特边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
-[18:18:34.403] [Player] Inquiry: '过去看看' — 萨哥特 NobleConflict
-[18:18:34.403] [WorldEvent] Camera animating to event party: 埃卡朗的征讨军 at (Vec2) X: 187.4115 Y: 519.9879
-[18:18:46.514] [Player] NinjaReport(intercept): 前方萨哥特边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
-[18:18:57.004] [Player] Inquiry: '过去看看' — 萨哥特 NobleConflict
-[18:18:57.005] [WorldEvent] Camera animating to event party: 埃卡朗的征讨军 at (Vec2) X: 183.1332 Y: 520.9161
-[18:19:09.413] [CommissionIssue] Proxy: 铁匠索加尔 in 萨哥特 acts as contact for a WorldEvent (victim not present)
-[18:19:09.413] [CommissionIssue] Proxy: 制革匠马尔贝尔 in 萨哥特 acts as contact for a WorldEvent (victim not present)
-[18:19:09.413] [CommissionIssue] Proxy: 货郎伊西甘德 in 萨哥特 acts as contact for a WorldEvent (victim not present)
-[18:19:09.414] [CommissionIssue] Proxy: “断指”兀仑图 in 萨哥特 acts as contact for a WorldEvent (victim not present)
-[18:19:09.414] [CommissionIssue] Proxy: “巨石”热特琳 in 萨哥特 acts as contact for a WorldEvent (victim not present)
-[18:19:13.466] [CommissionIssue] Created CommissionHubIssue for 阿瓦辛顿的卡姆农
-[18:19:48.031] [WorldEvent] New event: Assassination id=evt_motiv_assassination_8DECC59F5BF9533_2691 settlement=town_ES2
-[18:19:48.032] [WorldEvent] Motivated conflict: 列奥提娅 → Assassination → 图里亚多斯 (relation=-100) at 沃斯特鲁姆
-[18:19:52.748] [CommissionIssue] Proxy: 杂货商尼德尔 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
-[18:19:52.749] [CommissionIssue] Proxy: 银器匠阿提斯 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
-[18:19:52.749] [CommissionIssue] Proxy: 喜怒无常的萨义德 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
-[18:19:52.749] [CommissionIssue] Proxy: “酸酒”苏尔 in 撒纳拉 acts as contact for a WorldEvent (victim not present)
-[18:20:06.049] [CommissionIssue] Proxy: 磨坊主萨尼翁 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
-[18:20:06.049] [CommissionIssue] Proxy: 麦酒酿制工欧托斯 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
-[18:20:06.050] [CommissionIssue] Proxy: 绸缎商奥奇沃斯 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
-[18:20:06.050] [CommissionIssue] Proxy: “铁锤”刻农 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
-[18:20:06.050] [CommissionIssue] Proxy: “烂牙”玛威娅 in 沃斯特鲁姆 acts as contact for a WorldEvent (victim not present)
-[18:20:14.340] [WorldEventSimulator] Redirecting party of 维杜尔 → 撒纳拉 (dist=385, boosted)
-[18:20:14.341] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECC5A056E2695_398 settlement=town_A6
-[18:20:14.341] [Player] NinjaReport(mid): ‼ 维杜尔 出兵征讨撒纳拉
-[18:20:14.342] [WorldEvent] Motivated conflict: 维杜尔 → NobleConflict → 艾亚姆 (relation=-66) at 撒纳拉
-[18:20:22.572] [Player] Inquiry: '过去看看' — 撒纳拉 NobleConflict
-[18:20:22.572] [WorldEvent] Camera animating to event party: 维杜尔的征讨军 at (Vec2) X: 317.7441 Y: 583.1661
-[18:20:38.318] [CommissionIssue] Created CommissionHubIssue for 奥赞
+﻿[10:18:18.607] [WorldEventSimulator] Redirecting party of 阿巴吕托斯 → 胡比亚 (dist=181, boosted)
+[10:18:18.608] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECCDFDCB90241_9331 settlement=town_A5
+[10:18:18.613] [Player] NinjaReport(mid): ‼ 阿巴吕托斯 出兵征讨胡比亚
+[10:18:18.614] [WorldEvent] Motivated conflict: 阿巴吕托斯 → NobleConflict → 阿德拉姆 (relation=-100) at 胡比亚
+[10:18:18.618] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECCDFDCBAA738_9547 settlement=town_V6
+[10:18:18.619] [Player] DisplayMessage(far): 🗞 有商队从西方带来消息——那边有传家宝被盗了——不只是一件东西那么简单。
+[10:18:18.619] [WorldEvent] Motivated conflict: 瓦尔卡娃 → SacredTheft → 因格特鲁德 (relation=-100) at 杰屈朗
+[10:18:30.465] [Player] Inquiry shown: "胡比亚 — 贵族冲突"
+════ 事件详情 ════
+
+阿巴吕托斯在胡比亚边境集结兵力，与村民的冲突一触即发。
+
+——
+地点：胡比亚
+类型：贵族冲突
+严重度：10/10
+剩余时间：约 10 天
+加害方：阿巴吕托斯
+
+[10:18:40.293] [Player] Inquiry: '过去看看' — 胡比亚 NobleConflict
+[10:18:40.294] [WorldEvent] Camera animating to event party: 阿巴吕托斯的征讨军 at (Vec2) X: 545.9072 Y: 282.4721
+[10:19:00.636] [MapConv] Partner agent found: 阿巴吕托斯, starting custom dialog flow
+[10:19:00.806] [MapConv] Guards: player=1(/7) npc=6(/67)
+[10:19:00.807] === [MapConv] All Agent Positions ===
+[1] 亨利 (main_hero) pos=(100.19,162.20,0.36) distToPlayer=0.0m distToPartner=2.0m team=Attacker
+[2] 阿巴吕托斯 (lord_1_72) pos=(101.45,163.75,0.36) distToPlayer=2.0m distToPartner=0.0m team=Attacker
+[3] 帝国新兵 (imperial_recruit) pos=(99.55,161.43,0.39) distToPlayer=1.0m distToPartner=3.0m team=Attacker
+[4] 帝国具装骑兵 (imperial_cataphract) pos=(104.17,162.82,0.36) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[5] 帝国弩手军士 (imperial_sergeant_crossbowman) pos=(102.78,163.96,0.36) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[6] 帝国军团步兵 (imperial_legionary) pos=(101.38,165.10,0.42) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[7] 帝国资深步兵 (imperial_veteran_infantryman) pos=(99.99,166.24,0.56) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[8] 帝国弩手 (imperial_crossbowman) pos=(103.73,165.12,0.36) distToPlayer=4.6m distToPartner=2.7m team=Attacker
+[9] 帝国重装骑手 (imperial_heavy_horseman) pos=(102.33,166.26,0.40) distToPlayer=4.6m distToPartner=2.7m team=Attacker
+=====================================
+
+[10:19:00.807] [Cam] EncounterEnter pos=(100.33,162.25,2.16) fwd=(0.000,0.000,1.000) up=(-0.547,-0.837,0.000) [DefaultCam]
+[10:19:00.809] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[10:19:00.811] [Player] Talk to: 阿巴吕托斯 (hero=阿巴吕托斯)
+[10:19:00.813] [Dialog] NPC says (opening): "……（微微颔首）"
+[10:19:03.098] [CommissionIntent] RequestCommission Evaluate: hero=阿巴吕托斯 count=1 → Show
+[10:19:03.122] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（3%） | 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
+[10:19:08.341] [Dialog] Player clicked option: "【找工作】 打听委托（1个可接）"
+[10:19:08.342] [Dialog] Player clicked: "【找工作】 打听委托（1个可接）" (goal=, category=Official)
+[10:19:08.350] [CommissionGen] Generated commission: def=village_defense tier=Basic giver=阿巴吕托斯 broker=none reward=600 target=castle_village_B5_1 payer=阿巴吕托斯
+[10:19:08.350] [CommissionGen] Generated commission: def=decoy_mission tier=Basic giver=阿巴吕托斯 broker=none reward=700 target=village_ES2_2 payer=阿巴吕托斯
+[10:19:08.350] [CommissionGen] Generated commission: def=supply_intercept tier=Basic giver=阿巴吕托斯 broker=none reward=700 target=village_ES2_2 payer=阿巴吕托斯
+[10:19:08.351] [CommissionIntent] RequestCommission OnInstant: hero=阿巴吕托斯 generated=3
+[10:19:08.351] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=VillageDefense giver=阿巴吕托斯
+[10:19:08.353] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=44
+[10:19:08.353] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
+[10:19:08.354] [Dialog] NPC says: "匪徒盯上了目标！村里能打的都走了，只剩下老人孩子……600第纳尔，帮我们守住——求你了。
+（报酬 600 第纳尔 · 期限 6 天 · 定金 180）"
+[10:19:08.354] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:19:08.354] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:19:12.026] [Dialog] Player clicked option: "还有别的活吗？"
+[10:19:12.026] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=DecoyMission giver=阿巴吕托斯
+[10:19:12.026] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=44
+[10:19:12.026] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
+[10:19:12.027] [Dialog] NPC says: "有人在追杀我，已经快到了。你带少量人引开他们——坚持得越久，报酬越高。700第纳尔起步。
+（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
+[10:19:12.027] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:19:12.027] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:19:15.746] [Dialog] Player clicked option: "这活我接了"
+[10:19:15.747] [CommissionIntent] AcceptCommission: category=DecoyMission giver=阿巴吕托斯 broker= narrativePhase=False
+[10:19:15.747] [CommissionIntent] Direct accept: reward=578 deposit=173 trust=0
+[10:19:15.749] [CommissionQuest] OnStartQuest: 引开追兵：掩护委托人撤离 narrativePhase=False questId=commission_decoy_mission_lord_1_72_639173747557474748
+[10:19:15.749] [CommissionQuest] Full startup: giver=阿巴吕托斯 reward=578 deposit=173 days=3 tier=Basic
+[10:19:15.766] [MapConv] end: enc=True leave=True
+[10:19:24.035] [CommissionQuest] OnFailed: 引开追兵：掩护委托人撤离 giver=阿巴吕托斯
+[10:20:09.460] [MapConv] Partner agent found: 阿巴吕托斯, starting custom dialog flow
+[10:20:09.632] [MapConv] Guards: player=1(/7) npc=7(/72)
+[10:20:09.632] === [MapConv] All Agent Positions ===
+[1] 亨利 (main_hero) pos=(286.77,269.75,3.70) distToPlayer=0.0m distToPartner=2.0m team=Attacker
+[2] 阿巴吕托斯 (lord_1_72) pos=(286.91,271.75,3.70) distToPlayer=2.0m distToPartner=0.0m team=Attacker
+[3] 帝国新兵 (imperial_recruit) pos=(286.69,268.76,3.70) distToPlayer=1.0m distToPartner=3.0m team=Attacker
+[4] 帝国具装骑兵 (imperial_cataphract) pos=(289.68,272.55,3.69) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[5] 帝国弩手军士 (imperial_sergeant_crossbowman) pos=(287.88,272.68,3.69) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[6] 帝国军团步兵 (imperial_legionary) pos=(286.09,272.81,3.69) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[7] 帝国资深步兵 (imperial_veteran_infantryman) pos=(284.29,272.94,3.69) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[8] 帝国弩手 (imperial_crossbowman) pos=(288.89,274.11,3.69) distToPlayer=4.8m distToPartner=3.1m team=Attacker
+[9] 帝国重装骑手 (imperial_heavy_horseman) pos=(287.09,274.24,3.69) distToPlayer=4.5m distToPartner=2.5m team=Attacker
+[10] 帝国熟练步兵 (imperial_trained_infantryman) pos=(285.30,274.37,3.69) distToPlayer=4.8m distToPartner=3.1m team=Attacker
+=====================================
+
+[10:20:09.632] [Cam] EncounterEnter pos=(286.86,269.88,5.49) fwd=(0.000,0.000,1.000) up=(-0.035,-0.999,0.000) [DefaultCam]
+[10:20:09.632] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[10:20:09.633] [Player] Talk to: 阿巴吕托斯 (hero=阿巴吕托斯)
+[10:20:09.633] [Dialog] NPC says (opening): "……（微微颔首）"
+[10:20:14.069] [CommissionIntent] RequestCommission Evaluate: hero=阿巴吕托斯 count=1 → Show
+[10:20:14.071] [Trait触发] 敌视 对手段 Flatter 修正: x0
+[10:20:14.071] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（2%） | 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
+[10:20:17.727] [Dialog] Player clicked option: "【寒暄】 随便说两句..."
+[10:20:17.728] [Dialog] Player clicked: "【寒暄】 随便说两句..." (goal=, category=General)
+[10:20:18.718] [Dialog] Player clicked option: "【返回】"
+[10:20:18.718] [CommissionIntent] RequestCommission Evaluate: hero=阿巴吕托斯 count=1 → Show
+[10:20:18.718] [Trait触发] 敌视 对手段 Flatter 修正: x0
+[10:20:18.719] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（2%） | 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
+[10:20:19.998] [Dialog] Player clicked option: "【找工作】 打听委托（1个可接）"
+[10:20:19.998] [Dialog] Player clicked: "【找工作】 打听委托（1个可接）" (goal=, category=Official)
+[10:20:19.999] [CommissionGen] Generated commission: def=decoy_mission tier=Basic giver=阿巴吕托斯 broker=none reward=700 target=village_ES2_2 payer=阿巴吕托斯
+[10:20:19.999] [CommissionGen] Generated commission: def=supply_intercept tier=Basic giver=阿巴吕托斯 broker=none reward=700 target=castle_village_ES5_1 payer=阿巴吕托斯
+[10:20:19.999] [CommissionGen] Generated commission: def=hideout_clear tier=Basic giver=阿巴吕托斯 broker=none reward=450 target=hideout_forest_11 payer=阿巴吕托斯
+[10:20:20.000] [CommissionGen] Generated commission: def=prison_break tier=Basic giver=阿巴吕托斯 broker=none reward=800 target=狼皮部落的布雷阿丹 payer=阿巴吕托斯
+[10:20:20.000] [CommissionIntent] RequestCommission OnInstant: hero=阿巴吕托斯 generated=4
+[10:20:20.000] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=DecoyMission giver=阿巴吕托斯
+[10:20:20.000] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=44
+[10:20:20.000] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
+[10:20:20.000] [Dialog] NPC says: "有人在追杀我，已经快到了。你带少量人引开他们——坚持得越久，报酬越高。700第纳尔起步。
+（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
+[10:20:20.006] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:20:20.006] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:20:23.992] [Dialog] Player clicked option: "还有别的活吗？"
+[10:20:23.992] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=SupplyIntercept giver=阿巴吕托斯
+[10:20:23.992] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=40
+[10:20:23.992] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=71
+[10:20:23.992] [Dialog] NPC says: "敌方有一批补给正运往摩雷尼亚。在到达前截下它——700第纳尔报酬，物资归你处置。
+（报酬 700 第纳尔 · 期限 9 天 · 定金 210）"
+[10:20:23.993] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:20:23.993] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:20:25.217] [Dialog] Player clicked option: "还有别的活吗？"
+[10:20:25.217] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=2 category=HideoutClear giver=阿巴吕托斯
+[10:20:25.217] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=43
+[10:20:25.217] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
+[10:20:25.217] [Dialog] NPC says: "藏身处附近有个匪窝，商队都不敢走了。清理掉它——450第纳尔，周围的生意人都凑了份子。
+（报酬 450 第纳尔 · 期限 11 天 · 定金 135）"
+[10:20:25.218] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:20:25.218] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:20:26.812] [Dialog] Player clicked option: "还有别的活吗？"
+[10:20:26.812] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=3 category=PrisonBreak giver=阿巴吕托斯
+[10:20:26.812] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=47
+[10:20:26.812] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=79
+[10:20:26.812] [Dialog] NPC says: "我的朋友狼皮部落的布雷阿丹被关在目的地的监狱里——他是被冤枉的。帮我把他救出来，800第纳尔。
+（报酬 800 第纳尔 · 期限 13 天 · 定金 240）"
+[10:20:26.813] [Dialog] Options (2): 这活我接了 | 我再想想
+[10:20:26.813] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:20:29.032] [Dialog] Player clicked option: "这活我接了"
+[10:20:29.032] [CommissionIntent] AcceptCommission: category=PrisonBreak giver=阿巴吕托斯 broker= narrativePhase=False
+[10:20:29.033] [CommissionIntent] Direct accept: reward=678 deposit=203 trust=0
+[10:20:29.033] [CommissionQuest] OnStartQuest: 越狱营救：救出 狼皮部落的布雷阿丹 narrativePhase=False questId=commission_prison_break_lord_1_72_639173748290332370
+[10:20:29.033] [CommissionQuest] Full startup: giver=阿巴吕托斯 reward=678 deposit=203 days=12 tier=Basic
+[10:20:29.034] [MapConv] end: enc=True leave=True
+[10:20:34.702] [MapConv] Partner agent found: 阿巴吕托斯, starting custom dialog flow
+[10:20:34.854] [MapConv] Guards: player=1(/7) npc=7(/72)
+[10:20:34.854] === [MapConv] All Agent Positions ===
+[1] 亨利 (main_hero) pos=(134.62,149.35,0.15) distToPlayer=0.0m distToPartner=2.0m team=Attacker
+[2] 阿巴吕托斯 (lord_1_72) pos=(135.31,151.23,0.15) distToPlayer=2.0m distToPartner=0.0m team=Attacker
+[3] 帝国新兵 (imperial_recruit) pos=(134.28,148.41,0.15) distToPlayer=1.0m distToPartner=3.0m team=Attacker
+[4] 帝国具装骑兵 (imperial_cataphract) pos=(138.19,151.23,0.15) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[5] 帝国弩手军士 (imperial_sergeant_crossbowman) pos=(136.50,151.85,0.15) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[6] 帝国军团步兵 (imperial_legionary) pos=(134.81,152.48,0.15) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[7] 帝国资深步兵 (imperial_veteran_infantryman) pos=(133.13,153.10,0.14) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[8] 帝国弩手 (imperial_crossbowman) pos=(137.87,152.95,0.15) distToPlayer=4.8m distToPartner=3.1m team=Attacker
+[9] 帝国重装骑手 (imperial_heavy_horseman) pos=(136.18,153.57,0.15) distToPlayer=4.5m distToPartner=2.5m team=Attacker
+[10] 帝国熟练步兵 (imperial_trained_infantryman) pos=(134.49,154.19,0.15) distToPlayer=4.8m distToPartner=3.1m team=Attacker
+=====================================
+
+[10:20:34.855] [Cam] EncounterEnter pos=(134.74,149.45,1.95) fwd=(0.000,0.000,1.000) up=(-0.245,-0.969,0.000) [DefaultCam]
+[10:20:34.855] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[10:20:34.855] [Player] Talk to: 阿巴吕托斯 (hero=阿巴吕托斯)
+[10:20:34.855] [Dialog] NPC says (opening): "……（微微颔首）"
+[10:20:36.039] [Trait触发] 敌视 对手段 Flatter 修正: x0
+[10:20:36.039] [Dialog] Options shown (8): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【仕官】 请求奉公（2%） | 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
+[10:20:40.510] [Dialog] Player clicked option: "【离开】 告辞"
+[10:20:40.512] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+[10:20:40.515] [MapConv] end: enc=True leave=True

@@ -1123,9 +1123,6 @@ namespace LivingWorldNpcs
                             GetPartyNameTemplate(config, instigatorHero, targetSettlement, targetHero)));
                         party.Ai.SetDoNotMakeNewDecisions(false); // 解锁 AI，允许我们下达新指令
 
-                        // 加速行军：临时大幅提升 Scouting 技能，让部队快速赶到目标
-                        instigatorHero.SetSkillValue(DefaultSkills.Scouting, 300);
-
                         // 根据行军距离自动延长事件过期时间（防止 lord 还没走到就过期了）
                         float distToTarget = party.Position2D.Distance(targetSettlement.Position2D);
                         float speedEstimate = party.Speed > 0.1f ? party.Speed : 2.5f;
@@ -1149,9 +1146,12 @@ namespace LivingWorldNpcs
                         party.ActualClan = instigatorHero.Clan;
                         FillPartyTroops(party, instigatorHero, severity);
 
-                        // 定位在目标附近
-                        Vec2 offset = new Vec2((MBRandom.RandomFloat - 0.5f) * 20f, (MBRandom.RandomFloat - 0.5f) * 20f);
-                        party.Position2D = targetSettlement.Position2D + offset;
+                        // 定位：在目标周围找可通行位置，投影到导航网格避免卡山/卡水
+                        float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
+                        float dist = 30f + MBRandom.RandomFloat * 30f;
+                        Vec2 candidate = targetSettlement.Position2D + new Vec2(
+                            (float)Math.Cos(angle) * dist, (float)Math.Sin(angle) * dist);
+                        party.Position2D = SnapToNavMesh(candidate, targetSettlement.Position2D);
                     }
                 }
                 else
@@ -1199,6 +1199,38 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[WorldEventSimulator] SpawnEventParty error: {ex.Message}");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// 将候选坐标投影到导航网格上，防止 party 生成在不可通行的山崖/水面。
+        /// 利用引擎的 GetLastPointOnNavigationMeshFromPositionToDestination——
+        /// 鼠标变禁用图标也是同一套底层判断。
+        /// </summary>
+        private static Vec2 SnapToNavMesh(Vec2 candidate, Vec2 fallback)
+        {
+            try
+            {
+                var wrapper = Campaign.Current?.MapSceneWrapper;
+                if (wrapper == null) return candidate;
+
+                PathFaceRecord face = wrapper.GetFaceIndex(candidate);
+                if (face.IsValid())
+                    return candidate; // 已在有效导航面上
+
+                // 候选点不可通行 → 沿导航网格投影到最近可达点
+                PathFaceRecord fallbackFace = wrapper.GetFaceIndex(fallback);
+                if (!fallbackFace.IsValid())
+                    return candidate; // 兜底坐标也无效，放弃
+
+                Vec2 snapped = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
+                    fallbackFace, candidate, fallback);
+                return snapped;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[WorldEventSimulator] SnapToNavMesh error: {ex.Message}");
+                return candidate;
             }
         }
 
