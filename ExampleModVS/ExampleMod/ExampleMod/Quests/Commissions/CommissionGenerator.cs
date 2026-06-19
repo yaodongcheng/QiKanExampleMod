@@ -111,13 +111,15 @@ namespace LivingWorldNpcs
                     bool isInstigator = urgentEvent.InstigatorHeroId == hero.StringId;
                     var eventConfig = WorldEventConfig.Get(urgentEvent.EventType);
 
-                    if (eventConfig?.MatchingCommissions != null && eventConfig.MatchingCommissions.Length > 0)
+                    // 按角色取分侧委托列表（优先 InstigatorCommissions/VictimCommissions，回退 MatchingCommissions）
+                    var roleCommissions = eventConfig?.GetCommissionsForRole(isVictim);
+                    if (roleCommissions != null && roleCommissions.Length > 0)
                     {
                         // 按角色筛选合适的委托类别
                         var roleDefs = new List<CommissionDef>();
                         foreach (var def in availableDefs)
                         {
-                            if (!eventConfig.MatchingCommissions.Contains(def.Category)) continue;
+                            if (!roleCommissions.Contains(def.Category)) continue;
 
                             // 加害方：过滤掉自己在做的活（赏金/刺杀目标不需要雇人重复干）
                             if (isInstigator)
@@ -710,14 +712,24 @@ namespace LivingWorldNpcs
             return false;
         }
 
-        /// <summary>检查 WorldEventType 是否匹配 CommissionCategory。</summary>
+        /// <summary>检查 WorldEventType 是否匹配 CommissionCategory（检查全部分侧列表）。</summary>
         private static bool IsWorldEventMatchForCategory(WorldEventType eventType, CommissionCategory category)
         {
             var config = WorldEventConfig.Get(eventType);
-            if (config?.MatchingCommissions == null) return false;
+            if (config == null) return false;
 
-            foreach (var c in config.MatchingCommissions)
-                if (c == category) return true;
+            // 检查所有三个列表
+            if (config.MatchingCommissions != null)
+                foreach (var c in config.MatchingCommissions)
+                    if (c == category) return true;
+
+            if (config.InstigatorCommissions != null)
+                foreach (var c in config.InstigatorCommissions)
+                    if (c == category) return true;
+
+            if (config.VictimCommissions != null)
+                foreach (var c in config.VictimCommissions)
+                    if (c == category) return true;
 
             return false;
         }

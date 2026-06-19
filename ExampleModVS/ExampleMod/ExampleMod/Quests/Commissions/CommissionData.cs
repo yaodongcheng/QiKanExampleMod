@@ -129,7 +129,7 @@ namespace LivingWorldNpcs
                 BaseRewardGold = 400,
                 TimeLimitDays = 10,
                 PrimarySkill = DefaultSkills.Scouting,
-                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.Artisan, Occupation.Headman },
+                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.Artisan, Occupation.Headman, Occupation.Lord },
                 AvailablePaths = new[] { ResolutionPath.Combat, ResolutionPath.Wealth, ResolutionPath.Technical },
             });
 
@@ -145,7 +145,7 @@ namespace LivingWorldNpcs
                 BaseRewardGold = 300,
                 TimeLimitDays = 7,
                 PrimarySkill = DefaultSkills.Trade,
-                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.Artisan, Occupation.RuralNotable },
+                ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.Artisan, Occupation.RuralNotable, Occupation.Lord },
                 AvailablePaths = new[] { ResolutionPath.Wealth, ResolutionPath.Technical, ResolutionPath.Combat },
             });
 
@@ -243,7 +243,7 @@ namespace LivingWorldNpcs
                 BaseRewardGold = 700,
                 TimeLimitDays = 8,
                 PrimarySkill = DefaultSkills.Scouting,
-                ValidGiverOccupations = new[] { Occupation.Lord, Occupation.GangLeader, Occupation.Wanderer },
+                ValidGiverOccupations = new[] { Occupation.Lord, Occupation.GangLeader, Occupation.Wanderer, Occupation.Merchant },
                 AvailablePaths = new[] { ResolutionPath.Combat, ResolutionPath.Stealth, ResolutionPath.Wealth },
             });
 
@@ -341,7 +341,7 @@ namespace LivingWorldNpcs
                 BaseRewardGold = 700,
                 TimeLimitDays = 3,
                 PrimarySkill = DefaultSkills.Riding,
-                ValidGiverOccupations = new[] { Occupation.Wanderer, Occupation.GangLeader, Occupation.Lord },
+                ValidGiverOccupations = new[] { Occupation.Wanderer, Occupation.GangLeader, Occupation.Lord, Occupation.Merchant },
                 AvailablePaths = new[] { ResolutionPath.Combat, ResolutionPath.Stealth, ResolutionPath.Social },
             });
 

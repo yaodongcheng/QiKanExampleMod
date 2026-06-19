@@ -903,12 +903,26 @@ namespace LivingWorldNpcs
 
         private void HandleVillageDefenseVictory(MapEvent mapEvent)
         {
-            // 检测匪徒是否被击败（不依赖 TargetHero——村防委托只有 Settlement 目标）
-            bool raidersDefeated = mapEvent.InvolvedParties.Any(p =>
-                p.MapFaction != null && p.MapFaction.IsBanditFaction && p.Side != mapEvent.PlayerSide);
+            // 检测来犯之敌是否被击败（WorldEvent 复用时可能是领主部队，非匪徒）
+            bool raidersDefeated = false;
+
+            // 方式1：按 party ID 精确匹配
+            if (!string.IsNullOrEmpty(_escortPartyId))
+            {
+                raidersDefeated = mapEvent.InvolvedParties.Any(p =>
+                    p.MobileParty?.StringId == _escortPartyId && p.Side != mapEvent.PlayerSide);
+            }
+
+            // 方式2：兜底 — 检测匪徒 faction
+            if (!raidersDefeated)
+            {
+                raidersDefeated = mapEvent.InvolvedParties.Any(p =>
+                    p.MapFaction != null && p.MapFaction.IsBanditFaction && p.Side != mapEvent.PlayerSide);
+            }
+
             if (raidersDefeated)
             {
-                DebugLogger.Log($"[CommissionQuest] VillageDefenseVictory: target={_data?.TargetSettlementId}");
+                DebugLogger.Log($"[CommissionQuest] VillageDefenseVictory: target={_data?.TargetSettlementId} party={_escortPartyId}");
                 UpdateProgress(_totalProgress);
                 AddLog(new TextObject("村庄防守成功！击退了来犯之敌。"));
             }
@@ -1006,7 +1020,32 @@ namespace LivingWorldNpcs
 
             AgentControlHelper.TransferGold(Hero.MainHero, null, finalCost);
             _bribeSuccessful = true;
-            CleanupSpawnedParty();
+
+            // ── WorldEvent 关联的部队不能直接删除 → 重定向离开目标 ──
+            if (!string.IsNullOrEmpty(_data?.WorldEventId) && !string.IsNullOrEmpty(_escortPartyId))
+            {
+                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                if (worldEvent != null)
+                {
+                    var party = worldEvent.GeneratedParty;
+                    if (party != null && party.IsActive)
+                    {
+                        // 重定向：让 party 远离目标定居点
+                        Vec2 awayPos = worldEvent.TargetSettlement?.Position2D ?? party.Position2D;
+                        float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
+                        awayPos += new Vec2((float)Math.Cos(angle) * 40f, (float)Math.Sin(angle) * 40f);
+                        party.Ai.SetMoveGoToPoint(awayPos);
+                        party.Ai.SetDoNotMakeNewDecisions(false);
+                        party.SetPartyUsedByQuest(false);
+                        Campaign.Current?.VisualTrackerManager?.RemoveTrackedObject(party, forceRemove: true);
+                        DebugLogger.Log($"[CommissionQuest] VillageDefense bribe: redirected WorldEvent party {_escortPartyId} away from target");
+                    }
+                }
+            }
+            else
+            {
+                CleanupSpawnedParty();
+            }
 
             if (charmSuccess)
                 AddLog(new TextObject($"Charm 检定成功！你将贿赂从 {baseCost} 砍到 {finalCost} 第纳尔。匪首掂了掂钱袋，招呼手下转身离去。"));
@@ -1198,6 +1237,26 @@ namespace LivingWorldNpcs
             var village = !string.IsNullOrEmpty(_data.TargetSettlementId)
                 ? Settlement.Find(_data.TargetSettlementId) : null;
             if (village == null) return;
+
+            // ── 优先复用 WorldEvent 已有的 instigator 部队（加害方正带兵前来）──
+            if (!string.IsNullOrEmpty(_data.WorldEventId))
+            {
+                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.GeneratedPartyId))
+                {
+                    var existingParty = worldEvent.GeneratedParty;
+                    if (existingParty != null && existingParty.IsActive)
+                    {
+                        _escortPartyId = existingParty.StringId;
+                        AddLog(new TextObject($"⚠ {village.Name} 即将遭到 {worldEvent.InstigatorHero?.Name?.ToString() ?? "敌人"} 的劫掠！"));
+                        AddLog(new TextObject("你可以选择：主动出击拦截 / 在村庄等待迎击 / 花钱请对方离开。"));
+                        AddLog(new TextObject("提示：Engineering 可修筑路障减少敌人数，Leadership 可组织民兵增加友军。"));
+                        return;
+                    }
+                }
+            }
+
+            // 兜底：spawn 新的劫掠部队
             SpawnRaiderParty(village);
             AddLog(new TextObject($"⚠ {village.Name} 即将遭到劫掠！"));
             AddLog(new TextObject("你可以选择：主动出击拦截匪徒 / 在村庄等待迎击 / 花钱请匪徒离开。"));
@@ -1260,6 +1319,30 @@ namespace LivingWorldNpcs
         {
             var targetSettlement = !string.IsNullOrEmpty(_data.TargetSettlementId)
                 ? Settlement.Find(_data.TargetSettlementId) : null;
+
+            // ── 优先复用 WorldEvent 已 spawn 的辅助部队（世界不等玩家）──
+            if (!string.IsNullOrEmpty(_data.WorldEventId))
+            {
+                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                if (worldEvent != null)
+                {
+                    var existingParty = worldEvent.GetAuxiliaryParty("SupplyConvoy");
+                    if (existingParty != null && existingParty.IsActive)
+                    {
+                        _escortPartyId = existingParty.StringId;
+                        // 将辅助部队解锁 AI 使其向目标移动（事件创建时是巡逻态）
+                        existingParty.Ai.SetDoNotMakeNewDecisions(false);
+                        if (targetSettlement != null)
+                            existingParty.Ai.SetMoveGoToSettlement(targetSettlement);
+                        AddLog(new TextObject($"敌方补给队已在运往 {targetSettlement?.Name?.ToString() ?? "目的地"} 的路上。必须在到达前拦截！"));
+                        AddLog(new TextObject("提示：Scout 可提前发现补给队位置，寻找最佳伏击点。"));
+                        AddLog(new TextObject("截获物资后可以选择：交给委托人（报酬）/ 自己留着（物资价值可能更高）。"));
+                        return;
+                    }
+                }
+            }
+
+            // 兜底：WorldEvent 辅助部队已被消灭或不存在 → spawn 替代
             SpawnSupplyParty(targetSettlement);
             if (targetSettlement != null)
                 AddLog(new TextObject($"敌方补给队正在前往 {targetSettlement.Name}。必须在到达前拦截！"));
