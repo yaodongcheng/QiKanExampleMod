@@ -49,6 +49,11 @@ namespace LivingWorldNpcs
         private const float ROAD_INTERCEPT_INTERVAL_SEC = 2f; // 每2秒 1 次
         private float _lastPeriodicDigestDay = -1f;
         private const float PERIODIC_DIGEST_INTERVAL = 3f; // 每 3 天推送一次世界摘要
+        private float _aiMonitorAccumDt;
+        private const float AI_MONITOR_INTERVAL_SEC = 5f; // 每 5 秒扫一次事件 party AI
+        private static readonly Dictionary<string, string> _lastPartyAiDesc = new Dictionary<string, string>(); // partyId → last known AI description
+        private static readonly Dictionary<string, float> _arrivedParties = new Dictionary<string, float>(); // partyId → arrival day (patrol phase)
+        private const float PATROL_DAYS_BEFORE_ATTACK = 1f; // 到达后巡逻几天再开打
 
         public override void RegisterEvents()
         {
@@ -81,7 +86,7 @@ namespace LivingWorldNpcs
 
         #region Tick
 
-        /// <summary>路途拦截 + 酒馆传闻：dt 累积到 1 秒执行一次（不再依赖游戏时间）。</summary>
+        /// <summary>路途拦截 + 酒馆传闻 + 事件 party AI 监控：dt 累积到指定间隔执行（不再依赖游戏时间）。</summary>
         private void OnCampaignTick(float dt)
         {
             try
@@ -93,11 +98,95 @@ namespace LivingWorldNpcs
                     WorldEventDirector.CheckRoadIntercept();
                     WorldEventDirector.CheckTavernAmbientTrigger();
                 }
+
+                _aiMonitorAccumDt += dt;
+                if (_aiMonitorAccumDt >= AI_MONITOR_INTERVAL_SEC)
+                {
+                    _aiMonitorAccumDt = 0f;
+                    MonitorEventPartyAiStates();
+                }
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[WorldEventSimulator] OnCampaignTick error: {ex.Message}");
             }
+        }
+
+        /// <summary>每 ~5 秒扫描所有活跃事件 party 的 AI 状态，仅行为/目标变化时打印日志。</summary>
+        private static void MonitorEventPartyAiStates()
+        {
+            try
+            {
+                var activeEvents = WorldEventDatabase.ActiveEvents;
+                if (activeEvents.Count == 0) return;
+
+                foreach (var evt in activeEvents)
+                {
+                    var party = evt.GeneratedParty;
+                    if (party == null || !party.IsActive)
+                    {
+                        if (_lastPartyAiDesc.Remove(evt.GeneratedPartyId ?? evt.EventId))
+                            DebugLogger.Log($"[WorldEvent AI] Party gone: eventId={evt.EventId} partyId={evt.GeneratedPartyId}");
+                        continue;
+                    }
+
+                    // 🔑 变化检测只用行为+目标，不含坐标/兵力（坐标每帧在变）
+                    string changeKey = BuildPartyAiChangeKey(party);
+                    string key = party.StringId;
+                    if (_lastPartyAiDesc.TryGetValue(key, out string lastKey) && lastKey == changeKey)
+                        continue;
+
+                    _lastPartyAiDesc[key] = changeKey;
+                    string desc = BuildPartyAiDisplay(party);
+                    string eventLabel = $"{evt.EventType} instigator={evt.InstigatorHero?.Name?.ToString() ?? "?"} target={evt.TargetSettlement?.Name?.ToString() ?? evt.TargetHero?.Name?.ToString() ?? "?"}";
+                    DebugLogger.Log($"[WorldEvent AI] {eventLabel} | {desc}");
+                }
+
+                // 定期清理已不存在的 party 记录
+                var activeIds = new HashSet<string>(activeEvents.Select(e => e.GeneratedParty?.StringId).Where(s => s != null));
+                var stale = _lastPartyAiDesc.Keys.Where(k => !activeIds.Contains(k)).ToList();
+                foreach (var k in stale) _lastPartyAiDesc.Remove(k);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[WorldEventSimulator] MonitorEventPartyAiStates error: {ex.Message}");
+            }
+        }
+
+        /// <summary>构建 AI 行为变化检测 key：只有行为类型和目标，不含坐标。</summary>
+        private static string BuildPartyAiChangeKey(MobileParty party)
+        {
+            string st = party.ShortTermBehavior.ToString();
+            string stTarget = party.ShortTermTargetParty?.StringId ?? "";
+            string def = party.DefaultBehavior.ToString();
+            string defTarget = party.TargetSettlement?.StringId
+                ?? party.Ai?.MoveTargetParty?.StringId
+                ?? "";
+            return $"{st}|{stTarget}|{def}|{defTarget}";
+        }
+
+        /// <summary>构建 AI 行为展示描述（含坐标/兵力，仅用于日志阅读）。</summary>
+        private static string BuildPartyAiDisplay(MobileParty party)
+        {
+            var shortTerm = party.ShortTermBehavior;
+            var defaultBehavior = party.DefaultBehavior;
+            string pos = $"({party.Position2D.X:F0},{party.Position2D.Y:F0})";
+            int troops = party.MemberRoster?.TotalManCount ?? 0;
+
+            string instant = shortTerm.ToString();
+            if (shortTerm != AiBehavior.Hold && shortTerm != AiBehavior.None)
+            {
+                string stName = party.ShortTermTargetParty?.Name?.ToString()
+                    ?? party.ShortTermTargetParty?.StringId ?? "";
+                if (!string.IsNullOrEmpty(stName)) instant = $"{shortTerm}→{stName}";
+            }
+
+            string goal = defaultBehavior.ToString();
+            string defTarget = party.TargetSettlement?.Name?.ToString()
+                ?? party.Ai?.MoveTargetParty?.Name?.ToString() ?? "";
+            if (!string.IsNullOrEmpty(defTarget)) goal = $"{defaultBehavior}→{defTarget}";
+
+            return $"shortTerm={instant} default={goal} pos={pos} troops={troops}";
         }
 
         #endregion
@@ -113,8 +202,11 @@ namespace LivingWorldNpcs
                 // 1. 清理已被 AI 击败的事件 party
                 WorldEventDatabase.CleanupDefeatedParties();
 
-                // 1.5. 检查事件 party 是否已到达目标 → 到场即触发后果，不等倒计时
+                // 1.5. 检查事件 party 是否已到达目标 → 进入巡逻阶段
                 CheckEventPartyArrivals();
+
+                // 1.6. 巡逻结束 → 释放 AI，真正开打
+                CheckPatrolCompleteAndLaunchAttack();
 
                 // 2. 检查事件升级（每 7 天未解决 → severity+1）
                 CheckEventEscalation();
@@ -182,10 +274,11 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 检查事件 party 是否已到达目标定居点。
-        /// 到场即触发后果——不等计时器倒计时。这才是真实的劫掠/围攻逻辑。
+        /// 到达 → 进入巡逻阶段（围城），1 天后释放 AI 真正开打。
         /// </summary>
         private void CheckEventPartyArrivals()
         {
+            float currentDay = (float)CampaignTime.Now.ToDays;
             var arrived = WorldEventDatabase.ActiveEvents
                 .Where(e => e.GeneratedParty != null
                     && e.GeneratedParty.IsActive
@@ -195,13 +288,23 @@ namespace LivingWorldNpcs
 
             foreach (var evt in arrived)
             {
-                DebugLogger.Log($"[WorldEventSimulator] Party arrived! {evt.EventType} at {evt.TargetSettlement?.Name} — triggering consequences");
-                ApplyExpiryConsequences(evt, isArrival: true);
-                WorldEventDatabase.ExpireEvent(evt.EventId);
+                var party = evt.GeneratedParty;
+                string partyId = party.StringId;
 
-                // ── 忍者报告：部队到达！──
+                // 已在巡逻阶段 → 跳过
+                if (_arrivedParties.ContainsKey(partyId)) continue;
+
+                // 刚到达：记录时间，切换为巡逻 Action（原生 API + true 防拐跑）
+                _arrivedParties[partyId] = currentDay;
+                SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
+                party.Ai.SetDoNotMakeNewDecisions(true);
+
+                string loc = evt.TargetSettlement?.Name?.ToString() ?? "目标";
+                DebugLogger.Log($"[WorldEventSimulator] Party arrived at {loc}, entering patrol phase: {evt.EventType} partyId={partyId} — will attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
+
+                // ── 通知玩家：部队已到达 ──
                 float dist = MobileParty.MainParty?.Position2D.Distance(evt.TargetSettlement.Position2D) ?? float.MaxValue;
-                if (dist < 100f) // 近处才有 NinjaReport，远处走 DisplayMessage（已在 ApplyExpiryConsequences 中）
+                if (dist < 100f)
                 {
                     string arrivalSummary = BuildArrivalSummary(evt);
                     string fullNarrative = NotificationPipeline.BuildEventNarrativePublic(evt);
@@ -209,7 +312,70 @@ namespace LivingWorldNpcs
                     NinjaNotificationManager.Show(arrivalSummary, () =>
                     {
                         WorldEventNotificationController.ShowEventInquiry(evt,
-                            $"⚔ 部队已到达！\n\n{fullNarrative}\n\n——\n后果已经发生。");
+                            $"⚔ 部队已到达！\n\n{fullNarrative}\n\n——\n敌军正在城外集结，即将进攻。");
+                    });
+                }
+            }
+        }
+
+        /// <summary>巡逻阶段结束 → 调用原生 SetPartyAiAction 发动真正的劫掠/攻城。</summary>
+        private void CheckPatrolCompleteAndLaunchAttack()
+        {
+            float currentDay = (float)CampaignTime.Now.ToDays;
+            var readyToAttack = new List<string>();
+
+            foreach (var kvp in _arrivedParties)
+            {
+                if (currentDay >= kvp.Value + PATROL_DAYS_BEFORE_ATTACK)
+                    readyToAttack.Add(kvp.Key);
+            }
+
+            foreach (var partyId in readyToAttack)
+            {
+                _arrivedParties.Remove(partyId);
+
+                var evt = WorldEventDatabase.ActiveEvents.FirstOrDefault(e => e.GeneratedParty?.StringId == partyId);
+                var party = evt?.GeneratedParty;
+                var target = evt?.TargetSettlement;
+                if (party == null || !party.IsActive || target == null) continue;
+
+                string loc = target.Name?.ToString() ?? "目标";
+                string actionName;
+
+                // 按定居点类型选择原生 AI Action（全部搭配 true 防拐跑）
+                if (target.IsVillage)
+                {
+                    SetPartyAiAction.GetActionForRaidingSettlement(party, target);
+                    actionName = "RaidSettlement";
+                }
+                else if (target.IsFortification)
+                {
+                    SetPartyAiAction.GetActionForBesiegingSettlement(party, target);
+                    actionName = "BesiegeSettlement";
+                }
+                else
+                {
+                    SetPartyAiAction.GetActionForRaidingSettlement(party, target);
+                    actionName = "RaidSettlement(fallback)";
+                }
+                party.Ai.SetDoNotMakeNewDecisions(true);
+
+                DebugLogger.Log($"[WorldEventSimulator] Patrol complete — launched {actionName}: {evt.EventType} partyId={partyId} → {loc}");
+
+                // 通知玩家：进攻开始
+                float dist = MobileParty.MainParty?.Position2D.Distance(target.Position2D) ?? float.MaxValue;
+                if (dist < 100f)
+                {
+                    string attackMsg = evt.EventType switch
+                    {
+                        WorldEventType.NobleConflict => $"⚔ {evt.InstigatorHero?.Name?.ToString() ?? "军队"} 对 {loc} 发起了进攻！",
+                        WorldEventType.BanditRaid => $"⚔ 匪徒开始劫掠 {loc}！",
+                        _ => $"⚔ 敌军开始攻击 {loc}！"
+                    };
+                    NinjaNotificationManager.Show(attackMsg, () =>
+                    {
+                        WorldEventNotificationController.ShowEventInquiry(evt,
+                            $"⚔ 进攻开始！\n\n{NotificationPipeline.BuildEventNarrativePublic(evt)}\n\n——\n战斗已经打响。");
                     });
                 }
             }
@@ -1079,11 +1245,6 @@ namespace LivingWorldNpcs
         private MobileParty SpawnEventParty(WorldEventConfig config, Settlement targetSettlement,
             Hero targetHero, Hero instigatorHero, bool isGeneric, int severity, ref float dayLimit)
         {
-            if (DEBUG_DISABLE_PARTY_SPAWN)
-            {
-                DebugLogger.Log($"[WorldEventSimulator] DEBUG: party spawn SKIPPED for {config.EventType} (DEBUG_DISABLE_PARTY_SPAWN=true)");
-                return null;
-            }
 
             try
             {
@@ -1196,7 +1357,7 @@ namespace LivingWorldNpcs
                         party.Ai.SetMoveEngageParty(MobileParty.MainParty);
                         break;
                 }
-                party.Ai.SetDoNotMakeNewDecisions(false); // 事件部队保持 AI 活性：到达后可自主行动（raid/战斗/巡逻），防止卡在半路发呆
+                party.Ai.SetDoNotMakeNewDecisions(true); // 锁定目标，不被原生 AI 拐跑；到达由 CheckEventPartyArrivals 检测并触发后果
                 party.SetPartyUsedByQuest(true);
                 Campaign.Current?.VisualTrackerManager?.RegisterObject(party); // 注册地图追踪 → 无视战争迷雾 + 显示任务光圈
                 party.Party.SetVisualAsDirty();
@@ -1217,7 +1378,6 @@ namespace LivingWorldNpcs
         public static MobileParty SpawnAuxiliaryParty(AuxiliaryPartyConfig auxConfig, WorldEventData evt)
         {
             if (auxConfig == null || evt == null) return null;
-            if (DEBUG_DISABLE_PARTY_SPAWN) return null;
 
             try
             {

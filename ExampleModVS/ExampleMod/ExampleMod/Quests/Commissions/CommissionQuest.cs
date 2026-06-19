@@ -200,6 +200,7 @@ namespace LivingWorldNpcs
                 }
                 if (!partyExists)
                 {
+                    DebugLogger.Log($"[CommissionQuest] InitializeQuestOnGameLoad FAIL: party disappeared after load, partyId={_escortPartyId} category={_data?.Category}");
                     // 部队已消失（被其他队伍消灭或游戏清理）
                     // 对于依赖部队的委托类型，自动失败
                     if (_data.Category == CommissionCategory.CaravanEscort ||
@@ -223,6 +224,7 @@ namespace LivingWorldNpcs
 
         protected override void RegisterEvents()
         {
+            DebugLogger.Log($"[CommissionQuest] RegisterEvents: category={_data?.Category} questId={StringId}");
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
             switch (_data.Category)
             {
@@ -327,6 +329,7 @@ namespace LivingWorldNpcs
                 case CommissionCategory.DecoyMission: OnStartDecoyMission(); break;
                 case CommissionCategory.ProcurementAgent: OnStartProcurementAgent(); break;
             }
+            DebugLogger.Log($"[CommissionQuest] OnStartQuest DONE: category={_data.Category} giver={QuestGiver?.Name} questId={StringId}");
         }
 
         protected override void OnCompleteWithSuccess()
@@ -385,11 +388,12 @@ namespace LivingWorldNpcs
 
         protected override void OnTimedOut()
         {
-            DebugLogger.Log($"[CommissionQuest] OnTimedOut: {_data?.GetFlavorDescription()} category={_data?.Category} deposit={_data?.DepositAmount} repaid={_depositRepaid}");
+            DebugLogger.Log($"[CommissionQuest] OnTimedOut: {_data?.GetFlavorDescription()} category={_data?.Category} deposit={_data?.DepositAmount} repaid={_depositRepaid} timeRemain={_data?.TimeRemainingHours}h");
 
             // DecoyMission: 自然超时 = 坚持到了委托人撤离，属成功
             if (_data.Category == CommissionCategory.DecoyMission && _data.TimeRemainingHours <= 0)
             {
+                DebugLogger.Log($"[CommissionQuest] OnTimedOut DecoyMission: time expired naturally → SUCCESS");
                 CleanupSpawnedParty();
                 UpdateProgress(_totalProgress);
                 return;
@@ -413,7 +417,7 @@ namespace LivingWorldNpcs
 
         public override void OnFailed()
         {
-            DebugLogger.Log($"[CommissionQuest] OnFailed: {_data?.GetFlavorDescription()} giver={QuestGiver?.Name}");
+            DebugLogger.Log($"[CommissionQuest] OnFailed: {_data?.GetFlavorDescription()} giver={QuestGiver?.Name} category={_data?.Category} worldEventId={_data?.WorldEventId} progress={_currentProgress}/{_totalProgress} timeRemain={_data?.TimeRemainingHours}h");
             if (QuestGiver == null) return;
             CleanupSpawnedParty();
             ChangeRelationAction.ApplyPlayerRelation(QuestGiver, -20);
@@ -467,6 +471,7 @@ namespace LivingWorldNpcs
             // 委托人死亡 → 委托失败
             if (QuestGiver != null && !QuestGiver.IsAlive)
             {
+                DebugLogger.Log($"[CommissionQuest] OnDailyTick FAIL: giver died, giver={QuestGiver.Name} isObjectivesComplete={_data?.IsObjectivesComplete}");
                 // 如果目标已完成但未领报酬，先自动支付再失败
                 if (_data != null && _data.IsObjectivesComplete)
                 {
@@ -483,6 +488,7 @@ namespace LivingWorldNpcs
             // 委托人被囚禁 > 30 天 → 委托失败
             if (QuestGiver != null && QuestGiver.IsPrisoner)
             {
+                DebugLogger.Log($"[CommissionQuest] OnDailyTick FAIL: giver imprisoned, giver={QuestGiver.Name} category={_data?.Category}");
                 AddLog(new TextObject($"委托人 {QuestGiver.Name} 被囚禁已久，委托自动取消。"));
                 FailQuest();
                 return;
@@ -493,6 +499,7 @@ namespace LivingWorldNpcs
                  _data.Category == CommissionCategory.LegendaryHunt) &&
                 _data.TargetHero != null && !_data.TargetHero.IsAlive && _currentProgress == 0)
             {
+                DebugLogger.Log($"[CommissionQuest] OnDailyTick FAIL: target killed by third party, target={_data.TargetHero.Name} category={_data.Category}");
                 AddLog(new TextObject($"目标 {_data.TargetHero.Name} 已被他人击杀，委托失败。"));
                 FailQuest();
                 return;
@@ -509,6 +516,7 @@ namespace LivingWorldNpcs
                 }
                 if (escortParty == null || escortParty.MemberRoster?.TotalManCount <= 0)
                 {
+                    DebugLogger.Log($"[CommissionQuest] OnDailyTick FAIL: caravan destroyed, partyId={_escortPartyId}");
                     AddLog(new TextObject("商队已被摧毁！委托失败。"));
                     _escortPartyId = null;
                     FailQuest();
@@ -553,7 +561,11 @@ namespace LivingWorldNpcs
             // DecoyMission 特殊处理：玩家输赢都要结算
             if (_data.Category == CommissionCategory.DecoyMission)
             {
-                HandleDecoyFightResult(mapEvent);
+                DebugLogger.Log($"[CommissionQuest] OnMapEventEnded DecoyMission: IsPlayerMapEvent={mapEvent.IsPlayerMapEvent} WinningSide={mapEvent.WinningSide} PlayerSide={mapEvent.PlayerSide} DefenderSide={mapEvent.DefenderSide} AttackerSide={mapEvent.AttackerSide} eventId={_data?.WorldEventId}");
+                if (mapEvent.IsPlayerMapEvent)
+                    HandleDecoyFightResult(mapEvent);
+                else
+                    DebugLogger.Log($"[CommissionQuest] OnMapEventEnded DecoyMission: ignoring non-player MapEvent (WinningSide={mapEvent.WinningSide})");
                 return;
             }
 
@@ -942,10 +954,12 @@ namespace LivingWorldNpcs
 
         private void HandleDecoyFightResult(MapEvent mapEvent)
         {
+            DebugLogger.Log($"[CommissionQuest] HandleDecoyFightResult: WinningSide={mapEvent.WinningSide} PlayerSide={mapEvent.PlayerSide} progress={_currentProgress}/{_totalProgress}");
             // 玩家选择反击追兵
             if (mapEvent.WinningSide == mapEvent.PlayerSide)
             {
                 // 反击成功，提前完成（报酬按已坚持天数计算）
+                DebugLogger.Log($"[CommissionQuest] HandleDecoyFightResult: player WON — completing quest early");
                 AddLog(new TextObject("你成功击退了追兵！委托人趁这段时间安全撤离了。"));
                 CleanupSpawnedParty();
                 UpdateProgress(_totalProgress);
@@ -953,6 +967,7 @@ namespace LivingWorldNpcs
             else
             {
                 // 被追上击败 → 委托失败
+                DebugLogger.Log($"[CommissionQuest] HandleDecoyFightResult: player LOST — failing quest");
                 AddLog(new TextObject("你被追兵击败了。委托人可能还来不及逃脱……"));
                 _finalGrade = CommissionGrade.Failed;
                 CleanupSpawnedParty();
@@ -1417,6 +1432,7 @@ namespace LivingWorldNpcs
 
         private void OnStartDecoyMission()
         {
+            DebugLogger.Log($"[CommissionQuest] OnStartDecoyMission: spawning pursuer party, worldEventId={_data?.WorldEventId} targetSettlementId={_data?.TargetSettlementId} timeRemain={_data?.TimeRemainingHours}h");
             // 生成一个追击玩家的强敌部队
             SpawnPursuerParty();
 
@@ -1663,7 +1679,11 @@ namespace LivingWorldNpcs
                 string partyId = $"commission_pursuer_{MBRandom.RandomInt(1000)}";
                 var banditClan = Clan.BanditFactions.FirstOrDefault(c => c.StringId == "looters")
                     ?? Clan.BanditFactions.FirstOrDefault();
-                if (banditClan == null) return;
+                if (banditClan == null)
+                {
+                    DebugLogger.Log("[CommissionQuest] SpawnPursuerParty FAILED: no bandit clan found");
+                    return;
+                }
 
                 Settlement home = Settlement.Find(_data?.TargetSettlementId)
                     ?? MobileParty.MainParty?.CurrentSettlement
@@ -1675,7 +1695,11 @@ namespace LivingWorldNpcs
                         party.SetCustomName(new TextObject("追兵"));
                     });
 
-                if (pursuerParty == null) return;
+                if (pursuerParty == null)
+                {
+                    DebugLogger.Log("[CommissionQuest] SpawnPursuerParty FAILED: MobileParty.CreateParty returned null");
+                    return;
+                }
 
                 _escortPartyId = partyId;
                 pursuerParty.ActualClan = banditClan;
@@ -1705,6 +1729,8 @@ namespace LivingWorldNpcs
                 pursuerParty.SetPartyUsedByQuest(true);
                 pursuerParty.Party.SetVisualAsDirty();
 
+                DebugLogger.Log($"[CommissionQuest] SpawnPursuerParty OK: partyId={partyId} troopCount={troopCount} pos=({pursuerParty.Position2D.X:F1},{pursuerParty.Position2D.Y:F1}) clan={banditClan.StringId}");
+
                 AddLog(new TextObject($"⚠ 追兵已出现在地图上，正在追击你！坚持 {((int)(_data.TimeRemainingHours / 24f) + 1)} 天。"));
             }
             catch (Exception ex)
@@ -1720,10 +1746,11 @@ namespace LivingWorldNpcs
             // 如果关联了 WorldEvent，不清理事件 party（事件仍需 AI 或其他委托解决）
             if (!string.IsNullOrEmpty(_data?.WorldEventId))
             {
-                DebugLogger.Log($"[CommissionQuest] Skipping party cleanup for WorldEvent-linked quest: {_data.WorldEventId}");
+                DebugLogger.Log($"[CommissionQuest] CleanupSpawnedParty SKIP: WorldEvent-linked, eventId={_data.WorldEventId} partyId={_escortPartyId} category={_data?.Category}");
                 return;
             }
 
+            DebugLogger.Log($"[CommissionQuest] CleanupSpawnedParty REMOVE: partyId={_escortPartyId} category={_data?.Category}");
             try
             {
                 MobileParty party = null;
@@ -1749,10 +1776,12 @@ namespace LivingWorldNpcs
         /// <summary>主动失败委托（非超时），清理并触发失败后果。</summary>
         private void FailQuest()
         {
+            DebugLogger.Log($"[CommissionQuest] FailQuest called: category={_data?.Category} giver={QuestGiver?.Name} worldEventId={_data?.WorldEventId} progress={_currentProgress}/{_totalProgress} timeRemain={_data?.TimeRemainingHours}h");
             CleanupSpawnedParty();
             _finalGrade = CommissionGrade.Failed;
             AddLog(new TextObject($"委托被迫终止。与 {QuestGiver?.Name.ToString() ?? "委托人"} 的关系下降了。"));
             CompleteQuestWithFail(); // 触发 OnFailed() 统一处理惩罚
+            DebugLogger.Log($"[CommissionQuest] FailQuest finished: category={_data?.Category}");
         }
 
         #endregion

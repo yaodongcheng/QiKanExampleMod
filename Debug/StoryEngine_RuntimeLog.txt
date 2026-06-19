@@ -1,111 +1,114 @@
-﻿[12:01:51.557] [WorldEventSimulator] WARNING: instigator 厄吕斯 not available for party creation: hero is staying at settlement '萨哥特'. Attempting extraction...
-[12:01:51.558] [WorldEventSimulator] Extracted 厄吕斯 from settlement for event party
-[12:01:51.564] [WorldEventSimulator] Drafted 13 troops from 萨哥特 garrison (remaining: 287)
-[12:01:51.564] [WorldEventSimulator] Mobilized 13 troops from 厄吕斯's garrisons for SacredTheft → 瓦尔诺瓦波尔 (stealth: small elite squad → need 13)
-[12:01:51.564] [WorldEventSimulator] Mobilized party for 厄吕斯 (14 troops, from garrisons) → 瓦尔诺瓦波尔
-[12:01:51.565] [WorldEventSimulator] FindReachableSpawnPosition: all 24 candidates failed for 瓦尔诺瓦波尔 — using GetAccessiblePointNearPosition fallback
-[12:01:51.566] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECDB77E591632_8111 settlement=town_S4
-[12:01:51.569] [Player] NinjaReport(mid): ‼ 厄吕斯 已盗走瓦尔诺瓦波尔圣物，暗探确认属实
-[12:01:51.571] [WorldEvent] Synced to NPC memory: 厄吕斯 ← SacredTheft (severity=8, role=Instigator)
-[12:01:51.571] [WorldEvent] Synced to NPC memory: 湖鼠帮的维奥申 ← SacredTheft (severity=8, role=Victim)
-[12:01:51.571] [WorldEvent] Motivated conflict: 厄吕斯 → SacredTheft → 湖鼠帮的维奥申 (relation=-100) at 瓦尔诺瓦波尔
-[12:01:51.572] [WorldEventSimulator] WARNING: instigator 埃尔塔 not available for party creation: hero is staying at settlement '奥莫尔'. Attempting extraction...
-[12:01:51.572] [WorldEventSimulator] Extracted 埃尔塔 from settlement for event party
-[12:01:51.573] [WorldEventSimulator] Drafted 106 troops from 蒂亚尔 garrison (remaining: 82)
-[12:01:51.573] [WorldEventSimulator] Drafted 40 troops from 乌里克斯卡拉堡 garrison (remaining: 66)
-[12:01:51.573] [WorldEventSimulator] WARNING: 埃尔塔 only mobilized 146/336 troops (siege: target defense=112, ratio=3.0x → need 336). Party may be too weak for NobleConflict.
-[12:01:51.573] [WorldEventSimulator] Mobilized party for 埃尔塔 (147 troops, from garrisons) → 奥夫堡
-[12:01:51.573] [WorldEventSimulator] FindReachableSpawnPosition: all 24 candidates failed for 奥夫堡 — using GetAccessiblePointNearPosition fallback
-[12:01:51.573] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDB77E5A2EFC_33 settlement=castle_S5
-[12:01:51.576] [WorldEventSimulator] Spawned auxiliary party 'SupplyConvoy' id=lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDB77E5A2EFC_33_89 at (453,543) troops=8
-[12:01:51.576] [WorldEvent] Auxiliary party 'SupplyConvoy' spawned: lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDB77E5A2EFC_33_89
-[12:01:51.576] [Player] NinjaReport(mid): ‼ 埃尔塔 已出兵征讨朗纳尔，边境交战
-[12:01:51.577] [WorldEvent] Synced to NPC memory: 埃尔塔 ← NobleConflict (severity=10, role=Instigator)
-[12:01:51.577] [WorldEvent] Synced to NPC memory: 朗纳尔 ← NobleConflict (severity=10, role=Victim)
-[12:01:51.577] [WorldEvent] Motivated conflict: 埃尔塔 → NobleConflict → 朗纳尔 (relation=-100) at 奥夫堡
-[12:01:54.002] [Player] Inquiry shown: "奥夫堡 — 贵族冲突"
+﻿[13:30:53.591] [WorldEventSimulator] Drafted 143 troops from 沃斯特鲁姆 garrison (remaining: 181)
+[13:30:53.591] [WorldEventSimulator] WARNING: 卢斯提卡 only mobilized 143/636 troops (siege: target defense=212, ratio=3.0x → need 636). Party may be too weak for NobleConflict.
+[13:30:53.592] [WorldEventSimulator] Mobilized party for 卢斯提卡 (144 troops, from garrisons) → 安普雷拉
+[13:30:53.593] [WorldEventSimulator] FindReachableSpawnPosition: all 24 candidates failed for 安普雷拉 — using GetAccessiblePointNearPosition fallback
+[13:30:53.595] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDC3EE71D0E8_6449 settlement=town_EN6
+[13:30:53.598] [WorldEventSimulator] Spawned auxiliary party 'SupplyConvoy' id=lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDC3EE71D0E8_6449_267 at (620,484) troops=8
+[13:30:53.598] [WorldEvent] Auxiliary party 'SupplyConvoy' spawned: lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDC3EE71D0E8_6449_267
+[13:30:53.600] [Player] NinjaReport(mid): ‼ 卢斯提卡 已出兵征讨阿马利娅娜，边境交战
+[13:30:53.602] [WorldEvent] Synced to NPC memory: 卢斯提卡 ← NobleConflict (severity=10, role=Instigator)
+[13:30:53.602] [WorldEvent] Synced to NPC memory: 阿马利娅娜 ← NobleConflict (severity=10, role=Victim)
+[13:30:53.602] [WorldEvent] Motivated conflict: 卢斯提卡 → NobleConflict → 阿马利娅娜 (relation=-100) at 安普雷拉
+[13:30:53.604] [WorldEventSimulator] Drafted 111 troops from 沃斯特鲁姆 garrison (remaining: 70)
+[13:30:53.604] [WorldEventSimulator] WARNING: 革耳狄安娜 only mobilized 111/636 troops (siege: target defense=212, ratio=3.0x → need 636). Party may be too weak for NobleConflict.
+[13:30:53.604] [WorldEventSimulator] Mobilized party for 革耳狄安娜 (112 troops, from garrisons) → 安普雷拉
+[13:30:53.604] [WorldEventSimulator] FindReachableSpawnPosition: all 24 candidates failed for 安普雷拉 — using GetAccessiblePointNearPosition fallback
+[13:30:53.605] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDC3EE736553_2775 settlement=town_EN6
+[13:30:53.605] [WorldEventSimulator] Spawned auxiliary party 'SupplyConvoy' id=lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDC3EE736553_2775_971 at (620,484) troops=5
+[13:30:53.605] [WorldEvent] Auxiliary party 'SupplyConvoy' spawned: lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDC3EE736553_2775_971
+[13:30:53.605] [Player] NinjaReport(mid): ‼ 革耳狄安娜 已出兵征讨法冬，边境交战
+[13:30:53.606] [WorldEvent] Synced to NPC memory: 革耳狄安娜 ← NobleConflict (severity=10, role=Instigator)
+[13:30:53.606] [WorldEvent] Synced to NPC memory: 法冬 ← NobleConflict (severity=10, role=Victim)
+[13:30:53.606] [WorldEvent] Motivated conflict: 革耳狄安娜 → NobleConflict → 法冬 (relation=-100) at 安普雷拉
+[13:30:58.080] [Player] Inquiry shown: "安普雷拉 — 贵族冲突"
 ════ 事件详情 ════
 
-埃尔塔在奥夫堡边境集结兵力，与朗纳尔的冲突一触即发。
+革耳狄安娜在安普雷拉边境集结兵力，与法冬的冲突一触即发。
 
 ——
-地点：奥夫堡
+地点：安普雷拉
 类型：贵族冲突
 严重度：10/10
-剩余时间：约 4 天
-加害方：埃尔塔
-受害者：朗纳尔
+剩余时间：约 8 天
+加害方：革耳狄安娜
+受害者：法冬
 
-[12:01:58.409] [Player] Inquiry: '过去看看' — 奥夫堡 NobleConflict
-[12:01:58.409] [WorldEvent] Camera animating to event party: 埃尔塔的征讨军 at (Vec2) X: 451.7241 Y: 544.503
-[12:02:21.499] [Player] NinjaReport(intercept): 前方奥夫堡边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
-[12:02:25.336] [Player] Inquiry shown: "奥夫堡 — 贵族冲突"
+[13:31:12.328] [Player] Inquiry: '过去看看' — 安普雷拉 NobleConflict
+[13:31:12.328] [WorldEvent] Camera animating to event party: 革耳狄安娜的征讨军 at (Vec2) X: 624.1979 Y: 483.4376
+[13:31:30.213] [WorldEvent AI] NobleConflict instigator=卢斯提卡 target=安普雷拉 | shortTerm=GoToSettlement default=GoToSettlement→安普雷拉 pos=(624,483) troops=144
+[13:31:30.214] [WorldEvent AI] NobleConflict instigator=革耳狄安娜 target=安普雷拉 | shortTerm=GoToSettlement default=GoToSettlement→安普雷拉 pos=(624,483) troops=112
+[13:31:31.220] [Player] NinjaReport(intercept): 前方安普雷拉边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[13:31:49.412] [Player] NinjaReport(intercept): 前方安普雷拉边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[13:32:02.574] [Player] NinjaReport(intercept): 前方安普雷拉边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[13:32:04.868] [Player] Inquiry shown: "安普雷拉 — 贵族冲突"
 ════ 事件详情 ════
 
-埃尔塔在奥夫堡边境集结兵力，与朗纳尔的冲突一触即发。
+卢斯提卡在安普雷拉边境集结兵力，与阿马利娅娜的冲突一触即发。
 
 ——
-地点：奥夫堡
+地点：安普雷拉
 类型：贵族冲突
 严重度：10/10
-剩余时间：约 4 天
-加害方：埃尔塔
-受害者：朗纳尔
+剩余时间：约 11 天
+加害方：卢斯提卡
+受害者：阿马利娅娜
 
-[12:02:29.801] [Player] Inquiry: '过去看看' — 奥夫堡 NobleConflict
-[12:02:29.801] [WorldEvent] Camera animating to event party: 埃尔塔的征讨军 at (Vec2) X: 450.3662 Y: 540.9251
-[12:02:48.905] [MapConv] Partner agent found: 埃尔塔, starting custom dialog flow
-[12:02:49.064] [MapConv] Guards: player=1(/7) npc=9(/147)
-[12:02:49.065] === [MapConv] All Agent Positions ===
-[1] 亨利 (main_hero) pos=(118.72,207.80,0.21) distToPlayer=0.0m distToPartner=2.0m team=Attacker
-[2] 埃尔塔 (lord_2_6) pos=(117.98,209.66,0.21) distToPlayer=2.0m distToPartner=0.0m team=Attacker
-[3] 帝国新兵 (imperial_recruit) pos=(119.08,206.87,0.21) distToPlayer=1.0m distToPartner=3.0m team=Attacker
-[4] 斯特吉亚重装斧兵 (sturgian_veteran_warrior) pos=(120.12,211.58,0.20) distToPlayer=4.0m distToPartner=2.9m team=Attacker
-[5] 斯特吉亚资深弓手 (sturgian_veteran_bowman) pos=(118.45,210.92,0.20) distToPlayer=3.1m distToPartner=1.3m team=Attacker
-[6] 斯特吉亚骑马掠袭者 (sturgian_horse_raider) pos=(116.78,210.26,0.20) distToPlayer=3.1m distToPartner=1.3m team=Attacker
-[7] 斯特吉亚射手 (sturgian_archer) pos=(115.10,209.59,0.19) distToPlayer=4.0m distToPartner=2.9m team=Attacker
-[8] 斯特吉亚老练匪兵 (sturgian_hardened_brigand) pos=(119.57,212.98,0.20) distToPlayer=5.2m distToPartner=3.7m team=Attacker
-[9] 斯特吉亚矛兵 (sturgian_spearman) pos=(117.90,212.31,0.19) distToPlayer=4.6m distToPartner=2.7m team=Attacker
-[10] 斯特吉亚猎人 (sturgian_hunter) pos=(116.22,211.65,0.19) distToPlayer=4.6m distToPartner=2.7m team=Attacker
-[11] 斯特吉亚匪兵 (sturgian_brigand) pos=(114.55,210.99,0.19) distToPlayer=5.2m distToPartner=3.7m team=Attacker
-[12] 斯特吉亚勇士 (sturgian_warrior) pos=(116.51,213.38,0.20) distToPlayer=6.0m distToPartner=4.0m team=Attacker
-=====================================
+[13:32:09.810] [Player] Inquiry: '过去看看' — 安普雷拉 NobleConflict
+[13:32:09.811] [WorldEvent] Camera animating to event party: 卢斯提卡的征讨军 at (Vec2) X: 624.1988 Y: 483.4383
+[13:32:22.310] [CommissionIssue] Player entered 安普雷拉, refreshing issue signals
+[13:32:22.337] [CommissionIssue] 安普雷拉: scanned 15 NPCs, created 11 issues
+[13:32:40.239] [Player] NinjaReport(intercept): 前方安普雷拉边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[13:32:42.501] [Player] Inquiry shown: "安普雷拉 — 贵族冲突"
+════ 事件详情 ════
 
-[12:02:49.066] [Cam] EncounterEnter pos=(118.60,207.95,2.01) fwd=(0.000,0.000,1.000) up=(0.464,-0.886,0.000) [DefaultCam]
-[12:02:49.066] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[12:02:49.069] [Player] Talk to: 埃尔塔 (hero=埃尔塔)
-[12:02:49.074] [EventAware] NPC=埃尔塔 event=NobleConflict role=Instigator source=Fallback text="这是贵族之间的事。朗纳尔在奥夫堡的所作所为已经越过底线了——没有人可以这样践踏我的荣誉而不付出代价。"
-[12:02:49.074] [Dialog] NPC says (opening): "这是贵族之间的事。朗纳尔在奥夫堡的所作所为已经越过底线了——没有人可以这样践踏我的荣誉而不付出代价。"
-[12:02:54.723] [CommissionIntent] RequestCommission Evaluate: hero=埃尔塔 count=1 urgentEvent=True → Show
-[12:02:54.726] [Dialog] Options shown (3): 【离开】 告辞 | 【其他事情】 有别的事找你... | 【关于当前的事】 我能帮上什么忙？
-[12:02:56.774] [Dialog] Player clicked option: "【关于当前的事】 我能帮上什么忙？"
-[12:02:56.776] [Dialog] Player clicked: "【关于当前的事】 我能帮上什么忙？" (goal=, category=Official)
-[12:02:56.786] [CommissionGen] Event-direct: def=supply_intercept tier=Basic giver=埃尔塔 role=Instigator target=castle_S5 payer=埃尔塔
-[12:02:56.786] [CommissionGen] Event-direct: def=decoy_mission tier=Basic giver=埃尔塔 role=Instigator target=castle_S5 payer=埃尔塔
-[12:02:56.787] [CommissionGen] Event-direct generation: hero=埃尔塔 event=NobleConflict role=Instigator candidates=2 result=2
-[12:02:56.787] [CommissionIntent] RequestCommission OnInstant: hero=埃尔塔 generated=2
-[12:02:56.788] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=SupplyIntercept giver=埃尔塔
-[12:02:56.792] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=47
-[12:02:56.792] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=78
-[12:02:56.792] [Dialog] NPC says: "我要对朗纳尔动手了。有一批补给正运往奥夫堡——你去截下来。物资归你，或者交给我换700第纳尔。
-（报酬 700 第纳尔 · 期限 9 天 · 定金 210）"
-[12:02:56.793] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[12:02:56.793] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[12:04:03.924] [Dialog] Player clicked option: "还有别的活吗？"
-[12:04:03.924] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=DecoyMission giver=埃尔塔
-[12:04:03.925] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=50
-[12:04:03.925] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=81
-[12:04:03.925] [Dialog] NPC says: "进攻之前，我需要朗纳尔的斥候被引开。你带小队在奥夫堡另一边制造动静，吸引他们的注意——700第纳尔。
-（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
-[12:04:03.925] [Dialog] Options (2): 这活我接了 | 我再想想
-[12:04:03.925] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[12:04:10.481] [Dialog] Player clicked option: "这活我接了"
-[12:04:10.482] [CommissionIntent] AcceptCommission: category=DecoyMission giver=埃尔塔 broker= narrativePhase=False
-[12:04:10.483] [CommissionIntent] Direct accept: reward=686 deposit=205 trust=0
-[12:04:10.484] [CommissionQuest] OnStartQuest: 引开追兵：掩护委托人撤离 narrativePhase=False questId=commission_decoy_mission_lord_2_6_639174674504834176
-[12:04:10.485] [CommissionQuest] Full startup: giver=埃尔塔 reward=686 deposit=205 days=3 tier=Basic
-[12:04:10.498] [MapConv] end: enc=True leave=True
-[12:04:16.023] [CommissionQuest] Skipping party cleanup for WorldEvent-linked quest: evt_motiv_nobleconflict_8DECDB77E5A2EFC_33
-[12:04:16.023] [CommissionQuest] Skipping party cleanup for WorldEvent-linked quest: evt_motiv_nobleconflict_8DECDB77E5A2EFC_33
-[12:04:16.024] [CommissionQuest] OnFailed: 引开追兵：掩护委托人撤离 giver=埃尔塔
-[12:04:16.024] [CommissionQuest] Skipping party cleanup for WorldEvent-linked quest: evt_motiv_nobleconflict_8DECDB77E5A2EFC_33
+卢斯提卡在安普雷拉边境集结兵力，与阿马利娅娜的冲突一触即发。
+
+——
+地点：安普雷拉
+类型：贵族冲突
+严重度：10/10
+剩余时间：约 11 天
+加害方：卢斯提卡
+受害者：阿马利娅娜
+
+[13:32:44.076] [Player] Inquiry: '知道了' — 安普雷拉 NobleConflict
+[13:32:46.710] [WorldEvent AI] Party gone: eventId=evt_motiv_nobleconflict_8DECDC3EE71D0E8_6449 partyId=lwn_nobleconflict_town_EN6_6039
+[13:32:50.349] [Player] NinjaReport(intercept): 前方安普雷拉边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[13:32:51.108] [WorldEvent] Cleaned up 1 auxiliary parties for evt_motiv_nobleconflict_8DECDC3EE71D0E8_6449
+[13:32:51.111] [WorldEvent] Unlocked redirected party lwn_nobleconflict_town_EN6_6039 (event resolved)
+[13:32:51.111] [WorldEvent] Resolved: NobleConflict id=evt_motiv_nobleconflict_8DECDC3EE71D0E8_6449
+[13:32:51.111] [Player] NinjaReport(resolved): ✅ 事件解决 · 安普雷拉
+[13:32:51.113] [WorldEvent] Cleared from NPC memory: 卢斯提卡 ← NobleConflict (replaced with none)
+[13:32:51.113] [WorldEvent] Cleared from NPC memory: 阿马利娅娜 ← NobleConflict (replaced with none)
+[13:32:51.113] [WorldEvent] Auto-resolved 1 events (party defeated or instigator died)
+[13:32:51.115] [WorldEventSimulator] Redirecting party of 卡费德 → 俄耳堤西亚 (dist=115, boosted)
+[13:32:51.115] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDC4347E1B76_7397 settlement=town_EW4
+[13:32:51.115] [WorldEventSimulator] Spawned auxiliary party 'SupplyConvoy' id=lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDC4347E1B76_7397_582 at (275,383) troops=4
+[13:32:51.115] [WorldEvent] Auxiliary party 'SupplyConvoy' spawned: lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDC4347E1B76_7397_582
+[13:32:51.116] [Player] DisplayMessage(far): 🗞 有商队从西方带来消息——那边领主们在调兵遣将——摩擦随时升级。
+[13:32:51.116] [WorldEvent] Synced to NPC memory: 卡费德 ← NobleConflict (severity=10, role=Instigator)
+[13:32:51.116] [WorldEvent] Synced to NPC memory: 阿庇斯 ← NobleConflict (severity=10, role=Victim)
+[13:32:51.116] [WorldEvent] Motivated conflict: 卡费德 → NobleConflict → 阿庇斯 (relation=-100) at 俄耳堤西亚
+[13:32:51.117] [WorldEventSimulator] Drafted 13 troops from 胡比亚 garrison (remaining: 169)
+[13:32:51.118] [WorldEventSimulator] Mobilized 13 troops from 玛南's garrisons for SacredTheft → 叙拉托斯堡 (stealth: small elite squad → need 13)
+[13:32:51.118] [WorldEventSimulator] Mobilized party for 玛南 (14 troops, from garrisons) → 叙拉托斯堡
+[13:32:51.118] [WorldEventSimulator] FindReachableSpawnPosition: all 24 candidates failed for 叙拉托斯堡 — using GetAccessiblePointNearPosition fallback
+[13:32:51.118] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECDC4347E9595_7857 settlement=castle_EN8
+[13:32:51.118] [Player] NinjaReport: ‼ 玛南 已盗走叙拉托斯堡圣物，暗探确认属实
+[13:32:51.119] [WorldEvent] Synced to NPC memory: 玛南 ← SacredTheft (severity=8, role=Instigator)
+[13:32:51.119] [WorldEvent] Synced to NPC memory: 斐勒诺斯 ← SacredTheft (severity=8, role=Victim)
+[13:32:51.119] [WorldEvent] Motivated conflict: 玛南 → SacredTheft → 斐勒诺斯 (relation=-100) at 叙拉托斯堡
+[13:32:56.517] [Player] Inquiry shown: "叙拉托斯堡 — 圣物失窃"
+════ 事件详情 ════
+
+玛南盗走了叙拉托斯堡的祖传圣物——没了它，新族长甚至无法召开族会。
+
+——
+地点：叙拉托斯堡
+类型：圣物失窃
+严重度：8/10
+剩余时间：约 7 天
+加害方：玛南
+受害者：斐勒诺斯
+
+[13:32:58.541] [Player] Inquiry: '知道了' — 叙拉托斯堡 SacredTheft
