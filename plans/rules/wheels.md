@@ -238,7 +238,80 @@ Register(new MyIntent());
 
 ---
 
-## Bannerlord 基类接入约定（加系统时照搬）
+# Campaign Action 类 — 官方游戏状态变更 API
+
+**所有对游戏世界产生影响的"动作"都应以 `*Action` 静态类为入口。** 这些是 TaleWorlds 官方的封装层，内部处理了事件广播、日志、校验、连锁反应。禁止绕过它们直接操作底层数据结构。
+
+查找规则：需要做什么 → `ilspycmd TaleWorlds.CampaignSystem.dll | grep "class.*Action"` → 找到对应的类 → `ilspycmd -t` 看签名。
+
+全部 60 个 Action 类位于 `TaleWorlds.CampaignSystem`（通过 `.csproj` 引用 `TaleWorlds.CampaignSystem.dll` 即可使用）：
+
+| 类别 | Action 类 | 用途 |
+|------|----------|------|
+| **Party AI** | `SetPartyAiAction` | 🆕 命令 party 执行特定行为（巡逻/劫掠/围城/追击/护送/拜访） |
+| **Hero 生死/状态** | `KillCharacterAction`, `MakeHeroFugitiveAction`, `DisableHeroAction`, `EndCaptivityAction` | 杀角色、设为逃犯、禁用、结束囚禁 |
+| **Hero 移动/归属** | `TeleportHeroAction`, `AddHeroToPartyAction`, `RemoveCompanionAction`, `AddCompanionAction`, `AdoptHeroAction`, `TakePrisonerAction`, `TransferPrisonerAction` | 传送英雄、加入部队、移除同伴、收养、俘虏 |
+| **关系/婚姻** | `ChangeRelationAction`, `ChangeRomanticStateAction`, `MarriageAction`, `MakePregnantAction`, `ApplyHeirSelectionAction` | 改关系、改恋爱状态、结婚、怀孕 |
+| **声望/犯罪** | `GainRenownAction`, `ChangeCrimeRatingAction`, `PayForCrimeAction` | 加声望、改犯罪等级、付赎金 |
+| **经济** | `GiveGoldAction`, `GiveItemAction`, `SellGoodsForTradeAction`, `SellItemsAction`, `SellPrisonersAction`, `BribeGuardsAction` | 给钱、给物品、交易、贿赂 |
+| **定居点** | `EnterSettlementAction`, `LeaveSettlementAction`, `ChangeOwnerOfSettlementAction`, `ClaimSettlementAction`, `ChangeVillageStateAction`, `ChangeGovernorAction`, `IncreaseSettlementHealthAction`, `LeaveTroopsToSettlementAction` | 进出定居点、改所有权、改村庄状态、改总督 |
+| **工坊** | `ChangeOwnerOfWorkshopAction`, `ChangeProductionTypeOfWorkshopAction`, `InitializeWorkshopAction` | 工坊所有权/类型 |
+| **战争/外交** | `DeclareWarAction`, `MakePeaceAction`, `BeHostileAction`, `StartBattleAction`, `LiftSiegeAction`, `SiegeAftermathAction`, `BreakInOutBesiegedSettlementAction` | 宣战/和平/敌对/开战/围城 |
+| **军团** | `GatherArmyAction`, `DisbandArmyAction` | 集结/解散军团 |
+| **家族/王国** | `ChangeClanLeaderAction`, `ChangeClanInfluenceAction`, `ChangeKingdomAction`, `GainKingdomInfluenceAction`, `DestroyClanAction`, `DestroyKingdomAction` | 改族长/影响力/王国、摧毁家族/王国 |
+| **Party** | `DestroyPartyAction`, `DisbandPartyAction`, `MergePartiesAction` | 摧毁/解散/合并部队 |
+
+**⚠️ 铁律 4 的补充**：`GiveGoldAction.ApplyBetweenCharacters` 是官方 API，但**仍要通过 `AgentControlHelper.TransferGold` 调用**（确保守恒/日志/世界观参数化）。同样 `GiveItemAction` → `AgentControlHelper.TransferItems`。Action 类是我们写 helper 时的参考，不是绕过的借口。
+
+## SetPartyAiAction — Party AI 控制
+
+**不用再裸调 `SetMoveGoToSettlement` + 猜测 `SetDoNotMakeNewDecisions` 了。** 用原生 Action，全部搭配 `SetDoNotMakeNewDecisions(true)` 锁死。
+
+```csharp
+// 行军（泛用，不区分敌友）
+party.Ai.SetMoveGoToSettlement(targetSettlement);
+party.Ai.SetDoNotMakeNewDecisions(true);
+
+// 巡逻（已到达后围城阶段）
+SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, settlement);
+party.Ai.SetDoNotMakeNewDecisions(true);
+
+// 🔥 攻击：按定居点类型选择
+if (settlement.IsVillage)
+    SetPartyAiAction.GetActionForRaidingSettlement(party, settlement);     // 劫掠村庄
+else if (settlement.IsFortification)
+    SetPartyAiAction.GetActionForBesiegingSettlement(party, settlement);   // 围攻城堡/城镇
+party.Ai.SetDoNotMakeNewDecisions(true);
+
+// 追击指定部队
+SetPartyAiAction.GetActionForEngagingParty(party, targetParty);
+party.Ai.SetDoNotMakeNewDecisions(true);
+
+// 其他可用：GetActionForDefendingSettlement / GetActionForEscortingParty / GetActionForGoingAroundParty / GetActionForVisitingSettlement
+```
+
+**发现方式**：`campaign.ai_raid_village` / `campaign.ai_siege_settlement` 等控制台指令 → `ilspycmd | grep` → 找到 `SetPartyAiAction`。
+
+**文件位置**：`TaleWorlds.CampaignSystem.dll` → `SetPartyAiAction`（全局命名空间，using TaleWorlds.CampaignSystem 即可）。
+
+## Agent 脚本化移动 — `SetScriptedPosition`（含 agent.goto）
+
+**`agent.goto` 控制台指令**的底层实现。我们已封装在 `AgentControlHelper.MoveTo` 里，不要再裸调。
+
+```csharp
+// ✅ 走封装（自动寻路 + 等待）
+await AgentControlHelper.MoveTo(agent, targetVec, targetDir, stopDistance = 0.5f);
+
+// ❌ 禁止裸调
+agent.SetScriptedPosition(ref pos, ...);  // 绕过寻路，不处理 AI 状态
+agent.SetScriptedPositionAndDirection(...);
+```
+
+**控制台对照**：`agent.goto [AgentIndex] [X] [Y] [Z]` → 内部调 `MBAPI.IMBAgent.SetScriptedPosition`。C# 层只能看到函数签名，实现是 native C++。
+
+**文件位置**：`Core/AgentControlHelper.cs`（已封装），底层 `TaleWorlds.MountAndBlade.dll` → `Agent.SetScriptedPosition`。
+
+---
 
 | 需求 | 继承的基类 | 范本文件 |
 |------|-----------|---------|

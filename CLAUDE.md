@@ -31,6 +31,16 @@
 
 **骑砍2 大量 API 是 native C++ 实现，C# 层只是薄封装。** 分析 API 行为前，先用 `ilspycmd` 反编译相关 DLL 看实现和调用上下文，禁止仅凭名字推断。
 
+### 🚀 捷径：控制台指令 → 反编译找官方实现
+
+**想实现某个功能时，优先查 [plans/native_commands.md](plans/native_commands.md)**。里面整理了游戏的全部控制台指令（`campaign.ai_attack_party` / `campaign.ai_siege_settlement` / 等）。流程：
+
+1. 在 `native_commands.md` 找到最相关的指令
+2. `ilspycmd <DLL> | grep -A 30 "指令名"` 看官方实现
+3. 提取真正调用的 API（如 `SetPartyAiAction.GetActionForBesiegingSettlement`）
+
+**这比猜 API 名称或裸调 `SetMoveGoToSettlement` 精准十倍。** 刚才我们就靠这个发现了 `SetPartyAiAction` 全家桶——控制台指令的代码路径就是官方的"正确用法示范"。
+
 ### 工具
 
 ```bash
