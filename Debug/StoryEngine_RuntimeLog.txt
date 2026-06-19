@@ -1,131 +1,68 @@
-﻿[10:31:06.408] [WorldEventSimulator] Created new party for 帕那勒娅 (30 troops) → 奥通加德
-[10:31:06.410] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDAAD0C826F6_2946 settlement=town_K4
-[10:31:06.413] [Player] NinjaReport(mid): ‼ 帕那勒娅 兵力调动频繁，喀答或是目标
-[10:31:06.414] [WorldEvent] Synced to NPC memory: 帕那勒娅 ← NobleConflict (severity=10, role=Instigator)
-[10:31:06.415] [WorldEvent] Synced to NPC memory: 喀答 ← NobleConflict (severity=10, role=Victim)
-[10:31:06.415] [WorldEvent] Motivated conflict: 帕那勒娅 → NobleConflict → 喀答 (relation=-100) at 奥通加德
-[10:31:06.415] [WorldEventSimulator] Redirecting party of 埃卡朗 → 奥斯蒂港 (dist=69, boosted)
-[10:31:06.416] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDAAD0C90190_8079 settlement=town_V8
-[10:31:06.416] [Player] DisplayMessage(far): 🗞 有商队从西方带来消息——那边领主们在调兵遣将——摩擦随时升级。
-[10:31:06.416] [WorldEvent] Synced to NPC memory: 埃卡朗 ← NobleConflict (severity=10, role=Instigator)
-[10:31:06.416] [WorldEvent] Synced to NPC memory: 达利热尔 ← NobleConflict (severity=10, role=Victim)
-[10:31:06.416] [WorldEvent] Motivated conflict: 埃卡朗 → NobleConflict → 达利热尔 (relation=-100) at 奥斯蒂港
-[10:31:11.079] [Player] Inquiry shown: "奥通加德 — 贵族冲突"
+﻿[11:40:05.261] [WorldEventSimulator] Drafted 123 troops from 瓦尔诺瓦波尔 garrison (remaining: 129)
+[11:40:05.261] [WorldEventSimulator] Drafted 84 troops from 弗拉基夫堡 garrison (remaining: 35)
+[11:40:05.262] [WorldEventSimulator] WARNING: 拉斯瓦克 only mobilized 207/549 troops (siege: target defense=183, ratio=3.0x → need 549). Party may be too weak for NobleConflict.
+[11:40:05.262] [WorldEventSimulator] Mobilized party for 拉斯瓦克 (208 troops, from garrisons) → 奥通加德
+[11:40:05.264] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDB473BB0C94_1362 settlement=town_K4
+[11:40:05.267] [WorldEventSimulator] Spawned auxiliary party 'SupplyConvoy' id=lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDB473BB0C94_1362_548 at (748,470) troops=6
+[11:40:05.267] [WorldEvent] Auxiliary party 'SupplyConvoy' spawned: lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDB473BB0C94_1362_548
+[11:40:05.268] [Player] DisplayMessage(far): 🗞 有商队从东方带来消息——那边领主们在调兵遣将——摩擦随时升级。
+[11:40:05.269] [WorldEvent] Synced to NPC memory: 拉斯瓦克 ← NobleConflict (severity=10, role=Instigator)
+[11:40:05.269] [WorldEvent] Synced to NPC memory: 帖蒙 ← NobleConflict (severity=10, role=Victim)
+[11:40:05.269] [WorldEvent] Motivated conflict: 拉斯瓦克 → NobleConflict → 帖蒙 (relation=-100) at 奥通加德
+[11:40:05.270] [WorldEventSimulator] WARNING: instigator 兹拉特卡 not available for party creation: hero is staying at settlement '奥莫尔'. Attempting extraction...
+[11:40:05.270] [WorldEventSimulator] Extracted 兹拉特卡 from settlement for event party
+[11:40:05.270] [WorldEventSimulator] Drafted 107 troops from 西比尔 garrison (remaining: 89)
+[11:40:05.271] [WorldEventSimulator] WARNING: 兹拉特卡 only mobilized 107/840 troops (siege: target defense=280, ratio=3.0x → need 840). Party may be too weak for NobleConflict.
+[11:40:05.271] [WorldEventSimulator] Mobilized party for 兹拉特卡 (108 troops, from garrisons) → 杰屈朗
+[11:40:05.271] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDB473BC4C96_5988 settlement=town_V6
+[11:40:05.272] [WorldEventSimulator] Spawned auxiliary party 'SupplyConvoy' id=lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDB473BC4C96_5988_704 at (164,415) troops=8
+[11:40:05.272] [WorldEvent] Auxiliary party 'SupplyConvoy' spawned: lwn_aux_SupplyConvoy_evt_motiv_nobleconflict_8DECDB473BC4C96_5988_704
+[11:40:05.272] [Player] DisplayMessage(far): 🗞 有商队从西方带来消息——那边领主们在调兵遣将——摩擦随时升级。
+[11:40:05.273] [WorldEvent] Synced to NPC memory: 兹拉特卡 ← NobleConflict (severity=10, role=Instigator)
+[11:40:05.273] [WorldEvent] Synced to NPC memory: 因格特鲁德 ← NobleConflict (severity=10, role=Victim)
+[11:40:05.273] [WorldEvent] Motivated conflict: 兹拉特卡 → NobleConflict → 因格特鲁德 (relation=-100) at 杰屈朗
+[11:40:30.758] [WorldEventSimulator] Drafted 13 troops from 胡比亚 garrison (remaining: 170)
+[11:40:30.758] [WorldEventSimulator] Mobilized 13 troops from 玛南's garrisons for SacredTheft → 俄耳堤西亚 (stealth: small elite squad → need 13)
+[11:40:30.758] [WorldEventSimulator] Mobilized party for 玛南 (14 troops, from garrisons) → 俄耳堤西亚
+[11:40:30.759] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECDB482ED7302_9641 settlement=town_EW4
+[11:40:30.761] [Player] NinjaReport(mid): ‼ 玛南 近日频繁遣人打探俄耳堤西亚，似与圣物有关
+[11:40:30.762] [WorldEvent] Synced to NPC memory: 玛南 ← SacredTheft (severity=8, role=Instigator)
+[11:40:30.762] [WorldEvent] Synced to NPC memory: 安农 ← SacredTheft (severity=8, role=Victim)
+[11:40:30.762] [WorldEvent] Motivated conflict: 玛南 → SacredTheft → 安农 (relation=-100) at 俄耳堤西亚
+[11:40:35.254] [Player] Inquiry shown: "俄耳堤西亚 — 圣物失窃"
 ════ 事件详情 ════
 
-帕那勒娅在奥通加德边境集结兵力，与喀答的冲突一触即发。
+玛南盗走了俄耳堤西亚的祖传圣物——没了它，新族长甚至无法召开族会。
 
 ——
-地点：奥通加德
-类型：贵族冲突
-严重度：10/10
-剩余时间：约 8 天
-加害方：帕那勒娅
-受害者：喀答
+地点：俄耳堤西亚
+类型：圣物失窃
+严重度：8/10
+剩余时间：约 12 天
+加害方：玛南
+受害者：安农
 
-[10:31:14.478] [Player] Inquiry: '过去看看' — 奥通加德 NobleConflict
-[10:31:14.478] [WorldEvent] Camera animating to event party: 帕那勒娅的征讨军 at (Vec2) X: 724.1042 Y: 429.9836
-[10:31:30.696] [Player] NinjaReport(intercept): 前方奥通加德边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
-[10:31:37.029] [Player] NinjaReport(intercept): 前方奥通加德边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
-[10:31:45.775] [MapConv] Partner agent found: 帕那勒娅, starting custom dialog flow
-[10:31:45.862] [MapConv] Guards: player=1(/7) npc=2(/30)
-[10:31:45.863] === [MapConv] All Agent Positions ===
-[1] 亨利 (main_hero) pos=(38.97,48.44,0.10) distToPlayer=0.0m distToPartner=2.0m team=Attacker
-[2] 帕那勒娅 (lord_1_70) pos=(40.86,49.08,0.10) distToPlayer=2.0m distToPartner=0.0m team=Attacker
-[3] 帝国新兵 (imperial_recruit) pos=(38.02,48.13,0.11) distToPlayer=1.0m distToPartner=3.0m team=Attacker
-[4] 帝国禁卫新兵 (imperial_vigla_recruit) pos=(42.10,48.54,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
-[5] 帝国新兵 (imperial_recruit) pos=(41.53,50.25,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
-=====================================
+[11:40:39.860] [Player] Inquiry: '过去看看' — 俄耳堤西亚 SacredTheft
+[11:40:39.861] [WorldEvent] Camera animating to event party: 玛南的盗贼团 at (Vec2) X: 274.2891 Y: 361.7896
+[11:41:16.901] [Player] NinjaReport(intercept): 一个老人拦住了你——俄耳堤西亚最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。
+[11:41:21.285] [Player] NinjaReport(intercept): 一个老人拦住了你——俄耳堤西亚最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。
+[11:41:23.287] [Player] NinjaReport(intercept): 一个老人拦住了你——俄耳堤西亚最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。
+[11:41:27.889] [Player] NinjaReport(intercept): 一个老人拦住了你——俄耳堤西亚最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。
+[11:41:32.405] [Player] Inquiry shown: "俄耳堤西亚 — 圣物失窃"
+════ 事件详情 ════
 
-[10:31:45.863] [Cam] EncounterEnter pos=(39.14,48.51,1.91) fwd=(-0.006,-0.003,1.000) up=(-0.909,-0.416,-0.006) [DefaultCam]
-[10:31:45.864] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[10:31:45.867] [Player] Talk to: 帕那勒娅 (hero=帕那勒娅)
-[10:31:45.870] [EventAware] NPC=帕那勒娅 event=NobleConflict role=Instigator source=Fallback text="你是喀答的说客？回去告诉他——奥通加德的事，战场上见分晓。刀剑比嘴皮子管用。"
-[10:31:45.871] [Dialog] NPC says (opening): "你是喀答的说客？回去告诉他——奥通加德的事，战场上见分晓。刀剑比嘴皮子管用。"
-[10:31:49.470] [CommissionIntent] RequestCommission Evaluate: hero=帕那勒娅 count=1 urgentEvent=True → Show
-[10:31:49.473] [Dialog] Options shown (3): 【离开】 告辞 | 【其他事情】 有别的事找你... | 【关于当前的事】 我能帮上什么忙？
-[10:31:51.395] [Dialog] Player clicked option: "【关于当前的事】 我能帮上什么忙？"
-[10:31:51.395] [Dialog] Player clicked: "【关于当前的事】 我能帮上什么忙？" (goal=, category=Official)
-[10:31:51.405] [CommissionGen] Event-direct: def=supply_intercept tier=Basic giver=帕那勒娅 role=Instigator target=town_K4 payer=帕那勒娅
-[10:31:51.405] [CommissionGen] Event-direct: def=decoy_mission tier=Basic giver=帕那勒娅 role=Instigator target=town_K4 payer=帕那勒娅
-[10:31:51.405] [CommissionGen] Event-direct generation: hero=帕那勒娅 event=NobleConflict role=Instigator candidates=2 result=2
-[10:31:51.405] [CommissionIntent] RequestCommission OnInstant: hero=帕那勒娅 generated=2
-[10:31:51.407] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=SupplyIntercept giver=帕那勒娅
-[10:31:51.410] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=8
-[10:31:51.410] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=39
-[10:31:51.410] [Dialog] NPC says: "……（微微颔首）
-（报酬 700 第纳尔 · 期限 9 天 · 定金 210）"
-[10:31:51.411] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[10:31:51.411] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[10:31:55.097] [Dialog] Player clicked option: "还有别的活吗？"
-[10:31:55.097] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=DecoyMission giver=帕那勒娅
-[10:31:55.097] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=8
-[10:31:55.098] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=39
-[10:31:55.098] [Dialog] NPC says: "……（微微颔首）
-（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
-[10:31:55.098] [Dialog] Options (2): 这活我接了 | 我再想想
-[10:31:55.098] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[10:31:56.644] [Dialog] Player clicked option: "我再想想"
-[10:31:56.649] [MapConv] end: enc=True leave=True
-[10:32:05.383] [MapConv] Partner agent found: 斤帖格, starting custom dialog flow
-[10:32:05.459] [MapConv] Guards: player=1(/7) npc=6(/65)
-[10:32:05.460] === [MapConv] All Agent Positions ===
-[1] 亨利 (main_hero) pos=(38.97,48.44,0.10) distToPlayer=0.0m distToPartner=2.0m team=Attacker
-[2] 斤帖格 (lord_6_23) pos=(40.86,49.08,0.10) distToPlayer=2.0m distToPartner=0.0m team=Attacker
-[3] 帝国新兵 (imperial_recruit) pos=(38.02,48.13,0.11) distToPlayer=1.0m distToPartner=3.0m team=Attacker
-[4] 库赛特达尔罕 (khuzait_darkhan) pos=(42.67,46.84,0.09) distToPlayer=4.0m distToPartner=2.9m team=Attacker
-[5] 库赛特重装枪骑兵 (khuzait_heavy_lancer) pos=(42.10,48.54,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
-[6] 库赛特持矛步兵 (khuzait_spear_infantry) pos=(41.53,50.25,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
-[7] 库赛特枪骑兵 (khuzait_lancer) pos=(40.95,51.96,0.09) distToPlayer=4.0m distToPartner=2.9m team=Attacker
-[8] 库赛特射手 (khuzait_archer) pos=(43.52,49.02,0.09) distToPlayer=4.6m distToPartner=2.7m team=Attacker
-[9] 库赛特骑射手 (khuzait_horse_archer) pos=(42.95,50.73,0.09) distToPlayer=4.6m distToPartner=2.7m team=Attacker
-=====================================
+玛南盗走了俄耳堤西亚的祖传圣物——没了它，新族长甚至无法召开族会。
 
-[10:32:05.460] [Cam] EncounterEnter pos=(39.13,48.55,1.91) fwd=(-0.007,-0.003,1.000) up=(-0.909,-0.416,-0.008) [DefaultCam]
-[10:32:05.460] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[10:32:05.460] [Player] Talk to: 斤帖格 (hero=斤帖格)
-[10:32:05.461] [Dialog] NPC says (opening): "……（微微颔首）"
-[10:32:06.699] [CommissionIntent] RequestCommission Evaluate: hero=斤帖格 count=1 urgentEvent=False → Show
-[10:32:06.717] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（3%） | 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
-[10:32:09.831] [Dialog] Player clicked option: "【找工作】 打听委托（1个可接）"
-[10:32:09.831] [Dialog] Player clicked: "【找工作】 打听委托（1个可接）" (goal=, category=Official)
-[10:32:09.835] [CommissionGen] Generated commission: def=bounty_hunt tier=Basic giver=斤帖格 broker=none reward=500 target=豁鲁真 payer=斤帖格
-[10:32:09.835] [CommissionGen] Matched WorldEvent! category=SupplyIntercept event=NobleConflict eventId=evt_motiv_nobleconflict_8DECDAAD0C826F6_2946 target=town_K4
-[10:32:09.835] [CommissionGen] Generated commission: def=supply_intercept tier=Basic giver=斤帖格 broker=none reward=700 target=town_K4 payer=斤帖格
-[10:32:09.836] [CommissionGen] Generated commission: def=decoy_mission tier=Basic giver=斤帖格 broker=none reward=700 target=hideout_steppe_9 payer=斤帖格
-[10:32:09.837] [CommissionGen] Generated commission: def=legendary_hunt tier=Basic giver=斤帖格 broker=none reward=5000 target=豁鲁真 payer=斤帖格
-[10:32:09.837] [CommissionIntent] RequestCommission OnInstant: hero=斤帖格 generated=4
-[10:32:09.837] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=BountyHunt giver=斤帖格
-[10:32:09.838] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=43
-[10:32:09.838] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
-[10:32:09.838] [Dialog] NPC says: "有个叫豁鲁真的家伙在附近作恶多端。赏金500第纳尔——你把他揪出来，活着带回来我加钱。
-（报酬 500 第纳尔 · 期限 16 天 · 定金 150）"
-[10:32:09.839] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[10:32:09.839] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[10:32:12.126] [Dialog] Player clicked option: "还有别的活吗？"
-[10:32:12.126] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=SupplyIntercept giver=斤帖格
-[10:32:12.127] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=8
-[10:32:12.127] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=39
-[10:32:12.127] [Dialog] NPC says: "……（微微颔首）
-（报酬 700 第纳尔 · 期限 9 天 · 定金 210）"
-[10:32:12.127] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[10:32:12.127] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[10:32:15.161] [Dialog] Player clicked option: "还有别的活吗？"
-[10:32:15.161] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=2 category=DecoyMission giver=斤帖格
-[10:32:15.161] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=44
-[10:32:15.161] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
-[10:32:15.161] [Dialog] NPC says: "有人在追杀我，已经快到了。你带少量人引开他们——坚持得越久，报酬越高。700第纳尔起步。
-（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
-[10:32:15.163] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[10:32:15.163] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[10:32:17.811] [Dialog] Player clicked option: "还有别的活吗？"
-[10:32:17.812] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=3 category=LegendaryHunt giver=斤帖格
-[10:32:17.812] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=46
-[10:32:17.812] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=80
-[10:32:17.812] [Dialog] NPC says: "豁鲁真——横行多年的匪王，身上带着独一无二的装备。击败他，装备归你，另有5000第纳尔重赏。
-（报酬 5000 第纳尔 · 期限 21 天 · 定金 1500）"
-[10:32:17.812] [Dialog] Options (2): 这活我接了 | 我再想想
-[10:32:17.813] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[10:32:20.582] [Dialog] Player clicked option: "我再想想"
-[10:32:20.582] [MapConv] end: enc=True leave=True
-[10:32:29.906] [Player] NinjaReport(intercept): 前方奥通加德边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+——
+地点：俄耳堤西亚
+类型：圣物失窃
+严重度：8/10
+剩余时间：约 11 天
+加害方：玛南
+受害者：安农
+
+[11:41:35.591] [Player] Inquiry: '过去看看' — 俄耳堤西亚 SacredTheft
+[11:41:35.592] [WorldEvent] Camera animating to event party: 玛南的盗贼团 at (Vec2) X: 268.8669 Y: 357.0322
+[11:41:40.829] [Player] NinjaReport(intercept): 一个老人拦住了你——俄耳堤西亚最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。
+[11:41:59.252] [Player] NinjaReport(intercept): 一个老人拦住了你——俄耳堤西亚最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。
+[11:42:01.823] [Player] NinjaReport(intercept): 一个老人拦住了你——俄耳堤西亚最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。

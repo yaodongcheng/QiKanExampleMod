@@ -110,6 +110,10 @@ namespace LivingWorldNpcs
         /// <summary>生成的 party 是否为征用的真人现有部队（而非我们新建的）。征用部队在事件结束时不能删除。</summary>
         public bool IsRedirectedExistingParty;
 
+        /// <summary>辅助部队 party ID 字典：key = RoleTag，value = MobileParty.StringId。
+        /// 事件创建时 spawn，CommissionQuest 通过 RoleTag 查找复用。</summary>
+        public Dictionary<string, string> AuxiliaryPartyIds = new Dictionary<string, string>();
+
         // ── 辅助方法 ──
 
         /// <summary>到期日（创建日 + 时限）。</summary>
@@ -157,6 +161,20 @@ namespace LivingWorldNpcs
         [JsonIgnore]
         public Settlement TargetSettlement => string.IsNullOrEmpty(TargetSettlementId)
             ? null : Settlement.Find(TargetSettlementId);
+
+        /// <summary>按 RoleTag 获取辅助部队。返回 null 表示部队已消失或被清理。</summary>
+        public MobileParty GetAuxiliaryParty(string roleTag)
+        {
+            if (AuxiliaryPartyIds == null || string.IsNullOrEmpty(roleTag)) return null;
+            if (!AuxiliaryPartyIds.TryGetValue(roleTag, out string partyId) || string.IsNullOrEmpty(partyId))
+                return null;
+            foreach (var mp in Campaign.Current?.MobileParties ?? Enumerable.Empty<MobileParty>())
+            {
+                if (mp.StringId == partyId)
+                    return mp;
+            }
+            return null;
+        }
 
         /// <summary>获取生成的 MobileParty。</summary>
         [JsonIgnore]
@@ -206,6 +224,21 @@ namespace LivingWorldNpcs
 
             _activeEvents.Add(evt);
             DebugLogger.Log($"[WorldEvent] New event: {evt.EventType} id={evt.EventId} settlement={evt.TargetSettlementId}");
+
+            // ── 事件创建时同步 spawn 辅助部队（先于玩家接委托存在于世界）──
+            var config = WorldEventConfig.Get(evt.EventType);
+            if (config?.AuxiliaryParties != null)
+            {
+                foreach (var auxConfig in config.AuxiliaryParties)
+                {
+                    var auxParty = WorldEventSimulator.SpawnAuxiliaryParty(auxConfig, evt);
+                    if (auxParty != null)
+                    {
+                        evt.AuxiliaryPartyIds[auxConfig.RoleTag] = auxParty.StringId;
+                        DebugLogger.Log($"[WorldEvent] Auxiliary party '{auxConfig.RoleTag}' spawned: {auxParty.StringId}");
+                    }
+                }
+            }
 
             // 通知系统
             WorldEventNotificationController.OnEventCreated(evt);
@@ -278,6 +311,11 @@ namespace LivingWorldNpcs
                     // party 已消失
                     if (!string.IsNullOrEmpty(e.GeneratedPartyId) && e.GeneratedParty == null)
                         return true;
+                    // 所有辅助部队都被消灭（且主 party 不是征用的真人部队）
+                    if (e.AuxiliaryPartyIds != null && e.AuxiliaryPartyIds.Count > 0
+                        && string.IsNullOrEmpty(e.GeneratedPartyId)
+                        && e.AuxiliaryPartyIds.All(kvp => e.GetAuxiliaryParty(kvp.Key) == null))
+                        return true;
                     // instigator hero 已死亡（但事件还在活跃）
                     if (!string.IsNullOrEmpty(e.InstigatorHeroId) && !e.IsGenericInstigator)
                     {
@@ -305,6 +343,26 @@ namespace LivingWorldNpcs
         {
             try
             {
+                // 清理辅助部队
+                if (evt.AuxiliaryPartyIds != null && evt.AuxiliaryPartyIds.Count > 0)
+                {
+                    int auxCount = evt.AuxiliaryPartyIds.Count;
+                    foreach (var kvp in evt.AuxiliaryPartyIds.ToList())
+                    {
+                        if (!string.IsNullOrEmpty(kvp.Value))
+                        {
+                            var auxParty = evt.GetAuxiliaryParty(kvp.Key);
+                            if (auxParty != null)
+                            {
+                                Campaign.Current?.VisualTrackerManager?.RemoveTrackedObject(auxParty, forceRemove: true);
+                                auxParty.RemoveParty();
+                            }
+                        }
+                        evt.AuxiliaryPartyIds.Remove(kvp.Key);
+                    }
+                    DebugLogger.Log($"[WorldEvent] Cleaned up {auxCount} auxiliary parties for {evt.EventId}");
+                }
+
                 if (evt.IsRedirectedExistingParty)
                 {
                     // 征用的真人部队不能删——恢复 AI 自主决策即可

@@ -171,14 +171,9 @@ namespace LivingWorldNpcs
                 evt.EscalationCount++;
                 evt.Severity = Math.Min(10, evt.Severity + 1);
 
-                // 扩展现有 party 兵力
-                var party = evt.GeneratedParty;
-                if (party != null && party.MemberRoster.TotalManCount > 0)
-                {
-                    var looter = GetLooterTroop();
-                    if (looter != null)
-                        party.MemberRoster.AddToCounts(looter, 3 + evt.Severity);
-                }
+                // 事件升级仅提高严重度（影响后果严重性 + 通知频率），
+                // 不再凭空添加兵力——party 的部队来自领主驻军抽调，真实性优先。
+                // 若 party 已在途中被 AI 打残，那是世界自然演化的结果。
 
                 WorldEventDatabase.EscalateEvent(evt.EventId);
                 DebugLogger.Log($"[WorldEventSimulator] Escalated {evt.EventType} id={evt.EventId} to severity {evt.Severity}");
@@ -1153,7 +1148,7 @@ namespace LivingWorldNpcs
                             return null;
                         }
                         party.ActualClan = instigatorHero.Clan;
-                        FillPartyTroops(party, instigatorHero, severity);
+                        MobilizePartyTroops(party, instigatorHero, targetSettlement, targetHero, config, severity);
 
                         // 验证 hero 确实进入了 party
                         if (party.LeaderHero != instigatorHero || party.MemberRoster.GetTroopCount(instigatorHero.CharacterObject) == 0)
@@ -1169,7 +1164,7 @@ namespace LivingWorldNpcs
                             return party;
                         }
 
-                        DebugLogger.Log($"[WorldEventSimulator] Created new party for {instigatorHero.Name} ({party.MemberRoster.TotalManCount} troops) → {targetSettlement.Name}");
+                        DebugLogger.Log($"[WorldEventSimulator] Mobilized party for {instigatorHero.Name} ({party.MemberRoster.TotalManCount} troops, from garrisons) → {targetSettlement.Name}");
 
                         // 定位：在目标周围找可通行位置，投影到导航网格避免卡山/卡水
                         float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
@@ -1189,6 +1184,7 @@ namespace LivingWorldNpcs
                 switch (config.PartyBehavior)
                 {
                     case EventPartyBehavior.RaidSettlement:
+                    case EventPartyBehavior.GoToSettlement:
                         party.Ai.SetMoveGoToSettlement(targetSettlement);
                         break;
                     case EventPartyBehavior.EngageTarget:
@@ -1214,6 +1210,152 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[WorldEventSimulator] SpawnEventParty error: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 为世界事件 spawn 一个辅助部队。CommissionQuest 接取时通过 RoleTag 查找复用。
+        /// 返回创建的 party（失败返回 null）。由 WorldEventDatabase.AddEvent 集中调用。
+        /// </summary>
+        public static MobileParty SpawnAuxiliaryParty(AuxiliaryPartyConfig auxConfig, WorldEventData evt)
+        {
+            if (auxConfig == null || evt == null) return null;
+            if (DEBUG_DISABLE_PARTY_SPAWN) return null;
+
+            try
+            {
+                Settlement targetSettlement = evt.TargetSettlement;
+                Hero instigator = evt.InstigatorHero;
+                Hero victim = evt.TargetHero;
+                if (targetSettlement == null) return null;
+
+                string safeRole = auxConfig.RoleTag ?? "aux";
+                string partyId = $"lwn_aux_{safeRole}_{evt.EventId}_{MBRandom.RandomInt(1000)}";
+
+                // 确定 faction 和 culture
+                Clan factionClan;
+                CultureObject culture;
+
+                switch (auxConfig.Faction)
+                {
+                    case AuxiliaryFaction.Instigator:
+                        factionClan = instigator?.Clan ?? Clan.PlayerClan;
+                        break;
+                    case AuxiliaryFaction.Victim:
+                        factionClan = victim?.Clan ?? targetSettlement.OwnerClan ?? Clan.PlayerClan;
+                        break;
+                    case AuxiliaryFaction.Bandit:
+                        factionClan = Clan.BanditFactions.FirstOrDefault(c => c.StringId == "looters")
+                            ?? Clan.BanditFactions.FirstOrDefault()
+                            ?? Clan.PlayerClan;
+                        break;
+                    default:
+                        factionClan = Clan.PlayerClan;
+                        break;
+                }
+
+                switch (auxConfig.CultureSource)
+                {
+                    case AuxiliaryCultureSource.Instigator:
+                        culture = instigator?.Culture ?? Hero.MainHero.Culture;
+                        break;
+                    case AuxiliaryCultureSource.Victim:
+                        culture = victim?.Culture ?? targetSettlement.Culture ?? Hero.MainHero.Culture;
+                        break;
+                    case AuxiliaryCultureSource.Bandit:
+                        culture = factionClan?.Culture ?? Hero.MainHero.Culture;
+                        break;
+                    default:
+                        culture = Hero.MainHero.Culture;
+                        break;
+                }
+
+                // 确定生成位置
+                Vec2 spawnPos;
+                switch (auxConfig.SpawnPosition)
+                {
+                    case AuxiliarySpawnPosition.BetweenParties:
+                        Vec2 instPos = instigator?.PartyBelongedTo?.Position2D
+                            ?? evt.GeneratedParty?.Position2D
+                            ?? targetSettlement.Position2D;
+                        Vec2 victimPos = victim?.PartyBelongedTo?.Position2D
+                            ?? targetSettlement.Position2D;
+                        Vec2 mid = (instPos + victimPos) * 0.5f;
+                        Vec2 jitter = new Vec2(MBRandom.RandomFloat * 10f - 5f, MBRandom.RandomFloat * 10f - 5f);
+                        spawnPos = SnapToNavMesh(mid + jitter, mid);
+                        break;
+                    case AuxiliarySpawnPosition.NearInstigator:
+                        Vec2 instBase = instigator?.PartyBelongedTo?.Position2D
+                            ?? evt.GeneratedParty?.Position2D
+                            ?? targetSettlement.Position2D;
+                        spawnPos = SnapToNavMesh(instBase + new Vec2(3 + MBRandom.RandomFloat * 5f, 3 + MBRandom.RandomFloat * 5f), instBase);
+                        break;
+                    case AuxiliarySpawnPosition.NearTarget:
+                        spawnPos = SnapToNavMesh(targetSettlement.Position2D + new Vec2(3 + MBRandom.RandomFloat * 8f, 3 + MBRandom.RandomFloat * 8f), targetSettlement.Position2D);
+                        break;
+                    default:
+                        float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
+                        float dist = 15f + MBRandom.RandomFloat * 25f;
+                        spawnPos = targetSettlement.Position2D + new Vec2((float)Math.Cos(angle) * dist, (float)Math.Sin(angle) * dist);
+                        spawnPos = SnapToNavMesh(spawnPos, targetSettlement.Position2D);
+                        break;
+                }
+
+                // 创建 party
+                string displayName = auxConfig.NameTemplate.Replace("{TARGET}", targetSettlement.Name?.ToString() ?? "目的地");
+                var component = new CustomPartyComponent(targetSettlement, displayName);
+                MobileParty party = MobileParty.CreateParty(partyId, component,
+                    delegate (MobileParty p) { p.SetCustomName(new TextObject(displayName)); });
+
+                if (party == null) return null;
+
+                party.ActualClan = factionClan;
+                party.Position2D = spawnPos;
+
+                // 填充兵力
+                int troopCount = auxConfig.MinTroops + MBRandom.RandomInt(Math.Max(1, auxConfig.MaxTroops - auxConfig.MinTroops + 1));
+                var template = culture?.DefaultPartyTemplate ?? factionClan?.DefaultPartyTemplate;
+                if (template != null)
+                    party.InitializeMobilePartyAtPosition(template, spawnPos);
+                party.MemberRoster.Clear();
+                var basicTroop = culture?.BasicTroop ?? factionClan?.Culture?.BasicTroop;
+                if (basicTroop != null)
+                    party.MemberRoster.AddToCounts(basicTroop, troopCount);
+
+                // AI 行为
+                switch (auxConfig.Behavior)
+                {
+                    case EventPartyBehavior.GoToSettlement:
+                    case EventPartyBehavior.RaidSettlement:
+                        party.Ai.SetMoveGoToSettlement(targetSettlement);
+                        break;
+                    case EventPartyBehavior.PatrolNearTarget:
+                        party.Ai.SetMovePatrolAroundPoint(spawnPos);
+                        break;
+                    case EventPartyBehavior.EngageTarget:
+                        if (victim?.PartyBelongedTo != null)
+                            party.Ai.SetMoveEngageParty(victim.PartyBelongedTo);
+                        else
+                            party.Ai.SetMovePatrolAroundPoint(spawnPos);
+                        break;
+                    case EventPartyBehavior.ChasePlayer:
+                        party.Ai.SetMoveEngageParty(MobileParty.MainParty);
+                        break;
+                    default:
+                        party.Ai.SetMovePatrolAroundPoint(spawnPos);
+                        break;
+                }
+                party.Ai.SetDoNotMakeNewDecisions(true); // 辅助部队行为固定，不自行满世界乱跑
+                party.SetPartyUsedByQuest(true);
+                party.Party.SetVisualAsDirty();
+
+                DebugLogger.Log($"[WorldEventSimulator] Spawned auxiliary party '{auxConfig.RoleTag}' id={partyId} at ({spawnPos.X:F0},{spawnPos.Y:F0}) troops={troopCount}");
+                return party;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[WorldEventSimulator] SpawnAuxiliaryParty '{auxConfig?.RoleTag}' error: {ex.Message}");
                 return null;
             }
         }
@@ -1349,36 +1491,193 @@ namespace LivingWorldNpcs
 
         #region Troop Filling
 
-        /// <summary>给有 leader 的 party 填充部队。</summary>
-        private void FillPartyTroops(MobileParty party, Hero leader, int severity)
+        /// <summary>
+        /// 从领主真实领地中抽调兵力，组建事件部队。
+        ///
+        /// 兵力规模按事件类型分级，绝不凭空造兵：
+        ///   - 攻城级（NobleConflict）：按目标城防 × 1.5~3.0x 抽调，必须够打
+        ///   - 劫掠级（BanditRaid/DebtTrap）：按目标防御 × 0.6~1.5x
+        ///   - 交战级（Betrayal/Kidnapping）：按目标 Hero 部队规模匹配
+        ///   - 隐蔽级（Assassination/SacredTheft/Fugitive）：小股精锐 5~25 人
+        ///   - 其他：最小规模
+        ///
+        /// 抽不够就抽多少用多少——不造兵，世界自然演化。
+        /// </summary>
+        private void MobilizePartyTroops(MobileParty party, Hero leader, Settlement targetSettlement,
+            Hero targetHero, WorldEventConfig config, int severity)
         {
             try
             {
-                // 🐛 修复：删除 InitializeMobilePartyAtPosition + Clear() 模式。
-                // InitializeMobilePartyAtPosition 是 native 方法，按模板在本地分配 roster 内存；
-                // 紧接着 Clear() 只清空管理侧列表，本地内存大小不变；
-                // 后续 AddToCounts 写入不同数量 → 本地 buffer 大小不匹配 → 引擎更新时栈溢出 (0xc00000ff)。
-                // 正确做法：party 已由 CreateParty 创建，直接 Clear + AddToCounts 即可。
                 party.MemberRoster.Clear();
                 party.PrisonRoster.Clear();
                 party.MemberRoster.AddToCounts(leader.CharacterObject, 1);
 
-                int troopCount = 3 + severity * 2;
-                var basicTroop = leader.Culture?.BasicTroop;
-                if (basicTroop != null)
-                    party.MemberRoster.AddToCounts(basicTroop, troopCount);
+                int neededTroops;
+                string scaleDesc;
 
-                if (severity >= 5)
+                switch (config.EventType)
                 {
-                    var eliteTroop = leader.Culture?.EliteBasicTroop ?? basicTroop;
-                    if (eliteTroop != null)
-                        party.MemberRoster.AddToCounts(eliteTroop, severity - 4);
+                    // ── 攻城级：必须能威胁城池 ──
+                    case WorldEventType.NobleConflict:
+                    {
+                        int targetDefense = GetSettlementDefenseStrength(targetSettlement);
+                        float ratio = 1.2f + severity * 0.18f; // 1.5x ~ 3.0x
+                        neededTroops = Math.Max((int)(targetDefense * ratio), 20);
+                        scaleDesc = $"siege: target defense={targetDefense}, ratio={ratio:F1}x → need {neededTroops}";
+                        break;
+                    }
+
+                    // ── 劫掠级：能打村子但不需要攻城 ──
+                    case WorldEventType.BanditRaid:
+                    case WorldEventType.DebtTrap:
+                    {
+                        int targetDefense = GetSettlementDefenseStrength(targetSettlement);
+                        float ratio = 0.5f + severity * 0.10f; // 0.6x ~ 1.5x
+                        neededTroops = Math.Max((int)(targetDefense * ratio), 10);
+                        scaleDesc = $"raid: target defense={targetDefense}, ratio={ratio:F1}x → need {neededTroops}";
+                        break;
+                    }
+
+                    // ── 交战级：匹配目标 Hero 的兵力 ──
+                    case WorldEventType.Betrayal:
+                    case WorldEventType.Kidnapping:
+                    {
+                        int targetPartySize = targetHero?.PartyBelongedTo?.MemberRoster?.TotalManCount ?? 0;
+                        if (targetPartySize > 0)
+                        {
+                            neededTroops = Math.Max(targetPartySize * 2 / 3, 15); // 至少对方 2/3 的兵力
+                        }
+                        else
+                        {
+                            neededTroops = 15 + severity * 2; // 对方没部队，少量即可
+                        }
+                        scaleDesc = $"engagement: target hero party size={targetPartySize} → need {neededTroops}";
+                        break;
+                    }
+
+                    // ── 隐蔽级：小股精锐，隐蔽行动 ──
+                    case WorldEventType.Assassination:
+                    case WorldEventType.SacredTheft:
+                    case WorldEventType.Fugitive:
+                    case WorldEventType.RomanticConflict:
+                    case WorldEventType.InheritanceDispute:
+                    {
+                        neededTroops = 5 + severity; // 5~15 人，轻装简行
+                        scaleDesc = $"stealth: small elite squad → need {neededTroops}";
+                        break;
+                    }
+
+                    // ── 默认：最小规模 ──
+                    default:
+                    {
+                        neededTroops = 8 + severity;
+                        scaleDesc = $"default: minimal → need {neededTroops}";
+                        break;
+                    }
+                }
+
+                int mobilized = DraftTroopsFromSettlements(party, leader, neededTroops);
+
+                if (mobilized < neededTroops / 2)
+                {
+                    DebugLogger.Log($"[WorldEventSimulator] WARNING: {leader.Name} only mobilized {mobilized}/{neededTroops} troops ({scaleDesc}). Party may be too weak for {config.EventType}.");
+                }
+                else
+                {
+                    DebugLogger.Log($"[WorldEventSimulator] Mobilized {mobilized} troops from {leader.Name}'s garrisons for {config.EventType} → {targetSettlement?.Name} ({scaleDesc})");
                 }
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[WorldEventSimulator] FillPartyTroops error: {ex.Message}");
+                DebugLogger.Log($"[WorldEventSimulator] MobilizePartyTroops error: {ex.Message}");
             }
+        }
+
+        /// <summary>计算定居点的防御兵力（驻军 + 城镇民兵）。</summary>
+        private static int GetSettlementDefenseStrength(Settlement settlement)
+        {
+            if (settlement == null) return 0;
+            int total = 0;
+            try
+            {
+                var garrison = settlement.Town?.GarrisonParty;
+                if (garrison != null)
+                    total += garrison.MemberRoster.TotalManCount;
+            }
+            catch { }
+            return Math.Max(total, 0);
+        }
+
+        /// <summary>
+        /// 从 leader 族内各定居点驻军中抽调兵力填充 party。
+        /// 优先从 leader 当前所在城抽，其次自家领地，最后族内其他城。
+        /// 每城最多抽走 80% 驻军，留下至少 20% 守城。
+        /// 返回实际抽调的总人数。
+        /// </summary>
+        private static int DraftTroopsFromSettlements(MobileParty party, Hero leader, int neededCount)
+        {
+            if (leader?.Clan == null || party == null) return 0;
+
+            int drafted = 0;
+            var clan = leader.Clan;
+
+            // 收集族内所有有驻军的城镇/城堡
+            var candidates = new List<Settlement>();
+            foreach (var s in clan.Settlements)
+            {
+                if (s == null || !s.IsTown && !s.IsCastle) continue;
+                if (s.Town?.GarrisonParty?.MemberRoster == null) continue;
+                if (s.Town.GarrisonParty.MemberRoster.TotalManCount <= 0) continue;
+                candidates.Add(s);
+            }
+
+            if (candidates.Count == 0)
+            {
+                DebugLogger.Log($"[WorldEventSimulator] DraftTroops: {leader.Name}'s clan '{clan.Name}' has no garrisoned settlements to draw from.");
+                return 0;
+            }
+
+            // 优先排序：leader 当前所在城 > 家乡 > 驻军最多的城
+            var ordered = candidates
+                .OrderBy(s => s == leader.CurrentSettlement ? 0 : 1)
+                .ThenBy(s => s == leader.HomeSettlement ? 0 : 1)
+                .ThenByDescending(s => s.Town?.GarrisonParty?.MemberRoster?.TotalManCount ?? 0)
+                .ToList();
+
+            foreach (var settlement in ordered)
+            {
+                if (drafted >= neededCount) break;
+
+                var garrisonParty = settlement.Town?.GarrisonParty;
+                if (garrisonParty == null) continue;
+
+                int totalGarrison = garrisonParty.MemberRoster.TotalManCount;
+                int maxDraft = Math.Max(0, totalGarrison * 8 / 10); // 最多抽 80%
+                if (maxDraft <= 0) continue;
+
+                int toTake = Math.Min(neededCount - drafted, maxDraft);
+                if (toTake <= 0) continue;
+
+                // 逐类转移部队（从驻军 → 事件 party）
+                int taken = 0;
+                for (int i = 0; i < garrisonParty.MemberRoster.Count && taken < toTake; i++)
+                {
+                    var elem = garrisonParty.MemberRoster.GetElementCopyAtIndex(i);
+                    if (elem.Character == null || elem.Number <= 0) continue;
+
+                    int take = Math.Min(toTake - taken, elem.Number);
+                    if (take <= 0) continue;
+
+                    garrisonParty.MemberRoster.AddToCounts(elem.Character, -take);
+                    party.MemberRoster.AddToCounts(elem.Character, take);
+                    taken += take;
+                    drafted += take;
+                }
+
+                DebugLogger.Log($"[WorldEventSimulator] Drafted {taken} troops from {settlement.Name} garrison (remaining: {garrisonParty.MemberRoster.TotalManCount})");
+            }
+
+            return drafted;
         }
 
         /// <summary>给通用 party（无 leader）填充部队。</summary>

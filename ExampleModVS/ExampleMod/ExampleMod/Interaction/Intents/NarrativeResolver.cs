@@ -563,7 +563,7 @@ namespace LivingWorldNpcs
             };
 
             var result = Resolve(filters);
-            if (string.IsNullOrEmpty(result.Text) || result.Text == "……")
+            if (IsFallbackText(result.Text))
                 return GetCommissionFallback(data, "Opening", CommissionGrade.Passable);
 
             return SubstituteCommissionPlaceholders(result.Text, data);
@@ -572,17 +572,112 @@ namespace LivingWorldNpcs
         /// <summary>基于 WorldEvent 背景生成委托开场叙事。优先从 CSV 读取，兜底硬编码。</summary>
         private static string BuildWorldEventCommissionOpening(WorldEventData evt, CommissionData data)
         {
-            // 优先从 Narrative.csv 查表
-            string csvText = TryGetWorldEventNarrative(evt, data, "Opening", null);
+            // 推导说话人的事件角色
+            string role = DeriveEventRole(evt, data.QuestGiver);
+
+            // 优先从 Narrative.csv 查表（按角色 + 类别逐级 fallback）
+            string csvText = TryGetWorldEventNarrative(evt, data, "Opening", null, role);
             if (!string.IsNullOrEmpty(csvText))
                 return csvText;
 
-            // 兜底硬编码
+            // 兜底硬编码（角色 + 类别感知）
+            return BuildHardcodedEventOpening(evt, data, role);
+        }
+
+        /// <summary>推导 NPC 在世界事件中的角色。</summary>
+        private static string DeriveEventRole(WorldEventData evt, Hero speaker)
+        {
+            if (speaker == null || evt == null) return "Victim";
+            string speakerId = speaker.StringId;
+            if (speakerId == evt.InstigatorHeroId) return "Instigator";
+            if (speakerId == evt.TargetHeroId) return "Victim";
+            // 代理人（村长替不在场的受害者发委托）
+            return "Victim";
+        }
+
+        /// <summary>硬编码兜底：按事件类型 × 角色 × 委托类别 生成开场叙事。</summary>
+        private static string BuildHardcodedEventOpening(WorldEventData evt, CommissionData data, string role)
+        {
             string loc = evt.TargetSettlement?.Name?.ToString() ?? "附近";
             string victim = evt.TargetHero?.Name?.ToString() ?? "村民";
             string instigator = evt.IsGenericInstigator ? "一伙人" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
             string reward = data.NegotiatedReward.ToString();
+            bool isVictim = role == "Victim";
 
+            // ── NobleConflict：贵族冲突（双方都可雇人，对立叙事）──
+            if (evt.EventType == WorldEventType.NobleConflict)
+            {
+                if (isVictim)
+                {
+                    return data.Category switch
+                    {
+                        CommissionCategory.VillageDefense =>
+                            $"{instigator}的大军正在逼近{loc}。帮我们守住村子，不能让乡亲们遭殃——{reward}第纳尔。",
+                        CommissionCategory.CaravanEscort =>
+                            $"{instigator}随时会打过来。帮我把家眷和细软撤出{loc}，护送到安全的地方——{reward}第纳尔。",
+                        CommissionCategory.SupplyEmergency =>
+                            $"{instigator}要围城了。趁道路还没被切断，帮{loc}囤一批物资——{reward}第纳尔，越快越好。",
+                        _ => $"{instigator}在{loc}边境集结了兵力。{victim}需要一个有本事的佣兵替他打前哨——{reward}第纳尔，生死自负。"
+                    };
+                }
+                else // Instigator
+                {
+                    return data.Category switch
+                    {
+                        CommissionCategory.SupplyIntercept =>
+                            $"我要对{victim}动手了。有一批补给正运往{loc}——你去截下来。物资归你，或者交给我换{reward}第纳尔。",
+                        CommissionCategory.DecoyMission =>
+                            $"进攻之前，我需要{victim}的斥候被引开。你带小队在{loc}另一边制造动静，吸引他们的注意——{reward}第纳尔。",
+                        _ => $"{victim}在{loc}的部署已经拖太久了。我手上有些活需要人去办——{reward}第纳尔，你看着选。"
+                    };
+                }
+            }
+
+            // ── TradeDispute：贸易争端（双方对立）──
+            if (evt.EventType == WorldEventType.TradeDispute)
+            {
+                if (isVictim)
+                {
+                    return data.Category switch
+                    {
+                        CommissionCategory.SupplyEmergency =>
+                            $"{instigator}垄断了{loc}的市场，粮价翻了三倍。{victim}的生意快撑不住了——{reward}第纳尔雇你帮忙打破困局。",
+                        CommissionCategory.ProcurementAgent =>
+                            $"{instigator}控制了{loc}的所有货源。我需要你跨城代购一批货，绕开他的垄断——{reward}第纳尔。",
+                        _ => $"{loc}的粮价突然翻了三倍——{instigator}在背后垄断了市场。{victim}的生意快撑不住了，{reward}第纳尔雇你帮忙打破这个困局。"
+                    };
+                }
+                else // Instigator（垄断商）
+                {
+                    return data.Category switch
+                    {
+                        CommissionCategory.SupplyIntercept =>
+                            $"有人想绕过我在{loc}的生意网，从外地运货进来。帮我把那批货截下来——{reward}第纳尔，别让它们进城。",
+                        CommissionCategory.DecoyMission =>
+                            $"{victim}的人在{loc}四处打听，想挖我的墙角。你去制造点混乱，转移他们的注意——{reward}第纳尔。",
+                        _ => $"{loc}的生意现在是我说了算。{victim}不服气想翻盘，帮我压住场子——{reward}第纳尔。"
+                    };
+                }
+            }
+
+            // ── Fugitive：逃犯（双方对立）──
+            if (evt.EventType == WorldEventType.Fugitive)
+            {
+                if (isVictim)
+                {
+                    return $"{victim}的事没那么简单——追他的人说他是叛徒，他自己说是被陷害的。先帮我找到他藏身的地方，护送他安全离开——{reward}第纳尔。";
+                }
+                else
+                {
+                    return $"{victim}是个叛徒，至少追他的人这么说。不管真相如何，把他揪出来——活的死的都行，{reward}第纳尔。";
+                }
+            }
+
+            // ── 以下事件只有受害方发委托（加害方是匪徒/刺客/天灾，不雇人）──
+            if (!isVictim)
+                return null; // 加害方没有委托叙事 → 返回 null，让调用方处理
+
+            // ── 受害方通用叙事（按事件类型）──
             return evt.EventType switch
             {
                 WorldEventType.BanditRaid =>
@@ -601,12 +696,6 @@ namespace LivingWorldNpcs
                     $"城主要杀鸡儆猴，{victim}成了替罪羊。我知道真凶是谁——但需要证据。{reward}第纳尔，帮我把证据找回来，救人一命。",
                 WorldEventType.InheritanceDispute =>
                     $"老族长走了，遗嘱却不见了。{victim}说父亲生前把信物交给了某个人——找到它，就能证明继承权。{reward}第纳尔。",
-                WorldEventType.Fugitive =>
-                    $"{victim}的事没那么简单——追他的人说他是叛徒，他自己说是被陷害的。先帮我找到他藏身的地方，{reward}第纳尔。",
-                WorldEventType.TradeDispute =>
-                    $"{loc}的粮价突然翻了三倍——{instigator}在背后垄断了市场。{victim}的生意快撑不住了，{reward}第纳尔雇你帮忙打破这个困局。",
-                WorldEventType.NobleConflict =>
-                    $"{instigator}在{loc}边境集结了兵力。{victim}需要一个有本事的佣兵替他打前哨——{reward}第纳尔，生死自负。",
                 WorldEventType.SacredTheft =>
                     $"这是我们{loc}一族的祖传圣物——{instigator}从祠堂里把它盗走了。没有它新族长没法召开族会。{reward}第纳尔，把它追回来。",
                 WorldEventType.Assassination =>
@@ -615,20 +704,38 @@ namespace LivingWorldNpcs
             };
         }
 
-        /// <summary>从 Narrative.csv 读取 WorldEvent 叙事文本（ID 格式：WorldEvent_{EventType}_Opening 或 _Closure_{Grade}）。</summary>
-        private static string TryGetWorldEventNarrative(WorldEventData evt, CommissionData data, string phase, string grade)
+        /// <summary>从 Narrative.csv 读取 WorldEvent 叙事文本。
+        /// ID 格式逐级 fallback：
+        ///   1. WorldEvent_{EventType}_{Role}_{Category}_{Phase}  （最精确）
+        ///   2. WorldEvent_{EventType}_{Role}_{Phase}
+        ///   3. WorldEvent_{EventType}_{Phase}                     （旧格式兼容）
+        /// Closure 时追加 _Grade。</summary>
+        private static string TryGetWorldEventNarrative(WorldEventData evt, CommissionData data, string phase, string grade, string role = null)
         {
             try
             {
-                string eventId = $"WorldEvent_{evt.EventType}_{phase}";
-                if (!string.IsNullOrEmpty(grade))
-                    eventId += $"_{grade}";
+                string gradeSuffix = !string.IsNullOrEmpty(grade) ? $"_{grade}" : "";
+                string categorySuffix = data?.Category != null ? $"_{data.Category}" : "";
 
-                var filters = new NarrativeFilters { EventName = eventId };
-                var result = Resolve(filters);
-                if (result != null && !string.IsNullOrEmpty(result.Text) && result.Text != "……")
+                // 定义 fallback 键列表，从最精确到最泛
+                var keys = new List<string>();
+
+                if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(categorySuffix))
+                    keys.Add($"WorldEvent_{evt.EventType}_{role}{categorySuffix}_{phase}{gradeSuffix}");
+
+                if (!string.IsNullOrEmpty(role))
+                    keys.Add($"WorldEvent_{evt.EventType}_{role}_{phase}{gradeSuffix}");
+
+                keys.Add($"WorldEvent_{evt.EventType}_{phase}{gradeSuffix}");
+
+                foreach (var eventId in keys)
                 {
-                    return SubstituteCommissionPlaceholders(result.Text, data);
+                    var filters = new NarrativeFilters { EventName = eventId };
+                    var result = Resolve(filters);
+                    if (result != null && !IsFallbackText(result.Text))
+                    {
+                        return SubstituteCommissionPlaceholders(result.Text, data);
+                    }
                 }
             }
             catch { }
@@ -666,7 +773,7 @@ namespace LivingWorldNpcs
             };
 
             var result = Resolve(filters);
-            if (string.IsNullOrEmpty(result.Text) || result.Text == "……")
+            if (IsFallbackText(result.Text))
                 text = GetCommissionFallback(data, "Closure", grade);
             else
                 text = SubstituteCommissionPlaceholders(result.Text, data);
@@ -686,8 +793,10 @@ namespace LivingWorldNpcs
         /// <summary>基于 WorldEvent 背景生成委托结账结局。优先从 CSV 读取。</summary>
         private static string BuildWorldEventCommissionClosure(WorldEventData evt, CommissionData data, CommissionGrade grade)
         {
-            // 优先从 Narrative.csv 查表
-            string csvText = TryGetWorldEventNarrative(evt, data, "Closure", grade.ToString());
+            string role = DeriveEventRole(evt, data.QuestGiver);
+
+            // 优先从 Narrative.csv 查表（角色感知）
+            string csvText = TryGetWorldEventNarrative(evt, data, "Closure", grade.ToString(), role);
             if (!string.IsNullOrEmpty(csvText))
                 return csvText;
 
@@ -803,6 +912,12 @@ namespace LivingWorldNpcs
         #endregion
 
         #region 兜底
+
+        /// <summary>判断 Resolve 返回的文本是否是兜底/无效文本（"……" 及其变体，如"……（微微颔首）"）。</summary>
+        public static bool IsFallbackText(string text)
+        {
+            return string.IsNullOrEmpty(text) || text.StartsWith("……");
+        }
 
         /// <summary>查询无结果时的代码级硬编码兜底（目标 &lt; 5 条）。</summary>
         private static NarrativeResult GetCodeFallback(NarrativeFilters filters)

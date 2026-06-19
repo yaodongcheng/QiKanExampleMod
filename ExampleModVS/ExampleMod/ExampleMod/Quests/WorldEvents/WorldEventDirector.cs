@@ -296,7 +296,7 @@ namespace LivingWorldNpcs
                 string eventId = $"{prefix}{evt.EventType}";
                 var filters = new NarrativeFilters { EventName = eventId };
                 var result = NarrativeResolver.Resolve(filters);
-                if (result != null && !string.IsNullOrEmpty(result.Text) && result.Text != "……")
+                if (result != null && !NarrativeResolver.IsFallbackText(result.Text))
                 {
                     string loc = evt.TargetSettlement?.Name?.ToString() ?? "某地";
                     string target = evt.TargetHero?.Name?.ToString() ?? "某人";
@@ -538,7 +538,7 @@ namespace LivingWorldNpcs
                 string eventId = $"NPC_Opening_{relTier}_{honorTier}";
                 var filters = new NarrativeFilters { EventName = eventId };
                 var result = NarrativeResolver.Resolve(filters);
-                if (result != null && !string.IsNullOrEmpty(result.Text) && result.Text != "……")
+                if (result != null && !NarrativeResolver.IsFallbackText(result.Text))
                 {
                     string name = npc.Name?.ToString() ?? "陌生人";
                     return result.Text.Replace("{NPC_NAME}", name)
