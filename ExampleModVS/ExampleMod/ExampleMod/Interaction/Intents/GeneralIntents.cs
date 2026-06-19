@@ -103,7 +103,8 @@ namespace LivingWorldNpcs.Story
         }
     }
 
-    // ── 展开折叠选项：危机时显示，点击后展开"有别的事找你" ──
+    // ── 展开折叠选项：事件 NPC 初始只显示核心选项，点击后展开全部。
+    //     BugFix: ExpandedOptions 原来在 IntentContext 上每次重建丢失，现已移到 Controller。 ──
     public class ExpandOptionsIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Chat; } }
@@ -113,14 +114,13 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            // 仅当 NPC 有紧迫事件且尚未展开时显示
-            if (!ctx.HasUrgentWorldEvent || ctx.ExpandedOptions) return Eligibility.Hide();
+            if (!ctx.HasUrgentWorldEvent || ctx.Controller.OptionsExpanded) return Eligibility.Hide();
             return Eligibility.Show();
         }
 
         public override void OnInstant(IntentContext ctx)
         {
-            ctx.ExpandedOptions = true;
+            ctx.Controller.OptionsExpanded = true;
             ctx.Controller.RefreshInitialOptions();
         }
     }

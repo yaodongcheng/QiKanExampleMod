@@ -82,7 +82,7 @@ namespace LivingWorldNpcs.Story
                 ctx.PlayerHasNoKingdom = Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null;
                 ctx.IsChild = ctx.Hero.Age < 16f;
                 ctx.HasUrgentWorldEvent = ctx.Memory?.CurrentUrgentEvent != null;
-                ctx.ExpandedOptions = false;
+                ctx.ExpandedOptions = ctx.Controller?.OptionsExpanded ?? false;
             }
             else
             {
