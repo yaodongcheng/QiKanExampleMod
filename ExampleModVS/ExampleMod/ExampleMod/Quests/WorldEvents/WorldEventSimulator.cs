@@ -53,7 +53,7 @@ namespace LivingWorldNpcs
         private const float AI_MONITOR_INTERVAL_SEC = 5f; // 每 5 秒扫一次事件 party AI
         private static readonly Dictionary<string, string> _lastPartyAiDesc = new Dictionary<string, string>(); // partyId → last known AI description
         private static readonly Dictionary<string, float> _arrivedParties = new Dictionary<string, float>(); // partyId → arrival day (patrol phase)
-        private const float PATROL_DAYS_BEFORE_ATTACK = 1f; // 到达后巡逻几天再开打
+        private const float PATROL_DAYS_BEFORE_ATTACK = 0f; // 🐛 调试：设为 0 强制到达后立即攻城
 
         public override void RegisterEvents()
         {
@@ -146,6 +146,9 @@ namespace LivingWorldNpcs
                 var activeIds = new HashSet<string>(activeEvents.Select(e => e.GeneratedParty?.StringId).Where(s => s != null));
                 var stale = _lastPartyAiDesc.Keys.Where(k => !activeIds.Contains(k)).ToList();
                 foreach (var k in stale) _lastPartyAiDesc.Remove(k);
+
+                // ── 高频到达检测：不等 daily tick，每 AI_MONITOR_INTERVAL_SEC 秒扫一次 ──
+                CheckArrivalsHighFreq(activeEvents);
             }
             catch (Exception ex)
             {
@@ -318,6 +321,38 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 高频到达检测（每 AI_MONITOR_INTERVAL_SEC 秒，不等 daily tick）。
+        /// 仅记录到达状态 + 切换巡逻 AI，不发玩家通知（通知在 daily tick 的 CheckEventPartyArrivals 里统一发）。
+        /// </summary>
+        private static void CheckArrivalsHighFreq(IReadOnlyList<WorldEventData> activeEvents)
+        {
+            try
+            {
+                float currentDay = (float)CampaignTime.Now.ToDays;
+                foreach (var evt in activeEvents)
+                {
+                    var party = evt.GeneratedParty;
+                    if (party == null || !party.IsActive) continue;
+                    if (evt.TargetSettlement == null) continue;
+                    if (party.Position2D.Distance(evt.TargetSettlement.Position2D) >= 3f) continue;
+
+                    string partyId = party.StringId;
+                    if (_arrivedParties.ContainsKey(partyId)) continue; // 已在巡逻
+
+                    _arrivedParties[partyId] = currentDay;
+                    SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
+                    party.Ai.SetDoNotMakeNewDecisions(true);
+
+                    DebugLogger.Log($"[WorldEventSimulator] High-freq arrival: {evt.EventType} partyId={partyId} at {evt.TargetSettlement.Name} — patrol phase, attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[WorldEventSimulator] CheckArrivalsHighFreq error: {ex.Message}");
+            }
+        }
+
         /// <summary>巡逻阶段结束 → 调用原生 SetPartyAiAction 发动真正的劫掠/攻城。</summary>
         private void CheckPatrolCompleteAndLaunchAttack()
         {
@@ -338,6 +373,16 @@ namespace LivingWorldNpcs
                 var party = evt?.GeneratedParty;
                 var target = evt?.TargetSettlement;
                 if (party == null || !party.IsActive || target == null) continue;
+
+                // ── 🐛 调试：兵力阈值临时放宽至 5%，强制允许攻城测试 ──
+                int myTroops = party.MemberRoster?.TotalManCount ?? 0;
+                int targetDefense = GetSettlementDefenseStrength(target);
+                if (targetDefense > 0 && myTroops < targetDefense * 0.05f)
+                {
+                    _arrivedParties[partyId] = currentDay; // 重置巡逻计时器
+                    DebugLogger.Log($"[WorldEventSimulator] Attack delayed — {evt.EventType} partyId={partyId} has {myTroops} troops vs {targetDefense} defense (<30%), extending patrol");
+                    continue;
+                }
 
                 string loc = target.Name?.ToString() ?? "目标";
                 string actionName;
@@ -1309,7 +1354,7 @@ namespace LivingWorldNpcs
                             return null;
                         }
                         party.ActualClan = instigatorHero.Clan;
-                        MobilizePartyTroops(party, instigatorHero, targetSettlement, targetHero, config, severity);
+                        MobilizePartyTroops(party, instigatorHero, targetSettlement, targetHero, config, severity, dayLimit);
 
                         // 验证 hero 确实进入了 party
                         if (party.LeaderHero != instigatorHero || party.MemberRoster.GetTroopCount(instigatorHero.CharacterObject) == 0)
@@ -1583,9 +1628,40 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 全部失败 → 用引擎原生兜底
-            DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: all {MAX_ATTEMPTS} candidates failed for {targetSettlement.Name} — using GetAccessiblePointNearPosition fallback");
-            return wrapper.GetAccessiblePointNearPosition(settlementPos, 30f);
+            // 全部候选失败 → 宽松 fallback：投影到定居点所在岛的面，取距离定居点最远的可达点。
+            // 不依赖 GetAccessiblePointNearPosition（会 snap 回定居点中心导致不可选中）。
+            // 只要求同岛 + face 有效，不要求 path distance（岛太小的时候 path dist 本质上就是直线距离）。
+            DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: all {MAX_ATTEMPTS} candidates failed for {targetSettlement.Name} — relaxed projection fallback");
+            Vec2 bestFallback = settlementPos;
+            float bestDist = 0f;
+
+            foreach (float radius in new[] { 5f, 8f, 12f, 18f, 25f, 35f, 50f, 70f })
+            {
+                float baseAngle = MBRandom.RandomFloat * 2f * (float)Math.PI;
+                for (int dir = 0; dir < 12; dir++)
+                {
+                    float angle = baseAngle + dir * (float)Math.PI * 2f / 12f;
+                    Vec2 candidate = settlementPos + new Vec2(
+                        (float)Math.Cos(angle) * radius,
+                        (float)Math.Sin(angle) * radius);
+                    Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
+                        settlementFace, candidate, settlementPos);
+                    PathFaceRecord projFace = wrapper.GetFaceIndex(projected);
+                    if (!projFace.IsValid()) continue;
+                    if (!wrapper.AreFacesOnSameIsland(projFace, settlementFace, ignoreDisabled: false)) continue;
+
+                    float dist = projected.Distance(settlementPos);
+                    if (dist > bestDist) { bestDist = dist; bestFallback = projected; }
+                }
+
+                if (bestDist > 5f) break; // 已经够远，停止搜索
+            }
+
+            if (bestDist < 3f)
+                DebugLogger.Log($"[WorldEventSimulator] WARNING: best spawn for {targetSettlement.Name} only {bestDist:F1} units from settlement center — party may overlap settlement UI");
+            else
+                DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: relaxed fallback at dist={bestDist:F1} from {targetSettlement.Name} pos=({bestFallback.X:F1},{bestFallback.Y:F1})");
+            return bestFallback;
         }
 
         private string GetPartyNameTemplate(WorldEventConfig config, Hero instigator, Settlement settlement, Hero target)
@@ -1700,7 +1776,7 @@ namespace LivingWorldNpcs
         /// 抽不够就抽多少用多少——不造兵，世界自然演化。
         /// </summary>
         private void MobilizePartyTroops(MobileParty party, Hero leader, Settlement targetSettlement,
-            Hero targetHero, WorldEventConfig config, int severity)
+            Hero targetHero, WorldEventConfig config, int severity, float dayLimit = 8f)
         {
             try
             {
@@ -1781,6 +1857,19 @@ namespace LivingWorldNpcs
                 else
                 {
                     DebugLogger.Log($"[WorldEventSimulator] Mobilized {mobilized} troops from {leader.Name}'s garrisons for {config.EventType} → {targetSettlement?.Name} ({scaleDesc})");
+                }
+
+                // ── 补给：事件部队从 garrison 抽调时不带食物，需手动补充以防饥饿减员 ──
+                int finalTroopCount = party.MemberRoster.TotalManCount;
+                if (finalTroopCount > 0)
+                {
+                    var foodItem = GetFoodItem();
+                    int foodAmount = Math.Max(50, (int)(finalTroopCount * Math.Max(dayLimit, 3f)));
+                    if (foodItem != null)
+                    {
+                        party.ItemRoster.AddToCounts(foodItem, foodAmount);
+                        DebugLogger.Log($"[WorldEventSimulator] Supplied {foodAmount} {foodItem.Name} to {leader.Name}'s party ({finalTroopCount} troops × {dayLimit:F1} days)");
+                    }
                 }
             }
             catch (Exception ex)
@@ -1890,6 +1979,12 @@ namespace LivingWorldNpcs
                 var looterTier1 = GetLooterTroop();
                 if (looterTier1 != null)
                     party.MemberRoster.AddToCounts(looterTier1, troopCount);
+
+                // ── 补给：通用 party 同样需要食物防止饥饿减员 ──
+                var foodItem = GetFoodItem();
+                int foodAmount = Math.Max(30, troopCount * 3);
+                if (foodItem != null)
+                    party.ItemRoster.AddToCounts(foodItem, foodAmount);
             }
             catch (Exception ex)
             {
@@ -1906,6 +2001,16 @@ namespace LivingWorldNpcs
             return MBObjectManager.Instance.GetObject<CharacterObject>(
                 co => co != null && co.IsBasicTroop
                     && co.Name?.ToString()?.IndexOf("looter", StringComparison.OrdinalIgnoreCase) >= 0);
+        }
+
+        /// <summary>获取食物物品（两轮策略：已知 ID → 遍历搜索 IsFood）。</summary>
+        private static ItemObject GetFoodItem()
+        {
+            var grain = MBObjectManager.Instance.GetObject<ItemObject>("grain");
+            if (grain != null) return grain;
+
+            return MBObjectManager.Instance.GetObject<ItemObject>(
+                item => item != null && item.IsFood);
         }
 
         #endregion
