@@ -1,137 +1,131 @@
-﻿[22:16:40.778] [WorldEventSimulator] Created new party for 克雷纳 (24 troops) → 胡比亚
-[22:16:40.788] [WorldEvent] New event: SacredTheft id=evt_motiv_sacredtheft_8DECD44379FC022_1623 settlement=town_A5
-[22:16:40.792] [Player] NinjaReport(mid): ‼ 克雷纳 盗走胡比亚圣物
-[22:16:40.799] [WorldEvent] Synced to NPC memory: 克雷纳 ← SacredTheft (severity=8, role=Instigator)
-[22:16:40.800] [WorldEvent] Synced to NPC memory: 阿齐娜 ← SacredTheft (severity=8, role=Victim)
-[22:16:40.800] [WorldEvent] Motivated conflict: 克雷纳 → SacredTheft → 阿齐娜 (relation=-100) at 胡比亚
-[22:16:40.801] [WorldEventSimulator] WARNING: instigator 崔斯坦尼娅 not available for party creation: hero is staying at settlement '沃斯特鲁姆'. Attempting extraction...
-[22:16:40.801] [WorldEventSimulator] Extracted 崔斯坦尼娅 from settlement for event party
-[22:16:40.801] [WorldEventSimulator] Created new party for 崔斯坦尼娅 (30 troops) → 厄庇克洛忒亚
-[22:16:40.803] [WorldEvent] New event: Assassination id=evt_motiv_assassination_8DECD4437A21C81_5749 settlement=town_EN1
-[22:16:40.803] [Player] NinjaReport(mid): ‼ 崔斯坦尼娅 在厄庇克洛忒亚刺杀查士丁娜
-[22:16:40.804] [WorldEvent] Synced to NPC memory: 崔斯坦尼娅 ← Assassination (severity=10, role=Instigator)
-[22:16:40.804] [WorldEvent] Synced to NPC memory: 查士丁娜 ← Assassination (severity=10, role=Victim)
-[22:16:40.804] [WorldEvent] Motivated conflict: 崔斯坦尼娅 → Assassination → 查士丁娜 (relation=-99) at 厄庇克洛忒亚
-[22:16:50.230] [Player] Inquiry shown: "厄庇克洛忒亚 — 暗杀"
+﻿[10:31:06.408] [WorldEventSimulator] Created new party for 帕那勒娅 (30 troops) → 奥通加德
+[10:31:06.410] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDAAD0C826F6_2946 settlement=town_K4
+[10:31:06.413] [Player] NinjaReport(mid): ‼ 帕那勒娅 兵力调动频繁，喀答或是目标
+[10:31:06.414] [WorldEvent] Synced to NPC memory: 帕那勒娅 ← NobleConflict (severity=10, role=Instigator)
+[10:31:06.415] [WorldEvent] Synced to NPC memory: 喀答 ← NobleConflict (severity=10, role=Victim)
+[10:31:06.415] [WorldEvent] Motivated conflict: 帕那勒娅 → NobleConflict → 喀答 (relation=-100) at 奥通加德
+[10:31:06.415] [WorldEventSimulator] Redirecting party of 埃卡朗 → 奥斯蒂港 (dist=69, boosted)
+[10:31:06.416] [WorldEvent] New event: NobleConflict id=evt_motiv_nobleconflict_8DECDAAD0C90190_8079 settlement=town_V8
+[10:31:06.416] [Player] DisplayMessage(far): 🗞 有商队从西方带来消息——那边领主们在调兵遣将——摩擦随时升级。
+[10:31:06.416] [WorldEvent] Synced to NPC memory: 埃卡朗 ← NobleConflict (severity=10, role=Instigator)
+[10:31:06.416] [WorldEvent] Synced to NPC memory: 达利热尔 ← NobleConflict (severity=10, role=Victim)
+[10:31:06.416] [WorldEvent] Motivated conflict: 埃卡朗 → NobleConflict → 达利热尔 (relation=-100) at 奥斯蒂港
+[10:31:11.079] [Player] Inquiry shown: "奥通加德 — 贵族冲突"
 ════ 事件详情 ════
 
-崔斯坦尼娅在厄庇克洛忒亚刺杀了查士丁娜。现在人人自危——下一个会轮到谁？
+帕那勒娅在奥通加德边境集结兵力，与喀答的冲突一触即发。
 
 ——
-地点：厄庇克洛忒亚
-类型：暗杀
+地点：奥通加德
+类型：贵族冲突
 严重度：10/10
-剩余时间：约 2 天
-加害方：崔斯坦尼娅
-受害者：查士丁娜
+剩余时间：约 8 天
+加害方：帕那勒娅
+受害者：喀答
 
-[22:17:59.616] [Player] Inquiry: '过去看看' — 厄庇克洛忒亚 Assassination
-[22:17:59.616] [WorldEvent] Camera animating to event party: 崔斯坦尼娅的刺客 at (Vec2) X: 417.3443 Y: 419.7812
-[22:18:40.817] [Player] NinjaReport(intercept): 你遇到了一个从厄庇克洛忒亚逃出来的人——他说有人被暗杀了，现在镇上人人自危。
-[22:18:49.813] [Player] Inquiry shown: "厄庇克洛忒亚 — 暗杀"
-════ 事件详情 ════
-
-崔斯坦尼娅在厄庇克洛忒亚刺杀了查士丁娜。现在人人自危——下一个会轮到谁？
-
-——
-地点：厄庇克洛忒亚
-类型：暗杀
-严重度：10/10
-剩余时间：约 2 天
-加害方：崔斯坦尼娅
-受害者：查士丁娜
-
-[22:18:53.029] [Player] Inquiry: '过去看看' — 厄庇克洛忒亚 Assassination
-[22:18:53.029] [WorldEvent] Camera animating to event party: 崔斯坦尼娅的刺客 at (Vec2) X: 422.1791 Y: 420.4693
-[22:19:10.580] [MapConv] Partner agent found: 崔斯坦尼娅, starting custom dialog flow
-[22:19:10.669] [MapConv] Guards: player=1(/7) npc=2(/30)
-[22:19:10.670] === [MapConv] All Agent Positions ===
-[1] 亨利 (main_hero) pos=(343.60,396.84,3.54) distToPlayer=0.0m distToPartner=2.0m team=Attacker
-[2] 崔斯坦尼娅 (lord_1_49_1) pos=(341.61,396.98,3.54) distToPlayer=2.0m distToPartner=0.0m team=Attacker
-[3] 帝国新兵 (imperial_recruit) pos=(344.60,396.76,3.54) distToPlayer=1.0m distToPartner=3.0m team=Attacker
-[4] 帝国禁卫新兵 (imperial_vigla_recruit) pos=(340.68,397.95,3.51) distToPlayer=3.1m distToPartner=1.3m team=Attacker
-[5] 帝国新兵 (imperial_recruit) pos=(340.55,396.16,3.57) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[10:31:14.478] [Player] Inquiry: '过去看看' — 奥通加德 NobleConflict
+[10:31:14.478] [WorldEvent] Camera animating to event party: 帕那勒娅的征讨军 at (Vec2) X: 724.1042 Y: 429.9836
+[10:31:30.696] [Player] NinjaReport(intercept): 前方奥通加德边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[10:31:37.029] [Player] NinjaReport(intercept): 前方奥通加德边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+[10:31:45.775] [MapConv] Partner agent found: 帕那勒娅, starting custom dialog flow
+[10:31:45.862] [MapConv] Guards: player=1(/7) npc=2(/30)
+[10:31:45.863] === [MapConv] All Agent Positions ===
+[1] 亨利 (main_hero) pos=(38.97,48.44,0.10) distToPlayer=0.0m distToPartner=2.0m team=Attacker
+[2] 帕那勒娅 (lord_1_70) pos=(40.86,49.08,0.10) distToPlayer=2.0m distToPartner=0.0m team=Attacker
+[3] 帝国新兵 (imperial_recruit) pos=(38.02,48.13,0.11) distToPlayer=1.0m distToPartner=3.0m team=Attacker
+[4] 帝国禁卫新兵 (imperial_vigla_recruit) pos=(42.10,48.54,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[5] 帝国新兵 (imperial_recruit) pos=(41.53,50.25,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
 =====================================
 
-[22:19:10.670] [Cam] EncounterEnter pos=(343.44,396.84,5.35) fwd=(-0.003,0.000,1.000) up=(0.999,0.032,0.003) [DefaultCam]
-[22:19:10.671] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[22:19:10.673] [Player] Talk to: 崔斯坦尼娅 (hero=崔斯坦尼娅)
-[22:19:10.678] [EventAware] NPC=崔斯坦尼娅 event=Assassination role=Instigator source=Fallback text="你也在打听查士丁娜的事？我劝你别多问——知道太多的人，往往活不长。"
-[22:19:10.678] [Dialog] NPC says (opening): "你也在打听查士丁娜的事？我劝你别多问——知道太多的人，往往活不长。"
-[22:19:18.283] [CommissionIntent] RequestCommission Evaluate: hero=崔斯坦尼娅 count=1 urgentEvent=True → Show
-[22:19:18.286] [Dialog] Options shown (3): 【离开】 告辞 | 【其他事情】 有别的事找你... | 【关于当前的事】 我能帮上什么忙？
-[22:19:22.956] [Dialog] Player clicked option: "【关于当前的事】 我能帮上什么忙？"
-[22:19:22.956] [Dialog] Player clicked: "【关于当前的事】 我能帮上什么忙？" (goal=, category=Official)
-[22:19:22.969] [CommissionGen] Generated commission: def=bounty_hunt tier=Basic giver=崔斯坦尼娅 broker=none reward=500 target=查士丁娜 payer=崔斯坦尼娅
-[22:19:22.970] [CommissionGen] Generated commission: def=hideout_clear tier=Basic giver=崔斯坦尼娅 broker=none reward=450 target=hideout_forest_11 payer=崔斯坦尼娅
-[22:19:22.971] [CommissionGen] Generated commission: def=decoy_mission tier=Basic giver=崔斯坦尼娅 broker=none reward=700 target=village_ES2_4 payer=崔斯坦尼娅
-[22:19:22.971] [CommissionGen] Event-first generation: hero=崔斯坦尼娅 event=Assassination matchingDefs=2 nonMatching=7 result=3
-[22:19:22.971] [CommissionIntent] RequestCommission OnInstant: hero=崔斯坦尼娅 generated=3
-[22:19:22.972] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=BountyHunt giver=崔斯坦尼娅
-[22:19:22.973] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=44
-[22:19:22.974] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=76
-[22:19:22.974] [Dialog] NPC says: "有个叫查士丁娜的家伙在附近作恶多端。赏金500第纳尔——你把他揪出来，活着带回来我加钱。
-（报酬 500 第纳尔 · 期限 16 天 · 定金 150）"
-[22:19:22.975] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[22:19:22.975] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[22:19:31.856] [Dialog] Player clicked option: "这活我接了"
-[22:19:31.857] [CommissionIntent] AcceptCommission: category=BountyHunt giver=崔斯坦尼娅 broker= narrativePhase=False
-[22:19:31.858] [CommissionIntent] Direct accept: reward=483 deposit=144 trust=0
-[22:19:31.859] [CommissionQuest] OnStartQuest: 悬赏缉拿：查士丁娜 narrativePhase=False questId=commission_bounty_hunt_lord_1_49_1_639174179718582010
-[22:19:31.859] [CommissionQuest] Full startup: giver=崔斯坦尼娅 reward=483 deposit=144 days=15 tier=Basic
-[22:19:31.877] [MapConv] end: enc=True leave=True
-[22:19:47.704] [MapConv] Partner agent found: 查士丁娜, starting custom dialog flow
-[22:19:47.781] [MapConv] Guards: player=1(/7) npc=1(/7)
-[22:19:47.781] === [MapConv] All Agent Positions ===
-[1] 亨利 (main_hero) pos=(100.19,162.20,0.36) distToPlayer=0.0m distToPartner=2.0m team=Attacker
-[2] 查士丁娜 (lord_1_30_1) pos=(101.45,163.75,0.36) distToPlayer=2.0m distToPartner=0.0m team=Attacker
-[3] 帝国新兵 (imperial_recruit) pos=(99.55,161.43,0.39) distToPlayer=1.0m distToPartner=3.0m team=Attacker
-[4] 帝国新兵 (imperial_recruit) pos=(102.08,164.53,0.36) distToPlayer=3.0m distToPartner=1.0m team=Attacker
-=====================================
-
-[22:19:47.782] [Cam] EncounterEnter pos=(100.24,162.39,2.17) fwd=(-0.003,-0.004,1.000) up=(-0.547,-0.837,-0.005) [DefaultCam]
-[22:19:47.782] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[22:19:47.782] [Player] Talk to: 查士丁娜 (hero=查士丁娜)
-[22:19:47.783] [Dialog] NPC says (opening): "……（微微颔首）"
-[22:19:49.293] [CommissionIntent] RequestCommission Evaluate: hero=查士丁娜 count=1 urgentEvent=False → Show
-[22:19:49.312] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（3%） | 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
-[22:19:53.609] [Dialog] Player clicked option: "【找工作】 打听委托（1个可接）"
-[22:19:53.609] [Dialog] Player clicked: "【找工作】 打听委托（1个可接）" (goal=, category=Official)
-[22:19:53.610] [CommissionGen] Generated commission: def=decoy_mission tier=Basic giver=查士丁娜 broker=none reward=700 target=village_ES2_4 payer=“烂牙”玛威娅
-[22:19:53.610] [CommissionGen] Generated commission: def=hideout_clear tier=Basic giver=查士丁娜 broker=none reward=450 target=hideout_mountain_14 payer=查士丁娜
-[22:19:53.611] [CommissionGen] Generated commission: def=bounty_hunt tier=Basic giver=查士丁娜 broker=none reward=500 target=革耳狄安娜 payer=查士丁娜
-[22:19:53.611] [CommissionGen] Generated commission: def=supply_intercept tier=Basic giver=查士丁娜 broker=none reward=700 target=village_ES2_4 payer=绸缎商奥奇沃斯
-[22:19:53.611] [CommissionIntent] RequestCommission OnInstant: hero=查士丁娜 generated=4
-[22:19:53.611] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=DecoyMission giver=查士丁娜
-[22:19:53.611] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=44
-[22:19:53.611] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
-[22:19:53.611] [Dialog] NPC says: "有人在追杀我，已经快到了。你带少量人引开他们——坚持得越久，报酬越高。700第纳尔起步。
-（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
-[22:19:53.612] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[22:19:53.612] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[22:20:03.166] [Dialog] Player clicked option: "还有别的活吗？"
-[22:20:03.167] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=HideoutClear giver=查士丁娜
-[22:20:03.167] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=43
-[22:20:03.167] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
-[22:20:03.167] [Dialog] NPC says: "藏身处附近有个匪窝，商队都不敢走了。清理掉它——450第纳尔，周围的生意人都凑了份子。
-（报酬 450 第纳尔 · 期限 11 天 · 定金 135）"
-[22:20:03.167] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[22:20:03.167] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[22:20:04.440] [Dialog] Player clicked option: "还有别的活吗？"
-[22:20:04.441] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=2 category=BountyHunt giver=查士丁娜
-[22:20:04.441] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=45
-[22:20:04.441] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=77
-[22:20:04.441] [Dialog] NPC says: "有个叫革耳狄安娜的家伙在附近作恶多端。赏金500第纳尔——你把他揪出来，活着带回来我加钱。
-（报酬 500 第纳尔 · 期限 16 天 · 定金 150）"
-[22:20:04.441] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
-[22:20:04.441] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[22:20:06.387] [Dialog] Player clicked option: "还有别的活吗？"
-[22:20:06.387] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=3 category=SupplyIntercept giver=查士丁娜
-[22:20:06.388] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=40
-[22:20:06.388] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=71
-[22:20:06.388] [Dialog] NPC says: "敌方有一批补给正运往阿利西翁。在到达前截下它——700第纳尔报酬，物资归你处置。
+[10:31:45.863] [Cam] EncounterEnter pos=(39.14,48.51,1.91) fwd=(-0.006,-0.003,1.000) up=(-0.909,-0.416,-0.006) [DefaultCam]
+[10:31:45.864] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[10:31:45.867] [Player] Talk to: 帕那勒娅 (hero=帕那勒娅)
+[10:31:45.870] [EventAware] NPC=帕那勒娅 event=NobleConflict role=Instigator source=Fallback text="你是喀答的说客？回去告诉他——奥通加德的事，战场上见分晓。刀剑比嘴皮子管用。"
+[10:31:45.871] [Dialog] NPC says (opening): "你是喀答的说客？回去告诉他——奥通加德的事，战场上见分晓。刀剑比嘴皮子管用。"
+[10:31:49.470] [CommissionIntent] RequestCommission Evaluate: hero=帕那勒娅 count=1 urgentEvent=True → Show
+[10:31:49.473] [Dialog] Options shown (3): 【离开】 告辞 | 【其他事情】 有别的事找你... | 【关于当前的事】 我能帮上什么忙？
+[10:31:51.395] [Dialog] Player clicked option: "【关于当前的事】 我能帮上什么忙？"
+[10:31:51.395] [Dialog] Player clicked: "【关于当前的事】 我能帮上什么忙？" (goal=, category=Official)
+[10:31:51.405] [CommissionGen] Event-direct: def=supply_intercept tier=Basic giver=帕那勒娅 role=Instigator target=town_K4 payer=帕那勒娅
+[10:31:51.405] [CommissionGen] Event-direct: def=decoy_mission tier=Basic giver=帕那勒娅 role=Instigator target=town_K4 payer=帕那勒娅
+[10:31:51.405] [CommissionGen] Event-direct generation: hero=帕那勒娅 event=NobleConflict role=Instigator candidates=2 result=2
+[10:31:51.405] [CommissionIntent] RequestCommission OnInstant: hero=帕那勒娅 generated=2
+[10:31:51.407] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=SupplyIntercept giver=帕那勒娅
+[10:31:51.410] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=8
+[10:31:51.410] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=39
+[10:31:51.410] [Dialog] NPC says: "……（微微颔首）
 （报酬 700 第纳尔 · 期限 9 天 · 定金 210）"
-[22:20:06.389] [Dialog] Options (2): 这活我接了 | 我再想想
-[22:20:06.389] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
-[22:20:07.587] [Dialog] Player clicked option: "我再想想"
-[22:20:07.587] [MapConv] end: enc=True leave=False
+[10:31:51.411] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:31:51.411] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:31:55.097] [Dialog] Player clicked option: "还有别的活吗？"
+[10:31:55.097] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=DecoyMission giver=帕那勒娅
+[10:31:55.097] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=8
+[10:31:55.098] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=39
+[10:31:55.098] [Dialog] NPC says: "……（微微颔首）
+（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
+[10:31:55.098] [Dialog] Options (2): 这活我接了 | 我再想想
+[10:31:55.098] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:31:56.644] [Dialog] Player clicked option: "我再想想"
+[10:31:56.649] [MapConv] end: enc=True leave=True
+[10:32:05.383] [MapConv] Partner agent found: 斤帖格, starting custom dialog flow
+[10:32:05.459] [MapConv] Guards: player=1(/7) npc=6(/65)
+[10:32:05.460] === [MapConv] All Agent Positions ===
+[1] 亨利 (main_hero) pos=(38.97,48.44,0.10) distToPlayer=0.0m distToPartner=2.0m team=Attacker
+[2] 斤帖格 (lord_6_23) pos=(40.86,49.08,0.10) distToPlayer=2.0m distToPartner=0.0m team=Attacker
+[3] 帝国新兵 (imperial_recruit) pos=(38.02,48.13,0.11) distToPlayer=1.0m distToPartner=3.0m team=Attacker
+[4] 库赛特达尔罕 (khuzait_darkhan) pos=(42.67,46.84,0.09) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[5] 库赛特重装枪骑兵 (khuzait_heavy_lancer) pos=(42.10,48.54,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[6] 库赛特持矛步兵 (khuzait_spear_infantry) pos=(41.53,50.25,0.09) distToPlayer=3.1m distToPartner=1.3m team=Attacker
+[7] 库赛特枪骑兵 (khuzait_lancer) pos=(40.95,51.96,0.09) distToPlayer=4.0m distToPartner=2.9m team=Attacker
+[8] 库赛特射手 (khuzait_archer) pos=(43.52,49.02,0.09) distToPlayer=4.6m distToPartner=2.7m team=Attacker
+[9] 库赛特骑射手 (khuzait_horse_archer) pos=(42.95,50.73,0.09) distToPlayer=4.6m distToPartner=2.7m team=Attacker
+=====================================
+
+[10:32:05.460] [Cam] EncounterEnter pos=(39.13,48.55,1.91) fwd=(-0.007,-0.003,1.000) up=(-0.909,-0.416,-0.008) [DefaultCam]
+[10:32:05.460] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[10:32:05.460] [Player] Talk to: 斤帖格 (hero=斤帖格)
+[10:32:05.461] [Dialog] NPC says (opening): "……（微微颔首）"
+[10:32:06.699] [CommissionIntent] RequestCommission Evaluate: hero=斤帖格 count=1 urgentEvent=False → Show
+[10:32:06.717] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（3%） | 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
+[10:32:09.831] [Dialog] Player clicked option: "【找工作】 打听委托（1个可接）"
+[10:32:09.831] [Dialog] Player clicked: "【找工作】 打听委托（1个可接）" (goal=, category=Official)
+[10:32:09.835] [CommissionGen] Generated commission: def=bounty_hunt tier=Basic giver=斤帖格 broker=none reward=500 target=豁鲁真 payer=斤帖格
+[10:32:09.835] [CommissionGen] Matched WorldEvent! category=SupplyIntercept event=NobleConflict eventId=evt_motiv_nobleconflict_8DECDAAD0C826F6_2946 target=town_K4
+[10:32:09.835] [CommissionGen] Generated commission: def=supply_intercept tier=Basic giver=斤帖格 broker=none reward=700 target=town_K4 payer=斤帖格
+[10:32:09.836] [CommissionGen] Generated commission: def=decoy_mission tier=Basic giver=斤帖格 broker=none reward=700 target=hideout_steppe_9 payer=斤帖格
+[10:32:09.837] [CommissionGen] Generated commission: def=legendary_hunt tier=Basic giver=斤帖格 broker=none reward=5000 target=豁鲁真 payer=斤帖格
+[10:32:09.837] [CommissionIntent] RequestCommission OnInstant: hero=斤帖格 generated=4
+[10:32:09.837] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=0 category=BountyHunt giver=斤帖格
+[10:32:09.838] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=43
+[10:32:09.838] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
+[10:32:09.838] [Dialog] NPC says: "有个叫豁鲁真的家伙在附近作恶多端。赏金500第纳尔——你把他揪出来，活着带回来我加钱。
+（报酬 500 第纳尔 · 期限 16 天 · 定金 150）"
+[10:32:09.839] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:32:09.839] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:32:12.126] [Dialog] Player clicked option: "还有别的活吗？"
+[10:32:12.126] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=1 category=SupplyIntercept giver=斤帖格
+[10:32:12.127] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=8
+[10:32:12.127] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=39
+[10:32:12.127] [Dialog] NPC says: "……（微微颔首）
+（报酬 700 第纳尔 · 期限 9 天 · 定金 210）"
+[10:32:12.127] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:32:12.127] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:32:15.161] [Dialog] Player clicked option: "还有别的活吗？"
+[10:32:15.161] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=2 category=DecoyMission giver=斤帖格
+[10:32:15.161] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=44
+[10:32:15.161] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=75
+[10:32:15.161] [Dialog] NPC says: "有人在追杀我，已经快到了。你带少量人引开他们——坚持得越久，报酬越高。700第纳尔起步。
+（报酬 700 第纳尔 · 期限 4 天 · 定金 210）"
+[10:32:15.163] [Dialog] Options (3): 这活我接了 | 还有别的活吗？ | 我再想想
+[10:32:15.163] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:32:17.811] [Dialog] Player clicked option: "还有别的活吗？"
+[10:32:17.812] [CommissionIntent] ShowCommissionInDialogue: before BuildOpening index=3 category=LegendaryHunt giver=斤帖格
+[10:32:17.812] [CommissionIntent] ShowCommissionInDialogue: BuildOpening done, narrative len=46
+[10:32:17.812] [CommissionIntent] ShowCommissionInDialogue: before SceneSay line len=80
+[10:32:17.812] [Dialog] NPC says: "豁鲁真——横行多年的匪王，身上带着独一无二的装备。击败他，装备归你，另有5000第纳尔重赏。
+（报酬 5000 第纳尔 · 期限 21 天 · 定金 1500）"
+[10:32:17.812] [Dialog] Options (2): 这活我接了 | 我再想想
+[10:32:17.813] [CommissionIntent] ShowCommissionInDialogue: after SceneSay OK
+[10:32:20.582] [Dialog] Player clicked option: "我再想想"
+[10:32:20.582] [MapConv] end: enc=True leave=True
+[10:32:29.906] [Player] NinjaReport(intercept): 前方奥通加德边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！

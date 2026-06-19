@@ -6,6 +6,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.ObjectSystem;
+using LivingWorldNpcs;
 
 namespace LivingWorldNpcs.Story
 {
@@ -51,13 +52,29 @@ namespace LivingWorldNpcs.Story
 
             if (commissions == null || commissions.Count == 0)
             {
-                // NPC 自然说没有委托
+                // 事件当事人无合适委托 → 说事件相关的话，不要说空泛的"没有活计"
+                var urgentEvent = ctx.Hero != null ? AllNpcMemoryManager.GetMemory(ctx.Hero.StringId)?.CurrentUrgentEvent : null;
+                string noWorkLine;
+                if (urgentEvent != null)
+                {
+                    bool isVictim = urgentEvent.TargetHeroId == ctx.Hero?.StringId;
+                    string instigatorName = urgentEvent.InstigatorHero?.Name?.ToString() ?? "他们";
+                    string victimName = urgentEvent.TargetHero?.Name?.ToString() ?? "我";
+                    noWorkLine = isVictim
+                        ? $"我现在自顾不暇……{instigatorName}的事你应该也听说了。等这阵子过去再说吧。"
+                        : $"我自己的事还没办完——{victimName}那边的事不会自己了结。眼下没空派别的活给你。";
+                }
+                else
+                {
+                    noWorkLine = "我这儿暂时没有需要帮手的活计。";
+                }
+
                 if (ctx.Controller != null)
-                    ctx.Controller.SceneSay("我这儿暂时没有需要帮手的活计。",
+                    ctx.Controller.SceneSay(noWorkLine,
                         new StoryOptionVM("（离开）", () => ctx.Controller.CloseDialogue()));
                 else
                     InformationManager.DisplayMessage(
-                        new InformationMessage($"{ctx.Hero.Name} 目前没有合适的委托给你。"));
+                        new InformationMessage(noWorkLine));
                 return;
             }
 

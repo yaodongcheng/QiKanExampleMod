@@ -37,6 +37,17 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>
+    /// 世界事件叙事阶段 — 决定文案该用"正在发生"还是"已经发生"的时态。
+    /// </summary>
+    public enum WorldEventPhase
+    {
+        /// <summary>事件仍在进行中，后果尚未发生（party 行军 / instigator 准备中）。文案应用将来/进行时。</summary>
+        Impending,
+        /// <summary>事件后果已施加（到期未解决 / 部队已到达 / 已解决）。文案可用过去时。</summary>
+        Consummated
+    }
+
+    /// <summary>
     /// 世界事件数据模型。所有字段可 null 兼容旧档。
     /// JSON 序列化走 Newtonsoft.Json。
     /// </summary>
@@ -109,6 +120,28 @@ namespace LivingWorldNpcs
         [JsonIgnore]
         public bool IsExpired => Campaign.Current != null &&
             (float)CampaignTime.Now.ToDays > ExpiryDay;
+
+        /// <summary>获取事件叙事阶段 — 决定文案该用"正在/即将"还是"已经"的时态。</summary>
+        [JsonIgnore]
+        public WorldEventPhase Phase
+        {
+            get
+            {
+                // 已过期 / 已解决 → 已成事实
+                if (Status == WorldEventStatus.Expired || Status == WorldEventStatus.Resolved)
+                    return WorldEventPhase.Consummated;
+
+                // Active / Escalated：检查 party 是否已到达目标
+                var party = GeneratedParty;
+                var settlement = TargetSettlement;
+                if (party != null && settlement != null && party.IsActive
+                    && party.Position2D.Distance(settlement.Position2D) < 3f)
+                    return WorldEventPhase.Consummated;
+
+                // 仍在行军 / 准备中
+                return WorldEventPhase.Impending;
+            }
+        }
 
         /// <summary>获取受害者 Hero（可能为 null）。</summary>
         [JsonIgnore]
@@ -280,12 +313,18 @@ namespace LivingWorldNpcs
                     {
                         party.Ai.SetDoNotMakeNewDecisions(false);
                         party.SetPartyUsedByQuest(false);
+                        Campaign.Current?.VisualTrackerManager?.RemoveTrackedObject(party, forceRemove: true);
                     }
                     DebugLogger.Log($"[WorldEvent] Unlocked redirected party {evt.GeneratedPartyId} (event resolved)");
                 }
                 else
                 {
-                    evt.GeneratedParty?.RemoveParty();
+                    var party = evt.GeneratedParty;
+                    if (party != null)
+                    {
+                        Campaign.Current?.VisualTrackerManager?.RemoveTrackedObject(party, forceRemove: true);
+                    }
+                    party?.RemoveParty();
                 }
             }
             catch (Exception ex)

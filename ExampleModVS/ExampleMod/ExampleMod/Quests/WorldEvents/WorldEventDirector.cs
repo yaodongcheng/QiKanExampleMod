@@ -117,26 +117,29 @@ namespace LivingWorldNpcs
             var selected = nearbyUrgent.FirstOrDefault();
             if (selected != null)
             {
+                bool impending = selected.Phase == WorldEventPhase.Impending;
                 string msg = selected.EventType switch
                 {
                     WorldEventType.BanditRaid =>
                         $"一个从{selected.TargetSettlement?.Name?.ToString() ?? "村庄"}逃出来的村民拦住了你——匪徒正在劫掠他们的家园！",
                     WorldEventType.Kidnapping =>
-                        $"一位母亲跪在你面前——她的孩子被绑走了。绑匪就在附近！每一刻都可能是最后的机会。",
+                        $"一位母亲跪在你面前——她的孩子被可疑人士盯上了。她指向{selected.TargetSettlement?.Name?.ToString() ?? "村子"}方向：'他们这几天一直在附近转悠！'",
                     WorldEventType.Famine =>
                         $"一个面黄肌瘦的村民拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "村子"}断粮了，老人孩子撑不了多久了。",
                     WorldEventType.Betrayal =>
-                        $"一个浑身是血的人拦在你面前——他指着{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}的方向，声音发抖：'他……他背叛了我……'",
+                        $"一个神色慌张的人拦在你面前——他压低声音说{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}有人暗中联络外人，'还被蒙在鼓里……'",
                     WorldEventType.DebtTrap =>
                         $"一个老人跪在你面前——债主今天就要收走他的地契。全家都要被赶出家门了。",
-                    WorldEventType.Assassination =>
-                        $"你遇到了一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}逃出来的人——他说有人被暗杀了，现在镇上人人自危。",
+                    WorldEventType.Assassination => impending
+                        ? $"一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}方向过来的旅人低声告诉你：镇上来了几个生面孔，到处打听事。他觉得不对劲。"
+                        : $"你遇到了一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}逃出来的人——他说有人被刺杀了，现在镇上谁也不敢出门。",
                     WorldEventType.Fugitive =>
                         $"路边藏着一个人——他自称是被冤枉的，追捕他的人就在不远。他是逃犯还是无辜者？",
                     WorldEventType.NobleConflict =>
                         $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！",
-                    WorldEventType.SacredTheft =>
-                        $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的圣物被人盗走了！那是他们宗族的命根子……",
+                    WorldEventType.SacredTheft => impending
+                        ? $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。"
+                        : $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的圣物被人盗走了！那是他们宗族的命根子……",
                     WorldEventType.RomanticConflict =>
                         $"一个年轻人请求你的帮助——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}有人为情所困，两家人的脸面都挂不住了。",
                     WorldEventType.FalseAccusation =>
@@ -257,6 +260,7 @@ namespace LivingWorldNpcs
             // 兜底硬编码
             string location = evt.TargetSettlement?.Name?.ToString() ?? "某地";
             string target = evt.TargetHero?.Name?.ToString() ?? "村民";
+            bool impending = evt.Phase == WorldEventPhase.Impending;
 
             return evt.EventType switch
             {
@@ -271,8 +275,12 @@ namespace LivingWorldNpcs
                 WorldEventType.Fugitive => $"听说{location}附近藏了个逃犯……追捕的人悬了重赏。",
                 WorldEventType.TradeDispute => $"听说{location}的商人闹起来了……这生意不好做啊。",
                 WorldEventType.NobleConflict => $"听说{location}的领主和对面起了摩擦……怕是要打。",
-                WorldEventType.SacredTheft => $"听说{location}的传家宝被人偷了……这是要断人家的根啊。",
-                WorldEventType.Assassination => $"听说{location}有重要人物被刺杀了……人心惶惶。",
+                WorldEventType.SacredTheft => impending
+                    ? $"听说{location}最近来了不少外乡人……神神秘秘的，说是跟当地的圣物有关。"
+                    : $"听说{location}的传家宝被人偷了……这是要断人家的根啊。",
+                WorldEventType.Assassination => impending
+                    ? $"听说{location}不太平……有人在暗中活动，怕是冲着有头有脸的人物去的。"
+                    : $"听说{location}有重要人物被刺杀了……人心惶惶。",
                 WorldEventType.NemesisRevenge => $"听说有人在找你……那道疤还在疼。",
                 _ => $"听说{location}那边不太平……"
             };
@@ -778,12 +786,13 @@ namespace LivingWorldNpcs
             return null;
         }
 
-        /// <summary>兜底硬编码：根据事件类型和 NPC 角色生成情境对话。</summary>
+        /// <summary>兜底硬编码：根据事件类型、NPC 角色和事件阶段生成情境对话。</summary>
         private static string BuildEventAwareDialogueFallback(WorldEventData evt, bool isVictim, bool isInstigator, string topic)
         {
             string loc = evt.TargetSettlement?.Name?.ToString() ?? "这里";
             string instigatorName = evt.IsGenericInstigator ? "一帮匪徒" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
             string victimName = evt.TargetHero?.Name?.ToString() ?? "我们";
+            bool impending = evt.Phase == WorldEventPhase.Impending;
 
             if (isVictim)
             {
@@ -794,7 +803,10 @@ namespace LivingWorldNpcs
                         $"你来得正好！{instigatorName}就在村外——{loc}的乡亲们日夜担惊受怕，你能帮帮我们吗？",
                         $"终于有人来了……{instigatorName}已经在{loc}外扎了营，每家每户都在等一个能打的人。"
                     },
-                    WorldEventType.Kidnapping => new[] {
+                    WorldEventType.Kidnapping => impending ? new[] {
+                        $"求求你——{instigatorName}的人正在路上，他们要绑走{victimName}！我们没有时间了……",
+                        $"你听说了吗？{instigatorName}盯上了{victimName}……再不阻止就来不及了。"
+                    } : new[] {
                         $"求求你——{victimName}被{instigatorName}绑走了！每多等一刻就多一分危险……",
                         $"你听说了吗？{victimName}被人绑走了……{instigatorName}要的赎金我们根本拿不出来。"
                     },
@@ -802,7 +814,10 @@ namespace LivingWorldNpcs
                         $"{loc}的粮仓已经见底了……老人孩子吃了好几天野菜。你能帮我们弄点粮食来吗？",
                         $"你看到了——{loc}在挨饿。不是谁害的，是天灾。但再没有粮食，真会死人。"
                     },
-                    WorldEventType.Betrayal => new[] {
+                    WorldEventType.Betrayal => impending ? new[] {
+                        $"你能感觉到吗——{loc}的气氛越来越不对了。{instigatorName}看{victimName}的眼神……我怕迟早要出事。",
+                        $"我听到了一些风声……{instigatorName}在暗中联络人，怕是冲{victimName}来的。你能帮我查查吗？"
+                    } : new[] {
                         $"你不知道被自己最信任的人捅一刀是什么感觉……{instigatorName}，他曾经是我最信赖的人。",
                         $"{instigatorName}背叛了{loc}的所有人。卷走了钱，也卷走了信任。你能帮我们讨回公道吗？"
                     },
@@ -834,13 +849,19 @@ namespace LivingWorldNpcs
                         $"{instigatorName}的大军已经在{loc}外集结了……这不是私人恩怨，是整个地区的灾难。",
                         $"贵族之间的冲突，从来都是平民遭殃。{instigatorName}要的不过是面子，可{loc}的人要付出的是命。"
                     },
-                    WorldEventType.SacredTheft => new[] {
+                    WorldEventType.SacredTheft => impending ? new[] {
+                        $"那不只是件东西……那是{loc}的魂。{instigatorName}正在打它的主意——我们必须赶在他们前面！",
+                        $"传家之物被{instigatorName}盯上了——{loc}的老人说，丢了它，整个地方都会遭厄运。一定能拦住他们！"
+                    } : new[] {
                         $"那不只是件东西……那是{loc}的魂。{instigatorName}把它偷走了，等于把我们的根也拔了。",
                         $"传家之物被{instigatorName}盗走了——{loc}的老人说，丢了它，整个地方都会遭厄运。"
                     },
-                    WorldEventType.Assassination => new[] {
-                        $"{victimName}死了……被人刺杀的。{loc}现在人人自危，都在猜下一个是谁。",
-                        $"出大事了——{victimName}被暗杀了。{loc}现在乱成一团，没人知道该信谁。"
+                    WorldEventType.Assassination => impending ? new[] {
+                        $"你来得正好——{instigatorName}的人在路上了，他们要杀我！你能保护我吗？",
+                        $"有人告诉我{instigatorName}派了刺客……目标就是我。{loc}没人能帮我——直到你来了。"
+                    } : new[] {
+                        $"……是我运气好，捡了一条命。{instigatorName}的人差点就得手了。",
+                        $"你不知道眼睁睁看着刀刺过来是什么感觉……如果不是跑得快，{victimName}现在已经是一具尸体了。"
                     },
                     WorldEventType.NemesisRevenge => new[] {
                         $"那个人回来了……{instigatorName}。我以为这辈子再也不会听到他的名字——但他到{loc}来了。",
@@ -863,7 +884,10 @@ namespace LivingWorldNpcs
                         $"哼，又一个多管闲事的？{loc}的事你最好别掺和。",
                         $"你是来替{loc}那些村民出头的？我劝你想清楚——刀剑不长眼。"
                     },
-                    WorldEventType.Kidnapping => new[] {
+                    WorldEventType.Kidnapping => impending ? new[] {
+                        $"你就是来碍事的？{victimName}的命已经在我手心里了——就差最后一程。识相的就别挡道。",
+                        $"想要{victimName}平安？你最好现在就走——这事跟你没关系。"
+                    } : new[] {
                         $"你是来赎人的？钱带来了吗？没带钱就滚——{victimName}的命可是有价的。",
                         $"想救人？没那么容易。{victimName}在我手上，想要人——先拿钱来。"
                     },
@@ -871,7 +895,10 @@ namespace LivingWorldNpcs
                         $"看什么看？{loc}的粮食又不是我烧的——天不下雨，怪我？要怪就怪他们自己种不出东西来。",
                         $"你也想替{loc}的人说话？粮价就是这样——嫌贵就别吃。这是生意，不是慈善。"
                     },
-                    WorldEventType.Betrayal => new[] {
+                    WorldEventType.Betrayal => impending ? new[] {
+                        $"你怎么知道的？……也好。既然你来了，给你个机会——站在我这边。{victimName}的时代该结束了。",
+                        $"你听说了什么？不重要。重要的是——{victimName}的信任太脆弱了。我只是在合适的时机推一把。"
+                    } : new[] {
                         $"你是{victimName}派来的？告诉他——钱我已经花了，有本事来拿。",
                         $"叛徒？哈！我只是比{victimName}更懂得怎么活下去。弱者就该被淘汰。"
                     },
@@ -903,11 +930,17 @@ namespace LivingWorldNpcs
                         $"你是{victimName}的说客？回去告诉他——{loc}的事，战场上见分晓。刀剑比嘴皮子管用。",
                         $"这是贵族之间的事。{victimName}在{loc}的所作所为已经越过底线了——没有人可以这样践踏我的荣誉而不付出代价。"
                     },
-                    WorldEventType.SacredTheft => new[] {
+                    WorldEventType.SacredTheft => impending ? new[] {
+                        $"那东西在{loc}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。",
+                        $"你说这是偷？我只是去替{loc}取一件他们不配拥有的东西。识相的就别拦着。"
+                    } : new[] {
                         $"那东西在{loc}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。",
                         $"你说这是偷？我只是替{loc}保管一件他们不配拥有的东西。历史会证明我是对的。"
                     },
-                    WorldEventType.Assassination => new[] {
+                    WorldEventType.Assassination => impending ? new[] {
+                        $"你听说了？{victimName}的命已经进了倒计时。你是想来帮忙的，还是来碍事的？",
+                        $"有些事知道了对你没好处。{victimName}的事还没结束——但你最好当作什么都不知道。"
+                    } : new[] {
                         $"你也在打听{victimName}的事？我劝你别多问——知道太多的人，往往活不长。",
                         $"{victimName}死了。下一个就是你——如果你继续多管闲事的话。"
                     },

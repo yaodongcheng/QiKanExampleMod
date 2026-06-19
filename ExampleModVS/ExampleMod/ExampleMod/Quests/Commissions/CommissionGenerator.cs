@@ -103,64 +103,59 @@ namespace LivingWorldNpcs
                 // 直接模式：此 NPC 就是委托人
                 var availableDefs = GetAvailableDefsForHero(hero);
 
-                // 事件优先：如果此 NPC 有活跃世界事件缠身，事件匹配的 defs 排在前面
+                // ── 事件直接匹配：当事人用自己的 CurrentUrgentEvent，不走地理邻近 ──
                 var urgentEvent = AllNpcMemoryManager.GetMemory(hero.StringId)?.CurrentUrgentEvent;
                 if (urgentEvent != null)
                 {
+                    bool isVictim = urgentEvent.TargetHeroId == hero.StringId;
+                    bool isInstigator = urgentEvent.InstigatorHeroId == hero.StringId;
                     var eventConfig = WorldEventConfig.Get(urgentEvent.EventType);
+
                     if (eventConfig?.MatchingCommissions != null && eventConfig.MatchingCommissions.Length > 0)
                     {
-                        var matchingDefs = new List<CommissionDef>();
-                        var nonMatchingDefs = new List<CommissionDef>();
+                        // 按角色筛选合适的委托类别
+                        var roleDefs = new List<CommissionDef>();
                         foreach (var def in availableDefs)
                         {
-                            if (eventConfig.MatchingCommissions.Contains(def.Category))
-                                matchingDefs.Add(def);
-                            else
-                                nonMatchingDefs.Add(def);
-                        }
+                            if (!eventConfig.MatchingCommissions.Contains(def.Category)) continue;
 
-                        // 事件匹配 defs 排前面；同一 category 可通过不同 tier/path 出变体来填满
-                        var eventDefs = new List<CommissionDef>();
-                        int perCategoryMax = Math.Max(1, maxCount / Math.Max(1, matchingDefs.Select(d => d.Category).Distinct().Count()));
-                        foreach (var def in matchingDefs)
-                        {
-                            int alreadyOfCategory = eventDefs.Count(d => d.Category == def.Category);
-                            if (alreadyOfCategory < perCategoryMax)
-                                eventDefs.Add(def);
-                        }
-                        // 补足以 maxCount
-                        while (eventDefs.Count < maxCount && matchingDefs.Count > 0)
-                        {
-                            var extra = matchingDefs.Where(d => !eventDefs.Contains(d)).OrderBy(_ => MBRandom.RandomFloat).FirstOrDefault();
-                            if (extra == null) break;
-                            eventDefs.Add(extra);
-                        }
-                        // 事件 defs 不够，用非匹配的补位
-                        if (eventDefs.Count < maxCount)
-                        {
-                            var fillers = nonMatchingDefs.OrderBy(_ => MBRandom.RandomFloat).ToList();
-                            foreach (var filler in fillers)
+                            // 加害方：过滤掉自己在做的活（赏金/刺杀目标不需要雇人重复干）
+                            if (isInstigator)
                             {
-                                if (eventDefs.Count >= maxCount) break;
-                                eventDefs.Add(filler);
+                                if (def.Category == CommissionCategory.BountyHunt) continue;
+                                if (def.Category == CommissionCategory.PrisonBreak) continue;
                             }
+
+                            roleDefs.Add(def);
                         }
 
-                        var finalDefs = eventDefs.Take(maxCount).ToList();
-                        for (int i = 0; i < finalDefs.Count; i++)
+                        // 每个 category 最多一条，事件 NPC 最多 2 个委托（KCD2：少而精）
+                        var distinctDefs = roleDefs
+                            .GroupBy(d => d.Category)
+                            .Select(g => g.OrderBy(_ => MBRandom.RandomFloat).First())
+                            .Take(Math.Min(maxCount, 2))
+                            .ToList();
+
+                        // 用事件数据直接生成委托：受害者 → target=instigator，加害方 → target=victim
+                        foreach (var def in distinctDefs)
                         {
-                            var data = GenerateCommissionData(finalDefs[i], hero, null);
-                            if (data != null) results.Add(data);
+                            var data = GenerateCommissionDataForEvent(def, hero, urgentEvent, isVictim);
+                            if (data != null)
+                                results.Add(data);
                         }
 
-                        DebugLogger.Log($"[CommissionGen] Event-first generation: hero={hero.Name} event={urgentEvent.EventType} matchingDefs={matchingDefs.Count} nonMatching={nonMatchingDefs.Count} result={results.Count}");
+                        DebugLogger.Log($"[CommissionGen] Event-direct generation: hero={hero.Name} event={urgentEvent.EventType} role={(isVictim ? "Victim" : isInstigator ? "Instigator" : "Unknown")} candidates={roleDefs.Count} result={results.Count}");
                         _cache[hero.StringId] = results;
                         return results;
                     }
+
+                    // 事件存在但无匹配委托配置 → 不生成委托，让事件对话主导
+                    DebugLogger.Log($"[CommissionGen] Event-active NPC {hero.Name} ({urgentEvent.EventType}) has no matching commission defs — skipping");
+                    _cache[hero.StringId] = results;
+                    return results;
                 }
 
-                // 无事件或事件无匹配委托：保持现有随机逻辑
+                // 无事件：保持现有随机逻辑
                 int count = Math.Min(maxCount, availableDefs.Count);
                 var shuffled = availableDefs.OrderBy(_ => MBRandom.RandomFloat).ToList();
                 for (int i = 0; i < count; i++)
@@ -293,6 +288,155 @@ namespace LivingWorldNpcs
                 default:
                     return true;
             }
+        }
+
+        /// <summary>
+        /// 生成委托数据但跳过世界事件匹配——直接走 FillTargetXxx 回退逻辑。
+        /// 用于 instigator 的委托生成在过滤掉受害者目标后需要补充非事件委托时。
+        /// </summary>
+        private static CommissionData GenerateCommissionDataWithoutEvent(CommissionDef def, Hero questGiver)
+        {
+            CommissionTier tier = CommissionTierProgression.GetAvailableTier(def.Category);
+            if (tier > CommissionTier.Basic && MBRandom.RandomFloat < 0.5f)
+                tier = (CommissionTier)((int)tier - 1);
+
+            var data = new CommissionData
+            {
+                DefId = def.Id,
+                Category = def.Category,
+                QuestGiver = questGiver,
+                BrokerHero = null,
+                IsNarrativePhase = false,
+                TimeRemainingHours = def.TimeLimitDays * 24f,
+                ChosenPath = PickBestPath(def.AvailablePaths),
+                Tier = tier,
+            };
+
+            bool filled;
+            switch (def.TargetType)
+            {
+                case CommissionTargetType.NamedHero:
+                    filled = FillTargetHero(data, def);
+                    break;
+                case CommissionTargetType.Settlement:
+                    filled = FillTargetSettlement(data, def, questGiver);
+                    break;
+                case CommissionTargetType.Item:
+                    filled = FillTargetItem(data, def) && FillTargetSettlement(data, def, questGiver);
+                    break;
+                case CommissionTargetType.Region:
+                case CommissionTargetType.Any:
+                    filled = FillTargetSettlement(data, def, questGiver);
+                    break;
+                default:
+                    filled = false;
+                    break;
+            }
+            if (!filled) return null;
+
+            float tierMultiplier = tier switch
+            {
+                CommissionTier.Basic => 1.0f,
+                CommissionTier.Skilled => 2.0f,
+                CommissionTier.Expert => 4.0f,
+                CommissionTier.Legendary => 8.0f,
+                _ => 1.0f
+            };
+
+            int trust = TrustSystem.GetTrust(questGiver);
+            float depositRatio = TrustSystem.GetDepositRatio(trust);
+            data.NegotiatedReward = (int)(def.BaseRewardGold * tierMultiplier);
+            data.DepositAmount = (int)(data.NegotiatedReward * depositRatio);
+            data.RewardPayer = MBRandom.RandomFloat < 0.9f ? questGiver : PickAlternatePayer(questGiver);
+
+            return data;
+        }
+
+        /// <summary>
+        /// 事件直接匹配生成委托 — 当事人用自己的 CurrentUrgentEvent。
+        /// 不走地理邻近搜索，受害者 target=instigator，加害方 target=victim。
+        /// </summary>
+        private static CommissionData GenerateCommissionDataForEvent(CommissionDef def, Hero questGiver, WorldEventData worldEvent, bool isVictim)
+        {
+            CommissionTier tier = CommissionTierProgression.GetAvailableTier(def.Category);
+            if (tier > CommissionTier.Basic && MBRandom.RandomFloat < 0.5f)
+                tier = (CommissionTier)((int)tier - 1);
+
+            var data = new CommissionData
+            {
+                DefId = def.Id,
+                Category = def.Category,
+                QuestGiver = questGiver,
+                BrokerHero = null,
+                IsNarrativePhase = false,
+                TimeRemainingHours = def.TimeLimitDays * 24f,
+                ChosenPath = PickBestPath(def.AvailablePaths),
+                Tier = tier,
+                WorldEventId = worldEvent.EventId,
+                IsGenericInstigator = worldEvent.IsGenericInstigator,
+            };
+
+            // 目标设置：受害者 → instigator，加害方 → victim
+            switch (def.TargetType)
+            {
+                case CommissionTargetType.NamedHero:
+                    if (isVictim)
+                    {
+                        // 受害者：委托目标 = 加害方（赏金缉拿刺客 / 引开追兵）
+                        var instigator = worldEvent.InstigatorHero;
+                        if (instigator != null && instigator.IsAlive && instigator != questGiver)
+                            data.TargetHero = instigator;
+                        else
+                            return null;
+                    }
+                    else
+                    {
+                        // 加害方：委托目标 = 受害者（但 BountyHunt 已在入口过滤，这里不走）
+                        var target = worldEvent.TargetHero;
+                        if (target != null && target.IsAlive && target != questGiver)
+                            data.TargetHero = target;
+                        else
+                            return null;
+                    }
+                    break;
+
+                case CommissionTargetType.Settlement:
+                    // 目标定居点 = 事件发生地
+                    data.TargetSettlementId = worldEvent.TargetSettlementId
+                        ?? questGiver?.CurrentSettlement?.StringId
+                        ?? questGiver?.HomeSettlement?.StringId;
+                    if (string.IsNullOrEmpty(data.TargetSettlementId)) return null;
+                    break;
+
+                case CommissionTargetType.Item:
+                    if (!FillTargetItem(data, def)) return null;
+                    data.TargetSettlementId = worldEvent.TargetSettlementId
+                        ?? questGiver?.CurrentSettlement?.StringId;
+                    break;
+
+                default:
+                    data.TargetSettlementId = worldEvent.TargetSettlementId;
+                    break;
+            }
+
+            float tierMultiplier = tier switch
+            {
+                CommissionTier.Basic => 1.0f,
+                CommissionTier.Skilled => 2.0f,
+                CommissionTier.Expert => 4.0f,
+                CommissionTier.Legendary => 8.0f,
+                _ => 1.0f
+            };
+
+            int trust = TrustSystem.GetTrust(questGiver);
+            float depositRatio = TrustSystem.GetDepositRatio(trust);
+            data.NegotiatedReward = (int)(def.BaseRewardGold * tierMultiplier);
+            data.DepositAmount = (int)(data.NegotiatedReward * depositRatio);
+            data.RewardPayer = MBRandom.RandomFloat < 0.9f ? questGiver : PickAlternatePayer(questGiver);
+
+            DebugLogger.Log($"[CommissionGen] Event-direct: def={def.Id} tier={tier} giver={questGiver?.Name} role={(isVictim ? "Victim" : "Instigator")} target={data.TargetHero?.Name?.ToString() ?? data.TargetSettlementId} payer={data.RewardPayer?.Name?.ToString() ?? questGiver?.Name?.ToString()}");
+
+            return data;
         }
 
         private static CommissionData GenerateCommissionData(CommissionDef def, Hero questGiver, Hero brokerHero)
@@ -532,16 +676,14 @@ namespace LivingWorldNpcs
                 {
                     case CommissionTargetType.NamedHero:
                         // 目标 = 加害方（匪首/绑匪/背叛者…）
+                        // 🛡 守卫：不要匹配 quest giver 自己的事件（instigator 不能悬赏自己）
                         var instigator = worldEvent.InstigatorHero;
-                        if (instigator != null && instigator.IsAlive)
+                        if (instigator != null && instigator.IsAlive && instigator != questGiver)
                         {
                             data.TargetHero = instigator;
                         }
                         else if (worldEvent.IsGenericInstigator)
                         {
-                            // 🐛 修复：通用匪帮没有真实 Hero，但仍应匹配事件。
-                            // 将目标落脚点设为目标定居点（匪帮最后出现在受害人所在地附近），
-                            // 委托叙事层通过 WorldEventId 输出事件专属文本。
                             data.TargetSettlementId = worldEvent.TargetSettlementId;
                             DebugLogger.Log($"[CommissionGen] Matched WorldEvent with generic instigator: category={def.Category} event={worldEvent.EventType} settlement={data.TargetSettlementId}");
                         }

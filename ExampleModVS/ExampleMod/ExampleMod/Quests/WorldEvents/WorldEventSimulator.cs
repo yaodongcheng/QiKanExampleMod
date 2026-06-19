@@ -503,12 +503,8 @@ namespace LivingWorldNpcs
                         .FirstOrDefault();
                 if (targetSettlement == null) continue;
 
-                Hero targetHero = null;
-                if (config.TargetsHero)
-                {
-                    targetHero = hated; // 直接用恨的对象
-                    if (targetHero == null) continue;
-                }
+                Hero targetHero = hated; // 动机系统已知恨的对象 → 无论 config 是否要求，都写入 WorldEventData 供叙事使用
+                if (config.TargetsHero && targetHero == null) continue; // 仅当配置强制要求时才因缺目标跳过
 
                 int severity = ClampInt(3 + (int)(Math.Abs(relation) / 10f), config.MinSeverity, config.MaxSeverity);
                 float dayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit);
@@ -679,12 +675,8 @@ namespace LivingWorldNpcs
                     var config = WorldEventConfig.Get(expType);
                     if (config == null) continue;
 
-                    Hero targetHero = null;
-                    if (config.TargetsHero)
-                    {
-                        targetHero = SelectTargetHero(targetSettlement);
-                        if (targetHero == null) continue;
-                    }
+                    Hero targetHero = SelectTargetHero(targetSettlement); // 即使 config 不要求，也尝试找 → 供叙事使用
+                    if (config.TargetsHero && targetHero == null) continue; // 仅当配置强制要求时才因缺目标跳过
 
                     int severity = MBRandom.RandomInt(3, 7);
                     float dayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit);
@@ -819,9 +811,9 @@ namespace LivingWorldNpcs
             if (targetSettlement == null)
                 return "Error: No suitable settlement found.";
 
-            Hero targetHero = null;
-            if (config.TargetsHero && simulator != null)
-                targetHero = simulator.SelectTargetHero(targetSettlement);
+            Hero targetHero = simulator?.SelectTargetHero(targetSettlement); // 即使 config 不要求，也尝试找 → 供叙事使用
+            if (config.TargetsHero && targetHero == null)
+                return "Error: No suitable target hero found.";
 
             Hero instigatorHero = null;
             bool isGeneric = false;
@@ -865,13 +857,9 @@ namespace LivingWorldNpcs
             Settlement targetSettlement = SelectTargetSettlement();
             if (targetSettlement == null) return;
 
-            // 2. 选受害者（根据配置决定是 Hero 还是 Settlement 本身）
-            Hero targetHero = null;
-            if (config.TargetsHero)
-            {
-                targetHero = SelectTargetHero(targetSettlement);
-                if (targetHero == null) return; // 找不到真人 → 不生成
-            }
+            // 2. 选受害者（即使 config 不要求，也尝试找 → 供叙事使用）
+            Hero targetHero = SelectTargetHero(targetSettlement);
+            if (config.TargetsHero && targetHero == null) return; // 配置强制要求但找不到真人 → 不生成
 
             // 3. 选加害方
             Hero instigatorHero = null;
@@ -1107,7 +1095,6 @@ namespace LivingWorldNpcs
                 string prefix = config.EventType.ToString().ToLower();
                 string partyId = $"lwn_{prefix}_{targetSettlement.StringId}_{MBRandom.RandomInt(10000)}";
                 MobileParty party;
-                bool isRedirected = false; // 征用真人部队时不锁 AI
 
                 // ── 真人 instigator：优先征用其现有部队，而非另建幽灵 party ──
                 if (!isGeneric && instigatorHero != null)
@@ -1118,7 +1105,6 @@ namespace LivingWorldNpcs
                     {
                         // instigator 本人正带队 → 直接调遣他的真实部队去打目标！
                         party = existingParty;
-                        isRedirected = true;
                         party.SetCustomName(new TextObject(
                             GetPartyNameTemplate(config, instigatorHero, targetSettlement, targetHero)));
                         party.Ai.SetDoNotMakeNewDecisions(false); // 解锁 AI，允许我们下达新指令
@@ -1146,8 +1132,12 @@ namespace LivingWorldNpcs
                         {
                             DebugLogger.Log($"[WorldEventSimulator] ERROR: Failed to extract {instigatorHero.Name} for event party. Hero is {unavailReason}. Falling back to generic party.");
                             party = CreateGenericEventParty(partyId, config, targetSettlement, targetHero, severity);
-                            if (party != null) return party;
-                            return null;
+                            if (party != null)
+                            {
+                                party.SetPartyUsedByQuest(true);
+                                Campaign.Current?.VisualTrackerManager?.RegisterObject(party);
+                            }
+                            return party;
                         }
 
                         if (instigatorHero.Clan == null)
@@ -1171,8 +1161,12 @@ namespace LivingWorldNpcs
                             DebugLogger.Log($"[WorldEventSimulator] ERROR: {instigatorHero.Name} failed to join created party. LeaderHero={party.LeaderHero?.Name?.ToString() ?? "null"}, inRoster={party.MemberRoster.GetTroopCount(instigatorHero.CharacterObject)}. Reason: {unavailReason}");
                             party.RemoveParty();
                             party = CreateGenericEventParty(partyId, config, targetSettlement, targetHero, severity);
-                            if (party != null) return party;
-                            return null;
+                            if (party != null)
+                            {
+                                party.SetPartyUsedByQuest(true);
+                                Campaign.Current?.VisualTrackerManager?.RegisterObject(party);
+                            }
+                            return party;
                         }
 
                         DebugLogger.Log($"[WorldEventSimulator] Created new party for {instigatorHero.Name} ({party.MemberRoster.TotalManCount} troops) → {targetSettlement.Name}");
@@ -1210,8 +1204,9 @@ namespace LivingWorldNpcs
                         party.Ai.SetMoveEngageParty(MobileParty.MainParty);
                         break;
                 }
-                party.Ai.SetDoNotMakeNewDecisions(!isRedirected); // 征用部队不锁 AI，让它们自主战斗
+                party.Ai.SetDoNotMakeNewDecisions(false); // 事件部队保持 AI 活性：到达后可自主行动（raid/战斗/巡逻），防止卡在半路发呆
                 party.SetPartyUsedByQuest(true);
+                Campaign.Current?.VisualTrackerManager?.RegisterObject(party); // 注册地图追踪 → 无视战争迷雾 + 显示任务光圈
                 party.Party.SetVisualAsDirty();
 
                 return party;

@@ -252,12 +252,15 @@ namespace LivingWorldNpcs.Story
         private DraftProposal _draftProposal = new DraftProposal();
 
         private List<NegotiationCard> _lastRoundCards;
-        // 标记当前是否处于“读心”状态
+        // 标记当前是否处于"读心"状态
         private bool _isReadingMind = false;
         // [新增] 缓存当前回合的文本，用于读心切换
         private string _cachedCurrentReply = "";
         private string _cachedCurrentThinking = "";
         public LLMResponse_Casual currentCasualResponse = null;
+
+        /// <summary>是否已展开"其他事情"（持久化在 Controller 上，避免 IntentContext 重建丢失）。</summary>
+        public bool OptionsExpanded = false;
 
         // [新增] 为了支持层级菜单，我们需要一个状态来标记当前是在哪一层
         private enum MenuState { Root, AddWager, RemoveWager, CategorySelect, ItemSelect }
@@ -287,6 +290,7 @@ namespace LivingWorldNpcs.Story
 
             _targetAgent = target;
             _targetHero = (_targetAgent.Character as CharacterObject)?.HeroObject;
+            OptionsExpanded = false;
 
             DebugLogger.Log($"[Player] Talk to: {_targetAgent.Name} (hero={_targetHero?.Name?.ToString() ?? "none"})");
 
@@ -308,8 +312,23 @@ namespace LivingWorldNpcs.Story
             {
                 // === 统一轮次制（KCD2 式）：NPC 先说开场白 → 玩家点"继续" → 选项出现 ===
 
-                // 第一优先：从 NPC 自身记忆读取最紧迫的世界事件（由 WorldEventDatabase 在事件创建时推送）
+                // 第一优先：从 NPC 自身记忆读取最紧迫的世界事件
                 var urgentEvent = _memory?.CurrentUrgentEvent;
+
+                // 🛡 兜底：如果记忆里没有（惰性创建 / key 不匹配等），直接查事件数据库
+                if (urgentEvent == null && _targetHero != null && !string.IsNullOrEmpty(_targetHero.StringId))
+                {
+                    urgentEvent = WorldEventDatabase.ActiveEvents
+                        .Where(e => e.TargetHeroId == _targetHero.StringId || e.InstigatorHeroId == _targetHero.StringId)
+                        .OrderByDescending(e => e.Severity)
+                        .FirstOrDefault();
+                    if (urgentEvent != null && _memory != null)
+                    {
+                        _memory.CurrentUrgentEvent = urgentEvent;
+                        DebugLogger.Log($"[EventAware] Backfilled memory for {_targetHero.Name} ← {urgentEvent.EventType}");
+                    }
+                }
+
                 if (urgentEvent != null)
                 {
                     initialText = WorldEventDirector.BuildEventOpeningLine(urgentEvent, _targetHero, "Greeting");
@@ -1216,7 +1235,7 @@ namespace LivingWorldNpcs.Story
               
 
 
-                // 强制给一个“开始谈判”的按钮，点击后再次调用 HandlePlayerInputAsync 刷新出真正的谈判卡牌
+                // 强制给一个"开始谈判"的按钮，点击后再次调用 HandlePlayerInputAsync 刷新出真正的谈判卡牌
                 var startOpt = new StoryOptionVM("【开始协商】 (进入博弈)", async () =>
                 {
                     _vm.LockPrediction();
@@ -1627,7 +1646,7 @@ namespace LivingWorldNpcs.Story
                 var itemObject = element.EquipmentElement.Item;
 
                 // 创建筹码对象
-                // 注意：这里默认将背包里该物品的“堆叠数量”全部作为筹码
+                // 注意：这里默认将背包里该物品的"堆叠数量"全部作为筹码
                 // 如果想让玩家选数量，需要额外的 UI 逻辑，这里简化为 All-in
                 var chip = new Chip(NegotiationCostType.Item, itemObject.Name.ToString(), itemObject.StringId, element.Amount);
                 float estimatedVal = chip.EstimatedValue;

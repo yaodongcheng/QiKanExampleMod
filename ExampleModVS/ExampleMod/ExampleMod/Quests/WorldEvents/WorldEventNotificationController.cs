@@ -154,62 +154,73 @@ namespace LivingWorldNpcs
 
         #region 消息构建
 
-        /// <summary>中距离消息：带地名和事件类型。</summary>
+        /// <summary>中距离消息：暗探情报语气，带不确定性。</summary>
         private static string BuildMidRangeMessage(WorldEventData e)
         {
             string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
             string severityTag = e.Severity >= 7 ? "紧急——" : "";
+            bool impending = e.Phase == WorldEventPhase.Impending;
 
             return e.EventType switch
             {
-                WorldEventType.BanditRaid =>
-                    $"📢 {severityTag}{loc}正遭匪患！听说匪帮已经在村外扎了营。",
-                WorldEventType.Kidnapping =>
-                    $"📢 {severityTag}{loc}有人被绑走了——家里人正四处求助。",
+                WorldEventType.BanditRaid => impending
+                    ? $"📢 {severityTag}{loc}周边匪情骤增——暗探判断有人正在集结人手。"
+                    : $"📢 {severityTag}{loc}遭了匪！暗探确认村子已被洗劫。",
+                WorldEventType.Kidnapping => impending
+                    ? $"📢 {severityTag}{loc}有可疑人士出没——暗探疑其意在绑人。"
+                    : $"📢 {severityTag}{loc}出了绑架案——人已被带走，暗探在追去向。",
                 WorldEventType.Famine =>
-                    $"📢 {severityTag}{loc}闹饥荒了——粮仓见底，百姓以野菜充饥。",
-                WorldEventType.Betrayal =>
-                    $"📢 {severityTag}{loc}出了内鬼……有人被最信任的人从背后捅了一刀。",
+                    $"📢 {severityTag}{loc}粮荒——暗探报粮仓已见底。",
+                WorldEventType.Betrayal => impending
+                    ? $"📢 {severityTag}{loc}有人正在暗中串联——暗探疑其心怀不轨。"
+                    : $"📢 {severityTag}{loc}出了内鬼……暗探确认是身边人干的。",
                 WorldEventType.DebtTrap =>
-                    $"📢 {severityTag}{loc}有人被高利贷逼得走投无路。",
+                    $"📢 {severityTag}{loc}有人被高利贷逼到绝路。",
                 WorldEventType.RomanticConflict =>
-                    $"📢 {loc}有人在为情所困——两家人的脸面都挂不住了。",
-                WorldEventType.FalseAccusation =>
-                    $"📢 {severityTag}{loc}有人被冤枉了！再找不到证据就要被定罪。",
+                    $"📢 {loc}有人在为情所困——闹得沸沸扬扬。",
+                WorldEventType.FalseAccusation => impending
+                    ? $"📢 {severityTag}{loc}有流言在暗中传播——暗探疑是诬告。"
+                    : $"📢 {severityTag}{loc}有人被冤枉了——暗探评注证据不足。",
                 WorldEventType.InheritanceDispute =>
                     $"📢 {loc}的老爷子走了——继承人们为遗产撕破了脸。",
                 WorldEventType.Fugitive =>
-                    $"📢 {loc}附近藏了个逃犯。追捕令已经发出了。",
-                WorldEventType.TradeDispute =>
-                    $"📢 {loc}的市场乱了——商人们互相倾轧。",
-                WorldEventType.NobleConflict =>
-                    $"📢 {severityTag}{loc}的领主和对面起了摩擦——怕是要打起来。",
-                WorldEventType.SacredTheft =>
-                    $"📢 {severityTag}{loc}的传家宝被人偷了——那是人家祖宗的魂。",
-                WorldEventType.Assassination =>
-                    $"📢 {severityTag}{loc}有重要人物被刺杀了！人心惶惶。",
+                    $"📢 {loc}附近藏了个人——暗探说追捕令已经发出。",
+                WorldEventType.TradeDispute => impending
+                    ? $"📢 {loc}的市场不太平——有商人正在排挤同行。"
+                    : $"📢 {loc}的市场已被人垄断——小商人们出局了。",
+                WorldEventType.NobleConflict => impending
+                    ? $"📢 {severityTag}{loc}边境兵力调动频繁——暗探判断摩擦在即。"
+                    : $"📢 {severityTag}{loc}的领主已经打起来了——暗探确认边境交火。",
+                WorldEventType.SacredTheft => impending
+                    ? $"📢 {severityTag}暗探注意到{loc}附近有可疑人士——似在打圣物的主意。"
+                    : $"📢 {severityTag}{loc}的传家宝被盗——暗探确认属实。",
+                WorldEventType.Assassination => impending
+                    ? $"📢 {severityTag}{loc}有可疑活动——暗探判断有人欲行不轨。"
+                    : $"📢 {severityTag}{loc}有重要人物遇刺——暗探已确认。",
                 WorldEventType.NemesisRevenge =>
-                    $"📢 有人在找你——而且越来越近了。",
-                _ => $"📢 {loc}出事了——具体还不清楚，但肯定不太平。"
+                    $"📢 有人在找你——暗探说他越来越近了。",
+                _ => $"📢 {loc}出了事——暗探正在追查详情。"
             };
         }
 
-        /// <summary>远距离谣言：模糊但有氛围。</summary>
+        /// <summary>远距离谣言：模糊但有氛围。按事件阶段区分时态。</summary>
         private static string BuildFarRumor(WorldEventData e)
         {
             // 远距离不暴露具体地名，保持神秘感
             string direction = GetDirectionToEvent(e);
+            bool impending = e.Phase == WorldEventPhase.Impending;
+
             string flavor = e.EventType switch
             {
-                WorldEventType.BanditRaid => "不太平——听说有匪帮在活动。",
-                WorldEventType.Kidnapping => "出了绑架案——传得人心惶惶。",
+                WorldEventType.BanditRaid => impending ? "不太平——听说有匪帮正在往那边集结。" : "不太平——听说有匪帮在活动。",
+                WorldEventType.Kidnapping => impending ? "不太平——听说有人被盯上了。" : "出了绑架案——传得人心惶惶。",
                 WorldEventType.Famine => "闹饥荒——粮价已经翻了好几倍。",
-                WorldEventType.Betrayal => "出了桩背叛的丑事——自己人捅了自己人。",
+                WorldEventType.Betrayal => impending ? "气氛紧张——听说内部有人心怀不轨。" : "出了桩背叛的丑事——自己人捅了自己人。",
                 WorldEventType.DebtTrap => "有人在被逼债——高利贷滚到了还不清的数目。",
-                WorldEventType.Assassination => "有大人物被刺杀了——具体情况还不明朗。",
-                WorldEventType.NobleConflict => "领主们剑拔弩张——小规模摩擦已经开始了。",
-                WorldEventType.SacredTheft => "有传家宝被盗了——不只是一件东西那么简单。",
-                _ => "出了些事——具体还不太清楚。"
+                WorldEventType.Assassination => impending ? "有人在密谋行刺——目标是个有头有脸的人物。" : "有大人物被刺杀了——具体情况还不明朗。",
+                WorldEventType.NobleConflict => impending ? "领主们在调兵遣将——摩擦随时升级。" : "领主们剑拔弩张——小规模摩擦已经开始了。",
+                WorldEventType.SacredTheft => impending ? "有人在打传家宝的主意——盯上的不是普通东西。" : "有传家宝被盗了——不只是一件东西那么简单。",
+                _ => impending ? "出了些事——具体还不太清楚，但那边的人很不安。" : "出了些事——具体还不太清楚。"
             };
 
             return $"🗞 有商队从{direction}方带来消息——那边{flavor}";
@@ -238,15 +249,15 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 构建简短摘要（一行，给 NinjaNotification hover 显示）。
-        /// 有真人 actor 时用 TK5 忍者通报风格：{谁} {动作} {谁/哪里}
-        /// 通用模板时回退地点+类型。
+        /// 🔴 铁律 6：禁止上帝视角。信息必须以暗探情报渠道呈现，带不确定性标记。
         /// </summary>
         private static string BuildShortSummary(WorldEventData e)
         {
             string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
             string sevMark = e.Severity >= 8 ? "‼" : e.Severity >= 5 ? "⚠" : "";
+            bool impending = e.Phase == WorldEventPhase.Impending;
 
-            // ── 有真人时：TK5 忍者通报风格（谁 对 谁 做了什么）──
+            // ── 有真人时：暗探情报语气 ──
             if (!e.IsGenericInstigator && !string.IsNullOrEmpty(e.InstigatorHeroId))
             {
                 string instigator = e.InstigatorHero?.Name?.ToString() ?? "某人";
@@ -254,20 +265,40 @@ namespace LivingWorldNpcs
 
                 string action = e.EventType switch
                 {
-                    WorldEventType.BanditRaid => $"率匪劫掠{loc}",
-                    WorldEventType.Kidnapping => $"绑走了{loc}的{target}",
-                    WorldEventType.Betrayal => $"背叛了{target}",
-                    WorldEventType.DebtTrap => $"逼债{target}",
+                    WorldEventType.BanditRaid => impending
+                        ? $"近日动向可疑，{loc}周边匪情骤增"
+                        : $"已率匪洗劫{loc}，暗探确认属实",
+                    WorldEventType.Kidnapping => impending
+                        ? $"近日在{loc}附近活动频繁，{target}疑为猎物"
+                        : $"已绑走{loc}的{target}，当地证实",
+                    WorldEventType.Betrayal => impending
+                        ? $"与{target}之间暗流涌动，似有异心"
+                        : $"已背叛{target}，内部确认",
+                    WorldEventType.DebtTrap => impending
+                        ? $"正步步紧逼{target}，债据已在手上"
+                        : $"已逼垮{target}，地契易手",
                     WorldEventType.RomanticConflict => $"与{target}情仇难解",
-                    WorldEventType.FalseAccusation => $"诬告{target}",
-                    WorldEventType.InheritanceDispute => $"争夺{target}的继承权",
-                    WorldEventType.Fugitive => $"追捕{target}",
-                    WorldEventType.TradeDispute => $"垄断{loc}市场",
-                    WorldEventType.NobleConflict => $"出兵征讨{target}",
-                    WorldEventType.SacredTheft => $"盗走{loc}圣物",
-                    WorldEventType.Assassination => $"在{loc}刺杀{target}",
-                    WorldEventType.NemesisRevenge => $"猎杀你！",
-                    _ => $"在{loc}引发事件"
+                    WorldEventType.FalseAccusation => impending
+                        ? $"正四处散布不利于{target}的言论"
+                        : $"已诬告{target}得逞",
+                    WorldEventType.InheritanceDispute => $"正与{target}争夺继承权",
+                    WorldEventType.Fugitive => $"线索指向{target}",
+                    WorldEventType.TradeDispute => impending
+                        ? $"正在{loc}排挤{target}的生意"
+                        : $"已垄断{loc}市场，{target}出局",
+                    WorldEventType.NobleConflict => impending
+                        ? $"兵力调动频繁，{target}或是目标"
+                        : $"已出兵征讨{target}，边境交战",
+                    WorldEventType.SacredTheft => impending
+                        ? $"近日频繁遣人打探{loc}，似与圣物有关"
+                        : $"已盗走{loc}圣物，暗探确认属实",
+                    WorldEventType.Assassination => impending
+                        ? $"近日行踪诡秘，暗探疑其欲对{target}不利"
+                        : $"已刺杀{target}，{loc}现场确认",
+                    WorldEventType.NemesisRevenge => $"正在找你……",
+                    _ => impending
+                        ? $"近日在{loc}附近动向异常"
+                        : $"已在{loc}得手，暗探来报"
                 };
                 return $"{sevMark} {instigator} {action}";
             }
