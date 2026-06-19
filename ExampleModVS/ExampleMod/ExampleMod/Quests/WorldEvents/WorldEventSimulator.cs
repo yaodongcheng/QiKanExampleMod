@@ -1166,12 +1166,8 @@ namespace LivingWorldNpcs
 
                         DebugLogger.Log($"[WorldEventSimulator] Mobilized party for {instigatorHero.Name} ({party.MemberRoster.TotalManCount} troops, from garrisons) → {targetSettlement.Name}");
 
-                        // 定位：在目标周围找可通行位置，投影到导航网格避免卡山/卡水
-                        float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
-                        float dist = 30f + MBRandom.RandomFloat * 30f;
-                        Vec2 candidate = targetSettlement.Position2D + new Vec2(
-                            (float)Math.Cos(angle) * dist, (float)Math.Sin(angle) * dist);
-                        party.Position2D = SnapToNavMesh(candidate, targetSettlement.Position2D);
+                        // 定位：在目标周围找可通行位置，验证岛屿连通性 + 寻路距离
+                        party.Position2D = FindReachableSpawnPosition(targetSettlement);
                     }
                 }
                 else
@@ -1271,7 +1267,7 @@ namespace LivingWorldNpcs
                         break;
                 }
 
-                // 确定生成位置
+                // 确定生成位置（所有路径均经过导航网格验证）
                 Vec2 spawnPos;
                 switch (auxConfig.SpawnPosition)
                 {
@@ -1282,23 +1278,17 @@ namespace LivingWorldNpcs
                         Vec2 victimPos = victim?.PartyBelongedTo?.Position2D
                             ?? targetSettlement.Position2D;
                         Vec2 mid = (instPos + victimPos) * 0.5f;
-                        Vec2 jitter = new Vec2(MBRandom.RandomFloat * 10f - 5f, MBRandom.RandomFloat * 10f - 5f);
-                        spawnPos = SnapToNavMesh(mid + jitter, mid);
+                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(mid, 15f) ?? mid;
                         break;
                     case AuxiliarySpawnPosition.NearInstigator:
                         Vec2 instBase = instigator?.PartyBelongedTo?.Position2D
                             ?? evt.GeneratedParty?.Position2D
                             ?? targetSettlement.Position2D;
-                        spawnPos = SnapToNavMesh(instBase + new Vec2(3 + MBRandom.RandomFloat * 5f, 3 + MBRandom.RandomFloat * 5f), instBase);
+                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(instBase, 10f) ?? instBase;
                         break;
                     case AuxiliarySpawnPosition.NearTarget:
-                        spawnPos = SnapToNavMesh(targetSettlement.Position2D + new Vec2(3 + MBRandom.RandomFloat * 8f, 3 + MBRandom.RandomFloat * 8f), targetSettlement.Position2D);
-                        break;
                     default:
-                        float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
-                        float dist = 15f + MBRandom.RandomFloat * 25f;
-                        spawnPos = targetSettlement.Position2D + new Vec2((float)Math.Cos(angle) * dist, (float)Math.Sin(angle) * dist);
-                        spawnPos = SnapToNavMesh(spawnPos, targetSettlement.Position2D);
+                        spawnPos = FindReachableSpawnPosition(targetSettlement);
                         break;
                 }
 
@@ -1361,35 +1351,81 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 将候选坐标投影到导航网格上，防止 party 生成在不可通行的山崖/水面。
-        /// 利用引擎的 GetLastPointOnNavigationMeshFromPositionToDestination——
-        /// 鼠标变禁用图标也是同一套底层判断。
+        /// 在目标定居点周围找到一个真实可达的生成位置。
+        ///
+        /// 分两层验证：
+        ///   1. AreFacesOnSameIsland — 候选面和定居点面是否在同一连通岛上（排除隔山/隔水）
+        ///   2. GetPathDistanceBetweenAIFaces — 实际寻路距离是否在合理范围内
+        ///
+        /// 候选策略：在定居点周围 15~45 单位半径上以 8 个方向尝试，
+        /// 每次尝试先做 navmesh 投影，再验证岛屿连通性和寻路距离。
+        /// 全部失败则用引擎原生的 GetAccessiblePointNearPosition 兜底。
+        ///
+        /// 鼠标变禁用图标也是基于同一套 AreFacesOnSameIsland 底层判断。
         /// </summary>
-        private static Vec2 SnapToNavMesh(Vec2 candidate, Vec2 fallback)
+        private static Vec2 FindReachableSpawnPosition(Settlement targetSettlement)
         {
-            try
+            var wrapper = Campaign.Current?.MapSceneWrapper;
+            if (wrapper == null || targetSettlement == null)
+                return targetSettlement?.Position2D ?? Vec2.Zero;
+
+            Vec2 settlementPos = targetSettlement.Position2D;
+            PathFaceRecord settlementFace = wrapper.GetFaceIndex(settlementPos);
+            if (!settlementFace.IsValid())
             {
-                var wrapper = Campaign.Current?.MapSceneWrapper;
-                if (wrapper == null) return candidate;
-
-                PathFaceRecord face = wrapper.GetFaceIndex(candidate);
-                if (face.IsValid())
-                    return candidate; // 已在有效导航面上
-
-                // 候选点不可通行 → 沿导航网格投影到最近可达点
-                PathFaceRecord fallbackFace = wrapper.GetFaceIndex(fallback);
-                if (!fallbackFace.IsValid())
-                    return candidate; // 兜底坐标也无效，放弃
-
-                Vec2 snapped = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
-                    fallbackFace, candidate, fallback);
-                return snapped;
+                DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: settlement face invalid for {targetSettlement.Name}! Using GetAccessiblePointNearPosition fallback.");
+                return wrapper.GetAccessiblePointNearPosition(settlementPos, 30f);
             }
-            catch (Exception ex)
+
+            const int MAX_ATTEMPTS = 24; // 3 圈 × 8 个方向
+            int attempt = 0;
+
+            // 三圈：不同距离
+            foreach (float radius in new[] { 18f, 30f, 42f })
             {
-                DebugLogger.Log($"[WorldEventSimulator] SnapToNavMesh error: {ex.Message}");
-                return candidate;
+                // 随机起始角度避免总是尝试同一个方向
+                float baseAngle = MBRandom.RandomFloat * 2f * (float)Math.PI;
+                for (int dir = 0; dir < 8; dir++)
+                {
+                    float angle = baseAngle + dir * (float)Math.PI / 4f;
+                    Vec2 candidate = settlementPos + new Vec2(
+                        (float)Math.Cos(angle) * radius,
+                        (float)Math.Sin(angle) * radius);
+
+                    // 投影到 navmesh
+                    Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
+                        settlementFace, candidate, settlementPos);
+
+                    PathFaceRecord projectedFace = wrapper.GetFaceIndex(projected);
+                    if (!projectedFace.IsValid())
+                        continue;
+
+                    // 🔑 验证 1：同一岛屿？
+                    if (!wrapper.AreFacesOnSameIsland(projectedFace, settlementFace, ignoreDisabled: false))
+                        continue;
+
+                    // 🔑 验证 2：寻路距离是否合理（距离 < 100 单位，排除绕远路的孤立路径）
+                    if (!wrapper.GetPathDistanceBetweenAIFaces(
+                        projectedFace, settlementFace, projected, settlementPos,
+                        0.1f, 100f, out float pathDist))
+                        continue;
+
+                    attempt++;
+                    // 寻路距离不应超过直线距离的 3 倍（否则地形严重阻挡）
+                    float straightDist = projected.Distance(settlementPos);
+                    if (pathDist > straightDist * 3f && pathDist > 10f)
+                        continue;
+
+                    DebugLogger.Log(attempt > 1
+                        ? $"[WorldEventSimulator] FindReachableSpawnPosition: found valid pos at ({projected.X:F1},{projected.Y:F1}) after {attempt} attempts (straight={straightDist:F1}m, path={pathDist:F1}m)"
+                        : $"[WorldEventSimulator] FindReachableSpawnPosition: ({projected.X:F1},{projected.Y:F1}) straight={straightDist:F1}m path={pathDist:F1}m");
+                    return projected;
+                }
             }
+
+            // 全部失败 → 用引擎原生兜底
+            DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: all {MAX_ATTEMPTS} candidates failed for {targetSettlement.Name} — using GetAccessiblePointNearPosition fallback");
+            return wrapper.GetAccessiblePointNearPosition(settlementPos, 30f);
         }
 
         private string GetPartyNameTemplate(WorldEventConfig config, Hero instigator, Settlement settlement, Hero target)
@@ -1729,8 +1765,7 @@ namespace LivingWorldNpcs
             if (banditClan != null) party.ActualClan = banditClan;
             FillGenericPartyTroops(party, severity);
 
-            Vec2 offset = new Vec2((MBRandom.RandomFloat - 0.5f) * 20f, (MBRandom.RandomFloat - 0.5f) * 20f);
-            party.Position2D = targetSettlement.Position2D + offset;
+            party.Position2D = FindReachableSpawnPosition(targetSettlement);
             return party;
         }
 

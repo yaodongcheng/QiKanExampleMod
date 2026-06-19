@@ -62,6 +62,10 @@ namespace LivingWorldNpcs
         private static float _lastApproachNotifyDay = -1f;
         private const float APPROACH_COOLDOWN = 0.25f; // 每个定居点 6 小时内不重复汇总
 
+        /// <summary>拦截通知冷却：per event Id → 上次推送的游戏日。防止同一事件每 2 秒刷屏。</summary>
+        private static readonly Dictionary<string, float> _interceptCooldowns = new Dictionary<string, float>();
+        private const float INTERCEPT_COOLDOWN_DAYS = 0.15f; // 同一事件 ~3.6 小时内不重复拦截
+
         public static WorldEventData CheckRoadIntercept()
         {
             if (MobileParty.MainParty == null) return null;
@@ -153,6 +157,22 @@ namespace LivingWorldNpcs
 
                 if (selected.Severity >= 6)
                 {
+                    // ── 冷却检查：同一事件短时间内不重复拦截（防止每 2 秒刷屏）──
+                    if (_interceptCooldowns.TryGetValue(selected.EventId, out float lastInterceptDay)
+                        && currentDay - lastInterceptDay < INTERCEPT_COOLDOWN_DAYS)
+                    {
+                        return selected; // 冷却中，跳过本次拦截
+                    }
+                    _interceptCooldowns[selected.EventId] = currentDay;
+
+                    // 清理过期冷却（>1 天的旧记录）
+                    var expired = _interceptCooldowns
+                        .Where(kv => currentDay - kv.Value > 1f)
+                        .Select(kv => kv.Key)
+                        .ToList();
+                    foreach (var key in expired)
+                        _interceptCooldowns.Remove(key);
+
                     // 点击弹出 Inquiry 详情，让玩家知道具体发生了什么
                     var capturedEvent = selected;
                     string fullNarrative = NotificationPipeline.BuildEventNarrativePublic(selected);

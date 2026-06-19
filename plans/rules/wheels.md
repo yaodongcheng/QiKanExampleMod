@@ -104,6 +104,47 @@ DebugLogger.Log("消息");   // 线程安全，落盘到 Configs/StoryEngine_Run
 
 为英雄创建独立部队时用它做最小 PartyComponent（带 null 防护），避免裸建 component 崩溃。
 
+## 大地图 Party 出生点验证 — `Quests/WorldEvents/WorldEventSimulator.FindReachableSpawnPosition`
+
+在大地图上为 party 选定出生点时，**必须验证出生点到目标定居点的寻路可达性**。仅检查 navmesh 面是否有效（`GetFaceIndex().IsValid()`）不够——山顶/隔水区域也有 navmesh 面，但和定居点不连通，mouse 光标会变禁用圈。
+
+三层验证管线：
+
+```csharp
+// 入口：只需传目标定居点，内部自动生成多方向候选 + 验证
+Vec2 spawnPos = FindReachableSpawnPosition(targetSettlement);
+
+// 内部验证：
+// ① GetLastPointOnNavigationMeshFromPositionToDestination — 几何投影到 navmesh
+// ② AreFacesOnSameIsland(projectedFace, settlementFace) — 🔑 同一连通岛？（排除隔山/隔水）
+// ③ GetPathDistanceBetweenAIFaces(projectedFace, settlementFace, …, 100f, out pathDist) — 🔑 寻路距离合理？
+// ④ pathDist <= straightDist * 3 — 排除绕远路的孤立路径
+// 候选：定居点周围 3 圈 × 8 个方向（18/30/42 单位半径），取第一个通过全部验证的
+// 兜底：GetAccessiblePointNearPosition(settlementPos, 30f) — 引擎原生
+```
+
+**禁止**在任何 party 出生点计算中裸用 `GetFaceIndex().IsValid()` 作为可达性判断——这与鼠标变禁用图标不是同一套逻辑。鼠标禁用图标用的是 `AreFacesOnSameIsland`。辅助 party 的 `NearInstigator`/`BetweenParties` 用 `GetAccessiblePointNearPosition` 即可（参照物是已有 party，本身在可达区域）。
+
+## 通知防刷屏冷却 — `Quests/WorldEvents/WorldEventDirector`
+
+高频检查（如 `OnCampaignTick` 每 2 秒扫一次）里推送通知时，**必须加 per-event 冷却字典**，否则玩家站在事件附近每 2 秒弹一次同一条通知。
+
+```csharp
+// 字段
+private static readonly Dictionary<string, float> _interceptCooldowns = new Dictionary<string, float>();
+private const float INTERCEPT_COOLDOWN_DAYS = 0.15f; // ~3.6 小时
+
+// 使用
+if (_interceptCooldowns.TryGetValue(selected.EventId, out float lastDay)
+    && currentDay - lastDay < INTERCEPT_COOLDOWN_DAYS)
+    return; // 冷却中，跳过
+_interceptCooldowns[selected.EventId] = currentDay;
+
+// 定期清理过期记录（>1 天），防止内存泄漏
+var expired = _interceptCooldowns.Where(kv => currentDay - kv.Value > 1f).Select(kv => kv.Key).ToList();
+foreach (var key in expired) _interceptCooldowns.Remove(key);
+```
+
 ---
 
 # 三大可扩展引擎（核心资产 —— 加玩法优先挂这里）
