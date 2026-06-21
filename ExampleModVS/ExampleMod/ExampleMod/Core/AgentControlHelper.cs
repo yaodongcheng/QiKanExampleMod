@@ -63,7 +63,7 @@ namespace LivingWorldNpcs
             {
                 if (targetPos.GetNavMesh() == UIntPtr.Zero)
                 {
-#if LATEST
+#if !MB2_V1212
                     agent.Mission.Scene.GetNavigationMeshForPosition(in targetVec);
 #else
                     agent.Mission.Scene.GetNavigationMeshForPosition(ref targetVec);
@@ -272,7 +272,7 @@ namespace LivingWorldNpcs
             // 如果点无效，尝试获取最近的导航网格
             if (targetPos.GetNavMesh() == UIntPtr.Zero)
             {
-#if LATEST
+#if !MB2_V1212
                 npcAgent.Mission.Scene.GetNavigationMeshForPosition(in targetVec);
 #else
                 npcAgent.Mission.Scene.GetNavigationMeshForPosition(ref targetVec);

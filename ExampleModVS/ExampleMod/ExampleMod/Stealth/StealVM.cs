@@ -194,7 +194,7 @@ namespace LivingWorldNpcs
                     var itemElement = _targetAgent.SpawnEquipment[_targetSlotIndex.Value];
 
                     // 1. 更新图片
-#if LATEST
+#if !MB2_V1212
                     // ImageIdentifier not available in Latest
 #else
                     ImageIdentifier imageID = new ImageIdentifier(itemElement.Item);

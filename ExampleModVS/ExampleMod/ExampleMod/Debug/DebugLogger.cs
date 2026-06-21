@@ -10,26 +10,23 @@ using TaleWorlds.CampaignSystem.Party;
 
 namespace LivingWorldNpcs
 {
-    // FillPartyStacks 签名在 v1.4.6+ 发生变更，v1.2.12 上保留此调试补丁
-#if !LATEST
+    /// <summary>
+    /// Null-guard FillPartyStacks / FillPartyManuallyAfterCreation across versions.
+    /// v1.2.12: MobileParty.FillPartyStacks (private instance)
+    /// v1.4.6+: MobilePartyHelper.FillPartyManuallyAfterCreation (public static)
+    /// </summary>
+#if MB2_V1212
     [HarmonyPatch(typeof(MobileParty), "FillPartyStacks")]
     public static class DebugCrashPatch
     {
-        // Prefix 在原方法执行前运行
         public static void Prefix(MobileParty __instance, PartyTemplateObject pt, int troopNumberLimit)
         {
-            // 检查 pt (部队模板) 是否为空
             if (pt == null)
             {
                 string info = "【崩溃预警】检测到 PartyTemplateObject (pt) 为 NULL！\n";
                 info += GetDebugInfo(__instance);
-
                 DebugLogger.Log(info);
-
-                // 此时你可以选择在这里打个断点，因为现在是在你自己的代码里，
-                // 肯定能看到 info 变量的内容。
             }
-            // 检查 pt 存在，但 Stacks 列表为空的情况（极少见但可能）
             else if (pt.Stacks == null)
             {
                 string info = $"【崩溃预警】模板 '{pt.StringId}' 存在，但 Stacks 列表为 NULL！\n";
@@ -41,12 +38,10 @@ namespace LivingWorldNpcs
         private static string GetDebugInfo(MobileParty party)
         {
             if (party == null) return "MobileParty 实例本身也是 NULL (这就太离谱了)";
-
             var sb = new System.Text.StringBuilder();
             sb.AppendLine($"--- 肇事者信息 ---");
             sb.AppendLine($"Party ID: {party.StringId}");
             sb.AppendLine($"Party Name: {party.Name}");
-
             if (party.LeaderHero != null)
             {
                 sb.AppendLine($"Leader: {party.LeaderHero.Name} (ID: {party.LeaderHero.StringId})");
@@ -57,17 +52,61 @@ namespace LivingWorldNpcs
             {
                 sb.AppendLine($"Leader: 无 (非英雄带领的队伍)");
             }
-
             if (party.ActualClan != null)
             {
                 sb.AppendLine($"Party Clan: {party.ActualClan.Name}");
                 sb.AppendLine($"Clan Culture: {party.ActualClan.Culture?.StringId ?? "NULL"}");
             }
-
-            // 检查拥有者原本的文化设置
-            var culture = party.Party?.Culture; // MobileParty 包含 PartyBase
+            var culture = party.Party?.Culture;
             sb.AppendLine($"Party Culture: {culture?.StringId ?? "NULL"}");
+            return sb.ToString();
+        }
+    }
+#else
+    [HarmonyPatch]
+    public static class DebugCrashPatch
+    {
+        private static MethodBase TargetMethod() => AccessTools.Method("MobilePartyHelper:FillPartyManuallyAfterCreation");
+        public static void Prefix(MobileParty mobileParty, PartyTemplateObject partyTemplate, int desiredMenCount)
+        {
+            if (partyTemplate == null)
+            {
+                string info = "【崩溃预警】检测到 PartyTemplateObject (pt) 为 NULL！\n";
+                info += GetDebugInfo(mobileParty);
+                DebugLogger.Log(info);
+            }
+            else if (partyTemplate.Stacks == null)
+            {
+                string info = $"【崩溃预警】模板 '{partyTemplate.StringId}' 存在，但 Stacks 列表为 NULL！\n";
+                info += GetDebugInfo(mobileParty);
+                System.Diagnostics.Debug.WriteLine(info);
+            }
+        }
 
+        private static string GetDebugInfo(MobileParty party)
+        {
+            if (party == null) return "MobileParty 实例本身也是 NULL (这就太离谱了)";
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"--- 肇事者信息 ---");
+            sb.AppendLine($"Party ID: {party.StringId}");
+            sb.AppendLine($"Party Name: {party.Name}");
+            if (party.LeaderHero != null)
+            {
+                sb.AppendLine($"Leader: {party.LeaderHero.Name} (ID: {party.LeaderHero.StringId})");
+                sb.AppendLine($"Leader Culture: {party.LeaderHero.Culture?.StringId ?? "NULL"}");
+                sb.AppendLine($"Leader Clan: {party.LeaderHero.Clan?.Name.ToString() ?? "NULL"}");
+            }
+            else
+            {
+                sb.AppendLine($"Leader: 无 (非英雄带领的队伍)");
+            }
+            if (party.ActualClan != null)
+            {
+                sb.AppendLine($"Party Clan: {party.ActualClan.Name}");
+                sb.AppendLine($"Clan Culture: {party.ActualClan.Culture?.StringId ?? "NULL"}");
+            }
+            var culture = party.Party?.Culture;
+            sb.AppendLine($"Party Culture: {culture?.StringId ?? "NULL"}");
             return sb.ToString();
         }
     }

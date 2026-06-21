@@ -145,7 +145,7 @@ namespace LivingWorldNpcs
 
             float collisionDistance;
             Vec3 closestPoint;
-#if LATEST
+#if !MB2_V1212
             WeakGameEntity weakEntity;
             bool hasHitObstacle = Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
                 eyePos, targetChestPos,

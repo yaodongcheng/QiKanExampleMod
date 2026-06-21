@@ -163,7 +163,7 @@ namespace LivingWorldNpcs
             string stTarget = party.ShortTermTargetParty?.StringId ?? "";
             string def = party.DefaultBehavior.ToString();
             string defTarget = party.TargetSettlement?.StringId
-#if LATEST
+#if !MB2_V1212
                 ?? party.MoveTargetParty?.StringId
 #else
                 ?? party.Ai?.MoveTargetParty?.StringId
@@ -190,7 +190,7 @@ namespace LivingWorldNpcs
 
             string goal = defaultBehavior.ToString();
             string defTarget = party.TargetSettlement?.Name?.ToString()
-#if LATEST
+#if !MB2_V1212
                 ?? party.MoveTargetParty?.Name?.ToString() ?? "";
 #else
                 ?? party.Ai?.MoveTargetParty?.Name?.ToString() ?? "";
@@ -307,7 +307,7 @@ namespace LivingWorldNpcs
 
                 // 刚到达：记录时间，切换为巡逻 Action（原生 API + true 防拐跑）
                 _arrivedParties[partyId] = currentDay;
-#if LATEST
+#if !MB2_V1212
                 SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement, MobileParty.NavigationType.Default, false, false);
 #else
                 SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
@@ -353,7 +353,7 @@ namespace LivingWorldNpcs
                     if (_arrivedParties.ContainsKey(partyId)) continue; // 已在巡逻
 
                     _arrivedParties[partyId] = currentDay;
-#if LATEST
+#if !MB2_V1212
                     SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement, MobileParty.NavigationType.Default, false, false);
 #else
                     SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
@@ -406,7 +406,7 @@ namespace LivingWorldNpcs
                 // 按定居点类型选择原生 AI Action（全部搭配 true 防拐跑）
                 if (target.IsVillage)
                 {
-#if LATEST
+#if !MB2_V1212
                     SetPartyAiAction.GetActionForRaidingSettlement(party, target, MobileParty.NavigationType.Default, false, false);
 #else
                     SetPartyAiAction.GetActionForRaidingSettlement(party, target);
@@ -415,7 +415,7 @@ namespace LivingWorldNpcs
                 }
                 else if (target.IsFortification)
                 {
-#if LATEST
+#if !MB2_V1212
                     SetPartyAiAction.GetActionForBesiegingSettlement(party, target, MobileParty.NavigationType.Default, false);
 #else
                     SetPartyAiAction.GetActionForBesiegingSettlement(party, target);
@@ -424,7 +424,7 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-#if LATEST
+#if !MB2_V1212
                     SetPartyAiAction.GetActionForRaidingSettlement(party, target, MobileParty.NavigationType.Default, false, false);
 #else
                     SetPartyAiAction.GetActionForRaidingSettlement(party, target);
@@ -1511,7 +1511,7 @@ namespace LivingWorldNpcs
                         Vec2 victimPos = victim?.PartyBelongedTo != null ? V.Pos(victim.PartyBelongedTo)
                             : V.Pos(targetSettlement);
                         Vec2 mid = (instPos + victimPos) * 0.5f;
-#if LATEST
+#if !MB2_V1212
                         spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(new CampaignVec2(mid, true), 15f).ToVec2() ?? mid;
 #else
                         spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(mid, 15f) ?? mid;
@@ -1521,7 +1521,7 @@ namespace LivingWorldNpcs
                         Vec2 instBase = instigator?.PartyBelongedTo != null ? V.Pos(instigator.PartyBelongedTo)
                             : evt.GeneratedParty != null ? V.Pos(evt.GeneratedParty)
                             : V.Pos(targetSettlement);
-#if LATEST
+#if !MB2_V1212
                         spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(new CampaignVec2(instBase, true), 10f).ToVec2() ?? instBase;
 #else
                         spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(instBase, 10f) ?? instBase;
@@ -1610,7 +1610,7 @@ namespace LivingWorldNpcs
                 return targetSettlement != null ? V.Pos(targetSettlement) : Vec2.Zero;
 
             Vec2 settlementPos = V.Pos(targetSettlement);
-#if LATEST
+#if !MB2_V1212
             PathFaceRecord settlementFace = wrapper.GetFaceIndex(new CampaignVec2(settlementPos, true));
 #else
             PathFaceRecord settlementFace = wrapper.GetFaceIndex(settlementPos);
@@ -1618,7 +1618,7 @@ namespace LivingWorldNpcs
             if (!settlementFace.IsValid())
             {
                 DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: settlement face invalid for {targetSettlement.Name}! Using GetAccessiblePointNearPosition fallback.");
-#if LATEST
+#if !MB2_V1212
                 return wrapper.GetAccessiblePointNearPosition(new CampaignVec2(settlementPos, true), 30f).ToVec2();
 #else
                 return wrapper.GetAccessiblePointNearPosition(settlementPos, 30f);
@@ -1644,7 +1644,7 @@ namespace LivingWorldNpcs
                     Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
                         settlementFace, candidate, settlementPos);
 
-#if LATEST
+#if !MB2_V1212
                     PathFaceRecord projectedFace = wrapper.GetFaceIndex(new CampaignVec2(projected, true));
 #else
                     PathFaceRecord projectedFace = wrapper.GetFaceIndex(projected);
@@ -1652,7 +1652,7 @@ namespace LivingWorldNpcs
                     if (!projectedFace.IsValid())
                         continue;
 
-#if LATEST
+#if !MB2_V1212
                     // 🔑 验证：寻路距离是否合理（Latest API：额外参数 excludedFaceIds/regionSwitchCost）
                     if (!wrapper.GetPathDistanceBetweenAIFaces(
                         projectedFace, settlementFace, projected, settlementPos,
@@ -1701,13 +1701,13 @@ namespace LivingWorldNpcs
                         (float)Math.Sin(angle) * radius);
                     Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
                         settlementFace, candidate, settlementPos);
-#if LATEST
+#if !MB2_V1212
                     PathFaceRecord projFace = wrapper.GetFaceIndex(new CampaignVec2(projected, true));
 #else
                     PathFaceRecord projFace = wrapper.GetFaceIndex(projected);
 #endif
                     if (!projFace.IsValid()) continue;
-#if LATEST
+#if !MB2_V1212
                     // AreFacesOnSameIsland removed in Latest; use GetPathDistanceBetweenAIFaces directly
                     if (!wrapper.GetPathDistanceBetweenAIFaces(
                         projFace, settlementFace, projected, settlementPos,

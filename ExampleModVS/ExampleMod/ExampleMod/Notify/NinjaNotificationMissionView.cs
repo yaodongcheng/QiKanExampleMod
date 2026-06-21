@@ -16,7 +16,7 @@ namespace LivingWorldNpcs
     {
         private static GauntletLayer _layer;
         private static NinjaNotificationVM _vm;
-#if LATEST
+#if !MB2_V1212
         private static GauntletMovieIdentifier _movie;
 #else
         private static IGauntletMovie _movie;

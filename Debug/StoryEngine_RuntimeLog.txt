@@ -1,14 +1,25 @@
-﻿[17:05:23.337] [CommissionIssue] Player entered 训练场, refreshing issue signals
-[17:05:23.338] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
-[17:05:23.344] [CommissionIssue] Player entered 训练场, refreshing issue signals
-[17:05:23.344] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
-[17:05:32.732] [CommissionIssue] Player entered 训练场, refreshing issue signals
-[17:05:32.732] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
-[17:06:03.821] [CommissionIssue] Player entered 泽斯特亚, refreshing issue signals
-[17:06:03.821] [CommissionIssue] 泽斯特亚: scanned 6 NPCs, created 6 issues
-[17:07:10.235] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[17:07:10.238] [Player] Talk to: 帝国农民 (hero=none)
-[17:07:10.239] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
-[17:07:11.958] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
-[17:07:13.718] [Dialog] Player clicked option: "【离开】 告辞"
-[17:07:13.719] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+﻿[18:05:51.085] [CommissionIssue] Player entered 训练场, refreshing issue signals
+[18:05:51.086] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
+[18:05:51.093] [CommissionIssue] Player entered 训练场, refreshing issue signals
+[18:05:51.094] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
+[18:05:59.807] [CommissionIssue] Player entered 训练场, refreshing issue signals
+[18:05:59.807] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
+[18:06:25.444] [CommissionIssue] Player entered 卡诺洛斯, refreshing issue signals
+[18:06:25.444] [CommissionIssue] 卡诺洛斯: scanned 6 NPCs, created 6 issues
+[18:07:24.871] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[18:07:24.874] [Player] Talk to: 帝国农民 (hero=none)
+[18:07:24.876] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
+[18:07:27.381] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
+[18:07:29.480] [Dialog] Player clicked option: "【招募】 应募入伍"
+[18:07:29.481] [Dialog] Player clicked: "【招募】 应募入伍" (goal=, category=Official)
+[18:07:40.010] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[18:07:40.010] [Player] Talk to: 帝国农民 (hero=none)
+[18:07:40.011] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
+[18:07:41.777] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
+[18:07:43.127] [Dialog] Player clicked option: "【招募】 应募入伍"
+[18:07:43.127] [Dialog] Player clicked: "【招募】 应募入伍" (goal=, category=Official)
+[18:07:43.131] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[18:07:43.132] [Cam] SmartCamera(2m_Npc_Shoulder_Mid_R) pos=(402.62,414.92,77.47) fwd=(0.306,-0.072,0.949) up=(-0.949,0.061,0.310) [CustomCamera]
+[18:07:43.133] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
+[18:07:45.601] [Dialog] Player clicked option: "【离开】 告辞"
+[18:07:45.601] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)

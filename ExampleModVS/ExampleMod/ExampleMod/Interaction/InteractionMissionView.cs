@@ -192,7 +192,7 @@ namespace LivingWorldNpcs
             Vec3 rayDir = cam.Direction;
             float maxDistance = 7.0f;
             Vec3 rayEnd = rayStart + rayDir * maxDistance;
-#if LATEST
+#if !MB2_V1212
             float dist = 0;
             Agent raycastedAgent = Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, Agent.Main.Index, 0.1f, out dist);
 #else
@@ -956,7 +956,7 @@ namespace LivingWorldNpcs
                         _pendingIsStealing = isStealing;
                         var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
                         rosterDictionary.Add(PartyBase.MainParty, lootRoster);
-#if LATEST
+#if !MB2_V1212
                         // InventoryManager not available in Latest; skip loot screen for now
                         DebugLogger.Log("[InteractionMissionView] InventoryManager not available in this version, skipping loot screen");
 #else
@@ -1172,11 +1172,12 @@ namespace LivingWorldNpcs
         
     }
 
-    /// v1.2.12 only: hide default "Press F to talk" text on focused agents.
-    /// In Latest (v1.4.6+), AgentInteractionInterfaceVM.SetAgent no longer exists —
-    /// it was split into private SetHumanAgent/SetMount/SetGenericAgent, and
-    /// PrimaryInteractionMessage became MBBindingList. This patch is v1.2.12-only.
-#if !LATEST
+    /// <summary>
+    /// Hide default "Press F to talk" / NPC name on focused agents.
+    /// v1.2.12: AgentInteractionInterfaceVM.SetAgent, string properties
+    /// v1.4.6+: AgentInteractionInterfaceVM.SetHumanAgent, MBBindingList properties
+    /// </summary>
+#if MB2_V1212
     [HarmonyPatch(typeof(TaleWorlds.MountAndBlade.ViewModelCollection.AgentInteractionInterfaceVM), "SetAgent")]
     public static class ChangeInteractionTextPatch
     {
@@ -1184,9 +1185,23 @@ namespace LivingWorldNpcs
         {
             if (focusedAgent != null)
             {
-                string keyText = GameTexts.FindText("str_ui_agent_interaction_use").ToString();
                 __instance.SecondaryInteractionMessage = "";
                 __instance.PrimaryInteractionMessage = "";
+            }
+        }
+    }
+#else
+    [HarmonyPatch(typeof(TaleWorlds.MountAndBlade.ViewModelCollection.Missions.Interaction.AgentInteractionInterfaceVM), "SetHumanAgent")]
+    public static class ChangeInteractionTextPatch
+    {
+        public static void Postfix(TaleWorlds.MountAndBlade.ViewModelCollection.Missions.Interaction.AgentInteractionInterfaceVM __instance, Agent focusedAgent)
+        {
+            if (focusedAgent != null)
+            {
+                // Reset content without removing items — ResetFocus() accesses [0]/[1] by index
+                __instance.PrimaryInteractionMessages?.ApplyActionOnAllItems(x => x.ResetData());
+                // SecondaryMessages safe to clear — only checked via .Count, never indexed
+                __instance.SecondaryInteractionMessages?.Clear();
             }
         }
     }

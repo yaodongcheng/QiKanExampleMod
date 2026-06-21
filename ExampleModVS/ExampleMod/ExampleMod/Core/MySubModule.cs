@@ -341,7 +341,7 @@ namespace LivingWorldNpcs
 
         private GauntletLayer myLayer;
         private MyCustomUIVM myVM;
-#if LATEST
+#if !MB2_V1212
         private GauntletMovieIdentifier myMovie;
 #else
         private IGauntletMovie myMovie;

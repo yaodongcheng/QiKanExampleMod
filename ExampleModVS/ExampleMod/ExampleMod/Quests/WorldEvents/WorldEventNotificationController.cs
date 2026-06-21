@@ -406,7 +406,7 @@ namespace LivingWorldNpcs
 
                             // 使用 campaign.focus_hero 同款的底层镜头动画 API
                             // StartCameraAnimation：平滑移动镜头到目标位置并停留（秒）
-#if LATEST
+#if !MB2_V1212
                             mapState.Handler.StartCameraAnimation(new CampaignVec2(targetPos, true), 3.0f);
 #else
                             mapState.Handler.StartCameraAnimation(targetPos, 3.0f);

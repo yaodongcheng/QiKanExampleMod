@@ -38,7 +38,7 @@ namespace LivingWorldNpcs
         public override Hero PartyOwner => _leader;
         public override Hero Leader => _leader;  // MobileParty.LeaderHero 读的是 Leader，不是 PartyOwner
 
-#if LATEST
+#if !MB2_V1212
         public override Banner GetDefaultComponentBanner()
         {
             return _leader?.ClanBanner;

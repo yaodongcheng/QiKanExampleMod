@@ -54,7 +54,7 @@ namespace LivingWorldNpcs
             return IssueFrequency.Common;
         }
 
-#if LATEST
+#if !MB2_V1212
         protected override bool CanPlayerTakeQuestConditions(Hero issueGiver,
             out PreconditionFlags flag, out Hero relationHero, out SkillObject skill, out int requiredGold)
 #else
@@ -65,7 +65,7 @@ namespace LivingWorldNpcs
             flag = PreconditionFlags.None;
             relationHero = issueGiver;
             skill = null;
-#if LATEST
+#if !MB2_V1212
             requiredGold = 0;
 #endif
 
