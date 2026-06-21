@@ -518,6 +518,8 @@ V.JoinDefect(clan, from, to)         V.GetEnemyKingdoms(kingdom) → IEnumerable
 
 **文件位置**：`Core/VersionCompat.cs`（约 420 行）。
 
+**版本参考 DLL**：`Modules/1.2.12DLL/` 和 `Modules/1.4.6DLL/` 存放了另一版本的 DLL 副本，**仅 `ilspycmd` 反编译用，不参与编译**。在 v1.2.12 电脑上开发时查 `1.4.6DLL/` 看 Latest API，反之亦然。方法：`ilspycmd Modules/1.4.6DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "Method"`。
+
 ---
 
 # csproj 版本自动检测
