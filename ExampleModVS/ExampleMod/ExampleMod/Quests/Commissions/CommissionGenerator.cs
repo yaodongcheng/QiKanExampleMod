@@ -192,7 +192,7 @@ namespace LivingWorldNpcs
             foreach (var s in Settlement.All)
             {
                 if (s == brokerSettlement) continue;
-                float distance = brokerSettlement.Position2D.Distance(s.Position2D);
+                float distance = V.Pos(brokerSettlement).Distance(V.Pos(s));
                 if (distance < 50f) // 大约 2 天路程
                     nearbySettlements.Add(s);
             }
@@ -549,7 +549,7 @@ namespace LivingWorldNpcs
                 if (giverSettlement == null) return MBRandom.RandomFloat;
                 Settlement heroSettlement = h.CurrentSettlement ?? h.HomeSettlement;
                 if (heroSettlement == null) return MBRandom.RandomFloat * 100f;
-                float dist = giverSettlement.Position2D.Distance(heroSettlement.Position2D);
+                float dist = V.Pos(giverSettlement).Distance(V.Pos(heroSettlement));
                 return dist * (0.5f + MBRandom.RandomFloat * 1.5f);
             }
 
@@ -609,7 +609,7 @@ namespace LivingWorldNpcs
             return WorldEventDatabase.ActiveEvents.Any(e =>
                 e.TargetHeroId == hero.StringId
                 && e.TargetSettlement != null
-                && e.TargetSettlement.Position2D.Distance(heroSettlement.Position2D) < 80f);
+                && V.Pos(e.TargetSettlement).Distance(V.Pos(heroSettlement)) < 80f);
         }
 
         /// <summary>
@@ -750,7 +750,7 @@ namespace LivingWorldNpcs
                 {
                     var towns = Settlement.All
                         .Where(s => (s.IsTown || s.IsCastle) && s != giverSettlement)
-                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                        .OrderBy(s => V.Pos(giverSettlement).Distance(V.Pos(s))
                                       * (0.5f + MBRandom.RandomFloat * 1.5f))
                         .ToList();
                     if (towns.Count == 0) return false;
@@ -772,7 +772,7 @@ namespace LivingWorldNpcs
                     // 村防应援：严格限制为附近村庄
                     var villages = Settlement.All
                         .Where(s => s.IsVillage && s != giverSettlement)
-                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                        .OrderBy(s => V.Pos(giverSettlement).Distance(V.Pos(s))
                                       * (0.3f + MBRandom.RandomFloat * 1.2f))
                         .ToList();
                     if (villages.Count == 0) return false;
@@ -787,7 +787,7 @@ namespace LivingWorldNpcs
                 {
                     var hideouts = Settlement.All
                         .Where(s => s.IsHideout)
-                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                        .OrderBy(s => V.Pos(giverSettlement).Distance(V.Pos(s))
                                       * (0.5f + MBRandom.RandomFloat * 1.5f))
                         .ToList();
                     if (hideouts.Count == 0) return false;
@@ -799,7 +799,7 @@ namespace LivingWorldNpcs
                 {
                     var other = Settlement.All
                         .Where(s => s != giverSettlement)
-                        .OrderBy(s => giverSettlement.Position2D.Distance(s.Position2D)
+                        .OrderBy(s => V.Pos(giverSettlement).Distance(V.Pos(s))
                                       * (0.5f + MBRandom.RandomFloat * 1.5f))
                         .FirstOrDefault();
                     data.TargetSettlementId = other?.StringId ?? giverSettlement.StringId;

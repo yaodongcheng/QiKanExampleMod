@@ -661,7 +661,7 @@ namespace LivingWorldNpcs
                 // 获取所有未灭亡的国家并按实力排序
                 var allKingdoms = Campaign.Current.Kingdoms
                     .Where(k => !k.IsEliminated) // 排除已经灭亡的国家
-                    .OrderByDescending(k => k.TotalStrength)
+                    .OrderByDescending(k => V.KingdomStr(k))
                     .ToList();
 
                 int totalKingdomCount = allKingdoms.Count;
@@ -678,7 +678,7 @@ namespace LivingWorldNpcs
                 else powerStatus = "弱势国家 (风雨飘摇)";
 
                 // 2. 战争状态
-                var enemies = FactionManager.GetEnemyKingdoms(kingdom).ToList();
+                var enemies = V.GetEnemyKingdoms(kingdom).ToList();
                 string warStatus = enemies.Count > 0
                     ? $"处于战争状态！正在与 [{string.Join(", ", enemies.Select(e => e.Name))}] 交战。"
                     : "当前处于和平时期，休养生息。";
@@ -697,7 +697,7 @@ namespace LivingWorldNpcs
                 sb.AppendLine($"国家名称：[{kingdom.Name}]，文化：{kingdom.Culture.Name}。");
                 // 显示排名/总数
                 sb.AppendLine($"国家国力：{powerStatus} (综合战力排名：第 {rank} / {totalKingdomCount} 位)。");
-                sb.AppendLine($"军事规模：现有正规军团 {kingdom.Armies.Count} 支，总战力指数 {kingdom.TotalStrength:F0}。");
+                sb.AppendLine($"军事规模：现有正规军团 {kingdom.Armies.Count} 支，总战力指数 {V.KingdomStr(kingdom):F0}。");
                 sb.AppendLine($"外交局势：{warStatus}");
                 sb.AppendLine($"与君主关系：{rulerRel}");
             }
@@ -750,7 +750,7 @@ namespace LivingWorldNpcs
             bool isRich = (BaseHero.Gold > 500000);
 
             // 战争状态
-            bool atWar = kingdom != null && FactionManager.GetEnemyKingdoms(kingdom).Any();
+            bool atWar = kingdom != null && V.GetEnemyKingdoms(kingdom).Any();
 
             // 身份判断
             bool isKing = (kingdom != null && kingdom.Leader == BaseHero);

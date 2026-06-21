@@ -145,11 +145,19 @@ namespace LivingWorldNpcs
 
             float collisionDistance;
             Vec3 closestPoint;
+#if LATEST
+            WeakGameEntity weakEntity;
+            bool hasHitObstacle = Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
+                eyePos, targetChestPos,
+                out collisionDistance, out closestPoint, out weakEntity,
+                0.01f, BodyFlags.CommonCollisionExcludeFlags);
+#else
             GameEntity collidedEntity;
             bool hasHitObstacle = Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
                 eyePos, targetChestPos,
                 out collisionDistance, out closestPoint, out collidedEntity,
                 0.01f, BodyFlags.CommonCollisionExcludeFlags);
+#endif
 
             if (hasHitObstacle && collisionDistance < distanceToTarget - 0.2f)
                 return true; // 被遮挡

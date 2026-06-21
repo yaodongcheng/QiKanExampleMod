@@ -54,12 +54,20 @@ namespace LivingWorldNpcs
             return IssueFrequency.Common;
         }
 
+#if LATEST
+        protected override bool CanPlayerTakeQuestConditions(Hero issueGiver,
+            out PreconditionFlags flag, out Hero relationHero, out SkillObject skill, out int requiredGold)
+#else
         protected override bool CanPlayerTakeQuestConditions(Hero issueGiver,
             out PreconditionFlags flag, out Hero relationHero, out SkillObject skill)
+#endif
         {
             flag = PreconditionFlags.None;
             relationHero = issueGiver;
             skill = null;
+#if LATEST
+            requiredGold = 0;
+#endif
 
             if (issueGiver == null)
             {

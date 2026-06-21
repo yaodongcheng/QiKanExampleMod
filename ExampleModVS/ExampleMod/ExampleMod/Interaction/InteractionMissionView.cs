@@ -82,13 +82,13 @@ namespace LivingWorldNpcs
 
             //右下角交互UI
             _interactVM = new InteractionVM();            
-            _interact_layer = new GauntletLayer(100); 
+            _interact_layer = V.NewLayer(100); 
             _interact_layer.LoadMovie("InteractArea", _interactVM);
             thisMissionScreen.AddLayer(_interact_layer);
 
             //对话UI
             _dialogueVM = new StoryDialogVM();
-            _dialogueLayer = new GauntletLayer(101);
+            _dialogueLayer = V.NewLayer(101);
             _dialogueLayer.LoadMovie("DialogChoice", _dialogueVM);
             thisMissionScreen.AddLayer(_dialogueLayer);
             // 初始化控制器
@@ -192,8 +192,13 @@ namespace LivingWorldNpcs
             Vec3 rayDir = cam.Direction;
             float maxDistance = 7.0f;
             Vec3 rayEnd = rayStart + rayDir * maxDistance;
+#if LATEST
             float dist = 0;
-            Agent raycastedAgent = Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, out  dist, Agent.Main.Index, 0.1f);
+            Agent raycastedAgent = Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, Agent.Main.Index, 0.1f, out dist);
+#else
+            float dist = 0;
+            Agent raycastedAgent = Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, out dist, Agent.Main.Index, 0.1f);
+#endif
             //去掉IsActive 不然人死了就拿不到了
             if(raycastedAgent != null && raycastedAgent.IsHuman && raycastedAgent.Character != null && raycastedAgent.Character.Name.ToString() != "")
             {
@@ -527,9 +532,9 @@ namespace LivingWorldNpcs
                 await PrepareAgentForConversation(agent);
             }
             Agent.Main.SetMovementDirection(Vec2.Zero);
-            if (Agent.Main.Controller == Agent.ControllerType.Player)
+            if (V.IsAgentPlayer(Agent.Main))
             {
-                Agent.Main.Controller = Agent.ControllerType.AI;
+                V.SetAgentAI(Agent.Main);
                 AgentControlHelper.FaceToActor(Agent.Main, agent);
             }
             Agent.Main.SetLookAgent(agent);    // 玩家持续注视 NPC，防止 AI 控头乱转
@@ -648,7 +653,7 @@ namespace LivingWorldNpcs
             _npcInfoVM = new NPCInfoVM(memory, CloseNPCInfoBoard);
 
             // 3. 创建 Layer 并加载 Movie
-            _npcInfoLayer = new GauntletLayer(200); // 这里的 200 是层级优先级，需比普通 HUD 高
+            _npcInfoLayer = V.NewLayer(200); // 这里的 200 是层级优先级，需比普通 HUD 高
             _npcInfoLayer.LoadMovie("NPCInfoBoard", _npcInfoVM);
 
             // 4. 设置输入限制 (让鼠标可见，并不允许移动视角)
@@ -680,7 +685,7 @@ namespace LivingWorldNpcs
             _stealVM = new StealVM(targetAgent, () => CloseStealInterface());
 
             // 3. 创建 Layer
-            _stealLayer = new GauntletLayer(201); // 优先级比对话(101)更高，覆盖在上面
+            _stealLayer = V.NewLayer(201); // 优先级比对话(101)更高，覆盖在上面
             _stealLayer.LoadMovie("Steal", _stealVM); // 
 
             // 4. 设置输入限制 (释放鼠标，冻结镜头，或者保持镜头可动但显示鼠标)
@@ -770,7 +775,7 @@ namespace LivingWorldNpcs
             if (Agent.Main != null && Agent.Main.IsActive())
             {
                 // 切回玩家控制
-                Agent.Main.Controller = Agent.ControllerType.Player;
+                V.SetAgentPlayer(Agent.Main);
             }
             SocialEvent evt = null;
             if (Settings.Instance.IsLLMReady)
@@ -951,7 +956,12 @@ namespace LivingWorldNpcs
                         _pendingIsStealing = isStealing;
                         var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
                         rosterDictionary.Add(PartyBase.MainParty, lootRoster);
+#if LATEST
+                        // InventoryManager not available in Latest; skip loot screen for now
+                        DebugLogger.Log("[InteractionMissionView] InventoryManager not available in this version, skipping loot screen");
+#else
                         InventoryManager.OpenScreenAsLoot(rosterDictionary);
+#endif
                     }
                     else if (!isStealing)
                     {
@@ -1162,28 +1172,24 @@ namespace LivingWorldNpcs
         
     }
 
-    [HarmonyPatch(typeof(AgentInteractionInterfaceVM), "SetAgent")]
+    /// v1.2.12 only: hide default "Press F to talk" text on focused agents.
+    /// In Latest (v1.4.6+), AgentInteractionInterfaceVM.SetAgent no longer exists —
+    /// it was split into private SetHumanAgent/SetMount/SetGenericAgent, and
+    /// PrimaryInteractionMessage became MBBindingList. This patch is v1.2.12-only.
+#if !LATEST
+    [HarmonyPatch(typeof(TaleWorlds.MountAndBlade.ViewModelCollection.AgentInteractionInterfaceVM), "SetAgent")]
     public static class ChangeInteractionTextPatch
     {
-        public static void Postfix(AgentInteractionInterfaceVM __instance, Agent focusedAgent)
+        public static void Postfix(TaleWorlds.MountAndBlade.ViewModelCollection.AgentInteractionInterfaceVM __instance, Agent focusedAgent)
         {
-            // 1. 此时原版代码已经跑完了，__instance.SecondaryInteractionMessage 已经是 "按 F 交谈"
-
-            // 2. 检查是不是我们要改的人
             if (focusedAgent != null)
             {
-                // 3. 我们不管之前的变量设置了什么，直接覆盖最终结果
-                // 这里我们甚至手动保留了 "按 F" 这个部分，只改后面的字
-
-                // 获取 "按 F" 的部分 (原版逻辑里它是通过 str_ui_agent_interaction_use 获取的)
                 string keyText = GameTexts.FindText("str_ui_agent_interaction_use").ToString();
-
-                // 把按F交互隐藏
                 __instance.SecondaryInteractionMessage = "";
-                //把交互对象的名字隐藏
                 __instance.PrimaryInteractionMessage = "";
             }
         }
     }
+#endif
 
 }

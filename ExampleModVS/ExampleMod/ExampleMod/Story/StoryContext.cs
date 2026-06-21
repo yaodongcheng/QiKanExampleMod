@@ -260,7 +260,7 @@ namespace LivingWorldNpcs.Story
                     if (val != null) return val;
 
                     // 再查原生环境
-                    if (rest == "年") return Campaign.Current.CampaignStartTime.GetYear.ToString();                    
+                    if (rest == "年") return V.GetStartTime().GetYear.ToString();                    
                     //if (rest == "月") return Campaign.Current.CampaignStartTime.GetMonthOfYear.ToString();
                     return "0";
                 }

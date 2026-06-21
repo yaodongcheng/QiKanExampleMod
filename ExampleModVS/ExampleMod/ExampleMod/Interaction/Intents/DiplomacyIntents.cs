@@ -56,7 +56,7 @@ namespace LivingWorldNpcs.Story
 
         public override void OnSuccess(IntentContext ctx)
         {
-            ChangeKingdomAction.ApplyByJoinToKingdomByDefection(ctx.Hero.Clan, Clan.PlayerClan.Kingdom);
+            V.JoinDefect(ctx.Hero.Clan, ctx.Hero.Clan.Kingdom, Clan.PlayerClan.Kingdom);
             InformationManager.DisplayMessage(new InformationMessage($"{ctx.Hero.Name} 率众归附了你的阵营！", Colors.Green));
         }
     }
