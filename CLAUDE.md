@@ -83,6 +83,15 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 // 泛型 T 支持：ItemObject, CharacterObject, Settlement, CultureObject 等所有 MBObjectBase 子类
 ```
 
+## 参考资料：CSDN 付费专栏
+
+**[csdn_column_articles/](csdn_column_articles/INDEX.md)** 存放了骑砍2 MOD 开发教程（霸王奉先专栏，共 35 篇）。**实现新模块或排查疑难杂症时，可以先到这里找灵感参考。**
+
+- 先看 [INDEX.md](csdn_column_articles/INDEX.md) 按主题定位相关文章
+- 内容涵盖：RGL 配置、Mission/Scene 架构、GameEntity 体系、AI 系统、物理/布料/骨骼动画、存档、Shader 等
+- ⚠️ **不必严格遵循**：专栏作者的写法可能基于旧版本，API 签名和调用方式需以当前项目实际引用的 DLL 为准
+- 代码示例仅供参考思路，具体实现走本项目已有的轮子和规范
+
 ## 工作流约定
 
 **每完成一个功能后，必须主动询问用户：是否要把本次产出提炼成新的轮子并登记进 [wheels.md](plans/rules/wheels.md)。**
