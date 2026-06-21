@@ -474,12 +474,12 @@ DebugLogger.Log($"[CommissionIssue] {settlement}: scanned {n} NPCs, created {m} 
 
 # 版本兼容层 — `Core/VersionCompat.cs`
 
-**同一份源码，双版本编译。** `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。每一对 API 差异用一个 `V.xxx()` 方法封装，内部 `#if LATEST` / `#else` 分支。
+**同一份源码，双版本编译。** `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。每一对 API 差异用一个 `V.xxx()` 方法封装，内部 `#if !MB2_V1212` / `#else` 分支。
 
 **使用纪律**：
-- 凡是两个版本 API 不一样的调用，**一律走 `V.xxx()`，禁止在业务代码里裸写 `#if LATEST`**（除非是 Harmony 补丁或结构级差异）
+- 凡是两个版本 API 不一样的调用，**一律走 `V.xxx()`，禁止在业务代码里裸写 `#if !MB2_V1212`**（除非是 Harmony 补丁或结构级差异）
 - 新加 V 方法后**必须两个配置都编译通过**
-- `LATEST` 宏由 csproj 自动检测，不要手动定义
+- 版本宏 `MB2_V1212` / `MB2_V146` 由 csproj 读 `Version.xml` 自动定义，不要手动定义
 
 ```csharp
 // ── 位置（v1.2.12: .Position2D / Latest: .GetPosition2D）
@@ -532,18 +532,15 @@ V.JoinDefect(clan, from, to)         V.GetEnemyKingdoms(kingdom) → IEnumerable
 <!-- 按版本号定义精确宏 -->
 <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
 <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
-
-<!-- LATEST = 不是 v1.2.12（向后兼容已有 #if LATEST） -->
-<DefineConstants Condition="!$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);LATEST</DefineConstants>
 ```
 
 **结果**：
 | 电脑 | Version.xml | 定义的宏 |
 |------|-----------|---------|
 | v1.2.12 | `v1.2.12` | `DEBUG;TRACE;MB2_V1212` |
-| v1.4.6  | `v1.4.6`  | `DEBUG;TRACE;MB2_V146;LATEST` |
+| v1.4.6  | `v1.4.6`  | `DEBUG;TRACE;MB2_V146` |
 
-**新增版本**：TaleWorlds 出新版本时，在 csproj 里加一行 `MB2_VXXX` 宏即可，代码里用 `#if MB2_V150` 做精确版本判断。
+**新增版本**：TaleWorlds 出新版本时，在 csproj 里加一行 `MB2_VXXX` 宏即可。代码里用 `#if !MB2_V1212` 判断"比 v1.2.12 新"，用 `#if MB2_V146` 判断"恰好 v1.4.6"。
 
 `Debug_v1.2.12` 保留作为手动兜底（强制 v1.2.12，不读 Version.xml）。
 
@@ -555,24 +552,56 @@ V.JoinDefect(clan, from, to)         V.GetEnemyKingdoms(kingdom) → IEnumerable
 
 Harmony 补丁在 `PatchAll()` 时如果找不到目标方法会**直接抛异常崩溃**。跨版本时必须处理：
 
-1. **方法消失了** → 整个补丁类用 `#if !LATEST` 排除
-2. **方法签名变了** → 用 `#if LATEST` / `#else` 写两套 `[HarmonyPatch]` 和 `Prefix/Postfix` 参数
-3. **方法所在类型的命名空间变了** → `typeof()` 用完全限定名 + `#if` 分支
+1. **方法消失了** → `#if MB2_V1212` / `#else` 写两套，各版本补各自的目标
+2. **方法签名变了** → 同上，用 `#if` 分支写不同的 Prefix/Postfix 参数
+3. **编译时找不到类型**（如全局命名空间 vs using 冲突）→ 用 `AccessTools.Method("TypeName:MethodName")` 动态查找
+4. **类型所在子命名空间变了** → `typeof()` 用完全限定名 + `#if` 分支
 
 ```csharp
-// 场景 1：方法在 Latest 里被删了 → 整段排除
-#if !LATEST
+// 场景 1：两版本各补各的方法
+#if MB2_V1212
 [HarmonyPatch(typeof(MobileParty), "FillPartyStacks")]
-public static class DebugCrashPatch { /* ... */ }
+public static class DebugCrashPatch
+{
+    public static void Prefix(MobileParty __instance, PartyTemplateObject pt, int troopNumberLimit) { ... }
+}
+#else
+[HarmonyPatch]
+public static class DebugCrashPatch
+{
+    // AccessTools 运行时查找，绕过编译时类型不可见
+    private static MethodBase TargetMethod() => AccessTools.Method("MobilePartyHelper:FillPartyManuallyAfterCreation");
+    public static void Prefix(MobileParty mobileParty, PartyTemplateObject partyTemplate, int desiredMenCount) { ... }
+}
 #endif
 
-// 场景 2：方法在 Latest 里拆分了 → 仍然整段排除（补丁逻辑无法直接搬运）
-#if !LATEST
+// 场景 2：方法拆分了，每个版本补一个
+#if MB2_V1212
 [HarmonyPatch(typeof(AgentInteractionInterfaceVM), "SetAgent")]
-public static class ChangeInteractionTextPatch { /* ... */ }
+public static class ChangeInteractionTextPatch
+{
+    public static void Postfix(AgentInteractionInterfaceVM __instance, Agent focusedAgent)
+    {
+        __instance.SecondaryInteractionMessage = "";
+        __instance.PrimaryInteractionMessage = "";
+    }
+}
+#else
+[HarmonyPatch(typeof(TaleWorlds.MountAndBlade.ViewModelCollection.Missions.Interaction.AgentInteractionInterfaceVM), "SetHumanAgent")]
+public static class ChangeInteractionTextPatch
+{
+    public static void Postfix(TaleWorlds.MountAndBlade.ViewModelCollection.Missions.Interaction.AgentInteractionInterfaceVM __instance, Agent focusedAgent)
+    {
+        // ⚠️ 不能 Clear()！ResetFocus() 会按索引访问 [0]/[1]，列表空了就 ArgumentOutOfRangeException
+        __instance.PrimaryInteractionMessages?.ApplyActionOnAllItems(x => x.ResetData());
+        __instance.SecondaryInteractionMessages?.Clear(); // Secondary 安全，只被 .Count 检查
+    }
+}
 #endif
 ```
 
-**排查方法**：`ilspycmd <DLL> | grep "方法名"` 确认目标方法在两个版本中的存在性和签名。
+**排查方法**：`ilspycmd <DLL> -t <TypeName> | grep "方法名"` 确认目标方法在两个版本中的存在性和签名。如果 `typeof()` 编译报错但 ilspycmd 确定类型存在（可能是命名空间遮蔽），用 `AccessTools.Method` 绕过。
 
 **注意**：编译通过不代表运行时能跑——Harmony 是运行时绑定的。必须在目标版本的实际游戏里测试。
+
+**MBBindingList 坑点**：v1.4.6 里 `PrimaryInteractionMessages` / `SecondaryInteractionMessages` 从 `string` 变成了 `MBBindingList<T>`。清空内容时**不能 `Clear()`**——后续代码（如 `ResetFocus()`）可能按索引 `[0]`/`[1]` 直接访问，列表空了直接 `ArgumentOutOfRangeException`。正确做法是 `ApplyActionOnAllItems(x => x.ResetData())` 清空内容但保留占位。

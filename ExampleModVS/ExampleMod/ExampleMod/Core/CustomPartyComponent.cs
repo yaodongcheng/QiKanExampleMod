@@ -39,7 +39,7 @@ namespace LivingWorldNpcs
         /// <summary>泛型 party 无 Owner。</summary>
         public override Hero PartyOwner => null;
 
-#if LATEST
+#if !MB2_V1212
         public override Banner GetDefaultComponentBanner()
         {
             return null;

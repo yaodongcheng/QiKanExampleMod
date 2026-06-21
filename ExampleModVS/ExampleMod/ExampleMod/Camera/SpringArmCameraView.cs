@@ -38,7 +38,7 @@ namespace LivingWorldNpcs
     {
         private GauntletLayer _gauntletLayer;
         private SpringArmCameraDebuggerVM _dataSource;
-#if LATEST
+#if !MB2_V1212
         private GauntletMovieIdentifier _movie;
 #else
         private IGauntletMovie _movie;

@@ -23,9 +23,9 @@
   </PropertyGroup>
 
   <!-- ── 自动检测游戏版本：读 Version.xml ──
-    定义三个宏：
-      MB2_V1212  /  MB2_V146  /  ...  → 精确版本号（新增版本时加一行）
-      LATEST                           → "不是 v1.2.12" 的别名，兼容已有代码
+    定义精确版本宏：MB2_V1212 / MB2_V146 / ...
+    代码用 #if !MB2_V1212 判断"比 1.2.12 新"，用 #if MB2_V146 判断"恰好 1.4.6"
+    新增版本时加一行 DefineConstants 即可。
   ── -->
   <PropertyGroup>
     <MB2_VersionFile>$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml</MB2_VersionFile>
@@ -41,8 +41,6 @@
     <!-- 精确版本宏：按 Version.xml 中的版本号定义（新增版本时在这里加一行） -->
     <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
     <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
-    <!-- LATEST：不是 v1.2.12 就定义（兼容已有 #if LATEST） -->
-    <DefineConstants Condition="!$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);LATEST</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>

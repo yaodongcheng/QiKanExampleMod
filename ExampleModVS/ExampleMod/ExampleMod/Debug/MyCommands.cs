@@ -656,7 +656,7 @@ namespace LivingWorldNpcs
                 if (obj is Chair)
                 {
                     count++;
-#if LATEST
+#if !MB2_V1212
                     WeakGameEntity wge = obj.GameEntity;
                     Vec3 pos = wge.IsValid ? new Vec3() : Vec3.Zero;
 #else

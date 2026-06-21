@@ -17,7 +17,7 @@ namespace LivingWorldNpcs
 {
     /// <summary>
     /// Version-compatibility static helpers. Each method wraps an API that changed between v1.2.12 and Latest.
-    /// Call sites use V.xxx() instead of the raw API; the #if LATEST branches select the correct implementation.
+    /// Call sites use V.xxx() instead of the raw API; the #if !MB2_V1212 branches select the correct implementation.
     ///
     /// IMPORTANT: Compile BOTH Debug (LATEST) and Debug_v1.2.12 after every change to this file.
     /// </summary>
@@ -30,7 +30,7 @@ namespace LivingWorldNpcs
         public static Vec2 Pos(MobileParty party)
         {
             if (party == null) return Vec2.Zero;
-#if LATEST
+#if !MB2_V1212
             return party.GetPosition2D;
 #else
             return party.Position2D;
@@ -40,7 +40,7 @@ namespace LivingWorldNpcs
         public static Vec2 Pos(Settlement settlement)
         {
             if (settlement == null) return Vec2.Zero;
-#if LATEST
+#if !MB2_V1212
             return settlement.GetPosition2D;
 #else
             return settlement.Position2D;
@@ -54,7 +54,7 @@ namespace LivingWorldNpcs
         public static void SetPos(MobileParty party, Vec2 pos)
         {
             if (party == null) return;
-#if LATEST
+#if !MB2_V1212
             party.Position = new CampaignVec2(pos, true);
 #else
             party.Position2D = pos;
@@ -68,7 +68,7 @@ namespace LivingWorldNpcs
         public static bool IsAgentAI(Agent agent)
         {
             if (agent == null) return false;
-#if LATEST
+#if !MB2_V1212
             return agent.IsAIControlled;
 #else
             return agent.Controller == Agent.ControllerType.AI;
@@ -81,7 +81,7 @@ namespace LivingWorldNpcs
 
         public static CampaignTime GetStartTime()
         {
-#if LATEST
+#if !MB2_V1212
             return Campaign.Current.Models.CampaignTimeModel.CampaignStartTime;
 #else
             return Campaign.Current.CampaignStartTime;
@@ -95,7 +95,7 @@ namespace LivingWorldNpcs
         public static float KingdomStr(Kingdom kingdom)
         {
             if (kingdom == null) return 0f;
-#if LATEST
+#if !MB2_V1212
             return kingdom.CurrentTotalStrength;
 #else
             return kingdom.TotalStrength;
@@ -108,7 +108,7 @@ namespace LivingWorldNpcs
 
         public static TextObject EmptyText()
         {
-#if LATEST
+#if !MB2_V1212
             return TextObject.GetEmpty();
 #else
             return TextObject.Empty;
@@ -122,7 +122,7 @@ namespace LivingWorldNpcs
         public static EquipmentIndex MainWpn(Agent agent)
         {
             if (agent == null) return EquipmentIndex.None;
-#if LATEST
+#if !MB2_V1212
             return agent.GetPrimaryWieldedItemIndex();
 #else
             return agent.GetWieldedItemIndex(Agent.HandIndex.MainHand);
@@ -132,7 +132,7 @@ namespace LivingWorldNpcs
         public static EquipmentIndex OffWpn(Agent agent)
         {
             if (agent == null) return EquipmentIndex.None;
-#if LATEST
+#if !MB2_V1212
             return agent.GetOffhandWieldedItemIndex();
 #else
             return agent.GetWieldedItemIndex(Agent.HandIndex.OffHand);
@@ -146,7 +146,7 @@ namespace LivingWorldNpcs
         public static void SetMoveTo(MobileParty party, Vec2 pos)
         {
             if (party == null) return;
-#if LATEST
+#if !MB2_V1212
             party.SetMoveGoToPoint(new CampaignVec2(pos, true), MobileParty.NavigationType.All);
 #else
             party.Ai.SetMoveGoToPoint(pos);
@@ -156,7 +156,7 @@ namespace LivingWorldNpcs
         public static void SetMoveEngage(MobileParty party, MobileParty target)
         {
             if (party == null || target == null) return;
-#if LATEST
+#if !MB2_V1212
             party.SetMoveEngageParty(target, MobileParty.NavigationType.All);
 #else
             party.Ai.SetMoveEngageParty(target);
@@ -166,7 +166,7 @@ namespace LivingWorldNpcs
         public static void SetMoveToTown(MobileParty party, Settlement settlement)
         {
             if (party == null || settlement == null) return;
-#if LATEST
+#if !MB2_V1212
             party.SetMoveGoToSettlement(settlement, MobileParty.NavigationType.All, false);
 #else
             party.Ai.SetMoveGoToSettlement(settlement);
@@ -176,7 +176,7 @@ namespace LivingWorldNpcs
         public static void SetMovePatrol(MobileParty party, Vec2 pos)
         {
             if (party == null) return;
-#if LATEST
+#if !MB2_V1212
             party.SetMovePatrolAroundPoint(new CampaignVec2(pos, true), MobileParty.NavigationType.All);
 #else
             party.Ai.SetMovePatrolAroundPoint(pos);
@@ -186,7 +186,7 @@ namespace LivingWorldNpcs
         public static void SetMoveEscort(MobileParty party, MobileParty target)
         {
             if (party == null || target == null) return;
-#if LATEST
+#if !MB2_V1212
             party.SetMoveEscortParty(target, MobileParty.NavigationType.All, false);
 #else
             party.Ai.SetMoveEscortParty(target);
@@ -196,7 +196,7 @@ namespace LivingWorldNpcs
         public static MobileParty MoveTarget(MobileParty party)
         {
             if (party == null) return null;
-#if LATEST
+#if !MB2_V1212
             return party.MoveTargetParty;
 #else
             return party.Ai.MoveTargetParty;
@@ -210,7 +210,7 @@ namespace LivingWorldNpcs
         public static MobileParty MakeParty(string id, PartyComponent comp)
         {
             if (string.IsNullOrEmpty(id) || comp == null) return null;
-#if LATEST
+#if !MB2_V1212
             return MobileParty.CreateParty(id, comp);
 #else
             return MobileParty.CreateParty(id, comp, null);
@@ -223,7 +223,7 @@ namespace LivingWorldNpcs
         public static void DelParty(MobileParty party)
         {
             if (party == null) return;
-#if LATEST
+#if !MB2_V1212
             DestroyPartyAction.Apply(null, party);
 #else
             party.RemoveParty();
@@ -237,7 +237,7 @@ namespace LivingWorldNpcs
         public static void JoinDefect(Clan clan, Kingdom fromKingdom, Kingdom toKingdom)
         {
             if (clan == null || toKingdom == null) return;
-#if LATEST
+#if !MB2_V1212
             ChangeKingdomAction.ApplyByJoinToKingdomByDefection(clan, fromKingdom, toKingdom, CampaignTime.Zero, false);
 #else
             ChangeKingdomAction.ApplyByJoinToKingdomByDefection(clan, toKingdom);
@@ -251,7 +251,7 @@ namespace LivingWorldNpcs
         public static string ActName(Agent agent, int channelIndex = 0)
         {
             if (agent == null) return "";
-#if LATEST
+#if !MB2_V1212
             return agent.GetCurrentActionType(channelIndex).ToString();
 #else
             return agent.GetCurrentActionValue(channelIndex).Name;
@@ -263,7 +263,7 @@ namespace LivingWorldNpcs
 
         public static bool RayBlocked(Vec3 from, Vec3 to, float maxDist)
         {
-#if LATEST
+#if !MB2_V1212
             // In Latest, raycast uses out WeakGameEntity
             float dist = to.Distance(from);
             if (dist > maxDist) return true;
@@ -283,7 +283,7 @@ namespace LivingWorldNpcs
 
         public static GauntletLayer NewLayer(int order, string name = null)
         {
-#if LATEST
+#if !MB2_V1212
             return new GauntletLayer(name ?? "LivingWorldLayer", order);
 #else
             return new GauntletLayer(order, name ?? "LivingWorldLayer");
@@ -297,7 +297,7 @@ namespace LivingWorldNpcs
         public static void LoadMov(GauntletLayer layer, string name, TaleWorlds.Library.ViewModel vm)
         {
             if (layer == null || vm == null) return;
-#if LATEST
+#if !MB2_V1212
             layer.LoadMovie(name, vm);
 #else
             layer.LoadMovie(name, vm);
@@ -312,7 +312,7 @@ namespace LivingWorldNpcs
         {
             faceIndex = -1;
             if (scene == null) return false;
-#if LATEST
+#if !MB2_V1212
             scene.GetNavigationMeshForPosition(in position, out faceIndex, 1.5f, false);
             return faceIndex != -1;
 #else
@@ -323,7 +323,7 @@ namespace LivingWorldNpcs
         public static bool SaveNavMesh(Scene scene, Vec3 position)
         {
             if (scene == null) return false;
-#if LATEST
+#if !MB2_V1212
             scene.GetNavigationMeshForPosition(in position, out _, 1.5f, false);
             return true;
 #else
@@ -338,7 +338,7 @@ namespace LivingWorldNpcs
         public static void InitPartyPos(MobileParty party, PartyTemplateObject template, Vec2 pos)
         {
             if (party == null) return;
-#if LATEST
+#if !MB2_V1212
             party.InitializeMobilePartyAtPosition(template, new CampaignVec2(pos, true));
 #else
             party.InitializeMobilePartyAtPosition(template, pos);
@@ -352,7 +352,7 @@ namespace LivingWorldNpcs
         public static void SetPartyName(MobileParty party, TextObject name)
         {
             if (party == null) return;
-#if LATEST
+#if !MB2_V1212
             party.Party.SetCustomName(name);
 #else
             party.SetCustomName(name);
@@ -366,7 +366,7 @@ namespace LivingWorldNpcs
         public static void SetAgentAI(Agent agent)
         {
             if (agent == null) return;
-#if LATEST
+#if !MB2_V1212
             // Agent.ControllerType removed in Latest; agents default to AI
 #else
             agent.Controller = Agent.ControllerType.AI;
@@ -380,7 +380,7 @@ namespace LivingWorldNpcs
         public static bool IsAgentPlayer(Agent agent)
         {
             if (agent == null) return false;
-#if LATEST
+#if !MB2_V1212
             return !agent.IsAIControlled;
 #else
             return agent.Controller == Agent.ControllerType.Player;
@@ -390,7 +390,7 @@ namespace LivingWorldNpcs
         public static void SetAgentPlayer(Agent agent)
         {
             if (agent == null) return;
-#if LATEST
+#if !MB2_V1212
             // TODO: Find Latest API for setting player control
 #else
             agent.Controller = Agent.ControllerType.Player;
@@ -404,7 +404,7 @@ namespace LivingWorldNpcs
         public static IEnumerable<Kingdom> GetEnemyKingdoms(Kingdom kingdom)
         {
             if (kingdom == null) yield break;
-#if LATEST
+#if !MB2_V1212
             foreach (var k in Kingdom.All)
             {
                 if (k != kingdom && kingdom.IsAtWarWith(k))
