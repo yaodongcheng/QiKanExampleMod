@@ -14,14 +14,12 @@
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
-
   <!-- ── DLL 引用路径（两台电脑都用自己游戏目录下的 DLL）── -->
   <PropertyGroup>
     <MB2_CORE_REF>$(MB2_PATH)\bin\Win64_Shipping_Client</MB2_CORE_REF>
     <MB2_SANDBOX_REF>$(MB2_PATH)\Modules\SandBox\bin\Win64_Shipping_Client</MB2_SANDBOX_REF>
     <MB2_NATIVE_REF>$(MB2_PATH)\Modules\Native\bin\Win64_Shipping_Client</MB2_NATIVE_REF>
   </PropertyGroup>
-
   <!-- ── 自动检测游戏版本：读 Version.xml ──
     定义精确版本宏：MB2_V1212 / MB2_V146 / ...
     代码用 #if !MB2_V1212 判断"比 1.2.12 新"，用 #if MB2_V146 判断"恰好 1.4.6"
@@ -53,7 +51,6 @@
     <DefineConstants>TRACE</DefineConstants>
     <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
     <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
-    <DefineConstants Condition="!$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);LATEST</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
@@ -76,7 +73,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\0Harmony.dll</HintPath>
@@ -155,7 +151,7 @@
     <!-- TooltipExtensions 只在 v1.2.12 的游戏目录里存在；Latest 里没有，自动跳过 -->
     <Reference Include="TaleWorlds.GauntletUI.TooltipExtensions" Condition="Exists('$(MB2_CORE_REF)\TaleWorlds.GauntletUI.TooltipExtensions.dll')">
       <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.TooltipExtensions.dll</HintPath>
-      <Private>False</Private>
+      <Private>True</Private>
     </Reference>
     <Reference Include="TaleWorlds.InputSystem, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>

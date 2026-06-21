@@ -70,6 +70,21 @@ ilspycmd <dll路径> | grep -n "关键字"    # 全 DLL 搜索
 
 实际使用时先用 `Glob` 找 `.csproj`，再从 `<HintPath>` 取完整路径。
 
+**版本参考 DLL**：项目根下的 `Modules/` 目录存放了其他版本的 DLL 副本，**仅用于 `ilspycmd` 反编译对比 API 差异，不参与编译**：
+
+| 目录 | 版本 | 用途 |
+|------|------|------|
+| `Modules/1.2.12DLL/` | v1.2.12 | 在 Latest 电脑上查 v1.2.12 的 API 签名 |
+| `Modules/1.4.6DLL/` | v1.4.6 | 在 1.2.12 电脑上查 Latest 的 API 签名 |
+
+开发时先反编译当前版本看签名，再反编译另一个版本对比，确定 `VersionCompat.cs` 里该用 `#if MB2_V1212` 还是 `#if !MB2_V1212`。
+
+```bash
+# 对比两个版本的同个方法
+ilspycmd Modules/1.2.12DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
+ilspycmd Modules/1.4.6DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
+```
+
 **限制**：`MBAPI.IMBAgent.xxx` 最终调 C++ native engine，反编译看不到内部实现，只能看到**调用上下文**和**参数用法**。
 
 **动态资源查找（铁律 5 的关键 API）**：
