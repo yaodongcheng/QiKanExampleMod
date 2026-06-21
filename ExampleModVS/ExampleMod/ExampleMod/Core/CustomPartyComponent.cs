@@ -3,6 +3,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Party.PartyComponents;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Core;
 using TaleWorlds.Localization;
 
 namespace LivingWorldNpcs
@@ -37,5 +38,12 @@ namespace LivingWorldNpcs
 
         /// <summary>泛型 party 无 Owner。</summary>
         public override Hero PartyOwner => null;
+
+#if LATEST
+        public override Banner GetDefaultComponentBanner()
+        {
+            return null;
+        }
+#endif
     }
 }

@@ -38,8 +38,6 @@ namespace LivingWorldNpcs
 
         public override bool IsRemainingTimeHidden => false;
         public override TextObject Title => new TextObject(_data?.GetFlavorDescription() ?? "委托任务");
-        public override bool IsSpecialQuest => false;
-
         public CommissionData Data => _data;
         public Hero CommissionGiver => _data?.QuestGiver;
         public CommissionGrade FinalGrade => _finalGrade;
@@ -1046,10 +1044,11 @@ namespace LivingWorldNpcs
                     if (party != null && party.IsActive)
                     {
                         // 重定向：让 party 远离目标定居点
-                        Vec2 awayPos = worldEvent.TargetSettlement?.Position2D ?? party.Position2D;
+                        Vec2 awayPos = V.Pos(worldEvent.TargetSettlement);
+                        if (awayPos == Vec2.Zero) awayPos = V.Pos(party);
                         float angle = MBRandom.RandomFloat * 2f * (float)Math.PI;
                         awayPos += new Vec2((float)Math.Cos(angle) * 40f, (float)Math.Sin(angle) * 40f);
-                        party.Ai.SetMoveGoToPoint(awayPos);
+                        V.SetMoveTo(party, awayPos);
                         party.Ai.SetDoNotMakeNewDecisions(false);
                         party.SetPartyUsedByQuest(false);
                         Campaign.Current?.VisualTrackerManager?.RemoveTrackedObject(party, forceRemove: true);
@@ -1348,7 +1347,7 @@ namespace LivingWorldNpcs
                         // 将辅助部队解锁 AI 使其向目标移动（事件创建时是巡逻态）
                         existingParty.Ai.SetDoNotMakeNewDecisions(false);
                         if (targetSettlement != null)
-                            existingParty.Ai.SetMoveGoToSettlement(targetSettlement);
+                            V.SetMoveToTown(existingParty,targetSettlement);
                         AddLog(new TextObject($"敌方补给队已在运往 {targetSettlement?.Name?.ToString() ?? "目的地"} 的路上。必须在到达前拦截！"));
                         AddLog(new TextObject("提示：Scout 可提前发现补给队位置，寻找最佳伏击点。"));
                         AddLog(new TextObject("截获物资后可以选择：交给委托人（报酬）/ 自己留着（物资价值可能更高）。"));
@@ -1470,11 +1469,9 @@ namespace LivingWorldNpcs
 
                 var partyComponent = new SafeLordPartyComponent(_data.TargetHero);
                 var partyId = $"commission_bounty_{_data.TargetHero.StringId}_{MBRandom.RandomInt(1000)}";
-                MobileParty targetParty = MobileParty.CreateParty(partyId, partyComponent,
-                    delegate (MobileParty party)
-                    {
-                        party.SetCustomName(new TextObject($"{_data.TargetHero.Name}的匪帮"));
-                    });
+                MobileParty targetParty = V.MakeParty(partyId, partyComponent);
+                if (targetParty != null)
+                    V.SetPartyName(targetParty, new TextObject($"{_data.TargetHero.Name}的匪帮"));
 
                 if (targetParty == null) return;
 
@@ -1487,7 +1484,7 @@ namespace LivingWorldNpcs
 
                 // 放置在大地图玩家附近
                 Vec2 offset = new Vec2(3f + MBRandom.RandomFloat * 5f, 3f + MBRandom.RandomFloat * 5f);
-                targetParty.Position2D = MobileParty.MainParty.Position2D + offset;
+                V.SetPos(targetParty, V.Pos(MobileParty.MainParty) + offset);
 
                 // 按难度填充兵力
                 int troopCount = _data.Tier switch
@@ -1501,7 +1498,7 @@ namespace LivingWorldNpcs
 
                 PartyTemplateObject template = _data.TargetHero.Culture?.DefaultPartyTemplate;
                 if (template != null)
-                    targetParty.InitializeMobilePartyAtPosition(template, targetParty.Position2D);
+                    V.InitPartyPos(targetParty, template, V.Pos(targetParty));
 
                 targetParty.MemberRoster.Clear();
                 targetParty.PrisonRoster.Clear();
@@ -1512,7 +1509,7 @@ namespace LivingWorldNpcs
                     targetParty.MemberRoster.AddToCounts(basicTroop, troopCount);
 
                 // AI：在大地图巡逻
-                targetParty.Ai.SetMovePatrolAroundPoint(targetParty.Position2D);
+                V.SetMovePatrol(targetParty,V.Pos(targetParty));
                 targetParty.SetPartyUsedByQuest(true);
                 targetParty.Party.SetVisualAsDirty();
 
@@ -1530,32 +1527,29 @@ namespace LivingWorldNpcs
             {
                 string partyId = $"commission_escort_{QuestGiver.StringId}_{MBRandom.RandomInt(1000)}";
                 var escortComponent = new SafeLordPartyComponent(QuestGiver);
-                MobileParty escortParty = MobileParty.CreateParty(partyId,
-                    escortComponent,
-                    delegate (MobileParty party)
-                    {
-                        party.SetCustomName(new TextObject($"{QuestGiver.Name}的商队"));
-                    });
+                MobileParty escortParty = V.MakeParty(partyId, escortComponent);
+                if (escortParty != null)
+                    V.SetPartyName(escortParty, new TextObject($"{QuestGiver.Name}的商队"));
 
                 if (escortParty == null) return;
 
                 _escortPartyId = partyId;
 
                 Vec2 offset = new Vec2(1f, 1f);
-                escortParty.Position2D = MobileParty.MainParty.Position2D + offset;
+                V.SetPos(escortParty, V.Pos(MobileParty.MainParty) + offset);
 
                 // 少量护卫
                 var culture = QuestGiver.Culture ?? Hero.MainHero.Culture;
                 PartyTemplateObject template = culture?.DefaultPartyTemplate;
                 if (template != null)
-                    escortParty.InitializeMobilePartyAtPosition(template, escortParty.Position2D);
+                    V.InitPartyPos(escortParty, template, V.Pos(escortParty));
                 escortParty.MemberRoster.Clear();
                 var basicTroop = culture?.BasicTroop;
                 if (basicTroop != null)
                     escortParty.MemberRoster.AddToCounts(basicTroop, 8);
 
                 // AI：跟随玩家
-                escortParty.Ai.SetMoveEscortParty(MobileParty.MainParty);
+                V.SetMoveEngage(escortParty,MobileParty.MainParty);
                 escortParty.SetPartyUsedByQuest(true);
                 escortParty.Party.SetVisualAsDirty();
             }
@@ -1578,20 +1572,18 @@ namespace LivingWorldNpcs
                 // 使用自定义 PartyComponent（泛型匪帮，无 Hero leader）
                 string raiderName = $"劫掠{targetVillage.Name}的匪帮";
                 var component = new CustomPartyComponent(targetVillage, raiderName);
-                MobileParty raiderParty = MobileParty.CreateParty(partyId, component,
-                    delegate (MobileParty party)
-                    {
-                        party.SetCustomName(new TextObject(raiderName));
-                    });
+                MobileParty raiderParty = V.MakeParty(partyId, component);
+                if (raiderParty != null)
+                    V.SetPartyName(raiderParty, new TextObject(raiderName));
 
                 if (raiderParty == null) return;
 
                 _escortPartyId = partyId;
                 raiderParty.ActualClan = banditClan;
 
-                Vec2 spawnPos = targetVillage.Position2D;
+                Vec2 spawnPos = V.Pos(targetVillage);
                 Vec2 offset = new Vec2(MBRandom.RandomFloat * 10f - 5f, MBRandom.RandomFloat * 10f - 5f);
-                raiderParty.Position2D = spawnPos + offset;
+                V.SetPos(raiderParty, spawnPos + offset);
 
                 int troopCount = _data.Tier switch
                 {
@@ -1603,13 +1595,13 @@ namespace LivingWorldNpcs
 
                 var template = banditClan.DefaultPartyTemplate;
                 if (template != null)
-                    raiderParty.InitializeMobilePartyAtPosition(template, raiderParty.Position2D);
+                    V.InitPartyPos(raiderParty, template, V.Pos(raiderParty));
                 raiderParty.MemberRoster.Clear();
                 var banditTroop = banditClan.Culture?.BasicTroop;
                 if (banditTroop != null)
                     raiderParty.MemberRoster.AddToCounts(banditTroop, troopCount);
 
-                raiderParty.Ai.SetMoveGoToSettlement(targetVillage);
+                V.SetMoveToTown(raiderParty,targetVillage);
                 raiderParty.Ai.SetDoNotMakeNewDecisions(true);
                 raiderParty.SetPartyUsedByQuest(true);
                 raiderParty.Party.SetVisualAsDirty();
@@ -1633,11 +1625,9 @@ namespace LivingWorldNpcs
                 if (enemyClan == null) enemyClan = Clan.PlayerClan;
 
                 var component = new CustomPartyComponent(targetSettlement, "敌方补给队");
-                MobileParty supplyParty = MobileParty.CreateParty(partyId, component,
-                    delegate (MobileParty party)
-                    {
-                        party.SetCustomName(new TextObject("敌方补给队"));
-                    });
+                MobileParty supplyParty = V.MakeParty(partyId, component);
+                if (supplyParty != null)
+                    V.SetPartyName(supplyParty, new TextObject("敌方补给队"));
 
                 if (supplyParty == null) return;
 
@@ -1645,20 +1635,20 @@ namespace LivingWorldNpcs
                 supplyParty.ActualClan = enemyClan;
 
                 Vec2 offset = new Vec2(8f + MBRandom.RandomFloat * 10f, 8f + MBRandom.RandomFloat * 10f);
-                supplyParty.Position2D = MobileParty.MainParty.Position2D + offset;
+                V.SetPos(supplyParty, V.Pos(MobileParty.MainParty) + offset);
 
                 var template = enemyClan.DefaultPartyTemplate;
                 if (template != null)
-                    supplyParty.InitializeMobilePartyAtPosition(template, supplyParty.Position2D);
+                    V.InitPartyPos(supplyParty, template, V.Pos(supplyParty));
                 supplyParty.MemberRoster.Clear();
                 var troop = enemyClan.Culture?.BasicTroop;
                 if (troop != null)
                     supplyParty.MemberRoster.AddToCounts(troop, 4 + MBRandom.RandomInt(4));
 
                 if (targetSettlement != null)
-                    supplyParty.Ai.SetMoveGoToSettlement(targetSettlement);
+                    V.SetMoveToTown(supplyParty,targetSettlement);
                 else
-                    supplyParty.Ai.SetMovePatrolAroundPoint(supplyParty.Position2D);
+                    V.SetMovePatrol(supplyParty,V.Pos(supplyParty));
 
                 supplyParty.Ai.SetDoNotMakeNewDecisions(true);
                 supplyParty.SetPartyUsedByQuest(true);
@@ -1689,11 +1679,9 @@ namespace LivingWorldNpcs
                     ?? MobileParty.MainParty?.CurrentSettlement
                     ?? Settlement.All.FirstOrDefault();
                 var component = new CustomPartyComponent(home, "追兵");
-                MobileParty pursuerParty = MobileParty.CreateParty(partyId, component,
-                    delegate (MobileParty party)
-                    {
-                        party.SetCustomName(new TextObject("追兵"));
-                    });
+                MobileParty pursuerParty = V.MakeParty(partyId, component);
+                if (pursuerParty != null)
+                    V.SetPartyName(pursuerParty, new TextObject("追兵"));
 
                 if (pursuerParty == null)
                 {
@@ -1705,7 +1693,7 @@ namespace LivingWorldNpcs
                 pursuerParty.ActualClan = banditClan;
 
                 Vec2 offset = new Vec2(5f, 5f);
-                pursuerParty.Position2D = MobileParty.MainParty.Position2D + offset;
+                V.SetPos(pursuerParty, V.Pos(MobileParty.MainParty) + offset);
 
                 int troopCount = _data.Tier switch
                 {
@@ -1717,19 +1705,19 @@ namespace LivingWorldNpcs
 
                 var template = banditClan.DefaultPartyTemplate;
                 if (template != null)
-                    pursuerParty.InitializeMobilePartyAtPosition(template, pursuerParty.Position2D);
+                    V.InitPartyPos(pursuerParty, template, V.Pos(pursuerParty));
                 pursuerParty.MemberRoster.Clear();
                 var troop = banditClan.Culture?.BasicTroop;
                 if (troop != null)
                     pursuerParty.MemberRoster.AddToCounts(troop, troopCount);
 
                 // 追兵追击玩家！
-                pursuerParty.Ai.SetMoveEngageParty(MobileParty.MainParty);
+                V.SetMoveEngage(pursuerParty,MobileParty.MainParty);
                 pursuerParty.Ai.SetDoNotMakeNewDecisions(true);
                 pursuerParty.SetPartyUsedByQuest(true);
                 pursuerParty.Party.SetVisualAsDirty();
 
-                DebugLogger.Log($"[CommissionQuest] SpawnPursuerParty OK: partyId={partyId} troopCount={troopCount} pos=({pursuerParty.Position2D.X:F1},{pursuerParty.Position2D.Y:F1}) clan={banditClan.StringId}");
+                DebugLogger.Log($"[CommissionQuest] SpawnPursuerParty OK: partyId={partyId} troopCount={troopCount} pos=({V.Pos(pursuerParty).X:F1},{V.Pos(pursuerParty).Y:F1}) clan={banditClan.StringId}");
 
                 AddLog(new TextObject($"⚠ 追兵已出现在地图上，正在追击你！坚持 {((int)(_data.TimeRemainingHours / 24f) + 1)} 天。"));
             }
@@ -1764,7 +1752,7 @@ namespace LivingWorldNpcs
                 }
                 if (party != null)
                 {
-                    party.RemoveParty();
+                    V.DelParty(party);
                 }
             }
             catch (Exception ex)

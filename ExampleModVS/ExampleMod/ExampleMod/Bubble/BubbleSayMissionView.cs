@@ -37,7 +37,7 @@ namespace LivingWorldNpcs
             Instance = this;
 
             _dataSource = new BubbleSayNeaybyVM();
-            _layer = new GauntletLayer(100); // Layer 优先级
+            _layer = V.NewLayer(100); // Layer 优先级
             _layer.LoadMovie("BubbleSayNearby", _dataSource);
             MissionScreen missionScreen = ScreenManager.TopScreen as MissionScreen;
             missionScreen.AddLayer(_layer);

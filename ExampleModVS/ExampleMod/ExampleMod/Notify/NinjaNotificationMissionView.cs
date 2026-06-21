@@ -16,7 +16,11 @@ namespace LivingWorldNpcs
     {
         private static GauntletLayer _layer;
         private static NinjaNotificationVM _vm;
+#if LATEST
+        private static GauntletMovieIdentifier _movie;
+#else
         private static IGauntletMovie _movie;
+#endif
 
         public static void Show(string text, Action onConfirm)
         {
@@ -29,7 +33,7 @@ namespace LivingWorldNpcs
                 _vm = new NinjaNotificationVM(text, onConfirm, Close);
 
                 // 3. 创建图层，优先级 100 保证在大多数UI之上
-                _layer = new GauntletLayer(100, "NinjaNotificationLayer");
+                _layer = V.NewLayer(100, "NinjaNotificationLayer");
 
                 // 4. 加载 XML (注意：LoadMovie 的字符串必须和 XML 文件名一致，不带 .xml 后缀)
                 _movie = _layer.LoadMovie("CustomNotify", _vm);

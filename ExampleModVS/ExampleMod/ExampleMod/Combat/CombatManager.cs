@@ -87,7 +87,7 @@ namespace LivingWorldNpcs
         {
             if (agent != Agent.Main)
             {
-                agent.Controller = Agent.ControllerType.AI;
+                V.SetAgentAI(agent);
                 agent.SetWatchState(Agent.WatchState.Alarmed);
             }
             // 只对有盾牌的 agent 强制举盾，避免无盾 agent 动画冲突导致卡死

@@ -135,9 +135,10 @@ namespace LivingWorldNpcs
             // 2. 使用我们自定义的“安全组件”
             var partyComponent = new SafeLordPartyComponent(hero);
 
-            MobileParty newParty = MobileParty.CreateParty($"party_{hero.StringId}_{MBRandom.RandomInt(1000)}", partyComponent, delegate (MobileParty party) { party.SetCustomName(new TextObject($"{hero.Name}的部队")); });
+            MobileParty newParty = V.MakeParty($"party_{hero.StringId}_{MBRandom.RandomInt(1000)}", partyComponent);
             if (newParty != null)
             {
+                V.SetPartyName(newParty, new TextObject($"{hero.Name}的部队"));
                 //敌对关系
                 var banditClan = Clan.BanditFactions.FirstOrDefault(c => c.StringId == "looters");
                 if (banditClan != null)
@@ -146,10 +147,10 @@ namespace LivingWorldNpcs
                 }
                 
                 Vec2 offset = new Vec2(1f, 2f);
-                newParty.Position2D = MobileParty.MainParty.Position2D + offset;
+                V.SetPos(newParty, V.Pos(MobileParty.MainParty) + offset);
                 PartyTemplateObject partyTemplate = hero.Culture.DefaultPartyTemplate;
                 //这一步会强行给野队里塞士兵
-                newParty.InitializeMobilePartyAtPosition(partyTemplate, newParty.Position2D);
+                V.InitPartyPos(newParty, partyTemplate, V.Pos(newParty));
                 //所以我们要先清空，再塞我们想要的
                 newParty.MemberRoster.Clear();
                 newParty.PrisonRoster.Clear();
@@ -160,7 +161,7 @@ namespace LivingWorldNpcs
                     newParty.MemberRoster.AddToCounts(troop, 5);
                 }
 
-                newParty.Ai.SetMoveEngageParty(MobileParty.MainParty);
+                V.SetMoveEngage(newParty, MobileParty.MainParty);
                 newParty.Ai.SetDoNotMakeNewDecisions(true);
                 newParty.SetPartyUsedByQuest(true);
                 hero.SetSkillValue(DefaultSkills.Scouting, 300);

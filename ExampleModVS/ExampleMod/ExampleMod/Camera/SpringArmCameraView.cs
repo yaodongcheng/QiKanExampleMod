@@ -38,7 +38,11 @@ namespace LivingWorldNpcs
     {
         private GauntletLayer _gauntletLayer;
         private SpringArmCameraDebuggerVM _dataSource;
+#if LATEST
+        private GauntletMovieIdentifier _movie;
+#else
         private IGauntletMovie _movie;
+#endif
         private bool _isActive;
         private Camera _customCamera;
 
@@ -224,7 +228,7 @@ namespace LivingWorldNpcs
 
             // 创建 VM (会初始化为默认值，而不读取当前相机，防止 Spring Arm 参数混乱)
             _dataSource = new SpringArmCameraDebuggerVM(CloseUI);
-            _gauntletLayer = new GauntletLayer(100);
+            _gauntletLayer = V.NewLayer(100);
             _movie = _gauntletLayer.LoadMovie("SpringArmCameraDebugger", _dataSource);
             _gauntletLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
 

@@ -139,7 +139,7 @@ namespace LivingWorldNpcs
                 var party = GeneratedParty;
                 var settlement = TargetSettlement;
                 if (party != null && settlement != null && party.IsActive
-                    && party.Position2D.Distance(settlement.Position2D) < 3f)
+                    && V.Pos(party).Distance(V.Pos(settlement)) < 3f)
                     return WorldEventPhase.Consummated;
 
                 // 仍在行军 / 准备中
@@ -355,7 +355,7 @@ namespace LivingWorldNpcs
                             if (auxParty != null)
                             {
                                 Campaign.Current?.VisualTrackerManager?.RemoveTrackedObject(auxParty, forceRemove: true);
-                                auxParty.RemoveParty();
+                                V.DelParty(auxParty);
                             }
                         }
                         evt.AuxiliaryPartyIds.Remove(kvp.Key);
@@ -382,7 +382,7 @@ namespace LivingWorldNpcs
                     {
                         Campaign.Current?.VisualTrackerManager?.RemoveTrackedObject(party, forceRemove: true);
                     }
-                    party?.RemoveParty();
+                    V.DelParty(party);
                 }
             }
             catch (Exception ex)
@@ -405,7 +405,7 @@ namespace LivingWorldNpcs
                 {
                     var target = e.TargetSettlement;
                     if (target == null) return false;
-                    return target.Position2D.Distance(settlement.Position2D) < maxDistance;
+                    return V.Pos(target).Distance(V.Pos(settlement)) < maxDistance;
                 })
                 .ToList();
         }

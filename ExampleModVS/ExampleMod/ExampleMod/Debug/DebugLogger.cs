@@ -10,6 +10,8 @@ using TaleWorlds.CampaignSystem.Party;
 
 namespace LivingWorldNpcs
 {
+    // FillPartyStacks 签名在 v1.4.6+ 发生变更，v1.2.12 上保留此调试补丁
+#if !LATEST
     [HarmonyPatch(typeof(MobileParty), "FillPartyStacks")]
     public static class DebugCrashPatch
     {
@@ -69,6 +71,7 @@ namespace LivingWorldNpcs
             return sb.ToString();
         }
     }
+#endif
     public static class DebugLogger
     {
         // 静态标志位：默认 true，表示本次游戏运行尚未写入过日志

@@ -263,12 +263,12 @@ namespace LivingWorldNpcs
 
                 var component = new SafeLordPartyComponent(hero);
                 string partyId = $"lwn_nemesis_{hero.StringId}_{MBRandom.RandomInt(10000)}";
-                MobileParty party = MobileParty.CreateParty(partyId, component,
-                    delegate (MobileParty p)
-                    {
-                        string title = record.Level >= NemesisLevel.ArchNemesis ? "宿敌" : "复仇者";
-                        p.SetCustomName(new TextObject($"{hero.Name}的{title}队"));
-                    });
+                MobileParty party = V.MakeParty(partyId, component);
+                if (party != null)
+                {
+                    string title = record.Level >= NemesisLevel.ArchNemesis ? "宿敌" : "复仇者";
+                    V.SetPartyName(party, new TextObject($"{hero.Name}的{title}队"));
+                }
 
                 if (party == null) return null;
 
@@ -277,7 +277,7 @@ namespace LivingWorldNpcs
                 // 填充部队：宿敌级别越高兵越多
                 PartyTemplateObject template = hero.Culture?.DefaultPartyTemplate;
                 if (template != null)
-                    party.InitializeMobilePartyAtPosition(template, party.Position2D);
+                    V.InitPartyPos(party, template, V.Pos(party));
                 party.MemberRoster.Clear();
                 party.PrisonRoster.Clear();
                 party.MemberRoster.AddToCounts(hero.CharacterObject, 1);
@@ -298,10 +298,10 @@ namespace LivingWorldNpcs
                 Vec2 offset = new Vec2(
                     (MBRandom.RandomFloat - 0.5f) * 30f,
                     (MBRandom.RandomFloat - 0.5f) * 30f);
-                party.Position2D = MobileParty.MainParty.Position2D + offset;
+                V.SetPos(party, V.Pos(MobileParty.MainParty) + offset);
 
                 // AI：主动猎杀玩家
-                party.Ai.SetMoveEngageParty(MobileParty.MainParty);
+                V.SetMoveEngage(party, MobileParty.MainParty);
                 party.Ai.SetDoNotMakeNewDecisions(true);
                 party.SetPartyUsedByQuest(true);
                 party.Party.SetVisualAsDirty();

@@ -33,8 +33,7 @@ namespace LivingWorldNpcs
         public static string GetPose(Agent agent)
         {
             if (agent == null) return "";
-            ActionIndexValueCache currentAction = agent.GetCurrentActionValue(0);
-            return currentAction.Name;
+            return V.ActName(agent, 0);
         }
         public static bool IsPlayingPose(Agent agent,string actionId)
         {
@@ -56,7 +55,7 @@ namespace LivingWorldNpcs
                 agent.StopUsingGameObject(true, Agent.StopUsingGameObjectFlags.None);
             }
             agent.ClearTargetFrame();
-            agent.Controller = Agent.ControllerType.AI;
+            V.SetAgentAI(agent);
 
             // 2. 修正导航网格
             WorldPosition targetPos = new WorldPosition(agent.Mission.Scene, UIntPtr.Zero, targetVec, false);
@@ -64,7 +63,11 @@ namespace LivingWorldNpcs
             {
                 if (targetPos.GetNavMesh() == UIntPtr.Zero)
                 {
+#if LATEST
+                    agent.Mission.Scene.GetNavigationMeshForPosition(in targetVec);
+#else
                     agent.Mission.Scene.GetNavigationMeshForPosition(ref targetVec);
+#endif
                     targetPos = new WorldPosition(agent.Mission.Scene, targetVec);
                 }
             }
@@ -211,9 +214,9 @@ namespace LivingWorldNpcs
             agent.SetLookAgent(null);
 
             // 4. 确保控制器回归 AI
-            if (agent.Controller != Agent.ControllerType.Player)
+            if (!V.IsAgentAI(agent))
             {
-                agent.Controller = Agent.ControllerType.AI;
+                V.SetAgentAI(agent);
             }
 
             // 5. 如果之前在使用物体（比如椅子），强制停止
@@ -240,7 +243,7 @@ namespace LivingWorldNpcs
             npcAgent.Formation = null;
             npcAgent.ClearTargetFrame();
             npcAgent.SetTargetAgent(null);
-            npcAgent.Controller = Agent.ControllerType.AI;
+            V.SetAgentAI(npcAgent);
             npcAgent.SetActionChannel(0, ActionIndexCache.act_none, true, 0UL, 0f, 1f, 0.5f);
             npcAgent.SetActionChannel(1, ActionIndexCache.act_none, true, 0UL, 0f, 1f, 0.5f);
         }
@@ -269,7 +272,11 @@ namespace LivingWorldNpcs
             // 如果点无效，尝试获取最近的导航网格
             if (targetPos.GetNavMesh() == UIntPtr.Zero)
             {
+#if LATEST
+                npcAgent.Mission.Scene.GetNavigationMeshForPosition(in targetVec);
+#else
                 npcAgent.Mission.Scene.GetNavigationMeshForPosition(ref targetVec);
+#endif
                 targetPos = new WorldPosition(npcAgent.Mission.Scene, targetVec);
             }
 

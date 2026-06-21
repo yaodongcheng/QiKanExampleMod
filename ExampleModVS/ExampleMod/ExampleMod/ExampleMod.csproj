@@ -10,28 +10,75 @@
     <RootNamespace>LivingWorldNpcs</RootNamespace>
     <AssemblyName>LivingWorldNpcs</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
-    <LangVersion>8.0</LangVersion>
+    <LangVersion>12.0</LangVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
+
+  <!-- ── DLL 引用路径（两台电脑都用自己游戏目录下的 DLL）── -->
+  <PropertyGroup>
+    <MB2_CORE_REF>$(MB2_PATH)\bin\Win64_Shipping_Client</MB2_CORE_REF>
+    <MB2_SANDBOX_REF>$(MB2_PATH)\Modules\SandBox\bin\Win64_Shipping_Client</MB2_SANDBOX_REF>
+    <MB2_NATIVE_REF>$(MB2_PATH)\Modules\Native\bin\Win64_Shipping_Client</MB2_NATIVE_REF>
+  </PropertyGroup>
+
+  <!-- ── 自动检测游戏版本：读 Version.xml ──
+    定义三个宏：
+      MB2_V1212  /  MB2_V146  /  ...  → 精确版本号（新增版本时加一行）
+      LATEST                           → "不是 v1.2.12" 的别名，兼容已有代码
+  ── -->
+  <PropertyGroup>
+    <MB2_VersionFile>$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml</MB2_VersionFile>
+    <MB2_VersionFileContent Condition="Exists('$(MB2_VersionFile)')">$([System.IO.File]::ReadAllText('$(MB2_VersionFile)'))</MB2_VersionFileContent>
+  </PropertyGroup>
+  <!-- Debug：自动检测 -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>$(MB2_PATH)\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\</OutputPath>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <!-- 精确版本宏：按 Version.xml 中的版本号定义（新增版本时在这里加一行） -->
+    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
+    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
+    <!-- LATEST：不是 v1.2.12 就定义（兼容已有 #if LATEST） -->
+    <DefineConstants Condition="!$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);LATEST</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
+  <!-- Release：同上，去掉 DEBUG -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
+    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
+    <DefineConstants Condition="!$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);LATEST</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <!-- Debug_v1.2.12：手动兜底，强制 v1.2.12 模式 -->
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug_v1.2.12|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>$(MB2_PATH)\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\</OutputPath>
+    <DefineConstants>DEBUG;TRACE;MB2_V1212</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>3</WarningLevel>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release_v1.2.12|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE;MB2_V1212</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+
   <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\0Harmony.dll</HintPath>
@@ -47,7 +94,7 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="SandBox">
-      <HintPath>$(MB2_PATH)\Modules\SandBox\bin\Win64_Shipping_Client\SandBox.dll</HintPath>
+      <HintPath>$(MB2_SANDBOX_REF)\SandBox.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
@@ -59,112 +106,113 @@
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
     <Reference Include="TaleWorlds.CampaignSystem">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.CampaignSystem.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.CampaignSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.CampaignSystem.ViewModelCollection">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.CampaignSystem.ViewModelCollection.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.CampaignSystem.ViewModelCollection.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.Core">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.Core.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.Core.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.Core.ViewModelCollection">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.Core.ViewModelCollection.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.Core.ViewModelCollection.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.DotNet">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.DotNet.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.DotNet.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.Engine, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.Engine.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.Engine.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.Engine.GauntletUI">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.Engine.GauntletUI.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.Engine.GauntletUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.GauntletUI">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.GauntletUI.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.GauntletUI.CodeGenerator">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.GauntletUI.CodeGenerator.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.CodeGenerator.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.GauntletUI.Data">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.GauntletUI.Data.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.Data.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.GauntletUI.ExtraWidgets">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.GauntletUI.ExtraWidgets.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.ExtraWidgets.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.GauntletUI.PrefabSystem">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.GauntletUI.PrefabSystem.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.PrefabSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="TaleWorlds.GauntletUI.TooltipExtensions">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.GauntletUI.TooltipExtensions.dll</HintPath>
+    <!-- TooltipExtensions 只在 v1.2.12 的游戏目录里存在；Latest 里没有，自动跳过 -->
+    <Reference Include="TaleWorlds.GauntletUI.TooltipExtensions" Condition="Exists('$(MB2_CORE_REF)\TaleWorlds.GauntletUI.TooltipExtensions.dll')">
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.TooltipExtensions.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.InputSystem, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.InputSystem.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.InputSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.Library">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.Library.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.Library.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.Localization">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.Localization.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.Localization.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.ModuleManager, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.ModuleManager.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.ModuleManager.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.MountAndBlade">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.MountAndBlade.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.MountAndBlade.View">
-      <HintPath>$(MB2_PATH)\Modules\Native\bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.View.dll</HintPath>
+      <HintPath>$(MB2_NATIVE_REF)\TaleWorlds.MountAndBlade.View.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.MountAndBlade.ViewModelCollection">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.MountAndBlade.ViewModelCollection.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.MountAndBlade.ViewModelCollection.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.ObjectSystem, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.ObjectSystem.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.ObjectSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.PlayerServices">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.PlayerServices.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.PlayerServices.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.PSAI">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.PSAI.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.PSAI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.SaveSystem">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.SaveSystem.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.SaveSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.ScreenSystem, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.ScreenSystem.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.ScreenSystem.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.TwoDimension">
-      <HintPath>$(MB2_PATH)\bin\Win64_Shipping_Client\TaleWorlds.TwoDimension.dll</HintPath>
+      <HintPath>$(MB2_CORE_REF)\TaleWorlds.TwoDimension.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
@@ -198,6 +246,7 @@
     <Compile Include="Core\SafeLordPartyComponent.cs" />
     <Compile Include="Core\CustomPartyComponent.cs" />
     <Compile Include="Core\Settings.cs" />
+    <Compile Include="Core\VersionCompat.cs" />
     <!-- Data -->
     <Compile Include="Data\DesignDataLoad.cs" />
     <!-- Debug -->

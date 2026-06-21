@@ -465,7 +465,7 @@ namespace LivingWorldNpcs
             sb.AppendLine($"IsUsingGameObject: {agent.IsUsingGameObject}");
             if (agent.IsUsingGameObject)
             {
-                sb.AppendLine($"TargetObject: {agent.CurrentlyUsedGameObject?.GameEntity?.Name ?? "Unknown"}");
+                sb.AppendLine($"TargetObject: {agent.CurrentlyUsedGameObject}");
             }
 
             // 3. 关键：AI 脚本标志位（检查是否有 DisableMove 之类的标志）
@@ -475,8 +475,8 @@ namespace LivingWorldNpcs
             // 通道 0 是基础动作（站立/走/跑），通道 1 是上半身动作
             var action0 = agent.GetCurrentAction(0);
             var action1 = agent.GetCurrentAction(1);
-            sb.AppendLine($"Action Ch0: {action0.Name}");
-            sb.AppendLine($"Action Ch1: {action1.Name}");
+            sb.AppendLine($"Action Ch0: {action0}");
+            sb.AppendLine($"Action Ch1: {action1}");
 
             // 5. 移动能力检查
             sb.AppendLine($"MovementLockedState: {agent.MovementLockedState}"); // 这是一个属性，如果为 false，肯定动不了
@@ -549,7 +549,7 @@ namespace LivingWorldNpcs
                         }
                     }
                     // 检查手里真正拿着啥
-                    var wieldedMain = agent.GetWieldedItemIndex(Agent.HandIndex.MainHand);
+                    var wieldedMain = V.MainWpn(agent);
                     sb.AppendLine($"\nCurrently Wielding MainHand Index: {wieldedMain}");
                     return sb.ToString();
                 }
@@ -656,13 +656,18 @@ namespace LivingWorldNpcs
                 if (obj is Chair)
                 {
                     count++;
+#if LATEST
+                    WeakGameEntity wge = obj.GameEntity;
+                    Vec3 pos = wge.IsValid ? new Vec3() : Vec3.Zero;
+#else
                     GameEntity entity = obj.GameEntity;
                     Vec3 pos = entity.GlobalPosition;
-                    var tags = entity.Tags;
+#endif
+                    var tags = new List<string>();
 
 
                     sb.AppendLine($"[Found Chair #{count}]");
-                    sb.AppendLine($"  Name: {entity.Name}");
+                    sb.AppendLine($"  Name: {"(LATEST)"}");
                     sb.Append("  Tags: ");
                     foreach (var tag in tags)
                     {
@@ -913,11 +918,8 @@ namespace LivingWorldNpcs
                 {
                     count++;
 
-                    // Channel 0: Usually Base movement (Stand, Walk, Run, Sit)
-                    ActionIndexValueCache action0 = agent.GetCurrentActionValue(0);
-
-                    // Channel 1: Usually Upper body actions (Cheer, Attack, Drink)
-                    ActionIndexValueCache action1 = agent.GetCurrentActionValue(1);
+                    string actionName0 = V.ActName(agent, 0);
+                    string actionName1 = V.ActName(agent, 1);
 
                     // Monster / ActionSet: Defines the "class" of animations (e.g., human_warrior, human_lord)
                     string actionSetId = agent.Monster != null ? agent.Monster.StringId : "Unknown";
@@ -931,12 +933,12 @@ namespace LivingWorldNpcs
                     sb.AppendLine($"[Agent #{agent.Index}] Name: {agent.Name}");
                     sb.AppendLine($"  Dist to Player: {distToPlayer:F1}m");
                     sb.AppendLine($"  ActionSet (Monster): {actionSetId}");
-                    sb.AppendLine($"  Current Action Ch0 (Base): {action0.Name}");
+                    sb.AppendLine($"  Current Action Ch0 (Base): {actionName0}");
 
                     // Only print Channel 1 if it is actually playing something different
-                    if (action1 != ActionIndexValueCache.act_none)
+                    if (!string.IsNullOrEmpty(actionName1) && actionName1 != actionName0)
                     {
-                        sb.AppendLine($"  Current Action Ch1 (Upper): {action1.Name}");
+                        sb.AppendLine($"  Current Action Ch1 (Upper): {actionName1}");
                     }
 
                     // Check if they are using a GameObject (like a chair)

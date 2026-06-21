@@ -707,15 +707,12 @@ namespace LivingWorldNpcs.Story
 
             // 2. 检查当前动作是否已经是目标动作
             ActionIndexCache targetAction = ActionIndexCache.Create(animName);
-            //  ActionIndexCache targetAction = ActionIndexCache.Create(animName);
-            ActionIndexValueCache currentAction = agent.GetCurrentActionValue(0);
-
+            string currentActionName = V.ActName(agent, 0);
+            string targetActionName = targetAction.ToString();
 
             // 如果当前动作不等于目标动作，才播放
             // 注意：有些动画有由 idle 和 progress 组成的动画链，这里主要防止完全重复触发
-
-         //   InformationManager.DisplayMessage(new InformationMessage($"尝试应用动作{targetAction.Name},当前动作{currentAction.Name}。", Colors.Red));
-            if (currentAction.Name != targetAction.Name)
+            if (currentActionName != targetActionName)
             {
                 // 额外检查：有些坐下动作可能是持续态，如果名字包含 "sit" 且正在进行，也可以选择跳过
                 // 但这里用严格匹配通常更安全，防止还没坐下就被打断
@@ -949,7 +946,7 @@ namespace LivingWorldNpcs.Story
             Agent playerAgent = Mission.Current.MainAgent;
 
             Settlement initialSettlement = currentSettlement ?? Hero.MainHero.HomeSettlement;
-            TextObject agentName = TextObject.Empty;
+            TextObject agentName = V.EmptyText();
             //如果模版没找到，就找大众脸，然后改名
             if (template == null)
             {

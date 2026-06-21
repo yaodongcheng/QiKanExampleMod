@@ -469,3 +469,110 @@ DebugLogger.Log($"[CommissionIssue] {settlement}: scanned {n} NPCs, created {m} 
 ```
 
 **日志前缀约定**：`[Player]` = 玩家感知事件，`[WorldEvent]` = 世界事件生命周期，`[Commission*]` = 委托系统关键节点。
+
+---
+
+# 版本兼容层 — `Core/VersionCompat.cs`
+
+**同一份源码，双版本编译。** `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。每一对 API 差异用一个 `V.xxx()` 方法封装，内部 `#if LATEST` / `#else` 分支。
+
+**使用纪律**：
+- 凡是两个版本 API 不一样的调用，**一律走 `V.xxx()`，禁止在业务代码里裸写 `#if LATEST`**（除非是 Harmony 补丁或结构级差异）
+- 新加 V 方法后**必须两个配置都编译通过**
+- `LATEST` 宏由 csproj 自动检测，不要手动定义
+
+```csharp
+// ── 位置（v1.2.12: .Position2D / Latest: .GetPosition2D）
+V.Pos(party)              // Vec2 — MobileParty
+V.Pos(settlement)         // Vec2 — Settlement
+V.SetPos(party, pos)      // void — 设置 party 位置
+
+// ── 部队移动（v1.2.12: party.Ai.SetMove* / Latest: party.SetMove*）
+V.SetMoveTo(party, pos)           V.SetMoveEngage(party, target)
+V.SetMoveToTown(party, settlement) V.SetMovePatrol(party, pos)
+V.SetMoveEscort(party, target)     V.MoveTarget(party) → MobileParty
+
+// ── 部队生命周期
+V.MakeParty(id, component)          // CreateParty 3参/2参
+V.DelParty(party)                   // RemoveParty / DestroyPartyAction
+V.InitPartyPos(party, template, pos) // InitializeMobilePartyAtPosition Vec2/CampaignVec2
+V.SetPartyName(party, name)         // SetCustomName / Party.SetCustomName
+
+// ── Agent 控制
+V.IsAgentAI(agent) → bool           V.SetAgentAI(agent)
+V.IsAgentPlayer(agent) → bool       V.SetAgentPlayer(agent)
+
+// ── 武器 / 动作
+V.MainWpn(agent) → EquipmentIndex   V.OffWpn(agent) → EquipmentIndex
+V.ActName(agent, channelIndex = 0) → string
+
+// ── UI
+V.NewLayer(order, name = null) → GauntletLayer  // 构造参数顺序反了
+V.LoadMov(layer, name, vm)                       // 返回类型不同，v1.2.12 存 object
+
+// ── 其他
+V.GetStartTime() → CampaignTime      V.KingdomStr(kingdom) → float
+V.EmptyText() → TextObject           V.NavMesh(scene, pos, out faceIndex) → bool
+V.JoinDefect(clan, from, to)         V.GetEnemyKingdoms(kingdom) → IEnumerable<Kingdom>
+```
+
+**文件位置**：`Core/VersionCompat.cs`（约 420 行）。
+
+---
+
+# csproj 版本自动检测
+
+**一个 `Debug` 配置通吃两台电脑**，无需手动切换。原理：编译时读 `$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml`，根据其中的版本号自动定义宏。
+
+```xml
+<!-- 读 Version.xml -->
+<MB2_VersionFile>$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml</MB2_VersionFile>
+<MB2_VersionFileContent Condition="Exists('$(MB2_VersionFile)')">$([System.IO.File]::ReadAllText('$(MB2_VersionFile)'))</MB2_VersionFileContent>
+
+<!-- 按版本号定义精确宏 -->
+<DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
+<DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
+
+<!-- LATEST = 不是 v1.2.12（向后兼容已有 #if LATEST） -->
+<DefineConstants Condition="!$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);LATEST</DefineConstants>
+```
+
+**结果**：
+| 电脑 | Version.xml | 定义的宏 |
+|------|-----------|---------|
+| v1.2.12 | `v1.2.12` | `DEBUG;TRACE;MB2_V1212` |
+| v1.4.6  | `v1.4.6`  | `DEBUG;TRACE;MB2_V146;LATEST` |
+
+**新增版本**：TaleWorlds 出新版本时，在 csproj 里加一行 `MB2_VXXX` 宏即可，代码里用 `#if MB2_V150` 做精确版本判断。
+
+`Debug_v1.2.12` 保留作为手动兜底（强制 v1.2.12，不读 Version.xml）。
+
+**文件位置**：`ExampleMod.csproj` PropertyGroup 段。
+
+---
+
+# Harmony 补丁版本兼容
+
+Harmony 补丁在 `PatchAll()` 时如果找不到目标方法会**直接抛异常崩溃**。跨版本时必须处理：
+
+1. **方法消失了** → 整个补丁类用 `#if !LATEST` 排除
+2. **方法签名变了** → 用 `#if LATEST` / `#else` 写两套 `[HarmonyPatch]` 和 `Prefix/Postfix` 参数
+3. **方法所在类型的命名空间变了** → `typeof()` 用完全限定名 + `#if` 分支
+
+```csharp
+// 场景 1：方法在 Latest 里被删了 → 整段排除
+#if !LATEST
+[HarmonyPatch(typeof(MobileParty), "FillPartyStacks")]
+public static class DebugCrashPatch { /* ... */ }
+#endif
+
+// 场景 2：方法在 Latest 里拆分了 → 仍然整段排除（补丁逻辑无法直接搬运）
+#if !LATEST
+[HarmonyPatch(typeof(AgentInteractionInterfaceVM), "SetAgent")]
+public static class ChangeInteractionTextPatch { /* ... */ }
+#endif
+```
+
+**排查方法**：`ilspycmd <DLL> | grep "方法名"` 确认目标方法在两个版本中的存在性和签名。
+
+**注意**：编译通过不代表运行时能跑——Harmony 是运行时绑定的。必须在目标版本的实际游戏里测试。

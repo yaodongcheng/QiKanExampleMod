@@ -34,7 +34,7 @@ namespace LivingWorldNpcs
             Settlement settlement = worldEvent.TargetSettlement;
             if (settlement == null) return;
 
-            float dist = MobileParty.MainParty?.Position2D.Distance(settlement.Position2D) ?? float.MaxValue;
+            float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(settlement));
 
             if (dist < NEAR_DIST)
             {
@@ -86,7 +86,7 @@ namespace LivingWorldNpcs
             Settlement settlement = worldEvent.TargetSettlement;
             if (settlement == null) return;
 
-            float dist = MobileParty.MainParty?.Position2D.Distance(settlement.Position2D) ?? float.MaxValue;
+            float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(settlement));
 
             string msg = worldEvent.EventType switch
             {
@@ -124,7 +124,7 @@ namespace LivingWorldNpcs
             Settlement settlement = worldEvent.TargetSettlement;
             if (settlement == null) return;
 
-            float dist = MobileParty.MainParty?.Position2D.Distance(settlement.Position2D) ?? float.MaxValue;
+            float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(settlement));
 
             string msg = worldEvent.EventType switch
             {
@@ -232,8 +232,8 @@ namespace LivingWorldNpcs
             if (e.TargetSettlement == null || MobileParty.MainParty == null)
                 return "远";
 
-            Vec2 playerPos = MobileParty.MainParty.Position2D;
-            Vec2 eventPos = e.TargetSettlement.Position2D;
+            Vec2 playerPos = V.Pos(MobileParty.MainParty);
+            Vec2 eventPos = V.Pos(e.TargetSettlement);
             Vec2 delta = eventPos - playerPos;
 
             // 极简方向判断
@@ -395,18 +395,22 @@ namespace LivingWorldNpcs
                             MobileParty eventParty = worldEvent.GeneratedParty;
                             if (eventParty != null)
                             {
-                                targetPos = eventParty.Position2D;
-                                DebugLogger.Log($"[WorldEvent] Camera animating to event party: {eventParty.Name} at {targetPos}");
+                                targetPos = V.Pos(eventParty);
+                            DebugLogger.Log($"[WorldEvent] Camera animating to event party: {eventParty.Name} at {targetPos}");
                             }
                             else
                             {
-                                targetPos = targetSettlement.Position2D;
+                                targetPos = V.Pos(targetSettlement);
                                 DebugLogger.Log($"[WorldEvent] Camera animating to settlement: {targetSettlement.Name} at {targetPos}");
                             }
 
                             // 使用 campaign.focus_hero 同款的底层镜头动画 API
                             // StartCameraAnimation：平滑移动镜头到目标位置并停留（秒）
+#if LATEST
+                            mapState.Handler.StartCameraAnimation(new CampaignVec2(targetPos, true), 3.0f);
+#else
                             mapState.Handler.StartCameraAnimation(targetPos, 3.0f);
+#endif
                         }
                     }
                     catch (Exception ex)

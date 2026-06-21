@@ -380,9 +380,9 @@ namespace LivingWorldNpcs.Story
                        
 
                         // 有些 NPC 可能被设置为 None 或其他状态，确保他是 AI
-                        if (agent.Controller != Agent.ControllerType.AI)
+                        if (!V.IsAgentAI(agent))
                         {
-                            agent.Controller = Agent.ControllerType.AI;
+                            V.SetAgentAI(agent);
                         }
                         agent.ClearTargetFrame();
                         agent.SetScriptedCombatFlags(Agent.AISpecialCombatModeFlags.None);
@@ -550,9 +550,9 @@ namespace LivingWorldNpcs.Story
                 // out int faceId: 输出该点所在的网格面ID，我们可以忽略
                 // 2.0f: 高度容差，如果地面比中心点高/低2米以内，都能吸附
                 int faceId;
-                if (scene.GetNavigationMeshForPosition(ref targetPos, out faceId, 2.0f))
+                if (V.NavMesh(scene, targetPos, out faceId))
                 {
-                    // 如果返回 true，targetPos 已经被修改为有效的 NavMesh 坐标了
+                    // 如果找到了有效的 NavMesh 面，targetPos 在有效位置
                     return targetPos;
                 }
             }

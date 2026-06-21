@@ -211,7 +211,11 @@ namespace LivingWorldNpcs
 
 
         // 当产生打击判定时触发（哪怕伤害为0）
+#if LATEST
+        public override void OnRegisterBlow(Agent attacker, Agent victim, WeakGameEntity realHitEntity, Blow b, ref AttackCollisionData collisionData, in MissionWeapon attackerWeapon)
+#else
         public override void OnRegisterBlow(Agent attacker, Agent victim, GameEntity realHitEntity, Blow b, ref AttackCollisionData collisionData, in MissionWeapon attackerWeapon)
+#endif
         {
             base.OnRegisterBlow(attacker, victim, realHitEntity, b, ref collisionData, in attackerWeapon);
 

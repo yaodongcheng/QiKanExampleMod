@@ -70,7 +70,7 @@ namespace LivingWorldNpcs
         {
             if (MobileParty.MainParty == null) return null;
 
-            var playerPos = MobileParty.MainParty.Position2D;
+            var playerPos = V.Pos(MobileParty.MainParty);
             float currentDay = (float)CampaignTime.Now.ToDays;
 
             // 阶段 1：从活跃事件里面，挑选30距离以内的，按照定居点ID排序，然后按照事件类型去重
@@ -79,7 +79,7 @@ namespace LivingWorldNpcs
                 {
                     var settlement = e.TargetSettlement;
                     if (settlement == null) return false;
-                    return settlement.Position2D.Distance(playerPos) < 30f;
+                    return V.Pos(settlement).Distance(playerPos) < 30f;
                 })
                 .GroupBy(e => e.TargetSettlementId)
                 .ToList();
@@ -113,7 +113,7 @@ namespace LivingWorldNpcs
                 {
                     var settlement = e.TargetSettlement;
                     if (settlement == null) return false;
-                    return settlement.Position2D.Distance(playerPos) < 50f && e.Severity >= 5;
+                    return V.Pos(settlement).Distance(playerPos) < 50f && e.Severity >= 5;
                 })
                 .OrderByDescending(e => e.Severity)
                 .ToList();
@@ -249,12 +249,12 @@ namespace LivingWorldNpcs
             }
 
             // 优先选远处的（玩家可能还不知道的）
-            var playerPos = MobileParty.MainParty?.Position2D ?? Vec2.Zero;
+            var playerPos = V.Pos(MobileParty.MainParty);
             var distantEvents = allActive
                 .Where(e =>
                 {
                     var s = e.TargetSettlement;
-                    return s != null && s.Position2D.Distance(playerPos) > 80f;
+                    return s != null && V.Pos(s).Distance(playerPos) > 80f;
                 })
                 .OrderBy(e => MBRandom.RandomFloat)
                 .ToList();

@@ -31,7 +31,11 @@ namespace LivingWorldNpcs
     {
         private GauntletLayer _gauntletLayer;
         private CameraDebuggerVM _dataSource;
+#if LATEST
+        private GauntletMovieIdentifier _movie;
+#else
         private IGauntletMovie _movie;
+#endif
         private bool _isActive;
         // 用于覆盖相机的临时对象
         private Camera _customCamera;
@@ -359,7 +363,7 @@ namespace LivingWorldNpcs
             _dataSource = new CameraDebuggerVM(CloseUI);
 
             // 创建 Layer (设置优先级，保证显示在最上层)
-            _gauntletLayer = new GauntletLayer(100);
+            _gauntletLayer = V.NewLayer(100);
 
             // 加载 XML (确保你的 XML 文件名为 "CameraDebugger.xml")
             _movie = _gauntletLayer.LoadMovie("CameraDebugger", _dataSource);

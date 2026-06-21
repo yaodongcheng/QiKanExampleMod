@@ -238,9 +238,9 @@ namespace LivingWorldNpcs.Story
 
             //禁用主角移动
             Agent.Main.SetMovementDirection(Vec2.Zero);
-            if (Agent.Main.Controller == Agent.ControllerType.Player)
+            if (V.IsAgentPlayer(Agent.Main))
             {
-                Agent.Main.Controller = Agent.ControllerType.AI;
+                V.SetAgentAI(Agent.Main);
             }
 
             // 开始循环
@@ -275,7 +275,7 @@ namespace LivingWorldNpcs.Story
                
             }
             
-            _layer = new GauntletLayer(1000); // 高优先级
+            _layer = V.NewLayer(1000); // 高优先级
                                               // 加载你的 XML (假设文件名是 "MyStoryDialog")
             _layer.LoadMovie("DialogChoice", ViewModel);
             CurrentMissionScreen.AddLayer(_layer);
@@ -475,7 +475,7 @@ namespace LivingWorldNpcs.Story
             if (Agent.Main != null && Agent.Main.IsActive())
             {
                 // 切回玩家控制
-                Agent.Main.Controller = Agent.ControllerType.Player;
+                V.SetAgentPlayer(Agent.Main);
             }
         }
         public void Resume()

@@ -251,7 +251,7 @@ namespace LivingWorldNpcs
                 _initialAnim = AgentControlHelper.GetPose(Owner);
                 _FirstInteracted = true;
                 // 记录当前是否武装 (主手不为空即视为武装)
-                _initialWasArmed = Owner.GetWieldedItemIndex(Agent.HandIndex.MainHand) != EquipmentIndex.None;
+                _initialWasArmed = V.MainWpn(Owner) != EquipmentIndex.None;
             }
             _actionQueue.Enqueue(action);
         }

@@ -26,7 +26,7 @@ namespace LivingWorldNpcs
             _dataSource = new DuelVM(); // 确保你定义了这个类，且构造函数里 IsDuelActive = false
 
             // 3. 创建图层
-            _layer = new TaleWorlds.Engine.GauntletUI.GauntletLayer(100);
+            _layer = V.NewLayer(100);
             _layer.LoadMovie("DuelUI", _dataSource);
 
 
@@ -70,7 +70,7 @@ namespace LivingWorldNpcs
             // 2. 如果 Layer 还没创建，现在创建 (懒加载)
             if (_layer == null)
             {
-                _layer = new GauntletLayer(100);
+                _layer = V.NewLayer(100);
                 _layer.LoadMovie("DuelUI", _dataSource);
 
                 // 使用我们要教你的通用获取屏幕方法

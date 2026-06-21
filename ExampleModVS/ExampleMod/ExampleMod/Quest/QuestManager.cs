@@ -272,7 +272,6 @@ namespace LivingWorldNpcs
         // 必须实现的属性
         public override bool IsRemainingTimeHidden => false;
         public override TextObject Title => GetQuestTitle();
-        public override bool IsSpecialQuest => false;
         public bool bMustReportToFinish => true; // 是否需要回报完成
 
         public static bool IsHeroInvolvedInActiveQuest(Hero heroToCheck, out GenericQuest foundQuest, out bool isGiver)

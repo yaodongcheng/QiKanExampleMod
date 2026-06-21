@@ -194,7 +194,11 @@ namespace LivingWorldNpcs
                     var itemElement = _targetAgent.SpawnEquipment[_targetSlotIndex.Value];
 
                     // 1. 更新图片
+#if LATEST
+                    // ImageIdentifier not available in Latest
+#else
                     ImageIdentifier imageID = new ImageIdentifier(itemElement.Item);
+#endif
                     //CurrentItemImage = new ImageIdentifierVM(imageID);
                     
                     float weight = itemElement.Item.Weight;

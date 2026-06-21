@@ -341,13 +341,17 @@ namespace LivingWorldNpcs
 
         private GauntletLayer myLayer;
         private MyCustomUIVM myVM;
+#if LATEST
+        private GauntletMovieIdentifier myMovie;
+#else
         private IGauntletMovie myMovie;
+#endif
         
         private void OpenMyScreen()
         {
             myVM = new MyCustomUIVM();
             myVM.OnClose += CloseMyScreen;
-            myLayer = new GauntletLayer(100);
+            myLayer = V.NewLayer(100);
             myMovie = myLayer.LoadMovie("MyCustomPopup",myVM);
             ScreenManager.TopScreen.AddLayer(myLayer);
             myLayer.InputRestrictions.SetInputRestrictions(true,InputUsageMask.All);

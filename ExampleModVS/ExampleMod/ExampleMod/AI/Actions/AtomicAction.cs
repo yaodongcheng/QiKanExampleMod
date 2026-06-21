@@ -568,7 +568,11 @@ namespace LivingWorldNpcs
                 WorldPosition validPos = new WorldPosition(Mission.Current.Scene, UIntPtr.Zero, idealPos, false);
                 if (validPos.GetNavMesh() == UIntPtr.Zero)
                 {
+#if LATEST
+                    Mission.Current.Scene.GetNavigationMeshForPosition(in idealPos);
+#else
                     Mission.Current.Scene.GetNavigationMeshForPosition(ref idealPos);
+#endif
                     validPos = new WorldPosition(Mission.Current.Scene, idealPos);
                 }
 

@@ -163,7 +163,11 @@ namespace LivingWorldNpcs
             string stTarget = party.ShortTermTargetParty?.StringId ?? "";
             string def = party.DefaultBehavior.ToString();
             string defTarget = party.TargetSettlement?.StringId
+#if LATEST
+                ?? party.MoveTargetParty?.StringId
+#else
                 ?? party.Ai?.MoveTargetParty?.StringId
+#endif
                 ?? "";
             return $"{st}|{stTarget}|{def}|{defTarget}";
         }
@@ -173,7 +177,7 @@ namespace LivingWorldNpcs
         {
             var shortTerm = party.ShortTermBehavior;
             var defaultBehavior = party.DefaultBehavior;
-            string pos = $"({party.Position2D.X:F0},{party.Position2D.Y:F0})";
+            string pos = $"({V.Pos(party).X:F0},{V.Pos(party).Y:F0})";
             int troops = party.MemberRoster?.TotalManCount ?? 0;
 
             string instant = shortTerm.ToString();
@@ -186,7 +190,11 @@ namespace LivingWorldNpcs
 
             string goal = defaultBehavior.ToString();
             string defTarget = party.TargetSettlement?.Name?.ToString()
+#if LATEST
+                ?? party.MoveTargetParty?.Name?.ToString() ?? "";
+#else
                 ?? party.Ai?.MoveTargetParty?.Name?.ToString() ?? "";
+#endif
             if (!string.IsNullOrEmpty(defTarget)) goal = $"{defaultBehavior}→{defTarget}";
 
             return $"shortTerm={instant} default={goal} pos={pos} troops={troops}";
@@ -286,7 +294,7 @@ namespace LivingWorldNpcs
                 .Where(e => e.GeneratedParty != null
                     && e.GeneratedParty.IsActive
                     && e.TargetSettlement != null
-                    && e.GeneratedParty.Position2D.Distance(e.TargetSettlement.Position2D) < 3f) // 3 单位 ≈ 已在门口
+                    && V.Pos(e.GeneratedParty).Distance(V.Pos(e.TargetSettlement)) < 3f) // 3 单位 ≈ 已在门口
                 .ToList();
 
             foreach (var evt in arrived)
@@ -299,14 +307,18 @@ namespace LivingWorldNpcs
 
                 // 刚到达：记录时间，切换为巡逻 Action（原生 API + true 防拐跑）
                 _arrivedParties[partyId] = currentDay;
+#if LATEST
+                SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement, MobileParty.NavigationType.Default, false, false);
+#else
                 SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
+#endif
                 party.Ai.SetDoNotMakeNewDecisions(true);
 
                 string loc = evt.TargetSettlement?.Name?.ToString() ?? "目标";
                 DebugLogger.Log($"[WorldEventSimulator] Party arrived at {loc}, entering patrol phase: {evt.EventType} partyId={partyId} — will attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
 
                 // ── 通知玩家：部队已到达 ──
-                float dist = MobileParty.MainParty?.Position2D.Distance(evt.TargetSettlement.Position2D) ?? float.MaxValue;
+                float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(evt.TargetSettlement));
                 if (dist < 100f)
                 {
                     string arrivalSummary = BuildArrivalSummary(evt);
@@ -335,13 +347,17 @@ namespace LivingWorldNpcs
                     var party = evt.GeneratedParty;
                     if (party == null || !party.IsActive) continue;
                     if (evt.TargetSettlement == null) continue;
-                    if (party.Position2D.Distance(evt.TargetSettlement.Position2D) >= 3f) continue;
+                    if (V.Pos(party).Distance(V.Pos(evt.TargetSettlement)) >= 3f) continue;
 
                     string partyId = party.StringId;
                     if (_arrivedParties.ContainsKey(partyId)) continue; // 已在巡逻
 
                     _arrivedParties[partyId] = currentDay;
+#if LATEST
+                    SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement, MobileParty.NavigationType.Default, false, false);
+#else
                     SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
+#endif
                     party.Ai.SetDoNotMakeNewDecisions(true);
 
                     DebugLogger.Log($"[WorldEventSimulator] High-freq arrival: {evt.EventType} partyId={partyId} at {evt.TargetSettlement.Name} — patrol phase, attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
@@ -390,17 +406,29 @@ namespace LivingWorldNpcs
                 // 按定居点类型选择原生 AI Action（全部搭配 true 防拐跑）
                 if (target.IsVillage)
                 {
+#if LATEST
+                    SetPartyAiAction.GetActionForRaidingSettlement(party, target, MobileParty.NavigationType.Default, false, false);
+#else
                     SetPartyAiAction.GetActionForRaidingSettlement(party, target);
+#endif
                     actionName = "RaidSettlement";
                 }
                 else if (target.IsFortification)
                 {
+#if LATEST
+                    SetPartyAiAction.GetActionForBesiegingSettlement(party, target, MobileParty.NavigationType.Default, false);
+#else
                     SetPartyAiAction.GetActionForBesiegingSettlement(party, target);
+#endif
                     actionName = "BesiegeSettlement";
                 }
                 else
                 {
+#if LATEST
+                    SetPartyAiAction.GetActionForRaidingSettlement(party, target, MobileParty.NavigationType.Default, false, false);
+#else
                     SetPartyAiAction.GetActionForRaidingSettlement(party, target);
+#endif
                     actionName = "RaidSettlement(fallback)";
                 }
                 party.Ai.SetDoNotMakeNewDecisions(true);
@@ -408,7 +436,7 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[WorldEventSimulator] Patrol complete — launched {actionName}: {evt.EventType} partyId={partyId} → {loc}");
 
                 // 通知玩家：进攻开始
-                float dist = MobileParty.MainParty?.Position2D.Distance(target.Position2D) ?? float.MaxValue;
+                float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(target));
                 if (dist < 100f)
                 {
                     string attackMsg = evt.EventType switch
@@ -868,7 +896,7 @@ namespace LivingWorldNpcs
                             && s.OwnerClan != null
                             && s.OwnerClan != instigator.Clan
                             && s.OwnerClan != Clan.PlayerClan
-                            && s.Position2D.Distance(home.Position2D) < 80f)
+                            && V.Pos(s).Distance(V.Pos(home)) < 80f)
                         .OrderBy(_ => MBRandom.RandomFloat)
                         .FirstOrDefault();
 
@@ -974,11 +1002,11 @@ namespace LivingWorldNpcs
         /// <summary>选玩家附近指定距离内的定居点（新手引导用）。</summary>
         private Settlement SelectSettlementNearPlayer(float maxDistance)
         {
-            var playerPos = MobileParty.MainParty.Position2D;
+            var playerPos = V.Pos(MobileParty.MainParty);
             return Settlement.All
                 .Where(s => s.IsVillage && s.Notables != null && s.Notables.Count > 0
-                    && s.Position2D.Distance(playerPos) < maxDistance)
-                .OrderBy(s => s.Position2D.Distance(playerPos))
+                    && V.Pos(s).Distance(playerPos) < maxDistance)
+                .OrderBy(s => V.Pos(s).Distance(playerPos))
                 .FirstOrDefault();
         }
 
@@ -1008,10 +1036,10 @@ namespace LivingWorldNpcs
             }
             if (targetSettlement == null)
             {
-                var playerPos = MobileParty.MainParty.Position2D;
+                var playerPos = V.Pos(MobileParty.MainParty);
                 targetSettlement = Settlement.All
                     .Where(s => s.IsVillage && s.Notables?.Count > 0)
-                    .OrderBy(s => s.Position2D.Distance(playerPos))
+                    .OrderBy(s => V.Pos(s).Distance(playerPos))
                     .FirstOrDefault();
             }
             if (targetSettlement == null)
@@ -1130,7 +1158,7 @@ namespace LivingWorldNpcs
             // 玩家附近有 Hideout → 概率翻倍
             var nearbyHideout = Settlement.All
                 .FirstOrDefault(s => s.IsHideout
-                    && s.Position2D.Distance(MobileParty.MainParty.Position2D) < 100f);
+                    && V.Pos(s).Distance(V.Pos(MobileParty.MainParty)) < 100f);
             if (nearbyHideout != null)
                 weight *= 2.0f;
 
@@ -1196,8 +1224,8 @@ namespace LivingWorldNpcs
         private Hero FindBanditNearHideout(Settlement target)
         {
             foreach (var hideout in Settlement.All.Where(s => s.IsHideout
-                && s.Position2D.Distance(target.Position2D) < 150f)
-                .OrderBy(s => s.Position2D.Distance(target.Position2D)))
+                && V.Pos(s).Distance(V.Pos(target)) < 150f)
+                .OrderBy(s => V.Pos(s).Distance(V.Pos(target))))
             {
                 foreach (var clan in Clan.BanditFactions)
                 {
@@ -1207,7 +1235,7 @@ namespace LivingWorldNpcs
                         if (hero == null || !hero.IsAlive || IsHeroBusyInEvent(hero.StringId)) continue;
                         if (hero.CurrentSettlement == hideout
                             || (hero.PartyBelongedTo != null
-                                && hero.PartyBelongedTo.Position2D.Distance(hideout.Position2D) < 80f))
+                                && V.Pos(hero.PartyBelongedTo).Distance(V.Pos(hideout)) < 80f))
                             return hero;
                     }
                 }
@@ -1239,8 +1267,8 @@ namespace LivingWorldNpcs
                         enemies.Add(hero);
             }
             if (enemies.Count == 0) return null;
-            return enemies.OrderBy(h => target.Position2D.Distance(
-                h.CurrentSettlement?.Position2D ?? h.HomeSettlement?.Position2D ?? target.Position2D)).FirstOrDefault();
+            return enemies.OrderBy(h => V.Pos(target).Distance(
+                V.Pos(h.CurrentSettlement ?? (Settlement)h.HomeSettlement ?? target))).FirstOrDefault();
         }
 
         private Hero FindRelatedHero(Hero target, Settlement settlement)
@@ -1306,12 +1334,12 @@ namespace LivingWorldNpcs
                     {
                         // instigator 本人正带队 → 直接调遣他的真实部队去打目标！
                         party = existingParty;
-                        party.SetCustomName(new TextObject(
+                        V.SetPartyName(party,new TextObject(
                             GetPartyNameTemplate(config, instigatorHero, targetSettlement, targetHero)));
                         party.Ai.SetDoNotMakeNewDecisions(false); // 解锁 AI，允许我们下达新指令
 
                         // 根据行军距离自动延长事件过期时间（防止 lord 还没走到就过期了）
-                        float distToTarget = party.Position2D.Distance(targetSettlement.Position2D);
+                        float distToTarget = V.Pos(party).Distance(V.Pos(targetSettlement));
                         float speedEstimate = party.Speed > 0.1f ? party.Speed : 2.5f;
                         float travelDays = distToTarget / (speedEstimate * 24f);
                         float minTotalDays = travelDays + 4f;
@@ -1346,8 +1374,8 @@ namespace LivingWorldNpcs
 
                         var component = new SafeLordPartyComponent(instigatorHero);
                         string nameTemplate = GetPartyNameTemplate(config, instigatorHero, targetSettlement, targetHero);
-                        party = MobileParty.CreateParty(partyId, component,
-                            delegate (MobileParty p) { p.SetCustomName(new TextObject(nameTemplate)); });
+                        party = V.MakeParty(partyId, component);
+                        if (party != null) V.SetPartyName(party,new TextObject(nameTemplate));
                         if (party == null)
                         {
                             DebugLogger.Log($"[WorldEventSimulator] ERROR: MobileParty.CreateParty returned null for {instigatorHero.Name}");
@@ -1360,7 +1388,7 @@ namespace LivingWorldNpcs
                         if (party.LeaderHero != instigatorHero || party.MemberRoster.GetTroopCount(instigatorHero.CharacterObject) == 0)
                         {
                             DebugLogger.Log($"[WorldEventSimulator] ERROR: {instigatorHero.Name} failed to join created party. LeaderHero={party.LeaderHero?.Name?.ToString() ?? "null"}, inRoster={party.MemberRoster.GetTroopCount(instigatorHero.CharacterObject)}. Reason: {unavailReason}");
-                            party.RemoveParty();
+                            V.DelParty(party);
                             party = CreateGenericEventParty(partyId, config, targetSettlement, targetHero, severity);
                             if (party != null)
                             {
@@ -1373,7 +1401,7 @@ namespace LivingWorldNpcs
                         DebugLogger.Log($"[WorldEventSimulator] Mobilized party for {instigatorHero.Name} ({party.MemberRoster.TotalManCount} troops, from garrisons) → {targetSettlement.Name}");
 
                         // 定位：在目标周围找可通行位置，验证岛屿连通性 + 寻路距离
-                        party.Position2D = FindReachableSpawnPosition(targetSettlement);
+                        V.SetPos(party, FindReachableSpawnPosition(targetSettlement));;
                     }
                 }
                 else
@@ -1387,19 +1415,19 @@ namespace LivingWorldNpcs
                 {
                     case EventPartyBehavior.RaidSettlement:
                     case EventPartyBehavior.GoToSettlement:
-                        party.Ai.SetMoveGoToSettlement(targetSettlement);
+                        V.SetMoveToTown(party,targetSettlement);
                         break;
                     case EventPartyBehavior.EngageTarget:
                         if (targetHero?.PartyBelongedTo != null)
-                            party.Ai.SetMoveEngageParty(targetHero.PartyBelongedTo);
+                            V.SetMoveEngage(party,targetHero.PartyBelongedTo);
                         else
-                            party.Ai.SetMoveGoToSettlement(targetSettlement);
+                            V.SetMoveToTown(party,targetSettlement);
                         break;
                     case EventPartyBehavior.PatrolNearTarget:
-                        party.Ai.SetMovePatrolAroundPoint(party.Position2D);
+                        V.SetMovePatrol(party,V.Pos(party));
                         break;
                     case EventPartyBehavior.ChasePlayer:
-                        party.Ai.SetMoveEngageParty(MobileParty.MainParty);
+                        V.SetMoveEngage(party,MobileParty.MainParty);
                         break;
                 }
                 party.Ai.SetDoNotMakeNewDecisions(true); // 锁定目标，不被原生 AI 拐跑；到达由 CheckEventPartyArrivals 检测并触发后果
@@ -1477,19 +1505,27 @@ namespace LivingWorldNpcs
                 switch (auxConfig.SpawnPosition)
                 {
                     case AuxiliarySpawnPosition.BetweenParties:
-                        Vec2 instPos = instigator?.PartyBelongedTo?.Position2D
-                            ?? evt.GeneratedParty?.Position2D
-                            ?? targetSettlement.Position2D;
-                        Vec2 victimPos = victim?.PartyBelongedTo?.Position2D
-                            ?? targetSettlement.Position2D;
+                        Vec2 instPos = instigator?.PartyBelongedTo != null ? V.Pos(instigator.PartyBelongedTo)
+                            : evt.GeneratedParty != null ? V.Pos(evt.GeneratedParty)
+                            : V.Pos(targetSettlement);
+                        Vec2 victimPos = victim?.PartyBelongedTo != null ? V.Pos(victim.PartyBelongedTo)
+                            : V.Pos(targetSettlement);
                         Vec2 mid = (instPos + victimPos) * 0.5f;
+#if LATEST
+                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(new CampaignVec2(mid, true), 15f).ToVec2() ?? mid;
+#else
                         spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(mid, 15f) ?? mid;
+#endif
                         break;
                     case AuxiliarySpawnPosition.NearInstigator:
-                        Vec2 instBase = instigator?.PartyBelongedTo?.Position2D
-                            ?? evt.GeneratedParty?.Position2D
-                            ?? targetSettlement.Position2D;
+                        Vec2 instBase = instigator?.PartyBelongedTo != null ? V.Pos(instigator.PartyBelongedTo)
+                            : evt.GeneratedParty != null ? V.Pos(evt.GeneratedParty)
+                            : V.Pos(targetSettlement);
+#if LATEST
+                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(new CampaignVec2(instBase, true), 10f).ToVec2() ?? instBase;
+#else
                         spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(instBase, 10f) ?? instBase;
+#endif
                         break;
                     case AuxiliarySpawnPosition.NearTarget:
                     default:
@@ -1500,19 +1536,18 @@ namespace LivingWorldNpcs
                 // 创建 party
                 string displayName = auxConfig.NameTemplate.Replace("{TARGET}", targetSettlement.Name?.ToString() ?? "目的地");
                 var component = new CustomPartyComponent(targetSettlement, displayName);
-                MobileParty party = MobileParty.CreateParty(partyId, component,
-                    delegate (MobileParty p) { p.SetCustomName(new TextObject(displayName)); });
-
+                MobileParty party = V.MakeParty(partyId, component);
+                if (party != null) V.SetPartyName(party,new TextObject(displayName));
                 if (party == null) return null;
 
                 party.ActualClan = factionClan;
-                party.Position2D = spawnPos;
+                V.SetPos(party, spawnPos);;
 
                 // 填充兵力
                 int troopCount = auxConfig.MinTroops + MBRandom.RandomInt(Math.Max(1, auxConfig.MaxTroops - auxConfig.MinTroops + 1));
                 var template = culture?.DefaultPartyTemplate ?? factionClan?.DefaultPartyTemplate;
                 if (template != null)
-                    party.InitializeMobilePartyAtPosition(template, spawnPos);
+                    V.InitPartyPos(party, template, spawnPos);
                 party.MemberRoster.Clear();
                 var basicTroop = culture?.BasicTroop ?? factionClan?.Culture?.BasicTroop;
                 if (basicTroop != null)
@@ -1523,22 +1558,22 @@ namespace LivingWorldNpcs
                 {
                     case EventPartyBehavior.GoToSettlement:
                     case EventPartyBehavior.RaidSettlement:
-                        party.Ai.SetMoveGoToSettlement(targetSettlement);
+                        V.SetMoveToTown(party,targetSettlement);
                         break;
                     case EventPartyBehavior.PatrolNearTarget:
-                        party.Ai.SetMovePatrolAroundPoint(spawnPos);
+                        V.SetMovePatrol(party,spawnPos);
                         break;
                     case EventPartyBehavior.EngageTarget:
                         if (victim?.PartyBelongedTo != null)
-                            party.Ai.SetMoveEngageParty(victim.PartyBelongedTo);
+                            V.SetMoveEngage(party,victim.PartyBelongedTo);
                         else
-                            party.Ai.SetMovePatrolAroundPoint(spawnPos);
+                            V.SetMovePatrol(party,spawnPos);
                         break;
                     case EventPartyBehavior.ChasePlayer:
-                        party.Ai.SetMoveEngageParty(MobileParty.MainParty);
+                        V.SetMoveEngage(party,MobileParty.MainParty);
                         break;
                     default:
-                        party.Ai.SetMovePatrolAroundPoint(spawnPos);
+                        V.SetMovePatrol(party,spawnPos);
                         break;
                 }
                 party.Ai.SetDoNotMakeNewDecisions(true); // 辅助部队行为固定，不自行满世界乱跑
@@ -1572,14 +1607,22 @@ namespace LivingWorldNpcs
         {
             var wrapper = Campaign.Current?.MapSceneWrapper;
             if (wrapper == null || targetSettlement == null)
-                return targetSettlement?.Position2D ?? Vec2.Zero;
+                return targetSettlement != null ? V.Pos(targetSettlement) : Vec2.Zero;
 
-            Vec2 settlementPos = targetSettlement.Position2D;
+            Vec2 settlementPos = V.Pos(targetSettlement);
+#if LATEST
+            PathFaceRecord settlementFace = wrapper.GetFaceIndex(new CampaignVec2(settlementPos, true));
+#else
             PathFaceRecord settlementFace = wrapper.GetFaceIndex(settlementPos);
+#endif
             if (!settlementFace.IsValid())
             {
                 DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: settlement face invalid for {targetSettlement.Name}! Using GetAccessiblePointNearPosition fallback.");
+#if LATEST
+                return wrapper.GetAccessiblePointNearPosition(new CampaignVec2(settlementPos, true), 30f).ToVec2();
+#else
                 return wrapper.GetAccessiblePointNearPosition(settlementPos, 30f);
+#endif
             }
 
             const int MAX_ATTEMPTS = 24; // 3 圈 × 8 个方向
@@ -1601,10 +1644,21 @@ namespace LivingWorldNpcs
                     Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
                         settlementFace, candidate, settlementPos);
 
+#if LATEST
+                    PathFaceRecord projectedFace = wrapper.GetFaceIndex(new CampaignVec2(projected, true));
+#else
                     PathFaceRecord projectedFace = wrapper.GetFaceIndex(projected);
+#endif
                     if (!projectedFace.IsValid())
                         continue;
 
+#if LATEST
+                    // 🔑 验证：寻路距离是否合理（Latest API：额外参数 excludedFaceIds/regionSwitchCost）
+                    if (!wrapper.GetPathDistanceBetweenAIFaces(
+                        projectedFace, settlementFace, projected, settlementPos,
+                        0.1f, 100f, out float pathDist, null, 0, 0))
+                        continue;
+#else
                     // 🔑 验证 1：同一岛屿？
                     if (!wrapper.AreFacesOnSameIsland(projectedFace, settlementFace, ignoreDisabled: false))
                         continue;
@@ -1614,6 +1668,7 @@ namespace LivingWorldNpcs
                         projectedFace, settlementFace, projected, settlementPos,
                         0.1f, 100f, out float pathDist))
                         continue;
+#endif
 
                     attempt++;
                     // 寻路距离不应超过直线距离的 3 倍（否则地形严重阻挡）
@@ -1646,9 +1701,25 @@ namespace LivingWorldNpcs
                         (float)Math.Sin(angle) * radius);
                     Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
                         settlementFace, candidate, settlementPos);
+#if LATEST
+                    PathFaceRecord projFace = wrapper.GetFaceIndex(new CampaignVec2(projected, true));
+#else
                     PathFaceRecord projFace = wrapper.GetFaceIndex(projected);
+#endif
                     if (!projFace.IsValid()) continue;
+#if LATEST
+                    // AreFacesOnSameIsland removed in Latest; use GetPathDistanceBetweenAIFaces directly
+                    if (!wrapper.GetPathDistanceBetweenAIFaces(
+                        projFace, settlementFace, projected, settlementPos,
+                        0.1f, 100f, out float pfDist2, null, 0, 0)) continue;
+#else
                     if (!wrapper.AreFacesOnSameIsland(projFace, settlementFace, ignoreDisabled: false)) continue;
+
+                    // 🔑 验证：寻路距离是否合理
+                    if (!wrapper.GetPathDistanceBetweenAIFaces(
+                        projFace, settlementFace, projected, settlementPos,
+                        0.1f, 100f, out float pfDist2)) continue;
+#endif
 
                     float dist = projected.Distance(settlementPos);
                     if (dist > bestDist) { bestDist = dist; bestFallback = projected; }
@@ -1715,7 +1786,7 @@ namespace LivingWorldNpcs
         /// </summary>
         private Settlement SelectTargetSettlement()
         {
-            var playerPos = MobileParty.MainParty.Position2D;
+            var playerPos = V.Pos(MobileParty.MainParty);
 
             // 候选：所有村庄（Village），排除已被同一类型事件盯上的
             var candidates = Settlement.All
@@ -1730,7 +1801,7 @@ namespace LivingWorldNpcs
             // 加权：距离近 + prosperity 低 + 稳定性低 → 权重高
             return WeightedRandomSelect(candidates, s =>
             {
-                float dist = playerPos.Distance(s.Position2D);
+                float dist = playerPos.Distance(V.Pos(s));
                 float distWeight = Math.Max(0.1f, 80f / Math.Max(dist, 1f));
                 float prosperityWeight = Math.Max(0.2f, 5000f / Math.Max(GetSettlementProsperity(s), 100f));
                 float stabilityWeight = Math.Max(0.3f, 10f - GetRegionalStability(s)); // 越低越危险
@@ -2023,14 +2094,14 @@ namespace LivingWorldNpcs
         {
             string nameTemplate = GetGenericPartyName(config, targetSettlement, targetHero);
             var component = new CustomPartyComponent(targetSettlement, nameTemplate);
-            var party = MobileParty.CreateParty(partyId, component,
-                delegate (MobileParty p) { p.SetCustomName(new TextObject(nameTemplate)); });
+            var party = V.MakeParty(partyId, component);
+            if (party != null) V.SetPartyName(party,new TextObject(nameTemplate));
             if (party == null) return null;
             var banditClan = Clan.BanditFactions.FirstOrDefault();
             if (banditClan != null) party.ActualClan = banditClan;
             FillGenericPartyTroops(party, severity);
 
-            party.Position2D = FindReachableSpawnPosition(targetSettlement);
+            V.SetPos(party, FindReachableSpawnPosition(targetSettlement));;
             return party;
         }
 
