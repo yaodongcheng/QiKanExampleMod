@@ -25,6 +25,12 @@ using TaleWorlds.CampaignSystem.GameState;
 using LivingWorldNpcs.Story;
 using System.IO;
 
+#if !MB2_V1212
+using SandBox.Missions;
+using SandBox.Missions.AgentBehaviors;
+using SandBox.Missions.MissionLogics;
+#endif
+
 namespace LivingWorldNpcs
 {
     public class MyCommands
@@ -1262,6 +1268,259 @@ namespace LivingWorldNpcs
 
             return sb.ToString();
         }
+
+#if !MB2_V1212
+        // ═══════════════════════════════════════════════════════
+        // 警戒/潜入 UI 调试指令（仅 1.4.6+）
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 调试 NPC 警戒/潜入 UI。
+        /// 用法:
+        ///   custom.stealth_debug              → 打印当前嫌疑度 + 守卫警戒状态
+        ///   custom.stealth_debug 0.5          → 设 PlayerSuspiciousLevel=0.5 并打印
+        ///   custom.stealth_debug 0.96         → 设 0.96 触发潜行模式 (阈值 0.95)
+        ///   custom.stealth_debug reset        → 重置嫌疑度到 0，关闭潜行模式
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("stealth_debug", "custom")]
+        public static string StealthDebug(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+                return "Error: not in mission.";
+
+            var disguiseLogic = Mission.Current.GetMissionBehavior<DisguiseMissionLogic>();
+            var failCounter = Mission.Current.GetMissionBehavior<StealthFailCounterMissionLogic>();
+
+            if (disguiseLogic == null)
+                return "Error: DisguiseMissionLogic not active. You must be in a hideout/disguise mission for the stealth system to be loaded.";
+
+            // --- 处理参数：设置嫌疑度 ---
+            if (args.Count >= 1)
+            {
+                string arg = args[0].ToLower();
+                if (arg == "reset")
+                {
+                    disguiseLogic.PlayerSuspiciousLevel = 0f;
+                    InformationManager.DisplayMessage(new InformationMessage("[StealthDebug] SuspiciousLevel reset to 0"));
+                }
+                else if (float.TryParse(arg, out float val))
+                {
+                    val = MathF.Clamp(val, 0f, 1f);
+                    disguiseLogic.PlayerSuspiciousLevel = val;
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        val >= 0.95f
+                            ? $"[StealthDebug] ⚠ SuspiciousLevel={val:F2} — STEALTH MODE ACTIVE"
+                            : $"[StealthDebug] SuspiciousLevel={val:F2}"));
+                }
+                else
+                {
+                    return $"Error: unknown arg '{arg}'. Use a number (0~1) or 'reset'.";
+                }
+            }
+
+            // --- 构建报告 ---
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("══════════════ Stealth Debug ══════════════");
+
+            // 嫌疑度条
+            float level = disguiseLogic.PlayerSuspiciousLevel;
+            bool inStealth = disguiseLogic.IsInStealthMode;
+            sb.AppendLine($"PlayerSuspiciousLevel: {level:F3} / 1.0  [threshold=0.95]");
+            sb.Append("  [");
+            int barLen = 40;
+            int filled = (int)(level * barLen);
+            for (int i = 0; i < barLen; i++)
+                sb.Append(i < filled ? (i >= barLen * 0.95f ? '█' : '▓') : '░');
+            sb.AppendLine($"] {(inStealth ? "⚠ STEALTH MODE" : "normal")}");
+
+            // 失败倒计时
+            if (failCounter != null)
+            {
+                float elapsed = failCounter.FailCounterElapsedTime;
+                sb.AppendLine($"FailCounter: Active={failCounter.IsActive}  Elapsed={elapsed:F1}s / {failCounter.FailCounterSeconds}s");
+            }
+
+            // 守卫威胁信息
+            var threatInfos = disguiseLogic.ThreatAgentInfos;
+            sb.AppendLine($"\n--- Guard Threat Info ({threatInfos.Count} tracking) ---");
+            if (threatInfos.Count == 0)
+            {
+                sb.AppendLine("  (no guards tracking player)");
+            }
+            else
+            {
+                foreach (var kv in threatInfos)
+                {
+                    Agent guard = kv.Key;
+                    var info = kv.Value;
+                    string offenseStr = info.OffenseType switch
+                    {
+                        StealthOffenseTypes.IsVisible => "👁 VISIBLE",
+                        StealthOffenseTypes.IsInPersonalZone => "🚫 PERSONAL ZONE",
+                        _ => "none"
+                    };
+                    string camSee = info.CanPlayerCameraSeeTheAgent ? "(on screen)" : "";
+
+                    // 尝试获取该守卫的 AlarmFactor
+                    string alarmStr = "";
+                    var nav = guard.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+                    var alarmGroup = nav?.GetBehaviorGroup<AlarmedBehaviorGroup>();
+                    if (alarmGroup != null)
+                    {
+                        float af = alarmGroup.AlarmFactor;
+                        string stateStr = guard.IsAlarmed() ? "ALARMED" :
+                                          guard.IsCautious() ? "CAUTIOUS" :
+                                          guard.IsPatrollingCautious() ? "PATROL-CAUTIOUS" : "NORMAL";
+                        alarmStr = $"  AlarmFactor={af:F2} [{stateStr}]";
+                    }
+
+                    sb.AppendLine($"  {guard.Name} ({guard.Character?.StringId ?? "?"}): {offenseStr} {camSee}{alarmStr}");
+                }
+            }
+
+            // 守卫 AlarmedBehaviorGroup 总览
+            sb.AppendLine($"\n--- All Guard Alarm States ---");
+            int guardCount = 0;
+            foreach (Agent agent in Mission.Current.Agents)
+            {
+                if (!agent.IsHuman || agent.Team == null || agent.Team.IsPlayerAlly) continue;
+                if (agent == Agent.Main) continue;
+
+                var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+                var alarmGroup = nav?.GetBehaviorGroup<AlarmedBehaviorGroup>();
+                if (alarmGroup == null) continue;
+
+                guardCount++;
+                float af = alarmGroup.AlarmFactor;
+                string stateStr = agent.IsAlarmed() ? "ALARMED" :
+                                  agent.IsCautious() ? "CAUTIOUS" :
+                                  agent.IsPatrollingCautious() ? "PATROL-CAUTIOUS" : "NORMAL";
+                string dnc = alarmGroup.DoNotCheckForAlarmFactorIncrease ? " [BLIND]" : "";
+                sb.AppendLine($"  {agent.Name}: AF={af:F3} {stateStr}{dnc}");
+            }
+            if (guardCount == 0)
+                sb.AppendLine("  (no guards with AlarmedBehaviorGroup found)");
+
+            sb.AppendLine("══════════════════════════════════════════════");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 给任意 NPC 装上 AlarmedBehaviorGroup（警戒行为组）。
+        /// 这是原版潜入系统的基础引擎——装上后 NPC 就能做视觉检测、累积 AlarmFactor。
+        /// 用法: custom.stealth_arm_npc <npcStringId>
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("stealth_arm_npc", "custom")]
+        public static string StealthArmNpc(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+                return "Error: not in mission.";
+
+            if (args.Count < 1)
+                return "Usage: custom.stealth_arm_npc <npcStringId>\n  e.g. custom.stealth_arm_npc villager_template_1";
+
+            string targetId = args[0];
+            Agent target = null;
+            foreach (Agent a in Mission.Current.Agents)
+            {
+                if (a.IsHuman && a.Character?.StringId == targetId)
+                { target = a; break; }
+            }
+            if (target == null)
+                return $"Error: no human agent found with StringId='{targetId}'.";
+
+            var nav = target.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            if (nav == null)
+                return $"Error: {target.Name} has no AgentNavigator (not a campaign agent?).";
+
+            var existing = nav.GetBehaviorGroup<AlarmedBehaviorGroup>();
+            if (existing != null)
+            {
+                return $"{target.Name} ({targetId}) already has AlarmedBehaviorGroup.\n" +
+                       $"  AlarmFactor={existing.AlarmFactor:F3}\n" +
+                       $"  DoNotCheck={existing.DoNotCheckForAlarmFactorIncrease}\n" +
+                       $"  IsAlarmed={target.IsAlarmed()} IsCautious={target.IsCautious()} IsPatrollingCautious={target.IsPatrollingCautious()}";
+            }
+
+            // 装上 AlarmedBehaviorGroup（默认 DoNotCheckForAlarmFactorIncrease=true → 守卫"闭眼"）
+            var group = nav.AddBehaviorGroup<AlarmedBehaviorGroup>();
+            group.DoNotCheckForAlarmFactorIncrease = false; // 睁眼！开始检测
+            group.DisableCalmDown = true;                    // 不自动冷静（调试用）
+
+            return $"SUCCESS: {target.Name} ({targetId}) now has AlarmedBehaviorGroup.\n" +
+                   $"  DoNotCheck=false (guard is WATCHING)\n" +
+                   $"  DisableCalmDown=true (won't auto-calm down)\n" +
+                   $"  AlarmFactor={group.AlarmFactor:F3}";
+        }
+
+        /// <summary>
+        /// 手动设置 NPC 的警戒状态，测试不同级别的行为/动画变化。
+        /// 用法:
+        ///   custom.stealth_alarm <npcId> 0    → 正常（Normal）
+        ///   custom.stealth_alarm <npcId> 1    → 怀疑/警戒（Cautious）
+        ///   custom.stealth_alarm <npcId> 2    → 战斗（Alarmed）
+        ///   custom.stealth_alarm <npcId> push <value>  → 累加 AlarmFactor
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("stealth_alarm", "custom")]
+        public static string StealthAlarm(List<string> args)
+        {
+            if (Mission.Current == null || Agent.Main == null)
+                return "Error: not in mission.";
+
+            if (args.Count < 2)
+                return "Usage:\n" +
+                       "  custom.stealth_alarm <npcId> 0|1|2   → set alarm state\n" +
+                       "  custom.stealth_alarm <npcId> push <val> → add to AlarmFactor";
+
+            string targetId = args[0];
+            Agent target = null;
+            foreach (Agent a in Mission.Current.Agents)
+            {
+                if (a.IsHuman && a.Character?.StringId == targetId)
+                { target = a; break; }
+            }
+            if (target == null)
+                return $"Error: no human agent found with StringId='{targetId}'. Use custom.stealth_arm_npc first if needed.";
+
+            var nav = target.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            var group = nav?.GetBehaviorGroup<AlarmedBehaviorGroup>();
+            if (group == null)
+                return $"Error: {target.Name} has no AlarmedBehaviorGroup. Run custom.stealth_arm_npc {targetId} first.";
+
+            string subCmd = args[1].ToLower();
+
+            if (subCmd == "push" && args.Count >= 3 && float.TryParse(args[2], out float addVal))
+            {
+                // 累加 AlarmFactor——用 WorldPosition 指向玩家位置
+                group.AddAlarmFactor(addVal, Agent.Main.GetWorldPosition());
+                return $"{target.Name}: AlarmFactor += {addVal:F2} → now {group.AlarmFactor:F3}\n" +
+                       $"  IsAlarmed={target.IsAlarmed()} IsCautious={target.IsCautious()}";
+            }
+
+            if (int.TryParse(subCmd, out int level))
+            {
+                switch (level)
+                {
+                    case 0:
+                        group.ResetAlarmFactor();
+                        target.SetAlarmState(Agent.AIStateFlag.None);
+                        return $"{target.Name}: → NORMAL (AlarmFactor=0, state reset)";
+                    case 1:
+                        group.AddAlarmFactor(1.5f, Agent.Main.GetWorldPosition());
+                        // AddAlarmFactor 内部会在 AlarmFactor>=1 时自动 SetAlarmState(Cautious)
+                        return $"{target.Name}: → CAUTIOUS (AlarmFactor={group.AlarmFactor:F3})";
+                    case 2:
+                        group.AddAlarmFactor(2.5f, Agent.Main.GetWorldPosition());
+                        target.SetAlarmState(Agent.AIStateFlag.Alarmed);
+                        return $"{target.Name}: → ALARMED (AlarmFactor={group.AlarmFactor:F3})";
+                    default:
+                        return $"Error: level must be 0/1/2, got {level}";
+                }
+            }
+
+            return $"Error: unknown sub-command '{args[1]}'. Use 0/1/2 or 'push <val>'.";
+        }
+#endif
 
         // ═══════════════════════════════════════════════════════
         // 世界事件调试指令
