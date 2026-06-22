@@ -215,6 +215,7 @@
     <Compile Include="AI\Actions\AtomicAction.cs" />
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
+    <Compile Include="AI\AiSuspendPatch.cs" />
     <Compile Include="AI\GroupStageManager.cs" />
     <Compile Include="AI\NpcSightSystem.cs" />
     <!-- Bubble -->

@@ -24,16 +24,9 @@ namespace LivingWorldNpcs
         public Agent Owner { get; private set; }
         public SingNpcMemorySystem _memory;
         public Agent InteractedAgent { get; set; } // 最近一次交互的对象
-        // --- 新增：通用随从属性 ---
+        // --- 通用随从属性 ---
         public Agent Leader { get; private set; } // 我的老大是谁？
         private bool _isGuardMode = true; // 是否开启护卫模式
-        //初始的位置 方向和动作，在未开启护卫模式并且没有行动时候用于归位
-        private bool _FirstInteracted = false;
-        private Vec3 _initialPosition;
-        private Vec2 _initialDirection;
-        private string _initialAnim;
-        // --- 新增：记录初始是否手持武器 ---
-        private bool _initialWasArmed = false;
 
         // 动作队列：支持行为链，比如 [走到点] -> [看向玩家] -> [说话]
         private Queue<IAtomicAction> _actionQueue = new Queue<IAtomicAction>();
@@ -43,10 +36,6 @@ namespace LivingWorldNpcs
         public AgentBrain(Agent agent)
         {
             Owner = agent;
-            _initialPosition = Owner.Position;
-            _initialDirection = Owner.GetMovementDirection();
-            _initialAnim = AgentControlHelper.GetPose(Owner);
-            _FirstInteracted = false;
             _memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
         }
        
@@ -167,6 +156,7 @@ namespace LivingWorldNpcs
                 {
                     ClearAllActions();
                     AgentControlHelper.ForceUnlockAgent(Owner);
+                    AgentControlHelper.ResumeVanillaAI(Owner);
                     InteractedAgent = null;
                 }
             }
@@ -244,14 +234,10 @@ namespace LivingWorldNpcs
         // --- 动作执行系统 ---
         public void EnqueueAction(IAtomicAction action)
         {
-            if (!_FirstInteracted)
+            // 从空脑到有 Action 的转换：一次性接管原版 AI（SuspendVanillaAI 内部幂等）
+            if (_currentAction == null && _actionQueue.Count == 0)
             {
-                _initialPosition = Owner.Position;
-                _initialDirection = Owner.GetMovementDirection();
-                _initialAnim = AgentControlHelper.GetPose(Owner);
-                _FirstInteracted = true;
-                // 记录当前是否武装 (主手不为空即视为武装)
-                _initialWasArmed = V.MainWpn(Owner) != EquipmentIndex.None;
+                AgentControlHelper.SuspendVanillaAI(Owner);
             }
             _actionQueue.Enqueue(action);
         }
@@ -281,63 +267,24 @@ namespace LivingWorldNpcs
                 Owner.ClearTargetFrame();
             }
         }
+        /// <summary>
+        /// 脑空时的默认行为。只有两种情况：
+        /// ① 护卫模式 + 有老大 → FollowAgentAction（永久跟随，脑持续有 Action）
+        /// ② 其他 → 恢复原版 DailyBehaviorGroup，让 NPC 自由巡逻/闲逛/换区
+        /// </summary>
         private void DecideDefaultBehavior()
         {
             if (!Owner.IsActive()) return;
-            
-            // 情况 A: 开启了护卫模式，且有老大
+
             if (_isGuardMode && Leader != null && Leader.IsActive())
             {
-                // 创建一个跟随动作
-                // 注意：FollowAgentAction 的 IsFinished 返回的是 false (除非目标消失)
-                // 这意味着一旦加入这个动作，Agent 就会一直处于 "Running" 状态，直到有新事件打断它
-                var followAction = new FollowAgentAction(Leader, run: true);
-                EnqueueAction(followAction);
+                EnqueueAction(new FollowAgentAction(Leader, run: true));
             }
-            // 情况 B: 并没有开启护卫，或者老大没了
             else
             {
-                if (_FirstInteracted)
-                {
-                    // 假设这些是初始记录的岗位信息
-                    Vec3 originPos = _initialPosition;
-                    Vec2 originDir = _initialDirection;
-
-                    // 1. 检查距离：如果离得太远，先排个移动动作
-                    float distSq = Owner.Position.DistanceSquared(originPos);
-
-                  if (distSq > 1.0f * 1.0f) // 1米误差
-                    {
-                       // InformationManager.DisplayMessage(new InformationMessage($"{Owner.Name}即将回归原来位置 距离：{MathF.Sqrt(distSq)} 坐标 : {originPos} 方向{originDir} 动作{_initialAnim}"));
-
-                        // 这里就是你说的思路：先移动，到位后紧接着转向
-                        EnqueueAction(new MoveToPositionAction(originPos, originDir, run: false));
-
-                       
-                    }
-                    Vec2 currentDir = Owner.GetMovementDirection().Normalized();
-                    float dot = Vec2.DotProduct(currentDir, originDir);
-
-                    if (dot < 0.90f) // 只要夹角大一点点
-                    {
-                        EnqueueAction(new TurnToDirectionAction(originDir));
-                    }
-                    if (_initialWasArmed)
-                        EnqueueAction(new DrawWeaponAction());
-
-                    EnqueueAction(new PlayAnimAction(_initialAnim));
-
-                    EnqueueAction(new StayAction(null));
-
-
-                   
-
-
-                }
-                else
-                {
-                    //还没和玩家开始过互动，先没有任何行动吧
-                }
+                // 非护卫 / 老大没了 → 交还给原版 AI
+                // ResumeVanillaAI 内部有 IsActive 守卫，重复调用是空操作
+                AgentControlHelper.ResumeVanillaAI(Owner);
             }
         }
         public void Tick(float dt)
@@ -359,7 +306,7 @@ namespace LivingWorldNpcs
                 _currentAction = _actionQueue.Dequeue();
                 _currentAction.OnStart(Owner);
             }
-     
+
 
             // 执行当前动作
             if (_currentAction != null)

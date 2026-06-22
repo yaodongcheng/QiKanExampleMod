@@ -11,6 +11,8 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using SandBox;
+using SandBox.Missions.AgentBehaviors;
 using static TaleWorlds.Library.VirtualFolders.Win64_Shipping_Client;
 using static TaleWorlds.MountAndBlade.Agent;
 
@@ -224,6 +226,78 @@ namespace LivingWorldNpcs
             {
                 agent.StopUsingGameObject(true, Agent.StopUsingGameObjectFlags.None);
             }
+        }
+
+        // ===================================================================
+        //  原版 AI 暂停 / 恢复
+        //
+        //  原理：Suspend 设 IsActive=false + SetTarget(null) 立即停，
+        //  同时把 Agent.Index 加入 _suspendedAgentIndices。
+        //  Harmony 补丁（AiSuspendPatch.cs）拦截 RefreshBehaviorGroups，
+        //  发现 Index 在集合中直接 return，阻止 Navigator 每 1s 重激活。
+        //  调用一次即可，无需每帧重申。
+        // ===================================================================
+
+        /// <summary>已暂停原版 AI 的 Agent.Index 集合。Harmony 补丁读取此集合决定是否跳过 RefreshBehaviorGroups。</summary>
+        internal static readonly HashSet<int> SuspendedAgentIndices = new HashSet<int>();
+
+        /// <summary>
+        /// 暂停原版 AgentNavigator / DailyBehaviorGroup 对该 Agent 的控制。
+        /// 调用一次即可，幂等。用 ResumeVanillaAI 恢复。
+        /// </summary>
+        public static bool SuspendVanillaAI(Agent agent)
+        {
+            if (agent == null || !agent.IsActive()) return false;
+
+            if (!SuspendedAgentIndices.Add(agent.Index))
+                return true; // 已在集合中，幂等
+
+            var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            if (nav == null) return false;
+
+            nav.SetTarget(null);
+
+            var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+            if (daily != null && daily.IsActive)
+                daily.IsActive = false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 恢复原版 AgentNavigator / DailyBehaviorGroup 的控制。
+        /// </summary>
+        public static void ResumeVanillaAI(Agent agent)
+        {
+            if (agent == null || !agent.IsActive()) return;
+
+            SuspendedAgentIndices.Remove(agent.Index);
+
+            agent.DisableScriptedMovement();
+            agent.SetScriptedFlags(Agent.AIScriptedFrameFlags.None);
+            agent.SetMaximumSpeedLimit(-1f, false);
+
+            var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            if (nav == null) return;
+
+            var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+            if (daily != null)
+            {
+                if (!daily.IsActive)
+                {
+                    daily.IsActive = true;
+                    daily.ForceThink(0f);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Agent 被删除时清理集合，防止泄漏。
+        /// 由 AgentAIController.OnAgentDeleted 调用。
+        /// </summary>
+        public static void CleanupSuspendedAgent(int agentIndex)
+        {
+            SuspendedAgentIndices.Remove(agentIndex);
         }
         public static async Task MovePrepare(Agent npcAgent)
         {
