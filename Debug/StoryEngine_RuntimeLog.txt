@@ -1,23 +1,69 @@
-﻿[13:26:37.352] [CommissionIssue] Player entered 特维亚, refreshing issue signals
-[13:26:37.384] [CommissionIssue] 特维亚: scanned 6 NPCs, created 0 issues
-[13:26:53.730] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[13:26:53.732] [Player] Talk to: 特维亚的赫卡戎 (hero=特维亚的赫卡戎)
-[13:26:53.735] [Dialog] NPC says (opening): "您是从外地来的吧？我们这儿平时可没什么外人。"
-[13:26:56.050] [CommissionIntent] RequestCommission Evaluate: hero=特维亚的赫卡戎 count=1 urgentEvent=False → Show
-[13:26:56.069] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（4%） | [不可用] 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
-[13:26:56.922] [Dialog] Player clicked option: "【离开】 告辞"
-[13:26:56.923] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
-[13:27:50.741] [CommissionIssue] Player entered 波罗斯, refreshing issue signals
-[13:27:50.806] [CommissionIssue] 波罗斯: scanned 14 NPCs, created 0 issues
-[13:28:43.115] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[13:28:43.115] [Player] Talk to: 镇民 (hero=none)
-[13:28:43.115] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
-[13:28:48.448] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
-[13:28:49.259] [Dialog] Player clicked option: "【离开】 告辞"
-[13:28:49.260] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
-[13:29:11.762] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[13:29:11.762] [Player] Talk to: 帝国女镇民 (hero=none)
-[13:29:11.762] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
-[13:29:13.524] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
-[13:29:14.410] [Dialog] Player clicked option: "【离开】 告辞"
-[13:29:14.410] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+﻿[20:21:26.768] [CommissionIssue] Player entered 特维亚, refreshing issue signals
+[20:21:26.801] [CommissionIssue] 特维亚: scanned 6 NPCs, created 0 issues
+[20:21:29.249] [AI-Debug-Init] 亨利 (Idx=0) | hasNavigator=no (战斗单位?)
+[20:21:29.250] [AI-Debug-Init] 特维亚的加里托普斯 (Idx=2) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.250] [AI-Debug-Init] 特维亚的奥刻洛斯 (Idx=3) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.250] [AI-Debug-Init] 特维亚的赫卡戎 (Idx=4) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.250] [AI-Debug-Init] 帝国农民 (Idx=5) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.250] [AI-Debug-Init] 帝国农民 (Idx=6) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.250] [AI-Debug-Init] 帝国农民 (Idx=7) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.250] [AI-Debug-Init] 帝国农民 (Idx=8) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.250] [AI-Debug-Init] 帝国农民 (Idx=9) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=10) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=11) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=12) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=13) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=14) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=15) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=16) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=17) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=18) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.251] [AI-Debug-Init] 帝国农民 (Idx=19) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=20) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=21) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=22) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=23) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=24) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=25) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=26) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=27) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=28) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=29) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=30) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 帝国女农民 (Idx=31) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 男孩 (Idx=32) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 男孩 (Idx=33) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 男孩 (Idx=34) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.252] [AI-Debug-Init] 女孩 (Idx=35) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 女孩 (Idx=36) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 女孩 (Idx=37) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 少年 (Idx=38) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 少年 (Idx=39) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 少年 (Idx=40) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 少女 (Idx=41) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 少女 (Idx=42) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 少女 (Idx=43) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 帝国农民 (Idx=44) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 帝国农民 (Idx=45) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 帝国女农民 (Idx=46) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 帝国女农民 (Idx=47) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.253] [AI-Debug-Init] 乡间公证人 (Idx=48) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.255] [AI-Debug-Init] 乡间公证人 (Idx=49) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.255] [AI-Debug-Init] 乡间公证人 (Idx=50) | hasNavigator=yes | dailyActive=True | scriptedFlags=GoToPosition, ConsiderRotation, DoNotRun | suspended=False
+[20:21:29.255] [AI-Debug-Init] 总计 50 个人形 Agent，脑数量=50
+[20:21:38.120] [AI-Debug] Suspend 少年 (Idx=38) | 集合size=1
+[20:21:40.524] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[20:21:40.526] [Player] Talk to: 少年 (hero=none)
+[20:21:40.528] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
+[20:21:46.444] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
+[20:21:47.373] [Dialog] Player clicked option: "【离开】 告辞"
+[20:21:47.373] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+[20:21:47.376] [AI-Debug] Resume 少年 (Idx=38) | 集合size=0
+[20:21:56.216] [AI-Debug] Suspend 帝国农民 (Idx=7) | 集合size=1
+[20:21:58.621] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[20:21:58.622] [Player] Talk to: 帝国农民 (hero=none)
+[20:21:58.622] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
+[20:22:00.052] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
+[20:22:00.828] [Dialog] Player clicked option: "【离开】 告辞"
+[20:22:00.828] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+[20:22:00.828] [AI-Debug] Resume 帝国农民 (Idx=7) | 集合size=0

@@ -614,6 +614,8 @@ namespace LivingWorldNpcs
             InformationManager.DisplayMessage(new InformationMessage(
                 $"[闲聊快速路径] {agent.Name}: obj={usingObj} crouch={crouching} pose=\"{pose}\" isDefault={isDefaultPose} → 快速={(isStandingNaturally?"YES":"NO")}",
                 isStandingNaturally ? Colors.Green : Colors.Yellow));
+            //强制走comehere流程
+            isStandingNaturally = false; 
             if (isStandingNaturally)
             {
                 var brain = AgentAIController.GetBrainForAgent(agent);
@@ -621,6 +623,9 @@ namespace LivingWorldNpcs
                 {
                     brain.InteractedAgent = Agent.Main;
                     brain.ClearAllActions();
+                    // 自然站立也要暂停原版 AI — 防止 NPC 在对话期间被 AgentNavigator 带走
+                    // SuspendVanillaAI 内部幂等，重复调用安全
+                    AgentControlHelper.SuspendVanillaAI(agent);
                 }
             }
             else
