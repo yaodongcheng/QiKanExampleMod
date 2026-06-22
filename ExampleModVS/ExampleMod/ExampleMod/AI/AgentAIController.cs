@@ -84,6 +84,7 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"因为删除 移除一个Agent的大脑 name {agent.Name} index{agent.Index} 当前总数{_brains.Count}");
                 _brains.Remove(agent.Index);
             }
+            AgentControlHelper.CleanupSuspendedAgent(agent.Index);
         }
         public override void OnMissionTick(float dt)
         {

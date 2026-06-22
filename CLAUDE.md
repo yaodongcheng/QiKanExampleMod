@@ -100,12 +100,23 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 
 ## 参考资料：CSDN 付费专栏
 
-**[csdn_column_articles/](csdn_column_articles/INDEX.md)** 存放了骑砍2 MOD 开发教程（霸王奉先专栏，共 35 篇）。**实现新模块或排查疑难杂症时，可以先到这里找灵感参考。**
+**[Knowledge/csdn_column_articles/](Knowledge/csdn_column_articles/INDEX.md)** 存放了骑砍2 MOD 开发教程（霸王奉先专栏，共 35 篇）。**实现新模块或排查疑难杂症时，可以先到这里找灵感参考。**
 
-- 先看 [INDEX.md](csdn_column_articles/INDEX.md) 按主题定位相关文章
+- 先看 [INDEX.md](Knowledge/csdn_column_articles/INDEX.md) 按主题定位相关文章
 - 内容涵盖：RGL 配置、Mission/Scene 架构、GameEntity 体系、AI 系统、物理/布料/骨骼动画、存档、Shader 等
 - ⚠️ **不必严格遵循**：专栏作者的写法可能基于旧版本，API 签名和调用方式需以当前项目实际引用的 DLL 为准
 - 代码示例仅供参考思路，具体实现走本项目已有的轮子和规范
+
+## 参考资料：Knowledge 库（反编译分析）
+
+**[Knowledge/](Knowledge/)** 存放对原版骑砍2引擎和 API 的反编译分析文档。**规划新系统或理解原版行为时，先查这里。**
+
+| 文档 | 主题 | 适用场景 |
+|------|------|---------|
+| [原版骑砍2战略层分析](Knowledge/原版骑砍2战略层分析.md) | 🔴 **王国→家族→军团→部队 四层决策金字塔**，含 500 行战争评分公式分解、KingdomDecision 提案系统、Army 状态机、MobilePartyAi.GetBehaviors 决策流、60 个 Action 类全览 | 规划王国层外交/军团扩展、理解原版 AI 与本 mod 的边界 |
+| [Agent_AI底层原理](Knowledge/Agent_AI底层原理.md) | Agent 装配管线、五层控制参数、战斗 AI 决策流、NavMesh | Mission 层 Agent 控制 |
+| [Agent_AI冲突解决与接管策略](Knowledge/Agent_AI冲突解决与接管策略.md) | SuspendVanillaAI/ResumeVanillaAI、AgentNavigator/DailyBehaviorGroup 接管机制 | NPC 行为接管、原子 Action 开发 |
+| [AIInfluenceProject_技术实现分析](Knowledge/AIInfluenceProject_技术实现分析.md) | 参考 mod 的 DiplomacyManager 设计 | 外交系统参考 |
 
 ## 工作流约定
 

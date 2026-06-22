@@ -1,5 +1,11 @@
 # AIInfluenceProject 玩法体验分析报告
 
+> ⚠️ **设计灵感参考，非实施方案**
+> 
+> 本文是 AI 对 AIInfluenceProject 的**玩法层面分析**。文中"与你的项目对比"表格是泛泛而谈，未绑定 LivingWorldNpcs 的实际系统架构；"实现难度"评级（⭐⭐⭐）没有 LivingWorldNpcs 上下文意义。
+> 
+> 本文价值在于**玩法设计灵感**——NPC 主动性、信息传播、动态外交等系统的交互方式和涌现式叙事思路。具体实现需对照 [plans/rules/wheels.md](../plans/rules/wheels.md) 确认是否有已有轮子。
+
 ## 概述
 
 AIInfluenceProject 是一个基于 AI 驱动的 Bannerlord Mod，通过大语言模型（LLM）为游戏世界注入智能生命。本报告分析其可提供的有趣玩法体验。

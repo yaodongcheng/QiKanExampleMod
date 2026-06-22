@@ -1,25 +1,23 @@
-﻿[18:05:51.085] [CommissionIssue] Player entered 训练场, refreshing issue signals
-[18:05:51.086] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
-[18:05:51.093] [CommissionIssue] Player entered 训练场, refreshing issue signals
-[18:05:51.094] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
-[18:05:59.807] [CommissionIssue] Player entered 训练场, refreshing issue signals
-[18:05:59.807] [CommissionIssue] 训练场: scanned 0 NPCs, created 0 issues
-[18:06:25.444] [CommissionIssue] Player entered 卡诺洛斯, refreshing issue signals
-[18:06:25.444] [CommissionIssue] 卡诺洛斯: scanned 6 NPCs, created 6 issues
-[18:07:24.871] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[18:07:24.874] [Player] Talk to: 帝国农民 (hero=none)
-[18:07:24.876] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
-[18:07:27.381] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
-[18:07:29.480] [Dialog] Player clicked option: "【招募】 应募入伍"
-[18:07:29.481] [Dialog] Player clicked: "【招募】 应募入伍" (goal=, category=Official)
-[18:07:40.010] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[18:07:40.010] [Player] Talk to: 帝国农民 (hero=none)
-[18:07:40.011] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
-[18:07:41.777] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
-[18:07:43.127] [Dialog] Player clicked option: "【招募】 应募入伍"
-[18:07:43.127] [Dialog] Player clicked: "【招募】 应募入伍" (goal=, category=Official)
-[18:07:43.131] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[18:07:43.132] [Cam] SmartCamera(2m_Npc_Shoulder_Mid_R) pos=(402.62,414.92,77.47) fwd=(0.306,-0.072,0.949) up=(-0.949,0.061,0.310) [CustomCamera]
-[18:07:43.133] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
-[18:07:45.601] [Dialog] Player clicked option: "【离开】 告辞"
-[18:07:45.601] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+﻿[13:26:37.352] [CommissionIssue] Player entered 特维亚, refreshing issue signals
+[13:26:37.384] [CommissionIssue] 特维亚: scanned 6 NPCs, created 0 issues
+[13:26:53.730] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[13:26:53.732] [Player] Talk to: 特维亚的赫卡戎 (hero=特维亚的赫卡戎)
+[13:26:53.735] [Dialog] NPC says (opening): "您是从外地来的吧？我们这儿平时可没什么外人。"
+[13:26:56.050] [CommissionIntent] RequestCommission Evaluate: hero=特维亚的赫卡戎 count=1 urgentEvent=False → Show
+[13:26:56.069] [Dialog] Options shown (9): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托（1个可接） | 【仕官】 请求奉公（4%） | [不可用] 【交手】 切磋武艺 | 【茶席】 共饮一盏 | 【送礼】 赠予物品
+[13:26:56.922] [Dialog] Player clicked option: "【离开】 告辞"
+[13:26:56.923] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+[13:27:50.741] [CommissionIssue] Player entered 波罗斯, refreshing issue signals
+[13:27:50.806] [CommissionIssue] 波罗斯: scanned 14 NPCs, created 0 issues
+[13:28:43.115] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[13:28:43.115] [Player] Talk to: 镇民 (hero=none)
+[13:28:43.115] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
+[13:28:48.448] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
+[13:28:49.259] [Dialog] Player clicked option: "【离开】 告辞"
+[13:28:49.260] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
+[13:29:11.762] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[13:29:11.762] [Player] Talk to: 帝国女镇民 (hero=none)
+[13:29:11.762] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
+[13:29:13.524] [Dialog] Options shown (3): 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
+[13:29:14.410] [Dialog] Player clicked option: "【离开】 告辞"
+[13:29:14.410] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
