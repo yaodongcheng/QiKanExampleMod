@@ -252,6 +252,8 @@ namespace LivingWorldNpcs
             if (!SuspendedAgentIndices.Add(agent.Index))
                 return true; // 已在集合中，幂等
 
+            DebugLogger.Log($"[AI-Debug] Suspend {agent.Name} (Idx={agent.Index}) | 集合size={SuspendedAgentIndices.Count}");
+
             var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
             if (nav == null) return false;
 
@@ -266,12 +268,18 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 恢复原版 AgentNavigator / DailyBehaviorGroup 的控制。
+        /// 内部有 HashSet 守卫：没被 Suspend 过的 Agent 直接 return，不碰任何东西。
+        /// 所以即使每帧调用也不会误伤原版 AI。
         /// </summary>
         public static void ResumeVanillaAI(Agent agent)
         {
             if (agent == null || !agent.IsActive()) return;
 
-            SuspendedAgentIndices.Remove(agent.Index);
+            // 没被 Suspend 过 → 什么都不做，避免 DisableScriptedMovement 误伤原版 AI
+            if (!SuspendedAgentIndices.Remove(agent.Index))
+                return;
+
+            DebugLogger.Log($"[AI-Debug] Resume {agent.Name} (Idx={agent.Index}) | 集合size={SuspendedAgentIndices.Count}");
 
             agent.DisableScriptedMovement();
             agent.SetScriptedFlags(Agent.AIScriptedFrameFlags.None);

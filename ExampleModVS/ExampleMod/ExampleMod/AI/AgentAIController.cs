@@ -4,6 +4,8 @@ using System.Dynamic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SandBox;
+using SandBox.Missions.AgentBehaviors;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -17,7 +19,7 @@ namespace LivingWorldNpcs
         //private Dictionary<Agent, AgentBrain> _brains = new Dictionary<Agent, AgentBrain>();
         // 1. 修改字典定义：Key 从 Agent 改为 int (Agent.Index)
         private Dictionary<int, AgentBrain> _brains = new Dictionary<int, AgentBrain>();
-        private static bool IsDebugMode = false;
+        private static bool IsDebugMode = false; // 排查时改 true
         public static AgentBrain GetBrainForAgent(Agent agent)
         {
             if (Instance != null && Instance._brains.TryGetValue(agent.Index, out var brain))
@@ -42,16 +44,28 @@ namespace LivingWorldNpcs
         {
             base.AfterStart();
 
-            /*
-            // 这里好像会导致重复添加agent
+            // ── 临时 Debug：打印场景内所有 Agent 的原版 AI 状态 ──
+            int humanCount = 0;
             foreach (var agent in Mission.Agents)
             {
-                // 直接复用你写好的 OnAgentCreated 逻辑
-                // 因为你的 OnAgentCreated 里已经有了 IsHuman 判断和 _brains.ContainsKey 检查
-                // 所以这里调用是安全的，不会导致重复添加
-                OnAgentCreated(agent);
+                if (!agent.IsHuman) continue;
+                humanCount++;
+
+                var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+                if (nav != null)
+                {
+                    var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+                    DebugLogger.Log($"[AI-Debug-Init] {agent.Name} (Idx={agent.Index}) | " +
+                        $"hasNavigator=yes | dailyActive={daily?.IsActive} | " +
+                        $"scriptedFlags={agent.GetScriptedFlags()} | " +
+                        $"suspended={AgentControlHelper.SuspendedAgentIndices.Contains(agent.Index)}");
+                }
+                else
+                {
+                    DebugLogger.Log($"[AI-Debug-Init] {agent.Name} (Idx={agent.Index}) | hasNavigator=no (战斗单位?)");
+                }
             }
-            */
+            DebugLogger.Log($"[AI-Debug-Init] 总计 {humanCount} 个人形 Agent，脑数量={_brains.Count}");
         }
 
         public override void OnAgentCreated(Agent agent)
@@ -231,9 +245,9 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // 普通事件，直接广播，不做位置分配
-                if (IsDebugMode)
-                    DebugLogger.Log($"普通事件{eventType}直接广播");
+                // 普通事件，直接广播，不做位置分配（日志在Debug模式才打，避免刷屏）
+                //if (IsDebugMode)
+                //    DebugLogger.Log($"普通事件{eventType}直接广播");
                 foreach (var brain in brainsInRange)
                 {
                     brain.ReceiveEvent(new AIEvent

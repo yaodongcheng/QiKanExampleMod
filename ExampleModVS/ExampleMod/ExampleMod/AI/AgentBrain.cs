@@ -54,7 +54,7 @@ namespace LivingWorldNpcs
             // 在这里编写业务逻辑，根据 Agent 的身份（守卫、平民）对事件做出反应            
 
             // 示例：处理 "WitnessCrime" (目击犯罪) 事件
-            InformationManager.DisplayMessage(new InformationMessage($"Agent {Owner.Name} 收到事件: {aiEvent.EventType}", Colors.Yellow));
+            //InformationManager.DisplayMessage(new InformationMessage($"Agent {Owner.Name} 收到事件: {aiEvent.EventType}", Colors.Yellow));
 
             // 示例：处理 "ComeHere" 事件
             if (aiEvent.EventType == "ComeHere")
@@ -63,13 +63,10 @@ namespace LivingWorldNpcs
                 BubbleSayMissionView.AgentBubbleSay(Owner, $"{targetAgent.Name},你在叫我吗？");
                 InteractedAgent = targetAgent;
                 ClearAllActions();
-                EnqueueAction(new LookAtAction(targetAgent, 0.5f)); // 到达后看向玩家
-
-                EnqueueAction(new FollowAgentAction(targetAgent, false, radius: 2.0f, angleOffset: 0f, stopDistance: 0.5f));
-
-                EnqueueAction(new LookAtAction(targetAgent, 0.5f)); // 到达后看向玩家
+                EnqueueAction(new LookAtAction(targetAgent, 0.3f));
+                EnqueueAction(new FollowAgentAction(targetAgent, false, radius: 2.0f, angleOffset: 0f, stopDistance: 1.0f));
+                //EnqueueAction(new LookAtAction(targetAgent, 0.5f));
                 EnqueueAction(new StayAction(targetAgent));
-
             }
             if(aiEvent.EventType == "order_follow")
             {
@@ -268,9 +265,11 @@ namespace LivingWorldNpcs
             }
         }
         /// <summary>
-        /// 脑空时的默认行为。只有两种情况：
-        /// ① 护卫模式 + 有老大 → FollowAgentAction（永久跟随，脑持续有 Action）
-        /// ② 其他 → 恢复原版 DailyBehaviorGroup，让 NPC 自由巡逻/闲逛/换区
+        /// 脑空时的默认行为。
+        /// ① 护卫 + 有老大 → FollowAgentAction（永久跟随）
+        /// ② 其他 → 恢复原版 DailyBehaviorGroup
+        ///          ResumeVanillaAI 内部有 HashSet 守卫：没 Suspend 过的直接 return，
+        ///          所以每帧调用也是安全的（第一次释放后后续全是空操作）。
         /// </summary>
         private void DecideDefaultBehavior()
         {
@@ -282,8 +281,6 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // 非护卫 / 老大没了 → 交还给原版 AI
-                // ResumeVanillaAI 内部有 IsActive 守卫，重复调用是空操作
                 AgentControlHelper.ResumeVanillaAI(Owner);
             }
         }
