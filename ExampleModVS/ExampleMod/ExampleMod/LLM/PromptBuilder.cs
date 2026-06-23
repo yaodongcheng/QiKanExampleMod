@@ -175,8 +175,7 @@ namespace LivingWorldNpcs
                 sb.AppendLine($"{memory.PermanentMemory.ToString()}");
             }
 
-            // C. 动态记忆 (倒序，最近的记忆在前面或后面皆可，通常按时间流)
-            //动态记忆看看是 DynamicMemories还是history
+            // C. 动态记忆
             if (memory.DynamicMemories.Count > 0)
             {
                 sb.AppendLine("【近期回忆】");
@@ -187,8 +186,18 @@ namespace LivingWorldNpcs
                 }
             }
 
+            // D. 委托记录（结构化历史，比传闻可靠）
+            if (memory.QuestHistory.Count > 0)
+            {
+                sb.AppendLine("【委托记录】");
+                for (int i = memory.QuestHistory.Count - 1; i >= 0; i--)
+                {
+                    sb.AppendLine($"- {memory.QuestHistory[i].GetDisplaySummary()}");
+                }
+                sb.AppendLine();
+            }
 
-            // D. 近期传闻
+            // E. 重大新闻
             if (!string.IsNullOrEmpty(memory.GlobalNews))
             {
                 sb.AppendLine("【重大新闻】");
@@ -232,6 +241,27 @@ namespace LivingWorldNpcs
                 }
             }
 
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 委托记录 Tab 的文本。从 QuestHistory 读取，按时间倒序展示。
+        /// </summary>
+        public static string GetPrompt_QuestHistory(SingNpcMemorySystem memory)
+        {
+            if (memory == null || memory.QuestHistory.Count == 0)
+                return "暂无委托记录。";
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"共 {memory.QuestHistory.Count} 条记录：\n");
+
+            // 倒序：最新的在前
+            for (int i = memory.QuestHistory.Count - 1; i >= 0; i--)
+            {
+                var r = memory.QuestHistory[i];
+                sb.AppendLine(r.GetDisplaySummary());
+            }
 
             return sb.ToString();
         }

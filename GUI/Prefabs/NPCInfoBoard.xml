@@ -83,10 +83,10 @@
                   </Children>
                 </ButtonWidget>
 				
-				<ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240" 
+				<ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240"
                               Brush="Simple.Button.Bg" Command.Click="ExecuteSelectParty">
                   <Children>
-                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                 Text="部队信息" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
                   </Children>
                 </ButtonWidget>

@@ -90,7 +90,6 @@ namespace LivingWorldNpcs
         public void ExecuteSelectRelation() => SetTab(4);
         public void ExecuteSelectMemory() => SetTab(5);
         public void ExecuteSelectInventory() => SetTab(6);
-
         public void ExecuteSelectParty() => SetTab(7);
         private void SetTab(int tabIndex)
         {

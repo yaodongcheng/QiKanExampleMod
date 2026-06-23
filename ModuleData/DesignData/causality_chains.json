@@ -1,0 +1,471 @@
+[
+  {
+    "sourceQuest": "VANILLA_NearbyBanditBase",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_ExtortionByDeserters",
+        "action": "Suppress",
+        "durationDays": 30,
+        "giverRelation": "SameNpc",
+        "comment": "匪穴清剿后同区域逃兵勒索被压制"
+      },
+      {
+        "quest": "VANILLA_EscortMerchantCaravan",
+        "action": "BoostWeight",
+        "multiplier": 2.0,
+        "durationDays": 30,
+        "giverRelation": "SameSettlement",
+        "comment": "商路安全，同定居点商人发布护送委托"
+      },
+      {
+        "quest": "VANILLA_GangNeedsRecruits",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 15,
+        "probability": 0.7,
+        "condition": "RequireTargetAlive",
+        "giverRelation": "Target",
+        "comment": "匪首存活则回城镇招兵"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_NearbyBanditBase",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_ExtortionByDeserters",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 7,
+        "probability": 1.0,
+        "giverRelation": "SameNpc",
+        "comment": "失败后逃兵勒索加剧"
+      },
+      {
+        "quest": "VANILLA_NearbyBanditBase",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 30,
+        "probability": 0.6,
+        "giverRelation": "SameSettlement",
+        "comment": "邻近村庄出现新匪穴"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_FamilyFeud",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_LordNeedsHorses",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.6,
+        "condition": "RequireGiverAlive",
+        "giverRelation": "SameClan",
+        "comment": "家族信任你，同clan领主给委托"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_FamilyFeud",
+    "outcome": "Betrayal",
+    "followUps": [
+      {
+        "quest": "VANILLA_LordWantsRivalCaptured",
+        "action": "ScheduleIssue",
+        "delayMin": 5, "delayMax": 15,
+        "probability": 0.8,
+        "target": "Player",
+        "giverRelation": "Enemy",
+        "comment": "被背叛者悬赏玩家"
+      },
+      {
+        "quest": "VANILLA_ProdigalSon",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.5,
+        "giverRelation": "Enemy",
+        "comment": "受益方认为你腐败可用"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_FamilyFeud",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_LordWantsRivalCaptured",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 14,
+        "probability": 0.7,
+        "giverRelation": "Enemy",
+        "comment": "死者家族委托报复"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_EscortMerchantCaravan",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_ArtisanOverpricedGoods",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 15,
+        "probability": 0.6,
+        "giverRelation": "SameSettlement",
+        "comment": "货到冲击物价，同定居点工匠发布原料垄断委托"
+      },
+      {
+        "quest": "VANILLA_RevenueFarming",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 20,
+        "probability": 0.5,
+        "giverRelation": "SameSettlement",
+        "comment": "商人富了被同定居点包税人盯上"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_EscortMerchantCaravan",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_CaravanAmbush",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 15,
+        "probability": 0.7,
+        "giverRelation": "SameSettlement",
+        "comment": "同路线另一个商人遭遇伏击"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_RivalGangMovingIn",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_GangSpecialWeapons",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 7,
+        "probability": 0.6,
+        "condition": "RequireGiverAlive",
+        "giverRelation": "SameNpc",
+        "comment": "同一个帮派头目乘胜要武器"
+      },
+      {
+        "quest": "VANILLA_GangNeedsRecruits",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.5,
+        "giverRelation": "Enemy",
+        "comment": "敌对帮派在邻近城镇招兵"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_RivalGangMovingIn",
+    "outcome": "Betrayal",
+    "followUps": [
+      {
+        "quest": "VANILLA_LordWantsRivalCaptured",
+        "action": "ScheduleIssue",
+        "delayMin": 5, "delayMax": 15,
+        "probability": 0.7,
+        "target": "Player",
+        "giverRelation": "Enemy",
+        "comment": "被背叛的帮派头目悬赏玩家"
+      },
+      {
+        "quest": "VANILLA_GangOffloadStolenGoods",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 7,
+        "probability": 0.6,
+        "giverRelation": "SameSettlement",
+        "comment": "同城镇另一个帮派急于销赃"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_RivalGangMovingIn",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_GangOffloadStolenGoods",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 7,
+        "probability": 0.7,
+        "giverRelation": "Enemy",
+        "comment": "敌对帮派控制地盘后销赃"
+      },
+      {
+        "quest": "VANILLA_GangNeedsRecruits",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 10,
+        "probability": 0.6,
+        "giverRelation": "Enemy",
+        "comment": "敌对帮派巩固地盘招兵"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_SnareTheWealthy",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_GangSpecialWeapons",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 15,
+        "probability": 0.6,
+        "condition": "RequireGiverAlive",
+        "giverRelation": "SameNpc",
+        "comment": "同一个帮派头目要特殊武器"
+      },
+      {
+        "quest": "VANILLA_LordWantsRivalCaptured",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.5,
+        "giverRelation": "Enemy",
+        "comment": "被抢商人clan悬赏玩家"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_SnareTheWealthy",
+    "outcome": "Betrayal",
+    "followUps": [
+      {
+        "quest": "VANILLA_EscortMerchantCaravan",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 15,
+        "probability": 0.7,
+        "giverRelation": "SameNpc",
+        "comment": "被帮的商人感激给你护送委托"
+      },
+      {
+        "quest": "VANILLA_RivalGangMovingIn",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.5,
+        "giverRelation": "Enemy",
+        "comment": "帮派头目成为宿敌"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_ScoutEnemyGarrisons",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_RaidEnemyTerritory",
+        "action": "ScheduleIssue",
+        "delayMin": 3, "delayMax": 7,
+        "probability": 0.7,
+        "giverRelation": "SameNpc",
+        "comment": "同一个领主情报生效后发动袭击"
+      },
+      {
+        "quest": "VANILLA_ConquestOfSettlement",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 15,
+        "probability": 0.4,
+        "giverRelation": "SameClan",
+        "comment": "同clan领主发起征服"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_ScoutEnemyGarrisons",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_ArmyNeedsSupplies",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 10,
+        "probability": 0.6,
+        "giverRelation": "Enemy",
+        "comment": "被侦察方加强防御需要补给"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_LordWantsRivalCaptured",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_ArmyNeedsSupplies",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 7,
+        "probability": 0.5,
+        "condition": "RequireTargetDead",
+        "giverRelation": "Enemy",
+        "comment": "仇敌clan备战需要补给"
+      },
+      {
+        "quest": "VANILLA_RaidEnemyTerritory",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 15,
+        "probability": 0.6,
+        "condition": "RequireTargetDead",
+        "giverRelation": "Enemy",
+        "comment": "仇敌clan袭击你的领地"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_LordWantsRivalCaptured",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_ScoutEnemyGarrisons",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 15,
+        "probability": 0.5,
+        "giverRelation": "SameClan",
+        "comment": "委托人clan侦察"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_NotableDaughterFound",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_HeadmanDeliverHerd",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 30,
+        "probability": 0.5,
+        "giverRelation": "SameNpc",
+        "comment": "村庄恢复繁荣后卖牲畜"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_NotableDaughterFound",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_VillageNeedsTools",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 15,
+        "probability": 0.5,
+        "giverRelation": "SameNpc",
+        "comment": "委托人放弃管理村庄"
+      },
+      {
+        "quest": "VANILLA_FamilyFeud",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.4,
+        "giverRelation": "SameSettlement",
+        "comment": "委托人认定邻居告密"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_TheSpyParty",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_ScoutEnemyGarrisons",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.6,
+        "giverRelation": "SameClan",
+        "comment": "间谍方报复侦察"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_TheSpyParty",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_RivalGangMovingIn",
+        "action": "ScheduleIssue",
+        "delayMin": 7, "delayMax": 15,
+        "probability": 0.5,
+        "giverRelation": "SameSettlement",
+        "comment": "城镇安全下降帮派入侵"
+      },
+      {
+        "quest": "VANILLA_ConquestOfSettlement",
+        "action": "ScheduleIssue",
+        "delayMin": 20, "delayMax": 30,
+        "probability": 0.3,
+        "giverRelation": "Enemy",
+        "comment": "间谍方获得情报准备征服"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_ExtortionByDeserters",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_LordNeedsHorses",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 30,
+        "probability": 0.4,
+        "giverRelation": "SameClan",
+        "comment": "村庄安全恢复，同clan领主正常委托"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_ProdigalSon",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_HeadmanNeedsGrain",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.4,
+        "giverRelation": "SameNpc",
+        "comment": "父亲恢复管理发布正常村庄委托"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_RuralNotableInnOut",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_NotableDaughterFound",
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 30,
+        "probability": 0.3,
+        "giverRelation": "Enemy",
+        "comment": "赢家暴富后女儿被盯上"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_RuralNotableInnOut",
+    "outcome": "Fail",
+    "followUps": [
+      {
+        "quest": "VANILLA_RevenueFarming",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.4,
+        "giverRelation": "SameSettlement",
+        "comment": "输家地契被收，同定居点包税人盯上"
+      }
+    ]
+  },
+  {
+    "sourceQuest": "VANILLA_BettingFraud",
+    "outcome": "Success",
+    "followUps": [
+      {
+        "quest": "VANILLA_EscortMerchantCaravan",
+        "action": "ScheduleIssue",
+        "delayMin": 10, "delayMax": 20,
+        "probability": 0.3,
+        "giverRelation": "SameSettlement",
+        "comment": "赌博秩序恢复，同定居点商人发布护送"
+      }
+    ]
+  }
+]

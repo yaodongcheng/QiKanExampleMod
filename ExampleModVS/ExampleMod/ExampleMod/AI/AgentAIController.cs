@@ -44,6 +44,9 @@ namespace LivingWorldNpcs
         {
             base.AfterStart();
 
+            if(!AgentAIController.IsDebugMode)
+                return;
+
             // ── 临时 Debug：打印场景内所有 Agent 的原版 AI 状态 ──
             int humanCount = 0;
             foreach (var agent in Mission.Agents)
