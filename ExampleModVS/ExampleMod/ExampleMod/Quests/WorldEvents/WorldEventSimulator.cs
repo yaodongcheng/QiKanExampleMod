@@ -35,6 +35,12 @@ namespace LivingWorldNpcs
         private const float MAX_DAY_LIMIT = 15f;
         private const int MAX_ACTIVE_EVENTS = 15;
 
+        /// <summary>
+        /// 临时开关：true = 停止世界事件自动生成（链首只用原版 Issue）。
+        /// ForceGenerateEvent（控制台 / 因果引擎）不受影响。
+        /// </summary>
+        public static bool SuppressAutoGeneration = true;
+
         // ── 首次体验保障 ──
         /// <summary>自游戏开始经过的游戏日（跨存档）。</summary>
         private static float _daysSinceGameStart = 0f;
@@ -231,11 +237,13 @@ namespace LivingWorldNpcs
                 // 5. 区域稳定性衰减
                 StabilityDailyDecay();
 
-                // 6. 尝试生成新事件（首次体验保障）
-                TryGenerateNewEvent();
+                // 6. 尝试生成新事件（临时开关控制）
+                if (!SuppressAutoGeneration)
+                    TryGenerateNewEvent();
 
                 // ── 7. 新手窗口强制事件保障 ──
-                if (_tutorialEventsGenerated < MAX_TUTORIAL_EVENTS
+                if (!SuppressAutoGeneration
+                    && _tutorialEventsGenerated < MAX_TUTORIAL_EVENTS
                     && _daysSinceGameStart <= TUTORIAL_WINDOW_DAYS
                     && WorldEventDatabase.ActiveEvents.Count < 3)
                 {

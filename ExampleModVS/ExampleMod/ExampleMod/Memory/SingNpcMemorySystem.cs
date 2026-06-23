@@ -60,6 +60,15 @@ namespace LivingWorldNpcs
         /// </summary>
         public WorldEventData CurrentUrgentEvent { get; set; } = null;
 
+        /// <summary>
+        /// 委托/Quest 历史记录。独立于对话历史的专用存储，
+        /// 记录此 NPC 经手过的所有 Issue 接取、Quest 完成、因果链上下文。
+        /// 最大 20 条，UI 通过"委托记录"Tab 查看。
+        /// 因果引擎的 MapQuestToId / ExtractCausalityContext 均从此读取。
+        /// </summary>
+        public List<QuestRecord> QuestHistory { get; private set; } = new List<QuestRecord>();
+        private const int MaxQuestHistoryCount = 20;
+
 
 
         public SingNpcMemorySystem(NPCProfile profile)
@@ -203,7 +212,6 @@ namespace LivingWorldNpcs
         }
 
 
-
         public void AddHistory(string Role,string content)
         {
             lock (_lock)
@@ -214,6 +222,54 @@ namespace LivingWorldNpcs
             _ = MaintainMemoryAsync();
 
         }
+
+        /// <summary>
+        /// 添加一条委托记录到 QuestHistory。自动维护上限（20 条）。
+        /// </summary>
+        public void AddQuestRecord(QuestRecord record)
+        {
+            if (record == null) return;
+            lock (_lock)
+            {
+                QuestHistory.Add(record);
+                while (QuestHistory.Count > MaxQuestHistoryCount)
+                    QuestHistory.RemoveAt(0);
+            }
+        }
+
+        /// <summary>
+        /// 从 QuestHistory 中查找最近一条指定类型的记录。
+        /// </summary>
+        public QuestRecord FindLatestQuestRecord(string recordType)
+        {
+            lock (_lock)
+            {
+                for (int i = QuestHistory.Count - 1; i >= 0; i--)
+                {
+                    if (QuestHistory[i].RecordType == recordType)
+                        return QuestHistory[i];
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 从 QuestHistory 中查找最近一条 QuestIssued 或 Causality 记录（用于 MapQuestToId）。
+        /// </summary>
+        public QuestRecord FindLatestQuestIssued()
+        {
+            lock (_lock)
+            {
+                for (int i = QuestHistory.Count - 1; i >= 0; i--)
+                {
+                    var r = QuestHistory[i];
+                    if (r.RecordType == "Issued" || r.RecordType == "Causality")
+                        return r;
+                }
+            }
+            return null;
+        }
+
         public string GetPersonaPrompt()
         {
             return _profile.GetPersonaPrompt();

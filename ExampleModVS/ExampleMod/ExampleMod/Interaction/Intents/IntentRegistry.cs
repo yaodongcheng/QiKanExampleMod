@@ -42,8 +42,8 @@ namespace LivingWorldNpcs.Story
             Register(new RequestFundsIntent());       // 请求军资
             Register(new RequestWorkIntent());        // 仕官
             // ── 委托/找工作 ──
-            Register(new RequestCommissionIntent());   // 看告示板/直接接委托
-            Register(new ConfirmCommissionIntent());   // 从告示板找到真正的委托人后，当面确认
+            Register(new RequestCommissionIntent());   // 看告示板/直接接委托（已重写为接入原版 Quest）
+            // Register(new ConfirmCommissionIntent());   // [已废弃] 从告示板找委托人确认——原版无两段式流程
             Register(new CollectCommissionRewardIntent()); // 目标完成后，找结账人领报酬
             // ── 公务/通用 ──
             Register(new InfoIntent());               // 查看情报

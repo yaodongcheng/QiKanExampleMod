@@ -266,6 +266,7 @@
     <Compile Include="Interaction\InteractionVM.cs" />
     <Compile Include="Interaction\MapEncounterConversationPatch.cs" />
     <Compile Include="Interaction\MapEncounterDialogState.cs" />
+    <Compile Include="Interaction\VanillaConversationLoggerPatch.cs" />
     <Compile Include="Interaction\NpcInfoVM.cs" />
     <Compile Include="Interaction\StoryDialogVM.cs" />
     <!-- LLM -->
@@ -277,6 +278,7 @@
     <Compile Include="Memory\NPCProfile.cs" />
     <Compile Include="Memory\PlayerGeneratedOption.cs" />
     <Compile Include="Memory\PlayerResources.cs" />
+    <Compile Include="Memory\QuestRecord.cs" />
     <Compile Include="Memory\RecentMemory.cs" />
     <Compile Include="Memory\SingNpcMemorySystem.cs" />
     <!-- Negotiation -->
@@ -289,6 +291,14 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <!-- Quest -->
     <Compile Include="Quest\QuestManager.cs" />
+    <Compile Include="Quests\QuestStartLoggerPatch.cs" />
+    <Compile Include="Quests\IssueFilterPatch.cs" />
+    <Compile Include="Quests\IssueFilterBehavior.cs" />
+    <Compile Include="Quests\QuestMemoryRecorderPatch.cs" />
+    <!-- Quests\Causality -->
+    <Compile Include="Quests\Causality\QuestConsequenceResolver.cs" />
+    <Compile Include="Quests\Causality\QuestConsequenceBehavior.cs" />
+    <Compile Include="Quests\Causality\VanillaQuestMapping.cs" />
     <!-- Quest\Commissions -->
     <Compile Include="Quests\Commissions\CommissionData.cs" />
     <Compile Include="Quests\Commissions\CommissionQuest.cs" />

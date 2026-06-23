@@ -145,8 +145,13 @@ namespace LivingWorldNpcs
 
                 campaignGameStarter.AddBehavior(new AIStoryGeneratorBehavior());
 
-                // NPC 委托系统
-                campaignGameStarter.AddBehavior(new CommissionIssueBehavior());
+                // [已废弃] NPC 委托系统（旧 CommissionIssueBehavior）
+                // campaignGameStarter.AddBehavior(new CommissionIssueBehavior());
+                // 改为：事件感知的 Issue 过滤行为（阻止日常类 Issue 在紧急事件期间出现）
+                campaignGameStarter.AddBehavior(new IssueFilterBehavior());
+
+                // 因果引擎：监听原版 Quest 完成 → 查因果表 → 生成后续事件
+                campaignGameStarter.AddBehavior(new QuestConsequenceBehavior());
 
                 // 世界事件模拟器（BanditRaid 等）
                 campaignGameStarter.AddBehavior(new WorldEventSimulator());
