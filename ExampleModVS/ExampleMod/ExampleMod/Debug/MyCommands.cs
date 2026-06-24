@@ -14,6 +14,7 @@ using psai.net;
 using TaleWorlds.CampaignSystem.Settlements.Locations;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Issues;
 using SandBox.Objects.Usables;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party.PartyComponents;
@@ -1675,6 +1676,445 @@ namespace LivingWorldNpcs
                 sb.AppendLine($"  {n.HeroName} Lv{(int)n.Level} encounters={n.TimesEncountered} scar={n.HasScar}");
 
             return sb.ToString();
+        }
+
+        // ═══════════════════════════════════════════════════════
+        // 原版 Issue 调试指令
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 强制给指定 NPC 发布指定 Issue（绕过所有限制，调试用）。
+        /// 用法:
+        ///   custom.force_issue list                          → 列出所有可用的原版 Quest ID
+        ///   custom.force_issue &lt;heroId&gt; &lt;questId&gt;            → 给指定 Hero 发布 Issue
+        ///   custom.force_issue &lt;questId&gt;                     → 给当前定居点的第一个 Notable 发布
+        ///   custom.force_issue &lt;heroId&gt; &lt;questId&gt; accept     → 发布并自动接取
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("force_issue", "custom")]
+        public static string ExecuteForceIssue(List<string> args)
+        {
+            if (Campaign.Current == null) return "Error: Campaign not loaded.";
+
+            // ── "list" 子命令：列出所有可用 Quest ID ──
+            if (args.Count == 0 || args[0].ToLower() == "list")
+            {
+                return ListAllVanillaQuestIds();
+            }
+
+            // ── 解析参数 ──
+            string heroId;
+            string questId;
+            bool autoAccept = false;
+
+            if (args.Count >= 2)
+            {
+                heroId = args[0];
+                questId = args[1];
+                autoAccept = args.Count >= 3 && args[2].ToLower() == "accept";
+            }
+            else
+            {
+                // 单参数：questId，自动找当前定居点的 Notable
+                heroId = null;
+                questId = args[0];
+            }
+
+            // ── 查找目标 Hero ──
+            Hero targetHero = null;
+            if (!string.IsNullOrEmpty(heroId))
+            {
+                // ① 精确匹配 StringId
+                targetHero = Campaign.Current.CampaignObjectManager.Find<Hero>(heroId);
+
+                // ② 兜底：按名字包含匹配
+                if (targetHero == null)
+                {
+                    targetHero = Hero.AllAliveHeroes
+                        .FirstOrDefault(h => h.Name != null && h.Name.ToString().Contains(heroId));
+                }
+            }
+            else
+            {
+                // ③ 自动从当前定居点找 Notable
+                targetHero = FindNearbyNotable();
+            }
+
+            if (targetHero == null)
+            {
+                string nearbyId = FindNearbyNotable()?.StringId;
+                string nearbyName = FindNearbyNotable()?.Name?.ToString();
+                string nearbyInfo = nearbyId != null ? $"{nearbyName} ({nearbyId})" : "none";
+                return $"Error: No target hero found.\n" +
+                       $"Specify a Hero StringId (e.g. 'lord_1_1'), or enter a settlement to auto-detect.\n" +
+                       $"Nearby notable: {nearbyInfo}\n" +
+                       $"Use 'custom.force_issue list' to see all quest IDs.";
+            }
+
+            // ── 规范化 Quest ID ──
+            string vanillaId = questId.StartsWith("VANILLA_") ? questId : $"VANILLA_{questId}";
+
+            // 验证 ID 是否合法
+            string issueTypeName = VanillaQuestMapping.GetIssueTypeNameForId(vanillaId);
+            if (string.IsNullOrEmpty(issueTypeName))
+            {
+                return $"Error: Unknown quest ID '{questId}'.\n" +
+                       $"Use 'custom.force_issue list' to see all available IDs.";
+            }
+
+            // ── 清理已有 Issue ──
+            if (targetHero.Issue != null)
+            {
+                string oldType = targetHero.Issue.GetType().Name;
+                if (!ForceClearIssue(targetHero))
+                {
+                    return $"Error: Failed to clear existing issue '{oldType}' from {targetHero.Name}.";
+                }
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"[force_issue] Cleared existing: {oldType}"));
+            }
+
+            // ── 创建新 Issue ──
+            IssueBase issue = IssueFactory.CreateVanillaIssue(vanillaId, targetHero);
+
+            // 兜底：直接构造 + 反射赋值（绕过 IssueManager 的 occupation 校验）
+            if (issue == null)
+            {
+                issue = ForceCreateIssueDirect(vanillaId, targetHero);
+            }
+
+            if (issue == null)
+            {
+                return $"Error: Failed to create issue '{vanillaId}' for {targetHero.Name}.\n" +
+                       $"The quest type may be incompatible with this NPC's occupation ({targetHero.Occupation}).\n" +
+                       $"Try a different combination — use 'custom.force_issue list' to browse.";
+            }
+
+            StringBuilder result = new StringBuilder();
+            result.AppendLine($"SUCCESS: {vanillaId}");
+            result.AppendLine($"  Issuer: {targetHero.Name} ({targetHero.StringId})");
+            result.AppendLine($"  Occupation: {targetHero.Occupation}");
+            result.AppendLine($"  Settlement: {targetHero.CurrentSettlement?.Name?.ToString() ?? "none"}");
+
+            // ── 自动接取 ──
+            if (autoAccept)
+            {
+                bool started = Campaign.Current.IssueManager.StartIssueQuest(targetHero);
+                if (started && targetHero.Issue?.IssueQuest != null)
+                {
+                    var quest = targetHero.Issue.IssueQuest;
+                    TryInvokeQuestAcceptedConsequences(quest);
+                    result.AppendLine($"  Quest ACCEPTED: {quest.GetType().Name}");
+                    InformationManager.DisplayMessage(
+                        new InformationMessage($"[force_issue] Quest accepted: {quest.Title}", Colors.Green));
+                }
+                else
+                {
+                    result.AppendLine("  Warning: Auto-accept failed. Try talking to the NPC manually.");
+                }
+            }
+            else
+            {
+                result.AppendLine("  Go talk to the NPC to accept the quest!");
+            }
+
+            InformationManager.DisplayMessage(
+                new InformationMessage($"[force_issue] {vanillaId} → {targetHero.Name}", Colors.Green));
+
+            return result.ToString();
+        }
+
+        /// <summary>
+        /// 列出所有可用的原版 Quest ID（分组展示）。
+        /// </summary>
+        private static string ListAllVanillaQuestIds()
+        {
+            // 使用 VanillaQuestMapping 的 IssueNameToId 反向构建分类
+            var allIds = new List<string>();
+            var type = typeof(VanillaQuestMapping);
+            var field = type.GetField("IssueNameToId",
+                BindingFlags.NonPublic | BindingFlags.Static);
+            if (field != null)
+            {
+                var dict = field.GetValue(null) as System.Collections.Generic.Dictionary<string, string>;
+                if (dict != null)
+                {
+                    allIds = dict.Values.OrderBy(s => s).ToList();
+                }
+            }
+
+            if (allIds.Count == 0)
+            {
+                // Fallback: 硬编码列表
+                allIds = new List<string>
+                {
+                    "VANILLA_ArmyNeedsSupplies", "VANILLA_ArmyOfPoachers",
+                    "VANILLA_ArtisanCantSell", "VANILLA_ArtisanOverpricedGoods",
+                    "VANILLA_BettingFraud", "VANILLA_CapturedByBountyHunters",
+                    "VANILLA_CaravanAmbush", "VANILLA_CompanyOfTrouble",
+                    "VANILLA_ConquestOfSettlement", "VANILLA_EscortMerchantCaravan",
+                    "VANILLA_ExtortionByDeserters", "VANILLA_FamilyFeud",
+                    "VANILLA_GangNeedsRecruits", "VANILLA_GangNeedsWeapons",
+                    "VANILLA_GangOffloadStolenGoods", "VANILLA_GangSpecialWeapons",
+                    "VANILLA_HeadmanDeliverHerd", "VANILLA_HeadmanNeedsGrain",
+                    "VANILLA_LadysKnightOut", "VANILLA_LandlordManualLaborers",
+                    "VANILLA_LandlordTradeArt", "VANILLA_LandlordTraining",
+                    "VANILLA_LandlordVillageCommons", "VANILLA_LesserNobleRevolt",
+                    "VANILLA_LordNeedsGarrisonTroops", "VANILLA_LordNeedsHorses",
+                    "VANILLA_LordsNeedsTutor", "VANILLA_LordWantsRivalCaptured",
+                    "VANILLA_MerchantNeedsHelpWithOutlaws", "VANILLA_NearbyBanditBase",
+                    "VANILLA_NotableDaughterFound", "VANILLA_ProdigalSon",
+                    "VANILLA_RaidEnemyTerritory", "VANILLA_RevenueFarming",
+                    "VANILLA_RivalGangMovingIn", "VANILLA_RuralNotableInnOut",
+                    "VANILLA_ScoutEnemyGarrisons", "VANILLA_Smugglers",
+                    "VANILLA_SnareTheWealthy", "VANILLA_TheSpyParty",
+                    "VANILLA_VillageCraftingMaterials", "VANILLA_VillageDraughtAnimals",
+                    "VANILLA_VillageNeedsTools",
+                };
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"\n=== Available Vanilla Quest IDs ({allIds.Count} total) ===");
+            sb.AppendLine();
+            sb.AppendLine("Usage: custom.force_issue <heroId> <questId>");
+            sb.AppendLine("       custom.force_issue <heroId> <questId> accept  (auto-accept)");
+            sb.AppendLine();
+            sb.AppendLine("── 村庄要人 (Headman) ──");
+            foreach (var id in allIds.Where(id =>
+                id.Contains("Headman") || id.Contains("Village") ||
+                id.Contains("Landlord") || id.Contains("Extortion") ||
+                id.Contains("FamilyFeud") || id.Contains("NotableDaughter") ||
+                id.Contains("RuralNotable")))
+                sb.AppendLine($"  {id}");
+            sb.AppendLine();
+            sb.AppendLine("── 城镇工匠/商人 (Artisan/Merchant) ──");
+            foreach (var id in allIds.Where(id =>
+                id.Contains("Artisan") || id.Contains("EscortMerchant") ||
+                id.Contains("CaravanAmbush") || id.Contains("BettingFraud") ||
+                id.Contains("RevenueFarming")))
+                sb.AppendLine($"  {id}");
+            sb.AppendLine();
+            sb.AppendLine("── 帮派头目 (GangLeader) ──");
+            foreach (var id in allIds.Where(id =>
+                id.Contains("Gang") || id.Contains("RivalGang") ||
+                id.Contains("SnareTheWealthy")))
+                sb.AppendLine($"  {id}");
+            sb.AppendLine();
+            sb.AppendLine("── 领主/贵族 (Lord) ──");
+            foreach (var id in allIds.Where(id =>
+                id.Contains("Lord") || id.Contains("Ladys") ||
+                id.Contains("ProdigalSon") || id.Contains("TheSpyParty") ||
+                id.Contains("ArmyNeeds") || id.Contains("ScoutEnemy") ||
+                id.Contains("RaidAnEnemy") || id.Contains("ConquestOf") ||
+                id.Contains("LesserNoble")))
+                sb.AppendLine($"  {id}");
+            sb.AppendLine();
+            sb.AppendLine("── 通用/全局 (Any Notable) ──");
+            foreach (var id in allIds.Where(id =>
+                id.Contains("NearbyBandit") || id.Contains("ArmyOfPoachers") ||
+                id.Contains("MerchantNeedsHelp") || id.Contains("Smugglers") ||
+                id.Contains("CapturedByBounty") || id.Contains("CompanyOfTrouble")))
+                sb.AppendLine($"  {id}");
+            sb.AppendLine();
+            sb.AppendLine("── NPC Occupation types for reference ──");
+            sb.AppendLine("  Headman (village)  |  Merchant (town)  |  Artisan (town)");
+            sb.AppendLine("  GangLeader (town)  |  Lord (any)       |  Wanderer");
+            sb.AppendLine("=========================================");
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 从当前定居点自动找一个 Notable 作为目标。
+        /// </summary>
+        private static Hero FindNearbyNotable()
+        {
+            if (Hero.MainHero?.CurrentSettlement == null) return null;
+
+            var settlement = Hero.MainHero.CurrentSettlement;
+
+            // 优先 Notables（包括 Headman, Merchant, Artisan, GangLeader）
+            foreach (var h in settlement.Notables)
+            {
+                if (h != null && h != Hero.MainHero && h.IsAlive)
+                    return h;
+            }
+
+            // 兜底：HeroesWithoutParty
+            foreach (var h in settlement.HeroesWithoutParty)
+            {
+                if (h != null && h != Hero.MainHero && h.IsAlive
+                    && !settlement.Notables.Contains(h))
+                    return h;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 强制清除 Hero 身上的已有 Issue（反射操作，调试用）。
+        /// </summary>
+        private static bool ForceClearIssue(Hero hero)
+        {
+            try
+            {
+                // ① 尝试通过 Property setter
+                var issueProp = typeof(Hero).GetProperty("Issue",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (issueProp != null && issueProp.CanWrite)
+                {
+                    issueProp.SetValue(hero, null);
+                    return hero.Issue == null;
+                }
+
+                // ② 尝试内部 setter（NonPublic）
+                if (issueProp != null)
+                {
+                    var setMethod = issueProp.GetSetMethod(true); // nonPublic
+                    if (setMethod != null)
+                    {
+                        setMethod.Invoke(hero, new object[] { null });
+                        return hero.Issue == null;
+                    }
+                }
+
+                // ③ 尝试直接设 backing field
+                foreach (var fieldName in new[] { "_issue", "_currentIssue", "issue" })
+                {
+                    var field = typeof(Hero).GetField(fieldName,
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (field != null)
+                    {
+                        field.SetValue(hero, null);
+                        return hero.Issue == null;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"[force_issue] ForceClearIssue exception: {ex.Message}", Colors.Red));
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 兜底创建：直接反射构造 Issue + 强行赋予 Hero。
+        /// 当 IssueFactory 走不通时使用（绕过 IssueManager 的 occupation 校验）。
+        /// </summary>
+        private static IssueBase ForceCreateIssueDirect(string vanillaId, Hero hero)
+        {
+            string issueTypeName = VanillaQuestMapping.GetIssueTypeNameForId(vanillaId);
+            if (string.IsNullOrEmpty(issueTypeName)) return null;
+
+            // 查找 Issue Type
+            Type issueType = null;
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                string asmName = asm.GetName().Name;
+                if (!asmName.StartsWith("TaleWorlds") && asmName != "SandBox"
+                    && asmName != "SandBoxCore" && asmName != "StoryMode")
+                    continue;
+                try
+                {
+                    foreach (var t in asm.GetTypes())
+                    {
+                        if (t.Name == issueTypeName && typeof(IssueBase).IsAssignableFrom(t))
+                        {
+                            issueType = t;
+                            break;
+                        }
+                    }
+                }
+                catch { }
+                if (issueType != null) break;
+            }
+
+            if (issueType == null) return null;
+
+            try
+            {
+                // 尝试 Activator 构造 (Hero)
+                var ctor = issueType.GetConstructor(
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    null, new[] { typeof(Hero) }, null);
+                if (ctor == null)
+                {
+                    // 尝试两参数构造 (Hero, object)
+                    ctor = issueType.GetConstructor(
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null, new[] { typeof(Hero), typeof(object) }, null);
+                }
+
+                IssueBase issue = null;
+                if (ctor != null)
+                {
+                    var paramCount = ctor.GetParameters().Length;
+                    issue = paramCount == 1
+                        ? ctor.Invoke(new object[] { hero }) as IssueBase
+                        : ctor.Invoke(new object[] { hero, null }) as IssueBase;
+                }
+                else
+                {
+                    // 最后兜底：Activator.CreateInstance
+                    issue = Activator.CreateInstance(issueType,
+                        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                        null, new object[] { hero }, null) as IssueBase;
+                }
+
+                if (issue == null) return null;
+
+                // 强行赋予 Hero（绕过 IssueManager 的校验）
+                var issueProp = typeof(Hero).GetProperty("Issue",
+                    BindingFlags.Public | BindingFlags.Instance);
+                if (issueProp != null && issueProp.CanWrite)
+                {
+                    issueProp.SetValue(hero, issue);
+                }
+                else
+                {
+                    var setMethod = issueProp?.GetSetMethod(true);
+                    setMethod?.Invoke(hero, new object[] { issue });
+                }
+
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"[force_issue] Force-created {issueTypeName} via direct reflection", Colors.Yellow));
+                return hero.Issue;
+            }
+            catch (Exception ex)
+            {
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"[force_issue] ForceCreateIssueDirect failed: {ex.Message}", Colors.Red));
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 反射调用 quest 的私有 QuestAcceptedConsequences()，
+        /// 确保任务日志和进度条正确初始化。
+        /// </summary>
+        private static bool TryInvokeQuestAcceptedConsequences(QuestBase quest)
+        {
+            try
+            {
+                var questType = quest.GetType();
+                foreach (var methodName in new[] { "QuestAcceptedConsequences", "OnQuestAccepted", "HandleQuestAccepted" })
+                {
+                    var method = questType.GetMethod(methodName,
+                        BindingFlags.NonPublic | BindingFlags.Instance);
+                    if (method != null && method.GetParameters().Length == 0)
+                    {
+                        method.Invoke(quest, null);
+                        return true;
+                    }
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 
