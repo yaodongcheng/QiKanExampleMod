@@ -1,5 +1,6 @@
 # 骑砍2 原版 Quest 源码级案例分析
 
+> **📁 更高规格的完整分析见：[vanilla_quests/](vanilla_quests/README.md)** — 40+ 任务全目录、可复用模式提取、完整 API 参考。
 > 基于 `ilspycmd` 反编译 `TaleWorlds.CampaignSystem.dll` + `SandBox.dll` 的源码级分析。
 > 每个案例覆盖完整调用链路：触发 → Issue → Quest → 事件驱动进度 → 结算。
 
@@ -510,22 +511,44 @@ GenerateIssueQuest(questId)
       → _villagesAndAlreadyVisitedBooleans 记录访问状态
       → 每个村庄有机会发现线索
 
-阶段 B: 找到恶棍
-  - 到达目标村庄 → 触发进入任务 Mission
-  - 恶棍和女儿都调用了 SetMortality(immortal: true)（剧情保护）
-  - 战斗: 玩家 vs 恶棍
-  - 分支:
-    A. 击败恶棍 → 进入说服阶段
-    B. 被恶棍击败 → 失败 (_playerDefeatedByRogue = true)
+阶段 B: 三方对话（恶棍 + 女儿 + 玩家）
+  - 到达目标村庄 → 进入 Mission，恶棍和女儿以 LocationCharacter 形式放置
+  - 三方靠近时自动触发多角色对话（`multi_character_conversation_on_condition`）
+  - 恶棍开场: "你是谁？{委托人}派来的赏金猎人？听着，我们没做错什么，这女人和我相爱，我没强迫她。"
+  - 女儿接话: "他说得对！我是自愿跟他走的。我爱我爹/娘，但他/她太专横了。如果你相信自由和爱情，请放过我们。"
+  - ★ 玩家四选一:
+    【选 1: 放他们私奔】"我理解。既然如此，我放你们走。"
+      → Rogue: "谢谢你的善解人意。走，亲爱的，趁别的猎犬还没嗅到我们的气味..."
+      → _acceptedDaughtersEscape = true
+      → Quest COMPLETES WITH FAIL（任务失败！）
+      → 后果: 关系 -10, 委托人定居点 Security -5, Prosperity -5
+      → ★ 这是隐藏的道德抉择——良心 vs 契约，你成全了恋人但失信于委托人
+    【选 2: 质疑强迫】"我怎么知道你不是在强迫她？"
+      → 女儿求情: "求你了，我真的爱他，请别挡我们的路。"
+      → 玩家说: "我答应了你爹/娘要带你回去。"
+      → 女儿揭露: "他/她才不是伤心我走了！他/她把我许给了盟友的儿子，这才是他/她怕的。"
+      → 进入 Persuasion 检定（难度 5）
+        → 成功: _isDaughterPersuaded = true → 女儿自愿回家 → 任务成功
+        → 失败: 回到三选一（杀恶棍 or 放私奔）
+    【选 3: 答应过委托人】"但我答应了你爹/娘要带你回去。"
+      → 同选 2，转到 Persuasion
+    【选 4: 杀恶棍】"我想唯一的办法就是杀了这个小白脸。"
+      → Rogue 挑战决斗
+      → 子选项 A: "这将是一场屠杀，但我无所谓。" → 玩家+同伴群殴 Rogue
+      → 子选项 B: "我接受你的决斗。" → 1v1 公平决斗
+      → 赢 → _didPlayerBeatRouge = true, _isDaughterCaptured = true → 任务成功
+      → 输 → _playerDefeatedByRogue = true → 任务失败
 
-阶段 C: 说服女儿
-  - PersuasionTask 系统接管对话
-  - 难度: PersuasionDifficulty = 5
-  - 成功 → _isDaughterPersuaded = true
-  - 失败 → _acceptedDaughtersEscape = true
+阶段 C: Mission 结束结算
+  - OnMissionEnded 中检查四个 flag:
+    _isDaughterPersuaded → 成功
+    _acceptedDaughtersEscape → ★ 失败（但你选择了善良）
+    _isDaughterCaptured → 成功（武力抓回）
+    _playerDefeatedByRogue → 失败
 
 阶段 D: 特殊场景
-  - 村庄被劫掠 (_villageIsRaidedTalkWithDaughter) → 对话变化
+  - 村庄被劫掠 (_villageIsRaidedTalkWithDaughter) → 对话变化（"你父亲派我来找你的""哦感谢上帝！我看见可怕的事情了..."）
+  - 对话后直接 ApplySuccessConsequences → 成功
   - 女儿被抓 (_isDaughterCaptured) → 对话变化
 
 【结算】

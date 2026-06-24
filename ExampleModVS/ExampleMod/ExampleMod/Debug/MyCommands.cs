@@ -22,6 +22,7 @@ using Helpers;
 using System.Reflection;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.SceneInformationPopupTypes;
 using LivingWorldNpcs.Story;
 using System.IO;
 
@@ -1101,7 +1102,42 @@ namespace LivingWorldNpcs
 
                 Hero.MainHero.Spouse = null;
                 return "player divorce success";
+
+        }
+
+        /// <summary>
+        /// 触发玩家处决指定 Hero 的过场动画。
+        /// 用法: custom.execute_hero &lt;heroStringId&gt;
+        /// 弹出确认窗口，确认后播放处决动画并真正杀死目标。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("execute_hero", "custom")]
+        public static string ExecuteHeroCutscene(List<string> args)
+        {
+            if (Campaign.Current == null)
+                return "Error: Campaign not loaded.";
+
+            if (args.Count == 0)
+                return "Usage: custom.execute_hero <heroStringId>\n  e.g. custom.execute_hero lord_4_1";
+
+            string heroId = args[0];
+            Hero targetHero = Campaign.Current.CampaignObjectManager.Find<Hero>(heroId);
+
+            if (targetHero == null)
+                return $"Error: Hero '{heroId}' not found.";
+
+            if (!targetHero.IsAlive)
+                return $"Error: Hero '{targetHero.Name}' is already dead.";
+
+            if (targetHero == Hero.MainHero)
+                return "Error: You cannot execute yourself.";
             
+
+            HeroExecutionSceneNotificationData data = HeroExecutionSceneNotificationData
+                .CreateForPlayerExecutingHero(targetHero, onAffirmativeAction: null);
+
+            MBInformationManager.ShowSceneNotification(data);
+
+            return $"Execution scene triggered for {targetHero.Name} ({heroId}).\nClick 'Execute' to proceed, or close the popup to cancel.";
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("ninja_report", "custom")]
