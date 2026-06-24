@@ -1,47 +1,43 @@
-﻿[20:49:58.128] [VanillaDialog] NPC says: "嗯？抱歉，我觉得我应该不认识你。"
-[20:49:59.102] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[20:49:59.103] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[20:49:59.109] [VanillaDialog] NPC says: "我是加尼密诺斯。这附近的土地归我所有，我的话能代表这个村子里许多人的意见。"
-[20:49:59.560] [VanillaDialog] NPC says: "很高兴见到你。听着，我看重的是人们遵守诺言，所以你我都要坦诚相待。"
-[20:50:00.350] [VanillaDialog] Options (2): 我听说你有个问题需要帮助。 | 我现在得走了。
-[20:50:00.350] [VanillaDialog] Player says: "我现在得走了。"
-[20:50:00.352] [VanillaDialog] NPC says: "我们就此别过吧，但记住：那凡是行于义途的人，必蒙上天的护佑。"
-[20:50:06.734] [AI-Debug] Suspend 坎忒里翁的加尼密诺斯 (Idx=2) | 集合size=1
-[20:50:12.089] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[20:50:12.091] [Player] Talk to: 坎忒里翁的加尼密诺斯 (hero=坎忒里翁的加尼密诺斯)
-[20:50:12.093] [Dialog] NPC says (opening): "这村子不太太平——不过您来了，也许能帮上忙。"
-[20:50:13.796] [CommissionIntent] RequestCommission Evaluate: hero=坎忒里翁的加尼密诺斯 hasIssue=True urgentEvent=False → Show
-[20:50:13.816] [Dialog] Options shown (8): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托 | 【仕官】 请求奉公（3%） | 【茶席】 共饮一盏 | 【送礼】 赠予物品
-[20:50:15.231] [Dialog] Player clicked option: "【找工作】 打听委托"
-[20:50:15.231] [Dialog] Player clicked: "【找工作】 打听委托" (goal=, category=Official)
-[20:50:15.232] [CommissionIntent] RequestCommission OnInstant: presenting vanilla issue type=MerchantNeedsHelpWithOutlawsIssue giver=坎忒里翁的加尼密诺斯
-[20:50:15.236] [Dialog] NPC says: "没错……我们经常跟强盗结下梁子，但最近我们可真的摊上大事了。"
-[20:50:16.098] [Dialog] NPC says: "那些“害虫”盘踞在城镇外的群山丘陵上，很多人都不敢将货物运来市场，有些人甚至还丧了命。"
-[20:50:17.051] [Dialog] NPC says: "人们告诉我：“生活太难了，再这样下去可能我自己都要落草为寇了。"
-[20:50:17.565] [Dialog] NPC says: "”这肯定是不行的……
+﻿[22:08:24.881] [VanillaDialog] NPC says: "嗯？抱歉，我觉得我应该不认识你。"
+[22:08:27.599] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[22:08:27.600] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[22:08:27.605] [VanillaDialog] NPC says: "我是加尼密诺斯。这附近的土地归我所有，我的话能代表这个村子里许多人的意见。"
+[22:08:28.187] [VanillaDialog] NPC says: "很高兴见到你。听着，我看重的是人们遵守诺言，所以你我都要坦诚相待。"
+[22:08:29.029] [VanillaDialog] Options (2): 我听说你有个问题需要帮助。 | 我现在得走了。
+[22:08:29.029] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
+[22:08:29.031] [VanillaDialog] NPC says: "没错……我们经常跟强盗结下梁子，但最近我们可真的摊上大事了。那些“害虫”盘踞在城镇外的群山丘陵上，很多人都不敢将货物运来市场，有些人甚至还丧了命。人们告诉我：“生活太难了，再这样下去可能我自己都要落草为寇了。”这肯定是不行的……"
+[22:08:29.875] [VanillaDialog] Options (1): 所以你想要我去干掉他们？
+[22:08:29.875] [VanillaDialog] Player says: "所以你想要我去干掉他们？"
+[22:08:29.876] [VanillaDialog] NPC says: "这样说吧，先生，您永远无法杀尽这些宵小，但如果您干掉了一些最凶狠的家伙，比如2帮匪徒。等消息传开后，抢劫我们就显得没那么划算了。而那些残党或许就会去骚扰别人……您能帮帮我们吗？"
+[22:08:30.214] [VanillaDialog] Options (1): 那要看情况了，你认为干这活需要多少人？
+[22:08:30.215] [VanillaDialog] Player says: "那要看情况了，你认为干这活需要多少人？"
+[22:08:30.217] [VanillaDialog] NPC says: "我敢打赌，只需10位训练有素的部下，在你的一名副官的陪同下，碰上什么人都能对付的了。给他们6天时间，等着吧……他们会逆转局势的。"
+[22:08:30.857] [VanillaDialog] Options (3): 我会为你猎杀2伙匪徒。 | 我会让我的同伴和10位手下在这片区域巡逻6天。 | 抱歉，现在不行。
+[22:08:30.857] [VanillaDialog] Player says: "抱歉，现在不行。"
+[22:08:30.858] [VanillaDialog] NPC says: "很好，但或许你之后应该重新考虑一下。"
+[22:08:31.332] [VanillaDialog] Options (2): 我听说你有个问题需要帮助。 | 我现在得走了。
+[22:08:31.332] [VanillaDialog] Player says: "我现在得走了。"
+[22:08:31.333] [VanillaDialog] NPC says: "我们就此别过吧，但记住：那凡是行于义途的人，必蒙上天的护佑。"
+[22:08:37.650] [AI-Debug] Suspend 坎忒里翁的加尼密诺斯 (Idx=2) | 集合size=1
+[22:08:40.050] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
+[22:08:40.052] [Player] Talk to: 坎忒里翁的加尼密诺斯 (hero=坎忒里翁的加尼密诺斯)
+[22:08:40.056] [Dialog] NPC says (opening): "（疲惫地抬起头）又有什么事？这村子已经够乱的了。"
+[22:08:42.621] [CommissionIntent] RequestCommission Evaluate: hero=坎忒里翁的加尼密诺斯 hasIssue=True urgentEvent=False → Show
+[22:08:42.640] [Dialog] Options shown (8): 【离开】 告辞 | 【寒暄】 随便说两句... | 【跟随】 跟随我 | 【情报】 查看信息 | 【找工作】 打听委托 | 【仕官】 请求奉公（3%） | 【茶席】 共饮一盏 | 【送礼】 赠予物品
+[22:08:44.167] [Dialog] Player clicked option: "【找工作】 打听委托"
+[22:08:44.168] [Dialog] Player clicked: "【找工作】 打听委托" (goal=, category=Official)
+[22:08:44.168] [CommissionIntent] RequestCommission OnInstant: presenting vanilla issue type=MerchantNeedsHelpWithOutlawsIssue giver=坎忒里翁的加尼密诺斯
+[22:08:44.175] [Dialog] NPC says: "没错……我们经常跟强盗结下梁子，但最近我们可真的摊上大事了。"
+[22:08:46.003] [Dialog] NPC says: "那些“害虫”盘踞在城镇外的群山丘陵上，很多人都不敢将货物运来市场，有些人甚至还丧了命。"
+[22:08:48.515] [Dialog] NPC says: "人们告诉我：“生活太难了，再这样下去可能我自己都要落草为寇了。"
+[22:08:48.968] [Dialog] NPC says: "”这肯定是不行的……
 这样说吧，先生，您永远无法杀尽这些宵小，但如果您干掉了一些最凶狠的家伙，比如2帮匪徒。"
-[20:50:18.237] [Dialog] NPC says: "等消息传开后，抢劫我们就显得没那么划算了。"
-[20:50:19.205] [Dialog] NPC says: "而那些残党或许就会去骚扰别人……您能帮帮我们吗？
+[22:08:49.578] [Dialog] NPC says: "等消息传开后，抢劫我们就显得没那么划算了。"
+[22:08:50.280] [Dialog] NPC says: "而那些残党或许就会去骚扰别人……您能帮帮我们吗？
 
 （坎忒里翁的加尼密诺斯需要人帮忙解决匪徒）"
-[20:50:19.206] [Dialog] Options (2): 【接取】 | 【拒绝】
-[20:50:20.447] [Dialog] Player clicked option: "【接取】"
-[20:50:20.458] [QuestStart] MerchantNeedsHelpWithOutlawsIssueQuest "坎忒里翁的加尼密诺斯需要人帮忙解决匪徒" | giver=坎忒里翁的加尼密诺斯 | IsOngoing=True | RewardGold=550
-[20:50:20.459] [CommissionIntent] Invoked QuestAcceptedConsequences() on MerchantNeedsHelpWithOutlawsIssueQuest — journal entries now: 1
-[20:50:20.460] [CommissionIntent] Player accepted: MerchantNeedsHelpWithOutlaws from 坎忒里翁的加尼密诺斯 — questObj=MerchantNeedsHelpWithOutlawsIssueQuest
-[20:50:37.811] [VanillaDialog] NPC says: "亨利..."
-[20:50:38.425] [VanillaDialog] NPC says: "再次感谢你同意接手此事。"
-[20:50:39.845] [VanillaDialog] Options (2): 关于你交给我的任务…… | 我现在得走了。
-[20:50:39.845] [VanillaDialog] Player says: "关于你交给我的任务……"
-[20:50:39.845] [VanillaDialog] NPC says: "你找到强盗了吗？"
-[20:50:41.190] [VanillaDialog] Options (2): 我们马上去干掉他们。 | 我没有时间。
-[20:50:41.190] [VanillaDialog] Player says: "我们马上去干掉他们。"
-[20:50:41.190] [VanillaDialog] NPC says: "您是位大救星。"
-[20:51:23.726] [VanillaDialog] NPC says: "你！站住！把钱交出来，我们可不是在闹着玩。"
-[20:51:24.918] [VanillaDialog] Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
-[20:51:24.918] [VanillaDialog] Player says: "够胆就过来动手吧！"
-[20:51:24.920] [VanillaDialog] NPC says: "好吧，你死定了。"
-[20:51:29.245] [AI-Debug] Resume 劫匪 (Idx=2) | 集合size=0
-[20:51:58.176] [VanillaDialog] NPC says: "站那儿别动，打劫！"
-[20:52:01.179] [VanillaDialog] Player says: "够胆就过来动手吧！"
-[20:52:01.179] [VanillaDialog] NPC says: "那么，恐怕我们得拿你杀一儆百了，别费力乞求怜悯了。"
+[22:08:50.281] [Dialog] Options (2): 【接取】 | 【拒绝】
+[22:08:54.129] [Dialog] Player clicked option: "【接取】"
+[22:08:54.140] [QuestStart] MerchantNeedsHelpWithOutlawsIssueQuest "坎忒里翁的加尼密诺斯需要人帮忙解决匪徒" | giver=坎忒里翁的加尼密诺斯 | IsOngoing=True | RewardGold=550
+[22:08:54.142] [CommissionIntent] Quest activated: MerchantNeedsHelpWithOutlawsIssueQuest StartQuest+AddLog done
+[22:08:54.142] [CommissionIntent] Player accepted: MerchantNeedsHelpWithOutlaws from 坎忒里翁的加尼密诺斯 — questObj=MerchantNeedsHelpWithOutlawsIssueQuest

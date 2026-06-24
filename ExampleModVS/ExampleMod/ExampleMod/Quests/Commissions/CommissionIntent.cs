@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Issues;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -128,15 +129,19 @@ namespace LivingWorldNpcs.Story
                         var quest = ctx.Hero.Issue?.IssueQuest;
                         if (quest != null && !Campaign.Current.QuestManager.Quests.Contains(quest))
                         {
-                            // QuestAcceptedConsequences 内部会调 StartQuest() + AddDiscreteLog()，
-                            // 我们不应再手动调 StartQuest()，否则会重复激活。
-                            if (!InvokeQuestAcceptedConsequences(quest))
-                            {
-                                // 反射失败 → 降级为手动 StartQuest + 添加一条默认日志
-                                quest.StartQuest();
-                                quest.AddLog(new TextObject("{=CommissionIntent_Accepted}委托已接取。"), false);
-                                DebugLogger.Log($"[CommissionIntent] Fallback: manual StartQuest + default log for {quest.GetType().Name}");
-                            }
+                            // 必须调 QuestAcceptedConsequences：
+                            //   1. StartQuest()            — public，但手动调完还得处理进度日志
+                            //   2. AddDiscreteLog(...)     — public，但返回的 JournalLog 存入了私有字段
+                            //   3. _questProgressLogTest   — private，AddQuestStepLog() 靠它更新进度
+                            //
+                            // AddLog 只能加一条静态文本，AddDiscreteLog 能显示 X/Y 进度条。
+                            // 问题是自己调 AddDiscreteLog 拿到的对象跟 quest 内部的 _questProgressLogTest
+                            // 不是同一个——quest 的事件处理器（MobilePartyDestroyed）更新的是私有字段里的那个。
+                            // 所以自己调 AddDiscreteLog 只是加了条永远 0/2 不会动的进度条。
+                            //
+                            // 结论：进度条必须由 quest 自己的代码创建。反射是唯一的路。
+                            InvokeQuestAcceptedConsequences(quest);
+                            DebugLogger.Log($"[CommissionIntent] Quest activated via reflection: {quest.GetType().Name}");
                         }
 
                         DebugLogger.Log($"[CommissionIntent] Player accepted: {issueTypeName} from {ctx.Hero.Name} — questObj={quest?.GetType().Name ?? "null"}");
@@ -461,11 +466,14 @@ namespace LivingWorldNpcs.Story
             return text;
         }
 
+       
         /// <summary>
-        /// 去除 TextObject 中的游戏格式标记 [if:...], [ib:...], 变量标记等。
-        /// 纯字符串处理，不依赖反射。
+        /// 反射调用 quest 的私有 QuestAcceptedConsequences()。
+        /// 必须反射的原因：该方法内部调用 AddDiscreteLog() 返回的 JournalLog
+        /// 存入了 quest 的私有字段 _questProgressLogTest。后续进度更新（MobilePartyDestroyed
+        /// 等事件处理器）通过 AddQuestStepLog() 更新这个私有字段。我们自己调 AddDiscreteLog
+        /// 拿到的 JournalLog 是另一个对象，不会随进度更新——任务面板会永远显示 0/2。
         /// </summary>
-        /// <returns>true 如果成功找到并调用了 acceptance 方法</returns>
         private static bool InvokeQuestAcceptedConsequences(QuestBase quest)
         {
             try
@@ -474,20 +482,19 @@ namespace LivingWorldNpcs.Story
                 foreach (var methodName in new[] { "QuestAcceptedConsequences", "OnQuestAccepted", "HandleQuestAccepted" })
                 {
                     var method = questType.GetMethod(methodName,
-                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        BindingFlags.NonPublic | BindingFlags.Instance);
                     if (method != null && method.GetParameters().Length == 0)
                     {
                         method.Invoke(quest, null);
-                        DebugLogger.Log($"[CommissionIntent] Invoked {methodName}() on {questType.Name} — journal entries now: {quest.JournalEntries.Count}");
+                        DebugLogger.Log($"[CommissionIntent] Invoked {methodName}() on {questType.Name} — journal entries: {quest.JournalEntries.Count}");
                         return true;
                     }
                 }
-                DebugLogger.Log($"[CommissionIntent] ⚠ No QuestAcceptedConsequences found on {questType.Name}");
                 return false;
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[CommissionIntent] ⚠ Failed to invoke QuestAcceptedConsequences: {ex.Message}");
+                DebugLogger.Log($"[CommissionIntent] Failed to invoke QuestAcceptedConsequences: {ex.Message}");
                 return false;
             }
         }

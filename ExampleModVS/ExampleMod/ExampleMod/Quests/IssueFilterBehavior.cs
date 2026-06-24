@@ -27,6 +27,10 @@ namespace LivingWorldNpcs
         private static readonly Dictionary<string, List<string>> _passedExamples = new Dictionary<string, List<string>>();
         private static float _lastLogDay = -1f;
 
+        // ── 结构化 Issue 抑制表（因果链 Suppress action 写入，IssueFilterPatch 读取）──
+        // Key: "{hero.StringId}|{issueTypeName}"  Value: 过期日期（CampaignTime.ToDays）
+        private static readonly Dictionary<string, float> _activeSuppressions = new Dictionary<string, float>();
+
         static IssueFilterBehavior()
         {
             LoadBlockingTable();
@@ -116,6 +120,55 @@ namespace LivingWorldNpcs
             }
         }
 
+        // ── 结构化 Issue 抑制（因果链 Suppress action 使用）──
+
+        /// <summary>
+        /// 注册一个 Issue 类型抑制。由 QuestConsequenceResolver.ExecuteSuppress 调用。
+        /// </summary>
+        /// <param name="hero">要抑制的 NPC</param>
+        /// <param name="issueTypeName">Issue 类型名（如 "ExtortionByDesertersIssue"）</param>
+        /// <param name="durationDays">抑制持续天数</param>
+        public static void RegisterSuppression(Hero hero, string issueTypeName, int durationDays)
+        {
+            if (hero == null || string.IsNullOrEmpty(issueTypeName)) return;
+
+            string key = MakeSuppressionKey(hero, issueTypeName);
+            float expiryDay = (float)CampaignTime.Now.ToDays + durationDays;
+
+            lock (_activeSuppressions)
+            {
+                _activeSuppressions[key] = expiryDay;
+            }
+        }
+
+        /// <summary>
+        /// 检查某个 Issue 类型是否被 Suppress 抑制。
+        /// 由 IssueFilterPatch.Prefix 在 AddPotentialIssueData 前调用。
+        /// </summary>
+        /// <param name="hero">被检查的 NPC</param>
+        /// <param name="issueType">Issue 类型</param>
+        /// <returns>true = 该 Issue 被抑制，应拦截</returns>
+        public static bool IsIssueSuppressed(Hero hero, Type issueType)
+        {
+            if (hero == null || issueType == null) return false;
+
+            string key = MakeSuppressionKey(hero, issueType.Name);
+            float nowDay = (float)CampaignTime.Now.ToDays;
+
+            lock (_activeSuppressions)
+            {
+                if (_activeSuppressions.TryGetValue(key, out float expiry))
+                {
+                    if (nowDay < expiry) return true;    // 仍在抑制期内
+                    _activeSuppressions.Remove(key);      // 已过期，清理
+                }
+            }
+            return false;
+        }
+
+        private static string MakeSuppressionKey(Hero hero, string issueTypeName)
+            => $"{hero.StringId}|{issueTypeName}";
+
         // ── CampaignBehaviorBase ──
 
         public override void RegisterEvents()
@@ -129,6 +182,9 @@ namespace LivingWorldNpcs
         {
             float currentDay = (float)CampaignTime.Now.ToDays;
             if (_lastLogDay < 0) _lastLogDay = currentDay;
+
+            // 清理过期的 Suppress 条目
+            CleanExpiredSuppressions(currentDay);
 
             lock (_blockedCounts)
             {
@@ -161,6 +217,24 @@ namespace LivingWorldNpcs
             }
 
             _lastLogDay = currentDay;
+        }
+
+        /// <summary>
+        /// DailyTick 时清理已过期的 Suppress 条目。
+        /// </summary>
+        private static void CleanExpiredSuppressions(float currentDay)
+        {
+            lock (_activeSuppressions)
+            {
+                var expired = new List<string>();
+                foreach (var kvp in _activeSuppressions)
+                {
+                    if (currentDay >= kvp.Value)
+                        expired.Add(kvp.Key);
+                }
+                foreach (var key in expired)
+                    _activeSuppressions.Remove(key);
+            }
         }
     }
 }

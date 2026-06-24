@@ -120,6 +120,7 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 | [原版骑砍2任务系统分析](Knowledge/原版骑砍2任务系统分析.md) | 🔴 **40 种 NPC 委托任务全览**，Issue→Quest 双层架构、三种解决路径、触发机制、IssueEffect 惩罚、对话集成 | 委托任务（CommissionQuest）系统设计，理解原版 Issue/Quest 边界 |
 | [AIInfluenceProject_技术实现分析](Knowledge/AIInfluenceProject_技术实现分析.md) | 参考 mod 的 DiplomacyManager 设计 | 外交系统参考 |
 | [偷盗系统分析与优化方案](Knowledge/偷盗系统分析与优化方案.md) | 🔴 **偷盗系统全链路分析**：StealVM/StealManager/触发/博弈/结算/后果闭环，对标 Skyrim/DOS2/大侠立志传的乐趣差距诊断，P0-P2 优化路线图 | 偷盗系统优化、新玩法设计、沉浸感打磨 |
+| [原版Quest案例源码分析](Knowledge/quest_example.md) | 🔴 **5 个原版 Quest 源码级案例分析**：MerchantNeedsHelpWithOutlaws / NotableWantsDaughterFound / FamilyFeud / RevenueFarming / EscortMerchantCaravan，含完整调用链、反编译代码、横向对比、设计模板 | 新增 Issue/Quest 的架构参考、理解原版事件驱动模式 |
 
 ## 工作流约定
 

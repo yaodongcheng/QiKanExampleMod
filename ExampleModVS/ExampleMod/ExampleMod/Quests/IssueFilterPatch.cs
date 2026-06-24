@@ -18,6 +18,14 @@ namespace LivingWorldNpcs
         {
             if (hero == null) return true;
 
+            // ① 检查结构化 Suppress 表（因果链 Suppress action 写入）
+            if (IssueFilterBehavior.IsIssueSuppressed(hero, issueData.IssueType))
+            {
+                IssueFilterBehavior.RecordBlockedIssue(WorldEventType.BanditRaid, hero, issueData.IssueType);
+                return false;
+            }
+
+            // ② 检查 CurrentUrgentEvent 阻拦（紧急事件期间阻止日常类 Issue）
             var mem = AllNpcMemoryManager.GetMemory(hero.StringId);
             if (mem?.CurrentUrgentEvent == null) return true;
 

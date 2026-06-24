@@ -32,9 +32,11 @@ namespace LivingWorldNpcs
         /// </summary>
         public enum FollowUpAction
         {
+            /// <summary>暂时禁止某类 Issue 出现（写入 IssueFilterBehavior 的结构化抑制表）</summary>
             Suppress,
-            BoostWeight,
+            /// <summary>强制定时创建 Issue（DebugInstantFollowUps=true 立即；false 按 delayMin/delayMax 延迟）</summary>
             ScheduleIssue,
+            /// <summary>强制生成 WorldEvent（物理层：spawn party 等）</summary>
             ScheduleWorldEvent,
         }
 
@@ -243,9 +245,6 @@ namespace LivingWorldNpcs
                 case "Suppress":
                     ExecuteSuppress(fu, questGiver, targetSettlement);
                     break;
-                case "BoostWeight":
-                    ExecuteBoostWeight(fu, questGiver, targetSettlement);
-                    break;
                 case "ScheduleIssue":
                     ExecuteScheduleIssue(fu, sourceQuestId, questGiver, targetHero, targetSettlement);
                     break;
@@ -256,46 +255,40 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 抑制某类 Issue：在目标区域的 NPC 记忆上标记抑制天数。
+        /// 抑制某类 Issue：写入 IssueFilterBehavior 的结构化抑制表。
+        /// IssueFilterPatch 在 AddPotentialIssueData 前检查此表，命中则拦截。
+        /// 抑制范围：源 questGiver 所在定居点的所有 NPC，指定 Issue 类型，持续 durationDays 天。
         /// </summary>
         private static void ExecuteSuppress(FollowUpEntry fu, Hero questGiver, Settlement targetSettlement)
         {
             int durationDays = fu.durationDays ?? 30;
-            // 对 questGiver 所在定居点附近的所有 Hero 设置 Issue 抑制
             var settlement = questGiver?.CurrentSettlement ?? targetSettlement;
             if (settlement == null) return;
 
-            // 简单实现：在 questGiver 的记忆中记录抑制
-            var mem = AllNpcMemoryManager.GetMemory(questGiver.StringId);
-            if (mem != null)
+            // 对定居点所有 Notable 注册抑制
+            int count = 0;
+            foreach (var notable in settlement.Notables)
             {
-                mem.AddHistory("system",
-                    $"CausalitySuppress|{fu.quest}|{durationDays}|{CampaignTime.Now.ToDays}");
+                if (notable == null || !notable.IsAlive) continue;
+                string issueTypeName = VanillaQuestMapping.GetIssueTypeNameForId(fu.quest);
+                if (string.IsNullOrEmpty(issueTypeName)) continue;
+
+                IssueFilterBehavior.RegisterSuppression(notable, issueTypeName, durationDays);
+                count++;
             }
+
+            DebugLogger.Log($"[QuestConsequence] Suppress: {fu.quest} @ {settlement.Name} × {count} NPCs, {durationDays}d");
         }
 
-        /// <summary>
-        /// 提升某类 Issue 权重：记录到 questGiver 的记忆中，供后续 Issue 生成时查询。
-        /// </summary>
-        private static void ExecuteBoostWeight(FollowUpEntry fu, Hero questGiver, Settlement targetSettlement)
-        {
-            int durationDays = fu.durationDays ?? 30;
-            double multiplier = fu.multiplier ?? 2.0;
-
-            var settlement = questGiver?.CurrentSettlement ?? targetSettlement;
-            if (settlement == null) return;
-
-            var mem = questGiver != null ? AllNpcMemoryManager.GetMemory(questGiver.StringId) : null;
-            if (mem != null)
-            {
-                mem.AddHistory("system",
-                    $"CausalityBoost|{fu.quest}|{multiplier}|{durationDays}|{CampaignTime.Now.ToDays}");
-            }
-        }
+        // ── 以下 BoostWeight 已废弃，已从 action 枚举移除 ──
 
         /// <summary>
         /// 排期生成 Issue：解析 giverRelation 找到正确的后续委托人，
         /// 生成 WorldEvent 标记，因果记忆只写入该委托人。
+        ///
+        /// DebugInstantFollowUps = true → 立即调用 IssueFactory 创建 Issue（跳过延迟）
+        /// DebugInstantFollowUps = false → 创建 WorldEvent，由 QuestConsequenceBehavior.DailyTick
+        ///   在到期时调用 IssueFactory 创建 Issue
         /// </summary>
         private static void ExecuteScheduleIssue(
             FollowUpEntry fu,
@@ -322,27 +315,74 @@ namespace LivingWorldNpcs
             var nextGiver = ResolveGiver(fu.giverRelation, questGiver, targetHero, targetSettlement);
             var nextSettlement = nextGiver?.CurrentSettlement ?? targetSettlement ?? questGiver?.CurrentSettlement;
 
-            // 生成 WorldEvent 标记（NoParty 类型），TargetHeroId 指向后续委托人
-            var worldEvent = new WorldEventData
-            {
-                EventId = $"causality_{sourceQuestId}_{fu.quest}_{System.DateTime.Now.Ticks}",
-                EventType = ResolveEventTypeForQuest(fu.quest),
-                Status = WorldEventStatus.Active,
-                TargetHeroId = nextGiver?.StringId ?? questGiver?.StringId,
-                InstigatorHeroId = targetHero?.StringId,
-                TargetSettlementId = nextSettlement?.StringId,
-                IsGenericInstigator = true,
-                CreatedDay = (float)CampaignTime.Now.ToDays,
-                DayLimit = delayDays + (fu.durationDays ?? 14),
-                Severity = 3,
-            };
-
-            WorldEventDatabase.AddEvent(worldEvent);
-
             // 因果记忆写入后续委托人（只写一个人，不广播）
             WriteCausalityMemory(sourceQuestId, fu.quest, nextGiver, questGiver, targetHero);
 
-            DebugLogger.Log($"[QuestConsequence] ScheduleIssue: {fu.quest} → giver={nextGiver?.Name} (relation={fu.giverRelation ?? "SameNpc"}) @ {delayDays}d delay, eventId={worldEvent.EventId}");
+            if (DebugInstantFollowUps || delayDays <= 0)
+            {
+                // 调试模式 / 零延迟：立即创建原版 Issue
+                var created = IssueFactory.CreateVanillaIssue(fu.quest, nextGiver, relatedObject: null);
+                DebugLogger.Log($"[QuestConsequence] ScheduleIssue(IMMEDIATE): {fu.quest} → giver={nextGiver?.Name} (relation={fu.giverRelation ?? "SameNpc"}) result={created != null}");
+                return;
+            }
+
+            // 正常模式：排入延迟队列，到期时由 QuestConsequenceBehavior.DailyTick 处理
+            float dueDay = (float)CampaignTime.Now.ToDays + delayDays;
+            var pending = new PendingIssueCreation
+            {
+                VanillaQuestId = fu.quest,
+                TargetHeroStringId = nextGiver?.StringId,
+                DueDay = dueDay,
+                SourceQuestId = sourceQuestId,
+                GiverRelation = fu.giverRelation,
+            };
+            PendingIssues.Add(pending);
+
+            DebugLogger.Log($"[QuestConsequence] ScheduleIssue(DELAYED): {fu.quest} → giver={nextGiver?.Name} (relation={fu.giverRelation ?? "SameNpc"}) @ day {(int)dueDay} (in {delayDays}d)");
+        }
+
+        // ── 延迟 Issue 创建队列 ──
+
+        /// <summary>
+        /// 待创建的 Issue（延迟到期后由 DailyTick 触发）。
+        /// </summary>
+        public class PendingIssueCreation
+        {
+            public string VanillaQuestId;
+            public string TargetHeroStringId;
+            public float DueDay;
+            public string SourceQuestId;
+            public string GiverRelation;
+        }
+
+        /// <summary>
+        /// 全局待处理队列。由 ExecuteScheduleIssue 写入，QuestConsequenceBehavior.DailyTick 消费。
+        /// </summary>
+        public static readonly List<PendingIssueCreation> PendingIssues = new List<PendingIssueCreation>();
+
+        /// <summary>
+        /// DailyTick 调用：检查队列中到期的 Issue 并创建。
+        /// </summary>
+        public static void ProcessPendingIssues()
+        {
+            if (PendingIssues.Count == 0) return;
+
+            float nowDay = (float)CampaignTime.Now.ToDays;
+            for (int i = PendingIssues.Count - 1; i >= 0; i--)
+            {
+                var p = PendingIssues[i];
+                if (nowDay < p.DueDay) continue;
+
+                // 到期——创建 Issue
+                var hero = Campaign.Current.CampaignObjectManager.Find<Hero>(p.TargetHeroStringId);
+                if (hero != null && hero.IsAlive)
+                {
+                    var created = IssueFactory.CreateVanillaIssue(p.VanillaQuestId, hero);
+                    DebugLogger.Log($"[QuestConsequence] ScheduleIssue(TRIGGERED): {p.VanillaQuestId} ← {p.SourceQuestId} → giver={hero.Name} result={created != null}");
+                }
+
+                PendingIssues.RemoveAt(i);
+            }
         }
 
         /// <summary>

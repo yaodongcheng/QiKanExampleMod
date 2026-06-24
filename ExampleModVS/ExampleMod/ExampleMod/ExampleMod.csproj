@@ -299,6 +299,7 @@
     <Compile Include="Quests\Causality\QuestConsequenceResolver.cs" />
     <Compile Include="Quests\Causality\QuestConsequenceBehavior.cs" />
     <Compile Include="Quests\Causality\VanillaQuestMapping.cs" />
+    <Compile Include="Quests\Causality\IssueFactory.cs" />
     <!-- Quest\Commissions -->
     <Compile Include="Quests\Commissions\CommissionData.cs" />
     <Compile Include="Quests\Commissions\CommissionQuest.cs" />
