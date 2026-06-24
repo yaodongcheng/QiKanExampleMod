@@ -1,5 +1,24 @@
-﻿[18:54:24.882] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "亨利..."
-[18:54:25.653] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "所以……怎么了？"
-[18:54:47.444] [VanillaDialog] Options (1): 我现在得走了。
-[18:54:47.445] [VanillaDialog] Player says: "我现在得走了。"
-[18:54:47.447] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "那后会有期吧。"
+﻿[19:41:42.509] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "亨利..."
+[19:41:43.394] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "所以……怎么了？"
+[19:41:44.193] [VanillaDialog] Options (1): 我现在得走了。
+[19:41:44.193] [VanillaDialog] Player says: "我现在得走了。"
+[19:41:44.195] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "那后会有期吧。"
+[19:42:25.417] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "亨利..."
+[19:42:27.720] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "所以……怎么了？"
+[19:42:28.720] [VanillaDialog] Player says: "我现在得走了。"
+[19:42:28.720] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "那后会有期吧。"
+[19:42:51.737] [IssueFactory] 成功创建原版 Issue: ExtortionByDesertersIssue → 特维亚的加里托普斯
+[19:43:05.529] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
+[19:43:06.579] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[19:43:06.579] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[19:43:06.584] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
+[19:43:07.490] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
+[19:43:08.473] [VanillaDialog] Options (2): 我听说你有个问题需要帮助。 | 我现在得走了。
+[19:43:08.473] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
+[19:43:08.475] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我觉得你帮不了我，你没有足够的士兵来应对这项任务。"
+[19:43:10.386] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
+[19:43:10.386] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我觉得你帮不了我，你没有足够的士兵来应对这项任务。"
+[19:43:11.426] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
+[19:43:11.426] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我觉得你帮不了我，你没有足够的士兵来应对这项任务。"
+[19:43:11.886] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
+[19:43:11.886] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我觉得你帮不了我，你没有足够的士兵来应对这项任务。"

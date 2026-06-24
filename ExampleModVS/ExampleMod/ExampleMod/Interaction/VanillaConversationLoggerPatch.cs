@@ -93,16 +93,9 @@ namespace LivingWorldNpcs
                     string npcInfo = "";
                     try
                     {
-                        Hero npcHero = null;
-                        CharacterObject npcChar = null;
-
                         // Try SpeakerAgent first (mission conversation, 3D scene)
-                        var speakerAgent = __instance.SpeakerAgent;
-                        if (speakerAgent != null)
-                        {
-                            npcChar = (CharacterObject)speakerAgent.Character;
-                            npcHero = npcChar?.HeroObject;
-                        }
+                        var npcChar = __instance.SpeakerAgent?.Character as CharacterObject;
+                        var npcHero = npcChar?.HeroObject;
 
                         // Fallback to OneToOneConversationHero (map conversation, text-based)
                         if (npcHero == null)
