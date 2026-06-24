@@ -2,6 +2,13 @@
 
 > **源文件**: `plans/quest-system-realignment.md`
 > **核心策略**: 旧代码保留编译但不执行，新代码并行添加。不删文件，不删枚举值。
+>
+> **状态更新**: 2026-06-24 — Phase 1 + Phase 2 已完整实施 ✅
+> - Phase 1.1~1.4: 全部落地
+> - Phase 1.5: 按计划延后
+> - Phase 2.1~2.5: 全部落地
+> - Phase 2.6: 按计划延后
+> - Phase 3~4: 延后
 
 ---
 
@@ -369,8 +376,9 @@ NPC 实际说出（填充后）：
 | `Quests/IssueFilterPatch.cs` | Harmony prefix on AddPotentialIssueData |
 | `Quests/IssueFilterBehavior.cs` | CampaignBehavior 注册 filter + 加载映射表 |
 | `Quests/Causality/QuestConsequenceResolver.cs` | JSON 驱动的因果引擎 |
-| `Quests/Causality/QuestConsequenceBehavior.cs` | CampaignBehavior 监听 QuestCompleted |
+| `Quests/Causality/QuestConsequenceBehavior.cs` | CampaignBehavior 监听 QuestCompleted + DailyTick 处理延迟 Issue |
 | `Quests/Causality/VanillaQuestMapping.cs` | 原版 Issue 类型 → VANILLA_* ID 映射 |
+| `Quests/Causality/IssueFactory.cs` | 🆕 统一反射构造原版 Issue，桥接 ScheduleIssue → CreateNewIssue |
 | `Quests/Causality/ReputationPropagation.cs` | 口碑传播（延后） |
 | `ModuleData/DesignData/causality_chains.json` | 因果链配置 |
 
@@ -401,6 +409,55 @@ NPC 实际说出（填充后）：
 | `[QuestConsequence]` | 因果链触发 | 源 Quest 完成 → 后续排入 |
 
 4. **不记录**：每次 Evaluate()、OnCheckForIssue、因果表加载成功、映射成功
+
+---
+
+## 实施状态（2026-06-24 核实）
+
+### Phase 1：切断旧调用 + 建立新桥接
+
+| 子项 | 文件 | 状态 |
+|------|------|:---:|
+| 1.1 停用 CommissionIssueBehavior | `Core/MySubModule.cs:149` | ✅ `// campaignGameStarter.AddBehavior(new CommissionIssueBehavior())` |
+| 1.1 注册 IssueFilterBehavior | `Core/MySubModule.cs:151` | ✅ `campaignGameStarter.AddBehavior(new IssueFilterBehavior())` |
+| 1.1 注册 QuestConsequenceBehavior | `Core/MySubModule.cs:154` | ✅ `campaignGameStarter.AddBehavior(new QuestConsequenceBehavior())` |
+| 1.2 Harmony prefix on AddPotentialIssueData | `Quests/IssueFilterPatch.cs` | ✅ 拦截紧急事件期间不兼容的 Issue 类型 |
+| 1.2 Issue 过滤映射表 + 日志汇总 | `Quests/IssueFilterBehavior.cs` | ✅ BanditRaid(11种)/NobleConflict(4种)/Famine(3种) 阻止列表 |
+| 1.3 CommissionIntent 重写 | `Quests/Commissions/CommissionIntent.cs` | ✅ RequestCommissionIntent 接入原版 Quest |
+| 1.3 ConfirmCommissionIntent 废弃 | `Quests/Commissions/CommissionIntent.cs` | ✅ 标记 `[Obsolete]`，Evaluate 返回 Hide |
+| 1.4 IntentRegistry 更新 | `Interaction/Intents/IntentRegistry.cs:46` | ✅ `// Register(new ConfirmCommissionIntent())` |
+| 1.5 战略一致性检查 | — | ⏸️ 按计划延后 |
+
+### Phase 2：因果引擎
+
+| 子项 | 文件 | 状态 |
+|------|------|:---:|
+| 2.1 QuestConsequenceResolver | `Quests/Causality/QuestConsequenceResolver.cs` | ✅ 因果引擎，2 种 action：ScheduleIssue + Suppress（BoostWeight 已废弃） |
+| 2.2 QuestConsequenceBehavior | `Quests/Causality/QuestConsequenceBehavior.cs` | ✅ 监听 `OnQuestCompletedEvent`，DailyTick 处理延迟 Issue |
+| 2.3 因果链 JSON | `ModuleData/DesignData/causality_chains.json` | ✅ BoostWeight 已全改为 ScheduleIssue / Suppress |
+| 2.4 VanillaQuestMapping | `Quests/Causality/VanillaQuestMapping.cs` | ✅ 40 种 Issue 类型名 → VANILLA_* ID |
+| ~~2.5 因果上下文注入对话~~ | — | ⏸️ 已在 CommissionIntent 中实现，无独立文件 |
+| 2.6 IssueFactory（ScheduleIssue 桥接） | `Quests/Causality/IssueFactory.cs` | ✅ **新增**：统一反射构造原版 Issue，对接 CreateNewIssue |
+| 2.7 延迟 Issue 队列 | `QuestConsequenceResolver.PendingIssues` + `QuestConsequenceBehavior.OnDailyTick` | ✅ DailyTick 检查到期 Issue 并调用 IssueFactory 创建 |
+| 2.8 口碑传播 | — | ⏸️ 按计划延后 |
+
+### Phase 3-4
+
+| 子项 | 状态 |
+|------|:---:|
+| PrisonBreak/Theft/Scavenge | ⏸️ 延后 |
+| CSV/LLM 叙事统一 | ⏸️ 延后 |
+| 旧代码清理 | ⏸️ 延后（新系统跑稳后） |
+
+### 已知差距
+
+> **2026-06-24 更新**：ScheduleIssue 和 Suppress 两路已全部桥接完毕。BoostWeight 已废弃移除。
+>
+> 现在两个 action 都能实际影响 Issue 生成：
+> - **ScheduleIssue** → `IssueFactory.CreateVanillaIssue()` → `IssueManager.CreateNewIssue()` → NPC 头上出 `!`
+> - **Suppress** → `IssueFilterBehavior.RegisterSuppression()` → `IssueFilterPatch.IsIssueSuppressed()` → 拦截 `AddPotentialIssueData`
+>
+> 无剩余差距。
 
 ---
 

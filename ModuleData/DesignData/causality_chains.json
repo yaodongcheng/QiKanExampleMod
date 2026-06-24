@@ -12,9 +12,9 @@
       },
       {
         "quest": "VANILLA_EscortMerchantCaravan",
-        "action": "BoostWeight",
-        "multiplier": 2.0,
-        "durationDays": 30,
+        "action": "ScheduleIssue",
+        "delayMin": 15, "delayMax": 30,
+        "probability": 0.7,
         "giverRelation": "SameSettlement",
         "comment": "商路安全，同定居点商人发布护送委托"
       },

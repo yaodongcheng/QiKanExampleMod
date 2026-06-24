@@ -16,11 +16,20 @@ namespace LivingWorldNpcs
         public override void RegisterEvents()
         {
             CampaignEvents.OnQuestCompletedEvent.AddNonSerializedListener(this, OnQuestCompleted);
+            CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
         }
 
         public override void SyncData(IDataStore dataStore)
         {
             // 无状态——因果表在 QuestConsequenceResolver 中管理
+        }
+
+        /// <summary>
+        /// 每日检查延迟 Issue 创建队列（ScheduleIssue 排入的）。
+        /// </summary>
+        private void OnDailyTick()
+        {
+            QuestConsequenceResolver.ProcessPendingIssues();
         }
 
         private void OnQuestCompleted(QuestBase quest, QuestBase.QuestCompleteDetails detail)
