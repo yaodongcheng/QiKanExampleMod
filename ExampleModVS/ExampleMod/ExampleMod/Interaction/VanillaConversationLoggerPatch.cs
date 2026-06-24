@@ -84,8 +84,41 @@ namespace LivingWorldNpcs
                 if (sentences != null && currentSentenceNo >= 0 && currentSentenceNo < sentences.Count)
                     isPlayer = sentences[currentSentenceNo].IsPlayer;
 
-                string tag = isPlayer ? "Player says" : "NPC says";
-                DebugLogger.Log($"[VanillaDialog] {tag}: \"{cleanText}\"");
+                if (isPlayer)
+                {
+                    DebugLogger.Log($"[VanillaDialog] Player says: \"{cleanText}\"");
+                }
+                else
+                {
+                    string npcInfo = "";
+                    try
+                    {
+                        Hero npcHero = null;
+                        CharacterObject npcChar = null;
+
+                        // Try SpeakerAgent first (mission conversation, 3D scene)
+                        var speakerAgent = __instance.SpeakerAgent;
+                        if (speakerAgent != null)
+                        {
+                            npcChar = (CharacterObject)speakerAgent.Character;
+                            npcHero = npcChar?.HeroObject;
+                        }
+
+                        // Fallback to OneToOneConversationHero (map conversation, text-based)
+                        if (npcHero == null)
+                            npcHero = __instance.OneToOneConversationHero;
+                        if (npcChar == null && npcHero != null)
+                            npcChar = npcHero.CharacterObject;
+
+                        if (npcHero != null)
+                            npcInfo = $" | NPC: {npcHero.Name} (HeroId: {npcHero.StringId})";
+                        else if (npcChar != null)
+                            npcInfo = $" | NPC: {npcChar.Name} (CharacterId: {npcChar.StringId})";
+                    }
+                    catch { }
+
+                    DebugLogger.Log($"[VanillaDialog] NPC {npcInfo} says: \"{cleanText}\"");
+                }
             }
             catch { }
         }
