@@ -123,6 +123,7 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 | [原版Quest案例源码分析](Knowledge/quest_example.md) | 🔴 **5 个原版 Quest 源码级案例分析**：MerchantNeedsHelpWithOutlaws / NotableWantsDaughterFound / FamilyFeud / RevenueFarming / EscortMerchantCaravan，含完整调用链、反编译代码、横向对比、设计模板 | 新增 Issue/Quest 的架构参考、理解原版事件驱动模式 |
 | [🔴 原版40+任务完整分析](Knowledge/vanilla_quests/README.md) | 🔴 **40+ 任务全目录 + 可复用模式 + 完整 API 参考**：按表现力/进度/NPC/事件/经济/道德抉择/部队AI/资源互斥分类的可复用接口目录，43 个任务的快速参考卡，15 个深度分析 | **设计新任务/新委托前的第一站** — 查模式、找接口、copy API 签名 |
 | [🔴 原版过场动画系统完整参考](Knowledge/vanilla_cutscenes/README.md) | 🔴 **25 个 SceneNotification 过场动画完整列举**：每个场景的 SceneID、角色槽位、可替换的 CharacterObject/Equipment、文本 ID 与变量、触发事件。含婚礼/加冕/死亡/建国/新生儿/处决/龙旗任务等 | **新增过场动画或替换场景角色时的第一站** — 查可用场景模板、复用引擎 SceneID |
+| [骑砍2大地图联机技术原理](Knowledge/骑砍2大地图联机技术原理.md) | 🔴 **Campaign 联机架构全览**：Server-Authoritative 模型、ProtoBuf 序列化、Harmony Transpiler 注入、时间流逝同步（TickMapTime/IsMainPartyWaiting）、场景切换矛盾（强制同队 vs 世界不暂停 vs 冻结）、坐镇 vs 亲自战斗收益平衡、BannerlordCoop 与希绝 Online 技术对比 | 规划联机功能、理解 Campaign/Mission 并行化矛盾、未来 LLM-NPC 联机行为同步 |
 
 ## 工作流约定
 
