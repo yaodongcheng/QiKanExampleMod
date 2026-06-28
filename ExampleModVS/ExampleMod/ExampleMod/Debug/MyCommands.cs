@@ -187,110 +187,87 @@ namespace LivingWorldNpcs
         {
             if (Mission.Current == null) return "Please Enter the mission First.";
             int radius = 0;
-            if(args.Count >0)
+            if (args.Count > 0)
             {
                 string radiusStr = args[0];
                 radius = int.Parse(radiusStr);
             }
-            var allAgents = Mission.Current.Agents;
+
             MBList<Agent> nearbyAgents = new MBList<Agent>();
             if (radius > 0)
             {
-                 Mission.Current.GetNearbyAgents(Agent.Main.Position.AsVec2, radius, nearbyAgents);
+                Mission.Current.GetNearbyAgents(Agent.Main.Position.AsVec2, radius, nearbyAgents);
             }
 
-            // 使用 StringBuilder 提高性能
+            // ── 确定迭代源 ──
+            var source = radius > 0
+                ? nearbyAgents
+                : new MBList<Agent>(Mission.Current.Agents);
+
             StringBuilder sb = new StringBuilder();
-            int count = 0;
-            int totalCount = Mission.Current.AllAgents.Count;
+            int humanCount = 0;
+            int animalCount = 0;
+            int mountCount = 0;
 
-            Vec3 eyePos = Agent.Main.GetEyeGlobalPosition();
-            Vec3 lookDir = Agent.Main.LookFrame.rotation.f.NormalizedCopy();
-            Agent deadAgent = Mission.Current.AllAgents.FirstOrDefault(a => !Mission.Current.Agents.Contains(a));
-            if(deadAgent != null)
+            sb.AppendLine($"\n=== Agent Report ({source.Count} active, {Mission.Current.AllAgents.Count} total) ===");
+            sb.AppendLine();
+
+            foreach (Agent agent in source)
             {
-                sb.AppendLine($"--- Detected Dead Agent: {deadAgent.Name} (ID: {deadAgent.Character.StringId}) ---");
-                sb.AppendLine($"IsHuman? {deadAgent.IsHuman} IsActive? {deadAgent.IsActive()} HasCharacter? {deadAgent.Character}");
-                Vec3 targetPos = deadAgent.Position;
-                targetPos.z += 0.5f;
+                if (agent == null) continue;
 
-                // 计算从眼睛指向尸体的向量
-                Vec3 dirToTarget = (targetPos - eyePos).NormalizedCopy();
-
-                // 计算点积 (1.0 = 正中心, 0 = 垂直, -1 = 背后)
-                float dot = Vec3.DotProduct(lookDir, dirToTarget);
-                sb.AppendLine($"Dot Product with Look Direction: {dot}");
-            }
-
-
-
-            if (radius == 0)
-            {
-                foreach (Agent agent in Mission.Current.Agents)
+                if (agent.IsHuman)
                 {
-                    // 1. 过滤掉非人类（马匹、攻城器械等）
-                    //if (!agent.IsHuman) continue;
-
-                    // 2. 过滤掉死人（如果你只想看活着的）
-                    //if (!agent.IsActive()) continue;
-
-                    // 3. 安全获取名字
-                    // 有些 Agent 可能没有 Name 属性，或者名字是空的
+                    humanCount++;
                     string name = agent.Name;
-                    string id = agent.Character.StringId;
+                    string id = agent.Character?.StringId ?? "?";
+
                     if (string.IsNullOrWhiteSpace(name) && agent.Character != null)
-                    {
-                        // 如果 Name 属性为空，尝试获取 Character 定义的名字
-                        name = agent.Character.Name.ToString();
-                        id = agent.Character.StringId;
-                    }
+                        name = agent.Character.Name?.ToString() ?? "?";
 
-                    if(!string.IsNullOrWhiteSpace(name))
-                    {
-                        name = "empty name";
-                    }
+                    if (string.IsNullOrWhiteSpace(name))
+                        name = "(unnamed)";
 
-                        sb.Append($"{name}:{id}");
-                        sb.Append(" | ");
-                        if (count % 3 == 0)
-                            sb.Append(" \n ");
-                        count++;
+                    sb.Append($"[H] {name}:{id}");
                 }
-            }
-            else
-            {
-                foreach (Agent agent in nearbyAgents)
+                else
                 {
-                    // 1. 过滤掉非人类（马匹、攻城器械等）
-                    //if (!agent.IsHuman) continue;
-
-                    // 2. 过滤掉死人（如果你只想看活着的）
-                    //if (!agent.IsActive()) continue;
-
-                    // 3. 安全获取名字
-                    // 有些 Agent 可能没有 Name 属性，或者名字是空的
+                    string monster = agent.Monster?.StringId ?? "?";
                     string name = agent.Name;
-                    string id = agent.Character.StringId;
-                    if (string.IsNullOrWhiteSpace(name) && agent.Character != null)
+                    string id = agent.Character?.StringId ?? "-";
+
+                    if (string.IsNullOrWhiteSpace(name))
+                        name = id != "-" ? id : $"(animal_{monster})";
+
+                    if (monster.Contains("horse") || monster.Contains("camel") || monster.Contains("mule"))
                     {
-                        // 如果 Name 属性为空，尝试获取 Character 定义的名字
-                        name = agent.Character.Name.ToString();
-                        id = agent.Character.StringId;
+                        mountCount++;
+                        sb.Append($"[Mount] {name} monster={monster}");
                     }
-                    if (!string.IsNullOrWhiteSpace(name))
+                    else
                     {
-                        name = "empty name";
+                        animalCount++;
+                        sb.Append($"[Animal] {name} monster={monster}");
                     }
-                        sb.Append($"{name}:{id}");
-                        sb.Append(" | ");
-                        if (count % 3 == 0)
-                            sb.Append(" \n ");
-                        count++;
                 }
+
+                sb.Append(" | ");
+                if ((humanCount + animalCount + mountCount) % 3 == 0)
+                    sb.AppendLine();
             }
-            if (count == 0) return "There is no visiable Npc in this mission.";
-            // 4. 打印总数，防止看起来像没输出
-            return $"Find {count}/{totalCount}  NPC: \n" + sb.ToString();
+
+            sb.AppendLine();
+            sb.AppendLine("--- Summary ---");
+            sb.AppendLine($"Humans: {humanCount}");
+            sb.AppendLine($"Animals: {animalCount}");
+            sb.AppendLine($"Mounts: {mountCount}");
+
+            if (animalCount == 0 && mountCount == 0)
+                sb.AppendLine("(No animal/mount agents found)");
+
+            string result = sb.ToString();
+            DebugLogger.Log(result);
+            return result;
         }
 
 
@@ -1251,6 +1228,150 @@ namespace LivingWorldNpcs
             {
                 return "Exception occurred: " + ex.Message;
             }
+        }
+
+        /// <summary>
+        /// 打印当前 Mission 中的所有 GameEntity。
+        /// 用法:
+        ///   custom.print_entities                    → 摘要：总数 + Tag 分布 + 最近 20 个实体
+        ///   custom.print_entities animal             → 过滤 Tag 包含 "animal"
+        ///   custom.print_entities goose              → 过滤 Name 包含 "goose"
+        ///   custom.print_entities all 10             → 距离玩家 10 米内的所有实体
+        ///   custom.print_entities animal 15          → Tag=animal 且距离 15 米内
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("print_entities", "custom")]
+        public static string ExecutePrintEntities(List<string> args)
+        {
+            if (Mission.Current == null || Mission.Current.Scene == null)
+                return "Error: not in mission.";
+
+            string filter = null;
+            float maxDist = -1f;
+
+            if (args.Count >= 1 && args[0].ToLower() != "all")
+                filter = args[0].ToLower();
+            if (args.Count >= 2)
+                float.TryParse(args[1], out maxDist);
+            if (args.Count >= 1 && args[0].ToLower() == "all" && args.Count == 1)
+                maxDist = -1f; // no filter, no distance = summary mode
+
+            // ── 收集所有实体 ──
+            List<GameEntity> allEntities = new List<GameEntity>();
+            Mission.Current.Scene.GetEntities(ref allEntities);
+
+            if (allEntities.Count == 0)
+                return "No GameEntities found in this scene.";
+
+            Vec3 playerPos = Agent.Main?.Position ?? Vec3.Zero;
+
+            // ── 过滤 ──
+            List<GameEntity> filtered = new List<GameEntity>();
+            foreach (var e in allEntities)
+            {
+                if (e == null) continue;
+
+                // 距离过滤
+                if (maxDist > 0)
+                {
+                    float dist = e.GlobalPosition.Distance(playerPos);
+                    if (dist > maxDist) continue;
+                }
+
+                // Tag/Name 过滤
+                if (!string.IsNullOrEmpty(filter))
+                {
+                    bool tagMatch = false;
+                    string[] tags = e.Tags;
+                    if (tags != null)
+                    {
+                        foreach (var t in tags)
+                        {
+                            if (t.ToLower().Contains(filter))
+                            { tagMatch = true; break; }
+                        }
+                    }
+                    bool nameMatch = (e.Name?.ToLower().Contains(filter) ?? false);
+                    if (!tagMatch && !nameMatch) continue;
+                }
+
+                filtered.Add(e);
+            }
+
+            // ── 构建 Tag 分布统计 ──
+            Dictionary<string, int> tagCounts = new Dictionary<string, int>();
+            foreach (var e in allEntities)
+            {
+                if (e?.Tags == null) continue;
+                foreach (var t in e.Tags)
+                {
+                    if (string.IsNullOrWhiteSpace(t)) continue;
+                    string tl = t.ToLower();
+                    if (tagCounts.ContainsKey(tl))
+                        tagCounts[tl]++;
+                    else
+                        tagCounts[tl] = 1;
+                }
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"\n══════════ GameEntity Report ══════════");
+            sb.AppendLine($"Total entities in scene: {allEntities.Count}");
+            sb.Append($"Filter: ");
+            if (!string.IsNullOrEmpty(filter)) sb.Append($"tag/name='{filter}' ");
+            else sb.Append("none ");
+            if (maxDist > 0) sb.Append($"dist<={maxDist}m ");
+            else sb.Append("(all distances) ");
+            sb.AppendLine();
+            sb.AppendLine($"Matched: {filtered.Count}");
+
+            // ── Tag 分布（Top 30） ──
+            sb.AppendLine($"\n--- Tag Distribution (top 30 of {tagCounts.Count} unique) ---");
+            int tagIdx = 0;
+            foreach (var kv in tagCounts.OrderByDescending(kv => kv.Value).Take(30))
+            {
+                tagIdx++;
+                sb.Append($"  [{kv.Key}]:{kv.Value}  ");
+                if (tagIdx % 5 == 0) sb.AppendLine();
+            }
+            sb.AppendLine();
+
+            // ── 详细列表（最多 50 个） ──
+            int maxShow = 50;
+            sb.AppendLine($"\n--- Matched Entities (showing {Math.Min(filtered.Count, maxShow)} of {filtered.Count}) ---");
+
+            // 按距离排序
+            var sorted = filtered
+                .Select(e => new { Entity = e, Dist = e.GlobalPosition.Distance(playerPos) })
+                .OrderBy(x => x.Dist)
+                .Take(maxShow);
+
+            int idx = 0;
+            foreach (var item in sorted)
+            {
+                idx++;
+                GameEntity e = item.Entity;
+                string name = string.IsNullOrWhiteSpace(e.Name) ? "(unnamed)" : e.Name;
+                string tags = e.Tags != null && e.Tags.Length > 0
+                    ? string.Join(" ", e.Tags) : "(no tags)";
+                Vec3 pos = e.GlobalPosition;
+                int children = e.ChildCount;
+
+                sb.Append($"[{idx}] {name}");
+                sb.Append($"  dist={item.Dist:F1}m");
+                sb.Append($"  pos=({pos.x:F1},{pos.y:F1},{pos.z:F1})");
+                if (children > 0) sb.Append($"  children={children}");
+                sb.AppendLine();
+                sb.AppendLine($"    tags: {tags}");
+            }
+
+            if (filtered.Count > maxShow)
+                sb.AppendLine($"  ... and {filtered.Count - maxShow} more (use filter to narrow)");
+
+            sb.AppendLine("══════════════════════════════════════════");
+
+            string result = sb.ToString();
+            DebugLogger.Log(result);
+            return result;
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("print_focus", "custom")]

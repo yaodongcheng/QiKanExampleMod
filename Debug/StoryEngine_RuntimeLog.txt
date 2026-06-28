@@ -1,16 +1,5 @@
-﻿[13:41:33.725] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_shield_bash'
-[13:41:33.726] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
-[13:41:33.726] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_shield_bash' (expected 'act_shield_bash')
-[13:41:34.331] [ForcePlayAction] 帝国女农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[13:41:34.331] [ForcePlayAction] 帝国女农民 action_set: 'as_human_female_villager_2' → 'as_human_warrior'
-[13:41:34.331] [ForcePlayAction] Result: 帝国女农民 char=village_woman_empire female=True age=66 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[13:41:34.334] [AI-Debug] Suspend 帝国女农民 (Idx=25) | 集合size=1
-[13:41:34.334] [Knockout] 亨利 knocked out 帝国女农民 from behind (anim: act_shield_bash)
-[13:41:42.201] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_shield_bash'
-[13:41:42.201] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
-[13:41:42.201] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_shield_bash' (expected 'act_shield_bash')
-[13:41:42.811] [ForcePlayAction] 帝国农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[13:41:42.811] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager_3' → 'as_human_warrior'
-[13:41:42.812] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=54 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[13:41:42.812] [AI-Debug] Suspend 帝国农民 (Idx=18) | 集合size=2
-[13:41:42.812] [Knockout] 亨利 knocked out 帝国农民 from behind (anim: act_shield_bash)
+﻿[14:46:48.838] [TryStealAnimal] 肉猪 (monster=hog) → item=hog (肉猪)
+[14:47:26.828] [TryStealAnimal] 鹅 (monster=goose) → item=goose (鹅)
+[14:47:31.100] [TryStealAnimal] 肉猪 (monster=hog) → item=hog (肉猪)
+[14:47:37.757] [TryStealAnimal] 鸡 (monster=chicken) → item=chicken (鸡)
+[14:47:40.784] [TryStealAnimal] 鸡 (monster=chicken) → item=chicken (鸡)
