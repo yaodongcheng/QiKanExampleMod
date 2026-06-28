@@ -55,7 +55,11 @@ namespace LivingWorldNpcs
         // 缓存变量，用于去重，避免每帧刷新UI
         private Agent _lastFocusedAgent = null;
         private bool _lastAgentWasAlive = false;
-        private bool _lastCanSteal = false;
+        private bool _lastIsBehind = false;
+        private bool _lastWasCrouching = false;
+
+        // 击晕追踪：记录被玩家从背后击晕的Agent
+        private HashSet<Agent> _knockedOutAgents = new HashSet<Agent>();
 
 
         public MissionScreen thisMissionScreen;
@@ -281,9 +285,17 @@ namespace LivingWorldNpcs
             {
                 if (_lastAgentWasAlive)
                 {
-                    if (_lastCanSteal)
+                    if (_lastIsBehind)
                     {
-                        TryStealFromAgent(_lastFocusedAgent);
+                        // 蹲伏=偷窃，站立=击晕
+                        if (IsMainAgentCrouching())
+                        {
+                            TryStealFromAgent(_lastFocusedAgent);
+                        }
+                        else
+                        {
+                            TryKnockoutAgent(_lastFocusedAgent);
+                        }
                     }
                     else
                     {
@@ -292,7 +304,7 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    // 尸体直接搜刮
+                    // 尸体/昏迷直接搜刮
                     LootAgent(_lastFocusedAgent, isStealing: false);
                 }
             }
@@ -330,15 +342,25 @@ namespace LivingWorldNpcs
 
             // C. 计算状态
             bool isAlive = currentAgent.IsActive();
-            bool isStealingConditionMet = isAlive && IsMainAgentCrouching() && IsBehindTarget(currentAgent);
+            bool isKnockedOut = _knockedOutAgents.Contains(currentAgent);
+
+            // 已被击晕的Agent视为失去行动能力（引擎可能未立即转为Unconscious时兜底）
+            if (isKnockedOut)
+            {
+                isAlive = false;
+            }
+
+            bool isBehind = isAlive && IsBehindTarget(currentAgent);
+            bool isCrouching = IsMainAgentCrouching();
 
 
             // E. 判断是否需要刷新 UI (对比上一状态)
             bool targetChanged = (currentAgent != _lastFocusedAgent);
             bool lifeStateChanged = (isAlive != _lastAgentWasAlive);
-            bool stealStateChanged = (isStealingConditionMet != _lastCanSteal);
+            bool behindStateChanged = (isBehind != _lastIsBehind);
+            bool crouchStateChanged = (isCrouching != _lastWasCrouching);
 
-            if (targetChanged || lifeStateChanged || stealStateChanged || !_interactVM.IsVisible)
+            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || !_interactVM.IsVisible)
             {
                 _interactVM.IsVisible = true;
                 IsHandlingInteraction = true;
@@ -347,19 +369,27 @@ namespace LivingWorldNpcs
 
                 if (isAlive)
                 {
-                    if (isStealingConditionMet)
+                    if (isBehind)
                     {
-                        actions.Add(("偷窃", "F"));
+                        // 蹲伏=偷窃，站立=击晕
+                        if (isCrouching)
+                        {
+                            actions.Add(("偷窃", "F"));
+                        }
+                        else
+                        {
+                            actions.Add(("击晕", "F"));
+                        }
                     }
                     else
                     {
                         actions.Add(("对话", "F"));
                     }
 
-                    
+
                      actions.Add(("闲聊", "G"));
                      actions.Add(("探查", "H"));
-                    
+
                 }
                 else
                 {
@@ -368,16 +398,17 @@ namespace LivingWorldNpcs
 
                 // 只有名字不为空才显示，避免报错
                 string name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : "未知";
-                if(!currentAgent.IsActive())
+                if (!currentAgent.IsActive())
                 {
-                    name += "(重伤)";
+                    name += isKnockedOut ? "(昏迷)" : "(重伤)";
                 }
                 _interactVM.UpdateTarget(name, actions);
 
                 // 更新对比缓存
                 _lastFocusedAgent = currentAgent;
                 _lastAgentWasAlive = isAlive;
-                _lastCanSteal = isStealingConditionMet;
+                _lastIsBehind = isBehind;
+                _lastWasCrouching = isCrouching;
             }
         }
 
@@ -759,6 +790,9 @@ namespace LivingWorldNpcs
             }
             _stealVM = null;
 
+            // 清除击晕记录
+            _knockedOutAgents?.Clear();
+
             //清除场景里临时Agent的临时记忆
             AllNpcMemoryManager.ClearTemporaryMemories();
         }
@@ -806,14 +840,82 @@ namespace LivingWorldNpcs
         private void TryStealFromAgent(Agent target)
         {
 
-         
+
                 InformationManager.DisplayMessage(new InformationMessage("你屏住呼吸，悄悄伸出了手...", Colors.Green));
 
                 // 【核心修改】：打开你的 Gauntlet UI
                 OpenStealInterface(target);
-           
 
-           
+
+
+        }
+
+        /// <summary>
+        /// 从背后击晕目标Agent。复用偷窃的蹲伏+背后判定。
+        /// 引擎 Immortal + Health=0 → AgentState.Unconscious（等同 ragdoll 倒地）。
+        /// 若引擎未自动处理，强制播放击倒动画兜底。
+        /// </summary>
+        private void TryKnockoutAgent(Agent target)
+        {
+            if (target == null || !target.IsActive()) return;
+
+            string targetName = target.Name?.ToString() ?? "目标";
+
+            // human_child monster 的骨骼比例（臂长 0.6、眼高 1.2）与 adult 不同，
+            // death_fall_front 动画无法在其骨架上播放，直接拒绝
+            string monsterId = target.Monster?.StringId;
+            if (monsterId == "human_child")
+            {
+                DebugLogger.Log($"[Knockout] Skipped {targetName}: monster={monsterId} — child skeleton incompatible");
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"{targetName} 年纪太小了，下不了手。", Colors.Gray));
+                return;
+            }
+
+            try
+            {
+                // 1. 设为 Immortal —— 防止致死，引擎将致命伤转为击晕(Unconscious)
+                //target.SetMortalityState(Agent.MortalityState.Immortal);
+
+                // 2. 血量打到 0 —— 触发引擎原生击晕管线
+                //target.Health = 0f;
+
+                // 3. 强制播放击倒动画（ForcePlayAction 会临时切到 as_human_warrior
+                //    以绕过村民/平民 action_set 缺乏战斗动作的问题）
+                if (target.IsActive())
+                {
+                    // act_death_fall_front: monster_usage_fall direction="back" death_type="knock_back"
+                    // 背后打击 → 受害者面朝下扑倒，表现最接近背后击晕
+                    AgentControlHelper.ForcePlayAction(target, "act_death_fall_front");
+
+                    // 走事件系统投递击晕事件 → Brain.ReceiveEvent 自动 Suspend + StayAction 占位
+                    AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
+
+                    target.SetScriptedFlags(AIScriptedFrameFlags.DoNotRun | AIScriptedFrameFlags.NoAttack);
+                }
+
+                // 4. 记录击晕
+                _knockedOutAgents.Add(target);
+
+             // AgentAIController.Instance?.BroadcastEventInRange(target.Position, 15f, "event_agent_damaged", Agent.Main, target);
+
+                // 6. UI 反馈
+                InformationManager.DisplayMessage(
+                    new InformationMessage($"从背后击晕了 {targetName}！", Colors.Green));
+
+                // 7. 隐藏交互 UI，重置状态
+                _interactVM.IsVisible = false;
+                IsHandlingInteraction = false;
+                _lastFocusedAgent = null;
+
+                DebugLogger.Log($"[Knockout] {Agent.Main.Name} knocked out {targetName} from behind");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Knockout] Error: {ex.Message}");
+                InformationManager.DisplayMessage(
+                    new InformationMessage("击晕失败", Colors.Red));
+            }
         }
 
         private List<Agent> _lootedCorpses = new List<Agent>(); // 用于记录已经搜刮过的尸体，避免重复搜刮

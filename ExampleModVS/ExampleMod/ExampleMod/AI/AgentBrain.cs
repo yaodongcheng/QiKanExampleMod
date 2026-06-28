@@ -219,6 +219,13 @@ namespace LivingWorldNpcs
                  //   DebugLogger.Log($"[严重错误] 处理 Agent {Owner.Name} 时发生异常: {ex.Message}\n堆栈: {ex.StackTrace}");
                 }
             }
+            else if (aiEvent.EventType == "event_agent_knocked_out")
+            {
+                // 被击晕：清除所有行为，StayAction 占位永不结束
+                // EnqueueAction 自动 SuspendVanillaAI，StayAction 防止 Brain 自动 Resume
+                ClearAllActions();
+                EnqueueAction(new StayAction(null, false));
+            }
         
                
 
