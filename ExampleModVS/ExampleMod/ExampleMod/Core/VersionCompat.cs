@@ -261,6 +261,20 @@ namespace LivingWorldNpcs
         // ── Ray cast (GameEntity vs WeakGameEntity) ───────────────
         // Latest OnRegisterBlow uses WeakGameEntity, but general raycast is the same
 
+        /// <summary>
+        /// 射线检测最近的 Agent（屏蔽版本差异：out dist 参数位置不同）。
+        /// v1.2.12: out dist 在第 3 位；Latest: out dist 在最后。
+        /// </summary>
+        public static Agent RayCastForClosestAgent(Vec3 rayStart, Vec3 rayEnd, int excludedAgentIndex,
+            out float collisionDistance, float rayThickness = 0.1f)
+        {
+#if !MB2_V1212
+            return Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, excludedAgentIndex, rayThickness, out collisionDistance);
+#else
+            return Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, out collisionDistance, excludedAgentIndex, rayThickness);
+#endif
+        }
+
         public static bool RayBlocked(Vec3 from, Vec3 to, float maxDist)
         {
 #if !MB2_V1212

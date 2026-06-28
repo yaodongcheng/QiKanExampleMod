@@ -25,6 +25,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.MissionViews;
 using TaleWorlds.MountAndBlade.View.Screens;
 using TaleWorlds.MountAndBlade.ViewModelCollection;
+using TaleWorlds.ObjectSystem;
 using TaleWorlds.ScreenSystem;
 using static TaleWorlds.MountAndBlade.Agent;
 
@@ -57,6 +58,7 @@ namespace LivingWorldNpcs
         private bool _lastAgentWasAlive = false;
         private bool _lastIsBehind = false;
         private bool _lastWasCrouching = false;
+        private bool _lastWasAnimal = false;
 
         // 击晕追踪：记录被玩家从背后击晕的Agent
         private HashSet<Agent> _knockedOutAgents = new HashSet<Agent>();
@@ -151,10 +153,26 @@ namespace LivingWorldNpcs
         }
 
 
+        // ── 动物 Agent 识别 ──
+        // 村庄场景中的牲畜（羊/牛/猪/鹅/鸡）是 IsHuman=false 的 Agent，
+        // Monster.StringId 区分种类，Character 为 null
+        private static readonly HashSet<string> AnimalMonsters = new HashSet<string>
+        {
+            "sheep", "cow", "hog", "goose", "chicken"
+        };
+
+        private static bool IsAnimalAgent(Agent agent)
+        {
+            if (agent == null || agent.IsHuman) return false;
+            string monster = agent.Monster?.StringId;
+            return monster != null && AnimalMonsters.Contains(monster);
+        }
+
         public void ProcessAgentCandidate(Agent agent, Vec3 eyePos, Vec3 lookDir, float maxDistanceSq, float minDot, ref float bestDot, ref Agent bestAgent)
         {
             // 1. 快速排除
-            if (agent == null || agent == Agent.Main || !agent.IsHuman) return;
+            if (agent == null || agent == Agent.Main) return;
+            if (!agent.IsHuman && !IsAnimalAgent(agent)) return;
 
             // 2. 视野缓存预检查：不在玩家视野内直接跳过（NpcSightSystem ~1s 更新一次）
             var sight = NpcSightSystem.Instance;
@@ -196,19 +214,21 @@ namespace LivingWorldNpcs
             Vec3 rayDir = cam.Direction;
             float maxDistance = 7.0f;
             Vec3 rayEnd = rayStart + rayDir * maxDistance;
-#if !MB2_V1212
             float dist = 0;
-            Agent raycastedAgent = Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, Agent.Main.Index, 0.1f, out dist);
-#else
-            float dist = 0;
-            Agent raycastedAgent = Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, out dist, Agent.Main.Index, 0.1f);
-#endif
+            Agent raycastedAgent = V.RayCastForClosestAgent(rayStart, rayEnd, Agent.Main.Index, out dist, 0.1f);
             //去掉IsActive 不然人死了就拿不到了
-            if(raycastedAgent != null && raycastedAgent.IsHuman && raycastedAgent.Character != null && raycastedAgent.Character.Name.ToString() != "")
+            // 人类：需要 Character 有名字；动物：IsHuman=false，靠 Monster 识别
+            if (raycastedAgent != null)
             {
-               //  InformationManager.DisplayMessage(new InformationMessage($"射线检测 找到了{dist}米的 {raycastedAgent.Character.Name}"));
-                return raycastedAgent;
+                bool isHumanTarget = raycastedAgent.IsHuman
+                    && raycastedAgent.Character != null
+                    && !string.IsNullOrWhiteSpace(raycastedAgent.Character.Name?.ToString());
+                bool isAnimalTarget = IsAnimalAgent(raycastedAgent);
 
+                if (isHumanTarget || isAnimalTarget)
+                {
+                    return raycastedAgent;
+                }
             }
             // =================================================================
             // 第二阶段：广域模糊搜索 (Cone/DotProduct Search)
@@ -283,7 +303,15 @@ namespace LivingWorldNpcs
 
             if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.F))
             {
-                if (_lastAgentWasAlive)
+                // 动物：活的偷，死的搜刮
+                if (_lastWasAnimal)
+                {
+                    if (_lastAgentWasAlive)
+                        TryStealAnimal(_lastFocusedAgent);
+                    else
+                        LootAgent(_lastFocusedAgent, isStealing: false);
+                }
+                else if (_lastAgentWasAlive)
                 {
                     if (_lastIsBehind)
                     {
@@ -341,6 +369,7 @@ namespace LivingWorldNpcs
             }
 
             // C. 计算状态
+            bool isAnimal = IsAnimalAgent(currentAgent);
             bool isAlive = currentAgent.IsActive();
             bool isKnockedOut = _knockedOutAgents.Contains(currentAgent);
 
@@ -350,8 +379,8 @@ namespace LivingWorldNpcs
                 isAlive = false;
             }
 
-            bool isBehind = isAlive && IsBehindTarget(currentAgent);
-            bool isCrouching = IsMainAgentCrouching();
+            bool isBehind = !isAnimal && isAlive && IsBehindTarget(currentAgent);
+            bool isCrouching = !isAnimal && IsMainAgentCrouching();
 
 
             // E. 判断是否需要刷新 UI (对比上一状态)
@@ -359,15 +388,28 @@ namespace LivingWorldNpcs
             bool lifeStateChanged = (isAlive != _lastAgentWasAlive);
             bool behindStateChanged = (isBehind != _lastIsBehind);
             bool crouchStateChanged = (isCrouching != _lastWasCrouching);
+            bool animalStateChanged = (isAnimal != _lastWasAnimal);
 
-            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || !_interactVM.IsVisible)
+            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || !_interactVM.IsVisible)
             {
                 _interactVM.IsVisible = true;
                 IsHandlingInteraction = true;
 
                 var actions = new List<(string, string)>();
 
-                if (isAlive)
+                if (isAnimal)
+                {
+                    // 动物：活的可偷，死的搜刮
+                    if (isAlive)
+                    {
+                        actions.Add(("偷", "F"));
+                    }
+                    else
+                    {
+                        actions.Add(("搜刮", "F"));
+                    }
+                }
+                else if (isAlive)
                 {
                     if (isBehind)
                     {
@@ -397,10 +439,19 @@ namespace LivingWorldNpcs
                 }
 
                 // 只有名字不为空才显示，避免报错
-                string name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : "未知";
+                string name;
+                if (isAnimal)
+                {
+                    // 动物：用 agent.Name（"鹅"/"羊" 等），没有 Character
+                    name = !string.IsNullOrWhiteSpace(currentAgent.Name) ? currentAgent.Name.Trim() : "动物";
+                }
+                else
+                {
+                    name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : "未知";
+                }
                 if (!currentAgent.IsActive())
                 {
-                    name += isKnockedOut ? "(昏迷)" : "(重伤)";
+                    name += isAnimal ? "(死亡)" : (isKnockedOut ? "(昏迷)" : "(重伤)");
                 }
                 _interactVM.UpdateTarget(name, actions);
 
@@ -409,6 +460,7 @@ namespace LivingWorldNpcs
                 _lastAgentWasAlive = isAlive;
                 _lastIsBehind = isBehind;
                 _lastWasCrouching = isCrouching;
+                _lastWasAnimal = isAnimal;
             }
         }
 
@@ -835,6 +887,73 @@ namespace LivingWorldNpcs
                 Mission.Current?.EndMission();
             }
 
+        }
+
+        /// <summary>
+        /// 偷牲畜：将动物 Agent 转化为玩家库存中的牲畜物品（ItemType.Animal）。
+        /// </summary>
+        private void TryStealAnimal(Agent animal)
+        {
+            if (animal == null || !animal.IsActive()) return;
+
+            string animalName = animal.Name ?? "动物";
+            string monsterId = animal.Monster?.StringId;
+
+            // ── 步骤 1：查找对应的牲畜物品 ──
+            // 两轮策略（铁律 5）：先精确 ID 匹配，再遍历内存兜底
+            ItemObject livestockItem = null;
+            if (!string.IsNullOrEmpty(monsterId))
+            {
+                // 第一轮：精确 ID 匹配
+                livestockItem = MBObjectManager.Instance.GetObject<ItemObject>(monsterId);
+            }
+
+            if (livestockItem == null)
+            {
+                // 第二轮：遍历所有 Animal 类型物品，按名字匹配
+                livestockItem = MBObjectManager.Instance.GetObject<ItemObject>(item =>
+                    item.Type == ItemObject.ItemTypeEnum.Animal &&
+                    item.Name?.ToString().IndexOf(monsterId ?? "", StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            // 兜底：按动物 Monster 名模糊匹配（处理 goose→Goose 之类的大小写）
+            if (livestockItem == null && !string.IsNullOrEmpty(monsterId))
+            {
+                livestockItem = MBObjectManager.Instance.GetObject<ItemObject>(item =>
+                    item.Type == ItemObject.ItemTypeEnum.Animal &&
+                    item.Name?.ToString().IndexOf(animalName, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            if (livestockItem == null)
+            {
+                string errMsg = $"无法将 {animalName}（monster={monsterId}）转化为库存物品——未找到匹配的 Animal 类型物品";
+                DebugLogger.Log($"[TryStealAnimal] {errMsg}");
+                InformationManager.DisplayMessage(new InformationMessage(errMsg, Colors.Red));
+                return;
+            }
+
+            // ── 步骤 2：将牲畜物品加入玩家库存 ──
+            MobileParty.MainParty.ItemRoster.AddToCounts(livestockItem, 1);
+
+            // ── 步骤 3：消除场景中的动物 Agent ──
+            try
+            {
+                animal.FadeOut(false, true);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[TryStealAnimal] FadeOut error: {ex.Message}");
+            }
+
+            // ── 步骤 4：UI 反馈 ──
+            string msg = $"获得了 {livestockItem.Name}！";
+            InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Green));
+            DebugLogger.Log($"[TryStealAnimal] {animalName} (monster={monsterId}) → item={livestockItem.StringId} ({livestockItem.Name})");
+
+            // 隐藏交互 UI
+            _interactVM.IsVisible = false;
+            IsHandlingInteraction = false;
+            _lastFocusedAgent = null;
         }
 
         private void TryStealFromAgent(Agent target)
