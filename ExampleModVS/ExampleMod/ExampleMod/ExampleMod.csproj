@@ -330,6 +330,7 @@
     <!-- Stealth -->
     <Compile Include="Stealth\StealManager.cs" />
     <Compile Include="Stealth\StealVM.cs" />
+    <Compile Include="Stealth\VillageAnimalTracker.cs" />
     <!-- Story (was StoryEngineBag) -->
     <Compile Include="Story\AIStoryAdapt.cs" />
     <Compile Include="Story\AIStoryGenerator.cs" />
