@@ -250,6 +250,7 @@
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="Debug\MyCustomUIVM.cs" />
     <!-- Interaction -->
+    <Compile Include="Interaction\DialogueInjector.cs" />
     <Compile Include="Interaction\InteractionController.cs" />
     <Compile Include="Interaction\Intents\IntentContext.cs" />
     <Compile Include="Interaction\Intents\IntentBase.cs" />
