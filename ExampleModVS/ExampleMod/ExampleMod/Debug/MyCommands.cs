@@ -2213,6 +2213,46 @@ namespace LivingWorldNpcs
             }
         }
 
+        // ═══════════════════════════════════════════════════════
+        // 对话注入调试指令
+        // ═══════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 从 JSON 文件注入动态对话到当前 NPC 的对话树中。
+        /// 用法:
+        ///   custom.inject_dialogue test_talk           → 加载 test_talk.json
+        ///   custom.inject_dialogue my_dialogue.json    → 加载 my_dialogue.json
+        ///   custom.inject_dialogue clear               → 清除所有注入的对话
+        ///
+        /// 文件查找顺序:
+        ///   1. Modules/LivingWorldNpcs/ModuleData/test_dialogues/&lt;name&gt;.json
+        ///   2. 文档/Mount and Blade II Bannerlord/Configs/&lt;name&gt;.json
+        ///
+        /// JSON 格式见 ModuleData/test_dialogues/_sample.json
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("inject_dialogue", "custom")]
+        public static string InjectDialogueFromJson(List<string> args)
+        {
+            if (Campaign.Current == null)
+                return "Error: Campaign not loaded.";
+
+            if (args.Count >= 1 && args[0].ToLower() == "clear")
+                return DialogueInjector.ClearAll();
+
+            if (args.Count == 0)
+                return "Usage: custom.inject_dialogue <jsonFileName>\n" +
+                       "       custom.inject_dialogue clear\n\n" +
+                       "File is loaded from:\n" +
+                       "  Modules/LivingWorldNpcs/ModuleData/test_dialogues/<name>.json\n" +
+                       "  or Documents/Mount and Blade II Bannerlord/Configs/<name>.json";
+
+            string jsonPath = DialogueInjector.FindJsonFile(args[0]);
+            if (jsonPath == null)
+                return DialogueInjector.GetSearchPathsDescription(args[0]);
+
+            return DialogueInjector.InjectFromJson(jsonPath);
+        }
+
         /// <summary>
         /// 反射调用 quest 的私有 QuestAcceptedConsequences()，
         /// 确保任务日志和进度条正确初始化。

@@ -1,0 +1,126 @@
+{
+  "_说明": [
+    "对话注入测试。用法: 控制台 custom.inject_dialogue test_talk，然后跟任意NPC交谈。",
+    "",
+    "═══ 结构说明 ═══",
+    "每个 turn 有唯一 Id，NPC 说一句话，下面挂多个选项。",
+    "每个选项的 NextTurn 指向下一个 turn 的 Id——不同选项可以走向完全不同的后续对话。",
+    "NextTurn = null 表示这条线到此结束（NPC回应后自动关闭对话）。",
+    "EntryTurn 指定对话从哪个 turn 开始。",
+    "",
+    "图示:",
+    "  [start]  NPC: 啊，你来得正好！",
+    "    ├─ 选项「什么怪事？」   → NPC: … →   NextTurn: more_detail",
+    "    ├─ 选项「我没空」       → NPC: … →   NextTurn: null (结束)",
+    "    └─ 选项「有什么好处？」 → NPC: … →   NextTurn: more_detail",
+    "  [more_detail]  NPC: 而且不止如此...",
+    "    ├─ 选项「我帮你查」     → NPC: … →   NextTurn: null (结束)",
+    "    ├─ 选项「你有仇家吗？」 → NPC: … →   NextTurn: ask_enemy",
+    "    └─ 选项「别疑神疑鬼」   → NPC: … →   NextTurn: goodbye",
+    "  [ask_enemy]  NPC: 你这么一说...",
+    "    └─ ... → NextTurn: goodbye",
+    "  [goodbye]  NPC: 无论如何...",
+    "    └─ ... → NextTurn: null (结束)",
+    "",
+    "这样你一眼就能看出来：选「我没空」→ 立刻结束；选「什么怪事」→ 进入 more_detail；",
+    "选「你有仇家吗？」→ 进入 ask_enemy；选「别疑神疑鬼」→ 跳到 goodbye。"
+  ],
+
+  "InjectAtToken": null,
+  "EntryTurn": "start",
+
+  "turns": [
+    {
+      "Id": "start",
+      "SpeakerIndex": 0,
+      "NpcLine": "啊，你来得正好！我最近遇到了一件怪事……",
+      "Options": [
+        {
+          "PlayerLine": "什么怪事？说来听听。",
+          "NpcResponse": "最近夜里总有人在村子附近转悠，我怀疑是土匪在踩点。",
+          "NextTurn": "more_detail"
+        },
+        {
+          "PlayerLine": "我没时间管闲事。",
+          "NpcResponse": "也是……打扰了。",
+          "NextTurn": null
+        },
+        {
+          "PlayerLine": "帮你处理这件事，有什么好处？",
+          "NpcResponse": "你果然是个精明人——100第纳尔，怎么样？",
+          "Action": "GIVE_GOLD",
+          "ActionValue": 100,
+          "NextTurn": "more_detail"
+        }
+      ]
+    },
+    {
+      "Id": "more_detail",
+      "SpeakerIndex": 0,
+      "NpcLine": "而且不止如此——前天夜里，我亲眼看见有人影从粮仓后面窜出来，还带着火把！",
+      "Options": [
+        {
+          "PlayerLine": "这确实可疑。我帮你查查。",
+          "NpcResponse": "太感谢了！我会在村里等你消息。",
+          "Action": "INCREASE_RELATION",
+          "ActionValue": 5,
+          "NextTurn": "goodbye"
+        },
+        {
+          "PlayerLine": "你有仇家吗？会不会是冲着你来的？",
+          "NpcResponse": "仇家……倒是有几个。让我想想……村里张三上个月因为地界的事跟我闹过，李四也一直对我家那片林子虎视眈眈。",
+          "Action": "INCREASE_RELATION",
+          "ActionValue": 3,
+          "NextTurn": "ask_enemy"
+        },
+        {
+          "PlayerLine": "别疑神疑鬼的，说不定只是野猫。",
+          "NpcResponse": "野猫可不会带火把……但也许你是对的，我再观察几天。",
+          "Action": "DECREASE_RELATION",
+          "ActionValue": 2,
+          "NextTurn": "goodbye"
+        }
+      ]
+    },
+    {
+      "Id": "ask_enemy",
+      "SpeakerIndex": 0,
+      "NpcLine": "你这么一说，张三那个家伙确实可疑。上个月他还放话说要让我好看……你能帮我去他家附近看看吗？",
+      "Options": [
+        {
+          "PlayerLine": "行，我去探探虚实。",
+          "NpcResponse": "拜托你了！他家在村子东头，那个红顶的房子就是。",
+          "Action": "INCREASE_RELATION",
+          "ActionValue": 5,
+          "NextTurn": "goodbye"
+        },
+        {
+          "PlayerLine": "这是你们之间的私人恩怨，我不掺和。",
+          "NpcResponse": "好吧……我理解。",
+          "Action": "DECREASE_RELATION",
+          "ActionValue": 1,
+          "NextTurn": "goodbye"
+        }
+      ]
+    },
+    {
+      "Id": "goodbye",
+      "SpeakerIndex": 0,
+      "NpcLine": "无论如何，跟你聊过之后我心里踏实多了。如果你以后在村子附近看到可疑的人，请一定来告诉我。",
+      "Options": [
+        {
+          "PlayerLine": "我会留意的。",
+          "NpcResponse": "谢谢你，愿主保佑你。",
+          "NextTurn": null
+        },
+        {
+          "PlayerLine": "别指望我免费当保安。",
+          "NpcResponse": "……我明白了。",
+          "Action": "DECREASE_RELATION",
+          "ActionValue": 3,
+          "NextTurn": null
+        }
+      ]
+    }
+  ]
+}
