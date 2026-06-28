@@ -855,7 +855,7 @@ namespace LivingWorldNpcs
         /// 引擎 Immortal + Health=0 → AgentState.Unconscious（等同 ragdoll 倒地）。
         /// 若引擎未自动处理，强制播放击倒动画兜底。
         /// </summary>
-        private void TryKnockoutAgent(Agent target)
+        private async void TryKnockoutAgent(Agent target)
         {
             if (target == null || !target.IsActive()) return;
 
@@ -872,15 +872,25 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            string attackAnim = "act_1h_bash";
+
             try
             {
-                // 1. 设为 Immortal —— 防止致死，引擎将致命伤转为击晕(Unconscious)
-                //target.SetMortalityState(Agent.MortalityState.Immortal);
+                // 1. ★ 玩家攻击动作：朝向目标 + 根据武器选择打击动画
+                Agent mainAgent = Agent.Main;
+                if (mainAgent != null && mainAgent.IsActive())
+                {
+                    
+                    AgentControlHelper.FaceToActor(mainAgent, target);    
 
-                // 2. 血量打到 0 —— 触发引擎原生击晕管线
-                //target.Health = 0f;
+                    EquipmentIndex mainWpn = V.MainWpn(mainAgent);
+                    attackAnim = mainWpn != EquipmentIndex.None ? "act_1h_bash" : "act_shield_bash";
+                    AgentControlHelper.ForcePlayAction(mainAgent, attackAnim);
+                    await Task.Delay(600);
+              
+                }
 
-                // 3. 强制播放击倒动画（ForcePlayAction 会临时切到 as_human_warrior
+                // 2. 强制播放击倒动画（ForcePlayAction 会临时切到 as_human_warrior
                 //    以绕过村民/平民 action_set 缺乏战斗动作的问题）
                 if (target.IsActive())
                 {
@@ -894,21 +904,19 @@ namespace LivingWorldNpcs
                     target.SetScriptedFlags(AIScriptedFrameFlags.DoNotRun | AIScriptedFrameFlags.NoAttack);
                 }
 
-                // 4. 记录击晕
+                // 3. 记录击晕
                 _knockedOutAgents.Add(target);
 
-             // AgentAIController.Instance?.BroadcastEventInRange(target.Position, 15f, "event_agent_damaged", Agent.Main, target);
-
-                // 6. UI 反馈
+                // 4. UI 反馈
                 InformationManager.DisplayMessage(
                     new InformationMessage($"从背后击晕了 {targetName}！", Colors.Green));
 
-                // 7. 隐藏交互 UI，重置状态
+                // 5. 隐藏交互 UI，重置状态
                 _interactVM.IsVisible = false;
                 IsHandlingInteraction = false;
                 _lastFocusedAgent = null;
 
-                DebugLogger.Log($"[Knockout] {Agent.Main.Name} knocked out {targetName} from behind");
+                DebugLogger.Log($"[Knockout] {Agent.Main.Name} knocked out {targetName} from behind (anim: {attackAnim})");
             }
             catch (Exception ex)
             {

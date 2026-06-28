@@ -43,6 +43,8 @@ LLMService.CleanJson(raw);             // 静态，剥离 markdown ```json 包�
 ```csharp
 // 动画
 AgentControlHelper.SetPose(agent, actionId);  GetPose(agent);  IsPlayingPose(agent, actionId);
+// 强制动画（绕过 action_set 限制，临时切换到 as_human_warrior）
+AgentControlHelper.ForcePlayAction(agent, actionId, restoreAfter = false);
 // 移动（async 自动寻路+等待）
 await AgentControlHelper.MoveTo(agent, targetVec, targetDir, stopDistance = 0.5f);
 await AgentControlHelper.MoveToActor(npc, actor, stopDistance = 0.5f);

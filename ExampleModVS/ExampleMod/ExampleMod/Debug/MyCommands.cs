@@ -161,6 +161,8 @@ namespace LivingWorldNpcs
 
             try
             {
+
+                
                 // 3. 将字符串ID转换为游戏引擎可识别的 Index
                 // 这里的 actionName 就是你在 XML 文件里找到的那个 id="xxx"
                 ActionIndexCache actionIndex = ActionIndexCache.Create(actionName);
