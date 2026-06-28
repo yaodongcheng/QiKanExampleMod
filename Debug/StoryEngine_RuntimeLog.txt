@@ -1,5 +1,150 @@
-﻿[14:46:48.838] [TryStealAnimal] 肉猪 (monster=hog) → item=hog (肉猪)
-[14:47:26.828] [TryStealAnimal] 鹅 (monster=goose) → item=goose (鹅)
-[14:47:31.100] [TryStealAnimal] 肉猪 (monster=hog) → item=hog (肉猪)
-[14:47:37.757] [TryStealAnimal] 鸡 (monster=chicken) → item=chicken (鸡)
-[14:47:40.784] [TryStealAnimal] 鸡 (monster=chicken) → item=chicken (鸡)
+﻿[18:59:20.371] === [TradeScreen] 特维亚 (village_ES3_2) ItemRoster animals ===
+  sheep      x12
+  ================================================
+
+[18:59:25.073] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       12       0        
+  cow        10       0        0        decorative (not in roster)
+  hog        10       0        0        decorative (not in roster)
+  goose      5        0        0        decorative (not in roster)
+  chicken    16       0        0        decorative (not in roster)
+  =========================================
+
+[18:59:25.073] [AnimalSync] Topped up 羊: roster 12 → 16 (natural=16 stolen=0)
+[18:59:25.073] [AnimalSync] Topped up 牛: roster 0 → 10 (natural=10 stolen=0)
+[18:59:25.074] [AnimalSync] Topped up 肉猪: roster 0 → 10 (natural=10 stolen=0)
+[18:59:25.074] [AnimalSync] Topped up 鹅: roster 0 → 5 (natural=5 stolen=0)
+[18:59:25.074] [AnimalSync] Topped up 鸡: roster 0 → 16 (natural=16 stolen=0)
+[18:59:25.074] [AnimalSync] 特维亚: topped up 45 animal(s) in ItemRoster
+[18:59:30.111] === [TradeScreen] 特维亚 (village_ES3_2) ItemRoster animals ===
+  sheep      x16
+  cow        x10
+  hog        x10
+  goose      x5
+  chicken    x16
+  ================================================
+
+[18:59:30.122] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:30.122] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:30.122] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:30.122] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:30.123] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:30.123] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:30.123] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:30.124] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:30.146] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:30.151] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:30.151] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:30.152] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:30.672] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:30.739] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:30.789] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:31.238] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:31.655] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:31.705] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:31.763] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:33.172] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:33.721] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:34.288] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:35.005] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:38.822] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:39.071] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:39.189] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:39.271] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:46.443] === [TradeScreen] 特维亚 (village_ES3_2) ItemRoster animals ===
+  sheep      x16
+  cow        x10
+  hog        x10
+  goose      x5
+  chicken    x16
+  ================================================
+
+[18:59:46.454] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:46.454] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:46.454] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:46.454] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:46.454] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:46.454] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:46.454] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:46.454] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:46.477] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:46.477] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:46.477] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:46.477] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:46.654] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:46.888] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:47.022] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:47.089] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:47.721] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:48.471] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:49.121] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:49.638] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:49.888] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[18:59:50.304] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[18:59:50.355] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[18:59:50.389] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[18:59:54.937] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       16       0        
+  cow        10       10       0        
+  hog        10       10       0        
+  goose      5        5        0        
+  chicken    16       16       0        
+  =========================================
+
+[19:00:08.320] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_pickup_down_begin'
+[19:00:08.320] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
+[19:00:08.321] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_pickup_down_begin' (expected 'act_pickup_down_begin')
+[19:00:08.725] [TryStealAnimal] Deducted 1 hog from 特维亚 ItemRoster (was 10)
+[19:00:08.732] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_pickup_down_end'
+[19:00:08.732] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
+[19:00:08.732] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_pickup_down_end' (expected 'act_pickup_down_end')
+[19:00:08.732] [TryStealAnimal] 肉猪 (monster=hog) → item=hog (肉猪)
+[19:00:20.765] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_pickup_down_begin'
+[19:00:20.765] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
+[19:00:20.765] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_pickup_down_begin' (expected 'act_pickup_down_begin')
+[19:00:21.168] [TryStealAnimal] Deducted 1 chicken from 特维亚 ItemRoster (was 16)
+[19:00:21.169] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_pickup_down_end'
+[19:00:21.169] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
+[19:00:21.169] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_pickup_down_end' (expected 'act_pickup_down_end')
+[19:00:21.169] [TryStealAnimal] 鸡 (monster=chicken) → item=chicken (鸡)
+[19:00:31.000] === [TradeScreen] 特维亚 (village_ES3_2) ItemRoster animals ===
+  sheep      x16
+  cow        x10
+  hog        x9
+  goose      x5
+  chicken    x15
+  ================================================
+
+[19:00:31.002] [AnimalPrice] 特维亚: 肉猪 non-native, 14 → 4 (sell x0.3)
+[19:00:31.003] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[19:00:31.003] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[19:00:31.003] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[19:00:31.003] [AnimalPrice] 特维亚: 鸡 non-native, 25 → 7 (sell x0.3)
+[19:00:31.004] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[19:00:31.004] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[19:00:31.004] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[19:00:31.004] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[19:00:31.004] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[19:00:31.004] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[19:00:31.004] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[19:00:31.029] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[19:00:31.029] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[19:00:31.029] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[19:00:31.030] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[19:00:31.405] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[19:00:31.821] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[19:00:32.304] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[19:00:32.604] [AnimalPrice] 特维亚: 肉猪 non-native, 32 → 160 (buy x5)
+[19:00:33.330] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[19:00:33.420] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[19:00:33.971] [AnimalPrice] 特维亚: 鸡 non-native, 57 → 285 (buy x5)
+[19:00:34.854] [AnimalPrice] 特维亚: 鹅 non-native, 57 → 285 (buy x5)
+[19:00:34.904] [AnimalPrice] 特维亚: 牛 non-native, 456 → 2280 (buy x5)
+[19:00:36.055] [AnimalPrice] 特维亚: 鸡 non-native, 25 → 7 (sell x0.3)
+[19:00:36.287] [AnimalPrice] 特维亚: 肉猪 non-native, 14 → 4 (sell x0.3)
+[19:00:37.237] [AnimalPrice] 特维亚: 鸡 non-native, 25 → 7 (sell x0.3)
+[19:00:37.721] [AnimalPrice] 特维亚: 鸡 non-native, 25 → 7 (sell x0.3)

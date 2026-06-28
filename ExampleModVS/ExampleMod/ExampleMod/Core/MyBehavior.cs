@@ -29,6 +29,9 @@ namespace LivingWorldNpcs
         {
             AgentControlHelper.TransferGold(null, Hero.MainHero, 100, notify: false);
             InformationManager.DisplayMessage(new InformationMessage($"每日收入 +{100}"));
+
+            // 村庄动物自然恢复：每天每种被偷动物恢复 1 只
+            VillageAnimalTracker.DecayDaily();
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -105,8 +108,12 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_stability", ref stabilityJson);
             if (dataStore.IsLoading)
                 WorldEventSimulator.DeserializeStability(stabilityJson);
+
+            // 村庄动物偷窃追踪（自然恢复 + 场景裁剪）
+            string animalTheftJson = VillageAnimalTracker.Serialize();
+            dataStore.SyncData("lwn_animal_theft", ref animalTheftJson);
             if (dataStore.IsLoading)
-                StrategicInfiltration.Deserialize(infiltrationJson);
+                VillageAnimalTracker.Deserialize(animalTheftJson);
         }
 
         private void OnTick(float dt)

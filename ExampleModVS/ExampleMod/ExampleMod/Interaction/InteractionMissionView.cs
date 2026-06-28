@@ -16,6 +16,7 @@ using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.CampaignSystem.Inventory;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Engine.GauntletUI;
@@ -59,6 +60,12 @@ namespace LivingWorldNpcs
         private bool _lastIsBehind = false;
         private bool _lastWasCrouching = false;
         private bool _lastWasAnimal = false;
+
+        // 偷动物并发守卫：防止动画期间重复触发
+        private bool _isStealingAnimal = false;
+
+        // 场景动物同步：首帧只执行一次
+        private bool _animalSyncDone = false;
 
         // 击晕追踪：记录被玩家从背后击晕的Agent
         private HashSet<Agent> _knockedOutAgents = new HashSet<Agent>();
@@ -156,7 +163,7 @@ namespace LivingWorldNpcs
         // ── 动物 Agent 识别 ──
         // 村庄场景中的牲畜（羊/牛/猪/鹅/鸡）是 IsHuman=false 的 Agent，
         // Monster.StringId 区分种类，Character 为 null
-        private static readonly HashSet<string> AnimalMonsters = new HashSet<string>
+        internal static readonly HashSet<string> AnimalMonsters = new HashSet<string>
         {
             "sheep", "cow", "hog", "goose", "chicken"
         };
@@ -168,6 +175,44 @@ namespace LivingWorldNpcs
             return monster != null && AnimalMonsters.Contains(monster);
         }
 
+        // ── 动物 Monster.StringId → 牲畜 ItemObject 静态缓存 ──
+        // 惰性初始化，避免每次偷动物都遍历全部物品（铁律 5 两轮策略）
+        private static readonly Dictionary<string, ItemObject> _monsterToLivestockItem = new Dictionary<string, ItemObject>();
+
+        internal static ItemObject GetLivestockItemForAnimal(string monsterId, string animalName)
+        {
+            if (string.IsNullOrEmpty(monsterId)) return null;
+
+            // 缓存命中
+            if (_monsterToLivestockItem.TryGetValue(monsterId, out ItemObject cached))
+                return cached;
+
+            ItemObject item = null;
+
+            // 第一轮：精确 ID 匹配
+            item = MBObjectManager.Instance.GetObject<ItemObject>(monsterId);
+
+            // 第二轮：遍历所有 Animal 类型物品，按 monster ID 模糊匹配
+            if (item == null)
+            {
+                item = MBObjectManager.Instance.GetObject<ItemObject>(i =>
+                    i.Type == ItemObject.ItemTypeEnum.Animal &&
+                    i.Name?.ToString().IndexOf(monsterId, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            // 兜底：按动物显示名匹配（处理 goose→Goose 大小写差异）
+            if (item == null && !string.IsNullOrEmpty(animalName))
+            {
+                item = MBObjectManager.Instance.GetObject<ItemObject>(i =>
+                    i.Type == ItemObject.ItemTypeEnum.Animal &&
+                    i.Name?.ToString().IndexOf(animalName, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            if (item != null)
+                _monsterToLivestockItem[monsterId] = item;
+            return item;
+        }
+
         public void ProcessAgentCandidate(Agent agent, Vec3 eyePos, Vec3 lookDir, float maxDistanceSq, float minDot, ref float bestDot, ref Agent bestAgent)
         {
             // 1. 快速排除
@@ -175,8 +220,14 @@ namespace LivingWorldNpcs
             if (!agent.IsHuman && !IsAnimalAgent(agent)) return;
 
             // 2. 视野缓存预检查：不在玩家视野内直接跳过（NpcSightSystem ~1s 更新一次）
+            //    注意：NpcSightSystem.TickTrackedTarget 过滤了非人类 Agent，导致
+            //    IsPlayerSeeing 对动物永远返回 false。动物只依赖后续距离+点积判定。
             var sight = NpcSightSystem.Instance;
-            if (sight != null && !sight.IsPlayerSeeing(agent)) return;
+            if (sight != null && !sight.IsPlayerSeeing(agent))
+            {
+                if (!IsAnimalAgent(agent)) return; // 人类视野不够→跳过
+                // 动物：跳过视野预检，继续进入距离+点积判定
+            }
 
             // 3. 距离剔除 (Distance Squared)
             float distSq = agent.Position.DistanceSquared(eyePos);
@@ -503,6 +554,13 @@ namespace LivingWorldNpcs
                 }
                 // 未找到则等下一帧
                 return;
+            }
+
+            // ── 场景动物同步：首帧按 ItemRoster 裁剪多余动物（铁律 5 动态物品查找 + 村庄库存真相源）──
+            if (!_animalSyncDone)
+            {
+                _animalSyncDone = true;
+                SyncSceneAnimalsWithInventory();
             }
 
 
@@ -890,70 +948,270 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 偷牲畜：将动物 Agent 转化为玩家库存中的牲畜物品（ItemType.Animal）。
+        /// 场景进入时按 VillageAnimalTracker 持久化记录裁剪被偷过的动物。
+        /// 只移除该村庄有偷窃记录的类型，不会误删装饰性动物。
+        /// 自然恢复由 MyBehavior.DailyTick → VillageAnimalTracker.DecayDaily 驱动。
         /// </summary>
-        private void TryStealAnimal(Agent animal)
+        private void SyncSceneAnimalsWithInventory()
+        {
+            Settlement settlement = Settlement.CurrentSettlement;
+            if (settlement == null || !settlement.IsVillage) return;
+            if (Mission.Current == null) return;
+
+            string settlementId = settlement.StringId;
+            if (string.IsNullOrEmpty(settlementId)) return;
+
+            // ── 第一步：收集数据 + 缓存自然数 ──
+            // 场景动物（按 monsterId 分组）
+            var sceneAnimalsByMonster = new Dictionary<string, List<Agent>>();
+            foreach (Agent agent in Mission.Current.Agents)
+            {
+                if (!IsAnimalAgent(agent) || !agent.IsActive()) continue;
+                string monsterId = agent.Monster?.StringId;
+                if (string.IsNullOrEmpty(monsterId)) continue;
+
+                if (!sceneAnimalsByMonster.ContainsKey(monsterId))
+                    sceneAnimalsByMonster[monsterId] = new List<Agent>();
+                sceneAnimalsByMonster[monsterId].Add(agent);
+            }
+
+            // 缓存自然生成数（第一次进场景时记录，后续不变）
+            foreach (var kvp in sceneAnimalsByMonster)
+                VillageAnimalTracker.SetNaturalCount(settlementId, kvp.Key, kvp.Value.Count);
+
+            // ItemRoster 中的牲畜物品
+            var rosterAnimals = new Dictionary<string, int>(); // monsterId → count
+            foreach (var monsterId in AnimalMonsters)
+            {
+                ItemObject item = GetLivestockItemForAnimal(monsterId, null);
+                if (item == null) continue;
+                int count = settlement.ItemRoster.GetItemNumber(item);
+                if (count > 0)
+                    rosterAnimals[monsterId] = count;
+            }
+
+            // ── 第二步：打印对比日志 ──
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"=== [AnimalSync] {settlement.Name} ({settlementId}) ===");
+            sb.AppendLine($"  {"Type",-10} {"Scene",-8} {"Roster",-8} {"Stolen",-8} Action");
+            sb.AppendLine($"  {"----",-10} {"-----",-8} {"------",-8} {"------",-8} ------");
+
+            foreach (var monsterId in AnimalMonsters)
+            {
+                int sceneCount = sceneAnimalsByMonster.TryGetValue(monsterId, out var list) ? list.Count : 0;
+                int rosterCount = rosterAnimals.TryGetValue(monsterId, out int rc) ? rc : 0;
+                int stolenCount = VillageAnimalTracker.GetStolenCount(settlementId, monsterId);
+                string action = "";
+                if (stolenCount > 0 && sceneCount > 0)
+                {
+                    int toRemove = Math.Min(stolenCount, sceneCount);
+                    action = $"remove {toRemove}";
+                }
+                else if (sceneCount > 0 && rosterCount == 0)
+                {
+                    action = "decorative (not in roster)";
+                }
+                else if (rosterCount > 0 && sceneCount == 0)
+                {
+                    action = "roster-only (no scene spawn)";
+                }
+
+                if (sceneCount > 0 || rosterCount > 0 || stolenCount > 0)
+                    sb.AppendLine($"  {monsterId,-10} {sceneCount,-8} {rosterCount,-8} {stolenCount,-8} {action}");
+            }
+            sb.AppendLine($"  =========================================");
+            DebugLogger.Log(sb.ToString());
+
+            // ── 第三步：按偷窃记录裁剪场景动物 ──
+            if (sceneAnimalsByMonster.Count == 0) return;
+
+            int totalRemoved = 0;
+            Vec3 playerPos = Agent.Main?.Position ?? Vec3.Zero;
+
+            foreach (var kvp in sceneAnimalsByMonster)
+            {
+                string monsterId = kvp.Key;
+                int stolenCount = VillageAnimalTracker.GetStolenCount(settlementId, monsterId);
+                if (stolenCount <= 0) continue;
+
+                List<Agent> agents = kvp.Value;
+                int sceneCount = agents.Count;
+                int toRemove = Math.Min(stolenCount, sceneCount);
+
+                var sorted = agents.OrderByDescending(a => a.Position.DistanceSquared(playerPos)).ToList();
+
+                for (int i = 0; i < toRemove; i++)
+                {
+                    try
+                    {
+                        sorted[i].FadeOut(false, true);
+                        totalRemoved++;
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[AnimalSync] FadeOut error for {sorted[i].Name}: {ex.Message}");
+                    }
+                }
+            }
+
+            if (totalRemoved > 0)
+                DebugLogger.Log($"[AnimalSync] {settlement.Name}: removed {totalRemoved} stolen animal(s) across {sceneAnimalsByMonster.Count} type(s)");
+
+            // ── 第四步：ItemRoster 补足（用缓存自然数 - 被偷数）──
+            TopUpRosterToNaturalCounts(settlement);
+        }
+
+        /// <summary>
+        /// 按缓存自然数补足 ItemRoster：自然数 - 被偷数 = 应存数量，只补不删。
+        /// 可从场景进入或村庄菜单调用（无场景依赖）。
+        /// </summary>
+        internal static void TopUpRosterToNaturalCounts(Settlement settlement)
+        {
+            if (settlement == null || !settlement.IsVillage) return;
+            string settlementId = settlement.StringId;
+            if (string.IsNullOrEmpty(settlementId)) return;
+
+            int totalToppedUp = 0;
+            foreach (var monsterId in AnimalMonsters)
+            {
+                int natural = VillageAnimalTracker.GetNaturalCount(settlementId, monsterId);
+                if (natural <= 0) continue; // 未缓存
+
+                ItemObject item = GetLivestockItemForAnimal(monsterId, null);
+                if (item == null) continue;
+
+                int stolen = VillageAnimalTracker.GetStolenCount(settlementId, monsterId);
+                int expected = natural - stolen;
+                if (expected < 0) expected = 0;
+
+                int current = settlement.ItemRoster.GetItemNumber(item);
+                int deficit = expected - current;
+                if (deficit > 0)
+                {
+                    settlement.ItemRoster.AddToCounts(item, deficit);
+                    totalToppedUp += deficit;
+#if DEBUG
+                    DebugLogger.Log($"[AnimalSync] Topped up {item.Name}: roster {current} → {expected} (natural={natural} stolen={stolen})");
+#endif
+                }
+            }
+
+            if (totalToppedUp > 0)
+                DebugLogger.Log($"[AnimalSync] {settlement.Name}: topped up {totalToppedUp} animal(s) in ItemRoster");
+        }
+
+        /// <summary>
+        /// 偷牲畜：将动物 Agent 转化为玩家库存中的牲畜物品（ItemType.Animal）。
+        /// 异步播放蹲下采集动画 → 查找物品 → 加入背包 + 扣村庄库存 → 消除动物 → 站起。
+        /// </summary>
+        private async void TryStealAnimal(Agent animal)
         {
             if (animal == null || !animal.IsActive()) return;
+
+            // ── 并发守卫：防止动画期间重复触发 ──
+            if (_isStealingAnimal) return;
+            _isStealingAnimal = true;
+
+            // 立即隐藏交互 UI，防止动画期间被重新聚焦
+            _interactVM.IsVisible = false;
+            IsHandlingInteraction = false;
+            _lastFocusedAgent = null;
+
+            Agent mainAgent = Agent.Main;
+            if (mainAgent == null || !mainAgent.IsActive())
+            {
+                _isStealingAnimal = false;
+                return;
+            }
 
             string animalName = animal.Name ?? "动物";
             string monsterId = animal.Monster?.StringId;
 
-            // ── 步骤 1：查找对应的牲畜物品 ──
-            // 两轮策略（铁律 5）：先精确 ID 匹配，再遍历内存兜底
-            ItemObject livestockItem = null;
-            if (!string.IsNullOrEmpty(monsterId))
-            {
-                // 第一轮：精确 ID 匹配
-                livestockItem = MBObjectManager.Instance.GetObject<ItemObject>(monsterId);
-            }
-
-            if (livestockItem == null)
-            {
-                // 第二轮：遍历所有 Animal 类型物品，按名字匹配
-                livestockItem = MBObjectManager.Instance.GetObject<ItemObject>(item =>
-                    item.Type == ItemObject.ItemTypeEnum.Animal &&
-                    item.Name?.ToString().IndexOf(monsterId ?? "", StringComparison.OrdinalIgnoreCase) >= 0);
-            }
-
-            // 兜底：按动物 Monster 名模糊匹配（处理 goose→Goose 之类的大小写）
-            if (livestockItem == null && !string.IsNullOrEmpty(monsterId))
-            {
-                livestockItem = MBObjectManager.Instance.GetObject<ItemObject>(item =>
-                    item.Type == ItemObject.ItemTypeEnum.Animal &&
-                    item.Name?.ToString().IndexOf(animalName, StringComparison.OrdinalIgnoreCase) >= 0);
-            }
-
-            if (livestockItem == null)
-            {
-                string errMsg = $"无法将 {animalName}（monster={monsterId}）转化为库存物品——未找到匹配的 Animal 类型物品";
-                DebugLogger.Log($"[TryStealAnimal] {errMsg}");
-                InformationManager.DisplayMessage(new InformationMessage(errMsg, Colors.Red));
-                return;
-            }
-
-            // ── 步骤 2：将牲畜物品加入玩家库存 ──
-            MobileParty.MainParty.ItemRoster.AddToCounts(livestockItem, 1);
-
-            // ── 步骤 3：消除场景中的动物 Agent ──
             try
             {
-                animal.FadeOut(false, true);
+                // ── 步骤 1：面向动物 ──
+                AgentControlHelper.FaceToActor(mainAgent, animal);
+
+                // ── 步骤 2：播放蹲下拾取动画 ──
+                AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_begin");
+                await Task.Delay(400);
+
+                // ── 步骤 3：再次确认动物存活 ──
+                if (animal == null || !animal.IsActive())
+                {
+                    InformationManager.DisplayMessage(
+                        new InformationMessage("动物跑掉了...", Colors.Gray));
+                    AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
+                    return;
+                }
+
+                // ── 步骤 4：查找对应的牲畜物品（静态缓存，惰性初始化）──
+                ItemObject livestockItem = GetLivestockItemForAnimal(monsterId, animalName);
+
+                if (livestockItem == null)
+                {
+                    string errMsg = $"无法将 {animalName}（monster={monsterId}）转化为库存物品——未找到匹配的 Animal 类型物品";
+                    DebugLogger.Log($"[TryStealAnimal] {errMsg}");
+                    InformationManager.DisplayMessage(new InformationMessage(errMsg, Colors.Red));
+                    AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
+                    return;
+                }
+
+                // ── 步骤 5：将牲畜物品加入玩家库存（Grant from world，铁律 4.②）──
+                MobileParty.MainParty.ItemRoster.AddToCounts(livestockItem, 1);
+
+                // ── 步骤 5b：从定居点库存扣除（Sink to world，铁律 4.② 收发）──
+                //   ItemRoster 由引擎原生存档，扣除后自动跨存档生效。
+                Settlement settlement = Settlement.CurrentSettlement;
+                if (settlement != null && settlement.IsVillage)
+                {
+                    int currentStock = settlement.ItemRoster.GetItemNumber(livestockItem);
+                    if (currentStock > 0)
+                    {
+                        settlement.ItemRoster.AddToCounts(livestockItem, -1);
+                        DebugLogger.Log($"[TryStealAnimal] Deducted 1 {livestockItem.StringId} from {settlement.Name} ItemRoster (was {currentStock})");
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"[TryStealAnimal] {settlement.Name} has 0 {livestockItem.StringId} in ItemRoster — skip deduction");
+                    }
+
+                    // ── 步骤 5c：记录偷窃追踪（持久化，自然恢复：每天每种恢复 1 只）──
+                    VillageAnimalTracker.RecordTheft(settlement.StringId, monsterId);
+                }
+
+                // ── 步骤 6：消除场景中的动物 Agent ──
+                try
+                {
+                    animal.FadeOut(false, true);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[TryStealAnimal] FadeOut error: {ex.Message}");
+                }
+
+                // ── 步骤 7：播放站起来动画 ──
+                AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
+
+                // ── 步骤 8：UI 反馈 ──
+                string msg = $"获得了 {livestockItem.Name}！";
+                InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Green));
+                DebugLogger.Log($"[TryStealAnimal] {animalName} (monster={monsterId}) → item={livestockItem.StringId} ({livestockItem.Name})");
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[TryStealAnimal] FadeOut error: {ex.Message}");
+                DebugLogger.Log($"[TryStealAnimal] Error: {ex.Message}");
+                InformationManager.DisplayMessage(
+                    new InformationMessage("偷动物失败", Colors.Red));
+
+                // 出错了也尝试站起来
+                if (mainAgent != null && mainAgent.IsActive())
+                    AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
             }
-
-            // ── 步骤 4：UI 反馈 ──
-            string msg = $"获得了 {livestockItem.Name}！";
-            InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Green));
-            DebugLogger.Log($"[TryStealAnimal] {animalName} (monster={monsterId}) → item={livestockItem.StringId} ({livestockItem.Name})");
-
-            // 隐藏交互 UI
-            _interactVM.IsVisible = false;
-            IsHandlingInteraction = false;
-            _lastFocusedAgent = null;
+            finally
+            {
+                _isStealingAnimal = false;
+            }
         }
 
         private void TryStealFromAgent(Agent target)
@@ -1440,5 +1698,123 @@ namespace LivingWorldNpcs
         }
     }
 #endif
+
+    /// <summary>
+    /// 村庄交易界面打开时打印 ItemRoster 中的牲畜物品，
+    /// 方便对比"商人卖什么"vs"场景里有什么"。
+    /// </summary>
+    [HarmonyPatch(typeof(TaleWorlds.CampaignSystem.Inventory.InventoryManager), "OpenScreenAsTrade")]
+    public static class TradeScreenAnimalLoggerPatch
+    {
+        [HarmonyPrefix]
+        public static void Prefix(ItemRoster leftRoster)
+        {
+            try
+            {
+                var settlement = Settlement.CurrentSettlement;
+                if (settlement == null || !settlement.IsVillage) return;
+                string name = settlement.Name?.ToString() ?? "?";
+                string id = settlement.StringId ?? "?";
+
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine($"=== [TradeScreen] {name} ({id}) ItemRoster animals ===");
+
+                foreach (var monsterId in InteractionMissionView.AnimalMonsters)
+                {
+                    ItemObject item = InteractionMissionView.GetLivestockItemForAnimal(monsterId, null);
+                    if (item == null) continue;
+                    int count = leftRoster.GetItemNumber(item);
+                    if (count > 0)
+                        sb.AppendLine($"  {monsterId,-10} x{count}");
+                }
+                if (sb.Length == 0)
+                    sb.AppendLine("  (no animal items in roster)");
+                sb.AppendLine($"  ================================================");
+                DebugLogger.Log(sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[TradeScreen] Log error: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 村庄非本地动物价格修正：本地不产的动物买入 5 倍、卖出 0.3 倍。
+    /// 只对玩家交易生效。
+    /// </summary>
+    [HarmonyPatch(typeof(VillageMarketData), "GetPrice",
+        new Type[] { typeof(EquipmentElement), typeof(MobileParty), typeof(bool), typeof(PartyBase) })]
+    public static class VillageAnimalPricePatch
+    {
+        private const float NonNativeBuyMultiplier = 5f;
+        private const float NonNativeSellMultiplier = 0.3f;
+
+        [HarmonyPostfix]
+        public static void Postfix(ref int __result, EquipmentElement itemRosterElement,
+            MobileParty tradingParty, bool isSelling)
+        {
+            try
+            {
+                if (tradingParty != MobileParty.MainParty) return;
+                if (itemRosterElement.IsEmpty || itemRosterElement.Item == null) return;
+                if (itemRosterElement.Item.Type != ItemObject.ItemTypeEnum.Animal) return;
+
+                var settlement = Settlement.CurrentSettlement;
+                if (settlement == null || !settlement.IsVillage) return;
+
+                // 检查该动物是否为村庄特产
+                ItemObject animalItem = itemRosterElement.Item;
+                bool isNative = false;
+                foreach (var prod in settlement.Village.VillageType.Productions)
+                {
+                    if (prod.Item1 == animalItem)
+                    {
+                        isNative = true;
+                        break;
+                    }
+                }
+
+                if (!isNative)
+                {
+                    float multiplier = isSelling ? NonNativeSellMultiplier : NonNativeBuyMultiplier;
+                    int original = __result;
+                    __result = (int)(__result * multiplier);
+                    if (__result < 1) __result = 1;
+#if DEBUG
+                    DebugLogger.Log($"[AnimalPrice] {settlement.Name}: {animalItem.Name} non-native, {original} → {__result} ({(isSelling ? "sell" : "buy")} x{multiplier})");
+#endif
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AnimalPrice] Error: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 村庄菜单打开时补足 ItemRoster（无需进场景）。
+    /// 依赖 VillageAnimalTracker 缓存自然数（首次进场景时记录）。
+    /// </summary>
+    [HarmonyPatch(typeof(TaleWorlds.CampaignSystem.GameMenus.GameMenu), "SwitchToMenu")]
+    public static class VillageMenuAnimalPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(string menuId)
+        {
+            try
+            {
+                if (menuId != "village") return;
+                var settlement = Settlement.CurrentSettlement;
+                if (settlement == null || !settlement.IsVillage) return;
+                InteractionMissionView.TopUpRosterToNaturalCounts(settlement);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[VillageMenu] Error: {ex.Message}");
+            }
+        }
+    }
 
 }
