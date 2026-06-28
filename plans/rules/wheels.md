@@ -474,6 +474,84 @@ DebugLogger.Log($"[CommissionIssue] {settlement}: scanned {n} NPCs, created {m} 
 
 ---
 
+# 村庄动物偷窃与库存同步 — `Stealth/VillageAnimalTracker.cs` + `Interaction/InteractionMissionView.cs`
+
+场景动物（羊/牛/猪/鹅/鸡）偷窃系统，带持久化追踪、自然恢复、ItemRoster 自动同步、价格修正。
+
+## 动物识别 — `InteractionMissionView.IsAnimalAgent` / `GetLivestockItemForAnimal`
+
+```csharp
+// 判断是否为动物 Agent（村庄场景中 IsHuman=false 的牲畜）
+InteractionMissionView.IsAnimalAgent(agent);  // → bool
+
+// Monster.StringId → 牲畜 ItemObject 静态缓存（两轮查找：精确 ID + 遍历 Animal 类型 + 兜底名字匹配）
+ItemObject item = InteractionMissionView.GetLivestockItemForAnimal(monsterId, animalName);
+```
+
+动物 monster ID 白名单：`sheep`, `cow`, `hog`, `goose`, `chicken`（`InteractionMissionView.AnimalMonsters`）。
+
+## 偷窃持久化 — `VillageAnimalTracker`
+
+三层持久化数据（按 `"settlementId|monsterId"` 为 key，JSON 序列化，`MyBehavior.SyncData` 跨存档）：
+
+```csharp
+// 记录偷窃
+VillageAnimalTracker.RecordTheft(settlementId, monsterId, count = 1);
+// 查询被偷数
+int stolen = VillageAnimalTracker.GetStolenCount(settlementId, monsterId);
+// 每日自然恢复（每种每天恢复 1 只）
+VillageAnimalTracker.DecayDaily();  // MyBehavior.DailyTick 中调用
+
+// 缓存/读取场景自然生成数（首次进场景时记录）
+VillageAnimalTracker.SetNaturalCount(settlementId, monsterId, count);
+int natural = VillageAnimalTracker.GetNaturalCount(settlementId, monsterId);
+bool has = VillageAnimalTracker.HasNaturalCache(settlementId);
+```
+
+## ItemRoster 补足 — `InteractionMissionView.TopUpRosterToNaturalCounts`
+
+```csharp
+// 按缓存自然数补足村庄 ItemRoster：expected = naturalCount - stolenCount，只补不删
+// 可从场景进入或村庄菜单调用（无场景依赖）
+InteractionMissionView.TopUpRosterToNaturalCounts(settlement);
+```
+
+## 偷动物 — `InteractionMissionView.TryStealAnimal` (async)
+
+```csharp
+// 异步：面向动物 → ForcePlayAction("act_pickup_down_begin") → 等待 400ms
+// → 查找物品（GetLivestockItemForAnimal 缓存）→ 加入玩家背包
+// → settlement.ItemRoster.AddToCounts(item, -1)（铁律 4.② Sink）
+// → VillageAnimalTracker.RecordTheft → animal.FadeOut → ForcePlayAction("act_pickup_down_end")
+// 带 _isStealingAnimal 并发守卫
+```
+
+## 动物近距离检测
+
+`ProcessAgentCandidate` 中 `NpcSightSystem.IsPlayerSeeing` 对动物永远返回 false（`TickTrackedTarget` 过滤非人类 Agent），动物跳过此预检，只依赖距离+点积判定。
+
+## 价格修正 — `VillageAnimalPricePatch`
+
+非本地特产动物（不在 `Village.VillageType.Productions` 中）：买入 5 倍、卖出 0.3 倍。只对玩家交易生效。
+
+```csharp
+// Harmony Postfix on VillageMarketData.GetPrice(EquipmentElement, MobileParty, bool, PartyBase)
+// 自动生效，PatchAll 注册
+```
+
+## 触发点一览
+
+| 触发时机 | 补丁 / 方法 | 作用 |
+|----------|------------|------|
+| 进村庄场景 | `SyncSceneAnimalsWithInventory` (MissionView.OnMissionTick 首帧) | 缓存自然数 + 裁剪被偷动物 + 补 Roster |
+| 开村庄菜单 | `VillageMenuAnimalPatch` (Harmony Postfix on `GameMenu.SwitchToMenu("village")`) | 补 Roster（读缓存，不进场景也能触发） |
+| 交易界面打开 | `TradeScreenAnimalLoggerPatch` (Harmony Prefix on `InventoryManager.OpenScreenAsTrade`) | 打印 ItemRoster 动物日志 |
+| 价格查询 | `VillageAnimalPricePatch` (Harmony Postfix on `VillageMarketData.GetPrice`) | 非本地动物价格修正 |
+
+**文件位置**：`Stealth/VillageAnimalTracker.cs`、`Interaction/InteractionMissionView.cs`（`SyncSceneAnimalsWithInventory` / `TryStealAnimal` / `TopUpRosterToNaturalCounts` / `ProcessAgentCandidate` 及全部 Patch 类）、`Core/MyBehavior.cs`（`DailyTick` 衰减 + `SyncData` 持久化）。
+
+---
+
 # 版本兼容层 — `Core/VersionCompat.cs`
 
 **同一份源码，双版本编译。** `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。每一对 API 差异用一个 `V.xxx()` 方法封装，内部 `#if !MB2_V1212` / `#else` 分支。
