@@ -1,78 +1,16 @@
-﻿[12:50:24.225] [ForcePlayAction] 帝国农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:50:24.225] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager' → 'as_human_warrior'
-[12:50:24.226] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=60 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:50:24.228] [AI-Debug] Suspend 帝国农民 (Idx=16) | 集合size=1
-[12:50:24.228] [Knockout] 亨利 knocked out 帝国农民 from behind
-[12:50:50.336] [ForcePlayAction] 帝国女农民 UsingObj=False flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:50:50.338] [ForcePlayAction] 帝国女农民 action_set: 'as_human_female_villager_carry_right_hand' → 'as_human_warrior'
-[12:50:50.338] [ForcePlayAction] Result: 帝国女农民 char=village_woman_empire female=True age=29 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:50:50.338] [AI-Debug] Suspend 帝国女农民 (Idx=46) | 集合size=2
-[12:50:50.338] [Knockout] 亨利 knocked out 帝国女农民 from behind
-[12:51:01.528] [ForcePlayAction] 帝国农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:51:01.528] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager_2' → 'as_human_warrior'
-[12:51:01.528] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=41 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:51:01.528] [AI-Debug] Suspend 帝国农民 (Idx=10) | 集合size=3
-[12:51:01.528] [Knockout] 亨利 knocked out 帝国农民 from behind
-[12:51:14.005] [AI-Debug] Resume 帝国农民 (Idx=10) | 集合size=2
-[12:51:14.005] [AI-Debug] Resume 帝国农民 (Idx=16) | 集合size=1
-[12:51:14.006] [AI-Debug] Resume 帝国女农民 (Idx=46) | 集合size=0
-[12:51:28.372] [ForcePlayAction] 帝国农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:51:28.372] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager' → 'as_human_warrior'
-[12:51:28.372] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=60 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:51:28.372] [AI-Debug] Suspend 帝国农民 (Idx=8) | 集合size=1
-[12:51:28.372] [Knockout] 亨利 knocked out 帝国农民 from behind
-[12:51:33.962] [ForcePlayAction] 帝国农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:51:33.962] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager_3' → 'as_human_warrior'
-[12:51:33.962] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=67 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:51:33.962] [AI-Debug] Suspend 帝国农民 (Idx=15) | 集合size=2
-[12:51:33.964] [Knockout] 亨利 knocked out 帝国农民 from behind
-[12:51:48.100] [ForcePlayAction] 帝国女农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:51:48.101] [ForcePlayAction] 帝国女农民 action_set: 'as_human_female_villager_2' → 'as_human_warrior'
-[12:51:48.101] [ForcePlayAction] Result: 帝国女农民 char=village_woman_empire female=True age=40 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:51:48.101] [AI-Debug] Suspend 帝国女农民 (Idx=23) | 集合size=3
-[12:51:48.101] [Knockout] 亨利 knocked out 帝国女农民 from behind
-[12:51:56.071] [ForcePlayAction] 帝国农民 UsingObj=False flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:51:56.071] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager' → 'as_human_warrior'
-[12:51:56.071] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=53 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:51:56.072] [AI-Debug] Suspend 帝国农民 (Idx=7) | 集合size=4
-[12:51:56.072] [Knockout] 亨利 knocked out 帝国农民 from behind
-[12:52:19.513] [ForcePlayAction] 帝国农民 UsingObj=False flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:52:19.513] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager_2' → 'as_human_warrior'
-[12:52:19.513] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=38 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:52:19.514] [AI-Debug] Suspend 帝国农民 (Idx=14) | 集合size=5
-[12:52:19.514] [Knockout] 亨利 knocked out 帝国农民 from behind
-[12:52:33.919] [ForcePlayAction] 特维亚的加里托普斯 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:52:33.919] [ForcePlayAction] 特维亚的加里托普斯 action_set: 'as_human_villager' → 'as_human_warrior'
-[12:52:33.919] [ForcePlayAction] Result: 特维亚的加里托普斯 char=CharacterObject_2909 female=False age=24 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:52:33.919] [AI-Debug] Suspend 特维亚的加里托普斯 (Idx=2) | 集合size=6
-[12:52:33.919] [Knockout] 亨利 knocked out 特维亚的加里托普斯 from behind
-[12:52:39.628] [ForcePlayAction] 乡间公证人 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:52:39.629] [ForcePlayAction] 乡间公证人 action_set: 'as_human_merchant_notary' → 'as_human_warrior'
-[12:52:39.629] [ForcePlayAction] Result: 乡间公证人 char=rural_notable_notary_empire female=False age=33 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:52:39.629] [AI-Debug] Suspend 乡间公证人 (Idx=49) | 集合size=7
-[12:52:39.629] [Knockout] 亨利 knocked out 乡间公证人 from behind
-[12:52:49.568] [ForcePlayAction] 帝国女农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:52:49.568] [ForcePlayAction] 帝国女农民 action_set: 'as_human_female_villager' → 'as_human_warrior'
-[12:52:49.569] [ForcePlayAction] Result: 帝国女农民 char=village_woman_empire female=True age=47 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:52:49.569] [AI-Debug] Suspend 帝国女农民 (Idx=29) | 集合size=8
-[12:52:49.569] [Knockout] 亨利 knocked out 帝国女农民 from behind
-[12:52:57.439] [ForcePlayAction] 帝国农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:52:57.439] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager_3' → 'as_human_warrior'
-[12:52:57.439] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=37 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:52:57.440] [AI-Debug] Suspend 帝国农民 (Idx=9) | 集合size=9
-[12:52:57.440] [Knockout] 亨利 knocked out 帝国农民 from behind
-[12:53:06.765] [ForcePlayAction] 帝国女农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:53:06.765] [ForcePlayAction] 帝国女农民 action_set: 'as_human_female_villager_carry_right_arm' → 'as_human_warrior'
-[12:53:06.766] [ForcePlayAction] Result: 帝国女农民 char=village_woman_empire female=True age=36 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:53:06.766] [AI-Debug] Suspend 帝国女农民 (Idx=47) | 集合size=10
-[12:53:06.766] [Knockout] 亨利 knocked out 帝国女农民 from behind
-[12:53:20.756] [ForcePlayAction] 特维亚的赫卡戎 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
-[12:53:20.756] [ForcePlayAction] 特维亚的赫卡戎 action_set: 'as_human_villager' → 'as_human_warrior'
-[12:53:20.756] [ForcePlayAction] Result: 特维亚的赫卡戎 char=CharacterObject_2911 female=False age=45 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
-[12:53:20.756] [AI-Debug] Suspend 特维亚的赫卡戎 (Idx=4) | 集合size=11
-[12:53:20.757] [Knockout] 亨利 knocked out 特维亚的赫卡戎 from behind
-[12:54:31.803] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "亨利..."
-[12:54:33.155] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "所以……怎么了？"
-[12:54:33.762] [VanillaDialog] Options (1): 我现在得走了。
-[12:54:33.762] [VanillaDialog] Player says: "我现在得走了。"
-[12:54:33.764] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "那后会有期吧。"
+﻿[13:41:33.725] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_shield_bash'
+[13:41:33.726] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
+[13:41:33.726] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_shield_bash' (expected 'act_shield_bash')
+[13:41:34.331] [ForcePlayAction] 帝国女农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
+[13:41:34.331] [ForcePlayAction] 帝国女农民 action_set: 'as_human_female_villager_2' → 'as_human_warrior'
+[13:41:34.331] [ForcePlayAction] Result: 帝国女农民 char=village_woman_empire female=True age=66 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
+[13:41:34.334] [AI-Debug] Suspend 帝国女农民 (Idx=25) | 集合size=1
+[13:41:34.334] [Knockout] 亨利 knocked out 帝国女农民 from behind (anim: act_shield_bash)
+[13:41:42.201] [ForcePlayAction] 亨利 UsingObj=False flags=None → force-playing 'act_shield_bash'
+[13:41:42.201] [ForcePlayAction] 亨利 action_set: 'as_human_warrior' → 'as_human_warrior'
+[13:41:42.201] [ForcePlayAction] Result: 亨利 char=main_hero female=False age=22 | anim after SetActionChannel: 'act_shield_bash' (expected 'act_shield_bash')
+[13:41:42.811] [ForcePlayAction] 帝国农民 UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun → force-playing 'act_death_fall_front'
+[13:41:42.811] [ForcePlayAction] 帝国农民 action_set: 'as_human_villager_3' → 'as_human_warrior'
+[13:41:42.812] [ForcePlayAction] Result: 帝国农民 char=villager_empire female=False age=54 | anim after SetActionChannel: 'act_death_fall_front' (expected 'act_death_fall_front')
+[13:41:42.812] [AI-Debug] Suspend 帝国农民 (Idx=18) | 集合size=2
+[13:41:42.812] [Knockout] 亨利 knocked out 帝国农民 from behind (anim: act_shield_bash)
