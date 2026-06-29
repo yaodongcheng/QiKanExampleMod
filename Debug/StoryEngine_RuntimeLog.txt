@@ -1,21 +1,25 @@
-﻿[21:02:50.102] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "亨利..."
-[21:02:50.895] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "所以……怎么了？"
-[21:02:51.767] [VanillaDialog] Options (1): 我现在得走了。
-[21:02:51.767] [VanillaDialog] Player says: "我现在得走了。"
-[21:02:51.769] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "那后会有期吧。"
-[21:02:55.489] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
-[21:02:57.099] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[21:02:57.100] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[21:02:57.104] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
-[21:02:57.614] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
-[21:02:58.361] [VanillaDialog] Options (1): 我现在得走了。
-[21:02:58.362] [VanillaDialog] Player says: "我现在得走了。"
-[21:02:58.362] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "很高兴见到你，如果以后你有什么需要可以来找我。"
-[21:03:00.935] [VanillaDialog] NPC  | NPC: 特维亚的奥刻洛斯 (HeroId: CharacterObject_2910) says: "嗯？那么，你是谁？"
-[21:03:02.031] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[21:03:02.031] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[21:03:02.032] [VanillaDialog] NPC  | NPC: 特维亚的奥刻洛斯 (HeroId: CharacterObject_2910) says: "我是奥刻洛斯。这附近的土地归我所有，我的话能代表这个村子里许多人的意见。"
-[21:03:02.411] [VanillaDialog] NPC  | NPC: 特维亚的奥刻洛斯 (HeroId: CharacterObject_2910) says: "我没听说过你，但你看起来像是个能在未来成就一番事业的男子。"
-[21:03:03.370] [VanillaDialog] Options (1): 我现在得走了。
-[21:03:03.370] [VanillaDialog] Player says: "我现在得走了。"
-[21:03:03.372] [VanillaDialog] NPC  | NPC: 特维亚的奥刻洛斯 (HeroId: CharacterObject_2910) says: "很高兴见到你，如果以后你有什么需要可以来找我。"
+﻿[11:34:25.776] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "我以山中自由人之名命令你，站住！得嘞，我们能从你身上拿点什么呢？"
+[11:34:29.592] [VanillaDialog] Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
+[11:34:29.593] [VanillaDialog] Player says: "也许我们可以找个两全其美的办法。"
+[11:34:29.593] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "ERROR: Text with id str_robbery_pay_agreement doesn't exist! Variation: mountain_bandits_3"
+[11:34:30.299] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "Barter screen goes here"
+[11:34:31.343] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "ERROR: Text with id str_robbery_start_fight doesn't exist! Variation: mountain_bandits_3"
+[11:35:18.643] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "不介意的话……请别再靠近了。我希望知道你的名字。"
+[11:35:20.243] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，女士。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[11:35:20.244] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[11:35:20.247] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "我是卡拉德正统女皇<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>。我是<a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>和<a style="Link.Settlement" href="event:Settlement-town_ES5"><b>俄尼拉</b></a>的领主。"
+[11:35:20.838] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "我没听说过你，但你看起来像是个能在未来成就一番事业的男子。"
+[11:35:25.957] [VanillaDialog] Options (6): “涅雷采斯的愚行”是什么？ | （闲聊）最近村子附近有点不对劲…… | 我听说你有个问题需要帮助。 | 我是来向你传达我的需求的！ | 有件事我想和你谈谈。 | 我现在得走了。
+[11:35:25.957] [VanillaDialog] Player says: "（闲聊）最近村子附近有点不对劲……"
+[11:35:25.958] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "啊，你来得正好！我最近遇到了一件怪事……"
+[11:35:27.337] [VanillaDialog] Options (3): 什么怪事？说来听听。 | 我没时间管闲事。 | 帮你处理这件事，有什么好处？
+[11:35:27.338] [VanillaDialog] Player says: "帮你处理这件事，有什么好处？"
+[11:35:27.338] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "你果然是个精明人——100第纳尔，怎么样？"
+[11:35:28.241] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "而且不止如此——前天夜里，我亲眼看见有人影从粮仓后面窜出来，还带着火把！"
+[11:35:30.077] [VanillaDialog] Options (3): 这确实可疑。我帮你查查。 | 你有仇家吗？会不会是冲着你来的？ | 别疑神疑鬼的，说不定只是野猫。
+[11:35:30.081] [VanillaDialog] Player says: "别疑神疑鬼的，说不定只是野猫。"
+[11:35:30.081] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "野猫可不会带火把……但也许你是对的，我再观察几天。"
+[11:35:31.827] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "无论如何，跟你聊过之后我心里踏实多了。如果你以后在村子附近看到可疑的人，请一定来告诉我。"
+[11:35:33.413] [VanillaDialog] Options (2): 我会留意的。 | 别指望我免费当保安。
+[11:35:33.413] [VanillaDialog] Player says: "我会留意的。"
+[11:35:33.413] [VanillaDialog] NPC  | NPC: 拉盖娅 (HeroId: lord_1_14) says: "谢谢你，愿主保佑你。"

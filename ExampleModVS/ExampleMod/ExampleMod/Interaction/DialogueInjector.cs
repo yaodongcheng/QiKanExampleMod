@@ -73,18 +73,34 @@ namespace LivingWorldNpcs
 
             try
             {
+                // —— 网关：在注入点加一个玩家可点的选项，作为对话入口 ——
+                //    hero_main_options 是玩家选项菜单的 token，不能直接塞 NPC 台词。
+                //    必须有一个玩家选项挂在这里，点了之后才进入我们的对话图。
+                //    选项文本从 JSON 的 EntryOption 字段取，缺省用文件名。
+                string entryTurnToken = TurnToken(fileTag, script.EntryTurn);
+                string entryText = !string.IsNullOrEmpty(script.EntryOption)
+                    ? script.EntryOption
+                    : $"「{Path.GetFileNameWithoutExtension(jsonPath)}」";
+                var gateDf = DialogFlow.CreateDialogFlow(startToken, 125);
+                gateDf.AddPlayerLine(
+                    "inj_gateway", startToken, entryTurnToken,
+                    entryText,
+                    () => true, null, owner, 125);
+                cm.AddDialogFlow(gateDf, owner);
+                nodeCount++;
+
+                // —— 逐 turn 注册 ——
                 foreach (var turn in script.Turns)
                 {
                     if (turn.Options == null || turn.Options.Count == 0) continue;
 
-                    // 每个 turn 的入口 token: lwnpc_<文件名>_<turnId>
+                    // 入口 turn 从自己的 entryToken 开始（被网关选项激活）；
+                    // 被引用的 turn 从自己的 entryToken 开始（被上一轮的 NPC 回应激活）
                     string turnEntryToken = TurnToken(fileTag, turn.Id);
-                    bool isEntry = (turn.Id == script.EntryTurn);
-                    string npcInputToken = isEntry ? startToken : turnEntryToken;
                     string afterNpcLine = NextToken();
 
                     cm.AddDialogLineMultiAgent(
-                        $"inj_npc_{turn.Id}", npcInputToken, afterNpcLine,
+                        $"inj_npc_{turn.Id}", turnEntryToken, afterNpcLine,
                         new TextObject(turn.NpcLine ?? ""),
                         () => true, null,
                         turn.SpeakerIndex, -1, 125);
@@ -163,7 +179,7 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 按文件名查找 JSON 测试文件。
-        /// 搜索顺序：本 mod 的 ModuleData/test_dialogues/ → 游戏 Configs/
+        /// 搜索顺序：本 mod 的 ModuleData/DesignData/Dialogues/ → 游戏 Configs/
         /// </summary>
         public static string FindJsonFile(string fileName)
         {
@@ -178,7 +194,7 @@ namespace LivingWorldNpcs
 
             var searchPaths = new[]
             {
-                Path.Combine(modDir ?? "", "ModuleData", "test_dialogues", fileName),
+                Path.Combine(modDir ?? "", "ModuleData", "DesignData", "Dialogues", fileName),
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal),
                     "Mount and Blade II Bannerlord", "Configs", fileName)
             };
@@ -197,7 +213,7 @@ namespace LivingWorldNpcs
 
             var sb = new StringBuilder();
             sb.AppendLine($"File '{fileName}' not found. Tried:");
-            sb.AppendLine($"  Modules/LivingWorldNpcs/ModuleData/test_dialogues/{fileName}");
+            sb.AppendLine($"  Modules/LivingWorldNpcs/ModuleData/DesignData/Dialogues/{fileName}");
             sb.AppendLine($"  Documents/Mount and Blade II Bannerlord/Configs/{fileName}");
             return sb.ToString();
         }
@@ -311,6 +327,8 @@ namespace LivingWorldNpcs
             /// "quest_offer": 只对有进行中任务的 NPC 出现。
             /// </summary>
             public string InjectAtToken = null;
+            /// <summary>入口选项文本 — 挂在 NPC 主菜单上，玩家点这个选项进入对话图。缺省用文件名。</summary>
+            public string EntryOption = null;
             /// <summary>对话从哪个 turn 开始（对应 DialogueInjectTurn.Id）。默认 "start"。 </summary>
             public string EntryTurn = "start";
             public List<DialogueInjectTurn> Turns;
