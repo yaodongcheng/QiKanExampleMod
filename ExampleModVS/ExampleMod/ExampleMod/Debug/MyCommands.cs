@@ -2225,10 +2225,10 @@ namespace LivingWorldNpcs
         ///   custom.inject_dialogue clear               → 清除所有注入的对话
         ///
         /// 文件查找顺序:
-        ///   1. Modules/LivingWorldNpcs/ModuleData/test_dialogues/&lt;name&gt;.json
+        ///   1. Modules/LivingWorldNpcs/ModuleData/DesignData/Dialogues/&lt;name&gt;.json
         ///   2. 文档/Mount and Blade II Bannerlord/Configs/&lt;name&gt;.json
         ///
-        /// JSON 格式见 ModuleData/test_dialogues/_sample.json
+        /// JSON 格式见 ModuleData/DesignData/Dialogues/test_talk.json
         /// </summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("inject_dialogue", "custom")]
         public static string InjectDialogueFromJson(List<string> args)
@@ -2243,7 +2243,7 @@ namespace LivingWorldNpcs
                 return "Usage: custom.inject_dialogue <jsonFileName>\n" +
                        "       custom.inject_dialogue clear\n\n" +
                        "File is loaded from:\n" +
-                       "  Modules/LivingWorldNpcs/ModuleData/test_dialogues/<name>.json\n" +
+                       "  Modules/LivingWorldNpcs/ModuleData/DesignData/Dialogues/<name>.json\n" +
                        "  or Documents/Mount and Blade II Bannerlord/Configs/<name>.json";
 
             string jsonPath = DialogueInjector.FindJsonFile(args[0]);

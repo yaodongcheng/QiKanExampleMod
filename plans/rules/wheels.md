@@ -687,3 +687,83 @@ public static class ChangeInteractionTextPatch
 **注意**：编译通过不代表运行时能跑——Harmony 是运行时绑定的。必须在目标版本的实际游戏里测试。
 
 **MBBindingList 坑点**：v1.4.6 里 `PrimaryInteractionMessages` / `SecondaryInteractionMessages` 从 `string` 变成了 `MBBindingList<T>`。清空内容时**不能 `Clear()`**——后续代码（如 `ResetFocus()`）可能按索引 `[0]`/`[1]` 直接访问，列表空了直接 `ArgumentOutOfRangeException`。正确做法是 `ApplyActionOnAllItems(x => x.ResetData())` 清空内容但保留占位。
+
+---
+
+# 原版对话流注入 — `Interaction/DialogueInjector.cs`
+
+**JSON 驱动的原版 `ConversationManager` 对话注入器。当 NPC 对话需要走原版 UI（而不是 StoryDialogVM）时，优先用 JSON 注入，禁止硬编码 `DialogFlow` 链式调用。**
+
+## 设计原则
+
+| 场景 | 对话 UI | 何时用 |
+|------|---------|--------|
+| **Quest / Issue 对话** | 🔴 原版 `ConversationManager` + JSON 注入 | 任务接取、进行中讨论、任务目标对话——老玩家熟悉的原版体验 |
+| **闲聊 / 自由对话** | `StoryDialogVM`（已有轮子） | 非任务场景的 NPC 互动、LLM 自由生成 |
+
+**优先原版**：凡是能挂到 `hero_main_options` / `issue_offer` / `quest_offer` token 的，走 JSON 注入。只有原版 token 体系覆盖不了的场景（如大地图偶遇、无 Hero 的平民）才用 StoryDialogVM。
+
+## JSON 格式
+
+文件放在 `ModuleData/DesignData/Dialogues/*.json`。
+
+```json
+{
+  "InjectAtToken": null,           // 挂载点: null="hero_main_options", "quest_offer", "issue_offer"
+  "EntryOption": "（闲聊）…",       // NPC 主菜单里的入口选项文本。缺省用文件名。
+  "EntryTurn": "start",            // 从哪个 turn 开始
+  "turns": [
+    {
+      "Id": "start",               // 唯一标识（可被 NextTurn 引用）
+      "SpeakerIndex": 0,           // 谁说（0=对话中的第一个 NPC）
+      "NpcLine": "啊，你来得正好！",
+      "Options": [
+        {
+          "PlayerLine": "什么怪事？",
+          "NpcResponse": "最近夜里总有人……",
+          "NextTurn": "more_detail",   // 选此选项后跳转的 turn Id。null=关闭对话
+          "Action": "NONE",            // INCREASE_RELATION / DECREASE_RELATION / GIVE_GOLD / TAKE_GOLD
+          "ActionValue": 0
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Turn 图结构**：`Id` = 节点标识，`NextTurn` = 边。不同选项可以指向完全不同的后续 turn。引擎运行时：`TurnToken(fileTag, turnId) → "lwnpc_<文件名>_<turnId>"` 作为 ConversationManager token。
+
+## 核心 API
+
+```csharp
+// 从 JSON 文件注入到当前 NPC 对话树
+DialogueInjector.InjectFromJson(jsonPath);    // → string 结果描述
+
+// 清除所有注入
+DialogueInjector.ClearAll();
+
+// 文件查找（ModuleData/DesignData/Dialogues/ → Configs/）
+DialogueInjector.FindJsonFile(fileName);      // → 完整路径 or null
+DialogueInjector.GetSearchPathsDescription(fileName);
+```
+
+## 控制台指令
+
+```
+custom.inject_dialogue test_talk       → 加载并注入 test_talk.json
+custom.inject_dialogue my_quest.json   → 加载并注入 my_quest.json
+custom.inject_dialogue clear           → 清除所有注入
+```
+
+注入时机：对话开始前（大地图上、进村前）随时可跑。下次跟任意 NPC 交谈时，入口选项出现在 NPC 主菜单。
+
+## 底层原理
+
+直接操作 `ConversationManager` 的 `_sentences` 表（token 状态机），**不依赖 `DialogFlow` 建造者**。每个 turn 注册为：
+1. NPC 台词 → `AddDialogLineMultiAgent`（非玩家句子，引擎自动播）
+2. 玩家选项 → `AddPlayerLine`（通过 `DialogFlow` 薄壳）
+3. NPC 回应 → `AddDialogLineMultiAgent`（输出到 `NextTurn` 的 token 或 `close_window`）
+
+清理：`RemoveRelatedLines(owner)` 按归属哨兵批量删除，不动原版对话。
+
+**文件位置**：`Interaction/DialogueInjector.cs`（注入引擎）、`Debug/MyCommands.cs`（`InjectDialogueFromJson` 薄壳指令）。JSON 示例：`ModuleData/DesignData/Dialogues/test_talk.json`。
