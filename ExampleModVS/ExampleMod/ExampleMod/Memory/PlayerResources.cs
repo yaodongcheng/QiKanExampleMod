@@ -6,8 +6,7 @@ using TaleWorlds.Core;
 
 namespace LivingWorldNpcs
 {
-    //这个其实是Npc的额外简历，应该是游戏开始时候基于每个Hero创建，允许更新内容，而不是对话开始的时候创建（除非不是Hero）
-    public class PlayerResources
+       public class PlayerResources
     {
         public int PersonalGold; //个人金钱
         public int FactionGold; //势力资金
