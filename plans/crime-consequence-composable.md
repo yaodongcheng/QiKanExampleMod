@@ -345,6 +345,7 @@ public static class AttitudeSystem
 | 很生气 + 但忌惮嫌犯 | `Fear > 0.5 && Outrage > 0.5 && WillAct < 0.2` | 自己不敢上，上报给更大的人物 | "大人物第二道坎"：想动不敢动 |
 | 不太气 + 同情嫌犯 | `Sympathy < -0.3 && Outrage < 0.6` | 私下放一马，不报案 | 关系好的 NPC 私下警告 |
 | 站在受害者那边 | `Sympathy > 0.3` | 拒绝赔钱了事，坚持要从严处理 | 不接受和解，必须抓人 |
+| 站在受害者那边 + 很生气 | `Sympathy > 0.3 && Outrage > 0.5` | 加码追责：赔偿×2、赏金×2 | 悬赏金额翻倍，威慑力陡增 |
 | 贪心 + 不太气 | `SelfInterest > 0.4 && Outrage < 0.5` | 趁机敲一笔——"给钱我就当没看见" | 索贿封口 |
 | 什么都无所谓 | `WillAct < 0.15 && SelfInterest < 0.3 && \|Sympathy\| < 0.2` | 懒得管，案子不了了之 | 七天查不出 → Unsolved |
 
@@ -398,6 +399,7 @@ public enum ResponsePattern
     // 对抗类
     SendThugs,             // 派打手教训
     LeadRetaliation,       // 组织报复队 — 🛞 复用 CommissionQuest + SpawnPursuerParty
+    AmplifyPunishment,     // 加码追责 — Sympathy→受害者(+)，赔偿/赏金翻倍（不独立出现，附加在已有惩罚行动上）
 
     // 逃避类
     Intimidate,            // 被威胁后忍气吞声
@@ -433,6 +435,11 @@ public static class ResponseGenerator
         // 🔓 发布悬赏 — 很生气，愿意动，不太怕
         if (stance.Outrage > 0.5f && willAct > 0.3f && stance.Fear < 0.5f)
             actions.Add(ResponsePattern.IssueBounty);
+
+        // 🔓 Sympathy→受害者(+) — 加码追责（赔偿×2、赏金×2 等，由 Quest 生成层读取 stance 后自行加倍）
+        //    不新增 ResponsePattern，而是给已有行动的强度乘系数
+        if (stance.Sympathy > 0.3f)
+            actions.Add(ResponsePattern.AmplifyPunishment);  // 信号：所有惩罚力度翻倍
 
         // 🔓 组织报复 — 非常生气 + 愿意动
         if (stance.Outrage > 0.7f && willAct > 0.5f)
@@ -522,6 +529,8 @@ public class IntentContext
 ```csharp
 // 1. PayRestitutionIntent — 赔钱消灾
 //    Evaluate: ActiveEvent != null && Gold >= cost（cost 从 ActiveEvent.Severity + stage 计算）
+//    Cost 公式: 基础赔偿 = 物品价值 × BaseRestitutionMultiplier（阶段2: ×3, 阶段3: ×5 + 罚金）
+//    Trade 讨价还价: 赔偿额 × (1 - TradeSkill * 0.005)，即 Trade 300 = 最高 15% 折扣
 //    OnInstant: 🛞 AgentControlHelper.TransferGold(玩家→权威NPC, cost) → evt.ResolvedBy = "payment"
 
 // 2. CharmDefenseIntent — 辩护（每案一次）
@@ -533,6 +542,16 @@ public class IntentContext
 //    Evaluate: ActiveEvent != null && PlayerTheftLedger 有候选
 //    子选项: ① "是强盗干的" (DC 40) ② "是{账本Hero}干的" (DC 35-85)
 //    栽赃完整逻辑: DC表 + [出示证物]+20 + fail forward(2次→转回玩家) + 大人物第二道坎
+//
+//    FrameSubOption（子选项数据，由 FrameSuspectIntent.Evaluate 动态生成候选列表）:
+//    public class FrameSubOption
+//    {
+//        public string TargetId;        // "bandit" 或 heroId
+//        public string DisplayName;     // "附近藏身处的强盗" / "{Hero.Name}"
+//        public int BaseDC;             // 40-85（按目标身份自动计算：强盗40/流浪汉35/村民55/商人70/领主85）
+//        public bool CanShowEvidence;   // 账本有该英雄的偷窃记录 + 背包仍有对应物品
+//        public bool IsPowerful;        // 是否是大人物（商人/领主 → 触发第二道坎）
+//    }
 
 // 4. ThreatIntent — 威胁
 //    Evaluate: ActiveEvent != null && IsAccused && Roguery >= 50
@@ -598,6 +617,12 @@ public class EventConfig
     public int BaseRestitutionMultiplier;  // 基础赔偿倍数（×动物价值 / ×物品价值）
     public int BaseBountyPerUnit;          // 基础赏金/单位
 
+    // ── 行为偏好（微调 stance→action 映射，不改阈值公式） ──
+    // 用于区分"severity 相同但性质不同"的犯罪。例：偷羊 vs 偷窃圣物，severity 都是 30，
+    // 但后者更倾向 ReportToLord 而非 DemandRestitution（权威人物觉得"这是渎神，不是钱能解决的"）。
+    // 留空 = 完全由 stance 阈值驱动。填入 = 给定 stance 产出多个 action 时，优先显示这些。
+    public List<ResponsePattern> PreferredResponses;
+
     // ── 唯一钩子：发现条件 ──
     // 通用框架只问这一个问题："这个犯罪被发现了没？"
     // 偷牲口 = 次日自动；暗杀 = 尸体被人发现 or 家属发现人不见了
@@ -647,6 +672,7 @@ public static class EventTemplates
         BaseSpreadRate = 0.1f,
         BaseRestitutionMultiplier = 3,
         BaseBountyPerUnit = 50,
+        PreferredResponses = { ResponsePattern.DemandRestitution, ResponsePattern.IssueBounty },
     };
 
     public static readonly EventConfig Murder = new()
@@ -659,6 +685,7 @@ public static class EventTemplates
         BaseSpreadRate = 0.5f,
         BaseRestitutionMultiplier = 50,
         BaseBountyPerUnit = 5000,
+        PreferredResponses = { ResponsePattern.ReportToLord, ResponsePattern.LeadRetaliation },
     };
 
     public static readonly EventConfig Poaching = new()
@@ -671,6 +698,7 @@ public static class EventTemplates
         BaseSpreadRate = 0.15f,
         BaseRestitutionMultiplier = 10,
         BaseBountyPerUnit = 200,
+        PreferredResponses = { ResponsePattern.ReportToLord, ResponsePattern.IssueBounty },
     };
 }
 ```
@@ -835,7 +863,88 @@ IntentBase 动态构建 ──────┘
 }
 ```
 
-`RepeatFor: "FrameTargets"` → 注入时 `FrameSuspectIntent.Evaluate` 返回候选名单 → 每个候选展开一条选项，文本里 `{TargetName}` 替换成对应名字。
+`RepeatFor: "FrameTargets"` → 注入时 `FrameSuspectIntent.Evaluate` 返回候选名单（`List<FrameSubOption>`）→ 每个候选展开一条选项，文本里 `{TargetName}` 替换成对应名字。
+
+**栽赃后续 turn（运行时分支）**：
+
+```json
+// ── 强盗分支：确认 turn ──
+{
+  "Id": "frame_bandit_confirm",
+  "NpcLine": "强盗偷牲口，天经地义。好，我信你——就是他们干的！",
+  "Options": [
+    {
+      "PlayerLine": "那我去把强盗窝端了。",
+      "NpcResponse": "拜托了！抓到贼首，我必有重谢。",
+      "Action": "INTENT:FrameSuspect",
+      "ActionValue": "bandit"
+    }
+  ]
+}
+
+// ── 具体人分支：有/无证物分流 ──
+{
+  "Id": "frame_hero_present_evidence",
+  "NpcLine": "这件东西……你是从哪找到的？",
+  "Options": [
+    {
+      "PlayerLine": "[出示证物] 在他住处附近捡到的。",
+      "NpcResponse": "（仔细看了看）……这确实是他的东西。好，那就是他了！",
+      "Condition": "HasEvidence()",
+      "Action": "INTENT:FrameSuspect",
+      "ActionValue": "{TargetId}",
+      "ActionParam": "WithEvidence"
+    },
+    {
+      "PlayerLine": "我没证据，但我肯定是他。",
+      "NpcResponse": "光凭嘴说可不行……（犹豫地看着你）",
+      "Condition": "!HasEvidence()",
+      "NextTurn": "frame_bare_roll"
+    }
+  ]
+}
+
+// ── 无证物裸过检定结果 ──
+{
+  "Id": "frame_bare_roll",
+  "NpcLine": "{SkillCheckResult}",
+  "Options": [
+    {
+      "PlayerLine": "{Success: 我就知道！/ Failure: 换个人指……}",
+      "NpcResponse": "{Success: 好，我信你。/ Failure: 你越说越不对劲……}",
+      "NextTurn": "{Success: close_window / Failure: fail_forward}",
+      "Action": "{Success: INTENT:FrameSuspect / Failure: NONE}"
+    }
+  ]
+}
+
+// ── fail forward：栽赃失败分支（第一次 vs 第二次） ──
+{
+  "Id": "fail_forward",
+  "NpcLine": "{FailCount == 1: '这次就算了，你再去查查。' / FailCount >= 2: '你一会指这个一会指那个……该不会就是你干的？'}",
+  "Options": [
+    {
+      "PlayerLine": "{FailCount == 1: 我再查查 / FailCount >= 2: （语塞）}",
+      "NpcResponse": "{FailCount == 1: 去吧。/ FailCount >= 2: 果然是你！（嫌疑转回玩家）}",
+      "Action": "{FailCount == 1: NONE / FailCount >= 2: INTENT:SuspectPlayer}"
+    }
+  ]
+}
+
+// ── 玩家主动认栽（可选路径，IsPlayerThief() 条件可见） ──
+{
+  "Id": "confess_restitution",
+  "NpcLine": "你？！……（沉默片刻）好。既然你自己认了，咱们可以商量。",
+  "Options": [
+    {
+      "PlayerLine": "我愿意赔。",
+      "Action": "INTENT:PayRestitution"
+    }
+  ]
+}
+```
+
+> **这些 JSON turn 全部在 `crime_report.json` 中。** `{SkillCheckResult}` `{Success:.../Failure:...}` `{FailCount == 1:.../FailCount >= 2:...}` 由 `DialogueInjector` 在注入时根据运行时状态填充——JSON 是模板，运行时状态是变量。
 
 ### 数据源分工
 
