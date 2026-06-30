@@ -2,7 +2,7 @@
 
 > **目的**：替代"每种犯罪写一套完整状态机"的范式，用可组合的通用层让新玩法 = 一行配置。
 > **对标**：KCD2 / RDR2 的系统涌现范式——不是把所有分支写出来，而是让简单规则互动产生丰富体验。
-> **前置阅读**：[village-theft-consequences-v2.md](village-theft-consequences-v2.md)（体验目标）、[rules/wheels.md](rules/wheels.md)（已有轮子，本文每层都标注了复用哪个轮子）、[crime_general.md](crime_general.md)（本文的配套实现细节——对话 JSON、Intent 类签名、文件变更清单、v2 覆盖核对）
+> **前置阅读**：[village-theft-consequences-v2.md](village-theft-consequences-v2.md)（体验目标）、[rules/wheels.md](rules/wheels.md)（已有轮子，本文每层都标注了复用哪个轮子）
 
 ---
 
@@ -151,6 +151,89 @@ public enum EventStage
     Resolved,          // 已解决（赔钱/抓到贼/报复完成/威胁成功）
     Unsolved               // 不了了之（调查超时，没查到是谁，无疾而终）
 }
+```
+
+#### 证据系统：`EvidencePointer`
+
+**`NewsSpreadSystem` 传播"出事了"（`PublicAwareness`），但不回答"是谁干的"（`SuspectHeroId`）。** 证据是连接两者的桥梁——目击者证词和物证指向嫌犯，调查进度积累到阈值后 `SuspectHeroId` 从证据的 `TargetId` 确认。
+
+```csharp
+[Serializable]
+public class EvidencePointer
+{
+    public string EvidenceId;          // 唯一标识
+    public string TargetId;            // 指向谁："bandit" 或 heroId
+    public EvidenceKind Kind;          // 证据类型
+    public string ItemId;              // 物证时：哪件物品（ItemObject.StringId），目击时：null
+    public float Strength;             // 0→1，证据说服力（目击=0.7，随身物=0.5，传闻=0.2）
+    public string SourceDescription;   // "在牲口圈附近捡到的匕首" — UI 叙事用
+    public bool AtScene;               // Step4+：场景中是否有物理表现（懒生成 GameEntity）
+    public bool IsPlanted;             // 是否是栽赃放置的假证据
+    public string PlantedByHeroId;     // 谁放的（栽赃者），null = 真实证据
+    public float DiscoveredDay;        // 被发现/放入的日期
+}
+
+public enum EvidenceKind
+{
+    Witness,           // 目击者证词（关联 WitnessHeroIds + TemplateWitness）
+    Physical,          // 实物证据（物品——匕首、戒指、箭矢）；可 [出示证物]
+    Circumstantial,   // 间接证据（"只有他在那个时间出现在附近"）
+    Documentary        // 文书证据（信、账本——Step4+ 暗杀用）
+}
+```
+
+**证据生命周期**：
+
+```
+① 产生（犯罪发生时）
+   ├─ 目击证据：WitnessHeroIds + TemplateWitness → EvidencePointer(Kind=Witness, Strength=0.7)
+   ├─ 物证（真凶遗留）：EventConfig.GenerateInitialEvidence 定义
+   └─ 栽赃证据（玩家放置）：FrameSuspectIntent.OnSuccess → EvidenceList.Add(planted)
+
+② 影响调查：EvidenceList.Sum(Strength) × 0.2 → 每日调查推进加成（见下节）
+   最高 Strength 证据的 TargetId → PrimaryLeadId（调查指向谁）
+
+③ 被挑战（反噬窗口）：交付嫌犯时 IsPlanted 证据若被戳穿 → 嫌疑转回栽赃者
+```
+
+与 `PlayerTheftLedger` 的关系：`PlayerTheftLedger` 存"玩家偷过什么"（犯罪记录），`EvidencePointer` 存"现场有什么证据"。栽赃时联动——玩家要栽赃 X → 查账本有 X 的条目且背包仍持有对应物品 → `FrameSuspectIntent` 创建 `EvidencePointer(IsPlanted=true, TargetId=X)`。
+
+#### 调查推进：三层嫌犯确定管线
+
+**`PublicAwareness`（"大家知道出事了"）和 `SuspectHeroId`（"是谁干的"）是两个独立维度。** `NewsSpreadSystem` 推进前者；以下机制推进后者。
+
+```
+① 硬证据（发生时写入）
+   ├─ 有人目击真凶 → PrimaryLeadId = InitiatorId（目击者看到了）
+   ├─ 物证指向某人 → PrimaryLeadId = 最高 Strength 证据的 TargetId
+   └─ 都没有 → PrimaryLeadId = null（调查需从头摸索）
+
+② 调查推进（DailyTick，确定性公式，见 ProcessDaily）
+
+③ 嫌犯锁定（InvestigationProgress >= 1.0）
+   ├─ PrimaryLeadId != null → SuspectHeroId = PrimaryLeadId（证据指向明确）
+   ├─ PrimaryLeadId == null 且 有目击 → 匹配目击者描述 → SuspectHeroId = 最匹配者
+   └─ 完全无头绪 → Unsolved（冷案）
+```
+
+**关键区分**：`PrimaryLeadId` 是"物证/目击指向谁"（系统自动），`SuspectHeroId` 是"权威 NPC 认定是谁"（调查完成后确认，玩家可误导偏离前者）。玩家栽赃时**改写** `PrimaryLeadId`（`FrameSuspectIntent.OnSuccess` → `PrimaryLeadId = framedTarget` → `InvestigationProgress = 1.0` → `SuspectHeroId = framedTarget`），用谎言覆盖物理证据。
+
+WorldEvent 新增字段（融入上方模型）：
+
+```csharp
+// ═══ 调查进度（🆕） ═══
+public float InvestigationProgress;    // 0→1，满时确定 SuspectHeroId
+public string PrimaryLeadId;           // 硬证据指向谁（目击/物证），null=未知
+public List<EvidencePointer> EvidenceList;  // 所有证据条目
+```
+
+EventConfig 新增字段：
+
+```csharp
+// ── 调查参数 ──
+public float BaseInvestigationRate;     // 基础每日推进速度（默认 0.25）
+public int InvestigationWindowDays;     // 超时天数（severity 驱动：偷羊7天，暗杀30天）
+public Func<WorldEvent, List<EvidencePointer>> GenerateInitialEvidence;  // 初始证据生成
 ```
 
 **🛞 已有轮子对接**：
@@ -462,10 +545,40 @@ public static class ResponseGenerator
 }
 ```
 
-**v2 阶段迁移的本质**：不是硬编码的枚举迁移，而是 `GenerateResponses` 的输出随 stance 变化自然演变——这就是 **utility-based AI**：四个维度是 utility 输入，每个 `ResponsePattern` 的阈值条件就是它的 utility curve。不用传统"逐个打分取最高"，而是"过门坎即解锁"——更可预测、更易调试。：
+**v2 阶段迁移的本质**：不是硬编码的枚举迁移，而是 `GenerateResponses` 的输出随 stance 变化自然演变：
 - 阶段 1: Outrage 低 → 只有 `DemandRestitution`
 - 阶段 2: Outrage 中 → + `IssueBounty`
 - 阶段 3: Outrage 高 → + `LeadRetaliation`，`DemandRestitution` 消失
+
+#### ResponsePattern → 游戏行动映射
+
+每个 `ResponsePattern` 的具体游戏表现：
+
+| ResponsePattern | 游戏表现 | 实现方式 | 玩家可见？ |
+|-----------------|---------|---------|-----------|
+| `DemandRestitution` | 权威 NPC 对话中比平时多一个"我愿意赔"选项；悬赏 Quest 备注注明"嫌犯可自行赔钱了事" | DialogueInjector JSON + CommissionQuest 描述文本 | ✅ 对话选项 |
+| `GoEasy` | NPC 私下表示"这次算了"；Notable 目击者不报告；不创建 Issue | DialogueInjector JSON（自由对话触发） | ✅ 对话（但不一定触发） |
+| `ExtortBribe` | NPC 暗示"给钱我就不说出去"；玩家可选付钱封口或拒绝 | DialogueInjector JSON（自由对话） | ✅ 对话选项 |
+| `IssueBounty` | 创建 CommissionQuest(BountyHunt)，Target=SuspectHero | CommissionGenerator 扩展 | ✅ 黄色 ! |
+| `ReportToLord` | 创建新 WorldEvent(Type=EscalatedCrime)，权威=领主；领主 KnownEvents + PerceivedSeverity | WorldEventStore.Add + NewsSpreadSystem | ✅ NinjaNotification |
+| `SendThugs` | SpawnPursuerParty（小型，3-5人）→ SetPartyAiAction → EngageParty | 复用 CommissionQuest.SpawnPursuerParty | ✅ 大地图部队 |
+| `LeadRetaliation` | SpawnPursuerParty（大型，8-12人）；或创建 CommissionQuest 让玩家带队 | 复用 SpawnPursuerParty | ✅ 红色 ! / 大地图部队 |
+| `AmplifyPunishment` | **信号**：赔偿额×2、赏金×2、报复部队规模+50%。由 Quest/对话生成层读取 `stance.Sympathy > 0.3` 时自动加倍 | 不独立出现，附加在已有行动上 | ❌ 内部信号 |
+| `Intimidate` | 权威 NPC 压下案子（被玩家威胁后），不创建 Issue | WorldEvent.Stage = Resolved, ResolvedBy = "intimidated" | ✅ 对话结果 |
+| `Indifferent` | 不创建 Issue，不推进调查，自然超时→Unsolved | ProcessDaily 检测到全低→不推进 | ❌ 无表现 |
+
+#### 追捕 Quest 六种结局（复用 CommissionQuest 钩子）
+
+v2 定义了六种结局。通用引擎中追捕 = `CommissionQuest(Category=BountyHunt)`，六种结局由已有事件钩子覆盖：
+
+| # | 结局 | 触发方式 | WorldEvent 影响 |
+|---|------|---------|----------------|
+| ① **活捉成功** | `HandleBountyHuntVictory` → `_isTargetCaptured = true` → `CompleteQuest` | `Stage = Resolved`, `ResolvedBy = "captured"` |
+| ② **嫌犯被杀** | 战斗结算目标死亡 → Quest 失败 | `Stage` 不变（案子还在）。玩家回村："出示尸体信物"→半额报酬；"老实说"→Trust -5。嫌犯死亡=不出狱不复仇，但若是无辜 NPC→新 Murder WorldEvent |
+| ③ **嫌犯逃脱** | 目标 party 逃离战斗 → `TargetEscaped` | Quest 失败。嫌犯 KnownEvents 加"有人在追我"→隐藏期。若嫌犯是无辜 NPC → 自己调查"谁在害我"→反噬 |
+| ④ **超时未抓到** | `OnTimedOut` — `TimeRemainingHours <= 0` | Quest 失败。SuspectIsPlayer → Confrontation；SuspectIsNPC → AI 另找人 or 冷案 |
+| ⑤ **玩家背叛** | 靠近目标后 `BetrayQuestIntent`：告诉嫌犯"快跑" | Quest 失败，Trust -15。若自曝"是我陷害的"→NemesisRecord 当场生成。若权威 NPC 怀疑→SuspectHeroId 转回玩家 |
+| ⑥ **玩家取消** | `QuestBase.OnCancel` → 回村说"不干了" | Quest 取消，Trust -5。AI 接管：另找人抓 or 进 Confrontation |
 
 #### Quest 生成（玩家接委托时）— 🛞 扩展 CommissionGenerator
 
@@ -594,6 +707,46 @@ case string a when a.StartsWith("INTENT:"):
 ```
 
 **JSON 注册时动态过滤**：注入对话前，先用每个 Intent 的 `Evaluate` 筛一遍——不可见的选项直接从 JSON turns 里移除，玩家看到的只有当下有资格选的。
+
+#### Mission 内目击对峙（当面对质）
+
+目击者当场喊叫是唯一跳脱阶段机的即时事件。触发条件：偷窃动作执行 → `StealManager.GetWitnesses` 检测到目击者 → 目击者在视野内 → 触发对峙。
+
+```
+目击者当场喊叫 → 周围村民靠拢围观 → 玩家短暂失去控制 1.5s
+  ├─ 玩家立即跑（在围观形成前脱离）→ 没被当场抓住
+  │   → WasWitnessed = true → 直接进 Active (SuspectHeroId = 玩家，跳过 Emerging)
+  │
+  └─ 玩家没跑 / 被围观围住 → 权威 NPC（或 notable 目击者）走向玩家
+      → DialogueInjector 注入即时对峙对话（crime_caught_in_act.json）
+```
+
+**对峙对话四分支**（新增 4 个 Intent + 1 个 JSON）：
+
+| 选项 | Intent | 结算 | 后续 |
+|------|--------|------|------|
+| 赔钱（当场） | `PayOnTheSpotIntent` | `TransferGold(玩家→权威NPC, ×2)` — 当场赔比事后便宜 | `Resolved` |
+| 干活抵债 | `WorkOffDebtIntent` | 3天软约束——每天需回村干活，违约→Trust -20+进 Confrontation | `Resolved`（条件性） |
+| 推开逃跑 | `FleeFromConfrontationIntent` | 力量检定 vs 村民→成功脱离/失败被围+Trust -15 | 直接进 Confrontation |
+| 拔剑 | `FightVillagersIntent` | 5~8 村民 vs 玩家。赢→恶名+5，全村敌对；输→被俘→cutscene | 直接进 Confrontation |
+
+**设计要点**：当场赔 ×2 vs 事后赔 ×3——鼓励认错。干活抵债不坐牢但可违约，违约后果比单纯不赔更重（背信+偷窃）。推开逃跑和拔剑都跳过 Active 阶段直接进 Confrontation——"已经动手了，没得谈了"。
+
+#### 玩家不是贼的场景（当 `InitiatorId ≠ 玩家`）
+
+玩家作为无辜第三方或侦探介入。关键区分——`IntentBase.Evaluate` 根据 `WorldEvent.InitiatorId` 和 `SuspectHeroId` 自动切换可用选项：
+
+| 场景 | 玩家可用的 Intent | 不可用的 Intent |
+|------|------------------|----------------|
+| 玩家是贼 (`InitiatorId = 玩家`) | FrameSuspect / CharmDefense / PayRestitution / Threat / SilenceWitness | — |
+| 玩家不是贼 (`InitiatorId ≠ 玩家`) | Investigate / LeadRetaliation / SilenceWitness（若目击了NPC作案）| FrameSuspect / CharmDefense（没被指控）/ PayRestitution / Threat |
+| 玩家被冤枉 (`SuspectHeroId = 玩家` 但 `InitiatorId ≠ 玩家`) | CharmDefense（+20 隐藏加成"问心无愧"）/ **InnocenceProofIntent**（自动成功：系统验证 InitiatorId ≠ 玩家 → 道歉 + Trust +5） | FrameSuspect / PayRestitution |
+
+**玩家是侦探时接调查 Quest 的流程**：权威 NPC 告知案情 → 对话 notable 目击者获取描述 → 若 EvidenceList 有物证 → NPC 告知发现了什么 → 玩家推断嫌犯（不需技能检定，正常逻辑推理）→ 权威 NPC 确认 → `SuspectHeroId` 填入 → 生成 ApprehendQuest。
+
+#### 冷案尾巴 mini-event（`Stage = Unsolved` 后）
+
+15% 概率触发：权威 NPC 从附近找"最像坏人"的目标（高 Roguery / 低 Honor / 外地人）→ 创建新 `WorldEvent(Type=VigilanteJustice)` → SpawnPursuerParty 去打无辜的人。玩家可介入：阻止冤案（Charm + 出示证据 → Trust +10）、火上浇油、或袖手旁观。这是**涌现的支线**——不是设计好的 Quest，是系统规则互动的自然结果，对标 KCD2 里村民自己组织抓贼偶尔抓错人。
 
 ---
 
@@ -1023,14 +1176,14 @@ case string a when a.StartsWith("INTENT:"):
 |---------|-----------|------|
 | 偷窃时检测目击者 | `StealManager.GetWitnesses`（🛞 已有）→ 写入 `WorldEvent.WitnessHeroIds + TemplateWitness` | ✅ |
 | 有人目击 → ThiefHeroId 当场确定 | `WorldEvent.SuspectHeroId = Hero.MainHero` 直接写入，WasWitnessed → 跳阶段 | ✅ |
-| 被当场抓住 → 当场对峙(mission内) | `InteractionMissionView` 目击后弹出即时对话（🛞 复用 DialogueInjector） | ⚠️ |
-| 认错赔钱 → Resolved | 对峙对话中 `PayOnTheSpotIntent` | ⚠️ |
-| 打翻村民逃跑 → 直接进阶段3 | 对峙对话选"动手" → `WorldEvent.Stage = Confrontation` | ⚠️ |
+| 被当场抓住 → 当场对峙(mission内) | 目击喊叫→围观→`DialogueInjector` 注入 `crime_caught_in_act.json` 四分支（见第5层子节） | ✅ |
+| 认错赔钱 → Resolved | `PayOnTheSpotIntent`（当场 ×2，比事后便宜）→ `TransferGold` → `Resolved` | ✅ |
+| 打翻村民逃跑 → 直接进阶段3 | `FleeFromConfrontationIntent`（力量检定）→ 成功脱离/失败被围 → `Stage = Confrontation` | ✅ |
 | 被村民制服 → 惩罚 cutscene | 复用 `scn_execution_notification` 场景模板，替换角色为玩家+村长 | ✅ |
 | 没被当场抓住（跑掉了）→ 直接进阶段2 | `WorldEvent.Stage = Active`，`SuspectHeroId = 玩家` | ✅ |
 | 没人目击 → 完整调查流程 | `WorldEvent.Stage = Dormant → Emerging → Active` 正常流转 | ✅ |
 
-结论："当场抓住"的 mission 内即时事件需要在 `InteractionMissionView` 里加一段目击后对话逻辑。其余流转完全由 `WorldEvent.Stage` 状态机驱动。
+结论："当场抓住"的完整四分支已在上述第 5 层完成设计（`PayOnTheSpotIntent` / `WorkOffDebtIntent` / `FleeFromConfrontationIntent` / `FightVillagersIntent` + `crime_caught_in_act.json`）。`InteractionMissionView` 目击对话扩展是运行时集成点，架构已确定。被俘 cutscene 仍待运行时适配 vanilla_cutscenes 模板。
 
 ### 三阶段 Issue-Quest 链（v2 第二节）
 
@@ -1085,7 +1238,7 @@ case string a when a.StartsWith("INTENT:"):
 | 赢后下一波更强更贵 | `RetaliationWaveCount++` → `GetWaveCost` 递增 | ✅ |
 | 村庄金库见底停派 + PermanentEnemy | `RetaliationBudget` 扣到不够 → `PermanentEnemy = true` | ✅ |
 | 投降/战败 → 被俘带回 → cutscene | 复用 `scn_execution_notification` 场景模板 | ✅ |
-| 不打·和解（Charm/Roguery 劝说） | `SettleIntent`（Charm/Roguery 检定，愤怒中成功率更低） | ⚠️ |
+| 不打·和解（Charm/Roguery 劝说） | `SettleIntent`（Charm/Roguery，愤怒中成功率降低） | ✅ |
 | 不打·逃避（跑赢倒计时 15 天） | 部队 15 天超时自散（`CheckRetaliationTimeout`） | ✅ |
 | 逃避代价：Trust -30, 恶名+3 | `OnRetaliationTimeout` → `TrustSystem.AddTrust(-30)`, `InfamySystem.AddInfamy(3)` | ✅ |
 
@@ -1093,15 +1246,14 @@ case string a when a.StartsWith("INTENT:"):
 
 | 类别 | 数量 |
 |------|------|
-| ✅ 完全覆盖 | 40 项 |
-| ⚠️ 部分覆盖（核心机制有，细节待开发） | 6 项 |
+| ✅ 完全覆盖 | 46 项 |
+| ⚠️ 部分覆盖（核心机制有，细节待运行时适配） | 1 项 |
 | ❌ 完全缺失 | 0 项 |
 
-⚠️ 的 6 项全部属于已有轮子支撑、需开发但无架构风险的增量：
-- "当面对峙"、"认错赔钱"、"打翻逃跑" — `InteractionMissionView` 目击对话扩展
-- "被俘 cutscene" — 🛞 已有 `vanilla_cutscenes` 模板
-- "和解劝说" — `SettleIntent`，🛞 `IntentBase` 标准模式
-- "讨价还价/威胁加成" — 数值微调
+⚠️ 的 1 项属于已有轮子支撑、需运行时适配的增量：
+- "被俘 cutscene" — 🛞 已有 `vanilla_cutscenes` 模板，需替换角色槽位并改为非致死场景
+
+> **注意**：原审核中发现的 6 项 ⚠️ 已通过补充设计下沉为 ✅。"当面对峙"四分支、"认错赔钱"`PayOnTheSpotIntent`、"打翻逃跑"`FleeFromConfrontationIntent`、"和解劝说"`SettleIntent` 均已在上方各层中完成设计。
 
 ---
 
@@ -1159,6 +1311,86 @@ case string a when a.StartsWith("INTENT:"):
 
 ## 六、DailyTick 阶段推进（中枢神经）
 
+### 调查推进公式（`AdvanceInvestigation`）
+
+```csharp
+// WorldEventStore.AdvanceInvestigation(WorldEvent evt)
+float BaseRate = evt.GetConfig().BaseInvestigationRate;  // EventConfig 驱动，默认 0.25/天
+
+float witnessBonus = evt.WitnessCount * 0.15f;
+
+float evidenceBonus = (evt.EvidenceList?.Sum(e => e.Strength) ?? 0f) * 0.2f;
+
+// PrimaryLeadId 是本地熟人 → 更快被认出
+float suspectCloseness = 0f;
+if (evt.PrimaryLeadId != null)
+{
+    var lead = Hero.Find(evt.PrimaryLeadId);
+    var authority = GetAuthorityNpc(evt);
+    float relation = authority?.GetRelationWith(lead) ?? 0f;
+    suspectCloseness = Math.Abs(relation) > 10 ? 0.1f : 0f;
+}
+
+// 真凶反侦察
+float counterForensics = 0f;
+if (evt.InitiatorId == Hero.MainHero.StringId)
+    counterForensics = Math.Min(0.5f, Hero.MainHero.GetSkillValue(DefaultSkills.Roguery) / 300f * 0.5f);
+
+float dailyAdvance = BaseRate + witnessBonus + evidenceBonus + suspectCloseness - counterForensics;
+evt.InvestigationProgress = Math.Min(1.0f, evt.InvestigationProgress + dailyAdvance);
+```
+
+### 嫌犯锁定（`TryLockSuspect`）
+
+```csharp
+// InvestigationProgress >= 1.0 时调用
+if (evt.PrimaryLeadId != null)
+    evt.SuspectHeroId = evt.PrimaryLeadId;       // 硬证据 → 直接锁定
+else if (evt.WitnessCount > 0)
+    evt.SuspectHeroId = TryMatchSuspectFromWitnessDescriptions(evt);  // 目击者描述匹配
+else
+    evt.SuspectHeroId = null;                    // 完全无头绪 → Unsolved
+
+if (evt.SuspectHeroId != null)
+    evt.Stage = EventStage.Active;               // → 黄色 ! 出现
+else
+    evt.Stage = EventStage.Unsolved;             // → 冷案
+```
+
+### 权威 NPC 自主行动（AI 不等玩家）
+
+权威 NPC 不等着玩家来接 Quest——他自己会推进。每个 DailyTick 根据 `GenerateResponses` 输出自主行动：
+
+```csharp
+void ProcessAuthorityAction(WorldEvent evt)
+{
+    var authority = GetAuthorityNpc(evt);
+    var stance = AttitudeSystem.ComputeStance(authority, evt);
+    var actions = ResponseGenerator.GenerateResponses(authority, evt);
+    
+    foreach (var action in actions)
+    {
+        switch (action)
+        {
+            case ResponsePattern.IssueBounty:
+                EnsureBountyQuestRegistered(evt, authority);  // 权威 NPC 掏钱悬赏
+                break;
+            case ResponsePattern.LeadRetaliation:
+                SpawnRetaliationParty(evt, authority);        // 自己掏钱雇打手
+                break;
+            case ResponsePattern.ReportToLord:
+                EscalateToLord(evt, authority);               // 上报 → 新 WorldEvent
+                break;
+            case ResponsePattern.Indifferent:
+                break;  // 不作为 → 自然超时
+            // DemandRestitution / ExtortBribe / GoEasy — 等玩家来找他，不主动推
+        }
+    }
+}
+```
+
+### 完整 DailyTick 状态机
+
 ```csharp
 // WorldEventStore.ProcessDaily() 中的核心逻辑
 foreach (var evt in _allEvents.Where(e => e.Stage != EventStage.Resolved && e.Stage != EventStage.Unsolved))
@@ -1182,30 +1414,52 @@ foreach (var evt in _allEvents.Where(e => e.Stage != EventStage.Resolved && e.St
                 NewsSpreadSystem.Instance.BroadcastEvent(evt);
                 evt.WasBroadcast = true;
             }
-            // 每日推进 PublicAwareness
+            // 每日推进 PublicAwareness（传播层）
             evt.PublicAwareness += GetDailySpreadRate(evt);
-            // Awareness >= 1.0 且 SuspectHeroId 已确定 → 进 Active
-            if (evt.PublicAwareness >= 1.0f && evt.SuspectHeroId != null)
-                evt.Stage = EventStage.Active;
-            // 7 天超时 → 不了了之
-            if (DaysSince(evt.OccurredDay) > 7 && evt.PublicAwareness < 1.0f)
+            // 每日推进调查（嫌犯确定层）— 🆕 AdvanceInvestigation
+            AdvanceInvestigation(evt);
+            // 进度满 → 尝试锁定嫌犯
+            if (evt.InvestigationProgress >= 1.0f && evt.SuspectHeroId == null)
+                TryLockSuspect(evt);
+            // 超时 → 不了了之（窗口由 EventConfig.InvestigationWindowDays 驱动）
+            float coldDays = evt.GetConfig().InvestigationWindowDays;  // 偷羊7天，暗杀30天
+            if (DaysSince(evt.OccurredDay) > coldDays && evt.InvestigationProgress < 1.0f)
                 evt.Stage = EventStage.Unsolved;
+            // 权威 NPC 自主行动（AI 不等玩家）
+            ProcessAuthorityAction(evt);
             break;
 
         case EventStage.Active:
             // 悬赏期限到 → 报复
             float deadline = evt.SuspectHeroId == Hero.MainHero.StringId ? 10f : 15f;
-            if (DaysSince(stageEnteredDay) > deadline)
+            if (DaysSince(stageEnteredDay) > deadline && !evt.PlayerPaidRestitution)
             {
                 evt.Stage = EventStage.Confrontation;
-                SpawnRetaliationParty(evt); // 🛞 复用 SpawnPursuerParty
+                SpawnRetaliationParty(evt);
             }
+            ProcessAuthorityAction(evt);  // 权威 NPC 可能升级行动
             break;
 
         case EventStage.Confrontation:
             // 报复部队超时 / 经费耗尽 → 结案
-            if (evt.RetaliationBudget <= 0 || DaysSince(evt.RetaliationSpawnDay) > 15f)
+            if (!evt.RetaliationSpawned)
+            {
+                if (evt.RetaliationBudget > 0 && !evt.PermanentEnemy)
+                    CheckBudgetAndRespawn(evt);   // 打赢后经费仍够 → 下一波
+                else
+                    evt.Stage = EventStage.Resolved;
+            }
+            else if (DaysSince(evt.RetaliationSpawnDay) > 15f)
+            {
+                evt.RetaliationResolved = true;
                 evt.Stage = EventStage.Resolved;
+            }
+            break;
+
+        case EventStage.Unsolved:
+            // 冷案尾巴：15% 概率触发迁怒 mini-event（见第5层子节）
+            if (Random(0, 100) < 15 && !evt._coldCaseTailTriggered)
+                TriggerVigilanteJusticeEvent(evt);
             break;
     }
 }
@@ -1247,11 +1501,13 @@ if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEve
 
 ## 八、实施路线图
 
-### Phase 1：数据层统一
-- 新建 `WorldEvent.cs`（统一模型 + `WorldEventStore` + `PlayerTheftLedger` + `EventConfig`）
+### Phase 1：数据层 + 调查引擎
+- 新建 `WorldEvent.cs`（统一模型 + `WorldEventStore` + `EvidencePointer` + `PlayerTheftLedger` + `EventConfig`/`EventTemplates`）
+- 新建 `InvestigationEngine.cs`（`AdvanceInvestigation` + `TryLockSuspect` + `TryMatchSuspectFromWitnessDescriptions`）
+- `EventConfig` 新增：`BaseInvestigationRate`、`InvestigationWindowDays`、`GenerateInitialEvidence`
 - `NewsSpreadSystem.BroadcastEvent` 改为直接接收 `WorldEvent`
 - `MyBehavior.DailyTick` + `SyncData`（持久化 `List<WorldEvent>` JSON）
-- **验证**: 偷羊 → `WorldEvent` 创建 → 🛞 `NewsSpreadSystem` 自动传播 → 村长 `KnownEvents` 有事件
+- **验证**: 偷羊 → `WorldEvent` 创建 → 目击+证据写入 → DailyTick 推进 `InvestigationProgress` → 锁定嫌犯
 
 ### Phase 2：态度 + 行动
 - 新建 `AttitudeSystem.cs`（`NpcStance` + `ComputeStance` + `ResponseGenerator`）
@@ -1259,12 +1515,12 @@ if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEve
 - **验证**: `PerceivedSeverity` 变化 → `ResponseGenerator` 自动产生不同行动集合
 
 ### Phase 3：玩家介入
-- 新建 `AccountabilityIntents.cs`（7 个 Intent，🛞 `IntentBase` 子类——逻辑层）
+- 新建 `AccountabilityIntents.cs`（7 个追责 Intent + `PayOnTheSpotIntent` / `WorkOffDebtIntent` / `FleeFromConfrontationIntent` / `FightVillagersIntent` / `BetrayQuestIntent` / `InnocenceProofIntent` / `ArrestIntent` / `LureArrestIntent`，共 14 个，🛞 `IntentBase` 子类——逻辑层）
 - 🛞 `IntentContext` 加 `ActiveEvent` 字段
 - 🛞 `IntentRegistry` 注册
 - 🛞 `DialogueInjector.ExecuteAction` 扩展 `"INTENT:xxx"` 委托
-- 新建对话 JSON 文件（表现层）
-- **验证**: 对话 JSON 注入前跑 Intent.Evaluate → 不可见选项被过滤 → 玩家只看到当下有资格的选项
+- 对话 JSON（7 个文件 + `crime_caught_in_act.json` + `crime_arrest.json`）
+- **验证**: 对话 JSON 注入前跑 Intent.Evaluate → 不可见选项被过滤；当面对峙四分支可用
 
 ### Phase 4：Quest 追责方向
 - 🛞 `CommissionData` 加 `IsAccountabilityQuest` + `FactId`
@@ -1288,15 +1544,18 @@ if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEve
 
 | 文件 | 内容 | 行数 |
 |------|------|------|
-| `Stealth/WorldEvent.cs` | `WorldEvent` 数据模型 + `EventStage` 枚举 + `WorldEventStore` 管理器 + `PlayerTheftLedger` + `EventConfig`/`EventTemplates` | ~300 |
+| `Stealth/WorldEvent.cs` | `WorldEvent` 数据模型 + `EventStage` 枚举 + `EvidencePointer` + `WorldEventStore` 管理器 + `PlayerTheftLedger` + `EventConfig`/`EventTemplates` | ~400 |
+| `Stealth/InvestigationEngine.cs` | `AdvanceInvestigation` + `TryLockSuspect` + `TryMatchSuspectFromWitnessDescriptions` + `ProcessAuthorityAction` | ~150 |
 | `Quests/WorldEvents/AttitudeSystem.cs` | `NpcStance` + `ComputeStance` + `ResponseGenerator` | ~150 |
-| `Interaction/Intents/AccountabilityIntents.cs` | 7 个追责 Intent（🛞 `IntentBase` 子类，逻辑层） | ~250 |
+| `Interaction/Intents/AccountabilityIntents.cs` | 14 个追责 Intent（🛞 `IntentBase` 子类，逻辑层）：7 个核心 + 4 个对峙 + BetrayQuest + InnocenceProof + Arrest/LureArrest | ~400 |
 | `ModuleData/DesignData/Dialogues/crime_discovery.json` | 阶段1: 调查 Quest 接取 | ~50 |
 | `ModuleData/DesignData/Dialogues/crime_report.json` | 阶段1: 汇报调查+栽赃 | ~100 |
 | `ModuleData/DesignData/Dialogues/crime_confront_player.json` | 阶段2: 嫌犯=玩家 | ~70 |
-| `ModuleData/DesignData/Dialogues/crime_bounty_offer.json` | 阶段2: 嫌犯≠玩家 | ~30 |
+| `ModuleData/DesignData/Dialogues/crime_bounty_offer.json` | 阶段2: 嫌犯≠玩家，悬赏 Quest + 抓捕对话 | ~60 |
 | `ModuleData/DesignData/Dialogues/crime_retaliation.json` | 阶段3: 报复部队 | ~30 |
 | `ModuleData/DesignData/Dialogues/crime_witness_silence.json` | 目击者收买/吓唬 | ~30 |
+| `ModuleData/DesignData/Dialogues/crime_caught_in_act.json` | 当面对峙四分支 | ~50 |
+| `ModuleData/DesignData/Dialogues/crime_arrest.json` | 抓捕对话（approach_suspect + deliver_suspect + report_dead_suspect） | ~80 |
 
 ### 修改
 
@@ -1322,7 +1581,7 @@ if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEve
 | `SocialEventManager.cs` 核心逻辑 | 🛞 `NewsSpreadSystem.BroadcastEvent` 传播引擎，不动 |
 | `SingNpcMemorySystem.cs` 核心逻辑 | 🛞 KnownEvents 存储，不动 |
 
-**总新增代码**: ~1,200 行（含 7 个 JSON 对话文件），对比 v2 原设计的 ~2,000+ 行 C# + 手写对话树。
+**总新增代码**: ~1,700 行（含 9 个 JSON 对话文件），对比 v2 原设计的 ~2,000+ 行 C# + 手写对话树。
 
 ---
 
@@ -1398,7 +1657,6 @@ if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEve
 ## 十三、参考资料
 
 - 当前偷窃后续设计：[village-theft-consequences-v2.md](village-theft-consequences-v2.md)
-- 配套实现细节：[crime_general.md](crime_general.md)
 - 已造轮子：[rules/wheels.md](rules/wheels.md)
 - 设计哲学：[rules/design-philosophy.md](rules/design-philosophy.md)
 - 叙事铁律：[rules/narrative-design.md](rules/narrative-design.md)
