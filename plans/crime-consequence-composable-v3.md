@@ -1043,6 +1043,10 @@ EventTemplates.Register(EventTemplates.Poaching);
 ## 十、对话流设计
 
 > 🛞 唯一呈现引擎：`DialogueInjector`，多种数据源
+>
+> **🔴 完整规范见 [narrative-placeholder-system.md](narrative-placeholder-system.md)。** 该文件定义了：①全部约 80 个叙事占位符的精确 C# 查询来源、② 50+ 对话场景模板（覆盖全部犯罪类型 × 全部阶段 × 全部说话者身份）、③ `CrimeDialogueBuilder` 动态生成 `DialogueInjectScript` 的架构（不依赖穷举 JSON）、④ 新增玩法时的占位符/场景模板扩展流程。
+>
+> 本文以下 JSON 骨架（`crime_confront_player.json` 等）是静态示例；生产环境由 `CrimeDialogueBuilder` 从 `WorldEvent` 游戏状态动态构建 `DialogueInjectScript`，经 `DialogueInjector.InjectScript` 注入 `ConversationManager`。占位符由 `PlaceholderResolver` 在注入时解析。
 
 ### 核心架构
 
