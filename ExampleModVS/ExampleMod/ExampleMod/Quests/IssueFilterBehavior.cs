@@ -16,10 +16,10 @@ namespace LivingWorldNpcs
     public class IssueFilterBehavior : CampaignBehaviorBase
     {
         /// <summary>
-        /// Mapping: WorldEventType → Issue type NAMES that are BLOCKED during this event.
+        /// Mapping: EventType → Issue type NAMES that are BLOCKED during this event.
         /// </summary>
-        private static readonly Dictionary<WorldEventType, HashSet<string>> _blockedTypeNames =
-            new Dictionary<WorldEventType, HashSet<string>>();
+        private static readonly Dictionary<EventType, HashSet<string>> _blockedTypeNames =
+            new Dictionary<EventType, HashSet<string>>();
 
         // ── Per-DailyTick 统计 ──
         private static readonly Dictionary<string, int> _blockedCounts = new Dictionary<string, int>();
@@ -39,7 +39,7 @@ namespace LivingWorldNpcs
         private static void LoadBlockingTable()
         {
             // ── BanditRaid（匪患劫掠）：村庄正被劫掠，不应发布日常经营类委托 ──
-            _blockedTypeNames[WorldEventType.BanditRaid] = new HashSet<string>
+            _blockedTypeNames[EventType.BanditRaid] = new HashSet<string>
             {
                 "HeadmanNeedsGrainIssue",
                 "VillageNeedsToolsIssue",
@@ -55,7 +55,7 @@ namespace LivingWorldNpcs
             };
 
             // ── NobleConflict（贵族冲突）：领主正集结军队 ──
-            _blockedTypeNames[WorldEventType.NobleConflict] = new HashSet<string>
+            _blockedTypeNames[EventType.NobleConflict] = new HashSet<string>
             {
                 "LordNeedsHorsesIssue",
                 "LordsNeedsTutorIssue",
@@ -64,7 +64,7 @@ namespace LivingWorldNpcs
             };
 
             // ── Famine（饥荒）：村庄缺粮 ──
-            _blockedTypeNames[WorldEventType.Famine] = new HashSet<string>
+            _blockedTypeNames[EventType.Famine] = new HashSet<string>
             {
                 "HeadmanNeedsToDeliverAHerdIssue",
                 "LandlordTrainingForRetainersIssue",
@@ -75,7 +75,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 查询某事件类型是否阻止某类 Issue（按 Type 对象匹配其 Name）。
         /// </summary>
-        public static bool TryGetBlockedTypes(WorldEventType eventType, out HashSet<string> blockedTypeNames)
+        public static bool TryGetBlockedTypes(EventType eventType, out HashSet<string> blockedTypeNames)
         {
             return _blockedTypeNames.TryGetValue(eventType, out blockedTypeNames);
         }
@@ -83,7 +83,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 检查给定的 issueType 是否在阻止列表中。
         /// </summary>
-        public static bool IsIssueTypeBlocked(WorldEventType eventType, Type issueType)
+        public static bool IsIssueTypeBlocked(EventType eventType, Type issueType)
         {
             if (issueType == null) return false;
             if (_blockedTypeNames.TryGetValue(eventType, out var blockedNames))
@@ -93,7 +93,7 @@ namespace LivingWorldNpcs
             return false;
         }
 
-        public static void RecordBlockedIssue(WorldEventType eventType, Hero hero, Type issueType)
+        public static void RecordBlockedIssue(EventType eventType, Hero hero, Type issueType)
         {
             string key = $"{eventType}@{hero?.CurrentSettlement?.Name?.ToString() ?? hero?.HomeSettlement?.Name?.ToString() ?? "?"}";
             lock (_blockedCounts)
@@ -108,7 +108,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        public static void RecordPassedIssue(WorldEventType eventType, Hero hero, Type issueType)
+        public static void RecordPassedIssue(EventType eventType, Hero hero, Type issueType)
         {
             string key = $"{eventType}@{hero?.CurrentSettlement?.Name?.ToString() ?? hero?.HomeSettlement?.Name?.ToString() ?? "?"}";
             lock (_blockedCounts)

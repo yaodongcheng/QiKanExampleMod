@@ -33,6 +33,9 @@ namespace LivingWorldNpcs
         public string WarriorTerms { get; set; } = "使用\"大人\"、\"爵士\"等符合中世纪语境的词汇。";
         public string FemaleSelfAddress { get; set; } = "";
 
+        // ── 目击系统开关（默认开启，关掉后偷窃/犯罪不会被目击）──
+        public bool WitnessSystemEnabled { get; set; } = false;
+
         private static Settings Load()
         {
             Settings settings = new Settings();

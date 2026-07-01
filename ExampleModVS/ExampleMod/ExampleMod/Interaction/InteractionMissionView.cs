@@ -1157,28 +1157,8 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                // ── 步骤 5：将牲畜物品加入玩家库存（Grant from world，铁律 4.②）──
-                MobileParty.MainParty.ItemRoster.AddToCounts(livestockItem, 1);
-
-                // ── 步骤 5b：从定居点库存扣除（Sink to world，铁律 4.② 收发）──
-                //   ItemRoster 由引擎原生存档，扣除后自动跨存档生效。
-                Settlement settlement = Settlement.CurrentSettlement;
-                if (settlement != null && settlement.IsVillage)
-                {
-                    int currentStock = settlement.ItemRoster.GetItemNumber(livestockItem);
-                    if (currentStock > 0)
-                    {
-                        settlement.ItemRoster.AddToCounts(livestockItem, -1);
-                        DebugLogger.Log($"[TryStealAnimal] Deducted 1 {livestockItem.StringId} from {settlement.Name} ItemRoster (was {currentStock})");
-                    }
-                    else
-                    {
-                        DebugLogger.Log($"[TryStealAnimal] {settlement.Name} has 0 {livestockItem.StringId} in ItemRoster — skip deduction");
-                    }
-
-                    // ── 步骤 5c：记录偷窃追踪（持久化，自然恢复：每天每种恢复 1 只）──
-                    VillageAnimalTracker.RecordTheft(settlement.StringId, monsterId);
-                }
+                // ── 步骤 5：核心业务（库存转移 + 追踪 + 犯罪记账）──
+                StealManager.StealAnimal(Settlement.CurrentSettlement, livestockItem, monsterId, animal);
 
                 // ── 步骤 6：消除场景中的动物 Agent ──
                 try
@@ -1216,15 +1196,10 @@ namespace LivingWorldNpcs
 
         private void TryStealFromAgent(Agent target)
         {
-
-
                 InformationManager.DisplayMessage(new InformationMessage("你屏住呼吸，悄悄伸出了手...", Colors.Green));
 
                 // 【核心修改】：打开你的 Gauntlet UI
                 OpenStealInterface(target);
-
-
-
         }
 
         /// <summary>

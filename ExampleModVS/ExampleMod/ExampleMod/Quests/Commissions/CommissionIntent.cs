@@ -290,15 +290,15 @@ namespace LivingWorldNpcs.Story
             string instigatorName = urgentEvent.InstigatorHero?.Name?.ToString() ?? "他们";
             string victimName = urgentEvent.TargetHero?.Name?.ToString() ?? "我们";
 
-            string eventDesc = urgentEvent.EventType switch
+            string eventDesc = urgentEvent.Type switch
             {
-                WorldEventType.BanditRaid => "匪帮正在劫掠这一带",
-                WorldEventType.Famine => "粮食短缺，日子越来越难过了",
-                WorldEventType.NobleConflict => "贵族之间的争端波及到了这里",
-                WorldEventType.DebtTrap => "有人欠了一屁股债，被追得紧",
-                WorldEventType.Kidnapping => "有人被绑了，整个镇子都人心惶惶",
-                WorldEventType.Betrayal => "出了叛徒，不知道还能信谁",
-                WorldEventType.TradeDispute => "商路上的争端让买卖越来越难做",
+                EventType.BanditRaid => "匪帮正在劫掠这一带",
+                EventType.Famine => "粮食短缺，日子越来越难过了",
+                EventType.NobleConflict => "贵族之间的争端波及到了这里",
+                EventType.DebtTrap => "有人欠了一屁股债，被追得紧",
+                EventType.Kidnapping => "有人被绑了，整个镇子都人心惶惶",
+                EventType.Betrayal => "出了叛徒，不知道还能信谁",
+                EventType.TradeDispute => "商路上的争端让买卖越来越难做",
                 _ => "最近发生了一些事"
             };
 

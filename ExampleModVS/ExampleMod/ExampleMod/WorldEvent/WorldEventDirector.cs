@@ -36,10 +36,10 @@ namespace LivingWorldNpcs
         /// 玩家进入定居点时调用。
         /// 检查附近是否有活跃世界事件 → 推送通知。
         /// </summary>
-        public static List<WorldEventData> GetNearbyEventsForSettlement(Settlement settlement)
+        public static List<WorldEvent> GetNearbyEventsForSettlement(Settlement settlement)
         {
-            if (settlement == null) return new List<WorldEventData>();
-            return WorldEventDatabase.GetActiveEventsNear(settlement, maxDistance: 80f);
+            if (settlement == null) return new List<WorldEvent>();
+            return WorldEventStore.GetActiveEventsNear(settlement, maxDistance: 80f);
         }
 
         /// <summary>检查定居点中是否有 NPC 需要显示 ! 标记（附近有事件且该 NPC 是受害者）。</summary>
@@ -66,7 +66,7 @@ namespace LivingWorldNpcs
         private static readonly Dictionary<string, float> _interceptCooldowns = new Dictionary<string, float>();
         private const float INTERCEPT_COOLDOWN_DAYS = 0.15f; // 同一事件 ~3.6 小时内不重复拦截
 
-        public static WorldEventData CheckRoadIntercept()
+        public static WorldEvent CheckRoadIntercept()
         {
             if (MobileParty.MainParty == null) return null;
 
@@ -74,7 +74,7 @@ namespace LivingWorldNpcs
             float currentDay = (float)CampaignTime.Now.ToDays;
 
             // 阶段 1：从活跃事件里面，挑选30距离以内的，按照定居点ID排序，然后按照事件类型去重
-            var veryCloseEvents = WorldEventDatabase.ActiveEvents
+            var veryCloseEvents = WorldEventStore.ActiveEvents
                 .Where(e =>
                 {
                     var settlement = e.TargetSettlement;
@@ -90,7 +90,7 @@ namespace LivingWorldNpcs
                 if (settlement == null) continue;
 
                 int count = group.Count();
-                var types = group.Select(e => EventTypeShortName(e.EventType)).Distinct().ToList();
+                var types = group.Select(e => EventTypeShortName(e.Type)).Distinct().ToList();
                 //基于数量来生成不同的提示文本
                 string summary = count switch
                 {
@@ -108,12 +108,12 @@ namespace LivingWorldNpcs
             }
 
             // 阶段 2：紧急求救拦截（距离 < 50，severity >= 5 弹 NinjaNotification）
-            var nearbyUrgent = WorldEventDatabase.ActiveEvents
+            var nearbyUrgent = WorldEventStore.ActiveEvents
                 .Where(e =>
                 {
                     var settlement = e.TargetSettlement;
                     if (settlement == null) return false;
-                    return V.Pos(settlement).Distance(playerPos) < 50f && e.Severity >= 5;
+                    return V.Pos(settlement).Distance(playerPos) < 50f && e.Severity >= 50;
                 })
                 .OrderByDescending(e => e.Severity)
                 .ToList();
@@ -122,40 +122,40 @@ namespace LivingWorldNpcs
             if (selected != null)
             {
                 bool impending = selected.Phase == WorldEventPhase.Impending;
-                string msg = selected.EventType switch
+                string msg = selected.Type switch
                 {
-                    WorldEventType.BanditRaid =>
+                    EventType.BanditRaid =>
                         $"一个从{selected.TargetSettlement?.Name?.ToString() ?? "村庄"}逃出来的村民拦住了你——匪徒正在劫掠他们的家园！",
-                    WorldEventType.Kidnapping =>
+                    EventType.Kidnapping =>
                         $"一位母亲跪在你面前——她的孩子被可疑人士盯上了。她指向{selected.TargetSettlement?.Name?.ToString() ?? "村子"}方向：'他们这几天一直在附近转悠！'",
-                    WorldEventType.Famine =>
+                    EventType.Famine =>
                         $"一个面黄肌瘦的村民拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "村子"}断粮了，老人孩子撑不了多久了。",
-                    WorldEventType.Betrayal =>
+                    EventType.Betrayal =>
                         $"一个神色慌张的人拦在你面前——他压低声音说{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}有人暗中联络外人，'还被蒙在鼓里……'",
-                    WorldEventType.DebtTrap =>
+                    EventType.DebtTrap =>
                         $"一个老人跪在你面前——债主今天就要收走他的地契。全家都要被赶出家门了。",
-                    WorldEventType.Assassination => impending
+                    EventType.Assassination => impending
                         ? $"一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}方向过来的旅人低声告诉你：镇上来了几个生面孔，到处打听事。他觉得不对劲。"
                         : $"你遇到了一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}逃出来的人——他说有人被刺杀了，现在镇上谁也不敢出门。",
-                    WorldEventType.Fugitive =>
+                    EventType.Fugitive =>
                         $"路边藏着一个人——他自称是被冤枉的，追捕他的人就在不远。他是逃犯还是无辜者？",
-                    WorldEventType.NobleConflict =>
+                    EventType.NobleConflict =>
                         $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！",
-                    WorldEventType.SacredTheft => impending
+                    EventType.SacredTheft => impending
                         ? $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。"
                         : $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的圣物被人盗走了！那是他们宗族的命根子……",
-                    WorldEventType.RomanticConflict =>
+                    EventType.RomanticConflict =>
                         $"一个年轻人请求你的帮助——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}有人为情所困，两家人的脸面都挂不住了。",
-                    WorldEventType.FalseAccusation =>
+                    EventType.FalseAccusation =>
                         $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}有冤案——一个无辜的人就要被定罪了，时间不多了！",
-                    WorldEventType.InheritanceDispute =>
+                    EventType.InheritanceDispute =>
                         $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}的老族长走了——继承人们已经撕破脸，怕是收不了场。",
-                    WorldEventType.TradeDispute =>
+                    EventType.TradeDispute =>
                         $"你遇到了一个破产的商人——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的市场被人垄断，小商人们活不下去了。",
                     _ => $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}出事了——有人向你求救。"
                 };
 
-                if (selected.Severity >= 6)
+                if (selected.Severity >= 60)
                 {
                     // ── 冷却检查：同一事件短时间内不重复拦截（防止每 2 秒刷屏）──
                     if (_interceptCooldowns.TryGetValue(selected.EventId, out float lastInterceptDay)
@@ -192,24 +192,24 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>事件类型简称（给玩家看）。</summary>
-        private static string EventTypeShortName(WorldEventType type)
+        private static string EventTypeShortName(EventType type)
         {
             return type switch
             {
-                WorldEventType.BanditRaid => "匪患",
-                WorldEventType.Kidnapping => "绑架",
-                WorldEventType.Famine => "饥荒",
-                WorldEventType.Betrayal => "背叛",
-                WorldEventType.DebtTrap => "债务危机",
-                WorldEventType.RomanticConflict => "情仇",
-                WorldEventType.FalseAccusation => "冤案",
-                WorldEventType.InheritanceDispute => "继承争端",
-                WorldEventType.Fugitive => "逃犯",
-                WorldEventType.TradeDispute => "贸易争端",
-                WorldEventType.NobleConflict => "贵族冲突",
-                WorldEventType.SacredTheft => "圣物失窃",
-                WorldEventType.Assassination => "暗杀",
-                WorldEventType.NemesisRevenge => "宿敌来袭",
+                EventType.BanditRaid => "匪患",
+                EventType.Kidnapping => "绑架",
+                EventType.Famine => "饥荒",
+                EventType.Betrayal => "背叛",
+                EventType.DebtTrap => "债务危机",
+                EventType.RomanticConflict => "情仇",
+                EventType.FalseAccusation => "冤案",
+                EventType.InheritanceDispute => "继承争端",
+                EventType.Fugitive => "逃犯",
+                EventType.TradeDispute => "贸易争端",
+                EventType.NobleConflict => "贵族冲突",
+                EventType.SacredTheft => "圣物失窃",
+                EventType.Assassination => "暗杀",
+                EventType.NemesisRevenge => "宿敌来袭",
                 _ => "不明事件"
             };
         }
@@ -224,7 +224,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static string GetTavernRumor(Hero npc)
         {
-            var allActive = WorldEventDatabase.ActiveEvents;
+            var allActive = WorldEventStore.ActiveEvents;
 
             // 30% 概率说宿敌消息
             if (MBRandom.RandomFloat < 0.3f)
@@ -237,8 +237,8 @@ namespace LivingWorldNpcs
             if (allActive.Count == 0)
             {
                 // 没有任何事件 → 查有没有已解决的近期事件
-                var recentResolved = WorldEventDatabase.ResolvedEvents
-                    .OrderByDescending(e => e.CreatedDay)
+                var recentResolved = WorldEventStore.ResolvedEvents
+                    .OrderByDescending(e => e.OccurredDay)
                     .FirstOrDefault();
                 if (recentResolved != null)
                 {
@@ -259,7 +259,7 @@ namespace LivingWorldNpcs
                 .OrderBy(e => MBRandom.RandomFloat)
                 .ToList();
 
-            WorldEventData selected;
+            WorldEvent selected;
             if (distantEvents.Count > 0)
                 selected = distantEvents[MBRandom.RandomInt(0, distantEvents.Count)];
             else
@@ -268,7 +268,7 @@ namespace LivingWorldNpcs
             return BuildRumorText(selected);
         }
 
-        private static string BuildRumorText(WorldEventData evt)
+        private static string BuildRumorText(WorldEvent evt)
         {
             if (evt == null) return null;
 
@@ -282,38 +282,38 @@ namespace LivingWorldNpcs
             string target = evt.TargetHero?.Name?.ToString() ?? "村民";
             bool impending = evt.Phase == WorldEventPhase.Impending;
 
-            return evt.EventType switch
+            return evt.Type switch
             {
-                WorldEventType.BanditRaid => $"听说{location}遭了匪……百姓夜里都不敢出门。",
-                WorldEventType.Kidnapping => $"听说{location}有人被绑了……家里人急得团团转。",
-                WorldEventType.Famine => $"听说{location}粮食见底了……再这样下去要饿死人。",
-                WorldEventType.Betrayal => $"听说{location}出了内鬼……自己人捅了自己人一刀。",
-                WorldEventType.DebtTrap => $"听说{location}有人被债主逼得走投无路……",
-                WorldEventType.RomanticConflict => $"听说{location}有人为情决斗……啧啧。",
-                WorldEventType.FalseAccusation => $"听说{location}有人被冤枉了……真凶还在逍遥法外。",
-                WorldEventType.InheritanceDispute => $"听说{location}的老爷子走了……儿子们为遗产打起来了。",
-                WorldEventType.Fugitive => $"听说{location}附近藏了个逃犯……追捕的人悬了重赏。",
-                WorldEventType.TradeDispute => $"听说{location}的商人闹起来了……这生意不好做啊。",
-                WorldEventType.NobleConflict => $"听说{location}的领主和对面起了摩擦……怕是要打。",
-                WorldEventType.SacredTheft => impending
+                EventType.BanditRaid => $"听说{location}遭了匪……百姓夜里都不敢出门。",
+                EventType.Kidnapping => $"听说{location}有人被绑了……家里人急得团团转。",
+                EventType.Famine => $"听说{location}粮食见底了……再这样下去要饿死人。",
+                EventType.Betrayal => $"听说{location}出了内鬼……自己人捅了自己人一刀。",
+                EventType.DebtTrap => $"听说{location}有人被债主逼得走投无路……",
+                EventType.RomanticConflict => $"听说{location}有人为情决斗……啧啧。",
+                EventType.FalseAccusation => $"听说{location}有人被冤枉了……真凶还在逍遥法外。",
+                EventType.InheritanceDispute => $"听说{location}的老爷子走了……儿子们为遗产打起来了。",
+                EventType.Fugitive => $"听说{location}附近藏了个逃犯……追捕的人悬了重赏。",
+                EventType.TradeDispute => $"听说{location}的商人闹起来了……这生意不好做啊。",
+                EventType.NobleConflict => $"听说{location}的领主和对面起了摩擦……怕是要打。",
+                EventType.SacredTheft => impending
                     ? $"听说{location}最近来了不少外乡人……神神秘秘的，说是跟当地的圣物有关。"
                     : $"听说{location}的传家宝被人偷了……这是要断人家的根啊。",
-                WorldEventType.Assassination => impending
+                EventType.Assassination => impending
                     ? $"听说{location}不太平……有人在暗中活动，怕是冲着有头有脸的人物去的。"
                     : $"听说{location}有重要人物被刺杀了……人心惶惶。",
-                WorldEventType.NemesisRevenge => $"听说有人在找你……那道疤还在疼。",
+                EventType.NemesisRevenge => $"听说有人在找你……那道疤还在疼。",
                 _ => $"听说{location}那边不太平……"
             };
         }
 
         /// <summary>从 Narrative.csv 读取传言文本。</summary>
-        private static string TryGetGossipFromCSV(WorldEventData evt)
+        private static string TryGetGossipFromCSV(WorldEvent evt)
         {
             try
             {
                 // 事件过期后 → 用 Gossip_EventExpired_* 条目
-                string prefix = evt.Status == WorldEventStatus.Expired ? "Gossip_EventExpired_" : "Gossip_WorldEvent_";
-                string eventId = $"{prefix}{evt.EventType}";
+                string prefix = evt.Stage == EventStage.Unsolved ? "Gossip_EventExpired_" : "Gossip_WorldEvent_";
+                string eventId = $"{prefix}{evt.Type}";
                 var filters = new NarrativeFilters { EventName = eventId };
                 var result = NarrativeResolver.Resolve(filters);
                 if (result != null && !NarrativeResolver.IsFallbackText(result.Text))
@@ -366,13 +366,13 @@ namespace LivingWorldNpcs
         /// 为同一 NPC 的多次交互构建叙事线程上下文。
         /// 返回额外维度信息供 NarrativeResolver 匹配台词变体。
         /// </summary>
-        public static NarrativeFilters GetNarrativeThreadContext(Hero npc, WorldEventData currentEvent)
+        public static NarrativeFilters GetNarrativeThreadContext(Hero npc, WorldEvent currentEvent)
         {
             var filters = new NarrativeFilters();
             if (currentEvent == null) return filters;
 
             // 查这个 NPC 的过往事件（已解决/已过期）
-            var pastEvents = WorldEventDatabase.ResolvedEvents
+            var pastEvents = WorldEventStore.ResolvedEvents
                 .Where(e => e.TargetHeroId == npc?.StringId)
                 .ToList();
 
@@ -382,8 +382,8 @@ namespace LivingWorldNpcs
                 filters.Relation = "Experienced";
 
             // 严重度影响台词选择
-            if (currentEvent.Severity >= 8)
-                filters.Severity = 8;
+            if (currentEvent.Severity >= 80)
+                filters.Severity = 80;
 
             return filters;
         }
@@ -439,7 +439,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var activeEvents = WorldEventDatabase.ActiveEvents;
+                var activeEvents = WorldEventStore.ActiveEvents;
                 if (activeEvents.Count == 0) return;
 
                 string playerName = Hero.MainHero?.Name?.ToString() ?? "旅人";
@@ -448,7 +448,7 @@ namespace LivingWorldNpcs
                 {
                     var evt = activeEvents[0];
                     string loc = evt.TargetSettlement?.Name?.ToString() ?? "某地";
-                    string typeName = EventTypeShortName(evt.EventType);
+                    string typeName = EventTypeShortName(evt.Type);
                     string msg = $"📜 {playerName}，有一件事你需要知道——{loc}{typeName}。";
                     InformationManager.DisplayMessage(new InformationMessage(msg));
                 }
@@ -457,7 +457,7 @@ namespace LivingWorldNpcs
                     var summaries = activeEvents.Take(5).Select(e =>
                     {
                         string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
-                        string type = EventTypeShortName(e.EventType);
+                        string type = EventTypeShortName(e.Type);
                         return $"  • {loc}：{type}（严重度 {e.Severity}/10）";
                     });
                     string header = $"📜 世界动态——{activeEvents.Count} 起事件正在发生：";
@@ -476,14 +476,14 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var allActive = WorldEventDatabase.ActiveEvents;
+                var allActive = WorldEventStore.ActiveEvents;
                 if (allActive.Count == 0) return;
 
                 Settlement playerSettlement = Hero.MainHero?.CurrentSettlement;
-                WorldEventData selected = null;
+                WorldEvent selected = null;
                 if (playerSettlement != null)
                 {
-                    var localEvents = WorldEventDatabase.GetActiveEventsNear(playerSettlement, maxDistance: 80f);
+                    var localEvents = WorldEventStore.GetActiveEventsNear(playerSettlement, maxDistance: 80f);
                     if (localEvents.Count > 0)
                         selected = localEvents[MBRandom.RandomInt(0, localEvents.Count)];
                 }
@@ -514,7 +514,7 @@ namespace LivingWorldNpcs
                 if (!currentSettlement.IsTown && !currentSettlement.IsCastle) return;
                 if (_lastTavernSettlementId == currentSettlement.StringId) return;
                 _lastTavernSettlementId = currentSettlement.StringId;
-                if (WorldEventDatabase.ActiveEvents.Count > 0)
+                if (WorldEventStore.ActiveEvents.Count > 0)
                     ShowTavernAmbientRumor();
             }
             catch (Exception ex)
@@ -711,24 +711,24 @@ namespace LivingWorldNpcs
         /// 直接从事件数据和 NPC 生成事件感知开场白（不查询数据库）。
         /// 供 InteractionController 等已有 NPC memory 的调用方使用，减少重复查询。
         /// </summary>
-        public static string BuildEventOpeningLine(WorldEventData evt, Hero npc, string topic = "Greeting")
+        public static string BuildEventOpeningLine(WorldEvent evt, Hero npc, string topic = "Greeting")
         {
             if (evt == null || npc == null) return null;
 
             bool isVictim = evt.TargetHeroId == npc.StringId;
-            bool isInstigator = evt.InstigatorHeroId == npc.StringId;
+            bool isInstigator = evt.InitiatorId == npc.StringId;
 
             // 优先从 Narrative.csv 查表
             string csvText = TryGetEventAwareDialogueFromCSV(evt, isVictim, isInstigator, topic);
             if (!string.IsNullOrEmpty(csvText))
             {
-                DebugLogger.Log($"[EventAware] NPC={npc.Name} event={evt.EventType} role={(isVictim ? "Victim" : "Instigator")} source=CSV text=\"{csvText}\"");
+                DebugLogger.Log($"[EventAware] NPC={npc.Name} event={evt.Type} role={(isVictim ? "Victim" : "Instigator")} source=CSV text=\"{csvText}\"");
                 return csvText;
             }
 
             // 兜底硬编码
             string fallback = BuildEventAwareDialogueFallback(evt, isVictim, isInstigator, topic);
-            DebugLogger.Log($"[EventAware] NPC={npc.Name} event={evt.EventType} role={(isVictim ? "Victim" : "Instigator")} source=Fallback text=\"{fallback}\"");
+            DebugLogger.Log($"[EventAware] NPC={npc.Name} event={evt.Type} role={(isVictim ? "Victim" : "Instigator")} source=Fallback text=\"{fallback}\"");
             return fallback;
         }
 
@@ -740,7 +740,7 @@ namespace LivingWorldNpcs
         {
             if (party == null || string.IsNullOrEmpty(party.StringId)) return null;
 
-            var partyEvent = WorldEventDatabase.ActiveEvents
+            var partyEvent = WorldEventStore.ActiveEvents
                 .FirstOrDefault(e => e.GeneratedPartyId == party.StringId);
             if (partyEvent == null) return null;
 
@@ -752,7 +752,7 @@ namespace LivingWorldNpcs
             return BuildEventAwareDialogueFallback(partyEvent, isVictim: false, isInstigator: true, topic);
         }
 
-        private static string BuildEventDialogueFromEvents(List<WorldEventData> involvedEvents, Hero npc, string topic)
+        private static string BuildEventDialogueFromEvents(List<WorldEvent> involvedEvents, Hero npc, string topic)
         {
             // 此方法已废弃，由 BuildEventOpeningLine 替代。
             // 保留以兼容可能的旧调用方；内部委托给 BuildEventOpeningLine。
@@ -767,12 +767,12 @@ namespace LivingWorldNpcs
         /// 不需要 NarrativeResolver.GetCodeFallback 的通用兜底句来干扰。
         /// 返回 null = CSV 无此条目，调用方直接走硬编码。
         /// </summary>
-        private static string TryGetEventAwareDialogueFromCSV(WorldEventData evt, bool isVictim, bool isInstigator, string topic)
+        private static string TryGetEventAwareDialogueFromCSV(WorldEvent evt, bool isVictim, bool isInstigator, string topic)
         {
             try
             {
                 string role = isVictim ? "Victim" : "Instigator";
-                string eventId = $"WorldEvent_{topic}_{evt.EventType}_{role}";
+                string eventId = $"WorldEvent_{topic}_{evt.Type}_{role}";
 
                 // 直接查 CSV，不经过 NarrativeResolver（它会 fallback 到 GetCodeFallback 污染结果）
                 var table = GameDatabase.Narrative;
@@ -807,7 +807,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>兜底硬编码：根据事件类型、NPC 角色和事件阶段生成情境对话。</summary>
-        private static string BuildEventAwareDialogueFallback(WorldEventData evt, bool isVictim, bool isInstigator, string topic)
+        private static string BuildEventAwareDialogueFallback(WorldEvent evt, bool isVictim, bool isInstigator, string topic)
         {
             string loc = evt.TargetSettlement?.Name?.ToString() ?? "这里";
             string instigatorName = evt.IsGenericInstigator ? "一帮匪徒" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
@@ -817,73 +817,73 @@ namespace LivingWorldNpcs
             if (isVictim)
             {
                 // 受害者视角：慌张、求助、愤怒、悲痛
-                string[] greetings = evt.EventType switch
+                string[] greetings = evt.Type switch
                 {
-                    WorldEventType.BanditRaid => new[] {
+                    EventType.BanditRaid => new[] {
                         $"你来得正好！{instigatorName}就在村外——{loc}的乡亲们日夜担惊受怕，你能帮帮我们吗？",
                         $"终于有人来了……{instigatorName}已经在{loc}外扎了营，每家每户都在等一个能打的人。"
                     },
-                    WorldEventType.Kidnapping => impending ? new[] {
+                    EventType.Kidnapping => impending ? new[] {
                         $"求求你——{instigatorName}的人正在路上，他们要绑走{victimName}！我们没有时间了……",
                         $"你听说了吗？{instigatorName}盯上了{victimName}……再不阻止就来不及了。"
                     } : new[] {
                         $"求求你——{victimName}被{instigatorName}绑走了！每多等一刻就多一分危险……",
                         $"你听说了吗？{victimName}被人绑走了……{instigatorName}要的赎金我们根本拿不出来。"
                     },
-                    WorldEventType.Famine => new[] {
+                    EventType.Famine => new[] {
                         $"{loc}的粮仓已经见底了……老人孩子吃了好几天野菜。你能帮我们弄点粮食来吗？",
                         $"你看到了——{loc}在挨饿。不是谁害的，是天灾。但再没有粮食，真会死人。"
                     },
-                    WorldEventType.Betrayal => impending ? new[] {
+                    EventType.Betrayal => impending ? new[] {
                         $"你能感觉到吗——{loc}的气氛越来越不对了。{instigatorName}看{victimName}的眼神……我怕迟早要出事。",
                         $"我听到了一些风声……{instigatorName}在暗中联络人，怕是冲{victimName}来的。你能帮我查查吗？"
                     } : new[] {
                         $"你不知道被自己最信任的人捅一刀是什么感觉……{instigatorName}，他曾经是我最信赖的人。",
                         $"{instigatorName}背叛了{loc}的所有人。卷走了钱，也卷走了信任。你能帮我们讨回公道吗？"
                     },
-                    WorldEventType.DebtTrap => new[] {
+                    EventType.DebtTrap => new[] {
                         $"{instigatorName}逼债逼到了家门口……再不还钱，{victimName}的地就要被收走了。",
                         $"你看起来是个有本事的人——{victimName}被{instigatorName}的高利贷压得快喘不过气了。能帮一把吗？"
                     },
-                    WorldEventType.RomanticConflict => new[] {
+                    EventType.RomanticConflict => new[] {
                         $"感情的事……比刀剑更伤人。{instigatorName}和我之间的事，不是几句话能说清的。",
                         $"你谈过那种让你夜不能寐的感情吗？{instigatorName}现在就是我心头的一根刺。"
                     },
-                    WorldEventType.FalseAccusation => new[] {
+                    EventType.FalseAccusation => new[] {
                         $"我是被冤枉的！{instigatorName}编造的罪名根本没有证据，{loc}的人却都信了……",
                         $"你相信我吗？{instigatorName}说我做了那件事，但我连碰都没碰过。{loc}现在没人敢替我说话。"
                     },
-                    WorldEventType.InheritanceDispute => new[] {
+                    EventType.InheritanceDispute => new[] {
                         $"那本该是我的……{instigatorName}用卑鄙手段夺走了继承权，{loc}的老人全都知道。",
                         $"家族的遗产被{instigatorName}一个人霸占了。我不在乎钱——但这口气咽不下去。"
                     },
-                    WorldEventType.Fugitive => new[] {
+                    EventType.Fugitive => new[] {
                         $"我知道{instigatorName}过去犯了事……但他本性不坏。{loc}的人只要肯给他一个机会……",
                         $"有人说{instigatorName}是逃犯、是祸害。但他在{loc}帮了我很多——是那些追他的人不讲道理。"
                     },
-                    WorldEventType.TradeDispute => new[] {
+                    EventType.TradeDispute => new[] {
                         $"{instigatorName}抢了我在{loc}的生意——不是用刀，是用骗的。商人也有商人的仗要打。",
                         $"生意场上的事，有时候比战场还脏。{instigatorName}在{loc}压价、断货、散布谣言——这是要赶尽杀绝。"
                     },
-                    WorldEventType.NobleConflict => new[] {
+                    EventType.NobleConflict => new[] {
                         $"{instigatorName}的大军已经在{loc}外集结了……这不是私人恩怨，是整个地区的灾难。",
                         $"贵族之间的冲突，从来都是平民遭殃。{instigatorName}要的不过是面子，可{loc}的人要付出的是命。"
                     },
-                    WorldEventType.SacredTheft => impending ? new[] {
+                    EventType.SacredTheft => impending ? new[] {
                         $"那不只是件东西……那是{loc}的魂。{instigatorName}正在打它的主意——我们必须赶在他们前面！",
                         $"传家之物被{instigatorName}盯上了——{loc}的老人说，丢了它，整个地方都会遭厄运。一定能拦住他们！"
                     } : new[] {
                         $"那不只是件东西……那是{loc}的魂。{instigatorName}把它偷走了，等于把我们的根也拔了。",
                         $"传家之物被{instigatorName}盗走了——{loc}的老人说，丢了它，整个地方都会遭厄运。"
                     },
-                    WorldEventType.Assassination => impending ? new[] {
+                    EventType.Assassination => impending ? new[] {
                         $"你来得正好——{instigatorName}的人在路上了，他们要杀我！你能保护我吗？",
                         $"有人告诉我{instigatorName}派了刺客……目标就是我。{loc}没人能帮我——直到你来了。"
                     } : new[] {
                         $"……是我运气好，捡了一条命。{instigatorName}的人差点就得手了。",
                         $"你不知道眼睁睁看着刀刺过来是什么感觉……如果不是跑得快，{victimName}现在已经是一具尸体了。"
                     },
-                    WorldEventType.NemesisRevenge => new[] {
+                    EventType.NemesisRevenge => new[] {
                         $"那个人回来了……{instigatorName}。我以为这辈子再也不会听到他的名字——但他到{loc}来了。",
                         $"有些恩怨，过多少年都不会散。{instigatorName}是冲着我来的——{loc}只是刚好在路中间。"
                     },
@@ -898,73 +898,73 @@ namespace LivingWorldNpcs
             if (isInstigator)
             {
                 // 加害方视角：威胁、嚣张、傲慢、辩护、不屑
-                string[] lines = evt.EventType switch
+                string[] lines = evt.Type switch
                 {
-                    WorldEventType.BanditRaid => new[] {
+                    EventType.BanditRaid => new[] {
                         $"哼，又一个多管闲事的？{loc}的事你最好别掺和。",
                         $"你是来替{loc}那些村民出头的？我劝你想清楚——刀剑不长眼。"
                     },
-                    WorldEventType.Kidnapping => impending ? new[] {
+                    EventType.Kidnapping => impending ? new[] {
                         $"你就是来碍事的？{victimName}的命已经在我手心里了——就差最后一程。识相的就别挡道。",
                         $"想要{victimName}平安？你最好现在就走——这事跟你没关系。"
                     } : new[] {
                         $"你是来赎人的？钱带来了吗？没带钱就滚——{victimName}的命可是有价的。",
                         $"想救人？没那么容易。{victimName}在我手上，想要人——先拿钱来。"
                     },
-                    WorldEventType.Famine => new[] {
+                    EventType.Famine => new[] {
                         $"看什么看？{loc}的粮食又不是我烧的——天不下雨，怪我？要怪就怪他们自己种不出东西来。",
                         $"你也想替{loc}的人说话？粮价就是这样——嫌贵就别吃。这是生意，不是慈善。"
                     },
-                    WorldEventType.Betrayal => impending ? new[] {
+                    EventType.Betrayal => impending ? new[] {
                         $"你怎么知道的？……也好。既然你来了，给你个机会——站在我这边。{victimName}的时代该结束了。",
                         $"你听说了什么？不重要。重要的是——{victimName}的信任太脆弱了。我只是在合适的时机推一把。"
                     } : new[] {
                         $"你是{victimName}派来的？告诉他——钱我已经花了，有本事来拿。",
                         $"叛徒？哈！我只是比{victimName}更懂得怎么活下去。弱者就该被淘汰。"
                     },
-                    WorldEventType.DebtTrap => new[] {
+                    EventType.DebtTrap => new[] {
                         $"你是来替{victimName}还钱的？{victimName}欠的可不是小数目——利滚利，到今天已经翻了几倍了。",
                         $"怎么，你也想替{victimName}求情？契约白纸黑字，欠债还钱天经地义。"
                     },
-                    WorldEventType.RomanticConflict => new[] {
+                    EventType.RomanticConflict => new[] {
                         $"这是我和{victimName}之间的事——感情的事，外人少插嘴。",
                         $"你懂什么？{victimName}辜负我在先。有些伤不是刀剑留下的，却比刀剑更深。"
                     },
-                    WorldEventType.FalseAccusation => new[] {
+                    EventType.FalseAccusation => new[] {
                         $"你说我冤枉了{victimName}？证据摆在那里——{loc}的人都看着呢。你想替他翻案？",
                         $"正义？哈！{victimName}做的事他自己清楚。我只是让{loc}的人看清真相而已。"
                     },
-                    WorldEventType.InheritanceDispute => new[] {
+                    EventType.InheritanceDispute => new[] {
                         $"{victimName}有什么资格来争？论血统、论能力、论贡献——哪一样比得上我？{loc}的产业落在我手里才是正道。",
                         $"继承的事，外人少管。{victimName}不过是不甘心罢了——但规矩就是规矩，{loc}的一切现在是我的。"
                     },
-                    WorldEventType.Fugitive => new[] {
+                    EventType.Fugitive => new[] {
                         $"我知道有人在追我——但{loc}是个藏身的好地方。你不是来抓我的吧？最好不是。",
                         $"每个人都有过去。我在{loc}就是想重新开始——但要是有人追到这里来，我不介意再沾一次血。"
                     },
-                    WorldEventType.TradeDispute => new[] {
+                    EventType.TradeDispute => new[] {
                         $"生意就是生意——{victimName}在{loc}的买卖做不下去是他自己没本事。我的手段都合规矩，有本事他也可以学。",
                         $"你看起来不像商人——别被{victimName}的一面之词骗了。{loc}的市场谁占上风，凭的是脑子，不是眼泪。"
                     },
-                    WorldEventType.NobleConflict => new[] {
+                    EventType.NobleConflict => new[] {
                         $"你是{victimName}的说客？回去告诉他——{loc}的事，战场上见分晓。刀剑比嘴皮子管用。",
                         $"这是贵族之间的事。{victimName}在{loc}的所作所为已经越过底线了——没有人可以这样践踏我的荣誉而不付出代价。"
                     },
-                    WorldEventType.SacredTheft => impending ? new[] {
+                    EventType.SacredTheft => impending ? new[] {
                         $"那东西在{loc}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。",
                         $"你说这是偷？我只是去替{loc}取一件他们不配拥有的东西。识相的就别拦着。"
                     } : new[] {
                         $"那东西在{loc}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。",
                         $"你说这是偷？我只是替{loc}保管一件他们不配拥有的东西。历史会证明我是对的。"
                     },
-                    WorldEventType.Assassination => impending ? new[] {
+                    EventType.Assassination => impending ? new[] {
                         $"你听说了？{victimName}的命已经进了倒计时。你是想来帮忙的，还是来碍事的？",
                         $"有些事知道了对你没好处。{victimName}的事还没结束——但你最好当作什么都不知道。"
                     } : new[] {
                         $"你也在打听{victimName}的事？我劝你别多问——知道太多的人，往往活不长。",
                         $"{victimName}死了。下一个就是你——如果你继续多管闲事的话。"
                     },
-                    WorldEventType.NemesisRevenge => new[] {
+                    EventType.NemesisRevenge => new[] {
                         $"我和{victimName}的账，不是一天两天了。这是我私人的事——{loc}只是刚好成了清算的舞台。",
                         $"你认识{victimName}？那你最好给他带句话——不管他躲到哪里，该还的迟早要还。"
                     },

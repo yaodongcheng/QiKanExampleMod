@@ -95,7 +95,7 @@ namespace LivingWorldNpcs
     /// </summary>
     public class WorldEventConfig
     {
-        public WorldEventType EventType;
+        public EventType EventType;
         /// <summary>事件的情感/叙事标签</summary>
         public string EmotionTag;
         /// <summary>加害方来源策略</summary>
@@ -131,7 +131,7 @@ namespace LivingWorldNpcs
             // 1. BanditRaid — 匪患（匪徒不加害方委托，受害方防御性委托）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.BanditRaid,
+                EventType = EventType.BanditRaid,
                 EmotionTag = "fear",
                 InstigatorSource = InstigatorSource.BanditHideout,
                 AllowGeneric = true,
@@ -140,7 +140,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.VillageDefense, CommissionCategory.HideoutClear },
                 InstigatorCommissions = null, // 匪徒不会给玩家发委托
                 VictimCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.VillageDefense, CommissionCategory.HideoutClear },
-                MinSeverity = 2, MaxSeverity = 9,
+                MinSeverity = 20, MaxSeverity = 90,
                 MinDayLimit = 3, MaxDayLimit = 10,
                 WeightMultiplier = 1.5f, // 最常见
             });
@@ -148,7 +148,7 @@ namespace LivingWorldNpcs
             // 2. Kidnapping — 绑架（绑匪不加害方委托）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.Kidnapping,
+                EventType = EventType.Kidnapping,
                 EmotionTag = "urgency",
                 InstigatorSource = InstigatorSource.BanditHideout,
                 AllowGeneric = true,
@@ -157,7 +157,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.DecoyMission },
                 InstigatorCommissions = null, // 绑匪不会给玩家发委托
                 VictimCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.DecoyMission },
-                MinSeverity = 4, MaxSeverity = 10,
+                MinSeverity = 40, MaxSeverity = 100,
                 MinDayLimit = 2, MaxDayLimit = 7, // 时间紧迫
                 WeightMultiplier = 0.8f,
             });
@@ -165,7 +165,7 @@ namespace LivingWorldNpcs
             // 3. Famine — 饥荒（天灾，无加害方）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.Famine,
+                EventType = EventType.Famine,
                 EmotionTag = "despair",
                 InstigatorSource = InstigatorSource.None,
                 AllowGeneric = true, // 天灾无加害方
@@ -174,7 +174,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.SupplyEmergency, CommissionCategory.ProcurementAgent },
                 InstigatorCommissions = null, // 天灾无加害方
                 VictimCommissions = new[] { CommissionCategory.SupplyEmergency, CommissionCategory.ProcurementAgent },
-                MinSeverity = 3, MaxSeverity = 8,
+                MinSeverity = 30, MaxSeverity = 80,
                 MinDayLimit = 5, MaxDayLimit = 15,
                 WeightMultiplier = 0.6f,
             });
@@ -182,7 +182,7 @@ namespace LivingWorldNpcs
             // 4. Betrayal — 背叛（背叛者不加害方委托）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.Betrayal,
+                EventType = EventType.Betrayal,
                 EmotionTag = "anger",
                 InstigatorSource = InstigatorSource.RelatedHero,
                 AllowGeneric = false, // 必须有真实背叛者
@@ -191,7 +191,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.LostItem },
                 InstigatorCommissions = null, // 背叛者不会发委托
                 VictimCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.LostItem },
-                MinSeverity = 5, MaxSeverity = 10,
+                MinSeverity = 50, MaxSeverity = 100,
                 MinDayLimit = 3, MaxDayLimit = 10,
                 WeightMultiplier = 0.5f,
             });
@@ -199,7 +199,7 @@ namespace LivingWorldNpcs
             // 5. DebtTrap — 债务陷阱
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.DebtTrap,
+                EventType = EventType.DebtTrap,
                 EmotionTag = "despair",
                 InstigatorSource = InstigatorSource.TownNotable,
                 AllowGeneric = false, // 必须有真实债主
@@ -208,7 +208,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.ProcurementAgent },
                 InstigatorCommissions = null, // 债主通常不雇外人催债
                 VictimCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.ProcurementAgent },
-                MinSeverity = 3, MaxSeverity = 8,
+                MinSeverity = 30, MaxSeverity = 80,
                 MinDayLimit = 5, MaxDayLimit = 14,
                 WeightMultiplier = 0.7f,
             });
@@ -216,7 +216,7 @@ namespace LivingWorldNpcs
             // 6. RomanticConflict — 情仇（双方都可能雇人）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.RomanticConflict,
+                EventType = EventType.RomanticConflict,
                 EmotionTag = "passion",
                 InstigatorSource = InstigatorSource.EnemyLord,
                 AllowGeneric = true,
@@ -225,7 +225,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.ArenaSpecial, CommissionCategory.DecoyMission },
                 InstigatorCommissions = new[] { CommissionCategory.ArenaSpecial, CommissionCategory.DecoyMission },
                 VictimCommissions = new[] { CommissionCategory.ArenaSpecial, CommissionCategory.DecoyMission },
-                MinSeverity = 2, MaxSeverity = 6,
+                MinSeverity = 20, MaxSeverity = 60,
                 MinDayLimit = 4, MaxDayLimit = 12,
                 WeightMultiplier = 0.4f,
             });
@@ -233,7 +233,7 @@ namespace LivingWorldNpcs
             // 7. FalseAccusation — 冤案（诬告方不加害方委托）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.FalseAccusation,
+                EventType = EventType.FalseAccusation,
                 EmotionTag = "injustice",
                 InstigatorSource = InstigatorSource.EnemyLord,
                 AllowGeneric = true,
@@ -242,7 +242,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.LostItem, CommissionCategory.PrisonBreak },
                 InstigatorCommissions = null, // 诬告者不会雇外人帮自己栽赃
                 VictimCommissions = new[] { CommissionCategory.LostItem, CommissionCategory.PrisonBreak },
-                MinSeverity = 3, MaxSeverity = 8,
+                MinSeverity = 30, MaxSeverity = 80,
                 MinDayLimit = 5, MaxDayLimit = 14,
                 WeightMultiplier = 0.5f,
             });
@@ -250,7 +250,7 @@ namespace LivingWorldNpcs
             // 8. InheritanceDispute — 继承争端（双方都可能雇人）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.InheritanceDispute,
+                EventType = EventType.InheritanceDispute,
                 EmotionTag = "greed",
                 InstigatorSource = InstigatorSource.RelatedHero,
                 AllowGeneric = false, // 必须有真实争夺方
@@ -259,7 +259,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.ProcurementAgent, CommissionCategory.ArenaSpecial },
                 InstigatorCommissions = new[] { CommissionCategory.ProcurementAgent, CommissionCategory.ArenaSpecial },
                 VictimCommissions = new[] { CommissionCategory.ProcurementAgent, CommissionCategory.ArenaSpecial },
-                MinSeverity = 2, MaxSeverity = 7,
+                MinSeverity = 20, MaxSeverity = 70,
                 MinDayLimit = 6, MaxDayLimit = 15,
                 WeightMultiplier = 0.4f,
             });
@@ -267,7 +267,7 @@ namespace LivingWorldNpcs
             // 9. Fugitive — 逃犯/隐士（追捕方可雇人缉拿，逃犯可雇人掩护）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.Fugitive,
+                EventType = EventType.Fugitive,
                 EmotionTag = "moral_grey",
                 InstigatorSource = InstigatorSource.EnemyLord,
                 AllowGeneric = true,
@@ -276,7 +276,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.CaravanEscort, CommissionCategory.BountyHunt },
                 InstigatorCommissions = new[] { CommissionCategory.BountyHunt }, // 追捕方：悬赏缉拿
                 VictimCommissions = new[] { CommissionCategory.CaravanEscort },   // 逃犯：需要掩护撤离
-                MinSeverity = 2, MaxSeverity = 6,
+                MinSeverity = 20, MaxSeverity = 60,
                 MinDayLimit = 4, MaxDayLimit = 12,
                 WeightMultiplier = 0.5f,
             });
@@ -284,7 +284,7 @@ namespace LivingWorldNpcs
             // 10. TradeDispute — 贸易争端（加害方是垄断商，可雇人维持垄断）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.TradeDispute,
+                EventType = EventType.TradeDispute,
                 EmotionTag = "greed",
                 InstigatorSource = InstigatorSource.TownNotable,
                 AllowGeneric = false,
@@ -293,7 +293,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.SupplyEmergency, CommissionCategory.ProcurementAgent },
                 InstigatorCommissions = new[] { CommissionCategory.SupplyIntercept, CommissionCategory.DecoyMission }, // 垄断商：拦截竞争货源、制造混乱
                 VictimCommissions = new[] { CommissionCategory.SupplyEmergency, CommissionCategory.ProcurementAgent },  // 受害商人：求援
-                MinSeverity = 1, MaxSeverity = 5,
+                MinSeverity = 10, MaxSeverity = 50,
                 MinDayLimit = 5, MaxDayLimit = 15,
                 WeightMultiplier = 0.6f,
             });
@@ -301,7 +301,7 @@ namespace LivingWorldNpcs
             // 11. NobleConflict — 贵族冲突（核心：双方都可雇人，委托对立）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.NobleConflict,
+                EventType = EventType.NobleConflict,
                 EmotionTag = "pride",
                 InstigatorSource = InstigatorSource.EnemyLord,
                 AllowGeneric = false, // 必须有真实敌对领主
@@ -321,7 +321,7 @@ namespace LivingWorldNpcs
                         SpawnPosition = AuxiliarySpawnPosition.BetweenParties,
                     },
                 },
-                MinSeverity = 4, MaxSeverity = 10,
+                MinSeverity = 40, MaxSeverity = 100,
                 MinDayLimit = 4, MaxDayLimit = 12,
                 WeightMultiplier = 0.5f,
             });
@@ -329,7 +329,7 @@ namespace LivingWorldNpcs
             // 12. SacredTheft — 圣物失窃（盗贼不加害方委托）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.SacredTheft,
+                EventType = EventType.SacredTheft,
                 EmotionTag = "sacrilege",
                 InstigatorSource = InstigatorSource.BanditHideout,
                 AllowGeneric = true,
@@ -338,7 +338,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.LostItem, CommissionCategory.BountyHunt },
                 InstigatorCommissions = null, // 盗贼不会发委托
                 VictimCommissions = new[] { CommissionCategory.LostItem, CommissionCategory.BountyHunt },
-                MinSeverity = 3, MaxSeverity = 8,
+                MinSeverity = 30, MaxSeverity = 80,
                 MinDayLimit = 4, MaxDayLimit = 12,
                 WeightMultiplier = 0.4f,
             });
@@ -346,7 +346,7 @@ namespace LivingWorldNpcs
             // 13. Assassination — 行刺（刺客不加害方委托）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.Assassination,
+                EventType = EventType.Assassination,
                 EmotionTag = "shock",
                 InstigatorSource = InstigatorSource.EnemyLord,
                 AllowGeneric = true,
@@ -355,7 +355,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.PrisonBreak },
                 InstigatorCommissions = null, // 刺客不会发委托
                 VictimCommissions = new[] { CommissionCategory.BountyHunt, CommissionCategory.PrisonBreak }, // 幸存方：追凶、营救被牵连者
-                MinSeverity = 6, MaxSeverity = 10, // 高严重度
+                MinSeverity = 60, MaxSeverity = 100, // 高严重度
                 MinDayLimit = 1, MaxDayLimit = 5,   // 极其紧迫
                 WeightMultiplier = 0.3f,             // 稀有
             });
@@ -363,7 +363,7 @@ namespace LivingWorldNpcs
             // 14. NemesisRevenge — 宿敌复仇（双方都可能雇人）
             Register(new WorldEventConfig
             {
-                EventType = WorldEventType.NemesisRevenge,
+                EventType = EventType.NemesisRevenge,
                 EmotionTag = "obsession",
                 InstigatorSource = InstigatorSource.Nemesis,
                 AllowGeneric = false, // 必须是真实宿敌
@@ -372,7 +372,7 @@ namespace LivingWorldNpcs
                 MatchingCommissions = new[] { CommissionCategory.BountyHunt },
                 InstigatorCommissions = new[] { CommissionCategory.BountyHunt }, // 宿敌可能悬赏玩家
                 VictimCommissions = new[] { CommissionCategory.BountyHunt },     // 玩家也可能悬赏宿敌
-                MinSeverity = 5, MaxSeverity = 10,
+                MinSeverity = 50, MaxSeverity = 100,
                 MinDayLimit = 1, MaxDayLimit = 10,
                 WeightMultiplier = 0f, // 不随机生成
             });
@@ -384,7 +384,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>按事件类型取配置。</summary>
-        public static WorldEventConfig Get(WorldEventType type)
+        public static WorldEventConfig Get(EventType type)
         {
             return AllConfigs.Find(c => c.EventType == type);
         }

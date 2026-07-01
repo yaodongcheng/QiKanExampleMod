@@ -203,7 +203,7 @@ namespace LivingWorldNpcs
                 }
 
                 // 生成 NemesisRevenge 事件
-                var config = WorldEventConfig.Get(WorldEventType.NemesisRevenge);
+                var config = WorldEventConfig.Get(EventType.NemesisRevenge);
                 if (config == null) return null;
 
                 var hero = record.Hero;
@@ -221,22 +221,22 @@ namespace LivingWorldNpcs
                 }
 
                 // 创建 WorldEvent
-                var worldEvent = new WorldEventData
+                var worldEvent = new WorldEvent
                 {
                     EventId = $"evt_nemesis_{hero.StringId}_{DateTime.UtcNow.Ticks:X8}",
-                    EventType = WorldEventType.NemesisRevenge,
-                    Status = WorldEventStatus.Active,
+                    Type = EventType.NemesisRevenge,
+                    Stage = EventStage.Active,
                     TargetHeroId = Hero.MainHero?.StringId,
                     TargetSettlementId = settlement.StringId,
-                    InstigatorHeroId = hero.StringId,
+                    InitiatorId = hero.StringId,
                     IsGenericInstigator = false,
                     GeneratedPartyId = revengeParty.StringId,
-                    CreatedDay = (float)CampaignTime.Now.ToDays,
+                    OccurredDay = (float)CampaignTime.Now.ToDays,
                     DayLimit = 10f,
-                    Severity = 5 + (int)record.Level,
+                    Severity = (5 + (int)record.Level) * 10,
                 };
 
-                WorldEventDatabase.AddEvent(worldEvent);
+                WorldEventStore.AddEvent(worldEvent);
 
                 // 推送通知
                 string msg = record.HasScar

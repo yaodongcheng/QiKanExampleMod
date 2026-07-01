@@ -60,35 +60,26 @@ namespace LivingWorldNpcs
                 {
                     agent.StopUsingGameObject(true, Agent.StopUsingGameObjectFlags.None);
                 }
-                DebugLogger.Log($"[ForcePlayAction] {agentName} UsingObj={wasUsingObj} flags={scriptedFlags} → force-playing '{actionId}'");
+                // 获取当前 action_set 信息用于日志
+                MBActionSet originalSet = agent.ActionSet;
+
+                DebugLogger.Log($"[ForcePlayAction] {agentName} UsingObj={wasUsingObj} flags={scriptedFlags} action_set:'{originalSet.GetName()}'→'as_human_warrior' → force-playing '{actionId}'");
 
                 // 1. 获取战士 action_set（所有人类动作的根）
                 MBActionSet warriorSet = MBActionSet.GetActionSet("as_human_warrior");
                 if (!warriorSet.IsValid) return;
 
-                // 2. 保存当前 action_set（如需恢复）
-                MBActionSet originalSet = agent.ActionSet;
-
-                DebugLogger.Log($"[ForcePlayAction] {agentName} action_set: '{originalSet.GetName()}' → 'as_human_warrior'");
-
-                // 3. 构造临时 AnimationSystemData
+                // 2. 构造临时 AnimationSystemData
                 AnimationSystemData warriorData = agent.Monster.FillAnimationSystemData(
                     warriorSet, agent.Character.GetStepSize(), hasClippingPlane: false);
 
-                // 4. 切到战士 action_set
+                // 3. 切到战士 action_set
                 agent.SetActionSet(ref warriorData);
 
-                // 5. 播放动画
+                // 4. 播放动画
                 agent.SetActionChannel(0, actionCache, ignorePriority: true, blendInPeriod: 0.15f);
 
-                // 调试：打印 Agent 骨骼/体型信息 + 动画是否真的开始播放
-                string afterAnim = V.ActName(agent, 0);
-                string charId = agent.Character?.StringId ?? "?";
-                float bodyAge = agent.BodyPropertiesValue.Age;
-                bool isFemale = agent.Character != null && agent.Character.IsFemale;
-                DebugLogger.Log($"[ForcePlayAction] Result: {agentName} char={charId} female={isFemale} age={bodyAge:F0} | anim after SetActionChannel: '{afterAnim}' (expected '{actionId}')");
-
-                // 6. 恢复原始 action_set（如有需要）
+                // 5. 恢复原始 action_set（如有需要）
                 if (restoreAfter && originalSet.IsValid)
                 {
                     AnimationSystemData originalData = agent.Monster.FillAnimationSystemData(
@@ -656,6 +647,12 @@ namespace LivingWorldNpcs
                         totalValue += subTotal;
                         string displayName = itemName.Length > 10 ? itemName.Substring(0, 9) + ".." : itemName;
                         string itemDesc = $"- {displayName} x{amount} (单:{valuePerItem}|总:{subTotal})";
+
+                        // 赃物来源标注（查 PlayerTheftLedger）
+                        string sourceTag = PlayerTheftLedger.GetSourceTag(item.StringId);
+                        if (!string.IsNullOrEmpty(sourceTag))
+                            itemDesc += $" {sourceTag}";
+
                         if (itemDesc.Length < columnWidth)
                         {
                             itemDesc = itemDesc.PadRight(columnWidth);

@@ -412,33 +412,33 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 根据 Quest ID 推断合适的 WorldEventType。
+        /// 根据 Quest ID 推断合适的 EventType。
         /// 这个映射是启发式的——因果引擎用 WorldEvent 作为"标记"来影响后续 Issue 的生成条件。
         /// </summary>
-        private static WorldEventType ResolveEventTypeForQuest(string questId)
+        private static EventType ResolveEventTypeForQuest(string questId)
         {
-            if (string.IsNullOrEmpty(questId)) return WorldEventType.BanditRaid;
+            if (string.IsNullOrEmpty(questId)) return EventType.BanditRaid;
 
             if (questId.Contains("Bandit") || questId.Contains("Deserters") || questId.Contains("Poachers"))
-                return WorldEventType.BanditRaid;
+                return EventType.BanditRaid;
             if (questId.Contains("Gang") || questId.Contains("RivalGang") || questId.Contains("Snare"))
-                return WorldEventType.BanditRaid; // 帮派活动用匪患类型
+                return EventType.BanditRaid; // 帮派活动用匪患类型
             if (questId.Contains("Caravan") || questId.Contains("Trade") || questId.Contains("Artisan")
                 || questId.Contains("Revenue") || questId.Contains("Betting"))
-                return WorldEventType.TradeDispute;
+                return EventType.TradeDispute;
             if (questId.Contains("Noble") || questId.Contains("Revolt") || questId.Contains("Conquest")
                 || questId.Contains("Lord") || questId.Contains("Lady") || questId.Contains("Prodigal"))
-                return WorldEventType.NobleConflict;
+                return EventType.NobleConflict;
             if (questId.Contains("Famine") || questId.Contains("Grain") || questId.Contains("Herd"))
-                return WorldEventType.Famine;
+                return EventType.Famine;
             if (questId.Contains("Spy") || questId.Contains("Scout") || questId.Contains("Raid"))
-                return WorldEventType.Assassination;
+                return EventType.Assassination;
             if (questId.Contains("Family") || questId.Contains("Daughter") || questId.Contains("Inn"))
-                return WorldEventType.RomanticConflict;
+                return EventType.RomanticConflict;
             if (questId.Contains("Prison") || questId.Contains("Captured"))
-                return WorldEventType.Kidnapping;
+                return EventType.Kidnapping;
 
-            return WorldEventType.BanditRaid; // 默认
+            return EventType.BanditRaid; // 默认
         }
 
         /// <summary>

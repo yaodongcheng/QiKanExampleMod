@@ -21,6 +21,15 @@ namespace LivingWorldNpcs.Story
             if (intent != null) _all.Add(intent);
         }
 
+        /// <summary>按意图类名查找（用于 INTENT:xxx 委托）</summary>
+        public static IntentBase FindByName(string name)
+        {
+            EnsureInitialized();
+            return _all.FirstOrDefault(i =>
+                i.GetType().Name.Equals(name, System.StringComparison.OrdinalIgnoreCase) ||
+                i.GetType().Name.Equals($"{name}Intent", System.StringComparison.OrdinalIgnoreCase));
+        }
+
         public static void EnsureInitialized()
         {
             if (_initialized) return;
@@ -54,6 +63,26 @@ namespace LivingWorldNpcs.Story
             Register(new ChatIntent());               // 寒暄/话题
             Register(new ExpandOptionsIntent());      // 危机时展开折叠的选项
             Register(new LeaveIntent());              // 离开（永远最后）
+
+            // ── 犯罪追责 Intent ──
+            Register(new PayRestitutionIntent());
+            Register(new CharmDefenseIntent());
+            Register(new FrameSuspectIntent());
+            Register(new ThreatIntent());
+            Register(new InvestigateIntent());
+            Register(new ConfessIntent());
+            Register(new SilenceWitnessIntent());
+            Register(new LeadRetaliationIntent());
+            Register(new PayOnTheSpotIntent());
+            Register(new WorkOffDebtIntent());
+            Register(new FleeFromConfrontationIntent());
+            Register(new FightVillagersIntent());
+            Register(new BetrayQuestIntent());
+            Register(new InnocenceProofIntent());
+            Register(new SettleIntent());
+            Register(new AcceptBountyQuestIntent());
+            Register(new LureArrestIntent());
+            Register(new ArrestIntent());
         }
 
         /// <summary>资格层：产出当前可见（含置灰）的意图，隐藏的过滤掉。</summary>

@@ -1,14 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Text;
+using LivingWorldNpcs.Story;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -178,6 +181,21 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 按标签清除注入的对话节点（如 "crime_EVENTID"）。
+        /// </summary>
+        public static void RemoveRelatedLines(string label)
+        {
+            if (Campaign.Current == null) return;
+            var toRemove = _injectedOwners.Where(o => o.FileName == label).ToList();
+            foreach (var owner in toRemove)
+            {
+                try { Campaign.Current.ConversationManager.RemoveRelatedLines(owner); }
+                catch { }
+                _injectedOwners.Remove(owner);
+            }
+        }
+
+        /// <summary>
         /// 按文件名查找 JSON 测试文件。
         /// 搜索顺序：本 mod 的 ModuleData/DesignData/Dialogues/ → 游戏 Configs/
         /// </summary>
@@ -223,7 +241,7 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
 
         private static int _tokenCounter = 0;
-        private static readonly List<object> _injectedOwners = new List<object>();
+        private static readonly List<InjectOwner> _injectedOwners = new List<InjectOwner>();
 
         private class InjectOwner { public string FileName; }
 
@@ -301,8 +319,17 @@ namespace LivingWorldNpcs
                     case "CLOSE_DIALOG":
                         break;
                     default:
-                        InformationManager.DisplayMessage(
-                            new InformationMessage($"[DialogueInjector] Unknown action: {opt.Action}"));
+                        // ── INTENT:xxx 委托 ──
+                        if (opt.Action.StartsWith("INTENT:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            string intentSpec = opt.Action.Substring(7);
+                            ExecuteIntentAction(intentSpec, oneToOne, opt.ActionParam);
+                        }
+                        else
+                        {
+                            InformationManager.DisplayMessage(
+                                new InformationMessage($"[DialogueInjector] Unknown action: {opt.Action}"));
+                        }
                         break;
                 }
             }
@@ -310,6 +337,147 @@ namespace LivingWorldNpcs
             {
                 InformationManager.DisplayMessage(
                     new InformationMessage($"[DialogueInjector] Action '{opt.Action}' failed: {ex.Message}"));
+            }
+        }
+
+        /// <summary>
+        /// 执行 INTENT:xxx 动作：查 IntentRegistry → Evaluate → OnInstant/OnSuccess/OnFail
+        /// </summary>
+        private static void ExecuteIntentAction(string intentName, Hero npc, string actionParam = null)
+        {
+            try
+            {
+                var intent = LivingWorldNpcs.Story.IntentRegistry.FindByName(intentName);
+                if (intent == null)
+                {
+                    DebugLogger.Log($"[DialogueInjector] Intent not found: {intentName}");
+                    return;
+                }
+
+                // 从 ConversationManager 获取当前对话的 Agent（非 Agent.Main）
+                Agent partnerAgent = null;
+                try
+                {
+                    var cm = Campaign.Current?.ConversationManager;
+                    if (cm != null)
+                    {
+                        partnerAgent = cm.OneToOneConversationAgent as Agent;
+                    }
+                }
+                catch { }
+
+                // 构建上下文：Agent 可能为 null（大地图无 Mission 时），降级处理
+                var ctx = IntentContext.Build(partnerAgent, null);
+
+                // 注入犯罪事件上下文
+                var settlement = npc?.CurrentSettlement;
+                if (settlement != null)
+                {
+                    ctx.ActiveEvent = WorldEventStore.FindActive(settlement.StringId);
+                }
+
+                // 注入 ActionParam（栽赃目标 ID 等）
+                if (!string.IsNullOrEmpty(actionParam))
+                    ctx.FrameTargetId = actionParam;
+
+                var eligibility = intent.Evaluate(ctx);
+                if (eligibility.State == EligState.Hidden)
+                {
+                    DebugLogger.Log($"[DialogueInjector] Intent {intentName} hidden by Evaluate");
+                    return;
+                }
+
+                if (intent.Goal == null)
+                {
+                    intent.OnInstant(ctx);
+                }
+                else
+                {
+                    var roll = SingleRollResolver.Compute(ctx, intent.Goal.Value, intent.Tactic, intent.GetOfferValue(ctx));
+                    bool passed = SingleRollResolver.Roll(roll.Chance);
+                    DebugLogger.Log($"[SkillCheck] {intentName} | {roll.Log} | 掷骰={(passed ? "通过" : "失败")} (chance={roll.Chance:P0})");
+                    if (passed)
+                        intent.OnSuccess(ctx);
+                    else
+                        intent.OnFail(ctx);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueInjector] ExecuteIntentAction({intentName}) error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 直接注入 DialogueInjectScript 对象（不经过 JSON 文件）。
+        /// 与 InjectFromJson 共享同一套 ConversationManager 注册逻辑。
+        /// </summary>
+        public static string InjectScript(DialogueInjectScript script, string debugLabel = null)
+        {
+            if (script == null || script.Turns == null || script.Turns.Count == 0)
+                return "Empty script";
+
+            var fileTag = debugLabel ?? $"dyn_{_injectedOwners.Count}";
+            InjectScriptInternal(script, fileTag);
+            return $"Injected dynamic script [{fileTag}] ({script.Turns.Count} turns)";
+        }
+
+        // ⚠ 内部方法，与 InjectFromJson 的后半段逻辑完全相同
+        private static void InjectScriptInternal(DialogueInjectScript script, string fileTag)
+        {
+            var cm = Campaign.Current.ConversationManager;
+            var owner = new InjectOwner { FileName = fileTag };
+            _injectedOwners.Add(owner);
+            _tokenCounter = 0;
+
+            string startToken = !string.IsNullOrEmpty(script.InjectAtToken)
+                ? script.InjectAtToken : "hero_main_options";
+
+            try
+            {
+                // 网关：入口选项
+                string entryTurnToken = TurnToken(fileTag, script.EntryTurn);
+                string entryText = !string.IsNullOrEmpty(script.EntryOption)
+                    ? script.EntryOption : $"「{fileTag}」";
+                var gateDf = DialogFlow.CreateDialogFlow(startToken, 125);
+                gateDf.AddPlayerLine("inj_gateway", startToken, entryTurnToken,
+                    entryText, () => true, null, owner, 125);
+                cm.AddDialogFlow(gateDf, owner);
+
+                foreach (var turn in script.Turns)
+                {
+                    if (turn.Options == null || turn.Options.Count == 0) continue;
+
+                    string turnEntryToken = TurnToken(fileTag, turn.Id);
+                    string afterNpcLine = NextToken();
+                    cm.AddDialogLineMultiAgent(
+                        $"inj_npc_{turn.Id}", turnEntryToken, afterNpcLine,
+                        new TaleWorlds.Localization.TextObject(turn.NpcLine ?? ""),
+                        () => true, null, turn.SpeakerIndex, -1, 125);
+
+                    foreach (var opt in turn.Options)
+                    {
+                        string afterPlayer = NextToken();
+                        string afterNpcResponse = !string.IsNullOrEmpty(opt.NextTurn)
+                            ? TurnToken(fileTag, opt.NextTurn) : "close_window";
+
+                        var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
+                        pdf.AddPlayerLine($"inj_opt_{turn.Id}", afterNpcLine, afterPlayer,
+                            opt.PlayerLine ?? "...", () => true, () => ExecuteAction(opt), owner, 125);
+                        if (!string.IsNullOrEmpty(opt.NpcResponse))
+                        {
+                            cm.AddDialogLineMultiAgent(
+                                $"inj_resp_{turn.Id}", afterPlayer, afterNpcResponse,
+                                new TaleWorlds.Localization.TextObject(opt.NpcResponse),
+                                () => true, null, turn.SpeakerIndex, -1, 125);
+                        }
+                        cm.AddDialogFlow(pdf, owner);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueInjector] InjectScriptInternal error: {ex.Message}");
             }
         }
 
@@ -351,6 +519,8 @@ namespace LivingWorldNpcs
             public string NextTurn = null;
             public string Action = "NONE";
             public int ActionValue = 0;
+            /// <summary>字符串参数（栽赃目标 ID 等）。INTENT:xxx 执行时注入 IntentContext。</summary>
+            public string ActionParam = null;
         }
     }
 }

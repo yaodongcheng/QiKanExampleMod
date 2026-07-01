@@ -145,9 +145,9 @@ namespace LivingWorldNpcs
 
                 campaignGameStarter.AddBehavior(new AIStoryGeneratorBehavior());
 
-                // [已废弃] NPC 委托系统（旧 CommissionIssueBehavior）
-                // campaignGameStarter.AddBehavior(new CommissionIssueBehavior());
-                // 改为：事件感知的 Issue 过滤行为（阻止日常类 Issue 在紧急事件期间出现）
+                // NPC 委托系统 — CommissionHubIssue 提供蓝色 ! 信号
+                campaignGameStarter.AddBehavior(new CommissionIssueBehavior());
+                // 事件感知的 Issue 过滤行为（阻止日常类 Issue 在紧急事件期间出现）
                 campaignGameStarter.AddBehavior(new IssueFilterBehavior());
 
                 // 因果引擎：监听原版 Quest 完成 → 查因果表 → 生成后续事件

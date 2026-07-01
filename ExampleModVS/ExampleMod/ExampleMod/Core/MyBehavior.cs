@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -22,6 +22,7 @@ namespace LivingWorldNpcs
         {
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, this.DailyTick);
             CampaignEvents.TickEvent.AddNonSerializedListener(this, this.OnTick);
+            CampaignEvents.OnSettlementLeftEvent.AddNonSerializedListener(this, this.OnSettlementLeft);
         }
 
         
@@ -32,6 +33,9 @@ namespace LivingWorldNpcs
 
             // 村庄动物自然恢复：每天每种被偷动物恢复 1 只
             VillageAnimalTracker.DecayDaily();
+
+            // 世界事件每日阶段推进
+            WorldEventStore.ProcessDaily();
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -73,12 +77,6 @@ namespace LivingWorldNpcs
             if (dataStore.IsLoading)
                 CommissionNarrative.Deserialize(narrativeJson);
 
-            // 世界事件数据库
-            string worldEventsJson = WorldEventDatabase.Serialize();
-            dataStore.SyncData("lwn_world_events", ref worldEventsJson);
-            if (dataStore.IsLoading)
-                WorldEventDatabase.Deserialize(worldEventsJson);
-
             // 世界事件导演状态
             string directorJson = WorldEventDirector.Serialize();
             dataStore.SyncData("lwn_world_director", ref directorJson);
@@ -114,19 +112,40 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_animal_theft", ref animalTheftJson);
             if (dataStore.IsLoading)
                 VillageAnimalTracker.Deserialize(animalTheftJson);
+
+            // 世界事件存储 (WorldEventStore — 统一管理犯罪事件 + AI 模拟事件)
+            string worldEventsJson = WorldEventStore.Serialize();
+            dataStore.SyncData("lwn_crime_events", ref worldEventsJson);
+            if (dataStore.IsLoading)
+                WorldEventStore.Deserialize(worldEventsJson);
+
+            // 玩家偷窃账本 (PlayerTheftLedger)
+            string theftLedgerJson = PlayerTheftLedger.Serialize();
+            dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
+            if (dataStore.IsLoading)
+                PlayerTheftLedger.Deserialize(theftLedgerJson);
         }
 
         private void OnTick(float dt)
         {
             if (Input.IsKeyReleased(InputKey.H))
             {
-                // 2. 额外检查：确保玩家当前确实在控制大地图，而不是在看百科全书或者主菜单
-                // Game.Current.GameStateManager.ActiveState 检查当前是否为 MapState
-                InformationManager.DisplayMessage(new InformationMessage($"你在野外按下了H键，准备召唤织田信长！"));
+                InformationManager.DisplayMessage(new InformationMessage($"大地图按下了H键测试"));
+            }
+        }
 
-                
-
-                SpawnHeroById("storymode_little_brother");
+        private void OnSettlementLeft(MobileParty party, Settlement settlement)
+        {
+            try
+            {
+                if (party != MobileParty.MainParty) return;
+                var evt = WorldEventStore.FindActive(settlement.StringId);
+                if (evt != null)
+                    DialogueInjector.RemoveRelatedLines($"crime_{evt.EventId}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CrimeDialogue] OnSettlementLeft error: {ex.Message}");
             }
         }
         private void SpawnIndependentPartyInWilderness(Hero hero)

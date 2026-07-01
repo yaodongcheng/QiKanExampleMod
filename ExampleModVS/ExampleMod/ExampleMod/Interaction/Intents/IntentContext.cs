@@ -51,6 +51,12 @@ namespace LivingWorldNpcs.Story
         /// <summary>用户是否已点击"有别的事找你"展开全部选项。仅当 HasUrgentWorldEvent 时有效。</summary>
         public bool ExpandedOptions;
 
+        // ═══ 犯罪追责扩展 ═══
+        /// <summary>当前关联的犯罪事件（null = 非追责场景）</summary>
+        public WorldEvent ActiveEvent;
+        /// <summary>栽赃目标 ID（"bandit" 或 heroId），FrameSuspectIntent 用</summary>
+        public string FrameTargetId;
+
         public bool RelationAtLeast(int v) { return Relation >= v; }
         public bool OnCooldown(NegotiationGoalType goal) { return Hero != null && IntentCooldownStore.IsOnCooldown(Hero, goal); }
         public int CooldownDaysLeft(NegotiationGoalType goal) { return Hero != null ? IntentCooldownStore.DaysLeft(Hero, goal) : 0; }

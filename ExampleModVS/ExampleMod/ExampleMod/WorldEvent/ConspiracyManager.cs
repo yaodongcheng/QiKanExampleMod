@@ -45,10 +45,10 @@ namespace LivingWorldNpcs
         /// 事件创建时调用。低概率为事件分配幕后黑手。
         /// 优先复用现有的活跃阴谋（同类型事件加入同一暗线），否则新建。
         /// </summary>
-        public static void TryAssignMastermind(WorldEventData worldEvent)
+        public static void TryAssignMastermind(WorldEvent worldEvent)
         {
             if (worldEvent == null) return;
-            if (worldEvent.EventType == WorldEventType.NemesisRevenge) return; // 宿敌复仇不进阴谋
+            if (worldEvent.Type == EventType.NemesisRevenge) return; // 宿敌复仇不进阴谋
             if (MBRandom.RandomFloat > MASTERMIND_PROBABILITY) return;
 
             // 尝试加入现有活跃阴谋（优先匹配事件类型相似的）
@@ -59,7 +59,6 @@ namespace LivingWorldNpcs
 
             if (existingConspiracy != null)
             {
-                worldEvent.HasHiddenMastermind = true;
                 worldEvent.HiddenMastermindId = existingConspiracy.MastermindHeroId;
                 worldEvent.ConspiracyId = existingConspiracy.ConspiracyId;
                 existingConspiracy.LinkedEventIds.Add(worldEvent.EventId);
@@ -83,7 +82,6 @@ namespace LivingWorldNpcs
 
             _activeConspiracies[conspiracyId] = state;
 
-            worldEvent.HasHiddenMastermind = true;
             worldEvent.HiddenMastermindId = mastermind.StringId;
             worldEvent.ConspiracyId = conspiracyId;
 
@@ -119,7 +117,7 @@ namespace LivingWorldNpcs
         {
             clueMessage = null;
 
-            var worldEvent = WorldEventDatabase.FindEvent(eventId);
+            var worldEvent = WorldEventStore.FindEvent(eventId);
             if (worldEvent == null || !worldEvent.HasHiddenMastermind) return false;
 
             if (!_activeConspiracies.TryGetValue(worldEvent.ConspiracyId, out var state))
@@ -173,8 +171,8 @@ namespace LivingWorldNpcs
             // 检查所有关联事件是否已解决
             bool allResolved = state.LinkedEventIds.All(id =>
             {
-                var evt = WorldEventDatabase.FindEvent(id);
-                return evt == null || evt.Status == WorldEventStatus.Resolved;
+                var evt = WorldEventStore.FindEvent(id);
+                return evt == null || evt.Stage == EventStage.Resolved;
             });
 
             if (!allResolved) return false;
@@ -192,7 +190,7 @@ namespace LivingWorldNpcs
         /// <summary>获取某事件的幕后黑手信息（供 CommissionQuest 叙事使用）。</summary>
         public static string GetMastermindNarrative(string eventId)
         {
-            var worldEvent = WorldEventDatabase.FindEvent(eventId);
+            var worldEvent = WorldEventStore.FindEvent(eventId);
             if (worldEvent == null || !worldEvent.HasHiddenMastermind) return null;
             if (!_activeConspiracies.TryGetValue(worldEvent.ConspiracyId, out var state)) return null;
 

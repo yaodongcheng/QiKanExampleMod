@@ -8,12 +8,90 @@ using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.ObjectSystem;
 using static TaleWorlds.CampaignSystem.CharacterDevelopment.DefaultPerks;
 
 namespace LivingWorldNpcs
 {
     internal class SocialEventManager
     {
+        /// <summary>
+        /// 接收 WorldEvent 进行传播，转换为 SocialEvent 后接入 NewsSpreadSystem。
+        /// </summary>
+        public static void BroadcastWorldEvent(WorldEvent evt)
+        {
+            try
+            {
+                if (evt == null || evt.WasBroadcast) return;
+
+                // ── 转换 WorldEvent → SocialEvent ──
+                var socialEvent = new SocialEvent
+                {
+                    EventId = evt.EventId,
+                    EventTypeEnum = WorldEventToSocialEventType(evt.Type),
+                    InitiatorId = evt.InitiatorId,
+                    InitiatorName = Hero.FindFirst(h => h.StringId == evt.InitiatorId)?.Name?.ToString() ?? "",
+                    VictimId = evt.TargetHeroId,
+                    VictimName = evt.TargetHero?.Name?.ToString() ?? evt.TargetSettlement?.Name?.ToString() ?? "",
+                    BaseSeverity = evt.Severity,
+                    WitnessId = evt.WitnessHeroIds ?? new List<string>(),
+                    Location = evt.TargetSettlement?.Name?.ToString() ?? evt.TargetSettlementId ?? "",
+                    OccurTime = $"Day {(int)evt.OccurredDay}",
+                    Description = BuildSocialEventDescription(evt),
+                    Tags = BuildSocialEventTags(evt),
+                    TimeStamp = evt.OccurredDay,
+                };
+
+                // ── 接入现有传播引擎 ──
+                NewsSpreadSystem.Instance.BroadcastEvent(socialEvent);
+
+                DebugLogger.Log($"[SocialEvent] BroadcastWorldEvent: {evt.Type} at {evt.TargetSettlementId} severity={evt.Severity} → SocialEvent propagated");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SocialEvent] BroadcastWorldEvent error: {ex.Message}");
+            }
+        }
+
+        private static SocialEventType WorldEventToSocialEventType(EventType type)
+        {
+            return type switch
+            {
+                EventType.Theft_Animal => SocialEventType.Harassment,
+                EventType.Theft_Pickpocket => SocialEventType.Harassment,
+                EventType.Murder => SocialEventType.Kill,
+                EventType.Poaching => SocialEventType.Harassment,
+                EventType.Smuggling => SocialEventType.Harassment,
+                EventType.Arson => SocialEventType.Harassment,
+                EventType.Betrayal => SocialEventType.Betrayal,
+                EventType.Kidnapping => SocialEventType.Harassment,
+                _ => SocialEventType.None,
+            };
+        }
+
+        private static string BuildSocialEventDescription(WorldEvent evt)
+        {
+            var cfg = evt.Config;
+            string verb = cfg?.CrimeVerbPast ?? "出了事";
+            string location = evt.TargetSettlement?.Name?.ToString() ?? evt.LocationName ?? "某地";
+            string item = "";
+            if (!string.IsNullOrEmpty(evt.TargetItemId))
+            {
+                var itemObj = MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
+                item = itemObj?.Name?.ToString() ?? evt.TargetItemId;
+            }
+            string itemDesc = !string.IsNullOrEmpty(item) ? $"{item} x{evt.Quantity}" : "";
+            return $"{location}{verb}：{itemDesc}".TrimEnd('：');
+        }
+
+        private static List<string> BuildSocialEventTags(WorldEvent evt)
+        {
+            var tags = new List<string> { "Dishonorable" };
+            if (evt.Severity >= 80) tags.Add("Capital");
+            if (evt.WitnessCount > 0) tags.Add("Witnessed");
+            if (evt.Category == EventCategory.Crime) tags.Add("Crime");
+            return tags;
+        }
     }
 
     //事件类型

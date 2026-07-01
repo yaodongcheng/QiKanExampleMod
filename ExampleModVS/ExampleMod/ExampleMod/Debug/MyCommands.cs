@@ -1695,7 +1695,7 @@ namespace LivingWorldNpcs
         {
             if (Campaign.Current == null) return "Error: Campaign not loaded.";
 
-            var active = WorldEventDatabase.ActiveEvents;
+            var active = WorldEventStore.ActiveEvents;
             if (active.Count == 0)
                 return "No active world events. (Use worldevent_force to create one)";
 
@@ -1710,14 +1710,14 @@ namespace LivingWorldNpcs
                 string instigator = e.IsGenericInstigator ? "generic" : (e.InstigatorHero?.Name?.ToString() ?? "generic");
                 string daysStr = daysLeft > 0 ? $"{daysLeft:F1}d left" : "EXPIRED";
 
-                sb.AppendLine($"  [{e.EventType}] {loc} | target={target} instigator={instigator}");
+                sb.AppendLine($"  [{e.Type}] {loc} | target={target} instigator={instigator}");
                 sb.AppendLine($"    sev={e.Severity}/10 {daysStr} party={e.GeneratedPartyId ?? "none"} id={e.EventId}");
 
                 if (e.HasHiddenMastermind)
                     sb.AppendLine($"    ⚠ has hidden mastermind: {e.HiddenMastermindId}");
             }
 
-            sb.AppendLine($"\nResolved: {WorldEventDatabase.ResolvedEvents.Count} | Expired: {WorldEventDatabase.ActiveEvents.Count(e => e.IsExpired)} | Total: {WorldEventDatabase.TotalEventCount}");
+            sb.AppendLine($"\nResolved: {WorldEventStore.ResolvedEvents.Count} | Expired: {WorldEventStore.ActiveEvents.Count(e => e.IsExpired)} | Total: {WorldEventStore.TotalEventCount}");
 
             return sb.ToString();
         }
@@ -1737,13 +1737,13 @@ namespace LivingWorldNpcs
         {
             if (Campaign.Current == null) return "Error: Campaign not loaded.";
 
-            WorldEventType type = WorldEventType.BanditRaid;
+            EventType type = EventType.BanditRaid;
             int severity = -1;
 
             if (args.Count >= 1)
             {
                 if (!Enum.TryParse(args[0], true, out type))
-                    return $"Error: Unknown event type '{args[0]}'. Valid: {string.Join(", ", Enum.GetNames(typeof(WorldEventType)))}";
+                    return $"Error: Unknown event type '{args[0]}'. Valid: {string.Join(", ", Enum.GetNames(typeof(EventType)))}";
             }
             if (args.Count >= 2)
             {
@@ -1773,20 +1773,20 @@ namespace LivingWorldNpcs
             if (simulator != null)
             {
                 // 通过反射或公开属性获取内部状态...
-                // 使用 WorldEventDatabase 的公开信息
+                // 使用 WorldEventStore 的公开信息
             }
 
             float currentDay = (float)CampaignTime.Now.ToDays;
             sb.AppendLine($"Current Day: {currentDay:F1}");
-            sb.AppendLine($"Active Events: {WorldEventDatabase.ActiveEvents.Count}");
-            sb.AppendLine($"Total Events (all time): {WorldEventDatabase.TotalEventCount}");
-            sb.AppendLine($"Resolved: {WorldEventDatabase.ResolvedEvents.Count}");
+            sb.AppendLine($"Active Events: {WorldEventStore.ActiveEvents.Count}");
+            sb.AppendLine($"Total Events (all time): {WorldEventStore.TotalEventCount}");
+            sb.AppendLine($"Resolved: {WorldEventStore.ResolvedEvents.Count}");
             sb.AppendLine($"Director Idle: {WorldEventDirector.IsIdle}");
             sb.AppendLine($"Director Last Commission Day: {WorldEventDirector.LastCommissionDay:F1}");
 
             // 统计各类型事件数
-            var byType = WorldEventDatabase.ActiveEvents
-                .GroupBy(e => e.EventType)
+            var byType = WorldEventStore.ActiveEvents
+                .GroupBy(e => e.Type)
                 .ToDictionary(g => g.Key, g => g.Count());
             sb.AppendLine("\nActive by type:");
             foreach (var kv in byType)
@@ -2277,6 +2277,42 @@ namespace LivingWorldNpcs
             catch
             {
                 return false;
+            }
+        }
+
+
+
+        /// <summary>
+        /// custom.crime_test - 在当前村庄创建测试偷窃事件
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("crime_test", "custom")]
+        public static string CrimeTestCommand(List<string> args)
+        {
+            try
+            {
+                CrimeConsoleCommands.CrimeTest();
+                return "测试事件已创建！找村长对话查看效果。";
+            }
+            catch (Exception ex)
+            {
+                return $"测试失败: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// custom.crime_inject - 手动触发犯罪对话注入（调试用）
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("crime_inject", "custom")]
+        public static string CrimeInjectCommand(List<string> args)
+        {
+            try
+            {
+                CrimeConsoleCommands.CrimeInject();
+                return "犯罪对话注入完成。";
+            }
+            catch (Exception ex)
+            {
+                return $"注入失败: {ex.Message}";
             }
         }
     }

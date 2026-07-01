@@ -36,7 +36,7 @@ namespace LivingWorldNpcs
         private const int MAX_ACTIVE_EVENTS = 15;
 
         /// <summary>
-        /// 临时开关：true = 停止世界事件自动生成（链首只用原版 Issue）。
+        /// 总闸：true = 停止世界事件模拟器所有被动逻辑（自动生成、过期处理、巡逻、摘要等）。
         /// ForceGenerateEvent（控制台 / 因果引擎）不受影响。
         /// </summary>
         public static bool SuppressAutoGeneration = true;
@@ -95,6 +95,7 @@ namespace LivingWorldNpcs
         /// <summary>路途拦截 + 酒馆传闻 + 事件 party AI 监控：dt 累积到指定间隔执行（不再依赖游戏时间）。</summary>
         private void OnCampaignTick(float dt)
         {
+            if (SuppressAutoGeneration) return;
             try
             {
                 _roadInterceptAccumDt += dt;
@@ -123,7 +124,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var activeEvents = WorldEventDatabase.ActiveEvents;
+                var activeEvents = WorldEventStore.ActiveEvents;
                 if (activeEvents.Count == 0) return;
 
                 foreach (var evt in activeEvents)
@@ -144,7 +145,7 @@ namespace LivingWorldNpcs
 
                     _lastPartyAiDesc[key] = changeKey;
                     string desc = BuildPartyAiDisplay(party);
-                    string eventLabel = $"{evt.EventType} instigator={evt.InstigatorHero?.Name?.ToString() ?? "?"} target={evt.TargetSettlement?.Name?.ToString() ?? evt.TargetHero?.Name?.ToString() ?? "?"}";
+                    string eventLabel = $"{evt.Type} instigator={evt.InstigatorHero?.Name?.ToString() ?? "?"} target={evt.TargetSettlement?.Name?.ToString() ?? evt.TargetHero?.Name?.ToString() ?? "?"}";
                     DebugLogger.Log($"[WorldEvent AI] {eventLabel} | {desc}");
                 }
 
@@ -212,12 +213,13 @@ namespace LivingWorldNpcs
 
         private void OnDailyTick()
         {
+            if (SuppressAutoGeneration) return;
             try
             {
                 _daysSinceGameStart += 1f;
 
                 // 1. 清理已被 AI 击败的事件 party
-                WorldEventDatabase.CleanupDefeatedParties();
+                WorldEventStore.CleanupDefeatedParties();
 
                 // 1.5. 检查事件 party 是否已到达目标 → 进入巡逻阶段
                 CheckEventPartyArrivals();
@@ -245,14 +247,14 @@ namespace LivingWorldNpcs
                 if (!SuppressAutoGeneration
                     && _tutorialEventsGenerated < MAX_TUTORIAL_EVENTS
                     && _daysSinceGameStart <= TUTORIAL_WINDOW_DAYS
-                    && WorldEventDatabase.ActiveEvents.Count < 3)
+                    && WorldEventStore.ActiveEvents.Count < 3)
                 {
                     ForceGenerateTutorialEvent();
                 }
 
                 // ── 8. 定期世界摘要推送 ──
                 if (_daysSinceGameStart - _lastPeriodicDigestDay >= PERIODIC_DIGEST_INTERVAL
-                    && WorldEventDatabase.ActiveEvents.Count > 0)
+                    && WorldEventStore.ActiveEvents.Count > 0)
                 {
                     _lastPeriodicDigestDay = _daysSinceGameStart;
                     WorldEventDirector.ShowPeriodicDigest();
@@ -268,10 +270,10 @@ namespace LivingWorldNpcs
         private void CheckEventEscalation()
         {
             float currentDay = (float)CampaignTime.Now.ToDays;
-            var toEscalate = WorldEventDatabase.ActiveEvents
+            var toEscalate = WorldEventStore.ActiveEvents
                 .Where(e =>
                 {
-                    float daysSinceCreation = currentDay - e.CreatedDay;
+                    float daysSinceCreation = currentDay - e.OccurredDay;
                     int expectedEscalations = (int)(daysSinceCreation / 7f);
                     return expectedEscalations > e.EscalationCount && e.Severity < 10;
                 })
@@ -280,14 +282,14 @@ namespace LivingWorldNpcs
             foreach (var evt in toEscalate)
             {
                 evt.EscalationCount++;
-                evt.Severity = Math.Min(10, evt.Severity + 1);
+                evt.Severity = Math.Min(100, evt.Severity + 10);
 
                 // 事件升级仅提高严重度（影响后果严重性 + 通知频率），
                 // 不再凭空添加兵力——party 的部队来自领主驻军抽调，真实性优先。
                 // 若 party 已在途中被 AI 打残，那是世界自然演化的结果。
 
-                WorldEventDatabase.EscalateEvent(evt.EventId);
-                DebugLogger.Log($"[WorldEventSimulator] Escalated {evt.EventType} id={evt.EventId} to severity {evt.Severity}");
+                WorldEventStore.EscalateEvent(evt.EventId);
+                DebugLogger.Log($"[WorldEventSimulator] Escalated {evt.Type} id={evt.EventId} to severity {evt.Severity}");
             }
         }
 
@@ -298,7 +300,7 @@ namespace LivingWorldNpcs
         private void CheckEventPartyArrivals()
         {
             float currentDay = (float)CampaignTime.Now.ToDays;
-            var arrived = WorldEventDatabase.ActiveEvents
+            var arrived = WorldEventStore.ActiveEvents
                 .Where(e => e.GeneratedParty != null
                     && e.GeneratedParty.IsActive
                     && e.TargetSettlement != null
@@ -323,7 +325,7 @@ namespace LivingWorldNpcs
                 party.Ai.SetDoNotMakeNewDecisions(true);
 
                 string loc = evt.TargetSettlement?.Name?.ToString() ?? "目标";
-                DebugLogger.Log($"[WorldEventSimulator] Party arrived at {loc}, entering patrol phase: {evt.EventType} partyId={partyId} — will attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
+                DebugLogger.Log($"[WorldEventSimulator] Party arrived at {loc}, entering patrol phase: {evt.Type} partyId={partyId} — will attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
 
                 // ── 通知玩家：部队已到达 ──
                 float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(evt.TargetSettlement));
@@ -345,7 +347,7 @@ namespace LivingWorldNpcs
         /// 高频到达检测（每 AI_MONITOR_INTERVAL_SEC 秒，不等 daily tick）。
         /// 仅记录到达状态 + 切换巡逻 AI，不发玩家通知（通知在 daily tick 的 CheckEventPartyArrivals 里统一发）。
         /// </summary>
-        private static void CheckArrivalsHighFreq(IReadOnlyList<WorldEventData> activeEvents)
+        private static void CheckArrivalsHighFreq(IReadOnlyList<WorldEvent> activeEvents)
         {
             try
             {
@@ -368,7 +370,7 @@ namespace LivingWorldNpcs
 #endif
                     party.Ai.SetDoNotMakeNewDecisions(true);
 
-                    DebugLogger.Log($"[WorldEventSimulator] High-freq arrival: {evt.EventType} partyId={partyId} at {evt.TargetSettlement.Name} — patrol phase, attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
+                    DebugLogger.Log($"[WorldEventSimulator] High-freq arrival: {evt.Type} partyId={partyId} at {evt.TargetSettlement.Name} — patrol phase, attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
                 }
             }
             catch (Exception ex)
@@ -393,7 +395,7 @@ namespace LivingWorldNpcs
             {
                 _arrivedParties.Remove(partyId);
 
-                var evt = WorldEventDatabase.ActiveEvents.FirstOrDefault(e => e.GeneratedParty?.StringId == partyId);
+                var evt = WorldEventStore.ActiveEvents.FirstOrDefault(e => e.GeneratedParty?.StringId == partyId);
                 var party = evt?.GeneratedParty;
                 var target = evt?.TargetSettlement;
                 if (party == null || !party.IsActive || target == null) continue;
@@ -404,7 +406,7 @@ namespace LivingWorldNpcs
                 if (targetDefense > 0 && myTroops < targetDefense * 0.05f)
                 {
                     _arrivedParties[partyId] = currentDay; // 重置巡逻计时器
-                    DebugLogger.Log($"[WorldEventSimulator] Attack delayed — {evt.EventType} partyId={partyId} has {myTroops} troops vs {targetDefense} defense (<30%), extending patrol");
+                    DebugLogger.Log($"[WorldEventSimulator] Attack delayed — {evt.Type} partyId={partyId} has {myTroops} troops vs {targetDefense} defense (<30%), extending patrol");
                     continue;
                 }
 
@@ -441,16 +443,16 @@ namespace LivingWorldNpcs
                 }
                 party.Ai.SetDoNotMakeNewDecisions(true);
 
-                DebugLogger.Log($"[WorldEventSimulator] Patrol complete — launched {actionName}: {evt.EventType} partyId={partyId} → {loc}");
+                DebugLogger.Log($"[WorldEventSimulator] Patrol complete — launched {actionName}: {evt.Type} partyId={partyId} → {loc}");
 
                 // 通知玩家：进攻开始
                 float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(target));
                 if (dist < 100f)
                 {
-                    string attackMsg = evt.EventType switch
+                    string attackMsg = evt.Type switch
                     {
-                        WorldEventType.NobleConflict => $"⚔ {evt.InstigatorHero?.Name?.ToString() ?? "军队"} 对 {loc} 发起了进攻！",
-                        WorldEventType.BanditRaid => $"⚔ 匪徒开始劫掠 {loc}！",
+                        EventType.NobleConflict => $"⚔ {evt.InstigatorHero?.Name?.ToString() ?? "军队"} 对 {loc} 发起了进攻！",
+                        EventType.BanditRaid => $"⚔ 匪徒开始劫掠 {loc}！",
                         _ => $"⚔ 敌军开始攻击 {loc}！"
                     };
                     NinjaNotificationManager.Show(attackMsg, () =>
@@ -463,21 +465,21 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>构建到达通知摘要（TK5 忍者通报风格）。</summary>
-        private static string BuildArrivalSummary(WorldEventData e)
+        private static string BuildArrivalSummary(WorldEvent e)
         {
             string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
             string instigator = e.IsGenericInstigator ? "一伙歹徒" : (e.InstigatorHero?.Name?.ToString() ?? "加害方");
             string victim = e.TargetHero?.Name?.ToString() ?? loc;
 
-            return e.EventType switch
+            return e.Type switch
             {
-                WorldEventType.BanditRaid => $"⚔ {instigator} 已抵达{loc}——劫掠开始！",
-                WorldEventType.Kidnapping => $"⚔ {instigator} 带走了{victim}——绑匪已经得手！",
-                WorldEventType.NobleConflict => $"⚔ {instigator} 的军队已开进{loc}——与{victim}短兵相接！",
-                WorldEventType.Assassination => $"🗡 {victim}遇刺——{instigator}的刺客在{loc}得手了……",
-                WorldEventType.SacredTheft => $"🔮 {instigator} 已从{loc}带走圣物——传承断绝。",
-                WorldEventType.Betrayal => $"💔 {instigator} 背叛了{victim}——事成定局。",
-                WorldEventType.Famine => $"⚠ {loc}粮食耗尽——饥荒已至。",
+                EventType.BanditRaid => $"⚔ {instigator} 已抵达{loc}——劫掠开始！",
+                EventType.Kidnapping => $"⚔ {instigator} 带走了{victim}——绑匪已经得手！",
+                EventType.NobleConflict => $"⚔ {instigator} 的军队已开进{loc}——与{victim}短兵相接！",
+                EventType.Assassination => $"🗡 {victim}遇刺——{instigator}的刺客在{loc}得手了……",
+                EventType.SacredTheft => $"🔮 {instigator} 已从{loc}带走圣物——传承断绝。",
+                EventType.Betrayal => $"💔 {instigator} 背叛了{victim}——事成定局。",
+                EventType.Famine => $"⚠ {loc}粮食耗尽——饥荒已至。",
                 _ => $"⚔ {instigator} 的行动已在{loc}得手。"
             };
         }
@@ -485,19 +487,19 @@ namespace LivingWorldNpcs
         /// <summary>检查到期事件，施加各类型的物理后果。</summary>
         private void CheckExpiredEventsWithConsequences()
         {
-            var expired = WorldEventDatabase.ActiveEvents
+            var expired = WorldEventStore.ActiveEvents
                 .Where(e => e.IsExpired)
                 .ToList();
 
             foreach (var evt in expired)
             {
                 ApplyExpiryConsequences(evt);
-                WorldEventDatabase.ExpireEvent(evt.EventId);
+                WorldEventStore.ExpireEvent(evt.EventId);
             }
         }
 
         /// <summary>到期事件的物理后果（玩家未解决 = 加害方达成目标）+ 玩家通知。</summary>
-        private void ApplyExpiryConsequences(WorldEventData evt, bool isArrival = false)
+        private void ApplyExpiryConsequences(WorldEvent evt, bool isArrival = false)
         {
             if (evt == null) return;
 
@@ -509,9 +511,9 @@ namespace LivingWorldNpcs
 
             string playerMsg = null;
 
-            switch (evt.EventType)
+            switch (evt.Type)
             {
-                case WorldEventType.BanditRaid:
+                case EventType.BanditRaid:
                     if (settlement?.Village != null)
                     {
                         settlement.Village.Hearth = Math.Max(0, settlement.Village.Hearth - 30);
@@ -521,7 +523,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.Kidnapping:
+                case EventType.Kidnapping:
                     if (targetHero != null && targetHero.IsAlive && !targetHero.IsLord)
                     {
                         string name = targetHero.Name?.ToString() ?? "人质";
@@ -532,7 +534,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.Betrayal:
+                case EventType.Betrayal:
                     if (evt.InstigatorHero != null && targetHero != null)
                     {
                         int stolen = targetHero.Gold / 2;
@@ -541,7 +543,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.DebtTrap:
+                case EventType.DebtTrap:
                     if (targetHero != null)
                     {
                         AgentControlHelper.TransferGold(targetHero, null, targetHero.Gold / 3);
@@ -549,7 +551,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.Famine:
+                case EventType.Famine:
                     if (settlement?.Village != null)
                     {
                         settlement.Village.Hearth = Math.Max(0, settlement.Village.Hearth - 50);
@@ -557,7 +559,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.Assassination:
+                case EventType.Assassination:
                     if (targetHero != null && targetHero.IsAlive)
                     {
                         string name = targetHero.Name?.ToString() ?? "重要人物";
@@ -568,7 +570,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.SacredTheft:
+                case EventType.SacredTheft:
                     if (settlement != null)
                     {
                         SettlementHonorStore.Modify(settlement, -5);
@@ -578,7 +580,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.NobleConflict:
+                case EventType.NobleConflict:
                     if (evt.InstigatorHero != null && targetHero != null)
                     {
                         ChangeRelationAction.ApplyPlayerRelation(evt.InstigatorHero, -10);
@@ -589,7 +591,7 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.Fugitive:
+                case EventType.Fugitive:
                     if (targetHero != null && targetHero.IsAlive)
                     {
                         string name = targetHero.Name?.ToString() ?? "逃犯";
@@ -597,25 +599,25 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case WorldEventType.RomanticConflict:
+                case EventType.RomanticConflict:
                     if (targetHero != null)
                     {
                         playerMsg = $"{victim}的心被伤透了——那场决斗没有赢家。{loc}的人茶余饭后又多了一段谈资。";
                     }
                     break;
 
-                case WorldEventType.FalseAccusation:
+                case EventType.FalseAccusation:
                     if (targetHero != null)
                     {
                         playerMsg = $"{victim}被定罪了——证据始终没能找到。{loc}少了一个清白的人，多了一个冤魂。";
                     }
                     break;
 
-                case WorldEventType.InheritanceDispute:
+                case EventType.InheritanceDispute:
                     playerMsg = $"{loc}的继承之争尘埃落定——但不是通过法理，而是通过拳头。家族的裂痕怕是永远无法弥合了。";
                     break;
 
-                case WorldEventType.TradeDispute:
+                case EventType.TradeDispute:
                     playerMsg = $"{loc}的市场被{instigator}垄断了——小商人们破产的破产，远走他乡的远走他乡。";
                     break;
 
@@ -625,7 +627,10 @@ namespace LivingWorldNpcs
             }
 
             if (!string.IsNullOrEmpty(playerMsg))
+            {
                 InformationManager.DisplayMessage(new InformationMessage(playerMsg));
+                DebugLogger.Log($"[WorldEvent] {playerMsg}");
+            }
 
             // 事件过期后可能触发连锁反应
             TryTriggerCascade(evt);
@@ -639,7 +644,7 @@ namespace LivingWorldNpcs
 
         private void TryGenerateNewEvent()
         {
-            if (WorldEventDatabase.ActiveEvents.Count >= MAX_ACTIVE_EVENTS)
+            if (WorldEventStore.ActiveEvents.Count >= MAX_ACTIVE_EVENTS)
                 return;
 
             // ── 第一优先：真人动机驱动的事件 ──
@@ -650,7 +655,7 @@ namespace LivingWorldNpcs
             float roll = MBRandom.RandomFloat;
             float probability = BASE_DAILY_PROBABILITY * GetRegionWeight();
 
-            bool inTutorial = _daysSinceGameStart <= TUTORIAL_WINDOW_DAYS && WorldEventDatabase.ActiveEvents.Count < 3;
+            bool inTutorial = _daysSinceGameStart <= TUTORIAL_WINDOW_DAYS && WorldEventStore.ActiveEvents.Count < 3;
             if (inTutorial)
                 probability = Math.Max(probability, 0.50f);
 
@@ -725,13 +730,13 @@ namespace LivingWorldNpcs
                 bool isAggressive = valor >= 1;
                 bool isSchemer = calculating >= 1;
 
-                WorldEventType eventType;
+                EventType eventType;
                 if (isRuthless && relation <= -40 && MBRandom.RandomFloat < 0.4f)
-                    eventType = WorldEventType.Assassination; // 冷酷 + 深仇 → 刺杀
+                    eventType = EventType.Assassination; // 冷酷 + 深仇 → 刺杀
                 else if (isSchemer && hated.Clan?.Tier >= 3)
-                    eventType = WorldEventType.SacredTheft;    // 精明 + 对方是大族 → 偷圣物
+                    eventType = EventType.SacredTheft;    // 精明 + 对方是大族 → 偷圣物
                 else
-                    eventType = WorldEventType.NobleConflict;  // 常规冲突
+                    eventType = EventType.NobleConflict;  // 常规冲突
 
                 var config = WorldEventConfig.Get(eventType);
                 if (config == null || config.WeightMultiplier <= 0) continue;
@@ -745,10 +750,10 @@ namespace LivingWorldNpcs
                         .FirstOrDefault();
                 if (targetSettlement == null) continue;
 
-                Hero targetHero = hated; // 动机系统已知恨的对象 → 无论 config 是否要求，都写入 WorldEventData 供叙事使用
+                Hero targetHero = hated; // 动机系统已知恨的对象 → 无论 config 是否要求，都写入 WorldEvent 供叙事使用
                 if (config.TargetsHero && targetHero == null) continue; // 仅当配置强制要求时才因缺目标跳过
 
-                int severity = ClampInt(3 + (int)(Math.Abs(relation) / 10f), config.MinSeverity, config.MaxSeverity);
+                int severity = ClampInt((3 + (int)(Math.Abs(relation) / 10f)) * 10, config.MinSeverity, config.MaxSeverity);
                 float dayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit);
 
                 MobileParty eventParty = SpawnEventParty(config, targetSettlement, targetHero, instigator, isGeneric: false, severity, ref dayLimit);
@@ -756,23 +761,23 @@ namespace LivingWorldNpcs
 
                 string eventId = $"evt_motiv_{eventType.ToString().ToLower()}_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}";
 
-                var worldEvent = new WorldEventData
+                var worldEvent = new WorldEvent
                 {
                     EventId = eventId,
-                    EventType = eventType,
-                    Status = WorldEventStatus.Active,
+                    Type = eventType,
+                    Stage = EventStage.Active,
                     TargetHeroId = targetHero?.StringId,
                     TargetSettlementId = targetSettlement.StringId,
-                    InstigatorHeroId = instigator.StringId,
+                    InitiatorId = instigator.StringId,
                     IsGenericInstigator = false,
                     GeneratedPartyId = eventParty?.StringId,
-                    CreatedDay = (float)CampaignTime.Now.ToDays,
+                    OccurredDay = (float)CampaignTime.Now.ToDays,
                     DayLimit = dayLimit,
                     Severity = severity,
                 };
                 worldEvent.IsRedirectedExistingParty = eventParty != null && instigator.PartyBelongedTo == eventParty;
 
-                WorldEventDatabase.AddEvent(worldEvent);
+                WorldEventStore.AddEvent(worldEvent);
                 DebugLogger.Log($"[WorldEvent] Motivated conflict: {instigator.Name} → {eventType} → {hated.Name} (relation={relation}) at {targetSettlement.Name}");
                 return true;
             }
@@ -792,13 +797,13 @@ namespace LivingWorldNpcs
 
                 if (betrayed == null) continue;
 
-                var config = WorldEventConfig.Get(WorldEventType.Betrayal);
+                var config = WorldEventConfig.Get(EventType.Betrayal);
                 if (config == null) continue;
 
                 Settlement targetSettlement = betrayed.CurrentSettlement ?? betrayed.HomeSettlement;
                 if (targetSettlement == null) continue;
 
-                int severity = 5 + MBRandom.RandomInt(0, 3);
+                int severity = (5 + MBRandom.RandomInt(0, 3)) * 10;
                 float dayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit);
 
                 MobileParty eventParty = SpawnEventParty(config, targetSettlement, betrayed, instigator, isGeneric: false, severity, ref dayLimit);
@@ -806,23 +811,23 @@ namespace LivingWorldNpcs
 
                 string eventId = $"evt_motiv_betrayal_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}";
 
-                var worldEvent = new WorldEventData
+                var worldEvent = new WorldEvent
                 {
                     EventId = eventId,
-                    EventType = WorldEventType.Betrayal,
-                    Status = WorldEventStatus.Active,
+                    Type = EventType.Betrayal,
+                    Stage = EventStage.Active,
                     TargetHeroId = betrayed.StringId,
                     TargetSettlementId = targetSettlement.StringId,
-                    InstigatorHeroId = instigator.StringId,
+                    InitiatorId = instigator.StringId,
                     IsGenericInstigator = false,
                     GeneratedPartyId = eventParty.StringId,
-                    CreatedDay = (float)CampaignTime.Now.ToDays,
+                    OccurredDay = (float)CampaignTime.Now.ToDays,
                     DayLimit = dayLimit,
                     Severity = severity,
                 };
                 worldEvent.IsRedirectedExistingParty = eventParty != null && instigator.PartyBelongedTo == eventParty;
 
-                WorldEventDatabase.AddEvent(worldEvent);
+                WorldEventStore.AddEvent(worldEvent);
                 DebugLogger.Log($"[WorldEvent] Motivated betrayal: {instigator.Name} betrays {betrayed.Name} (relation={instigator.GetRelation(betrayed)}) in clan {instigator.Clan.Name}");
                 return true;
             }
@@ -847,14 +852,14 @@ namespace LivingWorldNpcs
 
                 if (victim == null) continue;
 
-                WorldEventType econType = instigator.Occupation == Occupation.GangLeader
-                    ? WorldEventType.DebtTrap
-                    : WorldEventType.TradeDispute;
+                EventType econType = instigator.Occupation == Occupation.GangLeader
+                    ? EventType.DebtTrap
+                    : EventType.TradeDispute;
 
                 var config = WorldEventConfig.Get(econType);
                 if (config == null) continue;
 
-                int severity = MBRandom.RandomInt(2, 5);
+                int severity = MBRandom.RandomInt(2, 5) * 10;
                 float dayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit);
 
                 MobileParty eventParty = null;
@@ -863,23 +868,23 @@ namespace LivingWorldNpcs
 
                 string eventId = $"evt_motiv_{econType.ToString().ToLower()}_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}";
 
-                var worldEvent = new WorldEventData
+                var worldEvent = new WorldEvent
                 {
                     EventId = eventId,
-                    EventType = econType,
-                    Status = WorldEventStatus.Active,
+                    Type = econType,
+                    Stage = EventStage.Active,
                     TargetHeroId = victim.StringId,
                     TargetSettlementId = home.StringId,
-                    InstigatorHeroId = instigator.StringId,
+                    InitiatorId = instigator.StringId,
                     IsGenericInstigator = false,
                     GeneratedPartyId = eventParty?.StringId,
-                    CreatedDay = (float)CampaignTime.Now.ToDays,
+                    OccurredDay = (float)CampaignTime.Now.ToDays,
                     DayLimit = dayLimit,
                     Severity = severity,
                 };
                 worldEvent.IsRedirectedExistingParty = eventParty != null && instigator.PartyBelongedTo == eventParty;
 
-                WorldEventDatabase.AddEvent(worldEvent);
+                WorldEventStore.AddEvent(worldEvent);
                 DebugLogger.Log($"[WorldEvent] Motivated economic: {instigator.Name} ({instigator.Occupation}) targets {victim.Name} → {econType} at {home.Name}");
                 return true;
             }
@@ -910,9 +915,9 @@ namespace LivingWorldNpcs
 
                     if (targetSettlement == null) continue;
 
-                    WorldEventType expType = calculating >= 1
-                        ? WorldEventType.SacredTheft  // 精明 → 偷圣物打击对方文化
-                        : WorldEventType.NobleConflict; // 勇敢 → 正面冲突
+                    EventType expType = calculating >= 1
+                        ? EventType.SacredTheft  // 精明 → 偷圣物打击对方文化
+                        : EventType.NobleConflict; // 勇敢 → 正面冲突
 
                     var config = WorldEventConfig.Get(expType);
                     if (config == null) continue;
@@ -920,7 +925,7 @@ namespace LivingWorldNpcs
                     Hero targetHero = SelectTargetHero(targetSettlement); // 即使 config 不要求，也尝试找 → 供叙事使用
                     if (config.TargetsHero && targetHero == null) continue; // 仅当配置强制要求时才因缺目标跳过
 
-                    int severity = MBRandom.RandomInt(3, 7);
+                    int severity = MBRandom.RandomInt(3, 7) * 10;
                     float dayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit);
 
                     MobileParty eventParty = SpawnEventParty(config, targetSettlement, targetHero, instigator, isGeneric: false, severity, ref dayLimit);
@@ -928,23 +933,23 @@ namespace LivingWorldNpcs
 
                     string eventId = $"evt_motiv_exp_{expType.ToString().ToLower()}_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}";
 
-                    var worldEvent = new WorldEventData
+                    var worldEvent = new WorldEvent
                     {
                         EventId = eventId,
-                        EventType = expType,
-                        Status = WorldEventStatus.Active,
+                        Type = expType,
+                        Stage = EventStage.Active,
                         TargetHeroId = targetHero?.StringId,
                         TargetSettlementId = targetSettlement.StringId,
-                        InstigatorHeroId = instigator.StringId,
+                        InitiatorId = instigator.StringId,
                         IsGenericInstigator = false,
                         GeneratedPartyId = eventParty?.StringId,
-                        CreatedDay = (float)CampaignTime.Now.ToDays,
+                        OccurredDay = (float)CampaignTime.Now.ToDays,
                         DayLimit = dayLimit,
                         Severity = severity,
                     };
                     worldEvent.IsRedirectedExistingParty = eventParty != null && instigator.PartyBelongedTo == eventParty;
 
-                    WorldEventDatabase.AddEvent(worldEvent);
+                    WorldEventStore.AddEvent(worldEvent);
                     DebugLogger.Log($"[WorldEvent] Motivated expansion: {instigator.Name} ({instigator.Clan.Name}) → {expType} at {targetSettlement.Name} (trait: valor={valor} calc={calculating})");
                     return true;
                 }
@@ -967,7 +972,7 @@ namespace LivingWorldNpcs
             }
 
             // 回落：附近生成一个简单的 BanditRaid
-            var config = WorldEventConfig.Get(WorldEventType.BanditRaid);
+            var config = WorldEventConfig.Get(EventType.BanditRaid);
             if (config == null) return;
 
             // 优先选玩家附近的定居点
@@ -980,7 +985,7 @@ namespace LivingWorldNpcs
             bool isGeneric = false;
             SelectInstigatorBySource(config, targetSettlement, targetHero, out instigatorHero, out isGeneric);
 
-            int severity = MBRandom.RandomInt(2, 4); // 新手友好的低严重度
+            int severity = MBRandom.RandomInt(2, 4) * 10; // 新手友好的低严重度
             float dayLimit = 5f + MBRandom.RandomFloat * 5f; // 5-10 天，足够宽裕
 
             MobileParty eventParty = SpawnEventParty(config, targetSettlement, targetHero, instigatorHero, isGeneric, severity, ref dayLimit);
@@ -988,22 +993,22 @@ namespace LivingWorldNpcs
 
             string eventId = $"evt_tutorial_{config.EventType.ToString().ToLower()}_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}";
 
-            var worldEvent = new WorldEventData
+            var worldEvent = new WorldEvent
             {
                 EventId = eventId,
-                EventType = config.EventType,
-                Status = WorldEventStatus.Active,
+                Type = config.EventType,
+                Stage = EventStage.Active,
                 TargetHeroId = targetHero?.StringId,
                 TargetSettlementId = targetSettlement.StringId,
-                InstigatorHeroId = instigatorHero?.StringId,
+                InitiatorId = instigatorHero?.StringId,
                 IsGenericInstigator = isGeneric,
                 GeneratedPartyId = eventParty.StringId,
-                CreatedDay = (float)CampaignTime.Now.ToDays,
+                OccurredDay = (float)CampaignTime.Now.ToDays,
                 DayLimit = dayLimit,
                 Severity = severity,
             };
 
-            WorldEventDatabase.AddEvent(worldEvent);
+            WorldEventStore.AddEvent(worldEvent);
             _tutorialEventsGenerated++;
         }
 
@@ -1025,7 +1030,7 @@ namespace LivingWorldNpcs
         /// <param name="eventType">事件类型，默认 BanditRaid</param>
         /// <param name="severity">严重度，-1=随机(2-5)</param>
         /// <returns>生成结果描述</returns>
-        public static string ForceGenerateEvent(WorldEventType eventType = WorldEventType.BanditRaid, int severity = -1)
+        public static string ForceGenerateEvent(EventType eventType = EventType.BanditRaid, int severity = -1)
         {
             if (Campaign.Current == null || MobileParty.MainParty == null)
                 return "Error: Campaign not ready.";
@@ -1062,7 +1067,7 @@ namespace LivingWorldNpcs
             if (simulator != null)
                 simulator.SelectInstigatorBySource(config, targetSettlement, targetHero, out instigatorHero, out isGeneric);
 
-            int sev = severity > 0 ? Math.Min(severity, 10) : MBRandom.RandomInt(2, 6);
+            int sev = severity > 0 ? Math.Min(severity, 100) : MBRandom.RandomInt(2, 6) * 10;
             float dayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit);
 
             MobileParty eventParty = null;
@@ -1071,22 +1076,22 @@ namespace LivingWorldNpcs
 
             string eventId = $"evt_cmd_{eventType.ToString().ToLower()}_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}";
 
-            var worldEvent = new WorldEventData
+            var worldEvent = new WorldEvent
             {
                 EventId = eventId,
-                EventType = config.EventType,
-                Status = WorldEventStatus.Active,
+                Type = config.EventType,
+                Stage = EventStage.Active,
                 TargetHeroId = targetHero?.StringId,
                 TargetSettlementId = targetSettlement.StringId,
-                InstigatorHeroId = instigatorHero?.StringId,
+                InitiatorId = instigatorHero?.StringId,
                 IsGenericInstigator = isGeneric,
                 GeneratedPartyId = eventParty?.StringId,
-                CreatedDay = (float)CampaignTime.Now.ToDays,
+                OccurredDay = (float)CampaignTime.Now.ToDays,
                 DayLimit = dayLimit,
                 Severity = sev,
             };
 
-            WorldEventDatabase.AddEvent(worldEvent);
+            WorldEventStore.AddEvent(worldEvent);
             return $"OK: {eventType} at {targetSettlement.Name} sev={sev} party={eventParty != null} hero={instigatorHero?.Name?.ToString() ?? "generic"}";
         }
 
@@ -1134,23 +1139,23 @@ namespace LivingWorldNpcs
             string eventId = $"evt_{config.EventType.ToString().ToLower()}_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}";
 
             // 7. 创建 WorldEvent
-            var worldEvent = new WorldEventData
+            var worldEvent = new WorldEvent
             {
                 EventId = eventId,
-                EventType = config.EventType,
-                Status = WorldEventStatus.Active,
+                Type = config.EventType,
+                Stage = EventStage.Active,
                 TargetHeroId = targetHero?.StringId,
                 TargetSettlementId = targetSettlement.StringId,
-                InstigatorHeroId = instigatorHero?.StringId,
+                InitiatorId = instigatorHero?.StringId,
                 IsGenericInstigator = isGeneric,
                 GeneratedPartyId = eventParty?.StringId,
-                CreatedDay = (float)CampaignTime.Now.ToDays,
+                OccurredDay = (float)CampaignTime.Now.ToDays,
                 DayLimit = dayLimit,
                 Severity = severity,
             };
 
             // 8. 存入数据库
-            WorldEventDatabase.AddEvent(worldEvent);
+            WorldEventStore.AddEvent(worldEvent);
 
             // 9. 尝试分配幕后黑手（~5% 概率）
             ConspiracyManager.TryAssignMastermind(worldEvent);
@@ -1309,8 +1314,8 @@ namespace LivingWorldNpcs
 
         private bool IsHeroBusyInEvent(string heroId)
         {
-            return WorldEventDatabase.ActiveEvents.Any(e =>
-                e.InstigatorHeroId == heroId || e.TargetHeroId == heroId);
+            return WorldEventStore.ActiveEvents.Any(e =>
+                e.InitiatorId == heroId || e.TargetHeroId == heroId);
         }
 
         #endregion
@@ -1454,9 +1459,9 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 为世界事件 spawn 一个辅助部队。CommissionQuest 接取时通过 RoleTag 查找复用。
-        /// 返回创建的 party（失败返回 null）。由 WorldEventDatabase.AddEvent 集中调用。
+        /// 返回创建的 party（失败返回 null）。由 WorldEventStore.AddEvent 集中调用。
         /// </summary>
-        public static MobileParty SpawnAuxiliaryParty(AuxiliaryPartyConfig auxConfig, WorldEventData evt)
+        public static MobileParty SpawnAuxiliaryParty(AuxiliaryPartyConfig auxConfig, WorldEvent evt)
         {
             if (auxConfig == null || evt == null) return null;
 
@@ -1751,14 +1756,14 @@ namespace LivingWorldNpcs
 
             switch (config.EventType)
             {
-                case WorldEventType.BanditRaid: return $"{name}的劫掠队";
-                case WorldEventType.Kidnapping: return $"{name}的绑匪帮";
-                case WorldEventType.Betrayal: return $"{name}的叛军";
-                case WorldEventType.DebtTrap: return $"{name}的讨债队";
-                case WorldEventType.NobleConflict: return $"{name}的征讨军";
-                case WorldEventType.SacredTheft: return $"{name}的盗贼团";
-                case WorldEventType.Assassination: return $"{name}的刺客";
-                case WorldEventType.Fugitive: return $"追捕{tgt}的{name}部队";
+                case EventType.BanditRaid: return $"{name}的劫掠队";
+                case EventType.Kidnapping: return $"{name}的绑匪帮";
+                case EventType.Betrayal: return $"{name}的叛军";
+                case EventType.DebtTrap: return $"{name}的讨债队";
+                case EventType.NobleConflict: return $"{name}的征讨军";
+                case EventType.SacredTheft: return $"{name}的盗贼团";
+                case EventType.Assassination: return $"{name}的刺客";
+                case EventType.Fugitive: return $"追捕{tgt}的{name}部队";
                 default: return $"{name}的部队";
             }
         }
@@ -1770,16 +1775,16 @@ namespace LivingWorldNpcs
 
             switch (config.EventType)
             {
-                case WorldEventType.BanditRaid: return $"劫掠{loc}的匪帮";
-                case WorldEventType.Kidnapping: return $"绑走{tgt}的匪徒";
-                case WorldEventType.Betrayal: return $"{loc}的叛变者";
-                case WorldEventType.DebtTrap: return $"{loc}的催债人";
-                case WorldEventType.RomanticConflict: return $"{loc}的决斗者";
-                case WorldEventType.FalseAccusation: return $"{loc}的真凶";
-                case WorldEventType.Fugitive: return $"追捕{tgt}的赏金猎人";
-                case WorldEventType.SacredTheft: return $"偷走{loc}圣物的盗贼";
-                case WorldEventType.Assassination: return $"刺杀{tgt}的不知名刺客";
-                case WorldEventType.NemesisRevenge: return $"{tgt}的宿敌";
+                case EventType.BanditRaid: return $"劫掠{loc}的匪帮";
+                case EventType.Kidnapping: return $"绑走{tgt}的匪徒";
+                case EventType.Betrayal: return $"{loc}的叛变者";
+                case EventType.DebtTrap: return $"{loc}的催债人";
+                case EventType.RomanticConflict: return $"{loc}的决斗者";
+                case EventType.FalseAccusation: return $"{loc}的真凶";
+                case EventType.Fugitive: return $"追捕{tgt}的赏金猎人";
+                case EventType.SacredTheft: return $"偷走{loc}圣物的盗贼";
+                case EventType.Assassination: return $"刺杀{tgt}的不知名刺客";
+                case EventType.NemesisRevenge: return $"{tgt}的宿敌";
                 default: return $"{loc}的事件部队";
             }
         }
@@ -1799,8 +1804,8 @@ namespace LivingWorldNpcs
             // 候选：所有村庄（Village），排除已被同一类型事件盯上的
             var candidates = Settlement.All
                 .Where(s => s.IsVillage && s.Notables != null && s.Notables.Count > 0)
-                .Where(s => !WorldEventDatabase.GetActiveEventsNear(s, 10f)
-                    .Any(e => e.EventType == WorldEventType.BanditRaid
+                .Where(s => !WorldEventStore.GetActiveEventsNear(s, 10f)
+                    .Any(e => e.Type == EventType.BanditRaid
                            && e.TargetSettlementId == s.StringId))
                 .ToList();
 
@@ -1869,29 +1874,29 @@ namespace LivingWorldNpcs
                 switch (config.EventType)
                 {
                     // ── 攻城级：必须能威胁城池 ──
-                    case WorldEventType.NobleConflict:
+                    case EventType.NobleConflict:
                     {
                         int targetDefense = GetSettlementDefenseStrength(targetSettlement);
-                        float ratio = 1.2f + severity * 0.18f; // 1.5x ~ 3.0x
+                        float ratio = 1.2f + severity * 0.018f; // 1.5x ~ 3.0x
                         neededTroops = Math.Max((int)(targetDefense * ratio), 20);
                         scaleDesc = $"siege: target defense={targetDefense}, ratio={ratio:F1}x → need {neededTroops}";
                         break;
                     }
 
                     // ── 劫掠级：能打村子但不需要攻城 ──
-                    case WorldEventType.BanditRaid:
-                    case WorldEventType.DebtTrap:
+                    case EventType.BanditRaid:
+                    case EventType.DebtTrap:
                     {
                         int targetDefense = GetSettlementDefenseStrength(targetSettlement);
-                        float ratio = 0.5f + severity * 0.10f; // 0.6x ~ 1.5x
+                        float ratio = 0.5f + severity * 0.010f; // 0.6x ~ 1.5x
                         neededTroops = Math.Max((int)(targetDefense * ratio), 10);
                         scaleDesc = $"raid: target defense={targetDefense}, ratio={ratio:F1}x → need {neededTroops}";
                         break;
                     }
 
                     // ── 交战级：匹配目标 Hero 的兵力 ──
-                    case WorldEventType.Betrayal:
-                    case WorldEventType.Kidnapping:
+                    case EventType.Betrayal:
+                    case EventType.Kidnapping:
                     {
                         int targetPartySize = targetHero?.PartyBelongedTo?.MemberRoster?.TotalManCount ?? 0;
                         if (targetPartySize > 0)
@@ -1900,20 +1905,20 @@ namespace LivingWorldNpcs
                         }
                         else
                         {
-                            neededTroops = 15 + severity * 2; // 对方没部队，少量即可
+                            neededTroops = (int)(15 + severity * 0.2f); // 对方没部队，少量即可
                         }
                         scaleDesc = $"engagement: target hero party size={targetPartySize} → need {neededTroops}";
                         break;
                     }
 
                     // ── 隐蔽级：小股精锐，隐蔽行动 ──
-                    case WorldEventType.Assassination:
-                    case WorldEventType.SacredTheft:
-                    case WorldEventType.Fugitive:
-                    case WorldEventType.RomanticConflict:
-                    case WorldEventType.InheritanceDispute:
+                    case EventType.Assassination:
+                    case EventType.SacredTheft:
+                    case EventType.Fugitive:
+                    case EventType.RomanticConflict:
+                    case EventType.InheritanceDispute:
                     {
-                        neededTroops = 5 + severity; // 5~15 人，轻装简行
+                        neededTroops = (int)(5 + severity * 0.1f); // 5~15 人，轻装简行
                         scaleDesc = $"stealth: small elite squad → need {neededTroops}";
                         break;
                     }
@@ -1921,7 +1926,7 @@ namespace LivingWorldNpcs
                     // ── 默认：最小规模 ──
                     default:
                     {
-                        neededTroops = 8 + severity;
+                        neededTroops = (int)(8 + severity * 0.1f);
                         scaleDesc = $"default: minimal → need {neededTroops}";
                         break;
                     }
@@ -2054,7 +2059,7 @@ namespace LivingWorldNpcs
                 party.MemberRoster.Clear();
                 party.PrisonRoster.Clear();
 
-                int troopCount = 5 + severity * 3;
+                int troopCount = 5 + severity / 10 * 3;
                 var looterTier1 = GetLooterTroop();
                 if (looterTier1 != null)
                     party.MemberRoster.AddToCounts(looterTier1, troopCount);
@@ -2238,7 +2243,7 @@ namespace LivingWorldNpcs
         /// 事件过期后的连锁反应：某些事件的后果会触发新事件。
         /// 例：BanditRaid 过期 → Famine；Assassination 过期 → Betrayal 或 NobleConflict。
         /// </summary>
-        private void TryTriggerCascade(WorldEventData expiredEvent)
+        private void TryTriggerCascade(WorldEvent expiredEvent)
         {
             if (expiredEvent == null) return;
             Settlement settlement = expiredEvent.TargetSettlement;
@@ -2248,44 +2253,44 @@ namespace LivingWorldNpcs
                 ModifyStability(settlement, -2);
 
             // 连锁规则：某些事件过期后可能触发新的相关事件
-            WorldEventType? cascadeType = null;
+            EventType? cascadeType = null;
             float cascadeChance = 0f;
 
-            switch (expiredEvent.EventType)
+            switch (expiredEvent.Type)
             {
-                case WorldEventType.BanditRaid:
+                case EventType.BanditRaid:
                     // 匪患摧毁了村子 → 可能引发饥荒或更多人逃亡
-                    cascadeType = MBRandom.RandomFloat < 0.5f ? WorldEventType.Famine : WorldEventType.Fugitive;
+                    cascadeType = MBRandom.RandomFloat < 0.5f ? EventType.Famine : EventType.Fugitive;
                     cascadeChance = 0.4f;
                     break;
-                case WorldEventType.Assassination:
+                case EventType.Assassination:
                     // 关键人物死亡 → 内部混乱 → 背叛或贵族冲突
-                    cascadeType = MBRandom.RandomFloat < 0.5f ? WorldEventType.Betrayal : WorldEventType.NobleConflict;
+                    cascadeType = MBRandom.RandomFloat < 0.5f ? EventType.Betrayal : EventType.NobleConflict;
                     cascadeChance = 0.5f;
                     break;
-                case WorldEventType.Famine:
+                case EventType.Famine:
                     // 饥荒 → 匪患（绝望的人铤而走险）或债务陷阱
-                    cascadeType = WorldEventType.BanditRaid;
+                    cascadeType = EventType.BanditRaid;
                     cascadeChance = 0.35f;
                     break;
-                case WorldEventType.Kidnapping:
+                case EventType.Kidnapping:
                     // 绑架撕票 → 冤案（家属被冤枉）或背叛（内部怀疑）
-                    cascadeType = WorldEventType.FalseAccusation;
+                    cascadeType = EventType.FalseAccusation;
                     cascadeChance = 0.25f;
                     break;
-                case WorldEventType.Betrayal:
+                case EventType.Betrayal:
                     // 背叛 → 组织分裂 → 继承争端
-                    cascadeType = WorldEventType.InheritanceDispute;
+                    cascadeType = EventType.InheritanceDispute;
                     cascadeChance = 0.3f;
                     break;
-                case WorldEventType.NobleConflict:
+                case EventType.NobleConflict:
                     // 贵族冲突 → 匪患（边境失控）或行刺（升级为暗杀）
-                    cascadeType = MBRandom.RandomFloat < 0.6f ? WorldEventType.BanditRaid : WorldEventType.Assassination;
+                    cascadeType = MBRandom.RandomFloat < 0.6f ? EventType.BanditRaid : EventType.Assassination;
                     cascadeChance = 0.35f;
                     break;
-                case WorldEventType.SacredTheft:
+                case EventType.SacredTheft:
                     // 圣物流失 → 内部互相指责 → 背叛或冤案
-                    cascadeType = WorldEventType.Betrayal;
+                    cascadeType = EventType.Betrayal;
                     cascadeChance = 0.3f;
                     break;
             }
@@ -2303,27 +2308,27 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>安排一个连锁事件在指定延迟后生成。</summary>
-        private void ScheduleCascadeEvent(WorldEventConfig config, Settlement settlement, WorldEventData parentEvent, float delayDays)
+        private void ScheduleCascadeEvent(WorldEventConfig config, Settlement settlement, WorldEvent parentEvent, float delayDays)
         {
             // 序列化到 WorldEventDatabase 的 pending 列表（简单的延迟生成机制）
             // 通过检查 CreatedDay + delay 来实现：立即创建但设为未来激活
-            var cascadeEvent = new WorldEventData
+            var cascadeEvent = new WorldEvent
             {
                 EventId = $"evt_cascade_{config.EventType.ToString().ToLower()}_{DateTime.UtcNow.Ticks:X8}_{MBRandom.RandomInt(10000)}",
-                EventType = config.EventType,
-                Status = WorldEventStatus.Active,
+                Type = config.EventType,
+                Stage = EventStage.Active,
                 TargetSettlementId = settlement.StringId,
                 TargetHeroId = SelectTargetHero(settlement)?.StringId,
-                CreatedDay = (float)CampaignTime.Now.ToDays + delayDays, // 未来创建日
+                OccurredDay = (float)CampaignTime.Now.ToDays + delayDays, // 未来创建日
                 DayLimit = config.MinDayLimit + MBRandom.RandomFloat * (config.MaxDayLimit - config.MinDayLimit),
-                Severity = Math.Max(config.MinSeverity, parentEvent.Severity - 2), // 略低于原始事件
+                Severity = Math.Max(config.MinSeverity, parentEvent.Severity - 20), // 略低于原始事件
             };
 
             // 选加害方
             bool isGeneric = false;
             Hero instigatorHero = null;
             SelectInstigatorBySource(config, settlement, cascadeEvent.TargetHero, out instigatorHero, out isGeneric);
-            cascadeEvent.InstigatorHeroId = instigatorHero?.StringId;
+            cascadeEvent.InitiatorId = instigatorHero?.StringId;
             cascadeEvent.IsGenericInstigator = isGeneric;
 
             if (!isGeneric && instigatorHero == null && !config.AllowGeneric)
@@ -2332,14 +2337,14 @@ namespace LivingWorldNpcs
             // 生成 party
             if (config.PartyBehavior != EventPartyBehavior.NoParty && config.PartyBehavior != EventPartyBehavior.ChasePlayer)
             {
-                float cascadeDayLimit = cascadeEvent.DayLimit;
+                float cascadeDayLimit = cascadeEvent.DayLimit ?? 0f;
                 var party = SpawnEventParty(config, settlement, cascadeEvent.TargetHero, instigatorHero, isGeneric, cascadeEvent.Severity, ref cascadeDayLimit);
                 cascadeEvent.DayLimit = cascadeDayLimit;
                 cascadeEvent.GeneratedPartyId = party?.StringId;
             }
 
-            WorldEventDatabase.AddEvent(cascadeEvent);
-            DebugLogger.Log($"[WorldEvent] Cascade: {parentEvent.EventType} expired → {cascadeEvent.EventType} at {settlement.Name} in {delayDays:F1} days");
+            WorldEventStore.AddEvent(cascadeEvent);
+            DebugLogger.Log($"[WorldEvent] Cascade: {parentEvent.Type} expired → {cascadeEvent.Type} at {settlement.Name} in {delayDays:F1} days");
         }
 
         /// <summary>每日稳定性自然回归（缓慢趋向中性）。</summary>

@@ -158,6 +158,7 @@ namespace LivingWorldNpcs
 
             switch (_data.Category)
             {
+                case CommissionCategory.Investigation: OnStartInvestigation(); break;
                 case CommissionCategory.BountyHunt: OnStartBountyHunt(); break;
                 case CommissionCategory.LegendaryHunt: OnStartLegendaryHunt(); break;
                 case CommissionCategory.CaravanEscort: OnStartCaravanEscort(); break;
@@ -226,6 +227,9 @@ namespace LivingWorldNpcs
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
             switch (_data.Category)
             {
+                case CommissionCategory.Investigation:
+                    // 调查委托不需要额外事件——DailyTick 已注册
+                    break;
                 case CommissionCategory.BountyHunt:
                 case CommissionCategory.LegendaryHunt:
                 case CommissionCategory.HideoutClear:
@@ -310,6 +314,7 @@ namespace LivingWorldNpcs
 
             switch (_data.Category)
             {
+                case CommissionCategory.Investigation: OnStartInvestigation(); break;
                 case CommissionCategory.BountyHunt: OnStartBountyHunt(); break;
                 case CommissionCategory.LegendaryHunt: OnStartLegendaryHunt(); break;
                 case CommissionCategory.CaravanEscort: OnStartCaravanEscort(); break;
@@ -636,17 +641,17 @@ namespace LivingWorldNpcs
                 // 记录委托中涉及的 instigator（加害方）
                 if (!string.IsNullOrEmpty(_data.WorldEventId))
                 {
-                    var evt = WorldEventDatabase.FindEvent(_data.WorldEventId);
-                    if (evt != null && !string.IsNullOrEmpty(evt.InstigatorHeroId))
+                    var evt = WorldEventStore.FindEvent(_data.WorldEventId);
+                    if (evt != null && !string.IsNullOrEmpty(evt.InitiatorId))
                     {
-                        var instigator = Hero.FindFirst(h => h.StringId == evt.InstigatorHeroId);
+                        var instigator = Hero.FindFirst(h => h.StringId == evt.InitiatorId);
                         if (instigator != null && instigator != _data.TargetHero && instigator != Hero.MainHero)
                         {
                             bool killed = !instigator.IsAlive;
                             HeroNemesisTracker.RecordBattleOutcome(instigator, playerWon, killed);
 
                             // 宿敌复仇事件：玩家赢了但没杀死 → 宿敌升级，下次更强更快
-                            if (evt.EventType == WorldEventType.NemesisRevenge && playerWon && !killed)
+                            if (evt.Type == EventType.NemesisRevenge && playerWon && !killed)
                             {
                                 var record = HeroNemesisTracker.GetRecord(instigator);
                                 if (record != null && record.Level < NemesisLevel.Legendary)
@@ -1037,7 +1042,7 @@ namespace LivingWorldNpcs
             // ── WorldEvent 关联的部队不能直接删除 → 重定向离开目标 ──
             if (!string.IsNullOrEmpty(_data?.WorldEventId) && !string.IsNullOrEmpty(_escortPartyId))
             {
-                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                var worldEvent = WorldEventStore.FindEvent(_data.WorldEventId);
                 if (worldEvent != null)
                 {
                     var party = worldEvent.GeneratedParty;
@@ -1181,6 +1186,16 @@ namespace LivingWorldNpcs
 
         #region Type-Specific Startup
 
+        private void OnStartInvestigation()
+        {
+            var settlement = !string.IsNullOrEmpty(_data.TargetSettlementId)
+                ? Settlement.Find(_data.TargetSettlementId) : null;
+            string locationName = settlement?.Name?.ToString() ?? "案发地";
+
+            AddLog(new TextObject($"前往 {locationName} 附近搜集线索。与当地人交谈或回现场调查，找出是谁干的。"));
+            AddLog(new TextObject("提示：时间有限——调查窗口关闭后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));
+        }
+
         private void OnStartBountyHunt()
         {
             if (_data.TargetHero == null) return;
@@ -1188,7 +1203,7 @@ namespace LivingWorldNpcs
             // 如果关联了 WorldEvent，使用已有的 party，不重复生成
             if (!string.IsNullOrEmpty(_data.WorldEventId))
             {
-                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                var worldEvent = WorldEventStore.FindEvent(_data.WorldEventId);
                 if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.GeneratedPartyId))
                 {
                     _escortPartyId = worldEvent.GeneratedPartyId;
@@ -1255,7 +1270,7 @@ namespace LivingWorldNpcs
             // ── 优先复用 WorldEvent 已有的 instigator 部队（加害方正带兵前来）──
             if (!string.IsNullOrEmpty(_data.WorldEventId))
             {
-                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                var worldEvent = WorldEventStore.FindEvent(_data.WorldEventId);
                 if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.GeneratedPartyId))
                 {
                     var existingParty = worldEvent.GeneratedParty;
@@ -1337,7 +1352,7 @@ namespace LivingWorldNpcs
             // ── 优先复用 WorldEvent 已 spawn 的辅助部队（世界不等玩家）──
             if (!string.IsNullOrEmpty(_data.WorldEventId))
             {
-                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
+                var worldEvent = WorldEventStore.FindEvent(_data.WorldEventId);
                 if (worldEvent != null)
                 {
                     var existingParty = worldEvent.GetAuxiliaryParty("SupplyConvoy");
@@ -1937,13 +1952,13 @@ namespace LivingWorldNpcs
             // 关联了 WorldEvent → 结算事件
             if (!string.IsNullOrEmpty(_data.WorldEventId))
             {
-                WorldEventDatabase.ResolveEvent(_data.WorldEventId);
+                WorldEventStore.ResolveEvent(_data.WorldEventId);
 
                 // 检查卧底叛变条件（玩家帮 instigator 解决了事件 → 可以策反）
-                var worldEvent = WorldEventDatabase.FindEvent(_data.WorldEventId);
-                if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.InstigatorHeroId))
+                var worldEvent = WorldEventStore.FindEvent(_data.WorldEventId);
+                if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.InitiatorId))
                 {
-                    var instigator = Hero.FindFirst(h => h.StringId == worldEvent.InstigatorHeroId);
+                    var instigator = Hero.FindFirst(h => h.StringId == worldEvent.InitiatorId);
                     if (instigator != null)
                         StrategicInfiltration.CheckAvailability(instigator, _data.WorldEventId);
                 }
@@ -1973,6 +1988,8 @@ namespace LivingWorldNpcs
         {
             switch (_data.Category)
             {
+                case CommissionCategory.Investigation:
+                    return "在案发定居点附近搜索或与村民交谈可推进调查。";
                 case CommissionCategory.BountyHunt:
                     return _data.TargetHero != null
                         ? $"目标：{_data.TargetHero.Name} — 活捉报酬 ×2.25"
@@ -2000,6 +2017,8 @@ namespace LivingWorldNpcs
 
             switch (_data.Category)
             {
+                case CommissionCategory.Investigation:
+                    return $"第二步：搜集线索，找出真凶";
                 case CommissionCategory.BountyHunt:
                     return $"第二步：击败（最好活捉）{target}";
                 case CommissionCategory.LegendaryHunt:
