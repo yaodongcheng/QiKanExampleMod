@@ -250,7 +250,7 @@
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="Debug\MyCustomUIVM.cs" />
     <!-- Interaction -->
-    <Compile Include="Interaction\DialogueInjector.cs" />
+    <Compile Include="Interaction\Dialogue\DialogueInjector.cs" />
     <Compile Include="Interaction\InteractionController.cs" />
     <Compile Include="Interaction\Intents\IntentContext.cs" />
     <Compile Include="Interaction\Intents\IntentBase.cs" />
@@ -262,14 +262,18 @@
     <Compile Include="Interaction\Intents\DiplomacyIntents.cs" />
     <Compile Include="Interaction\Intents\GeneralIntents.cs" />
     <Compile Include="Interaction\Intents\RecruitSoldierIntent.cs" />
+    <Compile Include="Interaction\Intents\AccountabilityIntents.cs" />
     <Compile Include="Interaction\InteractionMissionView.cs" />
     <Compile Include="Interaction\InteractionOptionManager.cs" />
     <Compile Include="Interaction\InteractionVM.cs" />
-    <Compile Include="Interaction\MapEncounterConversationPatch.cs" />
-    <Compile Include="Interaction\MapEncounterDialogState.cs" />
-    <Compile Include="Interaction\VanillaConversationLoggerPatch.cs" />
+    <Compile Include="Interaction\Dialogue\ConversationEntryPatch.cs" />
+    <Compile Include="Interaction\Dialogue\MapEncounterDialogState.cs" />
+    <Compile Include="Interaction\Dialogue\VanillaConversationLoggerPatch.cs" />
     <Compile Include="Interaction\NpcInfoVM.cs" />
     <Compile Include="Interaction\StoryDialogVM.cs" />
+    <Compile Include="Interaction\Dialogue\CrimeDialogueBuilder.cs" />
+    <Compile Include="Interaction\Dialogue\PlaceholderResolver.cs" />
+    <!-- Dialogue (dynamic dialogue injection pipeline) -->
     <!-- LLM -->
     <Compile Include="LLM\LLMService.cs" />
     <Compile Include="LLM\PromptBuilder.cs" />
@@ -290,8 +294,8 @@
     <Compile Include="Notify\NinjaNotificationVM.cs" />
     <!-- Properties -->
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <!-- Quest -->
-    <Compile Include="Quest\QuestManager.cs" />
+    <!-- Quests -->
+    <Compile Include="Quests\QuestManager.cs" />
     <Compile Include="Quests\QuestStartLoggerPatch.cs" />
     <Compile Include="Quests\IssueFilterPatch.cs" />
     <Compile Include="Quests\IssueFilterBehavior.cs" />
@@ -301,7 +305,7 @@
     <Compile Include="Quests\Causality\QuestConsequenceBehavior.cs" />
     <Compile Include="Quests\Causality\VanillaQuestMapping.cs" />
     <Compile Include="Quests\Causality\IssueFactory.cs" />
-    <!-- Quest\Commissions -->
+    <!-- Quests\Commissions -->
     <Compile Include="Quests\Commissions\CommissionData.cs" />
     <Compile Include="Quests\Commissions\CommissionQuest.cs" />
     <Compile Include="Quests\Commissions\CommissionHubIssue.cs" />
@@ -313,19 +317,22 @@
     <Compile Include="Quests\Commissions\ComplicationTable.cs" />
     <Compile Include="Quests\Commissions\JourneyEvents.cs" />
     <Compile Include="Quests\Commissions\NotificationPipeline.cs" />
-    <!-- Quests\WorldEvents -->
-    <Compile Include="Quests\WorldEvents\WorldEventDatabase.cs" />
-    <Compile Include="Quests\WorldEvents\WorldEventSimulator.cs" />
-    <Compile Include="Quests\WorldEvents\WorldEventConfig.cs" />
-    <Compile Include="Quests\WorldEvents\WorldEventDirector.cs" />
-    <Compile Include="Quests\WorldEvents\WorldEventNotificationController.cs" />
-    <Compile Include="Quests\WorldEvents\HeroNemesisTracker.cs" />
-    <Compile Include="Quests\WorldEvents\ConspiracyManager.cs" />
-    <Compile Include="Quests\WorldEvents\StrategicInfiltration.cs" />
+    <!-- WorldEvent -->
+    <Compile Include="WorldEvent\WorldEventSimulator.cs" />
+    <Compile Include="WorldEvent\WorldEventConfig.cs" />
+    <Compile Include="WorldEvent\WorldEventDirector.cs" />
+    <Compile Include="WorldEvent\WorldEventNotificationController.cs" />
+    <Compile Include="WorldEvent\HeroNemesisTracker.cs" />
+    <Compile Include="WorldEvent\ConspiracyManager.cs" />
+    <Compile Include="WorldEvent\StrategicInfiltration.cs" />
+    <Compile Include="WorldEvent\AttitudeSystem.cs" />
+    <Compile Include="WorldEvent\CrimeDialogueBehavior.cs" />
+    <Compile Include="WorldEvent\ResponsePattern.cs" />
+    <Compile Include="WorldEvent\WorldEvent.cs" />
+    <Compile Include="WorldEvent\InvestigationEngine.cs" />
+    <Compile Include="WorldEvent\SocialEventManager.cs" />
     <!-- Script -->
     <Compile Include="Script\ReadStory.cs" />
-    <!-- Social -->
-    <Compile Include="Social\SocialEventManager.cs" />
     <!-- Spawner -->
     <Compile Include="Spawner\HeroSpawnerMissionBehavior.cs" />
     <!-- Stealth -->

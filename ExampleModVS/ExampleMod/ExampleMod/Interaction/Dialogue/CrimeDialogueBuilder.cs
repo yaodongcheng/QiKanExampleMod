@@ -1,0 +1,410 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using LivingWorldNpcs.Story;
+using TaleWorlds.CampaignSystem;
+
+namespace LivingWorldNpcs
+{
+    /// <summary>
+    /// 犯罪对话构建器：运行时从游戏状态动态构建 DialogueInjectScript，
+    /// 经 DialogueInjector.InjectScript 注入 ConversationManager。
+    ///
+    /// 替代手写 JSON 穷举——游戏状态组合爆炸。
+    /// 三条路径同一出口：
+    ///   路径 A（静态调试）: 手写 JSON → DialogueInjectScript
+    ///   路径 B（生产）:  游戏状态 → CrimeDialogueBuilder.BuildScript → DialogueInjectScript
+    ///   路径 C（LLM增强）: 游戏状态 → LLM生成 JSON → DialogueInjectScript
+    /// </summary>
+    public static class CrimeDialogueBuilder
+    {
+        /// <summary>
+        /// 玩家对 NPC 点"交谈"时调用。
+        /// 返回 null = 该 NPC 不需要注入犯罪对话。
+        /// </summary>
+        public static DialogueInjector.DialogueInjectScript BuildScript(Hero speaker, Hero listener)
+        {
+            var settlement = speaker.CurrentSettlement;
+            if (settlement == null) return null;
+            var evt = WorldEventStore.FindActive(settlement.StringId);
+            if (evt == null) return null;
+
+            var r = new PlaceholderResolver(evt, speaker, listener);
+            var ctx = BuildIntentContext(evt, speaker);
+
+            // 按说话者身份分派
+            DialogueInjector.DialogueInjectScript script;
+            if (IsAuthority(speaker, evt))
+                script = BuildAuthorityScript(evt, speaker, listener, r, ctx);
+            else if (evt.WitnessHeroIds?.Contains(speaker.StringId) == true)
+                script = BuildWitnessScript(evt, speaker, listener, r, ctx);
+            else if (evt.SuspectHeroId == speaker.StringId)
+                script = BuildSuspectScript(evt, speaker, listener, r, ctx);
+            else
+                script = BuildBystanderScript(evt, speaker, listener, r, ctx);
+
+            // 日志：打印每个 turn 的最终填充文本，方便排查占位符遗漏
+            if (script?.Turns != null)
+            {
+                foreach (var t in script.Turns)
+                {
+                    DebugLogger.Log($"[CrimeDialog] Turn[{t.Id}] speaker={speaker.Name} stage={evt.Stage}");
+                    if (!string.IsNullOrEmpty(t.NpcLine))
+                        DebugLogger.Log($"[CrimeDialog]   NPC: {t.NpcLine}");
+                    if (t.Options != null)
+                    {
+                        foreach (var opt in t.Options)
+                        {
+                            string action = opt.Action ?? "NONE";
+                            DebugLogger.Log($"[CrimeDialog]   Option: \"{opt.PlayerLine}\" → {action}");
+                        }
+                    }
+                }
+            }
+
+            return script;
+        }
+
+        private static bool IsAuthority(Hero npc, WorldEvent evt)
+        {
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            return npc == authority || (npc?.Occupation == Occupation.Headman || npc?.Occupation == Occupation.RuralNotable);
+        }
+
+        private static IntentContext BuildIntentContext(WorldEvent evt, Hero speaker)
+        {
+            return new IntentContext { ActiveEvent = evt, Hero = speaker, Player = Hero.MainHero };
+        }
+
+        private static DialogueInjector.DialogueInjectScript BuildAuthorityScript(
+            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+        {
+            var turns = new List<DialogueInjector.DialogueInjectTurn>();
+
+            switch (evt.Stage)
+            {
+                case EventStage.Emerging:
+                    if (evt.PlayerTookInvestigationQuest)
+                        BuildReportTurn(turns, r, ctx);
+                    else
+                        BuildDiscoveryTurn(turns, r, ctx);
+                    break;
+                case EventStage.Active:
+                    if (evt.SuspectIsPlayer)
+                        BuildConfrontPlayerTurn(turns, r, ctx);
+                    else
+                        BuildBountyOfferTurn(turns, r, ctx);
+                    break;
+                case EventStage.Confrontation:
+                    BuildRetaliationTurn(turns, r, ctx);
+                    break;
+            }
+
+            return new DialogueInjector.DialogueInjectScript
+            {
+                EntryOption = r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption"),
+                EntryTurn = "start",
+                Turns = turns
+            };
+        }
+
+        private static void BuildDiscoveryTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
+        {
+            var evt = r.Event;
+            var turn = new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start",
+                SpeakerIndex = 0,
+                NpcLine = r.Resolve("（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgressWord}。{WitnessCountWord}，{SuspectDescription}。{SpeakerPlayerAddr}能帮忙查查吗？", "NpcLine"),
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "我可以帮忙查查是谁干的。",
+                        NpcResponse = r.Resolve("拜托了！查出来了{SpeakerSelfRef}必有重谢。"),
+                        Action = "INTENT:Investigate",
+                        NextTurn = "close_window"
+                    },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "我还有事。",
+                        NpcResponse = r.Resolve("那{SpeakerPlayerAddr}忙吧……{SpeakerSelfRef}们自己想办法。"),
+                        Action = "NONE",
+                        NextTurn = "close_window"
+                    }
+                }
+            };
+
+            // 如果玩家是贼 → 加"主动认栽"选项
+            if (evt.InitiatorIsPlayer)
+            {
+                turn.Options.Insert(0, new DialogueInjector.DialogueInjectOption
+                {
+                    PlayerLine = "（低头）是我干的。",
+                    NpcResponse = r.Resolve("{SpeakerPlayerAddr}？！……好，既然自己认了，咱们可以商量。"),
+                    Action = "INTENT:Confess",
+                    NextTurn = "confess"
+                });
+                turns.Add(BuildConfessTurn(r, ctx));
+                turns.Add(BuildClosingTurn(r, "confess_close"));
+            }
+
+            turns.Add(turn);
+        }
+
+        private static DialogueInjector.DialogueInjectTurn BuildConfessTurn(PlaceholderResolver r, IntentContext ctx)
+        {
+            return new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "confess",
+                SpeakerIndex = 0,
+                NpcLine = r.Resolve("有什么要说的？"),
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我愿意赔（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextTurn = "confess_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "你们搞错了——给我个机会说清楚", Action = "INTENT:CharmDefense", NextTurn = "confess_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "NONE", NextTurn = "confess_close" },
+                }
+            };
+        }
+
+        private static void BuildReportTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
+        {
+            var evt = r.Event;
+            var turn = new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start",
+                SpeakerIndex = 0,
+                NpcLine = "怎么样，查到什么了吗？",
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "是附近藏身处的强盗干的！", Action = "INTENT:FrameSuspect", ActionParam = "bandit", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "还没查到什么。", NpcResponse = r.Resolve("那你再去看看。{InvestigationProgressWord}。"), Action = "NONE", NextTurn = "close_window" },
+                }
+            };
+
+            // 动态生成栽赃候选
+            var frameTargets = PlayerTheftLedger.GetFrameableTargets();
+            foreach (var target in frameTargets.Skip(1)) // Skip "bandit" (already above)
+            {
+                if (target.CanShowEvidence)
+                {
+                    // 有证物 → 展开每一件赃物为独立选项
+                    var evidenceItems = PlayerTheftLedger.GetEvidenceItems(target.TargetId);
+                    foreach (var evItem in evidenceItems)
+                    {
+                        turn.Options.Insert(turn.Options.Count - 1, new DialogueInjector.DialogueInjectOption
+                        {
+                            PlayerLine = $"是 {target.DisplayName} 干的——[出示{evItem.ItemName}]",
+                            NpcResponse = $"（仔细看了看{evItem.ItemName}）……这确实是他的东西。好，那就是他了！",
+                            Action = "INTENT:FrameSuspect",
+                            ActionParam = target.TargetId,
+                            NextTurn = "close_window"
+                        });
+                    }
+                }
+                else
+                {
+                    // 无证物 → 裸指控
+                    turn.Options.Insert(turn.Options.Count - 1, new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = $"是 {target.DisplayName} 干的。",
+                        Action = "INTENT:FrameSuspect",
+                        ActionParam = target.TargetId,
+                        NextTurn = "close_window"
+                    });
+                }
+            }
+
+            // 如果玩家是贼 → 加"主动认栽"
+            if (evt.InitiatorIsPlayer)
+            {
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption
+                {
+                    PlayerLine = "（低头）……是我干的。",
+                    Action = "NONE",
+                    NextTurn = "confess"
+                });
+                turns.Add(BuildConfessTurn(r, ctx));
+                turns.Add(BuildClosingTurn(r, "confess_close"));
+            }
+
+            turns.Add(turn);
+        }
+
+        private static void BuildConfrontPlayerTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
+        {
+            var evt = r.Event;
+            var turn = new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start",
+                SpeakerIndex = 0,
+                NpcLine = r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{CrimeVerb}。有什么要说的？", "NpcLine"),
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "你们搞错了。给我个机会说清楚。", Action = "INTENT:CharmDefense", NextTurn = "confront_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("这是赔偿，够不够？（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextTurn = "confront_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "你再说一遍？（手按在剑柄上）", Action = "INTENT:Threat", NextTurn = "confront_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "NONE", NextTurn = "confront_close" },
+                }
+            };
+            turns.Add(turn);
+
+            // 收尾 turn：NPC 最后一句 + 关闭窗口
+            turns.Add(new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "confront_close",
+                SpeakerIndex = 0,
+                NpcLine = r.Resolve("{ConfrontClosingLine}"),
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "……", Action = "NONE", NextTurn = "close_window" },
+                }
+            });
+        }
+
+        private static void BuildBountyOfferTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
+        {
+            turns.Add(new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start",
+                SpeakerIndex = 0,
+                NpcLine = r.Resolve("还记得{TimeWord}{CrimeVerbPast}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？", "NpcLine"),
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我接这个悬赏！", Action = "INTENT:AcceptBountyQuest", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我先想想。", Action = "NONE", NextTurn = "close_window" },
+                }
+            });
+        }
+
+        private static void BuildRetaliationTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
+        {
+            var evt = r.Event;
+            string npcLine;
+            var options = new List<DialogueInjector.DialogueInjectOption>();
+
+            if (evt.SuspectIsPlayer)
+            {
+                npcLine = r.Resolve("（{SpeakerEmotion}地）客客气气说话不管用，那就只能动手了。村里凑了钱，已经雇了人。{SpeakerPlayerAddr}躲得过初一躲不过十五。", "NpcLine");
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我赔钱！{RestitutionCost} 第纳尔"), Action = "INTENT:PayRestitution", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "这事可以商量……", Action = "INTENT:Settle", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我走了。", Action = "NONE", NextTurn = "close_window" });
+            }
+            else
+            {
+                npcLine = r.Resolve("（{SpeakerEmotion}地）客客气气说话不管用，那就只能动手了。我们已经雇了人去抓{SuspectDescription}。{SpeakerPlayerAddr}要是站在我们这边的，可以带他们去。", "NpcLine");
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我带人去！", Action = "INTENT:LeadRetaliation", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我没空。", Action = "NONE", NextTurn = "close_window" });
+            }
+
+            turns.Add(new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start",
+                SpeakerIndex = 0,
+                NpcLine = npcLine,
+                Options = options
+            });
+        }
+
+        private static DialogueInjector.DialogueInjectScript BuildWitnessScript(
+            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+        {
+            var turns = new List<DialogueInjector.DialogueInjectTurn>();
+
+            var turn = new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start",
+                SpeakerIndex = 0,
+                NpcLine = evt.InitiatorIsPlayer
+                    ? r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}是来问{CrimeScene}的事？{SpeakerSelfRef}……确实看见了。")
+                    : r.Resolve("（{SpeakerEmotion}地）{SpeakerSelfRef}{TimeWord}在{CrimeScene}附近看见了一个人……"),
+                Options = new List<DialogueInjector.DialogueInjectOption>()
+            };
+
+            if (evt.InitiatorIsPlayer && !evt.WitnessesSilenced)
+            {
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（给些钱）这事你别往外说……", Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（威胁）你什么也没看见，明白吗？", Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "当我没来过。", Action = "NONE", NextTurn = "close_window" });
+            }
+            else if (evt.WitnessesSilenced)
+            {
+                turn.NpcLine = r.Resolve("（紧张地看了看四周）{SpeakerPlayerAddr}找错人了。{SpeakerSelfRef}什么也不知道。", "NpcLine");
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "……好吧。", Action = "NONE", NextTurn = "close_window" });
+            }
+            else
+            {
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "能说说那人的特征吗？", NpcResponse = r.Resolve("那人……{SuspectDescription}。"), Action = "NONE", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "谢谢，我知道了。", Action = "NONE", NextTurn = "close_window" });
+            }
+
+            turns.Add(turn);
+            return new DialogueInjector.DialogueInjectScript { EntryOption = "听说你看到了……？", EntryTurn = "start", Turns = turns };
+        }
+
+        private static DialogueInjector.DialogueInjectScript BuildSuspectScript(
+            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+        {
+            var turns = new List<DialogueInjector.DialogueInjectTurn>
+            {
+                new DialogueInjector.DialogueInjectTurn
+                {
+                    Id = "start",
+                    SpeakerIndex = 0,
+                    NpcLine = r.Resolve("（警惕地）{SpeakerPlayerAddr}盯着{SpeakerSelfRef}看什么？", "NpcLine"),
+                    Options = new List<DialogueInjector.DialogueInjectOption>
+                    {
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "跟我走一趟，村长找你有事。", Action = "INTENT:LureArrest", NextTurn = "close_window" },
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "快跑！村里人在抓你。", Action = "INTENT:BetrayQuest", NextTurn = "close_window" },
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "没什么。", Action = "NONE", NextTurn = "close_window" },
+                    }
+                }
+            };
+            return new DialogueInjector.DialogueInjectScript { EntryOption = "（打量了一下）……", EntryTurn = "start", Turns = turns };
+        }
+
+        private static DialogueInjector.DialogueInjectScript BuildBystanderScript(
+            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+        {
+            var turns = new List<DialogueInjector.DialogueInjectTurn>();
+
+            string npcLine = evt.Stage switch
+            {
+                EventStage.Emerging => r.Resolve("（压低声音）{SpeakerPlayerAddr}听说了吗？{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}！谁干的还不知道。", "NpcLine"),
+                EventStage.Active => r.Resolve("听说了吗？是{SuspectDescription}干的！村里悬赏{BountyAmount}第纳尔抓他呢。", "NpcLine"),
+                EventStage.Confrontation => r.Resolve("（紧张地）{TargetSettlementName}的人真动手了——雇了打手满世界找人。这事闹大了……", "NpcLine"),
+                _ => r.Resolve("这事好像已经过去了……", "NpcLine"),
+            };
+
+            turns.Add(new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start",
+                SpeakerIndex = 0,
+                NpcLine = npcLine,
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "详细说说？", NpcResponse = r.Resolve("我就知道这么多……"), Action = "NONE", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "哦。", Action = "NONE", NextTurn = "close_window" },
+                }
+            });
+
+            return new DialogueInjector.DialogueInjectScript { EntryOption = "最近村里有什么新鲜事？", EntryTurn = "start", Turns = turns };
+        }
+
+        /// <summary>收尾 turn：NPC 最后一句台词 + 玩家"……"→关闭窗口</summary>
+        private static DialogueInjector.DialogueInjectTurn BuildClosingTurn(PlaceholderResolver r, string turnId)
+        {
+            return new DialogueInjector.DialogueInjectTurn
+            {
+                Id = turnId,
+                SpeakerIndex = 0,
+                NpcLine = r.Resolve("{ConfrontClosingLine}"),
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "……", Action = "NONE", NextTurn = "close_window" },
+                }
+            };
+        }
+    }
+}

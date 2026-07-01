@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -173,6 +174,18 @@ namespace LivingWorldNpcs
             // 记录失窃（槽位 + 带品质元素 + 辎重实扣数），供「归还」对称复原
             RecordStolen(agent, index, itemToSteal, stashTaken);
 
+            // 偷窃账本记账（犯罪后果系统用）
+            if (victimHero != null && Settlement.CurrentSettlement != null)
+            {
+                PlayerTheftLedger.Record(
+                    victimHeroId: victimHero.StringId,
+                    settlementId: Settlement.CurrentSettlement.StringId,
+                    itemId: itemToSteal.Item.StringId,
+                    count: 1,
+                    locationName: $"在{Settlement.CurrentSettlement.Name}"
+                );
+            }
+
             // 3. 从 NPC 身上移除该物品 (修改视觉)
             Equipment newEquipment = agent.SpawnEquipment.Clone();
             newEquipment[index] = EquipmentElement.Invalid; // 设置为空
@@ -265,6 +278,141 @@ namespace LivingWorldNpcs
             List<Agent> witnesses = NpcSightSystem.GetObserversOf(thief, maxDistance, fovDegrees);
             witnesses.RemoveAll(a => a == victim);
             return witnesses;
+        }
+
+        // ----------------------------------------------------------------
+        // 3. 动物偷窃：WorldEvent 创建 + PlayerTheftLedger 记账 + 目击者记录
+        //    从 InteractionMissionView 迁入，与 StealSpecificItem 的 PlayerTheftLedger
+        //    记账保持在同一处，统一 Stealth 子系统的犯罪记录入口。
+        // ----------------------------------------------------------------
+        /// <summary>
+        /// 偷动物成功后创建 WorldEvent + PlayerTheftLedger 记账 + 目击者记录。
+        /// 目击者检测走统一的 <see cref="GetWitnesses"/>。
+        /// </summary>
+        public static void RecordAnimalTheft(Settlement settlement, ItemObject livestockItem, string monsterId, Agent animal)
+        {
+            try
+            {
+                // 目击系统开关：关闭时跳过目击检测，始终走 Dormant（无目击）路径
+                bool witnessSystemOn = Settings.Instance.WitnessSystemEnabled;
+                List<string> witnessHeroIds;
+                Dictionary<string, int> templateWitness;
+                bool wasWitnessed;
+
+                if (witnessSystemOn)
+                {
+                    var witnesses = GetWitnesses(Agent.Main, animal, maxDistance: 20f);
+                    witnessHeroIds = witnesses
+                        .Where(a => (a.Character as CharacterObject)?.HeroObject != null)
+                        .Select(a => (a.Character as CharacterObject).HeroObject.StringId)
+                        .ToList();
+                    templateWitness = witnesses
+                        .Where(a => (a.Character as CharacterObject)?.HeroObject == null && a.Character != null)
+                        .GroupBy(a => a.Character.StringId)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                    wasWitnessed = witnessHeroIds.Count > 0 || templateWitness.Count > 0;
+
+                    if (wasWitnessed)
+                        DebugLogger.Log($"[AnimalTheft] Witnessed! {witnessHeroIds.Count} hero(es) + {templateWitness.Sum(kv => kv.Value)} villagers saw the theft. Suspect = Player.");
+                    else
+                        DebugLogger.Log($"[AnimalTheft] No witnesses.");
+                }
+                else
+                {
+                    witnessHeroIds = new List<string>();
+                    templateWitness = new Dictionary<string, int>();
+                    wasWitnessed = false;
+                    DebugLogger.Log($"[AnimalTheft] Witness system DISABLED — treating as no witnesses.");
+                }
+
+                var evt = new WorldEvent
+                {
+                    EventId = $"theft_{settlement.StringId}_{(float)CampaignTime.Now.ToDays}_{WorldEventStore.AllEvents.Count(e => e.TargetSettlementId == settlement.StringId) + 1}",
+                    Category = EventCategory.Crime,
+                    Type = EventType.Theft_Animal,
+                    Severity = 30,
+                    InitiatorId = Hero.MainHero.StringId,
+                    TargetSettlementId = settlement.StringId,
+                    TargetItemId = livestockItem.StringId,
+                    Quantity = 1,
+                    OccurredDay = (float)CampaignTime.Now.ToDays,
+                    DayLimit = 14f,
+                    LocationName = settlement.Name?.ToString() ?? "村庄",
+                    WitnessHeroIds = witnessHeroIds,
+                    TemplateWitness = templateWitness,
+                    Stage = wasWitnessed ? EventStage.Active : EventStage.Dormant,
+                    SuspectHeroId = wasWitnessed ? Hero.MainHero.StringId : null,
+                    InvestigationProgress = wasWitnessed ? 1.0f : 0f,
+                    PublicAwareness = wasWitnessed ? 0.5f : 0f,
+                    EvidenceList = witnessHeroIds.Count > 0
+                        ? new List<EvidencePointer>
+                        {
+                            new EvidencePointer
+                            {
+                                EvidenceId = $"theft_{settlement.StringId}_witness",
+                                TargetId = Hero.MainHero.StringId,
+                                Kind = EvidenceKind.Witness,
+                                Strength = 0.7f,
+                                SourceDescription = $"目击者称看到有人在牲口圈附近鬼鬼祟祟",
+                                DiscoveredDay = (float)CampaignTime.Now.ToDays
+                            }
+                        }
+                        : new List<EvidencePointer>(),
+                };
+                WorldEventStore.AddOrMerge(evt);
+
+                // 偷窃账本记账
+                PlayerTheftLedger.Record(
+                    victimHeroId: null,
+                    settlementId: settlement.StringId,
+                    itemId: livestockItem.StringId,
+                    count: 1,
+                    locationName: $"在{settlement.Name}"
+                );
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AnimalTheft] RecordAnimalTheft error: {ex.Message}");
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 4. 动物偷窃核心业务：库存转移 + 追踪 + 犯罪记账
+        //    对应 TryStealFromAgent → StealSpecificItem 的分层模式。
+        //    View 层（InteractionMissionView.TryStealAnimal）负责动画/UI/FadeOut。
+        // ----------------------------------------------------------------
+        /// <summary>
+        /// 偷动物核心事务：物品授予玩家 → 定居点库存扣除 → 偷窃追踪 → 犯罪记账。
+        /// 参数 <paramref name="livestockItem"/> 应由调用方通过 ItemObject 查找提前解析。
+        /// </summary>
+        /// <param name="settlement">当前村庄（null 时仅授予物品，不扣库存不记账）</param>
+        /// <param name="livestockItem">已解析的牲畜 ItemObject</param>
+        /// <param name="monsterId">动物 monster ID（用于 VillageAnimalTracker 追踪）</param>
+        /// <param name="animal">被偷的动物 Agent（用于目击者检测）</param>
+        public static void StealAnimal(Settlement settlement, ItemObject livestockItem, string monsterId, Agent animal)
+        {
+            // 步骤 1：物品授予玩家（Grant from world，铁律 4.②）
+            AgentControlHelper.TransferItems(null, Hero.MainHero, new EquipmentElement(livestockItem, null), 1);
+
+            if (settlement == null || !settlement.IsVillage) return;
+
+            // 步骤 2：从定居点库存扣除（Sink to world，铁律 4.②）
+            int currentStock = settlement.ItemRoster.GetItemNumber(livestockItem);
+            if (currentStock > 0)
+            {
+                settlement.ItemRoster.AddToCounts(livestockItem, -1);
+                DebugLogger.Log($"[StealAnimal] Deducted 1 {livestockItem.StringId} from {settlement.Name} ItemRoster (was {currentStock})");
+            }
+            else
+            {
+                DebugLogger.Log($"[StealAnimal] {settlement.Name} has 0 {livestockItem.StringId} in ItemRoster — skip deduction");
+            }
+
+            // 步骤 3：偷窃追踪（持久化，自然恢复：每天每种恢复 1 只）
+            VillageAnimalTracker.RecordTheft(settlement.StringId, monsterId);
+
+            // 步骤 4：WorldEvent 创建 + PlayerTheftLedger 记账 + 目击者记录
+            RecordAnimalTheft(settlement, livestockItem, monsterId, animal);
         }
     }
 }

@@ -544,7 +544,7 @@ namespace LivingWorldNpcs
             // 如果有 WorldEvent 关联，优先使用事件背景叙事
             if (!string.IsNullOrEmpty(data.WorldEventId))
             {
-                var worldEvent = WorldEventDatabase.FindEvent(data.WorldEventId);
+                var worldEvent = WorldEventStore.FindEvent(data.WorldEventId);
                 if (worldEvent != null)
                 {
                     string eventNarrative = BuildWorldEventCommissionOpening(worldEvent, data);
@@ -570,7 +570,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>基于 WorldEvent 背景生成委托开场叙事。优先从 CSV 读取，兜底硬编码。</summary>
-        private static string BuildWorldEventCommissionOpening(WorldEventData evt, CommissionData data)
+        private static string BuildWorldEventCommissionOpening(WorldEvent evt, CommissionData data)
         {
             // 推导说话人的事件角色
             string role = DeriveEventRole(evt, data.QuestGiver);
@@ -585,18 +585,18 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>推导 NPC 在世界事件中的角色。</summary>
-        private static string DeriveEventRole(WorldEventData evt, Hero speaker)
+        private static string DeriveEventRole(WorldEvent evt, Hero speaker)
         {
             if (speaker == null || evt == null) return "Victim";
             string speakerId = speaker.StringId;
-            if (speakerId == evt.InstigatorHeroId) return "Instigator";
+            if (speakerId == evt.InitiatorId) return "Instigator";
             if (speakerId == evt.TargetHeroId) return "Victim";
             // 代理人（村长替不在场的受害者发委托）
             return "Victim";
         }
 
         /// <summary>硬编码兜底：按事件类型 × 角色 × 委托类别 生成开场叙事。</summary>
-        private static string BuildHardcodedEventOpening(WorldEventData evt, CommissionData data, string role)
+        private static string BuildHardcodedEventOpening(WorldEvent evt, CommissionData data, string role)
         {
             string loc = evt.TargetSettlement?.Name?.ToString() ?? "附近";
             string victim = evt.TargetHero?.Name?.ToString() ?? "村民";
@@ -605,7 +605,7 @@ namespace LivingWorldNpcs
             bool isVictim = role == "Victim";
 
             // ── NobleConflict：贵族冲突（双方都可雇人，对立叙事）──
-            if (evt.EventType == WorldEventType.NobleConflict)
+            if (evt.Type == EventType.NobleConflict)
             {
                 if (isVictim)
                 {
@@ -634,7 +634,7 @@ namespace LivingWorldNpcs
             }
 
             // ── TradeDispute：贸易争端（双方对立）──
-            if (evt.EventType == WorldEventType.TradeDispute)
+            if (evt.Type == EventType.TradeDispute)
             {
                 if (isVictim)
                 {
@@ -661,7 +661,7 @@ namespace LivingWorldNpcs
             }
 
             // ── Fugitive：逃犯（双方对立）──
-            if (evt.EventType == WorldEventType.Fugitive)
+            if (evt.Type == EventType.Fugitive)
             {
                 if (isVictim)
                 {
@@ -678,27 +678,27 @@ namespace LivingWorldNpcs
                 return null; // 加害方没有委托叙事 → 返回 null，让调用方处理
 
             // ── 受害方通用叙事（按事件类型）──
-            return evt.EventType switch
+            return evt.Type switch
             {
-                WorldEventType.BanditRaid =>
+                EventType.BanditRaid =>
                     $"{victim}从{loc}逃出来报信——{instigator}带人正在劫掠村子！乡亲们凑了{reward}第纳尔，雇人去打退他们。你愿意出手吗？",
-                WorldEventType.Kidnapping =>
+                EventType.Kidnapping =>
                     $"{victim}的家人急疯了——{instigator}把人绑走了，指定了赎金和地点。我们没有{reward}第纳尔去赎人，但有钱雇你去把人救回来。",
-                WorldEventType.Famine =>
+                EventType.Famine =>
                     $"这是{loc}的村长{victim}——村里断粮了，老人孩子已经吃了三天野菜。这{reward}第纳尔是乡亲们最后凑的，托你去买粮救命。",
-                WorldEventType.Betrayal =>
+                EventType.Betrayal =>
                     $"{victim}声音发抖——{instigator}，他最信任的人，卷走了账上的钱还带走了半个商队。{reward}第纳尔，帮我把人和钱追回来。",
-                WorldEventType.DebtTrap =>
+                EventType.DebtTrap =>
                     $"{victim}低下了头——{instigator}放的高利贷已经滚到了他还不起的数目。如果不还，地就要被收走。{reward}第纳尔，帮我家渡过这个坎……",
-                WorldEventType.RomanticConflict =>
+                EventType.RomanticConflict =>
                     $"{victim}叹了口气——这事说来话长。总之现在需要有人替他出面解决一场决斗，{reward}第纳尔报酬。具体细节到了再说。",
-                WorldEventType.FalseAccusation =>
+                EventType.FalseAccusation =>
                     $"城主要杀鸡儆猴，{victim}成了替罪羊。我知道真凶是谁——但需要证据。{reward}第纳尔，帮我把证据找回来，救人一命。",
-                WorldEventType.InheritanceDispute =>
+                EventType.InheritanceDispute =>
                     $"老族长走了，遗嘱却不见了。{victim}说父亲生前把信物交给了某个人——找到它，就能证明继承权。{reward}第纳尔。",
-                WorldEventType.SacredTheft =>
+                EventType.SacredTheft =>
                     $"这是我们{loc}一族的祖传圣物——{instigator}从祠堂里把它盗走了。没有它新族长没法召开族会。{reward}第纳尔，把它追回来。",
-                WorldEventType.Assassination =>
+                EventType.Assassination =>
                     $"{victim}死了。{loc}现在人心惶惶，下属们互相猜忌。有人悬赏{reward}第纳尔追查真凶——你接不接？",
                 _ => null
             };
@@ -710,7 +710,7 @@ namespace LivingWorldNpcs
         ///   2. WorldEvent_{EventType}_{Role}_{Phase}
         ///   3. WorldEvent_{EventType}_{Phase}                     （旧格式兼容）
         /// Closure 时追加 _Grade。</summary>
-        private static string TryGetWorldEventNarrative(WorldEventData evt, CommissionData data, string phase, string grade, string role = null)
+        private static string TryGetWorldEventNarrative(WorldEvent evt, CommissionData data, string phase, string grade, string role = null)
         {
             try
             {
@@ -721,12 +721,12 @@ namespace LivingWorldNpcs
                 var keys = new List<string>();
 
                 if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(categorySuffix))
-                    keys.Add($"WorldEvent_{evt.EventType}_{role}{categorySuffix}_{phase}{gradeSuffix}");
+                    keys.Add($"WorldEvent_{evt.Type}_{role}{categorySuffix}_{phase}{gradeSuffix}");
 
                 if (!string.IsNullOrEmpty(role))
-                    keys.Add($"WorldEvent_{evt.EventType}_{role}_{phase}{gradeSuffix}");
+                    keys.Add($"WorldEvent_{evt.Type}_{role}_{phase}{gradeSuffix}");
 
-                keys.Add($"WorldEvent_{evt.EventType}_{phase}{gradeSuffix}");
+                keys.Add($"WorldEvent_{evt.Type}_{phase}{gradeSuffix}");
 
                 foreach (var eventId in keys)
                 {
@@ -752,7 +752,7 @@ namespace LivingWorldNpcs
             string text;
             if (!string.IsNullOrEmpty(data.WorldEventId))
             {
-                var worldEvent = WorldEventDatabase.FindEvent(data.WorldEventId);
+                var worldEvent = WorldEventStore.FindEvent(data.WorldEventId);
                 if (worldEvent != null)
                 {
                     text = BuildWorldEventCommissionClosure(worldEvent, data, grade);
@@ -791,7 +791,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>基于 WorldEvent 背景生成委托结账结局。优先从 CSV 读取。</summary>
-        private static string BuildWorldEventCommissionClosure(WorldEventData evt, CommissionData data, CommissionGrade grade)
+        private static string BuildWorldEventCommissionClosure(WorldEvent evt, CommissionData data, CommissionGrade grade)
         {
             string role = DeriveEventRole(evt, data.QuestGiver);
 
@@ -806,45 +806,45 @@ namespace LivingWorldNpcs
             string instigator = evt.IsGenericInstigator ? "那帮人" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
             string reward = data.NegotiatedReward.ToString();
 
-            return (evt.EventType, grade) switch
+            return (evt.Type, grade) switch
             {
-                (WorldEventType.BanditRaid, CommissionGrade.Perfect) =>
+                (EventType.BanditRaid, CommissionGrade.Perfect) =>
                     $"{victim}眼含热泪——{instigator}被彻底打跑了，{loc}的乡亲们终于能睡个安稳觉。{reward}第纳尔，这是我们能拿出的全部了。",
-                (WorldEventType.BanditRaid, CommissionGrade.Good) =>
+                (EventType.BanditRaid, CommissionGrade.Good) =>
                     $"匪帮退了！{loc}暂时安全了。{reward}第纳尔，拿好。",
-                (WorldEventType.BanditRaid, _) =>
+                (EventType.BanditRaid, _) =>
                     $"总算是有了个结果。{reward}第纳尔报酬。",
 
-                (WorldEventType.Kidnapping, CommissionGrade.Perfect) =>
+                (EventType.Kidnapping, CommissionGrade.Perfect) =>
                     $"{victim}一把抱住被救回来的人——失声痛哭。{reward}第纳尔……这份恩情我们全家记一辈子。",
-                (WorldEventType.Kidnapping, CommissionGrade.Good) =>
+                (EventType.Kidnapping, CommissionGrade.Good) =>
                     $"人回来了。{victim}握着你的手说不出话。{reward}第纳尔，谢谢你。",
-                (WorldEventType.Kidnapping, _) =>
+                (EventType.Kidnapping, _) =>
                     $"人救回来了。虽然过程不太完美……{reward}第纳尔报酬。",
 
-                (WorldEventType.Famine, CommissionGrade.Perfect) =>
+                (EventType.Famine, CommissionGrade.Perfect) =>
                     $"粮食刚好赶上！{loc}的老人孩子终于有饭吃了。{victim}代表全村向你道谢——{reward}第纳尔。",
-                (WorldEventType.Famine, _) =>
+                (EventType.Famine, _) =>
                     $"粮食送到了。虽然晚了一些……总算是救了急。{reward}第纳尔。",
 
-                (WorldEventType.Betrayal, CommissionGrade.Perfect) =>
+                (EventType.Betrayal, CommissionGrade.Perfect) =>
                     $"{victim}看着被追回的财物，沉默了很久。'他曾经是我最信任的人……' {reward}第纳尔，谢谢你还我公道。",
-                (WorldEventType.Betrayal, _) =>
+                (EventType.Betrayal, _) =>
                     $"事情了结了。{victim}叹了口气——有些伤不是钱能弥补的。{reward}第纳尔。",
 
-                (WorldEventType.DebtTrap, CommissionGrade.Perfect) =>
+                (EventType.DebtTrap, CommissionGrade.Perfect) =>
                     $"{victim}跪下了——'我终于不用躲着他们了。' {reward}第纳尔，这份恩情我当牛做马也会还。",
-                (WorldEventType.DebtTrap, _) =>
+                (EventType.DebtTrap, _) =>
                     $"债主暂时不会来骚扰了。{victim}终于能喘口气。{reward}第纳尔。",
 
-                (WorldEventType.SacredTheft, CommissionGrade.Perfect) =>
+                (EventType.SacredTheft, CommissionGrade.Perfect) =>
                     $"圣物完好无损地回到了祠堂。{loc}的族老们含着泪向你致意——'祖宗的魂终于归位了。' {reward}第纳尔。",
-                (WorldEventType.SacredTheft, _) =>
+                (EventType.SacredTheft, _) =>
                     $"东西追回来了。虽然有些磕碰……{reward}第纳尔。",
 
-                (WorldEventType.Assassination, CommissionGrade.Perfect) =>
+                (EventType.Assassination, CommissionGrade.Perfect) =>
                     $"真凶被绳之以法。{loc}恢复了秩序——至少表面上是这样。{reward}第纳尔，你让正义得到了伸张。",
-                (WorldEventType.Assassination, _) =>
+                (EventType.Assassination, _) =>
                     $"凶手处理了。但{loc}的伤痕不会那么快愈合。{reward}第纳尔。",
 
                 _ => null

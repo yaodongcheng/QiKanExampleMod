@@ -21,7 +21,7 @@ namespace LivingWorldNpcs
             // ① 检查结构化 Suppress 表（因果链 Suppress action 写入）
             if (IssueFilterBehavior.IsIssueSuppressed(hero, issueData.IssueType))
             {
-                IssueFilterBehavior.RecordBlockedIssue(WorldEventType.BanditRaid, hero, issueData.IssueType);
+                IssueFilterBehavior.RecordBlockedIssue(EventType.BanditRaid, hero, issueData.IssueType);
                 return false;
             }
 
@@ -29,7 +29,7 @@ namespace LivingWorldNpcs
             var mem = AllNpcMemoryManager.GetMemory(hero.StringId);
             if (mem?.CurrentUrgentEvent == null) return true;
 
-            WorldEventType eventType = mem.CurrentUrgentEvent.EventType;
+            EventType eventType = mem.CurrentUrgentEvent.Type;
             Type issueType = issueData.IssueType;
 
             if (IssueFilterBehavior.IsIssueTypeBlocked(eventType, issueType))

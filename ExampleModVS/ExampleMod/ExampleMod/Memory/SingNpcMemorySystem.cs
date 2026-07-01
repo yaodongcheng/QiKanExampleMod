@@ -1,4 +1,4 @@
-﻿using LivingWorldNpcs.Story;
+using LivingWorldNpcs.Story;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -58,7 +58,7 @@ namespace LivingWorldNpcs
         /// 由 WorldEventDatabase 在事件创建/解决/过期时同步推送，是本 NPC "当前最关切的事"。
         /// 对话系统、委托系统、UI 选项等均从此读取，不再各自查询全局数据库。
         /// </summary>
-        public WorldEventData CurrentUrgentEvent { get; set; } = null;
+        public WorldEvent CurrentUrgentEvent { get; set; } = null;
 
         /// <summary>
         /// 委托/Quest 历史记录。独立于对话历史的专用存储，

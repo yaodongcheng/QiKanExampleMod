@@ -37,6 +37,9 @@ namespace LivingWorldNpcs
         // F. 经济/贸易类
         SupplyEmergency,
         ProcurementAgent,
+
+        // G. 调查/情报类
+        Investigation,
     }
 
     /// <summary>委托目标类型</summary>
@@ -360,6 +363,22 @@ namespace LivingWorldNpcs
                 ValidGiverOccupations = new[] { Occupation.Merchant, Occupation.Artisan, Occupation.Lord, Occupation.GangLeader },
                 AvailablePaths = new[] { ResolutionPath.Wealth, ResolutionPath.Technical, ResolutionPath.Combat },
             });
+
+            // 17. 调查委托（犯罪事件 Emerging 阶段——查找嫌犯）
+            AllDefs.Add(new CommissionDef
+            {
+                Id = "investigation",
+                Category = CommissionCategory.Investigation,
+                TitleTemplate = "调查：{TARGET_NAME}失窃案",
+                DescriptionTemplate = "{TARGET_NAME}发生了失窃案，尚不知道是谁干的。{DAYS}天内搜集线索找出真凶——可以去附近打探，也可以回现场找证据。",
+                TargetType = CommissionTargetType.Settlement,
+                BaseDifficulty = 0.15f,
+                BaseRewardGold = 200,
+                TimeLimitDays = 7,
+                PrimarySkill = DefaultSkills.Scouting,
+                ValidGiverOccupations = new[] { Occupation.Headman, Occupation.RuralNotable, Occupation.Lord },
+                AvailablePaths = new[] { ResolutionPath.Technical, ResolutionPath.Social },
+            });
         }
 
         /// <summary>按 Category 查找模板</summary>
@@ -394,7 +413,7 @@ namespace LivingWorldNpcs
         [SaveableField(34)] public CommissionTier Tier;
         [SaveableField(50)] public bool IsObjectivesComplete;   // 目标已完成，等待领报酬
         [SaveableField(53)] public Hero RewardPayer;              // 结账人，null=默认用QuestGiver
-        [SaveableField(60)] public string WorldEventId;           // 关联的 WorldEventData.EventId（因果链）
+        [SaveableField(60)] public string WorldEventId;           // 关联的 WorldEvent.EventId（统一事件模型）
         [SaveableField(61)] public bool IsGenericInstigator;      // 目标是否为通用模板（无真实 Hero）
 
         /// <summary>获取关联的模板定义</summary>
@@ -409,8 +428,9 @@ namespace LivingWorldNpcs
             string desc = def.TitleTemplate;
             if (TargetHero != null)
                 desc = desc.Replace("{TARGET_NAME}", TargetHero.Name.ToString());
-            else if (!string.IsNullOrEmpty(TargetSettlementId))
+            else if (!string.IsNullOrEmpty(TargetSettlementId) && Category == CommissionCategory.Investigation)
             {
+                // Investigation: settlement IS the target（调查某地的案件）
                 var s = Settlement.Find(TargetSettlementId);
                 if (s != null) desc = desc.Replace("{TARGET_NAME}", s.Name.ToString());
             }

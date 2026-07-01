@@ -52,6 +52,13 @@ namespace LivingWorldNpcs
                 return true;
             }
 
+            // 犯罪追责：NPC 是对应定居点犯罪事件的权威人物（村长/族长/领主）
+            if (IsAuthorityForActiveCrimeEvent(hero))
+            {
+                count = 1;
+                return true;
+            }
+
             // 每日清缓存（委托列表每天刷新）
             float currentDay = (float)CampaignTime.Now.ToDays;
             if (Math.Abs(currentDay - _lastCacheClearDay) > 0.5f)
@@ -108,8 +115,8 @@ namespace LivingWorldNpcs
                 if (urgentEvent != null)
                 {
                     bool isVictim = urgentEvent.TargetHeroId == hero.StringId;
-                    bool isInstigator = urgentEvent.InstigatorHeroId == hero.StringId;
-                    var eventConfig = WorldEventConfig.Get(urgentEvent.EventType);
+                    bool isInstigator = urgentEvent.InitiatorId == hero.StringId;
+                    var eventConfig = WorldEventConfig.Get(urgentEvent.Type);
 
                     // 按角色取分侧委托列表（优先 InstigatorCommissions/VictimCommissions，回退 MatchingCommissions）
                     var roleCommissions = eventConfig?.GetCommissionsForRole(isVictim);
@@ -146,13 +153,22 @@ namespace LivingWorldNpcs
                                 results.Add(data);
                         }
 
-                        DebugLogger.Log($"[CommissionGen] Event-direct generation: hero={hero.Name} event={urgentEvent.EventType} role={(isVictim ? "Victim" : isInstigator ? "Instigator" : "Unknown")} candidates={roleDefs.Count} result={results.Count}");
+                        DebugLogger.Log($"[CommissionGen] Event-direct generation: hero={hero.Name} event={urgentEvent.Type} role={(isVictim ? "Victim" : isInstigator ? "Instigator" : "Unknown")} candidates={roleDefs.Count} result={results.Count}");
                         _cache[hero.StringId] = results;
                         return results;
                     }
 
                     // 事件存在但无匹配委托配置 → 不生成委托，让事件对话主导
-                    DebugLogger.Log($"[CommissionGen] Event-active NPC {hero.Name} ({urgentEvent.EventType}) has no matching commission defs — skipping");
+                    DebugLogger.Log($"[CommissionGen] Event-active NPC {hero.Name} ({urgentEvent.Type}) has no matching commission defs — skipping");
+                    _cache[hero.StringId] = results;
+                    return results;
+                }
+
+                // ── 犯罪追责：权威 NPC 所在定居点有活跃 WorldEvent 犯罪 → 生成追责 Quest ──
+                var accountabilityQuest = TryGenerateAccountabilityQuest(hero);
+                if (accountabilityQuest != null)
+                {
+                    results.Add(accountabilityQuest);
                     _cache[hero.StringId] = results;
                     return results;
                 }
@@ -220,7 +236,7 @@ namespace LivingWorldNpcs
             return results.Distinct().OrderBy(_ => MBRandom.RandomFloat).ToList();
         }
 
-        private static List<CommissionDef> GetAvailableDefsForHero(Hero hero)
+        internal static List<CommissionDef> GetAvailableDefsForHero(Hero hero)
         {
             var results = new List<CommissionDef>();
             foreach (var def in CommissionDef.AllDefs)
@@ -358,7 +374,7 @@ namespace LivingWorldNpcs
         /// 事件直接匹配生成委托 — 当事人用自己的 CurrentUrgentEvent。
         /// 不走地理邻近搜索，受害者 target=instigator，加害方 target=victim。
         /// </summary>
-        private static CommissionData GenerateCommissionDataForEvent(CommissionDef def, Hero questGiver, WorldEventData worldEvent, bool isVictim)
+        private static CommissionData GenerateCommissionDataForEvent(CommissionDef def, Hero questGiver, WorldEvent worldEvent, bool isVictim)
         {
             CommissionTier tier = CommissionTierProgression.GetAvailableTier(def.Category);
             if (tier > CommissionTier.Basic && MBRandom.RandomFloat < 0.5f)
@@ -596,8 +612,8 @@ namespace LivingWorldNpcs
         private static bool IsHeroBusyInWorldEvent(Hero hero)
         {
             if (hero == null || string.IsNullOrEmpty(hero.StringId)) return false;
-            return WorldEventDatabase.ActiveEvents.Any(e =>
-                e.InstigatorHeroId == hero.StringId || e.TargetHeroId == hero.StringId);
+            return WorldEventStore.ActiveEvents.Any(e =>
+                e.InitiatorId == hero.StringId || e.TargetHeroId == hero.StringId);
         }
 
         /// <summary>检查 Hero 是否在附近活跃世界事件中作为受害者（用于 ! 标记显示）。</summary>
@@ -606,7 +622,7 @@ namespace LivingWorldNpcs
             if (hero == null || string.IsNullOrEmpty(hero.StringId)) return false;
             Settlement heroSettlement = hero.CurrentSettlement ?? hero.HomeSettlement;
             if (heroSettlement == null) return false;
-            return WorldEventDatabase.ActiveEvents.Any(e =>
+            return WorldEventStore.ActiveEvents.Any(e =>
                 e.TargetHeroId == hero.StringId
                 && e.TargetSettlement != null
                 && V.Pos(e.TargetSettlement).Distance(V.Pos(heroSettlement)) < 80f);
@@ -627,8 +643,11 @@ namespace LivingWorldNpcs
             if (!hero.IsNotable && hero.Occupation != Occupation.Headman) return false;
 
             // 检查是否有活跃事件以此定居点为目标，且受害者不在此定居点
-            return WorldEventDatabase.ActiveEvents.Any(e =>
+            // 注意：必须存在具体的受害 Hero（TargetHeroId != null）才启用代理——
+            // 没有具体受害者的事件（如偷动物，受害方是整个村子）走 IsAuthorityForActiveCrimeEvent 独占路径
+            return WorldEventStore.ActiveEvents.Any(e =>
                 e.TargetSettlementId == heroSettlement.StringId
+                && !string.IsNullOrEmpty(e.TargetHeroId)  // 有具体受害者才需要代理
                 && e.TargetHeroId != hero.StringId  // 不是受害者本人
                 && !IsHeroPresentInSettlement(e.TargetHeroId, heroSettlement)); // 受害者不在场
         }
@@ -661,13 +680,13 @@ namespace LivingWorldNpcs
             if (giverSettlement == null) return false;
 
             // 查附近活跃事件
-            var nearbyEvents = WorldEventDatabase.GetActiveEventsNear(giverSettlement, maxDistance: 80f);
+            var nearbyEvents = WorldEventStore.GetActiveEventsNear(giverSettlement, maxDistance: 80f);
             if (nearbyEvents.Count == 0) return false;
 
             // 按委托类别筛选匹配的事件
             foreach (var worldEvent in nearbyEvents)
             {
-                if (!IsWorldEventMatchForCategory(worldEvent.EventType, def.Category))
+                if (!IsWorldEventMatchForCategory(worldEvent.Type, def.Category))
                     continue;
 
                 // 匹配！填充 CommissionData
@@ -687,7 +706,7 @@ namespace LivingWorldNpcs
                         else if (worldEvent.IsGenericInstigator)
                         {
                             data.TargetSettlementId = worldEvent.TargetSettlementId;
-                            DebugLogger.Log($"[CommissionGen] Matched WorldEvent with generic instigator: category={def.Category} event={worldEvent.EventType} settlement={data.TargetSettlementId}");
+                            DebugLogger.Log($"[CommissionGen] Matched WorldEvent with generic instigator: category={def.Category} event={worldEvent.Type} settlement={data.TargetSettlementId}");
                         }
                         else
                         {
@@ -705,15 +724,15 @@ namespace LivingWorldNpcs
                         return false;
                 }
 
-                DebugLogger.Log($"[CommissionGen] Matched WorldEvent! category={def.Category} event={worldEvent.EventType} eventId={worldEvent.EventId} target={data.TargetHero?.Name?.ToString() ?? data.TargetSettlementId}");
+                DebugLogger.Log($"[CommissionGen] Matched WorldEvent! category={def.Category} event={worldEvent.Type} eventId={worldEvent.EventId} target={data.TargetHero?.Name?.ToString() ?? data.TargetSettlementId}");
                 return true;
             }
 
             return false;
         }
 
-        /// <summary>检查 WorldEventType 是否匹配 CommissionCategory（检查全部分侧列表）。</summary>
-        private static bool IsWorldEventMatchForCategory(WorldEventType eventType, CommissionCategory category)
+        /// <summary>检查 EventType 是否匹配 CommissionCategory（检查全部分侧列表）。</summary>
+        private static bool IsWorldEventMatchForCategory(EventType eventType, CommissionCategory category)
         {
             var config = WorldEventConfig.Get(eventType);
             if (config == null) return false;
@@ -883,6 +902,116 @@ namespace LivingWorldNpcs
             if (candidates.Count == 0) return questGiver;
 
             return candidates[MBRandom.RandomInt(0, candidates.Count)];
+        }
+
+        /// <summary>
+        /// 检查此 NPC 是否是对应定居点犯罪事件的权威人物（村长/族长/领主），
+        /// 用于 ! 标记显示。
+        /// </summary>
+        private static bool IsAuthorityForActiveCrimeEvent(Hero hero)
+        {
+            if (hero == null || string.IsNullOrEmpty(hero.StringId)) return false;
+            var settlement = hero.CurrentSettlement ?? hero.HomeSettlement;
+            if (settlement == null) return false;
+
+            var evt = WorldEventStore.FindActive(settlement.StringId);
+            if (evt == null) return false;
+            if (evt.Stage == EventStage.Dormant) return false;  // 还没被发现
+
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            return authority == hero;
+        }
+
+        /// <summary>
+        /// 尝试为犯罪事件的权威 NPC 生成追责 Quest。
+        /// 返回 null = 无需生成或不符合条件。
+        /// </summary>
+        internal static CommissionData TryGenerateAccountabilityQuest(Hero hero)
+        {
+            var settlement = hero.CurrentSettlement ?? hero.HomeSettlement;
+            if (settlement == null) return null;
+
+            var evt = WorldEventStore.FindActive(settlement.StringId);
+            if (evt == null) return null;
+            if (evt.Stage == EventStage.Dormant || evt.Stage == EventStage.Resolved || evt.Stage == EventStage.Unsolved)
+                return null;
+
+            // 确认此 NPC 是权威人物
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            if (authority != hero) return null;
+
+            // 已生成过则不重复
+            if (Campaign.Current.QuestManager.Quests.Any(q =>
+                q is CommissionQuest cq && cq.CommissionGiver == hero
+                && cq.GetType().GetField("_data", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                    ?.GetValue(cq) is CommissionData cd && cd.WorldEventId == evt.EventId))
+                return null;
+
+            CommissionData data = null;
+
+            switch (evt.Stage)
+            {
+                case EventStage.Emerging:
+                    // 调查 Quest（蓝色 !）—— 阶段 1: 还没查出是谁
+                    data = new CommissionData
+                    {
+                        DefId = "investigation",
+                        Category = CommissionCategory.Investigation,
+                        QuestGiver = hero,
+                        TargetHero = null,  // 还不知道嫌犯是谁
+                        TargetSettlementId = evt.TargetSettlementId,
+                        NegotiatedReward = 150,
+                        DepositAmount = 30,
+                        TimeRemainingHours = (evt.Config?.InvestigationWindowDays ?? 7) * 24f,
+                        Tier = CommissionTier.Basic,
+                        WorldEventId = evt.EventId,
+                    };
+                    DebugLogger.Log($"[CommissionGen] Accountability Investigation quest: hero={hero.Name} event={evt.EventId} stage=Emerging reward={data.NegotiatedReward}");
+                    break;
+
+                case EventStage.Active:
+                    // 悬赏 Quest（黄色 !）—— 阶段 2: 嫌犯已确定
+                    if (evt.SuspectIsPlayer)
+                        return null;  // 玩家是嫌犯 → 不生成悬赏 Quest（用对话替代）
+
+                    var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
+                    if (suspect == null) return null;
+
+                    data = new CommissionData
+                    {
+                        DefId = "bounty_hunt",
+                        Category = CommissionCategory.BountyHunt,
+                        QuestGiver = hero,
+                        TargetHero = suspect,
+                        TargetSettlementId = evt.TargetSettlementId,
+                        NegotiatedReward = evt.ComputeBountyAmount(),
+                        TimeRemainingHours = 15 * 24f,
+                        WorldEventId = evt.EventId,
+                    };
+                    DebugLogger.Log($"[CommissionGen] Accountability Bounty quest: hero={hero.Name} event={evt.EventId} suspect={suspect.Name} reward={data.NegotiatedReward}");
+                    break;
+
+                case EventStage.Confrontation:
+                    // 报复 Quest（红色 !）—— 阶段 3
+                    if (evt.SuspectIsPlayer)
+                        return null;  // 玩家是嫌犯 → 报复部队自动追玩家
+
+                    data = new CommissionData
+                    {
+                        DefId = "village_defense",
+                        Category = CommissionCategory.VillageDefense,
+                        QuestGiver = hero,
+                        TargetHero = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId),
+                        TargetSettlementId = evt.TargetSettlementId,
+                        NegotiatedReward = evt.ComputeBountyAmount() / 2,  // 带队报复酬劳
+                        TimeRemainingHours = 10 * 24f,
+                        WorldEventId = evt.EventId,
+                    };
+                    DebugLogger.Log($"[CommissionGen] Accountability Retaliation quest: hero={hero.Name} event={evt.EventId} stage=Confrontation");
+                    break;
+            }
+
+            return data;
         }
     }
 }

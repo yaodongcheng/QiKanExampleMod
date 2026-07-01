@@ -106,7 +106,7 @@ DebugLogger.Log("消息");   // 线程安全，落盘到 Configs/StoryEngine_Run
 
 为英雄创建独立部队时用它做最小 PartyComponent（带 null 防护），避免裸建 component 崩溃。
 
-## 大地图 Party 出生点验证 — `Quests/WorldEvents/WorldEventSimulator.FindReachableSpawnPosition`
+## 大地图 Party 出生点验证 — `WorldEvent/WorldEventSimulator.FindReachableSpawnPosition`
 
 在大地图上为 party 选定出生点时，**必须验证出生点到目标定居点的寻路可达性**。仅检查 navmesh 面是否有效（`GetFaceIndex().IsValid()`）不够——山顶/隔水区域也有 navmesh 面，但和定居点不连通，mouse 光标会变禁用圈。
 
@@ -127,7 +127,7 @@ Vec2 spawnPos = FindReachableSpawnPosition(targetSettlement);
 
 **禁止**在任何 party 出生点计算中裸用 `GetFaceIndex().IsValid()` 作为可达性判断——这与鼠标变禁用图标不是同一套逻辑。鼠标禁用图标用的是 `AreFacesOnSameIsland`。辅助 party 的 `NearInstigator`/`BetweenParties` 用 `GetAccessiblePointNearPosition` 即可（参照物是已有 party，本身在可达区域）。
 
-## 通知防刷屏冷却 — `Quests/WorldEvents/WorldEventDirector`
+## 通知防刷屏冷却 — `WorldEvent/WorldEventDirector`
 
 高频检查（如 `OnCampaignTick` 每 2 秒扫一次）里推送通知时，**必须加 per-event 冷却字典**，否则玩家站在事件附近每 2 秒弹一次同一条通知。
 
@@ -352,7 +352,11 @@ CampaignMission.OpenConversationMission(p, q);   // 开真对话 mission
 
 // 2. Harmony 拦截咽喉（自动生效，PatchAll 注册）
 [HarmonyPatch(typeof(CampaignMapConversation), nameof(CampaignMapConversation.OpenConversation))]
-public static class MapEncounterConversationPatch { /* Prefix 弹 inquiry */ }
+public static class ConversationEntryPatch
+{
+    [HarmonyPrefix]  // 大地图遇敌 → 弹 inquiry 分流
+    [HarmonyPostfix] // 定居点对话 → 犯罪事件注入
+}
 
 // 3. Harmony 抑制原版 ConversationMissionLogic.OnMissionTick（仅对我们的 mission）
 [HarmonyPatch(typeof(ConversationMissionLogic), "OnMissionTick")]
@@ -369,13 +373,13 @@ public static class SuppressVanillaConversationMissionPatch
 //    - OnMissionScreenFinalize：安全清标志（防 ESC 退出泄漏）
 ```
 
-**关键文件**：`Interaction/MapEncounterDialogState.cs`（静态标志）、`Interaction/MapEncounterConversationPatch.cs`（两个 Harmony 补丁）、`Interaction/InteractionMissionView.cs`（自动触发/收尾）。
+**关键文件**：`Interaction/Dialogue/MapEncounterDialogState.cs`（静态标志）、`Interaction/Dialogue/ConversationEntryPatch.cs`（对话入口统一拦截 + 犯罪对话注入 + 原版 tick 抑制）、`Interaction/InteractionMissionView.cs`（自动触发/收尾）。
 
 **边界**：只对 Hero 生效（无 Hero 放行原版）；仅自家的 conversation mission 抑制（静态 gate）；settlement 内点 NPC / 请求会面不受影响；LLM 路径走 `IsLLMReady` 总闸。
 
 ---
 
-# 世界事件引擎 — `Quests/WorldEvents/`
+# 世界事件引擎 — `WorldEvent/`
 
 ## 架构
 
@@ -690,7 +694,7 @@ public static class ChangeInteractionTextPatch
 
 ---
 
-# 原版对话流注入 — `Interaction/DialogueInjector.cs`
+# 原版对话流注入 — `Interaction/Dialogue/DialogueInjector.cs`
 
 **JSON 驱动的原版 `ConversationManager` 对话注入器。当 NPC 对话需要走原版 UI（而不是 StoryDialogVM）时，优先用 JSON 注入，禁止硬编码 `DialogFlow` 链式调用。**
 
@@ -766,4 +770,4 @@ custom.inject_dialogue clear           → 清除所有注入
 
 清理：`RemoveRelatedLines(owner)` 按归属哨兵批量删除，不动原版对话。
 
-**文件位置**：`Interaction/DialogueInjector.cs`（注入引擎）、`Debug/MyCommands.cs`（`InjectDialogueFromJson` 薄壳指令）。JSON 示例：`ModuleData/DesignData/Dialogues/test_talk.json`。
+**文件位置**：`Interaction/Dialogue/DialogueInjector.cs`（注入引擎）、`Debug/MyCommands.cs`（`InjectDialogueFromJson` 薄壳指令）。JSON 示例：`ModuleData/DesignData/Dialogues/test_talk.json`。

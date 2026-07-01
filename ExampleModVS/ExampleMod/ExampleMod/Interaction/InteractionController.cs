@@ -1,4 +1,4 @@
-﻿using LivingWorldNpcs;
+using LivingWorldNpcs;
 using Microsoft.VisualBasic.Devices;
 using Microsoft.VisualBasic.FileIO;
 using Newtonsoft.Json;
@@ -318,14 +318,14 @@ namespace LivingWorldNpcs.Story
                 // 🛡 兜底：如果记忆里没有（惰性创建 / key 不匹配等），直接查事件数据库
                 if (urgentEvent == null && _targetHero != null && !string.IsNullOrEmpty(_targetHero.StringId))
                 {
-                    urgentEvent = WorldEventDatabase.ActiveEvents
-                        .Where(e => e.TargetHeroId == _targetHero.StringId || e.InstigatorHeroId == _targetHero.StringId)
+                    urgentEvent = WorldEventStore.ActiveEvents
+                        .Where(e => e.TargetHeroId == _targetHero.StringId || e.InitiatorId == _targetHero.StringId)
                         .OrderByDescending(e => e.Severity)
                         .FirstOrDefault();
                     if (urgentEvent != null && _memory != null)
                     {
                         _memory.CurrentUrgentEvent = urgentEvent;
-                        DebugLogger.Log($"[EventAware] Backfilled memory for {_targetHero.Name} ← {urgentEvent.EventType}");
+                        DebugLogger.Log($"[EventAware] Backfilled memory for {_targetHero.Name} ← {urgentEvent.Type}");
                     }
                 }
 
@@ -350,7 +350,7 @@ namespace LivingWorldNpcs.Story
                 if (string.IsNullOrEmpty(initialText) && urgentEvent != null)
                 {
                     initialText = "（一脸凝重，似乎被什么事深深困扰着……）";
-                    DebugLogger.Log($"[EventAware] WARNING: NPC={_targetHero?.Name} has urgent event {urgentEvent.EventType} but text generation returned empty, using fallback");
+                    DebugLogger.Log($"[EventAware] WARNING: NPC={_targetHero?.Name} has urgent event {urgentEvent.Type} but text generation returned empty, using fallback");
                 }
 
                 // 无事件 → 普通上下文感知开场白
