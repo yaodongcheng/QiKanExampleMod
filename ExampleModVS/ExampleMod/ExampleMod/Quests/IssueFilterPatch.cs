@@ -30,13 +30,12 @@ namespace LivingWorldNpcs
             if (heroSettlement != null)
             {
                 var crimeEvent = WorldEventStore.FindActive(heroSettlement.StringId);
-                if (crimeEvent != null && crimeEvent.Stage != EventStage.Dormant)
+                if (crimeEvent != null)
                 {
                     var authority = WorldEventStore.GetAuthorityNpc(crimeEvent);
-                    if (authority == hero && IssueFilterBehavior.IsBlockedForCrimeEvent(issueData.IssueType))
+                    if (authority == hero)
                     {
-                        IssueFilterBehavior.RecordBlockedIssue(crimeEvent.Type, hero, issueData.IssueType);
-                        return false;
+                       return false;
                     }
                 }
             }

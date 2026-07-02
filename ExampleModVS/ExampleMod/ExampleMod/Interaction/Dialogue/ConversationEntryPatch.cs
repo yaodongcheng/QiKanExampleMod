@@ -99,7 +99,7 @@ namespace LivingWorldNpcs
 
         #region Postfix —— 定居点犯罪对话注入（交谈 + 造访两路共用）
 
-        private static string _lastInjectedEventId;
+        internal static string _lastInjectedEventId;
 
         /// <summary>
         /// 共享注入逻辑：检查定居点犯罪事件，构建并注入犯罪对话。
@@ -155,6 +155,21 @@ namespace LivingWorldNpcs
         }
 
         #endregion
+    }
+
+    /// <summary>
+    /// 对话结束时重置 _lastInjectedEventId，确保下次对话能刷新犯罪对话注入。
+    /// 否则同一事件+同一 NPC 的对话只注入一次，后续对话中玩家看不到更新后的犯罪对话选项
+    /// （例如接调查任务后应该出现的汇报 turn "怎么样，查到什么了吗？"）。
+    /// </summary>
+    [HarmonyPatch(typeof(ConversationManager), nameof(ConversationManager.EndConversation))]
+    public static class ResetCrimeDialogueOnConversationEndPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix()
+        {
+            ConversationEntryPatch._lastInjectedEventId = null;
+        }
     }
 
     /// <summary>
