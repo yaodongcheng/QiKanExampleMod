@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -292,7 +293,9 @@ namespace LivingWorldNpcs
         {
             CampaignEvents.OnCheckForIssueEvent.AddNonSerializedListener(this, OnCheckForIssue);
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, OnDailyTick);
-            CampaignEvents.SettlementEntered.AddNonSerializedListener(this, OnSettlementEntered);
+            //先不靠玩家进入定居点触发，改为世界事件阶段变更时立即刷新 Issue 标记
+           // CampaignEvents.SettlementEntered.AddNonSerializedListener(this, OnSettlementEntered);
+            WorldEventStore.OnEventStageChanged += OnWorldEventStageChanged;
         }
 
         /// <summary>
@@ -329,6 +332,13 @@ namespace LivingWorldNpcs
                 if (authority != null && authority.IsAlive && authority != Hero.MainHero)
                 {
                     scanned = 1;
+                    // 清理已有原版 Issue（如 HeadmanNeedsToDeliverAHerdIssue）——
+                    // 犯罪事件优先，原版日常委托不应在村有案件时继续挂 ! 标记。
+                    if (authority.Issue != null && !(authority.Issue is CommissionHubIssue))
+                    {
+                        DebugLogger.Log($"[CommissionIssue] Crime event active for {settlement.Name} — clearing vanilla issue '{authority.Issue.GetType().Name}' from {authority.Name}");
+                        ClearHeroIssue(authority);
+                    }
                     if (TryAddIssue(authority)) created = 1;
                 }
             }
@@ -344,6 +354,53 @@ namespace LivingWorldNpcs
             }
 
             DebugLogger.Log($"[CommissionIssue] {settlement.Name}: scanned {scanned} notables, created {created} issues");
+        }
+
+        /// <summary>
+        /// WorldEventStore.OnEventStageChanged 回调：世界事件的阶段发生变化时，立即刷新对应定居点的 Issue 标记。
+        /// 不等玩家进入定居点、不等原版 DailyTick —— 确保村民发现犯罪后，大地图上立刻出现 !。
+        /// </summary>
+        private void OnWorldEventStageChanged(WorldEvent evt)
+        {
+            if (evt == null) return;
+            if (string.IsNullOrEmpty(evt.TargetSettlementId)) return;
+
+            var settlement = Settlement.Find(evt.TargetSettlementId);
+            if (settlement == null) return;
+
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            if (authority == null || !authority.IsAlive || authority == Hero.MainHero) return;
+
+            DebugLogger.Log($"[CommissionIssue] StageChanged: event={evt.EventId} stage={evt.Stage} settlement={settlement.Name} — refreshing issue signals");
+
+            if (evt.Stage == EventStage.Emerging || evt.Stage == EventStage.Active || evt.Stage == EventStage.Confrontation)
+            {
+                // 清除已有原版 Issue（犯罪事件优先于日常委托）
+                if (authority.Issue != null && !(authority.Issue is CommissionHubIssue))
+                {
+                    DebugLogger.Log($"[CommissionIssue] StageChanged — clearing vanilla issue '{authority.Issue.GetType().Name}' from {authority.Name} for {evt.EventId}");
+                    ClearHeroIssue(authority);
+                }
+
+                // 如果已有 CommissionHubIssue（阶段变更需重建上下文），先清除再重建
+                if (authority.Issue is CommissionHubIssue)
+                {
+                    ClearHeroIssue(authority);
+                    _activeIssues.Remove(authority.StringId);
+                }
+
+                TryAddIssue(authority);
+            }
+            else if (evt.Stage == EventStage.Resolved || evt.Stage == EventStage.Unsolved)
+            {
+                // 事件结束 → 清除 CommissionHubIssue
+                if (authority.Issue is CommissionHubIssue)
+                {
+                    DebugLogger.Log($"[CommissionIssue] StageChanged — removing CommissionHubIssue from {authority.Name}, event {evt.EventId} resolved/unsolved");
+                    ClearHeroIssue(authority);
+                    _activeIssues.Remove(authority.StringId);
+                }
+            }
         }
 
         /// <summary>
@@ -369,6 +426,13 @@ namespace LivingWorldNpcs
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             if (authority != hero) return;
 
+            // 清理已有原版 Issue（犯罪事件优先于日常委托）
+            if (hero.Issue != null && !(hero.Issue is CommissionHubIssue))
+            {
+                DebugLogger.Log($"[CommissionIssue] OnCheckForIssue — clearing vanilla issue '{hero.Issue.GetType().Name}' from {hero.Name} for crime event {evt.EventId}");
+                ClearHeroIssue(hero);
+            }
+
             TryAddIssue(hero);
         }
 
@@ -377,6 +441,28 @@ namespace LivingWorldNpcs
         /// Issue 由 IssueManager.CreateNewIssue 注册，清理时也通过 IssueManager 解除。
         /// </summary>
         private static PropertyInfo _heroIssueProp;
+
+        /// <summary>
+        /// 强制清除 Hero 身上的 Issue（含原版 Issue）。
+        /// 用于犯罪事件 Emerge 后覆盖原版日常类委托。
+        /// </summary>
+        private static void ClearHeroIssue(Hero hero)
+        {
+            if (hero == null) return;
+            try
+            {
+                if (_heroIssueProp == null)
+                    _heroIssueProp = typeof(Hero).GetProperty("Issue", BindingFlags.Public | BindingFlags.Instance);
+                if (_heroIssueProp != null && _heroIssueProp.CanWrite)
+                    _heroIssueProp.SetValue(hero, null);
+                else if (_heroIssueProp != null)
+                    _heroIssueProp.GetSetMethod(true)?.Invoke(hero, new object[] { null });
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CommissionIssue] Failed to clear issue for {hero.Name}: {ex.Message}");
+            }
+        }
 
         private bool TryAddIssue(Hero hero)
         {
@@ -512,20 +598,10 @@ namespace LivingWorldNpcs
             foreach (var id in toRemove)
             {
                 _activeIssues.Remove(id);
-                // 清理 Hero 身上的 CommissionHubIssue
                 var hero = Hero.FindFirst(h => h.StringId == id);
                 if (hero != null && hero.Issue is CommissionHubIssue)
                 {
-                    try
-                    {
-                        if (_heroIssueProp == null)
-                            _heroIssueProp = typeof(Hero).GetProperty("Issue", BindingFlags.Public | BindingFlags.Instance);
-                        if (_heroIssueProp != null && _heroIssueProp.CanWrite)
-                            _heroIssueProp.SetValue(hero, null);
-                        else if (_heroIssueProp != null)
-                            _heroIssueProp.GetSetMethod(true)?.Invoke(hero, new object[] { null });
-                    }
-                    catch { }
+                    ClearHeroIssue(hero);
                 }
             }
 
@@ -545,16 +621,7 @@ namespace LivingWorldNpcs
                     var hero = Hero.FindFirst(h => h.StringId == id);
                     if (hero != null && hero.Issue is CommissionHubIssue)
                     {
-                        try
-                        {
-                            if (_heroIssueProp == null)
-                                _heroIssueProp = typeof(Hero).GetProperty("Issue", BindingFlags.Public | BindingFlags.Instance);
-                            if (_heroIssueProp != null && _heroIssueProp.CanWrite)
-                                _heroIssueProp.SetValue(hero, null);
-                            else if (_heroIssueProp != null)
-                                _heroIssueProp.GetSetMethod(true)?.Invoke(hero, new object[] { null });
-                        }
-                        catch { }
+                        ClearHeroIssue(hero);
                     }
                 }
             }

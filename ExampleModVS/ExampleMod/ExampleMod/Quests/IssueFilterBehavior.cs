@@ -21,6 +21,12 @@ namespace LivingWorldNpcs
         private static readonly Dictionary<EventType, HashSet<string>> _blockedTypeNames =
             new Dictionary<EventType, HashSet<string>>();
 
+        /// <summary>
+        /// 犯罪事件（Theft_Animal/Theft_Pickpocket/Murder/Poaching/Smuggling/Arson）共用的拦截表。
+        /// 村庄出了案子 → 村长 / 权威 NPC 不应再发日常经营委托。
+        /// </summary>
+        private static HashSet<string> _crimeBlockedIssueTypes;
+
         // ── Per-DailyTick 统计 ──
         private static readonly Dictionary<string, int> _blockedCounts = new Dictionary<string, int>();
         private static readonly Dictionary<string, List<string>> _blockedExamples = new Dictionary<string, List<string>>();
@@ -70,6 +76,22 @@ namespace LivingWorldNpcs
                 "LandlordTrainingForRetainersIssue",
                 "BettingFraudIssue",
             };
+
+            // ── Crime（所有犯罪事件通用）：村庄有案件时不应发布日常经营委托 ──
+            _crimeBlockedIssueTypes = new HashSet<string>
+            {
+                "HeadmanNeedsGrainIssue",
+                "VillageNeedsToolsIssue",
+                "HeadmanNeedsToDeliverAHerdIssue",
+                "HeadmanVillageNeedsDraughtAnimalsIssue",
+                "VillageNeedsCraftingMaterialsIssue",
+                "LandlordNeedsAccessToVillageCommonsIssue",
+                "LandLordNeedsManualLaborersIssue",
+                "LandLordTheArtOfTheTradeIssue",
+                "LandlordTrainingForRetainersIssue",
+                "ArtisanCantSellProductsAtAFairPriceIssue",
+                "ArtisanOverpricedGoodsIssue",
+            };
         }
 
         /// <summary>
@@ -91,6 +113,16 @@ namespace LivingWorldNpcs
                 return blockedNames.Contains(issueType.Name);
             }
             return false;
+        }
+
+        /// <summary>
+        /// 检查给定的 issueType 是否属于犯罪事件应拦截的日常经营类 Issue。
+        /// 由 IssueFilterPatch 在 WorldEventStore 有活跃犯罪事件时调用。
+        /// </summary>
+        public static bool IsBlockedForCrimeEvent(Type issueType)
+        {
+            if (issueType == null || _crimeBlockedIssueTypes == null) return false;
+            return _crimeBlockedIssueTypes.Contains(issueType.Name);
         }
 
         public static void RecordBlockedIssue(EventType eventType, Hero hero, Type issueType)

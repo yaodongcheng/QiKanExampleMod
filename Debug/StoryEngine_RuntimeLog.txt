@@ -1,5 +1,5 @@
-﻿[08:47:57.731] [WorldEventStore] Deserialized 0 events, 0 alerts
-[08:48:10.189] === [AnimalSync] 特维亚 (village_ES3_2) ===
+﻿[09:41:33.421] [WorldEventStore] Deserialized 0 events, 0 alerts
+[09:41:52.394] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -9,59 +9,44 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[08:48:10.199] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[08:48:17.848] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[08:48:18.266] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
-[08:48:18.270] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[08:48:18.273] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 item=hog culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
-[08:48:18.274] [TheftLedger] Recorded: hog x1 from village_ES3_2
-[08:48:18.274] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[08:48:30.778] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
-[08:48:30.778] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
-[08:48:50.749] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
-[08:48:50.749] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
-[08:48:50.749] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
-[08:48:52.627] [CommissionIssue] Player entered 特维亚, refreshing issue signals
-[08:48:52.630] [CommissionIssue] 特维亚: scanned 1 notables, created 0 issues
-[08:48:52.634] [AnimalSync] Topped up 羊: roster 10 → 16 (natural=16 stolen=0)
-[08:48:52.635] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
-[08:48:52.635] [AnimalSync] Topped up 肉猪: roster 4 → 10 (natural=10 stolen=0)
-[08:48:52.635] [AnimalSync] Topped up 鹅: roster 2 → 5 (natural=5 stolen=0)
-[08:48:52.635] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
-[08:48:52.635] [AnimalSync] 特维亚: topped up 31 animal(s) in ItemRoster
-[08:49:12.817] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
-[08:49:12.833] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
-[08:49:12.834] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
-[08:49:12.834] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
-[08:49:12.834] [CrimeDialog]   NPC: 有什么要说的？
-[08:49:12.834] [CrimeDialog]   Option: "我愿意赔（125 第纳尔）" → INTENT:PayRestitution
-[08:49:12.834] [CrimeDialog]   Option: "你们搞错了——给我个机会说清楚" → INTENT:CharmDefense
-[08:49:12.834] [CrimeDialog]   Option: "（转身就走）" → NONE
-[08:49:12.834] [CrimeDialog] Turn[confess_close] speaker=特维亚的加里托普斯 stage=Emerging
-[08:49:12.834] [CrimeDialog]   NPC: 这事没完。你好自为之。
-[08:49:12.835] [CrimeDialog]   Option: "……" → NONE
-[08:49:12.835] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
-[08:49:12.835] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
-[08:49:12.835] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
-[08:49:12.835] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
-[08:49:12.835] [CrimeDialog]   Option: "我还有事。" → NONE
-[08:49:12.836] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=3
-[08:49:13.872] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[08:49:13.872] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[08:49:13.879] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
-[08:49:14.395] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
-[08:49:16.688] [VanillaDialog] Options (3): 村长，听说特维亚出了点事？ | 我听说你有个问题需要帮助。 | 我现在得走了。
-[08:49:16.688] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
-[08:49:16.690] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "是的，村子里有几家人需要筹点钱。他们凑了10头牛，想卖到<a style="Link.Settlement" href="event:Settlement-town_EW6"><b>洛泰</b></a>，但道上强人出没，他们自己没法把牲畜赶过去。我们既不是商人也不是地主，我们承担不起任何损失。"
-[08:49:17.885] [VanillaDialog] Options (1): 告诉我怎么帮助你。
-[08:49:17.885] [VanillaDialog] Player says: "告诉我怎么帮助你。"
-[08:49:17.886] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "如果你正行往<a style="Link.Settlement" href="event:Settlement-town_EW6"><b>洛泰</b></a>所在的方向，或许可以帮我把畜群带给<a style="Link.Hero" href="event:Hero-CharacterObject_1897"><b>麦酒酿制工卡利玻斯</b></a>。只要你把它们安全送达，我愿意支付1800<img src="General\Icons\Coin@2x" extend="8">给你。"
-[08:49:18.710] [VanillaDialog] Options (1): 有别的方法吗？
-[08:49:18.710] [VanillaDialog] Player says: "有别的方法吗？"
-[08:49:18.712] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "你可以指派一名同伴和一支8人的部队，同样也是没问题的，这两种方法都完全可行。我向你保证，如果你的人能够将牲畜安全送达，我会支付1800<img src="General\Icons\Coin@2x" extend="8">。你意下如何？"
-[08:49:19.528] [VanillaDialog] Options (3): 别担心，我会亲自将你的10头牛送给洛泰的<a style="Link.Hero" href="event:Hero-CharacterObject_1897"><b>麦酒酿制工卡利玻斯</b></a>。 | 我会指派一名同伴和8位手下，将10头牛安全送到。 | 抱歉，现在不行。
-[08:49:19.529] [VanillaDialog] Player says: "抱歉，现在不行。"
-[08:49:19.530] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "很好，但或许你之后应该重新考虑一下。"
-[08:49:21.533] [VanillaDialog] Options (3): 村长，听说特维亚出了点事？ | 我听说你有个问题需要帮助。 | 我现在得走了。
-[08:49:21.533] [VanillaDialog] Player says: "我现在得走了。"
-[08:49:21.535] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "很高兴见到你，如果以后你有什么需要可以来找我。"
+[09:41:52.403] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[09:42:01.077] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[09:42:01.484] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
+[09:42:01.489] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[09:42:01.491] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 item=hog culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
+[09:42:01.492] [TheftLedger] Recorded: hog x1 from village_ES3_2
+[09:42:01.492] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[09:42:11.764] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
+[09:42:11.765] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
+[09:42:31.761] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
+[09:42:31.761] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
+[09:42:31.761] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
+[09:42:31.762] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Emerging settlement=特维亚 — refreshing issue signals
+[09:42:31.765] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=theft_village_ES3_2_91077.52_1 stage=Emerging
+[09:42:36.668] [AnimalSync] Topped up 羊: roster 11 → 16 (natural=16 stolen=0)
+[09:42:36.668] [AnimalSync] Topped up 牛: roster 5 → 10 (natural=10 stolen=0)
+[09:42:36.668] [AnimalSync] Topped up 肉猪: roster 3 → 10 (natural=10 stolen=0)
+[09:42:36.668] [AnimalSync] Topped up 鹅: roster 3 → 5 (natural=5 stolen=0)
+[09:42:36.668] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
+[09:42:36.668] [AnimalSync] 特维亚: topped up 29 animal(s) in ItemRoster
+[09:42:41.657] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
+[09:42:41.665] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
+[09:42:41.667] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
+[09:42:41.667] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
+[09:42:41.667] [CrimeDialog]   NPC: 有什么要说的？
+[09:42:41.667] [CrimeDialog]   Option: "我愿意赔（125 第纳尔）" → INTENT:PayRestitution
+[09:42:41.667] [CrimeDialog]   Option: "你们搞错了——给我个机会说清楚" → INTENT:CharmDefense
+[09:42:41.667] [CrimeDialog]   Option: "（转身就走）" → NONE
+[09:42:41.667] [CrimeDialog] Turn[confess_close] speaker=特维亚的加里托普斯 stage=Emerging
+[09:42:41.667] [CrimeDialog]   NPC: 这事没完。你好自为之。
+[09:42:41.668] [CrimeDialog]   Option: "……" → NONE
+[09:42:41.668] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
+[09:42:41.668] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
+[09:42:41.668] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
+[09:42:41.668] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
+[09:42:41.668] [CrimeDialog]   Option: "我还有事。" → NONE
+[09:42:41.670] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=3
+[09:42:42.733] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[09:42:42.733] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[09:42:42.739] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
+[09:42:43.200] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"

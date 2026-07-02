@@ -500,6 +500,13 @@ namespace LivingWorldNpcs
         private static List<WorldEvent> _allEvents = new List<WorldEvent>();
         private static Dictionary<string, bool> _villageAlertFlags = new Dictionary<string, bool>();
 
+        /// <summary>
+        /// 当世界事件的阶段发生变化时触发。
+        /// 订阅者（CommissionIssueBehavior 等）可以立即刷新 ! 标记等 UI，
+        /// 无需等待 DailyTick 或 SettlementEntered 事件。
+        /// </summary>
+        public static event Action<WorldEvent> OnEventStageChanged;
+
         public static IReadOnlyList<WorldEvent> AllEvents => _allEvents.AsReadOnly();
         public static IReadOnlyList<WorldEvent> ActiveEvents =>
             _allEvents.Where(e => e.IsActive).ToList().AsReadOnly();
@@ -641,6 +648,7 @@ namespace LivingWorldNpcs
                 evt.PublicAwareness = Math.Max(0.1f, evt.PublicAwareness);  // 保底0.1，不覆盖已有警觉加成
                 evt._stageEnteredDay = now;
                 DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage → Emerging (discovered)");
+                OnEventStageChanged?.Invoke(evt);
             }
         }
 
@@ -672,6 +680,7 @@ namespace LivingWorldNpcs
                 evt.Stage = EventStage.Unsolved;
                 evt._stageEnteredDay = now;
                 DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage → Unsolved (cold case, {coldDays} days)");
+                OnEventStageChanged?.Invoke(evt);
             }
 
             // 权威 NPC 自主行动
@@ -734,6 +743,7 @@ namespace LivingWorldNpcs
                     evt.Stage = EventStage.Resolved;
                     evt.ResolvedBy = "budget_depleted";
                     DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage → Resolved (retaliation budget exhausted)");
+                    OnEventStageChanged?.Invoke(evt);
                 }
             }
             else if ((now - evt.RetaliationSpawnDay) > 15f)
@@ -769,6 +779,7 @@ namespace LivingWorldNpcs
             }
 
             DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage: {evt.Stage} → {newStage}");
+            OnEventStageChanged?.Invoke(evt);
         }
 
         /// <summary>玩家赔钱 → 结案</summary>
