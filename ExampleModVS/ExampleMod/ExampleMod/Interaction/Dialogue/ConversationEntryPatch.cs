@@ -97,20 +97,19 @@ namespace LivingWorldNpcs
 
         #endregion
 
-        #region Postfix —— 定居点犯罪对话注入
+        #region Postfix —— 定居点犯罪对话注入（交谈 + 造访两路共用）
 
         private static string _lastInjectedEventId;
 
-        [HarmonyPostfix]
-        public static void Postfix(ConversationCharacterData playerCharacterData,
-                                    ConversationCharacterData conversationPartnerData)
+        /// <summary>
+        /// 共享注入逻辑：检查定居点犯罪事件，构建并注入犯罪对话。
+        /// 供 CampaignMapConversation.OpenConversation（交谈）和
+        /// MissionConversationLogic.StartConversation（造访）两路调用。
+        /// </summary>
+        internal static void TryInjectCrimeDialogue(Hero partner)
         {
             try
             {
-                var partnerChar = conversationPartnerData.Character;
-                if (partnerChar == null) return;
-
-                Hero partner = partnerChar.HeroObject;
                 if (partner == null) return;
 
                 Settlement settlement = Settlement.CurrentSettlement
@@ -134,6 +133,20 @@ namespace LivingWorldNpcs
                     _lastInjectedEventId = evt.EventId + "_" + partner.StringId;
                     DebugLogger.Log($"[ConvEntry] Injected crime dialogue: event={evt.EventId} stage={evt.Stage} partner={partner.Name} turns={script.Turns.Count}");
                 }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ConvEntry] Inject error: {ex.Message}");
+            }
+        }
+
+        [HarmonyPostfix]
+        public static void Postfix(ConversationCharacterData playerCharacterData,
+                                    ConversationCharacterData conversationPartnerData)
+        {
+            try
+            {
+                TryInjectCrimeDialogue(conversationPartnerData.Character?.HeroObject);
             }
             catch (Exception ex)
             {
@@ -200,6 +213,35 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[SuppressIssue] Prefix error: {ex.Message}");
             }
             return true; // 放行：非 CommissionHubIssue，让原版条件正常评估
+        }
+    }
+
+    /// <summary>
+    /// 造访（Visit）路径的犯罪对话注入。
+    ///
+    /// CampaignMapConversation.OpenConversation（交谈）走 OpenMapConversation，
+    /// 造访走 MissionConversationLogic.StartConversation → SetupAndStartMissionConversation。
+    /// 两者共用 ConversationManager 底层引擎但入口不同，所以需要单独 patch。
+    ///
+    /// 覆盖场景：
+    ///   - 造访自动对话（OnMissionTick 检测 _teleportNearCharacter → StartConversation）
+    ///   - Mission 内手动按 F 对话（HandleInput → StartVanillaConversation → StartConversation）
+    /// </summary>
+    [HarmonyPatch(typeof(MissionConversationLogic), nameof(MissionConversationLogic.StartConversation))]
+    public static class MissionConversationStartPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(MissionConversationLogic __instance)
+        {
+            try
+            {
+                var character = __instance.ConversationAgent?.Character as CharacterObject;
+                ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ConvEntry] Mission start Postfix error: {ex.Message}");
+            }
         }
     }
 }
