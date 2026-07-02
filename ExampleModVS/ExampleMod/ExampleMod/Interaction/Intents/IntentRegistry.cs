@@ -129,7 +129,10 @@ namespace LivingWorldNpcs.Story
             string desc = NegotiationRegistry.GetGoalInfo(goal).Name;
 
             // 复用难度计算器（只读 阈值/开局优势/性格 三项，不跑回合循环）
-            NegotiationState state = new NegotiationState(ctx.Agent, goal.ToString(), desc);
+            // Agent-based path for Mission scenes; Hero-based fallback for campaign-map conversations
+            NegotiationState state = ctx.Agent != null
+                ? new NegotiationState(ctx.Agent, goal.ToString(), desc)
+                : new NegotiationState(ctx.Hero, goal.ToString(), desc);
             r.State = state;
             r.Threshold = state.TargetThreshold;
 
@@ -158,6 +161,37 @@ namespace LivingWorldNpcs.Story
         public static bool Roll(float chance)
         {
             return MBRandom.RandomFloat < chance;
+        }
+
+        /// <summary>
+        /// 简单版单次检定：只比较双方同一技能的等级，不依赖 NegotiationState。
+        /// 用于大地图对话 / 犯罪 Intent 等无 Agent 的场景。
+        /// </summary>
+        /// <param name="ctx">Intent 上下文（Hero 可能为 null）</param>
+        /// <param name="tactic">手段 → 映射到对应技能</param>
+        /// <param name="offerValue">0..1 献礼/证物加成</param>
+        public static RollResult SimpleCompute(IntentContext ctx, NegotiationTactic tactic, float offerValue = 0f)
+        {
+            var r = new RollResult();
+            Hero npc = ctx.Hero;
+            SkillObject skill = SkillCheckSystem.MapTacticToSkill(tactic);
+
+            float playerLevel = Hero.MainHero.GetSkillValue(skill);
+            float npcLevel = npc?.GetSkillValue(skill) ?? 50f; // 缺值默认 50
+
+            // 基础胜率：同技能比拼
+            float baseChance = playerLevel / (playerLevel + npcLevel);
+
+            // 献礼加成（技能 70% + 献礼 30%）
+            float offerBonus = MathF.Clamp(offerValue, 0f, 1f);
+            float chance = baseChance * 0.7f + offerBonus * 0.3f;
+
+            r.Chance = MathF.Clamp(chance, 0.05f, 0.95f);
+            r.State = null;   // 不依赖 NegotiationState
+            r.Threshold = 0f;
+            r.Log = $"[单次检定] 手段={tactic} 技能={skill.Name} 你的等级={playerLevel:F0} 对方等级={npcLevel:F0} 献礼={offerBonus:0.00} → 成功率={r.Chance:0.00}";
+
+            return r;
         }
     }
 }
