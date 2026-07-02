@@ -401,11 +401,11 @@ namespace LivingWorldNpcs
             if (currentStock > 0)
             {
                 settlement.ItemRoster.AddToCounts(livestockItem, -1);
-                DebugLogger.Log($"[StealAnimal] Deducted 1 {livestockItem.StringId} from {settlement.Name} ItemRoster (was {currentStock})");
+                DebugLogger.Log($"[StealAnimal] {animal.Name} (monster={monsterId}) → {livestockItem.StringId}, {settlement.Name} stock: {currentStock}→{currentStock - 1}");
             }
             else
             {
-                DebugLogger.Log($"[StealAnimal] {settlement.Name} has 0 {livestockItem.StringId} in ItemRoster — skip deduction");
+                DebugLogger.Log($"[StealAnimal] {animal.Name} (monster={monsterId}) → {livestockItem.StringId}, {settlement.Name} stock: 0 — skip deduction");
             }
 
             // 步骤 3：偷窃追踪（持久化，自然恢复：每天每种恢复 1 只）
