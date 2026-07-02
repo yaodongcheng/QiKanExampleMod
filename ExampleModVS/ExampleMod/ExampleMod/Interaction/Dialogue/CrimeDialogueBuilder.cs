@@ -100,9 +100,25 @@ namespace LivingWorldNpcs
                     break;
             }
 
+            // EntryOption 按阶段选不同语义，避免"接完任务还在问听说出事了"
+            string entryOption = evt.Stage switch
+            {
+                EventStage.Emerging when evt.PlayerTookInvestigationQuest =>
+                    r.Resolve("关于{TargetSettlementName}那个案子……", "EntryOption"),
+                EventStage.Emerging =>
+                    r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption"),
+                EventStage.Active when evt.SuspectIsPlayer =>
+                    r.Resolve("{SpeakerRole}，{SpeakerSelfRef}有话跟你说。", "EntryOption"),
+                EventStage.Active =>
+                    r.Resolve("{SpeakerRole}，关于那桩悬赏……", "EntryOption"),
+                EventStage.Confrontation =>
+                    r.Resolve("{SpeakerRole}……", "EntryOption"),
+                _ => r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption"),
+            };
+
             return new DialogueInjector.DialogueInjectScript
             {
-                EntryOption = r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption"),
+                EntryOption = entryOption,
                 EntryTurn = "start",
                 Turns = turns
             };
