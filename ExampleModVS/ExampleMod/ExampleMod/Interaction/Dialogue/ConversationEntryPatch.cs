@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Library;
@@ -366,6 +367,52 @@ namespace LivingWorldNpcs
                     __instance, ConversationEntryPatch.OurEntryText);
             }
             catch { }
+        }
+    }
+
+    /// <summary>
+    /// 拦截原版 Issue 对话入口句的条件检查 —— 从根本上阻止 "我听说你有个问题需要帮助。" 出现。
+    ///
+    /// 原版引擎在填充 hero_main_options 时，对每条注册的 PlayerLine 调用其 OnCondition delegate。
+    /// "hero_give_issue" 句子的 OnCondition 是
+    /// LordConversationsCampaignBehavior.conversation_hero_main_options_have_issue_on_condition()：
+    ///
+    ///   if (Hero.OneToOneConversationHero?.Issue != null)
+    ///       return issue.IsOngoingWithoutQuest;
+    ///   return false;
+    ///
+    /// 当 CommissionHubIssue 激活时（hero.Issue 非 null 且 IsOngoingWithoutQuest==true），
+    /// 原版条件返回 true → 显示 "我听说你有个问题需要帮助。" 及其下游整个 Issue 对话流。
+    ///
+    /// 此 Prefix 在 CommissionHubIssue 场景下强制返回 false，跳过原版 Issue 入口，
+    /// 由我们的 CrimeDialogueBuilder 入口句（"村长，听说特维亚出了点事？"）替代。
+    ///
+    /// 为什么这比 _sentences 级别删除更好：
+    ///   - 条件在句子评估阶段就被拦截，句子根本不会被加入 CurOptions
+    ///   - 不依赖下游内容（避开懒加载问题）
+    ///   - 不碰 hero.Issue 引用（避开 IssueManager 状态不一致崩溃）
+    ///   - 对原版 Issue 零影响：hero.Issue 是原版 IssueBase 子类时正常放行
+    /// </summary>
+    [HarmonyPatch(typeof(LordConversationsCampaignBehavior), "conversation_hero_main_options_have_issue_on_condition")]
+    public static class SuppressVanillaIssueConditionPatch
+    {
+        [HarmonyPrefix]
+        public static bool Prefix(ref bool __result)
+        {
+            try
+            {
+                Hero hero = Hero.OneToOneConversationHero;
+                if (hero?.Issue is CommissionHubIssue)
+                {
+                    __result = false;
+                    return false; // 跳过原始方法，直接返回 false
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SuppressIssue] Prefix error: {ex.Message}");
+            }
+            return true; // 放行：非 CommissionHubIssue，让原版条件正常评估
         }
     }
 }

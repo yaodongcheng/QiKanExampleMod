@@ -83,7 +83,7 @@ candidate '我听说你有个问题需要帮助。' outToken=333 → no downstre
 | _sentences 层面删除（路径 1-3） | 下游懒加载 + 全局池无 NPC 隔离 |
 | 临时置空 hero.Issue（路径 4-5） | 引擎设计不允许：对话期间 Campaign.Tick 运行，IssueManager 状态不一致导致崩溃 |
 
-# 可行的下一步方向
+# 可行的下一步方向（✅ 已实施）
 
 **不碰 `hero.Issue`，而是 Patch 对话引擎中添加 Issue 入口句的具体方法。** 需要反编译定位原版引擎中"检测到 `hero.Issue != null` 后向对话图注册 '我听说你有个问题需要帮助。' 及其下游句子"的代码路径，然后 Harmony Prefix 拦截。
 
@@ -91,6 +91,61 @@ candidate '我听说你有个问题需要帮助。' outToken=333 → no downstre
 - `ConversationManager` 中负责 `hero_main_options` 句子填充的方法（需要反编译 `ProcessSentence` 内部调用链）
 - `AddPlayerLine` / `AddDialogLine` 中与 Issue 相关的分支
 - 可能在 `Campaign.Current.ConversationManager` 初始化时通过某种 `ConversationSentence` 工厂方法注册
+
+# 反编译定位结果（2026-07-02）
+
+## 关键代码路径
+
+**DLL**: `TaleWorlds.CampaignSystem.dll`
+**Namespace**: `TaleWorlds.CampaignSystem.CampaignBehaviors`
+**Class**: `LordConversationsCampaignBehavior`
+**Method**: `conversation_hero_main_options_have_issue_on_condition()` (private instance)
+
+## 句子注册
+
+在 `AddHeroGeneralConversations()` 中：
+```csharp
+starter.AddPlayerLine(
+    "hero_give_issue",                                          // ID
+    "hero_main_options",                                        // InputToken
+    "issue_offer",                                              // OutputToken
+    "{=Kfbqriuh}I heard you may need some help with a problem?", // Text
+    conversation_hero_main_options_have_issue_on_condition,      // OnCondition delegate
+    null,                                                       // OnConsequence
+    110,                                                        // Priority
+    conversation_hero_main_options_have_issue_on_clickable_condition  // ClickableCondition
+);
+```
+
+## 条件方法源码
+
+```csharp
+private bool conversation_hero_main_options_have_issue_on_condition()
+{
+    if (Hero.OneToOneConversationHero == null || Hero.OneToOneConversationHero.IsPrisoner)
+        return false;
+    IssueBase issue = Hero.OneToOneConversationHero.Issue;
+    if (Hero.OneToOneConversationHero != null && issue != null)
+        return issue.IsOngoingWithoutQuest;
+    return false;
+}
+```
+
+当 `hero.Issue is CommissionHubIssue` 且 `IsOngoingWithoutQuest == true` 时，此方法返回 `true`，
+导致 "我听说你有个问题需要帮助。" 出现在 `hero_main_options` 中。
+
+## 实施方案
+
+Harmony Prefix 拦截 `conversation_hero_main_options_have_issue_on_condition`：
+- 如果 `hero.Issue is CommissionHubIssue` → 强制返回 `false`，阻止原版 Issue 入口句出现
+- 否则 → 放行，原版 Issue 正常显示
+
+优势：
+- 不碰 `hero.Issue` 引用（避开 IssueManager 状态不一致崩溃）
+- 不依赖 `_sentences` 扫描和下游文本匹配（避开懒加载问题）
+- 对原版 Issue 零影响
+
+实现位置：[SuppressVanillaIssueConditionPatch](ExampleModVS/ExampleMod/ExampleMod/Interaction/Dialogue/ConversationEntryPatch.cs)
 
 # 代码位置
 
