@@ -1436,23 +1436,77 @@ namespace LivingWorldNpcs.Story
             GoalType = GoalInfo.Type;
             Name = $"谈判：{NegotiationRegistry.GetGoalInfo(goalType).Name}";
             TargetAgent = targetAgent;
-            TargetName = targetAgent.Name.ToString();
-            if (TargetAgent.Character is CharacterObject character && character.HeroObject != null)
+
+            // Null-safe: Agent may be unavailable in campaign-map conversations
+            if (targetAgent != null)
             {
-                TargetHero = character.HeroObject;
+                TargetName = targetAgent.Name.ToString();
+                if (targetAgent.Character is CharacterObject character && character.HeroObject != null)
+                {
+                    TargetHero = character.HeroObject;
+                }
             }
+
             PlayerGoalDescription = playerGoalDesc;
             TurnCount = -1; // 初始化回合数
-     
+
             CalculationLog.AppendLine("\n--- 对方预期 (进度条目标值) ---");
             InitializeGoal();
 
             CalculationLog.AppendLine("\n--- 开局优势 (进度条初始值) ---");
             CurrentProgress = CalculateInitialProgress();
 
-            var memory = AllNpcMemoryManager.GetMemoryForAgent(targetAgent);
+            // Memory lookup: prefer Agent path, fall back to Hero
+            SingNpcMemorySystem memory = null;
+            if (targetAgent != null)
+            {
+                memory = AllNpcMemoryManager.GetMemoryForAgent(targetAgent);
+            }
+            if (memory == null && TargetHero != null)
+            {
+                memory = AllNpcMemoryManager.GetMemory(TargetHero.StringId);
+            }
 
-            ActiveTraits = NegotiationTraitFactory.GenerateTraits(memory._profile, GoalType);
+            ActiveTraits = memory?._profile != null
+                ? NegotiationTraitFactory.GenerateTraits(memory._profile, GoalType)
+                : new List<NegotiationTrait>();
+
+            playerResources = new PlayerResources(TargetHero);
+        }
+        /// <summary>
+        /// Hero-based constructor for campaign-map conversations where no Mission Agent exists.
+        /// </summary>
+        public NegotiationState(Hero targetHero, string goalType, string playerGoalDesc)
+        {
+            CalculationLog.Clear();
+            CalculationLog.AppendLine("=== 谈判难度分析 ===");
+
+            var GoalInfo = NegotiationRegistry.GetGoalInfo(goalType);
+            GoalType = GoalInfo.Type;
+            Name = $"谈判：{NegotiationRegistry.GetGoalInfo(goalType).Name}";
+            TargetAgent = null;
+            TargetHero = targetHero;
+            TargetName = targetHero?.Name?.ToString() ?? "???";
+
+            PlayerGoalDescription = playerGoalDesc;
+            TurnCount = -1;
+
+            CalculationLog.AppendLine("\n--- 对方预期 (进度条目标值) ---");
+            InitializeGoal();
+
+            CalculationLog.AppendLine("\n--- 开局优势 (进度条初始值) ---");
+            CurrentProgress = CalculateInitialProgress();
+
+            // Memory lookup: from Hero directly (no Agent in campaign-map context)
+            SingNpcMemorySystem memory = null;
+            if (TargetHero != null)
+            {
+                memory = AllNpcMemoryManager.GetMemory(TargetHero.StringId);
+            }
+
+            ActiveTraits = memory?._profile != null
+                ? NegotiationTraitFactory.GenerateTraits(memory._profile, GoalType)
+                : new List<NegotiationTrait>();
 
             playerResources = new PlayerResources(TargetHero);
         }

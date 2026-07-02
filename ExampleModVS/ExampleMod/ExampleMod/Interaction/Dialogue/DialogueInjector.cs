@@ -369,6 +369,12 @@ namespace LivingWorldNpcs
                 // 构建上下文：Agent 可能为 null（大地图无 Mission 时），降级处理
                 var ctx = IntentContext.Build(partnerAgent, null);
 
+                // 当 Agent 不可用时（如 CampaignMapConversation），从 npc Hero 回填上下文
+                if (ctx.Agent == null && npc != null)
+                {
+                    ctx.Hero = npc;
+                }
+
                 // 注入犯罪事件上下文
                 var settlement = npc?.CurrentSettlement;
                 if (settlement != null)
@@ -386,14 +392,15 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[DialogueInjector] Intent {intentName} hidden by Evaluate");
                     return;
                 }
-
+                //不需要检定
                 if (intent.Goal == null)
                 {
                     intent.OnInstant(ctx);
                 }
+                //需要检定
                 else
                 {
-                    var roll = SingleRollResolver.Compute(ctx, intent.Goal.Value, intent.Tactic, intent.GetOfferValue(ctx));
+                    var roll = SingleRollResolver.SimpleCompute(ctx, intent.Tactic, intent.GetOfferValue(ctx));
                     bool passed = SingleRollResolver.Roll(roll.Chance);
                     DebugLogger.Log($"[SkillCheck] {intentName} | {roll.Log} | 掷骰={(passed ? "通过" : "失败")} (chance={roll.Chance:P0})");
                     if (passed)
