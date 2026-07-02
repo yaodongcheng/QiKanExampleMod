@@ -296,6 +296,7 @@
     <!-- Properties -->
     <Compile Include="Properties\AssemblyInfo.cs" />
     <!-- Quests -->
+    <Compile Include="Quests\QuestJournalLoggerPatch.cs" />
     <Compile Include="Quests\QuestManager.cs" />
     <Compile Include="Quests\QuestStartLoggerPatch.cs" />
     <Compile Include="Quests\IssueFilterPatch.cs" />
