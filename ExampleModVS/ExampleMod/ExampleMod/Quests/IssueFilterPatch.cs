@@ -25,7 +25,23 @@ namespace LivingWorldNpcs
                 return false;
             }
 
-            // ② 检查 CurrentUrgentEvent 阻拦（紧急事件期间阻止日常类 Issue）
+            // ② 检查活跃犯罪 WorldEvent（Theft_Animal 等）—— 村庄有案件时阻止日常经营类 Issue
+            var heroSettlement = hero.CurrentSettlement ?? hero.HomeSettlement;
+            if (heroSettlement != null)
+            {
+                var crimeEvent = WorldEventStore.FindActive(heroSettlement.StringId);
+                if (crimeEvent != null && crimeEvent.Stage != EventStage.Dormant)
+                {
+                    var authority = WorldEventStore.GetAuthorityNpc(crimeEvent);
+                    if (authority == hero && IssueFilterBehavior.IsBlockedForCrimeEvent(issueData.IssueType))
+                    {
+                        IssueFilterBehavior.RecordBlockedIssue(crimeEvent.Type, hero, issueData.IssueType);
+                        return false;
+                    }
+                }
+            }
+
+            // ③ 检查 CurrentUrgentEvent 阻拦（紧急事件期间阻止日常类 Issue）
             var mem = AllNpcMemoryManager.GetMemory(hero.StringId);
             if (mem?.CurrentUrgentEvent == null) return true;
 
