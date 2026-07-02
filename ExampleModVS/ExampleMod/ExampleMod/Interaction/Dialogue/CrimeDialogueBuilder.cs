@@ -177,8 +177,21 @@ namespace LivingWorldNpcs
                 NpcLine = r.Resolve("有什么要说的？"),
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我愿意赔（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextTurn = "confess_close" },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "你们搞错了——给我个机会说清楚", Action = "INTENT:CharmDefense", NextTurn = "confess_close" },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = r.Resolve("我愿意赔（{RestitutionCost} 第纳尔）"),
+                        NpcResponse = r.Resolve("好，钱留下，这事就算了。"),
+                        Action = "INTENT:PayRestitution",
+                        NextTurn = "confess_close"
+                    },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "你们搞错了——给我个机会说清楚",
+                        NpcResponseOnSuccess = r.Resolve("……说清楚？好，{SpeakerSelfRef}倒要听听。"),
+                        NpcResponseOnFail = r.Resolve("说清楚？证据确凿，没什么好说的。"),
+                        Action = "INTENT:CharmDefense",
+                        NextTurn = "confess_close"
+                    },
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "NONE", NextTurn = "confess_close" },
                 }
             };
@@ -194,7 +207,15 @@ namespace LivingWorldNpcs
                 NpcLine = "怎么样，查到什么了吗？",
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "是附近藏身处的强盗干的！", Action = "INTENT:FrameSuspect", ActionParam = "bandit", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "是附近藏身处的强盗干的！",
+                        NpcResponseOnSuccess = r.Resolve("藏身处的强盗？好，那就是他们了！{SpeakerSelfRef}这就张罗悬赏。"),
+                        NpcResponseOnFail = r.Resolve("强盗？光凭{SpeakerPlayerAddr}一句话可不行……再去查查。"),
+                        Action = "INTENT:FrameSuspect",
+                        ActionParam = "bandit",
+                        NextTurn = "close_window"
+                    },
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "还没查到什么。", NpcResponse = r.Resolve("那你再去看看。{InvestigationProgressWord}。"), Action = "NONE", NextTurn = "close_window" },
                 }
             };
@@ -212,7 +233,8 @@ namespace LivingWorldNpcs
                         turn.Options.Insert(turn.Options.Count - 1, new DialogueInjector.DialogueInjectOption
                         {
                             PlayerLine = $"是 {target.DisplayName} 干的——[出示{evItem.ItemName}]",
-                            NpcResponse = $"（仔细看了看{evItem.ItemName}）……这确实是他的东西。好，那就是他了！",
+                            NpcResponseOnSuccess = $"（仔细看了看{evItem.ItemName}）……这确实是他的东西。好，那就是他了！",
+                            NpcResponseOnFail = $"（仔细看了看{evItem.ItemName}）……这东西说明不了什么。{r.Resolve("{SpeakerPlayerAddr}")}再去查查。",
                             Action = "INTENT:FrameSuspect",
                             ActionParam = target.TargetId,
                             NextTurn = "close_window"
@@ -225,6 +247,8 @@ namespace LivingWorldNpcs
                     turn.Options.Insert(turn.Options.Count - 1, new DialogueInjector.DialogueInjectOption
                     {
                         PlayerLine = $"是 {target.DisplayName} 干的。",
+                        NpcResponseOnSuccess = $"是{target.DisplayName}干的？……好，{r.Resolve("{SpeakerSelfRef}")}信你。",
+                        NpcResponseOnFail = $"就凭一句话？{r.Resolve("{SpeakerPlayerAddr}")}再去查查。",
                         Action = "INTENT:FrameSuspect",
                         ActionParam = target.TargetId,
                         NextTurn = "close_window"
@@ -238,7 +262,8 @@ namespace LivingWorldNpcs
                 turn.Options.Add(new DialogueInjector.DialogueInjectOption
                 {
                     PlayerLine = "（低头）……是我干的。",
-                    Action = "NONE",
+                    NpcResponse = r.Resolve("{SpeakerPlayerAddr}？！……好，既然自己认了，咱们可以商量。"),
+                    Action = "INTENT:Confess",
                     NextTurn = "confess"
                 });
                 turns.Add(BuildConfessTurn(r, ctx));
@@ -258,9 +283,29 @@ namespace LivingWorldNpcs
                 NpcLine = r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{CrimeVerb}。有什么要说的？", "NpcLine"),
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "你们搞错了。给我个机会说清楚。", Action = "INTENT:CharmDefense", NextTurn = "confront_close" },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("这是赔偿，够不够？（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextTurn = "confront_close" },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "你再说一遍？（手按在剑柄上）", Action = "INTENT:Threat", NextTurn = "confront_close" },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "你们搞错了。给我个机会说清楚。",
+                        NpcResponseOnSuccess = r.Resolve("……{SpeakerPlayerAddr}说的也有道理。那{SpeakerSelfRef}再查查。"),
+                        NpcResponseOnFail = r.Resolve("说清楚？证据确凿，没什么好说的。"),
+                        Action = "INTENT:CharmDefense",
+                        NextTurn = "confront_close"
+                    },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = r.Resolve("这是赔偿，够不够？（{RestitutionCost} 第纳尔）"),
+                        NpcResponse = r.Resolve("好，钱留下，这事就算了。"),
+                        Action = "INTENT:PayRestitution",
+                        NextTurn = "confront_close"
+                    },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "你再说一遍？（手按在剑柄上）",
+                        NpcResponseOnSuccess = r.Resolve("……{SpeakerSelfRef}不说了。{SpeakerPlayerAddr}走吧。"),
+                        NpcResponseOnFail = r.Resolve("威胁{SpeakerSelfRef}？来人！"),
+                        Action = "INTENT:Threat",
+                        NextTurn = "confront_close"
+                    },
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "NONE", NextTurn = "confront_close" },
                 }
             };
@@ -288,7 +333,7 @@ namespace LivingWorldNpcs
                 NpcLine = r.Resolve("还记得{TimeWord}{CrimeVerbPast}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？", "NpcLine"),
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我接这个悬赏！", Action = "INTENT:AcceptBountyQuest", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我接这个悬赏！", NpcResponse = r.Resolve("好！人就交给{SpeakerPlayerAddr}了。"), Action = "INTENT:AcceptBountyQuest", NextTurn = "close_window" },
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "我先想想。", Action = "NONE", NextTurn = "close_window" },
                 }
             });
@@ -303,14 +348,14 @@ namespace LivingWorldNpcs
             if (evt.SuspectIsPlayer)
             {
                 npcLine = r.Resolve("（{SpeakerEmotion}地）客客气气说话不管用，那就只能动手了。村里凑了钱，已经雇了人。{SpeakerPlayerAddr}躲得过初一躲不过十五。", "NpcLine");
-                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我赔钱！{RestitutionCost} 第纳尔"), Action = "INTENT:PayRestitution", NextTurn = "close_window" });
-                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "这事可以商量……", Action = "INTENT:Settle", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我赔钱！{RestitutionCost} 第纳尔"), NpcResponse = r.Resolve("……好，钱拿来。"), Action = "INTENT:PayRestitution", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "这事可以商量……", NpcResponse = r.Resolve("商量？有什么好商量的？"), Action = "INTENT:Settle", NextTurn = "close_window" });
                 options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我走了。", Action = "NONE", NextTurn = "close_window" });
             }
             else
             {
                 npcLine = r.Resolve("（{SpeakerEmotion}地）客客气气说话不管用，那就只能动手了。我们已经雇了人去抓{SuspectDescription}。{SpeakerPlayerAddr}要是站在我们这边的，可以带他们去。", "NpcLine");
-                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我带人去！", Action = "INTENT:LeadRetaliation", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我带人去！", NpcResponse = r.Resolve("好！有{SpeakerPlayerAddr}带队，那{SuspectDescription}跑不了。"), Action = "INTENT:LeadRetaliation", NextTurn = "close_window" });
                 options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我没空。", Action = "NONE", NextTurn = "close_window" });
             }
 
@@ -340,8 +385,8 @@ namespace LivingWorldNpcs
 
             if (evt.InitiatorIsPlayer && !evt.WitnessesSilenced)
             {
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（给些钱）这事你别往外说……", Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（威胁）你什么也没看见，明白吗？", Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（给些钱）这事你别往外说……", NpcResponse = r.Resolve("……好吧，{SpeakerSelfRef}什么也没看见。"), Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（威胁）你什么也没看见，明白吗？", NpcResponse = r.Resolve("明白、明白……{SpeakerSelfRef}一个字也不说。"), Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
                 turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "当我没来过。", Action = "NONE", NextTurn = "close_window" });
             }
             else if (evt.WitnessesSilenced)
@@ -371,8 +416,8 @@ namespace LivingWorldNpcs
                     NpcLine = r.Resolve("（警惕地）{SpeakerPlayerAddr}盯着{SpeakerSelfRef}看什么？", "NpcLine"),
                     Options = new List<DialogueInjector.DialogueInjectOption>
                     {
-                        new DialogueInjector.DialogueInjectOption { PlayerLine = "跟我走一趟，村长找你有事。", Action = "INTENT:LureArrest", NextTurn = "close_window" },
-                        new DialogueInjector.DialogueInjectOption { PlayerLine = "快跑！村里人在抓你。", Action = "INTENT:BetrayQuest", NextTurn = "close_window" },
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "跟我走一趟，村长找你有事。", NpcResponse = r.Resolve("什么？！{SpeakerSelfRef}什么也没干……"), Action = "INTENT:LureArrest", NextTurn = "close_window" },
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "快跑！村里人在抓你。", NpcResponse = r.Resolve("什么？！……谢了！"), Action = "INTENT:BetrayQuest", NextTurn = "close_window" },
                         new DialogueInjector.DialogueInjectOption { PlayerLine = "没什么。", Action = "NONE", NextTurn = "close_window" },
                     }
                 }

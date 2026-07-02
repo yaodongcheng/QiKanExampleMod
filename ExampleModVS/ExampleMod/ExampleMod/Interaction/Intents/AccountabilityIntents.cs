@@ -64,8 +64,11 @@ namespace LivingWorldNpcs.Story
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
             if (ctx.ActiveEvent.InitiatorId != Hero.MainHero.StringId) return Eligibility.Hide();
-            if (ctx.ActiveEvent.Stage != EventStage.Active && ctx.ActiveEvent.Stage != EventStage.Confrontation)
-                return Eligibility.Hide();
+            // 赔钱在 Active/Confrontation 阶段始终可用；Emerging 阶段只有自首后（SuspectHeroId=玩家）才可用
+            bool stageOk = ctx.ActiveEvent.Stage == EventStage.Active
+                        || ctx.ActiveEvent.Stage == EventStage.Confrontation
+                        || (ctx.ActiveEvent.Stage == EventStage.Emerging && ctx.ActiveEvent.SuspectHeroId == Hero.MainHero.StringId);
+            if (!stageOk) return Eligibility.Hide();
 
             int cost = ctx.ActiveEvent.ComputeRestitutionCost();
             if (Hero.MainHero.Gold < cost)
