@@ -8,6 +8,7 @@ using LivingWorldNpcs.Story;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
@@ -64,22 +65,20 @@ namespace LivingWorldNpcs
                 startToken = "hero_main_options";
             }
 
-            // 3. 创建 owner 哨兵（用于 cleanup），同时用作 token 命名空间隔离。
-            string fileTag = Path.GetFileNameWithoutExtension(jsonPath);
-            var owner = new InjectOwner { FileName = Path.GetFileName(jsonPath) };
+            // 3. 创建 owner 哨兵（用于 cleanup），加版本号防 token 碰撞。
+            string jsonName = Path.GetFileNameWithoutExtension(jsonPath);
+            string baseLabel = jsonName;
+            string fileTag = $"{jsonName}_v{_injectionCounter++}";
+            var owner = new InjectOwner { FileName = fileTag, BaseLabel = baseLabel };
             _injectedOwners.Add(owner);
 
             // 4. 注入：turn 的 Id 直接用作 ConversationManager token，加文件前缀防跨文件碰撞。
-            //    例: test_talk.json 中 Id="more_detail" → token="lwnpc_test_talk_more_detail"
             _tokenCounter = 0;
             int nodeCount = 0;
 
             try
             {
-                // —— 网关：在注入点加一个玩家可点的选项，作为对话入口 ——
-                //    hero_main_options 是玩家选项菜单的 token，不能直接塞 NPC 台词。
-                //    必须有一个玩家选项挂在这里，点了之后才进入我们的对话图。
-                //    选项文本从 JSON 的 EntryOption 字段取，缺省用文件名。
+                // —— 网关 ———
                 string entryTurnToken = TurnToken(fileTag, script.EntryTurn);
                 string entryText = !string.IsNullOrEmpty(script.EntryOption)
                     ? script.EntryOption
@@ -97,10 +96,8 @@ namespace LivingWorldNpcs
                 {
                     if (turn.Options == null || turn.Options.Count == 0) continue;
 
-                    // 入口 turn 从自己的 entryToken 开始（被网关选项激活）；
-                    // 被引用的 turn 从自己的 entryToken 开始（被上一轮的 NPC 回应激活）
                     string turnEntryToken = TurnToken(fileTag, turn.Id);
-                    string afterNpcLine = NextToken();
+                    string afterNpcLine = NextToken(fileTag);
 
                     cm.AddDialogLineMultiAgent(
                         $"inj_npc_{turn.Id}", turnEntryToken, afterNpcLine,
@@ -111,7 +108,8 @@ namespace LivingWorldNpcs
 
                     foreach (var opt in turn.Options)
                     {
-                        string afterPlayer = NextToken();
+                        string afterPlayer = NextToken(fileTag);
+                        opt.ResultKey = afterPlayer;
 
                         // NPC 回应的出口 = NextTurn 对应的入口 token，null → 关闭
                         string afterNpcResponse = !string.IsNullOrEmpty(opt.NextTurn)
@@ -129,16 +127,8 @@ namespace LivingWorldNpcs
                         cm.AddDialogFlow(pdf, owner);
                         nodeCount++;
 
-                        // NPC 回应
-                        if (!string.IsNullOrEmpty(opt.NpcResponse))
-                        {
-                            cm.AddDialogLineMultiAgent(
-                                $"inj_resp_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                                new TextObject(opt.NpcResponse),
-                                () => true, null,
-                                turn.SpeakerIndex, -1, 125);
-                            nodeCount++;
-                        }
+                        // ── NPC 回应：支持成败双线 + 兜底直连 ──
+                        nodeCount += RegisterNpcResponseLines(cm, turn, opt, afterPlayer, afterNpcResponse, fileTag);
                     }
                 }
 
@@ -186,7 +176,7 @@ namespace LivingWorldNpcs
         public static void RemoveRelatedLines(string label)
         {
             if (Campaign.Current == null) return;
-            var toRemove = _injectedOwners.Where(o => o.FileName == label).ToList();
+            var toRemove = _injectedOwners.Where(o => o.BaseLabel == label).ToList();
             foreach (var owner in toRemove)
             {
                 try { Campaign.Current.ConversationManager.RemoveRelatedLines(owner); }
@@ -241,11 +231,15 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
 
         private static int _tokenCounter = 0;
+        private static int _injectionCounter = 0;
         private static readonly List<InjectOwner> _injectedOwners = new List<InjectOwner>();
 
-        private class InjectOwner { public string FileName; }
+        /// <summary>检定结果回写表：afterPlayer token → 是否通过。InjectScriptInternal 注册双线 NPC 回应时查此表。</summary>
+        private static readonly Dictionary<string, bool> _intentResults = new Dictionary<string, bool>();
 
-        private static string NextToken() => $"lwnpc_atk_{_tokenCounter++}";
+        private class InjectOwner { public string FileName; public string BaseLabel; }
+
+        private static string NextToken(string fileTag) => $"lwnpc_{fileTag}_atk_{_tokenCounter++}";
 
         /// <summary>Turn 的 Id → ConversationManager token。加文件前缀，不同 JSON 的同名 Id 互不冲突。</summary>
         private static string TurnToken(string fileTag, string turnId) => $"lwnpc_{fileTag}_{turnId}";
@@ -323,7 +317,7 @@ namespace LivingWorldNpcs
                         if (opt.Action.StartsWith("INTENT:", StringComparison.OrdinalIgnoreCase))
                         {
                             string intentSpec = opt.Action.Substring(7);
-                            ExecuteIntentAction(intentSpec, oneToOne, opt.ActionParam);
+                            ExecuteIntentAction(intentSpec, oneToOne, opt.ActionParam, opt.ResultKey);
                         }
                         else
                         {
@@ -343,7 +337,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 执行 INTENT:xxx 动作：查 IntentRegistry → Evaluate → OnInstant/OnSuccess/OnFail
         /// </summary>
-        private static void ExecuteIntentAction(string intentName, Hero npc, string actionParam = null)
+        private static void ExecuteIntentAction(string intentName, Hero npc, string actionParam = null, string resultKey = null)
         {
             try
             {
@@ -396,6 +390,7 @@ namespace LivingWorldNpcs
                 if (intent.Goal == null)
                 {
                     intent.OnInstant(ctx);
+                    if (resultKey != null) _intentResults[resultKey] = true;
                 }
                 //需要检定
                 else
@@ -403,6 +398,7 @@ namespace LivingWorldNpcs
                     var roll = SingleRollResolver.SimpleCompute(ctx, intent.Tactic, intent.GetOfferValue(ctx));
                     bool passed = SingleRollResolver.Roll(roll.Chance);
                     DebugLogger.Log($"[SkillCheck] {intentName} | {roll.Log} | 掷骰={(passed ? "通过" : "失败")} (chance={roll.Chance:P0})");
+                    if (resultKey != null) _intentResults[resultKey] = passed;
                     if (passed)
                         intent.OnSuccess(ctx);
                     else
@@ -432,8 +428,12 @@ namespace LivingWorldNpcs
         // ⚠ 内部方法，与 InjectFromJson 的后半段逻辑完全相同
         private static void InjectScriptInternal(DialogueInjectScript script, string fileTag)
         {
+            string baseLabel = fileTag;
+            // 每次注入用唯一版本号，防止旧线未清理导致的 token 碰撞
+            fileTag = $"{fileTag}_v{_injectionCounter++}";
+
             var cm = Campaign.Current.ConversationManager;
-            var owner = new InjectOwner { FileName = fileTag };
+            var owner = new InjectOwner { FileName = fileTag, BaseLabel = baseLabel };
             _injectedOwners.Add(owner);
             _tokenCounter = 0;
 
@@ -456,7 +456,7 @@ namespace LivingWorldNpcs
                     if (turn.Options == null || turn.Options.Count == 0) continue;
 
                     string turnEntryToken = TurnToken(fileTag, turn.Id);
-                    string afterNpcLine = NextToken();
+                    string afterNpcLine = NextToken(fileTag);
                     cm.AddDialogLineMultiAgent(
                         $"inj_npc_{turn.Id}", turnEntryToken, afterNpcLine,
                         new TaleWorlds.Localization.TextObject(turn.NpcLine ?? ""),
@@ -464,21 +464,18 @@ namespace LivingWorldNpcs
 
                     foreach (var opt in turn.Options)
                     {
-                        string afterPlayer = NextToken();
+                        string afterPlayer = NextToken(fileTag);
+                        opt.ResultKey = afterPlayer; // 回写检定结果的 key
+
                         string afterNpcResponse = !string.IsNullOrEmpty(opt.NextTurn)
                             ? TurnToken(fileTag, opt.NextTurn) : "close_window";
 
                         var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
                         pdf.AddPlayerLine($"inj_opt_{turn.Id}", afterNpcLine, afterPlayer,
                             opt.PlayerLine ?? "...", () => true, () => ExecuteAction(opt), owner, 125);
-                        if (!string.IsNullOrEmpty(opt.NpcResponse))
-                        {
-                            cm.AddDialogLineMultiAgent(
-                                $"inj_resp_{turn.Id}", afterPlayer, afterNpcResponse,
-                                new TaleWorlds.Localization.TextObject(opt.NpcResponse),
-                                () => true, null, turn.SpeakerIndex, -1, 125);
-                        }
                         cm.AddDialogFlow(pdf, owner);
+
+                        RegisterNpcResponseLines(cm, turn, opt, afterPlayer, afterNpcResponse, fileTag);
                     }
                 }
             }
@@ -486,6 +483,77 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[DialogueInjector] InjectScriptInternal error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 为单个选项注册 NPC 回应行。优先级：成败双线 > 静态 NpcResponse > 兜底直连。
+        /// 返回注册的行数（用于 nodeCount）。
+        /// </summary>
+        private static int RegisterNpcResponseLines(
+            ConversationManager cm, DialogueInjectTurn turn, DialogueInjectOption opt,
+            string afterPlayer, string afterNpcResponse, string fileTag)
+        {
+            int count = 0;
+            bool hasConditional = !string.IsNullOrEmpty(opt.NpcResponseOnSuccess)
+                               || !string.IsNullOrEmpty(opt.NpcResponseOnFail);
+            if (hasConditional)
+            {
+                string capturedKey = afterPlayer;
+                // 成功线
+                if (!string.IsNullOrEmpty(opt.NpcResponseOnSuccess))
+                {
+                    cm.AddDialogLineMultiAgent(
+                        $"inj_resp_succ_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                        new TextObject(opt.NpcResponseOnSuccess),
+                        () => _intentResults.TryGetValue(capturedKey, out var r) && r,
+                        null, turn.SpeakerIndex, -1, 125);
+                    count++;
+                }
+                // 失败线
+                if (!string.IsNullOrEmpty(opt.NpcResponseOnFail))
+                {
+                    cm.AddDialogLineMultiAgent(
+                        $"inj_resp_fail_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                        new TextObject(opt.NpcResponseOnFail),
+                        () => _intentResults.TryGetValue(capturedKey, out var r) && !r,
+                        null, turn.SpeakerIndex, -1, 125);
+                    count++;
+                }
+                // 兜底：只设了一边（如只设成功线），另一边需直连 → 防死胡同
+                if (string.IsNullOrEmpty(opt.NpcResponseOnSuccess) || string.IsNullOrEmpty(opt.NpcResponseOnFail))
+                {
+                    cm.AddDialogLineMultiAgent(
+                        $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                        new TextObject(""),
+                        () =>
+                        {
+                            if (!_intentResults.TryGetValue(capturedKey, out var r)) return true;
+                            bool hasSucc = !string.IsNullOrEmpty(opt.NpcResponseOnSuccess);
+                            bool hasFail = !string.IsNullOrEmpty(opt.NpcResponseOnFail);
+                            return (r && !hasSucc) || (!r && !hasFail);
+                        },
+                        null, turn.SpeakerIndex, -1, 125);
+                    count++;
+                }
+            }
+            else if (!string.IsNullOrEmpty(opt.NpcResponse))
+            {
+                cm.AddDialogLineMultiAgent(
+                    $"inj_resp_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                    new TextObject(opt.NpcResponse),
+                    () => true, null, turn.SpeakerIndex, -1, 125);
+                count++;
+            }
+            else
+            {
+                // 兜底直连：防死胡同
+                cm.AddDialogLineMultiAgent(
+                    $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                    new TextObject(""),
+                    () => true, null, turn.SpeakerIndex, -1, 125);
+                count++;
+            }
+            return count;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -522,12 +590,18 @@ namespace LivingWorldNpcs
         {
             public string PlayerLine;
             public string NpcResponse;
+            /// <summary>检定成功时 NPC 的回应（与 NpcResponseOnFail 配对使用，覆盖 NpcResponse）。</summary>
+            public string NpcResponseOnSuccess = null;
+            /// <summary>检定失败时 NPC 的回应（与 NpcResponseOnSuccess 配对使用，覆盖 NpcResponse）。</summary>
+            public string NpcResponseOnFail = null;
             /// <summary>选了此选项后跳转到哪个 turn。null = 关闭对话。</summary>
             public string NextTurn = null;
             public string Action = "NONE";
             public int ActionValue = 0;
             /// <summary>字符串参数（栽赃目标 ID 等）。INTENT:xxx 执行时注入 IntentContext。</summary>
             public string ActionParam = null;
+            /// <summary>[内部] 注入时分配的 afterPlayer token，用作检定结果回写 key。外部不需要设置。</summary>
+            internal string ResultKey = null;
         }
     }
 }
