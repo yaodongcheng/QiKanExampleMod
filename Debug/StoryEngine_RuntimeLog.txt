@@ -1,7 +1,7 @@
-﻿[09:50:25.815] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[09:50:46.652] [WorldEventStore] Deserialized 0 events, 0 alerts
-[09:50:57.334] [DisplayMessage] "Custom Camera Load Success!"
-[09:50:57.768] === [AnimalSync] 特维亚 (village_ES3_2) ===
+﻿[10:58:44.789] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[10:59:10.136] [WorldEventStore] Deserialized 0 events, 0 alerts
+[10:59:19.169] [DisplayMessage] "Custom Camera Load Success!"
+[10:59:19.559] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -11,67 +11,108 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[09:50:57.776] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[09:51:10.141] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[09:51:10.549] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
-[09:51:10.553] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[09:51:10.556] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 item=hog culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
-[09:51:10.556] [TheftLedger] Recorded: hog x1 from village_ES3_2
-[09:51:10.556] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[09:51:10.557] [DisplayMessage] [Green] "获得了 肉猪！"
-[09:51:20.063] [DisplayMessage] "每日收入 +100"
-[09:51:20.064] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
-[09:51:20.065] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
-[09:51:22.527] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_3_2"><b>拉道古尔</b></a>俘虏。"
-[09:51:42.175] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_9"><b>托蒙德</b></a>俘虏。"
-[09:51:50.979] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
-[09:51:52.009] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1596"><b>狼皮部落的埃德温</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
-[09:51:52.770] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_9"><b>托蒙德</b></a>俘虏。"
-[09:52:06.173] [DisplayMessage] "每日收入 +100"
-[09:52:06.173] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
-[09:52:06.173] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
-[09:52:06.173] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
-[09:52:06.174] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Emerging settlement=特维亚 — refreshing issue signals
-[09:52:06.178] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=theft_village_ES3_2_91077.52_1 stage=Emerging
-[09:52:07.150] [AnimalSync] Topped up 羊: roster 11 → 16 (natural=16 stolen=0)
-[09:52:07.150] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
-[09:52:07.150] [AnimalSync] Topped up 肉猪: roster 3 → 10 (natural=10 stolen=0)
-[09:52:07.150] [AnimalSync] Topped up 鹅: roster 3 → 5 (natural=5 stolen=0)
-[09:52:07.150] [AnimalSync] Topped up 鸡: roster 7 → 16 (natural=16 stolen=0)
-[09:52:07.150] [AnimalSync] 特维亚: topped up 29 animal(s) in ItemRoster
-[09:52:10.237] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
-[09:52:10.245] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
-[09:52:10.246] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
-[09:52:10.246] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
-[09:52:10.246] [CrimeDialog]   NPC: 有什么要说的？
-[09:52:10.246] [CrimeDialog]   Option: "我愿意赔（125 第纳尔）" → INTENT:PayRestitution
-[09:52:10.246] [CrimeDialog]   Option: "你们搞错了——给我个机会说清楚" → INTENT:CharmDefense
-[09:52:10.247] [CrimeDialog]   Option: "（转身就走）" → NONE
-[09:52:10.247] [CrimeDialog] Turn[confess_close] speaker=特维亚的加里托普斯 stage=Emerging
-[09:52:10.247] [CrimeDialog]   NPC: 这事没完。你好自为之。
-[09:52:10.247] [CrimeDialog]   Option: "……" → NONE
-[09:52:10.247] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
-[09:52:10.247] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
-[09:52:10.247] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
-[09:52:10.247] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
-[09:52:10.247] [CrimeDialog]   Option: "我还有事。" → NONE
-[09:52:10.249] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=3
-[09:52:11.398] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[09:52:11.398] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[09:52:11.403] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
-[09:52:12.136] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
-[09:52:15.566] [VanillaDialog] Options (3): 村长，听说特维亚出了点事？ | 我听说你有个问题需要帮助。 | 我现在得走了。
-[09:52:15.567] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
-[09:52:15.570] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "调查特维亚的失窃案"
-[09:52:16.468] [VanillaDialog] Options (1): 让我看看有什么委托。
-[09:52:16.469] [VanillaDialog] Player says: "让我看看有什么委托。"
-[09:52:16.469] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "特维亚发生了失窃案，尚不知道是谁干的。村长正在找人帮忙调查。"
-[09:52:17.293] [VanillaDialog] Options (2): 接取委托 | 抱歉，现在不行。
-[09:52:17.293] [VanillaDialog] Player says: "抱歉，现在不行。"
-[09:52:17.294] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "很好，但或许你之后应该重新考虑一下。"
-[09:52:19.138] [VanillaDialog] Options (3): 村长，听说特维亚出了点事？ | 我听说你有个问题需要帮助。 | 我现在得走了。
-[09:52:19.139] [VanillaDialog] Player says: "村长，听说特维亚出了点事？"
-[09:52:19.139] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
-[09:52:20.380] [VanillaDialog] Options (3): （低头）是我干的。 | 我可以帮忙查查是谁干的。 | 我还有事。
-[09:52:20.380] [VanillaDialog] Player says: "我还有事。"
-[09:52:20.381] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "那你这后生忙吧……老夫们自己想办法。"
+[10:59:19.568] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[10:59:26.614] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[10:59:27.021] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
+[10:59:27.039] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[10:59:27.041] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 item=hog culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
+[10:59:27.042] [TheftLedger] Recorded: hog x1 from village_ES3_2
+[10:59:27.042] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[10:59:27.042] [DisplayMessage] [Green] "获得了 肉猪！"
+[10:59:36.411] [DisplayMessage] "每日收入 +100"
+[10:59:36.412] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
+[10:59:36.413] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
+[10:59:40.117] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
+[10:59:40.936] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_6"><b>卡拉蒂尔德</b></a>俘虏。"
+[10:59:50.572] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
+[10:59:56.417] [DisplayMessage] "每日收入 +100"
+[10:59:56.418] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
+[10:59:56.418] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
+[10:59:56.418] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
+[10:59:56.419] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Emerging settlement=特维亚 — refreshing issue signals
+[10:59:56.423] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=theft_village_ES3_2_91077.52_1 stage=Emerging
+[10:59:57.859] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
+[10:59:58.319] [AnimalSync] Topped up 羊: roster 11 → 16 (natural=16 stolen=0)
+[10:59:58.319] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
+[10:59:58.319] [AnimalSync] Topped up 肉猪: roster 4 → 10 (natural=10 stolen=0)
+[10:59:58.319] [AnimalSync] Topped up 鹅: roster 2 → 5 (natural=5 stolen=0)
+[10:59:58.319] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
+[10:59:58.319] [AnimalSync] 特维亚: topped up 30 animal(s) in ItemRoster
+[11:00:00.327] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
+[11:00:00.334] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
+[11:00:00.336] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
+[11:00:00.336] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
+[11:00:00.336] [CrimeDialog]   NPC: 有什么要说的？
+[11:00:00.336] [CrimeDialog]   Option: "我愿意赔（125 第纳尔）" → INTENT:PayRestitution
+[11:00:00.336] [CrimeDialog]   Option: "你们搞错了——给我个机会说清楚" → INTENT:CharmDefense
+[11:00:00.336] [CrimeDialog]   Option: "（转身就走）" → NONE
+[11:00:00.336] [CrimeDialog] Turn[confess_close] speaker=特维亚的加里托普斯 stage=Emerging
+[11:00:00.336] [CrimeDialog]   NPC: 这事没完。你好自为之。
+[11:00:00.337] [CrimeDialog]   Option: "……" → NONE
+[11:00:00.337] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
+[11:00:00.337] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
+[11:00:00.337] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
+[11:00:00.337] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
+[11:00:00.337] [CrimeDialog]   Option: "我还有事。" → NONE
+[11:00:00.338] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=3
+[11:00:00.339] [ConvEntry] Called RemoveRelatedLines(hero.Issue) for 特维亚的加里托普斯
+[11:00:01.450] [ConvEntry] CM field: _currentRepeatedDialogSetIndex (Int32) → type=Int32
+[11:00:01.451] [ConvEntry] CM field: _currentRepeatIndex (Int32) → type=Int32
+[11:00:01.451] [ConvEntry] CM field: _autoId (Int32) → type=Int32
+[11:00:01.451] [ConvEntry] CM field: _autoToken (Int32) → type=Int32
+[11:00:01.451] [ConvEntry] CM field: _numConversationSentencesCreated (Int32) → type=Int32
+[11:00:01.451] [ConvEntry] CM field: _sentences (List`1) → type=List`1 count=1444
+[11:00:01.451] [ConvEntry] CM field: _numberOfStateIndices (Int32) → type=Int32
+[11:00:01.451] [ConvEntry] CM field: ActiveToken (Int32) → type=Int32
+[11:00:01.451] [ConvEntry] CM field: _currentSentence (Int32) → type=Int32
+[11:00:01.452] [ConvEntry] CM field: _currentSentenceText (TextObject) → type=TextObject
+[11:00:01.452] [ConvEntry] CM field: DetailedDebugLog (List`1) → type=List`1 count=0
+[11:00:01.452] [ConvEntry] CM field: CurrentFaceAnimationRecord (String) → null
+[11:00:01.452] [ConvEntry] CM field: _lastSelectedDialogObject (Object) → null
+[11:00:01.452] [ConvEntry] CM field: _dialogRepeatObjects (List`1) → type=List`1 count=0
+[11:00:01.452] [ConvEntry] CM field: _dialogRepeatLines (List`1) → type=List`1 count=1
+[11:00:01.452] [ConvEntry] CM field: _isActive (Boolean) → type=Boolean
+[11:00:01.452] [ConvEntry] CM field: _executeDoOptionContinue (Boolean) → type=Boolean
+[11:00:01.452] [ConvEntry] CM field: LastSelectedButtonIndex (Int32) → type=Int32
+[11:00:01.452] [ConvEntry] CM field: LastSelectedDialog (String) → null
+[11:00:01.452] [ConvEntry] CM field: ConversationAnimationManager (ConversationAnimationManager) → type=ConversationAnimationManager
+[11:00:01.452] [ConvEntry] CM field: _mainAgent (IAgent) → type=MapConversationAgent
+[11:00:01.452] [ConvEntry] CM field: _speakerAgent (IAgent) → type=MapConversationAgent
+[11:00:01.453] [ConvEntry] CM field: _listenerAgent (IAgent) → type=MapConversationAgent
+[11:00:01.453] [ConvEntry] CM field: _tags (Dictionary`2) → type=Dictionary`2 count=95
+[11:00:01.453] [ConvEntry] CM field: _sortSentenceIsDisabled (Boolean) → type=Boolean
+[11:00:01.453] [ConvEntry] CM field: stateMap (Dictionary`2) → type=Dictionary`2 count=781
+[11:00:01.453] [ConvEntry] CM field: <CurOptions>k__BackingField (List`1) → type=List`1 count=3
+[11:00:01.453] [ConvEntry] CM field: ConsequenceRunned (Action`1) → type=Action`1
+[11:00:01.453] [ConvEntry] CM field: ConditionRunned (Action`1) → type=Action`1
+[11:00:01.453] [ConvEntry] CM field: ClickableConditionRunned (Action`1) → null
+[11:00:01.453] [ConvEntry] CM field: _conversationAgents (List`1) → type=List`1 count=1
+[11:00:01.454] [ConvEntry] CM field: <IsConversationInProgress>k__BackingField (Boolean) → type=Boolean
+[11:00:01.454] [ConvEntry] CM field: CurrentConversationIsFirst (Boolean) → type=Boolean
+[11:00:01.454] [ConvEntry] CM field: _conversationParty (MobileParty) → null
+[11:00:01.454] [ConvEntry] CM field: <NeedsToActivateForMapConversation>k__BackingField (Boolean) → type=Boolean
+[11:00:01.454] [ConvEntry] CM field: ConversationSetup (Action) → null
+[11:00:01.454] [ConvEntry] CM field: ConversationBegin (Action) → null
+[11:00:01.454] [ConvEntry] CM field: ConversationEnd (Action) → null
+[11:00:01.454] [ConvEntry] CM field: ConversationEndOneShot (Action) → null
+[11:00:01.454] [ConvEntry] CM field: ConversationContinued (Action) → null
+[11:00:01.454] [ConvEntry] CM field: <Handler>k__BackingField (IConversationStateHandler) → type=GauntletMapConversationView
+[11:00:01.455] [ConvEntry] Cleanup: hero=特维亚的加里托普斯 issue=CommissionHubIssue expectedTexts=[调查特维亚的失窃案 | 特维亚发生了失窃案，尚不知道是谁干的。村长正在找人帮忙调查。 | 调查：特维亚失窃案 | 让我看看有什么委托。 | 接取委托]
+[11:00:01.474] [ConvEntry] Cleanup: hero=特维亚的加里托普斯 issue=CommissionHubIssue expectedTexts=[调查特维亚的失窃案 | 特维亚发生了失窃案，尚不知道是谁干的。村长正在找人帮忙调查。 | 调查：特维亚失窃案 | 让我看看有什么委托。 | 接取委托]
+[11:00:01.474] [ConvEntry] Cleanup: _sentences has 1444 entries, textByToken has 679 token-keys, heroMainToken=5
+[11:00:01.475] [ConvEntry] Cleanup: sample[0] in=0 out=348 isPlayer=False text=''
+[11:00:01.475] [ConvEntry] Cleanup: sample[1] in=352 out=4 isPlayer=False text=''
+[11:00:01.475] [ConvEntry] Cleanup: sample[2] in=0 out=361 isPlayer=False text='向你致以问候，亨利。我很高兴你收到了我的消息，你对我的提议感兴趣吗？'
+[11:00:01.475] [ConvEntry] Cleanup: sample[3] in=0 out=373 isPlayer=False text=''
+[11:00:01.475] [ConvEntry] Cleanup: sample[4] in=0 out=107 isPlayer=False text='弟弟……我们已经追踪那帮混蛋三天了，我觉得很快就要追上了。得想想到时候该怎么办，怎么把<a style="Link.Hero" href="event:Hero-storymode_little_brother"><b>法提德</b></a>和<a style="Link.Hero" href="event:Hero-storymode_little_sister"><b>阿丽娅</b></a>给救出来？准备好战斗了吗？'
+[11:00:01.477] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[11:00:01.477] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[11:00:01.482] [ConvEntry] Cleanup: hero=特维亚的加里托普斯 issue=CommissionHubIssue expectedTexts=[调查特维亚的失窃案 | 特维亚发生了失窃案，尚不知道是谁干的。村长正在找人帮忙调查。 | 调查：特维亚失窃案 | 让我看看有什么委托。 | 接取委托]
+[11:00:01.484] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
+[11:00:02.026] [ConvEntry] Cleanup: hero=特维亚的加里托普斯 issue=CommissionHubIssue expectedTexts=[调查特维亚的失窃案 | 特维亚发生了失窃案，尚不知道是谁干的。村长正在找人帮忙调查。 | 调查：特维亚失窃案 | 让我看看有什么委托。 | 接取委托]
+[11:00:02.028] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
+[11:00:05.332] [ConvEntry] Cleanup: hero=特维亚的加里托普斯 issue=CommissionHubIssue expectedTexts=[调查特维亚的失窃案 | 特维亚发生了失窃案，尚不知道是谁干的。村长正在找人帮忙调查。 | 调查：特维亚失窃案 | 让我看看有什么委托。 | 接取委托]
+[11:00:05.336] [VanillaDialog] Options (3): 村长，听说特维亚出了点事？ | 我听说你有个问题需要帮助。 | 我现在得走了。
+[11:00:05.336] [VanillaDialog] Player says: "我听说你有个问题需要帮助。"
+[11:00:05.337] [ConvEntry] Cleanup: hero=特维亚的加里托普斯 issue=CommissionHubIssue expectedTexts=[调查特维亚的失窃案 | 特维亚发生了失窃案，尚不知道是谁干的。村长正在找人帮忙调查。 | 调查：特维亚失窃案 | 让我看看有什么委托。 | 接取委托]
+[11:00:05.339] [ConvEntry] Removed vanilla issue sentence: '我听说你有个问题需要帮助。' → '调查特维亚的失窃案'

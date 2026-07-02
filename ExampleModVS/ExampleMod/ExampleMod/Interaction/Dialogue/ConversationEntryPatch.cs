@@ -7,6 +7,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Conversation;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Library;
+using TaleWorlds.Localization;
 
 namespace LivingWorldNpcs
 {
@@ -117,7 +118,11 @@ namespace LivingWorldNpcs
                 if (settlement == null) return;
 
                 var evt = WorldEventStore.FindActive(settlement.StringId);
-                if (evt == null) return;
+                if (evt == null)
+                {
+                    OurEntryText = null;
+                    return;
+                }
 
                 if (_lastInjectedEventId == evt.EventId + "_" + partner.StringId)
                     return;
@@ -131,8 +136,26 @@ namespace LivingWorldNpcs
                     _lastInjectedEventId = evt.EventId + "_" + partner.StringId;
                     DebugLogger.Log($"[ConvEntry] Injected crime dialogue: event={evt.EventId} stage={evt.Stage} partner={partner.Name} turns={script.Turns.Count}");
 
-                    // 删除原版委托对话选项——犯罪对话已接管，不需要重复入口
-                    RemoveVanillaIssueSentence(script.EntryOption);
+                    // 尝试从 dialog graph 中删除以 Hero.Issue 为 owner 的原版对话节点——
+                    // 原版引擎检测到 hero.Issue!=null 后注册的入口句（"我听说你有个问题需要帮助。"）
+                    // 可能以 IssueBase 为 owner。如果命中，从根本上消除，不再依赖 _sentences 级别的清理。
+                    if (partner.Issue != null)
+                    {
+                        try
+                        {
+                            Campaign.Current.ConversationManager.RemoveRelatedLines(partner.Issue);
+                            DebugLogger.Log($"[ConvEntry] Called RemoveRelatedLines(hero.Issue) for {partner.Name}");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"[ConvEntry] RemoveRelatedLines(hero.Issue) failed: {ex.Message}");
+                        }
+                    }
+
+                    // 推迟到 ProcessSentence 时兜底删除——如果 RemoveRelatedLines 没命中，
+                    // CleanupVanillaIssuePrefix 会在 _sentences 层面再次尝试。
+                    OurEntryText = script.EntryOption;
+                    _firstCleanupLogged = false;
                 }
             }
             catch (Exception ex)
@@ -144,91 +167,160 @@ namespace LivingWorldNpcs
         #region Sentence-level filtering — 删除原版委托对话选项
 
         /// <summary>
-        /// 犯罪对话注入后，从 ConversationManager._sentences 中删除原版委托入口句子。
-        /// hero.Issue 保持不变（! 标记不受影响），但对话流中不再出现 "我听说你有个问题需要帮助"。
+        /// Postfix 中暂不直接删除——此时对话可能还在介绍阶段，hero_main_options 尚未激活。
+        /// 改为存储入口文本，由 <see cref="CleanupVanillaIssuePrefix"/> 在 ConversationManager.ProcessSentence
+        /// 时（_sentences 真正包含 hero_main_options 内容）执行删除。
         /// </summary>
-        private static void RemoveVanillaIssueSentence(string ourEntryOption)
+        internal static string OurEntryText;
+        private static bool _dumpedCmFields;
+        private static bool _firstCleanupLogged;
+
+        /// <summary>
+        /// 从 _sentences 中删除原版委托入口句子。
+        /// hero.Issue 保持不变（! 标记不受影响），但对话流中不再出现 "我听说你有个问题需要帮助"。
+        ///
+        /// 识别方式：图遍历——对 hero_main_options 下的每个玩家句，沿 OutputToken
+        /// 找到 NPC 回应，与 Hero.Issue 的 IssueBrief / IssueQuestSolutionExplanation / Title
+        /// 做文本匹配。匹配到的即是原版 Issue 入口，删除之。告别句自然不受影响。
+        /// </summary>
+        internal static void RemoveVanillaIssueSentenceNow(ConversationManager cm, string ourEntryText)
         {
             try
             {
-                var cm = Campaign.Current?.ConversationManager;
-                if (cm == null) return;
+                // ── 一次性：反射枚举 ConversationManager 所有字段，找到存全量对话图的字段 ──
+                if (!_dumpedCmFields)
+                {
+                    _dumpedCmFields = true;
+                    var cmType = cm.GetType();
+                    foreach (var f in cmType.GetFields(BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Public))
+                    {
+                        try
+                        {
+                            var val = f.GetValue(cm);
+                            string summary = val == null ? "null" : $"type={val.GetType().Name}";
+                            if (val is System.Collections.ICollection col)
+                                summary += $" count={col.Count}";
+                            DebugLogger.Log($"[ConvEntry] CM field: {f.Name} ({f.FieldType.Name}) → {summary}");
+                        }
+                        catch { }
+                    }
+                }
 
                 var sentences = Traverse.Create(cm).Field("_sentences").GetValue<List<ConversationSentence>>();
                 if (sentences == null || sentences.Count == 0) return;
 
-                // 1. 找到我们注入的入口句子 → 获取 hero_main_options 对应的 token 值
-                int heroMainToken = -1;
-                ConversationSentence ourSentence = null;
-                foreach (var s in sentences)
+                // 1. 从 stateMap 获取 hero_main_options token
+                var stateMap = Traverse.Create(cm).Field("stateMap").GetValue<Dictionary<string, int>>();
+                if (stateMap == null || !stateMap.TryGetValue("hero_main_options", out int heroMainToken))
                 {
-                    string text = s.Text?.ToString() ?? "";
-                    if (text == ourEntryOption)
-                    {
-                        heroMainToken = Traverse.Create(s).Field("InputToken").GetValue<int>();
-                        ourSentence = s;
-                        break;
-                    }
-                }
-                if (heroMainToken < 0 || ourSentence == null) return;
-
-                // 2. 找到 "close_window" token 值——通过匹配 "告辞/leave" 句子的 OutputToken
-                int closeWindowToken = -1;
-                foreach (var s in sentences)
-                {
-                    if (s == ourSentence) continue;
-                    int inToken = Traverse.Create(s).Field("InputToken").GetValue<int>();
-                    if (inToken != heroMainToken) continue;
-
-                    string text = s.Text?.ToString() ?? "";
-                    if (text.Contains("得走了") || text.Contains("告辞") || text.Contains("该走了"))
-                    {
-                        closeWindowToken = Traverse.Create(s).Field("OutputToken").GetValue<int>();
-                        break;
-                    }
+                    DebugLogger.Log($"[ConvEntry] Cleanup: stateMap missing hero_main_options");
+                    return;
                 }
 
-                // 3. 遍历删除：hero_main_options 下 IsPlayer、非我们注入、非告别句 = 原版委托入口
+                // 2. 从 Hero.Issue 收集预期的 Issue 文本（含 NPC 回应和后续玩家句）
+                var hero = cm.OneToOneConversationHero;
+                var expectedTexts = new List<string>();
+                if (hero?.Issue != null)
+                {
+                    AddIssueText(expectedTexts, hero.Issue.IssueBriefByIssueGiver);
+                    AddIssueText(expectedTexts, hero.Issue.IssueQuestSolutionExplanationByIssueGiver);
+                    AddIssueText(expectedTexts, hero.Issue.Title);
+                    AddIssueText(expectedTexts, hero.Issue.IssueAcceptByPlayer);
+                    AddIssueText(expectedTexts, hero.Issue.IssueQuestSolutionAcceptByPlayer);
+                }
+                DebugLogger.Log($"[ConvEntry] Cleanup: hero={hero?.Name} issue={hero?.Issue?.GetType().Name} expectedTexts=[{string.Join(" | ", expectedTexts)}]");
+
+                if (expectedTexts.Count == 0) return;
+
+                // 3. 构建 InputToken → 句子文本 的查找表（同 token 可能有多句，用 List 防覆盖）
+                var textByToken = new Dictionary<int, List<string>>();
+                foreach (var s in sentences)
+                {
+                    int inToken = s.InputToken;
+                    string clean = CleanFormatting(s.Text?.ToString() ?? "");
+                    if (!string.IsNullOrEmpty(clean))
+                    {
+                        if (!textByToken.TryGetValue(inToken, out var list))
+                            textByToken[inToken] = list = new List<string>();
+                        list.Add(clean);
+                    }
+                }
+
+                // 首次调用时打印诊断信息，后续静默
+                if (!_firstCleanupLogged)
+                {
+                    _firstCleanupLogged = true;
+                    DebugLogger.Log($"[ConvEntry] Cleanup: hero={hero?.Name} issue={hero?.Issue?.GetType().Name} expectedTexts=[{string.Join(" | ", expectedTexts)}]");
+                    DebugLogger.Log($"[ConvEntry] Cleanup: _sentences has {sentences.Count} entries, textByToken has {textByToken.Count} token-keys, heroMainToken={heroMainToken}");
+                    for (int i = 0; i < Math.Min(5, sentences.Count); i++)
+                    {
+                        var s = sentences[i];
+                        DebugLogger.Log($"[ConvEntry] Cleanup: sample[{i}] in={s.InputToken} out={s.OutputToken} isPlayer={s.IsPlayer} text='{CleanFormatting(s.Text?.ToString() ?? "")}'");
+                    }
+                }
+
+                // 4. 图遍历：玩家句 → OutputToken → 下游任意句子匹配 Issue 文本 → 确认后删除
                 for (int i = sentences.Count - 1; i >= 0; i--)
                 {
                     var s = sentences[i];
-                    if (s == ourSentence) continue;
 
-                    int inToken = Traverse.Create(s).Field("InputToken").GetValue<int>();
-                    if (inToken != heroMainToken) continue;
+                    if (s.InputToken != heroMainToken) continue;
 
-                    // 检查 IsPlayer（通过 flags 字段 bit 0）
-                    bool isPlayer = false;
-                    try
+                    string text = CleanFormatting(s.Text?.ToString() ?? "");
+
+                    // 跳过我们自己注入的入口句
+                    if (text == ourEntryText) continue;
+
+                    if (!s.IsPlayer) continue;
+
+                    // 沿 OutputToken 搜下游所有句子（同 token 可能有多条）
+                    int outToken = s.OutputToken;
+
+                    if (!textByToken.TryGetValue(outToken, out var downstreamTexts))
+                        continue;
+
+                    // 匹配 Issue 文本（Contains 而非 ==，防止引擎在文本中插入空白）
+                    bool isIssueSentence = false;
+                    string matchedDownstream = null;
+                    foreach (var downstreamText in downstreamTexts)
                     {
-                        uint flags = Traverse.Create(s).Field("Flags").GetValue<uint>();
-                        isPlayer = (flags & 1u) != 0;
+                        foreach (var expected in expectedTexts)
+                        {
+                            if (downstreamText.Contains(expected))
+                            {
+                                isIssueSentence = true;
+                                matchedDownstream = downstreamText;
+                                break;
+                            }
+                        }
+                        if (isIssueSentence) break;
                     }
-                    catch
+
+                    if (isIssueSentence)
                     {
-                        int outToken = Traverse.Create(s).Field("OutputToken").GetValue<int>();
-                        if (closeWindowToken >= 0 && outToken == closeWindowToken) continue;
-                        isPlayer = true;
+                        sentences.RemoveAt(i);
+                        DebugLogger.Log($"[ConvEntry] Removed vanilla issue sentence: '{text}' → '{matchedDownstream}'");
                     }
-
-                    if (!isPlayer) continue;
-
-                    // 跳过标准告别句
-                    if (closeWindowToken >= 0)
-                    {
-                        int outToken = Traverse.Create(s).Field("OutputToken").GetValue<int>();
-                        if (outToken == closeWindowToken) continue;
-                    }
-
-                    string removedText = s.Text?.ToString() ?? "?";
-                    sentences.RemoveAt(i);
-                    DebugLogger.Log($"[ConvEntry] Removed vanilla issue sentence: '{removedText}'");
                 }
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[ConvEntry] RemoveVanillaIssueSentence error: {ex.Message}");
+                DebugLogger.Log($"[ConvEntry] RemoveVanillaIssueSentenceNow error: {ex.Message}");
             }
+        }
+
+        private static void AddIssueText(List<string> list, TextObject text)
+        {
+            string s = text?.ToString()?.Trim();
+            if (!string.IsNullOrEmpty(s))
+                list.Add(CleanFormatting(s));
+        }
+
+        private static string CleanFormatting(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return "";
+            return System.Text.RegularExpressions.Regex.Replace(
+                text, @"\[if:[^\]]*\]|\[ib:[^\]]*\]|\[\?[^\]]*\]|\[\\?\]", "").Trim();
         }
 
         #endregion
@@ -246,6 +338,34 @@ namespace LivingWorldNpcs
         public static bool Prefix()
         {
             return !MapEncounterDialogState.Active;
+        }
+    }
+
+    /// <summary>
+    /// 在 ConversationManager.ProcessSentence 时清理原版 Issue 对话选项。
+    ///
+    /// 为什么不在 ConversationEntryPatch.Postfix 中直接删？
+    /// Postfix 时对话可能还在介绍阶段（非 hero_main_options），_sentences 里没有目标句子。
+    /// 等到 ProcessSentence 被调用时，当前 token 的内容已经填充到 _sentences，此时才是删除的正确时机。
+    ///
+    /// 每次 ProcessSentence 都检查——因为玩家可能先点进原版 Issue 流再退出，
+    /// 此时 hero_main_options 重新激活、_sentences 重建，原版句子又回来了，需要再次清理。
+    /// </summary>
+    [HarmonyPatch(typeof(ConversationManager), "ProcessSentence")]
+    public static class CleanupVanillaIssuePrefix
+    {
+        [HarmonyPrefix]
+        public static void Prefix(ConversationManager __instance)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ConversationEntryPatch.OurEntryText))
+                    return;
+
+                ConversationEntryPatch.RemoveVanillaIssueSentenceNow(
+                    __instance, ConversationEntryPatch.OurEntryText);
+            }
+            catch { }
         }
     }
 }
