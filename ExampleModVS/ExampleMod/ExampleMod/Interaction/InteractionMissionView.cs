@@ -1176,7 +1176,6 @@ namespace LivingWorldNpcs
                 // ── 步骤 8：UI 反馈 ──
                 string msg = $"获得了 {livestockItem.Name}！";
                 InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Green));
-                DebugLogger.Log($"[TryStealAnimal] {animalName} (monster={monsterId}) → item={livestockItem.StringId} ({livestockItem.Name})");
             }
             catch (Exception ex)
             {

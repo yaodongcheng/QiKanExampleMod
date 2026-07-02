@@ -63,7 +63,7 @@ namespace LivingWorldNpcs
                 // 获取当前 action_set 信息用于日志
                 MBActionSet originalSet = agent.ActionSet;
 
-                DebugLogger.Log($"[ForcePlayAction] {agentName} UsingObj={wasUsingObj} flags={scriptedFlags} action_set:'{originalSet.GetName()}'→'as_human_warrior' → force-playing '{actionId}'");
+                DebugLogger.Log($"[ForcePlayAction] {agentName} '{actionId}' UsingObj={wasUsingObj} flags={scriptedFlags} action_set:'{originalSet.GetName()}'→'as_human_warrior'");
 
                 // 1. 获取战士 action_set（所有人类动作的根）
                 MBActionSet warriorSet = MBActionSet.GetActionSet("as_human_warrior");
