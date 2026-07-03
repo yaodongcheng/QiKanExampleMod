@@ -175,6 +175,20 @@ namespace LivingWorldNpcs.Story
             evt.InvestigationProgress = 1.0f;
             WorldEventStore.TransitionStage(evt, EventStage.Active);
             DebugLogger.Log($"[Accountability] Frame suspicion: {targetId} blamed for {evt.EventId}");
+
+            // Intent 驱动：通知调查 Quest "嫌犯已锁定"
+            var suspectHero = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
+            string suspectName = suspectHero?.Name?.ToString() ?? "某人";
+            foreach (var q in Campaign.Current.QuestManager.Quests)
+            {
+                if (q is CommissionQuest cq
+                    && cq.Data?.WorldEventId == evt.EventId
+                    && cq.Data?.Category == CommissionCategory.Investigation)
+                {
+                    cq.NotifySuspectIdentified(suspectName);
+                    break;
+                }
+            }
         }
 
         public override void OnFail(IntentContext ctx)
@@ -673,6 +687,38 @@ namespace LivingWorldNpcs.Story
             if (evt == null) return;
             evt.PlayerTookBountyQuest = true;
             DebugLogger.Log($"[Accountability] Player accepted bounty quest for {evt.EventId}");
+
+            // 1. 完成调查 Quest（如果存在且未完成）
+            foreach (var q in Campaign.Current.QuestManager.Quests)
+            {
+                if (q is CommissionQuest cq
+                    && cq.Data?.WorldEventId == evt.EventId
+                    && cq.Data?.Category == CommissionCategory.Investigation
+                    && !cq.Data.IsObjectivesComplete)
+                {
+                    cq.CompleteObjectivesFromExternal();
+                    DebugLogger.Log($"[Accountability] Investigation quest completed via bounty acceptance: {cq.StringId}");
+                    break;
+                }
+            }
+
+            // 2. 创建悬赏 Quest
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            if (authority != null)
+            {
+                var data = CommissionGenerator.TryGenerateAccountabilityQuest(authority);
+                if (data != null)
+                {
+                    string questId = $"bounty_{evt.EventId}";
+                    var quest = new CommissionQuest(questId, data);
+                    quest.StartQuest();
+                    DebugLogger.Log($"[Accountability] Bounty quest STARTED: {questId} giver={authority.Name} suspect={data.TargetHero?.Name}");
+                }
+                else
+                {
+                    DebugLogger.Log($"[Accountability] TryGenerateAccountabilityQuest returned null for bounty on {evt.EventId} (stage={evt.Stage})");
+                }
+            }
         }
     }
 
