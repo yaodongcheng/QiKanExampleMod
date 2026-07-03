@@ -136,13 +136,13 @@ namespace LivingWorldNpcs
         private void PerformFullStartup()
         {
             TextObject logText = new TextObject(
-                "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n难度：{TIER}\n{EXTRA}");
+                "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n{EXTRA}");
             logText.SetTextVariable("TITLE", _data.GetFlavorDescription());
             logText.SetTextVariable("GIVER", QuestGiver.Name);
             logText.SetTextVariable("REWARD", _data.NegotiatedReward);
             logText.SetTextVariable("DEPOSIT", _data.DepositAmount);
             logText.SetTextVariable("DAYS", ((int)(_data.TimeRemainingHours / 24f) + 1));
-            logText.SetTextVariable("TIER", GetTierDisplayName());
+
             logText.SetTextVariable("EXTRA", GetExtraInfo());
             AddLog(logText);
 
@@ -290,13 +290,13 @@ namespace LivingWorldNpcs
             WorldEventDirector.RecordCommissionAccepted();
 
             TextObject logText = new TextObject(
-                "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n难度：{TIER}\n{EXTRA}");
+                "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n{EXTRA}");
             logText.SetTextVariable("TITLE", _data.GetFlavorDescription());
             logText.SetTextVariable("GIVER", QuestGiver.Name);
             logText.SetTextVariable("REWARD", _data.NegotiatedReward);
             logText.SetTextVariable("DEPOSIT", _data.DepositAmount);
             logText.SetTextVariable("DAYS", ((int)(_data.TimeRemainingHours / 24f) + 1));
-            logText.SetTextVariable("TIER", GetTierDisplayName());
+
             logText.SetTextVariable("EXTRA", GetExtraInfo());
             AddLog(logText);
 
@@ -1846,6 +1846,7 @@ namespace LivingWorldNpcs
             _suspectIdentifiedLogged = true;
             string giverName = QuestGiver?.Name?.ToString() ?? "委托人";
             AddLog(new TextObject($"调查取得进展——嫌犯锁定为{suspectName}。回去向{giverName}汇报。"));
+            UpdateProgress(_totalProgress);
             DebugLogger.Log($"[CommissionQuest] NotifySuspectIdentified: {StringId} suspect={suspectName}");
         }
 
