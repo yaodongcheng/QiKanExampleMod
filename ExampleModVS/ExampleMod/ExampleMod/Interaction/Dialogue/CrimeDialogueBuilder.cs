@@ -186,7 +186,7 @@ namespace LivingWorldNpcs
                     },
                     new DialogueInjector.DialogueInjectOption
                     {
-                        PlayerLine = "你们搞错了——给我个机会说清楚",
+                        PlayerLine = "（讪笑）开个玩笑……刚才是我胡说的",
                         NpcResponseOnSuccess = r.Resolve("……说清楚？好，{SpeakerSelfRef}倒要听听。"),
                         NpcResponseOnFail = r.Resolve("说清楚？证据确凿，没什么好说的。"),
                         Action = "INTENT:CharmDefense",
@@ -378,7 +378,7 @@ namespace LivingWorldNpcs
             if (evt.SuspectIsPlayer)
             {
                 npcLine = r.Resolve("（{SpeakerEmotion}地）客客气气说话不管用，那就只能动手了。村里凑了钱，已经雇了人。{SpeakerPlayerAddr}躲得过初一躲不过十五。", "NpcLine");
-                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我赔钱！{RestitutionCost} 第纳尔"), NpcResponse = r.Resolve("……好，钱拿来。"), Action = "INTENT:PayRestitution", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我赔钱！你说个数。"), Action = "NONE", NextTurn = "restitution_detail" });
                 options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "这事可以商量……", NpcResponse = r.Resolve("商量？有什么好商量的？"), Action = "INTENT:Settle", NextTurn = "close_window" });
                 options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我走了。", Action = "NONE", NextTurn = "close_window" });
             }
@@ -396,6 +396,12 @@ namespace LivingWorldNpcs
                 NpcLine = npcLine,
                 Options = options
             });
+
+            // 赔钱明细 turn：报复阶段也需要解释金额构成（与 confess/confront 一致）
+            if (evt.SuspectIsPlayer)
+            {
+                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "start"));
+            }
         }
 
         private static DialogueInjector.DialogueInjectScript BuildWitnessScript(

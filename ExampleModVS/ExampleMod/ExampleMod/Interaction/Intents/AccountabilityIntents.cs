@@ -90,6 +90,11 @@ namespace LivingWorldNpcs.Story
 
             WorldEventStore.OnPlayerPaidRestitution(evt);
             PlayerTheftLedger.MarkCleared(evt.TargetSettlementId);
+
+            // 解决了 → 清除自首 Inquiry
+            ConfessWalkAwayIntent.PendingInquiryTitle = null;
+            ConfessWalkAwayIntent.PendingInquiryBody = null;
+
             DebugLogger.Log($"[Accountability] Player paid restitution {cost} gold for {evt.EventId}");
         }
     }
@@ -119,6 +124,11 @@ namespace LivingWorldNpcs.Story
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
             WorldEventStore.OnCharmReprieve(evt);
+
+            // 魅力辩护成功 → 清除自首 Inquiry
+            ConfessWalkAwayIntent.PendingInquiryTitle = null;
+            ConfessWalkAwayIntent.PendingInquiryBody = null;
+
             DebugLogger.Log($"[Accountability] Charm defense succeeded for {evt.EventId} — suspect downgraded");
         }
 
@@ -355,6 +365,18 @@ namespace LivingWorldNpcs.Story
             // 自首 → 嫌犯立即确认（但事件不结算——留给后续 PayRestitution/CharmDefense）
             evt.SuspectHeroId = Hero.MainHero.StringId;
             evt.InvestigationProgress = 1.0f;
+
+            // 预设 Inquiry：对话结束时若未解决（付钱/Charm成功），则弹出。
+            // 对标 KCD2：认罪后逃跑 → NPC 当场翻脸。
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            string npcName = authority?.Name?.ToString() ?? "村长";
+            string villageName = authority?.CurrentSettlement?.Name?.ToString() ?? "村子";
+            ConfessWalkAwayIntent.PendingInquiryTitle = "“站住！”";
+            ConfessWalkAwayIntent.PendingInquiryBody =
+                $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
+                $"“你以为认了就完了？！这事没完！”\n\n" +
+                $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。下次再见到{npcName}，可就不是商量那么简单了。";
+
             DebugLogger.Log($"[Accountability] Player confessed for {evt.EventId} — suspect=self, awaiting resolution");
         }
     }
@@ -408,15 +430,7 @@ namespace LivingWorldNpcs.Story
                 }
             }
 
-            // 不在此刻弹 Inquiry（会盖在对话 UI 上）——存起来，等 EndConversation 再弹
-            var authority = WorldEventStore.GetAuthorityNpc(evt);
-            string npcName = authority?.Name?.ToString() ?? "村长";
-            string villageName = authority?.CurrentSettlement?.Name?.ToString() ?? "村子";
-            PendingInquiryTitle = "“站住！”";
-            PendingInquiryBody =
-                $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
-                $"“你以为认了就完了？！这事没完！”\n\n" +
-                $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。下次再见到{npcName}，可就不是商量那么简单了。";
+            // Inquiry 由 ConfessIntent.OnInstant 预设，EndConversation 时弹出
         }
     }
 

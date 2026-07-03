@@ -472,18 +472,43 @@ namespace LivingWorldNpcs
 
                     foreach (var opt in turn.Options)
                     {
-                        string afterPlayer = NextToken(fileTag);
-                        opt.ResultKey = afterPlayer; // 回写检定结果的 key
-
                         string afterNpcResponse = !string.IsNullOrEmpty(opt.NextTurn)
                             ? TurnToken(fileTag, opt.NextTurn) : "close_window";
+
+                        // close_window 是引擎终端 token，必须由 DialogLine（NPC 台词）触发，
+                        // 不能由 PlayerLine 直接跳过去——引擎状态机是 NPC台词↔玩家选项 交替的。
+                        bool isCloseWindow = string.IsNullOrEmpty(opt.NextTurn) || opt.NextTurn == "close_window";
+
+                        // 检测是否有任何形式的 NPC 回应
+                        bool hasNpcResponse = !string.IsNullOrEmpty(opt.NpcResponse)
+                                           || !string.IsNullOrEmpty(opt.NpcResponseOnSuccess)
+                                           || !string.IsNullOrEmpty(opt.NpcResponseOnFail);
+
+                        bool needsBridge = hasNpcResponse || isCloseWindow;
+
+                        string afterPlayer;
+                        if (needsBridge)
+                        {
+                            // 有 NPC 回应或需要关闭对话 → 中间 token + 桥接
+                            afterPlayer = NextToken(fileTag);
+                            opt.ResultKey = afterPlayer; // 回写检定结果的 key
+                        }
+                        else
+                        {
+                            // 无 NPC 回应 + 非终端 → 直达下一 turn，不创建空文本桥接
+                            afterPlayer = afterNpcResponse;
+                            opt.ResultKey = null;
+                        }
 
                         var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
                         pdf.AddPlayerLine($"inj_opt_{turn.Id}", afterNpcLine, afterPlayer,
                             opt.PlayerLine ?? "...", BuildOptionCondition(opt), () => ExecuteAction(opt), owner, 125);
                         cm.AddDialogFlow(pdf, owner);
 
-                        RegisterNpcResponseLines(cm, turn, opt, afterPlayer, afterNpcResponse, fileTag);
+                        if (needsBridge)
+                        {
+                            RegisterNpcResponseLines(cm, turn, opt, afterPlayer, afterNpcResponse, fileTag);
+                        }
                     }
                 }
             }
@@ -566,7 +591,7 @@ namespace LivingWorldNpcs
                 {
                     cm.AddDialogLineMultiAgent(
                         $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                        new TextObject(""),
+                        new TextObject("…"),
                         () =>
                         {
                             if (!_intentResults.TryGetValue(capturedKey, out var r)) return true;
@@ -591,7 +616,7 @@ namespace LivingWorldNpcs
                 // 兜底直连：防死胡同
                 cm.AddDialogLineMultiAgent(
                     $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                    new TextObject(""),
+                    new TextObject("…"),
                     () => true, null, turn.SpeakerIndex, -1, 125);
                 count++;
             }

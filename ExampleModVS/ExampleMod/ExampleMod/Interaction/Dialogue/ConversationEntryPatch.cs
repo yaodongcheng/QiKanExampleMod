@@ -188,6 +188,27 @@ namespace LivingWorldNpcs
             // 延迟弹出：ConfessWalkAwayIntent 存入的 Inquiry，等对话 UI 完全关闭后再弹
             if (ConfessWalkAwayIntent.PendingInquiryTitle != null)
             {
+                // 自首未解决 → 推进 stage（弥补"太贵了不赔"等无 intent 退出的路径）
+                var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
+                if (settlement != null)
+                {
+                    var evt = WorldEventStore.FindActive(settlement.StringId);
+                    if (evt != null && evt.Stage == EventStage.Emerging && evt.SuspectIsPlayer)
+                    {
+                        WorldEventStore.TransitionStage(evt, EventStage.Active);
+                        foreach (var q in Campaign.Current.QuestManager.Quests)
+                        {
+                            if (q is CommissionQuest cq
+                                && cq.Data?.WorldEventId == evt.EventId
+                                && cq.Data?.Category == CommissionCategory.Investigation)
+                            {
+                                cq.NotifySuspectIdentified(Hero.MainHero.Name?.ToString() ?? "你");
+                                break;
+                            }
+                        }
+                    }
+                }
+
                 string title = ConfessWalkAwayIntent.PendingInquiryTitle;
                 string body = ConfessWalkAwayIntent.PendingInquiryBody;
                 ConfessWalkAwayIntent.PendingInquiryTitle = null;
