@@ -543,10 +543,14 @@ namespace LivingWorldNpcs
                     {
                         Hero = npc,
                         Player = Hero.MainHero,
-                        ActiveEvent = evt
+                        ActiveEvent = evt,
+                        IsInMission = TaleWorlds.MountAndBlade.Mission.Current != null
                     };
                     var eligibility = intent.Evaluate(ctx);
-                    return eligibility.State != EligState.Hidden;
+                    // 对话中只显示完全可用的选项，Disabled 也隐藏。
+                    // Disabled 选项被点击后 ExecuteIntentAction 无法写入 _intentResults，
+                    // 会导致条件 NPC 回应行全部不匹配 → 对话死锁。见 RegisterNpcResponseLines。
+                    return eligibility.State == EligState.Enabled;
                 }
                 catch { return true; } // 出错时兜底显示
             };
@@ -599,6 +603,16 @@ namespace LivingWorldNpcs
                             bool hasFail = !string.IsNullOrEmpty(opt.NpcResponseOnFail);
                             return (r && !hasSucc) || (!r && !hasFail);
                         },
+                        null, turn.SpeakerIndex, -1, 125);
+                    count++;
+                }
+                // 安全网：双线都设了但 intent 被禁用 / 未执行（_intentResults 无 key）→ 防死锁
+                if (!string.IsNullOrEmpty(opt.NpcResponseOnSuccess) && !string.IsNullOrEmpty(opt.NpcResponseOnFail))
+                {
+                    cm.AddDialogLineMultiAgent(
+                        $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                        new TextObject("…"),
+                        () => !_intentResults.ContainsKey(capturedKey),
                         null, turn.SpeakerIndex, -1, 125);
                     count++;
                 }

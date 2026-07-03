@@ -57,6 +57,11 @@ namespace LivingWorldNpcs.Story
         /// <summary>栽赃目标 ID（"bandit" 或 heroId），FrameSuspectIntent 用</summary>
         public string FrameTargetId;
 
+        // ═══ 场景上下文 ═══
+        /// <summary>当前对话是否发生在 Mission 内（村庄/酒馆等 3D 场景）。
+        /// false = 大地图对话（CampaignMapConversation），无法触发战斗/叫守卫。</summary>
+        public bool IsInMission;
+
         public bool RelationAtLeast(int v) { return Relation >= v; }
         public bool OnCooldown(NegotiationGoalType goal) { return Hero != null && IntentCooldownStore.IsOnCooldown(Hero, goal); }
         public int CooldownDaysLeft(NegotiationGoalType goal) { return Hero != null ? IntentCooldownStore.DaysLeft(Hero, goal) : 0; }
@@ -67,6 +72,7 @@ namespace LivingWorldNpcs.Story
             ctx.Agent = agent;
             ctx.Player = Hero.MainHero;
             ctx.Controller = controller;
+            ctx.IsInMission = agent != null || Mission.Current != null;
             ctx.Hero = (agent != null ? agent.Character as CharacterObject : null)?.HeroObject;
             ctx.IsHero = ctx.Hero != null;
 

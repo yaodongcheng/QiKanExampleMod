@@ -73,7 +73,15 @@ namespace LivingWorldNpcs
 
         private static IntentContext BuildIntentContext(WorldEvent evt, Hero speaker)
         {
-            return new IntentContext { ActiveEvent = evt, Hero = speaker, Player = Hero.MainHero };
+            // 检测是否在 Mission 内（村庄/酒馆等3D场景）。大地图对话无法触发战斗。
+            bool isInMission = TaleWorlds.MountAndBlade.Mission.Current != null;
+            return new IntentContext
+            {
+                ActiveEvent = evt,
+                Hero = speaker,
+                Player = Hero.MainHero,
+                IsInMission = isInMission
+            };
         }
 
         private static DialogueInjector.DialogueInjectScript BuildAuthorityScript(
@@ -304,6 +312,10 @@ namespace LivingWorldNpcs
         private static void BuildConfrontPlayerTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
         {
             var evt = r.Event;
+            // 大地图对话无法叫守卫/触发战斗 → 威胁失败的 NPC 回应降级为口头警告
+            string threatFailLine = ctx.IsInMission
+                ? r.Resolve("威胁{SpeakerSelfRef}？来人！")
+                : r.Resolve("威胁{SpeakerSelfRef}？{SpeakerPlayerAddr}等着，{SpeakerSelfRef}会告到上面去。");
             var turn = new DialogueInjector.DialogueInjectTurn
             {
                 Id = "start",
@@ -329,7 +341,7 @@ namespace LivingWorldNpcs
                     {
                         PlayerLine = "你再说一遍？（手按在剑柄上）",
                         NpcResponseOnSuccess = r.Resolve("……{SpeakerSelfRef}不说了。{SpeakerPlayerAddr}走吧。"),
-                        NpcResponseOnFail = r.Resolve("威胁{SpeakerSelfRef}？来人！"),
+                        NpcResponseOnFail = threatFailLine,
                         Action = "INTENT:Threat",
                         NextTurn = "continue_chat"
                     },
