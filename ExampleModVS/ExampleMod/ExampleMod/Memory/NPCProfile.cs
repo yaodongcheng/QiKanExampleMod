@@ -1239,7 +1239,7 @@ namespace LivingWorldNpcs
                 sb.AppendLine(enemy);
             }
             //如果自己是Clan的leader，那么同一王国内的其他Clan的leader也会收到传闻（同事）
-            if (hero.Clan != null && hero.Clan.Leader == hero)
+            if (hero.Clan != null && hero.Clan.Leader == hero && hero.Clan.Kingdom != null)
             {
                 string leaders = "-族长圈子：";
                 foreach (var clan in hero.Clan.Kingdom.Clans)
@@ -1257,7 +1257,7 @@ namespace LivingWorldNpcs
 
 
             //如果自己是Kingdom的Leader，那么同盟的Kingdom的Leader也会收到，后续补充
-            if (hero.Clan != null && hero.Clan.Kingdom.Leader == hero)
+            if (hero.Clan != null && hero.Clan.Kingdom != null && hero.Clan.Kingdom.Leader == hero)
             {
                 //foreach (var kingdom in hero.Clan.Kingdom.)
             }

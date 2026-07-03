@@ -395,10 +395,6 @@ namespace LivingWorldNpcs
                     _ = StartFreeConversationFlow(_lastFocusedAgent);
                 }
             }
-            else if (TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.H))
-            {
-                OpenNPCInfoBoard(_lastFocusedAgent);
-            }
         }
 
         private void PerformPerformanceHeavyLogic()
@@ -597,7 +593,26 @@ namespace LivingWorldNpcs
                 PerformPerformanceHeavyLogic();
             }
 
-            // ----------------- 3. 高频逻辑：输入监听 (每帧必须执行) -----------------
+            // ----------------- 3. H键全局输入：有focus看NPC，无focus看自己 -----------------
+            if (TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.H))
+            {
+                if (_lastFocusedAgent != null)
+                    OpenNPCInfoBoard(_lastFocusedAgent);
+                else
+                    OpenNPCInfoBoard(Agent.Main);
+            }
+
+            // ----------------- 4. NPC信息面板关闭：ESC / 手柄B -----------------
+            if (_npcInfoLayer != null)
+            {
+                if (TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.Escape) ||
+                    TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.ControllerRRight))
+                {
+                    CloseNPCInfoBoard();
+                }
+            }
+
+            // ----------------- 4. 高频逻辑：F/G输入监听 (每帧必须执行) -----------------
             // 只有当 UI 显示时，才允许输入
             if (_interactVM.IsVisible)
             {
