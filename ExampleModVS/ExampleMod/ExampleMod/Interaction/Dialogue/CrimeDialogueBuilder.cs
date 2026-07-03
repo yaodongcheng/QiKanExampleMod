@@ -139,14 +139,14 @@ namespace LivingWorldNpcs
                         PlayerLine = "我可以帮忙查查是谁干的。",
                         NpcResponse = r.Resolve("拜托了！查出来了{SpeakerSelfRef}必有重谢。"),
                         Action = "INTENT:Investigate",
-                        NextTurn = "close_window"
+                        NextTurn = "continue_chat"
                     },
                     new DialogueInjector.DialogueInjectOption
                     {
                         PlayerLine = "我还有事。",
                         NpcResponse = r.Resolve("那{SpeakerPlayerAddr}忙吧……{SpeakerSelfRef}们自己想办法。"),
-                        Action = "NONE",
-                        NextTurn = "close_window"
+                        Action = "INTENT:WalkAway",
+                        NextTurn = ""
                     }
                 }
             };
@@ -162,11 +162,11 @@ namespace LivingWorldNpcs
                     NextTurn = "confess"
                 });
                 turns.Add(BuildConfessTurn(r, ctx));
-                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "confess_close"));
-                turns.Add(BuildClosingTurn(r, "confess_close"));
+                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "continue_chat"));
             }
 
             turns.Add(turn);
+            turns.Add(BuildContinueChatTurn());
         }
 
         private static DialogueInjector.DialogueInjectTurn BuildConfessTurn(PlaceholderResolver r, IntentContext ctx)
@@ -190,9 +190,9 @@ namespace LivingWorldNpcs
                         NpcResponseOnSuccess = r.Resolve("……说清楚？好，{SpeakerSelfRef}倒要听听。"),
                         NpcResponseOnFail = r.Resolve("说清楚？证据确凿，没什么好说的。"),
                         Action = "INTENT:CharmDefense",
-                        NextTurn = "confess_close"
+                        NextTurn = "continue_chat"
                     },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "INTENT:ConfessWalkAway", NextTurn = "confess_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextTurn = "" },
                 }
             };
         }
@@ -212,7 +212,7 @@ namespace LivingWorldNpcs
                         PlayerLine = r.Resolve("好，我赔（{RestitutionCost} 第纳尔）"),
                         NpcResponse = r.Resolve("好，钱留下，这事就算了。"),
                         Action = "INTENT:PayRestitution",
-                        NextTurn = "close_window"
+                        NextTurn = "continue_chat"
                     },
                     new DialogueInjector.DialogueInjectOption
                     {
@@ -241,9 +241,9 @@ namespace LivingWorldNpcs
                         NpcResponseOnFail = r.Resolve("强盗？光凭{SpeakerPlayerAddr}一句话可不行……再去查查。"),
                         Action = "INTENT:FrameSuspect",
                         ActionParam = "bandit",
-                        NextTurn = "close_window"
+                        NextTurn = "continue_chat"
                     },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "还没查到什么。", NpcResponse = r.Resolve("那你再去看看。{InvestigationProgressWord}。"), Action = "NONE", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "还没查到什么。", NpcResponse = r.Resolve("那你再去看看。{InvestigationProgressWord}。"), Action = "NONE", NextTurn = "continue_chat" },
                 }
             };
 
@@ -264,7 +264,7 @@ namespace LivingWorldNpcs
                             NpcResponseOnFail = $"（仔细看了看{evItem.ItemName}）……这东西说明不了什么。{r.Resolve("{SpeakerPlayerAddr}")}再去查查。",
                             Action = "INTENT:FrameSuspect",
                             ActionParam = target.TargetId,
-                            NextTurn = "close_window"
+                            NextTurn = "continue_chat"
                         });
                     }
                 }
@@ -278,7 +278,7 @@ namespace LivingWorldNpcs
                         NpcResponseOnFail = $"就凭一句话？{r.Resolve("{SpeakerPlayerAddr}")}再去查查。",
                         Action = "INTENT:FrameSuspect",
                         ActionParam = target.TargetId,
-                        NextTurn = "close_window"
+                        NextTurn = "continue_chat"
                     });
                 }
             }
@@ -294,11 +294,11 @@ namespace LivingWorldNpcs
                     NextTurn = "confess"
                 });
                 turns.Add(BuildConfessTurn(r, ctx));
-                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "confess_close"));
-                turns.Add(BuildClosingTurn(r, "confess_close"));
+                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "continue_chat"));
             }
 
             turns.Add(turn);
+            turns.Add(BuildContinueChatTurn());
         }
 
         private static void BuildConfrontPlayerTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
@@ -317,7 +317,7 @@ namespace LivingWorldNpcs
                         NpcResponseOnSuccess = r.Resolve("……{SpeakerPlayerAddr}说的也有道理。那{SpeakerSelfRef}再查查。"),
                         NpcResponseOnFail = r.Resolve("说清楚？证据确凿，没什么好说的。"),
                         Action = "INTENT:CharmDefense",
-                        NextTurn = "confront_close"
+                        NextTurn = "continue_chat"
                     },
                     new DialogueInjector.DialogueInjectOption
                     {
@@ -331,27 +331,16 @@ namespace LivingWorldNpcs
                         NpcResponseOnSuccess = r.Resolve("……{SpeakerSelfRef}不说了。{SpeakerPlayerAddr}走吧。"),
                         NpcResponseOnFail = r.Resolve("威胁{SpeakerSelfRef}？来人！"),
                         Action = "INTENT:Threat",
-                        NextTurn = "confront_close"
+                        NextTurn = "continue_chat"
                     },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "NONE", NextTurn = "confront_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextTurn = "" },
                 }
             };
             turns.Add(turn);
 
-            // 赔偿明细 turn：NPC 解释金额 → 接受/不接受
-            turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "confront_close"));
-
-            // 收尾 turn：NPC 最后一句 + 关闭窗口
-            turns.Add(new DialogueInjector.DialogueInjectTurn
-            {
-                Id = "confront_close",
-                SpeakerIndex = 0,
-                NpcLine = r.Resolve("{ConfrontClosingLine}"),
-                Options = new List<DialogueInjector.DialogueInjectOption>
-                {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "……", Action = "NONE", NextTurn = "close_window" },
-                }
-            });
+            // 赔偿明细 turn + 继续聊 turn
+            turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "continue_chat"));
+            turns.Add(BuildContinueChatTurn());
         }
 
         private static void BuildBountyOfferTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
@@ -363,10 +352,11 @@ namespace LivingWorldNpcs
                 NpcLine = r.Resolve("还记得{TimeWord}{CrimeVerbPast}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？", "NpcLine"),
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我接这个悬赏！", NpcResponse = r.Resolve("好！人就交给{SpeakerPlayerAddr}了。"), Action = "INTENT:AcceptBountyQuest", NextTurn = "close_window" },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我先想想。", Action = "NONE", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我接这个悬赏！", NpcResponse = r.Resolve("好！人就交给{SpeakerPlayerAddr}了。"), Action = "INTENT:AcceptBountyQuest", NextTurn = "continue_chat" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我先想想。", Action = "NONE", NextTurn = "continue_chat" },
                 }
             });
+            turns.Add(BuildContinueChatTurn());
         }
 
         private static void BuildRetaliationTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
@@ -379,8 +369,8 @@ namespace LivingWorldNpcs
             {
                 npcLine = r.Resolve("（{SpeakerEmotion}地）客客气气说话不管用，那就只能动手了。村里凑了钱，已经雇了人。{SpeakerPlayerAddr}躲得过初一躲不过十五。", "NpcLine");
                 options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = r.Resolve("我赔钱！你说个数。"), Action = "NONE", NextTurn = "restitution_detail" });
-                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "这事可以商量……", NpcResponse = r.Resolve("商量？有什么好商量的？"), Action = "INTENT:Settle", NextTurn = "close_window" });
-                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我走了。", Action = "NONE", NextTurn = "close_window" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "这事可以商量……", NpcResponse = r.Resolve("商量？有什么好商量的？"), Action = "INTENT:Settle", NextTurn = "continue_chat" });
+                options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextTurn = "" });
             }
             else
             {
@@ -400,8 +390,9 @@ namespace LivingWorldNpcs
             // 赔钱明细 turn：报复阶段也需要解释金额构成（与 confess/confront 一致）
             if (evt.SuspectIsPlayer)
             {
-                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "start"));
+                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "continue_chat"));
             }
+            turns.Add(BuildContinueChatTurn());
         }
 
         private static DialogueInjector.DialogueInjectScript BuildWitnessScript(
@@ -421,22 +412,23 @@ namespace LivingWorldNpcs
 
             if (evt.InitiatorIsPlayer && !evt.WitnessesSilenced)
             {
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（给些钱）这事你别往外说……", NpcResponse = r.Resolve("……好吧，{SpeakerSelfRef}什么也没看见。"), Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（威胁）你什么也没看见，明白吗？", NpcResponse = r.Resolve("明白、明白……{SpeakerSelfRef}一个字也不说。"), Action = "INTENT:SilenceWitness", NextTurn = "close_window" });
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "当我没来过。", Action = "NONE", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（给些钱）这事你别往外说……", NpcResponse = r.Resolve("……好吧，{SpeakerSelfRef}什么也没看见。"), Action = "INTENT:SilenceWitness", NextTurn = "continue_chat" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "（威胁）你什么也没看见，明白吗？", NpcResponse = r.Resolve("明白、明白……{SpeakerSelfRef}一个字也不说。"), Action = "INTENT:SilenceWitness", NextTurn = "continue_chat" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "当我没来过。", Action = "INTENT:WalkAway", NextTurn = "" });
             }
             else if (evt.WitnessesSilenced)
             {
                 turn.NpcLine = r.Resolve("（紧张地看了看四周）{SpeakerPlayerAddr}找错人了。{SpeakerSelfRef}什么也不知道。", "NpcLine");
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "……好吧。", Action = "NONE", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "……好吧。", Action = "NONE", NextTurn = "continue_chat" });
             }
             else
             {
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "能说说那人的特征吗？", NpcResponse = r.Resolve("那人……{SuspectDescription}。"), Action = "NONE", NextTurn = "close_window" });
-                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "谢谢，我知道了。", Action = "NONE", NextTurn = "close_window" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "能说说那人的特征吗？", NpcResponse = r.Resolve("那人……{SuspectDescription}。"), Action = "NONE", NextTurn = "continue_chat" });
+                turn.Options.Add(new DialogueInjector.DialogueInjectOption { PlayerLine = "谢谢，我知道了。", Action = "NONE", NextTurn = "continue_chat" });
             }
 
             turns.Add(turn);
+            turns.Add(BuildContinueChatTurn());
             return new DialogueInjector.DialogueInjectScript { EntryOption = "听说你看到了……？", EntryTurn = "start", Turns = turns };
         }
 
@@ -452,12 +444,13 @@ namespace LivingWorldNpcs
                     NpcLine = r.Resolve("（警惕地）{SpeakerPlayerAddr}盯着{SpeakerSelfRef}看什么？", "NpcLine"),
                     Options = new List<DialogueInjector.DialogueInjectOption>
                     {
-                        new DialogueInjector.DialogueInjectOption { PlayerLine = "跟我走一趟，村长找你有事。", NpcResponse = r.Resolve("什么？！{SpeakerSelfRef}什么也没干……"), Action = "INTENT:LureArrest", NextTurn = "close_window" },
-                        new DialogueInjector.DialogueInjectOption { PlayerLine = "快跑！村里人在抓你。", NpcResponse = r.Resolve("什么？！……谢了！"), Action = "INTENT:BetrayQuest", NextTurn = "close_window" },
-                        new DialogueInjector.DialogueInjectOption { PlayerLine = "没什么。", Action = "NONE", NextTurn = "close_window" },
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "跟我走一趟，村长找你有事。", NpcResponse = r.Resolve("什么？！{SpeakerSelfRef}什么也没干……"), Action = "INTENT:LureArrest", NextTurn = "continue_chat" },
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "快跑！村里人在抓你。", NpcResponse = r.Resolve("什么？！……谢了！"), Action = "INTENT:BetrayQuest", NextTurn = "continue_chat" },
+                        new DialogueInjector.DialogueInjectOption { PlayerLine = "没什么。", Action = "INTENT:WalkAway", NextTurn = "" },
                     }
                 }
             };
+            turns.Add(BuildContinueChatTurn());
             return new DialogueInjector.DialogueInjectScript { EntryOption = "（打量了一下）……", EntryTurn = "start", Turns = turns };
         }
 
@@ -481,15 +474,32 @@ namespace LivingWorldNpcs
                 NpcLine = npcLine,
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "详细说说？", NpcResponse = r.Resolve("我就知道这么多……"), Action = "NONE", NextTurn = "close_window" },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "哦。", Action = "NONE", NextTurn = "close_window" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "详细说说？", NpcResponse = r.Resolve("我就知道这么多……"), Action = "NONE", NextTurn = "continue_chat" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "哦。", Action = "NONE", NextTurn = "continue_chat" },
                 }
             });
+            turns.Add(BuildContinueChatTurn());
 
             return new DialogueInjector.DialogueInjectScript { EntryOption = "最近村里有什么新鲜事？", EntryTurn = "start", Turns = turns };
         }
 
-        /// <summary>收尾 turn：NPC 最后一句台词 + 玩家"……"→关闭窗口</summary>
+        /// <summary>继续聊 turn：NPC 说完事后 → 玩家可选回到犯罪对话或走人</summary>
+        private static DialogueInjector.DialogueInjectTurn BuildContinueChatTurn()
+        {
+            return new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "continue_chat",
+                SpeakerIndex = 0,
+                NpcLine = "…",
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "说点别的……", Action = "NONE", NextTurn = "start" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我得走了。", Action = "INTENT:WalkAway", NextTurn = "" },
+                }
+            };
+        }
+
+        /// <summary>收尾 turn：NPC 最后一句台词 + 玩家"……"→关闭窗口（保留供未来特定场景使用）</summary>
         private static DialogueInjector.DialogueInjectTurn BuildClosingTurn(PlaceholderResolver r, string turnId)
         {
             return new DialogueInjector.DialogueInjectTurn

@@ -182,11 +182,12 @@ namespace LivingWorldNpcs
         [HarmonyPostfix]
         public static void Postfix()
         {
+            DebugLogger.Log($"[ConvEnd] Conversation ended. lastEvent={ConversationEntryPatch._lastInjectedEventId} lastTag={ConversationEntryPatch._lastInjectedTag}");
             ConversationEntryPatch._lastInjectedEventId = null;
             ConversationEntryPatch._lastInjectedTag = null;
 
-            // 延迟弹出：ConfessWalkAwayIntent 存入的 Inquiry，等对话 UI 完全关闭后再弹
-            if (ConfessWalkAwayIntent.PendingInquiryTitle != null)
+            // 延迟弹出：WalkAwayIntent 存入的 Inquiry，等对话 UI 完全关闭后再弹
+            if (WalkAwayIntent.PendingInquiryTitle != null)
             {
                 // 自首未解决 → 推进 stage（弥补"太贵了不赔"等无 intent 退出的路径）
                 var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
@@ -209,10 +210,10 @@ namespace LivingWorldNpcs
                     }
                 }
 
-                string title = ConfessWalkAwayIntent.PendingInquiryTitle;
-                string body = ConfessWalkAwayIntent.PendingInquiryBody;
-                ConfessWalkAwayIntent.PendingInquiryTitle = null;
-                ConfessWalkAwayIntent.PendingInquiryBody = null;
+                string title = WalkAwayIntent.PendingInquiryTitle;
+                string body = WalkAwayIntent.PendingInquiryBody;
+                WalkAwayIntent.PendingInquiryTitle = null;
+                WalkAwayIntent.PendingInquiryBody = null;
                 InformationManager.ShowInquiry(new InquiryData(
                     title, body,
                     true, false,
