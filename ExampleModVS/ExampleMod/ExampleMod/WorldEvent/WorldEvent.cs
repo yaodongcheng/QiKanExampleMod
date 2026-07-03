@@ -286,6 +286,34 @@ namespace LivingWorldNpcs
             return (int)(baseValue * multiplier * tradeDiscount);
         }
 
+        /// <summary>赔偿金额的明细解释（给玩家看为什么是这个数）</summary>
+        public string GetRestitutionBreakdown()
+        {
+            var cfg = Config;
+            if (cfg == null) return "赔100第纳尔。";
+
+            string itemDesc = "东西";
+            int baseValue = 0;
+            if (!string.IsNullOrEmpty(TargetItemId))
+            {
+                var item = MBObjectManager.Instance.GetObject<ItemObject>(TargetItemId);
+                if (item != null)
+                {
+                    baseValue = item.Value * Quantity;
+                    itemDesc = item.Name?.ToString() ?? "东西";
+                }
+            }
+            if (baseValue <= 0) baseValue = Severity * 10;
+
+            int total = ComputeRestitutionCost();
+            string crimeGerund = cfg.CrimeVerbGerund ?? "犯事";
+
+            if (Stage <= EventStage.Emerging)
+                return $"那只{itemDesc}，市值{baseValue}第纳尔。既然你自己认了，赔{total}第纳尔，这事就算了。你认不认？";
+            else
+                return $"那只{itemDesc}，市值{baseValue}第纳尔。{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
+        }
+
         /// <summary>当场被抓时的赔偿（×2 而非 ×3）</summary>
         public int ComputeOnSpotCost()
         {

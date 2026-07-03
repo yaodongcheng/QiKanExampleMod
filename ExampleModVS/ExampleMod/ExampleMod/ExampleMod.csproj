@@ -248,6 +248,7 @@
     <Compile Include="Debug\DebugBehavior.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
+    <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="Debug\MyCustomUIVM.cs" />
     <!-- Interaction -->
