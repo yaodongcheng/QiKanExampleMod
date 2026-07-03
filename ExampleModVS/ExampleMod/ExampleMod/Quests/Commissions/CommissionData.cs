@@ -422,6 +422,47 @@ namespace LivingWorldNpcs
         /// <summary>获取风味描述（带模板填充）</summary>
         public string GetFlavorDescription()
         {
+            // 优先：从关联的 WorldEvent 生成叙事标题（犯罪事件 Quest）
+            if (!string.IsNullOrEmpty(WorldEventId))
+            {
+                var evt = WorldEventStore.FindEvent(WorldEventId);
+                if (evt != null)
+                {
+                    string settlementName = "";
+                    var s = Settlement.Find(evt.TargetSettlementId);
+                    if (s != null) settlementName = s.Name.ToString();
+
+                    switch (evt.Stage)
+                    {
+                        case EventStage.Emerging:
+                        {
+                            string itemName = "";
+                            if (!string.IsNullOrEmpty(evt.TargetItemId))
+                            {
+                                var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
+                                itemName = item?.Name?.ToString() ?? "";
+                            }
+                            string scene = evt.Config?.CrimeScene ?? "";
+                            if (!string.IsNullOrEmpty(itemName) && !string.IsNullOrEmpty(scene))
+                                return $"调查：{settlementName}{scene}{itemName}失窃案";
+                            return $"调查：{settlementName}失窃案";
+                        }
+                        case EventStage.Active:
+                        {
+                            var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
+                            if (suspect != null)
+                                return $"悬赏缉拿：{suspect.Name}";
+                            return $"追凶：{settlementName}案";
+                        }
+                        case EventStage.Confrontation:
+                            return $"危机：{settlementName}遭报复";
+                        default:
+                            break;
+                    }
+                }
+            }
+
+            // 回退：静态模板
             var def = GetDef();
             if (def == null) return "委托进行中...";
 

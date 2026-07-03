@@ -36,6 +36,15 @@ namespace LivingWorldNpcs
         /// <summary>常规委托的主类别（非犯罪、非紧急事件时使用）</summary>
         public CommissionCategory? PrimaryCategory;
 
+        /// <summary>叙事：犯罪现场（"牲口圈"/"谷仓"/"身上"）</summary>
+        public string CrimeScene;
+        /// <summary>叙事：被盗物品名（"肉猪"/"银戒指"）</summary>
+        public string StolenItemName;
+        /// <summary>叙事：犯罪动词（"偷"/"扒"）</summary>
+        public string CrimeVerb;
+        /// <summary>叙事：目击人数</summary>
+        public int WitnessCount;
+
         public bool IsCrimeEvent => !string.IsNullOrEmpty(CrimeEventId);
         public bool IsUrgentEvent => !string.IsNullOrEmpty(UrgentEventType);
     }
@@ -139,7 +148,15 @@ namespace LivingWorldNpcs
                 switch (_context.CrimeEventStage)
                 {
                     case EventStage.Emerging:
-                        return new TextObject($"{_context.SettlementName}发生了失窃案，尚不知道是谁干的。{GetAuthorityRoleText()}正在找人帮忙调查。");
+                    {
+                        string itemClause = !string.IsNullOrEmpty(_context.StolenItemName)
+                            ? $"{_context.StolenItemName}被{_context.CrimeVerb}了" : "出了失窃案";
+                        string witnessClause = _context.WitnessCount > 0
+                            ? $"，{_context.WitnessCount}人目击" : "，无人目击";
+                        return new TextObject(
+                            $"{_context.SettlementName}的{_context.CrimeScene}{itemClause}{witnessClause}。" +
+                            $"{GetAuthorityRoleText()}正在找人帮忙调查。");
+                    }
                     case EventStage.Active:
                         if (!string.IsNullOrEmpty(_context.SuspectName))
                             return new TextObject($"{_context.SettlementName}的案子查出了眉目——嫌犯是{_context.SuspectName}。{GetAuthorityRoleText()}悬赏缉拿。");
@@ -551,6 +568,10 @@ namespace LivingWorldNpcs
                         SettlementName = settlementName,
                         SuspectName = suspectName,
                         CrimeEventType = evt.Type.ToString(),
+                        CrimeScene = evt.Config?.CrimeScene ?? "",
+                        StolenItemName = GetStolenItemName(evt),
+                        CrimeVerb = evt.Config?.CrimeVerb ?? "丢失",
+                        WitnessCount = evt.WitnessCount,
                     };
                 }
             }
@@ -582,6 +603,16 @@ namespace LivingWorldNpcs
                 SettlementName = settlementName,
                 PrimaryCategory = firstCategory,
             };
+        }
+
+        /// <summary>
+        /// 从 WorldEvent 提取被盗物品名称（用于 Issue 描述叙事）。
+        /// </summary>
+        private static string GetStolenItemName(WorldEvent evt)
+        {
+            if (evt == null || string.IsNullOrEmpty(evt.TargetItemId)) return "";
+            var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
+            return item?.Name?.ToString() ?? "";
         }
 
         private void OnDailyTick()

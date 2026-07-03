@@ -35,6 +35,7 @@ namespace LivingWorldNpcs
         [SaveableField(52)] private bool _bribeSuccessful;
         [SaveableField(49)] private JournalLog _findGiverLog;  // 阶段1：找委托人
         [SaveableField(50)] private JournalLog _rewardLog;     // 阶段3：领报酬
+        private bool _suspectIdentifiedLogged;  // 防止 Intent 和事件双重日志
 
         public override bool IsRemainingTimeHidden => false;
         public override TextObject Title => new TextObject(_data?.GetFlavorDescription() ?? "委托任务");
@@ -228,7 +229,8 @@ namespace LivingWorldNpcs
             switch (_data.Category)
             {
                 case CommissionCategory.Investigation:
-                    // 调查委托不需要额外事件——DailyTick 已注册
+                    // NPC 后台调查推进 → 订阅 WorldEvent 阶段变化
+                    WorldEventStore.OnEventStageChanged += OnWorldEventStageChangedForQuest;
                     break;
                 case CommissionCategory.BountyHunt:
                 case CommissionCategory.LegendaryHunt:
@@ -337,6 +339,7 @@ namespace LivingWorldNpcs
 
         protected override void OnCompleteWithSuccess()
         {
+            WorldEventStore.OnEventStageChanged -= OnWorldEventStageChangedForQuest;
             if (QuestGiver == null) return;
 
             // 如果走的是新流程（CompleteWithRewardCollection 已结算），跳过旧逻辑
@@ -1192,8 +1195,40 @@ namespace LivingWorldNpcs
                 ? Settlement.Find(_data.TargetSettlementId) : null;
             string locationName = settlement?.Name?.ToString() ?? "案发地";
 
-            AddLog(new TextObject($"前往 {locationName} 附近搜集线索。与当地人交谈或回现场调查，找出是谁干的。"));
-            AddLog(new TextObject("提示：时间有限——调查窗口关闭后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));
+            // 优先：从 WorldEvent 提取案情细节生成叙事日志
+            var evt = !string.IsNullOrEmpty(_data.WorldEventId)
+                ? WorldEventStore.FindEvent(_data.WorldEventId) : null;
+
+            if (evt != null)
+            {
+                string itemName = "财物";
+                if (!string.IsNullOrEmpty(evt.TargetItemId))
+                {
+                    var item = MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
+                    itemName = item?.Name?.ToString() ?? "财物";
+                }
+                string scene = !string.IsNullOrEmpty(evt.Config?.CrimeScene) ? evt.Config.CrimeScene : "现场";
+                string verb = !string.IsNullOrEmpty(evt.Config?.CrimeVerb) ? evt.Config.CrimeVerb : "丢失";
+                int witnessCount = evt.WitnessCount;
+                int windowDays = evt.Config?.InvestigationWindowDays ?? 7;
+
+                string witnessClause = witnessCount > 0
+                    ? $"有{witnessCount}人目击了事发经过。"
+                    : "暂时无人目击。";
+
+                AddLog(new TextObject(
+                    $"前往 {locationName} 的{scene}附近搜集线索。" +
+                    $"{itemName}{verb}了，{witnessClause}" +
+                    $"与当地人交谈或回现场调查，找出是谁干的。"));
+                AddLog(new TextObject(
+                    $"提示：调查窗口约{windowDays}天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));
+            }
+            else
+            {
+                // 回退：无 WorldEvent 时使用通用文本
+                AddLog(new TextObject($"前往 {locationName} 附近搜集线索。与当地人交谈或回现场调查，找出是谁干的。"));
+                AddLog(new TextObject("提示：时间有限——调查窗口关闭后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));
+            }
         }
 
         private void OnStartBountyHunt()
@@ -1779,12 +1814,60 @@ namespace LivingWorldNpcs
         /// <summary>主动失败委托（非超时），清理并触发失败后果。</summary>
         private void FailQuest()
         {
+            WorldEventStore.OnEventStageChanged -= OnWorldEventStageChangedForQuest;
             DebugLogger.Log($"[CommissionQuest] FailQuest called: category={_data?.Category} giver={QuestGiver?.Name} worldEventId={_data?.WorldEventId} progress={_currentProgress}/{_totalProgress} timeRemain={_data?.TimeRemainingHours}h");
             CleanupSpawnedParty();
             _finalGrade = CommissionGrade.Failed;
             AddLog(new TextObject($"委托被迫终止。与 {QuestGiver?.Name.ToString() ?? "委托人"} 的关系下降了。"));
             CompleteQuestWithFail(); // 触发 OnFailed() 统一处理惩罚
             DebugLogger.Log($"[CommissionQuest] FailQuest finished: category={_data?.Category}");
+        }
+
+        /// <summary>
+        /// 由外部系统（如 AcceptBountyQuestIntent）调用，完成调查委托并关闭。
+        /// 不走完整的"领报酬"流程——调查 Quest 被悬赏 Quest 替代时使用。
+        /// </summary>
+        public void CompleteObjectivesFromExternal()
+        {
+            if (_data == null) return;
+            _data.IsObjectivesComplete = true; // 跳过 OnCompleteWithSuccess 的旧版报酬逻辑
+            AddLog(new TextObject("调查完成：嫌犯已锁定，转入悬赏缉拿阶段。"));
+            CompleteQuestWithSuccess();
+            DebugLogger.Log($"[CommissionQuest] CompleteObjectivesFromExternal: {StringId} category={_data.Category}");
+        }
+
+        /// <summary>
+        /// 由 Intent（FrameSuspectIntent 等）调用：通知调查 Quest "嫌犯已锁定"。
+        /// 只加日志，不完成 Quest——Quest 完成由后续 Intent（如 AcceptBountyQuest）负责。
+        /// </summary>
+        public void NotifySuspectIdentified(string suspectName)
+        {
+            if (_data == null || _suspectIdentifiedLogged) return;
+            _suspectIdentifiedLogged = true;
+            string giverName = QuestGiver?.Name?.ToString() ?? "委托人";
+            AddLog(new TextObject($"调查取得进展——嫌犯锁定为{suspectName}。回去向{giverName}汇报。"));
+            DebugLogger.Log($"[CommissionQuest] NotifySuspectIdentified: {StringId} suspect={suspectName}");
+        }
+
+        /// <summary>
+        /// WorldEvent 阶段变化回调（仅 Investigation Quest 注册）。
+        /// 处理 NPC 后台调查查出嫌犯的 case（非玩家 Intent 驱动）。
+        /// Intent 驱动的更新在 Intent.OnSuccess 中直接调用 NotifySuspectIdentified，
+        /// 会先设置 _suspectIdentifiedLogged=true，此回调检测到后跳过。
+        /// </summary>
+        private void OnWorldEventStageChangedForQuest(WorldEvent evt)
+        {
+            if (_data == null) return;
+            if (evt.EventId != _data.WorldEventId) return;
+            if (_data.Category != CommissionCategory.Investigation) return;
+            if (_suspectIdentifiedLogged) return;
+
+            if (evt.Stage == EventStage.Active && !string.IsNullOrEmpty(evt.SuspectHeroId))
+            {
+                var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
+                NotifySuspectIdentified(suspect?.Name?.ToString() ?? "某人");
+                DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active (NPC investigation found suspect)");
+            }
         }
 
         #endregion
