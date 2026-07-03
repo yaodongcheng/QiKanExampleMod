@@ -451,7 +451,11 @@ namespace LivingWorldNpcs
                         {
                             var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
                             if (suspect != null)
+                            {
+                                if (evt.SuspectIsPlayer)
+                                    return $"被指控：{settlementName}案";
                                 return $"悬赏缉拿：{suspect.Name}";
+                            }
                             return $"追凶：{settlementName}案";
                         }
                         case EventStage.Confrontation:

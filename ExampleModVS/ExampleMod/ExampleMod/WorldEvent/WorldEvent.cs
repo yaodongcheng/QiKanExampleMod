@@ -310,8 +310,10 @@ namespace LivingWorldNpcs
 
             if (Stage <= EventStage.Emerging)
                 return $"那只{itemDesc}，市值{baseValue}第纳尔。既然你自己认了，赔{total}第纳尔，这事就算了。你认不认？";
+            else if (Stage == EventStage.Active)
+                return $"那只{itemDesc}，市值{baseValue}第纳尔。村里人都知道了，{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
             else
-                return $"那只{itemDesc}，市值{baseValue}第纳尔。{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
+                return $"那只{itemDesc}，市值{baseValue}第纳尔。最后一次机会——赔{total}第纳尔，否则后果自负。你认不认？";
         }
 
         /// <summary>当场被抓时的赔偿（×2 而非 ×3）</summary>
@@ -797,6 +799,7 @@ namespace LivingWorldNpcs
         public static void TransitionStage(WorldEvent evt, EventStage newStage)
         {
             if (evt.Stage == newStage) return;
+            var oldStage = evt.Stage;
             evt.Stage = newStage;
             evt._stageEnteredDay = (float)CampaignTime.Now.ToDays;
 
@@ -806,7 +809,7 @@ namespace LivingWorldNpcs
                 _villageAlertFlags[evt.TargetSettlementId] = true;
             }
 
-            DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage: {evt.Stage} → {newStage}");
+            DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage: {oldStage} → {newStage}");
             OnEventStageChanged?.Invoke(evt);
         }
 
