@@ -91,11 +91,12 @@ namespace LivingWorldNpcs.Story
             WorldEventStore.OnPlayerPaidRestitution(evt);
             PlayerTheftLedger.MarkCleared(evt.TargetSettlementId);
 
-            // 解决了 → 清除自首 Inquiry
-            ConfessWalkAwayIntent.PendingInquiryTitle = null;
-            ConfessWalkAwayIntent.PendingInquiryBody = null;
+            // 解决了 → 清除 WalkAway Inquiry
+            WalkAwayIntent.PendingInquiryTitle = null;
+            WalkAwayIntent.PendingInquiryBody = null;
 
             DebugLogger.Log($"[Accountability] Player paid restitution {cost} gold for {evt.EventId}");
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"赔了{cost}第纳尔。{authority?.Name?.ToString() ?? "村长"}收了钱，这事总算翻篇了。");
         }
     }
 
@@ -125,11 +126,13 @@ namespace LivingWorldNpcs.Story
             if (evt == null) return;
             WorldEventStore.OnCharmReprieve(evt);
 
-            // 魅力辩护成功 → 清除自首 Inquiry
-            ConfessWalkAwayIntent.PendingInquiryTitle = null;
-            ConfessWalkAwayIntent.PendingInquiryBody = null;
+            // 魅力辩护成功 → 清除 WalkAway Inquiry
+            WalkAwayIntent.PendingInquiryTitle = null;
+            WalkAwayIntent.PendingInquiryBody = null;
 
             DebugLogger.Log($"[Accountability] Charm defense succeeded for {evt.EventId} — suspect downgraded");
+            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"我设法说服了{giverName}，暂时洗脱了嫌疑。但他看我的眼神还是不太对……");
         }
 
         public override void OnFail(IntentContext ctx)
@@ -140,6 +143,8 @@ namespace LivingWorldNpcs.Story
             ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -10, false, true);
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
             DebugLogger.Log($"[Accountability] Charm defense failed for {evt.EventId} — → Confrontation");
+            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"辩解没用。{giverName}根本不买账，事态反而更严重了。");
         }
     }
 
@@ -189,6 +194,8 @@ namespace LivingWorldNpcs.Story
             // Intent 驱动：通知调查 Quest "嫌犯已锁定"
             var suspectHero = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
             string suspectName = suspectHero?.Name?.ToString() ?? "某人";
+            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"我成功把嫌疑推给了{suspectName}。{giverName}信了。");
             foreach (var q in Campaign.Current.QuestManager.Quests)
             {
                 if (q is CommissionQuest cq
@@ -214,6 +221,8 @@ namespace LivingWorldNpcs.Story
                 evt.InvestigationProgress = 1.0f;
                 WorldEventStore.TransitionStage(evt, EventStage.Active);
                 DebugLogger.Log($"[Accountability] Frame suspicion failed twice — suspect reverts to player");
+                var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+                CommissionQuest.AddNarrativeLogForEvent(evt, $"栽赃再次被识破——{giverName}已经不再相信我。嫌疑转回了我的头上。");
             }
         }
 
@@ -270,6 +279,8 @@ namespace LivingWorldNpcs.Story
             // 恶名+1
             InfamySystem.AddInfamy(1);
             DebugLogger.Log($"[Accountability] Threat succeeded for {evt.EventId}");
+            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"我放了狠话。{giverName}退缩了，不敢再追究。但我在这地方的名声怕是完了。");
         }
 
         public override void OnFail(IntentContext ctx)
@@ -279,6 +290,8 @@ namespace LivingWorldNpcs.Story
             if (evt == null) return;
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
             DebugLogger.Log($"[Accountability] Threat failed — → Confrontation");
+            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"威胁没吓住{giverName}——他叫人了。事情彻底闹大了。");
         }
     }
 
@@ -366,34 +379,32 @@ namespace LivingWorldNpcs.Story
             evt.SuspectHeroId = Hero.MainHero.StringId;
             evt.InvestigationProgress = 1.0f;
 
-            // 预设 Inquiry：对话结束时若未解决（付钱/Charm成功），则弹出。
-            // 对标 KCD2：认罪后逃跑 → NPC 当场翻脸。
-            var authority = WorldEventStore.GetAuthorityNpc(evt);
-            string npcName = authority?.Name?.ToString() ?? "村长";
-            string villageName = authority?.CurrentSettlement?.Name?.ToString() ?? "村子";
-            ConfessWalkAwayIntent.PendingInquiryTitle = "“站住！”";
-            ConfessWalkAwayIntent.PendingInquiryBody =
-                $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
-                $"“你以为认了就完了？！这事没完！”\n\n" +
-                $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。下次再见到{npcName}，可就不是商量那么简单了。";
-
             DebugLogger.Log($"[Accountability] Player confessed for {evt.EventId} — suspect=self, awaiting resolution");
+            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+            var itemName = "";
+            if (!string.IsNullOrEmpty(evt.TargetItemId))
+            {
+                var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
+                itemName = item?.Name?.ToString() ?? "";
+            }
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"我向{giverName}坦白了——那只{itemName}确实是我拿的。");
         }
     }
 
     #endregion
 
-    #region ConfessWalkAwayIntent
+    #region WalkAwayIntent
 
     /// <summary>
-    /// 自首后转身就走——玩家认罪了但拒绝赔钱/辩护，直接走人。
-    /// 立即将 Stage 推进到 Active（不再等 DailyTick），Inquiry 延迟到对话结束后弹出。
-    /// 对标 KCD2：认罪后逃跑 → NPC 当场翻脸，下次见面就是对峙。
+    /// 通用"转身就走"——不限于犯罪对话，任何场景下玩家选择离开。
+    /// 是否放玩家走取决于是否有活跃犯罪事件 + 玩家是否是嫌犯。
+    /// 对标 KCD2：嫌犯转身 = NPC 当场翻脸，Inquiry 延迟到对话结束后弹出；
+    /// 非嫌犯转身 = 自然结束，无后果。
     /// </summary>
-    public class ConfessWalkAwayIntent : IntentBase
+    public class WalkAwayIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Chat;
-        public override string DisplayName => "【自首后走人】转身就走";
+        public override string DisplayName => "【转身就走】我得走了。";
         public override NegotiationGoalType? Goal => null;  // 即时——不检定
 
         /// <summary>延迟到对话结束后弹出的 Inquiry 数据</summary>
@@ -402,23 +413,75 @@ namespace LivingWorldNpcs.Story
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
-            if (ctx.ActiveEvent.SuspectHeroId != Hero.MainHero.StringId) return Eligibility.Hide();
-            if (ctx.ActiveEvent.Stage != EventStage.Emerging && ctx.ActiveEvent.Stage != EventStage.Active)
-                return Eligibility.Hide();
+            // 始终可见——任何对话都可以选择离开
             return Eligibility.Show();
         }
 
         public override void OnInstant(IntentContext ctx)
         {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
+            var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
+            if (settlement == null) return;
 
-            // 玩家认罪后跑路 → 立即锁定嫌犯，Stage → Active（不等 DailyTick）
-            WorldEventStore.TransitionStage(evt, EventStage.Active);
-            DebugLogger.Log($"[Accountability] Player confessed then walked away for {evt.EventId} — stage → Active, confrontation pending");
+            var evt = WorldEventStore.FindActive(settlement.StringId);
+            if (evt == null) return; // 没有活跃犯罪事件 → 自然结束，无后果
 
-            // 通知调查 Quest 嫌犯已锁定（即玩家自己）
+            // ── 玩家是嫌犯 → NPC 不甘心放人 ──
+            if (evt.SuspectIsPlayer)
+            {
+                var authority = WorldEventStore.GetAuthorityNpc(evt);
+                string npcName = authority?.Name?.ToString() ?? "村长";
+                string villageName = authority?.CurrentSettlement?.Name?.ToString()
+                    ?? settlement.Name?.ToString() ?? "村子";
+
+                switch (evt.Stage)
+                {
+                    case EventStage.Emerging:
+                        // 自首后还没解决就跑 → 推进 stage + Inquiry 警告
+                        WorldEventStore.TransitionStage(evt, EventStage.Active);
+                        PendingInquiryTitle = "“站住！”";
+                        PendingInquiryBody =
+                            $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
+                            $"\"你以为认了就完了？！这事没完！\"\n\n" +
+                            $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
+                            $"下次再见到{npcName}，可就不是商量那么简单了。";
+                        NotifyInvestigationQuest(evt);
+                        DebugLogger.Log($"[Accountability] WalkAway (Emerging suspect): {evt.EventId} → Active");
+                        CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。身后传来{npcName}的怒吼——这事没完。");
+                        break;
+
+                    case EventStage.Active:
+                        // 对峙阶段跑路 → Inquiry 警告 + 信任惩罚
+                        PendingInquiryTitle = "“站住！”";
+                        PendingInquiryBody =
+                            $"你转身离开，身后传来{npcName}的怒吼——\n\n" +
+                            $"\"跑了？！好，{villageName}的人不会放过你！\"\n\n" +
+                            $"下次见面，就不会再跟你废话了。";
+                        if (authority != null)
+                            ChangeRelationAction.ApplyPlayerRelation(authority, -10, false, true);
+                        DebugLogger.Log($"[Accountability] WalkAway (Active suspect): {evt.EventId} — rep -10");
+                        CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。{npcName}气得发抖——下次见面不会跟我客气了。");
+                        break;
+
+                    case EventStage.Confrontation:
+                        // 报复阶段跑路 → 更严厉警告 + 触发报复 + 信任重罚
+                        PendingInquiryTitle = "“你跑不掉的！”";
+                        PendingInquiryBody =
+                            $"你转身就跑。身后{npcName}的吼声回荡——\n\n" +
+                            $"\"躲得过初一躲不过十五！{villageName}跟你不死不休！\"\n\n" +
+                            $"你在此地已是死敌。小心——他们雇的人随时可能出现。";
+                        if (authority != null)
+                            ChangeRelationAction.ApplyPlayerRelation(authority, -20, false, true);
+                        if (!evt.RetaliationSpawned)
+                            InvestigationEngine.SpawnRetaliationParty(evt);
+                        DebugLogger.Log($"[Accountability] WalkAway (Confrontation): {evt.EventId} — retaliation + rep -20");
+                        CommissionQuest.AddNarrativeLogForEvent(evt, $"我跑了。{npcName}追了出来——{villageName}跟我不死不休。");
+                        break;
+                }
+            }
+        }
+
+        private static void NotifyInvestigationQuest(WorldEvent evt)
+        {
             foreach (var q in Campaign.Current.QuestManager.Quests)
             {
                 if (q is CommissionQuest cq
@@ -429,8 +492,6 @@ namespace LivingWorldNpcs.Story
                     break;
                 }
             }
-
-            // Inquiry 由 ConfessIntent.OnInstant 预设，EndConversation 时弹出
         }
     }
 

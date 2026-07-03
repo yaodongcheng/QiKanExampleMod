@@ -2207,5 +2207,30 @@ namespace LivingWorldNpcs
         }
 
         #endregion
+
+        /// <summary>
+        /// 给关联当前 WorldEvent 的调查 Quest 加一条叙事日志（玩家视角的"冒险日记"）。
+        /// 遍历所有活跃 Quest，找到匹配 WorldEventId 的 CommissionQuest（Investigation 类别）并写入。
+        /// 如果没有活跃的调查 Quest（例如玩家未接任务就自首），静默跳过。
+        /// </summary>
+        public static void AddNarrativeLogForEvent(WorldEvent evt, string message)
+        {
+            if (evt == null || string.IsNullOrEmpty(message)) return;
+            try
+            {
+                foreach (var q in Campaign.Current?.QuestManager?.Quests ?? Enumerable.Empty<QuestBase>())
+                {
+                    if (q is CommissionQuest cq
+                        && cq.Data?.WorldEventId == evt.EventId
+                        && cq.Data?.Category == CommissionCategory.Investigation)
+                    {
+                        cq.AddLog(new TextObject(message));
+                        return;
+                    }
+                }
+            }
+            catch { /* 日志失败不影响游戏逻辑 */ }
+        }
+
     }
 }
