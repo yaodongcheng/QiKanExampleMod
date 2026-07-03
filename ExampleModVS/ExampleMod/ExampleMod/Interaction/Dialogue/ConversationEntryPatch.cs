@@ -3,6 +3,7 @@ using SandBox.Conversation.MissionLogics;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using LivingWorldNpcs.Story;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.Conversation;
@@ -100,6 +101,7 @@ namespace LivingWorldNpcs
         #region Postfix —— 定居点犯罪对话注入（交谈 + 造访两路共用）
 
         internal static string _lastInjectedEventId;
+        internal static string _lastInjectedTag;
 
         /// <summary>
         /// 共享注入逻辑：检查定居点犯罪事件，构建并注入犯罪对话。
@@ -119,18 +121,30 @@ namespace LivingWorldNpcs
 
                 var evt = WorldEventStore.FindActive(settlement.StringId);
                 if (evt == null)
+                {
+                    // 事件已不存在（Resolved/Unsolved）→ 清理上次注入的旧对话残留
+                    if (_lastInjectedTag != null)
+                    {
+                        DialogueInjector.RemoveRelatedLines(_lastInjectedTag);
+                        DebugLogger.Log($"[ConvEntry] Cleaned up stale crime dialogue: tag={_lastInjectedTag}");
+                        _lastInjectedTag = null;
+                        _lastInjectedEventId = null;
+                    }
                     return;
+                }
 
                 if (_lastInjectedEventId == evt.EventId + "_" + partner.StringId)
                     return;
 
-                DialogueInjector.RemoveRelatedLines($"crime_{evt.EventId}");
+                string tag = $"crime_{evt.EventId}";
+                DialogueInjector.RemoveRelatedLines(tag);
 
                 var script = CrimeDialogueBuilder.BuildScript(partner, Hero.MainHero);
                 if (script != null && script.Turns != null && script.Turns.Count > 0)
                 {
-                    DialogueInjector.InjectScript(script, $"crime_{evt.EventId}");
+                    DialogueInjector.InjectScript(script, tag);
                     _lastInjectedEventId = evt.EventId + "_" + partner.StringId;
+                    _lastInjectedTag = tag;
                     DebugLogger.Log($"[ConvEntry] Injected crime dialogue: event={evt.EventId} stage={evt.Stage} partner={partner.Name} turns={script.Turns.Count}");
                 }
             }
@@ -169,6 +183,20 @@ namespace LivingWorldNpcs
         public static void Postfix()
         {
             ConversationEntryPatch._lastInjectedEventId = null;
+            ConversationEntryPatch._lastInjectedTag = null;
+
+            // 延迟弹出：ConfessWalkAwayIntent 存入的 Inquiry，等对话 UI 完全关闭后再弹
+            if (ConfessWalkAwayIntent.PendingInquiryTitle != null)
+            {
+                string title = ConfessWalkAwayIntent.PendingInquiryTitle;
+                string body = ConfessWalkAwayIntent.PendingInquiryBody;
+                ConfessWalkAwayIntent.PendingInquiryTitle = null;
+                ConfessWalkAwayIntent.PendingInquiryBody = null;
+                InformationManager.ShowInquiry(new InquiryData(
+                    title, body,
+                    true, false,
+                    "……", null, null, null));
+            }
         }
     }
 

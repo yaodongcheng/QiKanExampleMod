@@ -361,6 +361,67 @@ namespace LivingWorldNpcs.Story
 
     #endregion
 
+    #region ConfessWalkAwayIntent
+
+    /// <summary>
+    /// 自首后转身就走——玩家认罪了但拒绝赔钱/辩护，直接走人。
+    /// 立即将 Stage 推进到 Active（不再等 DailyTick），Inquiry 延迟到对话结束后弹出。
+    /// 对标 KCD2：认罪后逃跑 → NPC 当场翻脸，下次见面就是对峙。
+    /// </summary>
+    public class ConfessWalkAwayIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.Chat;
+        public override string DisplayName => "【自首后走人】转身就走";
+        public override NegotiationGoalType? Goal => null;  // 即时——不检定
+
+        /// <summary>延迟到对话结束后弹出的 Inquiry 数据</summary>
+        internal static string PendingInquiryTitle;
+        internal static string PendingInquiryBody;
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            if (ctx.ActiveEvent == null) return Eligibility.Hide();
+            if (ctx.ActiveEvent.SuspectHeroId != Hero.MainHero.StringId) return Eligibility.Hide();
+            if (ctx.ActiveEvent.Stage != EventStage.Emerging && ctx.ActiveEvent.Stage != EventStage.Active)
+                return Eligibility.Hide();
+            return Eligibility.Show();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            var evt = ctx.ActiveEvent;
+            if (evt == null) return;
+
+            // 玩家认罪后跑路 → 立即锁定嫌犯，Stage → Active（不等 DailyTick）
+            WorldEventStore.TransitionStage(evt, EventStage.Active);
+            DebugLogger.Log($"[Accountability] Player confessed then walked away for {evt.EventId} — stage → Active, confrontation pending");
+
+            // 通知调查 Quest 嫌犯已锁定（即玩家自己）
+            foreach (var q in Campaign.Current.QuestManager.Quests)
+            {
+                if (q is CommissionQuest cq
+                    && cq.Data?.WorldEventId == evt.EventId
+                    && cq.Data?.Category == CommissionCategory.Investigation)
+                {
+                    cq.NotifySuspectIdentified(Hero.MainHero.Name?.ToString() ?? "你");
+                    break;
+                }
+            }
+
+            // 不在此刻弹 Inquiry（会盖在对话 UI 上）——存起来，等 EndConversation 再弹
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            string npcName = authority?.Name?.ToString() ?? "村长";
+            string villageName = authority?.CurrentSettlement?.Name?.ToString() ?? "村子";
+            PendingInquiryTitle = "“站住！”";
+            PendingInquiryBody =
+                $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
+                $"“你以为认了就完了？！这事没完！”\n\n" +
+                $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。下次再见到{npcName}，可就不是商量那么简单了。";
+        }
+    }
+
+    #endregion
+
     #region SilenceWitnessIntent
 
     public class SilenceWitnessIntent : IntentBase
