@@ -1838,44 +1838,89 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 由 Intent（FrameSuspectIntent 等）调用：通知调查 Quest "嫌犯已锁定"。
-        /// 只加日志，不完成 Quest——Quest 完成由后续 Intent（如 AcceptBountyQuest）负责。
+        /// 嫌犯=玩家时只更新进度不进入 Phase 3（领取报酬），后续走对峙/betray 路线。
+        /// 嫌犯≠玩家时正常进入 Phase 3。
         /// </summary>
         public void NotifySuspectIdentified(string suspectName)
         {
             if (_data == null || _suspectIdentifiedLogged) return;
             _suspectIdentifiedLogged = true;
             string giverName = QuestGiver?.Name?.ToString() ?? "委托人";
-            AddLog(new TextObject($"调查取得进展——嫌犯锁定为{suspectName}。回去向{giverName}汇报。"));
-            UpdateProgress(_totalProgress);
-            DebugLogger.Log($"[CommissionQuest] NotifySuspectIdentified: {StringId} suspect={suspectName}");
+
+            // 判断嫌犯是不是玩家自己
+            bool suspectIsPlayer = suspectName == Hero.MainHero.Name?.ToString();
+            if (!suspectIsPlayer && !string.IsNullOrEmpty(_data.WorldEventId))
+            {
+                var evt = WorldEventStore.Find(_data.WorldEventId);
+                if (evt != null)
+                    suspectIsPlayer = evt.SuspectHeroId == Hero.MainHero.StringId;
+            }
+
+            if (suspectIsPlayer)
+            {
+                // 嫌犯=玩家：进度更新但不领报酬，后续由对峙 Intent 处理
+                _currentProgress = _totalProgress;
+                if (_progressLog != null)
+                    _progressLog.UpdateCurrentProgress(_currentProgress);
+                _data.IsObjectivesComplete = true;
+                AddLog(new TextObject($"调查取得进展——嫌犯锁定为{suspectName}。回去向{giverName}汇报。"));
+                DebugLogger.Log($"[CommissionQuest] NotifySuspectIdentified: {StringId} suspect=self — progress={_currentProgress}/{_totalProgress}, Phase 3 skipped (confrontation path)");
+            }
+            else
+            {
+                AddLog(new TextObject($"调查取得进展——嫌犯锁定为{suspectName}。回去向{giverName}汇报。"));
+                UpdateProgress(_totalProgress);
+                DebugLogger.Log($"[CommissionQuest] NotifySuspectIdentified: {StringId} suspect={suspectName}");
+            }
         }
 
         /// <summary>
         /// WorldEvent 阶段变化回调（仅 Investigation Quest 注册）。
-        /// 处理 NPC 后台调查查出嫌犯的 case（非玩家 Intent 驱动）。
-        /// Intent 驱动的更新在 Intent.OnSuccess 中直接调用 NotifySuspectIdentified，
-        /// 会先设置 _suspectIdentifiedLogged=true，此回调检测到后跳过。
+        /// 处理 NPC 后台调查查出嫌犯的 case（非玩家 Intent 驱动），
+        /// 也统一处理嫌犯=玩家时的背叛结局。
         /// </summary>
         private void OnWorldEventStageChangedForQuest(WorldEvent evt)
         {
             if (_data == null) return;
             if (evt.EventId != _data.WorldEventId) return;
             if (_data.Category != CommissionCategory.Investigation) return;
+            if (!IsOngoing) return; // 已被别处结束
+
+            bool suspectIsPlayer = evt.SuspectHeroId == Hero.MainHero.StringId;
 
             if (evt.Stage == EventStage.Active && !string.IsNullOrEmpty(evt.SuspectHeroId) && !_suspectIdentifiedLogged)
             {
                 var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
                 NotifySuspectIdentified(suspect?.Name?.ToString() ?? "某人");
-                DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active (NPC investigation found suspect)");
+                DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active (suspect identified)");
+
+                // 嫌犯=玩家 → 调查任务直接背叛结局（WalkAway / 自首后跑路 / NPC查出玩家）
+                if (suspectIsPlayer)
+                {
+                    AddLog(new TextObject("调查指向了我自己。委托人不会再信任我了。"));
+                    CompleteQuestWithBetrayal(new TextObject("背叛了委托人的信任——贼喊捉贼。"));
+                    DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active suspect=self → Betrayal");
+                }
             }
             else if (evt.Stage == EventStage.Resolved)
             {
-                // 案件已结案（赔款/威胁/嫌犯已交付等）→ 关闭调查委托
-                if (_data.IsObjectivesComplete) return; // 已通过其他路径完成
+                if (_data.IsObjectivesComplete && !suspectIsPlayer) return; // 非嫌犯且已完成 → 跳过
+
                 _data.IsObjectivesComplete = true;
-                AddLog(new TextObject("案件已结案，调查委托自动完成。"));
-                CompleteQuestWithSuccess();
-                DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Resolved — investigation quest auto-completed");
+
+                if (suspectIsPlayer)
+                {
+                    // 嫌犯=玩家 → 背叛结局（赔钱了事 / 威胁成功 / 以工抵债完成）
+                    AddLog(new TextObject("案件已结案。虽然事情摆平了，但委托人知道我是贼。"));
+                    CompleteQuestWithBetrayal(new TextObject("罪行败露，被迫承担责任。"));
+                    DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Resolved suspect=self → Betrayal");
+                }
+                else
+                {
+                    AddLog(new TextObject("案件已结案，调查委托自动完成。"));
+                    CompleteQuestWithSuccess();
+                    DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Resolved — investigation quest auto-completed");
+                }
             }
         }
 
