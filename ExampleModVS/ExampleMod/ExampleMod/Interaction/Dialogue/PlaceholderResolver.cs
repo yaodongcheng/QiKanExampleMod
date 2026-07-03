@@ -222,6 +222,7 @@ namespace LivingWorldNpcs
                 // H. 选项参数
                 case "RestitutionCost": return (evt?.ComputeRestitutionCost() ?? 0).ToString();
                 case "RestitutionCostOnSpot": return (evt?.ComputeOnSpotCost() ?? 0).ToString();
+                case "RestitutionBreakdown": return evt?.GetRestitutionBreakdown() ?? "";
                 case "BountyAmount": return (evt?.ComputeBountyAmount() ?? 0).ToString();
                 case "CharmReprieveUsed": return (evt?.CharmReprieveUsed == true).ToString().ToLower();
                 case "FailCount": return (evt?.FailCount ?? 0).ToString();

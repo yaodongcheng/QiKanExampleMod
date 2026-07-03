@@ -162,6 +162,7 @@ namespace LivingWorldNpcs
                     NextTurn = "confess"
                 });
                 turns.Add(BuildConfessTurn(r, ctx));
+                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "confess_close"));
                 turns.Add(BuildClosingTurn(r, "confess_close"));
             }
 
@@ -179,10 +180,9 @@ namespace LivingWorldNpcs
                 {
                     new DialogueInjector.DialogueInjectOption
                     {
-                        PlayerLine = r.Resolve("我愿意赔（{RestitutionCost} 第纳尔）"),
-                        NpcResponse = r.Resolve("好，钱留下，这事就算了。"),
-                        Action = "INTENT:PayRestitution",
-                        NextTurn = "confess_close"
+                        PlayerLine = r.Resolve("我愿意赔。你说个数。"),
+                        Action = "NONE",
+                        NextTurn = "restitution_detail"
                     },
                     new DialogueInjector.DialogueInjectOption
                     {
@@ -193,6 +193,33 @@ namespace LivingWorldNpcs
                         NextTurn = "confess_close"
                     },
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "INTENT:ConfessWalkAway", NextTurn = "confess_close" },
+                }
+            };
+        }
+
+        /// <summary>赔偿明细 turn：NPC 解释赔偿金额怎么算的 → 玩家选接受/不接受</summary>
+        private static DialogueInjector.DialogueInjectTurn BuildRestitutionDetailTurn(PlaceholderResolver r, IntentContext ctx, string turnId, string declineTurn)
+        {
+            return new DialogueInjector.DialogueInjectTurn
+            {
+                Id = turnId,
+                SpeakerIndex = 0,
+                NpcLine = r.Resolve("{RestitutionBreakdown}", "NpcLine"),
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = r.Resolve("好，我赔（{RestitutionCost} 第纳尔）"),
+                        NpcResponse = r.Resolve("好，钱留下，这事就算了。"),
+                        Action = "INTENT:PayRestitution",
+                        NextTurn = "close_window"
+                    },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "太贵了，不赔。",
+                        Action = "NONE",
+                        NextTurn = declineTurn
+                    },
                 }
             };
         }
@@ -267,6 +294,7 @@ namespace LivingWorldNpcs
                     NextTurn = "confess"
                 });
                 turns.Add(BuildConfessTurn(r, ctx));
+                turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "confess_close"));
                 turns.Add(BuildClosingTurn(r, "confess_close"));
             }
 
@@ -293,10 +321,9 @@ namespace LivingWorldNpcs
                     },
                     new DialogueInjector.DialogueInjectOption
                     {
-                        PlayerLine = r.Resolve("这是赔偿，够不够？（{RestitutionCost} 第纳尔）"),
-                        NpcResponse = r.Resolve("好，钱留下，这事就算了。"),
-                        Action = "INTENT:PayRestitution",
-                        NextTurn = "confront_close"
+                        PlayerLine = "赔偿的事……你要多少？",
+                        Action = "NONE",
+                        NextTurn = "restitution_detail"
                     },
                     new DialogueInjector.DialogueInjectOption
                     {
@@ -310,6 +337,9 @@ namespace LivingWorldNpcs
                 }
             };
             turns.Add(turn);
+
+            // 赔偿明细 turn：NPC 解释金额 → 接受/不接受
+            turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "confront_close"));
 
             // 收尾 turn：NPC 最后一句 + 关闭窗口
             turns.Add(new DialogueInjector.DialogueInjectTurn
