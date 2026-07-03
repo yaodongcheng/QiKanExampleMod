@@ -192,7 +192,7 @@ namespace LivingWorldNpcs
                         Action = "INTENT:CharmDefense",
                         NextTurn = "confess_close"
                     },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "NONE", NextTurn = "confess_close" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "（转身就走）", Action = "INTENT:ConfessWalkAway", NextTurn = "confess_close" },
                 }
             };
         }

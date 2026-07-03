@@ -71,6 +71,7 @@ namespace LivingWorldNpcs.Story
             Register(new ThreatIntent());
             Register(new InvestigateIntent());
             Register(new ConfessIntent());
+            Register(new ConfessWalkAwayIntent());
             Register(new SilenceWitnessIntent());
             Register(new LeadRetaliationIntent());
             Register(new PayOnTheSpotIntent());

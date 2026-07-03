@@ -1860,13 +1860,21 @@ namespace LivingWorldNpcs
             if (_data == null) return;
             if (evt.EventId != _data.WorldEventId) return;
             if (_data.Category != CommissionCategory.Investigation) return;
-            if (_suspectIdentifiedLogged) return;
 
-            if (evt.Stage == EventStage.Active && !string.IsNullOrEmpty(evt.SuspectHeroId))
+            if (evt.Stage == EventStage.Active && !string.IsNullOrEmpty(evt.SuspectHeroId) && !_suspectIdentifiedLogged)
             {
                 var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
                 NotifySuspectIdentified(suspect?.Name?.ToString() ?? "某人");
                 DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active (NPC investigation found suspect)");
+            }
+            else if (evt.Stage == EventStage.Resolved)
+            {
+                // 案件已结案（赔款/威胁/嫌犯已交付等）→ 关闭调查委托
+                if (_data.IsObjectivesComplete) return; // 已通过其他路径完成
+                _data.IsObjectivesComplete = true;
+                AddLog(new TextObject("案件已结案，调查委托自动完成。"));
+                CompleteQuestWithSuccess();
+                DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Resolved — investigation quest auto-completed");
             }
         }
 

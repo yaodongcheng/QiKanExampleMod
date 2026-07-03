@@ -386,6 +386,14 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[DialogueInjector] Intent {intentName} hidden by Evaluate");
                     return;
                 }
+                if (eligibility.State == EligState.Disabled)
+                {
+                    string reason = !string.IsNullOrEmpty(eligibility.Reason)
+                        ? eligibility.Reason : "现在不行。";
+                    InformationManager.DisplayMessage(new InformationMessage(reason));
+                    DebugLogger.Log($"[DialogueInjector] Intent {intentName} disabled: {eligibility.Reason}");
+                    return;
+                }
                 //不需要检定
                 if (intent.Goal == null)
                 {
@@ -472,7 +480,7 @@ namespace LivingWorldNpcs
 
                         var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
                         pdf.AddPlayerLine($"inj_opt_{turn.Id}", afterNpcLine, afterPlayer,
-                            opt.PlayerLine ?? "...", () => true, () => ExecuteAction(opt), owner, 125);
+                            opt.PlayerLine ?? "...", BuildOptionCondition(opt), () => ExecuteAction(opt), owner, 125);
                         cm.AddDialogFlow(pdf, owner);
 
                         RegisterNpcResponseLines(cm, turn, opt, afterPlayer, afterNpcResponse, fileTag);
@@ -483,6 +491,40 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[DialogueInjector] InjectScriptInternal error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 构建 AddPlayerLine 的条件委托：对 INTENT:xxx 选项，显示时跑 Evaluate 决定可见性。
+        /// Hidden → 不显示；Disabled/Enabled → 显示（Disabled 的反馈在 ExecuteIntentAction 中给）。
+        /// 非 INTENT 选项（NONE 等）→ 始终显示。
+        /// </summary>
+        private static ConversationSentence.OnConditionDelegate BuildOptionCondition(DialogueInjectOption opt)
+        {
+            if (string.IsNullOrEmpty(opt.Action) || !opt.Action.StartsWith("INTENT:"))
+                return () => true;
+
+            string intentName = opt.Action.Substring("INTENT:".Length);
+            var intent = LivingWorldNpcs.Story.IntentRegistry.FindByName(intentName);
+            if (intent == null) return () => true;
+
+            return () =>
+            {
+                try
+                {
+                    var npc = Hero.OneToOneConversationHero;
+                    var settlement = npc?.CurrentSettlement;
+                    var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
+                    var ctx = new LivingWorldNpcs.Story.IntentContext
+                    {
+                        Hero = npc,
+                        Player = Hero.MainHero,
+                        ActiveEvent = evt
+                    };
+                    var eligibility = intent.Evaluate(ctx);
+                    return eligibility.State != EligState.Hidden;
+                }
+                catch { return true; } // 出错时兜底显示
+            };
         }
 
         /// <summary>
