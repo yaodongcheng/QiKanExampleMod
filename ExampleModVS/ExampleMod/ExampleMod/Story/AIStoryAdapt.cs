@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     public class AIScriptRoot
     {

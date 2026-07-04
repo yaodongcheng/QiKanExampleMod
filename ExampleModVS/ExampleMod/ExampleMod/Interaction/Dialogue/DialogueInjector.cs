@@ -1,10 +1,9 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using LivingWorldNpcs.Story;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -120,7 +119,7 @@ namespace LivingWorldNpcs
                         var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
                         pdf.AddPlayerLine(
                             $"inj_opt_{Guid.NewGuid():N}", afterNpcLine, afterPlayer,
-                            opt.PlayerLine ?? "…",
+                            ResolveOptionText(opt),
                             () => true,
                             () => ExecuteAction(opt),
                             owner, 125);
@@ -341,7 +340,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var intent = LivingWorldNpcs.Story.IntentRegistry.FindByName(intentName);
+                var intent = LivingWorldNpcs.IntentRegistry.FindByName(intentName);
                 if (intent == null)
                 {
                     DebugLogger.Log($"[DialogueInjector] Intent not found: {intentName}");
@@ -376,9 +375,9 @@ namespace LivingWorldNpcs
                     ctx.ActiveEvent = WorldEventStore.FindActive(settlement.StringId);
                 }
 
-                // 注入 ActionParam（栽赃目标 ID 等）
+                // 注入 ActionParam（JSON → IntentContext，各 Intent 自行解析）
                 if (!string.IsNullOrEmpty(actionParam))
-                    ctx.FrameTargetId = actionParam;
+                    ctx.ActionParam = actionParam;
 
                 var eligibility = intent.Evaluate(ctx);
                 if (eligibility.State == EligState.Hidden)
@@ -502,7 +501,7 @@ namespace LivingWorldNpcs
 
                         var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
                         pdf.AddPlayerLine($"inj_opt_{turn.Id}", afterNpcLine, afterPlayer,
-                            opt.PlayerLine ?? "...", BuildOptionCondition(opt), () => ExecuteAction(opt), owner, 125);
+                            ResolveOptionText(opt), BuildOptionCondition(opt), () => ExecuteAction(opt), owner, 125);
                         cm.AddDialogFlow(pdf, owner);
 
                         if (needsBridge)
@@ -519,6 +518,25 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 解析选项显示文本：JSON PlayerLine 优先 → INTENT:xxx 的 DisplayName 兜底 → "…"
+        /// </summary>
+        private static string ResolveOptionText(DialogueInjectOption opt)
+        {
+            if (!string.IsNullOrEmpty(opt.PlayerLine))
+                return opt.PlayerLine;
+
+            if (!string.IsNullOrEmpty(opt.Action) && opt.Action.StartsWith("INTENT:"))
+            {
+                string intentName = opt.Action.Substring("INTENT:".Length);
+                var intent = LivingWorldNpcs.IntentRegistry.FindByName(intentName);
+                if (intent != null && !string.IsNullOrEmpty(intent.DisplayName))
+                    return intent.DisplayName;
+            }
+
+            return "…";
+        }
+
+        /// <summary>
         /// 构建 AddPlayerLine 的条件委托：对 INTENT:xxx 选项，显示时跑 Evaluate 决定可见性。
         /// Hidden → 不显示；Disabled/Enabled → 显示（Disabled 的反馈在 ExecuteIntentAction 中给）。
         /// 非 INTENT 选项（NONE 等）→ 始终显示。
@@ -529,7 +547,7 @@ namespace LivingWorldNpcs
                 return () => true;
 
             string intentName = opt.Action.Substring("INTENT:".Length);
-            var intent = LivingWorldNpcs.Story.IntentRegistry.FindByName(intentName);
+            var intent = LivingWorldNpcs.IntentRegistry.FindByName(intentName);
             if (intent == null) return () => true;
 
             return () =>
@@ -539,7 +557,7 @@ namespace LivingWorldNpcs
                     var npc = Hero.OneToOneConversationHero;
                     var settlement = npc?.CurrentSettlement;
                     var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
-                    var ctx = new LivingWorldNpcs.Story.IntentContext
+                    var ctx = new LivingWorldNpcs.IntentContext
                     {
                         Hero = npc,
                         Player = Hero.MainHero,

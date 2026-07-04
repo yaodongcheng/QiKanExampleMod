@@ -923,7 +923,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 尝试为犯罪事件的权威 NPC 生成追责 Quest。
+        /// 尝试为犯罪事件的权威 NPC 生成追责 Quest 数据（不创建 Quest，仅返回 CommissionData）。
         /// 返回 null = 无需生成或不符合条件。
         /// </summary>
         internal static CommissionData TryGenerateAccountabilityQuest(Hero hero)

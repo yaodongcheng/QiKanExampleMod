@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -7,7 +7,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     /// <summary>
     /// 追责相关 Intent（14 个）。
@@ -22,41 +22,22 @@ namespace LivingWorldNpcs.Story
 
     #region InteractionOptionType Extension
 
-    // 追责 Intent 使用自定义 Type（不冲突现有枚举）
-    public enum AccountabilityOptionType
-    {
-        // 核心追责
-        PayRestitution,        // 赔钱消灾
-        CharmDefense,          // Charm 辩护
-        FrameSuspect,          // 栽赃嫁祸
-        Threat,                // 威胁
-        Investigate,           // 接调查 Quest
-        Confess,               // 自首——低头认罪，跳转讨价还价 turn
-        SilenceWitness,        // 收买/吓唬目击者
-        LeadRetaliation,       // 带队报复
-
-        // 当面对峙（Mission 内）
-        PayOnTheSpot,          // 当场赔钱 ×2
-        WorkOffDebt,           // 干活抵债
-        FleeFromConfrontation, // 推开逃跑
-        FightVillagers,        // 拔剑
-
-        // 追捕
-        BetrayQuest,           // 背叛 Quest
-        InnocenceProof,        // 被冤枉时证明清白
-        Arrest,                // 直接抓捕
-        LureArrest,            // 诱捕
-        AcceptBountyQuest,     // 接悬赏 Quest
-        Settle,                // 和解劝说（报复阶段）
-    }
+    // AccountabilityOptionType 已删除 — 追责 Intent 现在使用 InteractionOptionType 枚举新增值。
+    // 这些值在 InteractionOptionManager.cs 中定义：PayRestitution, CharmDefense, FrameSuspect, Threat,
+    // Investigate, Confess, SilenceWitness, LeadRetaliation, WorkOffDebt,
+    // BetrayQuest, InnocenceProof, Settle, AcceptBountyQuest, LureArrest, Arrest
 
     #endregion
 
     #region PayRestitutionIntent
 
+    /// <summary>
+    /// 赔钱消灾 — 合并原 PayRestitutionIntent 和 PayOnTheSpotIntent。
+    /// Mission 场景内当场被抓 → ComputeOnSpotCost（2倍私了价）；正式对话协商 → ComputeRestitutionCost（标准赔偿）。
+    /// </summary>
     public class PayRestitutionIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.PayRestitution;
         public override string DisplayName => "【赔钱消灾】我愿意赔偿损失";
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
@@ -64,13 +45,16 @@ namespace LivingWorldNpcs.Story
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
             if (ctx.ActiveEvent.InitiatorId != Hero.MainHero.StringId) return Eligibility.Hide();
-            // 赔钱在 Active/Confrontation 阶段始终可用；Emerging 阶段只有自首后（SuspectHeroId=玩家）才可用
+
+            // 正式对话：赔钱在 Active/Confrontation 阶段始终可用；Emerging 阶段只有自首后（SuspectHeroId=玩家）才可用
             bool stageOk = ctx.ActiveEvent.Stage == EventStage.Active
                         || ctx.ActiveEvent.Stage == EventStage.Confrontation
                         || (ctx.ActiveEvent.Stage == EventStage.Emerging && ctx.ActiveEvent.SuspectHeroId == Hero.MainHero.StringId);
             if (!stageOk) return Eligibility.Hide();
 
-            int cost = ctx.ActiveEvent.ComputeRestitutionCost();
+            int cost = ctx.IsInMission
+                ? ctx.ActiveEvent.ComputeOnSpotCost()
+                : ctx.ActiveEvent.ComputeRestitutionCost();
             if (Hero.MainHero.Gold < cost)
                 return Eligibility.Grey($"钱不够（需要 {cost} 第纳尔）");
             return Eligibility.Show();
@@ -81,7 +65,8 @@ namespace LivingWorldNpcs.Story
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
 
-            int cost = evt.ComputeRestitutionCost();
+            bool isOnSpot = ctx.IsInMission;
+            int cost = isOnSpot ? evt.ComputeOnSpotCost() : evt.ComputeRestitutionCost();
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             if (authority != null)
                 AgentControlHelper.TransferGold(Hero.MainHero, authority, cost);
@@ -95,7 +80,8 @@ namespace LivingWorldNpcs.Story
             WalkAwayIntent.PendingInquiryTitle = null;
             WalkAwayIntent.PendingInquiryBody = null;
 
-            DebugLogger.Log($"[Accountability] Player paid restitution {cost} gold for {evt.EventId}");
+            string sceneTag = isOnSpot ? "[OnSpot]" : "";
+            DebugLogger.Log($"[Accountability]{sceneTag} Player paid restitution {cost} gold for {evt.EventId}");
             CommissionQuest.AddNarrativeLogForEvent(evt, $"赔了{cost}第纳尔。{authority?.Name?.ToString() ?? "村长"}收了钱，这事总算翻篇了。");
         }
     }
@@ -106,7 +92,7 @@ namespace LivingWorldNpcs.Story
 
     public class CharmDefenseIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.CharmDefense;
         public override string DisplayName => "【Charm 辩护】你们搞错了，给我个机会说清楚";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
@@ -154,7 +140,7 @@ namespace LivingWorldNpcs.Story
 
     public class FrameSuspectIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.FrameSuspect;
         public override string DisplayName => "【栽赃】是别人干的！";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
@@ -171,12 +157,13 @@ namespace LivingWorldNpcs.Story
         /// <summary>有效证据时提升成功率：+20 相当于出示物证的说服力加成</summary>
         public override float GetOfferValue(IntentContext ctx)
         {
-            if (!string.IsNullOrEmpty(ctx.FrameTargetId) && ctx.FrameTargetId != "bandit")
+            var target = ctx.ActionParam;
+            if (!string.IsNullOrEmpty(target) && target != "bandit")
             {
-                if (TheftLedger.HasRecordFor(ctx.FrameTargetId))
-                    return 0.6f;  // 有证物 → 高说服力
+                if (TheftLedger.HasRecordFor(target))
+                    return 0.6f;
             }
-            return 0.2f;  // 无证物 → 裸过
+            return 0.2f;
         }
 
         public override void OnSuccess(IntentContext ctx)
@@ -184,8 +171,7 @@ namespace LivingWorldNpcs.Story
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
 
-            // 从 IntentContext 获取当前选定的栽赃目标
-            string targetId = ctx.FrameTargetId ?? "bandit";
+            string targetId = ctx.ActionParam ?? "bandit";
             evt.SuspectHeroId = targetId == "bandit" ? GetBanditLeaderId() : targetId;
             evt.InvestigationProgress = 1.0f;
             WorldEventStore.TransitionStage(evt, EventStage.Active);
@@ -257,7 +243,7 @@ namespace LivingWorldNpcs.Story
 
     public class ThreatIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.Threat;
         public override string DisplayName => "【威胁】你再说一遍？（手按在剑柄上）";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
@@ -301,7 +287,7 @@ namespace LivingWorldNpcs.Story
 
     public class InvestigateIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.Investigate;
         public override string DisplayName => "【接调查任务】我可以帮忙查查是谁干的";
         public override NegotiationGoalType? Goal => null; // 即时类
 
@@ -321,22 +307,18 @@ namespace LivingWorldNpcs.Story
             evt.PlayerTookInvestigationQuest = true;
             DebugLogger.Log($"[Accountability] Player accepted investigation quest for {evt.EventId}");
 
-            // 创建实际的 CommissionQuest 并加入 Journal
+            // Quest 只能从 Issue 生——走统一入口
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             if (authority != null)
             {
-                var data = CommissionGenerator.TryGenerateAccountabilityQuest(authority);
-                if (data != null)
+                if (authority.Issue is CommissionHubIssue issue)
                 {
-                    string questId = $"investigate_{evt.EventId}";
-                    var quest = new CommissionQuest(questId, data);
-                    quest.StartQuest();
-                    DebugLogger.Log($"[Accountability] Investigation quest STARTED: {questId} giver={authority.Name}");
+                    var quest = issue.AcceptQuest();
+                    if (quest == null)
+                        DebugLogger.Log($"[Accountability] AcceptQuest returned null for {evt.EventId} (no WorldEvent data on {authority.Name}?)");
                 }
                 else
-                {
-                    DebugLogger.Log($"[Accountability] TryGenerateAccountabilityQuest returned null for {evt.EventId}");
-                }
+                    DebugLogger.Log($"[Accountability] No CommissionHubIssue on {authority.Name} for {evt.EventId}");
             }
             else
             {
@@ -356,8 +338,8 @@ namespace LivingWorldNpcs.Story
     /// </summary>
     public class ConfessIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat;
-        public override string DisplayName => "【自首】（低头）是我干的";
+        public override InteractionOptionType Type => InteractionOptionType.Confess;
+        public override string DisplayName => "【自首】是我干的";
         public override NegotiationGoalType? Goal => null;  // 即时类——不检定，直接跳转
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -391,16 +373,15 @@ namespace LivingWorldNpcs.Story
     #region WalkAwayIntent
 
     /// <summary>
-    /// 通用"转身就走"——不限于犯罪对话，任何场景下玩家选择离开。
-    /// 是否放玩家走取决于是否有活跃犯罪事件 + 玩家是否是嫌犯。
-    /// 对标 KCD2：嫌犯转身 = NPC 当场翻脸，Inquiry 延迟到对话结束后弹出；
-    /// 非嫌犯转身 = 自然结束，无后果。
+    /// 通用"离开"——合并原 WalkAwayIntent 和 FleeFromConfrontationIntent。
+    /// 对话内（IsInMission=false）：自然结束对话，嫌犯根据事件阶段触发 NPC 警告 + 关系惩罚。
+    /// Mission 场景内（IsInMission=true）：武力推开逃跑，走 Intimidate 检定 → 成功逃脱 / 失败被捕 + 事件升级。
     /// </summary>
     public class WalkAwayIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat;
-        public override string DisplayName => "【转身就走】我得走了。";
-        public override NegotiationGoalType? Goal => null;  // 即时——不检定
+        public override InteractionOptionType Type => InteractionOptionType.Leave;
+        public override string DisplayName => "【离开】";
+        public override NegotiationGoalType? Goal => null;  // 即时——不检定（Mission 逃脱在 OnInstant 内部掷骰）
 
         /// <summary>延迟到对话结束后弹出的 Inquiry 数据</summary>
         internal static string PendingInquiryTitle;
@@ -414,6 +395,20 @@ namespace LivingWorldNpcs.Story
 
         public override void OnInstant(IntentContext ctx)
         {
+            // ── Mission 场景内 → 武力逃跑（内部 Intimidate 检定）──
+            if (ctx.IsInMission && ctx.ActiveEvent != null)
+            {
+                var roll = SingleRollResolver.SimpleCompute(ctx, NegotiationTactic.Flatter, 0f);
+                bool success = SingleRollResolver.Roll(roll.Chance);
+                DebugLogger.Log($"[WalkAway] Mission flee: chance={roll.Chance:P0} success={success}");
+                if (success)
+                    OnFleeSuccess(ctx);
+                else
+                    OnFleeFail(ctx);
+                return;
+            }
+
+            // ── 对话内 → 自然离开（原 WalkAway 逻辑）──
             var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
             if (settlement == null) return;
 
@@ -431,7 +426,6 @@ namespace LivingWorldNpcs.Story
                 switch (evt.Stage)
                 {
                     case EventStage.Emerging:
-                        // 自首后还没解决就跑 → 推进 stage + Inquiry 警告
                         WorldEventStore.TransitionStage(evt, EventStage.Active);
                         PendingInquiryTitle = "“站住！”";
                         PendingInquiryBody =
@@ -445,7 +439,6 @@ namespace LivingWorldNpcs.Story
                         break;
 
                     case EventStage.Active:
-                        // 对峙阶段跑路 → Inquiry 警告 + 信任惩罚
                         PendingInquiryTitle = "“站住！”";
                         PendingInquiryBody =
                             $"你转身离开，身后传来{npcName}的怒吼——\n\n" +
@@ -458,7 +451,6 @@ namespace LivingWorldNpcs.Story
                         break;
 
                     case EventStage.Confrontation:
-                        // 报复阶段跑路 → 更严厉警告 + 触发报复 + 信任重罚
                         PendingInquiryTitle = "“你跑不掉的！”";
                         PendingInquiryBody =
                             $"你转身就跑。身后{npcName}的吼声回荡——\n\n" +
@@ -473,6 +465,27 @@ namespace LivingWorldNpcs.Story
                         break;
                 }
             }
+        }
+
+        /// <summary>Mission 内武力逃脱成功</summary>
+        private void OnFleeSuccess(IntentContext ctx)
+        {
+            var evt = ctx.ActiveEvent;
+            if (evt == null) return;
+            evt.SuspectHeroId = Hero.MainHero.StringId;
+            evt.InvestigationProgress = 1.0f;
+            WorldEventStore.TransitionStage(evt, EventStage.Active);
+            DebugLogger.Log($"[Accountability] Player fled confrontation for {evt.EventId}");
+        }
+
+        /// <summary>Mission 内武力逃脱失败</summary>
+        private void OnFleeFail(IntentContext ctx)
+        {
+            var evt = ctx.ActiveEvent;
+            if (evt == null) return;
+            if (ctx.Hero != null)
+                ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -15, false, true);
+            WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
         }
 
         private static void NotifyInvestigationQuest(WorldEvent evt)
@@ -496,7 +509,7 @@ namespace LivingWorldNpcs.Story
 
     public class SilenceWitnessIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.SilenceWitness;
         public override string DisplayName => "【封口】这事你别往外说……";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
@@ -532,45 +545,11 @@ namespace LivingWorldNpcs.Story
 
     #endregion
 
-    #region PayOnTheSpotIntent
-
-    public class PayOnTheSpotIntent : IntentBase
-    {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
-        public override string DisplayName => "【当场赔钱】这是赔偿，够不够？";
-        public override NegotiationGoalType? Goal => null;
-
-        public override Eligibility Evaluate(IntentContext ctx)
-        {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
-            int cost = ctx.ActiveEvent.ComputeOnSpotCost();
-            if (Hero.MainHero.Gold < cost)
-                return Eligibility.Grey($"钱不够（需要 {cost} 第纳尔）");
-            return Eligibility.Show();
-        }
-
-        public override void OnInstant(IntentContext ctx)
-        {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            int cost = evt.ComputeOnSpotCost();
-            var authority = WorldEventStore.GetAuthorityNpc(evt);
-            if (authority != null)
-                AgentControlHelper.TransferGold(Hero.MainHero, authority, cost);
-            else
-                AgentControlHelper.TransferGold(Hero.MainHero, null, cost);
-            WorldEventStore.OnPlayerPaidRestitution(evt);
-            TheftLedger.MarkCleared(evt.TargetSettlementId);
-        }
-    }
-
-    #endregion
-
     #region WorkOffDebtIntent
 
     public class WorkOffDebtIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.WorkOffDebt;
         public override string DisplayName => "【干活抵债】我没钱，但我可以帮村里干活";
         public override NegotiationGoalType? Goal => null;
 
@@ -600,47 +579,11 @@ namespace LivingWorldNpcs.Story
 
     #endregion
 
-    #region FleeFromConfrontationIntent
-
-    public class FleeFromConfrontationIntent : IntentBase
-    {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
-        public override string DisplayName => "【推开逃跑】（推开身边的人就跑）";
-        public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
-        public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
-
-        public override Eligibility Evaluate(IntentContext ctx)
-        {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
-            return Eligibility.Show();
-        }
-
-        public override void OnSuccess(IntentContext ctx)
-        {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            evt.SuspectHeroId = Hero.MainHero.StringId;
-            evt.InvestigationProgress = 1.0f;
-            WorldEventStore.TransitionStage(evt, EventStage.Active);
-            DebugLogger.Log($"[Accountability] Player fled confrontation for {evt.EventId}");
-        }
-
-        public override void OnFail(IntentContext ctx)
-        {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -15, false, true);
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
-        }
-    }
-
-    #endregion
-
     #region FightVillagersIntent
 
     public class FightVillagersIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.Assault;
         public override string DisplayName => "【拔剑】（拔出武器）谁敢拦我！";
         public override NegotiationGoalType? Goal => null;
 
@@ -674,7 +617,7 @@ namespace LivingWorldNpcs.Story
 
     public class BetrayQuestIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.BetrayQuest;
         public override string DisplayName => "【背叛】快跑！村里人在抓你。";
         public override NegotiationGoalType? Goal => null;
 
@@ -731,7 +674,7 @@ namespace LivingWorldNpcs.Story
 
     public class InnocenceProofIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.InnocenceProof;
         public override string DisplayName => "【自证清白】不是我干的！查清楚就知道。";
         public override NegotiationGoalType? Goal => null;
 
@@ -763,7 +706,7 @@ namespace LivingWorldNpcs.Story
 
     public class SettleIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.Settle;
         public override string DisplayName => "【和解劝说】这事可以商量……";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
@@ -798,7 +741,7 @@ namespace LivingWorldNpcs.Story
 
     public class AcceptBountyQuestIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.AcceptBountyQuest;
         public override string DisplayName => "【接悬赏】我接这个悬赏！";
         public override NegotiationGoalType? Goal => null;
 
@@ -833,22 +776,18 @@ namespace LivingWorldNpcs.Story
                 }
             }
 
-            // 2. 创建悬赏 Quest
+            // 2. Quest 只能从 Issue 生——走统一入口
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             if (authority != null)
             {
-                var data = CommissionGenerator.TryGenerateAccountabilityQuest(authority);
-                if (data != null)
+                if (authority.Issue is CommissionHubIssue issue)
                 {
-                    string questId = $"bounty_{evt.EventId}";
-                    var quest = new CommissionQuest(questId, data);
-                    quest.StartQuest();
-                    DebugLogger.Log($"[Accountability] Bounty quest STARTED: {questId} giver={authority.Name} suspect={data.TargetHero?.Name}");
+                    var quest = issue.AcceptQuest();
+                    if (quest == null)
+                        DebugLogger.Log($"[Accountability] AcceptQuest returned null for {evt.EventId} (no WorldEvent data on {authority.Name}?)");
                 }
                 else
-                {
-                    DebugLogger.Log($"[Accountability] TryGenerateAccountabilityQuest returned null for bounty on {evt.EventId} (stage={evt.Stage})");
-                }
+                    DebugLogger.Log($"[Accountability] No CommissionHubIssue on {authority.Name} for {evt.EventId}");
             }
         }
     }
@@ -859,7 +798,7 @@ namespace LivingWorldNpcs.Story
 
     public class LeadRetaliationIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat; // 不通过主菜单显示,由DialogueInjector调用
+        public override InteractionOptionType Type => InteractionOptionType.LeadRetaliation;
         public override string DisplayName => "【带队报复】我带人去！";
         public override NegotiationGoalType? Goal => null;
 
@@ -887,7 +826,7 @@ namespace LivingWorldNpcs.Story
 
     public class LureArrestIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat;
+        public override InteractionOptionType Type => InteractionOptionType.LureArrest;
         public override string DisplayName => "【诱捕】跟我走一趟，村长找你有事";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
@@ -932,7 +871,7 @@ namespace LivingWorldNpcs.Story
     /// </summary>
     public class ArrestIntent : IntentBase
     {
-        public override InteractionOptionType Type => InteractionOptionType.Chat;
+        public override InteractionOptionType Type => InteractionOptionType.Arrest;
         public override string DisplayName => "【抓捕】束手就擒！";
         public override NegotiationGoalType? Goal => null;
 

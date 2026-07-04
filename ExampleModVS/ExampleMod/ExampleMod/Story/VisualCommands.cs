@@ -20,7 +20,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.Screens;
 using TaleWorlds.ScreenSystem;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     public static class VisualCommands
     {

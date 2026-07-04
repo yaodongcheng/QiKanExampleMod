@@ -1,4 +1,3 @@
-﻿using LivingWorldNpcs.Story;
 using HarmonyLib;
 using SandBox.Conversation.MissionLogics;
 using System;
@@ -576,7 +575,7 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            var storyengine = Story.StoryEngine.Instance;
+            var storyengine = StoryEngine.Instance;
             if (storyengine != null && storyengine.GetIsRunning()) { return; }
 
             if (_dialogueVM.IsVisible)

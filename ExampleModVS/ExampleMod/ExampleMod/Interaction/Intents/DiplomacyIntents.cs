@@ -1,10 +1,9 @@
-using LivingWorldNpcs;
 using System;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Library;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     // ── 登庸：招募流浪者入家族（对抗类）──
     public class RecruitWandererIntent : IntentBase

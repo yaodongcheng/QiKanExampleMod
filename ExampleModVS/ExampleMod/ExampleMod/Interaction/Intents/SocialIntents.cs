@@ -1,10 +1,9 @@
-using LivingWorldNpcs;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     // ── 求婚（对抗类）──
     public class ProposeMarriageIntent : IntentBase

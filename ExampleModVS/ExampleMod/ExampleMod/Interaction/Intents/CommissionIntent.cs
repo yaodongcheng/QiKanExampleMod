@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -9,9 +9,8 @@ using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.ObjectSystem;
-using LivingWorldNpcs;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     /// <summary>
     /// 【已重写】"【找工作】打听委托" Intent。

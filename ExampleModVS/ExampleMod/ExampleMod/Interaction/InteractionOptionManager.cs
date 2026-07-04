@@ -1,5 +1,4 @@
-using System.Collections.Generic;
-using LivingWorldNpcs.Story;
+﻿using System.Collections.Generic;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.MountAndBlade;
 
@@ -44,6 +43,23 @@ namespace LivingWorldNpcs
         Order_Follow,        // 跟随（命令士兵跟随自己）
         RecruitSoldier,      // 招募平民入伍
         PersuadeSurrender,   // 劝降敌方士兵
+
+        // ═══ 新增：问责/犯罪（从 AccountabilityOptionType 迁移） ═══
+        PayRestitution,      // 赔钱消灾
+        CharmDefense,        // Charm 辩护
+        FrameSuspect,        // 栽赃嫁祸
+        Threat,              // 威胁
+        Investigate,         // 接调查 Quest
+        Confess,             // 自首
+        SilenceWitness,      // 封口目击者
+        LeadRetaliation,     // 带队报复
+        WorkOffDebt,         // 干活抵债
+        BetrayQuest,         // 背叛 Quest
+        InnocenceProof,      // 自证清白
+        Settle,              // 和解劝说
+        AcceptBountyQuest,   // 接悬赏 Quest
+        LureArrest,          // 诱捕
+        Arrest,              // 直接抓捕
     }
 
     /// <summary>
@@ -55,7 +71,8 @@ namespace LivingWorldNpcs
         Social,     // 社交/个人
         Official,   // 公务/主命
         Diplomacy,  // 外交/谋略
-        Hostile     // 敌对/暴力
+        Hostile,    // 敌对/暴力
+        Accountability, // 🆕 犯罪追责
     }
 
     /// <summary>Type → Category 唯一权威映射。新 Type 在此加一行即可。</summary>
@@ -90,6 +107,23 @@ namespace LivingWorldNpcs
                 // 敌对
                 case InteractionOptionType.Assault:
                     return InteractionCategory.Hostile;
+                // 🆕 犯罪追责
+                case InteractionOptionType.PayRestitution:
+                case InteractionOptionType.CharmDefense:
+                case InteractionOptionType.FrameSuspect:
+                case InteractionOptionType.Threat:
+                case InteractionOptionType.Investigate:
+                case InteractionOptionType.Confess:
+                case InteractionOptionType.SilenceWitness:
+                case InteractionOptionType.LeadRetaliation:
+                case InteractionOptionType.WorkOffDebt:
+                case InteractionOptionType.BetrayQuest:
+                case InteractionOptionType.InnocenceProof:
+                case InteractionOptionType.Settle:
+                case InteractionOptionType.AcceptBountyQuest:
+                case InteractionOptionType.LureArrest:
+                case InteractionOptionType.Arrest:
+                    return InteractionCategory.Accountability;
                 // 通用（Chat / Leave / Info / Order_Follow / 及未来新增默认）
                 default:
                     return InteractionCategory.General;
@@ -113,7 +147,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>构建当前对话对象可见的选项 VM 列表（含置灰）。</summary>
-        public StoryOptionVM[] BuildOptionVMs(Agent targetAgent)
+        public StoryOptionVM[] BuildOptionVMs(Agent targetAgent, IntentSource sourceFilter = IntentSource.Player)
         {
             var ctx = IntentContext.Build(targetAgent, _controller);
             var visible = IntentRegistry.GetVisible(ctx);
@@ -122,6 +156,11 @@ namespace LivingWorldNpcs
             foreach (var pair in visible)
             {
                 IntentBase intent = pair.Key;
+
+                // 🆕 IntentSource 过滤：默认只显示玩家可用意图
+                if ((intent.Source & sourceFilter) == 0)
+                    continue;
+
                 Eligibility elig = pair.Value;
                 bool enabled = elig.State == EligState.Enabled;
 
@@ -160,58 +199,6 @@ namespace LivingWorldNpcs
 
             vmList.Reverse(); // 与既有 UI 渲染顺序保持一致
             return vmList.ToArray();
-        }
-    }
-
-    /// <summary>
-    /// 据点荣誉存储：按 Settlement.StringId 记录玩家在各据点的荣誉值。
-    /// 持久化经 MyBehavior.SyncData（JSON 序列化）。
-    /// Modify() 可正可负，后续坏事件扣、任务完成涨均走同一入口。
-    /// </summary>
-    public static class SettlementHonorStore
-    {
-        private static Dictionary<string, int> _honor = new Dictionary<string, int>();
-
-        public static int Get(Settlement s)
-        {
-            if (s == null) return 0;
-            return Get(s.StringId);
-        }
-
-        public static int Get(string settlementId)
-        {
-            if (string.IsNullOrEmpty(settlementId)) return 0;
-            _honor.TryGetValue(settlementId, out int v);
-            return v;
-        }
-
-        public static void Modify(Settlement s, int delta)
-        {
-            if (s == null) return;
-            int cur = Get(s.StringId);
-            Set(s, cur + delta);
-        }
-
-        public static void Set(Settlement s, int value)
-        {
-            if (s == null) return;
-            _honor[s.StringId] = value;
-        }
-
-        public static string Serialize()
-        {
-            try { return Newtonsoft.Json.JsonConvert.SerializeObject(_honor); }
-            catch { return "{}"; }
-        }
-
-        public static void Deserialize(string json)
-        {
-            try
-            {
-                var d = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, int>>(json);
-                _honor = d ?? new Dictionary<string, int>();
-            }
-            catch { _honor = new Dictionary<string, int>(); }
         }
     }
 }

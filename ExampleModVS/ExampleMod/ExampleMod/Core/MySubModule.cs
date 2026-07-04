@@ -20,7 +20,6 @@ using TaleWorlds.InputSystem;
 using HarmonyLib;
 using psai;
 using psai.net;
-using LivingWorldNpcs.Story;
 
 namespace LivingWorldNpcs
 {
@@ -256,9 +255,9 @@ namespace LivingWorldNpcs
 
 
             // 只有当 StoryEngine 实例存在时才尝试更新
-            if (Story.StoryEngine.Instance != null)
+            if (StoryEngine.Instance != null)
             {
-                Story.StoryEngine.Instance.OnTick();
+                StoryEngine.Instance.OnTick();
             }
             //自定义UI部分
             if (Input.IsKeyPressed(InputKey.F9))

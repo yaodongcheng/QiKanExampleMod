@@ -9,9 +9,9 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
-using static LivingWorldNpcs.Story.VisualCommands;
+using static LivingWorldNpcs.VisualCommands;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
 
     public enum StageSlot

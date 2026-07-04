@@ -1,12 +1,11 @@
-using System.Collections.Generic;
-using LivingWorldNpcs;
+﻿using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     /// <summary>
     /// 招募入伍：普通模板 NPC（村民/镇民）花钱招为己方士兵。

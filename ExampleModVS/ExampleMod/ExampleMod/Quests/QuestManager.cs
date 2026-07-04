@@ -19,6 +19,7 @@ using TaleWorlds.SaveSystem;
 
 namespace LivingWorldNpcs
 {
+    [Obsolete("Use CommissionCategory + CommissionQuest instead. Quest types are being unified under CommissionQuest.")]
     public enum QuestType
     {
         DeliverItem_Special = 1,    // 获取贵重品 -寻
@@ -63,6 +64,7 @@ namespace LivingWorldNpcs
 
         Promise,  // 承诺 -修
     }
+    [Obsolete("Use CommissionData instead. Quest types are being unified under CommissionQuest.")]
     public class QuestData
     {
         [SaveableField(1)] public QuestType Type;
@@ -88,181 +90,90 @@ namespace LivingWorldNpcs
 
         public string GetQuestDescription()
         {
-            StringBuilder sb = new StringBuilder();
-
-            // --- 1. 开场白：大名的威严 ---
-            sb.Append("听好了，这是当下的主命。\n");
-
-            // --- 2. 物资/资金交接：恩威并施 ---
-            bool hasGiven = false;
-            if (GivenGold > 0)
-            {
-                sb.Append($"这里是 {GivenGold} 两的军资金，拿去活用吧。");
-                hasGiven = true;
-            }
-
-            if (GivenItemCount > 0 && !string.IsNullOrEmpty(GivenItemId))
-            {
-                if (hasGiven) sb.Append("还有，");
-                sb.Append($"这 {GivenItemCount} 个 {GivenItemId} 也拨给你调度。");
-            }
-
-            if (hasGiven) sb.Append("\n\n");
-
-            // --- 3. 辅助变量处理 ---
-            // 如果对象为空，提供一个通用称呼防止报错
-            string targetName = TargetHero != null ? TargetHero.Name.ToString() : (TargetId ?? "那个人");
-            string locationName = TargetSettlementId ?? "那座城";
+            // 叙事文本已迁移到 QuestNarratives.csv + NarrativeResolver 管道。
+            // 此方法仅作为存档兼容兜底，返回简化格式（不含世界观 flavor）。
+            string targetName = TargetHero != null ? TargetHero.Name.ToString() : (TargetId ?? "目标");
+            string locationName = TargetSettlementId ?? "目标地点";
             string itemName = TargetId ?? "物资";
-            string countStr = TargetCount.ToString();
 
-            // --- 4. 核心指令：具体的任务描述 ---
-            switch (Type)
+            return Type switch
             {
-                // --- 经济/物资类 ---
-                case QuestType.DeliverItem_Food:
-                    sb.Append($"兵马未动，粮草先行。你去市井之中筹集 {countStr} 个 {itemName}。\n无论去买还是去征收，务必填满本家的粮仓。");
-                    break;
-                case QuestType.DeliverItem_Horse:
-                    sb.Append($"为了组建赤备突击队，我们需要良马。你去搜罗 {countStr} 匹 {itemName} 回来。\n没有马，武士就无法驰骋沙场，这就交给你了。");
-                    break;
-                case QuestType.DeliverItem_Gun:
-                    sb.Append($"旧时代的战法已经落伍了。现在是铁炮的时代。\n去给我弄到 {countStr} 挺 {itemName}！这将是制霸天下的关键。");
-                    break;
-                case QuestType.DeliverItem_Special:
-                    sb.Append($"我听说世间流传着名为 {itemName} 的稀世珍宝。\n此等宝物理应由我来收藏。去把它找来献给我，必有重赏。");
-                    break;
-                case QuestType.EarnMoney:
-                    sb.Append($"打仗就是烧钱。本家的库房需要充实。\n发挥你的才干，去赚取 {countStr} 两献上来。经商也好，倒卖也好，我要的是结果。");
-                    break;
-                case QuestType.EarnMoney_SellFood:
-                    sb.Append($"现在粮价正好。带上这些军粮去高价变卖。\n目标是获利 {countStr} 两。别让奸商把你给骗了。");
-                    break;
-                case QuestType.CollectDebt:
-                    sb.Append($"{targetName} 那家伙欠了本家的钱太久了。\n你去替我把这笔烂账收回来。如果他不给……哼，你自己看着办。");
-                    break;
-
-                // --- 军事/战斗类 ---
-                case QuestType.HuntBandits:
-                    sb.Append($"领内的盗匪甚是猖狂，竟敢阻碍商路。\n带兵去讨伐 {countStr} 队贼寇！用他们的首级来扬名立万吧！");
-                    break;
-                case QuestType.RecruitTroops:
-                    sb.Append($"为了接下来的合战，我们需要新鲜血液。\n去领地招募 {countStr} 名壮丁带回来。要能拿得动长枪的汉子。");
-                    break;
-                case QuestType.TrainTroops:
-                    sb.Append($"光有人数没有用，我要的是精锐。\n去训练你的部队，让我看到 {countStr} 名独当一面的战士。别让他们在战场上白白送死。");
-                    break;
-                case QuestType.RaidVillage:
-                    sb.Append($"敌方的 {locationName} 是个麻烦的补给点。\n去掠夺那里，烧光他们的物资，断绝敌人的后勤！这是为了大义。");
-                    break;
-                case QuestType.Assault:
-                    sb.Append($"{targetName} 这个人很碍眼。\n去伏击他，给他一个终身难忘的教训。做的干净点。");
-                    break;
-                case QuestType.CaptureSetlement:
-                    sb.Append($"时机成熟了。向 {locationName} 进军！\n无论付出多少代价，都要把那座城池攻下来，插上本家的旗帜！");
-                    break;
-
-                // --- 内政/建设类 ---
-                case QuestType.DevelopSettlement_Food:
-                    sb.Append($"国富才能兵强。你去 {locationName} 指导新田开发。\n要把那里的粮食产量提升到 {countStr} 以上。别让百姓饿肚子，那是本家的基石。");
-                    break;
-                case QuestType.DevelopSettlement_Prosperity:
-                    sb.Append($"{locationName} 的城下町太萧条了。\n去想办法搞活那里的商业，把繁荣度提升 {countStr} 点。让那里成为黄金之城。");
-                    break;
-                case QuestType.DevelopSettlement_Security:
-                    sb.Append($"{locationName} 的治安令人担忧。\n去整顿风纪，巡逻街道。我要看到那里的治安度恢复到 {countStr} 以上。");
-                    break;
-
-                // --- 外交/谍报类 ---
-                case QuestType.DiplomacyTalk_War:
-                    sb.Append($"忍耐已经到了极限。你去向 {targetName} 下达最后通牒。\n这是宣战布告！让他们洗干净脖子等着吧！");
-                    break;
-                case QuestType.DiplomacyTalk_Alliance:
-                    sb.Append($"为了对抗强敌，我们需要盟友。\n做为本家的使者，去说服 {targetName} 结盟。这需要三寸不烂之舌，但我相信你。");
-                    break;
-                case QuestType.DiplomacyTalk_Peace:
-                    sb.Append($"战线拉得太长了，我们需要休养生息。\n去和 {targetName} 谈判，达成停战协定。即使是暂时的和平也是必要的。");
-                    break;
-                case QuestType.DiplomacyTalk_SubOrdination:
-                    sb.Append($"{targetName} 也是时候认清形势了。\n去劝说他们归顺本家。告诉他们，投降者既往不咎。");
-                    break;
-                case QuestType.DiplomacyTalk_Dominate:
-                    sb.Append($"去告诉 {targetName}，若想活命，就成为本家的附庸。\n这是慈悲，不是谈判。");
-                    break;
-                case QuestType.ScoutSettlement:
-                    sb.Append($"知己知彼，百战不殆。\n潜入 {locationName} 进行侦查。摸清他们的虚实，然后把情报带回来。");
-                    break;
-                case QuestType.Sabotage:
-                    sb.Append($"正面进攻伤亡太大。你去 {locationName} 搞些破坏。\n放火也好，流言也罢，我要看到他们的力量衰弱下去。");
-                    break;
-                case QuestType.RecruitHero:
-                    sb.Append($"听说 {targetName} 是一员猛将，却流落野外。\n带上金银和诚意，去把他招揽到本家麾下。人才就是力量。");
-                    break;
-                case QuestType.PersuadeLord:
-                    sb.Append($"{targetName} 在敌营中郁郁不得志。\n去策反他！让他倒戈加入我们。从内部瓦解敌人是最上策。");
-                    break;
-
-                // --- 个人/其他类 ---
-                case QuestType.ImproveSkill:
-                    sb.Append($"你的 {itemName} 技艺还不够精湛。\n去修行吧，把这项技能提升到 {countStr} 级。不要给我丢脸。");
-                    break;
-                case QuestType.WinArena:
-                    sb.Append($"最近军中士气低落。去 {locationName} 的竞技场拿下冠军！\n用你的武勇来振奋全军的士气！");
-                    break;
-                case QuestType.EscortCaravan:
-                    sb.Append($"这支商队对本家的财政至关重要。\n你亲自护送他们到达目的地。路上的苍蝇，直接拍死。");
-                    break;
-                case QuestType.Promise:
-                    sb.Append($"既然你夸下了海口，那就去兑现你的承诺。\n是个男人就说到做到，别让我失望。");
-                    break;
-
-                default:
-                    sb.Append($"这是特别的任务：{Type}。\n具体的细节你应该清楚，速去速回。");
-                    break;
-            }
-
-            // --- 5. 结语：激励与施压 ---
-            sb.Append("\n\n切勿怠慢。期待你的好消息。");
-
-            return sb.ToString();
+                QuestType.DeliverItem_Food => $"筹集 {itemName} ×{TargetCount}。",
+                QuestType.DeliverItem_Horse => $"筹集军马 {itemName} ×{TargetCount}。",
+                QuestType.DeliverItem_Gun => $"筹集装备 {itemName} ×{TargetCount}。",
+                QuestType.DeliverItem_Special => $"寻找贵重品：{itemName}。",
+                QuestType.EarnMoney => $"筹集资金 {TargetCount}。",
+                QuestType.EarnMoney_SellFood => $"卖出军粮获利 {TargetCount}。",
+                QuestType.CollectDebt => $"向 {targetName} 收回欠款。",
+                QuestType.HuntBandits => $"讨伐贼寇 {TargetCount} 队。",
+                QuestType.RecruitTroops => $"招募 {TargetCount} 名士兵。",
+                QuestType.TrainTroops => $"训练部队达到标准。",
+                QuestType.RaidVillage => $"劫掠 {locationName}。",
+                QuestType.Assault => $"袭击 {targetName}。",
+                QuestType.CaptureSetlement => $"攻占 {locationName}。",
+                QuestType.DevelopSettlement_Food => $"开发 {locationName} 粮食产量。",
+                QuestType.DevelopSettlement_Prosperity => $"提升 {locationName} 繁荣度。",
+                QuestType.DevelopSettlement_Security => $"提升 {locationName} 治安。",
+                QuestType.DiplomacyTalk_War => $"向 {targetName} 宣战。",
+                QuestType.DiplomacyTalk_Alliance => $"与 {targetName} 结盟。",
+                QuestType.DiplomacyTalk_Peace => $"与 {targetName} 媾和。",
+                QuestType.DiplomacyTalk_SubOrdination => $"使 {targetName} 从属。",
+                QuestType.DiplomacyTalk_Dominate => $"支配 {targetName}。",
+                QuestType.ScoutSettlement => $"侦查 {locationName}。",
+                QuestType.Sabotage => $"破坏 {locationName}。",
+                QuestType.RecruitHero => $"招募 {targetName}。",
+                QuestType.PersuadeLord => $"劝诱 {targetName}。",
+                QuestType.ImproveSkill => $"提升 {itemName} 技能到 {TargetCount} 级。",
+                QuestType.WinArena => $"在竞技场获胜 {TargetCount} 次。",
+                QuestType.EscortCaravan => $"护送商队到目的地。",
+                QuestType.Promise => $"履行对 {targetName} 的承诺。",
+                _ => $"{Type}：{TargetCount}。",
+            };
         }
 
         public string GetQuestTitle()
         {
-            switch (Type)
+            return Type switch
             {
-                case QuestType.DeliverItem_Food: return ("筹集军粮"); // 兵粮购入
-                case QuestType.DeliverItem_Horse: return ("筹集军马"); // 马匹购入
-                case QuestType.DeliverItem_Gun: return ("筹集铁炮"); // 铁炮购入
-                case QuestType.EarnMoney: return ("筹集军资"); // 筹集军资
-                case QuestType.EarnMoney_SellFood: return ("卖出军粮"); // 兵粮出售
-                case QuestType.CollectDebt: return ("收回借款"); // 收回借款
-                case QuestType.HuntBandits: return ("讨伐山贼"); // 讨伐山贼
-                case QuestType.RecruitTroops: return ("征兵"); // 征兵
-                case QuestType.TrainTroops: return ("训练"); // 训练
-                case QuestType.RaidVillage: return ("掠夺"); // 掠夺
-                case QuestType.CaptureSetlement: return ("占领据点"); // 占领据点
-                case QuestType.DevelopSettlement_Food: return ("开发新田"); // 新田开发/矿山
-                case QuestType.DevelopSettlement_Prosperity: return ("增筑"); // 新田开发/矿山
-                case QuestType.DevelopSettlement_Security: return ("提升治安"); // 新田开发/矿山
-                case QuestType.DiplomacyTalk_War: return ("宣战"); // 宣战
-                case QuestType.DiplomacyTalk_Alliance: return ("结盟"); // 结盟
-                case QuestType.DiplomacyTalk_Peace: return ("媾和"); // 媾和
-                case QuestType.DiplomacyTalk_SubOrdination: return ("从属"); // 从属
-                case QuestType.DiplomacyTalk_Dominate: return ("支配"); // 支配
-                case QuestType.ScoutSettlement: return ("侦查情报"); // 侦查情报
-                case QuestType.Sabotage: return ("破坏/放火"); // 破坏/放火
-                case QuestType.RecruitHero: return ("人才调查"); // 人才调查
-                case QuestType.PersuadeLord: return ("劝诱"); // 劝诱
-                case QuestType.ImproveSkill: return ("修业"); // 修业
-                case QuestType.WinArena: return ("道场比试"); // 道场比试
-                case QuestType.EscortCaravan: return ("护送"); // 护送
-                case QuestType.Promise: return ("履行承诺"); // 承诺
-
-                default: return ("Lord's Mission");
-            }
+                QuestType.DeliverItem_Food => "筹集军粮",
+                QuestType.DeliverItem_Horse => "筹集军马",
+                QuestType.DeliverItem_Gun => "筹集装备",
+                QuestType.EarnMoney => "筹集资金",
+                QuestType.EarnMoney_SellFood => "卖出军粮",
+                QuestType.CollectDebt => "收回欠款",
+                QuestType.HuntBandits => "讨伐贼寇",
+                QuestType.RecruitTroops => "征兵",
+                QuestType.TrainTroops => "训练",
+                QuestType.RaidVillage => "劫掠",
+                QuestType.CaptureSetlement => "占领据点",
+                QuestType.DevelopSettlement_Food => "开发粮食",
+                QuestType.DevelopSettlement_Prosperity => "增筑",
+                QuestType.DevelopSettlement_Security => "提升治安",
+                QuestType.DiplomacyTalk_War => "宣战",
+                QuestType.DiplomacyTalk_Alliance => "结盟",
+                QuestType.DiplomacyTalk_Peace => "媾和",
+                QuestType.DiplomacyTalk_SubOrdination => "从属",
+                QuestType.DiplomacyTalk_Dominate => "支配",
+                QuestType.ScoutSettlement => "侦查情报",
+                QuestType.Sabotage => "破坏",
+                QuestType.RecruitHero => "人才招募",
+                QuestType.PersuadeLord => "劝诱",
+                QuestType.ImproveSkill => "修业",
+                QuestType.WinArena => "竞技场优胜",
+                QuestType.EscortCaravan => "护送",
+                QuestType.Promise => "履行承诺",
+                QuestType.Assault => "袭击",
+                QuestType.DeliverItem_Special => "寻找宝物",
+                _ => "主命",
+            };
         }
     }
+    /// <summary>
+    /// 【旧主命系统残留】Quest 直接 new 出来，不经过 Issue 管道，与当前架构（Quest 只能从 Issue 生）不一致。
+    /// 旧存档里可能有进行中的 GenericQuest，反序列化需要类壳子存在，暂不删。
+    /// 等主命系统正式重构（Phase C）时，全部迁移到 CommissionQuest + CommissionHubIssue 后再清理。
+    /// </summary>
+    [Obsolete("Use CommissionQuest instead. Quest types are being unified under CommissionQuest.")]
     public class GenericQuest : QuestBase
     {
         [SaveableField(10)] private QuestData _data;

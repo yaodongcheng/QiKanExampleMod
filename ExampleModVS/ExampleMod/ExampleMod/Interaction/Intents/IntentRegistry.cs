@@ -1,11 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     /// <summary>
     /// 意图注册表：替代以前的 RegisterAllOptions 大方法。加新意图只需在 RegisterDefaults 里 Register 一行。
@@ -74,9 +74,7 @@ namespace LivingWorldNpcs.Story
             Register(new WalkAwayIntent());
             Register(new SilenceWitnessIntent());
             Register(new LeadRetaliationIntent());
-            Register(new PayOnTheSpotIntent());
             Register(new WorkOffDebtIntent());
-            Register(new FleeFromConfrontationIntent());
             Register(new FightVillagersIntent());
             Register(new BetrayQuestIntent());
             Register(new InnocenceProofIntent());
@@ -84,6 +82,15 @@ namespace LivingWorldNpcs.Story
             Register(new AcceptBountyQuestIntent());
             Register(new LureArrestIntent());
             Register(new ArrestIntent());
+
+            // ── 🆕 NPC 主动意图（NPC 平权）──
+            Register(new NewsConflictIntent());
+            Register(new GuardInterceptIntent());
+            Register(new CrimeAccusationIntent());
+            Register(new RevengeIntent());
+            Register(new GreetingIntent());
+            Register(new OfficialBusinessIntent());
+            Register(new CrushIntent());
         }
 
         /// <summary>资格层：产出当前可见（含置灰）的意图，隐藏的过滤掉。</summary>
@@ -100,6 +107,35 @@ namespace LivingWorldNpcs.Story
                     result.Add(new KeyValuePair<IntentBase, Eligibility>(intent, e));
             }
             return result;
+        }
+
+        /// <summary>取 NPC 可发起的意图（Source 含 Npc 标志，且 Evaluate 通过）</summary>
+        public static List<KeyValuePair<IntentBase, Eligibility>> GetNpcInitiatives(IntentContext ctx)
+        {
+            EnsureInitialized();
+            var result = new List<KeyValuePair<IntentBase, Eligibility>>();
+            foreach (var intent in _all)
+            {
+                // NPC 侧意图：Source 必须含 Npc 标志
+                if ((intent.Source & IntentSource.Npc) == 0)
+                    continue;
+
+                Eligibility e;
+                try { e = intent.Evaluate(ctx); }
+                catch { e = Eligibility.Hide(); }
+                if (e.State != EligState.Hidden)
+                    result.Add(new KeyValuePair<IntentBase, Eligibility>(intent, e));
+            }
+            return result;
+        }
+
+        /// <summary>按意图类名查找 NPC 意图（用于 AgentBrain 迁移过渡）</summary>
+        public static IntentBase FindNpcIntent(string intentClassName)
+        {
+            EnsureInitialized();
+            return _all.FirstOrDefault(i =>
+                i.GetType().Name.Equals(intentClassName, System.StringComparison.OrdinalIgnoreCase) &&
+                (i.Source & IntentSource.Npc) != 0);
         }
     }
 

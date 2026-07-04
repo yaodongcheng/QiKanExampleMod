@@ -13,9 +13,9 @@ using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.Screens;
 using TaleWorlds.ScreenSystem;
-using static LivingWorldNpcs.Story.VisualCommands;
+using static LivingWorldNpcs.VisualCommands;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
 
     public class ExecutionContext

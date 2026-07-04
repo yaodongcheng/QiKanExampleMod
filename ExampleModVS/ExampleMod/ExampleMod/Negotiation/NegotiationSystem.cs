@@ -1,4 +1,3 @@
-﻿using LivingWorldNpcs.Story;
 using HarmonyLib;
 using Helpers;
 using Microsoft.SqlServer.Server;
@@ -22,7 +21,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 using static TaleWorlds.CampaignSystem.CampaignOptions;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
 
     public static class SkillCheckSystem
@@ -120,6 +119,7 @@ namespace LivingWorldNpcs.Story
         OfficialBusiness,   // 公务 (比如税务官、传令兵)
         Crush               // 爱慕者搭讪
     }
+    [Obsolete("Use IntentBase subclasses + IntentRegistry instead. NpcInitiativeIntents.cs provides equivalent NPC intent classes.")]
     public class NpcInitiative
     {
         public InitiativeType Type { get; set; }

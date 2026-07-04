@@ -251,8 +251,30 @@ namespace LivingWorldNpcs
 
         protected override QuestBase GenerateIssueQuest(string questId)
         {
-            // 信号 Issue 不生成 Quest——委托由 CommissionIntent 创建
-            return null;
+            // 从 WorldEvent 生成追责 Quest——Quest 只能从 Issue 生，不能凭空出现
+            var data = CommissionGenerator.TryGenerateAccountabilityQuest(IssueOwner);
+            if (data == null) return null;
+
+            string id = !string.IsNullOrEmpty(data.WorldEventId)
+                ? $"crime_{data.WorldEventId}"
+                : questId;
+            var quest = new CommissionQuest(id, data);
+            quest.StartQuest();
+            DebugLogger.Log($"[CommissionHubIssue] GenerateIssueQuest: {id} category={data.Category} giver={IssueOwner?.Name}");
+            return quest;
+        }
+
+        /// <summary>
+        /// 🔑 公开入口：Intent 调用此方法触发 Issue→Quest 转换。
+        /// 内部走 GenerateIssueQuest 创建 Quest → CompleteIssueWithQuest 解除 Issue。
+        /// </summary>
+        public CommissionQuest AcceptQuest()
+        {
+            string eventId = _context.CrimeEventId;
+            var quest = GenerateIssueQuest($"crime_{eventId}") as CommissionQuest;
+            if (quest != null)
+                CompleteIssueWithQuest();
+            return quest;
         }
 
         public override IssueFrequency GetFrequency()

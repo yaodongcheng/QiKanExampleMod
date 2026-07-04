@@ -1,4 +1,3 @@
-using LivingWorldNpcs.Story;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -10,6 +9,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
+#pragma warning disable CS0618 // Intentional: NpcInitiative is deprecated but still stored in memory for save compat
 namespace LivingWorldNpcs
 {
     public class SingNpcMemorySystem

@@ -1,9 +1,8 @@
-using HarmonyLib;
+﻿using HarmonyLib;
 using SandBox.Conversation.MissionLogics;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
-using LivingWorldNpcs.Story;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.Conversation;
