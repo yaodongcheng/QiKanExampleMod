@@ -934,4 +934,29 @@ namespace LivingWorldNpcs
     }
 
     #endregion
+
+    #region ContinueChatIntent
+
+    /// <summary>
+    /// 对话内导航 Intent："说点别的……" —— 跳回 start turn 继续讨论。
+    /// 纯导航，不检定。事件 Resolved/Unsolved 后自动 Hide。
+    /// </summary>
+    public class ContinueChatIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.ContinueChat;
+        public override string DisplayName => "说点别的……";
+        public override NegotiationGoalType? Goal => null;
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            if (ctx.ActiveEvent == null) return Eligibility.Hide();
+            if (ctx.ActiveEvent.Stage == EventStage.Resolved) return Eligibility.Hide();
+            if (ctx.ActiveEvent.Stage == EventStage.Unsolved) return Eligibility.Hide();
+            return Eligibility.Show();
+        }
+
+        public override void OnInstant(IntentContext ctx) { }
+    }
+
+    #endregion
 }

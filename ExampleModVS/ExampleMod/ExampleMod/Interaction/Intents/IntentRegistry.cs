@@ -82,6 +82,7 @@ namespace LivingWorldNpcs
             Register(new AcceptBountyQuestIntent());
             Register(new LureArrestIntent());
             Register(new ArrestIntent());
+            Register(new ContinueChatIntent());
 
             // ── 🆕 NPC 主动意图（NPC 平权）──
             Register(new NewsConflictIntent());

@@ -1,7 +1,7 @@
-﻿[15:06:09.397] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[15:06:26.946] [WorldEventStore] Deserialized 0 events, 0 alerts
-[15:06:42.643] [DisplayMessage] "Custom Camera Load Success!"
-[15:06:43.068] === [AnimalSync] 特维亚 (village_ES3_2) ===
+﻿[18:01:40.444] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[18:01:56.233] [WorldEventStore] Deserialized 0 events, 0 alerts
+[18:02:03.979] [DisplayMessage] "Custom Camera Load Success!"
+[18:02:04.405] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -11,290 +11,81 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[15:06:43.080] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[15:06:54.379] [VanillaDialog] NPC  | NPC: 帝国女农民 (CharacterId: village_woman_empire) says: "这已是近乎收获的季节。"
-[15:06:55.367] [VanillaDialog] NPC  | NPC: 帝国女农民 (CharacterId: village_woman_empire) says: "啊，抱歉，先生，需要我帮你忙吗？"
-[15:06:56.819] [VanillaDialog] Options (2): 我在找人。 | 不，谢谢你，日安。
-[15:06:56.820] [VanillaDialog] Player says: "不，谢谢你，日安。"
-[15:06:56.824] [ConvEnd] Conversation ended. lastEvent= lastTag=
-[15:06:59.598] [DisplayMessage] [Green] "[闲聊快速路径] 帝国女农民: obj=False crouch=False pose="act_none" isDefault=True → 快速=YES"
-[15:06:59.600] [DisplayMessage] "[事件发送] 发送事件 'ComeHere' 给 帝国女农民"
-[15:06:59.608] [AI-Debug] Suspend 帝国女农民 (Idx=22) | 集合size=1
-[15:07:02.012] UseCameraTemlate:2m_Npc_Shoulder_Mid_R Listener
-[15:07:02.014] [Player] Talk to: 帝国女农民 (hero=none)
-[15:07:02.015] [Dialog] NPC says (opening): "（看着你，似乎在揣测你的想法...）"
-[15:07:04.534] [Dialog] Options shown (5): 【寒暄】你好啊！ | 【离开】 | 【离开】 告辞 | 【寒暄】 随便说两句... | 【招募】 应募入伍
-[15:07:06.568] [Dialog] Player clicked option: "【离开】 告辞"
-[15:07:06.568] [Dialog] Player clicked: "【离开】 告辞" (goal=, category=General)
-[15:07:06.570] [AI-Debug] Resume 帝国女农民 (Idx=22) | 集合size=0
-[15:07:10.587] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[15:07:11.003] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
-[15:07:11.005] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[15:07:11.007] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 items=[hogx1] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
-[15:07:11.008] [TheftLedger] Recorded: hog x1 by main_hero from village_ES3_2
-[15:07:11.008] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[15:07:11.008] [DisplayMessage] [Green] "获得了 肉猪！"
-[15:07:20.661] [DisplayMessage] "每日收入 +100"
-[15:07:20.662] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
-[15:07:20.663] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
-[15:07:30.366] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_9"><b>托蒙德</b></a>俘虏。"
-[15:07:33.583] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1621"><b>喀拉库吉特的阿勒般</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的<a style="Link.Hero" href="event:Hero-lord_6_22"><b>阿察库</b></a>俘虏。"
-[15:07:34.838] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
-[15:07:37.157] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_6"><b>卡拉蒂尔德</b></a>俘虏。"
-[15:07:38.150] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1602"><b>绿林兄弟会的埃唐博尔</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
-[15:07:40.691] [DisplayMessage] "每日收入 +100"
-[15:07:40.693] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
-[15:07:40.693] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
-[15:07:40.693] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
-[15:07:40.694] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Emerging settlement=特维亚 — refreshing issue signals
-[15:07:40.697] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=theft_village_ES3_2_91077.52_1 stage=Emerging
-[15:07:42.352] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1599"><b>狼皮部落的乌德里斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_21"><b>卡费德</b></a>俘虏。"
-[15:07:43.294] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
-[15:07:45.551] [AnimalSync] Topped up 羊: roster 11 → 16 (natural=16 stolen=0)
-[15:07:45.552] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
-[15:07:45.552] [AnimalSync] Topped up 肉猪: roster 3 → 10 (natural=10 stolen=0)
-[15:07:45.552] [AnimalSync] Topped up 鹅: roster 2 → 5 (natural=5 stolen=0)
-[15:07:45.552] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
-[15:07:45.552] [AnimalSync] 特维亚: topped up 31 animal(s) in ItemRoster
-[15:07:49.408] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
-[15:07:49.416] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
-[15:07:49.417] [Placeholder] NpcLine: "{RestitutionBreakdown}" → "一只肉猪，市值60第纳尔。既然你自己认了，赔125第纳尔，这事就算了。你认不认？"
-[15:07:49.417] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
-[15:07:49.418] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
-[15:07:49.418] [CrimeDialog]   NPC: 有什么要说的？
-[15:07:49.418] [CrimeDialog]   Option: "我愿意赔。你说个数。" → NONE
-[15:07:49.418] [CrimeDialog]   Option: "（讪笑）开个玩笑……刚才是我胡说的" → INTENT:CharmDefense
-[15:07:49.418] [CrimeDialog]   Option: "（转身就走）" → INTENT:WalkAway
-[15:07:49.418] [CrimeDialog] Turn[restitution_detail] speaker=特维亚的加里托普斯 stage=Emerging
-[15:07:49.418] [CrimeDialog]   NPC: 一只肉猪，市值60第纳尔。既然你自己认了，赔125第纳尔，这事就算了。你认不认？
-[15:07:49.419] [CrimeDialog]   Option: "好，我赔（125 第纳尔）" → INTENT:PayRestitution
-[15:07:49.419] [CrimeDialog]   Option: "太贵了，不赔。" → NONE
-[15:07:49.419] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
-[15:07:49.419] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
-[15:07:49.419] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
-[15:07:49.419] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
-[15:07:49.419] [CrimeDialog]   Option: "我还有事。" → INTENT:WalkAway
-[15:07:49.419] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Emerging
-[15:07:49.419] [CrimeDialog]   NPC: …
-[15:07:49.419] [CrimeDialog]   Option: "说点别的……" → NONE
-[15:07:49.419] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
-[15:07:49.423] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=4
-[15:07:50.823] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[15:07:50.823] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[15:07:50.829] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
-[15:07:51.370] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
-[15:07:52.950] [VanillaDialog] Options (2): 村长，听说特维亚出了点事？ | 我现在得走了。
-[15:07:52.950] [VanillaDialog] Player says: "村长，听说特维亚出了点事？"
-[15:07:52.950] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
-[15:07:56.715] [VanillaDialog] Options (3): （低头）是我干的。 | 我可以帮忙查查是谁干的。 | 我还有事。
-[15:07:56.716] [Accountability] Player accepted investigation quest for theft_village_ES3_2_91077.52_1
-[15:07:56.717] [CommissionGen] Accountability Investigation quest: hero=特维亚的加里托普斯 event=theft_village_ES3_2_91077.52_1 stage=Emerging reward=150
-[15:07:56.720] [CommissionQuest] OnStartQuest: 调查：特维亚牲口圈一只肉猪失窃案 narrativePhase=False questId=crime_theft_village_ES3_2_91077.52_1
-[15:07:56.720] [CommissionQuest] Full startup: giver=特维亚的加里托普斯 reward=150 deposit=30 days=7 tier=Basic
-[15:07:56.724] [CommissionQuest] OnStartQuest DONE: category=Investigation giver=特维亚的加里托普斯 questId=crime_theft_village_ES3_2_91077.52_1
-[15:07:56.725] [CommissionQuest] RegisterEvents: category=Investigation questId=crime_theft_village_ES3_2_91077.52_1
-[15:07:56.727] [QuestStart] CommissionQuest "调查：特维亚牲口圈一只肉猪失窃案" | giver=特维亚的加里托普斯 | IsOngoing=True | RewardGold=150
-[15:07:56.728] [CommissionHubIssue] GenerateIssueQuest: crime_theft_village_ES3_2_91077.52_1 category=Investigation giver=特维亚的加里托普斯
-[15:07:56.728] [VanillaDialog] Player says: "我可以帮忙查查是谁干的。"
-[15:07:56.728] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "拜托了！查出来了老夫必有重谢。"
-[15:07:58.153] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:08:00.353] [VanillaDialog] Options (2): 说点别的…… | 我得走了。
-[15:08:00.354] [VanillaDialog] Player says: "我得走了。"
-[15:08:00.354] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:08:00.887] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1
-[15:08:05.468] 
-══════════════════════════════════════
-📋 [QuestJournal] 任务: "建立你的家族" [MainQuest] [Tracked]
-   类型: RebuildPlayerClanQuest
-   委托人: ?
-   剩余天数:  天
-   IsOngoing=True | IsTrackEnabled=True
-   ── 阶段日志 (5 条) ──
-   [0] 卡拉迪亚大陆危机四伏，同时又充满机遇。你需要壮大自己的家族来面对前方的挑战。
-你哥哥告诉你，实现这个目标有很多途径，但是都需要金钱。贸易是赚钱的一种方法，另一种则是去战斗，再到城里卖掉俘获的强盗。无论选择何种途径，独自行动都会容易让你成为他人的猎物。
-你可以到村庄或城镇向当地要人招募一些人手，不过在他们准许你招募更精锐的战士前，也许会让你先帮几个忙。
-通常来讲，你也可以在卡拉迪亚的酒馆里找到更多有个性的人物。但是这些人更认可名门望族。
-       日期: 昨天
-   [1] 赚1000第纳尔
-       日期: 昨天
-       📌 子任务: 第纳尔 1085/2000 (1085/2000)
-   [2] 将你的部队扩大到20人。
-       日期: 昨天
-       📌 子任务: 当前部队规模 7/20 (7/20)
-   [3] 家族等级达到 1 级
-       日期: 昨天
-       📌 子任务: 声望 5/50 (5/50)
-   [4] 雇佣1名同伴
-       日期: 昨天 | 🔚
-       📌 子任务: 雇佣的同伴 0/1 (0/1)
-══════════════════════════════════════
-[15:08:06.610] 
-══════════════════════════════════════
-📋 [QuestJournal] 任务: "调查：特维亚牲口圈一只肉猪失窃案" [Tracked]
-   类型: CommissionQuest
-   委托人: 特维亚的加里托普斯
-   剩余天数:  天
-   IsOngoing=True | IsTrackEnabled=True
-   ── 阶段日志 (5 条) ──
-   [0] 【委托】调查：特维亚牲口圈一只肉猪失窃案
-委托人：特维亚的加里托普斯
-报酬：150 第纳尔 | 定金：30
-期限：8 天
-在案发定居点附近搜索或与村民交谈可推进调查。
-       日期: 今天
-   [1] 第二步：搜集线索，找出真凶
-       日期: 今天
-       📌 子任务: 完成度 0/1 (0/1)
-   [2] 定金 30 第纳尔已到账。
-       日期: 今天
-   [3] 前往 特维亚 的牲口圈附近搜集线索。一只肉猪偷了了，暂时无人目击。与当地人交谈或回现场调查，找出是谁干的。
-       日期: 今天
-   [4] 提示：调查窗口约7天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。
-       日期: 今天 | 🔚
-══════════════════════════════════════
-[15:08:20.356] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "亨利..."
-[15:08:20.358] [Placeholder] NpcLine: "{RestitutionBreakdown}" → "一只肉猪，市值60第纳尔。既然你自己认了，赔125第纳尔，这事就算了。你认不认？"
-[15:08:20.358] [Placeholder] EntryOption: "关于{TargetSettlementName}那个案子……" → "关于特维亚那个案子……"
-[15:08:20.358] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
-[15:08:20.359] [CrimeDialog]   NPC: 有什么要说的？
-[15:08:20.359] [CrimeDialog]   Option: "我愿意赔。你说个数。" → NONE
-[15:08:20.359] [CrimeDialog]   Option: "（讪笑）开个玩笑……刚才是我胡说的" → INTENT:CharmDefense
-[15:08:20.359] [CrimeDialog]   Option: "（转身就走）" → INTENT:WalkAway
-[15:08:20.359] [CrimeDialog] Turn[restitution_detail] speaker=特维亚的加里托普斯 stage=Emerging
-[15:08:20.359] [CrimeDialog]   NPC: 一只肉猪，市值60第纳尔。既然你自己认了，赔125第纳尔，这事就算了。你认不认？
-[15:08:20.359] [CrimeDialog]   Option: "好，我赔（125 第纳尔）" → INTENT:PayRestitution
-[15:08:20.359] [CrimeDialog]   Option: "太贵了，不赔。" → NONE
-[15:08:20.359] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
-[15:08:20.359] [CrimeDialog]   NPC: 怎么样，查到什么了吗？
-[15:08:20.359] [CrimeDialog]   Option: "是附近藏身处的强盗干的！" → INTENT:FrameSuspect
-[15:08:20.359] [CrimeDialog]   Option: "还没查到什么。" → NONE
-[15:08:20.359] [CrimeDialog]   Option: "（低头）……是我干的。" → INTENT:Confess
-[15:08:20.359] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Emerging
-[15:08:20.359] [CrimeDialog]   NPC: …
-[15:08:20.360] [CrimeDialog]   Option: "说点别的……" → NONE
-[15:08:20.360] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
-[15:08:20.360] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=4
-[15:08:20.885] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "再次感谢你同意接手此事。"
-[15:08:23.295] [VanillaDialog] Options (2): 关于特维亚那个案子…… | 我现在得走了。
-[15:08:23.296] [VanillaDialog] Player says: "关于特维亚那个案子……"
-[15:08:23.296] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "怎么样，查到什么了吗？"
-[15:08:23.355] [VanillaDialog] Options (3): 是附近藏身处的强盗干的！ | 还没查到什么。 | （低头）……是我干的。
-[15:08:23.356] [SkillCheck] FrameSuspect | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=57 献礼=0.20 → 成功率=0.17 | 掷骰=通过 (chance=17 %)
-[15:08:23.358] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage: Emerging → Active
-[15:08:23.358] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Active settlement=特维亚 — refreshing issue signals
-[15:08:23.361] [CommissionQuest] Objectives complete: 悬赏缉拿：“雌豹”瓦拉 payer=特维亚的加里托普斯 at 特维亚
-[15:08:23.361] [CommissionQuest] NotifySuspectIdentified: crime_theft_village_ES3_2_91077.52_1 suspect=“雌豹”瓦拉
-[15:08:23.361] [CommissionQuest] OnWorldEventStageChanged: crime_theft_village_ES3_2_91077.52_1 stage=Active (suspect identified)
-[15:08:23.361] [Accountability] Frame suspicion: bandit blamed for theft_village_ES3_2_91077.52_1
-[15:08:23.361] [VanillaDialog] Player says: "是附近藏身处的强盗干的！"
-[15:08:23.362] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "藏身处的强盗？好，那就是他们了！老夫这就张罗悬赏。"
-[15:08:25.948] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:08:30.053] [VanillaDialog] Options (2): 说点别的…… | 我得走了。
-[15:08:30.053] [VanillaDialog] Player says: "我得走了。"
-[15:08:30.053] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:08:30.638] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1
-[15:08:35.616] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "亨利..."
-[15:08:35.616] [Placeholder] NpcLine: "还记得{TimeWord}{CrimeVerbPast}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？" → "还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？"
-[15:08:35.617] [Placeholder] EntryOption: "{SpeakerRole}，关于那桩悬赏……" → "村长，关于那桩悬赏……"
-[15:08:35.617] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Active
-[15:08:35.617] [CrimeDialog]   NPC: 还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？
-[15:08:35.617] [CrimeDialog]   Option: "我接这个悬赏！" → INTENT:AcceptBountyQuest
-[15:08:35.617] [CrimeDialog]   Option: "我先想想。" → NONE
-[15:08:35.617] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Active
-[15:08:35.617] [CrimeDialog]   NPC: …
-[15:08:35.617] [CrimeDialog]   Option: "说点别的……" → NONE
-[15:08:35.617] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
-[15:08:35.618] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Active partner=特维亚的加里托普斯 turns=2
-[15:08:36.308] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "所以……怎么了？"
-[15:08:37.058] [VanillaDialog] Options (2): 村长，关于那桩悬赏…… | 我现在得走了。
-[15:08:37.058] [VanillaDialog] Player says: "村长，关于那桩悬赏……"
-[15:08:37.058] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？"
-[15:08:40.283] [VanillaDialog] Options (2): 我接这个悬赏！ | 我先想想。
-[15:08:40.284] [Accountability] Player accepted bounty quest for theft_village_ES3_2_91077.52_1
-[15:08:40.284] [Accountability] No CommissionHubIssue on 特维亚的加里托普斯 for theft_village_ES3_2_91077.52_1
-[15:08:40.284] [VanillaDialog] Player says: "我接这个悬赏！"
-[15:08:40.284] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "好！人就交给你这后生了。"
-[15:08:41.068] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:08:42.969] [VanillaDialog] Options (2): 说点别的…… | 我得走了。
-[15:08:42.969] [VanillaDialog] Player says: "我得走了。"
-[15:08:42.969] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:08:43.893] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1
-[15:08:46.596] 
-══════════════════════════════════════
-📋 [QuestJournal] 任务: "悬赏缉拿：“雌豹”瓦拉" [Tracked]
-   类型: CommissionQuest
-   委托人: 特维亚的加里托普斯
-   剩余天数:  天
-   IsOngoing=True | IsTrackEnabled=True
-   ── 阶段日志 (9 条) ──
-   [0] 【委托】调查：特维亚牲口圈一只肉猪失窃案
-委托人：特维亚的加里托普斯
-报酬：150 第纳尔 | 定金：30
-期限：8 天
-在案发定居点附近搜索或与村民交谈可推进调查。
-       日期: 今天
-   [1] 第二步：搜集线索，找出真凶
-       日期: 今天 | ✅
-       📌 子任务: 完成度 1/1 (1/1)
-   [2] 定金 30 第纳尔已到账。
-       日期: 今天
-   [3] 前往 特维亚 的牲口圈附近搜集线索。一只肉猪偷了了，暂时无人目击。与当地人交谈或回现场调查，找出是谁干的。
-       日期: 今天
-   [4] 提示：调查窗口约7天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。
-       日期: 今天
-   [5] 调查取得进展——嫌犯锁定为“雌豹”瓦拉。回去向特维亚的加里托普斯汇报。
-       日期: 今天
-   [6] 第三步：前往 特维亚 找 特维亚的加里托普斯 领取报酬
-       日期: 今天
-       📌 子任务: 领取报酬 0/1 (0/1)
-   [7] 委托目标已完成！前往 特维亚 找 特维亚的加里托普斯 领取报酬。
-       日期: 今天
-   [8] 我成功把嫌疑推给了“雌豹”瓦拉。特维亚的加里托普斯信了。
-       日期: 今天 | 🔚
-══════════════════════════════════════
-[15:08:56.414] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "亨利..."
-[15:08:56.414] [Placeholder] NpcLine: "还记得{TimeWord}{CrimeVerbPast}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？" → "还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？"
-[15:08:56.414] [Placeholder] EntryOption: "{SpeakerRole}，关于那桩悬赏……" → "村长，关于那桩悬赏……"
-[15:08:56.414] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Active
-[15:08:56.415] [CrimeDialog]   NPC: 还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？
-[15:08:56.415] [CrimeDialog]   Option: "我接这个悬赏！" → INTENT:AcceptBountyQuest
-[15:08:56.415] [CrimeDialog]   Option: "我先想想。" → NONE
-[15:08:56.415] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Active
-[15:08:56.415] [CrimeDialog]   NPC: …
-[15:08:56.415] [CrimeDialog]   Option: "说点别的……" → NONE
-[15:08:56.415] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
-[15:08:56.415] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Active partner=特维亚的加里托普斯 turns=2
-[15:08:57.053] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "所以……怎么了？"
-[15:08:58.113] [VanillaDialog] Options (2): 村长，关于那桩悬赏…… | 我现在得走了。
-[15:08:58.114] [VanillaDialog] Player says: "村长，关于那桩悬赏……"
-[15:08:58.114] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？"
-[15:09:01.378] [VanillaDialog] Options (1): 我先想想。
-[15:09:01.378] [VanillaDialog] Player says: "我先想想。"
-[15:09:01.379] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:09:02.333] [VanillaDialog] Options (2): 说点别的…… | 我得走了。
-[15:09:02.333] [VanillaDialog] Player says: "我得走了。"
-[15:09:02.333] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:09:02.798] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1
-[15:09:13.059] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "亨利..."
-[15:09:13.059] [Placeholder] NpcLine: "还记得{TimeWord}{CrimeVerbPast}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？" → "还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？"
-[15:09:13.059] [Placeholder] EntryOption: "{SpeakerRole}，关于那桩悬赏……" → "村长，关于那桩悬赏……"
-[15:09:13.059] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Active
-[15:09:13.059] [CrimeDialog]   NPC: 还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？
-[15:09:13.060] [CrimeDialog]   Option: "我接这个悬赏！" → INTENT:AcceptBountyQuest
-[15:09:13.060] [CrimeDialog]   Option: "我先想想。" → NONE
-[15:09:13.060] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Active
-[15:09:13.060] [CrimeDialog]   NPC: …
-[15:09:13.060] [CrimeDialog]   Option: "说点别的……" → NONE
-[15:09:13.060] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
-[15:09:13.060] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Active partner=特维亚的加里托普斯 turns=2
-[15:09:13.479] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "所以……怎么了？"
-[15:09:16.338] [VanillaDialog] Options (2): 村长，关于那桩悬赏…… | 我现在得走了。
-[15:09:16.339] [VanillaDialog] Player says: "村长，关于那桩悬赏……"
-[15:09:16.339] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "还记得昨儿牲口被偷了的事吗？查清楚了——是流浪汉“雌豹”瓦拉干的。村上凑了50第纳尔悬赏，谁把他抓回来就给谁。你这后生接不接？"
-[15:09:17.338] [VanillaDialog] Options (1): 我先想想。
-[15:09:17.339] [VanillaDialog] Player says: "我先想想。"
-[15:09:17.339] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:09:18.113] [VanillaDialog] Options (2): 说点别的…… | 我得走了。
-[15:09:18.114] [VanillaDialog] Player says: "我得走了。"
-[15:09:18.114] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
-[15:09:18.548] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1
+[18:02:04.414] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[18:02:11.588] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[18:02:12.006] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
+[18:02:12.010] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[18:02:12.013] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 items=[hogx1] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
+[18:02:12.014] [TheftLedger] Recorded: hog x1 by main_hero from village_ES3_2
+[18:02:12.014] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[18:02:12.014] [DisplayMessage] [Green] "获得了 肉猪！"
+[18:02:20.728] [DisplayMessage] "每日收入 +100"
+[18:02:20.730] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
+[18:02:20.730] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
+[18:02:22.270] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
+[18:02:27.138] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_9"><b>托蒙德</b></a>俘虏。"
+[18:02:30.464] [DisplayMessage] [RGB(0.7,0.7,0.7)] "My Test Clan已加入北帝国。"
+[18:02:34.862] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
+[18:02:40.696] [DisplayMessage] "每日收入 +100"
+[18:02:40.696] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
+[18:02:40.697] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
+[18:02:40.697] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
+[18:02:40.697] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Emerging settlement=特维亚 — refreshing issue signals
+[18:02:40.701] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=theft_village_ES3_2_91077.52_1 stage=Emerging
+[18:02:42.008] [AnimalSync] Topped up 羊: roster 10 → 16 (natural=16 stolen=0)
+[18:02:42.008] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
+[18:02:42.009] [AnimalSync] Topped up 肉猪: roster 3 → 10 (natural=10 stolen=0)
+[18:02:42.009] [AnimalSync] Topped up 鹅: roster 2 → 5 (natural=5 stolen=0)
+[18:02:42.009] [AnimalSync] Topped up 鸡: roster 7 → 16 (natural=16 stolen=0)
+[18:02:42.009] [AnimalSync] 特维亚: topped up 31 animal(s) in ItemRoster
+[18:02:44.273] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
+[18:02:44.282] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
+[18:02:44.283] [Placeholder] NpcLine: "{RestitutionBreakdown}" → "一只肉猪，市值60第纳尔。既然你自己认了，赔125第纳尔，这事就算了。你认不认？"
+[18:02:44.284] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
+[18:02:44.284] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
+[18:02:44.284] [CrimeDialog]   NPC: 有什么要说的？
+[18:02:44.284] [CrimeDialog]   Option: "我愿意赔。你说个数。" → NONE
+[18:02:44.284] [CrimeDialog]   Option: "（讪笑）开个玩笑……刚才是我胡说的" → INTENT:CharmDefense
+[18:02:44.284] [CrimeDialog]   Option: "（转身就走）" → INTENT:WalkAway
+[18:02:44.284] [CrimeDialog] Turn[restitution_detail] speaker=特维亚的加里托普斯 stage=Emerging
+[18:02:44.285] [CrimeDialog]   NPC: 一只肉猪，市值60第纳尔。既然你自己认了，赔125第纳尔，这事就算了。你认不认？
+[18:02:44.285] [CrimeDialog]   Option: "好，我赔（125 第纳尔）" → INTENT:PayRestitution
+[18:02:44.285] [CrimeDialog]   Option: "太贵了，不赔。" → NONE
+[18:02:44.285] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
+[18:02:44.285] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
+[18:02:44.285] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
+[18:02:44.285] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
+[18:02:44.285] [CrimeDialog]   Option: "我还有事。" → INTENT:WalkAway
+[18:02:44.285] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Emerging
+[18:02:44.285] [CrimeDialog]   NPC: 还有什么别的想说的吗?
+[18:02:44.285] [CrimeDialog]   Option: "说点别的……" → INTENT:ContinueChat
+[18:02:44.286] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
+[18:02:44.288] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=4
+[18:02:46.570] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[18:02:46.571] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[18:02:46.576] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
+[18:02:47.128] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
+[18:02:47.754] [VanillaDialog] Options (2): 村长，听说特维亚出了点事？ | 我现在得走了。
+[18:02:47.754] [VanillaDialog] Player says: "村长，听说特维亚出了点事？"
+[18:02:47.755] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
+[18:02:48.615] [VanillaDialog] Options (3): （低头）是我干的。 | 我可以帮忙查查是谁干的。 | 我还有事。
+[18:02:48.617] [Accountability] Player confessed for theft_village_ES3_2_91077.52_1 — suspect=self, awaiting resolution
+[18:02:48.618] [VanillaDialog] Player says: "（低头）是我干的。"
+[18:02:48.618] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "你这后生？！……好，既然自己认了，咱们可以商量。"
+[18:02:50.690] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "有什么要说的？"
+[18:02:52.080] [VanillaDialog] Options (3): 我愿意赔。你说个数。 | （讪笑）开个玩笑……刚才是我胡说的 | （转身就走）
+[18:02:52.081] [VanillaDialog] Player says: "我愿意赔。你说个数。"
+[18:02:52.081] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "一只肉猪，市值60第纳尔。既然你自己认了，赔125第纳尔，这事就算了。你认不认？"
+[18:02:56.501] [VanillaDialog] Options (2): 好，我赔（125 第纳尔） | 太贵了，不赔。
+[18:02:56.502] [DisplayMessage] "你支付了125<img src="General\Icons\Coin@2x" extend="8">。"
+[18:02:56.502] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage: Emerging → Resolved
+[18:02:56.503] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Resolved settlement=特维亚 — refreshing issue signals
+[18:02:56.503] [CommissionIssue] StageChanged — removing CommissionHubIssue from 特维亚的加里托普斯, event theft_village_ES3_2_91077.52_1 resolved/unsolved
+[18:02:56.503] [Accountability] Player paid restitution 125 gold for theft_village_ES3_2_91077.52_1
+[18:02:56.503] [VanillaDialog] Player says: "好，我赔（125 第纳尔）"
+[18:02:56.504] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "好，钱留下，这事就算了。"
+[18:03:01.481] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "还有什么别的想说的吗?"
+[18:03:02.846] [VanillaDialog] Options (1): 我得走了。
+[18:03:02.847] [VanillaDialog] Player says: "我得走了。"
+[18:03:02.847] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "…"
+[18:03:03.933] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1

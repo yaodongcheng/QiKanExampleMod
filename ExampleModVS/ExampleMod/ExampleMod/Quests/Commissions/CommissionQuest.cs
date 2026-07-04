@@ -1832,6 +1832,32 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 由 CommissionIssueBehavior 在阶段变更时调用：完成旧的调查 Quest。
+        /// 在新 Issue/Quest 创建前必须释放 NPC 的委托槽位（MaxCommissionsPerNpc=1），
+        /// 否则 HasCommissionsFor 会因旧 Quest 仍在进行中而拒绝创建新 Issue。
+        /// suspectIsPlayer=true → 背叛结局（贼喊捉贼）；false → 正常成功结案。
+        /// </summary>
+        internal void CompleteInvestigationExternally(bool suspectIsPlayer)
+        {
+            if (_data == null || !IsOngoing) return;
+            _suspectIdentifiedLogged = true;
+            _data.IsObjectivesComplete = true;
+
+            if (suspectIsPlayer)
+            {
+                AddLog(new TextObject("调查指向了我自己。委托人不会再信任我了。"));
+                CompleteQuestWithBetrayal(new TextObject("背叛了委托人的信任——贼喊捉贼。"));
+                DebugLogger.Log($"[CommissionQuest] CompleteInvestigationExternally: {StringId} betrayed (suspect=self)");
+            }
+            else
+            {
+                AddLog(new TextObject("调查完成：嫌犯已锁定，转入悬赏缉拿阶段。"));
+                CompleteQuestWithSuccess();
+                DebugLogger.Log($"[CommissionQuest] CompleteInvestigationExternally: {StringId} completed (suspect identified)");
+            }
+        }
+
+        /// <summary>
         /// 由 Intent（FrameSuspectIntent 等）调用：通知调查 Quest "嫌犯已锁定"。
         /// 嫌犯=玩家时只更新进度不进入 Phase 3（领取报酬），后续走对峙/betray 路线。
         /// 嫌犯≠玩家时正常进入 Phase 3。

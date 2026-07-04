@@ -26,7 +26,7 @@ namespace LivingWorldNpcs
             if (CommissionQuest.IsHeroInvolvedInActiveCommission(hero, out _, out bool isGiver) && isGiver)
             {
                 int existingCount = Campaign.Current.QuestManager.Quests
-                    .Count(q => q is CommissionQuest cq && cq.CommissionGiver == hero);
+                    .Count(q => q is CommissionQuest cq && cq.IsOngoing && cq.CommissionGiver == hero);
                 if (existingCount >= MaxCommissionsPerNpc) return false;
             }
 
@@ -940,9 +940,9 @@ namespace LivingWorldNpcs
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             if (authority != hero) return null;
 
-            // 已生成过则不重复
+            // 已生成过则不重复（仅检查进行中的 Quest——已完成的旧阶段 Quest 不应阻碍新阶段 Quest 的生成）
             if (Campaign.Current.QuestManager.Quests.Any(q =>
-                q is CommissionQuest cq && cq.CommissionGiver == hero
+                q is CommissionQuest cq && cq.IsOngoing && cq.CommissionGiver == hero
                 && cq.GetType().GetField("_data", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
                     ?.GetValue(cq) is CommissionData cd && cd.WorldEventId == evt.EventId))
                 return null;

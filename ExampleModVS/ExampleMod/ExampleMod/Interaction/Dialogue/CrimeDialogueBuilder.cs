@@ -501,10 +501,10 @@ namespace LivingWorldNpcs
             {
                 Id = "continue_chat",
                 SpeakerIndex = 0,
-                NpcLine = "…",
+                NpcLine = "还有什么别的想说的吗?",
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "说点别的……", Action = "NONE", NextTurn = "start" },
+                    new DialogueInjector.DialogueInjectOption { PlayerLine = "说点别的……", Action = "INTENT:ContinueChat", NextTurn = "start" },
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "我得走了。", Action = "INTENT:WalkAway", NextTurn = "" },
                 }
             };
