@@ -89,7 +89,7 @@ namespace LivingWorldNpcs.Story
                 AgentControlHelper.TransferGold(Hero.MainHero, null, cost);
 
             WorldEventStore.OnPlayerPaidRestitution(evt);
-            PlayerTheftLedger.MarkCleared(evt.TargetSettlementId);
+            TheftLedger.MarkCleared(evt.TargetSettlementId);
 
             // 解决了 → 清除 WalkAway Inquiry
             WalkAwayIntent.PendingInquiryTitle = null;
@@ -173,7 +173,7 @@ namespace LivingWorldNpcs.Story
         {
             if (!string.IsNullOrEmpty(ctx.FrameTargetId) && ctx.FrameTargetId != "bandit")
             {
-                if (PlayerTheftLedger.HasRecordFor(ctx.FrameTargetId))
+                if (TheftLedger.HasRecordFor(ctx.FrameTargetId))
                     return 0.6f;  // 有证物 → 高说服力
             }
             return 0.2f;  // 无证物 → 裸过
@@ -381,13 +381,8 @@ namespace LivingWorldNpcs.Story
 
             DebugLogger.Log($"[Accountability] Player confessed for {evt.EventId} — suspect=self, awaiting resolution");
             var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-            var itemName = "";
-            if (!string.IsNullOrEmpty(evt.TargetItemId))
-            {
-                var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
-                itemName = item?.Name?.ToString() ?? "";
-            }
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"我向{giverName}坦白了——那只{itemName}确实是我拿的。");
+            var itemDesc = evt.BuildStolenItemsDescription();
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"我向{giverName}坦白了——{itemDesc}确实是我拿的。");
         }
     }
 
@@ -565,7 +560,7 @@ namespace LivingWorldNpcs.Story
             else
                 AgentControlHelper.TransferGold(Hero.MainHero, null, cost);
             WorldEventStore.OnPlayerPaidRestitution(evt);
-            PlayerTheftLedger.MarkCleared(evt.TargetSettlementId);
+            TheftLedger.MarkCleared(evt.TargetSettlementId);
         }
     }
 

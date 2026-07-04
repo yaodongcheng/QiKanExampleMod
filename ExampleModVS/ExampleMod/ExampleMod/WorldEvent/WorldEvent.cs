@@ -113,6 +113,25 @@ namespace LivingWorldNpcs
 
     #region WorldEvent
 
+    /// <summary>
+    /// 统一偷窃真相记录。每一条记录回答：谁（InitiatorId）在何时（Day）从哪（VictimSettlementId/VictimHeroId）
+    /// 偷了什么（ItemId）多少（Count）。同时承载 UI 数据（LocationName / IsCleared）。
+    /// 全局存储在 TheftLedger，WorldEvent 仅保留 StolenItems 作为去规范化摘要。
+    /// </summary>
+    [Serializable]
+    public class TheftTruthRecord
+    {
+        public string InitiatorId;         // Hero.StringId of the real thief
+        public string VictimHeroId;        // pickpocket victim Hero.StringId (null = animal/abstract)
+        public string VictimSettlementId;  // where the theft happened
+        public string ItemId;              // ItemObject.StringId
+        public int Count;
+        public float Day;
+        public string LocationName;        // UI narrative: "在曹村"
+        public bool IsCleared;             // case resolved + player paid consequences
+        public string WorldEventId;        // which WorldEvent this belongs to
+    }
+
     [Serializable]
     public class WorldEvent
     {
@@ -126,10 +145,12 @@ namespace LivingWorldNpcs
         public string InitiatorId;         // 作案者 Hero.StringId（系统知道的真凶）
         public string TargetHeroId;        // 受害者 hero（null = 村庄/抽象实体）
         public string TargetSettlementId;
-        public string TargetItemId;
-        public int Quantity;
         public float OccurredDay;
         public string LocationName;        // "牲口圈" / "村口大路" — UI 叙事用
+
+        // ═══ 多物品追踪 ═══
+        /// <summary>被盗物品 → 数量。合并时累加同种物品、追加异种物品。</summary>
+        public Dictionary<string, int> StolenItems;
 
         // ═══ 目击（发生时记录） ═══
         public List<string> WitnessHeroIds;
@@ -233,6 +254,30 @@ namespace LivingWorldNpcs
         [JsonIgnore]
         public bool IsExpired => Campaign.Current != null && (float)CampaignTime.Now.ToDays > ExpiryDay;
 
+        /// <summary>获取被盗物品字典。</summary>
+        [JsonIgnore]
+        public Dictionary<string, int> StolenItemsSnapshot => StolenItems ?? new Dictionary<string, int>();
+
+        /// <summary>被盗物品总数量</summary>
+        [JsonIgnore]
+        public int TotalStolenCount => StolenItemsSnapshot.Values.Sum();
+
+        /// <summary>被盗物品总市值（遍历所有物品 × 各自数量）</summary>
+        [JsonIgnore]
+        public int TotalStolenValue
+        {
+            get
+            {
+                int total = 0;
+                foreach (var kv in StolenItemsSnapshot)
+                {
+                    var item = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key);
+                    if (item != null) total += item.Value * kv.Value;
+                }
+                return total;
+            }
+        }
+
         [JsonIgnore]
         public WorldEventPhase Phase
         {
@@ -259,19 +304,14 @@ namespace LivingWorldNpcs
             return null;
         }
 
-        /// <summary>计算赔偿金额：基础物品价值 × 赔偿倍数（阶段不同倍数不同）</summary>
+        /// <summary>计算赔偿金额：所有被盗物品总市值 × 赔偿倍数（阶段不同倍数不同）</summary>
         public int ComputeRestitutionCost(EventStage? forStage = null)
         {
             var stage = forStage ?? Stage;
             var cfg = Config;
             if (cfg == null) return 100;
 
-            int baseValue = 0;
-            if (!string.IsNullOrEmpty(TargetItemId))
-            {
-                var item = MBObjectManager.Instance.GetObject<ItemObject>(TargetItemId);
-                if (item != null) baseValue = item.Value * Quantity;
-            }
+            int baseValue = TotalStolenValue;
             if (baseValue <= 0) baseValue = Severity * 10;
 
             float multiplier = stage switch
@@ -292,28 +332,39 @@ namespace LivingWorldNpcs
             var cfg = Config;
             if (cfg == null) return "赔100第纳尔。";
 
-            string itemDesc = "东西";
-            int baseValue = 0;
-            if (!string.IsNullOrEmpty(TargetItemId))
-            {
-                var item = MBObjectManager.Instance.GetObject<ItemObject>(TargetItemId);
-                if (item != null)
-                {
-                    baseValue = item.Value * Quantity;
-                    itemDesc = item.Name?.ToString() ?? "东西";
-                }
-            }
+            string itemDesc = BuildStolenItemsDescription();
+            int baseValue = TotalStolenValue;
             if (baseValue <= 0) baseValue = Severity * 10;
 
             int total = ComputeRestitutionCost();
             string crimeGerund = cfg.CrimeVerbGerund ?? "犯事";
 
             if (Stage <= EventStage.Emerging)
-                return $"那只{itemDesc}，市值{baseValue}第纳尔。既然你自己认了，赔{total}第纳尔，这事就算了。你认不认？";
+                return $"{itemDesc}，市值{baseValue}第纳尔。既然你自己认了，赔{total}第纳尔，这事就算了。你认不认？";
             else if (Stage == EventStage.Active)
-                return $"那只{itemDesc}，市值{baseValue}第纳尔。村里人都知道了，{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
+                return $"{itemDesc}，市值{baseValue}第纳尔。村里人都知道了，{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
             else
-                return $"那只{itemDesc}，市值{baseValue}第纳尔。最后一次机会——赔{total}第纳尔，否则后果自负。你认不认？";
+                return $"{itemDesc}，市值{baseValue}第纳尔。最后一次机会——赔{total}第纳尔，否则后果自负。你认不认？";
+        }
+
+        /// <summary>构建被盗物品的自然语言描述（用于赔偿/对话）</summary>
+        public string BuildStolenItemsDescription()
+        {
+            var items = StolenItemsSnapshot;
+            if (items.Count == 0) return "东西";
+
+            var parts = new List<string>();
+            foreach (var kv in items)
+            {
+                var name = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key)?.Name?.ToString() ?? kv.Key;
+                parts.Add(kv.Value == 1 ? $"一只{name}" : $"{kv.Value}只{name}");
+            }
+
+            if (parts.Count == 1) return parts[0];
+            if (parts.Count == 2) return $"{parts[0]}和{parts[1]}";
+            // 3+ 种不同物品：列举前两项 + "等N只牲口"
+            var total = items.Values.Sum();
+            return $"{parts[0]}、{parts[1]}等{total}只牲口";
         }
 
         /// <summary>当场被抓时的赔偿（×2 而非 ×3）</summary>
@@ -321,12 +372,7 @@ namespace LivingWorldNpcs
         {
             var cfg = Config;
             if (cfg == null) return 100;
-            int baseValue = 0;
-            if (!string.IsNullOrEmpty(TargetItemId))
-            {
-                var item = MBObjectManager.Instance.GetObject<ItemObject>(TargetItemId);
-                if (item != null) baseValue = item.Value * Quantity;
-            }
+            int baseValue = TotalStolenValue;
             if (baseValue <= 0) baseValue = Severity * 10;
             return baseValue * 2;
         }
@@ -336,7 +382,7 @@ namespace LivingWorldNpcs
         {
             var cfg = Config;
             if (cfg == null) return 500;
-            return cfg.BaseBountyPerUnit * Math.Max(1, Quantity);
+            return cfg.BaseBountyPerUnit * Math.Max(1, TotalStolenCount);
         }
     }
 
@@ -582,7 +628,17 @@ namespace LivingWorldNpcs
             var existing = FindActive(evt.TargetSettlementId);
             if (existing != null && existing.Type == evt.Type)
             {
-                existing.Quantity += evt.Quantity;
+                // ── 合并 StolenItems ──
+                if (evt.StolenItems != null && evt.StolenItems.Count > 0)
+                {
+                    existing.StolenItems = existing.StolenItems ?? new Dictionary<string, int>();
+                    foreach (var kv in evt.StolenItems)
+                    {
+                        existing.StolenItems.TryGetValue(kv.Key, out int cur);
+                        existing.StolenItems[kv.Key] = cur + kv.Value;
+                    }
+                }
+
                 // 合并目击者
                 if (evt.WitnessHeroIds != null)
                 {
@@ -600,7 +656,9 @@ namespace LivingWorldNpcs
                 }
                 // 不重置调查进度——村民已经在查了
                 existing.LastUpdateDay = (float)CampaignTime.Now.ToDays;
-                DebugLogger.Log($"[WorldEvent] Merged theft into existing case {existing.EventId} (qty={existing.Quantity})");
+
+                var itemSummary = string.Join(", ", existing.StolenItemsSnapshot.Select(kv => $"{kv.Key}x{kv.Value}"));
+                DebugLogger.Log($"[WorldEvent] Merged theft into existing case {existing.EventId} (totalStolen={existing.TotalStolenCount}, items=[{itemSummary}])");
                 return;
             }
 
@@ -617,7 +675,9 @@ namespace LivingWorldNpcs
             // 会导致 ProcessActive 立即触发 Confrontation（now - 0 >> deadline）。
             if (evt._stageEnteredDay == 0f)
                 evt._stageEnteredDay = evt.OccurredDay;
-            DebugLogger.Log($"[WorldEvent] New event: {evt.Type} id={evt.EventId} settlement={evt.TargetSettlementId} item={evt.TargetItemId} culprit={evt.InitiatorId} stage={evt.Stage} suspect={evt.SuspectHeroId ?? "none"} witnesses={evt.WitnessHeroIds?.Count ?? 0}h+{(evt.TemplateWitness?.Sum(kv => kv.Value) ?? 0)}v severity={evt.Severity} occurredDay={evt.OccurredDay:F2}");
+
+            var itemDesc = string.Join(", ", evt.StolenItemsSnapshot.Select(kv => $"{kv.Key}x{kv.Value}"));
+            DebugLogger.Log($"[WorldEvent] New event: {evt.Type} id={evt.EventId} settlement={evt.TargetSettlementId} items=[{itemDesc}] culprit={evt.InitiatorId} stage={evt.Stage} suspect={evt.SuspectHeroId ?? "none"} witnesses={evt.WitnessHeroIds?.Count ?? 0}h+{(evt.TemplateWitness?.Sum(kv => kv.Value) ?? 0)}v severity={evt.Severity} occurredDay={evt.OccurredDay:F2}");
         }
 
         /// <summary>DailyTick 阶段推进</summary>
@@ -1140,53 +1200,54 @@ namespace LivingWorldNpcs
 
     #endregion
 
-    #region PlayerTheftLedger
-
-    /// <summary>一次偷窃的账本条目</summary>
-    [Serializable]
-    public class TheftRecord
-    {
-        public string VictimHeroId;         // 扒窃来源 hero；偷动物则为 null
-        public string VictimSettlementId;   // 偷动物时的村庄
-        public string ItemId;               // ItemObject.StringId
-        public int Count;
-        public float StolenDay;
-        public string LocationName;         // "在{村庄}" — UI 叙事用
-        public bool IsCleared;              // 案件 Resolved 且玩家已付出代价 → true
-    }
+    #region TheftLedger
 
     /// <summary>
-    /// 玩家偷窃账本。记录每次偷窃的"谁→什么→在哪"。
-    /// 两个用途：① 栽赃候选来源 ② 背包 UI 标注赃物来源
+    /// 统一偷窃账本。全局存储所有 TheftTruthRecord，同时服务：
+    /// ① WorldEvent 层（按 EventId 查询该事件的所有偷窃记录）
+    /// ② 背包 UI（GetSourceTag — 标注赃物来源）
+    /// ③ 栽赃系统（GetFrameableTargets / GetEvidenceItems — 栽赃候选+证物）
+    /// ④ 序列化（SyncData 持久化）
     /// </summary>
-    public static class PlayerTheftLedger
+    public static class TheftLedger
     {
-        private static List<TheftRecord> _records = new List<TheftRecord>();
+        private static List<TheftTruthRecord> _records = new List<TheftTruthRecord>();
 
         /// <summary>记录一次偷窃</summary>
-        public static void Record(string victimHeroId, string settlementId, string itemId, int count, string locationName)
+        public static TheftTruthRecord Record(string initiatorId, string victimHeroId, string settlementId,
+            string itemId, int count, string locationName, string worldEventId = null)
         {
-            _records.Add(new TheftRecord
+            var record = new TheftTruthRecord
             {
+                InitiatorId = initiatorId,
                 VictimHeroId = victimHeroId,
                 VictimSettlementId = settlementId,
                 ItemId = itemId,
                 Count = count,
-                StolenDay = (float)CampaignTime.Now.ToDays,
+                Day = (float)CampaignTime.Now.ToDays,
                 LocationName = locationName ?? "",
-                IsCleared = false
-            });
-            DebugLogger.Log($"[TheftLedger] Recorded: {itemId} x{count} from {victimHeroId ?? settlementId}");
+                IsCleared = false,
+                WorldEventId = worldEventId,
+            };
+            _records.Add(record);
+            DebugLogger.Log($"[TheftLedger] Recorded: {itemId} x{count} by {initiatorId} from {victimHeroId ?? settlementId}");
+            return record;
         }
 
-        /// <summary>当案件解决时清除对应记录</summary>
+        /// <summary>当案件解决时清除对应定居点的所有未清记录</summary>
         public static void MarkCleared(string settlementId)
         {
             foreach (var r in _records.Where(r => r.VictimSettlementId == settlementId && !r.IsCleared))
                 r.IsCleared = true;
         }
 
-        /// <summary>返回栽赃候选名单</summary>
+        /// <summary>获取指定 WorldEvent 的所有偷窃记录</summary>
+        public static List<TheftTruthRecord> GetByEventId(string worldEventId)
+        {
+            return _records.Where(r => r.WorldEventId == worldEventId).ToList();
+        }
+
+        /// <summary>返回栽赃候选名单（含"强盗"默认项 + 有证物的受害者）</summary>
         public static List<FrameSubOption> GetFrameableTargets()
         {
             var candidates = new List<FrameSubOption>
@@ -1230,23 +1291,40 @@ namespace LivingWorldNpcs
             return 55;
         }
 
-        /// <summary>获取玩家背包中某物品的赃物来源标注（人 > 地点）</summary>
-        public static string GetSourceTag(string itemId)
+        /// <summary>
+        /// 获取某物品在指定持有者背包中的赃物来源标注。
+        /// 按来源聚合所有未清记录，每个来源标注各自数量。
+        /// 例："⚠ 偷自 特维亚×1, 曹村×2"
+        /// </summary>
+        public static string GetSourceTag(string itemId, string ownerHeroId)
         {
-            var record = _records.FirstOrDefault(r => r.ItemId == itemId && !r.IsCleared);
-            if (record == null) return null;
+            var records = _records.Where(r =>
+                r.ItemId == itemId && !r.IsCleared && r.InitiatorId == ownerHeroId).ToList();
+            if (records.Count == 0) return null;
 
-            // 优先显示受害者姓名（扒窃），其次显示地点（偷动物）
-            if (!string.IsNullOrEmpty(record.VictimHeroId))
+            // 按来源聚合：同一 VictimHeroId 或 LocationName 合并数量
+            var bySource = new Dictionary<string, int>();
+            foreach (var r in records)
             {
-                var victim = Hero.FindFirst(h => h.StringId == record.VictimHeroId);
-                if (victim != null)
-                    return $"⚠ 偷自 {victim.Name}";
+                string key;
+                if (!string.IsNullOrEmpty(r.VictimHeroId))
+                {
+                    var victim = Hero.FindFirst(h => h.StringId == r.VictimHeroId);
+                    key = victim != null ? victim.Name.ToString() : r.VictimHeroId;
+                }
+                else
+                {
+                    key = r.LocationName;
+                }
+                bySource.TryGetValue(key, out int cur);
+                bySource[key] = cur + r.Count;
             }
-            return $"⚠ 偷自 {record.LocationName}";
+
+            var parts = bySource.Select(kv => $"{kv.Key}×{kv.Value}");
+            return $"⚠ 偷自 {string.Join(", ", parts)}";
         }
 
-        /// <summary>获取某英雄是否在账本中（未被清除）</summary>
+        /// <summary>某英雄是否在账本中有未清记录</summary>
         public static bool HasRecordFor(string heroId)
         {
             return _records.Any(r => r.VictimHeroId == heroId && !r.IsCleared);
@@ -1261,8 +1339,7 @@ namespace LivingWorldNpcs
             var items = new List<EvidenceItem>();
             foreach (var record in _records.Where(r => r.VictimHeroId == heroId && !r.IsCleared))
             {
-                // 玩家背包里还有这件赃物才能当证物
-                var itemObj = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(record.ItemId);
+                var itemObj = MBObjectManager.Instance.GetObject<ItemObject>(record.ItemId);
                 if (itemObj == null) continue;
                 if (MobileParty.MainParty?.ItemRoster.GetItemNumber(itemObj) < 1) continue;
                 items.Add(new EvidenceItem
@@ -1270,7 +1347,7 @@ namespace LivingWorldNpcs
                     ItemId = record.ItemId,
                     ItemName = itemObj?.Name?.ToString() ?? record.ItemId,
                     LocationName = record.LocationName,
-                    StolenDay = record.StolenDay,
+                    StolenDay = record.Day,
                 });
             }
             return items;
@@ -1288,9 +1365,9 @@ namespace LivingWorldNpcs
         {
             try
             {
-                _records = JsonConvert.DeserializeObject<List<TheftRecord>>(json) ?? new List<TheftRecord>();
+                _records = JsonConvert.DeserializeObject<List<TheftTruthRecord>>(json) ?? new List<TheftTruthRecord>();
             }
-            catch { _records = new List<TheftRecord>(); }
+            catch { _records = new List<TheftTruthRecord>(); }
         }
 
         #endregion

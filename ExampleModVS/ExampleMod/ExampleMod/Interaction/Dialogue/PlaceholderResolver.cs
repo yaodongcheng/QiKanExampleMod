@@ -87,15 +87,26 @@ namespace LivingWorldNpcs
 
                 // B. 事件实例（WorldEvent 级）
                 case "EventId": return evt?.EventId ?? "";
-                case "StolenItemName":
-                    if (evt == null || string.IsNullOrEmpty(evt.TargetItemId)) return "";
-                    return MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId)?.Name?.ToString() ?? "";
-                case "StolenCount": return (evt?.Quantity ?? 0).ToString();
+                case "StolenCount": return (evt?.TotalStolenCount ?? 0).ToString();
                 case "StolenItemDesc":
-                    if (evt == null || evt.Quantity <= 0) return "";
-                    var itemName = string.IsNullOrEmpty(evt.TargetItemId) ? "" :
-                        MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId)?.Name?.ToString() ?? "";
-                    return evt.Quantity == 1 ? $"一只{itemName}" : $"{evt.Quantity}只{itemName}";
+                {
+                    if (evt == null) return "";
+                    var items = evt.StolenItemsSnapshot;
+                    if (items.Count == 0) return "";
+
+                    var parts = new List<string>();
+                    foreach (var kv in items)
+                    {
+                        var name = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key)?.Name?.ToString() ?? kv.Key;
+                        parts.Add(kv.Value == 1 ? $"一只{name}" : $"{kv.Value}只{name}");
+                    }
+
+                    if (parts.Count == 1) return parts[0];
+                    if (parts.Count == 2) return $"{parts[0]}和{parts[1]}";
+                    // 3+ 种不同物品：列举前两种 + 泛称总量
+                    var total = items.Values.Sum();
+                    return $"{parts[0]}、{parts[1]}等{total}只牲口";
+                }
                 case "StolenItemClause":  // 通用被盗物品从句：有物品→"，三只羊不见了"；暗杀等无物品犯罪→""
                 {
                     var desc = ResolveOne("StolenItemDesc");

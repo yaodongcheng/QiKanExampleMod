@@ -436,15 +436,10 @@ namespace LivingWorldNpcs
                     {
                         case EventStage.Emerging:
                         {
-                            string itemName = "";
-                            if (!string.IsNullOrEmpty(evt.TargetItemId))
-                            {
-                                var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
-                                itemName = item?.Name?.ToString() ?? "";
-                            }
+                            string itemDesc = evt.BuildStolenItemsDescription();
                             string scene = evt.Config?.CrimeScene ?? "";
-                            if (!string.IsNullOrEmpty(itemName) && !string.IsNullOrEmpty(scene))
-                                return $"调查：{settlementName}{scene}{itemName}失窃案";
+                            if (itemDesc != "东西" && !string.IsNullOrEmpty(scene))
+                                return $"调查：{settlementName}{scene}{itemDesc}失窃案";
                             return $"调查：{settlementName}失窃案";
                         }
                         case EventStage.Active:

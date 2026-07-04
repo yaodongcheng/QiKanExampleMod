@@ -74,13 +74,7 @@ namespace LivingWorldNpcs
             var cfg = evt.Config;
             string verb = cfg?.CrimeVerbPast ?? "出了事";
             string location = evt.TargetSettlement?.Name?.ToString() ?? evt.LocationName ?? "某地";
-            string item = "";
-            if (!string.IsNullOrEmpty(evt.TargetItemId))
-            {
-                var itemObj = MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
-                item = itemObj?.Name?.ToString() ?? evt.TargetItemId;
-            }
-            string itemDesc = !string.IsNullOrEmpty(item) ? $"{item} x{evt.Quantity}" : "";
+            string itemDesc = evt.BuildStolenItemsDescription();
             return $"{location}{verb}：{itemDesc}".TrimEnd('：');
         }
 

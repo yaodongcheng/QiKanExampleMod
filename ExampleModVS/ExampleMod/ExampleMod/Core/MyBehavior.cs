@@ -119,11 +119,11 @@ namespace LivingWorldNpcs
             if (dataStore.IsLoading)
                 WorldEventStore.Deserialize(worldEventsJson);
 
-            // 玩家偷窃账本 (PlayerTheftLedger)
-            string theftLedgerJson = PlayerTheftLedger.Serialize();
+            // 统一偷窃账本 (TheftLedger)
+            string theftLedgerJson = TheftLedger.Serialize();
             dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
             if (dataStore.IsLoading)
-                PlayerTheftLedger.Deserialize(theftLedgerJson);
+                TheftLedger.Deserialize(theftLedgerJson);
         }
 
         private void OnTick(float dt)

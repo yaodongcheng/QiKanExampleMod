@@ -177,7 +177,8 @@ namespace LivingWorldNpcs
             // 偷窃账本记账（犯罪后果系统用）
             if (victimHero != null && Settlement.CurrentSettlement != null)
             {
-                PlayerTheftLedger.Record(
+                TheftLedger.Record(
+                    initiatorId: Hero.MainHero.StringId,
                     victimHeroId: victimHero.StringId,
                     settlementId: Settlement.CurrentSettlement.StringId,
                     itemId: itemToSteal.Item.StringId,
@@ -281,12 +282,12 @@ namespace LivingWorldNpcs
         }
 
         // ----------------------------------------------------------------
-        // 3. 动物偷窃：WorldEvent 创建 + PlayerTheftLedger 记账 + 目击者记录
-        //    从 InteractionMissionView 迁入，与 StealSpecificItem 的 PlayerTheftLedger
+        // 3. 动物偷窃：WorldEvent 创建 + TheftLedger 记账 + 目击者记录
+        //    从 InteractionMissionView 迁入，与 StealSpecificItem 的 TheftLedger
         //    记账保持在同一处，统一 Stealth 子系统的犯罪记录入口。
         // ----------------------------------------------------------------
         /// <summary>
-        /// 偷动物成功后创建 WorldEvent + PlayerTheftLedger 记账 + 目击者记录。
+        /// 偷动物成功后创建 WorldEvent + TheftLedger 记账 + 目击者记录。
         /// 目击者检测走统一的 <see cref="GetWitnesses"/>。
         /// </summary>
         public static void RecordAnimalTheft(Settlement settlement, ItemObject livestockItem, string monsterId, Agent animal)
@@ -333,11 +334,10 @@ namespace LivingWorldNpcs
                     Severity = 30,
                     InitiatorId = Hero.MainHero.StringId,
                     TargetSettlementId = settlement.StringId,
-                    TargetItemId = livestockItem.StringId,
-                    Quantity = 1,
                     OccurredDay = (float)CampaignTime.Now.ToDays,
                     DayLimit = 14f,
                     LocationName = settlement.Name?.ToString() ?? "村庄",
+                    StolenItems = new Dictionary<string, int> { { livestockItem.StringId, 1 } },
                     WitnessHeroIds = witnessHeroIds,
                     TemplateWitness = templateWitness,
                     Stage = wasWitnessed ? EventStage.Active : EventStage.Dormant,
@@ -361,13 +361,16 @@ namespace LivingWorldNpcs
                 };
                 WorldEventStore.AddOrMerge(evt);
 
-                // 偷窃账本记账
-                PlayerTheftLedger.Record(
+                // 统一偷窃账本记账（世界事件 ID 关联）
+                var activeEvent = WorldEventStore.FindActive(settlement.StringId);
+                TheftLedger.Record(
+                    initiatorId: Hero.MainHero.StringId,
                     victimHeroId: null,
                     settlementId: settlement.StringId,
                     itemId: livestockItem.StringId,
                     count: 1,
-                    locationName: $"在{settlement.Name}"
+                    locationName: $"在{settlement.Name}",
+                    worldEventId: activeEvent?.EventId
                 );
             }
             catch (Exception ex)
@@ -411,7 +414,7 @@ namespace LivingWorldNpcs
             // 步骤 3：偷窃追踪（持久化，自然恢复：每天每种恢复 1 只）
             VillageAnimalTracker.RecordTheft(settlement.StringId, monsterId);
 
-            // 步骤 4：WorldEvent 创建 + PlayerTheftLedger 记账 + 目击者记录
+            // 步骤 4：WorldEvent 创建 + TheftLedger 记账 + 目击者记录
             RecordAnimalTheft(settlement, livestockItem, monsterId, animal);
         }
     }
