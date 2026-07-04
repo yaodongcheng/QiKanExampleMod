@@ -1,8 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     /// <summary>
     /// 意图冷却存储：失败的对抗意图（求婚/招募/策反…）在一段游戏时间内不能对同一 NPC 重复发起。

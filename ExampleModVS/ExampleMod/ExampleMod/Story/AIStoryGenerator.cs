@@ -8,7 +8,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.Library;
 using TaleWorlds.SaveSystem;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     public enum StoryGenStatus
     {

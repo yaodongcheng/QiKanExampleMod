@@ -9,7 +9,7 @@ using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     public class StoryDialogVM : ViewModel
     {

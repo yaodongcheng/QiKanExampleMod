@@ -8,7 +8,6 @@ using System.IO;
 using TaleWorlds.ModuleManager;
 using TaleWorlds.MountAndBlade;
 using System.Web;
-using LivingWorldNpcs.Story;
 
 namespace LivingWorldNpcs
 {

@@ -1,10 +1,9 @@
-using LivingWorldNpcs;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     /// <summary>荣誉段 — 给台词框架用。</summary>
     public enum HonorLevel { High, Neutral, Low }

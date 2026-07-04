@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TaleWorlds.Library;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     // 定义情感类别的配置结构
     public class EmotionCategory

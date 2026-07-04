@@ -9,7 +9,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.SaveSystem;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     public class StoryContext
     {
@@ -206,7 +206,7 @@ namespace LivingWorldNpcs.Story
             // 给每个类分配一个在这个 Definer 内部唯一的 ID
 
             // 1. 注册 GeneratedStoryResult (生成结果)
-            AddClassDefinition(typeof(LivingWorldNpcs.Story.GeneratedStoryResult), 10);
+            AddClassDefinition(typeof(LivingWorldNpcs.GeneratedStoryResult), 10);
         }
     }
 

@@ -8,7 +8,7 @@ using TaleWorlds.CampaignSystem.GameComponents;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Library;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     public delegate bool CommandHandler(ScriptNode node, StoryEngine engine);
     public class CommandManager

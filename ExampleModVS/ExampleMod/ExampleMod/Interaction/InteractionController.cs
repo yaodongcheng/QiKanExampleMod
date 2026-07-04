@@ -1,4 +1,3 @@
-using LivingWorldNpcs;
 using Microsoft.VisualBasic.Devices;
 using Microsoft.VisualBasic.FileIO;
 using Newtonsoft.Json;
@@ -23,7 +22,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.ViewModelCollection.GameOptions;
 using TaleWorlds.TwoDimension;
 using static LivingWorldNpcs.PromptBuilder;
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
 
     public static class ActionHandler
@@ -424,7 +423,12 @@ namespace LivingWorldNpcs.Story
         {
             if (intent == null || ctx == null) return;
             DebugLogger.Log($"[Dialog] Player clicked: \"{intent.DisplayName}\" (goal={intent.Goal}, category={intent.Category})");
-            if (!intent.Goal.HasValue) { intent.OnInstant(ctx); return; }
+
+            if (!intent.Goal.HasValue)
+            {
+                intent.OnInstant(ctx);
+                return;
+            }
 
             if (Settings.Instance.IsLLMReady)
                 StartLLMNegotiation(intent, ctx);   // 有 LLM：走谈判博弈盘（目标已知，无需 LLM 猜）

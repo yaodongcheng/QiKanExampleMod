@@ -24,7 +24,6 @@ using System.Reflection;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.CampaignSystem.SceneInformationPopupTypes;
-using LivingWorldNpcs.Story;
 using System.IO;
 
 #if !MB2_V1212

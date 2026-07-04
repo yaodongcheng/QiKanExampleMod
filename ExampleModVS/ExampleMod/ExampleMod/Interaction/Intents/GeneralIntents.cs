@@ -1,13 +1,12 @@
 using System;
 using System.Linq;
-using LivingWorldNpcs;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
-namespace LivingWorldNpcs.Story
+namespace LivingWorldNpcs
 {
     // ── 情报：打开百科（即时类）──
     public class InfoIntent : IntentBase

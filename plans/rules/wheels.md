@@ -771,3 +771,94 @@ custom.inject_dialogue clear           → 清除所有注入
 清理：`RemoveRelatedLines(owner)` 按归属哨兵批量删除，不动原版对话。
 
 **文件位置**：`Interaction/Dialogue/DialogueInjector.cs`（注入引擎）、`Debug/MyCommands.cs`（`InjectDialogueFromJson` 薄壳指令）。JSON 示例：`ModuleData/DesignData/Dialogues/test_talk.json`。
+
+---
+
+# 🆕 意图/行动/任务统一重构（2026-07-04 新增）
+
+## IntentBase 新 API — NPC 与玩家平权
+
+```csharp
+// 意图来源（Player / Npc / Both）
+public virtual IntentSource Source => IntentSource.Both;
+
+// NPC 意图响应的事件类型白名单
+public virtual string[] TriggerEvents => Array.Empty<string>();
+
+// 深度事件匹配（EventType 匹配后，检查 Args 是否满足条件）
+public virtual bool CanHandle(AIEvent aiEvent, IntentContext ctx) => true;
+
+// OnInstant / OnSuccess / OnFail 不变，保留 imperative 风格
+public virtual void OnInstant(IntentContext ctx) { }
+public virtual void OnSuccess(IntentContext ctx) { }
+public virtual void OnFail(IntentContext ctx) { /* 基类默认：掉好感 + 进冷却 */ }
+
+
+**文件位置**：`Interaction/Intents/IntentBase.cs`
+
+## IntentContext.BuildForNpc — NPC 视角上下文
+
+```csharp
+// NPC 视角构建：NPC 发起意图时的上下文（交互目标是玩家）
+var ctx = IntentContext.BuildForNpc(npcAgent, npcHero);
+// 返回 null = 无法发起意图（无 Agent 也无 Hero）
+// ctx.NpcLevel: None / AgentOnly（仅 Mission 行为）/ Full（有 Hero，完整功能）
+```
+
+**文件位置**：`Interaction/Intents/IntentContext.cs`
+
+## IntentRegistry 新方法 — NPC 意图查询
+
+```csharp
+// 取 NPC 可发起的意图（Source 含 Npc 标志，且 Evaluate 通过）
+IntentRegistry.GetNpcInitiatives(ctx);
+
+// 按类名查找 NPC 意图
+IntentRegistry.FindNpcIntent("GuardInterceptIntent");
+```
+
+**文件位置**：`Interaction/Intents/IntentRegistry.cs`
+
+## AgentBrain 新事件分发 — IntentRegistry 优先 + 兜底
+
+```csharp
+// ReceiveEvent 改造：先查 IntentRegistry（MatchesEvent 两层匹配）
+// → 命中 → intent.OnInstant(ctx) → AgentBrain 入队 IAtomicAction
+// → 未命中 → HandleLegacyAtomicAction（旧 if/else 兜底）
+
+// MatchesEvent：① TriggerEvents 白名单 ② intent.CanHandle(aiEvent, ctx) 深度匹配
+```
+
+**文件位置**：`AI/AgentBrain.cs`
+
+## 新建 NPC 意图类 — NpcInitiativeIntents.cs
+
+7 个 NPC 主动意图类，按 IntentBase 格式：`NewsConflictIntent` / `GuardInterceptIntent` / `CrimeAccusationIntent` / `RevengeIntent` / `GreetingIntent`（Both）/ `OfficialBusinessIntent` / `CrushIntent`
+
+每个实现 `TriggerEvents` + `CanHandle` + `OnInstant`（创建 PrepareOpeningAction）。
+
+**文件位置**：`Interaction/Intents/NpcInitiativeIntents.cs`
+
+
+## InteractionOptionType 扩展 — 追责类型合并
+
+```csharp
+// 新增 15 个 InteractionOptionType 值（从 AccountabilityOptionType 迁移）：
+PayRestitution / CharmDefense / FrameSuspect / Threat / Investigate / Confess /
+SilenceWitness / LeadRetaliation / WorkOffDebt /
+BetrayQuest / InnocenceProof / Settle / AcceptBountyQuest / LureArrest / Arrest
+
+// 新增 InteractionCategory.Accountability
+// AccountabilityOptionType 枚举已删除
+// InteractionOptionCategoryMap 已补全新分类映射
+```
+
+**文件位置**：`Interaction/InteractionOptionManager.cs` / `Interaction/Intents/AccountabilityIntents.cs`
+
+## SettlementHonorStore — 独立文件
+
+从 `InteractionOptionManager.cs` 末尾抽出到独立文件 `Interaction/SettlementHonorStore.cs`（纯数据存储，与交互管理解耦）。
+
+## 叙事迁移 — QuestManager 硬编码字串清理
+
+`QuestManager.GetQuestDescription()` 的 ~120 行日本战国硬编码字串已替换为通用简化描述。`GetQuestTitle()` 同步清理。叙事全部走 `NarrativeResolver` → CSV 管道。

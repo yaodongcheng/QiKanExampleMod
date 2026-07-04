@@ -265,6 +265,8 @@
     <Compile Include="Interaction\Intents\GeneralIntents.cs" />
     <Compile Include="Interaction\Intents\RecruitSoldierIntent.cs" />
     <Compile Include="Interaction\Intents\AccountabilityIntents.cs" />
+    <Compile Include="Interaction\Intents\NpcInitiativeIntents.cs" />
+    <Compile Include="Interaction\SettlementHonorStore.cs" />
     <Compile Include="Interaction\InteractionMissionView.cs" />
     <Compile Include="Interaction\InteractionOptionManager.cs" />
     <Compile Include="Interaction\InteractionVM.cs" />
@@ -313,7 +315,7 @@
     <Compile Include="Quests\Commissions\CommissionQuest.cs" />
     <Compile Include="Quests\Commissions\CommissionHubIssue.cs" />
     <Compile Include="Quests\Commissions\CommissionGenerator.cs" />
-    <Compile Include="Quests\Commissions\CommissionIntent.cs" />
+    <Compile Include="Interaction\Intents\CommissionIntent.cs" />
     <Compile Include="Quests\Commissions\TrustSystem.cs" />
     <Compile Include="Quests\Commissions\InfamySystem.cs" />
     <Compile Include="Quests\Commissions\CommissionNarrative.cs" />

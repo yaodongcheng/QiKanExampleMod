@@ -1,4 +1,3 @@
-﻿using LivingWorldNpcs.Story;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +8,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+#pragma warning disable CS0618 // Intentional migration: uses deprecated NpcInitiative + PrepareOpeningAction old ctors
 namespace LivingWorldNpcs
 {
     // 事件数据包，可以携带任何参数
@@ -51,12 +51,50 @@ namespace LivingWorldNpcs
         // --- 核心：决策中枢 ---
         public void ReceiveEvent(AIEvent aiEvent)
         {
-            // 在这里编写业务逻辑，根据 Agent 的身份（守卫、平民）对事件做出反应            
+            // ═══ 新增：先查 IntentRegistry 有没有匹配的 NPC 意图 ═══
+            var ctx = IntentContext.BuildForNpc(Owner);
+            if (ctx != null)
+            {
+                var initiatives = IntentRegistry.GetNpcInitiatives(ctx);
+                foreach (var pair in initiatives)
+                {
+                    if (MatchesEvent(pair.Key, aiEvent, ctx))
+                    {
+                        DebugLogger.Log($"[AgentBrain] {Owner.Name} matched NPC intent: {pair.Key.GetType().Name} for event {aiEvent.EventType}");
+                        pair.Key.OnInstant(ctx);
+                        return;
+                    }
+                }
+            }
 
-            // 示例：处理 "WitnessCrime" (目击犯罪) 事件
-            //InformationManager.DisplayMessage(new InformationMessage($"Agent {Owner.Name} 收到事件: {aiEvent.EventType}", Colors.Yellow));
+            // ═══ 兜底：纯 Mission 层动作（ComeHere / order_follow / order_attack 等） ═══
+            HandleLegacyAtomicAction(aiEvent);
+        }
 
-            // 示例：处理 "ComeHere" 事件
+        /// <summary>匹配函数：EventType 白名单 + 深度参数匹配</summary>
+        private static bool MatchesEvent(IntentBase intent, AIEvent aiEvent, IntentContext ctx)
+        {
+            // 第一层：EventType 白名单
+            if (intent.TriggerEvents == null || intent.TriggerEvents.Length == 0)
+                return false;
+            if (!intent.TriggerEvents.Contains(aiEvent.EventType))
+                return false;
+
+            // 第二层：深度参数匹配（由子类 override CanHandle）
+            try
+            {
+                return intent.CanHandle(aiEvent, ctx);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AgentBrain] MatchesEvent.CanHandle exception for {intent.GetType().Name}: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>兜底：纯 Mission 层原子动作分发（保留旧 if/else 链，不变）</summary>
+        private void HandleLegacyAtomicAction(AIEvent aiEvent)
+        {
             if (aiEvent.EventType == "ComeHere")
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
@@ -226,11 +264,11 @@ namespace LivingWorldNpcs
                 ClearAllActions();
                 EnqueueAction(new StayAction(null, false));
             }
-        
-               
 
-            
-        }
+
+
+
+        } // HandleLegacyAtomicAction
 
         // 辅助判断逻辑
        

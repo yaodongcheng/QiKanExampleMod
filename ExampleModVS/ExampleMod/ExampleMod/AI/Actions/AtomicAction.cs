@@ -1,4 +1,3 @@
-﻿using LivingWorldNpcs.Story;
 using Newtonsoft.Json;
 using SandBox.Conversation.MissionLogics;
 using System;
@@ -13,6 +12,7 @@ using TaleWorlds.MountAndBlade;
 using TaleWorlds.CampaignSystem.Actions;
 using static TaleWorlds.MountAndBlade.Agent;
 
+#pragma warning disable CS0618 // Intentional migration: uses deprecated NpcInitiative
 namespace LivingWorldNpcs
 {
     // 接口保持不变
@@ -31,16 +31,33 @@ namespace LivingWorldNpcs
         InitiativeType Type;
         private string ContextDesc;
 
-        private PendingConflict _conflictData; // 新增字段
-        public PrepareOpeningAction(InitiativeType type,string desc)
+        private PendingConflict _conflictData; // 运行时冲突数据
+
+        // ═══ 新构造函数：接收意图 + 上下文 + 可选运行时冲突数据 ═══
+        private IntentBase _intent;
+        private IntentContext _ctx;
+
+        /// <summary>新构造函数：接收意图 + 上下文 + 可选运行时冲突数据</summary>
+        public PrepareOpeningAction(IntentBase intent, IntentContext ctx, PendingConflict conflict = null)
+        {
+            _intent = intent;
+            _ctx = ctx;
+            _conflictData = conflict;
+            Type = InitiativeType.Greeting; // 默认值，子类 OnInstant 中会覆盖
+        }
+
+        // 旧构造函数保留 + Obsolete，过渡期两端都可用
+        [Obsolete("Use PrepareOpeningAction(IntentBase, IntentContext, PendingConflict?)")]
+        public PrepareOpeningAction(InitiativeType type, string desc)
         {
             Type = type;
             ContextDesc = desc;
         }
         // 【新增】构造函数 2：冲突逻辑（接收结构化数据）
+        [Obsolete("Use PrepareOpeningAction(IntentBase, IntentContext, PendingConflict?)")]
         public PrepareOpeningAction(InitiativeType type, PendingConflict conflict)
         {
-            Type = type; 
+            Type = type;
             _conflictData = conflict;
         }
         private async Task Thinking()
@@ -90,10 +107,22 @@ namespace LivingWorldNpcs
         {
             self = agent;
             memory = AllNpcMemoryManager.GetMemoryForAgent(self);
-            if(_conflictData == null)
+
+            // 新路径：IntentBase 驱动（优先）
+            if (_intent != null)
+            {
+                // 从意图和冲突数据创建 NpcInitiative
+                if (_conflictData != null)
+                    memory.CurrentInitiative = new NpcInitiative(Type, _conflictData);
+                else
+                    memory.CurrentInitiative = new NpcInitiative(Type, _intent.DisplayName);
+            }
+            // 旧路径：直接传 InitiativeType
+            else if (_conflictData == null)
                 memory.CurrentInitiative = new NpcInitiative(Type, ContextDesc);
             else
                 memory.CurrentInitiative = new NpcInitiative(Type, _conflictData);
+
             _ = Task.Run(() => Thinking());
         }
 
