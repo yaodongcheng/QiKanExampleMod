@@ -256,13 +256,13 @@ namespace LivingWorldNpcs
             };
 
             // 动态生成栽赃候选
-            var frameTargets = PlayerTheftLedger.GetFrameableTargets();
+            var frameTargets = TheftLedger.GetFrameableTargets();
             foreach (var target in frameTargets.Skip(1)) // Skip "bandit" (already above)
             {
                 if (target.CanShowEvidence)
                 {
                     // 有证物 → 展开每一件赃物为独立选项
-                    var evidenceItems = PlayerTheftLedger.GetEvidenceItems(target.TargetId);
+                    var evidenceItems = TheftLedger.GetEvidenceItems(target.TargetId);
                     foreach (var evItem in evidenceItems)
                     {
                         turn.Options.Insert(turn.Options.Count - 1, new DialogueInjector.DialogueInjectOption

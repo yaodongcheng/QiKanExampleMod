@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
@@ -44,8 +45,7 @@ namespace LivingWorldNpcs
                     Severity = 30,
                     InitiatorId = Hero.MainHero.StringId,
                     TargetSettlementId = settlement.StringId,
-                    TargetItemId = itemId,
-                    Quantity = 3,
+                    StolenItems = new Dictionary<string, int> { { itemId, 3 } },
                     OccurredDay = (float)CampaignTime.Now.ToDays,
                     DayLimit = 14f,
                     LocationName = settlement.Name?.ToString() ?? "村庄",

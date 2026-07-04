@@ -648,8 +648,8 @@ namespace LivingWorldNpcs
                         string displayName = itemName.Length > 10 ? itemName.Substring(0, 9) + ".." : itemName;
                         string itemDesc = $"- {displayName} x{amount} (单:{valuePerItem}|总:{subTotal})";
 
-                        // 赃物来源标注（查 PlayerTheftLedger）
-                        string sourceTag = PlayerTheftLedger.GetSourceTag(item.StringId);
+                        // 赃物来源标注（查 TheftLedger，按背包主人 + 物品精确匹配）
+                        string sourceTag = TheftLedger.GetSourceTag(item.StringId, Hero.MainHero.StringId);
                         if (!string.IsNullOrEmpty(sourceTag))
                             itemDesc += $" {sourceTag}";
 

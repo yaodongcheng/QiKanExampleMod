@@ -1201,12 +1201,7 @@ namespace LivingWorldNpcs
 
             if (evt != null)
             {
-                string itemName = "财物";
-                if (!string.IsNullOrEmpty(evt.TargetItemId))
-                {
-                    var item = MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
-                    itemName = item?.Name?.ToString() ?? "财物";
-                }
+                string itemDesc = evt.BuildStolenItemsDescription();
                 string scene = !string.IsNullOrEmpty(evt.Config?.CrimeScene) ? evt.Config.CrimeScene : "现场";
                 string verb = !string.IsNullOrEmpty(evt.Config?.CrimeVerb) ? evt.Config.CrimeVerb : "丢失";
                 int witnessCount = evt.WitnessCount;
@@ -1218,7 +1213,7 @@ namespace LivingWorldNpcs
 
                 AddLog(new TextObject(
                     $"前往 {locationName} 的{scene}附近搜集线索。" +
-                    $"{itemName}{verb}了，{witnessClause}" +
+                    $"{itemDesc}{verb}了，{witnessClause}" +
                     $"与当地人交谈或回现场调查，找出是谁干的。"));
                 AddLog(new TextObject(
                     $"提示：调查窗口约{windowDays}天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));

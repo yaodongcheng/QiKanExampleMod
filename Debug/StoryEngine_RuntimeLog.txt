@@ -1,7 +1,7 @@
-﻿[21:30:54.421] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[21:31:07.057] [WorldEventStore] Deserialized 0 events, 0 alerts
-[21:31:15.029] [DisplayMessage] "Custom Camera Load Success!"
-[21:31:15.444] === [AnimalSync] 特维亚 (village_ES3_2) ===
+﻿[08:44:32.334] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[08:44:42.266] [WorldEventStore] Deserialized 0 events, 0 alerts
+[08:44:52.783] [DisplayMessage] "Custom Camera Load Success!"
+[08:44:53.195] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -11,86 +11,61 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[21:31:15.454] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[21:31:38.880] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[21:31:39.289] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
-[21:31:39.291] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[21:31:39.293] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 item=hog culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
-[21:31:39.293] [TheftLedger] Recorded: hog x1 from village_ES3_2
-[21:31:39.294] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[21:31:39.294] [DisplayMessage] [Green] "获得了 肉猪！"
-[21:31:49.036] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[21:31:49.440] [StealAnimal] 鹅 (monster=goose) → goose, 特维亚 stock: 5→4
-[21:31:49.441] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[21:31:49.441] [WorldEvent] Merged theft into existing case theft_village_ES3_2_91077.52_1 (qty=2)
-[21:31:49.441] [TheftLedger] Recorded: goose x1 from village_ES3_2
-[21:31:49.441] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[21:31:49.441] [DisplayMessage] [Green] "获得了 鹅！"
-[21:31:57.523] [DisplayMessage] "Custom Camera Load Success!"
-[21:31:57.818] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[08:44:53.205] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[08:44:59.928] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:45:00.336] [StealAnimal] 鹅 (monster=goose) → goose, 特维亚 stock: 5→4
+[08:45:00.340] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[08:45:00.343] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 items=[goosex1] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
+[08:45:00.343] [TheftLedger] Recorded: goose x1 by main_hero from village_ES3_2
+[08:45:00.343] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:45:00.344] [DisplayMessage] [Green] "获得了 鹅！"
+[08:45:04.104] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:45:04.516] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
+[08:45:04.516] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[08:45:04.517] [WorldEvent] Merged theft into existing case theft_village_ES3_2_91077.52_1 (totalStolen=2, items=[goosex1, hogx1])
+[08:45:04.517] [TheftLedger] Recorded: hog x1 by main_hero from village_ES3_2
+[08:45:04.517] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:45:04.517] [DisplayMessage] [Green] "获得了 肉猪！"
+[08:45:14.154] [DisplayMessage] "你发现了泽斯特亚的福律斯"
+[08:45:14.154] [DisplayMessage] "你发现了泽斯特亚的达叙斯"
+[08:45:14.154] [DisplayMessage] "你发现了泽斯特亚的安农"
+[08:45:18.035] [DisplayMessage] "Custom Camera Load Success!"
+[08:45:18.400] === [AnimalSync] 泽斯特亚 (village_ES3_3) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
-  sheep      16       16       0        
-  cow        10       10       0        
-  hog        10       8        2        remove 2
-  goose      5        4        1        remove 1
-  chicken    16       15       1        remove 1
+  hog        0        24       0        roster-only (no scene spawn)
   =========================================
 
-[21:31:57.818] [AnimalSync] 特维亚: removed 4 stolen animal(s) across 5 type(s)
-[21:32:30.043] [DisplayMessage] "每日收入 +100"
-[21:32:30.045] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
-[21:32:30.045] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
-[21:32:32.064] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
-[21:32:35.638] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
-[21:32:42.535] [DisplayMessage] [RGB(0.7,0.7,0.7)] "绿林兄弟会家族已与北帝国缔结契约并为其作战。"
-[21:32:42.536] [DisplayMessage] [RGB(0.7,0.7,0.7)] "绿林兄弟会已加入北帝国。"
-[21:32:42.542] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>因和平宣言而获自由。"
-[21:32:44.202] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
-[21:32:45.149] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1599"><b>狼皮部落的乌德里斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_21"><b>卡费德</b></a>俘虏。"
-[21:32:50.045] [DisplayMessage] "每日收入 +100"
-[21:32:50.045] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
-[21:32:50.046] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
-[21:32:50.046] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
-[21:32:50.046] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Emerging settlement=特维亚 — refreshing issue signals
-[21:32:50.051] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=theft_village_ES3_2_91077.52_1 stage=Emerging
-[21:32:53.845] [AnimalSync] Topped up 羊: roster 8 → 16 (natural=16 stolen=0)
-[21:32:53.845] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
-[21:32:53.845] [AnimalSync] Topped up 肉猪: roster 3 → 10 (natural=10 stolen=0)
-[21:32:53.846] [AnimalSync] Topped up 鹅: roster 2 → 5 (natural=5 stolen=0)
-[21:32:53.846] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
-[21:32:53.846] [AnimalSync] 特维亚: topped up 34 animal(s) in ItemRoster
-[21:32:56.397] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
-[21:32:56.404] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，2只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
-[21:32:56.405] [Placeholder] NpcLine: "{RestitutionBreakdown}" → "那只肉猪，市值120第纳尔。既然你自己认了，赔251第纳尔，这事就算了。你认不认？"
-[21:32:56.406] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
-[21:32:56.406] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
-[21:32:56.406] [CrimeDialog]   NPC: 有什么要说的？
-[21:32:56.406] [CrimeDialog]   Option: "我愿意赔。你说个数。" → NONE
-[21:32:56.406] [CrimeDialog]   Option: "（讪笑）开个玩笑……刚才是我胡说的" → INTENT:CharmDefense
-[21:32:56.408] [CrimeDialog]   Option: "（转身就走）" → INTENT:WalkAway
-[21:32:56.408] [CrimeDialog] Turn[restitution_detail] speaker=特维亚的加里托普斯 stage=Emerging
-[21:32:56.408] [CrimeDialog]   NPC: 那只肉猪，市值120第纳尔。既然你自己认了，赔251第纳尔，这事就算了。你认不认？
-[21:32:56.408] [CrimeDialog]   Option: "好，我赔（251 第纳尔）" → INTENT:PayRestitution
-[21:32:56.408] [CrimeDialog]   Option: "太贵了，不赔。" → NONE
-[21:32:56.408] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
-[21:32:56.408] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，2只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
-[21:32:56.408] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
-[21:32:56.409] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
-[21:32:56.409] [CrimeDialog]   Option: "我还有事。" → INTENT:WalkAway
-[21:32:56.409] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Emerging
-[21:32:56.409] [CrimeDialog]   NPC: …
-[21:32:56.409] [CrimeDialog]   Option: "说点别的……" → NONE
-[21:32:56.409] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
-[21:32:56.412] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=4
-[21:32:57.425] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[21:32:57.426] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[21:32:57.432] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
-[21:32:58.119] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
-[21:32:58.794] [VanillaDialog] Options (2): 村长，听说特维亚出了点事？ | 我现在得走了。
-[21:32:58.796] [VanillaDialog] Player says: "村长，听说特维亚出了点事？"
-[21:32:58.796] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，2只肉猪不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
-[21:33:39.131] [VanillaDialog] Options (3): （低头）是我干的。 | 我可以帮忙查查是谁干的。 | 我还有事。
-[21:33:39.134] [VanillaDialog] Player says: "我还有事。"
-[21:33:39.134] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "那你这后生忙吧……老夫们自己想办法。"
-[21:33:39.634] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1
+[08:47:13.891] [DisplayMessage] "你发现了萨戈拉的得尔提索斯"
+[08:47:13.892] [DisplayMessage] "你发现了萨戈拉的浦里奥斯"
+[08:47:13.892] [DisplayMessage] "你发现了萨戈拉的得诺斯"
+[08:47:17.114] [DisplayMessage] "Custom Camera Load Success!"
+[08:47:17.301] === [AnimalSync] 萨戈拉 (village_ES4_1) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      8        20       0        
+  cow        10       0        0        decorative (not in roster)
+  hog        57       0        0        decorative (not in roster)
+  goose      7        0        0        decorative (not in roster)
+  chicken    43       0        0        decorative (not in roster)
+  =========================================
+
+[08:47:17.301] [AnimalSync] Topped up 牛: roster 0 → 10 (natural=10 stolen=0)
+[08:47:17.301] [AnimalSync] Topped up 肉猪: roster 0 → 57 (natural=57 stolen=0)
+[08:47:17.301] [AnimalSync] Topped up 鹅: roster 0 → 7 (natural=7 stolen=0)
+[08:47:17.302] [AnimalSync] Topped up 鸡: roster 0 → 43 (natural=43 stolen=0)
+[08:47:17.302] [AnimalSync] 萨戈拉: topped up 117 animal(s) in ItemRoster
+[08:47:56.996] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:47:57.420] [StealAnimal] 肉猪 (monster=hog) → hog, 萨戈拉 stock: 57→56
+[08:47:57.420] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[08:47:57.420] [WorldEvent] New event: Theft_Animal id=theft_village_ES4_1_91077.55_1 settlement=village_ES4_1 items=[hogx1] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.55
+[08:47:57.421] [TheftLedger] Recorded: hog x1 by main_hero from village_ES4_1
+[08:47:57.421] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:47:57.421] [DisplayMessage] [Green] "获得了 肉猪！"
+[08:48:06.488] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:48:06.893] [StealAnimal] 鹅 (monster=goose) → goose, 萨戈拉 stock: 7→6
+[08:48:06.893] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[08:48:06.893] [WorldEvent] Merged theft into existing case theft_village_ES4_1_91077.55_1 (totalStolen=2, items=[hogx1, goosex1])
+[08:48:06.893] [TheftLedger] Recorded: goose x1 by main_hero from village_ES4_1
+[08:48:06.894] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[08:48:06.894] [DisplayMessage] [Green] "获得了 鹅！"

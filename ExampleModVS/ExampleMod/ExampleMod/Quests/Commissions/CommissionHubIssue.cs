@@ -607,12 +607,12 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 从 WorldEvent 提取被盗物品名称（用于 Issue 描述叙事）。
+        /// 多物品时返回最主要物品名。
         /// </summary>
         private static string GetStolenItemName(WorldEvent evt)
         {
-            if (evt == null || string.IsNullOrEmpty(evt.TargetItemId)) return "";
-            var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(evt.TargetItemId);
-            return item?.Name?.ToString() ?? "";
+            if (evt == null) return "";
+            return evt.BuildStolenItemsDescription();
         }
 
         private void OnDailyTick()
