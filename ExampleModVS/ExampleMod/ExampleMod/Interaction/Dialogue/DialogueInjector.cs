@@ -635,6 +635,28 @@ namespace LivingWorldNpcs
                     count++;
                 }
             }
+            else if (opt.LazyNpcResponse != null)
+            {
+                // 延迟求值：condition 回调在引擎展示 NPC 行前触发 → 更新 Value → GetCachedTokens() 拿到最新文本
+                var textObj = new TextObject("…");
+                cm.AddDialogLineMultiAgent(
+                    $"inj_lazy_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                    textObj,
+                    () =>
+                    {
+                        textObj.Value = opt.LazyNpcResponse();
+                        // 清除内部缓存，确保 GetCachedTokens() 从新 Value 重新 tokenize
+                        var tokensField = typeof(TextObject).GetField("cachedTokens",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        var langField = typeof(TextObject).GetField("cachedTextLanguageId",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        tokensField?.SetValue(textObj, null);
+                        langField?.SetValue(textObj, -1);
+                        return true;
+                    },
+                    null, turn.SpeakerIndex, -1, 125);
+                count++;
+            }
             else if (!string.IsNullOrEmpty(opt.NpcResponse))
             {
                 cm.AddDialogLineMultiAgent(
@@ -693,6 +715,9 @@ namespace LivingWorldNpcs
             public string NpcResponseOnSuccess = null;
             /// <summary>检定失败时 NPC 的回应（与 NpcResponseOnSuccess 配对使用，覆盖 NpcResponse）。</summary>
             public string NpcResponseOnFail = null;
+            /// <summary>运行时延迟求值：引擎展示此行前才调 delegate 拿最新文本。设置后覆盖 NpcResponse。</summary>
+            [Newtonsoft.Json.JsonIgnore]
+            public Func<string> LazyNpcResponse = null;
             /// <summary>选了此选项后跳转到哪个 turn。null = 关闭对话。</summary>
             public string NextTurn = null;
             public string Action = "NONE";
