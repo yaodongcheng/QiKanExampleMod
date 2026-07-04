@@ -173,7 +173,7 @@ namespace LivingWorldNpcs
             }
 
             turns.Add(turn);
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
         }
 
         private static DialogueInjector.DialogueInjectTurn BuildConfessTurn(PlaceholderResolver r, IntentContext ctx)
@@ -233,6 +233,7 @@ namespace LivingWorldNpcs
 
         private static void BuildReportTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
         {
+            
             var evt = r.Event;
             var turn = new DialogueInjector.DialogueInjectTurn
             {
@@ -251,6 +252,13 @@ namespace LivingWorldNpcs
                         NextTurn = "continue_chat"
                     },
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "还没查到什么。", NpcResponse = r.Resolve("那你再去看看。{InvestigationProgressWord}。"), Action = "NONE", NextTurn = "continue_chat" },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "我还有事。",
+                        NpcResponse = r.Resolve("快去查，有消息了来告诉{SpeakerSelfRef}。"),
+                        Action = "INTENT:WalkAway",
+                        NextTurn = ""
+                    },
                 }
             };
 
@@ -305,7 +313,7 @@ namespace LivingWorldNpcs
             }
 
             turns.Add(turn);
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
         }
 
         private static void BuildConfrontPlayerTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
@@ -351,7 +359,7 @@ namespace LivingWorldNpcs
 
             // 赔偿明细 turn + 继续聊 turn
             turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "continue_chat"));
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
         }
 
         private static void BuildBountyOfferTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
@@ -367,7 +375,7 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "我先想想。", Action = "NONE", NextTurn = "continue_chat" },
                 }
             });
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
         }
 
         private static void BuildRetaliationTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
@@ -403,7 +411,7 @@ namespace LivingWorldNpcs
             {
                 turns.Add(BuildRestitutionDetailTurn(r, ctx, "restitution_detail", "continue_chat"));
             }
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
         }
 
         private static DialogueInjector.DialogueInjectScript BuildWitnessScript(
@@ -439,7 +447,7 @@ namespace LivingWorldNpcs
             }
 
             turns.Add(turn);
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
             return new DialogueInjector.DialogueInjectScript { EntryOption = "听说你看到了……？", EntryTurn = "start", Turns = turns };
         }
 
@@ -461,7 +469,7 @@ namespace LivingWorldNpcs
                     }
                 }
             };
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
             return new DialogueInjector.DialogueInjectScript { EntryOption = "（打量了一下）……", EntryTurn = "start", Turns = turns };
         }
 
@@ -489,14 +497,15 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueInjectOption { PlayerLine = "哦。", Action = "NONE", NextTurn = "continue_chat" },
                 }
             });
-            turns.Add(BuildContinueChatTurn());
+            turns.Add(BuildContinueChatTurn(r));
 
             return new DialogueInjector.DialogueInjectScript { EntryOption = "最近村里有什么新鲜事？", EntryTurn = "start", Turns = turns };
         }
 
-        /// <summary>继续聊 turn：NPC 说完事后 → 玩家可选回到犯罪对话或走人</summary>
-        private static DialogueInjector.DialogueInjectTurn BuildContinueChatTurn()
+        /// <summary>继续聊 turn：NPC 说完事后 → 玩家走人。告别语按阶段动态切换，引擎展示前才求值。</summary>
+        private static DialogueInjector.DialogueInjectTurn BuildContinueChatTurn(PlaceholderResolver r)
         {
+            var evt = r.Event;
             return new DialogueInjector.DialogueInjectTurn
             {
                 Id = "continue_chat",
@@ -504,8 +513,22 @@ namespace LivingWorldNpcs
                 NpcLine = "还有什么别的想说的吗?",
                 Options = new List<DialogueInjector.DialogueInjectOption>
                 {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "说点别的……", Action = "INTENT:ContinueChat", NextTurn = "start" },
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "我得走了。", Action = "INTENT:WalkAway", NextTurn = "" },
+                    new DialogueInjector.DialogueInjectOption
+                    {
+                        PlayerLine = "我得走了。",
+                        LazyNpcResponse = () =>
+                        {
+                            if (evt.PlayerTookInvestigationQuest)
+                                return r.Resolve("快去查，有消息了来告诉{SpeakerSelfRef}。");
+                            if (evt.SuspectIsPlayer && evt.Stage == EventStage.Active)
+                                return r.Resolve("（冷冷地）这事不算完。");
+                            if (evt.Stage == EventStage.Confrontation)
+                                return r.Resolve("这事没完。");
+                            return r.Resolve("嗯，{SpeakerPlayerAddr}去吧。");
+                        },
+                        Action = "INTENT:WalkAway",
+                        NextTurn = ""
+                    },
                 }
             };
         }
