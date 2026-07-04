@@ -316,9 +316,34 @@ namespace LivingWorldNpcs
             {
                 ProcessAgentCandidate(agent, eyePos, lookDir, maxDistanceSq, livingMinDot, ref bestDotProduct, ref bestAgent);
             }
+
+            // -------------------------------------------------------
+            // 来源 C：附近的动物 (Nearby Animals)
+            // -------------------------------------------------------
+            // GetNearbyAgents 的 native C++ 实现不返回动物 Agent（只返回人类战斗单位），
+            // 需要手动从 Mission.Current.Agents 遍历捞动物。
+            foreach (Agent agent in Mission.Current.Agents)
+            {
+                if (IsAnimalAgent(agent))
+                    ProcessAgentCandidate(agent, eyePos, lookDir, maxDistanceSq, livingMinDot, ref bestDotProduct, ref bestAgent);
+            }
             if (bestAgent != null)
             {
-                //InformationManager.DisplayMessage(new InformationMessage($"吸附检测 找到了{dist}米的 {bestAgent.Character.Name}"));
+                /*
+                float actualDist = bestAgent.Position.Distance(eyePos);
+                if (IsAnimalAgent(bestAgent))
+                {
+                    string animalName = bestAgent.Name?.ToString() ?? "unknown";
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        $"吸附检测 找到了{actualDist:F1}米的 动物({animalName})"));
+                }
+                else
+                {
+                    string name = bestAgent.Character?.Name?.ToString() ?? "???";
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        $"吸附检测 找到了{actualDist:F1}米的 {name}"));
+                }
+                */
             }
             return bestAgent;
 
