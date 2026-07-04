@@ -58,6 +58,7 @@ namespace LivingWorldNpcs
         InnocenceProof,      // 自证清白
         Settle,              // 和解劝说
         AcceptBountyQuest,   // 接悬赏 Quest
+        ContinueChat,        // 继续聊（对话导航，事件Resolved后Hide）
         LureArrest,          // 诱捕
         Arrest,              // 直接抓捕
     }

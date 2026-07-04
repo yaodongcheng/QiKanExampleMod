@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Issues;
 using TaleWorlds.CampaignSystem.Party;
@@ -376,7 +375,7 @@ namespace LivingWorldNpcs
                     if (authority.Issue != null && !(authority.Issue is CommissionHubIssue))
                     {
                         DebugLogger.Log($"[CommissionIssue] Crime event active for {settlement.Name} — clearing vanilla issue '{authority.Issue.GetType().Name}' from {authority.Name}");
-                        ClearHeroIssue(authority);
+                        Campaign.Current.IssueManager.DeactivateIssue(authority.Issue);
                     }
                     if (TryAddIssue(authority)) created = 1;
                 }
@@ -418,26 +417,70 @@ namespace LivingWorldNpcs
                 if (authority.Issue != null && !(authority.Issue is CommissionHubIssue))
                 {
                     DebugLogger.Log($"[CommissionIssue] StageChanged — clearing vanilla issue '{authority.Issue.GetType().Name}' from {authority.Name} for {evt.EventId}");
-                    ClearHeroIssue(authority);
+                    Campaign.Current.IssueManager.DeactivateIssue(authority.Issue);
                 }
 
                 // 如果已有 CommissionHubIssue（阶段变更需重建上下文），先清除再重建
-                if (authority.Issue is CommissionHubIssue)
+                if (authority.Issue is CommissionHubIssue existingIssue)
                 {
-                    ClearHeroIssue(authority);
+                    Campaign.Current.IssueManager.DeactivateIssue(existingIssue);
                     _activeIssues.Remove(authority.StringId);
+                }
+
+                // 阶段变更时（Emerging→Active/Confrontation），先完成旧的调查 Quest，
+                // 释放 NPC 的委托槽位（MaxCommissionsPerNpc=1），再创建新阶段的 Issue。
+                // 否则 HasCommissionsFor 会因为旧 Quest 仍在进行中而拒绝创建新 Issue。
+                // —— EventStage.Active 一定是从 Emerging 变过来的（Dormant→Emerging 也一样但那时还没有 Quest），
+                //    而 Confrontation 也可能从 Active 变过来，都需要清理旧 Quest。
+                if (evt.Stage == EventStage.Active || evt.Stage == EventStage.Confrontation)
+                {
+                    CompleteOldInvestigationQuest(evt, authority);
                 }
 
                 TryAddIssue(authority);
             }
             else if (evt.Stage == EventStage.Resolved || evt.Stage == EventStage.Unsolved)
             {
-                // 事件结束 → 清除 CommissionHubIssue
-                if (authority.Issue is CommissionHubIssue)
+                // 事件结束 → 通过 IssueManager 正确清除
+                if (authority.Issue is CommissionHubIssue hubIssue)
                 {
                     DebugLogger.Log($"[CommissionIssue] StageChanged — removing CommissionHubIssue from {authority.Name}, event {evt.EventId} resolved/unsolved");
-                    ClearHeroIssue(authority);
+                    Campaign.Current.IssueManager.DeactivateIssue(hubIssue);
                     _activeIssues.Remove(authority.StringId);
+                }
+
+                // 安全网：Hero.Issue 已被意外清除但 _activeIssues/IssueManager 仍有残留
+                // （例如之前 CreateNewIssue 失败导致 Issue 处于半注册状态）
+                if (_activeIssues.ContainsKey(authority.StringId))
+                {
+                    DebugLogger.Log($"[CommissionIssue] StageChanged — cleaning stale _activeIssues entry for {authority.Name}, event {evt.EventId} resolved/unsolved");
+                    var staleIssue = _activeIssues[authority.StringId];
+                    _activeIssues.Remove(authority.StringId);
+                    try { Campaign.Current.IssueManager.DeactivateIssue(staleIssue); }
+                    catch { }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 阶段变更前，完成该 WorldEvent 对应的旧 Investigation Quest。
+        /// 必须在 TryAddIssue 之前调用，否则 HasCommissionsFor 会因为旧 Quest 仍在进行中
+        /// 而拒绝创建新 Issue（MaxCommissionsPerNpc=1 的槽位被占用）。
+        /// </summary>
+        private static void CompleteOldInvestigationQuest(WorldEvent evt, Hero authority)
+        {
+            bool suspectIsPlayer = evt.SuspectHeroId == Hero.MainHero.StringId;
+            foreach (var q in Campaign.Current.QuestManager.Quests)
+            {
+                if (q is CommissionQuest cq
+                    && cq.IsOngoing
+                    && cq.Data?.WorldEventId == evt.EventId
+                    && cq.Data?.Category == CommissionCategory.Investigation
+                    && cq.CommissionGiver == authority)
+                {
+                    cq.CompleteInvestigationExternally(suspectIsPlayer);
+                    DebugLogger.Log($"[CommissionIssue] StageChanged — completed old investigation quest {cq.StringId} (suspectIsPlayer={suspectIsPlayer})");
+                    break;
                 }
             }
         }
@@ -469,38 +512,10 @@ namespace LivingWorldNpcs
             if (hero.Issue != null && !(hero.Issue is CommissionHubIssue))
             {
                 DebugLogger.Log($"[CommissionIssue] OnCheckForIssue — clearing vanilla issue '{hero.Issue.GetType().Name}' from {hero.Name} for crime event {evt.EventId}");
-                ClearHeroIssue(hero);
+                Campaign.Current.IssueManager.DeactivateIssue(hero.Issue);
             }
 
             TryAddIssue(hero);
-        }
-
-        /// <summary>
-        /// 缓存 Hero.Issue 的 PropertyInfo（用于清理 CommissionHubIssue）。
-        /// Issue 由 IssueManager.CreateNewIssue 注册，清理时也通过 IssueManager 解除。
-        /// </summary>
-        private static PropertyInfo _heroIssueProp;
-
-        /// <summary>
-        /// 强制清除 Hero 身上的 Issue（含原版 Issue）。
-        /// 用于犯罪事件 Emerge 后覆盖原版日常类委托。
-        /// </summary>
-        private static void ClearHeroIssue(Hero hero)
-        {
-            if (hero == null) return;
-            try
-            {
-                if (_heroIssueProp == null)
-                    _heroIssueProp = typeof(Hero).GetProperty("Issue", BindingFlags.Public | BindingFlags.Instance);
-                if (_heroIssueProp != null && _heroIssueProp.CanWrite)
-                    _heroIssueProp.SetValue(hero, null);
-                else if (_heroIssueProp != null)
-                    _heroIssueProp.GetSetMethod(true)?.Invoke(hero, new object[] { null });
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[CommissionIssue] Failed to clear issue for {hero.Name}: {ex.Message}");
-            }
         }
 
         private bool TryAddIssue(Hero hero)
@@ -652,9 +667,9 @@ namespace LivingWorldNpcs
             {
                 _activeIssues.Remove(id);
                 var hero = Hero.FindFirst(h => h.StringId == id);
-                if (hero != null && hero.Issue is CommissionHubIssue)
+                if (hero != null && hero.Issue is CommissionHubIssue issue)
                 {
-                    ClearHeroIssue(hero);
+                    Campaign.Current.IssueManager.DeactivateIssue(issue);
                 }
             }
 
@@ -672,9 +687,9 @@ namespace LivingWorldNpcs
                 {
                     _activeIssues.Remove(id);
                     var hero = Hero.FindFirst(h => h.StringId == id);
-                    if (hero != null && hero.Issue is CommissionHubIssue)
+                    if (hero != null && hero.Issue is CommissionHubIssue issue2)
                     {
-                        ClearHeroIssue(hero);
+                        Campaign.Current.IssueManager.DeactivateIssue(issue2);
                     }
                 }
             }

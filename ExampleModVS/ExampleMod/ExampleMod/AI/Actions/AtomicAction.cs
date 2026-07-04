@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using SandBox.Conversation.MissionLogics;
 using System;
 using System.Runtime.InteropServices;
@@ -30,32 +30,14 @@ namespace LivingWorldNpcs
         private SingNpcMemorySystem memory;
         InitiativeType Type;
         private string ContextDesc;
-
-        private PendingConflict _conflictData; // 运行时冲突数据
-
-        // ═══ 新构造函数：接收意图 + 上下文 + 可选运行时冲突数据 ═══
         private IntentBase _intent;
-        private IntentContext _ctx;
-
-        /// <summary>新构造函数：接收意图 + 上下文 + 可选运行时冲突数据</summary>
-        public PrepareOpeningAction(IntentBase intent, IntentContext ctx, PendingConflict conflict = null)
-        {
-            _intent = intent;
-            _ctx = ctx;
-            _conflictData = conflict;
-            Type = InitiativeType.Greeting; // 默认值，子类 OnInstant 中会覆盖
-        }
-
-        // 旧构造函数保留 + Obsolete，过渡期两端都可用
-        [Obsolete("Use PrepareOpeningAction(IntentBase, IntentContext, PendingConflict?)")]
+        private PendingConflict _conflictData;
         public PrepareOpeningAction(InitiativeType type, string desc)
         {
             Type = type;
             ContextDesc = desc;
         }
-        // 【新增】构造函数 2：冲突逻辑（接收结构化数据）
-        [Obsolete("Use PrepareOpeningAction(IntentBase, IntentContext, PendingConflict?)")]
-        public PrepareOpeningAction(InitiativeType type, PendingConflict conflict)
+         public PrepareOpeningAction(InitiativeType type, PendingConflict conflict)
         {
             Type = type;
             _conflictData = conflict;

@@ -1,3 +1,4 @@
+﻿
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -7,7 +8,6 @@ using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
-
 namespace LivingWorldNpcs
 {
 public static class AllNpcMemoryManager
