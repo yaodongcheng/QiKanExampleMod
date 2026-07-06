@@ -1,11 +1,11 @@
-﻿[11:44:57.992] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[11:47:55.945] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[11:52:27.016] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[11:52:40.222] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[11:48:00.039] [WorldEventStore] Deserialized 0 events, 0 alerts
-[11:48:08.104] [DisplayMessage] "Custom Camera Load Success!"
-[11:48:08.509] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[11:52:44.395] [WorldEventStore] Deserialized 0 events, 0 alerts
+[11:52:59.058] [DisplayMessage] "Custom Camera Load Success!"
+[11:52:59.509] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -15,4 +15,16 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[11:48:08.517] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[11:52:59.567] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[11:53:45.141] [DisplayMessage] "Custom Camera Load Success!"
+[11:53:45.454] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       16       0        
+  cow        10       10       0        
+  hog        10       9        1        remove 1
+  goose      5        5        0        
+  chicken    16       15       1        remove 1
+  =========================================
+
+[11:53:45.454] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
