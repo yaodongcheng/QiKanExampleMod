@@ -1,11 +1,11 @@
-﻿[17:12:25.732] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[17:13:26.220] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[17:51:27.952] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[17:51:33.064] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[17:13:30.946] [WorldEventStore] Deserialized 0 events, 0 alerts
-[17:14:31.833] [DisplayMessage] "Custom Camera Load Success!"
-[17:14:32.243] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[17:51:37.195] [WorldEventStore] Deserialized 0 events, 0 alerts
+[17:51:45.282] [DisplayMessage] "Custom Camera Load Success!"
+[17:51:45.662] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -15,55 +15,61 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[17:14:32.252] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[17:14:42.960] [Alert] 帝国女农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[17:14:43.994] [Alert] 帝国女农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[17:14:44.712] [Alert] 男孩 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[17:14:45.230] [Alert] 男孩 | alert=0.000→0.016 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:45.740] [Alert] 男孩 | alert=0.077→0.092 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:46.254] [Alert] 男孩 | alert=0.154→0.169 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:46.761] [Alert] 男孩 | alert=0.230→0.245 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:47.272] [Alert] 男孩 | alert=0.306→0.322 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:47.793] [Alert] 男孩 | alert=0.384→0.400 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:48.315] [Alert] 男孩 | alert=0.463→0.479 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:48.830] [Alert] 男孩 | alert=0.540→0.556 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:49.338] [Alert] 男孩 | alert=0.617→0.632 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:49.837] [Alert] 男孩 | alert=0.692→0.707 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:50.738] [Alert] 帝国女农民 | alert=0.827→0.842 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:51.737] [Alert] 帝国女农民 | alert=0.977→0.992 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:52.750] [Alert] 帝国女农民 | alert=1.128→1.144 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:53.771] [Alert] 帝国女农民 | alert=1.282→1.297 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:54.706] [Alert] 帝国女农民 | alert=0.000→0.016 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:55.222] [Alert] 帝国农民 | alert=0.015→0.030 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:55.530] [Alert] 帝国女农民 | alert=1.545→1.561 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:55.836] [Alert] 帝国女农民 | alert=0.170→0.185 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:56.247] [Alert] 帝国农民 | alert=0.169→0.184 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:56.551] [Alert] 帝国女农民 | alert=1.699→1.714 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:56.851] [Alert] 帝国女农民 | alert=0.322→0.337 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:57.151] [Alert] 少女 | alert=0.000→0.015 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:57.457] [Alert] 帝国女农民 | alert=1.834→1.850 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:57.664] [Alert] 少女 | alert=0.076→0.092 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:57.970] [Alert] 帝国女农民 | alert=1.912→1.927 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:58.173] [Alert] 少女 | alert=0.153→0.168 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:58.474] [Alert] 帝国女农民 | alert=1.987→2.002 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:58.674] [Alert] 少女 | alert=0.228→0.243 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:58.974] [Alert] 帝国女农民 | alert=2.062→2.077 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:59.174] [Alert] 少女 | alert=0.303→0.318 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:59.474] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:59.674] [Alert] 少女 | alert=0.378→0.393 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:14:59.973] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:00.173] [Alert] 少女 | alert=0.453→0.468 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:00.474] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:00.673] [Alert] 少女 | alert=0.528→0.543 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:00.974] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:01.174] [Alert] 少女 | alert=0.603→0.618 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:01.574] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:01.875] [Alert] 帝国女农民 | alert=1.076→1.091 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:02.286] [Alert] 少女 | alert=0.770→0.785 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:02.886] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:03.896] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:04.896] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:05.901] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:06.900] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:07.903] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[17:15:08.902] [Alert] 帝国女农民 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:45.670] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[17:51:52.950] [Alert] 帝国农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
+[17:51:53.880] [Alert] 男孩 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
+[17:51:54.391] [Alert] 男孩 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
+[17:51:54.906] [Alert] 男孩 | alert=0.062→0.077 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:55.423] [Alert] 男孩 | alert=0.139→0.155 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:55.944] [Alert] 男孩 | alert=0.217→0.233 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:56.463] [Alert] 男孩 | alert=0.295→0.311 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:56.984] [Alert] 男孩 | alert=0.373→0.389 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:57.605] [Alert] 男孩 | alert=0.467→0.482 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:58.642] [Alert] 男孩 | alert=0.623→0.638 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:59.259] [Alert] 帝国女农民 | alert=0.062→0.077 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:51:59.775] [Alert] 帝国女农民 | alert=0.139→0.154 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:00.282] [Alert] 帝国女农民 | alert=0.215→0.230 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:00.790] [Alert] 帝国女农民 | alert=0.291→0.306 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:01.300] [Alert] 帝国女农民 | alert=0.368→0.383 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:01.804] [Alert] 帝国女农民 | alert=0.443→0.459 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:02.313] [Alert] 帝国女农民 | alert=0.519→0.535 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:02.825] [Alert] 帝国女农民 | alert=0.596→0.612 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:03.334] [Alert] 帝国女农民 | alert=0.673→0.688 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:03.840] [Alert] 帝国女农民 | alert=0.749→0.764 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:04.246] [Alert] 帝国女农民 | alert=0.810→0.825 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:04.545] [Alert] 男孩 | alert=1.508→1.523 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:04.845] [Alert] 少年 | alert=0.075→0.090 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:05.345] [Alert] 男孩 | alert=1.628→1.643 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:05.745] [Alert] 帝国女农民 | alert=1.035→1.050 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:06.246] [Alert] 帝国女农民 | alert=1.110→1.125 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:06.746] [Alert] 帝国女农民 | alert=1.185→1.200 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:07.245] [Alert] 帝国女农民 | alert=1.260→1.275 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:07.745] [Alert] 帝国女农民 | alert=1.335→1.350 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:08.045] [Alert] 男孩 | alert=2.033→2.048 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:08.546] [Alert] 帝国女农民 | alert=1.455→1.470 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:09.046] [Alert] 帝国女农民 | alert=1.530→1.545 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:09.945] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:10.945] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:11.947] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:12.966] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:13.980] [Alert] 帝国农民 | alert=0.000→0.015 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:14.880] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:15.880] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:16.884] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:17.911] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:18.919] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:19.920] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:20.920] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:21.919] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:22.920] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:23.920] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:24.919] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:25.919] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:26.919] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:27.920] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:28.919] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:29.920] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:30.934] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:31.947] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:32.965] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
+[17:52:33.983] [Alert] 男孩 | alert=2.100→2.100 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker

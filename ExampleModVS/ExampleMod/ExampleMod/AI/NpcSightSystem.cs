@@ -13,7 +13,7 @@ namespace LivingWorldNpcs
     /// 统一视线引擎：任意 Agent 对任意 Agent 的 FOV + RayCast 视线检测。
     ///
     /// 两层 API：
-    /// 1. 静态查询（无状态，各处按需调）：CanAgentSeeTarget / GetObserversOf / CanPlayerSee / CanNpcSeePlayer
+    /// 1. 静态查询（无状态，各处按需调）：CanAgentSeeTarget / GetObserversOf / IsPlayerSeeing / CanNpcSeePlayer
     /// 2. 事件订阅（tick 驱动，按注册的 tracked target 触发）：RegisterTrackedTarget → OnAgentStartObserving 等
     ///
     /// 性能边界：只对少量重要 Agent（玩家 + 随从等，预期 ≤5）做 tick 追踪。
@@ -30,8 +30,8 @@ namespace LivingWorldNpcs
         // 🆕 警戒值系统
         // ============================================================
 
-        /// <summary>每个 NPC 对玩家的警戒值（key = Agent.Index）</summary>
-        private Dictionary<int, float> _alertValues = new Dictionary<int, float>();
+        /// <summary>每个 NPC 对玩家的警戒值（key = Agent.Index），静态共享，无需实例即可查询</summary>
+        private static Dictionary<int, float> _alertValues = new Dictionary<int, float>();
 
         private const float IdentityAlertRate = 0.15f;       // 敌人生成速率
         private const float ActionSuspiciousRate = 0.15f;     // 蹲下生成速率
@@ -45,8 +45,8 @@ namespace LivingWorldNpcs
         private float _lastActionVal;
         private int _debugAlertTickCount;
 
-        /// <summary>查询 NPC 对玩家的警戒值（不存在返回 0）</summary>
-        public float GetAlertValue(Agent npc)
+        /// <summary>查询 NPC 对玩家的警戒值（不存在返回 0），静态方法，无需实例</summary>
+        public static float GetAlertValue(Agent npc)
         {
             if (npc == null) return 0f;
             if (_alertValues.TryGetValue(npc.Index, out float val))
@@ -54,8 +54,8 @@ namespace LivingWorldNpcs
             return 0f;
         }
 
-        /// <summary>一次性脉冲：直接加警戒值（不走 dt）</summary>
-        public void AddAlertPulse(Agent npc, float amount)
+        /// <summary>一次性脉冲：直接加警戒值（不走 dt），静态方法</summary>
+        public static void AddAlertPulse(Agent npc, float amount)
         {
             if (npc == null || !npc.IsActive() || !npc.IsHuman) return;
             if (_alertValues.ContainsKey(npc.Index))
@@ -65,7 +65,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>获取所有有警戒值的 Agent（供调试）</summary>
-        public Dictionary<int, float> GetAllAlertValues()
+        public static Dictionary<int, float> GetAllAlertValues()
         {
             return new Dictionary<int, float>(_alertValues);
         }
@@ -74,42 +74,31 @@ namespace LivingWorldNpcs
         // 静态查询（任意 Agent → 任意 Agent）
         // ============================================================
 
-        /// <summary>observer 能否看到 target（距离 + 高度 + FOV + RayCast）。</summary>
+        /// <summary>observer 能否看到 target（距离 + 高度 + FOV + RayCast）。
+        /// 玩家 observer 直接委托给 IsPlayerSeeing（屏幕投影判断）。</summary>
         public static bool CanAgentSeeTarget(Agent observer, Agent target,
             float radius = 15f, float fovDegrees = 120f)
         {
             if (observer == null || target == null) return false;
             if (!observer.IsActive() || !target.IsActive()) return false;
-            //自己看自己不算（主要是为了 GetObserversOf 里过滤自己，避免后续逻辑误判）
             if (observer == target) return false;
 
-            // 1. 距离
+            // 玩家：用屏幕投影判断（最符合玩家认知）
+            if (observer == Agent.Main)
+                return IsPlayerSeeing(target);
+
+            // NPC observer：距离 + 高度 + FOV + RayCast
             float dist = observer.Position.Distance(target.Position);
             if (dist > radius) return false;
 
-            // 2. 高度差
             if (MathF.Abs(observer.Position.z - target.Position.z) > 3.0f) return false;
 
-            // 3. FOV 角度：玩家用摄像机方向（第三人称模型朝向≠视野），NPC 用角色朝向
             float fovDotThreshold = MathF.Cos(MathF.DegToRad * (fovDegrees / 2f));
             Vec3 dirToTarget3D = target.Position - observer.Position;
             Vec2 dirToTarget2D = dirToTarget3D.AsVec2.Normalized();
-
-            Vec2 lookDir2D;
-            if (observer == Agent.Main)
-            {
-                // 玩家：摄像机方向才是真正的"视野"
-                MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
-                Camera cam = ms?.CombatCamera;
-                lookDir2D = (cam != null ? cam.Direction : observer.LookDirection).AsVec2.Normalized();
-            }
-            else
-            {
-                lookDir2D = observer.LookDirection.AsVec2.Normalized();
-            }
+            Vec2 lookDir2D = observer.LookDirection.AsVec2.Normalized();
             if (Vec2.DotProduct(lookDir2D, dirToTarget2D) < fovDotThreshold) return false;
 
-            // 4. RayCast 遮挡
             return !IsOccluded(observer, target);
         }
 
@@ -135,29 +124,7 @@ namespace LivingWorldNpcs
 
         // ── 玩家快捷包装 ──
 
-        /// <summary>玩家摄像机视野内（大范围、广角，无 RayCast 遮挡——摄像机没有"视线被挡"概念）。</summary>
-        public static bool CanPlayerSee(Agent npc)
-        {
-            if (npc == null || !npc.IsActive()) return false;
-            if (Mission.Current == null) return false;
-            Agent player = Mission.Current.MainAgent;
-            if (player == null) return false;
-
-            // 距离
-            float dist = player.Position.Distance(npc.Position);
-            if (dist > 50f) return false;
-
-            // 相机方向 dot product（复用 AgentHudMissionView 的逻辑：点积 ≤0 说明在背后）
-            MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
-            Camera cam = ms?.CombatCamera;
-            if (cam == null) return false;
-            Vec3 dirToTarget = npc.Position - cam.Position;
-            if (Vec3.DotProduct(cam.Direction, dirToTarget) <= 0) return false;
-
-            return true;
-        }
-
-        /// <summary>NPC 能否看到玩家（标准 FOV + RayCast，复用 StealManager 逻辑）。</summary>
+        /// <summary>NPC 能否看到玩家（标准 FOV + RayCast）。</summary>
         public static bool CanNpcSeePlayer(Agent npc)
         {
             if (npc == null || Mission.Current == null) return false;
@@ -173,7 +140,7 @@ namespace LivingWorldNpcs
             foreach (var agent in Mission.Current.Agents)
             {
                 if (agent.IsHuman && agent.IsActive() && agent != Mission.Current.MainAgent)
-                    if (CanPlayerSee(agent)) result.Add(agent);
+                    if (IsPlayerSeeing(agent)) result.Add(agent);
             }
             return result;
         }
@@ -274,14 +241,31 @@ namespace LivingWorldNpcs
         public override void OnRemoveBehavior()
         {
             if (Instance == this) Instance = null;
+            _alertValues.Clear();
             base.OnRemoveBehavior();
         }
 
-        /// <summary>查询缓存：agent 当前是否在玩家视野内（直接用 CanPlayerSee，不依赖 PrevSeen 缓存，
-        /// 避免 tracked target 的 Agent 引用与当前 Agent.Main 不匹配导致永久 False）。</summary>
-        public bool IsPlayerSeeing(Agent agent)
+        /// <summary>agent 当前是否在玩家屏幕内（WorldPointToScreenPoint 投影判断，最符合玩家认知的 FOV）</summary>
+        public static bool IsPlayerSeeing(Agent agent)
         {
-            return CanPlayerSee(agent);
+            if (agent == null || !agent.IsActive()) return false;
+            if (Mission.Current == null) return false;
+
+            MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
+            if (ms == null) return false;
+
+            Vec3 agentPos = agent.Position;
+            agentPos.z += agent.GetEyeGlobalHeight() + 0.1f;
+            var screenPos = ms.SceneLayer.WorldPointToScreenPoint(agentPos);
+
+            float screenWidth = Screen.RealScreenResolutionWidth;
+            float screenHeight = Screen.RealScreenResolutionHeight;
+            float pixelX = screenPos.x * screenWidth;
+            float pixelY = screenPos.y * screenHeight;
+
+            const float padding = 100f;
+            return pixelX >= -padding && pixelX <= screenWidth + padding &&
+                   pixelY >= -padding && pixelY <= screenHeight + padding;
         }
 
         // 标记是否已完成第一次 tick（用于延迟注册玩家等）
