@@ -1,11 +1,11 @@
-﻿[11:10:18.276] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[11:10:22.966] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[11:44:57.992] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[11:47:55.945] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[11:10:27.220] [WorldEventStore] Deserialized 0 events, 0 alerts
-[11:10:36.212] [DisplayMessage] "Custom Camera Load Success!"
-[11:10:36.651] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[11:48:00.039] [WorldEventStore] Deserialized 0 events, 0 alerts
+[11:48:08.104] [DisplayMessage] "Custom Camera Load Success!"
+[11:48:08.509] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -15,9 +15,4 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[11:10:36.659] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[11:10:47.540] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国女农民 造成了0 点伤害"
-[11:10:47.540] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国女农民"
-[11:10:47.549] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[11:10:47.550] [AI-Debug] Suspend 帝国女农民 (Idx=20) | 集合size=1
-[11:10:47.553] [DisplayMessage] [Yellow] "帝国女农民  开始攻击 亨利！"
+[11:48:08.517] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)

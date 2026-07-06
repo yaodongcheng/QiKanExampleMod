@@ -57,3 +57,43 @@ Gauntlet UI 使用的是标准屏幕坐标系（top < bottom，Y向下增长，�
   - 想在屏幕顶部的 → 写第一个 child
   - 想在屏幕底部的 → 写最后一个 child
 这样不用每次都"反着来"想一遍。子 ListPanel 同理。
+
+
+
+  <!-- 动画眼睛 -->
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                    SuggestedWidth = "50" SuggestedHeight="50"
+                                        HorizontalAlignment="Center"
+                                        Sprite="BlankWhiteSquare_9" Color="#8B0000FF" />
+
+
+报错
+System.ArgumentOutOfRangeException
+  HResult=0x80131502
+  Message=Index and length must refer to a location within the string.
+Parameter name: length
+  Source=mscorlib
+  StackTrace:
+   在 System.String.Substring(Int32 startIndex, Int32 length)
+   在 TaleWorlds.Library.Color.ConvertStringToColor(String color)
+   在 TaleWorlds.GauntletUI.PrefabSystem.WidgetTemplate.SetAttributes(WidgetCreationData widgetCreationData, WidgetInstantiationResult widgetInstantiationResult, Dictionary`2 parameters)
+   在 TaleWorlds.GauntletUI.PrefabSystem.WidgetTemplate.SetAttributes(WidgetCreationData widgetCreationData, WidgetInstantiationResult widgetInstantiationResult, Dictionary`2 parameters)
+   在 TaleWorlds.GauntletUI.PrefabSystem.WidgetTemplate.SetAttributes(WidgetCreationData widgetCreationData, WidgetInstantiationResult widgetInstantiationResult, Dictionary`2 parameters)
+   在 TaleWorlds.GauntletUI.PrefabSystem.WidgetTemplate.SetAttributes(WidgetCreationData widgetCreationData, WidgetInstantiationResult widgetInstantiationResult, Dictionary`2 parameters)
+   在 TaleWorlds.GauntletUI.PrefabSystem.WidgetTemplate.Instantiate(WidgetCreationData widgetCreationData, Dictionary`2 parameters)
+   在 TaleWorlds.GauntletUI.Data.GauntletView.AddItemToList(Int32 index)
+   在 TaleWorlds.GauntletUI.Data.GauntletView.OnViewModelBindingListChanged(Object sender, ListChangedEventArgs e)
+   在 TaleWorlds.Library.MBBindingList`1.OnListChanged(ListChangedEventArgs e)
+   在 TaleWorlds.Library.MBBindingList`1.InsertItem(Int32 index, T item)
+   在 LivingWorldNpcs.BubbleSayNeaybyVM.AddBubble(BubbleSayVM bubble) 在 H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\ExampleModVS\ExampleMod\ExampleMod\Bubble\BubbleSayNeaybyVM.cs 中: 第 39 行
+   在 LivingWorldNpcs.BubbleSayMissionView.AddHealthBar(Agent agent) 在 H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\ExampleModVS\ExampleMod\ExampleMod\Bubble\BubbleSayMissionView.cs 中: 第 93 行
+   在 LivingWorldNpcs.BubbleSayMissionView.ScanForNewAgents() 在 H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\ExampleModVS\ExampleMod\ExampleMod\Bubble\BubbleSayMissionView.cs 中: 第 66 行
+   在 LivingWorldNpcs.BubbleSayMissionView.OnMissionTick(Single dt) 在 H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs\ExampleModVS\ExampleMod\ExampleMod\Bubble\BubbleSayMissionView.cs 中: 第 108 行
+   在 TaleWorlds.MountAndBlade.Mission.OnTick(Single dt, Single realDt, Boolean updateCamera, Boolean doAsyncAITick)
+   在 TaleWorlds.MountAndBlade.MissionState.TickMission(Single realDt)
+   在 TaleWorlds.MountAndBlade.MissionState.OnTick(Single realDt)
+   在 TaleWorlds.Core.GameStateManager.OnTick(Single dt)
+   在 TaleWorlds.Core.Game.OnTick(Single dt)
+   在 TaleWorlds.Core.GameManagerBase.OnTick(Single dt)
+   在 TaleWorlds.MountAndBlade.Module.OnApplicationTick(Single dt)
+   在 TaleWorlds.DotNet.Managed.ApplicationTick(Single dt)

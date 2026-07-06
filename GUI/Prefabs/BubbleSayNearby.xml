@@ -21,11 +21,46 @@
                       DoNotAcceptEvents="true">
 
                 <Children>
-                  <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 名字 -> 说话 -> 血条 -> 伤害 但是因为VerticalBottomToTop VerticalTopToBottom 实际作用和名称含义相反，写的时候得反着来-->
+                  <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 （警戒值眼睛图标） 名字 -> 说话 -> 血条 -> 伤害 但是因为VerticalBottomToTop VerticalTopToBottom 实际作用和名称含义相反，写的时候得反着来-->
                   <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                              StackLayout.LayoutMethod="VerticalBottomToTop"
                              HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Children>
+
+
+                      <!-- 0.警戒值眼睛区域 -->
+                      <!-- 两层结构：底层白色眼睛（满） + 上层 ClipContents 容器包裹红色眼睛，从下往上露出 -->
+                      <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                              SuggestedWidth="50" SuggestedHeight="50"
+                              HorizontalAlignment="Center">
+                        <Children>
+
+                          <!-- Layer 1: 白色眼睛背景（始终完全可见） -->
+                          <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                  Sprite="MPGeneral\MPScoreboard\view_profile_icon"
+                                  Color="#FFFFFFFF" />
+
+                          <!-- Layer 2: Clip 容器 —— 高度控制红色填充从下往上的露出量 -->
+                          <!-- SuggestedHeight 固定 25px = 半满测试，后续换为 @AlertFillHeight -->
+                          <Widget WidthSizePolicy="StretchToParent"
+                                  HeightSizePolicy="Fixed"
+                                  SuggestedHeight="25"
+                                  VerticalAlignment="Bottom"
+                                  ClipContents="true">
+                            <Children>
+                              <!-- 红色眼睛填充 sprite，50x50 底部对齐，超出 Clip 容器的上半部分被裁掉 -->
+                              <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                      SuggestedWidth="50" SuggestedHeight="50"
+                                      VerticalAlignment="Bottom"
+                                      Sprite="MPGeneral\MPScoreboard\view_profile_icon"
+                                      Color="#FF0000FF" />
+                            </Children>
+                          </Widget>
+
+                        </Children>
+                      </Widget>
+
+
 
                       <!-- 1. 名字 (最上方) -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
