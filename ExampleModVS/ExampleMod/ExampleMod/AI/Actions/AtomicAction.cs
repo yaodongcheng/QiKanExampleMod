@@ -184,7 +184,7 @@ namespace LivingWorldNpcs
 
             // 使用 NarrativeResolver 获取叙事文本
             string openingBubble = NarrativeResolver.GetDialogue("Steal_Caught", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-            BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(openingBubble) ? "好哇，敢偷到我头上来！你今天必须给个交代。" : openingBubble);
+            AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(openingBubble) ? "好哇，敢偷到我头上来！你今天必须给个交代。" : openingBubble);
 
             InformationManager.ShowInquiry(new InquiryData(
                 $"{victimName} 发现了你的偷窃行为！",
@@ -199,7 +199,7 @@ namespace LivingWorldNpcs
                     {
                         AgentControlHelper.TransferGold(Hero.MainHero, victimHeroObj, compensationGold, notify: false);
                         string payBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(payBubble) ? "哼，算你识相。" : payBubble);
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(payBubble) ? "哼，算你识相。" : payBubble);
                         string payNarrator = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{GIVER}", compensationGold.ToString())
                             .Replace("{NPC}", victimName);
@@ -210,7 +210,7 @@ namespace LivingWorldNpcs
                     else
                     {
                         string tooPoorBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_TooPoor", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(tooPoorBubble) ? "没钱还敢偷？那就拿命来抵！" : tooPoorBubble);
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(tooPoorBubble) ? "没钱还敢偷？那就拿命来抵！" : tooPoorBubble);
                         InformationManager.DisplayMessage(
                             new InformationMessage($"你摸了摸空瘪的钱袋……{victimName} 见状大怒，拔出了武器！", Colors.Red));
                         AgentAIController.Instance?.SendEventToAgent(victim, "order_attack", Agent.Main);
@@ -223,7 +223,7 @@ namespace LivingWorldNpcs
                     if (returned > 0)
                     {
                         string returnBubble = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(returnBubble) ? "滚！别再让我看见你。" : returnBubble);
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(returnBubble) ? "滚！别再让我看见你。" : returnBubble);
                         string returnNarrator = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{COUNT}", returned.ToString())
                             .Replace("{NPC}", victimName);
@@ -234,7 +234,7 @@ namespace LivingWorldNpcs
                     else
                     {
                         string refuseBubble = NarrativeResolver.GetDialogue("Steal_Caught_Refuse", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        BubbleSayMissionView.AgentBubbleSay(victim, string.IsNullOrEmpty(refuseBubble) ? "还想赖账？" : refuseBubble);
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(refuseBubble) ? "还想赖账？" : refuseBubble);
                         string refuseNarrator = NarrativeResolver.GetDialogue("Steal_Caught_Refuse_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{NPC}", victimName);
                         InformationManager.DisplayMessage(new InformationMessage(refuseNarrator, Colors.Red));
@@ -746,7 +746,7 @@ namespace LivingWorldNpcs
                 return;
             }
             InformationManager.DisplayMessage(new InformationMessage($"{agent.Name}  开始攻击 {_targetEnemy.Name}！", Colors.Yellow));
-            //BubbleSayMissionView.AgentBubbleSay(agent, "别碰我的老大！");
+            //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
             CombatManager.StartFight(agent, _targetEnemy);
 
         }

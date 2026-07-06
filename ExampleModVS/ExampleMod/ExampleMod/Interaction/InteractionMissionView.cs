@@ -155,7 +155,7 @@ namespace LivingWorldNpcs
             string emotion;
             string line = DialogueTemplateHelper.Get("BubbleGreet", factors, out emotion, null, observer);
             if (!string.IsNullOrEmpty(line))
-                BubbleSayMissionView.AgentBubbleSay(observer, line);
+                AgentHudMissionView.AgentSay(observer, line);
         }
 
 

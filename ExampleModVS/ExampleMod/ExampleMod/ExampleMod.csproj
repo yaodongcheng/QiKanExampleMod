@@ -218,10 +218,10 @@
     <Compile Include="AI\AiSuspendPatch.cs" />
     <Compile Include="AI\GroupStageManager.cs" />
     <Compile Include="AI\NpcSightSystem.cs" />
-    <!-- Bubble -->
-    <Compile Include="Bubble\BubbleSayMissionView.cs" />
-    <Compile Include="Bubble\BubbleSayNeaybyVM.cs" />
-    <Compile Include="Bubble\BubbleSayVM.cs" />
+    <!-- AgentHUD -->
+    <Compile Include="AgentHUD\AgentHudMissionView.cs" />
+    <Compile Include="AgentHUD\AgentHudCollectionVM.cs" />
+    <Compile Include="AgentHUD\AgentHudVM.cs" />
     <!-- Camera -->
     <Compile Include="Camera\CameraDebuggerView.cs" />
     <Compile Include="Camera\CameraDebuggerVM.cs" />

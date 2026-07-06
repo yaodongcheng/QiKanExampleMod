@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -26,21 +26,21 @@ namespace LivingWorldNpcs
         public event OnCloseEvent OnClose;
 
 
-        private MBBindingList<BubbleSayVM> _bubbles;   
+        private MBBindingList<AgentHudVM> _huds;
 
 
 
 
         [DataSourceProperty]
-        public MBBindingList<BubbleSayVM> Bubbles
+        public MBBindingList<AgentHudVM> Huds
         {
-            get => _bubbles;
+            get => _huds;
             set
             {
-                if (value != _bubbles)
+                if (value != _huds)
                 {
-                    _bubbles = value;
-                    OnPropertyChangedWithValue(value, "Bubbles");
+                    _huds = value;
+                    OnPropertyChangedWithValue(value, "Huds");
                 }
             }
         }
@@ -49,17 +49,17 @@ namespace LivingWorldNpcs
             // 初始化数据
             _titleText = "Pure Color UI";
             _contentText = "This is content Text.";
-            var fakeBubble = new BubbleSayVM(null);
+            var fakeBubble = new AgentHudVM(null);
             fakeBubble.PosX = 900; // 屏幕大概中间
             fakeBubble.PosY = 500;
             fakeBubble.IsVisible = true; // 确保它是可见的
             fakeBubble.Scale = 40; // 确保字号够大
-            Bubbles = new MBBindingList<BubbleSayVM>();
-            _bubbles.Add(fakeBubble);
+            Huds = new MBBindingList<AgentHudVM>();
+            _huds.Add(fakeBubble);
 
-            
+
            // _myCustomImage=  LoadImageTest("H:\\taikou.png");
-            
+
         }
 
        public TaleWorlds.Engine.Texture LoadImageTest(string filePath)
@@ -79,7 +79,7 @@ namespace LivingWorldNpcs
                 // 使用引擎API创建纹理
                 TaleWorlds.Engine.Texture texture1 = TaleWorlds.Engine.Texture.CreateFromMemory(imageData);
                 TaleWorlds.Engine.Texture texture2 = TaleWorlds.Engine.Texture.LoadTextureFromPath("taikou.png","H:\\");
-                
+
                 if (texture1 != null)
                     InformationManager.DisplayMessage(new InformationMessage($"TextureLoader ReadAllBytes 成功", Color.FromUint(0xFF0000)));
                 if (texture2 != null)
@@ -143,7 +143,7 @@ namespace LivingWorldNpcs
             }
         }
 
-      
+
 
         public void ExecuteClose()
         {

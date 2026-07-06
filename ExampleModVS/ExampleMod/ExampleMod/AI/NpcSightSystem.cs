@@ -19,15 +19,56 @@ namespace LivingWorldNpcs
     /// 性能边界：只对少量重要 Agent（玩家 + 随从等，预期 ≤5）做 tick 追踪。
     /// 大批 NPC 间偶发查询走静态 API，O(1) 按需调用。
     ///
-    /// 替代三个旧实现：
-    ///   BubbleSayMissionView 的 camera dot + 距离 → CanPlayerSee
-    ///   StealManager.GetWitnesses → GetNpcsObservingPlayer / GetObserversOf
-    ///   InteractionMissionView.ProcessAgentCandidate → CanPlayerSee 辅助
+    /// 🆕 警戒值系统：所有 NPC 对玩家的警戒值（替代原版 AlarmedBehaviorGroup 仅守卫有效的限制）。
     /// </summary>
     public class NpcSightSystem : MissionLogic
     {
-        // 单例：供 BubbleSayMissionView / ProcessAgentCandidate 等处查询缓存
+        // 单例：供 AgentHudMissionView / ProcessAgentCandidate 等处查询缓存
         public static NpcSightSystem Instance { get; private set; }
+
+        // ============================================================
+        // 🆕 警戒值系统
+        // ============================================================
+
+        /// <summary>每个 NPC 对玩家的警戒值（key = Agent.Index）</summary>
+        private Dictionary<int, float> _alertValues = new Dictionary<int, float>();
+
+        private const float IdentityAlertRate = 0.15f;       // 敌人生成速率
+        private const float ActionSuspiciousRate = 0.15f;     // 蹲下生成速率
+        private const float DecayRate = 0.15f;                // 看不到时每秒衰减
+        private const float AlertPulseKnockout = 2.0f;        // 击晕脉冲
+        private const float AlertPulseSteal = 2.0f;           // 偷窃脉冲
+        private const float AlertPulseAttackAlly = 2.0f;      // 攻击友军脉冲
+
+        // 🐛 调试字段
+        private float _lastIdentityVal;
+        private float _lastActionVal;
+        private int _debugAlertTickCount;
+
+        /// <summary>查询 NPC 对玩家的警戒值（不存在返回 0）</summary>
+        public float GetAlertValue(Agent npc)
+        {
+            if (npc == null) return 0f;
+            if (_alertValues.TryGetValue(npc.Index, out float val))
+                return val;
+            return 0f;
+        }
+
+        /// <summary>一次性脉冲：直接加警戒值（不走 dt）</summary>
+        public void AddAlertPulse(Agent npc, float amount)
+        {
+            if (npc == null || !npc.IsActive() || !npc.IsHuman) return;
+            if (_alertValues.ContainsKey(npc.Index))
+                _alertValues[npc.Index] += amount;
+            else
+                _alertValues[npc.Index] = amount;
+        }
+
+        /// <summary>获取所有有警戒值的 Agent（供调试）</summary>
+        public Dictionary<int, float> GetAllAlertValues()
+        {
+            return new Dictionary<int, float>(_alertValues);
+        }
 
         // ============================================================
         // 静态查询（任意 Agent → 任意 Agent）
@@ -49,11 +90,23 @@ namespace LivingWorldNpcs
             // 2. 高度差
             if (MathF.Abs(observer.Position.z - target.Position.z) > 3.0f) return false;
 
-            // 3. FOV 角度，角度值还是弧度？回答：角度
+            // 3. FOV 角度：玩家用摄像机方向（第三人称模型朝向≠视野），NPC 用角色朝向
             float fovDotThreshold = MathF.Cos(MathF.DegToRad * (fovDegrees / 2f));
             Vec3 dirToTarget3D = target.Position - observer.Position;
             Vec2 dirToTarget2D = dirToTarget3D.AsVec2.Normalized();
-            Vec2 lookDir2D = observer.LookDirection.AsVec2.Normalized();
+
+            Vec2 lookDir2D;
+            if (observer == Agent.Main)
+            {
+                // 玩家：摄像机方向才是真正的"视野"
+                MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
+                Camera cam = ms?.CombatCamera;
+                lookDir2D = (cam != null ? cam.Direction : observer.LookDirection).AsVec2.Normalized();
+            }
+            else
+            {
+                lookDir2D = observer.LookDirection.AsVec2.Normalized();
+            }
             if (Vec2.DotProduct(lookDir2D, dirToTarget2D) < fovDotThreshold) return false;
 
             // 4. RayCast 遮挡
@@ -94,7 +147,7 @@ namespace LivingWorldNpcs
             float dist = player.Position.Distance(npc.Position);
             if (dist > 50f) return false;
 
-            // 相机方向 dot product（复用 BubbleSayMissionView 的逻辑：点积 ≤0 说明在背后）
+            // 相机方向 dot product（复用 AgentHudMissionView 的逻辑：点积 ≤0 说明在背后）
             MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
             Camera cam = ms?.CombatCamera;
             if (cam == null) return false;
@@ -215,6 +268,7 @@ namespace LivingWorldNpcs
         {
             base.OnBehaviorInitialize();
             Instance = this;
+            DebugLogger.Log($"[NpcSightSystem] OnBehaviorInitialize OK | Instance={Instance != null}");
         }
 
         public override void OnRemoveBehavior()
@@ -223,13 +277,11 @@ namespace LivingWorldNpcs
             base.OnRemoveBehavior();
         }
 
-        /// <summary>查询缓存：agent 当前是否在玩家视野内（由 tick 维护，~1s 延迟）。</summary>
+        /// <summary>查询缓存：agent 当前是否在玩家视野内（直接用 CanPlayerSee，不依赖 PrevSeen 缓存，
+        /// 避免 tracked target 的 Agent 引用与当前 Agent.Main 不匹配导致永久 False）。</summary>
         public bool IsPlayerSeeing(Agent agent)
         {
-            if (agent == null) return false;
-            foreach (var t in _tracked)
-                if (t.Agent == Agent.Main) return t.PrevSeen.Contains(agent);
-            return false;
+            return CanPlayerSee(agent);
         }
 
         // 标记是否已完成第一次 tick（用于延迟注册玩家等）
@@ -250,19 +302,60 @@ namespace LivingWorldNpcs
                 }
             }
 
-            //1秒检查一次，性能考虑不宜过频
+            //0.1秒检查一次（警戒值需要高频响应）
             _tickTimer += dt;
-            if (_tickTimer < 1.0f) return;
+            if (_tickTimer < 0.1f) return;
+            float tickDt = _tickTimer;  // 保存实际累积时间
             _tickTimer = 0f;
+
+            // 🆕 刷新玩家 tracked target 的 Agent 引用（防注册时 Agent.Main 尚未 spawn 导致引用过时）
+            foreach (var t in _tracked)
+            {
+                if (t.Agent != Agent.Main && Agent.Main != null && Agent.Main.IsActive())
+                {
+                    // Agent.Main 引用已更新，替换旧的
+                    t.Agent = Agent.Main;
+                }
+            }
+
+            // 🆕 清理死 Agent 的警戒值条目
+            CleanupDeadAlertEntries();
 
             foreach (var tracked in _tracked)
             {
                 if (tracked.Agent == null || !tracked.Agent.IsActive()) continue;
-                TickTrackedTarget(tracked);
+                TickTrackedTarget(tracked, tickDt);  // 传入实际累积时间
             }
         }
 
-        private void TickTrackedTarget(TrackedTarget tracked)
+        /// <summary>清理死亡/失效 Agent 的警戒值条目</summary>
+        private void CleanupDeadAlertEntries()
+        {
+            if (_alertValues.Count == 0) return;
+            List<int> deadIndices = null;
+            foreach (var kv in _alertValues)
+            {
+                // Agent.Index 可能已被回收复用，用 Mission.Current.FindAgentWithIndex 验证
+                bool isDead = false;
+                if (Mission.Current != null)
+                {
+                    var agent = Mission.Current.FindAgentWithIndex(kv.Key);
+                    isDead = (agent == null || !agent.IsActive());
+                }
+                if (isDead)
+                {
+                    if (deadIndices == null) deadIndices = new List<int>();
+                    deadIndices.Add(kv.Key);
+                }
+            }
+            if (deadIndices != null)
+            {
+                foreach (int idx in deadIndices)
+                    _alertValues.Remove(idx);
+            }
+        }
+
+        private void TickTrackedTarget(TrackedTarget tracked, float dt)
         {
             MBList<Agent> nearby = new MBList<Agent>();
             float maxRadius = MathF.Max(tracked.ObserverRadius, tracked.ViewRadius);
@@ -281,6 +374,12 @@ namespace LivingWorldNpcs
 
                 if (CanAgentSeeTarget(tracked.Agent, agent, tracked.ViewRadius, 140f))
                     curSeen.Add(agent);
+
+                // 🆕 警戒值计算：仅对玩家追踪目标
+                if (tracked.Agent == Agent.Main)
+                {
+                    UpdateAlertValue(agent, dt);
+                }
             }
 
             // Diff observers
@@ -295,6 +394,85 @@ namespace LivingWorldNpcs
 
             tracked.PrevObservers = curObservers;
             tracked.PrevSeen = curSeen;
+        }
+
+        /// <summary>对单个 NPC 更新警戒值</summary>
+        private void UpdateAlertValue(Agent npc, float dt)
+        {
+            if (npc == null || !npc.IsActive() || !npc.IsHuman) return;
+            if (Agent.Main == null) return;
+
+            bool canSeePlayer = CanAgentSeeTarget(npc, Agent.Main, 15f, 120f);
+
+            // 获取当前值
+            float currentVal = 0f;
+            _alertValues.TryGetValue(npc.Index, out currentVal);
+
+            if (canSeePlayer)
+            {
+                // NPC 能看到玩家 → 警戒值上升
+                // 检查是否为敌对阵营（避开 v1.2.12 Team.IsEnemyOf 的 native NRE，用 Side 比较）
+                float identityVal = 0f;
+                try
+                {
+                    Team npcTeam = npc.Team;
+                    if (npcTeam != null && Agent.Main?.Team is Team playerTeam)
+                    {
+                        if (npcTeam.Side != playerTeam.Side && npcTeam.Side != BattleSideEnum.None)
+                            identityVal = IdentityAlertRate;
+                    }
+                }
+                catch (NullReferenceException) { }
+
+                // 玩家蹲下检测
+                float actionVal = 0f;
+                if (Agent.Main.CrouchMode)
+                {
+                    actionVal = ActionSuspiciousRate;
+                }
+
+                float delta = dt * (identityVal + actionVal);
+                currentVal += delta;
+
+                // 🐛 调试
+                _lastIdentityVal = identityVal;
+                _lastActionVal = actionVal;
+            }
+            else
+            {
+                // NPC 看不到玩家 → 警戒值衰减
+                currentVal -= dt * DecayRate;
+                _lastIdentityVal = 0f;
+                _lastActionVal = 0f;
+            }
+
+            // Clamp 到 [0, 2.1]
+            const float AlertMax = 2.1f;
+            currentVal = MBMath.ClampFloat(currentVal, 0f, AlertMax);
+
+            // 🐛 调试日志：每次 tick 对能看到玩家的 NPC 输出（含 crouch 状态）
+            if (canSeePlayer)
+            {
+                _debugAlertTickCount++;
+                float oldVal;
+                _alertValues.TryGetValue(npc.Index, out oldVal);
+                if (_debugAlertTickCount % 10 == 0 || MathF.Abs(currentVal - oldVal) > 0.02f)
+                {
+                    DebugLogger.Log($"[Alert] {npc.Name} | alert={oldVal:F3}→{currentVal:F3} | " +
+                        $"canSee={canSeePlayer} identity={_lastIdentityVal:F2} action={_lastActionVal:F2} " +
+                        $"crouch={Agent.Main?.CrouchMode} enemy={npc.Team?.Side}!={Agent.Main?.Team?.Side}");
+                }
+            }
+
+            // 更新或清理（阈值降到 0.0001f，避免数值太小时反复删→重建）
+            if (currentVal <= 0.0001f)
+            {
+                _alertValues.Remove(npc.Index);
+            }
+            else
+            {
+                _alertValues[npc.Index] = currentVal;
+            }
         }
 
         private static void DiffSets(HashSet<Agent> prev, HashSet<Agent> cur,

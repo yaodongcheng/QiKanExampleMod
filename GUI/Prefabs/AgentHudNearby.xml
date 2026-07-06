@@ -2,96 +2,90 @@
   <Window>
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
       <Children>
-      <ListPanel DataSource="{Bubbles}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <ListPanel DataSource="{Huds}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
         <ItemTemplate>
-          
+
           <!-- 锚点：尺寸为0 必须要有这一层，否则坐标显示会错误 -->
           <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="0" SuggestedHeight="0" DoNotAcceptEvents="true">
             <Children>
-              
-              <!-- 
-                 内容容器：负责坐标偏移 
+
+              <!--
+                 内容容器：负责坐标偏移
                  SuggestedHeight 设大一点以容纳垂直堆叠的内容
               -->
-              <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" 
+              <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                       SuggestedWidth="300" SuggestedHeight="150"
-                      PositionXOffset="@PosX" 
+                      PositionXOffset="@PosX"
                       PositionYOffset="@PosY"
                       IsVisible="@IsVisible"
                       DoNotAcceptEvents="true">
 
                 <Children>
-                  <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 （警戒值眼睛图标） 名字 -> 说话 -> 血条 -> 伤害 但是因为VerticalBottomToTop VerticalTopToBottom 实际作用和名称含义相反，写的时候得反着来-->
+                  <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 警戒眼睛 -> 名字 -> 说话 -> 血条 -> 伤害 -->
                   <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                              StackLayout.LayoutMethod="VerticalBottomToTop"
                              HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Children>
 
-
-                      <!-- 0.警戒值眼睛区域 — 3层结构 -->
-                      <!-- 白色眼睛 = 背景 + 容器；Clip 容器控制红色从下往上露出 -->
+                      <!-- 0. 警戒值眼睛区域 — 动态颜色绑定 -->
+                      <!-- 背景色 EyeBgColor，通过 Clip 容器控制 EyeFillColor 从下往上露出 -->
                       <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                               SuggestedWidth="30" SuggestedHeight="20"
                               HorizontalAlignment="Center"
+                              IsVisible="@ShowAlert"
                               Sprite="MPGeneral\MPScoreboard\view_profile_icon"
-                              Color="#FFFFFFFF">
+                              Color="@EyeBgColor">
                         <Children>
-
-                          <!-- Clip 容器：高度控制红色填充露出量，ClipContents 裁掉超出的红色上半部分 -->
-                          <!-- SuggestedHeight 固定 25px = 半满测试，后续换为 @AlertFillHeight -->
+                          <!-- Clip 容器：高度=AlertFillHeight，底部对齐，ClipContents 裁掉上部 -->
                           <Widget WidthSizePolicy="StretchToParent"
                                   HeightSizePolicy="Fixed"
-                                  SuggestedHeight="10"
+                                  SuggestedHeight="@AlertFillHeight"
                                   VerticalAlignment="Bottom"
                                   ClipContents="true">
                             <Children>
-                              <!-- 红色眼睛 sprite，50×50 底部对齐，超出容器上半部分被 ClipContents 裁掉 -->
+                              <!-- 填充色眼睛 sprite，底部对齐，超出容器上半部分被 ClipContents 裁掉 -->
                               <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                                       SuggestedWidth="30" SuggestedHeight="20"
                                       VerticalAlignment="Bottom"
                                       Sprite="MPGeneral\MPScoreboard\view_profile_icon"
-                                      Color="#FF0000FF" />
+                                      Color="@EyeFillColor" />
                             </Children>
                           </Widget>
-
                         </Children>
                       </Widget>
 
-
-
                       <!-- 1. 名字 (最上方) -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                      Brush="Brush_HeadName" 
+                                      Brush="Brush_HeadName"
                                       Text="@AgentName"
+                                      IsVisible="@ShowName"
                                       HorizontalAlignment="Center"
                                       Brush.FontSize="18"
-                                      Brush.FontColor="#FFD700FF" /> <!-- 铜金色/金黄色 -->
+                                      Brush.FontColor="#FFD700FF" />
 
                       <!-- 2. 说话文本 (中间) -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                      Brush="Brush_HeadText" 
+                                      Brush="Brush_HeadText"
                                       Text="@SpeechText"
                                       IsVisible="@ShowSpeech"
                                       HorizontalAlignment="Center"
                                       Brush.TextHorizontalAlignment="Center"
                                       Brush.FontSize="20"
-                                      Brush.FontColor="#FFFFFFFF" 
-                                      MarginBottom="2"/> <!-- 白色 -->
+                                      Brush.FontColor="#FFFFFFFF"
+                                      MarginBottom="2"/>
 
-
-
-                      <!-- 3.血条部分，又分为伤害数字显示（血条下方）、血条（血条底是父节点，当前血量是子节点） 排序方式是 从顶到底 横向宽度固定100，纵向宽度取决于内容 -->
+                      <!-- 3.血条部分 -->
                       <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
                                    SuggestedWidth="100"
                                    StackLayout.LayoutMethod="VerticalBottomToTop"
                                    HorizontalAlignment="Center">
-                          <Children>                          
-                            
+                          <Children>
+
                             <!-- 3. 血条区域 -->
-                            <!-- WidthSizePolicy 改为 StretchToParent，让它自动填满这个 100px 的容器 -->
                             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
                                     SuggestedHeight="8"
                                     HorizontalAlignment="Left"
+                                    IsVisible="@ShowHealth"
                                     Sprite="BlankWhiteSquare_9" Color="#000000E6" MarginTop="2" MarginBottom="2">
                               <Children>
                                 <!-- 动画血条 -->
@@ -103,7 +97,6 @@
                             </Widget>
 
                             <!-- 4. 伤害数字 -->
-                            <!-- HorizontalAlignment="Left" 现在意味着靠这 100px 区域的左边 -->
                             <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                            Brush="MyBrush_16_Left"
                                            Text="@DamageText"
@@ -112,21 +105,17 @@
                                            Brush.FontSize="16"
                                            Brush.FontColor="#FF4500FF" />
 
-                            
                           </Children>
                         </ListPanel>
-
-                      
-                
 
                     </Children>
                   </ListPanel>
                 </Children>
-                
+
               </Widget>
             </Children>
           </Widget>
-          
+
         </ItemTemplate>
       </ListPanel>
       </Children>

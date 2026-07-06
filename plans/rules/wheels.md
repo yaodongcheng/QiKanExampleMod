@@ -416,6 +416,91 @@ custom.worldevent_status     // 内部状态
 
 ---
 
+# AgentHUD — 3D 角色头上通用 HUD 系统
+
+**原地升级替换旧 `BubbleSay*` 系统**。为所有 Human Agent 提供统一的 3D 头上 HUD，管理五大元素：名字、说话冒泡、血条、伤害数字、警戒眼睛。
+
+## 核心入口
+
+```csharp
+// 获得单例（MissionView）
+AgentHudMissionView.Instance
+
+// 让 Agent 说话（原 BubbleSayMissionView.AgentBubbleSay）
+AgentHudMissionView.AgentSay(agent, text);         // 静态快捷方法
+AgentHudMissionView.AgentSay(stringId, text);
+
+// 确保 Agent 有 HUD（延迟创建策略：有内容要显示才创建 VM）
+AgentHudMissionView.Instance.EnsureHud(agent);
+
+// 控制台
+custom.agentHud_say <agentStringId> <text>
+```
+
+**文件位置**：`AgentHUD/AgentHudMissionView.cs`（MissionView）、`AgentHUD/AgentHudVM.cs`（VM）、`AgentHUD/AgentHudCollectionVM.cs`（MBBindingList 容器）、`GUI/Prefabs/AgentHudNearby.xml`（Gauntlet Prefab）。
+
+## 五大元素与显隐规则
+
+| 元素 | VM 属性 | 显隐条件 | 持续时间 | FOV |
+|------|---------|----------|----------|:---:|
+| **名字** | `ShowName` + `AgentName` | ShowSpeech \|\| ShowHealth \|\| ShowDamage | 跟随触发元素 | ✅ |
+| **说话** | `ShowSpeech` + `SpeechText` | `Speak(text)` 调用 | `4s + text.Length * 0.1s` | ✅ |
+| **血条** | `ShowHealth` + `CurrentHealthWidth` | 拔武器/战斗中/血量<95%/警戒态 | 持续（条件消失隐藏） | ✅ |
+| **伤害** | `ShowDamage` + `DamageText` | 受伤害瞬间 | 2s | ✅ |
+| **警戒** | `ShowAlert` + `AlertFillHeight/EyeBgColor/EyeFillColor` | 警戒值 > 0 | 持续（归零隐藏） | ❌ **豁免** |
+
+**警戒 FOV 豁免**：警戒眼睛不受 FOV 角度限制——NPC 在玩家身后盯你，更该知道。屏幕外时 clamp 到边缘做方向指示。名字只在 FOV 内显示（ShowAlert 不触发名字），玩家转身面对 NPC 后名字浮现。
+
+**名字总领规则**：`ShowName = ShowSpeech || ShowHealth || ShowDamage`（不含 ShowAlert）。
+
+**容器可见性**：`IsVisible = ShowName || ShowAlert`（警戒眼睛可独立触发容器显示）。
+
+## 性能：距离分级
+
+| 距离 | 范围 | 更新频率 | 做什么 |
+|------|------|----------|--------|
+| **近** | ≤ 15m | 每 10 帧 | 完整：血条 + 警戒值 + 说话 + 坐标 |
+| **中** | 15m ~ 50m | 每 30 帧 | 仅警戒值 + 坐标 |
+| **远** | > 50m | 不处理 | 不创建 HUD / 隐藏 |
+
+**延迟创建**：不是一开始就给所有 Agent 创建 HUD，而是按需创建（有警戒值/说话/战斗 → 创建）。
+
+## AgentHudVM 关键属性
+
+```csharp
+// 注入数据（由 MissionView 调用）
+hud.AlertValue = sightSystem.GetAlertValue(agent);  // 警戒值 0~2+，每帧注入
+hud.UpdateLogic();   // 低频：血量/血条条件/名字总领（近距10帧/中距30帧）
+hud.UpdateFrame(dt); // 高频：动画插值 + 计时器（每帧）
+hud.Speak(text);     // 说话入口
+
+// 可绑定属性（DataSourceProperty）
+PosX, PosY, Scale, IsVisible, BubbleWidth, BubbleHeight,
+AgentName, ShowName,
+SpeechText, ShowSpeech,
+CurrentHealthWidth, ShowHealth,
+DamageText, ShowDamage,
+AlertFillHeight, ShowAlert, EyeBgColor, EyeFillColor
+```
+
+## 警戒值系统（NpcSightSystem 维护）
+
+```csharp
+// 查询/操作
+float val = NpcSightSystem.Instance.GetAlertValue(npc);  // 不存在返回 0
+NpcSightSystem.Instance.AddAlertPulse(npc, amount);       // 一次性脉冲（不走 dt）
+
+// 内部计算（OnMissionTick 中每秒触发）：
+// 能看到玩家 → dt * (IdentityValue + ActionSuspiciousValue)
+// 看不到玩家 → dt * (-DecayRate)
+// IdentityValue: 0.15 (敌) / 0 (其他)
+// ActionSuspiciousValue: 0.15 (蹲下) / 0 (正常)
+// DecayRate: 0.15/s
+// 脉冲事件: +2.0 (击晕/偷窃/攻击友军)
+```
+
+**文件位置**：`AI/NpcSightSystem.cs`（`_alertValues` 字典 + `GetAlertValue`/`AddAlertPulse`/`UpdateAlertValue`/`CleanupDeadAlertEntries`）。
+
 # UI 交互模式
 
 ## NinjaNotification → Inquiry 书信流
