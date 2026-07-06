@@ -5,7 +5,7 @@
       <ListPanel DataSource="{Bubbles}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
         <ItemTemplate>
           
-          <!-- 锚点：尺寸为0 -->
+          <!-- 锚点：尺寸为0 必须要有这一层，否则坐标显示会错误 -->
           <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="0" SuggestedHeight="0" DoNotAcceptEvents="true">
             <Children>
               
@@ -21,28 +21,40 @@
                       DoNotAcceptEvents="true">
 
                 <Children>
-                  <!-- 使用 ListPanel 实现垂直堆叠：名字 -> 说话 -> 血条 -> 伤害 -->
+                  <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 名字 -> 说话 -> 血条 -> 伤害 但是因为VerticalBottomToTop VerticalTopToBottom 实际作用和名称含义相反，写的时候得反着来-->
                   <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                             StackLayout.LayoutMethod="VerticalTopToBottom"
+                             StackLayout.LayoutMethod="VerticalBottomToTop"
                              HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Children>
 
+                      <!-- 1. 名字 (最上方) -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                      Brush="Brush_HeadName" 
+                                      Text="@AgentName"
+                                      HorizontalAlignment="Center"
+                                      Brush.FontSize="18"
+                                      Brush.FontColor="#FFD700FF" /> <!-- 铜金色/金黄色 -->
+
+                      <!-- 2. 说话文本 (中间) -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                      Brush="Brush_HeadText" 
+                                      Text="@SpeechText"
+                                      IsVisible="@ShowSpeech"
+                                      HorizontalAlignment="Center"
+                                      Brush.TextHorizontalAlignment="Center"
+                                      Brush.FontSize="20"
+                                      Brush.FontColor="#FFFFFFFF" 
+                                      MarginBottom="2"/> <!-- 白色 -->
+
+
+
+                      <!-- 3.血条部分，又分为伤害数字显示（血条下方）、血条（血条底是父节点，当前血量是子节点） 排序方式是 从顶到底 横向宽度固定100，纵向宽度取决于内容 -->
                       <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
                                    SuggestedWidth="100"
-                                   StackLayout.LayoutMethod="VerticalTopToBottom"
+                                   StackLayout.LayoutMethod="VerticalBottomToTop"
                                    HorizontalAlignment="Center">
-                          <Children>
-                          
-                            <!-- 4. 伤害数字 -->
-                            <!-- HorizontalAlignment="Left" 现在意味着靠这 100px 区域的左边 -->
-                            <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                           Brush="MyBrush_16_Left"
-                                           Text="@DamageText"
-                                           IsVisible="@ShowDamage"
-                                           HorizontalAlignment="Left"
-                                           Brush.FontSize="16"
-                                           Brush.FontColor="#FF4500FF" />
-
+                          <Children>                          
+                            
                             <!-- 3. 血条区域 -->
                             <!-- WidthSizePolicy 改为 StretchToParent，让它自动填满这个 100px 的容器 -->
                             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
@@ -57,28 +69,23 @@
                                         Sprite="BlankWhiteSquare_9" Color="#8B0000FF" />
                               </Children>
                             </Widget>
+
+                            <!-- 4. 伤害数字 -->
+                            <!-- HorizontalAlignment="Left" 现在意味着靠这 100px 区域的左边 -->
+                            <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                           Brush="MyBrush_16_Left"
+                                           Text="@DamageText"
+                                           IsVisible="@ShowDamage"
+                                           HorizontalAlignment="Left"
+                                           Brush.FontSize="16"
+                                           Brush.FontColor="#FF4500FF" />
+
                             
                           </Children>
                         </ListPanel>
 
-                      <!-- 2. 说话文本 (中间) -->
-                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                      Brush="Brush_HeadText" 
-                                      Text="@SpeechText"
-                                      IsVisible="@ShowSpeech"
-                                      HorizontalAlignment="Center"
-                                      Brush.TextHorizontalAlignment="Center"
-                                      Brush.FontSize="20"
-                                      Brush.FontColor="#FFFFFFFF" 
-                                      MarginBottom="2"/> <!-- 白色 -->
-
-                      <!-- 1. 名字 (最上方) -->
-                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                      Brush="Brush_HeadName" 
-                                      Text="@AgentName"
-                                      HorizontalAlignment="Center"
-                                      Brush.FontSize="18"
-                                      Brush.FontColor="#FFD700FF" /> <!-- 铜金色/金黄色 -->
+                      
+                
 
                     </Children>
                   </ListPanel>
