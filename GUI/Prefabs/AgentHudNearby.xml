@@ -1,0 +1,124 @@
+<Prefab>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+      <ListPanel DataSource="{Huds}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+        <ItemTemplate>
+
+          <!-- 锚点：尺寸为0 必须要有这一层，否则坐标显示会错误 -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="0" SuggestedHeight="0" DoNotAcceptEvents="true">
+            <Children>
+
+              <!--
+                 内容容器：负责坐标偏移
+                 SuggestedHeight 设大一点以容纳垂直堆叠的内容
+              -->
+              <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                      SuggestedWidth="300" SuggestedHeight="150"
+                      PositionXOffset="@PosX"
+                      PositionYOffset="@PosY"
+                      IsVisible="@IsVisible"
+                      DoNotAcceptEvents="true">
+
+                <Children>
+                  <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 警戒眼睛 -> 名字 -> 说话 -> 血条 -> 伤害 -->
+                  <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                             StackLayout.LayoutMethod="VerticalBottomToTop"
+                             HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Children>
+
+                      <!-- 0. 警戒值眼睛区域 — 动态颜色绑定 -->
+                      <!-- 背景色 EyeBgColor，通过 Clip 容器控制 EyeFillColor 从下往上露出 -->
+                      <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                              SuggestedWidth="30" SuggestedHeight="20"
+                              HorizontalAlignment="Center"
+                              IsVisible="@ShowAlert"
+                              Sprite="MPGeneral\MPScoreboard\view_profile_icon"
+                              Color="@EyeBgColor">
+                        <Children>
+                          <!-- Clip 容器：高度=AlertFillHeight，底部对齐，ClipContents 裁掉上部 -->
+                          <Widget WidthSizePolicy="StretchToParent"
+                                  HeightSizePolicy="Fixed"
+                                  SuggestedHeight="@AlertFillHeight"
+                                  VerticalAlignment="Bottom"
+                                  ClipContents="true">
+                            <Children>
+                              <!-- 填充色眼睛 sprite，底部对齐，超出容器上半部分被 ClipContents 裁掉 -->
+                              <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                      SuggestedWidth="30" SuggestedHeight="20"
+                                      VerticalAlignment="Bottom"
+                                      Sprite="MPGeneral\MPScoreboard\view_profile_icon"
+                                      Color="@EyeFillColor" />
+                            </Children>
+                          </Widget>
+                        </Children>
+                      </Widget>
+
+                      <!-- 1. 名字 (最上方) -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                      Brush="Brush_HeadName"
+                                      Text="@AgentName"
+                                      IsVisible="@ShowName"
+                                      HorizontalAlignment="Center"
+                                      Brush.FontSize="18"
+                                      Brush.FontColor="#FFD700FF" />
+
+                      <!-- 2. 说话文本 (中间) -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                      Brush="Brush_HeadText"
+                                      Text="@SpeechText"
+                                      IsVisible="@ShowSpeech"
+                                      HorizontalAlignment="Center"
+                                      Brush.TextHorizontalAlignment="Center"
+                                      Brush.FontSize="20"
+                                      Brush.FontColor="#FFFFFFFF"
+                                      MarginBottom="2"/>
+
+                      <!-- 3.血条部分 -->
+                      <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
+                                   SuggestedWidth="100"
+                                   StackLayout.LayoutMethod="VerticalBottomToTop"
+                                   HorizontalAlignment="Center">
+                          <Children>
+
+                            <!-- 3. 血条区域 -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
+                                    SuggestedHeight="8"
+                                    HorizontalAlignment="Left"
+                                    IsVisible="@ShowHealth"
+                                    Sprite="BlankWhiteSquare_9" Color="#000000E6" MarginTop="2" MarginBottom="2">
+                              <Children>
+                                <!-- 动画血条 -->
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                        SuggestedWidth="@CurrentHealthWidth"
+                                        HorizontalAlignment="Left"
+                                        Sprite="BlankWhiteSquare_9" Color="#8B0000FF" />
+                              </Children>
+                            </Widget>
+
+                            <!-- 4. 伤害数字 -->
+                            <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                           Brush="MyBrush_16_Left"
+                                           Text="@DamageText"
+                                           IsVisible="@ShowDamage"
+                                           HorizontalAlignment="Left"
+                                           Brush.FontSize="16"
+                                           Brush.FontColor="#FF4500FF" />
+
+                          </Children>
+                        </ListPanel>
+
+                    </Children>
+                  </ListPanel>
+                </Children>
+
+              </Widget>
+            </Children>
+          </Widget>
+
+        </ItemTemplate>
+      </ListPanel>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

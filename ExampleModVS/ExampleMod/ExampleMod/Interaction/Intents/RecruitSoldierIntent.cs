@@ -43,7 +43,7 @@ namespace LivingWorldNpcs
                 string emotion;
                 var factors = DialogueFactors.FromContext(ctx);
                 string line = DialogueTemplateHelper.Get("RecruitSoldier_AlreadyRecruited", factors, out emotion, ctx.Hero, ctx.Agent);
-                BubbleSayMissionView.AgentBubbleSay(ctx.Agent, line);
+                AgentHudMissionView.AgentSay(ctx.Agent, line);
                 ctx.Controller.ShowNpcLineKeepMenu(ctx.Agent, line, emotion);
                 return;
             }
@@ -128,7 +128,7 @@ namespace LivingWorldNpcs
                     else
                         farewell = DialogueTemplateHelper.Get("RecruitHero", true, out emotion, ctx.Hero, ctx.Agent);
                     if (!string.IsNullOrEmpty(farewell))
-                        BubbleSayMissionView.AgentBubbleSay(ctx.Agent, farewell);
+                        AgentHudMissionView.AgentSay(ctx.Agent, farewell);
 
                     ctx.Controller._vm.Close();
                     if (Agent.Main != null)

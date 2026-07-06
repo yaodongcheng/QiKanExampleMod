@@ -113,8 +113,8 @@ namespace LivingWorldNpcs
             mission.AddMissionBehavior(new CameraDebuggerView());
             //相机调试UI
             mission.AddMissionBehavior(new SpringArmCameraView());
-            //冒泡UI
-            mission.AddMissionBehavior(new BubbleSayMissionView());
+            //Agent头上HUD
+            mission.AddMissionBehavior(new AgentHudMissionView());
             //统一视线引擎（必须在 InteractionMissionView 之前，订阅才能拿到）
             NpcSightSystem sightSystem = new NpcSightSystem();
             mission.AddMissionBehavior(sightSystem);

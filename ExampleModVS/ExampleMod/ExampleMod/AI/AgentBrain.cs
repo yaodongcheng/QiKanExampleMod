@@ -98,7 +98,7 @@ namespace LivingWorldNpcs
             if (aiEvent.EventType == "ComeHere")
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
-                BubbleSayMissionView.AgentBubbleSay(Owner, $"{targetAgent.Name},你在叫我吗？");
+                AgentHudMissionView.AgentSay(Owner, $"{targetAgent.Name},你在叫我吗？");
                 InteractedAgent = targetAgent;
                 ClearAllActions();
                 EnqueueAction(new LookAtAction(targetAgent, 0.3f));
