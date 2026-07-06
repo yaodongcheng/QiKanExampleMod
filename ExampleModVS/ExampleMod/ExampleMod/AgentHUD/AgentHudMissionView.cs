@@ -234,14 +234,22 @@ namespace LivingWorldNpcs
         {
             float margin = 20f;
             float clampedX = MBMath.ClampFloat(pixelX, margin, screenWidth - margin);
-            return (clampedX * (1.0f / uiScale)) - (bubbleWidth * 0.5f);
+            float uiX = (clampedX * (1.0f / uiScale)) - (bubbleWidth * 0.5f);
+            // 最终保护：widget 不超出 margin 边界
+            float minUiX = margin * (1.0f / uiScale);
+            float maxUiX = (screenWidth - margin) * (1.0f / uiScale) - bubbleWidth;
+            return MBMath.ClampFloat(uiX, minUiX, maxUiX);
         }
 
         private float ClampToEdgeY(float pixelY, float screenHeight, float uiScale, float bubbleHeight)
         {
             float margin = 20f;
             float clampedY = MBMath.ClampFloat(pixelY, margin, screenHeight - margin);
-            return (clampedY * (1.0f / uiScale)) - (bubbleHeight * 0.5f);  // 居中，和 X 一致
+            float uiY = (clampedY * (1.0f / uiScale)) - (bubbleHeight * 0.5f);
+            // 最终保护：widget 不超出 margin 边界
+            float minUiY = margin * (1.0f / uiScale);
+            float maxUiY = (screenHeight - margin) * (1.0f / uiScale) - bubbleHeight;
+            return MBMath.ClampFloat(uiY, minUiY, maxUiY);
         }
 
         // ============================================================
