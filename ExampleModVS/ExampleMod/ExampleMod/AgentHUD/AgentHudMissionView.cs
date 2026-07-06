@@ -28,9 +28,6 @@ namespace LivingWorldNpcs
         // 计数器
         private int _tickCounter = 0;
 
-        // 缓存 NpcSightSystem 引用
-        private NpcSightSystem _sightSystem;
-
         public override void OnMissionScreenInitialize()
         {
             base.OnMissionScreenInitialize();
@@ -115,15 +112,7 @@ namespace LivingWorldNpcs
             float uiScale = _layer.UIContext.Scale;
             float invUiScale = 1.0f / uiScale;
 
-            float screenPadding = 100f;
-
             List<int> removeIndices = null;
-
-            // 延迟获取 NpcSightSystem（仅用于警戒值查询）
-            if (_sightSystem == null)
-            {
-                _sightSystem = Mission.Current?.GetMissionBehavior<NpcSightSystem>();
-            }
 
             for (int i = _dataSource.Huds.Count - 1; i >= 0; i--)
             {
@@ -154,21 +143,16 @@ namespace LivingWorldNpcs
                 float pixelX = screenPos.x * screenWidth;
                 float pixelY = screenPos.y * screenHeight;
 
-                bool offScreen = pixelX < -screenPadding || pixelX > screenWidth + screenPadding ||
-                                 pixelY < -screenPadding || pixelY > screenHeight + screenPadding;
-
-                bool isMainAgent = (agent == Agent.Main);
-                // FOV = 投影在屏幕内（含 100px 边距），比摄像机角度更符合玩家认知
-                bool inFov = isMainAgent || !offScreen;
+                bool inFov = NpcSightSystem.IsPlayerSeeing(agent);
 
                 // ── 第五层：警戒值更新（FOV 豁免，距离内始终追踪） ──
-                float alertValue = _sightSystem?.GetAlertValue(agent) ?? 0f;
+                float alertValue = NpcSightSystem.GetAlertValue(agent);
                 hud.AlertValue = alertValue;  // VM 内部 UpdateAlertVisuals 自决 ShowAlert
 
                 // 警戒眼睛的屏幕位置（FOV 豁免：屏幕外 clamp 到边缘）
                 if (hud.ShowAlert)
                 {
-                    if (offScreen)
+                    if (!inFov)
                     {
                         hud.PosX = ClampToEdgeX(pixelX, screenWidth, uiScale, hud.BubbleWidth);
                         hud.PosY = ClampToEdgeY(pixelY, screenHeight, uiScale, hud.BubbleHeight);
@@ -181,14 +165,14 @@ namespace LivingWorldNpcs
                 }
 
                 // 屏幕外且没有警戒值 → 跳过后续处理
-                if (offScreen && !hud.ShowAlert)
+                if (!inFov && !hud.ShowAlert)
                 {
                     if (hud.IsVisible) hud.IsVisible = false;
                     continue;
                 }
 
                 // ── 第六层：FOV 内的常规元素（血条/说话/名字） ──
-                if (inFov && !offScreen)
+                if (inFov)
                 {
                     // 分频更新
                     bool isClose = dist <= NearDistance;

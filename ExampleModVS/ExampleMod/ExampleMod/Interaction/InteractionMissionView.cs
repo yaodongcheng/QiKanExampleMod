@@ -218,14 +218,11 @@ namespace LivingWorldNpcs
             if (agent == null || agent == Agent.Main) return;
             if (!agent.IsHuman && !IsAnimalAgent(agent)) return;
 
-            // 2. 视野缓存预检查：不在玩家视野内直接跳过（NpcSightSystem ~1s 更新一次）
-            //    注意：NpcSightSystem.TickTrackedTarget 过滤了非人类 Agent，导致
-            //    IsPlayerSeeing 对动物永远返回 false。动物只依赖后续距离+点积判定。
-            var sight = NpcSightSystem.Instance;
-            if (sight != null && !sight.IsPlayerSeeing(agent))
+            // 2. 视野预检查：屏幕投影判断，不在屏幕内直接跳过
+            //    动物也走同一逻辑（WorldPointToScreenPoint 通用）
+            if (!NpcSightSystem.IsPlayerSeeing(agent))
             {
-                if (!IsAnimalAgent(agent)) return; // 人类视野不够→跳过
-                // 动物：跳过视野预检，继续进入距离+点积判定
+                if (!IsAnimalAgent(agent)) return;
             }
 
             // 3. 距离剔除 (Distance Squared)

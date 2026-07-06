@@ -469,7 +469,7 @@ custom.agentHud_say <agentStringId> <text>
 
 ```csharp
 // 注入数据（由 MissionView 调用）
-hud.AlertValue = sightSystem.GetAlertValue(agent);  // 警戒值 0~2+，每帧注入
+hud.AlertValue = NpcSightSystem.GetAlertValue(agent);  // 警戒值 0~2+，每帧注入
 hud.UpdateLogic();   // 低频：血量/血条条件/名字总领（近距10帧/中距30帧）
 hud.UpdateFrame(dt); // 高频：动画插值 + 计时器（每帧）
 hud.Speak(text);     // 说话入口
@@ -487,8 +487,8 @@ AlertFillHeight, ShowAlert, EyeBgColor, EyeFillColor
 
 ```csharp
 // 查询/操作
-float val = NpcSightSystem.Instance.GetAlertValue(npc);  // 不存在返回 0
-NpcSightSystem.Instance.AddAlertPulse(npc, amount);       // 一次性脉冲（不走 dt）
+float val = NpcSightSystem.GetAlertValue(npc);  // 不存在返回 0
+NpcSightSystem.AddAlertPulse(npc, amount);       // 一次性脉冲（不走 dt）
 
 // 内部计算（OnMissionTick 中每秒触发）：
 // 能看到玩家 → dt * (IdentityValue + ActionSuspiciousValue)
