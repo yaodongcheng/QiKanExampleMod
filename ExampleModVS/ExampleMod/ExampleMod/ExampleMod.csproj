@@ -215,6 +215,7 @@
     <Compile Include="AI\Actions\AtomicAction.cs" />
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
+    <Compile Include="AI\AlertTypes.cs" />
     <Compile Include="AI\AiSuspendPatch.cs" />
     <Compile Include="AI\GroupStageManager.cs" />
     <Compile Include="AI\NpcSightSystem.cs" />
@@ -276,6 +277,7 @@
     <Compile Include="Interaction\StoryDialogVM.cs" />
     <Compile Include="Interaction\Dialogue\CrimeDialogueBuilder.cs" />
     <Compile Include="Interaction\Dialogue\PlaceholderResolver.cs" />
+    <Compile Include="Interaction\Dialogue\NpcSpeechResolver.cs" />
     <!-- Dialogue (dynamic dialogue injection pipeline) -->
     <!-- LLM -->
     <Compile Include="LLM\LLMService.cs" />

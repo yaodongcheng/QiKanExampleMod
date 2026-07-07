@@ -36,6 +36,9 @@ namespace LivingWorldNpcs
         // ── 目击系统开关（默认开启，关掉后偷窃/犯罪不会被目击）──
         public bool WitnessSystemEnabled { get; set; } = false;
 
+        // ── L3 警戒质问对话模式 ──
+        public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
+
         private static Settings Load()
         {
             Settings settings = new Settings();

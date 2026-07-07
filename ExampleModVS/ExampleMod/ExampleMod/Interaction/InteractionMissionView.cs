@@ -77,9 +77,6 @@ namespace LivingWorldNpcs
         //聊天锁，防止其他人也想和玩家说话
         public static bool IsChatting { get; private set; } = false;
 
-        // SightBubbleConsumer：已订阅 NpcSightSystem 事件
-        private bool _sightBubbleSubscribed = false;
-
         // Map encounter dialog auto-trigger gate — 防止 OnMissionTick 重复拉起
         private bool _encounterDialogStarted = false;
         private int _encounterPartnerSearchFrames = 0;
@@ -111,52 +108,8 @@ namespace LivingWorldNpcs
 
             Instance = this;
 
-            // SightBubbleConsumer：订阅 NpcSightSystem，NPC 看到玩家时概率冒泡
-            SubscribeSightBubble();
-
         }
 
-        private void SubscribeSightBubble()
-        {
-            if (_sightBubbleSubscribed) return;
-            var sight = Mission.Current?.GetMissionBehavior<NpcSightSystem>();
-            if (sight == null) return;
-            _sightBubbleSubscribed = true;
-            sight.OnAgentStartObserving += OnNpcStartObservingPlayer;
-        }
-
-        private void OnNpcStartObservingPlayer(Agent observer, Agent target)
-        {
-            // 只处理 NPC 看到玩家
-            if (target != Agent.Main) return;
-            if (observer == null || !observer.IsActive()) return;
-            if (IsChatting) return; // 正在对话中不冒泡
-
-            // 查据点荣誉
-            int honor = 0;
-            if (Hero.MainHero.CurrentSettlement != null)
-                honor = SettlementHonorStore.Get(Hero.MainHero.CurrentSettlement);
-
-            // 概率 = min(0.10 + honor * 0.01, 0.25)
-            float prob = MathF.Clamp(0.10f + honor * 0.01f, 0.02f, 0.25f);
-            float roll = MBRandom.RandomFloat;
-            bool hit = roll < prob;
-
-            if (!hit) return;
-
-            // 构建因素
-            var factors = new DialogueFactors
-            {
-                Honor = honor >= 5 ? HonorLevel.High : (honor <= -5 ? HonorLevel.Low : HonorLevel.Neutral),
-                Gender = (observer.Character != null && observer.Character.IsFemale) ? NpcGender.Female : NpcGender.Male,
-                Identity = NpcIdentity.Civilian
-            };
-
-            string emotion;
-            string line = DialogueTemplateHelper.Get("BubbleGreet", factors, out emotion, null, observer);
-            if (!string.IsNullOrEmpty(line))
-                AgentHudMissionView.AgentSay(observer, line);
-        }
 
 
         // ── 动物 Agent 识别 ──
@@ -882,6 +835,9 @@ namespace LivingWorldNpcs
             // 7. 隐藏原本的"按F交互"小黑条
             _interactVM.IsVisible = false;
 
+            // 🆕 标记偷窃 UI 已打开（供 AgentBrain 警戒值系统检测）
+            StealManager.IsUIOpen = true;
+
         }
 
         // 关闭偷窃界面
@@ -899,6 +855,7 @@ namespace LivingWorldNpcs
 
                 // 3. 恢复状态
                 IsHandlingInteraction = false;
+                StealManager.IsUIOpen = false;
             }
         }
         public override void OnMissionScreenFinalize()

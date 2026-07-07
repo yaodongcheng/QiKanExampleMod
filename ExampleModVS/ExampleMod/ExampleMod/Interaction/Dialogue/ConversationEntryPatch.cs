@@ -218,6 +218,22 @@ namespace LivingWorldNpcs
                     true, false,
                     "……", null, null, null));
             }
+
+            // 🆕 L3 警戒质问清理：对话结束后释放 NPC，广播 EndInteraction 走 AgentBrain 标准清理路径
+            var alertAgent = AlertForceConversationAction.ActiveConversationAgent;
+            if (alertAgent != null)
+            {
+                AlertForceConversationAction.ActiveConversationAgent = null;
+                try
+                {
+                    AgentAIController.Instance?.BroadcastEventInRange(
+                        alertAgent.Position, 15.0f, "EndInteraction", alertAgent);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[ConvEnd] EndInteraction broadcast failed: {ex.Message}");
+                }
+            }
         }
     }
 

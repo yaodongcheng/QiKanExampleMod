@@ -17,6 +17,10 @@ namespace LivingWorldNpcs
 {
     public class StealManager
     {
+        // ── 🆕 偷窃 UI 状态（Phase 1：AgentBrain.UpdateAlertCognition 中检测 StealUIOpen）──
+        /// <summary>偷窃/物品 UI 是否当前打开。由 StealVM / InteractionMissionView 设置。</summary>
+        public static bool IsUIOpen { get; set; }
+
         // ----------------------------------------------------------------
         // 0. 失窃记录：本场 Mission 内玩家从某 victim 身上偷走的物品，用于「归还」。
         //    用 ConditionalWeakTable（弱引用键），Mission 结束 Agent 被 GC 后自动清，无泄漏。

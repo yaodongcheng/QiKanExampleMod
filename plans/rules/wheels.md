@@ -972,3 +972,120 @@ BetrayQuest / InnocenceProof / Settle / AcceptBountyQuest / LureArrest / Arrest
 ## 叙事迁移 — QuestManager 硬编码字串清理
 
 `QuestManager.GetQuestDescription()` 的 ~120 行日本战国硬编码字串已替换为通用简化描述。`GetQuestTitle()` 同步清理。叙事全部走 `NarrativeResolver` → CSV 管道。
+
+---
+
+# 🆕 NPC 警戒值系统 — 三级响应（2026-07-07）
+
+## 类型定义 — `AI/AlertTypes.cs`
+
+```csharp
+// 玩家行为分类（警戒值累加维度）
+public enum PlayerActionType { Crouching, WeaponDrawn, StealUIOpen, Steal, AttackAlly, Knockout }
+// 警戒阶段（UI 颜色 + NPC 行为分级）
+public enum AlarmPhase { Normal, Suspicious, Cautious, Alarmed }
+// L3 质问意图
+public enum NpcInterceptIntent { Deter, Search, Recover, Stop }
+// 对话模式开关
+public enum AlertDialogueMode { StoryVM, VanillaConversation }
+// 警戒条目（值 + 脉冲上下文）
+public struct AlertEntry { float Value; string TargetName; string ItemName; }
+```
+
+**文件位置**：`AI/AlertTypes.cs`
+
+## AgentBrain 警戒值字段与方法 — `AI/AgentBrain.cs`
+
+警戒值状态从 `NpcSightSystem` 迁移到每个 `AgentBrain` 实例。每个 NPC 独立维护自己对玩家的警戒值明细。
+
+```csharp
+// ── 公开查询 ──
+brain.AlertValue     // float — 所有条目的总和
+brain.AlertPhase     // AlarmPhase — 由 AlertValue 自动计算
+brain.PrimaryAction  // PlayerActionType? — 当前最高警戒值的来源
+
+// ── 脉冲操作 ──
+brain.AddAlert(PlayerActionType.Steal, 2.0f);  // 加值（持续累加或脉冲）
+
+// ── BubbleSay ──
+brain.BubbleSay("文本");  // 通用冒泡说话入口
+```
+
+**认知更新**：节流循环（默认 100ms），`Tick` → `UpdateAlertCognition` → 可见→累加 / 不可见→按比例衰减 → `CheckPhaseTransition` → 阶段穿越发事件。
+
+**阶段穿越事件**（在 `ReceiveEvent` 中平级处理）：
+- `"BecomeSuspicious"` → `BubbleSayOnce`
+- `"BecomeCautious"` → `LookAtAction(Agent.Main, 2.0f)` + `BubbleSayOnce`
+- `"BecomeAlarmed"` → `StartL3Confrontation()`（脉冲抑制检查）
+- `"CalmDown"` → 清理 bubbled 记录 + 行为链清理
+
+**L3 质问**：`StartL3Confrontation` 按 `Settings.Instance.AlertDialogueMode` 分叉：
+- `StoryVM`（默认）→ `PrepareOpeningAction` → `ForceTalkAction` → StoryDialogVM
+- `VanillaConversation` → `AlertForceConversationAction` → `CrimeDialogueBuilder.BuildAlertInterceptScript` → `DialogueInjector.InjectScript` → 原版对话 UI
+
+**文件位置**：`AI/AgentBrain.cs`（新增约 250 行警戒相关代码）
+
+## NpcSpeech.csv + NpcSpeechResolver — 模板台词统一数据源
+
+模板思路替代枚举思路。极简三列 `ID,Template,Emotion`。
+`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName)` 查 CSV → 委托 `PlaceholderResolver` 做占位符替换。
+
+**文件位置**：
+- `ModuleData/DesignData/NpcSpeech.csv`（~18 行：12 BubbleSay + 6 L3 开场白）
+- `Interaction/Dialogue/NpcSpeechResolver.cs`
+
+## PlaceholderResolver 增强 — Mission 层脉冲上下文
+
+新增构造参数 `targetName`/`itemName`，新增占位符：
+- `{PLAYER}` / `{SPEAKER}` / `{SPEAKER_SELF}` / `{SPEAKER_PLAYER_ADDR}` / `{SPEAKER_EMOTION}`
+- `{TARGET}` / `{ITEM}` / `{StolenItemName}` / `{LOCATION}`
+
+**文件位置**：`Interaction/Dialogue/PlaceholderResolver.cs`
+
+## AlertForceConversationAction — L3 路径 B 原子 Action
+
+走到玩家面前后强制开启原版对话，注入 `BuildAlertInterceptScript`。
+
+```csharp
+// 用法（AgentBrain 内部）：
+EnqueueAction(new AlertForceConversationAction());
+// OnEnd 中自动：查 brain.PrimaryAction → 确定 NpcInterceptIntent
+// → BuildAlertInterceptScript → InjectScript → StartConversation
+```
+
+**文件位置**：`AI/Actions/AtomicAction.cs`（新增在文件末尾）
+
+## CrimeDialogueBuilder.BuildAlertInterceptScript — L3 质问对话构建
+
+与 `BuildAuthorityScript` / `BuildWitnessScript` 同属 `CrimeDialogueBuilder`。
+台词查找：① NpcSpeech.csv → ② NarrativeResolver → ③ PlaceholderResolver 硬编码兜底。
+
+```csharp
+var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
+    speaker, NpcInterceptIntent.Recover, PlayerActionType.Steal);
+if (script != null) DialogueInjector.InjectScript(script, "AlertL3_NpcName");
+```
+
+**文件位置**：`Interaction/Dialogue/CrimeDialogueBuilder.cs`（新增约 200 行）
+
+## 控制台调试指令 — `Debug/MyCommands.cs`
+
+```
+custom.alert_status [agentStringId]    # 查看 NPC 分类警戒值明细
+custom.alert_force_intercept <npcId>   # 强制触发 L3 质问
+custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
+```
+
+## Settings 新增开关
+
+```csharp
+Settings.Instance.AlertDialogueMode  // AlertDialogueMode — StoryVM（默认）或 VanillaConversation
+```
+
+**文件位置**：`Core/Settings.cs`
+
+## NpcSightSystem 清理
+
+旧 `_alertValues` 字典、`GetAlertValue`、`AddAlertPulse`、`GetAllAlertValues`、`UpdateAlertValue`、`CleanupDeadAlertEntries` 全部删除。`NpcSightSystem` 回归纯感知工具——只回答"能不能看到"，不维护认知状态。
+
+**文件位置**：`AI/NpcSightSystem.cs`（删除约 100 行警戒值相关代码）
