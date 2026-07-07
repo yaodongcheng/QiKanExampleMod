@@ -69,7 +69,7 @@ private float _pulseSuppressedUntil;
 /// <summary>已触发过 BubbleSay 的 (Action, Phase) 组合。降级后清零对应条目，允许重新触发。</summary>
 private HashSet<(PlayerActionType, AlarmPhase)> _bubbledPhases = new HashSet<(PlayerActionType, AlarmPhase)>();
 
-// ── 公开查询（AgentHudMissionView 每帧读）──
+// ── 公开查询（AgentHudMissionView 每帧读 AlertValue / AlertPhase）──
 
 public float AlertValue => _alertBreakdown.Values.Sum(e => e.Value);
 public AlarmPhase AlertPhase => AlertValue switch
@@ -79,6 +79,7 @@ public AlarmPhase AlertPhase => AlertValue switch
     >= 0.25f => AlarmPhase.Suspicious,
     _ => AlarmPhase.Normal
 };
+/// <summary>当前最高警戒值对应的行为类型。BubbleSayOnce 内部用（阶段转换时调用，非每帧）。</summary>
 public PlayerActionType? PrimaryAction => _alertBreakdown.Count == 0 ? null
     : _alertBreakdown.OrderByDescending(kv => kv.Value.Value).First().Key;
 ```
@@ -482,7 +483,7 @@ void StartL3Confrontation()
     if (Settings.Instance.AlertDialogueMode == AlertDialogueMode.VanillaConversation)
     {
         // 路径 B：原版对话 UI
-        EnqueueAction(new MoveToPlayerAction(player, 1.5f));
+        EnqueueAction(new FollowAgentAction(player, false, radius: 0f, angleOffset: 0f, stopDistance: 1.5f));
         EnqueueAction(new LookAtAction(player, 0.5f));
         EnqueueAction(new AlertForceConversationAction());
         EnqueueAction(new StayAction(player));
@@ -491,7 +492,7 @@ void StartL3Confrontation()
     {
         // 路径 A：StoryDialogVM（默认）
         var conflict = BuildAlarmConflict(PrimaryAction);
-        EnqueueAction(new MoveToPlayerAction(player, 1.5f));
+        EnqueueAction(new FollowAgentAction(player, false, radius: 0f, angleOffset: 0f, stopDistance: 1.5f));
         EnqueueAction(new LookAtAction(player, 0.5f));
         EnqueueAction(new PrepareOpeningAction(InitiativeType.CrimeAccusation, conflict));
         EnqueueAction(new ForceTalkAction());
@@ -547,27 +548,19 @@ AlertBubble_Knockout_Cautious,来人！{SPEAKER_PLAYER_ADDR}把{TARGET}打倒了
 public static class NpcSpeechResolver
 {
     /// <summary>
-    /// 查模板 + 解析占位符。
-    /// speaker 和 listener 用于构建 PlaceholderResolver 上下文。
-    /// extra 传入 PlaceholderResolver 标准占位符之外的附加替换（如脉冲 {TARGET}/{ITEM}）。
+    /// 查模板 + 解析占位符。所有占位符统一走 PlaceholderResolver（不拆分 extra 步骤）。
+    /// targetName / itemName 为 Mission 层脉冲上下文，传 null 时对应占位符解析为空字符串。
     /// </summary>
     public static string Resolve(string templateId, Hero speaker, Hero listener = null,
-        WorldEvent evt = null, Dictionary<string, string> extra = null)
+        WorldEvent evt = null, string targetName = null, string itemName = null)
     {
         // ① 查 NpcSpeech.csv 取模板文本
         string template = LookupTemplate(templateId);
         if (string.IsNullOrEmpty(template)) return null;
 
-        // ② 委托 PlaceholderResolver 做占位符替换（含 WorldEvent 语境）
-        var r = new PlaceholderResolver(evt, speaker, listener);
-        string result = r.Resolve(template);
-
-        // ③ 替换 PlaceholderResolver 不覆盖的附加占位符（脉冲上下文等）
-        if (extra != null)
-            foreach (var kv in extra)
-                result = result.Replace($"{{{kv.Key}}}", kv.Value ?? "");
-
-        return result;
+        // ② 委托 PlaceholderResolver 做占位符替换（含 Campaign 语境 + Mission 层脉冲上下文）
+        var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName);
+        return r.Resolve(template);
     }
 
     static string LookupTemplate(string templateId)
@@ -595,10 +588,10 @@ public static class NpcSpeechResolver
 NpcSpeech.csv（新增：数据驱动的模板存储）
        │
        ▼
-NpcSpeechResolver.Resolve(id, speaker, listener, evt, extra)
+NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName)
        │
        ├─ ① LookupTemplate(id) → 从 CSV 取模板文本
-       └─ ② new PlaceholderResolver(evt, speaker, listener).Resolve(template)
+       └─ ② new PlaceholderResolver(evt, speaker, listener, targetName, itemName).Resolve(template)
               ↑
          核心引擎完整保留，含 WorldEvent / Campaign 层 ~80 占位符
 ```
@@ -627,20 +620,21 @@ string ResolveAlertBubble(AlarmPhase phase)
     var action = PrimaryAction;
     if (action == null) return null;
 
-    var extra = new Dictionary<string, string>();
+    string targetName = null, itemName = null;
     if (_alertBreakdown.TryGetValue(action.Value, out var entry))
     {
-        extra["TARGET"] = entry.TargetName ?? "";
-        extra["ITEM"] = entry.ItemName ?? "";
+        targetName = entry.TargetName;
+        itemName = entry.ItemName;
     }
 
-    // NpcSpeechResolver 内部委托 PlaceholderResolver 做占位符解析
+    // 所有占位符（含 {TARGET}/{ITEM}）统一走 PlaceholderResolver
     return NpcSpeechResolver.Resolve(
         $"AlertBubble_{action}_{phase}",
         speaker: Owner.Character?.HeroObject,
         listener: Hero.MainHero,
-        evt: null,  // BubbleSay 无 WorldEvent 上下文
-        extra: extra
+        evt: null,
+        targetName: targetName,
+        itemName: itemName
     );
 }
 
@@ -659,7 +653,7 @@ BubbleSay(ResolveAlertBubble(phase));
 NpcSpeech.csv（数据驱动的模板存储 — 新增）
        │
        ▼
-NpcSpeechResolver.Resolve(id, speaker, listener, evt, extra)  ← CSV 查询薄层
+NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName)  ← CSV 查询薄层
        │
        ▼
 PlaceholderResolver.Resolve(template)  ← 核心引擎（完整保留，~80 占位符）
@@ -680,8 +674,9 @@ LLM 路径（IsLLMReady = true）：
 | `{SPEAKER_SELF}` | NPC 自称 | `AttitudeSystem.GetSelfReference` |
 | `{SPEAKER_PLAYER_ADDR}` | NPC 对玩家的称呼 | `AttitudeSystem.GetPlayerAddress` |
 | `{SPEAKER_EMOTION}` | NPC 情绪词 | `Emotion.csv` 查 `ScriptName` 列（如 `alert→"警戒"`） |
-| `{TARGET}` | 目标/受害者名 | 调用方 extra 传入 |
-| `{ITEM}` | 物品名 | 调用方 extra 传入 |
+| `{TARGET}` | 目标/受害者名 | PlaceholderResolver（`targetName` 参数） |
+| `{ITEM}` | 物品名 | PlaceholderResolver（`itemName` 参数） |
+| `{StolenItemName}` | 被盗物品名 | PlaceholderResolver（`itemName` 参数，L3 台词用） |
 | `{LOCATION}` | 当前定居点 | `Settlement.Current.Name` |
 
 **Emotion → 动画管线**：
@@ -715,14 +710,14 @@ NpcSpeech.csv Emotion列（如 alert / threat / rage）
 
 ### 路径 A：StoryDialogVM（默认）
 ```
-MoveToPlayerAction → PrepareOpeningAction → ForceTalkAction
+FollowAgentAction(player, keepFollow:false, stopDistance:1.5f) → PrepareOpeningAction → ForceTalkAction
   ├─ IsLLMReady → StartFreeConversationFlow（自由对话）
   └─ !IsLLMReady → ShowVanillaConfrontation（InquiryData 弹窗兜底）
 ```
 
 ### 路径 B：VanillaConversation（新增）
 ```
-MoveToPlayerAction → AlertForceConversationAction
+FollowAgentAction(player, keepFollow:false, stopDistance:1.5f) → AlertForceConversationAction
   ├─ CrimeDialogueBuilder.BuildAlertInterceptScript(primaryAction)
   ├─ DialogueInjector.InjectScriptAsNpcInitiative(script)  // 跳过 gateway PlayerLine
   ├─ 强制 MissionConversationLogic.StartConversation(npc, player)
@@ -963,15 +958,15 @@ static List<DialogueInjectOption> BuildOptionsByIntent(
     return opts;
 }
 
-/// <summary>搜查结果 turn：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。
-/// 有赃物 → search_result_found（意图升级为 Recover）
-/// 无赃物 → search_result_clean（NPC 道歉，警戒值清空）
-/// 调用前预判，生成时选择对应的 turn。</summary>
+/// <summary>搜查结果 turn（统一 ID "search_result"）：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。
+/// 有赃物 → NPC 质问（意图升级为 Recover）
+/// 无赃物 → NPC 道歉（警戒值清空）
+/// 调用前预判 hasStolenItems，生成时选择对应的内容分支。NextTurn 始终指向 "search_result"。</summary>
 static DialogueInjectTurn BuildSearchResultTurn(PlaceholderResolver r, bool hasStolenItems)
 {
     return new DialogueInjectTurn
     {
-        Id = hasStolenItems ? "search_result_found" : "search_result_clean",
+        Id = "search_result",  // 统一 ID，内部按 hasStolenItems 分支内容
         SpeakerIndex = 0,
         NpcLine = hasStolenItems
             ? r.Resolve("（{SpeakerEmotion}地）这是什么？！还说没偷！")
@@ -1022,11 +1017,11 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 | Phase | 内容 |
 |-------|------|
 | **0 对齐** | `NpcSpeech.csv` + `NpcSpeechResolver`（委托 `PlaceholderResolver`）；`GameDatabase` 加载 `NpcSpeech` 表 + Emotion 一致性校验；`PlaceholderResolver` 增强（新增 `{TARGET}`/`{ITEM}`/`{StolenItemName}` 占位符）；`ReceiveEvent` 的 `WitnessCrime_GatherOnLook` 块内加脉冲逻辑（~4 行）+ 角色分流 |
-| **1 数据层** | `AlarmPhase` / `PlayerActionType` / `AlertEntry` 类型定义；`AgentBrain` 新增 `_alertBreakdown`（`Dictionary<PlayerActionType, AlertEntry>`）+ `_bubbledPhases`；`AddAlert` / `AlertValue` / `PrimaryAction` / `AlertPhase`（每帧 Sum + OrderByDescending，最多 6 条目无性能问题）；每帧 Tick 累加 + 按比例衰减；旧 `NpcSightSystem._alertValues` 字典和 `UpdateAlertValue` 方法删除 |
+| **1 数据层** | `AlarmPhase` / `PlayerActionType` / `AlertEntry` 类型定义；`AgentBrain` 新增 `_alertBreakdown`（`Dictionary<PlayerActionType, AlertEntry>`）+ `_bubbledPhases`；`AddAlert` / `AlertValue` / `PrimaryAction` / `AlertPhase`（仅阶段转换时调用，非每帧）；每帧 Tick 累加 + 按比例衰减；旧 `NpcSightSystem._alertValues` 字典和 `UpdateAlertValue` 方法删除；`AgentHudMissionView` 改从 `brain.AlertValue` / `brain.AlertPhase` 读警戒值（不读 `PrimaryAction`） |
 | **2 L1+L2** | `UpdateAlertCognition` 节流累加 + `CheckPhaseTransition` 发独立事件（`"BecomeSuspicious"` / `"BecomeCautious"` / `"BecomeAlarmed"` / `"CalmDown"`）；L1/L2 的 `BubbleSayOnce`（同 phase 同 key 只触发一次）+ LookAt |
-| **3 L3 路径 A** | `StartL3Confrontation` → `PrepareOpeningAction` → `ForceTalkAction`；`MoveToPlayerAction`；脉冲抑制校验 |
+| **3 L3 路径 A** | `StartL3Confrontation` → `PrepareOpeningAction` → `ForceTalkAction`；`FollowAgentAction(player, keepFollow: false, stopDistance: 1.5f)`；脉冲抑制校验 |
 | **4 L3 路径 B** | `Settings.AlertDialogueMode`；`BuildAlertInterceptScript`（CSV 优先 + `PlaceholderResolver` 兜底）；`DialogueInjector.InjectScriptAsNpcInitiative`；`AlertForceConversationAction`；反编译 `StartConversation` API |
-| **5 打磨** | BubbleSay 频率调优；脉冲抑制验证；`PlaceholderResolver` 扩充；`AgentHudMissionView` 改从 `brain.AlertValue` 读值；`NpcSightSystem` 旧代码清理 |
+| **5 打磨** | BubbleSay 频率调优；脉冲抑制验证；`PlaceholderResolver` 增强（新增 `{TARGET}`/`{ITEM}`/`{StolenItemName}` 占位符 + `targetName`/`itemName` 构造参数）；`NpcSightSystem` 旧代码清理 |
 
 ---
 
@@ -1039,8 +1034,8 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 | **IntentRegistry** | 🔵 **不受影响（仅玩家菜单）** | NPC 事件响应不再走 `GetNpcInitiatives` 分发。`CrimeAccusationIntent` / `GuardInterceptIntent` 已移除。IntentRegistry 继续服务玩家交互菜单（`GetVisible`） |
 | **IntentContext** | 🔵 **不受影响** | 脉冲不走 IntentBase → 不需要 `TriggeringEvent`/`Brain` 字段（原计划新增的两个字段取消） |
 | **AgentAIController** | 🔵 **不受影响** | `BroadcastEventInRange("WitnessCrime", …)` 链路不动；脉冲在 `ReceiveEvent` 的 `WitnessCrime_GatherOnLook` 块内处理 |
-| **AgentHudMissionView** | 🔵 **读值渲染** | 从 `brain.AlertValue` / `brain.PrimaryAction` 读警戒值 + 颜色（Phase 5），替代当前 `NpcSightSystem.GetAlertValue` |
-| **PlaceholderResolver** | 🔵 **L3 共享引擎** | `BuildAlertInterceptScript` 与 `CrimeDialogueBuilder` 共享 `PlaceholderResolver.Resolve()` 做占位符解析，但逻辑独立——前者是 Mission 层当场质问，后者是 Campaign 层事后调查 |
+| **AgentHudMissionView** | 🔵 **读值渲染** | 从 `brain.AlertValue` / `brain.AlertPhase` 读警戒值 + 颜色（Phase 1，与数据层同步）。不读 `PrimaryAction` |
+| **PlaceholderResolver** | 🔵 **增强** | 统一处理 Campaign 层 + Mission 层全部占位符。新增构造参数 `targetName`/`itemName`，对应 `{TARGET}`/`{ITEM}`/`{StolenItemName}`。`BuildAlertInterceptScript` 与 `CrimeDialogueBuilder` 共享同一引擎 |
 | **NpcSpeechResolver** | 🆕 **新建** | BubbleSay 的 CSV 查询薄层，委托 `PlaceholderResolver` 做占位符解析 |
 | **NpcSpeech.csv** | 🆕 **新建** | ~12 行 `AlertBubble_*` + ~6 行 `L3_*` 模板（`ID,Template,Emotion`），Emotion 值必须是 `Emotion.csv` 中已定义的 ID |
 | **Settings.Instance** | 🆕 **新开关** | `AlertDialogueMode` 控制 L3 对话走 StoryDialogVM 还是 ConversationManager |
@@ -1093,7 +1088,7 @@ AlertPhase    = AlertValue switch { >=2.0→Alarmed, >=1.0→Cautious, >=0.25→
 |------|------|------|
 | **NpcSpeech.csv** | 数据驱动的模板存储（`ID,Template,Emotion`） | 🆕 新建 |
 | **NpcSpeechResolver** | CSV 查询薄层 → 委托 `PlaceholderResolver` | 🆕 新建 |
-| **PlaceholderResolver** | 核心占位符解析引擎（~80 占位符，WorldEvent 语境） | ✅ 完整保留，增强 |
+| **PlaceholderResolver** | 核心占位符解析引擎（~80 占位符，WorldEvent 语境 + Mission 层 targetName/itemName） | 🔵 增强（新增 `{TARGET}`/`{ITEM}`/`{StolenItemName}`） |
 | **Narrative.csv** | Intent 系统枚举式对话（Honor×Gender×Identity 维度） | 🔵 现有系统继续使用 |
 | **NarrativeResolver** | Narrative.csv 查询引擎 | 🔵 现有系统继续使用 |
 
@@ -1106,7 +1101,7 @@ NpcSpeech.csv（模板存储）
 NpcSpeechResolver.Resolve(id, …)  ← 薄层：查 CSV + 委托
        │
        ▼
-PlaceholderResolver.Resolve(template)  ← 核心引擎：占位符 → 真实值
+PlaceholderResolver(evt, speaker, listener, targetName, itemName).Resolve(template)  ← 核心引擎：全部占位符 → 真实值
        │                                           ↑
        │                              {SpeakerEmotion} → Emotion.csv → Animation
        │                              {CrimeScene} → WorldEvent
@@ -1121,6 +1116,6 @@ AgentHudMissionView.AgentSay / ConversationManager
 |------|------|------|
 | `NpcSpeech.csv` | 🆕 新建 | ~12 BubbleSay + ~6 L3 开场白 |
 | `NpcSpeechResolver.cs` | 🆕 新建 | CSV 查询 + 委托 PlaceholderResolver |
-| `PlaceholderResolver.cs` | 🔵 增强 | 新增 `{TARGET}` / `{ITEM}` / `{StolenItemName}` 占位符 |
+| `PlaceholderResolver.cs` | 🔵 增强 | 新增构造参数 `targetName`/`itemName`，统一处理 `{TARGET}` / `{ITEM}` / `{StolenItemName}` 占位符（不再依赖调用方 extra dict 预处理） |
 | `GameDatabase.cs` | 🔵 增强 | 加载 `NpcSpeech` 表 + Emotion 一致性校验 |
 | `wheels.md` | 🔵 新增规则 | Emotion ↔ NpcSpeech 一致性铁律 |
