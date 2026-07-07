@@ -83,16 +83,32 @@ public PlayerActionType? PrimaryAction => _alertBreakdown.Count == 0 ? null
     : _alertBreakdown.OrderByDescending(kv => kv.Value.Value).First().Key;
 ```
 
-### 2.3 持续累加 — AgentBrain.Tick 自己判断
+### 2.3 持续累加 — AgentBrain.Tick 节流计算
+
+警戒值不需要每帧计算——NPC 不会在 1/60 秒内改变对玩家的看法。**用可配置的节流间隔替代逐帧 Tick**，累积 dt，间隔到了才跑一次认知更新。
 
 ```csharp
+// ── AgentBrain 新增字段 ──
+
+/// <summary>警戒认知更新间隔（秒）。默认 0.1s = 100ms。设 0 退化为逐帧。</summary>
+private float _alertCognitionInterval = 0.1f;
+
+/// <summary>认知更新计时器（累积 dt），达到 _alertCognitionInterval 时触发一次 UpdateAlertCognition 然后归零。</summary>
+private float _alertCognitionTimer;
+
 // 在 AgentBrain.Tick 中：
 void Tick(float dt)
 {
     if (Owner == Agent.Main) return;
     // ... 现有逻辑 ...
 
-    UpdateAlertCognition(dt);  // 🆕
+    // ── 🆕 节流认知更新 ──
+    _alertCognitionTimer += dt;
+    if (_alertCognitionTimer >= _alertCognitionInterval)
+    {
+        UpdateAlertCognition(_alertCognitionTimer);  // 传入累积 dt，不是原始帧 dt
+        _alertCognitionTimer = 0f;
+    }
 }
 
 void UpdateAlertCognition(float dt)
@@ -118,6 +134,14 @@ void UpdateAlertCognition(float dt)
     // 阶段穿越检测（向上或向下）
     CheckPhaseTransition();
 }
+```
+
+**节流影响**：
+- `_alertCognitionInterval = 0.1f`（默认）：100ms 一次，10Hz。`dt` 传入 ~0.1，累加速度与逐帧一致。
+- `_alertCognitionInterval = 0.2f`：200ms 一次，5Hz。适合低端机或 NPC 密集场景。
+- `_alertCognitionInterval = 0f`：退化为逐帧（调试用）。
+
+> **为什么传入累积 dt 而不是帧 dt？** 如果用帧 dt × 累加速度，200ms 一次就只加了 16ms 的量，感知更新会变慢 12 倍。传入累积 dt 保证 **每秒累加总量不变**，只是更新频率降低。
 
 // ── AddAlert：无缓存，纯累加 ──
 
@@ -135,16 +159,36 @@ float GetAlertValue(PlayerActionType type)
     return _alertBreakdown.TryGetValue(type, out var entry) ? entry.Value : 0f;
 }
 
-// ── 阶段穿越：统一处理向上和向下 ──
+// ── 阶段穿越：发独立事件走 ReceiveEvent（详见第三节）──
 
 void CheckPhaseTransition()
 {
     var newPhase = AlertPhase;
-    if (newPhase != _lastAlertPhase)
+    if (newPhase == _lastAlertPhase) return;
+
+    if (newPhase > _lastAlertPhase)
     {
-        OnAlertPhaseChanged(_lastAlertPhase, newPhase);
-        _lastAlertPhase = newPhase;
+        string eventType = newPhase switch
+        {
+            AlarmPhase.Suspicious => "BecomeSuspicious",
+            AlarmPhase.Cautious   => "BecomeCautious",
+            AlarmPhase.Alarmed    => "BecomeAlarmed",
+            _ => null
+        };
+        if (eventType != null)
+            ReceiveEvent(new AIEvent { EventType = eventType, Sender = this });
     }
+    else
+    {
+        ReceiveEvent(new AIEvent
+        {
+            EventType = "CalmDown",
+            Sender = this,
+            Args = new object[] { _lastAlertPhase, newPhase }
+        });
+    }
+
+    _lastAlertPhase = newPhase;
 }
 ```
 
@@ -220,14 +264,14 @@ if (aiEvent.EventType == "WitnessCrime_GatherOnLook")
 }
 ```
 
-**一条事件，一处代码，三种角色**：
+**一条事件，一处代码，按角色分流**：
 
 | 目击者 | 警戒脉冲 | 行为 |
 |--------|---------|------|
 | 受害者 | +2.0 + TargetName | PrepareOpeningAction → ReactionDecisionAction(移动到位置 → LookAt → ForceTalkAction → StayAction) |
 | 普通平民 | +2.0 + TargetName | ReactionDecisionAction(移动到位置 → LookAt → StayAction) |
 
-> **守卫拦截**：当前未实现（原 `GuardInterceptIntent` 无实际 guard 判定逻辑，仅检查 `WorldEventStore` 有活跃事件——任何 NPC 都匹配）。守卫角色待后续通过 `IsGuardNpc()` 判定补上，直接在同一个 `if` 块内加 `else if` 分支，不复活 IntentRegistry 分发。
+> **守卫拦截**：当前未实现。守卫角色待后续直接在同一个 `if` 块内加 `else if` 分支。
 
 **脉冲抑制**：脉冲加值同时设 `_pulseSuppressedUntil = now + 3.0f`。偷窃瞬间到 2.0 → 受害者已在处理主质问 → 3 秒内不触发其他目击者的独立 L3 上前。围观流程（`GroupStageManager` 编排）不受影响。
 
@@ -251,7 +295,7 @@ void SetPulseTarget(PlayerActionType type, string targetName, string itemName)
 }
 ```
 
-> **不需要新建 IntentBase 子类，不需要新增 TriggerEvents，不需要改 IntentRegistry。** 脉冲逻辑是 `ReceiveEvent` 入口的 6 行代码。
+> **IntentBase 上已无 `TriggerEvents` / `CanHandle`**。NPC 事件响应直接在 `ReceiveEvent` 的 flat if/else 中处理，不走 Intent 抽象层。脉冲逻辑是 `WitnessCrime_GatherOnLook` 块内的 ~4 行代码。
 
 ### 2.5 衰减 — 看不到玩家时按比例降
 
@@ -295,68 +339,103 @@ void DecayAlertBreakdown(float dt)
 
 ---
 
-## 三、阶段穿越 → AgentBrain 自己触发行为
+## 三、阶段穿越 → 发独立事件走 ReceiveEvent
 
-阶段穿越检测在 `AgentBrain.UpdateAlertCognition` → `CheckPhaseTransition` 内部完成。**统一处理向上和向下穿越。**
+阶段穿越检测在 `UpdateAlertCognition` → `CheckPhaseTransition` 内部完成。**不 `switch`、不传 `old/new` 枚举**——向上穿越发具体事件（`"BecomeSuspicious"` / `"BecomeCautious"` / `"BecomeAlarmed"`），向下穿越发 `"CalmDown"`。每个事件在 `ReceiveEvent` 里有自己的 `if` 块，与其他事件平级。
+
+### 3.1 CheckPhaseTransition — 只做检测 + 发事件
 
 ```csharp
-// AgentBrain 内部：
-void OnAlertPhaseChanged(AlarmPhase oldPhase, AlarmPhase newPhase)
+void CheckPhaseTransition()
 {
-    // ── 向下穿越：清理高层行为 ──
-    if (newPhase < oldPhase)
+    var newPhase = AlertPhase;
+    if (newPhase == _lastAlertPhase) return;
+
+    if (newPhase > _lastAlertPhase)
     {
-        switch (oldPhase)
+        // 向上穿越：每个目标阶段一个独立事件
+        string eventType = newPhase switch
         {
-            case AlarmPhase.Alarmed:
-                // L3→L2/L1/Normal：清理质问行为链，恢复自由
-                ClearAllActions();
-                AgentControlHelper.ResumeVanillaAI(Owner);
-                break;
-            case AlarmPhase.Cautious:
-                // L2→L1/Normal：取消 LookAt（如果当前动作是 LookAtAction）
-                if (_currentAction is LookAtAction)
-                {
-                    _currentAction.OnEnd(Owner);
-                    _currentAction = null;
-                }
-                break;
-        }
-        // 降级到 Normal 时完成清理即可，不需要额外台词
-        if (newPhase == AlarmPhase.Normal) return;
+            AlarmPhase.Suspicious => "BecomeSuspicious",
+            AlarmPhase.Cautious   => "BecomeCautious",
+            AlarmPhase.Alarmed    => "BecomeAlarmed",
+            _ => null
+        };
+        if (eventType != null)
+            ReceiveEvent(new AIEvent { EventType = eventType, Sender = this });
+    }
+    else
+    {
+        // 向下穿越：统一 CalmDown（带 from/to 供清理用）
+        ReceiveEvent(new AIEvent
+        {
+            EventType = "CalmDown",
+            Sender = this,
+            Args = new object[] { _lastAlertPhase, newPhase }
+        });
     }
 
-    // ── 向上穿越：触发对应层级行为 ──
-    switch (newPhase)
+    _lastAlertPhase = newPhase;
+}
+```
+
+### 3.2 ReceiveEvent 中的四个 if 块
+
+```csharp
+// ── 在 ReceiveEvent 的 flat if/else 中，与其他事件平级 ──
+
+if (aiEvent.EventType == "BecomeSuspicious")
+{
+    BubbleSayOnce(AlarmPhase.Suspicious);
+}
+if (aiEvent.EventType == "BecomeCautious")
+{
+    if (_currentAction == null || _currentAction is StayAction)
+        EnqueueAction(new LookAtAction(Agent.Main, 2.0f));
+    BubbleSayOnce(AlarmPhase.Cautious);
+}
+if (aiEvent.EventType == "BecomeAlarmed")
+{
+    if (_pulseSuppressedUntil > 0 && Mission.Current?.CurrentTime < _pulseSuppressedUntil)
+        return;
+    StartL3Confrontation();
+}
+if (aiEvent.EventType == "CalmDown")
+{
+    var fromPhase = (AlarmPhase)aiEvent.Args[0];
+    var toPhase   = (AlarmPhase)aiEvent.Args[1];
+
+    // 清除高位 bubbled 记录，允许重新升级后再次触发
+    _bubbledPhases.RemoveWhere(k => k.Item2 > toPhase);
+
+    // Alarmed→* 或 →Normal：完全清理行为链
+    if (fromPhase >= AlarmPhase.Alarmed || toPhase == AlarmPhase.Normal)
     {
-        case AlarmPhase.Suspicious:
-            // L1: 仅 BubbleSay，不打断当前行为
-            SendBubbleSay(AlarmPhase.Suspicious);
-            break;
-
-        case AlarmPhase.Cautious:
-            // L2: 插入 LookAt + BubbleSay
-            if (_currentAction == null || _currentAction is StayAction)
-                EnqueueAction(new LookAtAction(Agent.Main, 2.0f));
-            SendBubbleSay(AlarmPhase.Cautious);
-            break;
-
-        case AlarmPhase.Alarmed:
-            // L3: 脉冲抑制检查
-            if (_pulseSuppressedUntil > 0 && Mission.Current?.CurrentTime < _pulseSuppressedUntil)
-                return;
-            StartL3Confrontation();
-            break;
-
-        case AlarmPhase.Normal:
-            ClearAllActions();
-            AgentControlHelper.ResumeVanillaAI(Owner);
-            break;
+        ClearAllActions();
+        AgentControlHelper.ResumeVanillaAI(Owner);
+    }
+    // Cautious→Suspicious：只取消 LookAt
+    else if (fromPhase == AlarmPhase.Cautious && _currentAction is LookAtAction)
+    {
+        _currentAction.OnEnd(Owner);
+        _currentAction = null;
     }
 }
+```
 
-// ── AgentBrain 通用 BubbleSay：任何系统都可以调 ──
+**四个独立事件，零 switch，与其他事件（`"WitnessCrime_GatherOnLook"`、`"ComeHere"` 等）完全平级。**
 
+| 设计 | 为什么 |
+|------|--------|
+| 每种向上穿越独立事件 | 行为不同——Sus 是 BubbleSay，Cau 是 LookAt+BubbleSay，Alm 是质问链。不值得用一个枚举 `switch` 聚在一起 |
+| 向下统一 `"CalmDown"` | 降级行为相似（清行为链/取消动作），`fromPhase` 判断即可，不值得拆成多个事件 |
+| `CheckPhaseTransition` 不发 `"AlertPhaseChanged"` | 避免旧通用事件再引出 `HandleAlertPhaseChanged`→`switch` 的套娃 |
+
+> **不会循环**：这些 handler 只改 Action 队列和 `_bubbledPhases`，不改 `_alertBreakdown` 值，不会触发新的 phase 变化。`_lastAlertPhase` 在 `CheckPhaseTransition` 发事件**之后**才更新。
+
+### BubbleSay 辅助方法
+
+```csharp
 /// <summary>通用 BubbleSay 入口。传入已组装好的文本，直接显示冒泡。</summary>
 public void BubbleSay(string text)
 {
@@ -364,14 +443,11 @@ public void BubbleSay(string text)
         AgentHudMissionView.AgentSay(Owner, text);
 }
 
-// ── BubbleSay 冷却：同 phase 同 PrimaryAction 只触发一次 ──
-// 降级时 _bubbledPhases 中高于当前 phase 的条目全部清除，允许重新升级后再次触发。
-
 /// <summary>
 /// 尝试对当前 phase + PrimaryAction 发 BubbleSay。
 /// 同 (action, phase) 组合只触发一次。降级后清空高位记录，重新升级可再次触发。
 /// </summary>
-void TryBubbleSay(AlarmPhase phase)
+void BubbleSayOnce(AlarmPhase phase)
 {
     var action = PrimaryAction;
     if (action == null) return;
@@ -382,22 +458,15 @@ void TryBubbleSay(AlarmPhase phase)
     _bubbledPhases.Add(key);
     BubbleSay(ResolveAlertBubble(phase));
 }
-
-// 在 OnAlertPhaseChanged 向下穿越时，清除高位 bubbled 记录：
-// （在现有的向下穿越 switch 末尾追加）
-// if (newPhase < oldPhase)
-// {
-//     _bubbledPhases.RemoveWhere(k => k.Item2 > newPhase);
-// }
 ```
 
 ---
 
 ## 四、L3 质问实现
 
-> 脉冲事件的接收已在 2.4 通过 `ReceiveEvent` 入口直接处理。本章聚焦 L3 质问——`OnAlertPhaseChanged` → `StartL3Confrontation` 的行为链和对话路径。
+> 脉冲事件的接收已在 2.4 通过 `ReceiveEvent` 入口直接处理。本章聚焦 L3 质问——`"BecomeAlarmed"` 事件 → `StartL3Confrontation` 的行为链和对话路径。
 
-### 4.1 L3 质问 — OnAlertPhaseChanged 直接调用
+### 4.1 L3 质问 — "BecomeAlarmed" 事件触发
 
 L3 到达时不需要走事件系统——`CheckPhaseTransition` 检测到阶段变化直接调 `StartL3Confrontation`：
 
@@ -954,7 +1023,7 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 |-------|------|
 | **0 对齐** | `NpcSpeech.csv` + `NpcSpeechResolver`（委托 `PlaceholderResolver`）；`GameDatabase` 加载 `NpcSpeech` 表 + Emotion 一致性校验；`PlaceholderResolver` 增强（新增 `{TARGET}`/`{ITEM}`/`{StolenItemName}` 占位符）；`ReceiveEvent` 的 `WitnessCrime_GatherOnLook` 块内加脉冲逻辑（~4 行）+ 角色分流 |
 | **1 数据层** | `AlarmPhase` / `PlayerActionType` / `AlertEntry` 类型定义；`AgentBrain` 新增 `_alertBreakdown`（`Dictionary<PlayerActionType, AlertEntry>`）+ `_bubbledPhases`；`AddAlert` / `AlertValue` / `PrimaryAction` / `AlertPhase`（每帧 Sum + OrderByDescending，最多 6 条目无性能问题）；每帧 Tick 累加 + 按比例衰减；旧 `NpcSightSystem._alertValues` 字典和 `UpdateAlertValue` 方法删除 |
-| **2 L1+L2** | `UpdateAlertCognition` 持续累加 + `CheckPhaseTransition` 统一向上/向下穿越 → `OnAlertPhaseChanged`；L1/L2 的 `TryBubbleSay`（同 phase 同 key 只触发一次）+ LookAt |
+| **2 L1+L2** | `UpdateAlertCognition` 节流累加 + `CheckPhaseTransition` 发独立事件（`"BecomeSuspicious"` / `"BecomeCautious"` / `"BecomeAlarmed"` / `"CalmDown"`）；L1/L2 的 `BubbleSayOnce`（同 phase 同 key 只触发一次）+ LookAt |
 | **3 L3 路径 A** | `StartL3Confrontation` → `PrepareOpeningAction` → `ForceTalkAction`；`MoveToPlayerAction`；脉冲抑制校验 |
 | **4 L3 路径 B** | `Settings.AlertDialogueMode`；`BuildAlertInterceptScript`（CSV 优先 + `PlaceholderResolver` 兜底）；`DialogueInjector.InjectScriptAsNpcInitiative`；`AlertForceConversationAction`；反编译 `StartConversation` API |
 | **5 打磨** | BubbleSay 频率调优；脉冲抑制验证；`PlaceholderResolver` 扩充；`AgentHudMissionView` 改从 `brain.AlertValue` 读值；`NpcSightSystem` 旧代码清理 |
@@ -969,7 +1038,7 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 | **AgentBrain** | 🔴 **认知所有者** | `_alertBreakdown` 实例字段；Tick 中自行判断 + 累加 + 衰减 + 阶段穿越；`ReceiveEvent` 的 `WitnessCrime_GatherOnLook` 块内同时处理脉冲加值和行为分流（受害者指控/普通围观），**不走 IntentRegistry 分发** |
 | **IntentRegistry** | 🔵 **不受影响（仅玩家菜单）** | NPC 事件响应不再走 `GetNpcInitiatives` 分发。`CrimeAccusationIntent` / `GuardInterceptIntent` 已移除。IntentRegistry 继续服务玩家交互菜单（`GetVisible`） |
 | **IntentContext** | 🔵 **不受影响** | 脉冲不走 IntentBase → 不需要 `TriggeringEvent`/`Brain` 字段（原计划新增的两个字段取消） |
-| **AgentAIController** | 🔵 **不受影响** | `BroadcastEventInRange("WitnessCrime", …)` 链路不动；脉冲在 `ReceiveEvent` 入口处理 |
+| **AgentAIController** | 🔵 **不受影响** | `BroadcastEventInRange("WitnessCrime", …)` 链路不动；脉冲在 `ReceiveEvent` 的 `WitnessCrime_GatherOnLook` 块内处理 |
 | **AgentHudMissionView** | 🔵 **读值渲染** | 从 `brain.AlertValue` / `brain.PrimaryAction` 读警戒值 + 颜色（Phase 5），替代当前 `NpcSightSystem.GetAlertValue` |
 | **PlaceholderResolver** | 🔵 **L3 共享引擎** | `BuildAlertInterceptScript` 与 `CrimeDialogueBuilder` 共享 `PlaceholderResolver.Resolve()` 做占位符解析，但逻辑独立——前者是 Mission 层当场质问，后者是 Campaign 层事后调查 |
 | **NpcSpeechResolver** | 🆕 **新建** | BubbleSay 的 CSV 查询薄层，委托 `PlaceholderResolver` 做占位符解析 |
@@ -991,7 +1060,7 @@ _alertBreakdown[Crouching]   += dt * 0.15f   (if crouching)
 _alertBreakdown[WeaponDrawn] += dt * 0.20f   (if weapon drawn in civilian area)
 _alertBreakdown[StealUIOpen] += dt * 0.30f   (if steal UI open)
 
-// 脉冲事件 → AgentBrain.ReceiveEvent 入口（复用 WitnessCrime_GatherOnLook）：
+// 脉冲事件 → AgentBrain.ReceiveEvent 的 WitnessCrime_GatherOnLook 块内：
 _alertBreakdown[Steal]      += 2.0f   (if Args[0]==Agent.Main)
 + _pulseSuppressedUntil = now + 3.0f
 
