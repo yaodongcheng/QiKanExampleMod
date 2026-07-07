@@ -547,5 +547,174 @@ namespace LivingWorldNpcs
                 }
             };
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 L3 警戒质问对话构建（Phase 4）
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 构建 L3 警戒质问的 DialogueInjectScript。
+        /// 台词查找顺序：① NpcSpeech.csv → ② NarrativeResolver（过渡）→ ③ PlaceholderResolver 硬编码兜底。
+        /// </summary>
+        public static DialogueInjector.DialogueInjectScript BuildAlertInterceptScript(
+            Hero speaker, NpcInterceptIntent npcIntent, PlayerActionType primaryAction)
+        {
+            var r = new PlaceholderResolver(speaker, Hero.MainHero);
+            var turns = new List<DialogueInjector.DialogueInjectTurn>();
+
+            // ① 优先查 NpcSpeech.csv
+            string csvTemplateId = $"L3_{npcIntent}_{primaryAction}";
+            string npcOpening = NpcSpeechResolver.Resolve(csvTemplateId, speaker, Hero.MainHero);
+
+            // ② CSV 未命中 → 回落 NarrativeResolver（过渡）
+            if (string.IsNullOrEmpty(npcOpening))
+            {
+                var narrResult = NarrativeResolver.Resolve(new NarrativeFilters
+                {
+                    EventName = "L3AlertIntercept",
+                    GoalType = npcIntent.ToString(),
+                    Outcome = primaryAction.ToString(),
+                });
+                if (narrResult != null && !NarrativeResolver.IsFallbackText(narrResult.Text))
+                    npcOpening = narrResult.Text;
+            }
+
+            // ③ 最终兜底：PlaceholderResolver 直接解析硬编码模板
+            if (string.IsNullOrEmpty(npcOpening))
+            {
+                npcOpening = npcIntent switch
+                {
+                    NpcInterceptIntent.Deter => primaryAction switch
+                    {
+                        PlayerActionType.WeaponDrawn =>
+                            r.Resolve("（{SPEAKER_EMOTION}地）把刀收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
+                        _ => // Crouching
+                            r.Resolve("（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
+                    },
+
+                    NpcInterceptIntent.Search =>
+                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。"),
+
+                    NpcInterceptIntent.Recover =>
+                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+
+                    NpcInterceptIntent.Stop => primaryAction switch
+                    {
+                        PlayerActionType.AttackAlly =>
+                            r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
+                        PlayerActionType.Knockout =>
+                            r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！"),
+                        _ => r.Resolve("（{SPEAKER_EMOTION}地）住手！")
+                    },
+                    _ => r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}！你在干什么？")
+                };
+            }
+
+            turns.Add(new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "start", SpeakerIndex = 0, NpcLine = npcOpening,
+                Options = BuildOptionsByIntent(r, npcIntent, primaryAction)
+            });
+
+            // Search 成功后如果搜到赃物 → 插入一个额外 turn 把意图切换为 Recover
+            if (npcIntent == NpcInterceptIntent.Search)
+            {
+                bool hasStolen = PlayerHasStolenItems();
+                turns.Add(BuildSearchResultTurn(r, hasStolen));
+            }
+
+            // continue_chat
+            turns.Add(new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "continue_chat", SpeakerIndex = 0,
+                NpcLine = "还有什么想说的？",
+                Options = new List<DialogueInjector.DialogueInjectOption>
+                {
+                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextTurn = "" }
+                }
+            });
+
+            return new DialogueInjector.DialogueInjectScript { EntryTurn = "start", Turns = turns };
+        }
+
+        static List<DialogueInjector.DialogueInjectOption> BuildOptionsByIntent(
+            PlaceholderResolver r, NpcInterceptIntent intent, PlayerActionType action)
+        {
+            var opts = new List<DialogueInjector.DialogueInjectOption>();
+
+            switch (intent)
+            {
+                case NpcInterceptIntent.Deter:
+                    string complyLine = action == PlayerActionType.WeaponDrawn
+                        ? "好，我收起来。"
+                        : "没什么，我这就走。";
+                    string complyResp = action == PlayerActionType.WeaponDrawn
+                        ? "……别再让{SPEAKER_SELF}看见你在这拔刀。"
+                        : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。";
+                    opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "NONE", NextTurn = "" });
+                    opts.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextTurn = "continue_chat" });
+                    opts.Add(new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextTurn = "" });
+                    break;
+
+                case NpcInterceptIntent.Search:
+                    opts.Add(new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextTurn = "search_result" });
+                    opts.Add(new() { PlayerLine = "凭什么翻我东西？（拒绝）", NpcResponse = r.Resolve("不敢让人看？那就是有鬼了！"), Action = "INTENT:RefuseSearch", NextTurn = "recover_confront" });
+                    opts.Add(new() { PlayerLine = "别查了，我赔你点钱。", NpcResponse = r.Resolve("……做贼心虚。拿了钱滚。"), Action = "INTENT:PayRestitution", NextTurn = "" });
+                    opts.Add(new() { PlayerLine = "（转身就走）", NpcResponse = r.Resolve("站住！"), Action = "INTENT:WalkAway", NextTurn = "" });
+                    break;
+
+                case NpcInterceptIntent.Recover:
+                    opts.Add(new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("算你识相。别再来了。"), Action = "INTENT:PayRestitution", NextTurn = "" });
+                    opts.Add(new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), NpcResponseOnSuccess = r.Resolve("……{SPEAKER_SELF}可能看错了。"), NpcResponseOnFail = r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！"), Action = "INTENT:CharmDefense", NextTurn = "continue_chat" });
+                    opts.Add(new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextTurn = "" });
+                    break;
+
+                case NpcInterceptIntent.Stop:
+                    opts.Add(new() { PlayerLine = r.Resolve("我愿意赔钱。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("光赔钱就完了？拿了钱快滚。"), Action = "INTENT:PayRestitution", NextTurn = "" });
+                    opts.Add(new() { PlayerLine = "他先惹我的。", NpcResponseOnSuccess = r.Resolve("……下次再动手没这么好说话。"), NpcResponseOnFail = r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！"), Action = "INTENT:CharmDefense", NextTurn = "continue_chat" });
+                    opts.Add(new() { PlayerLine = "（拔剑）谁敢拦我！", NpcResponse = r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！"), Action = "INTENT:FightVillagers", NextTurn = "" });
+                    break;
+            }
+
+            return opts;
+        }
+
+        /// <summary>搜查结果 turn：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。</summary>
+        static DialogueInjector.DialogueInjectTurn BuildSearchResultTurn(PlaceholderResolver r, bool hasStolenItems)
+        {
+            return new DialogueInjector.DialogueInjectTurn
+            {
+                Id = "search_result",
+                SpeakerIndex = 0,
+                NpcLine = hasStolenItems
+                    ? r.Resolve("（{SPEAKER_EMOTION}地）这是什么？！还说没偷！")
+                    : r.Resolve("（{SPEAKER_EMOTION}地）……行吧。是{SPEAKER_SELF}多心了。"),
+                Options = hasStolenItems
+                    ? new List<DialogueInjector.DialogueInjectOption>
+                    {
+                        new() { PlayerLine = "……（无言以对）", Action = "INTENT:Confess", NextTurn = "continue_chat" },
+                        new() { PlayerLine = "那是我的东西！", NpcResponse = r.Resolve("你的？上面还写着{TARGET}的名字呢！"), Action = "NONE", NextTurn = "continue_chat" },
+                    }
+                    : new List<DialogueInjector.DialogueInjectOption>
+                    {
+                        new() { PlayerLine = "我说了没拿吧。", Action = "NONE", NextTurn = "" },
+                    }
+            };
+        }
+
+        /// <summary>查 TheftLedger 判定玩家背包是否有赃物</summary>
+        static bool PlayerHasStolenItems()
+        {
+            var party = Hero.MainHero?.PartyBelongedTo;
+            if (party?.ItemRoster == null) return false;
+            foreach (var item in party.ItemRoster)
+            {
+                if (item.EquipmentElement.Item == null) continue;
+                string tag = TheftLedger.GetSourceTag(
+                    item.EquipmentElement.Item.StringId, Hero.MainHero.StringId);
+                if (!string.IsNullOrEmpty(tag)) return true;
+            }
+            return false;
+        }
     }
 }

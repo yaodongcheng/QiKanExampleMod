@@ -44,6 +44,22 @@ namespace LivingWorldNpcs
         {
             base.AfterStart();
 
+            // ── NpcSightSystem → AgentBrain 事件桥接 ──
+            // 当 NPC 开始看到玩家时，路由为事件发给对应 AgentBrain，
+            // 由 AgentBrain.ReceiveEvent 统一决定是否 BubbleSay。
+            // 不在外部调用 BubbleSay/AgentSay。
+            var sight = Mission.Current?.GetMissionBehavior<NpcSightSystem>();
+            if (sight != null)
+            {
+                sight.OnAgentStartObserving += (observer, target) =>
+                {
+                    if (target != Agent.Main) return;
+                    if (observer == null || !observer.IsActive()) return;
+                    if (InteractionMissionView.IsChatting) return;
+                    SendEventToAgent(observer, "StartObservingPlayer");
+                };
+            }
+
             if(!AgentAIController.IsDebugMode)
                 return;
 
@@ -126,9 +142,11 @@ namespace LivingWorldNpcs
             var brain = GetBrainForAgent(target);
             if (brain!=null)
             {
-                InformationManager.DisplayMessage(new InformationMessage($"[事件发送] 发送事件 '{eventType}' 给 {target.Name}"));
+                var dist = Agent.Main != null ? target.Position.Distance(Agent.Main.Position).ToString("F1") : "?";
+                var dir = Agent.Main != null ? GetDirectionFromTo(Agent.Main.Position, target.Position) : "?";
+                InformationManager.DisplayMessage(new InformationMessage($"[事件发送] 发送事件 '{eventType}' 给 {target.Name} (Index:{target.Index}, 距离:{dist}m, 方位:{dir})"));
                 if (IsDebugMode)
-                    DebugLogger.Log($"[事件发送] 发送事件 '{eventType}' 给 {target.Name}");
+                    DebugLogger.Log($"[事件发送] 发送事件 '{eventType}' 给 {target.Name} (Index:{target.Index}, 距离:{dist}m, 方位:{dir})");
                 var evt = new AIEvent { EventType = eventType, Sender = null, Args = args };
                 brain.ReceiveEvent(evt);
             }
@@ -270,6 +288,26 @@ namespace LivingWorldNpcs
 
 
 
+        }
+
+        /// <summary>
+        /// 计算从 from 到 to 的罗盘方位（中文八方向）
+        /// </summary>
+        private static string GetDirectionFromTo(Vec3 from, Vec3 to)
+        {
+            float dx = to.X - from.X;
+            float dy = to.Y - from.Y;
+            float angle = MathF.Atan2(dx, dy) * (180f / MathF.PI); // 0° = 北, 顺时针
+            if (angle < 0) angle += 360f;
+
+            if (angle < 22.5f || angle >= 337.5f) return "北";
+            if (angle < 67.5f) return "东北";
+            if (angle < 112.5f) return "东";
+            if (angle < 157.5f) return "东南";
+            if (angle < 202.5f) return "南";
+            if (angle < 247.5f) return "西南";
+            if (angle < 292.5f) return "西";
+            return "西北";
         }
     }
 }

@@ -114,6 +114,8 @@ namespace LivingWorldNpcs
     {
         public static NpcStance ComputeStance(Hero npc, WorldEvent evt)
         {
+            if (npc == null || evt == null) return new NpcStance();
+
             var stance = new NpcStance();
 
             // 1. 基础：从 KnownEvent.PerceivedSeverity 出发

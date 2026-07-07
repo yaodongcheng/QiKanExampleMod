@@ -146,7 +146,9 @@ namespace LivingWorldNpcs
                 bool inFov = NpcSightSystem.IsPlayerSeeing(agent);
 
                 // ── 第五层：警戒值更新（FOV 豁免，距离内始终追踪） ──
-                float alertValue = NpcSightSystem.GetAlertValue(agent);
+                // 🆕 从 AgentBrain 读警戒值（Phase 1 迁移：状态从 NpcSightSystem → AgentBrain）
+                var brain = AgentAIController.GetBrainForAgent(agent);
+                float alertValue = brain?.AlertValue ?? 0f;
                 hud.AlertValue = alertValue;  // VM 内部 UpdateAlertVisuals 自决 ShowAlert
 
                 // 警戒眼睛的屏幕位置（FOV 豁免：屏幕外 clamp 到边缘）

@@ -1,11 +1,11 @@
-﻿[18:26:13.565] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[18:26:17.831] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[19:40:49.516] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[19:40:53.490] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[18:26:24.533] [WorldEventStore] Deserialized 0 events, 0 alerts
-[18:26:32.448] [DisplayMessage] "Custom Camera Load Success!"
-[18:26:32.843] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[19:40:57.555] [WorldEventStore] Deserialized 0 events, 0 alerts
+[19:41:06.654] [DisplayMessage] "Custom Camera Load Success!"
+[19:41:07.039] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -15,38 +15,196 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[18:26:32.851] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[18:26:40.649] [Alert] 男孩 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:42.267] [Alert] 帝国农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:43.308] [Alert] 帝国农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:44.145] [Alert] 帝国农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:44.561] [Alert] 帝国农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:44.869] [Alert] 帝国农民 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:45.177] [Alert] 男孩 | alert=0.000→0.000 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:45.587] [Alert] 帝国农民 | alert=0.015→0.031 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:45.895] [Alert] 帝国农民 | alert=0.061→0.077 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:46.205] [Alert] 男孩 | alert=0.108→0.123 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:46.612] [Alert] 帝国农民 | alert=0.169→0.184 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:46.818] [Alert] 男孩 | alert=0.200→0.215 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:47.130] [Alert] 帝国农民 | alert=0.247→0.262 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:47.436] [Alert] 帝国农民 | alert=0.293→0.308 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:47.735] [Alert] 帝国农民 | alert=0.338→0.353 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:48.035] [Alert] 帝国农民 | alert=0.199→0.214 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:48.435] [Alert] 帝国农民 | alert=0.443→0.458 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:48.736] [Alert] 帝国农民 | alert=0.488→0.503 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:49.035] [Alert] 帝国农民 | alert=0.349→0.364 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:49.436] [Alert] 帝国农民 | alert=0.593→0.608 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:49.736] [Alert] 帝国农民 | alert=0.638→0.653 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:50.035] [Alert] 帝国农民 | alert=0.499→0.514 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:50.435] [Alert] 帝国农民 | alert=0.743→0.758 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:50.835] [Alert] 帝国农民 | alert=0.803→0.818 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:51.336] [Alert] 帝国农民 | alert=0.878→0.893 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:51.835] [Alert] 帝国农民 | alert=0.953→0.968 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:52.336] [Alert] 帝国农民 | alert=1.028→1.043 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:52.836] [Alert] 帝国农民 | alert=1.103→1.118 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:53.336] [Alert] 帝国农民 | alert=1.178→1.193 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:53.836] [Alert] 帝国农民 | alert=1.253→1.268 | canSee=True identity=0.00 action=0.15 crouch=True enemy=None!=Attacker
-[18:26:54.336] [Alert] 帝国农民 | alert=1.328→1.328 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:54.837] [Alert] 帝国农民 | alert=1.328→1.328 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:55.349] [Alert] 帝国农民 | alert=1.328→1.328 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
-[18:26:55.860] [Alert] 帝国农民 | alert=1.328→1.328 | canSee=True identity=0.00 action=0.00 crouch=False enemy=None!=Attacker
+[19:41:07.047] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[19:41:14.456] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[19:41:14.863] [StealAnimal] 鹅 (monster=goose) → goose, 特维亚 stock: 5→4
+[19:41:14.867] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[19:41:14.871] [WorldEvent] New event: Theft_Animal id=theft_village_ES3_2_91077.52_1 settlement=village_ES3_2 items=[goosex1] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=30 occurredDay=91077.52
+[19:41:14.871] [TheftLedger] Recorded: goose x1 by main_hero from village_ES3_2
+[19:41:14.872] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[19:41:14.872] [DisplayMessage] [Green] "获得了 鹅！"
+[19:41:25.030] [DisplayMessage] "每日收入 +100"
+[19:41:25.031] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
+[19:41:25.031] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
+[19:41:27.872] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
+[19:41:29.579] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
+[19:41:37.865] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1621"><b>喀拉库吉特的阿勒般</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的<a style="Link.Hero" href="event:Hero-lord_6_18"><b>亦剌塔儿</b></a>俘虏。"
+[19:41:39.173] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
+[19:41:39.586] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1599"><b>狼皮部落的乌德里斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_21"><b>卡费德</b></a>俘虏。"
+[19:41:39.701] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1602"><b>绿林兄弟会的埃唐博尔</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_9"><b>托蒙德</b></a>俘虏。"
+[19:41:44.637] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_6"><b>卡拉蒂尔德</b></a>俘虏。"
+[19:41:45.022] [DisplayMessage] "每日收入 +100"
+[19:41:45.023] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
+[19:41:45.023] [WorldEvent] ProcessDaily: id=theft_village_ES3_2_91077.52_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
+[19:41:45.023] [WorldEvent] theft_village_ES3_2_91077.52_1 Stage → Emerging (discovered)
+[19:41:45.024] [CommissionIssue] StageChanged: event=theft_village_ES3_2_91077.52_1 stage=Emerging settlement=特维亚 — refreshing issue signals
+[19:41:45.027] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=theft_village_ES3_2_91077.52_1 stage=Emerging
+[19:41:46.110] [AnimalSync] Topped up 羊: roster 10 → 16 (natural=16 stolen=0)
+[19:41:46.111] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
+[19:41:46.111] [AnimalSync] Topped up 肉猪: roster 5 → 10 (natural=10 stolen=0)
+[19:41:46.111] [AnimalSync] Topped up 鹅: roster 1 → 5 (natural=5 stolen=0)
+[19:41:46.111] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
+[19:41:46.111] [AnimalSync] 特维亚: topped up 31 animal(s) in ItemRoster
+[19:41:47.892] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
+[19:41:47.901] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgress…" → "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只鹅不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
+[19:41:47.902] [Placeholder] NpcLine: "{RestitutionBreakdown}" → "一只鹅，市值50第纳尔。既然你自己认了，赔104第纳尔，这事就算了。你认不认？"
+[19:41:47.902] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
+[19:41:47.902] [CrimeDialog] Turn[confess] speaker=特维亚的加里托普斯 stage=Emerging
+[19:41:47.903] [CrimeDialog]   NPC: 有什么要说的？
+[19:41:47.903] [CrimeDialog]   Option: "我愿意赔。你说个数。" → NONE
+[19:41:47.903] [CrimeDialog]   Option: "（讪笑）开个玩笑……刚才是我胡说的" → INTENT:CharmDefense
+[19:41:47.903] [CrimeDialog]   Option: "（转身就走）" → INTENT:WalkAway
+[19:41:47.903] [CrimeDialog] Turn[restitution_detail] speaker=特维亚的加里托普斯 stage=Emerging
+[19:41:47.903] [CrimeDialog]   NPC: 一只鹅，市值50第纳尔。既然你自己认了，赔104第纳尔，这事就算了。你认不认？
+[19:41:47.903] [CrimeDialog]   Option: "好，我赔（104 第纳尔）" → INTENT:PayRestitution
+[19:41:47.903] [CrimeDialog]   Option: "太贵了，不赔。" → NONE
+[19:41:47.903] [CrimeDialog] Turn[start] speaker=特维亚的加里托普斯 stage=Emerging
+[19:41:47.903] [CrimeDialog]   NPC: （焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只鹅不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？
+[19:41:47.903] [CrimeDialog]   Option: "（低头）是我干的。" → INTENT:Confess
+[19:41:47.903] [CrimeDialog]   Option: "我可以帮忙查查是谁干的。" → INTENT:Investigate
+[19:41:47.903] [CrimeDialog]   Option: "我还有事。" → INTENT:WalkAway
+[19:41:47.903] [CrimeDialog] Turn[continue_chat] speaker=特维亚的加里托普斯 stage=Emerging
+[19:41:47.903] [CrimeDialog]   NPC: 还有什么别的想说的吗?
+[19:41:47.903] [CrimeDialog]   Option: "我得走了。" → INTENT:WalkAway
+[19:41:47.906] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_theft_village_ES3_2_91077.52_1_v0_start' | priority=125 | owner=crime_theft_village_ES3_2_91077.52_1_v0
+[19:41:47.907] [ConvEntry] Injected crime dialogue: event=theft_village_ES3_2_91077.52_1 stage=Emerging partner=特维亚的加里托普斯 turns=4
+[19:41:48.861] [VanillaDialog] Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[19:41:48.862] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[19:41:48.868] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
+[19:41:49.528] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
+[19:41:51.073] [VanillaDialog] Options (2): 村长，听说特维亚出了点事？ | 我现在得走了。
+[19:41:51.075] [VanillaDialog] Player says: "村长，听说特维亚出了点事？"
+[19:41:51.075] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "（焦虑地）昨儿特维亚的牲口圈牲口被偷了，一只鹅不见了。刚开始查。没人看见，不知道是谁。你这后生能帮忙查查吗？"
+[19:41:52.499] [VanillaDialog] Options (3): （低头）是我干的。 | 我可以帮忙查查是谁干的。 | 我还有事。
+[19:41:52.501] [Accountability] Player accepted investigation quest for theft_village_ES3_2_91077.52_1
+[19:41:52.502] [CommissionGen] Accountability Investigation quest: hero=特维亚的加里托普斯 event=theft_village_ES3_2_91077.52_1 stage=Emerging reward=150
+[19:41:52.505] [CommissionQuest] OnStartQuest: 调查：特维亚牲口圈一只鹅失窃案 narrativePhase=False questId=crime_theft_village_ES3_2_91077.52_1
+[19:41:52.505] [CommissionQuest] Full startup: giver=特维亚的加里托普斯 reward=150 deposit=30 days=7 tier=Basic
+[19:41:52.509] [CommissionQuest] OnStartQuest DONE: category=Investigation giver=特维亚的加里托普斯 questId=crime_theft_village_ES3_2_91077.52_1
+[19:41:52.510] [CommissionQuest] RegisterEvents: category=Investigation questId=crime_theft_village_ES3_2_91077.52_1
+[19:41:52.513] [QuestStart] CommissionQuest "调查：特维亚牲口圈一只鹅失窃案" | giver=特维亚的加里托普斯 | IsOngoing=True | RewardGold=150
+[19:41:52.513] [CommissionHubIssue] GenerateIssueQuest: crime_theft_village_ES3_2_91077.52_1 category=Investigation giver=特维亚的加里托普斯
+[19:41:52.513] [VanillaDialog] Player says: "我可以帮忙查查是谁干的。"
+[19:41:52.513] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "拜托了！查出来了老夫必有重谢。"
+[19:41:54.142] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "还有什么别的想说的吗?"
+[19:41:54.933] [VanillaDialog] Options (1): 我得走了。
+[19:41:54.934] [VanillaDialog] Player says: "我得走了。"
+[19:41:54.934] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "快去查，有消息了来告诉老夫。"
+[19:41:55.804] [ConvEnd] Conversation ended. lastEvent=theft_village_ES3_2_91077.52_1_CharacterObject_2909 lastTag=crime_theft_village_ES3_2_91077.52_1
+[19:42:09.119] [DisplayMessage] "Custom Camera Load Success!"
+[19:42:09.426] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       16       0        
+  cow        10       10       0        
+  hog        10       10       0        
+  goose      5        5        0        
+  chicken    16       16       0        
+  =========================================
+
+[19:42:09.526] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:45, 距离:6.6m, 方位:东南)"
+[19:42:09.530] [Brain-Receive] 帝国农民(Idx=45) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:09.834] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 少女 (Index:43, 距离:6.0m, 方位:东北)"
+[19:42:09.835] [Brain-Receive] 少女(Idx=43) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:13.729] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:45, 距离:3.4m, 方位:东南)"
+[19:42:13.729] [Brain-Receive] 帝国农民(Idx=45) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:15.254] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[19:42:15.659] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 10→9
+[19:42:15.659] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[19:42:15.659] [WorldEvent] Merged theft into existing case theft_village_ES3_2_91077.52_1 (totalStolen=2, items=[goosex1, hogx1])
+[19:42:15.659] [TheftLedger] Recorded: hog x1 by main_hero from village_ES3_2
+[19:42:15.660] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[19:42:15.660] [DisplayMessage] [Green] "获得了 肉猪！"
+[19:42:17.429] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:45, 距离:2.4m, 方位:东)"
+[19:42:17.429] [Brain-Receive] 帝国农民(Idx=45) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:20.724] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[19:42:21.129] [StealAnimal] 鹅 (monster=goose) → goose, 特维亚 stock: 5→4
+[19:42:21.129] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[19:42:21.129] [WorldEvent] Merged theft into existing case theft_village_ES3_2_91077.52_1 (totalStolen=3, items=[goosex2, hogx1])
+[19:42:21.129] [TheftLedger] Recorded: goose x1 by main_hero from village_ES3_2
+[19:42:21.130] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[19:42:21.130] [DisplayMessage] [Green] "获得了 鹅！"
+[19:42:24.808] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:16, 距离:2.8m, 方位:西南)"
+[19:42:24.808] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:27.089] [Brain-Phase] 帝国农民(Idx=16) 警戒上升: Normal → Suspicious (警戒值=0.27) → 发送 'BecomeSuspicious'
+[19:42:27.090] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:27.094] [Brain-Phase] 少女(Idx=43) 警戒上升: Normal → Suspicious (警戒值=0.27) → 发送 'BecomeSuspicious'
+[19:42:27.094] [Brain-Receive] 少女(Idx=43) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:27.094] [Brain-Phase] 帝国农民(Idx=45) 警戒上升: Normal → Suspicious (警戒值=0.27) → 发送 'BecomeSuspicious'
+[19:42:27.094] [Brain-Receive] 帝国农民(Idx=45) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:30.490] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:24, 距离:14.9m, 方位:西北)"
+[19:42:30.491] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:30.491] [DisplayMessage] "[冒泡问候] 帝国女农民 (Index:24) 决定向你打招呼 (概率:10 %, 声望:5)"
+[19:42:30.495] [DisplayMessage] "[冒泡问候] 帝国女农民: "亨利来了 大伙儿都盼着您呢！""
+[19:42:32.047] [Brain-Phase] 帝国农民(Idx=16) 警戒上升: Suspicious → Cautious (警戒值=1.01) → 发送 'BecomeCautious'
+[19:42:32.047] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'BecomeCautious' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[19:42:32.048] [Brain-Enqueue] 帝国农民(Idx=16) 入队 LookAtAction | 当前行为=null | 队列=0→1
+[19:42:32.049] [AI-Debug] Suspend 帝国农民 (Idx=16) | 集合size=1 | 当前行为=null
+[19:42:32.050] [Brain-Enqueue] 帝国农民(Idx=16) 入队 StayAction | 当前行为=null | 队列=1→2
+[19:42:32.050] [Brain-Phase] 少女(Idx=43) 警戒上升: Suspicious → Cautious (警戒值=1.01) → 发送 'BecomeCautious'
+[19:42:32.050] [Brain-Receive] 少女(Idx=43) 收到事件 'BecomeCautious' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[19:42:32.050] [Brain-Enqueue] 少女(Idx=43) 入队 LookAtAction | 当前行为=null | 队列=0→1
+[19:42:32.050] [AI-Debug] Suspend 少女 (Idx=43) | 集合size=2 | 当前行为=null
+[19:42:32.051] [Brain-Enqueue] 少女(Idx=43) 入队 StayAction | 当前行为=null | 队列=1→2
+[19:42:32.051] [Brain-Phase] 帝国农民(Idx=45) 警戒上升: Suspicious → Cautious (警戒值=1.01) → 发送 'BecomeCautious'
+[19:42:32.051] [Brain-Receive] 帝国农民(Idx=45) 收到事件 'BecomeCautious' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[19:42:32.051] [Brain-Enqueue] 帝国农民(Idx=45) 入队 LookAtAction | 当前行为=null | 队列=0→1
+[19:42:32.051] [AI-Debug] Suspend 帝国农民 (Idx=45) | 集合size=3 | 当前行为=null
+[19:42:32.051] [Brain-Enqueue] 帝国农民(Idx=45) 入队 StayAction | 当前行为=null | 队列=1→2
+[19:42:32.054] [Brain-Tick] 帝国农民(Idx=16) 开始执行 LookAtAction | 队列剩余=1
+[19:42:32.054] [Brain-Tick] 少女(Idx=43) 开始执行 LookAtAction | 队列剩余=1
+[19:42:32.054] [Brain-Tick] 帝国农民(Idx=45) 开始执行 LookAtAction | 队列剩余=1
+[19:42:32.152] [Brain-Phase] 帝国女农民(Idx=24) 警戒上升: Normal → Suspicious (警戒值=0.26) → 发送 'BecomeSuspicious'
+[19:42:32.152] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:34.049] [Brain-Tick] 帝国农民(Idx=16) 完成 LookAtAction
+[19:42:34.049] [Brain-Tick] 少女(Idx=43) 完成 LookAtAction
+[19:42:34.049] [Brain-Tick] 帝国农民(Idx=45) 完成 LookAtAction
+[19:42:34.055] [Brain-Tick] 帝国农民(Idx=16) 开始执行 StayAction | 队列剩余=0
+[19:42:34.055] [Brain-Tick] 少女(Idx=43) 开始执行 StayAction | 队列剩余=0
+[19:42:34.055] [Brain-Tick] 帝国农民(Idx=45) 开始执行 StayAction | 队列剩余=0
+[19:42:34.838] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 女孩 (Index:35, 距离:3.1m, 方位:北)"
+[19:42:34.838] [Brain-Receive] 女孩(Idx=35) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:39.671] [Brain-Phase] 女孩(Idx=35) 警戒上升: Normal → Suspicious (警戒值=0.26) → 发送 'BecomeSuspicious'
+[19:42:39.672] [Brain-Receive] 女孩(Idx=35) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:43.381] [Brain-Phase] 帝国农民(Idx=16) 警戒上升: Cautious → Alarmed (警戒值=2.02) → 发送 'BecomeAlarmed'
+[19:42:43.381] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'BecomeAlarmed' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[19:42:43.383] [Brain-Clear] 帝国农民(Idx=16) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[19:42:43.384] [Brain-Lock] 帝国农民(Idx=16) 开始质问玩家 | 质问锁已占领
+[19:42:43.384] [Brain-Enqueue] 帝国农民(Idx=16) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
+[19:42:43.384] [Brain-Enqueue] 帝国农民(Idx=16) 入队 LookAtAction | 当前行为=null | 队列=1→2
+[19:42:43.385] [Brain-Enqueue] 帝国农民(Idx=16) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
+[19:42:43.386] [Brain-Tick] 帝国农民(Idx=16) 开始执行 FollowAgentAction | 队列剩余=2
+[19:42:46.055] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:6, 距离:15.0m, 方位:东北)"
+[19:42:46.056] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:46.694] [Brain-Tick] 帝国农民(Idx=16) 完成 FollowAgentAction
+[19:42:46.699] [Brain-Tick] 帝国农民(Idx=16) 开始执行 LookAtAction | 队列剩余=1
+[19:42:47.195] [Brain-Tick] 帝国农民(Idx=16) 完成 LookAtAction
+[19:42:47.202] [Brain-Tick] 帝国农民(Idx=16) 开始执行 AlertForceConversationAction | 队列剩余=0
+[19:42:47.203] [AlertForceConv] 帝国农民(Idx=16) HeroObject=null (模板NPC), 使用默认身份继续对话
+[19:42:47.204] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_AlertL3_帝国农民_v1_start' | priority=125 | owner=AlertL3_帝国农民_v1
+[19:42:47.204] [AlertForceConv] 帝国农民(Idx=16) 脚本注入结果: Injected dynamic script [AlertL3_帝国农民] (2 turns) | EntryTurn=start | InjectAtToken=null→hero_main_options | Turns=2
+[19:42:47.205] [AlertForceConv]   Turn[0] id=start SpeakerIndex=0 NpcLine="（冷淡地）喂！你！蹲在那鬼鬼祟祟干什么？"
+[19:42:47.205] [AlertForceConv]     Option[0] PlayerLine="没什么，我这就走。" | Action=NONE | NextTurn= | Resp=……别再让我看见你鬼鬼祟祟的。
+[19:42:47.205] [AlertForceConv]     Option[1] PlayerLine="关你什么事？（挑衅）" | Action=INTENT:Threat | NextTurn=continue_chat | Resp=SUCCESS:"……算了。" FAIL:"来人！这有个闹事的！"
+[19:42:47.205] [AlertForceConv]     Option[2] PlayerLine="（转身就走）" | Action=INTENT:WalkAway | NextTurn= | Resp=(无回应)
+[19:42:47.205] [AlertForceConv]   Turn[1] id=continue_chat SpeakerIndex=0 NpcLine="还有什么想说的？"
+[19:42:47.205] [AlertForceConv]     Option[0] PlayerLine="我走了。" | Action=INTENT:WalkAway | NextTurn= | Resp=(无回应)
+[19:42:47.232] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "奥刻洛斯的一只猎犬叼走了我表兄的一只羊，但是奥刻洛斯付了等于那只牲畜两倍价值的钱作为补偿，我觉得这很厚道了。"
+[19:42:47.235] [AlertForceConv] 帝国农民(Idx=16) 对话启动成功
+[19:42:48.141] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "啊，抱歉，先生，需要我帮你忙吗？"
+[19:42:50.196] [VanillaDialog] Options (2): 我在找人。 | 不，谢谢你，日安。
+[19:42:50.197] [VanillaDialog] Player says: "不，谢谢你，日安。"
+[19:42:50.202] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[19:42:50.203] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:50.203] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
+[19:42:50.203] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[19:42:50.204] [Brain-Receive] 女孩(Idx=35) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[19:42:50.204] [Brain-Receive] 少女(Idx=43) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[19:42:50.204] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:42:50.204] [Brain-Receive] 帝国农民(Idx=45) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[19:42:50.208] [Brain-Tick] 帝国农民(Idx=16) 完成 AlertForceConversationAction
+[19:42:50.212] [AI-Debug] Resume 帝国农民 (Idx=16) | 集合size=2
+[19:42:53.307] [Brain-Phase] 帝国农民(Idx=16) 警戒下降: Alarmed → Cautious (警戒值=2.00)
+[19:42:53.307] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Alarmed
+[19:42:53.308] [Brain-Clear] 帝国农民(Idx=16) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:42:53.308] [Brain-Lock] 帝国农民(Idx=16) 质问锁已释放

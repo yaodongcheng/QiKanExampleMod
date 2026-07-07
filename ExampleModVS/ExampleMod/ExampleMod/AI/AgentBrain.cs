@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
@@ -33,6 +34,72 @@ namespace LivingWorldNpcs
         private IAtomicAction _currentAction = null;
         public IAtomicAction CurrentAction => _currentAction;
         public bool IsInStayMode => _currentAction is StayAction;
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 警戒值系统（Phase 1-2）
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>我对玩家的分类警戒值明细。一个字典替代原来的 _alertBreakdown + _pulseContext。</summary>
+        private Dictionary<PlayerActionType, AlertEntry> _alertBreakdown = new Dictionary<PlayerActionType, AlertEntry>();
+
+        /// <summary>上一帧的警戒阶段（用于检测穿越，包括向下穿越）</summary>
+        private AlarmPhase _lastAlertPhase = AlarmPhase.Normal;
+
+        /// <summary>脉冲抑制截止时间（Mission.Current.CurrentTime），0=无抑制</summary>
+        private float _pulseSuppressedUntil;
+
+        /// <summary>已触发过 BubbleSay 的 (Action, Phase) 组合。降级后清零对应条目，允许重新触发。</summary>
+        private HashSet<(PlayerActionType, AlarmPhase)> _bubbledPhases = new HashSet<(PlayerActionType, AlarmPhase)>();
+
+        /// <summary>警戒认知更新间隔（秒）。默认 0.1s = 100ms。设 0 退化为逐帧。</summary>
+        private float _alertCognitionInterval = 0.1f;
+
+        /// <summary>认知更新计时器（累积 dt），达到 _alertCognitionInterval 时触发一次 UpdateAlertCognition 然后归零。</summary>
+        private float _alertCognitionTimer;
+
+        // ── 全局质问锁（同一时间只有一个 NPC 能质问玩家）──
+        /// <summary>当前正在质问玩家的 Brain。null 表示无人质问中。</summary>
+        internal static AgentBrain ConfrontingBrain;
+
+        // ── 公开查询（AgentHudMissionView 每帧读 AlertValue / AlertPhase）──
+
+        public float AlertValue
+        {
+            get
+            {
+                float sum = 0f;
+                foreach (var e in _alertBreakdown.Values) sum += e.Value;
+                return sum;
+            }
+        }
+
+        public AlarmPhase AlertPhase => AlertValue switch
+        {
+            >= 2.0f => AlarmPhase.Alarmed,
+            >= 1.0f => AlarmPhase.Cautious,
+            >= 0.25f => AlarmPhase.Suspicious,
+            _ => AlarmPhase.Normal
+        };
+
+        /// <summary>当前最高警戒值对应的行为类型。BubbleSayOnce 内部用（阶段转换时调用，非每帧）。</summary>
+        public PlayerActionType? PrimaryAction
+        {
+            get
+            {
+                if (_alertBreakdown.Count == 0) return null;
+                PlayerActionType best = PlayerActionType.Crouching;
+                float bestVal = -1f;
+                foreach (var kv in _alertBreakdown)
+                {
+                    if (kv.Value.Value > bestVal)
+                    {
+                        bestVal = kv.Value.Value;
+                        best = kv.Key;
+                    }
+                }
+                return best;
+            }
+        }
         public AgentBrain(Agent agent)
         {
             Owner = agent;
@@ -51,6 +118,7 @@ namespace LivingWorldNpcs
         // --- 核心：决策中枢 ---
         public void ReceiveEvent(AIEvent aiEvent)
         {
+            DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 '{aiEvent.EventType}' | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
             if (aiEvent.EventType == "ComeHere")
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
@@ -156,35 +224,46 @@ namespace LivingWorldNpcs
                 try
                 {
                     //这里的类型转换如果有问题，会导致异常
-                    Agent thief = (Agent)aiEvent.Args[0];
+                    Agent criminal = (Agent)aiEvent.Args[0];
                     Agent victim = (Agent)aiEvent.Args[1];
                     Vec3 assignedPos = (Vec3)aiEvent.Args[2];
                     Vec2 turnDir = (Vec2)aiEvent.Args[3];
-                    float delay = GroupStageManager.CalculateReactionDelay(Owner, thief, victim);
+                    float delay = GroupStageManager.CalculateReactionDelay(Owner, criminal, victim);
+
+                    // ── 🆕 警戒脉冲：所有目击者统一加值（criminal==玩家时）──
+                    if (criminal == Agent.Main)
+                    {
+                        AddAlert(PlayerActionType.Steal, 2.0f);
+                        SetPulseTarget(PlayerActionType.Steal, victim.Name, null);
+                        _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                    }
 
                     ClearAllActions();
-                    InteractedAgent = thief;
-                    if (Owner == victim)
+                    InteractedAgent = criminal;
+
+                    // ── 角色分流 ──
+                    if (Owner == victim && criminal == Agent.Main)
                     {
+                        // 受害者：直接指控
                         var conflictData = new PendingConflict(
-                eventId: $"Theft_{TaleWorlds.CampaignSystem.CampaignTime.Now.ToHours}",
-                topicName: "当众行窃",
-                goalDesc: $"要求 {thief.Name} 立刻归还财物并赔偿精神损失",
-                severity: 70.0f,
-                type: NegotiationGoalType.ResolveConflict_Apology 
-                    );
+                    eventId: $"Theft_{TaleWorlds.CampaignSystem.CampaignTime.Now.ToHours}",
+                    topicName: "当众行窃",
+                    goalDesc: $"要求 {criminal.Name} 立刻归还财物并赔偿精神损失",
+                    severity: 70.0f,
+                    type: NegotiationGoalType.ResolveConflict_Apology
+                        );
 
 
                         EnqueueAction(new PrepareOpeningAction(InitiativeType.CrimeAccusation, conflictData));
                     }
                         EnqueueAction(new ReactionDecisionAction(delay, (agent) =>
                     {
-                        EnqueueAction(new LookAtAction(thief, 0.5f));
+                        EnqueueAction(new LookAtAction(criminal, 0.5f));
                         EnqueueAction(new MoveToPositionAction(assignedPos, turnDir));
                         if (Owner == victim)
                             EnqueueAction(new ForceTalkAction());
                         // 5. 待机
-                        EnqueueAction(new StayAction(thief));
+                        EnqueueAction(new StayAction(criminal));
                     }));
                 }
                 catch(Exception )
@@ -221,6 +300,83 @@ namespace LivingWorldNpcs
                 EnqueueAction(new StayAction(null, false));
             }
 
+            // ═══════════════════════════════════════════════════════════════
+            // 🆕 NPC 开始看到玩家 → 概率冒泡问候（Phase 0 对齐）
+            // 从 InteractionMissionView.OnNpcStartObservingPlayer 迁移至此。
+            // BubbleSay 决策统一在 AgentBrain 内部，外部不直接调 AgentSay。
+            // ═══════════════════════════════════════════════════════════════
+            if (aiEvent.EventType == "StartObservingPlayer")
+            {
+                int honor = 0;
+                if (Hero.MainHero.CurrentSettlement != null)
+                    honor = SettlementHonorStore.Get(Hero.MainHero.CurrentSettlement);
+
+                // 概率 = clamp(0.10 + honor * 0.01, 0.02, 0.25)
+                float prob = MathF.Clamp(0.05f + honor * 0.01f, 0.01f, 0.15f);
+                if (MBRandom.RandomFloat >= prob) return;
+
+                InformationManager.DisplayMessage(new InformationMessage($"[冒泡问候] {Owner.Name} (Index:{Owner.Index}) 决定向你打招呼 (概率:{prob:P0}, 声望:{honor})"));
+
+                var factors = new DialogueFactors
+                {
+                    Honor = honor >= 5 ? HonorLevel.High : (honor <= -5 ? HonorLevel.Low : HonorLevel.Neutral),
+                    Gender = (Owner.Character != null && Owner.Character.IsFemale) ? NpcGender.Female : NpcGender.Male,
+                    Identity = NpcIdentity.Civilian
+                };
+
+                string emotion;
+                string line = DialogueTemplateHelper.Get("BubbleGreet", factors, out emotion, null, Owner);
+                if (!string.IsNullOrEmpty(line))
+                {
+                    InformationManager.DisplayMessage(new InformationMessage($"[冒泡问候] {Owner.Name}: \"{line}\""));
+                    BubbleSay(line);
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // 🆕 警戒阶段穿越事件（Phase 2）
+            // ═══════════════════════════════════════════════════════════════
+
+            if (aiEvent.EventType == "BecomeSuspicious")
+            {
+                BubbleSayOnce(AlarmPhase.Suspicious);
+            }
+            if (aiEvent.EventType == "BecomeCautious")
+            {
+                if (_currentAction == null || _currentAction is StayAction)
+                {
+                    EnqueueAction(new LookAtAction(Agent.Main, 2.0f));
+                    EnqueueAction(new StayAction(Agent.Main));
+                }
+                BubbleSayOnce(AlarmPhase.Cautious);
+            }
+            if (aiEvent.EventType == "BecomeAlarmed")
+            {
+                if (_pulseSuppressedUntil > 0 && Mission.Current?.CurrentTime < _pulseSuppressedUntil)
+                    return;
+                StartL3Confrontation();
+            }
+            if (aiEvent.EventType == "CalmDown")
+            {
+                var fromPhase = (AlarmPhase)aiEvent.Args[0];
+                var toPhase   = (AlarmPhase)aiEvent.Args[1];
+
+                // 清除高位 bubbled 记录，允许重新升级后再次触发
+                _bubbledPhases.RemoveWhere(k => k.Item2 > toPhase);
+
+                // Alarmed→* 或 →Normal：完全清理行为链
+                if (fromPhase >= AlarmPhase.Alarmed || toPhase == AlarmPhase.Normal)
+                {
+                    ClearAllActions();
+                    AgentControlHelper.ResumeVanillaAI(Owner);
+                }
+                // Cautious→Suspicious：只取消 LookAt
+                else if (fromPhase == AlarmPhase.Cautious && _currentAction is LookAtAction)
+                {
+                    _currentAction.OnEnd(Owner);
+                    _currentAction = null;
+                }
+            }
 
 
 
@@ -232,6 +388,7 @@ namespace LivingWorldNpcs
         // --- 动作执行系统 ---
         public void EnqueueAction(IAtomicAction action)
         {
+            DebugLogger.Log($"[Brain-Enqueue] {Owner.Name}(Idx={Owner.Index}) 入队 {action.GetType().Name} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count}→{_actionQueue.Count + 1}");
             // 从空脑到有 Action 的转换：一次性接管原版 AI（SuspendVanillaAI 内部幂等）
             if (_currentAction == null && _actionQueue.Count == 0)
             {
@@ -243,6 +400,14 @@ namespace LivingWorldNpcs
         public void ClearAllActions()
         {
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
+            DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
+
+            // 释放全局质问锁
+            if (ConfrontingBrain == this)
+            {
+                ConfrontingBrain = null;
+                DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 质问锁已释放");
+            }
 
             if (_currentAction != null) _currentAction.OnEnd(Owner);
             _currentAction = null;
@@ -285,10 +450,222 @@ namespace LivingWorldNpcs
                 AgentControlHelper.ResumeVanillaAI(Owner);
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 警戒值认知更新（Phase 1-2）
+        // ═══════════════════════════════════════════════════════════════
+
+        void UpdateAlertCognition(float dt)
+        {
+            // 全局质问锁：其他 NPC 正在质问玩家 → 暂停我的警戒更新（避免一窝蜂）
+            if (ConfrontingBrain != null && ConfrontingBrain != this)
+                return;
+
+            if (!NpcSightSystem.CanNpcSeePlayer(Owner))
+            {
+                DecayAlertBreakdown(dt);
+                // 看不到玩家时仍需检测向下穿越（衰减可能导致降级）
+                CheckPhaseTransition();
+                return;
+            }
+
+            // 我能看到玩家——他在干什么？
+            if (Agent.Main.CrouchMode)
+                AddAlert(PlayerActionType.Crouching, dt * 0.15f);
+
+            if (IsPlayerWeaponDrawn())
+                AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f);
+
+            if (StealManager.IsUIOpen)
+                AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f);
+
+            // 阶段穿越检测（向上或向下）
+            CheckPhaseTransition();
+        }
+
+        bool IsPlayerWeaponDrawn()
+        {
+            var main = Agent.Main;
+            if (main == null) return false;
+            // 走 VersionCompat 封装，不在业务代码里裸写 #if
+            return V.MainWpn(main) != EquipmentIndex.None
+                || V.OffWpn(main) != EquipmentIndex.None;
+        }
+
+        void DecayAlertBreakdown(float dt)
+        {
+            if (_alertBreakdown.Count == 0) return;
+
+            float alertTotal = AlertValue;  // Sum() 按需计算
+            float totalDecay = dt * 0.15f;
+            if (alertTotal <= 0.0001f) { _alertBreakdown.Clear(); return; }
+
+            var keys = new List<PlayerActionType>(_alertBreakdown.Keys);
+            foreach (var key in keys)
+            {
+                var entry = _alertBreakdown[key];
+                float proportion = entry.Value / alertTotal;
+                entry.Value -= totalDecay * proportion;
+                if (entry.Value <= 0.0001f)
+                {
+                    _alertBreakdown.Remove(key);  // 移除条目时 TargetName/ItemName 自动清理
+                }
+                else
+                {
+                    _alertBreakdown[key] = entry;  // struct 值类型，写回
+                }
+            }
+        }
+
+        void CheckPhaseTransition()
+        {
+            var newPhase = AlertPhase;
+            if (newPhase == _lastAlertPhase) return;
+
+            if (newPhase > _lastAlertPhase)
+            {
+                // 向上穿越：每个目标阶段一个独立事件
+                string eventType = newPhase switch
+                {
+                    AlarmPhase.Suspicious => "BecomeSuspicious",
+                    AlarmPhase.Cautious   => "BecomeCautious",
+                    AlarmPhase.Alarmed    => "BecomeAlarmed",
+                    _ => null
+                };
+                DebugLogger.Log($"[Brain-Phase] {Owner.Name}(Idx={Owner.Index}) 警戒上升: {_lastAlertPhase} → {newPhase} (警戒值={AlertValue:F2}) → 发送 '{eventType}'");
+                if (eventType != null)
+                    ReceiveEvent(new AIEvent { EventType = eventType, Sender = this });
+            }
+            else
+            {
+                // 向下穿越：统一 CalmDown（带 from/to 供清理用）
+                DebugLogger.Log($"[Brain-Phase] {Owner.Name}(Idx={Owner.Index}) 警戒下降: {_lastAlertPhase} → {newPhase} (警戒值={AlertValue:F2})");
+                ReceiveEvent(new AIEvent
+                {
+                    EventType = "CalmDown",
+                    Sender = this,
+                    Args = new object[] { _lastAlertPhase, newPhase }
+                });
+            }
+
+            _lastAlertPhase = newPhase;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 警戒值操作（Phase 1）
+        // ═══════════════════════════════════════════════════════════════
+
+        public void AddAlert(PlayerActionType type, float amount)
+        {
+            if (!_alertBreakdown.TryGetValue(type, out var entry))
+                entry = new AlertEntry();
+
+            entry.Value += amount;
+            _alertBreakdown[type] = entry;  // struct 是值类型，写回
+        }
+
+        /// <summary>脉冲上下文：设置 AlertEntry 的 TargetName（不改变 Value，Value 由 AddAlert 加）</summary>
+        void SetPulseTarget(PlayerActionType type, string targetName, string itemName)
+        {
+            if (!_alertBreakdown.TryGetValue(type, out var entry))
+                entry = new AlertEntry();
+            entry.TargetName = targetName;
+            entry.ItemName = itemName;
+            _alertBreakdown[type] = entry;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 BubbleSay（Phase 2）
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>通用 BubbleSay 入口。传入已组装好的文本，直接显示冒泡。</summary>
+        public void BubbleSay(string text)
+        {
+            if (!string.IsNullOrEmpty(text))
+                AgentHudMissionView.AgentSay(Owner, text);
+        }
+
+        /// <summary>
+        /// 尝试对当前 phase + PrimaryAction 发 BubbleSay。
+        /// 同 (action, phase) 组合只触发一次。降级后清空高位记录，重新升级可再次触发。
+        /// </summary>
+        void BubbleSayOnce(AlarmPhase phase)
+        {
+            var action = PrimaryAction;
+            if (action == null) return;
+
+            var key = (action.Value, phase);
+            if (_bubbledPhases.Contains(key)) return;
+
+            _bubbledPhases.Add(key);
+            BubbleSay(ResolveAlertBubble(phase));
+        }
+
+        /// <summary>查 NpcSpeech.csv → 委托 PlaceholderResolver</summary>
+        string ResolveAlertBubble(AlarmPhase phase)
+        {
+            var action = PrimaryAction;
+            if (action == null) return null;
+
+            string targetName = null, itemName = null;
+            if (_alertBreakdown.TryGetValue(action.Value, out var entry))
+            {
+                targetName = entry.TargetName;
+                itemName = entry.ItemName;
+            }
+
+            // 所有占位符（含 {TARGET}/{ITEM}）统一走 PlaceholderResolver
+            return NpcSpeechResolver.Resolve(
+                $"AlertBubble_{action}_{phase}",
+                speaker: (Owner.Character as CharacterObject)?.HeroObject,
+                listener: TaleWorlds.CampaignSystem.Hero.MainHero,
+                evt: null,
+                targetName: targetName,
+                itemName: itemName
+            );
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 L3 质问（Phase 3-4）
+        // ═══════════════════════════════════════════════════════════════
+
+        void StartL3Confrontation()
+        {
+            Agent player = Agent.Main;
+            if (player == null) return;
+
+            // 全局质问锁：已有其他 NPC 在质问玩家 → 跳过
+            if (ConfrontingBrain != null && ConfrontingBrain != this)
+            {
+                DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 想质问玩家但 {ConfrontingBrain.Owner.Name}(Idx={ConfrontingBrain.Owner.Index}) 正在质问中，跳过");
+                return;
+            }
+
+            ClearAllActions();
+            InteractedAgent = player;
+
+            // 占领全局质问锁
+            ConfrontingBrain = this;
+            DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 开始质问玩家 | 质问锁已占领");
+
+            // 统一走 DialogueInjector 管道：CrimeDialogueBuilder 构建脚本 → DialogueInjector 注入 → 原版 ConversationManager
+            // AlertForceConversationAction 对话期间持有，对话结束后由 ResetCrimeDialogueOnConversationEndPatch 广播 EndInteraction 清理
+            EnqueueAction(new FollowAgentAction(player, false, radius: 0f, angleOffset: 0f, stopDistance: 1.5f));
+            EnqueueAction(new LookAtAction(player, 0.5f));
+            EnqueueAction(new AlertForceConversationAction());
+        }
         public void Tick(float dt)
         {
             if(Owner == Agent.Main)
             {
+                return;
+            }
+
+            // 安全兜底：如果持锁者已不活跃，释放质问锁
+            if (ConfrontingBrain == this && !Owner.IsActive())
+            {
+                ConfrontingBrain = null;
+                DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 已不活跃，强制释放质问锁");
                 return;
             }
 
@@ -302,6 +679,7 @@ namespace LivingWorldNpcs
             if (_currentAction == null && _actionQueue.Count > 0)
             {
                 _currentAction = _actionQueue.Dequeue();
+                DebugLogger.Log($"[Brain-Tick] {Owner.Name}(Idx={Owner.Index}) 开始执行 {_currentAction.GetType().Name} | 队列剩余={_actionQueue.Count}");
                 _currentAction.OnStart(Owner);
             }
 
@@ -313,9 +691,18 @@ namespace LivingWorldNpcs
 
                 if (_currentAction.IsFinished(Owner))
                 {
+                    DebugLogger.Log($"[Brain-Tick] {Owner.Name}(Idx={Owner.Index}) 完成 {_currentAction.GetType().Name}");
                     _currentAction.OnEnd(Owner);
                     _currentAction = null; // 下一帧会取新的
                 }
+            }
+
+            // ── 🆕 节流认知更新 ──
+            _alertCognitionTimer += dt;
+            if (_alertCognitionTimer >= _alertCognitionInterval)
+            {
+                UpdateAlertCognition(_alertCognitionTimer);  // 传入累积 dt，不是原始帧 dt
+                _alertCognitionTimer = 0f;
             }
         }
 

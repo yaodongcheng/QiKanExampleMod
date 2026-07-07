@@ -893,4 +893,124 @@ namespace LivingWorldNpcs
 
         public bool IsFinished(Agent agent) => _isFinished;
     }
+
+    /// <summary>
+    /// 🆕 L3 警戒质问。
+    /// 走到玩家面前后强制开启原版对话，注入 CrimeDialogueBuilder.BuildAlertInterceptScript。
+    /// 对话期间持有（IsFinished=false），对话结束后由 ResetCrimeDialogueOnConversationEndPatch
+    /// 清除标记 + 广播 EndInteraction → AgentBrain 标准清理路径。
+    /// </summary>
+    public class AlertForceConversationAction : IAtomicAction
+    {
+        /// <summary>正在等待对话结束的 NPC。Patch 在 ConversationManager.EndConversation 时读取并清理。</summary>
+        internal static Agent ActiveConversationAgent;
+        private bool _started;
+
+        public void OnStart(Agent agent)
+        {
+            _started = false;
+
+            if (Agent.Main == null || !agent.IsActive())
+            {
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动失败: Agent.Main={Agent.Main != null}, IsActive={agent.IsActive()}");
+                return;
+            }
+
+            var npcHero = (agent.Character as CharacterObject)?.HeroObject;
+            if (npcHero == null)
+            {
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) HeroObject=null (模板NPC), 使用默认身份继续对话");
+            }
+
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            PlayerActionType? primaryAction = brain?.PrimaryAction;
+
+            // 根据 PrimaryAction 确定 NPC 意图
+            NpcInterceptIntent npcIntent = primaryAction switch
+            {
+                PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => NpcInterceptIntent.Deter,
+                PlayerActionType.StealUIOpen => NpcInterceptIntent.Search,
+                PlayerActionType.Steal => NpcInterceptIntent.Recover,
+                PlayerActionType.AttackAlly or PlayerActionType.Knockout => NpcInterceptIntent.Stop,
+                _ => NpcInterceptIntent.Deter
+            };
+
+            // 构建对话脚本并注入
+            var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
+                npcHero, npcIntent, primaryAction ?? PlayerActionType.Crouching);
+            if (script != null)
+            {
+                string injectResult = DialogueInjector.InjectScript(script, $"AlertL3_{agent.Name}");
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 脚本注入结果: {injectResult} | EntryTurn={script.EntryTurn} | InjectAtToken={script.InjectAtToken ?? "null→hero_main_options"} | Turns={script.Turns?.Count ?? 0}");
+                if (script.Turns != null)
+                {
+                    for (int ti = 0; ti < script.Turns.Count; ti++)
+                    {
+                        var turn = script.Turns[ti];
+                        DebugLogger.Log($"[AlertForceConv]   Turn[{ti}] id={turn.Id} SpeakerIndex={turn.SpeakerIndex} NpcLine=\"{turn.NpcLine}\"");
+                        if (turn.Options != null)
+                        {
+                            for (int oi = 0; oi < turn.Options.Count; oi++)
+                            {
+                                var opt = turn.Options[oi];
+                                string resp = opt.NpcResponse ?? (opt.NpcResponseOnSuccess != null ? $"SUCCESS:\"{opt.NpcResponseOnSuccess}\" FAIL:\"{opt.NpcResponseOnFail}\"" : "(无回应)");
+                                DebugLogger.Log($"[AlertForceConv]     Option[{oi}] PlayerLine=\"{opt.PlayerLine}\" | Action={opt.Action} | NextTurn={opt.NextTurn ?? "(关闭)"} | Resp={resp}");
+                            }
+                        }
+                    }
+                }
+            }
+            else
+            {
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");
+            }
+
+            // 强制开启原版对话
+            try
+            {
+                var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
+                if (conversationLogic != null)
+                {
+                    conversationLogic.StartConversation(agent, true, false);
+                    _started = true;
+                    ActiveConversationAgent = agent;
+                    DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 对话启动成功");
+                }
+                else
+                {
+                    DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动失败: MissionConversationLogic=null");
+                    AgentHudMissionView.AgentSay(agent, "喂！说你呢！");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动异常: {ex.Message}");
+                AgentHudMissionView.AgentSay(agent, "喂！说你呢！");
+            }
+        }
+
+        public void OnTick(Agent agent, float dt) { }
+
+        /// <summary>
+        /// 对话进行中 → 持有（false），防止 NPC 掉回原版 AI。
+        /// 对话结束后 Patch 清除 ActiveConversationAgent → IsFinished=true → OnEnd 清标志。
+        /// 启动失败（_started=false）→ 立即完成。
+        /// </summary>
+        public bool IsFinished(Agent agent)
+        {
+            if (!_started) return true;
+            return ActiveConversationAgent != agent;
+        }
+
+        public void OnEnd(Agent agent)
+        {
+            if (_started)
+            {
+                // Patch 已广播 EndInteraction → ClearAllActions 会调到这。
+                // 这里只清理残留状态，不再重复广播。
+                if (ActiveConversationAgent == agent)
+                    ActiveConversationAgent = null;
+            }
+        }
+    }
 }

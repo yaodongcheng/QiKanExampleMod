@@ -20,13 +20,39 @@ namespace LivingWorldNpcs
         public Hero Listener;
         private NpcStance? _stance;
 
+        // 🆕 Mission 层脉冲上下文（警戒 BubbleSay / L3 质问台词用）
+        public string TargetName;   // 脉冲事件受害者名
+        public string ItemName;     // 脉冲事件被盗物品名
+
         public NpcStance Stance => _stance ??= AttitudeSystem.ComputeStance(Speaker, Event);
 
+        /// <summary>WorldEvent 语境构造（现有调用路径，不变）</summary>
         public PlaceholderResolver(WorldEvent evt, Hero speaker, Hero listener = null)
         {
             Event = evt;
             Speaker = speaker;
             Listener = listener ?? Hero.MainHero;
+        }
+
+        /// <summary>
+        /// 🆕 Mission 层构造：无 WorldEvent 语境，用于警戒 BubbleSay / L3 质问台词。
+        /// targetName / itemName 为脉冲上下文，传 null 时对应占位符解析为空字符串。
+        /// </summary>
+        public PlaceholderResolver(Hero speaker, Hero listener = null, string targetName = null, string itemName = null)
+            : this(null, speaker, listener)
+        {
+            TargetName = targetName;
+            ItemName = itemName;
+        }
+
+        /// <summary>
+        /// 🆕 完整构造：WorldEvent + Mission 层脉冲上下文（L3 质问台词用）。
+        /// </summary>
+        public PlaceholderResolver(WorldEvent evt, Hero speaker, Hero listener, string targetName, string itemName)
+            : this(evt, speaker, listener)
+        {
+            TargetName = targetName;
+            ItemName = itemName;
         }
 
         /// <summary>解析模板中的所有占位符。未解析的保留原样并记日志。传 context 时同时打印模板→结果。</summary>
@@ -74,6 +100,18 @@ namespace LivingWorldNpcs
 
             switch (key)
             {
+                // ── 🆕 NpcSpeech.csv 占位符别名（模板简写 → 标准 key）──
+                case "PLAYER": return Listener?.Name?.ToString() ?? "你";
+                case "SPEAKER": return speaker?.Name?.ToString() ?? "";
+                case "SPEAKER_SELF": return ResolveOne("SpeakerSelfRef");
+                case "SPEAKER_PLAYER_ADDR": return ResolveOne("SpeakerPlayerAddr");
+                case "SPEAKER_EMOTION": return ResolveOne("SpeakerEmotion");
+                case "TARGET": return TargetName ?? "";
+                case "ITEM": return ItemName ?? "";
+                case "StolenItemName": return ItemName ?? "";
+                case "LOCATION":
+                    return Settlement.CurrentSettlement?.Name?.ToString() ?? "";
+
                 // A. 事件事实（EventConfig 级）
                 case "EventTypeName": return cfg?.DisplayName ?? "犯罪";
                 case "CrimeVerb": return cfg?.CrimeVerb ?? "做了";

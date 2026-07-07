@@ -322,7 +322,9 @@ namespace LivingWorldNpcs
             if (!SuspendedAgentIndices.Add(agent.Index))
                 return true; // 已在集合中，幂等
 
-            DebugLogger.Log($"[AI-Debug] Suspend {agent.Name} (Idx={agent.Index}) | 集合size={SuspendedAgentIndices.Count}");
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            var actionName = brain?.CurrentAction?.GetType().Name ?? "null";
+            DebugLogger.Log($"[AI-Debug] Suspend {agent.Name} (Idx={agent.Index}) | 集合size={SuspendedAgentIndices.Count} | 当前行为={actionName}");
 
             var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
             if (nav == null) return false;

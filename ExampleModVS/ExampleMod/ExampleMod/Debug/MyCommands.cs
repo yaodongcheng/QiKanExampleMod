@@ -2314,6 +2314,120 @@ namespace LivingWorldNpcs
                 return $"注入失败: {ex.Message}";
             }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 警戒值系统调试指令（Phase 5）
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// custom.alert_status [agentStringId] — 查看某 NPC 的分类警戒值明细
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("alert_status", "custom")]
+        public static string AlertStatusCommand(List<string> args)
+        {
+            if (Mission.Current == null) return "Error: Not in a mission.";
+
+            Agent target = null;
+            if (args.Count > 0)
+            {
+                string id = args[0];
+                foreach (var agent in Mission.Current.Agents)
+                {
+                    if (agent.IsHuman && agent.IsActive() && agent.Character?.StringId == id)
+                    { target = agent; break; }
+                }
+                if (target == null) return $"Agent '{id}' not found.";
+            }
+            else
+            {
+                // 默认显示离玩家最近的 NPC
+                float minDist = float.MaxValue;
+                foreach (var agent in Mission.Current.Agents)
+                {
+                    if (!agent.IsHuman || !agent.IsActive() || agent == Agent.Main) continue;
+                    float d = agent.Position.DistanceSquared(Agent.Main.Position);
+                    if (d < minDist) { minDist = d; target = agent; }
+                }
+                if (target == null) return "No NPC found.";
+            }
+
+            var brain = AgentAIController.GetBrainForAgent(target);
+            if (brain == null) return $"{target.Name}: No brain.";
+
+            float alertVal = brain.AlertValue;
+            var phase = brain.AlertPhase;
+            var primary = brain.PrimaryAction;
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"=== {target.Name} Alert Status ===");
+            sb.AppendLine($"Total: {alertVal:F3} | Phase: {phase} | Primary: {primary}");
+            sb.AppendLine("Breakdown:");
+
+            // 反射获取 _alertBreakdown (私有字段)
+            var breakdownField = typeof(AgentBrain).GetField("_alertBreakdown",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (breakdownField?.GetValue(brain) is System.Collections.IDictionary dict)
+            {
+                foreach (System.Collections.DictionaryEntry kv in dict)
+                {
+                    var entryType = kv.Value.GetType();
+                    float val = (float)entryType.GetField("Value").GetValue(kv.Value);
+                    string tgt = (string)entryType.GetField("TargetName")?.GetValue(kv.Value) ?? "";
+                    string item = (string)entryType.GetField("ItemName")?.GetValue(kv.Value) ?? "";
+                    sb.AppendLine($"  {kv.Key}: {val:F3} | target={tgt} | item={item}");
+                }
+            }
+            else
+            {
+                sb.AppendLine("  (empty or reflection failed)");
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// custom.alert_force_intercept [npcStringId] — 强制触发 L3 质问
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("alert_force_intercept", "custom")]
+        public static string AlertForceInterceptCommand(List<string> args)
+        {
+            if (Mission.Current == null) return "Error: Not in a mission.";
+
+            Agent target = null;
+            if (args.Count > 0)
+            {
+                string id = args[0];
+                foreach (var agent in Mission.Current.Agents)
+                {
+                    if (agent.IsHuman && agent.IsActive() && agent.Character?.StringId == id)
+                    { target = agent; break; }
+                }
+            }
+            if (target == null) return "No target NPC specified or found.";
+
+            var brain = AgentAIController.GetBrainForAgent(target);
+            if (brain == null) return $"{target.Name}: No brain.";
+
+            // 强制加值到 Alarmed
+            brain.AddAlert(PlayerActionType.Steal, 2.5f);
+            brain.ReceiveEvent(new AIEvent { EventType = "BecomeAlarmed", Sender = brain });
+            return $"{target.Name}: L3 confront forced. AlertValue={brain.AlertValue:F3}";
+        }
+
+        /// <summary>
+        /// custom.alert_dialogue_mode [StoryVM|Vanilla] — 切换 L3 质问对话模式
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("alert_dialogue_mode", "custom")]
+        public static string AlertDialogueModeCommand(List<string> args)
+        {
+            if (args.Count == 0) return $"Current: {Settings.Instance.AlertDialogueMode}";
+            string mode = args[0];
+            if (mode.Equals("StoryVM", StringComparison.OrdinalIgnoreCase))
+            { Settings.Instance.AlertDialogueMode = AlertDialogueMode.StoryVM; return "Set to StoryVM."; }
+            if (mode.Equals("Vanilla", StringComparison.OrdinalIgnoreCase))
+            { Settings.Instance.AlertDialogueMode = AlertDialogueMode.VanillaConversation; return "Set to VanillaConversation."; }
+            return $"Unknown mode: {mode}. Use StoryVM or Vanilla.";
+        }
     }
 
 

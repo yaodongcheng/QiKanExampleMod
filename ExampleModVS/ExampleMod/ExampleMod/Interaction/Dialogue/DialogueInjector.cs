@@ -457,6 +457,7 @@ namespace LivingWorldNpcs
                 gateDf.AddPlayerLine("inj_gateway", startToken, entryTurnToken,
                     entryText, () => true, null, owner, 125);
                 cm.AddDialogFlow(gateDf, owner);
+                DebugLogger.Log($"[DialogueInjector] Gateway: added PlayerLine at '{startToken}' → '{entryTurnToken}' | priority=125 | owner={owner.FileName}");
 
                 foreach (var turn in script.Turns)
                 {
