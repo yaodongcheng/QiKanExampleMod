@@ -899,11 +899,22 @@ namespace LivingWorldNpcs
     /// 走到玩家面前后强制开启原版对话，注入 CrimeDialogueBuilder.BuildAlertInterceptScript。
     /// 对话期间持有（IsFinished=false），对话结束后由 ResetCrimeDialogueOnConversationEndPatch
     /// 清除标记 + 广播 EndInteraction → AgentBrain 标准清理路径。
+    ///
+    /// 注入策略：InjectScriptAsOpening — 把 NPC 台词直接挂在 start token（优先级 200），
+    /// 碾压原版开场白。start 是所有 NPC 类型的通用对话入口，无需按 Hero/模板/强盗/士兵
+    /// 分别适配 token。
     /// </summary>
     public class AlertForceConversationAction : IAtomicAction
     {
         /// <summary>正在等待对话结束的 NPC。Patch 在 ConversationManager.EndConversation 时读取并清理。</summary>
         internal static Agent ActiveConversationAgent;
+
+        /// <summary>延迟注入：待注入的脚本（开场白播放后由 AlertScriptDeferredInjectionPatch 消费）。
+        /// Alert 本身不走此路径（用 InjectScriptAsOpening），保留供其他场景使用。</summary>
+        internal static DialogueInjector.DialogueInjectScript PendingAlertScript;
+        /// <summary>延迟注入用的 owner 标签</summary>
+        internal static string PendingAlertLabel;
+
         private bool _started;
 
         public void OnStart(Agent agent)
@@ -917,10 +928,8 @@ namespace LivingWorldNpcs
             }
 
             var npcHero = (agent.Character as CharacterObject)?.HeroObject;
-            if (npcHero == null)
-            {
-                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) HeroObject=null (模板NPC), 使用默认身份继续对话");
-            }
+            string npcDesc = npcHero != null ? $"Hero={npcHero.Name}" : $"模板NPC({agent.Name})";
+            DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) {npcDesc} — 使用 InjectScriptAsOpening (start token)");
 
             var brain = AgentAIController.GetBrainForAgent(agent);
             PlayerActionType? primaryAction = brain?.PrimaryAction;
@@ -935,34 +944,41 @@ namespace LivingWorldNpcs
                 _ => NpcInterceptIntent.Deter
             };
 
-            // 构建对话脚本并注入
+            // 构建对话脚本
             var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
                 npcHero, npcIntent, primaryAction ?? PlayerActionType.Crouching);
-            if (script != null)
+            if (script == null)
             {
-                string injectResult = DialogueInjector.InjectScript(script, $"AlertL3_{agent.Name}");
-                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 脚本注入结果: {injectResult} | EntryTurn={script.EntryTurn} | InjectAtToken={script.InjectAtToken ?? "null→hero_main_options"} | Turns={script.Turns?.Count ?? 0}");
-                if (script.Turns != null)
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");
+                return;
+            }
+
+            string label = $"AlertL3_{agent.Name}";
+
+            // ── 统一策略：InjectScriptAsOpening，NPC 台词挂在 start token（优先级 200）──
+            // start 是所有 NPC（Hero、模板、强盗、士兵……）的通用对话入口，
+            // 优先级 200 碾压原版开场白，无论 NPC 类型都不需要单独适配。
+            script.InjectAtToken = "start";
+            string injectResult = DialogueInjector.InjectScriptAsOpening(script, label);
+            DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) InjectScriptAsOpening: {injectResult} | Turns={script.Turns?.Count ?? 0}");
+
+            // 打印脚本详情
+            if (script.Turns != null)
+            {
+                for (int ti = 0; ti < script.Turns.Count; ti++)
                 {
-                    for (int ti = 0; ti < script.Turns.Count; ti++)
+                    var turn = script.Turns[ti];
+                    DebugLogger.Log($"[AlertForceConv]   Turn[{ti}] id={turn.Id} SpeakerIndex={turn.SpeakerIndex} NpcLine=\"{turn.NpcLine}\"");
+                    if (turn.Options != null)
                     {
-                        var turn = script.Turns[ti];
-                        DebugLogger.Log($"[AlertForceConv]   Turn[{ti}] id={turn.Id} SpeakerIndex={turn.SpeakerIndex} NpcLine=\"{turn.NpcLine}\"");
-                        if (turn.Options != null)
+                        for (int oi = 0; oi < turn.Options.Count; oi++)
                         {
-                            for (int oi = 0; oi < turn.Options.Count; oi++)
-                            {
-                                var opt = turn.Options[oi];
-                                string resp = opt.NpcResponse ?? (opt.NpcResponseOnSuccess != null ? $"SUCCESS:\"{opt.NpcResponseOnSuccess}\" FAIL:\"{opt.NpcResponseOnFail}\"" : "(无回应)");
-                                DebugLogger.Log($"[AlertForceConv]     Option[{oi}] PlayerLine=\"{opt.PlayerLine}\" | Action={opt.Action} | NextTurn={opt.NextTurn ?? "(关闭)"} | Resp={resp}");
-                            }
+                            var opt = turn.Options[oi];
+                            string resp = opt.NpcResponse ?? (opt.NpcResponseOnSuccess != null ? $"SUCCESS:\"{opt.NpcResponseOnSuccess}\" FAIL:\"{opt.NpcResponseOnFail}\"" : "(无回应)");
+                            DebugLogger.Log($"[AlertForceConv]     Option[{oi}] PlayerLine=\"{opt.PlayerLine}\" | Action={opt.Action} | NextTurn={opt.NextTurn ?? "(关闭)"} | Resp={resp}");
                         }
                     }
                 }
-            }
-            else
-            {
-                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");
             }
 
             // 强制开启原版对话
@@ -1011,6 +1027,9 @@ namespace LivingWorldNpcs
                 if (ActiveConversationAgent == agent)
                     ActiveConversationAgent = null;
             }
+            // 清理延迟注入残留（对话未正常到达选项点就结束的情况）
+            PendingAlertScript = null;
+            PendingAlertLabel = null;
         }
     }
 }

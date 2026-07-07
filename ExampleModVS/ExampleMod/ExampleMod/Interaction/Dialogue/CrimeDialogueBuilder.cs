@@ -653,7 +653,7 @@ namespace LivingWorldNpcs
                         : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。";
                     opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "NONE", NextTurn = "" });
                     opts.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextTurn = "continue_chat" });
-                    opts.Add(new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextTurn = "" });
+                    // 不设"转身就走"——和上面"没什么，我这就走"都是走人，重复。
                     break;
 
                 case NpcInterceptIntent.Search:
