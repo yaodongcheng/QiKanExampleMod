@@ -31,6 +31,10 @@ namespace LivingWorldNpcs
                 if (hash == _lastOptionsHash) return;
                 _lastOptionsHash = hash;
 
+                // 🆕 打印当前活跃 token（便于定位模板 NPC 的对话注入点）
+                string activeToken = GetActiveTokenString(__instance);
+                string npcInfo = GetNpcDebugInfo(__instance);
+
                 var optionTexts = new List<string>();
                 var sentences = Traverse.Create(__instance)
                     .Field("_sentences")
@@ -53,9 +57,53 @@ namespace LivingWorldNpcs
                 }
 
                 if (optionTexts.Count > 0)
-                    DebugLogger.Log($"[VanillaDialog] Options ({optionTexts.Count}): {string.Join(" | ", optionTexts)}");
+                    DebugLogger.Log($"[VanillaDialog] Token='{activeToken}' {npcInfo} | Options ({optionTexts.Count}): {string.Join(" | ", optionTexts)}");
             }
             catch { }
+        }
+
+        /// <summary>
+        /// 反射获取 ConversationManager 当前活跃 token 的字符串名。
+        /// 复刻 DialogueInjector.GetCurrentConversationTokenString 的逻辑。
+        /// </summary>
+        private static string GetActiveTokenString(ConversationManager cm)
+        {
+            try
+            {
+                var cmType = cm.GetType();
+                var stateMapField = cmType.GetField("stateMap",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (stateMapField == null) return "?";
+                var stateMap = stateMapField.GetValue(cm) as Dictionary<string, int>;
+                if (stateMap == null) return "?";
+
+                var activeTokenField = cmType.GetField("ActiveToken",
+                    System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (activeTokenField == null) return "?";
+                int activeToken = (int)activeTokenField.GetValue(cm);
+
+                foreach (var kv in stateMap)
+                    if (kv.Value == activeToken)
+                        return kv.Key;
+            }
+            catch { }
+            return "?";
+        }
+
+        /// <summary>简短 NPC 标识，方便在日志中区分有名 Hero vs 模板 NPC</summary>
+        private static string GetNpcDebugInfo(ConversationManager cm)
+        {
+            try
+            {
+                var hero = cm.OneToOneConversationHero;
+                if (hero != null)
+                    return $"Hero={hero.Name}";
+                var agent = cm.SpeakerAgent;
+                if (agent?.Character != null)
+                    return $"NPC={agent.Character.Name}";
+            }
+            catch { }
+            return "";
         }
 
         [HarmonyPostfix]

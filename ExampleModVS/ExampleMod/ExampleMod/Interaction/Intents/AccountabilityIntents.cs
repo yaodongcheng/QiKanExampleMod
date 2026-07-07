@@ -250,7 +250,13 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
+            // Alert 场景：NPC 主动找上门质问（蹲下/偷窃/攻击），无犯罪事件也允许威胁
+            if (ctx.ActiveEvent == null)
+            {
+                if (ctx.IsInMission)
+                    return Eligibility.Show();
+                return Eligibility.Hide();
+            }
             if (ctx.ActiveEvent.SuspectHeroId != Hero.MainHero.StringId) return Eligibility.Hide();
             if (Hero.MainHero.GetSkillValue(DefaultSkills.Roguery) < 50)
                 return Eligibility.Grey($"Roguery 技能不足（需要 50，当前 {Hero.MainHero.GetSkillValue(DefaultSkills.Roguery):0}）");
@@ -260,24 +266,37 @@ namespace LivingWorldNpcs
         public override void OnSuccess(IntentContext ctx)
         {
             var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            WorldEventStore.OnIntimidated(evt);
-            // 恶名+1
-            InfamySystem.AddInfamy(1);
-            DebugLogger.Log($"[Accountability] Threat succeeded for {evt.EventId}");
-            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"我放了狠话。{giverName}退缩了，不敢再追究。但我在这地方的名声怕是完了。");
+            if (evt != null)
+            {
+                WorldEventStore.OnIntimidated(evt);
+                InfamySystem.AddInfamy(1);
+                DebugLogger.Log($"[Accountability] Threat succeeded for {evt.EventId}");
+                var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+                CommissionQuest.AddNarrativeLogForEvent(evt, $"我放了狠话。{giverName}退缩了，不敢再追究。但我在这地方的名声怕是完了。");
+            }
+            else
+            {
+                // Alert 场景：无犯罪事件，纯震慑
+                DebugLogger.Log($"[Accountability] Threat succeeded (Alert context, no event)");
+            }
         }
 
         public override void OnFail(IntentContext ctx)
         {
             base.OnFail(ctx);
             var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
-            DebugLogger.Log($"[Accountability] Threat failed — → Confrontation");
-            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"威胁没吓住{giverName}——他叫人了。事情彻底闹大了。");
+            if (evt != null)
+            {
+                WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+                DebugLogger.Log($"[Accountability] Threat failed — → Confrontation");
+                var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+                CommissionQuest.AddNarrativeLogForEvent(evt, $"威胁没吓住{giverName}——他叫人了。事情彻底闹大了。");
+            }
+            else
+            {
+                // Alert 场景：威胁失败，NPC 呼救
+                DebugLogger.Log($"[Accountability] Threat failed (Alert context, no event)");
+            }
         }
     }
 

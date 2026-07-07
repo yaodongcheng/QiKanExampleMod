@@ -185,6 +185,14 @@ namespace LivingWorldNpcs
             ConversationEntryPatch._lastInjectedEventId = null;
             ConversationEntryPatch._lastInjectedTag = null;
 
+            // 🆕 清理延迟注入的 Alert 脚本残留（对话在注入前就结束的情况）
+            if (AlertForceConversationAction.PendingAlertScript != null)
+            {
+                DebugLogger.Log($"[ConvEnd] Cleaning up pending Alert script: {AlertForceConversationAction.PendingAlertLabel}");
+                AlertForceConversationAction.PendingAlertScript = null;
+                AlertForceConversationAction.PendingAlertLabel = null;
+            }
+
             // 延迟弹出：WalkAwayIntent 存入的 Inquiry，等对话 UI 完全关闭后再弹
             if (WalkAwayIntent.PendingInquiryTitle != null)
             {
@@ -321,6 +329,102 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ConvEntry] Mission start Postfix error: {ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// 模板 NPC 警戒对话的延迟注入：在开场白 NPC 句子播放完毕后，
+    /// 把 AlertForceConversationAction.PendingAlertScript 的 gateway 挂在
+    /// 该句子的 OutputToken 上。
+    ///
+    /// 为什么不在对话开始前注入：模板 NPC（HeroObject==null）的对话树没有
+    /// hero_main_options，注入到那里 gateway 永远不会出现。
+    /// 此 Patch 在 ProcessSentence Postfix 中捕获开场白句子的 OutputToken，
+    /// 引擎下一轮评估该 token 时就会看到我们的 gateway PlayerLine。
+    /// </summary>
+    [HarmonyPatch(typeof(ConversationManager), nameof(ConversationManager.ProcessSentence))]
+    public static class AlertScriptDeferredInjectionPatch
+    {
+        [HarmonyPostfix]
+        public static void Postfix(ConversationManager __instance)
+        {
+            try
+            {
+                var pendingScript = AlertForceConversationAction.PendingAlertScript;
+                if (pendingScript == null) return;
+
+                // 只响应 NPC 句子（玩家选项不触发）
+                var sentences = Traverse.Create(__instance)
+                    .Field("_sentences")
+                    .GetValue<List<ConversationSentence>>();
+                int currentNo = Traverse.Create(__instance)
+                    .Field("_currentSentence").GetValue<int>();
+
+                if (sentences == null || currentNo < 0 || currentNo >= sentences.Count)
+                    return;
+
+                var sentence = sentences[currentNo];
+                if (sentence.IsPlayer) return; // 等 NPC 说完再注入
+
+                // 获取本句的输出 token（引擎下一轮评估的目标）
+                // ConversationSentence.OutputToken 是 int（stateMap 索引），
+                // 需要反向查 stateMap 拿回 string token。
+                string outputToken = null;
+                try
+                {
+                    var sentType = sentence.GetType();
+                    var otProp = sentType.GetProperty("OutputToken",
+                        System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    if (otProp != null)
+                    {
+                        int outputTokenInt = (int)otProp.GetValue(sentence);
+                        // 反向查 stateMap：int → string
+                        var cmType = __instance.GetType();
+                        var stateMapField = cmType.GetField("stateMap",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (stateMapField != null)
+                        {
+                            var stateMap = stateMapField.GetValue(__instance) as Dictionary<string, int>;
+                            if (stateMap != null)
+                            {
+                                foreach (var kv in stateMap)
+                                {
+                                    if (kv.Value == outputTokenInt)
+                                    {
+                                        outputToken = kv.Key;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                if (string.IsNullOrEmpty(outputToken))
+                {
+                    DebugLogger.Log($"[AlertDeferredInject] 无法获取句子 OutputToken，回退到 'start'");
+                    outputToken = "start";
+                }
+
+                DebugLogger.Log($"[AlertDeferredInject] NPC 句子结束，OutputToken='{outputToken}' → 注入 gateway");
+
+                // 注入：设置 InjectAtToken 为开场白的输出 token（即玩家选项的 token）
+                pendingScript.InjectAtToken = outputToken;
+                string label = AlertForceConversationAction.PendingAlertLabel ?? $"AlertL3_deferred";
+                string result = DialogueInjector.InjectScript(pendingScript, label);
+                DebugLogger.Log($"[AlertDeferredInject] 注入结果: {result}");
+
+                // 消费 pending，确保只注入一次
+                AlertForceConversationAction.PendingAlertScript = null;
+                AlertForceConversationAction.PendingAlertLabel = null;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AlertDeferredInject] 注入异常: {ex.Message}");
+                AlertForceConversationAction.PendingAlertScript = null;
+                AlertForceConversationAction.PendingAlertLabel = null;
             }
         }
     }

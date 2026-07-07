@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Conversation;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
@@ -432,6 +433,125 @@ namespace LivingWorldNpcs
             return $"Injected dynamic script [{fileTag}] ({script.Turns.Count} turns)";
         }
 
+        /// <summary>
+        /// "替换开场白"注入模式：不创建 gateway PlayerLine，直接把第一个 turn 的
+        /// NPC 台词挂在 InjectAtToken（默认 "start"）上，优先级 200 碾压原版开场白。
+        ///
+        /// 适用场景：NPC 主动找上门的警戒质问 — 不应该先说原版友好问候再转折，
+        /// 而应该一开口就是我们设计的台词。
+        ///
+        /// 与 InjectScript 的区别：
+        ///   - InjectScript: InjectAtToken → [gateway PlayerLine] → [NPC line] → [options]
+        ///   - InjectScriptAsOpening: InjectAtToken → [NPC line 优先级200] → [options]
+        /// </summary>
+        public static string InjectScriptAsOpening(DialogueInjectScript script, string debugLabel = null)
+        {
+            if (script == null || script.Turns == null || script.Turns.Count == 0)
+                return "Empty script";
+
+            var fileTag = debugLabel ?? $"dyn_{_injectedOwners.Count}";
+            fileTag = $"{fileTag}_v{_injectionCounter++}";
+
+            var cm = Campaign.Current.ConversationManager;
+            var owner = new InjectOwner { FileName = fileTag, BaseLabel = fileTag };
+            _injectedOwners.Add(owner);
+            _tokenCounter = 0;
+
+            string startToken = !string.IsNullOrEmpty(script.InjectAtToken)
+                ? script.InjectAtToken : "start";
+
+            // 找到入口 turn
+            var entryTurn = script.Turns.FirstOrDefault(t => t.Id == script.EntryTurn);
+            if (entryTurn == null)
+            {
+                DebugLogger.Log($"[DialogueInjector] InjectScriptAsOpening: entry turn '{script.EntryTurn}' not found");
+                return $"Error: entry turn '{script.EntryTurn}' not found";
+            }
+
+            try
+            {
+                // ── 第一步：入口 turn 的 NPC 台词直接挂在 startToken ──
+                string afterNpcLine = NextToken(fileTag);
+                cm.AddDialogLineMultiAgent(
+                    $"inj_open_{entryTurn.Id}", startToken, afterNpcLine,
+                    new TaleWorlds.Localization.TextObject(entryTurn.NpcLine ?? ""),
+                    () => true, null, entryTurn.SpeakerIndex, -1, 200); // priority 200 > 原版 ~100
+                DebugLogger.Log($"[DialogueInjector] Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
+
+                // ── 第二步：注册入口 turn 的玩家选项（挂在 afterNpcLine）──
+                RegisterTurnOptions(cm, entryTurn, afterNpcLine, fileTag, owner);
+
+                // ── 第三步：逐 turn 注册剩余回合 ──
+                foreach (var turn in script.Turns)
+                {
+                    if (turn.Id == script.EntryTurn) continue; // 入口 turn 已处理
+                    if (turn.Options == null || turn.Options.Count == 0) continue;
+
+                    string turnEntryToken = TurnToken(fileTag, turn.Id);
+                    string turnAfterNpc = NextToken(fileTag);
+                    cm.AddDialogLineMultiAgent(
+                        $"inj_npc_{turn.Id}", turnEntryToken, turnAfterNpc,
+                        new TaleWorlds.Localization.TextObject(turn.NpcLine ?? ""),
+                        () => true, null, turn.SpeakerIndex, -1, 125);
+
+                    RegisterTurnOptions(cm, turn, turnAfterNpc, fileTag, owner);
+                }
+
+                int turnCount = 1 + script.Turns.Count(t => t.Id != script.EntryTurn && t.Options != null && t.Options.Count > 0);
+                return $"SUCCESS (opening mode): '{fileTag}' → {turnCount} turns at '{startToken}'";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[DialogueInjector] InjectScriptAsOpening error: {ex.Message}");
+                return $"Error: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// 为一个 turn 注册全部玩家选项（挂在 afterNpcLine token 上）。
+        /// 抽取公共逻辑，供 InjectScriptInternal 和 InjectScriptAsOpening 共用。
+        /// </summary>
+        private static void RegisterTurnOptions(
+            ConversationManager cm, DialogueInjectTurn turn,
+            string afterNpcLine, string fileTag, InjectOwner owner)
+        {
+            if (turn.Options == null || turn.Options.Count == 0) return;
+
+            foreach (var opt in turn.Options)
+            {
+                string afterNpcResponse = !string.IsNullOrEmpty(opt.NextTurn)
+                    ? TurnToken(fileTag, opt.NextTurn) : "close_window";
+
+                bool isCloseWindow = string.IsNullOrEmpty(opt.NextTurn) || opt.NextTurn == "close_window";
+                bool hasNpcResponse = !string.IsNullOrEmpty(opt.NpcResponse)
+                                   || !string.IsNullOrEmpty(opt.NpcResponseOnSuccess)
+                                   || !string.IsNullOrEmpty(opt.NpcResponseOnFail);
+                bool needsBridge = hasNpcResponse || isCloseWindow;
+
+                string afterPlayer;
+                if (needsBridge)
+                {
+                    afterPlayer = NextToken(fileTag);
+                    opt.ResultKey = afterPlayer;
+                }
+                else
+                {
+                    afterPlayer = afterNpcResponse;
+                    opt.ResultKey = null;
+                }
+
+                var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
+                pdf.AddPlayerLine($"inj_opt_{turn.Id}", afterNpcLine, afterPlayer,
+                    ResolveOptionText(opt), BuildOptionCondition(opt), () => ExecuteAction(opt), owner, 125);
+                cm.AddDialogFlow(pdf, owner);
+
+                if (needsBridge)
+                {
+                    RegisterNpcResponseLines(cm, turn, opt, afterPlayer, afterNpcResponse, fileTag);
+                }
+            }
+        }
+
         // ⚠ 内部方法，与 InjectFromJson 的后半段逻辑完全相同
         private static void InjectScriptInternal(DialogueInjectScript script, string fileTag)
         {
@@ -470,46 +590,7 @@ namespace LivingWorldNpcs
                         new TaleWorlds.Localization.TextObject(turn.NpcLine ?? ""),
                         () => true, null, turn.SpeakerIndex, -1, 125);
 
-                    foreach (var opt in turn.Options)
-                    {
-                        string afterNpcResponse = !string.IsNullOrEmpty(opt.NextTurn)
-                            ? TurnToken(fileTag, opt.NextTurn) : "close_window";
-
-                        // close_window 是引擎终端 token，必须由 DialogLine（NPC 台词）触发，
-                        // 不能由 PlayerLine 直接跳过去——引擎状态机是 NPC台词↔玩家选项 交替的。
-                        bool isCloseWindow = string.IsNullOrEmpty(opt.NextTurn) || opt.NextTurn == "close_window";
-
-                        // 检测是否有任何形式的 NPC 回应
-                        bool hasNpcResponse = !string.IsNullOrEmpty(opt.NpcResponse)
-                                           || !string.IsNullOrEmpty(opt.NpcResponseOnSuccess)
-                                           || !string.IsNullOrEmpty(opt.NpcResponseOnFail);
-
-                        bool needsBridge = hasNpcResponse || isCloseWindow;
-
-                        string afterPlayer;
-                        if (needsBridge)
-                        {
-                            // 有 NPC 回应或需要关闭对话 → 中间 token + 桥接
-                            afterPlayer = NextToken(fileTag);
-                            opt.ResultKey = afterPlayer; // 回写检定结果的 key
-                        }
-                        else
-                        {
-                            // 无 NPC 回应 + 非终端 → 直达下一 turn，不创建空文本桥接
-                            afterPlayer = afterNpcResponse;
-                            opt.ResultKey = null;
-                        }
-
-                        var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
-                        pdf.AddPlayerLine($"inj_opt_{turn.Id}", afterNpcLine, afterPlayer,
-                            ResolveOptionText(opt), BuildOptionCondition(opt), () => ExecuteAction(opt), owner, 125);
-                        cm.AddDialogFlow(pdf, owner);
-
-                        if (needsBridge)
-                        {
-                            RegisterNpcResponseLines(cm, turn, opt, afterPlayer, afterNpcResponse, fileTag);
-                        }
-                    }
+                    RegisterTurnOptions(cm, turn, afterNpcLine, fileTag, owner);
                 }
             }
             catch (Exception ex)
@@ -556,7 +637,10 @@ namespace LivingWorldNpcs
                 try
                 {
                     var npc = Hero.OneToOneConversationHero;
-                    var settlement = npc?.CurrentSettlement;
+                    // 模板 NPC（HeroObject==null）的回退路径：
+                    // OneToOneConversationHero 为 null，但 Settlement.CurrentSettlement
+                    // 在 Mission 场景中会被正确设置。
+                    var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
                     var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
                     var ctx = new LivingWorldNpcs.IntentContext
                     {
