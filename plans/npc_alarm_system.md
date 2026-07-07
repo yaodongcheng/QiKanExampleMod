@@ -32,7 +32,7 @@ NPC反应:      无          BubbleSay      转身看你        主动上前对�
 | **感知** | `NpcSightSystem`（纯工具，无状态） | "NPC 能不能看到玩家？"（FOV + RayCast） |
 | **认知** | `AgentBrain`（每个 NPC 自己的大脑） | "我看到了什么？我该多警觉？说什么？" |
 
-`_alertBreakdown` 从 `NpcSightSystem` 的静态字典**移到每个 `AgentBrain` 实例**。每个 NPC 独立维护自己对玩家的警戒值明细——我看到什么、我多怀疑、我该说什么，都是"我"的事。
+`_alertBreakdown` 从 `NpcSightSystem` 的静态字典**移到每个 `AgentBrain` 实例**。每个 NPC 独立维护自己对玩家的警戒值明细——我看到什么、我多怀疑、我该说什么，都是"我"的事。旧 `NpcSightSystem._alertValues` 字典和 `UpdateAlertValue` 方法**直接删除**，`AgentHudMissionView` 改从 `AgentAIController.GetBrainForAgent(agent).AlertValue` 读值。不做桥接，git 回滚兜底。
 
 ### 2.2 数据结构
 
@@ -42,36 +42,45 @@ public enum PlayerActionType
     Crouching,      // 蹲下
     WeaponDrawn,    // 武器出鞘（和平区域）
     StealUIOpen,    // 偷窃界面打开未确认
-    Trespassing,    // 闯入禁地（守卫区域/贵族私宅）
     Steal,          // 偷窃（脉冲）
     AttackAlly,     // 攻击友方（脉冲）
     Knockout,       // 击晕（脉冲）
 }
 
+/// <summary>单条警戒条目：值 + 脉冲附加信息（供台词拼接）</summary>
+struct AlertEntry
+{
+    public float Value;
+    public string TargetName;  // 脉冲事件附加：受害者名（持续累加时为空）
+    public string ItemName;    // 脉冲事件附加：被盗物品名（持续累加时为空）
+}
+
 // ── AgentBrain 新增字段 ──
 
-/// <summary>我对玩家的分类警戒值明细</summary>
-private Dictionary<PlayerActionType, float> _alertBreakdown = new Dictionary<PlayerActionType, float>();
+/// <summary>我对玩家的分类警戒值明细。一个字典替代原来的 _alertBreakdown + _pulseContext。</summary>
+private Dictionary<PlayerActionType, AlertEntry> _alertBreakdown = new Dictionary<PlayerActionType, AlertEntry>();
 
-/// <summary>缓存总值，加/减/衰减时同步更新，避免每帧 Sum() 分配枚举器</summary>
-private float _alertTotal;
-
-/// <summary>上一帧的警戒阶段（用于检测穿越）</summary>
+/// <summary>上一帧的警戒阶段（用于检测穿越，包括向下穿越）</summary>
 private AlarmPhase _lastAlertPhase = AlarmPhase.Normal;
+
+/// <summary>脉冲抑制截止时间（Mission.Current.CurrentTime），0=无抑制</summary>
+private float _pulseSuppressedUntil;
+
+/// <summary>已触发过 BubbleSay 的 (Action, Phase) 组合。降级后清零对应条目，允许重新触发。</summary>
+private HashSet<(PlayerActionType, AlarmPhase)> _bubbledPhases = new HashSet<(PlayerActionType, AlarmPhase)>();
 
 // ── 公开查询（AgentHudMissionView 每帧读）──
 
-public float AlertValue => _alertTotal;
-public AlarmPhase AlertPhase => _alertTotal switch
+public float AlertValue => _alertBreakdown.Values.Sum(e => e.Value);
+public AlarmPhase AlertPhase => AlertValue switch
 {
     >= 2.0f => AlarmPhase.Alarmed,
     >= 1.0f => AlarmPhase.Cautious,
     >= 0.25f => AlarmPhase.Suspicious,
     _ => AlarmPhase.Normal
 };
-public PlayerActionType? PrimaryAction =>
-    _alertBreakdown.Count == 0 ? null
-    : _alertBreakdown.OrderByDescending(kv => kv.Value).First().Key;
+public PlayerActionType? PrimaryAction => _alertBreakdown.Count == 0 ? null
+    : _alertBreakdown.OrderByDescending(kv => kv.Value.Value).First().Key;
 ```
 
 ### 2.3 持续累加 — AgentBrain.Tick 自己判断
@@ -91,6 +100,8 @@ void UpdateAlertCognition(float dt)
     if (!NpcSightSystem.CanNpcSeePlayer(Owner))
     {
         DecayAlertBreakdown(dt);
+        // 看不到玩家时仍需检测向下穿越（衰减可能导致降级）
+        CheckPhaseTransition();
         return;
     }
 
@@ -104,10 +115,30 @@ void UpdateAlertCognition(float dt)
     if (StealManager.IsUIOpen)
         AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f);
 
-    if (IsPlayerTrespassing())
-        AddAlert(PlayerActionType.Trespassing, dt * 0.25f);
+    // 阶段穿越检测（向上或向下）
+    CheckPhaseTransition();
+}
 
-    // 阶段穿越检测
+// ── AddAlert：无缓存，纯累加 ──
+
+void AddAlert(PlayerActionType type, float amount)
+{
+    if (!_alertBreakdown.TryGetValue(type, out var entry))
+        entry = new AlertEntry();
+
+    entry.Value += amount;
+    _alertBreakdown[type] = entry;  // struct 是值类型，写回
+}
+
+float GetAlertValue(PlayerActionType type)
+{
+    return _alertBreakdown.TryGetValue(type, out var entry) ? entry.Value : 0f;
+}
+
+// ── 阶段穿越：统一处理向上和向下 ──
+
+void CheckPhaseTransition()
+{
     var newPhase = AlertPhase;
     if (newPhase != _lastAlertPhase)
     {
@@ -115,72 +146,174 @@ void UpdateAlertCognition(float dt)
         _lastAlertPhase = newPhase;
     }
 }
-
-void AddAlert(PlayerActionType type, float amount)
-{
-    _alertBreakdown.TryGetValue(type, out float cur);
-    _alertBreakdown[type] = cur + amount;
-    _alertTotal += amount;
-}
 ```
 
-### 2.3 持续累加 + 辅助检测
+### 2.3.1 武器出鞘检测 — 走 VersionCompat
 
 ```csharp
-// 武器出鞘检测：骑砍原生 API
 bool IsPlayerWeaponDrawn()
 {
     var main = Agent.Main;
     if (main == null) return false;
-    // 检查主手或副手是否有武器在手中（非收鞘状态）
-    return main.WieldedWeaponIndex != EquipmentIndex.None
-        || main.GetWieldedWeaponInfo(Agent.HandIndex.MainHand).IsValid();
-}
-
-// 闯入禁地检测：利用场景中的 AreaTrigger 或距离判定
-// 实现方式：在 Mission 初始化时缓存守卫/禁区的 AreaTrigger 列表，
-// 每帧检查 Agent.Main 是否在任意一个 trigger 范围内。
-// 不需要精确到每个 NPC——只要玩家在禁区里，所有能看到他的 NPC 都会累加 Trespassing 警戒。
-bool IsPlayerTrespassing()
-{
-    return TrespassZoneManager.IsPlayerInRestrictedZone();
+    // 走 VersionCompat 封装，不在业务代码里裸写 #if
+    return V.MainWpn(main) != EquipmentIndex.None
+        || V.OffWpn(main) != EquipmentIndex.None;
 }
 ```
 
-### 2.4 脉冲 — 外部发事件 → AgentBrain.ReceiveEvent
+### 2.4 脉冲 — IntentBase 子类（对齐 7/4 重构）
 
-脉冲不直接调 `AddAlert`。外部系统找到目击者，给每个目击者的 AgentBrain 发事件：
+脉冲不直接调 `AddAlert`。外部系统找到目击者，给每个目击者的 AgentBrain 发事件。AgentBrain 通过 **IntentRegistry → IntentBase** 管道匹配处理，**不在 `HandleLegacyAtomicAction` 里加新的 if/else**。
+
+> **设计决策**：脉冲事件走 IntentBase 而非旧 if/else 链，原因有三：
+> 1. 对齐 7/4 重构的 `IntentRegistry` 优先管道（wheels.md 已记录）
+> 2. `TriggerEvents` + `CanHandle` 两层匹配比字符串 switch 更可扩展
+> 3. `OnInstant` 统一收口——加警戒值 + 存上下文 + 脉冲抑制，一个入口
 
 ```csharp
 // ── 调用方（StealManager / AttackTriggerMissionLogic）──
 var observers = NpcSightSystem.GetObserversOf(Agent.Main);
 foreach (var observer in observers)
 {
+    // 走 AgentBrain 的 ReceiveEvent → IntentRegistry → IntentBase.OnInstant
     AgentAIController.Instance.SendEventToAgent(observer, "PlayerStole",
-        targetName, itemName);  // 附加信息供台词拼接
+        targetName, itemName);
 }
 
-// ── AgentBrain.ReceiveEvent ──
-if (aiEvent.EventType == "PlayerStole")
+// ── 三个 IntentBase 子类（放入 Interaction/Intents/ 目录）──
+
+/// <summary>目击偷窃脉冲：+2.0 警戒 + 脉冲抑制 3 秒</summary>
+public class PlayerStoleAlertIntent : IntentBase
 {
-    string targetName = aiEvent.Args[0] as string;
-    string itemName = aiEvent.Args[1] as string;
-    _pulseContext[PlayerActionType.Steal] = (targetName, itemName);  // 存附加信息
-    AddAlert(PlayerActionType.Steal, 2.0f);
+    public override IntentSource Source => IntentSource.Npc;
+    public override string[] TriggerEvents => new[] { "PlayerStole" };
+
+    public override bool CanHandle(AIEvent aiEvent, IntentContext ctx)
+    {
+        return aiEvent.Args?.Length >= 2
+            && ctx.Brain != null;
+    }
+
+    public override void OnInstant(IntentContext ctx)
+    {
+        var brain = ctx.Brain;
+        string targetName = ctx.TriggeringEvent.Args[0] as string;
+        string itemName = ctx.TriggeringEvent.Args[1] as string;
+
+        brain.AddAlert(PlayerActionType.Steal, 2.0f);
+        brain.SetPulseTarget(PlayerActionType.Steal, targetName, itemName);
+        brain.SetPulseSuppressedUntil(3.0f);
+    }
 }
-else if (aiEvent.EventType == "PlayerAttackedAlly")
+
+/// <summary>目击攻击友方脉冲</summary>
+public class PlayerAttackedAllyAlertIntent : IntentBase
 {
-    string targetName = aiEvent.Args[0] as string;
-    _pulseContext[PlayerActionType.AttackAlly] = (targetName, null);
-    AddAlert(PlayerActionType.AttackAlly, 2.0f);
+    public override IntentSource Source => IntentSource.Npc;
+    public override string[] TriggerEvents => new[] { "PlayerAttackedAlly" };
+
+    public override bool CanHandle(AIEvent aiEvent, IntentContext ctx)
+    {
+        return aiEvent.Args?.Length >= 1 && ctx.Brain != null;
+    }
+
+    public override void OnInstant(IntentContext ctx)
+    {
+        var brain = ctx.Brain;
+        string targetName = ctx.TriggeringEvent.Args[0] as string;
+        brain.AddAlert(PlayerActionType.AttackAlly, 2.0f);
+        brain.SetPulseTarget(PlayerActionType.AttackAlly, targetName, null);
+        brain.SetPulseSuppressedUntil(3.0f);
+    }
 }
-else if (aiEvent.EventType == "PlayerKnockout")
+
+/// <summary>目击击晕脉冲</summary>
+public class PlayerKnockoutAlertIntent : IntentBase
 {
-    string targetName = aiEvent.Args[0] as string;
-    _pulseContext[PlayerActionType.Knockout] = (targetName, null);
-    AddAlert(PlayerActionType.Knockout, 2.0f);
+    public override IntentSource Source => IntentSource.Npc;
+    public override string[] TriggerEvents => new[] { "PlayerKnockout" };
+
+    public override bool CanHandle(AIEvent aiEvent, IntentContext ctx)
+    {
+        return aiEvent.Args?.Length >= 1 && ctx.Brain != null;
+    }
+
+    public override void OnInstant(IntentContext ctx)
+    {
+        var brain = ctx.Brain;
+        string targetName = ctx.TriggeringEvent.Args[0] as string;
+        brain.AddAlert(PlayerActionType.Knockout, 2.0f);
+        brain.SetPulseTarget(PlayerActionType.Knockout, targetName, null);
+        brain.SetPulseSuppressedUntil(3.0f);
+    }
 }
 ```
+
+### 2.4.1 IntentContext 微调 — 承载触发事件 + Brain 引用
+
+`IntentContext` 新增两个字段：
+
+```csharp
+// IntentContext 新增：
+
+/// <summary>触发此意图的原始事件（OnInstant 中访问 Args 等）。ReceiveEvent 匹配后设置。</summary>
+public AIEvent TriggeringEvent { get; set; }
+
+/// <summary>NPC 发起方的 AgentBrain。BuildForNpc 中通过 AgentAIController.GetBrainForAgent 赋值。</summary>
+public AgentBrain Brain { get; set; }
+```
+
+`BuildForNpc` 中赋值：
+
+```csharp
+public static IntentContext BuildForNpc(Agent npcAgent = null, Hero npcHero = null)
+{
+    // ... 现有逻辑 ...
+    ctx.Brain = AgentAIController.GetBrainForAgent(npcAgent);
+    // ...
+}
+```
+
+`AgentBrain.ReceiveEvent` 中，匹配到 Intent 后：
+
+```csharp
+ctx.TriggeringEvent = aiEvent;
+intent.OnInstant(ctx);
+```
+
+### 2.4.2 AgentBrain 新增的 IntentBase 辅助方法
+
+```csharp
+// AgentBrain 新增：
+
+public void AddAlert(PlayerActionType type, float amount) { /* 见 2.3 */ }
+
+/// <summary>脉冲上下文：设置 AlertEntry 的 TargetName/ItemName（不改变 Value，Value 由 AddAlert 加）</summary>
+public void SetPulseTarget(PlayerActionType type, string targetName, string itemName)
+{
+    if (!_alertBreakdown.TryGetValue(type, out var entry))
+        entry = new AlertEntry();
+    entry.TargetName = targetName;
+    entry.ItemName = itemName;
+    _alertBreakdown[type] = entry;
+}
+
+public void SetPulseSuppressedUntil(float durationSeconds)
+{
+    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + durationSeconds;
+}
+```
+
+### 2.4.3 IntentRegistry 注册
+
+```csharp
+// IntentRegistry.RegisterDefaults() 中新增：
+Register(new PlayerStoleAlertIntent());
+Register(new PlayerAttackedAllyAlertIntent());
+Register(new PlayerKnockoutAlertIntent());
+```
+
+> **注意**：这三个 Intent **只加警戒值 + 存上下文**，不创建 IAtomicAction。L3 质问由阶段穿越检测（`CheckPhaseTransition` → `OnAlertPhaseChanged`）触发——而非由脉冲事件直接创建。这样保证了"持续累积到 L3"和"脉冲瞬间到 L3"走**同一条 L3 路径**。
 
 ### 2.5 衰减 — 看不到玩家时按比例降
 
@@ -189,20 +322,23 @@ void DecayAlertBreakdown(float dt)
 {
     if (_alertBreakdown.Count == 0) return;
 
+    float alertTotal = AlertValue;  // Sum() 按需计算
     float totalDecay = dt * 0.15f;
-    if (_alertTotal <= 0.0001f) { _alertBreakdown.Clear(); _alertTotal = 0f; return; }
+    if (alertTotal <= 0.0001f) { _alertBreakdown.Clear(); return; }
 
     var keys = _alertBreakdown.Keys.ToList();
     foreach (var key in keys)
     {
-        float proportion = _alertBreakdown[key] / _alertTotal;
-        float decayed = totalDecay * proportion;
-        _alertBreakdown[key] -= decayed;
-        _alertTotal -= decayed;
-        if (_alertBreakdown[key] <= 0.0001f)
+        var entry = _alertBreakdown[key];
+        float proportion = entry.Value / alertTotal;
+        entry.Value -= totalDecay * proportion;
+        if (entry.Value <= 0.0001f)
         {
-            _alertBreakdown.Remove(key);
-            _pulseContext.Remove(key);
+            _alertBreakdown.Remove(key);  // 移除条目时 TargetName/ItemName 自动清理
+        }
+        else
+        {
+            _alertBreakdown[key] = entry;  // struct 值类型，写回
         }
     }
 }
@@ -223,29 +359,48 @@ void DecayAlertBreakdown(float dt)
 
 ## 三、阶段穿越 → AgentBrain 自己触发行为
 
-阶段穿越检测在 `AgentBrain.UpdateAlertCognition` 内部完成（见 2.3），不需要 NpcSightSystem 参与。
+阶段穿越检测在 `AgentBrain.UpdateAlertCognition` → `CheckPhaseTransition` 内部完成。**统一处理向上和向下穿越。**
 
 ```csharp
 // AgentBrain 内部：
 void OnAlertPhaseChanged(AlarmPhase oldPhase, AlarmPhase newPhase)
 {
+    // ── 向下穿越：清理高层行为 ──
+    if (newPhase < oldPhase)
+    {
+        switch (oldPhase)
+        {
+            case AlarmPhase.Alarmed:
+                // L3→L2/L1/Normal：清理质问行为链，恢复自由
+                ClearAllActions();
+                AgentControlHelper.ResumeVanillaAI(Owner);
+                break;
+            case AlarmPhase.Cautious:
+                // L2→L1/Normal：取消 LookAt（如果当前动作是 LookAtAction）
+                if (_currentAction is LookAtAction)
+                {
+                    _currentAction.OnEnd(Owner);
+                    _currentAction = null;
+                }
+                break;
+        }
+        // 降级到 Normal 时完成清理即可，不需要额外台词
+        if (newPhase == AlarmPhase.Normal) return;
+    }
+
+    // ── 向上穿越：触发对应层级行为 ──
     switch (newPhase)
     {
         case AlarmPhase.Suspicious:
-            // L1: 仅 BubbleSay，不发送 AgentBrain 事件
-            var primary = PrimaryAction;
-            string text = ResolveBubbleSay(primary, AlarmPhase.Suspicious);
-            if (!string.IsNullOrEmpty(text))
-                AgentHudMissionView.AgentSay(Owner, text);
+            // L1: 仅 BubbleSay，不打断当前行为
+            SendBubbleSay(AlarmPhase.Suspicious);
             break;
 
         case AlarmPhase.Cautious:
             // L2: 插入 LookAt + BubbleSay
             if (_currentAction == null || _currentAction is StayAction)
                 EnqueueAction(new LookAtAction(Agent.Main, 2.0f));
-            string text2 = ResolveBubbleSay(PrimaryAction, AlarmPhase.Cautious);
-            if (!string.IsNullOrEmpty(text2))
-                AgentHudMissionView.AgentSay(Owner, text2);
+            SendBubbleSay(AlarmPhase.Cautious);
             break;
 
         case AlarmPhase.Alarmed:
@@ -261,48 +416,54 @@ void OnAlertPhaseChanged(AlarmPhase oldPhase, AlarmPhase newPhase)
             break;
     }
 }
+
+// ── AgentBrain 通用 BubbleSay：任何系统都可以调 ──
+
+/// <summary>通用 BubbleSay 入口。传入已组装好的文本，直接显示冒泡。</summary>
+public void BubbleSay(string text)
+{
+    if (!string.IsNullOrEmpty(text))
+        AgentHudMissionView.AgentSay(Owner, text);
+}
+
+// ── BubbleSay 冷却：同 phase 同 PrimaryAction 只触发一次 ──
+// 降级时 _bubbledPhases 中高于当前 phase 的条目全部清除，允许重新升级后再次触发。
+
+/// <summary>
+/// 尝试对当前 phase + PrimaryAction 发 BubbleSay。
+/// 同 (action, phase) 组合只触发一次。降级后清空高位记录，重新升级可再次触发。
+/// </summary>
+void TryBubbleSay(AlarmPhase phase)
+{
+    var action = PrimaryAction;
+    if (action == null) return;
+
+    var key = (action.Value, phase);
+    if (_bubbledPhases.Contains(key)) return;
+
+    _bubbledPhases.Add(key);
+    BubbleSay(ResolveAlertBubble(phase));
+}
+
+// 在 OnAlertPhaseChanged 向下穿越时，清除高位 bubbled 记录：
+// （在现有的向下穿越 switch 末尾追加）
+// if (newPhase < oldPhase)
+// {
+//     _bubbledPhases.RemoveWhere(k => k.Item2 > newPhase);
+// }
 ```
 
 **脉冲抑制**：脉冲事件（`ReceiveEvent("PlayerStole")` 等）在加 2.0 的同时设 `_pulseSuppressedUntil = now + 3.0f`。偷窃脉冲瞬间到 2.0 → `WitnessCrime_GatherOnLook` 已在处理围观流程 → 3 秒内不触发独立的 L3 单人上前。
 
 ---
 
-## 四、脉冲事件接收 + L3 质问实现
+## 四、L3 质问实现
 
-### 4.1 脉冲事件 → ReceiveEvent
+> 脉冲事件的接收已在 2.4 通过 IntentBase 子类处理。本章聚焦 L3 质问——`OnAlertPhaseChanged` → `StartL3Confrontation` 的行为链和对话路径。
 
-外部系统找到目击者后发事件，AgentBrain 收事件 → 加脉冲到自己的 `_alertBreakdown`：
+### 4.1 L3 质问 — OnAlertPhaseChanged 直接调用
 
-```csharp
-// HandleLegacyAtomicAction 新增：
-
-if (aiEvent.EventType == "PlayerStole")
-{
-    string targetName = aiEvent.Args[0] as string;
-    string itemName = aiEvent.Args[1] as string;
-    _pulseContext[PlayerActionType.Steal] = (targetName, itemName);
-    AddAlert(PlayerActionType.Steal, 2.0f);
-    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
-}
-else if (aiEvent.EventType == "PlayerAttackedAlly")
-{
-    string targetName = aiEvent.Args[0] as string;
-    _pulseContext[PlayerActionType.AttackAlly] = (targetName, null);
-    AddAlert(PlayerActionType.AttackAlly, 2.0f);
-    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
-}
-else if (aiEvent.EventType == "PlayerKnockout")
-{
-    string targetName = aiEvent.Args[0] as string;
-    _pulseContext[PlayerActionType.Knockout] = (targetName, null);
-    AddAlert(PlayerActionType.Knockout, 2.0f);
-    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
-}
-```
-
-### 4.2 L3 质问 — OnAlertPhaseChanged 直接调用
-
-L3 到达时不需要走事件系统——`UpdateAlertCognition` 检测到阶段变化直接调 `StartL3Confrontation`：
+L3 到达时不需要走事件系统——`CheckPhaseTransition` 检测到阶段变化直接调 `StartL3Confrontation`：
 
 ```csharp
 void StartL3Confrontation()
@@ -336,21 +497,208 @@ void StartL3Confrontation()
 
 ---
 
-## 五、BubbleSay 台词映射
+## 五、NPC 模板台词统一 — `NpcSpeech.csv`
 
-`NpcSightSystem.GetPrimaryAction(npc)` 决定说哪类台词。**台词由 NPC 说，不是玩家说。**
+### 5.0 为什么不用 Narrative.csv？
 
-| PrimaryAction | L1 BubbleSay | L2 BubbleSay |
-|---------------|-------------|-------------|
-| `Crouching` | "（嘀咕）{PlayerName}鬼鬼祟祟干嘛……" | "（提高声音）喂！{PlayerName}！蹲着干什么！" |
-| `WeaponDrawn` | "（不安地看了一眼）怎么还拔刀了……" | "（后退半步）{PlayerName}！把刀收起来！" |
-| `StealUIOpen` | "（瞟了一眼）在翻什么呢……" | "（盯着）喂！你在翻什么！" |
-| `Trespassing` | "（警惕）这人来这干什么……" | "喂！这里不许外人进来！出去！" |
-| `Steal` | "咦，{TargetName}的{ItemName}呢？" | "（惊呼）{PlayerName}！你偷了{ItemName}！" |
-| `AttackAlly` | "（惊）怎么回事？！" | "（后退）{PlayerName}打人了！" |
-| `Knockout` | "（惊恐）出人命了……" | "来人！{PlayerName}把{TargetName}打倒了！" |
+**Narrative.csv 是枚举思路**：每种对话情境一行，Honor × Gender × Identity × PersonalityTrait × Trust 维度组合爆炸。247 行很难维护，每加一种新情境就要穷举。
 
-`{TargetName}` / `{ItemName}` 从脉冲调用方传入，NpcSightSystem 在 `_alertBreakdown` 旁维护一个等 key 的附加信息字典。
+**模板思路**才是对的：`（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}！把刀收起来！` — 一个模板，占位符填不同值覆盖所有 NPC 身份。`PlaceholderResolver`（80+ 占位符）和 `CrimeDialogueBuilder` 走的就是这个方向。
+
+**统一决策**：新建 `NpcSpeech.csv` 作为所有 NPC 模板台词的唯一数据源——极简三列 `ID,Template,Emotion`。Narrative.csv 保留给现有 Intent 系统过渡，新功能不再往里加。LLM 可用时实时生成，不可用时回落模板。
+
+### 5.1 `NpcSpeech.csv` 格式
+
+极简三列 `ID,Template,Emotion`。**`Emotion` 值必须是 `Emotion.csv` 中已定义的 ID**（见 `wheels.md` Emotion ↔ NpcSpeech 一致性铁律）。**每个 ID 唯一，
+
+```csv
+ID,Template,Emotion
+AlertBubble_Crouching_Suspicious,（嘀咕）{PLAYER}在这做什么……,alert
+AlertBubble_Crouching_Cautious,（提高声音）喂！{PLAYER}！蹲着干什么！,threat
+AlertBubble_WeaponDrawn_Suspicious,（不安地看了一眼）怎么还拔刀了……,nervous
+AlertBubble_WeaponDrawn_Cautious,（后退半步）{SPEAKER_PLAYER_ADDR}！把刀收起来！,threat
+AlertBubble_StealUIOpen_Suspicious,（瞟了一眼）在翻什么呢……,alert
+AlertBubble_StealUIOpen_Cautious,（盯着）喂！{SPEAKER_PLAYER_ADDR}！你在翻什么！,aggres
+AlertBubble_Steal_Suspicious,咦，{TARGET}的{ITEM}呢？,surprise
+AlertBubble_Steal_Cautious,（惊呼）{SPEAKER_PLAYER_ADDR}！你偷了{ITEM}！,rage
+AlertBubble_AttackAlly_Suspicious,（惊）怎么回事？！,surprise
+AlertBubble_AttackAlly_Cautious,（后退）{SPEAKER_PLAYER_ADDR}打人了！,rage
+AlertBubble_Knockout_Suspicious,（惊恐）出人命了……,nervous
+AlertBubble_Knockout_Cautious,来人！{SPEAKER_PLAYER_ADDR}把{TARGET}打倒了！,threat
+```
+
+> **L3 质问对话不在这里**。L3 走 `CrimeDialogueBuilder.BuildAlertInterceptScript` → `PlaceholderResolver` → `DialogueInjector` → `ConversationManager` 管道。与 `BuildAuthorityScript` / `BuildWitnessScript` 同属一个类——输入不同（WorldEvent vs PlayerActionType），产出相同（`DialogueInjectScript`），共享 `PlaceholderResolver` 引擎。
+
+**`NpcSpeechResolver` 不替代 `PlaceholderResolver`——它只是 CSV 模板查找 + 委托。** 核心解析引擎仍然是 `PlaceholderResolver`（~80 占位符，含 WorldEvent 上下文），`NpcSpeechResolver` 补上数据驱动的模板存储这一环。
+
+```csharp
+/// <summary>
+/// NPC 台词模板的统一 CSV 查询入口。
+/// 查 NpcSpeech.csv 取模板文本 → 委托 PlaceholderResolver 做占位符替换。
+/// PlaceholderResolver 的核心能力（WorldEvent 语境、Campaign 层占位符）完整保留。
+/// </summary>
+public static class NpcSpeechResolver
+{
+    /// <summary>
+    /// 查模板 + 解析占位符。
+    /// speaker 和 listener 用于构建 PlaceholderResolver 上下文。
+    /// extra 传入 PlaceholderResolver 标准占位符之外的附加替换（如脉冲 {TARGET}/{ITEM}）。
+    /// </summary>
+    public static string Resolve(string templateId, Hero speaker, Hero listener = null,
+        WorldEvent evt = null, Dictionary<string, string> extra = null)
+    {
+        // ① 查 NpcSpeech.csv 取模板文本
+        string template = LookupTemplate(templateId);
+        if (string.IsNullOrEmpty(template)) return null;
+
+        // ② 委托 PlaceholderResolver 做占位符替换（含 WorldEvent 语境）
+        var r = new PlaceholderResolver(evt, speaker, listener);
+        string result = r.Resolve(template);
+
+        // ③ 替换 PlaceholderResolver 不覆盖的附加占位符（脉冲上下文等）
+        if (extra != null)
+            foreach (var kv in extra)
+                result = result.Replace($"{{{kv.Key}}}", kv.Value ?? "");
+
+        return result;
+    }
+
+    static string LookupTemplate(string templateId)
+    {
+        var row = GameDatabase.NpcSpeech?.GetByID(templateId);
+        if (row != null)
+        {
+            string template = row.GetString("Template");
+            if (string.IsNullOrEmpty(template)) return null;
+            // 变体语法：单行内 | 分隔，随机取一
+            var variants = template.Split('|');
+            return variants.Length == 1
+                ? variants[0]
+                : variants[MBRandom.RandomInt(variants.Length)];
+        }
+        // CSV 未命中 → 返回 null，让调用方决定回落策略（NarrativeResolver 或 PlaceholderResolver 直接解析）
+        return null;
+    }
+}
+```
+
+**与 `PlaceholderResolver` 的关系**：
+
+```
+NpcSpeech.csv（新增：数据驱动的模板存储）
+       │
+       ▼
+NpcSpeechResolver.Resolve(id, speaker, listener, evt, extra)
+       │
+       ├─ ① LookupTemplate(id) → 从 CSV 取模板文本
+       └─ ② new PlaceholderResolver(evt, speaker, listener).Resolve(template)
+              ↑
+         核心引擎完整保留，含 WorldEvent / Campaign 层 ~80 占位符
+```
+
+| | PlaceholderResolver（保留+增强） | NpcSpeechResolver（新建） |
+|----|-----|------|
+| 职责 | 占位符 → 真实值的解析引擎 | CSV 模板查找 + 委托 |
+| 占位符 | ~80（完整保留） | 0（全部委托给 PlaceholderResolver） |
+| 模板来源 | 调用方传入字符串 | NpcSpeech.csv（按 ID 查） |
+| WorldEvent 支持 | ✅ 核心能力 | ✅ 透传给 PlaceholderResolver |
+| 当前消费者 | CrimeDialogueBuilder | 警戒 BubbleSay |
+
+### 5.3 调用方
+
+```csharp
+// ── AgentBrain 通用 BubbleSay（任何系统组装好文本后调用）──
+public void BubbleSay(string text)
+{
+    if (!string.IsNullOrEmpty(text))
+        AgentHudMissionView.AgentSay(Owner, text);
+}
+
+// ── 警戒专用：查 NpcSpeech.csv → 委托 PlaceholderResolver ──
+string ResolveAlertBubble(AlarmPhase phase)
+{
+    var action = PrimaryAction;
+    if (action == null) return null;
+
+    var extra = new Dictionary<string, string>();
+    if (_alertBreakdown.TryGetValue(action.Value, out var entry))
+    {
+        extra["TARGET"] = entry.TargetName ?? "";
+        extra["ITEM"] = entry.ItemName ?? "";
+    }
+
+    // NpcSpeechResolver 内部委托 PlaceholderResolver 做占位符解析
+    return NpcSpeechResolver.Resolve(
+        $"AlertBubble_{action}_{phase}",
+        speaker: Owner.Character?.HeroObject,
+        listener: Hero.MainHero,
+        evt: null,  // BubbleSay 无 WorldEvent 上下文
+        extra: extra
+    );
+}
+
+// 调用：
+BubbleSay(ResolveAlertBubble(phase));
+
+// ── L3 质问开场白 ──
+// L3 走 CrimeDialogueBuilder.BuildAlertInterceptScript → PlaceholderResolver → DialogueInjector。
+// 与 BuildAuthorityScript / BuildWitnessScript 同属 CrimeDialogueBuilder——
+// 输入不同（PlayerActionType vs WorldEvent），产出相同（DialogueInjectScript），共享 PlaceholderResolver。
+```
+
+### 5.4 统一数据流
+
+```
+NpcSpeech.csv（数据驱动的模板存储 — 新增）
+       │
+       ▼
+NpcSpeechResolver.Resolve(id, speaker, listener, evt, extra)  ← CSV 查询薄层
+       │
+       ▼
+PlaceholderResolver.Resolve(template)  ← 核心引擎（完整保留，~80 占位符）
+       │
+       ▼
+AgentHudMissionView.AgentSay  /  ConversationManager  ← 显示出口
+
+LLM 路径（IsLLMReady = true）：
+  跳过模板系统 → LLM 实时生成 → 直接显示
+```
+
+### 5.5 占位符标准 + Emotion 管线
+
+| 占位符 | 含义 | 来源 |
+|--------|------|------|
+| `{PLAYER}` | 玩家名 | `Hero.MainHero.Name` |
+| `{SPEAKER}` | 说话 NPC 名 | `speaker.Name` |
+| `{SPEAKER_SELF}` | NPC 自称 | `AttitudeSystem.GetSelfReference` |
+| `{SPEAKER_PLAYER_ADDR}` | NPC 对玩家的称呼 | `AttitudeSystem.GetPlayerAddress` |
+| `{SPEAKER_EMOTION}` | NPC 情绪词 | `Emotion.csv` 查 `ScriptName` 列（如 `alert→"警戒"`） |
+| `{TARGET}` | 目标/受害者名 | 调用方 extra 传入 |
+| `{ITEM}` | 物品名 | 调用方 extra 传入 |
+| `{LOCATION}` | 当前定居点 | `Settlement.Current.Name` |
+
+**Emotion → 动画管线**：
+
+```
+NpcSpeech.csv Emotion列（如 alert / threat / rage）
+        │
+        ▼
+  Emotion.csv 查行
+        │
+        ├─ Animations: act_conversation_warrior_start（对话动作）
+        ├─ Weight: 3（同 emotion 多动画时的随机权重）
+        ├─ Keywords: "小心"（LLM 路径匹配用）
+        └─ ScriptName: "警戒"（{SPEAKER_EMOTION} 占位符显示用）
+                │
+                ▼
+  AgentControlHelper.ForcePlayAction(agent, animationId)
+```
+
+> 模板路径和 LLM 路径共享同一套 `Emotion.csv`——模板用 `Emotion` 列直接指定，LLM 用 `Keywords` 列从生成文本中反查。
+
+> **与 Narrative.csv 的关系**：`NpcSpeechResolver` 内部第一优先查 `NpcSpeech.csv`，未命中自动回落 `NarrativeResolver`。过渡期内两套并存，现有 Intent 系统不受影响。长期目标是把 Narrative.csv 中适合模板化的行逐步迁到 `NpcSpeech.csv`，Narrative.csv 缩减为纯委托（Commission）叙事专用。
+>
+> **TaikouContent 覆盖**：替换 `NpcSpeech.csv` 整行文本。占位符 `{SPEAKER_SELF}` / `{SPEAKER_PLAYER_ADDR}` 底层已走 `AttitudeSystem` → `Settings.Instance` 世界观参数。两层独立，互不干扰。
 
 ---
 
@@ -388,12 +736,6 @@ public enum NpcInterceptIntent
     Deter,
 
     /// <summary>
-    /// 驱逐 — 玩家在禁地（守卫区/贵族私宅），不应该在这里。
-    /// 要求：立刻离开该区域。不接受解释——不管你什么理由，先出去再说。
-    /// </summary>
-    Expel,
-
-    /// <summary>
     /// 搜查 — 玩家翻了半天包，NPC 怀疑偷了东西但没亲眼看见。
     /// 要求：打开背包接受检查。
     /// 拒绝搜查 → 升级为 Recover。搜到赃物 → 升级为 Recover。没搜到 → 道歉退开。
@@ -417,7 +759,6 @@ public enum NpcInterceptIntent
 NpcInterceptIntent npcIntent = PrimaryAction switch
 {
     PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => NpcInterceptIntent.Deter,
-    PlayerActionType.Trespassing => NpcInterceptIntent.Expel,
     PlayerActionType.StealUIOpen => NpcInterceptIntent.Search,
     PlayerActionType.Steal => NpcInterceptIntent.Recover,
     PlayerActionType.AttackAlly or PlayerActionType.Knockout => NpcInterceptIntent.Stop,
@@ -442,19 +783,6 @@ NPC 看到玩家行为异常（蹲下鬼鬼祟祟 / 拔刀在村子里晃），*
 | 玩家配合 | 蹲下→"没什么，我这就走。" / 拔刀→"好，我收起来。" → NPC："别再让我看见。"（警戒值开始衰减） |
 | 玩家挑衅 | "关你什么事？" → Roguery 检定。成功→NPC 退缩；失败→周围 NPC 警戒值+0.5 |
 | NPC **不会**做 | 要求赔钱、搜身、直接动手 |
-
-#### Expel（驱逐）— 触发：闯入禁地
-
-玩家站在不该出现的地方——守卫哨站、贵族内宅、军营内部。NPC 不管你来干什么，先让你出去再说。
-
-| 要素 | 内容 |
-|------|------|
-| NPC 开场 | "站住！这里不许外人进来。出去。" |
-| NPC 要求 | **立刻离开该区域** |
-| 玩家配合 | "好，我这就出去。" → NPC 盯着你直到离开禁区范围，警戒值开始衰减 |
-| 玩家解释 | "我迷路了。" / "我在找人。" → Charm 检定（DC 40）。成功→NPC："……找完赶紧走。"；失败→NPC："不管找谁，先出去！" |
-| 玩家挑衅 | "你管得着吗？" → NPC："来人！有外人闯进来了！" → 周围守卫警戒值+1.0，意图升级为 Stop 级别对待 |
-| NPC **不会**做 | 直接动手（除非挑衅后升级）、搜身（没怀疑你偷东西） |
 
 #### Search（搜查）— 触发：翻包（StealUIOpen）
 
@@ -500,6 +828,9 @@ NPC 目击了暴力行为。目标——终止暴力、保护社区。**没有"�
 
 ### 6.3 BuildAlertInterceptScript 实现
 
+> **台词查找顺序**：① 优先 `NpcSpeechResolver.Resolve($"L3_{Intent}_{Action}", …)` 查 `NpcSpeech.csv` → ② 回落 `NarrativeResolver`（过渡） → ③ 下方 `r.Resolve("硬编码模板")` 兜底。
+> **注意**：Phase 0 先在 `NpcSpeech.csv` 中加入 L3 开场白模板行（ID 如 `L3_Deter_WeaponDrawn`、`L3_Recover_Steal` 等），否则始终走回落路径。代码中 `r.Resolve()` 的硬编码字符串是最后的安全网，不是主路径。
+
 ```csharp
 public static DialogueInjectScript BuildAlertInterceptScript(
     Hero speaker, NpcInterceptIntent npcIntent, PlayerActionType primaryAction)
@@ -507,9 +838,28 @@ public static DialogueInjectScript BuildAlertInterceptScript(
     var r = new PlaceholderResolver(speaker, Hero.MainHero);
     var turns = new List<DialogueInjectTurn>();
 
-    // NPC 开场白 — 由意图 + 具体行为决定
-    string npcOpening = npcIntent switch
+    // ① 优先查 NpcSpeech.csv
+    string csvTemplateId = $"L3_{npcIntent}_{primaryAction}";
+    string npcOpening = NpcSpeechResolver.Resolve(csvTemplateId, speaker, Hero.MainHero);
+
+    // ② CSV 未命中 → 回落 NarrativeResolver（过渡）
+    if (string.IsNullOrEmpty(npcOpening))
     {
+        var narrResult = NarrativeResolver.Resolve(new NarrativeFilters
+        {
+            EventName = "L3AlertIntercept",
+            GoalType = npcIntent.ToString(),
+            Outcome = primaryAction.ToString(),
+        });
+        if (narrResult != null && !NarrativeResolver.IsFallbackText(narrResult.Text))
+            npcOpening = narrResult.Text;
+    }
+
+    // ③ 最终兜底：PlaceholderResolver 直接解析硬编码模板
+    if (string.IsNullOrEmpty(npcOpening))
+    {
+        npcOpening = npcIntent switch
+        {
         NpcInterceptIntent.Deter => primaryAction switch
         {
             PlayerActionType.WeaponDrawn =>
@@ -517,9 +867,6 @@ public static DialogueInjectScript BuildAlertInterceptScript(
             _ => // Crouching
                 r.Resolve("（{SpeakerEmotion}地）喂！{SpeakerPlayerAddr}！蹲在那鬼鬼祟祟干什么？"),
         },
-
-        NpcInterceptIntent.Expel =>
-            r.Resolve("（{SpeakerEmotion}地）站住！这里不许外人进来。出去。"),
 
         NpcInterceptIntent.Search =>
             r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}在翻什么？把手拿开，让{SpeakerSelfRef}看看你的包。"),
@@ -537,6 +884,7 @@ public static DialogueInjectScript BuildAlertInterceptScript(
         },
         _ => r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}！你在干什么？")
     };
+    } // ③ 硬编码兜底结束
 
     turns.Add(new DialogueInjectTurn
     {
@@ -580,12 +928,6 @@ static List<DialogueInjectOption> BuildOptionsByIntent(
             opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "NONE", NextTurn = "" });
             opts.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextTurn = "continue_chat" });
             opts.Add(new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextTurn = "" });
-            break;
-
-        case NpcInterceptIntent.Expel:
-            opts.Add(new() { PlayerLine = "好，我这就出去。", NpcResponse = r.Resolve("{SpeakerSelfRef}看着你呢。赶紧走。"), Action = "NONE", NextTurn = "" });
-            opts.Add(new() { PlayerLine = "我迷路了 / 在找人。", NpcResponseOnSuccess = r.Resolve("……找完赶紧走。"), NpcResponseOnFail = r.Resolve("不管找谁，先出去！"), Action = "INTENT:CharmDefense", NextTurn = "" });
-            opts.Add(new() { PlayerLine = "你管得着吗？（挑衅）", NpcResponse = r.Resolve("来人！有外人闯进来了！"), Action = "INTENT:Threat", NextTurn = "continue_chat" });
             break;
 
         case NpcInterceptIntent.Search:
@@ -651,12 +993,13 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 
 | Phase | 内容 |
 |-------|------|
-| **1 数据层** | `AgentBrain` 新增 `_alertBreakdown` + `_pulseContext`；`AddAlert` / `AlertValue` / `PrimaryAction` / `AlertPhase`；每帧 Tick 累加 + 按比例衰减 |
-| **2 L1+L2** | `UpdateAlertCognition` 持续累加 + 阶段穿越检测 → `OnAlertPhaseChanged`；L1/L2 的 BubbleSay + LookAt；BubbleSay 冷却 |
-| **3 脉冲事件** | `ReceiveEvent` 新增 `PlayerStole` / `PlayerAttackedAlly` / `PlayerKnockout`；调用方通过 `GetObserversOf` + `SendEventToAgent` 广播 |
-| **4 L3 路径 A** | `StartL3Confrontation` → `PrepareOpeningAction` → `ForceTalkAction`；`MoveToPlayerAction`；脉冲抑制标记 |
-| **5 L3 路径 B** | `Settings.AlertDialogueMode`；`BuildAlertInterceptScript`；`DialogueInjector.InjectScriptAsNpcInitiative`；`AlertForceConversationAction`；反编译 `StartConversation` API |
-| **6 打磨** | BubbleSay 频率调优；脉冲抑制验证；`PlaceholderResolver` 扩充 |
+| **0 对齐** | `IntentContext` 新增 `TriggeringEvent`；三个脉冲 IntentBase 子类 + `IntentRegistry.Register`；`NpcSpeech.csv` + `NpcSpeechResolver`（委托 `PlaceholderResolver`）；`GameDatabase` 加载 `NpcSpeech` 表 + Emotion 一致性校验；`PlaceholderResolver` 增强（新增 `{TARGET}`/`{ITEM}`/`{StolenItemName}` 占位符） |
+| **1 数据层** | `AgentBrain` 新增 `_alertBreakdown`（`Dictionary<PlayerActionType, AlertEntry>`）+ `_bubbledPhases`；`AddAlert` / `AlertValue` / `PrimaryAction` / `AlertPhase`（每帧 `Sum()` + `OrderByDescending()`）；每帧 Tick 累加 + 按比例衰减 |
+| **2 L1+L2** | `UpdateAlertCognition` 持续累加 + `CheckPhaseTransition` 统一向上/向下穿越 → `OnAlertPhaseChanged`；L1/L2 的 `TryBubbleSay`（同 phase 同 key 只触发一次）+ LookAt |
+| **3 脉冲事件** | 外部调用方通过 `GetObserversOf` + `SendEventToAgent` 广播 → IntentBase.OnInstant 加脉冲；脉冲抑制标记 |
+| **4 L3 路径 A** | `StartL3Confrontation` → `PrepareOpeningAction` → `ForceTalkAction`；`MoveToPlayerAction`；脉冲抑制校验 |
+| **5 L3 路径 B** | `Settings.AlertDialogueMode`；`BuildAlertInterceptScript`（CSV 优先 + `PlaceholderResolver` 兜底）；`DialogueInjector.InjectScriptAsNpcInitiative`；`AlertForceConversationAction`；反编译 `StartConversation` API |
+| **6 打磨** | BubbleSay 频率调优；脉冲抑制验证；`PlaceholderResolver` 扩充；存档持久化决策文档化 |
 
 ---
 
@@ -664,12 +1007,17 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 
 | 系统 | 关系 | 说明 |
 |------|------|------|
-| **NpcSightSystem** | 🔵 **纯感知工具** | 只提供 `CanNpcSeePlayer` / `GetObserversOf`，不维护警戒值状态 |
+| **NpcSightSystem** | 🔵 **纯感知工具** | 只提供 `CanNpcSeePlayer` / `GetObserversOf`，旧 `_alertValues` 字典和 `UpdateAlertValue` 方法删除，警戒值状态全部迁移到 AgentBrain |
 | **AgentBrain** | 🔴 **认知所有者** | `_alertBreakdown` 实例字段；Tick 中自行判断 + 累加 + 衰减 + 阶段穿越 |
-| **AgentAIController** | 🔵 **脉冲广播** | `SendEventToAgent` 投递 `PlayerStole` 等脉冲事件到目击者的 AgentBrain |
+| **IntentRegistry** | 🆕 **脉冲分发管道** | 三个新 IntentBase 子类（`PlayerStoleAlertIntent` / `PlayerAttackedAllyAlertIntent` / `PlayerKnockoutAlertIntent`）注册到 `IntentRegistry`，AgentBrain.ReceiveEvent 自动匹配 |
+| **IntentContext** | 🆕 **微调** | 新增 `TriggeringEvent` 字段 + `Brain` 属性，让 IntentBase.OnInstant 能访问触发事件参数 |
+| **AgentAIController** | 🔵 **脉冲广播** | `SendEventToAgent` → AgentBrain.ReceiveEvent → IntentRegistry 匹配 → OnInstant |
 | **AgentHudMissionView** | 🔵 **读值渲染** | 从 `brain.AlertValue` / `brain.PrimaryAction` 读警戒值 + 颜色，不变 |
+| **PlaceholderResolver** | 🔵 **L3 共享引擎** | `BuildAlertInterceptScript` 与 `CrimeDialogueBuilder` 共享 `PlaceholderResolver.Resolve()` 做占位符解析，但逻辑独立——前者是 Mission 层当场质问，后者是 Campaign 层事后调查 |
+| **NpcSpeechResolver** | 🆕 **新建** | BubbleSay 的 CSV 查询薄层，委托 `PlaceholderResolver` 做占位符解析 |
+| **NpcSpeech.csv** | 🆕 **新建** | ~12 行 `AlertBubble_*` + ~6 行 `L3_*` 模板（`ID,Template,Emotion`），Emotion 值必须是 `Emotion.csv` 中已定义的 ID |
 | **Settings.Instance** | 🆕 **新开关** | `AlertDialogueMode` 控制 L3 对话走 StoryDialogVM 还是 ConversationManager |
-| **CrimeDialogueBuilder** | 🆕 **新方法** | `BuildAlertInterceptScript(primaryAction)` |
+| **CrimeDialogueBuilder** | 🆕 **新方法** | `BuildAlertInterceptScript(primaryAction)` — 与 `BuildAuthorityScript` / `BuildWitnessScript` 并列，统一走 `PlaceholderResolver.Resolve()` |
 | **DialogueInjector** | 🆕 **新重载** | `InjectScriptAsNpcInitiative` — NPC 主动开场，不走 `hero_main_options` |
 | **PrepareOpeningAction / ForceTalkAction** | 🔵 **路径 A 复用** | StoryDialogVM 默认路径，已有轮子 |
 | **WitnessCrime_GatherOnLook** | 🔶 **脉冲抑制互斥** | 脉冲事件设 `_pulseSuppressedUntil`，3 秒内 L3 不重复触发 |
@@ -680,22 +1028,74 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 
 ```
 // AgentBrain.Tick → UpdateAlertCognition
-// 能看到玩家：
+// 能看到玩家 → 持续累加：
 _alertBreakdown[Crouching]   += dt * 0.15f   (if crouching)
 _alertBreakdown[WeaponDrawn] += dt * 0.20f   (if weapon drawn in civilian area)
 _alertBreakdown[StealUIOpen] += dt * 0.30f   (if steal UI open)
-_alertBreakdown[Trespassing] += dt * 0.25f   (if in restricted zone)
 
-// 脉冲事件 → ReceiveEvent：
-_alertBreakdown[Steal]      += 2.0f
-_alertBreakdown[AttackAlly] += 2.0f
-_alertBreakdown[Knockout]   += 2.0f
+// 脉冲事件 → IntentBase.OnInstant（经 IntentRegistry 管道）：
+_alertBreakdown[Steal]      += 2.0f   (PlayerStoleAlertIntent)
+_alertBreakdown[AttackAlly] += 2.0f   (PlayerAttackedAllyAlertIntent)
+_alertBreakdown[Knockout]   += 2.0f   (PlayerKnockoutAlertIntent)
++ _pulseSuppressedUntil = now + 3.0f
 
 // 看不到玩家 → DecayAlertBreakdown：
 每个条目 -= dt * 0.15 * (该条目值 / 总值)
+衰减到 ≤0.0001f 时从字典中移除（AlertEntry 整体移除，TargetName/ItemName 自动清理）
 
-// 派生：
-AlertValue    = _alertBreakdown.Values.Sum()
-PrimaryAction = _alertBreakdown.OrderByDescending(kv => kv.Value).First().Key
-AlertPhase    = Sum switch { >=2.0→Alarmed, >=1.0→Cautious, >=0.25→Suspicious, _→Normal }
+// 公开属性（每帧按需计算）：
+AlertValue    = _alertBreakdown.Values.Sum(e => e.Value)
+PrimaryAction = _alertBreakdown.OrderByDescending(kv => kv.Value.Value).First().Key
+AlertPhase    = AlertValue switch { >=2.0→Alarmed, >=1.0→Cautious, >=0.25→Suspicious, _→Normal }
 ```
+
+---
+## 十一、存档与生命周期
+
+**`_alertBreakdown` 是 Mission 层数据，不跨存档持久化。** 决策理由：
+- 警戒值是 NPC 对玩家**实时**行为的反应，依赖 Mission 层可见性（FOV + RayCast）
+- 玩家离开场景（退出 Mission）→ 3D 世界中的"被目击"状态自然重置
+- 跨场景的长期后果（NPC 记住了你的可疑行为）应通过 **Campaign 层记忆系统**（`SingNpcMemorySystem`）实现，不在本系统范围内
+
+若未来需要"这个 NPC 上次在场景里看到我做贼 → 这次见面态度变差"的跨场景记忆，在脉冲 IntentBase 的 `OnInstant` 中额外写入 `SingNpcMemorySystem.AddExperience()` 即可——不需要改变本系统的 Mission 层设计。
+
+---
+## 十二、统一台词架构：`NpcSpeech.csv` + `PlaceholderResolver`
+
+### 架构决策：CSV 存模板，PlaceholderResolver 做解析
+
+| 组件 | 职责 | 状态 |
+|------|------|------|
+| **NpcSpeech.csv** | 数据驱动的模板存储（`ID,Template,Emotion`） | 🆕 新建 |
+| **NpcSpeechResolver** | CSV 查询薄层 → 委托 `PlaceholderResolver` | 🆕 新建 |
+| **PlaceholderResolver** | 核心占位符解析引擎（~80 占位符，WorldEvent 语境） | ✅ 完整保留，增强 |
+| **Narrative.csv** | Intent 系统枚举式对话（Honor×Gender×Identity 维度） | 🔵 现有系统继续使用 |
+| **NarrativeResolver** | Narrative.csv 查询引擎 | 🔵 现有系统继续使用 |
+
+### 统一数据流
+
+```
+NpcSpeech.csv（模板存储）
+       │
+       ▼
+NpcSpeechResolver.Resolve(id, …)  ← 薄层：查 CSV + 委托
+       │
+       ▼
+PlaceholderResolver.Resolve(template)  ← 核心引擎：占位符 → 真实值
+       │                                           ↑
+       │                              {SpeakerEmotion} → Emotion.csv → Animation
+       │                              {CrimeScene} → WorldEvent
+       │                              {SpeakerSelfRef} → AttitudeSystem → Settings
+       ▼
+AgentHudMissionView.AgentSay / ConversationManager
+```
+
+### 本计划涉及的文件
+
+| 文件 | 动作 | 内容 |
+|------|------|------|
+| `NpcSpeech.csv` | 🆕 新建 | ~12 BubbleSay + ~6 L3 开场白 |
+| `NpcSpeechResolver.cs` | 🆕 新建 | CSV 查询 + 委托 PlaceholderResolver |
+| `PlaceholderResolver.cs` | 🔵 增强 | 新增 `{TARGET}` / `{ITEM}` / `{StolenItemName}` 占位符 |
+| `GameDatabase.cs` | 🔵 增强 | 加载 `NpcSpeech` 表 + Emotion 一致性校验 |
+| `wheels.md` | 🔵 新增规则 | Emotion ↔ NpcSpeech 一致性铁律 |
