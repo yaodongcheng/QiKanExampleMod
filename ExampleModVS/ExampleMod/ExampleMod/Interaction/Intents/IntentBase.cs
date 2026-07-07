@@ -70,22 +70,10 @@ namespace LivingWorldNpcs
         /// <summary>此意图对谁可用。默认 Both = 玩家和 NPC 都能用。</summary>
         public virtual IntentSource Source => IntentSource.Both;
 
-        /// <summary>此意图响应哪些 AIEvent.EventType。空数组 = 不响应任何事件（纯玩家侧意图）。</summary>
-        public virtual string[] TriggerEvents => Array.Empty<string>();
-
         // ── 子类实现 ──
 
         /// <summary>三态资格判定。</summary>
         public abstract Eligibility Evaluate(IntentContext ctx);
-
-        /// <summary>
-        /// 收到匹配的 EventType 后，检查事件参数是否满足此意图的触发条件。
-        /// 基类默认返回 true（EventType 匹配即可）。子类可 override 做更细的判断。
-        /// </summary>
-        public virtual bool CanHandle(AIEvent aiEvent, IntentContext ctx)
-        {
-            return true;
-        }
 
         /// <summary>即时类结算（Goal==null 时调用）。</summary>
         public virtual void OnInstant(IntentContext ctx) { }

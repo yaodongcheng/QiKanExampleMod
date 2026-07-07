@@ -161,73 +161,77 @@ bool IsPlayerWeaponDrawn()
 }
 ```
 
-### 2.4 脉冲 — ReceiveEvent 内直接处理（复用现有 WitnessCrime 事件）
+### 2.4 脉冲 — ReceiveEvent 内与行为合并处理
 
-脉冲不新建事件类型、不新建 IntentBase 子类。**复用现有的 `"WitnessCrime_GatherOnLook"` 事件**——`StealVM` 被抓现行时已经通过 `BroadcastEventInRange` 广播给所有目击者。AgentBrain 在 `ReceiveEvent` 中，**IntentRegistry 匹配之前**统一加脉冲：
+脉冲不新建事件类型、不新建 IntentBase 子类。**复用现有的 `"WitnessCrime_GatherOnLook"` 事件**——`StealVM` 被抓现行时已经通过 `BroadcastEventInRange` 广播给所有目击者。
+
+**设计原则**：一个事件 → 一处代码 → 按角色分流。脉冲（+警戒值）和行为（指控/围观）在 `ReceiveEvent` 的同一个 `if` 块内完成，不拆分到 IntentRegistry。
 
 ```csharp
-// AgentBrain.ReceiveEvent 改造：
-public void ReceiveEvent(AIEvent aiEvent)
+// ReceiveEvent 中：
+if (aiEvent.EventType == "WitnessCrime_GatherOnLook")
 {
-    // ── 🆕 警戒脉冲：所有目击者先加值 + 存上下文 ──
-    if (aiEvent.EventType == "WitnessCrime_GatherOnLook"
-        && aiEvent.Args?.Length >= 2
-        && aiEvent.Args[0] is Agent criminal
-        && aiEvent.Args[1] is Agent victim
-        && criminal == Agent.Main)
+    try
     {
-        // 从事件参数推断 ActionType
-        PlayerActionType actionType = ResolveActionTypeFromEvent(aiEvent);
+        Agent criminal = (Agent)aiEvent.Args[0];
+        Agent victim = (Agent)aiEvent.Args[1];
+        Vec3 assignedPos = (Vec3)aiEvent.Args[2];
+        Vec2 turnDir = (Vec2)aiEvent.Args[3];
+        float delay = GroupStageManager.CalculateReactionDelay(Owner, criminal, victim);
 
-        // +2.0 警戒值
-        AddAlert(actionType, 2.0f);
-
-        // 存脉冲上下文（供 BubbleSay 拼台词）
-        SetPulseTarget(actionType, victim.Name, null);
-
-        // 脉冲抑制 3 秒（与围观流程互斥，避免重复上前）
-        _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
-    }
-
-    // ── 然后走 IntentRegistry 匹配（受害者→CrimeAccusationIntent, 守卫→GuardInterceptIntent）──
-    var ctx = IntentContext.BuildForNpc(Owner);
-    if (ctx != null)
-    {
-        var initiatives = IntentRegistry.GetNpcInitiatives(ctx);
-        foreach (var pair in initiatives)
+        // ── 🆕 警戒脉冲：所有目击者统一加值（criminal==玩家时）──
+        if (criminal == Agent.Main)
         {
-            if (MatchesEvent(pair.Key, aiEvent, ctx))
-            {
-                pair.Key.OnInstant(ctx);
-                return;
-            }
+            AddAlert(PlayerActionType.Steal, 2.0f);
+            SetPulseTarget(PlayerActionType.Steal, victim.Name, null);
+            _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
         }
+
+        ClearAllActions();
+        InteractedAgent = criminal;
+
+        // ── 角色分流 ──
+        if (Owner == victim && criminal == Agent.Main)
+        {
+            // 受害者：直接指控
+            var conflictData = new PendingConflict(
+                eventId: $"Theft_{CampaignTime.Now.ToHours}",
+                topicName: "当众行窃",
+                goalDesc: $"要求 {criminal.Name} 立刻归还财物并赔偿精神损失",
+                severity: 70.0f,
+                type: NegotiationGoalType.ResolveConflict_Apology
+            );
+            EnqueueAction(new PrepareOpeningAction(InitiativeType.CrimeAccusation, conflictData));
+        }
+
+        EnqueueAction(new ReactionDecisionAction(delay, (agent) =>
+        {
+            EnqueueAction(new LookAtAction(criminal, 0.5f));
+            EnqueueAction(new MoveToPositionAction(assignedPos, turnDir));
+            if (Owner == victim)
+                EnqueueAction(new ForceTalkAction());
+            EnqueueAction(new StayAction(criminal));
+        }));
     }
-
-    // ── 兜底：HandleLegacyAtomicAction（普通目击者→MoveToPosition+LookAt+StayAction）──
-    HandleLegacyAtomicAction(aiEvent);
-}
-
-/// <summary>从 WitnessCrime 事件参数推断 PlayerActionType。
-/// 当前只有偷窃走这条路径；未来攻击/击晕广播 WitnessCrime 后可扩展。</summary>
-PlayerActionType ResolveActionTypeFromEvent(AIEvent aiEvent)
-{
-    // 偷窃：StealVM → BroadcastEventInRange("WitnessCrime", Agent.Main, victim)
-    return PlayerActionType.Steal;
+    catch (Exception)
+    {
+        // silent fail
+    }
 }
 ```
 
-**三条路径，同一条事件**：
+**一条事件，一处代码，三种角色**：
 
-| 目击者 | 警戒脉冲 | IntentRegistry | Legacy |
-|--------|---------|---------------|--------|
-| 受害者 | +2.0 + TargetName | `CrimeAccusationIntent` → PrepareOpening + ForceTalk | 不走到 |
-| 守卫 | +2.0 + TargetName | `GuardInterceptIntent` | 不走到 |
-| 普通平民 | +2.0 + TargetName | 未命中 | MoveToPosition + LookAt + StayAction |
+| 目击者 | 警戒脉冲 | 行为 |
+|--------|---------|------|
+| 受害者 | +2.0 + TargetName | PrepareOpeningAction → ReactionDecisionAction(移动到位置 → LookAt → ForceTalkAction → StayAction) |
+| 普通平民 | +2.0 + TargetName | ReactionDecisionAction(移动到位置 → LookAt → StayAction) |
 
-**脉冲抑制**：脉冲加值同时设 `_pulseSuppressedUntil = now + 3.0f`。偷窃瞬间到 2.0 → `CrimeAccusationIntent` 已在处理受害者的主质问 → 3 秒内不触发其他目击者的独立 L3 上前。围观流程（`GroupStageManager` 编排）不受影响。
+> **守卫拦截**：当前未实现（原 `GuardInterceptIntent` 无实际 guard 判定逻辑，仅检查 `WorldEventStore` 有活跃事件——任何 NPC 都匹配）。守卫角色待后续通过 `IsGuardNpc()` 判定补上，直接在同一个 `if` 块内加 `else if` 分支，不复活 IntentRegistry 分发。
 
-**与现有流程的关系**：`StealVM` → `BroadcastEventInRange("WitnessCrime", Agent.Main, victim)` 这条链路**不动**。`AgentAIController.BroadcastEventInRange` 内部的 `GroupStageManager.PrecalculateAllocations` + 事件分发**不动**。只在 `AgentBrain.ReceiveEvent` 入口加 6 行脉冲逻辑。
+**脉冲抑制**：脉冲加值同时设 `_pulseSuppressedUntil = now + 3.0f`。偷窃瞬间到 2.0 → 受害者已在处理主质问 → 3 秒内不触发其他目击者的独立 L3 上前。围观流程（`GroupStageManager` 编排）不受影响。
+
+**与现有流程的关系**：`StealVM` → `BroadcastEventInRange("WitnessCrime", Agent.Main, victim)` 这条链路**不动**。`AgentAIController.BroadcastEventInRange` 内部的 `GroupStageManager.PrecalculateAllocations` + 事件分发**不动**。`IntentRegistry.GetNpcInitiatives` 分发已从 `ReceiveEvent` 移除——NPC 事件响应不再走 Intent 抽象层，直接在 `ReceiveEvent` 的 flat if/else 中处理。
 
 ### 2.4.1 AgentBrain 脉冲辅助方法
 
@@ -948,7 +952,7 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 
 | Phase | 内容 |
 |-------|------|
-| **0 对齐** | `NpcSpeech.csv` + `NpcSpeechResolver`（委托 `PlaceholderResolver`）；`GameDatabase` 加载 `NpcSpeech` 表 + Emotion 一致性校验；`PlaceholderResolver` 增强（新增 `{TARGET}`/`{ITEM}`/`{StolenItemName}` 占位符）；`AgentBrain.ReceiveEvent` 入口加脉冲逻辑（6 行，复用 `WitnessCrime_GatherOnLook`） |
+| **0 对齐** | `NpcSpeech.csv` + `NpcSpeechResolver`（委托 `PlaceholderResolver`）；`GameDatabase` 加载 `NpcSpeech` 表 + Emotion 一致性校验；`PlaceholderResolver` 增强（新增 `{TARGET}`/`{ITEM}`/`{StolenItemName}` 占位符）；`ReceiveEvent` 的 `WitnessCrime_GatherOnLook` 块内加脉冲逻辑（~4 行）+ 角色分流 |
 | **1 数据层** | `AlarmPhase` / `PlayerActionType` / `AlertEntry` 类型定义；`AgentBrain` 新增 `_alertBreakdown`（`Dictionary<PlayerActionType, AlertEntry>`）+ `_bubbledPhases`；`AddAlert` / `AlertValue` / `PrimaryAction` / `AlertPhase`（每帧 Sum + OrderByDescending，最多 6 条目无性能问题）；每帧 Tick 累加 + 按比例衰减；旧 `NpcSightSystem._alertValues` 字典和 `UpdateAlertValue` 方法删除 |
 | **2 L1+L2** | `UpdateAlertCognition` 持续累加 + `CheckPhaseTransition` 统一向上/向下穿越 → `OnAlertPhaseChanged`；L1/L2 的 `TryBubbleSay`（同 phase 同 key 只触发一次）+ LookAt |
 | **3 L3 路径 A** | `StartL3Confrontation` → `PrepareOpeningAction` → `ForceTalkAction`；`MoveToPlayerAction`；脉冲抑制校验 |
@@ -962,8 +966,8 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 | 系统 | 关系 | 说明 |
 |------|------|------|
 | **NpcSightSystem** | 🔵 **纯感知工具** | 只提供 `CanNpcSeePlayer` / `GetObserversOf`，旧 `_alertValues` 字典和 `UpdateAlertValue` 方法删除，警戒值状态全部迁移到 AgentBrain |
-| **AgentBrain** | 🔴 **认知所有者** | `_alertBreakdown` 实例字段；Tick 中自行判断 + 累加 + 衰减 + 阶段穿越；`ReceiveEvent` 入口在 IntentRegistry 匹配前加脉冲 |
-| **IntentRegistry** | 🔵 **不受影响** | 脉冲不新建 IntentBase 子类，不新增 TriggerEvents。`CrimeAccusationIntent` / `GuardInterceptIntent` 继续匹配 `WitnessCrime_GatherOnLook` |
+| **AgentBrain** | 🔴 **认知所有者** | `_alertBreakdown` 实例字段；Tick 中自行判断 + 累加 + 衰减 + 阶段穿越；`ReceiveEvent` 的 `WitnessCrime_GatherOnLook` 块内同时处理脉冲加值和行为分流（受害者指控/普通围观），**不走 IntentRegistry 分发** |
+| **IntentRegistry** | 🔵 **不受影响（仅玩家菜单）** | NPC 事件响应不再走 `GetNpcInitiatives` 分发。`CrimeAccusationIntent` / `GuardInterceptIntent` 已移除。IntentRegistry 继续服务玩家交互菜单（`GetVisible`） |
 | **IntentContext** | 🔵 **不受影响** | 脉冲不走 IntentBase → 不需要 `TriggeringEvent`/`Brain` 字段（原计划新增的两个字段取消） |
 | **AgentAIController** | 🔵 **不受影响** | `BroadcastEventInRange("WitnessCrime", …)` 链路不动；脉冲在 `ReceiveEvent` 入口处理 |
 | **AgentHudMissionView** | 🔵 **读值渲染** | 从 `brain.AlertValue` / `brain.PrimaryAction` 读警戒值 + 颜色（Phase 5），替代当前 `NpcSightSystem.GetAlertValue` |
@@ -974,7 +978,7 @@ custom.alert_dialogue_mode <mode>      # StoryVM / Vanilla
 | **CrimeDialogueBuilder** | 🆕 **新方法** | `BuildAlertInterceptScript(primaryAction)` — 与 `BuildAuthorityScript` / `BuildWitnessScript` 并列，统一走 `PlaceholderResolver.Resolve()` |
 | **DialogueInjector** | 🆕 **新重载** | `InjectScriptAsNpcInitiative` — NPC 主动开场，不走 `hero_main_options` |
 | **PrepareOpeningAction / ForceTalkAction** | 🔵 **路径 A 复用** | StoryDialogVM 默认路径，已有轮子 |
-| **WitnessCrime_GatherOnLook** | 🔵 **复用现有事件** | 脉冲直接挂在现有事件上（`ReceiveEvent` 入口 6 行），不新建事件类型。`StealVM` → `BroadcastEventInRange` → `GroupStageManager` 链路不动 |
+| **WitnessCrime_GatherOnLook** | 🔵 **复用现有事件** | 脉冲 + 行为分流全部在 `ReceiveEvent` 的同一个 `if` 块内完成。不新建事件类型，不走 IntentRegistry。`StealVM` → `BroadcastEventInRange` → `GroupStageManager` 链路不动 |
 
 ---
 
