@@ -3,8 +3,8 @@ string,string,string
 编号,模板文本,情绪ID
 AlertBubble_Crouching_Suspicious,（嘀咕）{PLAYER}在这做什么……,alert
 AlertBubble_Crouching_Cautious,（提高声音）喂！{PLAYER}！蹲着干什么！,threat
-AlertBubble_WeaponDrawn_Suspicious,（不安地看了一眼）怎么还拔刀了……,nervous
-AlertBubble_WeaponDrawn_Cautious,（后退半步）{SPEAKER_PLAYER_ADDR}！把刀收起来！,threat
+AlertBubble_WeaponDrawn_Suspicious,（不安地看了一眼）怎么还拔{ITEM}了……,nervous
+AlertBubble_WeaponDrawn_Cautious,（后退半步）{SPEAKER_PLAYER_ADDR}！把{ITEM}收起来！,threat
 AlertBubble_StealUIOpen_Suspicious,（瞟了一眼）在翻什么呢……,alert
 AlertBubble_StealUIOpen_Cautious,（盯着）喂！{SPEAKER_PLAYER_ADDR}！你在翻什么！,aggres
 AlertBubble_Steal_Suspicious,咦，{TARGET}的{ITEM}呢？,surprise
@@ -13,7 +13,7 @@ AlertBubble_AttackAlly_Suspicious,（惊）怎么回事？！,surprise
 AlertBubble_AttackAlly_Cautious,（后退）{SPEAKER_PLAYER_ADDR}打人了！,rage
 AlertBubble_Knockout_Suspicious,（惊恐）出人命了……,nervous
 AlertBubble_Knockout_Cautious,来人！{SPEAKER_PLAYER_ADDR}把{TARGET}打倒了！,threat
-L3_Deter_WeaponDrawn,（{SPEAKER_EMOTION}地）把刀收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！,threat
+L3_Deter_WeaponDrawn,（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！,threat
 L3_Deter_Crouching,（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？,threat
 L3_Search_StealUIOpen,（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。,alert
 L3_Recover_Steal,（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！,rage

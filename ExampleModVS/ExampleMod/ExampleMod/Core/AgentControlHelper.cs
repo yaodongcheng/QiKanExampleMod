@@ -246,7 +246,36 @@ namespace LivingWorldNpcs
 
             return false;
         }
-      
+
+        /// <summary>
+        /// 获取 Agent 当前手持武器的物品名（优先主手 → 副手）。
+        /// 未持武器或取不到时返回 null，调用方自行兜底。
+        /// </summary>
+        public static string GetWieldedWeaponName(Agent agent)
+        {
+            if (agent == null) return null;
+            try
+            {
+                EquipmentIndex mainIdx = V.MainWpn(agent);
+                if (mainIdx != EquipmentIndex.None)
+                {
+                    var eq = agent.SpawnEquipment[mainIdx];
+                    if (!eq.IsEmpty && eq.Item != null)
+                        return eq.Item.Name?.ToString();
+                }
+
+                EquipmentIndex offIdx = V.OffWpn(agent);
+                if (offIdx != EquipmentIndex.None)
+                {
+                    var eq = agent.SpawnEquipment[offIdx];
+                    if (!eq.IsEmpty && eq.Item != null)
+                        return eq.Item.Name?.ToString();
+                }
+            }
+            catch { return null; }
+            return null;
+        }
+
 
         public static async Task MoveToActor(Agent npcAgent, Agent actor, float stopDistance = 0.5f)
         {

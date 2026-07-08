@@ -6,6 +6,7 @@ using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -276,8 +277,11 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // Alert 场景：无犯罪事件，纯震慑
-                DebugLogger.Log($"[Accountability] Threat succeeded (Alert context, no event)");
+                // Alert 场景：玩家威胁成功 → NPC 退缩，关系 -2（震慑留下芥蒂）
+                var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                if (npc is Hero n)
+                    ChangeRelationAction.ApplyPlayerRelation(n, -2, false, true);
+                DebugLogger.Log($"[Accountability] Threat succeeded (Alert context, no event) — relation -2");
             }
         }
 
@@ -294,9 +298,34 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // Alert 场景：威胁失败，NPC 呼救
-                DebugLogger.Log($"[Accountability] Threat failed (Alert context, no event)");
+                // Alert 场景：威胁失败 → 关系 -5，周围 NPC 警戒值 +0.5
+                var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                if (npc is Hero n)
+                    ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
+
+                // 周围 NPC 警戒值 +0.5（NPC 喊了"来人！"）
+                TryRaiseNearbyAlert(PlayerActionType.WeaponDrawn, 0.5f, excludeAgent: ctx.Agent);
+                DebugLogger.Log($"[Accountability] Threat failed (Alert context) — relation -5, nearby alert +0.5");
             }
+        }
+
+        /// <summary>给周围 NPC（除 excludeAgent 外）统一增加警戒值。模拟"NPC 呼救 → 周围人警觉"。</summary>
+        private static void TryRaiseNearbyAlert(PlayerActionType actionType, float amount, Agent excludeAgent)
+        {
+            try
+            {
+                var mission = TaleWorlds.MountAndBlade.Mission.Current;
+                if (mission == null) return;
+                foreach (var agent in mission.Agents)
+                {
+                    if (agent == excludeAgent) continue;
+                    if (agent == Agent.Main) continue;
+                    if (!agent.IsHuman || !agent.IsActive()) continue;
+                    var brain = AgentAIController.GetBrainForAgent(agent);
+                    brain?.AddAlert(actionType, amount);
+                }
+            }
+            catch { }
         }
     }
 
@@ -432,7 +461,18 @@ namespace LivingWorldNpcs
             if (settlement == null) return;
 
             var evt = WorldEventStore.FindActive(settlement.StringId);
-            if (evt == null) return; // 没有活跃犯罪事件 → 自然结束，无后果
+            if (evt == null)
+            {
+                // Alert 场景：NPC 因警戒质问找上门，玩家直接走人 → 关系 -3
+                if (ctx.IsInMission)
+                {
+                    var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                    if (npc is Hero n)
+                        ChangeRelationAction.ApplyPlayerRelation(n, -3, false, true);
+                    DebugLogger.Log($"[WalkAway] Alert context (no event) — relation -3");
+                }
+                return;
+            }
 
             // ── 玩家是嫌犯 → NPC 不甘心放人 ──
             if (evt.SuspectIsPlayer)

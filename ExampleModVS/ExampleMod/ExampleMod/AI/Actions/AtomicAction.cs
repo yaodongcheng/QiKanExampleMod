@@ -15,13 +15,19 @@ using static TaleWorlds.MountAndBlade.Agent;
 #pragma warning disable CS0618 // Intentional migration: uses deprecated NpcInitiative
 namespace LivingWorldNpcs
 {
-    // 接口保持不变
     public interface IAtomicAction
     {
         void OnStart(Agent agent);
         void OnTick(Agent agent, float dt);
         bool IsFinished(Agent agent);
         void OnEnd(Agent agent);
+
+        /// <summary>
+        /// 请求中断当前动作。设置内部标记使 IsFinished 返回 true，
+        /// 下一帧 Tick 会走标准清理路径（OnEnd → _currentAction=null → dequeue next）。
+        /// 比外部直接捅 _currentAction=null 安全：不会跳过 OnEnd 导致资源泄漏。
+        /// </summary>
+        void RequestInterrupt();
     }
     // 这个Action负责"点火"，即启动LLM生成任务
     public class PrepareOpeningAction : IAtomicAction
@@ -108,6 +114,9 @@ namespace LivingWorldNpcs
             _ = Task.Run(() => Thinking());
         }
 
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
         public bool IsFinished(Agent agent)
         {
             // 瞬间完成，绝不阻塞，立刻进入下一个 MoveToPositionAction
@@ -117,7 +126,9 @@ namespace LivingWorldNpcs
     public class ForceTalkAction : IAtomicAction
     {
         private bool _isFinished = false;
-        public bool IsFinished(Agent agent) => _isFinished;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+        public bool IsFinished(Agent agent) => _isFinished || _interrupted;
 
         private float _timer = 0f;
         private SingNpcMemorySystem memory;
@@ -251,7 +262,9 @@ namespace LivingWorldNpcs
     public class DrawWeaponAction : IAtomicAction
     {
         private bool _isFinished = false;
-        public bool IsFinished(Agent agent) => _isFinished;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+        public bool IsFinished(Agent agent) => _isFinished || _interrupted;
 
         private float _timer = 0f;
         public DrawWeaponAction()
@@ -285,6 +298,8 @@ namespace LivingWorldNpcs
         private Vec2 _targetDir;
         private float _precision;
         private bool _isFinished;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         // 超时机制：防止因为物理碰撞导致死活转不过去，卡在Action里
         private float _timer;
@@ -342,7 +357,7 @@ namespace LivingWorldNpcs
 
         public bool IsFinished(Agent agent)
         {
-            return _isFinished;
+            return _isFinished || _interrupted;
         }
 
         public void OnEnd(Agent agent)
@@ -363,6 +378,8 @@ namespace LivingWorldNpcs
         private float _timer;
         private float _maxTime;
         private float fixedTimer = 0;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         public MoveToPositionAction(Vec3 pos, Vec2 dir ,bool run = false, float stopDistance = 1.0f)
         {
@@ -419,7 +436,7 @@ namespace LivingWorldNpcs
         {
             // 距离计算属于逻辑判断，保留在这里是合适的
             float distSq = agent.Position.DistanceSquared(_targetPos);
-            return distSq <= (_stopDistance * _stopDistance) || _timer > _maxTime || !agent.IsActive();
+            return _interrupted || distSq <= (_stopDistance * _stopDistance) || _timer > _maxTime || !agent.IsActive();
         }
 
         public void OnEnd(Agent agent)
@@ -454,6 +471,8 @@ namespace LivingWorldNpcs
         //超时统计
         private float _timer;
         private float _maxTime;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         public FollowAgentAction(Agent target, bool run, float radius = 0.0f, float angleOffset = 0f, float stopDistance = 3.5f, float buffer = 1.5f, bool keepFollow = false)
         {
@@ -610,8 +629,9 @@ namespace LivingWorldNpcs
         }
         public bool IsFinished(Agent agent)
         {
+            if (_interrupted) return true;
             if (_target == null || !_target.IsActive()) return true;
-            if(_keepFollow)            
+            if(_keepFollow)
                 return false; // 永远跟随
             else
             {
@@ -641,6 +661,8 @@ namespace LivingWorldNpcs
         private Agent _target;
         private float _duration;
         private float _timer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         public LookAtAction(Agent target, float duration = 2.0f)
         {
@@ -664,6 +686,7 @@ namespace LivingWorldNpcs
 
         public bool IsFinished(Agent agent) {
 
+            if (_interrupted) return true;
             if (_target == null || !_target.IsActive()) return true;
             return _timer >= _duration ;
             }
@@ -683,6 +706,8 @@ namespace LivingWorldNpcs
         // 增加一个防卡死计时器，如果动画一直播不完（比如循环动画），强制结束
         private float _maxDuration;
         private float _timer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         public PlayAnimAction(string animName, float maxDuration = 10f)
         {
@@ -704,6 +729,7 @@ namespace LivingWorldNpcs
 
         public bool IsFinished(Agent agent)
         {
+            if (_interrupted) return true;
             if (!_hasStarted) return false;
 
             // 1. 超时强制结束
@@ -720,6 +746,8 @@ namespace LivingWorldNpcs
     {
         private Agent _targetEnemy;
         private bool _isFinished;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
         private float _checkTimer;
         // 【新增】公开只读属性，让 Brain 可以检查当前在打谁
         public Agent TargetEnemy => _targetEnemy;
@@ -791,7 +819,7 @@ namespace LivingWorldNpcs
 
         public bool IsFinished(Agent agent)
         {
-            return _isFinished;
+            return _isFinished || _interrupted;
         }
     }
 
@@ -801,6 +829,8 @@ namespace LivingWorldNpcs
         private bool _keepRotating; // 是否要时刻调整朝向
         private Vec3 stayPos;
         private float _timer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         public StayAction(Agent lookTarget, bool keepRotating = true)
         {
@@ -836,10 +866,10 @@ namespace LivingWorldNpcs
 
         public bool IsFinished(Agent agent)
         {
-            // 关键点：永远返回 false
-            // 除非外部调用 ClearAllActions()，否则它永远不会自己结束
+            // 关键点：永远返回 false（除非被 RequestInterrupt 中断）
+            // 除非外部调用 ClearAllActions() 或 AbortCurrentAction()，否则它永远不会自己结束
             // 这样就不会掉回 DefaultBehavior (回岗)
-            return false;
+            return _interrupted;
         }
 
         public void OnEnd(Agent agent)
@@ -855,6 +885,8 @@ namespace LivingWorldNpcs
         private float _delayTimer;
         private Action<Agent> _onDecisionTime; // 延迟结束后执行的逻辑
         private bool _isFinished = false;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         public ReactionDecisionAction(float delaySeconds, Action<Agent> onDecisionTime)
         {
@@ -886,7 +918,7 @@ namespace LivingWorldNpcs
 
         }
 
-        public bool IsFinished(Agent agent) => _isFinished;
+        public bool IsFinished(Agent agent) => _isFinished || _interrupted;
     }
 
     /// <summary>
@@ -911,6 +943,8 @@ namespace LivingWorldNpcs
         internal static string PendingAlertLabel;
 
         private bool _started;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
 
         public void OnStart(Agent agent)
         {
@@ -1009,6 +1043,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public bool IsFinished(Agent agent)
         {
+            if (_interrupted) return true;
             if (!_started) return true;
             return ActiveConversationAgent != agent;
         }
