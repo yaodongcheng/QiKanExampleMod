@@ -587,7 +587,7 @@ namespace LivingWorldNpcs
                     NpcInterceptIntent.Deter => primaryAction switch
                     {
                         PlayerActionType.WeaponDrawn =>
-                            r.Resolve("（{SPEAKER_EMOTION}地）把刀收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
+                            r.Resolve("（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
                         _ => // Crouching
                             r.Resolve("（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
                     },
@@ -649,9 +649,9 @@ namespace LivingWorldNpcs
                         ? "好，我收起来。"
                         : "没什么，我这就走。";
                     string complyResp = action == PlayerActionType.WeaponDrawn
-                        ? "……别再让{SPEAKER_SELF}看见你在这拔刀。"
+                        ? "……别再让{SPEAKER_SELF}看见你在这拔{ITEM}。"
                         : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。";
-                    opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "NONE", NextTurn = "" });
+                    opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "DECREASE_RELATION", ActionValue = 1, NextTurn = "" });
                     opts.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextTurn = "continue_chat" });
                     // 不设"转身就走"——和上面"没什么，我这就走"都是走人，重复。
                     break;

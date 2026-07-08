@@ -4,6 +4,8 @@ using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 
 namespace LivingWorldNpcs
@@ -107,7 +109,7 @@ namespace LivingWorldNpcs
                 case "SPEAKER_PLAYER_ADDR": return ResolveOne("SpeakerPlayerAddr");
                 case "SPEAKER_EMOTION": return ResolveOne("SpeakerEmotion");
                 case "TARGET": return TargetName ?? "";
-                case "ITEM": return ItemName ?? "";
+                case "ITEM": return ItemName ?? AgentControlHelper.GetWieldedWeaponName(Agent.Main) ?? "";
                 case "StolenItemName": return ItemName ?? "";
                 case "LOCATION":
                     return Settlement.CurrentSettlement?.Name?.ToString() ?? "";

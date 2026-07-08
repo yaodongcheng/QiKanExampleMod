@@ -106,6 +106,7 @@ namespace LivingWorldNpcs
                 return best;
             }
         }
+
         public AgentBrain(Agent agent)
         {
             Owner = agent;
@@ -351,7 +352,7 @@ namespace LivingWorldNpcs
             {
                 if (_currentAction == null || _currentAction is StayAction)
                 {
-                    EnqueueAction(new LookAtAction(Agent.Main, 2.0f));
+                    EnqueueAction(new LookAtAction(Agent.Main, 0.0f));
                     EnqueueAction(new StayAction(Agent.Main));
                 }
                 BubbleSayOnce(AlarmPhase.Cautious);
@@ -379,8 +380,9 @@ namespace LivingWorldNpcs
                 // Cautious→Suspicious：只取消 LookAt
                 else if (fromPhase == AlarmPhase.Cautious && _currentAction is LookAtAction)
                 {
-                    _currentAction.OnEnd(Owner);
-                    _currentAction = null;
+                    AgentControlHelper.StopLooking(Owner);
+                    _currentAction.RequestInterrupt();
+                    // 下一帧 Tick 走标准路径: IsFinished→true → OnEnd → _currentAction=null → dequeue next
                 }
             }
 
@@ -401,6 +403,18 @@ namespace LivingWorldNpcs
                 SuspendVanillaAI();
             }
             _actionQueue.Enqueue(action);
+        }
+
+        /// 强行中断当前正在执行的 Action（不碰队列）。
+
+        public void AbortCurrentAction()
+        {
+            if (_currentAction != null)
+            {
+                DebugLogger.Log($"[Brain-Abort] {Owner.Name}(Idx={Owner.Index}) 强制中断 {_currentAction.GetType().Name} | 队列剩余={_actionQueue.Count}");
+                _currentAction.RequestInterrupt();
+                // 下一帧 Tick 自动清理，队列不受影响
+            }
         }
 
         private void ClearAllActions()
