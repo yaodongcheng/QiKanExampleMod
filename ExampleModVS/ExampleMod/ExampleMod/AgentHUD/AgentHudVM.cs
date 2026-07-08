@@ -99,7 +99,7 @@ namespace LivingWorldNpcs
 
             // 4. 血条显示条件（细化）
             bool isWeaponDrawn = !TargetAgent.WieldedWeapon.IsEmpty;
-            bool isFighting = AgentAIController.GetBrainForAgent(TargetAgent)?.CurrentAction is FightEnemyAction;
+            bool isFighting = AgentAIController.GetBrainForAgent(TargetAgent)?.IsCurrentOrPending<FightEnemyAction>() ?? false;
             bool isHealthLow = hpPercentage < 0.95f && currentHp > 0;
 #if !MB2_V1212
             bool isAlerted = TargetAgent.IsAlarmed() || TargetAgent.IsCautious();

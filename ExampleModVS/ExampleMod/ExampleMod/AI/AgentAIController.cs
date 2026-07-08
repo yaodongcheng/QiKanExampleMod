@@ -53,6 +53,8 @@ namespace LivingWorldNpcs
             {
                 sight.OnAgentStartObserving += (observer, target) =>
                 {
+                    //暂时关掉看到玩家的事件，避免干扰测试
+                    return;
                     if (target != Agent.Main) return;
                     if (observer == null || !observer.IsActive()) return;
                     if (InteractionMissionView.IsChatting) return;

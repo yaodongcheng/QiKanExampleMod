@@ -51,7 +51,21 @@ namespace LivingWorldNpcs
         private Queue<IAtomicAction> _actionQueue = new Queue<IAtomicAction>();
         private IAtomicAction _currentAction = null;
         public IAtomicAction CurrentAction => _currentAction;
-        public bool IsInStayMode => _currentAction is StayAction;
+        public bool IsInStayMode => IsCurrentOrPending<StayAction>();
+
+        /// <summary>
+        /// 当前有效行为：_currentAction 不为 null 就返回它，否则 fallback 到队列头。
+        /// 代表"NPC 此刻在做什么或马上就要做什么"，用于需要读 Action 属性的场景。
+        /// 返回 null 表示大脑完全空闲（无当前动作、无排队）。
+        /// </summary>
+        private IAtomicAction EffectiveAction
+            => _currentAction ?? (_actionQueue.Count > 0 ? _actionQueue.Peek() : null);
+
+        /// <summary>
+        /// 判断 NPC 当前行为意图是否为指定类型。
+        /// </summary>
+        public bool IsCurrentOrPending<T>() where T : IAtomicAction
+            => EffectiveAction is T;
 
         // ═══════════════════════════════════════════════════════════════
         // 🆕 警戒值系统（Phase 1-2）
@@ -259,9 +273,9 @@ namespace LivingWorldNpcs
 
                 if (shouldHelp)
                 {
-                    if (_currentAction is FightEnemyAction currentFight)
+                    if (EffectiveAction is FightEnemyAction currentFight)
                     {
-                        // 如果我正在打的人，就是现在伤害老大的人
+                        // 如果我正在打的人（或马上要打的人），就是现在伤害老大的人
                         if (currentFight.TargetEnemy == attacker)
                         {
                             return;
@@ -269,13 +283,7 @@ namespace LivingWorldNpcs
                     }
 
 
-                    // 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
-                    if (attacker == Agent.Main)
-                    {
-                        AddAlert(PlayerActionType.AttackAlly, 3.0f);
-                        SetPulseTarget(PlayerActionType.AttackAlly, Owner.Name, null);
-                        CheckPhaseTransition();
-                    }
+                
 
                     // BubbleSay 参战理由（走 NpcSpeech.csv + PlaceholderResolver 标准管道）
                     string templateId = Owner == victim
@@ -289,6 +297,14 @@ namespace LivingWorldNpcs
                     InteractedAgent = attacker;
                     ClearAllActions();
                     EnqueueAction(new FightEnemyAction(attacker));
+
+                    //时序处理： 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
+                    if (attacker == Agent.Main)
+                    {
+                        AddAlert(PlayerActionType.AttackAlly, 3.0f);
+                        SetPulseTarget(PlayerActionType.AttackAlly, Owner.Name, null);
+                        CheckPhaseTransition();
+                    }
                 }
             }
             if (aiEvent.EventType == "EndInteraction")
@@ -447,7 +463,8 @@ namespace LivingWorldNpcs
             }
             if (aiEvent.EventType == "BecomeCautious")
             {
-                if (_currentAction == null || _currentAction is StayAction)
+                // 大脑空闲（无当前动作且无排队）或只是待机 → 可以插入 LookAt
+                if (EffectiveAction == null || EffectiveAction is StayAction)
                 {
                     EnqueueAction(new LookAtAction(Agent.Main, 0.0f));
                     EnqueueAction(new StayAction(Agent.Main));
@@ -459,9 +476,12 @@ namespace LivingWorldNpcs
                 if (_pulseSuppressedUntil > 0 && Mission.Current?.CurrentTime < _pulseSuppressedUntil)
                     return;
 
-                // 已经在战斗中 → 不中断，让 FightEnemyAction 自然运行到终止
-                if (_currentAction is FightEnemyAction)
+                // 已经在战斗中（当前或队列中）→ 不中断，让 FightEnemyAction 自然运行到终止
+                if (IsCurrentOrPending<FightEnemyAction>())
                     return;
+
+                //调试，先关掉因为alarm导致的战斗
+                return;
 
                 // 玩家已经在战斗中 → 跳过质问，直接加入战斗
                 if (CombatManager.IsPlayerInCombat)
@@ -474,8 +494,8 @@ namespace LivingWorldNpcs
             }
             if (aiEvent.EventType == "CalmDown")
             {
-                // 已在战斗中 → 警戒值下降不应该中断战斗
-                if (_currentAction is FightEnemyAction)
+                // 已在战斗中（当前或队列中） → 警戒值下降不应该中断战斗
+                if (IsCurrentOrPending<FightEnemyAction>())
                     return;
 
                 var fromPhase = (AlarmPhase)aiEvent.Args[0];
@@ -491,11 +511,19 @@ namespace LivingWorldNpcs
                     ResumeVanillaAI();
                 }
                 // Cautious→Suspicious：只取消 LookAt
-                else if (fromPhase == AlarmPhase.Cautious && _currentAction is LookAtAction)
+                else if (fromPhase == AlarmPhase.Cautious && EffectiveAction is LookAtAction)
                 {
                     AgentControlHelper.StopLooking(Owner);
-                    _currentAction.RequestInterrupt();
-                    // 下一帧 Tick 走标准路径: IsFinished→true → OnEnd → _currentAction=null → dequeue next
+                    if (_currentAction is LookAtAction)
+                    {
+                        // 正在执行中 → 标准中断
+                        _currentAction.RequestInterrupt();
+                    }
+                    else
+                    {
+                        // 还在队列头没开始 → 直接 Dequeue 丢掉
+                        _actionQueue.Dequeue();
+                    }
                 }
             }
 
@@ -511,7 +539,7 @@ namespace LivingWorldNpcs
         {
             DebugLogger.Log($"[Brain-Enqueue] {Owner.Name}(Idx={Owner.Index}) 入队 {action.GetType().Name} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count}→{_actionQueue.Count + 1}");
             // 从空脑到有 Action 的转换：一次性接管原版 AI（SuspendVanillaAI 内部幂等）
-            if (_currentAction == null && _actionQueue.Count == 0)
+            if (EffectiveAction == null)
             {
                 SuspendVanillaAI();
             }
@@ -744,6 +772,9 @@ namespace LivingWorldNpcs
         //状态迁移检查
         void CheckPhaseTransition()
         {
+
+            
+
             var newPhase = AlertPhase;
 
             // 脉冲抑制期间：阶段封顶 Cautious，防止 _lastAlertPhase 提前跳到 Alarmed
@@ -966,7 +997,7 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            if (_currentAction == null && _actionQueue.Count == 0)
+            if (EffectiveAction == null)
             {
                 DecideDefaultBehavior();
             }
