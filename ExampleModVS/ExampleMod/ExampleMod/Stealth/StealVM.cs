@@ -345,6 +345,7 @@ namespace LivingWorldNpcs
                 Agent.Main.Position,
                 15f, // 广播半径
                 "WitnessCrime",
+                false,  // 不限制视线: GroupStageManager 自己分配站位
                 Agent.Main, // 罪犯
                 _targetAgent // 受害者
             );

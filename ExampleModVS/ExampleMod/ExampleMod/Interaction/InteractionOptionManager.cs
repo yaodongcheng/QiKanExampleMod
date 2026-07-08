@@ -61,6 +61,8 @@ namespace LivingWorldNpcs
         ContinueChat,        // 继续聊（对话导航，事件Resolved后Hide）
         LureArrest,          // 诱捕
         Arrest,              // 直接抓捕
+        SurrenderJail,       // 束手就擒坐牢（Alert 场景）
+        Comply,              // 服从（收武器/停止可疑行为，Alert 场景）
     }
 
     /// <summary>
@@ -124,6 +126,8 @@ namespace LivingWorldNpcs
                 case InteractionOptionType.AcceptBountyQuest:
                 case InteractionOptionType.LureArrest:
                 case InteractionOptionType.Arrest:
+                case InteractionOptionType.SurrenderJail:
+                case InteractionOptionType.Comply:
                     return InteractionCategory.Accountability;
                 // 通用（Chat / Leave / Info / Order_Follow / 及未来新增默认）
                 default:

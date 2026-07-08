@@ -14,6 +14,55 @@ namespace LivingWorldNpcs
         // Key: 阵营ID (如: 1=强盗, 2=守卫), Value: 对应的Team对象
         private static Dictionary<int, Team> _factionTeams = new Dictionary<int, Team>();
 
+        /// <summary>正在与玩家交战的 Agent 集合。用于判断玩家是否在战斗中。</summary>
+        private static HashSet<Agent> _agentsFightingPlayer = new HashSet<Agent>();
+
+        /// <summary>
+        /// 玩家是否正在战斗中。
+        /// 每次读取自动清理已失效的 Agent（死亡/消失），不依赖 OnEnd 配对调用。
+        /// </summary>
+        public static bool IsPlayerInCombat
+        {
+            get
+            {
+                _agentsFightingPlayer.RemoveWhere(a => a == null || !a.IsActive() || a.Health <= 0f);
+                return _agentsFightingPlayer.Count > 0;
+            }
+        }
+
+        /// <summary>指定 Agent 是否正在与玩家交战。</summary>
+        public static bool IsAgentFightingPlayer(Agent agent)
+        {
+            if (agent == null) return false;
+            _agentsFightingPlayer.RemoveWhere(a => a == null || !a.IsActive() || a.Health <= 0f);
+            return _agentsFightingPlayer.Contains(agent);
+        }
+
+        /// <summary>
+        /// 注册一个正在与玩家交战的 Agent。
+        /// FightEnemyAction.OnStart → CombatManager.StartFight → 涉及玩家时自动注册。
+        /// </summary>
+        public static void RegisterCombatant(Agent agent)
+        {
+            if (agent != null && agent.IsActive() && agent != Agent.Main)
+            {
+                _agentsFightingPlayer.Add(agent);
+                DebugLogger.Log($"[CombatManager] RegisterCombatant: {agent.Name}(Idx={agent.Index}), total={_agentsFightingPlayer.Count}");
+            }
+        }
+
+        /// <summary>
+        /// 注销一个与玩家交战的 Agent。FightEnemyAction.OnEnd 中显式调用。
+        /// 即时清理，不等 IsPlayerInCombat 的被动 RemoveWhere。
+        /// </summary>
+        public static void UnregisterCombatant(Agent agent)
+        {
+            if (agent != null && _agentsFightingPlayer.Remove(agent))
+            {
+                DebugLogger.Log($"[CombatManager] UnregisterCombatant: {agent.Name}(Idx={agent.Index}), total={_agentsFightingPlayer.Count}");
+            }
+        }
+
         /// <summary>
         /// 让 agentB 加入战斗。
         /// </summary>
@@ -30,6 +79,12 @@ namespace LivingWorldNpcs
 
             if (agentA == null || agentB == null || !agentA.IsActive() || !agentB.IsActive())
                 return;
+
+            // 玩家参与的战斗 → 注册战斗者
+            if (agentA == Agent.Main)
+                RegisterCombatant(agentB);
+            else if (agentB == Agent.Main)
+                RegisterCombatant(agentA);
 
             Mission mission = Mission.Current;
 

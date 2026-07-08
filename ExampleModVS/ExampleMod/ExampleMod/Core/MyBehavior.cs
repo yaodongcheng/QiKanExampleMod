@@ -5,6 +5,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameState;
 using TaleWorlds.CampaignSystem.Party.PartyComponents;
 using TaleWorlds.CampaignSystem.Party;
@@ -36,6 +37,35 @@ namespace LivingWorldNpcs
 
             // 世界事件每日阶段推进
             WorldEventStore.ProcessDaily();
+
+            // 村庄坐牢自动释放：被俘 >= 1 天后自动逃离
+            if (Hero.MainHero.IsPrisoner && SurrenderJailIntent.JailSettlement != null)
+            {
+                float daysCaptive = (float)CampaignTime.Now.ToDays - SurrenderJailIntent.JailCaptureDay;
+                if (daysCaptive >= 1f)
+                {
+                    try
+                    {
+                        var settlement = SurrenderJailIntent.JailSettlement;
+                        EndCaptivityAction.ApplyByEscape(Hero.MainHero);
+                        // 传送到村外
+                        if (MobileParty.MainParty != null)
+                        {
+                            var dir = new Vec2(MBRandom.RandomFloat - 0.5f, MBRandom.RandomFloat - 0.5f);
+                            dir.Normalize();
+                            V.SetPos(MobileParty.MainParty, settlement.Position2D + dir * 12f);
+                        }
+                        InformationManager.DisplayMessage(
+                            new InformationMessage($"趁着守卫换班，你从{settlement.Name}的地牢里逃了出来。", Colors.Yellow));
+                        DebugLogger.Log($"[Jail] Player escaped from {settlement.Name} after {daysCaptive:F1} days");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[Jail] Release failed: {ex.Message}");
+                    }
+                    SurrenderJailIntent.JailSettlement = null;
+                }
+            }
         }
 
         public override void SyncData(IDataStore dataStore)

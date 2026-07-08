@@ -226,7 +226,7 @@ namespace LivingWorldNpcs
         public override void OnInstant(IntentContext ctx)
         {
             if (Agent.Main != null)
-                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", Agent.Main);
+                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
             GroupStageManager.Reset(Agent.Main);
             ctx.Controller._vm.Close();
         }

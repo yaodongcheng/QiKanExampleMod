@@ -66,6 +66,9 @@ namespace LivingWorldNpcs
         /// <summary>当前正在质问玩家的 Brain。null 表示无人质问中。</summary>
         internal static AgentBrain ConfrontingBrain;
 
+        /// <summary>当前 L3 质问关联的 WorldEvent ID（供 Intent 结算后更新阶段）。null = 非 Misconduct 路径。</summary>
+        public string CurrentMisconductEventId;
+
         // ── 公开查询（AgentHudMissionView 每帧读 AlertValue / AlertPhase）──
 
         //实时计算的属性，而非存储字段
@@ -147,15 +150,56 @@ namespace LivingWorldNpcs
             }
             if(aiEvent.EventType == "order_attack")
             {
-                
+
                 Agent targetAgent = aiEvent.Args[0] as Agent;
-                
+
                 if (targetAgent == null || targetAgent == Owner)
                     return;
                 InteractedAgent = targetAgent;
                 InformationManager.DisplayMessage(new InformationMessage($"Agent {Owner.Name} 收到攻击命令，目标是 {targetAgent.Name}", Colors.Red));
                 ClearAllActions();
                 EnqueueAction(new FightEnemyAction(targetAgent));
+            }
+            if (aiEvent.EventType == "DeferredCombat")
+            {
+                var target = aiEvent.Args[0] as Agent;
+                if (target == null || target == Owner) return;
+
+                // 推进 WorldEvent 到 Confrontation
+                if (!string.IsNullOrEmpty(CurrentMisconductEventId))
+                {
+                    var evt = WorldEventStore.Find(CurrentMisconductEventId);
+                    if (evt != null && evt.Stage < EventStage.Confrontation)
+                        WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+                }
+
+                InteractedAgent = target;
+                ClearAllActions();
+                EnqueueAction(new FightEnemyAction(target));
+                DebugLogger.Log($"[Brain-DeferredCombat] {Owner.Name}(Idx={Owner.Index}) 开始攻击 {target.Name}");
+            }
+            if (aiEvent.EventType == "ReEngageConfrontation")
+            {
+                var player = Agent.Main;
+                if (player == null) return;
+                if (ConfrontingBrain != null && ConfrontingBrain != this) return;
+
+                // 推进 WorldEvent 到 Active（玩家跑了，村里人知道了，事态升级）
+                if (!string.IsNullOrEmpty(CurrentMisconductEventId))
+                {
+                    var evt = WorldEventStore.Find(CurrentMisconductEventId);
+                    if (evt != null && evt.Stage < EventStage.Active)
+                        WorldEventStore.TransitionStage(evt, EventStage.Active);
+                }
+
+                ClearAllActions();
+                InteractedAgent = player;
+                ConfrontingBrain = this;
+                EnqueueAction(new FollowAgentAction(player, false, radius: 2f, stopDistance: 1.5f));
+                EnqueueAction(new LookAtAction(player, 0.0f));
+                EnqueueAction(new AlertForceConversationAction());
+                EnqueueAction(new StayAction(player));
+                DebugLogger.Log($"[Brain-ReEngage] {Owner.Name}(Idx={Owner.Index}) 重新追上玩家质问 (WorldEvent Stage=Active)");
             }
             if (aiEvent.EventType == "event_agent_damaged")
             {
@@ -210,6 +254,24 @@ namespace LivingWorldNpcs
                             return;
                         }
                     }
+
+
+                    // 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
+                    if (attacker == Agent.Main)
+                    {
+                        AddAlert(PlayerActionType.AttackAlly, 2.0f);
+                        SetPulseTarget(PlayerActionType.AttackAlly, Owner.Name, null);
+                    }
+
+                    // BubbleSay 参战理由（走 NpcSpeech.csv + PlaceholderResolver 标准管道）
+                    string templateId = Owner == victim
+                        ? "CombatJoin_Victim"
+                        : "CombatJoin_Bystander";
+                    string line = NpcSpeechResolver.Resolve(templateId,
+                        speaker: (Owner.Character as CharacterObject)?.HeroObject,
+                        listener: Hero.MainHero);
+                    BubbleSay(line ?? (Owner == victim ? "你敢打我？！" : "你敢动我们村的人？！"));
+
                     InteractedAgent = attacker;
                     ClearAllActions();
                     EnqueueAction(new FightEnemyAction(attacker));
@@ -361,10 +423,26 @@ namespace LivingWorldNpcs
             {
                 if (_pulseSuppressedUntil > 0 && Mission.Current?.CurrentTime < _pulseSuppressedUntil)
                     return;
+
+                // 已经在战斗中 → 不中断，让 FightEnemyAction 自然运行到终止
+                if (_currentAction is FightEnemyAction)
+                    return;
+
+                // 玩家已经在战斗中 → 跳过质问，直接加入战斗
+                if (CombatManager.IsPlayerInCombat)
+                {
+                    StartL3CombatJoin();
+                    return;
+                }
+
                 StartL3Confrontation();
             }
             if (aiEvent.EventType == "CalmDown")
             {
+                // 已在战斗中 → 警戒值下降不应该中断战斗
+                if (_currentAction is FightEnemyAction)
+                    return;
+
                 var fromPhase = (AlarmPhase)aiEvent.Args[0];
                 var toPhase   = (AlarmPhase)aiEvent.Args[1];
 
@@ -538,22 +616,41 @@ namespace LivingWorldNpcs
             // 全局质问锁：只要有人在质问玩家，不管是不是我自己，都不更新警戒值（因为玩家本身就相当于在暂停对话状态）
             if (ConfrontingBrain != null)
                 return;
-            // Npc看不到玩家
+
+            // 自己正在与玩家交战中 → 警戒值已由 event_agent_damaged 脉冲拉满，不再更新
+            if (CombatManager.IsAgentFightingPlayer(Owner))
+                return;
+
+            // Npc看不到玩家 → 衰减
             if (!NpcSightSystem.CanNpcSeePlayer(Owner))
             {
                 DecayAlertBreakdown(dt);
             }
             else
             {
+                float distMult = GetAlertDistanceMultiplier();
+                bool anySuspicious = false;
                 //玩家下蹲状态
                 if (Agent.Main.CrouchMode)
-                    AddAlert(PlayerActionType.Crouching, dt * 0.15f);
+                {
+                    AddAlert(PlayerActionType.Crouching, dt * 0.15f * distMult);
+                    anySuspicious = true;
+                }
                 //玩家拔刀状态
                 if (IsPlayerWeaponDrawn())
-                    AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f);
+                {
+                    AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f * distMult);
+                    anySuspicious = true;
+                }
                 //玩家开启偷窃UI
                 if (StealManager.IsUIOpen)
-                    AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f);
+                {
+                    AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f * distMult);
+                    anySuspicious = true;
+                }
+                // 没有任何可疑行为 → 衰减（收刀/站起来/关UI 后警戒值会下降，不再冻结）
+                if (!anySuspicious)
+                    DecayAlertBreakdown(dt);
             }
             // 阶段穿越检测（向上或向下）
             CheckPhaseTransition();
@@ -566,6 +663,21 @@ namespace LivingWorldNpcs
             // MainWpn 主手 OffWpn 副手
             return V.MainWpn(main) != EquipmentIndex.None
                 || V.OffWpn(main) != EquipmentIndex.None;
+        }
+
+        /// <summary>
+        /// 距离倍率：NPC 离玩家越近，警戒值涨得越快；越远涨得越慢。
+        /// 0m→1.0x, 15m→0.0x, 线性插值。衰减不受此倍率影响。
+        /// </summary>
+        float GetAlertDistanceMultiplier()
+        {
+            var player = Agent.Main;
+            if (player == null || !player.IsActive()) return 1.0f;
+
+            float dist = Owner.Position.Distance(player.Position);
+            const float maxDist = 15f;
+            float t = MathF.Clamp(dist / maxDist, 0f, 1f);
+            return 1.0f - t;
         }
 
         //随时间自然衰减的警戒值
@@ -652,6 +764,18 @@ namespace LivingWorldNpcs
             _alertBreakdown[type] = entry;
         }
 
+        /// <summary>清空所有警戒值 + 释放质问锁（赔钱/坐牢后调用）</summary>
+        public void ClearAllAlerts()
+        {
+            _alertBreakdown.Clear();
+            _bubbledPhases.Clear();
+            _pulseSuppressedUntil = 0f;
+            CurrentMisconductEventId = null;
+            if (ConfrontingBrain == this)
+                ConfrontingBrain = null;
+            DebugLogger.Log($"[Brain-Alert] {Owner.Name}(Idx={Owner.Index}) ClearAllAlerts: 警戒值归零");
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // 🆕 BubbleSay（Phase 2）
         // ═══════════════════════════════════════════════════════════════
@@ -707,6 +831,51 @@ namespace LivingWorldNpcs
         // 🆕 L3 质问（Phase 3-4）
         // ═══════════════════════════════════════════════════════════════
 
+        /// <summary>创建或更新 Misconduct WorldEvent（StartL3Confrontation 和 StartL3CombatJoin 共用）</summary>
+        void CreateOrUpdateMisconductEvent()
+        {
+            var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
+            int severity = Math.Min(100, 20 + (int)(AlertValue * 10));
+
+            var actionBreakdown = new Dictionary<string, float>();
+            foreach (var kv in _alertBreakdown)
+                actionBreakdown[kv.Key.ToString()] = kv.Value.Value;
+
+            var worldEvt = WorldEventStore.TryUpsertMisconductEvent(
+                settlement?.StringId ?? "unknown",
+                Hero.MainHero?.StringId ?? "player",
+                severity,
+                locationName: null,
+                actionBreakdown: actionBreakdown);
+            CurrentMisconductEventId = worldEvt?.EventId;
+        }
+
+        /// <summary>
+        /// L3 战斗加入：玩家已在战斗中 → NPC 不废话，直接参战。
+        /// 跳过 Follow/LookAt/AlertForceConversation/Stay 队列，直接入队 FightEnemyAction。
+        /// </summary>
+        void StartL3CombatJoin()
+        {
+            Agent player = Agent.Main;
+            if (player == null) return;
+
+            ClearAllActions();
+            InteractedAgent = player;
+
+            CreateOrUpdateMisconductEvent();
+
+            // 推进到 Confrontation（战斗已是最高警戒状态）
+            if (!string.IsNullOrEmpty(CurrentMisconductEventId))
+            {
+                var evt = WorldEventStore.Find(CurrentMisconductEventId);
+                if (evt != null && evt.Stage < EventStage.Confrontation)
+                    WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+            }
+
+            EnqueueAction(new FightEnemyAction(player));
+            DebugLogger.Log($"[Brain-Alarmed] {Owner.Name}(Idx={Owner.Index}) 玩家已在战斗中，跳过质问直接加入战斗 | AlertValue={AlertValue:F2}");
+        }
+
         void StartL3Confrontation()
         {
             Agent player = Agent.Main;
@@ -726,12 +895,12 @@ namespace LivingWorldNpcs
             ConfrontingBrain = this;
             DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 开始质问玩家 | 质问锁已占领");
 
+            CreateOrUpdateMisconductEvent();
+
             // 统一走 DialogueInjector 管道：CrimeDialogueBuilder 构建脚本 → DialogueInjector 注入 → 原版 ConversationManager
-            // AlertForceConversationAction 对话期间持有，对话结束后由 ResetCrimeDialogueOnConversationEndPatch 广播 EndInteraction 清理
             EnqueueAction(new FollowAgentAction(player, false, radius: 2f, angleOffset: 0f, stopDistance: 1.5f));
             EnqueueAction(new LookAtAction(player, 0.0f));
             EnqueueAction(new AlertForceConversationAction());
-            //还需要一个StayAction占位，防止对话期间 Brain 自动 ResumeVanillaAI
             EnqueueAction(new StayAction(player));
         }
         public void Tick(float dt)
