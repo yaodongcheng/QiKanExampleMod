@@ -82,6 +82,8 @@ namespace LivingWorldNpcs
             Register(new AcceptBountyQuestIntent());
             Register(new LureArrestIntent());
             Register(new ArrestIntent());
+            Register(new SurrenderJailIntent());
+            Register(new ComplyIntent());
             Register(new ContinueChatIntent());
         }
 

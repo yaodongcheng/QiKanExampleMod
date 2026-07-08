@@ -114,8 +114,7 @@ namespace LivingWorldNpcs
             _ = Task.Run(() => Thinking());
         }
 
-        private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
+        public void RequestInterrupt() { }
 
         public bool IsFinished(Agent agent)
         {
@@ -225,7 +224,7 @@ namespace LivingWorldNpcs
                         InformationManager.DisplayMessage(
                             new InformationMessage($"你摸了摸空瘪的钱袋……{victimName} 见状大怒，拔出了武器！", Colors.Red));
                         AgentAIController.Instance?.SendEventToAgent(victim, "order_attack", Agent.Main);
-                        AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 15, "event_agent_damaged", victim, Agent.Main);
+                        AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 15, "event_agent_damaged", true, victim, Agent.Main);
                     }
                 },
                 () =>
@@ -813,6 +812,9 @@ namespace LivingWorldNpcs
 
         public void OnEnd(Agent agent)
         {
+            // 如果交战目标是玩家 → 注销
+            if (_targetEnemy == Agent.Main)
+                CombatManager.UnregisterCombatant(agent);
             _targetEnemy = null;
             AgentControlHelper.StopAndReset(agent); // 确保退出时清理状态
         }
@@ -946,6 +948,10 @@ namespace LivingWorldNpcs
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
 
+        public AlertForceConversationAction()
+        {
+        }
+
         public void OnStart(Agent agent)
         {
             _started = false;
@@ -973,9 +979,14 @@ namespace LivingWorldNpcs
                 _ => NpcInterceptIntent.Deter
             };
 
-            // 构建对话脚本
+            // 查找关联的 WorldEvent（Stage 决定对话是初始还是升级版）
+            WorldEvent worldEvt = null;
+            if (!string.IsNullOrEmpty(brain?.CurrentMisconductEventId))
+                worldEvt = WorldEventStore.Find(brain.CurrentMisconductEventId);
+
+            // 构建对话脚本（WorldEvent 非 null 时，CrimeDialogueBuilder 读取其 Stage 决定选项）
             var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
-                npcHero, npcIntent, primaryAction ?? PlayerActionType.Crouching);
+                npcHero, npcIntent, primaryAction ?? PlayerActionType.Crouching, worldEvt: worldEvt);
             if (script == null)
             {
                 DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");

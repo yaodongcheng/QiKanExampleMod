@@ -557,7 +557,7 @@ namespace LivingWorldNpcs
         /// 台词查找顺序：① NpcSpeech.csv → ② NarrativeResolver（过渡）→ ③ PlaceholderResolver 硬编码兜底。
         /// </summary>
         public static DialogueInjector.DialogueInjectScript BuildAlertInterceptScript(
-            Hero speaker, NpcInterceptIntent npcIntent, PlayerActionType primaryAction)
+            Hero speaker, NpcInterceptIntent npcIntent, PlayerActionType primaryAction, WorldEvent worldEvt = null)
         {
             var r = new PlaceholderResolver(speaker, Hero.MainHero);
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
@@ -613,7 +613,7 @@ namespace LivingWorldNpcs
             turns.Add(new DialogueInjector.DialogueInjectTurn
             {
                 Id = "start", SpeakerIndex = 0, NpcLine = npcOpening,
-                Options = BuildOptionsByIntent(r, npcIntent, primaryAction)
+                Options = BuildOptionsByIntent(r, npcIntent, primaryAction, worldEvt)
             });
 
             // Search 成功后如果搜到赃物 → 插入一个额外 turn 把意图切换为 Recover
@@ -623,22 +623,30 @@ namespace LivingWorldNpcs
                 turns.Add(BuildSearchResultTurn(r, hasStolen));
             }
 
-            // continue_chat
+            // continue_chat — 阶段 >= Active 时无退路
+            bool escalated = worldEvt != null && worldEvt.Stage >= EventStage.Active;
             turns.Add(new DialogueInjector.DialogueInjectTurn
             {
                 Id = "continue_chat", SpeakerIndex = 0,
-                NpcLine = "还有什么想说的？",
-                Options = new List<DialogueInjector.DialogueInjectOption>
-                {
-                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextTurn = "" }
-                }
+                NpcLine = escalated ? "最后一次警告——别逼我叫人！" : "还有什么想说的？",
+                Options = escalated
+                    ? new List<DialogueInjector.DialogueInjectOption>
+                    {
+                        new() { PlayerLine = "（拔剑）谁敢拦我！", NpcResponse = r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！"), Action = "INTENT:FightVillagers", NextTurn = "" },
+                        new() { PlayerLine = "我认罚。（100 第纳尔）", NpcResponse = r.Resolve("扰乱治安，罚款100第纳尔。算你识相。别再来了。"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextTurn = "" },
+                        new() { PlayerLine = "我没钱。要抓就抓吧。", NpcResponse = r.Resolve("没钱还敢闹事？！来人，把他关进地牢！"), Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextTurn = "" },
+                    }
+                    : new List<DialogueInjector.DialogueInjectOption>
+                    {
+                        new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextTurn = "" }
+                    }
             });
 
             return new DialogueInjector.DialogueInjectScript { EntryTurn = "start", Turns = turns };
         }
 
         static List<DialogueInjector.DialogueInjectOption> BuildOptionsByIntent(
-            PlaceholderResolver r, NpcInterceptIntent intent, PlayerActionType action)
+            PlaceholderResolver r, NpcInterceptIntent intent, PlayerActionType action, WorldEvent worldEvt = null)
         {
             var opts = new List<DialogueInjector.DialogueInjectOption>();
 
@@ -651,9 +659,14 @@ namespace LivingWorldNpcs
                     string complyResp = action == PlayerActionType.WeaponDrawn
                         ? "……别再让{SPEAKER_SELF}看见你在这拔{ITEM}。"
                         : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。";
-                    opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "DECREASE_RELATION", ActionValue = 1, NextTurn = "" });
-                    opts.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextTurn = "continue_chat" });
-                    // 不设"转身就走"——和上面"没什么，我这就走"都是走人，重复。
+                    opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "INTENT:Comply", ActionParam = "comply", NextTurn = "" });
+                    opts.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextTurn = "" });
+                    // WorldEvent Stage >= Active（玩家上次走了，这次升级围堵），加入投降选项
+                    if (worldEvt != null && worldEvt.Stage >= EventStage.Active)
+                    {
+                        opts.Add(new() { PlayerLine = "我认罚。（100 第纳尔）", NpcResponse = r.Resolve("扰乱治安，罚款100第纳尔。算你识相。别再来了。"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextTurn = "" });
+                        opts.Add(new() { PlayerLine = "我没钱。要抓就抓吧。", NpcResponse = r.Resolve("没钱还敢闹事？！来人，把他关进地牢！"), Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextTurn = "" });
+                    }
                     break;
 
                 case NpcInterceptIntent.Search:

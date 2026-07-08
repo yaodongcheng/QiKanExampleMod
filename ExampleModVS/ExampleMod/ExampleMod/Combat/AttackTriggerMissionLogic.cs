@@ -13,7 +13,7 @@ namespace LivingWorldNpcs
 {
     public class AttackTriggerMissionLogic : MissionLogic
     {
-        // 1. 添加静态实例，方便 UI 随时访问 (这是实现“简单”的关键)
+        // 1. 添加静态实例，方便 UI 随时访问 (这是实现”简单”的关键)
         private HashSet<Agent> _deadAgents;
         public static AttackTriggerMissionLogic Instance { get; private set; }
 
@@ -24,6 +24,10 @@ namespace LivingWorldNpcs
         // 用于存储切磋时的虚拟血量
         private float _agentA_VirtualHP = 100;
         private float _agentB_VirtualHP = 100;
+
+        /// <summary>战斗广播冷却字典：同一对 (attacker.Index, victim.Index) 3秒内最多广播一次</summary>
+        private static Dictionary<(int, int), float> _lastEventDamagedBroadcast = new Dictionary<(int, int), float>();
+        private const float EVENT_DAMAGED_BROADCAST_COOLDOWN = 3.0f;
         
 
         public IEnumerable<Agent> GetDeadAgentsRaw()
@@ -227,8 +231,16 @@ namespace LivingWorldNpcs
             if (victim != null && attacker != null && victim != attacker)
             {
                 InformationManager.DisplayMessage(new InformationMessage($"AttackTriggerMissionLogic - OnAgentHit: {attacker.Name} 对 {victim.Name} 造成了{b.InflictedDamage} 点伤害", Colors.Yellow));
-                AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim );
-                //AgentAIController.Instance?.BroadcastEventInRange(victim.Position,100,"event_agent_damaged", attacker, victim); // 范围广播
+                AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
+
+                // 范围广播：周围 25m 内 NPC 收到 event_agent_damaged，同一对 3 秒内最多一次
+                var key = (attacker.Index, victim.Index);
+                float now = Mission.Current?.CurrentTime ?? 0f;
+                if (!_lastEventDamagedBroadcast.TryGetValue(key, out float last) || now - last >= EVENT_DAMAGED_BROADCAST_COOLDOWN)
+                {
+                    _lastEventDamagedBroadcast[key] = now;
+                    AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", true, attacker, victim);
+                }
             }
 
             // 【场景 1】当前正在切磋中

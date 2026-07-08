@@ -21,6 +21,28 @@ namespace LivingWorldNpcs
     /// 🛞 复用 IntentCooldownStore 冷却
     /// </summary>
 
+    /// <summary>追责 Intent 的共享工具方法</summary>
+    internal static class AccountabilityHelper
+    {
+        /// <summary>从 Agent 获取当前 Misconduct WorldEvent（用于 L3 质问后同步阶段）</summary>
+        public static WorldEvent GetMisconductEvent(Agent agent)
+        {
+            if (agent == null) return null;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            if (brain == null || string.IsNullOrEmpty(brain.CurrentMisconductEventId)) return null;
+            return WorldEventStore.Find(brain.CurrentMisconductEventId);
+        }
+
+        /// <summary>解析 Misconduct WorldEvent 并推进阶段</summary>
+        public static void ResolveMisconduct(Agent agent, string resolvedBy)
+        {
+            var evt = GetMisconductEvent(agent);
+            if (evt == null) return;
+            evt.ResolvedBy = resolvedBy;
+            WorldEventStore.TransitionStage(evt, EventStage.Resolved);
+        }
+    }
+
     #region InteractionOptionType Extension
 
     // AccountabilityOptionType 已删除 — 追责 Intent 现在使用 InteractionOptionType 枚举新增值。
@@ -44,7 +66,13 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
+            // Alert 场景：NPC 找上门质问（蹲下/偷窃/攻击），无犯罪事件也允许赔钱消灾
+            if (ctx.ActiveEvent == null)
+            {
+                if (ctx.IsInMission && ctx.ActionParam == "alert_fine")
+                    return Eligibility.Show();
+                return Eligibility.Hide();
+            }
             if (ctx.ActiveEvent.InitiatorId != Hero.MainHero.StringId) return Eligibility.Hide();
 
             // 正式对话：赔钱在 Active/Confrontation 阶段始终可用；Emerging 阶段只有自首后（SuspectHeroId=玩家）才可用
@@ -63,6 +91,26 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
+            // Alert 场景：NPC 质问中玩家选赔钱 → 当场扣钱，清警戒，释放质问锁
+            if (ctx.ActionParam == "alert_fine")
+            {
+                int fine = 100;
+                AgentControlHelper.TransferGold(Hero.MainHero, null, fine);
+                var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                if (npc is Hero n)
+                    ChangeRelationAction.ApplyPlayerRelation(n, -3, false, true);
+
+                // 结案 Misconduct WorldEvent
+                AccountabilityHelper.ResolveMisconduct(ctx.Agent, "payment");
+
+                var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
+                brain?.ClearAllAlerts();
+                AgentBrain.ConfrontingBrain = null;
+                DebugLogger.Log($"[Accountability] Alert fine: paid {fine} gold, misconduct resolved");
+                return;
+            }
+
+            // 标准事件赔偿路径
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
 
@@ -249,10 +297,13 @@ namespace LivingWorldNpcs
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
+        /// <summary>威胁失败后延迟进入战斗的 Agent（对话关闭后由 Patch 消费）</summary>
+        internal static Agent PendingCombatAgent;
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            // Alert 场景：NPC 主动找上门质问（蹲下/偷窃/攻击），无犯罪事件也允许威胁
-            if (ctx.ActiveEvent == null)
+            // Alert 场景：NPC 主动找上门质问（蹲下/偷窃/攻击），无犯罪事件或仅 Misconduct 也允许威胁
+            if (ctx.ActiveEvent == null || ctx.ActiveEvent.Type == EventType.Misconduct)
             {
                 if (ctx.IsInMission)
                     return Eligibility.Show();
@@ -298,34 +349,18 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // Alert 场景：威胁失败 → 关系 -5，周围 NPC 警戒值 +0.5
+                // Alert 场景：威胁失败 → 设 PendingCombatAgent，推进 WorldEvent 到 Confrontation
+                PendingCombatAgent = ctx.Agent;
                 var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                 if (npc is Hero n)
                     ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
 
-                // 周围 NPC 警戒值 +0.5（NPC 喊了"来人！"）
-                TryRaiseNearbyAlert(PlayerActionType.WeaponDrawn, 0.5f, excludeAgent: ctx.Agent);
-                DebugLogger.Log($"[Accountability] Threat failed (Alert context) — relation -5, nearby alert +0.5");
-            }
-        }
+                var misconduct = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+                if (misconduct != null)
+                    WorldEventStore.TransitionStage(misconduct, EventStage.Confrontation);
 
-        /// <summary>给周围 NPC（除 excludeAgent 外）统一增加警戒值。模拟"NPC 呼救 → 周围人警觉"。</summary>
-        private static void TryRaiseNearbyAlert(PlayerActionType actionType, float amount, Agent excludeAgent)
-        {
-            try
-            {
-                var mission = TaleWorlds.MountAndBlade.Mission.Current;
-                if (mission == null) return;
-                foreach (var agent in mission.Agents)
-                {
-                    if (agent == excludeAgent) continue;
-                    if (agent == Agent.Main) continue;
-                    if (!agent.IsHuman || !agent.IsActive()) continue;
-                    var brain = AgentAIController.GetBrainForAgent(agent);
-                    brain?.AddAlert(actionType, amount);
-                }
+                DebugLogger.Log($"[Accountability] Threat failed (Alert) — PendingCombatAgent={ctx.Agent?.Name}, relation -5, WorldEvent→Confrontation");
             }
-            catch { }
         }
     }
 
@@ -435,6 +470,9 @@ namespace LivingWorldNpcs
         internal static string PendingInquiryTitle;
         internal static string PendingInquiryBody;
 
+        /// <summary>Alert 场景玩家转身就走 → 对话关闭后由 Patch 消费，触发呼救围堵 + 重新质问</summary>
+        internal static Agent PendingEscalationAgent;
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             // 始终可见——任何对话都可以选择离开
@@ -463,13 +501,19 @@ namespace LivingWorldNpcs
             var evt = WorldEventStore.FindActive(settlement.StringId);
             if (evt == null)
             {
-                // Alert 场景：NPC 因警戒质问找上门，玩家直接走人 → 关系 -3
+                // Alert 场景：NPC 因警戒质问找上门，玩家直接走人 → 推进 WorldEvent 到 Active + 设 EscalationAgent
                 if (ctx.IsInMission)
                 {
+                    PendingEscalationAgent = ctx.Agent;
                     var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                     if (npc is Hero n)
-                        ChangeRelationAction.ApplyPlayerRelation(n, -3, false, true);
-                    DebugLogger.Log($"[WalkAway] Alert context (no event) — relation -3");
+                        ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
+
+                    var misconduct = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+                    if (misconduct != null && misconduct.Stage < EventStage.Active)
+                        WorldEventStore.TransitionStage(misconduct, EventStage.Active);
+
+                    DebugLogger.Log($"[WalkAway] Alert context — PendingEscalationAgent={ctx.Agent?.Name}, relation -5, WorldEvent→Active");
                 }
                 return;
             }
@@ -989,6 +1033,103 @@ namespace LivingWorldNpcs
 
             // 标记玩家已接追捕
             evt.PlayerTookBountyQuest = true;
+        }
+    }
+
+    #endregion
+
+    #region SurrenderJailIntent
+
+    /// <summary>
+    /// 束手就擒——没钱赔就坐牢。扣钱、扣关系、清警戒、时间快进、传送出村。
+    /// 对标 KCD2：被抓住后要么交罚款走人，要么蹲几天地牢。
+    /// </summary>
+    public class SurrenderJailIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.SurrenderJail;
+        public override string DisplayName => "【坐牢】我没钱。要抓就抓吧。";
+        public override NegotiationGoalType? Goal => null; // 即时类
+
+        /// <summary>坐牢后延迟踢出村庄的标记（对话关闭后由 ConversationEntryPatch 消费）</summary>
+        internal static bool PendingJailExit;
+
+        /// <summary>坐牢的村庄（用于 DailyTick 自动释放）</summary>
+        internal static Settlement JailSettlement;
+        /// <summary>被俘日期（用于 DailyTick 判断时间）</summary>
+        internal static float JailCaptureDay;
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            // Alert 场景：NPC 质问中玩家选坐牢
+            if (ctx.ActiveEvent == null && ctx.IsInMission && ctx.ActionParam == "surrender_jail")
+                return Eligibility.Show();
+            return Eligibility.Hide();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            int confiscation = Math.Min(Hero.MainHero.Gold, 200);
+            if (confiscation > 0)
+                AgentControlHelper.TransferGold(Hero.MainHero, null, confiscation);
+
+            var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+            if (npc is Hero n)
+                ChangeRelationAction.ApplyPlayerRelation(n, -10, false, true);
+
+            // 结案 Misconduct WorldEvent
+            AccountabilityHelper.ResolveMisconduct(ctx.Agent, "jail");
+
+            var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
+            brain?.ClearAllAlerts();
+            AgentBrain.ConfrontingBrain = null;
+
+            // 标记延迟踢出村庄（对话关闭后由 Patch 执行 EndMission + 传送）
+            PendingJailExit = true;
+
+            DebugLogger.Log($"[Accountability] SurrenderJail: confiscated {confiscation} gold, pending jail exit");
+        }
+    }
+
+    #endregion
+
+    #region ComplyIntent
+
+    /// <summary>
+    /// 服从 — 玩家收武器/停止可疑行为。
+    /// Alert 场景 Deter 对话框的"好，我收起来"/"没什么，我这就走"选项。
+    /// 收武器、清 NPC 警戒值、释放质问锁。
+    /// </summary>
+    public class ComplyIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.Comply;
+        public override string DisplayName => "【服从】";
+        public override NegotiationGoalType? Goal => null; // 即时类
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            if(Mission.Current != null)
+                return Eligibility.Show();
+            return Eligibility.Hide();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            // 收武器（双手都收）
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
+
+            // 清 NPC 警戒值 + 释放质问锁 + 结案 Misconduct WorldEvent
+            AccountabilityHelper.ResolveMisconduct(ctx.Agent, "comply");
+
+            var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
+            brain?.ClearAllAlerts();
+            AgentBrain.ConfrontingBrain = null;
+
+            var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+            if (npc is Hero n)
+                ChangeRelationAction.ApplyPlayerRelation(n, -1, false, true);
+
+            DebugLogger.Log($"[Accountability] Comply: weapon sheathed, alerts cleared");
         }
     }
 

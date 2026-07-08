@@ -4,11 +4,15 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.Conversation;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -235,11 +239,57 @@ namespace LivingWorldNpcs
                 try
                 {
                     AgentAIController.Instance?.BroadcastEventInRange(
-                        alertAgent.Position, 15.0f, "EndInteraction", alertAgent);
+                        alertAgent.Position, 15.0f, "EndInteraction", false, alertAgent);
                 }
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"[ConvEnd] EndInteraction broadcast failed: {ex.Message}");
+                }
+            }
+
+            // 🆕 威胁失败延迟战斗：对话关闭后向 NPC 发送 DeferredCombat 事件
+            var combatAgent = ThreatIntent.PendingCombatAgent;
+            if (combatAgent != null)
+            {
+                ThreatIntent.PendingCombatAgent = null;
+                AgentAIController.Instance?.SendEventToAgent(
+                    combatAgent, "DeferredCombat", Agent.Main);
+                DebugLogger.Log($"[ConvEnd] DeferredCombat sent to {combatAgent.Name}(Idx={combatAgent.Index})");
+            }
+
+            // 🆕 转身就走围堵升级：对话关闭后广播 WitnessCrime（围观群众围过来）+ 点对点 ReEngageConfrontation
+            var escalationAgent = WalkAwayIntent.PendingEscalationAgent;
+            if (escalationAgent != null)
+            {
+                WalkAwayIntent.PendingEscalationAgent = null;
+                // 复用 WitnessCrime 管道 → GroupStageManager → GatherOnLook/StayStare，NPC 围过来盯着
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    escalationAgent.Position, 25f, "WitnessCrime", false, Agent.Main, escalationAgent);
+                // 原 NPC 重新追上质问（escalated=true，没有"我走了"选项）
+                AgentAIController.Instance?.SendEventToAgent(
+                    escalationAgent, "ReEngageConfrontation", Agent.Main);
+                DebugLogger.Log($"[ConvEnd] Escalation: WitnessCrime broadcast + ReEngageConfrontation to {escalationAgent.Name}(Idx={escalationAgent.Index})");
+            }
+
+            // 🆕 坐牢：对话关闭后用原生俘虏系统让村庄关押玩家，DailyTick 自动释放
+            if (SurrenderJailIntent.PendingJailExit)
+            {
+                SurrenderJailIntent.PendingJailExit = false;
+
+                var settlement = Settlement.CurrentSettlement;
+                if (settlement != null)
+                {
+                    try
+                    {
+                        TakePrisonerAction.Apply(settlement.Party, Hero.MainHero);
+                        SurrenderJailIntent.JailSettlement = settlement;
+                        SurrenderJailIntent.JailCaptureDay = (float)CampaignTime.Now.ToDays;
+                        DebugLogger.Log($"[ConvEnd] Player jailed by {settlement.Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[ConvEnd] Jail TakePrisonerAction failed: {ex.Message}");
+                    }
                 }
             }
         }

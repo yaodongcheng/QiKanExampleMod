@@ -45,6 +45,7 @@ namespace LivingWorldNpcs
         Poaching,           // 盗猎
         Smuggling,          // 走私
         Arson,              // 纵火
+        Misconduct,         // 行为不端（拔刀/威胁/斗殴/偷窃未遂等 Mission 内当场触发）
 
         // ── AI 模拟事件（后续迁移） ──
         BanditRaid,
@@ -151,6 +152,14 @@ namespace LivingWorldNpcs
         // ═══ 多物品追踪 ═══
         /// <summary>被盗物品 → 数量。合并时累加同种物品、追加异种物品。</summary>
         public Dictionary<string, int> StolenItems;
+
+        // ═══ 玩家行为分解（Misconduct 事件创建时从 AgentBrain._alertBreakdown 写入，合并时累加同种行为） ═══
+        /// <summary>
+        /// 玩家各类行为的累积警戒值。key = PlayerActionType 名称（"Crouching"/"WeaponDrawn"/"StealUIOpen"/"Steal"/"AttackAlly"/"Knockout"）。
+        /// 由 AgentBrain.InitiateConfrontation 在 Mission 内传入，对话系统据此选择精准台词，而非笼统的"闹事"。
+        /// 同村合并时累加同种行为的 alert 值。
+        /// </summary>
+        public Dictionary<string, float> ActionBreakdown;
 
         // ═══ 目击（发生时记录） ═══
         public List<string> WitnessHeroIds;
@@ -291,6 +300,44 @@ namespace LivingWorldNpcs
                     && V.Pos(party).Distance(V.Pos(settlement)) < 3f)
                     return WorldEventPhase.Consummated;
                 return WorldEventPhase.Impending;
+            }
+        }
+
+        /// <summary>
+        /// 构建玩家行为的中文描述（用于对话中替换笼统的"闹事"）。
+        /// 按 alert 值降序排列，支持 1-3 种行为的自然语言拼接。
+        /// </summary>
+        [JsonIgnore]
+        public string ActionDescription
+        {
+            get
+            {
+                if (ActionBreakdown == null || ActionBreakdown.Count == 0)
+                    return Config?.CrimeVerbGerund ?? "闹事";
+
+                var parts = new List<string>();
+                foreach (var kv in ActionBreakdown.OrderByDescending(kv => kv.Value))
+                {
+                    string desc = kv.Key switch
+                    {
+                        "Crouching" => "鬼鬼祟祟蹲了半天",
+                        "WeaponDrawn" => "在村里拔刀",
+                        "StealUIOpen" => "翻箱倒柜",
+                        "Steal" => "偷了东西",
+                        "AttackAlly" => "动手打人",
+                        "Knockout" => "把人打晕了",
+                        _ => null
+                    };
+                    if (desc != null && kv.Value > 0) parts.Add(desc);
+                }
+
+                return parts.Count switch
+                {
+                    0 => Config?.CrimeVerbGerund ?? "闹事",
+                    1 => parts[0],
+                    2 => $"{parts[0]}，还{parts[1]}",
+                    _ => $"{parts[0]}、{parts[1]}，还{parts[2]}"
+                };
             }
         }
 
@@ -462,6 +509,7 @@ namespace LivingWorldNpcs
             Register(Pickpocket);
             Register(Murder);
             Register(Poaching);
+            Register(Misconduct);
         }
 
         public static readonly EventConfig AnimalTheft = new EventConfig
@@ -560,6 +608,31 @@ namespace LivingWorldNpcs
             BaseInvestigationRate = 0.25f,
             InvestigationWindowDays = 16,
             PreferredResponses = { ResponsePattern.ReportToLord, ResponsePattern.IssueBounty },
+        };
+
+        /// <summary>
+        /// 行为不端 — Mission 内当场触发（拔刀/威胁/斗殴/偷窃未遂等）。
+        /// 与 Theft 系列不同：无被盗物品，Severity 由玩家行为动态计算。
+        /// 这是 L3 警戒质问升级为持久 WorldEvent 的唯一类型。
+        /// </summary>
+        public static readonly EventConfig Misconduct = new EventConfig
+        {
+            Type = EventType.Misconduct,
+            Category = EventCategory.Crime,
+            DisplayName = "行为不端",
+            DefaultSeverity = 25,
+            VictimLabel = "村庄",
+            AuthorityRole = "村长",
+            CrimeVerb = "闹事",
+            CrimeVerbPast = "有人在村里闹事",
+            CrimeVerbGerund = "闹事",
+            CrimeScene = "村里",
+            BaseSpreadRate = 0.05f,
+            BaseRestitutionMultiplier = 2,
+            BaseBountyPerUnit = 30,
+            BaseInvestigationRate = 0.15f,
+            InvestigationWindowDays = 5,
+            PreferredResponses = { ResponsePattern.DemandRestitution },
         };
     }
 
@@ -930,6 +1003,62 @@ namespace LivingWorldNpcs
             // 默认：村长 = Headman notable
             return settlement.Notables?.FirstOrDefault(n =>
                 n.Occupation == Occupation.Headman || n.Occupation == Occupation.RuralNotable);
+        }
+
+        /// <summary>
+        /// 创建或获取 Mission 内行为不端事件。
+        /// 同一定居点同时最多一个 Misconduct 活跃事件，重复调用返回已有事件并合并目击者。
+        /// 事件创建时的 Stage 为 Emerging（NPC 刚"发现"玩家的不当行为）。
+        /// </summary>
+        public static WorldEvent TryUpsertMisconductEvent(string settlementId, string initiatorId,
+            int severity = 25, string locationName = null, Dictionary<string, float> actionBreakdown = null)
+        {
+            if (string.IsNullOrEmpty(settlementId) || string.IsNullOrEmpty(initiatorId))
+                return null;
+
+            // 同村已有活跃的 Misconduct → 复用
+            var existing = FindActive(settlementId);
+            if (existing != null && existing.Type == EventType.Misconduct)
+            {
+                // 累计严重度
+                existing.Severity = Math.Min(100, existing.Severity + severity / 2);
+                // 合并行为分解
+                if (actionBreakdown != null && actionBreakdown.Count > 0)
+                {
+                    existing.ActionBreakdown = existing.ActionBreakdown ?? new Dictionary<string, float>();
+                    foreach (var kv in actionBreakdown)
+                    {
+                        existing.ActionBreakdown.TryGetValue(kv.Key, out float cur);
+                        existing.ActionBreakdown[kv.Key] = cur + kv.Value;
+                    }
+                }
+                existing.LastUpdateDay = (float)CampaignTime.Now.ToDays;
+                DebugLogger.Log($"[WorldEvent] Reusing Misconduct {existing.EventId} severity={existing.Severity} actions={string.Join(",", existing.ActionBreakdown?.Select(kv=>$"{kv.Key}:{kv.Value:F1}")??Enumerable.Empty<string>())}");
+                return existing;
+            }
+
+            var evt = new WorldEvent
+            {
+                EventId = $"misconduct_{settlementId}_{(int)CampaignTime.Now.ToHours}",
+                Category = EventCategory.Crime,
+                Type = EventType.Misconduct,
+                Severity = severity,
+                InitiatorId = initiatorId,
+                TargetSettlementId = settlementId,
+                OccurredDay = (float)CampaignTime.Now.ToDays,
+                LocationName = locationName ?? settlementId,
+                Stage = EventStage.Emerging,
+                SuspectHeroId = initiatorId, // Misconduct 当场锁定嫌犯=玩家
+                InvestigationProgress = 1.0f, // 当场目击，无需调查
+                PublicAwareness = 0.3f,       // 围观者知道了
+                WitnessHeroIds = new List<string>(),
+                ActionBreakdown = actionBreakdown ?? new Dictionary<string, float>(),
+                LastUpdateDay = (float)CampaignTime.Now.ToDays,
+            };
+
+            AddOrMerge(evt);
+            DebugLogger.Log($"[WorldEvent] Created Misconduct {evt.EventId} settlement={settlementId} initiator={initiatorId} severity={severity}");
+            return evt;
         }
 
         /// <summary>初始化报复经费：Headman Gold + 村庄繁荣度折算</summary>

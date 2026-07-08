@@ -159,7 +159,8 @@ namespace LivingWorldNpcs
         }
 
         // 3. 范围广播（最常用）
-        public void BroadcastEventInRange(Vec3 center, float radius, string eventType, params object[] args)
+        /// <param name="requireSight">true=只看能看到玩家的 NPC（默认），false=范围内全部通知（EndInteraction/WitnessCrime 等清理/站位类用）</param>
+        public void BroadcastEventInRange(Vec3 center, float radius, string eventType, bool requireSight = true, params object[] args)
         {
             // 1. 找出范围内所有的大脑
             List<AgentBrain> brainsInRange = new List<AgentBrain>();
@@ -168,18 +169,21 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"当前brains总数为{_brains.Count}");
             foreach (var brain in _brains.Values)
             {
-                if (brain.Owner.IsActive() && brain.Owner.Position.Distance(center) <= radius && brain.Owner != Agent.Main)
-                {
-                    brainsInRange.Add(brain);
-                    witnesses.Add(brain.Owner);
-                    if (IsDebugMode)
-                        DebugLogger.Log($"witnesses.Name: {brain.Owner.Name}  index {brain.Owner.Index}");
-                }
-                else
+                if (!brain.Owner.IsActive() || brain.Owner == Agent.Main) continue;
+                if (brain.Owner.Position.Distance(center) > radius) continue;
+
+                // 视线过滤：requireSight 时跳过看不见玩家的 NPC
+                if (requireSight && !NpcSightSystem.CanNpcSeePlayer(brain.Owner))
                 {
                     if (IsDebugMode)
-                        DebugLogger.Log($"{brain.Owner.Name}条件不满足无法成为目击者 ");
+                        DebugLogger.Log($"{brain.Owner.Name} 看不见玩家，跳过广播 '{eventType}'");
+                    continue;
                 }
+
+                brainsInRange.Add(brain);
+                witnesses.Add(brain.Owner);
+                if (IsDebugMode)
+                    DebugLogger.Log($"witnesses.Name: {brain.Owner.Name}  index {brain.Owner.Index}");
             }
            // InformationManager.DisplayMessage(new InformationMessage($"{eventType} brainsInRange总数为: {brainsInRange.Count}"));
 
@@ -192,7 +196,7 @@ namespace LivingWorldNpcs
                 if (witnesses.Contains(criminal)) {
                     
                     witnesses.Remove(criminal);                
-                
+                    brainsInRange.Remove(GetBrainForAgent(criminal));
                 }
                 try
                 {
@@ -266,9 +270,7 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // 普通事件，直接广播，不做位置分配（日志在Debug模式才打，避免刷屏）
-                //if (IsDebugMode)
-                //    DebugLogger.Log($"普通事件{eventType}直接广播");
+                // 普通事件，直接广播，不做位置分配
                 foreach (var brain in brainsInRange)
                 {
                     brain.ReceiveEvent(new AIEvent

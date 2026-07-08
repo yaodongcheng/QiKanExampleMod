@@ -474,7 +474,7 @@ namespace LivingWorldNpcs
             var opts = new List<StoryOptionVM>();
             opts.Add(new StoryOptionVM("【离开】 告辞", () =>
             {
-                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", Agent.Main);
+                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
                 GroupStageManager.Reset(Agent.Main);
                 _vm.Close();
             }));
@@ -798,7 +798,7 @@ namespace LivingWorldNpcs
                 _vm.ShowOptions(new[] { new StoryOptionVM("离开", () => { _vm.Close(); 
                 //    AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
-                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position,15.0f,"EndInteraction",Agent.Main);
+                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position,15.0f,"EndInteraction", false, Agent.Main);
                 GroupStageManager.Reset(Agent.Main);
                 }) });
                 _isProcessing = false; // 解锁
@@ -1031,7 +1031,7 @@ namespace LivingWorldNpcs
                         ExecuteTransaction(_draftProposal);
                        // AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
-                        AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", Agent.Main);
+                        AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
                         GroupStageManager.Reset(Agent.Main);
                         _vm.Close();
                     }));
@@ -1144,7 +1144,7 @@ namespace LivingWorldNpcs
                     _memory.CurrentInitiative = null; // 清除开场状态，避免重复触发
                                                       //AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
-                    AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", Agent.Main);
+                    AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
                 }, "结束对话"));
             }
             else
@@ -1371,7 +1371,7 @@ namespace LivingWorldNpcs
             options.Add(new StoryOptionVM("【离开】告辞", () => { 
                 //AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
-                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", Agent.Main);
+                AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
                 GroupStageManager.Reset(Agent.Main);
                 _vm.Close();
             }, "退出对话"));

@@ -647,7 +647,8 @@ namespace LivingWorldNpcs
                         Hero = npc,
                         Player = Hero.MainHero,
                         ActiveEvent = evt,
-                        IsInMission = TaleWorlds.MountAndBlade.Mission.Current != null
+                        IsInMission = TaleWorlds.MountAndBlade.Mission.Current != null,
+                        ActionParam = opt.ActionParam
                     };
                     var eligibility = intent.Evaluate(ctx);
                     // 对话中只显示完全可用的选项，Disabled 也隐藏。

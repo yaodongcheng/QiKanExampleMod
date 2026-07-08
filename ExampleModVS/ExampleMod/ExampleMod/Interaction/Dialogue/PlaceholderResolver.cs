@@ -152,6 +152,8 @@ namespace LivingWorldNpcs
                     var desc = ResolveOne("StolenItemDesc");
                     return string.IsNullOrEmpty(desc) ? "" : $"，{desc}不见了";
                 }
+                case "ActionDescription":
+                    return evt?.ActionDescription ?? "";
                 case "TargetHeroName":
                     return (evt?.TargetHero?.Name?.ToString()) ?? "";
                 case "TargetHeroIdentity":
