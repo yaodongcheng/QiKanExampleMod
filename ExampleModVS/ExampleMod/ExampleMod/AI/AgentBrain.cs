@@ -27,6 +27,14 @@ namespace LivingWorldNpcs
         /// <summary>已暂停原版 AI 的 Agent.Index 集合。AiSuspendPatch 读取以拦截 Navigator。</summary>
         internal static readonly HashSet<int> SuspendedAgentIndices = new HashSet<int>();
 
+        /// <summary>查询任意 Agent 是否处于击晕 StayAction 状态。</summary>
+        public static bool IsKnockedOut(Agent agent)
+        {
+            if (agent == null) return false;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            return brain?.CurrentAction is StayAction stay && stay.IsKnockout;
+        }
+
         public Agent Owner { get; private set; }
         public SingNpcMemorySystem _memory;
         public Agent InteractedAgent { get; set; } // 最近一次交互的对象
@@ -302,18 +310,25 @@ namespace LivingWorldNpcs
                     // ── 🆕 警戒脉冲：所有目击者统一加值（criminal==玩家时）──
                     if (criminal == Agent.Main)
                     {
-                        AddAlert(PlayerActionType.Steal, 2.0f);
-                        SetPulseTarget(PlayerActionType.Steal, victim.Name, null);
-                        _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                        bool victimKnockedOut = IsKnockedOut(victim);
+                        if (!victimKnockedOut)
+                        {
+                            // 偷窃：受害者直接指控，目击者脉冲抑制 3s
+                            AddAlert(PlayerActionType.Steal, 2.0f);
+                            SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
+                            _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                        }
+                        // 击晕：警戒脉冲推迟到 ReactionDecisionAction 回调，不由这里直接加
                     }
 
                     ClearAllActions();
                     InteractedAgent = criminal;
 
                     // ── 角色分流 ──
-                    if (Owner == victim && criminal == Agent.Main)
+                    if (Owner == victim && criminal == Agent.Main
+                        && !IsKnockedOut(victim))
                     {
-                        // 受害者：直接指控
+                        // 受害者：直接指控（击晕受害者跳过，event_agent_knocked_out 会最终覆盖）
                         var conflictData = new PendingConflict(
                     eventId: $"Theft_{TaleWorlds.CampaignSystem.CampaignTime.Now.ToHours}",
                     topicName: "当众行窃",
@@ -327,6 +342,14 @@ namespace LivingWorldNpcs
                     }
                         EnqueueAction(new ReactionDecisionAction(delay, (agent) =>
                     {
+                        // 击晕场景：延迟到期 → 拉警戒，下个 UpdateAlertCognition 触发质问
+                        // 偷窃场景：警戒已在上面脉冲过，这里只做围观
+                        if (IsKnockedOut(victim) && criminal == Agent.Main)
+                        {
+                            AddAlert(PlayerActionType.Steal, 2.0f);
+                            SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
+                            _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
+                        }
                         EnqueueAction(new LookAtAction(criminal, 0.5f));
                         EnqueueAction(new MoveToPositionAction(assignedPos, turnDir));
                         if (Owner == victim)
@@ -366,7 +389,7 @@ namespace LivingWorldNpcs
                 // 被击晕：清除所有行为，StayAction 占位永不结束
                 // EnqueueAction 自动 SuspendVanillaAI，StayAction 防止 Brain 自动 Resume
                 ClearAllActions();
-                EnqueueAction(new StayAction(null, false));
+                EnqueueAction(new StayAction(null, false, isKnockout: true));
             }
 
             // ═══════════════════════════════════════════════════════════════
