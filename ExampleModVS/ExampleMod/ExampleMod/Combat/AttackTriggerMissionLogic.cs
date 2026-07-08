@@ -241,7 +241,7 @@ namespace LivingWorldNpcs
                 {
                     _lastEventDamagedBroadcast[key] = now;
                     //暂时关闭广播
-                    //AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", true, attacker, victim);
+                    AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", true, attacker, victim);
                 }
                 
             }
