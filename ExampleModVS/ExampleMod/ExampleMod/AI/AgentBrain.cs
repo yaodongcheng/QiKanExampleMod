@@ -28,10 +28,15 @@ namespace LivingWorldNpcs
         internal static readonly HashSet<int> SuspendedAgentIndices = new HashSet<int>();
 
         /// <summary>查询任意 Agent 是否处于击晕 StayAction 状态。</summary>
+        /// <summary>是否处于击晕状态（专用标记，避免依赖 CurrentAction 时序问题）</summary>
+        internal bool IsStunned;
+
         public static bool IsKnockedOut(Agent agent)
         {
             if (agent == null) return false;
             var brain = AgentAIController.GetBrainForAgent(agent);
+            // 优先检查专用标记（CurrentAction 可能尚未出队，有时序问题）
+            if (brain?.IsStunned == true) return true;
             return brain?.CurrentAction is StayAction stay && stay.IsKnockout;
         }
 
@@ -267,8 +272,9 @@ namespace LivingWorldNpcs
                     // 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
                     if (attacker == Agent.Main)
                     {
-                        AddAlert(PlayerActionType.AttackAlly, 2.0f);
+                        AddAlert(PlayerActionType.AttackAlly, 3.0f);
                         SetPulseTarget(PlayerActionType.AttackAlly, Owner.Name, null);
+                        CheckPhaseTransition();
                     }
 
                     // BubbleSay 参战理由（走 NpcSpeech.csv + PlaceholderResolver 标准管道）
@@ -307,19 +313,25 @@ namespace LivingWorldNpcs
                     Vec2 turnDir = (Vec2)aiEvent.Args[3];
                     float delay = GroupStageManager.CalculateReactionDelay(Owner, criminal, victim);
 
-                    // ── 🆕 警戒脉冲：所有目击者统一加值（criminal==玩家时）──
+                    // ── 警戒脉冲：区分偷窃 vs 击晕（criminal==玩家时）──
                     if (criminal == Agent.Main)
                     {
-                        bool victimKnockedOut = IsKnockedOut(victim);
-                        if (!victimKnockedOut)
+                        if (IsKnockedOut(victim))
                         {
-                            // 偷窃：受害者直接指控，目击者脉冲抑制 3s
-                            AddAlert(PlayerActionType.Steal, 2.0f);
+                            AddAlert(PlayerActionType.Knockout, 3.0f);
+                            SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null);
+                            _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
+                        }
+                        else
+                        {
+                            // 偷窃：立刻加警戒 + 3s 脉冲抑制
+                            // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
+                            AddAlert(PlayerActionType.Steal, 3.0f);
                             SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
                             _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
                         }
-                        // 击晕：警戒脉冲推迟到 ReactionDecisionAction 回调，不由这里直接加
-                    }
+
+                    }   
 
                     ClearAllActions();
                     InteractedAgent = criminal;
@@ -342,14 +354,7 @@ namespace LivingWorldNpcs
                     }
                         EnqueueAction(new ReactionDecisionAction(delay, (agent) =>
                     {
-                        // 击晕场景：延迟到期 → 拉警戒，下个 UpdateAlertCognition 触发质问
-                        // 偷窃场景：警戒已在上面脉冲过，这里只做围观
-                        if (IsKnockedOut(victim) && criminal == Agent.Main)
-                        {
-                            AddAlert(PlayerActionType.Steal, 2.0f);
-                            SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
-                            _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
-                        }
+
                         EnqueueAction(new LookAtAction(criminal, 0.5f));
                         EnqueueAction(new MoveToPositionAction(assignedPos, turnDir));
                         if (Owner == victim)
@@ -357,6 +362,12 @@ namespace LivingWorldNpcs
                         // 5. 待机
                         EnqueueAction(new StayAction(criminal));
                     }));
+                    // 击晕：立即检查阶段穿越，确保 Alarmed 在衰减前触发
+                    // （放在 ReactionDecisionAction 入队之后，让 L3 质问覆盖围观动作）
+                    if (criminal == Agent.Main && IsKnockedOut(victim))
+                    {
+                        CheckPhaseTransition();
+                    }
                 }
                 catch(Exception )
                 {
@@ -388,6 +399,7 @@ namespace LivingWorldNpcs
             {
                 // 被击晕：清除所有行为，StayAction 占位永不结束
                 // EnqueueAction 自动 SuspendVanillaAI，StayAction 防止 Brain 自动 Resume
+                IsStunned = true;
                 ClearAllActions();
                 EnqueueAction(new StayAction(null, false, isKnockout: true));
             }
@@ -733,6 +745,16 @@ namespace LivingWorldNpcs
         void CheckPhaseTransition()
         {
             var newPhase = AlertPhase;
+
+            // 脉冲抑制期间：阶段封顶 Cautious，防止 _lastAlertPhase 提前跳到 Alarmed
+            // （抑制结束后下一次 CheckPhaseTransition 自然会推进到真实阶段）
+            if (newPhase >= AlarmPhase.Alarmed
+                && _pulseSuppressedUntil > 0
+                && (Mission.Current?.CurrentTime ?? 0f) < _pulseSuppressedUntil)
+            {
+                newPhase = AlarmPhase.Cautious;
+            }
+
             if (newPhase == _lastAlertPhase) return;
 
             if (newPhase > _lastAlertPhase)
@@ -807,7 +829,10 @@ namespace LivingWorldNpcs
         public void BubbleSay(string text)
         {
             if (!string.IsNullOrEmpty(text))
+            {
+                DebugLogger.Log($"[BubbleSay] {Owner.Name}(Idx={Owner.Index}): \"{text}\"");
                 AgentHudMissionView.AgentSay(Owner, text);
+            }
         }
 
         /// <summary>
