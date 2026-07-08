@@ -1,11 +1,11 @@
-﻿[18:01:04.803] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[18:01:09.400] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[19:02:42.088] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[19:02:51.501] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[18:01:13.400] [WorldEventStore] Deserialized 0 events, 0 alerts
-[18:01:21.673] [DisplayMessage] "Custom Camera Load Success!"
-[18:01:22.085] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[19:02:55.654] [WorldEventStore] Deserialized 0 events, 0 alerts
+[19:03:03.935] [DisplayMessage] "Custom Camera Load Success!"
+[19:03:04.338] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -15,192 +15,224 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[18:01:22.094] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[18:01:27.245] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 少年 (Index:38, 距离:14.6m, 方位:南)"
-[18:01:27.249] [Brain-Receive] 少年(Idx=38) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:27.650] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 男孩 (Index:32, 距离:14.7m, 方位:东南)"
-[18:01:27.650] [Brain-Receive] 男孩(Idx=32) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:33.005] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:44, 距离:14.8m, 方位:南)"
-[18:01:33.005] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:33.210] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 男孩 (Index:33, 距离:4.8m, 方位:西南)"
-[18:01:33.210] [Brain-Receive] 男孩(Idx=33) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:37.328] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了0 点伤害"
-[18:01:37.328] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:44, 距离:1.4m, 方位:南)"
-[18:01:37.329] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:37.329] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:01:37.337] [Brain-Clear] 帝国农民(Idx=44) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[18:01:37.337] [Brain-Enqueue] 帝国农民(Idx=44) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:01:37.337] [AI-Debug] Suspend 帝国农民 (Idx=44) | 集合size=1 | 当前行为=null
-[18:01:37.340] [Brain-Receive] 男孩(Idx=33) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:37.340] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:01:37.341] [Brain-Clear] 男孩(Idx=33) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[18:01:37.341] [Brain-Enqueue] 男孩(Idx=33) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:01:37.341] [AI-Debug] Suspend 男孩 (Idx=33) | 集合size=2 | 当前行为=null
-[18:01:37.341] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=1 | 阶段=Normal
-[18:01:37.341] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:01:37.341] [Brain-Clear] 帝国农民(Idx=44) 清空动作 | 当前=null | 队列=1 | hadActions=True
-[18:01:37.342] [Brain-Enqueue] 帝国农民(Idx=44) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:01:37.345] [Brain-Tick] 男孩(Idx=33) 开始执行 FightEnemyAction | 队列剩余=0
-[18:01:37.345] [DisplayMessage] [Yellow] "男孩  开始攻击 亨利！"
-[18:01:37.346] [CombatManager] RegisterCombatant: 男孩(Idx=33), total=1
-[18:01:37.353] [Brain-Tick] 帝国农民(Idx=44) 开始执行 FightEnemyAction | 队列剩余=0
-[18:01:37.353] [DisplayMessage] [Yellow] "帝国农民  开始攻击 亨利！"
-[18:01:37.353] [CombatManager] RegisterCombatant: 帝国农民(Idx=44), total=2
-[18:01:42.709] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:28, 距离:11.9m, 方位:南)"
-[18:01:42.709] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:43.844] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:28, 距离:11.2m, 方位:南)"
-[18:01:43.845] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:46.293] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:24, 距离:14.9m, 方位:西南)"
-[18:01:46.294] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:46.394] [Brain-Phase] 帝国女农民(Idx=28) 警戒上升: Normal → Suspicious (警戒值=0.26) → 发送 'BecomeSuspicious'
-[18:01:46.394] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:47.177] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国女农民 造成了0 点伤害"
-[18:01:47.177] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国女农民 (Index:28, 距离:1.8m, 方位:南)"
-[18:01:47.177] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[18:01:47.177] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:01:47.178] [Brain-Clear] 帝国女农民(Idx=28) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[18:01:47.178] [Brain-Enqueue] 帝国女农民(Idx=28) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:01:47.178] [AI-Debug] Suspend 帝国女农民 (Idx=28) | 集合size=3 | 当前行为=null
-[18:01:47.178] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:47.178] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:01:47.178] [Brain-Clear] 帝国女农民(Idx=24) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[18:01:47.178] [Brain-Enqueue] 帝国女农民(Idx=24) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:01:47.180] [AI-Debug] Suspend 帝国女农民 (Idx=24) | 集合size=4 | 当前行为=null
-[18:01:47.180] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=1 | 阶段=Suspicious
-[18:01:47.180] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:01:47.180] [Brain-Clear] 帝国女农民(Idx=28) 清空动作 | 当前=null | 队列=1 | hadActions=True
-[18:01:47.180] [Brain-Enqueue] 帝国女农民(Idx=28) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:01:47.181] [Brain-Tick] 帝国女农民(Idx=24) 开始执行 FightEnemyAction | 队列剩余=0
-[18:01:47.181] [DisplayMessage] [Yellow] "帝国女农民  开始攻击 亨利！"
-[18:01:47.181] [CombatManager] RegisterCombatant: 帝国女农民(Idx=24), total=3
-[18:01:47.181] [Brain-Tick] 帝国女农民(Idx=28) 开始执行 FightEnemyAction | 队列剩余=0
-[18:01:47.181] [DisplayMessage] [Yellow] "帝国女农民  开始攻击 亨利！"
-[18:01:47.182] [CombatManager] RegisterCombatant: 帝国女农民(Idx=28), total=4
-[18:01:48.228] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 男孩 (Index:33, 距离:14.8m, 方位:西北)"
-[18:01:48.228] [Brain-Receive] 男孩(Idx=33) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:01:51.826] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:30, 距离:14.8m, 方位:西北)"
-[18:01:51.827] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:56.906] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:24, 距离:14.9m, 方位:西南)"
-[18:01:56.907] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:01:58.985] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 少女 (Index:43, 距离:14.6m, 方位:北)"
-[18:01:58.985] [Brain-Receive] 少女(Idx=43) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:58.985] [DisplayMessage] "[冒泡问候] 少女 (Index:43) 决定向你打招呼 (概率:10 %, 声望:5)"
-[18:01:58.992] [DisplayMessage] "[冒泡问候] 少女: "亨利 大人 恭迎大驾！""
-[18:01:59.398] [Brain-Phase] 帝国女农民(Idx=30) 警戒上升: Normal → Suspicious (警戒值=0.25) → 发送 'BecomeSuspicious'
-[18:01:59.399] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:01:59.504] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 少女 (Index:43, 距离:12.3m, 方位:北)"
-[18:01:59.504] [Brain-Receive] 少女(Idx=43) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:02:00.433] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:44, 距离:1.9m, 方位:西南)"
-[18:02:00.433] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:00.786] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国女农民 造成了0 点伤害"
-[18:02:00.786] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国女农民 (Index:30, 距离:1.4m, 方位:西北)"
-[18:02:00.786] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[18:02:00.786] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:00.786] [Brain-Clear] 帝国女农民(Idx=30) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[18:02:00.786] [Brain-Enqueue] 帝国女农民(Idx=30) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:02:00.786] [AI-Debug] Suspend 帝国女农民 (Idx=30) | 集合size=5 | 当前行为=null
-[18:02:00.786] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Suspicious
-[18:02:00.788] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:00.788] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=1 | 阶段=Suspicious
-[18:02:00.788] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:00.788] [Brain-Clear] 帝国女农民(Idx=30) 清空动作 | 当前=null | 队列=1 | hadActions=True
-[18:02:00.788] [Brain-Enqueue] 帝国女农民(Idx=30) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:02:00.788] [Brain-Receive] 男孩(Idx=33) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:00.788] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:00.788] [Brain-Receive] 少女(Idx=43) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:02:00.788] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:00.789] [Brain-Clear] 少女(Idx=43) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[18:02:00.789] [Brain-Enqueue] 少女(Idx=43) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:02:00.789] [AI-Debug] Suspend 少女 (Idx=43) | 集合size=6 | 当前行为=null
-[18:02:00.789] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:00.789] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:00.790] [Brain-Tick] 帝国女农民(Idx=30) 开始执行 FightEnemyAction | 队列剩余=0
-[18:02:00.790] [DisplayMessage] [Yellow] "帝国女农民  开始攻击 亨利！"
-[18:02:00.790] [CombatManager] RegisterCombatant: 帝国女农民(Idx=30), total=5
-[18:02:00.790] [Brain-Tick] 少女(Idx=43) 开始执行 FightEnemyAction | 队列剩余=0
-[18:02:00.791] [DisplayMessage] [Yellow] "少女  开始攻击 亨利！"
-[18:02:00.791] [CombatManager] RegisterCombatant: 少女(Idx=43), total=6
-[18:02:02.922] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:30, 距离:2.3m, 方位:西)"
-[18:02:02.923] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Suspicious
-[18:02:05.177] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:30, 距离:2.9m, 方位:西)"
-[18:02:05.177] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Suspicious
-[18:02:07.036] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:24, 距离:15.0m, 方位:南)"
-[18:02:07.036] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:09.095] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:28, 距离:8.0m, 方位:东)"
-[18:02:09.096] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Suspicious
-[18:02:10.566] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了0 点伤害"
-[18:02:10.566] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:16, 距离:1.3m, 方位:西南)"
-[18:02:10.566] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
-[18:02:10.566] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:10.566] [Brain-Clear] 帝国农民(Idx=16) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[18:02:10.566] [Brain-Enqueue] 帝国农民(Idx=16) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[18:02:10.568] [AI-Debug] Suspend 帝国农民 (Idx=16) | 集合size=7 | 当前行为=null
-[18:02:10.568] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:10.568] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:10.568] [Brain-Receive] 少女(Idx=43) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:10.569] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:10.569] [Brain-Tick] 帝国农民(Idx=16) 开始执行 FightEnemyAction | 队列剩余=0
-[18:02:10.569] [DisplayMessage] [Yellow] "帝国农民  开始攻击 亨利！"
-[18:02:10.569] [CombatManager] RegisterCombatant: 帝国农民(Idx=16), total=7
-[18:02:10.741] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:16, 距离:1.2m, 方位:西南)"
-[18:02:10.741] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:12.383] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国女农民 造成了0 点伤害"
-[18:02:12.383] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国女农民 (Index:24, 距离:1.9m, 方位:西南)"
-[18:02:12.383] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:12.383] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:12.383] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:12.384] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:12.384] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:12.384] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:12.384] [Brain-Receive] 少女(Idx=43) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:12.384] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国女农民 造成了伤害"
-[18:02:13.490] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:24, 距离:2.2m, 方位:西)"
-[18:02:13.490] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'StartObservingPlayer' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:14.355] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：臂</Detail>" | category=Combat
-[18:02:16.154] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：臂</Detail>" | category=Combat
-[18:02:24.900] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：臂</Detail>" | category=Combat
-[18:02:31.077] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
-[18:02:45.704] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了23 点伤害"
-[18:02:45.705] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:16, 距离:1.3m, 方位:北)"
-[18:02:45.705] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:45.705] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:45.705] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:45.706] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:45.706] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:45.706] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:45.706] [Brain-Receive] 少女(Idx=43) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:45.706] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:45.710] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成23点穿刺伤害。<Detail>命中部位：腿</Detail><Detail>吸收伤害：5</Detail>" | category=Combat
-[18:02:47.243] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了27 点伤害"
-[18:02:47.244] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:16, 距离:1.3m, 方位:北)"
-[18:02:47.244] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:47.244] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:47.245] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成27点穿刺伤害。<Detail>命中部位：肩</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[18:02:51.510] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
-[18:02:53.941] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了30 点伤害"
-[18:02:53.942] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:16, 距离:1.3m, 方位:北)"
-[18:02:53.942] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:53.942] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:53.942] [Brain-Receive] 帝国农民(Idx=16) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:53.942] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:53.942] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:53.943] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:53.943] [Brain-Receive] 少女(Idx=43) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[18:02:53.943] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[18:02:53.943] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成30点穿刺伤害。<Detail>命中部位：臂</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
-[18:02:55.680] [DisplayMessage] [Red] "Agent 亨利 被加入尸体列表"
-[18:02:55.694] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
-[18:02:55.696] [Brain-Tick] 帝国农民(Idx=16) 完成 FightEnemyAction
-[18:02:55.696] [Brain-Tick] 帝国女农民(Idx=24) 完成 FightEnemyAction
-[18:02:55.696] [Brain-Tick] 帝国女农民(Idx=28) 完成 FightEnemyAction
-[18:02:55.696] [Brain-Tick] 帝国女农民(Idx=30) 完成 FightEnemyAction
-[18:02:55.696] [Brain-Tick] 男孩(Idx=33) 完成 FightEnemyAction
-[18:02:55.697] [Brain-Tick] 少女(Idx=43) 完成 FightEnemyAction
-[18:02:55.697] [Brain-Tick] 帝国农民(Idx=44) 完成 FightEnemyAction
-[18:02:55.702] [AI-Debug] Resume 帝国农民 (Idx=16) | 集合size=6
-[18:02:55.703] [AI-Debug] Resume 帝国女农民 (Idx=24) | 集合size=5
-[18:02:55.703] [AI-Debug] Resume 帝国女农民 (Idx=28) | 集合size=4
-[18:02:55.703] [AI-Debug] Resume 帝国女农民 (Idx=30) | 集合size=3
-[18:02:55.703] [AI-Debug] Resume 男孩 (Idx=33) | 集合size=2
-[18:02:55.705] [AI-Debug] Resume 少女 (Idx=43) | 集合size=1
-[18:02:55.705] [AI-Debug] Resume 帝国农民 (Idx=44) | 集合size=0
+[19:03:04.347] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[19:03:10.093] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:6, 距离:14.6m, 方位:东南)"
+[19:03:10.097] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:11.626] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 女孩 (Index:36, 距离:14.7m, 方位:西南)"
+[19:03:11.626] [Brain-Receive] 女孩(Idx=36) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:14.400] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:6, 距离:7.2m, 方位:东北)"
+[19:03:14.402] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:16.072] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国农民 (Index:5, 距离:4.3m, 方位:南)"
+[19:03:16.072] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.000] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[19:03:19.614] [ForcePlayAction] 帝国女农民 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_female_villager'→'as_human_warrior'
+[19:03:19.614] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国女农民 (Index:23, 距离:1.7m, 方位:东南)"
+[19:03:19.615] [Brain-Receive] 帝国女农民(Idx=23) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.615] [Brain-Clear] 帝国女农民(Idx=23) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.615] [Brain-Enqueue] 帝国女农民(Idx=23) 入队 StayAction | 当前行为=null | 队列=0→1
+[19:03:19.616] [AI-Debug] Suspend 帝国女农民 (Idx=23) | 集合size=1 | 当前行为=null
+[19:03:19.622] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.624] [Brain-Clear] 帝国农民(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.624] [Brain-Enqueue] 帝国农民(Idx=5) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.624] [AI-Debug] Suspend 帝国农民 (Idx=5) | 集合size=2 | 当前行为=null
+[19:03:19.624] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.624] [Brain-Clear] 帝国农民(Idx=6) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.625] [Brain-Enqueue] 帝国农民(Idx=6) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.625] [AI-Debug] Suspend 帝国农民 (Idx=6) | 集合size=3 | 当前行为=null
+[19:03:19.625] [Brain-Receive] 帝国农民(Idx=17) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.625] [Brain-Clear] 帝国农民(Idx=17) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.625] [Brain-Enqueue] 帝国农民(Idx=17) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.625] [AI-Debug] Suspend 帝国农民 (Idx=17) | 集合size=4 | 当前行为=null
+[19:03:19.625] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.625] [Brain-Clear] 帝国女农民(Idx=24) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.625] [Brain-Enqueue] 帝国女农民(Idx=24) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.625] [AI-Debug] Suspend 帝国女农民 (Idx=24) | 集合size=5 | 当前行为=null
+[19:03:19.625] [Brain-Receive] 帝国女农民(Idx=26) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.626] [Brain-Clear] 帝国女农民(Idx=26) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.626] [Brain-Enqueue] 帝国女农民(Idx=26) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.626] [AI-Debug] Suspend 帝国女农民 (Idx=26) | 集合size=6 | 当前行为=null
+[19:03:19.626] [Brain-Receive] 帝国女农民(Idx=29) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.626] [Brain-Clear] 帝国女农民(Idx=29) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.626] [Brain-Enqueue] 帝国女农民(Idx=29) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.626] [AI-Debug] Suspend 帝国女农民 (Idx=29) | 集合size=7 | 当前行为=null
+[19:03:19.626] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.626] [Brain-Clear] 帝国女农民(Idx=30) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.626] [Brain-Enqueue] 帝国女农民(Idx=30) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.626] [AI-Debug] Suspend 帝国女农民 (Idx=30) | 集合size=8 | 当前行为=null
+[19:03:19.627] [Brain-Receive] 女孩(Idx=36) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.627] [Brain-Clear] 女孩(Idx=36) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.627] [Brain-Enqueue] 女孩(Idx=36) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.627] [AI-Debug] Suspend 女孩 (Idx=36) | 集合size=9 | 当前行为=null
+[19:03:19.627] [Brain-Receive] 女孩(Idx=37) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:19.627] [Brain-Clear] 女孩(Idx=37) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:03:19.627] [Brain-Enqueue] 女孩(Idx=37) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[19:03:19.627] [AI-Debug] Suspend 女孩 (Idx=37) | 集合size=10 | 当前行为=null
+[19:03:19.627] [DisplayMessage] [Green] "从背后击晕了 帝国女农民！"
+[19:03:19.628] [Knockout] 亨利 knocked out 帝国女农民 from behind (anim: act_shield_bash)
+[19:03:19.629] [Brain-Tick] 帝国农民(Idx=5) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.629] [Brain-Tick] 帝国农民(Idx=6) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.629] [Brain-Tick] 帝国农民(Idx=17) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.629] [Brain-Tick] 帝国女农民(Idx=23) 开始执行 StayAction | 队列剩余=0
+[19:03:19.629] [Brain-Tick] 帝国女农民(Idx=24) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.631] [Brain-Tick] 帝国女农民(Idx=26) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.631] [Brain-Tick] 帝国女农民(Idx=29) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.631] [Brain-Tick] 帝国女农民(Idx=30) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.631] [Brain-Tick] 女孩(Idx=36) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.631] [Brain-Tick] 女孩(Idx=37) 开始执行 ReactionDecisionAction | 队列剩余=0
+[19:03:19.682] [Brain-Phase] 帝国农民(Idx=5) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.683] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.693] [Brain-Phase] 帝国农民(Idx=6) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.693] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.695] [Brain-Phase] 帝国农民(Idx=17) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.695] [Brain-Receive] 帝国农民(Idx=17) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.695] [Brain-Phase] 帝国女农民(Idx=24) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.695] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.695] [Brain-Phase] 帝国女农民(Idx=26) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.695] [Brain-Receive] 帝国女农民(Idx=26) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.695] [Brain-Phase] 帝国女农民(Idx=29) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.695] [Brain-Receive] 帝国女农民(Idx=29) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.695] [Brain-Phase] 帝国女农民(Idx=30) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.695] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.696] [Brain-Phase] 女孩(Idx=36) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.696] [Brain-Receive] 女孩(Idx=36) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:19.696] [Brain-Phase] 女孩(Idx=37) 警戒上升: Normal → Cautious (警戒值=1.98) → 发送 'BecomeCautious'
+[19:03:19.696] [Brain-Receive] 女孩(Idx=37) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[19:03:22.401] [Brain-Enqueue] 帝国农民(Idx=5) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:22.401] [Brain-Enqueue] 帝国农民(Idx=5) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:22.401] [Brain-Enqueue] 帝国农民(Idx=5) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:22.401] [Brain-Tick] 帝国农民(Idx=5) 完成 ReactionDecisionAction
+[19:03:22.407] [Brain-Tick] 帝国农民(Idx=5) 开始执行 LookAtAction | 队列剩余=2
+[19:03:22.429] [Brain-Phase] 帝国农民(Idx=5) 警戒上升: Cautious → Alarmed (警戒值=3.57) → 发送 'BecomeAlarmed'
+[19:03:22.429] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'BecomeAlarmed' | 当前行为=LookAtAction | 队列=2 | 阶段=Cautious
+[19:03:22.430] [Brain-Clear] 帝国农民(Idx=5) 清空动作 | 当前=LookAtAction | 队列=2 | hadActions=True
+[19:03:22.430] [Brain-Lock] 帝国农民(Idx=5) 开始质问玩家 | 质问锁已占领
+[19:03:22.433] [WorldEvent] New event: Misconduct id=misconduct_village_ES3_2_2185860 settlement=village_ES3_2 items=[] culprit=main_hero stage=Emerging suspect=main_hero witnesses=0h+0v severity=55 occurredDay=91077.52
+[19:03:22.433] [WorldEvent] Created Misconduct misconduct_village_ES3_2_2185860 settlement=village_ES3_2 initiator=main_hero severity=55
+[19:03:22.433] [Brain-Enqueue] 帝国农民(Idx=5) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
+[19:03:22.434] [Brain-Enqueue] 帝国农民(Idx=5) 入队 LookAtAction | 当前行为=null | 队列=1→2
+[19:03:22.434] [Brain-Enqueue] 帝国农民(Idx=5) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
+[19:03:22.434] [Brain-Enqueue] 帝国农民(Idx=5) 入队 StayAction | 当前行为=null | 队列=3→4
+[19:03:22.436] [Brain-Tick] 帝国农民(Idx=5) 开始执行 FollowAgentAction | 队列剩余=3
+[19:03:22.438] [Brain-Tick] 帝国农民(Idx=5) 完成 FollowAgentAction
+[19:03:22.440] [Brain-Tick] 帝国农民(Idx=5) 开始执行 LookAtAction | 队列剩余=2
+[19:03:22.440] [Brain-Tick] 帝国农民(Idx=5) 完成 LookAtAction
+[19:03:22.446] [Brain-Tick] 帝国农民(Idx=5) 开始执行 AlertForceConversationAction | 队列剩余=1
+[19:03:22.447] [AlertForceConv] 帝国农民(Idx=5) 模板NPC(帝国农民) — 使用 InjectScriptAsOpening (start token)
+[19:03:22.450] [DialogueInjector] Opening: NPC line at 'start' → 'lwnpc_AlertL3_帝国农民_v0_atk_0' | priority=200 | owner=AlertL3_帝国农民_v0
+[19:03:22.453] [AlertForceConv] 帝国农民(Idx=5) InjectScriptAsOpening: SUCCESS (opening mode): 'AlertL3_帝国农民_v0' → 2 turns at 'start' | Turns=2
+[19:03:22.453] [AlertForceConv]   Turn[0] id=start SpeakerIndex=0 NpcLine="（冷淡地）我看见了！你偷了！交出来！"
+[19:03:22.453] [AlertForceConv]     Option[0] PlayerLine="好，还给你。（0 第纳尔）" | Action=INTENT:PayRestitution | NextTurn= | Resp=算你识相。别再来了。
+[19:03:22.453] [AlertForceConv]     Option[1] PlayerLine="你哪只眼睛看见的？" | Action=INTENT:CharmDefense | NextTurn=continue_chat | Resp=SUCCESS:"……我可能看错了。" FAIL:"我两只眼睛都看见了！"
+[19:03:22.453] [AlertForceConv]     Option[2] PlayerLine="（推开就跑）" | Action=INTENT:WalkAway | NextTurn= | Resp=(无回应)
+[19:03:22.453] [AlertForceConv]   Turn[1] id=continue_chat SpeakerIndex=0 NpcLine="还有什么想说的？"
+[19:03:22.454] [AlertForceConv]     Option[0] PlayerLine="我走了。" | Action=INTENT:WalkAway | NextTurn= | Resp=(无回应)
+[19:03:22.485] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "（冷淡地）我看见了！你偷了！交出来！"
+[19:03:22.503] [AlertForceConv] 帝国农民(Idx=5) 对话启动成功
+[19:03:24.000] [Brain-Enqueue] 帝国农民(Idx=6) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:24.000] [Brain-Enqueue] 帝国农民(Idx=6) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:24.000] [Brain-Enqueue] 帝国农民(Idx=6) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:24.000] [Brain-Tick] 帝国农民(Idx=6) 完成 ReactionDecisionAction
+[19:03:24.005] [Brain-Tick] 帝国农民(Idx=6) 开始执行 LookAtAction | 队列剩余=2
+[19:03:24.503] [Brain-Tick] 帝国农民(Idx=6) 完成 LookAtAction
+[19:03:24.509] [Brain-Tick] 帝国农民(Idx=6) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:25.349] [Brain-Enqueue] 女孩(Idx=36) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:25.349] [Brain-Enqueue] 女孩(Idx=36) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:25.349] [Brain-Enqueue] 女孩(Idx=36) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:25.349] [Brain-Tick] 女孩(Idx=36) 完成 ReactionDecisionAction
+[19:03:25.354] [Brain-Tick] 女孩(Idx=36) 开始执行 LookAtAction | 队列剩余=2
+[19:03:25.593] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 女孩 (Index:36, 距离:4.3m, 方位:东北)"
+[19:03:25.594] [Brain-Receive] 女孩(Idx=36) 收到事件 'StartObservingPlayer' | 当前行为=LookAtAction | 队列=2 | 阶段=Cautious
+[19:03:25.851] [Brain-Tick] 女孩(Idx=36) 完成 LookAtAction
+[19:03:25.856] [Brain-Tick] 女孩(Idx=36) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:26.898] [Brain-Enqueue] 帝国女农民(Idx=26) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:26.898] [Brain-Enqueue] 帝国女农民(Idx=26) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:26.898] [Brain-Enqueue] 帝国女农民(Idx=26) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:26.898] [Brain-Tick] 帝国女农民(Idx=26) 完成 ReactionDecisionAction
+[19:03:26.903] [Brain-Tick] 帝国女农民(Idx=26) 开始执行 LookAtAction | 队列剩余=2
+[19:03:27.221] [Brain-Enqueue] 帝国女农民(Idx=24) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:27.222] [Brain-Enqueue] 帝国女农民(Idx=24) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:27.222] [Brain-Enqueue] 帝国女农民(Idx=24) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:27.222] [Brain-Tick] 帝国女农民(Idx=24) 完成 ReactionDecisionAction
+[19:03:27.226] [Brain-Tick] 帝国女农民(Idx=24) 开始执行 LookAtAction | 队列剩余=2
+[19:03:27.401] [Brain-Tick] 帝国女农民(Idx=26) 完成 LookAtAction
+[19:03:27.407] [Brain-Tick] 帝国女农民(Idx=26) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:27.571] [Brain-Enqueue] 女孩(Idx=37) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:27.571] [Brain-Enqueue] 女孩(Idx=37) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:27.571] [Brain-Enqueue] 女孩(Idx=37) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:27.571] [Brain-Tick] 女孩(Idx=37) 完成 ReactionDecisionAction
+[19:03:27.577] [Brain-Tick] 女孩(Idx=37) 开始执行 LookAtAction | 队列剩余=2
+[19:03:27.724] [Brain-Tick] 帝国女农民(Idx=24) 完成 LookAtAction
+[19:03:27.730] [Brain-Tick] 帝国女农民(Idx=24) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:28.077] [Brain-Tick] 女孩(Idx=37) 完成 LookAtAction
+[19:03:28.082] [Brain-Tick] 女孩(Idx=37) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:28.363] [Brain-Tick] 女孩(Idx=36) 完成 MoveToPositionAction
+[19:03:28.369] [Brain-Tick] 女孩(Idx=36) 开始执行 StayAction | 队列剩余=0
+[19:03:28.374] [Brain-Enqueue] 帝国女农民(Idx=30) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:28.374] [Brain-Enqueue] 帝国女农民(Idx=30) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:28.374] [Brain-Enqueue] 帝国女农民(Idx=30) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:28.374] [Brain-Tick] 帝国女农民(Idx=30) 完成 ReactionDecisionAction
+[19:03:28.378] [Brain-Tick] 帝国女农民(Idx=30) 开始执行 LookAtAction | 队列剩余=2
+[19:03:28.773] [Brain-Enqueue] 帝国农民(Idx=17) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:28.773] [Brain-Enqueue] 帝国农民(Idx=17) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:28.774] [Brain-Enqueue] 帝国农民(Idx=17) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:28.774] [Brain-Tick] 帝国农民(Idx=17) 完成 ReactionDecisionAction
+[19:03:28.778] [Brain-Tick] 帝国农民(Idx=17) 开始执行 LookAtAction | 队列剩余=2
+[19:03:28.875] [Brain-Tick] 帝国女农民(Idx=30) 完成 LookAtAction
+[19:03:28.880] [Brain-Tick] 帝国女农民(Idx=30) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:29.166] [VanillaDialog] Token='lwnpc_AlertL3_帝国农民_v0_atk_0' NPC=亨利 | Options (2): 你哪只眼睛看见的？ | （推开就跑）
+[19:03:29.168] [DialogueInjector] Intent CharmDefense hidden by Evaluate
+[19:03:29.168] [VanillaDialog] Player says: "你哪只眼睛看见的？"
+[19:03:29.169] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "…"
+[19:03:29.277] [Brain-Tick] 帝国农民(Idx=17) 完成 LookAtAction
+[19:03:29.282] [Brain-Tick] 帝国农民(Idx=17) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:29.368] [Brain-Enqueue] 帝国女农民(Idx=29) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[19:03:29.369] [Brain-Enqueue] 帝国女农民(Idx=29) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[19:03:29.369] [Brain-Enqueue] 帝国女农民(Idx=29) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[19:03:29.369] [Brain-Tick] 帝国女农民(Idx=29) 完成 ReactionDecisionAction
+[19:03:29.374] [Brain-Tick] 帝国女农民(Idx=29) 开始执行 LookAtAction | 队列剩余=2
+[19:03:29.868] [Brain-Tick] 帝国女农民(Idx=29) 完成 LookAtAction
+[19:03:29.873] [Brain-Tick] 帝国女农民(Idx=29) 开始执行 MoveToPositionAction | 队列剩余=1
+[19:03:30.437] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "还有什么想说的？"
+[19:03:31.361] [VanillaDialog] Token='lwnpc_AlertL3_帝国农民_v0_atk_4' NPC=亨利 | Options (1): 我走了。
+[19:03:31.362] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Emerging → Active
+[19:03:31.363] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Active settlement=特维亚 — refreshing issue signals
+[19:03:31.368] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185860 stage=Active
+[19:03:31.368] [Accountability] WalkAway (Emerging suspect): misconduct_village_ES3_2_2185860 → Active
+[19:03:31.369] [VanillaDialog] Player says: "我走了。"
+[19:03:31.369] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "…"
+[19:03:31.828] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[19:03:31.829] [ShowInquiry] "“站住！”" | "你转身离开，身后传来特维亚的加里托普斯愤怒的吼声——
+
+"你以为认了就完了？！这事没完！"
+
+特维亚的村民们纷纷侧目，你在此地的名声已经坏了。下次再见到特维亚的加里托普斯，可就不是商量那么简单了。" | Btn1="……" Btn2="(hidden)"
+[19:03:31.832] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=1 | 阶段=Alarmed
+[19:03:31.833] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'EndInteraction' | 当前行为=MoveToPositionAction | 队列=1 | 阶段=Cautious
+[19:03:31.833] [Brain-Receive] 帝国农民(Idx=17) 收到事件 'EndInteraction' | 当前行为=MoveToPositionAction | 队列=1 | 阶段=Cautious
+[19:03:31.833] [Brain-Receive] 帝国女农民(Idx=23) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Normal
+[19:03:31.833] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'EndInteraction' | 当前行为=MoveToPositionAction | 队列=1 | 阶段=Cautious
+[19:03:31.833] [Brain-Receive] 女孩(Idx=36) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[19:03:31.835] [Brain-Tick] 帝国农民(Idx=5) 完成 AlertForceConversationAction
+[19:03:31.840] [Brain-Tick] 帝国农民(Idx=5) 开始执行 StayAction | 队列剩余=0
+[19:03:32.507] [Brain-Tick] 帝国农民(Idx=6) 完成 MoveToPositionAction
+[19:03:32.512] [Brain-Tick] 帝国农民(Idx=6) 开始执行 StayAction | 队列剩余=0
+[19:03:32.820] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 少年 (Index:39, 距离:14.9m, 方位:东北)"
+[19:03:32.820] [Brain-Receive] 少年(Idx=39) 收到事件 'StartObservingPlayer' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:03:32.820] [DisplayMessage] "[冒泡问候] 少年 (Index:39) 决定向你打招呼 (概率:10 %, 声望:5)"
+[19:03:32.827] [DisplayMessage] "[冒泡问候] 少年: "亨利 大人 恭迎大驾！""
+[19:03:35.404] [Brain-Tick] 帝国女农民(Idx=26) 完成 MoveToPositionAction
+[19:03:35.411] [Brain-Tick] 帝国女农民(Idx=26) 开始执行 StayAction | 队列剩余=0
+[19:03:35.480] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:26, 距离:4.5m, 方位:西北)"
+[19:03:35.480] [Brain-Receive] 帝国女农民(Idx=26) 收到事件 'StartObservingPlayer' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[19:03:35.729] [Brain-Tick] 帝国女农民(Idx=24) 完成 MoveToPositionAction
+[19:03:35.735] [Brain-Tick] 帝国女农民(Idx=24) 开始执行 StayAction | 队列剩余=0
+[19:03:35.790] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:24, 距离:3.1m, 方位:西南)"
+[19:03:35.790] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'StartObservingPlayer' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[19:03:36.077] [Brain-Tick] 女孩(Idx=37) 完成 MoveToPositionAction
+[19:03:36.082] [Brain-Tick] 女孩(Idx=37) 开始执行 StayAction | 队列剩余=0
+[19:03:36.099] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 女孩 (Index:37, 距离:4.5m, 方位:东南)"
+[19:03:36.100] [Brain-Receive] 女孩(Idx=37) 收到事件 'StartObservingPlayer' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[19:03:36.881] [Brain-Tick] 帝国女农民(Idx=30) 完成 MoveToPositionAction
+[19:03:36.886] [Brain-Tick] 帝国女农民(Idx=30) 开始执行 StayAction | 队列剩余=0
+[19:03:36.923] [DisplayMessage] "[事件发送] 发送事件 'StartObservingPlayer' 给 帝国女农民 (Index:30, 距离:3.1m, 方位:南)"
+[19:03:36.923] [Brain-Receive] 帝国女农民(Idx=30) 收到事件 'StartObservingPlayer' | 当前行为=StayAction | 队列=0 | 阶段=Cautious

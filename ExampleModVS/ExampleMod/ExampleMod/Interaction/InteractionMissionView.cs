@@ -66,9 +66,6 @@ namespace LivingWorldNpcs
         // 场景动物同步：首帧只执行一次
         private bool _animalSyncDone = false;
 
-        // 击晕追踪：记录被玩家从背后击晕的Agent
-        private HashSet<Agent> _knockedOutAgents = new HashSet<Agent>();
-
 
         public MissionScreen thisMissionScreen;
 
@@ -169,18 +166,20 @@ namespace LivingWorldNpcs
         {
             // 1. 快速排除
             if (agent == null || agent == Agent.Main) return;
+            // 2. 类型排除：非人类且非动物 → 排除
             if (!agent.IsHuman && !IsAnimalAgent(agent)) return;
 
-            // 2. 视野预检查：屏幕投影判断，不在屏幕内直接跳过
-            //    动物也走同一逻辑（WorldPointToScreenPoint 通用）
-            if (!NpcSightSystem.IsPlayerSeeing(agent))
-            {
-                if (!IsAnimalAgent(agent)) return;
-            }
+  
 
             // 3. 距离剔除 (Distance Squared)
             float distSq = agent.Position.DistanceSquared(eyePos);
             if (distSq > maxDistanceSq) return;
+
+            // 活着且不再玩家屏幕里的人，不参与搜索
+            if (agent.IsActive() && !NpcSightSystem.IsPlayerSeeing(agent) && agent.IsHuman)
+            {
+                return;
+            }
 
             // 3. 目标中心点修正 (关键优化)
             // agent.Position 是脚底板。如果尸体躺着，或者你看着人的头，脚底板的角度偏差会很大。
@@ -392,7 +391,7 @@ namespace LivingWorldNpcs
             // C. 计算状态
             bool isAnimal = IsAnimalAgent(currentAgent);
             bool isAlive = currentAgent.IsActive();
-            bool isKnockedOut = _knockedOutAgents.Contains(currentAgent);
+            bool isKnockedOut = AgentBrain.IsKnockedOut(currentAgent);
 
             // 已被击晕的Agent视为失去行动能力（引擎可能未立即转为Unconscious时兜底）
             if (isKnockedOut)
@@ -864,9 +863,6 @@ namespace LivingWorldNpcs
             }
             _stealVM = null;
 
-            // 清除击晕记录
-            _knockedOutAgents?.Clear();
-
             //清除场景里临时Agent的临时记忆
             AllNpcMemoryManager.ClearTemporaryMemories();
         }
@@ -1213,20 +1209,24 @@ namespace LivingWorldNpcs
                     // 背后打击 → 受害者面朝下扑倒，表现最接近背后击晕
                     AgentControlHelper.ForcePlayAction(target, "act_death_fall_front");
 
-                    // 走事件系统投递击晕事件 → Brain.ReceiveEvent 自动 Suspend + StayAction 占位
-                    AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
-
                     target.SetScriptedFlags(AIScriptedFrameFlags.DoNotRun | AIScriptedFrameFlags.NoAttack);
                 }
 
-                // 3. 记录击晕
-                _knockedOutAgents.Add(target);
+                // 3. 击晕事件 → 受害者 Brain 设 StayAction(isKnockout:true)
+                AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
 
-                // 4. UI 反馈
+                // 4. 广播 WitnessCrime，受害者排除在外（不参与围观/指控）
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    target.Position, 25f, "WitnessCrime",
+                    exclude: new HashSet<Agent> { target },
+                    requireSight: false,
+                    Agent.Main, target);
+
+                // 5. UI 反馈
                 InformationManager.DisplayMessage(
                     new InformationMessage($"从背后击晕了 {targetName}！", Colors.Green));
 
-                // 5. 隐藏交互 UI，重置状态
+                // 6. 隐藏交互 UI，重置状态
                 _interactVM.IsVisible = false;
                 IsHandlingInteraction = false;
                 _lastFocusedAgent = null;

@@ -834,10 +834,14 @@ namespace LivingWorldNpcs
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
 
-        public StayAction(Agent lookTarget, bool keepRotating = true)
+        /// <summary>是否是被击晕导致的 StayAction（永久静止，直到外部解除）</summary>
+        public bool IsKnockout { get; }
+
+        public StayAction(Agent lookTarget, bool keepRotating = true, bool isKnockout = false)
         {
             _lookTarget = lookTarget;
             _keepRotating = keepRotating;
+            IsKnockout = isKnockout;
         }
 
         public void OnStart(Agent agent)

@@ -159,8 +159,14 @@ namespace LivingWorldNpcs
         }
 
         // 3. 范围广播（最常用）
-        /// <param name="requireSight">true=只看能看到玩家的 NPC（默认），false=范围内全部通知（EndInteraction/WitnessCrime 等清理/站位类用）</param>
+        /// <param name="requireSight">true=只看能看到玩家的 NPC（默认），false=范围内全部通知</param>
         public void BroadcastEventInRange(Vec3 center, float radius, string eventType, bool requireSight = true, params object[] args)
+        {
+            BroadcastEventInRange(center, radius, eventType, null, requireSight, args);
+        }
+
+        /// <param name="exclude">排除列表：这些 Agent 不会收到事件（如击晕受害者不参与围观）</param>
+        public void BroadcastEventInRange(Vec3 center, float radius, string eventType, HashSet<Agent> exclude, bool requireSight, params object[] args)
         {
             // 1. 找出范围内所有的大脑
             List<AgentBrain> brainsInRange = new List<AgentBrain>();
@@ -171,6 +177,7 @@ namespace LivingWorldNpcs
             {
                 if (!brain.Owner.IsActive() || brain.Owner == Agent.Main) continue;
                 if (brain.Owner.Position.Distance(center) > radius) continue;
+                if (exclude != null && exclude.Contains(brain.Owner)) continue;
 
                 // 视线过滤：requireSight 时跳过看不见玩家的 NPC
                 if (requireSight && !NpcSightSystem.CanNpcSeePlayer(brain.Owner))
@@ -194,8 +201,8 @@ namespace LivingWorldNpcs
             {
                 // 确保犯人自己不参与围观分配
                 if (witnesses.Contains(criminal)) {
-                    
-                    witnesses.Remove(criminal);                
+
+                    witnesses.Remove(criminal);
                     brainsInRange.Remove(GetBrainForAgent(criminal));
                 }
                 try
