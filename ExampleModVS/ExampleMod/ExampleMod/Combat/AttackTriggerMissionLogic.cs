@@ -234,13 +234,16 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
 
                 // 范围广播：周围 25m 内 NPC 收到 event_agent_damaged，同一对 3 秒内最多一次
+                
                 var key = (attacker.Index, victim.Index);
                 float now = Mission.Current?.CurrentTime ?? 0f;
                 if (!_lastEventDamagedBroadcast.TryGetValue(key, out float last) || now - last >= EVENT_DAMAGED_BROADCAST_COOLDOWN)
                 {
                     _lastEventDamagedBroadcast[key] = now;
-                    AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", true, attacker, victim);
+                    //暂时关闭广播
+                    //AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", true, attacker, victim);
                 }
+                
             }
 
             // 【场景 1】当前正在切磋中
