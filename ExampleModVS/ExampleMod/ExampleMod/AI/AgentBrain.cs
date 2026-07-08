@@ -480,13 +480,12 @@ namespace LivingWorldNpcs
                 if (IsCurrentOrPending<FightEnemyAction>())
                     return;
 
-                //调试，先关掉因为alarm导致的战斗
-                return;
-
                 // 玩家已经在战斗中 → 跳过质问，直接加入战斗
-                if (CombatManager.IsPlayerInCombat)
+                //可能有时序问题
+                if (CombatManager.IsPlayerInCombat )
                 {
-                    StartL3CombatJoin();
+                    //通过别的方式进入战斗，就不在这里了
+                    //StartL3CombatJoin();
                     return;
                 }
 

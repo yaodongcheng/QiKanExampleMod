@@ -1,11 +1,11 @@
-﻿[20:25:04.795] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[20:25:08.831] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[20:44:30.074] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[20:44:34.331] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[20:25:12.955] [WorldEventStore] Deserialized 0 events, 0 alerts
-[20:25:21.040] [DisplayMessage] "Custom Camera Load Success!"
-[20:25:21.422] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[20:44:38.368] [WorldEventStore] Deserialized 0 events, 0 alerts
+[20:44:46.284] [DisplayMessage] "Custom Camera Load Success!"
+[20:44:46.700] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -15,54 +15,53 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[20:25:21.431] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[20:25:30.667] [Brain-Phase] 男孩(Idx=33) 警戒上升: Normal → Suspicious (警戒值=0.27) → 发送 'BecomeSuspicious'
-[20:25:30.671] [Brain-Receive] 男孩(Idx=33) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[20:25:30.682] [BubbleSay] 男孩(Idx=33): "（不安地看了一眼）怎么还拔锯齿标枪了……"
-[20:25:33.139] [Brain-Phase] 帝国农民(Idx=10) 警戒上升: Normal → Suspicious (警戒值=0.26) → 发送 'BecomeSuspicious'
-[20:25:33.139] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[20:25:33.139] [BubbleSay] 帝国农民(Idx=10): "（不安地看了一眼）怎么还拔民兵杖了……"
-[20:25:33.806] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了0 点伤害"
-[20:25:33.807] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:10, 距离:0.9m, 方位:西南)"
-[20:25:33.807] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[20:25:33.807] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[20:25:33.808] [BubbleSay] 帝国农民(Idx=10): "你！你敢打我？！"
-[20:25:33.808] [Brain-Clear] 帝国农民(Idx=10) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[20:25:33.808] [Brain-Enqueue] 帝国农民(Idx=10) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[20:25:33.809] [AI-Debug] Suspend 帝国农民 (Idx=10) | 集合size=1 | 当前行为=null
-[20:25:33.809] [Brain-Phase] 帝国农民(Idx=10) 警戒上升: Suspicious → Alarmed (警戒值=3.37) → 发送 'BecomeAlarmed'
-[20:25:33.809] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Suspicious
-[20:25:33.814] [Brain-Tick] 帝国农民(Idx=10) 开始执行 FightEnemyAction | 队列剩余=0
-[20:25:33.814] [DisplayMessage] [Yellow] "帝国农民  开始攻击 亨利！"
-[20:25:33.814] [CombatManager] RegisterCombatant: 帝国农民(Idx=10), total=1
-[20:25:38.841] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了40 点伤害"
-[20:25:38.842] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:10, 距离:1.6m, 方位:西南)"
-[20:25:38.842] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[20:25:38.842] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[20:25:38.850] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成40点钝击伤害。<Detail>命中部位：臂</Detail><Detail>相对移动速度：0.87米/秒</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
-[20:25:39.720] [Brain-Phase] 帝国农民(Idx=6) 警戒上升: Normal → Suspicious (警戒值=0.26) → 发送 'BecomeSuspicious'
-[20:25:39.720] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[20:25:39.720] [BubbleSay] 帝国农民(Idx=6): "（不安地看了一眼）怎么还拔民兵杖了……"
-[20:25:40.022] [Brain-Phase] 男孩(Idx=33) 警戒下降: Suspicious → Normal (警戒值=0.24)
-[20:25:40.023] [Brain-Receive] 男孩(Idx=33) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[20:25:40.024] [Brain-Clear] 男孩(Idx=33) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[20:25:41.875] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了35 点伤害"
-[20:25:41.875] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:10, 距离:1.5m, 方位:西)"
-[20:25:41.875] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[20:25:41.876] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[20:25:41.877] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成35点钝击伤害。<Detail>命中部位：胸</Detail><Detail>相对移动速度：2.02米/秒</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
-[20:25:47.276] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到9点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：1.34米/秒</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
-[20:25:50.996] [Brain-Phase] 帝国农民(Idx=6) 警戒下降: Suspicious → Normal (警戒值=0.24)
-[20:25:50.996] [Brain-Receive] 帝国农民(Idx=6) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[20:25:50.996] [Brain-Clear] 帝国农民(Idx=6) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[20:25:58.160] [DisplayMessage] [Red] "Agent 帝国农民 被加入尸体列表"
-[20:25:58.167] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了37 点伤害"
-[20:25:58.169] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:10, 距离:1.8m, 方位:西南)"
-[20:25:58.169] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[20:25:58.169] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成37点钝击伤害。<Detail>命中部位：腹</Detail><Detail>相对移动速度：1.54米/秒</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
-[20:26:02.561] [Brain-Phase] 帝国农民(Idx=17) 警戒上升: Normal → Suspicious (警戒值=0.25) → 发送 'BecomeSuspicious'
-[20:26:02.561] [Brain-Receive] 帝国农民(Idx=17) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[20:26:02.561] [BubbleSay] 帝国农民(Idx=17): "（不安地看了一眼）怎么还拔民兵杖了……"
-[20:26:04.707] [Brain-Phase] 帝国农民(Idx=17) 警戒下降: Suspicious → Normal (警戒值=0.25)
-[20:26:04.709] [Brain-Receive] 帝国农民(Idx=17) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[20:26:04.709] [Brain-Clear] 帝国农民(Idx=17) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[20:44:46.709] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[20:44:56.104] [Brain-Phase] 帝国农民(Idx=13) 警戒上升: Normal → Suspicious (警戒值=0.25) → 发送 'BecomeSuspicious'
+[20:44:56.108] [Brain-Receive] 帝国农民(Idx=13) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[20:44:56.119] [BubbleSay] 帝国农民(Idx=13): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[20:44:56.209] [Brain-Phase] 帝国农民(Idx=14) 警戒上升: Normal → Suspicious (警戒值=0.25) → 发送 'BecomeSuspicious'
+[20:44:56.209] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[20:44:56.210] [BubbleSay] 帝国农民(Idx=14): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[20:44:56.245] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnAgentHit: 亨利 对 帝国农民 造成了0 点伤害"
+[20:44:56.246] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:13, 距离:2.3m, 方位:东南)"
+[20:44:56.246] [Brain-Receive] 帝国农民(Idx=13) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[20:44:56.247] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
+[20:44:56.247] [BubbleSay] 帝国农民(Idx=13): "你！你敢打我？！"
+[20:44:56.247] [Brain-Clear] 帝国农民(Idx=13) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[20:44:56.248] [Brain-Enqueue] 帝国农民(Idx=13) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[20:44:56.248] [AI-Debug] Suspend 帝国农民 (Idx=13) | 集合size=1 | 当前行为=null
+[20:44:56.248] [Brain-Phase] 帝国农民(Idx=13) 警戒上升: Suspicious → Alarmed (警戒值=3.27) → 发送 'BecomeAlarmed'
+[20:44:56.248] [Brain-Receive] 帝国农民(Idx=13) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Suspicious
+[20:44:56.252] [Brain-Receive] 帝国农民(Idx=13) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=1 | 阶段=Alarmed
+[20:44:56.253] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
+[20:44:56.253] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[20:44:56.253] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
+[20:44:56.253] [BubbleSay] 帝国农民(Idx=14): "你！你敢动我们村的人？！"
+[20:44:56.253] [Brain-Clear] 帝国农民(Idx=14) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[20:44:56.253] [Brain-Enqueue] 帝国农民(Idx=14) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[20:44:56.253] [AI-Debug] Suspend 帝国农民 (Idx=14) | 集合size=2 | 当前行为=null
+[20:44:56.253] [Brain-Phase] 帝国农民(Idx=14) 警戒上升: Suspicious → Alarmed (警戒值=3.25) → 发送 'BecomeAlarmed'
+[20:44:56.253] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Suspicious
+[20:44:56.256] [Brain-Tick] 帝国农民(Idx=13) 开始执行 FightEnemyAction | 队列剩余=0
+[20:44:56.257] [DisplayMessage] [Yellow] "帝国农民  开始攻击 亨利！"
+[20:44:56.257] [CombatManager] RegisterCombatant: 帝国农民(Idx=13), total=1
+[20:44:56.263] [Brain-Tick] 帝国农民(Idx=14) 开始执行 FightEnemyAction | 队列剩余=0
+[20:44:56.263] [DisplayMessage] [Yellow] "帝国农民  开始攻击 亨利！"
+[20:44:56.263] [CombatManager] RegisterCombatant: 帝国农民(Idx=14), total=2
+[20:45:03.911] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到10点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：0.49米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[20:45:04.360] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：1.4米/秒</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
+[20:45:05.332] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：颈</Detail><Detail>相对移动速度：0.25米/秒</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[20:45:06.369] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到12点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.72米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[20:45:07.160] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到9点挥砍伤害。<Detail>命中部位：臂</Detail>" | category=Combat
+[20:45:07.685] [Brain-Phase] 帝国农民(Idx=12) 警戒上升: Normal → Suspicious (警戒值=0.26) → 发送 'BecomeSuspicious'
+[20:45:07.687] [Brain-Receive] 帝国农民(Idx=12) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[20:45:07.687] [BubbleSay] 帝国农民(Idx=12): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[20:45:08.627] [DisplayMessage] [Red] "Agent 亨利 被加入尸体列表"
+[20:45:08.641] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到10点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
+[20:45:08.642] [Brain-Tick] 帝国农民(Idx=13) 完成 FightEnemyAction
+[20:45:08.643] [Brain-Tick] 帝国农民(Idx=14) 完成 FightEnemyAction
+[20:45:08.648] [AI-Debug] Resume 帝国农民 (Idx=13) | 集合size=1
+[20:45:08.648] [AI-Debug] Resume 帝国农民 (Idx=14) | 集合size=0
+[20:45:09.328] [Brain-Phase] 帝国农民(Idx=12) 警戒下降: Suspicious → Normal (警戒值=0.25)
+[20:45:09.328] [Brain-Receive] 帝国农民(Idx=12) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[20:45:09.330] [Brain-Clear] 帝国农民(Idx=12) 清空动作 | 当前=null | 队列=0 | hadActions=False

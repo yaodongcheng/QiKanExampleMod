@@ -769,7 +769,8 @@ namespace LivingWorldNpcs
             }
             InformationManager.DisplayMessage(new InformationMessage($"{agent.Name}  开始攻击 {_targetEnemy.Name}！", Colors.Yellow));
             //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
-            CombatManager.StartFight(agent, _targetEnemy);
+            //玩家阵营1，自己阵营2，这里之后再看
+            CombatManager.StartFight(agent, _targetEnemy,2,1);
 
         }
 
