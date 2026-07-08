@@ -77,7 +77,7 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[AI-Debug-Init] {agent.Name} (Idx={agent.Index}) | " +
                         $"hasNavigator=yes | dailyActive={daily?.IsActive} | " +
                         $"scriptedFlags={agent.GetScriptedFlags()} | " +
-                        $"suspended={AgentControlHelper.SuspendedAgentIndices.Contains(agent.Index)}");
+                        $"suspended={AgentBrain.SuspendedAgentIndices.Contains(agent.Index)}");
                 }
                 else
                 {
@@ -111,13 +111,13 @@ namespace LivingWorldNpcs
 
         public override void OnAgentDeleted(Agent agent)
         {
-            if (_brains.ContainsKey(agent.Index))
+            if (_brains.TryGetValue(agent.Index, out var brain))
             {
                 if (IsDebugMode)
                     DebugLogger.Log($"因为删除 移除一个Agent的大脑 name {agent.Name} index{agent.Index} 当前总数{_brains.Count}");
+                brain.OnOwnerDeleted();
                 _brains.Remove(agent.Index);
             }
-            AgentControlHelper.CleanupSuspendedAgent(agent.Index);
         }
         public override void OnMissionTick(float dt)
         {

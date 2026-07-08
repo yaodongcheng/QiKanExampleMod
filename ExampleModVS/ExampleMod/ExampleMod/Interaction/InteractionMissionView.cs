@@ -729,40 +729,11 @@ namespace LivingWorldNpcs
             _interactionController.StartInteraction(agent);
         }
 
-        /// <summary>提取自 StartFreeConversationFlow 的 NPC 走位准备逻辑</summary>
         private async Task PrepareAgentForConversation(Agent agent)
         {
-            bool usingObj = agent.IsUsingGameObject;
-            bool crouching = agent.CrouchMode;
-            string pose = AgentControlHelper.GetPose(agent) ?? "";
-            bool isDefaultPose = string.IsNullOrEmpty(pose)
-                || pose == "act_none"
-                || (pose.StartsWith("act_stand_") && !pose.StartsWith("act_stand_up_"))
-                || (pose.StartsWith("act_idle_") && !pose.StartsWith("act_idle_to_") && !pose.StartsWith("act_idle_from_"))
-                || pose.StartsWith("act_conversation_");    // 对话场景预设动画，等同于自然站立
-            bool isStandingNaturally = !usingObj && !crouching && isDefaultPose;
-            InformationManager.DisplayMessage(new InformationMessage(
-                $"[闲聊快速路径] {agent.Name}: obj={usingObj} crouch={crouching} pose=\"{pose}\" isDefault={isDefaultPose} → 快速={(isStandingNaturally?"YES":"NO")}",
-                isStandingNaturally ? Colors.Green : Colors.Yellow));
-            //强制走comehere流程
-            isStandingNaturally = false; 
-            if (isStandingNaturally)
-            {
-                var brain = AgentAIController.GetBrainForAgent(agent);
-                if (brain != null)
-                {
-                    brain.InteractedAgent = Agent.Main;
-                    brain.ClearAllActions();
-                    // 自然站立也要暂停原版 AI — 防止 NPC 在对话期间被 AgentNavigator 带走
-                    // SuspendVanillaAI 内部幂等，重复调用安全
-                    AgentControlHelper.SuspendVanillaAI(agent);
-                }
-            }
-            else
-            {
-                AgentAIController.Instance.SendEventToAgent(agent, "ComeHere", Agent.Main);
-                await WaitForAgentToSettle(agent);
-            }
+            // 统一走事件驱动：AgentBrain 内部自行管理 Suspend/Resume/ClearAllActions/EnqueueAction
+            AgentAIController.Instance.SendEventToAgent(agent, "ComeHere", Agent.Main);
+            await WaitForAgentToSettle(agent);
         }
 
         // 你的自定义镜头逻辑占位符

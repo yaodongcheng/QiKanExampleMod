@@ -9,6 +9,8 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using SandBox;
+using SandBox.Missions.AgentBehaviors;
 #pragma warning disable CS0618 // Intentional migration: uses deprecated NpcInitiative + PrepareOpeningAction old ctors
 namespace LivingWorldNpcs
 {
@@ -22,6 +24,9 @@ namespace LivingWorldNpcs
 
     public class AgentBrain
     {
+        /// <summary>已暂停原版 AI 的 Agent.Index 集合。AiSuspendPatch 读取以拦截 Navigator。</summary>
+        internal static readonly HashSet<int> SuspendedAgentIndices = new HashSet<int>();
+
         public Agent Owner { get; private set; }
         public SingNpcMemorySystem _memory;
         public Agent InteractedAgent { get; set; } // 最近一次交互的对象
@@ -63,6 +68,7 @@ namespace LivingWorldNpcs
 
         // ── 公开查询（AgentHudMissionView 每帧读 AlertValue / AlertPhase）──
 
+        //实时计算的属性，而非存储字段
         public float AlertValue
         {
             get
@@ -75,9 +81,9 @@ namespace LivingWorldNpcs
 
         public AlarmPhase AlertPhase => AlertValue switch
         {
-            >= 2.0f => AlarmPhase.Alarmed,
-            >= 1.0f => AlarmPhase.Cautious,
-            >= 0.25f => AlarmPhase.Suspicious,
+            >= 2.0f => AlarmPhase.Alarmed,  //警戒
+            >= 1.0f => AlarmPhase.Cautious, //谨慎
+            >= 0.25f => AlarmPhase.Suspicious, //好奇
             _ => AlarmPhase.Normal
         };
 
@@ -215,7 +221,7 @@ namespace LivingWorldNpcs
                 {
                     ClearAllActions();
                     AgentControlHelper.ForceUnlockAgent(Owner);
-                    AgentControlHelper.ResumeVanillaAI(Owner);
+                    ResumeVanillaAI();
                     InteractedAgent = null;
                 }
             }
@@ -368,7 +374,7 @@ namespace LivingWorldNpcs
                 if (fromPhase >= AlarmPhase.Alarmed || toPhase == AlarmPhase.Normal)
                 {
                     ClearAllActions();
-                    AgentControlHelper.ResumeVanillaAI(Owner);
+                    ResumeVanillaAI();
                 }
                 // Cautious→Suspicious：只取消 LookAt
                 else if (fromPhase == AlarmPhase.Cautious && _currentAction is LookAtAction)
@@ -386,18 +392,18 @@ namespace LivingWorldNpcs
        
 
         // --- 动作执行系统 ---
-        public void EnqueueAction(IAtomicAction action)
+        private void EnqueueAction(IAtomicAction action)
         {
             DebugLogger.Log($"[Brain-Enqueue] {Owner.Name}(Idx={Owner.Index}) 入队 {action.GetType().Name} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count}→{_actionQueue.Count + 1}");
             // 从空脑到有 Action 的转换：一次性接管原版 AI（SuspendVanillaAI 内部幂等）
             if (_currentAction == null && _actionQueue.Count == 0)
             {
-                AgentControlHelper.SuspendVanillaAI(Owner);
+                SuspendVanillaAI();
             }
             _actionQueue.Enqueue(action);
         }
 
-        public void ClearAllActions()
+        private void ClearAllActions()
         {
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
@@ -430,6 +436,64 @@ namespace LivingWorldNpcs
                 Owner.ClearTargetFrame();
             }
         }
+
+        /// <summary>暂停原版 AgentNavigator / DailyBehaviorGroup 对该 Agent 的控制。幂等。</summary>
+        private bool SuspendVanillaAI()
+        {
+            if (!SuspendedAgentIndices.Add(Owner.Index))
+                return true; // 已在集合中，幂等
+
+            DebugLogger.Log($"[AI-Debug] Suspend {Owner.Name} (Idx={Owner.Index}) | 集合size={SuspendedAgentIndices.Count} | 当前行为={_currentAction?.GetType().Name ?? "null"}");
+
+            var nav = Owner.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            if (nav == null) return false;
+
+            nav.SetTarget(null);
+
+            var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+            if (daily != null && daily.IsActive)
+                daily.IsActive = false;
+
+            return true;
+        }
+
+        /// <summary>
+        /// 恢复原版 AgentNavigator / DailyBehaviorGroup 的控制。
+        /// 内部有 HashSet 守卫：没被 Suspend 过的 Agent 直接 return，每帧调用安全。
+        /// </summary>
+        private void ResumeVanillaAI()
+        {
+            if (!Owner.IsActive()) return;
+
+            if (!SuspendedAgentIndices.Remove(Owner.Index))
+                return; // 没被 Suspend 过，不碰原版 AI
+
+            DebugLogger.Log($"[AI-Debug] Resume {Owner.Name} (Idx={Owner.Index}) | 集合size={SuspendedAgentIndices.Count}");
+
+            Owner.DisableScriptedMovement();
+            Owner.SetScriptedFlags(Agent.AIScriptedFrameFlags.None);
+            Owner.SetMaximumSpeedLimit(-1f, false);
+
+            var nav = Owner.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            if (nav == null) return;
+
+            var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+            if (daily != null)
+            {
+                if (!daily.IsActive)
+                {
+                    daily.IsActive = true;
+                    daily.ForceThink(0f);
+                }
+            }
+        }
+
+        /// <summary>Owner Agent 从 Mission 中删除时清理挂起状态。</summary>
+        public void OnOwnerDeleted()
+        {
+            SuspendedAgentIndices.Remove(Owner.Index);
+        }
+
         /// <summary>
         /// 脑空时的默认行为。
         /// ① 护卫 + 有老大 → FollowAgentAction（永久跟随）
@@ -447,7 +511,7 @@ namespace LivingWorldNpcs
             }
             else
             {
-                AgentControlHelper.ResumeVanillaAI(Owner);
+                ResumeVanillaAI();
             }
         }
 
@@ -457,41 +521,40 @@ namespace LivingWorldNpcs
 
         void UpdateAlertCognition(float dt)
         {
-            // 全局质问锁：其他 NPC 正在质问玩家 → 暂停我的警戒更新（避免一窝蜂）
-            if (ConfrontingBrain != null && ConfrontingBrain != this)
+            // 全局质问锁：只要有人在质问玩家，不管是不是我自己，都不更新警戒值（因为玩家本身就相当于在暂停对话状态）
+            if (ConfrontingBrain != null)
                 return;
-
+            // Npc看不到玩家
             if (!NpcSightSystem.CanNpcSeePlayer(Owner))
             {
                 DecayAlertBreakdown(dt);
-                // 看不到玩家时仍需检测向下穿越（衰减可能导致降级）
-                CheckPhaseTransition();
-                return;
             }
-
-            // 我能看到玩家——他在干什么？
-            if (Agent.Main.CrouchMode)
-                AddAlert(PlayerActionType.Crouching, dt * 0.15f);
-
-            if (IsPlayerWeaponDrawn())
-                AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f);
-
-            if (StealManager.IsUIOpen)
-                AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f);
-
+            else
+            {
+                //玩家下蹲状态
+                if (Agent.Main.CrouchMode)
+                    AddAlert(PlayerActionType.Crouching, dt * 0.15f);
+                //玩家拔刀状态
+                if (IsPlayerWeaponDrawn())
+                    AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f);
+                //玩家开启偷窃UI
+                if (StealManager.IsUIOpen)
+                    AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f);
+            }
             // 阶段穿越检测（向上或向下）
             CheckPhaseTransition();
         }
-
+        //玩家拔刀状态：主手或副手有武器
         bool IsPlayerWeaponDrawn()
         {
             var main = Agent.Main;
             if (main == null) return false;
-            // 走 VersionCompat 封装，不在业务代码里裸写 #if
+            // MainWpn 主手 OffWpn 副手
             return V.MainWpn(main) != EquipmentIndex.None
                 || V.OffWpn(main) != EquipmentIndex.None;
         }
 
+        //随时间自然衰减的警戒值
         void DecayAlertBreakdown(float dt)
         {
             if (_alertBreakdown.Count == 0) return;
@@ -517,6 +580,7 @@ namespace LivingWorldNpcs
             }
         }
 
+        //状态迁移检查
         void CheckPhaseTransition()
         {
             var newPhase = AlertPhase;
@@ -650,9 +714,11 @@ namespace LivingWorldNpcs
 
             // 统一走 DialogueInjector 管道：CrimeDialogueBuilder 构建脚本 → DialogueInjector 注入 → 原版 ConversationManager
             // AlertForceConversationAction 对话期间持有，对话结束后由 ResetCrimeDialogueOnConversationEndPatch 广播 EndInteraction 清理
-            EnqueueAction(new FollowAgentAction(player, false, radius: 0f, angleOffset: 0f, stopDistance: 1.5f));
-            EnqueueAction(new LookAtAction(player, 0.5f));
+            EnqueueAction(new FollowAgentAction(player, false, radius: 2f, angleOffset: 0f, stopDistance: 1.5f));
+            EnqueueAction(new LookAtAction(player, 0.0f));
             EnqueueAction(new AlertForceConversationAction());
+            //还需要一个StayAction占位，防止对话期间 Brain 自动 ResumeVanillaAI
+            EnqueueAction(new StayAction(player));
         }
         public void Tick(float dt)
         {
@@ -697,7 +763,7 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // ── 🆕 节流认知更新 ──
+            // 警戒值更新
             _alertCognitionTimer += dt;
             if (_alertCognitionTimer >= _alertCognitionInterval)
             {

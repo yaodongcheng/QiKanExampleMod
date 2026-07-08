@@ -102,7 +102,7 @@ namespace LivingWorldNpcs
             {
                 // ── 🆕 NpcSpeech.csv 占位符别名（模板简写 → 标准 key）──
                 case "PLAYER": return Listener?.Name?.ToString() ?? "你";
-                case "SPEAKER": return speaker?.Name?.ToString() ?? "";
+                case "SPEAKER": return speaker?.Name?.ToString() ?? "我";
                 case "SPEAKER_SELF": return ResolveOne("SpeakerSelfRef");
                 case "SPEAKER_PLAYER_ADDR": return ResolveOne("SpeakerPlayerAddr");
                 case "SPEAKER_EMOTION": return ResolveOne("SpeakerEmotion");
