@@ -483,8 +483,7 @@ namespace LivingWorldNpcs
             // 坐椅子、蹲着、躺着（自定义 pose）的都需要过渡动画时间。
             // 注意：必须在 MovePrepare 之前判，否则 StopUsingGameObject 可能提前改状态。
             bool needsDelay = agent.IsUsingGameObject
-                           || agent.CrouchMode
-                           || !string.IsNullOrEmpty(AgentControlHelper.GetPose(agent));
+                           || agent.CrouchMode  ;
 
             _ = AgentControlHelper.MovePrepare(agent);
 
@@ -608,10 +607,6 @@ namespace LivingWorldNpcs
             _isMoving = false;
             // 清除移动指令，让 Agent 停下
             agent.ClearTargetFrame();
-            // 如果不希望他完全发呆，可以让他看向目标
-            agent.SetLookAgent(_target);
-            // 还有一种更彻底的停止是 SetScriptedFlags(DoNotRun) 或者 Disable AI，视情况而定
-            // 通常 ClearTargetFrame 就够了
         }
         public bool IsFinished(Agent agent)
         {

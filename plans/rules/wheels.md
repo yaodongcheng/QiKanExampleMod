@@ -213,11 +213,10 @@ public interface IAtomicAction {
     void OnEnd(Agent agent);
 }
 
-// 2. 入队 / 触发
-AgentBrain brain = AgentAIController.GetBrainForAgent(agent);
-brain.EnqueueAction(new MyAction(...));
-brain.ClearAllActions();   // 打断当前行为链
-AgentAIController.Instance.SendEventToAgent(target, "事件名", args);  // 经事件投递
+// 2. 触发行为 — ⚠️ 外部代码只能通过事件投递，禁止直接操作 Brain
+AgentAIController.Instance.SendEventToAgent(target, "事件名", args);
+// AgentBrain.ReceiveEvent 内部自行管理 EnqueueAction / ClearAllActions / Suspend / Resume
+// EnqueueAction、ClearAllActions 均为 private，外部不可调用
 ```
 
 - **已有的 Action（先复用，别重写）**：`FollowAgentAction`、`MoveToPositionAction`、`LookAtAction`、`TurnToDirectionAction`、`PlayAnimAction`、`FightEnemyAction`、`DrawWeaponAction`、`StayAction`、`ForceTalkAction`、`PrepareOpeningAction`、`ReactionDecisionAction`。
@@ -1041,6 +1040,25 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 - `{TARGET}` / `{ITEM}` / `{StolenItemName}` / `{LOCATION}`
 
 **文件位置**：`Interaction/Dialogue/PlaceholderResolver.cs`
+
+## PlaceholderResolver 扩展指南 — 新增占位符两步流程
+
+**调用链路**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName)` → 查 `NpcSpeech.csv` 取模板文本 → `new PlaceholderResolver(...)` → `r.Resolve(template)` → 正则 `\{(\w+)\}` 扫描 `{KEY}` → 逐个调 `ResolveOne(key)` 替换。
+
+**三种构造 → 三种数据可用范围**：
+
+| 构造 | 使用场景 | Speaker/Listener | TargetName/ItemName | WorldEvent |
+|------|---------|:-:|:-:|:-:|
+| `(speaker, listener, targetName, itemName)` | 警戒 BubbleSay | ✅ | ✅ | ❌ null |
+| `(evt, speaker, listener)` | Campaign 犯罪对话 | ✅ | ❌ null | ✅ |
+| `(evt, speaker, listener, targetName, itemName)` | L3 质问台词 | ✅ | ✅ | ✅ |
+
+**新增占位符两步**：
+
+1. **`ResolveOne` 加 case**（[PlaceholderResolver.cs:94](Interaction/Dialogue/PlaceholderResolver.cs:94)）：在 `switch (key)` 中添加 `case "NEW_KEY": return ...;`。注意判断数据来源是否可能为 null（`evt?.` / `TargetName ?? ""`）。
+2. **`NpcSpeech.csv` 用上**：在模板文本中写入 `{NEW_KEY}`，`Resolve` 自动替换。
+
+**关键守卫**：`ResolveOne` 返回 `null` 时，正则替换**保留原样 `{KEY}`**（玩家会看到原始占位符 = bug）。新增占位符后务必在对应场景实测，确保不会走到 `default: return null`。
 
 ## AlertForceConversationAction — L3 路径 B 原子 Action
 
