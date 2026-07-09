@@ -797,7 +797,7 @@ namespace LivingWorldNpcs
                     AlarmPhase.Alarmed    => "BecomeAlarmed",
                     _ => null
                 };
-                DebugLogger.Log($"[Brain-Phase] {Owner.Name}(Idx={Owner.Index}) 警戒上升: {_lastAlertPhase} → {newPhase} (警戒值={AlertValue:F2}) → 发送 '{eventType}'");
+                DebugLogger.Log($"[Brain-Phase] {Owner.Name}(Idx={Owner.Index}) 警戒上升: {_lastAlertPhase} → {newPhase} (警戒值={AlertValue:F2}) 因素=[{FormatBreakdown()}] → 发送 '{eventType}'");
                 if (eventType != null)
                     ReceiveEvent(new AIEvent { EventType = eventType, Sender = this });
             }
@@ -840,6 +840,24 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>清空所有警戒值 + 释放质问锁（赔钱/坐牢后调用）</summary>
+        /// <summary>格式化警戒因素明细，供日志输出。如 "偷窃=0.50, 蹲下=0.10"；有脉冲目标时追加目标名。</summary>
+        string FormatBreakdown()
+        {
+            if (_alertBreakdown.Count == 0) return "无";
+            var parts = new List<string>();
+            foreach (var kv in _alertBreakdown)
+            {
+                var entry = kv.Value;
+                string detail = $"{kv.Key}={entry.Value:F2}";
+                if (!string.IsNullOrEmpty(entry.TargetName))
+                    detail += $"➔{entry.TargetName}";
+                if (!string.IsNullOrEmpty(entry.ItemName))
+                    detail += $":{entry.ItemName}";
+                parts.Add(detail);
+            }
+            return string.Join(", ", parts);
+        }
+
         public void ClearAllAlerts()
         {
             _alertBreakdown.Clear();
