@@ -109,6 +109,10 @@ namespace LivingWorldNpcs
 
             ShowHealth = isWeaponDrawn || isFighting || isHealthLow || isAlerted;
 
+            // 🆕 NpcIntent 调试文本
+            var brain = AgentAIController.GetBrainForAgent(TargetAgent);
+            NpcIntentDebugText = brain?.CurrentIntent?.ToString() ?? "";
+
             // 5. 名字总领规则：FOV 内任意元素显示时浮现名字
             //    ShowAlert 在此处生效是因为 UpdateLogic 只在 FOV 内执行——
             //    FOV 外 NPC 的 ShowName 不会被计算，眼睛独立显示但不带名字
@@ -408,6 +412,15 @@ namespace LivingWorldNpcs
         {
             get => _eyeFillColor;
             set { if (value != _eyeFillColor) { _eyeFillColor = value; OnPropertyChangedWithValue(value, "EyeFillColor"); } }
+        }
+
+        // 🆕 NpcIntent 调试文本
+        private string _npcIntentDebugText;
+        [DataSourceProperty]
+        public string NpcIntentDebugText
+        {
+            get => _npcIntentDebugText;
+            set { if (value != _npcIntentDebugText) { _npcIntentDebugText = value; OnPropertyChangedWithValue(value, "NpcIntentDebugText"); } }
         }
     }
 }

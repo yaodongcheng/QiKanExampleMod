@@ -470,7 +470,15 @@ namespace LivingWorldNpcs
             string line = DialogueTemplateHelper.Get(intent.DialogueKey, success, out emotion, ctx.Hero, ctx.Agent);
             UpdateNpcVisuals(line, emotion, "NONE", "");
 
-            // 结算后的收尾选项
+            // ── 🆕 ReofferOnFail：失败后重新渲染选项 ──
+            if (!success && intent.ReofferOnFail)
+            {
+                // OnFail 已修改 ctx.ActionParam → BuildOptionVMs 重新求值
+                RefreshInitialOptions();
+                return;
+            }
+
+            // ── 默认收尾：【离开】/【继续】──
             var opts = new List<StoryOptionVM>();
             opts.Add(new StoryOptionVM("【离开】 告辞", () =>
             {

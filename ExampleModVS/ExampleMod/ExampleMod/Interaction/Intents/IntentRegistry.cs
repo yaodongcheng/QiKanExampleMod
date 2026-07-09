@@ -85,6 +85,12 @@ namespace LivingWorldNpcs
             Register(new SurrenderJailIntent());
             Register(new ComplyIntent());
             Register(new ContinueChatIntent());
+
+            // ═══ 战斗投降 ═══
+            Register(new PlayerSurrenderPayIntent());
+            Register(new PlayerSurrenderBegIntent());
+            Register(new PlayerSurrenderThreatenIntent());
+            Register(new ResolveNpcSurrenderIntent());
         }
 
         /// <summary>资格层：产出当前可见（含置灰）的意图，隐藏的过滤掉。</summary>

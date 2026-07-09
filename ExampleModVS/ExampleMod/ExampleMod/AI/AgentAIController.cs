@@ -130,7 +130,13 @@ namespace LivingWorldNpcs
                     brain.Tick(dt);
                 }
             }
-            
+
+        }
+
+        public override void OnRemoveBehavior()
+        {
+            CombatManager.OnMissionEnd();
+            base.OnRemoveBehavior();
         }
 
         // --- 外部调用接口 ---

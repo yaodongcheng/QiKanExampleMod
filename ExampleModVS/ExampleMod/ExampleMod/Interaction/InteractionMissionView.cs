@@ -59,6 +59,7 @@ namespace LivingWorldNpcs
         private bool _lastIsBehind = false;
         private bool _lastWasCrouching = false;
         private bool _lastWasAnimal = false;
+        private NpcIntentType _lastNpcIntentType = NpcIntentType.None;
 
         // 偷动物并发守卫：防止动画期间重复触发
         private bool _isStealingAnimal = false;
@@ -337,17 +338,16 @@ namespace LivingWorldNpcs
                 }
                 else if (_lastAgentWasAlive)
                 {
-                    if (_lastIsBehind)
+                    if (_lastNpcIntentType == NpcIntentType.Fighting || _lastNpcIntentType == NpcIntentType.Surrendering)
                     {
-                        // 蹲伏=偷窃，站立=击晕
+                        CombatManager.PlayerSurrenderToAgent(_lastFocusedAgent);
+                    }
+                    else if (_lastIsBehind)
+                    {
                         if (IsMainAgentCrouching())
-                        {
                             TryStealFromAgent(_lastFocusedAgent);
-                        }
                         else
-                        {
                             TryKnockoutAgent(_lastFocusedAgent);
-                        }
                     }
                     else
                     {
@@ -364,8 +364,10 @@ namespace LivingWorldNpcs
             {
                 if (_lastAgentWasAlive)
                 {
-                    // 无 LLM 也能进：菜单里的对抗意图走 C# 单次检定，闲聊走话题菜单
-                    _ = StartFreeConversationFlow(_lastFocusedAgent);
+                    if (_lastNpcIntentType == NpcIntentType.Surrendering)
+                        CombatManager.AcceptAgentSurrender(_lastFocusedAgent);
+                    else if (_lastNpcIntentType != NpcIntentType.Fighting)
+                        _ = StartFreeConversationFlow(_lastFocusedAgent);
                 }
             }
         }
@@ -410,7 +412,13 @@ namespace LivingWorldNpcs
             bool crouchStateChanged = (isCrouching != _lastWasCrouching);
             bool animalStateChanged = (isAnimal != _lastWasAnimal);
 
-            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || !_interactVM.IsVisible)
+            // NpcIntent: 从 Brain 读取 NPC 当前意图
+            var brain = AgentAIController.GetBrainForAgent(currentAgent);
+            var currentNpcIntentType = brain?.CurrentIntent?.Type ?? NpcIntentType.None;
+            var prevNpcIntentType = brain?.PreviousIntent?.Type ?? NpcIntentType.None;
+            bool intentChanged = (currentNpcIntentType != prevNpcIntentType);
+
+            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || intentChanged || !_interactVM.IsVisible)
             {
                 _interactVM.IsVisible = true;
                 IsHandlingInteraction = true;
@@ -431,26 +439,28 @@ namespace LivingWorldNpcs
                 }
                 else if (isAlive)
                 {
-                    if (isBehind)
+                    // 战斗意图优先（正面背后都显示）
+                    if (currentNpcIntentType == NpcIntentType.Fighting || currentNpcIntentType == NpcIntentType.Surrendering)
                     {
-                        // 蹲伏=偷窃，站立=击晕
+                        actions.Add(("认输", "F"));
+                        if (currentNpcIntentType == NpcIntentType.Surrendering)
+                            actions.Add(("接受认输", "G"));
+                    }
+                    else if (isBehind)
+                    {
                         if (isCrouching)
-                        {
                             actions.Add(("偷窃", "F"));
-                        }
                         else
-                        {
                             actions.Add(("击晕", "F"));
-                        }
+                        actions.Add(("闲聊", "G"));
+                        actions.Add(("探查", "H"));
                     }
                     else
                     {
                         actions.Add(("对话", "F"));
+                        actions.Add(("闲聊", "G"));
+                        actions.Add(("探查", "H"));
                     }
-
-
-                     actions.Add(("闲聊", "G"));
-                     actions.Add(("探查", "H"));
 
                 }
                 else
@@ -481,6 +491,7 @@ namespace LivingWorldNpcs
                 _lastIsBehind = isBehind;
                 _lastWasCrouching = isCrouching;
                 _lastWasAnimal = isAnimal;
+                _lastNpcIntentType = currentNpcIntentType;
             }
         }
 
@@ -608,6 +619,7 @@ namespace LivingWorldNpcs
                 conversationLogic.StartConversation(agent, true, false);
             }
         }
+
         private async Task WaitForAgentToSettle(Agent agent, float timeout = 10f)
         {
             float timer = 0f;

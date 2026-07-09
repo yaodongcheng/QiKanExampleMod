@@ -23,7 +23,7 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>L3 质问时 NPC 的意图（决定要求什么、接受什么）</summary>
-    public enum NpcInterceptIntent
+    public enum ConfrontationType
     {
         /// <summary>威慑 — NPC 看到可疑但非犯罪的行为（蹲下/拔刀）。要求：停止行为 + 给解释。</summary>
         Deter,

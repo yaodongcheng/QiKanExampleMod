@@ -642,14 +642,30 @@ namespace LivingWorldNpcs
                     // 在 Mission 场景中会被正确设置。
                     var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
                     var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
-                    var ctx = new LivingWorldNpcs.IntentContext
+
+                    // 🆕 从 ConversationManager 获取当前对话的 Agent（与 ExecuteIntentAction 同模式）
+                    Agent partnerAgent = null;
+                    try
                     {
-                        Hero = npc,
-                        Player = Hero.MainHero,
-                        ActiveEvent = evt,
-                        IsInMission = TaleWorlds.MountAndBlade.Mission.Current != null,
-                        ActionParam = opt.ActionParam
-                    };
+                        var cm = Campaign.Current?.ConversationManager;
+                        if (cm != null)
+                            partnerAgent = cm.OneToOneConversationAgent as Agent;
+                    }
+                    catch { }
+
+                    var ctx = IntentContext.Build(partnerAgent, null);
+                    // 当 Agent 不可用时（如 CampaignMapConversation），从 npc Hero 回填上下文
+                    if (ctx.Agent == null && npc != null)
+                    {
+                        ctx.Hero = npc;
+                    }
+                    // 覆盖 ActionParam
+                    if (!string.IsNullOrEmpty(opt.ActionParam))
+                        ctx.ActionParam = opt.ActionParam;
+                    // 覆盖 ActiveEvent
+                    if (evt != null)
+                        ctx.ActiveEvent = evt;
+
                     var eligibility = intent.Evaluate(ctx);
                     // 对话中只显示完全可用的选项，Disabled 也隐藏。
                     // Disabled 选项被点击后 ExecuteIntentAction 无法写入 _intentResults，
@@ -684,11 +700,15 @@ namespace LivingWorldNpcs
                         null, turn.SpeakerIndex, -1, 125);
                     count++;
                 }
-                // 失败线
+                // 失败线 — 支持 NextTurnOnFail 跳转到不同 turn
                 if (!string.IsNullOrEmpty(opt.NpcResponseOnFail))
                 {
+                    string afterNpcOnFail = !string.IsNullOrEmpty(opt.NextTurnOnFail)
+                        ? TurnToken(fileTag, opt.NextTurnOnFail)
+                        : afterNpcResponse;
+
                     cm.AddDialogLineMultiAgent(
-                        $"inj_resp_fail_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
+                        $"inj_resp_fail_{Guid.NewGuid():N}", afterPlayer, afterNpcOnFail,
                         new TextObject(opt.NpcResponseOnFail),
                         () => _intentResults.TryGetValue(capturedKey, out var r) && !r,
                         null, turn.SpeakerIndex, -1, 125);
@@ -806,6 +826,8 @@ namespace LivingWorldNpcs
             public Func<string> LazyNpcResponse = null;
             /// <summary>选了此选项后跳转到哪个 turn。null = 关闭对话。</summary>
             public string NextTurn = null;
+            /// <summary>检定失败后跳转的 turn（覆盖 NextTurn）。不设则走 NextTurn（现有行为兼容）。</summary>
+            public string NextTurnOnFail = null;
             public string Action = "NONE";
             public int ActionValue = 0;
             /// <summary>字符串参数（栽赃目标 ID 等）。INTENT:xxx 执行时注入 IntentContext。</summary>

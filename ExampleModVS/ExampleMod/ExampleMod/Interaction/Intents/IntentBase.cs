@@ -65,6 +65,15 @@ namespace LivingWorldNpcs
         /// <summary>对抗类附带的「献礼/出价」价值（喂进成功率公式）。默认 0（纯说服）。</summary>
         public virtual float GetOfferValue(IntentContext ctx) { return 0f; }
 
+        // ═══ ReofferOnFail — 检定失败后重新渲染选项 ═══
+
+        /// <summary>
+        /// OnFail 后是否重新渲染初始选项（而非默认的【离开】/【继续】）。
+        /// 适用场景：检定失败 = NPC 还价 / 改变谈判条件 / 重新要价，而非直接惩罚。
+        /// 默认 false（走默认收尾）。
+        /// </summary>
+        public virtual bool ReofferOnFail => false;
+
         // ═══ 新增：意图来源标志 ═══
 
         /// <summary>此意图对谁可用。默认 Both = 玩家和 NPC 都能用。</summary>

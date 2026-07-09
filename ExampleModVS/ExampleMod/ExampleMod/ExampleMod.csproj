@@ -216,6 +216,7 @@
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
     <Compile Include="AI\AlertTypes.cs" />
+    <Compile Include="AI\NpcIntent.cs" />
     <Compile Include="AI\AiSuspendPatch.cs" />
     <Compile Include="AI\GroupStageManager.cs" />
     <Compile Include="AI\NpcSightSystem.cs" />
@@ -266,6 +267,7 @@
     <Compile Include="Interaction\Intents\GeneralIntents.cs" />
     <Compile Include="Interaction\Intents\RecruitSoldierIntent.cs" />
     <Compile Include="Interaction\Intents\AccountabilityIntents.cs" />
+    <Compile Include="Interaction\Intents\CombatSurrenderIntents.cs" />
     <Compile Include="Interaction\SettlementHonorStore.cs" />
     <Compile Include="Interaction\InteractionMissionView.cs" />
     <Compile Include="Interaction\InteractionOptionManager.cs" />
