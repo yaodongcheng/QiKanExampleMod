@@ -31,6 +31,29 @@ namespace LivingWorldNpcs
         /// <summary>是否处于击晕状态（专用标记，避免依赖 CurrentAction 时序问题）</summary>
         internal bool IsStunned;
 
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 NpcIntent — NPC 高层意图状态机
+        // ═══════════════════════════════════════════════════════════════
+
+        private NpcIntent _currentIntent = new NpcIntent(NpcIntentType.None);
+        private NpcIntent _previousIntent;
+
+        /// <summary>NPC 当前高层意图。只读，变更必须走 SetNpcIntent。</summary>
+        public NpcIntent CurrentIntent => _currentIntent;
+
+        /// <summary>上一个意图。只读，用于回退（如 refuse 后回到 Fighting）或调试。</summary>
+        public NpcIntent PreviousIntent => _previousIntent;
+
+        /// <summary>
+        /// 设置 NPC 当前意图，同时记录上一个意图。
+        /// 所有意图变更必须走此方法，类内部也不允许直接写 _currentIntent。
+        /// </summary>
+        public void SetNpcIntent(NpcIntentType type, Agent target = null, ConfrontationType? interceptDetail = null)
+        {
+            _previousIntent = _currentIntent;
+            _currentIntent = new NpcIntent(type, target, interceptDetail);
+        }
+
         public static bool IsKnockedOut(Agent agent)
         {
             if (agent == null) return false;
@@ -159,6 +182,7 @@ namespace LivingWorldNpcs
             if (aiEvent.EventType == "ComeHere")
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
+                SetNpcIntent(NpcIntentType.Interacting, Agent.Main);
                 AgentHudMissionView.AgentSay(Owner, $"{targetAgent.Name},你在叫我吗？");
                 InteractedAgent = targetAgent;
                 ClearAllActions();
@@ -170,6 +194,7 @@ namespace LivingWorldNpcs
             if(aiEvent.EventType == "order_follow")
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
+                SetNpcIntent(NpcIntentType.Following, targetAgent);
                 InteractedAgent = targetAgent;
                 ClearAllActions();
                 EnqueueAction(new FollowAgentAction(targetAgent, run: true,keepFollow:true));
@@ -182,6 +207,7 @@ namespace LivingWorldNpcs
 
                 if (targetAgent == null || targetAgent == Owner)
                     return;
+                SetNpcIntent(NpcIntentType.Fighting, targetAgent);
                 InteractedAgent = targetAgent;
                 InformationManager.DisplayMessage(new InformationMessage($"Agent {Owner.Name} 收到攻击命令，目标是 {targetAgent.Name}", Colors.Red));
                 ClearAllActions();
@@ -191,6 +217,8 @@ namespace LivingWorldNpcs
             {
                 var target = aiEvent.Args[0] as Agent;
                 if (target == null || target == Owner) return;
+
+                SetNpcIntent(NpcIntentType.Fighting, target);
 
                 // 推进 WorldEvent 到 Confrontation
                 if (!string.IsNullOrEmpty(CurrentMisconductEventId))
@@ -210,6 +238,17 @@ namespace LivingWorldNpcs
                 var player = Agent.Main;
                 if (player == null) return;
                 if (ConfrontingBrain != null && ConfrontingBrain != this) return;
+
+                // 根据 PrimaryAction 确定 ConfrontationType detail
+                var detail = PrimaryAction switch
+                {
+                    PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
+                    PlayerActionType.StealUIOpen => ConfrontationType.Search,
+                    PlayerActionType.Steal => ConfrontationType.Recover,
+                    PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
+                    _ => ConfrontationType.Deter
+                };
+                SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
                 // 推进 WorldEvent 到 Active（玩家跑了，村里人知道了，事态升级）
                 if (!string.IsNullOrEmpty(CurrentMisconductEventId))
@@ -294,6 +333,7 @@ namespace LivingWorldNpcs
                         listener: Hero.MainHero);
                     BubbleSay(line ?? (Owner == victim ? "你敢打我？！" : "你敢动我们村的人？！"));
 
+                    SetNpcIntent(NpcIntentType.Fighting, attacker);
                     InteractedAgent = attacker;
                     ClearAllActions();
                     EnqueueAction(new FightEnemyAction(attacker));
@@ -312,6 +352,7 @@ namespace LivingWorldNpcs
                 Agent target = (Agent)aiEvent.Args[0];
                 if (InteractedAgent == target)
                 {
+                    SetNpcIntent(NpcIntentType.None);
                     ClearAllActions();
                     AgentControlHelper.ForceUnlockAgent(Owner);
                     ResumeVanillaAI();
@@ -337,6 +378,7 @@ namespace LivingWorldNpcs
                             AddAlert(PlayerActionType.Knockout, 3.0f);
                             SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null);
                             _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
+                            SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
                         }
                         else
                         {
@@ -345,9 +387,10 @@ namespace LivingWorldNpcs
                             AddAlert(PlayerActionType.Steal, 3.0f);
                             SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
                             _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                            SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Recover);
                         }
 
-                    }   
+                    }
 
                     ClearAllActions();
                     InteractedAgent = criminal;
@@ -415,6 +458,7 @@ namespace LivingWorldNpcs
             {
                 // 被击晕：清除所有行为，StayAction 占位永不结束
                 // EnqueueAction 自动 SuspendVanillaAI，StayAction 防止 Brain 自动 Resume
+                SetNpcIntent(NpcIntentType.KnockedOut);
                 IsStunned = true;
                 ClearAllActions();
                 EnqueueAction(new StayAction(null, false, isKnockout: true));
@@ -506,6 +550,7 @@ namespace LivingWorldNpcs
                 // Alarmed→* 或 →Normal：完全清理行为链
                 if (fromPhase >= AlarmPhase.Alarmed || toPhase == AlarmPhase.Normal)
                 {
+                    SetNpcIntent(NpcIntentType.None);
                     ClearAllActions();
                     ResumeVanillaAI();
                 }
@@ -526,6 +571,38 @@ namespace LivingWorldNpcs
                 }
             }
 
+
+
+            // ═══════════════════════════════════════════════════════════════
+            // 🆕 战斗投降相关新事件
+            // ═══════════════════════════════════════════════════════════════
+
+            if (aiEvent.EventType == "event_npc_surrender")
+            {
+                // NPC 自己决定认输（残血触发）
+                SetNpcIntent(NpcIntentType.Surrendering, Agent.Main);
+            }
+
+            if (aiEvent.EventType == "event_player_surrendered")
+            {
+                // 玩家主动认输 → 战斗结束
+                SetNpcIntent(NpcIntentType.None);
+                ClearAllActions();  // FightEnemyAction.OnEnd → UnregisterCombatant
+            }
+
+            if (aiEvent.EventType == "event_surrender_accepted")
+            {
+                // 玩家接受 NPC 认输 → 战斗结束
+                SetNpcIntent(NpcIntentType.None);
+                ClearAllActions();
+            }
+
+            if (aiEvent.EventType == "event_surrender_refused")
+            {
+                // 玩家拒绝 NPC 认输 → 回到战斗
+                SetNpcIntent(NpcIntentType.Fighting, Agent.Main);
+                // 不 ClearAllActions，FightEnemyAction 继续运行
+            }
 
 
         } // ReceiveEvent
@@ -987,6 +1064,17 @@ namespace LivingWorldNpcs
             ClearAllActions();
             InteractedAgent = player;
 
+            // 根据 PrimaryAction 确定 ConfrontationType detail
+            var detail = PrimaryAction switch
+            {
+                PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
+                PlayerActionType.StealUIOpen => ConfrontationType.Search,
+                PlayerActionType.Steal => ConfrontationType.Recover,
+                PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
+                _ => ConfrontationType.Deter
+            };
+            SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
+
             // 占领全局质问锁
             ConfrontingBrain = this;
             DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 开始质问玩家 | 质问锁已占领");
@@ -1039,6 +1127,12 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[Brain-Tick] {Owner.Name}(Idx={Owner.Index}) 完成 {_currentAction.GetType().Name}");
                     _currentAction.OnEnd(Owner);
                     _currentAction = null; // 下一帧会取新的
+
+                    // 战斗结束且无排队 → 清除 Fighting 意图
+                    if (CurrentIntent.Type == NpcIntentType.Fighting && _actionQueue.Count == 0)
+                    {
+                        SetNpcIntent(NpcIntentType.None);
+                    }
                 }
             }
 

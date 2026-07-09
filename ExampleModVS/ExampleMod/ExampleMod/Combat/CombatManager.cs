@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SandBox.Conversation.MissionLogics;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,15 +18,18 @@ namespace LivingWorldNpcs
         /// <summary>正在与玩家交战的 Agent 集合。用于判断玩家是否在战斗中。</summary>
         private static HashSet<Agent> _agentsFightingPlayer = new HashSet<Agent>();
 
+        /// <summary>Agent 进入战斗前的原始队伍。StartFight 移队前记录，EndFight 恢复。</summary>
+        private static Dictionary<int, Team> _originalTeams = new Dictionary<int, Team>();
+
         /// <summary>
         /// 玩家是否正在战斗中。
-        /// 每次读取自动清理已失效的 Agent（死亡/消失），不依赖 OnEnd 配对调用。
+        /// 每次读取自动清理已失效的 Agent（死亡/消失/场景卸载）。
         /// </summary>
         public static bool IsPlayerInCombat
         {
             get
             {
-                _agentsFightingPlayer.RemoveWhere(a => a == null || !a.IsActive() || a.Health <= 0f);
+                RemoveDeadAndStaleAgents();
                 return _agentsFightingPlayer.Count > 0;
             }
         }
@@ -34,8 +38,37 @@ namespace LivingWorldNpcs
         public static bool IsAgentFightingPlayer(Agent agent)
         {
             if (agent == null) return false;
-            _agentsFightingPlayer.RemoveWhere(a => a == null || !a.IsActive() || a.Health <= 0f);
+            RemoveDeadAndStaleAgents();
             return _agentsFightingPlayer.Contains(agent);
+        }
+
+        /// <summary>清理已死亡/消失/场景卸载后的 Agent。安全处理 native 对象已销毁的情况。</summary>
+        private static void RemoveDeadAndStaleAgents()
+        {
+            var dead = new List<Agent>();
+            foreach (var a in _agentsFightingPlayer)
+            {
+                try
+                {
+                    if (a == null || !a.IsActive() || a.Health <= 0f)
+                        dead.Add(a);
+                }
+                catch (NullReferenceException)
+                {
+                    // native 对象已被销毁（场景卸载），托管包装还在
+                    dead.Add(a);
+                }
+            }
+            foreach (var a in dead)
+                _agentsFightingPlayer.Remove(a);
+        }
+
+        /// <summary>Mission 结束时清理所有缓存（Team 缓存 + 战斗 Agent 集合 + 原始队伍记录）。</summary>
+        public static void OnMissionEnd()
+        {
+            _agentsFightingPlayer.Clear();
+            _factionTeams.Clear();
+            _originalTeams.Clear();
         }
 
         /// <summary>
@@ -61,6 +94,35 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[CombatManager] UnregisterCombatant: {agent.Name}(Idx={agent.Index}), total={_agentsFightingPlayer.Count}");
             }
+        }
+
+        /// <summary>
+        /// 结束一场战斗：注销战斗者 + 把 NPC 移回进入战斗前的原始队伍。
+        ///
+        /// 必须成对调用 StartFight → EndFight，否则 NPC 留在敌对 Team 上，
+        /// ResumeVanillaAI 后原版 AI 会继续攻击玩家。
+        /// </summary>
+        public static void EndFight(Agent agent)
+        {
+            if (agent == null || !agent.IsActive()) return;
+
+            // 1. 注销战斗者
+            UnregisterCombatant(agent);
+
+            // 2. 恢复到进入战斗前的原始队伍
+            if (_originalTeams.TryGetValue(agent.Index, out var originalTeam)
+                && originalTeam != null
+                && agent.Team != originalTeam)
+            {
+                agent.SetTeam(originalTeam, true);
+                DebugLogger.Log($"[CombatManager] EndFight: {agent.Name}(Idx={agent.Index}) restored to original team");
+            }
+            else
+            {
+                DebugLogger.Log($"[CombatManager] EndFight: {agent.Name}(Idx={agent.Index}) (no original team recorded or already on it)");
+            }
+
+            _originalTeams.Remove(agent.Index);
         }
 
         /// <summary>
@@ -100,6 +162,10 @@ namespace LivingWorldNpcs
             // 2. 队伍分配：分别为 A 和 B 获取或创建队伍
             Team teamA = GetOrCreateTeam(mission, factionIdA, agentA);
             Team teamB = GetOrCreateTeam(mission, factionIdB, agentB);
+
+            // 2.5 移队前记录原始队伍（EndFight 恢复用）
+            if (agentA.Team != null) _originalTeams[agentA.Index] = agentA.Team;
+            if (agentB.Team != null) _originalTeams[agentB.Index] = agentB.Team;
 
             // 3. 将 Agent 移入队伍 (如果他们不在该队伍中)
             if (agentA.Team != teamA) agentA.SetTeam(teamA, true);
@@ -246,6 +312,156 @@ namespace LivingWorldNpcs
                     cachedTeam.SetIsEnemyOf(teamB, true);
                 }
             }
+        }
+
+        /// <summary>玩家向目标 NPC 认输</summary>
+        public static void PlayerSurrenderToAgent(Agent target)
+        {
+            if (target == null || !target.IsActive()) return;
+            string npcName = target.Name?.ToString() ?? "目标";
+
+            // 广播围观事件：附近 NPC 停止战斗，围过来看
+            AgentAIController.Instance?.BroadcastEventInRange(
+                Agent.Main.Position, 25f, "WitnessCrime", false, Agent.Main, target);
+
+            var script = new DialogueInjector.DialogueInjectScript
+            {
+                InjectAtToken = "start",
+                EntryTurn = "player_lose",
+                Turns = new List<DialogueInjector.DialogueInjectTurn>
+                {
+                    new DialogueInjector.DialogueInjectTurn
+                    {
+                        Id = "player_lose",
+                        SpeakerIndex = 0,
+                        NpcLine = "（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来，饶你一命。",
+                        Options = new List<DialogueInjector.DialogueInjectOption>
+                        {
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "……（交出钱袋）",
+                                NpcResponse = "算你识相。下次长点眼力见，滚吧！",
+                                Action = "INTENT:PlayerSurrenderPay",
+                                ActionParam = "pay"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "求你放过我，我只是路过……",
+                                NpcResponseOnSuccess = "……啧，算你运气好。滚，别让我再看见你。",
+                                NpcResponseOnFail = "废话少说！求饶？现在翻倍——400 第纳尔，一个子儿不能少！",
+                                Action = "INTENT:PlayerSurrenderBeg",
+                                ActionParam = "beg",
+                                NextTurn = "",
+                                NextTurnOnFail = "player_lose_counteroffer"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "你这条狗！杀了我你也别想好过！",
+                                NpcResponseOnSuccess = "……疯子。滚，别让我再看见你。",
+                                NpcResponseOnFail = "找死！！（暴怒地扑了上来）",
+                                Action = "INTENT:PlayerSurrenderThreaten",
+                                ActionParam = "threaten"
+                            }
+                        }
+                    },
+                    new DialogueInjector.DialogueInjectTurn
+                    {
+                        Id = "player_lose_counteroffer",
+                        SpeakerIndex = 0,
+                        NpcLine = "（冷笑）最后一次机会——400 第纳尔，或者咱们接着打。你选。",
+                        Options = new List<DialogueInjector.DialogueInjectOption>
+                        {
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "……（交出 400 第纳尔）",
+                                NpcResponse = "算你识相。滚吧！",
+                                Action = "INTENT:PlayerSurrenderPay",
+                                ActionParam = "counteroffer_beg"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "（拼死一战）",
+                                NpcResponse = "好！那就打到你爬不起来！",
+                                Action = "NONE",
+                                NextTurn = ""
+                            }
+                        }
+                    }
+                }
+            };
+
+            string label = $"Surrender_Player_{target.Index}";
+            DialogueInjector.InjectScriptAsOpening(script, label);
+
+            var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
+            conversationLogic?.StartConversation(target, true, false);
+
+            DebugLogger.Log($"[Combat] 玩家向 {npcName} 认输");
+        }
+
+        /// <summary>接受目标 NPC 的认输请求</summary>
+        public static void AcceptAgentSurrender(Agent target)
+        {
+            if (target == null || !target.IsActive()) return;
+            string npcName = target.Name?.ToString() ?? "目标";
+
+            // 广播围观事件：附近 NPC 停止战斗，围过来看 NPC 认输
+            AgentAIController.Instance?.BroadcastEventInRange(
+                target.Position, 25f, "WitnessCrime", false, target, Agent.Main);
+
+            var script = new DialogueInjector.DialogueInjectScript
+            {
+                InjectAtToken = "start",
+                EntryTurn = "npc_beg",
+                Turns = new List<DialogueInjector.DialogueInjectTurn>
+                {
+                    new DialogueInjector.DialogueInjectTurn
+                    {
+                        Id = "npc_beg",
+                        SpeakerIndex = 0,
+                        NpcLine = "（丢下武器，踉跄后退，举起双手）别、别打了……我认输！",
+                        Options = new List<DialogueInjector.DialogueInjectOption>
+                        {
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "你走吧。",
+                                NpcResponse = "多、多谢！我这就走……",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "accept"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "给我跪下磕头认错！",
+                                NpcResponse = $"（{npcName}屈辱地跪倒在地，额头重重磕在地上……）",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "humiliate"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "把钱交出来，饶你一命。",
+                                NpcResponse = "好、好……都给你！求你放过我……",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "ransom"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "太迟了。继续打！",
+                                NpcResponse = $"不——！（{npcName}绝望地重新抓起武器）",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "refuse"
+                            }
+                        }
+                    }
+                }
+            };
+
+            string label = $"Surrender_NPC_{target.Index}";
+            DialogueInjector.InjectScriptAsOpening(script, label);
+
+            var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
+            conversationLogic?.StartConversation(target, true, false);
+
+            DebugLogger.Log($"[Combat] 玩家与投降的 {npcName} 开始对话");
         }
     }
 

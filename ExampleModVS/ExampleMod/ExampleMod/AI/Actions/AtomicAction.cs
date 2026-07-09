@@ -750,6 +750,9 @@ namespace LivingWorldNpcs
         private float _checkTimer;
         // 【新增】公开只读属性，让 Brain 可以检查当前在打谁
         public Agent TargetEnemy => _targetEnemy;
+
+        /// <summary>残血认输已触发标记（每次创建新实例重置）</summary>
+        private bool _surrenderTriggered = false;
         /// <summary>
         /// 战斗行为：锁定并攻击指定敌人
         /// </summary>
@@ -797,6 +800,18 @@ namespace LivingWorldNpcs
 
             // --- 持续性指令 ---
 
+            // ── 残血认输：仅当目标是玩家时 ──
+            if (!_surrenderTriggered && _targetEnemy == Agent.Main)
+            {
+                float healthRatio = agent.Health / agent.HealthLimit;
+                if (healthRatio < 0.30f)
+                {
+                    _surrenderTriggered = true;
+                    AgentAIController.Instance?.SendEventToAgent(agent, "event_npc_surrender", Agent.Main);
+                    AgentHudMissionView.AgentSay(agent, "我认输！别打了！");
+                }
+            }
+
             // 某些情况下引擎会重置目标（比如被另一个人砍了一刀），这里做一个强制纠偏
             // 每 0.5 秒检查并重申一次目标，不需要每帧都设
             _checkTimer += dt;
@@ -813,9 +828,9 @@ namespace LivingWorldNpcs
 
         public void OnEnd(Agent agent)
         {
-            // 如果交战目标是玩家 → 注销
-            if (_targetEnemy == Agent.Main)
-                CombatManager.UnregisterCombatant(agent);
+            // 完整结束战斗（注销战斗者 + 移回原始队伍）
+            // UnregisterCombatant 对非玩家战斗是 no-op，SetTeam 恢复总是需要的
+            CombatManager.EndFight(agent);
             _targetEnemy = null;
             AgentControlHelper.StopAndReset(agent); // 确保退出时清理状态
         }
@@ -974,15 +989,16 @@ namespace LivingWorldNpcs
             var brain = AgentAIController.GetBrainForAgent(agent);
             PlayerActionType? primaryAction = brain?.PrimaryAction;
 
-            // 根据 PrimaryAction 确定 NPC 意图
-            NpcInterceptIntent npcIntent = primaryAction switch
+            // 根据 PrimaryAction 确定 ConfrontationType detail
+            var detail = primaryAction switch
             {
-                PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => NpcInterceptIntent.Deter,
-                PlayerActionType.StealUIOpen => NpcInterceptIntent.Search,
-                PlayerActionType.Steal => NpcInterceptIntent.Recover,
-                PlayerActionType.AttackAlly or PlayerActionType.Knockout => NpcInterceptIntent.Stop,
-                _ => NpcInterceptIntent.Deter
+                PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
+                PlayerActionType.StealUIOpen => ConfrontationType.Search,
+                PlayerActionType.Steal => ConfrontationType.Recover,
+                PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
+                _ => ConfrontationType.Deter
             };
+            brain?.SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
             // 查找关联的 WorldEvent（Stage 决定对话是初始还是升级版）
             WorldEvent worldEvt = null;
@@ -991,7 +1007,7 @@ namespace LivingWorldNpcs
 
             // 构建对话脚本（WorldEvent 非 null 时，CrimeDialogueBuilder 读取其 Stage 决定选项）
             var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
-                npcHero, npcIntent, primaryAction ?? PlayerActionType.Crouching, worldEvt: worldEvt);
+                npcHero, detail, primaryAction ?? PlayerActionType.Crouching, worldEvt: worldEvt);
             if (script == null)
             {
                 DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");

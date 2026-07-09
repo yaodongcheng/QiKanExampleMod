@@ -62,7 +62,14 @@
                                       HorizontalAlignment="Center"
                                       Brush.FontSize="18"
                                       Brush.FontColor="#FFD700FF" />
-
+                        <!-- NpcIntent 调试文本 -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            Brush="MyBrush_16_Left"
+                                            Text="@NpcIntentDebugText"
+                                            IsVisible="@ShowName"
+                                            HorizontalAlignment="Center"
+                                            Brush.FontSize="12"
+                                            Brush.FontColor="#00FFBFFF" />
                       <!-- 2. 说话文本 (中间) -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                       Brush="Brush_HeadText"
@@ -104,6 +111,8 @@
                                            HorizontalAlignment="Left"
                                            Brush.FontSize="16"
                                            Brush.FontColor="#FF4500FF" />
+
+               
 
                           </Children>
                         </ListPanel>

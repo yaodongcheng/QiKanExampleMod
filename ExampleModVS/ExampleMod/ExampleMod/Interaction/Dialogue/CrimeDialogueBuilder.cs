@@ -557,7 +557,7 @@ namespace LivingWorldNpcs
         /// 台词查找顺序：① NpcSpeech.csv → ② NarrativeResolver（过渡）→ ③ PlaceholderResolver 硬编码兜底。
         /// </summary>
         public static DialogueInjector.DialogueInjectScript BuildAlertInterceptScript(
-            Hero speaker, NpcInterceptIntent npcIntent, PlayerActionType primaryAction, WorldEvent worldEvt = null)
+            Hero speaker, ConfrontationType npcIntent, PlayerActionType primaryAction, WorldEvent worldEvt = null)
         {
             var r = new PlaceholderResolver(speaker, Hero.MainHero);
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
@@ -584,7 +584,7 @@ namespace LivingWorldNpcs
             {
                 npcOpening = npcIntent switch
                 {
-                    NpcInterceptIntent.Deter => primaryAction switch
+                    ConfrontationType.Deter => primaryAction switch
                     {
                         PlayerActionType.WeaponDrawn =>
                             r.Resolve("（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
@@ -592,13 +592,13 @@ namespace LivingWorldNpcs
                             r.Resolve("（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
                     },
 
-                    NpcInterceptIntent.Search =>
+                    ConfrontationType.Search =>
                         r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。"),
 
-                    NpcInterceptIntent.Recover =>
+                    ConfrontationType.Recover =>
                         r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
 
-                    NpcInterceptIntent.Stop => primaryAction switch
+                    ConfrontationType.Stop => primaryAction switch
                     {
                         PlayerActionType.AttackAlly =>
                             r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
@@ -617,7 +617,7 @@ namespace LivingWorldNpcs
             });
 
             // Search 成功后如果搜到赃物 → 插入一个额外 turn 把意图切换为 Recover
-            if (npcIntent == NpcInterceptIntent.Search)
+            if (npcIntent == ConfrontationType.Search)
             {
                 bool hasStolen = PlayerHasStolenItems();
                 turns.Add(BuildSearchResultTurn(r, hasStolen));
@@ -646,13 +646,13 @@ namespace LivingWorldNpcs
         }
 
         static List<DialogueInjector.DialogueInjectOption> BuildOptionsByIntent(
-            PlaceholderResolver r, NpcInterceptIntent intent, PlayerActionType action, WorldEvent worldEvt = null)
+            PlaceholderResolver r, ConfrontationType intent, PlayerActionType action, WorldEvent worldEvt = null)
         {
             var opts = new List<DialogueInjector.DialogueInjectOption>();
 
             switch (intent)
             {
-                case NpcInterceptIntent.Deter:
+                case ConfrontationType.Deter:
                     string complyLine = action == PlayerActionType.WeaponDrawn
                         ? "好，我收起来。"
                         : "没什么，我这就走。";
@@ -669,20 +669,20 @@ namespace LivingWorldNpcs
                     }
                     break;
 
-                case NpcInterceptIntent.Search:
+                case ConfrontationType.Search:
                     opts.Add(new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextTurn = "search_result" });
                     opts.Add(new() { PlayerLine = "凭什么翻我东西？（拒绝）", NpcResponse = r.Resolve("不敢让人看？那就是有鬼了！"), Action = "INTENT:RefuseSearch", NextTurn = "recover_confront" });
                     opts.Add(new() { PlayerLine = "别查了，我赔你点钱。", NpcResponse = r.Resolve("……做贼心虚。拿了钱滚。"), Action = "INTENT:PayRestitution", NextTurn = "" });
                     opts.Add(new() { PlayerLine = "（转身就走）", NpcResponse = r.Resolve("站住！"), Action = "INTENT:WalkAway", NextTurn = "" });
                     break;
 
-                case NpcInterceptIntent.Recover:
+                case ConfrontationType.Recover:
                     opts.Add(new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("算你识相。别再来了。"), Action = "INTENT:PayRestitution", NextTurn = "" });
                     opts.Add(new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), NpcResponseOnSuccess = r.Resolve("……{SPEAKER_SELF}可能看错了。"), NpcResponseOnFail = r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！"), Action = "INTENT:CharmDefense", NextTurn = "continue_chat" });
                     opts.Add(new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextTurn = "" });
                     break;
 
-                case NpcInterceptIntent.Stop:
+                case ConfrontationType.Stop:
                     opts.Add(new() { PlayerLine = r.Resolve("我愿意赔钱。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("光赔钱就完了？拿了钱快滚。"), Action = "INTENT:PayRestitution", NextTurn = "" });
                     opts.Add(new() { PlayerLine = "他先惹我的。", NpcResponseOnSuccess = r.Resolve("……下次再动手没这么好说话。"), NpcResponseOnFail = r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！"), Action = "INTENT:CharmDefense", NextTurn = "continue_chat" });
                     opts.Add(new() { PlayerLine = "（拔剑）谁敢拦我！", NpcResponse = r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！"), Action = "INTENT:FightVillagers", NextTurn = "" });
