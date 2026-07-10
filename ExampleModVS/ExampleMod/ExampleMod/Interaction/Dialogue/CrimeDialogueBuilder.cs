@@ -43,23 +43,7 @@ namespace LivingWorldNpcs
                 script = BuildBystanderScript(evt, speaker, listener, r, ctx);
 
             // 日志：打印每个 turn 的最终填充文本，方便排查占位符遗漏
-            if (script?.Turns != null)
-            {
-                foreach (var t in script.Turns)
-                {
-                    DebugLogger.Log($"[CrimeDialog] Turn[{t.Id}] speaker={speaker.Name} stage={evt.Stage}");
-                    if (!string.IsNullOrEmpty(t.NpcLine))
-                        DebugLogger.Log($"[CrimeDialog]   NPC: {t.NpcLine}");
-                    if (t.Options != null)
-                    {
-                        foreach (var opt in t.Options)
-                        {
-                            string action = opt.Action ?? "NONE";
-                            DebugLogger.Log($"[CrimeDialog]   Option: \"{opt.PlayerLine}\" → {action}");
-                        }
-                    }
-                }
-            }
+            DialogueInjector.LogScript(script, $"[CrimeDialog] speaker={speaker.Name} stage={evt.Stage}");
 
             return script;
         }
@@ -728,6 +712,135 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(tag)) return true;
             }
             return false;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 战斗认输对话构建（从 CombatManager 手写脚本抽取）
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 构建玩家向 NPC 认输的对话脚本。
+        /// 调用方：CombatManager.PlayerSurrenderToAgent。
+        /// </summary>
+        public static DialogueInjector.DialogueInjectScript BuildPlayerSurrenderScript()
+        {
+            return new DialogueInjector.DialogueInjectScript
+            {
+                EntryTurn = "player_lose",
+                Turns = new List<DialogueInjector.DialogueInjectTurn>
+                {
+                    new DialogueInjector.DialogueInjectTurn
+                    {
+                        Id = "player_lose",
+                        SpeakerIndex = 0,
+                        NpcLine = "（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来，饶你一命。",
+                        Options = new List<DialogueInjector.DialogueInjectOption>
+                        {
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "……（交出钱袋）",
+                                NpcResponse = "算你识相。下次长点眼力见，滚吧！",
+                                Action = "INTENT:PlayerSurrenderPay",
+                                ActionParam = "pay"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "求你放过我，我只是路过……",
+                                NpcResponseOnSuccess = "……啧，算你运气好。滚，别让我再看见你。",
+                                NpcResponseOnFail = "废话少说！求饶？现在翻倍——400 第纳尔，一个子儿不能少！",
+                                Action = "INTENT:PlayerSurrenderBeg",
+                                ActionParam = "beg",
+                                NextTurn = "",
+                                NextTurnOnFail = "player_lose_counteroffer"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "你这条狗！杀了我你也别想好过！",
+                                NpcResponseOnSuccess = "……疯子。滚，别让我再看见你。",
+                                NpcResponseOnFail = "找死！！（暴怒地扑了上来）",
+                                Action = "INTENT:PlayerSurrenderThreaten",
+                                ActionParam = "threaten"
+                            }
+                        }
+                    },
+                    new DialogueInjector.DialogueInjectTurn
+                    {
+                        Id = "player_lose_counteroffer",
+                        SpeakerIndex = 0,
+                        NpcLine = "（冷笑）最后一次机会——400 第纳尔，或者咱们接着打。你选。",
+                        Options = new List<DialogueInjector.DialogueInjectOption>
+                        {
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "……（交出 400 第纳尔）",
+                                NpcResponse = "算你识相。滚吧！",
+                                Action = "INTENT:PlayerSurrenderPay",
+                                ActionParam = "counteroffer_beg"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "（拼死一战）",
+                                NpcResponse = "好！那就打到你爬不起来！",
+                                Action = "NONE",
+                                NextTurn = ""
+                            }
+                        }
+                    }
+                }
+            };
+        }
+
+        /// <summary>
+        /// 构建 NPC 向玩家认输的对话脚本。
+        /// 调用方：CombatManager.AcceptAgentSurrender。
+        /// </summary>
+        /// <param name="npcName">认输 NPC 的显示名称（用于 NPC 回应文本插值）</param>
+        public static DialogueInjector.DialogueInjectScript BuildNpcSurrenderScript(string npcName)
+        {
+            return new DialogueInjector.DialogueInjectScript
+            {
+                EntryTurn = "npc_beg",
+                Turns = new List<DialogueInjector.DialogueInjectTurn>
+                {
+                    new DialogueInjector.DialogueInjectTurn
+                    {
+                        Id = "npc_beg",
+                        SpeakerIndex = 0,
+                        NpcLine = "（丢下武器，踉跄后退，举起双手）别、别打了……我认输！",
+                        Options = new List<DialogueInjector.DialogueInjectOption>
+                        {
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "你走吧。",
+                                NpcResponse = "多、多谢！我这就走……",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "accept"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "给我跪下磕头认错！",
+                                NpcResponse = $"（{npcName}屈辱地跪倒在地，额头重重磕在地上……）",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "humiliate"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "把钱交出来，饶你一命。",
+                                NpcResponse = "好、好……都给你！求你放过我……",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "ransom"
+                            },
+                            new DialogueInjector.DialogueInjectOption
+                            {
+                                PlayerLine = "太迟了。继续打！",
+                                NpcResponse = $"不——！（{npcName}绝望地重新抓起武器）",
+                                Action = "INTENT:ResolveNpcSurrender",
+                                ActionParam = "refuse"
+                            }
+                        }
+                    }
+                }
+            };
         }
     }
 }
