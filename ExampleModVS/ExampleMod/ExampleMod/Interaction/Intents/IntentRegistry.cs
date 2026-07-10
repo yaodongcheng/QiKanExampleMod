@@ -133,14 +133,14 @@ namespace LivingWorldNpcs
         public static RollResult Compute(IntentContext ctx, NegotiationGoalType goal, NegotiationTactic tactic, float offerValue)
         {
             var r = new RollResult();
-            Hero npc = ctx.Hero;
+            Hero npc = ctx.Speaker;
             string desc = NegotiationRegistry.GetGoalInfo(goal).Name;
 
             // 复用难度计算器（只读 阈值/开局优势/性格 三项，不跑回合循环）
             // Agent-based path for Mission scenes; Hero-based fallback for campaign-map conversations
             NegotiationState state = ctx.Agent != null
                 ? new NegotiationState(ctx.Agent, goal.ToString(), desc)
-                : new NegotiationState(ctx.Hero, goal.ToString(), desc);
+                : new NegotiationState(ctx.Speaker, goal.ToString(), desc);
             r.State = state;
             r.Threshold = state.TargetThreshold;
 
@@ -181,7 +181,7 @@ namespace LivingWorldNpcs
         public static RollResult SimpleCompute(IntentContext ctx, NegotiationTactic tactic, float offerValue = 0f)
         {
             var r = new RollResult();
-            Hero npc = ctx.Hero;
+            Hero npc = ctx.Speaker;
             SkillObject skill = SkillCheckSystem.MapTacticToSkill(tactic);
 
             float playerLevel = Hero.MainHero.GetSkillValue(skill);

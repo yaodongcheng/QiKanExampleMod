@@ -159,6 +159,14 @@ namespace LivingWorldNpcs
                 return best;
             }
         }
+        public IReadOnlyDictionary<PlayerActionType, AlertEntry> AlertBreakdown
+        {
+            get
+            {
+                if (_alertBreakdown.Count == 0) return null;
+                return _alertBreakdown;
+            }
+        }
 
         public AgentBrain(Agent agent)
         {

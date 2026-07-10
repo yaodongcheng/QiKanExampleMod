@@ -39,30 +39,30 @@ namespace LivingWorldNpcs
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.IsHero) return Eligibility.Hide();
-            if (ctx.Hero == null) return Eligibility.Hide();
+            if (ctx.Speaker == null) return Eligibility.Hide();
 
             // 新逻辑：检查 NPC 是否有原版 Issue（可接取状态）
-            var issue = ctx.Hero.Issue;
+            var issue = ctx.Speaker.Issue;
             _hasIssue = issue != null && issue.IsOngoingWithoutQuest;
             _hasUrgentEvent = ctx.HasUrgentWorldEvent;
 
             if (!_hasIssue && !_hasUrgentEvent)
                 return Eligibility.Hide();
 
-            DebugLogger.Log($"[CommissionIntent] RequestCommission Evaluate: hero={ctx.Hero.Name} hasIssue={_hasIssue} urgentEvent={_hasUrgentEvent} → Show");
+            DebugLogger.Log($"[CommissionIntent] RequestCommission Evaluate: hero={ctx.Speaker.Name} hasIssue={_hasIssue} urgentEvent={_hasUrgentEvent} → Show");
             return Eligibility.Show();
         }
 
         public override void OnInstant(IntentContext ctx)
         {
-            if (ctx.Hero == null) return;
+            if (ctx.Speaker == null) return;
 
-            var issue = ctx.Hero.Issue;
+            var issue = ctx.Speaker.Issue;
 
             // 路径 A：NPC 有原版 Issue（可接取状态）
             if (issue != null && issue.IsOngoingWithoutQuest)
             {
-                DebugLogger.Log($"[CommissionIntent] RequestCommission OnInstant: presenting vanilla issue type={issue.GetType().Name} giver={ctx.Hero.Name}");
+                DebugLogger.Log($"[CommissionIntent] RequestCommission OnInstant: presenting vanilla issue type={issue.GetType().Name} giver={ctx.Speaker.Name}");
                 ShowVanillaIssueInDialogue(issue, ctx);
                 return;
             }
@@ -96,7 +96,7 @@ namespace LivingWorldNpcs
             string issueTypeName = issue.GetType().Name.Replace("Issue", "");
 
             // 2. 提取因果上下文
-            var causalityCtx = QuestConsequenceResolver.ExtractCausalityContext(ctx.Hero);
+            var causalityCtx = QuestConsequenceResolver.ExtractCausalityContext(ctx.Speaker);
             bool hasCausality = causalityCtx != null && causalityCtx.HasContext;
 
             // 3. 叙事生成（三层 fallback）
@@ -118,14 +118,14 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    QuestMemoryRecorderPatch.RecordQuestIssued(ctx.Hero);
-                    bool started = Campaign.Current.IssueManager.StartIssueQuest(ctx.Hero);
+                    QuestMemoryRecorderPatch.RecordQuestIssued(ctx.Speaker);
+                    bool started = Campaign.Current.IssueManager.StartIssueQuest(ctx.Speaker);
                     if (started)
                     {
                         // StartIssueQuest → StartIssueWithQuest → GenerateIssueQuest 只 new 了 QuestBase 对象。
                         // QuestStates 枚举 Ongoing=0 是默认值，所以 quest.IsOngoing 从构造那一刻就是 true，
                         // 无法用它判断 StartQuest() 是否已被调用。必须无条件手动激活。
-                        var quest = ctx.Hero.Issue?.IssueQuest;
+                        var quest = ctx.Speaker.Issue?.IssueQuest;
                         if (quest != null && !Campaign.Current.QuestManager.Quests.Contains(quest))
                         {
                             // 必须调 QuestAcceptedConsequences：
@@ -143,14 +143,14 @@ namespace LivingWorldNpcs
                             DebugLogger.Log($"[CommissionIntent] Quest activated via reflection: {quest.GetType().Name}");
                         }
 
-                        DebugLogger.Log($"[CommissionIntent] Player accepted: {issueTypeName} from {ctx.Hero.Name} — questObj={quest?.GetType().Name ?? "null"}");
+                        DebugLogger.Log($"[CommissionIntent] Player accepted: {issueTypeName} from {ctx.Speaker.Name} — questObj={quest?.GetType().Name ?? "null"}");
 
                         InformationManager.DisplayMessage(
                             new InformationMessage($"接取了委托：{questTitle}", Colors.Green));
                     }
                     else
                     {
-                        DebugLogger.Log($"[CommissionIntent] StartIssueQuest returned FALSE for {issueTypeName} from {ctx.Hero.Name} — issue may already be solved or invalid");
+                        DebugLogger.Log($"[CommissionIntent] StartIssueQuest returned FALSE for {issueTypeName} from {ctx.Speaker.Name} — issue may already be solved or invalid");
                         InformationManager.DisplayMessage(
                             new InformationMessage($"接取委托失败：此委托可能已失效。", Colors.Red));
                     }
@@ -196,7 +196,7 @@ namespace LivingWorldNpcs
             {
                 // 无对话控制器时走 Inquiry 弹窗
                 InformationManager.ShowInquiry(new InquiryData(
-                    $"委托 — {ctx.Hero.Name}",
+                    $"委托 — {ctx.Speaker.Name}",
                     $"「{narrativeText}」\n\n委托：{questTitle}",
                     true, true,
                     "接取", "拒绝",
@@ -285,7 +285,7 @@ namespace LivingWorldNpcs
             var urgentEvent = ctx.Memory?.CurrentUrgentEvent;
             if (urgentEvent == null) return;
 
-            bool isVictim = urgentEvent.TargetHeroId == ctx.Hero?.StringId;
+            bool isVictim = urgentEvent.TargetHeroId == ctx.Speaker?.StringId;
             string instigatorName = urgentEvent.InstigatorHero?.Name?.ToString() ?? "他们";
             string victimName = urgentEvent.TargetHero?.Name?.ToString() ?? "我们";
 
@@ -365,7 +365,7 @@ namespace LivingWorldNpcs
                         System.StringSplitOptions.RemoveEmptyEntries);
                     personalityTag = traits.Length > 0 ? traits[0].Trim() : "";
                 }
-                string trustLevel = TrustSystem.GetTrust(ctx.Hero) >= 10 ? "High" : "Low";
+                string trustLevel = TrustSystem.GetTrust(ctx.Speaker) >= 10 ? "High" : "Low";
 
                 var filters = new NarrativeFilters
                 {
@@ -381,7 +381,7 @@ namespace LivingWorldNpcs
                 if (result != null && !string.IsNullOrEmpty(result.Text))
                 {
                     // 替换标准占位符（{PLAYER}, {NPC}, {WORLD}, {TERM_LORD} 等）
-                    string text = NarrativeResolver.ApplyPlaceholders(result.Text, ctx.Hero, ctx.Agent);
+                    string text = NarrativeResolver.ApplyPlaceholders(result.Text, ctx.Speaker, ctx.Agent);
                     return text;
                 }
             }
@@ -405,7 +405,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                string npcName = ctx.Hero?.Name?.ToString() ?? "对方";
+                string npcName = ctx.Speaker?.Name?.ToString() ?? "对方";
                 string personality = ctx.Profile?.GetPersonaPrompt() ?? "";
                 string relationDesc = ctx.Relation >= 10 ? "不错" : ctx.Relation >= 0 ? "一般" : "较差";
 
@@ -573,7 +573,7 @@ namespace LivingWorldNpcs
         public override Eligibility Evaluate(IntentContext ctx)
         {
             _foundQuest = null;
-            if (!ctx.IsHero || ctx.Hero == null) return Eligibility.Hide();
+            if (!ctx.IsHero || ctx.Speaker == null) return Eligibility.Hide();
 
             // 泛化：检查任意 Quest 是否已完成目标但未领报酬
             foreach (var quest in Campaign.Current.QuestManager.Quests)
@@ -582,17 +582,17 @@ namespace LivingWorldNpcs
                 if (quest.QuestGiver == null) continue;
 
                 // 匹配结账人（优先精确匹配 QuestGiver）
-                if (quest.QuestGiver != ctx.Hero) continue;
+                if (quest.QuestGiver != ctx.Speaker) continue;
 
                 // 检查是否是 CommissionQuest（旧系统——保留兼容）
                 if (quest is CommissionQuest cq
                     && cq.Data != null
                     && cq.Data.IsObjectivesComplete
                     && !cq.IsFinalized
-                    && cq.Data.RewardPayer == ctx.Hero)
+                    && cq.Data.RewardPayer == ctx.Speaker)
                 {
                     _foundQuest = cq;
-                    DebugLogger.Log($"[CommissionIntent] CollectReward Evaluate (CommissionQuest): hero={ctx.Hero.Name} quest={cq.Data.GetFlavorDescription()}");
+                    DebugLogger.Log($"[CommissionIntent] CollectReward Evaluate (CommissionQuest): hero={ctx.Speaker.Name} quest={cq.Data.GetFlavorDescription()}");
                     return Eligibility.Show();
                 }
 
@@ -602,10 +602,10 @@ namespace LivingWorldNpcs
                     && cq2.Data.IsObjectivesComplete
                     && !cq2.IsFinalized
                     && cq2.Data.RewardPayer == null
-                    && cq2.Data.QuestGiver == ctx.Hero)
+                    && cq2.Data.QuestGiver == ctx.Speaker)
                 {
                     _foundQuest = cq2;
-                    DebugLogger.Log($"[CommissionIntent] CollectReward Evaluate (CommissionQuest default payer): hero={ctx.Hero.Name}");
+                    DebugLogger.Log($"[CommissionIntent] CollectReward Evaluate (CommissionQuest default payer): hero={ctx.Speaker.Name}");
                     return Eligibility.Show();
                 }
             }
@@ -615,7 +615,7 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
-            if (_foundQuest == null || ctx.Hero == null) return;
+            if (_foundQuest == null || ctx.Speaker == null) return;
 
             if (_foundQuest is CommissionQuest cq && cq.Data != null)
             {
@@ -627,7 +627,7 @@ namespace LivingWorldNpcs
                 Action onCollect = () =>
                 {
                     cq.CompleteWithRewardCollection();
-                    DebugLogger.Log($"[CommissionIntent] CollectReward: player collected reward from {ctx.Hero.Name}");
+                    DebugLogger.Log($"[CommissionIntent] CollectReward: player collected reward from {ctx.Speaker.Name}");
                     if (ctx.Controller != null)
                         ctx.Controller.CloseDialogue();
                 };

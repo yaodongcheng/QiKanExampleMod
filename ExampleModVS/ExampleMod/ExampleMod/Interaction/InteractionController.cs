@@ -439,7 +439,7 @@ namespace LivingWorldNpcs
         /// <summary>有 LLM：用意图已知的目标直接开一场谈判。</summary>
         private void StartLLMNegotiation(IntentBase intent, IntentContext ctx)
         {
-            if (ctx.Hero == null) { ResolveAdversarialIntent(intent, ctx); return; }
+            if (ctx.Speaker == null) { ResolveAdversarialIntent(intent, ctx); return; }
             _memory.CurrentNegotiationState = new NegotiationState(ctx.Agent, intent.Goal.Value.ToString(), intent.DisplayName);
             var startCard = new NegotiationCard(intent.Tactic.ToString(), $"（{intent.DisplayName}）");
             _vm.LockPrediction();
@@ -451,7 +451,7 @@ namespace LivingWorldNpcs
         {
             if (ctx == null || !intent.Goal.HasValue) return;
             // P3：守卫/无人设的 agent 不能进对抗结算（对抗意图本就只对 Hero 开放，这里二次兜底）
-            if (ctx.Hero == null || ctx.Profile == null)
+            if (ctx.Speaker == null || ctx.Profile == null)
             {
                 InformationManager.DisplayMessage(new InformationMessage("无法与此人深谈。"));
                 return;
@@ -467,7 +467,7 @@ namespace LivingWorldNpcs
 
             // 模板台词 + 表情动作
             string emotion;
-            string line = DialogueTemplateHelper.Get(intent.DialogueKey, success, out emotion, ctx.Hero, ctx.Agent);
+            string line = DialogueTemplateHelper.Get(intent.DialogueKey, success, out emotion, ctx.Speaker, ctx.Agent);
             UpdateNpcVisuals(line, emotion, "NONE", "");
 
             // ── 🆕 ReofferOnFail：失败后重新渲染选项 ──
@@ -535,13 +535,13 @@ namespace LivingWorldNpcs
                     string eventLine = null;
                     if (key == "Greeting" || key == "Weather")
                     {
-                        eventLine = WorldEventDirector.GetEventAwareDialogue(ctx.Hero, key);
+                        eventLine = WorldEventDirector.GetEventAwareDialogue(ctx.Speaker, key);
                     }
 
                     // 打听消息：优先用 WorldEvent 真实传闻，查不到再回退 CSV 通用台词
                     if (key == "Gossip")
                     {
-                        string rumor = WorldEventDirector.GetTavernRumor(ctx.Hero);
+                        string rumor = WorldEventDirector.GetTavernRumor(ctx.Speaker);
                         if (!string.IsNullOrEmpty(rumor))
                         {
                             line = rumor;
@@ -549,7 +549,7 @@ namespace LivingWorldNpcs
                         }
                         else
                         {
-                            line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Hero, ctx.Agent);
+                            line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Speaker, ctx.Agent);
                         }
                     }
                     else if (!string.IsNullOrEmpty(eventLine))
@@ -560,12 +560,12 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
-                        line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Hero, ctx.Agent);
+                        line = DialogueTemplateHelper.Get("Chat_" + key, factors, out emotion, ctx.Speaker, ctx.Agent);
                     }
                     int delta = key == "Praise" ? 2 : 1;
                     if (factors.Honor == HonorLevel.High) delta += 1;
                     else if (factors.Honor == HonorLevel.Low) delta = Math.Max(delta - 1, 0);
-                    if (ctx.Hero != null) ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, delta);
+                    if (ctx.Speaker != null) ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, delta);
                     DebugLogger.Log($"[Dialog] Player chose chat topic: \"{t.Value}\" → NPC reply: \"{line}\"");
                     UpdateNpcVisuals(line, emotion, "NONE", "");
                     OpenChatTopicMenu(ctx);
@@ -578,8 +578,8 @@ namespace LivingWorldNpcs
                 int honor = 0;
                 if (Hero.MainHero.CurrentSettlement != null)
                     honor = SettlementHonorStore.Get(Hero.MainHero.CurrentSettlement);
-                string npcName = ctx.Hero != null && ctx.Hero.Name != null
-                    ? ctx.Hero.Name.ToString()
+                string npcName = ctx.Speaker != null && ctx.Speaker.Name != null
+                    ? ctx.Speaker.Name.ToString()
                     : (ctx.Agent != null ? ctx.Agent.Name.ToString() : "对方");
 
                 string desc;

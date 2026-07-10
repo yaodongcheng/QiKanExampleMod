@@ -96,7 +96,7 @@ namespace LivingWorldNpcs
             {
                 int fine = 100;
                 AgentControlHelper.TransferGold(Hero.MainHero, null, fine);
-                var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                 if (npc is Hero n)
                     ChangeRelationAction.ApplyPlayerRelation(n, -3, false, true);
 
@@ -175,7 +175,7 @@ namespace LivingWorldNpcs
             base.OnFail(ctx);
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
-            ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -10, false, true);
+            ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
             DebugLogger.Log($"[Accountability] Charm defense failed for {evt.EventId} — → Confrontation");
             var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
@@ -329,7 +329,7 @@ namespace LivingWorldNpcs
             else
             {
                 // Alert 场景：玩家威胁成功 → NPC 退缩，关系 -2（震慑留下芥蒂）
-                var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                 if (npc is Hero n)
                     ChangeRelationAction.ApplyPlayerRelation(n, -2, false, true);
                 DebugLogger.Log($"[Accountability] Threat succeeded (Alert context, no event) — relation -2");
@@ -351,7 +351,7 @@ namespace LivingWorldNpcs
             {
                 // Alert 场景：威胁失败 → 设 PendingCombatAgent，推进 WorldEvent 到 Confrontation
                 PendingCombatAgent = ctx.Agent;
-                var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                 if (npc is Hero n)
                     ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
 
@@ -505,7 +505,7 @@ namespace LivingWorldNpcs
                 if (ctx.IsInMission)
                 {
                     PendingEscalationAgent = ctx.Agent;
-                    var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                    var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                     if (npc is Hero n)
                         ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
 
@@ -586,8 +586,8 @@ namespace LivingWorldNpcs
         {
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
-            if (ctx.Hero != null)
-                ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -15, false, true);
+            if (ctx.Speaker != null)
+                ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -15, false, true);
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
         }
 
@@ -797,8 +797,8 @@ namespace LivingWorldNpcs
             if (evt == null) return;
             // 系统验证：InitiatorId ≠ Player → 自动洗清
             evt.SuspectHeroId = evt.InitiatorId; // 指向真凶
-            if (ctx.Hero != null)
-                ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, 5, false, true);
+            if (ctx.Speaker != null)
+                ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, 5, false, true);
             DebugLogger.Log($"[Accountability] Innocence proof: player cleared for {evt.EventId}");
         }
     }
@@ -825,8 +825,8 @@ namespace LivingWorldNpcs
         {
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
-            if (ctx.Hero != null)
-                ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -15, false, true);
+            if (ctx.Speaker != null)
+                ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -15, false, true);
             WorldEventStore.TransitionStage(evt, EventStage.Resolved);
             evt.ResolvedBy = "settled";
             DebugLogger.Log($"[Accountability] Settlement reached for {evt.EventId}");
@@ -1072,7 +1072,7 @@ namespace LivingWorldNpcs
             if (confiscation > 0)
                 AgentControlHelper.TransferGold(Hero.MainHero, null, confiscation);
 
-            var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+            var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
             if (npc is Hero n)
                 ChangeRelationAction.ApplyPlayerRelation(n, -10, false, true);
 
@@ -1125,7 +1125,7 @@ namespace LivingWorldNpcs
             brain?.ClearAllAlerts();
             AgentBrain.ConfrontingBrain = null;
 
-            var npc = ctx.Hero ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+            var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
             if (npc is Hero n)
                 ChangeRelationAction.ApplyPlayerRelation(n, -1, false, true);
 

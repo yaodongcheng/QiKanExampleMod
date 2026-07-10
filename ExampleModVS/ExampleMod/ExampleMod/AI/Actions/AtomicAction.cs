@@ -1007,7 +1007,7 @@ namespace LivingWorldNpcs
 
             // 构建对话脚本（WorldEvent 非 null 时，CrimeDialogueBuilder 读取其 Stage 决定选项）
             var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
-                npcHero, detail, primaryAction ?? PlayerActionType.Crouching, worldEvt: worldEvt);
+                npcHero, detail, primaryAction ?? PlayerActionType.Crouching, worldEvt: worldEvt, speakerAgent: agent);
             if (script == null)
             {
                 DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");

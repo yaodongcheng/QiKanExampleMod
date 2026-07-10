@@ -394,7 +394,7 @@ namespace LivingWorldNpcs
                 // 当 Agent 不可用时（如 CampaignMapConversation），从 npc Hero 回填上下文
                 if (ctx.Agent == null && npc != null)
                 {
-                    ctx.Hero = npc;
+                    ctx.Speaker = npc;
                 }
 
                 // 注入犯罪事件上下文
@@ -685,7 +685,7 @@ namespace LivingWorldNpcs
                     // 当 Agent 不可用时（如 CampaignMapConversation），从 npc Hero 回填上下文
                     if (ctx.Agent == null && npc != null)
                     {
-                        ctx.Hero = npc;
+                        ctx.Speaker = npc;
                     }
                     // 覆盖 ActionParam
                     if (!string.IsNullOrEmpty(opt.ActionParam))

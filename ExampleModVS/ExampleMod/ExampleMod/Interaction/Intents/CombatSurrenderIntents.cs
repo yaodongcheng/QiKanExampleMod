@@ -177,8 +177,8 @@ namespace LivingWorldNpcs
             {
                 case "accept":
                     // 宽宏大量：好感 +2
-                    if (ctx.Hero != null)
-                        ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, 2, false, true);
+                    if (ctx.Speaker != null)
+                        ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, 2, false, true);
                     AgentAIController.Instance?.SendEventToAgent(
                         ctx.Agent, "event_surrender_accepted");
                     DebugLogger.Log("[Combat] ResolveNpcSurrender: accept (+2 relation)");
@@ -186,8 +186,8 @@ namespace LivingWorldNpcs
 
                 case "humiliate":
                     // 侮辱：好感 -10 + 嗑头动画
-                    if (ctx.Hero != null)
-                        ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -10, false, true);
+                    if (ctx.Speaker != null)
+                        ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
                     AgentControlHelper.ForcePlayAction(ctx.Agent, "act_kneel");
                     AgentAIController.Instance?.SendEventToAgent(
                         ctx.Agent, "event_surrender_accepted");
@@ -196,11 +196,11 @@ namespace LivingWorldNpcs
 
                 case "ransom":
                     // 索钱：NPC → 玩家转账
-                    if (ctx.Hero != null)
+                    if (ctx.Speaker != null)
                     {
-                        int ransom = Math.Min(ctx.Hero.Gold, 500);
+                        int ransom = Math.Min(ctx.Speaker.Gold, 500);
                         if (ransom > 0)
-                            AgentControlHelper.TransferGold(ctx.Hero, Hero.MainHero, ransom);
+                            AgentControlHelper.TransferGold(ctx.Speaker, Hero.MainHero, ransom);
                     }
                     AgentAIController.Instance?.SendEventToAgent(
                         ctx.Agent, "event_surrender_accepted");
