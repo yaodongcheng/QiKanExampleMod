@@ -1023,24 +1023,7 @@ namespace LivingWorldNpcs
             string injectResult = DialogueInjector.InjectScriptAsOpening(script, label);
             DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) InjectScriptAsOpening: {injectResult} | Turns={script.Turns?.Count ?? 0}");
 
-            // 打印脚本详情
-            if (script.Turns != null)
-            {
-                for (int ti = 0; ti < script.Turns.Count; ti++)
-                {
-                    var turn = script.Turns[ti];
-                    DebugLogger.Log($"[AlertForceConv]   Turn[{ti}] id={turn.Id} SpeakerIndex={turn.SpeakerIndex} NpcLine=\"{turn.NpcLine}\"");
-                    if (turn.Options != null)
-                    {
-                        for (int oi = 0; oi < turn.Options.Count; oi++)
-                        {
-                            var opt = turn.Options[oi];
-                            string resp = opt.NpcResponse ?? (opt.NpcResponseOnSuccess != null ? $"SUCCESS:\"{opt.NpcResponseOnSuccess}\" FAIL:\"{opt.NpcResponseOnFail}\"" : "(无回应)");
-                            DebugLogger.Log($"[AlertForceConv]     Option[{oi}] PlayerLine=\"{opt.PlayerLine}\" | Action={opt.Action} | NextTurn={opt.NextTurn ?? "(关闭)"} | Resp={resp}");
-                        }
-                    }
-                }
-            }
+            DialogueInjector.LogScript(script, $"[AlertForceConv] {agent.Name}(Idx={agent.Index})");
 
             // 强制开启原版对话
             try

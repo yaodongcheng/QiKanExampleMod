@@ -226,6 +226,34 @@ namespace LivingWorldNpcs
             return sb.ToString();
         }
 
+        /// <summary>
+        /// 调试日志：打印 DialogueInjectScript 完整结构（每个 turn 的 NPC 台词 + 选项）。
+        /// 供各调用方（CrimeDialogueBuilder、AtomicAction 等）在注入前/后排查对话图。
+        /// </summary>
+        /// <param name="script">要打印的脚本</param>
+        /// <param name="label">日志前缀，如 "[CrimeDialog]" / "[AlertForceConv]"</param>
+        public static void LogScript(DialogueInjectScript script, string label)
+        {
+            if (script?.Turns == null) return;
+            for (int ti = 0; ti < script.Turns.Count; ti++)
+            {
+                var t = script.Turns[ti];
+                DebugLogger.Log($"{label} Turn[{ti}] id={t.Id} SpeakerIndex={t.SpeakerIndex} NpcLine=\"{t.NpcLine}\"");
+                if (t.Options == null) continue;
+                for (int oi = 0; oi < t.Options.Count; oi++)
+                {
+                    var opt = t.Options[oi];
+                    string action = opt.Action ?? "NONE";
+                    string resp = opt.NpcResponse
+                        ?? (opt.NpcResponseOnSuccess != null || opt.NpcResponseOnFail != null
+                            ? $"SUCCESS:\"{opt.NpcResponseOnSuccess}\" FAIL:\"{opt.NpcResponseOnFail}\""
+                            : "(无回应)");
+                    string next = !string.IsNullOrEmpty(opt.NextTurn) ? opt.NextTurn : "(关闭)";
+                    DebugLogger.Log($"{label}   Option[{oi}] \"{opt.PlayerLine}\" → {action} | NextTurn={next} | Resp={resp}");
+                }
+            }
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // 内部状态
         // ═══════════════════════════════════════════════════════════════
