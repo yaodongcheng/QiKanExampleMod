@@ -93,10 +93,10 @@ namespace LivingWorldNpcs
         /// <summary>对抗类失败后果。基类默认：掉好感 + 进冷却。子类可 override 但通常应调 base。</summary>
         public virtual void OnFail(IntentContext ctx)
         {
-            if (ctx.Hero != null && FailRelationPenalty > 0)
-                ChangeRelationAction.ApplyPlayerRelation(ctx.Hero, -FailRelationPenalty, false, true);
-            if (ctx.Hero != null && Goal.HasValue)
-                IntentCooldownStore.Set(ctx.Hero, Goal.Value, CooldownDays);
+            if (ctx.Speaker != null && FailRelationPenalty > 0)
+                ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -FailRelationPenalty, false, true);
+            if (ctx.Speaker != null && Goal.HasValue)
+                IntentCooldownStore.Set(ctx.Speaker, Goal.Value, CooldownDays);
         }
     }
 }

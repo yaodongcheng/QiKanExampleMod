@@ -1,4 +1,5 @@
-﻿using TaleWorlds.CampaignSystem;
+using System.Collections.Generic;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
@@ -34,31 +35,33 @@ namespace LivingWorldNpcs
     /// 支持两种构建方式：
     /// - Build(agent, controller): 玩家视角（现有，不变）
     /// - BuildForNpc(npcAgent, npcHero): NPC 视角（新增，NPC 发起意图时使用）
+    ///
+    /// 语义约定：Speaker = 当前说话的 NPC，Listener = 玩家（Hero.MainHero）。
     /// </summary>
     public class IntentContext
     {
-        public Agent Agent;
-        public Hero Hero;             // 对方是 Hero 时非 null；批量小兵为 null
-        public Hero Player;
+        public Agent Agent;                // Speaker 对应的 Agent（Mission 内非 null；大地图对话为 null）
+        public Hero Speaker;               // 当前说话的 NPC（对方是 Hero 时非 null；批量小兵为 null）
+        public Hero Listener;              // 始终为 Hero.MainHero（玩家）
         public SingNpcMemorySystem Memory;
-        public NPCProfile Profile;      // Memory?._profile
+        public NPCProfile Profile;         // Memory?._profile
         public InteractionController Controller;
 
         // ── 计算属性（构造时一次性算好）──
         public bool IsHero;
         public int Relation;
-        public bool SameFaction;        // 同一 MapFaction
-        public bool EnemyFaction;       // 与玩家阵营交战
-        public bool IsLiege;            // 同阵营且对方是阵营领袖（玩家的主君）
-        public bool IsClanLeader;       // 对方是自己家族族长
+        public bool SameFaction;           // 同一 MapFaction
+        public bool EnemyFaction;          // 与玩家阵营交战
+        public bool IsLiege;               // 同阵营且对方是阵营领袖（玩家的主君）
+        public bool IsClanLeader;          // 对方是自己家族族长
         public bool IsWanderer;
         public bool IsMarried;
         public bool OppositeSex;
-        public bool PlayerHasNoKingdom; // 玩家自由身（未加入王国）
-        public bool IsMySoldier;        // 非 Hero、且在玩家队伍(同 Team)的士兵
-        public bool IsEnemyAgent;       // 战场上与玩家敌对的 agent（含非 Hero）
+        public bool PlayerHasNoKingdom;    // 玩家自由身（未加入王国）
+        public bool IsMySoldier;           // 非 Hero、且在玩家队伍(同 Team)的士兵
+        public bool IsEnemyAgent;          // 战场上与玩家敌对的 agent（含非 Hero）
         public bool IsRecruitableCivilian; // 非 Hero 平民（可花钱招募为兵）
-        public bool IsChild;              // 未成年（Hero: Age<16，非Hero: Character.IsChild）
+        public bool IsChild;               // 未成年（Hero: Age<16，非Hero: Character.IsChild）
 
         /// <summary>NPC 当前是否被世界事件缠身（作为加害方或受害者）。从 NPC memory 的 CurrentUrgentEvent 读取。</summary>
         public bool HasUrgentWorldEvent;
@@ -84,38 +87,50 @@ namespace LivingWorldNpcs
         /// <summary>NPC 发起方的 Hero（模板士兵为 null）</summary>
         public Hero NpcHero;
 
+        // ═══ Mission 内警戒上下文（L3 警戒质问） ═══
+        /// <summary>
+        /// 玩家在 Mission 内的不法行为明细（拔刀/蹲伏/偷窃/攻击盟友/击晕 等 → 警戒值）。
+        /// 来自 AgentBrain._alertBreakdown。L3 警戒质问对话构建时读取。
+        /// null = 非 Mission 场景或无警戒数据。
+        /// </summary>
+        public IReadOnlyDictionary<PlayerActionType, AlertEntry> AlertBreakdown;
+        /// <summary>当前最高警戒值对应的行为类型（快捷读取，避免每次遍历字典）。</summary>
+        public PlayerActionType? PrimaryAlertAction;
+        /// <summary>总警戒值（快捷读取）。</summary>
+        public float AlertValue;
+
         public bool RelationAtLeast(int v) { return Relation >= v; }
-        public bool OnCooldown(NegotiationGoalType goal) { return Hero != null && IntentCooldownStore.IsOnCooldown(Hero, goal); }
-        public int CooldownDaysLeft(NegotiationGoalType goal) { return Hero != null ? IntentCooldownStore.DaysLeft(Hero, goal) : 0; }
+        public bool OnCooldown(NegotiationGoalType goal) { return Speaker != null && IntentCooldownStore.IsOnCooldown(Speaker, goal); }
+        public int CooldownDaysLeft(NegotiationGoalType goal) { return Speaker != null ? IntentCooldownStore.DaysLeft(Speaker, goal) : 0; }
 
         /// <summary>玩家视角构建（现有，不变）</summary>
         public static IntentContext Build(Agent agent, InteractionController controller)
         {
             var ctx = new IntentContext();
             ctx.Agent = agent;
-            ctx.Player = Hero.MainHero;
+            ctx.Listener = Hero.MainHero;
             ctx.Controller = controller;
             ctx.IsInMission = agent != null || Mission.Current != null;
-            ctx.Hero = (agent != null ? agent.Character as CharacterObject : null)?.HeroObject;
-            ctx.IsHero = ctx.Hero != null;
+            ctx.Speaker = (agent != null ? agent.Character as CharacterObject : null)?.HeroObject;
+            ctx.IsHero = ctx.Speaker != null;
 
-            if (ctx.Hero != null)
+            if (ctx.Speaker != null)
             {
                 ctx.Memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
                 ctx.Profile = ctx.Memory != null ? ctx.Memory._profile : null;
 
-                ctx.Relation = ctx.Hero.GetRelation(Hero.MainHero);
+                ctx.Relation = ctx.Speaker.GetRelation(Hero.MainHero);
                 IFaction myFaction = Hero.MainHero.MapFaction;
-                IFaction theirFaction = ctx.Hero.MapFaction;
+                IFaction theirFaction = ctx.Speaker.MapFaction;
                 ctx.SameFaction = myFaction != null && theirFaction != null && myFaction == theirFaction;
                 ctx.EnemyFaction = myFaction != null && theirFaction != null && theirFaction.IsAtWarWith(myFaction);
-                ctx.IsLiege = ctx.SameFaction && ctx.Hero.IsFactionLeader && ctx.Hero != Hero.MainHero;
-                ctx.IsClanLeader = ctx.Hero.Clan != null && ctx.Hero.Clan.Leader == ctx.Hero;
-                ctx.IsWanderer = ctx.Hero.IsWanderer;
-                ctx.IsMarried = ctx.Hero.Spouse != null;
-                ctx.OppositeSex = ctx.Hero.IsFemale != Hero.MainHero.IsFemale;
+                ctx.IsLiege = ctx.SameFaction && ctx.Speaker.IsFactionLeader && ctx.Speaker != Hero.MainHero;
+                ctx.IsClanLeader = ctx.Speaker.Clan != null && ctx.Speaker.Clan.Leader == ctx.Speaker;
+                ctx.IsWanderer = ctx.Speaker.IsWanderer;
+                ctx.IsMarried = ctx.Speaker.Spouse != null;
+                ctx.OppositeSex = ctx.Speaker.IsFemale != Hero.MainHero.IsFemale;
                 ctx.PlayerHasNoKingdom = Clan.PlayerClan == null || Clan.PlayerClan.Kingdom == null;
-                ctx.IsChild = ctx.Hero.Age < 16f;
+                ctx.IsChild = ctx.Speaker.Age < 16f;
                 ctx.HasUrgentWorldEvent = ctx.Memory?.CurrentUrgentEvent != null;
                 ctx.ExpandedOptions = ctx.Controller?.OptionsExpanded ?? false;
             }
@@ -157,6 +172,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// NPC 视角构建：NPC 发起意图时的上下文。
         /// npcAgent 和 npcHero 至少需要一个非 null，否则返回 null（无法发起意图）。
+        /// Speaker = 发起意图的 NPC，Listener = 玩家（Hero.MainHero）。
         /// </summary>
         public static IntentContext BuildForNpc(Agent npcAgent = null, Hero npcHero = null)
         {
@@ -177,11 +193,13 @@ namespace LivingWorldNpcs
                 NpcAgent = npcAgent,
                 NpcHero = resolvedHero,
 
-                // 2. "交互目标"是玩家
-                Agent = Agent.Main,
-                Hero = Hero.MainHero,
-                IsHero = true, // 玩家永远是 Hero
-                Player = Hero.MainHero,
+                // Speaker = 发起方 NPC，Agent = NPC 的 Agent
+                Speaker = resolvedHero,
+                Agent = npcAgent,
+                IsHero = resolvedHero != null,
+
+                // Listener = 玩家（交互目标）
+                Listener = Hero.MainHero,
                 IsInMission = Mission.Current != null,
             };
 

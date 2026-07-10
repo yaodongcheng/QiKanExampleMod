@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -29,18 +30,19 @@ namespace LivingWorldNpcs
             if (evt == null) return null;
 
             var r = new PlaceholderResolver(evt, speaker, listener);
-            var ctx = BuildIntentContext(evt, speaker);
+            var speakerAgent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
+            var ctx = BuildIntentContext(evt, speaker, speakerAgent);
 
             // 按说话者身份分派
             DialogueInjector.DialogueInjectScript script;
             if (IsAuthority(speaker, evt))
-                script = BuildAuthorityScript(evt, speaker, listener, r, ctx);
+                script = BuildAuthorityScript(r, ctx);
             else if (evt.WitnessHeroIds?.Contains(speaker.StringId) == true)
-                script = BuildWitnessScript(evt, speaker, listener, r, ctx);
+                script = BuildWitnessScript(r, ctx);
             else if (evt.SuspectHeroId == speaker.StringId)
-                script = BuildSuspectScript(evt, speaker, listener, r, ctx);
+                script = BuildSuspectScript(r, ctx);
             else
-                script = BuildBystanderScript(evt, speaker, listener, r, ctx);
+                script = BuildBystanderScript(r, ctx);
 
             // 日志：打印每个 turn 的最终填充文本，方便排查占位符遗漏
             DialogueInjector.LogScript(script, $"[CrimeDialog] speaker={speaker.Name} stage={evt.Stage}");
@@ -54,23 +56,41 @@ namespace LivingWorldNpcs
             return npc == authority || (npc?.Occupation == Occupation.Headman || npc?.Occupation == Occupation.RuralNotable);
         }
 
-        private static IntentContext BuildIntentContext(WorldEvent evt, Hero speaker)
+        private static IntentContext BuildIntentContext(WorldEvent evt, Hero speaker, Agent speakerAgent = null)
         {
-            // 检测是否在 Mission 内（村庄/酒馆等3D场景）。大地图对话无法触发战斗。
+            // 用于区分当前对话场景是大地图还是Mission内
             bool isInMission = TaleWorlds.MountAndBlade.Mission.Current != null;
-            return new IntentContext
+
+            var ctx = new IntentContext
             {
                 ActiveEvent = evt,
-                Hero = speaker,
-                Player = Hero.MainHero,
+                Speaker = speaker,
+                Listener = Hero.MainHero,
                 IsInMission = isInMission
             };
+
+            // ── Mission 内警戒上下文：直接从 speakerAgent 拿 AgentBrain ──
+            if (isInMission)
+            {
+                var brain = speakerAgent != null
+                    ? AgentAIController.GetBrainForAgent(speakerAgent)
+                    : null;
+                if (brain != null)
+                {
+                    ctx.AlertBreakdown = brain.AlertBreakdown;
+                    ctx.PrimaryAlertAction = brain.PrimaryAction;
+                    ctx.AlertValue = brain.AlertValue;
+                }
+            }
+
+            return ctx;
         }
 
         private static DialogueInjector.DialogueInjectScript BuildAuthorityScript(
-            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+            PlaceholderResolver r, IntentContext ctx)
         {
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
+            var evt = ctx.ActiveEvent;
 
             switch (evt.Stage)
             {
@@ -399,9 +419,10 @@ namespace LivingWorldNpcs
         }
 
         private static DialogueInjector.DialogueInjectScript BuildWitnessScript(
-            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+            PlaceholderResolver r, IntentContext ctx)
         {
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
+            var evt = ctx.ActiveEvent;
 
             var turn = new DialogueInjector.DialogueInjectTurn
             {
@@ -436,7 +457,7 @@ namespace LivingWorldNpcs
         }
 
         private static DialogueInjector.DialogueInjectScript BuildSuspectScript(
-            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+            PlaceholderResolver r, IntentContext ctx)
         {
             var turns = new List<DialogueInjector.DialogueInjectTurn>
             {
@@ -458,9 +479,10 @@ namespace LivingWorldNpcs
         }
 
         private static DialogueInjector.DialogueInjectScript BuildBystanderScript(
-            WorldEvent evt, Hero speaker, Hero listener, PlaceholderResolver r, IntentContext ctx)
+            PlaceholderResolver r, IntentContext ctx)
         {
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
+            var evt = ctx.ActiveEvent;
 
             string npcLine = evt.Stage switch
             {
@@ -541,9 +563,11 @@ namespace LivingWorldNpcs
         /// 台词查找顺序：① NpcSpeech.csv → ② NarrativeResolver（过渡）→ ③ PlaceholderResolver 硬编码兜底。
         /// </summary>
         public static DialogueInjector.DialogueInjectScript BuildAlertInterceptScript(
-            Hero speaker, ConfrontationType npcIntent, PlayerActionType primaryAction, WorldEvent worldEvt = null)
+            Hero speaker, ConfrontationType npcIntent, PlayerActionType primaryAction,
+            WorldEvent worldEvt = null, Agent speakerAgent = null)
         {
             var r = new PlaceholderResolver(speaker, Hero.MainHero);
+            var ctx = BuildIntentContext(worldEvt, speaker, speakerAgent);
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
 
             // ① 优先查 NpcSpeech.csv
