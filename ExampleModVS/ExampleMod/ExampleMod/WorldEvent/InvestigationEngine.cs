@@ -334,27 +334,16 @@ namespace LivingWorldNpcs
                 var settlement = evt.TargetSettlement;
                 if (settlement?.OwnerClan?.Leader == null) return;
                 var lord = settlement.OwnerClan.Leader;
-                if (lord == authority) return;  // 已经是领主本人
+                if (lord == authority) return;
 
-                // 创建新的 WorldEvent(Type=EscalatedCrime)，领主作为权威
-                var escalated = new WorldEvent
-                {
-                    EventId = $"escalated_{evt.EventId}",
-                    Category = EventCategory.Crime,
-                    Type = EventType.EscalatedCrime,
-                    Severity = Math.Min(100, evt.Severity + 20),
-                    InitiatorId = evt.InitiatorId,
-                    TargetHeroId = evt.TargetHeroId,
-                    TargetSettlementId = evt.TargetSettlementId,
-                    StolenItems = evt.StolenItems != null ? new Dictionary<string, int>(evt.StolenItems) : null,
-                    OccurredDay = (float)CampaignTime.Now.ToDays,
-                    DayLimit = 14f,
-                    WitnessHeroIds = evt.WitnessHeroIds,
-                    SuspectHeroId = evt.SuspectHeroId,
-                    InvestigationProgress = evt.InvestigationProgress,
-                    Stage = EventStage.Active,
-                    PublicAwareness = evt.PublicAwareness + 0.2f,
-                };
+                var escalated = evt.ShallowCopy($"escalated_{evt.EventId}");
+                escalated.Type = EventType.EscalatedCrime;
+                escalated.Severity = Math.Min(100, evt.Severity + 20);
+                escalated.OccurredDay = (float)CampaignTime.Now.ToDays;
+                escalated.DayLimit = 14f;
+                escalated.Stage = EventStage.Active;
+                escalated.PublicAwareness = evt.PublicAwareness + 0.2f;
+
                 WorldEventStore.AddOrMerge(escalated);
                 DebugLogger.Log($"[Escalate] {evt.EventId} escalated to lord {lord.Name}");
             }

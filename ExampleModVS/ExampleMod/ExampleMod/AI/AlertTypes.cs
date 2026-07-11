@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace LivingWorldNpcs
 {
@@ -50,5 +51,29 @@ namespace LivingWorldNpcs
         public float Value;
         public string TargetName;  // 脉冲事件附加：受害者名（持续累加时为空）
         public string ItemName;    // 脉冲事件附加：被盗物品名（持续累加时为空）
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 🆕 PendingWorldEvent — Mission 作用域犯罪记录
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>单个目击者的证词：这位目击者看到了玩家哪些行为。仅 Alarmed 阶段才写入。</summary>
+    [Serializable]
+    public class WitnessTestimony
+    {
+        public string WitnessHeroId;   // null = 模板村民
+        public string TemplateId;      // null = 有脸英雄
+        public List<ActionRecord> Actions;
+    }
+
+    /// <summary>目击者看到的单条行为</summary>
+    [Serializable]
+    public class ActionRecord
+    {
+        public string ActionType;      // PlayerActionType 名称
+        public float AlertValue;       // 目击者对此行为的警戒值
+        public string TargetName;      // 受害者名（Knockout/AttackAlly）；Crouching/WeaponDrawn 为 null
+        public string ItemId;          // Steal 赃物 ID
+        public string ItemName;        // Steal 赃物显示名
     }
 }

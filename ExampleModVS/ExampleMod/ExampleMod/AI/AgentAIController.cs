@@ -6,6 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using SandBox;
 using SandBox.Missions.AgentBehaviors;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -16,10 +18,18 @@ namespace LivingWorldNpcs
     {
         public static AgentAIController Instance { get; private set; }
 
-        //private Dictionary<Agent, AgentBrain> _brains = new Dictionary<Agent, AgentBrain>();
         // 1. 修改字典定义：Key 从 Agent 改为 int (Agent.Index)
         private Dictionary<int, AgentBrain> _brains = new Dictionary<int, AgentBrain>();
         private static bool IsDebugMode = false; // 排查时改 true
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 PendingWorldEvent — Mission 作用域犯罪记录
+        // ═══════════════════════════════════════════════════════════════
+        /// <summary>
+        /// 本场 Mission 的待提交犯罪事件。NPC 进入 Alarmed 时注册目击证词；
+        /// 离开场景时一次性持久化到 WorldEventStore。
+        /// </summary>
+        public WorldEvent PendingWorldEvent { get; private set; }
         public static AgentBrain GetBrainForAgent(Agent agent)
         {
             if (Instance != null && Instance._brains.TryGetValue(agent.Index, out var brain))
@@ -43,6 +53,27 @@ namespace LivingWorldNpcs
         public override void AfterStart()
         {
             base.AfterStart();
+
+            // ── PendingWorldEvent 初始化 ──
+            var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
+            if (settlement != null)
+            {
+                // Misconduct 嫌疑人始终是玩家 → 已有案件直接续档，不管什么 Stage
+                var existing = WorldEventStore.FindActive(settlement.StringId, EventType.Misconduct);
+
+                PendingWorldEvent = existing
+                    ?? new WorldEvent
+                    {
+                        EventId = $"misconduct_{settlement.StringId}_{(int)CampaignTime.Now.ToHours}",
+                        Category = EventCategory.Crime,
+                        Type = EventType.Misconduct,
+                        InitiatorId = Hero.MainHero?.StringId ?? "player",
+                        TargetSettlementId = settlement.StringId,
+                        OccurredDay = (float)CampaignTime.Now.ToDays,
+                        Stage = EventStage.Dormant,
+                        WitnessTestimonies = new List<WitnessTestimony>(),
+                    };
+            }
 
             // ── NpcSightSystem → AgentBrain 事件桥接 ──
             // 当 NPC 开始看到玩家时，路由为事件发给对应 AgentBrain，
@@ -135,8 +166,133 @@ namespace LivingWorldNpcs
 
         public override void OnRemoveBehavior()
         {
+            FinalizePendingWorldEvent();
             CombatManager.OnMissionEnd();
             base.OnRemoveBehavior();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 PendingWorldEvent — 目击者注册与持久化
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>AgentBrain 到达 Alarmed 时调用：将此 NPC 注册为目击者。</summary>
+        public void RegisterWitness(AgentBrain brain)
+        {
+            var pending = PendingWorldEvent;
+            if (pending == null) return;
+
+            pending.WitnessTestimonies = pending.WitnessTestimonies ?? new List<WitnessTestimony>();
+
+            var hero = (brain.Owner.Character as CharacterObject)?.HeroObject;
+            string heroId = hero?.StringId;
+            string templateId = hero == null ? brain.Owner.Character?.StringId : null;
+
+            // 已有同 NPC 的 testimony → 不重复创建，只同步
+            var existing = pending.WitnessTestimonies.FirstOrDefault(t =>
+                (heroId != null && t.WitnessHeroId == heroId) ||
+                (templateId != null && t.TemplateId == templateId));
+            if (existing != null)
+            {
+                existing.Actions = existing.Actions ?? new List<ActionRecord>();
+                SyncActions(brain, existing);
+                return;
+            }
+
+            // 新建 testimony 并从 brain._alertBreakdown 同步
+            var testimony = new WitnessTestimony
+            {
+                WitnessHeroId = heroId,
+                TemplateId = templateId,
+                Actions = new List<ActionRecord>()
+            };
+            SyncActions(brain, testimony);
+            pending.WitnessTestimonies.Add(testimony);
+        }
+
+        void SyncActions(AgentBrain brain, WitnessTestimony testimony)
+        {
+            var breakdown = brain.AlertBreakdown;
+            if (breakdown == null) return;
+            testimony.Actions = testimony.Actions ?? new List<ActionRecord>();
+
+            foreach (var kv in breakdown)
+            {
+                var entry = kv.Value;
+                var existing = testimony.Actions.FirstOrDefault(a => a.ActionType == kv.Key.ToString());
+                if (existing != null)
+                {
+                    existing.AlertValue = entry.Value;
+                    existing.TargetName = entry.TargetName ?? existing.TargetName;
+                    existing.ItemName = entry.ItemName ?? existing.ItemName;
+                }
+                else
+                {
+                    testimony.Actions.Add(new ActionRecord
+                    {
+                        ActionType = kv.Key.ToString(),
+                        AlertValue = entry.Value,
+                        TargetName = entry.TargetName,
+                        ItemName = entry.ItemName,
+                    });
+                }
+            }
+        }
+
+        /// <summary>偷窃目击者（StealManager 调用）：witnessHeroIds/templateWitness 来自 GetWitnesses()</summary>
+        public void RegisterTheftWitnesses(List<string> witnessHeroIds, Dictionary<string, int> templateWitness,
+            string itemId, string itemName, string targetName = null)
+        {
+            var pending = PendingWorldEvent;
+            if (pending == null) return;
+
+            pending.WitnessTestimonies = pending.WitnessTestimonies ?? new List<WitnessTestimony>();
+
+            foreach (var heroId in witnessHeroIds)
+                AddStealAction(pending, heroId, null, itemId, itemName, targetName);
+            foreach (var kv in templateWitness)
+                AddStealAction(pending, null, kv.Key, itemId, itemName, targetName);
+
+            pending.Stage = EventStage.Emerging;
+            pending.SuspectHeroId = Hero.MainHero?.StringId;
+        }
+
+        static void AddStealAction(WorldEvent pending, string heroId, string templateId,
+            string itemId, string itemName, string targetName)
+        {
+            var testimony = pending.WitnessTestimonies.FirstOrDefault(t =>
+                (heroId != null && t.WitnessHeroId == heroId) ||
+                (templateId != null && t.TemplateId == templateId));
+            if (testimony == null)
+            {
+                testimony = new WitnessTestimony
+                {
+                    WitnessHeroId = heroId,
+                    TemplateId = templateId,
+                    Actions = new List<ActionRecord>()
+                };
+                pending.WitnessTestimonies.Add(testimony);
+            }
+            testimony.Actions = testimony.Actions ?? new List<ActionRecord>();
+            testimony.Actions.Add(new ActionRecord
+            {
+                ActionType = "Steal",
+                AlertValue = 3.0f,
+                TargetName = targetName,
+                ItemId = itemId,
+                ItemName = itemName,
+            });
+        }
+
+        void FinalizePendingWorldEvent()
+        {
+            if (PendingWorldEvent == null) return;
+            if (PendingWorldEvent.WitnessTestimonies == null || PendingWorldEvent.WitnessTestimonies.Count == 0) return;
+
+            PendingWorldEvent.Stage = EventStage.Emerging;
+            PendingWorldEvent.SuspectHeroId = Hero.MainHero?.StringId;
+            PendingWorldEvent.InvestigationProgress = 1.0f;
+            PendingWorldEvent.PublicAwareness = 0.3f;
+            WorldEventStore.AddOrMerge(PendingWorldEvent);
         }
 
         // --- 外部调用接口 ---

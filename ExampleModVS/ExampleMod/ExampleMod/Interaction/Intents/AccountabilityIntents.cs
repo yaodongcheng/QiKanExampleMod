@@ -28,9 +28,10 @@ namespace LivingWorldNpcs
         public static WorldEvent GetMisconductEvent(Agent agent)
         {
             if (agent == null) return null;
-            var brain = AgentAIController.GetBrainForAgent(agent);
-            if (brain == null || string.IsNullOrEmpty(brain.CurrentMisconductEventId)) return null;
-            return WorldEventStore.Find(brain.CurrentMisconductEventId);
+            var pending = AgentAIController.Instance?.PendingWorldEvent;
+            if (pending == null) return null;
+            // 已在 WorldEventStore 中（续档）→ 取持久化版本；否则取 Pending
+            return WorldEventStore.Find(pending.EventId) ?? pending;
         }
 
         /// <summary>解析 Misconduct WorldEvent 并推进阶段</summary>

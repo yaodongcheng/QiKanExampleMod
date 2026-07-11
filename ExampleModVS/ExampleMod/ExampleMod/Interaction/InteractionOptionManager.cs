@@ -154,7 +154,7 @@ namespace LivingWorldNpcs
         /// <summary>构建当前对话对象可见的选项 VM 列表（含置灰）。</summary>
         public StoryOptionVM[] BuildOptionVMs(Agent targetAgent, IntentSource sourceFilter = IntentSource.Player)
         {
-            var ctx = IntentContext.Build(targetAgent, _controller);
+            var ctx = new IntentContext(targetAgent, _controller);
             var visible = IntentRegistry.GetVisible(ctx);
             var vmList = new List<StoryOptionVM>();
 

@@ -334,7 +334,6 @@
     <Compile Include="WorldEvent\ConspiracyManager.cs" />
     <Compile Include="WorldEvent\StrategicInfiltration.cs" />
     <Compile Include="WorldEvent\AttitudeSystem.cs" />
-    <Compile Include="WorldEvent\CrimeDialogueBehavior.cs" />
     <Compile Include="WorldEvent\ResponsePattern.cs" />
     <Compile Include="WorldEvent\WorldEvent.cs" />
     <Compile Include="WorldEvent\InvestigationEngine.cs" />

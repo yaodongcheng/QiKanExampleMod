@@ -31,7 +31,7 @@ namespace LivingWorldNpcs
 
             var r = new PlaceholderResolver(evt, speaker, listener);
             var speakerAgent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
-            var ctx = BuildIntentContext(evt, speaker, speakerAgent);
+            var ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: evt);
 
             // 按说话者身份分派
             DialogueInjector.DialogueInjectScript script;
@@ -54,36 +54,6 @@ namespace LivingWorldNpcs
         {
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             return npc == authority || (npc?.Occupation == Occupation.Headman || npc?.Occupation == Occupation.RuralNotable);
-        }
-
-        private static IntentContext BuildIntentContext(WorldEvent evt, Hero speaker, Agent speakerAgent = null)
-        {
-            // 用于区分当前对话场景是大地图还是Mission内
-            bool isInMission = TaleWorlds.MountAndBlade.Mission.Current != null;
-
-            var ctx = new IntentContext
-            {
-                ActiveEvent = evt,
-                Speaker = speaker,
-                Listener = Hero.MainHero,
-                IsInMission = isInMission
-            };
-
-            // ── Mission 内警戒上下文：直接从 speakerAgent 拿 AgentBrain ──
-            if (isInMission)
-            {
-                var brain = speakerAgent != null
-                    ? AgentAIController.GetBrainForAgent(speakerAgent)
-                    : null;
-                if (brain != null)
-                {
-                    ctx.AlertBreakdown = brain.AlertBreakdown;
-                    ctx.PrimaryAlertAction = brain.PrimaryAction;
-                    ctx.AlertValue = brain.AlertValue;
-                }
-            }
-
-            return ctx;
         }
 
         private static DialogueInjector.DialogueInjectScript BuildAuthorityScript(
@@ -423,14 +393,22 @@ namespace LivingWorldNpcs
         {
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
             var evt = ctx.ActiveEvent;
+            var speaker = ctx.Speaker;
+
+            // 从 WitnessTestimonies 匹配当前 NPC 的证词
+            var testimony = evt.WitnessTestimonies?
+                .FirstOrDefault(t => t.WitnessHeroId == speaker.StringId);
+            r.SpeakingWitness = testimony;
+
+            string witnessedDesc = BuildWitnessedActionDescription(testimony);
 
             var turn = new DialogueInjector.DialogueInjectTurn
             {
                 Id = "start",
                 SpeakerIndex = 0,
                 NpcLine = evt.InitiatorIsPlayer
-                    ? r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}是来问{CrimeScene}的事？{SpeakerSelfRef}……确实看见了。")
-                    : r.Resolve("（{SpeakerEmotion}地）{SpeakerSelfRef}{TimeWord}在{CrimeScene}附近看见了一个人……"),
+                    ? r.Resolve($"（{{SpeakerEmotion}}地）{{SpeakerPlayerAddr}}是来问{{CrimeScene}}的事？{{SpeakerSelfRef}}看见了——{witnessedDesc}。")
+                    : r.Resolve($"（{{SpeakerEmotion}}地）{{SpeakerSelfRef}}{{TimeWord}}在{{CrimeScene}}附近看见了——{witnessedDesc}"),
                 Options = new List<DialogueInjector.DialogueInjectOption>()
             };
 
@@ -558,6 +536,42 @@ namespace LivingWorldNpcs
         // 🆕 L3 警戒质问对话构建（Phase 4）
         // ═══════════════════════════════════════════════════════════════
 
+        /// <summary>从单条 WitnessTestimony 构建中文描述（如"偷了村民甲的鸡，还把人打晕了"）</summary>
+        public static string BuildWitnessedActionDescription(WitnessTestimony testimony)
+        {
+            if (testimony?.Actions == null || testimony.Actions.Count == 0)
+                return "有人在闹事";
+
+            var parts = new List<string>();
+            foreach (var a in testimony.Actions.OrderByDescending(a => a.AlertValue))
+            {
+                string desc = a.ActionType switch
+                {
+                    "Crouching" => "鬼鬼祟祟蹲了半天",
+                    "WeaponDrawn" => "在村里拔刀",
+                    "StealUIOpen" => "翻箱倒柜",
+                    "Steal" when a.ItemName != null =>
+                        a.TargetName != null
+                            ? $"偷了{a.TargetName}的{a.ItemName}"
+                            : $"偷了{a.ItemName}",
+                    "Steal" => "偷了东西",
+                    "AttackAlly" when a.TargetName != null => $"动手打了{a.TargetName}",
+                    "AttackAlly" => "动手打人",
+                    "Knockout" when a.TargetName != null => $"把{a.TargetName}打晕了",
+                    "Knockout" => "把人打晕了",
+                    _ => null
+                };
+                if (desc != null) parts.Add(desc);
+            }
+            return parts.Count switch
+            {
+                0 => "有人在闹事",
+                1 => parts[0],
+                2 => $"{parts[0]}，还{parts[1]}",
+                _ => $"{parts[0]}、{parts[1]}，还{parts[2]}"
+            };
+        }
+
         /// <summary>
         /// 构建 L3 警戒质问的 DialogueInjectScript。
         /// 台词查找顺序：① NpcSpeech.csv → ② NarrativeResolver（过渡）→ ③ PlaceholderResolver 硬编码兜底。
@@ -567,7 +581,13 @@ namespace LivingWorldNpcs
             WorldEvent worldEvt = null, Agent speakerAgent = null)
         {
             var r = new PlaceholderResolver(speaker, Hero.MainHero);
-            var ctx = BuildIntentContext(worldEvt, speaker, speakerAgent);
+
+            // 🔑 从 PendingWorldEvent 取刚写入的证词（RegisterWitness 已在 CheckPhaseTransition 前一步执行）
+            var pending = AgentAIController.Instance?.PendingWorldEvent;
+            r.SpeakingWitness = pending?.WitnessTestimonies?
+                .FirstOrDefault(t => t.WitnessHeroId == speaker.StringId);
+
+            var ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: worldEvt);
             var turns = new List<DialogueInjector.DialogueInjectTurn>();
 
             // ① 优先查 NpcSpeech.csv

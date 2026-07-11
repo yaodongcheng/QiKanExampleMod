@@ -187,7 +187,8 @@ namespace LivingWorldNpcs
                     settlementId: Settlement.CurrentSettlement.StringId,
                     itemId: itemToSteal.Item.StringId,
                     count: 1,
-                    locationName: $"在{Settlement.CurrentSettlement.Name}"
+                    locationName: $"在{Settlement.CurrentSettlement.Name}",
+                    worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId
                 );
             }
 
@@ -291,14 +292,15 @@ namespace LivingWorldNpcs
         //    记账保持在同一处，统一 Stealth 子系统的犯罪记录入口。
         // ----------------------------------------------------------------
         /// <summary>
-        /// 偷动物成功后创建 WorldEvent + TheftLedger 记账 + 目击者记录。
+        /// 偷动物成功后记录目击证词到 PendingWorldEvent + TheftLedger 记账。
         /// 目击者检测走统一的 <see cref="GetWitnesses"/>。
+        /// WorldEvent 的持久化延迟到离开场景时 FinalizePendingWorldEvent。
         /// </summary>
         public static void RecordAnimalTheft(Settlement settlement, ItemObject livestockItem, string monsterId, Agent animal)
         {
             try
             {
-                // 目击系统开关：关闭时跳过目击检测，始终走 Dormant（无目击）路径
+                // 目击系统开关：关闭时跳过目击检测
                 bool witnessSystemOn = Settings.Instance.WitnessSystemEnabled;
                 List<string> witnessHeroIds;
                 Dictionary<string, int> templateWitness;
@@ -330,43 +332,15 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[AnimalTheft] Witness system DISABLED — treating as no witnesses.");
                 }
 
-                var evt = new WorldEvent
+                // 有目击者 → 写入 PendingWorldEvent（离开场景时统一持久化）
+                if (wasWitnessed)
                 {
-                    EventId = $"theft_{settlement.StringId}_{(float)CampaignTime.Now.ToDays}_{WorldEventStore.AllEvents.Count(e => e.TargetSettlementId == settlement.StringId) + 1}",
-                    Category = EventCategory.Crime,
-                    Type = EventType.Theft_Animal,
-                    Severity = 30,
-                    InitiatorId = Hero.MainHero.StringId,
-                    TargetSettlementId = settlement.StringId,
-                    OccurredDay = (float)CampaignTime.Now.ToDays,
-                    DayLimit = 14f,
-                    LocationName = settlement.Name?.ToString() ?? "村庄",
-                    StolenItems = new Dictionary<string, int> { { livestockItem.StringId, 1 } },
-                    WitnessHeroIds = witnessHeroIds,
-                    TemplateWitness = templateWitness,
-                    Stage = wasWitnessed ? EventStage.Active : EventStage.Dormant,
-                    SuspectHeroId = wasWitnessed ? Hero.MainHero.StringId : null,
-                    InvestigationProgress = wasWitnessed ? 1.0f : 0f,
-                    PublicAwareness = wasWitnessed ? 0.5f : 0f,
-                    EvidenceList = witnessHeroIds.Count > 0
-                        ? new List<EvidencePointer>
-                        {
-                            new EvidencePointer
-                            {
-                                EvidenceId = $"theft_{settlement.StringId}_witness",
-                                TargetId = Hero.MainHero.StringId,
-                                Kind = EvidenceKind.Witness,
-                                Strength = 0.7f,
-                                SourceDescription = $"目击者称看到有人在牲口圈附近鬼鬼祟祟",
-                                DiscoveredDay = (float)CampaignTime.Now.ToDays
-                            }
-                        }
-                        : new List<EvidencePointer>(),
-                };
-                WorldEventStore.AddOrMerge(evt);
+                    AgentAIController.Instance?.RegisterTheftWitnesses(
+                        witnessHeroIds, templateWitness,
+                        livestockItem.StringId, livestockItem.Name?.ToString() ?? livestockItem.StringId);
+                }
 
-                // 统一偷窃账本记账（世界事件 ID 关联）
-                var activeEvent = WorldEventStore.FindActive(settlement.StringId);
+                // 统一偷窃账本记账（赃物标注、栽赃系统依赖它）
                 TheftLedger.Record(
                     initiatorId: Hero.MainHero.StringId,
                     victimHeroId: null,
@@ -374,7 +348,7 @@ namespace LivingWorldNpcs
                     itemId: livestockItem.StringId,
                     count: 1,
                     locationName: $"在{settlement.Name}",
-                    worldEventId: activeEvent?.EventId
+                    worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId
                 );
             }
             catch (Exception ex)
