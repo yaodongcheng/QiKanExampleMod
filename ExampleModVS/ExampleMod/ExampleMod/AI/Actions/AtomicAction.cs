@@ -1002,8 +1002,12 @@ namespace LivingWorldNpcs
 
             // 查找关联的 WorldEvent（Stage 决定对话是初始还是升级版）
             WorldEvent worldEvt = null;
-            if (!string.IsNullOrEmpty(brain?.CurrentMisconductEventId))
-                worldEvt = WorldEventStore.Find(brain.CurrentMisconductEventId);
+            var pending = AgentAIController.Instance?.PendingWorldEvent;
+            if (pending != null)
+            {
+                // 已在 WorldEventStore 中（续档）→ 取持久化版本（Stage 可能已被 DailyTick 推进）
+                worldEvt = WorldEventStore.Find(pending.EventId) ?? pending;
+            }
 
             // 构建对话脚本（WorldEvent 非 null 时，CrimeDialogueBuilder 读取其 Stage 决定选项）
             var script = CrimeDialogueBuilder.BuildAlertInterceptScript(

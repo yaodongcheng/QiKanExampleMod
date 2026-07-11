@@ -26,6 +26,9 @@ namespace LivingWorldNpcs
         public string TargetName;   // 脉冲事件受害者名
         public string ItemName;     // 脉冲事件被盗物品名
 
+        /// <summary>当前对话 NPC 的目击证词。null = 不是目击者。从 WitnessTestimonies 匹配。</summary>
+        public WitnessTestimony SpeakingWitness;
+
         public NpcStance Stance => _stance ??= AttitudeSystem.ComputeStance(Speaker, Event);
 
         /// <summary>WorldEvent 语境构造（现有调用路径，不变）</summary>
@@ -108,9 +111,25 @@ namespace LivingWorldNpcs
                 case "SPEAKER_SELF": return ResolveOne("SpeakerSelfRef");
                 case "SPEAKER_PLAYER_ADDR": return ResolveOne("SpeakerPlayerAddr");
                 case "SPEAKER_EMOTION": return ResolveOne("SpeakerEmotion");
-                case "TARGET": return TargetName ?? "";
-                case "ITEM": return ItemName ?? AgentControlHelper.GetWieldedWeaponName(Agent.Main) ?? "";
-                case "StolenItemName": return ItemName ?? "";
+                case "TARGET":
+                {
+                    // 优先从目击证词取（精准），回落旧 TargetName 字段
+                    var primaryAction = SpeakingWitness?.Actions
+                        ?.OrderByDescending(a => a.AlertValue).FirstOrDefault();
+                    return primaryAction?.TargetName ?? TargetName ?? "";
+                }
+                case "ITEM":
+                {
+                    var primaryAction = SpeakingWitness?.Actions
+                        ?.OrderByDescending(a => a.AlertValue).FirstOrDefault();
+                    return primaryAction?.ItemName ?? ItemName ?? AgentControlHelper.GetWieldedWeaponName(Agent.Main) ?? "";
+                }
+                case "StolenItemName":
+                {
+                    var primaryAction = SpeakingWitness?.Actions
+                        ?.OrderByDescending(a => a.AlertValue).FirstOrDefault();
+                    return primaryAction?.ItemName ?? ItemName ?? "";
+                }
                 case "LOCATION":
                     return Settlement.CurrentSettlement?.Name?.ToString() ?? "";
 

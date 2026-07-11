@@ -116,8 +116,9 @@ namespace LivingWorldNpcs
         /// <summary>当前正在质问玩家的 Brain。null 表示无人质问中。</summary>
         internal static AgentBrain ConfrontingBrain;
 
-        /// <summary>当前 L3 质问关联的 WorldEvent ID（供 Intent 结算后更新阶段）。null = 非 Misconduct 路径。</summary>
-        public string CurrentMisconductEventId;
+        /// <summary>当前 L3 质问关联的 WorldEvent ID（从 PendingWorldEvent 派生）。null = 非 Misconduct 路径。</summary>
+        /// 这个和PendingConflict定位相同，需要合并
+        public string CurrentMisconductEventId => AgentAIController.Instance?.PendingWorldEvent?.EventId;
 
         // ── 公开查询（AgentHudMissionView 每帧读 AlertValue / AlertPhase）──
 
@@ -228,12 +229,15 @@ namespace LivingWorldNpcs
 
                 SetNpcIntent(NpcIntentType.Fighting, target);
 
-                // 推进 WorldEvent 到 Confrontation
-                if (!string.IsNullOrEmpty(CurrentMisconductEventId))
+                // 推进 PendingWorldEvent 到 Confrontation
+                var pending = AgentAIController.Instance?.PendingWorldEvent;
+                if (pending != null && pending.Stage < EventStage.Confrontation)
                 {
-                    var evt = WorldEventStore.Find(CurrentMisconductEventId);
-                    if (evt != null && evt.Stage < EventStage.Confrontation)
-                        WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+                    var existing = WorldEventStore.Find(pending.EventId);
+                    if (existing != null)
+                        WorldEventStore.TransitionStage(existing, EventStage.Confrontation);
+                    else
+                        pending.Stage = EventStage.Confrontation;
                 }
 
                 InteractedAgent = target;
@@ -258,12 +262,15 @@ namespace LivingWorldNpcs
                 };
                 SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
-                // 推进 WorldEvent 到 Active（玩家跑了，村里人知道了，事态升级）
-                if (!string.IsNullOrEmpty(CurrentMisconductEventId))
+                // 推进 PendingWorldEvent 到 Active（玩家跑了，村里人知道了，事态升级）
+                var pending = AgentAIController.Instance?.PendingWorldEvent;
+                if (pending != null && pending.Stage < EventStage.Active)
                 {
-                    var evt = WorldEventStore.Find(CurrentMisconductEventId);
-                    if (evt != null && evt.Stage < EventStage.Active)
-                        WorldEventStore.TransitionStage(evt, EventStage.Active);
+                    var existing = WorldEventStore.Find(pending.EventId);
+                    if (existing != null)
+                        WorldEventStore.TransitionStage(existing, EventStage.Active);
+                    else
+                        pending.Stage = EventStage.Active;
                 }
 
                 ClearAllActions();
@@ -874,6 +881,12 @@ namespace LivingWorldNpcs
 
             if (newPhase > _lastAlertPhase)
             {
+                // 🔑 新进入 Alarmed → 注册为目击者（先写证词，后触发质问）
+                if (newPhase == AlarmPhase.Alarmed && _lastAlertPhase < AlarmPhase.Alarmed)
+                {
+                    AgentAIController.Instance?.RegisterWitness(this);
+                }
+
                 // 向上穿越：每个目标阶段一个独立事件
                 string eventType = newPhase switch
                 {
@@ -948,7 +961,6 @@ namespace LivingWorldNpcs
             _alertBreakdown.Clear();
             _bubbledPhases.Clear();
             _pulseSuppressedUntil = 0f;
-            CurrentMisconductEventId = null;
             if (ConfrontingBrain == this)
                 ConfrontingBrain = null;
             DebugLogger.Log($"[Brain-Alert] {Owner.Name}(Idx={Owner.Index}) ClearAllAlerts: 警戒值归零");
@@ -1012,25 +1024,6 @@ namespace LivingWorldNpcs
         // 🆕 L3 质问（Phase 3-4）
         // ═══════════════════════════════════════════════════════════════
 
-        /// <summary>创建或更新 Misconduct WorldEvent（StartL3Confrontation 和 StartL3CombatJoin 共用）</summary>
-        void CreateOrUpdateMisconductEvent()
-        {
-            var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
-            int severity = Math.Min(100, 20 + (int)(AlertValue * 10));
-
-            var actionBreakdown = new Dictionary<string, float>();
-            foreach (var kv in _alertBreakdown)
-                actionBreakdown[kv.Key.ToString()] = kv.Value.Value;
-
-            var worldEvt = WorldEventStore.TryUpsertMisconductEvent(
-                settlement?.StringId ?? "unknown",
-                Hero.MainHero?.StringId ?? "player",
-                severity,
-                locationName: null,
-                actionBreakdown: actionBreakdown);
-            CurrentMisconductEventId = worldEvt?.EventId;
-        }
-
         /// <summary>
         /// L3 战斗加入：玩家已在战斗中 → NPC 不废话，直接参战。
         /// 跳过 Follow/LookAt/AlertForceConversation/Stay 队列，直接入队 FightEnemyAction。
@@ -1043,14 +1036,15 @@ namespace LivingWorldNpcs
             ClearAllActions();
             InteractedAgent = player;
 
-            CreateOrUpdateMisconductEvent();
-
-            // 推进到 Confrontation（战斗已是最高警戒状态）
-            if (!string.IsNullOrEmpty(CurrentMisconductEventId))
+            // 推进 PendingWorldEvent 到 Confrontation（战斗已是最高警戒状态）
+            var pending = AgentAIController.Instance?.PendingWorldEvent;
+            if (pending != null && pending.Stage < EventStage.Confrontation)
             {
-                var evt = WorldEventStore.Find(CurrentMisconductEventId);
-                if (evt != null && evt.Stage < EventStage.Confrontation)
-                    WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+                var existing = WorldEventStore.Find(pending.EventId);
+                if (existing != null)
+                    WorldEventStore.TransitionStage(existing, EventStage.Confrontation);
+                else
+                    pending.Stage = EventStage.Confrontation;
             }
 
             EnqueueAction(new FightEnemyAction(player));
@@ -1087,8 +1081,7 @@ namespace LivingWorldNpcs
             ConfrontingBrain = this;
             DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 开始质问玩家 | 质问锁已占领");
 
-            CreateOrUpdateMisconductEvent();
-
+            // RegisterWitness 已在 CheckPhaseTransition 进入 Alarmed 时调用，证词已入 PendingWorldEvent
             // 统一走 DialogueInjector 管道：CrimeDialogueBuilder 构建脚本 → DialogueInjector 注入 → 原版 ConversationManager
             EnqueueAction(new FollowAgentAction(player, false, radius: 2f, angleOffset: 0f, stopDistance: 1.5f));
             EnqueueAction(new LookAtAction(player, 0.0f));

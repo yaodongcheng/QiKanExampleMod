@@ -389,24 +389,9 @@ namespace LivingWorldNpcs
                 catch { }
 
                 // 构建上下文：Agent 可能为 null（大地图无 Mission 时），降级处理
-                var ctx = IntentContext.Build(partnerAgent, null);
-
-                // 当 Agent 不可用时（如 CampaignMapConversation），从 npc Hero 回填上下文
-                if (ctx.Agent == null && npc != null)
-                {
-                    ctx.Speaker = npc;
-                }
-
-                // 注入犯罪事件上下文
                 var settlement = npc?.CurrentSettlement;
-                if (settlement != null)
-                {
-                    ctx.ActiveEvent = WorldEventStore.FindActive(settlement.StringId);
-                }
-
-                // 注入 ActionParam（JSON → IntentContext，各 Intent 自行解析）
-                if (!string.IsNullOrEmpty(actionParam))
-                    ctx.ActionParam = actionParam;
+                var worldEvt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
+                var ctx = new IntentContext(partnerAgent, speaker: npc, worldEvent: worldEvt, actionParam: actionParam);
 
                 var eligibility = intent.Evaluate(ctx);
                 if (eligibility.State == EligState.Hidden)
@@ -681,18 +666,7 @@ namespace LivingWorldNpcs
                     }
                     catch { }
 
-                    var ctx = IntentContext.Build(partnerAgent, null);
-                    // 当 Agent 不可用时（如 CampaignMapConversation），从 npc Hero 回填上下文
-                    if (ctx.Agent == null && npc != null)
-                    {
-                        ctx.Speaker = npc;
-                    }
-                    // 覆盖 ActionParam
-                    if (!string.IsNullOrEmpty(opt.ActionParam))
-                        ctx.ActionParam = opt.ActionParam;
-                    // 覆盖 ActiveEvent
-                    if (evt != null)
-                        ctx.ActiveEvent = evt;
+                    var ctx = new IntentContext(partnerAgent, speaker: npc, worldEvent: evt, actionParam: opt.ActionParam);
 
                     var eligibility = intent.Evaluate(ctx);
                     // 对话中只显示完全可用的选项，Disabled 也隐藏。

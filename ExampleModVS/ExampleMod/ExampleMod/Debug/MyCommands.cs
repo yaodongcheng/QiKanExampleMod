@@ -2279,42 +2279,6 @@ namespace LivingWorldNpcs
             }
         }
 
-
-
-        /// <summary>
-        /// custom.crime_test - 在当前村庄创建测试偷窃事件
-        /// </summary>
-        [CommandLineFunctionality.CommandLineArgumentFunction("crime_test", "custom")]
-        public static string CrimeTestCommand(List<string> args)
-        {
-            try
-            {
-                CrimeConsoleCommands.CrimeTest();
-                return "测试事件已创建！找村长对话查看效果。";
-            }
-            catch (Exception ex)
-            {
-                return $"测试失败: {ex.Message}";
-            }
-        }
-
-        /// <summary>
-        /// custom.crime_inject - 手动触发犯罪对话注入（调试用）
-        /// </summary>
-        [CommandLineFunctionality.CommandLineArgumentFunction("crime_inject", "custom")]
-        public static string CrimeInjectCommand(List<string> args)
-        {
-            try
-            {
-                CrimeConsoleCommands.CrimeInject();
-                return "犯罪对话注入完成。";
-            }
-            catch (Exception ex)
-            {
-                return $"注入失败: {ex.Message}";
-            }
-        }
-
         // ═══════════════════════════════════════════════════════════════
         // 🆕 警戒值系统调试指令（Phase 5）
         // ═══════════════════════════════════════════════════════════════
