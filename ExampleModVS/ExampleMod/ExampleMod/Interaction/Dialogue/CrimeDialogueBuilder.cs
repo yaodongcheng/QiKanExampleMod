@@ -715,7 +715,7 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 构建 L3 警戒质问的 DialogueInjectScript。
-        /// 台词查找顺序：① NpcSpeech.csv → ② NarrativeResolver（过渡）→ ③ PlaceholderResolver 硬编码兜底。
+        /// 台词通过 NpcSpeechResolver → NarrativeResolver → 硬编码 三阶段 ?? 回落解析。
         /// </summary>
         public static DialogueInjector.DialogueInjectScript BuildAlertInterceptScript(
             Hero speaker, ConfrontationType npcIntent, PlayerActionType primaryAction,
@@ -731,102 +731,18 @@ namespace LivingWorldNpcs
             IntentContext ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: worldEvt);
             List<DialogueInjector.DialogueNode> nodes = new List<DialogueInjector.DialogueNode>();
 
-            // ① 优先查 NpcSpeech.csv
-            string csvTemplateId = $"L3_{npcIntent}_{primaryAction}";
-            string npcOpening = NpcSpeechResolver.Resolve(csvTemplateId, speaker, Hero.MainHero);
-
-            // ② CSV 未命中 → 回落 NarrativeResolver（过渡）
-            if (string.IsNullOrEmpty(npcOpening))
-            {
-                NarrativeResult narrResult = NarrativeResolver.Resolve(new NarrativeFilters
-                {
-                    EventName = "L3AlertIntercept",
-                    GoalType = npcIntent.ToString(),
-                    Outcome = primaryAction.ToString(),
-                });
-                if (narrResult != null && !NarrativeResolver.IsFallbackText(narrResult.Text))
-                    npcOpening = narrResult.Text;
-            }
-
-            // ③ 最终兜底：PlaceholderResolver 直接解析硬编码模板
-            if (string.IsNullOrEmpty(npcOpening))
-            {
-                npcOpening = npcIntent switch
-                {
-                    ConfrontationType.Deter => primaryAction switch
+            // 两阶段回落：① NpcSpeech.csv（含 Narrative 过渡）→ ② 硬编码
+            string npcOpening =
+                NpcSpeechResolver.Resolve($"L3_{npcIntent}_{primaryAction}", speaker, Hero.MainHero,
+                    narrativeFallback: new NarrativeFilters
                     {
-                        PlayerActionType.WeaponDrawn =>
-                            r.Resolve("（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
-                        _ => // Crouching
-                            r.Resolve("（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
-                    },
+                        EventName = "L3AlertIntercept",
+                        GoalType = npcIntent.ToString(),
+                        Outcome = primaryAction.ToString(),
+                    })
+                ?? HardcodedAlertLine(r, npcIntent, primaryAction);
 
-                    ConfrontationType.Search =>
-                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。"),
-
-                    ConfrontationType.Recover =>
-                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
-
-                    ConfrontationType.Stop => primaryAction switch
-                    {
-                        PlayerActionType.AttackAlly =>
-                            r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
-                        PlayerActionType.Knockout =>
-                            r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！"),
-                        _ => r.Resolve("（{SPEAKER_EMOTION}地）住手！")
-                    },
-                    _ => r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}！你在干什么？")
-                };
-            }
-
-            nodes.Add(new DialogueInjector.DialogueNode
-            {
-                Id = "injectedStart", NpcLine = npcOpening,
-                Transitions = BuildTransitionsByIntent(r, npcIntent, primaryAction, worldEvt)
-            });
-
-            // ── Alert 场景的 ack nodes ──
-            // Deter
-            nodes.Add(TerminalNode("alert_comply_ack", r.Resolve(primaryAction == PlayerActionType.WeaponDrawn
-                ? "……别再让{SPEAKER_SELF}看见你在这拔{ITEM}。"
-                : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。")));
-            nodes.Add(TerminalNode("alert_deter_threat_ok", r.Resolve("……算了。")));
-            nodes.Add(TerminalNode("alert_deter_threat_fail", r.Resolve("来人！这有个闹事的！")));
-            nodes.Add(TerminalNode("alert_deter_fine_ack", r.Resolve("扰乱治安，罚款100第纳尔。算你识相。别再来了。")));
-            nodes.Add(TerminalNode("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
-            // Search
-            nodes.Add(TerminalNode("alert_search_bribe_ack", r.Resolve("……做贼心虚。拿了钱滚。")));
-            nodes.Add(TerminalNode("alert_search_walk_ack", r.Resolve("站住！")));
-            nodes.Add(AckNode("alert_search_deny_ack", r.Resolve("你的？上面还写着{TARGET}的名字呢！")));
-            // Recover
-            nodes.Add(TerminalNode("alert_recover_pay_ack", r.Resolve("算你识相。别再来了。")));
-            nodes.Add(AckNode("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。")));
-            nodes.Add(AckNode("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！")));
-            // Stop
-            nodes.Add(TerminalNode("alert_stop_pay_ack", r.Resolve("光赔钱就完了？拿了钱快滚。")));
-            nodes.Add(AckNode("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。")));
-            nodes.Add(AckNode("alert_stop_charm_fail", r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！")));
-            nodes.Add(TerminalNode("alert_stop_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
-
-            // 如果 recover_confront 被引用（Search refuse → recover mode）
-            nodes.Add(new DialogueInjector.DialogueNode
-            {
-                Id = "recover_confront",
-                NpcLine = r.Resolve("不敢让人看？那就是有鬼了！（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
-                Transitions = new List<DialogueInjector.DialogueTransition>
-                {
-                    new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
-                    new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
-                    new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
-                }
-            });
-
-            // Search 成功后如果搜到赃物 → 插入一个额外 node 把意图切换为 Recover
-            if (npcIntent == ConfrontationType.Search)
-            {
-                bool hasStolen = PlayerHasStolenItems();
-                nodes.Add(BuildSearchResultNode(r, hasStolen));
-            }
+            BuildAlertTransitionsSubtree(nodes, r, npcIntent, primaryAction, worldEvt, npcOpening);
 
             // continue_chat — 阶段 >= Active 时无退路
             bool escalated = worldEvt != null && worldEvt.Stage >= EventStage.Active;
@@ -854,10 +770,50 @@ namespace LivingWorldNpcs
             return new DialogueInjector.DialogueInjectScript { EntryNode = "injectedStart", Nodes = nodes };
         }
 
-        static List<DialogueInjector.DialogueTransition> BuildTransitionsByIntent(
-            PlaceholderResolver r, ConfrontationType intent, PlayerActionType action, WorldEvent worldEvt = null)
+        /// <summary>L3 警戒质问的硬编码兜底台词（CSV 和 Narrative 均未命中时）。</summary>
+        static string HardcodedAlertLine(PlaceholderResolver r, ConfrontationType npcIntent, PlayerActionType primaryAction)
         {
-            List<DialogueInjector.DialogueTransition> transitions = new List<DialogueInjector.DialogueTransition>();
+            return npcIntent switch
+            {
+                ConfrontationType.Deter => primaryAction switch
+                {
+                    PlayerActionType.WeaponDrawn =>
+                        r.Resolve("（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
+                    _ => // Crouching
+                        r.Resolve("（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
+                },
+
+                ConfrontationType.Search =>
+                    r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。"),
+
+                ConfrontationType.Recover =>
+                    r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+
+                ConfrontationType.Stop => primaryAction switch
+                {
+                    PlayerActionType.AttackAlly =>
+                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
+                    PlayerActionType.Knockout =>
+                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！"),
+                    _ => r.Resolve("（{SPEAKER_EMOTION}地）住手！")
+                },
+                _ => r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}！你在干什么？")
+            };
+        }
+
+        /// <summary>
+        /// L3 警戒质问对话子树：自包含 injectedStart + 所有下游 ack/terminal/search/recover_confront node。
+        /// 依赖调用方已添加 continue_chat（含 escalated ack nodes）。
+        /// </summary>
+        static void BuildAlertTransitionsSubtree(
+            List<DialogueInjector.DialogueNode> nodes,
+            PlaceholderResolver r,
+            ConfrontationType intent,
+            PlayerActionType action,
+            WorldEvent worldEvt,
+            string npcOpening)
+        {
+            var transitions = new List<DialogueInjector.DialogueTransition>();
 
             switch (intent)
             {
@@ -865,9 +821,6 @@ namespace LivingWorldNpcs
                     string complyLine = action == PlayerActionType.WeaponDrawn
                         ? "好，我收起来。"
                         : "没什么，我这就走。";
-                    string complyResp = action == PlayerActionType.WeaponDrawn
-                        ? "……别再让{SPEAKER_SELF}看见你在这拔{ITEM}。"
-                        : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。";
                     transitions.Add(new() { PlayerLine = complyLine, Action = "INTENT:Comply", ActionParam = "comply", NextNodeOnSuccess = "alert_comply_ack" });
                     transitions.Add(new() { PlayerLine = "关你什么事？（挑衅）", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:Threat", NextNodeOnSuccess = "alert_deter_threat_ok", NextNodeOnFail = "alert_deter_threat_fail" });
                     if (worldEvt != null && worldEvt.Stage >= EventStage.Active)
@@ -880,7 +833,7 @@ namespace LivingWorldNpcs
                 case ConfrontationType.Search:
                     transitions.Add(new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextNodeOnSuccess = "search_result" });
                     transitions.Add(new() { PlayerLine = "凭什么翻我东西？（拒绝）", Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "recover_confront" });
-                    transitions.Add(new() { PlayerLine = "别查了，我赔你点钱。", Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_search_bribe_ack" });
+                    transitions.Add(new() { PlayerLine = "别查了，我赔你点钱。", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:PayRestitution", ActionParam = "bribe", NextNodeOnSuccess = "alert_search_bribe_ack", NextNodeOnFail = "alert_search_bribe_fail" });
                     transitions.Add(new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "alert_search_walk_ack" });
                     break;
 
@@ -897,10 +850,71 @@ namespace LivingWorldNpcs
                     break;
             }
 
-            return transitions;
+            // ── injectedStart ──
+            nodes.Add(new DialogueInjector.DialogueNode
+            {
+                Id = "injectedStart",
+                NpcLine = npcOpening,
+                Transitions = transitions
+            });
+
+            // ── Intent-specific ack nodes ──
+            switch (intent)
+            {
+                case ConfrontationType.Deter:
+                    nodes.Add(TerminalNode("alert_comply_ack", r.Resolve(action == PlayerActionType.WeaponDrawn
+                        ? "……别再让{SPEAKER_SELF}看见你在这拔{ITEM}。"
+                        : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。")));
+                    nodes.Add(TerminalNode("alert_deter_threat_ok", r.Resolve("……算了。")));
+                    nodes.Add(TerminalNode("alert_deter_threat_fail", r.Resolve("来人！这有个闹事的！")));
+                    nodes.Add(TerminalNode("alert_deter_fine_ack", r.Resolve("扰乱治安，罚款100第纳尔。算你识相。别再来了。")));
+                    nodes.Add(TerminalNode("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
+                    break;
+
+                case ConfrontationType.Search:
+                    nodes.Add(TerminalNode("alert_search_bribe_ack", r.Resolve("……做贼心虚。拿了钱滚。")));
+                    nodes.Add(AckNode("alert_search_bribe_fail", r.Resolve("少来这套。把包打开，{SPEAKER_SELF}自己看！")));
+                    nodes.Add(TerminalNode("alert_search_walk_ack", r.Resolve("站住！")));
+                    nodes.Add(AckNode("alert_search_deny_ack", r.Resolve("你的？上面还写着{TARGET}的名字呢！")));
+                    // Recover ack nodes（recover_confront 引用）
+                    nodes.Add(TerminalNode("alert_recover_pay_ack", r.Resolve("算你识相。别再来了。")));
+                    nodes.Add(AckNode("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。")));
+                    nodes.Add(AckNode("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！")));
+                    // recover_confront（refuse search → recover mode）
+                    nodes.Add(new DialogueInjector.DialogueNode
+                    {
+                        Id = "recover_confront",
+                        NpcLine = r.Resolve("不敢让人看？那就是有鬼了！（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+                        Transitions = new List<DialogueInjector.DialogueTransition>
+                        {
+                            new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
+                            new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
+                            new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                        }
+                    });
+                    // search_result（submit search → 判定赃物）
+                    {
+                        bool hasStolen = PlayerHasStolenItems();
+                        nodes.Add(BuildSearchResultNode(r, hasStolen));
+                    }
+                    break;
+
+                case ConfrontationType.Recover:
+                    nodes.Add(TerminalNode("alert_recover_pay_ack", r.Resolve("算你识相。别再来了。")));
+                    nodes.Add(AckNode("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。")));
+                    nodes.Add(AckNode("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！")));
+                    break;
+
+                case ConfrontationType.Stop:
+                    nodes.Add(TerminalNode("alert_stop_pay_ack", r.Resolve("光赔钱就完了？拿了钱快滚。")));
+                    nodes.Add(AckNode("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。")));
+                    nodes.Add(AckNode("alert_stop_charm_fail", r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！")));
+                    nodes.Add(TerminalNode("alert_stop_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
+                    break;
+            }
         }
 
-        /// <summary>搜查结果 node：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。</summary>
+        /// <summary>搜查结果 node：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。依赖调用方已添加 alert_search_deny_ack。</summary>
         static DialogueInjector.DialogueNode BuildSearchResultNode(PlaceholderResolver r, bool hasStolenItems)
         {
             return new DialogueInjector.DialogueNode

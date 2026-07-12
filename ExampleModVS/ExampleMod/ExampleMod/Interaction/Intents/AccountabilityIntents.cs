@@ -63,15 +63,42 @@ namespace LivingWorldNpcs
     {
         public override InteractionOptionType Type => InteractionOptionType.PayRestitution;
         public override string DisplayName => "【赔钱消灾】我愿意赔偿损失";
-        public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
+
+        // 动态 Tactic/Goal/OfferValue —— Evaluate 中按 ActionParam 设置，
+        // ExecuteIntentAction 保证调用顺序：Evaluate → Goal/Tactic/GetOfferValue → SimpleCompute
+        private NegotiationGoalType? _goal = null;
+        private NegotiationTactic _tactic = NegotiationTactic.Flatter;
+        private float _offerValue = 0f;
+
+        public override NegotiationGoalType? Goal => _goal;
+        public override NegotiationTactic Tactic => _tactic;
+        public override float GetOfferValue(IntentContext ctx) => _offerValue;
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            // Alert 场景：NPC 找上门质问（蹲下/偷窃/攻击），无犯罪事件也允许赔钱消灾
+            // Alert 场景：NPC 找上门质问，无犯罪事件也允许赔钱消灾
             if (ctx.ActiveEvent == null)
             {
-                if (ctx.IsInMission && ctx.ActionParam == "alert_fine")
-                    return Eligibility.Show();
+                if (ctx.IsInMission)
+                {
+                    switch (ctx.ActionParam)
+                    {
+                        case "alert_fine":
+                            _goal = null;  // 认罚不掷骰——NPC 已经决定了，玩家只是接受
+                            _tactic = NegotiationTactic.Flatter;
+                            _offerValue = 0f;
+                            return Eligibility.Show();
+
+                        case "bribe":
+                            _goal = NegotiationGoalType.ResolveConflict_Apology;
+                            _tactic = NegotiationTactic.Bribe;
+                            _offerValue = 0.3f;
+                            int bribeCost = 100;
+                            if (Hero.MainHero.Gold < bribeCost)
+                                return Eligibility.Grey($"钱不够（需要 {bribeCost} 第纳尔）");
+                            return Eligibility.Show();
+                    }
+                }
                 return Eligibility.Hide();
             }
             if (ctx.ActiveEvent.InitiatorId != Hero.MainHero.StringId) return Eligibility.Hide();
@@ -92,7 +119,7 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
-            // Alert 场景：NPC 质问中玩家选赔钱 → 当场扣钱，清警戒，释放质问锁
+            // Alert 场景：NPC 质问中玩家选认罚 → 当场扣钱，清警戒，释放质问锁
             if (ctx.ActionParam == "alert_fine")
             {
                 int fine = 100;
@@ -135,6 +162,33 @@ namespace LivingWorldNpcs
             string sceneTag = isOnSpot ? "[OnSpot]" : "";
             DebugLogger.Log($"[Accountability]{sceneTag} Player paid restitution {cost} gold for {evt.EventId}");
             CommissionQuest.AddNarrativeLogForEvent(evt, $"赔了{cost}第纳尔。{authority?.Name?.ToString() ?? "村长"}收了钱，这事总算翻篇了。");
+        }
+
+        /// <summary>贿赂检定通过：扣钱、清警戒、结案。</summary>
+        public override void OnSuccess(IntentContext ctx)
+        {
+            if (ctx.ActionParam == "bribe")
+            {
+                int bribe = 100;
+                AgentControlHelper.TransferGold(Hero.MainHero, null, bribe);
+                var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
+                brain?.ClearAllAlerts();
+                AgentBrain.ConfrontingBrain = null;
+                AccountabilityHelper.ResolveMisconduct(ctx.Agent, "bribe");
+                DebugLogger.Log($"[Accountability] Bribe accepted: paid {bribe} gold");
+                return;
+            }
+            base.OnSuccess(ctx);
+        }
+
+        /// <summary>贿赂检定失败：不掉钱，基类处理掉好感和冷却。</summary>
+        public override void OnFail(IntentContext ctx)
+        {
+            if (ctx.ActionParam == "bribe")
+            {
+                DebugLogger.Log($"[Accountability] Bribe rejected by {ctx.Speaker?.Name}");
+            }
+            base.OnFail(ctx);
         }
     }
 

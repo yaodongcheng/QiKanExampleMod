@@ -912,6 +912,18 @@ namespace LivingWorldNpcs
 
         #region 兜底
 
+        /// <summary>
+        /// 查询 Narrative.csv，命中返回文本，未命中/兜底返回 null。
+        /// 与 Resolve 的区别：Resolve 保证不返回 null（兜底"……"），此方法 null = 没查到。
+        /// 方便调用方用 ?? 链式回落。
+        /// </summary>
+        public static string TryResolveText(NarrativeFilters filters)
+        {
+            var result = Resolve(filters);
+            if (result == null || IsFallbackText(result.Text)) return null;
+            return result.Text;
+        }
+
         /// <summary>判断 Resolve 返回的文本是否是兜底/无效文本（"……" 及其变体，如"……（微微颔首）"）。</summary>
         public static bool IsFallbackText(string text)
         {

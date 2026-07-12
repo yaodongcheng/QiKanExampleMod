@@ -1053,12 +1053,18 @@ static void BuildWitnessScript(...)
 | `TerminalNode(id, line)` 工厂 | 单节点无 transition | 无 NextNode，自包含 |
 | `BuildXxxSubtree(nodes, ...)` void | 节点有复杂 transition | **全部在本函数内** `nodes.Add()` 或嵌套子树 |
 | `BuildXxxSubtree(nodes, ...)` void 共用 | 被多个子树复用 | **全部在本函数内**，调用方不感知细节 |
+| ❌ `BuildXxxTransitions(...)` 返回 `List<DialogueTransition>` | — | **禁止**：返回的 Transition 引用外部 Node Id，对调用方有隐式依赖（见下方反模式） |
+
+### ❌ 反模式：返回裸 Transition 列表
+
+**"当前函数" = 构造 Transition 的函数**（`new DialogueTransition { NextNodeOnSuccess = "xxx" }` 写在哪，哪就是当前函数）。这与返回的是 Node 还是 `List<DialogueTransition>` 无关——**只看谁写了 `NextNodeOnSuccess`/`NextNodeOnFail` 的字面值，谁就必须能兑现。**
+
+唯一合法形式：`void BuildXxxSubtree(List<DialogueNode> nodes, ...)`。Transition 构造和 Node 定义在同一函数内闭环。
 
 ### 新增/修改对话构建方法时自查
 
-1. 本函数内每个 `new DialogueNode { Transitions = {...} }`，其所有 `NextNodeOnSuccess` / `NextNodeOnFail` 的 Node Id，能在**本函数体内**找到对应的 `nodes.Add()` 或嵌套子树调用吗？
+1. **本函数内每个 `new DialogueTransition { NextNodeOnSuccess = "xxx" }`**，**"xxx" 能在本函数体内找到 `nodes.Add()` 或嵌套 `BuildXxxSubtree(nodes, ...)` 吗？** 找不到 → **违规**。
 2. 如果有共享依赖（如 `continue_chat`），本函数的注释里**显式声明**了吗？
-3. 调用方读完本函数，能否不跳转到其他文件就理解完整对话子图的结构？
 
 ## AckNode 使用纪律：禁止无意义"…"拆句
 
@@ -1398,7 +1404,19 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 ## NpcSpeech.csv + NpcSpeechResolver — 模板台词统一数据源
 
 模板思路替代枚举思路。极简三列 `ID,Template,Emotion`。
-`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName)` 查 CSV → 委托 `PlaceholderResolver` 做占位符替换。
+**两阶段回落**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName, narrativeFallback)` 内部先查 NpcSpeech.csv → 未命中自动回落 Narrative.csv（过渡期）→ 均未命中返回 null。**调用方只需 `??` 硬编码兜底**，不应再手动调 NarrativeResolver。
+
+```csharp
+// ✅ 调用方标准写法：两阶段回落
+string line = NpcSpeechResolver.Resolve(templateId, speaker, listener,
+    narrativeFallback: new NarrativeFilters { ... })
+    ?? HardcodedFallback(r, intent, action);
+
+// ❌ 禁止：调用方手动写三层 if-null 回落
+// ❌ 禁止：调用方直接调 NarrativeResolver.Resolve/NarrativeResolver.TryResolveText
+```
+
+**长期方向**：Narrative.csv 逐步迁移到 NpcSpeech.csv 后，`narrativeFallback` 参数和内部回落代码删除，`NpcSpeechResolver` 回归纯 CSV 查询薄层。
 
 **文件位置**：
 - `ModuleData/DesignData/NpcSpeech.csv`（~18 行：12 BubbleSay + 6 L3 开场白）
@@ -1414,7 +1432,7 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 
 ## PlaceholderResolver 扩展指南 — 新增占位符两步流程
 
-**调用链路**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName)` → 查 `NpcSpeech.csv` 取模板文本 → `new PlaceholderResolver(...)` → `r.Resolve(template)` → 正则 `\{(\w+)\}` 扫描 `{KEY}` → 逐个调 `ResolveOne(key)` 替换。
+**调用链路**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName, narrativeFallback)` → ① 查 `NpcSpeech.csv` 取模板文本 → ② 未命中自动回落 `NarrativeResolver.TryResolveText(narrativeFallback)`（过渡期） → `new PlaceholderResolver(...)` → `r.Resolve(template)` → 正则 `\{(\w+)\}` 扫描 `{KEY}` → 逐个调 `ResolveOne(key)` 替换。
 
 **三种构造 → 三种数据可用范围**：
 
@@ -1447,7 +1465,7 @@ EnqueueAction(new AlertForceConversationAction());
 ## CrimeDialogueBuilder.BuildAlertInterceptScript — L3 质问对话构建
 
 与 `BuildAuthorityScript` / `BuildWitnessScript` 同属 `CrimeDialogueBuilder`。
-台词查找：① NpcSpeech.csv → ② NarrativeResolver → ③ PlaceholderResolver 硬编码兜底。
+台词通过 `NpcSpeechResolver.Resolve(..., narrativeFallback:)` 内部两阶段回落（NpcSpeech.csv → Narrative.csv），调用方仅 `?? HardcodedAlertLine()` 兜底。
 
 ```csharp
 var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
