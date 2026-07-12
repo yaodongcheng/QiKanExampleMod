@@ -267,6 +267,7 @@
     <Compile Include="Interaction\Intents\GeneralIntents.cs" />
     <Compile Include="Interaction\Intents\RecruitSoldierIntent.cs" />
     <Compile Include="Interaction\Intents\AccountabilityIntents.cs" />
+    <Compile Include="Interaction\Intents\SystemIntents.cs" />
     <Compile Include="Interaction\Intents\CombatSurrenderIntents.cs" />
     <Compile Include="Interaction\SettlementHonorStore.cs" />
     <Compile Include="Interaction\InteractionMissionView.cs" />

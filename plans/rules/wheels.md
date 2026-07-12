@@ -816,70 +816,373 @@ public static class ChangeInteractionTextPatch
 
 **优先原版**：凡是能挂到 `hero_main_options` / `issue_offer` / `quest_offer` token 的，走 JSON 注入。只有原版 token 体系覆盖不了的场景（如大地图偶遇、无 Hero 的平民）才用 StoryDialogVM。
 
-## JSON 格式
+## v2 新模型（2026-07-12 重构）
+
+**核心原则：Transition 只管路由，NPC 台词统一在 DialogueNode.NpcLine。**
+
+```
+Node = NPC 说一句话 + 玩家可选的动作集合
+Transition = 玩家选了一个动作 → 执行 → 路由到下一个 Node（或关窗）
+```
+
+### 数据类型
+
+```csharp
+public enum TransitionCheckType { None, SkillCheck }
+
+public class DialogueNode {
+    public string Id = "injectedStart";
+    public string NpcLine;                        // NPC 台词唯一入口
+    public Func<string> LazyNpcLine;              // 惰性求值（设置后覆盖 NpcLine）
+    public List<DialogueTransition> Transitions;  // [] = terminal, null = 非法
+}
+
+public class DialogueTransition {
+    public string PlayerLine;                     // 玩家选项文本
+    public TransitionCheckType CheckType = None;  // None=直连 / SkillCheck=检定分叉
+    public string Action = "NONE";                // NONE / INTENT:xxx
+    public string ActionParam = null;             // 字符串参数（系统 Intent 用数值的字符串表示）
+    public string NextNodeOnSuccess;              // 成功/无检定 → 目标 Node Id。""/null = 关窗
+    public string NextNodeOnFail;                 // 检定失败 → 目标 Node Id（仅 SkillCheck）
+}
+```
+
+### 路由逻辑
+
+- **CheckType.None**：PlayerLine 直连目标 Node 的 entry token（或 close_window）
+- **CheckType.SkillCheck**：桥接 token + 3 条 silent DialogLine（成功/失败/安全网）→ 目标 Node
+
+### JSON 格式（v2）
 
 文件放在 `ModuleData/DesignData/Dialogues/*.json`。
 
 ```json
 {
-  "InjectAtToken": null,           // 挂载点: null="hero_main_options", "quest_offer", "issue_offer"
-  "EntryOption": "（闲聊）…",       // NPC 主菜单里的入口选项文本。缺省用文件名。
-  "EntryNode": "start",            // 从哪个 node 开始
+  "InjectAtToken": null,
+  "EntryOption": "（闲聊）…",
+  "EntryNode": "injectedStart",
   "Nodes": [
     {
-      "Id": "start",               // 唯一标识（可被 NextNode 引用）
-      "SpeakerIndex": 0,           // 谁说（0=对话中的第一个 NPC）
+      "Id": "injectedStart",
       "NpcLine": "啊，你来得正好！",
       "Transitions": [
         {
           "PlayerLine": "什么怪事？",
-          "NpcResponse": "最近夜里总有人……",
-          "NextNode": "more_detail",   // 选此选项后跳转的 node Id。null=关闭对话
-          "Action": "NONE",            // INCREASE_RELATION / DECREASE_RELATION / GIVE_GOLD / TAKE_GOLD
-          "ActionValue": 0
+          "NextNodeOnSuccess": "more_detail"
+        },
+        {
+          "PlayerLine": "帮你处理，有什么好处？",
+          "Action": "INTENT:GiveGold",
+          "ActionParam": "100",
+          "NextNodeOnSuccess": "give_gold_ack"
         }
+      ]
+    },
+    {
+      "Id": "give_gold_ack",
+      "NpcLine": "你果然是个精明人——100第纳尔，怎么样？",
+      "Transitions": [
+        { "PlayerLine": "…", "NextNodeOnSuccess": "more_detail" }
       ]
     }
   ]
 }
 ```
 
-**Node 图结构**：`Id` = 节点标识，`NextNode` = 边。不同选项可以指向完全不同的后续 node。引擎运行时：`NodeToken(fileTag, turnId) → "lwnpc_<文件名>_<turnId>"` 作为 ConversationManager token。
+**已删除的旧字段**：`SpeakerIndex`（硬编码 0）、`NpcResponse` / `NpcResponseOnSuccess` / `NpcResponseOnFail` / `LazyNpcResponse`（台词统一在 Node.NpcLine）、`NextNode`（→ NextNodeOnSuccess）、`ActionValue`（→ ActionParam）。
+
+**旧式 Action 迁移**：`INCREASE_RELATION` → `INTENT:IncreaseRelation`、`DECREASE_RELATION` → `INTENT:DecreaseRelation`、`GIVE_GOLD` → `INTENT:GiveGold`、`TAKE_GOLD` → `INTENT:TakeGold`。数值从 `ActionValue` 迁移到 `ActionParam`。
 
 ## 核心 API
 
 ```csharp
-// 从 JSON 文件注入到当前 NPC 对话树
+// JSON 注入
 DialogueInjector.InjectFromJson(jsonPath);    // → string 结果描述
-
-// 清除所有注入
+// 运行时构建注入（CrimeDialogueBuilder 用）
+DialogueInjector.InjectScript(script, debugLabel);
+// 替换开场白模式（Alert 质问用）
+DialogueInjector.InjectScriptAsOpening(script, debugLabel);
+// 清理
 DialogueInjector.ClearAll();
-
-// 文件查找（ModuleData/DesignData/Dialogues/ → Configs/）
-DialogueInjector.FindJsonFile(fileName);      // → 完整路径 or null
-DialogueInjector.GetSearchPathsDescription(fileName);
+DialogueInjector.RemoveRelatedLines(label);
+// 调试
+DialogueInjector.LogScript(script, label);
 ```
+
+## CrimeDialogueBuilder 辅助方法
+
+```csharp
+// Node 工厂
+AckNode(id, npcLine, next)         // NPC 说一句 → "…" → next
+TerminalNode(id, npcLine)          // NPC 说一句 → 关窗
+LazyTerminalNode(id, lazyNpcLine)  // 惰性求值版
+
+// Transition 工厂
+WalkAway(playerLine)               // INTENT:WalkAway → 关窗
+ContinueOptions(walkAwayLine)      // ["我得走了。"→关窗]
+
+// continue_chat
+BuildContinueChatNode(r)           // "还有什么别的想说的?" + walk→farewell
+BuildFarewellNode(r)               // 惰性告别语（阶段感知）
+AddContinueChatWithFarewell(nodes, r) // 同时加两个
+```
+
+## CrimeDialogueBuilder 子树自包含原则
+
+**一个函数内构造的 `DialogueNode`，其 `Transitions` 中出现的每一个 `NextNodeOnSuccess` / `NextNodeOnFail`，必须在本函数内有明确的归宿——要么 `nodes.Add()` 创建，要么显式声明复用已有节点。读一个函数就应该能看到完整的对话子图，不需要跳到调用方去拼。**
+
+### 正确 vs 错误
+
+```csharp
+// ❌ 错误：BuildConfessNode 定义了 transition → "charm_ok"，
+//    但 charm_ok 在本函数内既没有创建也没有声明依赖——
+//    读到这里不知道 "charm_ok" 是什么、谁加的、加了没有。
+nodes.Add(BuildConfessNode(r, ctx));         // 函数返回就结束了，NextNode 下落不明
+nodes.Add(AckNode("charm_ok", ...));         // 目标节点在调用方——跳来跳去拼图
+nodes.Add(AckNode("charm_fail", ...));
+
+// ✅ 正确：子树方法内，每个 NextNode 都能在同函数里找到 nodes.Add() 或嵌套子树调用。
+BuildConfessSubtree(nodes, r, ctx);          // 一行，所有下游归宿在函数体内可见
+```
+
+### 实现方式
+
+**方式 A — 子树方法（推荐）**：`void` 方法，接收 `List<DialogueNode> nodes`。本函数内构造的 Node，其 Transition 指向的每个目标，都在本函数内通过 `nodes.Add()` 或嵌套子树完成注册。
+
+```csharp
+static void BuildConfessSubtree(List<DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
+{
+    // 本函数创建的 confess 节点，transition 引用了三个 NextNode：
+    //   "charm_ok"      → 下一行 nodes.Add(AckNode(...)) 创建 ✅
+    //   "charm_fail"    → 再下一行 nodes.Add(AckNode(...)) 创建 ✅
+    //   "restitution_detail" → BuildRestitutionSubtree 内部创建 ✅
+    nodes.Add(new DialogueNode { Id = "confess", NpcLine = "...", Transitions = {
+        new() { PlayerLine = "我愿意赔。", NextNodeOnSuccess = "restitution_detail" },
+        new() { PlayerLine = "开个玩笑…", NextNodeOnSuccess = "charm_ok", NextNodeOnFail = "charm_fail" },
+    }});
+    nodes.Add(AckNode("charm_ok", "..."));
+    nodes.Add(AckNode("charm_fail", "..."));
+    BuildRestitutionSubtree(nodes, r, ctx);  // 嵌套子树，restion_detail + pay_ack 在内部创建
+}
+```
+
+**方式 B — 依赖共享 Node**：目标 Node 是 `continue_chat`、`farewell` 等全局共享节点。本函数不重复创建，但**必须在注释中显式声明依赖**，且调用方通过 `AddContinueChatWithFarewell` 等统一入口添加。
+
+```csharp
+/// <summary>证人对话。依赖调用方已添加 continue_chat / farewell（通过 AddContinueChatWithFarewell）。</summary>
+static void BuildWitnessScript(...)
+{
+    // "witness_silence_ack" → next="continue_chat"  ← 共享节点，注释已声明依赖
+    nodes.Add(AckNode("witness_silence_ack", "……好吧，我什么也没看见。"));
+}
+```
+
+### 模式速查
+
+| 模式 | 何时用 | NextNode 归宿在哪 |
+|------|--------|-------------------|
+| `AckNode(id, line, next)` 工厂 | 单节点，下游是共享节点 | 调用方添加（`next` 默认 `"continue_chat"`） |
+| `TerminalNode(id, line)` 工厂 | 单节点无 transition | 无 NextNode，自包含 |
+| `BuildXxxSubtree(nodes, ...)` void | 节点有复杂 transition | **全部在本函数内** `nodes.Add()` 或嵌套子树 |
+| `BuildXxxSubtree(nodes, ...)` void 共用 | 被多个子树复用 | **全部在本函数内**，调用方不感知细节 |
+
+### 新增/修改对话构建方法时自查
+
+1. 本函数内每个 `new DialogueNode { Transitions = {...} }`，其所有 `NextNodeOnSuccess` / `NextNodeOnFail` 的 Node Id，能在**本函数体内**找到对应的 `nodes.Add()` 或嵌套子树调用吗？
+2. 如果有共享依赖（如 `continue_chat`），本函数的注释里**显式声明**了吗？
+3. 调用方读完本函数，能否不跳转到其他文件就理解完整对话子图的结构？
+
+## AckNode 使用纪律：禁止无意义"…"拆句
+
+**`AckNode`（NPC 说一句 → 玩家点"…" → 跳到 next）只能用于收束对话分支，禁止用来把同一段 NPC 发言拆成两个气泡。**
+
+### AckNode 的合法用途
+
+| 场景 | 示例 | 为什么合法 |
+|------|------|-----------|
+| 分支收束 → 闲聊 | `AckNode("xxx_ack", "知道了。")` → `continue_chat` | 玩家做了选择，NPC 给了最终回应，对话自然收束 |
+| 分支收束 → 告别 | `AckNode("xxx_ack", "好，去吧。")` → `farewell` | 同上 |
+| 信息确认后继续 | `AckNode("witness_desc_ack", "那人……高个子，红头发。")` → `continue_chat` | 玩家问了具体问题，NPC 回答，合理停顿 |
+
+### ❌ 非法用法：用"…"当胶水
+
+```csharp
+// ❌ 同一段 NPC 发言被 "…" 拆成两句——玩家要多点一次，纯摩擦
+nodes.Add(AckNode("confess_ack", "你？！……好，既然认了，咱们可以商量。", "confess"));
+nodes.Add(BuildConfessNode(r, ctx));  // NpcLine = "有什么要说的？"
+
+// 实机体验：
+//   NPC: "你？！……好，既然认了，咱们可以商量。"    ← 情绪反应
+//   玩家: "…"                                      ← 无意义点击
+//   NPC: "有什么要说的？"                            ← 本应和上一句连在一起
+//   玩家: ①赔钱 ②狡辩 ③走人                         ← 终于有选择了
+```
+
+### ✅ 修复：合并为一个节点
+
+```csharp
+// NPC 的情绪反应和提问在同一句 NpcLine 里，直接给玩家选项
+nodes.Add(new DialogueNode {
+    Id = "confess",
+    NpcLine = "你？！……好，既然认了，咱们可以商量。有什么要说的？",
+    Transitions = { 赔钱 / 狡辩 / 走人 }
+});
+// 实机体验：
+//   NPC: "你？！……好，既然认了，咱们可以商量。有什么要说的？"
+//   玩家: ①赔钱 ②狡辩 ③走人                         ← 直接选
+```
+
+### 自查
+
+给对话图加 AckNode 时问自己：
+
+1. **这个 AckNode 的 next 指向 `continue_chat` / `farewell` / 关窗吗？** → 如果不是（比如指向另一个有实质内容的 node），**大概率是非法拆句**。
+2. **能把 AckNode 的 NpcLine 和 next 指向的那个 Node 的 NpcLine 合并成一句吗？** → 如果能合并且不失自然，**就不该拆**。
+3. **这个"…"是玩家在确认收到信息（OK），还是 NPC 还没说完话？** → 前者合法，后者必须合并。
+
+## Transition 检定纪律：影响 NPC 决策的选项必须有 SkillCheck
+
+**凡是玩家试图影响 NPC 决策的选项——说服、贿赂、威胁、欺骗、讨价还价——必须加 `CheckType = SkillCheck`，禁止写死 NPC 必然接受。玩家不能靠点一个选项就无代价地改变 NPC 行为。**
+
+### 需要检定的典型场景
+
+| 玩家行为 | 对应 Intent 示例 | 不检定的后果 |
+|----------|-----------------|-------------|
+| 给钱封口 | `INTENT:SilenceWitness` + `ActionParam="bribe"` | 花 50 块钱就能让所有目击者闭嘴——零风险零难度 |
+| 威胁恐吓 | `INTENT:SilenceWitness` + `ActionParam="threat"` | 威胁不需要魅力/威慑力，点就有效 |
+| 花言巧语开脱 | `INTENT:CharmDefense` | NPC 永远吃这套，毫无挑战 |
+| 栽赃陷害 | `INTENT:FrameSuspect` | 随便指一个人 NPC 就信 |
+
+### 正确 vs 错误
+
+```csharp
+// ❌ 错误：写死了 NPC 必然接受——贿赂变成免费午餐
+new DialogueInjector.DialogueTransition
+{
+    PlayerLine = "（给些钱）这事你别往外说……",
+    Action = "INTENT:SilenceWitness",
+    NextNodeOnSuccess = "witness_silence_ack"   // 无检定，必然成功
+    // 缺 CheckType、NextNodeOnFail
+}
+
+// ✅ 正确：检定决定 NPC 是否被说服，失败有对应的 NPC 回应
+new DialogueInjector.DialogueTransition
+{
+    PlayerLine = "（给些钱）这事你别往外说……",
+    CheckType = TransitionCheckType.SkillCheck,   // 检定决定成败
+    Action = "INTENT:SilenceWitness",
+    ActionParam = "bribe",
+    NextNodeOnSuccess = "witness_silence_ack",    // NPC 收了钱
+    NextNodeOnFail = "witness_silence_fail"       // NPC 拒绝并扬言举报
+}
+```
+
+### 不需要检定的例外
+
+| 场景 | 理由 |
+|------|------|
+| 玩家表示"我先想想"/"我还有事" | 玩家不做决策，只是推迟/离开 |
+| NPC 主动提出的交易（悬赏等） | NPC 已经决定，玩家只是接受/不接受 |
+| 玩家认栽自首 | 玩家放弃抵抗，NPC 接受是合理的 |
+| 无关紧要的信息询问（"详细说说？"） | 不涉及 NPC 利益权衡 |
+
+### 自查
+
+新增 Transition 时问自己：
+
+1. **这个选项是在改变 NPC 的意愿吗？** → 如果是（让他闭嘴、相信你、原谅你、配合你），**必须检定**。
+2. **检定失败 NPC 会说什么？** → 必须提供 `NextNodeOnFail` 指向的节点，NPC 拒绝 + 可能有后果。
+3. **相关的 Intent 有 Goal 吗？** → 没有 Goal 的 Intent 不会掷骰，检查 `Intent.Goal` 是否已配置。
+
+## Intent Tactic 必须响应 ActionParam——不同手段不能共用同一技能
+
+**同一个 Intent 被多次复用时（通过 `ActionParam` 区分手段），其 `Tactic` 和 `GetOfferValue` 必须根据 `ActionParam` 动态选择。禁止所有手段共用同一个固定的 `Tactic`。**
+
+### 问题场景
+
+```csharp
+// ❌ 对话层区分了手段，但 Intent 层不区分
+// 对话："（给些钱）…"→ActionParam="bribe"  /  "（威胁）…"→ActionParam="threat"
+// Intent：两者都走 Tactic = Flatter → Charm 检定
+// 结果：拿刀威胁目击者 → 魅力检定。这说不通。
+
+public class SilenceWitnessIntent : IntentBase
+{
+    public override NegotiationTactic Tactic => NegotiationTactic.Flatter; // 写死
+    // 没有 override GetOfferValue → 永远返回 0f
+}
+```
+
+**为什么这样不对**：
+- 塞钱封口 → 应该看玩家出价是否够高（`GetOfferValue`）
+- 拿刀威胁 → 应该看玩家流氓习气（`Tactic = Threaten → Roguery`）
+- 写死 `Flatter` + `GetOfferValue = 0` → 两个完全不同的手段，变成了同一个魅力检定
+
+### 正确做法
+
+利用 `Evaluate` 先于检定执行的事实，在 `Evaluate` 中根据 `ctx.ActionParam` 缓存状态，`Tactic` 和 `GetOfferValue` 返回缓存值：
+
+```csharp
+public class SilenceWitnessIntent : IntentBase
+{
+    private NegotiationTactic _tactic = NegotiationTactic.Flatter;
+    private float _offerValue = 0f;
+
+    public override NegotiationTactic Tactic => _tactic;
+    public override float GetOfferValue(IntentContext ctx) => _offerValue;
+
+    public override Eligibility Evaluate(IntentContext ctx)
+    {
+        // ... 基础 eligibility 检查 ...
+
+        switch (ctx.ActionParam)
+        {
+            case "bribe":
+                _tactic = NegotiationTactic.Bribe;       // 贿赂 → Charm
+                _offerValue = 0.3f;                      // 小额献礼加成
+                break;
+            case "threat":
+                _tactic = NegotiationTactic.Threaten;     // 威胁 → Roguery
+                _offerValue = 0f;                         // 威胁不靠出价
+                break;
+            default:
+                _tactic = NegotiationTactic.Flatter;
+                _offerValue = 0f;
+                break;
+        }
+        return Eligibility.Show();
+    }
+}
+```
+
+### 调用时序保证
+
+`Evaluate` → `Tactic` / `GetOfferValue` → `SimpleCompute` 的执行顺序是有保证的：
+
+```
+DialogueInjector.ExecuteIntentAction():
+  Evaluate(ctx)           ← 第一步：缓存 _tactic / _offerValue
+  intent.Tactic           ← 第二步：读取缓存值（传给 SimpleCompute）
+  intent.GetOfferValue()  ← 第二步：读取缓存值
+  SimpleCompute(...)      ← 第三步：公式计算
+```
+
+### 自查
+
+新增/修改复用了 `ActionParam` 的 Intent 时问自己：
+
+1. **不同 ActionParam 对应不同的玩家手段吗？** → 如果是（给钱 vs 威胁 vs 说服），**Tactic 必须不同**。
+2. **涉及金钱/物品付出的手段有 `GetOfferValue` 吗？** → 如果没有，出价不参与检定，玩家付多付少没区别。
+3. **默认分支（ActionParam == null）的 Tactic 合理吗？** → 必须有合理兜底。
 
 ## 控制台指令
 
 ```
 custom.inject_dialogue test_talk       → 加载并注入 test_talk.json
-custom.inject_dialogue my_quest.json   → 加载并注入 my_quest.json
 custom.inject_dialogue clear           → 清除所有注入
 ```
 
-注入时机：对话开始前（大地图上、进村前）随时可跑。下次跟任意 NPC 交谈时，入口选项出现在 NPC 主菜单。
-
-## 底层原理
-
-直接操作 `ConversationManager` 的 `_sentences` 表（token 状态机），**不依赖 `DialogFlow` 建造者**。每个 node 注册为：
-1. NPC 台词 → `AddDialogLineMultiAgent`（非玩家句子，引擎自动播）
-2. 玩家选项 → `AddPlayerLine`（通过 `DialogFlow` 薄壳）
-3. NPC 回应 → `AddDialogLineMultiAgent`（输出到 `NextNode` 的 token 或 `close_window`）
-
-清理：`RemoveRelatedLines(owner)` 按归属哨兵批量删除，不动原版对话。
-
-**文件位置**：`Interaction/Dialogue/DialogueInjector.cs`（注入引擎）、`Debug/MyCommands.cs`（`InjectDialogueFromJson` 薄壳指令）。JSON 示例：`ModuleData/DesignData/Dialogues/test_talk.json`。
+**文件位置**：`Interaction/Dialogue/DialogueInjector.cs`（注入引擎）、`Interaction/Dialogue/CrimeDialogueBuilder.cs`（运行时构建器）、`Interaction/Intents/SystemIntents.cs`（系统 Intent）。JSON 示例：`ModuleData/DesignData/Dialogues/test_talk.json`。
 
 ---
 

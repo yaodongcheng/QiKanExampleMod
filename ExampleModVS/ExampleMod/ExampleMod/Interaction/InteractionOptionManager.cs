@@ -63,6 +63,9 @@ namespace LivingWorldNpcs
         Arrest,              // 直接抓捕
         SurrenderJail,       // 束手就擒坐牢（Alert 场景）
         Comply,              // 服从（收武器/停止可疑行为，Alert 场景）
+
+        // ═══ 系统 ═══
+        System,              // 系统级操作（仅对话 Transition 触发，不出现在交互菜单）
     }
 
     /// <summary>
@@ -76,6 +79,7 @@ namespace LivingWorldNpcs
         Diplomacy,  // 外交/谋略
         Hostile,    // 敌对/暴力
         Accountability, // 🆕 犯罪追责
+        System,         // 系统级操作
     }
 
     /// <summary>Type → Category 唯一权威映射。新 Type 在此加一行即可。</summary>

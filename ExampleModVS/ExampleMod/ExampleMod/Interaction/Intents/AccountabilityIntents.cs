@@ -117,6 +117,8 @@ namespace LivingWorldNpcs
 
             bool isOnSpot = ctx.IsInMission;
             int cost = isOnSpot ? evt.ComputeOnSpotCost() : evt.ComputeRestitutionCost();
+            if (ctx.ActionParam == "haggle")
+                cost = (int)(cost * 0.5f);
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             if (authority != null)
                 AgentControlHelper.TransferGold(Hero.MainHero, authority, cost);
