@@ -143,12 +143,12 @@ namespace LivingWorldNpcs
                 DialogueInjector.RemoveRelatedLines(tag);
 
                 var script = CrimeDialogueBuilder.BuildScript(partner, Hero.MainHero);
-                if (script != null && script.Turns != null && script.Turns.Count > 0)
+                if (script != null && script.Nodes != null && script.Nodes.Count > 0)
                 {
                     DialogueInjector.InjectScript(script, tag);
                     _lastInjectedEventId = evt.EventId + "_" + partner.StringId;
                     _lastInjectedTag = tag;
-                    DebugLogger.Log($"[ConvEntry] Injected crime dialogue: event={evt.EventId} stage={evt.Stage} partner={partner.Name} turns={script.Turns.Count}");
+                    DebugLogger.Log($"[ConvEntry] Injected crime dialogue: event={evt.EventId} stage={evt.Stage} partner={partner.Name} nodes={script.Nodes.Count}");
                 }
             }
             catch (Exception ex)

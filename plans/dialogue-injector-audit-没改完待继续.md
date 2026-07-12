@@ -52,11 +52,11 @@ DialogueInjector ────────┼── RemoveRelatedLines(tag) [残�
 
 ### 🔴 问题 1：CombatManager 手动构建 DialogueInjectScript — 重复造轮子
 
-`CombatManager.PlayerSurrenderToAgent`（~70行）和 `AcceptAgentSurrender`（~55行）在业务代码里手写 `new DialogueInjector.DialogueInjectScript { Turns = ... }` 的完整脚本结构。项目已有 `CrimeDialogueBuilder` 作为规范的脚本构造器——认输对话也应走 Builder 模式。
+`CombatManager.PlayerSurrenderToAgent`（~70行）和 `AcceptAgentSurrender`（~55行）在业务代码里手写 `new DialogueInjector.DialogueInjectScript { Nodes = ... }` 的完整脚本结构。项目已有 `CrimeDialogueBuilder` 作为规范的脚本构造器——认输对话也应走 Builder 模式。
 
 **影响**：硬编码中文在引擎 mod 里、脚本结构与 Intent 耦合在 CombatManager 中、修改台词需要改动业务逻辑代码。
 
-### 🔴 问题 2：ExecuteIntentAction 和 BuildOptionCondition 内部逻辑重复
+### 🔴 问题 2：ExecuteIntentAction 和 BuildTransitionCondition 内部逻辑重复
 
 [DialogueInjector.cs:340-419](../../ExampleModVS/ExampleMod/ExampleMod/Interaction/Dialogue/DialogueInjector.cs#L340-L419) 和 [DialogueInjector.cs:626-677](../../ExampleModVS/ExampleMod/ExampleMod/Interaction/Dialogue/DialogueInjector.cs#L626-L677) 中，同一文件内两处几乎完全相同的 `IntentContext` 构造：获取 `partnerAgent` → `IntentContext.Build()` → `Hero` 回退 → `ActionParam`/`ActiveEvent` 注入。约 30 行重复代码，应抽取为 `BuildIntentContext(Hero npc, string actionParam)` 私有方法。
 

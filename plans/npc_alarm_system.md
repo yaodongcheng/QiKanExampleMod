@@ -838,7 +838,7 @@ public static DialogueInjectScript BuildAlertInterceptScript(
     Hero speaker, NpcInterceptIntent npcIntent, PlayerActionType primaryAction)
 {
     var r = new PlaceholderResolver(speaker, Hero.MainHero);
-    var turns = new List<DialogueInjectTurn>();
+    var turns = new List<DialogueNode>();
 
     // ① 优先查 NpcSpeech.csv
     string csvTemplateId = $"L3_{npcIntent}_{primaryAction}";
@@ -888,37 +888,37 @@ public static DialogueInjectScript BuildAlertInterceptScript(
     };
     } // ③ 硬编码兜底结束
 
-    turns.Add(new DialogueInjectTurn
+    turns.Add(new DialogueNode
     {
         Id = "start", SpeakerIndex = 0, NpcLine = npcOpening,
-        Options = BuildOptionsByIntent(r, npcIntent, primaryAction)
+        Transitions = BuildTransitionsByIntent(r, npcIntent, primaryAction)
     });
 
     // Search 成功后如果搜到赃物 → 插入一个额外 turn 把意图切换为 Recover
     if (npcIntent == NpcInterceptIntent.Search)
     {
         bool hasStolen = PlayerHasStolenItems();
-        turns.Add(BuildSearchResultTurn(r, hasStolen));
+        turns.Add(BuildSearchResultNode(r, hasStolen));
     }
 
     // continue_chat
-    turns.Add(new DialogueInjectTurn
+    turns.Add(new DialogueNode
     {
         Id = "continue_chat", SpeakerIndex = 0,
         NpcLine = "还有什么想说的？",
-        Options = new List<DialogueInjectOption>
+        Transitions = new List<DialogueTransition>
         {
-            new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextTurn = "" }
+            new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNode = "" }
         }
     });
 
-    return new DialogueInjectScript { EntryTurn = "start", Turns = turns };
+    return new DialogueInjectScript { EntryNode = "start", Nodes = turns };
 }
 
-static List<DialogueInjectOption> BuildOptionsByIntent(
+static List<DialogueTransition> BuildTransitionsByIntent(
     PlaceholderResolver r, NpcInterceptIntent intent, PlayerActionType action)
 {
-    var opts = new List<DialogueInjectOption>();
+    var transitions = new List<DialogueTransition>();
 
     switch (intent)
     {
@@ -930,56 +930,56 @@ static List<DialogueInjectOption> BuildOptionsByIntent(
             string complyResp = action == PlayerActionType.WeaponDrawn
                 ? "……别再让{SpeakerSelfRef}看见你在这拔刀。"
                 : "……别再让{SpeakerSelfRef}看见你鬼鬼祟祟的。";
-            opts.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "NONE", NextTurn = "" });
-            opts.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextTurn = "continue_chat" });
-            opts.Add(new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextTurn = "" });
+            transitions.Add(new() { PlayerLine = complyLine, NpcResponse = r.Resolve(complyResp), Action = "NONE", NextNode = "" });
+            transitions.Add(new() { PlayerLine = "关你什么事？（挑衅）", NpcResponseOnSuccess = r.Resolve("……算了。"), NpcResponseOnFail = r.Resolve("来人！这有个闹事的！"), Action = "INTENT:Threat", NextNode = "continue_chat" });
+            transitions.Add(new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextNode = "" });
             break;
 
         case NpcInterceptIntent.Search:
-            opts.Add(new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextTurn = "search_result" });
-            opts.Add(new() { PlayerLine = "凭什么翻我东西？（拒绝）", NpcResponse = r.Resolve("不敢让人看？那就是有鬼了！"), Action = "INTENT:RefuseSearch", NextTurn = "recover_confront" });
-            opts.Add(new() { PlayerLine = "别查了，我赔你点钱。", NpcResponse = r.Resolve("……做贼心虚。拿了钱滚。"), Action = "INTENT:PayRestitution", NextTurn = "" });
-            opts.Add(new() { PlayerLine = "（转身就走）", NpcResponse = r.Resolve("站住！"), Action = "INTENT:WalkAway", NextTurn = "" });
+            transitions.Add(new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextNode = "search_result" });
+            transitions.Add(new() { PlayerLine = "凭什么翻我东西？（拒绝）", NpcResponse = r.Resolve("不敢让人看？那就是有鬼了！"), Action = "INTENT:RefuseSearch", NextNode = "recover_confront" });
+            transitions.Add(new() { PlayerLine = "别查了，我赔你点钱。", NpcResponse = r.Resolve("……做贼心虚。拿了钱滚。"), Action = "INTENT:PayRestitution", NextNode = "" });
+            transitions.Add(new() { PlayerLine = "（转身就走）", NpcResponse = r.Resolve("站住！"), Action = "INTENT:WalkAway", NextNode = "" });
             break;
 
         case NpcInterceptIntent.Recover:
-            opts.Add(new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("算你识相。别再来了。"), Action = "INTENT:PayRestitution", NextTurn = "" });
-            opts.Add(new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), NpcResponseOnSuccess = r.Resolve("……{SpeakerSelfRef}可能看错了。"), NpcResponseOnFail = r.Resolve("{SpeakerSelfRef}两只眼睛都看见了！"), Action = "INTENT:CharmDefense", NextTurn = "continue_chat" });
-            opts.Add(new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextTurn = "" });
+            transitions.Add(new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("算你识相。别再来了。"), Action = "INTENT:PayRestitution", NextNode = "" });
+            transitions.Add(new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), NpcResponseOnSuccess = r.Resolve("……{SpeakerSelfRef}可能看错了。"), NpcResponseOnFail = r.Resolve("{SpeakerSelfRef}两只眼睛都看见了！"), Action = "INTENT:CharmDefense", NextNode = "continue_chat" });
+            transitions.Add(new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextNode = "" });
             break;
 
         case NpcInterceptIntent.Stop:
-            opts.Add(new() { PlayerLine = r.Resolve("我愿意赔钱。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("光赔钱就完了？拿了钱快滚。"), Action = "INTENT:PayRestitution", NextTurn = "" });
-            opts.Add(new() { PlayerLine = "他先惹我的。", NpcResponseOnSuccess = r.Resolve("……下次再动手没这么好说话。"), NpcResponseOnFail = r.Resolve("在{SpeakerSelfRef}眼皮底下动手，就得有个说法！"), Action = "INTENT:CharmDefense", NextTurn = "continue_chat" });
-            opts.Add(new() { PlayerLine = "（拔剑）谁敢拦我！", NpcResponse = r.Resolve("{SpeakerPlayerAddr}疯了！快叫人！"), Action = "INTENT:FightVillagers", NextTurn = "" });
+            transitions.Add(new() { PlayerLine = r.Resolve("我愿意赔钱。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("光赔钱就完了？拿了钱快滚。"), Action = "INTENT:PayRestitution", NextNode = "" });
+            transitions.Add(new() { PlayerLine = "他先惹我的。", NpcResponseOnSuccess = r.Resolve("……下次再动手没这么好说话。"), NpcResponseOnFail = r.Resolve("在{SpeakerSelfRef}眼皮底下动手，就得有个说法！"), Action = "INTENT:CharmDefense", NextNode = "continue_chat" });
+            transitions.Add(new() { PlayerLine = "（拔剑）谁敢拦我！", NpcResponse = r.Resolve("{SpeakerPlayerAddr}疯了！快叫人！"), Action = "INTENT:FightVillagers", NextNode = "" });
             break;
     }
 
-    return opts;
+    return transitions;
 }
 
 /// <summary>搜查结果 turn（统一 ID "search_result"）：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。
 /// 有赃物 → NPC 质问（意图升级为 Recover）
 /// 无赃物 → NPC 道歉（警戒值清空）
-/// 调用前预判 hasStolenItems，生成时选择对应的内容分支。NextTurn 始终指向 "search_result"。</summary>
-static DialogueInjectTurn BuildSearchResultTurn(PlaceholderResolver r, bool hasStolenItems)
+/// 调用前预判 hasStolenItems，生成时选择对应的内容分支。NextNode 始终指向 "search_result"。</summary>
+static DialogueNode BuildSearchResultNode(PlaceholderResolver r, bool hasStolenItems)
 {
-    return new DialogueInjectTurn
+    return new DialogueNode
     {
         Id = "search_result",  // 统一 ID，内部按 hasStolenItems 分支内容
         SpeakerIndex = 0,
         NpcLine = hasStolenItems
             ? r.Resolve("（{SpeakerEmotion}地）这是什么？！还说没偷！")
             : r.Resolve("（{SpeakerEmotion}地）……行吧。是{SpeakerSelfRef}多心了。"),
-        Options = hasStolenItems
-            ? new List<DialogueInjectOption>
+        Transitions = hasStolenItems
+            ? new List<DialogueTransition>
             {
-                new() { PlayerLine = "……（无言以对）", Action = "INTENT:Confess", NextTurn = "continue_chat" },
-                new() { PlayerLine = "那是我的东西！", NpcResponse = r.Resolve("你的？上面还写着{TargetName}的名字呢！"), Action = "NONE", NextTurn = "continue_chat" },
+                new() { PlayerLine = "……（无言以对）", Action = "INTENT:Confess", NextNode = "continue_chat" },
+                new() { PlayerLine = "那是我的东西！", NpcResponse = r.Resolve("你的？上面还写着{TargetName}的名字呢！"), Action = "NONE", NextNode = "continue_chat" },
             }
-            : new List<DialogueInjectOption>
+            : new List<DialogueTransition>
             {
-                new() { PlayerLine = "我说了没拿吧。", Action = "NONE", NextTurn = "" },
+                new() { PlayerLine = "我说了没拿吧。", Action = "NONE", NextNode = "" },
             }
     };
 }
