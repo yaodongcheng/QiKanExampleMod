@@ -15,17 +15,35 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 查模板 + 解析占位符。所有占位符统一走 PlaceholderResolver。
         /// targetName / itemName 为 Mission 层脉冲上下文，传 null 时对应占位符解析为空字符串。
+        ///
+        /// 两阶段回落：① NpcSpeech.csv 精确 ID 匹配 → ② Narrative.csv（仅当 narrativeFallback 非 null）。
+        /// 均未命中返回 null，由调用方提供硬编码兜底（?? 运算符）。
         /// </summary>
         public static string Resolve(string templateId, Hero speaker, Hero listener = null,
-            WorldEvent evt = null, string targetName = null, string itemName = null)
+            WorldEvent evt = null, string targetName = null, string itemName = null,
+            NarrativeFilters narrativeFallback = null)
         {
             // ① 查 NpcSpeech.csv 取模板文本
             string template = LookupTemplate(templateId);
-            if (string.IsNullOrEmpty(template)) return null;
+            if (!string.IsNullOrEmpty(template))
+            {
+                var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName);
+                return r.Resolve(template);
+            }
 
-            // ② 委托 PlaceholderResolver 做占位符替换（含 Campaign 语境 + Mission 层脉冲上下文）
-            var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName);
-            return r.Resolve(template);
+            // ② 回落 Narrative.csv（过渡期兼容，长期 Narrative.csv 迁移到 NpcSpeech.csv 后删除此段）
+            if (narrativeFallback != null)
+            {
+                string narrativeText = NarrativeResolver.TryResolveText(narrativeFallback);
+                if (!string.IsNullOrEmpty(narrativeText))
+                {
+                    var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName);
+                    return r.Resolve(narrativeText);
+                }
+            }
+
+            // 均未命中 → null，调用方 ?? 硬编码兜底
+            return null;
         }
 
         /// <summary>
