@@ -1025,7 +1025,7 @@ namespace LivingWorldNpcs
             // 优先级 200 碾压原版开场白，无论 NPC 类型都不需要单独适配。
             script.InjectAtToken = "start";
             string injectResult = DialogueInjector.InjectScriptAsOpening(script, label);
-            DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) InjectScriptAsOpening: {injectResult} | Turns={script.Turns?.Count ?? 0}");
+            DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) InjectScriptAsOpening: {injectResult} | Nodes={script.Nodes?.Count ?? 0}");
 
             DialogueInjector.LogScript(script, $"[AlertForceConv] {agent.Name}(Idx={agent.Index})");
 

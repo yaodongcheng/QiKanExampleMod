@@ -19,7 +19,7 @@ metadata:
 
 ### 模型层
 
-[`DialogueInjector.cs` — `DialogueInjectOption`](ExampleModVS/ExampleMod/ExampleMod/Interaction/Dialogue/DialogueInjector.cs)：
+[`DialogueInjector.cs` — `DialogueTransition`](ExampleModVS/ExampleMod/ExampleMod/Interaction/Dialogue/DialogueInjector.cs)：
 
 ```csharp
 [Newtonsoft.Json.JsonIgnore]
@@ -36,7 +36,7 @@ cm.AddDialogLineMultiAgent(
     textObj,
     () =>
     {
-        textObj.Value = opt.LazyNpcResponse();
+        textObj.Value = transition.LazyNpcResponse();
         // 清除内部缓存，确保 GetCachedTokens() 从新 Value 重新 tokenize
         typeof(TextObject).GetField("cachedTokens",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
@@ -46,13 +46,13 @@ cm.AddDialogLineMultiAgent(
             ?.SetValue(textObj, -1);
         return true;
     },
-    null, turn.SpeakerIndex, -1, 125);
+    null, node.SpeakerIndex, -1, 125);
 ```
 
 ### 使用方式（`CrimeDialogueBuilder`）
 
 ```csharp
-new DialogueInjector.DialogueInjectOption
+new DialogueInjector.DialogueTransition
 {
     PlayerLine = "我得走了。",
     LazyNpcResponse = () =>
@@ -62,7 +62,7 @@ new DialogueInjector.DialogueInjectOption
         // ...
     },
     Action = "INTENT:WalkAway",
-    NextTurn = ""
+    NextNode = ""
 }
 ```
 
@@ -74,15 +74,15 @@ new DialogueInjector.DialogueInjectOption
 
 | 字段 | 注入方式 | 可延迟？ |
 |------|----------|----------|
-| `turn.NpcLine` | `cm.AddDialogLineMultiAgent(..., new TextObject(...))` | ✅ 自己创建 TextObject |
-| `opt.NpcResponse` | 同上 | ✅ 已实现 `LazyNpcResponse` |
-| `opt.NpcResponseOnSuccess/Fail` | 同上 | ⚠️ 可与条件逻辑组合，但较复杂 |
-| `opt.PlayerLine` | `pdf.AddPlayerLine(..., string)` | ❌ `AddPlayerLine` 只收 string |
+| `node.NpcLine` | `cm.AddDialogLineMultiAgent(..., new TextObject(...))` | ✅ 自己创建 TextObject |
+| `transition.NpcResponse` | 同上 | ✅ 已实现 `LazyNpcResponse` |
+| `transition.NpcResponseOnSuccess/Fail` | 同上 | ⚠️ 可与条件逻辑组合，但较复杂 |
+| `transition.PlayerLine` | `pdf.AddPlayerLine(..., string)` | ❌ `AddPlayerLine` 只收 string |
 | `script.EntryOption` | `gateDf.AddPlayerLine(..., string)` | ❌ 同上 |
 
 ### 扩展 `LazyNpcLine`
 
-`DialogueInjectTurn` 加字段：
+`DialogueNode` 加字段：
 
 ```csharp
 [Newtonsoft.Json.JsonIgnore]

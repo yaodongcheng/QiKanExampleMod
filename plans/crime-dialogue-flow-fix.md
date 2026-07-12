@@ -33,7 +33,7 @@
 
 **现状**：
 - `ConfessWalkAwayIntent` 只处理"自首后走人"（Emerging/Active + SuspectIsPlayer），设了个 pending Inquiry 等 EndConversation 弹
-- 其他阶段的"转身就走"/"我走了"是裸 `Action = "NONE"` + `NextTurn = "close_window"`，**没有任何后果**
+- 其他阶段的"转身就走"/"我走了"是裸 `Action = "NONE"` + `NextNode = "close_window"`，**没有任何后果**
 - `ConfessIntent.OnInstant` 会在**每次自首时**都预设 `ConfessWalkAwayIntent.PendingInquiryTitle`，导致即使玩家最后赔了钱，EndConversation 时仍然弹"站住！" Inquiry（本次日志中观察到了这个 bug）
 
 **用户期望**：
@@ -64,11 +64,11 @@ Quest Journal 只记录了"开始"和"结束"两条模板日志。中间玩家�
 Turn "continue_chat":
   NPC line: ""（空 — NPC 刚才已经说了回应，不需要再说话）
   Options:
-    - "说点别的……" → NextTurn = ""（空 → DialogueInjector 将其解释为回到 vanilla hero_main_options）
+    - "说点别的……" → NextNode = ""（空 → DialogueInjector 将其解释为回到 vanilla hero_main_options）
     - "我得走了。" → Action = "INTENT:WalkAway"
 ```
 
-**DialogueInjector 改动**：当 option 的 `NextTurn` 为空/空字符串时，不路由到 `close_window`，而是路由到 vanilla `hero_main_options` token（让玩家回到原版对话主菜单，可以说"我得走了"、交易、招募等原版选项）。
+**DialogueInjector 改动**：当 option 的 `NextNode` 为空/空字符串时，不路由到 `close_window`，而是路由到 vanilla `hero_main_options` token（让玩家回到原版对话主菜单，可以说"我得走了"、交易、招募等原版选项）。
 
 > **为什么路由到 `hero_main_options` 而不是留在犯罪对话里？**
 > 因为 Intent 执行后 WorldEvent stage 可能已经变了（Emerging→Confrontation / Active→Resolved），继续留在同一批注入的 turn 里会展示过时文本。回到 `hero_main_options` 后：
@@ -92,7 +92,7 @@ Turn "continue_chat":
 
 `"太贵了，不赔"` 统一回到 `continue_chat`，所有阶段体验一致。
 
-#### 1.4 PayRestitution 的 NextTurn
+#### 1.4 PayRestitution 的 NextNode
 
 赔钱后 NPC 说"好，钱留下，这事就算了。" → 然后到 `continue_chat`（而不是 `close_window`）。
 
@@ -207,7 +207,7 @@ public static void AddNarrativeLog(WorldEvent evt, string message)
 | 文件 | 改动类型 | 内容 |
 |------|---------|------|
 | `Interaction/Dialogue/CrimeDialogueBuilder.cs` | 🔴 重构 | 新增 `continue_chat` turn；删除 `confess_close`/`confront_close` closing turn 调用；所有 resolution option → `continue_chat`；统一 declineTurn；"转身就走" → WalkAway |
-| `Interaction/Dialogue/DialogueInjector.cs` | 🟡 改动 | 空 NextTurn 路由到 `hero_main_options` 而非 `close_window` |
+| `Interaction/Dialogue/DialogueInjector.cs` | 🟡 改动 | 空 NextNode 路由到 `hero_main_options` 而非 `close_window` |
 | `Interaction/Dialogue/ConversationEntryPatch.cs` | 🟡 改动 | EndConversation 加日志；`ConfessWalkAwayIntent.PendingInquiry*` 改为 `WalkAwayIntent.PendingInquiry*` |
 | `Interaction/Intents/AccountabilityIntents.cs` | 🔴 重构 | 新增 `WalkAwayIntent`；删除 `ConfessWalkAwayIntent`；`ConfessIntent.OnInstant` 不再预设 PendingInquiry；所有 Intent 的 OnSuccess/OnFail/OnInstant 补叙事日志 |
 | `Quests/Commissions/CommissionQuest.cs` | 🟡 新增 | 静态 helper `AddNarrativeLog(WorldEvent, string)`；`OnWorldEventStageChanged` 补阶段变化叙事日志 |

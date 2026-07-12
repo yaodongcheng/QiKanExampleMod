@@ -929,7 +929,7 @@ public static class CrimeDialogueBuilder
     {
         var r = new PlaceholderResolver(evt, speaker, listener);
         var ctx = BuildIntentContext(evt, speaker);
-        var turns = new List<DialogueInjectTurn>();
+        var turns = new List<DialogueNode>();
 
         switch (evt.Stage)
         {
@@ -963,8 +963,8 @@ public static class CrimeDialogueBuilder
         return new DialogueInjectScript
         {
             EntryOption = r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？"),
-            EntryTurn = "start",
-            Turns = turns
+            EntryNode = "start",
+            Nodes = turns
         };
     }
 
@@ -1012,10 +1012,10 @@ public class PlaceholderResolver
 每轮对话的选项不由 JSON 静态定义——由相关 Intent 的 `Evaluate` 在注入时动态决定：
 
 ```csharp
-static List<DialogueInjectOption> BuildOptions(
+static List<DialogueTransition> BuildOptions(
     string[] intentNames, PlaceholderResolver r, IntentContext ctx)
 {
-    var options = new List<DialogueInjectOption>();
+    var options = new List<DialogueTransition>();
 
     foreach (var name in intentNames)
     {
@@ -1025,7 +1025,7 @@ static List<DialogueInjectOption> BuildOptions(
         var eligibility = intent.Evaluate(ctx);
         if (eligibility.State == EligState.Hidden) continue;
 
-        var opt = new DialogueInjectOption
+        var transition = new DialogueTransition
         {
             PlayerLine = intent.ResolvePlayerLine(r),
             Action = $"INTENT:{name}",
@@ -1035,16 +1035,16 @@ static List<DialogueInjectOption> BuildOptions(
 
         if (intent.Goal != null)  // 检定类 Intent
         {
-            opt.NextTurn = $"result_{name}";
-            // 同时注册检定成功/失败两个分支 turn
+            transition.NextNode = $"result_{name}";
+            // 同时注册检定成功/失败两个分支 node
             BuildSkillCheckResultTurns(turns, intent, r);
         }
         else
         {
-            opt.NextTurn = "close_window";
+            transition.NextNode = "close_window";
         }
 
-        options.Add(opt);
+        options.Add(transition);
     }
 
     return options;
@@ -1065,7 +1065,7 @@ static List<DialogueInjectOption> BuildOptions(
 | 新占位符（如需要） | 本文件第一章 | 如果新玩法出现了现有占位符无法描述的信息维度 |
 | 新场景模板（如需要） | 本文件第二章 | 如果新玩法出现了现有 50+ 场景无法覆盖的对话情境 |
 | 新 Intent（如需要） | `AccountabilityIntents.cs` | 如果新玩法有独特的玩家操作 |
-| `CrimeDialogueBuilder` | 新增 Build 方法 | 如果新场景需要新的 turn 构建逻辑 |
+| `CrimeDialogueBuilder` | 新增 Build 方法 | 如果新场景需要新的 node 构建逻辑 |
 
 ### 4.2 判断"是否需要新占位符/新场景模板"的决策树
 

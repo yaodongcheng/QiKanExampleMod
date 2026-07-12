@@ -582,42 +582,42 @@ public void ResolveAdversarialIntent(IntentBase intent, IntentContext ctx)
 **流程**：
 > 玩家点"求饶" → roll 失败 → `OnFail` 设 `ctx.ActionParam = "counteroffer_beg"` → NPC 台词"哈！现在翻倍！" → `ReofferOnFail=true` → `RefreshInitialOptions()` → `BuildOptionVMs` 重新跑所有 `Evaluate` → `PayIntent` 读到 counteroffer → 显示 400G
 
-### 6f. DialogueInjectOption 新增：NextTurnOnFail（DialogueInjector 路径用）
+### 6f. DialogueTransition 新增：NextNodeOnFail（DialogueInjector 路径用）
 
-上述 `ReofferOnFail` 依赖 `InteractionController.RefreshInitialOptions()`（动态重求值），仅适用于 `InteractionOptionManager` 路径。**对话注入路径**（`DialogueInjector.InjectScriptAsOpening`）的 turn 是预构建的静态结构，无法运行时重求值。因此需要 `NextTurnOnFail`：
+上述 `ReofferOnFail` 依赖 `InteractionController.RefreshInitialOptions()`（动态重求值），仅适用于 `InteractionOptionManager` 路径。**对话注入路径**（`DialogueInjector.InjectScriptAsOpening`）的 node 是预构建的静态结构，无法运行时重求值。因此需要 `NextNodeOnFail`：
 
 ```csharp
-// DialogueInjectOption 新增字段：
-/// <summary>检定失败后跳转的 turn（覆盖 NextTurn）。不设则走 NextTurn（现有行为兼容）。</summary>
-public string NextTurnOnFail = null;
+// DialogueTransition 新增字段：
+/// <summary>检定失败后跳转的 node（覆盖 NextNode）。不设则走 NextNode（现有行为兼容）。</summary>
+public string NextNodeOnFail = null;
 ```
 
 ```csharp
-// RegisterNpcResponseLines 中，失败线用 NextTurnOnFail 目标：
-string afterNpcOnFail = !string.IsNullOrEmpty(opt.NextTurnOnFail)
-    ? TurnToken(fileTag, opt.NextTurnOnFail)
+// RegisterNpcResponseLines 中，失败线用 NextNodeOnFail 目标：
+string afterNpcOnFail = !string.IsNullOrEmpty(transition.NextNodeOnFail)
+    ? NodeToken(fileTag, transition.NextNodeOnFail)
     : afterNpcResponse;
 
 // 失败线
-if (!string.IsNullOrEmpty(opt.NpcResponseOnFail))
+if (!string.IsNullOrEmpty(transition.NpcResponseOnFail))
 {
     cm.AddDialogLineMultiAgent(
-        $"inj_resp_fail_{Guid.NewGuid():N}", afterPlayer, afterNpcOnFail,  // ← 可能去不同 turn
-        new TextObject(opt.NpcResponseOnFail),
+        $"inj_resp_fail_{Guid.NewGuid():N}", afterPlayer, afterNpcOnFail,  // ← 可能去不同 node
+        new TextObject(transition.NpcResponseOnFail),
         () => _intentResults.TryGetValue(capturedKey, out var r) && !r,
-        null, turn.SpeakerIndex, -1, 125);
+        null, node.SpeakerIndex, -1, 125);
 }
 ```
 
 **两种机制对照**：
 
-| | ReofferOnFail | NextTurnOnFail |
+| | ReofferOnFail | NextNodeOnFail |
 |---|---|---|
 | 用在 | `InteractionOptionManager` 路径 | `DialogueInjector` 路径 |
-| 原理 | `RefreshInitialOptions()` 动态重求值 | 预构建的 counteroffer turn |
-| 选项 | 动态（`BuildOptionVMs` 每次重跑 Evaluate） | 静态（turn 构建时固定） |
+| 原理 | `RefreshInitialOptions()` 动态重求值 | 预构建的 counteroffer node |
+| 选项 | 动态（`BuildOptionVMs` 每次重跑 Evaluate） | 静态（node 构建时固定） |
 | NPC 台词 | `DialogueTemplateHelper` 自动分化 | `NpcResponseOnFail` 手动指定 |
-| 适用 | 选项需要根据状态动态变化的场景 | 对话流复杂、多 turn 跳转的场景 |
+| 适用 | 选项需要根据状态动态变化的场景 | 对话流复杂、多 node 跳转的场景 |
 
 ---
 
@@ -723,38 +723,38 @@ private void PlayerSurrenderToAgent(Agent target)
     var script = new DialogueInjector.DialogueInjectScript
     {
         InjectAtToken = "start",
-        EntryTurn = "player_lose",
-        Turns = new List<DialogueInjector.DialogueInjectTurn>
+        EntryNode = "player_lose",
+        Nodes = new List<DialogueInjector.DialogueNode>
         {
             // ── Turn 1: 投降菜单 ──
-            new DialogueInjector.DialogueInjectTurn
+            new DialogueInjector.DialogueNode
             {
                 Id = "player_lose",
                 SpeakerIndex = 0,
                 NpcLine = "（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来，饶你一命。",
-                Options = new List<DialogueInjector.DialogueInjectOption>
+                Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     // ① 乖乖交钱 — 安全，但屈辱
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "……（交出钱袋）",
                         NpcResponse = "算你识相。下次长点眼力见，滚吧！",
                         Action = "INTENT:PlayerSurrenderPay",
                         ActionParam = "pay"
                     },
-                    // ② 求饶说服 — 魅力检定，成功免单，失败 → counteroffer turn
-                    new DialogueInjector.DialogueInjectOption
+                    // ② 求饶说服 — 魅力检定，成功免单，失败 → counteroffer node
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "求你放过我，我只是路过……",
                         NpcResponseOnSuccess = "……啧，算你运气好。滚，别让我再看见你。",
                         NpcResponseOnFail = "废话少说！求饶？现在翻倍——400 第纳尔，一个子儿不能少！",
                         Action = "INTENT:PlayerSurrenderBeg",
                         ActionParam = "beg",
-                        NextTurn = "",                                // 成功 → 关闭对话
-                        NextTurnOnFail = "player_lose_counteroffer"   // 失败 → 翻倍还价
+                        NextNode = "",                                // 成功 → 关闭对话
+                        NextNodeOnFail = "player_lose_counteroffer"   // 失败 → 翻倍还价
                     },
                     // ③ 破口大骂 — 胆魄检定，成功 NPC 怂了，失败继续打
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "你这条狗！杀了我你也别想好过！",
                         NpcResponseOnSuccess = "……疯子。滚，别让我再看见你。",
@@ -764,27 +764,27 @@ private void PlayerSurrenderToAgent(Agent target)
                     }
                 }
             },
-            // ── Turn 2: 求饶失败后的 counteroffer turn ──
-            new DialogueInjector.DialogueInjectTurn
+            // ── Turn 2: 求饶失败后的 counteroffer node ──
+            new DialogueInjector.DialogueNode
             {
                 Id = "player_lose_counteroffer",
                 SpeakerIndex = 0,
                 NpcLine = "（冷笑）最后一次机会——400 第纳尔，或者咱们接着打。你选。",
-                Options = new List<DialogueInjector.DialogueInjectOption>
+                Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "……（交出 400 第纳尔）",
                         NpcResponse = "算你识相。滚吧！",
                         Action = "INTENT:PlayerSurrenderPay",
                         ActionParam = "counteroffer_beg"  // PayIntent 读到 → 罚金 400G
                     },
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "（拼死一战）",
                         NpcResponse = "好！那就打到你爬不起来！",
                         Action = "NONE",
-                        NextTurn = ""  // 关闭对话，继续战斗
+                        NextNode = ""  // 关闭对话，继续战斗
                     }
                 }
             }
@@ -807,7 +807,7 @@ player_lose: "把钱袋交出来！"
   ├─ ① 交钱 → INTENT:Pay?pay → 扣 200G → close
   ├─ ② 求饶 → INTENT:Beg → roll
   │   ├─ 成功 → "算你运气好" → close
-  │   └─ 失败 → NextTurnOnFail → player_lose_counteroffer
+  │   └─ 失败 → NextNodeOnFail → player_lose_counteroffer
   └─ ③ 威胁 → INTENT:Threaten → roll → 成功/失败
 
 player_lose_counteroffer: "400 第纳尔！"
@@ -827,18 +827,18 @@ private void AcceptAgentSurrender(Agent target)
     var script = new DialogueInjector.DialogueInjectScript
     {
         InjectAtToken = "start",
-        EntryTurn = "npc_beg",
-        Turns = new List<DialogueInjector.DialogueInjectTurn>
+        EntryNode = "npc_beg",
+        Nodes = new List<DialogueInjector.DialogueNode>
         {
-            new DialogueInjector.DialogueInjectTurn
+            new DialogueInjector.DialogueNode
             {
                 Id = "npc_beg",
                 SpeakerIndex = 0,
                 NpcLine = "（丢下武器，踉跄后退，举起双手）别、别打了……我认输！",
-                Options = new List<DialogueInjector.DialogueInjectOption>
+                Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     // ① 宽宏大量
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "你走吧。",
                         NpcResponse = "多、多谢！我这就走……",
@@ -846,7 +846,7 @@ private void AcceptAgentSurrender(Agent target)
                         ActionParam = "accept"
                     },
                     // ② 羞辱对方
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "给我跪下磕头认错！",
                         NpcResponse = $"（{npcName}屈辱地跪倒在地，额头重重磕在地上……）",
@@ -854,7 +854,7 @@ private void AcceptAgentSurrender(Agent target)
                         ActionParam = "humiliate"
                     },
                     // ③ 索要赎金
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "把钱交出来，饶你一命。",
                         NpcResponse = "好、好……都给你！求你放过我……",
@@ -862,7 +862,7 @@ private void AcceptAgentSurrender(Agent target)
                         ActionParam = "ransom"
                     },
                     // ④ 拒绝认输
-                    new DialogueInjector.DialogueInjectOption
+                    new DialogueInjector.DialogueTransition
                     {
                         PlayerLine = "太迟了。继续打！",
                         NpcResponse = $"不——！（{npcName}绝望地重新抓起武器）",
@@ -916,7 +916,7 @@ public string NpcIntentDebugText
 |------|------|--------|------|
 | 玩家认输 ① | "……（交出钱袋）" | `INTENT:PlayerSurrenderPay?pay` | -200G，荣誉 -1，勇敢 -1，战斗结束 |
 | 玩家认输 ①' | （counteroffer 后）"……（交出 400 第纳尔）" | `INTENT:PlayerSurrenderPay?counteroffer_beg` | **-400G**（翻倍），荣誉 -1，勇敢 -1，战斗结束 |
-| 玩家认输 ② | "求你放过我……（说服）" | `INTENT:PlayerSurrenderBeg?beg` | **成功**: 免单，荣誉 -1，战斗结束；**失败**: 不扣任何东西 → 跳转 counteroffer turn（罚金翻倍至 400G） |
+| 玩家认输 ② | "求你放过我……（说服）" | `INTENT:PlayerSurrenderBeg?beg` | **成功**: 免单，荣誉 -1，战斗结束；**失败**: 不扣任何东西 → 跳转 counteroffer node（罚金翻倍至 400G） |
 | 玩家认输 ③ | "你这条狗！……（威胁）" | `INTENT:PlayerSurrenderThreaten?threaten` | **成功**: 免单，荣誉 -1（勇敢不变，有骨气）；**失败**: NPC 暴怒，继续战斗 |
 | 接受认输 ① | "你走吧。" | `INTENT:ResolveNpcSurrender?accept` | 好感 +2，战斗结束 |
 | 接受认输 ② | "给我跪下磕头！" | `INTENT:ResolveNpcSurrender?humiliate` | 好感 -10，NPC 嗑头动画，战斗结束 |
@@ -924,7 +924,7 @@ public string NpcIntentDebugText
 | 接受认输 ④ | "太迟了，继续打！" | `INTENT:ResolveNpcSurrender?refuse` | 拒绝，NpcIntent→Fighting，继续战斗 |
 
 **关键设计变更**：
-- 求饶失败 **不再自动扣钱**。检定失败 ≠ 玩家同意支付。改为 NPC 还价（罚金翻倍），玩家在 counteroffer turn 中自主选择接受或拒绝。
+- 求饶失败 **不再自动扣钱**。检定失败 ≠ 玩家同意支付。改为 NPC 还价（罚金翻倍），玩家在 counteroffer node 中自主选择接受或拒绝。
 - 对标 KCD2：先认罪再讨价还价——认罪/求饶本身不是终结，是谈判的起点。
 
 ---

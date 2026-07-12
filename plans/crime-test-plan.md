@@ -149,7 +149,7 @@ Phase 5 (LLM) 和 Phase 6 (新犯罪类型) 不在本次测试范围。
 |------|------|
 | **触发条件** | Step 1.5 对话中，玩家是贼（`InitiatorIsPlayer`），选"（低头）是我干的" (`INTENT:Confess`) |
 | **玩家操作** | 在发现对话中选自首 → ConfessIntent.OnInstant 将 SuspectHeroId 设为玩家 → 进入 confess turn |
-| **代码路径** | `BuildDiscoveryTurn` → 检测 `InitiatorIsPlayer` → 插入"主动认栽"选项 → `NextTurn=confess` |
+| **代码路径** | `BuildDiscoveryTurn` → 检测 `InitiatorIsPlayer` → 插入"主动认栽"选项 → `NextNode=confess` |
 | | → `BuildConfessTurn`：三个选项：赔钱 / Charm辩护 / 转身走 |
 | **预期游戏表现** | NPC 回应："你？！……好，既然自己认了，咱们可以商量。" |
 | | 三个选项：① 赔钱 (`INTENT:PayRestitution`) ② Charm辩护 (`INTENT:CharmDefense`) ③ 转身走 |

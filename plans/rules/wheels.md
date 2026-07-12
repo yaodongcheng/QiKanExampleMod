@@ -824,17 +824,17 @@ public static class ChangeInteractionTextPatch
 {
   "InjectAtToken": null,           // 挂载点: null="hero_main_options", "quest_offer", "issue_offer"
   "EntryOption": "（闲聊）…",       // NPC 主菜单里的入口选项文本。缺省用文件名。
-  "EntryTurn": "start",            // 从哪个 turn 开始
-  "turns": [
+  "EntryNode": "start",            // 从哪个 node 开始
+  "Nodes": [
     {
-      "Id": "start",               // 唯一标识（可被 NextTurn 引用）
+      "Id": "start",               // 唯一标识（可被 NextNode 引用）
       "SpeakerIndex": 0,           // 谁说（0=对话中的第一个 NPC）
       "NpcLine": "啊，你来得正好！",
-      "Options": [
+      "Transitions": [
         {
           "PlayerLine": "什么怪事？",
           "NpcResponse": "最近夜里总有人……",
-          "NextTurn": "more_detail",   // 选此选项后跳转的 turn Id。null=关闭对话
+          "NextNode": "more_detail",   // 选此选项后跳转的 node Id。null=关闭对话
           "Action": "NONE",            // INCREASE_RELATION / DECREASE_RELATION / GIVE_GOLD / TAKE_GOLD
           "ActionValue": 0
         }
@@ -844,7 +844,7 @@ public static class ChangeInteractionTextPatch
 }
 ```
 
-**Turn 图结构**：`Id` = 节点标识，`NextTurn` = 边。不同选项可以指向完全不同的后续 turn。引擎运行时：`TurnToken(fileTag, turnId) → "lwnpc_<文件名>_<turnId>"` 作为 ConversationManager token。
+**Node 图结构**：`Id` = 节点标识，`NextNode` = 边。不同选项可以指向完全不同的后续 node。引擎运行时：`NodeToken(fileTag, turnId) → "lwnpc_<文件名>_<turnId>"` 作为 ConversationManager token。
 
 ## 核心 API
 
@@ -872,10 +872,10 @@ custom.inject_dialogue clear           → 清除所有注入
 
 ## 底层原理
 
-直接操作 `ConversationManager` 的 `_sentences` 表（token 状态机），**不依赖 `DialogFlow` 建造者**。每个 turn 注册为：
+直接操作 `ConversationManager` 的 `_sentences` 表（token 状态机），**不依赖 `DialogFlow` 建造者**。每个 node 注册为：
 1. NPC 台词 → `AddDialogLineMultiAgent`（非玩家句子，引擎自动播）
 2. 玩家选项 → `AddPlayerLine`（通过 `DialogFlow` 薄壳）
-3. NPC 回应 → `AddDialogLineMultiAgent`（输出到 `NextTurn` 的 token 或 `close_window`）
+3. NPC 回应 → `AddDialogLineMultiAgent`（输出到 `NextNode` 的 token 或 `close_window`）
 
 清理：`RemoveRelatedLines(owner)` 按归属哨兵批量删除，不动原版对话。
 

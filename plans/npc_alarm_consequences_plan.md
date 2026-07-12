@@ -36,8 +36,8 @@ Patch 层只负责发事件，不得直接调 `CombatManager.StartFight` 或 `br
 - 新增 `internal static Agent PendingCombatAgent`
 - `OnFail`（Alert 上下文）：设标记，删 `TryRaiseNearbyAlert`（已有 `event_agent_damaged` 广播负责群起）
 
-**`CrimeDialogueBuilder.cs` — `BuildOptionsByIntent`（Deter 分支）**：
-- Threat 选项 `NextTurn` 从 `"continue_chat"` 改 `""`（威胁完就关对话，无论输赢）
+**`CrimeDialogueBuilder.cs` — `BuildTransitionsByIntent`（Deter 分支）**：
+- Threat 选项 `NextNode` 从 `"continue_chat"` 改 `""`（威胁完就关对话，无论输赢）
 
 **`ConversationEntryPatch.cs` — `ResetCrimeDialogueOnConversationEndPatch.Postfix`**：
 - 在已有清理之后追加：
@@ -213,15 +213,15 @@ Patch 层只负责发事件，不得直接调 `CombatManager.StartFight` 或 `br
 
 **`CrimeDialogueBuilder.cs`**：Deter + escalated 路径加两个投降子选项：
 ```csharp
-opts.Add(new() { 
+transitions.Add(new() { 
     PlayerLine = "我认罚。（100 第纳尔）", 
     NpcResponse = r.Resolve("扰乱治安，罚款100第纳尔。算你识相。别再来了。"), 
-    Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextTurn = "" 
+    Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextNode = "" 
 });
-opts.Add(new() { 
+transitions.Add(new() { 
     PlayerLine = "我没钱。要抓就抓吧。", 
     NpcResponse = r.Resolve("没钱还敢闹事？！来人，把他关进地牢！"), 
-    Action = "INTENT:SurrenderJail", NextTurn = "" 
+    Action = "INTENT:SurrenderJail", NextNode = "" 
 });
 ```
 
@@ -280,7 +280,7 @@ opts.Add(new() {
 | `AgentAIController.cs` | BroadcastEventInRange: event_agent_damaged 时加 NpcSightSystem 视线过滤 |
 | `AgentBrain.cs` | +"DeferredCombat"处理器, +"ReEngageConfrontation"处理器, +"event_agent_damaged" BubbleSay, +ClearAllAlerts |
 | `AtomicAction.cs` | AlertForceConversationAction: +_escalated字段, 构造函数重载, 传给BuildAlertInterceptScript |
-| `CrimeDialogueBuilder.cs` | BuildAlertInterceptScript: +escalated参数。BuildOptionsByIntent: Threat的NextTurn→""。Deter/escalated: +投降(赔钱/坐牢)。continue_chat: escalated→拔剑替代我走了 |
+| `CrimeDialogueBuilder.cs` | BuildAlertInterceptScript: +escalated参数。BuildTransitionsByIntent: Threat的NextNode→""。Deter/escalated: +投降(赔钱/坐牢)。continue_chat: escalated→拔剑替代我走了 |
 | `NpcSpeech.csv` | +CombatJoin_Victim, +CombatJoin_Bystander |
 | `IntentRegistry.cs` | 注册 SurrenderJailIntent |
 

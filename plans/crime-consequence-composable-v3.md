@@ -1087,7 +1087,7 @@ IntentBase 动态构建 ──────┘
   "Id": "confront_player",
   "SpeakerIndex": 0,
   "NpcLine": "（冷冷地看着你）你还敢来？村里人都说是你干的。你有什么要说的？",
-  "Options": [
+  "Transitions": [
     {
       "PlayerLine": "你们搞错了。给我个机会说清楚。",
       "Action": "INTENT:CharmDefense"
@@ -1113,7 +1113,7 @@ IntentBase 动态构建 ──────┘
 {
   "Id": "report_findings",
   "NpcLine": "怎么样？查到什么了吗？",
-  "Options": [
+  "Transitions": [
     {
       "PlayerLine": "是附近藏身处的强盗干的！",
       "Action": "INTENT:FrameSuspect",
@@ -1138,7 +1138,7 @@ IntentBase 动态构建 ──────┘
 {
   "Id": "frame_bandit_confirm",
   "NpcLine": "强盗偷牲口，天经地义。好，我信你——就是他们干的！",
-  "Options": [
+  "Transitions": [
     {
       "PlayerLine": "那我去把强盗窝端了。",
       "NpcResponse": "拜托了！抓到贼首，我必有重谢。",
@@ -1152,7 +1152,7 @@ IntentBase 动态构建 ──────┘
 {
   "Id": "frame_hero_present_evidence",
   "NpcLine": "这件东西……你是从哪找到的？",
-  "Options": [
+  "Transitions": [
     {
       "PlayerLine": "[出示证物] 在他住处附近捡到的。",
       "NpcResponse": "（仔细看了看）……这确实是他的东西。好，那就是他了！",
@@ -1165,7 +1165,7 @@ IntentBase 动态构建 ──────┘
       "PlayerLine": "我没证据，但我肯定是他。",
       "NpcResponse": "光凭嘴说可不行……（犹豫地看着你）",
       "Condition": "!HasEvidence()",
-      "NextTurn": "frame_bare_roll"
+      "NextNode": "frame_bare_roll"
     }
   ]
 }
@@ -1174,11 +1174,11 @@ IntentBase 动态构建 ──────┘
 {
   "Id": "frame_bare_roll",
   "NpcLine": "{SkillCheckResult}",
-  "Options": [
+  "Transitions": [
     {
       "PlayerLine": "{Success: 我就知道！/ Failure: 换个人指……}",
       "NpcResponse": "{Success: 好，我信你。/ Failure: 你越说越不对劲……}",
-      "NextTurn": "{Success: close_window / Failure: fail_forward}",
+      "NextNode": "{Success: close_window / Failure: fail_forward}",
       "Action": "{Success: INTENT:FrameSuspect / Failure: NONE}"
     }
   ]
@@ -1188,7 +1188,7 @@ IntentBase 动态构建 ──────┘
 {
   "Id": "fail_forward",
   "NpcLine": "{FailCount == 1: '这次就算了，你再去查查。' / FailCount >= 2: '你一会指这个一会指那个……该不会就是你干的？'}",
-  "Options": [
+  "Transitions": [
     {
       "PlayerLine": "{FailCount == 1: 我再查查 / FailCount >= 2: （语塞）}",
       "NpcResponse": "{FailCount == 1: 去吧。/ FailCount >= 2: 果然是你！（嫌疑转回玩家）}",
@@ -1201,7 +1201,7 @@ IntentBase 动态构建 ──────┘
 {
   "Id": "confess_restitution",
   "NpcLine": "你？！……（沉默片刻）好。既然你自己认了，咱们可以商量。",
-  "Options": [
+  "Transitions": [
     {
       "PlayerLine": "我愿意赔。",
       "Action": "INTENT:PayRestitution"
@@ -1217,7 +1217,7 @@ IntentBase 动态构建 ──────┘
 | | JSON 负责 | Intent 负责 |
 |---|---------|-----------|
 | NPC 台词 | ✅ 固定文本 | — |
-| 对话 turn 结构 | ✅ Id / NextTurn 跳转 | — |
+| 对话 turn 结构 | ✅ Id / NextNode 跳转 | — |
 | 选项可见性 | 静态 Condition | ✅ Evaluate(ctx) 动态判断 |
 | 选项文本 | ✅ 骨架 + 占位符 | ✅ 动态填充（`{cost}` `{DC}` `{TargetName}`） |
 | 技能 DC | — | ✅ 运行时计算 |
