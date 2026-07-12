@@ -292,6 +292,31 @@ namespace LivingWorldNpcs
                     }
                 }
             }
+
+            // 🆕 诱捕 FadeOut：LureArrestIntent.OnSuccess 已在对话中捕获 NPC，
+            // 但 Agent 需等对话窗口完全关闭后再淡出，避免 NPC 一边说话一边消失。
+            var fadeAgent = LureArrestIntent.PendingFadeAgent;
+            if (fadeAgent != null)
+            {
+                LureArrestIntent.PendingFadeAgent = null;
+                try
+                {
+                    // IsActive 防重复：如果 Agent 已被其他路径移除则跳过
+                    if (fadeAgent.IsActive())
+                    {
+                        fadeAgent.FadeOut(hideInstantly: false, hideMount: true);
+                        DebugLogger.Log($"[ConvEnd] LureArrest FadeOut: {fadeAgent.Name}(Idx={fadeAgent.Index})");
+                    }
+                    else
+                    {
+                        DebugLogger.Log($"[ConvEnd] LureArrest FadeOut skipped (Agent already inactive): {fadeAgent.Name}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[ConvEnd] LureArrest FadeOut failed: {ex.Message}");
+                }
+            }
         }
     }
 

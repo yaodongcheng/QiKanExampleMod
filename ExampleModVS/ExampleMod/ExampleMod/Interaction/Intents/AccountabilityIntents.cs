@@ -937,6 +937,9 @@ namespace LivingWorldNpcs
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
+        /// <summary>Mission 内诱捕成功后待淡出的 Agent。EndConversation 时消费。</summary>
+        public static Agent PendingFadeAgent;
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
@@ -954,10 +957,21 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    // ⚠️ TakePrisonerAction.Apply(PartyBase, Hero) 签名待验证
                     TaleWorlds.CampaignSystem.Actions.TakePrisonerAction.Apply(
                         MobileParty.MainParty.Party, suspect);
                     DebugLogger.Log($"[Accountability] LureArrest succeeded: {evt.SuspectHeroId}");
+
+                    // 反馈：提示玩家俘虏成功
+                    InformationManager.DisplayMessage(
+                        new InformationMessage($"{suspect.Name} 被你诱捕，关进了俘虏栏。"));
+                    DebugLogger.Log($"[Accountability] LureArrest InformationMessage displayed for {suspect.Name}");
+
+                    // 延迟 FadeOut：Mission 内 Agent 需等对话结束后再消失，避免 NPC 一边说话一边淡出
+                    if (ctx.IsInMission && ctx.Agent != null)
+                    {
+                        PendingFadeAgent = ctx.Agent;
+                        DebugLogger.Log($"[Accountability] LureArrest Agent {ctx.Agent.Name}(Idx={ctx.Agent.Index}) deferred for post-dialogue FadeOut");
+                    }
                 }
                 catch (Exception ex)
                 {
