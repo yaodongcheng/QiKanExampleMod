@@ -241,7 +241,7 @@ namespace LivingWorldNpcs
             BuildRestitutionSubtree(nodes, r, ctx);
         }
 
-        /// <summary>赔偿子树：restitution_detail + pay_ack。自包含，调用方只需一行。</summary>
+        /// <summary>赔偿子树：restitution_detail + pay_ack。自包含，调用方只需一行。依赖调用方已添加 continue_chat / farewell（通过 AddContinueChatWithFarewell）。</summary>
         private static void BuildRestitutionSubtree(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
         {
             nodes.Add(new DialogueInjector.DialogueNode
@@ -272,11 +272,10 @@ namespace LivingWorldNpcs
                     },
                 }
             });
-            nodes.Add(AckNode("restitution_haggle_ok", r.Resolve("……行，算你{RestitutionCostHaggle}，不能再少了。"), "restitution_haggle_pay"));
             nodes.Add(new DialogueInjector.DialogueNode
             {
-                Id = "restitution_haggle_pay",
-                NpcLine = "",
+                Id = "restitution_haggle_ok",
+                NpcLine = r.Resolve("……行，算你{RestitutionCostHaggle}，不能再少了。"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new()
@@ -575,13 +574,21 @@ namespace LivingWorldNpcs
                     NpcLine = r.Resolve("（警惕地）{SpeakerPlayerAddr}盯着{SpeakerSelfRef}看什么？", "NpcLine"),
                     Transitions = new List<DialogueInjector.DialogueTransition>
                     {
-                        new DialogueInjector.DialogueTransition { PlayerLine = "跟我走一趟，村长找你有事。", Action = "INTENT:LureArrest", NextNodeOnSuccess = "suspect_lure_ack" },
+                        new DialogueInjector.DialogueTransition
+                        {
+                            PlayerLine = "跟我走一趟，村长找你有事。",
+                            CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
+                            Action = "INTENT:LureArrest",
+                            NextNodeOnSuccess = "suspect_lure_ack",
+                            NextNodeOnFail = "suspect_lure_fail"
+                        },
                         new DialogueInjector.DialogueTransition { PlayerLine = "快跑！村里人在抓你。", Action = "INTENT:BetrayQuest", NextNodeOnSuccess = "suspect_betray_ack" },
                         new DialogueInjector.DialogueTransition { PlayerLine = "没什么。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                     }
                 }
             };
             nodes.Add(AckNode("suspect_lure_ack", r.Resolve("什么？！{SpeakerSelfRef}什么也没干……")));
+            nodes.Add(AckNode("suspect_lure_fail", r.Resolve("村长找我？他自己怎么不来？{SpeakerPlayerAddr}少在这骗人。")));
             nodes.Add(AckNode("suspect_betray_ack", r.Resolve("什么？！……谢了！")));
             AddContinueChatWithFarewell(nodes, r);
             return new DialogueInjector.DialogueInjectScript { EntryOption = "（打量了一下）……", EntryNode = "injectedStart", Nodes = nodes };
@@ -788,7 +795,6 @@ namespace LivingWorldNpcs
             nodes.Add(TerminalNode("alert_deter_fine_ack", r.Resolve("扰乱治安，罚款100第纳尔。算你识相。别再来了。")));
             nodes.Add(TerminalNode("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
             // Search
-            nodes.Add(AckNode("alert_search_refuse_ack", r.Resolve("不敢让人看？那就是有鬼了！"), "recover_confront"));
             nodes.Add(TerminalNode("alert_search_bribe_ack", r.Resolve("……做贼心虚。拿了钱滚。")));
             nodes.Add(TerminalNode("alert_search_walk_ack", r.Resolve("站住！")));
             nodes.Add(AckNode("alert_search_deny_ack", r.Resolve("你的？上面还写着{TARGET}的名字呢！")));
@@ -806,7 +812,7 @@ namespace LivingWorldNpcs
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "recover_confront",
-                NpcLine = r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+                NpcLine = r.Resolve("不敢让人看？那就是有鬼了！（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
@@ -873,7 +879,7 @@ namespace LivingWorldNpcs
 
                 case ConfrontationType.Search:
                     transitions.Add(new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextNodeOnSuccess = "search_result" });
-                    transitions.Add(new() { PlayerLine = "凭什么翻我东西？（拒绝）", Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "alert_search_refuse_ack" });
+                    transitions.Add(new() { PlayerLine = "凭什么翻我东西？（拒绝）", Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "recover_confront" });
                     transitions.Add(new() { PlayerLine = "别查了，我赔你点钱。", Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_search_bribe_ack" });
                     transitions.Add(new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "alert_search_walk_ack" });
                     break;

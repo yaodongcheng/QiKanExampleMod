@@ -403,6 +403,74 @@ public static class SuppressVanillaConversationMissionPatch
 
 ---
 
+# 对话中标记 → EndConversation 延迟处理 — `Interaction/Dialogue/ConversationEntryPatch.cs`
+
+**Intent 在对话中途（OnSuccess/OnInstant）触发了 Mission 层副作用（Agent FadeOut / 战斗 / 关押），但副作用如果在对话窗口关闭前执行会导致视觉异常（NPC 一边说话一边消失、战斗覆盖对话 UI）。解决方案：Intent 只设静态标记，副作用延迟到 `ConversationManager.EndConversation` Postfix 统一执行。**
+
+## 已接入的延迟操作
+
+| 标记字段 | 设置位置 | EndConversation 消费 |
+|----------|---------|---------------------|
+| `WalkAwayIntent.PendingInquiryTitle/Body` | `WalkAwayIntent.OnInstant` | `InformationManager.ShowInquiry` 弹窗 |
+| `AlertForceConversationAction.PendingAlertScript/Label` | Alert 注入流程 | 清理残留 |
+| `AlertForceConversationAction.ActiveConversationAgent` | Alert 注入流程 | `BroadcastEvent("EndInteraction")` 释放 NPC |
+| `ThreatIntent.PendingCombatAgent` | `ThreatIntent.OnFail` | `SendEventToAgent("DeferredCombat")` 延迟开战 |
+| `WalkAwayIntent.PendingEscalationAgent` | `WalkAwayIntent.OnInstant` | `BroadcastEvent("WitnessCrime")` + `SendEventToAgent("ReEngageConfrontation")` |
+| `SurrenderJailIntent.PendingJailExit` | `SurrenderJailIntent.OnSuccess` | `TakePrisonerAction.Apply(settlement.Party, Hero.MainHero)` 坐牢 |
+| `LureArrestIntent.PendingFadeAgent` | `LureArrestIntent.OnSuccess` | `Agent.FadeOut(false, true)` 淡出消失 |
+
+## 模式模板
+
+```csharp
+// 1. Intent 侧 — 设标记（不直接执行 Mission 层操作）
+public class MyIntent : IntentBase
+{
+    public static Agent PendingFadeAgent; // 或其它待消费的状态
+
+    public override void OnSuccess(IntentContext ctx)
+    {
+        // Campaign 层操作可以立即执行（与 Mission 视觉无关）
+        TakePrisonerAction.Apply(...);
+        InformationManager.DisplayMessage(...);
+
+        // Mission 层副作用 → 只设标记，不立即执行
+        if (ctx.IsInMission && ctx.Agent != null)
+            PendingFadeAgent = ctx.Agent;
+    }
+}
+
+// 2. ConversationEntryPatch.ResetCrimeDialogueOnConversationEndPatch.Postfix — 消费标记
+[HarmonyPatch(typeof(ConversationManager), nameof(ConversationManager.EndConversation))]
+public static class ResetCrimeDialogueOnConversationEndPatch
+{
+    [HarmonyPostfix]
+    public static void Postfix()
+    {
+        // ... 其它清理 ...
+
+        var fadeAgent = MyIntent.PendingFadeAgent;
+        if (fadeAgent != null)
+        {
+            MyIntent.PendingFadeAgent = null;
+            try
+            {
+                if (fadeAgent.IsActive())
+                    fadeAgent.FadeOut(false, true);
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ConvEnd] FadeOut failed: {ex.Message}"); }
+        }
+    }
+}
+```
+
+## 为什么不能直接在 Intent 里 FadeOut
+
+`ExecuteIntentAction` → `OnSuccess` 在 `AddPlayerLine` 的 `onConsequence` 回调中执行，早于对话引擎推进到下一句。如果此时 FadeOut，NPC Agent 会在一句台词还没说完时就消失——视觉出戏。延后到 `EndConversation` 则确保所有对话文本播放完毕、窗口关闭后 Agent 才淡出。
+
+**关键文件**：`Interaction/Dialogue/ConversationEntryPatch.cs`（EndConversation Patch + 所有延迟消费）、`Interaction/Intents/AccountabilityIntents.cs`（LureArrestIntent / ThreatIntent / WalkAwayIntent 等标记字段）。
+
+---
+
 # 世界事件引擎 — `WorldEvent/`
 
 ## 架构
