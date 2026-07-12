@@ -2,6 +2,10 @@
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Roster;
+using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
@@ -24,14 +28,14 @@ namespace LivingWorldNpcs
         /// </summary>
         public static DialogueInjector.DialogueInjectScript BuildScript(Hero speaker, Hero listener)
         {
-            var settlement = speaker.CurrentSettlement;
+            Settlement settlement = speaker.CurrentSettlement;
             if (settlement == null) return null;
-            var evt = WorldEventStore.FindActive(settlement.StringId);
+            WorldEvent evt = WorldEventStore.FindActive(settlement.StringId);
             if (evt == null) return null;
 
-            var r = new PlaceholderResolver(evt, speaker, listener);
-            var speakerAgent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
-            var ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: evt);
+            PlaceholderResolver r = new PlaceholderResolver(evt, speaker, listener);
+            Agent speakerAgent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
+            IntentContext ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: evt);
 
             // 按说话者身份分派
             DialogueInjector.DialogueInjectScript script;
@@ -52,50 +56,64 @@ namespace LivingWorldNpcs
 
         private static bool IsAuthority(Hero npc, WorldEvent evt)
         {
-            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            Hero authority = WorldEventStore.GetAuthorityNpc(evt);
             return npc == authority || (npc?.Occupation == Occupation.Headman || npc?.Occupation == Occupation.RuralNotable);
         }
 
         private static DialogueInjector.DialogueInjectScript BuildAuthorityScript(
             PlaceholderResolver r, IntentContext ctx)
         {
-            var turns = new List<DialogueInjector.DialogueInjectTurn>();
-            var evt = ctx.ActiveEvent;
-
+            List<DialogueInjector.DialogueInjectTurn> turns = new List<DialogueInjector.DialogueInjectTurn>();
+            WorldEvent evt = ctx.ActiveEvent;
+            string entryOption = r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption");
             switch (evt.Stage)
             {
+                case EventStage.Dormant:
+                    //如果案件本身还没被发现，那么也就没有特殊的案件对话
+                    break;
                 case EventStage.Emerging:
+                    //案件已经被发现了，但是还不知道谁干的
                     if (evt.PlayerTookInvestigationQuest)
+                    {
+                        //玩家接了调查任务，那么对话就是关于任务情况的报告
+                        entryOption = r.Resolve("关于{TargetSettlementName}那个案子……", "EntryOption");
                         BuildReportTurn(turns, r, ctx);
+                    }
                     else
+                    {
+                        //玩家没有接调查任务,请求玩家调查
+                        entryOption = r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption");
                         BuildDiscoveryTurn(turns, r, ctx);
+                    }
                     break;
                 case EventStage.Active:
+                    //案件已经知道是谁干的了（怀疑）
                     if (evt.SuspectIsPlayer)
+                    {
+                        //怀疑是玩家干的
+                        entryOption = r.Resolve("{SpeakerRole}，{SpeakerSelfRef}有话跟你说。", "EntryOption");
                         BuildConfrontPlayerTurn(turns, r, ctx);
+                    }
                     else
+                    {
+                        //是别的人干的，请求玩家去帮忙
+                        entryOption = r.Resolve("{SpeakerRole}，关于那桩悬赏……", "EntryOption");
                         BuildBountyOfferTurn(turns, r, ctx);
+                    }
                     break;
                 case EventStage.Confrontation:
-                    BuildRetaliationTurn(turns, r, ctx);
+                    //是玩家干的，和玩家对峙
+                    {
+                        entryOption = r.Resolve("{SpeakerRole}……", "EntryOption");
+                        BuildRetaliationTurn(turns, r, ctx);
+                    }
                     break;
-            }
+                case EventStage.Resolved:
+                case EventStage.Unsolved:
+                    //解决了，或者没解决，都没有对话
+                    break;
 
-            // EntryOption 按阶段选不同语义，避免"接完任务还在问听说出事了"
-            string entryOption = evt.Stage switch
-            {
-                EventStage.Emerging when evt.PlayerTookInvestigationQuest =>
-                    r.Resolve("关于{TargetSettlementName}那个案子……", "EntryOption"),
-                EventStage.Emerging =>
-                    r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption"),
-                EventStage.Active when evt.SuspectIsPlayer =>
-                    r.Resolve("{SpeakerRole}，{SpeakerSelfRef}有话跟你说。", "EntryOption"),
-                EventStage.Active =>
-                    r.Resolve("{SpeakerRole}，关于那桩悬赏……", "EntryOption"),
-                EventStage.Confrontation =>
-                    r.Resolve("{SpeakerRole}……", "EntryOption"),
-                _ => r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption"),
-            };
+            }           
 
             return new DialogueInjector.DialogueInjectScript
             {
@@ -107,8 +125,8 @@ namespace LivingWorldNpcs
 
         private static void BuildDiscoveryTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
         {
-            var evt = r.Event;
-            var turn = new DialogueInjector.DialogueInjectTurn
+            WorldEvent evt = r.Event;
+            DialogueInjector.DialogueInjectTurn turn = new DialogueInjector.DialogueInjectTurn
             {
                 Id = "start",
                 SpeakerIndex = 0,
@@ -137,7 +155,7 @@ namespace LivingWorldNpcs
             {
                 turn.Options.Insert(0, new DialogueInjector.DialogueInjectOption
                 {
-                    PlayerLine = "（低头）是我干的。",
+                    PlayerLine = "是我干的。",
                     NpcResponse = r.Resolve("{SpeakerPlayerAddr}？！……好，既然自己认了，咱们可以商量。"),
                     Action = "INTENT:Confess",
                     NextTurn = "confess"
@@ -208,8 +226,8 @@ namespace LivingWorldNpcs
         private static void BuildReportTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
         {
             
-            var evt = r.Event;
-            var turn = new DialogueInjector.DialogueInjectTurn
+            WorldEvent evt = r.Event;
+            DialogueInjector.DialogueInjectTurn turn = new DialogueInjector.DialogueInjectTurn
             {
                 Id = "start",
                 SpeakerIndex = 0,
@@ -237,14 +255,14 @@ namespace LivingWorldNpcs
             };
 
             // 动态生成栽赃候选
-            var frameTargets = TheftLedger.GetFrameableTargets();
-            foreach (var target in frameTargets.Skip(1)) // Skip "bandit" (already above)
+            List<FrameSubOption> frameTargets = TheftLedger.GetFrameableTargets();
+            foreach (FrameSubOption target in frameTargets.Skip(1)) // Skip "bandit" (already above)
             {
                 if (target.CanShowEvidence)
                 {
                     // 有证物 → 展开每一件赃物为独立选项
-                    var evidenceItems = TheftLedger.GetEvidenceItems(target.TargetId);
-                    foreach (var evItem in evidenceItems)
+                    List<EvidenceItem> evidenceItems = TheftLedger.GetEvidenceItems(target.TargetId);
+                    foreach (EvidenceItem evItem in evidenceItems)
                     {
                         turn.Options.Insert(turn.Options.Count - 1, new DialogueInjector.DialogueInjectOption
                         {
@@ -292,12 +310,12 @@ namespace LivingWorldNpcs
 
         private static void BuildConfrontPlayerTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
         {
-            var evt = r.Event;
+            WorldEvent evt = r.Event;
             // 大地图对话无法叫守卫/触发战斗 → 威胁失败的 NPC 回应降级为口头警告
             string threatFailLine = ctx.IsInMission
                 ? r.Resolve("威胁{SpeakerSelfRef}？来人！")
                 : r.Resolve("威胁{SpeakerSelfRef}？{SpeakerPlayerAddr}等着，{SpeakerSelfRef}会告到上面去。");
-            var turn = new DialogueInjector.DialogueInjectTurn
+            DialogueInjector.DialogueInjectTurn turn = new DialogueInjector.DialogueInjectTurn
             {
                 Id = "start",
                 SpeakerIndex = 0,
@@ -354,9 +372,9 @@ namespace LivingWorldNpcs
 
         private static void BuildRetaliationTurn(List<DialogueInjector.DialogueInjectTurn> turns, PlaceholderResolver r, IntentContext ctx)
         {
-            var evt = r.Event;
+            WorldEvent evt = r.Event;
             string npcLine;
-            var options = new List<DialogueInjector.DialogueInjectOption>();
+            List<DialogueInjector.DialogueInjectOption> options = new List<DialogueInjector.DialogueInjectOption>();
 
             if (evt.SuspectIsPlayer)
             {
@@ -391,18 +409,18 @@ namespace LivingWorldNpcs
         private static DialogueInjector.DialogueInjectScript BuildWitnessScript(
             PlaceholderResolver r, IntentContext ctx)
         {
-            var turns = new List<DialogueInjector.DialogueInjectTurn>();
-            var evt = ctx.ActiveEvent;
-            var speaker = ctx.Speaker;
+            List<DialogueInjector.DialogueInjectTurn> turns = new List<DialogueInjector.DialogueInjectTurn>();
+            WorldEvent evt = ctx.ActiveEvent;
+            Hero speaker = ctx.Speaker;
 
             // 从 WitnessTestimonies 匹配当前 NPC 的证词
-            var testimony = evt.WitnessTestimonies?
+            WitnessTestimony testimony = evt.WitnessTestimonies?
                 .FirstOrDefault(t => t.WitnessHeroId == speaker.StringId);
             r.SpeakingWitness = testimony;
 
             string witnessedDesc = BuildWitnessedActionDescription(testimony);
 
-            var turn = new DialogueInjector.DialogueInjectTurn
+            DialogueInjector.DialogueInjectTurn turn = new DialogueInjector.DialogueInjectTurn
             {
                 Id = "start",
                 SpeakerIndex = 0,
@@ -437,7 +455,7 @@ namespace LivingWorldNpcs
         private static DialogueInjector.DialogueInjectScript BuildSuspectScript(
             PlaceholderResolver r, IntentContext ctx)
         {
-            var turns = new List<DialogueInjector.DialogueInjectTurn>
+            List<DialogueInjector.DialogueInjectTurn> turns = new List<DialogueInjector.DialogueInjectTurn>
             {
                 new DialogueInjector.DialogueInjectTurn
                 {
@@ -459,8 +477,8 @@ namespace LivingWorldNpcs
         private static DialogueInjector.DialogueInjectScript BuildBystanderScript(
             PlaceholderResolver r, IntentContext ctx)
         {
-            var turns = new List<DialogueInjector.DialogueInjectTurn>();
-            var evt = ctx.ActiveEvent;
+            List<DialogueInjector.DialogueInjectTurn> turns = new List<DialogueInjector.DialogueInjectTurn>();
+            WorldEvent evt = ctx.ActiveEvent;
 
             string npcLine = evt.Stage switch
             {
@@ -489,7 +507,7 @@ namespace LivingWorldNpcs
         /// <summary>继续聊 turn：NPC 说完事后 → 玩家走人。告别语按阶段动态切换，引擎展示前才求值。</summary>
         private static DialogueInjector.DialogueInjectTurn BuildContinueChatTurn(PlaceholderResolver r)
         {
-            var evt = r.Event;
+            WorldEvent evt = r.Event;
             return new DialogueInjector.DialogueInjectTurn
             {
                 Id = "continue_chat",
@@ -517,20 +535,6 @@ namespace LivingWorldNpcs
             };
         }
 
-        /// <summary>收尾 turn：NPC 最后一句台词 + 玩家"……"→关闭窗口（保留供未来特定场景使用）</summary>
-        private static DialogueInjector.DialogueInjectTurn BuildClosingTurn(PlaceholderResolver r, string turnId)
-        {
-            return new DialogueInjector.DialogueInjectTurn
-            {
-                Id = turnId,
-                SpeakerIndex = 0,
-                NpcLine = r.Resolve("{ConfrontClosingLine}"),
-                Options = new List<DialogueInjector.DialogueInjectOption>
-                {
-                    new DialogueInjector.DialogueInjectOption { PlayerLine = "……", Action = "NONE", NextTurn = "close_window" },
-                }
-            };
-        }
 
         // ═══════════════════════════════════════════════════════════════
         // 🆕 L3 警戒质问对话构建（Phase 4）
@@ -542,8 +546,8 @@ namespace LivingWorldNpcs
             if (testimony?.Actions == null || testimony.Actions.Count == 0)
                 return "有人在闹事";
 
-            var parts = new List<string>();
-            foreach (var a in testimony.Actions.OrderByDescending(a => a.AlertValue))
+            List<string> parts = new List<string>();
+            foreach (ActionRecord a in testimony.Actions.OrderByDescending(a => a.AlertValue))
             {
                 string desc = a.ActionType switch
                 {
@@ -580,15 +584,15 @@ namespace LivingWorldNpcs
             Hero speaker, ConfrontationType npcIntent, PlayerActionType primaryAction,
             WorldEvent worldEvt = null, Agent speakerAgent = null)
         {
-            var r = new PlaceholderResolver(speaker, Hero.MainHero);
+            PlaceholderResolver r = new PlaceholderResolver(speaker, Hero.MainHero);
 
             // 🔑 从 PendingWorldEvent 取刚写入的证词（RegisterWitness 已在 CheckPhaseTransition 前一步执行）
-            var pending = AgentAIController.Instance?.PendingWorldEvent;
+            WorldEvent pending = AgentAIController.Instance?.PendingWorldEvent;
             r.SpeakingWitness = pending?.WitnessTestimonies?
                 .FirstOrDefault(t => t.WitnessHeroId == speaker.StringId);
 
-            var ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: worldEvt);
-            var turns = new List<DialogueInjector.DialogueInjectTurn>();
+            IntentContext ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: worldEvt);
+            List<DialogueInjector.DialogueInjectTurn> turns = new List<DialogueInjector.DialogueInjectTurn>();
 
             // ① 优先查 NpcSpeech.csv
             string csvTemplateId = $"L3_{npcIntent}_{primaryAction}";
@@ -597,7 +601,7 @@ namespace LivingWorldNpcs
             // ② CSV 未命中 → 回落 NarrativeResolver（过渡）
             if (string.IsNullOrEmpty(npcOpening))
             {
-                var narrResult = NarrativeResolver.Resolve(new NarrativeFilters
+                NarrativeResult narrResult = NarrativeResolver.Resolve(new NarrativeFilters
                 {
                     EventName = "L3AlertIntercept",
                     GoalType = npcIntent.ToString(),
@@ -676,7 +680,7 @@ namespace LivingWorldNpcs
         static List<DialogueInjector.DialogueInjectOption> BuildOptionsByIntent(
             PlaceholderResolver r, ConfrontationType intent, PlayerActionType action, WorldEvent worldEvt = null)
         {
-            var opts = new List<DialogueInjector.DialogueInjectOption>();
+            List<DialogueInjector.DialogueInjectOption> opts = new List<DialogueInjector.DialogueInjectOption>();
 
             switch (intent)
             {
@@ -746,9 +750,9 @@ namespace LivingWorldNpcs
         /// <summary>查 TheftLedger 判定玩家背包是否有赃物</summary>
         static bool PlayerHasStolenItems()
         {
-            var party = Hero.MainHero?.PartyBelongedTo;
+            MobileParty party = Hero.MainHero?.PartyBelongedTo;
             if (party?.ItemRoster == null) return false;
-            foreach (var item in party.ItemRoster)
+            foreach (ItemRosterElement item in party.ItemRoster)
             {
                 if (item.EquipmentElement.Item == null) continue;
                 string tag = TheftLedger.GetSourceTag(

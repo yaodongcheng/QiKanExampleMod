@@ -192,7 +192,7 @@ namespace LivingWorldNpcs
         public bool CharmReprieveUsed;
         public int FailCount;
         public bool PlayerPaidRestitution;
-        public bool PlayerTookInvestigationQuest;
+        public bool PlayerTookInvestigationQuest; // 玩家接受调查任务
         public bool PlayerTookBountyQuest;
 
         // ═══ 报复 ═══
