@@ -94,41 +94,24 @@ namespace LivingWorldNpcs
                 // —— 逐 node 注册 ——
                 foreach (var node in script.Nodes)
                 {
-                    if (node.Transitions == null || node.Transitions.Count == 0) continue;
-
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
-                    string afterNpcLine = NextToken(fileTag);
 
-                    cm.AddDialogLineMultiAgent(
-                        $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine,
-                        new TextObject(node.NpcLine ?? ""),
-                        () => true, null,
-                        node.SpeakerIndex, -1, 125);
-                    nodeCount++;
-
-                    foreach (var transition in node.Transitions)
+                    if (node.Transitions == null || node.Transitions.Count == 0)
                     {
-                        string afterPlayer = NextToken(fileTag);
-                        transition.ResultKey = afterPlayer;
-
-                        // NPC 回应的出口 = NextNode 对应的入口 token，null → 关闭
-                        string afterNpcResponse = !string.IsNullOrEmpty(transition.NextNode)
-                            ? NodeToken(fileTag, transition.NextNode)
-                            : "close_window";
-
-                        // 玩家选项
-                        var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
-                        pdf.AddPlayerLine(
-                            $"inj_opt_{Guid.NewGuid():N}", afterNpcLine, afterPlayer,
-                            ResolveTransitionText(transition),
-                            () => true,
-                            () => ExecuteAction(transition),
-                            owner, 125);
-                        cm.AddDialogFlow(pdf, owner);
+                        // Terminal node: NPC 说话 → 关窗
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node);
+                        nodeCount++;
+                    }
+                    else
+                    {
+                        string afterNpcLine = NextToken(fileTag);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine, node);
                         nodeCount++;
 
-                        // ── NPC 回应：支持成败双线 + 兜底直连 ──
-                        nodeCount += RegisterNpcResponseLines(cm, node, transition, afterPlayer, afterNpcResponse, fileTag);
+                        foreach (var transition in node.Transitions)
+                        {
+                            nodeCount += RegisterTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+                        }
                     }
                 }
 
@@ -238,18 +221,25 @@ namespace LivingWorldNpcs
             for (int ti = 0; ti < script.Nodes.Count; ti++)
             {
                 var t = script.Nodes[ti];
-                DebugLogger.Log($"{label} Turn[{ti}] id={t.Id} SpeakerIndex={t.SpeakerIndex} NpcLine=\"{t.NpcLine}\"");
+                string lazyTag = t.LazyNpcLine != null ? " [Lazy]" : "";
+                DebugLogger.Log($"{label} Turn[{ti}] id={t.Id} NpcLine=\"{t.NpcLine}\"{lazyTag}");
                 if (t.Transitions == null) continue;
                 for (int oi = 0; oi < t.Transitions.Count; oi++)
                 {
                     var transition = t.Transitions[oi];
                     string action = transition.Action ?? "NONE";
-                    string resp = transition.NpcResponse
-                        ?? (transition.NpcResponseOnSuccess != null || transition.NpcResponseOnFail != null
-                            ? $"SUCCESS:\"{transition.NpcResponseOnSuccess}\" FAIL:\"{transition.NpcResponseOnFail}\""
-                            : "(无回应)");
-                    string next = !string.IsNullOrEmpty(transition.NextNode) ? transition.NextNode : "(关闭)";
-                    DebugLogger.Log($"{label}   Transition[{oi}] \"{transition.PlayerLine}\" → {action} | NextNode={next} | Resp={resp}");
+                    string checkInfo = transition.CheckType == TransitionCheckType.SkillCheck
+                        ? $" [SkillCheck]"
+                        : "";
+                    string next = !string.IsNullOrEmpty(transition.NextNodeOnSuccess) ? transition.NextNodeOnSuccess : "(关闭)";
+                    string nextFail = transition.CheckType == TransitionCheckType.SkillCheck
+                        ? (!string.IsNullOrEmpty(transition.NextNodeOnFail) ? transition.NextNodeOnFail : "(同Success)")
+                        : "";
+                    string actionParam = !string.IsNullOrEmpty(transition.ActionParam) ? $" Param={transition.ActionParam}" : "";
+                    string routeInfo = transition.CheckType == TransitionCheckType.SkillCheck
+                        ? $" | NextNodeOnSuccess={next} | NextNodeOnFail={nextFail}"
+                        : $" | NextNodeOnSuccess={next}";
+                    DebugLogger.Log($"{label}   Transition[{oi}] \"{transition.PlayerLine}\" → {action}{actionParam}{checkInfo}{routeInfo}");
                 }
             }
         }
@@ -320,25 +310,8 @@ namespace LivingWorldNpcs
 
                 switch (transition.Action.ToUpperInvariant())
                 {
-                    case "INCREASE_RELATION":
-                        if (oneToOne is Hero npc)
-                            ChangeRelationAction.ApplyPlayerRelation(npc,
-                                transition.ActionValue != 0 ? transition.ActionValue : 5);
-                        break;
-                    case "DECREASE_RELATION":
-                        if (oneToOne is Hero npc2)
-                            ChangeRelationAction.ApplyPlayerRelation(npc2,
-                                transition.ActionValue != 0 ? -transition.ActionValue : -5);
-                        break;
-                    case "GIVE_GOLD":
-                        GiveGoldAction.ApplyBetweenCharacters(null, Hero.MainHero,
-                            transition.ActionValue > 0 ? transition.ActionValue : 100);
-                        break;
-                    case "TAKE_GOLD":
-                        GiveGoldAction.ApplyBetweenCharacters(Hero.MainHero, null,
-                            transition.ActionValue > 0 ? transition.ActionValue : 100);
-                        break;
                     case "CLOSE_DIALOG":
+                        // no-op marker: Transition 仅用于关窗，无副作用
                         break;
                     default:
                         // ── INTENT:xxx 委托 ──
@@ -485,10 +458,7 @@ namespace LivingWorldNpcs
             {
                 // ── 第一步：入口 node 的 NPC 台词直接挂在 startToken ──
                 string afterNpcLine = NextToken(fileTag);
-                cm.AddDialogLineMultiAgent(
-                    $"inj_open_{entryNode.Id}", startToken, afterNpcLine,
-                    new TaleWorlds.Localization.TextObject(entryNode.NpcLine ?? ""),
-                    () => true, null, entryNode.SpeakerIndex, -1, 200); // priority 200 > 原版 ~100
+                AddNodeNpcLine(cm, $"inj_open_{entryNode.Id}", startToken, afterNpcLine, entryNode, 200);
                 DebugLogger.Log($"[DialogueInjector] Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
 
                 // ── 第二步：注册入口 node 的玩家选项（挂在 afterNpcLine）──
@@ -498,19 +468,23 @@ namespace LivingWorldNpcs
                 foreach (var node in script.Nodes)
                 {
                     if (node.Id == script.EntryNode) continue; // 入口 node 已处理
-                    if (node.Transitions == null || node.Transitions.Count == 0) continue;
 
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
-                    string nodeAfterNpc = NextToken(fileTag);
-                    cm.AddDialogLineMultiAgent(
-                        $"inj_npc_{node.Id}", nodeEntryToken, nodeAfterNpc,
-                        new TaleWorlds.Localization.TextObject(node.NpcLine ?? ""),
-                        () => true, null, node.SpeakerIndex, -1, 125);
 
-                    RegisterNodeTransitions(cm, node, nodeAfterNpc, fileTag, owner);
+                    if (node.Transitions == null || node.Transitions.Count == 0)
+                    {
+                        // Terminal node: NPC 说话 → 关窗
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node);
+                    }
+                    else
+                    {
+                        string nodeAfterNpc = NextToken(fileTag);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, nodeAfterNpc, node);
+                        RegisterNodeTransitions(cm, node, nodeAfterNpc, fileTag, owner);
+                    }
                 }
 
-                int nodeCount = 1 + script.Nodes.Count(t => t.Id != script.EntryNode && t.Transitions != null && t.Transitions.Count > 0);
+                int nodeCount = 1 + script.Nodes.Count(t => t.Id != script.EntryNode);
                 return $"SUCCESS (opening mode): '{fileTag}' → {nodeCount} nodes at '{startToken}'";
             }
             catch (Exception ex)
@@ -521,8 +495,8 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 为一个 turn 注册全部玩家选项（挂在 afterNpcLine token 上）。
-        /// 抽取公共逻辑，供 InjectScriptInternal 和 InjectScriptAsOpening 共用。
+        /// 为一个 node 注册全部玩家选项（挂在 afterNpcLine token 上）。
+        /// 按 CheckType 分两条路径：None → 直连目标 Node；SkillCheck → 条件桥接路由。
         /// </summary>
         private static void RegisterNodeTransitions(
             ConversationManager cm, DialogueNode node,
@@ -532,36 +506,121 @@ namespace LivingWorldNpcs
 
             foreach (var transition in node.Transitions)
             {
-                string afterNpcResponse = !string.IsNullOrEmpty(transition.NextNode)
-                    ? NodeToken(fileTag, transition.NextNode) : "close_window";
+                RegisterTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+            }
+        }
 
-                bool isCloseWindow = string.IsNullOrEmpty(transition.NextNode) || transition.NextNode == "close_window";
-                bool hasNpcResponse = !string.IsNullOrEmpty(transition.NpcResponse)
-                                   || !string.IsNullOrEmpty(transition.NpcResponseOnSuccess)
-                                   || !string.IsNullOrEmpty(transition.NpcResponseOnFail);
-                bool needsBridge = hasNpcResponse || isCloseWindow;
+        /// <summary>
+        /// 注册单个 Transition。返回注册的行数。
+        /// </summary>
+        private static int RegisterTransition(
+            ConversationManager cm, DialogueNode node, DialogueTransition transition,
+            string afterNpcLine, string fileTag, InjectOwner owner)
+        {
+            if (transition.CheckType == TransitionCheckType.SkillCheck)
+            {
+                return RegisterSkillCheckTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+            }
+            else
+            {
+                return RegisterDirectTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+            }
+        }
 
-                string afterPlayer;
-                if (needsBridge)
-                {
-                    afterPlayer = NextToken(fileTag);
-                    transition.ResultKey = afterPlayer;
-                }
-                else
-                {
-                    afterPlayer = afterNpcResponse;
-                    transition.ResultKey = null;
-                }
+        /// <summary>CheckType.None：直连目标 Node（或 close_window）。</summary>
+        private static int RegisterDirectTransition(
+            ConversationManager cm, DialogueNode node, DialogueTransition transition,
+            string afterNpcLine, string fileTag, InjectOwner owner)
+        {
+            string afterPlayer = !string.IsNullOrEmpty(transition.NextNodeOnSuccess)
+                ? NodeToken(fileTag, transition.NextNodeOnSuccess)
+                : "close_window";
 
-                var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
-                pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
-                    ResolveTransitionText(transition), BuildTransitionCondition(transition), () => ExecuteAction(transition), owner, 125);
-                cm.AddDialogFlow(pdf, owner);
+            var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
+            pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
+                ResolveTransitionText(transition), BuildTransitionCondition(transition),
+                () => ExecuteAction(transition), owner, 125);
+            cm.AddDialogFlow(pdf, owner);
+            return 1;
+        }
 
-                if (needsBridge)
-                {
-                    RegisterNpcResponseLines(cm, node, transition, afterPlayer, afterNpcResponse, fileTag);
-                }
+        /// <summary>CheckType.SkillCheck：桥接 token + 3 条 silent 路由行（成功/失败/安全网）。</summary>
+        private static int RegisterSkillCheckTransition(
+            ConversationManager cm, DialogueNode node, DialogueTransition transition,
+            string afterNpcLine, string fileTag, InjectOwner owner)
+        {
+            string afterPlayer = NextToken(fileTag);
+            string capturedKey = afterPlayer;
+            transition.ResultKey = capturedKey;
+
+            // 玩家选项
+            var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
+            pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
+                ResolveTransitionText(transition), BuildTransitionCondition(transition),
+                () => ExecuteAction(transition), owner, 125);
+            cm.AddDialogFlow(pdf, owner);
+
+            // ── 3 条 silent 路由行：纯路由，不夹带 NPC 台词 ──
+
+            // 成功路由
+            string successDest = !string.IsNullOrEmpty(transition.NextNodeOnSuccess)
+                ? NodeToken(fileTag, transition.NextNodeOnSuccess) : "close_window";
+            cm.AddDialogLineMultiAgent(
+                $"inj_route_succ_{Guid.NewGuid():N}", afterPlayer, successDest,
+                new TextObject(""),
+                () => _intentResults.TryGetValue(capturedKey, out var r) && r,
+                null, 0, -1, 125);
+
+            // 失败路由
+            string failDest = !string.IsNullOrEmpty(transition.NextNodeOnFail)
+                ? NodeToken(fileTag, transition.NextNodeOnFail)
+                : (!string.IsNullOrEmpty(transition.NextNodeOnSuccess)
+                    ? NodeToken(fileTag, transition.NextNodeOnSuccess) : "close_window");
+            cm.AddDialogLineMultiAgent(
+                $"inj_route_fail_{Guid.NewGuid():N}", afterPlayer, failDest,
+                new TextObject(""),
+                () => _intentResults.TryGetValue(capturedKey, out var r) && !r,
+                null, 0, -1, 125);
+
+            // 安全网：Intent 被 Disabled → _intentResults 无 key → 防死锁
+            cm.AddDialogLineMultiAgent(
+                $"inj_safety_{Guid.NewGuid():N}", afterPlayer, "close_window",
+                new TextObject(""),
+                () => !_intentResults.ContainsKey(capturedKey),
+                null, 0, -1, 125);
+
+            return 4; // 1 PlayerLine + 3 silent route lines
+        }
+
+        /// <summary>
+        /// 注册一个 Node 的 NPC 台词行。支持 LazyNpcLine 惰性求值。
+        /// </summary>
+        private static void AddNodeNpcLine(ConversationManager cm, string id,
+            string inputToken, string outputToken, DialogueNode node, int priority = 125)
+        {
+            if (node.LazyNpcLine != null)
+            {
+                var textObj = new TextObject("…");
+                cm.AddDialogLineMultiAgent(id, inputToken, outputToken, textObj,
+                    () =>
+                    {
+                        textObj.Value = node.LazyNpcLine();
+                        // 清除内部缓存，确保 GetCachedTokens() 从新 Value 重新 tokenize
+                        var tokensField = typeof(TextObject).GetField("cachedTokens",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        var langField = typeof(TextObject).GetField("cachedTextLanguageId",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        tokensField?.SetValue(textObj, null);
+                        langField?.SetValue(textObj, -1);
+                        return true;
+                    },
+                    null, 0, -1, priority);
+            }
+            else
+            {
+                cm.AddDialogLineMultiAgent(id, inputToken, outputToken,
+                    new TextObject(node.NpcLine ?? ""),
+                    () => true, null, 0, -1, priority);
             }
         }
 
@@ -594,16 +653,20 @@ namespace LivingWorldNpcs
 
                 foreach (var node in script.Nodes)
                 {
-                    if (node.Transitions == null || node.Transitions.Count == 0) continue;
-
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
-                    string afterNpcLine = NextToken(fileTag);
-                    cm.AddDialogLineMultiAgent(
-                        $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine,
-                        new TaleWorlds.Localization.TextObject(node.NpcLine ?? ""),
-                        () => true, null, node.SpeakerIndex, -1, 125);
 
-                    RegisterNodeTransitions(cm, node, afterNpcLine, fileTag, owner);
+                    if (node.Transitions == null || node.Transitions.Count == 0)
+                    {
+                        // Terminal node: NPC 说话 → 关窗
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node);
+                    }
+                    else
+                    {
+                        string afterNpcLine = NextToken(fileTag);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine, node);
+
+                        RegisterNodeTransitions(cm, node, afterNpcLine, fileTag, owner);
+                    }
                 }
             }
             catch (Exception ex)
@@ -671,123 +734,25 @@ namespace LivingWorldNpcs
                     var eligibility = intent.Evaluate(ctx);
                     // 对话中只显示完全可用的选项，Disabled 也隐藏。
                     // Disabled 选项被点击后 ExecuteIntentAction 无法写入 _intentResults，
-                    // 会导致条件 NPC 回应行全部不匹配 → 对话死锁。见 RegisterNpcResponseLines。
+                    // 会导致条件路由行全部不匹配 → 对话死锁。
                     return eligibility.State == EligState.Enabled;
                 }
                 catch { return true; } // 出错时兜底显示
             };
         }
 
-        /// <summary>
-        /// 为单个选项注册 NPC 回应行。优先级：成败双线 > 静态 NpcResponse > 兜底直连。
-        /// 返回注册的行数（用于 nodeCount）。
-        /// </summary>
-        private static int RegisterNpcResponseLines(
-            ConversationManager cm, DialogueNode node, DialogueTransition transition,
-            string afterPlayer, string afterNpcResponse, string fileTag)
-        {
-            int count = 0;
-            bool hasConditional = !string.IsNullOrEmpty(transition.NpcResponseOnSuccess)
-                               || !string.IsNullOrEmpty(transition.NpcResponseOnFail);
-            if (hasConditional)
-            {
-                string capturedKey = afterPlayer;
-                // 成功线
-                if (!string.IsNullOrEmpty(transition.NpcResponseOnSuccess))
-                {
-                    cm.AddDialogLineMultiAgent(
-                        $"inj_resp_succ_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                        new TextObject(transition.NpcResponseOnSuccess),
-                        () => _intentResults.TryGetValue(capturedKey, out var r) && r,
-                        null, node.SpeakerIndex, -1, 125);
-                    count++;
-                }
-                // 失败线 — 支持 NextNodeOnFail 跳转到不同 node
-                if (!string.IsNullOrEmpty(transition.NpcResponseOnFail))
-                {
-                    string afterNpcOnFail = !string.IsNullOrEmpty(transition.NextNodeOnFail)
-                        ? NodeToken(fileTag, transition.NextNodeOnFail)
-                        : afterNpcResponse;
-
-                    cm.AddDialogLineMultiAgent(
-                        $"inj_resp_fail_{Guid.NewGuid():N}", afterPlayer, afterNpcOnFail,
-                        new TextObject(transition.NpcResponseOnFail),
-                        () => _intentResults.TryGetValue(capturedKey, out var r) && !r,
-                        null, node.SpeakerIndex, -1, 125);
-                    count++;
-                }
-                // 兜底：只设了一边（如只设成功线），另一边需直连 → 防死胡同
-                if (string.IsNullOrEmpty(transition.NpcResponseOnSuccess) || string.IsNullOrEmpty(transition.NpcResponseOnFail))
-                {
-                    cm.AddDialogLineMultiAgent(
-                        $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                        new TextObject("…"),
-                        () =>
-                        {
-                            if (!_intentResults.TryGetValue(capturedKey, out var r)) return true;
-                            bool hasSucc = !string.IsNullOrEmpty(transition.NpcResponseOnSuccess);
-                            bool hasFail = !string.IsNullOrEmpty(transition.NpcResponseOnFail);
-                            return (r && !hasSucc) || (!r && !hasFail);
-                        },
-                        null, node.SpeakerIndex, -1, 125);
-                    count++;
-                }
-                // 安全网：双线都设了但 intent 被禁用 / 未执行（_intentResults 无 key）→ 防死锁
-                if (!string.IsNullOrEmpty(transition.NpcResponseOnSuccess) && !string.IsNullOrEmpty(transition.NpcResponseOnFail))
-                {
-                    cm.AddDialogLineMultiAgent(
-                        $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                        new TextObject("…"),
-                        () => !_intentResults.ContainsKey(capturedKey),
-                        null, node.SpeakerIndex, -1, 125);
-                    count++;
-                }
-            }
-            else if (transition.LazyNpcResponse != null)
-            {
-                // 延迟求值：condition 回调在引擎展示 NPC 行前触发 → 更新 Value → GetCachedTokens() 拿到最新文本
-                var textObj = new TextObject("…");
-                cm.AddDialogLineMultiAgent(
-                    $"inj_lazy_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                    textObj,
-                    () =>
-                    {
-                        textObj.Value = transition.LazyNpcResponse();
-                        // 清除内部缓存，确保 GetCachedTokens() 从新 Value 重新 tokenize
-                        var tokensField = typeof(TextObject).GetField("cachedTokens",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        var langField = typeof(TextObject).GetField("cachedTextLanguageId",
-                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        tokensField?.SetValue(textObj, null);
-                        langField?.SetValue(textObj, -1);
-                        return true;
-                    },
-                    null, node.SpeakerIndex, -1, 125);
-                count++;
-            }
-            else if (!string.IsNullOrEmpty(transition.NpcResponse))
-            {
-                cm.AddDialogLineMultiAgent(
-                    $"inj_resp_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                    new TextObject(transition.NpcResponse),
-                    () => true, null, node.SpeakerIndex, -1, 125);
-                count++;
-            }
-            else
-            {
-                // 兜底直连：防死胡同
-                cm.AddDialogLineMultiAgent(
-                    $"inj_silent_{Guid.NewGuid():N}", afterPlayer, afterNpcResponse,
-                    new TextObject("…"),
-                    () => true, null, node.SpeakerIndex, -1, 125);
-                count++;
-            }
-            return count;
-        }
-
         // ═══════════════════════════════════════════════════════════════
         // JSON 模型类型（public — LLM 集成时外部需要引用）
         // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>Transition 是否有检定分支。</summary>
+        public enum TransitionCheckType
+        {
+            /// <summary>无检定。路由走 NextNodeOnSuccess。</summary>
+            None,
+            /// <summary>单次技能检定。Intent.Goal != null。路由走 NextNodeOnSuccess / NextNodeOnFail。</summary>
+            SkillCheck,
+        }
 
         public class DialogueInjectScript
         {
@@ -801,39 +766,40 @@ namespace LivingWorldNpcs
             public string InjectAtToken = null;
             /// <summary>入口选项文本 — 挂在 NPC 主菜单上，玩家点这个选项进入对话图。缺省用文件名。</summary>
             public string EntryOption = null;
-            /// <summary>对话从哪个 node 开始（对应 DialogueNode.Id）。默认 "start"。 </summary>
-            public string EntryNode = "start";
+            /// <summary>对话从哪个 node 开始（对应 DialogueNode.Id）。默认 "injectedStart"。 </summary>
+            public string EntryNode = "injectedStart";
             public List<DialogueNode> Nodes;
         }
 
         public class DialogueNode
         {
-            /// <summary>唯一标识。其他 node 的 transition 通过 NextNode 引用此 ID 来跳转。</summary>
-            public string Id = "start";
-            public int SpeakerIndex = 0;
+            /// <summary>唯一标识。其他 node 的 transition 通过 NextNodeOnSuccess/OnFail 引用此 ID 来跳转。</summary>
+            public string Id = "injectedStart";
+            /// <summary>NPC 的台词。所有 NPC 说话的唯一入口。</summary>
             public string NpcLine;
+            /// <summary>延迟求值：引擎展示此行前才调 delegate 拿最新文本。设置后覆盖 NpcLine。</summary>
+            [Newtonsoft.Json.JsonIgnore]
+            public Func<string> LazyNpcLine;
+            /// <summary>玩家可选的回应。空列表 [] = terminal（NPC 说完直接关窗）。null = 未初始化（非法）。</summary>
             public List<DialogueTransition> Transitions;
         }
 
         public class DialogueTransition
         {
+            /// <summary>玩家选项的显示文本。</summary>
             public string PlayerLine;
-            public string NpcResponse;
-            /// <summary>检定成功时 NPC 的回应（与 NpcResponseOnFail 配对使用，覆盖 NpcResponse）。</summary>
-            public string NpcResponseOnSuccess = null;
-            /// <summary>检定失败时 NPC 的回应（与 NpcResponseOnSuccess 配对使用，覆盖 NpcResponse）。</summary>
-            public string NpcResponseOnFail = null;
-            /// <summary>运行时延迟求值：引擎展示此行前才调 delegate 拿最新文本。设置后覆盖 NpcResponse。</summary>
-            [Newtonsoft.Json.JsonIgnore]
-            public Func<string> LazyNpcResponse = null;
-            /// <summary>选了此 transition 后跳转到哪个 node。null = 关闭对话。</summary>
-            public string NextNode = null;
-            /// <summary>检定失败后跳转的 node（覆盖 NextNode）。不设则走 NextNode（现有行为兼容）。</summary>
-            public string NextNodeOnFail = null;
+            /// <summary>此选项是否有技能检定分支。</summary>
+            public TransitionCheckType CheckType = TransitionCheckType.None;
+            /// <summary>动作标识。NONE / INTENT:xxx。</summary>
             public string Action = "NONE";
-            public int ActionValue = 0;
-            /// <summary>字符串参数（栽赃目标 ID 等）。INTENT:xxx 执行时注入 IntentContext。</summary>
+            /// <summary>字符串参数。INTENT:xxx 执行时注入 IntentContext.ActionParam。
+            /// 对于系统 Intent（IncreaseRelation 等），承载数值的字符串表示（如 "5"、"100"）。</summary>
             public string ActionParam = null;
+            /// <summary>成功（或无检定）后的目标 Node Id。"" 或 null = 关闭对话。</summary>
+            public string NextNodeOnSuccess;
+            /// <summary>检定失败后的目标 Node Id。仅 CheckType.SkillCheck 时有效。
+            /// 不设则 fallback 到 NextNodeOnSuccess。</summary>
+            public string NextNodeOnFail;
             /// <summary>[内部] 注入时分配的 afterPlayer token，用作检定结果回写 key。外部不需要设置。</summary>
             internal string ResultKey = null;
         }

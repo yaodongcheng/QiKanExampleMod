@@ -91,6 +91,12 @@ namespace LivingWorldNpcs
             Register(new PlayerSurrenderBegIntent());
             Register(new PlayerSurrenderThreatenIntent());
             Register(new ResolveNpcSurrenderIntent());
+
+            // ═══ 系统 Intent（旧式 Action 迁移） ═══
+            Register(new IncreaseRelationIntent());
+            Register(new DecreaseRelationIntent());
+            Register(new GiveGoldIntent());
+            Register(new TakeGoldIntent());
         }
 
         /// <summary>资格层：产出当前可见（含置灰）的意图，隐藏的过滤掉。</summary>
