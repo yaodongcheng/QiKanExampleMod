@@ -326,7 +326,7 @@ namespace LivingWorldNpcs
 
             var script = CrimeDialogueBuilder.BuildPlayerSurrenderScript();
             string label = $"Surrender_Player_{target.Index}";
-            DialogueInjector.InjectScriptAsOpening(script, label);
+            DialogueInjector.InjectScript(script, label);
 
             var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
             conversationLogic?.StartConversation(target, true, false);
@@ -346,7 +346,7 @@ namespace LivingWorldNpcs
 
             var script = CrimeDialogueBuilder.BuildNpcSurrenderScript(npcName);
             string label = $"Surrender_NPC_{target.Index}";
-            DialogueInjector.InjectScriptAsOpening(script, label);
+            DialogueInjector.InjectScript(script, label);
 
             var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
             conversationLogic?.StartConversation(target, true, false);

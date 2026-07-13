@@ -485,8 +485,10 @@ namespace LivingWorldNpcs
 
                 DebugLogger.Log($"[AlertDeferredInject] NPC 句子结束，OutputToken='{outputToken}' → 注入 gateway");
 
-                // 注入：设置 InjectAtToken 为开场白的输出 token（即玩家选项的 token）
+                // 注入：设 InjectAtToken 为开场白输出 token，显式覆盖为 Gateway 模式
+                // （BuildAlertInterceptScript 默认 SkipVanillaOpening=true，但延迟场景原版开场白已播放）
                 pendingScript.InjectAtToken = outputToken;
+                pendingScript.SkipVanillaOpening = false;
                 string label = AlertForceConversationAction.PendingAlertLabel ?? $"AlertL3_deferred";
                 string result = DialogueInjector.InjectScript(pendingScript, label);
                 DebugLogger.Log($"[AlertDeferredInject] 注入结果: {result}");

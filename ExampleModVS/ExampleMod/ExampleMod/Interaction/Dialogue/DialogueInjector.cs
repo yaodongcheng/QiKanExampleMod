@@ -252,7 +252,7 @@ namespace LivingWorldNpcs
         private static int _injectionCounter = 0;
         private static readonly List<InjectOwner> _injectedOwners = new List<InjectOwner>();
 
-        /// <summary>检定结果回写表：afterPlayer token → 是否通过。InjectScriptInternal 注册双线 NPC 回应时查此表。</summary>
+        /// <summary>检定结果回写表：afterPlayer token → 是否通过。InjectScriptGateway 注册双线 NPC 回应时查此表。</summary>
         private static readonly Dictionary<string, bool> _intentResults = new Dictionary<string, bool>();
 
         private class InjectOwner { public string FileName; public string BaseLabel; }
@@ -407,7 +407,9 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 直接注入 DialogueInjectScript 对象（不经过 JSON 文件）。
-        /// 与 InjectFromJson 共享同一套 ConversationManager 注册逻辑。
+        /// 根据 script.SkipVanillaOpening 选择注入路径：
+        ///   false（默认）: Gateway 模式 — 在 hero_main_options 挂 PlayerLine，保留原版开场白
+        ///   true:          直挂模式 — NPC 台词挂在 start token（优先级 200），跳过原版开场白
         /// </summary>
         public static string InjectScript(DialogueInjectScript script, string debugLabel = null)
         {
@@ -415,27 +417,21 @@ namespace LivingWorldNpcs
                 return "Empty script";
 
             var fileTag = debugLabel ?? $"dyn_{_injectedOwners.Count}";
-            InjectScriptInternal(script, fileTag);
+
+            if (script.SkipVanillaOpening)
+                InjectScriptNoOpening(script, fileTag);
+            else
+                InjectScriptGateway(script, fileTag);
+
             return $"Injected dynamic script [{fileTag}] ({script.Nodes.Count} nodes)";
         }
 
         /// <summary>
-        /// "替换开场白"注入模式：不创建 gateway PlayerLine，直接把第一个 node 的
-        /// NPC 台词挂在 InjectAtToken（默认 "start"）上，优先级 200 碾压原版开场白。
-        ///
-        /// 适用场景：NPC 主动找上门的警戒质问 — 不应该先说原版友好问候再转折，
-        /// 而应该一开口就是我们设计的台词。
-        ///
-        /// 与 InjectScript 的区别：
-        ///   - InjectScript: InjectAtToken → [gateway PlayerLine] → [NPC line] → [options]
-        ///   - InjectScriptAsOpening: InjectAtToken → [NPC line 优先级200] → [options]
+        /// 直挂注入模式：NPC 台词直接挂在 start token（优先级 200），不经过 gateway PlayerLine。
+        /// 适用场景：NPC 主动锁定玩家 — 警戒质问、战斗认输、对峙等。
         /// </summary>
-        public static string InjectScriptAsOpening(DialogueInjectScript script, string debugLabel = null)
+        private static void InjectScriptNoOpening(DialogueInjectScript script, string fileTag)
         {
-            if (script == null || script.Nodes == null || script.Nodes.Count == 0)
-                return "Empty script";
-
-            var fileTag = debugLabel ?? $"dyn_{_injectedOwners.Count}";
             fileTag = $"{fileTag}_v{_injectionCounter++}";
 
             var cm = Campaign.Current.ConversationManager;
@@ -446,34 +442,32 @@ namespace LivingWorldNpcs
             string startToken = !string.IsNullOrEmpty(script.InjectAtToken)
                 ? script.InjectAtToken : "start";
 
-            // 找到入口 node
             var entryNode = script.Nodes.FirstOrDefault(t => t.Id == script.EntryNode);
             if (entryNode == null)
             {
-                DebugLogger.Log($"[DialogueInjector] InjectScriptAsOpening: entry node '{script.EntryNode}' not found");
-                return $"Error: entry node '{script.EntryNode}' not found";
+                DebugLogger.Log($"[DialogueInjector] InjectScriptNoOpening: entry node '{script.EntryNode}' not found");
+                return;
             }
 
             try
             {
-                // ── 第一步：入口 node 的 NPC 台词直接挂在 startToken ──
+                // NPC 台词直接挂在 startToken，优先级 200 碾压原版开场白
                 string afterNpcLine = NextToken(fileTag);
                 AddNodeNpcLine(cm, $"inj_open_{entryNode.Id}", startToken, afterNpcLine, entryNode, 200);
                 DebugLogger.Log($"[DialogueInjector] Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
 
-                // ── 第二步：注册入口 node 的玩家选项（挂在 afterNpcLine）──
+                // 注册入口 node 的玩家选项
                 RegisterNodeTransitions(cm, entryNode, afterNpcLine, fileTag, owner);
 
-                // ── 第三步：逐 turn 注册剩余回合 ──
+                // 注册剩余 node
                 foreach (var node in script.Nodes)
                 {
-                    if (node.Id == script.EntryNode) continue; // 入口 node 已处理
+                    if (node.Id == script.EntryNode) continue;
 
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
 
                     if (node.Transitions == null || node.Transitions.Count == 0)
                     {
-                        // Terminal node: NPC 说话 → 关窗
                         AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node);
                     }
                     else
@@ -483,14 +477,10 @@ namespace LivingWorldNpcs
                         RegisterNodeTransitions(cm, node, nodeAfterNpc, fileTag, owner);
                     }
                 }
-
-                int nodeCount = 1 + script.Nodes.Count(t => t.Id != script.EntryNode);
-                return $"SUCCESS (opening mode): '{fileTag}' → {nodeCount} nodes at '{startToken}'";
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[DialogueInjector] InjectScriptAsOpening error: {ex.Message}");
-                return $"Error: {ex.Message}";
+                DebugLogger.Log($"[DialogueInjector] InjectScriptNoOpening error: {ex.Message}");
             }
         }
 
@@ -624,8 +614,11 @@ namespace LivingWorldNpcs
             }
         }
 
-        // ⚠ 内部方法，与 InjectFromJson 的后半段逻辑完全相同
-        private static void InjectScriptInternal(DialogueInjectScript script, string fileTag)
+        /// <summary>
+        /// Gateway 注入模式：在 hero_main_options 挂 PlayerLine 入口，保留原版开场白。
+        /// 适用场景：NPC 等玩家主动来找 — 打听消息、接任务、路人闲聊等。
+        /// </summary>
+        private static void InjectScriptGateway(DialogueInjectScript script, string fileTag)
         {
             string baseLabel = fileTag;
             // 每次注入用唯一版本号，防止旧线未清理导致的 token 碰撞
@@ -671,7 +664,7 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[DialogueInjector] InjectScriptInternal error: {ex.Message}");
+                DebugLogger.Log($"[DialogueInjector] InjectScriptGateway error: {ex.Message}");
             }
         }
 
@@ -768,6 +761,8 @@ namespace LivingWorldNpcs
             public string EntryOption = null;
             /// <summary>对话从哪个 node 开始（对应 DialogueNode.Id）。默认 "injectedStart"。 </summary>
             public string EntryNode = "injectedStart";
+            /// <summary>是否跳过原版开场白。true = NPC 台词直接挂在 start token（优先级 200），原版问候不播放。</summary>
+            public bool SkipVanillaOpening = false;
             public List<DialogueNode> Nodes;
         }
 
