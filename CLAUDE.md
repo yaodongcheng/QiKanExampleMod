@@ -19,7 +19,7 @@
 
 **运行时调试日志**：`Debug/StoryEngine_RuntimeLog.txt`（`DebugLogger.Log` 写入，内容随调试需求变动）。排查问题或验证行为时可直接 `Read` 分析。
 
-## 六条铁律
+## 八条铁律
 
 1. **LLM 不可用时游戏不能崩** — 任何 LLM 代码路径入口检查 `Settings.Instance.IsLLMReady`，不存在就降级或 return
 2. **LLM 返回的 JSON 不可信任** — 每个 `foreach` 前 null check，每个字段用 `?.` 传播
@@ -28,6 +28,7 @@
 5. **禁止硬编码游戏资源 ID** — 任何通过 `MBObjectManager.Instance.GetObject<T>("hardcoded_id")` 查找物品/角色/城镇/Culture 的逻辑，都可能被其他 mod（织丰/Shokuho 等）屏蔽导致返回 null。**必须使用两轮策略**：①第一轮尝试预设 ID 列表（从 XML 验证过的已知 ID）；②第二轮用 `MBObjectManager.Instance.GetObject<T>(predicate)` 动态遍历内存中已注册的对象做兜底。参看 `AgentControlHelper.TryGiveAnyMeleeWeapon` 为范本。**装备、NPC 模板、城镇、文化、兵种等全部适用此规则。**
 6. **以 KCD2 / 荒野大镖客 2 的水准要求自己** — 每次思考实现方案、每次审查产出时，问自己：这个设计在 KCD2 里合格吗？玩家体验会不会出戏？沉浸感有没有被破坏？不是功能跑通就算完——要跑到让玩家觉得"这个 mod 像是原生游戏的一部分"。叙事、交互、UI、节奏、信息传递，每一项都适用。做不到就改，改到合格为止。
 7. **设计哲学四原则** — 任何新系统/新功能设计必须对照 [design-philosophy.md](plans/rules/design-philosophy.md) 逐条检查：①反馈明确 ②自由感 ③任意 NPC 接得住 ④信息塑造目标。设计评审不通过四原则 → 先改设计，再写代码。
+8. **所有 Agent 平等互动** — 玩家可以和任意 Agent 互动——无论它有 HeroObject（有名有姓的 Hero）还是模板 NPC（普通士兵/村民/守卫）。对话、战斗、偷窃、贿赂、威胁、投降等所有互动入口必须兼容 `speaker/partner == null`。**只拦截真正依赖 Hero 身份才能运作的场景**（如栽赃陷害——必须把罪名记到具体 Hero 头上），通用互动一律放行。模板 NPC 的身份匹配用 `TemplateId`（CharacterObject.StringId），不用 Hero StringId。
 
 ## API 探索：反编译 DLL 禁止瞎猜
 
