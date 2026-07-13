@@ -9,7 +9,8 @@ namespace LivingWorldNpcs
 {
     /// <summary>
     /// 玩家认输 → 交钱保命。无检定，必定执行。
-    /// 正常罚金 200G；counteroffer 后罚金翻倍 400G。
+    /// 正常罚金 = CrimePenaltyCalculator.ComputeSurrenderRansom()（玩家金币15%或200取大值）；
+    /// counteroffer 后罚金翻倍。
     /// 后果：罚金 + 荣誉 -1 + 勇敢 -1 + 战斗结束。
     /// </summary>
     public class PlayerSurrenderPayIntent : IntentBase
@@ -22,23 +23,23 @@ namespace LivingWorldNpcs
         {
             if (Mission.Current == null) return Eligibility.Hide();
 
-            // counteroffer 后：罚金翻倍
+            int baseRansom = CrimePenaltyCalculator.ComputeSurrenderRansom();
             bool isCounteroffer = ctx.ActionParam == "counteroffer_beg"
                                || ctx.ActionParam == "counteroffer_threaten";
-            int baseCost = isCounteroffer ? 400 : 200;
-            int penalty = Math.Min(Hero.MainHero.Gold, baseCost);
+            int cost = isCounteroffer ? baseRansom * 2 : baseRansom;
 
-            if (Hero.MainHero.Gold < baseCost)
-                return Eligibility.Grey($"钱不够（需要 {baseCost} 第纳尔，你只有 {Hero.MainHero.Gold}）");
+            if (Hero.MainHero.Gold < cost)
+                return Eligibility.Grey($"钱不够（需要 {cost} 第纳尔，你只有 {Hero.MainHero.Gold}）");
             return Eligibility.Show();
         }
 
         public override void OnInstant(IntentContext ctx)
         {
+            int baseRansom = CrimePenaltyCalculator.ComputeSurrenderRansom();
             bool isCounteroffer = ctx.ActionParam == "counteroffer_beg"
                                || ctx.ActionParam == "counteroffer_threaten";
-            int baseCost = isCounteroffer ? 400 : 200;
-            int penalty = Math.Min(Hero.MainHero.Gold, baseCost);
+            int cost = isCounteroffer ? baseRansom * 2 : baseRansom;
+            int penalty = Math.Min(Hero.MainHero.Gold, cost);
             if (penalty > 0)
                 AgentControlHelper.TransferGold(Hero.MainHero, null, penalty);
 
@@ -97,10 +98,10 @@ namespace LivingWorldNpcs
             // ⭐ 关键：不扣钱、不扣属性、不结束战斗！
             // 只标记 counteroffer 状态，让下一轮 PayIntent 读到翻倍的罚金。
             // ReofferOnFail=true → ResolveAdversarialIntent 会调 RefreshInitialOptions()
-            // → BuildOptionVMs 重新跑所有 Evaluate → PayIntent 读 ActionParam 显示 400G
+            // → BuildOptionVMs 重新跑所有 Evaluate → PayIntent 读 ActionParam 显示翻倍金额
             ctx.ActionParam = "counteroffer_beg";
 
-            DebugLogger.Log($"[Combat] SurrenderBeg FAIL: counteroffer — 罚金翻倍至 400G");
+            DebugLogger.Log($"[Combat] SurrenderBeg FAIL: counteroffer — 罚金翻倍");
         }
     }
 

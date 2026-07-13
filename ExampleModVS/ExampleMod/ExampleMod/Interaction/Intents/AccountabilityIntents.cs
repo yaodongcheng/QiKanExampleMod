@@ -93,7 +93,8 @@ namespace LivingWorldNpcs
                             _goal = NegotiationGoalType.ResolveConflict_Apology;
                             _tactic = NegotiationTactic.Bribe;
                             _offerValue = 0.3f;
-                            int bribeCost = 100;
+                            var misEvtBribe = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+                            int bribeCost = CrimePenaltyCalculator.ComputePenalty(misEvtBribe);
                             if (Hero.MainHero.Gold < bribeCost)
                                 return Eligibility.Grey($"钱不够（需要 {bribeCost} 第纳尔）");
                             return Eligibility.Show();
@@ -110,8 +111,8 @@ namespace LivingWorldNpcs
             if (!stageOk) return Eligibility.Hide();
 
             int cost = ctx.IsInMission
-                ? ctx.ActiveEvent.ComputeOnSpotCost()
-                : ctx.ActiveEvent.ComputeRestitutionCost();
+                ? CrimePenaltyCalculator.ComputeCost(ctx.ActiveEvent, CostType.OnSpot)
+                : CrimePenaltyCalculator.ComputeCost(ctx.ActiveEvent, CostType.Restitution);
             if (Hero.MainHero.Gold < cost)
                 return Eligibility.Grey($"钱不够（需要 {cost} 第纳尔）");
             return Eligibility.Show();
@@ -122,7 +123,8 @@ namespace LivingWorldNpcs
             // Alert 场景：NPC 质问中玩家选认罚 → 当场扣钱，清警戒，释放质问锁
             if (ctx.ActionParam == "alert_fine")
             {
-                int fine = 100;
+                var misEvt = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+                int fine = CrimePenaltyCalculator.ComputePenalty(misEvt);
                 AgentControlHelper.TransferGold(Hero.MainHero, null, fine);
                 var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                 if (npc is Hero n)
@@ -143,7 +145,7 @@ namespace LivingWorldNpcs
             if (evt == null) return;
 
             bool isOnSpot = ctx.IsInMission;
-            int cost = isOnSpot ? evt.ComputeOnSpotCost() : evt.ComputeRestitutionCost();
+            int cost = isOnSpot ? CrimePenaltyCalculator.ComputeCost(evt, CostType.OnSpot) : CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution);
             if (ctx.ActionParam == "haggle")
                 cost = (int)(cost * 0.5f);
             var authority = WorldEventStore.GetAuthorityNpc(evt);
@@ -169,7 +171,8 @@ namespace LivingWorldNpcs
         {
             if (ctx.ActionParam == "bribe")
             {
-                int bribe = 100;
+                var misEvt = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+                int bribe = CrimePenaltyCalculator.ComputePenalty(misEvt);
                 AgentControlHelper.TransferGold(Hero.MainHero, null, bribe);
                 var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
                 brain?.ClearAllAlerts();
@@ -1139,7 +1142,9 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
-            int confiscation = Math.Min(Hero.MainHero.Gold, 200);
+            var misEvt = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+            int maxConfiscation = CrimePenaltyCalculator.ComputePenalty(misEvt);
+            int confiscation = Math.Min(Hero.MainHero.Gold, maxConfiscation);
             if (confiscation > 0)
                 AgentControlHelper.TransferGold(Hero.MainHero, null, confiscation);
 
