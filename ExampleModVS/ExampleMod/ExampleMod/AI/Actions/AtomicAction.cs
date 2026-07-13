@@ -1020,12 +1020,10 @@ namespace LivingWorldNpcs
 
             string label = $"AlertL3_{agent.Name}";
 
-            // ── 统一策略：InjectScriptAsOpening，NPC 台词挂在 start token（优先级 200）──
-            // start 是所有 NPC（Hero、模板、强盗、士兵……）的通用对话入口，
-            // 优先级 200 碾压原版开场白，无论 NPC 类型都不需要单独适配。
-            script.InjectAtToken = "start";
-            string injectResult = DialogueInjector.InjectScriptAsOpening(script, label);
-            DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) InjectScriptAsOpening: {injectResult} | Nodes={script.Nodes?.Count ?? 0}");
+            // ── SkipVanillaOpening=true 已在 BuildAlertInterceptScript 中设定，
+            //     InjectScript 读取该字段自动走直挂模式（默认 start token，优先级 200）──
+            string injectResult = DialogueInjector.InjectScript(script, label);
+            DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) InjectScript: {injectResult} | Nodes={script.Nodes?.Count ?? 0}");
 
             DialogueInjector.LogScript(script, $"[AlertForceConv] {agent.Name}(Idx={agent.Index})");
 

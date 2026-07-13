@@ -130,8 +130,7 @@ namespace LivingWorldNpcs
                     //案件已经知道是谁干的了（怀疑）
                     if (evt.SuspectIsPlayer)
                     {
-                        //怀疑是玩家干的
-                        entryOption = r.Resolve("{SpeakerRole}，{SpeakerSelfRef}有话跟你说。", "EntryOption");
+                        //怀疑是玩家干的 — NPC 锁定玩家身份，不设 EntryOption，SkipVanillaOpening=true
                         BuildConfrontPlayerNode(nodes, r, ctx);
                     }
                     else
@@ -142,9 +141,8 @@ namespace LivingWorldNpcs
                     }
                     break;
                 case EventStage.Confrontation:
-                    //是玩家干的，和玩家对峙
+                    //是玩家干的，和玩家对峙 — NPC 已动员武力，不设 EntryOption，SkipVanillaOpening=true
                     {
-                        entryOption = r.Resolve("{SpeakerRole}……", "EntryOption");
                         BuildRetaliationNode(nodes, r, ctx);
                     }
                     break;
@@ -155,11 +153,14 @@ namespace LivingWorldNpcs
 
             }           
 
-            
-            //原版的开场白仍然保留，npc开场说完之后，出现我们的选项
+            // NPC 锁定玩家身份 → SkipVanillaOpening=true，直接说正事；否则保留原版开场白
+            bool skipOpening = (evt.Stage == EventStage.Active && evt.SuspectIsPlayer)
+                            || evt.Stage == EventStage.Confrontation;
+
             return new DialogueInjector.DialogueInjectScript
             {
-                EntryOption = entryOption,
+                SkipVanillaOpening = skipOpening,
+                EntryOption = skipOpening ? null : entryOption,
                 EntryNode = "injectedStart",
                 Nodes = nodes
             };
@@ -755,7 +756,7 @@ namespace LivingWorldNpcs
             nodes.Add(TerminalNode("alert_esc_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
             nodes.Add(TerminalNode("alert_esc_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
 
-            return new DialogueInjector.DialogueInjectScript { EntryNode = "injectedStart", Nodes = nodes };
+            return new DialogueInjector.DialogueInjectScript { SkipVanillaOpening = true, EntryNode = "injectedStart", Nodes = nodes };
         }
 
         /// <summary>L3 警戒质问的硬编码兜底台词（CSV 和 Narrative 均未命中时）。</summary>
@@ -1011,6 +1012,7 @@ namespace LivingWorldNpcs
 
             return new DialogueInjector.DialogueInjectScript
             {
+                SkipVanillaOpening = true,
                 EntryNode = "player_lose",
                 Nodes = new List<DialogueInjector.DialogueNode>
                 {
@@ -1088,6 +1090,7 @@ namespace LivingWorldNpcs
         {
             return new DialogueInjector.DialogueInjectScript
             {
+                SkipVanillaOpening = true,
                 EntryNode = "npc_beg",
                 Nodes = new List<DialogueInjector.DialogueNode>
                 {
