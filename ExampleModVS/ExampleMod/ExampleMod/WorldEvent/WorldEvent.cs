@@ -425,28 +425,6 @@ namespace LivingWorldNpcs
             return null;
         }
 
-        /// <summary>计算赔偿金额：所有被盗物品总市值 × 赔偿倍数（阶段不同倍数不同）</summary>
-        public int ComputeRestitutionCost(EventStage? forStage = null)
-        {
-            var stage = forStage ?? Stage;
-            var cfg = Config;
-            if (cfg == null) return 100;
-
-            int baseValue = TotalStolenValue;
-            if (baseValue <= 0) baseValue = Severity * 10;
-
-            float multiplier = stage switch
-            {
-                EventStage.Active => cfg.BaseRestitutionMultiplier,
-                EventStage.Confrontation => cfg.BaseRestitutionMultiplier * 1.7f,
-                _ => cfg.BaseRestitutionMultiplier * 0.7f  // Emerging / caught-in-act
-            };
-
-            // Trade skill discount (max 15%)
-            float tradeDiscount = 1f - Math.Min(0.15f, Hero.MainHero.GetSkillValue(DefaultSkills.Trade) * 0.0005f);
-            return (int)(baseValue * multiplier * tradeDiscount);
-        }
-
         /// <summary>赔偿金额的明细解释（给玩家看为什么是这个数）</summary>
         public string GetRestitutionBreakdown()
         {
@@ -457,7 +435,7 @@ namespace LivingWorldNpcs
             int baseValue = TotalStolenValue;
             if (baseValue <= 0) baseValue = Severity * 10;
 
-            int total = ComputeRestitutionCost();
+            int total = CrimePenaltyCalculator.ComputeCost(this, CostType.Restitution);
             string crimeGerund = cfg.CrimeVerbGerund ?? "犯事";
 
             if (Stage <= EventStage.Emerging)
@@ -486,24 +464,6 @@ namespace LivingWorldNpcs
             // 3+ 种不同物品：列举前两项 + "等N只牲口"
             var total = items.Values.Sum();
             return $"{parts[0]}、{parts[1]}等{total}只牲口";
-        }
-
-        /// <summary>当场被抓时的赔偿（×2 而非 ×3）</summary>
-        public int ComputeOnSpotCost()
-        {
-            var cfg = Config;
-            if (cfg == null) return 100;
-            int baseValue = TotalStolenValue;
-            if (baseValue <= 0) baseValue = Severity * 10;
-            return baseValue * 2;
-        }
-
-        /// <summary>获取悬赏金额</summary>
-        public int ComputeBountyAmount()
-        {
-            var cfg = Config;
-            if (cfg == null) return 500;
-            return cfg.BaseBountyPerUnit * Math.Max(1, TotalStolenCount);
         }
     }
 

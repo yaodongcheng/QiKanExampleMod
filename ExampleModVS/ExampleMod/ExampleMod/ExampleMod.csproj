@@ -337,6 +337,7 @@
     <Compile Include="WorldEvent\AttitudeSystem.cs" />
     <Compile Include="WorldEvent\ResponsePattern.cs" />
     <Compile Include="WorldEvent\WorldEvent.cs" />
+    <Compile Include="WorldEvent\CrimePenaltyCalculator.cs" />
     <Compile Include="WorldEvent\InvestigationEngine.cs" />
     <Compile Include="WorldEvent\SocialEventManager.cs" />
     <!-- Script -->

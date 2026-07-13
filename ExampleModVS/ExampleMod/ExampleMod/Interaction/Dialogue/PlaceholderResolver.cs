@@ -292,11 +292,12 @@ namespace LivingWorldNpcs
                          : $"{selfRef}话说到了。你自己掂量吧。";
 
                 // H. 选项参数
-                case "RestitutionCost": return (evt?.ComputeRestitutionCost() ?? 0).ToString();
-                case "RestitutionCostOnSpot": return (evt?.ComputeOnSpotCost() ?? 0).ToString();
-                case "RestitutionCostHaggle": return (int)((evt?.ComputeRestitutionCost() ?? 0) * 0.5f) + "";
+                case "RestitutionCost": return (evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0).ToString();
+                case "RestitutionCostOnSpot": return (evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.OnSpot) : 0).ToString();
+                case "RestitutionCostHaggle": return (int)((evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0) * 0.5f) + "";
                 case "RestitutionBreakdown": return evt?.GetRestitutionBreakdown() ?? "";
-                case "BountyAmount": return (evt?.ComputeBountyAmount() ?? 0).ToString();
+                case "AlertFineCost": return CrimePenaltyCalculator.ComputePenalty(evt).ToString();
+                case "BountyAmount": return (evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Bounty) : 0).ToString();
                 case "CharmReprieveUsed": return (evt?.CharmReprieveUsed == true).ToString().ToLower();
                 case "FailCount": return (evt?.FailCount ?? 0).ToString();
                 case "FailCountRemaining": return (2 - (evt?.FailCount ?? 0)).ToString();

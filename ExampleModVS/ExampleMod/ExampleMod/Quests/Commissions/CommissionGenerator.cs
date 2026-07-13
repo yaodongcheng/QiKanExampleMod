@@ -984,7 +984,7 @@ namespace LivingWorldNpcs
                         QuestGiver = hero,
                         TargetHero = suspect,
                         TargetSettlementId = evt.TargetSettlementId,
-                        NegotiatedReward = evt.ComputeBountyAmount(),
+                        NegotiatedReward = CrimePenaltyCalculator.ComputeCost(evt, CostType.Bounty),
                         TimeRemainingHours = 15 * 24f,
                         WorldEventId = evt.EventId,
                     };
@@ -1003,7 +1003,7 @@ namespace LivingWorldNpcs
                         QuestGiver = hero,
                         TargetHero = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId),
                         TargetSettlementId = evt.TargetSettlementId,
-                        NegotiatedReward = evt.ComputeBountyAmount() / 2,  // 带队报复酬劳
+                        NegotiatedReward = CrimePenaltyCalculator.ComputeCost(evt, CostType.Bounty) / 2,  // 带队报复酬劳
                         TimeRemainingHours = 10 * 24f,
                         WorldEventId = evt.EventId,
                     };
