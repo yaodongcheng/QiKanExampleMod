@@ -884,6 +884,47 @@ public static class ChangeInteractionTextPatch
 
 **优先原版**：凡是能挂到 `hero_main_options` / `issue_offer` / `quest_offer` token 的，走 JSON 注入。只有原版 token 体系覆盖不了的场景（如大地图偶遇、无 Hero 的平民）才用 StoryDialogVM。
 
+## 🔴 对话注入铁律
+
+> **总原则见 CLAUDE.md 铁律 8「所有 Agent 平等互动」。** 以下为对话系统的具体落地要求。
+
+### 铁律 A：对话入口不因"无 Hero"拒绝
+
+所有对话入口（`TryInjectCrimeDialogue`、`BuildScript`、`PlaceholderResolver`、`IntentContext`）必须兼容 `speaker == null`。模板 NPC 自然走完身份分派链，不命中 Hero 身份检查时落 `BuildBystanderScript`。
+
+```csharp
+// ❌ 禁止：在对话入口处拦截模板 NPC
+if (partner == null) return;
+
+// ✅ 正确：模板 NPC 自然走完分派链，null-conditional 防 NRE
+if (IsAuthority(speaker, evt)) ...                          // null-safe: npc?.Occupation
+else if (evt.WitnessHeroIds?.Contains(speaker?.StringId) == true) ...
+else if (evt.SuspectHeroId == speaker?.StringId) ...
+else result = BuildBystanderScript(r, ctx);                  // 自然兜底
+```
+
+拦截白名单：**只有必须记录 Hero StringId 的场景才拦截**（如栽赃陷害 `INTENT:FrameSuspect`），通用互动（战斗、偷窃、贿赂、威胁、投降、八卦）一律放行。
+
+### 铁律 B：对话注入统一收口 `StartConversation`
+
+**所有对话注入——不管是玩家主动交谈、NPC 主动质问、还是战斗投降——都必须经过 `MissionConversationLogic.StartConversation`（或其 Postfix `TryInjectCrimeDialogue`）统一处理。** 禁止调用方自己调 `DialogueInjector.InjectScript` 然后自己调 `StartConversation`。
+
+```csharp
+// ❌ 禁止：调用方自己注入 + 自己开对话
+BuildAlertInterceptScript(r, ctx);
+DialogueInjector.InjectScript(script, label);
+conversationLogic.StartConversation(agent, true, false);
+
+// ✅ 正确：调用方只设 trigger，TryInjectCrimeDialogue 统一注入
+ConversationEntryPatch._pendingTrigger = DialogueTrigger.Alert;
+ConversationEntryPatch._pendingConfrontation = detail;
+ConversationEntryPatch._pendingTriggerAction = primaryAction;
+conversationLogic.StartConversation(agent, true, false);
+// → Postfix 触发 TryInjectCrimeDialogue → BuildScript(trigger=Alert) → InjectScript
+```
+
+**为什么**：`StartConversation` Postfix 是唯一能保证"每次对话启动时只注入一次"的关口。调用方各自注入会导致双重注入、token 竞争、以及 `_lastInjectedEventId` 防重复机制失效。
+
 ## v2 新模型（2026-07-12 重构）
 
 **核心原则：Transition 只管路由，NPC 台词统一在 DialogueNode.NpcLine。**
