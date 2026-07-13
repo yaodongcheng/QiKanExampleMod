@@ -11,6 +11,17 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
+    /// 对话触发来源。BuildScript 根据此枚举统一分派到对应的子树构建方法。
+    /// </summary>
+    public enum DialogueTrigger
+    {
+        Normal,           // 玩家主动交谈 → 按 speaker 身份分派（Authority/Witness/Suspect/Bystander）
+        Alert,            // NPC 主动质问 → BuildAlertInterceptScript
+        PlayerSurrender,  // 玩家认输 → BuildPlayerSurrenderScript
+        NpcSurrender      // NPC 投降 → BuildNpcSurrenderScript
+    }
+
+    /// <summary>
     /// 犯罪对话构建器：运行时从游戏状态动态构建 DialogueInjectScript，
     /// 经 DialogueInjector.InjectScript 注入 ConversationManager。
     ///
@@ -50,30 +61,85 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 注入时机：玩家对 NPC 点"交谈"时调用。MissionConversationLogic.StartConversation、CampaignMapConversation.OpenConversation调用TryInjectCrimeDialogue
         /// 基于当前的settlement有没有相关活跃事件
+        ///
+        /// BuildScript 是犯罪对话的唯一分派点。四种触发场景在内部统一 switch：
+        ///   Normal → 按 speaker 身份分派（Authority/Witness/Suspect/Bystander）
+        ///   Alert → BuildAlertInterceptScript（NPC 主动质问）
+        ///   PlayerSurrender → BuildPlayerSurrenderScript
+        ///   NpcSurrender → BuildNpcSurrenderScript
         /// </summary>
-        public static DialogueInjector.DialogueInjectScript BuildScript(Hero speaker, Hero listener, WorldEvent evt)
+        public static DialogueInjector.DialogueInjectScript BuildScript(
+            Hero speaker, Hero listener, WorldEvent evt,
+            DialogueTrigger trigger = DialogueTrigger.Normal,
+            ConfrontationType? alertConfrontation = null,
+            PlayerActionType? alertTriggerAction = null)
         {
-            if (evt == null) return null;
+            // evt 为 null 时仅 Alert trigger 放行（纯警戒质问，无关联犯罪事件）
+            if (evt == null && trigger != DialogueTrigger.Alert) return null;
 
+            // ── trigger 优先分派 ──
+            switch (trigger)
+            {
+                case DialogueTrigger.Alert:
+                    return BuildAlertInterceptScriptInternal(speaker, listener, evt,
+                        alertConfrontation, alertTriggerAction);
+
+                case DialogueTrigger.PlayerSurrender:
+                    return BuildPlayerSurrenderScript();
+
+                case DialogueTrigger.NpcSurrender:
+                    return BuildNpcSurrenderScript(
+                        speaker?.Name?.ToString() ?? listener?.Name?.ToString() ?? "对方");
+            }
+
+            // ── Normal：按 speaker 身份分派 ──
             PlaceholderResolver r = new PlaceholderResolver(evt, speaker, listener);
             Agent speakerAgent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
             IntentContext ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: evt);
 
-            // 按说话者身份分派
-            DialogueInjector.DialogueInjectScript script;
-            if (IsAuthority(speaker, evt))
-                script = BuildAuthorityScript(r, ctx);
-            else if (evt.WitnessHeroIds?.Contains(speaker.StringId) == true)
-                script = BuildWitnessScript(r, ctx);
-            else if (evt.SuspectHeroId == speaker.StringId)
-                script = BuildSuspectScript(r, ctx);
+            DialogueInjector.DialogueInjectScript result;
+
+            // ── 模板 NPC（speaker==null）兼容性审计 ──
+            //   IsAuthority → null-safe（npc?.Occupation），模板 NPC 永远不命中 ✅
+            //   Witness    → speaker.StringId 匹配证词 + SilenceWitness 记录身份
+            //                模板 NPC 可当目击者（RegisterWitness 已支持 TemplateId），
+            //                但 BuildWitnessScript 未适配 → 暂落 Bystander ⚠️ TODO
+            //   Suspect    → SuspectHeroId 是 Hero StringId，模板 NPC 当嫌疑人需改
+            //                数据模型 → 暂落 Bystander ⚠️
+            //   Bystander  → 全程 PlaceholderResolver，完全兼容 ✅
+            //   扩展方式：加 TemplateId 匹配的 else if 即可，不需改结构。
+            if (IsAuthority(speaker, evt))                             // null-safe: npc?.Occupation
+                result = BuildAuthorityScript(r, ctx);
+            else if (evt.WitnessHeroIds?.Contains(speaker?.StringId) == true)  // 🆕 speaker?
+                result = BuildWitnessScript(r, ctx);                   // ⚠️ 仅 Hero 目击者
+            else if (evt.SuspectHeroId == speaker?.StringId)                  // 🆕 speaker?
+                result = BuildSuspectScript(r, ctx);                   // ⚠️ 仅 Hero 嫌疑人
             else
-                script = BuildBystanderScript(r, ctx);
+                result = BuildBystanderScript(r, ctx);                 // 自然兜底（模板 NPC ✅）
 
-            // 日志：打印每个 node 的最终填充文本，方便排查占位符遗漏
-            DialogueInjector.LogScript(script, $"[CrimeDialog] speaker={speaker.Name} stage={evt.Stage}");
+            DialogueInjector.LogScript(result, $"[CrimeDialog] speaker={speaker?.Name ?? "(template)"} stage={evt.Stage}");
+            return result;
+        }
 
-            return script;
+        /// <summary>Alert 路径的内部适配：从原始参数构建 PlaceholderResolver + IntentContext，调 BuildAlertInterceptScript。
+        /// evt 可为 null（纯警戒质问，无关联犯罪事件）。</summary>
+        private static DialogueInjector.DialogueInjectScript BuildAlertInterceptScriptInternal(
+            Hero speaker, Hero listener, WorldEvent evt,
+            ConfrontationType? confrontation, PlayerActionType? triggerAction)
+        {
+            // evt 为 null 时用无 WorldEvent 的 PlaceholderResolver 构造器，{CRIME} 等占位符回落空串
+            var r = evt != null
+                ? new PlaceholderResolver(evt, speaker, listener)
+                : new PlaceholderResolver(speaker, listener, targetName: null, itemName: null);
+            r.SpeakingWitness = AgentAIController.Instance?.PendingWorldEvent
+                ?.WitnessTestimonies?.FirstOrDefault(t => t.WitnessHeroId == speaker?.StringId);
+
+            var agent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
+            var ctx = new IntentContext(agent, speaker: speaker, worldEvent: evt);
+            ctx.Confrontation = confrontation ?? ConfrontationType.Deter;
+            ctx.TriggerAction = triggerAction ?? PlayerActionType.Crouching;
+
+            return BuildAlertInterceptScript(r, ctx);
         }
 
         private static bool IsAuthority(Hero npc, WorldEvent evt)

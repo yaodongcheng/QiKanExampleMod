@@ -959,12 +959,6 @@ namespace LivingWorldNpcs
         /// <summary>正在等待对话结束的 NPC。Patch 在 ConversationManager.EndConversation 时读取并清理。</summary>
         internal static Agent ActiveConversationAgent;
 
-        /// <summary>延迟注入：待注入的脚本（开场白播放后由 AlertScriptDeferredInjectionPatch 消费）。
-        /// Alert 本身不走此路径（用 InjectScriptAsOpening），保留供其他场景使用。</summary>
-        internal static DialogueInjector.DialogueInjectScript PendingAlertScript;
-        /// <summary>延迟注入用的 owner 标签</summary>
-        internal static string PendingAlertLabel;
-
         private bool _started;
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
@@ -1001,40 +995,10 @@ namespace LivingWorldNpcs
             };
             brain?.SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
-            // 查找关联的 WorldEvent（Stage 决定对话是初始还是升级版）
-            WorldEvent worldEvt = null;
-            var pending = AgentAIController.Instance?.PendingWorldEvent;
-            if (pending != null)
-            {
-                // 已在 WorldEventStore 中（续档）→ 取持久化版本（Stage 可能已被 DailyTick 推进）
-                worldEvt = WorldEventStore.Find(pending.EventId) ?? pending;
-            }
-
-            // 构建统一上下文：PlaceholderResolver + IntentContext = 全部对话所需信息
-            var r = new PlaceholderResolver(worldEvt, npcHero, Hero.MainHero);
-            r.SpeakingWitness = pending?.WitnessTestimonies?
-                .FirstOrDefault(t => t.WitnessHeroId == npcHero?.StringId);
-
-            var ctx = new IntentContext(agent, speaker: npcHero, worldEvent: worldEvt);
-            ctx.Confrontation = detail;
-            ctx.TriggerAction = primaryAction ?? PlayerActionType.Crouching;
-
-            // 构建对话脚本（WorldEvent 非 null 时，CrimeDialogueBuilder 读取其 Stage 决定选项）
-            var script = CrimeDialogueBuilder.BuildAlertInterceptScript(r, ctx);
-            if (script == null)
-            {
-                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");
-                return;
-            }
-
-            string label = $"AlertL3_{agent.Name}";
-
-            // ── SkipVanillaOpening=true 已在 BuildAlertInterceptScript 中设定，
-            //     InjectScript 读取该字段自动走直挂模式（默认 start token，优先级 200）──
-            string injectResult = DialogueInjector.InjectScript(script, label);
-            DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) InjectScript: {injectResult} | Nodes={script.Nodes?.Count ?? 0}");
-
-            DialogueInjector.LogScript(script, $"[AlertForceConv] {agent.Name}(Idx={agent.Index})");
+            // 设 trigger：TryInjectCrimeDialogue（StartConversation Postfix）统一构建并注入脚本
+            ConversationEntryPatch._pendingTrigger = DialogueTrigger.Alert;
+            ConversationEntryPatch._pendingConfrontation = detail;
+            ConversationEntryPatch._pendingTriggerAction = primaryAction ?? PlayerActionType.Crouching;
 
             // 强制开启原版对话
             try
@@ -1083,9 +1047,6 @@ namespace LivingWorldNpcs
                 if (ActiveConversationAgent == agent)
                     ActiveConversationAgent = null;
             }
-            // 清理延迟注入残留（对话未正常到达选项点就结束的情况）
-            PendingAlertScript = null;
-            PendingAlertLabel = null;
         }
     }
 }
