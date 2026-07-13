@@ -321,8 +321,11 @@ namespace LivingWorldNpcs
             string npcName = target.Name?.ToString() ?? "目标";
 
             // 广播围观事件：附近 NPC 停止战斗，围过来看
+            // 排除 target 自己——她是投降对象，对话已由 StartConversation 接管，
+            // 不应再收 WitnessCrime_GatherOnLook 走犯罪指控流程
+            var excludeTarget = new HashSet<Agent> { target };
             AgentAIController.Instance?.BroadcastEventInRange(
-                Agent.Main.Position, 25f, "WitnessCrime", false, Agent.Main, target);
+                Agent.Main.Position, 25f, "WitnessCrime", excludeTarget, false, Agent.Main, target);
 
             // 设 trigger：TryInjectCrimeDialogue（StartConversation Postfix）统一构建并注入脚本
             ConversationEntryPatch._pendingTrigger = DialogueTrigger.PlayerSurrender;

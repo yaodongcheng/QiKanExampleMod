@@ -385,7 +385,7 @@ namespace LivingWorldNpcs
                     Vec2 turnDir = (Vec2)aiEvent.Args[3];
                     float delay = GroupStageManager.CalculateReactionDelay(Owner, criminal, victim);
 
-                    // ── 警戒脉冲：区分偷窃 vs 击晕（criminal==玩家时）──
+                    // ── 警戒脉冲：区分偷窃 vs 攻击 vs 击晕（criminal==玩家时）──
                     if (criminal == Agent.Main)
                     {
                         if (IsKnockedOut(victim))
@@ -393,6 +393,14 @@ namespace LivingWorldNpcs
                             AddAlert(PlayerActionType.Knockout, 3.0f);
                             SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null);
                             _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
+                            SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
+                        }
+                        else if (CombatManager.IsAgentFightingPlayer(victim) || CombatManager.IsPlayerInCombat)
+                        {
+                            // 斗殴/攻击：victim 正在和玩家战斗，不是偷窃
+                            AddAlert(PlayerActionType.AttackAlly, 3.0f);
+                            SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null);
+                            _pulseSuppressedUntil = 0f;
                             SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
                         }
                         else
