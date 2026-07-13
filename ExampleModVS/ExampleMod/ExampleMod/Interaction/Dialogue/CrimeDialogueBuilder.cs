@@ -44,35 +44,15 @@ namespace LivingWorldNpcs
                 Transitions = next != null ? SingleContinue(next) : new List<DialogueInjector.DialogueTransition>()
             };
 
-        // ── Transitions 工厂 ──
-
-
-        /// <summary>单选项"…（继续）"→ next。用于 ack Node。</summary>
         static List<DialogueInjector.DialogueTransition> SingleContinue(string next)
-            => new() { new() { PlayerLine = "…", NextNodeOnSuccess = next } };
-
-        /// <summary>terminal 选项（关窗）。</summary>
-        static List<DialogueInjector.DialogueTransition> CloseOptions(string line = "…")
-            => new() { new() { PlayerLine = line, NextNodeOnSuccess = "" } };
-
-        // ── 原子 Transition 工厂 ──
-
-
-        /// <summary>共享的"离开"选项。替代原来的 BuildContinueChatNode 中的走人选项。</summary>
-        static List<DialogueInjector.DialogueTransition> ContinueOptions(string walkAwayLine = "我得走了。")
-            => new() { WalkAway(walkAwayLine) };
-
-        static DialogueInjector.DialogueTransition WalkAway(string playerLine = "（转身就走）")
-            => new() { PlayerLine = playerLine, Action = "INTENT:WalkAway", NextNodeOnSuccess = "" };
-
+            => new() { new() { PlayerLine = "嗯…", NextNodeOnSuccess = next } };
 
         /// <summary>
-        /// 玩家对 NPC 点"交谈"时调用。</summary>
-        public static DialogueInjector.DialogueInjectScript BuildScript(Hero speaker, Hero listener)
+        /// 注入时机：玩家对 NPC 点"交谈"时调用。MissionConversationLogic.StartConversation、CampaignMapConversation.OpenConversation调用TryInjectCrimeDialogue
+        /// 基于当前的settlement有没有相关活跃事件
+        /// </summary>
+        public static DialogueInjector.DialogueInjectScript BuildScript(Hero speaker, Hero listener, WorldEvent evt)
         {
-            Settlement settlement = speaker.CurrentSettlement;
-            if (settlement == null) return null;
-            WorldEvent evt = WorldEventStore.FindActive(settlement.StringId);
             if (evt == null) return null;
 
             PlaceholderResolver r = new PlaceholderResolver(evt, speaker, listener);
