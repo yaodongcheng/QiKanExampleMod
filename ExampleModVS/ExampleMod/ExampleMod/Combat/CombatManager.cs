@@ -324,9 +324,8 @@ namespace LivingWorldNpcs
             AgentAIController.Instance?.BroadcastEventInRange(
                 Agent.Main.Position, 25f, "WitnessCrime", false, Agent.Main, target);
 
-            var script = CrimeDialogueBuilder.BuildPlayerSurrenderScript();
-            string label = $"Surrender_Player_{target.Index}";
-            DialogueInjector.InjectScript(script, label);
+            // 设 trigger：TryInjectCrimeDialogue（StartConversation Postfix）统一构建并注入脚本
+            ConversationEntryPatch._pendingTrigger = DialogueTrigger.PlayerSurrender;
 
             var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
             conversationLogic?.StartConversation(target, true, false);
@@ -344,9 +343,8 @@ namespace LivingWorldNpcs
             AgentAIController.Instance?.BroadcastEventInRange(
                 target.Position, 25f, "WitnessCrime", false, target, Agent.Main);
 
-            var script = CrimeDialogueBuilder.BuildNpcSurrenderScript(npcName);
-            string label = $"Surrender_NPC_{target.Index}";
-            DialogueInjector.InjectScript(script, label);
+            // 设 trigger：TryInjectCrimeDialogue（StartConversation Postfix）统一构建并注入脚本
+            ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
 
             var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
             conversationLogic?.StartConversation(target, true, false);

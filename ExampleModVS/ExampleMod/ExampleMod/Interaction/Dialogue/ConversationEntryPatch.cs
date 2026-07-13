@@ -106,6 +106,15 @@ namespace LivingWorldNpcs
         internal static string _lastInjectedEventId;
         internal static string _lastInjectedTag;
 
+        /// <summary>待消费的对话触发类型。调用方设置，TryInjectCrimeDialogue 消费并重置为 Normal。</summary>
+        internal static DialogueTrigger _pendingTrigger = DialogueTrigger.Normal;
+
+        /// <summary>Alert trigger 专用的质问类型（Deter/Search/Recover/Stop）。</summary>
+        internal static ConfrontationType _pendingConfrontation;
+
+        /// <summary>Alert trigger 专用的触发动作类型（Crouching/Steal/AttackAlly 等）。</summary>
+        internal static PlayerActionType _pendingTriggerAction;
+
         /// <summary>
         /// 共享注入逻辑：检查定居点犯罪事件，构建并注入犯罪对话。
         /// 供 CampaignMapConversation.OpenConversation（交谈）和
@@ -115,40 +124,86 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (partner == null) return;
-
+                // ── 1. 查找关联 WorldEvent（两层：持久化存储 + Mission 作用域）──
                 Settlement settlement = Settlement.CurrentSettlement
-                    ?? partner.CurrentSettlement
+                    ?? partner?.CurrentSettlement
                     ?? Hero.MainHero?.CurrentSettlement;
-                if (settlement == null) return;
 
-                var evt = WorldEventStore.FindActive(settlement.StringId);
-                if (evt == null)
+                WorldEvent evt = null;
+                if (settlement != null)
                 {
-                    // 事件已不存在（Resolved/Unsolved）→ 清理上次注入的旧对话残留
+                    evt = WorldEventStore.FindActive(settlement.StringId)
+                        ?? AgentAIController.Instance?.PendingWorldEvent;
+                }
+
+                // ── 2. 消费 trigger ──
+                var trigger = _pendingTrigger;
+                var confrontation = _pendingConfrontation;
+                var triggerAction = _pendingTriggerAction;
+
+                // 模板 NPC Alert：TryInjectCrimeDialogue 无法在 start token 注入（无 hero_main_options），
+                // 不消费 trigger，留给 AlertScriptDeferredInjectionPatch（ProcessSentence Postfix）延迟处理。
+                if (trigger == DialogueTrigger.Alert && partner == null)
+                {
+                    DebugLogger.Log($"[ConvEntry] Alert trigger with template NPC — deferring to ProcessSentence deferred injection.");
+                    return;
+                }
+
+                _pendingTrigger = DialogueTrigger.Normal;
+                _pendingConfrontation = default;
+                _pendingTriggerAction = default;
+
+                // ── 3. 设计契约：Surrender 必须有关联 WorldEvent；Alert 可以无事件（纯警戒质问）──
+                if (trigger != DialogueTrigger.Normal && evt == null)
+                {
+                    if (trigger == DialogueTrigger.Alert)
+                    {
+                        // 无 WorldEvent 的纯警戒质问（玩家蹲下/拔刀被看见，但尚未造成犯罪事件）。
+                        // BuildAlertInterceptScriptInternal 内部用无 evt 的 PlaceholderResolver 构造器，
+                        // {CRIME} 等占位符回落空串，对话仍然正常注入。
+                        DebugLogger.Log($"[ConvEntry] Alert trigger without WorldEvent — proceeding with generic confrontation.");
+                    }
+                    else
+                    {
+                        // Surrender 必须有关联 WorldEvent（投降一定发生在战斗/犯罪现场）
+                        DebugLogger.Log($"[ConvEntry] ERROR: trigger={trigger} but no WorldEvent (store or pending)! " +
+                            "Dialogue will be skipped — this is a design contract violation.");
+                        return;
+                    }
+                }
+
+                // ── 4. 无事件 + Normal trigger → 清理退出（Alert 已在步骤 3 放行，继续往下）──
+                if (evt == null && trigger == DialogueTrigger.Normal)
+                {
                     if (_lastInjectedTag != null)
                     {
                         DialogueInjector.RemoveRelatedLines(_lastInjectedTag);
-                        DebugLogger.Log($"[ConvEntry] Cleaned up stale crime dialogue: tag={_lastInjectedTag}");
                         _lastInjectedTag = null;
                         _lastInjectedEventId = null;
                     }
                     return;
                 }
 
-                if (_lastInjectedEventId == evt.EventId + "_" + partner.StringId)
+                // ── 5. 防重复注入 ──
+                string partnerKey = partner?.StringId ?? "(template)";
+                string eventKey = evt?.EventId ?? "no_event";
+                if (_lastInjectedEventId == eventKey + "_" + partnerKey)
                     return;
 
-                string tag = $"crime_{evt.EventId}";
+                // ── 6. 统一走 BuildScript ──
+                string tag = evt != null ? $"crime_{evt.EventId}" : $"crime_alert_{partnerKey}";
                 DialogueInjector.RemoveRelatedLines(tag);
 
-                var script = CrimeDialogueBuilder.BuildScript(partner, Hero.MainHero, evt);
-                if (script != null && script.Nodes != null && script.Nodes.Count > 0)
+                var script = CrimeDialogueBuilder.BuildScript(
+                    partner, Hero.MainHero, evt, trigger, confrontation, triggerAction);
+
+                if (script != null && script.Nodes?.Count > 0)
                 {
                     DialogueInjector.InjectScript(script, tag);
-                    _lastInjectedEventId = evt.EventId + "_" + partner.StringId;
+                    _lastInjectedEventId = eventKey + "_" + partnerKey;
                     _lastInjectedTag = tag;
-                    DebugLogger.Log($"[ConvEntry] Injected crime dialogue: event={evt.EventId} stage={evt.Stage} partner={partner.Name} nodes={script.Nodes.Count}");
+                    DebugLogger.Log($"[ConvEntry] Injected dialogue: event={eventKey} stage={evt?.Stage.ToString() ?? "none"} " +
+                        $"trigger={trigger} partner={partner?.Name ?? "(template)"} nodes={script.Nodes.Count}");
                 }
             }
             catch (Exception ex)
@@ -189,12 +244,13 @@ namespace LivingWorldNpcs
             ConversationEntryPatch._lastInjectedEventId = null;
             ConversationEntryPatch._lastInjectedTag = null;
 
-            // 🆕 清理延迟注入的 Alert 脚本残留（对话在注入前就结束的情况）
-            if (AlertForceConversationAction.PendingAlertScript != null)
+            // 🆕 清理残留 trigger（防御：正常路径在 TryInjectCrimeDialogue 中已消费，此处兜底）
+            if (ConversationEntryPatch._pendingTrigger != DialogueTrigger.Normal)
             {
-                DebugLogger.Log($"[ConvEnd] Cleaning up pending Alert script: {AlertForceConversationAction.PendingAlertLabel}");
-                AlertForceConversationAction.PendingAlertScript = null;
-                AlertForceConversationAction.PendingAlertLabel = null;
+                DebugLogger.Log($"[ConvEnd] Cleaning up stale trigger: {ConversationEntryPatch._pendingTrigger}");
+                ConversationEntryPatch._pendingTrigger = DialogueTrigger.Normal;
+                ConversationEntryPatch._pendingConfrontation = default;
+                ConversationEntryPatch._pendingTriggerAction = default;
             }
 
             // 延迟弹出：WalkAwayIntent 存入的 Inquiry，等对话 UI 完全关闭后再弹
@@ -410,13 +466,16 @@ namespace LivingWorldNpcs
 
     /// <summary>
     /// 模板 NPC 警戒对话的延迟注入：在开场白 NPC 句子播放完毕后，
-    /// 把 AlertForceConversationAction.PendingAlertScript 的 gateway 挂在
-    /// 该句子的 OutputToken 上。
+    /// 把 Alert 脚本的 gateway 挂在该句子的 OutputToken 上。
     ///
     /// 为什么不在对话开始前注入：模板 NPC（HeroObject==null）的对话树没有
-    /// hero_main_options，注入到那里 gateway 永远不会出现。
+    /// hero_main_options，注入到 start token 的 gateway 可能不可达。
     /// 此 Patch 在 ProcessSentence Postfix 中捕获开场白句子的 OutputToken，
     /// 引擎下一轮评估该 token 时就会看到我们的 gateway PlayerLine。
+    ///
+    /// 触发条件：_pendingTrigger == Alert 且尚未被 TryInjectCrimeDialogue 消费
+    /// （对于模板 NPC，TryInjectCrimeDialogue 正常注入后 _pendingTrigger 已重置，
+    /// 若注入成功则此 Patch 不触发；仅当 start token 注入不适用时才走此延迟路径）。
     /// </summary>
     [HarmonyPatch(typeof(ConversationManager), nameof(ConversationManager.ProcessSentence))]
     public static class AlertScriptDeferredInjectionPatch
@@ -426,8 +485,8 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var pendingScript = AlertForceConversationAction.PendingAlertScript;
-                if (pendingScript == null) return;
+                // 仅 Alert trigger 且尚未消费时才走延迟注入路径
+                if (ConversationEntryPatch._pendingTrigger != DialogueTrigger.Alert) return;
 
                 // 只响应 NPC 句子（玩家选项不触发）
                 var sentences = Traverse.Create(__instance)
@@ -442,9 +501,11 @@ namespace LivingWorldNpcs
                 var sentence = sentences[currentNo];
                 if (sentence.IsPlayer) return; // 等 NPC 说完再注入
 
+                // ── 确认是 NPC 句子后才消费 trigger ──
+                var confrontation = ConversationEntryPatch._pendingConfrontation;
+                var triggerAction = ConversationEntryPatch._pendingTriggerAction;
+
                 // 获取本句的输出 token（引擎下一轮评估的目标）
-                // ConversationSentence.OutputToken 是 int（stateMap 索引），
-                // 需要反向查 stateMap 拿回 string token。
                 string outputToken = null;
                 try
                 {
@@ -454,7 +515,6 @@ namespace LivingWorldNpcs
                     if (otProp != null)
                     {
                         int outputTokenInt = (int)otProp.GetValue(sentence);
-                        // 反向查 stateMap：int → string
                         var cmType = __instance.GetType();
                         var stateMapField = cmType.GetField("stateMap",
                             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -483,25 +543,48 @@ namespace LivingWorldNpcs
                     outputToken = "start";
                 }
 
+                // 获取 speaker（模板 NPC 的 Hero 为 null）
+                var agent = __instance.OneToOneConversationAgent;
+                var speaker = (agent?.Character as CharacterObject)?.HeroObject;
+                var settlement = Settlement.CurrentSettlement
+                    ?? speaker?.CurrentSettlement
+                    ?? Hero.MainHero?.CurrentSettlement;
+                var evt = settlement != null
+                    ? (WorldEventStore.FindActive(settlement.StringId)
+                        ?? AgentAIController.Instance?.PendingWorldEvent)
+                    : null;
+
+                // 统一走 BuildScript 构建脚本
+                var script = CrimeDialogueBuilder.BuildScript(
+                    speaker, Hero.MainHero, evt,
+                    DialogueTrigger.Alert, confrontation, triggerAction);
+
+                if (script == null)
+                {
+                    DebugLogger.Log($"[AlertDeferredInject] BuildScript 返回 null！");
+                    return;
+                }
+
                 DebugLogger.Log($"[AlertDeferredInject] NPC 句子结束，OutputToken='{outputToken}' → 注入 gateway");
 
                 // 注入：设 InjectAtToken 为开场白输出 token，显式覆盖为 Gateway 模式
-                // （BuildAlertInterceptScript 默认 SkipVanillaOpening=true，但延迟场景原版开场白已播放）
-                pendingScript.InjectAtToken = outputToken;
-                pendingScript.SkipVanillaOpening = false;
-                string label = AlertForceConversationAction.PendingAlertLabel ?? $"AlertL3_deferred";
-                string result = DialogueInjector.InjectScript(pendingScript, label);
+                script.InjectAtToken = outputToken;
+                script.SkipVanillaOpening = false;
+                string label = $"AlertL3_deferred_{agent?.Index ?? 0}";
+                string result = DialogueInjector.InjectScript(script, label);
                 DebugLogger.Log($"[AlertDeferredInject] 注入结果: {result}");
 
-                // 消费 pending，确保只注入一次
-                AlertForceConversationAction.PendingAlertScript = null;
-                AlertForceConversationAction.PendingAlertLabel = null;
+                // 消费 trigger，确保只注入一次
+                ConversationEntryPatch._pendingTrigger = DialogueTrigger.Normal;
+                ConversationEntryPatch._pendingConfrontation = default;
+                ConversationEntryPatch._pendingTriggerAction = default;
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[AlertDeferredInject] 注入异常: {ex.Message}");
-                AlertForceConversationAction.PendingAlertScript = null;
-                AlertForceConversationAction.PendingAlertLabel = null;
+                ConversationEntryPatch._pendingTrigger = DialogueTrigger.Normal;
+                ConversationEntryPatch._pendingConfrontation = default;
+                ConversationEntryPatch._pendingTriggerAction = default;
             }
         }
     }

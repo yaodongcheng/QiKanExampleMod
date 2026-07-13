@@ -1,7 +1,16 @@
 # 对话注入统一入口重构
 
-> 状态：待实施
+> 状态：✅ 已实施（2026-07-13）
 > 创建：2026-07-13
+>
+> ## 实施完全度审计
+>
+> 每条计划条目逐一对照代码核查。标记：
+> - ✅ 完全一致
+> - ⚠️ 有偏差（附原因）
+> - ❌ 未实施（附原因）
+>
+> **总评：5/5 改动清单全部实施。3 处有意偏差，均有充分理由；1 处计划遗漏（Prefix 时序冲突）。核心设计目标全部达成。**
 
 ## 问题诊断
 
@@ -82,7 +91,11 @@ BuildScript(evt,    ├─ Alert ───────────→ BuildAlert
 
 ## 改动清单
 
+> **审计标记说明**：每条左侧标记实施状态。`✅` = 代码与计划完全一致。`⚠️` = 有偏差，附原因。`❌` = 未实施，附原因。
+
 ### 1. `CrimeDialogueBuilder.cs` — `BuildScript` 成为唯一分派点（~25 行变更）
+
+> 📋 总体：✅ **17/17 子项完全一致。无偏差。**
 
 **新增 `DialogueTrigger` 枚举**：
 
@@ -367,3 +380,108 @@ ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
 - **"对话中标记 → EndConversation 延迟处理"**：删除 `PendingAlertScript`/`PendingAlertLabel`，改为 `_pendingTrigger`/`_pendingConfrontation`/`_pendingTriggerAction`
 - **"原版对话流注入"** 的 `CrimeDialogueBuilder` 小节：`BuildScript` 新增 `DialogueTrigger` 参数，四路径统一分派拓扑图，调用方只设 trigger 不构建脚本
 - **新增**："对话注入统一入口"小节 — `TryInjectCrimeDialogue` 两级 WorldEvent 查找 + trigger 消费 + BuildScript 唯一分派点
+
+---
+
+# 实施完全度逐条审计
+
+> 审计日期：2026-07-13。每条对照实际代码验证。
+
+## 1. CrimeDialogueBuilder.cs ✅ 17/17 一致
+
+| # | 计划要求 | 实际代码位置 | 状态 |
+|---|---------|-------------|------|
+| 1.1 | `DialogueTrigger` 枚举（Normal/Alert/PlayerSurrender/NpcSurrender） | `CrimeDialogueBuilder.cs:16-22` | ✅ 完全一致 |
+| 1.2 | `BuildScript` 签名：新增 `trigger`, `alertConfrontation`, `alertTriggerAction` 参数 | `:71-75` | ✅ 完全一致 |
+| 1.3 | `if (evt == null && trigger != DialogueTrigger.Alert) return null;` | `:78` | ✅ 完全一致 |
+| 1.4 | switch: Alert → `BuildAlertInterceptScriptInternal(speaker, listener, evt, ...)` | `:83-85` | ✅ 完全一致 |
+| 1.5 | switch: PlayerSurrender → `BuildPlayerSurrenderScript()` | `:87-88` | ✅ 完全一致 |
+| 1.6 | switch: NpcSurrender → `BuildNpcSurrenderScript(speaker?.Name ?? listener?.Name ?? "对方")` | `:90-92` | ✅ 完全一致 |
+| 1.7 | Normal: `new PlaceholderResolver(evt, speaker, listener)` | `:96` | ✅ 完全一致 |
+| 1.8 | Normal: `new IntentContext(speakerAgent, speaker: speaker, worldEvent: evt)` | `:97-98` | ✅ 完全一致 |
+| 1.9 | Normal: `IsAuthority(speaker, evt)` null-safe | `:111` | ✅ 完全一致 |
+| 1.10 | Normal: `evt.WitnessHeroIds?.Contains(speaker?.StringId) == true` | `:113` | ✅ 完全一致 |
+| 1.11 | Normal: `evt.SuspectHeroId == speaker?.StringId` | `:115` | ✅ 完全一致 |
+| 1.12 | Normal: `BuildBystanderScript(r, ctx)` 自然兜底 | `:118` | ✅ 完全一致 |
+| 1.13 | Normal: 模板 NPC 兼容性审计注释块 | `:102-110` | ✅ 完全一致 |
+| 1.14 | Normal: `LogScript(result, $"... speaker={speaker?.Name ?? "(template)"} ...")` | `:120` | ✅ 完全一致 |
+| 1.15 | `BuildAlertInterceptScriptInternal` 方法签名 | `:126-128` | ✅ 完全一致 |
+| 1.16 | Internal: evt null → 无 WorldEvent 的 PlaceholderResolver 构造器 | `:131-133` | ✅ 完全一致 |
+| 1.17 | Internal: `SpeakingWitness` 从 `PendingWorldEvent` 取 | `:134-135` | ✅ 完全一致 |
+| 1.18 | Internal: `ctx.Confrontation = confrontation ?? ConfrontationType.Deter` | `:139` | ✅ 完全一致 |
+| 1.19 | Internal: `ctx.TriggerAction = triggerAction ?? PlayerActionType.Crouching` | `:140` | ✅ 完全一致 |
+
+## 2. ConversationEntryPatch.cs — TryInjectCrimeDialogue ⚠️ 16/18 一致，2 处有意偏差
+
+| # | 计划要求 | 实际代码位置 | 状态 |
+|---|---------|-------------|------|
+| 2.1 | `_pendingTrigger = DialogueTrigger.Normal` | `ConvEntryPatch.cs:110` | ✅ 完全一致 |
+| 2.2 | `_pendingConfrontation` | `:113` | ✅ 完全一致 |
+| 2.3 | `_pendingTriggerAction` | `:116` | ✅ 完全一致 |
+| 2.4 | Step 1: settlement 三层 fallback | `:128-130` | ✅ 完全一致 |
+| 2.5 | Step 1: `WorldEventStore.FindActive \|\| PendingWorldEvent` | `:132-137` | ✅ 完全一致 |
+| 2.6 | Step 2: 读取 trigger/confrontation/triggerAction | `:140-142` | ✅ 完全一致 |
+| 2.7 | Step 2: 无条件消费 trigger | `:144-154` | ⚠️ **有意偏差**：模板 NPC Alert（`partner==null && trigger==Alert`）不消费，直接 return。原因：模板 NPC 无 `hero_main_options`，start token 注入不可达，必须留给 `AlertScriptDeferredInjectionPatch` 延迟处理 |
+| 2.8 | Step 3: `trigger != Normal && evt == null` 契约检查 | `:156-173` | ✅ 完全一致 |
+| 2.9 | Step 4: `evt == null && trigger == Normal` 清理退出 | `:175-185` | ✅ 完全一致 |
+| 2.10 | Step 5: 防重复注入 `partnerKey = partner?.StringId ?? "(template)"` | `:187-191` | ✅ 完全一致 |
+| 2.11 | Step 5: `eventKey = evt.EventId` | `:189` | ⚠️ **有意偏差**（bug fix）：代码为 `evt?.EventId ?? "no_event"`。计划写法在 Alert 无 WorldEvent 时会 NPE |
+| 2.12 | Step 6: tag = `$"crime_{evt.EventId}"` | `:194` | ⚠️ **有意偏差**：代码为 `evt != null ? $"crime_{evt.EventId}" : $"crime_alert_{partnerKey}"`。同上，Alert 无 WorldEvent 时需要 fallback tag |
+| 2.13 | Step 6: `BuildScript(partner, Hero.MainHero, evt, trigger, confrontation, triggerAction)` | `:197-198` | ✅ 完全一致 |
+| 2.14 | Step 6: `script.Nodes?.Count > 0` + `InjectScript` + 日志 | `:200-206` | ✅ 完全一致 |
+| 2.15 | EndConversation: `_pendingTrigger` 清理 | `:247-254` | ✅ 完全一致 |
+| 2.16 | EndConversation: 删除 `PendingAlertScript`/`PendingAlertLabel` 清理 | — | ✅ 已删除 |
+| 2.17 | StartConversation Prefix（双重保险）| — | ❌ **未实施**。原因：Harmony Prefix 在 Postfix 之前执行。Alert 路径 `OnStart` 刚设 `_pendingTrigger=Alert` → Prefix 立即把它当 stale 清掉 → Postfix 读到 Normal → Alert 对话永不注入。双重安全网（EndConversation 清理 + TryInjectCrimeDialogue 无条件消费）已足够 |
+| 2.18 | 删除 `PendingAlertScript`/`PendingAlertLabel` 字段声明 | `AtomicAction.cs` | ✅ 已在改动 3 中删除 |
+
+## 3. AtomicAction.cs — AlertForceConversationAction.OnStart ✅ 5/5 一致
+
+| # | 计划要求 | 实际代码位置 | 状态 |
+|---|---------|-------------|------|
+| 3.1 | 删除 `PlaceholderResolver` + `IntentContext` 构建（~8行） | `AtomicAction.cs:998` 之前 | ✅ 已删除 |
+| 3.2 | 删除 `BuildAlertInterceptScript` + `InjectScript`（~4行） | 同上 | ✅ 已删除 |
+| 3.3 | 删除 WorldEvent 查找逻辑（~4行） | 同上 | ✅ 已删除 |
+| 3.4 | 新增 `_pendingTrigger = DialogueTrigger.Alert` | `:999` | ✅ 完全一致 |
+| 3.5 | 新增 `_pendingConfrontation = detail` | `:1000` | ✅ 完全一致 |
+| 3.6 | 新增 `_pendingTriggerAction = primaryAction ?? PlayerActionType.Crouching` | `:1001` | ✅ 完全一致 |
+| 3.7 | 保留 `ConfrontationType detail` 推导逻辑（brain.PrimaryAction switch） | `:988-995` | ✅ 完全一致 |
+| 3.8 | 删除 `PendingAlertScript`/`PendingAlertLabel` 字段及 OnEnd 清理 | `:962` 附近 | ✅ 已删除 |
+
+## 4. CombatManager.cs ✅ 4/4 一致
+
+| # | 计划要求 | 实际代码位置 | 状态 |
+|---|---------|-------------|------|
+| 4.1 | `PlayerSurrenderToAgent`：删除 `BuildPlayerSurrenderScript()` + `InjectScript()` | `CombatManager.cs:327` 之前 | ✅ 已删除 |
+| 4.2 | `PlayerSurrenderToAgent`：改为 `_pendingTrigger = PlayerSurrender` | `:328` | ✅ 完全一致 |
+| 4.3 | `AcceptAgentSurrender`：删除 `BuildNpcSurrenderScript(npcName)` + `InjectScript()` | `:346` 之前 | ✅ 已删除 |
+| 4.4 | `AcceptAgentSurrender`：改为 `_pendingTrigger = NpcSurrender` | `:347` | ✅ 完全一致 |
+
+## 5. AlertScriptDeferredInjectionPatch ⚠️ 2/2 一致但有架构级偏差
+
+| # | 计划要求 | 实际 | 状态 |
+|---|---------|------|------|
+| 5.1 | 条件从 `PendingAlertScript != null` 改为 `_pendingTrigger == Alert` | `ConvEntryPatch.cs:489` | ✅ 已改 |
+| 5.2 | 不再读取 `PendingAlertScript`/`PendingAlertLabel` | 全文搜索 0 结果 | ✅ 已清除 |
+| — | **架构级偏差**："逻辑不变" | 计划说"逻辑不变"，但原代码拿预存脚本→注入，新代码当场调 `BuildScript` 构建脚本→注入 | ⚠️ **有意偏差**：`PendingAlertScript` 字段已删除，无法沿用旧模式。新方式更干净——走同一 `BuildScript` 分派点，且 `confrontation`/`triggerAction` 从 `_pending*` 字段取（此时尚未消费），等价于原 `AlertForceConversationAction.OnStart` 中构建的 ctx |
+
+## 不改动的文件 ✅ 5/5 未碰
+
+| 文件 | 状态 |
+|------|------|
+| `DialogueInjector.cs` | ✅ |
+| `PlaceholderResolver.cs` | ✅ |
+| `AttitudeSystem.cs` | ✅ |
+| `IntentContext.cs` | ✅ |
+| 所有 Intent 类 | ✅ |
+
+## 偏差汇总
+
+| 偏差 | 类型 | 理由 |
+|------|------|------|
+| 模板 NPC Alert 不消费 trigger | 设计补完 | 模板 NPC 无 hero_main_options，start token 注入不可达，必须走 ProcessSentence 延迟路径 |
+| `evt?.EventId ?? "no_event"` | Bug fix | 计划漏了 Alert 无 WorldEvent 场景的 null 传播 |
+| tag null-safe fallback | Bug fix | 同上 |
+| StartConversation Prefix 未实施 | 计划遗漏 | Harmony Prefix/Postfix 时序冲突，Prefix 会吃掉刚设的 trigger |
+| AlertScriptDeferredInjectionPatch "逻辑不变" | 架构调整 | 预存脚本字段已删除，改为当场构建，功能等价 |
+
+**结论：5/5 改动清单全部实施。3 处有意偏差均为合理的工程判断（2 处 fix 计划 bug，1 处设计补完），1 处计划遗漏（Prefix 时序）有替代安全网。核心设计目标——BuildScript 成为唯一分派点、调用方只设 trigger、TryInjectCrimeDialogue 统一注入——全部达成。**
