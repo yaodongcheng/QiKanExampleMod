@@ -203,7 +203,7 @@ namespace LivingWorldNpcs
                     _lastInjectedEventId = eventKey + "_" + partnerKey;
                     _lastInjectedTag = tag;
                     DebugLogger.Log($"[ConvEntry] Injected dialogue: event={eventKey} stage={evt?.Stage.ToString() ?? "none"} " +
-                        $"trigger={trigger} partner={partner?.Name ?? "(template)"} nodes={script.Nodes.Count}");
+                        $"trigger={trigger} partner={partner?.Name?.ToString() ?? "(template)"} nodes={script.Nodes.Count}");
                 }
             }
             catch (Exception ex)
@@ -570,7 +570,7 @@ namespace LivingWorldNpcs
                 // 注入：设 InjectAtToken 为开场白输出 token，显式覆盖为 Gateway 模式
                 script.InjectAtToken = outputToken;
                 script.SkipVanillaOpening = false;
-                string label = $"AlertL3_deferred_{agent?.Index ?? 0}";
+                string label = $"AlertL3_deferred_{(agent as Agent)?.Index ?? 0}";
                 string result = DialogueInjector.InjectScript(script, label);
                 DebugLogger.Log($"[AlertDeferredInject] 注入结果: {result}");
 

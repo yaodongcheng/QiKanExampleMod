@@ -88,8 +88,7 @@ namespace LivingWorldNpcs
                     return BuildPlayerSurrenderScript();
 
                 case DialogueTrigger.NpcSurrender:
-                    return BuildNpcSurrenderScript(
-                        speaker?.Name?.ToString() ?? listener?.Name?.ToString() ?? "对方");
+                    return BuildNpcSurrenderScript();
             }
 
             // ── Normal：按 speaker 身份分派 ──
@@ -117,7 +116,7 @@ namespace LivingWorldNpcs
             else
                 result = BuildBystanderScript(r, ctx);                 // 自然兜底（模板 NPC ✅）
 
-            DialogueInjector.LogScript(result, $"[CrimeDialog] speaker={speaker?.Name ?? "(template)"} stage={evt.Stage}");
+            DialogueInjector.LogScript(result, $"[CrimeDialog] speaker={speaker?.Name?.ToString() ?? "(template)"} stage={evt.Stage}");
             return result;
         }
 
@@ -1132,7 +1131,7 @@ namespace LivingWorldNpcs
         /// 调用方：CombatManager.AcceptAgentSurrender。
         /// </summary>
         /// <param name="npcName">认输 NPC 的显示名称（用于 NPC 回应文本插值）</param>
-        public static DialogueInjector.DialogueInjectScript BuildNpcSurrenderScript(string npcName)
+        public static DialogueInjector.DialogueInjectScript BuildNpcSurrenderScript()
         {
             return new DialogueInjector.DialogueInjectScript
             {
@@ -1177,9 +1176,9 @@ namespace LivingWorldNpcs
                         }
                     },
                     new DialogueInjector.DialogueNode { Id = "npc_surrender_accept_ack", NpcLine = "多、多谢！我这就走……", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_humiliate_ack", NpcLine = $"（{npcName}屈辱地跪倒在地，额头重重磕在地上……）", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_humiliate_ack", NpcLine = $"（屈辱地跪倒在地，额头重重磕在地上……）", Transitions = new List<DialogueInjector.DialogueTransition>() },
                     new DialogueInjector.DialogueNode { Id = "npc_surrender_ransom_ack", NpcLine = "好、好……都给你！求你放过我……", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_refuse_ack", NpcLine = $"不——！（{npcName}绝望地重新抓起武器）", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_refuse_ack", NpcLine = $"不——！（绝望地重新抓起武器）", Transitions = new List<DialogueInjector.DialogueTransition>() },
                 }
             };
         }
