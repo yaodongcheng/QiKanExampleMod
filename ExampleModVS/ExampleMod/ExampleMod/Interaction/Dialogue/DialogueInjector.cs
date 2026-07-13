@@ -396,7 +396,25 @@ namespace LivingWorldNpcs
                     if (passed)
                         intent.OnSuccess(ctx);
                     else
+                    {
+                        // 弹窗提示检定失败：技能、等级差距、成功率
+                        try
+                        {
+                            SkillObject skill = SkillCheckSystem.MapTacticToSkill(intent.Tactic);
+                            float myLevel = Hero.MainHero.GetSkillValue(skill);
+                            float npcLevel = ctx.Speaker?.GetSkillValue(skill) ?? 50f;
+                            string npcName = ctx.Speaker?.Name?.ToString()
+                                          ?? ctx.Agent?.Name?.ToString()
+                                          ?? "对方";
+                            string tacticName = NegotiationRegistry.GetTacticInfo(intent.Tactic)?.Name ?? intent.Tactic.ToString();
+                            float gap = npcLevel - myLevel;
+                            string msg = $"{skill.Name}检定失败: 你的{skill.Name}({myLevel:F0}) vs {npcName}({npcLevel:F0})，差{gap:F0}点，成功率仅{roll.Chance:P0}";
+                            InformationManager.DisplayMessage(new InformationMessage(msg));
+                        }
+                        catch { } // 弹窗失败不影响游戏流程
+
                         intent.OnFail(ctx);
+                    }
                 }
             }
             catch (Exception ex)
@@ -534,7 +552,7 @@ namespace LivingWorldNpcs
             return 1;
         }
 
-        /// <summary>CheckType.SkillCheck：桥接 token + 3 条 silent 路由行（成功/失败/安全网）。</summary>
+        /// <summary>CheckType.SkillCheck：在 consequence 中直接覆写 ActiveToken 跳转，无需静默路由行。</summary>
         private static int RegisterSkillCheckTransition(
             ConversationManager cm, DialogueNode node, DialogueTransition transition,
             string afterNpcLine, string fileTag, InjectOwner owner)
@@ -543,43 +561,45 @@ namespace LivingWorldNpcs
             string capturedKey = afterPlayer;
             transition.ResultKey = capturedKey;
 
-            // 玩家选项
+            // 玩家选项 — consequence 中执行检定 + 直接覆写 ActiveToken 跳到目标 node
             var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
             pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
                 ResolveTransitionText(transition), BuildTransitionCondition(transition),
-                () => ExecuteAction(transition), owner, 125);
+                () =>
+                {
+                    ExecuteAction(transition);
+
+                    // ★ 直接在 consequence 中覆写 ActiveToken，跳过静默路由行。
+                    // ProcessSentence 先设 ActiveToken = outputToken，再跑 consequence，
+                    // 所以这里覆写后，引擎随即从目标 token 找下一条 NPC 台词，不会出现空白。
+                    string dest;
+                    if (_intentResults.TryGetValue(capturedKey, out bool passed))
+                    {
+                        dest = passed
+                            ? transition.NextNodeOnSuccess
+                            : (!string.IsNullOrEmpty(transition.NextNodeOnFail)
+                                ? transition.NextNodeOnFail
+                                : transition.NextNodeOnSuccess); // fallback：未配 NextNodeOnFail 则走成功线
+                    }
+                    else
+                    {
+                        // 安全网：Intent 被 Disabled，_intentResults 无此 key → 关窗
+                        dest = null;
+                    }
+
+                    if (!string.IsNullOrEmpty(dest))
+                        cm.ActiveToken = cm.GetStateIndex(NodeToken(fileTag, dest));
+                    else
+                        cm.ActiveToken = cm.GetStateIndex("close_window");
+                }, owner, 125);
             cm.AddDialogFlow(pdf, owner);
 
-            // ── 3 条 silent 路由行：纯路由，不夹带 NPC 台词 ──
+            // 不再需要静默路由行 — ActiveToken 覆写已替代路由职责。
+            // 之前这里注册了 3 条 AddDialogLineMultiAgent(empty text) 作为成功/失败/安全网路由，
+            // 空 TextObject 被引擎当作正常 NPC 对话回合渲染，导致玩家看到空白对话框。
+            // 铁律 6（KCD2 品质）：禁止出现空白对话框。
 
-            // 成功路由
-            string successDest = !string.IsNullOrEmpty(transition.NextNodeOnSuccess)
-                ? NodeToken(fileTag, transition.NextNodeOnSuccess) : "close_window";
-            cm.AddDialogLineMultiAgent(
-                $"inj_route_succ_{Guid.NewGuid():N}", afterPlayer, successDest,
-                new TextObject(""),
-                () => _intentResults.TryGetValue(capturedKey, out var r) && r,
-                null, 0, -1, 125);
-
-            // 失败路由
-            string failDest = !string.IsNullOrEmpty(transition.NextNodeOnFail)
-                ? NodeToken(fileTag, transition.NextNodeOnFail)
-                : (!string.IsNullOrEmpty(transition.NextNodeOnSuccess)
-                    ? NodeToken(fileTag, transition.NextNodeOnSuccess) : "close_window");
-            cm.AddDialogLineMultiAgent(
-                $"inj_route_fail_{Guid.NewGuid():N}", afterPlayer, failDest,
-                new TextObject(""),
-                () => _intentResults.TryGetValue(capturedKey, out var r) && !r,
-                null, 0, -1, 125);
-
-            // 安全网：Intent 被 Disabled → _intentResults 无 key → 防死锁
-            cm.AddDialogLineMultiAgent(
-                $"inj_safety_{Guid.NewGuid():N}", afterPlayer, "close_window",
-                new TextObject(""),
-                () => !_intentResults.ContainsKey(capturedKey),
-                null, 0, -1, 125);
-
-            return 4; // 1 PlayerLine + 3 silent route lines
+            return 1; // 仅 PlayerLine
         }
 
         /// <summary>

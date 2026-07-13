@@ -175,11 +175,19 @@ namespace LivingWorldNpcs
         // 🆕 PendingWorldEvent — 目击者注册与持久化
         // ═══════════════════════════════════════════════════════════════
 
-        /// <summary>AgentBrain 到达 Alarmed 时调用：将此 NPC 注册为目击者。</summary>
+        /// <summary>AgentBrain 到达 Alarmed 时调用：将此 NPC 注册为目击者，并推进 WorldEvent 阶段。</summary>
         public void RegisterWitness(AgentBrain brain)
         {
             var pending = PendingWorldEvent;
             if (pending == null) return;
+
+            // 🆕 目击者当场看到玩家作案 → 嫌疑人=玩家，直接 Active
+            // 不管之前是什么阶段（Dormant/Emerging），有人亲眼看见 → 嫌疑人明确，直接 Active。
+            if (pending.Stage < EventStage.Active)
+            {
+                WorldEventStore.TransitionStage(pending, EventStage.Active, Hero.MainHero?.StringId);
+                DebugLogger.Log($"[RegisterWitness] {brain.Owner.Name} witnessed crime → WorldEvent {pending.EventId} Stage → Active (suspect=player)");
+            }
 
             pending.WitnessTestimonies = pending.WitnessTestimonies ?? new List<WitnessTestimony>();
 
@@ -252,8 +260,9 @@ namespace LivingWorldNpcs
             foreach (var kv in templateWitness)
                 AddStealAction(pending, null, kv.Key, itemId, itemName, targetName);
 
-            pending.Stage = EventStage.Emerging;
-            pending.SuspectHeroId = Hero.MainHero?.StringId;
+            // 有目击者当场看到玩家偷窃 → 嫌疑人=玩家，直接 Active
+            if (pending.Stage < EventStage.Active)
+                WorldEventStore.TransitionStage(pending, EventStage.Active, Hero.MainHero?.StringId);
         }
 
         static void AddStealAction(WorldEvent pending, string heroId, string templateId,
@@ -288,8 +297,11 @@ namespace LivingWorldNpcs
             if (PendingWorldEvent == null) return;
             if (PendingWorldEvent.WitnessTestimonies == null || PendingWorldEvent.WitnessTestimonies.Count == 0) return;
 
-            PendingWorldEvent.Stage = EventStage.Emerging;
-            PendingWorldEvent.SuspectHeroId = Hero.MainHero?.StringId;
+            // 有目击者 → 嫌疑人=玩家，直接 Active
+            if (PendingWorldEvent.Stage < EventStage.Active)
+            {
+                WorldEventStore.TransitionStage(PendingWorldEvent, EventStage.Active, Hero.MainHero?.StringId);
+            }
             PendingWorldEvent.InvestigationProgress = 1.0f;
             PendingWorldEvent.PublicAwareness = 0.3f;
             WorldEventStore.AddOrMerge(PendingWorldEvent);
