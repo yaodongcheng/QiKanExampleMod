@@ -319,8 +319,13 @@ namespace LivingWorldNpcs
             {
                 WalkAwayIntent.PendingEscalationAgent = null;
                 // 复用 WitnessCrime 管道 → GroupStageManager → GatherOnLook/StayStare，NPC 围过来盯着
+                // 排除 escalationAgent 自己——她已有 ReEngageConfrontation 点对点处理，
+                // 不应再收 WitnessCrime_GatherOnLook 走犯罪指控流程
                 AgentAIController.Instance?.BroadcastEventInRange(
-                    escalationAgent.Position, 25f, "WitnessCrime", false, Agent.Main, escalationAgent);
+                    escalationAgent.Position, 25f, "WitnessCrime",
+                    exclude: new HashSet<Agent> { escalationAgent },
+                    requireSight: false,
+                    Agent.Main, escalationAgent);
                 // 原 NPC 重新追上质问（escalated=true，没有"我走了"选项）
                 AgentAIController.Instance?.SendEventToAgent(
                     escalationAgent, "ReEngageConfrontation", Agent.Main);
@@ -449,6 +454,36 @@ namespace LivingWorldNpcs
     [HarmonyPatch(typeof(MissionConversationLogic), nameof(MissionConversationLogic.StartConversation))]
     public static class MissionConversationStartPatch
     {
+        /// <summary>
+        /// 开场白替换模式的提前注入（Prefix）。
+        ///
+        /// PlayerSurrender / NpcSurrender / Alert 三类 trigger 生成的脚本设了
+        /// SkipVanillaOpening=true，需要把 NPC 台词挂在 start token（优先级 200）
+        /// 覆盖原版开场白。这必须在 StartConversation 处理 start token 之前完成。
+        ///
+        /// Postfix 注入来不及——那时原版开场白已经播放完毕。
+        /// </summary>
+        [HarmonyPrefix]
+        public static void Prefix(MissionConversationLogic __instance)
+        {
+            try
+            {
+                var trigger = ConversationEntryPatch._pendingTrigger;
+                if (trigger != DialogueTrigger.PlayerSurrender
+                    && trigger != DialogueTrigger.NpcSurrender
+                    && trigger != DialogueTrigger.Alert)
+                    return;
+
+                var character = __instance.ConversationAgent?.Character as CharacterObject;
+                DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting for trigger={trigger} partner={character?.Name?.ToString() ?? "(template)"}");
+                ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ConvEntry] Mission start Prefix error: {ex.Message}");
+            }
+        }
+
         [HarmonyPostfix]
         public static void Postfix(MissionConversationLogic __instance)
         {

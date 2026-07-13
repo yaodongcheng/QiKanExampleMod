@@ -78,25 +78,37 @@ namespace LivingWorldNpcs
             if (evt == null && trigger != DialogueTrigger.Alert) return null;
 
             // ── trigger 优先分派 ──
+            DialogueInjector.DialogueInjectScript result;
             switch (trigger)
             {
                 case DialogueTrigger.Alert:
-                    return BuildAlertInterceptScriptInternal(speaker, listener, evt,
+                    result = BuildAlertInterceptScriptInternal(speaker, listener, evt,
                         alertConfrontation, alertTriggerAction);
+                    break;
 
                 case DialogueTrigger.PlayerSurrender:
-                    return BuildPlayerSurrenderScript();
+                    result = BuildPlayerSurrenderScript();
+                    break;
 
                 case DialogueTrigger.NpcSurrender:
-                    return BuildNpcSurrenderScript();
+                    result = BuildNpcSurrenderScript();
+                    break;
+
+                default:
+                    result = null;
+                    break;
+            }
+
+            if (result != null)
+            {
+                DialogueInjector.LogScript(result, $"[CrimeDialog] trigger={trigger} speaker={speaker?.Name?.ToString() ?? "(template)"} stage={evt?.Stage.ToString() ?? "none"}");
+                return result;
             }
 
             // ── Normal：按 speaker 身份分派 ──
             PlaceholderResolver r = new PlaceholderResolver(evt, speaker, listener);
             Agent speakerAgent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
             IntentContext ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: evt);
-
-            DialogueInjector.DialogueInjectScript result;
 
             // ── 模板 NPC（speaker==null）兼容性审计 ──
             //   IsAuthority → null-safe（npc?.Occupation），模板 NPC 永远不命中 ✅

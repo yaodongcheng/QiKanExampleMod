@@ -907,7 +907,7 @@ else result = BuildBystanderScript(r, ctx);                  // 自然兜底
 
 ### 铁律 B：对话注入统一收口 `StartConversation`
 
-**所有对话注入——不管是玩家主动交谈、NPC 主动质问、还是战斗投降——都必须经过 `MissionConversationLogic.StartConversation`（或其 Postfix `TryInjectCrimeDialogue`）统一处理。** 禁止调用方自己调 `DialogueInjector.InjectScript` 然后自己调 `StartConversation`。
+**所有对话注入——不管是玩家主动交谈、NPC 主动质问、还是战斗投降——都必须经过 `MissionConversationLogic.StartConversation`（或其 Prefix/Postfix `TryInjectCrimeDialogue`）统一处理。** 禁止调用方自己调 `DialogueInjector.InjectScript` 然后自己调 `StartConversation`。
 
 ```csharp
 // ❌ 禁止：调用方自己注入 + 自己开对话
@@ -920,10 +920,21 @@ ConversationEntryPatch._pendingTrigger = DialogueTrigger.Alert;
 ConversationEntryPatch._pendingConfrontation = detail;
 ConversationEntryPatch._pendingTriggerAction = primaryAction;
 conversationLogic.StartConversation(agent, true, false);
-// → Postfix 触发 TryInjectCrimeDialogue → BuildScript(trigger=Alert) → InjectScript
+// → Prefix/Postfix 触发 TryInjectCrimeDialogue → BuildScript(trigger=Alert) → InjectScript
 ```
 
-**为什么**：`StartConversation` Postfix 是唯一能保证"每次对话启动时只注入一次"的关口。调用方各自注入会导致双重注入、token 竞争、以及 `_lastInjectedEventId` 防重复机制失效。
+**为什么**：`StartConversation` 的 Patch 是唯一能保证"每次对话启动时只注入一次"的关口。调用方各自注入会导致双重注入、token 竞争、以及 `_lastInjectedEventId` 防重复机制失效。
+
+**Prefix vs Postfix 分工**：
+
+| Patch | 处理哪些 Trigger | 注入时机 | 注入模式 |
+|-------|-----------------|---------|---------|
+| **Prefix** | `PlayerSurrender` / `NpcSurrender` / `Alert` | `StartConversation` **之前** | `SkipVanillaOpening=true` — NPC 台词挂在 `start` token（优先级 200）覆盖原版开场白 |
+| **Postfix** | `Normal` | `StartConversation` **之后** | Gateway 模式 — 在 `hero_main_options` 挂 PlayerLine入口，保留原版开场白 |
+
+**为什么 Prefix 必须处理 SkipVanillaOpening 的 trigger**：`InjectScriptNoOpening` 往 `start` token 注入高优先级 NPC 台词来覆盖原版开场白。这必须在 `StartConversation` 处理 `start` token **之前**完成。Postfix 注入时 `start` token 已经被原版引擎评估完毕，注入的台词要到下一轮对话才生效——原版开场白已经播放了。
+
+**防重复注入**：Prefix 消费 trigger 后会设 `_lastInjectedEventId`。Postfix 中的 `TryInjectCrimeDialogue` 检查 dedup 命中 → 跳过，不会二次注入。
 
 ## v2 新模型（2026-07-12 重构）
 
@@ -1008,15 +1019,17 @@ public class DialogueTransition {
 // JSON 注入
 DialogueInjector.InjectFromJson(jsonPath);    // → string 结果描述
 // 运行时构建注入（CrimeDialogueBuilder 用）
+//   script.SkipVanillaOpening == false → Gateway 模式：在 hero_main_options 挂 PlayerLine 入口
+//   script.SkipVanillaOpening == true  → 直挂模式：NPC 台词直接挂在 start token（优先级 200），覆盖原版开场白
 DialogueInjector.InjectScript(script, debugLabel);
-// 替换开场白模式（Alert 质问用）
-DialogueInjector.InjectScriptAsOpening(script, debugLabel);
 // 清理
 DialogueInjector.ClearAll();
 DialogueInjector.RemoveRelatedLines(label);
 // 调试
 DialogueInjector.LogScript(script, label);
 ```
+
+> **已删除**：`InjectScriptAsOpening` 已合并到 `InjectScript`。旧代码设 `InjectAtToken = "start"` + 调 `InjectScriptAsOpening`，新代码设 `SkipVanillaOpening = true` + 调 `InjectScript`。`InjectScript` 内部读取 `SkipVanillaOpening` 自动选择 `InjectScriptNoOpening`（直挂）或 `InjectScriptGateway`（入口选项）。
 
 ## CrimeDialogueBuilder 辅助方法
 
@@ -1439,6 +1452,11 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 - `StoryVM`（默认）→ `PrepareOpeningAction` → `ForceTalkAction` → StoryDialogVM
 - `VanillaConversation` → `AlertForceConversationAction` → `CrimeDialogueBuilder.BuildAlertInterceptScript` → `DialogueInjector.InjectScript` → 原版对话 UI
 
+**`WitnessCrime_GatherOnLook` 犯罪类型分类**（`ProcessEvent` 中，criminal==玩家时）：
+1. `IsKnockedOut(victim)` → `PlayerActionType.Knockout` + `ConfrontationType.Stop`
+2. `CombatManager.IsAgentFightingPlayer(victim)` 或 `IsPlayerInCombat` → `PlayerActionType.AttackAlly` + `ConfrontationType.Stop`（斗殴，非偷窃）
+3. 其余 → `PlayerActionType.Steal` + `ConfrontationType.Recover`（兜底：偷窃）
+
 **文件位置**：`AI/AgentBrain.cs`（新增约 250 行警戒相关代码）
 
 ## NpcSpeech.csv + NpcSpeechResolver — 模板台词统一数据源
@@ -1491,13 +1509,14 @@ string line = NpcSpeechResolver.Resolve(templateId, speaker, listener,
 
 ## AlertForceConversationAction — L3 路径 B 原子 Action
 
-走到玩家面前后强制开启原版对话，注入 `BuildAlertInterceptScript`。
+走到玩家面前后强制开启原版对话。**不再自己调 `InjectScript`**，只设 `_pendingTrigger = DialogueTrigger.Alert` + 调 `StartConversation`，由 `MissionConversationStartPatch.Prefix` 统一注入。
 
 ```csharp
 // 用法（AgentBrain 内部）：
 EnqueueAction(new AlertForceConversationAction());
-// OnEnd 中自动：查 brain.PrimaryAction → 确定 NpcInterceptIntent
-// → BuildAlertInterceptScript → InjectScript → StartConversation
+// OnStart 中自动：查 brain.PrimaryAction → 确定 ConfrontationType + PlayerActionType
+// → 设 _pendingTrigger/Confrontation/TriggerAction → StartConversation
+// → Prefix 触发 TryInjectCrimeDialogue → BuildScript(trigger=Alert) → InjectScriptNoOpening
 ```
 
 **文件位置**：`AI/Actions/AtomicAction.cs`（新增在文件末尾）
