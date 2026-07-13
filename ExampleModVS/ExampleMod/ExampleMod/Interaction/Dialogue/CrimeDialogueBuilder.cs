@@ -26,21 +26,23 @@ namespace LivingWorldNpcs
         // P1: 共享 Node/Transition 工厂方法
         // ═══════════════════════════════════════════════════════════════
 
-        /// <summary>纯 ack Node：NPC 说一句话 → 玩家点"…" → 跳到 next</summary>
-        static DialogueInjector.DialogueNode AckNode(string id, string npcLine, string next = "continue_chat")
-            => new() { Id = id, NpcLine = npcLine, Transitions = SingleContinue(next) };
+        /// <summary>Node：NPC 说一句话。next 为 null 则关窗（terminal），非 null 则跳到 next</summary>
+        static DialogueInjector.DialogueNode Node(string id, string npcLine, string next = null)
+            => new()
+            {
+                Id = id,
+                NpcLine = npcLine,
+                Transitions = next != null ? SingleContinue(next) : new List<DialogueInjector.DialogueTransition>()
+            };
 
-        /// <summary>terminal Node：NPC 说一句话 → 关窗</summary>
-        static DialogueInjector.DialogueNode TerminalNode(string id, string npcLine)
-            => new() { Id = id, NpcLine = npcLine, Transitions = new List<DialogueInjector.DialogueTransition>() };
-
-        /// <summary>Lazy terminal Node：NPC 说一句话（惰性求值）→ 关窗</summary>
-        static DialogueInjector.DialogueNode LazyTerminalNode(string id, Func<string> lazyNpcLine)
-            => new() { Id = id, LazyNpcLine = lazyNpcLine, Transitions = new List<DialogueInjector.DialogueTransition>() };
-
-        /// <summary>Lazy ack Node：NPC 说一句话（惰性求值）→ 玩家点"…" → 跳到 next</summary>
-        static DialogueInjector.DialogueNode LazyAckNode(string id, Func<string> lazyNpcLine, string next = "continue_chat")
-            => new() { Id = id, LazyNpcLine = lazyNpcLine, Transitions = SingleContinue(next) };
+        /// <summary>Lazy Node：NPC 说一句话（惰性求值）。next 为 null 则关窗（terminal），非 null 则跳到 next</summary>
+        static DialogueInjector.DialogueNode LazyNode(string id, Func<string> lazyNpcLine, string next = null)
+            => new()
+            {
+                Id = id,
+                LazyNpcLine = lazyNpcLine,
+                Transitions = next != null ? SingleContinue(next) : new List<DialogueInjector.DialogueTransition>()
+            };
 
         // ── Transitions 工厂 ──
 
@@ -203,8 +205,8 @@ namespace LivingWorldNpcs
             }
 
             nodes.Add(node);
-            nodes.Add(AckNode("discovery_accept_ack", r.Resolve("拜托了！查出来了{SpeakerSelfRef}必有重谢。")));
-            nodes.Add(AckNode("discovery_decline_ack", r.Resolve("那{SpeakerPlayerAddr}忙吧……{SpeakerSelfRef}们自己想办法。")));
+            nodes.Add(Node("discovery_accept_ack", r.Resolve("拜托了！查出来了{SpeakerSelfRef}必有重谢。"), "continue_chat"));
+            nodes.Add(Node("discovery_decline_ack", r.Resolve("那{SpeakerPlayerAddr}忙吧……{SpeakerSelfRef}们自己想办法。"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
         }
 
@@ -237,8 +239,8 @@ namespace LivingWorldNpcs
                     new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             });
-            nodes.Add(AckNode("charm_ok", r.Resolve("……说清楚？好，{SpeakerSelfRef}倒要听听。")));
-            nodes.Add(AckNode("charm_fail", r.Resolve("说清楚？证据确凿，没什么好说的。")));
+            nodes.Add(Node("charm_ok", r.Resolve("……说清楚？好，{SpeakerSelfRef}倒要听听。"), "continue_chat"));
+            nodes.Add(Node("charm_fail", r.Resolve("说清楚？证据确凿，没什么好说的。"), "continue_chat"));
             BuildRestitutionSubtree(nodes, r, ctx);
         }
 
@@ -280,10 +282,10 @@ namespace LivingWorldNpcs
             });
 
             // haggle_fail → 回到 demand
-            nodes.Add(AckNode("restitution_haggle_fail", r.Resolve("不行，一文都不能少。", "NpcLine"), "restitution_demand"));
+            nodes.Add(Node("restitution_haggle_fail", r.Resolve("不行，一文都不能少。", "NpcLine"), "restitution_demand"));
 
             // pay_ack：付款确认
-            nodes.Add(AckNode("restitution_pay_ack", r.Resolve("好，钱留下，这事就算了。", "NpcLine"), "continue_chat"));
+            nodes.Add(Node("restitution_pay_ack", r.Resolve("好，钱留下，这事就算了。", "NpcLine"), "continue_chat"));
         }
 
         private static void BuildReportNode(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
@@ -336,8 +338,8 @@ namespace LivingWorldNpcs
                             NextNodeOnSuccess = okId,
                             NextNodeOnFail = failId
                         });
-                        nodes.Add(AckNode(okId, $"（仔细看了看{evItem.ItemName}）……这确实是他的东西。好，那就是他了！"));
-                        nodes.Add(AckNode(failId, $"（仔细看了看{evItem.ItemName}）……这东西说明不了什么。{r.Resolve("{SpeakerPlayerAddr}")}再去查查。"));
+                        nodes.Add(Node(okId, $"（仔细看了看{evItem.ItemName}）……这确实是他的东西。好，那就是他了！", "continue_chat"));
+                        nodes.Add(Node(failId, $"（仔细看了看{evItem.ItemName}）……这东西说明不了什么。{r.Resolve("{SpeakerPlayerAddr}")}再去查查。", "continue_chat"));
                         frameIdx++;
                     }
                 }
@@ -354,8 +356,8 @@ namespace LivingWorldNpcs
                         NextNodeOnSuccess = okId,
                         NextNodeOnFail = failId
                     });
-                    nodes.Add(AckNode(okId, $"是{target.DisplayName}干的？……好，{r.Resolve("{SpeakerSelfRef}")}信你。"));
-                    nodes.Add(AckNode(failId, $"就凭一句话？{r.Resolve("{SpeakerPlayerAddr}")}再去查查。"));
+                    nodes.Add(Node(okId, $"是{target.DisplayName}干的？……好，{r.Resolve("{SpeakerSelfRef}")}信你。", "continue_chat"));
+                    nodes.Add(Node(failId, $"就凭一句话？{r.Resolve("{SpeakerPlayerAddr}")}再去查查。", "continue_chat"));
                     frameIdx++;
                 }
             }
@@ -373,10 +375,10 @@ namespace LivingWorldNpcs
             }
 
             nodes.Add(node);
-            nodes.Add(AckNode("frame_bandit_ok", r.Resolve("藏身处的强盗？好，那就是他们了！{SpeakerSelfRef}这就张罗悬赏。")));
-            nodes.Add(AckNode("frame_bandit_fail", r.Resolve("强盗？光凭{SpeakerPlayerAddr}一句话可不行……再去查查。")));
-            nodes.Add(AckNode("report_nothing_ack", r.Resolve("那你再去看看。{InvestigationProgressWord}。")));
-            nodes.Add(AckNode("report_leave_ack", r.Resolve("快去查，有消息了来告诉{SpeakerSelfRef}。")));
+            nodes.Add(Node("frame_bandit_ok", r.Resolve("藏身处的强盗？好，那就是他们了！{SpeakerSelfRef}这就张罗悬赏。"), "continue_chat"));
+            nodes.Add(Node("frame_bandit_fail", r.Resolve("强盗？光凭{SpeakerPlayerAddr}一句话可不行……再去查查。"), "continue_chat"));
+            nodes.Add(Node("report_nothing_ack", r.Resolve("那你再去看看。{InvestigationProgressWord}。"), "continue_chat"));
+            nodes.Add(Node("report_leave_ack", r.Resolve("快去查，有消息了来告诉{SpeakerSelfRef}。"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
         }
 
@@ -421,10 +423,10 @@ namespace LivingWorldNpcs
             nodes.Add(node);
 
             // ack nodes
-            nodes.Add(AckNode("confront_charm_ok", r.Resolve("……{SpeakerPlayerAddr}说的也有道理。那{SpeakerSelfRef}再查查。")));
-            nodes.Add(AckNode("confront_charm_fail", r.Resolve("说清楚？证据确凿，没什么好说的。")));
-            nodes.Add(AckNode("confront_threat_ok", r.Resolve("……{SpeakerSelfRef}不说了。{SpeakerPlayerAddr}走吧。")));
-            nodes.Add(AckNode("confront_threat_fail", threatFailLine));
+            nodes.Add(Node("confront_charm_ok", r.Resolve("……{SpeakerPlayerAddr}说的也有道理。那{SpeakerSelfRef}再查查。"), "continue_chat"));
+            nodes.Add(Node("confront_charm_fail", r.Resolve("说清楚？证据确凿，没什么好说的。"), "continue_chat"));
+            nodes.Add(Node("confront_threat_ok", r.Resolve("……{SpeakerSelfRef}不说了。{SpeakerPlayerAddr}走吧。"), "continue_chat"));
+            nodes.Add(Node("confront_threat_fail", threatFailLine, "continue_chat"));
 
             BuildRestitutionSubtree(nodes, r, ctx);
             AddContinueChatWithFarewell(nodes, r);
@@ -442,7 +444,7 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueTransition { PlayerLine = "我先想想。", Action = "NONE", NextNodeOnSuccess = "continue_chat" },
                 }
             });
-            nodes.Add(AckNode("bounty_accept_ack", r.Resolve("好！人就交给{SpeakerPlayerAddr}了。")));
+            nodes.Add(Node("bounty_accept_ack", r.Resolve("好！人就交给{SpeakerPlayerAddr}了。"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
         }
 
@@ -480,7 +482,7 @@ namespace LivingWorldNpcs
                     NpcLine = npcLine,
                     Transitions = transitions
                 });
-                nodes.Add(AckNode("retaliate_lead_ack", r.Resolve("好！有{SpeakerPlayerAddr}带队，那{SuspectDescription}跑不了。")));
+                nodes.Add(Node("retaliate_lead_ack", r.Resolve("好！有{SpeakerPlayerAddr}带队，那{SuspectDescription}跑不了。"), "continue_chat"));
             }
 
             AddContinueChatWithFarewell(nodes, r);
@@ -543,11 +545,11 @@ namespace LivingWorldNpcs
             }
 
             nodes.Add(node);
-            nodes.Add(AckNode("witness_silence_ack", r.Resolve("……好吧，{SpeakerSelfRef}什么也没看见。")));
-            nodes.Add(AckNode("witness_silence_fail", r.Resolve("（提高嗓门）你当{SpeakerSelfRef}是什么人？！{SpeakerSelfRef}这就去告诉村长！")));
-            nodes.Add(AckNode("witness_threat_ack", r.Resolve("明白、明白……{SpeakerSelfRef}一个字也不说。")));
-            nodes.Add(AckNode("witness_threat_fail", r.Resolve("（后退一步，手按在腰间）你敢威胁{SpeakerSelfRef}？！来人——！")));
-            nodes.Add(AckNode("witness_desc_ack", r.Resolve("那人……{SuspectDescription}。")));
+            nodes.Add(Node("witness_silence_ack", r.Resolve("……好吧，{SpeakerSelfRef}什么也没看见。"), "continue_chat"));
+            nodes.Add(Node("witness_silence_fail", r.Resolve("（提高嗓门）你当{SpeakerSelfRef}是什么人？！{SpeakerSelfRef}这就去告诉村长！"), "continue_chat"));
+            nodes.Add(Node("witness_threat_ack", r.Resolve("明白、明白……{SpeakerSelfRef}一个字也不说。"), "continue_chat"));
+            nodes.Add(Node("witness_threat_fail", r.Resolve("（后退一步，手按在腰间）你敢威胁{SpeakerSelfRef}？！来人——！"), "continue_chat"));
+            nodes.Add(Node("witness_desc_ack", r.Resolve("那人……{SuspectDescription}。"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
             return new DialogueInjector.DialogueInjectScript { EntryOption = "听说你看到了……？", EntryNode = "injectedStart", Nodes = nodes };
         }
@@ -576,9 +578,9 @@ namespace LivingWorldNpcs
                     }
                 }
             };
-            nodes.Add(AckNode("suspect_lure_ack", r.Resolve("什么？！{SpeakerSelfRef}什么也没干……")));
-            nodes.Add(AckNode("suspect_lure_fail", r.Resolve("村长找我？他自己怎么不来？{SpeakerPlayerAddr}少在这骗人。")));
-            nodes.Add(AckNode("suspect_betray_ack", r.Resolve("什么？！……谢了！")));
+            nodes.Add(Node("suspect_lure_ack", r.Resolve("什么？！{SpeakerSelfRef}什么也没干……"), "continue_chat"));
+            nodes.Add(Node("suspect_lure_fail", r.Resolve("村长找我？他自己怎么不来？{SpeakerPlayerAddr}少在这骗人。"), "continue_chat"));
+            nodes.Add(Node("suspect_betray_ack", r.Resolve("什么？！……谢了！"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
             return new DialogueInjector.DialogueInjectScript { EntryOption = "（打量了一下）……", EntryNode = "injectedStart", Nodes = nodes };
         }
@@ -607,7 +609,7 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueTransition { PlayerLine = "哦。", Action = "NONE", NextNodeOnSuccess = "continue_chat" },
                 }
             });
-            nodes.Add(AckNode("bystander_detail_ack", r.Resolve("我就知道这么多……")));
+            nodes.Add(Node("bystander_detail_ack", r.Resolve("我就知道这么多……"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
 
             return new DialogueInjector.DialogueInjectScript { EntryOption = "最近村里有什么新鲜事？", EntryNode = "injectedStart", Nodes = nodes };
@@ -751,9 +753,9 @@ namespace LivingWorldNpcs
                     }
             });
             // Escalated ack nodes
-            nodes.Add(TerminalNode("alert_esc_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
-            nodes.Add(TerminalNode("alert_esc_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
-            nodes.Add(TerminalNode("alert_esc_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
+            nodes.Add(Node("alert_esc_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
+            nodes.Add(Node("alert_esc_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
+            nodes.Add(Node("alert_esc_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
 
             return new DialogueInjector.DialogueInjectScript { SkipVanillaOpening = true, EntryNode = "injectedStart", Nodes = nodes };
         }
@@ -850,13 +852,13 @@ namespace LivingWorldNpcs
                 Transitions = transitions
             });
 
-            nodes.Add(TerminalNode("alert_comply_ack", r.Resolve(action == PlayerActionType.WeaponDrawn
+            nodes.Add(Node("alert_comply_ack", r.Resolve(action == PlayerActionType.WeaponDrawn
                 ? "……别再让{SPEAKER_SELF}看见你在这拔{ITEM}。"
                 : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。")));
-            nodes.Add(TerminalNode("alert_deter_threat_ok", r.Resolve("……算了。")));
-            nodes.Add(TerminalNode("alert_deter_threat_fail", r.Resolve("来人！这有个闹事的！")));
-            nodes.Add(TerminalNode("alert_deter_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
-            nodes.Add(TerminalNode("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
+            nodes.Add(Node("alert_deter_threat_ok", r.Resolve("……算了。")));
+            nodes.Add(Node("alert_deter_threat_fail", r.Resolve("来人！这有个闹事的！")));
+            nodes.Add(Node("alert_deter_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
+            nodes.Add(Node("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
         }
 
         /// <summary>Search 质问子树：搜查包裹。含 recover_confront（拒绝搜查→对峙）和 search_result（接受搜查→判定赃物）。</summary>
@@ -879,10 +881,10 @@ namespace LivingWorldNpcs
                 }
             });
 
-            nodes.Add(TerminalNode("alert_search_bribe_ack", r.Resolve("……做贼心虚。拿了钱滚。")));
-            nodes.Add(AckNode("alert_search_bribe_fail", r.Resolve("少来这套。把包打开，{SPEAKER_SELF}自己看！")));
-            nodes.Add(TerminalNode("alert_search_walk_ack", r.Resolve("站住！")));
-            nodes.Add(AckNode("alert_search_deny_ack", r.Resolve("你的？上面还写着{TARGET}的名字呢！")));
+            nodes.Add(Node("alert_search_bribe_ack", r.Resolve("……做贼心虚。拿了钱滚。")));
+            nodes.Add(Node("alert_search_bribe_fail", r.Resolve("少来这套。把包打开，{SPEAKER_SELF}自己看！"), "continue_chat"));
+            nodes.Add(Node("alert_search_walk_ack", r.Resolve("站住！")));
+            nodes.Add(Node("alert_search_deny_ack", r.Resolve("你的？上面还写着{TARGET}的名字呢！"), "continue_chat"));
 
             // recover_confront（refuse search → recover mode）
             nodes.Add(new DialogueInjector.DialogueNode
@@ -943,18 +945,18 @@ namespace LivingWorldNpcs
                 }
             });
 
-            nodes.Add(TerminalNode("alert_stop_pay_ack", r.Resolve("光赔钱就完了？拿了钱快滚。")));
-            nodes.Add(AckNode("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。")));
-            nodes.Add(AckNode("alert_stop_charm_fail", r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！")));
-            nodes.Add(TerminalNode("alert_stop_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
+            nodes.Add(Node("alert_stop_pay_ack", r.Resolve("光赔钱就完了？拿了钱快滚。")));
+            nodes.Add(Node("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。"), "continue_chat"));
+            nodes.Add(Node("alert_stop_charm_fail", r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！"), "continue_chat"));
+            nodes.Add(Node("alert_stop_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
         }
 
         /// <summary>Recover ack nodes：被 BuildRecoverSubtree 和 BuildSearchSubtree（via recover_confront）共享。</summary>
         static void AddRecoverAckNodes(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r)
         {
-            nodes.Add(TerminalNode("alert_recover_pay_ack", r.Resolve("算你识相。别再来了。")));
-            nodes.Add(AckNode("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。")));
-            nodes.Add(AckNode("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！")));
+            nodes.Add(Node("alert_recover_pay_ack", r.Resolve("算你识相。别再来了。")));
+            nodes.Add(Node("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。"), "continue_chat"));
+            nodes.Add(Node("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！"), "continue_chat"));
         }
 
         /// <summary>搜查结果 node：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。依赖调用方已添加 alert_search_deny_ack。</summary>
