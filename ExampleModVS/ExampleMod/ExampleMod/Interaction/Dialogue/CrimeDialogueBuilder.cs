@@ -705,20 +705,19 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 构建 L3 警戒质问的 DialogueInjectScript。
         /// 台词通过 NpcSpeechResolver → NarrativeResolver → 硬编码 三阶段 ?? 回落解析。
+        /// 统一签名：PlaceholderResolver + IntentContext 即全部对话所需信息。
+        /// ctx.Confrontation / ctx.TriggerAction 由调用方从 AgentBrain 或目击证词设定；
+        /// r.SpeakingWitness 由调用方从 PendingWorldEvent 设定。
         /// </summary>
         public static DialogueInjector.DialogueInjectScript BuildAlertInterceptScript(
-            Hero speaker, ConfrontationType npcIntent, PlayerActionType primaryAction,
-            WorldEvent worldEvt = null, Agent speakerAgent = null)
+            PlaceholderResolver r, IntentContext ctx)
         {
-            PlaceholderResolver r = new PlaceholderResolver(worldEvt, speaker, Hero.MainHero);
-
-            // 🔑 从 PendingWorldEvent 取刚写入的证词（RegisterWitness 已在 CheckPhaseTransition 前一步执行）
-            WorldEvent pending = AgentAIController.Instance?.PendingWorldEvent;
-            r.SpeakingWitness = pending?.WitnessTestimonies?
-                .FirstOrDefault(t => t.WitnessHeroId == speaker.StringId);
-
-            IntentContext ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: worldEvt);
             List<DialogueInjector.DialogueNode> nodes = new List<DialogueInjector.DialogueNode>();
+
+            var npcIntent = ctx.Confrontation;
+            var primaryAction = ctx.TriggerAction;
+            var worldEvt = ctx.ActiveEvent;
+            var speaker = ctx.Speaker;
 
             // 两阶段回落：① NpcSpeech.csv（含 Narrative 过渡）→ ② 硬编码
             string npcOpening =
@@ -731,7 +730,7 @@ namespace LivingWorldNpcs
                     })
                 ?? HardcodedAlertLine(r, npcIntent, primaryAction);
 
-            BuildAlertTransitionsSubtree(nodes, r, npcIntent, primaryAction, worldEvt, npcOpening);
+            BuildAlertTransitionsSubtree(nodes, r, ctx, npcOpening);
 
             // continue_chat — 阶段 >= Active 时无退路
             bool escalated = worldEvt != null && worldEvt.Stage >= EventStage.Active;
@@ -791,26 +790,24 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// L3 警戒质问对话子树：按 intent 分派到四个自包含的子函数。
+        /// L3 警戒质问对话子树：按 ctx.Confrontation 分派到四个自包含的子函数。
         /// 依赖调用方已添加 continue_chat（含 escalated ack nodes）。
         /// </summary>
         static void BuildAlertTransitionsSubtree(
             List<DialogueInjector.DialogueNode> nodes,
             PlaceholderResolver r,
-            ConfrontationType intent,
-            PlayerActionType action,
-            WorldEvent worldEvt,
+            IntentContext ctx,
             string npcOpening)
         {
-            switch (intent)
+            switch (ctx.Confrontation)
             {
                 //驱离
                 case ConfrontationType.Deter:
-                    BuildDeterSubtree(nodes, r, action, worldEvt, npcOpening);
+                    BuildDeterSubtree(nodes, r, ctx, npcOpening);
                     break;
                 //搜身
                 case ConfrontationType.Search:
-                    BuildSearchSubtree(nodes, r, worldEvt, npcOpening);
+                    BuildSearchSubtree(nodes, r, ctx, npcOpening);
                     break;
                 //追回
                 case ConfrontationType.Recover:
@@ -827,10 +824,11 @@ namespace LivingWorldNpcs
         static void BuildDeterSubtree(
             List<DialogueInjector.DialogueNode> nodes,
             PlaceholderResolver r,
-            PlayerActionType action,
-            WorldEvent worldEvt,
+            IntentContext ctx,
             string npcOpening)
         {
+            var action = ctx.TriggerAction;
+            var worldEvt = ctx.ActiveEvent;
             string complyLine = action == PlayerActionType.WeaponDrawn
                 ? "好，我收起来。"
                 : "没什么，我这就走。";
@@ -865,7 +863,7 @@ namespace LivingWorldNpcs
         static void BuildSearchSubtree(
             List<DialogueInjector.DialogueNode> nodes,
             PlaceholderResolver r,
-            WorldEvent worldEvt,
+            IntentContext ctx,
             string npcOpening)
         {
             nodes.Add(new DialogueInjector.DialogueNode

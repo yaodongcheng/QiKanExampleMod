@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using SandBox.Conversation.MissionLogics;
 using System;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -1009,9 +1010,17 @@ namespace LivingWorldNpcs
                 worldEvt = WorldEventStore.Find(pending.EventId) ?? pending;
             }
 
+            // 构建统一上下文：PlaceholderResolver + IntentContext = 全部对话所需信息
+            var r = new PlaceholderResolver(worldEvt, npcHero, Hero.MainHero);
+            r.SpeakingWitness = pending?.WitnessTestimonies?
+                .FirstOrDefault(t => t.WitnessHeroId == npcHero?.StringId);
+
+            var ctx = new IntentContext(agent, speaker: npcHero, worldEvent: worldEvt);
+            ctx.Confrontation = detail;
+            ctx.TriggerAction = primaryAction ?? PlayerActionType.Crouching;
+
             // 构建对话脚本（WorldEvent 非 null 时，CrimeDialogueBuilder 读取其 Stage 决定选项）
-            var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
-                npcHero, detail, primaryAction ?? PlayerActionType.Crouching, worldEvt: worldEvt, speakerAgent: agent);
+            var script = CrimeDialogueBuilder.BuildAlertInterceptScript(r, ctx);
             if (script == null)
             {
                 DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) BuildAlertInterceptScript 返回 null!");

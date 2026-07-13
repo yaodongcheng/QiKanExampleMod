@@ -63,6 +63,12 @@ namespace LivingWorldNpcs
         /// <summary>DialogueInjector 注入的附加参数，由各 Intent 自行解析（如栽赃目标 ID / 证物 ID）。</summary>
         public string ActionParam;
 
+        // ═══ L3 警戒质问扩展 ═══
+        /// <summary>NPC 的质问意图（驱离/搜查/追回/制止）。L3 警戒质问场景专用。</summary>
+        public ConfrontationType Confrontation = ConfrontationType.Deter;
+        /// <summary>触发质问的玩家行为类型。L3 警戒质问场景专用。</summary>
+        public PlayerActionType TriggerAction = PlayerActionType.Crouching;
+
         // ═══ 场景上下文 ═══
         /// <summary>当前对话是否发生在 Mission 内（村庄/酒馆等 3D 场景）。
         /// false = 大地图对话（CampaignMapConversation），无法触发战斗/叫守卫。</summary>
