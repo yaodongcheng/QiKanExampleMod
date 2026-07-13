@@ -142,7 +142,7 @@ namespace LivingWorldNpcs
                 string tag = $"crime_{evt.EventId}";
                 DialogueInjector.RemoveRelatedLines(tag);
 
-                var script = CrimeDialogueBuilder.BuildScript(partner, Hero.MainHero);
+                var script = CrimeDialogueBuilder.BuildScript(partner, Hero.MainHero, evt);
                 if (script != null && script.Nodes != null && script.Nodes.Count > 0)
                 {
                     DialogueInjector.InjectScript(script, tag);

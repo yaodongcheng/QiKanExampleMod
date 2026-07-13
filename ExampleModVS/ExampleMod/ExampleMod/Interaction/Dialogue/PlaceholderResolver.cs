@@ -63,6 +63,7 @@ namespace LivingWorldNpcs
         /// <summary>解析模板中的所有占位符。未解析的保留原样并记日志。传 context 时同时打印模板→结果。</summary>
         public string Resolve(string template, string context = "")
         {
+            //context的作用：单纯打日志调试用，不影响实际逻辑
             if (string.IsNullOrEmpty(template)) return template;
             var unresolved = new List<string>();
             var result = System.Text.RegularExpressions.Regex.Replace(template, @"\{(\w+)\}", match =>
