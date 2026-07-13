@@ -981,9 +981,8 @@ DialogueInjector.LogScript(script, label);
 
 ```csharp
 // Node 工厂
-AckNode(id, npcLine, next)         // NPC 说一句 → "…" → next
-TerminalNode(id, npcLine)          // NPC 说一句 → 关窗
-LazyTerminalNode(id, lazyNpcLine)  // 惰性求值版
+Node(id, npcLine, next=null)         // NPC 说一句 → next 为 null 关窗，非 null 跳转
+LazyNode(id, lazyNpcLine, next=null) // 惰性求值版，同上
 
 // Transition 工厂
 WalkAway(playerLine)               // INTENT:WalkAway → 关窗
