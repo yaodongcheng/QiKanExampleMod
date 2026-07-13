@@ -243,7 +243,7 @@ namespace LivingWorldNpcs
                     //暂时关闭广播
                     AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", true, attacker, victim);
                 }
-                
+
             }
 
             // 【场景 1】当前正在切磋中

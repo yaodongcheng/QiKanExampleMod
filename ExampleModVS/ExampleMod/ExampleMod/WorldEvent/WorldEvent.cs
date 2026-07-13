@@ -988,11 +988,48 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>阶段迁移（唯一入口）</summary>
-        public static void TransitionStage(WorldEvent evt, EventStage newStage)
+        /// <summary>
+        /// 阶段迁移（唯一入口）。
+        /// 进入 Active 时必须传入 suspectHeroId；进入 Dormant/Emerging 时强制清空 SuspectHeroId。
+        /// </summary>
+        /// <param name="suspectHeroId">进入 Active/Confrontation 时锁定此 Hero 为嫌疑人。null 时尝试从 InitiatorId 推断。</param>
+        public static void TransitionStage(WorldEvent evt, EventStage newStage, string suspectHeroId = null)
         {
             if (evt.Stage == newStage) return;
             var oldStage = evt.Stage;
+
+            // ── 阶段不变式守卫：SuspectHeroId 与 Stage 必须一致 ──
+            switch (newStage)
+            {
+                case EventStage.Dormant:
+                case EventStage.Emerging:
+                    // 未锁定嫌疑人阶段：强制清空 SuspectHeroId
+                    if (evt.SuspectHeroId != null)
+                    {
+                        DebugLogger.Log($"[WorldEvent] {evt.EventId} clearing SuspectHeroId={evt.SuspectHeroId} (entering {newStage})");
+                        evt.SuspectHeroId = null;
+                    }
+                    break;
+                case EventStage.Active:
+                    // 嫌疑人锁定阶段：优先用传入值，否则从 InitiatorId 推断
+                    if (!string.IsNullOrEmpty(suspectHeroId))
+                    {
+                        evt.SuspectHeroId = suspectHeroId;
+                    }
+                    else if (string.IsNullOrEmpty(evt.SuspectHeroId))
+                    {
+                        evt.SuspectHeroId = InferSuspect(evt);
+                        DebugLogger.Log($"[WorldEvent] {evt.EventId} auto-assigned SuspectHeroId={evt.SuspectHeroId} (entering Active, no explicit suspect)");
+                    }
+                    break;
+                case EventStage.Confrontation:
+                    // Confrontation：如果传了 suspect 则更新
+                    if (!string.IsNullOrEmpty(suspectHeroId))
+                        evt.SuspectHeroId = suspectHeroId;
+                    break;
+                // Resolved / Unsolved：不约束 SuspectHeroId
+            }
+
             evt.Stage = newStage;
             evt._stageEnteredDay = (float)CampaignTime.Now.ToDays;
 
@@ -1004,6 +1041,21 @@ namespace LivingWorldNpcs
 
             DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage: {oldStage} → {newStage}");
             OnEventStageChanged?.Invoke(evt);
+        }
+
+        /// <summary>
+        /// 推断嫌疑人。优先级：
+        /// 1. InitiatorId（Misconduct 事件始终是玩家）
+        /// 2. TargetHeroId（受害者相关的敌对英雄）
+        /// 3. 当前玩家
+        /// </summary>
+        private static string InferSuspect(WorldEvent evt)
+        {
+            if (!string.IsNullOrEmpty(evt.InitiatorId))
+                return evt.InitiatorId;
+            if (!string.IsNullOrEmpty(evt.TargetHeroId))
+                return evt.TargetHeroId;
+            return Hero.MainHero?.StringId ?? "player";
         }
 
         /// <summary>玩家赔钱 → 结案</summary>

@@ -234,10 +234,7 @@ namespace LivingWorldNpcs
                 if (pending != null && pending.Stage < EventStage.Confrontation)
                 {
                     var existing = WorldEventStore.Find(pending.EventId);
-                    if (existing != null)
-                        WorldEventStore.TransitionStage(existing, EventStage.Confrontation);
-                    else
-                        pending.Stage = EventStage.Confrontation;
+                    WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation, Hero.MainHero?.StringId);
                 }
 
                 InteractedAgent = target;
@@ -267,10 +264,7 @@ namespace LivingWorldNpcs
                 if (pending != null && pending.Stage < EventStage.Active)
                 {
                     var existing = WorldEventStore.Find(pending.EventId);
-                    if (existing != null)
-                        WorldEventStore.TransitionStage(existing, EventStage.Active);
-                    else
-                        pending.Stage = EventStage.Active;
+                    WorldEventStore.TransitionStage(existing ?? pending, EventStage.Active, Hero.MainHero?.StringId);
                 }
 
                 ClearAllActions();
@@ -1049,10 +1043,7 @@ namespace LivingWorldNpcs
             if (pending != null && pending.Stage < EventStage.Confrontation)
             {
                 var existing = WorldEventStore.Find(pending.EventId);
-                if (existing != null)
-                    WorldEventStore.TransitionStage(existing, EventStage.Confrontation);
-                else
-                    pending.Stage = EventStage.Confrontation;
+                WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation, Hero.MainHero?.StringId);
             }
 
             EnqueueAction(new FightEnemyAction(player));
