@@ -305,11 +305,11 @@ namespace LivingWorldNpcs
         {
             if (agent == null || !agent.IsActive()) return;
 
-            // 1. 解除速度限制 (-1f 表示恢复默认最大速度)
+            // 1. 禁用之前 MoveTo 设置的脚本化移动 (解除 SetScriptedPosition 的锁定)
+            agent.DisableScriptedMovement();
+            // 2. 解除速度限制 (-1f 表示恢复默认最大速度)
             agent.SetMaximumSpeedLimit(-1f, false);
             agent.SetScriptedFlags(Agent.AIScriptedFrameFlags.None);
-            // 2. 禁用之前 MoveTo 设置的脚本化移动 (解除 SetScriptedPosition 的锁定)
-            agent.DisableScriptedMovement();
 
             // 3. 清除强制盯人 (解除 SetLookAgent)
             agent.SetLookAgent(null);

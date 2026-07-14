@@ -108,6 +108,11 @@ namespace LivingWorldNpcs
             // 1. 注销战斗者
             UnregisterCombatant(agent);
 
+            // 1.5 重置 WatchState 回 Normal，防止 AlarmedBehaviorGroup 永远占着控制权
+            //     （StartFight 设为了 Alarmed，不重置则 RefreshBehaviorGroups 永远选 Alarmed，
+            //       DailyBehaviorGroup 永远拿不回控制权，NPC 卡死不动）
+            agent.SetWatchState(Agent.WatchState.Patrolling);
+
             // 2. 恢复到进入战斗前的原始队伍
             if (_originalTeams.TryGetValue(agent.Index, out var originalTeam)
                 && originalTeam != null

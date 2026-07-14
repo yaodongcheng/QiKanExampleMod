@@ -708,7 +708,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        private void ClearAllActions()
+        private void ClearAllActions(bool lockPlace = true)
         {
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
@@ -717,9 +717,7 @@ namespace LivingWorldNpcs
             _currentAction = null;
             _actionQueue.Clear();
 
-            //Owner.TryToSheathWeaponInHands();
-
-            if (hadActions)
+            if (hadActions && lockPlace)
             {
                 // 只在确实清掉了 Action 时才设 DoNotRun 锁 + 清原生 AI 目标。
                 // 空大脑（快速路径）NPC 的原生 AI 巡逻状态不应被干扰，
@@ -733,6 +731,7 @@ namespace LivingWorldNpcs
                 Owner.ResetEnemyCaches();
                 Owner.ClearTargetFrame();
             }
+            
         }
 
         /// <summary>暂停原版 AgentNavigator / DailyBehaviorGroup 对该 Agent 的控制。幂等。</summary>
@@ -746,11 +745,12 @@ namespace LivingWorldNpcs
             var nav = Owner.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
             if (nav == null) return false;
 
-            nav.SetTarget(null);
-
             var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
-            if (daily != null && daily.IsActive)
-                daily.IsActive = false;
+            if (daily != null)
+            {
+                if (daily.IsActive)
+                    daily.IsActive = false;
+            }
 
             return true;
         }
@@ -767,10 +767,6 @@ namespace LivingWorldNpcs
                 return; // 没被 Suspend 过，不碰原版 AI
 
             DebugLogger.Log($"[AI-Debug] Resume {Owner.Name} (Idx={Owner.Index}) | 集合size={SuspendedAgentIndices.Count}");
-
-            Owner.DisableScriptedMovement();
-            Owner.SetScriptedFlags(Agent.AIScriptedFrameFlags.None);
-            Owner.SetMaximumSpeedLimit(-1f, false);
 
             var nav = Owner.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
             if (nav == null) return;
@@ -805,7 +801,9 @@ namespace LivingWorldNpcs
             Owner.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
             Owner.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
 
-            ClearAllActions();
+            // 清理当前动作（直接结束，不走 ClearAllActions 的 DoNotRun 锁路径，
+            // 因为 ForceUnlockAgent 接下来会统一做解锁，再加锁反而可能残留）
+            ClearAllActions(lockPlace: false);
             ClearAllAlerts(); // 对话结束警戒值归零，避免 NPC 恢复正常后立刻重新质问
             AgentControlHelper.ForceUnlockAgent(Owner);
             ResumeVanillaAI();

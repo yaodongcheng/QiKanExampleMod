@@ -87,11 +87,11 @@ DailyBehaviorGroup.Tick()
 
 | Behavior | 作用 |
 |----------|------|
-| `WanderingBehavior` | 随机走到场景里的空闲椅子/站立点 |
+| `WalkingBehavior` | 随机走到场景里的空闲椅子/站立点 |
 | `ChangeLocationBehavior` | 走到通道门，换区域 (center → tavern) |
 | `FollowAgentBehavior` | 跟随特定 Agent（同伴/护卫），距离 > 4m+ 触发移动 |
 
-**这就是 NPC "闲逛"机制**：每 15 秒 `WanderingBehavior` 和 `ChangeLocationBehavior` 竞争，赢家驱动 Agent 走到新位置。
+**这就是 NPC "闲逛"机制**：每 15 秒 `WalkingBehavior` 和 `ChangeLocationBehavior` 竞争，赢家驱动 Agent 走到新位置。
 
 ---
 
@@ -266,16 +266,9 @@ if (dailyGroup != null)
 
 ### 3.6 方案 E：SuspendVanillaAI / ResumeVanillaAI ✅（已实现，推荐）
 
-**原理**：Suspend 时把 `DailyBehaviorGroup` 从 `AgentNavigator._behaviorGroups` 列表中**移除**（反射访问 private list），Resume 时**放回去**。`RefreshBehaviorGroups()` 遍历列表时找不到它 → 不会重激活。**调用一次即可，无需每帧重申。**
+**原理**：设置 `daily.IsActive = false` 禁用 DailyBehaviorGroup，通过 `SuspendedAgentIndices`（`HashSet<int>`）标记挂起。`AiSuspendPatch`（Harmony Prefix 拦截 `AgentNavigator.RefreshBehaviorGroups`）检查该集合——命中则跳过，防止 Navigator 每 1 秒重新激活。Resume 时从集合移除 + `daily.IsActive = true` + `ForceThink(0f)`。
 
-```csharp
-// AgentNavigator.RefreshBehaviorGroups 的检查逻辑：
-if (num > 0f && agentBehaviorGroup != null && !agentBehaviorGroup.IsActive)
-    ActivateGroup(agentBehaviorGroup);  // 重激活
-// 移除后：列表里没有 DailyBehaviorGroup → agentBehaviorGroup 永远是 null → 永远不触发
-```
-
-详见本文第四节的完整 API 文档。
+详见本文第四节的完整 API 文档和源码。
 
 ---
 
@@ -283,29 +276,61 @@ if (num > 0f && agentBehaviorGroup != null && !agentBehaviorGroup.IsActive)
 
 ### 4.1 原理
 
-**Suspend**：把 `DailyBehaviorGroup` 从 `AgentNavigator._behaviorGroups` 列表中移除。
-- `RefreshBehaviorGroups()` 遍历列表时找不到它 → 不会每 1 秒重新激活
-- **调用一次即可，无需每帧重申**
+**Suspend**：设置 `daily.IsActive = false` 禁用 DailyBehaviorGroup，并通过 `SuspendedAgentIndices`（`HashSet<int>`）标记该 Agent 已挂起。`AiSuspendPatch`（Harmony Prefix 拦截 `AgentNavigator.RefreshBehaviorGroups`）检查该集合——命中则跳过刷新，防止 Navigator 每 1 秒重新激活 DailyBehaviorGroup。
 
-**Resume**：用反射把暂存的 `DailyBehaviorGroup` 放回列表 + `ForceThink(0f)` 立即选举行为。
+**Resume**：从 `SuspendedAgentIndices` 移除标记，设置 `daily.IsActive = true` + `ForceThink(0f)` 立即选举行为。
 
 ```csharp
-// Core/AgentControlHelper.cs
+// AI/AgentBrain.cs
 
-/// 反射访问 AgentNavigator._behaviorGroups（private readonly List）
-private static readonly FieldInfo _navBehaviorGroupsField;
+/// 挂起的 Agent 索引集合。AiSuspendPatch 检查此集合，命中则跳过 RefreshBehaviorGroups。
+public static readonly HashSet<int> SuspendedAgentIndices = new HashSet<int>();
 
-/// 被移除后暂存的 DailyBehaviorGroup，key = Agent.Index
-private static readonly Dictionary<int, DailyBehaviorGroup> _suspendedDailyGroups;
+/// 暂停原版 AgentNavigator / DailyBehaviorGroup 对该 Agent 的控制。幂等。
+private bool SuspendVanillaAI()
+{
+    if (!SuspendedAgentIndices.Add(Owner.Index))
+        return true; // 已在集合中，幂等
 
-/// 暂停原版 AI。调用一次即可，幂等。用 ResumeVanillaAI 恢复。
-public static bool SuspendVanillaAI(Agent agent)
+    var nav = Owner.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+    if (nav == null) return false;
 
-/// 恢复原版 AI。
-public static void ResumeVanillaAI(Agent agent)
+    var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+    if (daily != null && daily.IsActive)
+        daily.IsActive = false;
 
-/// Agent 删除时清理暂存引用，由 AgentAIController.OnAgentDeleted 调用。
-public static void CleanupSuspendedAgent(int agentIndex)
+    return true;
+}
+
+/// 恢复原版 AgentNavigator / DailyBehaviorGroup 的控制。
+private void ResumeVanillaAI()
+{
+    if (!Owner.IsActive()) return;
+    if (!SuspendedAgentIndices.Remove(Owner.Index))
+        return; // 没被 Suspend 过，不碰原版 AI
+
+    var nav = Owner.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+    if (nav == null) return;
+
+    var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+    if (daily != null && !daily.IsActive)
+    {
+        daily.IsActive = true;
+        daily.ForceThink(0f);  // 同步触发 WalkingBehavior 选举
+    }
+}
+```
+
+```csharp
+// AI/AiSuspendPatch.cs — Harmony Prefix 拦截
+[HarmonyPatch(typeof(AgentNavigator), "RefreshBehaviorGroups")]
+public static class AiSuspendPatch
+{
+    public static bool Prefix(AgentNavigator __instance)
+    {
+        return !AgentBrain.SuspendedAgentIndices.Contains(__instance.OwnerAgent.Index);
+    }
+}
 ```
 
 ### 4.2 自动集成：AgentBrain 已自动化
@@ -416,7 +441,7 @@ AgentControlHelper.ResumeVanillaAI(agent);
 
 ---
 
-## 六、关键 API 速查
+## 七、关键 API 速查
 
 ```csharp
 // 原版 AI 状态查询
@@ -449,10 +474,95 @@ agent.ClearTargetFrame();
 
 ---
 
+## 八、战斗后 NPC 卡死不动的根因：WatchState 残留
+
+### 8.1 现象
+
+玩家攻击 NPC → 战斗 → 认输/对话结束 → NPC 原地不动，不再闲逛。
+
+### 8.2 根因链路
+
+`CombatManager.StartFight` 中调了 `agent.SetWatchState(Agent.WatchState.Alarmed)`，但 `EndFight` 没有重置。导致：
+
+```
+CurrentWatchState = Alarmed (值 2，由 StartFight 设置，未清除)
+  │
+  ▼
+RefreshBehaviorGroups 遍历各 Group 的 GetScore():
+  ├── AlarmedBehaviorGroup.GetScore()
+  │     └── CurrentWatchState == Alarmed → return 1f  ← 碾压！
+  ├── DailyBehaviorGroup.GetScore()
+  │     └── return 0.5f
+  └── 结果: ActivateGroup(Alarmed) → daily.IsActive = false
+        │
+        ▼
+      AlarmedBehaviorGroup.OnActivate()
+        └── IsAgentAggressive(OwnerAgent) → 有武器 → true
+              → DisableCalmDown = true  ← 永不冷静！
+```
+
+**关键源码**（`AlarmedBehaviorGroup.GetScore`，反编译自 `SandBox.dll`）：
+
+```csharp
+public override float GetScore(bool isSimulation)
+{
+    if ((int)base.OwnerAgent.CurrentWatchState == 2)  // Alarmed
+    {
+        if (!DisableCalmDown && _alarmedTimer.ElapsedTime > 10f && ...)
+        {
+            // 冷静动画 → 动画结束 → return 0f  (DisabledCalmDown=true 跳过此路径)
+        }
+        return 1f;  // 永远 1.0，Daily 的 0.5 根本抢不过
+    }
+    if (IsNearDanger()) { AlarmAgent(agent); return 1f; }
+    return 0f;
+}
+```
+
+`OnActivate` 中 `DisableCalmDown` 的判定：
+
+```csharp
+if (Navigator.MemberOfAlley != null || MissionFightHandler.IsAgentAggressive(base.OwnerAgent))
+    DisableCalmDown = true;
+
+// IsAgentAggressive: 有武器 → true（村民的农具也算）
+```
+
+### 8.3 修复
+
+在 `CombatManager.EndFight` 中重置 WatchState：
+
+```csharp
+agent.SetWatchState(Agent.WatchState.Patrolling);  // 值 0，正常巡逻态
+```
+
+`Agent.WatchState` 枚举值：`Patrolling`(0) / `Cautious`(1) / `Alarmed`(2)。
+
+修复后 `RefreshBehaviorGroups` 的分逻辑：
+
+```
+CurrentWatchState = Patrolling → AlarmedBehaviorGroup.GetScore()
+  → 路径2: IsNearDanger() → GetClosestAlarmSource()
+    → MissionFightHandler.IsThereActiveFight() → false（我们没用官方战斗系统）
+    → return null → IsNearDanger() = false
+  → return 0f  ← 不抢了
+
+DailyBehaviorGroup.GetScore() = 0.5f  ← 胜出
+→ ActivateGroup(Daily) → NPC 恢复闲逛
+```
+
+### 8.4 为什么 SuspendVanillaAI 挡不住
+
+Suspend 期间 `SuspendedAgentIndices` 拦截了 `RefreshBehaviorGroups`，Alarmed 的分数再高也执行不到。但 `PostConversationCleanup` → `ResumeVanillaAI` → `SuspendedAgentIndices.Remove` 后，下一帧 `RefreshBehaviorGroups` 就会执行——此时 WatchState 还是 Alarmed，立刻被抢走。Suspend 只是延迟了问题，没有消除根因。
+
+---
+
 ## 相关文件
 
 - 本项目 → `Core/AgentControlHelper.cs` — MovePrepare, ForceUnlockAgent, ScriptedMoveToPoint, MoveEndAndInteractPrepare
 - 本项目 → `AI/AgentBrain.cs` — ClearAllActions, ReceiveEvent, DecideDefaultBehavior
 - 本项目 → `AI/Actions/AtomicAction.cs` — FollowAgentAction (极坐标防抖), MoveToPositionAction, StayAction
 - 本项目 → `Interaction/InteractionMissionView.cs` — PrepareAgentForConversation, "ComeHere" 触发
-- `SandBox.dll` → `MissionAgentHandler`, `AgentNavigator`, `DailyBehaviorGroup`, `FollowAgentBehavior`
+- 本项目 → `Combat/CombatManager.cs` — StartFight / EndFight（WatchState 管理）
+- `SandBox.dll` → `MissionAgentHandler`, `AgentNavigator`, `DailyBehaviorGroup`, `WalkingBehavior`, `AlarmedBehaviorGroup`, `FightBehavior`
+- `SandBox.dll` → `MissionFightHandler` — `IsThereActiveFight()`, `IsAgentAggressive()`, `GetDangerSources()`
