@@ -67,6 +67,20 @@ namespace LivingWorldNpcs
         // 场景动物同步：首帧只执行一次
         private bool _animalSyncDone = false;
 
+        // 财富分配：首帧只执行一次
+        private bool _wealthDistributed = false;
+
+        // 箱子实体 + 生成标记
+        private GameEntity _chestEntity = null;
+        private bool _chestSpawned = false;
+
+        // 箱子"自己挑选"待处理状态（InventoryManager 关闭后处理）
+        private bool _chestLootPending = false;
+        private ItemRoster _pendingChestSnapshot = null;
+
+        // 玩家是否在箱子交互范围内（PerformPerformanceHeavyLogic 更新）
+        private bool _nearChest = false;
+
 
         public MissionScreen thisMissionScreen;
 
@@ -323,6 +337,13 @@ namespace LivingWorldNpcs
 
         private void HandleInput()
         {
+            // 箱子互动优先：靠近箱子时按 F → 打开保管箱
+            if (_nearChest && _chestEntity != null && TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.F))
+            {
+                OpenChest();
+                return;
+            }
+
             // 如果没有缓存的目标，直接返回，防止空引用
             if (_lastFocusedAgent == null) return;
 
@@ -377,18 +398,39 @@ namespace LivingWorldNpcs
             // A. 获取目标
             Agent currentAgent = GetFocusdAgent();
 
-            // B. 排除空目标或玩家自己
+            // A2. 箱子接近度检测（每 3 帧更新，用于 HUD 提示 + HandleInput 缓存）
+            bool nearChest = _chestEntity != null && Agent.Main != null
+                && Agent.Main.Position.Distance(_chestEntity.GetGlobalFrame().origin) < 3f;
+
+            // B. 排除空目标或玩家自己 → 显示箱子提示或隐藏 UI
             if (currentAgent == null || currentAgent == Mission.Current.MainAgent)
             {
-                if (_interactVM.IsVisible)
+                if (nearChest)
                 {
-                    _interactVM.IsVisible = false;
-                    IsHandlingInteraction = false;
+                    // 没在看人但在箱子旁边 → 显示箱子提示
+                    _interactVM.IsVisible = true;
+                    IsHandlingInteraction = true;
+                    var actions = new List<(string, string)>();
+                    actions.Add(("打开保管箱", "F"));
+                    _interactVM.UpdateTarget("村庄保管箱", actions);
+                    _nearChest = true;
                     _lastFocusedAgent = null;
-
+                }
+                else
+                {
+                    _nearChest = false;
+                    if (_interactVM.IsVisible)
+                    {
+                        _interactVM.IsVisible = false;
+                        IsHandlingInteraction = false;
+                        _lastFocusedAgent = null;
+                    }
                 }
                 return;
             }
+
+            // 有聚焦目标时也更新箱子接近状态（供 HandleInput 判断优先级）
+            _nearChest = nearChest;
 
             // C. 计算状态
             bool isAnimal = IsAnimalAgent(currentAgent);
@@ -543,11 +585,34 @@ namespace LivingWorldNpcs
                 SyncSceneAnimalsWithInventory();
             }
 
+            // ── 财富分配：首帧把定居点金库的钱分配到 NPC 身上 + 公共箱子 ──
+            if (!_wealthDistributed)
+            {
+                _wealthDistributed = true;
+                var settlement = Settlement.CurrentSettlement;
+                if (settlement != null)
+                    StealManager.DistributeSettlementWealth(settlement);
+            }
+
+            // ── 箱子生成：财富分配后有 stash 就生成箱子实体 ──
+            if (!_chestSpawned && StealManager.StashGold > 0)
+            {
+                _chestSpawned = true;
+                SpawnSettlementChest();
+            }
+
 
             // ----------------- 0. 库存界面关闭后的搜刮收尾 -----------------
             if (_pendingLootCorpse != null)
             {
                 ProcessPendingLoot();
+                return;
+            }
+
+            // ----------------- 0b. 箱子挑选界面关闭后的收尾 -----------------
+            if (_chestLootPending)
+            {
+                ProcessPendingChestLoot();
                 return;
             }
 
@@ -761,13 +826,11 @@ namespace LivingWorldNpcs
             // 防止重复打开
             if (_npcInfoLayer != null) return;
 
-            // 1. 获取数据 (假设你有办法从 Agent 获取 NPCProfile)
-            // 这里你需要根据你的 Mod 逻辑，从 Agent 找到对应的 Hero 或自定义数据
+            // 1. 获取数据 (记忆系统可能为 null——模板 NPC 无记忆)
             var memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
-            if (memory == null) return;
 
-            // 2. 创建 VM，传入关闭回调
-            _npcInfoVM = new NPCInfoVM(memory, CloseNPCInfoBoard);
+            // 2. 创建 VM，传入关闭回调 + Agent（模板 NPC 也能看基本信息和身上的钱）
+            _npcInfoVM = new NPCInfoVM(memory, agent, CloseNPCInfoBoard);
 
             // 3. 创建 Layer 并加载 Movie
             _npcInfoLayer = V.NewLayer(200); // 这里的 200 是层级优先级，需比普通 HUD 高
@@ -877,6 +940,22 @@ namespace LivingWorldNpcs
 
             //清除场景里临时Agent的临时记忆
             AllNpcMemoryManager.ClearTemporaryMemories();
+
+            // 清理箱子实体
+            if (_chestEntity != null)
+            {
+                _chestEntity.Remove(0);
+                _chestEntity = null;
+            }
+            StealManager.ChestEntity = null;
+            StealManager.ChestItemRoster = new ItemRoster();
+            _chestSpawned = false;
+            _chestLootPending = false;
+            _pendingChestSnapshot = null;
+
+            // 清理财富分配
+            StealManager.ClearWealthDistribution();
+            _wealthDistributed = false;
         }
 
 
@@ -1296,23 +1375,30 @@ namespace LivingWorldNpcs
 
             // --- 步骤一：计算产出 ---
 
-            // 活人的钱通常在家族里，身上一般没现金，这里简单处理：偷活人只偷装备，或者是偷少量零钱
-            int lootedGold = 0;
+            int villageGold = 0;   // 村庄分配金
+            int clanGold = 0;      // 族长家族金库（非族长不算）
             CharacterObject character = targetAgent.Character as CharacterObject;
+            bool isClanLeader = targetHero != null && targetHero.Clan?.Leader == targetHero;
 
-            if (character != null)
+            // 来源 1：村庄财富分配（所有 NPC 通用，全额）
+            int allocatedGold = StealManager.GetAgentGold(targetAgent);
+            if (allocatedGold > 0)
+                villageGold = allocatedGold;
+
+            // 来源 2：族长家族金库（Hero.Gold = 全族资金，不分死活全偷）
+            if (isClanLeader && targetHero.Gold > 0)
+                clanGold = targetHero.Gold;
+
+            // 来源 3：回落随机（模板 NPC 无分配金且非族长时）
+            if (villageGold == 0 && clanGold == 0 && character != null)
             {
                 if (isStealing)
-                {
-                    // 偷窃获得的金钱较少
-                    lootedGold = MBRandom.RandomInt(1, 20);
-                }
+                    villageGold = MBRandom.RandomInt(1, 20);
                 else
-                {
-                    // 搜刮尸体逻辑
-                    lootedGold = character.IsHero ? (100 + character.Level * 50) : (character.Level * 5);
-                }
+                    villageGold = character.IsHero ? (100 + character.Level * 50) : (character.Level * 5);
             }
+
+            int lootedGold = villageGold + clanGold;
 
             // B. 构建物品列表 (ItemRoster)
             ItemRoster lootRoster = new ItemRoster();
@@ -1356,7 +1442,8 @@ namespace LivingWorldNpcs
             // --- 步骤二：构建 Inquiry (复用原有逻辑) ---
             string actionName = isStealing ? "偷窃" : "搜刮";
             string titleText = $"{actionName} {targetAgent.Name}";
-            string contentText = $"你在 {targetAgent.Name} 身上发现了些东西:{itemsName} \n{partyItems}";
+            string goldPreview = lootedGold > 0 ? $"\n金币: {lootedGold} 第纳尔" : "";
+            string contentText = $"你在 {targetAgent.Name} 身上发现了些东西:{itemsName}{goldPreview}\n{partyItems}";
 
             InformationManager.ShowInquiry(new InquiryData(
                 titleText,
@@ -1368,10 +1455,17 @@ namespace LivingWorldNpcs
                 () =>
                 {
                     // 全部拿走回调
-                    if (lootedGold > 0)
+                    if (villageGold > 0)
                     {
-                        AgentControlHelper.TransferGold(null, Hero.MainHero, lootedGold, notify: false);
-                        InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootedGold} 两钱。", Colors.Yellow));
+                        int actual = StealManager.ConsumeAgentGold(targetAgent, villageGold, Settlement.CurrentSettlement);
+                        if (actual > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {actual} 第纳尔。", Colors.Yellow));
+                    }
+                    if (clanGold > 0 && targetHero != null)
+                    {
+                        int actual = AgentControlHelper.TransferGold(targetHero, Hero.MainHero, clanGold, notify: false);
+                        if (actual > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"从{targetHero.Name}的家族金库里拿到了 {actual} 第纳尔。", Colors.Yellow));
                     }
                     if (!lootRoster.IsEmpty())
                     {
@@ -1384,10 +1478,17 @@ namespace LivingWorldNpcs
                 () =>
                 {
                     // 自己挑选回调
-                    if (lootedGold > 0)
+                    if (villageGold > 0)
                     {
-                        AgentControlHelper.TransferGold(null, Hero.MainHero, lootedGold);
-                        InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootedGold} 两钱。", Colors.Yellow));
+                        int actual = StealManager.ConsumeAgentGold(targetAgent, villageGold, Settlement.CurrentSettlement);
+                        if (actual > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {actual} 第纳尔。", Colors.Yellow));
+                    }
+                    if (clanGold > 0 && targetHero != null)
+                    {
+                        int actual = AgentControlHelper.TransferGold(targetHero, Hero.MainHero, clanGold, notify: false);
+                        if (actual > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"从{targetHero.Name}的家族金库里拿到了 {actual} 第纳尔。", Colors.Yellow));
                     }
 
                     if (!lootRoster.IsEmpty())
@@ -1566,6 +1667,250 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Cam] {label} pos=({pos.x:F2},{pos.y:F2},{pos.z:F2}) fwd=({fwd.x:F3},{fwd.y:F3},{fwd.z:F3}) up=({up.x:F3},{up.y:F3},{up.z:F3}){extra}");
             }
             catch (Exception) { }
+        }
+
+        // ================================================================
+        // 村庄保管箱 — 生成 + 互动 + 收尾
+        // ================================================================
+
+        /// <summary>
+        /// 在村长/乡绅附近生成一个箱子实体，里面装有村庄流通池的 20% 金币 + 定居点物资。
+        /// </summary>
+        private void SpawnSettlementChest()
+        {
+            var scene = Mission.Current?.Scene;
+            if (scene == null) return;
+
+            try
+            {
+                // 1. 找到 Headman Agent 的位置
+                Vec3 headmanPos = Vec3.Invalid;
+                foreach (Agent agent in Mission.Current.Agents)
+                {
+                    if (!agent.IsHuman || !agent.IsActive()) continue;
+                    var co = agent.Character as CharacterObject;
+                    if (co?.HeroObject?.Occupation == Occupation.Headman)
+                    {
+                        headmanPos = agent.Position;
+                        break;
+                    }
+                }
+                // 没 Headman → 找 RuralNotable
+                if (!headmanPos.IsValid)
+                {
+                    foreach (Agent agent in Mission.Current.Agents)
+                    {
+                        if (!agent.IsHuman || !agent.IsActive()) continue;
+                        var co = agent.Character as CharacterObject;
+                        if (co?.HeroObject?.Occupation == Occupation.RuralNotable)
+                        {
+                            headmanPos = agent.Position;
+                            break;
+                        }
+                    }
+                }
+                // 兜底用场景中心
+                if (!headmanPos.IsValid)
+                    headmanPos = Agent.Main?.Position ?? Vec3.Zero;
+
+                // 2. 在 Headman 附近偏移（3 米外）作为箱子位置
+                Vec3 chestPos = headmanPos + new Vec3(2f, 0f, 0f); // 兜底偏移
+
+                // 3. 创建箱子实体
+                MatrixFrame frame = new MatrixFrame(Mat3.Identity, chestPos);
+                _chestEntity = GameEntity.Instantiate(scene, "chest_wooden", frame);
+                if (_chestEntity == null)
+                    _chestEntity = GameEntity.Instantiate(scene, "chest_a", frame);
+                if (_chestEntity == null)
+                {
+                    // 兜底：空实体（看不见但能交互）
+                    _chestEntity = GameEntity.CreateEmpty(scene);
+                    _chestEntity.SetGlobalFrame(frame);
+                }
+
+                // 回填给 StealManager
+                StealManager.ChestEntity = _chestEntity;
+                DebugLogger.Log($"[Chest] Spawned at {chestPos}, gold={StealManager.StashGold}, items={StealManager.ChestItemRoster?.Count ?? 0}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Chest] SpawnSettlementChest error: {ex.Message}");
+            }
+        }
+
+        /// <summary>玩家按 F 互动箱子时调用</summary>
+        private void OpenChest()
+        {
+            int gold = StealManager.StashGold;
+            var roster = StealManager.ChestItemRoster;
+
+            if (gold == 0 && (roster == null || roster.IsEmpty()))
+            {
+                InformationManager.DisplayMessage(new InformationMessage("箱子是空的。", Colors.Gray));
+                return;
+            }
+
+            // 目击检测：周围有没有人盯着
+            var witnesses = StealManager.GetWitnesses(Agent.Main, null, maxDistance: 15f);
+            string riskHint = witnesses.Count > 0
+                ? $"\n⚠ 有 {witnesses.Count} 双眼睛可能看到你！"
+                : "";
+
+            string goldLine = gold > 0 ? $"\n金币: {gold} 第纳尔" : "";
+            string itemsPreview = "";
+            if (roster != null)
+            {
+                for (int i = 0; i < Math.Min(roster.Count, 5); i++)
+                {
+                    var item = roster.GetItemAtIndex(i);
+                    if (item != null)
+                        itemsPreview += $"\n  {item.Name} x{roster.GetElementNumber(i)}";
+                }
+                if (roster.Count > 5) itemsPreview += $"\n  ...还有 {roster.Count - 5} 种物品";
+            }
+
+            string content = $"你找到了村庄的保管箱。{goldLine}\n物品:{itemsPreview}{riskHint}";
+
+            var settlement = Settlement.CurrentSettlement;
+            InformationManager.ShowInquiry(new InquiryData(
+                "村庄保管箱", content,
+                true, true,
+                "全部拿走", "自己挑选",
+                () =>
+                {
+                    // ── 全部拿走 ──
+                    int takenGold = 0;
+                    if (gold > 0)
+                    {
+                        takenGold = StealManager.LootStash(gold, settlement);
+                        if (takenGold > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {takenGold} 第纳尔。", Colors.Yellow));
+                    }
+
+                    if (roster != null && !roster.IsEmpty())
+                    {
+                        int totalItems = 0;
+                        for (int i = roster.Count - 1; i >= 0; i--)
+                        {
+                            var item = roster.GetItemAtIndex(i);
+                            int count = roster.GetElementNumber(i);
+                            if (item != null && count > 0)
+                            {
+                                int taken = StealManager.LootChestItem(item, count, settlement);
+                                totalItems += taken;
+                            }
+                        }
+                        if (totalItems > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {totalItems} 件物品。", Colors.Green));
+                    }
+
+                    // 箱子空了就移除实体
+                    if (_chestEntity != null && StealManager.StashGold == 0
+                        && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
+                    {
+                        _chestEntity.Remove(0);
+                        _chestEntity = null;
+                        StealManager.ChestEntity = null;
+                    }
+                },
+                () =>
+                {
+                    // ── 自己挑选 ──
+                    if (gold > 0)
+                    {
+                        int takenGold = StealManager.LootStash(gold, settlement);
+                        if (takenGold > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {takenGold} 第纳尔。", Colors.Yellow));
+                    }
+
+                    if (roster != null && !roster.IsEmpty())
+                    {
+#if !MB2_V1212
+                        DebugLogger.Log("[Chest] InventoryManager not available in this version, taking all items instead");
+                        // Fallback: take everything
+                        int totalItems = 0;
+                        for (int i = roster.Count - 1; i >= 0; i--)
+                        {
+                            var item = roster.GetItemAtIndex(i);
+                            int count = roster.GetElementNumber(i);
+                            if (item != null && count > 0)
+                                totalItems += StealManager.LootChestItem(item, count, settlement);
+                        }
+                        if (totalItems > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {totalItems} 件物品。", Colors.Green));
+                        if (_chestEntity != null && StealManager.StashGold == 0
+                            && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
+                        {
+                            _chestEntity.Remove(0);
+                            _chestEntity = null;
+                            StealManager.ChestEntity = null;
+                        }
+#else
+                        // 保存快照用于比较
+                        _pendingChestSnapshot = StealManager.CloneItemRoster(roster);
+
+                        // 打开战利品界面（roster 会被原地修改）
+                        var dict = new Dictionary<PartyBase, ItemRoster>();
+                        dict[PartyBase.MainParty] = roster;
+                        InventoryManager.OpenScreenAsLoot(dict);
+
+                        // 标记待处理
+                        _chestLootPending = true;
+#endif
+                    }
+                    else if (_chestEntity != null && StealManager.StashGold == 0
+                        && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
+                    {
+                        _chestEntity.Remove(0);
+                        _chestEntity = null;
+                        StealManager.ChestEntity = null;
+                    }
+                }));
+        }
+
+        /// <summary>
+        /// 箱子"自己挑选"战利品界面关闭后的收尾：
+        /// 比较快照找出玩家拿走的物品，同步扣除定居点 ItemRoster。
+        /// </summary>
+        private void ProcessPendingChestLoot()
+        {
+            _chestLootPending = false;
+            var snapshot = _pendingChestSnapshot;
+            _pendingChestSnapshot = null;
+
+            var settlement = Settlement.CurrentSettlement;
+            if (settlement == null || snapshot == null) return;
+
+            var remaining = StealManager.ChestItemRoster;
+
+            try
+            {
+                for (int i = 0; i < snapshot.Count; i++)
+                {
+                    var item = snapshot.GetItemAtIndex(i);
+                    if (item == null) continue;
+                    int before = snapshot.GetElementNumber(i);
+                    int after = remaining?.GetItemNumber(item) ?? 0;
+                    int taken = before - after;
+                    if (taken > 0)
+                    {
+                        StealManager.DeductSettlementItemsOnly(settlement, item, taken);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Chest] ProcessPendingChestLoot error: {ex.Message}");
+            }
+
+            // 箱子空了就移除实体
+            if (_chestEntity != null && StealManager.StashGold == 0
+                && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
+            {
+                _chestEntity.Remove(0);
+                _chestEntity = null;
+                StealManager.ChestEntity = null;
+            }
         }
 
 
