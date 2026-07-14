@@ -241,9 +241,11 @@ namespace LivingWorldNpcs
         public static void Postfix(ConversationManager __instance)
         {
             // 对话结束 → 释放全局质问锁，允许其他 NPC 重新积累警戒值。
-            // 锁在 MissionConversationStartPatch.Prefix 中设置，
+            // 锁在 MissionConversationStartPatch.Prefix/Postfix 中设置，
             // 确保整个对话周期内 UpdateAlertCognition 被冻结。
+            var releasingBrain = AgentBrain.ConfrontingBrain;
             AgentBrain.ConfrontingBrain = null;
+            DebugLogger.Log($"[ConvLock] Release by {(releasingBrain?.Owner?.Name ?? "null")}(Idx={releasingBrain?.Owner?.Index.ToString() ?? "?"}) | reason=EndConversation");
 
             DebugLogger.Log($"[ConvEnd] Conversation ended. lastEvent={ConversationEntryPatch._lastInjectedEventId} lastTag={ConversationEntryPatch._lastInjectedTag}");
             ConversationEntryPatch._lastInjectedEventId = null;
@@ -329,6 +331,12 @@ namespace LivingWorldNpcs
                     {
                         brain.PostConversationCleanup();
                     }
+                }
+                else if (releasingBrain != null && releasingBrain.PendingPostConversationCleanup)
+                {
+                    // 兜底：投降等路径中 missionConvLogic.ConversationAgent 可能为 null，
+                    // 但 ConfrontingBrain 已在 AgentBrain 发起对话时直接设置，直接用它清理。
+                    releasingBrain.PostConversationCleanup();
                 }
 
                 // 广播 EndInteraction 给围观 NPC（bystanders 的 InteractedAgent 匹配时清理自己）
@@ -518,6 +526,11 @@ namespace LivingWorldNpcs
                 if (conversationAgent != null)
                 {
                     AgentBrain.ConfrontingBrain = AgentAIController.GetBrainForAgent(conversationAgent);
+                    DebugLogger.Log($"[ConvLock] Acquire by {conversationAgent.Name}(Idx={conversationAgent.Index}) | reason=MissionStartPrefix");
+                }
+                 else
+                {
+                    DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Prefix: ConversationAgent is null, cannot acquire lock.");
                 }
 
                 var trigger = ConversationEntryPatch._pendingTrigger;
@@ -541,7 +554,20 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var character = __instance.ConversationAgent?.Character as CharacterObject;
+                // ── 全局质问锁（兜底）：Prefix 中 ConversationAgent 可能尚未赋值，
+                // Postfix 中原版 StartConversation 已执行完毕，ConversationAgent 已就位。
+                var conversationAgent = __instance.ConversationAgent;
+                if (conversationAgent != null)
+                {
+                    AgentBrain.ConfrontingBrain = AgentAIController.GetBrainForAgent(conversationAgent);
+                    DebugLogger.Log($"[ConvLock] Acquire by {conversationAgent.Name}(Idx={conversationAgent.Index}) | reason=MissionStartPostfix");
+                }
+                else
+                {
+                    DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Postfix: ConversationAgent is null, cannot acquire lock.");
+                }
+
+                var character = conversationAgent?.Character as CharacterObject;
                 ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject);
             }
             catch (Exception ex)
