@@ -1,11 +1,11 @@
-﻿[10:59:43.052] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
-[10:59:59.091] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[11:35:48.389] [DisplayMessage] [Red] "成功进入游戏主菜单界面"
+[11:35:52.935] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[11:00:03.041] [WorldEventStore] Deserialized 0 events, 0 alerts
-[11:00:17.192] [DisplayMessage] "Custom Camera Load Success!"
-[11:00:17.643] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[11:35:57.171] [WorldEventStore] Deserialized 0 events, 0 alerts
+[11:36:05.367] [DisplayMessage] "Custom Camera Load Success!"
+[11:36:05.789] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -15,148 +15,84 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[11:00:17.653] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[11:00:37.148] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国农民 造成了0 点伤害"
-[11:00:37.149] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:14, 距离:2.2m, 方位:南)"
-[11:00:37.152] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
-[11:00:37.153] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
-[11:00:37.161] [BubbleSay] 帝国农民(Idx=14): "你！你敢打我？！"
-[11:00:37.162] [Brain-Clear] 帝国农民(Idx=14) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[11:00:37.162] [Brain-Enqueue] 帝国农民(Idx=14) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[11:00:37.163] [AI-Debug] Suspend 帝国农民 (Idx=14) | 集合size=1 | 当前行为=null
-[11:00:37.166] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Dormant → Active
-[11:00:37.171] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Active settlement=特维亚 — refreshing issue signals
-[11:00:37.178] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) category=BountyHunt
-[11:00:37.179] [RegisterWitness] 帝国农民 witnessed crime → WorldEvent misconduct_village_ES3_2_2185860 Stage → Active (suspect=player)
-[11:00:37.180] [Brain-Phase] 帝国农民(Idx=14) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔帝国农民] → 发送 'BecomeAlarmed'
-[11:00:37.180] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[11:00:37.187] [Brain-Tick] 帝国农民(Idx=14) 开始执行 FightEnemyAction | 队列剩余=0
-[11:00:37.187] [DisplayMessage] [Yellow] "帝国农民(Idx=14)  开始攻击 亨利！"
-[11:00:37.187] [CombatManager] RegisterCombatant: 帝国农民(Idx=14), total=1
-[11:00:54.273] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国农民 对 亨利 造成了11 点伤害"
-[11:00:54.280] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.24米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[11:00:54.964] [DisplayMessage] "[事件发送] 发送事件 'event_player_surrendered' 给 帝国农民 (Index:14, 距离:1.3m, 方位:西南)"
-[11:00:54.964] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'event_player_surrendered' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[11:00:54.965] [Brain-Clear] 帝国农民(Idx=14) 清空动作 | 当前=FightEnemyAction | 队列=0 | hadActions=True
-[11:00:54.965] [CombatManager] UnregisterCombatant: 帝国农民(Idx=14), total=0
-[11:00:54.965] [CombatManager] EndFight: 帝国农民(Idx=14) restored to original team
-[11:00:54.967] [Brain-Alert] 帝国农民(Idx=14) ClearAllAlerts: 警戒值归零
-[11:00:54.967] [FightEnd] 帝国农民(Idx=14) 战斗结束，警戒值已归零
-[11:00:54.968] [Brain-Enqueue] 帝国农民(Idx=14) 入队 StayAction | 当前行为=null | 队列=0→1
-[11:00:54.968] [Brain-Surrender] 帝国农民(Idx=14) 玩家投降 — 停战 + StayAction（对话结束后统一恢复）
-[11:00:54.972] [Brain-Receive] 特维亚的赫卡戎(Idx=4) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[11:00:54.972] [Brain-Clear] 特维亚的赫卡戎(Idx=4) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[11:00:54.972] [Brain-Enqueue] 特维亚的赫卡戎(Idx=4) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[11:00:54.972] [AI-Debug] Suspend 特维亚的赫卡戎 (Idx=4) | 集合size=2 | 当前行为=null
-[11:00:54.973] [Brain-Receive] 少年(Idx=40) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[11:00:54.973] [Brain-Clear] 少年(Idx=40) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[11:00:54.973] [Brain-Enqueue] 少年(Idx=40) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[11:00:54.973] [AI-Debug] Suspend 少年 (Idx=40) | 集合size=3 | 当前行为=null
-[11:00:54.973] [ConvEntry] Mission start Prefix: pre-injecting for trigger=PlayerSurrender partner=(template)
-[11:00:54.975] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[0] id=player_lose NpcLine="（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来——200第纳尔，饶你一命。"
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[0] "……（交出 200 第纳尔）" → INTENT:PlayerSurrenderPay Param=pay | NextNodeOnSuccess=surrender_pay_ack
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[1] "求你放过我，我只是路过……" → INTENT:PlayerSurrenderBeg Param=beg [SkillCheck] | NextNodeOnSuccess=surrender_beg_ok | NextNodeOnFail=player_lose_counteroffer
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[2] "你这条狗！杀了我你也别想好过！" → INTENT:PlayerSurrenderThreaten Param=threaten [SkillCheck] | NextNodeOnSuccess=surrender_threaten_ok | NextNodeOnFail=surrender_threaten_fail
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[1] id=surrender_pay_ack NpcLine="算你识相。200第纳尔，下次长点眼力见，滚吧！"
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[2] id=surrender_beg_ok NpcLine="……啧，算你运气好。滚，别让我再看见你。"
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[3] id=surrender_threaten_ok NpcLine="……疯子。滚，别让我再看见你。"
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[4] id=surrender_threaten_fail NpcLine="找死！！（暴怒地扑了上来）"
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[5] id=player_lose_counteroffer NpcLine="（冷笑）最后一次机会——400 第纳尔，或者咱们接着打。你选。"
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[0] "……（交出 400 第纳尔）" → INTENT:PlayerSurrenderPay Param=counteroffer_beg | NextNodeOnSuccess=surrender_counter_ack
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[1] "（拼死一战）" → INTENT:FightOn | NextNodeOnSuccess=surrender_fight_ack
-[11:00:54.977] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[6] id=surrender_counter_ack NpcLine="算你识相。400第纳尔，滚吧！"
-[11:00:54.978] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[7] id=surrender_fight_ack NpcLine="好！那就打到你爬不起来！"
-[11:00:54.979] [DialogueInjector] Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' | priority=200 | owner=crime_misconduct_village_ES3_2_2185860_v0
-[11:00:54.981] [ConvEntry] Injected dialogue: event=misconduct_village_ES3_2_2185860 stage=Active trigger=PlayerSurrender partner=(template) nodes=8
-[11:00:55.011] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来——200第纳尔，饶你一命。"
-[11:00:55.024] [Combat] 玩家向 帝国农民 认输
-[11:00:55.033] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 开始执行 ReactionDecisionAction | 队列剩余=0
-[11:00:55.035] [Brain-Phase] 特维亚的赫卡戎(Idx=4) 警戒上升: Normal → Cautious (警戒值=2.98) 因素=[Steal=2.98➔帝国农民] → 发送 'BecomeCautious'
-[11:00:55.035] [Brain-Receive] 特维亚的赫卡戎(Idx=4) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
-[11:00:55.038] [BubbleSay] 特维亚的赫卡戎(Idx=4): "（惊呼）你这后生！你偷了锯齿矛！"
-[11:00:55.038] [Brain-Tick] 帝国农民(Idx=14) 开始执行 StayAction | 队列剩余=0
-[11:00:55.039] [Brain-Phase] 帝国农民(Idx=14) 警戒下降: Alarmed → Normal (警戒值=0.02)
-[11:00:55.039] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'CalmDown' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[11:00:55.039] [Brain-Clear] 帝国农民(Idx=14) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[11:00:55.039] [Brain-Alert] 帝国农民(Idx=14) ClearAllAlerts: 警戒值归零
-[11:00:55.039] [AI-Debug] Resume 帝国农民 (Idx=14) | 集合size=2
-[11:00:55.040] [Brain-Tick] 少年(Idx=40) 开始执行 ReactionDecisionAction | 队列剩余=0
-[11:00:55.040] [Brain-Phase] 少年(Idx=40) 警戒上升: Normal → Cautious (警戒值=2.98) 因素=[Steal=2.98➔帝国农民] → 发送 'BecomeCautious'
-[11:00:55.040] [Brain-Receive] 少年(Idx=40) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
-[11:00:55.040] [BubbleSay] 少年(Idx=40): "（惊呼）你！你偷了锯齿矛！"
-[11:00:56.432] [Brain-Phase] 帝国农民(Idx=14) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
-[11:00:56.433] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[11:00:56.433] [BubbleSay] 帝国农民(Idx=14): "（不安地看了一眼）怎么还拔锯齿矛了……"
-[11:00:57.550] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' NPC=亨利 | Options (3): ……（交出 200 第纳尔） | 求你放过我，我只是路过…… | 你这条狗！杀了我你也别想好过！
-[11:00:57.552] [SkillCheck] PlayerSurrenderBeg | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=50 献礼=0.00 → 成功率=0.13 | 掷骰=通过 (chance=13 %)
-[11:00:57.553] [Combat] SurrenderBeg SUCCESS: 免单放人, honor=1→0
-[11:00:57.553] [VanillaDialog] Player says: "求你放过我，我只是路过……"
-[11:00:57.553] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "……啧，算你运气好。滚，别让我再看见你。"
-[11:00:58.037] [Brain-Phase] 特维亚的赫卡戎(Idx=4) 警戒上升: Cautious → Alarmed (警戒值=2.53) 因素=[Steal=2.53➔帝国农民] → 发送 'BecomeAlarmed'
-[11:00:58.037] [Brain-Receive] 特维亚的赫卡戎(Idx=4) 收到事件 'BecomeAlarmed' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Cautious
-[11:00:58.037] [Brain-Clear] 特维亚的赫卡戎(Idx=4) 清空动作 | 当前=ReactionDecisionAction | 队列=0 | hadActions=True
-[11:00:58.038] [Brain-Lock] 特维亚的赫卡戎(Idx=4) 开始质问玩家 | 质问锁已占领
-[11:00:58.038] [Brain-Enqueue] 特维亚的赫卡戎(Idx=4) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
-[11:00:58.038] [Brain-Enqueue] 特维亚的赫卡戎(Idx=4) 入队 LookAtAction | 当前行为=null | 队列=1→2
-[11:00:58.038] [Brain-Enqueue] 特维亚的赫卡戎(Idx=4) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
-[11:00:58.038] [Brain-Enqueue] 特维亚的赫卡戎(Idx=4) 入队 StayAction | 当前行为=null | 队列=3→4
-[11:00:58.041] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 开始执行 FollowAgentAction | 队列剩余=3
-[11:00:58.429] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185860_(template) lastTag=crime_misconduct_village_ES3_2_2185860
-[11:01:01.046] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 完成 FollowAgentAction
-[11:01:01.052] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 开始执行 LookAtAction | 队列剩余=2
-[11:01:01.053] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 完成 LookAtAction
-[11:01:01.057] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 开始执行 AlertForceConversationAction | 队列剩余=1
-[11:01:01.058] [AlertForceConv] 特维亚的赫卡戎(Idx=4) Hero=特维亚的赫卡戎 — 使用 InjectScriptAsOpening (start token)
-[11:01:01.058] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=(template)
-[11:01:01.058] [ConvEntry] Alert trigger with template NPC — deferring to ProcessSentence deferred injection.
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）老夫看见了！你这后生偷了！交出来！"
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[0] "好，还给你。（0 第纳尔）" → INTENT:PayRestitution | NextNodeOnSuccess=alert_recover_pay_ack
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[1] "你哪只眼睛看见的？" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_recover_charm_ok | NextNodeOnFail=alert_recover_charm_fail
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[2] "（推开就跑）" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[1] id=alert_recover_pay_ack NpcLine="算你识相。别再来了。"
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[2] id=alert_recover_charm_ok NpcLine="……老夫可能看错了。"
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[11:01:01.069] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[3] id=alert_recover_charm_fail NpcLine="老夫两只眼睛都看见了！"
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[4] id=continue_chat NpcLine="最后一次警告——别逼我叫人！"
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[0] "（拔剑）谁敢拦我！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[1] "我认罚。（50 第纳尔）" → INTENT:PayRestitution Param=alert_fine | NextNodeOnSuccess=alert_esc_fine_ack
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active   Transition[2] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[5] id=alert_esc_fight_ack NpcLine="你这后生疯了！快叫人！"
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[6] id=alert_esc_fine_ack NpcLine="扰乱治安，罚款50第纳尔。算你识相。别再来了。"
-[11:01:01.070] [CrimeDialog] trigger=Alert speaker=特维亚的赫卡戎 stage=Active Turn[7] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
-[11:01:01.071] [AlertDeferredInject] NPC 句子结束，OutputToken='lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' → 注入 gateway
-[11:01:01.071] [DialogueInjector] Gateway: added PlayerLine at 'lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' → 'lwnpc_AlertL3_deferred_4_v1_injectedStart' | priority=125 | owner=AlertL3_deferred_4_v1
-[11:01:01.071] [AlertDeferredInject] 注入结果: Injected dynamic script [AlertL3_deferred_4] (8 nodes)
-[11:01:01.072] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来——200第纳尔，饶你一命。"
-[11:01:01.077] [Placeholder] NpcLine: "听说了吗？是{SuspectDescription}干的！村里悬赏{BountyAmount}第纳尔抓他呢。" → "听说了吗？是领主亨利干的！村里悬赏30第纳尔抓他呢。"
-[11:01:01.078] [CrimeDialog] speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="听说了吗？是领主亨利干的！村里悬赏30第纳尔抓他呢。"
-[11:01:01.078] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "详细说说？" → NONE | NextNodeOnSuccess=bystander_detail_ack
-[11:01:01.078] [CrimeDialog] speaker=(template) stage=Active   Transition[1] "哦。" → NONE | NextNodeOnSuccess=continue_chat
-[11:01:01.078] [CrimeDialog] speaker=(template) stage=Active Turn[1] id=bystander_detail_ack NpcLine="我就知道这么多……"
-[11:01:01.078] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[11:01:01.078] [CrimeDialog] speaker=(template) stage=Active Turn[2] id=continue_chat NpcLine="还有什么别的想说的吗?"
-[11:01:01.078] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
-[11:01:01.079] [CrimeDialog] speaker=(template) stage=Active Turn[3] id=farewell NpcLine="" [Lazy]
-[11:01:01.079] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_village_ES3_2_2185860_v2_injectedStart' | priority=125 | owner=crime_misconduct_village_ES3_2_2185860_v2
-[11:01:01.079] [ConvEntry] Injected dialogue: event=misconduct_village_ES3_2_2185860 stage=Active trigger=Normal partner=(template) nodes=4
-[11:01:01.079] [AlertForceConv] 特维亚的赫卡戎(Idx=4) 对话启动成功
-[11:01:03.349] [Brain-Enqueue] 少年(Idx=40) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[11:01:03.350] [Brain-Enqueue] 少年(Idx=40) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[11:01:03.350] [Brain-Enqueue] 少年(Idx=40) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[11:01:03.350] [Brain-Tick] 少年(Idx=40) 完成 ReactionDecisionAction
-[11:01:03.353] [Brain-Tick] 少年(Idx=40) 开始执行 LookAtAction | 队列剩余=2
-[11:01:03.854] [Brain-Tick] 少年(Idx=40) 完成 LookAtAction
-[11:01:03.858] [Brain-Tick] 少年(Idx=40) 开始执行 MoveToPositionAction | 队列剩余=1
-[11:01:09.099] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' Hero=特维亚的赫卡戎 | Options (4): ……（交出 200 第纳尔） | 求你放过我，我只是路过…… | 你这条狗！杀了我你也别想好过！ | 「AlertL3_deferred_4_v1」
-[11:01:09.102] [DisplayMessage] "你支付了200<img src="General\Icons\Coin@2x" extend="8">。"
-[11:01:09.102] [Combat] SurrenderPay: penalty=200G, honor=0→-1, valor=0→-1
-[11:01:09.103] [VanillaDialog] Player says: "……（交出 200 第纳尔）"
-[11:01:09.103] [VanillaDialog] NPC  | NPC: 特维亚的赫卡戎 (HeroId: CharacterObject_2911) says: "算你识相。200第纳尔，下次长点眼力见，滚吧！"
-[11:01:09.596] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185860_(template) lastTag=crime_misconduct_village_ES3_2_2185860
-[11:01:09.596] [Brain-Receive] 特维亚的赫卡戎(Idx=4) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=1 | 阶段=Alarmed
-[11:01:09.596] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[11:01:09.600] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 完成 AlertForceConversationAction
-[11:01:09.606] [Brain-Tick] 特维亚的赫卡戎(Idx=4) 开始执行 StayAction | 队列剩余=0
-[11:01:11.857] [Brain-Tick] 少年(Idx=40) 完成 MoveToPositionAction
-[11:01:11.862] [Brain-Tick] 少年(Idx=40) 开始执行 StayAction | 队列剩余=0
+[11:36:05.797] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[11:36:19.834] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国农民 造成了0 点伤害"
+[11:36:19.835] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国农民 (Index:19, 距离:2.7m, 方位:西南)"
+[11:36:19.839] [Brain-Receive] 帝国农民(Idx=19) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[11:36:19.839] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国农民 造成了伤害"
+[11:36:19.847] [BubbleSay] 帝国农民(Idx=19): "你！你敢打我？！"
+[11:36:19.848] [Brain-Clear] 帝国农民(Idx=19) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[11:36:19.849] [Brain-Enqueue] 帝国农民(Idx=19) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[11:36:19.849] [AI-Debug] Suspend 帝国农民 (Idx=19) | 集合size=1 | 当前行为=null
+[11:36:19.851] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Dormant → Active
+[11:36:19.857] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Active settlement=特维亚 — refreshing issue signals
+[11:36:19.865] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) category=BountyHunt
+[11:36:19.865] [RegisterWitness] 帝国农民 witnessed crime → WorldEvent misconduct_village_ES3_2_2185860 Stage → Active (suspect=player)
+[11:36:19.867] [Brain-Phase] 帝国农民(Idx=19) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔帝国农民] → 发送 'BecomeAlarmed'
+[11:36:19.867] [Brain-Receive] 帝国农民(Idx=19) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[11:36:19.872] [Brain-Tick] 帝国农民(Idx=19) 开始执行 FightEnemyAction | 队列剩余=0
+[11:36:19.872] [DisplayMessage] [Yellow] "帝国农民(Idx=19)  开始攻击 亨利！"
+[11:36:19.873] [CombatManager] RegisterCombatant: 帝国农民(Idx=19), total=1
+[11:36:23.182] [Combat] 玩家向 帝国农民 认输，玩家收起武器
+[11:36:23.182] [DisplayMessage] "[事件发送] 发送事件 'event_player_surrendered' 给 帝国农民 (Index:19, 距离:1.5m, 方位:南)"
+[11:36:23.182] [Brain-Receive] 帝国农民(Idx=19) 收到事件 'event_player_surrendered' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[11:36:23.182] [Brain-Clear] 帝国农民(Idx=19) 清空动作 | 当前=FightEnemyAction | 队列=0 | hadActions=True
+[11:36:23.183] [CombatManager] UnregisterCombatant: 帝国农民(Idx=19), total=0
+[11:36:23.183] [CombatManager] EndFight: 帝国农民(Idx=19) restored to original team
+[11:36:23.184] [Brain-Alert] 帝国农民(Idx=19) ClearAllAlerts: 警戒值归零
+[11:36:23.184] [FightEnd] 帝国农民(Idx=19) 战斗结束，收起武器，且警戒值归零
+[11:36:23.185] [Brain-Enqueue] 帝国农民(Idx=19) 入队 StayAction | 当前行为=null | 队列=0→1
+[11:36:23.185] [Brain-Surrender] 帝国农民(Idx=19) 玩家投降 — 停战 + StayAction（对话结束后统一恢复）
+[11:36:23.188] [Brain-Receive] 帝国农民(Idx=9) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[11:36:23.189] [Brain-Clear] 帝国农民(Idx=9) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[11:36:23.189] [Brain-Enqueue] 帝国农民(Idx=9) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[11:36:23.189] [AI-Debug] Suspend 帝国农民 (Idx=9) | 集合size=2 | 当前行为=null
+[11:36:23.189] [Brain-Receive] 帝国女农民(Idx=23) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[11:36:23.189] [Brain-Clear] 帝国女农民(Idx=23) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[11:36:23.189] [Brain-Enqueue] 帝国女农民(Idx=23) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[11:36:23.189] [AI-Debug] Suspend 帝国女农民 (Idx=23) | 集合size=3 | 当前行为=null
+[11:36:23.191] [ConvEntry] Mission start Prefix: pre-injecting for trigger=PlayerSurrender partner=(template)
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[0] id=player_lose NpcLine="（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来——200第纳尔，饶你一命。"
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[0] "……（交出 200 第纳尔）" → INTENT:PlayerSurrenderPay Param=pay | NextNodeOnSuccess=surrender_pay_ack
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[1] "求你放过我，我只是路过……" → INTENT:PlayerSurrenderBeg Param=beg [SkillCheck] | NextNodeOnSuccess=surrender_beg_ok | NextNodeOnFail=player_lose_counteroffer
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[2] "你这条狗！杀了我你也别想好过！" → INTENT:PlayerSurrenderThreaten Param=threaten [SkillCheck] | NextNodeOnSuccess=surrender_threaten_ok | NextNodeOnFail=surrender_threaten_fail
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[1] id=surrender_pay_ack NpcLine="算你识相。200第纳尔，下次长点眼力见，滚吧！"
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[2] id=surrender_beg_ok NpcLine="……啧，算你运气好。滚，别让我再看见你。"
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[3] id=surrender_threaten_ok NpcLine="……疯子。滚，别让我再看见你。"
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[4] id=surrender_threaten_fail NpcLine="找死！！（暴怒地扑了上来）"
+[11:36:23.194] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[5] id=player_lose_counteroffer NpcLine="（冷笑）最后一次机会——400 第纳尔，或者咱们接着打。你选。"
+[11:36:23.195] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[0] "……（交出 400 第纳尔）" → INTENT:PlayerSurrenderPay Param=counteroffer_beg | NextNodeOnSuccess=surrender_counter_ack
+[11:36:23.195] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[1] "（拼死一战）" → INTENT:FightOn | NextNodeOnSuccess=surrender_fight_ack
+[11:36:23.195] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[6] id=surrender_counter_ack NpcLine="算你识相。400第纳尔，滚吧！"
+[11:36:23.195] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[7] id=surrender_fight_ack NpcLine="好！那就打到你爬不起来！"
+[11:36:23.196] [DialogueInjector] Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' | priority=200 | owner=crime_misconduct_village_ES3_2_2185860_v0
+[11:36:23.198] [ConvEntry] Injected dialogue: event=misconduct_village_ES3_2_2185860 stage=Active trigger=PlayerSurrender partner=(template) nodes=8
+[11:36:23.228] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来——200第纳尔，饶你一命。"
+[11:36:23.250] [Brain-Tick] 帝国农民(Idx=9) 开始执行 ReactionDecisionAction | 队列剩余=0
+[11:36:23.250] [Brain-Tick] 帝国农民(Idx=19) 开始执行 StayAction | 队列剩余=0
+[11:36:23.251] [Brain-Phase] 帝国农民(Idx=19) 警戒下降: Alarmed → Normal (警戒值=0.00)
+[11:36:23.251] [Brain-Receive] 帝国农民(Idx=19) 收到事件 'CalmDown' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
+[11:36:23.251] [Brain-Clear] 帝国农民(Idx=19) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[11:36:23.251] [Brain-Alert] 帝国农民(Idx=19) ClearAllAlerts: 警戒值归零
+[11:36:23.251] [AI-Debug] Resume 帝国农民 (Idx=19) | 集合size=2
+[11:36:23.252] [Brain-Tick] 帝国女农民(Idx=23) 开始执行 ReactionDecisionAction | 队列剩余=0
+[11:36:27.499] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' NPC=亨利 | Options (3): ……（交出 200 第纳尔） | 求你放过我，我只是路过…… | 你这条狗！杀了我你也别想好过！
+[11:36:27.502] [DisplayMessage] "你支付了200<img src="General\Icons\Coin@2x" extend="8">。"
+[11:36:27.503] [Combat] SurrenderPay: penalty=200G, honor=1→0, valor=0→-1
+[11:36:27.503] [VanillaDialog] Player says: "……（交出 200 第纳尔）"
+[11:36:27.503] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "算你识相。200第纳尔，下次长点眼力见，滚吧！"
+[11:36:28.319] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185860_(template) lastTag=crime_misconduct_village_ES3_2_2185860
+[11:36:34.255] [Brain-Enqueue] 帝国女农民(Idx=23) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[11:36:34.255] [Brain-Enqueue] 帝国女农民(Idx=23) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[11:36:34.256] [Brain-Enqueue] 帝国女农民(Idx=23) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[11:36:34.256] [Brain-Tick] 帝国女农民(Idx=23) 完成 ReactionDecisionAction
+[11:36:34.261] [Brain-Tick] 帝国女农民(Idx=23) 开始执行 LookAtAction | 队列剩余=2
+[11:36:34.518] [Brain-Enqueue] 帝国农民(Idx=9) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[11:36:34.519] [Brain-Enqueue] 帝国农民(Idx=9) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[11:36:34.519] [Brain-Enqueue] 帝国农民(Idx=9) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[11:36:34.519] [Brain-Tick] 帝国农民(Idx=9) 完成 ReactionDecisionAction
+[11:36:34.523] [Brain-Tick] 帝国农民(Idx=9) 开始执行 LookAtAction | 队列剩余=2
+[11:36:34.760] [Brain-Tick] 帝国女农民(Idx=23) 完成 LookAtAction
+[11:36:34.764] [Brain-Tick] 帝国女农民(Idx=23) 开始执行 MoveToPositionAction | 队列剩余=1
+[11:36:35.019] [Brain-Tick] 帝国农民(Idx=9) 完成 LookAtAction
+[11:36:35.024] [Brain-Tick] 帝国农民(Idx=9) 开始执行 MoveToPositionAction | 队列剩余=1
