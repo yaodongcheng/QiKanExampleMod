@@ -279,6 +279,7 @@ namespace LivingWorldNpcs
                 ClearAllActions();
                 InteractedAgent = player;
                 ConfrontingBrain = this;
+                DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=ReEngageConfrontation");
                 EnqueueAction(new FollowAgentAction(player, false, radius: 2f, stopDistance: 1.5f));
                 EnqueueAction(new LookAtAction(player, 0.0f));
                 EnqueueAction(new AlertForceConversationAction());
@@ -572,6 +573,12 @@ namespace LivingWorldNpcs
             }
             if (aiEvent.EventType == "CalmDown")
             {
+                // 对话结束前不处理 CalmDown：投降/认输路径已设 PendingPostConversationCleanup，
+                // ClearAllAlerts 会重置 _lastAlertPhase 防止误判，但以防万一这里也做守卫。
+                // 对话结束后 PostConversationCleanup 统一清理，不应被 CalmDown 提前 ResumeVanillaAI。
+                if (PendingPostConversationCleanup)
+                    return;
+
                 // 已在战斗中（当前或队列中） → 警戒值下降不应该中断战斗
                 if (IsCurrentOrPending<FightEnemyAction>())
                     return;
@@ -635,6 +642,8 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance?.BroadcastEventInRange(
                     Agent.Main.Position, 25f, "WitnessCrime", excludeSelf, false, Agent.Main, Owner);
                 ConversationEntryPatch._pendingTrigger = DialogueTrigger.PlayerSurrender;
+                ConfrontingBrain = this;
+                DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=PlayerSurrender");
                 var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
                 conversationLogic?.StartConversation(Owner, true, false);
             }
@@ -652,6 +661,8 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance?.BroadcastEventInRange(
                     Owner.Position, 25f, "WitnessCrime", false, Owner, Agent.Main);
                 ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
+                ConfrontingBrain = this;
+                DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=NpcSurrender");
                 var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
                 conversationLogic?.StartConversation(Owner, true, false);
             }
@@ -789,6 +800,10 @@ namespace LivingWorldNpcs
 
             PendingPostConversationCleanup = false;
             DebugLogger.Log($"[Brain-PostConvCleanup] {Owner.Name}(Idx={Owner.Index}) 对话结束清理 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count}");
+
+            // 安全收武器：确保 NPC 不会提着刀回归巡逻
+            Owner.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+            Owner.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
 
             ClearAllActions();
             ClearAllAlerts(); // 对话结束警戒值归零，避免 NPC 恢复正常后立刻重新质问
@@ -1024,6 +1039,7 @@ namespace LivingWorldNpcs
             _alertBreakdown.Clear();
             _bubbledPhases.Clear();
             _pulseSuppressedUntil = 0f;
+            _lastAlertPhase = AlarmPhase.Normal; // 重置阶段追踪，防止 CheckPhaseTransition 误判下降
             DebugLogger.Log($"[Brain-Alert] {Owner.Name}(Idx={Owner.Index}) ClearAllAlerts: 警戒值归零");
         }
 
@@ -1137,7 +1153,7 @@ namespace LivingWorldNpcs
 
             // 占领全局质问锁
             ConfrontingBrain = this;
-            DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 开始质问玩家 | 质问锁已占领");
+            DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=StartL3Confrontation");
 
             // RegisterWitness 已在 CheckPhaseTransition 进入 Alarmed 时调用，证词已入 PendingWorldEvent
             // 统一走 DialogueInjector 管道：CrimeDialogueBuilder 构建脚本 → DialogueInjector 注入 → 原版 ConversationManager
@@ -1157,7 +1173,7 @@ namespace LivingWorldNpcs
             if (ConfrontingBrain == this && !Owner.IsActive())
             {
                 ConfrontingBrain = null;
-                DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 已不活跃，强制释放质问锁");
+                DebugLogger.Log($"[ConvLock] Release by {Owner.Name}(Idx={Owner.Index}) | reason=OwnerInactive");
                 return;
             }
 

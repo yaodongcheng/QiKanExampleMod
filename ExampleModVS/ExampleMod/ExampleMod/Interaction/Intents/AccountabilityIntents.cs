@@ -135,8 +135,7 @@ namespace LivingWorldNpcs
 
                 var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
                 brain?.ClearAllAlerts();
-                AgentBrain.ConfrontingBrain = null;
-                DebugLogger.Log($"[Accountability] Alert fine: paid {fine} gold, misconduct resolved");
+                // ConfrontingBrain 不在这里释放 — 由 EndConversation 统一解锁
                 return;
             }
 
@@ -176,7 +175,7 @@ namespace LivingWorldNpcs
                 AgentControlHelper.TransferGold(Hero.MainHero, null, bribe);
                 var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
                 brain?.ClearAllAlerts();
-                AgentBrain.ConfrontingBrain = null;
+                // ConfrontingBrain 不在这里释放 — 由 EndConversation 统一解锁
                 AccountabilityHelper.ResolveMisconduct(ctx.Agent, "bribe");
                 DebugLogger.Log($"[Accountability] Bribe accepted: paid {bribe} gold");
                 return;
@@ -1157,7 +1156,7 @@ namespace LivingWorldNpcs
 
             var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
             brain?.ClearAllAlerts();
-            AgentBrain.ConfrontingBrain = null;
+            // ConfrontingBrain 不在这里释放 — 由 EndConversation 统一解锁
 
             // 标记延迟踢出村庄（对话关闭后由 Patch 执行 EndMission + 传送）
             PendingJailExit = true;
@@ -1199,7 +1198,7 @@ namespace LivingWorldNpcs
 
             var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
             brain?.ClearAllAlerts();
-            AgentBrain.ConfrontingBrain = null;
+            // ConfrontingBrain 不在这里释放 — 由 EndConversation 统一解锁
 
             var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
             if (npc is Hero n)
