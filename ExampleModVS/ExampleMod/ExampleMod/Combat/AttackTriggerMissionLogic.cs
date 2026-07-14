@@ -225,12 +225,18 @@ namespace LivingWorldNpcs
 
             // 基础校验
             if (attacker == null || victim == null) return;
+
+            // 只要 attacker 或 victim 任意一方是玩家就打印
+            if ((attacker.IsMainAgent || victim.IsMainAgent) && victim != attacker)
+            {
+                InformationManager.DisplayMessage(new InformationMessage($"AttackTriggerMissionLogic - OnRegisterBlow: {attacker.Name} 对 {victim.Name} 造成了{b.InflictedDamage} 点伤害", Colors.Yellow));
+            }
+
             if (!attacker.IsMainAgent || !victim.IsHuman || victim.IsMainAgent) return;
 
 
             if (victim != null && attacker != null && victim != attacker)
             {
-                InformationManager.DisplayMessage(new InformationMessage($"AttackTriggerMissionLogic - OnAgentHit: {attacker.Name} 对 {victim.Name} 造成了{b.InflictedDamage} 点伤害", Colors.Yellow));
                 AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
 
                 // 范围广播：周围 25m 内 NPC 收到 event_agent_damaged，同一对 3 秒内最多一次

@@ -1,5 +1,4 @@
-﻿using SandBox.Conversation.MissionLogics;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -314,45 +313,22 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>玩家向目标 NPC 认输</summary>
+        /// <summary>玩家向目标 NPC 认输。发事件给 Brain，Brain 全权负责停战/围观/启动对话。</summary>
         public static void PlayerSurrenderToAgent(Agent target)
         {
             if (target == null || !target.IsActive()) return;
-            string npcName = target.Name?.ToString() ?? "目标";
-
-            // 广播围观事件：附近 NPC 停止战斗，围过来看
-            // 排除 target 自己——她是投降对象，对话已由 StartConversation 接管，
-            // 不应再收 WitnessCrime_GatherOnLook 走犯罪指控流程
-            var excludeTarget = new HashSet<Agent> { target };
-            AgentAIController.Instance?.BroadcastEventInRange(
-                Agent.Main.Position, 25f, "WitnessCrime", excludeTarget, false, Agent.Main, target);
-
-            // 设 trigger：TryInjectCrimeDialogue（StartConversation Postfix）统一构建并注入脚本
-            ConversationEntryPatch._pendingTrigger = DialogueTrigger.PlayerSurrender;
-
-            var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
-            conversationLogic?.StartConversation(target, true, false);
-
-            DebugLogger.Log($"[Combat] 玩家向 {npcName} 认输");
+            AgentAIController.Instance?.SendEventToAgent(
+                target, "event_player_surrendered", Agent.Main, target);
+            DebugLogger.Log($"[Combat] 玩家向 {target.Name} 认输");
         }
 
-        /// <summary>接受目标 NPC 的认输请求</summary>
+        /// <summary>接受目标 NPC 的认输请求。发事件给 Brain，Brain 全权负责停战/围观/启动对话。</summary>
         public static void AcceptAgentSurrender(Agent target)
         {
             if (target == null || !target.IsActive()) return;
-            string npcName = target.Name?.ToString() ?? "目标";
-
-            // 广播围观事件：附近 NPC 停止战斗，围过来看 NPC 认输
-            AgentAIController.Instance?.BroadcastEventInRange(
-                target.Position, 25f, "WitnessCrime", false, target, Agent.Main);
-
-            // 设 trigger：TryInjectCrimeDialogue（StartConversation Postfix）统一构建并注入脚本
-            ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
-
-            var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
-            conversationLogic?.StartConversation(target, true, false);
-
-            DebugLogger.Log($"[Combat] 玩家与投降的 {npcName} 开始对话");
+            AgentAIController.Instance?.SendEventToAgent(
+                target, "event_surrender_accepted", Agent.Main, target);
+            DebugLogger.Log($"[Combat] 玩家与投降的 {target.Name} 开始对话");
         }
     }
 

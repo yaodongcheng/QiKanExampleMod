@@ -833,7 +833,13 @@ namespace LivingWorldNpcs
             // UnregisterCombatant 对非玩家战斗是 no-op，SetTeam 恢复总是需要的
             CombatManager.EndFight(agent);
             _targetEnemy = null;
+            // 战斗结束收武器，避免 NPC 提着刀回归巡逻
+            agent.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+            agent.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
             AgentControlHelper.StopAndReset(agent); // 确保退出时清理状态
+            // 战斗结束警戒值归零，避免 NPC 立刻重新进入 Alarmed → 再次质问玩家
+            AgentAIController.GetBrainForAgent(agent)?.ClearAllAlerts();
+            DebugLogger.Log($"[FightEnd] {agent.Name}(Idx={agent.Index}) 战斗结束，警戒值已归零");
         }
 
         public bool IsFinished(Agent agent)

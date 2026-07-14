@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using SandBox.Conversation.MissionLogics;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
@@ -43,6 +44,14 @@ namespace LivingWorldNpcs
 
         /// <summary>上一个意图。只读，用于回退（如 refuse 后回到 Fighting）或调试。</summary>
         public NpcIntent PreviousIntent => _previousIntent;
+
+        /// <summary>
+        /// 对话结束后需要统一清理（投降谈判成功路径：交钱/求饶成功/威胁成功/accept/humiliate/ransom）。
+        /// EndConversation Postfix 检查此标记 → PostConversationCleanup() 清大脑 + 恢复原版 AI。
+        /// 谈判破裂路径（event_surrender_refused）将此标记翻为 false，阻止 PostConversationCleanup 误清理
+        /// 刚入队的 FightEnemyAction。
+        /// </summary>
+        internal bool PendingPostConversationCleanup;
 
         /// <summary>
         /// 设置 NPC 当前意图，同时记录上一个意图。
@@ -564,11 +573,12 @@ namespace LivingWorldNpcs
                 // 清除高位 bubbled 记录，允许重新升级后再次触发
                 _bubbledPhases.RemoveWhere(k => k.Item2 > toPhase);
 
-                // Alarmed→* 或 →Normal：完全清理行为链
+                // Alarmed→* 或 →Normal：完全清理行为链 + 警戒值归零
                 if (fromPhase >= AlarmPhase.Alarmed || toPhase == AlarmPhase.Normal)
                 {
                     SetNpcIntent(NpcIntentType.None);
                     ClearAllActions();
+                    ClearAllAlerts(); // 警戒值归零，避免围观 NPC 衰减过程中重复升级
                     ResumeVanillaAI();
                 }
                 // Cautious→Suspicious：只取消 LookAt
@@ -602,23 +612,50 @@ namespace LivingWorldNpcs
 
             if (aiEvent.EventType == "event_player_surrendered")
             {
-                // 玩家主动认输 → 战斗结束
+                // 玩家主动认输 → 立即停战，清掉 FightEnemyAction，进入 StayAction 原地待命。
+                // 对话中谈拢了 → EndConversation 时 PostConversationCleanup 收尾。
+                // 对话中谈崩了 → event_surrender_refused 会清 StayAction、重入 FightEnemyAction。
                 SetNpcIntent(NpcIntentType.None);
-                ClearAllActions();  // FightEnemyAction.OnEnd → UnregisterCombatant
+                ClearAllActions(); // 触发 FightEnemyAction.OnEnd → EndFight
+                EnqueueAction(new StayAction(Agent.Main));
+                PendingPostConversationCleanup = true;
+                DebugLogger.Log($"[Brain-Surrender] {Owner.Name}(Idx={Owner.Index}) 玩家投降 — 停战 + StayAction（对话结束后统一恢复）");
+
+                // 广播围观 + 启动对话
+                var excludeSelf = new HashSet<Agent> { Owner };
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    Agent.Main.Position, 25f, "WitnessCrime", excludeSelf, false, Agent.Main, Owner);
+                ConversationEntryPatch._pendingTrigger = DialogueTrigger.PlayerSurrender;
+                var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
+                conversationLogic?.StartConversation(Owner, true, false);
             }
 
             if (aiEvent.EventType == "event_surrender_accepted")
             {
-                // 玩家接受 NPC 认输 → 战斗结束
+                // 玩家接受 NPC 认输 → 立即停战，清掉 FightEnemyAction，进入 StayAction 原地待命。
                 SetNpcIntent(NpcIntentType.None);
-                ClearAllActions();
+                ClearAllActions(); // 触发 FightEnemyAction.OnEnd → EndFight
+                EnqueueAction(new StayAction(Agent.Main));
+                PendingPostConversationCleanup = true;
+                DebugLogger.Log($"[Brain-Surrender] {Owner.Name}(Idx={Owner.Index}) NPC投降被接受 — 停战 + StayAction（对话结束后统一恢复）");
+
+                // 广播围观 + 启动对话
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    Owner.Position, 25f, "WitnessCrime", false, Owner, Agent.Main);
+                ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
+                var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
+                conversationLogic?.StartConversation(Owner, true, false);
             }
 
             if (aiEvent.EventType == "event_surrender_refused")
             {
-                // 玩家拒绝 NPC 认输 → 回到战斗
+                // 对话中谈崩了（威胁失败 / 拒绝 NPC 认输 / 拼死一战）→ 清 StayAction，重回战斗。
                 SetNpcIntent(NpcIntentType.Fighting, Agent.Main);
-                // 不 ClearAllActions，FightEnemyAction 继续运行
+                ClearAllActions(); // 触发 StayAction.OnEnd
+                AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
+                EnqueueAction(new FightEnemyAction(Agent.Main));
+                PendingPostConversationCleanup = false; // 已入队 FightEnemyAction，阻止 EndConversation 中的 PostConversationCleanup 误清理
+                DebugLogger.Log($"[Brain-Surrender] {Owner.Name}(Idx={Owner.Index}) 投降谈判破裂 — 重回战斗");
             }
 
 
@@ -734,6 +771,28 @@ namespace LivingWorldNpcs
                     daily.ForceThink(0f);
                 }
             }
+        }
+
+        /// <summary>
+        /// 对话结束后统一清理：结束当前动作、解锁 Agent、恢复原版 DailyBehaviorGroup。
+        /// 由 ConversationManager.EndConversation Patch 调用，替代原来散落在各个
+        /// mid-conversation Intent handler 中的 ClearAllActions + ResumeVanillaAI。
+        ///
+        /// 幂等：重复调用安全（ClearAllActions 在空脑时是 no-op，
+        /// ResumeVanillaAI 在未 Suspend 时直接 return）。
+        /// </summary>
+        public void PostConversationCleanup()
+        {
+            if (!Owner.IsActive()) return;
+
+            PendingPostConversationCleanup = false;
+            DebugLogger.Log($"[Brain-PostConvCleanup] {Owner.Name}(Idx={Owner.Index}) 对话结束清理 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count}");
+
+            ClearAllActions();
+            ClearAllAlerts(); // 对话结束警戒值归零，避免 NPC 恢复正常后立刻重新质问
+            AgentControlHelper.ForceUnlockAgent(Owner);
+            ResumeVanillaAI();
+            InteractedAgent = null;
         }
 
         /// <summary>Owner Agent 从 Mission 中删除时清理挂起状态。</summary>

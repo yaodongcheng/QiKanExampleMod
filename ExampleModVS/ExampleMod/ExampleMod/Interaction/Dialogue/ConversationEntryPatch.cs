@@ -238,7 +238,7 @@ namespace LivingWorldNpcs
     public static class ResetCrimeDialogueOnConversationEndPatch
     {
         [HarmonyPostfix]
-        public static void Postfix()
+        public static void Postfix(ConversationManager __instance)
         {
             DebugLogger.Log($"[ConvEnd] Conversation ended. lastEvent={ConversationEntryPatch._lastInjectedEventId} lastTag={ConversationEntryPatch._lastInjectedTag}");
             ConversationEntryPatch._lastInjectedEventId = null;
@@ -287,19 +287,57 @@ namespace LivingWorldNpcs
                     "……", null, null, null));
             }
 
-            // 🆕 L3 警戒质问清理：对话结束后释放 NPC，广播 EndInteraction 走 AgentBrain 标准清理路径
-            var alertAgent = AlertForceConversationAction.ActiveConversationAgent;
-            if (alertAgent != null)
+            // 🆕 投降谈判破裂延迟战斗：对话关闭后向 NPC 发送 event_surrender_refused。
+            // 对标 ThreatIntent.PendingCombatAgent 的两阶段模式：
+            // PlayerSurrenderThreatenIntent.OnFail / ResolveNpcSurrenderIntent.refuse / FightOnIntent
+            // 在对话中只设置 PendingSurrenderRefusedAgent 标记，此处消费。
+            // ⚠️ 必须在 PostConversationCleanup 之前处理：
+            //    event_surrender_refused → Brain 设 PendingPostConversationCleanup=false →
+            //    下游 PostConversationCleanup 检查自然跳过。
+            var surrenderRefusedAgent = FightOnIntent.PendingSurrenderRefusedAgent;
+            if (surrenderRefusedAgent != null)
             {
-                AlertForceConversationAction.ActiveConversationAgent = null;
-                try
+                FightOnIntent.PendingSurrenderRefusedAgent = null;
+                AgentAIController.Instance?.SendEventToAgent(
+                    surrenderRefusedAgent, "event_surrender_refused");
+                DebugLogger.Log($"[ConvEnd] SurrenderRefused → event_surrender_refused sent to {surrenderRefusedAgent.Name}(Idx={surrenderRefusedAgent.Index})");
+            }
+            //其他情况，就让Npc回归原有行为
+            {
+                // 先清 ActiveConversationAgent（让 AlertForceConversationAction.IsFinished→true）
+                var alertAgent = AlertForceConversationAction.ActiveConversationAgent;
+                if (alertAgent != null)
                 {
-                    AgentAIController.Instance?.BroadcastEventInRange(
-                        alertAgent.Position, 15.0f, "EndInteraction", false, alertAgent);
+                    AlertForceConversationAction.ActiveConversationAgent = null;
                 }
-                catch (Exception ex)
+
+                // 从 MissionConversationLogic 获取战斗层 Agent（而不是 ConversationManager 的战役层 IAgent）
+                var missionConvLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
+                var partnerAgent = missionConvLogic?.ConversationAgent;
+                if (partnerAgent != null && partnerAgent != Agent.Main)
                 {
-                    DebugLogger.Log($"[ConvEnd] EndInteraction broadcast failed: {ex.Message}");
+                    var brain = AgentAIController.GetBrainForAgent(partnerAgent);
+                    // ⚠️ 仅当谈判成功（Agent 仍在 StayAction 待命中）才清理。
+                    // 如果 PendingPostConversationCleanup 已被 event_surrender_refused 置为 false
+                    // （威胁失败 / 拼死一战），说明 Agent 已重回 FightEnemyAction，跳过。
+                    if (brain != null && brain.PendingPostConversationCleanup)
+                    {
+                        brain.PostConversationCleanup();
+                    }
+                }
+
+                // 广播 EndInteraction 给围观 NPC（bystanders 的 InteractedAgent 匹配时清理自己）
+                if (alertAgent != null)
+                {
+                    try
+                    {
+                        AgentAIController.Instance?.BroadcastEventInRange(
+                            alertAgent.Position, 15.0f, "EndInteraction", false, alertAgent);
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[ConvEnd] EndInteraction broadcast failed: {ex.Message}");
+                    }
                 }
             }
 
