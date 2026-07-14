@@ -1127,7 +1127,7 @@ namespace LivingWorldNpcs
                             new DialogueInjector.DialogueTransition
                             {
                                 PlayerLine = "（拼死一战）",
-                                Action = "NONE",
+                                Action = "INTENT:FightOn",
                                 NextNodeOnSuccess = "surrender_fight_ack"
                             }
                         }

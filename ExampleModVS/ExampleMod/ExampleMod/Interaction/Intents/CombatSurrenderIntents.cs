@@ -49,9 +49,11 @@ namespace LivingWorldNpcs
             int valor = Hero.MainHero.GetTraitLevel(DefaultTraits.Valor);
             Hero.MainHero.SetTraitLevel(DefaultTraits.Valor, valor - 1);
 
-            // ③ 战斗结束
-            AgentAIController.Instance?.SendEventToAgent(
-                ctx.Agent, "event_player_surrendered", Agent.Main, ctx.Agent);
+            // ③ 停战事件已由 CombatManager.PlayerSurrenderToAgent 在对话前发送，
+            //    Agent 已在 StayAction 中，无需重复发送。
+
+            // ④ 清除"拼死一战"标记（防御：威胁失败 → counteroffer → 玩家最终交钱，不应再重回战斗）
+            FightOnIntent.PendingSurrenderRefusedAgent = null;
 
             DebugLogger.Log($"[Combat] SurrenderPay: penalty={penalty}G{(isCounteroffer ? " (counteroffer x2)" : "")}, honor={honor}→{honor - 1}, valor={valor}→{valor - 1}");
         }
@@ -84,10 +86,6 @@ namespace LivingWorldNpcs
             // 魅力说服成功：免单放人，但荣誉仍 -1（求饶本身就不光彩）
             int honor = Hero.MainHero.GetTraitLevel(DefaultTraits.Honor);
             Hero.MainHero.SetTraitLevel(DefaultTraits.Honor, honor - 1);
-
-            AgentAIController.Instance?.SendEventToAgent(
-                ctx.Agent, "event_player_surrendered", Agent.Main, ctx.Agent);
-
             DebugLogger.Log($"[Combat] SurrenderBeg SUCCESS: 免单放人, honor={honor}→{honor - 1}");
         }
 
@@ -116,9 +114,6 @@ namespace LivingWorldNpcs
         public override NegotiationTactic Tactic => NegotiationTactic.Threaten;
         public override float CooldownDays => 0f;
 
-        /// <summary>威胁失败后延迟进入战斗的 Agent（对标 AccountabilityIntents.ThreatIntent 模式）</summary>
-        internal static Agent PendingCombatAgent;
-
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (Mission.Current == null) return Eligibility.Hide();
@@ -134,21 +129,18 @@ namespace LivingWorldNpcs
             int honor = Hero.MainHero.GetTraitLevel(DefaultTraits.Honor);
             Hero.MainHero.SetTraitLevel(DefaultTraits.Honor, honor - 1);
 
-            AgentAIController.Instance?.SendEventToAgent(
-                ctx.Agent, "event_player_surrendered", Agent.Main, ctx.Agent);
 
             DebugLogger.Log($"[Combat] SurrenderThreaten SUCCESS: NPC 怂了, honor={honor}→{honor - 1}");
         }
 
         public override void OnFail(IntentContext ctx)
         {
-            // 失败：NPC 暴怒，战斗继续（对话关闭后由 Patch 消费 PendingCombatAgent）
-            PendingCombatAgent = ctx.Agent;
+            // 失败：NPC 暴怒，战斗继续。
+            // 两阶段模式（对标 ThreatIntent.PendingCombatAgent）：
+            // 对话中只标记，EndConversation 消费后发送 event_surrender_refused。
+            FightOnIntent.PendingSurrenderRefusedAgent = ctx.Agent;
 
-            AgentAIController.Instance?.SendEventToAgent(
-                ctx.Agent, "event_surrender_refused");
-
-            DebugLogger.Log($"[Combat] SurrenderThreaten FAIL: NPC 暴怒，继续战斗");
+            DebugLogger.Log($"[Combat] SurrenderThreaten FAIL: NPC 暴怒，标记战后重回战斗");
         }
     }
 
@@ -180,8 +172,8 @@ namespace LivingWorldNpcs
                     // 宽宏大量：好感 +2
                     if (ctx.Speaker != null)
                         ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, 2, false, true);
-                    AgentAIController.Instance?.SendEventToAgent(
-                        ctx.Agent, "event_surrender_accepted");
+                    // 停战事件已由 CombatManager.AcceptAgentSurrender 在对话前发送，
+                    // Agent 已在 StayAction 中，无需重复发送。
                     DebugLogger.Log("[Combat] ResolveNpcSurrender: accept (+2 relation)");
                     break;
 
@@ -190,8 +182,7 @@ namespace LivingWorldNpcs
                     if (ctx.Speaker != null)
                         ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
                     AgentControlHelper.ForcePlayAction(ctx.Agent, "act_kneel");
-                    AgentAIController.Instance?.SendEventToAgent(
-                        ctx.Agent, "event_surrender_accepted");
+                    // 停战事件已由 CombatManager.AcceptAgentSurrender 在对话前发送。
                     DebugLogger.Log("[Combat] ResolveNpcSurrender: humiliate (-10 relation, kneel)");
                     break;
 
@@ -203,19 +194,53 @@ namespace LivingWorldNpcs
                         if (ransom > 0)
                             AgentControlHelper.TransferGold(ctx.Speaker, Hero.MainHero, ransom);
                     }
-                    AgentAIController.Instance?.SendEventToAgent(
-                        ctx.Agent, "event_surrender_accepted");
+                    // 停战事件已由 CombatManager.AcceptAgentSurrender 在对话前发送。
                     DebugLogger.Log("[Combat] ResolveNpcSurrender: ransom");
                     break;
 
                 case "refuse":
-                    // 拒绝认输：NPC 意图回到 Fighting，继续战斗
-                    AgentAIController.Instance?.SendEventToAgent(
-                        ctx.Agent, "event_surrender_refused");
+                    // 拒绝认输 → NPC 战后重回战斗（两阶段：对话中只标记，EndConversation 消费）
+                    FightOnIntent.PendingSurrenderRefusedAgent = ctx.Agent;
                     AgentHudMissionView.AgentSay(ctx.Agent, "不——！！");
-                    DebugLogger.Log("[Combat] ResolveNpcSurrender: refuse (back to Fighting)");
+                    DebugLogger.Log("[Combat] ResolveNpcSurrender: refuse (标记战后重回战斗)");
                     break;
             }
+        }
+    }
+
+    /// <summary>
+    /// 玩家投降 → counteroffer 阶段选择"拼死一战"。
+    /// 不扣任何资源，直接终止谈判重回战斗。
+    ///
+    /// 两阶段模式（对标 ThreatIntent.PendingCombatAgent）：
+    /// 对话中只设置 PendingSurrenderRefusedAgent 标记，
+    /// EndConversation 消费后发送 event_surrender_refused → Brain 清 StayAction → 重回 FightEnemyAction。
+    /// </summary>
+    public class FightOnIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
+        public override string DisplayName => "（拼死一战）";
+        public override NegotiationGoalType? Goal => null; // 即时类
+
+        /// <summary>
+        /// 投降谈判破裂 → 对话结束后重回战斗。
+        /// 由 PlayerSurrenderThreatenIntent.OnFail / ResolveNpcSurrenderIntent.refuse / FightOnIntent.OnInstant 设置，
+        /// ResetCrimeDialogueOnConversationEndPatch.Postfix 消费。
+        /// </summary>
+        internal static Agent PendingSurrenderRefusedAgent;
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            if (Mission.Current != null && ctx.Agent != null)
+                return Eligibility.Show();
+            return Eligibility.Hide();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            // 谈判破裂 → 标记战后重回战斗（不在此处发事件，对话尚未结束）
+            PendingSurrenderRefusedAgent = ctx.Agent;
+            DebugLogger.Log("[Combat] FightOn: 谈判破裂，标记战后重回战斗");
         }
     }
 }

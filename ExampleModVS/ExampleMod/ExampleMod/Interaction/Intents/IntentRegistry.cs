@@ -91,6 +91,7 @@ namespace LivingWorldNpcs
             Register(new PlayerSurrenderBegIntent());
             Register(new PlayerSurrenderThreatenIntent());
             Register(new ResolveNpcSurrenderIntent());
+            Register(new FightOnIntent());
 
             // ═══ 系统 Intent（旧式 Action 迁移） ═══
             Register(new IncreaseRelationIntent());
