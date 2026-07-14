@@ -839,7 +839,7 @@ namespace LivingWorldNpcs
             AgentControlHelper.StopAndReset(agent); // 确保退出时清理状态
             // 战斗结束警戒值归零，避免 NPC 立刻重新进入 Alarmed → 再次质问玩家
             AgentAIController.GetBrainForAgent(agent)?.ClearAllAlerts();
-            DebugLogger.Log($"[FightEnd] {agent.Name}(Idx={agent.Index}) 战斗结束，警戒值已归零");
+            DebugLogger.Log($"[FightEnd] {agent.Name}(Idx={agent.Index}) 战斗结束，收起武器，且警戒值归零");
         }
 
         public bool IsFinished(Agent agent)

@@ -317,18 +317,28 @@ namespace LivingWorldNpcs
         public static void PlayerSurrenderToAgent(Agent target)
         {
             if (target == null || !target.IsActive()) return;
+
+            // 玩家收起武器
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
+
+            DebugLogger.Log($"[Combat] 玩家向 {target.Name} 认输，玩家收起武器");
             AgentAIController.Instance?.SendEventToAgent(
                 target, "event_player_surrendered", Agent.Main, target);
-            DebugLogger.Log($"[Combat] 玩家向 {target.Name} 认输");
         }
 
         /// <summary>接受目标 NPC 的认输请求。发事件给 Brain，Brain 全权负责停战/围观/启动对话。</summary>
         public static void AcceptAgentSurrender(Agent target)
         {
             if (target == null || !target.IsActive()) return;
+
+            // 玩家收起武器
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
+
+            DebugLogger.Log($"[Combat] 玩家与投降的 {target.Name} 开始对话，玩家收起武器");
             AgentAIController.Instance?.SendEventToAgent(
                 target, "event_surrender_accepted", Agent.Main, target);
-            DebugLogger.Log($"[Combat] 玩家与投降的 {target.Name} 开始对话");
         }
     }
 

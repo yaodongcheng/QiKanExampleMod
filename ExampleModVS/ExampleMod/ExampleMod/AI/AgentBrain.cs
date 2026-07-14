@@ -389,31 +389,39 @@ namespace LivingWorldNpcs
                     float delay = GroupStageManager.CalculateReactionDelay(Owner, criminal, victim);
 
                     // ── 警戒脉冲：区分偷窃 vs 攻击 vs 击晕（criminal==玩家时）──
+                    // 认输场景：受害者大脑的 PendingPostConversationCleanup 已置 true，
+                    // 此时战斗已结束但围观不应被误判为偷窃——跳过犯罪分类，仅保留围观行为。
+                    var victimBrain = AgentAIController.GetBrainForAgent(victim);
+                    bool isSurrenderScene = victimBrain?.PendingPostConversationCleanup == true;
+
                     if (criminal == Agent.Main)
                     {
-                        if (IsKnockedOut(victim))
+                        if (!isSurrenderScene)
                         {
-                            AddAlert(PlayerActionType.Knockout, 3.0f);
-                            SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null);
-                            _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
-                            SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
-                        }
-                        else if (CombatManager.IsAgentFightingPlayer(victim) || CombatManager.IsPlayerInCombat)
-                        {
-                            // 斗殴/攻击：victim 正在和玩家战斗，不是偷窃
-                            AddAlert(PlayerActionType.AttackAlly, 3.0f);
-                            SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null);
-                            _pulseSuppressedUntil = 0f;
-                            SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
-                        }
-                        else
-                        {
-                            // 偷窃：立刻加警戒 + 3s 脉冲抑制
-                            // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
-                            AddAlert(PlayerActionType.Steal, 3.0f);
-                            SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
-                            _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
-                            SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Recover);
+                            if (IsKnockedOut(victim))
+                            {
+                                AddAlert(PlayerActionType.Knockout, 3.0f);
+                                SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null);
+                                _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
+                                SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
+                            }
+                            else if (CombatManager.IsAgentFightingPlayer(victim) || CombatManager.IsPlayerInCombat)
+                            {
+                                // 斗殴/攻击：victim 正在和玩家战斗，不是偷窃
+                                AddAlert(PlayerActionType.AttackAlly, 3.0f);
+                                SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null);
+                                _pulseSuppressedUntil = 0f;
+                                SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
+                            }
+                            else
+                            {
+                                // 偷窃：立刻加警戒 + 3s 脉冲抑制
+                                // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
+                                AddAlert(PlayerActionType.Steal, 3.0f);
+                                SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
+                                _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                                SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Recover);
+                            }
                         }
 
                     }
@@ -423,7 +431,8 @@ namespace LivingWorldNpcs
 
                     // ── 角色分流 ──
                     if (Owner == victim && criminal == Agent.Main
-                        && !IsKnockedOut(victim))
+                        && !IsKnockedOut(victim)
+                        && !isSurrenderScene)
                     {
                         // 受害者：直接指控（击晕受害者跳过，event_agent_knocked_out 会最终覆盖）
                         var conflictData = new PendingConflict(
@@ -692,13 +701,6 @@ namespace LivingWorldNpcs
         {
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
-
-            // 释放全局质问锁
-            if (ConfrontingBrain == this)
-            {
-                ConfrontingBrain = null;
-                DebugLogger.Log($"[Brain-Lock] {Owner.Name}(Idx={Owner.Index}) 质问锁已释放");
-            }
 
             if (_currentAction != null) _currentAction.OnEnd(Owner);
             _currentAction = null;
@@ -1022,8 +1024,6 @@ namespace LivingWorldNpcs
             _alertBreakdown.Clear();
             _bubbledPhases.Clear();
             _pulseSuppressedUntil = 0f;
-            if (ConfrontingBrain == this)
-                ConfrontingBrain = null;
             DebugLogger.Log($"[Brain-Alert] {Owner.Name}(Idx={Owner.Index}) ClearAllAlerts: 警戒值归零");
         }
 

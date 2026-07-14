@@ -240,6 +240,11 @@ namespace LivingWorldNpcs
         [HarmonyPostfix]
         public static void Postfix(ConversationManager __instance)
         {
+            // 对话结束 → 释放全局质问锁，允许其他 NPC 重新积累警戒值。
+            // 锁在 MissionConversationStartPatch.Prefix 中设置，
+            // 确保整个对话周期内 UpdateAlertCognition 被冻结。
+            AgentBrain.ConfrontingBrain = null;
+
             DebugLogger.Log($"[ConvEnd] Conversation ended. lastEvent={ConversationEntryPatch._lastInjectedEventId} lastTag={ConversationEntryPatch._lastInjectedTag}");
             ConversationEntryPatch._lastInjectedEventId = null;
             ConversationEntryPatch._lastInjectedTag = null;
@@ -506,6 +511,15 @@ namespace LivingWorldNpcs
         {
             try
             {
+                // ── 全局质问锁：对话开始即占领，覆盖投降/认输/质问/闲聊等所有路径 ──
+                // UpdateAlertCognition 检查 ConfrontingBrain != null → 冻结其他 NPC 警戒值。
+                // 锁在 EndConversation 时释放（ResetCrimeDialogueOnConversationEndPatch）。
+                var conversationAgent = __instance.ConversationAgent;
+                if (conversationAgent != null)
+                {
+                    AgentBrain.ConfrontingBrain = AgentAIController.GetBrainForAgent(conversationAgent);
+                }
+
                 var trigger = ConversationEntryPatch._pendingTrigger;
                 if (trigger != DialogueTrigger.PlayerSurrender
                     && trigger != DialogueTrigger.NpcSurrender
