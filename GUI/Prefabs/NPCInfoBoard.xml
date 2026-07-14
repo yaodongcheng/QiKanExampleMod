@@ -116,6 +116,13 @@
                      <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="500" SuggestedHeight="80"
                                  Text="@AgentStateText" Brush="MyBrush_22_Left"  TextColor="#00FF00FF" WordWrapping="Wrap"
                                  HorizontalAlignment="Left" MarginLeft="20"/>
+
+                     <!-- 身上带的钱（金色 #FFD700） -->
+                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                 SuggestedWidth="500" SuggestedHeight="40"
+                                 Text="@GoldInfoText" Brush="MyBrush_22_Left"
+                                 TextColor="#FFD700FF" WordWrapping="Wrap"
+                                 HorizontalAlignment="Left" MarginLeft="20"/>
                   </Children>
 				  </ListPanel>
                 

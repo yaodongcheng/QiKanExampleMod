@@ -29,7 +29,7 @@ namespace LivingWorldNpcs
         
         private void DailyTick()
         {
-            AgentControlHelper.TransferGold(null, Hero.MainHero, 100, notify: false);
+            AgentControlHelper.TransferGold((Hero)null, Hero.MainHero, 100, notify: false);
             InformationManager.DisplayMessage(new InformationMessage($"每日收入 +{100}"));
 
             // 村庄动物自然恢复：每天每种被偷动物恢复 1 只

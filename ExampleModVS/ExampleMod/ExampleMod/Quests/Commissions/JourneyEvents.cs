@@ -49,7 +49,7 @@ namespace LivingWorldNpcs
                     () =>
                     {
                         Hero.MainHero.AddSkillXp(DefaultSkills.Engineering, 20);
-                        AgentControlHelper.TransferGold(null, Hero.MainHero, 30);
+                        AgentControlHelper.TransferGold((Hero)null, Hero.MainHero, 30);
                         quest.AddLog(new TextObject("你用 Engineering 技能帮他们修好了车轮，车主给了你一些谢礼。"));
                     },
                     "爱莫能助",

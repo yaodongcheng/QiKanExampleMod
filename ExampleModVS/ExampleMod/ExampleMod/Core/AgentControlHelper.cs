@@ -7,6 +7,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Library;
@@ -666,6 +667,24 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 金钱守恒转移：amount 从 <paramref name="from"/> 定居点金库转移到 <paramref name="to"/> 英雄。
+        /// Village 和 Town 都继承 SettlementComponent，各自有独立的 Gold 池。
+        /// 内部封装 GiveGoldAction.ApplyForSettlementToCharacter，保证总量守恒。
+        /// </summary>
+        public static int TransferGold(Settlement from, Hero to, int amount, bool notify = true)
+        {
+            if (from == null || to == null || amount <= 0) return 0;
+            // Village 和 Town 都继承 SettlementComponent，都有 Gold + ChangeGold
+            var component = (SettlementComponent)from.Town ?? from.Village;
+            if (component == null) return 0;
+            int available = component.Gold;
+            int actual = Math.Min(amount, available);
+            if (actual <= 0) return 0;
+            GiveGoldAction.ApplyForSettlementToCharacter(from, to, actual, disableNotification: !notify);
+            return actual;
+        }
+
+        /// <summary>
         /// 绝对设置某英雄持有金为指定值（剧本 / 调试用的「上帝指令」，非守恒）。
         /// 仅供 Story 脚本、调试指令调用；正常玩法的给钱 / 收钱请用 <see cref="TransferGold"/>。
         /// 内部仍走 GiveGoldAction（增钱从虚空来、减钱往虚空去），保证 gold 变更全部归口本类。
@@ -677,7 +696,7 @@ namespace LivingWorldNpcs
             if (delta == 0) return;
 
             // delta > 0：从虚空发放给 hero；delta < 0：hero 付给虚空
-            TransferGold(delta > 0 ? null : hero,
+            TransferGold(delta > 0 ? (Hero)null : hero,
                          delta > 0 ? hero : null,
                          Math.Abs(delta), notify);
         }
@@ -772,7 +791,7 @@ namespace LivingWorldNpcs
             if (outputs != null)
                 foreach (ResourceCost c in outputs)
                 {
-                    if (c.Item == null) TransferGold(null, owner, c.Count, notify: false);
+                    if (c.Item == null) TransferGold((Hero)null, owner, c.Count, notify: false);
                     else TransferItems(null, owner, c.Item, c.Count);
                 }
 

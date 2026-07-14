@@ -3,6 +3,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -11,10 +12,15 @@ namespace LivingWorldNpcs
         private readonly System.Action _onClose;
         private readonly NPCProfile _profile; // 这里换成你真实的 NPCProfile 类型
         private readonly SingNpcMemorySystem _memory;
-        public NPCInfoVM(SingNpcMemorySystem memory, System.Action onClose)
+        private readonly Agent _agent;
+        private readonly Hero _hero;
+
+        public NPCInfoVM(SingNpcMemorySystem memory, Agent agent, System.Action onClose)
         {
             _memory = memory;
-            _profile = _memory._profile;
+            _agent = agent;
+            _profile = memory?._profile;  // 模板 NPC 无 memory/profile，null 安全
+            _hero = (agent?.Character as CharacterObject)?.HeroObject;
             _onClose = onClose;
 
             // 默认选中第一个 Tab
@@ -25,25 +31,47 @@ namespace LivingWorldNpcs
         public override void RefreshValues()
         {
             base.RefreshValues();
-            TitleText = $"{_profile.Name}的信息面板";
-            SelfCognitionText = _profile.GetSelfInfo();
+
+            // ── 标题（模板 NPC 用 Agent 名兜底）──
+            string name = _profile?.Name ?? _agent?.Name?.ToString() ?? "未知";
+            TitleText = $"{name}的信息面板";
+
+            // ── 个人属性 ──
+            SelfCognitionText = _profile?.GetSelfInfo() ?? "（非英雄单位，无详细人设）";
             MotivationText = "";
             AgentStateText = "";
-            ClanInfoText = _profile.GetClanInfo();
 
-            KingdomInfoText = _profile.GetKingdomInfo();
-            Hero _hero = _profile.BaseHero;
+            // ── 身上携带的金钱 ──
+            int allocatedGold = StealManager.GetAgentGold(_agent);
+            bool isClanLeader = _hero != null && _hero.Clan?.Leader == _hero;
 
-            MemoryInfoText = PromptBuilder.GetPrompt_History_Memory_Events(_memory);
-            if (_hero == null)
-            {
-
-            }
+            if (allocatedGold > 0 && isClanLeader)
+                GoldInfoText = $"可偷窃现金: {allocatedGold} 第纳尔\n家族资金: {_hero.Gold} 第纳尔";
+            else if (allocatedGold > 0)
+                GoldInfoText = $"可偷窃现金: {allocatedGold} 第纳尔";
+            else if (isClanLeader)
+                GoldInfoText = $"家族资金: {_hero.Gold} 第纳尔";
+            else if (_hero != null)
+                GoldInfoText = $"个人资产: {_hero.Gold} 第纳尔";
             else
-            {
+                GoldInfoText = "身上没有钱";
 
+            // ── 家族信息 ──
+            ClanInfoText = _profile?.GetClanInfo() ?? "（非英雄单位，无家族信息）";
+
+            // ── 王国信息 ──
+            KingdomInfoText = _profile?.GetKingdomInfo() ?? "（非英雄单位，无王国信息）";
+
+            // ── 记忆 ──
+            MemoryInfoText = _memory != null
+                ? PromptBuilder.GetPrompt_History_Memory_Events(_memory)
+                : "（非英雄单位，无记忆数据）";
+
+            // ── 人际关系 ──
+            if (_hero != null)
+            {
                 StringBuilder sbRel = new StringBuilder();
-                sbRel.AppendLine($"配偶: {(_profile.Spouse)}");
+                sbRel.AppendLine($"配偶: {(_profile?.Spouse ?? "无")}");
                 // 子女
                 sbRel.Append("子女: ");
                 if (_hero.Children != null && _hero.Children.Count > 0)
@@ -62,19 +90,28 @@ namespace LivingWorldNpcs
                 int relationWithPlayer = _hero.GetRelation(Hero.MainHero);
                 sbRel.AppendLine($"与玩家关系: {relationWithPlayer}");
 
-                RelationInfoText = sbRel.ToString();
-
-
-                _profile.GetCloseRelations(_hero, out string relationStr);
-                RelationInfoText = relationStr + $"\n与玩家关系: {relationWithPlayer}";
-
-
-
-
-                InventoryInfoText = AgentControlHelper.GetBagInfo(_hero);
-
-                PartyInfoText = AgentControlHelper.GetPartyInfo(_hero);
+                if (_profile != null)
+                {
+                    _profile.GetCloseRelations(_hero, out string relationStr);
+                    RelationInfoText = relationStr + $"\n与玩家关系: {relationWithPlayer}";
+                }
+                else
+                {
+                    RelationInfoText = sbRel.ToString();
+                }
             }
+            else
+            {
+                RelationInfoText = "（非英雄单位，无人际关系数据）";
+            }
+
+            // ── 背包和部队 ──
+            InventoryInfoText = _hero != null
+                ? AgentControlHelper.GetBagInfo(_hero)
+                : "（非英雄单位，无辎重信息）";
+            PartyInfoText = _hero != null
+                ? AgentControlHelper.GetPartyInfo(_hero)
+                : "（非英雄单位，无部队信息）";
         }
 
         public void ExecuteClose()
@@ -131,6 +168,14 @@ namespace LivingWorldNpcs
         {
             get => _agentStateText;
             set { if (value != _agentStateText) { _agentStateText = value; OnPropertyChangedWithValue(value, "AgentStateText"); } }
+        }
+
+        private string _goldInfoText;
+        [DataSourceProperty]
+        public string GoldInfoText
+        {
+            get => _goldInfoText;
+            set { if (value != _goldInfoText) { _goldInfoText = value; OnPropertyChangedWithValue(value, "GoldInfoText"); } }
         }
 
         private string _clanInfoText;
