@@ -555,6 +555,14 @@ DailyBehaviorGroup.GetScore() = 0.5f  ← 胜出
 
 Suspend 期间 `SuspendedAgentIndices` 拦截了 `RefreshBehaviorGroups`，Alarmed 的分数再高也执行不到。但 `PostConversationCleanup` → `ResumeVanillaAI` → `SuspendedAgentIndices.Remove` 后，下一帧 `RefreshBehaviorGroups` 就会执行——此时 WatchState 还是 Alarmed，立刻被抢走。Suspend 只是延迟了问题，没有消除根因。
 
+### 8.5 🔴 WatchState 不能绕过
+
+我们尝试过**两边都注释掉**（StartFight 不设 Alarm，EndFight 不恢复）——NPC 直接无法战斗。这说明 `SetWatchState(Alarmed)` 被 **native C++ 引擎底层**用于开关战斗 AI，不是简单的标签。虽然 C# 层能看到的行为选举（`AlarmedBehaviorGroup.GetScore`）被我们的 Harmony Suspend 拦截了，但引擎内部在 Agent 控制器级别还有其他检查路径——不设 Alarm 就不允许攻击/锁定敌人。
+
+**结论**：`SetWatchState(Alarmed)` 必须设（战斗需要），但必须在 `EndFight` 恢复为 `Patrolling`（否则 Resume 后被 AlarmedBehaviorGroup 抢走控制权）。**对称成对，不可省略任一端。**
+
+Suspend 期间 `SuspendedAgentIndices` 拦截了 `RefreshBehaviorGroups`，Alarmed 的分数再高也执行不到。但 `PostConversationCleanup` → `ResumeVanillaAI` → `SuspendedAgentIndices.Remove` 后，下一帧 `RefreshBehaviorGroups` 就会执行——此时 WatchState 还是 Alarmed，立刻被抢走。Suspend 只是延迟了问题，没有消除根因。
+
 ---
 
 ## 相关文件
