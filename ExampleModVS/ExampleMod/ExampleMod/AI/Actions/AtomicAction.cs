@@ -1001,7 +1001,7 @@ namespace LivingWorldNpcs
             };
             brain?.SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
-            // 设 trigger：TryInjectCrimeDialogue（StartConversation Postfix）统一构建并注入脚本
+            // 设 trigger：TryInjectCrimeDialogue（StartConversation Prefix/Postfix）统一构建并注入脚本
             ConversationEntryPatch._pendingTrigger = DialogueTrigger.Alert;
             ConversationEntryPatch._pendingConfrontation = detail;
             ConversationEntryPatch._pendingTriggerAction = primaryAction ?? PlayerActionType.Crouching;
@@ -1012,9 +1012,13 @@ namespace LivingWorldNpcs
                 var conversationLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
                 if (conversationLogic != null)
                 {
+                    // ★ 必须在 StartConversation 之前设置 ActiveConversationAgent，
+                    // 因为 StartConversation → Harmony Prefix 立即需要知道谁是真正的对话对象。
+                    // 若等到 StartConversation 返回后才设，Prefix 只能看到
+                    // MissionConversationLogic.ConversationAgent 的过期值（如刚被打晕的 NPC）。
+                    ActiveConversationAgent = agent;
                     conversationLogic.StartConversation(agent, true, false);
                     _started = true;
-                    ActiveConversationAgent = agent;
                     DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 对话启动成功");
                 }
                 else
@@ -1025,6 +1029,7 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
+                ActiveConversationAgent = null; // 启动失败 → 清理，防止残留
                 DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动异常: {ex.Message}");
                 AgentHudMissionView.AgentSay(agent, "喂！说你呢！");
             }

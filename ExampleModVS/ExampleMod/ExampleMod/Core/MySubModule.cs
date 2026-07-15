@@ -28,6 +28,9 @@ namespace LivingWorldNpcs
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
+            //加载太阁的故事事件，这个mod先屏蔽
+            //但是下面的函数是教你如何在主菜单里面增加按钮
+            /*
             TaleWorlds.MountAndBlade.Module.CurrentModule.AddInitialStateOption(new InitialStateOption("LoadStoryEvents",
                 new TextObject("LoadStoryEvents", null),
                 9990,
@@ -36,7 +39,7 @@ namespace LivingWorldNpcs
 
 
             LoadEvent();
-
+            */
             //harmony测试，屏蔽掉F的交互
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
             harmony.PatchAll( );
@@ -54,28 +57,6 @@ namespace LivingWorldNpcs
                 string errorMsg = $"[LivingWorldNpcs] Failed to load CSV Data!\nError: {ex.Message}";
                 Debug.PrintError(errorMsg);
             }
-
-
-            TaleWorlds.MountAndBlade.Module.CurrentModule.AddInitialStateOption(new InitialStateOption("TestDesignData",
-               new TextObject("TestDesignData", null),
-               9990,
-               () => {
-
-                   var tagPointData = GameDatabase.TagPoint.GetByID("lordshall");
-                   if (tagPointData == null)
-                   {
-                       InformationManager.DisplayMessage(new InformationMessage("TagPoint data not loaded (TaikouContent not installed)."));
-                       return;
-                   }
-                   string ChairTrans = tagPointData.GetString("ChairTrans");
-                   SimpleTrans trans = new SimpleTrans();
-                   StageConfig.TryParseSimpleTrans(ChairTrans,out trans);
-                   InformationManager.DisplayMessage(new InformationMessage($"check csv success {ChairTrans} prase {trans.Offset.x}!")); },
-               () => { return (false, null); }));
-
-            //   List<string> moduleNames = new List<string>() { "ExampleMod" };
-            //   PsaiCore.Instance.LoadSoundtrackFromProjectFile("ExampleMod");
-
 
         }
 
@@ -174,12 +155,12 @@ namespace LivingWorldNpcs
         private bool _hasDumped = false;
 
 
-        // 1. 在主菜单加载前执行：检查 NPCCharacters (模板)
+        // 1. 在主菜单加载前执行
         protected override void OnBeforeInitialModuleScreenSetAsRoot()
         {
             base.OnBeforeInitialModuleScreenSetAsRoot();
 
-            InformationManager.DisplayMessage(new InformationMessage($"成功进入游戏主菜单界面", Color.FromUint(0xFF0000)));
+            //InformationManager.DisplayMessage(new InformationMessage($"成功进入游戏主菜单界面", Color.FromUint(0xFF0000)));
         }
 
         private void DumpAllActions()

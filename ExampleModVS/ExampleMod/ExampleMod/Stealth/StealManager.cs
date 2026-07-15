@@ -10,6 +10,7 @@ using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
+using TaleWorlds.DotNet;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -711,6 +712,137 @@ namespace LivingWorldNpcs
             _lastDistributedSettlementId = null;
             ChestItemRoster = new ItemRoster();
             ChestEntity = null;
+        }
+
+        // ────────────────────────────────────────────────────────────────
+        // 保管箱实体生成（从 InteractionMissionView 迁移至此，瘦身 View）
+        // ────────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 找到村长（Headman）或乡绅（RuralNotable）的 Agent 位置。
+        /// </summary>
+        internal static Vec3 FindHeadmanPosition()
+        {
+            var agents = Mission.Current?.Agents;
+            if (agents == null) return Vec3.Zero;
+
+            foreach (Agent agent in agents)
+            {
+                if (!agent.IsHuman || !agent.IsActive()) continue;
+                var co = agent.Character as CharacterObject;
+                var occ = co?.HeroObject?.Occupation;
+                if (occ == Occupation.Headman || occ == Occupation.RuralNotable)
+                    return agent.Position;
+            }
+            return Agent.Main?.Position ?? Vec3.Zero;
+        }
+
+        /// <summary>
+        /// 递归扫描场景中所有 GameEntity，找到最合适的储物类道具，克隆并放到 targetPos。
+        /// 评分策略：名字含 barrel/sack/crate/chest/basket 等关键词 → 高分；离目标越近 → 加分。
+        /// </summary>
+        internal static GameEntity FindAndCloneStorageProp(Scene scene, Vec3 targetPos)
+        {
+            var candidates = new List<(GameEntity entity, float score)>();
+            var rootEntities = NativeObjectArray.Create();
+            scene.GetRootEntities(rootEntities);
+
+            foreach (NativeObject obj in rootEntities)
+            {
+                var entity = obj as GameEntity;
+                if (entity != null)
+                    CollectPropsRecursive(entity, targetPos, candidates);
+            }
+
+            if (candidates.Count == 0)
+            {
+                DebugLogger.Log("[Chest] Scan: no suitable storage props found in scene");
+                return null;
+            }
+
+            // 按评分降序
+            candidates.Sort((a, b) => b.score.CompareTo(a.score));
+            var best = candidates[0];
+            DebugLogger.Log($"[Chest] Scan: best candidate '{best.entity.Name}' (score={best.score:F0}), " +
+                $"candidates={candidates.Count}, names=[{string.Join(", ", candidates.Take(5).Select(c => c.entity.Name))}]");
+
+            // 克隆并移动到目标位置
+            var clone = GameEntity.CopyFrom(scene, best.entity);
+            if (clone != null)
+            {
+                MatrixFrame frame = clone.GetGlobalFrame();
+                frame.origin = targetPos;
+                clone.SetGlobalFrame(frame);
+                DebugLogger.Log($"[Chest] Cloned '{best.entity.Name}' → moved to {targetPos}");
+            }
+            return clone;
+        }
+
+        /// <summary>递归遍历 entity 树，收集有可见 mesh 的储物道具。</summary>
+        private static void CollectPropsRecursive(GameEntity entity, Vec3 targetPos,
+            List<(GameEntity entity, float score)> candidates)
+        {
+            if (entity == null) return;
+
+            if (entity.MultiMeshComponentCount > 0)
+            {
+                string name = (entity.Name ?? "").ToLower();
+                float dist = entity.GlobalPosition.Distance(targetPos);
+
+                // 名字评分：储物关键词
+                float nameScore = 0;
+                if (name.Contains("chest") || name.Contains("coffer") || name.Contains("strongbox"))
+                    nameScore = 110;
+                else if (name.Contains("barrel") || name.Contains("cask"))
+                    nameScore = 100;
+                else if (name.Contains("sack") || name.Contains("bag") || name.Contains("pouch"))
+                    nameScore = 90;
+                else if (name.Contains("crate") || name.Contains("box"))
+                    nameScore = 85;
+                else if (name.Contains("basket"))
+                    nameScore = 80;
+                else if (name.Contains("pot") || name.Contains("jar") || name.Contains("urn"))
+                    nameScore = 70;
+                else if (name.Contains("trunk"))
+                    nameScore = 75;
+                else
+                    nameScore = 5; // 通用道具
+
+                // 距离评分（越近越好，50m 范围衰减）
+                float distScore = Math.Max(0, 50f - dist) * 2f;
+
+                float total = nameScore + distScore;
+                if (total > 55f) // 最低门槛：过滤完全不相关的
+                    candidates.Add((entity, total));
+            }
+
+            // 递归子 entity
+            for (int i = 0; i < entity.ChildCount; i++)
+            {
+                var child = entity.GetChild(i);
+                if (child != null)
+                    CollectPropsRecursive(child, targetPos, candidates);
+            }
+        }
+
+        /// <summary>
+        /// KCD2 风格沉浸引导：给保管箱实体加微暖金色调，让它在视觉上与普通场景道具区分。
+        /// 玩家会注意到"这个桶/箱子和周围不太一样"，自然产生好奇心走过去查看。
+        /// </summary>
+        internal static void ApplyChestHighlight(GameEntity entity)
+        {
+            try
+            {
+                // 暖金微色调（ARGB），仅提示"特殊"而非霓虹灯式的显眼
+                uint color1 = 0xD0FFF0D0; // 淡暖金
+                uint color2 = 0xD0FFE8C0; // 微深暖金
+                entity.SetColor(color1, color2, null);
+                DebugLogger.Log("[Chest] Visual highlight applied (warm gold tint)");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Chest] SetColor failed (non-critical): {ex.Message}");
+            }
         }
     }
 }

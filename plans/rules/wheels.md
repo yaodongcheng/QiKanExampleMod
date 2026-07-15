@@ -634,6 +634,37 @@ _vm.OnClickContinue = () =>         // 玩家点"继续"
 
 ---
 
+# 屏幕上方快速提示 — `MBInformationManager.AddQuickInformation`
+
+**静态方法，屏幕上方弹出简短提示，几秒后自动消失（toast 风格）。与 `InformationManager.DisplayMessage`（左下角消息日志，持久保留）是不同显示位置。**
+
+```csharp
+// 静态方法，直接调
+MBInformationManager.AddQuickInformation(TextObject text);
+
+// 典型用法：任务进度、检定结果、系统瞬间通知
+MBInformationManager.AddQuickInformation(new TextObject("{=...}你已消灭 {COUNT}/{TOTAL} 队匪徒")
+    .SetTextVariable("COUNT", 3)
+    .SetTextVariable("TOTAL", 5));
+
+// 简单文本
+MBInformationManager.AddQuickInformation(new TextObject("潜行检定成功"));
+
+// 和 DisplayMessage 的区别：
+//   AddQuickInformation → 屏幕上方，短暂弹出，自动消失（类似成就弹出）
+//   DisplayMessage      → 左下角消息日志，持久保留，可翻阅
+```
+
+**DLL**: `TaleWorlds.CampaignSystem.dll` → `MBInformationManager`（namespace `TaleWorlds.CampaignSystem`）
+
+**适用场景**：任务进度更新、技能检定成功/失败、瞬间反馈通知。**不适用**：需要玩家回顾查阅的长文本、历史记录。
+
+**调试日志**：所有 `AddQuickInformation` 调用已通过 `AddQuickInformationLoggerPatch`（Harmony Prefix）自动写入 `DebugLogger`，搜 `[AddQuickInformation]` 即可追踪。
+
+**文件位置**：`Debug/AddQuickInformationLoggerPatch.cs`（Harmony 日志补丁）
+
+---
+
 # 日志纪律
 
 **铁律**：① `DebugLogger.Log` 只记录玩家可感知的事 + 关键后台状态变更。② Per-NPC 循环日志是垃圾——每轮扫描最多一条汇总。③ 错误始终记录。

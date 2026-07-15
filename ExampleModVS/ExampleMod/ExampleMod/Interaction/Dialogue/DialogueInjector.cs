@@ -394,10 +394,19 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[SkillCheck] {intentName} | {roll.Log} | 掷骰={(passed ? "通过" : "失败")} (chance={roll.Chance:P0})");
                     if (resultKey != null) _intentResults[resultKey] = passed;
                     if (passed)
+                    {
+                        // 屏幕上方弹出检定成功提示
+                        try
+                        {
+                            SkillObject skill = SkillCheckSystem.MapTacticToSkill(intent.Tactic);
+                            MBInformationManager.AddQuickInformation(new TextObject($"{skill.Name}检定成功"));
+                        }
+                        catch { }
                         intent.OnSuccess(ctx);
+                    }
                     else
                     {
-                        // 弹窗提示检定失败：技能、等级差距、成功率
+                        // 屏幕上方弹出检定失败提示：技能、等级差距、成功率
                         try
                         {
                             SkillObject skill = SkillCheckSystem.MapTacticToSkill(intent.Tactic);
@@ -406,12 +415,11 @@ namespace LivingWorldNpcs
                             string npcName = ctx.Speaker?.Name?.ToString()
                                           ?? ctx.Agent?.Name?.ToString()
                                           ?? "对方";
-                            string tacticName = NegotiationRegistry.GetTacticInfo(intent.Tactic)?.Name ?? intent.Tactic.ToString();
                             float gap = npcLevel - myLevel;
                             string msg = $"{skill.Name}检定失败: 你的{skill.Name}({myLevel:F0}) vs {npcName}({npcLevel:F0})，差{gap:F0}点，成功率仅{roll.Chance:P0}";
-                            InformationManager.DisplayMessage(new InformationMessage(msg));
+                            MBInformationManager.AddQuickInformation(new TextObject(msg));
                         }
-                        catch { } // 弹窗失败不影响游戏流程
+                        catch { }
 
                         intent.OnFail(ctx);
                     }
