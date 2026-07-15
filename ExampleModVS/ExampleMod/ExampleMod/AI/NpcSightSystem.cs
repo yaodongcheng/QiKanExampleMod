@@ -248,6 +248,11 @@ namespace LivingWorldNpcs
             float tickDt = _tickTimer;  // 保存实际累积时间
             _tickTimer = 0f;
 
+            // 战场感知关闭列表（Settings.Instance.DisabledSightMissionModes）中的模式
+            // 不追踪观察者/视野事件（静态查询 IsPlayerSeeing 仍可用）
+            if (Settings.Instance.IsSightDisabled())
+                return;
+
             // 🆕 刷新玩家 tracked target 的 Agent 引用（防注册时 Agent.Main 尚未 spawn 导致引用过时）
             foreach (var t in _tracked)
             {

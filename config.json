@@ -1,5 +1,6 @@
 {
   "LLMBaseUrl": "",
   "LLMApiKey": "",
-  "LLMModel": ""
+  "LLMModel": "",
+  "DisabledSightMissionModes": ["Battle", "Deployment", "Duel"]
 }
