@@ -48,7 +48,7 @@ namespace LivingWorldNpcs
             // 初始化自定义相机对象
             _customCamera = Camera.CreateCamera();
 
-            InformationManager.DisplayMessage(new InformationMessage("Custom Camera Load Success!"));
+           // InformationManager.DisplayMessage(new InformationMessage("Custom Camera Load Success!"));
         }
 
         public override void OnMissionScreenFinalize()

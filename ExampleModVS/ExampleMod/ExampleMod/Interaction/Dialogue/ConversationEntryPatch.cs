@@ -69,6 +69,15 @@ namespace LivingWorldNpcs
                         noBodyguards: true);
                 }
 
+                // ── 闲聊关闭：跳过 Inquiry，直接走原版对话 ──
+                if (!InteractionMissionView.EnableSmallTalk)
+                {
+                    _reentry = true;
+                    try { CampaignMapConversation.OpenConversation(p, q); }
+                    finally { _reentry = false; }
+                    return false;
+                }
+
                 InformationManager.ShowInquiry(new InquiryData(
                     $"你和{npcName}相遇了",
                     $"你想怎么和{npcName}说话？",

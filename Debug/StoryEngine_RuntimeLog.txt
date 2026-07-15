@@ -1,6 +1,52 @@
-﻿[11:50:59.114] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[13:16:19.033] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[11:51:03.115] [WorldEventStore] Deserialized 0 events, 0 alerts
-[11:51:07.795] [AddQuickInformation] "成就被禁用！"
+[13:16:23.257] [WorldEventStore] Deserialized 0 events, 0 alerts
+[13:16:27.795] [AddQuickInformation] "成就被禁用！"
+[13:16:36.376] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "你好呀，迷路的小羊羔。我们是山里的狼，想占用你一点儿时间……[rf:convo_mocking_revenge]"
+[13:16:41.802] [VanillaDialog] Token='bandit_defender' NPC=亨利 | Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
+[13:16:41.803] [VanillaDialog] Player says: "也许我们可以找个两全其美的办法。"
+[13:16:41.803] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "好，有时最好不要竭泽而渔。"
+[13:16:42.500] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "Barter screen goes here"
+[13:16:49.069] [AddQuickInformation] "对方拒绝谈判提案！"
+[13:16:49.072] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "那么说你宁可战斗了，小羊羔？那就让我看看你的角有多尖利吧。"
+[13:16:49.746] [ConvLock] Release by null(Idx=?) | reason=EndConversation
+[13:16:49.746] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[13:17:12.253] [Brain-Phase] 帝国新兵(Idx=18) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
+[13:17:12.257] [Brain-Receive] 帝国新兵(Idx=18) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[13:17:12.268] [BubbleSay] 帝国新兵(Idx=18): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[13:17:12.456] [Brain-Phase] 帝国新兵(Idx=16) 警戒上升: Normal → Suspicious (警戒值=0.25) 因素=[WeaponDrawn=0.25] → 发送 'BecomeSuspicious'
+[13:17:12.456] [Brain-Receive] 帝国新兵(Idx=16) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[13:17:12.456] [BubbleSay] 帝国新兵(Idx=16): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[13:17:12.855] [Brain-Phase] 帝国新兵(Idx=14) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
+[13:17:12.856] [Brain-Receive] 帝国新兵(Idx=14) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[13:17:12.856] [BubbleSay] 帝国新兵(Idx=14): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[13:17:13.255] [Brain-Phase] 帝国新兵(Idx=13) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
+[13:17:13.256] [Brain-Receive] 帝国新兵(Idx=13) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[13:17:13.256] [BubbleSay] 帝国新兵(Idx=13): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[13:17:13.655] [Brain-Phase] 帝国新兵(Idx=15) 警戒上升: Normal → Suspicious (警戒值=0.25) 因素=[WeaponDrawn=0.25] → 发送 'BecomeSuspicious'
+[13:17:13.655] [Brain-Receive] 帝国新兵(Idx=15) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[13:17:13.656] [BubbleSay] 帝国新兵(Idx=15): "（不安地看了一眼）怎么还拔锯齿矛了……"
+[13:17:13.955] [Brain-Phase] 帝国新兵(Idx=15) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[13:17:13.956] [Brain-Receive] 帝国新兵(Idx=15) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[13:17:13.957] [Brain-Clear] 帝国新兵(Idx=15) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[13:17:13.958] [Brain-Alert] 帝国新兵(Idx=15) ClearAllAlerts: 警戒值归零
+[13:17:14.956] [Brain-Phase] 帝国新兵(Idx=13) 警戒下降: Suspicious → Normal (警戒值=0.25)
+[13:17:14.956] [Brain-Receive] 帝国新兵(Idx=13) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[13:17:14.956] [Brain-Clear] 帝国新兵(Idx=13) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[13:17:14.957] [Brain-Alert] 帝国新兵(Idx=13) ClearAllAlerts: 警戒值归零
+[13:17:16.356] [Brain-Phase] 帝国新兵(Idx=14) 警戒下降: Suspicious → Normal (警戒值=0.25)
+[13:17:16.356] [Brain-Receive] 帝国新兵(Idx=14) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[13:17:16.356] [Brain-Clear] 帝国新兵(Idx=14) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[13:17:16.356] [Brain-Alert] 帝国新兵(Idx=14) ClearAllAlerts: 警戒值归零
+[13:17:17.357] [Brain-Phase] 帝国新兵(Idx=16) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[13:17:17.357] [Brain-Receive] 帝国新兵(Idx=16) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[13:17:17.357] [Brain-Clear] 帝国新兵(Idx=16) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[13:17:17.357] [Brain-Alert] 帝国新兵(Idx=16) ClearAllAlerts: 警戒值归零
+[13:17:18.157] [Brain-Phase] 帝国新兵(Idx=18) 警戒下降: Suspicious → Normal (警戒值=0.25)
+[13:17:18.157] [Brain-Receive] 帝国新兵(Idx=18) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[13:17:18.157] [Brain-Clear] 帝国新兵(Idx=18) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[13:17:18.157] [Brain-Alert] 帝国新兵(Idx=18) ClearAllAlerts: 警戒值归零
+[13:17:18.877] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 拦路强盗 对 亨利 造成了56 点伤害"
+[13:17:18.885] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到56点穿刺伤害。<Detail>命中部位：头</Detail><Detail>投射物相对速度：28.88米/秒</Detail><Detail>距离：36.4米</Detail><Detail>吸收伤害：8</Detail>" | category=Combat
