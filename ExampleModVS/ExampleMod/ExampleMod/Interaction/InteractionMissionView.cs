@@ -92,6 +92,12 @@ namespace LivingWorldNpcs
         //聊天锁，防止其他人也想和玩家说话
         public static bool IsChatting { get; private set; } = false;
 
+        /// <summary>
+        /// 闲聊（G键自由对话）总开关。false 时 UI 不显示"闲聊"入口、G 键不触发自由对话。
+        /// 临时屏蔽用，改回 true 即可恢复。
+        /// </summary>
+        public static bool EnableSmallTalk { get; set; } = false;
+
         // Map encounter dialog auto-trigger gate — 防止 OnMissionTick 重复拉起
         private bool _encounterDialogStarted = false;
         private int _encounterPartnerSearchFrames = 0;
@@ -390,7 +396,7 @@ namespace LivingWorldNpcs
                 {
                     if (_lastNpcIntentType == NpcIntentType.Surrendering)
                         CombatManager.AcceptAgentSurrender(_lastFocusedAgent);
-                    else if (_lastNpcIntentType != NpcIntentType.Fighting)
+                    else if (EnableSmallTalk && _lastNpcIntentType != NpcIntentType.Fighting)
                         _ = StartFreeConversationFlow(_lastFocusedAgent);
                 }
             }
@@ -506,13 +512,15 @@ namespace LivingWorldNpcs
                             actions.Add(("偷窃", "F"));
                         else
                             actions.Add(("击晕", "F"));
-                        actions.Add(("闲聊", "G"));
+                        if (EnableSmallTalk)
+                            actions.Add(("闲聊", "G"));
                         actions.Add(("探查", "H"));
                     }
                     else
                     {
                         actions.Add(("对话", "F"));
-                        actions.Add(("闲聊", "G"));
+                        if (EnableSmallTalk)
+                            actions.Add(("闲聊", "G"));
                         actions.Add(("探查", "H"));
                     }
 
