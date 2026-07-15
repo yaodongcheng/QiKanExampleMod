@@ -81,6 +81,9 @@ namespace LivingWorldNpcs
         // 玩家是否在箱子交互范围内（PerformPerformanceHeavyLogic 更新）
         private bool _nearChest = false;
 
+        // 首次靠近箱子时给出提示（KCD2 风格沉浸引导）
+        private bool _chestHintShown = false;
+
 
         public MissionScreen thisMissionScreen;
 
@@ -407,6 +410,15 @@ namespace LivingWorldNpcs
             {
                 if (nearChest)
                 {
+                    // 首次靠近 → KCD2 风格沉浸提示（仅一次）
+                    if (!_chestHintShown)
+                    {
+                        _chestHintShown = true;
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            "你注意到村长屋旁有个微微泛金的储物桶，上面挂着一把旧锁……",
+                            Colors.Yellow));
+                    }
+
                     // 没在看人但在箱子旁边 → 显示箱子提示
                     _interactVM.IsVisible = true;
                     IsHandlingInteraction = true;
@@ -952,6 +964,7 @@ namespace LivingWorldNpcs
             _chestSpawned = false;
             _chestLootPending = false;
             _pendingChestSnapshot = null;
+            _chestHintShown = false;
 
             // 清理财富分配
             StealManager.ClearWealthDistribution();
@@ -1674,7 +1687,9 @@ namespace LivingWorldNpcs
         // ================================================================
 
         /// <summary>
-        /// 在村长/乡绅附近生成一个箱子实体，里面装有村庄流通池的 20% 金币 + 定居点物资。
+        /// 在村长/乡绅附近生成一个保管箱实体。
+        /// 策略：扫描场景中已有的可见储物道具 → 克隆最佳候选 → 移到村长附近 → 高亮标记。
+        /// 若扫描失败则回退到已知 prefab 名 Instantiate；再失败则 CreateEmpty（仅功能，不可见）。
         /// </summary>
         private void SpawnSettlementChest()
         {
@@ -1683,49 +1698,39 @@ namespace LivingWorldNpcs
 
             try
             {
-                // 1. 找到 Headman Agent 的位置
-                Vec3 headmanPos = Vec3.Invalid;
-                foreach (Agent agent in Mission.Current.Agents)
-                {
-                    if (!agent.IsHuman || !agent.IsActive()) continue;
-                    var co = agent.Character as CharacterObject;
-                    if (co?.HeroObject?.Occupation == Occupation.Headman)
-                    {
-                        headmanPos = agent.Position;
-                        break;
-                    }
-                }
-                // 没 Headman → 找 RuralNotable
-                if (!headmanPos.IsValid)
-                {
-                    foreach (Agent agent in Mission.Current.Agents)
-                    {
-                        if (!agent.IsHuman || !agent.IsActive()) continue;
-                        var co = agent.Character as CharacterObject;
-                        if (co?.HeroObject?.Occupation == Occupation.RuralNotable)
-                        {
-                            headmanPos = agent.Position;
-                            break;
-                        }
-                    }
-                }
-                // 兜底用场景中心
-                if (!headmanPos.IsValid)
-                    headmanPos = Agent.Main?.Position ?? Vec3.Zero;
+                // 1. 找 Headman 位置
+                Vec3 headmanPos = StealManager.FindHeadmanPosition();
+                Vec3 chestPos = headmanPos + new Vec3(2f, 0f, 0f);
+                float groundHeight = scene.GetGroundHeightAtPosition(chestPos);
+                if (groundHeight != 0f) chestPos.z = groundHeight;
 
-                // 2. 在 Headman 附近偏移（3 米外）作为箱子位置
-                Vec3 chestPos = headmanPos + new Vec3(2f, 0f, 0f); // 兜底偏移
+                // 2. 扫描场景中已有的储物类可见实体，克隆最佳候选
+                _chestEntity = StealManager.FindAndCloneStorageProp(scene, chestPos);
 
-                // 3. 创建箱子实体
-                MatrixFrame frame = new MatrixFrame(Mat3.Identity, chestPos);
-                _chestEntity = GameEntity.Instantiate(scene, "chest_wooden", frame);
-                if (_chestEntity == null)
-                    _chestEntity = GameEntity.Instantiate(scene, "chest_a", frame);
+                // 3. 回退：已知 prefab 名 Instantiate
                 if (_chestEntity == null)
                 {
-                    // 兜底：空实体（看不见但能交互）
+                    MatrixFrame frame = new MatrixFrame(Mat3.Identity, chestPos);
+                    _chestEntity = GameEntity.Instantiate(scene, "bd_barrel_a", frame)
+                        ?? GameEntity.Instantiate(scene, "bd_barrel_f", frame)
+                        ?? GameEntity.Instantiate(scene, "bd_sack_a", frame)
+                        ?? GameEntity.Instantiate(scene, "bd_basket_a", frame);
+                    if (_chestEntity != null)
+                        DebugLogger.Log($"[Chest] Fallback Instantiate succeeded at {chestPos}");
+                }
+
+                // 4. 最终兜底：不可见标记点
+                if (_chestEntity == null)
+                {
+                    MatrixFrame frame = new MatrixFrame(Mat3.Identity, chestPos);
                     _chestEntity = GameEntity.CreateEmpty(scene);
                     _chestEntity.SetGlobalFrame(frame);
+                    DebugLogger.Log("[Chest] WARNING: No visible entity available — invisible marker");
+                }
+                else
+                {
+                    // 5. KCD2 风格视觉提示：给克隆体加暖金微色调，让玩家能注意到
+                    StealManager.ApplyChestHighlight(_chestEntity);
                 }
 
                 // 回填给 StealManager

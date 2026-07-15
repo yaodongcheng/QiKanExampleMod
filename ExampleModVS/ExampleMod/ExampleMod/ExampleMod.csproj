@@ -247,6 +247,7 @@
     <!-- Data -->
     <Compile Include="Data\DesignDataLoad.cs" />
     <!-- Debug -->
+    <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" />
     <Compile Include="Debug\DebugBehavior.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />

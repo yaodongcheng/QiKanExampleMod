@@ -522,24 +522,33 @@ namespace LivingWorldNpcs
                 // ── 全局质问锁：对话开始即占领，覆盖投降/认输/质问/闲聊等所有路径 ──
                 // UpdateAlertCognition 检查 ConfrontingBrain != null → 冻结其他 NPC 警戒值。
                 // 锁在 EndConversation 时释放（ResetCrimeDialogueOnConversationEndPatch）。
-                var conversationAgent = __instance.ConversationAgent;
-                if (conversationAgent != null)
-                {
-                    AgentBrain.ConfrontingBrain = AgentAIController.GetBrainForAgent(conversationAgent);
-                    DebugLogger.Log($"[ConvLock] Acquire by {conversationAgent.Name}(Idx={conversationAgent.Index}) | reason=MissionStartPrefix");
-                }
-                 else
-                {
-                    DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Prefix: ConversationAgent is null, cannot acquire lock.");
-                }
 
                 var trigger = ConversationEntryPatch._pendingTrigger;
+
+                // ★ Alert trigger：取 ActiveConversationAgent（已由 AlertForceConversationAction
+                // 在 StartConversation 之前设置），而不是 __instance.ConversationAgent。
+                // 原因：__instance.ConversationAgent 可能返回过期值（例如玩家刚打晕的 NPC），
+                // 导致 TryInjectCrimeDialogue 收到错误的 Hero partner 而跳过模板 NPC 的延迟注入路径。
+                Agent effectiveAgent= AlertForceConversationAction.ActiveConversationAgent?? __instance.ConversationAgent;
+                
+                
+
+                if (effectiveAgent != null)
+                {
+                    AgentBrain.ConfrontingBrain = AgentAIController.GetBrainForAgent(effectiveAgent);
+                    DebugLogger.Log($"[ConvLock] Acquire by {effectiveAgent.Name}(Idx={effectiveAgent.Index}) | reason=MissionStartPrefix");
+                }
+                else
+                {
+                    DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Prefix: effectiveAgent is null, cannot acquire lock.");
+                }
+
                 if (trigger != DialogueTrigger.PlayerSurrender
                     && trigger != DialogueTrigger.NpcSurrender
                     && trigger != DialogueTrigger.Alert)
                     return;
 
-                var character = __instance.ConversationAgent?.Character as CharacterObject;
+                var character = effectiveAgent?.Character as CharacterObject;
                 DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting for trigger={trigger} partner={character?.Name?.ToString() ?? "(template)"}");
                 ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject);
             }
@@ -554,20 +563,33 @@ namespace LivingWorldNpcs
         {
             try
             {
-                // ── 全局质问锁（兜底）：Prefix 中 ConversationAgent 可能尚未赋值，
-                // Postfix 中原版 StartConversation 已执行完毕，ConversationAgent 已就位。
-                var conversationAgent = __instance.ConversationAgent;
-                if (conversationAgent != null)
+                // ── 全局质问锁（兜底）：Prefix 中可能因 MissionConversationLogic.ConversationAgent
+                // 尚未就位而跳过。Postfix 中原版 StartConversation 已执行完毕。
+                // Alert trigger 同样取 ActiveConversationAgent（避免 ConversationAgent 过期）。
+                var trigger = ConversationEntryPatch._pendingTrigger;
+                Agent effectiveAgent;
+                if (trigger == DialogueTrigger.Alert)
                 {
-                    AgentBrain.ConfrontingBrain = AgentAIController.GetBrainForAgent(conversationAgent);
-                    DebugLogger.Log($"[ConvLock] Acquire by {conversationAgent.Name}(Idx={conversationAgent.Index}) | reason=MissionStartPostfix");
+                    effectiveAgent = AlertForceConversationAction.ActiveConversationAgent
+                        ?? __instance.ConversationAgent;
                 }
                 else
                 {
-                    DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Postfix: ConversationAgent is null, cannot acquire lock.");
+                    effectiveAgent = __instance.ConversationAgent;
                 }
 
-                var character = conversationAgent?.Character as CharacterObject;
+                // 仅当 Prefix 未设置 ConfrontingBrain 时才设置（避免覆盖 Prefix 的正确值）
+                if (AgentBrain.ConfrontingBrain == null && effectiveAgent != null)
+                {
+                    AgentBrain.ConfrontingBrain = AgentAIController.GetBrainForAgent(effectiveAgent);
+                    DebugLogger.Log($"[ConvLock] Acquire by {effectiveAgent.Name}(Idx={effectiveAgent.Index}) | reason=MissionStartPostfix");
+                }
+                else if (effectiveAgent == null)
+                {
+                    DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Postfix: effectiveAgent is null, cannot acquire lock.");
+                }
+
+                var character = effectiveAgent?.Character as CharacterObject;
                 ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject);
             }
             catch (Exception ex)
