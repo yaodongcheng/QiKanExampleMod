@@ -1209,12 +1209,19 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 警戒值更新
-            _alertCognitionTimer += dt;
-            if (_alertCognitionTimer >= _alertCognitionInterval)
+            // 警戒值更新（Settings 配置的感知关闭模式下冻结）
+            if (!Settings.Instance.IsSightDisabled())
             {
-                UpdateAlertCognition(_alertCognitionTimer);  // 传入累积 dt，不是原始帧 dt
-                _alertCognitionTimer = 0f;
+                _alertCognitionTimer += dt;
+                if (_alertCognitionTimer >= _alertCognitionInterval)
+                {
+                    UpdateAlertCognition(_alertCognitionTimer);  // 传入累积 dt，不是原始帧 dt
+                    _alertCognitionTimer = 0f;
+                }
+            }
+            else
+            {
+                _alertCognitionTimer = 0f;  // 关闭模式下重置计时器，避免切回和平后边缘触发
             }
         }
 

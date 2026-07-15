@@ -1,52 +1,155 @@
-﻿[13:16:19.033] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[18:23:31.991] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[13:16:23.257] [WorldEventStore] Deserialized 0 events, 0 alerts
-[13:16:27.795] [AddQuickInformation] "成就被禁用！"
-[13:16:36.376] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "你好呀，迷路的小羊羔。我们是山里的狼，想占用你一点儿时间……[rf:convo_mocking_revenge]"
-[13:16:41.802] [VanillaDialog] Token='bandit_defender' NPC=亨利 | Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
-[13:16:41.803] [VanillaDialog] Player says: "也许我们可以找个两全其美的办法。"
-[13:16:41.803] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "好，有时最好不要竭泽而渔。"
-[13:16:42.500] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "Barter screen goes here"
-[13:16:49.069] [AddQuickInformation] "对方拒绝谈判提案！"
-[13:16:49.072] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "那么说你宁可战斗了，小羊羔？那就让我看看你的角有多尖利吧。"
-[13:16:49.746] [ConvLock] Release by null(Idx=?) | reason=EndConversation
-[13:16:49.746] [ConvEnd] Conversation ended. lastEvent= lastTag=
-[13:17:12.253] [Brain-Phase] 帝国新兵(Idx=18) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
-[13:17:12.257] [Brain-Receive] 帝国新兵(Idx=18) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:17:12.268] [BubbleSay] 帝国新兵(Idx=18): "（不安地看了一眼）怎么还拔锯齿矛了……"
-[13:17:12.456] [Brain-Phase] 帝国新兵(Idx=16) 警戒上升: Normal → Suspicious (警戒值=0.25) 因素=[WeaponDrawn=0.25] → 发送 'BecomeSuspicious'
-[13:17:12.456] [Brain-Receive] 帝国新兵(Idx=16) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:17:12.456] [BubbleSay] 帝国新兵(Idx=16): "（不安地看了一眼）怎么还拔锯齿矛了……"
-[13:17:12.855] [Brain-Phase] 帝国新兵(Idx=14) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
-[13:17:12.856] [Brain-Receive] 帝国新兵(Idx=14) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:17:12.856] [BubbleSay] 帝国新兵(Idx=14): "（不安地看了一眼）怎么还拔锯齿矛了……"
-[13:17:13.255] [Brain-Phase] 帝国新兵(Idx=13) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
-[13:17:13.256] [Brain-Receive] 帝国新兵(Idx=13) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:17:13.256] [BubbleSay] 帝国新兵(Idx=13): "（不安地看了一眼）怎么还拔锯齿矛了……"
-[13:17:13.655] [Brain-Phase] 帝国新兵(Idx=15) 警戒上升: Normal → Suspicious (警戒值=0.25) 因素=[WeaponDrawn=0.25] → 发送 'BecomeSuspicious'
-[13:17:13.655] [Brain-Receive] 帝国新兵(Idx=15) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:17:13.656] [BubbleSay] 帝国新兵(Idx=15): "（不安地看了一眼）怎么还拔锯齿矛了……"
-[13:17:13.955] [Brain-Phase] 帝国新兵(Idx=15) 警戒下降: Suspicious → Normal (警戒值=0.24)
-[13:17:13.956] [Brain-Receive] 帝国新兵(Idx=15) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[13:17:13.957] [Brain-Clear] 帝国新兵(Idx=15) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:17:13.958] [Brain-Alert] 帝国新兵(Idx=15) ClearAllAlerts: 警戒值归零
-[13:17:14.956] [Brain-Phase] 帝国新兵(Idx=13) 警戒下降: Suspicious → Normal (警戒值=0.25)
-[13:17:14.956] [Brain-Receive] 帝国新兵(Idx=13) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[13:17:14.956] [Brain-Clear] 帝国新兵(Idx=13) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:17:14.957] [Brain-Alert] 帝国新兵(Idx=13) ClearAllAlerts: 警戒值归零
-[13:17:16.356] [Brain-Phase] 帝国新兵(Idx=14) 警戒下降: Suspicious → Normal (警戒值=0.25)
-[13:17:16.356] [Brain-Receive] 帝国新兵(Idx=14) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[13:17:16.356] [Brain-Clear] 帝国新兵(Idx=14) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:17:16.356] [Brain-Alert] 帝国新兵(Idx=14) ClearAllAlerts: 警戒值归零
-[13:17:17.357] [Brain-Phase] 帝国新兵(Idx=16) 警戒下降: Suspicious → Normal (警戒值=0.24)
-[13:17:17.357] [Brain-Receive] 帝国新兵(Idx=16) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[13:17:17.357] [Brain-Clear] 帝国新兵(Idx=16) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:17:17.357] [Brain-Alert] 帝国新兵(Idx=16) ClearAllAlerts: 警戒值归零
-[13:17:18.157] [Brain-Phase] 帝国新兵(Idx=18) 警戒下降: Suspicious → Normal (警戒值=0.25)
-[13:17:18.157] [Brain-Receive] 帝国新兵(Idx=18) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[13:17:18.157] [Brain-Clear] 帝国新兵(Idx=18) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:17:18.157] [Brain-Alert] 帝国新兵(Idx=18) ClearAllAlerts: 警戒值归零
-[13:17:18.877] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 拦路强盗 对 亨利 造成了56 点伤害"
-[13:17:18.885] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到56点穿刺伤害。<Detail>命中部位：头</Detail><Detail>投射物相对速度：28.88米/秒</Detail><Detail>距离：36.4米</Detail><Detail>吸收伤害：8</Detail>" | category=Combat
+[18:23:37.045] [WorldEventStore] Deserialized 0 events, 0 alerts
+[18:23:44.916] [AddQuickInformation] "成就被禁用！"
+[18:24:01.941] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "你！站住！把钱交出来，我们可不是在闹着玩。"
+[18:24:03.167] [VanillaDialog] Token='bandit_defender' NPC=亨利 | Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
+[18:24:03.168] [VanillaDialog] Player says: "够胆就过来动手吧！"
+[18:24:03.170] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "好吧，你死定了。"
+[18:24:03.625] [ConvLock] Release by null(Idx=?) | reason=EndConversation
+[18:24:03.625] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[18:24:27.997] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了4 点伤害"
+[18:24:28.005] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到4点钝击伤害。<Detail>命中部位：臂</Detail><Detail>投射物相对速度：40.19米/秒</Detail><Detail>距离：16.5米</Detail>" | category=Combat
+[18:24:28.917] [DisplayMessage] "<a style="Link.Hero" href="event:Hero-main_hero"><b>亨利</b></a>的跑动技能+3，现为3。"
+[18:24:28.926] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 山民 造成了48 点伤害"
+[18:24:28.927] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 山民 (Index:9, 距离:1.6m, 方位:东南)"
+[18:24:28.932] [Brain-Receive] 山民(Idx=9) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.932] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.940] [BubbleSay] 山民(Idx=9): "你！你敢打我？！"
+[18:24:28.940] [Brain-Clear] 山民(Idx=9) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.940] [Brain-Enqueue] 山民(Idx=9) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.942] [AI-Debug] Suspend 山民 (Idx=9) | 集合size=1 | 当前行为=null
+[18:24:28.946] [Brain-Phase] 山民(Idx=9) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.946] [Brain-Receive] 山民(Idx=9) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.950] [Brain-Receive] 山民(Idx=1) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.950] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.950] [BubbleSay] 山民(Idx=1): "你！你敢动我们村的人？！"
+[18:24:28.950] [Brain-Clear] 山民(Idx=1) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.950] [Brain-Enqueue] 山民(Idx=1) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.950] [AI-Debug] Suspend 山民 (Idx=1) | 集合size=2 | 当前行为=null
+[18:24:28.950] [Brain-Phase] 山民(Idx=1) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.950] [Brain-Receive] 山民(Idx=1) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.950] [Brain-Receive] 山民(Idx=2) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.950] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.950] [BubbleSay] 山民(Idx=2): "你！你敢动我们村的人？！"
+[18:24:28.950] [Brain-Clear] 山民(Idx=2) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.952] [Brain-Enqueue] 山民(Idx=2) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.952] [AI-Debug] Suspend 山民 (Idx=2) | 集合size=3 | 当前行为=null
+[18:24:28.952] [Brain-Phase] 山民(Idx=2) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.952] [Brain-Receive] 山民(Idx=2) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.952] [Brain-Receive] 山民(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.952] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.952] [BubbleSay] 山民(Idx=3): "你！你敢动我们村的人？！"
+[18:24:28.952] [Brain-Clear] 山民(Idx=3) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.952] [Brain-Enqueue] 山民(Idx=3) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.952] [AI-Debug] Suspend 山民 (Idx=3) | 集合size=4 | 当前行为=null
+[18:24:28.952] [Brain-Phase] 山民(Idx=3) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.952] [Brain-Receive] 山民(Idx=3) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.953] [Brain-Receive] 山民(Idx=4) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.953] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.953] [BubbleSay] 山民(Idx=4): "你！你敢动我们村的人？！"
+[18:24:28.953] [Brain-Clear] 山民(Idx=4) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.953] [Brain-Enqueue] 山民(Idx=4) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.953] [AI-Debug] Suspend 山民 (Idx=4) | 集合size=5 | 当前行为=null
+[18:24:28.953] [Brain-Phase] 山民(Idx=4) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.953] [Brain-Receive] 山民(Idx=4) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.953] [Brain-Receive] 山民(Idx=5) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.953] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.953] [BubbleSay] 山民(Idx=5): "你！你敢动我们村的人？！"
+[18:24:28.954] [Brain-Clear] 山民(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.954] [Brain-Enqueue] 山民(Idx=5) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.954] [AI-Debug] Suspend 山民 (Idx=5) | 集合size=6 | 当前行为=null
+[18:24:28.954] [Brain-Phase] 山民(Idx=5) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.954] [Brain-Receive] 山民(Idx=5) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.954] [Brain-Receive] 山民(Idx=6) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.954] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.954] [BubbleSay] 山民(Idx=6): "你！你敢动我们村的人？！"
+[18:24:28.954] [Brain-Clear] 山民(Idx=6) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.955] [Brain-Enqueue] 山民(Idx=6) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.955] [AI-Debug] Suspend 山民 (Idx=6) | 集合size=7 | 当前行为=null
+[18:24:28.955] [Brain-Phase] 山民(Idx=6) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.955] [Brain-Receive] 山民(Idx=6) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.955] [Brain-Receive] 山民(Idx=7) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.955] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.955] [BubbleSay] 山民(Idx=7): "你！你敢动我们村的人？！"
+[18:24:28.955] [Brain-Clear] 山民(Idx=7) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.955] [Brain-Enqueue] 山民(Idx=7) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.955] [AI-Debug] Suspend 山民 (Idx=7) | 集合size=8 | 当前行为=null
+[18:24:28.955] [Brain-Phase] 山民(Idx=7) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.956] [Brain-Receive] 山民(Idx=7) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.956] [Brain-Receive] 山民(Idx=8) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.956] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.956] [BubbleSay] 山民(Idx=8): "你！你敢动我们村的人？！"
+[18:24:28.956] [Brain-Clear] 山民(Idx=8) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.956] [Brain-Enqueue] 山民(Idx=8) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.956] [AI-Debug] Suspend 山民 (Idx=8) | 集合size=9 | 当前行为=null
+[18:24:28.956] [Brain-Phase] 山民(Idx=8) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.956] [Brain-Receive] 山民(Idx=8) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.956] [Brain-Receive] 山民(Idx=9) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=1 | 阶段=Alarmed
+[18:24:28.956] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.956] [Brain-Receive] 山民(Idx=10) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[18:24:28.957] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:28.957] [BubbleSay] 山民(Idx=10): "你！你敢动我们村的人？！"
+[18:24:28.957] [Brain-Clear] 山民(Idx=10) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[18:24:28.957] [Brain-Enqueue] 山民(Idx=10) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[18:24:28.957] [AI-Debug] Suspend 山民 (Idx=10) | 集合size=10 | 当前行为=null
+[18:24:28.957] [Brain-Phase] 山民(Idx=10) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔山民] → 发送 'BecomeAlarmed'
+[18:24:28.957] [Brain-Receive] 山民(Idx=10) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[18:24:28.962] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成48点穿刺伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：4.1米/秒</Detail>" | category=Combat
+[18:24:28.962] [Brain-Tick] 山民(Idx=1) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.963] [DisplayMessage] [Yellow] "山民(Idx=1)  开始攻击 亨利！"
+[18:24:28.963] [CombatManager] RegisterCombatant: 山民(Idx=1), total=1
+[18:24:28.969] [Brain-Tick] 山民(Idx=2) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.969] [DisplayMessage] [Yellow] "山民(Idx=2)  开始攻击 亨利！"
+[18:24:28.969] [CombatManager] RegisterCombatant: 山民(Idx=2), total=2
+[18:24:28.971] [Brain-Tick] 山民(Idx=3) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.971] [DisplayMessage] [Yellow] "山民(Idx=3)  开始攻击 亨利！"
+[18:24:28.971] [CombatManager] RegisterCombatant: 山民(Idx=3), total=3
+[18:24:28.971] [Brain-Tick] 山民(Idx=4) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.971] [DisplayMessage] [Yellow] "山民(Idx=4)  开始攻击 亨利！"
+[18:24:28.971] [CombatManager] RegisterCombatant: 山民(Idx=4), total=4
+[18:24:28.972] [Brain-Tick] 山民(Idx=5) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.972] [DisplayMessage] [Yellow] "山民(Idx=5)  开始攻击 亨利！"
+[18:24:28.972] [CombatManager] RegisterCombatant: 山民(Idx=5), total=5
+[18:24:28.972] [Brain-Tick] 山民(Idx=6) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.972] [DisplayMessage] [Yellow] "山民(Idx=6)  开始攻击 亨利！"
+[18:24:28.972] [CombatManager] RegisterCombatant: 山民(Idx=6), total=6
+[18:24:28.972] [Brain-Tick] 山民(Idx=7) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.972] [DisplayMessage] [Yellow] "山民(Idx=7)  开始攻击 亨利！"
+[18:24:28.972] [CombatManager] RegisterCombatant: 山民(Idx=7), total=7
+[18:24:28.972] [Brain-Tick] 山民(Idx=8) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.973] [DisplayMessage] [Yellow] "山民(Idx=8)  开始攻击 亨利！"
+[18:24:28.973] [CombatManager] RegisterCombatant: 山民(Idx=8), total=8
+[18:24:28.973] [Brain-Tick] 山民(Idx=9) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.973] [DisplayMessage] [Yellow] "山民(Idx=9)  开始攻击 亨利！"
+[18:24:28.973] [CombatManager] RegisterCombatant: 山民(Idx=9), total=9
+[18:24:28.973] [Brain-Tick] 山民(Idx=10) 开始执行 FightEnemyAction | 队列剩余=0
+[18:24:28.973] [DisplayMessage] [Yellow] "山民(Idx=10)  开始攻击 亨利！"
+[18:24:28.973] [CombatManager] RegisterCombatant: 山民(Idx=10), total=10
+[18:24:29.181] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 山民 造成了0 点伤害"
+[18:24:29.181] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 山民 (Index:7, 距离:1.7m, 方位:东)"
+[18:24:29.181] [Brain-Receive] 山民(Idx=7) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.181] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.181] [Brain-Receive] 山民(Idx=1) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.181] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.181] [Brain-Receive] 山民(Idx=2) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.181] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.181] [Brain-Receive] 山民(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.183] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.183] [Brain-Receive] 山民(Idx=4) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.183] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.183] [Brain-Receive] 山民(Idx=5) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.183] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.183] [Brain-Receive] 山民(Idx=6) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.183] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.183] [Brain-Receive] 山民(Idx=7) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.183] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.183] [Brain-Receive] 山民(Idx=8) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.183] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.184] [Brain-Receive] 山民(Idx=9) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.184] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.184] [Brain-Receive] 山民(Idx=10) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[18:24:29.184] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 山民 造成了伤害"
+[18:24:29.676] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"

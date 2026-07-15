@@ -17,6 +17,9 @@ namespace LivingWorldNpcs
         private HashSet<Agent> _deadAgents;
         public static AttackTriggerMissionLogic Instance { get; private set; }
 
+        /// <summary>战场中玩家攻击过的 Agent Index 集合（用于血条过滤）</summary>
+        private HashSet<int> _playerAttackedAgents = new HashSet<int>();
+
         private Agent _agentA;
         private Agent _agentB;
         private bool _isDuelActive;
@@ -44,6 +47,12 @@ namespace LivingWorldNpcs
             if (agent == _agentB) return _agentB_VirtualHP;
 
             return null; // 不是切磋双方
+        }
+
+        /// <summary>查询某 Agent 是否被玩家攻击过（战场血条过滤用）</summary>
+        public bool IsAgentAttackedByPlayer(Agent agent)
+        {
+            return agent != null && _playerAttackedAgents.Contains(agent.Index);
         }
   
         public AttackTriggerMissionLogic(Agent a=null, Agent b = null)
@@ -233,6 +242,9 @@ namespace LivingWorldNpcs
             }
 
             if (!attacker.IsMainAgent || !victim.IsHuman || victim.IsMainAgent) return;
+
+            // 🆕 记录玩家攻击过的 Agent（战场血条过滤用）
+            _playerAttackedAgents.Add(victim.Index);
 
 
             if (victim != null && attacker != null && victim != attacker)
