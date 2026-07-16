@@ -110,15 +110,21 @@ namespace LivingWorldNpcs
             ShowHealth = isWeaponDrawn || isFighting || isHealthLow || isAlerted;
 
             // 🆕 感知关闭模式下：只有玩家攻击过的 Agent 才显示血条（避免满屏血条碍眼）
-            if (Settings.Instance.IsSightDisabled())
+            if (Settings.Instance.IsInteractionDisabled())
             {
                 var atkLogic = AttackTriggerMissionLogic.Instance;
                 ShowHealth = ShowHealth && (atkLogic?.IsAgentAttackedByPlayer(TargetAgent) ?? false);
             }
 
-            // 🆕 NpcIntent 调试文本
-            var brain = AgentAIController.GetBrainForAgent(TargetAgent);
-            NpcIntentDebugText = brain?.CurrentIntent?.ToString() ?? "";
+            // 🆕 NpcIntent 调试文本（玩家自己/战场中不显示——玩家无 AI Intent）
+            {
+                var brain = AgentAIController.GetBrainForAgent(TargetAgent);
+                var intent = brain?.CurrentIntent;
+                NpcIntentDebugText = intent?.ToString() ?? "";
+                ShowIntentDebug = !TargetAgent.IsMainAgent
+                    && !Settings.Instance.IsInteractionDisabled()
+                    && intent != null;
+            }
 
             // 5. 名字总领规则：FOV 内任意元素显示时浮现名字
             //    ShowAlert 在此处生效是因为 UpdateLogic 只在 FOV 内执行——
@@ -217,6 +223,7 @@ namespace LivingWorldNpcs
             ShowHealth = false;
             ShowName = false;
             ShowAlert = false;
+            ShowIntentDebug = false;
 
             _currentHealthWidth = MaxBarWidth;
             _prevHealth = agent.Health;
@@ -422,6 +429,14 @@ namespace LivingWorldNpcs
         }
 
         // 🆕 NpcIntent 调试文本
+        private bool _showIntentDebug;
+        [DataSourceProperty]
+        public bool ShowIntentDebug
+        {
+            get => _showIntentDebug;
+            set { if (value != _showIntentDebug) { _showIntentDebug = value; OnPropertyChangedWithValue(value, "ShowIntentDebug"); } }
+        }
+
         private string _npcIntentDebugText;
         [DataSourceProperty]
         public string NpcIntentDebugText

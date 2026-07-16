@@ -2,5 +2,5 @@
   "LLMBaseUrl": "",
   "LLMApiKey": "",
   "LLMModel": "",
-  "DisabledSightMissionModes": ["Battle", "Deployment", "Duel"]
+  "DisabledInteractionMissionModes": ["Battle", "Deployment", "Duel"]
 }

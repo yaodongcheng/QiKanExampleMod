@@ -346,6 +346,10 @@ namespace LivingWorldNpcs
 
         private void HandleInput()
         {
+            // 战斗模式下不处理任何交互输入（击晕/偷窃/对话均不可用）
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
             // 箱子互动优先：靠近箱子时按 F → 打开保管箱
             if (_nearChest && _chestEntity != null && TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.F))
             {
@@ -561,6 +565,10 @@ namespace LivingWorldNpcs
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
+
+            // 战斗模式下跳过交互 UI 全部逻辑：大世界遭遇/箱子/射线检测/交互选项构建
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
 
             // ── 大世界遭遇对话：自动触发自定义对话 ──
             if (MapEncounterDialogState.Active && !_encounterDialogStarted)
@@ -1178,6 +1186,8 @@ namespace LivingWorldNpcs
         /// </summary>
         private async void TryStealAnimal(Agent animal)
         {
+            // 战斗模式下禁止偷窃动物
+            if (Settings.Instance.IsInteractionDisabled()) return;
             if (animal == null || !animal.IsActive()) return;
 
             // ── 并发守卫：防止动画期间重复触发 ──
@@ -1267,7 +1277,10 @@ namespace LivingWorldNpcs
 
         private void TryStealFromAgent(Agent target)
         {
-                InformationManager.DisplayMessage(new InformationMessage("你屏住呼吸，悄悄伸出了手...", Colors.Green));
+            // 战斗模式下禁止偷窃
+            if (Settings.Instance.IsInteractionDisabled()) return;
+
+            InformationManager.DisplayMessage(new InformationMessage("你屏住呼吸，悄悄伸出了手...", Colors.Green));
 
                 // 【核心修改】：打开你的 Gauntlet UI
                 OpenStealInterface(target);
@@ -1281,6 +1294,9 @@ namespace LivingWorldNpcs
         private async void TryKnockoutAgent(Agent target)
         {
             if (target == null || !target.IsActive()) return;
+
+            // 战斗模式下禁止击晕
+            if (Settings.Instance.IsInteractionDisabled()) return;
 
             string targetName = target.Name?.ToString() ?? "目标";
 

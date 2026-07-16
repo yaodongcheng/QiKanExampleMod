@@ -41,19 +41,20 @@ namespace LivingWorldNpcs
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
 
-        // ── 战场感知关闭：这些 MissionMode 下关闭 NPC 视野感知/警戒值/警戒眼睛，血条仅显示玩家攻击过的目标 ──
-        public List<string> DisabledSightMissionModes { get; set; } = new List<string>
+
+        //这里的值会被 config.json覆盖 只作为默认值
+        public List<string> DisabledInteractionMissionModes { get; set; } = new List<string>
         {
             "Battle",       // 野战/攻城/藏身处
             "Deployment",   // 战前部署阶段
             "Duel",         // 竞技场决斗
         };
 
-        /// <summary>当前 Mission 是否应关闭 NPC 视野感知系统</summary>
-        public bool IsSightDisabled()
+        /// <summary>当前 Mission 是否应关闭非战斗互动（视野感知/警戒/击晕/偷窃/对话）</summary>
+        public bool IsInteractionDisabled()
         {
             if (Mission.Current == null) return false;
-            return DisabledSightMissionModes.Contains(Mission.Current.Mode.ToString());
+            return DisabledInteractionMissionModes.Contains(Mission.Current.Mode.ToString());
         }
 
         private static Settings Load()

@@ -66,7 +66,7 @@
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                             Brush="MyBrush_16_Left"
                                             Text="@NpcIntentDebugText"
-                                            IsVisible="@ShowName"
+                                            IsVisible="@ShowIntentDebug"
                                             HorizontalAlignment="Center"
                                             Brush.FontSize="12"
                                             Brush.FontColor="#00FFBFFF" />

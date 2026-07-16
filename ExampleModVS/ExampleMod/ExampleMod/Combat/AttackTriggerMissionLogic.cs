@@ -113,7 +113,16 @@ namespace LivingWorldNpcs
         public override void OnAgentHit(Agent affectedAgent, Agent attackerAgent, in MissionWeapon attackerWeapon, in Blow blow, in AttackCollisionData attackCollisionData)
         {
 
-         
+            // 🆕 记录玩家实际命中过的敌方 Agent（战场血条过滤用）
+            // 放在 OnAgentHit 而非 OnRegisterBlow：只有真正造成伤害才算，格挡/空挥不计
+            if (attackerAgent != null && attackerAgent.IsMainAgent
+                && affectedAgent != null && affectedAgent.IsHuman
+                && !affectedAgent.IsMainAgent
+                && attackerAgent.Team != null && affectedAgent.Team != null
+                && attackerAgent.Team.IsEnemyOf(affectedAgent.Team))
+            {
+                _playerAttackedAgents.Add(affectedAgent.Index);
+            }
 
             //作用一，记录死人
             if (affectedAgent.Health<=0)
@@ -242,9 +251,6 @@ namespace LivingWorldNpcs
             }
 
             if (!attacker.IsMainAgent || !victim.IsHuman || victim.IsMainAgent) return;
-
-            // 🆕 记录玩家攻击过的 Agent（战场血条过滤用）
-            _playerAttackedAgents.Add(victim.Index);
 
 
             if (victim != null && attacker != null && victim != attacker)
