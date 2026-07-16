@@ -313,6 +313,10 @@ namespace LivingWorldNpcs
         // 2. 发送事件给特定 Agent
         public void SendEventToAgent(Agent target, string eventType, params object[] args)
         {
+            // 战斗模式下不发送 LLM 事件——原生 AI 接管所有战斗行为
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
             if(IsDebugMode)
                 DebugLogger.Log($"尝试发送事件 '{eventType}' 给 {target.Name} (Index: {target.Index},当前brains总数{_brains.Count})");
             var brain = GetBrainForAgent(target);
@@ -344,6 +348,10 @@ namespace LivingWorldNpcs
         /// <param name="exclude">排除列表：这些 Agent 不会收到事件（如击晕受害者不参与围观）</param>
         public void BroadcastEventInRange(Vec3 center, float radius, string eventType, HashSet<Agent> exclude, bool requireSight, params object[] args)
         {
+            // 战斗模式下不发送 LLM 事件——原生 AI 接管所有战斗行为
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
             // 1. 找出范围内所有的大脑
             List<AgentBrain> brainsInRange = new List<AgentBrain>();
             List<Agent> witnesses = new List<Agent>();

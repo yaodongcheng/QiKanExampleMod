@@ -196,6 +196,10 @@ namespace LivingWorldNpcs
         // --- 核心：决策中枢 ---
         public void ReceiveEvent(AIEvent aiEvent)
         {
+            // 战斗模式下不处理任何事件——原生 AI 接管所有战斗行为
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
             DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 '{aiEvent.EventType}' | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
             if (aiEvent.EventType == "ComeHere")
             {
@@ -1167,6 +1171,11 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            // 战斗模式下 AgentBrain 不运行——原生 AI 接管所有战斗行为
+            // （事件处理/行为队列/警戒认知/默认行为恢复 均无意义）
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
             // 安全兜底：如果持锁者已不活跃，释放质问锁
             if (ConfrontingBrain == this && !Owner.IsActive())
             {
@@ -1209,19 +1218,12 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 警戒值更新（Settings 配置的感知关闭模式下冻结）
-            if (!Settings.Instance.IsSightDisabled())
+            // 警戒值更新
+            _alertCognitionTimer += dt;
+            if (_alertCognitionTimer >= _alertCognitionInterval)
             {
-                _alertCognitionTimer += dt;
-                if (_alertCognitionTimer >= _alertCognitionInterval)
-                {
-                    UpdateAlertCognition(_alertCognitionTimer);  // 传入累积 dt，不是原始帧 dt
-                    _alertCognitionTimer = 0f;
-                }
-            }
-            else
-            {
-                _alertCognitionTimer = 0f;  // 关闭模式下重置计时器，避免切回和平后边缘触发
+                UpdateAlertCognition(_alertCognitionTimer);  // 传入累积 dt，不是原始帧 dt
+                _alertCognitionTimer = 0f;
             }
         }
 

@@ -19,6 +19,118 @@ Settings.Reload();                     // 重载 config.json
 
 世界观相关字串**只能**从这里取，禁止硬编码（见 [worldview.md](worldview.md)）。需要新 flavor 字段就往 Settings 加，默认值给卡拉迪亚版。
 
+## Mission 非战斗互动开关 — `Settings.DisabledInteractionMissionModes`
+
+**设计意图**：战场中很多系统是多余的——敌人不需要"警戒"你拔刀（已经在打了），满屏血条碍眼，击晕/偷窃/对话也不该在两军对垒时触发。统一用一个可配置列表控制这些非战斗系统的开关。
+
+### 受控系统 × 场景矩阵
+
+| 系统 | 和平场景（城镇/村庄/大厅） | 战场（Battle/Deployment/Duel） |
+|------|:---:|:---:|
+| **NpcSightSystem** 视野追踪 | ✅ 追踪谁在看谁 | ❌ tick 跳过 |
+| **AgentBrain** 警戒值认知 | ✅ 拔刀/蹲下/偷窃 → 警戒值累积 | ❌ 冻结 |
+| **警戒眼睛** (ShowAlert) | ✅ 显示，FOV 豁免 | ❌ 强制隐藏 |
+| **血条** (ShowHealth) | ✅ 拔武器/战斗中/掉血时显示 | 🔶 仅玩家攻击过的 Agent |
+| **IsPlayerSeeing** (FOV 裁剪) | ✅ 正常 | ✅ 正常 |
+| **击晕** (TryKnockoutAgent) | ✅ 允许 | ❌ 禁止 |
+| **偷窃** (TryStealFromAgent) | ✅ 允许 | ❌ 禁止 |
+| **偷动物** (TryStealAnimal) | ✅ 允许 | ❌ 禁止 |
+| **对话/闲聊** (F/G 键) | ✅ 允许 | ❌ 禁止 |
+| **搜刮尸体** (LootAgent) | ✅ 允许 | ✅ 保留 |
+
+### 场景分类（MissionMode 枚举全量 8 个值）
+
+| MissionMode | 用途 | 默认行为 | 理由 |
+|:---|------|:---:|------|
+| 默认(0) | 城镇街道/城主大厅/城堡内部/村庄 | ✅ 全部开放 | 和平场景 |
+| `Battle` | 野战/攻城/藏身处 | ❌ 关闭 | 两军交战 |
+| `Deployment` | 战前布阵阶段 | ❌ 关闭 | 大量士兵站一起 |
+| `Duel` | 竞技场决斗 | ❌ 关闭 | 竞技场内 |
+| `Conversation` | 对话 | ✅ 全部开放 | 对话中 |
+| `Barter` | 交易 | ✅ 全部开放 | 交易 UI 覆盖 |
+| `CutScene` | 过场动画 | ✅ 全部开放 | 过场自动处理 |
+| `Replay` | 回放 | ✅ 全部开放 | 回放模式 |
+| `Stealth` | 潜入任务 | ✅ 全部开放 | 潜入核心玩法 |
+
+### API
+
+```csharp
+Settings.Instance.DisabledInteractionMissionModes   // List<string>，默认 ["Battle", "Deployment", "Duel"]
+Settings.Instance.IsInteractionDisabled()           // → bool — 当前 Mission 是否应关闭非战斗互动
+
+// config.json 配置例：想保留竞技场互动，删掉 "Duel"；想让潜入也关闭，加 "Stealth"
+// "DisabledInteractionMissionModes": ["Battle", "Deployment"]
+```
+
+### 消费点
+
+| 消费方 | 调用位置 | 效果 |
+|--------|---------|------|
+| `NpcSightSystem.OnMissionTick` | tick 入口 | 跳过观察者追踪 |
+| `AgentBrain.Tick` | tick 入口 | 冻结 Tick 全部逻辑（警戒值/行为队列/默认行为） |
+| `AgentBrain.ReceiveEvent` | 事件入口 | 🛡️ 最终兜底，任何路径的事件均拦截 |
+| `AgentAIController.SendEventToAgent` | 事件分发 | 🛡️ 源头拦截，单目标事件不发送 |
+| `AgentAIController.BroadcastEventInRange` | 事件广播 | 🛡️ 源头拦截，广播事件不发送 |
+| `AgentHudMissionView` | `alertValue` 赋值 | 强置 0，隐藏警戒眼睛 |
+| `AgentHudVM.UpdateLogic` | `ShowHealth` 赋值 | 叠加 `IsAgentAttackedByPlayer` 过滤 |
+| `AgentHudVM.UpdateLogic` | `ShowIntentDebug` 赋值 | 强制 false，隐藏 Intent 调试文本 |
+| `InteractionMissionView.HandleInput` | F/G 键入口 | 阻断击晕/偷窃/对话，保留搜刮 |
+| `InteractionMissionView.OnMissionTick` | tick 入口 | 跳过交互 UI 全部逻辑 |
+| `InteractionMissionView.TryKnockoutAgent` | 击晕入口 | 防御守卫 |
+| `InteractionMissionView.TryStealFromAgent` | 偷窃入口 | 防御守卫 |
+| `InteractionMissionView.TryStealAnimal` | 动物偷窃入口 | 防御守卫 |
+
+**文件位置**：`Core/Settings.cs`
+
+### 玩家攻击追踪 — `AttackTriggerMissionLogic.IsAgentAttackedByPlayer`
+
+`OnAgentHit` 中记录玩家实际命中（造成伤害）的敌方 Agent（`HashSet<int>` 按 Agent.Index），供战场血条过滤查询。**注意**：记录在 `OnAgentHit` 而非 `OnRegisterBlow`——只有真正造成伤害才算，格挡/空挥不计；且通过 `Team.IsEnemyOf` 过滤友军。
+
+```csharp
+AttackTriggerMissionLogic.Instance.IsAgentAttackedByPlayer(agent);  // → bool
+```
+
+per-Mission 生命周期，新 Mission 自动清空。
+
+**文件位置**：`Combat/AttackTriggerMissionLogic.cs`
+
+## Gauntlet UI：新增 VM 属性 → 必同步改 XML
+
+**铁律**：给 ViewModel（`.cs`）新增 `[DataSourceProperty]` 属性时，**必须同时修改对应的 `.xml` widget 绑定文件**。只加 C# 属性不改 XML，Gauntlet 不会自动绑定——属性白写了。
+
+### 涉及文件对
+
+| VM (.cs) | Widget (.xml) |
+|----------|---------------|
+| `AgentHUD/AgentHudVM.cs` | `GUI/Prefabs/AgentHudNearby.xml` |
+| 其他 VM | 对应 Prefabs 目录下的 xml |
+
+### 典型场景：新增 bool 可见性开关
+
+```csharp
+// ① VM 侧：加 [DataSourceProperty] bool
+[DataSourceProperty]
+public bool ShowIntentDebug { get => ...; set { ...; OnPropertyChangedWithValue(value, "ShowIntentDebug"); } }
+
+// ② 构造函数初始化：设 false
+ShowIntentDebug = false;
+
+// ③ UpdateLogic 中设值
+ShowIntentDebug = !Settings.Instance.IsInteractionDisabled() && intent != null;
+```
+
+```xml
+<!-- ④ XML 侧：Widget 绑定 IsVisible="@ShowIntentDebug" -->
+<RichTextWidget ... IsVisible="@ShowIntentDebug" Text="@NpcIntentDebugText" />
+```
+
+**检查清单**（新增 VM 属性后逐条确认）：
+1. `[DataSourceProperty]` 特性已加
+2. `OnPropertyChangedWithValue(value, "PropertyName")` 字符串与属性名一致
+3. 构造函数 `InitializeForAgent` / `ResetAllDisplay` 中已初始化默认值
+4. `.xml` 中对应 Widget 的绑定属性已写（`IsVisible` / `Text` / `SuggestedWidth` 等）
+5. XML 绑定名 `@PropertyName` 与 C# 属性名大小写严格一致
+
 ## LLM 调用 — `LLM/LLMService.cs`
 
 单例，内置 3 次重试、HttpClient 复用。

@@ -291,6 +291,30 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        /// <summary>
+        /// RayCastForClosestEntityOrTerrain 的版本兼容封装。
+        /// v1.2.12: out GameEntity；Latest: out WeakGameEntity。
+        /// </summary>
+        public static bool RayCastForClosestEntityOrTerrain(Vec3 from, Vec3 to,
+            out float collisionDistance, out Vec3 closestPoint, float rayThickness, BodyFlags bodyFlags)
+        {
+            if (Mission.Current == null || Mission.Current.Scene == null)
+            {
+                collisionDistance = 0f;
+                closestPoint = Vec3.Invalid;
+                return false;
+            }
+#if !MB2_V1212
+            return Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
+                from, to, out collisionDistance, out closestPoint, out WeakGameEntity _,
+                rayThickness, bodyFlags);
+#else
+            return Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
+                from, to, out collisionDistance, out closestPoint, out GameEntity _,
+                rayThickness, bodyFlags);
+#endif
+        }
+
         // ── GauntletLayer ─────────────────────────────────────────
         // v1.2.12: new GauntletLayer(int localOrder, string name)
         // Latest:  new GauntletLayer(string name, int localOrder)  ← params reversed!

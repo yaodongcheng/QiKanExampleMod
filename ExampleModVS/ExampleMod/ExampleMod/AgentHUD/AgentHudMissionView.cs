@@ -149,7 +149,7 @@ namespace LivingWorldNpcs
                 // 🆕 从 AgentBrain 读警戒值（Phase 1 迁移：状态从 NpcSightSystem → AgentBrain）
                 var brain = AgentAIController.GetBrainForAgent(agent);
                 // 战场下警戒眼睛不显示（alertValue 强置 0）
-                float alertValue = Settings.Instance.IsSightDisabled()
+                float alertValue = Settings.Instance.IsInteractionDisabled()
                     ? 0f
                     : (brain?.AlertValue ?? 0f);
                 hud.AlertValue = alertValue;  // VM 内部 UpdateAlertVisuals 自决 ShowAlert

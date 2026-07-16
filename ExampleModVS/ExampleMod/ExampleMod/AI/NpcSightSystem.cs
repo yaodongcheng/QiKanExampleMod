@@ -122,19 +122,10 @@ namespace LivingWorldNpcs
 
             float collisionDistance;
             Vec3 closestPoint;
-#if !MB2_V1212
-            WeakGameEntity weakEntity;
-            bool hasHitObstacle = Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
+            bool hasHitObstacle = V.RayCastForClosestEntityOrTerrain(
                 eyePos, targetChestPos,
-                out collisionDistance, out closestPoint, out weakEntity,
+                out collisionDistance, out closestPoint,
                 0.01f, BodyFlags.CommonCollisionExcludeFlags);
-#else
-            GameEntity collidedEntity;
-            bool hasHitObstacle = Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
-                eyePos, targetChestPos,
-                out collisionDistance, out closestPoint, out collidedEntity,
-                0.01f, BodyFlags.CommonCollisionExcludeFlags);
-#endif
 
             if (hasHitObstacle && collisionDistance < distanceToTarget - 0.2f)
                 return true; // 被遮挡
@@ -231,8 +222,10 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
-            // 延迟注册：Agent.Main 在 OnMissionBehaviorInitialize 时尚未 spawn，
-            // 第一次 tick 时补注册玩家作为默认追踪目标。
+            // 战斗模式下整个视野追踪系统不运行（静态查询 IsPlayerSeeing 仍可用）
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+            //只有被注册过的Agent，才会被Npc视野跟踪，比如玩家，或者玩家自己的随从
             if (!_firstTickDone)
             {
                 _firstTickDone = true;
@@ -247,11 +240,6 @@ namespace LivingWorldNpcs
             if (_tickTimer < 0.1f) return;
             float tickDt = _tickTimer;  // 保存实际累积时间
             _tickTimer = 0f;
-
-            // 战场感知关闭列表（Settings.Instance.DisabledSightMissionModes）中的模式
-            // 不追踪观察者/视野事件（静态查询 IsPlayerSeeing 仍可用）
-            if (Settings.Instance.IsSightDisabled())
-                return;
 
             // 🆕 刷新玩家 tracked target 的 Agent 引用（防注册时 Agent.Main 尚未 spawn 导致引用过时）
             foreach (var t in _tracked)
