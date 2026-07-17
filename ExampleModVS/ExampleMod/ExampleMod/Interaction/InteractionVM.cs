@@ -86,9 +86,13 @@ namespace LivingWorldNpcs
                 {
                     _targetName = value;
                     OnPropertyChangedWithValue(value, nameof(TargetName));
+                    OnPropertyChangedWithValue(!string.IsNullOrEmpty(value), nameof(HasTarget));
                 }
             }
         }
+
+        [DataSourceProperty]
+        public bool HasTarget => !string.IsNullOrEmpty(_targetName);
 
         [DataSourceProperty]
         public bool IsVisible

@@ -1,39 +1,33 @@
-﻿[11:18:29.643] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[09:53:59.085] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[11:18:34.039] [WorldEventStore] Deserialized 0 events, 0 alerts
-[11:18:39.127] [AddQuickInformation] "成就被禁用！"
-[11:18:51.162] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "我以山中自由人之名命令你，站住！得嘞，我们能从你身上拿点什么呢？"
-[11:18:54.487] [VanillaDialog] Token='bandit_defender' NPC=亨利 | Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
-[11:18:54.487] [VanillaDialog] Player says: "够胆就过来动手吧！"
-[11:18:54.489] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "ERROR: Text with id str_robbery_start_fight doesn't exist! Variation: mountain_bandits_3"
-[11:18:56.483] [ConvLock] Release by null(Idx=?) | reason=EndConversation
-[11:18:56.483] [ConvEnd] Conversation ended. lastEvent= lastTag=
-[11:19:10.610] [DisplayMessage] "步兵: 冲锋"
-[11:19:21.260] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:22.626] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:23.227] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:23.628] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:24.374] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国新兵 造成了0 点伤害"
-[11:19:26.623] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:30.468] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:30.813] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:31.863] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:32.445] [DisplayMessage] "<a style="Link.Hero" href="event:Hero-main_hero"><b>亨利</b></a>的跑动技能+2，现为2。"
-[11:19:32.454] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 土匪 造成了26 点伤害"
-[11:19:32.463] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成26点穿刺伤害。<Detail>命中部位：腹</Detail><Detail>相对移动速度：0.26米/秒</Detail><Detail>吸收伤害：9</Detail>" | category=Combat
-[11:19:33.122] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
-[11:19:34.897] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:36.331] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[11:19:36.881] [DisplayMessage] "<a style="Link.Hero" href="event:Hero-main_hero"><b>亨利</b></a>的长杆技能+1，现为11。"
-[11:19:36.882] [DisplayMessage] "<a style="Link.Hero" href="event:Hero-main_hero"><b>亨利</b></a>的跑动技能+2，现为4。"
-[11:19:36.882] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 土匪 造成了24 点伤害"
-[11:19:36.883] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成24点穿刺伤害。<Detail>命中部位：胸</Detail><Detail>相对移动速度：0.43米/秒</Detail><Detail>吸收伤害：9</Detail>" | category=Combat
-[11:19:41.586] [DisplayMessage] "<a style="Link.Hero" href="event:Hero-main_hero"><b>亨利</b></a>的跑动技能+2，现为6。"
-[11:19:41.587] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 土匪 造成了37 点伤害"
-[11:19:41.588] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成37点穿刺伤害。<Detail>命中部位：臂</Detail><Detail>相对移动速度：2.54米/秒</Detail><Detail>吸收伤害：9</Detail>" | category=Combat
-[11:19:41.886] [DisplayMessage] [Red] "Agent 土匪 被加入尸体列表"
-[11:19:42.062] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国新兵 对 亨利 造成了0 点伤害"
-[11:19:43.807] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 拦路强盗 对 亨利 造成了17 点伤害"
-[11:19:43.810] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到17点穿刺伤害。<Detail>命中部位：腿</Detail><Detail>投射物相对速度：26.56米/秒</Detail><Detail>距离：23.2米</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[09:54:03.417] [WorldEventStore] Deserialized 0 events, 0 alerts
+[09:54:08.185] [AddQuickInformation] "成就被禁用！"
+[09:54:20.374] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "你！站住！把钱交出来，我们可不是在闹着玩。"
+[09:54:22.129] [VanillaDialog] Token='bandit_defender' NPC=亨利 | Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
+[09:54:22.129] [VanillaDialog] Player says: "够胆就过来动手吧！"
+[09:54:22.133] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "好吧，你死定了。"
+[09:54:26.363] [ConvLock] Release by null(Idx=?) | reason=EndConversation
+[09:54:26.363] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[09:54:37.849] [DisplayMessage] "步兵: 就位"
+[09:54:39.344] [DisplayMessage] "步兵: 冲锋"
+[09:54:56.044] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
+[09:54:56.788] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
+[09:54:58.722] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
+[09:55:00.096] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
+[09:55:00.598] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
+[09:55:01.011] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
+[09:55:01.793] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了13 点伤害"
+[09:55:01.799] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到13点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.48米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[09:55:02.287] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了9 点伤害"
+[09:55:02.289] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到9点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：0.54米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[09:55:03.445] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了14 点伤害"
+[09:55:03.446] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到14点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.61米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[09:55:03.473] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了9 点伤害"
+[09:55:03.473] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到9点挥砍伤害。<Detail>命中部位：颈</Detail><Detail>相对移动速度：0.74米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[09:55:04.389] [DisplayMessage] [Red] "Agent 亨利 被加入尸体列表"
+[09:55:04.394] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到15点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[09:55:04.412] [DisplayMessage] "步兵正在冲锋。"
+[09:55:07.034] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
+[09:55:08.414] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"

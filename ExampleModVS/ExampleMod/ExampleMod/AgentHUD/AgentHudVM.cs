@@ -109,11 +109,13 @@ namespace LivingWorldNpcs
 
             ShowHealth = isWeaponDrawn || isFighting || isHealthLow || isAlerted;
 
-            // 🆕 感知关闭模式下：只有玩家攻击过的 Agent 才显示血条（避免满屏血条碍眼）
+            // 🆕 感知关闭模式下：只有玩家攻击过的 Agent 才显示血条/伤害（避免满屏 HUD 碍眼）
             if (Settings.Instance.IsInteractionDisabled())
             {
                 var atkLogic = AttackTriggerMissionLogic.Instance;
-                ShowHealth = ShowHealth && (atkLogic?.IsAgentAttackedByPlayer(TargetAgent) ?? false);
+                bool playerAttacked = atkLogic?.IsAgentAttackedByPlayer(TargetAgent) ?? false;
+                ShowHealth = ShowHealth && playerAttacked;
+                ShowDamage = ShowDamage && playerAttacked;
             }
 
             // 🆕 NpcIntent 调试文本（玩家自己/战场中不显示——玩家无 AI Intent）

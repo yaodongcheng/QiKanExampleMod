@@ -12,7 +12,7 @@
             <Children>
 
                  <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="30"
-                                    Text="@TargetName"
+                                    Text="@TargetName" IsVisible="@HasTarget"
                                     Brush="MyBrush_24"
                                     TextColor="#FFFFFFFF"
                                     HorizontalAlignment="Right"/>
@@ -20,7 +20,7 @@
 	       <!-- 装饰线 -->
                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="5"
                                 Sprite="BlankWhiteSquare_9" Color="#FFFFFF88"  HorizontalAlignment="Right"  MarginTop="15"
-                                MarginBottom="5"
+                                MarginBottom="5" IsVisible="@HasTarget"
                                />
 
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
