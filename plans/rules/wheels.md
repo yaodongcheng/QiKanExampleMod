@@ -876,6 +876,58 @@ InteractionMissionView.TopUpRosterToNaturalCounts(settlement);
 
 ---
 
+# 场景感知分发模式（ChestContext）— `Stealth/StealManager.cs`
+
+**解决什么问题**：定居点有多个子场景（城镇 = 中心/酒馆/领主大厅/暗巷/竞技场），任何「按场景差异化」的系统（偷窃金库、贿赂、情报、锚点 NPC）都要回答四个问题：**①我在哪个场景 ②这个场景分多少资源 ③这个场景出什么内容 ④文案/锚点怎么随场景变**。这个模式用一张枚举 + 四张 switch 表统一回答，加新场景 = 每张表加一行，不写 if-else 链。
+
+## 四件套结构
+
+```csharp
+// ① 场景枚举
+public enum ChestContext { Village, TownTavern, TownCenter, LordsHall, Alley, Arena, Castle, Unknown }
+
+// ② 场景识别：Location.StringId 优先（精确到子场景），回退定居点类型
+ChestContext ctx = StealManager.GetCurrentChestContext();
+//   locId 含 "tavern"→TownTavern / "lordshall"→LordsHall / "alley"→Alley / "arena"→Arena
+//   "center" 或含 "village" → 按 Settlement.IsVillage 分 Village/TownCenter
+//   回退：IsVillage→Village / IsTown→TownCenter / IsCastle→Castle / else Unknown
+
+// ③ 资源权重表 + 内容过滤表（各一张 switch）
+float w = StealManager.GetChestContextGoldWeight(ctx);   // 中心.40/大厅.30/酒馆.15/暗巷.10/竞技场0/村·城堡1.0/Unknown.20
+bool ok = StealManager.IsItemAllowedInContext(item, ctx); // 酒馆=食物杂货，大厅=武器防具马匹书籍，暗巷=赃物轻甲，动物一律false
+
+// ④ 场景化锚点 + 文案
+Vec3 pos = StealManager.FindChestAnchorPosition();       // 酒馆→Tavernkeeper，大厅/城堡→IsLord，暗巷→GangLeader，村庄→Headman，多级兜底
+var (hint, title, prefix) = InteractionMissionView.GetChestTexts(ctx);  // (提示语, 标题, 内容前缀) 三元组
+```
+
+## 复合键防重复
+
+同一「定居点+场景」只分配一次，用 `$"{settlement.StringId}|{locationId}"` 复合键替代纯定居点 ID——Town 内部各子场景独立分配（进酒馆分一次、进大厅再分一次），村庄/城堡单场景行为不变。
+
+## 复用要点（搬到新系统时）
+
+- **`CampaignMission.Current.Location.StringId` 是第一手信号**，比 Settlement 类型精确——能区分同一城镇的不同室内场景。
+- **每个维度一张 switch 表**（权重/过滤/文案/锚点），维度之间不交叉引用。
+- **禁用场景三处一致关闭**：权重返回 0 + 过滤返回 false + 文案返回空串（参考 Arena 不刷保管箱）。
+- **Unknown 兜底给保守值**：权重 0.20、只放行 Goods+Food，宁可少给不出戏。
+
+## 实体名黑名单（扫描场景实体防误伤）
+
+扫描场景实体做「储物道具克隆」时，引擎内部实体会命中名字关键词评分（`__skybox__` 含 "box" → 85 分误伤夺冠，天空盒被克隆成保管箱）。`IsBlacklistedEntityName(name)` 统一拦截：
+
+| 匹配方式 | 名单 |
+|---------|------|
+| 精确 | `__skybox__` |
+| 前缀 | `torch_` `flame_` `light_` `smoke_` `sound_` `fire_` `particle_` `vfx_` |
+| 包含 | `_collision_` `_hitbox_` `_water_` `_trigger_` |
+
+任何「遍历 Scene 实体 → 按名字打分选候选」的逻辑都应先过这道黑名单再评分。
+
+**文件位置**：`Stealth/StealManager.cs`（`ChestContext` 枚举 + `GetCurrentChestContext` + `GetChestContextGoldWeight` + `IsItemAllowedInContext` + `FindChestAnchorPosition` + `IsBlacklistedEntityName`）、`Interaction/InteractionMissionView.cs`（`GetChestTexts` + SpawnChest/开箱 Inquiry 消费点）。
+
+---
+
 # 版本兼容层 — `Core/VersionCompat.cs`
 
 **同一份源码，双版本编译。** `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。每一对 API 差异用一个 `V.xxx()` 方法封装，内部 `#if !MB2_V1212` / `#else` 分支。

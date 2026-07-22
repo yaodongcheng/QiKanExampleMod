@@ -1,33 +1,6 @@
-﻿[09:53:59.085] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[17:58:19.231] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[09:54:03.417] [WorldEventStore] Deserialized 0 events, 0 alerts
-[09:54:08.185] [AddQuickInformation] "成就被禁用！"
-[09:54:20.374] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "你！站住！把钱交出来，我们可不是在闹着玩。"
-[09:54:22.129] [VanillaDialog] Token='bandit_defender' NPC=亨利 | Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
-[09:54:22.129] [VanillaDialog] Player says: "够胆就过来动手吧！"
-[09:54:22.133] [VanillaDialog] NPC  | NPC: 拦路强盗 (CharacterId: mountain_bandits_chief) says: "好吧，你死定了。"
-[09:54:26.363] [ConvLock] Release by null(Idx=?) | reason=EndConversation
-[09:54:26.363] [ConvEnd] Conversation ended. lastEvent= lastTag=
-[09:54:37.849] [DisplayMessage] "步兵: 就位"
-[09:54:39.344] [DisplayMessage] "步兵: 冲锋"
-[09:54:56.044] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[09:54:56.788] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
-[09:54:58.722] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
-[09:55:00.096] [DisplayMessage] [Red] "Agent 山民 被加入尸体列表"
-[09:55:00.598] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
-[09:55:01.011] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
-[09:55:01.793] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了13 点伤害"
-[09:55:01.799] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到13点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.48米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[09:55:02.287] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了9 点伤害"
-[09:55:02.289] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到9点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：0.54米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[09:55:03.445] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了14 点伤害"
-[09:55:03.446] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到14点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.61米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[09:55:03.473] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 山民 对 亨利 造成了9 点伤害"
-[09:55:03.473] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到9点挥砍伤害。<Detail>命中部位：颈</Detail><Detail>相对移动速度：0.74米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[09:55:04.389] [DisplayMessage] [Red] "Agent 亨利 被加入尸体列表"
-[09:55:04.394] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到15点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
-[09:55:04.412] [DisplayMessage] "步兵正在冲锋。"
-[09:55:07.034] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
-[09:55:08.414] [DisplayMessage] [Red] "Agent 帝国新兵 被加入尸体列表"
+[17:58:24.555] [WorldEventStore] Deserialized 0 events, 0 alerts
+[17:58:32.393] [AddQuickInformation] "成就被禁用！"

@@ -424,9 +424,9 @@ namespace LivingWorldNpcs
                     if (!_chestHintShown)
                     {
                         _chestHintShown = true;
-                        InformationManager.DisplayMessage(new InformationMessage(
-                            "你注意到村长屋旁有个微微泛金的储物桶，上面挂着一把旧锁……",
-                            Colors.Yellow));
+                        var chestCtx = StealManager.GetCurrentChestContext();
+                        var (hint, _, _) = GetChestTexts(chestCtx);
+                        InformationManager.DisplayMessage(new InformationMessage(hint, Colors.Yellow));
                     }
 
                     // 没在看人但在箱子旁边 → 显示箱子提示
@@ -434,7 +434,9 @@ namespace LivingWorldNpcs
                     IsHandlingInteraction = true;
                     var actions = new List<(string, string)>();
                     actions.Add(("打开保管箱", "F"));
-                    _interactVM.UpdateTarget("村庄保管箱", actions);
+                    var chestCtx2 = StealManager.GetCurrentChestContext();
+                    var (_, title2, _) = GetChestTexts(chestCtx2);
+                    _interactVM.UpdateTarget(title2, actions);
                     _nearChest = true;
                     _lastFocusedAgent = null;
                 }
@@ -1711,6 +1713,56 @@ namespace LivingWorldNpcs
         // ================================================================
 
         /// <summary>
+        /// 根据定居点类型返回保管箱相关文字（提示/标题/内容）。
+        /// </summary>
+        private static (string hintText, string title, string contentPrefix) GetChestTexts(ChestContext ctx)
+        {
+            return ctx switch
+            {
+                ChestContext.TownTavern => (
+                    "你注意到酒馆角落有个微微泛金的储物桶，上面挂着一把旧锁……",
+                    "酒馆保管箱",
+                    "你找到了酒馆的保管箱。"
+                ),
+                ChestContext.LordsHall => (
+                    "你注意到大厅角落有个微微泛金的储物箱，上面挂着一把旧锁……",
+                    "领主保管箱",
+                    "你找到了领主的保管箱。"
+                ),
+                ChestContext.TownCenter => (
+                    "你注意到商铺旁有个微微泛金的储物箱，上面挂着一把旧锁……",
+                    "城镇保管箱",
+                    "你找到了城镇的保管箱。"
+                ),
+                ChestContext.Alley => (
+                    "你注意到暗巷角落有个微微泛金的储物桶，上面挂着一把旧锁……",
+                    "暗巷保管箱",
+                    "你找到了暗巷的保管箱。"
+                ),
+                ChestContext.Arena => (
+                    "",
+                    "",
+                    ""
+                ),
+                ChestContext.Castle => (
+                    "你注意到城堡仓库有个微微泛金的储物箱，上面挂着一把旧锁……",
+                    "城堡保管箱",
+                    "你找到了城堡的保管箱。"
+                ),
+                ChestContext.Village => (
+                    "你注意到村长屋旁有个微微泛金的储物桶，上面挂着一把旧锁……",
+                    "村庄保管箱",
+                    "你找到了村庄的保管箱。"
+                ),
+                _ => (
+                    "你注意到附近有个微微泛金的储物箱，上面挂着一把旧锁……",
+                    "保管箱",
+                    "你找到了保管箱。"
+                )
+            };
+        }
+
+        /// <summary>
         /// 在村长/乡绅附近生成一个保管箱实体。
         /// 策略：扫描场景中已有的可见储物道具 → 克隆最佳候选 → 移到村长附近 → 高亮标记。
         /// 若扫描失败则回退到已知 prefab 名 Instantiate；再失败则 CreateEmpty（仅功能，不可见）。
@@ -1722,9 +1774,9 @@ namespace LivingWorldNpcs
 
             try
             {
-                // 1. 找 Headman 位置
-                Vec3 headmanPos = StealManager.FindHeadmanPosition();
-                Vec3 chestPos = headmanPos + new Vec3(2f, 0f, 0f);
+                // 1. 找场景感知的 NPC 锚点（村庄→村长，酒馆→酒馆老板，领主大厅→领主…）
+                Vec3 anchorPos = StealManager.FindChestAnchorPosition();
+                Vec3 chestPos = anchorPos + new Vec3(2f, 0f, 0f);
                 float groundHeight = scene.GetGroundHeightAtPosition(chestPos);
                 if (groundHeight != 0f) chestPos.z = groundHeight;
 
@@ -1759,7 +1811,7 @@ namespace LivingWorldNpcs
 
                 // 回填给 StealManager
                 StealManager.ChestEntity = _chestEntity;
-                DebugLogger.Log($"[Chest] Spawned at {chestPos}, gold={StealManager.StashGold}, items={StealManager.ChestItemRoster?.Count ?? 0}");
+                DebugLogger.Log($"[Chest] Spawned at {chestPos}, context={StealManager.GetCurrentChestContext()}, gold={StealManager.StashGold}, items={StealManager.ChestItemRoster?.Count ?? 0}");
             }
             catch (Exception ex)
             {
@@ -1798,11 +1850,13 @@ namespace LivingWorldNpcs
                 if (roster.Count > 5) itemsPreview += $"\n  ...还有 {roster.Count - 5} 种物品";
             }
 
-            string content = $"你找到了村庄的保管箱。{goldLine}\n物品:{itemsPreview}{riskHint}";
+            var chestCtx = StealManager.GetCurrentChestContext();
+            var (_, title, contentPrefix) = GetChestTexts(chestCtx);
+            string content = $"{contentPrefix}{goldLine}\n物品:{itemsPreview}{riskHint}";
 
             var settlement = Settlement.CurrentSettlement;
             InformationManager.ShowInquiry(new InquiryData(
-                "村庄保管箱", content,
+                title, content,
                 true, true,
                 "全部拿走", "自己挑选",
                 () =>

@@ -16,6 +16,21 @@ using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
+    /// <summary>
+    /// 保管箱所在环境类型，用于决定锚点 NPC 和 UI 文字。
+    /// </summary>
+    public enum ChestContext
+    {
+        Village,        // 村庄外景
+        TownTavern,     // 城镇酒馆
+        TownCenter,     // 城镇中心/市场
+        LordsHall,      // 领主大厅
+        Alley,          // 城镇小巷
+        Arena,          // 竞技场 — 不生成保管箱
+        Castle,         // 城堡室内
+        Unknown         // 无法识别
+    }
+
     public class StealManager
     {
         // ── 🆕 偷窃 UI 状态（Phase 1：AgentBrain.UpdateAlertCognition 中检测 StealUIOpen）──
@@ -453,8 +468,89 @@ namespace LivingWorldNpcs
         /// <summary>公共箱子里的金钱（还没被偷走的 20% 流通池份额）</summary>
         private static int _stashGold = 0;
 
-        /// <summary>防重复分配：已分配过的定居点 StringId</summary>
+        /// <summary>防重复分配：已分配过的"定居点|场景"复合键</summary>
         private static string _lastDistributedSettlementId = null;
+
+        /// <summary>
+        /// Town 子场景的金库权重。村庄/城堡只有单一场景，100% 不变。
+        /// Town 内部按场景类型拆分金库，不同场景的 NPC 和保管箱各自独立分配。
+        /// </summary>
+        private static float GetChestContextGoldWeight(ChestContext ctx)
+        {
+            return ctx switch
+            {
+                ChestContext.Village => 1.0f,       // 村庄全拿
+                ChestContext.Castle => 1.0f,         // 城堡全拿
+                ChestContext.TownCenter => 0.40f,    // 城镇中心 40%
+                ChestContext.LordsHall => 0.30f,     // 领主大厅 30%
+                ChestContext.TownTavern => 0.15f,    // 酒馆 15%
+                ChestContext.Alley => 0.10f,         // 暗巷 10%
+                ChestContext.Arena => 0f,            // 竞技场 — 不生成保管箱
+                ChestContext.Unknown => 0.20f,       // 未知场景保守 20%
+                _ => 0.20f
+            };
+        }
+
+        /// <summary>
+        /// 按场景类型过滤物品。确保酒馆里不会出现军马和盔甲，领主大厅里不会出现啤酒桶。
+        /// </summary>
+        private static bool IsItemAllowedInContext(ItemObject item, ChestContext ctx)
+        {
+            if (item == null) return false;
+            if (item.Type == ItemObject.ItemTypeEnum.Animal) return false; // 动物场景里直接偷
+
+            var type = item.Type;
+
+            return ctx switch
+            {
+                // 村庄/城堡：单一场景，全部物资
+                ChestContext.Village => true,
+                ChestContext.Castle => true,
+
+                // 城镇中心：民用物资（商品+食物），武器盔甲归领主大厅
+                ChestContext.TownCenter => type == ItemObject.ItemTypeEnum.Goods
+                    || item.IsFood,
+
+                // 酒馆：食物 + 消耗品
+                ChestContext.TownTavern => type == ItemObject.ItemTypeEnum.Goods
+                    || item.IsFood,
+
+                // 领主大厅：武器 + 防具 + 盾牌 + 马匹 + 书籍（领主的军械库）
+                ChestContext.LordsHall => type == ItemObject.ItemTypeEnum.OneHandedWeapon
+                    || type == ItemObject.ItemTypeEnum.TwoHandedWeapon
+                    || type == ItemObject.ItemTypeEnum.Polearm
+                    || type == ItemObject.ItemTypeEnum.Bow
+                    || type == ItemObject.ItemTypeEnum.Crossbow
+                    || type == ItemObject.ItemTypeEnum.Arrows
+                    || type == ItemObject.ItemTypeEnum.Bolts
+                    || type == ItemObject.ItemTypeEnum.Thrown
+                    || type == ItemObject.ItemTypeEnum.Shield
+                    || type == ItemObject.ItemTypeEnum.HeadArmor
+                    || type == ItemObject.ItemTypeEnum.BodyArmor
+                    || type == ItemObject.ItemTypeEnum.LegArmor
+                    || type == ItemObject.ItemTypeEnum.HandArmor
+                    || type == ItemObject.ItemTypeEnum.Cape
+                    || type == ItemObject.ItemTypeEnum.Horse
+                    || type == ItemObject.ItemTypeEnum.HorseHarness
+                    || type == ItemObject.ItemTypeEnum.Book
+                    || type == ItemObject.ItemTypeEnum.Goods,
+
+                // 暗巷：投掷武器 + 单手 + 轻甲 + 商品（违禁品/赃物）
+                ChestContext.Alley => type == ItemObject.ItemTypeEnum.Thrown
+                    || type == ItemObject.ItemTypeEnum.OneHandedWeapon
+                    || type == ItemObject.ItemTypeEnum.Goods
+                    || item.IsFood
+                    || type == ItemObject.ItemTypeEnum.HandArmor
+                    || type == ItemObject.ItemTypeEnum.Cape,
+
+                // 竞技场：不生成保管箱
+                ChestContext.Arena => false,
+
+                // 未知：保守开放 Goods + Food
+                _ => type == ItemObject.ItemTypeEnum.Goods
+                    || item.IsFood
+            };
+        }
 
         /// <summary>金库取多少比例出来流通（默认 100% = 全部流通）</summary>
         public static float CirculatingRatio { get; set; } = 1.0f;
@@ -486,15 +582,22 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 进村时调用：把定居点金库的一部分分配到 NPC 身上 + 公共箱子。
-        /// 同一定居点只分配一次（防重复）。
+        /// 进场景时调用：把定居点金库按场景权重分配到 NPC 身上 + 公共箱子。
+        /// 同一"定居点+场景"只分配一次（防重复）。
+        /// Town 内部按场景拆分：领主大厅 30%、城镇中心 40%、酒馆 15%、暗巷 10%。
+        /// 村庄/城堡只有单一场景 → 100% 全拿。
         /// </summary>
         public static void DistributeSettlementWealth(Settlement settlement)
         {
             if (settlement == null) return;
-            if (_lastDistributedSettlementId == settlement.StringId) return;
 
-            _lastDistributedSettlementId = settlement.StringId;
+            // 复合键：定居点 + 场景（Town 的内部场景各自独立分配）
+            var ctx = GetCurrentChestContext();
+            string locationId = CampaignMission.Current?.Location?.StringId ?? "__unknown__";
+            string compoundKey = $"{settlement.StringId}|{locationId}";
+            if (_lastDistributedSettlementId == compoundKey) return;
+
+            _lastDistributedSettlementId = compoundKey;
             _agentGold = new Dictionary<int, int>();
             _stashGold = 0;
             ChestItemRoster = new ItemRoster();
@@ -502,11 +605,13 @@ namespace LivingWorldNpcs
 
             try
             {
-                // ── 财富计算 ──
+                // ── 金库计算（按场景权重缩放）──
                 int treasury = GetGoldComponent(settlement)?.Gold ?? 0;
                 if (treasury <= 0) return;
 
-                int pool = (int)(treasury * CirculatingRatio);
+                float weight = GetChestContextGoldWeight(ctx);
+                int effectiveTreasury = (int)(treasury * weight);
+                int pool = (int)(effectiveTreasury * CirculatingRatio);
                 if (pool <= 0) return;
 
                 int npcPool = (int)(pool * NpcShareRatio);
@@ -527,37 +632,36 @@ namespace LivingWorldNpcs
                     var character = agent.Character as CharacterObject;
                     var hero = character?.HeroObject;
 
-                    int weight;
+                    int w;
                     if (hero != null)
                     {
                         if (hero.Occupation == Occupation.Headman)
-                            { weight = 10; headmanCount++; }
+                            { w = 10; headmanCount++; }
                         else if (hero.Occupation == Occupation.RuralNotable)
-                            { weight = 7; notableCount++; }
+                            { w = 7; notableCount++; }
                         else
-                            { weight = 4; heroCount++; }
+                            { w = 4; heroCount++; }
                     }
                     else
                     {
-                        weight = 1; templateCount++;
+                        w = 1; templateCount++;
                     }
 
-                    weightedAgents.Add((agent, weight));
-                    totalWeight += weight;
+                    weightedAgents.Add((agent, w));
+                    totalWeight += w;
                 }
 
                 int distributedCount = 0;
                 if (totalWeight > 0 && npcPool > 0)
                 {
-                    foreach (var (agent, weight) in weightedAgents)
+                    foreach (var (agent, weight2) in weightedAgents)
                     {
-                        int share = (int)((float)weight / totalWeight * npcPool);
+                        int share = (int)((float)weight2 / totalWeight * npcPool);
                         if (share > 0)
                         {
                             _agentGold[agent.Index] = share;
                             distributedCount++;
 
-                            // 按档位归账
                             var ch = (agent.Character as CharacterObject)?.HeroObject;
                             if (ch?.Occupation == Occupation.Headman) headmanGold += share;
                             else if (ch?.Occupation == Occupation.RuralNotable) notableGold += share;
@@ -567,21 +671,26 @@ namespace LivingWorldNpcs
                     }
                 }
 
-                // ── 箱子物品（仅元数据，不动物资——懒扣除）──
+                // ── 箱子物品（按场景类型过滤，不动物资——懒扣除）──
                 var settlementRoster = settlement.ItemRoster;
+                int itemTypesInChest = 0;
                 for (int i = 0; i < settlementRoster.Count; i++)
                 {
                     var item = settlementRoster.GetItemAtIndex(i);
                     if (item == null) continue;
-                    if (item.Type == ItemObject.ItemTypeEnum.Animal) continue; // 动物场景里直接偷
+                    if (!IsItemAllowedInContext(item, ctx)) continue;
                     int have = settlementRoster.GetElementNumber(i);
                     if (have > 0)
+                    {
                         ChestItemRoster.AddToCounts(item, have);
+                        itemTypesInChest++;
+                    }
                 }
 
                 // ── 汇总日志 ──
                 var sb = new System.Text.StringBuilder();
-                sb.Append($"[Wealth] {settlement.Name}: 金库{treasury} → 流通池{pool}, NPC池{npcPool}(");
+                string tag = settlement.IsTown ? $" ({ctx}, ×{weight:F2})" : "";
+                sb.Append($"[Wealth] {settlement.Name}{tag}: 金库{treasury}→场景{effectiveTreasury}→流通池{pool}, NPC池{npcPool}(");
                 if (distributedCount > 0)
                 {
                     var parts = new List<string>();
@@ -595,7 +704,7 @@ namespace LivingWorldNpcs
                 {
                     sb.Append("无人分得");
                 }
-                sb.Append($"), 箱子{_stashGold}第纳尔, 物资{ChestItemRoster.Count}种");
+                sb.Append($"), 箱子{_stashGold}第纳尔, 物资{itemTypesInChest}种(过滤后)");
                 DebugLogger.Log(sb.ToString());
             }
             catch (Exception ex)
@@ -719,21 +828,102 @@ namespace LivingWorldNpcs
         // ────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// 找到村长（Headman）或乡绅（RuralNotable）的 Agent 位置。
+        /// 根据当前场景类型推断保管箱所在环境。
         /// </summary>
-        internal static Vec3 FindHeadmanPosition()
+        public static ChestContext GetCurrentChestContext()
+        {
+            // Location StringId 优先（精确到子场景）
+            string locId = CampaignMission.Current?.Location?.StringId ?? "";
+            if (!string.IsNullOrEmpty(locId))
+            {
+                if (locId.Contains("tavern")) return ChestContext.TownTavern;
+                if (locId.Contains("lordshall")) return ChestContext.LordsHall;
+                if (locId.Contains("alley")) return ChestContext.Alley;
+                if (locId.Contains("arena")) return ChestContext.Arena;
+                if (locId == "center" || locId.Contains("village"))
+                {
+                    var s = Settlement.CurrentSettlement;
+                    if (s != null && s.IsVillage) return ChestContext.Village;
+                    return ChestContext.TownCenter;
+                }
+                if (locId.Contains("castle")) return ChestContext.Castle;
+            }
+
+            // 回退：按定居点类型
+            var settlement = Settlement.CurrentSettlement;
+            if (settlement == null) return ChestContext.Unknown;
+            if (settlement.IsVillage) return ChestContext.Village;
+            if (settlement.IsTown) return ChestContext.TownCenter;
+            if (settlement.IsCastle) return ChestContext.Castle;
+            return ChestContext.Unknown;
+        }
+
+        /// <summary>
+        /// 场景感知的保管箱锚点：根据不同场景类型选择最合适的 NPC 位置。
+        /// 村庄→村长/乡绅，酒馆→酒馆老板，领主大厅→领主，其余→任意有名 NPC。
+        /// </summary>
+        internal static Vec3 FindChestAnchorPosition()
         {
             var agents = Mission.Current?.Agents;
             if (agents == null) return Vec3.Zero;
 
+            ChestContext ctx = GetCurrentChestContext();
+
+            // 按场景类型确定搜索优先级
+            Occupation[] priorities = ctx switch
+            {
+                ChestContext.TownTavern => new[] { Occupation.Tavernkeeper,
+                    Occupation.Artisan, Occupation.Merchant, Occupation.Wanderer },
+                ChestContext.LordsHall => null, // 特殊处理：IsLord
+                ChestContext.Alley => new[] { Occupation.GangLeader, Occupation.Wanderer },
+                ChestContext.TownCenter => new[] { Occupation.Merchant,
+                    Occupation.Artisan, Occupation.GangLeader },
+                ChestContext.Village => new[] { Occupation.Headman, Occupation.RuralNotable },
+                ChestContext.Castle => null, // 特殊处理：IsLord
+                _ => Array.Empty<Occupation>()
+            };
+
+            // 按优先级搜索 occupation
+            if (priorities != null)
+            {
+                var occSet = new HashSet<Occupation>(priorities);
+                foreach (Agent agent in agents)
+                {
+                    if (!agent.IsHuman || !agent.IsActive()) continue;
+                    var co = agent.Character as CharacterObject;
+                    var occ = co?.HeroObject?.Occupation;
+                    if (occ.HasValue && occSet.Contains(occ.Value))
+                        return agent.Position;
+                }
+            }
+
+            // 领主大厅/城堡：找 IsLord
+            if (priorities == null)
+            {
+                foreach (Agent agent in agents)
+                {
+                    if (!agent.IsHuman || !agent.IsActive()) continue;
+                    var hero = (agent.Character as CharacterObject)?.HeroObject;
+                    if (hero != null && hero.IsLord)
+                        return agent.Position;
+                }
+            }
+
+            // 兜底：任意活跃 Hero
             foreach (Agent agent in agents)
             {
                 if (!agent.IsHuman || !agent.IsActive()) continue;
-                var co = agent.Character as CharacterObject;
-                var occ = co?.HeroObject?.Occupation;
-                if (occ == Occupation.Headman || occ == Occupation.RuralNotable)
+                if ((agent.Character as CharacterObject)?.HeroObject != null)
                     return agent.Position;
             }
+
+            // 最终兜底：任意活跃人类
+            foreach (Agent agent in agents)
+            {
+                if (agent.IsHuman && agent.IsActive())
+                    return agent.Position;
+            }
+
             return Agent.Main?.Position ?? Vec3.Zero;
         }
 
@@ -763,7 +953,7 @@ namespace LivingWorldNpcs
             // 按评分降序
             candidates.Sort((a, b) => b.score.CompareTo(a.score));
             var best = candidates[0];
-            DebugLogger.Log($"[Chest] Scan: best candidate '{best.entity.Name}' (score={best.score:F0}), " +
+            DebugLogger.Log($"[Chest] Scan: context={GetCurrentChestContext()}, best candidate '{best.entity.Name}' (score={best.score:F0}), " +
                 $"candidates={candidates.Count}, names=[{string.Join(", ", candidates.Take(5).Select(c => c.entity.Name))}]");
 
             // 克隆并移动到目标位置
@@ -787,6 +977,11 @@ namespace LivingWorldNpcs
             if (entity.MultiMeshComponentCount > 0)
             {
                 string name = (entity.Name ?? "").ToLower();
+
+                // 黑名单：跳过引擎内部实体（__skybox__ 含 "box" 命中 nameScore=85 是已知误伤）
+                if (IsBlacklistedEntityName(name))
+                    goto RecurseChildren;
+
                 float dist = entity.GlobalPosition.Distance(targetPos);
 
                 // 名字评分：储物关键词
@@ -816,6 +1011,7 @@ namespace LivingWorldNpcs
                     candidates.Add((entity, total));
             }
 
+        RecurseChildren:
             // 递归子 entity
             for (int i = 0; i < entity.ChildCount; i++)
             {
@@ -823,6 +1019,28 @@ namespace LivingWorldNpcs
                 if (child != null)
                     CollectPropsRecursive(child, targetPos, candidates);
             }
+        }
+
+        /// <summary>
+        /// 实体名黑名单检查。引擎内部实体（skybox / 光源 / 粒子 / 碰撞体等）
+        /// 虽然可能有 mesh，但绝不是储物道具，禁止进入候选池。
+        /// </summary>
+        private static bool IsBlacklistedEntityName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return true;
+            // 精确匹配
+            if (name == "__skybox__") return true;
+            // 前缀匹配
+            if (name.StartsWith("torch_") || name.StartsWith("flame_") ||
+                name.StartsWith("light_") || name.StartsWith("smoke_") ||
+                name.StartsWith("sound_") || name.StartsWith("fire_") ||
+                name.StartsWith("particle_") || name.StartsWith("vfx_"))
+                return true;
+            // 内部/碰撞/水面实体
+            if (name.Contains("_collision_") || name.Contains("_hitbox_") ||
+                name.Contains("_water_") || name.Contains("_trigger_"))
+                return true;
+            return false;
         }
 
         /// <summary>
