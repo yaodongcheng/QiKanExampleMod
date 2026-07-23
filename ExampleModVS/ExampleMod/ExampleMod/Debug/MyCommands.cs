@@ -7,6 +7,7 @@ using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.Screens;
 using TaleWorlds.Engine;
+using TaleWorlds.DotNet;
 using TaleWorlds.ScreenSystem;
 using NetworkMessages.FromServer;
 using TaleWorlds.Core;
@@ -1371,6 +1372,193 @@ namespace LivingWorldNpcs
             string result = sb.ToString();
             DebugLogger.Log(result);
             return result;
+        }
+
+        /// <summary>
+        /// 打印玩家正前方的实体，用于指认"我眼前这个模型到底是什么"。双保险：
+        ///   ① 物理射线（原版交互聚焦同款 API）——命中有碰撞体的实体/地形
+        ///   ② 视锥几何扫描——无视碰撞体，只要有 mesh 且在视锥内就列出（纯装饰道具也能认出）
+        /// 用法:
+        ///   custom.print_lookat              → 10m 内、±12° 视锥
+        ///   custom.print_lookat 20           → 20m 内
+        ///   custom.print_lookat 20 8         → 20m 内、±8° 视锥
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("print_lookat", "custom")]
+        public static string ExecutePrintLookAt(List<string> args)
+        {
+            if (Mission.Current == null || Mission.Current.Scene == null || Agent.Main == null)
+                return "Error: not in mission.";
+
+            float maxDist = 10f;
+            float halfAngleDeg = 12f;
+            if (args.Count >= 1) float.TryParse(args[0], out maxDist);
+            if (args.Count >= 2) float.TryParse(args[1], out halfAngleDeg);
+
+            // 视线原点：优先实际相机（第三人称也准），兜底 Agent 眼睛位置
+            Vec3 eye, dir;
+            MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
+            if (ms?.CombatCamera != null)
+            {
+                eye = ms.CombatCamera.Position;
+                dir = ms.CombatCamera.Direction;
+            }
+            else
+            {
+                eye = Agent.Main.GetEyeGlobalPosition();
+                dir = Agent.Main.LookDirection;
+            }
+            dir = dir.NormalizedCopy();
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"\n════════ LookAt Report ════════");
+            sb.AppendLine($"eye=({eye.x:F1},{eye.y:F1},{eye.z:F1}) dir=({dir.x:F2},{dir.y:F2},{dir.z:F2}) maxDist={maxDist:F0}m halfAngle=±{halfAngleDeg:F0}°");
+
+            // ── ① 物理射线 ──
+            V.LookAtHit hit = V.RayCastLookAt(Mission.Current.Scene, eye, eye + dir * maxDist);
+            if (hit.Hit)
+            {
+                if (hit.EntityName != null)
+                    sb.AppendLine($"[Ray] '{hit.EntityName}' dist={hit.Distance:F2}m point=({hit.Point.x:F1},{hit.Point.y:F1},{hit.Point.z:F1}) prefab={hit.PrefabName ?? "-"} mesh={hit.MeshName ?? "-"}");
+                else
+                    sb.AppendLine($"[Ray] terrain/static (no entity) dist={hit.Distance:F2}m point=({hit.Point.x:F1},{hit.Point.y:F1},{hit.Point.z:F1})");
+            }
+            else sb.AppendLine("[Ray] no hit — 正前方没有带碰撞体的东西（装饰性 mesh 射线打不到，看下面视锥扫描）");
+
+            // ── ② 视锥几何扫描（GetRootEntities + 递归，与宝箱扫描同一遍历，避免漏子实体）──
+            var coneHits = new List<ConeHit>();
+            var roots = NativeObjectArray.Create();
+            Mission.Current.Scene.GetRootEntities(roots);
+            float tanHalf = MathF.Tan(halfAngleDeg * MathF.PI / 180f);
+            foreach (NativeObject obj in roots)
+            {
+                var root = obj as GameEntity;
+                if (root != null)
+                    CollectLookCone(root, eye, dir, maxDist, tanHalf, coneHits);
+            }
+
+            coneHits.Sort((a, b) => a.Along.CompareTo(b.Along));
+            sb.AppendLine($"\n--- Cone scan (showing {Math.Min(coneHits.Count, 15)} of {coneHits.Count}) ---");
+            int idx = 0;
+            foreach (var c in coneHits.Take(15))
+            {
+                idx++;
+                sb.AppendLine($"[{idx}] {c.Name}  dist={c.Along:F1}m  offAxis={c.Perp:F1}m  {GetEntityAssetStr(c.Entity)}");
+            }
+            if (coneHits.Count == 0)
+                sb.AppendLine("(none — 视锥内没有任何带 mesh 的实体，试试加大距离/角度)");
+
+            sb.AppendLine("════════════════════════════════");
+
+            string result = sb.ToString();
+            DebugLogger.Log(result);
+            return result;
+        }
+
+        private struct ConeHit
+        {
+            public GameEntity Entity;
+            public string Name;
+            public float Along;   // 沿视线方向的距离
+            public float Perp;    // 离视线中轴的垂直距离
+        }
+
+        /// <summary>递归收集视锥内的带 mesh 实体。判定：pivot 或首 mesh 包围盒任一角落入锥即算（大物件 pivot 偏移也能命中）。</summary>
+        private static void CollectLookCone(GameEntity e, Vec3 eye, Vec3 dir, float maxDist, float tanHalf, List<ConeHit> results)
+        {
+            if (e == null) return;
+
+            if (e.MultiMeshComponentCount > 0)
+            {
+                float bestAlong = float.MaxValue, bestPerp = 0f;
+                MatrixFrame frame = e.GetGlobalFrame();
+
+                TryConePoint(e.GlobalPosition, eye, dir, maxDist, tanHalf, ref bestAlong, ref bestPerp);
+                try
+                {
+                    var mesh = e.GetMetaMesh(0)?.GetMeshAtIndex(0);
+                    if (mesh != null)
+                    {
+                        Vec3 mn = mesh.GetBoundingBoxMin(), mx = mesh.GetBoundingBoxMax();
+                        for (int c = 0; c < 8; c++)
+                        {
+                            Vec3 corner = new Vec3(
+                                (c & 1) == 0 ? mn.x : mx.x,
+                                (c & 2) == 0 ? mn.y : mx.y,
+                                (c & 4) == 0 ? mn.z : mx.z);
+                            TryConePoint(frame.TransformToParent(corner), eye, dir, maxDist, tanHalf, ref bestAlong, ref bestPerp);
+                        }
+                    }
+                }
+                catch (Exception) { /* bbox 读取失败不致命，pivot 已测过 */ }
+
+                if (bestAlong < float.MaxValue)
+                {
+                    string name = string.IsNullOrWhiteSpace(e.Name) ? "(unnamed)" : e.Name;
+                    results.Add(new ConeHit { Entity = e, Name = name, Along = bestAlong, Perp = bestPerp });
+                }
+            }
+
+            for (int i = 0; i < e.ChildCount; i++)
+                CollectLookCone(e.GetChild(i), eye, dir, maxDist, tanHalf, results);
+        }
+
+        private static void TryConePoint(Vec3 p, Vec3 eye, Vec3 dir, float maxDist, float tanHalf,
+            ref float bestAlong, ref float bestPerp)
+        {
+            Vec3 v = p - eye;
+            float along = Vec3.DotProduct(v, dir);
+            if (along < 0.2f || along > maxDist) return;          // 太贴近相机或在身后/超程
+            float perpSq = v.LengthSquared - along * along;
+            float allowed = along * tanHalf;                       // 圆锥半径随距离放大
+            if (perpSq > allowed * allowed) return;
+            if (along < bestAlong) { bestAlong = along; bestPerp = MathF.Sqrt(MathF.Max(0f, perpSq)); }
+        }
+
+        /// <summary>取实体的外观资源名。entity.Name 是场景命名（作者可随意改），外观由 prefab/mesh 资源名决定。</summary>
+        private static string GetEntityAssetStr(GameEntity e)
+        {
+            string prefab = null, mesh = null;
+            try { prefab = e.GetPrefabName(); } catch (Exception) { /* 实体失效时跳过 */ }
+            try { if (e.MultiMeshComponentCount > 0) mesh = e.GetMetaMesh(0)?.GetName(); } catch (Exception) { }
+            return $"prefab={(string.IsNullOrEmpty(prefab) ? "-" : prefab)} mesh={(string.IsNullOrEmpty(mesh) ? "-" : mesh)}";
+        }
+
+        /// <summary>
+        /// 在玩家面前生成指定 prefab，用于预览外观/选型（例如给保管箱挑模型）。
+        /// 预览实体不入存档，离开场景重进即消失。
+        /// 用法: custom.spawn_prefab bd_chest_a [dist=2]
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("spawn_prefab", "custom")]
+        public static string ExecuteSpawnPrefab(List<string> args)
+        {
+            if (Mission.Current == null || Mission.Current.Scene == null || Agent.Main == null)
+                return "Error: not in mission.";
+            if (args.Count < 1 || string.IsNullOrWhiteSpace(args[0]))
+                return "Usage: custom.spawn_prefab <prefabName> [dist]";
+
+            string prefabName = args[0];
+            float dist = 2f;
+            if (args.Count >= 2) float.TryParse(args[1], out dist);
+
+            if (!GameEntity.PrefabExists(prefabName))
+                return $"Prefab '{prefabName}' not found (not loaded in this scene).";
+
+            // 落点：玩家面前 dist 米处、与玩家同层地面（取水平朝向，避免低头看地时埋进地里）
+            Vec3 look = Agent.Main.LookDirection;
+            float hl = MathF.Sqrt(look.x * look.x + look.y * look.y);
+            Vec3 fwd = hl > 1e-3f ? new Vec3(look.x / hl, look.y / hl, 0f) : new Vec3(0f, 1f, 0f);
+            Vec3 pos = Agent.Main.Position + fwd * dist;
+
+            MatrixFrame frame = MatrixFrame.Identity;
+            frame.origin = pos;
+
+            GameEntity entity = GameEntity.Instantiate(Mission.Current.Scene, prefabName, frame);
+            if (entity == null)
+                return $"Instantiate '{prefabName}' failed.";
+
+            string msg = $"Spawned '{prefabName}' at ({pos.x:F1},{pos.y:F1},{pos.z:F1}) {GetEntityAssetStr(entity)}";
+            DebugLogger.Log($"[SpawnPrefab] {msg}");
+            return msg;
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("print_focus", "custom")]

@@ -453,5 +453,50 @@ namespace LivingWorldNpcs
                 yield return k;
 #endif
         }
+
+        // ── Scene raycast（视线拾取）────────────────────────────────
+        // v1.2.12: out GameEntity
+        // Latest:  out WeakGameEntity（读取接口等价，提取字串后统一返回）
+
+        /// <summary>视线射线命中结果（两版本统一的只读快照）。</summary>
+        public struct LookAtHit
+        {
+            public bool Hit;
+            public float Distance;
+            public Vec3 Point;
+            public string EntityName;   // null = 命中地形/无实体
+            public string PrefabName;
+            public string MeshName;
+        }
+
+        /// <summary>
+        /// 沿视线做射线检测（与原版交互聚焦同一 API，默认 CommonFocusRayCastExcludeFlags）。
+        /// 只命中有物理碰撞体的实体 + 地形；纯装饰 mesh 会穿透，调用方需自行兜底（如视锥几何扫描）。
+        /// </summary>
+        public static LookAtHit RayCastLookAt(Scene scene, Vec3 src, Vec3 dst)
+        {
+            var r = new LookAtHit();
+            if (scene == null) return r;
+#if !MB2_V1212
+            r.Hit = scene.RayCastForClosestEntityOrTerrain(src, dst, out float d, out Vec3 p, out WeakGameEntity e);
+            r.Distance = d; r.Point = p;
+            if (r.Hit && e.IsValid)
+            {
+                r.EntityName = e.Name;
+                try { r.PrefabName = e.GetPrefabName(); } catch (Exception) { /* 实体失效时跳过资源名 */ }
+                try { if (e.MultiMeshComponentCount > 0) r.MeshName = e.GetMetaMesh(0)?.GetName(); } catch (Exception) { }
+            }
+#else
+            r.Hit = scene.RayCastForClosestEntityOrTerrain(src, dst, out float d, out Vec3 p, out GameEntity e);
+            r.Distance = d; r.Point = p;
+            if (r.Hit && e != null)
+            {
+                r.EntityName = e.Name;
+                try { r.PrefabName = e.GetPrefabName(); } catch (Exception) { /* 实体失效时跳过资源名 */ }
+                try { if (e.MultiMeshComponentCount > 0) r.MeshName = e.GetMetaMesh(0)?.GetName(); } catch (Exception) { }
+            }
+#endif
+            return r;
+        }
     }
 }

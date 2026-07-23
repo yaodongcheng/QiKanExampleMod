@@ -1780,22 +1780,10 @@ namespace LivingWorldNpcs
                 float groundHeight = scene.GetGroundHeightAtPosition(chestPos);
                 if (groundHeight != 0f) chestPos.z = groundHeight;
 
-                // 2. 扫描场景中已有的储物类可见实体，克隆最佳候选
-                _chestEntity = StealManager.FindAndCloneStorageProp(scene, chestPos);
+                // 2. 生成保管箱可见实体：固定 prefab（bd_chest_c，实机选定）优先，场景克隆兜底
+                _chestEntity = StealManager.SpawnStorageChestProp(scene, chestPos);
 
-                // 3. 回退：已知 prefab 名 Instantiate
-                if (_chestEntity == null)
-                {
-                    MatrixFrame frame = new MatrixFrame(Mat3.Identity, chestPos);
-                    _chestEntity = GameEntity.Instantiate(scene, "bd_barrel_a", frame)
-                        ?? GameEntity.Instantiate(scene, "bd_barrel_f", frame)
-                        ?? GameEntity.Instantiate(scene, "bd_sack_a", frame)
-                        ?? GameEntity.Instantiate(scene, "bd_basket_a", frame);
-                    if (_chestEntity != null)
-                        DebugLogger.Log($"[Chest] Fallback Instantiate succeeded at {chestPos}");
-                }
-
-                // 4. 最终兜底：不可见标记点
+                // 3. 最终兜底：不可见标记点
                 if (_chestEntity == null)
                 {
                     MatrixFrame frame = new MatrixFrame(Mat3.Identity, chestPos);
@@ -1805,7 +1793,7 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    // 5. KCD2 风格视觉提示：给克隆体加暖金微色调，让玩家能注意到
+                    // 4. KCD2 风格视觉提示：给箱体加暖金微色调，让玩家能注意到
                     StealManager.ApplyChestHighlight(_chestEntity);
                 }
 
