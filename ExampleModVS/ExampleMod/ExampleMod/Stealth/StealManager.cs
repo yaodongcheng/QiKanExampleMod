@@ -928,10 +928,43 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 递归扫描场景中所有 GameEntity，找到最合适的储物类道具，克隆并放到 targetPos。
-        /// 评分策略：名字含 barrel/sack/crate/chest/basket 等关键词 → 高分；离目标越近 → 加分。
+        /// 保管箱外观 prefab。实机对比选定：原版 271 个场景 XML 中验证在用的真箱子模型（bd_chest_* 家族）。
         /// </summary>
-        internal static GameEntity FindAndCloneStorageProp(Scene scene, Vec3 targetPos)
+        internal const string ChestPrefabName = "bd_chest_c";
+
+        /// <summary>
+        /// 生成保管箱可见实体。两轮策略（铁律 5）：
+        /// ① 固定 prefab Instantiate —— 外观正确性优先：场景克隆靠实体名猜，曾把椅子（bd_chair_c）
+        ///    纯靠贴脸距离选成"宝箱"，实体名与外观无必然联系；
+        /// ② 场景扫描克隆兜底 —— prefab 未加载时（如内容包场景），从场景已有储物道具克隆。
+        /// </summary>
+        internal static GameEntity SpawnStorageChestProp(Scene scene, Vec3 targetPos)
+        {
+            if (GameEntity.PrefabExists(ChestPrefabName))
+            {
+                MatrixFrame frame = MatrixFrame.Identity;
+                frame.origin = targetPos;
+                var chest = GameEntity.Instantiate(scene, ChestPrefabName, frame);
+                if (chest != null)
+                {
+                    DebugLogger.Log($"[Chest] Spawned prefab '{ChestPrefabName}' at {targetPos}");
+                    return chest;
+                }
+                DebugLogger.Log($"[Chest] Instantiate '{ChestPrefabName}' failed — fallback to scene scan");
+            }
+            else
+            {
+                DebugLogger.Log($"[Chest] Prefab '{ChestPrefabName}' not loaded — fallback to scene scan");
+            }
+
+            return FindAndCloneStorageProp(scene, targetPos);
+        }
+
+        /// <summary>
+        /// 递归扫描场景中所有 GameEntity，找到最合适的储物类道具，克隆并放到 targetPos。
+        /// 评分策略：名字含 barrel/sack/crate/chest/basket 等关键词才入选（通用道具禁止靠距离夺冠）；离目标越近 → 加分。
+        /// </summary>
+        private static GameEntity FindAndCloneStorageProp(Scene scene, Vec3 targetPos)
         {
             var candidates = new List<(GameEntity entity, float score)>();
             var rootEntities = NativeObjectArray.Create();
@@ -1007,7 +1040,9 @@ namespace LivingWorldNpcs
                 float distScore = Math.Max(0, 50f - dist) * 2f;
 
                 float total = nameScore + distScore;
-                if (total > 55f) // 最低门槛：过滤完全不相关的
+                // 必须命中储物关键词才入选：通用道具（nameScore=5）曾纯靠贴脸距离夺冠，
+                // 把 bd_chair_c 椅子克隆成保管箱。距离只在真储物道具之间做 tie-break。
+                if (nameScore >= 70f)
                     candidates.Add((entity, total));
             }
 
@@ -1028,6 +1063,8 @@ namespace LivingWorldNpcs
         private static bool IsBlacklistedEntityName(string name)
         {
             if (string.IsNullOrEmpty(name)) return true;
+            // 下划线开头 = 引擎/场景内部实体（__skybox__、_negative_light_10 等）
+            if (name.StartsWith("_")) return true;
             // 精确匹配
             if (name == "__skybox__") return true;
             // 前缀匹配
