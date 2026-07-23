@@ -113,7 +113,11 @@ namespace LivingWorldNpcs
         // ============================================================
         private static bool IsOccluded(Agent observer, Agent target)
         {
-            Vec3 eyePos = observer.GetEyeGlobalPosition();
+            return IsOccludedFrom(observer.GetEyeGlobalPosition(), target);
+        }
+
+        private static bool IsOccludedFrom(Vec3 eyePos, Agent target)
+        {
             Vec3 targetChestPos = target.AgentVisuals != null
                 ? target.AgentVisuals.GetGlobalFrame().origin + new Vec3(0, 0, 1.2f)
                 : target.Position + new Vec3(0, 0, 1.5f);
@@ -131,6 +135,82 @@ namespace LivingWorldNpcs
                 return true; // 被遮挡
 
             return false;
+        }
+
+        // ── 玩家视角遮挡缓存（IsPlayerSeeing 用）──
+        // 缓存字典即"兴趣集合"：查询冷 miss 时同步算一次插入，之后由 OnMissionTick 的
+        // 0.1s 闸门统一维护（投影还在 → 重射；离开屏幕/死亡 → 驱逐）。
+        // 键 = Agent.Index，mission 结束随 NpcSightSystem 移除清空。
+        private class PlayerSightCacheEntry
+        {
+            public Agent Agent;          // 引用直接持有，tick 刷新时免按 Index 反查
+            public float LastCheckTime;
+            public bool Occluded;
+        }
+        private static readonly Dictionary<int, PlayerSightCacheEntry> _playerSightCache = new Dictionary<int, PlayerSightCacheEntry>();
+
+        // 安全上限（非主节奏）：主节奏是 tick 的 0.1s 闸门。仅当 tick 停摆（如行为未注册）
+        // 缓存超过 1s 未刷新时，查询侧同步重算兜底，退化为低频懒加载依然正确。
+        private const float PlayerSightCacheSafetyCeiling = 1f;
+
+        /// <summary>玩家视角起点：相机位置（第三人称越肩视角以相机为准），拿不到回退 MainAgent 眼位。</summary>
+        private static Vec3 GetPlayerViewEyePos(Agent fallbackTarget, MissionScreen ms)
+        {
+            return ms.CombatCamera?.Position
+                ?? Agent.Main?.GetEyeGlobalPosition()
+                ?? fallbackTarget.Position;
+        }
+
+        /// <summary>玩家视角 → target 胸口是否被遮挡。命中缓存直接返回；冷 miss 或超安全上限时同步算并写入。</summary>
+        private static bool IsOccludedFromPlayerView(Agent target, MissionScreen ms)
+        {
+            float now = Mission.Current?.CurrentTime ?? 0f;
+            if (_playerSightCache.TryGetValue(target.Index, out PlayerSightCacheEntry entry)
+                && now - entry.LastCheckTime < PlayerSightCacheSafetyCeiling)
+            {
+                return entry.Occluded;
+            }
+
+            bool occluded = IsOccludedFrom(GetPlayerViewEyePos(target, ms), target);
+
+            if (entry == null)
+            {
+                entry = new PlayerSightCacheEntry { Agent = target };
+                _playerSightCache[target.Index] = entry;
+            }
+            entry.LastCheckTime = now;
+            entry.Occluded = occluded;
+            return occluded;
+        }
+
+        /// <summary>tick 感知段：维护玩家视线遮挡缓存（0.1s 节奏，战斗模式也运行——感知层不冻结）。</summary>
+        private void RefreshPlayerSightCache()
+        {
+            if (_playerSightCache.Count == 0) return;
+
+            MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
+            if (ms == null) return;
+
+            float now = Mission.Current?.CurrentTime ?? 0f;
+            List<int> evictKeys = null;
+
+            foreach (KeyValuePair<int, PlayerSightCacheEntry> kv in _playerSightCache)
+            {
+                Agent agent = kv.Value.Agent;
+                if (agent == null || !agent.IsActive() || !IsProjectedOnScreen(agent, ms))
+                {
+                    // 死亡/离开屏幕：驱逐。下次进入视野走查询侧冷路径同步算
+                    if (evictKeys == null) evictKeys = new List<int>();
+                    evictKeys.Add(kv.Key);
+                    continue;
+                }
+
+                kv.Value.Occluded = IsOccludedFrom(GetPlayerViewEyePos(agent, ms), agent);
+                kv.Value.LastCheckTime = now;
+            }
+
+            if (evictKeys != null)
+                foreach (int key in evictKeys) _playerSightCache.Remove(key);
         }
 
         // ============================================================
@@ -189,10 +269,11 @@ namespace LivingWorldNpcs
         public override void OnRemoveBehavior()
         {
             if (Instance == this) Instance = null;
+            _playerSightCache.Clear();   // Agent.Index 跨 mission 会复用，缓存必须随 mission 销毁
             base.OnRemoveBehavior();
         }
 
-        /// <summary>agent 当前是否在玩家屏幕内（WorldPointToScreenPoint 投影判断，最符合玩家认知的 FOV）</summary>
+        /// <summary>玩家是否实际看到 agent：①屏幕投影（WorldPointToScreenPoint，最符合玩家认知的 FOV）②相机→胸口遮挡射线（tick 0.1s 维护的缓存）。墙后/屋内 NPC 一律不可见。</summary>
         public static bool IsPlayerSeeing(Agent agent)
         {
             if (agent == null || !agent.IsActive()) return false;
@@ -201,6 +282,17 @@ namespace LivingWorldNpcs
             MissionScreen ms = ScreenManager.TopScreen as MissionScreen;
             if (ms == null) return false;
 
+            // 第一道：屏幕投影（便宜，每帧可做）
+            if (!IsProjectedOnScreen(agent, ms)) return false;
+
+            // 第二道：遮挡射线（墙后/屋内的 NPC 投影也在屏幕内，但玩家实际看不到——
+            // 血条/seeing 事件等所有调用方统一不许穿透，否则就是上帝视角情报泄露）
+            return !IsOccludedFromPlayerView(agent, ms);
+        }
+
+        /// <summary>agent 头顶是否投影在玩家屏幕内（含 100px padding）。查询路径和 tick 驱逐判断共用。</summary>
+        private static bool IsProjectedOnScreen(Agent agent, MissionScreen ms)
+        {
             Vec3 agentPos = agent.Position;
             agentPos.z += agent.GetEyeGlobalHeight() + 0.1f;
             var screenPos = ms.SceneLayer.WorldPointToScreenPoint(agentPos);
@@ -222,9 +314,19 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
-            // 战斗模式下整个视野追踪系统不运行（静态查询 IsPlayerSeeing 仍可用）
+            // 0.1 秒闸门：全类统一节奏，感知段和认知段共用
+            _tickTimer += dt;
+            if (_tickTimer < 0.1f) return;
+            float tickDt = _tickTimer;  // 保存实际累积时间
+            _tickTimer = 0f;
+
+            // ── 感知层（战斗模式也运行）：维护玩家视线遮挡缓存 ──
+            RefreshPlayerSightCache();
+
+            // ── 认知层：战斗模式下追踪/事件冻结（静态查询 IsPlayerSeeing 仍可用）──
             if (Settings.Instance.IsInteractionDisabled())
                 return;
+
             //只有被注册过的Agent，才会被Npc视野跟踪，比如玩家，或者玩家自己的随从
             if (!_firstTickDone)
             {
@@ -234,12 +336,6 @@ namespace LivingWorldNpcs
                     RegisterTrackedTarget(Agent.Main, 15f, 50f);
                 }
             }
-
-            //0.1秒检查一次（警戒值需要高频响应）
-            _tickTimer += dt;
-            if (_tickTimer < 0.1f) return;
-            float tickDt = _tickTimer;  // 保存实际累积时间
-            _tickTimer = 0f;
 
             // 🆕 刷新玩家 tracked target 的 Agent 引用（防注册时 Agent.Main 尚未 spawn 导致引用过时）
             foreach (var t in _tracked)

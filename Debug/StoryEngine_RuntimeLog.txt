@@ -1,6 +1,85 @@
-﻿[17:58:19.231] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib
+﻿[17:49:28.123] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[17:58:24.555] [WorldEventStore] Deserialized 0 events, 0 alerts
-[17:58:32.393] [AddQuickInformation] "成就被禁用！"
+[17:49:33.397] [WorldEventStore] Deserialized 0 events, 0 alerts
+[17:49:41.439] [AddQuickInformation] "成就被禁用！"
+[17:49:52.764] [DisplayMessage] "你发现了木匠安德洛斯"
+[17:49:52.764] [DisplayMessage] "你发现了木匠达利得斯"
+[17:49:52.764] [DisplayMessage] "你发现了麦酒酿制工浦里奥斯"
+[17:49:52.764] [DisplayMessage] "你发现了“酪乳”阿法倪斯"
+[17:49:52.764] [DisplayMessage] "你发现了“赤眼”得尔提索斯"
+[17:50:03.605] [Wealth] 吕卡隆 (TownCenter, ×0.40): 金库11004→场景4401→流通池4401, NPC池3520(英雄6人=510, 村民141人=2961), 箱子881第纳尔, 物资19种(过滤后)
+[17:50:03.617] [Chest] Scan: context=TownCenter, best candidate 'shop_prop_merchantpottery_a' (score=122), candidates=28, names=[shop_prop_merchantpottery_a, shop_prop_merchantpottery_b, prop_merchantpottery_c, bd_chair_b, shop_prop_merchantpottery_b]
+[17:50:03.617] [Chest] Cloned 'shop_prop_merchantpottery_a' → moved to (368.4602, 477.7571, 76.76988)
+[17:50:03.619] [Chest] Visual highlight applied (warm gold tint)
+[17:50:03.619] [Chest] Spawned at (368.4602, 477.7571, 76.76988), context=TownCenter, gold=881, items=19
+[17:50:14.385] [Brain-Phase] 帝国军团步兵(Idx=40) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
+[17:50:14.391] [Brain-Receive] 帝国军团步兵(Idx=40) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:50:14.403] [BubbleSay] 帝国军团步兵(Idx=40): "（不安地看了一眼）怎么还拔铁制弯刀了……"
+[17:50:14.487] [Brain-Phase] 帝国新兵(Idx=39) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
+[17:50:14.487] [Brain-Receive] 帝国新兵(Idx=39) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:50:14.487] [BubbleSay] 帝国新兵(Idx=39): "（不安地看了一眼）怎么还拔铁制弯刀了……"
+[17:50:14.583] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国步兵 造成了0 点伤害"
+[17:50:14.584] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国步兵 (Index:38, 距离:1.9m, 方位:西北)"
+[17:50:14.584] [Brain-Receive] 帝国步兵(Idx=38) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:50:14.584] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国步兵 造成了伤害"
+[17:50:14.585] [BubbleSay] 帝国步兵(Idx=38): "你！你敢打我？！"
+[17:50:14.585] [Brain-Clear] 帝国步兵(Idx=38) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:50:14.586] [Brain-Enqueue] 帝国步兵(Idx=38) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:50:14.586] [AI-Debug] Suspend 帝国步兵 (Idx=38) | 集合size=1 | 当前行为=null
+[17:50:14.587] [WorldEvent] misconduct_town_ES4_2185860 Stage: Dormant → Active
+[17:50:14.590] [RegisterWitness] 帝国步兵 witnessed crime → WorldEvent misconduct_town_ES4_2185860 Stage → Active (suspect=player)
+[17:50:14.591] [Brain-Phase] 帝国步兵(Idx=38) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔帝国步兵] → 发送 'BecomeAlarmed'
+[17:50:14.591] [Brain-Receive] 帝国步兵(Idx=38) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[17:50:14.595] [Brain-Receive] 帝国新兵(Idx=39) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[17:50:14.595] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国步兵 造成了伤害"
+[17:50:14.595] [BubbleSay] 帝国新兵(Idx=39): "你！你敢动我们村的人？！"
+[17:50:14.595] [Brain-Clear] 帝国新兵(Idx=39) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:50:14.595] [Brain-Enqueue] 帝国新兵(Idx=39) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:50:14.595] [AI-Debug] Suspend 帝国新兵 (Idx=39) | 集合size=2 | 当前行为=null
+[17:50:14.596] [Brain-Phase] 帝国新兵(Idx=39) 警戒上升: Suspicious → Alarmed (警戒值=3.26) 因素=[WeaponDrawn=0.26, AttackAlly=3.00➔帝国新兵] → 发送 'BecomeAlarmed'
+[17:50:14.596] [Brain-Receive] 帝国新兵(Idx=39) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Suspicious
+[17:50:14.596] [Brain-Receive] 帝国军团步兵(Idx=40) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[17:50:14.596] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国步兵 造成了伤害"
+[17:50:14.596] [BubbleSay] 帝国军团步兵(Idx=40): "你！你敢动我们村的人？！"
+[17:50:14.596] [Brain-Clear] 帝国军团步兵(Idx=40) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:50:14.596] [Brain-Enqueue] 帝国军团步兵(Idx=40) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:50:14.596] [AI-Debug] Suspend 帝国军团步兵 (Idx=40) | 集合size=3 | 当前行为=null
+[17:50:14.597] [Brain-Phase] 帝国军团步兵(Idx=40) 警戒上升: Suspicious → Alarmed (警戒值=3.28) 因素=[WeaponDrawn=0.28, AttackAlly=3.00➔帝国军团步兵] → 发送 'BecomeAlarmed'
+[17:50:14.597] [Brain-Receive] 帝国军团步兵(Idx=40) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Suspicious
+[17:50:14.600] [Brain-Tick] 帝国步兵(Idx=38) 开始执行 FightEnemyAction | 队列剩余=0
+[17:50:14.600] [DisplayMessage] [Yellow] "帝国步兵(Idx=38)  开始攻击 亨利！"
+[17:50:14.600] [CombatManager] RegisterCombatant: 帝国步兵(Idx=38), total=1
+[17:50:14.603] [Brain-Tick] 帝国新兵(Idx=39) 开始执行 FightEnemyAction | 队列剩余=0
+[17:50:14.603] [DisplayMessage] [Yellow] "帝国新兵(Idx=39)  开始攻击 亨利！"
+[17:50:14.603] [CombatManager] RegisterCombatant: 帝国新兵(Idx=39), total=2
+[17:50:14.604] [Brain-Tick] 帝国军团步兵(Idx=40) 开始执行 FightEnemyAction | 队列剩余=0
+[17:50:14.604] [DisplayMessage] [Yellow] "帝国军团步兵(Idx=40)  开始攻击 亨利！"
+[17:50:14.604] [CombatManager] RegisterCombatant: 帝国军团步兵(Idx=40), total=3
+[17:50:16.363] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国步兵 对 亨利 造成了11 点伤害"
+[17:50:16.370] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：1.1米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[17:50:17.451] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国军团步兵 对 亨利 造成了18 点伤害"
+[17:50:17.453] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到18点钝击伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.31米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[17:50:17.493] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国新兵 对 亨利 造成了13 点伤害"
+[17:50:17.496] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到13点穿刺伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.4米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[17:50:19.286] [DisplayMessage] [Red] "Agent 亨利 被加入尸体列表"
+[17:50:19.303] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到18点钝击伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.75米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[17:50:19.304] [Brain-Tick] 帝国步兵(Idx=38) 完成 FightEnemyAction
+[17:50:19.305] [CombatManager] UnregisterCombatant: 帝国步兵(Idx=38), total=2
+[17:50:19.305] [CombatManager] EndFight: 帝国步兵(Idx=38) restored to original team
+[17:50:19.306] [Brain-Alert] 帝国步兵(Idx=38) ClearAllAlerts: 警戒值归零
+[17:50:19.306] [FightEnd] 帝国步兵(Idx=38) 战斗结束，收起武器，且警戒值归零
+[17:50:19.306] [Brain-Tick] 帝国新兵(Idx=39) 完成 FightEnemyAction
+[17:50:19.306] [CombatManager] UnregisterCombatant: 帝国新兵(Idx=39), total=1
+[17:50:19.306] [CombatManager] EndFight: 帝国新兵(Idx=39) restored to original team
+[17:50:19.306] [Brain-Alert] 帝国新兵(Idx=39) ClearAllAlerts: 警戒值归零
+[17:50:19.307] [FightEnd] 帝国新兵(Idx=39) 战斗结束，收起武器，且警戒值归零
+[17:50:19.307] [Brain-Tick] 帝国军团步兵(Idx=40) 完成 FightEnemyAction
+[17:50:19.307] [CombatManager] UnregisterCombatant: 帝国军团步兵(Idx=40), total=0
+[17:50:19.307] [CombatManager] EndFight: 帝国军团步兵(Idx=40) restored to original team
+[17:50:19.307] [Brain-Alert] 帝国军团步兵(Idx=40) ClearAllAlerts: 警戒值归零
+[17:50:19.307] [FightEnd] 帝国军团步兵(Idx=40) 战斗结束，收起武器，且警戒值归零
+[17:50:19.312] [AI-Debug] Resume 帝国步兵 (Idx=38) | 集合size=2
+[17:50:19.313] [AI-Debug] Resume 帝国新兵 (Idx=39) | 集合size=1
+[17:50:19.313] [AI-Debug] Resume 帝国军团步兵 (Idx=40) | 集合size=0
