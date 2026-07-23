@@ -97,17 +97,15 @@ namespace LivingWorldNpcs
             float hpPercentage = currentHp / TargetAgent.HealthLimit;
             _targetHealthWidth = MaxBarWidth * MBMath.ClampFloat(hpPercentage, 0f, 1f);
 
-            // 4. 血条显示条件（细化）
-            bool isWeaponDrawn = !TargetAgent.WieldedWeapon.IsEmpty;
+            // 4. 血条显示条件（敌意驱动，不看手里有没有武器——守卫巡逻恒持械，武器是制服不是敌意）
+            //    戒备信号用 CurrentWatchState（两版 DLL 都有，免去 #if）：
+            //    我方战斗系统开打时 CombatManager.ActivateFightMode 设 Alarmed、打完重置 Patrolling；
+            //    守卫由原版 AlarmedBehaviorGroup 驱动，起疑 Cautious → 确认威胁 Alarmed。
             bool isFighting = AgentAIController.GetBrainForAgent(TargetAgent)?.IsCurrentOrPending<FightEnemyAction>() ?? false;
             bool isHealthLow = hpPercentage < 0.95f && currentHp > 0;
-#if !MB2_V1212
-            bool isAlerted = TargetAgent.IsAlarmed() || TargetAgent.IsCautious();
-#else
-            bool isAlerted = false;
-#endif
+            bool isAlerted = TargetAgent.CurrentWatchState == Agent.WatchState.Alarmed;
 
-            ShowHealth = isWeaponDrawn || isFighting || isHealthLow || isAlerted;
+            ShowHealth = isFighting || isHealthLow || isAlerted;
 
             // 🆕 感知关闭模式下：只有玩家攻击过的 Agent 才显示血条/伤害（避免满屏 HUD 碍眼）
             if (Settings.Instance.IsInteractionDisabled())

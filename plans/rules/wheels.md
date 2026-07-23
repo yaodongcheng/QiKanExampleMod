@@ -30,8 +30,8 @@ Settings.Reload();                     // 重载 config.json
 | **NpcSightSystem** 视野追踪 | ✅ 追踪谁在看谁 | ❌ tick 跳过 |
 | **AgentBrain** 警戒值认知 | ✅ 拔刀/蹲下/偷窃 → 警戒值累积 | ❌ 冻结 |
 | **警戒眼睛** (ShowAlert) | ✅ 显示，FOV 豁免 | ❌ 强制隐藏 |
-| **血条** (ShowHealth) | ✅ 拔武器/战斗中/掉血时显示 | 🔶 仅玩家攻击过的 Agent |
-| **IsPlayerSeeing** (FOV 裁剪) | ✅ 正常 | ✅ 正常 |
+| **血条** (ShowHealth) | ✅ 战斗中/掉血/戒备（WatchState）时显示 | 🔶 仅玩家攻击过的 Agent |
+| **IsPlayerSeeing** (投影+遮挡) | ✅ 正常 | ✅ 正常 |
 | **击晕** (TryKnockoutAgent) | ✅ 允许 | ❌ 禁止 |
 | **偷窃** (TryStealFromAgent) | ✅ 允许 | ❌ 禁止 |
 | **偷动物** (TryStealAnimal) | ✅ 允许 | ❌ 禁止 |
@@ -649,7 +649,7 @@ custom.agentHud_say <agentStringId> <text>
 |------|---------|----------|----------|:---:|
 | **名字** | `ShowName` + `AgentName` | ShowSpeech \|\| ShowHealth \|\| ShowDamage | 跟随触发元素 | ✅ |
 | **说话** | `ShowSpeech` + `SpeechText` | `Speak(text)` 调用 | `4s + text.Length * 0.1s` | ✅ |
-| **血条** | `ShowHealth` + `CurrentHealthWidth` | 拔武器/战斗中/血量<95%/警戒态 | 持续（条件消失隐藏） | ✅ |
+| **血条** | `ShowHealth` + `CurrentHealthWidth` | 战斗中/血量<95%/戒备（`CurrentWatchState` Alarmed\|Cautious，敌意驱动，不看持械） | 持续（条件消失隐藏） | ✅ |
 | **伤害** | `ShowDamage` + `DamageText` | 受伤害瞬间 | 2s | ✅ |
 | **警戒** | `ShowAlert` + `AlertFillHeight/EyeBgColor/EyeFillColor` | 警戒值 > 0 | 持续（归零隐藏） | ❌ **豁免** |
 
