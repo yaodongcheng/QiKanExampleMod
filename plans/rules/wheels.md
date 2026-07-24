@@ -926,6 +926,75 @@ var (hint, title, prefix) = InteractionMissionView.GetChestTexts(ctx);  // (提�
 
 **文件位置**：`Stealth/StealManager.cs`（`ChestContext` 枚举 + `GetCurrentChestContext` + `GetChestContextGoldWeight` + `IsItemAllowedInContext` + `FindChestAnchorPosition` + `IsBlacklistedEntityName`）、`Interaction/InteractionMissionView.cs`（`GetChestTexts` + SpawnChest/开箱 Inquiry 消费点）。
 
+## 附：场景锁簧片数表
+
+`StealManager.GetLockpickPinCount(ctx)` —— 撬锁难度的场景分发（沿用本模式）：村庄 2 / 城镇中心·酒馆·暗巷 3 / 城堡·领主大厅 4 / 兜底 2。锁难度 = 世界规则，与场景枚举同住 StealManager，不放 View。
+
+---
+
+# 时机判定条小游戏引擎（StealBar）— `Stealth/StealBarVM.cs` + `GUI/Prefabs/StealBar.xml`
+
+**解决什么问题**：「光标-目标区」时机判定小游戏（大侠立志传式偷窃/撬锁）。一个 VM 双模式（枚举切换），纯动画状态在 C# 侧由 View 每帧驱动，空格/按钮共用同一出手方法。任何新的「抓时机」玩法（钓鱼、打铁、拆解、追踪）都可复用这套骨架。
+
+## 结构（开/关/tick 三段式）
+
+```csharp
+// VM（继承 ViewModel；运动状态纯 C# 非绑定，绑定只同步渲染值）
+var vm = new StealBarVM(StealBarMode.Pickpocket, targetAgent, closeAction);
+var vm = new StealBarVM(StealBarMode.Lockpick, pinCount, title, closeAction);
+vm.UpdateFrame(dt);          // ← MissionView.OnMissionTick 每帧驱动；dt 为 Scene 缩放时间（子弹时间自洽）
+vm.ExecuteAttempt();         // 空格/按钮共用的出手（命中判定），Command.Click 可直接绑
+vm.CloseReason               // StealBarCloseReason 枚举 — VM 不直接关 UI，View 轮询消费统一收口
+
+// View（InteractionMissionView 为范本）
+_stealLayer = V.NewLayer(201);
+V.LoadMov(_stealLayer, "StealBar", vm);
+_stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse); // 鼠标留给按钮
+// tick 内：vm.UpdateFrame(dt) → Input.IsKeyPressed(Space/ESC) → vm.CloseReason 消费 → 关层
+```
+
+**CloseReason 轮询收口**：VM 想关 UI（目标走开/警觉拉满/完成）只置 `CloseReason`，不碰 Layer；View 每帧读它统一走 `CloseStealInterface`——所有关闭路径（收手/ESC/强制/完成）一个收口函数，配套资源（子弹时间/输入冻结/IsUIOpen）不可能漏回收。
+
+## 减法五色条（信号贡献可视化）
+
+基础宽**左端**扣警戒、**右端**扣物品，剩余 = 有效判定区，下限 = 完美区宽（钳满 = 全或无，每次命中即完美）。每层一个 Widget 绑 `float MarginLeft/SuggestedWidth`：基础暗灰 / 警戒红褐（人） / 物品蓝灰（物） / 有效金（+结果颜色闪烁 1.2s） / 完美亮金。
+**铁律**：宽度域每个色块成因必须唯一可读——技能等加成**禁止混进宽度**（技能走浮标速度通道：`260 ×(1−Roguery/300×25%)`）。结果文本不占控件，走 `InformationManager.DisplayMessage`，条上只留颜色闪烁做即时反馈。
+
+## 双动体 + 2.5× 铁律
+
+| | 浮标（玩家的手） | 子横条（猎物心神） |
+|---|---|---|
+| 运动 | 线性 ping-pong（匀速撞墙折返） | 正弦游弋（缓入缓出，仅 Cautious≥1.0 起） |
+| 速度 | 260px/s ×技能减速（撬锁 pin ×1.15ⁿ） | 55→100px/s 随警戒，且 **≤浮标/2.5 动态封顶** |
+
+**铁律**：浮标速度 ≥ 游动 2.5 倍——同速双动体追踪超出人类反应，退化成运气。由**游动侧动态封顶**实现（`DriftSpeed ≤ CursorSpeed/2.5`），技能减速浮标后比例自动成立。
+
+## 子弹时间 — `Mission.AddTimeSpeedRequest`（含坑）
+
+```csharp
+Mission.Current.AddTimeSpeedRequest(new Mission.TimeSpeedRequest(0.35f, requestId));  // 请求队列，取最小值
+// ⚠️ 移除必须先查！RemoveTimeSpeedRequest 对未知 ID 直接 RemoveAt(-1) 抛 ArgumentOutOfRangeException：
+if (mission.GetRequestedTimeSpeed(requestId, out _))
+    mission.RemoveTimeSpeedRequest(requestId);
+```
+
+- dt 缩放链路（反编译确认）：`Scene.TimeSpeed` → `OnTick(dt=缩放, realDt=真实)` → `OnMissionTick(dt)`——VM 动画/警戒累积/节流计时全走缩放 dt，子弹时间下世界与 UI 同步变慢，难度不被白嫖。
+- 配 `_stealSlowmoActive` 幂等标志；关闭每条路径 + `OnMissionScreenFinalize` 兜底回收。
+
+## 玩家输入冻结 — `V.SetPlayerControlFrozen(agent, bool)`
+
+模态小游戏 UI 打开时，键盘拦不住（ScreenManager 键盘路径只看 `FocusedLayer`，层 mask 无效），剥 `EventControlFlags` 也无效（原生控制器在托管 tick 之后才写标志）。**正解：切控制器**（详见 [pitfalls.md](pitfalls.md)「模态 UI 键盘输入拦不住」）。
+
+```csharp
+V.SetPlayerControlFrozen(Agent.Main, true);   // 开 UI：v1.2.12 切 ControllerType.AI → 主角待机
+V.SetPlayerControlFrozen(Agent.Main, false);  // 关 UI：切回 Player（自动重指 MainAgent + 广播）
+// Latest：ControllerType 已删，暂 no-op（TODO 待查）。配 _playerControlFrozen 幂等标志。
+```
+
+安全性：`AgentBrain.Tick` 对 `Owner == Agent.Main` 早退——本 mod brain 不会接管主角；SandBox 官方有同款切 AI 用法。
+
+**文件位置**：`Stealth/StealBarVM.cs`（引擎 + `StealPinVM`）、`GUI/Prefabs/StealBar.xml`（五层条 + 双按钮行）、`Interaction/InteractionMissionView.cs`（`TickStealBar`/`StartStealSlowmo`/`FreezePlayerControl` 为接线范本）、`Core/VersionCompat.cs`（`V.SetPlayerControlFrozen`）。
+
 ---
 
 # 版本兼容层 — `Core/VersionCompat.cs`
@@ -957,6 +1026,7 @@ V.SetPartyName(party, name)         // SetCustomName / Party.SetCustomName
 // ── Agent 控制
 V.IsAgentAI(agent) → bool           V.SetAgentAI(agent)
 V.IsAgentPlayer(agent) → bool       V.SetAgentPlayer(agent)
+V.SetPlayerControlFrozen(agent, frozen)  // 冻结/恢复玩家控制（v1.2.12: ControllerType.AI/Player；Latest 暂 no-op）
 
 // ── 武器 / 动作
 V.MainWpn(agent) → EquipmentIndex   V.OffWpn(agent) → EquipmentIndex

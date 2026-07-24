@@ -9,7 +9,7 @@
           <!-- 主面板 (760x200)：结果文本走 DisplayMessage，操作提示并入按钮文本 -->
           <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="760" SuggestedHeight="200"
                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                  Sprite="BlankWhiteSquare_9" Color="#101010CC"
+                  Sprite="SPGeneral\OverlayPopup\portrait_slot" 
                   DoNotAcceptEvents="true">
             <Children>
 
@@ -26,17 +26,16 @@
                             IsVisible="@IsPickpocketMode"
                             DoNotAcceptEvents="true"/>
 
-                <!-- pin 进度行（Lockpick）：簧片一个个开 -->
+                <!-- pin 进度行（Lockpick）：簧片一个个开（间距用 MarginRight，Gauntlet 无 ItemGap） -->
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                            DataSource="{Pins}"
                            StackLayout.LayoutMethod="HorizontalLeftToRight"
                            HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="50"
-                           ItemGap="8"
                            IsVisible="@IsLockpickMode"
                            DoNotAcceptEvents="true">
                     <ItemTemplate>
                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="16"
-                                Sprite="BlankWhiteCircle" Color="@PinColor"
+                                Sprite="BlankWhiteCircle" Color="@PinColor" MarginRight="8"
                                 DoNotAcceptEvents="true"/>
                     </ItemTemplate>
                 </ListPanel>
@@ -87,16 +86,15 @@
                     </Children>
                 </Widget>
 
-                <!-- 按钮行（对标 Inquiry 确定/取消）：出手=点击或空格，收手=点击或ESC -->
+                <!-- 按钮行（对标 Inquiry 确定/取消）：出手=点击或空格，收手=点击或ESC；间距用 MarginRight（Gauntlet 无 ItemGap） -->
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                            StackLayout.LayoutMethod="HorizontalLeftToRight"
                            HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="14"
-                           ItemGap="20"
                            DoNotAcceptEvents="true">
                     <Children>
 
                         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="180" SuggestedHeight="42"
-                                      Brush="Test.Button2"
+                                      Brush="Test.Button3" MarginRight="20"
                                       Command.Click="ExecuteAttempt">
                             <Children>
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -107,7 +105,7 @@
                         </ButtonWidget>
 
                         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="180" SuggestedHeight="42"
-                                      Brush="Test.Button2"
+                                      Brush="Test.Button3"
                                       Command.Click="ExecuteLeave">
                             <Children>
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"

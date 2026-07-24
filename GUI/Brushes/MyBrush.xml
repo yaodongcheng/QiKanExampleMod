@@ -273,6 +273,32 @@
         </Styles>
     </Brush>
 
+    <Brush Name="Test.Button3">
+        <Layers>
+            <BrushLayer Name="Default"
+                        Sprite="General\Button\main_button_done"></BrushLayer>
+        </Layers>
+        <Styles>
+            <Style Name="Default">
+                <BrushLayer Name="Default"
+                            Color="#FFFFFFFF"/>
+            </Style>
+            <Style Name="Hovered">
+                <BrushLayer Name="Default"
+                             Sprite="General\Button\main_button_done_hover"
+ />
+            </Style>
+            <Style Name="Pressed">
+                <BrushLayer Name="Default"
+                            ColorFactor="0.8" />
+            </Style>
+            <Style Name="Selected">
+                <BrushLayer Name="Default"
+                            Sprite="order_popup_card_selected_9"/>
+            </Style>
+        </Styles>
+    </Brush>
+
 	  <!-- ========================================== -->
     <!-- 1. 按钮背景画刷：控制背景颜色变化 -->
     <!-- ========================================== -->
