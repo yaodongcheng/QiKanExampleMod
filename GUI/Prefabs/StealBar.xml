@@ -1,0 +1,128 @@
+<Prefab>
+  <Window>
+    <!-- 全屏根 = 轻遮罩 + 点击盾牌：面板外点击到此为止（防穿透到游戏误挥刀），20% 黑压暗世界聚焦面板 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            Sprite="BlankWhiteSquare_9" Color="#00000033"
+            DoNotAcceptEvents="false">
+      <Children>
+
+          <!-- 主面板 (760x200)：结果文本走 DisplayMessage，操作提示并入按钮文本 -->
+          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="760" SuggestedHeight="200"
+                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                  Sprite="BlankWhiteSquare_9" Color="#101010CC"
+                  DoNotAcceptEvents="true">
+            <Children>
+
+                <!-- 标题行：正在偷:张三 / 正在撬锁:村庄保管箱 -->
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34"
+                            Text="@TitleText" Brush="MyBrush_18_White" Brush.FontSize="20"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="12"
+                            DoNotAcceptEvents="true"/>
+
+                <!-- 预摸预览行（Pickpocket）：类型+重量档，不给确切名字 -->
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                            Text="@PreviewText" Brush="MyBrush_18_White" Brush.FontSize="16" TextColor="#CCCCCCFF"
+                            HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="46"
+                            IsVisible="@IsPickpocketMode"
+                            DoNotAcceptEvents="true"/>
+
+                <!-- pin 进度行（Lockpick）：簧片一个个开 -->
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           DataSource="{Pins}"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                           HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="50"
+                           ItemGap="8"
+                           IsVisible="@IsLockpickMode"
+                           DoNotAcceptEvents="true">
+                    <ItemTemplate>
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="16" SuggestedHeight="16"
+                                Sprite="BlankWhiteCircle" Color="@PinColor"
+                                DoNotAcceptEvents="true"/>
+                    </ItemTemplate>
+                </ListPanel>
+
+                <!-- ============ 父条（640x26）：子横条 + 金区 + 浮标 ============ -->
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="640" SuggestedHeight="26"
+                        HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="90"
+                        Sprite="BlankWhiteSquare_9" Color="#000000AA"
+                        DoNotAcceptEvents="true">
+                    <Children>
+
+                        <!-- 五层分段：基础底色(潜在区) → 左扣(警戒) → 右扣(物品) → 有效区 → 完美区 -->
+                        <!-- 1. 基础底色（潜在判定区，含技能加成；暗灰） -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                SuggestedWidth="@BaseWidth" MarginLeft="@BaseMarginLeft"
+                                Sprite="BlankWhiteSquare_9" Color="#3D3D3DFF"
+                                DoNotAcceptEvents="true"/>
+
+                        <!-- 2. 左扣：警戒损失（红褐，人） -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                SuggestedWidth="@AlertLossWidth" MarginLeft="@BaseMarginLeft"
+                                Sprite="BlankWhiteSquare_9" Color="#8B3A3AFF"
+                                DoNotAcceptEvents="true"/>
+
+                        <!-- 3. 右扣：物品损失（蓝灰，物） -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                SuggestedWidth="@ItemLossWidth" MarginLeft="@ItemLossMarginLeft"
+                                Sprite="BlankWhiteSquare_9" Color="#3A4A6BFF"
+                                DoNotAcceptEvents="true"/>
+
+                        <!-- 4. 有效判定区（金；成功绿闪/金区青闪/失败红闪 1.2s） -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                SuggestedWidth="@ZoneWidth" MarginLeft="@ZoneMarginLeft"
+                                Sprite="BlankWhiteSquare_9" Color="@ZoneColor"
+                                DoNotAcceptEvents="true"/>
+
+                        <!-- 5. 完美区（固定 12px 亮金，居中于有效区） -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                SuggestedWidth="12" MarginLeft="@PerfectMarginLeft"
+                                Sprite="BlankWhiteSquare_9" Color="#FFE97FFF"
+                                DoNotAcceptEvents="true"/>
+
+                        <!-- 浮标（6px 亮白） -->
+                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                SuggestedWidth="6" MarginLeft="@CursorMarginLeft"
+                                Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"
+                                DoNotAcceptEvents="true"/>
+                    </Children>
+                </Widget>
+
+                <!-- 按钮行（对标 Inquiry 确定/取消）：出手=点击或空格，收手=点击或ESC -->
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                           HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="14"
+                           ItemGap="20"
+                           DoNotAcceptEvents="true">
+                    <Children>
+
+                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="180" SuggestedHeight="42"
+                                      Brush="Test.Button2"
+                                      Command.Click="ExecuteAttempt">
+                            <Children>
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            Text="@AttemptButtonText" Brush="MyBrush_24" Brush.FontSize="18"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            DoNotAcceptEvents="true"/>
+                            </Children>
+                        </ButtonWidget>
+
+                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="180" SuggestedHeight="42"
+                                      Brush="Test.Button2"
+                                      Command.Click="ExecuteLeave">
+                            <Children>
+                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            Text="[ESC] 收手" Brush="MyBrush_24" Brush.FontSize="18"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            DoNotAcceptEvents="true"/>
+                            </Children>
+                        </ButtonWidget>
+
+                    </Children>
+                </ListPanel>
+
+            </Children>
+          </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

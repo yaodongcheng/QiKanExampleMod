@@ -396,7 +396,8 @@ namespace LivingWorldNpcs
                     // ── 警戒脉冲：区分偷窃 vs 攻击 vs 击晕（criminal==玩家时）──
                     // 认输场景：受害者大脑的 PendingPostConversationCleanup 已置 true，
                     // 此时战斗已结束但围观不应被误判为偷窃——跳过犯罪分类，仅保留围观行为。
-                    var victimBrain = AgentAIController.GetBrainForAgent(victim);
+                    // victim 可为 null（保管箱偷窃抓现行）→ GetBrainForAgent 对 null 取 .Index 会 NRE，先判空
+                    var victimBrain = victim != null ? AgentAIController.GetBrainForAgent(victim) : null;
                     bool isSurrenderScene = victimBrain?.PendingPostConversationCleanup == true;
 
                     if (criminal == Agent.Main)

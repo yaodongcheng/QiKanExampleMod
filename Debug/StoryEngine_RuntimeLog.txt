@@ -1,10 +1,10 @@
-﻿[22:12:52.905] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
+﻿[19:11:06.133] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[22:12:57.440] [WorldEventStore] Deserialized 0 events, 0 alerts
-[22:13:02.147] [AddQuickInformation] "成就被禁用！"
-[22:13:08.337] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[19:11:10.375] [WorldEventStore] Deserialized 0 events, 0 alerts
+[19:11:15.027] [AddQuickInformation] "成就被禁用！"
+[19:11:22.285] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -14,22 +14,20 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[22:13:08.390] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[22:13:08.395] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
-[22:13:08.400] [Chest] Spawned prefab 'bd_chest_c' at (534.3551, 233.8244, 16.98077)
-[22:13:08.402] [Chest] Visual highlight applied (warm gold tint)
-[22:13:08.402] [Chest] Spawned at (534.3551, 233.8244, 16.98077), context=Village, gold=200, items=4
-[22:13:53.315] [DisplayMessage] [Yellow] "你注意到村长屋旁有个微微泛金的储物桶，上面挂着一把旧锁……"
-[22:14:23.045] [ShowInquiry] "村庄保管箱" | "你找到了村庄的保管箱。
-金币: 200 第纳尔
-物品:
-  羊毛 x18
-  黄油 x6
-  奶酪 x7
-  谷物 x14" | Btn1="全部拿走" Btn2="自己挑选"
-[22:14:25.313] [DisplayMessage] [Yellow] "获得了 200 第纳尔。"
-[22:14:25.315] [TheftLedger] Recorded: grain x14 by main_hero from village_ES3_2
-[22:14:25.315] [TheftLedger] Recorded: cheese x7 by main_hero from village_ES3_2
-[22:14:25.315] [TheftLedger] Recorded: butter x6 by main_hero from village_ES3_2
-[22:14:25.315] [TheftLedger] Recorded: wool x18 by main_hero from village_ES3_2
-[22:14:25.315] [DisplayMessage] [Green] "获得了 45 件物品。"
+[19:11:22.293] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[19:11:22.299] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
+[19:11:22.331] [Chest] Spawned prefab 'bd_chest_c' at (529.3279, 202.0429, 19.54061)
+[19:11:22.333] [Chest] Visual highlight applied (warm gold tint)
+[19:11:22.333] [Chest] Spawned at (529.3279, 202.0429, 19.54061), context=Village, gold=200, items=4
+[19:11:44.122] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
+[19:11:54.456] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
+[19:12:00.277] [DisplayMessage] [Yellow] "顺手摸到了 5 第纳尔。"
+[19:12:00.278] [DisplayMessage] [RGB(0.3,0.9,0.3)] "得手了:厚围巾"
+[19:12:00.279] [StealBar] 窃取 厚围巾 ← 帝国女农民（+0.35 警戒）
+[19:12:00.558] [Brain-Phase] 帝国女农民(Idx=24) 警戒上升: Normal → Suspicious (警戒值=0.33) 因素=[Steal=0.33] → 发送 'BecomeSuspicious'
+[19:12:00.562] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[19:12:00.572] [BubbleSay] 帝国女农民(Idx=24): "咦，的呢？"
+[19:12:02.278] [Brain-Phase] 帝国女农民(Idx=24) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[19:12:02.279] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[19:12:02.280] [Brain-Clear] 帝国女农民(Idx=24) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[19:12:02.281] [Brain-Alert] 帝国女农民(Idx=24) ClearAllAlerts: 警戒值归零
