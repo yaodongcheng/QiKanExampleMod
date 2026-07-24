@@ -419,6 +419,79 @@ namespace LivingWorldNpcs
         }
 
         // ----------------------------------------------------------------
+        // 3b. 保管箱偷窃犯罪统一接线（照 RecordAnimalTheft 模板）：
+        //     目击检测 → RegisterTheftWitnesses → WitnessCrime 广播（victim=null 抓现行围堵）。
+        //     由 InteractionMissionView 两条 loot 路径在收尾时调用一次。
+        //     TheftLedger 的物品记账已在 LootChestItem/DeductSettlementItemsOnly 内完成；
+        //     金钱非物品、无法标赃，金的失窃由此处的证词 ActionRecord 承载。
+        // ----------------------------------------------------------------
+        /// <summary>
+        /// 保管箱 loot 收尾时记录目击证词并广播犯罪。无目击者 → 仅日志（偷干净了，没人知道）。
+        /// </summary>
+        /// <param name="items">拿走的物品清单（纯金时为空表）</param>
+        /// <param name="gold">拿走的金币（无则为 0）</param>
+        public static void RecordChestTheft(Settlement settlement, List<(string itemId, string itemName, int count)> items, int gold)
+        {
+            try
+            {
+                if (settlement == null || Agent.Main == null) return;
+
+                if (!Settings.Instance.WitnessSystemEnabled)
+                {
+                    DebugLogger.Log("[ChestTheft] Witness system DISABLED — treating as no witnesses.");
+                    return;
+                }
+
+                var witnesses = GetWitnesses(Agent.Main, null, maxDistance: 15f);
+                var witnessHeroIds = witnesses
+                    .Where(a => (a.Character as CharacterObject)?.HeroObject != null)
+                    .Select(a => (a.Character as CharacterObject).HeroObject.StringId)
+                    .ToList();
+                var templateWitness = witnesses
+                    .Where(a => (a.Character as CharacterObject)?.HeroObject == null && a.Character != null)
+                    .GroupBy(a => a.Character.StringId)
+                    .ToDictionary(g => g.Key, g => g.Count());
+
+                bool wasWitnessed = witnessHeroIds.Count > 0 || templateWitness.Count > 0;
+                if (!wasWitnessed)
+                {
+                    DebugLogger.Log("[ChestTheft] No witnesses — clean getaway.");
+                    return;
+                }
+
+                DebugLogger.Log($"[ChestTheft] Witnessed! {witnessHeroIds.Count} hero(es) + {templateWitness.Sum(kv => kv.Value)} template(s) saw the chest looting. items={items?.Count ?? 0}, gold={gold}");
+
+                // 证词：每件物品一条；金钱一条（targetName=保管箱，victim 无法具体到人）
+                if (items != null)
+                {
+                    foreach (var (itemId, itemName, _) in items)
+                    {
+                        AgentAIController.Instance?.RegisterTheftWitnesses(
+                            witnessHeroIds, templateWitness,
+                            itemId, itemName ?? itemId, targetName: "保管箱");
+                    }
+                }
+                if (gold > 0)
+                {
+                    AgentAIController.Instance?.RegisterTheftWitnesses(
+                        witnessHeroIds, templateWitness,
+                        "gold", $"{gold} 第纳尔", targetName: "保管箱");
+                }
+
+                // 抓现行围堵：victim=null（保管箱没有具体受害者 Agent）
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    Agent.Main.Position, 25f, "WitnessCrime",
+                    exclude: null, requireSight: true,
+                    Agent.Main, null);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ChestTheft] RecordChestTheft error: {ex.Message}");
+            }
+        }
+
+
+        // ----------------------------------------------------------------
         // 4. 动物偷窃核心业务：库存转移 + 追踪 + 犯罪记账
         //    对应 TryStealFromAgent → StealSpecificItem 的分层模式。
         //    View 层（InteractionMissionView.TryStealAnimal）负责动画/UI/FadeOut。
@@ -777,7 +850,8 @@ namespace LivingWorldNpcs
                 initiatorId: Hero.MainHero.StringId,
                 victimHeroId: null, settlementId: settlement.StringId,
                 itemId: item.StringId, count: actual,
-                locationName: $"在{settlement.Name}的保管箱");
+                locationName: $"在{settlement.Name}的保管箱",
+                worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
             return actual;
         }
 
@@ -796,7 +870,8 @@ namespace LivingWorldNpcs
                 initiatorId: Hero.MainHero.StringId,
                 victimHeroId: null, settlementId: settlement.StringId,
                 itemId: item.StringId, count: actual,
-                locationName: $"在{settlement.Name}的保管箱");
+                locationName: $"在{settlement.Name}的保管箱",
+                worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
         }
 
         /// <summary>克隆 ItemRoster（用于比较 OpenScreenAsLoot 前后差异）</summary>
@@ -856,6 +931,24 @@ namespace LivingWorldNpcs
             if (settlement.IsTown) return ChestContext.TownCenter;
             if (settlement.IsCastle) return ChestContext.Castle;
             return ChestContext.Unknown;
+        }
+
+        /// <summary>
+        /// 按场景类型决定保管箱锁的簧片数（锁难度 = 世界规则，与场景分发同住）。
+        /// 村庄 2 / 城镇 3 / 城堡·领主大厅 4。
+        /// </summary>
+        public static int GetLockpickPinCount(ChestContext ctx)
+        {
+            return ctx switch
+            {
+                ChestContext.Village => 2,
+                ChestContext.TownCenter => 3,
+                ChestContext.TownTavern => 3,
+                ChestContext.Alley => 3,
+                ChestContext.Castle => 4,
+                ChestContext.LordsHall => 4,
+                _ => 2
+            };
         }
 
         /// <summary>

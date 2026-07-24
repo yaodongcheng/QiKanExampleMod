@@ -435,6 +435,25 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── Freeze/unfreeze player control（偷窃条输入隔离）────────────
+        // v1.2.12: agent.Controller = ControllerType.AI 冻结——输入处理权从玩家控制器移交 AI 组件，
+        //          主角无 AI 指令 = 原地待机（SandBox 官方同款用法；AgentBrain.Tick 对 Agent.Main 早退，
+        //          本 mod 不会接管）。实测 ControllerType.None 无效（MainAgent 疑被原生特判仍处理输入）。
+        //          恢复 Player 时 Mission.MainAgent 自动重指 + 广播 OnAgentControllerSetToPlayer，官方可逆。
+        // Latest:  ControllerType 枚举已被官方删除，冻结 API 待查——暂 no-op（Latest 侧空格误跳待解）。
+
+        public static void SetPlayerControlFrozen(Agent agent, bool frozen)
+        {
+            if (agent == null) return;
+#if !MB2_V1212
+            // TODO: Find Latest API for freezing player control
+#else
+            var target = frozen ? Agent.ControllerType.AI : Agent.ControllerType.Player;
+            if (agent.Controller != target)
+                agent.Controller = target;
+#endif
+        }
+
         // ── Enemy kingdoms ──────────────────────────────────────────
         // v1.2.12: FactionManager.GetEnemyKingdoms(kingdom)
         // Latest:  Iterate Kingdom.All with IsAtWarWith

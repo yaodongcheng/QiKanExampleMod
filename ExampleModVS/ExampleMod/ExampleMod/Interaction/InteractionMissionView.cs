@@ -45,9 +45,19 @@ namespace LivingWorldNpcs
         private NPCInfoVM _npcInfoVM;
         private GauntletLayer _npcInfoLayer;
 
-        // --- 偷窃界面变量 ---
-        private StealVM _stealVM;
+        // --- 偷窃界面变量（进度条小游戏，双模式：扒窃/撬锁） ---
+        private StealBarVM _stealBarVM;
         private GauntletLayer _stealLayer;
+
+        // 偷窃子弹时间：请求队列式减速（击杀镜头同款），关闭路径必须全部回收
+        private const int StealSlowmoRequestId = 731007;
+        private bool _stealSlowmoActive = false;
+
+        // 偷窃期间冻结玩家控制（ControllerType.AI：输入移交 AI 组件，主角待机；仅 v1.2.12，Latest 待查）
+        private bool _playerControlFrozen = false;
+
+        // 箱子"自己挑选"路径：金币先落袋暂存，物品在 ProcessPendingChestLoot 一并记账
+        private int _pendingChestGold = 0;
 
 
         private int _tickCounter = 0;
@@ -631,6 +641,13 @@ namespace LivingWorldNpcs
                 SpawnSettlementChest();
             }
 
+            // ── 偷窃条（扒窃/撬锁）：打开期间独占交互，屏蔽普通 F/G 射线检测 ──
+            if (_stealBarVM != null)
+            {
+                TickStealBar(dt);
+                return;
+            }
+
 
             // ----------------- 0. 库存界面关闭后的搜刮收尾 -----------------
             if (_pendingLootCorpse != null)
@@ -891,15 +908,15 @@ namespace LivingWorldNpcs
             // 1. 如果已经打开了，先不要重开
             if (_stealLayer != null) return;
 
-            // 2. 初始化 VM
-            _stealVM = new StealVM(targetAgent, () => CloseStealInterface());
+            // 2. 初始化 VM（扒窃模式：光标-子横条时机判定）
+            _stealBarVM = new StealBarVM(StealBarMode.Pickpocket, targetAgent, () => CloseStealInterface());
 
             // 3. 创建 Layer
             _stealLayer = V.NewLayer(201); // 优先级比对话(101)更高，覆盖在上面
-            _stealLayer.LoadMovie("Steal", _stealVM); // 
+            V.LoadMov(_stealLayer, "StealBar", _stealBarVM);
 
-            // 4. 设置输入限制 (释放鼠标，冻结镜头，或者保持镜头可动但显示鼠标)
-            _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+            // 4. 设置输入限制（鼠标可见+按钮可点；键盘不路由给本层，游戏侧按键由 TickStealBar 在 Agent 层剥离）
+            _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse);
 
             // 5. 添加到屏幕
             thisMissionScreen.AddLayer(_stealLayer);
@@ -913,11 +930,21 @@ namespace LivingWorldNpcs
             // 🆕 标记偷窃 UI 已打开（供 AgentBrain 警戒值系统检测）
             StealManager.IsUIOpen = true;
 
+            // 8. 子弹时间：世界慢下来，给玩家操作窗口（浮标走缩放 dt 同步变慢，难度不被白嫖）
+            StartStealSlowmo();
+
+            // 9. 冻结玩家控制：切 ControllerType.AI → 输入处理权移交 AI 组件（跳/走/攻击全死；键盘 mask 拦不住只能切控制器）
+            FreezePlayerControl();
         }
 
-        // 关闭偷窃界面
+        // 关闭偷窃界面（所有路径统一收口：收手/ESC/强制/质问接管/Finalize）
         private void CloseStealInterface()
         {
+            // 子弹时间先收（幂等）
+            StopStealSlowmo();
+            // 玩家控制同步恢复（幂等）
+            UnfreezePlayerControl();
+
             if (_stealLayer != null)
             {
                 // 1. 移除 Layer
@@ -926,12 +953,77 @@ namespace LivingWorldNpcs
 
                 // 2. 清理变量
                 _stealLayer = null;
-                _stealVM = null;
+                _stealBarVM = null;
 
                 // 3. 恢复状态
                 IsHandlingInteraction = false;
                 StealManager.IsUIOpen = false;
             }
+        }
+
+        /// <summary>偷窃条每帧驱动：动画 + 空格/ESC 输入 + 关闭原因消费。返回 true 表示本条仍在处理（调用方应 return）。</summary>
+        private void TickStealBar(float dt)
+        {
+            var vm = _stealBarVM;
+            if (vm == null || _stealLayer == null) return;
+
+            vm.UpdateFrame(dt);
+
+            if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.Space))
+                vm.ExecuteAttempt();
+            if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.Escape))
+            {
+                CloseStealInterface();
+                return;
+            }
+
+            var reason = vm.CloseReason;
+            if (reason == StealBarCloseReason.None) return;
+
+            // 目标走开/死亡 → 强制收手，不算被发现（无脉冲无广播）
+            if (reason == StealBarCloseReason.TargetGone)
+                InformationManager.DisplayMessage(new InformationMessage("对方走开了，偷窃失败。", Colors.Gray));
+
+            bool lockpickDone = reason == StealBarCloseReason.Completed;
+            CloseStealInterface();
+
+            // 撬锁全部 pin 解开 → 进入开箱 Inquiry（IsUIOpen 在 Inquiry 内重新拉起，贯穿 loot 全程）
+            if (lockpickDone)
+                ShowChestInquiry();
+        }
+
+        // ── 偷窃子弹时间（AddTimeSpeedRequest 队列取最小值；Remove 对未知 ID 会 RemoveAt(-1) 抛异常，必须先查）──
+        private void StartStealSlowmo()
+        {
+            if (_stealSlowmoActive) return;
+            var mission = Mission.Current;
+            if (mission == null) return;
+            mission.AddTimeSpeedRequest(new Mission.TimeSpeedRequest(0.35f, StealSlowmoRequestId));
+            _stealSlowmoActive = true;
+        }
+
+        private void StopStealSlowmo()
+        {
+            if (!_stealSlowmoActive) return;
+            _stealSlowmoActive = false;
+            var mission = Mission.Current;
+            if (mission != null && mission.GetRequestedTimeSpeed(StealSlowmoRequestId, out _))
+                mission.RemoveTimeSpeedRequest(StealSlowmoRequestId);
+        }
+
+        // ── 偷窃输入隔离：冻结/恢复玩家控制（冻结期间跳/走/攻击全死，幂等）──
+        private void FreezePlayerControl()
+        {
+            if (_playerControlFrozen) return;
+            _playerControlFrozen = true;
+            V.SetPlayerControlFrozen(Agent.Main, true);
+        }
+
+        private void UnfreezePlayerControl()
+        {
+            if (!_playerControlFrozen) return;
+            _playerControlFrozen = false;
+            V.SetPlayerControlFrozen(Agent.Main, false);
         }
         public override void OnMissionScreenFinalize()
         {
@@ -966,7 +1058,12 @@ namespace LivingWorldNpcs
                 thisMissionScreen.RemoveLayer(_stealLayer);
                 _stealLayer = null;
             }
-            _stealVM = null;
+            _stealBarVM = null;
+            // 子弹时间兜底回收（防 ESC 直接退 mission 泄漏）
+            StopStealSlowmo();
+            // 玩家控制兜底恢复（同上）
+            UnfreezePlayerControl();
+            StealManager.IsUIOpen = false;
 
             //清除场景里临时Agent的临时记忆
             AllNpcMemoryManager.ClearTemporaryMemories();
@@ -982,6 +1079,7 @@ namespace LivingWorldNpcs
             _chestSpawned = false;
             _chestLootPending = false;
             _pendingChestSnapshot = null;
+            _pendingChestGold = 0;
             _chestHintShown = false;
 
             // 清理财富分配
@@ -1807,7 +1905,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>玩家按 F 互动箱子时调用</summary>
+        /// <summary>玩家按 F 互动箱子时调用：空箱早退，否则先撬锁（StealBar Lockpick 模式）。</summary>
         private void OpenChest()
         {
             int gold = StealManager.StashGold;
@@ -1818,12 +1916,35 @@ namespace LivingWorldNpcs
                 InformationManager.DisplayMessage(new InformationMessage("箱子是空的。", Colors.Gray));
                 return;
             }
+            if (_stealLayer != null) return;
 
-            // 目击检测：周围有没有人盯着
-            var witnesses = StealManager.GetWitnesses(Agent.Main, null, maxDistance: 15f);
-            string riskHint = witnesses.Count > 0
-                ? $"\n⚠ 有 {witnesses.Count} 双眼睛可能看到你！"
-                : "";
+            var chestCtx = StealManager.GetCurrentChestContext();
+            int pins = StealManager.GetLockpickPinCount(chestCtx);
+            var (_, title, _) = GetChestTexts(chestCtx);
+
+            // 撬锁条：pin 全开后由 TickStealBar 接 ShowChestInquiry
+            _stealBarVM = new StealBarVM(StealBarMode.Lockpick, pins, $"正在撬锁:{title}", () => CloseStealInterface());
+            _stealLayer = V.NewLayer(201);
+            V.LoadMov(_stealLayer, "StealBar", _stealBarVM);
+            _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse);
+            thisMissionScreen.AddLayer(_stealLayer);
+
+            IsHandlingInteraction = true;
+            _interactVM.IsVisible = false;
+            StealManager.IsUIOpen = true;
+            StartStealSlowmo();
+            FreezePlayerControl(); // 同扒窃：冻结玩家输入（跳/走/攻击）
+        }
+
+        /// <summary>撬锁成功后弹出：全部拿走 / 自己挑选。IsUIOpen 贯穿 Inquiry + 战利品界面全程，loot 收尾才复位。</summary>
+        private void ShowChestInquiry()
+        {
+            int gold = StealManager.StashGold;
+            var roster = StealManager.ChestItemRoster;
+            var settlement = Settlement.CurrentSettlement;
+
+            // IsUIOpen 在 CloseStealInterface 中被复位，这里重新拉起，贯穿 loot 全程
+            StealManager.IsUIOpen = true;
 
             string goldLine = gold > 0 ? $"\n金币: {gold} 第纳尔" : "";
             string itemsPreview = "";
@@ -1840,9 +1961,8 @@ namespace LivingWorldNpcs
 
             var chestCtx = StealManager.GetCurrentChestContext();
             var (_, title, contentPrefix) = GetChestTexts(chestCtx);
-            string content = $"{contentPrefix}{goldLine}\n物品:{itemsPreview}{riskHint}";
+            string content = $"{contentPrefix}{goldLine}\n物品:{itemsPreview}";
 
-            var settlement = Settlement.CurrentSettlement;
             InformationManager.ShowInquiry(new InquiryData(
                 title, content,
                 true, true,
@@ -1858,6 +1978,7 @@ namespace LivingWorldNpcs
                             InformationManager.DisplayMessage(new InformationMessage($"获得了 {takenGold} 第纳尔。", Colors.Yellow));
                     }
 
+                    var takenItems = new List<(string itemId, string itemName, int count)>();
                     if (roster != null && !roster.IsEmpty())
                     {
                         int totalItems = 0;
@@ -1869,29 +1990,31 @@ namespace LivingWorldNpcs
                             {
                                 int taken = StealManager.LootChestItem(item, count, settlement);
                                 totalItems += taken;
+                                if (taken > 0)
+                                    takenItems.Add((item.StringId, item.Name?.ToString() ?? item.StringId, taken));
                             }
                         }
                         if (totalItems > 0)
                             InformationManager.DisplayMessage(new InformationMessage($"获得了 {totalItems} 件物品。", Colors.Green));
                     }
 
-                    // 箱子空了就移除实体
-                    if (_chestEntity != null && StealManager.StashGold == 0
-                        && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
-                    {
-                        _chestEntity.Remove(0);
-                        _chestEntity = null;
-                        StealManager.ChestEntity = null;
-                    }
+                    // 犯罪统一接线：目击检测 → 证词 → 围堵质问
+                    if (settlement != null && (takenGold > 0 || takenItems.Count > 0))
+                        StealManager.RecordChestTheft(settlement, takenItems, takenGold);
+
+                    RemoveChestEntityIfEmpty();
+                    StealManager.IsUIOpen = false; // loot 收尾完成
                 },
                 () =>
                 {
                     // ── 自己挑选 ──
+                    // 金币先入待记账（与物品一起在 ProcessPendingChestLoot 记录一次）
+                    _pendingChestGold = 0;
                     if (gold > 0)
                     {
-                        int takenGold = StealManager.LootStash(gold, settlement);
-                        if (takenGold > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {takenGold} 第纳尔。", Colors.Yellow));
+                        _pendingChestGold = StealManager.LootStash(gold, settlement);
+                        if (_pendingChestGold > 0)
+                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {_pendingChestGold} 第纳尔。", Colors.Yellow));
                     }
 
                     if (roster != null && !roster.IsEmpty())
@@ -1899,23 +2022,27 @@ namespace LivingWorldNpcs
 #if !MB2_V1212
                         DebugLogger.Log("[Chest] InventoryManager not available in this version, taking all items instead");
                         // Fallback: take everything
+                        var takenItems = new List<(string itemId, string itemName, int count)>();
                         int totalItems = 0;
                         for (int i = roster.Count - 1; i >= 0; i--)
                         {
                             var item = roster.GetItemAtIndex(i);
                             int count = roster.GetElementNumber(i);
                             if (item != null && count > 0)
-                                totalItems += StealManager.LootChestItem(item, count, settlement);
+                            {
+                                int taken = StealManager.LootChestItem(item, count, settlement);
+                                totalItems += taken;
+                                if (taken > 0)
+                                    takenItems.Add((item.StringId, item.Name?.ToString() ?? item.StringId, taken));
+                            }
                         }
                         if (totalItems > 0)
                             InformationManager.DisplayMessage(new InformationMessage($"获得了 {totalItems} 件物品。", Colors.Green));
-                        if (_chestEntity != null && StealManager.StashGold == 0
-                            && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
-                        {
-                            _chestEntity.Remove(0);
-                            _chestEntity = null;
-                            StealManager.ChestEntity = null;
-                        }
+                        if (settlement != null && (_pendingChestGold > 0 || takenItems.Count > 0))
+                            StealManager.RecordChestTheft(settlement, takenItems, _pendingChestGold);
+                        _pendingChestGold = 0;
+                        RemoveChestEntityIfEmpty();
+                        StealManager.IsUIOpen = false;
 #else
                         // 保存快照用于比较
                         _pendingChestSnapshot = StealManager.CloneItemRoster(roster);
@@ -1925,23 +2052,38 @@ namespace LivingWorldNpcs
                         dict[PartyBase.MainParty] = roster;
                         InventoryManager.OpenScreenAsLoot(dict);
 
-                        // 标记待处理
+                        // 标记待处理（ProcessPendingChestLoot 收尾 + 记账 + IsUIOpen 复位）
                         _chestLootPending = true;
 #endif
                     }
-                    else if (_chestEntity != null && StealManager.StashGold == 0
-                        && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
+                    else
                     {
-                        _chestEntity.Remove(0);
-                        _chestEntity = null;
-                        StealManager.ChestEntity = null;
+                        // 纯金无物品：不开战利品界面，立即记账收尾
+                        if (settlement != null && _pendingChestGold > 0)
+                            StealManager.RecordChestTheft(settlement, new List<(string, string, int)>(), _pendingChestGold);
+                        _pendingChestGold = 0;
+                        RemoveChestEntityIfEmpty();
+                        StealManager.IsUIOpen = false;
                     }
                 }));
         }
 
+        /// <summary>箱子空了就移除实体（两条 loot 路径共用）。</summary>
+        private void RemoveChestEntityIfEmpty()
+        {
+            if (_chestEntity != null && StealManager.StashGold == 0
+                && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
+            {
+                _chestEntity.Remove(0);
+                _chestEntity = null;
+                StealManager.ChestEntity = null;
+            }
+        }
+
         /// <summary>
         /// 箱子"自己挑选"战利品界面关闭后的收尾：
-        /// 比较快照找出玩家拿走的物品，同步扣除定居点 ItemRoster。
+        /// 比较快照找出玩家拿走的物品，同步扣除定居点 ItemRoster，
+        /// 物品 + 暂存金币一次记账（RecordChestTheft），IsUIOpen 复位。
         /// </summary>
         private void ProcessPendingChestLoot()
         {
@@ -1950,9 +2092,16 @@ namespace LivingWorldNpcs
             _pendingChestSnapshot = null;
 
             var settlement = Settlement.CurrentSettlement;
-            if (settlement == null || snapshot == null) return;
+            int takenGold = _pendingChestGold;
+            _pendingChestGold = 0;
+            if (settlement == null || snapshot == null)
+            {
+                StealManager.IsUIOpen = false;
+                return;
+            }
 
             var remaining = StealManager.ChestItemRoster;
+            var takenItems = new List<(string itemId, string itemName, int count)>();
 
             try
             {
@@ -1966,6 +2115,7 @@ namespace LivingWorldNpcs
                     if (taken > 0)
                     {
                         StealManager.DeductSettlementItemsOnly(settlement, item, taken);
+                        takenItems.Add((item.StringId, item.Name?.ToString() ?? item.StringId, taken));
                     }
                 }
             }
@@ -1974,14 +2124,12 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Chest] ProcessPendingChestLoot error: {ex.Message}");
             }
 
-            // 箱子空了就移除实体
-            if (_chestEntity != null && StealManager.StashGold == 0
-                && (StealManager.ChestItemRoster == null || StealManager.ChestItemRoster.IsEmpty()))
-            {
-                _chestEntity.Remove(0);
-                _chestEntity = null;
-                StealManager.ChestEntity = null;
-            }
+            // 犯罪统一接线：目击检测 → 证词 → 围堵质问
+            if (takenGold > 0 || takenItems.Count > 0)
+                StealManager.RecordChestTheft(settlement, takenItems, takenGold);
+
+            RemoveChestEntityIfEmpty();
+            StealManager.IsUIOpen = false; // loot 收尾完成
         }
 
 
