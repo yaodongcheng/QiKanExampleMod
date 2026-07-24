@@ -135,3 +135,64 @@ GenerateCommissions → GetAvailableDefsForHero
 **根因**：`CampaignEvents.OnCheckForIssueEvent` 的委托签名是 `void`。给事件处理函数加 `bool` 返回值会导致签名不匹配。
 
 **规避**：事件处理器保持原始签名。需要返回值的逻辑包装成内部方法（如 `TryAddIssue` → 事件处理器 `OnCheckForIssue` 调它）。
+
+---
+
+## 模态 UI 键盘输入拦不住（空格穿透到游戏）
+
+**症状**：自定义 Gauntlet 模态层打开时按空格，UI 响应了，主角**同时也跳起来**。层 `InputRestrictions.SetInputRestrictions(true, InputUsageMask.All)` 看着像"我在管输入"，实际什么都拦不住。
+
+**根因**（反编译 `TaleWorlds.ScreenSystem.ScreenManager` 事件分发确认）
+
+- 键盘事件**不走 mask**——分发路径只看 `FocusTest(layer)`（即 `FocusedLayer == layer`）。模态层加上去后 `FocusedLayer` 仍是 `MissionScreen`，键盘照常进游戏。
+- `InputUsageMask` 的 `Keyboardkeys=4` 位在键盘分发代码里**根本不被检查**（mask 只管鼠标按钮/滚轮的命中消费）。
+- **剥 `Agent.Main.EventControlFlags` 也无效**：原生玩家控制器在**托管 tick 之后**才写动作标志——`OnMissionTick` 里清零，它随后再写，剥了个寂寞（已实机验证）。
+- `ControllerType.None` 同样**无效**（已实机验证）——MainAgent 疑被原生特判，无控制器时仍处理其输入。
+
+**规避**
+
+- 正解 = **切控制器** `Agent.Main.Controller = ControllerType.AI`（v1.2.12）：输入处理权移交 AI 组件，主角无指令源原地待机。恢复 `Player` 时 `Mission.MainAgent` 自动重指 + 广播 `OnAgentControllerSetToPlayer`，官方可逆。
+- 封装：`V.SetPlayerControlFrozen(agent, bool)`（`Core/VersionCompat.cs`）；接线范本：`InteractionMissionView.FreezePlayerControl/UnfreezePlayerControl`（`_playerControlFrozen` 幂等标志 + Finalize 兜底）。
+- 安全性：`AgentBrain.Tick` 对 `Owner == Agent.Main` 早退，本 mod brain 不会接管切了 AI 的主角；SandBox 官方有同款切 AI 用法。
+- 空格/ESC 的 `Input.IsKeyPressed` 轮询是原始设备状态，与 mask/控制器无关，照常可用。
+- ⚠️ Latest（1.4.6）`ControllerType` 枚举已被官方删除，等效冻结 API 待查（VersionCompat TODO）——Latest 侧此坑暂存。
+
+---
+
+## `Mission.RemoveTimeSpeedRequest` 对未知 ID 抛异常
+
+**症状**：子弹时间/击杀镜头类时间减速收尾时 `ArgumentOutOfRangeException`，`RemoveAt(-1)`。
+
+**根因**（反编译 `TaleWorlds.MountAndBlade.Mission` 确认，v1.2.12 + v1.4.6 同实现）
+
+```csharp
+public void RemoveTimeSpeedRequest(int timeSpeedRequestID)
+{
+    int index = -1;
+    for (...) { if (_timeSpeedRequests[i].RequestID == timeSpeedRequestID) index = i; }
+    _timeSpeedRequests.RemoveAt(index);   // 找不到 → index 仍 -1 → 炸
+}
+```
+
+没有任何"未知 ID 为 no-op"的幂等保护。
+
+**规避**
+
+```csharp
+// 先查后删（GetRequestedTimeSpeed 两版本签名一致）：
+if (mission.GetRequestedTimeSpeed(requestId, out _))
+    mission.RemoveTimeSpeedRequest(requestId);
+// 再配一个 bool 标志记录"我加过"，关闭路径幂等收口 + OnMissionScreenFinalize 兜底。
+```
+
+落地范本：`InteractionMissionView.StartStealSlowmo/StopStealSlowmo`（`_stealSlowmoActive` + requestId 常量）。
+
+---
+
+## Gauntlet `ItemGap` 静默无效（ListPanel 间距）
+
+**症状**：`<ListPanel ItemGap="20">` 子项挤在一起，间距完全不生效；Gauntlet 对未知属性**不报错**，静默忽略。
+
+**根因**（反编译 `TaleWorlds.GauntletUI.Layout.StackLayout` 确认）：`StackLayout` 只有 `LayoutMethod` 和 `DefaultItemDescription`，**没有任何间距/Gap 属性**。`ItemGap` 是臆造属性。
+
+**规避**：间距写在**子项**上——横排 `MarginRight`、竖排 `MarginBottom`（项目先例：`MyCustomPopup.xml` 按钮 `MarginRight="10"`）。ItemTemplate 内同样适用（末位多一个边距，对 CoverChildren 居中行影响可忽略）。

@@ -56,6 +56,9 @@ namespace LivingWorldNpcs
         // 偷窃期间冻结玩家控制（ControllerType.AI：输入移交 AI 组件，主角待机；仅 v1.2.12，Latest 待查）
         private bool _playerControlFrozen = false;
 
+        // 冻结前的蹲姿（切 AI 后原生姿态被重置为站立，需用 scripted flag 保持）
+        private bool _frozenWasCrouching = false;
+
         // 箱子"自己挑选"路径：金币先落袋暂存，物品在 ProcessPendingChestLoot 一并记账
         private int _pendingChestGold = 0;
 
@@ -1016,14 +1019,26 @@ namespace LivingWorldNpcs
         {
             if (_playerControlFrozen) return;
             _playerControlFrozen = true;
-            V.SetPlayerControlFrozen(Agent.Main, true);
+            var main = Agent.Main;
+            _frozenWasCrouching = main != null && main.CrouchMode;
+            V.SetPlayerControlFrozen(main, true);
+            // 切 AI 后 AI 移动组件把姿态重置为站立 → 用 scripted flag 恢复蹲姿（AI 蹲姿的官方通道）
+            if (_frozenWasCrouching)
+                main.SetCrouchMode(true);
         }
 
         private void UnfreezePlayerControl()
         {
             if (!_playerControlFrozen) return;
             _playerControlFrozen = false;
-            V.SetPlayerControlFrozen(Agent.Main, false);
+            var main = Agent.Main;
+            // 先解除脚本蹲姿（防止 scripted flag 压住还控制后的玩家输入），再还控制
+            if (_frozenWasCrouching)
+            {
+                main?.SetCrouchMode(false);
+                _frozenWasCrouching = false;
+            }
+            V.SetPlayerControlFrozen(main, false);
         }
         public override void OnMissionScreenFinalize()
         {
