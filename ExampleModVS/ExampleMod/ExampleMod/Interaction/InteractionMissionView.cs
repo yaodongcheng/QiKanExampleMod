@@ -950,7 +950,7 @@ namespace LivingWorldNpcs
             FreezePlayerControl();
         }
 
-        // 关闭偷窃界面（所有路径统一收口：收手/ESC/强制/质问接管/Finalize）
+        // 关闭偷窃界面（所有路径统一收口：收手Tab/强制/质问接管/Finalize；ESC 让给游戏菜单，不再收条）
         private void CloseStealInterface()
         {
             // 子弹时间先收（幂等）
@@ -976,7 +976,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>偷窃条每帧驱动：动画 + 空格/ESC 输入 + 关闭原因消费。返回 true 表示本条仍在处理（调用方应 return）。</summary>
+        /// <summary>偷窃条每帧驱动：动画 + 空格/Tab 输入 + 关闭原因消费。返回 true 表示本条仍在处理（调用方应 return）。</summary>
         private void TickStealBar(float dt)
         {
             var vm = _stealBarVM;
@@ -986,7 +986,7 @@ namespace LivingWorldNpcs
 
             if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.Space))
                 vm.ExecuteAttempt();
-            if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.Escape))
+            if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.Tab))
             {
                 CloseStealInterface();
                 return;
