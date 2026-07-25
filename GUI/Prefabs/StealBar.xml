@@ -114,7 +114,8 @@
                             HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="172"
                             DoNotAcceptEvents="true"/>
 
-                <!-- 按钮行（对标 Inquiry 确定/取消）：出手=点击或空格，收手=点击或Tab（ESC 让给游戏菜单）；间距用 MarginRight（Gauntlet 无 ItemGap） -->
+                <!-- 按钮行（对标 Inquiry 确定/取消）：出手=点击或 StealAttempt 键，收手=点击或 StealLeave 键（ESC 让给游戏菜单）；
+                     键位文本由 StealBarVM.RefreshButtonTexts 按当前输入设备生成（键盘 空格/Tab，手柄 A/B 或 ✕/○）；间距用 MarginRight（Gauntlet 无 ItemGap） -->
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                            StackLayout.LayoutMethod="HorizontalLeftToRight"
                            HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20"
@@ -137,7 +138,7 @@
                                       Command.Click="ExecuteLeave">
                             <Children>
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                            Text="[Tab] 收手" Brush="MyBrush_24" Brush.FontSize="22"
+                                            Text="@LeaveButtonText" Brush="MyBrush_24" Brush.FontSize="22"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
                                             DoNotAcceptEvents="true"/>
                             </Children>

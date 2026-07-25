@@ -149,7 +149,7 @@ namespace LivingWorldNpcs
             IsPickpocketMode = true;
             IsLockpickMode = false;
             TitleText = $"正在偷:{target?.Name ?? "?"}";
-            AttemptButtonText = "[空格] 出手";
+            RefreshButtonTexts();
             RuleText = "<span style=\"Perfect\">【完美】绿区偷窃。</span><span style=\"Normal\">【普通】黄区偷窃。</span><span style=\"Fail\">【失败】红区偷窃。</span>";
 
             NextPickpocketRound();
@@ -172,7 +172,7 @@ namespace LivingWorldNpcs
             IsPickpocketMode = false;
             IsLockpickMode = true;
             TitleText = title;
-            AttemptButtonText = "[空格] 撬";
+            RefreshButtonTexts();
             RuleText = "<span style=\"Perfect\">【完美】绿区撬锁。</span><span style=\"Normal\">【普通】黄区撬锁。</span><span style=\"Fail\">【失败】红区撬棍必滑。</span>";
             PreviewText = "";
 
@@ -192,7 +192,7 @@ namespace LivingWorldNpcs
             IsPickpocketMode = true;    // 显示上复用扒窃布局（预览行、无簧片）
             IsLockpickMode = false;
             TitleText = $"正在抓:{_animalName}";
-            AttemptButtonText = "[空格] 抓";
+            RefreshButtonTexts();
             RuleText = "<span style=\"Perfect\">【完美】绿区出手。</span><span style=\"Normal\">【普通】黄区出手。</span><span style=\"Fail\">【失败】红区必被挣脱。</span>";
             _itemTierFactor = isLarge ? AnimalLargeTierFactor : 1f;
             PreviewText = isLarge ? "它会拼命挣扎，瞅准时机一把抓住！" : "小家伙很警觉，瞅准时机一把抓住！";
@@ -657,6 +657,7 @@ namespace LivingWorldNpcs
         private string _zoneColor = ZoneColorNormal;
         private string _titleText;
         private string _attemptButtonText;
+        private string _leaveButtonText;
         private string _previewText;
         private string _ruleText = "";
         private string _cursorZoneText = "";
@@ -747,6 +748,21 @@ namespace LivingWorldNpcs
         {
             get => _attemptButtonText;
             set { if (value != _attemptButtonText) { _attemptButtonText = value; OnPropertyChangedWithValue(value, nameof(AttemptButtonText)); } }
+        }
+
+        [DataSourceProperty]
+        public string LeaveButtonText
+        {
+            get => _leaveButtonText;
+            set { if (value != _leaveButtonText) { _leaveButtonText = value; OnPropertyChangedWithValue(value, nameof(LeaveButtonText)); } }
+        }
+
+        /// <summary>按当前输入设备刷新按钮文本（构造时 + 键盘↔手柄切换时由 View 调用）。</summary>
+        public void RefreshButtonTexts()
+        {
+            string verb = _mode == StealBarMode.Lockpick ? "撬" : _mode == StealBarMode.Animal ? "抓" : "出手";
+            AttemptButtonText = $"[{ModInput.Glyph(ModInputAction.StealAttempt)}] {verb}";
+            LeaveButtonText = $"[{ModInput.Glyph(ModInputAction.StealLeave)}] 收手";
         }
 
         [DataSourceProperty]

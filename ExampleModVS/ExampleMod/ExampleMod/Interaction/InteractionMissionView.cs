@@ -65,6 +65,9 @@ namespace LivingWorldNpcs
 
         private int _tickCounter = 0;
 
+        // 输入设备追踪（键盘↔手柄切换时刷新全部按键提示，ModInput 统一管理映射）
+        private bool _lastUsingGamepad = false;
+
 
         // 缓存变量，用于去重，避免每帧刷新UI
         private Agent _lastFocusedAgent = null;
@@ -366,8 +369,8 @@ namespace LivingWorldNpcs
             if (Settings.Instance.IsInteractionDisabled())
                 return;
 
-            // 箱子互动优先：靠近箱子时按 F → 打开保管箱
-            if (_nearChest && _chestEntity != null && TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.F))
+            // 箱子互动优先：靠近箱子时按互动键 → 打开保管箱
+            if (_nearChest && _chestEntity != null && ModInput.Pressed(ModInputAction.Interact))
             {
                 OpenChest();
                 return;
@@ -376,7 +379,7 @@ namespace LivingWorldNpcs
             // 如果没有缓存的目标，直接返回，防止空引用
             if (_lastFocusedAgent == null) return;
 
-            if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.F))
+            if (ModInput.Pressed(ModInputAction.Interact))
             {
                 // 动物：活的蹲下偷，死的搜刮
                 if (_lastWasAnimal)
@@ -413,7 +416,7 @@ namespace LivingWorldNpcs
                     LootAgent(_lastFocusedAgent, isStealing: false);
                 }
             }
-            else if (TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.G))
+            else if (ModInput.Released(ModInputAction.AltInteract))
             {
                 if (_lastAgentWasAlive)
                 {
@@ -451,8 +454,8 @@ namespace LivingWorldNpcs
                     // 没在看人但在箱子旁边 → 显示箱子提示
                     _interactVM.IsVisible = true;
                     IsHandlingInteraction = true;
-                    var actions = new List<(string, string)>();
-                    actions.Add(("撬锁", "F"));
+                    var actions = new List<(string, ModInputAction?)>();
+                    actions.Add(("撬锁", ModInputAction.Interact));
                     var chestCtx2 = StealManager.GetCurrentChestContext();
                     var (_, title2, _) = GetChestTexts(chestCtx2);
                     _interactVM.UpdateTarget(title2, actions);
@@ -509,7 +512,7 @@ namespace LivingWorldNpcs
                 _interactVM.IsVisible = true;
                 IsHandlingInteraction = true;
 
-                var actions = new List<(string, string)>();
+                var actions = new List<(string, ModInputAction?)>();
 
                 if (isAnimal)
                 {
@@ -517,13 +520,12 @@ namespace LivingWorldNpcs
                     if (isAlive)
                     {
                         if (isCrouching)
-                            actions.Add(("偷", "F"));
-                        else
-                            actions.Add(("蹲下才能偷", ""));
+                            actions.Add(("偷", ModInputAction.Interact));
+                       
                     }
                     else
                     {
-                        actions.Add(("搜刮", "F"));
+                        actions.Add(("搜刮", ModInputAction.Interact));
                     }
                 }
                 else if (isAlive)
@@ -531,32 +533,32 @@ namespace LivingWorldNpcs
                     // 战斗意图优先（正面背后都显示）
                     if (currentNpcIntentType == NpcIntentType.Fighting || currentNpcIntentType == NpcIntentType.Surrendering)
                     {
-                        actions.Add(("认输", "F"));
+                        actions.Add(("认输", ModInputAction.Interact));
                         if (currentNpcIntentType == NpcIntentType.Surrendering)
-                            actions.Add(("接受认输", "G"));
+                            actions.Add(("接受认输", ModInputAction.AltInteract));
                     }
                     else if (isBehind)
                     {
                         if (isCrouching)
-                            actions.Add(("偷窃", "F"));
+                            actions.Add(("偷窃", ModInputAction.Interact));
                         else
-                            actions.Add(("击晕", "F"));
+                            actions.Add(("击晕", ModInputAction.Interact));
                         if (EnableSmallTalk)
-                            actions.Add(("闲聊", "G"));
-                        actions.Add(("探查", "H"));
+                            actions.Add(("闲聊", ModInputAction.AltInteract));
+                        actions.Add(("探查", ModInputAction.Inspect));
                     }
                     else
                     {
-                        actions.Add(("对话", "F"));
+                        actions.Add(("对话", ModInputAction.Interact));
                         if (EnableSmallTalk)
-                            actions.Add(("闲聊", "G"));
-                        actions.Add(("探查", "H"));
+                            actions.Add(("闲聊", ModInputAction.AltInteract));
+                        actions.Add(("探查", ModInputAction.Inspect));
                     }
 
                 }
                 else
                 {
-                    actions.Add(("搜刮", "F"));
+                    actions.Add(("搜刮", ModInputAction.Interact));
                 }
 
                 // 只有名字不为空才显示，避免报错
@@ -590,6 +592,15 @@ namespace LivingWorldNpcs
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
+
+            // ── 输入设备切换追踪：键盘↔手柄 → 刷新全部按键提示字形 ──
+            bool usingGamepad = ModInput.UsingGamepad;
+            if (usingGamepad != _lastUsingGamepad)
+            {
+                _lastUsingGamepad = usingGamepad;
+                _interactVM?.RefreshGlyphs();
+                _stealBarVM?.RefreshButtonTexts();
+            }
 
             // 战斗模式下跳过交互 UI 全部逻辑：大世界遭遇/箱子/射线检测/交互选项构建
             if (Settings.Instance.IsInteractionDisabled())
@@ -702,8 +713,8 @@ namespace LivingWorldNpcs
                 PerformPerformanceHeavyLogic();
             }
 
-            // ----------------- 3. H键全局输入：有focus看NPC，无focus看自己 -----------------
-            if (TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.H))
+            // ----------------- 3. 探查键全局输入：有focus看NPC，无focus看自己 -----------------
+            if (ModInput.Released(ModInputAction.Inspect))
             {
                 if (_lastFocusedAgent != null)
                     OpenNPCInfoBoard(_lastFocusedAgent);
@@ -976,7 +987,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>偷窃条每帧驱动：动画 + 空格/Tab 输入 + 关闭原因消费。返回 true 表示本条仍在处理（调用方应 return）。</summary>
+        /// <summary>偷窃条每帧驱动：动画 + 出手/收手键输入 + 关闭原因消费。返回 true 表示本条仍在处理（调用方应 return）。</summary>
         private void TickStealBar(float dt)
         {
             var vm = _stealBarVM;
@@ -984,9 +995,9 @@ namespace LivingWorldNpcs
 
             vm.UpdateFrame(dt);
 
-            if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.Space))
+            if (ModInput.Pressed(ModInputAction.StealAttempt))
                 vm.ExecuteAttempt();
-            if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.Tab))
+            if (ModInput.Pressed(ModInputAction.StealLeave))
             {
                 CloseStealInterface();
                 return;
