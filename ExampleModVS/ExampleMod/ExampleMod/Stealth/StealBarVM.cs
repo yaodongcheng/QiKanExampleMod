@@ -73,7 +73,7 @@ namespace LivingWorldNpcs
         private const float DriftAlertSpeed = 45f;              // 警戒每 +1（>1 部分）游动 +45px/s
         private const float DriftMaxSpeed = 100f;               // 游动峰值速度上限 ≈浮标 0.38×
         private const float MaxInteractDistance = 4.5f;         // 目标走开强制收手距离
-        private const float ResultFlashSeconds = 1.2f;          // 结果闪现时长
+        private const float ResultFlashSeconds = 0.1f;          // 结果闪现时长（缩放秒——慢动作 0.35× 下 ≈0.3 真实秒；勿超 1，否则染色而非闪烁）
         private const float NoisePulseCooldown = 0.5f;          // 撬锁噪音脉冲节流（防连按刷爆）
         private const float NormalHitVictimAlert = 0.35f;       // 普通命中：受害者警戒脉冲
         private const float MissVictimAlert = 1.0f;             // 失误：受害者警戒脉冲
@@ -82,15 +82,24 @@ namespace LivingWorldNpcs
         private const float AnimalLargeTierFactor = 0.6f;       // 大动物（猪/羊/牛）判定区定价：右扣 40%（小动物 1.0 不扣）
 
         // 子横条闪烁颜色（绑定 XML 用 hex 字符串）
-        private const string ZoneColorNormal = "#D4AF37FF";     // 常态金
-        private const string ZoneColorSuccess = "#44DD44FF";    // 成功绿闪
-        private const string ZoneColorPerfect = "#7FFFD4FF";    // 金区命中青闪
+        // 二元色相分离：黄/绿=安全可偷，红族=危险不可偷。闪烁 = 所中区域变亮报结果：成功亮金 / 失败红。
+        // 完美用白闪不用绿闪——绿闪会把整个黄区染成"全是绿芯"，摧毁区域语义（且慢动作下闪光被拉长、还会带入下一回合）
+        private const string ZoneColorNormal = "#D4AF37FF";     // 常态琥珀黄（可偷区）
+        private const string ZoneColorSuccess = "#FFE97FFF";    // 成功亮金脉冲
+        private const string ZoneColorPerfect = "#FFFFFFFF";    // 完美白闪
         private const string ZoneColorFail = "#DD4444FF";       // 失败红闪
 
         // DisplayMessage 文本色（与闪烁同色系）
-        private static readonly Color MsgColorSuccess = new Color(0.27f, 0.87f, 0.27f);   // #44DD44
-        private static readonly Color MsgColorPerfect = new Color(0.50f, 1.00f, 0.84f);   // #7FFFD4
+        private static readonly Color MsgColorSuccess = new Color(1.00f, 0.91f, 0.37f);   // #FFE97F（与成功金闪同色）
+        private static readonly Color MsgColorPerfect = new Color(0.27f, 0.87f, 0.27f);   // #44DD44（与绿芯同色）
         private static readonly Color MsgColorFail = new Color(0.87f, 0.27f, 0.27f);      // #DD4444
+
+        // 动态区域提示行（规则行②）文本色：与色块同族略提亮，保证深色面板上可读
+        private const string HintColorPerfect = "#55CC55FF";    // 绿
+        private const string HintColorEffective = "#E8C55AFF";  // 琥珀黄
+        private const string HintColorAlert = "#E06055FF";      // 血红（提亮）
+        private const string HintColorItem = "#D08050FF";       // 橙红（提亮）
+        private const string HintColorOutside = "#999999FF";    // 灰
 
         private readonly StealBarMode _mode;
         private readonly Agent _target;             // Pickpocket 受害者；Lockpick 为 null
@@ -141,6 +150,7 @@ namespace LivingWorldNpcs
             IsLockpickMode = false;
             TitleText = $"正在偷:{target?.Name ?? "?"}";
             AttemptButtonText = "[空格] 出手";
+            RuleText = "<span style=\"Perfect\">【完美】绿区偷窃。</span><span style=\"Normal\">【普通】黄区偷窃。</span><span style=\"Fail\">【失败】红区偷窃。</span>";
 
             NextPickpocketRound();
             RecalcZoneSize();
@@ -163,6 +173,7 @@ namespace LivingWorldNpcs
             IsLockpickMode = true;
             TitleText = title;
             AttemptButtonText = "[空格] 撬";
+            RuleText = "<span style=\"Perfect\">【完美】绿区撬锁。</span><span style=\"Normal\">【普通】黄区撬锁。</span><span style=\"Fail\">【失败】红区撬棍必滑。</span>";
             PreviewText = "";
 
             RecalcZoneSize();
@@ -182,6 +193,7 @@ namespace LivingWorldNpcs
             IsLockpickMode = false;
             TitleText = $"正在抓:{_animalName}";
             AttemptButtonText = "[空格] 抓";
+            RuleText = "<span style=\"Perfect\">【完美】绿区出手。</span><span style=\"Normal\">【普通】黄区出手。</span><span style=\"Fail\">【失败】红区必被挣脱。</span>";
             _itemTierFactor = isLarge ? AnimalLargeTierFactor : 1f;
             PreviewText = isLarge ? "它会拼命挣扎，瞅准时机一把抓住！" : "小家伙很警觉，瞅准时机一把抓住！";
 
@@ -231,6 +243,63 @@ namespace LivingWorldNpcs
             ZoneMarginLeft = baseLeft + _alertLossPx;
             ZoneWidth = _effWidthPx;
             PerfectMarginLeft = baseLeft + _alertLossPx + _effWidthPx / 2f - PerfectHalfWidth;
+
+            // 规则行②（动态）：浮标脚下区域的含义+可否出手
+            UpdateCursorZoneHint();
+        }
+
+        /// <summary>
+        /// 动态区域提示行：按浮标当前位置判定所在区域，输出含义+可否出手与对应颜色。
+        /// 判定顺序 = 视觉层级：完美 ⊂ 有效 ⊂ 基础 − 左右两扣，其余为界外。
+        /// </summary>
+        private void UpdateCursorZoneHint()
+        {
+            float cursorPx = _cursorPos * BarWidth;
+            float baseLeft = _zoneCenter * BarWidth - _baseWidthPx / 2f;
+            float effLeft = baseLeft + _alertLossPx;
+            float effRight = effLeft + _effWidthPx;
+            float effCenterPx = (effLeft + effRight) / 2f;
+
+            string text, color;
+            if (MathF.Abs(cursorPx - effCenterPx) <= PerfectHalfWidth)
+            {
+                // 完美区（有效区正中 12px）
+                text = _mode == StealBarMode.Lockpick ? "【完美】此时撬不会发出任何声响"
+                     : _mode == StealBarMode.Animal ? "【完美】此时出手不会惊吓到动物"
+                     : "【完美】此时下手，不会让对方察觉";
+                color = HintColorPerfect;
+            }
+            else if (cursorPx >= effLeft && cursorPx <= effRight)
+            {
+                // 有效判定区
+                text = _mode == StealBarMode.Lockpick ? "【可撬】能撬开但是会发出声响"
+                     : _mode == StealBarMode.Animal ? "【可抓】此时出手能抓住但是会有点动静"
+                     : "【可偷】能偷到，但是对方可能会更加警惕";
+                color = HintColorEffective;
+            }
+            else if (cursorPx >= baseLeft && cursorPx < effLeft)
+            {
+                // 左扣：警戒损失（仅人有；宽度为 0 时区间为空，天然不命中）
+                text = "【小心】此时会被对方察觉";
+                color = HintColorAlert;
+            }
+            else if (cursorPx > effRight && cursorPx <= baseLeft + _baseWidthPx && _itemLossPx > 0.5f)
+            {
+                // 右扣：物品/体型损失
+                text = _mode == StealBarMode.Animal ? "【勿动】此时不要轻举妄动"
+                     : "【勿动】对方正接触此物品，不可出手";
+                color = HintColorItem;
+            }
+            else
+            {
+                // 界外（父条背景）
+                text = _mode == StealBarMode.Lockpick ? "【勿动】时机未到，必撬不开"
+                     : _mode == StealBarMode.Animal ? "【勿动】时机不对，必被吓跑"
+                     : "【勿动】此时出手必被发现";
+                color = HintColorOutside;
+            }
+            CursorZoneText = text;
+            CursorZoneColor = color;
         }
 
         /// <summary>目标走开/死亡/警觉拉满/质问锁 → 请求关闭。</summary>
@@ -589,6 +658,9 @@ namespace LivingWorldNpcs
         private string _titleText;
         private string _attemptButtonText;
         private string _previewText;
+        private string _ruleText = "";
+        private string _cursorZoneText = "";
+        private string _cursorZoneColor = HintColorOutside;
         private bool _isPickpocketMode;
         private bool _isLockpickMode;
         private MBBindingList<StealPinVM> _pins;
@@ -682,6 +754,30 @@ namespace LivingWorldNpcs
         {
             get => _previewText;
             set { if (value != _previewText) { _previewText = value; OnPropertyChangedWithValue(value, nameof(PreviewText)); } }
+        }
+
+        /// <summary>规则行①（固定）：区域语义总述，构造时按模式设一次。</summary>
+        [DataSourceProperty]
+        public string RuleText
+        {
+            get => _ruleText;
+            set { if (value != _ruleText) { _ruleText = value; OnPropertyChangedWithValue(value, nameof(RuleText)); } }
+        }
+
+        /// <summary>规则行②（动态）：浮标脚下区域的含义+可否出手。</summary>
+        [DataSourceProperty]
+        public string CursorZoneText
+        {
+            get => _cursorZoneText;
+            set { if (value != _cursorZoneText) { _cursorZoneText = value; OnPropertyChangedWithValue(value, nameof(CursorZoneText)); } }
+        }
+
+        /// <summary>规则行②文本色（hex），跟随浮标所在区域。</summary>
+        [DataSourceProperty]
+        public string CursorZoneColor
+        {
+            get => _cursorZoneColor;
+            set { if (value != _cursorZoneColor) { _cursorZoneColor = value; OnPropertyChangedWithValue(value, nameof(CursorZoneColor)); } }
         }
 
         [DataSourceProperty]
