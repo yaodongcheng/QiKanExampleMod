@@ -1,32 +1,101 @@
-﻿[15:38:39.829] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
+﻿[22:34:59.695] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[15:38:45.734] [WorldEventStore] Deserialized 0 events, 0 alerts
-[15:38:54.209] [AddQuickInformation] "成就被禁用！"
-[15:39:02.694] === [AnimalSync] 特维亚 (village_ES3_2) ===
-  Type       Scene    Roster   Stolen   Action
-  ----       -----    ------   ------   ------
-  sheep      16       16       0        
-  cow        10       10       0        
-  hog        10       9        1        remove 1
-  goose      5        5        0        
-  chicken    16       15       1        remove 1
-  =========================================
-
-[15:39:02.703] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[15:39:02.709] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
-[15:39:02.730] [Chest] Spawned prefab 'bd_chest_c' at (376.0268, 391.6366, 8.557678)
-[15:39:02.731] [Chest] Visual highlight applied (warm gold tint)
-[15:39:02.731] [Chest] Spawned at (376.0268, 391.6366, 8.557678), context=Village, gold=200, items=4
-[15:39:39.580] [AnimalTheft] 牛 挣脱，无人目击
-[15:39:39.582] [DisplayMessage] [RGB(0.9,0.3,0.3)] "手滑了，牛挣脱跑了！"
-[15:39:39.582] [StealBar] 抓 牛 手滑 → 惊叫逃跑
-[15:39:50.278] [DisplayMessage] [RGB(1.0,0.9,0.4)] "抓到了牛！"
-[15:39:50.279] [StealBar] 抓住 牛
-[15:39:50.282] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[15:39:50.690] [StealAnimal] 牛 (monster=cow) → cow, 特维亚 stock: 10→9
-[15:39:50.691] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[15:39:50.691] [TheftLedger] Recorded: cow x1 by main_hero from village_ES3_2
-[15:39:50.692] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[15:39:50.692] [DisplayMessage] [Green] "获得了 牛！"
+[22:35:03.953] [WorldEventStore] Deserialized 0 events, 0 alerts
+[22:35:08.515] [AddQuickInformation] "成就被禁用！"
+[22:35:41.661] [DisplayMessage] "你发现了木匠安德洛斯"
+[22:35:41.661] [DisplayMessage] "你发现了木匠达利得斯"
+[22:35:41.662] [DisplayMessage] "你发现了麦酒酿制工浦里奥斯"
+[22:35:41.662] [DisplayMessage] "你发现了“酪乳”阿法倪斯"
+[22:35:41.662] [DisplayMessage] "你发现了“赤眼”得尔提索斯"
+[22:35:44.106] [DisplayMessage] "你发现了“流浪者”赞迪娜"
+[22:35:46.642] [Wealth] 吕卡隆 (TownTavern, ×0.15): 金库11004→场景1650→流通池1650, NPC池1320(英雄2人=352, 村民22人=968), 箱子330第纳尔, 物资19种(过滤后)
+[22:35:46.646] [Chest] 锚点 '酒馆店主' at (16.127, 31.276, 0.3333634) → 正后方 0.7m 命中，相对偏移 (0.68, -0.18, 0.00)
+[22:35:46.684] [Chest] Spawned prefab 'bd_chest_c' at (16.80422, 31.09889, 0.3333634) (scale=0.5)
+[22:35:46.686] [Chest] Visual highlight applied (warm gold tint)
+[22:35:46.686] [Chest] Spawned at (16.80422, 31.09889, 0.3333634), context=TownTavern, gold=330, items=19
+[22:35:59.743] [DisplayMessage] [Yellow] "你注意到酒馆角落有个微微泛金的储物桶，上面挂着一把旧锁……"
+[22:36:18.237] [DisplayMessage] [RGB(1.0,0.9,0.4)] "第 1 个簧片开了…"
+[22:36:19.027] [Brain-Phase] 镇民(Idx=7) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[StealUIOpen=0.26] → 发送 'BecomeSuspicious'
+[22:36:19.031] [Brain-Receive] 镇民(Idx=7) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[22:36:19.035] [BubbleSay] 镇民(Idx=7): "（瞟了一眼）在翻什么呢……"
+[22:36:19.311] [Brain-Phase] 镇民(Idx=13) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[StealUIOpen=0.26] → 发送 'BecomeSuspicious'
+[22:36:19.311] [Brain-Receive] 镇民(Idx=13) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[22:36:19.312] [BubbleSay] 镇民(Idx=13): "（瞟了一眼）在翻什么呢……"
+[22:36:21.922] [Brain-Phase] 镇民(Idx=7) 警戒下降: Suspicious → Normal (警戒值=0.25)
+[22:36:21.922] [Brain-Receive] 镇民(Idx=7) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[22:36:21.924] [Brain-Clear] 镇民(Idx=7) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[22:36:21.924] [Brain-Alert] 镇民(Idx=7) ClearAllAlerts: 警戒值归零
+[22:36:22.792] [Brain-Phase] 赌徒(Idx=2) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[StealUIOpen=0.26] → 发送 'BecomeSuspicious'
+[22:36:22.792] [Brain-Receive] 赌徒(Idx=2) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[22:36:22.792] [BubbleSay] 赌徒(Idx=2): "（瞟了一眼）在翻什么呢……"
+[22:36:23.632] [Brain-Phase] 赌徒(Idx=2) 警戒下降: Suspicious → Normal (警戒值=0.25)
+[22:36:23.632] [Brain-Receive] 赌徒(Idx=2) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[22:36:23.632] [Brain-Clear] 赌徒(Idx=2) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[22:36:23.632] [Brain-Alert] 赌徒(Idx=2) ClearAllAlerts: 警戒值归零
+[22:36:25.344] [Brain-Phase] 镇民(Idx=13) 警戒下降: Suspicious → Normal (警戒值=0.25)
+[22:36:25.346] [Brain-Receive] 镇民(Idx=13) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[22:36:25.346] [Brain-Clear] 镇民(Idx=13) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[22:36:25.346] [Brain-Alert] 镇民(Idx=13) ClearAllAlerts: 警戒值归零
+[22:36:34.229] [DisplayMessage] [RGB(1.0,0.9,0.4)] "第 1 个簧片开了…"
+[22:36:35.118] [Brain-Phase] 镇民(Idx=13) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[StealUIOpen=0.26] → 发送 'BecomeSuspicious'
+[22:36:35.119] [Brain-Receive] 镇民(Idx=13) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[22:36:35.119] [BubbleSay] 镇民(Idx=13): "（瞟了一眼）在翻什么呢……"
+[22:36:35.633] [DisplayMessage] [RGB(1.0,0.9,0.4)] "第 2 个簧片开了…"
+[22:36:38.308] [Brain-Phase] 赌徒(Idx=2) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[StealUIOpen=0.26] → 发送 'BecomeSuspicious'
+[22:36:38.309] [Brain-Receive] 赌徒(Idx=2) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[22:36:38.309] [BubbleSay] 赌徒(Idx=2): "（瞟了一眼）在翻什么呢……"
+[22:36:40.109] [DisplayMessage] [RGB(1.0,0.9,0.4)] "咔哒——锁开了！"
+[22:36:40.109] [StealBar] 撬锁完成
+[22:36:40.110] [ShowInquiry] "酒馆保管箱" | "你找到了酒馆的保管箱。
+金币: 330 第纳尔
+物品:
+  黏土 x74
+  硬木 x44
+  奶酪 x13
+  银矿石 x7
+  黄油 x16
+  ...还有 14 种物品" | Btn1="全部拿走" Btn2="自己挑选"
+[22:36:42.089] [Brain-Phase] 镇民(Idx=13) 警戒上升: Suspicious → Cautious (警戒值=1.01) 因素=[StealUIOpen=1.01] → 发送 'BecomeCautious'
+[22:36:42.089] [Brain-Receive] 镇民(Idx=13) 收到事件 'BecomeCautious' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[22:36:42.089] [Brain-Enqueue] 镇民(Idx=13) 入队 LookAtAction | 当前行为=null | 队列=0→1
+[22:36:42.090] [AI-Debug] Suspend 镇民 (Idx=13) | 集合size=1 | 当前行为=null
+[22:36:42.092] [Brain-Enqueue] 镇民(Idx=13) 入队 StayAction | 当前行为=null | 队列=1→2
+[22:36:42.100] [BubbleSay] 镇民(Idx=13): "（盯着）喂！你！你在翻什么！"
+[22:36:42.101] [Brain-Tick] 镇民(Idx=13) 开始执行 LookAtAction | 队列剩余=1
+[22:36:42.102] [Brain-Tick] 镇民(Idx=13) 完成 LookAtAction
+[22:36:42.106] [Brain-Tick] 镇民(Idx=13) 开始执行 StayAction | 队列剩余=0
+[22:36:43.068] [DisplayMessage] [Yellow] "获得了 330 第纳尔。"
+[22:36:43.070] [TheftLedger] Recorded: beer x11 by main_hero from town_ES4
+[22:36:43.070] [TheftLedger] Recorded: artisan_beer x2 by main_hero from town_ES4
+[22:36:43.070] [TheftLedger] Recorded: grain x129 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: tools x3 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: leather x2 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: hides x23 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: meat x38 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: date_fruit x3 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: salt x20 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: grape x18 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: flax x8 by main_hero from town_ES4
+[22:36:43.071] [TheftLedger] Recorded: fish x16 by main_hero from town_ES4
+[22:36:43.072] [TheftLedger] Recorded: iron x1 by main_hero from town_ES4
+[22:36:43.072] [TheftLedger] Recorded: cotton x11 by main_hero from town_ES4
+[22:36:43.072] [TheftLedger] Recorded: butter x16 by main_hero from town_ES4
+[22:36:43.072] [TheftLedger] Recorded: silver x7 by main_hero from town_ES4
+[22:36:43.072] [TheftLedger] Recorded: cheese x13 by main_hero from town_ES4
+[22:36:43.072] [TheftLedger] Recorded: hardwood x44 by main_hero from town_ES4
+[22:36:43.072] [TheftLedger] Recorded: clay x74 by main_hero from town_ES4
+[22:36:43.072] [DisplayMessage] [Green] "获得了 439 件物品。"
+[22:36:43.074] [ChestTheft] Witness system DISABLED — treating as no witnesses.
+[22:36:44.304] [Brain-Phase] 镇民(Idx=13) 警戒下降: Cautious → Suspicious (警戒值=1.00)
+[22:36:44.304] [Brain-Receive] 镇民(Idx=13) 收到事件 'CalmDown' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[22:36:45.610] [Brain-Phase] 赌徒(Idx=2) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[22:36:45.610] [Brain-Receive] 赌徒(Idx=2) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[22:36:45.610] [Brain-Clear] 赌徒(Idx=2) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[22:36:45.610] [Brain-Alert] 赌徒(Idx=2) ClearAllAlerts: 警戒值归零
+[22:36:49.314] [Brain-Phase] 镇民(Idx=13) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[22:36:49.314] [Brain-Receive] 镇民(Idx=13) 收到事件 'CalmDown' | 当前行为=StayAction | 队列=0 | 阶段=Suspicious
+[22:36:49.314] [Brain-Clear] 镇民(Idx=13) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[22:36:49.315] [Brain-Alert] 镇民(Idx=13) ClearAllAlerts: 警戒值归零
+[22:36:49.315] [AI-Debug] Resume 镇民 (Idx=13) | 集合size=0

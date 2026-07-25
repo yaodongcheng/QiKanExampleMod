@@ -1937,9 +1937,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 在村长/乡绅附近生成一个保管箱实体。
-        /// 策略：扫描场景中已有的可见储物道具 → 克隆最佳候选 → 移到村长附近 → 高亮标记。
-        /// 若扫描失败则回退到已知 prefab 名 Instantiate；再失败则 CreateEmpty（仅功能，不可见）。
+        /// 在锚点 NPC 身后生成一个保管箱实体（酒馆→酒馆老板背后，村庄→村长背后，领主大厅→领主背后）。
+        /// 策略：场景感知锚点 → 正后方 navmesh 验证取点 → 固定 prefab（bd_chest_c，0.5× 缩放）→ 高亮标记。
+        /// 若扫描失败则回退到场景克隆；再失败则 CreateEmpty（仅功能，不可见）。
         /// </summary>
         private void SpawnSettlementChest()
         {
@@ -1948,14 +1948,12 @@ namespace LivingWorldNpcs
 
             try
             {
-                // 1. 找场景感知的 NPC 锚点（村庄→村长，酒馆→酒馆老板，领主大厅→领主…）
-                Vec3 anchorPos = StealManager.FindChestAnchorPosition();
-                Vec3 chestPos = anchorPos + new Vec3(2f, 0f, 0f);
-                float groundHeight = scene.GetGroundHeightAtPosition(chestPos);
-                if (groundHeight != 0f) chestPos.z = groundHeight;
+                // 1. 找场景感知的 NPC 锚点，箱位优先取锚点正后方（柜台内侧/墙根）
+                Agent anchor = StealManager.FindChestAnchorAgent();
+                Vec3 chestPos = StealManager.ResolveChestSpawnPosition(scene, anchor);
 
                 // 2. 生成保管箱可见实体：固定 prefab（bd_chest_c，实机选定）优先，场景克隆兜底
-                _chestEntity = StealManager.SpawnStorageChestProp(scene, chestPos);
+                _chestEntity = StealManager.SpawnStorageChestProp(scene, chestPos, anchor?.Position);
 
                 // 3. 最终兜底：不可见标记点
                 if (_chestEntity == null)
