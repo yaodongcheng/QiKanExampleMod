@@ -1016,17 +1016,18 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 场景感知的保管箱锚点：根据不同场景类型选择最合适的 NPC 位置。
+        /// 场景感知的保管箱锚点：根据不同场景类型选择最合适的 NPC。
         /// 村庄→村长/乡绅，酒馆→酒馆老板，领主大厅→领主，其余→任意有名 NPC。
+        /// 优先级数组有序：逐档搜索，高档命中即返回（保证酒馆老板优先于工匠）。
         /// </summary>
-        internal static Vec3 FindChestAnchorPosition()
+        internal static Agent FindChestAnchorAgent()
         {
             var agents = Mission.Current?.Agents;
-            if (agents == null) return Vec3.Zero;
+            if (agents == null) return null;
 
             ChestContext ctx = GetCurrentChestContext();
 
-            // 按场景类型确定搜索优先级
+            // 按场景类型确定搜索优先级（数组顺序 = 优先顺序）
             Occupation[] priorities = ctx switch
             {
                 ChestContext.TownTavern => new[] { Occupation.Tavernkeeper,
@@ -1040,29 +1041,32 @@ namespace LivingWorldNpcs
                 _ => Array.Empty<Occupation>()
             };
 
-            // 按优先级搜索 occupation
+            // 按优先级逐档搜索 occupation
+            // 注意（铁律 8）：酒馆老板/村长等是模板 NPC（is_hero=false，无 HeroObject），
+            // Occupation 挂在 CharacterObject 模板上——HeroObject?.Occupation 只认 Hero，会永远漏掉他们。
             if (priorities != null)
             {
-                var occSet = new HashSet<Occupation>(priorities);
-                foreach (Agent agent in agents)
+                foreach (var occ in priorities)
                 {
-                    if (!agent.IsHuman || !agent.IsActive()) continue;
-                    var co = agent.Character as CharacterObject;
-                    var occ = co?.HeroObject?.Occupation;
-                    if (occ.HasValue && occSet.Contains(occ.Value))
-                        return agent.Position;
+                    foreach (Agent agent in agents)
+                    {
+                        if (!agent.IsHuman || !agent.IsActive()) continue;
+                        var co = agent.Character as CharacterObject;
+                        var agentOcc = co?.HeroObject?.Occupation ?? co?.Occupation;
+                        if (agentOcc.HasValue && agentOcc.Value == occ)
+                            return agent;
+                    }
                 }
             }
-
-            // 领主大厅/城堡：找 IsLord
-            if (priorities == null)
+            else
             {
+                // 领主大厅/城堡：找 IsLord
                 foreach (Agent agent in agents)
                 {
                     if (!agent.IsHuman || !agent.IsActive()) continue;
                     var hero = (agent.Character as CharacterObject)?.HeroObject;
                     if (hero != null && hero.IsLord)
-                        return agent.Position;
+                        return agent;
                 }
             }
 
@@ -1071,17 +1075,64 @@ namespace LivingWorldNpcs
             {
                 if (!agent.IsHuman || !agent.IsActive()) continue;
                 if ((agent.Character as CharacterObject)?.HeroObject != null)
-                    return agent.Position;
+                    return agent;
             }
 
             // 最终兜底：任意活跃人类
             foreach (Agent agent in agents)
             {
                 if (agent.IsHuman && agent.IsActive())
-                    return agent.Position;
+                    return agent;
             }
 
-            return Agent.Main?.Position ?? Vec3.Zero;
+            return null;
+        }
+
+        /// <summary>保管箱放在锚点 NPC 正后方的候选距离（按数组顺序逐级尝试，取第一个可站立点）。</summary>
+        private static readonly float[] ChestBehindDistances = { 0.7f, 1.2f, 2.0f };
+
+        /// <summary>
+        /// 决定保管箱的世界坐标：优先锚点 NPC 正后方（酒馆老板身后的柜台内侧、村长背后的墙根），
+        /// 按 <see cref="ChestBehindDistances"/> 数组顺序逐级尝试并验证 navmesh 可站立；
+        /// 全部失败回退旧行为（锚点 +X 偏移 2m）。
+        /// </summary>
+        internal static Vec3 ResolveChestSpawnPosition(Scene scene, Agent anchor)
+        {
+            Vec3 anchorPos = anchor?.Position ?? Agent.Main?.Position ?? Vec3.Zero;
+
+            if (anchor != null && scene != null)
+            {
+                Vec3 back = -anchor.LookDirection;
+                back.z = 0f;
+                if (back.LengthSquared > 0.0001f)
+                {
+                    back = back.NormalizedCopy();
+                    foreach (float dist in ChestBehindDistances)
+                    {
+                        Vec3 candidate = anchorPos + back * dist;
+                        float ground = scene.GetGroundHeightAtPosition(candidate);
+                        if (ground != 0f) candidate.z = ground;
+                        if (V.NavMesh(scene, candidate, out _))
+                        {
+                            DebugLogger.Log($"[Chest] 锚点 '{anchor.Name}' at {anchorPos} → 正后方 {dist:F1}m 命中，" +
+                                $"相对偏移 ({candidate.x - anchorPos.x:F2}, {candidate.y - anchorPos.y:F2}, {candidate.z - anchorPos.z:F2})");
+                            return candidate;
+                        }
+                        DebugLogger.Log($"[Chest] 锚点 '{anchor.Name}' 正后方 {dist:F1}m navmesh 无效，尝试下一档");
+                    }
+                }
+            }
+
+            // 兜底：旧行为（锚点 +X 偏移 2m）
+            Vec3 fallback = anchorPos + new Vec3(2f, 0f, 0f);
+            if (scene != null)
+            {
+                float h = scene.GetGroundHeightAtPosition(fallback);
+                if (h != 0f) fallback.z = h;
+            }
+            DebugLogger.Log($"[Chest] 锚点 '{anchor?.Name ?? "null"}' at {anchorPos} → 正后方全档位失败，兜底 +X 2m，" +
+                $"相对偏移 ({fallback.x - anchorPos.x:F2}, {fallback.y - anchorPos.y:F2}, {fallback.z - anchorPos.z:F2})");
+            return fallback;
         }
 
         /// <summary>
@@ -1089,22 +1140,34 @@ namespace LivingWorldNpcs
         /// </summary>
         internal const string ChestPrefabName = "bd_chest_c";
 
+        /// <summary>保管箱模型缩放系数（实机反馈原尺寸过大，减半）。prefab 与克隆两条路径统一生效。</summary>
+        internal const float ChestScale = 0.5f;
+
         /// <summary>
         /// 生成保管箱可见实体。两轮策略（铁律 5）：
         /// ① 固定 prefab Instantiate —— 外观正确性优先：场景克隆靠实体名猜，曾把椅子（bd_chair_c）
         ///    纯靠贴脸距离选成"宝箱"，实体名与外观无必然联系；
         /// ② 场景扫描克隆兜底 —— prefab 未加载时（如内容包场景），从场景已有储物道具克隆。
         /// </summary>
-        internal static GameEntity SpawnStorageChestProp(Scene scene, Vec3 targetPos)
+        /// <param name="faceToward">箱体正面朝向点（通常传锚点 NPC 位置——老板开柜的自然朝向）；null 保持默认朝向。</param>
+        internal static GameEntity SpawnStorageChestProp(Scene scene, Vec3 targetPos, Vec3? faceToward = null)
         {
             if (GameEntity.PrefabExists(ChestPrefabName))
             {
-                MatrixFrame frame = MatrixFrame.Identity;
-                frame.origin = targetPos;
+                // 朝向：正面朝向锚点 NPC；无锚点则保持 prefab 默认朝向
+                Mat3 rotation = Mat3.Identity;
+                if (faceToward.HasValue)
+                {
+                    Vec3 dir = faceToward.Value - targetPos;
+                    dir.z = 0f;
+                    if (dir.LengthSquared > 0.0001f)
+                        rotation = Mat3.CreateMat3WithForward(dir.NormalizedCopy());
+                }
+                MatrixFrame frame = new MatrixFrame(rotation * ChestScale, targetPos);
                 var chest = GameEntity.Instantiate(scene, ChestPrefabName, frame);
                 if (chest != null)
                 {
-                    DebugLogger.Log($"[Chest] Spawned prefab '{ChestPrefabName}' at {targetPos}");
+                    DebugLogger.Log($"[Chest] Spawned prefab '{ChestPrefabName}' at {targetPos} (scale={ChestScale})");
                     return chest;
                 }
                 DebugLogger.Log($"[Chest] Instantiate '{ChestPrefabName}' failed — fallback to scene scan");
@@ -1146,14 +1209,15 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[Chest] Scan: context={GetCurrentChestContext()}, best candidate '{best.entity.Name}' (score={best.score:F0}), " +
                 $"candidates={candidates.Count}, names=[{string.Join(", ", candidates.Take(5).Select(c => c.entity.Name))}]");
 
-            // 克隆并移动到目标位置
+            // 克隆并移动到目标位置（缩放减半，与 prefab 路径一致）
             var clone = GameEntity.CopyFrom(scene, best.entity);
             if (clone != null)
             {
                 MatrixFrame frame = clone.GetGlobalFrame();
+                frame.rotation = frame.rotation * ChestScale;
                 frame.origin = targetPos;
                 clone.SetGlobalFrame(frame);
-                DebugLogger.Log($"[Chest] Cloned '{best.entity.Name}' → moved to {targetPos}");
+                DebugLogger.Log($"[Chest] Cloned '{best.entity.Name}' → moved to {targetPos} (scale={ChestScale})");
             }
             return clone;
         }

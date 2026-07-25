@@ -949,8 +949,10 @@ float w = StealManager.GetChestContextGoldWeight(ctx);   // 中心.40/大厅.30/
 bool ok = StealManager.IsItemAllowedInContext(item, ctx); // 酒馆=食物杂货，大厅=武器防具马匹书籍，暗巷=赃物轻甲，动物一律false
 
 // ④ 场景化锚点 + 文案
-Vec3 pos = StealManager.FindChestAnchorPosition();       // 酒馆→Tavernkeeper，大厅/城堡→IsLord，暗巷→GangLeader，村庄→Headman，多级兜底
+Agent a = StealManager.FindChestAnchorAgent();              // 酒馆→Tavernkeeper（优先级有序），大厅/城堡→IsLord，暗巷→GangLeader，村庄→Headman，多级兜底
+Vec3 pos = StealManager.ResolveChestSpawnPosition(scene, a); // 锚点正后方 2.0m→1.2m 逐级收缩 + navmesh 验证，兜底 +X 2m
 var (hint, title, prefix) = InteractionMissionView.GetChestTexts(ctx);  // (提示语, 标题, 内容前缀) 三元组
+// 生成：StealManager.SpawnStorageChestProp(scene, pos, anchor?.Position) — 0.5× 缩放（ChestScale 常量），正面朝向锚点
 ```
 
 ## 复合键防重复
@@ -976,7 +978,7 @@ var (hint, title, prefix) = InteractionMissionView.GetChestTexts(ctx);  // (提�
 
 任何「遍历 Scene 实体 → 按名字打分选候选」的逻辑都应先过这道黑名单再评分。
 
-**文件位置**：`Stealth/StealManager.cs`（`ChestContext` 枚举 + `GetCurrentChestContext` + `GetChestContextGoldWeight` + `IsItemAllowedInContext` + `FindChestAnchorPosition` + `IsBlacklistedEntityName`）、`Interaction/InteractionMissionView.cs`（`GetChestTexts` + SpawnChest/开箱 Inquiry 消费点）。
+**文件位置**：`Stealth/StealManager.cs`（`ChestContext` 枚举 + `GetCurrentChestContext` + `GetChestContextGoldWeight` + `IsItemAllowedInContext` + `FindChestAnchorAgent` + `ResolveChestSpawnPosition` + `IsBlacklistedEntityName`）、`Interaction/InteractionMissionView.cs`（`GetChestTexts` + SpawnChest/开箱 Inquiry 消费点）。
 
 ## 附：场景锁簧片数表
 
