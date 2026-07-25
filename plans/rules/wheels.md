@@ -1078,6 +1078,64 @@ V.SetPlayerControlFrozen(Agent.Main, false);  // 关 UI：切回 Player（自动
 
 ---
 
+# 统一输入映射层 — `Input/ModInput.cs`
+
+**解决什么问题**：① 业务代码裸写 `InputKey.F` 导致手柄完全无法游玩；② 按键提示（InteractArea 圆徽、偷窃条按钮文本）硬编码键盘字串，手柄玩家看到错误提示；③ 改键要满世界找 `IsKeyPressed`。UE4 风格 Action Mapping：**业务层只认语义动作，不认物理键**。
+
+## 三件套
+
+```csharp
+// ① 语义动作枚举：加新互动 = 加一个枚举值 + 映射表加一行
+public enum ModInputAction { Interact, AltInteract, Inspect, StealAttempt, StealLeave }
+
+// ② 输入轮询（键盘+手柄双通道同时监听，玩家中途换设备无需切换逻辑）
+ModInput.Pressed(ModInputAction.Interact);    // 按下沿，键盘 F 或手柄 X/□ 任一命中即算
+ModInput.Released(ModInputAction.StealLeave); // 松开沿
+
+// ③ 提示字形（按"最近一次输入设备"自动分键盘/Xbox/PS 三套文本）
+ModInput.Glyph(ModInputAction.Interact);  // → "F" / "X" / "□"
+ModInput.UsingGamepad;                    // 当前设备是否手柄
+ModInput.IsPlayStation;                   // 手柄是否 PS 系
+```
+
+## 当前映射表（改键唯一入口）
+
+| 动作 | 键盘 | Xbox | PS | 用途 |
+|------|------|------|-----|------|
+| Interact | F | X | □ | 对话/偷窃/击晕/搜刮/撬锁 |
+| AltInteract | G | Y | △ | 闲聊/接受认输 |
+| Inspect | H | L3 | L3 | 探查 NPC 信息板 |
+| StealAttempt | 空格 | A | ✕ | 偷窃条出手 |
+| StealLeave | Tab | B | ○ | 偷窃条收手 |
+
+**键位选择纪律**：主互动用 X/□ 不用 A/✕——A 是跳跃，漫游时会误触；偷窃条内可以用 A（条打开时玩家控制已冻结）。手柄键位对照：`RDown=A/✕` `RRight=B/○` `RUp=Y/△` `RLeft=X/□` `LThumb=L3`。
+
+## 设备检测原理（引擎原生，与原版 UI 判定一致）
+
+- 最近设备：`Input.IsGamepadActive`（= `IsControllerConnected && !IsMouseActive`，引擎每帧 `Input.Update()` 维护）——**不要自己造键盘/手柄检测**。
+- Xbox/PS 区分：`Input.ControllerType.IsPlaystation()`（DualShock/DualSense → true）。
+- PS 字形 □△✕○ 走 CJK 符号区，中文字体可渲染；若 ✕ 实机豆腐块，改映射表 `PsGlyph` 一行即可。
+- v1.2.12 / v1.4.6 双版本 API 一致（已核实），无需 `V.` 包装。
+
+## 接入范式（UI 按键提示随设备切换）
+
+```csharp
+// View 侧：缓存设备状态逐帧对比，变化时刷新全部按键提示（InteractionMissionView.OnMissionTick 为范本）
+bool usingGamepad = ModInput.UsingGamepad;
+if (usingGamepad != _lastUsingGamepad)
+{
+    _lastUsingGamepad = usingGamepad;
+    _interactVM?.RefreshGlyphs();        // InteractArea：item 存 ModInputAction?，重算 KeyText
+    _stealBarVM?.RefreshButtonTexts();   // 偷窃条：重算 AttemptButtonText/LeaveButtonText
+}
+```
+
+**VM 侧纪律**：按键提示文本**禁止**写死 `"F"`/`"[空格]"` 字串——item/按钮存 `ModInputAction`，显示时 `ModInput.Glyph()` 实时解析（范本：`InteractionItemVM.RefreshKeyText`、`StealBarVM.RefreshButtonTexts`）。XML 一律绑 `@KeyText`/`@XxxButtonText`，不写裸文本。
+
+**文件位置**：`Input/ModInput.cs`（枚举 + 映射表 + 轮询/字形 API）、`Interaction/InteractionVM.cs`（`RefreshGlyphs` 范本）、`Stealth/StealBarVM.cs`（`RefreshButtonTexts` 范本）、`Interaction/InteractionMissionView.cs`（设备切换检测范本）。
+
+---
+
 # 版本兼容层 — `Core/VersionCompat.cs`
 
 **同一份源码，双版本编译。** `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。每一对 API 差异用一个 `V.xxx()` 方法封装，内部 `#if !MB2_V1212` / `#else` 分支。

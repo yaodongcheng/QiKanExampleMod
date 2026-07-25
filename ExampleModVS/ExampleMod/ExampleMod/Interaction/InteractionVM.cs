@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,14 +14,21 @@ namespace LivingWorldNpcs
 
         private string _actionText;
         private string _keyText;
-        
+        private readonly ModInputAction? _inputAction;
 
-        // 构造函数
-        public InteractionItemVM(string actionText, string keyText)
+
+        // 构造函数：键位存语义动作，显示字形由 ModInput 按当前设备实时解析
+        public InteractionItemVM(string actionText, ModInputAction? inputAction)
         {
             _actionText = actionText;
-            _keyText = keyText;
-            
+            _inputAction = inputAction;
+            RefreshKeyText();
+        }
+
+        // 设备切换时重算键位提示（键盘 F / Xbox X / PS □）
+        public void RefreshKeyText()
+        {
+            KeyText = _inputAction.HasValue ? ModInput.Glyph(_inputAction.Value) : "";
         }
 
         // 对应 XML 中的 Text="@ActionText"
@@ -126,8 +133,8 @@ namespace LivingWorldNpcs
             TargetName = name;
             //可能不同状态下，InteractionList 也要变化，暂时不变。
         }
-        // 用于外部刷新数据的方法
-        public void UpdateTarget(string name, List<(string action, string key)> actions)
+        // 用于外部刷新数据的方法（key = 语义动作，显示字形按当前输入设备解析；null = 无键位提示）
+        public void UpdateTarget(string name, List<(string action, ModInputAction? key)> actions)
         {
             TargetName = name;
             InteractionList.Clear();
@@ -136,6 +143,13 @@ namespace LivingWorldNpcs
                 InteractionList.Add(new InteractionItemVM(act.action, act.key));
             }
             IsVisible = true;
+        }
+
+        // 输入设备切换（键盘↔手柄）时刷新全部键位提示，无需重建列表
+        public void RefreshGlyphs()
+        {
+            foreach (var item in InteractionList)
+                item.RefreshKeyText();
         }
 
         public void ChangeInteractionName(string oldName,string newName)
@@ -151,7 +165,7 @@ namespace LivingWorldNpcs
         }
 
         // 添加一个交互选项 (例如：添加 "F - 交谈")
-        public void AddInteraction(string action, string key)
+        public void AddInteraction(string action, ModInputAction? key)
         {
             InteractionList.Add(new InteractionItemVM(action, key));
         }

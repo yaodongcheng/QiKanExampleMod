@@ -1,10 +1,10 @@
-﻿[15:11:57.937] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
+﻿[15:38:39.829] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[15:12:02.234] [WorldEventStore] Deserialized 0 events, 0 alerts
-[15:12:06.851] [AddQuickInformation] "成就被禁用！"
-[15:12:10.920] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[15:38:45.734] [WorldEventStore] Deserialized 0 events, 0 alerts
+[15:38:54.209] [AddQuickInformation] "成就被禁用！"
+[15:39:02.694] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -14,11 +14,19 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[15:12:10.973] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[15:12:10.978] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
-[15:12:10.983] [Chest] Spawned prefab 'bd_chest_c' at (569.2441, 246.0032, 14.4)
-[15:12:10.985] [Chest] Visual highlight applied (warm gold tint)
-[15:12:10.985] [Chest] Spawned at (569.2441, 246.0032, 14.4), context=Village, gold=200, items=4
-[15:12:15.745] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 驮马 造成了2 点伤害"
-[15:12:15.755] [DisplayMessage] [RGB(1.0,0.9,1.0)] "对坐骑造成2点钝击伤害。<Detail>命中部位：肩</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
-[15:12:32.194] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
+[15:39:02.703] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[15:39:02.709] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
+[15:39:02.730] [Chest] Spawned prefab 'bd_chest_c' at (376.0268, 391.6366, 8.557678)
+[15:39:02.731] [Chest] Visual highlight applied (warm gold tint)
+[15:39:02.731] [Chest] Spawned at (376.0268, 391.6366, 8.557678), context=Village, gold=200, items=4
+[15:39:39.580] [AnimalTheft] 牛 挣脱，无人目击
+[15:39:39.582] [DisplayMessage] [RGB(0.9,0.3,0.3)] "手滑了，牛挣脱跑了！"
+[15:39:39.582] [StealBar] 抓 牛 手滑 → 惊叫逃跑
+[15:39:50.278] [DisplayMessage] [RGB(1.0,0.9,0.4)] "抓到了牛！"
+[15:39:50.279] [StealBar] 抓住 牛
+[15:39:50.282] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[15:39:50.690] [StealAnimal] 牛 (monster=cow) → cow, 特维亚 stock: 10→9
+[15:39:50.691] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
+[15:39:50.691] [TheftLedger] Recorded: cow x1 by main_hero from village_ES3_2
+[15:39:50.692] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[15:39:50.692] [DisplayMessage] [Green] "获得了 牛！"
