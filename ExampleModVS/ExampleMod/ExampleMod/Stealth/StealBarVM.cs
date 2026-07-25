@@ -6,8 +6,8 @@ using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
-    /// <summary>偷窃条小游戏模式：扒窃（偷人）/ 撬锁（保管箱）。</summary>
-    public enum StealBarMode { Pickpocket, Lockpick }
+    /// <summary>偷窃条小游戏模式：扒窃（偷人）/ 撬锁（保管箱）/ 抓动物。</summary>
+    public enum StealBarMode { Pickpocket, Lockpick, Animal }
 
     /// <summary>偷窃条关闭原因，View 轮询消费。</summary>
     public enum StealBarCloseReason
@@ -16,6 +16,9 @@ namespace LivingWorldNpcs
         TargetGone,     // 目标走开/死亡 → 强制收手（不算被发现）
         Alarmed,        // 受害者警觉拉满/质问锁被占用 → 质问机器接管
         Completed,      // 撬锁全部 pin 解开 → View 接开箱 Inquiry
+        NothingLeft,    // 摸空了（无装备也无钱袋）→ View 自动收口 + 提示
+        AnimalCaught,   // 抓动物命中 → View 接 CompleteAnimalSteal
+        AnimalFled,     // 抓动物手滑 → VM 内已惊叫逃跑，View 只收口
     }
 
     /// <summary>撬锁进度点 VM：Locked/Unlocked 两态。</summary>
@@ -75,6 +78,8 @@ namespace LivingWorldNpcs
         private const float NormalHitVictimAlert = 0.35f;       // 普通命中：受害者警戒脉冲
         private const float MissVictimAlert = 1.0f;             // 失误：受害者警戒脉冲
         private const float NoiseWitnessAlert = 0.5f;           // 撬锁失误：目击者警戒脉冲
+        private const float PurseChance = 0.35f;                // 扒窃盲盒摸到钱袋的概率（身上有钱时）
+        private const float AnimalLargeTierFactor = 0.6f;       // 大动物（猪/羊/牛）判定区定价：右扣 40%（小动物 1.0 不扣）
 
         // 子横条闪烁颜色（绑定 XML 用 hex 字符串）
         private const string ZoneColorNormal = "#D4AF37FF";     // 常态金
@@ -104,8 +109,12 @@ namespace LivingWorldNpcs
         private float _driftPhase;
 
         // ── Pickpocket 状态 ──
-        private EquipmentIndex? _pendingSlot;   // 本回合预摸的槽位
-        private float _itemTierFactor = 1f;     // 预摸物品的双维定价（重量×价值）
+        private EquipmentIndex? _pendingSlot;   // 本回合预摸的槽位（钱袋回合为 null）
+        private bool _pendingIsPurse;           // 本回合预摸的是钱袋（金钱独立偷窃目标）
+        private float _itemTierFactor = 1f;     // 预摸物品的双维定价（重量×价值）；Animal 模式复用为体型定价
+
+        // ── Animal 状态 ──
+        private string _animalName;
 
         // ── Lockpick 状态 ──
         private int _pinCount;
@@ -160,6 +169,26 @@ namespace LivingWorldNpcs
             NewZonePosition();
         }
 
+        /// <summary>Animal：抓 <paramref name="animal"/>。大动物（猪/羊/牛）判定区右扣 40%，小动物全宽。一次出手定胜负。</summary>
+        public StealBarVM(StealBarMode mode, Agent animal, string animalName, bool isLarge, Action closeAction)
+        {
+            _mode = mode;
+            _target = animal;
+            _animalName = string.IsNullOrWhiteSpace(animalName) ? "动物" : animalName;
+            _closeAction = closeAction;
+
+            Pins = new MBBindingList<StealPinVM>();
+            IsPickpocketMode = true;    // 显示上复用扒窃布局（预览行、无簧片）
+            IsLockpickMode = false;
+            TitleText = $"正在抓:{_animalName}";
+            AttemptButtonText = "[空格] 抓";
+            _itemTierFactor = isLarge ? AnimalLargeTierFactor : 1f;
+            PreviewText = isLarge ? "它会拼命挣扎，瞅准时机一把抓住！" : "小家伙很警觉，瞅准时机一把抓住！";
+
+            RecalcZoneSize();
+            NewZonePosition();
+        }
+
         // ═══════════════════════ 每帧驱动（View 调用） ═══════════════════════
 
         public void UpdateFrame(float dt)
@@ -207,15 +236,16 @@ namespace LivingWorldNpcs
         /// <summary>目标走开/死亡/警觉拉满/质问锁 → 请求关闭。</summary>
         private void PollForceClose()
         {
-            // 质问锁被占用（任何人进入 L3 质问）→ 两模式都收手，质问机器接管
+            // 质问锁被占用（任何人进入 L3 质问）→ 所有模式都收手，质问机器接管
             if (AgentBrain.ConfrontingBrain != null)
             {
                 CloseReason = StealBarCloseReason.Alarmed;
                 return;
             }
 
-            if (_mode != StealBarMode.Pickpocket) return;
+            if (_mode == StealBarMode.Lockpick) return;
 
+            // Pickpocket / Animal：目标消失或走开 → 强制收手（动物无 Brain，警觉检查天然跳过）
             if (_target == null || !_target.IsActive())
             {
                 CloseReason = StealBarCloseReason.TargetGone;
@@ -260,14 +290,15 @@ namespace LivingWorldNpcs
         private void RecalcZoneSize()
         {
             float alert = GetCurrentAlert();
-            float baseW = _mode == StealBarMode.Pickpocket ? BaseZoneWidthPickpocket : BaseZoneWidthLockpick;
+            // 扒窃/抓动物共用基础宽（动物体型定价复用物品右扣通道）；撬锁独立基础宽 ×0.85ⁿ
+            float baseW = _mode == StealBarMode.Lockpick ? BaseZoneWidthLockpick : BaseZoneWidthPickpocket;
             if (_mode == StealBarMode.Lockpick)
                 baseW *= MathF.Pow(PinWidthDecay, _currentPin);
             _baseWidthPx = baseW;
             _alertLossPx = baseW * AlertWidthImpact * MathF.Clamp(alert / AlertWidthMax, 0f, 1f);
-            _itemLossPx = _mode == StealBarMode.Pickpocket
-                ? baseW * MathF.Max(0f, 1f - _itemTierFactor)
-                : 0f;
+            _itemLossPx = _mode == StealBarMode.Lockpick
+                ? 0f
+                : baseW * MathF.Max(0f, 1f - _itemTierFactor);
             _effWidthPx = MathF.Max(baseW - _alertLossPx - _itemLossPx, PerfectHalfWidth * 2f);
         }
 
@@ -311,7 +342,8 @@ namespace LivingWorldNpcs
             if (CloseReason != StealBarCloseReason.None) return;
             // 闪现期间不吞输入——允许连续出手的快手感，闪现直接被打断重计
             if (_mode == StealBarMode.Pickpocket) AttemptPickpocket();
-            else AttemptLockpick();
+            else if (_mode == StealBarMode.Lockpick) AttemptLockpick();
+            else AttemptAnimal();
         }
 
         /// <summary>命中判定以「有效判定区」为准：中心 = 基础区左缘 + 左扣 + 有效半宽。</summary>
@@ -326,7 +358,7 @@ namespace LivingWorldNpcs
 
         private void AttemptPickpocket()
         {
-            if (!_pendingSlot.HasValue || _target == null)
+            if ((!_pendingSlot.HasValue && !_pendingIsPurse) || _target == null)
             {
                 FlashResult("他身上已经没什么可偷的了。", ZoneColorFail, MsgColorFail);
                 return;
@@ -336,22 +368,46 @@ namespace LivingWorldNpcs
 
             if (HitTest(out bool perfect))
             {
-                string itemName = StealManager.StealSpecificItem(_target, _pendingSlot.Value);
-                if (string.IsNullOrEmpty(itemName))
+                if (_pendingIsPurse)
                 {
-                    FlashResult("摸了个空。", ZoneColorFail, MsgColorFail);
-                }
-                else if (perfect)
-                {
-                    // 完美窃取：受害者零警戒脉冲（目击者 IsUIOpen 累积不受影响）
-                    FlashResult($"神不知鬼不觉:{itemName}", ZoneColorPerfect, MsgColorPerfect);
-                    DebugLogger.Log($"[StealBar] 完美窃取 {itemName} ← {_target.Name}（零警戒脉冲）");
+                    // 钱袋独立偷窃：命中才偷到钱（金钱=特殊物品，不再顺手白摸）
+                    int gold = StealManager.StealPurseGold(_target);
+                    if (gold <= 0)
+                    {
+                        FlashResult("摸了个空。", ZoneColorFail, MsgColorFail);
+                    }
+                    else if (perfect)
+                    {
+                        // 完美窃取：受害者零警戒脉冲（目击者 IsUIOpen 累积不受影响）
+                        FlashResult($"神不知鬼不觉:{gold} 第纳尔", ZoneColorPerfect, MsgColorPerfect);
+                        DebugLogger.Log($"[StealBar] 完美窃取钱袋 {gold} 第纳尔 ← {_target.Name}（零警戒脉冲）");
+                    }
+                    else
+                    {
+                        brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
+                        FlashResult($"得手了:{gold} 第纳尔", ZoneColorSuccess, MsgColorSuccess);
+                        DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（+{NormalHitVictimAlert} 警戒）");
+                    }
                 }
                 else
                 {
-                    brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
-                    FlashResult($"得手了:{itemName}", ZoneColorSuccess, MsgColorSuccess);
-                    DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（+{NormalHitVictimAlert} 警戒）");
+                    string itemName = StealManager.StealSpecificItem(_target, _pendingSlot.Value);
+                    if (string.IsNullOrEmpty(itemName))
+                    {
+                        FlashResult("摸了个空。", ZoneColorFail, MsgColorFail);
+                    }
+                    else if (perfect)
+                    {
+                        // 完美窃取：受害者零警戒脉冲（目击者 IsUIOpen 累积不受影响）
+                        FlashResult($"神不知鬼不觉:{itemName}", ZoneColorPerfect, MsgColorPerfect);
+                        DebugLogger.Log($"[StealBar] 完美窃取 {itemName} ← {_target.Name}（零警戒脉冲）");
+                    }
+                    else
+                    {
+                        brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
+                        FlashResult($"得手了:{itemName}", ZoneColorSuccess, MsgColorSuccess);
+                        DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（+{NormalHitVictimAlert} 警戒）");
+                    }
                 }
                 NextPickpocketRound();
             }
@@ -360,6 +416,32 @@ namespace LivingWorldNpcs
                 brain?.AddAlert(PlayerActionType.Steal, MissVictimAlert);
                 FlashResult("手滑了！", ZoneColorFail, MsgColorFail);
                 DebugLogger.Log($"[StealBar] 扒窃失误 ← {_target.Name}（+{MissVictimAlert} 警戒）");
+            }
+        }
+
+        /// <summary>抓动物：命中 → View 接 CompleteAnimalSteal；手滑 → 惊叫逃跑（目击者脉冲/围堵走 StealManager）。一次出手定胜负。</summary>
+        private void AttemptAnimal()
+        {
+            if (_target == null || !_target.IsActive())
+            {
+                CloseReason = StealBarCloseReason.TargetGone;
+                return;
+            }
+
+            if (HitTest(out bool perfect))
+            {
+                FlashResult(perfect ? $"一把揪住了{_animalName}！" : $"抓到了{_animalName}！",
+                    perfect ? ZoneColorPerfect : ZoneColorSuccess,
+                    perfect ? MsgColorPerfect : MsgColorSuccess);
+                DebugLogger.Log($"[StealBar] 抓住 {_animalName}{(perfect ? "（完美）" : "")}");
+                CloseReason = StealBarCloseReason.AnimalCaught;
+            }
+            else
+            {
+                StealManager.OnAnimalStruggleFlee(_target, _animalName);
+                FlashResult($"手滑了，{_animalName}挣脱跑了！", ZoneColorFail, MsgColorFail);
+                DebugLogger.Log($"[StealBar] 抓 {_animalName} 手滑 → 惊叫逃跑");
+                CloseReason = StealBarCloseReason.AnimalFled;
             }
         }
 
@@ -400,14 +482,28 @@ namespace LivingWorldNpcs
 
         // ═══════════════════════ Pickpocket 回合管理 ═══════════════════════
 
-        /// <summary>随机预摸下一件：盲盒预览（类型+重量档，不给确切名字）+ 风险定价。</summary>
+        /// <summary>随机预摸下一件：盲盒预览（类型+重量档，不给确切名字）+ 风险定价。钱袋作为独立目标入池。</summary>
         private void NextPickpocketRound()
         {
             _pendingSlot = StealManager.GetRandomStealableItemIndex(_target);
+            _pendingIsPurse = false;
+
+            // 钱袋进盲盒：身上有钱时有概率摸到（装备摸空后有钱袋必摸钱袋）——金钱独立偷窃目标
+            if (StealManager.HasPurseGold(_target)
+                && (!_pendingSlot.HasValue || _random.NextDouble() < PurseChance))
+            {
+                _pendingIsPurse = true;
+                _pendingSlot = null;
+                _itemTierFactor = 1f;   // 钱袋轻巧但系在腰间，标准难度
+                PreviewText = "摸到一个沉甸甸的钱袋。";
+                return;
+            }
+
             if (!_pendingSlot.HasValue)
             {
                 PreviewText = "他身上已经没什么可偷的了。";
                 _itemTierFactor = 1f;
+                CloseReason = StealBarCloseReason.NothingLeft;  // 摸空 → View 自动收口 + 提示，不再让玩家对着空口袋
                 return;
             }
 

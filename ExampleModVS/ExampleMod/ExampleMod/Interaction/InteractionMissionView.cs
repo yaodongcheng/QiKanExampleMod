@@ -74,8 +74,11 @@ namespace LivingWorldNpcs
         private bool _lastWasAnimal = false;
         private NpcIntentType _lastNpcIntentType = NpcIntentType.None;
 
-        // 偷动物并发守卫：防止动画期间重复触发
+        // 偷动物并发守卫：防止偷窃条/拾取动画期间重复触发
         private bool _isStealingAnimal = false;
+
+        // 抓动物偷窃条的目标（命中后 CompleteAnimalSteal 消费；关层统一清空）
+        private Agent _stealAnimalTarget = null;
 
         // 场景动物同步：首帧只执行一次
         private bool _animalSyncDone = false;
@@ -375,11 +378,14 @@ namespace LivingWorldNpcs
 
             if (TaleWorlds.InputSystem.Input.IsKeyPressed(InputKey.F))
             {
-                // 动物：活的偷，死的搜刮
+                // 动物：活的蹲下偷，死的搜刮
                 if (_lastWasAnimal)
                 {
                     if (_lastAgentWasAlive)
-                        TryStealAnimal(_lastFocusedAgent);
+                    {
+                        if (IsMainAgentCrouching())
+                            TryStealAnimal(_lastFocusedAgent);
+                    }
                     else
                         LootAgent(_lastFocusedAgent, isStealing: false);
                 }
@@ -446,7 +452,7 @@ namespace LivingWorldNpcs
                     _interactVM.IsVisible = true;
                     IsHandlingInteraction = true;
                     var actions = new List<(string, string)>();
-                    actions.Add(("打开保管箱", "F"));
+                    actions.Add(("撬锁", "F"));
                     var chestCtx2 = StealManager.GetCurrentChestContext();
                     var (_, title2, _) = GetChestTexts(chestCtx2);
                     _interactVM.UpdateTarget(title2, actions);
@@ -481,7 +487,8 @@ namespace LivingWorldNpcs
             }
 
             bool isBehind = !isAnimal && isAlive && IsBehindTarget(currentAgent);
-            bool isCrouching = !isAnimal && IsMainAgentCrouching();
+            // 蹲姿对动物也要真实追踪：蹲下才能偷动物，蹲下/站起需触发 UI 刷新
+            bool isCrouching = IsMainAgentCrouching();
 
 
             // E. 判断是否需要刷新 UI (对比上一状态)
@@ -506,10 +513,13 @@ namespace LivingWorldNpcs
 
                 if (isAnimal)
                 {
-                    // 动物：活的可偷，死的搜刮
+                    // 动物：活的蹲下可偷（站立时给提示不给按键），死的搜刮
                     if (isAlive)
                     {
-                        actions.Add(("偷", "F"));
+                        if (isCrouching)
+                            actions.Add(("偷", "F"));
+                        else
+                            actions.Add(("蹲下才能偷", ""));
                     }
                     else
                     {
@@ -961,6 +971,8 @@ namespace LivingWorldNpcs
                 // 3. 恢复状态
                 IsHandlingInteraction = false;
                 StealManager.IsUIOpen = false;
+                _isStealingAnimal = false;
+                _stealAnimalTarget = null;
             }
         }
 
@@ -983,9 +995,17 @@ namespace LivingWorldNpcs
             var reason = vm.CloseReason;
             if (reason == StealBarCloseReason.None) return;
 
+            // 抓动物命中：关层前抢出目标（CloseStealInterface 会清空 _stealAnimalTarget）
+            Agent caughtAnimal = reason == StealBarCloseReason.AnimalCaught ? _stealAnimalTarget : null;
+
             // 目标走开/死亡 → 强制收手，不算被发现（无脉冲无广播）
             if (reason == StealBarCloseReason.TargetGone)
-                InformationManager.DisplayMessage(new InformationMessage("对方走开了，偷窃失败。", Colors.Gray));
+                InformationManager.DisplayMessage(new InformationMessage(
+                    _stealAnimalTarget != null ? "它溜走了..." : "对方走开了，偷窃失败。", Colors.Gray));
+            // 摸空了 → 自动收手提示（无装备也无钱袋）
+            else if (reason == StealBarCloseReason.NothingLeft)
+                InformationManager.DisplayMessage(new InformationMessage("他身上已经没什么可偷的了。", Colors.Gray));
+            // AnimalFled：VM 内已完成惊叫/逃跑/围堵广播，此处只收口
 
             bool lockpickDone = reason == StealBarCloseReason.Completed;
             CloseStealInterface();
@@ -993,6 +1013,9 @@ namespace LivingWorldNpcs
             // 撬锁全部 pin 解开 → 进入开箱 Inquiry（IsUIOpen 在 Inquiry 内重新拉起，贯穿 loot 全程）
             if (lockpickDone)
                 ShowChestInquiry();
+            // 抓动物命中 → 继续实际偷窃流程（动画→物品→消除）
+            if (caughtAnimal != null)
+                CompleteAnimalSteal(caughtAnimal);
         }
 
         // ── 偷窃子弹时间（AddTimeSpeedRequest 队列取最小值；Remove 对未知 ID 会 RemoveAt(-1) 抛异常，必须先查）──
@@ -1296,87 +1319,107 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 偷牲畜：将动物 Agent 转化为玩家库存中的牲畜物品（ItemType.Animal）。
-        /// 异步播放蹲下采集动画 → 查找物品 → 加入背包 + 扣村庄库存 → 消除动物 → 站起。
+        /// 偷牲畜入口：守卫 → 开抓动物偷窃条（StealBar Animal 模式，命中/手滑由时机判定决定）。
+        /// 命中后的实际偷窃（动画→物品→消除）由 TickStealBar 接 CompleteAnimalSteal 继续。
         /// </summary>
-        private async void TryStealAnimal(Agent animal)
+        private void TryStealAnimal(Agent animal)
         {
             // 战斗模式下禁止偷窃动物
             if (Settings.Instance.IsInteractionDisabled()) return;
             if (animal == null || !animal.IsActive()) return;
 
-            // ── 并发守卫：防止动画期间重复触发 ──
-            if (_isStealingAnimal) return;
-            _isStealingAnimal = true;
+            // 蹲下才能偷（UI 层已拦，此处防御兜底）
+            if (!IsMainAgentCrouching()) return;
 
-            // 立即隐藏交互 UI，防止动画期间被重新聚焦
+            // ── 并发守卫：防止条打开期间重复触发 ──
+            if (_isStealingAnimal) return;
+            if (_stealLayer != null) return;
+            _isStealingAnimal = true;
+            _stealAnimalTarget = animal;
+
+            // 立即隐藏交互 UI，防止条打开期间被重新聚焦
             _interactVM.IsVisible = false;
-            IsHandlingInteraction = false;
+            IsHandlingInteraction = true;
             _lastFocusedAgent = null;
 
-            Agent mainAgent = Agent.Main;
-            if (mainAgent == null || !mainAgent.IsActive())
-            {
-                _isStealingAnimal = false;
-                return;
-            }
+            // 抓动物偷窃条：大动物判定区窄 40%；命中 → CompleteAnimalSteal，手滑 → VM 内惊叫逃跑
+            string animalName = !string.IsNullOrWhiteSpace(animal.Name) ? animal.Name.Trim() : "动物";
+            bool isLarge = StealManager.IsLargeAnimal(animal.Monster?.StringId);
+            _stealBarVM = new StealBarVM(StealBarMode.Animal, animal, animalName, isLarge, () => CloseStealInterface());
+            _stealLayer = V.NewLayer(201);
+            V.LoadMov(_stealLayer, "StealBar", _stealBarVM);
+            _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse);
+            thisMissionScreen.AddLayer(_stealLayer);
 
-            string animalName = animal.Name ?? "动物";
-            string monsterId = animal.Monster?.StringId;
+            StealManager.IsUIOpen = true;
+            StartStealSlowmo();
+            FreezePlayerControl(); // 同扒窃：冻结玩家输入（跳/走/攻击）
+        }
+
+        /// <summary>
+        /// 抓动物命中后的实际偷窃：面向 → 蹲下拾取动画 → 库存转移 + 追踪 + 犯罪记账 → 消除动物 → 站起。
+        /// </summary>
+        private async void CompleteAnimalSteal(Agent animal)
+        {
+            _isStealingAnimal = true;   // CloseStealInterface 已复位并发守卫，这里重新拉起直到流程结束
+
+            Agent mainAgent = Agent.Main;
+            string animalName = !string.IsNullOrWhiteSpace(animal?.Name) ? animal.Name.Trim() : "动物";
+            string monsterId = animal?.Monster?.StringId;
 
             try
             {
-                // ── 步骤 1：面向动物 ──
-                AgentControlHelper.FaceToActor(mainAgent, animal);
+                if (mainAgent == null || !mainAgent.IsActive() || animal == null) return;
 
-                // ── 步骤 2：播放蹲下拾取动画 ──
+                // ── 步骤 1：面向动物 + 蹲下拾取动画 ──
+                AgentControlHelper.FaceToActor(mainAgent, animal);
                 AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_begin");
                 await Task.Delay(400);
 
-                // ── 步骤 3：再次确认动物存活 ──
-                if (animal == null || !animal.IsActive())
+                // ── 步骤 2：再次确认动物存活且没溜远 ──
+                if (!animal.IsActive() || animal.Position.Distance(mainAgent.Position) > 5f)
                 {
                     InformationManager.DisplayMessage(
-                        new InformationMessage("动物跑掉了...", Colors.Gray));
+                        new InformationMessage("它趁机溜走了...", Colors.Gray));
                     AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
                     return;
                 }
 
-                // ── 步骤 4：查找对应的牲畜物品（静态缓存，惰性初始化）──
+                // ── 步骤 3：查找对应的牲畜物品（静态缓存，惰性初始化）──
                 ItemObject livestockItem = GetLivestockItemForAnimal(monsterId, animalName);
 
                 if (livestockItem == null)
                 {
                     string errMsg = $"无法将 {animalName}（monster={monsterId}）转化为库存物品——未找到匹配的 Animal 类型物品";
-                    DebugLogger.Log($"[TryStealAnimal] {errMsg}");
+                    DebugLogger.Log($"[StealAnimal] {errMsg}");
                     InformationManager.DisplayMessage(new InformationMessage(errMsg, Colors.Red));
                     AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
                     return;
                 }
 
-                // ── 步骤 5：核心业务（库存转移 + 追踪 + 犯罪记账）──
+                // ── 步骤 4：核心业务（库存转移 + 追踪 + 犯罪记账）──
                 StealManager.StealAnimal(Settlement.CurrentSettlement, livestockItem, monsterId, animal);
 
-                // ── 步骤 6：消除场景中的动物 Agent ──
+                // ── 步骤 5：消除场景中的动物 Agent ──
                 try
                 {
                     animal.FadeOut(false, true);
                 }
                 catch (Exception ex)
                 {
-                    DebugLogger.Log($"[TryStealAnimal] FadeOut error: {ex.Message}");
+                    DebugLogger.Log($"[StealAnimal] FadeOut error: {ex.Message}");
                 }
 
-                // ── 步骤 7：播放站起来动画 ──
+                // ── 步骤 6：播放站起来动画 ──
                 AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
 
-                // ── 步骤 8：UI 反馈 ──
+                // ── 步骤 7：UI 反馈 ──
                 string msg = $"获得了 {livestockItem.Name}！";
                 InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Green));
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[TryStealAnimal] Error: {ex.Message}");
+                DebugLogger.Log($"[StealAnimal] Error: {ex.Message}");
                 InformationManager.DisplayMessage(
                     new InformationMessage("偷动物失败", Colors.Red));
 
@@ -1394,6 +1437,13 @@ namespace LivingWorldNpcs
         {
             // 战斗模式下禁止偷窃
             if (Settings.Instance.IsInteractionDisabled()) return;
+
+            // 没东西可偷（无装备也无钱袋）→ 直接提示，不开条
+            if (!StealManager.HasAnythingToSteal(target))
+            {
+                InformationManager.DisplayMessage(new InformationMessage("他身上没什么可偷的。", Colors.Gray));
+                return;
+            }
 
             InformationManager.DisplayMessage(new InformationMessage("你屏住呼吸，悄悄伸出了手...", Colors.Green));
 
