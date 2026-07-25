@@ -840,15 +840,19 @@ bool has = VillageAnimalTracker.HasNaturalCache(settlementId);
 InteractionMissionView.TopUpRosterToNaturalCounts(settlement);
 ```
 
-## 偷动物 — `InteractionMissionView.TryStealAnimal` (async)
+## 偷动物 — `InteractionMissionView.TryStealAnimal` → 抓动物偷窃条 → `CompleteAnimalSteal`
 
 ```csharp
-// 异步：面向动物 → ForcePlayAction("act_pickup_down_begin") → 等待 400ms
-// → 查找物品（GetLivestockItemForAnimal 缓存）→ 加入玩家背包
-// → settlement.ItemRoster.AddToCounts(item, -1)（铁律 4.② Sink）
-// → VillageAnimalTracker.RecordTheft → animal.FadeOut → ForcePlayAction("act_pickup_down_end")
-// 带 _isStealingAnimal 并发守卫
+// 蹲下才能偷：UI 三层门槛（站着提示「蹲下才能偷」/输入层拦截/TryStealAnimal 防御守卫）
+// TryStealAnimal：守卫 → 开 StealBar Animal 模式（子弹时间+冻结，一次出手定胜负）
+//   命中（AnimalCaught）→ CompleteAnimalSteal(async)：面向 → act_pickup_down_begin → 400ms
+//     → 动物存活+距离≤5m 复查 → GetLivestockItemForAnimal → StealManager.StealAnimal
+//     → animal.FadeOut → act_pickup_down_end → 「获得了 xx！」
+//   手滑（AnimalFled）→ VM 内 OnAnimalStruggleFlee：目击者警戒脉冲 + WitnessCrime 围堵 + 逃跑，动物留下可再抓
+// _isStealingAnimal 并发守卫贯穿条+动画全程；CloseStealInterface 统一复位（含 _stealAnimalTarget 清空）
 ```
+
+**犯罪记账对齐**：`RecordAnimalTheft` 有目击时除证词登记外，还会 `BroadcastEventInRange("WitnessCrime")` 立即围堵（victim=null，与保管箱偷窃同一处理方式）。
 
 ## 动物近距离检测
 
@@ -934,7 +938,7 @@ var (hint, title, prefix) = InteractionMissionView.GetChestTexts(ctx);  // (提�
 
 # 时机判定条小游戏引擎（StealBar）— `Stealth/StealBarVM.cs` + `GUI/Prefabs/StealBar.xml`
 
-**解决什么问题**：「光标-目标区」时机判定小游戏（大侠立志传式偷窃/撬锁）。一个 VM 双模式（枚举切换），纯动画状态在 C# 侧由 View 每帧驱动，空格/按钮共用同一出手方法。任何新的「抓时机」玩法（钓鱼、打铁、拆解、追踪）都可复用这套骨架。
+**解决什么问题**：「光标-目标区」时机判定小游戏（大侠立志传式偷窃/撬锁/抓动物）。一个 VM **三模式**（枚举切换），纯动画状态在 C# 侧由 View 每帧驱动，空格/按钮共用同一出手方法。任何新的「抓时机」玩法（钓鱼、打铁、拆解、追踪）都可复用这套骨架。
 
 ## 结构（开/关/tick 三段式）
 
@@ -942,6 +946,7 @@ var (hint, title, prefix) = InteractionMissionView.GetChestTexts(ctx);  // (提�
 // VM（继承 ViewModel；运动状态纯 C# 非绑定，绑定只同步渲染值）
 var vm = new StealBarVM(StealBarMode.Pickpocket, targetAgent, closeAction);
 var vm = new StealBarVM(StealBarMode.Lockpick, pinCount, title, closeAction);
+var vm = new StealBarVM(StealBarMode.Animal, animalAgent, animalName, isLarge, closeAction); // 抓动物：大动物判定区右扣 40%，一次出手定胜负
 vm.UpdateFrame(dt);          // ← MissionView.OnMissionTick 每帧驱动；dt 为 Scene 缩放时间（子弹时间自洽）
 vm.ExecuteAttempt();         // 空格/按钮共用的出手（命中判定），Command.Click 可直接绑
 vm.CloseReason               // StealBarCloseReason 枚举 — VM 不直接关 UI，View 轮询消费统一收口
@@ -954,6 +959,33 @@ _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse); 
 ```
 
 **CloseReason 轮询收口**：VM 想关 UI（目标走开/警觉拉满/完成）只置 `CloseReason`，不碰 Layer；View 每帧读它统一走 `CloseStealInterface`——所有关闭路径（收手/ESC/强制/完成）一个收口函数，配套资源（子弹时间/输入冻结/IsUIOpen）不可能漏回收。
+
+**CloseReason 全量**：`TargetGone`（目标走开/死亡）/ `Alarmed`（警觉拉满或质问锁占用）/ `Completed`（撬锁完成→接开箱 Inquiry）/ `NothingLeft`（摸空→自动收口+提示）/ `AnimalCaught`（抓动物命中→View 接 `CompleteAnimalSteal`，**关层前先抢出 `_stealAnimalTarget`**，收口会清空它）/ `AnimalFled`（手滑，VM 内已惊叫逃跑，View 只收口）。
+
+## 扒窃盲盒：钱袋独立目标 + 摸空自动收口
+
+**金钱 = 特殊物品，独立偷窃（铁律 4），禁止「偷装备顺手白摸钱」。**
+
+```csharp
+// StealManager
+StealManager.HasPurseGold(agent);       // 身上分配金 > 0？
+StealManager.StealPurseGold(agent);     // → int 实偷面额；整袋端走（分配金全拿）。族长 Hero.Gold 摸不到（=全族资金，只能战场击败部队获得）
+StealManager.HasAnythingToSteal(agent); // 任一装备槽或钱袋 → 开条前预检
+
+// StealBarVM.NextPickpocketRound（盲盒回合）：
+//   装备槽随机抽 → 身上有钱时 PurseChance(0.35) 覆盖为「钱袋回合」(_pendingIsPurse)
+//   装备摸空但有钱 → 必摸钱袋；全空 → CloseReason = NothingLeft
+//   钱袋预览「摸到一个沉甸甸的钱袋。」，难度定价 1.0（标准）
+```
+
+- **开条前**：`TryStealFromAgent` 先查 `HasAnythingToSteal`，没东西 → DisplayMessage 直接不开条。
+- **偷到一半摸空**：`NextPickpocketRound` 置 `NothingLeft` → View 自动关条 + 「他身上已经没什么可偷的了。」
+
+## Animal 模式（抓动物）与「动物无 Brain」边界
+
+- 难度表达：动物**无 AgentBrain**（`AgentAIController` 只给 `IsHuman` 注册脑）→ 无警戒值 → 判定区不扣警戒、不游动，难度纯由体型定价（`_itemTierFactor`：大动物 0.6 / 小动物 1.0）；Roguery 减速浮标照常生效。
+- **动物行为不走 Brain 事件体系**：惊叫/逃跑由 `StealManager.OnAnimalStruggleFlee` 一次性处理（目击者警戒脉冲 + WitnessCrime 广播 + `ScriptedMoveToPoint` 脚本移动逃跑 8~14m），不入队 IAtomicAction。
+- `PollForceClose` 对 Animal 生效（溜走 4.5m/死亡 → TargetGone），`GetBrainForAgent` 返回 null 天然跳过警觉检查。
 
 ## 减法五色条（信号贡献可视化）
 

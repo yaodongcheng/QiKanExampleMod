@@ -221,52 +221,46 @@ namespace LivingWorldNpcs
                 agent.UpdateAgentStats(); // 刷新战斗属性
             }
 
-            // 6. 顺手牵羊：偷装备的同时摸走一些零钱（来自村庄财富分配）
-            TryStealPocketGold(agent);
-
             return itemName;
         }
 
-        /// <summary>偷装备时顺手摸走 NPC 身上的零钱（村庄分配金 + 族长家族金库）。</summary>
-        private static void TryStealPocketGold(Agent agent)
+        /// <summary>目标身上是否还有任何可偷之物（任一装备槽或钱袋）。扒窃开条前预检用。</summary>
+        public static bool HasAnythingToSteal(Agent agent)
         {
-            int totalStolen = 0;
+            if (agent == null) return false;
+            if (HasPurseGold(agent)) return true;
+            for (int i = 0; i < 12; i++)
+            {
+                EquipmentElement element = agent.SpawnEquipment[(EquipmentIndex)i];
+                if (!element.IsEmpty && element.Item != null) return true;
+            }
+            return false;
+        }
 
-            // 来源 1：村庄分配金（所有 NPC 通用）
+        /// <summary>目标身上是否有可偷的钱袋（分配金 > 0）。扒窃盲盒候选判定用。</summary>
+        public static bool HasPurseGold(Agent agent)
+        {
+            if (agent == null) return false;
+            return GetAgentGold(agent) > 0;
+        }
+
+        /// <summary>
+        /// 「偷钱袋」独立路径：扒窃盲盒摸到钱袋且时机判定命中时调用（金钱=特殊物品，独立偷窃）。
+        /// 钱袋 = NPC 身上的全部分配金，命中一次整袋端走。
+        /// 族长家族金库（Hero.Gold）不在钱袋里——那是全族资金，必须战场上击败其部队才能获得。
+        /// 返回实际偷到的面额；0 = 摸空（钱已被先摸走/分配池耗尽）。
+        /// </summary>
+        public static int StealPurseGold(Agent agent)
+        {
+            if (agent == null) return 0;
+
             int agentGold = GetAgentGold(agent);
-            if (agentGold > 0)
-            {
-                int goldToSteal = Math.Min(agentGold, MBRandom.RandomInt(1, 15));
-                if (goldToSteal > 0)
-                {
-                    int actual = ConsumeAgentGold(agent, goldToSteal, Settlement.CurrentSettlement);
-                    if (actual > 0)
-                    {
-                        RecordStolenGold(agent, actual);
-                        totalStolen += actual;
-                    }
-                }
-            }
+            if (agentGold <= 0) return 0;
 
-            // 来源 2：族长家族金库（Hero.Gold = 全族资金，非族长不碰）
-            var hero = (agent.Character as CharacterObject)?.HeroObject;
-            bool isClanLeader = hero != null && hero.Clan?.Leader == hero;
-            if (isClanLeader && hero.Gold > 0)
-            {
-                int heroSteal = Math.Min(hero.Gold, MBRandom.RandomInt(1, 50));
-                if (heroSteal > 0)
-                {
-                    int actual = AgentControlHelper.TransferGold(hero, Hero.MainHero, heroSteal, notify: false);
-                    if (actual > 0)
-                    {
-                        RecordStolenGold(agent, actual);
-                        totalStolen += actual;
-                    }
-                }
-            }
-
-            if (totalStolen > 0)
-                InformationManager.DisplayMessage(new InformationMessage($"顺手摸到了 {totalStolen} 第纳尔。", Colors.Yellow));
+            int actual = ConsumeAgentGold(agent, agentGold, Settlement.CurrentSettlement);
+            if (actual > 0)
+                RecordStolenGold(agent, actual);
+            return actual;
         }
         /// <summary>
         /// 扒掉 Agent 的装备。
@@ -399,6 +393,12 @@ namespace LivingWorldNpcs
                     AgentAIController.Instance?.RegisterTheftWitnesses(
                         witnessHeroIds, templateWitness,
                         livestockItem.StringId, livestockItem.Name?.ToString() ?? livestockItem.StringId);
+
+                    // 抓现行围堵：victim=null（牲畜没有具体受害者 Agent），与保管箱偷窃对齐
+                    AgentAIController.Instance?.BroadcastEventInRange(
+                        Agent.Main.Position, 25f, "WitnessCrime",
+                        exclude: null, requireSight: true,
+                        Agent.Main, null);
                 }
 
                 // 统一偷窃账本记账（赃物标注、栽赃系统依赖它）
@@ -415,6 +415,70 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[AnimalTheft] RecordAnimalTheft error: {ex.Message}");
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // 3c. 大动物挣扎：抓动物偷窃条（StealBar Animal 模式）手滑 → 惊叫逃跑。
+        //     难度由判定区宽度表达（大动物右扣 40%），不再用隐藏掷骰。
+        // ----------------------------------------------------------------
+        /// <summary>大型牲畜：猪/羊/牛（判定区右扣 40%）。鸡/鹅小动物全宽。</summary>
+        public static bool IsLargeAnimal(string monsterId)
+            => monsterId == "hog" || monsterId == "sheep" || monsterId == "cow";
+
+        /// <summary>
+        /// 动物挣脱的后果：惊叫惊动 20m 内目击者（警戒脉冲 + WitnessCrime 立即围堵，与保管箱对齐），
+        /// 然后朝远离玩家的方向逃跑 8~14m。动物无 AgentBrain（IsHuman=false 不注册脑），
+        /// 逃跑不走 Brain 事件体系，直接一次性脚本化移动。
+        /// </summary>
+        public static void OnAnimalStruggleFlee(Agent animal, string animalName)
+        {
+            if (animal == null || !animal.IsActive() || Agent.Main == null) return;
+
+            try
+            {
+                // ① 惊叫：目击者警戒脉冲（复用撬锁噪音模式）
+                var witnesses = GetWitnesses(Agent.Main, animal, maxDistance: 20f);
+                foreach (var w in witnesses)
+                    AgentAIController.GetBrainForAgent(w)?.AddAlert(PlayerActionType.Steal, 0.5f);
+
+                // ② 有人看见 → 立即围堵（victim=null，同保管箱抓现行）
+                if (witnesses.Count > 0)
+                {
+                    DebugLogger.Log($"[AnimalTheft] {animalName} 挣脱惊叫，{witnesses.Count} 名目击者被惊动");
+                    AgentAIController.Instance?.BroadcastEventInRange(
+                        Agent.Main.Position, 25f, "WitnessCrime",
+                        exclude: null, requireSight: true,
+                        Agent.Main, null);
+                }
+                else
+                {
+                    DebugLogger.Log($"[AnimalTheft] {animalName} 挣脱，无人目击");
+                }
+
+                // ③ 逃跑：远离玩家方向 ±45° 抖动，8~14m，取第一个 navmesh 有效点
+                Vec3 away = animal.Position - Agent.Main.Position;
+                away.z = 0f;
+                if (away.LengthSquared < 0.001f) away = new Vec3(1f, 0f, 0f);
+                away = away.NormalizedCopy();
+
+                for (int i = 0; i < 6; i++)
+                {
+                    float angle = (MBRandom.RandomFloat - 0.5f) * MathF.PI * 0.5f; // ±45°
+                    float cos = MathF.Cos(angle), sin = MathF.Sin(angle);
+                    Vec3 dir = new Vec3(away.x * cos - away.y * sin, away.x * sin + away.y * cos, 0f);
+                    Vec3 fleePos = animal.Position + dir * (8f + MBRandom.RandomFloat * 6f);
+                    if (Mission.Current?.Scene != null && V.NavMesh(Mission.Current.Scene, fleePos, out _))
+                    {
+                        AgentControlHelper.ScriptedMoveToPoint(animal, fleePos, isRun: true);
+                        return;
+                    }
+                }
+                // 兜底：找不到可寻路点 → 呆在原地（惊叫已发生）
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AnimalTheft] OnAnimalStruggleFlee error: {ex.Message}");
             }
         }
 

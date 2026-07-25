@@ -1,10 +1,10 @@
-﻿[19:52:37.471] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
+﻿[08:30:01.653] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[19:52:41.717] [WorldEventStore] Deserialized 0 events, 0 alerts
-[19:52:46.461] [AddQuickInformation] "成就被禁用！"
-[19:52:53.504] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[08:30:12.746] [WorldEventStore] Deserialized 0 events, 0 alerts
+[08:30:17.402] [AddQuickInformation] "成就被禁用！"
+[08:30:28.836] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -14,26 +14,66 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[19:52:53.513] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[19:52:53.518] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
-[19:52:53.549] [Chest] Spawned prefab 'bd_chest_c' at (581.5357, 321.8743, 9.516033)
-[19:52:53.550] [Chest] Visual highlight applied (warm gold tint)
-[19:52:53.551] [Chest] Spawned at (581.5357, 321.8743, 9.516033), context=Village, gold=200, items=4
-[19:53:14.584] [DisplayMessage] [Yellow] "你注意到村长屋旁有个微微泛金的储物桶，上面挂着一把旧锁……"
-[19:53:34.638] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[19:53:35.057] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
-[19:53:35.059] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[19:53:35.059] [TheftLedger] Recorded: hog x1 by main_hero from village_ES3_2
-[19:53:35.059] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[19:53:35.060] [DisplayMessage] [Green] "获得了 肉猪！"
-[19:54:04.015] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
-[19:54:10.034] [DisplayMessage] [Yellow] "顺手摸到了 11 第纳尔。"
-[19:54:10.036] [DisplayMessage] [RGB(0.3,0.9,0.3)] "得手了:优质市民靴"
-[19:54:10.036] [StealBar] 窃取 优质市民靴 ← 少女（+0.35 警戒）
-[19:54:10.275] [Brain-Phase] 少女(Idx=41) 警戒上升: Normal → Suspicious (警戒值=0.33) 因素=[Steal=0.33] → 发送 'BecomeSuspicious'
-[19:54:10.280] [Brain-Receive] 少女(Idx=41) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[19:54:10.290] [BubbleSay] 少女(Idx=41): "咦，的呢？"
-[19:54:12.013] [Brain-Phase] 少女(Idx=41) 警戒下降: Suspicious → Normal (警戒值=0.24)
-[19:54:12.013] [Brain-Receive] 少女(Idx=41) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[19:54:12.015] [Brain-Clear] 少女(Idx=41) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[19:54:12.016] [Brain-Alert] 少女(Idx=41) ClearAllAlerts: 警戒值归零
+[08:30:28.847] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[08:30:28.855] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
+[08:30:28.884] [Chest] Spawned prefab 'bd_chest_c' at (534.3551, 233.8244, 16.98077)
+[08:30:28.885] [Chest] Visual highlight applied (warm gold tint)
+[08:30:28.886] [Chest] Spawned at (534.3551, 233.8244, 16.98077), context=Village, gold=200, items=4
+[08:30:48.725] [AnimalTheft] 鹅 挣脱，无人目击
+[08:30:48.729] [DisplayMessage] [RGB(0.9,0.3,0.3)] "手滑了，鹅挣脱跑了！"
+[08:30:48.729] [StealBar] 抓 鹅 手滑 → 惊叫逃跑
+[08:31:02.806] [AnimalTheft] 肉猪 挣脱惊叫，2 名目击者被惊动
+[08:31:02.811] [DisplayMessage] [RGB(0.9,0.3,0.3)] "手滑了，肉猪挣脱跑了！"
+[08:31:02.811] [StealBar] 抓 肉猪 手滑 → 惊叫逃跑
+[08:31:02.826] [Brain-Phase] 帝国农民(Idx=10) 警戒上升: Normal → Suspicious (警戒值=0.48) 因素=[Steal=0.48] → 发送 'BecomeSuspicious'
+[08:31:02.830] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[08:31:02.841] [BubbleSay] 帝国农民(Idx=10): "咦，的呢？"
+[08:31:02.842] [Brain-Phase] 帝国农民(Idx=18) 警戒上升: Normal → Suspicious (警戒值=0.48) 因素=[Steal=0.48] → 发送 'BecomeSuspicious'
+[08:31:02.842] [Brain-Receive] 帝国农民(Idx=18) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[08:31:02.842] [BubbleSay] 帝国农民(Idx=18): "咦，的呢？"
+[08:31:04.478] [Brain-Phase] 帝国农民(Idx=10) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[08:31:04.478] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[08:31:04.480] [Brain-Clear] 帝国农民(Idx=10) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[08:31:04.481] [Brain-Alert] 帝国农民(Idx=10) ClearAllAlerts: 警戒值归零
+[08:31:04.481] [Brain-Phase] 帝国农民(Idx=18) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[08:31:04.481] [Brain-Receive] 帝国农民(Idx=18) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[08:31:04.481] [Brain-Clear] 帝国农民(Idx=18) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[08:31:04.481] [Brain-Alert] 帝国农民(Idx=18) ClearAllAlerts: 警戒值归零
+[08:31:31.024] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
+[08:31:36.846] [DisplayMessage] [RGB(0.3,0.9,0.3)] "得手了:连衣裙"
+[08:31:36.846] [StealBar] 窃取 连衣裙 ← 帝国女农民（+0.35 警戒）
+[08:31:37.058] [Brain-Phase] 帝国女农民(Idx=24) 警戒上升: Normal → Suspicious (警戒值=0.33) 因素=[Steal=0.33] → 发送 'BecomeSuspicious'
+[08:31:37.058] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[08:31:37.058] [BubbleSay] 帝国女农民(Idx=24): "咦，的呢？"
+[08:31:38.794] [Brain-Phase] 帝国女农民(Idx=24) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[08:31:38.794] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[08:31:38.795] [Brain-Clear] 帝国女农民(Idx=24) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[08:31:38.795] [Brain-Alert] 帝国女农民(Idx=24) ClearAllAlerts: 警戒值归零
+[08:31:39.869] [DisplayMessage] [RGB(0.3,0.9,0.3)] "得手了:厚围巾"
+[08:31:39.870] [StealBar] 窃取 厚围巾 ← 帝国女农民（+0.35 警戒）
+[08:31:39.954] [Brain-Phase] 帝国女农民(Idx=24) 警戒上升: Normal → Suspicious (警戒值=0.33) 因素=[Steal=0.33] → 发送 'BecomeSuspicious'
+[08:31:39.955] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[08:31:39.955] [BubbleSay] 帝国女农民(Idx=24): "咦，的呢？"
+[08:31:41.676] [Brain-Phase] 帝国女农民(Idx=24) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[08:31:41.676] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[08:31:41.677] [Brain-Clear] 帝国女农民(Idx=24) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[08:31:41.677] [Brain-Alert] 帝国女农民(Idx=24) ClearAllAlerts: 警戒值归零
+[08:31:51.142] [DisplayMessage] [RGB(0.3,0.9,0.3)] "得手了:女士鞋"
+[08:31:51.143] [StealBar] 窃取 女士鞋 ← 帝国女农民（+0.35 警戒）
+[08:31:51.227] [Brain-Phase] 帝国女农民(Idx=24) 警戒上升: Normal → Suspicious (警戒值=0.33) 因素=[Steal=0.33] → 发送 'BecomeSuspicious'
+[08:31:51.227] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[08:31:51.228] [BubbleSay] 帝国女农民(Idx=24): "咦，的呢？"
+[08:31:52.966] [Brain-Phase] 帝国女农民(Idx=24) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[08:31:52.966] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[08:31:52.968] [Brain-Clear] 帝国女农民(Idx=24) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[08:31:52.968] [Brain-Alert] 帝国女农民(Idx=24) ClearAllAlerts: 警戒值归零
+[08:31:54.169] [DisplayMessage] [RGB(0.3,0.9,0.3)] "得手了:11 第纳尔"
+[08:31:54.170] [StealBar] 窃取钱袋 11 第纳尔 ← 帝国女农民（+0.35 警戒）
+[08:31:54.172] [DisplayMessage] [RGB(0.7,0.7,0.7)] "他身上已经没什么可偷的了。"
+[08:31:54.258] [Brain-Phase] 帝国女农民(Idx=24) 警戒上升: Normal → Suspicious (警戒值=0.33) 因素=[Steal=0.33] → 发送 'BecomeSuspicious'
+[08:31:54.258] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[08:31:54.258] [BubbleSay] 帝国女农民(Idx=24): "咦，的呢？"
+[08:31:54.868] [Brain-Phase] 帝国女农民(Idx=24) 警戒下降: Suspicious → Normal (警戒值=0.24)
+[08:31:54.868] [Brain-Receive] 帝国女农民(Idx=24) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[08:31:54.868] [Brain-Clear] 帝国女农民(Idx=24) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[08:31:54.869] [Brain-Alert] 帝国女农民(Idx=24) ClearAllAlerts: 警戒值归零
