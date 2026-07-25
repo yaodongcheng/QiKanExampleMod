@@ -1,5 +1,30 @@
 <Brushes>
 
+	<!-- 偷窃条规则行①富文本：Default 灰白基底；Perfect/Normal/Fail 仅覆盖 FontColor（其余属性回落 Default）。
+	     行内变色用法：文本里写 <span style="Perfect">…</span><span style="Normal">…</span><span style="Fail">…</span>，
+	     RichTextWidget 按 span 的 style 名解析到本笔刷的命名 Style（GetStyleOrDefault）。 -->
+	<Brush Name="StealBar.RuleText"
+	       Font="FiraSansExtraCondensed-Regular"
+	       TextHorizontalAlignment="Center">
+        <Layers>
+        </Layers>
+        <Styles>
+            <Style Name="Default"
+                   FontColor="#BBBBBBFF"
+                   TextOutlineAmount="0.1"
+                   TextOutlineColor="#000000FF"
+                   TextGlowRadius="0"
+                   TextBlur="0"
+                   TextShadowOffset="1"
+                   TextShadowAngle="60"
+				   FontSize="15"
+                    />
+            <Style Name="Perfect" FontColor="#55CC55FF" />
+            <Style Name="Normal"  FontColor="#E8C55AFF" />
+            <Style Name="Fail"    FontColor="#E06055FF" />
+        </Styles>
+    </Brush>
+
 	<Brush Name="MyBrush_18"
            Font="FiraSansExtraCondensed-Regular"
            TextHorizontalAlignment="Center">

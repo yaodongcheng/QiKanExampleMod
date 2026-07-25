@@ -707,6 +707,32 @@ NpcSightSystem.AddAlertPulse(npc, amount);       // 一次性脉冲（不走 dt�
 
 # UI 交互模式
 
+## Gauntlet 行内多色富文本 — RichTextWidget + `<span style>` + 笔刷命名 Style
+
+**一句话内分段变色**（如【完美】绿 /【普通】黄 /【失败】红同排显示）。反编译确认的机制链：RichText 支持 `<img src>` / `<a style>` / `<span style="X">` 三种标签 → span 的 style 名推入 `_styleStack` → 渲染时 `Brush.GetStyleOrDefault(part.Style)` 解析到**该 widget 笔刷的命名 Style**（找不到回落 Default；Style 未指定的属性也回落 Default）。
+
+```xml
+<!-- ① 笔刷：Default 定基底，命名 Style 只覆盖差异属性（FontColor） -->
+<Brush Name="StealBar.RuleText" Font="FiraSansExtraCondensed-Regular" TextHorizontalAlignment="Center">
+    <Styles>
+        <Style Name="Default" FontColor="#BBBBBBFF" FontSize="15" ... />
+        <Style Name="Perfect" FontColor="#55CC55FF" />
+        <Style Name="Normal"  FontColor="#E8C55AFF" />
+        <Style Name="Fail"    FontColor="#E06055FF" />
+    </Styles>
+</Brush>
+
+<!-- ② Prefab：RichTextWidget + 该笔刷 -->
+<RichTextWidget Text="@RuleText" Brush="StealBar.RuleText" ... />
+```
+
+```csharp
+// ③ VM 字符串内嵌 span（绑定值运行时解析标签，与百科全书链接 <a style="Link"> 同机制）
+RuleText = "<span style=\"Perfect\">【完美】绿区偷窃。</span><span style=\"Normal\">【普通】黄区偷窃。</span>";
+```
+
+**关键文件**：`GUI/Brushes/MyBrush.xml`（StealBar.RuleText 为范本）、`GUI/Prefabs/StealBar.xml`、`Stealth/StealBarVM.cs`。
+
 ## NinjaNotification → Inquiry 书信流
 
 **一切重要通知的标准流**：右侧悬浮环（hover 一行摘要）→ 点击弹 Inquiry 书信（详情 + 双按钮）。
@@ -989,8 +1015,9 @@ StealManager.HasAnythingToSteal(agent); // 任一装备槽或钱袋 → 开条�
 
 ## 减法五色条（信号贡献可视化）
 
-基础宽**左端**扣警戒、**右端**扣物品，剩余 = 有效判定区，下限 = 完美区宽（钳满 = 全或无，每次命中即完美）。每层一个 Widget 绑 `float MarginLeft/SuggestedWidth`：基础暗灰 / 警戒红褐（人） / 物品蓝灰（物） / 有效金（+结果颜色闪烁 1.2s） / 完美亮金。
+基础宽**左端**扣警戒、**右端**扣物品，剩余 = 有效判定区，下限 = 完美区宽（钳满 = 全或无，每次命中即完美）。每层一个 Widget 绑 `float MarginLeft/SuggestedWidth`。**二元色相分离**：可偷=琥珀黄 `#D4AF37`、完美=绿芯 `#3DA53D`（安全暖色族）；不可偷=红族（界外=最深黑红 `#2E1010` / 潜在区黑红亮一档 `#4A1C1C`——红族底色必须全不透明且明度拉开，半透明或太暗会被面板底色吃成纯黑 / 警戒血红 `#A81F1F` / 物品橙红 `#B5502A`——橙红与黄区相邻必须偏红偏暗防混淆）。结果闪烁 = 所中区域变亮：成功亮金 `#FFE97F` / **完美白闪 `#FFFFFF`**（不用绿闪——会把黄区染成"全是绿芯"摧毁语义）/ 失败红 `#DD4444`。⚠️ 闪烁计时走缩放 dt：`ResultFlashSeconds = 0.1` 缩放秒在 0.35× 慢动作下 ≈0.3 真实秒（体感一闪而过）——**此类计时常量必须按"真实时长 = 常量/0.35"换算**，且闪烁期间新一回合已开始，颜色不能伪装成任何区域语义色。成因区分降为红族内明度差，解释交给动态文本行。条下两行说明：规则行①固定（`RuleText`，构造时按模式设）、规则行②动态（`CursorZoneText/Color`，`UpdateCursorZoneHint` 每帧按浮标位置判定完美/有效/警戒扣/物品扣/界外，文本+颜色跟随）。
 **铁律**：宽度域每个色块成因必须唯一可读——技能等加成**禁止混进宽度**（技能走浮标速度通道：`260 ×(1−Roguery/300×25%)`）。结果文本不占控件，走 `InformationManager.DisplayMessage`，条上只留颜色闪烁做即时反馈。
+**文本变色通道**：TextWidget 无 `TextColor` 属性（写了静默无效）；动态文本色走 `Brush.FontColor="@ColorProp"`（原版 MPMissionMarkerFlag 有绑定先例）。
 
 ## 双动体 + 2.5× 铁律
 
