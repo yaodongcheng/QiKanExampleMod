@@ -707,6 +707,28 @@ NpcSightSystem.AddAlertPulse(npc, amount);       // 一次性脉冲（不走 dt�
 
 # UI 交互模式
 
+## 原生弹窗面板构造（Inquiry 同款）— canvas + frame_9 Extend + 标题带
+
+**任何自定义面板想要原生弹窗观感，照抄 Inquiry（`Native/GUI/Prefabs/Information/Inquiries/SingleQueryPopup.xml`）的三层构造**：
+
+```xml
+<Widget SuggestedWidth="760" SuggestedHeight="280" ...>   <!-- 主面板本身无 Sprite！ -->
+  <Children>
+    <!-- ① 底图：StdAssets\Popup\canvas（亮羊皮纸 512×645）或 canvas_dark（深色 699×666），平纹拉伸无形变 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="StdAssets\Popup\canvas_dark" ... />
+    <!-- ② 内容：标题带（46px 深色方块 #000000B3 + Popup.Title.Text 笔刷金字，实例覆盖 TextHorizontalAlignment/FontSize）
+              + 分隔线 StdAssets\Popup\divider + 正文... -->
+    <!-- ③ 边框：frame_9 九宫格（27px 边），Extend 18 画在逻辑盒外 18px，放最后=最上层压边 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            Sprite="frame_9" ExtendLeft="18" ExtendTop="18" ExtendRight="18" ExtendBottom="18" IsEnabled="false" ... />
+  </Children>
+</Widget>
+```
+
+**为什么 Extend 18 是关键**：边框画在逻辑盒**外** 18px，内容对齐逻辑盒就永远凸不出边框（边框反而压内容 9px）——原生弹窗的层次感和"内容不凸出"都是这么来的。
+
+**⚠️ 反面教材（踩过的坑）**：`SPGeneral\OverlayPopup\portrait_slot` 是 **145×119 头像框**、非九宫格，当 760×280 面板底图被 ×5.2/×2.35 不等比拉伸，且贴图可见边框内缩（透明 padding 被放大 5 倍）→ 子元素全部凸出"面板"。**选 sprite 前查 `Native/GUI/NativeSpriteData.xml` 确认原生尺寸和是否 NineRegionSprite**——名字带 `_9` 的才是九宫格可安全拉伸。
+
 ## Gauntlet 行内多色富文本 — RichTextWidget + `<span style>` + 笔刷命名 Style
 
 **一句话内分段变色**（如【完美】绿 /【普通】黄 /【失败】红同排显示）。反编译确认的机制链：RichText 支持 `<img src>` / `<a style>` / `<span style="X">` 三种标签 → span 的 style 名推入 `_styleStack` → 渲染时 `Brush.GetStyleOrDefault(part.Style)` 解析到**该 widget 笔刷的命名 Style**（找不到回落 Default；Style 未指定的属性也回落 Default）。
@@ -981,10 +1003,10 @@ vm.CloseReason               // StealBarCloseReason 枚举 — VM 不直接关 U
 _stealLayer = V.NewLayer(201);
 V.LoadMov(_stealLayer, "StealBar", vm);
 _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse); // 鼠标留给按钮
-// tick 内：vm.UpdateFrame(dt) → Input.IsKeyPressed(Space/ESC) → vm.CloseReason 消费 → 关层
+// tick 内：vm.UpdateFrame(dt) → Input.IsKeyPressed(Space/Tab) → vm.CloseReason 消费 → 关层
 ```
 
-**CloseReason 轮询收口**：VM 想关 UI（目标走开/警觉拉满/完成）只置 `CloseReason`，不碰 Layer；View 每帧读它统一走 `CloseStealInterface`——所有关闭路径（收手/ESC/强制/完成）一个收口函数，配套资源（子弹时间/输入冻结/IsUIOpen）不可能漏回收。
+**CloseReason 轮询收口**：VM 想关 UI（目标走开/警觉拉满/完成）只置 `CloseReason`，不碰 Layer；View 每帧读它统一走 `CloseStealInterface`——所有关闭路径（收手 Tab/强制/完成）一个收口函数，配套资源（子弹时间/输入冻结/IsUIOpen）不可能漏回收。**收手键 = Tab**（ESC 与游戏菜单冲突，已让出）。⚠️ Tab 原版占用：`Mission.Tick` 中 `IsFriendlyMission`（城镇/村庄漫游）下长按 Tab 0.6s 离开场景（`IsGameKeyDown(4)` 按住状态计时，松开清零；敌人 5m 内拦截）——我们用按下沿 `IsKeyPressed`，轻点收手不触发离场，长按则先收手再离场，语义自洽无需屏蔽。
 
 **CloseReason 全量**：`TargetGone`（目标走开/死亡）/ `Alarmed`（警觉拉满或质问锁占用）/ `Completed`（撬锁完成→接开箱 Inquiry）/ `NothingLeft`（摸空→自动收口+提示）/ `AnimalCaught`（抓动物命中→View 接 `CompleteAnimalSteal`，**关层前先抢出 `_stealAnimalTarget`**，收口会清空它）/ `AnimalFled`（手滑，VM 内已惊叫逃跑，View 只收口）。
 

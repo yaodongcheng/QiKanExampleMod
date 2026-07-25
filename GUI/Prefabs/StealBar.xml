@@ -6,22 +6,24 @@
             DoNotAcceptEvents="false">
       <Children>
 
-          <!-- 主面板 (760x280，贴底)：中央画面让给 NPC（扒衣服可视），结果文本走 DisplayMessage，操作提示并入按钮文本 -->
+          <!-- 主面板 (760x280，贴底)：中央画面让给 NPC（扒衣服可视），结果文本走 DisplayMessage，操作提示并入按钮文本。
+               构造对标 Inquiry：canvas_dark 底图 + frame_9 九宫格边框 Extend 18 画在逻辑盒外（内容永不凸出边框，反而被压边）。
+               底图直接写在主面板 Sprite 上——固定尺寸面板与首子元素底图完全等价；原版 Inquiry 分开是 DimensionSync 动态高度+裁切的副产品，非规范。 -->
           <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="760" SuggestedHeight="280"
                   HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="70"
-                  Sprite="SPGeneral\OverlayPopup\portrait_slot"
+                  Sprite="StdAssets\Popup\canvas_dark"
                   DoNotAcceptEvents="true">
             <Children>
 
                 <!-- 标题带（对标 Inquiry：深色底带 + 左对齐 + Popup.Title.Text 金字大号）：正在偷:张三 / 正在撬锁:村庄保管箱 -->
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
                         VerticalAlignment="Top"
-                        Sprite="SPGeneral\OverlayPopup\portrait_slot" Color="#000000B3"
+                        Sprite="BlankWhiteSquare_9" Color="#000000B3"
                         DoNotAcceptEvents="true">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                     Text="@TitleText" Brush="Popup.Title.Text" Brush.TextHorizontalAlignment="Left" Brush.FontSize="28"
-                                    VerticalAlignment="Center" MarginLeft="0"
+                                    VerticalAlignment="Center" MarginLeft="24"
                                     DoNotAcceptEvents="true"/>
                     </Children>
                 </Widget>
@@ -112,7 +114,7 @@
                             HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="172"
                             DoNotAcceptEvents="true"/>
 
-                <!-- 按钮行（对标 Inquiry 确定/取消）：出手=点击或空格，收手=点击或ESC；间距用 MarginRight（Gauntlet 无 ItemGap） -->
+                <!-- 按钮行（对标 Inquiry 确定/取消）：出手=点击或空格，收手=点击或Tab（ESC 让给游戏菜单）；间距用 MarginRight（Gauntlet 无 ItemGap） -->
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                            StackLayout.LayoutMethod="HorizontalLeftToRight"
                            HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20"
@@ -135,7 +137,7 @@
                                       Command.Click="ExecuteLeave">
                             <Children>
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                            Text="[ESC] 收手" Brush="MyBrush_24" Brush.FontSize="22"
+                                            Text="[Tab] 收手" Brush="MyBrush_24" Brush.FontSize="22"
                                             HorizontalAlignment="Center" VerticalAlignment="Center"
                                             DoNotAcceptEvents="true"/>
                             </Children>
@@ -143,6 +145,12 @@
 
                     </Children>
                 </ListPanel>
+
+                <!-- 边框（Inquiry 同款 frame_9 九宫格，Extend 18 = 画在逻辑盒外 18px，最上层压住内容边缘） -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                        Sprite="frame_9" ExtendLeft="18" ExtendTop="18" ExtendRight="18" ExtendBottom="18"
+                        IsEnabled="false"
+                        DoNotAcceptEvents="true"/>
 
             </Children>
           </Widget>
