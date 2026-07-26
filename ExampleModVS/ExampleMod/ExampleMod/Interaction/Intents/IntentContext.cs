@@ -125,7 +125,10 @@ namespace LivingWorldNpcs
                         && partyFaction.IsAtWarWith(playerFaction);
                 }
 
-                if (isSoldier && agent != null && agent.Team != null && Agent.Main != null && Agent.Main.Team != null)
+                // ⚠️ Team.Invalid 是 non-null 单例（MBTeam._mission=null），!= null 挡不住，
+                // 必须同时查 IsValid——地牢等场景守卫的 Team 就是 Invalid，IsEnemyOf 内部解引用 null mission 必 NRE
+                if (isSoldier && agent != null && agent.Team != null && agent.Team.IsValid
+                    && Agent.Main != null && Agent.Main.Team != null && Agent.Main.Team.IsValid)
                 {
                     // 对话场景中所有人同队，必须以战役层面敌对关系为准
                     IsMySoldier = !isHostileParty && agent.Team == Agent.Main.Team;

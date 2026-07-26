@@ -1918,6 +1918,11 @@ namespace LivingWorldNpcs
                     "",
                     ""
                 ),
+                ChestContext.Dungeon => (
+                    "",
+                    "",
+                    ""
+                ),
                 ChestContext.Castle => (
                     "你注意到城堡仓库有个微微泛金的储物箱，上面挂着一把旧锁……",
                     "城堡保管箱",

@@ -119,6 +119,7 @@ namespace LivingWorldNpcs
                 && affectedAgent != null && affectedAgent.IsHuman
                 && !affectedAgent.IsMainAgent
                 && attackerAgent.Team != null && affectedAgent.Team != null
+                && attackerAgent.Team.IsValid && affectedAgent.Team.IsValid // Team.Invalid 单例 != null，IsEnemyOf 内部解引用 null mission 必 NRE
                 && attackerAgent.Team.IsEnemyOf(affectedAgent.Team))
             {
                 _playerAttackedAgents.Add(affectedAgent.Index);
@@ -280,7 +281,9 @@ namespace LivingWorldNpcs
                 }
                 return;
             }
-            if (attacker.Team != null && victim.Team != null && attacker.Team.IsEnemyOf(victim.Team))
+            if (attacker.Team != null && victim.Team != null
+                && attacker.Team.IsValid && victim.Team.IsValid // Team.Invalid 单例 != null，IsEnemyOf 内部解引用 null mission 必 NRE
+                && attacker.Team.IsEnemyOf(victim.Team))
             {
                 // 已经是敌人了，这是一次正常的攻击，直接返回，不触发新战斗逻辑
                 return;

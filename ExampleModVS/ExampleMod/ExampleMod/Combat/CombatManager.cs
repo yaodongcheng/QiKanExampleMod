@@ -201,7 +201,9 @@ namespace LivingWorldNpcs
 
             // 4. 强制仇恨锁定
             // 注意：只在敌对时锁定，否则可能导致友军互砍逻辑混乱
-            if (actor.Team.IsEnemyOf(enemy.Team))
+            // Team.Invalid 单例 != null，IsEnemyOf 内部解引用 null mission 必 NRE，需先查 IsValid
+            if (actor.Team != null && actor.Team.IsValid && enemy.Team != null && enemy.Team.IsValid
+                && actor.Team.IsEnemyOf(enemy.Team))
             {
                 actor.SetTargetAgent(enemy);
             }
