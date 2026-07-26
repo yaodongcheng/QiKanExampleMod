@@ -936,11 +936,12 @@ InteractionMissionView.TopUpRosterToNaturalCounts(settlement);
 
 ```csharp
 // ① 场景枚举
-public enum ChestContext { Village, TownTavern, TownCenter, LordsHall, Alley, Arena, Castle, Unknown }
+public enum ChestContext { Village, TownTavern, TownCenter, LordsHall, Alley, Arena, Dungeon, Castle, Unknown }
 
 // ② 场景识别：Location.StringId 优先（精确到子场景），回退定居点类型
 ChestContext ctx = StealManager.GetCurrentChestContext();
 //   locId 含 "tavern"→TownTavern / "lordshall"→LordsHall / "alley"→Alley / "arena"→Arena
+//   "prison"|"dungeon"→Dungeon（原版地牢 id 为 "prison"，dungeon 兼容其他 mod 命名）
 //   "center" 或含 "village" → 按 Settlement.IsVillage 分 Village/TownCenter
 //   回退：IsVillage→Village / IsTown→TownCenter / IsCastle→Castle / else Unknown
 
@@ -963,7 +964,7 @@ var (hint, title, prefix) = InteractionMissionView.GetChestTexts(ctx);  // (提�
 
 - **`CampaignMission.Current.Location.StringId` 是第一手信号**，比 Settlement 类型精确——能区分同一城镇的不同室内场景。
 - **每个维度一张 switch 表**（权重/过滤/文案/锚点），维度之间不交叉引用。
-- **禁用场景三处一致关闭**：权重返回 0 + 过滤返回 false + 文案返回空串（参考 Arena 不刷保管箱）。
+- **禁用场景三处一致关闭**：权重返回 0 + 过滤返回 false + 文案返回空串（参考 Arena / Dungeon 不刷保管箱）。
 - **Unknown 兜底给保守值**：权重 0.20、只放行 Goods+Food，宁可少给不出戏。
 
 ## 实体名黑名单（扫描场景实体防误伤）

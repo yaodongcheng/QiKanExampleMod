@@ -27,6 +27,7 @@ namespace LivingWorldNpcs
         LordsHall,      // 领主大厅
         Alley,          // 城镇小巷
         Arena,          // 竞技场 — 不生成保管箱
+        Dungeon,        // 地牢（prison）— 不生成保管箱
         Castle,         // 城堡室内
         Unknown         // 无法识别
     }
@@ -623,6 +624,7 @@ namespace LivingWorldNpcs
                 ChestContext.TownTavern => 0.15f,    // 酒馆 15%
                 ChestContext.Alley => 0.10f,         // 暗巷 10%
                 ChestContext.Arena => 0f,            // 竞技场 — 不生成保管箱
+                ChestContext.Dungeon => 0f,          // 地牢 — 不生成保管箱
                 ChestContext.Unknown => 0.20f,       // 未知场景保守 20%
                 _ => 0.20f
             };
@@ -680,8 +682,9 @@ namespace LivingWorldNpcs
                     || type == ItemObject.ItemTypeEnum.HandArmor
                     || type == ItemObject.ItemTypeEnum.Cape,
 
-                // 竞技场：不生成保管箱
+                // 竞技场/地牢：不生成保管箱
                 ChestContext.Arena => false,
+                ChestContext.Dungeon => false,
 
                 // 未知：保守开放 Goods + Food
                 _ => type == ItemObject.ItemTypeEnum.Goods
@@ -979,6 +982,8 @@ namespace LivingWorldNpcs
                 if (locId.Contains("lordshall")) return ChestContext.LordsHall;
                 if (locId.Contains("alley")) return ChestContext.Alley;
                 if (locId.Contains("arena")) return ChestContext.Arena;
+                // 地牢：原版 location id 为 "prison"，兼容其他 mod 可能的 "dungeon" 命名
+                if (locId.Contains("prison") || locId.Contains("dungeon")) return ChestContext.Dungeon;
                 if (locId == "center" || locId.Contains("village"))
                 {
                     var s = Settlement.CurrentSettlement;

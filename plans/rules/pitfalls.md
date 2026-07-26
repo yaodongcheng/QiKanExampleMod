@@ -196,3 +196,38 @@ if (mission.GetRequestedTimeSpeed(requestId, out _))
 **根因**（反编译 `TaleWorlds.GauntletUI.Layout.StackLayout` 确认）：`StackLayout` 只有 `LayoutMethod` 和 `DefaultItemDescription`，**没有任何间距/Gap 属性**。`ItemGap` 是臆造属性。
 
 **规避**：间距写在**子项**上——横排 `MarginRight`、竖排 `MarginBottom`（项目先例：`MyCustomPopup.xml` 按钮 `MarginRight="10"`）。ItemTemplate 内同样适用（末位多一个边距，对 CoverChildren 居中行影响可忽略）。
+
+---
+
+## `Team != null` 挡不住 `Team.Invalid` → `IsEnemyOf` NRE
+
+**症状**
+- `System.NullReferenceException` 抛在 `TaleWorlds.MountAndBlade.Team.IsEnemyOf` **内部**，即使调用前已判 `agent.Team != null`。
+- 典型触发：地牢（prison location）里与守卫对话/攻击守卫——守卫的 Team 是无效单例。
+
+**根因**（反编译 `TaleWorlds.MountAndBlade.Team` / `MBTeam` 确认）
+
+```csharp
+// Team 有一个 non-null 的"无效"单例：
+public static Team Invalid => _invalid ??= new Team(MBTeam.InvalidTeam, BattleSideEnum.None, null);
+// MBTeam.InvalidTeam = new MBTeam(null, -1)  →  _mission = null, Index = -1
+
+public bool IsEnemyOf(Team otherTeam) => MBTeam.IsEnemyOf(otherTeam.MBTeam);
+// MBTeam.IsEnemyOf 内部：
+//   MBAPI.IMBTeam.IsEnemy(_mission.Pointer, ...)   // 💥 _mission = null → NRE
+```
+
+- `agent.Team != null` 对 `Team.Invalid` **通过**（它是真实对象），但内部 mission 引用是 null。
+- 地牢等无阵营场景，守卫/平民 Agent 的 Team 就是这个单例；玩家 MainAgent 在部分特殊 Mission 里也可能是。
+
+**规避**
+- 任何 `Team` 操作（`IsEnemyOf` / `SetIsEnemyOf` 等走 MBTeam 的 API）前必须**双重检查**：
+
+```csharp
+if (agent.Team != null && agent.Team.IsValid   // IsValid => MBTeam.Index >= 0，双版本公开 API
+    && other.Team != null && other.Team.IsValid)
+    agent.Team.IsEnemyOf(other.Team);
+```
+
+- 落地范例：`Interaction/Intents/IntentContext.cs`（ctor 士兵敌对判定）、`Combat/AttackTriggerMissionLogic.cs`（OnAgentHit 两处）、`Combat/CombatManager.cs`（仇恨锁定）。
+- 无效 Team 的语义兜底：按中立处理（非敌非友），符合"未被激怒前非敌"的直觉。

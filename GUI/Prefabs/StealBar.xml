@@ -96,7 +96,7 @@
 
                         <!-- 浮标（6px 亮白） -->
                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
-                                SuggestedWidth="6" MarginLeft="@CursorMarginLeft"
+                                SuggestedWidth="12" MarginLeft="@CursorMarginLeft"
                                 Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF"
                                 DoNotAcceptEvents="true"/>
                     </Children>
