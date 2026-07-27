@@ -176,6 +176,21 @@ namespace LivingWorldNpcs
             return npc == authority || (npc?.Occupation == Occupation.Headman || npc?.Occupation == Occupation.RuralNotable);
         }
 
+        /// <summary>
+        /// 该对话是否会生成 SkipVanillaOpening 脚本（= 必须在 StartConversation 评估 start token 之前注入）。
+        /// 与 BuildAuthorityScript 的 skipOpening 条件同源——权威 NPC 在 Active+嫌犯=玩家 / Confrontation
+        /// 阶段会把开场白直挂 start token（优先级 200）。Postfix 注入时 start 已被原版评估完毕，
+        /// 注入的开场白永远不会播放、hero_main_options 也无入口，整场对话退化为纯原版，
+        /// 玩家可经原版"我现在得走了"零后果离开。此谓词供 MissionConversationStartPatch.Prefix 提前注入用。
+        /// </summary>
+        public static bool NeedsEarlyInjection(Hero speaker, WorldEvent evt)
+        {
+            if (evt == null) return false;
+            if (!IsAuthority(speaker, evt)) return false;
+            return (evt.Stage == EventStage.Active && evt.SuspectIsPlayer)
+                || evt.Stage == EventStage.Confrontation;
+        }
+
         private static DialogueInjector.DialogueInjectScript BuildAuthorityScript(
             PlaceholderResolver r, IntentContext ctx)
         {
@@ -868,6 +883,8 @@ namespace LivingWorldNpcs
                         r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
                     PlayerActionType.Knockout =>
                         r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！"),
+                    PlayerActionType.SuspectFlee =>
+                        r.Resolve("（{SPEAKER_EMOTION}地）站住！这事没了结，{SPEAKER_PLAYER_ADDR}哪儿也别想去！"),
                     _ => r.Resolve("（{SPEAKER_EMOTION}地）住手！")
                 },
                 _ => r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}！你在干什么？")

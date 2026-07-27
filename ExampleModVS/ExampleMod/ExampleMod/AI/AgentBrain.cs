@@ -261,15 +261,26 @@ namespace LivingWorldNpcs
                 if (player == null) return;
                 if (ConfrontingBrain != null && ConfrontingBrain != this) return;
 
-                // 根据 PrimaryAction 确定 ConfrontationType detail
-                var detail = PrimaryAction switch
+                // 可选显式质问上下文（args[1]=ConfrontationType, args[2]=PlayerActionType）：
+                // 嫌犯逃跑围堵等场景由 WalkAwayIntent 指定，NPC 自身无警戒明细可推导。
+                ConfrontationType? detailOverride = null;
+                PlayerActionType? actionOverride = null;
+                if (aiEvent.Args != null && aiEvent.Args.Length >= 3)
+                {
+                    if (aiEvent.Args[1] is ConfrontationType ct) detailOverride = ct;
+                    if (aiEvent.Args[2] is PlayerActionType pa) actionOverride = pa;
+                }
+
+                // 根据 PrimaryAction 确定 ConfrontationType detail；显式覆盖优先
+                var detail = detailOverride ?? (PrimaryAction switch
                 {
                     PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
                     PlayerActionType.StealUIOpen => ConfrontationType.Search,
                     PlayerActionType.Steal => ConfrontationType.Recover,
                     PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
+                    PlayerActionType.SuspectFlee => ConfrontationType.Stop,
                     _ => ConfrontationType.Deter
-                };
+                });
                 SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
                 // 推进 PendingWorldEvent 到 Active（玩家跑了，村里人知道了，事态升级）
@@ -286,7 +297,7 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=ReEngageConfrontation");
                 EnqueueAction(new FollowAgentAction(player, false, radius: 2f, stopDistance: 1.5f));
                 EnqueueAction(new LookAtAction(player, 0.0f));
-                EnqueueAction(new AlertForceConversationAction());
+                EnqueueAction(new AlertForceConversationAction(detailOverride, actionOverride));
                 EnqueueAction(new StayAction(player));
                 DebugLogger.Log($"[Brain-ReEngage] {Owner.Name}(Idx={Owner.Index}) 重新追上玩家质问 (WorldEvent Stage=Active)");
             }
@@ -1150,6 +1161,7 @@ namespace LivingWorldNpcs
                 PlayerActionType.StealUIOpen => ConfrontationType.Search,
                 PlayerActionType.Steal => ConfrontationType.Recover,
                 PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
+                PlayerActionType.SuspectFlee => ConfrontationType.Stop,
                 _ => ConfrontationType.Deter
             };
             SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);

@@ -771,6 +771,11 @@ namespace LivingWorldNpcs
                 _isFinished = true;
                 return;
             }
+            // 战斗入口必须解锁：ClearAllActions 默认会给 Agent 留下
+            // SetScriptedPosition(DoNotRun | NoAttack) 锁，不清除则原生战斗 AI
+            // 不能追人也不能出手（登记为战斗者却傻站着）。
+            // 各事件处理器（order_attack / DeferredCombat / 目击反击）无需各自补 ForceUnlockAgent。
+            AgentControlHelper.ForceUnlockAgent(agent);
             InformationManager.DisplayMessage(new InformationMessage($"{agent.Name}(Idx={agent.Index})  开始攻击 {_targetEnemy.Name}！", Colors.Yellow));
             //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
             //玩家阵营1，自己阵营2，这里之后再看
@@ -969,8 +974,14 @@ namespace LivingWorldNpcs
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
 
-        public AlertForceConversationAction()
+        /// <summary>显式质问上下文覆盖（嫌犯逃跑围堵等场景，NPC 自身无警戒明细可推导时传入）。null = 按 Brain.PrimaryAction 推导。</summary>
+        private readonly ConfrontationType? _detailOverride;
+        private readonly PlayerActionType? _actionOverride;
+
+        public AlertForceConversationAction(ConfrontationType? detailOverride = null, PlayerActionType? actionOverride = null)
         {
+            _detailOverride = detailOverride;
+            _actionOverride = actionOverride;
         }
 
         public void OnStart(Agent agent)
@@ -990,21 +1001,22 @@ namespace LivingWorldNpcs
             var brain = AgentAIController.GetBrainForAgent(agent);
             PlayerActionType? primaryAction = brain?.PrimaryAction;
 
-            // 根据 PrimaryAction 确定 ConfrontationType detail
-            var detail = primaryAction switch
+            // 根据 PrimaryAction 确定 ConfrontationType detail；显式覆盖优先（嫌犯逃跑围堵等无警戒明细场景）
+            var detail = _detailOverride ?? (primaryAction switch
             {
                 PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
                 PlayerActionType.StealUIOpen => ConfrontationType.Search,
                 PlayerActionType.Steal => ConfrontationType.Recover,
                 PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
+                PlayerActionType.SuspectFlee => ConfrontationType.Stop,
                 _ => ConfrontationType.Deter
-            };
+            });
             brain?.SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
             // 设 trigger：TryInjectCrimeDialogue（StartConversation Prefix/Postfix）统一构建并注入脚本
             ConversationEntryPatch._pendingTrigger = DialogueTrigger.Alert;
             ConversationEntryPatch._pendingConfrontation = detail;
-            ConversationEntryPatch._pendingTriggerAction = primaryAction ?? PlayerActionType.Crouching;
+            ConversationEntryPatch._pendingTriggerAction = _actionOverride ?? primaryAction ?? PlayerActionType.Crouching;
 
             // 强制开启原版对话
             try
