@@ -1520,11 +1520,17 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
 
                 // 4. 广播 WitnessCrime，受害者排除在外（不参与围观/指控）
+                //    requireSight: true — 与偷窃对齐，只有真正看见玩家的 NPC 才算目击，
+                //    防止地牢等场景隔墙 NPC 全员警报（FOV 120° + RayCast 遮挡，15m 内）
                 AgentAIController.Instance?.BroadcastEventInRange(
                     target.Position, 25f, "WitnessCrime",
                     exclude: new HashSet<Agent> { target },
-                    requireSight: false,
+                    requireSight: true,
                     Agent.Main, target);
+
+                // 4.5 袭击记账：受害者身价（原版赎金价）记进 PendingWorldEvent 赔偿基础值
+                //    （无目击时事件不激活，记账自然丢弃）
+                AgentAIController.Instance?.RecordAssaultVictim(target);
 
                 // 5. UI 反馈
                 InformationManager.DisplayMessage(
@@ -1551,6 +1557,32 @@ namespace LivingWorldNpcs
         private Agent _pendingLootCorpse;
         private ItemRoster _pendingLootRoster;
         private bool _pendingIsStealing;
+        // "自己挑选"开库存界面时的完整物品快照（搜刮昏迷者记账用：快照 − 界面关闭后的剩余 = 实际拿走的）
+        private List<(string itemId, string itemName, int count)> _pendingLootAllItems;
+
+        /// <summary>
+        /// 目标是否为"昏迷未死"的活人（被击晕/失去意识）。搜刮此类目标 = 偷窃（走 RecordUnconsciousLootTheft）；
+        /// 尸体（Killed）和战场搜刮不算偷窃，不触发。
+        /// </summary>
+        private static bool IsUnconsciousAlive(Agent agent)
+        {
+            if (agent == null || !agent.IsHuman) return false;
+            return AgentBrain.IsKnockedOut(agent) || agent.State == AgentState.Unconscious;
+        }
+
+        /// <summary>收集目标当前全部装备槽物品（每槽一条，count=1），供搜刮记账用。</summary>
+        private static List<(string itemId, string itemName, int count)> CollectEquipmentItems(Agent agent)
+        {
+            var items = new List<(string, string, int)>();
+            if (agent == null) return items;
+            for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i < EquipmentIndex.NumEquipmentSetSlots; i++)
+            {
+                var el = agent.SpawnEquipment[i];
+                if (!el.IsEmpty && el.Item != null)
+                    items.Add((el.Item.StringId, el.Item.Name?.ToString(), 1));
+            }
+            return items;
+        }
 
         /// <summary>
         /// "自己挑选"库存界面关闭后的收尾：标记已搜刮 + 精准扒掉被玩家拿走的装备。
@@ -1560,15 +1592,33 @@ namespace LivingWorldNpcs
             Agent corpse = _pendingLootCorpse;
             ItemRoster remainingRoster = _pendingLootRoster;
             bool isStealing = _pendingIsStealing;
+            var allItems = _pendingLootAllItems;
 
             _pendingLootCorpse = null;
             _pendingLootRoster = null;
+            _pendingLootAllItems = null;
 
             // 尸体可能已被清理（换场景等）
             if (corpse == null) return;
 
             if (!isStealing)
             {
+                // 搜刮昏迷者 = 偷窃：快照 − 剩余 = 实际挑走的，逐件记账（金钱已在开界面时记过）
+                if (IsUnconsciousAlive(corpse) && allItems != null && allItems.Count > 0)
+                {
+                    var taken = new List<(string, string, int)>();
+                    foreach (var grp in allItems.GroupBy(t => t.itemId))
+                    {
+                        int remaining = remainingRoster?.GetItemNumber(
+                            TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(grp.Key)) ?? 0;
+                        int takenCount = grp.Count() - remaining;
+                        for (int k = 0; k < takenCount; k++)
+                            taken.Add((grp.Key, grp.First().itemName, 1));
+                    }
+                    if (taken.Count > 0)
+                        StealManager.RecordUnconsciousLootTheft(corpse, taken, 0);
+                }
+
                 _lootedCorpses.Add(corpse);
                 // remainingRoster 已被 OpenScreenAsLoot 原地修改：玩家拿走的已被移除
                 // 传进去 → 只扒掉不在 roster 中的槽
@@ -1685,6 +1735,9 @@ namespace LivingWorldNpcs
                         MobileParty.MainParty.ItemRoster.Add(lootRoster);
                         InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootRoster.Count} 件物品。", Colors.Green));
                     }
+                    // 搜刮昏迷者 = 偷窃：物品+金钱一次性记账（须在扒装备前取装备快照）
+                    if (!isStealing && IsUnconsciousAlive(targetAgent))
+                        StealManager.RecordUnconsciousLootTheft(targetAgent, CollectEquipmentItems(targetAgent), lootedGold);
                     if (!isStealing) _lootedCorpses.Add(targetAgent); // 只有尸体才标记为彻底搜空
                     StealManager.StripAgentEquipment(targetAgent, true, true);
                 },
@@ -1704,12 +1757,17 @@ namespace LivingWorldNpcs
                             InformationManager.DisplayMessage(new InformationMessage($"从{targetHero.Name}的家族金库里拿到了 {actual} 第纳尔。", Colors.Yellow));
                     }
 
+                    // 搜刮昏迷者 = 偷窃：金钱在此刻已实际易手，立即记账（物品等界面关闭后按拿走的记）
+                    if (!isStealing && IsUnconsciousAlive(targetAgent) && lootedGold > 0)
+                        StealManager.RecordUnconsciousLootTheft(targetAgent, null, lootedGold);
+
                     if (!lootRoster.IsEmpty())
                     {
                         // 推迟到库存界面关闭后再处理：标记已搜刮 + 精准扒掉被拿走的装备
                         _pendingLootCorpse = targetAgent;
                         _pendingLootRoster = lootRoster;
                         _pendingIsStealing = isStealing;
+                        _pendingLootAllItems = CollectEquipmentItems(targetAgent);
                         var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
                         rosterDictionary.Add(PartyBase.MainParty, lootRoster);
 #if !MB2_V1212

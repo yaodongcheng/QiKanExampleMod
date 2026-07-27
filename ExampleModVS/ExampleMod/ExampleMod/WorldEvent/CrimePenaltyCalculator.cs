@@ -2,6 +2,7 @@ using System;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.Core;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -25,6 +26,27 @@ namespace LivingWorldNpcs
     /// </summary>
     public static class CrimePenaltyCalculator
     {
+        /// <summary>
+        /// 估算受害者的"身价"（卖掉能值多少钱）：直接用原版俘虏赎金公式
+        /// RansomValueCalculationModel.PrisonerRansomValue —— 与酒馆卖俘虏、英雄赎金同源，不自创。
+        /// 士兵 = 招募成本×0.25（T5≈100，T6≈150）；Hero = 招募成本 + 家族等级加成 + √金币×6，
+        /// 再乘王国系数（领主通常数千）。sellerHero 传 null：perk 加成是"卖家"的售价加成，不该抬高受害者身价。
+        /// </summary>
+        public static int EstimateVictimValue(Agent victim)
+        {
+            var co = victim?.Character as CharacterObject;
+            if (co == null) return 0;
+            try
+            {
+                return Campaign.Current?.Models?.RansomValueCalculationModel?.PrisonerRansomValue(co, null) ?? 0;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Penalty] EstimateVictimValue error: {ex.Message}");
+                return 0;
+            }
+        }
+
         /// <summary>
         /// 统一金额计算。根据 CostType 选择公式。
         /// </summary>
@@ -124,7 +146,8 @@ namespace LivingWorldNpcs
 
         static int BaseValue(WorldEvent evt)
         {
-            int v = evt.TotalStolenValue;
+            // 赃物市值 + 袭击身价（击晕按受害者原版赎金价累计）；都没有 → Severity×10 兜底
+            int v = evt.TotalStolenValue + evt.AssaultRestitutionValue;
             return v > 0 ? v : evt.Severity * 10;
         }
 
@@ -148,7 +171,8 @@ namespace LivingWorldNpcs
 
         static int ComputeFine(WorldEvent evt)
         {
-            int baseValue = Math.Max(1, evt.Severity * 2);
+            // 袭击案件：罚款至少按袭击身价收（否则击晕 T5 精兵也只罚 50 兜底价）
+            int baseValue = Math.Max(Math.Max(1, evt.Severity * 2), evt.AssaultRestitutionValue);
             return Math.Max(50, (int)(baseValue * TradeDiscount()));
         }
     }

@@ -57,12 +57,17 @@ namespace LivingWorldNpcs
     // 🆕 PendingWorldEvent — Mission 作用域犯罪记录
     // ═══════════════════════════════════════════════════════════════
 
-    /// <summary>单个目击者的证词：这位目击者看到了玩家哪些行为。仅 Alarmed 阶段才写入。</summary>
+    /// <summary>
+    /// 单个目击者的证词：这位目击者看到了玩家哪些行为。仅 Alarmed 阶段的 NPC 才写入。
+    /// 特例：WitnessHeroId/TemplateId 双 null = 「系统暗账」——无人目击的偷窃事实（RegisterUnwitnessedTheft 写入）。
+    /// 暗账不算目击（WitnessHeroIds/TemplateWitness/WitnessCount 派生属性自带 null 过滤），
+    /// 但 StolenItems/ActionDescription 照常派生——村庄次日能发现"丢了什么"，而不知"是谁"。
+    /// </summary>
     [Serializable]
     public class WitnessTestimony
     {
-        public string WitnessHeroId;   // null = 模板村民
-        public string TemplateId;      // null = 有脸英雄
+        public string WitnessHeroId;   // null = 模板村民（或系统暗账）
+        public string TemplateId;      // null = 有脸英雄（或系统暗账）
         public List<ActionRecord> Actions;
     }
 

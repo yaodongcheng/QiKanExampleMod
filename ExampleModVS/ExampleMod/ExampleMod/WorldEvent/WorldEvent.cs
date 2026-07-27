@@ -188,6 +188,16 @@ namespace LivingWorldNpcs
         public float PublicAwareness;      // 0→1
         public string SuspectHeroId;       // 嫌犯（null=未知）
 
+        // ═══ 袭击/击晕记账 ═══
+        /// <summary>袭击受害者的身价累计（第纳尔，原版俘虏赎金价，见 CrimePenaltyCalculator.EstimateVictimValue）。</summary>
+        public int AssaultValue;
+        /// <summary>袭击/击晕受害者名单（UI 叙事用，去重）。</summary>
+        public List<string> AssaultVictimNames;
+
+        /// <summary>袭击赔偿基础值 = 受害者身价（原版赎金价）累计。</summary>
+        [JsonIgnore]
+        public int AssaultRestitutionValue => AssaultValue;
+
         // ═══ 玩家介入 ═══
         public bool CharmReprieveUsed;
         public int FailCount;
@@ -226,6 +236,7 @@ namespace LivingWorldNpcs
         // 内部追踪字段（不序列化）
         [JsonIgnore] public float _stageEnteredDay;
         [JsonIgnore] public bool _coldCaseTailTriggered;
+        [JsonIgnore] public bool _coldCaseTailRolled;
         [JsonIgnore] public float _workOffDebtDay;
         [JsonIgnore] public bool _workOffDebtAccepted;
         [JsonIgnore] public int _workOffDaysDone;
@@ -431,19 +442,38 @@ namespace LivingWorldNpcs
             var cfg = Config;
             if (cfg == null) return "赔100第纳尔。";
 
-            string itemDesc = BuildStolenItemsDescription();
-            int baseValue = TotalStolenValue;
-            if (baseValue <= 0) baseValue = Severity * 10;
+            string lossDesc = BuildLossDescription();
 
             int total = CrimePenaltyCalculator.ComputeCost(this, CostType.Restitution);
             string crimeGerund = cfg.CrimeVerbGerund ?? "犯事";
 
             if (Stage <= EventStage.Emerging)
-                return $"{itemDesc}，市值{baseValue}第纳尔。既然你自己认了，赔{total}第纳尔，这事就算了。你认不认？";
+                return $"{lossDesc}。既然你自己认了，赔{total}第纳尔，这事就算了。你认不认？";
             else if (Stage == EventStage.Active)
-                return $"{itemDesc}，市值{baseValue}第纳尔。村里人都知道了，{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
+                return $"{lossDesc}。村里人都知道了，{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
             else
-                return $"{itemDesc}，市值{baseValue}第纳尔。最后一次机会——赔{total}第纳尔，否则后果自负。你认不认？";
+                return $"{lossDesc}。最后一次机会——赔{total}第纳尔，否则后果自负。你认不认？";
+        }
+
+        /// <summary>损失描述（赔偿对话主语）：赃物市值 + 袭击身价，合并成一句；啥都没有时回落旧文案。</summary>
+        public string BuildLossDescription()
+        {
+            var parts = new List<string>();
+            if (TotalStolenCount > 0)
+                parts.Add($"{BuildStolenItemsDescription()}，市值{TotalStolenValue}第纳尔");
+            if (AssaultVictimNames?.Count > 0)
+                parts.Add($"{BuildAssaultVictimsDescription()}，身价{AssaultRestitutionValue}第纳尔");
+            return parts.Count > 0 ? string.Join("；", parts) : "东西，市值0第纳尔";
+        }
+
+        /// <summary>袭击受害者的自然语言描述（用于赔偿/对话）</summary>
+        public string BuildAssaultVictimsDescription()
+        {
+            var names = AssaultVictimNames;
+            if (names == null || names.Count == 0) return "";
+            if (names.Count == 1) return $"把{names[0]}打晕了";
+            if (names.Count == 2) return $"把{names[0]}和{names[1]}打晕了";
+            return $"把{names[0]}、{names[1]}等{names.Count}人打晕了";
         }
 
         /// <summary>构建被盗物品的自然语言描述（用于赔偿/对话）</summary>
@@ -750,6 +780,8 @@ namespace LivingWorldNpcs
                 e.SuspectHeroId == evt.SuspectHeroId);
             if (existing != null)
             {
+                // 续档事件已就地更新（PendingWorldEvent 复用 store 中的同一对象）——自合并会双倍累计，直接跳过
+                if (ReferenceEquals(existing, evt)) return;
                 MergeWitnessTestimonies(existing, evt);
                 return;
             }
@@ -779,9 +811,11 @@ namespace LivingWorldNpcs
             existing.WitnessTestimonies = existing.WitnessTestimonies ?? new List<WitnessTestimony>();
             foreach (var inc in incoming.WitnessTestimonies)
             {
+                bool isDark = inc.WitnessHeroId == null && inc.TemplateId == null; // 系统暗账
                 var match = existing.WitnessTestimonies.FirstOrDefault(t =>
                     (inc.WitnessHeroId != null && t.WitnessHeroId == inc.WitnessHeroId) ||
-                    (inc.TemplateId != null && t.TemplateId == inc.TemplateId));
+                    (inc.TemplateId != null && t.TemplateId == inc.TemplateId) ||
+                    (isDark && t.WitnessHeroId == null && t.TemplateId == null)); // 暗账归一
                 if (match != null)
                 {
                     // 同目击者：合并 Actions（同名 ActionType 累加 AlertValue）
@@ -790,6 +824,13 @@ namespace LivingWorldNpcs
                     {
                         foreach (var act in inc.Actions)
                         {
+                            // Steal 记录条数 = 赃物数量（StolenItems 按条计数），
+                            // 按 ActionType 合并会丢失数量/物品 → 暗账与偷窃记录一律原样追加
+                            if (isDark || act.ActionType == "Steal")
+                            {
+                                match.Actions.Add(act);
+                                continue;
+                            }
                             var existingAct = match.Actions.FirstOrDefault(a => a.ActionType == act.ActionType);
                             if (existingAct != null)
                                 existingAct.AlertValue += act.AlertValue;
@@ -808,6 +849,19 @@ namespace LivingWorldNpcs
             existing.Stage = (EventStage)Math.Max((int)existing.Stage, (int)incoming.Stage);
             existing.Severity = Math.Min(100, existing.Severity + incoming.Severity / 2);
             existing.LastUpdateDay = (float)CampaignTime.Now.ToDays;
+
+            // 袭击记账合并：身价累计相加，名单去重并入
+            if (incoming.AssaultValue > 0)
+            {
+                existing.AssaultValue += incoming.AssaultValue;
+                if (incoming.AssaultVictimNames != null)
+                {
+                    existing.AssaultVictimNames = existing.AssaultVictimNames ?? new List<string>();
+                    foreach (var n in incoming.AssaultVictimNames)
+                        if (!string.IsNullOrEmpty(n) && !existing.AssaultVictimNames.Contains(n))
+                            existing.AssaultVictimNames.Add(n);
+                }
+            }
 
             var itemSummary = string.Join(", ", existing.StolenItems.Select(kv => $"{kv.Key}x{kv.Value}"));
             DebugLogger.Log($"[WorldEvent] Merged into existing case {existing.EventId} (totalStolen={existing.TotalStolenCount}, items=[{itemSummary}], stage={existing.Stage})");
@@ -837,9 +891,6 @@ namespace LivingWorldNpcs
                     case EventStage.Confrontation:
                         ProcessConfrontation(evt, now);
                         break;
-                    case EventStage.Unsolved:
-                        ProcessUnsolved(evt, now);
-                        break;
                 }
             }
 
@@ -867,11 +918,8 @@ namespace LivingWorldNpcs
 
             if (discovered)
             {
-                evt.Stage = EventStage.Emerging;
                 evt.PublicAwareness = Math.Max(0.1f, evt.PublicAwareness);  // 保底0.1，不覆盖已有警觉加成
-                evt._stageEnteredDay = now;
-                DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage → Emerging (discovered)");
-                OnEventStageChanged?.Invoke(evt);
+                TransitionStage(evt, EventStage.Emerging);
             }
         }
 
@@ -900,10 +948,7 @@ namespace LivingWorldNpcs
             float coldDays = cfg?.InvestigationWindowDays ?? 7;
             if ((now - evt.OccurredDay) > coldDays && evt.InvestigationProgress < 1.0f)
             {
-                evt.Stage = EventStage.Unsolved;
-                evt._stageEnteredDay = now;
-                DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage → Unsolved (cold case, {coldDays} days)");
-                OnEventStageChanged?.Invoke(evt);
+                TransitionStage(evt, EventStage.Unsolved);
             }
 
             // 权威 NPC 自主行动
@@ -963,10 +1008,8 @@ namespace LivingWorldNpcs
                     InvestigationEngine.CheckBudgetAndRespawn(evt);
                 else
                 {
-                    evt.Stage = EventStage.Resolved;
+                    TransitionStage(evt, EventStage.Resolved);
                     evt.ResolvedBy = "budget_depleted";
-                    DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage → Resolved (retaliation budget exhausted)");
-                    OnEventStageChanged?.Invoke(evt);
                 }
             }
             else if ((now - evt.RetaliationSpawnDay) > 15f)
@@ -975,16 +1018,6 @@ namespace LivingWorldNpcs
                 evt.RetaliationPartyId = null;
                 TransitionStage(evt, EventStage.Resolved);
                 evt.ResolvedBy = "timeout";
-            }
-        }
-
-        private static void ProcessUnsolved(WorldEvent evt, float now)
-        {
-            // 冷案尾巴：15% 概率触发迁怒 mini-event
-            if (!evt._coldCaseTailTriggered && new Random().Next(0, 100) < 15)
-            {
-                evt._coldCaseTailTriggered = true;
-                InvestigationEngine.TriggerVigilanteJustice(evt);
             }
         }
 
@@ -1037,6 +1070,25 @@ namespace LivingWorldNpcs
             if (newStage == EventStage.Resolved && evt.SuspectIsPlayer)
             {
                 _villageAlertFlags[evt.TargetSettlementId] = true;
+            }
+
+            // 过夜被发现（Dormant→Emerging）：通知作案玩家——村民知道丢了什么，还不知道是谁
+            if (oldStage == EventStage.Dormant && newStage == EventStage.Emerging && evt.InitiatorIsPlayer)
+            {
+                try { WorldEventNotificationController.OnCrimeDiscovered(evt); }
+                catch (Exception ex) { DebugLogger.Log($"[WorldEvent] Discovery notify error: {ex.Message}"); }
+            }
+
+            // 冷案尾巴（一次性 15%）：村民迁怒打错人 mini-event，仅犯罪案件
+            if (newStage == EventStage.Unsolved && evt.Category == EventCategory.Crime && !evt._coldCaseTailRolled)
+            {
+                evt._coldCaseTailRolled = true;
+                if (new Random().Next(0, 100) < 15)
+                {
+                    evt._coldCaseTailTriggered = true;
+                    try { InvestigationEngine.TriggerVigilanteJustice(evt); }
+                    catch (Exception ex) { DebugLogger.Log($"[WorldEvent] Vigilante tail error: {ex.Message}"); }
+                }
             }
 
             DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage: {oldStage} → {newStage}");
