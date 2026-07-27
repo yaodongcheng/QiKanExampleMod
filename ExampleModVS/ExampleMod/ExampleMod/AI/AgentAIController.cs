@@ -247,8 +247,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>偷窃目击者（StealManager 调用）：witnessHeroIds/templateWitness 来自 GetWitnesses()</summary>
+        /// <param name="count">数量/面额：gold = 第纳尔面额；普通物品 = 件数（默认 1）</param>
         public void RegisterTheftWitnesses(List<string> witnessHeroIds, Dictionary<string, int> templateWitness,
-            string itemId, string itemName, string targetName = null)
+            string itemId, string itemName, string targetName = null, int count = 1)
         {
             var pending = PendingWorldEvent;
             if (pending == null) return;
@@ -256,9 +257,9 @@ namespace LivingWorldNpcs
             pending.WitnessTestimonies = pending.WitnessTestimonies ?? new List<WitnessTestimony>();
 
             foreach (var heroId in witnessHeroIds)
-                AddStealAction(pending, heroId, null, itemId, itemName, targetName);
+                AddStealAction(pending, heroId, null, itemId, itemName, targetName, count);
             foreach (var kv in templateWitness)
-                AddStealAction(pending, null, kv.Key, itemId, itemName, targetName);
+                AddStealAction(pending, null, kv.Key, itemId, itemName, targetName, count);
 
             // 有目击者当场看到玩家偷窃 → 嫌疑人=玩家，直接 Active
             if (pending.Stage < EventStage.Active)
@@ -266,8 +267,8 @@ namespace LivingWorldNpcs
         }
 
         static void AddStealAction(WorldEvent pending, string heroId, string templateId,
-            string itemId, string itemName, string targetName)
-        {   
+            string itemId, string itemName, string targetName, int count = 1)
+        {
             //合并偷窃记录
 
             var testimony = pending.WitnessTestimonies.FirstOrDefault(t =>
@@ -292,6 +293,7 @@ namespace LivingWorldNpcs
                 TargetName = targetName,
                 ItemId = itemId,
                 ItemName = itemName,
+                Count = count,
             });
         }
 
@@ -300,13 +302,14 @@ namespace LivingWorldNpcs
         /// 写入「系统暗账」（双 null 证词，见 WitnessTestimony 注释）。
         /// 事件保持 Dormant 不推进阶段——无人看见就不知道是谁，等 ProcessDormant 过夜被发现。
         /// </summary>
-        public void RegisterUnwitnessedTheft(string itemId, string itemName, string targetName = null)
+        /// <param name="count">数量/面额：gold = 第纳尔面额；普通物品 = 件数（默认 1）</param>
+        public void RegisterUnwitnessedTheft(string itemId, string itemName, string targetName = null, int count = 1)
         {
             var pending = PendingWorldEvent;
             if (pending == null) return;
 
             pending.WitnessTestimonies = pending.WitnessTestimonies ?? new List<WitnessTestimony>();
-            AddStealAction(pending, null, null, itemId, itemName, targetName);
+            AddStealAction(pending, null, null, itemId, itemName, targetName, count);
             DebugLogger.Log($"[DarkTheft] Unwitnessed: {itemName ?? itemId} → pending {pending.EventId} stays Dormant");
         }
 

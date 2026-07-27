@@ -59,15 +59,14 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 犯罪案件过夜被发现（Dormant→Emerging）时通知作案玩家。
         /// 村民知道丢了什么、还不知道是谁——给玩家介入（自首赔偿/帮忙"调查"/栽赃误导）或跑路的决策窗口。
+        /// 案情文本走 BuildDiscoveryFacts：袭击（击晕）与失窃都如实还原，不再只按偷牲口算。
         /// </summary>
         public static void OnCrimeDiscovered(WorldEvent e)
         {
             if (e == null || e.TargetSettlement == null) return;
 
             string loc = e.TargetSettlement.Name?.ToString() ?? "某地";
-            string lossDesc = e.TotalStolenCount > 0
-                ? $"少了{e.BuildStolenItemsDescription()}"
-                : (e.Config?.CrimeVerbPast ?? "东西被偷了");
+            string lossDesc = e.BuildDiscoveryFacts();
             string authority = e.Config?.AuthorityRole ?? "村长";
             string shortSummary = $"⚠ {loc} · 东窗事发";
             string body =

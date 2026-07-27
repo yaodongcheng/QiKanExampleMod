@@ -150,13 +150,14 @@ namespace LivingWorldNpcs
         public string LocationName;        // "牲口圈" / "村口大路" — UI 叙事用
 
         // ═══ 多物品追踪 ═══
-        /// <summary>被盗物品 → 数量。从 WitnessTestimonies 中 Steal 类 ActionRecord 聚合派生。</summary>
+        /// <summary>被盗物品 → 数量。从 WitnessTestimonies 中 Steal 类 ActionRecord 聚合派生。
+        /// gold 的 value = 面额总额；普通物品 = 件数（旧存档 Count=0 按 1 兜底）。</summary>
         [JsonIgnore]
         public Dictionary<string, int> StolenItems => WitnessTestimonies
             ?.SelectMany(t => t.Actions ?? Enumerable.Empty<ActionRecord>())
             .Where(a => a.ActionType == "Steal" && !string.IsNullOrEmpty(a.ItemId))
             .GroupBy(a => a.ItemId)
-            .ToDictionary(g => g.Key, g => g.Count())
+            .ToDictionary(g => g.Key, g => g.Sum(a => a.Count > 0 ? a.Count : 1))
             ?? new Dictionary<string, int>();
 
         // ═══ 目击者证词（仅 Alarmed 阶段写入，替代旧 ActionBreakdown） ═══
@@ -340,11 +341,11 @@ namespace LivingWorldNpcs
         [JsonIgnore]
         public Dictionary<string, int> StolenItemsSnapshot => StolenItems;
 
-        /// <summary>被盗物品总数量</summary>
+        /// <summary>被盗物品总"项数"（金只算一项，不混入面额——悬赏按件数定价用）</summary>
         [JsonIgnore]
-        public int TotalStolenCount => StolenItemsSnapshot.Values.Sum();
+        public int TotalStolenCount => StolenItemsSnapshot.Sum(kv => kv.Key == "gold" ? 1 : kv.Value);
 
-        /// <summary>被盗物品总市值（遍历所有物品 × 各自数量）</summary>
+        /// <summary>被盗物品总市值（物品市值 × 数量 + 金按面值计入）</summary>
         [JsonIgnore]
         public int TotalStolenValue
         {
@@ -353,6 +354,7 @@ namespace LivingWorldNpcs
                 int total = 0;
                 foreach (var kv in StolenItemsSnapshot)
                 {
+                    if (kv.Key == "gold") { total += kv.Value; continue; }
                     var item = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key);
                     if (item != null) total += item.Value * kv.Value;
                 }
@@ -476,24 +478,100 @@ namespace LivingWorldNpcs
             return $"把{names[0]}、{names[1]}等{names.Count}人打晕了";
         }
 
-        /// <summary>构建被盗物品的自然语言描述（用于赔偿/对话）</summary>
+        // ═══════════════════════════════════════════════════════════════
+        // 事实派生案情描述 — 统一入口
+        // 所有玩家可见的案情文本（发现通知 / Issue / Quest / 传闻 / 对话）
+        // 必须从事件记录的事实（袭击记账 + 赃物暗账）派生，禁止用 EventType
+        // 静态模板（Config.CrimeVerb*）硬套——Misconduct 是万用容器类型，
+        // 模板文案描述不了"击晕+搜刮"这类复合罪行。
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>是否有袭击/击晕记账</summary>
+        [JsonIgnore]
+        public bool HasAssault => AssaultVictimNames?.Count > 0;
+
+        /// <summary>
+        /// 案件定性标签（标题/简述用）：刑案（伤人+失窃）/ 伤人案 / 失窃案 / 案件。
+        /// </summary>
+        [JsonIgnore]
+        public string CaseLabel
+        {
+            get
+            {
+                bool hasStolen = TotalStolenCount > 0;
+                if (HasAssault && hasStolen) return "刑案";
+                if (HasAssault) return "伤人案";
+                if (hasStolen) return "失窃案";
+                return "案件";
+            }
+        }
+
+        /// <summary>
+        /// 案情事实句（村民视角，次日发现，不知是谁干的）：
+        /// 有袭击+失窃 → "帝国农民被人打晕了，还少了一件扣带束腰衣等4项财物"
+        /// 仅袭击 → "帝国农民被人打晕了"；仅失窃 → "少了一只羊"；都无 → 回落类型模板。
+        /// 发现通知 / Issue 描述 / Quest 日志 / 传闻 / 对话占位符统一走这里。
+        /// </summary>
+        public string BuildDiscoveryFacts()
+        {
+            bool hasStolen = TotalStolenCount > 0;
+            var names = AssaultVictimNames;
+
+            if (HasAssault && hasStolen)
+            {
+                string victimPart = names.Count == 1
+                    ? $"{names[0]}被人打晕了"
+                    : $"有{names.Count}人被人打晕了";
+                return $"{victimPart}，还少了{BuildStolenItemsDescription()}";
+            }
+            if (HasAssault)
+            {
+                return names.Count == 1
+                    ? $"{names[0]}被人打晕了"
+                    : $"有{names.Count}人被人打晕了";
+            }
+            if (hasStolen)
+                return $"少了{BuildStolenItemsDescription()}";
+            return Config?.CrimeVerbPast ?? "出了事";
+        }
+
+        /// <summary>构建被盗物品的自然语言描述（用于赔偿/对话）。
+        /// 量词按物品类别：牲畜→只、装备/货物→件、金→"N第纳尔"；
+        /// 3 种以上混合时尾巴泛称：全是牲畜叫"牲口"，否则叫"财物"。</summary>
         public string BuildStolenItemsDescription()
         {
             var items = StolenItemsSnapshot;
             if (items.Count == 0) return "东西";
 
             var parts = new List<string>();
+            int totalCount = 0;      // 总项数（金算 1 项）
+            bool hasAnimal = false;  // 含牲畜
+            bool hasNonAnimal = false;
+
             foreach (var kv in items)
             {
-                var name = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key)?.Name?.ToString() ?? kv.Key;
-                parts.Add(kv.Value == 1 ? $"一只{name}" : $"{kv.Value}只{name}");
+                // 金钱 = 特殊物品（铁律 4）：按面额直呼，不占"件/只"量词
+                if (kv.Key == "gold")
+                {
+                    parts.Add($"{kv.Value}第纳尔");
+                    totalCount += 1;
+                    hasNonAnimal = true;
+                    continue;
+                }
+                var item = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key);
+                string name = item?.Name?.ToString() ?? kv.Key;
+                bool isAnimal = item?.Type == ItemObject.ItemTypeEnum.Animal;
+                if (isAnimal) hasAnimal = true; else hasNonAnimal = true;
+                string unit = isAnimal ? "只" : "件";
+                parts.Add(kv.Value == 1 ? $"一{unit}{name}" : $"{kv.Value}{unit}{name}");
+                totalCount += kv.Value;
             }
 
             if (parts.Count == 1) return parts[0];
             if (parts.Count == 2) return $"{parts[0]}和{parts[1]}";
-            // 3+ 种不同物品：列举前两项 + "等N只牲口"
-            var total = items.Values.Sum();
-            return $"{parts[0]}、{parts[1]}等{total}只牲口";
+            // 3+ 种不同物品：列举前两项 + 泛称总量（纯牲畜才叫"牲口"）
+            string tail = hasAnimal && !hasNonAnimal ? $"等{totalCount}只牲口" : $"等{totalCount}项财物";
+            return $"{parts[0]}、{parts[1]}{tail}";
         }
     }
 

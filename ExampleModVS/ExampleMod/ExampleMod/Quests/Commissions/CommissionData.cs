@@ -435,13 +435,8 @@ namespace LivingWorldNpcs
                     switch (evt.Stage)
                     {
                         case EventStage.Emerging:
-                        {
-                            string itemDesc = evt.BuildStolenItemsDescription();
-                            string scene = evt.Config?.CrimeScene ?? "";
-                            if (itemDesc != "东西" && !string.IsNullOrEmpty(scene))
-                                return $"调查：{settlementName}{scene}{itemDesc}失窃案";
-                            return $"调查：{settlementName}失窃案";
-                        }
+                            // 案件定性从事实派生：伤人+失窃=刑案 / 伤人案 / 失窃案
+                            return $"调查：{settlementName}{evt.CaseLabel}";
                         case EventStage.Active:
                         {
                             var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
