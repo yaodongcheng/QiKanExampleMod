@@ -248,7 +248,7 @@ namespace LivingWorldNpcs
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}{StolenItemClause}。{InvestigationProgressWord}。{WitnessCountWord}，{SuspectDescription}。{SpeakerPlayerAddr}能帮忙查查吗？", "NpcLine"),
+                NpcLine = r.Resolve("（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}出事了——{DiscoveryFacts}。{InvestigationProgressWord}。{WitnessCountWord}，{SuspectDescription}。{SpeakerPlayerAddr}能帮忙查查吗？", "NpcLine"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
@@ -466,7 +466,7 @@ namespace LivingWorldNpcs
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{CrimeVerb}。有什么要说的？", "NpcLine"),
+                NpcLine = r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{ActionDescription}。有什么要说的？", "NpcLine"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
@@ -511,7 +511,7 @@ namespace LivingWorldNpcs
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("还记得{TimeWord}{CrimeVerbPast}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？", "NpcLine"),
+                NpcLine = r.Resolve("还记得{TimeWord}{DiscoveryFacts}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？", "NpcLine"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition { PlayerLine = "我接这个悬赏！", Action = "INTENT:AcceptBountyQuest", NextNodeOnSuccess = "bounty_accept_ack" },
@@ -667,7 +667,7 @@ namespace LivingWorldNpcs
 
             string npcLine = evt.Stage switch
             {
-                EventStage.Emerging => r.Resolve("（压低声音）{SpeakerPlayerAddr}听说了吗？{TargetSettlementName}的{CrimeScene}{CrimeVerbPast}！谁干的还不知道。", "NpcLine"),
+                EventStage.Emerging => r.Resolve("（压低声音）{SpeakerPlayerAddr}听说了吗？{TargetSettlementName}出事了——{DiscoveryFacts}！谁干的还不知道。", "NpcLine"),
                 EventStage.Active => r.Resolve("听说了吗？是{SuspectDescription}干的！村里悬赏{BountyAmount}第纳尔抓他呢。", "NpcLine"),
                 EventStage.Confrontation => r.Resolve("（紧张地）{TargetSettlementName}的人真动手了——雇了打手满世界找人。这事闹大了……", "NpcLine"),
                 _ => r.Resolve("这事好像已经过去了……", "NpcLine"),

@@ -35,12 +35,12 @@ namespace LivingWorldNpcs
         /// <summary>常规委托的主类别（非犯罪、非紧急事件时使用）</summary>
         public CommissionCategory? PrimaryCategory;
 
-        /// <summary>叙事：犯罪现场（"牲口圈"/"谷仓"/"身上"）</summary>
-        public string CrimeScene;
-        /// <summary>叙事：被盗物品名（"肉猪"/"银戒指"）</summary>
-        public string StolenItemName;
-        /// <summary>叙事：犯罪动词（"偷"/"扒"）</summary>
-        public string CrimeVerb;
+        /// <summary>叙事：案件定性标签（"刑案"/"伤人案"/"失窃案"，事实派生）</summary>
+        public string CaseLabel;
+        /// <summary>叙事：案情事实句（袭击+失窃如实还原，事实派生）</summary>
+        public string DiscoveryFacts;
+        /// <summary>叙事：权威角色（"村长"/"镇长"，来自 EventConfig）</summary>
+        public string AuthorityRole;
         /// <summary>叙事：目击人数</summary>
         public int WitnessCount;
 
@@ -87,7 +87,7 @@ namespace LivingWorldNpcs
                 switch (_context.CrimeEventStage)
                 {
                     case EventStage.Emerging:
-                        return new TextObject($"调查：{_context.SettlementName}失窃案");
+                        return new TextObject($"调查：{_context.SettlementName}{_context.CaseLabel ?? "案件"}");
                     case EventStage.Active:
                         if (!string.IsNullOrEmpty(_context.SuspectName))
                             return new TextObject($"悬赏缉拿：{_context.SuspectName}");
@@ -119,7 +119,7 @@ namespace LivingWorldNpcs
                 switch (_context.CrimeEventStage)
                 {
                     case EventStage.Emerging:
-                        return new TextObject($"调查{_context.SettlementName}的失窃案");
+                        return new TextObject($"调查{_context.SettlementName}的{_context.CaseLabel ?? "案件"}");
                     case EventStage.Active:
                         if (!string.IsNullOrEmpty(_context.SuspectName))
                             return new TextObject($"缉拿嫌犯{_context.SuspectName}");
@@ -148,12 +148,13 @@ namespace LivingWorldNpcs
                 {
                     case EventStage.Emerging:
                     {
-                        string itemClause = !string.IsNullOrEmpty(_context.StolenItemName)
-                            ? $"{_context.StolenItemName}被{_context.CrimeVerb}了" : "出了失窃案";
+                        // 案情从事实派生（袭击+失窃如实还原），不再用 EventType 静态模板拼接
+                        string facts = !string.IsNullOrEmpty(_context.DiscoveryFacts)
+                            ? _context.DiscoveryFacts : "出了案子";
                         string witnessClause = _context.WitnessCount > 0
                             ? $"，{_context.WitnessCount}人目击" : "，无人目击";
                         return new TextObject(
-                            $"{_context.SettlementName}的{_context.CrimeScene}{itemClause}{witnessClause}。" +
+                            $"{_context.SettlementName}{facts}{witnessClause}。" +
                             $"{GetAuthorityRoleText()}正在找人帮忙调查。");
                     }
                     case EventStage.Active:
@@ -178,17 +179,10 @@ namespace LivingWorldNpcs
 
         private string GetAuthorityRoleText()
         {
-            if (_context.IsCrimeEvent)
-            {
-                switch (_context.CrimeEventType)
-                {
-                    case "Theft_Animal": return "村长";
-                    case "Theft_Pickpocket": return "镇长";
-                    case "Murder": return "族长";
-                    case "Poaching": return "领主";
-                    default: return "委托人";
-                }
-            }
+            // 权威角色直接来自 EventConfig.AuthorityRole（Misconduct=村长），
+            // 不再按事件类型字符串硬编码——容器类型统一为 Misconduct 后 switch 永远落空
+            if (_context.IsCrimeEvent && !string.IsNullOrEmpty(_context.AuthorityRole))
+                return _context.AuthorityRole;
             return "委托人";
         }
 
@@ -605,9 +599,9 @@ namespace LivingWorldNpcs
                         SettlementName = settlementName,
                         SuspectName = suspectName,
                         CrimeEventType = evt.Type.ToString(),
-                        CrimeScene = evt.Config?.CrimeScene ?? "",
-                        StolenItemName = GetStolenItemName(evt),
-                        CrimeVerb = evt.Config?.CrimeVerb ?? "丢失",
+                        CaseLabel = evt.CaseLabel,
+                        DiscoveryFacts = evt.BuildDiscoveryFacts(),
+                        AuthorityRole = evt.Config?.AuthorityRole,
                         WitnessCount = evt.WitnessCount,
                     };
                 }
@@ -640,16 +634,6 @@ namespace LivingWorldNpcs
                 SettlementName = settlementName,
                 PrimaryCategory = firstCategory,
             };
-        }
-
-        /// <summary>
-        /// 从 WorldEvent 提取被盗物品名称（用于 Issue 描述叙事）。
-        /// 多物品时返回最主要物品名。
-        /// </summary>
-        private static string GetStolenItemName(WorldEvent evt)
-        {
-            if (evt == null) return "";
-            return evt.BuildStolenItemsDescription();
         }
 
         private void OnDailyTick()

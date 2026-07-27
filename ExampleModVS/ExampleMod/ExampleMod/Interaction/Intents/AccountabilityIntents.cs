@@ -505,8 +505,9 @@ namespace LivingWorldNpcs
 
             DebugLogger.Log($"[Accountability] Player confessed for {evt.EventId} — suspect=self, awaiting resolution");
             var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-            var itemDesc = evt.BuildStolenItemsDescription();
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"我向{giverName}坦白了——{itemDesc}确实是我拿的。");
+            // 自首叙事如实还原罪行（袭击+失窃），不只说"拿了东西"
+            var facts = evt.BuildDiscoveryFacts();
+            CommissionQuest.AddNarrativeLogForEvent(evt, $"我向{giverName}坦白了——{facts}，都是我干的。");
         }
     }
 

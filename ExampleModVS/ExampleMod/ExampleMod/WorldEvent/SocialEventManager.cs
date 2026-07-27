@@ -70,11 +70,13 @@ namespace LivingWorldNpcs
 
         private static string BuildSocialEventDescription(WorldEvent evt)
         {
+            string location = evt.TargetSettlement?.Name?.ToString() ?? evt.LocationName ?? "某地";
+            // 犯罪事件（Misconduct 容器）：案情从事实派生（袭击+失窃如实还原）
+            if (evt.Category == EventCategory.Crime)
+                return $"{location}出了事：{evt.BuildDiscoveryFacts()}";
             var cfg = evt.Config;
             string verb = cfg?.CrimeVerbPast ?? "出了事";
-            string location = evt.TargetSettlement?.Name?.ToString() ?? evt.LocationName ?? "某地";
-            string itemDesc = evt.BuildStolenItemsDescription();
-            return $"{location}{verb}：{itemDesc}".TrimEnd('：');
+            return $"{location}{verb}";
         }
 
         private static List<string> BuildSocialEventTags(WorldEvent evt)

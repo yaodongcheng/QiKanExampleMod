@@ -620,6 +620,57 @@ custom.worldevent_status     // 内部状态
 
 ---
 
+# 案情文案事实派生层 — `WorldEvent/WorldEvent.cs`
+
+**解决什么问题**：犯罪事件的玩家可见文案曾按 EventType 静态模板（`Config.CrimeVerb*`）硬套——但 PendingWorldEvent 永远是 Misconduct 万用容器类型，模板描述不了"击晕+搜刮"这类复合罪行（曾把击晕搜刮报成"偷牲口"，量词写死"只/牲口"，gold 还不计赔偿估值）。现在**一切案情文本从记账事实派生**：新犯罪玩法只要把事实记进 `WitnessTestimonies` + `AssaultVictimNames`，通知/Quest/对话/传闻文案自动如实还原，不用改任何消费点。
+
+## 事实派生 API（WorldEvent 上，一处生成处处消费）
+
+```csharp
+// 案情事实句（村民视角，不知是谁干的）——发现通知/Issue/Quest/传闻/对话统一入口
+evt.BuildDiscoveryFacts();
+//   袭击+失窃 → "帝国农民被人打晕了，还少了一件扣带束腰衣、一件扎带皮靴等4项财物"
+//   仅袭击   → "帝国农民被人打晕了"（多人 → "有3人被人打晕了"）
+//   仅失窃   → "少了一只羊"
+//   都无     → 回落 Config.CrimeVerbPast
+
+evt.CaseLabel;    // 案件定性标签：刑案(伤人+失窃)/伤人案/失窃案/案件 —— 标题/简述用
+evt.HasAssault;   // 是否有击晕/袭击记账
+
+// 赃物描述（量词分类：牲畜→只、装备/货物→件、金→"N第纳尔"；3+ 混合尾巴：纯牲畜"等N只牲口"，否则"等N项财物"）
+evt.BuildStolenItemsDescription();
+evt.TotalStolenCount;  // 赃物总项数（金只算 1 项——悬赏按件定价用）
+evt.TotalStolenValue;  // 赃物总市值（物品市值 + 金按面值计入——赔偿估值用）
+```
+
+## 记账侧：ActionRecord.Count
+
+gold 面额必须走 `Count` 字段（不再只嵌在 ItemName 字符串里）；普通物品默认 1；旧存档 Count=0 → 聚合按 1 兜底（序列化兼容）。
+
+```csharp
+AgentAIController.Instance?.RegisterUnwitnessedTheft("gold", $"{actual} 第纳尔", targetName, count: actual);
+AgentAIController.Instance?.RegisterTheftWitnesses(heroIds, templates, itemId, itemName, targetName, count);
+```
+
+## 消费点清单（新案情叙事禁止绕过）
+
+| 消费方 | 用法 |
+|--------|------|
+| `WorldEventNotificationController.OnCrimeDiscovered` | `e.BuildDiscoveryFacts()` |
+| `CommissionQuest.OnStartInvestigation` | `evt.BuildDiscoveryFacts()` |
+| `CommissionData.GetFlavorDescription` / `CommissionHubIssue` Title/Brief | `evt.CaseLabel` |
+| `CommissionHubIssue` Description | context 预取 `DiscoveryFacts` + `AuthorityRole` |
+| `SocialEventManager.BuildSocialEventDescription` | 犯罪类走 `BuildDiscoveryFacts()` |
+| `ConfessIntent` 自首日志 | `evt.BuildDiscoveryFacts()` |
+| `PlaceholderResolver` | `{DiscoveryFacts}` / `{StolenItemDesc}`（委托统一实现，禁止本地重写量词逻辑） |
+| `CrimeDialogueBuilder` 模板 | 用 `{DiscoveryFacts}`，不再 `{CrimeScene}{CrimeVerbPast}{StolenItemClause}` 三段拼接 |
+
+**铁律**：①禁止按 `evt.Type` / `Config.CrimeVerb*` 拼案情文案；②赔偿对话的损失描述走 `BuildLossDescription()`（赃物市值+袭击身价合并成句）；③新占位符走两步流程（`PlaceholderResolver.ResolveOne` 加 case + 模板引用），且 `ResolveOne` 返回 null 会原样输出 `{KEY}`。
+
+**文件位置**：`WorldEvent/WorldEvent.cs`（事实派生 API）、`AI/AlertTypes.cs`（`ActionRecord.Count`）、`AI/AgentAIController.cs`（记账 count 参数）。
+
+---
+
 # AgentHUD — 3D 角色头上通用 HUD 系统
 
 **原地升级替换旧 `BubbleSay*` 系统**。为所有 Human Agent 提供统一的 3D 头上 HUD，管理五大元素：名字、说话冒泡、血条、伤害数字、警戒眼睛。

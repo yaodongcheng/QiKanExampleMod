@@ -1201,9 +1201,9 @@ namespace LivingWorldNpcs
 
             if (evt != null)
             {
-                string itemDesc = evt.BuildStolenItemsDescription();
+                // 案情从事实派生（袭击+失窃如实还原），不再用 EventType 静态模板拼接
+                string facts = evt.BuildDiscoveryFacts();
                 string scene = !string.IsNullOrEmpty(evt.Config?.CrimeScene) ? evt.Config.CrimeScene : "现场";
-                string verb = !string.IsNullOrEmpty(evt.Config?.CrimeVerb) ? evt.Config.CrimeVerb : "丢失";
                 int witnessCount = evt.WitnessCount;
                 int windowDays = evt.Config?.InvestigationWindowDays ?? 7;
 
@@ -1213,7 +1213,7 @@ namespace LivingWorldNpcs
 
                 AddLog(new TextObject(
                     $"前往 {locationName} 的{scene}附近搜集线索。" +
-                    $"{itemDesc}{verb}了，{witnessClause}" +
+                    $"{facts}，{witnessClause}" +
                     $"与当地人交谈或回现场调查，找出是谁干的。"));
                 AddLog(new TextObject(
                     $"提示：调查窗口约{windowDays}天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));

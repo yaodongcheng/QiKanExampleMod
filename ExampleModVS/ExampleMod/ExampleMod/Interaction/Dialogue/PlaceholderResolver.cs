@@ -150,23 +150,12 @@ namespace LivingWorldNpcs
                 case "StolenCount": return (evt?.TotalStolenCount ?? 0).ToString();
                 case "StolenItemDesc":
                 {
-                    if (evt == null) return "";
-                    var items = evt.StolenItemsSnapshot;
-                    if (items.Count == 0) return "";
-
-                    var parts = new List<string>();
-                    foreach (var kv in items)
-                    {
-                        var name = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key)?.Name?.ToString() ?? kv.Key;
-                        parts.Add(kv.Value == 1 ? $"一只{name}" : $"{kv.Value}只{name}");
-                    }
-
-                    if (parts.Count == 1) return parts[0];
-                    if (parts.Count == 2) return $"{parts[0]}和{parts[1]}";
-                    // 3+ 种不同物品：列举前两种 + 泛称总量
-                    var total = items.Values.Sum();
-                    return $"{parts[0]}、{parts[1]}等{total}只牲口";
+                    // 统一收口到 WorldEvent.BuildStolenItemsDescription（量词分类/金面额），禁止本地重复实现
+                    if (evt == null || evt.TotalStolenCount == 0) return "";
+                    return evt.BuildStolenItemsDescription();
                 }
+                case "DiscoveryFacts":  // 案情事实句（袭击+失窃如实还原）：发现通知/对话模板共用
+                    return evt?.BuildDiscoveryFacts() ?? "";
                 case "StolenItemClause":  // 通用被盗物品从句：有物品→"，三只羊不见了"；暗杀等无物品犯罪→""
                 {
                     var desc = ResolveOne("StolenItemDesc");

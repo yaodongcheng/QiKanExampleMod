@@ -78,7 +78,8 @@ namespace LivingWorldNpcs
         public string ActionType;      // PlayerActionType 名称
         public float AlertValue;       // 目击者对此行为的警戒值
         public string TargetName;      // 受害者名（Knockout/AttackAlly）；Crouching/WeaponDrawn 为 null
-        public string ItemId;          // Steal 赃物 ID
+        public string ItemId;          // Steal 赃物 ID（"gold" = 金钱）
         public string ItemName;        // Steal 赃物显示名
+        public int Count;              // 数量/面额：gold = 第纳尔面额；普通物品 = 件数（默认 1）。旧存档为 0 → 消费端按 1 兜底
     }
 }

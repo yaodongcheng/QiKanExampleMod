@@ -269,7 +269,7 @@ namespace LivingWorldNpcs
                 RecordStolenGold(agent, actual);
                 // 失窃事实暗账（同 StealSpecificItem）：无人目击时等次日发现钱袋空了
                 AgentAIController.Instance?.RegisterUnwitnessedTheft(
-                    "gold", $"{actual} 第纳尔", agent.Name?.ToString());
+                    "gold", $"{actual} 第纳尔", agent.Name?.ToString(), count: actual);
             }
             return actual;
         }
@@ -553,7 +553,7 @@ namespace LivingWorldNpcs
                     if (gold > 0)
                     {
                         AgentAIController.Instance?.RegisterUnwitnessedTheft(
-                            "gold", $"{gold} 第纳尔", targetName: "保管箱");
+                            "gold", $"{gold} 第纳尔", targetName: "保管箱", count: gold);
                     }
                     return;
                 }
@@ -574,7 +574,7 @@ namespace LivingWorldNpcs
                 {
                     AgentAIController.Instance?.RegisterTheftWitnesses(
                         witnessHeroIds, templateWitness,
-                        "gold", $"{gold} 第纳尔", targetName: "保管箱");
+                        "gold", $"{gold} 第纳尔", targetName: "保管箱", count: gold);
                 }
 
                 // 抓现行围堵：victim=null（保管箱没有具体受害者 Agent）
@@ -685,7 +685,7 @@ namespace LivingWorldNpcs
                     if (gold > 0)
                     {
                         AgentAIController.Instance?.RegisterUnwitnessedTheft(
-                            "gold", $"{gold} 第纳尔", targetName: victimName);
+                            "gold", $"{gold} 第纳尔", targetName: victimName, count: gold);
                     }
                     return;
                 }
@@ -707,7 +707,7 @@ namespace LivingWorldNpcs
                 {
                     AgentAIController.Instance?.RegisterTheftWitnesses(
                         witnessHeroIds, templateWitness,
-                        "gold", $"{gold} 第纳尔", targetName: victimName);
+                        "gold", $"{gold} 第纳尔", targetName: victimName, count: gold);
                 }
 
                 // ④ 抓现行围堵：victim=null（受害者昏迷无法指控；WitnessCrime 分类落到 Steal，
