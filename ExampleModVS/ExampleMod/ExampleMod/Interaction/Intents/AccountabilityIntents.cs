@@ -517,8 +517,12 @@ namespace LivingWorldNpcs
 
     /// <summary>
     /// 通用"离开"——合并原 WalkAwayIntent 和 FleeFromConfrontationIntent。
-    /// 对话内（IsInMission=false）：自然结束对话，嫌犯根据事件阶段触发 NPC 警告 + 关系惩罚。
-    /// Mission 场景内（IsInMission=true）：武力推开逃跑，走 Intimidate 检定 → 成功逃脱 / 失败被捕 + 事件升级。
+    /// OnInstant 按四层判定逐层收窄，每层不满足即"纯自然离开"返回：
+    /// ① 有无活跃犯罪事件 —— 无 → 仅 Alert 场景（NPC 警戒质问找上门）需要处理
+    /// ② 有无定居点 —— 无（大地图偶遇）→ 后果无法落地，暂放行（TODO）
+    /// ③ 玩家是否嫌犯 —— 否（路人闲聊/受托查案者）→ 无任何后果
+    /// ④ 事件阶段 × 是否在 Mission —— 仅 Active + Mission 内 + 嫌犯=玩家 才掷武力逃跑检定；
+    ///    其余对话内离开走 NPC 警告（延迟 Inquiry）+ 关系惩罚。
     /// </summary>
     public class WalkAwayIntent : IntentBase
     {
@@ -541,27 +545,17 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
-            // ── Mission 场景内 → 武力逃跑（内部 Intimidate 检定）──
-            if (ctx.IsInMission && ctx.ActiveEvent != null)
-            {
-                var roll = SingleRollResolver.SimpleCompute(ctx, NegotiationTactic.Flatter, 0f);
-                bool success = SingleRollResolver.Roll(roll.Chance);
-                DebugLogger.Log($"[WalkAway] Mission flee: chance={roll.Chance:P0} success={success}");
-                if (success)
-                    OnFleeSuccess(ctx);
-                else
-                    OnFleeFail(ctx);
-                return;
-            }
-
-            // ── 对话内 → 自然离开（原 WalkAway 逻辑）──
+            // ══ 第一层：是否有活跃犯罪事件 ══
+            // ctx.ActiveEvent = 对话上下文已锁定的事件；为 null 时按玩家所在定居点查一次兜底
+            // （StoryDialogVM 互动菜单路径构建 ctx 时不带 worldEvent，必须靠兜底）。
             var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
-            if (settlement == null) return;
+            var evt = ctx.ActiveEvent ?? (settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null);
 
-            var evt = WorldEventStore.FindActive(settlement.StringId);
             if (evt == null)
             {
-                // Alert 场景：NPC 因警戒质问找上门，玩家直接走人 → 推进 WorldEvent 到 Active + 设 EscalationAgent
+                // 无活跃事件 —— 唯一需要处理的是 Alert 场景：NPC 因警戒质问找上门，玩家直接走人
+                // 警戒质问比较特殊 玩家可能只是做出了不合适的行为，或者在做坏事过程中，并没有真的执行完成做坏事的结果
+                // → 关系小降 + 设 EscalationAgent（对话关闭后由 Patch 消费：呼救围堵 + 重新质问）
                 if (ctx.IsInMission)
                 {
                     PendingEscalationAgent = ctx.Agent;
@@ -575,33 +569,56 @@ namespace LivingWorldNpcs
 
                     DebugLogger.Log($"[WalkAway] Alert context — PendingEscalationAgent={ctx.Agent?.Name}, relation -5, WorldEvent→Active");
                 }
-                return;
+                return;  // 其余情况（大地图/菜单闲聊）→ 纯自然离开
             }
 
-            // ── 玩家是嫌犯 → NPC 不甘心放人 ──
-            if (evt.SuspectIsPlayer)
+            // ══ 第二层：是否有定居点 ══
+            // 有事件但玩家不在定居点（大地图偶遇对话）——目前后果都依赖定居点场景，无法落地。
+            // TODO: 未来支持"大地图上 NPC 找上门追责"时在这里接。
+            if (settlement == null) return;
+
+            // ══ 第三层：玩家是否是嫌犯 ══
+            // 不是嫌犯（路人闲聊 / 受托查案的调查者）→ 纯自然离开，任何阶段都无后果。
+            if (!evt.SuspectIsPlayer) return;
+
+            // ══ 第四层：玩家是嫌犯 → 按事件阶段决定后果；最内层按是否在 Mission 区分处理方式 ══
+            var authority = WorldEventStore.GetAuthorityNpc(evt);
+            string npcName = authority?.Name?.ToString() ?? "村长";
+            string villageName = authority?.CurrentSettlement?.Name?.ToString()
+                ?? settlement.Name?.ToString() ?? "村子";
+
+            switch (evt.Stage)
             {
-                var authority = WorldEventStore.GetAuthorityNpc(evt);
-                string npcName = authority?.Name?.ToString() ?? "村长";
-                string villageName = authority?.CurrentSettlement?.Name?.ToString()
-                    ?? settlement.Name?.ToString() ?? "村子";
+                case EventStage.Emerging:
+                    // 已被怀疑（自首后）转身就走 → 村民确信是你干的，事件升级 Active
+                    WorldEventStore.TransitionStage(evt, EventStage.Active);
+                    PendingInquiryTitle = "“站住！”";
+                    PendingInquiryBody =
+                        $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
+                        $"\"你以为认了就完了？！这事没完！\"\n\n" +
+                        $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
+                        $"下次再见到{npcName}，可就不是商量那么简单了。";
+                    NotifyInvestigationQuest(evt);
+                    DebugLogger.Log($"[Accountability] WalkAway (Emerging suspect): {evt.EventId} → Active");
+                    CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。身后传来{npcName}的怒吼——这事没完。");
+                    break;
 
-                switch (evt.Stage)
-                {
-                    case EventStage.Emerging:
-                        WorldEventStore.TransitionStage(evt, EventStage.Active);
-                        PendingInquiryTitle = "“站住！”";
-                        PendingInquiryBody =
-                            $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
-                            $"\"你以为认了就完了？！这事没完！\"\n\n" +
-                            $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
-                            $"下次再见到{npcName}，可就不是商量那么简单了。";
-                        NotifyInvestigationQuest(evt);
-                        DebugLogger.Log($"[Accountability] WalkAway (Emerging suspect): {evt.EventId} → Active");
-                        CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。身后传来{npcName}的怒吼——这事没完。");
-                        break;
-
-                    case EventStage.Active:
+                case EventStage.Active:
+                    if (ctx.IsInMission)
+                    {
+                        // ── 第五层：Mission 内 —— 玩家正被围堵缉拿，"离开" = 武力推开逃跑 → Intimidate 检定
+                        // 成功：挣脱但身份彻底暴露；失败：被拦下，关系大降 + 事件升级 Confrontation
+                        var roll = SingleRollResolver.SimpleCompute(ctx, NegotiationTactic.Flatter, 0f);
+                        bool success = SingleRollResolver.Roll(roll.Chance);
+                        DebugLogger.Log($"[WalkAway] Mission flee: chance={roll.Chance:P0} success={success}");
+                        if (success)
+                            OnFleeSuccess(evt);
+                        else
+                            OnFleeFail(ctx, evt);
+                    }
+                    else
+                    {
+                        // ── 第五层：对话/菜单内 —— 转身就走，NPC 放话 + 关系惩罚
                         PendingInquiryTitle = "“站住！”";
                         PendingInquiryBody =
                             $"你转身离开，身后传来{npcName}的怒吼——\n\n" +
@@ -611,41 +628,38 @@ namespace LivingWorldNpcs
                             ChangeRelationAction.ApplyPlayerRelation(authority, -10, false, true);
                         DebugLogger.Log($"[Accountability] WalkAway (Active suspect): {evt.EventId} — rep -10");
                         CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。{npcName}气得发抖——下次见面不会跟我客气了。");
-                        break;
+                    }
+                    break;
 
-                    case EventStage.Confrontation:
-                        PendingInquiryTitle = "“你跑不掉的！”";
-                        PendingInquiryBody =
-                            $"你转身就跑。身后{npcName}的吼声回荡——\n\n" +
-                            $"\"躲得过初一躲不过十五！{villageName}跟你不死不休！\"\n\n" +
-                            $"你在此地已是死敌。小心——他们雇的人随时可能出现。";
-                        if (authority != null)
-                            ChangeRelationAction.ApplyPlayerRelation(authority, -20, false, true);
-                        if (!evt.RetaliationSpawned)
-                            InvestigationEngine.SpawnRetaliationParty(evt);
-                        DebugLogger.Log($"[Accountability] WalkAway (Confrontation): {evt.EventId} — retaliation + rep -20");
-                        CommissionQuest.AddNarrativeLogForEvent(evt, $"我跑了。{npcName}追了出来——{villageName}跟我不死不休。");
-                        break;
-                }
+                case EventStage.Confrontation:
+                    // 不死不休阶段 —— 无论是否在 Mission，都是放狠话 + 关系重罚 + 报复部队
+                    PendingInquiryTitle = "“你跑不掉的！”";
+                    PendingInquiryBody =
+                        $"你转身就跑。身后{npcName}的吼声回荡——\n\n" +
+                        $"\"躲得过初一躲不过十五！{villageName}跟你不死不休！\"\n\n" +
+                        $"你在此地已是死敌。小心——他们雇的人随时可能出现。";
+                    if (authority != null)
+                        ChangeRelationAction.ApplyPlayerRelation(authority, -20, false, true);
+                    if (!evt.RetaliationSpawned)
+                        InvestigationEngine.SpawnRetaliationParty(evt);
+                    DebugLogger.Log($"[Accountability] WalkAway (Confrontation): {evt.EventId} — retaliation + rep -20");
+                    CommissionQuest.AddNarrativeLogForEvent(evt, $"我跑了。{npcName}追了出来——{villageName}跟我不死不休。");
+                    break;
             }
         }
 
-        /// <summary>Mission 内武力逃脱成功</summary>
-        private void OnFleeSuccess(IntentContext ctx)
+        /// <summary>Mission 内武力逃脱成功：挣脱围堵，但身份彻底暴露（嫌犯锁定 + 调查进度拉满）。已在 Active → TransitionStage 幂等早退。</summary>
+        private void OnFleeSuccess(WorldEvent evt)
         {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
             evt.SuspectHeroId = Hero.MainHero.StringId;
             evt.InvestigationProgress = 1.0f;
             WorldEventStore.TransitionStage(evt, EventStage.Active);
             DebugLogger.Log($"[Accountability] Player fled confrontation for {evt.EventId}");
         }
 
-        /// <summary>Mission 内武力逃脱失败</summary>
-        private void OnFleeFail(IntentContext ctx)
+        /// <summary>Mission 内武力逃脱失败：被拦下，关系大降 + 事件升级 Confrontation</summary>
+        private void OnFleeFail(IntentContext ctx, WorldEvent evt)
         {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
             if (ctx.Speaker != null)
                 ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -15, false, true);
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
