@@ -209,6 +209,11 @@ namespace LivingWorldNpcs
                 );
             }
 
+            // 失窃事实暗账（无条件）：无人目击时事件留 Dormant 等次日发现；
+            // 被目击时证词 Steal 记录由 SyncActions 写入、不带 ItemId，StolenItems 不会与暗账双算。
+            AgentAIController.Instance?.RegisterUnwitnessedTheft(
+                itemToSteal.Item.StringId, itemName, agent.Name?.ToString());
+
             // 3. 从 NPC 身上移除该物品 (修改视觉)
             Equipment newEquipment = agent.SpawnEquipment.Clone();
             newEquipment[index] = EquipmentElement.Invalid; // 设置为空
@@ -260,7 +265,12 @@ namespace LivingWorldNpcs
 
             int actual = ConsumeAgentGold(agent, agentGold, Settlement.CurrentSettlement);
             if (actual > 0)
+            {
                 RecordStolenGold(agent, actual);
+                // 失窃事实暗账（同 StealSpecificItem）：无人目击时等次日发现钱袋空了
+                AgentAIController.Instance?.RegisterUnwitnessedTheft(
+                    "gold", $"{actual} 第纳尔", agent.Name?.ToString());
+            }
             return actual;
         }
         /// <summary>
@@ -401,6 +411,12 @@ namespace LivingWorldNpcs
                         exclude: null, requireSight: true,
                         Agent.Main, null);
                 }
+                else
+                {
+                    // 无人目击 → 系统暗账：事件留 Dormant，等次日村民发现牲口少了
+                    AgentAIController.Instance?.RegisterUnwitnessedTheft(
+                        livestockItem.StringId, livestockItem.Name?.ToString() ?? livestockItem.StringId);
+                }
 
                 // 统一偷窃账本记账（赃物标注、栽赃系统依赖它）
                 TheftLedger.Record(
@@ -501,26 +517,44 @@ namespace LivingWorldNpcs
             {
                 if (settlement == null || Agent.Main == null) return;
 
+                bool wasWitnessed;
+                List<string> witnessHeroIds = null;
+                Dictionary<string, int> templateWitness = null;
+
                 if (!Settings.Instance.WitnessSystemEnabled)
                 {
                     DebugLogger.Log("[ChestTheft] Witness system DISABLED — treating as no witnesses.");
-                    return;
+                    wasWitnessed = false;
+                }
+                else
+                {
+                    var witnesses = GetWitnesses(Agent.Main, null, maxDistance: 15f);
+                    witnessHeroIds = witnesses
+                        .Where(a => (a.Character as CharacterObject)?.HeroObject != null)
+                        .Select(a => (a.Character as CharacterObject).HeroObject.StringId)
+                        .ToList();
+                    templateWitness = witnesses
+                        .Where(a => (a.Character as CharacterObject)?.HeroObject == null && a.Character != null)
+                        .GroupBy(a => a.Character.StringId)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                    wasWitnessed = witnessHeroIds.Count > 0 || templateWitness.Count > 0;
                 }
 
-                var witnesses = GetWitnesses(Agent.Main, null, maxDistance: 15f);
-                var witnessHeroIds = witnesses
-                    .Where(a => (a.Character as CharacterObject)?.HeroObject != null)
-                    .Select(a => (a.Character as CharacterObject).HeroObject.StringId)
-                    .ToList();
-                var templateWitness = witnesses
-                    .Where(a => (a.Character as CharacterObject)?.HeroObject == null && a.Character != null)
-                    .GroupBy(a => a.Character.StringId)
-                    .ToDictionary(g => g.Key, g => g.Count());
-
-                bool wasWitnessed = witnessHeroIds.Count > 0 || templateWitness.Count > 0;
                 if (!wasWitnessed)
                 {
                     DebugLogger.Log("[ChestTheft] No witnesses — clean getaway.");
+                    // 无人目击 → 系统暗账：事件留 Dormant，等次日发现失窃
+                    if (items != null)
+                    {
+                        foreach (var (itemId, itemName, _) in items)
+                            AgentAIController.Instance?.RegisterUnwitnessedTheft(
+                                itemId, itemName ?? itemId, targetName: "保管箱");
+                    }
+                    if (gold > 0)
+                    {
+                        AgentAIController.Instance?.RegisterUnwitnessedTheft(
+                            "gold", $"{gold} 第纳尔", targetName: "保管箱");
+                    }
                     return;
                 }
 
@@ -552,6 +586,140 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ChestTheft] RecordChestTheft error: {ex.Message}");
+            }
+        }
+
+
+        // ----------------------------------------------------------------
+        // 3d. 昏迷搜刮偷窃：搜刮被击晕（昏迷未死）的 NPC = 偷窃，与保管箱/偷猪同一体系。
+        //     目击者检测 → 证词记账（赔偿）→ 抓现行围堵；TheftLedger 无条件记（赃物标注/栽赃）。
+        //     不记 _stolenLog：受害者在 ragdoll 状态，ReturnStolenItems 复原装备会 wield 武器
+        //     操作失效骨骼（native 崩溃风险）——赔偿以金钱折算（与保管箱一致）。
+        // ----------------------------------------------------------------
+        /// <summary>
+        /// 搜刮昏迷者后的犯罪记账入口。
+        /// 由 InteractionMissionView.LootAgent 在物品/金钱实际转移后调用（全部拿走 / 挑选关闭 / 拿钱）。
+        /// </summary>
+        /// <param name="victim">被搜刮的昏迷 NPC（必须昏迷未死；尸体搜刮不算偷窃，调用方负责区分）</param>
+        /// <param name="items">拿走的物品清单（每个槽位一条，count 恒为 1；纯拿钱时为 null/空表）</param>
+        /// <param name="gold">拿走的金币（无则为 0）</param>
+        public static void RecordUnconsciousLootTheft(Agent victim, List<(string itemId, string itemName, int count)> items, int gold)
+        {
+            try
+            {
+                if (victim == null || Agent.Main == null) return;
+                if ((items == null || items.Count == 0) && gold <= 0) return;
+
+                string victimName = victim.Name?.ToString() ?? "昏迷者";
+                var victimHero = (victim.Character as CharacterObject)?.HeroObject;
+                var settlement = Settlement.CurrentSettlement;
+
+                // ① TheftLedger 无条件记账（赃物标注/栽赃依赖，与扒窃对齐——系统知道真相，不论有无目击）
+                if (settlement != null)
+                {
+                    if (items != null)
+                    {
+                        foreach (var (itemId, _, count) in items)
+                        {
+                            if (string.IsNullOrEmpty(itemId) || count <= 0) continue;
+                            TheftLedger.Record(
+                                initiatorId: Hero.MainHero.StringId,
+                                victimHeroId: victimHero?.StringId,
+                                settlementId: settlement.StringId,
+                                itemId: itemId,
+                                count: count,
+                                locationName: $"在{settlement.Name}",
+                                worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
+                        }
+                    }
+                    if (gold > 0)
+                    {
+                        TheftLedger.Record(
+                            initiatorId: Hero.MainHero.StringId,
+                            victimHeroId: victimHero?.StringId,
+                            settlementId: settlement.StringId,
+                            itemId: "gold",
+                            count: gold,
+                            locationName: $"在{settlement.Name}",
+                            worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
+                    }
+                }
+
+                // ② 目击系统：关闭即视为无人目击
+                bool wasWitnessed;
+                List<string> witnessHeroIds = null;
+                Dictionary<string, int> templateWitness = null;
+
+                if (!Settings.Instance.WitnessSystemEnabled)
+                {
+                    DebugLogger.Log("[LootTheft] Witness system DISABLED — treating as no witnesses.");
+                    wasWitnessed = false;
+                }
+                else
+                {
+                    var witnesses = GetWitnesses(Agent.Main, victim, maxDistance: 15f);
+                    witnessHeroIds = witnesses
+                        .Where(a => (a.Character as CharacterObject)?.HeroObject != null)
+                        .Select(a => (a.Character as CharacterObject).HeroObject.StringId)
+                        .ToList();
+                    templateWitness = witnesses
+                        .Where(a => (a.Character as CharacterObject)?.HeroObject == null && a.Character != null)
+                        .GroupBy(a => a.Character.StringId)
+                        .ToDictionary(g => g.Key, g => g.Count());
+                    wasWitnessed = witnessHeroIds.Count > 0 || templateWitness.Count > 0;
+                }
+
+                if (!wasWitnessed)
+                {
+                    DebugLogger.Log($"[LootTheft] 搜刮 {victimName}：无人目击。");
+                    // 无人目击 → 系统暗账：事件留 Dormant，等次日发现失窃
+                    if (items != null)
+                    {
+                        foreach (var (itemId, itemName, _) in items)
+                        {
+                            if (string.IsNullOrEmpty(itemId)) continue;
+                            AgentAIController.Instance?.RegisterUnwitnessedTheft(
+                                itemId, itemName ?? itemId, targetName: victimName);
+                        }
+                    }
+                    if (gold > 0)
+                    {
+                        AgentAIController.Instance?.RegisterUnwitnessedTheft(
+                            "gold", $"{gold} 第纳尔", targetName: victimName);
+                    }
+                    return;
+                }
+
+                DebugLogger.Log($"[LootTheft] 搜刮 {victimName} 被目击! {witnessHeroIds.Count} hero(es) + {templateWitness.Sum(kv => kv.Value)} template(s). items={items?.Count ?? 0}, gold={gold}");
+
+                // ③ 证词：每件物品一条 + 金钱一条（targetName=受害者名，比保管箱更具体）
+                if (items != null)
+                {
+                    foreach (var (itemId, itemName, _) in items)
+                    {
+                        if (string.IsNullOrEmpty(itemId)) continue;
+                        AgentAIController.Instance?.RegisterTheftWitnesses(
+                            witnessHeroIds, templateWitness,
+                            itemId, itemName ?? itemId, targetName: victimName);
+                    }
+                }
+                if (gold > 0)
+                {
+                    AgentAIController.Instance?.RegisterTheftWitnesses(
+                        witnessHeroIds, templateWitness,
+                        "gold", $"{gold} 第纳尔", targetName: victimName);
+                }
+
+                // ④ 抓现行围堵：victim=null（受害者昏迷无法指控；WitnessCrime 分类落到 Steal，
+                //    若传 victim 会被 IsKnockedOut 误判为 Knockout——与保管箱/偷猪完全对齐）
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    Agent.Main.Position, 25f, "WitnessCrime",
+                    exclude: null, requireSight: true,
+                    Agent.Main, null);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[LootTheft] RecordUnconsciousLootTheft error: {ex.Message}");
             }
         }
 

@@ -267,10 +267,13 @@ namespace LivingWorldNpcs
 
         static void AddStealAction(WorldEvent pending, string heroId, string templateId,
             string itemId, string itemName, string targetName)
-        {
+        {   
+            //合并偷窃记录
+
             var testimony = pending.WitnessTestimonies.FirstOrDefault(t =>
-                (heroId != null && t.WitnessHeroId == heroId) ||
-                (templateId != null && t.TemplateId == templateId));
+                (heroId != null && t.WitnessHeroId == heroId) || //某个英雄角色再次目击
+                (templateId != null && t.TemplateId == templateId) || //某个模版角色再次目击
+                (heroId == null && templateId == null && t.WitnessHeroId == null && t.TemplateId == null)); // 再次出现无人目击的偷窃事实
             if (testimony == null)
             {
                 testimony = new WitnessTestimony
@@ -292,19 +295,63 @@ namespace LivingWorldNpcs
             });
         }
 
+        /// <summary>
+        /// 无人目击的偷窃记账（StealManager 各偷窃路径的无人目击分支调用）：
+        /// 写入「系统暗账」（双 null 证词，见 WitnessTestimony 注释）。
+        /// 事件保持 Dormant 不推进阶段——无人看见就不知道是谁，等 ProcessDormant 过夜被发现。
+        /// </summary>
+        public void RegisterUnwitnessedTheft(string itemId, string itemName, string targetName = null)
+        {
+            var pending = PendingWorldEvent;
+            if (pending == null) return;
+
+            pending.WitnessTestimonies = pending.WitnessTestimonies ?? new List<WitnessTestimony>();
+            AddStealAction(pending, null, null, itemId, itemName, targetName);
+            DebugLogger.Log($"[DarkTheft] Unwitnessed: {itemName ?? itemId} → pending {pending.EventId} stays Dormant");
+        }
+
+        /// <summary>
+        /// 击晕/袭击记账（击晕时调用）：受害者身价（原版俘虏赎金价）累计进 PendingWorldEvent，
+        /// 赔偿基础值即身价本身。无目击时事件不会激活入档，此记账自然随 PendingWorldEvent 丢弃——不算无头案。
+        /// </summary>
+        public void RecordAssaultVictim(Agent victim)
+        {
+            var pending = PendingWorldEvent;
+            if (pending == null || victim == null) return;
+
+            int value = CrimePenaltyCalculator.EstimateVictimValue(victim);
+            pending.AssaultValue += value;
+            pending.AssaultVictimNames = pending.AssaultVictimNames ?? new List<string>();
+            string name = victim.Name?.ToString();
+            if (!string.IsNullOrEmpty(name) && !pending.AssaultVictimNames.Contains(name))
+                pending.AssaultVictimNames.Add(name);
+            DebugLogger.Log($"[Assault] {name} 身价={value} → 事件 {pending.EventId} AssaultValue={pending.AssaultValue}（赔偿基数 {pending.AssaultRestitutionValue}）");
+        }
+
         void FinalizePendingWorldEvent()
         {
-            if (PendingWorldEvent == null) return;
-            if (PendingWorldEvent.WitnessTestimonies == null || PendingWorldEvent.WitnessTestimonies.Count == 0) return;
+            var pending = PendingWorldEvent;
+            if (pending == null) return;
+            var testimonies = pending.WitnessTestimonies;
+            if (testimonies == null || testimonies.Count == 0) return;   // 无事发生，照丢
 
-            // 有目击者 → 嫌疑人=玩家，直接 Active
-            if (PendingWorldEvent.Stage < EventStage.Active)
+            // 区分真目击（Alarmed NPC 证词）与系统暗账（无人目击的偷窃事实）
+            bool hasRealWitness = testimonies.Any(t => t.WitnessHeroId != null || t.TemplateId != null);
+
+            if (hasRealWitness)
             {
-                WorldEventStore.TransitionStage(PendingWorldEvent, EventStage.Active, Hero.MainHero?.StringId);
+                // 有目击者 → 嫌疑人=玩家，直接 Active
+                if (pending.Stage < EventStage.Active)
+                {
+                    WorldEventStore.TransitionStage(pending, EventStage.Active, Hero.MainHero?.StringId);
+                }
+                pending.InvestigationProgress = 1.0f;
+                pending.PublicAwareness = 0.3f;
             }
-            PendingWorldEvent.InvestigationProgress = 1.0f;
-            PendingWorldEvent.PublicAwareness = 0.3f;
-            WorldEventStore.AddOrMerge(PendingWorldEvent);
+            // else: 只有暗账 → 保持 Dormant 入档，等 WorldEventStore.ProcessDormant 过夜被发现
+            //       （村民知道丢了什么，不知道是谁——调查/冷案/栽赃走既有的 Emerging 机器）
+
+            WorldEventStore.AddOrMerge(pending);
         }
 
         // --- 外部调用接口 ---

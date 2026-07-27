@@ -142,13 +142,30 @@ namespace LivingWorldNpcs
             var r = evt != null
                 ? new PlaceholderResolver(evt, speaker, listener)
                 : new PlaceholderResolver(speaker, listener, targetName: null, itemName: null);
-            r.SpeakingWitness = AgentAIController.Instance?.PendingWorldEvent
-                ?.WitnessTestimonies?.FirstOrDefault(t => t.WitnessHeroId == speaker?.StringId);
 
             var agent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
+
+            // 目击者匹配：Hero 按 StringId；模板 NPC（speaker==null）按 CharacterObject.StringId ↔ TemplateId，
+            // 不能再 t.WitnessHeroId == null 乱匹配（会错拿别的模板 NPC 的证词）
+            string speakerTemplateId = speaker == null ? agent?.Character?.StringId : null;
+            r.SpeakingWitness = AgentAIController.Instance?.PendingWorldEvent
+                ?.WitnessTestimonies?.FirstOrDefault(t =>
+                    (speaker?.StringId != null && t.WitnessHeroId == speaker.StringId) ||
+                    (speakerTemplateId != null && t.TemplateId == speakerTemplateId));
+
+            // 脉冲上下文回填：{TARGET}/{ITEM}（击晕受害者名、被盗物品名）。
+            // 质问者自己 Brain 的警戒明细最精准，填补 PlaceholderResolver 拿不到 pulse 的缺口
+            var action = triggerAction ?? PlayerActionType.Crouching;
+            var brain = agent != null ? AgentAIController.GetBrainForAgent(agent) : null;
+            if (brain?.AlertBreakdown != null && brain.AlertBreakdown.TryGetValue(action, out var pulse))
+            {
+                r.TargetName = r.TargetName ?? pulse.TargetName;
+                r.ItemName = r.ItemName ?? pulse.ItemName;
+            }
+
             var ctx = new IntentContext(agent, speaker: speaker, worldEvent: evt);
             ctx.Confrontation = confrontation ?? ConfrontationType.Deter;
-            ctx.TriggerAction = triggerAction ?? PlayerActionType.Crouching;
+            ctx.TriggerAction = action;
 
             return BuildAlertInterceptScript(r, ctx);
         }
@@ -778,9 +795,18 @@ namespace LivingWorldNpcs
             var worldEvt = ctx.ActiveEvent;
             var speaker = ctx.Speaker;
 
+            // 脉冲上下文：证词主行为优先，回落 r 的 TargetName/ItemName（Brain 警戒明细回填）。
+            // 必须显式传给 NpcSpeechResolver——它内部自建 PlaceholderResolver，
+            // 不传的话 CSV 模板里的 {TARGET}/{ITEM} 会解析成空串（"你把打晕了"缺主语的 bug）
+            var primaryPulse = r.SpeakingWitness?.Actions?
+                .OrderByDescending(a => a.AlertValue).FirstOrDefault();
+            string pulseTarget = primaryPulse?.TargetName ?? r.TargetName;
+            string pulseItem = primaryPulse?.ItemName ?? r.ItemName;
+
             // 两阶段回落：① NpcSpeech.csv（含 Narrative 过渡）→ ② 硬编码
             string npcOpening =
                 NpcSpeechResolver.Resolve($"L3_{npcIntent}_{primaryAction}", speaker, Hero.MainHero,
+                    evt: worldEvt, targetName: pulseTarget, itemName: pulseItem,
                     narrativeFallback: new NarrativeFilters
                     {
                         EventName = "L3AlertIntercept",

@@ -1923,6 +1923,13 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active suspect=self → Betrayal");
                 }
             }
+            else if (evt.Stage == EventStage.Unsolved)
+            {
+                // 冷案：调查走入死胡同——不算玩家违约，取消收尾（无定金/信任惩罚）
+                AddLog(new TextObject("线索断了，案件陷入僵局。委托人也只能接受这个结果。"));
+                CompleteQuestWithCancel();
+                DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Unsolved — cold case, quest cancelled without penalty");
+            }
             else if (evt.Stage == EventStage.Resolved)
             {
                 if (_data.IsObjectivesComplete && !suspectIsPlayer) return; // 非嫌犯且已完成 → 跳过

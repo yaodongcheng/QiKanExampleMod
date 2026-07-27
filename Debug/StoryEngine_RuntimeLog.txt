@@ -1,146 +1,68 @@
-﻿[10:20:04.802] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
+﻿[12:51:27.440] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[10:20:09.245] [WorldEventStore] Deserialized 0 events, 0 alerts
-[10:20:13.876] [AddQuickInformation] "成就被禁用！"
-[10:20:23.892] [DisplayMessage] "你发现了木匠安德洛斯"
-[10:20:23.892] [DisplayMessage] "你发现了木匠达利得斯"
-[10:20:23.893] [DisplayMessage] "你发现了麦酒酿制工浦里奥斯"
-[10:20:23.893] [DisplayMessage] "你发现了“酪乳”阿法倪斯"
-[10:20:23.893] [DisplayMessage] "你发现了“赤眼”得尔提索斯"
-[10:20:27.126] [DisplayMessage] "你支付了800<img src="General\Icons\Coin@2x" extend="8">。"
-[10:20:27.126] [DisplayMessage] "你发现了维里娜"
-[10:20:27.126] [DisplayMessage] "你发现了维维安娜"
-[10:20:51.824] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[10:20:52.436] [ForcePlayAction] 帝国资深步兵 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_guard'→'as_human_warrior'
-[10:20:52.437] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国资深步兵 (Index:4, 距离:1.4m, 方位:东北)"
-[10:20:52.442] [Brain-Receive] 帝国资深步兵(Idx=4) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
-[10:20:52.443] [Brain-Clear] 帝国资深步兵(Idx=4) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[10:20:52.443] [Brain-Enqueue] 帝国资深步兵(Idx=4) 入队 StayAction | 当前行为=null | 队列=0→1
-[10:20:52.443] [AI-Debug] Suspend 帝国资深步兵 (Idx=4) | 集合size=1 | 当前行为=null
-[10:20:52.449] [Brain-Receive] 帝国弩手军士(Idx=5) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[10:20:52.451] [Brain-Clear] 帝国弩手军士(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[10:20:52.451] [Brain-Enqueue] 帝国弩手军士(Idx=5) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[10:20:52.451] [AI-Debug] Suspend 帝国弩手军士 (Idx=5) | 集合size=2 | 当前行为=null
-[10:20:52.452] [WorldEvent] misconduct_town_ES4_2185861 Stage: Dormant → Active
-[10:20:52.455] [RegisterWitness] 帝国弩手军士 witnessed crime → WorldEvent misconduct_town_ES4_2185861 Stage → Active (suspect=player)
-[10:20:52.457] [Brain-Phase] 帝国弩手军士(Idx=5) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔帝国资深步兵] → 发送 'BecomeAlarmed'
-[10:20:52.457] [Brain-Receive] 帝国弩手军士(Idx=5) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[10:20:52.457] [Brain-Clear] 帝国弩手军士(Idx=5) 清空动作 | 当前=null | 队列=1 | hadActions=True
-[10:20:52.459] [ConvLock] Acquire by 帝国弩手军士(Idx=5) | reason=StartL3Confrontation
-[10:20:52.459] [Brain-Enqueue] 帝国弩手军士(Idx=5) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
-[10:20:52.459] [Brain-Enqueue] 帝国弩手军士(Idx=5) 入队 LookAtAction | 当前行为=null | 队列=1→2
-[10:20:52.459] [Brain-Enqueue] 帝国弩手军士(Idx=5) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
-[10:20:52.459] [Brain-Enqueue] 帝国弩手军士(Idx=5) 入队 StayAction | 当前行为=null | 队列=3→4
-[10:20:52.459] [Brain-Receive] 帝国具装骑兵(Idx=6) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[10:20:52.460] [Brain-Clear] 帝国具装骑兵(Idx=6) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[10:20:52.460] [Brain-Enqueue] 帝国具装骑兵(Idx=6) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[10:20:52.460] [AI-Debug] Suspend 帝国具装骑兵 (Idx=6) | 集合size=3 | 当前行为=null
-[10:20:52.460] [Brain-Phase] 帝国具装骑兵(Idx=6) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔帝国资深步兵] → 发送 'BecomeAlarmed'
-[10:20:52.460] [Brain-Receive] 帝国具装骑兵(Idx=6) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[10:20:52.460] [Brain-Lock] 帝国具装骑兵(Idx=6) 想质问玩家但 帝国弩手军士(Idx=5) 正在质问中，跳过
-[10:20:52.460] [Brain-Receive] 帝国弩手军士(Idx=9) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[10:20:52.460] [Brain-Clear] 帝国弩手军士(Idx=9) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[10:20:52.461] [Brain-Enqueue] 帝国弩手军士(Idx=9) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[10:20:52.461] [AI-Debug] Suspend 帝国弩手军士 (Idx=9) | 集合size=4 | 当前行为=null
-[10:20:52.461] [Brain-Phase] 帝国弩手军士(Idx=9) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔帝国资深步兵] → 发送 'BecomeAlarmed'
-[10:20:52.461] [Brain-Receive] 帝国弩手军士(Idx=9) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[10:20:52.461] [Brain-Lock] 帝国弩手军士(Idx=9) 想质问玩家但 帝国弩手军士(Idx=5) 正在质问中，跳过
-[10:20:52.461] [DisplayMessage] [Green] "从背后击晕了 帝国资深步兵！"
-[10:20:52.461] [Knockout] 亨利 knocked out 帝国资深步兵 from behind (anim: act_shield_bash)
-[10:20:52.462] [Brain-Tick] 帝国资深步兵(Idx=4) 开始执行 StayAction | 队列剩余=0
-[10:20:52.462] [Brain-Tick] 帝国弩手军士(Idx=5) 开始执行 FollowAgentAction | 队列剩余=3
-[10:20:52.465] [Brain-Tick] 帝国具装骑兵(Idx=6) 开始执行 ReactionDecisionAction | 队列剩余=0
-[10:20:52.465] [Brain-Tick] 帝国弩手军士(Idx=9) 开始执行 ReactionDecisionAction | 队列剩余=0
-[10:20:55.437] [Brain-Tick] 帝国弩手军士(Idx=5) 完成 FollowAgentAction
-[10:20:55.442] [Brain-Tick] 帝国弩手军士(Idx=5) 开始执行 LookAtAction | 队列剩余=2
-[10:20:55.443] [Brain-Tick] 帝国弩手军士(Idx=5) 完成 LookAtAction
-[10:20:55.447] [Brain-Tick] 帝国弩手军士(Idx=5) 开始执行 AlertForceConversationAction | 队列剩余=1
-[10:20:55.448] [AlertForceConv] 帝国弩手军士(Idx=5) 模板NPC(帝国弩手军士) — 使用 InjectScriptAsOpening (start token)
-[10:20:55.448] [ConvLock] Acquire by 帝国弩手军士(Idx=5) | reason=MissionStartPrefix
-[10:20:55.448] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=帝国弩手军士
-[10:20:55.449] [ConvEntry] Alert trigger with template NPC — deferring to ProcessSentence deferred injection.
-[10:20:55.506] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）你把打晕了！来人！"
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我愿意赔钱。（0 第纳尔）" → INTENT:PayRestitution | NextNodeOnSuccess=alert_stop_pay_ack
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "他先惹我的。" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_stop_charm_ok | NextNodeOnFail=alert_stop_charm_fail
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "（拔剑）谁敢拦我！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_stop_fight_ack
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[1] id=alert_stop_pay_ack NpcLine="光赔钱就完了？拿了钱快滚。"
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[2] id=alert_stop_charm_ok NpcLine="……下次再动手没这么好说话。"
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[3] id=alert_stop_charm_fail NpcLine="在我眼皮底下动手，就得有个说法！"
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[4] id=alert_stop_fight_ack NpcLine="你疯了！快叫人！"
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[5] id=continue_chat NpcLine="最后一次警告——别逼我叫人！"
-[10:20:55.507] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "（拔剑）谁敢拦我！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
-[10:20:55.508] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "我认罚。（50 第纳尔）" → INTENT:PayRestitution Param=alert_fine | NextNodeOnSuccess=alert_esc_fine_ack
-[10:20:55.508] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
-[10:20:55.508] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[6] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
-[10:20:55.508] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[7] id=alert_esc_fine_ack NpcLine="扰乱治安，罚款50第纳尔。算你识相。别再来了。"
-[10:20:55.508] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[8] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
-[10:20:55.508] [AlertDeferredInject] NPC 句子结束，OutputToken='close_window' → 注入 gateway
-[10:20:55.510] [DialogueInjector] Gateway: added PlayerLine at 'close_window' → 'lwnpc_AlertL3_deferred_5_v0_injectedStart' | priority=125 | owner=AlertL3_deferred_5_v0
-[10:20:55.511] [AlertDeferredInject] 注入结果: Injected dynamic script [AlertL3_deferred_5] (9 nodes)
-[10:20:55.512] [VanillaDialog] NPC  | NPC: 帝国弩手军士 (CharacterId: imperial_sergeant_crossbowman) says: "现在不能闲谈，我得留意这附近的情况。"
-[10:20:55.524] 重要错误，一定要关注：[ConvLock] Postfix: effectiveAgent is null, cannot acquire lock.
-[10:20:55.525] [Placeholder] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村民，听说吕卡隆出了点事？"
-[10:20:55.526] [Placeholder] NpcLine: "（{SpeakerEmotion}地）{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{Cr…" → "（冷淡地）你还敢来？刚才就来找我，说亲眼瞧见是你闹事。有什么要说的？"
-[10:20:55.527] [Placeholder] NpcLine: "{RestitutionBreakdown}" → "东西，市值0第纳尔。村里人都知道了，闹事按规矩要赔0第纳尔。你认不认？"
-[10:20:55.527] [Placeholder] PlayerLine: "好，我赔（0 第纳尔）" → "好，我赔（0 第纳尔）"
-[10:20:55.527] [Placeholder] NpcLine: "……行，算你0，不能再少了。" → "……行，算你0，不能再少了。"
-[10:20:55.527] [Placeholder] PlayerLine: "行，就这个数。（0 第纳尔）" → "行，就这个数。（0 第纳尔）"
-[10:20:55.528] [Placeholder] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
-[10:20:55.528] [Placeholder] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
-[10:20:55.528] [CrimeDialog] speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）你还敢来？刚才就来找我，说亲眼瞧见是你闹事。有什么要说的？"
-[10:20:55.528] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "你们搞错了。给我个机会说清楚。" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=confront_charm_ok | NextNodeOnFail=confront_charm_fail
-[10:20:55.528] [CrimeDialog] speaker=(template) stage=Active   Transition[1] "赔偿的事……你要多少？" → NONE | NextNodeOnSuccess=restitution_demand
-[10:20:55.529] [CrimeDialog] speaker=(template) stage=Active   Transition[2] "你再说一遍？（手按在剑柄上）" → INTENT:Threat [SkillCheck] | NextNodeOnSuccess=confront_threat_ok | NextNodeOnFail=confront_threat_fail
-[10:20:55.529] [CrimeDialog] speaker=(template) stage=Active   Transition[3] "（转身就走）" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
-[10:20:55.529] [CrimeDialog] speaker=(template) stage=Active Turn[1] id=confront_charm_ok NpcLine="……你说的也有道理。那我再查查。"
-[10:20:55.529] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.529] [CrimeDialog] speaker=(template) stage=Active Turn[2] id=confront_charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active Turn[3] id=confront_threat_ok NpcLine="……我不说了。你走吧。"
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active Turn[4] id=confront_threat_fail NpcLine="威胁我？来人！"
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active Turn[5] id=restitution_demand NpcLine="东西，市值0第纳尔。村里人都知道了，闹事按规矩要赔0第纳尔。你认不认？"
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "好，我赔（0 第纳尔）" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.530] [CrimeDialog] speaker=(template) stage=Active Turn[6] id=restitution_haggle_ok NpcLine="……行，算你0，不能再少了。"
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "行，就这个数。（0 第纳尔）" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active Turn[7] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active Turn[8] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active Turn[9] id=continue_chat NpcLine="还有什么别的想说的吗?"
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
-[10:20:55.531] [CrimeDialog] speaker=(template) stage=Active Turn[10] id=farewell NpcLine="" [Lazy]
-[10:20:55.532] [DialogueInjector] Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_town_ES4_2185861_v1_atk_0' | priority=200 | owner=crime_misconduct_town_ES4_2185861_v1
-[10:20:55.532] [ConvEntry] Injected dialogue: event=misconduct_town_ES4_2185861 stage=Active trigger=Normal partner=(template) nodes=11
-[10:20:55.532] [AlertForceConv] 帝国弩手军士(Idx=5) 对话启动成功
-[10:20:59.467] [Brain-Enqueue] 帝国具装骑兵(Idx=6) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[10:20:59.467] [Brain-Enqueue] 帝国具装骑兵(Idx=6) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[10:20:59.467] [Brain-Enqueue] 帝国具装骑兵(Idx=6) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[10:20:59.467] [Brain-Tick] 帝国具装骑兵(Idx=6) 完成 ReactionDecisionAction
-[10:20:59.471] [Brain-Tick] 帝国具装骑兵(Idx=6) 开始执行 LookAtAction | 队列剩余=2
-[10:20:59.970] [Brain-Tick] 帝国具装骑兵(Idx=6) 完成 LookAtAction
-[10:20:59.976] [Brain-Tick] 帝国具装骑兵(Idx=6) 开始执行 MoveToPositionAction | 队列剩余=1
-[10:21:01.182] [Brain-Enqueue] 帝国弩手军士(Idx=9) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[10:21:01.182] [Brain-Enqueue] 帝国弩手军士(Idx=9) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[10:21:01.182] [Brain-Enqueue] 帝国弩手军士(Idx=9) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[10:21:01.183] [Brain-Tick] 帝国弩手军士(Idx=9) 完成 ReactionDecisionAction
-[10:21:01.187] [Brain-Tick] 帝国弩手军士(Idx=9) 开始执行 LookAtAction | 队列剩余=2
-[10:21:01.372] [VanillaDialog] Token='close_window' NPC=亨利 | Options (1): 「AlertL3_deferred_5_v0」
-[10:21:01.373] [VanillaDialog] Player says: "「AlertL3_deferred_5_v0」"
-[10:21:01.373] [VanillaDialog] NPC  | NPC: 帝国弩手军士 (CharacterId: imperial_sergeant_crossbowman) says: "（冷淡地）你把打晕了！来人！"
-[10:21:01.683] [Brain-Tick] 帝国弩手军士(Idx=9) 完成 LookAtAction
-[10:21:01.689] [Brain-Tick] 帝国弩手军士(Idx=9) 开始执行 MoveToPositionAction | 队列剩余=1
-[10:21:02.026] [ConvLock] Release by 帝国弩手军士(Idx=5) | reason=EndConversation
-[10:21:02.026] [ConvEnd] Conversation ended. lastEvent=misconduct_town_ES4_2185861_(template) lastTag=crime_misconduct_town_ES4_2185861
-[10:21:02.026] [Brain-Receive] 帝国资深步兵(Idx=4) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Normal
-[10:21:02.027] [Brain-Receive] 帝国弩手军士(Idx=5) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=1 | 阶段=Alarmed
-[10:21:02.028] [Brain-Tick] 帝国弩手军士(Idx=5) 完成 AlertForceConversationAction
-[10:21:02.033] [Brain-Tick] 帝国弩手军士(Idx=5) 开始执行 StayAction | 队列剩余=0
+[12:51:32.456] [WorldEventStore] Deserialized 0 events, 0 alerts
+[12:51:40.674] [AddQuickInformation] "成就被禁用！"
+[12:51:50.285] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       16       0        
+  cow        10       10       0        
+  hog        10       9        1        remove 1
+  goose      5        5        0        
+  chicken    16       15       1        remove 1
+  =========================================
+
+[12:51:50.293] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[12:51:50.299] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
+[12:51:50.301] [Chest] 锚点 '特维亚的加里托普斯' at (567.2441, 246.0032, 14.37) → 正后方 0.7m 命中，相对偏移 (0.20, 0.67, -0.01)
+[12:51:50.331] [Chest] Spawned prefab 'bd_chest_c' at (567.4405, 246.6751, 14.35739) (scale=0.5)
+[12:51:50.332] [Chest] Visual highlight applied (warm gold tint)
+[12:51:50.333] [Chest] Spawned at (567.4405, 246.6751, 14.35739), context=Village, gold=200, items=4
+[12:52:06.663] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[12:52:07.269] [ForcePlayAction] 帝国农民 'act_death_fall_front' UsingObj=False flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_villager_2'→'as_human_warrior'
+[12:52:07.272] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国农民 (Index:10, 距离:2.3m, 方位:西南)"
+[12:52:07.277] [Brain-Receive] 帝国农民(Idx=10) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
+[12:52:07.278] [Brain-Clear] 帝国农民(Idx=10) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[12:52:07.278] [Brain-Enqueue] 帝国农民(Idx=10) 入队 StayAction | 当前行为=null | 队列=0→1
+[12:52:07.279] [AI-Debug] Suspend 帝国农民 (Idx=10) | 集合size=1 | 当前行为=null
+[12:52:07.286] [Assault] 帝国农民 身价=2 → 事件 misconduct_village_ES3_2_2185860 AssaultValue=2（赔偿基数 2）
+[12:52:07.287] [DisplayMessage] [Green] "从背后击晕了 帝国农民！"
+[12:52:07.287] [Knockout] 亨利 knocked out 帝国农民 from behind (anim: act_shield_bash)
+[12:52:07.288] [Brain-Tick] 帝国农民(Idx=10) 开始执行 StayAction | 队列剩余=0
+[12:52:32.967] [ShowInquiry] "搜刮 帝国农民" | "你在 帝国农民 身上发现了些东西:扣带束腰衣 扎带皮靴 围巾 
+金币: 11 第纳尔
+" | Btn1="全部拿走" Btn2="自己挑选"
+[12:52:35.727] [DisplayMessage] [Yellow] "获得了 11 第纳尔。"
+[12:52:35.728] [DisplayMessage] [Green] "获得了 3 件物品。"
+[12:52:35.732] [TheftLedger] Recorded: tundra_tunic x1 by main_hero from village_ES3_2
+[12:52:35.732] [TheftLedger] Recorded: strapped_leather_boots x1 by main_hero from village_ES3_2
+[12:52:35.732] [TheftLedger] Recorded: scarf x1 by main_hero from village_ES3_2
+[12:52:35.733] [TheftLedger] Recorded: gold x11 by main_hero from village_ES3_2
+[12:52:35.733] [LootTheft] Witness system DISABLED — treating as no witnesses.
+[12:52:35.733] [LootTheft] 搜刮 帝国农民：无人目击。
+[12:52:35.733] [DarkTheft] Unwitnessed: 扣带束腰衣 → pending misconduct_village_ES3_2_2185860 stays Dormant
+[12:52:35.733] [DarkTheft] Unwitnessed: 扎带皮靴 → pending misconduct_village_ES3_2_2185860 stays Dormant
+[12:52:35.733] [DarkTheft] Unwitnessed: 围巾 → pending misconduct_village_ES3_2_2185860 stays Dormant
+[12:52:35.734] [DarkTheft] Unwitnessed: 11 第纳尔 → pending misconduct_village_ES3_2_2185860 stays Dormant
+[12:52:38.070] [WorldEvent] New event: Misconduct id=misconduct_village_ES3_2_2185860 settlement=village_ES3_2 items=[tundra_tunicx1, strapped_leather_bootsx1, scarfx1, goldx1] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=0 occurredDay=91077.52
+[12:52:56.049] [DisplayMessage] "每日收入 +100"
+[12:52:56.050] [WorldEvent] ProcessDaily: 1 active event(s), day=91077.68
+[12:52:56.050] [WorldEvent] ProcessDaily: id=misconduct_village_ES3_2_2185860 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91077.68 overnight=False
+[12:52:58.466] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
+[12:53:03.914] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_6"><b>卡拉蒂尔德</b></a>俘虏。"
+[12:53:07.025] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1599"><b>狼皮部落的乌德里斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_21"><b>卡费德</b></a>俘虏。"
+[12:53:10.185] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
+[12:53:13.766] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Kingdom" href="event:Kingdom-aserai"><b>阿塞莱</b></a>的<a style="Link.Hero" href="event:Hero-lord_3_15"><b>古齐德</b></a>已被<a style="Link.Hero" href="event:Hero-CharacterObject_1592"><b>暗影之子的塔海亚</b></a>俘虏。"
+[12:53:16.022] [DisplayMessage] "每日收入 +100"
+[12:53:16.022] [WorldEvent] ProcessDaily: 1 active event(s), day=91078.68
+[12:53:16.023] [WorldEvent] ProcessDaily: id=misconduct_village_ES3_2_2185860 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.52 now=91078.68 overnight=True
+[12:53:16.024] [Player] NinjaReport(discovered): ⚠ 特维亚 · 东窗事发 — 少了一只扣带束腰衣、一只扎带皮靴等4只牲口
+[12:53:16.030] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Dormant → Emerging
+[12:53:16.031] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Emerging settlement=特维亚 — refreshing issue signals
+[12:53:16.034] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185860 stage=Emerging
+[12:53:16.423] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_13"><b>罗蒙德</b></a>俘虏。"
+[12:53:19.099] [ShowInquiry] "东窗事发" | "暗探来报——特维亚的村民发现少了一只扣带束腰衣、一只扎带皮靴等4只牲口，村长正在挨家挨户问话，看样子是要查个水落石出。
+
+好在暂时没人把你和这事联系起来。你可以回去介入——自首赔偿、帮忙"调查"、或者设法把嫌疑推到别人头上；也可以从此绕着特维亚走。" | Btn1="知道了" Btn2="(hidden)"

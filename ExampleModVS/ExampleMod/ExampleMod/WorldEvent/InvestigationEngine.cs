@@ -353,7 +353,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>冷案尾巴：15% 概率村民迁怒打错人（从 WorldEventStore.ProcessUnsolved 调用）</summary>
+        /// <summary>冷案尾巴：15% 概率村民迁怒打错人（由 WorldEventStore.TransitionStage 进入 Unsolved 时一次性判定调用）</summary>
         public static void TriggerVigilanteJustice(WorldEvent evt)
         {
             try

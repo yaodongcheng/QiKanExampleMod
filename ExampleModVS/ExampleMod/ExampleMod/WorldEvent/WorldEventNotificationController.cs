@@ -56,6 +56,32 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 犯罪案件过夜被发现（Dormant→Emerging）时通知作案玩家。
+        /// 村民知道丢了什么、还不知道是谁——给玩家介入（自首赔偿/帮忙"调查"/栽赃误导）或跑路的决策窗口。
+        /// </summary>
+        public static void OnCrimeDiscovered(WorldEvent e)
+        {
+            if (e == null || e.TargetSettlement == null) return;
+
+            string loc = e.TargetSettlement.Name?.ToString() ?? "某地";
+            string lossDesc = e.TotalStolenCount > 0
+                ? $"少了{e.BuildStolenItemsDescription()}"
+                : (e.Config?.CrimeVerbPast ?? "东西被偷了");
+            string authority = e.Config?.AuthorityRole ?? "村长";
+            string shortSummary = $"⚠ {loc} · 东窗事发";
+            string body =
+                $"暗探来报——{loc}的村民发现{lossDesc}，{authority}正在挨家挨户问话，看样子是要查个水落石出。\n\n" +
+                $"好在暂时没人把你和这事联系起来。你可以回去介入——自首赔偿、帮忙\"调查\"、或者设法把嫌疑推到别人头上；也可以从此绕着{loc}走。";
+
+            DebugLogger.Log($"[Player] NinjaReport(discovered): {shortSummary} — {lossDesc}");
+            NinjaNotificationManager.Show(shortSummary, () =>
+            {
+                InformationManager.ShowInquiry(new InquiryData(
+                    "东窗事发", body, true, false, "知道了", null, null, null));
+            });
+        }
+
         public static void OnEventEscalated(WorldEvent e)
         {
             if (e == null) return;
