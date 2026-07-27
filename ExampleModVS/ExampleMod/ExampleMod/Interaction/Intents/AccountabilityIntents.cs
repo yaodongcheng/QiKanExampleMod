@@ -537,6 +537,22 @@ namespace LivingWorldNpcs
         /// <summary>Alert 场景玩家转身就走 → 对话关闭后由 Patch 消费，触发呼救围堵 + 重新质问</summary>
         internal static Agent PendingEscalationAgent;
 
+        /// <summary>🆕 围堵升级的显式质问上下文（嫌犯转身就走 → Stop + SuspectFlee）。null = 按 NPC 自身警戒明细推导（Alert 路径）。</summary>
+        internal static ConfrontationType? PendingEscalationDetail;
+        internal static PlayerActionType? PendingEscalationAction;
+
+        /// <summary>🆕 true = 只广播围观，不追上重新质问（武力逃脱成功——人跑了，村民只能目送）。</summary>
+        internal static bool PendingEscalationGatherOnly;
+
+        /// <summary>统一设置围堵升级标记（四字段一体，防止上一轮的残留泄漏到下一轮）。</summary>
+        private static void SetPendingEscalation(Agent agent, ConfrontationType? detail, PlayerActionType? action, bool gatherOnly = false)
+        {
+            PendingEscalationAgent = agent;
+            PendingEscalationDetail = detail;
+            PendingEscalationAction = action;
+            PendingEscalationGatherOnly = gatherOnly;
+        }
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             // 始终可见——任何对话都可以选择离开
@@ -558,7 +574,7 @@ namespace LivingWorldNpcs
                 // → 关系小降 + 设 EscalationAgent（对话关闭后由 Patch 消费：呼救围堵 + 重新质问）
                 if (ctx.IsInMission)
                 {
-                    PendingEscalationAgent = ctx.Agent;
+                    SetPendingEscalation(ctx.Agent, null, null);
                     var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
                     if (npc is Hero n)
                         ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
@@ -592,12 +608,25 @@ namespace LivingWorldNpcs
                 case EventStage.Emerging:
                     // 已被怀疑（自首后）转身就走 → 村民确信是你干的，事件升级 Active
                     WorldEventStore.TransitionStage(evt, EventStage.Active);
-                    PendingInquiryTitle = "“站住！”";
-                    PendingInquiryBody =
-                        $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
-                        $"\"你以为认了就完了？！这事没完！\"\n\n" +
-                        $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
-                        $"下次再见到{npcName}，可就不是商量那么简单了。";
+                    if (ctx.IsInMission && ctx.Agent != null)
+                    {
+                        // 🆕 村内当场走人 → 物理围堵升级：村民围观 + NPC 追上重新质问（无"我走了"退路）
+                        SetPendingEscalation(ctx.Agent, ConfrontationType.Stop, PlayerActionType.SuspectFlee);
+                        PendingInquiryTitle = "“站住！”";
+                        PendingInquiryBody =
+                            $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
+                            $"\"你以为认了就完了？！来人——拦住他！\"\n\n" +
+                            $"{villageName}的村民们闻声围拢过来……";
+                    }
+                    else
+                    {
+                        PendingInquiryTitle = "“站住！”";
+                        PendingInquiryBody =
+                            $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
+                            $"\"你以为认了就完了？！这事没完！\"\n\n" +
+                            $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
+                            $"下次再见到{npcName}，可就不是商量那么简单了。";
+                    }
                     NotifyInvestigationQuest(evt);
                     DebugLogger.Log($"[Accountability] WalkAway (Emerging suspect): {evt.EventId} → Active");
                     CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。身后传来{npcName}的怒吼——这事没完。");
@@ -612,7 +641,7 @@ namespace LivingWorldNpcs
                         bool success = SingleRollResolver.Roll(roll.Chance);
                         DebugLogger.Log($"[WalkAway] Mission flee: chance={roll.Chance:P0} success={success}");
                         if (success)
-                            OnFleeSuccess(evt);
+                            OnFleeSuccess(ctx, evt);
                         else
                             OnFleeFail(ctx, evt);
                     }
@@ -649,20 +678,26 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>Mission 内武力逃脱成功：挣脱围堵，但身份彻底暴露（嫌犯锁定 + 调查进度拉满）。已在 Active → TransitionStage 幂等早退。</summary>
-        private void OnFleeSuccess(WorldEvent evt)
+        private void OnFleeSuccess(IntentContext ctx, WorldEvent evt)
         {
             evt.SuspectHeroId = Hero.MainHero.StringId;
             evt.InvestigationProgress = 1.0f;
             WorldEventStore.TransitionStage(evt, EventStage.Active);
+            // 🆕 挣脱跑了 → 村民围观目送（只广播，不追上——人已经跑了）
+            if (ctx.Agent != null)
+                SetPendingEscalation(ctx.Agent, null, null, gatherOnly: true);
             DebugLogger.Log($"[Accountability] Player fled confrontation for {evt.EventId}");
         }
 
-        /// <summary>Mission 内武力逃脱失败：被拦下，关系大降 + 事件升级 Confrontation</summary>
+        /// <summary>Mission 内武力逃脱失败：被拦下，关系大降 + 事件升级 Confrontation + NPC 追上重新质问（无退路）</summary>
         private void OnFleeFail(IntentContext ctx, WorldEvent evt)
         {
             if (ctx.Speaker != null)
                 ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -15, false, true);
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+            // 🆕 "被拦下"物理化：村民围观 + NPC 追上重新质问（拔剑/认罚/坐牢，没有"我走了"）
+            if (ctx.Agent != null)
+                SetPendingEscalation(ctx.Agent, ConfrontationType.Stop, PlayerActionType.SuspectFlee);
         }
 
         private static void NotifyInvestigationQuest(WorldEvent evt)
@@ -781,6 +816,28 @@ namespace LivingWorldNpcs
             // 标记村庄警觉
             if (!string.IsNullOrEmpty(evt.TargetSettlementId))
                 evt.PermanentEnemy = true;
+
+            // 🆕 场景内开战：玩家在 Mission 中 → 在场村民立即敌对，而不是只等大地图复仇队。
+            // 战斗一旦打响，后续 BecomeAlarmed 会被 IsPlayerInCombat / IsCurrentOrPending<FightEnemyAction>
+            // 守卫拦截（AgentBrain.ReceiveEvent），L3 强制质问对话循环自然中断。
+            if (ctx.IsInMission && Agent.Main != null)
+            {
+                // ① 对话对象 → 两阶段延迟战斗（复用 ThreatIntent.PendingCombatAgent 轮子）：
+                //    对话关闭后 ConversationEntryPatch 发 DeferredCombat，
+                //    避免对话进行中 ClearAllActions 把对话本身打断。
+                if (ctx.Agent != null && ctx.Agent != Agent.Main && ctx.Agent.IsActive())
+                    ThreatIntent.PendingCombatAgent = ctx.Agent;
+
+                // ② 围观村民 → 立即广播 order_attack（排除对话对象）。
+                //    空手村民由 CombatManager.StartFight → TryGiveAnyMeleeWeapon 现场发武器——"抄起家伙"。
+                var exclude = ctx.Agent != null
+                    ? new System.Collections.Generic.HashSet<Agent> { ctx.Agent }
+                    : null;
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    Agent.Main.Position, 30f, "order_attack", exclude, false, Agent.Main);
+                DebugLogger.Log($"[Accountability] FightVillagers in-mission: order_attack broadcast, deferred={ctx.Agent?.Name ?? "none"}");
+            }
+
             TaleWorlds.Library.InformationManager.DisplayMessage(
                 new TaleWorlds.Library.InformationMessage("村民愤怒了！有人抄起家伙围了过来……快离开这里！",
                     Colors.Red));

@@ -377,7 +377,15 @@ namespace LivingWorldNpcs
             var escalationAgent = WalkAwayIntent.PendingEscalationAgent;
             if (escalationAgent != null)
             {
+                // 取出并清空全部围堵标记（detail/action 为嫌犯路径显式指定的质问上下文；gatherOnly 为逃脱成功只围观）
+                var escalationDetail = WalkAwayIntent.PendingEscalationDetail;
+                var escalationAction = WalkAwayIntent.PendingEscalationAction;
+                var gatherOnly = WalkAwayIntent.PendingEscalationGatherOnly;
                 WalkAwayIntent.PendingEscalationAgent = null;
+                WalkAwayIntent.PendingEscalationDetail = null;
+                WalkAwayIntent.PendingEscalationAction = null;
+                WalkAwayIntent.PendingEscalationGatherOnly = false;
+
                 // 复用 WitnessCrime 管道 → GroupStageManager → GatherOnLook/StayStare，NPC 围过来盯着
                 // 排除 escalationAgent 自己——她已有 ReEngageConfrontation 点对点处理，
                 // 不应再收 WitnessCrime_GatherOnLook 走犯罪指控流程
@@ -386,10 +394,22 @@ namespace LivingWorldNpcs
                     exclude: new HashSet<Agent> { escalationAgent },
                     requireSight: false,
                     Agent.Main, escalationAgent);
-                // 原 NPC 重新追上质问（escalated=true，没有"我走了"选项）
-                AgentAIController.Instance?.SendEventToAgent(
-                    escalationAgent, "ReEngageConfrontation", Agent.Main);
-                DebugLogger.Log($"[ConvEnd] Escalation: WitnessCrime broadcast + ReEngageConfrontation to {escalationAgent.Name}(Idx={escalationAgent.Index})");
+
+                if (!gatherOnly)
+                {
+                    // 原 NPC 重新追上质问（显式 detail/action 时透传：嫌犯逃跑 → Stop+SuspectFlee 专属开场白）
+                    if (escalationDetail.HasValue)
+                        AgentAIController.Instance?.SendEventToAgent(
+                            escalationAgent, "ReEngageConfrontation", Agent.Main, escalationDetail.Value, escalationAction ?? PlayerActionType.SuspectFlee);
+                    else
+                        AgentAIController.Instance?.SendEventToAgent(
+                            escalationAgent, "ReEngageConfrontation", Agent.Main);
+                    DebugLogger.Log($"[ConvEnd] Escalation: WitnessCrime broadcast + ReEngageConfrontation to {escalationAgent.Name}(Idx={escalationAgent.Index})");
+                }
+                else
+                {
+                    DebugLogger.Log($"[ConvEnd] Escalation (gather only): WitnessCrime broadcast around {escalationAgent.Name}(Idx={escalationAgent.Index})");
+                }
             }
 
             // 🆕 坐牢：对话关闭后用原生俘虏系统让村庄关押玩家，DailyTick 自动释放
@@ -555,7 +575,29 @@ namespace LivingWorldNpcs
                 if (trigger != DialogueTrigger.PlayerSurrender
                     && trigger != DialogueTrigger.NpcSurrender
                     && trigger != DialogueTrigger.Alert)
+                {
+                    // 🆕 Normal trigger 的提前注入：权威 NPC 锁定玩家身份（Active+嫌犯=玩家 / Confrontation）
+                    // 时脚本是 SkipVanillaOpening 模式，必须抢在原版 start token 评估之前注入。
+                    // 否则 Postfix 注入太晚——原版开场白已播放、hero_main_options 也无入口，
+                    // 玩家可经原版"我现在得走了"零后果离开（曾实测复现）。
+                    var normalHero = (effectiveAgent?.Character as CharacterObject)?.HeroObject;
+                    if (normalHero != null)
+                    {
+                        var st = Settlement.CurrentSettlement
+                            ?? normalHero.CurrentSettlement
+                            ?? Hero.MainHero?.CurrentSettlement;
+                        var ev = st != null
+                            ? (WorldEventStore.FindActive(st.StringId)
+                                ?? AgentAIController.Instance?.PendingWorldEvent)
+                            : null;
+                        if (CrimeDialogueBuilder.NeedsEarlyInjection(normalHero, ev))
+                        {
+                            DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting confrontation (Normal trigger, SkipVanillaOpening) partner={normalHero.Name}");
+                            ConversationEntryPatch.TryInjectCrimeDialogue(normalHero);
+                        }
+                    }
                     return;
+                }
 
                 var character = effectiveAgent?.Character as CharacterObject;
                 DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting for trigger={trigger} partner={character?.Name?.ToString() ?? "(template)"}");

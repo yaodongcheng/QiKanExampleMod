@@ -361,8 +361,12 @@ namespace LivingWorldNpcs
                 }
                 catch { }
 
-                // 构建上下文：Agent 可能为 null（大地图无 Mission 时），降级处理
-                var settlement = npc?.CurrentSettlement;
+                // 构建上下文：Agent 可能为 null（大地图无 Mission 时），降级处理。
+                // 模板 NPC（HeroObject==null）时 npc?.CurrentSettlement 为 null ——
+                // 必须与 BuildTransitionCondition 显示路径一样回退 Settlement.CurrentSettlement，
+                // 否则村民（无 Hero）强制对话里所有 INTENT 都会因 ActiveEvent==null 被 Evaluate 静默 Hidden：
+                // 选项照显示、点了没效果（拔剑/赔偿/认罚全部失效）。
+                var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
                 var worldEvt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
                 var ctx = new IntentContext(partnerAgent, speaker: npc, worldEvent: worldEvt, actionParam: actionParam);
 

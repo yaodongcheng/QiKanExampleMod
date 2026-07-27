@@ -19,5 +19,6 @@ L3_Search_StealUIOpen,（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什�
 L3_Recover_Steal,（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！,rage
 L3_Stop_AttackAlly,（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！,rage
 L3_Stop_Knockout,（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！,threat
+L3_Stop_SuspectFlee,（{SPEAKER_EMOTION}地）站住！{SPEAKER_PLAYER_ADDR}！这事没了结，你哪儿也别想去——来人，拦住他！,rage
 CombatJoin_Victim,{SPEAKER_PLAYER_ADDR}！你敢打{SPEAKER_SELF}？！,rage
 CombatJoin_Bystander,{SPEAKER_PLAYER_ADDR}！你敢动我们村的人？！,rage
