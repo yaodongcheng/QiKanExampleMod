@@ -346,27 +346,41 @@ namespace LivingWorldNpcs
                 demandNpcLine = r.Resolve($"罚款{cost}第纳尔。你认不认？", "NpcLine");
 
             // demand 节点：NPC 开价
+            // LazyNpcLine 而非 NpcLine：引擎**真要显示这行**时才求值 —— 顺手在这里记报价台账。
+            // 玩家没走到这个节点（没自首、直接走人）就等于没听过价，事后不该拿它当"原本赔 X 就完了"的锚点。
+            // 记的是 cost（构树时算的数），与下面几个选项里的数字同源，不会自相矛盾。
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "restitution_demand",
                 NpcLine = demandNpcLine,
+                LazyNpcLine = () => { evt?.RecordQuote(cost); return demandNpcLine; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = r.Resolve($"好，我赔（{cost} 第纳尔）", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = null, NextNodeOnSuccess = "restitution_pay_ack" },
                     new() { PlayerLine = "太贵了，能便宜点吗？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:Settle", NextNodeOnSuccess = "restitution_haggle_ok", NextNodeOnFail = "restitution_haggle_fail" },
-                    new() { PlayerLine = "太贵了，不赔。", Action = "NONE", NextNodeOnSuccess = "continue_chat" },
+                    new() { PlayerLine = "太贵了，不赔。", Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
                 }
             });
 
+            // refuse_warn：拒赔的当场就把代价说清楚 —— 这个价不是永远有效的
+            // （赔款随案件阶段上浮：Emerging ×0.7 → Active ×1.0 → Confrontation ×1.7，
+            //   玩家事后在地牢里看到翻倍的数字，得是"我知道会这样"而不是"系统坑我"）
+            nodes.Add(Node("restitution_refuse_warn",
+                r.Resolve($"不赔？{{SpeakerSelfRef}}把话放这儿：现在给，就是{cost}。" +
+                          $"等这事传开、等你我动了手，价钱只会往上翻。你自己掂量。", "NpcLine"),
+                "continue_chat"));
+
             // haggle_ok：砍价成功
+            string haggleNpcLine = r.Resolve($"……行，算你{haggleCost}，不能再少了。", "NpcLine");
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "restitution_haggle_ok",
-                NpcLine = r.Resolve($"……行，算你{haggleCost}，不能再少了。", "NpcLine"),
+                NpcLine = haggleNpcLine,
+                LazyNpcLine = () => { evt?.RecordQuote(haggleCost); return haggleNpcLine; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = r.Resolve($"行，就这个数。（{haggleCost} 第纳尔）", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = "haggle", NextNodeOnSuccess = "restitution_pay_ack" },
-                    new() { PlayerLine = "还是太贵，不赔了。", Action = "NONE", NextNodeOnSuccess = "continue_chat" },
+                    new() { PlayerLine = "还是太贵，不赔了。", Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
                 }
             });
 
@@ -1012,10 +1026,16 @@ namespace LivingWorldNpcs
             PlaceholderResolver r,
             string npcOpening)
         {
+            // 开场就把赔款数字摆在玩家眼前（选项里的 {RestitutionCost}）→ 这就是一次报价，记台账。
+            // 与选项同源：都取构树时这一刻的 Restitution。
+            WorldEvent evt = r.Event;
+            int quoted = evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0;
+
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
                 NpcLine = npcOpening,
+                LazyNpcLine = () => { evt?.RecordQuote(quoted); return npcOpening; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = r.Resolve("好，还给你。（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
@@ -1033,10 +1053,15 @@ namespace LivingWorldNpcs
             PlaceholderResolver r,
             string npcOpening)
         {
+            // 同 BuildRecoverSubtree：开场选项里就带着赔款数字 → 记一次报价
+            WorldEvent evt = r.Event;
+            int quoted = evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0;
+
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
                 NpcLine = npcOpening,
+                LazyNpcLine = () => { evt?.RecordQuote(quoted); return npcOpening; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = r.Resolve("我愿意赔钱。（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_stop_pay_ack" },

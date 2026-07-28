@@ -235,7 +235,7 @@ namespace LivingWorldNpcs
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
             ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+            WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你还想狡辩，被当场驳了回来");
             DebugLogger.Log($"[Accountability] Charm defense failed for {evt.EventId} — → Confrontation");
             var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
             CommissionQuest.AddNarrativeLogForEvent(evt, $"辩解没用。{giverName}根本不买账，事态反而更严重了。");
@@ -401,7 +401,7 @@ namespace LivingWorldNpcs
             var evt = ctx.ActiveEvent;
             if (evt != null)
             {
-                WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+                WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你出言威胁，没吓住人");
                 DebugLogger.Log($"[Accountability] Threat failed — → Confrontation");
                 var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
                 CommissionQuest.AddNarrativeLogForEvent(evt, $"威胁没吓住{giverName}——他叫人了。事情彻底闹大了。");
@@ -416,7 +416,7 @@ namespace LivingWorldNpcs
 
                 var misconduct = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
                 if (misconduct != null)
-                    WorldEventStore.TransitionStage(misconduct, EventStage.Confrontation);
+                    WorldEventStore.TransitionStage(misconduct, EventStage.Confrontation, null, "你出言威胁，没吓住人");
 
                 DebugLogger.Log($"[Accountability] Threat failed (Alert) — PendingCombatAgent={ctx.Agent?.Name}, relation -5, WorldEvent→Confrontation");
             }
@@ -581,7 +581,7 @@ namespace LivingWorldNpcs
 
                     var misconduct = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
                     if (misconduct != null && misconduct.Stage < EventStage.Active)
-                        WorldEventStore.TransitionStage(misconduct, EventStage.Active);
+                        WorldEventStore.TransitionStage(misconduct, EventStage.Active, null, "你不肯了结，扭头就走");
 
                     DebugLogger.Log($"[WalkAway] Alert context — PendingEscalationAgent={ctx.Agent?.Name}, relation -5, WorldEvent→Active");
                 }
@@ -607,7 +607,7 @@ namespace LivingWorldNpcs
             {
                 case EventStage.Emerging:
                     // 已被怀疑（自首后）转身就走 → 村民确信是你干的，事件升级 Active
-                    WorldEventStore.TransitionStage(evt, EventStage.Active);
+                    WorldEventStore.TransitionStage(evt, EventStage.Active, null, "你转身就走，没把钱给出去");
                     if (ctx.IsInMission && ctx.Agent != null)
                     {
                         // 🆕 村内当场走人 → 物理围堵升级：村民围观 + NPC 追上重新质问（无"我走了"退路）
@@ -694,7 +694,7 @@ namespace LivingWorldNpcs
         {
             if (ctx.Speaker != null)
                 ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -15, false, true);
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+            WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你想硬闯，被按了下来");
             // 🆕 "被拦下"物理化：村民围观 + NPC 追上重新质问（拔剑/认罚/坐牢，没有"我走了"）
             if (ctx.Agent != null)
                 SetPendingEscalation(ctx.Agent, ConfrontationType.Stop, PlayerActionType.SuspectFlee);
@@ -809,7 +809,7 @@ namespace LivingWorldNpcs
         {
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation);
+            WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你拔剑动了手");
             InfamySystem.AddInfamy(5);
             // 立即 spawn 报复部队（村民当场组织）
             InvestigationEngine.SpawnRetaliationParty(evt);
