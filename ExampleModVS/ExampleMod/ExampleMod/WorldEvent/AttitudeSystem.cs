@@ -243,7 +243,7 @@ namespace LivingWorldNpcs
             if (speaker == null) return "你";
             int relation = speaker.GetRelation(Hero.MainHero);
             if (relation >= 20) return "你";
-            if (relation >= -5) return "你这后生";
+            if (relation >= -5) return "你这小子";
             if (relation >= -20) return "你";
             return "你这家伙";
         }

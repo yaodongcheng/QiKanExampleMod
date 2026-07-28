@@ -488,8 +488,8 @@ namespace LivingWorldNpcs
         private static void BuildConfrontPlayerNode(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
         {
             WorldEvent evt = r.Event;
-            // 大地图对话无法叫守卫/触发战斗 → 威胁失败的 NPC 回应降级为口头警告
-            string threatFailLine = ctx.IsInMission
+            // 真场景才能叫守卫/当场开打；大地图（含临时对话 Mission）威胁失败的 NPC 回应降级为口头警告
+            string threatFailLine = ctx.InRealScene
                 ? r.Resolve("威胁{SpeakerSelfRef}？来人！")
                 : r.Resolve("威胁{SpeakerSelfRef}？{SpeakerPlayerAddr}等着，{SpeakerSelfRef}会告到上面去。");
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode

@@ -21,7 +21,7 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (Mission.Current == null) return Eligibility.Hide();
+            if (!ctx.InRealScene) return Eligibility.Hide();
 
             int baseRansom = CrimePenaltyCalculator.ComputeSurrenderRansom();
             bool isCounteroffer = ctx.ActionParam == "counteroffer_beg"
@@ -74,7 +74,7 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (Mission.Current == null) return Eligibility.Hide();
+            if (!ctx.InRealScene) return Eligibility.Hide();
             // 已经求饶失败过了 → 置灰
             if (ctx.ActionParam == "counteroffer_beg")
                 return Eligibility.Grey("已经求饶过了");
@@ -116,7 +116,7 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (Mission.Current == null) return Eligibility.Hide();
+            if (!ctx.InRealScene) return Eligibility.Hide();
             // counteroffer 阶段：已经求饶失败过了，威胁选项不可用
             if (ctx.ActionParam == "counteroffer_beg")
                 return Eligibility.Grey("已经求饶过了");
@@ -156,7 +156,7 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (Mission.Current != null && ctx.Agent != null)
+            if (ctx.InRealScene && ctx.Agent != null)
                 return Eligibility.Show();
             return Eligibility.Hide();
         }
@@ -231,7 +231,7 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (Mission.Current != null && ctx.Agent != null)
+            if (ctx.InRealScene && ctx.Agent != null)
                 return Eligibility.Show();
             return Eligibility.Hide();
         }

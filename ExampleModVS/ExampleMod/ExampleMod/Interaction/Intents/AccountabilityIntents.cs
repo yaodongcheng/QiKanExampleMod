@@ -79,7 +79,7 @@ namespace LivingWorldNpcs
             // Alert 场景：NPC 找上门质问，无犯罪事件也允许赔钱消灾
             if (ctx.ActiveEvent == null)
             {
-                if (ctx.IsInMission)
+                if (ctx.InRealScene)
                 {
                     switch (ctx.ActionParam)
                     {
@@ -110,7 +110,8 @@ namespace LivingWorldNpcs
                         || (ctx.ActiveEvent.Stage == EventStage.Emerging && ctx.ActiveEvent.SuspectHeroId == Hero.MainHero.StringId);
             if (!stageOk) return Eligibility.Hide();
 
-            int cost = ctx.IsInMission
+            // 「当场被抓私了价」只在真场景成立——大地图（含临时对话 Mission）按标准赔偿价
+            int cost = ctx.InRealScene
                 ? CrimePenaltyCalculator.ComputeCost(ctx.ActiveEvent, CostType.OnSpot)
                 : CrimePenaltyCalculator.ComputeCost(ctx.ActiveEvent, CostType.Restitution);
             if (Hero.MainHero.Gold < cost)
@@ -143,7 +144,7 @@ namespace LivingWorldNpcs
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
 
-            bool isOnSpot = ctx.IsInMission;
+            bool isOnSpot = ctx.InRealScene;
             int cost = isOnSpot ? CrimePenaltyCalculator.ComputeCost(evt, CostType.OnSpot) : CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution);
             if (ctx.ActionParam == "haggle")
                 cost = (int)(cost * 0.5f);
@@ -364,7 +365,7 @@ namespace LivingWorldNpcs
             // Alert 场景：NPC 主动找上门质问（蹲下/偷窃/攻击），无犯罪事件或仅 Misconduct 也允许威胁
             if (ctx.ActiveEvent == null || ctx.ActiveEvent.Type == EventType.Misconduct)
             {
-                if (ctx.IsInMission)
+                if (ctx.InRealScene)
                     return Eligibility.Show();
                 return Eligibility.Hide();
             }
@@ -572,7 +573,7 @@ namespace LivingWorldNpcs
                 // 无活跃事件 —— 唯一需要处理的是 Alert 场景：NPC 因警戒质问找上门，玩家直接走人
                 // 警戒质问比较特殊 玩家可能只是做出了不合适的行为，或者在做坏事过程中，并没有真的执行完成做坏事的结果
                 // → 关系小降 + 设 EscalationAgent（对话关闭后由 Patch 消费：呼救围堵 + 重新质问）
-                if (ctx.IsInMission)
+                if (ctx.InRealScene)
                 {
                     SetPendingEscalation(ctx.Agent, null, null);
                     var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
@@ -608,7 +609,7 @@ namespace LivingWorldNpcs
                 case EventStage.Emerging:
                     // 已被怀疑（自首后）转身就走 → 村民确信是你干的，事件升级 Active
                     WorldEventStore.TransitionStage(evt, EventStage.Active, null, "你转身就走，没把钱给出去");
-                    if (ctx.IsInMission && ctx.Agent != null)
+                    if (ctx.InRealScene && ctx.Agent != null)
                     {
                         // 🆕 村内当场走人 → 物理围堵升级：村民围观 + NPC 追上重新质问（无"我走了"退路）
                         SetPendingEscalation(ctx.Agent, ConfrontationType.Stop, PlayerActionType.SuspectFlee);
@@ -633,7 +634,7 @@ namespace LivingWorldNpcs
                     break;
 
                 case EventStage.Active:
-                    if (ctx.IsInMission)
+                    if (ctx.InRealScene)
                     {
                         // ── 第五层：Mission 内 —— 玩家正被围堵缉拿，"离开" = 武力推开逃跑 → Intimidate 检定
                         // 成功：挣脱但身份彻底暴露；失败：被拦下，关系大降 + 事件升级 Confrontation
@@ -811,17 +812,21 @@ namespace LivingWorldNpcs
             if (evt == null) return;
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你拔剑动了手");
             InfamySystem.AddInfamy(5);
-            // 立即 spawn 报复部队（村民当场组织）
-            InvestigationEngine.SpawnRetaliationParty(evt);
             // 标记村庄警觉
             if (!string.IsNullOrEmpty(evt.TargetSettlementId))
                 evt.PermanentEnemy = true;
 
-            // 🆕 场景内开战：玩家在 Mission 中 → 在场村民立即敌对，而不是只等大地图复仇队。
-            // 战斗一旦打响，后续 BecomeAlarmed 会被 IsPlayerInCombat / IsCurrentOrPending<FightEnemyAction>
-            // 守卫拦截（AgentBrain.ReceiveEvent），L3 强制质问对话循环自然中断。
-            if (ctx.IsInMission && Agent.Main != null)
+            // 按所在处分流后果：真场景 Mission 内当场开打 / 大地图（含临时对话 Mission）召唤复仇队，二者只取其一。
+            // ⚠️ 不能只看 ctx.IsInMission——大地图对话走的 OpenConversationMission 也是真 Mission，
+            //    但那是光秃秃的对话场景，周围没有村民，必须用 ctx.InRealScene 排除。
+            bool inRealScene = ctx.InRealScene && Agent.Main != null;
+            if (inRealScene)
             {
+                // 场景内开战：在场村民立即敌对，不 spawn 大地图复仇队——
+                // 全村已经抄家伙围上来了，同时凭空冒出一支雇佣复仇队既出戏又双重惩罚。
+                // 事件随后由 ProcessConfrontation 自然结案（死敌标记与恶名保留）。
+                // 战斗一旦打响，后续 BecomeAlarmed 会被 IsPlayerInCombat / IsCurrentOrPending<FightEnemyAction>
+                // 守卫拦截（AgentBrain.ReceiveEvent），L3 强制质问对话循环自然中断。
                 // ① 对话对象 → 两阶段延迟战斗（复用 ThreatIntent.PendingCombatAgent 轮子）：
                 //    对话关闭后 ConversationEntryPatch 发 DeferredCombat，
                 //    避免对话进行中 ClearAllActions 把对话本身打断。
@@ -836,12 +841,21 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance?.BroadcastEventInRange(
                     Agent.Main.Position, 30f, "order_attack", exclude, false, Agent.Main);
                 DebugLogger.Log($"[Accountability] FightVillagers in-mission: order_attack broadcast, deferred={ctx.Agent?.Name ?? "none"}");
+                TaleWorlds.Library.InformationManager.DisplayMessage(
+                    new TaleWorlds.Library.InformationMessage("村民愤怒了！有人抄起家伙围了过来……快离开这里！",
+                        Colors.Red));
+            }
+            else
+            {
+                // 大地图对话：没有场景可打 → 村民当场组织复仇队，在大地图上追猎玩家
+                InvestigationEngine.SpawnRetaliationParty(evt);
+                DebugLogger.Log($"[Accountability] FightVillagers on-map: retaliation party spawned");
+                TaleWorlds.Library.InformationManager.DisplayMessage(
+                    new TaleWorlds.Library.InformationMessage("村民愤怒了！他们发誓要让你血债血偿……",
+                        Colors.Red));
             }
 
-            TaleWorlds.Library.InformationManager.DisplayMessage(
-                new TaleWorlds.Library.InformationMessage("村民愤怒了！有人抄起家伙围了过来……快离开这里！",
-                    Colors.Red));
-            DebugLogger.Log($"[Accountability] Player fought villagers for {evt.EventId} — retaliation spawned");
+            DebugLogger.Log($"[Accountability] Player fought villagers for {evt.EventId}");
         }
     }
 
@@ -1201,8 +1215,8 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            // Alert 场景：NPC 质问中玩家选坐牢
-            if (ctx.ActiveEvent == null && ctx.IsInMission && ctx.ActionParam == "surrender_jail")
+            // Alert 场景：NPC 质问中玩家选坐牢（质问只会发生在真场景）
+            if (ctx.ActiveEvent == null && ctx.InRealScene && ctx.ActionParam == "surrender_jail")
                 return Eligibility.Show();
             return Eligibility.Hide();
         }
@@ -1250,7 +1264,8 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if(Mission.Current != null)
+            // 收武器/停止可疑行为只在真场景有意义（Alert 质问只会发生在真场景）
+            if (ctx.InRealScene)
                 return Eligibility.Show();
             return Eligibility.Hide();
         }

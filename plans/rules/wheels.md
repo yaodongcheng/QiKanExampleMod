@@ -376,6 +376,50 @@ Register(new MyIntent());
 
 ---
 
+# 🔴 对话 Intent 的场景判别铁律 — 真场景 vs 大地图临时对话 Mission
+
+**解决什么问题**：对话 Intent 的 `OnInstant/OnSuccess/OnFail` 常按「在不在 Mission 里」分流后果（当场开打 vs 召唤复仇队、现场价 vs 远程价、FadeOut vs 直接消失）。但 `ctx.IsInMission`（= `Mission.Current != null`）**区分不了真场景和大地图的临时对话 Mission**——后者也是真 Mission，只是光秃秃的对话场景。写任何对话 Intent 必须先想清楚后果发生在三种场合的哪一种：
+
+| 场合 | `Mission.Current` | `ConversationMissionLogic` 行为 | 特征 |
+|------|------|:---:|------|
+| ① 真场景 Mission（村庄/城镇/酒馆漫游） | 非 null | **无**（城镇中心 27 个行为里没有它） | 周围有村民/守卫/道具，能场景内开打、围堵、围观 |
+| ② 大地图临时对话 Mission | 非 null | **有** | `OpenConversationMission` 开的对话场景（仅 5 个行为），只有对话双方，没有"村子" |
+| ③ 纯大地图对话（inquiry，无 Mission） | null | — | 无 Agent 层，只能动 Campaign 层状态 |
+
+**判别范式（已封装在 IntentContext）**：
+
+```csharp
+// ✅ 后果依赖「周围有其他 NPC / 场景道具」（开打、围堵、广播 order_attack、叫守卫、现场价）：
+if (ctx.InRealScene) { ... }   // = IsInMission && !IsTempConversationMission
+//    在 ② 里漏掉这个排除 → 对着空场景广播，叙事和机制双出戏
+
+// ✅ 后果只作用在对话对象自己身上（FadeOut、TakePrisoner）：
+//    ctx.Agent != null 即可，不用排 ②（临时 Mission 里 Agent 真实存在）
+```
+
+**`IsTempConversationMission` 是原生判别**（反编译核实）：临时对话 Mission 的行为列表带 `ConversationMissionLogic`，真场景 Mission 没有；引擎随 Mission 生灭维护，无静态标志泄漏风险，且**原版地图对话同样覆盖**（不限于本 mod 的遭遇管线）。
+
+```csharp
+// IntentContext 构造时一次性算好（IntentContext.cs）：
+IsTempConversationMission =
+    Mission.Current?.GetMissionBehavior<ConversationMissionLogic>() != null;  // SandBox.Conversation.MissionLogics
+```
+
+⚠️ `MapEncounterDialogState.Active` **不是**场景判别器，别再用它干这个——它只是「本 mod 遭遇对话管线」的闸门（抑制原版 ConversationMissionLogic tick、定位 Partner），原版地图对话时它是 false，但场合②的语义依然成立。
+
+**新 Intent 自查**：
+1. 这个 Intent 的后果依赖「周围有其他 NPC/场景」吗？→ 是则条件必须用 `ctx.InRealScene`，禁止裸写 `ctx.IsInMission`
+2. 在 ② 里的替代后果形态是什么？（范本：拔剑 → 真场景当场开打 / ②③ 召唤大地图复仇队，**二者只取其一**，不叠加）
+3. 玩家可见文案（DisplayMessage/Inquiry）在三种场合下分别读得通吗？（"围了过来"在 ② 里出戏）
+
+**落地范本**：`FightVillagersIntent.OnInstant`（AccountabilityIntents.cs）——`ctx.InRealScene` 分流场景内开打 vs 召唤复仇队。
+
+**存量审计（2026-07-28 已完成）**：全部 `ctx.IsInMission` / `Mission.Current != null` 用点已逐一过堂——🔴 真修 2 处（PayRestitution 现场价 ②中错算 2 倍、CrimeDialogueBuilder 威胁失败"来人！"②中没人可来）；🟡 自文档化 8 处（Alert 质问类/WalkAway 围堵挣脱/Comply/CombatSurrender，②中本不可达，统一改 `ctx.InRealScene`）；✅ 保留 1 处（LureArrest FadeOut 只动对话对象自己，②中正确）。新代码一律用 `ctx.InRealScene`，别再引入裸 `ctx.IsInMission` 场景判断。
+
+**文件位置**：`Interaction/Intents/IntentContext.cs`（`IsInMission` / `IsTempConversationMission` / `InRealScene`）、`Interaction/Intents/AccountabilityIntents.cs`（FightVillagersIntent 范本）、`Interaction/Dialogue/MapEncounterDialogState.cs`（管线闸门，非判别器）
+
+---
+
 # Campaign Action 类 — 官方游戏状态变更 API
 
 **所有对游戏世界产生影响的"动作"都应以 `*Action` 静态类为入口。** 这些是 TaleWorlds 官方的封装层，内部处理了事件广播、日志、校验、连锁反应。禁止绕过它们直接操作底层数据结构。
