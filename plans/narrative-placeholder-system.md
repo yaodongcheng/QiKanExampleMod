@@ -90,7 +90,7 @@
 | `{SpeakerIdentity}` | `GetSocialIdentity(speaker)` | "村长" / "老猎户" / "族长" |
 | `{SpeakerRole}` | `IsAuthority(speaker, evt) ? evt.GetConfig().AuthorityRole : GetGenericRole(speaker)` | "村长" / "目击者" / "嫌犯" |
 | `{SpeakerSelfRef}` | `GetSelfReference(speaker)` — "老夫" / "我" / "本官" / "在下" | "老夫" / "我" |
-| `{SpeakerPlayerAddr}` | `GetPlayerAddress(speaker, relation)` — "你" / "你这后生" / "阁下" / "大人" | "你" |
+| `{SpeakerPlayerAddr}` | `GetPlayerAddress(speaker, relation)` — "你" / "你这小子" / "阁下" / "大人" | "你" |
 | `{SpeakerEmotion}` | `Stance.Outrage > 0.7f ? "愤怒" : Stance.Outrage > 0.3f ? "焦虑" : Stance.Fear > 0.5f ? "畏惧" : Stance.SelfInterest > 0.4f ? "意味深长" : Stance.Sympathy < -0.3f ? "温和" : "冷淡"` | "愤怒" |
 | `{SpeakerEmotionIntensity}` | `max(Outrage, Fear, abs(Sympathy), SelfInterest)` | "0.7" |
 | `{SpeakerAttitudeWord}` | `stance.TowardActor switch { Sympathetic: "同情", Understanding: "理解", Neutral: "无所谓", Disapproving: "不赞同", Angry: "愤怒", Vengeful: "仇恨" }` | "愤怒" |

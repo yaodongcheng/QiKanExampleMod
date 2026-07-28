@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using SandBox.Conversation.MissionLogics;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
@@ -70,9 +71,23 @@ namespace LivingWorldNpcs
         public PlayerActionType TriggerAction = PlayerActionType.Crouching;
 
         // ═══ 场景上下文 ═══
-        /// <summary>当前对话是否发生在 Mission 内（村庄/酒馆等 3D 场景）。
-        /// false = 大地图对话（CampaignMapConversation），无法触发战斗/叫守卫。</summary>
+        /// <summary>当前对话是否发生在 Mission 内（= Mission.Current != null）。
+        /// ⚠️ 为 true 时不一定是真场景：大地图偶遇对话走的 OpenConversationMission 也是真 Mission
+        /// （光秃秃的对话场景，无周围村民）。需要「物理上在场景里」的语义时用 IsTempConversationMission 排除
+        /// （见 wheels.md「对话 Intent 的场景判别铁律」）。</summary>
         public bool IsInMission;
+
+        /// <summary>当前是否处于大地图临时对话 Mission（OpenConversationMission 开的光秃秃对话场景，
+        /// 只有对话双方，没有村子/围观者）。原生判别：临时对话 Mission 带 ConversationMissionLogic 行为，
+        /// 真场景 Mission（城镇中心 27 个行为）没有——引擎随 Mission 生灭维护，无静态标志泄漏风险。
+        /// 覆盖原版和本 mod 的所有地图对话；要区分「本 mod 的遭遇对话管线」才用 MapEncounterDialogState.Active。</summary>
+        public bool IsTempConversationMission;
+
+        /// <summary>当前是否「物理上在真场景里」（村庄/城镇漫游，周围有 NPC/道具）
+        /// = IsInMission && !IsTempConversationMission。
+        /// 后果依赖场景环境（当场开打/围堵/叫守卫/围观/现场价）时一律用它，
+        /// 不要用裸 IsInMission（会把大地图临时对话 Mission 误判为真场景）。</summary>
+        public bool InRealScene => IsInMission && !IsTempConversationMission;
 
         // ═══ 唯一构造入口 ═══
         /// <summary>
@@ -95,6 +110,8 @@ namespace LivingWorldNpcs
             Controller = controller;
             Listener = Hero.MainHero;
             IsInMission = Mission.Current != null;
+            IsTempConversationMission =
+                Mission.Current?.GetMissionBehavior<ConversationMissionLogic>() != null;
             ActiveEvent = worldEvent;
             ActionParam = actionParam;
 
