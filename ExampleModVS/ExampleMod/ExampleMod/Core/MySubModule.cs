@@ -102,7 +102,7 @@ namespace LivingWorldNpcs
             sightSystem.RegisterTrackedTarget(Agent.Main, 15f, 50f);
             //右下角交互区
             mission.AddMissionBehavior(new InteractionMissionView());
-            //攻击触发
+            //攻击触发 / 战斗监控总线（尸体登记 + 切磋虚拟血 + 玩家被制服 → 大地图扣押）
             mission.AddMissionBehavior(new AttackTriggerMissionLogic());
             //AI
             mission.AddMissionBehavior(new AgentAIController());
@@ -136,6 +136,9 @@ namespace LivingWorldNpcs
 
                 // 世界事件模拟器（BanditRaid 等）
                 campaignGameStarter.AddBehavior(new WorldEventSimulator());
+
+                // 玩家被当地人扣押（罚金 / 关几天）——复用原版俘虏菜单
+                campaignGameStarter.AddBehavior(new PlayerDetentionBehavior());
 
                 if (!_hasDumped)
                 {

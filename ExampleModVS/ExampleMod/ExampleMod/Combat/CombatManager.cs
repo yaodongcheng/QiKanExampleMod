@@ -130,6 +130,39 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 快照当前所有正在与玩家交战的 Agent（返回副本，可安全在遍历中修改战斗集合）。
+        /// </summary>
+        public static List<Agent> GetAgentsFightingPlayer()
+        {
+            RemoveDeadAndStaleAgents();
+            return _agentsFightingPlayer.ToList();
+        }
+
+        /// <summary>
+        /// 一键收场：结束所有与玩家的战斗（玩家被制服/投降/被俘时用）。
+        /// 逐个走 EndFight（归还原队伍 + 重置 WatchState），返回收队人数。
+        /// </summary>
+        public static int EndAllFightsWithPlayer()
+        {
+            var list = GetAgentsFightingPlayer();
+            foreach (var a in list)
+            {
+                try
+                {
+                    EndFight(a);
+                    a.SetTargetAgent(null);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[CombatManager] EndAllFightsWithPlayer error: {ex.Message}");
+                }
+            }
+            _agentsFightingPlayer.Clear();
+            DebugLogger.Log($"[CombatManager] EndAllFightsWithPlayer: {list.Count} agents stood down");
+            return list.Count;
+        }
+
+        /// <summary>
         /// 让 agentB 加入战斗。
         /// </summary>
         /// <param name="agentA">当前的对手/目标（通常是玩家，用于确立初始敌对关系）</param>

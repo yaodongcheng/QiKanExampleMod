@@ -1195,13 +1195,9 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【坐牢】我没钱。要抓就抓吧。";
         public override NegotiationGoalType? Goal => null; // 即时类
 
-        /// <summary>坐牢后延迟踢出村庄的标记（对话关闭后由 ConversationEntryPatch 消费）</summary>
+        /// <summary>坐牢后延迟踢出村庄的标记（对话关闭后由 ConversationEntryPatch 消费，
+        /// 转交 PlayerDetentionBehavior 走原版俘虏流程）</summary>
         internal static bool PendingJailExit;
-
-        /// <summary>坐牢的村庄（用于 DailyTick 自动释放）</summary>
-        internal static Settlement JailSettlement;
-        /// <summary>被俘日期（用于 DailyTick 判断时间）</summary>
-        internal static float JailCaptureDay;
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
