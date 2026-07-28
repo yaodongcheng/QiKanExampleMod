@@ -412,7 +412,8 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 🆕 坐牢：对话关闭后用原生俘虏系统让村庄关押玩家，DailyTick 自动释放
+            // 坐牢：对话关闭后交给 PlayerDetentionBehavior 统一管（原生俘虏系统 + 原版
+            // settlement_wait 俘虏界面 + 刑期 + 释放菜单 + 存档持久化）
             if (SurrenderJailIntent.PendingJailExit)
             {
                 SurrenderJailIntent.PendingJailExit = false;
@@ -422,14 +423,14 @@ namespace LivingWorldNpcs
                 {
                     try
                     {
-                        TakePrisonerAction.Apply(settlement.Party, Hero.MainHero);
-                        SurrenderJailIntent.JailSettlement = settlement;
-                        SurrenderJailIntent.JailCaptureDay = (float)CampaignTime.Now.ToDays;
+                        // 罪名已在 SurrenderJailIntent.OnInstant 里 ResolveMisconduct 结案，
+                        // 这里不再传事件（避免重复结案）
+                        PlayerDetentionBehavior.ApplyImmediateDetention(settlement, null, "surrender-jail");
                         DebugLogger.Log($"[ConvEnd] Player jailed by {settlement.Name}");
                     }
                     catch (Exception ex)
                     {
-                        DebugLogger.Log($"[ConvEnd] Jail TakePrisonerAction failed: {ex.Message}");
+                        DebugLogger.Log($"[ConvEnd] Jail handoff failed: {ex.Message}");
                     }
                 }
             }

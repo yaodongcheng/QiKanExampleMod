@@ -1213,6 +1213,48 @@ namespace LivingWorldNpcs
             evt.ResolvedBy = "captured";
         }
 
+        /// <summary>
+        /// 玩家被当地人制服/扣押 → 结案。
+        ///
+        /// 与 OnSuspectDelivered 的区别：嫌犯就是玩家本人，且案件靠"吃罚金/坐几天"了结，
+        /// 因此必须同时解除敌对状态（PermanentEnemy）并清掉报复经费和报复部队——
+        /// 否则玩家出狱后仍会被同一批人无限追杀。
+        /// </summary>
+        /// <param name="paidFine">true = 交了罚金；false = 关满刑期后放出</param>
+        public static void OnPlayerDetained(WorldEvent evt, bool paidFine)
+        {
+            if (evt == null) return;
+
+            if (paidFine)
+                evt.PlayerPaidRestitution = true;
+
+            // 恩怨了结：撤销永久敌对 + 掏空报复经费
+            evt.PermanentEnemy = false;
+            evt.RetaliationBudget = 0;
+
+            TransitionStage(evt, EventStage.Resolved);
+            evt.ResolvedBy = paidFine ? "payment" : "detained";
+            evt.LastUpdateDay = (float)CampaignTime.Now.ToDays;
+
+            // 撤掉已经在路上的报复部队
+            RemoveEventParty(evt);
+            evt.RetaliationSpawned = false;
+            evt.RetaliationPartyId = null;
+
+            if (evt.TargetSettlement != null)
+            {
+                try { WorldEventSimulator.ModifyStability(evt.TargetSettlement, +1); }
+                catch (Exception ex) { DebugLogger.Log($"[WorldEvent] ModifyStability error: {ex.Message}"); }
+            }
+
+            try { WorldEventNotificationController.OnEventResolved(evt); }
+            catch (Exception ex) { DebugLogger.Log($"[WorldEvent] Notification error: {ex.Message}"); }
+
+            ClearEventFromNpcMemory(evt);
+
+            DebugLogger.Log($"[WorldEvent] OnPlayerDetained: id={evt.EventId} paidFine={paidFine} → Resolved");
+        }
+
         /// <summary>威胁成功 → 结案</summary>
         public static void OnIntimidated(WorldEvent evt)
         {
