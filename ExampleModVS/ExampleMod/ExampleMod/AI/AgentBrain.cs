@@ -247,7 +247,8 @@ namespace LivingWorldNpcs
                 if (pending != null && pending.Stage < EventStage.Confrontation)
                 {
                     var existing = WorldEventStore.Find(pending.EventId);
-                    WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation, Hero.MainHero?.StringId);
+                    WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation,
+                        Hero.MainHero?.StringId, "现场打了起来");
                 }
 
                 InteractedAgent = target;
@@ -1132,7 +1133,8 @@ namespace LivingWorldNpcs
             if (pending != null && pending.Stage < EventStage.Confrontation)
             {
                 var existing = WorldEventStore.Find(pending.EventId);
-                WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation, Hero.MainHero?.StringId);
+                WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation,
+                    Hero.MainHero?.StringId, "现场打了起来");
             }
 
             EnqueueAction(new FightEnemyAction(player));

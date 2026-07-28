@@ -206,6 +206,20 @@ namespace LivingWorldNpcs
         public bool PlayerTookInvestigationQuest; // 玩家接受调查任务
         public bool PlayerTookBountyQuest;
 
+        // ═══ 报价台账（涨价必须说得清缘由） ═══
+        // 赔款金额随案件阶段上浮（见 CrimePenaltyCalculator.ComputeRestitution：
+        // Emerging ×0.7 / Active ×1.0 / Confrontation ×1.7，跨两级就是 2.43 倍）。
+        // 涨价本身是设计意图——拒赔、动手就该更贵——但玩家记住的是自己听过的那个数，
+        // 所以必须留台账：他听过多少、中间他自己干了什么，才能在收钱的界面上把话说明白。
+        /// <summary>NPC 第一次真的报给玩家的赔款（0 = 玩家从没听过价）。涨价对比的锚点。</summary>
+        public int FirstQuotedAmount;
+        /// <summary>第一次报价时的案件阶段（叙事用：跳了几级）。</summary>
+        public EventStage FirstQuotedStage;
+        /// <summary>最近一次报给玩家的赔款。</summary>
+        public int LastQuotedAmount;
+        /// <summary>价钱为什么涨 —— 按发生顺序记玩家自己干的事（"你转身就走，没给钱" / "你拔剑动手"）。</summary>
+        public List<string> PriceEscalationReasons;
+
         // ═══ 报复 ═══
         public int RetaliationBudget;
         public int RetaliationWaveCount;
@@ -455,6 +469,63 @@ namespace LivingWorldNpcs
                 return $"{lossDesc}。村里人都知道了，{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
             else
                 return $"{lossDesc}。最后一次机会——赔{total}第纳尔，否则后果自负。你认不认？";
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 报价台账
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 记一笔"NPC 真的把这个数报给了玩家"。
+        /// 只在台词/选项**确实显示出来**的时候调（NPC 开价节点的 LazyNpcLine、Alert 开场子树），
+        /// 不要在构树阶段调 —— 玩家没听过的价不算报过价，否则事后"原本赔 X 就完了"是在编。
+        /// </summary>
+        public void RecordQuote(int amount)
+        {
+            if (amount <= 0) return;
+            LastQuotedAmount = amount;
+            if (FirstQuotedAmount > 0) return;
+
+            FirstQuotedAmount = amount;
+            FirstQuotedStage = Stage;
+            DebugLogger.Log($"[Penalty] {EventId} first quote to player: {amount} @ {Stage}");
+        }
+
+        /// <summary>
+        /// 记一条涨价缘由。玩家没听过价（<see cref="FirstQuotedAmount"/>==0）就不记 ——
+        /// 没有对比锚点的时候，"因为你拔剑所以贵了"这句话玩家看不懂。
+        /// 连续重复的同一条原因不重复记（同一次冲突可能触发多次阶段迁移尝试）。
+        /// </summary>
+        public void RecordPriceEscalation(string reason)
+        {
+            if (FirstQuotedAmount <= 0 || string.IsNullOrEmpty(reason)) return;
+
+            PriceEscalationReasons = PriceEscalationReasons ?? new List<string>();
+            if (PriceEscalationReasons.Count > 0
+                && PriceEscalationReasons[PriceEscalationReasons.Count - 1] == reason) return;
+
+            PriceEscalationReasons.Add(reason);
+            DebugLogger.Log($"[Penalty] {EventId} price escalation #{PriceEscalationReasons.Count}: {reason}");
+        }
+
+        /// <summary>
+        /// 涨价缘由说明（给玩家看的一段话）。
+        /// 返回 null = 没什么要解释的（玩家没听过价 / 现价没比听过的价高）—— 调用方直接别显示。
+        /// </summary>
+        /// <param name="currentAmount">现在真要收的数</param>
+        public string BuildPriceEscalationNote(int currentAmount)
+        {
+            if (FirstQuotedAmount <= 0) return null;
+            // 5% 以内的差异属于阶段倍率/交易技能的正常抖动，不值得专门解释
+            if (currentAmount <= (int)(FirstQuotedAmount * 1.05f)) return null;
+
+            float times = currentAmount / (float)FirstQuotedAmount;
+            string because = (PriceEscalationReasons?.Count > 0)
+                ? string.Join("、", PriceEscalationReasons)
+                : "事情一路闹大";
+
+            return $"当初{because} —— 那时候赔 {FirstQuotedAmount} 就能了事，" +
+                   $"现在他们开口要 {currentAmount}，翻了 {times:0.#} 倍。";
         }
 
         /// <summary>损失描述（赔偿对话主语）：赃物市值 + 袭击身价，合并成一句；啥都没有时回落旧文案。</summary>
@@ -1061,7 +1132,7 @@ namespace LivingWorldNpcs
                         var authority = GetAuthorityNpc(evt);
                         if (authority != null)
                             TaleWorlds.CampaignSystem.Actions.ChangeRelationAction.ApplyPlayerRelation(authority, -20, false, true);
-                        TransitionStage(evt, EventStage.Confrontation);
+                        TransitionStage(evt, EventStage.Confrontation, null, "你没干完答应的活");
                         InvestigationEngine.SpawnRetaliationParty(evt);
                         DebugLogger.Log($"[WorkOffDebt] {evt.EventId} Breached! Only {evt._workOffDaysDone}/3 days. → Confrontation");
                     }
@@ -1072,7 +1143,7 @@ namespace LivingWorldNpcs
             float deadline = evt.SuspectIsPlayer ? 10f : 15f;
             if ((now - evt._stageEnteredDay) > deadline && !evt.PlayerPaidRestitution && !evt._workOffDebtAccepted)
             {
-                TransitionStage(evt, EventStage.Confrontation);
+                TransitionStage(evt, EventStage.Confrontation, null, "你一直拖着不给钱，他们不等了");
                 InvestigationEngine.SpawnRetaliationParty(evt);
             }
             InvestigationEngine.ProcessAuthorityAction(evt);
@@ -1104,7 +1175,14 @@ namespace LivingWorldNpcs
         /// 进入 Active 时必须传入 suspectHeroId；进入 Dormant/Emerging 时强制清空 SuspectHeroId。
         /// </summary>
         /// <param name="suspectHeroId">进入 Active/Confrontation 时锁定此 Hero 为嫌疑人。null 时尝试从 InitiatorId 推断。</param>
-        public static void TransitionStage(WorldEvent evt, EventStage newStage, string suspectHeroId = null)
+        /// <param name="escalationReason">
+        /// **玩家自己干了什么导致这次升级**（"你转身就走，没给钱" / "你拔剑动手"）。
+        /// 升级会把赔款金额往上顶（CrimePenaltyCalculator.ComputeRestitution 的阶段倍率），
+        /// 所以每个玩家驱动的迁移都该带上原因 —— 事后收钱的界面要拿它跟玩家把账算清。
+        /// 不传则按阶段落一句兜底原因。
+        /// </param>
+        public static void TransitionStage(WorldEvent evt, EventStage newStage, string suspectHeroId = null,
+            string escalationReason = null)
         {
             if (evt.Stage == newStage) return;
             var oldStage = evt.Stage;
@@ -1144,6 +1222,11 @@ namespace LivingWorldNpcs
             evt.Stage = newStage;
             evt._stageEnteredDay = (float)CampaignTime.Now.ToDays;
 
+            // ── 报价台账：阶段升级 = 赔款涨价，留下"是哪一步把价钱抬上去的" ──
+            // 只在玩家已经听过价之后才记（RecordPriceEscalation 内部自己守卫）。
+            if (newStage > oldStage && newStage <= EventStage.Confrontation)
+                evt.RecordPriceEscalation(escalationReason ?? DefaultEscalationReason(newStage));
+
             // Resolved 时设置村庄警觉
             if (newStage == EventStage.Resolved && evt.SuspectIsPlayer)
             {
@@ -1171,6 +1254,21 @@ namespace LivingWorldNpcs
 
             DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage: {oldStage} → {newStage}");
             OnEventStageChanged?.Invoke(evt);
+        }
+
+        /// <summary>
+        /// 阶段升级的兜底涨价原因（调用方没给具体原因时用）。
+        /// 措辞一律用"你…"—— 涨价是玩家自己的选择造成的，不是系统涨价。
+        /// </summary>
+        private static string DefaultEscalationReason(EventStage newStage)
+        {
+            switch (newStage)
+            {
+                case EventStage.Emerging:      return "事情被发现了";
+                case EventStage.Active:        return "你没把这笔钱给出去，事情被摆上了明面";
+                case EventStage.Confrontation: return "你跟他们动了手";
+                default:                       return "事情又闹大了一层";
+            }
         }
 
         /// <summary>

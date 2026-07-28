@@ -138,7 +138,8 @@ namespace LivingWorldNpcs
             inst._jailed = false;
             inst._menuRetryDelay = 0f;
 
-            DebugLogger.Log($"[Detention] Requested at {settlement.Name} event={inst._eventId ?? "none"} fine={inst._fine} days={inst._days}");
+            DebugLogger.Log($"[Detention] Requested at {settlement.Name} event={inst._eventId ?? "none"} " +
+                            $"fine={inst._fine} days={inst._days}{DescribeFineOrigin(evt, inst._fine)}");
         }
 
         /// <summary>
@@ -165,7 +166,20 @@ namespace LivingWorldNpcs
             inst._days = ComputeDays(evt);
             inst._menuRetryDelay = 0f;
 
+            DebugLogger.Log($"[Detention] Immediate ({reason}) at {settlement.Name} event={inst._eventId ?? "none"} " +
+                            $"fine={inst._fine} days={inst._days}{DescribeFineOrigin(evt, inst._fine)}");
+
             inst.StartJail(settlement, $"immediate:{reason}");
+        }
+
+        /// <summary>罚金来源的一行日志（对话里报过多少 → 现在收多少 → 中间玩家干了什么）。排查金额争议全靠它。</summary>
+        private static string DescribeFineOrigin(WorldEvent evt, int fine)
+        {
+            if (evt == null) return "";
+            string reasons = (evt.PriceEscalationReasons?.Count > 0)
+                ? string.Join(" / ", evt.PriceEscalationReasons) : "none";
+            return $" | stage={evt.Stage} firstQuote={evt.FirstQuotedAmount}@{evt.FirstQuotedStage} " +
+                   $"lastQuote={evt.LastQuotedAmount} escalations=[{reasons}]";
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -398,9 +412,16 @@ namespace LivingWorldNpcs
             string name = settlement?.Name?.ToString() ?? "这里";
             string lockup = LockupName(settlement);
 
-            return $"你被人从地上拖起来，胳膊反剪在背后 —— 武器被踢到一边，围上来的人还在喘。\n\n" +
-                   $"带头的没跟你废话：钱赔了，这事就算了；不赔，就在{lockup}里待着，" +
-                   $"{name}什么时候消气什么时候放人。";
+            string text = $"你被人从地上拖起来，胳膊反剪在背后 —— 武器被踢到一边，围上来的人还在喘。\n\n" +
+                          $"带头的没跟你废话：钱赔了，这事就算了；不赔，就在{lockup}里待着，" +
+                          $"{name}什么时候消气什么时候放人。";
+
+            // 涨价缘由：玩家之前听过一个数，现在要的比那个数高 → 必须当面把账算清，
+            // 否则玩家只看到"刚才 680、现在 1652"，会当成 bug 或系统坑人。
+            string note = BuildFineEscalationNote();
+            if (note != null) text += $"\n\n{note}";
+
+            return text;
         }
 
         /// <summary>关押阶段的正文：原版 settlement_wait 的"你在此地等待"完全不是这个意思</summary>
@@ -410,9 +431,34 @@ namespace LivingWorldNpcs
             string lockup = LockupName(settlement);
             int daysLeft = Math.Max(1, (int)Math.Ceiling(_releaseDay - (float)CampaignTime.Now.ToDays));
 
-            return $"{lockup}里没有窗。门外有人来回走动，偶尔停下来往里看一眼。\n\n" +
-                   $"你的东西都不在身上了。看这架势还得再关 {daysLeft} 天 —— " +
-                   $"除非托人带话回去，把罚金交了。";
+            string text = $"{lockup}里没有窗。门外有人来回走动，偶尔停下来往里看一眼。\n\n" +
+                          $"你的东西都不在身上了。看这架势还得再关 {daysLeft} 天 —— " +
+                          $"除非托人带话回去，把罚金交了。";
+
+            string note = BuildFineEscalationNote();
+            if (note != null) text += $"\n\n{note}";
+
+            return text;
+        }
+
+        /// <summary>
+        /// 罚金涨价说明。null = 没什么要解释的（玩家没听过价，或现价没比听过的高）。
+        /// 数据源是案件自己的报价台账（<see cref="WorldEvent.BuildPriceEscalationNote"/>），
+        /// 不在这里重算金额 —— 涨价的账必须跟对话里报过的价对得上。
+        /// </summary>
+        private string BuildFineEscalationNote()
+        {
+            if (string.IsNullOrEmpty(_eventId)) return null;
+            try
+            {
+                var evt = WorldEventStore.Find(_eventId);
+                return evt?.BuildPriceEscalationNote(_fine);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Detention] BuildFineEscalationNote failed: {ex.Message}");
+                return null;
+            }
         }
 
         private bool PayFineOfferOnCondition(MenuCallbackArgs args)
@@ -427,7 +473,7 @@ namespace LivingWorldNpcs
             if (Hero.MainHero.Gold < _fine)
             {
                 args.IsEnabled = false;
-                args.Tooltip = new TextObject("{=!}你身上凑不出这个数。");
+                args.Tooltip = new TextObject("{=!}" + BuildCannotAffordHint());
             }
             return true;
         }
@@ -459,9 +505,31 @@ namespace LivingWorldNpcs
             if (Hero.MainHero.Gold < _fine)
             {
                 args.IsEnabled = false;
-                args.Tooltip = new TextObject("{=!}你身上凑不出这个数。");
+                args.Tooltip = new TextObject("{=!}" + BuildCannotAffordHint());
             }
             return true;
+        }
+
+        /// <summary>
+        /// 付不起时的灰掉提示。价钱涨过 → 顺手把锚点报出来（"当初 680 就能了事"）。
+        /// 玩家鼠标停在灰掉的选项上，问的就是"为什么这么贵"—— 答案得在这里。
+        /// </summary>
+        private string BuildCannotAffordHint()
+        {
+            int first = 0;
+            try
+            {
+                if (!string.IsNullOrEmpty(_eventId))
+                    first = WorldEventStore.Find(_eventId)?.FirstQuotedAmount ?? 0;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Detention] BuildCannotAffordHint failed: {ex.Message}");
+            }
+
+            return (first > 0 && _fine > (int)(first * 1.05f))
+                ? $"你身上凑不出这个数。当初赔 {first} 就能了事的。"
+                : "你身上凑不出这个数。";
         }
 
         private void PayFineFromOfferOnConsequence(MenuCallbackArgs args)
@@ -695,6 +763,13 @@ namespace LivingWorldNpcs
         ///
         /// Fine 留作地板：纯斗殴、没有财物损失的案子 Restitution 会很低，取两者较大值。
         /// 金额在 RequestDetention 时快照进 _fine，之后菜单/赎身都读它 —— 不会因为案件阶段推进而中途变价。
+        ///
+        /// **涨价是有意的，但必须说出来**：Restitution 带阶段倍率（Emerging ×0.7 / Active ×1.0 /
+        /// Confrontation ×1.7），玩家拒赔又动手，跨两级就是 2.43 倍 —— 对话里听到 680，
+        /// 被拖进地牢时变成 1652。设计上这正是"闹大了更贵"的代价，
+        /// 但玩家凭空看到翻倍的数字只会当成 bug，所以菜单正文和灰掉提示必须带上
+        /// <see cref="WorldEvent.BuildPriceEscalationNote"/>（原价 + 玩家自己干的哪几件事把价钱抬上去的）。
+        /// 见 <see cref="BuildFineEscalationNote"/> / <see cref="BuildCannotAffordHint"/>。
         /// </summary>
         private static int ComputeFine(WorldEvent evt)
         {
