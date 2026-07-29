@@ -74,6 +74,27 @@ namespace LivingWorldNpcs
             ConfrontationType? alertConfrontation = null,
             PlayerActionType? alertTriggerAction = null)
         {
+            // ── 预填充阶段标记：本方法内所有 Resolve 都是对话开启时的整树预构建（非运行时播放），
+            // 日志统一带 [对话预填充] 前缀；finally 保证任意 return 路径都还原 ──
+            string prevLogPhaseTag = PlaceholderResolver.LogPhaseTag;
+            PlaceholderResolver.LogPhaseTag = "对话预填充";
+            try
+            {
+                return BuildScriptInternal(speaker, listener, evt, trigger, alertConfrontation, alertTriggerAction);
+            }
+            finally
+            {
+                PlaceholderResolver.LogPhaseTag = prevLogPhaseTag;
+            }
+        }
+
+        /// <summary>BuildScript 的实际构建逻辑（trigger 分派 + 子树构建）。</summary>
+        private static DialogueInjector.DialogueInjectScript BuildScriptInternal(
+            Hero speaker, Hero listener, WorldEvent evt,
+            DialogueTrigger trigger,
+            ConfrontationType? alertConfrontation,
+            PlayerActionType? alertTriggerAction)
+        {
             // evt 为 null 时仅 Alert trigger 放行（纯警戒质问，无关联犯罪事件）
             if (evt == null && trigger != DialogueTrigger.Alert) return null;
 
@@ -212,8 +233,7 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
-                        //玩家没有接调查任务,请求玩家调查
-                        entryOption = r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption");
+                        //玩家没有接调查任务,请求玩家调查 — entryOption 沿用第 199 行的默认值（同一模板，无需重复 Resolve）
                         BuildDiscoveryNode(nodes, r, ctx);
                     }
                     break;
