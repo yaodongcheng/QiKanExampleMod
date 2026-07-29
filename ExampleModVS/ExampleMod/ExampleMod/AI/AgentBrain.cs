@@ -1177,7 +1177,8 @@ namespace LivingWorldNpcs
             EnqueueAction(new FollowAgentAction(player, false, radius: 2f, angleOffset: 0f, stopDistance: 1.5f));
             EnqueueAction(new LookAtAction(player, 0.0f));
             EnqueueAction(new AlertForceConversationAction());
-            EnqueueAction(new StayAction(player));
+            //对话过程中本身就是持续的，不需要一个StayAction来占位
+            //EnqueueAction(new StayAction(player));
         }
         public void Tick(float dt)
         {
