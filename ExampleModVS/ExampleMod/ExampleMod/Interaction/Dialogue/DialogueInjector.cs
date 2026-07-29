@@ -775,7 +775,13 @@ namespace LivingWorldNpcs
 
             string intentName = transition.Action.Substring("INTENT:".Length);
             var intent = LivingWorldNpcs.IntentRegistry.FindByName(intentName);
-            if (intent == null) return () => true;
+            if (intent == null)
+            {
+                DebugLogger.Log($"[ConvCondition] intent={intentName} NOT FOUND in registry — showing unconditionally");
+                return () => true;
+            }
+
+            DebugLogger.Log($"[ConvCondition] Building condition for intent={intentName} playerLine=\"{transition.PlayerLine}\" actionParam={transition.ActionParam ?? "(null)"}");
 
             return () =>
             {
@@ -786,7 +792,10 @@ namespace LivingWorldNpcs
                     // OneToOneConversationHero 为 null，但 Settlement.CurrentSettlement
                     // 在 Mission 场景中会被正确设置。
                     var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
-                    var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
+                    var evt = settlement != null
+                        ? (WorldEventStore.FindActive(settlement.StringId)
+                            ?? AgentAIController.Instance?.PendingWorldEvent)
+                        : null;
 
                     // 🆕 从 ConversationManager 获取当前对话的 Agent（与 ExecuteIntentAction 同模式）
                     Agent partnerAgent = null;
@@ -804,6 +813,13 @@ namespace LivingWorldNpcs
                     // 对话中只显示完全可用的选项，Disabled 也隐藏。
                     // Disabled 选项被点击后 ExecuteIntentAction 无法写入 _intentResults，
                     // 会导致条件路由行全部不匹配 → 对话死锁。
+
+                    // 🔍 调试日志：记录每个选项的条件评估结果
+                    DebugLogger.Log($"[ConvCondition] intent={intentName} playerLine=\"{transition.PlayerLine}\" " +
+                        $"npc={npc?.Name?.ToString() ?? "(null)"} settlement={settlement?.Name?.ToString() ?? "(null)"} " +
+                        $"evt={evt?.EventId ?? "(null)"} actionParam={transition.ActionParam ?? "(null)"} " +
+                        $"eligibility={eligibility.State} reason={eligibility.Reason ?? "(none)"}");
+
                     return eligibility.State == EligState.Enabled;
                 }
                 catch { return true; } // 出错时兜底显示
