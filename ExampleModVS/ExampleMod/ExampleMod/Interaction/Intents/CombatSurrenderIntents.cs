@@ -19,6 +19,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "（交出钱袋）";
         public override NegotiationGoalType? Goal => null; // 无条件，不检定
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[交钱]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.InRealScene) return Eligibility.Hide();
@@ -70,6 +72,7 @@ namespace LivingWorldNpcs
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
         public override float CooldownDays => 0f; // 每次战斗仅一次
+        public override string GetDialoguePrefix(string actionParam = null) => "[求饶]";
         public override bool ReofferOnFail => true; // 🆕 失败后重新渲染选项
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -114,6 +117,8 @@ namespace LivingWorldNpcs
         public override NegotiationTactic Tactic => NegotiationTactic.Threaten;
         public override float CooldownDays => 0f;
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[威胁]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.InRealScene) return Eligibility.Hide();
@@ -153,6 +158,15 @@ namespace LivingWorldNpcs
         public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
         public override string DisplayName => "…"; // 被 DialogueInjector PlayerLine 覆盖
         public override NegotiationGoalType? Goal => null; // 即时类
+
+        public override string GetDialoguePrefix(string actionParam = null) => actionParam switch
+        {
+            "accept" => "[放走]",
+            "humiliate" => "[羞辱]",
+            "ransom" => "[索钱]",
+            "refuse" => "[杀]",
+            _ => null
+        };
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -221,6 +235,8 @@ namespace LivingWorldNpcs
         public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
         public override string DisplayName => "（拼死一战）";
         public override NegotiationGoalType? Goal => null; // 即时类
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[死战]";
 
         /// <summary>
         /// 投降谈判破裂 → 对话结束后重回战斗。

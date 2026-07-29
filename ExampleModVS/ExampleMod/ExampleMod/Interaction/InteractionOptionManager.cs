@@ -63,6 +63,7 @@ namespace LivingWorldNpcs
         Arrest,              // 直接抓捕
         SurrenderJail,       // 束手就擒坐牢（Alert 场景）
         Comply,              // 服从（收武器/停止可疑行为，Alert 场景）
+        Apologize,           // 道歉（Alert 场景 Deter 质问——检定成功可走，失败则升级）
 
         // ═══ 系统 ═══
         System,              // 系统级操作（仅对话 Transition 触发，不出现在交互菜单）
@@ -132,6 +133,7 @@ namespace LivingWorldNpcs
                 case InteractionOptionType.Arrest:
                 case InteractionOptionType.SurrenderJail:
                 case InteractionOptionType.Comply:
+                case InteractionOptionType.Apologize:
                     return InteractionCategory.Accountability;
                 // 通用（Chat / Leave / Info / Order_Follow / 及未来新增默认）
                 default:

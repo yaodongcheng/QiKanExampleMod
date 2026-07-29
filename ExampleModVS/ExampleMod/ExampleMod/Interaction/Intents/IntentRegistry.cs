@@ -84,8 +84,11 @@ namespace LivingWorldNpcs
             Register(new ArrestIntent());
             Register(new SurrenderJailIntent());
             Register(new ComplyIntent());
+            Register(new ApologizeIntent());
             Register(new ContinueChatIntent());
             Register(new ReturnStolenItemsIntent());
+            Register(new SubmitToSearchIntent());
+            Register(new RefuseSearchIntent());
 
             // ═══ 战斗投降 ═══
             Register(new PlayerSurrenderPayIntent());

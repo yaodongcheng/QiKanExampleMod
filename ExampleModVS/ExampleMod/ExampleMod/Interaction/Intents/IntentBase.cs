@@ -62,6 +62,13 @@ namespace LivingWorldNpcs
         /// <summary>失败后冷却天数。</summary>
         public virtual float CooldownDays { get { return 5f; } }
 
+        /// <summary>
+        /// 对话选项前缀（如 "[威胁]"）。null = 无前缀。
+        /// 在 DialogueInjector.ResolveTransitionText 中自动拼接，PlayerLine 无需手写。
+        /// actionParam 用于同一 Intent 不同变体返回不同前缀（如 ResolveNpcSurrender accept/humiliate/ransom/refuse）。
+        /// </summary>
+        public virtual string GetDialoguePrefix(string actionParam = null) { return null; }
+
         /// <summary>对抗类附带的「献礼/出价」价值（喂进成功率公式）。默认 0（纯说服）。</summary>
         public virtual float GetOfferValue(IntentContext ctx) { return 0f; }
 

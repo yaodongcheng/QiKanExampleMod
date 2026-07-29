@@ -338,19 +338,19 @@ namespace LivingWorldNpcs
                 {
                     new()
                     {
-                        PlayerLine = r.Resolve("我愿意赔。你说个数。"),
+                        PlayerLine = "我愿意赔。你说个数。",
                         Action = "NONE",
                         NextNodeOnSuccess = "restitution_demand"
                     },
                     new()
                     {
-                        PlayerLine = "（讪笑）开个玩笑……刚才是我胡说的",
+                        PlayerLine = "开个玩笑……刚才是我胡说的",
                         CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:CharmDefense",
                         NextNodeOnSuccess = "charm_ok",
                         NextNodeOnFail = "charm_fail"
                     },
-                    new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    new() { PlayerLine = "转身就走", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             });
             nodes.Add(Node("charm_ok", r.Resolve("……说清楚？好，{SpeakerSelfRef}倒要听听。"), "continue_chat"));
@@ -381,7 +381,7 @@ namespace LivingWorldNpcs
                 LazyNpcLine = () => { evt?.RecordQuote(cost); return demandNpcLine; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = r.Resolve($"好，我赔（{cost} 第纳尔）", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = null, NextNodeOnSuccess = "restitution_pay_ack" },
+                    new() { PlayerLine = r.Resolve($"我愿意赔{cost}第纳尔。", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = null, NextNodeOnSuccess = "restitution_pay_ack" },
                     new() { PlayerLine = "太贵了，能便宜点吗？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:Settle", NextNodeOnSuccess = "restitution_haggle_ok", NextNodeOnFail = "restitution_haggle_fail" },
                     new() { PlayerLine = "太贵了，不赔。", Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
                 }
@@ -404,7 +404,7 @@ namespace LivingWorldNpcs
                 LazyNpcLine = () => { evt?.RecordQuote(haggleCost); return haggleNpcLine; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = r.Resolve($"行，就这个数。（{haggleCost} 第纳尔）", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = "haggle", NextNodeOnSuccess = "restitution_pay_ack" },
+                    new() { PlayerLine = r.Resolve($"行，就这个数——{haggleCost}第纳尔。", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = "haggle", NextNodeOnSuccess = "restitution_pay_ack" },
                     new() { PlayerLine = "还是太贵，不赔了。", Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
                 }
             });
@@ -539,13 +539,13 @@ namespace LivingWorldNpcs
                     },
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "你再说一遍？（手按在剑柄上）",
+                        PlayerLine = "你再说一遍？",
                         CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:Threat",
                         NextNodeOnSuccess = "confront_threat_ok",
                         NextNodeOnFail = "confront_threat_fail"
                     },
-                    new DialogueInjector.DialogueTransition { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    new DialogueInjector.DialogueTransition { PlayerLine = "转身就走", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             };
             nodes.Add(node);
@@ -889,8 +889,8 @@ namespace LivingWorldNpcs
                     // 非升级：始终可离开（升级时 WalkAwayIntent.OnInstant 有对应后果）
                     new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                     // 升级选项：运行时 Evaluate 门控（Stage<Active 时自动隐藏）
-                    new() { PlayerLine = "(威胁)谁拦着我就杀谁！", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
-                    new() { PlayerLine = r.Resolve("我认罚。（{AlertFineCost} 第纳尔）"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextNodeOnSuccess = "alert_esc_fine_ack" },
+                    new() { PlayerLine = "谁拦着我就杀谁！", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
+                    new() { PlayerLine = r.Resolve("我认罚，{AlertFineCost}第纳尔。"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextNodeOnSuccess = "alert_esc_fine_ack" },
                     new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
                 }
             });
@@ -966,42 +966,56 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>Deter 质问子树：驱离警告。transitions + ack nodes 自包含。</summary>
+        /// <summary>Deter 质问子树：驱离警告。两层递进设计。
+        /// Layer 1: 威胁 + 道歉（两个检定出口，没有免费离开）
+        /// Layer 2（道歉失败后）: 认罚 + 拔剑 + 坐牢
+        /// 对标 KCD2：被抓住后不能无代价脱身——要么检定过，要么付代价。</summary>
         static void BuildDeterSubtree(
             List<DialogueInjector.DialogueNode> nodes,
             PlaceholderResolver r,
             IntentContext ctx,
             string npcOpening)
         {
-            var action = ctx.TriggerAction;
-            var worldEvt = ctx.ActiveEvent;
-            string complyLine = action == PlayerActionType.WeaponDrawn
-                ? "好，我收起来。"
-                : "没什么，我这就走。";
-            var transitions = new List<DialogueInjector.DialogueTransition>
+            // ══ Layer 1: NPC 质问 → 威胁（高风险高回报）或 道歉（检定门控） ══
+            var layer1Transitions = new List<DialogueInjector.DialogueTransition>
             {
-                new() { PlayerLine = complyLine, Action = "INTENT:Comply", ActionParam = "comply", NextNodeOnSuccess = "alert_comply_ack" },
-                new() { PlayerLine = "关你什么事？（挑衅）", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:Threat", NextNodeOnSuccess = "alert_deter_threat_ok", NextNodeOnFail = "alert_deter_threat_fail" },
+                new() { PlayerLine = "关你什么事？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
+                        Action = "INTENT:Threat", NextNodeOnSuccess = "alert_deter_threat_ok", NextNodeOnFail = "alert_deter_threat_fail" },
+                new() { PlayerLine = "抱歉，可以放我走吗？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
+                        Action = "INTENT:Apologize", NextNodeOnSuccess = "alert_deter_apologize_ok", NextNodeOnFail = "alert_deter_apologize_fail" },
             };
-            if (worldEvt != null && worldEvt.Stage >= EventStage.Active)
-            {
-                transitions.Add(new() { PlayerLine = r.Resolve("我认罚。（{AlertFineCost} 第纳尔）"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextNodeOnSuccess = "alert_deter_fine_ack" });
-                transitions.Add(new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_deter_jail_ack" });
-            }
 
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
                 NpcLine = npcOpening,
-                Transitions = transitions
+                Transitions = layer1Transitions
             });
 
-            nodes.Add(Node("alert_comply_ack", r.Resolve(action == PlayerActionType.WeaponDrawn
-                ? "……别再让{SPEAKER_SELF}看见你在这拔{ITEM}。"
-                : "……别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。")));
+            // Layer 1 ack nodes
             nodes.Add(Node("alert_deter_threat_ok", r.Resolve("……算了。")));
             nodes.Add(Node("alert_deter_threat_fail", r.Resolve("来人！这有个闹事的！")));
+            nodes.Add(Node("alert_deter_apologize_ok", r.Resolve("……算你识相。别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。")));
+
+            // ══ Layer 2: 道歉失败 → NPC 拒绝，升级选项 ══
+            nodes.Add(new DialogueInjector.DialogueNode
+            {
+                Id = "alert_deter_apologize_fail",
+                NpcLine = r.Resolve("道歉有用的话，还要我们干什么？两条路——认罚，还是咱们换个方式解决。你选吧。"),
+                Transitions = new List<DialogueInjector.DialogueTransition>
+                {
+                    new() { PlayerLine = r.Resolve("我认罚，{AlertFineCost}第纳尔。"), Action = "INTENT:PayRestitution",
+                            ActionParam = "alert_fine", NextNodeOnSuccess = "alert_deter_fine_ack" },
+                    new() { PlayerLine = "谁拦着我就杀谁！", Action = "INTENT:FightVillagers",
+                            NextNodeOnSuccess = "alert_deter_fight_ack" },
+                    new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail",
+                            ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_deter_jail_ack" },
+                }
+            });
+
+            // Layer 2 ack nodes
             nodes.Add(Node("alert_deter_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
+            nodes.Add(Node("alert_deter_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
             nodes.Add(Node("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
         }
 
@@ -1019,9 +1033,9 @@ namespace LivingWorldNpcs
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextNodeOnSuccess = "search_result" },
-                    new() { PlayerLine = "凭什么翻我东西？（拒绝）", Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "recover_confront" },
+                    new() { PlayerLine = "凭什么翻我东西？", Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "recover_confront" },
                     new() { PlayerLine = "别查了，我赔你点钱。", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:PayRestitution", ActionParam = "bribe", NextNodeOnSuccess = "alert_search_bribe_ack", NextNodeOnFail = "alert_search_bribe_fail" },
-                    new() { PlayerLine = "（转身就走）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "alert_search_walk_ack" },
+                    new() { PlayerLine = "转身就走", Action = "INTENT:WalkAway", NextNodeOnSuccess = "alert_search_walk_ack" },
                 }
             });
 
@@ -1038,9 +1052,9 @@ namespace LivingWorldNpcs
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
-                    new() { PlayerLine = r.Resolve("好，我赔钱。（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
+                    new() { PlayerLine = r.Resolve("我愿意赔{RestitutionCost}第纳尔。"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
                     new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
-                    new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    new() { PlayerLine = "推开就跑", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             });
 
@@ -1071,9 +1085,9 @@ namespace LivingWorldNpcs
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
-                    new() { PlayerLine = r.Resolve("好，我赔钱。（{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
+                    new() { PlayerLine = r.Resolve("我愿意赔{RestitutionCost}第纳尔。"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
                     new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
-                    new() { PlayerLine = "（推开就跑）", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    new() { PlayerLine = "推开就跑", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             });
 
@@ -1097,9 +1111,9 @@ namespace LivingWorldNpcs
                 LazyNpcLine = () => { evt?.RecordQuote(quoted); return npcOpening; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = r.Resolve("(赔钱)我愿意付{RestitutionCost} 第纳尔）"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_stop_pay_ack" },
-                    new() { PlayerLine = r.Resolve("(魅惑)他先惹我的。"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_stop_charm_ok", NextNodeOnFail = "alert_stop_charm_fail" },
-                    new() { PlayerLine = r.Resolve("(威胁)谁拦着我就杀谁！"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_stop_fight_ack" },
+                    new() { PlayerLine = r.Resolve("我愿意付{RestitutionCost}第纳尔。"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_stop_pay_ack" },
+                    new() { PlayerLine = r.Resolve("他先惹我的。"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_stop_charm_ok", NextNodeOnFail = "alert_stop_charm_fail" },
+                    new() { PlayerLine = r.Resolve("谁拦着我就杀谁！"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_stop_fight_ack" },
                 }
             });
 
@@ -1183,7 +1197,7 @@ namespace LivingWorldNpcs
                         {
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = $"……（交出 {baseRansom} 第纳尔）",
+                                PlayerLine = $"……交出{baseRansom}第纳尔。",
                                 Action = "INTENT:PlayerSurrenderPay",
                                 ActionParam = "pay",
                                 NextNodeOnSuccess = "surrender_pay_ack"
@@ -1221,14 +1235,14 @@ namespace LivingWorldNpcs
                         {
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = $"……（交出 {counterRansom} 第纳尔）",
+                                PlayerLine = $"……交出{counterRansom}第纳尔。",
                                 Action = "INTENT:PlayerSurrenderPay",
                                 ActionParam = "counteroffer_beg",
                                 NextNodeOnSuccess = "surrender_counter_ack"
                             },
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "（拼死一战）",
+                                PlayerLine = "拼死一战",
                                 Action = "INTENT:FightOn",
                                 NextNodeOnSuccess = "surrender_fight_ack"
                             }
