@@ -21,13 +21,13 @@ namespace LivingWorldNpcs
         /// </summary>
         public static string Resolve(string templateId, Hero speaker, Hero listener = null,
             WorldEvent evt = null, string targetName = null, string itemName = null,
-            NarrativeFilters narrativeFallback = null)
+            NarrativeFilters narrativeFallback = null, CharacterObject speakerCharacter = null)
         {
             // ① 查 NpcSpeech.csv 取模板文本
             string template = LookupTemplate(templateId);
             if (!string.IsNullOrEmpty(template))
             {
-                var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName);
+                var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName, speakerCharacter);
                 return r.Resolve(template);
             }
 
@@ -37,7 +37,7 @@ namespace LivingWorldNpcs
                 string narrativeText = NarrativeResolver.TryResolveText(narrativeFallback);
                 if (!string.IsNullOrEmpty(narrativeText))
                 {
-                    var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName);
+                    var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName, speakerCharacter);
                     return r.Resolve(narrativeText);
                 }
             }

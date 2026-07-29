@@ -1029,6 +1029,7 @@ namespace LivingWorldNpcs
                     // 若等到 StartConversation 返回后才设，Prefix 只能看到
                     // MissionConversationLogic.ConversationAgent 的过期值（如刚被打晕的 NPC）。
                     ActiveConversationAgent = agent;
+                    DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) ActiveConversationAgent 设置成功");
                     conversationLogic.StartConversation(agent, true, false);
                     _started = true;
                     DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 对话启动成功");
@@ -1042,7 +1043,7 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 ActiveConversationAgent = null; // 启动失败 → 清理，防止残留
-                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动异常: {ex.Message}");
+                DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动异常: {ex.Message} ActiveConversationAgent 变成null");
                 AgentHudMissionView.AgentSay(agent, "喂！说你呢！");
             }
         }
@@ -1067,8 +1068,12 @@ namespace LivingWorldNpcs
             {
                 // Patch 已广播 EndInteraction → ClearAllActions 会调到这。
                 // 这里只清理残留状态，不再重复广播。
+
                 if (ActiveConversationAgent == agent)
+                {
+                    DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) ActiveConversationAgent OnEnd清理成功");
                     ActiveConversationAgent = null;
+                }
             }
         }
     }

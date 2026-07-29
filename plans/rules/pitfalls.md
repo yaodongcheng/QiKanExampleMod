@@ -231,3 +231,29 @@ if (agent.Team != null && agent.Team.IsValid   // IsValid => MBTeam.Index >= 0�
 
 - 落地范例：`Interaction/Intents/IntentContext.cs`（ctor 士兵敌对判定）、`Combat/AttackTriggerMissionLogic.cs`（OnAgentHit 两处）、`Combat/CombatManager.cs`（仇恨锁定）。
 - 无效 Team 的语义兜底：按中立处理（非敌非友），符合"未被激怒前非敌"的直觉。
+
+---
+
+## PowerShell `Set-Content` 不指定 `-Encoding utf8` → 中文乱码
+
+**症状**
+- `Set-Content` / `Out-File` 写入 C# 文件后，所有中文字符（注释、字符串字面量）变成乱码（`����` / mojibake）。
+- `git diff` 里 `-` 行中文正常、`+` 行乱码 —— 文件已被重编码为系统 ANSI codepage（中文 Windows = GBK）。
+- `Read` 工具看到的也是乱码。
+
+**根因**
+- Windows PowerShell 5.1 中 `Set-Content` / `Add-Content` **默认使用系统 ANSI codepage**（中文 Windows = GBK/CP936），而非 UTF-8。
+- `Out-File` 默认 UTF-8 with BOM，但也可能在不带参数时走系统 codepage。
+- 项目 C# 文件全部是 **UTF-8** 编码，一旦被 `Set-Content`（无 `-Encoding`）写入 → GBK 编码 → 中文字节不可逆损坏。
+- `[System.IO.File]::WriteAllLines(path, lines, [System.Text.Encoding]::UTF8)` 也有坑：Windows PowerShell 5.1 中不带 BOM 的 UTF-8 写入，`git diff` 可能把整个文件标为修改（行尾/编码差异）。
+
+**规避**
+- **任何写文件的 PowerShell 命令，一律显式加 `-Encoding utf8`**：
+  ```powershell
+  $content | Set-Content -Path $file -Encoding utf8 -NoNewline
+  $content | Out-File -FilePath $file -Encoding utf8
+  ```
+- **编辑包含中文的文件时，绝对不要用 PowerShell**，用 `Edit` 工具（它保留原文件编码不变）。
+- **如果已经损坏**：`git restore <file>` 恢复（已跟踪文件）；或 `git show HEAD:<path> > file`（新文件）。
+- ⚠️ 注意 `>` 重定向在 PowerShell 5.1 中默认 **UTF-16 LE**！用 `git show HEAD:path | Out-File -Encoding utf8 file.cs` 代替。
+- 2026-07-29 实踩此坑：对 `ConversationEntryPatch.cs` 跑 `Set-Content` 未加 `-Encoding utf8` → 全文中文变乱码 → 只得 `git restore` 后重新 Edit 逐块应用。

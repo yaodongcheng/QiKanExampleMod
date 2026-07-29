@@ -519,7 +519,7 @@ namespace LivingWorldNpcs
             var entryNode = script.Nodes.FirstOrDefault(t => t.Id == script.EntryNode);
             if (entryNode == null)
             {
-                DebugLogger.Log($"[DialogueInjector] InjectScriptNoOpening: entry node '{script.EntryNode}' not found");
+                DebugLogger.Log($"[DialogueInjector] InjectScriptNoOpening 异常: entry node '{script.EntryNode}' not found");
                 return;
             }
 
@@ -528,7 +528,7 @@ namespace LivingWorldNpcs
                 // NPC 台词直接挂在 startToken，优先级 200 碾压原版开场白
                 string afterNpcLine = NextToken(fileTag);
                 AddNodeNpcLine(cm, $"inj_open_{entryNode.Id}", startToken, afterNpcLine, entryNode, 200);
-                DebugLogger.Log($"[DialogueInjector] Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
+                DebugLogger.Log($"[DialogueInjector] 跳过原版Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
 
                 // 注册入口 node 的玩家选项
                 RegisterNodeTransitions(cm, entryNode, afterNpcLine, fileTag, owner);

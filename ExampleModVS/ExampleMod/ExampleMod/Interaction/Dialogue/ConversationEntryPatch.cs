@@ -129,10 +129,17 @@ namespace LivingWorldNpcs
         /// 供 CampaignMapConversation.OpenConversation（交谈）和
         /// MissionConversationLogic.StartConversation（造访）两路调用。
         /// </summary>
-        internal static void TryInjectCrimeDialogue(Hero partner)
+        /// <param name="partner">对话对象的 Hero（模板 NPC 为 null）</param>
+        /// <param name="agent">对话对象的 Agent（Mission 内非 null；大地图对话为 null）。
+        /// Hero 为 null 时从 Agent 提取 CharacterObject 做身份识别（dedup key、{SPEAKER} 占位符解析）。
+        /// Agent.Name/Agent.Index 保证即使 Character 为 null 也有唯一标识。</param>
+        internal static void TryInjectCrimeDialogue(Hero partner, Agent agent = null)
         {
             try
             {
+                // 从 Agent 提取 CharacterObject（模板 NPC 的身份回退源）
+                CharacterObject character = agent?.Character as CharacterObject;
+
                 // ── 1. 查找关联 WorldEvent（两层：持久化存储 + Mission 作用域）──
                 Settlement settlement = Settlement.CurrentSettlement
                     ?? partner?.CurrentSettlement
@@ -150,14 +157,6 @@ namespace LivingWorldNpcs
                 var confrontation = _pendingConfrontation;
                 var triggerAction = _pendingTriggerAction;
 
-                // 模板 NPC Alert：TryInjectCrimeDialogue 无法在 start token 注入（无 hero_main_options），
-                // 不消费 trigger，留给 AlertScriptDeferredInjectionPatch（ProcessSentence Postfix）延迟处理。
-                if (trigger == DialogueTrigger.Alert && partner == null)
-                {
-                    DebugLogger.Log($"[ConvEntry] Alert trigger with template NPC — deferring to ProcessSentence deferred injection.");
-                    return;
-                }
-
                 _pendingTrigger = DialogueTrigger.Normal;
                 _pendingConfrontation = default;
                 _pendingTriggerAction = default;
@@ -170,7 +169,7 @@ namespace LivingWorldNpcs
                         // 无 WorldEvent 的纯警戒质问（玩家蹲下/拔刀被看见，但尚未造成犯罪事件）。
                         // BuildAlertInterceptScriptInternal 内部用无 evt 的 PlaceholderResolver 构造器，
                         // {CRIME} 等占位符回落空串，对话仍然正常注入。
-                        DebugLogger.Log($"[ConvEntry] Alert trigger without WorldEvent — proceeding with generic confrontation.");
+                        DebugLogger.Log($"[ConvEntry] 没有事件时发起的质问 Alert trigger without WorldEvent — proceeding with generic confrontation.");
                     }
                     else
                     {
@@ -181,7 +180,7 @@ namespace LivingWorldNpcs
                     }
                 }
 
-                // ── 4. 无事件 + Normal trigger → 清理退出（Alert 已在步骤 3 放行，继续往下）──
+                // ── 4. 无事件 + Normal trigger → 清理上次注入残留，退出 ──
                 if (evt == null && trigger == DialogueTrigger.Normal)
                 {
                     if (_lastInjectedTag != null)
@@ -194,7 +193,11 @@ namespace LivingWorldNpcs
                 }
 
                 // ── 5. 防重复注入 ──
-                string partnerKey = partner?.StringId ?? "(template)";
+                // 身份回退链：Hero.StringId → CharacterObject.StringId → Agent.Index → "(template)"
+                string partnerKey = partner?.StringId
+                    ?? character?.StringId
+                    ?? agent?.Index.ToString()
+                    ?? "(template)";
                 string eventKey = evt?.EventId ?? "no_event";
                 if (_lastInjectedEventId == eventKey + "_" + partnerKey)
                     return;
@@ -204,15 +207,15 @@ namespace LivingWorldNpcs
                 DialogueInjector.RemoveRelatedLines(tag);
 
                 var script = CrimeDialogueBuilder.BuildScript(
-                    partner, Hero.MainHero, evt, trigger, confrontation, triggerAction);
+                    partner, Hero.MainHero, evt, trigger, confrontation, triggerAction, character);
 
                 if (script != null && script.Nodes?.Count > 0)
                 {
                     DialogueInjector.InjectScript(script, tag);
                     _lastInjectedEventId = eventKey + "_" + partnerKey;
                     _lastInjectedTag = tag;
-                    DebugLogger.Log($"[ConvEntry] Injected dialogue: event={eventKey} stage={evt?.Stage.ToString() ?? "none"} " +
-                        $"trigger={trigger} partner={partner?.Name?.ToString() ?? "(template)"} nodes={script.Nodes.Count}");
+                    DebugLogger.Log($"[ConvEntry] 注入对话执行成功 Injected dialogue: event={eventKey} stage={evt?.Stage.ToString() ?? "none"} " +
+                        $"trigger={trigger} partner={partner?.Name?.ToString() ?? character?.Name?.ToString() ?? agent?.Name?.ToString() ?? "(template)"} nodes={script.Nodes.Count}");
                 }
             }
             catch (Exception ex)
@@ -324,6 +327,7 @@ namespace LivingWorldNpcs
                 var alertAgent = AlertForceConversationAction.ActiveConversationAgent;
                 if (alertAgent != null)
                 {
+                    DebugLogger.Log($"[AlertForceConv] {alertAgent.Name}(Idx={alertAgent.Index}) ActiveConversationAgent 清空成功");
                     AlertForceConversationAction.ActiveConversationAgent = null;
                 }
 
@@ -594,7 +598,7 @@ namespace LivingWorldNpcs
                         if (CrimeDialogueBuilder.NeedsEarlyInjection(normalHero, ev))
                         {
                             DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting confrontation (Normal trigger, SkipVanillaOpening) partner={normalHero.Name}");
-                            ConversationEntryPatch.TryInjectCrimeDialogue(normalHero);
+                            ConversationEntryPatch.TryInjectCrimeDialogue(normalHero, effectiveAgent);
                         }
                     }
                     return;
@@ -602,7 +606,7 @@ namespace LivingWorldNpcs
 
                 var character = effectiveAgent?.Character as CharacterObject;
                 DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting for trigger={trigger} partner={character?.Name?.ToString() ?? "(template)"}");
-                ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject);
+                ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject, effectiveAgent);
             }
             catch (Exception ex)
             {
@@ -615,20 +619,13 @@ namespace LivingWorldNpcs
         {
             try
             {
-                // ── 全局质问锁（兜底）：Prefix 中可能因 MissionConversationLogic.ConversationAgent
-                // 尚未就位而跳过。Postfix 中原版 StartConversation 已执行完毕。
-                // Alert trigger 同样取 ActiveConversationAgent（避免 ConversationAgent 过期）。
+                // Postfix 注入对带开场白的 NPC（如村庄头人）至关重要：
+                // Prefix 注入抢占 start token 后，Postfix 补充注入 hero_main_options 的 gateway 入口句。
+                // 若无此段，原版开场白播完后玩家选项不显示（引擎已走过 hero_main_options 但未找到注入句）。
                 var trigger = ConversationEntryPatch._pendingTrigger;
                 Agent effectiveAgent;
-                if (trigger == DialogueTrigger.Alert)
-                {
-                    effectiveAgent = AlertForceConversationAction.ActiveConversationAgent
-                        ?? __instance.ConversationAgent;
-                }
-                else
-                {
-                    effectiveAgent = __instance.ConversationAgent;
-                }
+
+                effectiveAgent = AlertForceConversationAction.ActiveConversationAgent ?? __instance.ConversationAgent;
 
                 // 仅当 Prefix 未设置 ConfrontingBrain 时才设置（避免覆盖 Prefix 的正确值）
                 if (AgentBrain.ConfrontingBrain == null && effectiveAgent != null)
@@ -641,8 +638,8 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"重要错误，一定要关注：[ConvLock] Postfix: effectiveAgent is null, cannot acquire lock.");
                 }
 
-                var character = effectiveAgent?.Character as CharacterObject;
-                ConversationEntryPatch.TryInjectCrimeDialogue(character?.HeroObject);
+                var heroObject = (effectiveAgent?.Character as CharacterObject)?.HeroObject;
+                ConversationEntryPatch.TryInjectCrimeDialogue(heroObject, effectiveAgent);
             }
             catch (Exception ex)
             {
@@ -742,9 +739,10 @@ namespace LivingWorldNpcs
                     : null;
 
                 // 统一走 BuildScript 构建脚本
+                var speakerCharacter = agent?.Character as CharacterObject;
                 var script = CrimeDialogueBuilder.BuildScript(
                     speaker, Hero.MainHero, evt,
-                    DialogueTrigger.Alert, confrontation, triggerAction);
+                    DialogueTrigger.Alert, confrontation, triggerAction, speakerCharacter);
 
                 if (script == null)
                 {
