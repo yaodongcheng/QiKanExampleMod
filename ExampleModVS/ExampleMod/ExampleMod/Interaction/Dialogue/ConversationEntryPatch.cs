@@ -207,7 +207,7 @@ namespace LivingWorldNpcs
                 DialogueInjector.RemoveRelatedLines(tag);
 
                 var script = CrimeDialogueBuilder.BuildScript(
-                    partner, Hero.MainHero, evt, trigger, confrontation, triggerAction, character);
+                    partner, Hero.MainHero, evt, trigger, confrontation, triggerAction, character, speakerAgent: agent);
 
                 if (script != null && script.Nodes?.Count > 0)
                 {
@@ -737,7 +737,7 @@ namespace LivingWorldNpcs
                 var speakerCharacter = agent?.Character as CharacterObject;
                 var script = CrimeDialogueBuilder.BuildScript(
                     speaker, Hero.MainHero, evt,
-                    DialogueTrigger.Alert, confrontation, triggerAction, speakerCharacter);
+                    DialogueTrigger.Alert, confrontation, triggerAction, speakerCharacter, speakerAgent: agent as Agent);
 
                 if (script == null)
                 {

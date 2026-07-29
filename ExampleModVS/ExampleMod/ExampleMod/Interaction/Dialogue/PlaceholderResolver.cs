@@ -84,8 +84,8 @@ namespace LivingWorldNpcs
             {
                 var key = match.Groups[1].Value;
                 var value = ResolveOne(key);
-                if (value == null) unresolved.Add(key);
-                return value ?? match.Value;
+                if (string.IsNullOrEmpty(value)) unresolved.Add(key);
+                return !string.IsNullOrEmpty(value) ? value : match.Value;
             });
             string phase = LogPhaseTag != null ? $"[{LogPhaseTag}]" : "";
             if (!string.IsNullOrEmpty(context))
