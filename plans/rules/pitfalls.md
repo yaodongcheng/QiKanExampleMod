@@ -257,3 +257,36 @@ if (agent.Team != null && agent.Team.IsValid   // IsValid => MBTeam.Index >= 0�
 - **如果已经损坏**：`git restore <file>` 恢复（已跟踪文件）；或 `git show HEAD:<path> > file`（新文件）。
 - ⚠️ 注意 `>` 重定向在 PowerShell 5.1 中默认 **UTF-16 LE**！用 `git show HEAD:path | Out-File -Encoding utf8 file.cs` 代替。
 - 2026-07-29 实踩此坑：对 `ConversationEntryPatch.cs` 跑 `Set-Content` 未加 `-Encoding utf8` → 全文中文变乱码 → 只得 `git restore` 后重新 Edit 逐块应用。
+
+---
+
+## `ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker)` 模板 NPC 为 null → NRE
+
+**症状**
+- `System.NullReferenceException` 抛在 `TaleWorlds.CampaignSystem.GameComponents.DefaultDiplomacyModel.GetHeroesForEffectiveRelation` 内部。
+- 堆栈追溯到 `ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, ...)` 调用，`ctx.Speaker` 为 null。
+- 触发场景：与模板 NPC（村民/守卫等无 HeroObject 的 CharacterObject）对话中，Intent 的 OnSuccess/OnFail/OnInstant 裸调 `ApplyPlayerRelation`。
+
+**根因**
+- 模板 NPC 的 `CharacterObject.HeroObject == null`，`IntentContext.Speaker` 为 null。
+- `ChangeRelationAction.ApplyPlayerRelation(Hero, int)` 第一个参数不能为 null——底层 `GetHeroesForEffectiveRelation` 会直接 NRE。
+- 铁律 8 要求所有互动入口兼容模板 NPC，但 `ApplyPlayerRelation` 只对 Hero 有意义（模板 NPC 无好感度系统）。
+
+**规避**
+- 任何 `ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, ...)` 调用前必须 null guard：
+  ```csharp
+  if (ctx.Speaker != null)
+      ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
+  ```
+- 或用 C# 模式匹配：
+  ```csharp
+  var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+  if (npc is Hero n)
+      ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
+  ```
+- 模板 NPC 没有好感度系统，跳过关系惩罚是合理的——惩罚通过其他机制体现（事件升级、Infamy 等）。
+- 新增 Intent 时检查所有 `ApplyPlayerRelation` / `ApplyInternal` 调用是否已 null guard。
+- 落地范例：`AccountabilityIntents.cs` 里 `CharmDefenseIntent.OnFail` 曾裸调 → 加 `if (ctx.Speaker != null)` 守卫（2026-07-29 实踩）。
+
+**全量扫描结论**（2026-07-29）：
+- 项目 35 处 `ApplyPlayerRelation` 调用中仅此一处漏守卫。其余已通过 `if (ctx.Speaker != null)` / `if (npc is Hero n)` / `if (authority != null)` / `Evaluate` 的 `IsHero` 检查覆盖。
