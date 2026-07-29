@@ -212,15 +212,59 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 调试日志：打印 DialogueInjectScript 完整结构（每个 node 的 NPC 台词 + 选项）。
         /// 供各调用方（CrimeDialogueBuilder、AtomicAction 等）在注入前/后排查对话图。
+        ///
+        /// 打印顺序 = 对话流向（从 EntryNode 出发沿 Transition 边 DFS），而非 nodes 列表的构建顺序。
+        /// 构建顺序是"子树先建、入口后 Add"（如 BuildDiscoveryNode 先 BuildConfessSubtree 再 Add injectedStart），
+        /// 直接按下标打印会把入口节点埋到列表中间。功能上注入按 Id 链接，与列表顺序无关。
+        /// 不可达的孤儿节点按原顺序附在最后，不静默丢弃。
         /// </summary>
         /// <param name="script">要打印的脚本</param>
         /// <param name="label">日志前缀，如 "[CrimeDialog]" / "[AlertForceConv]"</param>
         public static void LogScript(DialogueInjectScript script, string label)
         {
             if (script?.Nodes == null) return;
-            for (int ti = 0; ti < script.Nodes.Count; ti++)
+
+            // ── 从 EntryNode 沿 Transition 边 DFS，排出对话流向顺序 ──
+            var byId = new Dictionary<string, DialogueNode>();
+            foreach (var n in script.Nodes)
+                if (n?.Id != null && !byId.ContainsKey(n.Id))
+                    byId[n.Id] = n;
+
+            var ordered = new List<DialogueNode>();
+            var visited = new HashSet<string>();
+            var stack = new Stack<DialogueNode>();
+            DialogueNode entry = null;
+            if (!string.IsNullOrEmpty(script.EntryNode))
+                byId.TryGetValue(script.EntryNode, out entry);
+            stack.Push(entry ?? (script.Nodes.Count > 0 ? script.Nodes[0] : null));
+
+            while (stack.Count > 0)
             {
-                var t = script.Nodes[ti];
+                var node = stack.Pop();
+                if (node?.Id == null || !visited.Add(node.Id)) continue;
+                ordered.Add(node);
+                if (node.Transitions == null) continue;
+                // 逆序压栈 → 弹栈时选项按列表原序展开；同一选项内失败边先压、成功边后压 → 成功分支先打印
+                for (int i = node.Transitions.Count - 1; i >= 0; i--)
+                {
+                    var tr = node.Transitions[i];
+                    if (tr.CheckType == TransitionCheckType.SkillCheck
+                        && !string.IsNullOrEmpty(tr.NextNodeOnFail)
+                        && byId.TryGetValue(tr.NextNodeOnFail, out var failNode))
+                        stack.Push(failNode);
+                    if (!string.IsNullOrEmpty(tr.NextNodeOnSuccess)
+                        && byId.TryGetValue(tr.NextNodeOnSuccess, out var okNode))
+                        stack.Push(okNode);
+                }
+            }
+            // 不可达节点（孤儿）附最后
+            foreach (var n in script.Nodes)
+                if (n != null && (n.Id == null || !visited.Contains(n.Id)))
+                    ordered.Add(n);
+
+            for (int ti = 0; ti < ordered.Count; ti++)
+            {
+                var t = ordered[ti];
                 string lazyTag = t.LazyNpcLine != null ? " [Lazy]" : "";
                 DebugLogger.Log($"{label} Turn[{ti}] id={t.Id} NpcLine=\"{t.NpcLine}\"{lazyTag}");
                 if (t.Transitions == null) continue;

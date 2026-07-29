@@ -60,6 +60,13 @@ namespace LivingWorldNpcs
             ItemName = itemName;
         }
 
+        /// <summary>
+        /// 日志阶段标签（静态环境量）。非 null 时 [Placeholder] 日志会带上此前缀，
+        /// 用于区分「对话预填充」（BuildScript 在对话开启时一次性构建整棵对话树、批量解析所有分支）
+        /// 与运行时的零星解析。由 CrimeDialogueBuilder.BuildScript 进入时设置、退出时还原（try/finally）。
+        /// </summary>
+        public static string LogPhaseTag;
+
         /// <summary>解析模板中的所有占位符。未解析的保留原样并记日志。传 context 时同时打印模板→结果。</summary>
         public string Resolve(string template, string context = "")
         {
@@ -73,15 +80,16 @@ namespace LivingWorldNpcs
                 if (value == null) unresolved.Add(key);
                 return value ?? match.Value;
             });
+            string phase = LogPhaseTag != null ? $"[{LogPhaseTag}]" : "";
             if (!string.IsNullOrEmpty(context))
             {
                 int maxLen = 120;
                 string tpl = template.Length > maxLen ? template.Substring(0, maxLen) + "…" : template;
                 string res = result.Length > maxLen ? result.Substring(0, maxLen) + "…" : result;
-                DebugLogger.Log($"[Placeholder] {context}: \"{tpl}\" → \"{res}\"");
+                DebugLogger.Log($"[Placeholder]{phase} {context}: \"{tpl}\" → \"{res}\"");
             }
             if (unresolved.Count > 0)
-                DebugLogger.Log($"[Placeholder] UNRESOLVED in '{context}': {string.Join(", ", unresolved)}");
+                DebugLogger.Log($"[Placeholder]{phase} UNRESOLVED in '{context}': {string.Join(", ", unresolved)}");
             return result;
         }
 
