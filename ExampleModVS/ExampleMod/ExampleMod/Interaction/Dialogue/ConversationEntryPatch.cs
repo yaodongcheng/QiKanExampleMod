@@ -149,8 +149,7 @@ namespace LivingWorldNpcs
                 WorldEvent evt = null;
                 if (settlement != null)
                 {
-                    evt = WorldEventStore.FindActive(settlement.StringId)
-                        ?? AgentAIController.Instance?.PendingWorldEvent;
+                    evt = WorldEventStore.FindActive(settlement.StringId);
                 }
 
                 // ── 2. 消费 trigger ──
@@ -593,10 +592,7 @@ namespace LivingWorldNpcs
                         var st = Settlement.CurrentSettlement
                             ?? normalHero.CurrentSettlement
                             ?? Hero.MainHero?.CurrentSettlement;
-                        var ev = st != null
-                            ? (WorldEventStore.FindActive(st.StringId)
-                                ?? AgentAIController.Instance?.PendingWorldEvent)
-                            : null;
+                        var ev = st != null ? WorldEventStore.FindActive(st.StringId) : null;
                         if (CrimeDialogueBuilder.NeedsEarlyInjection(normalHero, ev))
                         {
                             DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting confrontation (Normal trigger, SkipVanillaOpening) partner={normalHero.Name}");
@@ -735,10 +731,7 @@ namespace LivingWorldNpcs
                 var settlement = Settlement.CurrentSettlement
                     ?? speaker?.CurrentSettlement
                     ?? Hero.MainHero?.CurrentSettlement;
-                var evt = settlement != null
-                    ? (WorldEventStore.FindActive(settlement.StringId)
-                        ?? AgentAIController.Instance?.PendingWorldEvent)
-                    : null;
+                var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
 
                 // 统一走 BuildScript 构建脚本
                 var speakerCharacter = agent?.Character as CharacterObject;

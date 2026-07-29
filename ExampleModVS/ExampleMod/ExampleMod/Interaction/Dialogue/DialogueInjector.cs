@@ -792,10 +792,7 @@ namespace LivingWorldNpcs
                     // OneToOneConversationHero 为 null，但 Settlement.CurrentSettlement
                     // 在 Mission 场景中会被正确设置。
                     var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
-                    var evt = settlement != null
-                        ? (WorldEventStore.FindActive(settlement.StringId)
-                            ?? AgentAIController.Instance?.PendingWorldEvent)
-                        : null;
+                    var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
 
                     // 🆕 从 ConversationManager 获取当前对话的 Agent（与 ExecuteIntentAction 同模式）
                     Agent partnerAgent = null;

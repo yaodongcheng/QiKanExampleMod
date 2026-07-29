@@ -877,23 +877,38 @@ namespace LivingWorldNpcs
         public static int TotalEventCount => _allEvents.Count;
         public static int ActiveEventCount => _allEvents.Count(e => e.IsActive);
 
-        /// <summary>查找指定定居点的活跃事件（同村同时最多一个活跃案件）</summary>
+        /// <summary>查找指定定居点的活跃事件（同村同时最多一个活跃案件）。
+        /// 自动包含 PendingWorldEvent 兜底——调用方无需手动组合双源查找。</summary>
         public static WorldEvent FindActive(string settlementId)
         {
             return _allEvents.FirstOrDefault(e =>
                 e.TargetSettlementId == settlementId &&
                 e.Stage != EventStage.Resolved &&
-                e.Stage != EventStage.Unsolved);
+                e.Stage != EventStage.Unsolved)
+                ?? MatchPending(settlementId);
         }
 
-        /// <summary>查找指定定居点 + 类型的活跃事件。同村可同时存在多种类型（Misconduct + Theft_Animal 等）。</summary>
+        /// <summary>查找指定定居点 + 类型的活跃事件。同村可同时存在多种类型（Misconduct + Theft_Animal 等）。
+        /// 自动包含 PendingWorldEvent 兜底——调用方无需手动组合双源查找。</summary>
         public static WorldEvent FindActive(string settlementId, EventType type)
         {
             return _allEvents.FirstOrDefault(e =>
                 e.TargetSettlementId == settlementId &&
                 e.Type == type &&
                 e.Stage != EventStage.Resolved &&
-                e.Stage != EventStage.Unsolved);
+                e.Stage != EventStage.Unsolved)
+                ?? MatchPending(settlementId, type);
+        }
+
+        /// <summary>PendingWorldEvent 兜底匹配：Mission 内刚检测到、尚未持久化的事件。</summary>
+        private static WorldEvent MatchPending(string settlementId, EventType? type = null)
+        {
+            var pending = AgentAIController.Instance?.PendingWorldEvent;
+            if (pending == null) return null;
+            if (pending.TargetSettlementId != settlementId) return null;
+            if (pending.Stage == EventStage.Resolved || pending.Stage == EventStage.Unsolved) return null;
+            if (type.HasValue && pending.Type != type.Value) return null;
+            return pending;
         }
 
         /// <summary>按 EventId 查找</summary>
