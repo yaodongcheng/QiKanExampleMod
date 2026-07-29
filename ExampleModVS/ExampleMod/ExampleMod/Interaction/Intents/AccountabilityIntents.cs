@@ -254,7 +254,9 @@ namespace LivingWorldNpcs
             base.OnFail(ctx);
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
-            ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
+            // 模板 NPC（村民/守卫等无 HeroObject）没有好感度系统，跳过关系惩罚
+            if (ctx.Speaker != null)
+                ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
             WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你还想狡辩，被当场驳了回来");
             DebugLogger.Log($"[Accountability] Charm defense failed for {evt.EventId} — → Confrontation");
             var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
@@ -822,6 +824,10 @@ namespace LivingWorldNpcs
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) { DebugLogger.Log($"[IntentEval] FightVillagers → Hide (no event)"); return Eligibility.Hide(); }
+            // 只在真正对峙阶段（Active/Confrontation）才显示——局势缓和后玩家想动手可以直接
+            // 关对话拔武器，不需要对话选项里多一个"拔剑"。CharmDefense 成功后 Stage→Emerging，
+            // 此时 NPC 已经接受了解释，再摆个"拔剑"选项反而破坏沉浸感。
+            if (ctx.ActiveEvent.Stage < EventStage.Active) { DebugLogger.Log($"[IntentEval] FightVillagers → Hide (stage={ctx.ActiveEvent.Stage} < Active)"); return Eligibility.Hide(); }
             DebugLogger.Log($"[IntentEval] FightVillagers → Show");
             return Eligibility.Show();
         }

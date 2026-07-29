@@ -869,23 +869,28 @@ namespace LivingWorldNpcs
 
             BuildAlertTransitionsSubtree(nodes, r, ctx, npcOpening);
 
-            // continue_chat — 阶段 >= Active 时无退路
-            bool escalated = worldEvt != null && worldEvt.Stage >= EventStage.Active;
+            // continue_chat — 始终注册全部选项（升级 + 非升级），运行时 Evaluate 门控。
+            // 不再在构建时分叉：对话开始后事件阶段可能变化（如 CharmDefense 成功 → Emerging），
+            // 需要运行时根据当前事件状态决定哪些选项可见。
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "continue_chat",
-                NpcLine = escalated ? "最后一次警告——别逼我叫人！" : "还有什么想说的？",
-                Transitions = escalated
-                    ? new List<DialogueInjector.DialogueTransition>
-                    {
-                        new() { PlayerLine = "（拔剑）谁敢拦我！", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
-                        new() { PlayerLine = r.Resolve("我认罚。（{AlertFineCost} 第纳尔）"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextNodeOnSuccess = "alert_esc_fine_ack" },
-                        new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
-                    }
-                    : new List<DialogueInjector.DialogueTransition>
-                    {
-                        new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" }
-                    }
+                LazyNpcLine = () =>
+                {
+                    var st = Settlement.CurrentSettlement;
+                    var evt = st != null ? WorldEventStore.FindActive(st.StringId) : null;
+                    bool escalated = evt != null && evt.Stage >= EventStage.Active;
+                    return escalated ? "最后一次警告——别逼我叫人！" : "还有什么想说的？";
+                },
+                Transitions = new List<DialogueInjector.DialogueTransition>
+                {
+                    // 非升级：始终可离开（升级时 WalkAwayIntent.OnInstant 有对应后果）
+                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    // 升级选项：运行时 Evaluate 门控（Stage<Active 时自动隐藏）
+                    new() { PlayerLine = "（拔剑）谁敢拦我！", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
+                    new() { PlayerLine = r.Resolve("我认罚。（{AlertFineCost} 第纳尔）"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextNodeOnSuccess = "alert_esc_fine_ack" },
+                    new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
+                }
             });
             // Escalated ack nodes
             nodes.Add(Node("alert_esc_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
