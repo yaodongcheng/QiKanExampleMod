@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -76,7 +78,7 @@ namespace LivingWorldNpcs
         private const float ResultFlashSeconds = 0.1f;          // 结果闪现时长（缩放秒——慢动作 0.35× 下 ≈0.3 真实秒；勿超 1，否则染色而非闪烁）
         private const float NoisePulseCooldown = 0.5f;          // 撬锁噪音脉冲节流（防连按刷爆）
         private const float NormalHitVictimAlert = 0.35f;       // 普通命中：受害者警戒脉冲
-        private const float MissVictimAlert = 1.0f;             // 失误：受害者警戒脉冲
+        private const float MissVictimAlert = 3.0f;             // 失误：受害者警戒脉冲（红区手滑 → 立刻 Alarmed）
         private const float NoiseWitnessAlert = 0.5f;           // 撬锁失误：目击者警戒脉冲
         private const float PurseChance = 0.35f;                // 扒窃盲盒摸到钱袋的概率（身上有钱时）
         private const float AnimalLargeTierFactor = 0.6f;       // 大动物（猪/羊/牛）判定区定价：右扣 40%（小动物 1.0 不扣）
@@ -453,13 +455,17 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
+                        brain?.SetPulseTarget(PlayerActionType.Steal, _target?.Name?.ToString(), $"{gold} 第纳尔", _target?.Index ?? -1);
                         brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
+                        PulsePickpocketWitnesses("gold", $"{gold} 第纳尔");
                         FlashResult($"得手了:{gold} 第纳尔", ZoneColorSuccess, MsgColorSuccess);
-                        DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（+{NormalHitVictimAlert} 警戒）");
+                        DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（受害者+{NormalHitVictimAlert}，目击者+3.0）");
                     }
                 }
                 else
                 {
+                    // 预取物品 ID：StealSpecificItem 会从 agent 身上移除物品
+                    string itemId = _target.SpawnEquipment[_pendingSlot.Value].Item?.StringId;
                     string itemName = StealManager.StealSpecificItem(_target, _pendingSlot.Value);
                     if (string.IsNullOrEmpty(itemName))
                     {
@@ -473,9 +479,11 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
+                        brain?.SetPulseTarget(PlayerActionType.Steal, _target?.Name?.ToString(), itemName, _target?.Index ?? -1);
                         brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
+                        PulsePickpocketWitnesses(itemId ?? itemName, itemName);
                         FlashResult($"得手了:{itemName}", ZoneColorSuccess, MsgColorSuccess);
-                        DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（+{NormalHitVictimAlert} 警戒）");
+                        DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（受害者+{NormalHitVictimAlert}，目击者+3.0）");
                     }
                 }
                 NextPickpocketRound();
@@ -633,6 +641,47 @@ namespace LivingWorldNpcs
             ZoneColor = zoneColor;
             _resultFlashTimer = ResultFlashSeconds;
             InformationManager.DisplayMessage(new InformationMessage(text, msgColor));
+        }
+
+        /// <summary>
+        /// 黄区偷窃得手后，向周围目击者发送警觉脉冲（+3.0）。
+        /// 受害者（在身后看不见玩家）仍只受 NormalHitVictimAlert(0.35)。
+        /// 目击者能亲眼看见玩家的手伸进别人口袋 → 立即确认偷窃行为 → 记录证词进 PendingWorldEvent。
+        /// </summary>
+        private void PulsePickpocketWitnesses(string itemId, string itemName)
+        {
+            var witnesses = StealManager.GetWitnesses(Agent.Main, _target, maxDistance: 15f);
+            if (witnesses.Count == 0) return;
+
+            string victimName = _target?.Name?.ToString();
+            var heroIds = new List<string>();
+            var templateCounts = new Dictionary<string, int>();
+
+            foreach (var w in witnesses)
+            {
+                var wBrain = AgentAIController.GetBrainForAgent(w);
+                if (wBrain == null) continue;
+
+                wBrain.SetPulseTarget(PlayerActionType.Steal, victimName, itemName);
+                wBrain.AddAlert(PlayerActionType.Steal, 3.0f);
+
+                var hero = (w.Character as CharacterObject)?.HeroObject;
+                if (hero != null)
+                    heroIds.Add(hero.StringId);
+                else if (w.Character != null)
+                {
+                    string tid = w.Character.StringId;
+                    templateCounts.TryGetValue(tid, out int cnt);
+                    templateCounts[tid] = cnt + 1;
+                }
+            }
+
+            if (heroIds.Count > 0 || templateCounts.Count > 0)
+            {
+                AgentAIController.Instance?.RegisterTheftWitnesses(
+                    heroIds, templateCounts, itemId, itemName, targetName: victimName);
+                DebugLogger.Log($"[StealBar] 目击者脉冲: {heroIds.Count}H + {templateCounts.Values.Sum()}T 看见偷窃 {itemName}，+3.0 警戒");
+            }
         }
 
         // ═══════════════════════ 命令 ═══════════════════════

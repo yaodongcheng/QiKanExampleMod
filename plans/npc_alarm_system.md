@@ -951,7 +951,7 @@ static List<DialogueTransition> BuildTransitionsByIntent(
         case NpcInterceptIntent.Stop:
             transitions.Add(new() { PlayerLine = r.Resolve("我愿意赔钱。（{RestitutionCost} 第纳尔）"), NpcResponse = r.Resolve("光赔钱就完了？拿了钱快滚。"), Action = "INTENT:PayRestitution", NextNode = "" });
             transitions.Add(new() { PlayerLine = "他先惹我的。", NpcResponseOnSuccess = r.Resolve("……下次再动手没这么好说话。"), NpcResponseOnFail = r.Resolve("在{SpeakerSelfRef}眼皮底下动手，就得有个说法！"), Action = "INTENT:CharmDefense", NextNode = "continue_chat" });
-            transitions.Add(new() { PlayerLine = "（拔剑）谁敢拦我！", NpcResponse = r.Resolve("{SpeakerPlayerAddr}疯了！快叫人！"), Action = "INTENT:FightVillagers", NextNode = "" });
+            transitions.Add(new() { PlayerLine = "(威胁)谁拦着我就杀谁！", NpcResponse = r.Resolve("{SpeakerPlayerAddr}疯了！快叫人！"), Action = "INTENT:FightVillagers", NextNode = "" });
             break;
     }
 

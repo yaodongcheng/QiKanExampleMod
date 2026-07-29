@@ -272,12 +272,18 @@ namespace LivingWorldNpcs
                     if (aiEvent.Args[2] is PlayerActionType pa) actionOverride = pa;
                 }
 
-                // 根据 PrimaryAction 确定 ConfrontationType detail；显式覆盖优先
-                var detail = detailOverride ?? (PrimaryAction switch
+                // 根据 PrimaryAction 确定 ConfrontationType detail；优先级：
+                // ① AIEvent 显式覆盖 ② 已有质问意图 ③ PrimaryAction 推导
+                var existingDetail = _currentIntent.Type == NpcIntentType.Confronting
+                    ? _currentIntent.InterceptDetail
+                    : (ConfrontationType?)null;
+                var detail = detailOverride ?? existingDetail ?? (PrimaryAction switch
                 {
                     PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
                     PlayerActionType.StealUIOpen => ConfrontationType.Search,
-                    PlayerActionType.Steal => ConfrontationType.Recover,
+                    PlayerActionType.Steal => StealManager.HasStolenItemsFrom(Owner)
+                    ? ConfrontationType.Recover   // 确实偷到了 → 追回赃物
+                    : ConfrontationType.Deter,    // 偷窃未遂（红区手滑）→ 驱离警告
                     PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
                     PlayerActionType.SuspectFlee => ConfrontationType.Stop,
                     _ => ConfrontationType.Deter
@@ -377,7 +383,7 @@ namespace LivingWorldNpcs
                     if (attacker == Agent.Main)
                     {
                         AddAlert(PlayerActionType.AttackAlly, 3.0f);
-                        SetPulseTarget(PlayerActionType.AttackAlly, Owner.Name, null);
+                        SetPulseTarget(PlayerActionType.AttackAlly, Owner.Name, null, Owner.Index);
                         CheckPhaseTransition();
                     }
                 }
@@ -419,7 +425,7 @@ namespace LivingWorldNpcs
                             if (IsKnockedOut(victim))
                             {
                                 AddAlert(PlayerActionType.Knockout, 3.0f);
-                                SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null);
+                                SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null, victim?.Index ?? -1);
                                 _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
                                 SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
                             }
@@ -427,7 +433,7 @@ namespace LivingWorldNpcs
                             {
                                 // 斗殴/攻击：victim 正在和玩家战斗，不是偷窃
                                 AddAlert(PlayerActionType.AttackAlly, 3.0f);
-                                SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null);
+                                SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null, victim?.Index ?? -1);
                                 _pulseSuppressedUntil = 0f;
                                 SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
                             }
@@ -436,7 +442,7 @@ namespace LivingWorldNpcs
                                 // 偷窃：立刻加警戒 + 3s 脉冲抑制
                                 // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
                                 AddAlert(PlayerActionType.Steal, 3.0f);
-                                SetPulseTarget(PlayerActionType.Steal, victim?.Name, null);
+                                SetPulseTarget(PlayerActionType.Steal, victim?.Name, null, victim?.Index ?? -1);
                                 _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
                                 SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Recover);
                             }
@@ -1020,13 +1026,14 @@ namespace LivingWorldNpcs
             _alertBreakdown[type] = entry;  // struct 是值类型，写回
         }
 
-        /// <summary>脉冲上下文：设置 AlertEntry 的 TargetName（不改变 Value，Value 由 AddAlert 加）</summary>
-        void SetPulseTarget(PlayerActionType type, string targetName, string itemName)
+        /// <summary>脉冲上下文：设置 AlertEntry 的 TargetName/TargetAgentIndex（不改变 Value，Value 由 AddAlert 加）</summary>
+        public void SetPulseTarget(PlayerActionType type, string targetName, string itemName, int targetAgentIndex = -1)
         {
             if (!_alertBreakdown.TryGetValue(type, out var entry))
                 entry = new AlertEntry();
             entry.TargetName = targetName;
             entry.ItemName = itemName;
+            entry.TargetAgentIndex = targetAgentIndex;
             _alertBreakdown[type] = entry;
         }
 
@@ -1097,7 +1104,16 @@ namespace LivingWorldNpcs
             string targetName = null, itemName = null;
             if (_alertBreakdown.TryGetValue(action.Value, out var entry))
             {
-                targetName = entry.TargetName;
+                // 如果受害者就是自己，用自称代替第三人称名字（用 Agent.Index 精确匹配）
+                if (entry.TargetAgentIndex >= 0 && entry.TargetAgentIndex == Owner.Index)
+                {
+                    targetName = AttitudeSystem.GetSelfReference(
+                        (Owner.Character as CharacterObject)?.HeroObject);
+                }
+                else
+                {
+                    targetName = entry.TargetName;
+                }
                 itemName = entry.ItemName;
             }
 
@@ -1108,7 +1124,8 @@ namespace LivingWorldNpcs
                 listener: TaleWorlds.CampaignSystem.Hero.MainHero,
                 evt: null,
                 targetName: targetName,
-                itemName: itemName
+                itemName: itemName,
+                speakerCharacter: Owner.Character as CharacterObject
             );
         }
 
@@ -1156,16 +1173,22 @@ namespace LivingWorldNpcs
             ClearAllActions();
             InteractedAgent = player;
 
-            // 根据 PrimaryAction 确定 ConfrontationType detail
-            var detail = PrimaryAction switch
+            // 根据 PrimaryAction 确定 ConfrontationType detail。
+            // 若已有显式设置（如 WitnessCrime 路径已指定 Recover/Stop），优先保留。
+            var existingDetail = _currentIntent.Type == NpcIntentType.Confronting
+                ? _currentIntent.InterceptDetail
+                : (ConfrontationType?)null;
+            var detail = existingDetail ?? (PrimaryAction switch
             {
                 PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
                 PlayerActionType.StealUIOpen => ConfrontationType.Search,
-                PlayerActionType.Steal => ConfrontationType.Recover,
+                PlayerActionType.Steal => StealManager.HasStolenItemsFrom(Owner)
+                    ? ConfrontationType.Recover   // 确实偷到了 → 追回赃物
+                    : ConfrontationType.Deter,    // 偷窃未遂（红区手滑）→ 驱离警告
                 PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
                 PlayerActionType.SuspectFlee => ConfrontationType.Stop,
                 _ => ConfrontationType.Deter
-            };
+            });
             SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: detail);
 
             // 占领全局质问锁

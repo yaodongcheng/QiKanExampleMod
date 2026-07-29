@@ -1012,7 +1012,7 @@ namespace LivingWorldNpcs
             // 目标走开/死亡 → 强制收手，不算被发现（无脉冲无广播）
             if (reason == StealBarCloseReason.TargetGone)
                 InformationManager.DisplayMessage(new InformationMessage(
-                    _stealAnimalTarget != null ? "它溜走了..." : "对方走开了，偷窃失败。", Colors.Gray));
+                    _stealAnimalTarget != null ? "它溜走了..." : "对方走远了，不能继续偷窃。", Colors.Gray));
             // 摸空了 → 自动收手提示（无装备也无钱袋）
             else if (reason == StealBarCloseReason.NothingLeft)
                 InformationManager.DisplayMessage(new InformationMessage("他身上已经没什么可偷的了。", Colors.Gray));
