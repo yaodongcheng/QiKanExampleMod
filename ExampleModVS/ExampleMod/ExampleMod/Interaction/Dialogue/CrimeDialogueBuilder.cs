@@ -72,7 +72,8 @@ namespace LivingWorldNpcs
             Hero speaker, Hero listener, WorldEvent evt,
             DialogueTrigger trigger = DialogueTrigger.Normal,
             ConfrontationType? alertConfrontation = null,
-            PlayerActionType? alertTriggerAction = null)
+            PlayerActionType? alertTriggerAction = null,
+            CharacterObject speakerCharacter = null)
         {
             // ── 预填充阶段标记：本方法内所有 Resolve 都是对话开启时的整树预构建（非运行时播放），
             // 日志统一带 [对话预填充] 前缀；finally 保证任意 return 路径都还原 ──
@@ -80,7 +81,7 @@ namespace LivingWorldNpcs
             PlaceholderResolver.LogPhaseTag = "对话预填充";
             try
             {
-                return BuildScriptInternal(speaker, listener, evt, trigger, alertConfrontation, alertTriggerAction);
+                return BuildScriptInternal(speaker, listener, evt, trigger, alertConfrontation, alertTriggerAction, speakerCharacter);
             }
             finally
             {
@@ -93,7 +94,8 @@ namespace LivingWorldNpcs
             Hero speaker, Hero listener, WorldEvent evt,
             DialogueTrigger trigger,
             ConfrontationType? alertConfrontation,
-            PlayerActionType? alertTriggerAction)
+            PlayerActionType? alertTriggerAction,
+            CharacterObject speakerCharacter = null)
         {
             // evt 为 null 时仅 Alert trigger 放行（纯警戒质问，无关联犯罪事件）
             if (evt == null && trigger != DialogueTrigger.Alert) return null;
@@ -104,7 +106,7 @@ namespace LivingWorldNpcs
             {
                 case DialogueTrigger.Alert:
                     result = BuildAlertInterceptScriptInternal(speaker, listener, evt,
-                        alertConfrontation, alertTriggerAction);
+                        alertConfrontation, alertTriggerAction, speakerCharacter);
                     break;
 
                 case DialogueTrigger.PlayerSurrender:
@@ -127,7 +129,7 @@ namespace LivingWorldNpcs
             }
 
             // ── Normal：按 speaker 身份分派 ──
-            PlaceholderResolver r = new PlaceholderResolver(evt, speaker, listener);
+            PlaceholderResolver r = new PlaceholderResolver(evt, speaker, listener, speakerCharacter);
             Agent speakerAgent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
             IntentContext ctx = new IntentContext(speakerAgent, speaker: speaker, worldEvent: evt);
 
@@ -157,12 +159,13 @@ namespace LivingWorldNpcs
         /// evt 可为 null（纯警戒质问，无关联犯罪事件）。</summary>
         private static DialogueInjector.DialogueInjectScript BuildAlertInterceptScriptInternal(
             Hero speaker, Hero listener, WorldEvent evt,
-            ConfrontationType? confrontation, PlayerActionType? triggerAction)
+            ConfrontationType? confrontation, PlayerActionType? triggerAction,
+            CharacterObject speakerCharacter = null)
         {
             // evt 为 null 时用无 WorldEvent 的 PlaceholderResolver 构造器，{CRIME} 等占位符回落空串
             var r = evt != null
-                ? new PlaceholderResolver(evt, speaker, listener)
-                : new PlaceholderResolver(speaker, listener, targetName: null, itemName: null);
+                ? new PlaceholderResolver(evt, speaker, listener, speakerCharacter)
+                : new PlaceholderResolver(speaker, listener, targetName: null, itemName: null, speakerCharacter);
 
             var agent = TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
 
@@ -861,7 +864,7 @@ namespace LivingWorldNpcs
                         EventName = "L3AlertIntercept",
                         GoalType = npcIntent.ToString(),
                         Outcome = primaryAction.ToString(),
-                    })
+                    }, speakerCharacter: r.SpeakerCharacter)
                 ?? HardcodedAlertLine(r, npcIntent, primaryAction);
 
             BuildAlertTransitionsSubtree(nodes, r, ctx, npcOpening);

@@ -29,22 +29,29 @@ namespace LivingWorldNpcs
         /// <summary>当前对话 NPC 的目击证词。null = 不是目击者。从 WitnessTestimonies 匹配。</summary>
         public WitnessTestimony SpeakingWitness;
 
+        /// <summary>
+        /// 🆕 模板 NPC 的 CharacterObject（Hero 为 null 时的身份回退）。
+        /// 用于 {SPEAKER}/{SpeakerName} 等占位符解析。
+        /// </summary>
+        public CharacterObject SpeakerCharacter;
+
         public NpcStance Stance => _stance ??= AttitudeSystem.ComputeStance(Speaker, Event);
 
         /// <summary>WorldEvent 语境构造（现有调用路径，不变）</summary>
-        public PlaceholderResolver(WorldEvent evt, Hero speaker, Hero listener = null)
+        public PlaceholderResolver(WorldEvent evt, Hero speaker, Hero listener = null, CharacterObject speakerCharacter = null)
         {
             Event = evt;
             Speaker = speaker;
             Listener = listener ?? Hero.MainHero;
+            SpeakerCharacter = speakerCharacter;
         }
 
         /// <summary>
         /// 🆕 Mission 层构造：无 WorldEvent 语境，用于警戒 BubbleSay / L3 质问台词。
         /// targetName / itemName 为脉冲上下文，传 null 时对应占位符解析为空字符串。
         /// </summary>
-        public PlaceholderResolver(Hero speaker, Hero listener = null, string targetName = null, string itemName = null)
-            : this(null, speaker, listener)
+        public PlaceholderResolver(Hero speaker, Hero listener = null, string targetName = null, string itemName = null, CharacterObject speakerCharacter = null)
+            : this(null, speaker, listener, speakerCharacter)
         {
             TargetName = targetName;
             ItemName = itemName;
@@ -53,8 +60,8 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 🆕 完整构造：WorldEvent + Mission 层脉冲上下文（L3 质问台词用）。
         /// </summary>
-        public PlaceholderResolver(WorldEvent evt, Hero speaker, Hero listener, string targetName, string itemName)
-            : this(evt, speaker, listener)
+        public PlaceholderResolver(WorldEvent evt, Hero speaker, Hero listener, string targetName, string itemName, CharacterObject speakerCharacter = null)
+            : this(evt, speaker, listener, speakerCharacter)
         {
             TargetName = targetName;
             ItemName = itemName;
@@ -116,7 +123,7 @@ namespace LivingWorldNpcs
             {
                 // ── 🆕 NpcSpeech.csv 占位符别名（模板简写 → 标准 key）──
                 case "PLAYER": return Listener?.Name?.ToString() ?? "你";
-                case "SPEAKER": return speaker?.Name?.ToString() ?? "我";
+                case "SPEAKER": return speaker?.Name?.ToString() ?? SpeakerCharacter?.Name?.ToString() ?? "我";
                 case "SPEAKER_SELF": return ResolveOne("SpeakerSelfRef");
                 case "SPEAKER_PLAYER_ADDR": return ResolveOne("SpeakerPlayerAddr");
                 case "SPEAKER_EMOTION": return ResolveOne("SpeakerEmotion");
@@ -253,7 +260,7 @@ namespace LivingWorldNpcs
                     return evt?.EvidenceList?.OrderByDescending(e => e.Strength).FirstOrDefault()?.SourceDescription ?? "";
 
                 // F. 说话者
-                case "SpeakerName": return speaker?.Name?.ToString() ?? "";
+                case "SpeakerName": return speaker?.Name?.ToString() ?? SpeakerCharacter?.Name?.ToString() ?? "";
                 case "SpeakerIdentity": return AttitudeSystem.GetSocialIdentity(speaker);
                 case "SpeakerRole":
                     return speaker != null && AttitudeSystem.ComputeStance(speaker, evt).WillAct > -1
@@ -284,7 +291,8 @@ namespace LivingWorldNpcs
                 // G2. 对峙收尾（按 NPC 当前态度选不同的最后一句）
                 case "ConfrontClosingLine":
                     string selfRef = AttitudeSystem.GetSelfReference(speaker);
-                    return stance.Outrage > 0.7f ? $"（{speaker?.Name}盯着你的背影，一言不发。）"
+                    string spkName = speaker?.Name?.ToString() ?? SpeakerCharacter?.Name?.ToString();
+                    return stance.Outrage > 0.7f ? $"（{spkName}盯着你的背影，一言不发。）"
                          : stance.Outrage > 0.3f ? "这事没完。你好自为之。"
                          : stance.Fear > 0.5f ? "（后退一步）……你走吧。别再来了。"
                          : $"{selfRef}话说到了。你自己掂量吧。";
