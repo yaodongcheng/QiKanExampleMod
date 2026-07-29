@@ -292,7 +292,20 @@ namespace LivingWorldNpcs
             var settlement = Settlement.CurrentSettlement;
             if (settlement == null) return;
 
-            var evt = FindHostileEventForPlayer(settlement);
+            // 本村 + 玩家是嫌犯 + 阶段已到 Confrontation/Active 的犯罪事件
+            // FindActive(predicate) 已内置 PendingWorldEvent 兜底
+            WorldEvent evt = null;
+            try
+            {
+                evt = WorldEventStore.FindActive(settlement.StringId, e =>
+                    e.SuspectIsPlayer
+                    && (e.Stage == EventStage.Confrontation || e.Stage == EventStage.Active));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Detention] FindHostileEventForPlayer error: {ex.Message}");
+            }
+
             if (evt == null)
             {
                 DebugLogger.Log("[Detention] Player down but no hostile case here → vanilla flow");
@@ -323,23 +336,6 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[Detention] SetNextMenu failed: {ex.Message}"); }
 
             _endMissionAt = Mission.CurrentTime + KNOCKOUT_TO_MENU_DELAY;
-        }
-
-        /// <summary>找一个"本村 + 玩家是嫌犯 且已经处于玩家暴露或对峙阶段"的案件</summary>
-        private static WorldEvent FindHostileEventForPlayer(Settlement settlement)
-        {
-            try
-            {
-                return WorldEventStore.AllEvents.FirstOrDefault(e =>
-                    e.TargetSettlementId == settlement.StringId
-                    && e.SuspectIsPlayer
-                    && (e.Stage == EventStage.Confrontation || e.Stage == EventStage.Active));
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[Detention] FindHostileEventForPlayer error: {ex.Message}");
-                return null;
-            }
         }
 
         public override void OnMissionTick(float dt)

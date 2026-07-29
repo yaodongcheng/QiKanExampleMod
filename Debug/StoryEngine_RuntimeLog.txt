@@ -1,11 +1,11 @@
-﻿[17:12:47.839] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
+﻿[17:30:11.051] [ShowInquiry] "模组不匹配" | "这些模组的版本不匹配： ButterLib UIExtenderEx Mod Configuration Menu v5
 
  
 你想要加载这个包含模组不一致的存档吗？" | Btn1="是" Btn2="取消"
-[17:12:51.896] [WorldEventStore] Deserialized 0 events, 0 alerts
-[17:12:55.793] [Detention] Game menus registered
-[17:12:56.632] [AddQuickInformation] "成就被禁用！"
-[17:12:56.865] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
+[17:30:15.356] [WorldEventStore] Deserialized 0 events, 0 alerts
+[17:30:19.397] [Detention] Game menus registered
+[17:30:20.270] [AddQuickInformation] "成就被禁用！"
+[17:30:20.527] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
     标题: 村庄
     正文: <a style="Link.Settlement" href="event:Settlement-village_ES3_2"><b>特维亚</b></a>附近的领地多为<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的一位执政官<a style="Link.Hero" href="event:Hero-lord_1_15"><b>法戎</b></a>所拥有。这个村庄的经济程度一般，人们和牲口看上去都健康强壮，村民们都忙于农活。
     选项:
@@ -15,8 +15,8 @@
       4. 购买给养  [id=trade] 可点
       5. 稍作等待  [id=village_wait] 可点
       6. 离开  [id=leave] 可点
-[17:13:00.609] [GameMenu] ● 点击 menu=village 选项="四处转转" [id=village_center] @特维亚(村庄)
-[17:13:02.638] === [AnimalSync] 特维亚 (village_ES3_2) ===
+[17:30:24.949] [GameMenu] ● 点击 menu=village 选项="四处转转" [id=village_center] @特维亚(村庄)
+[17:30:26.857] === [AnimalSync] 特维亚 (village_ES3_2) ===
   Type       Scene    Roster   Stolen   Action
   ----       -----    ------   ------   ------
   sheep      16       16       0        
@@ -26,270 +26,332 @@
   chicken    16       15       1        remove 1
   =========================================
 
-[17:13:02.648] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[17:13:02.654] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
-[17:13:02.656] [Chest] 锚点 '特维亚的加里托普斯' at (532.3551, 233.8244, 17.14368) → 正后方 0.7m 命中，相对偏移 (0.21, -0.67, 0.08)
-[17:13:02.680] [Chest] Spawned prefab 'bd_chest_c' at (532.564, 233.1563, 17.22217) (scale=0.5)
-[17:13:02.682] [Chest] Visual highlight applied (warm gold tint)
-[17:13:02.682] [Chest] Spawned at (532.564, 233.1563, 17.22217), context=Village, gold=200, items=4
-[17:13:14.915] [Brain-Phase] 少年(Idx=38) 警戒上升: Normal → Suspicious (警戒值=0.27) 因素=[Crouching=0.15, StealUIOpen=0.12] → 发送 'BecomeSuspicious'
-[17:13:14.920] [Brain-Receive] 少年(Idx=38) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:13:14.930] [BubbleSay] 少年(Idx=38): "（嘀咕）亨利在这做什么……"
-[17:13:19.688] [DisplayMessage] [RGB(0.3,0.9,0.3)] "一把揪住了肉猪！"
-[17:13:19.688] [StealBar] 抓住 肉猪（完美）
-[17:13:19.692] [ForcePlayAction] 亨利 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[17:13:20.107] [StealAnimal] 肉猪 (monster=hog) → hog, 特维亚 stock: 9→8
-[17:13:20.108] [AnimalTheft] Witness system DISABLED — treating as no witnesses.
-[17:13:20.109] [DarkTheft] Unwitnessed: 肉猪 → pending misconduct_village_ES3_2_2185860 stays Dormant
-[17:13:20.109] [TheftLedger] Recorded: hog x1 by main_hero from village_ES3_2
-[17:13:20.110] [ForcePlayAction] 亨利 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[17:13:20.110] [DisplayMessage] [Green] "获得了 肉猪！"
-[17:13:23.627] [Brain-Phase] 少年(Idx=38) 警戒下降: Suspicious → Normal (警戒值=0.25)
-[17:13:23.628] [Brain-Receive] 少年(Idx=38) 收到事件 'CalmDown' | 当前行为=null | 队列=0 | 阶段=Suspicious
-[17:13:23.629] [Brain-Clear] 少年(Idx=38) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:13:23.630] [Brain-Alert] 少年(Idx=38) ClearAllAlerts: 警戒值归零
-[17:13:30.585] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[17:13:31.200] [ForcePlayAction] 帝国女农民 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_female_villager_2'→'as_human_warrior'
-[17:13:31.201] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国女农民 (Index:26, 距离:1.9m, 方位:西)"
-[17:13:31.201] [Brain-Receive] 帝国女农民(Idx=26) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:13:31.201] [Brain-Clear] 帝国女农民(Idx=26) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:13:31.202] [Brain-Enqueue] 帝国女农民(Idx=26) 入队 StayAction | 当前行为=null | 队列=0→1
-[17:13:31.202] [AI-Debug] Suspend 帝国女农民 (Idx=26) | 集合size=1 | 当前行为=null
-[17:13:31.207] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:13:31.208] [Brain-Clear] 帝国农民(Idx=14) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:13:31.209] [Brain-Enqueue] 帝国农民(Idx=14) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[17:13:31.209] [AI-Debug] Suspend 帝国农民 (Idx=14) | 集合size=2 | 当前行为=null
-[17:13:31.210] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Dormant → Active
-[17:13:31.215] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Active settlement=特维亚 — refreshing issue signals
-[17:13:31.225] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185860 stage=Active
-[17:13:31.225] [RegisterWitness] 帝国农民 witnessed crime → WorldEvent misconduct_village_ES3_2_2185860 Stage → Active (suspect=player)
-[17:13:31.226] [Brain-Phase] 帝国农民(Idx=14) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔帝国女农民] → 发送 'BecomeAlarmed'
-[17:13:31.226] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[17:13:31.226] [Brain-Clear] 帝国农民(Idx=14) 清空动作 | 当前=null | 队列=1 | hadActions=True
-[17:13:31.227] [ConvLock] Acquire by 帝国农民(Idx=14) | reason=StartL3Confrontation
-[17:13:31.227] [Brain-Enqueue] 帝国农民(Idx=14) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
-[17:13:31.227] [Brain-Enqueue] 帝国农民(Idx=14) 入队 LookAtAction | 当前行为=null | 队列=1→2
-[17:13:31.228] [Brain-Enqueue] 帝国农民(Idx=14) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
-[17:13:31.231] [Assault] 帝国女农民 身价=2 → 事件 misconduct_village_ES3_2_2185860 AssaultValue=2（赔偿基数 2）
-[17:13:31.231] [DisplayMessage] [Green] "从背后击晕了 帝国女农民！"
-[17:13:31.232] [Knockout] 亨利 knocked out 帝国女农民 from behind (anim: act_shield_bash)
-[17:13:31.233] [Brain-Tick] 帝国农民(Idx=14) 开始执行 FollowAgentAction | 队列剩余=2
-[17:13:31.236] [Brain-Tick] 帝国女农民(Idx=26) 开始执行 StayAction | 队列剩余=0
-[17:13:34.202] [Brain-Tick] 帝国农民(Idx=14) 完成 FollowAgentAction
-[17:13:34.207] [Brain-Tick] 帝国农民(Idx=14) 开始执行 LookAtAction | 队列剩余=1
-[17:13:34.208] [Brain-Tick] 帝国农民(Idx=14) 完成 LookAtAction
-[17:13:34.213] [Brain-Tick] 帝国农民(Idx=14) 开始执行 AlertForceConversationAction | 队列剩余=0
-[17:13:34.214] [AlertForceConv] 帝国农民(Idx=14) 模板NPC(帝国农民) — 使用 InjectScriptAsOpening (start token)
-[17:13:34.214] [AlertForceConv] 帝国农民(Idx=14) ActiveConversationAgent 设置成功
-[17:13:34.214] [ConvLock] Acquire by 帝国农民(Idx=14) | reason=MissionStartPrefix
-[17:13:34.214] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=帝国农民
-[17:13:34.221] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）你把打晕了！来人！" [Lazy]
-[17:13:34.221] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我愿意赔钱。（124 第纳尔）" → INTENT:PayRestitution | NextNodeOnSuccess=alert_stop_pay_ack
-[17:13:34.221] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "他先惹我的。" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_stop_charm_ok | NextNodeOnFail=alert_stop_charm_fail
-[17:13:34.221] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "（拔剑）谁敢拦我！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_stop_fight_ack
-[17:13:34.221] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[1] id=alert_stop_pay_ack NpcLine="光赔钱就完了？拿了钱快滚。"
-[17:13:34.221] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[2] id=alert_stop_charm_ok NpcLine="……下次再动手没这么好说话。"
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[3] id=continue_chat NpcLine="" [Lazy]
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我走了。" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "（拔剑）谁敢拦我！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "我认罚。（50 第纳尔）" → INTENT:PayRestitution Param=alert_fine | NextNodeOnSuccess=alert_esc_fine_ack
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[3] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[4] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
-[17:13:34.222] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[5] id=alert_esc_fine_ack NpcLine="扰乱治安，罚款50第纳尔。算你识相。别再来了。"
-[17:13:34.223] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[6] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
-[17:13:34.223] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[7] id=alert_stop_charm_fail NpcLine="在我眼皮底下动手，就得有个说法！"
-[17:13:34.223] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[17:13:34.223] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[8] id=alert_stop_fight_ack NpcLine="你疯了！快叫人！"
-[17:13:34.224] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' | priority=200 | owner=crime_misconduct_village_ES3_2_2185860_v0
-[17:13:34.225] [ConvCondition] Building condition for intent=PayRestitution playerLine="我愿意赔钱。（124 第纳尔）" actionParam=(null)
-[17:13:34.226] [ConvCondition] Building condition for intent=CharmDefense playerLine="他先惹我的。" actionParam=(null)
-[17:13:34.226] [ConvCondition] Building condition for intent=FightVillagers playerLine="（拔剑）谁敢拦我！" actionParam=(null)
-[17:13:34.226] [ConvCondition] Building condition for intent=WalkAway playerLine="我走了。" actionParam=(null)
-[17:13:34.226] [ConvCondition] Building condition for intent=FightVillagers playerLine="（拔剑）谁敢拦我！" actionParam=(null)
-[17:13:34.226] [ConvCondition] Building condition for intent=PayRestitution playerLine="我认罚。（50 第纳尔）" actionParam=alert_fine
-[17:13:34.226] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
-[17:13:34.227] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_village_ES3_2_2185860 stage=Active trigger=Alert partner=帝国农民 nodes=9
-[17:13:34.254] [Penalty] misconduct_village_ES3_2_2185860 first quote to player: 124 @ Active
-[17:13:34.261] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "（冷淡地）你把打晕了！来人！"
-[17:13:34.266] [IntentEval] PayRestitution → Show (stage=Active, cost=124)
-[17:13:34.266] [ConvCondition] intent=PayRestitution playerLine="我愿意赔钱。（124 第纳尔）" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185860 actionParam=(null) eligibility=Enabled reason=
-[17:13:34.266] [IntentEval] CharmDefense → Show
-[17:13:34.267] [ConvCondition] intent=CharmDefense playerLine="他先惹我的。" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185860 actionParam=(null) eligibility=Enabled reason=
-[17:13:34.267] [IntentEval] FightVillagers → Show
-[17:13:34.267] [ConvCondition] intent=FightVillagers playerLine="（拔剑）谁敢拦我！" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185860 actionParam=(null) eligibility=Enabled reason=
-[17:13:34.276] [AlertForceConv] 帝国农民(Idx=14) 对话启动成功
-[17:14:21.578] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' NPC=亨利 | Options (3): 我愿意赔钱。（124 第纳尔） | 他先惹我的。 | （拔剑）谁敢拦我！
-[17:14:21.580] [IntentEval] FightVillagers → Show
-[17:14:21.580] [Penalty] misconduct_village_ES3_2_2185860 price escalation #1: 你拔剑动了手
-[17:14:21.580] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Active → Confrontation
-[17:14:21.581] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Confrontation settlement=特维亚 — refreshing issue signals
-[17:14:21.581] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185860 stage=Confrontation
-[17:14:21.582] [Brain-Receive] 帝国农民(Idx=11) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.582] [DisplayMessage] [Red] "Agent 帝国农民 收到攻击命令，目标是 亨利"
-[17:14:21.582] [Brain-Clear] 帝国农民(Idx=11) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.582] [Brain-Enqueue] 帝国农民(Idx=11) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.582] [AI-Debug] Suspend 帝国农民 (Idx=11) | 集合size=3 | 当前行为=null
-[17:14:21.582] [Brain-Receive] 帝国农民(Idx=12) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.582] [DisplayMessage] [Red] "Agent 帝国农民 收到攻击命令，目标是 亨利"
-[17:14:21.582] [Brain-Clear] 帝国农民(Idx=12) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.583] [Brain-Enqueue] 帝国农民(Idx=12) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.583] [AI-Debug] Suspend 帝国农民 (Idx=12) | 集合size=4 | 当前行为=null
-[17:14:21.583] [Brain-Receive] 帝国女农民(Idx=26) 收到事件 'order_attack' | 当前行为=StayAction | 队列=0 | 阶段=Normal
-[17:14:21.583] [DisplayMessage] [Red] "Agent 帝国女农民 收到攻击命令，目标是 亨利"
-[17:14:21.583] [Brain-Clear] 帝国女农民(Idx=26) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[17:14:21.584] [Brain-Enqueue] 帝国女农民(Idx=26) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.584] [Brain-Receive] 帝国女农民(Idx=28) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.584] [DisplayMessage] [Red] "Agent 帝国女农民 收到攻击命令，目标是 亨利"
-[17:14:21.584] [Brain-Clear] 帝国女农民(Idx=28) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.584] [Brain-Enqueue] 帝国女农民(Idx=28) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.584] [AI-Debug] Suspend 帝国女农民 (Idx=28) | 集合size=5 | 当前行为=null
-[17:14:21.584] [Brain-Receive] 男孩(Idx=34) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.584] [DisplayMessage] [Red] "Agent 男孩 收到攻击命令，目标是 亨利"
-[17:14:21.584] [Brain-Clear] 男孩(Idx=34) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.584] [Brain-Enqueue] 男孩(Idx=34) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.584] [AI-Debug] Suspend 男孩 (Idx=34) | 集合size=6 | 当前行为=null
-[17:14:21.584] [Brain-Receive] 女孩(Idx=35) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.585] [DisplayMessage] [Red] "Agent 女孩 收到攻击命令，目标是 亨利"
-[17:14:21.585] [Brain-Clear] 女孩(Idx=35) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.585] [Brain-Enqueue] 女孩(Idx=35) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.585] [AI-Debug] Suspend 女孩 (Idx=35) | 集合size=7 | 当前行为=null
-[17:14:21.585] [Brain-Receive] 女孩(Idx=37) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.585] [DisplayMessage] [Red] "Agent 女孩 收到攻击命令，目标是 亨利"
-[17:14:21.585] [Brain-Clear] 女孩(Idx=37) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.585] [Brain-Enqueue] 女孩(Idx=37) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.585] [AI-Debug] Suspend 女孩 (Idx=37) | 集合size=8 | 当前行为=null
-[17:14:21.585] [Brain-Receive] 少女(Idx=43) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.585] [DisplayMessage] [Red] "Agent 少女 收到攻击命令，目标是 亨利"
-[17:14:21.586] [Brain-Clear] 少女(Idx=43) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.586] [Brain-Enqueue] 少女(Idx=43) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.586] [AI-Debug] Suspend 少女 (Idx=43) | 集合size=9 | 当前行为=null
-[17:14:21.586] [Brain-Receive] 帝国女农民(Idx=46) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[17:14:21.586] [DisplayMessage] [Red] "Agent 帝国女农民 收到攻击命令，目标是 亨利"
-[17:14:21.586] [Brain-Clear] 帝国女农民(Idx=46) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[17:14:21.586] [Brain-Enqueue] 帝国女农民(Idx=46) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:21.586] [AI-Debug] Suspend 帝国女农民 (Idx=46) | 集合size=10 | 当前行为=null
-[17:14:21.586] [Accountability] FightVillagers in-mission: order_attack broadcast, deferred=帝国农民
-[17:14:21.586] [DisplayMessage] [Red] "村民愤怒了！有人抄起家伙围了过来……快离开这里！"
-[17:14:21.586] [Accountability] Player fought villagers for misconduct_village_ES3_2_2185860
-[17:14:21.587] [VanillaDialog] Player says: "（拔剑）谁敢拦我！"
-[17:14:21.587] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "你疯了！快叫人！"
-[17:14:21.592] [Brain-Tick] 帝国农民(Idx=11) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.593] [DisplayMessage] [Yellow] "帝国农民(Idx=11)  开始攻击 亨利！"
-[17:14:21.594] [CombatManager] RegisterCombatant: 帝国农民(Idx=11), total=1
-[17:14:21.601] [Brain-Tick] 帝国农民(Idx=12) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.602] [DisplayMessage] [Yellow] "帝国农民(Idx=12)  开始攻击 亨利！"
-[17:14:21.602] [CombatManager] RegisterCombatant: 帝国农民(Idx=12), total=2
-[17:14:21.603] [Brain-Tick] 帝国女农民(Idx=26) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.603] [DisplayMessage] [Yellow] "帝国女农民(Idx=26)  开始攻击 亨利！"
-[17:14:21.603] [CombatManager] RegisterCombatant: 帝国女农民(Idx=26), total=3
-[17:14:21.603] [Brain-Tick] 帝国女农民(Idx=28) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.603] [DisplayMessage] [Yellow] "帝国女农民(Idx=28)  开始攻击 亨利！"
-[17:14:21.603] [CombatManager] RegisterCombatant: 帝国女农民(Idx=28), total=4
-[17:14:21.603] [Brain-Tick] 男孩(Idx=34) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.604] [DisplayMessage] [Yellow] "男孩(Idx=34)  开始攻击 亨利！"
-[17:14:21.604] [CombatManager] RegisterCombatant: 男孩(Idx=34), total=5
-[17:14:21.604] [Brain-Tick] 女孩(Idx=35) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.604] [DisplayMessage] [Yellow] "女孩(Idx=35)  开始攻击 亨利！"
-[17:14:21.604] [CombatManager] RegisterCombatant: 女孩(Idx=35), total=6
-[17:14:21.604] [Brain-Tick] 女孩(Idx=37) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.604] [DisplayMessage] [Yellow] "女孩(Idx=37)  开始攻击 亨利！"
-[17:14:21.604] [CombatManager] RegisterCombatant: 女孩(Idx=37), total=7
-[17:14:21.604] [Brain-Tick] 少女(Idx=43) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.604] [DisplayMessage] [Yellow] "少女(Idx=43)  开始攻击 亨利！"
-[17:14:21.605] [CombatManager] RegisterCombatant: 少女(Idx=43), total=8
-[17:14:21.605] [Brain-Tick] 帝国女农民(Idx=46) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:21.605] [DisplayMessage] [Yellow] "帝国女农民(Idx=46)  开始攻击 亨利！"
-[17:14:21.605] [CombatManager] RegisterCombatant: 帝国女农民(Idx=46), total=9
-[17:14:22.624] [ConvLock] Release by 帝国农民(Idx=14) | reason=EndConversation
-[17:14:22.624] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185860_villager_empire lastTag=crime_misconduct_village_ES3_2_2185860
-[17:14:22.624] [AlertForceConv] 帝国农民(Idx=14) ActiveConversationAgent 清空成功
-[17:14:22.624] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
-[17:14:22.624] [Brain-Receive] 帝国女农民(Idx=26) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
-[17:14:22.624] [DisplayMessage] "[事件发送] 发送事件 'DeferredCombat' 给 帝国农民 (Index:14, 距离:2.0m, 方位:西南)"
-[17:14:22.624] [Brain-Receive] 帝国农民(Idx=14) 收到事件 'DeferredCombat' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
-[17:14:22.624] [Brain-Clear] 帝国农民(Idx=14) 清空动作 | 当前=AlertForceConversationAction | 队列=0 | hadActions=True
-[17:14:22.624] [Brain-Enqueue] 帝国农民(Idx=14) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[17:14:22.625] [Brain-DeferredCombat] 帝国农民(Idx=14) 开始攻击 亨利
-[17:14:22.625] [ConvEnd] DeferredCombat sent to 帝国农民(Idx=14)
-[17:14:22.627] [Brain-Tick] 帝国农民(Idx=14) 开始执行 FightEnemyAction | 队列剩余=0
-[17:14:22.627] [DisplayMessage] [Yellow] "帝国农民(Idx=14)  开始攻击 亨利！"
-[17:14:22.628] [CombatManager] RegisterCombatant: 帝国农民(Idx=14), total=10
-[17:14:26.200] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国农民 对 亨利 造成了12 点伤害"
-[17:14:26.210] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到12点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：1.13米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[17:14:30.512] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国农民 对 亨利 造成了12 点伤害"
-[17:14:30.513] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到12点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：1.8米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[17:14:30.973] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国女农民 对 亨利 造成了11 点伤害"
-[17:14:30.974] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：1.45米/秒</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
-[17:14:31.491] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 少女 对 亨利 造成了12 点伤害"
-[17:14:31.492] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到12点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：1.44米/秒</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
-[17:14:31.624] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国农民 对 亨利 造成了10 点伤害"
-[17:14:31.625] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到10点挥砍伤害。<Detail>命中部位：颈</Detail><Detail>相对移动速度：0.66米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[17:14:32.153] [Detention] Player down but no hostile case here → vanilla flow
-[17:14:32.155] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到12点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.76米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[17:14:32.156] [Brain-Tick] 帝国农民(Idx=11) 完成 FightEnemyAction
-[17:14:32.156] [CombatManager] UnregisterCombatant: 帝国农民(Idx=11), total=9
-[17:14:32.156] [CombatManager] EndFight: 帝国农民(Idx=11) restored to original team
-[17:14:32.157] [Brain-Alert] 帝国农民(Idx=11) ClearAllAlerts: 警戒值归零
-[17:14:32.157] [FightEnd] 帝国农民(Idx=11) 战斗结束，收起武器，且警戒值归零
-[17:14:32.157] [Brain-Tick] 帝国农民(Idx=12) 完成 FightEnemyAction
-[17:14:32.157] [CombatManager] UnregisterCombatant: 帝国农民(Idx=12), total=8
-[17:14:32.157] [CombatManager] EndFight: 帝国农民(Idx=12) restored to original team
-[17:14:32.157] [Brain-Alert] 帝国农民(Idx=12) ClearAllAlerts: 警戒值归零
-[17:14:32.157] [FightEnd] 帝国农民(Idx=12) 战斗结束，收起武器，且警戒值归零
-[17:14:32.157] [Brain-Tick] 帝国农民(Idx=14) 完成 FightEnemyAction
-[17:14:32.158] [CombatManager] UnregisterCombatant: 帝国农民(Idx=14), total=7
-[17:14:32.158] [CombatManager] EndFight: 帝国农民(Idx=14) restored to original team
-[17:14:32.158] [Brain-Alert] 帝国农民(Idx=14) ClearAllAlerts: 警戒值归零
-[17:14:32.158] [FightEnd] 帝国农民(Idx=14) 战斗结束，收起武器，且警戒值归零
-[17:14:32.158] [Brain-Tick] 帝国女农民(Idx=26) 完成 FightEnemyAction
-[17:14:32.158] [CombatManager] UnregisterCombatant: 帝国女农民(Idx=26), total=6
-[17:14:32.158] [CombatManager] EndFight: 帝国女农民(Idx=26) restored to original team
-[17:14:32.158] [Brain-Alert] 帝国女农民(Idx=26) ClearAllAlerts: 警戒值归零
-[17:14:32.158] [FightEnd] 帝国女农民(Idx=26) 战斗结束，收起武器，且警戒值归零
-[17:14:32.159] [Brain-Tick] 帝国女农民(Idx=28) 完成 FightEnemyAction
-[17:14:32.159] [CombatManager] UnregisterCombatant: 帝国女农民(Idx=28), total=5
-[17:14:32.159] [CombatManager] EndFight: 帝国女农民(Idx=28) restored to original team
-[17:14:32.159] [Brain-Alert] 帝国女农民(Idx=28) ClearAllAlerts: 警戒值归零
-[17:14:32.159] [FightEnd] 帝国女农民(Idx=28) 战斗结束，收起武器，且警戒值归零
-[17:14:32.159] [Brain-Tick] 男孩(Idx=34) 完成 FightEnemyAction
-[17:14:32.160] [CombatManager] UnregisterCombatant: 男孩(Idx=34), total=4
-[17:14:32.160] [CombatManager] EndFight: 男孩(Idx=34) restored to original team
-[17:14:32.160] [Brain-Alert] 男孩(Idx=34) ClearAllAlerts: 警戒值归零
-[17:14:32.160] [FightEnd] 男孩(Idx=34) 战斗结束，收起武器，且警戒值归零
-[17:14:32.160] [Brain-Tick] 女孩(Idx=35) 完成 FightEnemyAction
-[17:14:32.160] [CombatManager] UnregisterCombatant: 女孩(Idx=35), total=3
-[17:14:32.160] [CombatManager] EndFight: 女孩(Idx=35) restored to original team
-[17:14:32.160] [Brain-Alert] 女孩(Idx=35) ClearAllAlerts: 警戒值归零
-[17:14:32.160] [FightEnd] 女孩(Idx=35) 战斗结束，收起武器，且警戒值归零
-[17:14:32.161] [Brain-Tick] 女孩(Idx=37) 完成 FightEnemyAction
-[17:14:32.161] [CombatManager] UnregisterCombatant: 女孩(Idx=37), total=2
-[17:14:32.161] [CombatManager] EndFight: 女孩(Idx=37) restored to original team
-[17:14:32.161] [Brain-Alert] 女孩(Idx=37) ClearAllAlerts: 警戒值归零
-[17:14:32.161] [FightEnd] 女孩(Idx=37) 战斗结束，收起武器，且警戒值归零
-[17:14:32.161] [Brain-Tick] 少女(Idx=43) 完成 FightEnemyAction
-[17:14:32.161] [CombatManager] UnregisterCombatant: 少女(Idx=43), total=1
-[17:14:32.161] [CombatManager] EndFight: 少女(Idx=43) restored to original team
-[17:14:32.161] [Brain-Alert] 少女(Idx=43) ClearAllAlerts: 警戒值归零
-[17:14:32.162] [FightEnd] 少女(Idx=43) 战斗结束，收起武器，且警戒值归零
-[17:14:32.162] [Brain-Tick] 帝国女农民(Idx=46) 完成 FightEnemyAction
-[17:14:32.162] [CombatManager] UnregisterCombatant: 帝国女农民(Idx=46), total=0
-[17:14:32.162] [CombatManager] EndFight: 帝国女农民(Idx=46) restored to original team
-[17:14:32.162] [Brain-Alert] 帝国女农民(Idx=46) ClearAllAlerts: 警戒值归零
-[17:14:32.162] [FightEnd] 帝国女农民(Idx=46) 战斗结束，收起武器，且警戒值归零
-[17:14:32.167] [AI-Debug] Resume 帝国农民 (Idx=11) | 集合size=9
-[17:14:32.167] [AI-Debug] Resume 帝国农民 (Idx=12) | 集合size=8
-[17:14:32.168] [AI-Debug] Resume 帝国农民 (Idx=14) | 集合size=7
-[17:14:32.168] [AI-Debug] Resume 帝国女农民 (Idx=26) | 集合size=6
-[17:14:32.168] [AI-Debug] Resume 帝国女农民 (Idx=28) | 集合size=5
-[17:14:32.168] [AI-Debug] Resume 男孩 (Idx=34) | 集合size=4
-[17:14:32.168] [AI-Debug] Resume 女孩 (Idx=35) | 集合size=3
-[17:14:32.168] [AI-Debug] Resume 女孩 (Idx=37) | 集合size=2
-[17:14:32.168] [AI-Debug] Resume 少女 (Idx=43) | 集合size=1
-[17:14:32.168] [AI-Debug] Resume 帝国女农民 (Idx=46) | 集合size=0
-[17:14:37.212] [WorldEvent] New event: Misconduct id=misconduct_village_ES3_2_2185860 settlement=village_ES3_2 items=[hogx1] culprit=main_hero stage=Confrontation suspect=main_hero witnesses=0h+1v severity=0 occurredDay=91077.52
-[17:14:37.399] [GameMenu] ▶ 打开 menu=settlement_player_unconscious @特维亚(村庄)
-    标题: 
-    正文: 你失去了意识。过了一段时间后，一些友善的本地人帮助你苏醒了过来。虽然有些迷糊，但没有严重损伤，你决心下次一定要更加小心。
+[17:30:26.867] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[17:30:26.872] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=112, 乡绅2人=156, 英雄1人=45, 村民43人=473), 箱子200第纳尔, 物资4种(过滤后)
+[17:30:26.874] [Chest] 锚点 '特维亚的加里托普斯' at (374.0268, 391.6366, 8.578003) → 正后方 0.7m 命中，相对偏移 (-0.66, -0.22, -0.06)
+[17:30:26.904] [Chest] Spawned prefab 'bd_chest_c' at (373.3629, 391.4146, 8.518089) (scale=0.5)
+[17:30:26.907] [Chest] Visual highlight applied (warm gold tint)
+[17:30:26.908] [Chest] Spawned at (373.3629, 391.4146, 8.518089), context=Village, gold=200, items=4
+[17:32:04.594] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[17:32:05.207] [ForcePlayAction] 帝国农民 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_villager_2'→'as_human_warrior'
+[17:32:05.210] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国农民 (Index:8, 距离:1.9m, 方位:南)"
+[17:32:05.214] [Brain-Receive] 帝国农民(Idx=8) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:05.215] [Brain-Clear] 帝国农民(Idx=8) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:05.215] [Brain-Enqueue] 帝国农民(Idx=8) 入队 StayAction | 当前行为=null | 队列=0→1
+[17:32:05.215] [AI-Debug] Suspend 帝国农民 (Idx=8) | 集合size=1 | 当前行为=null
+[17:32:05.223] [Assault] 帝国农民 身价=2 → 事件 misconduct_village_ES3_2_2185860 AssaultValue=2（赔偿基数 2）
+[17:32:05.224] [DisplayMessage] [Green] "从背后击晕了 帝国农民！"
+[17:32:05.224] [Knockout] 亨利 knocked out 帝国农民 from behind (anim: act_shield_bash)
+[17:32:05.225] [Brain-Tick] 帝国农民(Idx=8) 开始执行 StayAction | 队列剩余=0
+[17:32:12.909] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[17:32:13.524] [ForcePlayAction] 帝国农民 'act_death_fall_front' UsingObj=False flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_villager_2'→'as_human_warrior'
+[17:32:13.524] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国农民 (Index:18, 距离:2.1m, 方位:东北)"
+[17:32:13.524] [Brain-Receive] 帝国农民(Idx=18) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:13.525] [Brain-Clear] 帝国农民(Idx=18) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:13.525] [Brain-Enqueue] 帝国农民(Idx=18) 入队 StayAction | 当前行为=null | 队列=0→1
+[17:32:13.525] [AI-Debug] Suspend 帝国农民 (Idx=18) | 集合size=2 | 当前行为=null
+[17:32:13.526] [Brain-Receive] 帝国农民(Idx=12) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:13.527] [Brain-Clear] 帝国农民(Idx=12) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:13.527] [Brain-Enqueue] 帝国农民(Idx=12) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[17:32:13.528] [AI-Debug] Suspend 帝国农民 (Idx=12) | 集合size=3 | 当前行为=null
+[17:32:13.530] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Dormant → Active
+[17:32:13.535] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Active settlement=特维亚 — refreshing issue signals
+[17:32:13.545] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185860 stage=Active
+[17:32:13.545] [RegisterWitness] 帝国农民 witnessed crime → WorldEvent misconduct_village_ES3_2_2185860 Stage → Active (suspect=player)
+[17:32:13.546] [Brain-Phase] 帝国农民(Idx=12) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔帝国农民] → 发送 'BecomeAlarmed'
+[17:32:13.546] [Brain-Receive] 帝国农民(Idx=12) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[17:32:13.548] [Brain-Clear] 帝国农民(Idx=12) 清空动作 | 当前=null | 队列=1 | hadActions=True
+[17:32:13.548] [ConvLock] Acquire by 帝国农民(Idx=12) | reason=StartL3Confrontation
+[17:32:13.548] [Brain-Enqueue] 帝国农民(Idx=12) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
+[17:32:13.549] [Brain-Enqueue] 帝国农民(Idx=12) 入队 LookAtAction | 当前行为=null | 队列=1→2
+[17:32:13.549] [Brain-Enqueue] 帝国农民(Idx=12) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
+[17:32:13.549] [Assault] 帝国农民 身价=2 → 事件 misconduct_village_ES3_2_2185860 AssaultValue=4（赔偿基数 4）
+[17:32:13.549] [DisplayMessage] [Green] "从背后击晕了 帝国农民！"
+[17:32:13.549] [Knockout] 亨利 knocked out 帝国农民 from behind (anim: act_shield_bash)
+[17:32:13.550] [Brain-Tick] 帝国农民(Idx=12) 开始执行 FollowAgentAction | 队列剩余=2
+[17:32:13.552] [Brain-Tick] 帝国农民(Idx=12) 完成 FollowAgentAction
+[17:32:13.552] [Brain-Tick] 帝国农民(Idx=18) 开始执行 StayAction | 队列剩余=0
+[17:32:13.555] [Brain-Tick] 帝国农民(Idx=12) 开始执行 LookAtAction | 队列剩余=1
+[17:32:13.555] [Brain-Tick] 帝国农民(Idx=12) 完成 LookAtAction
+[17:32:13.561] [Brain-Tick] 帝国农民(Idx=12) 开始执行 AlertForceConversationAction | 队列剩余=0
+[17:32:13.561] [AlertForceConv] 帝国农民(Idx=12) 模板NPC(帝国农民) — 使用 InjectScriptAsOpening (start token)
+[17:32:13.562] [AlertForceConv] 帝国农民(Idx=12) ActiveConversationAgent 设置成功
+[17:32:13.562] [ConvLock] Acquire by 帝国农民(Idx=12) | reason=MissionStartPrefix
+[17:32:13.562] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=帝国农民
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）你把打晕了！来人！" [Lazy]
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我愿意赔钱。（8 第纳尔）" → INTENT:PayRestitution | NextNodeOnSuccess=alert_stop_pay_ack
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "他先惹我的。" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_stop_charm_ok | NextNodeOnFail=alert_stop_charm_fail
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "（拔剑）谁敢拦我！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_stop_fight_ack
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[1] id=alert_stop_pay_ack NpcLine="光赔钱就完了？拿了钱快滚。"
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[2] id=alert_stop_charm_ok NpcLine="……下次再动手没这么好说话。"
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[3] id=continue_chat NpcLine="" [Lazy]
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我走了。" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
+[17:32:13.578] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "（拔剑）谁敢拦我！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "我认罚。（50 第纳尔）" → INTENT:PayRestitution Param=alert_fine | NextNodeOnSuccess=alert_esc_fine_ack
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[3] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[4] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[5] id=alert_esc_fine_ack NpcLine="扰乱治安，罚款50第纳尔。算你识相。别再来了。"
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[6] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[7] id=alert_stop_charm_fail NpcLine="在我眼皮底下动手，就得有个说法！"
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[17:32:13.579] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[8] id=alert_stop_fight_ack NpcLine="你疯了！快叫人！"
+[17:32:13.580] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' | priority=200 | owner=crime_misconduct_village_ES3_2_2185860_v0
+[17:32:13.581] [ConvCondition] Building condition for intent=PayRestitution playerLine="我愿意赔钱。（8 第纳尔）" actionParam=(null)
+[17:32:13.582] [ConvCondition] Building condition for intent=CharmDefense playerLine="他先惹我的。" actionParam=(null)
+[17:32:13.582] [ConvCondition] Building condition for intent=FightVillagers playerLine="（拔剑）谁敢拦我！" actionParam=(null)
+[17:32:13.582] [ConvCondition] Building condition for intent=WalkAway playerLine="我走了。" actionParam=(null)
+[17:32:13.582] [ConvCondition] Building condition for intent=FightVillagers playerLine="（拔剑）谁敢拦我！" actionParam=(null)
+[17:32:13.582] [ConvCondition] Building condition for intent=PayRestitution playerLine="我认罚。（50 第纳尔）" actionParam=alert_fine
+[17:32:13.582] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
+[17:32:13.582] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_village_ES3_2_2185860 stage=Active trigger=Alert partner=帝国农民 nodes=9
+[17:32:13.613] [Penalty] misconduct_village_ES3_2_2185860 first quote to player: 8 @ Active
+[17:32:13.620] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "（冷淡地）你把打晕了！来人！"
+[17:32:13.626] [IntentEval] PayRestitution → Show (stage=Active, cost=8)
+[17:32:13.626] [ConvCondition] intent=PayRestitution playerLine="我愿意赔钱。（8 第纳尔）" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185860 actionParam=(null) eligibility=Enabled reason=
+[17:32:13.626] [IntentEval] CharmDefense → Show
+[17:32:13.626] [ConvCondition] intent=CharmDefense playerLine="他先惹我的。" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185860 actionParam=(null) eligibility=Enabled reason=
+[17:32:13.626] [IntentEval] FightVillagers → Show
+[17:32:13.627] [ConvCondition] intent=FightVillagers playerLine="（拔剑）谁敢拦我！" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185860 actionParam=(null) eligibility=Enabled reason=
+[17:32:13.636] [AlertForceConv] 帝国农民(Idx=12) 对话启动成功
+[17:32:16.563] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185860_v0_atk_0' NPC=亨利 | Options (3): 我愿意赔钱。（8 第纳尔） | 他先惹我的。 | （拔剑）谁敢拦我！
+[17:32:16.564] [IntentEval] FightVillagers → Show
+[17:32:16.565] [Penalty] misconduct_village_ES3_2_2185860 price escalation #1: 你拔剑动了手
+[17:32:16.565] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Active → Confrontation
+[17:32:16.565] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Confrontation settlement=特维亚 — refreshing issue signals
+[17:32:16.566] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185860 stage=Confrontation
+[17:32:16.566] [Brain-Receive] 帝国农民(Idx=8) 收到事件 'order_attack' | 当前行为=StayAction | 队列=0 | 阶段=Normal
+[17:32:16.566] [DisplayMessage] [Red] "Agent 帝国农民 收到攻击命令，目标是 亨利"
+[17:32:16.566] [Brain-Clear] 帝国农民(Idx=8) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[17:32:16.566] [Brain-Enqueue] 帝国农民(Idx=8) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.566] [Brain-Receive] 帝国农民(Idx=13) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.567] [DisplayMessage] [Red] "Agent 帝国农民 收到攻击命令，目标是 亨利"
+[17:32:16.567] [Brain-Clear] 帝国农民(Idx=13) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.567] [Brain-Enqueue] 帝国农民(Idx=13) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.567] [AI-Debug] Suspend 帝国农民 (Idx=13) | 集合size=4 | 当前行为=null
+[17:32:16.567] [Brain-Receive] 帝国农民(Idx=18) 收到事件 'order_attack' | 当前行为=StayAction | 队列=0 | 阶段=Normal
+[17:32:16.567] [DisplayMessage] [Red] "Agent 帝国农民 收到攻击命令，目标是 亨利"
+[17:32:16.567] [Brain-Clear] 帝国农民(Idx=18) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[17:32:16.567] [Brain-Enqueue] 帝国农民(Idx=18) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.567] [Brain-Receive] 帝国女农民(Idx=26) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.568] [DisplayMessage] [Red] "Agent 帝国女农民 收到攻击命令，目标是 亨利"
+[17:32:16.568] [Brain-Clear] 帝国女农民(Idx=26) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.568] [Brain-Enqueue] 帝国女农民(Idx=26) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.568] [AI-Debug] Suspend 帝国女农民 (Idx=26) | 集合size=5 | 当前行为=null
+[17:32:16.568] [Brain-Receive] 帝国女农民(Idx=27) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.568] [DisplayMessage] [Red] "Agent 帝国女农民 收到攻击命令，目标是 亨利"
+[17:32:16.568] [Brain-Clear] 帝国女农民(Idx=27) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.568] [Brain-Enqueue] 帝国女农民(Idx=27) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.568] [AI-Debug] Suspend 帝国女农民 (Idx=27) | 集合size=6 | 当前行为=null
+[17:32:16.569] [Brain-Receive] 男孩(Idx=32) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.569] [DisplayMessage] [Red] "Agent 男孩 收到攻击命令，目标是 亨利"
+[17:32:16.569] [Brain-Clear] 男孩(Idx=32) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.569] [Brain-Enqueue] 男孩(Idx=32) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.569] [AI-Debug] Suspend 男孩 (Idx=32) | 集合size=7 | 当前行为=null
+[17:32:16.569] [Brain-Receive] 男孩(Idx=33) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.569] [DisplayMessage] [Red] "Agent 男孩 收到攻击命令，目标是 亨利"
+[17:32:16.569] [Brain-Clear] 男孩(Idx=33) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.569] [Brain-Enqueue] 男孩(Idx=33) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.569] [AI-Debug] Suspend 男孩 (Idx=33) | 集合size=8 | 当前行为=null
+[17:32:16.569] [Brain-Receive] 男孩(Idx=34) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.569] [DisplayMessage] [Red] "Agent 男孩 收到攻击命令，目标是 亨利"
+[17:32:16.570] [Brain-Clear] 男孩(Idx=34) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.570] [Brain-Enqueue] 男孩(Idx=34) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.570] [AI-Debug] Suspend 男孩 (Idx=34) | 集合size=9 | 当前行为=null
+[17:32:16.570] [Brain-Receive] 女孩(Idx=37) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.570] [DisplayMessage] [Red] "Agent 女孩 收到攻击命令，目标是 亨利"
+[17:32:16.570] [Brain-Clear] 女孩(Idx=37) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.570] [Brain-Enqueue] 女孩(Idx=37) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.570] [AI-Debug] Suspend 女孩 (Idx=37) | 集合size=10 | 当前行为=null
+[17:32:16.570] [Brain-Receive] 少年(Idx=39) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.571] [DisplayMessage] [Red] "Agent 少年 收到攻击命令，目标是 亨利"
+[17:32:16.571] [Brain-Clear] 少年(Idx=39) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.571] [Brain-Enqueue] 少年(Idx=39) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.571] [AI-Debug] Suspend 少年 (Idx=39) | 集合size=11 | 当前行为=null
+[17:32:16.571] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[17:32:16.571] [DisplayMessage] [Red] "Agent 帝国农民 收到攻击命令，目标是 亨利"
+[17:32:16.571] [Brain-Clear] 帝国农民(Idx=44) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[17:32:16.572] [Brain-Enqueue] 帝国农民(Idx=44) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:16.572] [AI-Debug] Suspend 帝国农民 (Idx=44) | 集合size=12 | 当前行为=null
+[17:32:16.572] [Accountability] FightVillagers in-mission: order_attack broadcast, deferred=帝国农民
+[17:32:16.572] [DisplayMessage] [Red] "村民愤怒了！有人抄起家伙围了过来……快离开这里！"
+[17:32:16.572] [Accountability] Player fought villagers for misconduct_village_ES3_2_2185860
+[17:32:16.572] [VanillaDialog] Player says: "（拔剑）谁敢拦我！"
+[17:32:16.573] [VanillaDialog] NPC  | NPC: 帝国农民 (CharacterId: villager_empire) says: "你疯了！快叫人！"
+[17:32:16.580] [Brain-Tick] 帝国农民(Idx=8) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.580] [DisplayMessage] [Yellow] "帝国农民(Idx=8)  开始攻击 亨利！"
+[17:32:16.581] [CombatManager] RegisterCombatant: 帝国农民(Idx=8), total=1
+[17:32:16.588] [Brain-Tick] 帝国农民(Idx=13) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.589] [DisplayMessage] [Yellow] "帝国农民(Idx=13)  开始攻击 亨利！"
+[17:32:16.589] [CombatManager] RegisterCombatant: 帝国农民(Idx=13), total=2
+[17:32:16.590] [Brain-Tick] 帝国农民(Idx=18) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.590] [DisplayMessage] [Yellow] "帝国农民(Idx=18)  开始攻击 亨利！"
+[17:32:16.590] [CombatManager] RegisterCombatant: 帝国农民(Idx=18), total=3
+[17:32:16.590] [Brain-Tick] 帝国女农民(Idx=26) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.590] [DisplayMessage] [Yellow] "帝国女农民(Idx=26)  开始攻击 亨利！"
+[17:32:16.591] [CombatManager] RegisterCombatant: 帝国女农民(Idx=26), total=4
+[17:32:16.591] [Brain-Tick] 帝国女农民(Idx=27) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.591] [DisplayMessage] [Yellow] "帝国女农民(Idx=27)  开始攻击 亨利！"
+[17:32:16.591] [CombatManager] RegisterCombatant: 帝国女农民(Idx=27), total=5
+[17:32:16.591] [Brain-Tick] 男孩(Idx=32) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.591] [DisplayMessage] [Yellow] "男孩(Idx=32)  开始攻击 亨利！"
+[17:32:16.591] [CombatManager] RegisterCombatant: 男孩(Idx=32), total=6
+[17:32:16.592] [Brain-Tick] 男孩(Idx=33) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.592] [DisplayMessage] [Yellow] "男孩(Idx=33)  开始攻击 亨利！"
+[17:32:16.592] [CombatManager] RegisterCombatant: 男孩(Idx=33), total=7
+[17:32:16.592] [Brain-Tick] 男孩(Idx=34) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.592] [DisplayMessage] [Yellow] "男孩(Idx=34)  开始攻击 亨利！"
+[17:32:16.592] [CombatManager] RegisterCombatant: 男孩(Idx=34), total=8
+[17:32:16.592] [Brain-Tick] 女孩(Idx=37) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.592] [DisplayMessage] [Yellow] "女孩(Idx=37)  开始攻击 亨利！"
+[17:32:16.592] [CombatManager] RegisterCombatant: 女孩(Idx=37), total=9
+[17:32:16.593] [Brain-Tick] 少年(Idx=39) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.593] [DisplayMessage] [Yellow] "少年(Idx=39)  开始攻击 亨利！"
+[17:32:16.593] [CombatManager] RegisterCombatant: 少年(Idx=39), total=10
+[17:32:16.593] [Brain-Tick] 帝国农民(Idx=44) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:16.593] [DisplayMessage] [Yellow] "帝国农民(Idx=44)  开始攻击 亨利！"
+[17:32:16.593] [CombatManager] RegisterCombatant: 帝国农民(Idx=44), total=11
+[17:32:17.390] [ConvLock] Release by 帝国农民(Idx=12) | reason=EndConversation
+[17:32:17.390] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185860_villager_empire lastTag=crime_misconduct_village_ES3_2_2185860
+[17:32:17.391] [AlertForceConv] 帝国农民(Idx=12) ActiveConversationAgent 清空成功
+[17:32:17.391] [Brain-Receive] 帝国农民(Idx=12) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
+[17:32:17.391] [Brain-Receive] 帝国农民(Idx=13) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[17:32:17.391] [Brain-Receive] 帝国农民(Idx=18) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[17:32:17.391] [Brain-Receive] 帝国女农民(Idx=27) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[17:32:17.391] [Brain-Receive] 男孩(Idx=34) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[17:32:17.391] [Brain-Receive] 女孩(Idx=37) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[17:32:17.392] [Brain-Receive] 少年(Idx=39) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[17:32:17.392] [Brain-Receive] 帝国农民(Idx=44) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[17:32:17.392] [DisplayMessage] "[事件发送] 发送事件 'DeferredCombat' 给 帝国农民 (Index:12, 距离:2.5m, 方位:东北)"
+[17:32:17.392] [Brain-Receive] 帝国农民(Idx=12) 收到事件 'DeferredCombat' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
+[17:32:17.392] [Brain-Clear] 帝国农民(Idx=12) 清空动作 | 当前=AlertForceConversationAction | 队列=0 | hadActions=True
+[17:32:17.392] [Brain-Enqueue] 帝国农民(Idx=12) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[17:32:17.392] [Brain-DeferredCombat] 帝国农民(Idx=12) 开始攻击 亨利
+[17:32:17.392] [ConvEnd] DeferredCombat sent to 帝国农民(Idx=12)
+[17:32:17.396] [Brain-Tick] 帝国农民(Idx=12) 开始执行 FightEnemyAction | 队列剩余=0
+[17:32:17.396] [DisplayMessage] [Yellow] "帝国农民(Idx=12)  开始攻击 亨利！"
+[17:32:17.396] [CombatManager] RegisterCombatant: 帝国农民(Idx=12), total=12
+[17:32:20.401] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 少年 对 亨利 造成了11 点伤害"
+[17:32:20.410] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[17:32:20.572] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国农民 对 亨利 造成了11 点伤害"
+[17:32:20.574] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.92米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[17:32:21.474] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 少年 对 亨利 造成了10 点伤害"
+[17:32:21.475] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到10点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.48米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[17:32:22.129] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国农民 对 亨利 造成了11 点伤害"
+[17:32:22.130] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到11点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[17:32:22.580] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 少年 对 亨利 造成了8 点伤害"
+[17:32:22.581] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到8点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：0.09米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[17:32:22.728] [Detention] Player knocked out at 特维亚, case=misconduct_village_ES3_2_2185860
+[17:32:22.728] [DisplayMessage] [Red] "你被按在地上，武器被夺走了……"
+[17:32:22.729] [Detention] Requested at 特维亚 event=misconduct_village_ES3_2_2185860 fine=50 days=2 | stage=Confrontation firstQuote=8@Active lastQuote=8 escalations=[你拔剑动了手]
+[17:32:22.732] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到10点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：1.48米/秒</Detail><Detail>吸收伤害：1</Detail>" | category=Combat
+[17:32:22.732] [Brain-Tick] 帝国农民(Idx=8) 完成 FightEnemyAction
+[17:32:22.733] [CombatManager] UnregisterCombatant: 帝国农民(Idx=8), total=11
+[17:32:22.733] [CombatManager] EndFight: 帝国农民(Idx=8) restored to original team
+[17:32:22.734] [Brain-Alert] 帝国农民(Idx=8) ClearAllAlerts: 警戒值归零
+[17:32:22.734] [FightEnd] 帝国农民(Idx=8) 战斗结束，收起武器，且警戒值归零
+[17:32:22.734] [Brain-Tick] 帝国农民(Idx=12) 完成 FightEnemyAction
+[17:32:22.734] [CombatManager] UnregisterCombatant: 帝国农民(Idx=12), total=10
+[17:32:22.734] [CombatManager] EndFight: 帝国农民(Idx=12) restored to original team
+[17:32:22.736] [Brain-Alert] 帝国农民(Idx=12) ClearAllAlerts: 警戒值归零
+[17:32:22.736] [FightEnd] 帝国农民(Idx=12) 战斗结束，收起武器，且警戒值归零
+[17:32:22.736] [Brain-Tick] 帝国农民(Idx=13) 完成 FightEnemyAction
+[17:32:22.736] [CombatManager] UnregisterCombatant: 帝国农民(Idx=13), total=9
+[17:32:22.736] [CombatManager] EndFight: 帝国农民(Idx=13) restored to original team
+[17:32:22.736] [Brain-Alert] 帝国农民(Idx=13) ClearAllAlerts: 警戒值归零
+[17:32:22.736] [FightEnd] 帝国农民(Idx=13) 战斗结束，收起武器，且警戒值归零
+[17:32:22.736] [Brain-Tick] 帝国农民(Idx=18) 完成 FightEnemyAction
+[17:32:22.736] [CombatManager] UnregisterCombatant: 帝国农民(Idx=18), total=8
+[17:32:22.736] [CombatManager] EndFight: 帝国农民(Idx=18) restored to original team
+[17:32:22.737] [Brain-Alert] 帝国农民(Idx=18) ClearAllAlerts: 警戒值归零
+[17:32:22.737] [FightEnd] 帝国农民(Idx=18) 战斗结束，收起武器，且警戒值归零
+[17:32:22.737] [Brain-Tick] 帝国女农民(Idx=26) 完成 FightEnemyAction
+[17:32:22.737] [CombatManager] UnregisterCombatant: 帝国女农民(Idx=26), total=7
+[17:32:22.737] [CombatManager] EndFight: 帝国女农民(Idx=26) restored to original team
+[17:32:22.737] [Brain-Alert] 帝国女农民(Idx=26) ClearAllAlerts: 警戒值归零
+[17:32:22.737] [FightEnd] 帝国女农民(Idx=26) 战斗结束，收起武器，且警戒值归零
+[17:32:22.738] [Brain-Tick] 帝国女农民(Idx=27) 完成 FightEnemyAction
+[17:32:22.738] [CombatManager] UnregisterCombatant: 帝国女农民(Idx=27), total=6
+[17:32:22.738] [CombatManager] EndFight: 帝国女农民(Idx=27) restored to original team
+[17:32:22.738] [Brain-Alert] 帝国女农民(Idx=27) ClearAllAlerts: 警戒值归零
+[17:32:22.738] [FightEnd] 帝国女农民(Idx=27) 战斗结束，收起武器，且警戒值归零
+[17:32:22.738] [Brain-Tick] 男孩(Idx=32) 完成 FightEnemyAction
+[17:32:22.738] [CombatManager] UnregisterCombatant: 男孩(Idx=32), total=5
+[17:32:22.738] [CombatManager] EndFight: 男孩(Idx=32) restored to original team
+[17:32:22.738] [Brain-Alert] 男孩(Idx=32) ClearAllAlerts: 警戒值归零
+[17:32:22.739] [FightEnd] 男孩(Idx=32) 战斗结束，收起武器，且警戒值归零
+[17:32:22.739] [Brain-Tick] 男孩(Idx=33) 完成 FightEnemyAction
+[17:32:22.739] [CombatManager] UnregisterCombatant: 男孩(Idx=33), total=4
+[17:32:22.739] [CombatManager] EndFight: 男孩(Idx=33) restored to original team
+[17:32:22.739] [Brain-Alert] 男孩(Idx=33) ClearAllAlerts: 警戒值归零
+[17:32:22.739] [FightEnd] 男孩(Idx=33) 战斗结束，收起武器，且警戒值归零
+[17:32:22.739] [Brain-Tick] 男孩(Idx=34) 完成 FightEnemyAction
+[17:32:22.739] [CombatManager] UnregisterCombatant: 男孩(Idx=34), total=3
+[17:32:22.739] [CombatManager] EndFight: 男孩(Idx=34) restored to original team
+[17:32:22.740] [Brain-Alert] 男孩(Idx=34) ClearAllAlerts: 警戒值归零
+[17:32:22.740] [FightEnd] 男孩(Idx=34) 战斗结束，收起武器，且警戒值归零
+[17:32:22.740] [Brain-Tick] 女孩(Idx=37) 完成 FightEnemyAction
+[17:32:22.740] [CombatManager] UnregisterCombatant: 女孩(Idx=37), total=2
+[17:32:22.740] [CombatManager] EndFight: 女孩(Idx=37) restored to original team
+[17:32:22.740] [Brain-Alert] 女孩(Idx=37) ClearAllAlerts: 警戒值归零
+[17:32:22.740] [FightEnd] 女孩(Idx=37) 战斗结束，收起武器，且警戒值归零
+[17:32:22.740] [Brain-Tick] 少年(Idx=39) 完成 FightEnemyAction
+[17:32:22.740] [CombatManager] UnregisterCombatant: 少年(Idx=39), total=1
+[17:32:22.740] [CombatManager] EndFight: 少年(Idx=39) restored to original team
+[17:32:22.741] [Brain-Alert] 少年(Idx=39) ClearAllAlerts: 警戒值归零
+[17:32:22.741] [FightEnd] 少年(Idx=39) 战斗结束，收起武器，且警戒值归零
+[17:32:22.741] [Brain-Tick] 帝国农民(Idx=44) 完成 FightEnemyAction
+[17:32:22.741] [CombatManager] UnregisterCombatant: 帝国农民(Idx=44), total=0
+[17:32:22.741] [CombatManager] EndFight: 帝国农民(Idx=44) restored to original team
+[17:32:22.741] [Brain-Alert] 帝国农民(Idx=44) ClearAllAlerts: 警戒值归零
+[17:32:22.741] [FightEnd] 帝国农民(Idx=44) 战斗结束，收起武器，且警戒值归零
+[17:32:22.745] [AI-Debug] Resume 帝国农民 (Idx=8) | 集合size=11
+[17:32:22.747] [AI-Debug] Resume 帝国农民 (Idx=12) | 集合size=10
+[17:32:22.747] [AI-Debug] Resume 帝国农民 (Idx=13) | 集合size=9
+[17:32:22.747] [AI-Debug] Resume 帝国农民 (Idx=18) | 集合size=8
+[17:32:22.748] [AI-Debug] Resume 帝国女农民 (Idx=26) | 集合size=7
+[17:32:22.748] [AI-Debug] Resume 帝国女农民 (Idx=27) | 集合size=6
+[17:32:22.748] [AI-Debug] Resume 男孩 (Idx=32) | 集合size=5
+[17:32:22.748] [AI-Debug] Resume 男孩 (Idx=33) | 集合size=4
+[17:32:22.748] [AI-Debug] Resume 男孩 (Idx=34) | 集合size=3
+[17:32:22.748] [AI-Debug] Resume 女孩 (Idx=37) | 集合size=2
+[17:32:22.748] [AI-Debug] Resume 少年 (Idx=39) | 集合size=1
+[17:32:22.748] [AI-Debug] Resume 帝国农民 (Idx=44) | 集合size=0
+[17:32:24.716] [Detention] EndMission → settlement menu
+[17:32:24.800] [WorldEvent] New event: Misconduct id=misconduct_village_ES3_2_2185860 settlement=village_ES3_2 items=[] culprit=main_hero stage=Confrontation suspect=main_hero witnesses=0h+1v severity=0 occurredDay=91077.52
+[17:32:25.009] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
+    标题: 被制住
+    正文: 你被人从地上拖起来，胳膊反剪在背后 —— 武器被踢到一边，围上来的人还在喘。 ⏎  ⏎ 带头的没跟你废话：钱赔了，这事就算了；不赔，就在柴房里待着，特维亚什么时候消气什么时候放人。 ⏎  ⏎ 当初你拔剑动了手 —— 那时候赔 8 就能了事，现在他们开口要 50，翻了 6.3 倍。
     选项:
-      1. 继续  [id=continue] 可点
+      1. 赔钱了事 —— 交 50<img src="General\Icons\Coin@2x" extend="8"> 罚金给特维亚的人。  [id=lwn_detention_pay_fine] 可点
+      2. 认罚 —— 在柴房里关2天。  [id=lwn_detention_accept] 可点
+[17:32:31.575] [GameMenu] ● 点击 menu=village 选项="赔钱了事 —— 交 50<img src="General\Icons\Coin@2x" extend="8"> 罚金给特维亚的人。" [id=lwn_detention_pay_fine] @特维亚(村庄)
+[17:32:31.578] [DisplayMessage] "你支付了50<img src="General\Icons\Coin@2x" extend="8">。"
+[17:32:31.579] [Detention] Fine paid: 50 → 特维亚的加里托普斯
+[17:32:31.579] [WorldEvent] misconduct_village_ES3_2_2185860 Stage: Confrontation → Resolved
+[17:32:31.579] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185860 stage=Resolved settlement=特维亚 — refreshing issue signals
+[17:32:31.580] [CommissionIssue] StageChanged — removing CommissionHubIssue from 特维亚的加里托普斯, event misconduct_village_ES3_2_2185860 resolved/unsolved
+[17:32:31.582] [Player] NinjaReport(resolved): ✅ 事件解决 · 特维亚
+[17:32:31.583] [WorldEvent] OnPlayerDetained: id=misconduct_village_ES3_2_2185860 paidFine=True → Resolved
+[17:32:31.587] [Detention] Menu shown: lwn_detention_release
+[17:32:31.587] [GameMenu] ▶ 打开 menu=lwn_detention_release @特维亚(村庄)
+    标题: 放人
+    正文: 钱货两清。按着你的手一只只松开，你的东西被丢回脚边。 ⏎  ⏎ 特维亚的人散了，这事算是了了。
+    选项:
+      1. 继续……  [id=lwn_detention_release_continue] 可点
+[17:32:36.185] [DisplayMessage] "✅ 特维亚 的事件已解决。"
+[17:32:37.710] [GameMenu] ● 点击 menu=lwn_detention_release 选项="继续……" [id=lwn_detention_release_continue] @特维亚(村庄)
+[17:32:37.720] [DisplayMessage] [Yellow] "罚金已付，这桩事了了。"
+[17:32:37.720] [Detention] Released (reason=fine, wasJailed=False)
+[17:32:37.721] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
+    标题: 村庄
+    正文: <a style="Link.Settlement" href="event:Settlement-village_ES3_2"><b>特维亚</b></a>附近的领地多为<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的一位执政官<a style="Link.Hero" href="event:Hero-lord_1_15"><b>法戎</b></a>所拥有。这个村庄的经济程度一般，人们和牲口看上去都健康强壮，村民们都忙于农活。
+    选项:
+      1. 敌对行动  [id=hostile_action] 可点
+      2. 四处转转  [id=village_center] 可点
+      3. 招募士兵  [id=recruit_volunteers] 可点
+      4. 购买给养  [id=trade] 可点
+      5. 稍作等待  [id=village_wait] 可点
+      6. 离开  [id=leave] 可点
+[17:32:38.644] [GameMenu] ● 点击 menu=village 选项="离开" [id=leave] @特维亚(村庄)
+[17:32:38.659] [GameMenu] ◀ 关闭 menu=village

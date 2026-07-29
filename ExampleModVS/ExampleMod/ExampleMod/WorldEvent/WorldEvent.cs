@@ -900,14 +900,28 @@ namespace LivingWorldNpcs
                 ?? MatchPending(settlementId, type);
         }
 
+        /// <summary>查找指定定居点的活跃事件，附加自定义谓词过滤。
+        /// 自动包含 PendingWorldEvent 兜底——谓词同时作用于持久化事件和 Pending。</summary>
+        public static WorldEvent FindActive(string settlementId, Func<WorldEvent, bool> predicate)
+        {
+            return _allEvents.FirstOrDefault(e =>
+                e.TargetSettlementId == settlementId &&
+                e.Stage != EventStage.Resolved &&
+                e.Stage != EventStage.Unsolved &&
+                predicate(e))
+                ?? MatchPending(settlementId, predicate: predicate);
+        }
+
         /// <summary>PendingWorldEvent 兜底匹配：Mission 内刚检测到、尚未持久化的事件。</summary>
-        private static WorldEvent MatchPending(string settlementId, EventType? type = null)
+        private static WorldEvent MatchPending(string settlementId, EventType? type = null,
+            Func<WorldEvent, bool> predicate = null)
         {
             var pending = AgentAIController.Instance?.PendingWorldEvent;
             if (pending == null) return null;
             if (pending.TargetSettlementId != settlementId) return null;
             if (pending.Stage == EventStage.Resolved || pending.Stage == EventStage.Unsolved) return null;
             if (type.HasValue && pending.Type != type.Value) return null;
+            if (predicate != null && !predicate(pending)) return null;
             return pending;
         }
 
