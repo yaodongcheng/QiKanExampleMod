@@ -131,14 +131,15 @@ namespace LivingWorldNpcs
         /// </summary>
         /// <param name="partner">对话对象的 Hero（模板 NPC 为 null）</param>
         /// <param name="agent">对话对象的 Agent（Mission 内非 null；大地图对话为 null）。
-        /// Hero 为 null 时从 Agent 提取 CharacterObject 做身份识别（dedup key、{SPEAKER} 占位符解析）。
-        /// Agent.Name/Agent.Index 保证即使 Character 为 null 也有唯一标识。</param>
-        internal static void TryInjectCrimeDialogue(Hero partner, Agent agent = null)
+        /// 优先从 Agent 提取 CharacterObject 做身份识别。</param>
+        /// <param name="character">对话对象的 CharacterObject（大地图路径无 Agent 时显式传入）。
+        /// agent 为 null 时用于身份回退（dedup key、{SPEAKER} 占位符解析）。</param>
+        internal static void TryInjectCrimeDialogue(Hero partner, Agent agent = null, CharacterObject character = null)
         {
             try
             {
-                // 从 Agent 提取 CharacterObject（模板 NPC 的身份回退源）
-                CharacterObject character = agent?.Character as CharacterObject;
+                // 优先从 Agent 提取 CharacterObject，回落显式传入的 character（大地图路径）
+                character = agent?.Character as CharacterObject ?? character;
 
                 // ── 1. 查找关联 WorldEvent（两层：持久化存储 + Mission 作用域）──
                 Settlement settlement = Settlement.CurrentSettlement
@@ -230,7 +231,8 @@ namespace LivingWorldNpcs
         {
             try
             {
-                TryInjectCrimeDialogue(conversationPartnerData.Character?.HeroObject);
+                TryInjectCrimeDialogue(conversationPartnerData.Character?.HeroObject,
+                    character: conversationPartnerData.Character);
             }
             catch (Exception ex)
             {

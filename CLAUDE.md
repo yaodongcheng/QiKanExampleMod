@@ -29,6 +29,7 @@
 6. **以 KCD2 / 荒野大镖客 2 的水准要求自己** — 每次思考实现方案、每次审查产出时，问自己：这个设计在 KCD2 里合格吗？玩家体验会不会出戏？沉浸感有没有被破坏？不是功能跑通就算完——要跑到让玩家觉得"这个 mod 像是原生游戏的一部分"。叙事、交互、UI、节奏、信息传递，每一项都适用。做不到就改，改到合格为止。
 7. **设计哲学四原则** — 任何新系统/新功能设计必须对照 [design-philosophy.md](plans/rules/design-philosophy.md) 逐条检查：①反馈明确 ②自由感 ③任意 NPC 接得住 ④信息塑造目标。设计评审不通过四原则 → 先改设计，再写代码。
 8. **所有 Agent 平等互动** — 玩家可以和任意 Agent 互动——无论它有 HeroObject（有名有姓的 Hero）还是模板 NPC（普通士兵/村民/守卫）。对话、战斗、偷窃、贿赂、威胁、投降等所有互动入口必须兼容 `speaker/partner == null`。**只拦截真正依赖 Hero 身份才能运作的场景**（如栽赃陷害——必须把罪名记到具体 Hero 头上），通用互动一律放行。模板 NPC 的身份匹配用 `TemplateId`（CharacterObject.StringId），不用 Hero StringId。
+9. 🔴**WorldEvent 双源查找** — 框架中存在 `PendingWorldEvent`（`AgentAIController.Instance?.PendingWorldEvent`）概念：Mission 内刚检测到的犯罪事件，尚未持久化到 `WorldEventStore`，但已挂在 Controller 上供注入阶段使用。**任何在运行时（特别是条件委托/惰性求值闭包中）查找 WorldEvent 的代码，都必须用双源查找**：`WorldEventStore.FindActive(settlement.StringId) ?? AgentAIController.Instance?.PendingWorldEvent`。只查 WorldEventStore 会导致刚创建的事件找不到 → 选项条件全部返回 Hidden → 玩家看不到对话选项（对话框只剩"点击继续"）。**参考实现**：`TryInjectCrimeDialogue` 的查找逻辑是所有运行时代码的范本。**典型案例**：`BuildTransitionCondition` 的条件委托中曾只查 `WorldEventStore.FindActive`，导致 Alert 质问对话 NPC 说完开场白后三个玩家选项全部消失——debug 一上午最后发现是这里漏了 `PendingWorldEvent` 兜底。
 
 ## API 探索：反编译 DLL 禁止瞎猜
 

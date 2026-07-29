@@ -87,6 +87,7 @@ namespace LivingWorldNpcs
                             _goal = null;  // 认罚不掷骰——NPC 已经决定了，玩家只是接受
                             _tactic = NegotiationTactic.Flatter;
                             _offerValue = 0f;
+                            DebugLogger.Log($"[IntentEval] PayRestitution → Show (alert_fine, no event)");
                             return Eligibility.Show();
 
                         case "bribe":
@@ -96,26 +97,43 @@ namespace LivingWorldNpcs
                             var misEvtBribe = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
                             int bribeCost = CrimePenaltyCalculator.ComputePenalty(misEvtBribe);
                             if (Hero.MainHero.Gold < bribeCost)
+                            {
+                                DebugLogger.Log($"[IntentEval] PayRestitution → Grey (bribe, gold={Hero.MainHero.Gold} < {bribeCost})");
                                 return Eligibility.Grey($"钱不够（需要 {bribeCost} 第纳尔）");
+                            }
+                            DebugLogger.Log($"[IntentEval] PayRestitution → Show (bribe, cost={bribeCost})");
                             return Eligibility.Show();
                     }
                 }
+                DebugLogger.Log($"[IntentEval] PayRestitution → Hide (no event, actionParam={ctx.ActionParam ?? "(null)"}, inRealScene={ctx.InRealScene})");
                 return Eligibility.Hide();
             }
-            if (ctx.ActiveEvent.InitiatorId != Hero.MainHero.StringId) return Eligibility.Hide();
+            if (ctx.ActiveEvent.InitiatorId != Hero.MainHero.StringId)
+            {
+                DebugLogger.Log($"[IntentEval] PayRestitution → Hide (initiator={ctx.ActiveEvent.InitiatorId} != {Hero.MainHero.StringId})");
+                return Eligibility.Hide();
+            }
 
             // 正式对话：赔钱在 Active/Confrontation 阶段始终可用；Emerging 阶段只有自首后（SuspectHeroId=玩家）才可用
             bool stageOk = ctx.ActiveEvent.Stage == EventStage.Active
                         || ctx.ActiveEvent.Stage == EventStage.Confrontation
                         || (ctx.ActiveEvent.Stage == EventStage.Emerging && ctx.ActiveEvent.SuspectHeroId == Hero.MainHero.StringId);
-            if (!stageOk) return Eligibility.Hide();
+            if (!stageOk)
+            {
+                DebugLogger.Log($"[IntentEval] PayRestitution → Hide (stage={ctx.ActiveEvent.Stage}, suspectIsPlayer={ctx.ActiveEvent.SuspectHeroId == Hero.MainHero.StringId})");
+                return Eligibility.Hide();
+            }
 
             // 「当场被抓私了价」只在真场景成立——大地图（含临时对话 Mission）按标准赔偿价
             int cost = ctx.InRealScene
                 ? CrimePenaltyCalculator.ComputeCost(ctx.ActiveEvent, CostType.OnSpot)
                 : CrimePenaltyCalculator.ComputeCost(ctx.ActiveEvent, CostType.Restitution);
             if (Hero.MainHero.Gold < cost)
+            {
+                DebugLogger.Log($"[IntentEval] PayRestitution → Grey (gold={Hero.MainHero.Gold} < {cost})");
                 return Eligibility.Grey($"钱不够（需要 {cost} 第纳尔）");
+            }
+            DebugLogger.Log($"[IntentEval] PayRestitution → Show (stage={ctx.ActiveEvent.Stage}, cost={cost})");
             return Eligibility.Show();
         }
 
@@ -209,9 +227,10 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
-            if (ctx.ActiveEvent.SuspectHeroId != Hero.MainHero.StringId) return Eligibility.Hide();
-            if (ctx.ActiveEvent.CharmReprieveUsed) return Eligibility.Grey("已经用过一次了（村长不会再信）");
+            if (ctx.ActiveEvent == null) { DebugLogger.Log($"[IntentEval] CharmDefense → Hide (no event)"); return Eligibility.Hide(); }
+            if (ctx.ActiveEvent.SuspectHeroId != Hero.MainHero.StringId) { DebugLogger.Log($"[IntentEval] CharmDefense → Hide (suspect={ctx.ActiveEvent.SuspectHeroId} != {Hero.MainHero.StringId})"); return Eligibility.Hide(); }
+            if (ctx.ActiveEvent.CharmReprieveUsed) { DebugLogger.Log($"[IntentEval] CharmDefense → Grey (CharmReprieveUsed)"); return Eligibility.Grey("已经用过一次了（村长不会再信）"); }
+            DebugLogger.Log($"[IntentEval] CharmDefense → Show");
             return Eligibility.Show();
         }
 
@@ -802,7 +821,8 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
+            if (ctx.ActiveEvent == null) { DebugLogger.Log($"[IntentEval] FightVillagers → Hide (no event)"); return Eligibility.Hide(); }
+            DebugLogger.Log($"[IntentEval] FightVillagers → Show");
             return Eligibility.Show();
         }
 
