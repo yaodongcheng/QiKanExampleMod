@@ -1006,7 +1006,9 @@ namespace LivingWorldNpcs
             {
                 PlayerActionType.Crouching or PlayerActionType.WeaponDrawn => ConfrontationType.Deter,
                 PlayerActionType.StealUIOpen => ConfrontationType.Search,
-                PlayerActionType.Steal => ConfrontationType.Recover,
+                PlayerActionType.Steal => StealManager.HasStolenItemsFrom(agent)
+                    ? ConfrontationType.Recover
+                    : ConfrontationType.Deter,
                 PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
                 PlayerActionType.SuspectFlee => ConfrontationType.Stop,
                 _ => ConfrontationType.Deter

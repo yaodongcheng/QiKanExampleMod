@@ -1343,4 +1343,47 @@ namespace LivingWorldNpcs
     }
 
     #endregion
+
+    #region ReturnStolenItemsIntent
+
+    /// <summary>
+    /// 归还赃物 — 把偷来的东西原封不动还回去，一分钱不花。
+    /// 仅当受害者本人当面质问时可用（ctx.Agent 身上有 _stolenLog 记录）。
+    /// 归还成功 → 清除警戒值、释放质问锁、复原 NPC 外观。
+    /// 物品已卖出/丢弃 → 归还失败 → 回退到赔钱路径。
+    /// </summary>
+    public class ReturnStolenItemsIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.PayRestitution;
+        public override string DisplayName => "【归还赃物】东西还你，我们两清";
+        public override NegotiationGoalType? Goal => null; // 即时类，不掷骰
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            if (ctx.Agent == null) return Eligibility.Hide();
+            if (!StealManager.HasStolenItemsFrom(ctx.Agent)) return Eligibility.Hide();
+            return Eligibility.Show();
+        }
+
+        public override void OnInstant(IntentContext ctx)
+        {
+            int returned = StealManager.ReturnStolenItems(ctx.Agent);
+            if (returned > 0)
+            {
+                // 归还成功：清警戒、释放质问锁
+                var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
+                brain?.ClearAllAlerts();
+                WorldEventStore.OnPlayerPaidRestitution(ctx.ActiveEvent);
+                TheftLedger.MarkCleared(ctx.ActiveEvent?.TargetSettlementId);
+                DebugLogger.Log($"[Accountability] Returned {returned} stolen items to {ctx.Agent.Name}");
+            }
+            else
+            {
+                // 物品已不在身上（卖了/丢了）→ 归还失败，NPC 回应走 LazyNpcLine 检查
+                DebugLogger.Log($"[Accountability] ReturnStolenItems failed — items already gone from {ctx.Agent.Name}");
+            }
+        }
+    }
+
+    #endregion
 }

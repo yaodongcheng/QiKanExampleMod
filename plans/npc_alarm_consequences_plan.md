@@ -188,7 +188,7 @@ Patch 层只负责发事件，不得直接调 `CombatManager.StartFight` 或 `br
 
 **`CrimeDialogueBuilder.cs` — `BuildAlertInterceptScript`**：
 - 新增 `bool escalated = false` 参数
-- `continue_chat`：escalated 时"我走了"替换成"（拔剑）谁敢拦我" + 投降
+- `continue_chat`：escalated 时"我走了"替换成"(威胁)谁拦着我就杀谁" + 投降
 
 ### 流程
 

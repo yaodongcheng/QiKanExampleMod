@@ -50,8 +50,9 @@ namespace LivingWorldNpcs
     public struct AlertEntry
     {
         public float Value;
-        public string TargetName;  // 脉冲事件附加：受害者名（持续累加时为空）
-        public string ItemName;    // 脉冲事件附加：被盗物品名（持续累加时为空）
+        public string TargetName;       // 脉冲事件附加：受害者名（持续累加时为空）
+        public string ItemName;         // 脉冲事件附加：被盗物品名（持续累加时为空）
+        public int TargetAgentIndex;    // 受害者 Agent.Index（-1 = 未设置），用于精确判断是否自指
     }
 
     // ═══════════════════════════════════════════════════════════════
