@@ -74,6 +74,8 @@ namespace LivingWorldNpcs
         public override NegotiationTactic Tactic => _tactic;
         public override float GetOfferValue(IntentContext ctx) => _offerValue;
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[赔钱]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             // Alert 场景：NPC 找上门质问，无犯罪事件也允许赔钱消灾
@@ -225,6 +227,8 @@ namespace LivingWorldNpcs
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
         public override float CooldownDays => 0f; // 每案仅一次，靠 CharmReprieveUsed 守卫
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[狡辩]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) { DebugLogger.Log($"[IntentEval] CharmDefense → Hide (no event)"); return Eligibility.Hide(); }
@@ -274,6 +278,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【栽赃】是别人干的！";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[栽赃]";
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -378,6 +384,8 @@ namespace LivingWorldNpcs
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[威胁]";
+
         /// <summary>威胁失败后延迟进入战斗的 Agent（对话关闭后由 Patch 消费）</summary>
         internal static Agent PendingCombatAgent;
 
@@ -423,8 +431,10 @@ namespace LivingWorldNpcs
             var evt = ctx.ActiveEvent;
             if (evt != null)
             {
+                // 威胁失败 → 设 PendingCombatAgent（对话关闭后由 ConversationEntryPatch 消费）
+                PendingCombatAgent = ctx.Agent;
                 WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你出言威胁，没吓住人");
-                DebugLogger.Log($"[Accountability] Threat failed — → Confrontation");
+                DebugLogger.Log($"[Accountability] Threat failed — PendingCombatAgent={ctx.Agent?.Name}, → Confrontation");
                 var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
                 CommissionQuest.AddNarrativeLogForEvent(evt, $"威胁没吓住{giverName}——他叫人了。事情彻底闹大了。");
             }
@@ -454,6 +464,8 @@ namespace LivingWorldNpcs
         public override InteractionOptionType Type => InteractionOptionType.Investigate;
         public override string DisplayName => "【接调查任务】我可以帮忙查查是谁干的";
         public override NegotiationGoalType? Goal => null; // 即时类
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[接案]";
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -506,6 +518,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【自首】是我干的";
         public override NegotiationGoalType? Goal => null;  // 即时类——不检定，直接跳转
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[自首]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
@@ -551,6 +565,8 @@ namespace LivingWorldNpcs
         public override InteractionOptionType Type => InteractionOptionType.Leave;
         public override string DisplayName => "【离开】";
         public override NegotiationGoalType? Goal => null;  // 即时——不检定（Mission 逃脱在 OnInstant 内部掷骰）
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[离开]";
 
         /// <summary>延迟到对话结束后弹出的 Inquiry 数据</summary>
         internal static string PendingInquiryTitle;
@@ -748,6 +764,8 @@ namespace LivingWorldNpcs
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[封口]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
@@ -821,6 +839,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【拔剑】（拔出武器）谁敢拦我！";
         public override NegotiationGoalType? Goal => null;
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[拔剑]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) { DebugLogger.Log($"[IntentEval] FightVillagers → Hide (no event)"); return Eligibility.Hide(); }
@@ -834,13 +854,21 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你拔剑动了手");
-            InfamySystem.AddInfamy(5);
-            // 标记村庄警觉
-            if (!string.IsNullOrEmpty(evt.TargetSettlementId))
-                evt.PermanentEnemy = true;
+            // Alert 场景兜底：对话中 ActiveEvent 可能为 null，从 PendingWorldEvent 取 Misconduct
+            var evt = ctx.ActiveEvent ?? AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+            if (evt != null)
+            {
+                WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你拔剑动了手");
+                InfamySystem.AddInfamy(5);
+                // 标记村庄警觉
+                if (!string.IsNullOrEmpty(evt.TargetSettlementId))
+                    evt.PermanentEnemy = true;
+            }
+            else
+            {
+                // Alert 纯警戒场景（无犯罪事件）：恶名小幅增加
+                InfamySystem.AddInfamy(3);
+            }
 
             // 按所在处分流后果：真场景 Mission 内当场开打 / 大地图（含临时对话 Mission）召唤复仇队，二者只取其一。
             // ⚠️ 不能只看 ctx.IsInMission——大地图对话走的 OpenConversationMission 也是真 Mission，
@@ -874,14 +902,15 @@ namespace LivingWorldNpcs
             else
             {
                 // 大地图对话：没有场景可打 → 村民当场组织复仇队，在大地图上追猎玩家
-                InvestigationEngine.SpawnRetaliationParty(evt);
+                if (evt != null)
+                    InvestigationEngine.SpawnRetaliationParty(evt);
                 DebugLogger.Log($"[Accountability] FightVillagers on-map: retaliation party spawned");
                 TaleWorlds.Library.InformationManager.DisplayMessage(
                     new TaleWorlds.Library.InformationMessage("村民愤怒了！他们发誓要让你血债血偿……",
                         Colors.Red));
             }
 
-            DebugLogger.Log($"[Accountability] Player fought villagers for {evt.EventId}");
+            DebugLogger.Log($"[Accountability] Player fought villagers for {evt?.EventId ?? "(no event)"}");
         }
     }
 
@@ -894,6 +923,8 @@ namespace LivingWorldNpcs
         public override InteractionOptionType Type => InteractionOptionType.BetrayQuest;
         public override string DisplayName => "【背叛】快跑！村里人在抓你。";
         public override NegotiationGoalType? Goal => null;
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[告密]";
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -985,6 +1016,8 @@ namespace LivingWorldNpcs
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[砍价]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
@@ -1018,6 +1051,8 @@ namespace LivingWorldNpcs
         public override InteractionOptionType Type => InteractionOptionType.AcceptBountyQuest;
         public override string DisplayName => "【接悬赏】我接这个悬赏！";
         public override NegotiationGoalType? Goal => null;
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[接悬赏]";
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -1076,6 +1111,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【带队报复】我带人去！";
         public override NegotiationGoalType? Goal => null;
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[带队]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
@@ -1104,6 +1141,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【诱捕】跟我走一趟，村长找你有事";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[诱捕]";
 
         /// <summary>Mission 内诱捕成功后待淡出的 Agent。EndConversation 时消费。</summary>
         public static Agent PendingFadeAgent;
@@ -1235,6 +1274,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【坐牢】我没钱。要抓就抓吧。";
         public override NegotiationGoalType? Goal => null; // 即时类
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[坐牢]";
+
         /// <summary>坐牢后延迟踢出村庄的标记（对话关闭后由 ConversationEntryPatch 消费，
         /// 转交 PlayerDetentionBehavior 走原版俘虏流程）</summary>
         internal static bool PendingJailExit;
@@ -1288,6 +1329,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【服从】";
         public override NegotiationGoalType? Goal => null; // 即时类
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[服从]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             // 收武器/停止可疑行为只在真场景有意义（Alert 质问只会发生在真场景）
@@ -1314,6 +1357,62 @@ namespace LivingWorldNpcs
                 ChangeRelationAction.ApplyPlayerRelation(n, -1, false, true);
 
             DebugLogger.Log($"[Accountability] Comply: weapon sheathed, alerts cleared");
+        }
+    }
+
+    #endregion
+
+    #region ApologizeIntent
+
+    /// <summary>
+    /// 道歉 — Alert 场景 Deter 质问的检定出口。
+    /// 对标 KCD2：被守卫抓住可疑行为，道歉+魅力检定。成功→放你一马；失败→升级到认罚/拔剑/坐牢。
+    /// 与 Comply 的区别：道歉有检定门控，不是零成本脱身。
+    /// </summary>
+    public class ApologizeIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.Apologize;
+        public override string DisplayName => "【道歉】可以放我走吗？";
+        public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Apology;
+        public override NegotiationTactic Tactic => NegotiationTactic.Plead;
+
+        public override string GetDialoguePrefix(string actionParam = null) => "[道歉]";
+
+        public override Eligibility Evaluate(IntentContext ctx)
+        {
+            // Alert/Deter 场景的对话选项，只在真场景有意义
+            if (ctx.InRealScene)
+                return Eligibility.Show();
+            return Eligibility.Hide();
+        }
+
+        public override void OnSuccess(IntentContext ctx)
+        {
+            // 道歉被接受 → 收武器、清警戒、结案 Misconduct
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+            Agent.Main?.TryToSheathWeaponInHand(Agent.HandIndex.OffHand, Agent.WeaponWieldActionType.Instant);
+
+            AccountabilityHelper.ResolveMisconduct(ctx.Agent, "apologize");
+
+            var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
+            brain?.ClearAllAlerts();
+
+            var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+            if (npc is Hero n)
+                ChangeRelationAction.ApplyPlayerRelation(n, -1, false, true);
+
+            DebugLogger.Log($"[Accountability] Apologize succeeded — misconduct resolved, alerts cleared");
+        }
+
+        public override void OnFail(IntentContext ctx)
+        {
+            // 道歉失败 → 对话导航到 Layer 2（认罚/拔剑/坐牢），不在这里做游戏结算
+            // 只记小额关系惩罚
+            var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+            if (npc is Hero n)
+                ChangeRelationAction.ApplyPlayerRelation(n, -3, false, true);
+
+            DebugLogger.Log($"[Accountability] Apologize failed — escalating to Layer 2");
         }
     }
 
@@ -1358,6 +1457,8 @@ namespace LivingWorldNpcs
         public override string DisplayName => "【归还赃物】东西还你，我们两清";
         public override NegotiationGoalType? Goal => null; // 即时类，不掷骰
 
+        public override string GetDialoguePrefix(string actionParam = null) => "[归还]";
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.Agent == null) return Eligibility.Hide();
@@ -1383,6 +1484,38 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Accountability] ReturnStolenItems failed — items already gone from {ctx.Agent.Name}");
             }
         }
+    }
+
+    #endregion
+
+    #region SubmitToSearchIntent
+
+    /// <summary>
+    /// 配合搜查 — 对话导航标记，无游戏结算。
+    /// 对话引擎根据 TheftLedger 判定玩家背包是否有赃物，分叉到不同 NPC 回应。
+    /// </summary>
+    public class SubmitToSearchIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.System;
+        public override string DisplayName => "【配合搜查】";
+        public override string GetDialoguePrefix(string actionParam = null) => "[配合]";
+        public override Eligibility Evaluate(IntentContext ctx) => Eligibility.Hide(); // 仅对话 Transition，不出现在交互菜单
+    }
+
+    #endregion
+
+    #region RefuseSearchIntent
+
+    /// <summary>
+    /// 拒绝搜查 — 对话导航标记，无游戏结算。
+    /// 拒绝后 NPC 升级为 Recover 对峙（人赃并获）。
+    /// </summary>
+    public class RefuseSearchIntent : IntentBase
+    {
+        public override InteractionOptionType Type => InteractionOptionType.System;
+        public override string DisplayName => "【拒绝搜查】";
+        public override string GetDialoguePrefix(string actionParam = null) => "[拒绝]";
+        public override Eligibility Evaluate(IntentContext ctx) => Eligibility.Hide(); // 仅对话 Transition，不出现在交互菜单
     }
 
     #endregion

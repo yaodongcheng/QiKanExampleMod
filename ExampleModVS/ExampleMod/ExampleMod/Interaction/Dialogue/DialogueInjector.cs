@@ -745,22 +745,40 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 解析选项显示文本：JSON PlayerLine 优先 → INTENT:xxx 的 DisplayName 兜底 → "…"
+        /// 解析选项显示文本：Intent.GetDialoguePrefix() 自动拼接 + PlayerLine 文本。
         /// </summary>
         private static string ResolveTransitionText(DialogueTransition transition)
         {
-            if (!string.IsNullOrEmpty(transition.PlayerLine))
-                return transition.PlayerLine;
+            string text = null;
 
-            if (!string.IsNullOrEmpty(transition.Action) && transition.Action.StartsWith("INTENT:"))
+            if (!string.IsNullOrEmpty(transition.PlayerLine))
+                text = transition.PlayerLine;
+
+            if (text == null && !string.IsNullOrEmpty(transition.Action) && transition.Action.StartsWith("INTENT:"))
             {
                 string intentName = transition.Action.Substring("INTENT:".Length);
                 var intent = LivingWorldNpcs.IntentRegistry.FindByName(intentName);
                 if (intent != null && !string.IsNullOrEmpty(intent.DisplayName))
-                    return intent.DisplayName;
+                    text = intent.DisplayName;
             }
 
-            return "…";
+            if (text == null)
+                return "…";
+
+            // 自动拼接 Intent 前缀（如 "[威胁]"），PlayerLine 本身不再携带前缀
+            if (!string.IsNullOrEmpty(transition.Action) && transition.Action.StartsWith("INTENT:"))
+            {
+                string intentName = transition.Action.Substring("INTENT:".Length);
+                var intent = LivingWorldNpcs.IntentRegistry.FindByName(intentName);
+                if (intent != null)
+                {
+                    string prefix = intent.GetDialoguePrefix(transition.ActionParam);
+                    if (!string.IsNullOrEmpty(prefix))
+                        text = prefix + text;
+                }
+            }
+
+            return text;
         }
 
         /// <summary>

@@ -127,7 +127,7 @@ namespace LivingWorldNpcs
             {
                 string shortSummary = $"✅ 事件解决 · {settlement.Name}";
                 DebugLogger.Log($"[Player] NinjaReport(resolved): {shortSummary}");
-                NinjaNotificationManager.Show(shortSummary, () => InformationManager.DisplayMessage(new InformationMessage(msg)));
+                NinjaNotificationManager.Show(shortSummary, () => ShowResolvedInquiry(e, msg));
             }
             else
             {
@@ -356,6 +356,63 @@ namespace LivingWorldNpcs
                 }));
 
             DebugLogger.Log($"[Player] Inquiry shown: \"{loc} — {typeName}\"\n{body}");
+        }
+
+        /// <summary>
+        /// 事件已解决时的 Inquiry —— 只告知结果，不需要"过去看看"。
+        /// </summary>
+        private static void ShowResolvedInquiry(WorldEvent e, string msg)
+        {
+            if (e == null) return;
+
+            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
+            string typeName = e.Type switch
+            {
+                EventType.BanditRaid => "匪患",
+                EventType.Kidnapping => "绑架",
+                EventType.Famine => "饥荒",
+                EventType.Betrayal => "背叛",
+                EventType.DebtTrap => "债务危机",
+                EventType.RomanticConflict => "情仇",
+                EventType.FalseAccusation => "冤案",
+                EventType.InheritanceDispute => "继承争端",
+                EventType.Fugitive => "逃犯",
+                EventType.TradeDispute => "贸易争端",
+                EventType.NobleConflict => "贵族冲突",
+                EventType.SacredTheft => "圣物失窃",
+                EventType.Assassination => "暗杀",
+                EventType.NemesisRevenge => "宿敌复仇",
+                _ => "事件"
+            };
+
+            string instigator = e.IsGenericInstigator ? "一伙人" : (e.InstigatorHero?.Name?.ToString() ?? "某人");
+            string victim = e.TargetHero?.Name?.ToString() ?? "村民";
+
+            string body =
+                $"════ 事件已解决 ════\n\n" +
+                $"{msg}\n\n" +
+                $"——\n" +
+                $"地点：{loc}\n" +
+                $"类型：{typeName}\n" +
+                $"严重度：{e.Severity}/100\n" +
+                (e.IsGenericInstigator ? $"加害方：{instigator}\n" : $"加害方：{instigator}\n") +
+                (!string.IsNullOrEmpty(e.TargetHeroId) ? $"受害者：{victim}\n" : "") +
+                $"\n此事件已了结，不再需要你的介入。";
+
+            InformationManager.ShowInquiry(new InquiryData(
+                $"✅ {loc} — {typeName}（已解决）",
+                body,
+                false,
+                true,
+                "",
+                "知道了",
+                null,
+                () =>
+                {
+                    DebugLogger.Log($"[Player] ResolvedInquiry: '知道了' — {loc} {e.Type}");
+                }));
+
+            DebugLogger.Log($"[Player] ResolvedInquiry shown: \"{loc} — {typeName}\"\n{body}");
         }
 
         #endregion
