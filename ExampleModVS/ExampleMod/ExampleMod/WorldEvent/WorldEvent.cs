@@ -255,6 +255,8 @@ namespace LivingWorldNpcs
         [JsonIgnore] public float _workOffDebtDay;
         [JsonIgnore] public bool _workOffDebtAccepted;
         [JsonIgnore] public int _workOffDaysDone;
+        [JsonIgnore] public bool _haggleAttempted;   // 砍价已尝试（同一对话内禁止重试）
+        [JsonIgnore] public int _hagglePrice;        // 砍后价（0=还没砍成）。同一对话内重进 restitution_demand 时沿用此价
 
         // ═══ 辅助方法 ═══
 
@@ -452,23 +454,53 @@ namespace LivingWorldNpcs
             return null;
         }
 
+        /// <summary>
+        /// 构建逐项算账明细（NPC 情报边界版）。
+        /// 旧案赃物 NPC 没看见是谁偷的 → "村里丢了XX"（被动语态）；
+        /// 袭击是当场抓住的 → "你把XX打晕了"（直指玩家）。
+        /// 新旧两案合并时 NPC 说清"两笔账一起算"。
+        /// </summary>
+        public string BuildDetailedHarmBreakdown()
+        {
+            bool hasTheft = TotalStolenCount > 0;
+            bool hasAssault = AssaultVictimNames?.Count > 0;
+
+            string theftPart = hasTheft
+                ? $"丢了{BuildStolenItemsDescription()}，市值{TotalStolenValue}第纳尔，一直没找到是谁干的"
+                : "";
+            string assaultPart = "";
+            if (hasAssault)
+            {
+                string victimDesc = AssaultVictimNames.Count == 1
+                    ? AssaultVictimNames[0]
+                    : $"{string.Join("、", AssaultVictimNames)}等{AssaultVictimNames.Count}人";
+                assaultPart = $"你把{victimDesc}打晕了，身价{AssaultRestitutionValue}第纳尔";
+            }
+
+            if (hasTheft && hasAssault)
+                return $"前阵子村里{theftPart}。今天{assaultPart}——既然抓着的是你，两笔账一起算";
+            if (hasTheft) return $"村里{theftPart}";
+            if (hasAssault) return assaultPart;
+            return "闹了事";
+        }
+
         /// <summary>赔偿金额的明细解释（给玩家看为什么是这个数）</summary>
         public string GetRestitutionBreakdown()
         {
             var cfg = Config;
             if (cfg == null) return "赔100第纳尔。";
 
-            string lossDesc = BuildLossDescription();
-
+            string harm = BuildDetailedHarmBreakdown();
             int total = CrimePenaltyCalculator.ComputeCost(this, CostType.Restitution);
             string crimeGerund = cfg.CrimeVerbGerund ?? "犯事";
+            int multiplier = cfg.BaseRestitutionMultiplier;
 
             if (Stage <= EventStage.Emerging)
-                return $"{lossDesc}。既然你自己认了，赔{total}第纳尔，这事就算了。你认不认？";
+                return $"{harm}。既然你自己认了，{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。你认不认？";
             else if (Stage == EventStage.Active)
-                return $"{lossDesc}。村里人都知道了，{crimeGerund}按规矩要赔{total}第纳尔。你认不认？";
+                return $"{harm}。村里人都知道了，{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。你认不认？";
             else
-                return $"{lossDesc}。最后一次机会——赔{total}第纳尔，否则后果自负。你认不认？";
+                return $"{harm}。最后一次机会——{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。否则后果自负。你认不认？";
         }
 
         // ═══════════════════════════════════════════════════════════════

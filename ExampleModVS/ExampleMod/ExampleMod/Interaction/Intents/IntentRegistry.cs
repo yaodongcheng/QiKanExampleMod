@@ -201,9 +201,9 @@ namespace LivingWorldNpcs
             // 基础胜率：同技能比拼
             float baseChance = playerLevel / (playerLevel + npcLevel);
 
-            // 献礼加成（技能 70% + 献礼 30%）
+            // 技能为主（85%）+ 献礼/证物加成为辅（15%）
             float offerBonus = MathF.Clamp(offerValue, 0f, 1f);
-            float chance = baseChance * 0.7f + offerBonus * 0.3f;
+            float chance = baseChance * 0.85f + offerBonus * 0.15f;
 
             r.Chance = MathF.Clamp(chance, 0.05f, 0.95f);
             r.State = null;   // 不依赖 NegotiationState

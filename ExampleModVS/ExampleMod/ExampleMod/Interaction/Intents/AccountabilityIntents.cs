@@ -168,6 +168,9 @@ namespace LivingWorldNpcs
             int cost = isOnSpot ? CrimePenaltyCalculator.ComputeCost(evt, CostType.OnSpot) : CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution);
             if (ctx.ActionParam == "haggle")
                 cost = (int)(cost * 0.5f);
+            // 🆕 砍价成功后再进来（restitution_demand 重入，ActionParam=null）→ 沿用砍后价
+            else if (evt._hagglePrice > 0)
+                cost = evt._hagglePrice;
             var authority = WorldEventStore.GetAuthorityNpc(evt);
             if (authority != null)
                 AgentControlHelper.TransferGold(Hero.MainHero, authority, cost);
@@ -1009,36 +1012,55 @@ namespace LivingWorldNpcs
 
     #region SettleIntent
 
+    /// <summary>
+    /// 砍价 — BuildRestitutionSubtree 中的"太贵了，能便宜点吗？"检定。
+    /// 单次对话内仅可尝试一次（失败后 NPC 说"不行，一文都不能少"，玩家回到开价节点但砍价选项隐藏）。
+    /// 标记 _haggleAttempted 为 [JsonIgnore]：存档读档后清零，新对话可重试。
+    /// </summary>
     public class SettleIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Settle;
-        public override string DisplayName => "【和解劝说】这事可以商量……";
+        public override string DisplayName => "【砍价】太贵了，能便宜点吗？";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
         public override string GetDialoguePrefix(string actionParam = null) => "[砍价]";
 
+        /// <summary>
+        /// 砍价的 OfferValue：交易技能 + 流氓习气双重加成。
+        /// 公式：Trade/300 × 0.6 + Roguery/300 × 0.4，上限 1.0。
+        /// 例：Trade 150 + Roguery 50 → offerValue=0.37 → 成功率 +11%。
+        /// </summary>
+        public override float GetOfferValue(IntentContext ctx)
+        {
+            float trade = Hero.MainHero.GetSkillValue(TaleWorlds.Core.DefaultSkills.Trade);
+            float roguery = Hero.MainHero.GetSkillValue(TaleWorlds.Core.DefaultSkills.Roguery);
+            return Math.Min(1f, trade / 300f * 0.6f + roguery / 300f * 0.4f);
+        }
+
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
-            if (ctx.ActiveEvent.Stage != EventStage.Confrontation) return Eligibility.Hide();
+            if (!ctx.ActiveEvent.IsActive) return Eligibility.Hide();
+            // 🔴 砍价仅一次：失败后 NPC 不会让你反复磨
+            if (ctx.ActiveEvent._haggleAttempted) return Eligibility.Hide();
             return Eligibility.Show();
         }
 
         public override void OnSuccess(IntentContext ctx)
         {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            if (ctx.Speaker != null)
-                ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -15, false, true);
-            WorldEventStore.TransitionStage(evt, EventStage.Resolved);
-            evt.ResolvedBy = "settled";
-            DebugLogger.Log($"[Accountability] Settlement reached for {evt.EventId}");
+            // 砍价成功 → 只记标记，不结案。事件等玩家实际付款后由 PayRestitutionIntent 结算。
+            if (ctx.ActiveEvent != null)
+                ctx.ActiveEvent._haggleAttempted = true;
+            DebugLogger.Log($"[Accountability] Haggle succeeded for {ctx.ActiveEvent?.EventId}");
         }
 
         public override void OnFail(IntentContext ctx)
         {
-            base.OnFail(ctx);
+            // 砍价失败 → 记标记，禁止重试。下游对话导航到 restitution_haggle_fail。
+            if (ctx.ActiveEvent != null)
+                ctx.ActiveEvent._haggleAttempted = true;
+            DebugLogger.Log($"[Accountability] Haggle failed for {ctx.ActiveEvent?.EventId}");
         }
     }
 

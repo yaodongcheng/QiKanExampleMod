@@ -358,7 +358,23 @@ namespace LivingWorldNpcs
             BuildRestitutionSubtree(nodes, r, ctx);
         }
 
-        /// <summary>赔偿子树：NPC 开价 → 全价付 / 砍价 / 放弃 → 付款确认。依赖调用方已添加 continue_chat / farewell。</summary>
+        /// <summary>
+        /// 🔴【赔偿对话唯一入口】NPC 开价 → 全价付 / 砍价 / 放弃 → 付款确认。
+        ///
+        /// 所有赔钱路径必须路由到这里——玩家先说"我愿意赔偿"（不标价）→ 跳转 restitution_demand
+        /// → NPC 算账开价（明细+倍率+总价）→ 玩家接受/砍价/拒绝。
+        ///
+        /// ⚠️ 禁止在任何新对话子树中：
+        ///   - 让玩家台词说出具体金额（"我赔500第纳尔"❌）
+        ///   - 直接用 INTENT:PayRestitution 跳过 NPC 开价环节
+        ///   - 在 NPC 没开价前就扣钱
+        ///
+        /// 正确写法（新子树）：
+        ///   1. 玩家选项：PlayerLine="我愿意赔偿。" Action="NONE" NextNodeOnSuccess="restitution_demand"
+        ///   2. 子树末尾调：BuildRestitutionSubtree(nodes, r, ctx)
+        ///
+        /// 依赖调用方已添加 continue_chat / farewell。
+        /// </summary>
         private static void BuildRestitutionSubtree(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
         {
             WorldEvent evt = r.Event;
@@ -371,17 +387,25 @@ namespace LivingWorldNpcs
                 demandNpcLine = r.Resolve($"罚款{cost}第纳尔。你认不认？", "NpcLine");
 
             // demand 节点：NPC 开价
-            // LazyNpcLine 而非 NpcLine：引擎**真要显示这行**时才求值 —— 顺手在这里记报价台账。
-            // 玩家没走到这个节点（没自首、直接走人）就等于没听过价，事后不该拿它当"原本赔 X 就完了"的锚点。
-            // 记的是 cost（构树时算的数），与下面几个选项里的数字同源，不会自相矛盾。
+            // 🆕 惰性求值：首次进入用原价 cost，砍价成功后再进来 → 沿用砍后价 _hagglePrice，NPC 交代"刚才砍过一轮"
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "restitution_demand",
-                NpcLine = demandNpcLine,
-                LazyNpcLine = () => { evt?.RecordQuote(cost); return demandNpcLine; },
+                LazyNpcLine = () =>
+                {
+                    int currentCost = evt?._hagglePrice > 0 ? evt._hagglePrice : cost;
+                    evt?.RecordQuote(currentCost);
+                    if (evt?._hagglePrice > 0)
+                    {
+                        return r.Resolve(
+                            $"刚才砍到{currentCost}第纳尔，你嫌贵没要。那还是这个数——{currentCost}第纳尔。你认不认？",
+                            "NpcLine");
+                    }
+                    return demandNpcLine;
+                },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = r.Resolve($"我愿意赔{cost}第纳尔。", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = null, NextNodeOnSuccess = "restitution_pay_ack" },
+                    new() { PlayerLine = "行，就按这个价。", Action = "INTENT:PayRestitution", ActionParam = null, NextNodeOnSuccess = "restitution_pay_ack" },
                     new() { PlayerLine = "太贵了，能便宜点吗？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:Settle", NextNodeOnSuccess = "restitution_haggle_ok", NextNodeOnFail = "restitution_haggle_fail" },
                     new() { PlayerLine = "太贵了，不赔。", Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
                 }
@@ -390,18 +414,25 @@ namespace LivingWorldNpcs
             // refuse_warn：拒赔的当场就把代价说清楚 —— 这个价不是永远有效的
             // （赔款随案件阶段上浮：Emerging ×0.7 → Active ×1.0 → Confrontation ×1.7，
             //   玩家事后在地牢里看到翻倍的数字，得是"我知道会这样"而不是"系统坑我"）
-            nodes.Add(Node("restitution_refuse_warn",
-                r.Resolve($"不赔？{{SpeakerSelfRef}}把话放这儿：现在给，就是{cost}。" +
-                          $"等这事传开、等你我动了手，价钱只会往上翻。你自己掂量。", "NpcLine"),
+            // 🆕 惰性求值：如果前面砍过价（LastQuotedAmount 已更新为砍后价），用砍后价；
+            //   如果直接从 demand 来的，用原价 cost。避免"砍到1680→不赔→NPC又说3360"的割裂。
+            nodes.Add(LazyNode("restitution_refuse_warn",
+                () =>
+                {
+                    int warnCost = evt?.LastQuotedAmount > 0 ? evt.LastQuotedAmount : cost;
+                    return r.Resolve($"不赔？{{SpeakerSelfRef}}把话放这儿：现在给，就是{warnCost}。" +
+                                     $"等这事传开、等你我动了手，价钱只会往上翻。你自己掂量。", "NpcLine");
+                },
                 "continue_chat"));
 
-            // haggle_ok：砍价成功
-            string haggleNpcLine = r.Resolve($"……行，算你{haggleCost}，不能再少了。", "NpcLine");
+            // haggle_ok：砍价成功 — 明盘：原价多少、怎么砍的、砍到多少
+            string haggleNpcLine = r.Resolve(
+                $"……行，原价{cost}，给你对半砍——{haggleCost}。这是最后价了，不能再少了。", "NpcLine");
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "restitution_haggle_ok",
                 NpcLine = haggleNpcLine,
-                LazyNpcLine = () => { evt?.RecordQuote(haggleCost); return haggleNpcLine; },
+                LazyNpcLine = () => { evt!.RecordQuote(haggleCost); evt._hagglePrice = haggleCost; return haggleNpcLine; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = r.Resolve($"行，就这个数——{haggleCost}第纳尔。", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = "haggle", NextNodeOnSuccess = "restitution_pay_ack" },
@@ -890,14 +921,15 @@ namespace LivingWorldNpcs
                     new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                     // 升级选项：运行时 Evaluate 门控（Stage<Active 时自动隐藏）
                     new() { PlayerLine = "谁拦着我就杀谁！", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
-                    new() { PlayerLine = r.Resolve("我认罚，{AlertFineCost}第纳尔。"), Action = "INTENT:PayRestitution", ActionParam = "alert_fine", NextNodeOnSuccess = "alert_esc_fine_ack" },
+                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
                 }
             });
             // Escalated ack nodes
             nodes.Add(Node("alert_esc_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
-            nodes.Add(Node("alert_esc_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
             nodes.Add(Node("alert_esc_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
+
+            BuildRestitutionSubtree(nodes, r, ctx);
 
             return new DialogueInjector.DialogueInjectScript { SkipVanillaOpening = true, EntryNode = "injectedStart", Nodes = nodes };
         }
@@ -961,7 +993,7 @@ namespace LivingWorldNpcs
                     break;
                 //制止
                 case ConfrontationType.Stop:
-                    BuildStopSubtree(nodes, r, npcOpening);
+                    BuildStopSubtree(nodes, r, ctx, npcOpening);
                     break;
             }
         }
@@ -1004,8 +1036,7 @@ namespace LivingWorldNpcs
                 NpcLine = r.Resolve("道歉有用的话，还要我们干什么？两条路——认罚，还是咱们换个方式解决。你选吧。"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = r.Resolve("我认罚，{AlertFineCost}第纳尔。"), Action = "INTENT:PayRestitution",
-                            ActionParam = "alert_fine", NextNodeOnSuccess = "alert_deter_fine_ack" },
+                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = "谁拦着我就杀谁！", Action = "INTENT:FightVillagers",
                             NextNodeOnSuccess = "alert_deter_fight_ack" },
                     new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail",
@@ -1014,9 +1045,10 @@ namespace LivingWorldNpcs
             });
 
             // Layer 2 ack nodes
-            nodes.Add(Node("alert_deter_fine_ack", r.Resolve("扰乱治安，罚款{AlertFineCost}第纳尔。算你识相。别再来了。")));
             nodes.Add(Node("alert_deter_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
             nodes.Add(Node("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
+
+            BuildRestitutionSubtree(nodes, r, ctx);
         }
 
         /// <summary>Search 质问子树：搜查包裹。含 recover_confront（拒绝搜查→对峙）和 search_result（接受搜查→判定赃物）。</summary>
@@ -1052,7 +1084,7 @@ namespace LivingWorldNpcs
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
-                    new() { PlayerLine = r.Resolve("我愿意赔{RestitutionCost}第纳尔。"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
+                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
                     new() { PlayerLine = "推开就跑", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
@@ -1063,6 +1095,8 @@ namespace LivingWorldNpcs
             // search_result（submit search → 判定赃物）
             bool hasStolen = PlayerHasStolenItems();
             nodes.Add(BuildSearchResultNode(r, hasStolen));
+
+            BuildRestitutionSubtree(nodes, r, ctx);
         }
 
         /// <summary>Recover 质问子树：人赃并获，交出赃物。</summary>
@@ -1074,60 +1108,58 @@ namespace LivingWorldNpcs
         {
             // 开场就把赔款数字摆在玩家眼前（选项里的 {RestitutionCost}）→ 这就是一次报价，记台账。
             // 与选项同源：都取构树时这一刻的 Restitution。
-            WorldEvent evt = r.Event;
-            int quoted = evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0;
-
+            // 🆕 赔钱入口已统一路由到 restitution_demand，NPC 在 restitution_demand 统一算账开价。
+            // 报价台账由 BuildRestitutionSubtree 的 LazyNpcLine 统一记录，这里不再提前记账。
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
                 NpcLine = npcOpening,
-                LazyNpcLine = () => { evt?.RecordQuote(quoted); return npcOpening; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
-                    new() { PlayerLine = r.Resolve("我愿意赔{RestitutionCost}第纳尔。"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_recover_pay_ack" },
+                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
                     new() { PlayerLine = "推开就跑", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             });
 
             AddRecoverAckNodes(nodes, r);
+
+            BuildRestitutionSubtree(nodes, r, ctx);
         }
 
         /// <summary>Stop 质问子树：当场制止暴力行为。</summary>
         static void BuildStopSubtree(
             List<DialogueInjector.DialogueNode> nodes,
             PlaceholderResolver r,
+            IntentContext ctx,
             string npcOpening)
         {
-            // 同 BuildRecoverSubtree：开场选项里就带着赔款数字 → 记一次报价
-            WorldEvent evt = r.Event;
-            int quoted = evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0;
-
+            // 🆕 赔钱入口已统一路由到 restitution_demand，NPC 在 restitution_demand 统一算账开价。
+            // 报价台账由 BuildRestitutionSubtree 的 LazyNpcLine 统一记录，这里不再提前记账。
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
                 NpcLine = npcOpening,
-                LazyNpcLine = () => { evt?.RecordQuote(quoted); return npcOpening; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = r.Resolve("我愿意付{RestitutionCost}第纳尔。"), Action = "INTENT:PayRestitution", NextNodeOnSuccess = "alert_stop_pay_ack" },
+                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = r.Resolve("他先惹我的。"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_stop_charm_ok", NextNodeOnFail = "alert_stop_charm_fail" },
                     new() { PlayerLine = r.Resolve("谁拦着我就杀谁！"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_stop_fight_ack" },
                 }
             });
 
-            nodes.Add(Node("alert_stop_pay_ack", r.Resolve("这次收你这点钱就这么算了，下次别再让我看到你干这种事。")));
             nodes.Add(Node("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。"), "continue_chat"));
             nodes.Add(Node("alert_stop_charm_fail", r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！"), "continue_chat"));
             nodes.Add(Node("alert_stop_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
+
+            BuildRestitutionSubtree(nodes, r, ctx);
         }
 
         /// <summary>Recover ack nodes：被 BuildRecoverSubtree 和 BuildSearchSubtree（via recover_confront）共享。</summary>
         static void AddRecoverAckNodes(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r)
         {
             nodes.Add(Node("alert_recover_return_ack", r.Resolve("东西都在。……算你老实。别再来了。")));
-            nodes.Add(Node("alert_recover_pay_ack", r.Resolve("算你识相。别再来了。")));
             nodes.Add(Node("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。"), "continue_chat"));
             nodes.Add(Node("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！"), "continue_chat"));
         }
