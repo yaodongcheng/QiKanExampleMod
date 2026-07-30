@@ -443,6 +443,15 @@ namespace LivingWorldNpcs
                 {
                     try
                     {
+                        // 🔴 必须先结束 Mission 再进拘留流程：StartJail 里的
+                        // TakePrisonerAction 和 GameMenu.SwitchToMenu 都是战役层操作，
+                        // Mission 还开着的话菜单切不过去，玩家会手动控制在场景里干等。
+                        if (Mission.Current != null)
+                        {
+                            Mission.Current.EndMission();
+                            DebugLogger.Log($"[ConvEnd] Mission ended for jail handoff");
+                        }
+
                         // 罪名已在 SurrenderJailIntent.OnInstant 里 ResolveMisconduct 结案，
                         // 这里不再传事件（避免重复结案）
                         PlayerDetentionBehavior.ApplyImmediateDetention(settlement, null, "surrender-jail");
