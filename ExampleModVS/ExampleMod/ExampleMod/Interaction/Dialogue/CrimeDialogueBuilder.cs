@@ -375,7 +375,8 @@ namespace LivingWorldNpcs
         ///
         /// 依赖调用方已添加 continue_chat / farewell。
         /// </summary>
-        private static void BuildRestitutionSubtree(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
+        private static void BuildRestitutionSubtree(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx,
+            string afterPayNodeId = "continue_chat")
         {
             WorldEvent evt = r.Event;
             int cost = CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution);
@@ -444,7 +445,7 @@ namespace LivingWorldNpcs
             nodes.Add(Node("restitution_haggle_fail", r.Resolve("不行，一文都不能少。", "NpcLine"), "restitution_demand"));
 
             // pay_ack：付款确认
-            nodes.Add(Node("restitution_pay_ack", r.Resolve("好，钱留下，这事就算了。", "NpcLine"), "continue_chat"));
+            nodes.Add(Node("restitution_pay_ack", r.Resolve("好，钱留下，这事就算了。", "NpcLine"), afterPayNodeId));
         }
 
         private static void BuildReportNode(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
@@ -902,9 +903,8 @@ namespace LivingWorldNpcs
 
             BuildAlertTransitionsSubtree(nodes, r, ctx, npcOpening);
 
-            // continue_chat — 始终注册全部选项（升级 + 非升级），运行时 Evaluate 门控。
-            // 不再在构建时分叉：对话开始后事件阶段可能变化（如 CharmDefense 成功 → Emerging），
-            // 需要运行时根据当前事件状态决定哪些选项可见。
+            // continue_chat（冲突中）：赔钱/打架/坐牢，没有"离开"。
+            // 只有被原谅后（→ continue_chat_safe）才能走人。
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "continue_chat",
@@ -917,19 +917,28 @@ namespace LivingWorldNpcs
                 },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    // 非升级：始终可离开（升级时 WalkAwayIntent.OnInstant 有对应后果）
-                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
-                    // 升级选项：运行时 Evaluate 门控（Stage<Active 时自动隐藏）
+                    // 冲突未解决 → 只有对抗性出口，没有"离开"
                     new() { PlayerLine = "谁拦着我就杀谁！", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
                     new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
+                }
+            });
+
+            // continue_chat_safe（已原谅）：只有"离开"
+            nodes.Add(new DialogueInjector.DialogueNode
+            {
+                Id = "continue_chat_safe",
+                NpcLine = "还有什么想说的？",
+                Transitions = new List<DialogueInjector.DialogueTransition>
+                {
+                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             });
             // Escalated ack nodes
             nodes.Add(Node("alert_esc_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
             nodes.Add(Node("alert_esc_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
 
-            BuildRestitutionSubtree(nodes, r, ctx);
+            BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
 
             return new DialogueInjector.DialogueInjectScript { SkipVanillaOpening = true, EntryNode = "injectedStart", Nodes = nodes };
         }
@@ -1048,7 +1057,7 @@ namespace LivingWorldNpcs
             nodes.Add(Node("alert_deter_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
             nodes.Add(Node("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
 
-            BuildRestitutionSubtree(nodes, r, ctx);
+            BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
         }
 
         /// <summary>Search 质问子树：搜查包裹。含 recover_confront（拒绝搜查→对峙）和 search_result（接受搜查→判定赃物）。</summary>
@@ -1096,7 +1105,7 @@ namespace LivingWorldNpcs
             bool hasStolen = PlayerHasStolenItems();
             nodes.Add(BuildSearchResultNode(r, hasStolen));
 
-            BuildRestitutionSubtree(nodes, r, ctx);
+            BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
         }
 
         /// <summary>Recover 质问子树：人赃并获，交出赃物。</summary>
@@ -1125,7 +1134,7 @@ namespace LivingWorldNpcs
 
             AddRecoverAckNodes(nodes, r);
 
-            BuildRestitutionSubtree(nodes, r, ctx);
+            BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
         }
 
         /// <summary>Stop 质问子树：当场制止暴力行为。</summary>
@@ -1146,21 +1155,22 @@ namespace LivingWorldNpcs
                     new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = r.Resolve("他先惹我的。"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_stop_charm_ok", NextNodeOnFail = "alert_stop_charm_fail" },
                     new() { PlayerLine = r.Resolve("谁拦着我就杀谁！"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_stop_fight_ack" },
+                    new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
                 }
             });
 
-            nodes.Add(Node("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。"), "continue_chat"));
+            nodes.Add(Node("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。"), "continue_chat_safe"));
             nodes.Add(Node("alert_stop_charm_fail", r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！"), "continue_chat"));
             nodes.Add(Node("alert_stop_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
 
-            BuildRestitutionSubtree(nodes, r, ctx);
+            BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
         }
 
         /// <summary>Recover ack nodes：被 BuildRecoverSubtree 和 BuildSearchSubtree（via recover_confront）共享。</summary>
         static void AddRecoverAckNodes(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r)
         {
             nodes.Add(Node("alert_recover_return_ack", r.Resolve("东西都在。……算你老实。别再来了。")));
-            nodes.Add(Node("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。"), "continue_chat"));
+            nodes.Add(Node("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。"), "continue_chat_safe"));
             nodes.Add(Node("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！"), "continue_chat"));
         }
 

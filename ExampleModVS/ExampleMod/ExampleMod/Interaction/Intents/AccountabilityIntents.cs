@@ -34,6 +34,41 @@ namespace LivingWorldNpcs
             return WorldEventStore.Find(pending.EventId) ?? pending;
         }
 
+        /// <summary>
+        /// 🔴 统一"已原谅"判断：NPC 是否已经和玩家了结冲突。
+        ///
+        /// 三路径覆盖所有 Alert 质问场景：
+        ///   1. 有 WorldEvent 且玩家是嫌疑人 → 事件 Resolved = 已原谅
+        ///   2. 有 WorldEvent 但玩家不是嫌疑人（如调查者）→ 不存在个人冲突，视为已原谅
+        ///   3. 无 WorldEvent（纯警戒 Deter）→ Misconduct Resolved 或 Brain 警戒已清除 = 已原谅
+        ///
+        /// 对话路由和 Intent Evaluate 统一调此方法，不再各自判断。
+        /// </summary>
+        public static bool IsForgiven(IntentContext ctx)
+        {
+            // 路径 1+2：有 WorldEvent
+            if (ctx.ActiveEvent != null)
+            {
+                // 嫌疑人不是玩家 → 不存在个人冲突，不需要"原谅"
+                if (!ctx.ActiveEvent.SuspectIsPlayer)
+                    return true;
+                // 嫌疑人是玩家 → Resolved = 已原谅
+                return ctx.ActiveEvent.Stage == EventStage.Resolved;
+            }
+
+            // 路径 3：无 WorldEvent → 看 Misconduct 或 Brain
+            var agent = ctx.Agent;
+            if (agent == null) return true; // 无 Agent 上下文 → 无法判断，放行
+
+            var misEvt = GetMisconductEvent(agent);
+            if (misEvt != null)
+                return misEvt.Stage == EventStage.Resolved;
+
+            // 纯警戒无事件 → Brain 警戒已清除 = 已满足
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            return brain == null || brain.AlertBreakdown.Count == 0;
+        }
+
         /// <summary>解析 Misconduct WorldEvent 并推进阶段</summary>
         public static void ResolveMisconduct(Agent agent, string resolvedBy)
         {
@@ -105,6 +140,21 @@ namespace LivingWorldNpcs
                             }
                             DebugLogger.Log($"[IntentEval] PayRestitution → Show (bribe, cost={bribeCost})");
                             return Eligibility.Show();
+
+                        case null:
+                            // restitution_demand 的"行，就按这个价"按钮，ActionParam=null。
+                            // 已原谅 → 隐藏（防止赔完钱又回来再付一次）。
+                            if (AccountabilityHelper.IsForgiven(ctx))
+                            {
+                                DebugLogger.Log($"[IntentEval] PayRestitution → Hide (already forgiven)");
+                                return Eligibility.Hide();
+                            }
+                            // 纯警戒（无事件）或事件未了结 → 走 alert_fine 同款免检定付款
+                            _goal = null;
+                            _tactic = NegotiationTactic.Flatter;
+                            _offerValue = 0f;
+                            DebugLogger.Log($"[IntentEval] PayRestitution → Show (pure alert, no event, null ActionParam)");
+                            return Eligibility.Show();
                     }
                 }
                 DebugLogger.Log($"[IntentEval] PayRestitution → Hide (no event, actionParam={ctx.ActionParam ?? "(null)"}, inRealScene={ctx.InRealScene})");
@@ -157,6 +207,29 @@ namespace LivingWorldNpcs
                 var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
                 brain?.ClearAllAlerts();
                 // ConfrontingBrain 不在这里释放 — 由 EndConversation 统一解锁
+                return;
+            }
+
+            // 🔴 纯警戒 Deter 赔钱（restitution_demand → PayRestitution, ActionParam=null, 无 WorldEvent）。
+            // 走 alert_fine 同款结算：按行为严重度算罚金 → 扣钱 → 清警戒 → 结案 Misconduct（如有）。
+            if (ctx.ActiveEvent == null)
+            {
+                if (AccountabilityHelper.IsForgiven(ctx))
+                {
+                    DebugLogger.Log($"[Accountability] PayRestitution blocked: already forgiven");
+                    return;
+                }
+                var misEvt2 = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
+                int fine = CrimePenaltyCalculator.ComputePenalty(misEvt2);
+                if (fine > 0)
+                    AgentControlHelper.TransferGold(Hero.MainHero, null, fine);
+                var npc2 = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
+                if (npc2 is Hero n2)
+                    ChangeRelationAction.ApplyPlayerRelation(n2, -3, false, true);
+                AccountabilityHelper.ResolveMisconduct(ctx.Agent, "payment");
+                var brain2 = AgentAIController.GetBrainForAgent(ctx.Agent);
+                brain2?.ClearAllAlerts();
+                DebugLogger.Log($"[Accountability] PayRestitution (pure alert): paid {fine} gold, alerts cleared");
                 return;
             }
 
@@ -847,6 +920,8 @@ namespace LivingWorldNpcs
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) { DebugLogger.Log($"[IntentEval] FightVillagers → Hide (no event)"); return Eligibility.Hide(); }
+            // 已原谅 → 隐藏
+            if (AccountabilityHelper.IsForgiven(ctx)) { DebugLogger.Log($"[IntentEval] FightVillagers → Hide (already forgiven)"); return Eligibility.Hide(); }
             // 只在真正对峙阶段（Active/Confrontation）才显示——局势缓和后玩家想动手可以直接
             // 关对话拔武器，不需要对话选项里多一个"拔剑"。CharmDefense 成功后 Stage→Emerging，
             // 此时 NPC 已经接受了解释，再摆个"拔剑"选项反而破坏沉浸感。
@@ -1304,14 +1379,43 @@ namespace LivingWorldNpcs
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
-            // Alert 场景：NPC 质问中玩家选坐牢（质问只会发生在真场景）
-            if (ctx.ActiveEvent == null && ctx.InRealScene && ctx.ActionParam == "surrender_jail")
+            // 坐牢选项只在真场景质问中可用
+            if (!ctx.InRealScene || ctx.ActionParam != "surrender_jail")
+                return Eligibility.Hide();
+
+            // ── 路径 1：纯警戒 Deter（无 WorldEvent）──
+            if (ctx.ActiveEvent == null)
+            {
+                if (AccountabilityHelper.IsForgiven(ctx))
+                {
+                    DebugLogger.Log($"[IntentEval] SurrenderJail → Hide (already forgiven)");
+                    return Eligibility.Hide();
+                }
                 return Eligibility.Show();
+            }
+
+            // ── 路径 2：Stop/Recover 质问（有 WorldEvent）──
+            // Active/Confrontation + 未原谅 → 显示
+            if (!AccountabilityHelper.IsForgiven(ctx)
+                && (ctx.ActiveEvent.Stage == EventStage.Active || ctx.ActiveEvent.Stage == EventStage.Confrontation))
+            {
+                DebugLogger.Log($"[IntentEval] SurrenderJail → Show (event stage={ctx.ActiveEvent.Stage})");
+                return Eligibility.Show();
+            }
+
+            DebugLogger.Log($"[IntentEval] SurrenderJail → Hide (stage={ctx.ActiveEvent.Stage}, forgiven={AccountabilityHelper.IsForgiven(ctx)})");
             return Eligibility.Hide();
         }
 
         public override void OnInstant(IntentContext ctx)
         {
+            // 🔴 防御：已原谅 → 不做任何事，防止二重罚金+坐牢
+            if (AccountabilityHelper.IsForgiven(ctx))
+            {
+                DebugLogger.Log($"[Accountability] SurrenderJail blocked: already forgiven");
+                return;
+            }
+
             var misEvt = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
             int maxConfiscation = CrimePenaltyCalculator.ComputePenalty(misEvt);
             int confiscation = Math.Min(Hero.MainHero.Gold, maxConfiscation);
@@ -1324,6 +1428,16 @@ namespace LivingWorldNpcs
 
             // 结案 Misconduct WorldEvent
             AccountabilityHelper.ResolveMisconduct(ctx.Agent, "jail");
+
+            // 🔴 如果主 WorldEvent（ctx.ActiveEvent）不是 Misconduct 本身，也一并结案
+            if (ctx.ActiveEvent != null && ctx.ActiveEvent.EventId != misEvt?.EventId
+                && ctx.ActiveEvent.Stage != EventStage.Resolved)
+            {
+                ctx.ActiveEvent.ResolvedBy = "jail";
+                WorldEventStore.TransitionStage(ctx.ActiveEvent, EventStage.Resolved);
+                TheftLedger.MarkCleared(ctx.ActiveEvent.TargetSettlementId);
+                DebugLogger.Log($"[Accountability] SurrenderJail: also resolved main event {ctx.ActiveEvent.EventId}");
+            }
 
             var brain = AgentAIController.GetBrainForAgent(ctx.Agent);
             brain?.ClearAllAlerts();

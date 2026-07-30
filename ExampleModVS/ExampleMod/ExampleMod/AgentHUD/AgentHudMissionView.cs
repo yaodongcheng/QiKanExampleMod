@@ -34,7 +34,7 @@ namespace LivingWorldNpcs
             Instance = this;
 
             _dataSource = new AgentHudCollectionVM();
-            _layer = V.NewLayer(100);
+            _layer = V.NewLayer(5); // 低层级，确保系统菜单（ESC/选项）等覆盖在上面
             _layer.LoadMovie("AgentHudNearby", _dataSource);
             MissionScreen missionScreen = ScreenManager.TopScreen as MissionScreen;
             missionScreen.AddLayer(_layer);
