@@ -30,6 +30,8 @@
 7. **设计哲学四原则** — 任何新系统/新功能设计必须对照 [design-philosophy.md](plans/rules/design-philosophy.md) 逐条检查：①反馈明确 ②自由感 ③任意 NPC 接得住 ④信息塑造目标。设计评审不通过四原则 → 先改设计，再写代码。
 8. **所有 Agent 平等互动** — 玩家可以和任意 Agent 互动——无论它有 HeroObject（有名有姓的 Hero）还是模板 NPC（普通士兵/村民/守卫）。对话、战斗、偷窃、贿赂、威胁、投降等所有互动入口必须兼容 `speaker/partner == null`。**只拦截真正依赖 Hero 身份才能运作的场景**（如栽赃陷害——必须把罪名记到具体 Hero 头上），通用互动一律放行。模板 NPC 的身份匹配用 `TemplateId`（CharacterObject.StringId），不用 Hero StringId。
 9. 🔴**WorldEvent 双源查找（已内置）** — 框架中存在 `PendingWorldEvent`（`AgentAIController.Instance?.PendingWorldEvent`）概念：Mission 内刚检测到的犯罪事件，尚未持久化到 `WorldEventStore`。**`WorldEventStore.FindActive(settlementId)` 已内置 PendingWorldEvent 兜底**，调用方直接 `WorldEventStore.FindActive(settlementId)` 即可，**不需要**手动 `?? AgentAIController.Instance?.PendingWorldEvent`。`GetMisconductEvent(Agent)` 等直接访问 PendingWorldEvent 的 Helper 保留不变（它们走的是 Agent→Pending 而非 settlement→FindActive 路径）。
+10. 🔴**赔偿对话纪律** — 所有赔钱相关的对话选项，**禁止玩家在 NPC 开价前说出具体金额**。流程必须是：玩家"我愿意赔偿"（不标价）→ NPC 在 `restitution_demand` 节点里算账开价（明细 + 倍率 + 总价）→ 玩家接受/砍价/拒绝。**实现**：所有 `INTENT:PayRestitution` 入口改为 `Action="NONE"` + `NextNodeOnSuccess="restitution_demand"`，子树末尾调 `BuildRestitutionSubtree(nodes, r, ctx)`。详参 [plans/rules/wheels.md](plans/rules/wheels.md)「赔偿对话子图」章节。
+11. 🔴**赔偿金统一计算入口** — 所有犯罪相关的金额（赔偿/罚款/私了/悬赏）统一走 `CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution)`。**禁止**同一场对话中出现两个不同公式算出的价格（如 `ComputeCost(Restitution)` vs `ComputePenalty→ComputeCost(Fine)`）。`{AlertFineCost}` 占位符废弃，统一用 `{RestitutionCost}`。
 
 ## API 探索：反编译 DLL 禁止瞎猜
 

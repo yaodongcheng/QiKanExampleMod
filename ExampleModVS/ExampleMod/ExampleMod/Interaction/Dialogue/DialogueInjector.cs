@@ -751,7 +751,11 @@ namespace LivingWorldNpcs
         {
             string text = null;
 
-            if (!string.IsNullOrEmpty(transition.PlayerLine))
+            // 🆕 惰性 PlayerLine：引擎显示时才求值
+            if (transition.LazyPlayerLine != null)
+                text = transition.LazyPlayerLine();
+
+            if (text == null && !string.IsNullOrEmpty(transition.PlayerLine))
                 text = transition.PlayerLine;
 
             if (text == null && !string.IsNullOrEmpty(transition.Action) && transition.Action.StartsWith("INTENT:"))
@@ -890,6 +894,8 @@ namespace LivingWorldNpcs
         {
             /// <summary>玩家选项的显示文本。</summary>
             public string PlayerLine;
+            /// <summary>惰性玩家选项文本（Func 求值）。非 null 时优先于 PlayerLine，引擎显示时才求值。</summary>
+            public Func<string> LazyPlayerLine;
             /// <summary>此选项是否有技能检定分支。</summary>
             public TransitionCheckType CheckType = TransitionCheckType.None;
             /// <summary>动作标识。NONE / INTENT:xxx。</summary>

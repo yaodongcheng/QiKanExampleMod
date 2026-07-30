@@ -302,7 +302,7 @@ namespace LivingWorldNpcs
                 case "RestitutionCostOnSpot": return (evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.OnSpot) : 0).ToString();
                 case "RestitutionCostHaggle": return (int)((evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0) * 0.5f) + "";
                 case "RestitutionBreakdown": return evt?.GetRestitutionBreakdown() ?? "";
-                case "AlertFineCost": return CrimePenaltyCalculator.ComputePenalty(evt).ToString();
+                case "AlertFineCost": return (evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0).ToString();
                 case "BountyAmount": return (evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Bounty) : 0).ToString();
                 case "CharmReprieveUsed": return (evt?.CharmReprieveUsed == true).ToString().ToLower();
                 case "FailCount": return (evt?.FailCount ?? 0).ToString();

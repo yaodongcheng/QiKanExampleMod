@@ -273,6 +273,21 @@ namespace LivingWorldNpcs
                 ConversationEntryPatch._pendingTriggerAction = default;
             }
 
+            // 🆕 清除砍价标记：对话结束 → 下次对话可以重新砍价
+            {
+                var st = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
+                if (st != null)
+                {
+                    var activeEvt = WorldEventStore.FindActive(st.StringId);
+                    if (activeEvt != null)
+                    {
+                        activeEvt._haggleAttempted = false;
+                        activeEvt._hagglePrice = 0;
+                        DebugLogger.Log($"[ConvEnd] Haggle flag cleared for {activeEvt.EventId}");
+                    }
+                }
+            }
+
             // 延迟弹出：WalkAwayIntent 存入的 Inquiry，等对话 UI 完全关闭后再弹
             if (WalkAwayIntent.PendingInquiryTitle != null)
             {

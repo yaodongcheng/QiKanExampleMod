@@ -83,7 +83,7 @@ namespace LivingWorldNpcs
         public static int ComputePenalty(WorldEvent evt, PlayerActionType? action = null)
         {
             if (evt != null)
-                return ComputeCost(evt, CostType.Fine);
+                return ComputeCost(evt, CostType.Restitution);
 
             int severity = action switch
             {
