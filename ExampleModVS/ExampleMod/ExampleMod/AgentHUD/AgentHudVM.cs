@@ -52,6 +52,15 @@ namespace LivingWorldNpcs
         // 缓存
         private static AttackTriggerMissionLogic _cachedDuelLogic;
 
+        // 位置平滑（解决上楼梯时血条上下抖动）
+        private float _targetPosX;
+        private float _targetPosY;
+        private float _displayPosX;
+        private float _displayPosY;
+        private bool _positionInitialized;
+        private const float PositionSmoothSpeed = 10f;
+        private const float PositionSnapThreshold = 80f; // UI 坐标单位，跳变超过此值直接 snap
+
         // 持有 Agent 的引用
         public Agent TargetAgent { get; private set; }
 
@@ -167,6 +176,31 @@ namespace LivingWorldNpcs
                 OnPropertyChangedWithValue(_currentHealthWidth, "CurrentHealthWidth");
             }
 
+            // 位置平滑：过滤上楼梯等高频 Z 轴抖动
+            if (_positionInitialized)
+            {
+                float dx = _targetPosX - _displayPosX;
+                float dy = _targetPosY - _displayPosY;
+                float jumpDist = Math.Abs(dx) + Math.Abs(dy);
+
+                if (jumpDist > PositionSnapThreshold)
+                {
+                    // 大跳变（Agent 瞬移 / 重新可见）→ 直接 snap
+                    _displayPosX = _targetPosX;
+                    _displayPosY = _targetPosY;
+                    PosX = _targetPosX;
+                    PosY = _targetPosY;
+                }
+                else if (jumpDist > 0.05f)
+                {
+                    // 小幅移动 → lerp 平滑（消除楼梯台阶的离散跳动）
+                    _displayPosX = MBMath.Lerp(_displayPosX, _targetPosX, dt * PositionSmoothSpeed);
+                    _displayPosY = MBMath.Lerp(_displayPosY, _targetPosY, dt * PositionSmoothSpeed);
+                    PosX = _displayPosX;
+                    PosY = _displayPosY;
+                }
+            }
+
             // 最终可见性检查
             // 如果没有任何东西要显示且不在警戒状态，关闭 IsVisible
             if (!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert)
@@ -241,6 +275,44 @@ namespace LivingWorldNpcs
             SpeechText = text;
             ShowSpeech = true;
             _speechTimer = 4.0f + (text.Length * 0.1f);
+        }
+
+        // ============================================================
+        // 位置平滑（消除上楼梯等场景的 Z 轴离散跳动）
+        // ============================================================
+
+        /// <summary>
+        /// 设置目标屏幕位置。UpdateFrame 中会 lerp 平滑逼近。
+        /// 用于 FOV 内的常规追踪（血条/名字/说话等）。
+        /// </summary>
+        public void SetTargetPosition(float x, float y)
+        {
+            if (!_positionInitialized)
+            {
+                _targetPosX = _displayPosX = x;
+                _targetPosY = _displayPosY = y;
+                PosX = x;
+                PosY = y;
+                _positionInitialized = true;
+            }
+            else
+            {
+                _targetPosX = x;
+                _targetPosY = y;
+            }
+        }
+
+        /// <summary>
+        /// 直接跳到目标位置，不做平滑。
+        /// 用于屏幕边缘 clamp 的警戒眼睛等不需要平滑的场景。
+        /// </summary>
+        public void SnapPosition(float x, float y)
+        {
+            _targetPosX = _displayPosX = x;
+            _targetPosY = _displayPosY = y;
+            PosX = x;
+            PosY = y;
+            _positionInitialized = true;
         }
 
         // ============================================================
