@@ -660,7 +660,7 @@ namespace LivingWorldNpcs
             // ctx.ActiveEvent = 对话上下文已锁定的事件；为 null 时按玩家所在定居点查一次兜底
             // （StoryDialogVM 互动菜单路径构建 ctx 时不带 worldEvent，必须靠兜底）。
             var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
-            var evt = ctx.ActiveEvent ?? (settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null);
+            var evt = ctx.ActiveEvent ?? (settlement != null ? WorldEventStore.FindOnGoing(settlement.StringId) : null);
 
             if (evt == null)
             {

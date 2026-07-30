@@ -346,7 +346,7 @@ namespace LivingWorldNpcs
             int created = 0;
 
             // 先检查此定居点是否有活跃犯罪事件
-            var crimeEvent = WorldEventStore.FindActive(settlement.StringId);
+            var crimeEvent = WorldEventStore.FindOnGoing(settlement.StringId);
 
             // Dormant 阶段：村民尚未发现犯罪，不应有任何 Issue。
             // 等 DailyTick → ProcessDormant 将 Stage 推进到 Emerging 后，
@@ -492,7 +492,7 @@ namespace LivingWorldNpcs
             if (heroSettlement == null) return;
 
             // 只有该定居点存在活跃 WorldEvent 时才处理
-            var evt = WorldEventStore.FindActive(heroSettlement.StringId);
+            var evt = WorldEventStore.FindOnGoing(heroSettlement.StringId);
             if (evt == null) return;
 
             // Dormant 阶段事件尚未被村民发现，不应触发 ! 标记
@@ -577,7 +577,7 @@ namespace LivingWorldNpcs
             string settlementName = settlement?.Name?.ToString() ?? "本地";
 
             // 1. 犯罪事件：NPC 是对应定居点犯罪事件的权威人物
-            var evt = WorldEventStore.FindActive(settlement?.StringId);
+            var evt = WorldEventStore.FindOnGoing(settlement?.StringId);
             if (evt != null
                 && evt.Stage != EventStage.Dormant
                 && evt.Stage != EventStage.Resolved

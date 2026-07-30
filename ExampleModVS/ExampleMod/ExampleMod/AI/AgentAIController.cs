@@ -22,6 +22,9 @@ namespace LivingWorldNpcs
         private Dictionary<int, AgentBrain> _brains = new Dictionary<int, AgentBrain>();
         private static bool IsDebugMode = false; // 排查时改 true
 
+        /// <summary>全局 Misconduct 事件序号，确保同小时内多次犯案 EventId 不撞车</summary>
+        private static int _misconductSeq = 0;
+
         // ═══════════════════════════════════════════════════════════════
         // 🆕 PendingWorldEvent — Mission 作用域犯罪记录
         // ═══════════════════════════════════════════════════════════════
@@ -66,7 +69,7 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(sceneLoc))
                 {
                     // 有具体子场景 → 优先匹配同场景；其次匹配旧存档未设置子场景的事件（升级之）
-                    existing = WorldEventStore.FindActive(settlement.StringId, evt =>
+                    existing = WorldEventStore.FindOnGoing(settlement.StringId, evt =>
                         evt.Type == EventType.Misconduct &&
                         (evt.LocationName == sceneLoc || evt.LocationName == null));
 
@@ -79,14 +82,14 @@ namespace LivingWorldNpcs
                 else
                 {
                     // 无具体子场景（城镇中心 / 村庄中心等） → 只匹配同样无子场景的事件
-                    existing = WorldEventStore.FindActive(settlement.StringId, evt =>
+                    existing = WorldEventStore.FindOnGoing(settlement.StringId, evt =>
                         evt.Type == EventType.Misconduct && evt.LocationName == null);
                 }
 
                 PendingWorldEvent = existing
                     ?? new WorldEvent
                     {
-                        EventId = $"misconduct_{settlement.StringId}_{(int)CampaignTime.Now.ToHours}",
+                        EventId = $"misconduct_{settlement.StringId}_{(int)CampaignTime.Now.ToHours}_{++_misconductSeq}",
                         Category = EventCategory.Crime,
                         Type = EventType.Misconduct,
                         InitiatorId = Hero.MainHero?.StringId ?? "player",

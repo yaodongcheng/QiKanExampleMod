@@ -103,7 +103,7 @@ public class ActionRecord
 | Active | Emerging | ✅ 合并 | 追加新目击证词 |
 | Active/Confrontation | Active/Confrontation | 取决于嫌疑人是不是同一个 | 嫌疑人相同则合并，否则不合并 |
 
-| Resolved / Unsolved | — | — | `FindActive` 已过滤，自然新建 |
+| Resolved / Unsolved | — | — | `FindOnGoing` 已过滤，自然新建 |
 
 > 上表是 `AddOrMerge` 的**完整决策矩阵**（Misconduct 事件的实际入参 Stage 只有 Dormant/Emerging/Active）。表外情况（其他 EventType 或未知 Stage 组合）走默认分支：**不合并，直接 Add**。代码兜底：
 >
@@ -164,7 +164,7 @@ public class AgentAIController : MissionLogic
         var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
         if (settlement == null) return;
 
-        var existing = WorldEventStore.FindActive(settlement.StringId);
+        var existing = WorldEventStore.FindOnGoing(settlement.StringId);
 
         // 🔑 旧案已在 Confrontation（了结阶段）→ 关掉旧案，开新案
         if (existing != null && existing.Type == EventType.Misconduct

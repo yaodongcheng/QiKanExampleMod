@@ -904,7 +904,7 @@ public static class CrimeDialogueBuilder
         // 1. 找到该定居点的活跃 WorldEvent
         var settlement = speaker.CurrentSettlement;
         if (settlement == null) return null;
-        var evt = WorldEventStore.FindActive(settlement.StringId);
+        var evt = WorldEventStore.FindOnGoing(settlement.StringId);
         if (evt == null) return null;
 
         // 2. 判断说话者身份 → 构建对应场景

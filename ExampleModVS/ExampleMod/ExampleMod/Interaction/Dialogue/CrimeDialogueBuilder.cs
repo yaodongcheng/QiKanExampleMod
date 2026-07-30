@@ -169,15 +169,32 @@ namespace LivingWorldNpcs
                 ? new PlaceholderResolver(evt, speaker, listener, speakerCharacter)
                 : new PlaceholderResolver(speaker, listener, targetName: null, itemName: null, speakerCharacter);
 
-            var agent = speakerAgent ?? TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent;
+            var agent = speakerAgent
+                ?? TaleWorlds.CampaignSystem.Campaign.Current?.ConversationManager?.OneToOneConversationAgent as Agent
+                ?? AlertForceConversationAction.ActiveConversationAgent;  // Prefix 阶段 ConversationManager 尚未就绪，兜底用我们自己的引用
 
             // 目击者匹配：Hero 按 StringId；模板 NPC（speaker==null）按 CharacterObject.StringId ↔ TemplateId，
             // 不能再 t.WitnessHeroId == null 乱匹配（会错拿别的模板 NPC 的证词）
             string speakerTemplateId = speaker == null ? agent?.Character?.StringId : null;
-            r.SpeakingWitness = AgentAIController.Instance?.PendingWorldEvent
-                ?.WitnessTestimonies?.FirstOrDefault(t =>
-                    (speaker?.StringId != null && t.WitnessHeroId == speaker.StringId) ||
-                    (speakerTemplateId != null && t.TemplateId == speakerTemplateId));
+            var allTestimonies = AgentAIController.Instance?.PendingWorldEvent?.WitnessTestimonies;
+            DebugLogger.Log($"[Placeholder] SpeakingWitness match: speaker={speaker?.StringId ?? "null"} speakerTemplateId={speakerTemplateId} totalTestimonies={allTestimonies?.Count ?? 0}" +
+                (allTestimonies != null ? $" ids=[{string.Join(", ", allTestimonies.Select(t => $"{t.WitnessHeroId ?? t.TemplateId ?? "dark"}:actions={t.Actions?.Count ?? 0}:first={t.Actions?.FirstOrDefault()?.ActionType}={t.Actions?.FirstOrDefault()?.TargetName}"))}]" : ""));
+            r.SpeakingWitness = null;
+            if (allTestimonies != null)
+            {
+                string spId = speaker?.StringId;
+                foreach (var t in allTestimonies)
+                {
+                    bool matchHero = spId != null && t.WitnessHeroId == spId;
+                    bool matchTpl = speakerTemplateId != null && t.TemplateId == speakerTemplateId;
+                    DebugLogger.Log($"[Placeholder] SpeakingWitness try: t.WitnessHeroId={t.WitnessHeroId ?? "null"} t.TemplateId={t.TemplateId ?? "null"} spId={spId ?? "null"} spTplId={speakerTemplateId ?? "null"} matchHero={matchHero} matchTpl={matchTpl}");
+                    if (matchHero || matchTpl)
+                    {
+                        r.SpeakingWitness = t;
+                        break;
+                    }
+                }
+            }
 
             // 脉冲上下文回填：{TARGET}/{ITEM}（击晕受害者名、被盗物品名）。
             // 质问者自己 Brain 的警戒明细最精准，填补 PlaceholderResolver 拿不到 pulse 的缺口
@@ -913,7 +930,7 @@ namespace LivingWorldNpcs
                 LazyNpcLine = () =>
                 {
                     var st = Settlement.CurrentSettlement;
-                    var evt = st != null ? WorldEventStore.FindActive(st.StringId) : null;
+                    var evt = st != null ? WorldEventStore.FindOnGoing(st.StringId) : null;
                     bool escalated = evt != null && evt.Stage >= EventStage.Active;
                     return escalated ? "最后一次警告——别逼我叫人！" : "还有什么想说的？";
                 },

@@ -992,38 +992,60 @@ namespace LivingWorldNpcs
         public static int ActiveEventCount => _allEvents.Count(e => e.IsActive);
 
         /// <summary>查找指定定居点的活跃事件（同村同时最多一个活跃案件）。
-        /// 自动包含 PendingWorldEvent 兜底——调用方无需手动组合双源查找。</summary>
-        public static WorldEvent FindActive(string settlementId)
+        /// 同时考察持久化事件和 PendingWorldEvent，选"最相关"的返回：
+        /// suspect=player 优先；同 suspect 则阶段高者优先。
+        /// 调用方无需手动组合双源查找。</summary>
+        public static WorldEvent FindOnGoing(string settlementId)
         {
-            return _allEvents.FirstOrDefault(e =>
+            var stored = _allEvents.FirstOrDefault(e =>
                 e.TargetSettlementId == settlementId &&
                 e.Stage != EventStage.Resolved &&
-                e.Stage != EventStage.Unsolved)
-                ?? MatchPending(settlementId);
+                e.Stage != EventStage.Unsolved);
+            var pending = MatchPending(settlementId);
+            return PickBest(stored, pending);
         }
 
         /// <summary>查找指定定居点 + 类型的活跃事件。同村可同时存在多种类型（Misconduct + Theft_Animal 等）。
-        /// 自动包含 PendingWorldEvent 兜底——调用方无需手动组合双源查找。</summary>
-        public static WorldEvent FindActive(string settlementId, EventType type)
+        /// 同时考察持久化事件和 PendingWorldEvent，选"最相关"的返回。</summary>
+        public static WorldEvent FindOnGoing(string settlementId, EventType type)
         {
-            return _allEvents.FirstOrDefault(e =>
+            var stored = _allEvents.FirstOrDefault(e =>
                 e.TargetSettlementId == settlementId &&
                 e.Type == type &&
                 e.Stage != EventStage.Resolved &&
-                e.Stage != EventStage.Unsolved)
-                ?? MatchPending(settlementId, type);
+                e.Stage != EventStage.Unsolved);
+            var pending = MatchPending(settlementId, type);
+            return PickBest(stored, pending);
         }
 
         /// <summary>查找指定定居点的活跃事件，附加自定义谓词过滤。
-        /// 自动包含 PendingWorldEvent 兜底——谓词同时作用于持久化事件和 Pending。</summary>
-        public static WorldEvent FindActive(string settlementId, Func<WorldEvent, bool> predicate)
+        /// 同时考察持久化事件和 PendingWorldEvent，选"最相关"的返回。
+        /// 谓词同时作用于持久化事件和 Pending。</summary>
+        public static WorldEvent FindOnGoing(string settlementId, Func<WorldEvent, bool> predicate)
         {
-            return _allEvents.FirstOrDefault(e =>
+            var stored = _allEvents.FirstOrDefault(e =>
                 e.TargetSettlementId == settlementId &&
                 e.Stage != EventStage.Resolved &&
                 e.Stage != EventStage.Unsolved &&
-                predicate(e))
-                ?? MatchPending(settlementId, predicate: predicate);
+                predicate(e));
+            var pending = MatchPending(settlementId, predicate: predicate);
+            return PickBest(stored, pending);
+        }
+
+        /// <summary>从 stored 和 pending 中选更相关的：suspect=player 优先；同 suspect 则阶段高者优先。</summary>
+        private static WorldEvent PickBest(WorldEvent stored, WorldEvent pending)
+        {
+            if (ReferenceEquals(stored, pending)) return stored; // 已持久化的同一个对象
+            if (stored == null) return pending;
+            if (pending == null) return stored;
+
+            // suspect=player 的事件比匿名事件更相关（玩家被目击 → 这就是当前对峙的案件）
+            if (pending.SuspectIsPlayer && !stored.SuspectIsPlayer) return pending;
+            if (stored.SuspectIsPlayer && !pending.SuspectIsPlayer) return stored;
+
+            // 同 suspect 条件下，阶段高的更紧迫
+            if (pending.Stage > stored.Stage) return pending;
+            return stored;
         }
 
         /// <summary>PendingWorldEvent 兜底匹配：Mission 内刚检测到、尚未持久化的事件。</summary>
@@ -1092,7 +1114,9 @@ namespace LivingWorldNpcs
                 evt._stageEnteredDay = evt.OccurredDay;
 
             var itemDesc = string.Join(", ", evt.StolenItems.Select(kv => $"{kv.Key}x{kv.Value}"));
-            DebugLogger.Log($"[WorldEvent] New event: {evt.Type} id={evt.EventId} settlement={evt.TargetSettlementId} items=[{itemDesc}] culprit={evt.InitiatorId} stage={evt.Stage} suspect={evt.SuspectHeroId ?? "none"} witnesses={evt.WitnessHeroIds?.Count ?? 0}h+{(evt.TemplateWitness?.Sum(kv => kv.Value) ?? 0)}v severity={evt.Severity} occurredDay={evt.OccurredDay:F2}");
+            var assaultDesc = evt.AssaultVictimNames != null && evt.AssaultVictimNames.Count > 0
+                ? $" assault=[{string.Join(",", evt.AssaultVictimNames)}:{evt.AssaultValue}]" : "";
+            DebugLogger.Log($"[WorldEvent] New event: {evt.Type} id={evt.EventId} settlement={evt.TargetSettlementId} items=[{itemDesc}]{assaultDesc} culprit={evt.InitiatorId} stage={evt.Stage} suspect={evt.SuspectHeroId ?? "none"} witnesses={evt.WitnessHeroIds?.Count ?? 0}h+{(evt.TemplateWitness?.Sum(kv => kv.Value) ?? 0)}v severity={evt.Severity} occurredDay={evt.OccurredDay:F2}");
         }
 
         /// <summary>

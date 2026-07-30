@@ -433,7 +433,7 @@ public class GuardInterceptIntent : IntentBase
         var thief = aiEvent.Args[0] as Agent;
         if (thief != Agent.Main) return false; // 只拦截玩家
         // 检查是否有活跃通缉/未缴罚款/违禁品
-        var wanted = WorldEventStore.FindActiveWanted(Hero.MainHero);
+        var wanted = WorldEventStore.FindOnGoingWanted(Hero.MainHero);
         return wanted != null;
     }
 }
@@ -480,7 +480,7 @@ public class PrepareOpeningAction : IAtomicAction
 ```csharp
 public override void OnInstant(IntentContext ctx)
 {
-    var evt = WorldEventStore.FindActiveWanted(Hero.MainHero);
+    var evt = WorldEventStore.FindOnGoingWanted(Hero.MainHero);
     var conflict = new PendingConflict(
         eventId: evt?.EventId ?? $"GuardCheck_{CampaignTime.Now.ToHours}",
         topicName: evt?.GetConfig().DisplayName ?? "守卫盘查",

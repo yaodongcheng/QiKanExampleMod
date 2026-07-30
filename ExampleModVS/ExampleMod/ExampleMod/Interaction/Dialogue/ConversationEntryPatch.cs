@@ -149,7 +149,9 @@ namespace LivingWorldNpcs
                 WorldEvent evt = null;
                 if (settlement != null)
                 {
-                    evt = WorldEventStore.FindActive(settlement.StringId);
+                    evt = WorldEventStore.FindOnGoing(settlement.StringId);
+                    var pending = AgentAIController.Instance?.PendingWorldEvent;
+                    DebugLogger.Log($"[ConvEntry] FindOnGoing({settlement.StringId}) → evt={evt?.EventId ?? "null"} stage={evt?.Stage} assault=[{(evt?.AssaultVictimNames != null ? string.Join(",", evt.AssaultVictimNames) : "none")}:{evt?.AssaultValue ?? 0}] pendingId={pending?.EventId ?? "null"} pendingStage={pending?.Stage} pendingAssault=[{(pending?.AssaultVictimNames != null ? string.Join(",", pending.AssaultVictimNames) : "none")}:{pending?.AssaultValue ?? 0}]");
                 }
 
                 // ── 2. 消费 trigger ──
@@ -199,20 +201,25 @@ namespace LivingWorldNpcs
                     ?? agent?.Index.ToString()
                     ?? "(template)";
                 string eventKey = evt?.EventId ?? "no_event";
-                if (_lastInjectedEventId == eventKey + "_" + partnerKey)
+                // 数据指纹：事件内容变化时允许刷新注入（新目击者、新袭击、新赃物、阶段推进）
+                string dataFp = evt != null
+                    ? $"_{evt.Stage}_{evt.WitnessTestimonies?.Count ?? 0}_{evt.AssaultValue}_{evt.TotalStolenCount}"
+                    : "";
+                if (_lastInjectedEventId == eventKey + "_" + partnerKey + dataFp)
                     return;
 
                 // ── 6. 统一走 BuildScript ──
                 string tag = evt != null ? $"crime_{evt.EventId}" : $"crime_alert_{partnerKey}";
                 DialogueInjector.RemoveRelatedLines(tag);
 
+                DebugLogger.Log($"[ConvEntry] BuildScript: partner={partner?.Name?.ToString() ?? "null"} partnerStringId={partner?.StringId ?? "null"} agent={agent?.Name ?? "null"} agentIdx={agent?.Index.ToString() ?? "null"} character={character?.Name?.ToString() ?? "null"} characterStringId={character?.StringId ?? "null"} evtId={evt?.EventId ?? "null"} trigger={trigger} confrontation={confrontation} triggerAction={triggerAction}");
                 var script = CrimeDialogueBuilder.BuildScript(
                     partner, Hero.MainHero, evt, trigger, confrontation, triggerAction, character, speakerAgent: agent);
 
                 if (script != null && script.Nodes?.Count > 0)
                 {
                     DialogueInjector.InjectScript(script, tag);
-                    _lastInjectedEventId = eventKey + "_" + partnerKey;
+                    _lastInjectedEventId = eventKey + "_" + partnerKey + dataFp;
                     _lastInjectedTag = tag;
                     DebugLogger.Log($"[ConvEntry] 注入对话执行成功 Injected dialogue: event={eventKey} stage={evt?.Stage.ToString() ?? "none"} " +
                         $"trigger={trigger} partner={partner?.Name?.ToString() ?? character?.Name?.ToString() ?? agent?.Name?.ToString() ?? "(template)"} nodes={script.Nodes.Count}");
@@ -261,6 +268,11 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[ConvLock] Release by {(releasingBrain?.Owner?.Name ?? "null")}(Idx={releasingBrain?.Owner?.Index.ToString() ?? "?"}) | reason=EndConversation");
 
             DebugLogger.Log($"[ConvEnd] Conversation ended. lastEvent={ConversationEntryPatch._lastInjectedEventId} lastTag={ConversationEntryPatch._lastInjectedTag}");
+            // 🔴 清理刚结束对话的注入台词，防止残留到下次对话抢占 start token
+            if (ConversationEntryPatch._lastInjectedTag != null)
+            {
+                DialogueInjector.RemoveRelatedLines(ConversationEntryPatch._lastInjectedTag);
+            }
             ConversationEntryPatch._lastInjectedEventId = null;
             ConversationEntryPatch._lastInjectedTag = null;
 
@@ -278,7 +290,7 @@ namespace LivingWorldNpcs
                 var st = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
                 if (st != null)
                 {
-                    var activeEvt = WorldEventStore.FindActive(st.StringId);
+                    var activeEvt = WorldEventStore.FindOnGoing(st.StringId);
                     if (activeEvt != null)
                     {
                         activeEvt._haggleAttempted = false;
@@ -295,7 +307,7 @@ namespace LivingWorldNpcs
                 var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
                 if (settlement != null)
                 {
-                    var evt = WorldEventStore.FindActive(settlement.StringId);
+                    var evt = WorldEventStore.FindOnGoing(settlement.StringId);
                     if (evt != null && evt.Stage == EventStage.Emerging && evt.SuspectIsPlayer)
                     {
                         WorldEventStore.TransitionStage(evt, EventStage.Active);
@@ -577,7 +589,7 @@ namespace LivingWorldNpcs
                         var st = Settlement.CurrentSettlement
                             ?? normalHero.CurrentSettlement
                             ?? Hero.MainHero?.CurrentSettlement;
-                        var ev = st != null ? WorldEventStore.FindActive(st.StringId) : null;
+                        var ev = st != null ? WorldEventStore.FindOnGoing(st.StringId) : null;
                         if (CrimeDialogueBuilder.NeedsEarlyInjection(normalHero, ev))
                         {
                             DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting confrontation (Normal trigger, SkipVanillaOpening) partner={normalHero.Name}");
@@ -716,7 +728,7 @@ namespace LivingWorldNpcs
                 var settlement = Settlement.CurrentSettlement
                     ?? speaker?.CurrentSettlement
                     ?? Hero.MainHero?.CurrentSettlement;
-                var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
+                var evt = settlement != null ? WorldEventStore.FindOnGoing(settlement.StringId) : null;
 
                 // 统一走 BuildScript 构建脚本
                 var speakerCharacter = agent?.Character as CharacterObject;

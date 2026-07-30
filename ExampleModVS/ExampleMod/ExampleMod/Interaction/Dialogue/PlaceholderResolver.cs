@@ -132,7 +132,9 @@ namespace LivingWorldNpcs
                     // 优先从目击证词取（精准），回落旧 TargetName 字段
                     var primaryAction = SpeakingWitness?.Actions
                         ?.OrderByDescending(a => a.AlertValue).FirstOrDefault();
-                    return primaryAction?.TargetName ?? TargetName ?? "";
+                    var result = primaryAction?.TargetName ?? TargetName ?? "";
+                    DebugLogger.Log($"[Placeholder] {{TARGET}} resolve: SpeakingWitness={SpeakingWitness?.WitnessHeroId ?? SpeakingWitness?.TemplateId ?? "null"} primaryAction={primaryAction?.ActionType}:{primaryAction?.TargetName} r.TargetName={TargetName} → \"{result}\"");
+                    return result;
                 }
                 case "ITEM":
                 {

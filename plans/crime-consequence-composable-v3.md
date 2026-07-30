@@ -736,7 +736,7 @@ v2 定义了六种结局。通用引擎中追捕 = `CommissionQuest(Category=Bou
 
 ```csharp
 // CommissionGenerator.GenerateCommissions 扩展
-var fact = WorldEventStore.FindActive(hero.CurrentSettlement.StringId);
+var fact = WorldEventStore.FindOnGoing(hero.CurrentSettlement.StringId);
 if (fact != null)
 {
     var data = new CommissionData
@@ -854,7 +854,7 @@ case string a when a.StartsWith("INTENT:"):
     var intentName = a.Split(':')[1];
     var intent = IntentRegistry.Find(intentName);  // 🛞 从已有注册表查找
     var ctx = IntentContext.Build(agent, controller);
-    ctx.ActiveEvent = WorldEventStore.FindActive(settlement.Id);  // 🆕 注入事件上下文
+    ctx.ActiveEvent = WorldEventStore.FindOnGoing(settlement.Id);  // 🆕 注入事件上下文
     
     // Evaluate → 决定选项可见性（已在注册 JSON 前完成）
     // 检定 → 🛞 SingleRollResolver.Compute
@@ -1246,7 +1246,7 @@ IntentBase 动态构建 ──────┘
 case string a when a.StartsWith("INTENT:"):
     var intent = IntentRegistry.Find(a);
     var ctx = IntentContext.Build(agent, controller);
-    ctx.ActiveEvent = WorldEventStore.FindActive(settlement.Id);
+    ctx.ActiveEvent = WorldEventStore.FindOnGoing(settlement.Id);
     
     if (intent is IInstantIntent instant)
         instant.OnInstant(ctx);
@@ -1483,7 +1483,7 @@ foreach (var evt in _allEvents.Where(e => e.Stage != EventStage.Resolved && e.St
 **Issue 注册（玩家进村时）**— 🛞 扩展 `CommissionIssueBehavior.OnSettlementEntered`：
 
 ```csharp
-var activeEvent = WorldEventStore.FindActive(settlement.StringId);
+var activeEvent = WorldEventStore.FindOnGoing(settlement.StringId);
 if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEvent.Stage != EventStage.Unsolved)
 {
     var headman = settlement.Notables.FirstOrDefault(n => n.Occupation == Occupation.Headman);

@@ -141,7 +141,7 @@ namespace LivingWorldNpcs
             try
             {
                 if (party != MobileParty.MainParty) return;
-                var evt = WorldEventStore.FindActive(settlement.StringId);
+                var evt = WorldEventStore.FindOnGoing(settlement.StringId);
                 if (evt != null)
                     DialogueInjector.RemoveRelatedLines($"crime_{evt.EventId}");
             }

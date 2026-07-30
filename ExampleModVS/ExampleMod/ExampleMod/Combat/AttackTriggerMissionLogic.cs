@@ -293,11 +293,11 @@ namespace LivingWorldNpcs
             if (settlement == null) return;
 
             // 本村 + 玩家是嫌犯 + 阶段已到 Confrontation/Active 的犯罪事件
-            // FindActive(predicate) 已内置 PendingWorldEvent 兜底
+            // FindOnGoing(predicate) 已内置 PendingWorldEvent 兜底
             WorldEvent evt = null;
             try
             {
-                evt = WorldEventStore.FindActive(settlement.StringId, e =>
+                evt = WorldEventStore.FindOnGoing(settlement.StringId, e =>
                     e.SuspectIsPlayer
                     && (e.Stage == EventStage.Confrontation || e.Stage == EventStage.Active));
             }

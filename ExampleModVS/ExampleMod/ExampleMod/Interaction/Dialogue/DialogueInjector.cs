@@ -159,11 +159,26 @@ namespace LivingWorldNpcs
         public static void RemoveRelatedLines(string label)
         {
             if (Campaign.Current == null) return;
-            var toRemove = _injectedOwners.Where(o => o.BaseLabel == label).ToList();
+            // BaseLabel 匹配（正常路径）；FileName 前缀匹配（兼容 InjectScriptNoOpening 旧 bug 遗留的 owner，
+            // 其 BaseLabel 被错误设为带版本后缀如 "crime_xxx_v0"，导致 BaseLabel == label 永远匹配不上）
+            var toRemove = _injectedOwners.Where(o =>
+                o.BaseLabel == label || o.FileName.StartsWith(label + "_v")).ToList();
+            if (toRemove.Count == 0)
+            {
+                DebugLogger.Log($"[DialogueInjector] RemoveRelatedLines label=\"{label}\": 没有匹配的 owner（现存 {_injectedOwners.Count} 个: [{string.Join(", ", _injectedOwners.Select(o => $"{o.BaseLabel}({o.FileName})"))}]）");
+                return;
+            }
             foreach (var owner in toRemove)
             {
-                try { Campaign.Current.ConversationManager.RemoveRelatedLines(owner); }
-                catch { }
+                try
+                {
+                    Campaign.Current.ConversationManager.RemoveRelatedLines(owner);
+                    DebugLogger.Log($"[DialogueInjector] RemoveRelatedLines label=\"{label}\": 已清理 owner BaseLabel=\"{owner.BaseLabel}\" FileName=\"{owner.FileName}\"");
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[DialogueInjector] RemoveRelatedLines label=\"{label}\": 清理 {owner.FileName} 失败: {ex.Message}");
+                }
                 _injectedOwners.Remove(owner);
             }
         }
@@ -411,7 +426,7 @@ namespace LivingWorldNpcs
                 // 否则村民（无 Hero）强制对话里所有 INTENT 都会因 ActiveEvent==null 被 Evaluate 静默 Hidden：
                 // 选项照显示、点了没效果（拔剑/赔偿/认罚全部失效）。
                 var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
-                var worldEvt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
+                var worldEvt = settlement != null ? WorldEventStore.FindOnGoing(settlement.StringId) : null;
                 var ctx = new IntentContext(partnerAgent, speaker: npc, worldEvent: worldEvt, actionParam: actionParam);
 
                 var eligibility = intent.Evaluate(ctx);
@@ -506,10 +521,11 @@ namespace LivingWorldNpcs
         /// </summary>
         private static void InjectScriptNoOpening(DialogueInjectScript script, string fileTag)
         {
+            string baseLabel = fileTag;
             fileTag = $"{fileTag}_v{_injectionCounter++}";
 
             var cm = Campaign.Current.ConversationManager;
-            var owner = new InjectOwner { FileName = fileTag, BaseLabel = fileTag };
+            var owner = new InjectOwner { FileName = fileTag, BaseLabel = baseLabel };
             _injectedOwners.Add(owner);
             _tokenCounter = 0;
 
@@ -532,6 +548,31 @@ namespace LivingWorldNpcs
 
                 // 注册入口 node 的玩家选项
                 RegisterNodeTransitions(cm, entryNode, afterNpcLine, fileTag, owner);
+
+                // Debug: 检查 start token 上是否还有残留线路
+                try
+                {
+                    var stateIdx = cm.GetStateIndex(startToken);
+                    if (stateIdx >= 0)
+                    {
+                        var stateField = typeof(ConversationManager).GetField("_states",
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (stateField?.GetValue(cm) is System.Collections.IList states && stateIdx < states.Count)
+                        {
+                            var state = states[stateIdx];
+                            var linesField = state?.GetType().GetProperty("DialogLines",
+                                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                            if (linesField != null)
+                            {
+                                var lines = linesField.GetValue(state) as System.Collections.IEnumerable;
+                                int count = 0;
+                                if (lines != null) { foreach (var _ in lines) count++; }
+                                DebugLogger.Log($"[DialogueInjector] Post-inject: start token '{startToken}' has {count} dialog lines registered");
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) { DebugLogger.Log($"[DialogueInjector] start token debug error: {ex.Message}"); }
 
                 // 注册剩余 node
                 foreach (var node in script.Nodes)
@@ -662,7 +703,7 @@ namespace LivingWorldNpcs
         /// 注册一个 Node 的 NPC 台词行。支持 LazyNpcLine 惰性求值。
         /// </summary>
         private static void AddNodeNpcLine(ConversationManager cm, string id,
-            string inputToken, string outputToken, DialogueNode node, int priority = 125)
+            string inputToken, string outputToken, DialogueNode node, InjectOwner owner, int priority = 125)
         {
             if (node.LazyNpcLine != null)
             {
@@ -680,13 +721,13 @@ namespace LivingWorldNpcs
                         langField?.SetValue(textObj, -1);
                         return true;
                     },
-                    null, 0, -1, priority);
+                    null, 0, -1, priority, owner);
             }
             else
             {
                 cm.AddDialogLineMultiAgent(id, inputToken, outputToken,
                     new TextObject(node.NpcLine ?? ""),
-                    () => true, null, 0, -1, priority);
+                    () => true, null, 0, -1, priority, owner);
             }
         }
 
@@ -814,7 +855,7 @@ namespace LivingWorldNpcs
                     // OneToOneConversationHero 为 null，但 Settlement.CurrentSettlement
                     // 在 Mission 场景中会被正确设置。
                     var settlement = npc?.CurrentSettlement ?? Settlement.CurrentSettlement;
-                    var evt = settlement != null ? WorldEventStore.FindActive(settlement.StringId) : null;
+                    var evt = settlement != null ? WorldEventStore.FindOnGoing(settlement.StringId) : null;
 
                     // 🆕 从 ConversationManager 获取当前对话的 Agent（与 ExecuteIntentAction 同模式）
                     Agent partnerAgent = null;

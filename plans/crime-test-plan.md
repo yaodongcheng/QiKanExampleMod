@@ -119,7 +119,7 @@ Phase 5 (LLM) 和 Phase 6 (新犯罪类型) 不在本次测试范围。
 |------|------|
 | **玩家操作** | 进入村庄场景，找 Headman notable 对话 |
 | **代码路径** | `CampaignMapConversation.OpenConversation`（原版）→ `CrimeConversationPatch.Postfix` |
-| | → `WorldEventStore.FindActive(settlementId)` — 查活跃犯罪事件 |
+| | → `WorldEventStore.FindOnGoing(settlementId)` — 查活跃犯罪事件 |
 | | → `CrimeDialogueBuilder.BuildScript(speaker, listener)` — **运行时动态构建** |
 | | → `BuildAuthorityScript` → Stage=Emerging 且未接任务 → `BuildDiscoveryTurn` |
 | | → 对话文本由 `PlaceholderResolver` 动态填充：`{SpeakerEmotion}` `{CrimeScene}` `{CrimeVerbPast}` 等 |
