@@ -137,8 +137,10 @@ namespace LivingWorldNpcs
                 }
 
                 // ── 第三层：屏幕坐标计算 ──
+                // XY 取 agent.Position（身体中心，不受头部晃动影响）
+                // Z  取 GetEyeGlobalPosition()（动画骨骼高度，上楼时平滑无台阶跳跃）
                 Vec3 agentPos = agent.Position;
-                agentPos.z += agent.GetEyeGlobalHeight() + 0.1f;
+                agentPos.z = agent.GetEyeGlobalPosition().z + 0.1f;
                 var screenPos = currentMissionScreen.SceneLayer.WorldPointToScreenPoint(agentPos);
                 float pixelX = screenPos.x * screenWidth;
                 float pixelY = screenPos.y * screenHeight;
@@ -159,13 +161,15 @@ namespace LivingWorldNpcs
                 {
                     if (!inFov)
                     {
-                        hud.PosX = ClampToEdgeX(pixelX, screenWidth, uiScale, hud.BubbleWidth);
-                        hud.PosY = ClampToEdgeY(pixelY, screenHeight, uiScale, hud.BubbleHeight);
+                        hud.SnapPosition(
+                            ClampToEdgeX(pixelX, screenWidth, uiScale, hud.BubbleWidth),
+                            ClampToEdgeY(pixelY, screenHeight, uiScale, hud.BubbleHeight));
                     }
                     else
                     {
-                        hud.PosX = (pixelX * invUiScale) - (hud.BubbleWidth * 0.5f);
-                        hud.PosY = (pixelY * invUiScale) - hud.BubbleHeight;
+                        hud.SetTargetPosition(
+                            (pixelX * invUiScale) - (hud.BubbleWidth * 0.5f),
+                            (pixelY * invUiScale) - hud.BubbleHeight);
                     }
                 }
 
@@ -194,8 +198,9 @@ namespace LivingWorldNpcs
 
                         if (!hud.ShowAlert)
                         {
-                            hud.PosX = (pixelX * invUiScale) - (hud.BubbleWidth * 0.5f);
-                            hud.PosY = (pixelY * invUiScale) - hud.BubbleHeight;
+                            hud.SetTargetPosition(
+                                (pixelX * invUiScale) - (hud.BubbleWidth * 0.5f),
+                                (pixelY * invUiScale) - hud.BubbleHeight);
                         }
 
                         float scale = MBMath.ClampFloat(50f / (dist + 5f), 0.5f, 1.5f);
