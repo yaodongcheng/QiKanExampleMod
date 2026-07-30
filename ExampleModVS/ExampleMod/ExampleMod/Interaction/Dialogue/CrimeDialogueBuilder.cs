@@ -933,7 +933,7 @@ namespace LivingWorldNpcs
                 NpcLine = "还有什么想说的？",
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", ActionParam = "safe", NextNodeOnSuccess = "" },
                 }
             });
             // Escalated ack nodes
@@ -1078,13 +1078,11 @@ namespace LivingWorldNpcs
                     new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextNodeOnSuccess = "search_result" },
                     new() { PlayerLine = "凭什么翻我东西？", Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "recover_confront" },
                     new() { PlayerLine = "别查了，我赔你点钱。", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:PayRestitution", ActionParam = "bribe", NextNodeOnSuccess = "alert_search_bribe_ack", NextNodeOnFail = "alert_search_bribe_fail" },
-                    new() { PlayerLine = "转身就走", Action = "INTENT:WalkAway", NextNodeOnSuccess = "alert_search_walk_ack" },
                 }
             });
 
             nodes.Add(Node("alert_search_bribe_ack", r.Resolve("……做贼心虚。拿了钱滚。")));
             nodes.Add(Node("alert_search_bribe_fail", r.Resolve("少来这套。把包打开，{SPEAKER_SELF}自己看！"), "continue_chat"));
-            nodes.Add(Node("alert_search_walk_ack", r.Resolve("站住！")));
             nodes.Add(Node("alert_search_deny_ack", r.Resolve("你的？上面还写着{TARGET}的名字呢！"), "continue_chat"));
 
             // recover_confront（refuse search → recover mode）
@@ -1097,7 +1095,7 @@ namespace LivingWorldNpcs
                     new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
                     new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
-                    new() { PlayerLine = "推开就跑", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    new() { PlayerLine = "推开就跑", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
                 }
             });
 
@@ -1130,7 +1128,7 @@ namespace LivingWorldNpcs
                     new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
                     new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
                     new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
-                    new() { PlayerLine = "推开就跑", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    new() { PlayerLine = "推开就跑", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
                 }
             });
 

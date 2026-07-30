@@ -1,7 +1,7 @@
-﻿[13:13:01.199] [WorldEventStore] Deserialized 1 events, 0 alerts
-[13:13:04.951] [Detention] Game menus registered
-[13:13:05.771] [AddQuickInformation] "成就被禁用！"
-[13:13:07.490] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+﻿[16:12:23.119] [WorldEventStore] Deserialized 1 events, 0 alerts
+[16:12:26.887] [Detention] Game menus registered
+[16:12:27.721] [AddQuickInformation] "成就被禁用！"
+[16:12:31.349] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
     标题: 城镇中心
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
@@ -14,642 +14,574 @@
       7. 进入铁匠铺  [id=town_smithy] 可点
       8. 稍作等待  [id=town_wait] 可点
       9. 离开  [id=town_leave] 可点
-[13:13:08.682] [GameMenu] ● 点击 menu=town 选项="前往酒馆区" [id=town_backstreet] @吕卡隆(城镇)
-[13:13:08.690] [GameMenu] ▶ 打开 menu=town_backstreet @吕卡隆(城镇)
+[16:12:37.186] [GameMenu] ● 点击 menu=town 选项="前往主楼" [id=town_keep] @吕卡隆(城镇)
+[16:12:37.193] [GameMenu] ▶ 打开 menu=town_keep_bribe @吕卡隆(城镇)
+    标题: 主楼
+    正文: 守卫声称不可以随便放人进去。
+    选项:
+      1. 贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼  [id=town_keep_bribe_pay] 可点
+      2. 离开  [id=town_keep_bribe_back] 可点
+[16:12:37.860] [GameMenu] ● 点击 menu=town_keep_bribe 选项="贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼" [id=town_keep_bribe_pay] @吕卡隆(城镇)
+[16:12:37.866] [DisplayMessage] "你支付了800<img src="General\Icons\Coin@2x" extend="8">。"
+[16:12:37.867] [DisplayMessage] "你发现了维里娜"
+[16:12:37.867] [DisplayMessage] "你发现了维维安娜"
+[16:12:37.874] [GameMenu] ▶ 打开 menu=town_keep @吕卡隆(城镇)
+    标题: 主楼
+    正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。
+    选项:
+      1. 前往领主大厅  [id=town_lords_hall] 可点
+      2. 前往地牢  [id=town_lords_hall_go_to_dungeon] 可点
+      3. 返回城镇中心  [id=town_castle_back] 可点
+[16:12:39.203] [GameMenu] ● 点击 menu=town_keep 选项="前往领主大厅" [id=town_lords_hall] @吕卡隆(城镇)
+[16:12:40.189] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → 领主大厅里
+[16:12:54.623] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[16:12:55.231] [ForcePlayAction] 帝国资深步兵 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_guard'→'as_human_warrior'
+[16:12:55.232] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国资深步兵 (Index:9, 距离:2.0m, 方位:南)"
+[16:12:55.236] [Brain-Receive] 帝国资深步兵(Idx=9) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:12:55.237] [Brain-Clear] 帝国资深步兵(Idx=9) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:12:55.237] [Brain-Enqueue] 帝国资深步兵(Idx=9) 入队 StayAction | 当前行为=null | 队列=0→1
+[16:12:55.237] [AI-Debug] Suspend 帝国资深步兵 (Idx=9) | 集合size=1 | 当前行为=null
+[16:12:55.243] [Brain-Receive] 帝国具装骑兵(Idx=3) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:12:55.245] [Brain-Clear] 帝国具装骑兵(Idx=3) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:12:55.245] [Brain-Enqueue] 帝国具装骑兵(Idx=3) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[16:12:55.245] [AI-Debug] Suspend 帝国具装骑兵 (Idx=3) | 集合size=2 | 当前行为=null
+[16:12:55.247] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Active
+[16:12:55.252] [RegisterWitness] 帝国具装骑兵 witnessed crime → WorldEvent misconduct_town_ES4_2185862 Stage → Active (suspect=player)
+[16:12:55.254] [Brain-Phase] 帝国具装骑兵(Idx=3) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔帝国资深步兵] → 发送 'BecomeAlarmed'
+[16:12:55.254] [Brain-Receive] 帝国具装骑兵(Idx=3) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[16:12:55.254] [Brain-Clear] 帝国具装骑兵(Idx=3) 清空动作 | 当前=null | 队列=1 | hadActions=True
+[16:12:55.255] [ConvLock] Acquire by 帝国具装骑兵(Idx=3) | reason=StartL3Confrontation
+[16:12:55.255] [Brain-Enqueue] 帝国具装骑兵(Idx=3) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
+[16:12:55.255] [Brain-Enqueue] 帝国具装骑兵(Idx=3) 入队 LookAtAction | 当前行为=null | 队列=1→2
+[16:12:55.255] [Brain-Enqueue] 帝国具装骑兵(Idx=3) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
+[16:12:55.255] [Brain-Receive] 帝国重装骑手(Idx=4) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:12:55.257] [Brain-Clear] 帝国重装骑手(Idx=4) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:12:55.257] [Brain-Enqueue] 帝国重装骑手(Idx=4) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[16:12:55.257] [AI-Debug] Suspend 帝国重装骑手 (Idx=4) | 集合size=3 | 当前行为=null
+[16:12:55.257] [Brain-Phase] 帝国重装骑手(Idx=4) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔帝国资深步兵] → 发送 'BecomeAlarmed'
+[16:12:55.257] [Brain-Receive] 帝国重装骑手(Idx=4) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[16:12:55.257] [Brain-Lock] 帝国重装骑手(Idx=4) 想质问玩家但 帝国具装骑兵(Idx=3) 正在质问中，跳过
+[16:12:55.259] [Assault] 帝国资深步兵 身价=50 → 事件 misconduct_town_ES4_2185862 AssaultValue=50（赔偿基数 50）
+[16:12:55.259] [DisplayMessage] [Green] "从背后击晕了 帝国资深步兵！"
+[16:12:55.260] [Knockout] 亨利 knocked out 帝国资深步兵 from behind (anim: act_shield_bash)
+[16:12:55.260] [Brain-Tick] 帝国具装骑兵(Idx=3) 开始执行 FollowAgentAction | 队列剩余=2
+[16:12:55.262] [Brain-Tick] 帝国重装骑手(Idx=4) 开始执行 ReactionDecisionAction | 队列剩余=0
+[16:12:55.262] [Brain-Tick] 帝国资深步兵(Idx=9) 开始执行 StayAction | 队列剩余=0
+[16:12:58.235] [Brain-Tick] 帝国具装骑兵(Idx=3) 完成 FollowAgentAction
+[16:12:58.239] [Brain-Tick] 帝国具装骑兵(Idx=3) 开始执行 LookAtAction | 队列剩余=1
+[16:12:58.240] [Brain-Tick] 帝国具装骑兵(Idx=3) 完成 LookAtAction
+[16:12:58.245] [Brain-Tick] 帝国具装骑兵(Idx=3) 开始执行 AlertForceConversationAction | 队列剩余=0
+[16:12:58.246] [AlertForceConv] 帝国具装骑兵(Idx=3) 模板NPC(帝国具装骑兵) — 使用 InjectScriptAsOpening (start token)
+[16:12:58.246] [AlertForceConv] 帝国具装骑兵(Idx=3) ActiveConversationAgent 设置成功
+[16:12:58.247] [ConvLock] Acquire by 帝国具装骑兵(Idx=3) | reason=MissionStartPrefix
+[16:12:58.247] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=帝国具装骑兵
+[16:12:58.264] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子领主大厅里丢了一件啤酒、一件artisan_beer等20项财物，市值1678第纳尔，一直没找到是谁干的。今天你把帝国资深步兵打晕了，身价50第纳尔——既然抓着的是你，两笔账一起算。镇上人都知道了，闹事按规矩罚2倍，一共3456第纳尔…"
+[16:12:58.265] [Placeholder][对话预填充] NpcLine: "……行，原价3456，给你对半砍——1728。这是最后价了，不能再少了。" → "……行，原价3456，给你对半砍——1728。这是最后价了，不能再少了。"
+[16:12:58.265] [Placeholder][对话预填充] PlayerLine: "行，就这个数——1728第纳尔。" → "行，就这个数——1728第纳尔。"
+[16:12:58.265] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[16:12:58.265] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[16:12:58.265] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子领主大厅里丢了一件啤酒、一件artisan_beer等20项财物，市值1678第纳尔，一直没找到是谁干的。今天你把帝国资深步兵打晕了，身价50第纳尔——既然抓着的是你，两笔账一起算。镇上人都知道了，闹事按规矩罚2倍，一共3456第纳尔…"
+[16:12:58.265] [Placeholder][对话预填充] NpcLine: "……行，原价3456，给你对半砍——1728。这是最后价了，不能再少了。" → "……行，原价3456，给你对半砍——1728。这是最后价了，不能再少了。"
+[16:12:58.265] [Placeholder][对话预填充] PlayerLine: "行，就这个数——1728第纳尔。" → "行，就这个数——1728第纳尔。"
+[16:12:58.265] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[16:12:58.266] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）你把帝国资深步兵打晕了！来人！"
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "他先惹我的。" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_stop_charm_ok | NextNodeOnFail=alert_stop_charm_fail
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_stop_fight_ack
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[3] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[1] id=restitution_demand NpcLine="" [Lazy]
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[16:12:58.267] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[2] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[3] id=continue_chat_safe NpcLine="还有什么想说的？"
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我走了。" → INTENT:WalkAway Param=safe | NextNodeOnSuccess=(关闭)
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[4] id=restitution_haggle_ok NpcLine="……行，原价3456，给你对半砍——1728。这是最后价了，不能再少了。" [Lazy]
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就这个数——1728第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[5] id=restitution_refuse_warn NpcLine="" [Lazy]
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[16:12:58.268] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[6] id=continue_chat NpcLine="" [Lazy]
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[7] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[8] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[9] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[10] id=alert_stop_charm_ok NpcLine="……下次再动手没这么好说话。"
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[11] id=alert_stop_charm_fail NpcLine="在我眼皮底下动手，就得有个说法！"
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[16:12:58.269] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[12] id=alert_stop_fight_ack NpcLine="你疯了！快叫人！"
+[16:12:58.270] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_0' | priority=200 | owner=crime_misconduct_town_ES4_2185862_v0
+[16:12:58.273] [ConvCondition] Building condition for intent=CharmDefense playerLine="他先惹我的。" actionParam=(null)
+[16:12:58.273] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
+[16:12:58.273] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
+[16:12:58.274] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[16:12:58.274] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[16:12:58.274] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——1728第纳尔。" actionParam=haggle
+[16:12:58.274] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
+[16:12:58.274] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
+[16:12:58.274] [ConvCondition] Building condition for intent=WalkAway playerLine="我走了。" actionParam=safe
+[16:12:58.275] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[16:12:58.275] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[16:12:58.275] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——1728第纳尔。" actionParam=haggle
+[16:12:58.275] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_town_ES4_2185862 stage=Active trigger=Alert partner=帝国具装骑兵 nodes=18
+[16:12:58.306] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "（冷淡地）你把帝国资深步兵打晕了！来人！"
+[16:12:58.311] [IntentEval] CharmDefense → Show
+[16:12:58.312] [ConvCondition] intent=CharmDefense playerLine="他先惹我的。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:12:58.312] [IntentEval] FightVillagers → Show
+[16:12:58.312] [ConvCondition] intent=FightVillagers playerLine="谁拦着我就杀谁！" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:12:58.313] [IntentEval] SurrenderJail → Show (event stage=Active)
+[16:12:58.313] [ConvCondition] intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=surrender_jail eligibility=Enabled reason=
+[16:12:58.324] [AlertForceConv] 帝国具装骑兵(Idx=3) 对话启动成功
+[16:13:00.665] [Brain-Enqueue] 帝国重装骑手(Idx=4) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[16:13:00.665] [Brain-Enqueue] 帝国重装骑手(Idx=4) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[16:13:00.665] [Brain-Enqueue] 帝国重装骑手(Idx=4) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[16:13:00.666] [Brain-Tick] 帝国重装骑手(Idx=4) 完成 ReactionDecisionAction
+[16:13:00.669] [Brain-Tick] 帝国重装骑手(Idx=4) 开始执行 LookAtAction | 队列剩余=2
+[16:13:01.164] [Brain-Tick] 帝国重装骑手(Idx=4) 完成 LookAtAction
+[16:13:01.169] [Brain-Tick] 帝国重装骑手(Idx=4) 开始执行 MoveToPositionAction | 队列剩余=1
+[16:13:07.067] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_0' NPC=亨利 | Options (4): 我愿意赔偿。 | [狡辩]他先惹我的。 | [拔剑]谁拦着我就杀谁！ | [坐牢]我没钱。要抓就抓吧。
+[16:13:07.068] [IntentEval] CharmDefense → Show
+[16:13:07.069] [SkillCheck] CharmDefense | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=50 献礼=0.00 → 成功率=0.15 | 掷骰=失败 (chance=15 %)
+[16:13:07.069] [AddQuickInformation] "魅力检定失败: 你的魅力(11) vs 帝国具装骑兵(50)，差39点，成功率仅15 %"
+[16:13:07.070] [WorldEvent] misconduct_town_ES4_2185862 Stage: Active → Confrontation
+[16:13:07.070] [Accountability] Charm defense failed for misconduct_town_ES4_2185862 — → Confrontation
+[16:13:07.070] [VanillaDialog] Player says: "[狡辩]他先惹我的。"
+[16:13:07.072] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "在我眼皮底下动手，就得有个说法！"
+[16:13:08.844] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_3' NPC=亨利 | Options (1): 嗯…
+[16:13:08.844] [VanillaDialog] Player says: "嗯…"
+[16:13:08.845] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "最后一次警告——别逼我叫人！"
+[16:13:08.845] [IntentEval] FightVillagers → Show
+[16:13:08.845] [ConvCondition] intent=FightVillagers playerLine="谁拦着我就杀谁！" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:13:08.845] [IntentEval] SurrenderJail → Show (event stage=Confrontation)
+[16:13:08.845] [ConvCondition] intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=surrender_jail eligibility=Enabled reason=
+[16:13:09.169] [Brain-Tick] 帝国重装骑手(Idx=4) 完成 MoveToPositionAction
+[16:13:09.174] [Brain-Tick] 帝国重装骑手(Idx=4) 开始执行 StayAction | 队列剩余=0
+[16:13:17.505] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_10' NPC=亨利 | Options (3): [拔剑]谁拦着我就杀谁！ | 我愿意赔偿。 | [坐牢]我没钱。要抓就抓吧。
+[16:13:17.505] [VanillaDialog] Player says: "我愿意赔偿。"
+[16:13:17.506] [Penalty] misconduct_town_ES4_2185862 first quote to player: 3456 @ Confrontation
+[16:13:17.506] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "前阵子领主大厅里丢了一件啤酒、一件artisan_beer等20项财物，市值1678第纳尔，一直没找到是谁干的。今天你把帝国资深步兵打晕了，身价50第纳尔——既然抓着的是你，两笔账一起算。镇上人都知道了，闹事按规矩罚2倍，一共3456第纳尔。你认不认？"
+[16:13:17.507] [IntentEval] PayRestitution → Show (stage=Confrontation, cost=3456)
+[16:13:17.507] [ConvCondition] intent=PayRestitution playerLine="行，就按这个价。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:13:17.507] [ConvCondition] intent=Settle playerLine="太贵了，能便宜点吗？" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:13:26.330] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_4' NPC=亨利 | Options (3): [赔钱]行，就按这个价。 | [砍价]太贵了，能便宜点吗？ | 太贵了，不赔。
+[16:13:26.331] [SkillCheck] Settle | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=50 献礼=0.03 → 成功率=0.16 | 掷骰=失败 (chance=16 %)
+[16:13:26.331] [AddQuickInformation] "魅力检定失败: 你的魅力(11) vs 帝国具装骑兵(50)，差39点，成功率仅16 %"
+[16:13:26.331] [Accountability] Haggle failed for misconduct_town_ES4_2185862
+[16:13:26.331] [VanillaDialog] Player says: "[砍价]太贵了，能便宜点吗？"
+[16:13:26.331] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "不行，一文都不能少。"
+[16:13:27.705] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_8' NPC=亨利 | Options (1): 嗯…
+[16:13:27.705] [VanillaDialog] Player says: "嗯…"
+[16:13:27.705] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "前阵子领主大厅里丢了一件啤酒、一件artisan_beer等20项财物，市值1678第纳尔，一直没找到是谁干的。今天你把帝国资深步兵打晕了，身价50第纳尔——既然抓着的是你，两笔账一起算。镇上人都知道了，闹事按规矩罚2倍，一共3456第纳尔。你认不认？"
+[16:13:27.706] [IntentEval] PayRestitution → Show (stage=Confrontation, cost=3456)
+[16:13:27.706] [ConvCondition] intent=PayRestitution playerLine="行，就按这个价。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:13:27.706] [ConvCondition] intent=Settle playerLine="太贵了，能便宜点吗？" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Hidden reason=
+[16:13:29.610] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_4' NPC=亨利 | Options (2): [赔钱]行，就按这个价。 | 太贵了，不赔。
+[16:13:29.610] [VanillaDialog] Player says: "太贵了，不赔。"
+[16:13:29.611] [Placeholder] NpcLine: "不赔？{SpeakerSelfRef}把话放这儿：现在给，就是3456。等这事传开、等你我动了手，价钱只会往上翻。你自己掂量。" → "不赔？我把话放这儿：现在给，就是3456。等这事传开、等你我动了手，价钱只会往上翻。你自己掂量。"
+[16:13:29.611] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "不赔？我把话放这儿：现在给，就是3456。等这事传开、等你我动了手，价钱只会往上翻。你自己掂量。"
+[16:13:31.570] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_6' NPC=亨利 | Options (1): 嗯…
+[16:13:31.571] [VanillaDialog] Player says: "嗯…"
+[16:13:31.571] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "最后一次警告——别逼我叫人！"
+[16:13:31.571] [IntentEval] FightVillagers → Show
+[16:13:31.571] [ConvCondition] intent=FightVillagers playerLine="谁拦着我就杀谁！" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:13:31.571] [IntentEval] SurrenderJail → Show (event stage=Confrontation)
+[16:13:31.571] [ConvCondition] intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=surrender_jail eligibility=Enabled reason=
+[16:13:34.266] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_10' NPC=亨利 | Options (3): [拔剑]谁拦着我就杀谁！ | 我愿意赔偿。 | [坐牢]我没钱。要抓就抓吧。
+[16:13:34.266] [IntentEval] FightVillagers → Show
+[16:13:34.267] [Brain-Receive] 维里娜(Idx=1) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:13:34.267] [DisplayMessage] [Red] "Agent 维里娜 收到攻击命令，目标是 亨利"
+[16:13:34.267] [Brain-Clear] 维里娜(Idx=1) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:13:34.267] [Brain-Enqueue] 维里娜(Idx=1) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.267] [AI-Debug] Suspend 维里娜 (Idx=1) | 集合size=4 | 当前行为=null
+[16:13:34.267] [Brain-Receive] 维维安娜(Idx=2) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:13:34.268] [DisplayMessage] [Red] "Agent 维维安娜 收到攻击命令，目标是 亨利"
+[16:13:34.268] [Brain-Clear] 维维安娜(Idx=2) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:13:34.268] [Brain-Enqueue] 维维安娜(Idx=2) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.268] [AI-Debug] Suspend 维维安娜 (Idx=2) | 集合size=5 | 当前行为=null
+[16:13:34.268] [Brain-Receive] 帝国重装骑手(Idx=4) 收到事件 'order_attack' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
+[16:13:34.268] [DisplayMessage] [Red] "Agent 帝国重装骑手 收到攻击命令，目标是 亨利"
+[16:13:34.268] [Brain-Clear] 帝国重装骑手(Idx=4) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[16:13:34.269] [Brain-Enqueue] 帝国重装骑手(Idx=4) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.269] [Brain-Receive] 帝国熟练步兵(Idx=5) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:13:34.269] [DisplayMessage] [Red] "Agent 帝国熟练步兵 收到攻击命令，目标是 亨利"
+[16:13:34.269] [Brain-Clear] 帝国熟练步兵(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:13:34.269] [Brain-Enqueue] 帝国熟练步兵(Idx=5) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.269] [AI-Debug] Suspend 帝国熟练步兵 (Idx=5) | 集合size=6 | 当前行为=null
+[16:13:34.269] [Brain-Receive] 帝国重装骑手(Idx=6) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:13:34.269] [DisplayMessage] [Red] "Agent 帝国重装骑手 收到攻击命令，目标是 亨利"
+[16:13:34.269] [Brain-Clear] 帝国重装骑手(Idx=6) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:13:34.269] [Brain-Enqueue] 帝国重装骑手(Idx=6) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.269] [AI-Debug] Suspend 帝国重装骑手 (Idx=6) | 集合size=7 | 当前行为=null
+[16:13:34.269] [Brain-Receive] 帝国弩手军士(Idx=7) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:13:34.269] [DisplayMessage] [Red] "Agent 帝国弩手军士 收到攻击命令，目标是 亨利"
+[16:13:34.269] [Brain-Clear] 帝国弩手军士(Idx=7) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:13:34.269] [Brain-Enqueue] 帝国弩手军士(Idx=7) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.269] [AI-Debug] Suspend 帝国弩手军士 (Idx=7) | 集合size=8 | 当前行为=null
+[16:13:34.270] [Brain-Receive] 帝国军团步兵(Idx=8) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:13:34.270] [DisplayMessage] [Red] "Agent 帝国军团步兵 收到攻击命令，目标是 亨利"
+[16:13:34.270] [Brain-Clear] 帝国军团步兵(Idx=8) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:13:34.270] [Brain-Enqueue] 帝国军团步兵(Idx=8) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.270] [AI-Debug] Suspend 帝国军团步兵 (Idx=8) | 集合size=9 | 当前行为=null
+[16:13:34.270] [Brain-Receive] 帝国资深步兵(Idx=9) 收到事件 'order_attack' | 当前行为=StayAction | 队列=0 | 阶段=Normal
+[16:13:34.270] [DisplayMessage] [Red] "Agent 帝国资深步兵 收到攻击命令，目标是 亨利"
+[16:13:34.270] [Brain-Clear] 帝国资深步兵(Idx=9) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[16:13:34.270] [Brain-Enqueue] 帝国资深步兵(Idx=9) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.270] [Brain-Receive] 帝国步兵(Idx=10) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:13:34.270] [DisplayMessage] [Red] "Agent 帝国步兵 收到攻击命令，目标是 亨利"
+[16:13:34.272] [Brain-Clear] 帝国步兵(Idx=10) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[16:13:34.272] [Brain-Enqueue] 帝国步兵(Idx=10) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:34.272] [AI-Debug] Suspend 帝国步兵 (Idx=10) | 集合size=10 | 当前行为=null
+[16:13:34.272] [Accountability] FightVillagers in-mission: order_attack broadcast, deferred=帝国具装骑兵
+[16:13:34.272] [DisplayMessage] [Red] "村民愤怒了！有人抄起家伙围了过来……快离开这里！"
+[16:13:34.272] [Accountability] Player fought villagers for misconduct_town_ES4_2185862
+[16:13:34.272] [VanillaDialog] Player says: "[拔剑]谁拦着我就杀谁！"
+[16:13:34.272] [VanillaDialog] NPC  | NPC: 帝国具装骑兵 (CharacterId: imperial_cataphract) says: "你疯了！快叫人！"
+[16:13:34.275] [Brain-Tick] 维里娜(Idx=1) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.275] [DisplayMessage] [Yellow] "维里娜(Idx=1)  开始攻击 亨利！"
+[16:13:34.276] [CombatManager] RegisterCombatant: 维里娜(Idx=1), total=1
+[16:13:34.284] [Brain-Tick] 维维安娜(Idx=2) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.285] [DisplayMessage] [Yellow] "维维安娜(Idx=2)  开始攻击 亨利！"
+[16:13:34.285] [CombatManager] RegisterCombatant: 维维安娜(Idx=2), total=2
+[16:13:34.285] [Brain-Tick] 帝国重装骑手(Idx=4) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.286] [DisplayMessage] [Yellow] "帝国重装骑手(Idx=4)  开始攻击 亨利！"
+[16:13:34.286] [CombatManager] RegisterCombatant: 帝国重装骑手(Idx=4), total=3
+[16:13:34.286] [Brain-Tick] 帝国熟练步兵(Idx=5) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.286] [DisplayMessage] [Yellow] "帝国熟练步兵(Idx=5)  开始攻击 亨利！"
+[16:13:34.286] [CombatManager] RegisterCombatant: 帝国熟练步兵(Idx=5), total=4
+[16:13:34.286] [Brain-Tick] 帝国重装骑手(Idx=6) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.286] [DisplayMessage] [Yellow] "帝国重装骑手(Idx=6)  开始攻击 亨利！"
+[16:13:34.286] [CombatManager] RegisterCombatant: 帝国重装骑手(Idx=6), total=5
+[16:13:34.286] [Brain-Tick] 帝国弩手军士(Idx=7) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.287] [DisplayMessage] [Yellow] "帝国弩手军士(Idx=7)  开始攻击 亨利！"
+[16:13:34.287] [CombatManager] RegisterCombatant: 帝国弩手军士(Idx=7), total=6
+[16:13:34.287] [Brain-Tick] 帝国军团步兵(Idx=8) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.287] [DisplayMessage] [Yellow] "帝国军团步兵(Idx=8)  开始攻击 亨利！"
+[16:13:34.287] [CombatManager] RegisterCombatant: 帝国军团步兵(Idx=8), total=7
+[16:13:34.287] [Brain-Tick] 帝国资深步兵(Idx=9) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.287] [DisplayMessage] [Yellow] "帝国资深步兵(Idx=9)  开始攻击 亨利！"
+[16:13:34.287] [CombatManager] RegisterCombatant: 帝国资深步兵(Idx=9), total=8
+[16:13:34.287] [Brain-Tick] 帝国步兵(Idx=10) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:34.287] [DisplayMessage] [Yellow] "帝国步兵(Idx=10)  开始攻击 亨利！"
+[16:13:34.287] [CombatManager] RegisterCombatant: 帝国步兵(Idx=10), total=9
+[16:13:35.361] [ConvLock] Release by 帝国具装骑兵(Idx=3) | reason=EndConversation
+[16:13:35.361] [ConvEnd] Conversation ended. lastEvent=misconduct_town_ES4_2185862_imperial_cataphract lastTag=crime_misconduct_town_ES4_2185862
+[16:13:35.361] [ConvEnd] Haggle flag cleared for misconduct_town_ES4_2185862
+[16:13:35.361] [AlertForceConv] 帝国具装骑兵(Idx=3) ActiveConversationAgent 清空成功
+[16:13:35.361] [Brain-Receive] 帝国具装骑兵(Idx=3) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
+[16:13:35.362] [Brain-Receive] 帝国重装骑手(Idx=4) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[16:13:35.362] [Brain-Receive] 帝国熟练步兵(Idx=5) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[16:13:35.362] [Brain-Receive] 帝国重装骑手(Idx=6) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[16:13:35.362] [Brain-Receive] 帝国资深步兵(Idx=9) 收到事件 'EndInteraction' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Normal
+[16:13:35.362] [DisplayMessage] "[事件发送] 发送事件 'DeferredCombat' 给 帝国具装骑兵 (Index:3, 距离:1.6m, 方位:南)"
+[16:13:35.362] [Brain-Receive] 帝国具装骑兵(Idx=3) 收到事件 'DeferredCombat' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
+[16:13:35.362] [Brain-Clear] 帝国具装骑兵(Idx=3) 清空动作 | 当前=AlertForceConversationAction | 队列=0 | hadActions=True
+[16:13:35.362] [Brain-Enqueue] 帝国具装骑兵(Idx=3) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[16:13:35.363] [Brain-DeferredCombat] 帝国具装骑兵(Idx=3) 开始攻击 亨利
+[16:13:35.363] [ConvEnd] DeferredCombat sent to 帝国具装骑兵(Idx=3)
+[16:13:35.364] [Brain-Tick] 帝国具装骑兵(Idx=3) 开始执行 FightEnemyAction | 队列剩余=0
+[16:13:35.365] [DisplayMessage] [Yellow] "帝国具装骑兵(Idx=3)  开始攻击 亨利！"
+[16:13:35.365] [CombatManager] RegisterCombatant: 帝国具装骑兵(Idx=3), total=10
+[16:13:37.123] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国重装骑手 对 亨利 造成了15 点伤害"
+[16:13:37.131] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到15点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：1.92米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[16:13:38.433] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国具装骑兵 对 亨利 造成了22 点伤害"
+[16:13:38.433] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到22点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：2.08米/秒</Detail><Detail>吸收伤害：4</Detail>" | category=Combat
+[16:13:39.803] [Detention] Player knocked out at 吕卡隆, case=misconduct_town_ES4_2185862
+[16:13:39.804] [DisplayMessage] [Red] "你被按在地上，武器被夺走了……"
+[16:13:39.804] [Detention] Requested at 吕卡隆 event=misconduct_town_ES4_2185862 fine=5875 days=2 | stage=Confrontation firstQuote=3456@Confrontation lastQuote=3456 escalations=[none]
+[16:13:39.807] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到24点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：2.35米/秒</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[16:13:39.807] [Brain-Tick] 维里娜(Idx=1) 完成 FightEnemyAction
+[16:13:39.808] [CombatManager] UnregisterCombatant: 维里娜(Idx=1), total=9
+[16:13:39.808] [CombatManager] EndFight: 维里娜(Idx=1) restored to original team
+[16:13:39.808] [Brain-Alert] 维里娜(Idx=1) ClearAllAlerts: 警戒值归零
+[16:13:39.808] [FightEnd] 维里娜(Idx=1) 战斗结束，收起武器，且警戒值归零
+[16:13:39.808] [Brain-Tick] 维维安娜(Idx=2) 完成 FightEnemyAction
+[16:13:39.808] [CombatManager] UnregisterCombatant: 维维安娜(Idx=2), total=8
+[16:13:39.810] [CombatManager] EndFight: 维维安娜(Idx=2) restored to original team
+[16:13:39.810] [Brain-Alert] 维维安娜(Idx=2) ClearAllAlerts: 警戒值归零
+[16:13:39.810] [FightEnd] 维维安娜(Idx=2) 战斗结束，收起武器，且警戒值归零
+[16:13:39.810] [Brain-Tick] 帝国具装骑兵(Idx=3) 完成 FightEnemyAction
+[16:13:39.810] [CombatManager] UnregisterCombatant: 帝国具装骑兵(Idx=3), total=7
+[16:13:39.810] [CombatManager] EndFight: 帝国具装骑兵(Idx=3) restored to original team
+[16:13:39.810] [Brain-Alert] 帝国具装骑兵(Idx=3) ClearAllAlerts: 警戒值归零
+[16:13:39.810] [FightEnd] 帝国具装骑兵(Idx=3) 战斗结束，收起武器，且警戒值归零
+[16:13:39.810] [Brain-Tick] 帝国重装骑手(Idx=4) 完成 FightEnemyAction
+[16:13:39.810] [CombatManager] UnregisterCombatant: 帝国重装骑手(Idx=4), total=6
+[16:13:39.810] [CombatManager] EndFight: 帝国重装骑手(Idx=4) restored to original team
+[16:13:39.811] [Brain-Alert] 帝国重装骑手(Idx=4) ClearAllAlerts: 警戒值归零
+[16:13:39.811] [FightEnd] 帝国重装骑手(Idx=4) 战斗结束，收起武器，且警戒值归零
+[16:13:39.811] [Brain-Tick] 帝国熟练步兵(Idx=5) 完成 FightEnemyAction
+[16:13:39.811] [CombatManager] UnregisterCombatant: 帝国熟练步兵(Idx=5), total=5
+[16:13:39.811] [CombatManager] EndFight: 帝国熟练步兵(Idx=5) restored to original team
+[16:13:39.811] [Brain-Alert] 帝国熟练步兵(Idx=5) ClearAllAlerts: 警戒值归零
+[16:13:39.811] [FightEnd] 帝国熟练步兵(Idx=5) 战斗结束，收起武器，且警戒值归零
+[16:13:39.811] [Brain-Tick] 帝国重装骑手(Idx=6) 完成 FightEnemyAction
+[16:13:39.811] [CombatManager] UnregisterCombatant: 帝国重装骑手(Idx=6), total=4
+[16:13:39.812] [CombatManager] EndFight: 帝国重装骑手(Idx=6) restored to original team
+[16:13:39.812] [Brain-Alert] 帝国重装骑手(Idx=6) ClearAllAlerts: 警戒值归零
+[16:13:39.812] [FightEnd] 帝国重装骑手(Idx=6) 战斗结束，收起武器，且警戒值归零
+[16:13:39.812] [Brain-Tick] 帝国弩手军士(Idx=7) 完成 FightEnemyAction
+[16:13:39.812] [CombatManager] UnregisterCombatant: 帝国弩手军士(Idx=7), total=3
+[16:13:39.812] [CombatManager] EndFight: 帝国弩手军士(Idx=7) restored to original team
+[16:13:39.812] [Brain-Alert] 帝国弩手军士(Idx=7) ClearAllAlerts: 警戒值归零
+[16:13:39.813] [FightEnd] 帝国弩手军士(Idx=7) 战斗结束，收起武器，且警戒值归零
+[16:13:39.813] [Brain-Tick] 帝国军团步兵(Idx=8) 完成 FightEnemyAction
+[16:13:39.813] [CombatManager] UnregisterCombatant: 帝国军团步兵(Idx=8), total=2
+[16:13:39.813] [CombatManager] EndFight: 帝国军团步兵(Idx=8) restored to original team
+[16:13:39.813] [Brain-Alert] 帝国军团步兵(Idx=8) ClearAllAlerts: 警戒值归零
+[16:13:39.813] [FightEnd] 帝国军团步兵(Idx=8) 战斗结束，收起武器，且警戒值归零
+[16:13:39.813] [Brain-Tick] 帝国资深步兵(Idx=9) 完成 FightEnemyAction
+[16:13:39.813] [CombatManager] UnregisterCombatant: 帝国资深步兵(Idx=9), total=1
+[16:13:39.813] [CombatManager] EndFight: 帝国资深步兵(Idx=9) restored to original team
+[16:13:39.814] [Brain-Alert] 帝国资深步兵(Idx=9) ClearAllAlerts: 警戒值归零
+[16:13:39.814] [FightEnd] 帝国资深步兵(Idx=9) 战斗结束，收起武器，且警戒值归零
+[16:13:39.814] [Brain-Tick] 帝国步兵(Idx=10) 完成 FightEnemyAction
+[16:13:39.814] [CombatManager] UnregisterCombatant: 帝国步兵(Idx=10), total=0
+[16:13:39.814] [CombatManager] EndFight: 帝国步兵(Idx=10) restored to original team
+[16:13:39.814] [Brain-Alert] 帝国步兵(Idx=10) ClearAllAlerts: 警戒值归零
+[16:13:39.814] [FightEnd] 帝国步兵(Idx=10) 战斗结束，收起武器，且警戒值归零
+[16:13:39.818] [AI-Debug] Resume 维里娜 (Idx=1) | 集合size=9
+[16:13:39.818] [AI-Debug] Resume 维维安娜 (Idx=2) | 集合size=8
+[16:13:39.818] [AI-Debug] Resume 帝国具装骑兵 (Idx=3) | 集合size=7
+[16:13:39.818] [AI-Debug] Resume 帝国重装骑手 (Idx=4) | 集合size=6
+[16:13:39.818] [AI-Debug] Resume 帝国熟练步兵 (Idx=5) | 集合size=5
+[16:13:39.818] [AI-Debug] Resume 帝国重装骑手 (Idx=6) | 集合size=4
+[16:13:39.818] [AI-Debug] Resume 帝国弩手军士 (Idx=7) | 集合size=3
+[16:13:39.818] [AI-Debug] Resume 帝国军团步兵 (Idx=8) | 集合size=2
+[16:13:39.818] [AI-Debug] Resume 帝国资深步兵 (Idx=9) | 集合size=1
+[16:13:39.818] [AI-Debug] Resume 帝国步兵 (Idx=10) | 集合size=0
+[16:13:41.788] [Detention] EndMission → settlement menu
+[16:13:42.000] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+    标题: 被制住
+    正文: 你被人从地上拖起来，胳膊反剪在背后 —— 武器被踢到一边，围上来的人还在喘。 ⏎  ⏎ 带头的没跟你废话：钱赔了，这事就算了；不赔，就在牢房里待着，吕卡隆什么时候消气什么时候放人。 ⏎  ⏎ 当初事情一路闹大 —— 那时候赔 3456 就能了事，现在他们开口要 5875，翻了 1.7 倍。
+    选项:
+      1. 赔钱了事 —— 交 5875<img src="General\Icons\Coin@2x" extend="8"> 罚金给吕卡隆的人。  [id=lwn_detention_pay_fine] 可点
+      2. 认罚 —— 在牢房里关2天。  [id=lwn_detention_accept] 可点
+[16:13:48.660] [GameMenu] ● 点击 menu=town 选项="赔钱了事 —— 交 5875<img src="General\Icons\Coin@2x" extend="8"> 罚金给吕卡隆的人。" [id=lwn_detention_pay_fine] @吕卡隆(城镇)
+[16:13:48.661] [DisplayMessage] "你支付了5875<img src="General\Icons\Coin@2x" extend="8">。"
+[16:13:48.661] [Detention] Fine paid: 5875 → 拉盖娅
+[16:13:48.662] [WorldEvent] misconduct_town_ES4_2185862 Stage: Confrontation → Resolved
+[16:13:48.664] [Player] NinjaReport(resolved): ✅ 事件解决 · 吕卡隆
+[16:13:48.665] [WorldEvent] OnPlayerDetained: id=misconduct_town_ES4_2185862 paidFine=True → Resolved
+[16:13:48.667] [Detention] Menu shown: lwn_detention_release
+[16:13:48.669] [GameMenu] ▶ 打开 menu=lwn_detention_release @吕卡隆(城镇)
+    标题: 放人
+    正文: 钱货两清。按着你的手一只只松开，你的东西被丢回脚边。 ⏎  ⏎ 吕卡隆的人散了，这事算是了了。
+    选项:
+      1. 继续……  [id=lwn_detention_release_continue] 可点
+[16:13:50.548] [ShowInquiry] "✅ 吕卡隆 — 事件（已解决）" | "════ 事件已解决 ════
+
+✅ 吕卡隆 的事件已解决。
+
+——
+地点：吕卡隆
+类型：事件
+严重度：0/100
+加害方：亨利
+
+此事件已了结，不再需要你的介入。" | Btn1="(hidden)" Btn2="知道了"
+[16:13:50.551] [Player] ResolvedInquiry shown: "吕卡隆 — 事件"
+════ 事件已解决 ════
+
+✅ 吕卡隆 的事件已解决。
+
+——
+地点：吕卡隆
+类型：事件
+严重度：0/100
+加害方：亨利
+
+此事件已了结，不再需要你的介入。
+[16:13:53.086] [Player] ResolvedInquiry: '知道了' — 吕卡隆 Misconduct
+[16:13:53.917] [GameMenu] ● 点击 menu=lwn_detention_release 选项="继续……" [id=lwn_detention_release_continue] @吕卡隆(城镇)
+[16:13:53.931] [DisplayMessage] [Yellow] "罚金已付，这桩事了了。"
+[16:13:53.931] [Detention] Released (reason=fine, wasJailed=False)
+[16:13:53.931] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
+    选项:
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[16:13:55.810] [GameMenu] ● 点击 menu=town 选项="离开" [id=town_leave] @吕卡隆(城镇)
+[16:13:55.820] [GameMenu] ◀ 关闭 menu=town
+[16:13:57.222] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
+    选项:
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[16:13:59.069] [GameMenu] ● 点击 menu=town 选项="前往酒馆区" [id=town_backstreet] @吕卡隆(城镇)
+[16:13:59.073] [GameMenu] ▶ 打开 menu=town_backstreet @吕卡隆(城镇)
     标题: 后街
     正文: 你进入了后巷。当地酒馆内似乎非常热闹。
     选项:
       1. 进入酒馆  [id=town_tavern] 可点
       2. 返回城镇中心  [id=town_backstreet_back] 可点
-[13:13:09.478] [GameMenu] ● 点击 menu=town_backstreet 选项="进入酒馆" [id=town_tavern] @吕卡隆(城镇)
-[13:13:10.175] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → 酒馆里
-[13:13:21.370] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[13:13:21.975] [ForcePlayAction] 镇民 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_villager_in_tavern'→'as_human_warrior'
-[13:13:21.978] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 镇民 (Index:6, 距离:1.9m, 方位:北)"
-[13:13:21.983] [Brain-Receive] 镇民(Idx=6) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:21.983] [Brain-Clear] 镇民(Idx=6) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:21.984] [Brain-Enqueue] 镇民(Idx=6) 入队 StayAction | 当前行为=null | 队列=0→1
-[13:13:21.984] [AI-Debug] Suspend 镇民 (Idx=6) | 集合size=1 | 当前行为=null
-[13:13:21.990] [Brain-Receive] 镇民(Idx=4) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:21.992] [Brain-Clear] 镇民(Idx=4) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:21.993] [Brain-Enqueue] 镇民(Idx=4) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:21.993] [AI-Debug] Suspend 镇民 (Idx=4) | 集合size=2 | 当前行为=null
-[13:13:21.994] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Active
-[13:13:22.000] [RegisterWitness] 镇民 witnessed crime → WorldEvent misconduct_town_ES4_2185862 Stage → Active (suspect=player)
-[13:13:22.001] [Brain-Phase] 镇民(Idx=4) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.002] [Brain-Receive] 镇民(Idx=4) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.002] [Brain-Clear] 镇民(Idx=4) 清空动作 | 当前=null | 队列=1 | hadActions=True
-[13:13:22.003] [ConvLock] Acquire by 镇民(Idx=4) | reason=StartL3Confrontation
-[13:13:22.003] [Brain-Enqueue] 镇民(Idx=4) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
-[13:13:22.003] [Brain-Enqueue] 镇民(Idx=4) 入队 LookAtAction | 当前行为=null | 队列=1→2
-[13:13:22.004] [Brain-Enqueue] 镇民(Idx=4) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
-[13:13:22.004] [Brain-Receive] 镇民(Idx=5) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.004] [Brain-Clear] 镇民(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.004] [Brain-Enqueue] 镇民(Idx=5) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.004] [AI-Debug] Suspend 镇民 (Idx=5) | 集合size=3 | 当前行为=null
-[13:13:22.004] [Brain-Phase] 镇民(Idx=5) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.004] [Brain-Receive] 镇民(Idx=5) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.004] [Brain-Lock] 镇民(Idx=5) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.005] [Brain-Receive] 镇民(Idx=7) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.005] [Brain-Clear] 镇民(Idx=7) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.005] [Brain-Enqueue] 镇民(Idx=7) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.005] [AI-Debug] Suspend 镇民 (Idx=7) | 集合size=4 | 当前行为=null
-[13:13:22.005] [Brain-Phase] 镇民(Idx=7) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.005] [Brain-Receive] 镇民(Idx=7) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.005] [Brain-Lock] 镇民(Idx=7) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.005] [Brain-Receive] 镇民(Idx=11) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.006] [Brain-Clear] 镇民(Idx=11) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.006] [Brain-Enqueue] 镇民(Idx=11) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.006] [AI-Debug] Suspend 镇民 (Idx=11) | 集合size=5 | 当前行为=null
-[13:13:22.006] [Brain-Phase] 镇民(Idx=11) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.006] [Brain-Receive] 镇民(Idx=11) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.006] [Brain-Lock] 镇民(Idx=11) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.006] [Brain-Receive] 镇民(Idx=12) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.006] [Brain-Clear] 镇民(Idx=12) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.006] [Brain-Enqueue] 镇民(Idx=12) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.006] [AI-Debug] Suspend 镇民 (Idx=12) | 集合size=6 | 当前行为=null
-[13:13:22.008] [Brain-Phase] 镇民(Idx=12) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.008] [Brain-Receive] 镇民(Idx=12) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.008] [Brain-Lock] 镇民(Idx=12) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.008] [Brain-Receive] 镇民(Idx=13) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.008] [Brain-Clear] 镇民(Idx=13) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.008] [Brain-Enqueue] 镇民(Idx=13) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.008] [AI-Debug] Suspend 镇民 (Idx=13) | 集合size=7 | 当前行为=null
-[13:13:22.008] [Brain-Phase] 镇民(Idx=13) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.008] [Brain-Receive] 镇民(Idx=13) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.008] [Brain-Lock] 镇民(Idx=13) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.008] [Brain-Receive] 镇民(Idx=14) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.008] [Brain-Clear] 镇民(Idx=14) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.009] [Brain-Enqueue] 镇民(Idx=14) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.009] [AI-Debug] Suspend 镇民 (Idx=14) | 集合size=8 | 当前行为=null
-[13:13:22.009] [Brain-Phase] 镇民(Idx=14) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.009] [Brain-Receive] 镇民(Idx=14) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.009] [Brain-Lock] 镇民(Idx=14) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.009] [Brain-Receive] 帝国女镇民(Idx=16) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.009] [Brain-Clear] 帝国女镇民(Idx=16) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.009] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.009] [AI-Debug] Suspend 帝国女镇民 (Idx=16) | 集合size=9 | 当前行为=null
-[13:13:22.009] [Brain-Phase] 帝国女镇民(Idx=16) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.009] [Brain-Receive] 帝国女镇民(Idx=16) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.009] [Brain-Lock] 帝国女镇民(Idx=16) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.010] [Brain-Receive] 酒馆侍女(Idx=20) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.010] [Brain-Clear] 酒馆侍女(Idx=20) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.010] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.010] [AI-Debug] Suspend 酒馆侍女 (Idx=20) | 集合size=10 | 当前行为=null
-[13:13:22.010] [Brain-Phase] 酒馆侍女(Idx=20) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.010] [Brain-Receive] 酒馆侍女(Idx=20) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.010] [Brain-Lock] 酒馆侍女(Idx=20) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.010] [Brain-Receive] 赎金经纪人(Idx=23) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:22.010] [Brain-Clear] 赎金经纪人(Idx=23) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:22.010] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:22.010] [AI-Debug] Suspend 赎金经纪人 (Idx=23) | 集合size=11 | 当前行为=null
-[13:13:22.010] [Brain-Phase] 赎金经纪人(Idx=23) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[Knockout=3.00➔镇民] → 发送 'BecomeAlarmed'
-[13:13:22.011] [Brain-Receive] 赎金经纪人(Idx=23) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[13:13:22.011] [Brain-Lock] 赎金经纪人(Idx=23) 想质问玩家但 镇民(Idx=4) 正在质问中，跳过
-[13:13:22.013] [Assault] 镇民 身价=2 → 事件 misconduct_town_ES4_2185862 AssaultValue=2（赔偿基数 2）
-[13:13:22.013] [DisplayMessage] [Green] "从背后击晕了 镇民！"
-[13:13:22.013] [Knockout] 亨利 knocked out 镇民 from behind (anim: act_shield_bash)
-[13:13:22.014] [Brain-Tick] 镇民(Idx=4) 开始执行 FollowAgentAction | 队列剩余=2
-[13:13:22.017] [Brain-Tick] 镇民(Idx=5) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.017] [Brain-Tick] 镇民(Idx=6) 开始执行 StayAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 镇民(Idx=7) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 镇民(Idx=11) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 镇民(Idx=12) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 镇民(Idx=13) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 镇民(Idx=14) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 酒馆侍女(Idx=20) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:22.018] [Brain-Tick] 赎金经纪人(Idx=23) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:24.554] [ShowInquiry] "搜刮 镇民" | "你在 镇民 身上发现了些东西:麻制束腰衣 缠裹鞋 
-金币: 5 第纳尔
-" | Btn1="全部拿走" Btn2="自己挑选"
-[13:13:25.282] [DisplayMessage] [Green] "获得了 2 件物品。"
-[13:13:25.285] [TheftLedger] Recorded: hemp_tunic x1 by main_hero from town_ES4
-[13:13:25.286] [TheftLedger] Recorded: wrapped_shoes x1 by main_hero from town_ES4
-[13:13:25.286] [TheftLedger] Recorded: gold x5 by main_hero from town_ES4
-[13:13:25.286] [LootTheft] Witness system DISABLED — treating as no witnesses.
-[13:13:25.286] [LootTheft] 搜刮 镇民：无人目击。
-[13:13:25.286] [DarkTheft] Unwitnessed: 麻制束腰衣 → pending misconduct_town_ES4_2185862 stays Dormant
-[13:13:25.287] [DarkTheft] Unwitnessed: 缠裹鞋 → pending misconduct_town_ES4_2185862 stays Dormant
-[13:13:25.287] [DarkTheft] Unwitnessed: 5 第纳尔 → pending misconduct_town_ES4_2185862 stays Dormant
-[13:13:25.708] [Brain-Tick] 镇民(Idx=4) 完成 FollowAgentAction
-[13:13:25.713] [Brain-Tick] 镇民(Idx=4) 开始执行 LookAtAction | 队列剩余=1
-[13:13:25.713] [Brain-Tick] 镇民(Idx=4) 完成 LookAtAction
-[13:13:25.718] [Brain-Tick] 镇民(Idx=4) 开始执行 AlertForceConversationAction | 队列剩余=0
-[13:13:25.719] [AlertForceConv] 镇民(Idx=4) 模板NPC(镇民) — 使用 InjectScriptAsOpening (start token)
-[13:13:25.719] [AlertForceConv] 镇民(Idx=4) ActiveConversationAgent 设置成功
-[13:13:25.720] [ConvLock] Acquire by 镇民(Idx=4) | reason=MissionStartPrefix
-[13:13:25.720] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=镇民
-[13:13:25.737] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子酒馆里丢了一件啤酒、一件artisan_beer等22项财物，市值1997第纳尔，一直没找到是谁干的。今天你把镇民打晕了，身价2第纳尔——既然抓着的是你，两笔账一起算。镇上人都知道了，闹事按规矩罚2倍，一共3998第纳尔。你认不认？"
-[13:13:25.737] [Placeholder][对话预填充] NpcLine: "……行，原价3998，给你对半砍——1999。这是最后价了，不能再少了。" → "……行，原价3998，给你对半砍——1999。这是最后价了，不能再少了。"
-[13:13:25.737] [Placeholder][对话预填充] PlayerLine: "行，就这个数——1999第纳尔。" → "行，就这个数——1999第纳尔。"
-[13:13:25.737] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
-[13:13:25.737] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
-[13:13:25.738] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子酒馆里丢了一件啤酒、一件artisan_beer等22项财物，市值1997第纳尔，一直没找到是谁干的。今天你把镇民打晕了，身价2第纳尔——既然抓着的是你，两笔账一起算。镇上人都知道了，闹事按规矩罚2倍，一共3998第纳尔。你认不认？"
-[13:13:25.738] [Placeholder][对话预填充] NpcLine: "……行，原价3998，给你对半砍——1999。这是最后价了，不能再少了。" → "……行，原价3998，给你对半砍——1999。这是最后价了，不能再少了。"
-[13:13:25.738] [Placeholder][对话预填充] PlayerLine: "行，就这个数——1999第纳尔。" → "行，就这个数——1999第纳尔。"
-[13:13:25.738] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
-[13:13:25.738] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
-[13:13:25.739] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）你把镇民打晕了！来人！"
-[13:13:25.739] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
-[13:13:25.739] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "他先惹我的。" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_stop_charm_ok | NextNodeOnFail=alert_stop_charm_fail
-[13:13:25.739] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_stop_fight_ack
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[3] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[1] id=restitution_demand NpcLine="" [Lazy]
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[2] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[3] id=continue_chat_safe NpcLine="还有什么想说的？"
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我走了。" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[4] id=restitution_haggle_ok NpcLine="……行，原价3998，给你对半砍——1999。这是最后价了，不能再少了。" [Lazy]
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就这个数——1999第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
-[13:13:25.740] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[5] id=restitution_refuse_warn NpcLine="" [Lazy]
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[6] id=continue_chat NpcLine="" [Lazy]
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[7] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[8] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[9] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[10] id=alert_stop_charm_ok NpcLine="……下次再动手没这么好说话。"
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[11] id=alert_stop_charm_fail NpcLine="在我眼皮底下动手，就得有个说法！"
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:13:25.741] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[12] id=alert_stop_fight_ack NpcLine="你疯了！快叫人！"
-[13:13:25.744] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_0' | priority=200 | owner=crime_misconduct_town_ES4_2185862_v0
-[13:13:25.745] [ConvCondition] Building condition for intent=CharmDefense playerLine="他先惹我的。" actionParam=(null)
-[13:13:25.745] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
-[13:13:25.745] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
-[13:13:25.745] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
-[13:13:25.746] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
-[13:13:25.746] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——1999第纳尔。" actionParam=haggle
-[13:13:25.746] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
-[13:13:25.746] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
-[13:13:25.746] [ConvCondition] Building condition for intent=WalkAway playerLine="我走了。" actionParam=(null)
-[13:13:25.746] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
-[13:13:25.746] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
-[13:13:25.746] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——1999第纳尔。" actionParam=haggle
-[13:13:25.746] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_town_ES4_2185862 stage=Active trigger=Alert partner=镇民 nodes=18
-[13:13:25.778] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "（冷淡地）你把镇民打晕了！来人！"
-[13:13:25.782] [IntentEval] CharmDefense → Show
-[13:13:25.783] [ConvCondition] intent=CharmDefense playerLine="他先惹我的。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
-[13:13:25.783] [IntentEval] FightVillagers → Show
-[13:13:25.783] [ConvCondition] intent=FightVillagers playerLine="谁拦着我就杀谁！" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
-[13:13:25.783] [IntentEval] SurrenderJail → Show (event stage=Active)
-[13:13:25.783] [ConvCondition] intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=surrender_jail eligibility=Enabled reason=
-[13:13:25.793] [AlertForceConv] 镇民(Idx=4) 对话启动成功
-[13:13:26.451] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:26.451] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:26.451] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:26.451] [Brain-Tick] 赎金经纪人(Idx=23) 完成 ReactionDecisionAction
-[13:13:26.455] [Brain-Tick] 赎金经纪人(Idx=23) 开始执行 LookAtAction | 队列剩余=2
-[13:13:26.834] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:26.834] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:26.834] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:26.834] [Brain-Tick] 帝国女镇民(Idx=16) 完成 ReactionDecisionAction
-[13:13:26.839] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 LookAtAction | 队列剩余=2
-[13:13:26.945] [Brain-Enqueue] 镇民(Idx=14) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:26.945] [Brain-Enqueue] 镇民(Idx=14) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:26.945] [Brain-Enqueue] 镇民(Idx=14) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:26.945] [Brain-Tick] 镇民(Idx=14) 完成 ReactionDecisionAction
-[13:13:26.949] [Brain-Tick] 镇民(Idx=14) 开始执行 LookAtAction | 队列剩余=2
-[13:13:26.954] [Brain-Tick] 赎金经纪人(Idx=23) 完成 LookAtAction
-[13:13:26.959] [Brain-Tick] 赎金经纪人(Idx=23) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:26.959] [Brain-Tick] 赎金经纪人(Idx=23) 完成 MoveToPositionAction
-[13:13:26.964] [Brain-Tick] 赎金经纪人(Idx=23) 开始执行 StayAction | 队列剩余=0
-[13:13:27.049] [Brain-Enqueue] 镇民(Idx=13) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:27.049] [Brain-Enqueue] 镇民(Idx=13) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:27.049] [Brain-Enqueue] 镇民(Idx=13) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:27.049] [Brain-Tick] 镇民(Idx=13) 完成 ReactionDecisionAction
-[13:13:27.055] [Brain-Tick] 镇民(Idx=13) 开始执行 LookAtAction | 队列剩余=2
-[13:13:27.098] [Brain-Enqueue] 镇民(Idx=11) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:27.098] [Brain-Enqueue] 镇民(Idx=11) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:27.100] [Brain-Enqueue] 镇民(Idx=11) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:27.100] [Brain-Tick] 镇民(Idx=11) 完成 ReactionDecisionAction
-[13:13:27.105] [Brain-Tick] 镇民(Idx=11) 开始执行 LookAtAction | 队列剩余=2
-[13:13:27.267] [Brain-Enqueue] 镇民(Idx=7) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:27.267] [Brain-Enqueue] 镇民(Idx=7) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:27.268] [Brain-Enqueue] 镇民(Idx=7) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:27.268] [Brain-Tick] 镇民(Idx=7) 完成 ReactionDecisionAction
-[13:13:27.271] [Brain-Tick] 镇民(Idx=7) 开始执行 LookAtAction | 队列剩余=2
-[13:13:27.336] [Brain-Tick] 帝国女镇民(Idx=16) 完成 LookAtAction
-[13:13:27.342] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:27.446] [Brain-Tick] 镇民(Idx=14) 完成 LookAtAction
-[13:13:27.452] [Brain-Tick] 镇民(Idx=14) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:27.551] [Brain-Tick] 镇民(Idx=13) 完成 LookAtAction
-[13:13:27.556] [Brain-Tick] 镇民(Idx=13) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:27.571] [Brain-Enqueue] 镇民(Idx=5) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:27.572] [Brain-Enqueue] 镇民(Idx=5) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:27.572] [Brain-Enqueue] 镇民(Idx=5) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:27.572] [Brain-Tick] 镇民(Idx=5) 完成 ReactionDecisionAction
-[13:13:27.577] [Brain-Tick] 镇民(Idx=5) 开始执行 LookAtAction | 队列剩余=2
-[13:13:27.601] [Brain-Tick] 镇民(Idx=11) 完成 LookAtAction
-[13:13:27.607] [Brain-Tick] 镇民(Idx=11) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:27.766] [Brain-Tick] 镇民(Idx=7) 完成 LookAtAction
-[13:13:27.772] [Brain-Tick] 镇民(Idx=7) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:28.052] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:28.052] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:28.052] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:28.052] [Brain-Tick] 酒馆侍女(Idx=20) 完成 ReactionDecisionAction
-[13:13:28.057] [Brain-Tick] 酒馆侍女(Idx=20) 开始执行 LookAtAction | 队列剩余=2
-[13:13:28.071] [Brain-Tick] 镇民(Idx=5) 完成 LookAtAction
-[13:13:28.077] [Brain-Tick] 镇民(Idx=5) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:28.252] [Brain-Enqueue] 镇民(Idx=12) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:28.252] [Brain-Enqueue] 镇民(Idx=12) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:28.252] [Brain-Enqueue] 镇民(Idx=12) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:28.252] [Brain-Tick] 镇民(Idx=12) 完成 ReactionDecisionAction
-[13:13:28.256] [Brain-Tick] 镇民(Idx=12) 开始执行 LookAtAction | 队列剩余=2
-[13:13:28.551] [Brain-Tick] 酒馆侍女(Idx=20) 完成 LookAtAction
-[13:13:28.557] [Brain-Tick] 酒馆侍女(Idx=20) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:28.752] [Brain-Tick] 镇民(Idx=12) 完成 LookAtAction
-[13:13:28.756] [Brain-Tick] 镇民(Idx=12) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:31.287] [Brain-Tick] 镇民(Idx=13) 完成 MoveToPositionAction
-[13:13:31.292] [Brain-Tick] 镇民(Idx=13) 开始执行 StayAction | 队列剩余=0
-[13:13:32.234] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_0' NPC=亨利 | Options (4): 我愿意赔偿。 | [狡辩]他先惹我的。 | [拔剑]谁拦着我就杀谁！ | [坐牢]我没钱。要抓就抓吧。
-[13:13:32.234] [VanillaDialog] Player says: "我愿意赔偿。"
-[13:13:32.235] [Penalty] misconduct_town_ES4_2185862 first quote to player: 3998 @ Active
-[13:13:32.235] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "前阵子酒馆里丢了一件啤酒、一件artisan_beer等22项财物，市值1997第纳尔，一直没找到是谁干的。今天你把镇民打晕了，身价2第纳尔——既然抓着的是你，两笔账一起算。镇上人都知道了，闹事按规矩罚2倍，一共3998第纳尔。你认不认？"
-[13:13:32.238] [IntentEval] PayRestitution → Show (stage=Active, cost=3998)
-[13:13:32.238] [ConvCondition] intent=PayRestitution playerLine="行，就按这个价。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
-[13:13:32.238] [ConvCondition] intent=Settle playerLine="太贵了，能便宜点吗？" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
-[13:13:34.079] [Brain-Tick] 镇民(Idx=11) 完成 MoveToPositionAction
-[13:13:34.085] [Brain-Tick] 镇民(Idx=11) 开始执行 StayAction | 队列剩余=0
-[13:13:34.374] [Brain-Tick] 镇民(Idx=14) 完成 MoveToPositionAction
-[13:13:34.379] [Brain-Tick] 镇民(Idx=14) 开始执行 StayAction | 队列剩余=0
-[13:13:34.544] [Brain-Tick] 镇民(Idx=5) 完成 MoveToPositionAction
-[13:13:34.549] [Brain-Tick] 镇民(Idx=5) 开始执行 StayAction | 队列剩余=0
-[13:13:34.699] [Brain-Tick] 镇民(Idx=7) 完成 MoveToPositionAction
-[13:13:34.705] [Brain-Tick] 镇民(Idx=7) 开始执行 StayAction | 队列剩余=0
-[13:13:34.890] [Brain-Tick] 帝国女镇民(Idx=16) 完成 MoveToPositionAction
-[13:13:34.894] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 StayAction | 队列剩余=0
-[13:13:36.554] [Brain-Tick] 酒馆侍女(Idx=20) 完成 MoveToPositionAction
-[13:13:36.560] [Brain-Tick] 酒馆侍女(Idx=20) 开始执行 StayAction | 队列剩余=0
-[13:13:36.755] [Brain-Tick] 镇民(Idx=12) 完成 MoveToPositionAction
-[13:13:36.759] [Brain-Tick] 镇民(Idx=12) 开始执行 StayAction | 队列剩余=0
-[13:13:45.210] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_4' NPC=亨利 | Options (3): [赔钱]行，就按这个价。 | [砍价]太贵了，能便宜点吗？ | 太贵了，不赔。
-[13:13:45.212] [SkillCheck] Settle | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=50 献礼=0.03 → 成功率=0.16 | 掷骰=通过 (chance=16 %)
-[13:13:45.212] [AddQuickInformation] "魅力检定成功"
-[13:13:45.212] [Accountability] Haggle succeeded for misconduct_town_ES4_2185862
-[13:13:45.213] [VanillaDialog] Player says: "[砍价]太贵了，能便宜点吗？"
-[13:13:45.213] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "……行，原价3998，给你对半砍——1999。这是最后价了，不能再少了。"
-[13:13:45.213] [IntentEval] PayRestitution → Show (stage=Active, cost=3998)
-[13:13:45.213] [ConvCondition] intent=PayRestitution playerLine="行，就这个数——1999第纳尔。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=haggle eligibility=Enabled reason=
-[13:13:50.302] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_7' NPC=亨利 | Options (2): [赔钱]行，就这个数——1999第纳尔。 | 还是太贵，不赔了。
-[13:13:50.302] [IntentEval] PayRestitution → Show (stage=Active, cost=3998)
-[13:13:50.305] [DisplayMessage] "你支付了1999<img src="General\Icons\Coin@2x" extend="8">。"
-[13:13:50.305] [WorldEvent] misconduct_town_ES4_2185862 Stage: Active → Resolved
-[13:13:50.306] [Accountability][OnSpot] Player paid restitution 1999 gold for misconduct_town_ES4_2185862
-[13:13:50.306] [VanillaDialog] Player says: "[赔钱]行，就这个数——1999第纳尔。"
-[13:13:50.306] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "好，钱留下，这事就算了。"
-[13:13:50.999] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_9' NPC=亨利 | Options (1): 嗯…
-[13:13:51.000] [VanillaDialog] Player says: "嗯…"
-[13:13:51.000] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "还有什么想说的？"
-[13:13:51.000] [ConvCondition] intent=WalkAway playerLine="我走了。" npc=(null) settlement=吕卡隆 evt=(null) actionParam=(null) eligibility=Enabled reason=
-[13:13:52.295] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_11' NPC=亨利 | Options (1): [离开]我走了。
-[13:13:52.296] [WalkAway] Alert context — PendingEscalationAgent=镇民, relation -5, WorldEvent→Active
-[13:13:52.296] [VanillaDialog] Player says: "[离开]我走了。"
-[13:13:52.303] [ConvLock] Release by 镇民(Idx=4) | reason=EndConversation
-[13:13:52.303] [ConvEnd] Conversation ended. lastEvent=misconduct_town_ES4_2185862_townsman_empire lastTag=crime_misconduct_town_ES4_2185862
-[13:13:52.304] [AlertForceConv] 镇民(Idx=4) ActiveConversationAgent 清空成功
-[13:13:52.304] [Brain-Receive] “流浪者”赞迪娜(Idx=1) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.304] [Brain-Receive] 赌徒(Idx=2) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.304] [Brain-Receive] 镇民(Idx=3) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.304] [Brain-Receive] 镇民(Idx=4) 收到事件 'EndInteraction' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
-[13:13:52.304] [Brain-Receive] 镇民(Idx=5) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.304] [Brain-Receive] 镇民(Idx=6) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Normal
-[13:13:52.305] [Brain-Receive] 镇民(Idx=7) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.305] [Brain-Receive] 镇民(Idx=8) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.305] [Brain-Receive] 镇民(Idx=9) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.305] [Brain-Receive] 镇民(Idx=10) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.305] [Brain-Receive] 镇民(Idx=11) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.305] [Brain-Receive] 镇民(Idx=12) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.305] [Brain-Receive] 镇民(Idx=13) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.305] [Brain-Receive] 镇民(Idx=14) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.305] [Brain-Receive] 帝国女镇民(Idx=15) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.306] [Brain-Receive] 帝国女镇民(Idx=16) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.306] [Brain-Receive] 帝国女镇民(Idx=17) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.306] [Brain-Receive] 帝国女镇民(Idx=18) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.306] [Brain-Receive] 酒馆店主(Idx=19) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.306] [Brain-Receive] 酒馆侍女(Idx=20) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.306] [Brain-Receive] 吟游诗人(Idx=21) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.306] [Brain-Receive] 吟游诗人(Idx=22) 收到事件 'EndInteraction' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.306] [Brain-Receive] 赎金经纪人(Idx=23) 收到事件 'EndInteraction' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.306] [Brain-Receive] “流浪者”赞迪娜(Idx=1) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.306] [Brain-Clear] “流浪者”赞迪娜(Idx=1) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.308] [Brain-Enqueue] “流浪者”赞迪娜(Idx=1) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.308] [AI-Debug] Suspend “流浪者”赞迪娜 (Idx=1) | 集合size=12 | 当前行为=null
-[13:13:52.308] [Brain-Receive] 赌徒(Idx=2) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.308] [Brain-Clear] 赌徒(Idx=2) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.308] [Brain-Enqueue] 赌徒(Idx=2) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.308] [AI-Debug] Suspend 赌徒 (Idx=2) | 集合size=13 | 当前行为=null
-[13:13:52.308] [Brain-Receive] 镇民(Idx=3) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.308] [Brain-Clear] 镇民(Idx=3) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.308] [Brain-Enqueue] 镇民(Idx=3) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.308] [AI-Debug] Suspend 镇民 (Idx=3) | 集合size=14 | 当前行为=null
-[13:13:52.309] [Brain-Receive] 镇民(Idx=5) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.309] [Brain-Clear] 镇民(Idx=5) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.309] [Brain-Enqueue] 镇民(Idx=5) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.309] [Brain-Receive] 镇民(Idx=6) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Normal
-[13:13:52.310] [Brain-Clear] 镇民(Idx=6) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.310] [Brain-Enqueue] 镇民(Idx=6) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.310] [Brain-Receive] 镇民(Idx=7) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.310] [Brain-Clear] 镇民(Idx=7) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.310] [Brain-Enqueue] 镇民(Idx=7) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.310] [Brain-Receive] 镇民(Idx=8) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.310] [Brain-Clear] 镇民(Idx=8) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.310] [Brain-Enqueue] 镇民(Idx=8) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.310] [AI-Debug] Suspend 镇民 (Idx=8) | 集合size=15 | 当前行为=null
-[13:13:52.310] [Brain-Receive] 镇民(Idx=9) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.310] [Brain-Clear] 镇民(Idx=9) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.312] [Brain-Enqueue] 镇民(Idx=9) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.312] [AI-Debug] Suspend 镇民 (Idx=9) | 集合size=16 | 当前行为=null
-[13:13:52.312] [Brain-Receive] 镇民(Idx=10) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.312] [Brain-Clear] 镇民(Idx=10) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.312] [Brain-Enqueue] 镇民(Idx=10) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.312] [AI-Debug] Suspend 镇民 (Idx=10) | 集合size=17 | 当前行为=null
-[13:13:52.312] [Brain-Receive] 镇民(Idx=11) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.312] [Brain-Clear] 镇民(Idx=11) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.312] [Brain-Enqueue] 镇民(Idx=11) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.312] [Brain-Receive] 镇民(Idx=12) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.312] [Brain-Clear] 镇民(Idx=12) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.313] [Brain-Enqueue] 镇民(Idx=12) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.313] [Brain-Receive] 镇民(Idx=13) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.313] [Brain-Clear] 镇民(Idx=13) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.313] [Brain-Enqueue] 镇民(Idx=13) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.313] [Brain-Receive] 镇民(Idx=14) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.313] [Brain-Clear] 镇民(Idx=14) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.313] [Brain-Enqueue] 镇民(Idx=14) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.313] [Brain-Receive] 帝国女镇民(Idx=15) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.313] [Brain-Clear] 帝国女镇民(Idx=15) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.313] [Brain-Enqueue] 帝国女镇民(Idx=15) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.313] [AI-Debug] Suspend 帝国女镇民 (Idx=15) | 集合size=18 | 当前行为=null
-[13:13:52.313] [Brain-Receive] 帝国女镇民(Idx=16) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.313] [Brain-Clear] 帝国女镇民(Idx=16) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.313] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.314] [Brain-Receive] 帝国女镇民(Idx=17) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.314] [Brain-Clear] 帝国女镇民(Idx=17) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.314] [Brain-Enqueue] 帝国女镇民(Idx=17) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.314] [AI-Debug] Suspend 帝国女镇民 (Idx=17) | 集合size=19 | 当前行为=null
-[13:13:52.314] [Brain-Receive] 帝国女镇民(Idx=18) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.314] [Brain-Clear] 帝国女镇民(Idx=18) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.314] [Brain-Enqueue] 帝国女镇民(Idx=18) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.314] [AI-Debug] Suspend 帝国女镇民 (Idx=18) | 集合size=20 | 当前行为=null
-[13:13:52.314] [Brain-Receive] 酒馆店主(Idx=19) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.314] [Brain-Clear] 酒馆店主(Idx=19) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.314] [Brain-Enqueue] 酒馆店主(Idx=19) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.314] [AI-Debug] Suspend 酒馆店主 (Idx=19) | 集合size=21 | 当前行为=null
-[13:13:52.314] [Brain-Receive] 酒馆侍女(Idx=20) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.314] [Brain-Clear] 酒馆侍女(Idx=20) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.314] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.314] [Brain-Receive] 吟游诗人(Idx=21) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.316] [Brain-Clear] 吟游诗人(Idx=21) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.316] [Brain-Enqueue] 吟游诗人(Idx=21) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.316] [AI-Debug] Suspend 吟游诗人 (Idx=21) | 集合size=22 | 当前行为=null
-[13:13:52.316] [Brain-Receive] 吟游诗人(Idx=22) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:13:52.316] [Brain-Clear] 吟游诗人(Idx=22) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:13:52.316] [Brain-Enqueue] 吟游诗人(Idx=22) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.316] [AI-Debug] Suspend 吟游诗人 (Idx=22) | 集合size=23 | 当前行为=null
-[13:13:52.316] [Brain-Receive] 赎金经纪人(Idx=23) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=StayAction | 队列=0 | 阶段=Alarmed
-[13:13:52.316] [Brain-Clear] 赎金经纪人(Idx=23) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
-[13:13:52.317] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:13:52.317] [DisplayMessage] "[事件发送] 发送事件 'ReEngageConfrontation' 给 镇民 (Index:4, 距离:1.9m, 方位:北)"
-[13:13:52.317] [Brain-Receive] 镇民(Idx=4) 收到事件 'ReEngageConfrontation' | 当前行为=AlertForceConversationAction | 队列=0 | 阶段=Alarmed
-[13:13:52.317] [Brain-Clear] 镇民(Idx=4) 清空动作 | 当前=AlertForceConversationAction | 队列=0 | hadActions=True
-[13:13:52.317] [ConvLock] Acquire by 镇民(Idx=4) | reason=ReEngageConfrontation
-[13:13:52.317] [Brain-Enqueue] 镇民(Idx=4) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
-[13:13:52.317] [Brain-Enqueue] 镇民(Idx=4) 入队 LookAtAction | 当前行为=null | 队列=1→2
-[13:13:52.317] [Brain-Enqueue] 镇民(Idx=4) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
-[13:13:52.317] [Brain-Enqueue] 镇民(Idx=4) 入队 StayAction | 当前行为=null | 队列=3→4
-[13:13:52.318] [Brain-ReEngage] 镇民(Idx=4) 重新追上玩家质问 (WorldEvent Stage=Active)
-[13:13:52.318] [ConvEnd] Escalation: WitnessCrime broadcast + ReEngageConfrontation to 镇民(Idx=4)
-[13:13:52.320] [Brain-Tick] “流浪者”赞迪娜(Idx=1) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.320] [Brain-Tick] 赌徒(Idx=2) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.320] [Brain-Tick] 镇民(Idx=3) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.321] [Brain-Tick] 镇民(Idx=4) 开始执行 FollowAgentAction | 队列剩余=3
-[13:13:52.321] [Brain-Tick] 镇民(Idx=4) 完成 FollowAgentAction
-[13:13:52.321] [Brain-Tick] 镇民(Idx=5) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.321] [Brain-Tick] 镇民(Idx=6) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.321] [Brain-Tick] 镇民(Idx=7) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.321] [Brain-Tick] 镇民(Idx=8) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.321] [Brain-Tick] 镇民(Idx=9) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.321] [Brain-Tick] 镇民(Idx=10) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 镇民(Idx=11) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 镇民(Idx=12) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 镇民(Idx=13) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 镇民(Idx=14) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 帝国女镇民(Idx=15) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 帝国女镇民(Idx=17) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 帝国女镇民(Idx=18) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 酒馆店主(Idx=19) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 酒馆侍女(Idx=20) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 吟游诗人(Idx=21) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.322] [Brain-Tick] 吟游诗人(Idx=22) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.323] [Brain-Tick] 赎金经纪人(Idx=23) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:13:52.326] [Brain-Tick] 镇民(Idx=4) 开始执行 LookAtAction | 队列剩余=2
-[13:13:52.326] [Brain-Tick] 镇民(Idx=4) 完成 LookAtAction
-[13:13:52.331] [Brain-Tick] 镇民(Idx=4) 开始执行 AlertForceConversationAction | 队列剩余=1
-[13:13:52.331] [AlertForceConv] 镇民(Idx=4) 模板NPC(镇民) — 使用 InjectScriptAsOpening (start token)
-[13:13:52.331] [AlertForceConv] 镇民(Idx=4) ActiveConversationAgent 设置成功
-[13:13:52.332] [ConvLock] Acquire by 镇民(Idx=4) | reason=MissionStartPrefix
-[13:13:52.332] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=镇民
-[13:13:52.332] [ConvEntry] 没有事件时发起的质问 Alert trigger without WorldEvent — proceeding with generic confrontation.
-[13:13:52.332] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "{RestitutionBreakdown}"
-[13:13:52.332] [Placeholder][对话预填充] UNRESOLVED in 'NpcLine': RestitutionBreakdown
-[13:13:52.332] [Placeholder][对话预填充] NpcLine: "罚款100第纳尔。你认不认？" → "罚款100第纳尔。你认不认？"
-[13:13:52.332] [Placeholder][对话预填充] NpcLine: "……行，原价100，给你对半砍——50。这是最后价了，不能再少了。" → "……行，原价100，给你对半砍——50。这是最后价了，不能再少了。"
-[13:13:52.333] [Placeholder][对话预填充] PlayerLine: "行，就这个数——50第纳尔。" → "行，就这个数——50第纳尔。"
-[13:13:52.333] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
-[13:13:52.333] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
-[13:13:52.333] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "{RestitutionBreakdown}"
-[13:13:52.333] [Placeholder][对话预填充] UNRESOLVED in 'NpcLine': RestitutionBreakdown
-[13:13:52.333] [Placeholder][对话预填充] NpcLine: "罚款100第纳尔。你认不认？" → "罚款100第纳尔。你认不认？"
-[13:13:52.333] [Placeholder][对话预填充] NpcLine: "……行，原价100，给你对半砍——50。这是最后价了，不能再少了。" → "……行，原价100，给你对半砍——50。这是最后价了，不能再少了。"
-[13:13:52.333] [Placeholder][对话预填充] PlayerLine: "行，就这个数——50第纳尔。" → "行，就这个数——50第纳尔。"
-[13:13:52.333] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
-[13:13:52.333] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
-[13:13:52.333] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[0] id=injectedStart NpcLine="（冷淡地）你把镇民打晕了！来人！"
-[13:13:52.333] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
-[13:13:52.333] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[1] "他先惹我的。" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_stop_charm_ok | NextNodeOnFail=alert_stop_charm_fail
-[13:13:52.333] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[2] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_stop_fight_ack
-[13:13:52.333] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[3] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
-[13:13:52.333] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[1] id=restitution_demand NpcLine="" [Lazy]
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[2] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[3] id=continue_chat_safe NpcLine="还有什么想说的？"
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "我走了。" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[4] id=restitution_haggle_ok NpcLine="……行，原价100，给你对半砍——50。这是最后价了，不能再少了。" [Lazy]
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "行，就这个数——50第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[5] id=restitution_refuse_warn NpcLine="" [Lazy]
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[6] id=continue_chat NpcLine="" [Lazy]
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[1] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[2] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[7] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
-[13:13:52.334] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[8] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
-[13:13:52.336] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[9] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
-[13:13:52.336] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
-[13:13:52.336] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[10] id=alert_stop_charm_ok NpcLine="……下次再动手没这么好说话。"
-[13:13:52.336] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
-[13:13:52.336] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[11] id=alert_stop_charm_fail NpcLine="在我眼皮底下动手，就得有个说法！"
-[13:13:52.336] [CrimeDialog] trigger=Alert speaker=(template) stage=none   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:13:52.336] [CrimeDialog] trigger=Alert speaker=(template) stage=none Turn[12] id=alert_stop_fight_ack NpcLine="你疯了！快叫人！"
-[13:13:52.336] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_alert_townsman_empire_v1_atk_0' | priority=200 | owner=crime_alert_townsman_empire_v1
-[13:13:52.336] [ConvCondition] Building condition for intent=CharmDefense playerLine="他先惹我的。" actionParam=(null)
-[13:13:52.336] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
-[13:13:52.336] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
-[13:13:52.337] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
-[13:13:52.337] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
-[13:13:52.337] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——50第纳尔。" actionParam=haggle
-[13:13:52.337] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
-[13:13:52.337] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
-[13:13:52.337] [ConvCondition] Building condition for intent=WalkAway playerLine="我走了。" actionParam=(null)
-[13:13:52.337] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
-[13:13:52.337] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
-[13:13:52.338] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——50第纳尔。" actionParam=haggle
-[13:13:52.338] [ConvEntry] 注入对话执行成功 Injected dialogue: event=no_event stage=none trigger=Alert partner=镇民 nodes=18
-[13:13:52.342] [VanillaDialog] Token='start'  | Options (1): [离开]我走了。
-[13:13:52.342] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "（冷淡地）你把镇民打晕了！来人！"
-[13:13:52.342] [IntentEval] CharmDefense → Hide (no event)
-[13:13:52.342] [ConvCondition] intent=CharmDefense playerLine="他先惹我的。" npc=(null) settlement=吕卡隆 evt=(null) actionParam=(null) eligibility=Hidden reason=
-[13:13:52.343] [IntentEval] FightVillagers → Hide (no event)
-[13:13:52.343] [ConvCondition] intent=FightVillagers playerLine="谁拦着我就杀谁！" npc=(null) settlement=吕卡隆 evt=(null) actionParam=(null) eligibility=Hidden reason=
-[13:13:52.343] [IntentEval] SurrenderJail → Hide (already forgiven)
-[13:13:52.343] [ConvCondition] intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" npc=(null) settlement=吕卡隆 evt=(null) actionParam=surrender_jail eligibility=Hidden reason=
-[13:13:52.344] [AlertForceConv] 镇民(Idx=4) 对话启动成功
-[13:13:54.991] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_0' NPC=亨利 | Options (1): 我愿意赔偿。
-[13:13:54.991] [VanillaDialog] Player says: "我愿意赔偿。"
-[13:13:54.991] [Placeholder] NpcLine: "刚才砍到1999第纳尔，你嫌贵没要。那还是这个数——1999第纳尔。你认不认？" → "刚才砍到1999第纳尔，你嫌贵没要。那还是这个数——1999第纳尔。你认不认？"
-[13:13:54.991] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "刚才砍到1999第纳尔，你嫌贵没要。那还是这个数——1999第纳尔。你认不认？"
-[13:13:54.992] [IntentEval] PayRestitution → Hide (already forgiven)
-[13:13:54.992] [ConvCondition] intent=PayRestitution playerLine="行，就按这个价。" npc=(null) settlement=吕卡隆 evt=(null) actionParam=(null) eligibility=Hidden reason=
-[13:13:54.992] [ConvCondition] intent=Settle playerLine="太贵了，能便宜点吗？" npc=(null) settlement=吕卡隆 evt=(null) actionParam=(null) eligibility=Hidden reason=
-[13:13:55.230] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.230] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.231] [Brain-Enqueue] 赎金经纪人(Idx=23) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.231] [Brain-Tick] 赎金经纪人(Idx=23) 完成 ReactionDecisionAction
-[13:13:55.235] [Brain-Tick] 赎金经纪人(Idx=23) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.240] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.240] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.241] [Brain-Enqueue] 酒馆侍女(Idx=20) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.241] [Brain-Tick] 酒馆侍女(Idx=20) 完成 ReactionDecisionAction
-[13:13:55.246] [Brain-Tick] 酒馆侍女(Idx=20) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.271] [Brain-Enqueue] 镇民(Idx=11) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.271] [Brain-Enqueue] 镇民(Idx=11) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.271] [Brain-Enqueue] 镇民(Idx=11) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.271] [Brain-Tick] 镇民(Idx=11) 完成 ReactionDecisionAction
-[13:13:55.271] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.271] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.271] [Brain-Enqueue] 帝国女镇民(Idx=16) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.271] [Brain-Tick] 帝国女镇民(Idx=16) 完成 ReactionDecisionAction
-[13:13:55.276] [Brain-Tick] 镇民(Idx=11) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.276] [Brain-Enqueue] 镇民(Idx=14) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.276] [Brain-Enqueue] 镇民(Idx=14) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.276] [Brain-Enqueue] 镇民(Idx=14) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.276] [Brain-Tick] 镇民(Idx=14) 完成 ReactionDecisionAction
-[13:13:55.276] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.281] [Brain-Enqueue] 镇民(Idx=12) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.281] [Brain-Enqueue] 镇民(Idx=12) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.281] [Brain-Enqueue] 镇民(Idx=12) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.281] [Brain-Tick] 镇民(Idx=12) 完成 ReactionDecisionAction
-[13:13:55.281] [Brain-Tick] 镇民(Idx=14) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.285] [Brain-Tick] 镇民(Idx=12) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.676] [Brain-Enqueue] 镇民(Idx=13) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.676] [Brain-Enqueue] 镇民(Idx=13) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.676] [Brain-Enqueue] 镇民(Idx=13) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.676] [Brain-Tick] 镇民(Idx=13) 完成 ReactionDecisionAction
-[13:13:55.681] [Brain-Tick] 镇民(Idx=13) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.736] [Brain-Tick] 赎金经纪人(Idx=23) 完成 LookAtAction
-[13:13:55.740] [Brain-Tick] 赎金经纪人(Idx=23) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:55.746] [Brain-Tick] 酒馆侍女(Idx=20) 完成 LookAtAction
-[13:13:55.751] [Brain-Tick] 酒馆侍女(Idx=20) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:55.775] [Brain-Tick] 镇民(Idx=11) 完成 LookAtAction
-[13:13:55.776] [Brain-Tick] 帝国女镇民(Idx=16) 完成 LookAtAction
-[13:13:55.780] [Brain-Tick] 镇民(Idx=11) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:55.780] [Brain-Tick] 镇民(Idx=14) 完成 LookAtAction
-[13:13:55.781] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:55.781] [Brain-Tick] 帝国女镇民(Idx=16) 完成 MoveToPositionAction
-[13:13:55.786] [Brain-Tick] 镇民(Idx=12) 完成 LookAtAction
-[13:13:55.786] [Brain-Tick] 镇民(Idx=14) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:55.786] [Brain-Tick] 帝国女镇民(Idx=16) 开始执行 StayAction | 队列剩余=0
-[13:13:55.790] [Brain-Tick] 镇民(Idx=12) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:55.911] [Brain-Enqueue] 帝国女镇民(Idx=15) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.911] [Brain-Enqueue] 帝国女镇民(Idx=15) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.911] [Brain-Enqueue] 帝国女镇民(Idx=15) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.911] [Brain-Tick] 帝国女镇民(Idx=15) 完成 ReactionDecisionAction
-[13:13:55.916] [Brain-Tick] 帝国女镇民(Idx=15) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.961] [Brain-Enqueue] 帝国女镇民(Idx=17) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.961] [Brain-Enqueue] 帝国女镇民(Idx=17) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.961] [Brain-Enqueue] 帝国女镇民(Idx=17) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.961] [Brain-Tick] 帝国女镇民(Idx=17) 完成 ReactionDecisionAction
-[13:13:55.966] [Brain-Tick] 帝国女镇民(Idx=17) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.971] [Brain-Enqueue] 镇民(Idx=7) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.971] [Brain-Enqueue] 镇民(Idx=7) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.971] [Brain-Enqueue] 镇民(Idx=7) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.972] [Brain-Tick] 镇民(Idx=7) 完成 ReactionDecisionAction
-[13:13:55.976] [Brain-Tick] 镇民(Idx=7) 开始执行 LookAtAction | 队列剩余=2
-[13:13:55.991] [Brain-Enqueue] 镇民(Idx=5) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:55.991] [Brain-Enqueue] 镇民(Idx=5) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:55.991] [Brain-Enqueue] 镇民(Idx=5) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:55.992] [Brain-Tick] 镇民(Idx=5) 完成 ReactionDecisionAction
-[13:13:55.996] [Brain-Tick] 镇民(Idx=5) 开始执行 LookAtAction | 队列剩余=2
-[13:13:56.176] [Brain-Tick] 镇民(Idx=13) 完成 LookAtAction
-[13:13:56.180] [Brain-Tick] 镇民(Idx=13) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:56.411] [Brain-Tick] 帝国女镇民(Idx=15) 完成 LookAtAction
-[13:13:56.416] [Brain-Tick] 帝国女镇民(Idx=15) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:56.441] [Brain-Enqueue] 镇民(Idx=8) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:56.441] [Brain-Enqueue] 镇民(Idx=8) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:56.441] [Brain-Enqueue] 镇民(Idx=8) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:56.442] [Brain-Tick] 镇民(Idx=8) 完成 ReactionDecisionAction
-[13:13:56.445] [Brain-Tick] 镇民(Idx=8) 开始执行 LookAtAction | 队列剩余=2
-[13:13:56.460] [Brain-Tick] 帝国女镇民(Idx=17) 完成 LookAtAction
-[13:13:56.466] [Brain-Tick] 帝国女镇民(Idx=17) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:56.466] [Brain-Enqueue] 帝国女镇民(Idx=18) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:56.466] [Brain-Enqueue] 帝国女镇民(Idx=18) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:56.466] [Brain-Enqueue] 帝国女镇民(Idx=18) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:56.466] [Brain-Tick] 帝国女镇民(Idx=18) 完成 ReactionDecisionAction
-[13:13:56.470] [Brain-Tick] 镇民(Idx=7) 完成 LookAtAction
-[13:13:56.470] [Brain-Tick] 帝国女镇民(Idx=18) 开始执行 LookAtAction | 队列剩余=2
-[13:13:56.476] [Brain-Tick] 镇民(Idx=7) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:56.491] [Brain-Tick] 镇民(Idx=5) 完成 LookAtAction
-[13:13:56.496] [Brain-Tick] 镇民(Idx=5) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:56.843] [Brain-Enqueue] 镇民(Idx=3) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:56.843] [Brain-Enqueue] 镇民(Idx=3) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:56.843] [Brain-Enqueue] 镇民(Idx=3) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:56.844] [Brain-Tick] 镇民(Idx=3) 完成 ReactionDecisionAction
-[13:13:56.848] [Brain-Tick] 镇民(Idx=3) 开始执行 LookAtAction | 队列剩余=2
-[13:13:56.943] [Brain-Tick] 镇民(Idx=8) 完成 LookAtAction
-[13:13:56.948] [Brain-Tick] 镇民(Idx=8) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:56.964] [Brain-Enqueue] 吟游诗人(Idx=22) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:56.964] [Brain-Enqueue] 吟游诗人(Idx=22) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:56.964] [Brain-Enqueue] 吟游诗人(Idx=22) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:56.964] [Brain-Tick] 吟游诗人(Idx=22) 完成 ReactionDecisionAction
-[13:13:56.968] [Brain-Tick] 帝国女镇民(Idx=18) 完成 LookAtAction
-[13:13:56.968] [Brain-Tick] 吟游诗人(Idx=22) 开始执行 LookAtAction | 队列剩余=2
-[13:13:56.973] [Brain-Tick] 帝国女镇民(Idx=18) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:56.988] [Brain-Enqueue] 吟游诗人(Idx=21) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:56.989] [Brain-Enqueue] 吟游诗人(Idx=21) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:56.989] [Brain-Enqueue] 吟游诗人(Idx=21) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:56.989] [Brain-Tick] 吟游诗人(Idx=21) 完成 ReactionDecisionAction
-[13:13:56.993] [Brain-Tick] 吟游诗人(Idx=21) 开始执行 LookAtAction | 队列剩余=2
-[13:13:57.244] [Brain-Enqueue] “流浪者”赞迪娜(Idx=1) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
-[13:13:57.244] [Brain-Enqueue] “流浪者”赞迪娜(Idx=1) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
-[13:13:57.244] [Brain-Enqueue] “流浪者”赞迪娜(Idx=1) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
-[13:13:57.244] [Brain-Tick] “流浪者”赞迪娜(Idx=1) 完成 ReactionDecisionAction
-[13:13:57.248] [Brain-Tick] “流浪者”赞迪娜(Idx=1) 开始执行 LookAtAction | 队列剩余=2
-[13:13:57.343] [Brain-Tick] 镇民(Idx=3) 完成 LookAtAction
-[13:13:57.349] [Brain-Tick] 镇民(Idx=3) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:57.464] [Brain-Tick] 吟游诗人(Idx=22) 完成 LookAtAction
-[13:13:57.468] [Brain-Tick] 吟游诗人(Idx=22) 开始执行 MoveToPositionAction | 队列剩余=1
-[13:13:57.488] [Brain-Tick] 吟游诗人(Idx=21) 完成 LookAtAction
-[13:13:57.494] [Brain-Tick] 吟游诗人(Idx=21) 开始执行 MoveToPositionAction | 队列剩余=1
+[16:13:59.798] [GameMenu] ● 点击 menu=town_backstreet 选项="进入酒馆" [id=town_tavern] @吕卡隆(城镇)
+[16:14:17.621] [Brain-Phase] 镇民(Idx=10) 警戒上升: Normal → Suspicious (警戒值=0.25) 因素=[Crouching=0.25] → 发送 'BecomeSuspicious'
+[16:14:17.621] [Brain-Receive] 镇民(Idx=10) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:14:17.624] [BubbleSay] 镇民(Idx=10): "（嘀咕）亨利在这做什么……"
+[16:14:17.722] [Brain-Phase] 镇民(Idx=8) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[Crouching=0.26] → 发送 'BecomeSuspicious'
+[16:14:17.722] [Brain-Receive] 镇民(Idx=8) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:14:17.722] [BubbleSay] 镇民(Idx=8): "（嘀咕）亨利在这做什么……"
+[16:14:19.636] [Brain-Phase] 赌徒(Idx=2) 警戒上升: Normal → Suspicious (警戒值=0.25) 因素=[Crouching=0.25] → 发送 'BecomeSuspicious'
+[16:14:19.636] [Brain-Receive] 赌徒(Idx=2) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:14:19.636] [BubbleSay] 赌徒(Idx=2): "（嘀咕）亨利在这做什么……"
+[16:14:19.661] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
+[16:14:21.329] [Brain-Phase] 吟游诗人(Idx=21) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[Crouching=0.21, StealUIOpen=0.05] → 发送 'BecomeSuspicious'
+[16:14:21.329] [Brain-Receive] 吟游诗人(Idx=21) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:14:21.329] [BubbleSay] 吟游诗人(Idx=21): "（嘀咕）亨利在这做什么……"
+[16:14:22.198] [Brain-Phase] 吟游诗人(Idx=22) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[Crouching=0.19, StealUIOpen=0.07] → 发送 'BecomeSuspicious'
+[16:14:22.200] [Brain-Receive] 吟游诗人(Idx=22) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[16:14:22.200] [BubbleSay] 吟游诗人(Idx=22): "（嘀咕）亨利在这做什么……"
+[16:14:24.229] [Brain-Phase] 镇民(Idx=8) 警戒上升: Suspicious → Cautious (警戒值=1.01) 因素=[Crouching=0.65, StealUIOpen=0.36] → 发送 'BecomeCautious'
+[16:14:24.230] [Brain-Receive] 镇民(Idx=8) 收到事件 'BecomeCautious' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[16:14:24.230] [Brain-Enqueue] 镇民(Idx=8) 入队 LookAtAction | 当前行为=null | 队列=0→1
+[16:14:24.230] [AI-Debug] Suspend 镇民 (Idx=8) | 集合size=1 | 当前行为=null
+[16:14:24.230] [Brain-Enqueue] 镇民(Idx=8) 入队 StayAction | 当前行为=null | 队列=1→2
+[16:14:24.230] [BubbleSay] 镇民(Idx=8): "（提高声音）喂！亨利！蹲着干什么！"
+[16:14:24.231] [Brain-Phase] 镇民(Idx=10) 警戒上升: Suspicious → Cautious (警戒值=1.03) 因素=[Crouching=0.66, StealUIOpen=0.37] → 发送 'BecomeCautious'
+[16:14:24.231] [Brain-Receive] 镇民(Idx=10) 收到事件 'BecomeCautious' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[16:14:24.231] [Brain-Enqueue] 镇民(Idx=10) 入队 LookAtAction | 当前行为=null | 队列=0→1
+[16:14:24.231] [AI-Debug] Suspend 镇民 (Idx=10) | 集合size=2 | 当前行为=null
+[16:14:24.231] [Brain-Enqueue] 镇民(Idx=10) 入队 StayAction | 当前行为=null | 队列=1→2
+[16:14:24.231] [BubbleSay] 镇民(Idx=10): "（提高声音）喂！亨利！蹲着干什么！"
+[16:14:24.234] [Brain-Tick] 镇民(Idx=8) 开始执行 LookAtAction | 队列剩余=1
+[16:14:24.234] [Brain-Tick] 镇民(Idx=8) 完成 LookAtAction
+[16:14:24.234] [Brain-Tick] 镇民(Idx=10) 开始执行 LookAtAction | 队列剩余=1
+[16:14:24.234] [Brain-Tick] 镇民(Idx=10) 完成 LookAtAction
+[16:14:24.239] [Brain-Tick] 镇民(Idx=8) 开始执行 StayAction | 队列剩余=0
+[16:14:24.239] [Brain-Tick] 镇民(Idx=10) 开始执行 StayAction | 队列剩余=0
+[16:14:31.480] [Brain-Phase] 赌徒(Idx=2) 警戒上升: Suspicious → Cautious (警戒值=1.00) 因素=[Crouching=0.50, StealUIOpen=0.50] → 发送 'BecomeCautious'
+[16:14:31.480] [Brain-Receive] 赌徒(Idx=2) 收到事件 'BecomeCautious' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[16:14:31.480] [Brain-Enqueue] 赌徒(Idx=2) 入队 LookAtAction | 当前行为=null | 队列=0→1
+[16:14:31.480] [AI-Debug] Suspend 赌徒 (Idx=2) | 集合size=3 | 当前行为=null
+[16:14:31.480] [Brain-Enqueue] 赌徒(Idx=2) 入队 StayAction | 当前行为=null | 队列=1→2
+[16:14:31.480] [BubbleSay] 赌徒(Idx=2): "（提高声音）喂！亨利！蹲着干什么！"
+[16:14:31.484] [Brain-Tick] 赌徒(Idx=2) 开始执行 LookAtAction | 队列剩余=1
+[16:14:31.484] [Brain-Tick] 赌徒(Idx=2) 完成 LookAtAction
+[16:14:31.490] [Brain-Tick] 赌徒(Idx=2) 开始执行 StayAction | 队列剩余=0
+[16:14:32.639] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Active
+[16:14:32.639] [RegisterWitness] 镇民 witnessed crime → WorldEvent misconduct_town_ES4_2185862 Stage → Active (suspect=player)
+[16:14:32.639] [Brain-Phase] 镇民(Idx=10) 警戒上升: Cautious → Alarmed (警戒值=2.03) 因素=[Crouching=1.00, StealUIOpen=1.04] → 发送 'BecomeAlarmed'
+[16:14:32.639] [Brain-Receive] 镇民(Idx=10) 收到事件 'BecomeAlarmed' | 当前行为=StayAction | 队列=0 | 阶段=Cautious
+[16:14:32.641] [Brain-Clear] 镇民(Idx=10) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[16:14:32.641] [ConvLock] Acquire by 镇民(Idx=10) | reason=StartL3Confrontation
+[16:14:32.641] [Brain-Enqueue] 镇民(Idx=10) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
+[16:14:32.641] [Brain-Enqueue] 镇民(Idx=10) 入队 LookAtAction | 当前行为=null | 队列=1→2
+[16:14:32.641] [Brain-Enqueue] 镇民(Idx=10) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
+[16:14:32.645] [Brain-Tick] 镇民(Idx=10) 开始执行 FollowAgentAction | 队列剩余=2
+[16:14:35.650] [Brain-Tick] 镇民(Idx=10) 完成 FollowAgentAction
+[16:14:35.655] [Brain-Tick] 镇民(Idx=10) 开始执行 LookAtAction | 队列剩余=1
+[16:14:35.655] [Brain-Tick] 镇民(Idx=10) 完成 LookAtAction
+[16:14:35.661] [Brain-Tick] 镇民(Idx=10) 开始执行 AlertForceConversationAction | 队列剩余=0
+[16:14:35.661] [AlertForceConv] 镇民(Idx=10) 模板NPC(镇民) — 使用 InjectScriptAsOpening (start token)
+[16:14:35.661] [AlertForceConv] 镇民(Idx=10) ActiveConversationAgent 设置成功
+[16:14:35.661] [ConvLock] Acquire by 镇民(Idx=10) | reason=MissionStartPrefix
+[16:14:35.661] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=镇民
+[16:14:35.662] [Placeholder][对话预填充] UNRESOLVED in '': TARGET
+[16:14:35.662] [Placeholder][对话预填充] UNRESOLVED in '': StolenItemName
+[16:14:35.664] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "闹了事。镇上人都知道了，闹事按规矩罚2倍，一共0第纳尔。你认不认？"
+[16:14:35.664] [Placeholder][对话预填充] NpcLine: "……行，原价0，给你对半砍——0。这是最后价了，不能再少了。" → "……行，原价0，给你对半砍——0。这是最后价了，不能再少了。"
+[16:14:35.664] [Placeholder][对话预填充] PlayerLine: "行，就这个数——0第纳尔。" → "行，就这个数——0第纳尔。"
+[16:14:35.664] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[16:14:35.664] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[16:14:35.665] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "闹了事。镇上人都知道了，闹事按规矩罚2倍，一共0第纳尔。你认不认？"
+[16:14:35.665] [Placeholder][对话预填充] NpcLine: "……行，原价0，给你对半砍——0。这是最后价了，不能再少了。" → "……行，原价0，给你对半砍——0。这是最后价了，不能再少了。"
+[16:14:35.665] [Placeholder][对话预填充] PlayerLine: "行，就这个数——0第纳尔。" → "行，就这个数——0第纳尔。"
+[16:14:35.665] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[16:14:35.665] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[16:14:35.665] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）你在翻什么？把手拿开，让我看看你的包。"
+[16:14:35.665] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "……行，你看吧。" → INTENT:SubmitToSearch | NextNodeOnSuccess=search_result
+[16:14:35.665] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "凭什么翻我东西？" → INTENT:RefuseSearch | NextNodeOnSuccess=recover_confront
+[16:14:35.665] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "别查了，我赔你点钱。" → INTENT:PayRestitution Param=bribe [SkillCheck] | NextNodeOnSuccess=alert_search_bribe_ack | NextNodeOnFail=alert_search_bribe_fail
+[16:14:35.665] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[1] id=search_result NpcLine="（冷淡地）……行吧。是我多心了。"
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我说了没拿吧。" → NONE | NextNodeOnSuccess=(关闭)
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[2] id=recover_confront NpcLine="不敢让人看？那就是有鬼了！（冷淡地）我看见了！你偷了{StolenItemName}！交出来！"
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "东西还你，我们两清。" → INTENT:ReturnStolenItems | NextNodeOnSuccess=alert_recover_return_ack
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "你哪只眼睛看见的？" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_recover_charm_ok | NextNodeOnFail=alert_recover_charm_fail
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[3] "推开就跑" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[3] id=alert_recover_return_ack NpcLine="东西都在。……算你老实。别再来了。"
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[4] id=restitution_demand NpcLine="" [Lazy]
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[16:14:35.666] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[5] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[6] id=continue_chat_safe NpcLine="还有什么想说的？"
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我走了。" → INTENT:WalkAway Param=safe | NextNodeOnSuccess=(关闭)
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[7] id=restitution_haggle_ok NpcLine="……行，原价0，给你对半砍——0。这是最后价了，不能再少了。" [Lazy]
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就这个数——0第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[8] id=restitution_refuse_warn NpcLine="" [Lazy]
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[16:14:35.667] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[9] id=continue_chat NpcLine="" [Lazy]
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[10] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[11] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[12] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[13] id=alert_recover_charm_ok NpcLine="……我可能看错了。"
+[16:14:35.669] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
+[16:14:35.670] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[14] id=alert_recover_charm_fail NpcLine="我两只眼睛都看见了！"
+[16:14:35.670] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[16:14:35.670] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[15] id=alert_search_bribe_ack NpcLine="……做贼心虚。拿了钱滚。"
+[16:14:35.670] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[16] id=alert_search_bribe_fail NpcLine="少来这套。把包打开，我自己看！"
+[16:14:35.670] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[16:14:35.670] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[17] id=alert_search_deny_ack NpcLine="你的？上面还写着{TARGET}的名字呢！"
+[16:14:35.670] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[16:14:35.670] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_town_ES4_2185862_v1_atk_0' | priority=200 | owner=crime_misconduct_town_ES4_2185862_v1
+[16:14:35.670] [ConvCondition] Building condition for intent=SubmitToSearch playerLine="……行，你看吧。" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=RefuseSearch playerLine="凭什么翻我东西？" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=PayRestitution playerLine="别查了，我赔你点钱。" actionParam=bribe
+[16:14:35.671] [ConvCondition] Building condition for intent=ReturnStolenItems playerLine="东西还你，我们两清。" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=CharmDefense playerLine="你哪只眼睛看见的？" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=FightVillagers playerLine="推开就跑" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——0第纳尔。" actionParam=haggle
+[16:14:35.671] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
+[16:14:35.671] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
+[16:14:35.671] [ConvCondition] Building condition for intent=WalkAway playerLine="我走了。" actionParam=safe
+[16:14:35.671] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[16:14:35.672] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[16:14:35.672] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——0第纳尔。" actionParam=haggle
+[16:14:35.672] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_town_ES4_2185862 stage=Active trigger=Alert partner=镇民 nodes=23
+[16:14:35.676] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "（冷淡地）你把帝国资深步兵打晕了！来人！"
+[16:14:35.676] [IntentEval] CharmDefense → Show
+[16:14:35.676] [ConvCondition] intent=CharmDefense playerLine="他先惹我的。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:14:35.676] [IntentEval] FightVillagers → Show
+[16:14:35.676] [ConvCondition] intent=FightVillagers playerLine="谁拦着我就杀谁！" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[16:14:35.676] [IntentEval] SurrenderJail → Show (event stage=Active)
+[16:14:35.676] [ConvCondition] intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=surrender_jail eligibility=Enabled reason=
+[16:14:35.679] [AlertForceConv] 镇民(Idx=10) 对话启动成功
+[16:14:47.141] [VanillaDialog] Token='lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_0' NPC=亨利 | Options (4): 我愿意赔偿。 | [狡辩]他先惹我的。 | [拔剑]谁拦着我就杀谁！ | [坐牢]我没钱。要抓就抓吧。
+[16:14:47.141] [IntentEval] CharmDefense → Show
+[16:14:47.141] [SkillCheck] CharmDefense | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=50 献礼=0.00 → 成功率=0.15 | 掷骰=失败 (chance=15 %)
+[16:14:47.141] [AddQuickInformation] "魅力检定失败: 你的魅力(11) vs 镇民(50)，差39点，成功率仅15 %"
+[16:14:47.142] [WorldEvent] misconduct_town_ES4_2185862 Stage: Active → Confrontation
+[16:14:47.142] [Accountability] Charm defense failed for misconduct_town_ES4_2185862 — → Confrontation
+[16:14:47.142] [VanillaDialog] Player says: "[狡辩]他先惹我的。"
+[16:14:47.142] [VanillaDialog] NPC  | NPC: 镇民 (CharacterId: townsman_empire) says: "在我眼皮底下动手，就得有个说法！"
