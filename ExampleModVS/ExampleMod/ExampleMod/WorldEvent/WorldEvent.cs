@@ -378,6 +378,86 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 根据定居点类型返回合适的地点词：村里/镇上/堡里/当地。
+        /// 用于替代各处硬编码的"村里"，使文案适配 Village/Town/Castle。
+        /// </summary>
+        [JsonIgnore]
+        public string SettlementLocationWord
+        {
+            get
+            {
+                var s = TargetSettlement;
+                if (s == null) return "当地";
+                if (s.IsVillage) return "村里";
+                if (s.IsTown) return "镇上";
+                if (s.IsCastle) return "堡里";
+                return "当地";
+            }
+        }
+
+        /// <summary>
+        /// 地点词 + 人：村里人/镇上人/堡里人/当地人。
+        /// 用于"XX都知道了"等涉及当地居民的文案。
+        /// </summary>
+        [JsonIgnore]
+        public string SettlementPeopleWord
+        {
+            get
+            {
+                var s = TargetSettlement;
+                if (s == null) return "当地人";
+                if (s.IsVillage) return "村里人";
+                if (s.IsTown) return "镇上人";
+                if (s.IsCastle) return "堡里人";
+                return "当地人";
+            }
+        }
+
+        /// <summary>
+        /// 最优地点词：优先用具体子场景（酒馆里/地牢里），
+        /// 未设置 LocationName 时回退到定居点级别（镇上/村里/堡里）。
+        /// 用于 BuildDetailedHarmBreakdown 等描述案发地点的文案。
+        /// </summary>
+        [JsonIgnore]
+        public string BestLocationWord
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(LocationName))
+                    return LocationName;
+                return SettlementLocationWord;
+            }
+        }
+
+        /// <summary>
+        /// 从 CampaignMission.Location.StringId 解析中文场景名（含后缀"里"）。
+        /// 用于 Mission 内填充 LocationName 字段。
+        /// </summary>
+        public static string ResolveSceneLocationName(string locationStringId)
+        {
+            if (string.IsNullOrEmpty(locationStringId)) return null;
+
+            // 室内场景 → 带"里"后缀
+            if (locationStringId.Contains("tavern")) return "酒馆里";
+            if (locationStringId.Contains("lordshall")) return "领主大厅里";
+            if (locationStringId.Contains("prison") || locationStringId.Contains("dungeon")) return "地牢里";
+            if (locationStringId.Contains("alley")) return "后巷里";
+            if (locationStringId.Contains("arena")) return "竞技场里";
+
+            // 室外场景 → 按定居点类型区分
+            if (locationStringId == "center" || locationStringId.Contains("village"))
+            {
+                var s = Settlement.CurrentSettlement;
+                if (s != null && s.IsVillage) return "村里";
+                return null; // 城镇中心 → 回退到 SettlementLocationWord（"镇上"）
+            }
+
+            if (locationStringId.Contains("castle")) return "堡里";
+
+            return null; // 未知场景 → 回退
+        }
+
         [JsonIgnore]
         public WorldEventPhase Phase
         {
@@ -424,7 +504,7 @@ namespace LivingWorldNpcs
                     string desc = kv.Key switch
                     {
                         "Crouching" => "鬼鬼祟祟蹲了半天",
-                        "WeaponDrawn" => "在村里拔出武器",
+                        "WeaponDrawn" => $"在{BestLocationWord}拔出武器",
                         "StealUIOpen" => "手脚不干净",
                         "Steal" => "偷了东西",
                         "AttackAlly" => "袭击别人",
@@ -456,7 +536,7 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 构建逐项算账明细（NPC 情报边界版）。
-        /// 旧案赃物 NPC 没看见是谁偷的 → "村里丢了XX"（被动语态）；
+        /// 旧案赃物 NPC 没看见是谁偷的 → "镇上丢了XX"（被动语态，地点词按定居点类型）；
         /// 袭击是当场抓住的 → "你把XX打晕了"（直指玩家）。
         /// 新旧两案合并时 NPC 说清"两笔账一起算"。
         /// </summary>
@@ -464,6 +544,7 @@ namespace LivingWorldNpcs
         {
             bool hasTheft = TotalStolenCount > 0;
             bool hasAssault = AssaultVictimNames?.Count > 0;
+            string loc = BestLocationWord;
 
             string theftPart = hasTheft
                 ? $"丢了{BuildStolenItemsDescription()}，市值{TotalStolenValue}第纳尔，一直没找到是谁干的"
@@ -478,8 +559,8 @@ namespace LivingWorldNpcs
             }
 
             if (hasTheft && hasAssault)
-                return $"前阵子村里{theftPart}。今天{assaultPart}——既然抓着的是你，两笔账一起算";
-            if (hasTheft) return $"村里{theftPart}";
+                return $"前阵子{loc}{theftPart}。今天{assaultPart}——既然抓着的是你，两笔账一起算";
+            if (hasTheft) return $"{loc}{theftPart}";
             if (hasAssault) return assaultPart;
             return "闹了事";
         }
@@ -494,11 +575,12 @@ namespace LivingWorldNpcs
             int total = CrimePenaltyCalculator.ComputeCost(this, CostType.Restitution);
             string crimeGerund = cfg.CrimeVerbGerund ?? "犯事";
             int multiplier = cfg.BaseRestitutionMultiplier;
+            string peopleWord = SettlementPeopleWord;
 
             if (Stage <= EventStage.Emerging)
                 return $"{harm}。既然你自己认了，{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。你认不认？";
             else if (Stage == EventStage.Active)
-                return $"{harm}。村里人都知道了，{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。你认不认？";
+                return $"{harm}。{peopleWord}都知道了，{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。你认不认？";
             else
                 return $"{harm}。最后一次机会——{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。否则后果自负。你认不认？";
         }
@@ -869,9 +951,9 @@ namespace LivingWorldNpcs
             VictimLabel = "村庄",
             AuthorityRole = "村长",
             CrimeVerb = "闹事",
-            CrimeVerbPast = "有人在村里闹事",
+            CrimeVerbPast = "有人在当地闹事",
             CrimeVerbGerund = "闹事",
-            CrimeScene = "村里",
+            CrimeScene = "当地",
             BaseSpreadRate = 0.05f,
             BaseRestitutionMultiplier = 2,
             BaseBountyPerUnit = 30,
@@ -981,13 +1063,14 @@ namespace LivingWorldNpcs
         {
             if (evt == null || string.IsNullOrEmpty(evt.EventId)) return;
 
-            // 同村同类型活跃案件中，找嫌疑人相同的那一个（可能存在多个不同嫌疑人的活跃案件）
+            // 同定居点 + 同类型 + 同嫌疑人 + 同子场景 → 合并（场景不同则不合并）
             var existing = _allEvents.FirstOrDefault(e =>
                 e.TargetSettlementId == evt.TargetSettlementId &&
                 e.Type == evt.Type &&
                 e.Stage != EventStage.Resolved &&
                 e.Stage != EventStage.Unsolved &&
-                e.SuspectHeroId == evt.SuspectHeroId);
+                e.SuspectHeroId == evt.SuspectHeroId &&
+                e.LocationName == evt.LocationName);
             if (existing != null)
             {
                 // 续档事件已就地更新（PendingWorldEvent 复用 store 中的同一对象）——自合并会双倍累计，直接跳过

@@ -660,7 +660,7 @@ namespace LivingWorldNpcs
                 .FirstOrDefault(t => t.WitnessHeroId == speaker.StringId);
             r.SpeakingWitness = testimony;
 
-            string witnessedDesc = BuildWitnessedActionDescription(testimony);
+            string witnessedDesc = BuildWitnessedActionDescription(testimony, evt.SettlementLocationWord);
 
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
@@ -733,7 +733,7 @@ namespace LivingWorldNpcs
                             NextNodeOnSuccess = "suspect_lure_ack",
                             NextNodeOnFail = "suspect_lure_fail"
                         },
-                        new DialogueInjector.DialogueTransition { PlayerLine = "快跑！村里人在抓你。", Action = "INTENT:BetrayQuest", NextNodeOnSuccess = "suspect_betray_ack" },
+                        new DialogueInjector.DialogueTransition { PlayerLine = "快跑！当地人在抓你。", Action = "INTENT:BetrayQuest", NextNodeOnSuccess = "suspect_betray_ack" },
                         new DialogueInjector.DialogueTransition { PlayerLine = "没什么。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                     }
                 }
@@ -754,7 +754,7 @@ namespace LivingWorldNpcs
             string npcLine = evt.Stage switch
             {
                 EventStage.Emerging => r.Resolve("（压低声音）{SpeakerPlayerAddr}听说了吗？{TargetSettlementName}出事了——{DiscoveryFacts}！谁干的还不知道。", "NpcLine"),
-                EventStage.Active => r.Resolve("听说了吗？是{SuspectDescription}干的！村里悬赏{BountyAmount}第纳尔抓他呢。", "NpcLine"),
+                EventStage.Active => r.Resolve("听说了吗？是{SuspectDescription}干的！{TargetSettlementName}悬赏{BountyAmount}第纳尔抓他呢。", "NpcLine"),
                 EventStage.Confrontation => r.Resolve("（紧张地）{TargetSettlementName}的人真动手了——雇了打手满世界找人。这事闹大了……", "NpcLine"),
                 _ => r.Resolve("这事好像已经过去了……", "NpcLine"),
             };
@@ -772,7 +772,7 @@ namespace LivingWorldNpcs
             nodes.Add(Node("bystander_detail_ack", r.Resolve("我就知道这么多……"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
 
-            return new DialogueInjector.DialogueInjectScript { EntryOption = "最近村里有什么新鲜事？", EntryNode = "injectedStart", Nodes = nodes };
+            return new DialogueInjector.DialogueInjectScript { EntryOption = "最近{TargetSettlementName}有什么新鲜事？", EntryNode = "injectedStart", Nodes = nodes };
         }
 
         /// <summary>继续聊 node：NPC 说完事后 → 玩家走人。告别语按阶段动态切换，引擎展示前才求值。</summary>
@@ -829,10 +829,12 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>从单条 WitnessTestimony 构建中文描述（如"偷了村民甲的鸡，还把人打晕了"）</summary>
-        public static string BuildWitnessedActionDescription(WitnessTestimony testimony)
+        public static string BuildWitnessedActionDescription(WitnessTestimony testimony, string locationWord = null)
         {
             if (testimony?.Actions == null || testimony.Actions.Count == 0)
                 return "有人在闹事";
+
+            string loc = locationWord ?? "当地";
 
             List<string> parts = new List<string>();
             foreach (ActionRecord a in testimony.Actions.OrderByDescending(a => a.AlertValue))
@@ -840,7 +842,7 @@ namespace LivingWorldNpcs
                 string desc = a.ActionType switch
                 {
                     "Crouching" => "鬼鬼祟祟蹲了半天",
-                    "WeaponDrawn" => "在村里拔刀",
+                    "WeaponDrawn" => $"在{loc}拔刀",
                     "StealUIOpen" => "翻箱倒柜",
                     "Steal" when a.ItemName != null =>
                         a.TargetName != null

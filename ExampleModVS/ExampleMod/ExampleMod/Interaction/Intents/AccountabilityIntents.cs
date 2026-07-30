@@ -878,7 +878,7 @@ namespace LivingWorldNpcs
     public class WorkOffDebtIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.WorkOffDebt;
-        public override string DisplayName => "【干活抵债】我没钱，但我可以帮村里干活";
+        public override string DisplayName => "【干活抵债】我没钱，但我可以帮当地干活";
         public override NegotiationGoalType? Goal => null;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -898,7 +898,7 @@ namespace LivingWorldNpcs
             evt._workOffDebtDay = (float)CampaignTime.Now.ToDays;
             evt._workOffDebtAccepted = true;
             evt._workOffDaysDone = 0;
-            var settlementName = evt.TargetSettlement?.Name?.ToString() ?? "村里";
+            var settlementName = evt.TargetSettlement?.Name?.ToString() ?? "当地";
             TaleWorlds.Library.InformationManager.DisplayMessage(
                 new TaleWorlds.Library.InformationMessage($"[干活抵债] 3天内每天回 {settlementName} 干活，违约后果自负。"));
             DebugLogger.Log($"[Accountability] Work-off-debt accepted for {evt.EventId}, due at day {evt._workOffDebtDay + 3}");
@@ -999,7 +999,7 @@ namespace LivingWorldNpcs
     public class BetrayQuestIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.BetrayQuest;
-        public override string DisplayName => "【背叛】快跑！村里人在抓你。";
+        public override string DisplayName => "【背叛】快跑！当地人在抓你。";
         public override NegotiationGoalType? Goal => null;
 
         public override string GetDialoguePrefix(string actionParam = null) => "[告密]";
