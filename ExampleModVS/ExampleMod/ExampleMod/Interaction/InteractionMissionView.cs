@@ -131,13 +131,13 @@ namespace LivingWorldNpcs
 
             //右下角交互UI
             _interactVM = new InteractionVM();            
-            _interact_layer = V.NewLayer(100); 
+            _interact_layer = V.NewLayer(10);
             _interact_layer.LoadMovie("InteractArea", _interactVM);
             thisMissionScreen.AddLayer(_interact_layer);
 
             //对话UI
             _dialogueVM = new StoryDialogVM();
-            _dialogueLayer = V.NewLayer(101);
+            _dialogueLayer = V.NewLayer(11);
             _dialogueLayer.LoadMovie("DialogChoice", _dialogueVM);
             thisMissionScreen.AddLayer(_dialogueLayer);
             // 初始化控制器
@@ -904,7 +904,7 @@ namespace LivingWorldNpcs
             _npcInfoVM = new NPCInfoVM(memory, agent, CloseNPCInfoBoard);
 
             // 3. 创建 Layer 并加载 Movie
-            _npcInfoLayer = V.NewLayer(200); // 这里的 200 是层级优先级，需比普通 HUD 高
+            _npcInfoLayer = V.NewLayer(15); // 低层级，比 AgentHUD(5) 和交互提示(10) 高，系统菜单自然覆盖
             _npcInfoLayer.LoadMovie("NPCInfoBoard", _npcInfoVM);
 
             // 4. 设置输入限制 (让鼠标可见，并不允许移动视角)
@@ -936,7 +936,7 @@ namespace LivingWorldNpcs
             _stealBarVM = new StealBarVM(StealBarMode.Pickpocket, targetAgent, () => CloseStealInterface());
 
             // 3. 创建 Layer
-            _stealLayer = V.NewLayer(201); // 优先级比对话(101)更高，覆盖在上面
+            _stealLayer = V.NewLayer(16); // 优先级比对话(101)更高，覆盖在上面
             V.LoadMov(_stealLayer, "StealBar", _stealBarVM);
 
             // 4. 设置输入限制（鼠标可见+按钮可点；键盘不路由给本层，游戏侧按键由 TickStealBar 在 Agent 层剥离）
@@ -1357,7 +1357,7 @@ namespace LivingWorldNpcs
             string animalName = !string.IsNullOrWhiteSpace(animal.Name) ? animal.Name.Trim() : "动物";
             bool isLarge = StealManager.IsLargeAnimal(animal.Monster?.StringId);
             _stealBarVM = new StealBarVM(StealBarMode.Animal, animal, animalName, isLarge, () => CloseStealInterface());
-            _stealLayer = V.NewLayer(201);
+            _stealLayer = V.NewLayer(16);
             V.LoadMov(_stealLayer, "StealBar", _stealBarVM);
             _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse);
             thisMissionScreen.AddLayer(_stealLayer);
@@ -2061,7 +2061,7 @@ namespace LivingWorldNpcs
 
             // 撬锁条：pin 全开后由 TickStealBar 接 ShowChestInquiry
             _stealBarVM = new StealBarVM(StealBarMode.Lockpick, pins, $"正在撬锁:{title}", () => CloseStealInterface());
-            _stealLayer = V.NewLayer(201);
+            _stealLayer = V.NewLayer(16);
             V.LoadMov(_stealLayer, "StealBar", _stealBarVM);
             _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse);
             thisMissionScreen.AddLayer(_stealLayer);

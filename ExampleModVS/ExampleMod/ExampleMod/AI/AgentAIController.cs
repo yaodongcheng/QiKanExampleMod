@@ -58,8 +58,30 @@ namespace LivingWorldNpcs
             var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
             if (settlement != null)
             {
-                // Misconduct 嫌疑人始终是玩家 → 已有案件直接续档，不管什么 Stage
-                var existing = WorldEventStore.FindActive(settlement.StringId, EventType.Misconduct);
+                string sceneLoc = WorldEvent.ResolveSceneLocationName(CampaignMission.Current?.Location?.StringId);
+
+                // 场景感知查找：同子场景的已有事件可续档；旧存档中未设置子场景的事件首次遇
+                // 到具体场景时自动升级 LocationName（之后便不会与其他子场景的事件合并）。
+                WorldEvent existing = null;
+                if (!string.IsNullOrEmpty(sceneLoc))
+                {
+                    // 有具体子场景 → 优先匹配同场景；其次匹配旧存档未设置子场景的事件（升级之）
+                    existing = WorldEventStore.FindActive(settlement.StringId, evt =>
+                        evt.Type == EventType.Misconduct &&
+                        (evt.LocationName == sceneLoc || evt.LocationName == null));
+
+                    if (existing != null && existing.LocationName == null)
+                    {
+                        existing.LocationName = sceneLoc;
+                        DebugLogger.Log($"[WorldEvent] Upgraded legacy event {existing.EventId} LocationName: null → {sceneLoc}");
+                    }
+                }
+                else
+                {
+                    // 无具体子场景（城镇中心 / 村庄中心等） → 只匹配同样无子场景的事件
+                    existing = WorldEventStore.FindActive(settlement.StringId, evt =>
+                        evt.Type == EventType.Misconduct && evt.LocationName == null);
+                }
 
                 PendingWorldEvent = existing
                     ?? new WorldEvent
@@ -70,6 +92,7 @@ namespace LivingWorldNpcs
                         InitiatorId = Hero.MainHero?.StringId ?? "player",
                         TargetSettlementId = settlement.StringId,
                         OccurredDay = (float)CampaignTime.Now.ToDays,
+                        LocationName = sceneLoc,
                         Stage = EventStage.Dormant,
                         WitnessTestimonies = new List<WitnessTestimony>(),
                     };
