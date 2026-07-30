@@ -29,7 +29,7 @@ namespace LivingWorldNpcs
             var heroSettlement = hero.CurrentSettlement ?? hero.HomeSettlement;
             if (heroSettlement != null)
             {
-                var crimeEvent = WorldEventStore.FindActive(heroSettlement.StringId);
+                var crimeEvent = WorldEventStore.FindOnGoing(heroSettlement.StringId);
                 if (crimeEvent != null)
                 {
                     var authority = WorldEventStore.GetAuthorityNpc(crimeEvent);

@@ -914,7 +914,7 @@ namespace LivingWorldNpcs
             var settlement = hero.CurrentSettlement ?? hero.HomeSettlement;
             if (settlement == null) return false;
 
-            var evt = WorldEventStore.FindActive(settlement.StringId);
+            var evt = WorldEventStore.FindOnGoing(settlement.StringId);
             if (evt == null) return false;
             if (evt.Stage == EventStage.Dormant) return false;  // 还没被发现
 
@@ -931,7 +931,7 @@ namespace LivingWorldNpcs
             var settlement = hero.CurrentSettlement ?? hero.HomeSettlement;
             if (settlement == null) return null;
 
-            var evt = WorldEventStore.FindActive(settlement.StringId);
+            var evt = WorldEventStore.FindOnGoing(settlement.StringId);
             if (evt == null) return null;
             if (evt.Stage == EventStage.Dormant || evt.Stage == EventStage.Resolved || evt.Stage == EventStage.Unsolved)
                 return null;

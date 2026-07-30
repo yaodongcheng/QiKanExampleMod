@@ -290,3 +290,58 @@ if (agent.Team != null && agent.Team.IsValid   // IsValid => MBTeam.Index >= 0�
 
 **全量扫描结论**（2026-07-29）：
 - 项目 35 处 `ApplyPlayerRelation` 调用中仅此一处漏守卫。其余已通过 `if (ctx.Speaker != null)` / `if (npc is Hero n)` / `if (authority != null)` / `Evaluate` 的 `IsHero` 检查覆盖。
+
+---
+
+## `FindOnGoing` 的 `??` 语义：旧事件遮蔽 Pending → 对话选项消失
+
+**症状**
+- NPC 目击玩家犯罪后主动质问，对话注入成功、NPC 报了价，但 **"行，就按这个价"（PayRestitution）选项不显示**。
+- 日志：`[IntentEval] PayRestitution → Hide (stage=Emerging, suspectIsPlayer=False)`
+- 但日志前几行明确记录：`[RegisterWitness] … witnessed crime → WorldEvent … Stage → Active (suspect=player)` —— 玩家刚被目击，事件理应是 Active + suspect=player。
+- 同时存在多个同村 Misconduct 事件（旧暗罪 Emerging + 新目击 Active）。
+
+**根因**
+
+`WorldEventStore.FindOnGoing` 三个重载都是 `stored ?? pending` 模式：
+
+```csharp
+// 旧实现：
+return _allEvents.FirstOrDefault(e => ...) ?? MatchPending(settlementId);
+```
+
+`??` 只在 `stored == null` 时走 Pending。如果同村存在一个旧事件（在 `_allEvents` 里排在前面 → `FirstOrDefault` 命中），**Pending 就永远不会被选中**，即使 Pending 才是刚被目击到的、嫌犯=玩家、阶段更靠前的活跃事件。
+
+调用链：
+1. `FindOnGoing` → 返回旧事件 (Emerging, suspect=null)
+2. `AccountabilityIntents.cs:172` → `stage==Emerging && SuspectHeroId != player` → **Hide**
+3. 玩家在对话里看到 NPC 报了价，但没有"接受"按钮——只能砍价（失败后回到报价节点还是没有接受按钮）、或者拒赔——死循环
+
+**规避**
+
+用 `PickBest` 替代 `??`：同时取 stored 和 pending，选更相关的返回：
+- suspect=player 优先（被目击的事件 > 匿名暗罪）
+- 同 suspect 则阶段高的优先（Confrontation > Active > Emerging > Dormant）
+
+```csharp
+// 三个 FindOnGoing 重载统一改为：
+var stored = _allEvents.FirstOrDefault(...);
+var pending = MatchPending(...);
+return PickBest(stored, pending);
+
+// PickBest:
+static WorldEvent PickBest(WorldEvent stored, WorldEvent pending)
+{
+    if (ReferenceEquals(stored, pending)) return stored;
+    if (stored == null) return pending;
+    if (pending == null) return stored;
+    if (pending.SuspectIsPlayer && !stored.SuspectIsPlayer) return pending;
+    if (stored.SuspectIsPlayer && !pending.SuspectIsPlayer) return stored;
+    if (pending.Stage > stored.Stage) return pending;
+    return stored;
+}
+```
+
+- `ReferenceEquals` 守卫：当 Pending 已持久化进 `_allEvents` 时，stored 和 pending 是同一个对象，直接返回。
+- 落地：`WorldEvent/WorldEvent.cs` → `FindOnGoing`（三个重载 + `PickBest`）。
+- 2026-07-30 实踩：地牢暗罪 (Emerging) + LordsHall 目击 (Active)，旧事件遮蔽新事件 → PayRestitution 消失。

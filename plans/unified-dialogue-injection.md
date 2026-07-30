@@ -217,7 +217,7 @@ internal static void TryInjectCrimeDialogue(Hero partner)
     WorldEvent evt = null;
     if (settlement != null)
     {
-        evt = WorldEventStore.FindActive(settlement.StringId)
+        evt = WorldEventStore.FindOnGoing(settlement.StringId)
             ?? AgentAIController.Instance?.PendingWorldEvent;
     }
 
@@ -419,7 +419,7 @@ ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
 | 2.2 | `_pendingConfrontation` | `:113` | ✅ 完全一致 |
 | 2.3 | `_pendingTriggerAction` | `:116` | ✅ 完全一致 |
 | 2.4 | Step 1: settlement 三层 fallback | `:128-130` | ✅ 完全一致 |
-| 2.5 | Step 1: `WorldEventStore.FindActive \|\| PendingWorldEvent` | `:132-137` | ✅ 完全一致 |
+| 2.5 | Step 1: `WorldEventStore.FindOnGoing \|\| PendingWorldEvent` | `:132-137` | ✅ 完全一致 |
 | 2.6 | Step 2: 读取 trigger/confrontation/triggerAction | `:140-142` | ✅ 完全一致 |
 | 2.7 | Step 2: 无条件消费 trigger | `:144-154` | ⚠️ **有意偏差**：模板 NPC Alert（`partner==null && trigger==Alert`）不消费，直接 return。原因：模板 NPC 无 `hero_main_options`，start token 注入不可达，必须留给 `AlertScriptDeferredInjectionPatch` 延迟处理 |
 | 2.8 | Step 3: `trigger != Normal && evt == null` 契约检查 | `:156-173` | ✅ 完全一致 |
