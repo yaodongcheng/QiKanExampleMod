@@ -648,25 +648,6 @@ namespace LivingWorldNpcs
         internal static string PendingInquiryTitle;
         internal static string PendingInquiryBody;
 
-        /// <summary>Alert 场景玩家转身就走 → 对话关闭后由 Patch 消费，触发呼救围堵 + 重新质问</summary>
-        internal static Agent PendingEscalationAgent;
-
-        /// <summary>🆕 围堵升级的显式质问上下文（嫌犯转身就走 → Stop + SuspectFlee）。null = 按 NPC 自身警戒明细推导（Alert 路径）。</summary>
-        internal static ConfrontationType? PendingEscalationDetail;
-        internal static PlayerActionType? PendingEscalationAction;
-
-        /// <summary>🆕 true = 只广播围观，不追上重新质问（武力逃脱成功——人跑了，村民只能目送）。</summary>
-        internal static bool PendingEscalationGatherOnly;
-
-        /// <summary>统一设置围堵升级标记（四字段一体，防止上一轮的残留泄漏到下一轮）。</summary>
-        private static void SetPendingEscalation(Agent agent, ConfrontationType? detail, PlayerActionType? action, bool gatherOnly = false)
-        {
-            PendingEscalationAgent = agent;
-            PendingEscalationDetail = detail;
-            PendingEscalationAction = action;
-            PendingEscalationGatherOnly = gatherOnly;
-        }
-
         public override Eligibility Evaluate(IntentContext ctx)
         {
             // 始终可见——任何对话都可以选择离开
@@ -683,23 +664,15 @@ namespace LivingWorldNpcs
 
             if (evt == null)
             {
-                // 无活跃事件 —— 唯一需要处理的是 Alert 场景：NPC 因警戒质问找上门，玩家直接走人
-                // 警戒质问比较特殊 玩家可能只是做出了不合适的行为，或者在做坏事过程中，并没有真的执行完成做坏事的结果
-                // → 关系小降 + 设 EscalationAgent（对话关闭后由 Patch 消费：呼救围堵 + 重新质问）
-                if (ctx.InRealScene)
+                // 🔴 安全离开：continue_chat_safe 等已原谅后离开 → 纯自然离开，不触发围堵升级
+                if (ctx.ActionParam == "safe")
                 {
-                    SetPendingEscalation(ctx.Agent, null, null);
-                    var npc = ctx.Speaker ?? Campaign.Current?.ConversationManager?.OneToOneConversationHero;
-                    if (npc is Hero n)
-                        ChangeRelationAction.ApplyPlayerRelation(n, -5, false, true);
-
-                    var misconduct = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
-                    if (misconduct != null && misconduct.Stage < EventStage.Active)
-                        WorldEventStore.TransitionStage(misconduct, EventStage.Active, null, "你不肯了结，扭头就走");
-
-                    DebugLogger.Log($"[WalkAway] Alert context — PendingEscalationAgent={ctx.Agent?.Name}, relation -5, WorldEvent→Active");
+                    DebugLogger.Log($"[WalkAway] Safe exit — post-resolution, no escalation");
+                    return;
                 }
-                return;  // 其余情况（大地图/菜单闲聊）→ 纯自然离开
+
+                // 其余情况（大地图/菜单闲聊）→ 纯自然离开
+                return;
             }
 
             // ══ 第二层：是否有定居点 ══
@@ -722,56 +695,28 @@ namespace LivingWorldNpcs
                 case EventStage.Emerging:
                     // 已被怀疑（自首后）转身就走 → 村民确信是你干的，事件升级 Active
                     WorldEventStore.TransitionStage(evt, EventStage.Active, null, "你转身就走，没把钱给出去");
-                    if (ctx.InRealScene && ctx.Agent != null)
-                    {
-                        // 🆕 村内当场走人 → 物理围堵升级：村民围观 + NPC 追上重新质问（无"我走了"退路）
-                        SetPendingEscalation(ctx.Agent, ConfrontationType.Stop, PlayerActionType.SuspectFlee);
-                        PendingInquiryTitle = "“站住！”";
-                        PendingInquiryBody =
-                            $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
-                            $"\"你以为认了就完了？！来人——拦住他！\"\n\n" +
-                            $"{villageName}的村民们闻声围拢过来……";
-                    }
-                    else
-                    {
-                        PendingInquiryTitle = "“站住！”";
-                        PendingInquiryBody =
-                            $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
-                            $"\"你以为认了就完了？！这事没完！\"\n\n" +
-                            $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
-                            $"下次再见到{npcName}，可就不是商量那么简单了。";
-                    }
+                    PendingInquiryTitle = "“站住！”";
+                    PendingInquiryBody =
+                        $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
+                        $"\"你以为认了就完了？！这事没完！\"\n\n" +
+                        $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
+                        $"下次再见到{npcName}，可就不是商量那么简单了。";
                     NotifyInvestigationQuest(evt);
                     DebugLogger.Log($"[Accountability] WalkAway (Emerging suspect): {evt.EventId} → Active");
                     CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。身后传来{npcName}的怒吼——这事没完。");
                     break;
 
                 case EventStage.Active:
-                    if (ctx.InRealScene)
-                    {
-                        // ── 第五层：Mission 内 —— 玩家正被围堵缉拿，"离开" = 武力推开逃跑 → Intimidate 检定
-                        // 成功：挣脱但身份彻底暴露；失败：被拦下，关系大降 + 事件升级 Confrontation
-                        var roll = SingleRollResolver.SimpleCompute(ctx, NegotiationTactic.Flatter, 0f);
-                        bool success = SingleRollResolver.Roll(roll.Chance);
-                        DebugLogger.Log($"[WalkAway] Mission flee: chance={roll.Chance:P0} success={success}");
-                        if (success)
-                            OnFleeSuccess(ctx, evt);
-                        else
-                            OnFleeFail(ctx, evt);
-                    }
-                    else
-                    {
-                        // ── 第五层：对话/菜单内 —— 转身就走，NPC 放话 + 关系惩罚
-                        PendingInquiryTitle = "“站住！”";
-                        PendingInquiryBody =
-                            $"你转身离开，身后传来{npcName}的怒吼——\n\n" +
-                            $"\"跑了？！好，{villageName}的人不会放过你！\"\n\n" +
-                            $"下次见面，就不会再跟你废话了。";
-                        if (authority != null)
-                            ChangeRelationAction.ApplyPlayerRelation(authority, -10, false, true);
-                        DebugLogger.Log($"[Accountability] WalkAway (Active suspect): {evt.EventId} — rep -10");
-                        CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。{npcName}气得发抖——下次见面不会跟我客气了。");
-                    }
+                    // ── 转身就走，NPC 放话 + 关系惩罚
+                    PendingInquiryTitle = "“站住！”";
+                    PendingInquiryBody =
+                        $"你转身离开，身后传来{npcName}的怒吼——\n\n" +
+                        $"\"跑了？！好，{villageName}的人不会放过你！\"\n\n" +
+                        $"下次见面，就不会再跟你废话了。";
+                    if (authority != null)
+                        ChangeRelationAction.ApplyPlayerRelation(authority, -10, false, true);
+                    DebugLogger.Log($"[Accountability] WalkAway (Active suspect): {evt.EventId} — rep -10");
+                    CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。{npcName}气得发抖——下次见面不会跟我客气了。");
                     break;
 
                 case EventStage.Confrontation:
@@ -789,29 +734,6 @@ namespace LivingWorldNpcs
                     CommissionQuest.AddNarrativeLogForEvent(evt, $"我跑了。{npcName}追了出来——{villageName}跟我不死不休。");
                     break;
             }
-        }
-
-        /// <summary>Mission 内武力逃脱成功：挣脱围堵，但身份彻底暴露（嫌犯锁定 + 调查进度拉满）。已在 Active → TransitionStage 幂等早退。</summary>
-        private void OnFleeSuccess(IntentContext ctx, WorldEvent evt)
-        {
-            evt.SuspectHeroId = Hero.MainHero.StringId;
-            evt.InvestigationProgress = 1.0f;
-            WorldEventStore.TransitionStage(evt, EventStage.Active);
-            // 🆕 挣脱跑了 → 村民围观目送（只广播，不追上——人已经跑了）
-            if (ctx.Agent != null)
-                SetPendingEscalation(ctx.Agent, null, null, gatherOnly: true);
-            DebugLogger.Log($"[Accountability] Player fled confrontation for {evt.EventId}");
-        }
-
-        /// <summary>Mission 内武力逃脱失败：被拦下，关系大降 + 事件升级 Confrontation + NPC 追上重新质问（无退路）</summary>
-        private void OnFleeFail(IntentContext ctx, WorldEvent evt)
-        {
-            if (ctx.Speaker != null)
-                ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -15, false, true);
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你想硬闯，被按了下来");
-            // 🆕 "被拦下"物理化：村民围观 + NPC 追上重新质问（拔剑/认罚/坐牢，没有"我走了"）
-            if (ctx.Agent != null)
-                SetPendingEscalation(ctx.Agent, ConfrontationType.Stop, PlayerActionType.SuspectFlee);
         }
 
         private static void NotifyInvestigationQuest(WorldEvent evt)

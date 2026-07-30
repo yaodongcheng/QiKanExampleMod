@@ -571,7 +571,6 @@ public static class SuppressVanillaConversationMissionPatch
 | `AlertForceConversationAction.PendingAlertScript/Label` | Alert 注入流程 | 清理残留 |
 | `AlertForceConversationAction.ActiveConversationAgent` | Alert 注入流程 | `BroadcastEvent("EndInteraction")` 释放 NPC |
 | `ThreatIntent.PendingCombatAgent` | `ThreatIntent.OnFail` | `SendEventToAgent("DeferredCombat")` 延迟开战 |
-| `WalkAwayIntent.PendingEscalationAgent` | `WalkAwayIntent.OnInstant` | `BroadcastEvent("WitnessCrime")` + `SendEventToAgent("ReEngageConfrontation")` |
 | `SurrenderJailIntent.PendingJailExit` | `SurrenderJailIntent.OnSuccess` | `TakePrisonerAction.Apply(settlement.Party, Hero.MainHero)` 坐牢 |
 | `LureArrestIntent.PendingFadeAgent` | `LureArrestIntent.OnSuccess` | `Agent.FadeOut(false, true)` 淡出消失 |
 

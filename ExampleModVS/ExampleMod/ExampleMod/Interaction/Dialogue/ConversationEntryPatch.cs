@@ -393,45 +393,6 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[ConvEnd] DeferredCombat sent to {combatAgent.Name}(Idx={combatAgent.Index})");
             }
 
-            // 🆕 转身就走围堵升级：对话关闭后广播 WitnessCrime（围观群众围过来）+ 点对点 ReEngageConfrontation
-            var escalationAgent = WalkAwayIntent.PendingEscalationAgent;
-            if (escalationAgent != null)
-            {
-                // 取出并清空全部围堵标记（detail/action 为嫌犯路径显式指定的质问上下文；gatherOnly 为逃脱成功只围观）
-                var escalationDetail = WalkAwayIntent.PendingEscalationDetail;
-                var escalationAction = WalkAwayIntent.PendingEscalationAction;
-                var gatherOnly = WalkAwayIntent.PendingEscalationGatherOnly;
-                WalkAwayIntent.PendingEscalationAgent = null;
-                WalkAwayIntent.PendingEscalationDetail = null;
-                WalkAwayIntent.PendingEscalationAction = null;
-                WalkAwayIntent.PendingEscalationGatherOnly = false;
-
-                // 复用 WitnessCrime 管道 → GroupStageManager → GatherOnLook/StayStare，NPC 围过来盯着
-                // 排除 escalationAgent 自己——她已有 ReEngageConfrontation 点对点处理，
-                // 不应再收 WitnessCrime_GatherOnLook 走犯罪指控流程
-                AgentAIController.Instance?.BroadcastEventInRange(
-                    escalationAgent.Position, 25f, "WitnessCrime",
-                    exclude: new HashSet<Agent> { escalationAgent },
-                    requireSight: false,
-                    Agent.Main, escalationAgent);
-
-                if (!gatherOnly)
-                {
-                    // 原 NPC 重新追上质问（显式 detail/action 时透传：嫌犯逃跑 → Stop+SuspectFlee 专属开场白）
-                    if (escalationDetail.HasValue)
-                        AgentAIController.Instance?.SendEventToAgent(
-                            escalationAgent, "ReEngageConfrontation", Agent.Main, escalationDetail.Value, escalationAction ?? PlayerActionType.SuspectFlee);
-                    else
-                        AgentAIController.Instance?.SendEventToAgent(
-                            escalationAgent, "ReEngageConfrontation", Agent.Main);
-                    DebugLogger.Log($"[ConvEnd] Escalation: WitnessCrime broadcast + ReEngageConfrontation to {escalationAgent.Name}(Idx={escalationAgent.Index})");
-                }
-                else
-                {
-                    DebugLogger.Log($"[ConvEnd] Escalation (gather only): WitnessCrime broadcast around {escalationAgent.Name}(Idx={escalationAgent.Index})");
-                }
-            }
-
             // 坐牢：对话关闭后交给 PlayerDetentionBehavior 统一管（原生俘虏系统 + 原版
             // settlement_wait 俘虏界面 + 刑期 + 释放菜单 + 存档持久化）
             if (SurrenderJailIntent.PendingJailExit)
