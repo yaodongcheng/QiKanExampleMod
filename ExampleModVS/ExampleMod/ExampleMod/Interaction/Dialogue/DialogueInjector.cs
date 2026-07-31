@@ -99,13 +99,13 @@ namespace LivingWorldNpcs
                     if (node.Transitions == null || node.Transitions.Count == 0)
                     {
                         // Terminal node: NPC 说话 → 关窗
-                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node, owner);
                         nodeCount++;
                     }
                     else
                     {
                         string afterNpcLine = NextToken(fileTag);
-                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine, node);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine, node, owner);
                         nodeCount++;
 
                         foreach (var transition in node.Transitions)
@@ -163,6 +163,7 @@ namespace LivingWorldNpcs
             // 其 BaseLabel 被错误设为带版本后缀如 "crime_xxx_v0"，导致 BaseLabel == label 永远匹配不上）
             var toRemove = _injectedOwners.Where(o =>
                 o.BaseLabel == label || o.FileName.StartsWith(label + "_v")).ToList();
+            DebugLogger.Log($"[DialogueInjector] RemoveRelatedLines label=\"{label}\": 匹配到 {toRemove.Count} 个 owner: [{string.Join(", ", toRemove.Select(o => $"{o.BaseLabel}({o.FileName})"))}]（现存 {_injectedOwners.Count} 个）");
             if (toRemove.Count == 0)
             {
                 DebugLogger.Log($"[DialogueInjector] RemoveRelatedLines label=\"{label}\": 没有匹配的 owner（现存 {_injectedOwners.Count} 个: [{string.Join(", ", _injectedOwners.Select(o => $"{o.BaseLabel}({o.FileName})"))}]）");
@@ -170,6 +171,11 @@ namespace LivingWorldNpcs
             }
             foreach (var owner in toRemove)
             {
+                if (owner == null)
+                {
+                    DebugLogger.Log($"[DialogueInjector] 严重错误： RemoveRelatedLines label=\"{label}\": owner 为 null，跳过");
+                    continue;
+                }
                 try
                 {
                     Campaign.Current.ConversationManager.RemoveRelatedLines(owner);
@@ -181,6 +187,7 @@ namespace LivingWorldNpcs
                 }
                 _injectedOwners.Remove(owner);
             }
+            DebugLogger.Log($"[DialogueInjector] RemoveRelatedLines label=\"{label}\": 清理完毕，剩余注入项 {_injectedOwners.Count} 个: [{string.Join(", ", _injectedOwners.Select(o => $"{o.BaseLabel}({o.FileName})"))}]");
         }
 
         /// <summary>
@@ -543,7 +550,7 @@ namespace LivingWorldNpcs
             {
                 // NPC 台词直接挂在 startToken，优先级 200 碾压原版开场白
                 string afterNpcLine = NextToken(fileTag);
-                AddNodeNpcLine(cm, $"inj_open_{entryNode.Id}", startToken, afterNpcLine, entryNode, 200);
+                AddNodeNpcLine(cm, $"inj_open_{entryNode.Id}", startToken, afterNpcLine, entryNode, owner, 200);
                 DebugLogger.Log($"[DialogueInjector] 跳过原版Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
 
                 // 注册入口 node 的玩家选项
@@ -583,12 +590,12 @@ namespace LivingWorldNpcs
 
                     if (node.Transitions == null || node.Transitions.Count == 0)
                     {
-                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node, owner);
                     }
                     else
                     {
                         string nodeAfterNpc = NextToken(fileTag);
-                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, nodeAfterNpc, node);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, nodeAfterNpc, node, owner);
                         RegisterNodeTransitions(cm, node, nodeAfterNpc, fileTag, owner);
                     }
                 }
@@ -701,14 +708,18 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 注册一个 Node 的 NPC 台词行。支持 LazyNpcLine 惰性求值。
+        ///
+        /// 🔴 关键：AddDialogLineMultiAgent 不传 relatedObject → ConversationSentence.RelatedObject 为 null
+        /// → RemoveRelatedLines 永远清不掉 NPC 台词。此处用反射补设 RelatedObject，使清理机制生效。
         /// </summary>
         private static void AddNodeNpcLine(ConversationManager cm, string id,
             string inputToken, string outputToken, DialogueNode node, InjectOwner owner, int priority = 125)
         {
+            ConversationSentence sentence;
             if (node.LazyNpcLine != null)
             {
                 var textObj = new TextObject("…");
-                cm.AddDialogLineMultiAgent(id, inputToken, outputToken, textObj,
+                sentence = cm.AddDialogLineMultiAgent(id, inputToken, outputToken, textObj,
                     () =>
                     {
                         textObj.Value = node.LazyNpcLine();
@@ -721,13 +732,28 @@ namespace LivingWorldNpcs
                         langField?.SetValue(textObj, -1);
                         return true;
                     },
-                    null, 0, -1, priority, owner);
+                    null, 0, -1, priority);
             }
             else
             {
-                cm.AddDialogLineMultiAgent(id, inputToken, outputToken,
+                sentence = cm.AddDialogLineMultiAgent(id, inputToken, outputToken,
                     new TextObject(node.NpcLine ?? ""),
-                    () => true, null, 0, -1, priority, owner);
+                    () => true, null, 0, -1, priority);
+            }
+
+            // 🔴 反射补设 RelatedObject：AddDialogLineMultiAgent 不传 relatedObject 参数
+            // → ConversationSentence 的 RelatedObject 默认为 null → RemoveRelatedLines 无法匹配清理。
+            // 此处必须在注册后立即补设，否则跨对话残留 NPC 台词会抢占 start token。
+            if (owner != null && sentence != null)
+            {
+                try
+                {
+                    typeof(ConversationSentence)
+                        .GetProperty("RelatedObject",
+                            System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                        ?.SetValue(sentence, owner);
+                }
+                catch { }
             }
         }
 
@@ -768,12 +794,12 @@ namespace LivingWorldNpcs
                     if (node.Transitions == null || node.Transitions.Count == 0)
                     {
                         // Terminal node: NPC 说话 → 关窗
-                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, "close_window", node, owner);
                     }
                     else
                     {
                         string afterNpcLine = NextToken(fileTag);
-                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine, node);
+                        AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine, node, owner);
 
                         RegisterNodeTransitions(cm, node, afterNpcLine, fileTag, owner);
                     }

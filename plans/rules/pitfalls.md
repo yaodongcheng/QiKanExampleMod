@@ -345,3 +345,61 @@ static WorldEvent PickBest(WorldEvent stored, WorldEvent pending)
 - `ReferenceEquals` 守卫：当 Pending 已持久化进 `_allEvents` 时，stored 和 pending 是同一个对象，直接返回。
 - 落地：`WorldEvent/WorldEvent.cs` → `FindOnGoing`（三个重载 + `PickBest`）。
 - 2026-07-30 实踩：地牢暗罪 (Emerging) + LordsHall 目击 (Active)，旧事件遮蔽新事件 → PayRestitution 消失。
+
+---
+
+## `AddDialogLineMultiAgent` 不设 `RelatedObject` → NPC 台词残留 + 跨对话抢占 `start` token
+
+**症状**
+- 一场对话结束、下一场对话开始时，NPC 说的台词是**上一场对话的旧文本**（如旧事件的目标名、旧赔款金额）。
+- 引擎在 `start` token 上选中了旧 NPC 台词 → 输出到旧的 outputToken → 新对话的玩家选项永远走不到，玩家只有原版选项（"我建议我们两家联姻。"之类）。
+- 日志：`[DialogueInjector] RemoveRelatedLines label="crime_xxx"` 报了"清理完毕"，但旧台词照样出现。
+- 注入日志显示正确的新文本，但 `[VanillaDialog]` 日志显示引擎实际播放的是旧文本。
+
+**根因**（反编译 `TaleWorlds.CampaignSystem.dll` 确认）
+
+```
+ConversationSentence 构造函数:
+  relatedObject 参数默认 null → RelatedObject = relatedObject
+
+AddDialogLineMultiAgent(id, inputToken, outputToken, text, condition, consequence,
+                        agentIndex, nextAgentIndex, priority, clickableConditionDelegate):
+  → new ConversationSentence(..., 0u, priority, agentIndex, nextAgentIndex)
+  → relatedObject 没传！默认为 null
+
+RemoveRelatedLines(object o):
+  → _sentences.RemoveAll(s => s.RelatedObject == o)
+  → 匹配 RelatedObject，但 NPC 台词全是 null → 永远匹配不上 → 永远清不掉
+```
+
+- PlayerLine 走 `DialogFlow.AddPlayerLine` → `cm.AddDialogFlow(df, owner)` — 这个路径**会**把 `owner` 当 `relatedObject` 传进 `ConversationSentence` 构造函数 → 能清掉。
+- NPC 台词走 `AddDialogLineMultiAgent` — 这个 **没有 `relatedObject` 参数** → 所有 NPC 台词 `RelatedObject = null` → `RemoveRelatedLines` 匹配不到 → 永远残留在 `_sentences`。
+- 残留的旧 NPC 台词与新 NPC 台词同 token（都是 `start`）、同 priority（200），引擎按 `_sentences` 列表顺序选第一个 → 旧台词抢占。
+
+**注意**：`AddDialogLineMultiAgent` 的最后一个参数是 `OnClickableConditionDelegate clickableConditionDelegate`，不是 `object relatedObject`。不要把 InjectOwner 当成最后一个参数传进去——会被解释为点击条件委托，类型不匹配且无效。
+
+**规避**
+
+在 `AddDialogLineMultiAgent` 返回后，用反射把 `ConversationSentence.RelatedObject` 补设上：
+
+```csharp
+ConversationSentence sentence = cm.AddDialogLineMultiAgent(id, inputToken, outputToken,
+    textObj, condition, null, 0, -1, priority);
+
+// 反射补设 RelatedObject（AddDialogLineMultiAgent 不传 relatedObject → 默认为 null）
+if (owner != null && sentence != null)
+{
+    try
+    {
+        typeof(ConversationSentence)
+            .GetProperty("RelatedObject",
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+            ?.SetValue(sentence, owner);
+    }
+    catch { }
+}
+```
+
+- 落地：`Interaction/Dialogue/DialogueInjector.cs` → `AddNodeNpcLine`（所有 NPC 台词注册的统一出口）。
+- 修复后 `RemoveRelatedLines` 原生逻辑直接生效，NPC 台词不再残留。
+- 2026-07-31 实踩：town_ES4 对话结束后，village_ES3_2 新对话 NPC 仍在说 "你把帝国步兵打晕了"（旧事件目标名），玩家只有原版联姻选项。
