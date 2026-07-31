@@ -1,7 +1,7 @@
-﻿[10:07:59.866] [WorldEventStore] Deserialized 1 events, 0 alerts
-[10:08:03.718] [Detention] Game menus registered
-[10:08:04.570] [AddQuickInformation] "成就被禁用！"
-[10:08:06.609] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+﻿[10:44:11.369] [WorldEventStore] Deserialized 1 events, 0 alerts
+[10:44:15.190] [Detention] Game menus registered
+[10:44:16.027] [AddQuickInformation] "成就被禁用！"
+[10:44:18.004] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
     标题: 城镇中心
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
@@ -14,40 +14,118 @@
       7. 进入铁匠铺  [id=town_smithy] 可点
       8. 稍作等待  [id=town_wait] 可点
       9. 离开  [id=town_leave] 可点
-[10:08:12.219] [GameMenu] ● 点击 menu=town 选项="在镇中心附近转转" [id=town_streets] @吕卡隆(城镇)
-[10:08:34.110] [Knockout] 帝国军团步兵: isChild=False, successRate=0.30, roll=0.82, success=False
-[10:08:34.111] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[10:08:34.529] [Knockout] Failed: 亨利 vs 帝国军团步兵
-[10:08:34.529] [AddQuickInformation] "背后偷袭失手！你(活力2 控制4)不敌帝国军团步兵(活力5 控制5)，胜算仅30 %"
-[10:08:34.531] [DisplayMessage] [Red] "帝国军团步兵 察觉了你的意图，转身反击！（82% > 30 %）"
-[10:08:34.532] [DisplayMessage] "[事件发送] 发送事件 'order_attack' 给 帝国军团步兵 (Index:44, 距离:1.5m, 方位:东北)"
-[10:08:34.535] [Brain-Receive] 帝国军团步兵(Idx=44) 收到事件 'order_attack' | 当前行为=null | 队列=0 | 阶段=Normal
-[10:08:34.537] [DisplayMessage] [Red] "Agent 帝国军团步兵 收到攻击命令，目标是 亨利"
-[10:08:34.537] [Brain-Clear] 帝国军团步兵(Idx=44) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[10:08:34.537] [Brain-Enqueue] 帝国军团步兵(Idx=44) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[10:08:34.538] [AI-Debug] Suspend 帝国军团步兵 (Idx=44) | 集合size=1 | 当前行为=null
-[10:08:34.540] [Brain-Tick] 帝国军团步兵(Idx=44) 开始执行 FightEnemyAction | 队列剩余=0
-[10:08:34.540] [DisplayMessage] [Yellow] "帝国军团步兵(Idx=44)  开始攻击 亨利！"
-[10:08:34.541] [CombatManager] RegisterCombatant: 帝国军团步兵(Idx=44), total=1
-[10:08:37.928] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国军团步兵 对 亨利 造成了22 点伤害"
-[10:08:37.936] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到22点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.48米/秒</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
-[10:08:39.686] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国军团步兵 对 亨利 造成了24 点伤害"
-[10:08:39.688] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到24点挥砍伤害。<Detail>命中部位：臂</Detail><Detail>相对移动速度：1.15米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[10:08:41.541] [Detention] Player down but no hostile case here → vanilla flow
-[10:08:41.544] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到25点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：4</Detail>" | category=Combat
-[10:08:41.544] [Brain-Tick] 帝国军团步兵(Idx=44) 完成 FightEnemyAction
-[10:08:41.545] [CombatManager] UnregisterCombatant: 帝国军团步兵(Idx=44), total=0
-[10:08:41.545] [CombatManager] EndFight: 帝国军团步兵(Idx=44) restored to original team
-[10:08:41.546] [Brain-Alert] 帝国军团步兵(Idx=44) ClearAllAlerts: 警戒值归零
-[10:08:41.546] [FightEnd] 帝国军团步兵(Idx=44) 战斗结束，收起武器，且警戒值归零
-[10:08:41.550] [AI-Debug] Resume 帝国军团步兵 (Idx=44) | 集合size=0
-[10:08:46.934] [GameMenu] ▶ 打开 menu=settlement_player_unconscious @吕卡隆(城镇)
-    标题: 
-    正文: 你失去了意识。过了一段时间后，一些友善的本地人帮助你苏醒了过来。虽然有些迷糊，但没有严重损伤，你决心下次一定要更加小心。
+[10:44:30.111] [GameMenu] ● 点击 menu=town 选项="前往主楼" [id=town_keep] @吕卡隆(城镇)
+[10:44:30.119] [GameMenu] ▶ 打开 menu=town_keep_bribe @吕卡隆(城镇)
+    标题: 主楼
+    正文: 守卫声称不可以随便放人进去。
     选项:
-      1. 继续  [id=continue] 可点
-[10:08:49.925] [GameMenu] ● 点击 menu=settlement_player_unconscious 选项="继续" [id=continue] @吕卡隆(城镇)
-[10:08:49.937] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+      1. 贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼  [id=town_keep_bribe_pay] 可点
+      2. 离开  [id=town_keep_bribe_back] 可点
+[10:44:31.791] [GameMenu] ● 点击 menu=town_keep_bribe 选项="贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼" [id=town_keep_bribe_pay] @吕卡隆(城镇)
+[10:44:31.798] [DisplayMessage] "你支付了800<img src="General\Icons\Coin@2x" extend="8">。"
+[10:44:31.799] [DisplayMessage] "你发现了维里娜"
+[10:44:31.799] [DisplayMessage] "你发现了维维安娜"
+[10:44:31.804] [GameMenu] ▶ 打开 menu=town_keep @吕卡隆(城镇)
+    标题: 主楼
+    正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。
+    选项:
+      1. 前往领主大厅  [id=town_lords_hall] 可点
+      2. 前往地牢  [id=town_lords_hall_go_to_dungeon] 可点
+      3. 返回城镇中心  [id=town_castle_back] 可点
+[10:44:33.088] [GameMenu] ● 点击 menu=town_keep 选项="前往地牢" [id=town_lords_hall_go_to_dungeon] @吕卡隆(城镇)
+[10:44:33.092] [GameMenu] ▶ 打开 menu=town_keep_dungeon @吕卡隆(城镇)
+    标题: 地牢
+    正文: 这里没有俘虏。
+    选项:
+      1. 进入地牢  [id=town_prison] 可点
+      2. 离开  [id=town_keep_dungeon_back] 可点
+[10:44:33.975] [GameMenu] ● 点击 menu=town_keep_dungeon 选项="进入地牢" [id=town_prison] @吕卡隆(城镇)
+[10:44:34.768] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → 地牢里
+[10:44:44.025] [Knockout] 帝国资深步兵: isChild=False, successRate=0.30, roll=0.07, success=True
+[10:44:44.027] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[10:44:44.432] [Assault] 帝国资深步兵 身价=50 → 事件 misconduct_town_ES4_2185862 AssaultValue=50（赔偿基数 50）
+[10:44:44.437] [ForcePlayAction] 帝国资深步兵 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_guard'→'as_human_warrior'
+[10:44:44.438] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国资深步兵 (Index:5, 距离:1.8m, 方位:西)"
+[10:44:44.442] [Brain-Receive] 帝国资深步兵(Idx=5) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
+[10:44:44.443] [Brain-Clear] 帝国资深步兵(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[10:44:44.443] [Brain-Enqueue] 帝国资深步兵(Idx=5) 入队 StayAction | 当前行为=null | 队列=0→1
+[10:44:44.444] [AI-Debug] Suspend 帝国资深步兵 (Idx=5) | 集合size=1 | 当前行为=null
+[10:44:44.444] [DisplayMessage] [Green] "从背后击晕了 帝国资深步兵！（7% ≤ 30 %）"
+[10:44:44.444] [Knockout] 亨利 knocked out 帝国资深步兵 (anim: act_shield_bash)
+[10:44:44.445] [Brain-Tick] 帝国资深步兵(Idx=5) 开始执行 StayAction | 队列剩余=0
+[10:45:29.978] [Knockout] 帝国熟练步兵: isChild=False, successRate=0.38, roll=0.76, success=False
+[10:45:29.979] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[10:45:30.383] [Assault] 帝国熟练步兵 身价=25 → 事件 misconduct_town_ES4_2185862 AssaultValue=75（赔偿基数 75）
+[10:45:30.383] [Knockout] Failed: 亨利 vs 帝国熟练步兵
+[10:45:30.383] [AddQuickInformation] "背后偷袭失手！你(活力2 控制4)不敌帝国熟练步兵(活力4 控制4)，胜算仅38 %"
+[10:45:30.384] [DisplayMessage] [Red] "帝国熟练步兵 察觉了你的意图，转身反击！（76% > 38 %）"
+[10:45:30.384] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国熟练步兵 (Index:3, 距离:0.7m, 方位:南)"
+[10:45:30.384] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[10:45:30.384] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
+[10:45:30.392] [BubbleSay] 帝国熟练步兵(Idx=3): "你！你敢打我？！"
+[10:45:30.392] [Brain-Clear] 帝国熟练步兵(Idx=3) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[10:45:30.393] [Brain-Enqueue] 帝国熟练步兵(Idx=3) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[10:45:30.393] [AI-Debug] Suspend 帝国熟练步兵 (Idx=3) | 集合size=2 | 当前行为=null
+[10:45:30.395] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Active
+[10:45:30.402] [RegisterWitness] 帝国熟练步兵 witnessed crime → WorldEvent misconduct_town_ES4_2185862 Stage → Active (suspect=player)
+[10:45:30.403] [Brain-Phase] 帝国熟练步兵(Idx=3) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔帝国熟练步兵] → 发送 'BecomeAlarmed'
+[10:45:30.403] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[10:45:30.404] [Brain-Tick] 帝国熟练步兵(Idx=3) 开始执行 FightEnemyAction | 队列剩余=0
+[10:45:30.405] [DisplayMessage] [Yellow] "帝国熟练步兵(Idx=3)  开始攻击 亨利！"
+[10:45:30.405] [CombatManager] RegisterCombatant: 帝国熟练步兵(Idx=3), total=1
+[10:45:46.925] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国熟练步兵 对 亨利 造成了16 点伤害"
+[10:45:46.933] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到16点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.43米/秒</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[10:45:51.749] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国熟练步兵 造成了45 点伤害"
+[10:45:51.749] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国熟练步兵 (Index:3, 距离:1.2m, 方位:西)"
+[10:45:51.749] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[10:45:51.749] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
+[10:45:51.751] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[10:45:51.751] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
+[10:45:51.754] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成45点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：1.05米/秒</Detail><Detail>吸收伤害：22</Detail>" | category=Combat
+[10:45:54.389] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国熟练步兵 造成了35 点伤害"
+[10:45:54.389] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国熟练步兵 (Index:3, 距离:1.6m, 方位:西)"
+[10:45:54.389] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[10:45:54.389] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
+[10:45:54.390] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成35点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：1.62米/秒</Detail><Detail>吸收伤害：19</Detail>" | category=Combat
+[10:45:54.391] [DisplayMessage] "[事件发送] 发送事件 'event_npc_surrender' 给 帝国熟练步兵 (Index:3, 距离:1.6m, 方位:西)"
+[10:45:54.391] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_npc_surrender' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[10:45:58.465] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国熟练步兵 对 亨利 造成了16 点伤害"
+[10:45:58.466] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到16点穿刺伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[10:46:00.399] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国熟练步兵 对 亨利 造成了17 点伤害"
+[10:46:00.400] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到17点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[10:46:02.000] [Detention] Player knocked out at 吕卡隆, case=misconduct_town_ES4_2185862
+[10:46:02.000] [DisplayMessage] [Red] "你被按在地上，武器被夺走了……"
+[10:46:02.003] [Detention] Requested at 吕卡隆 event=misconduct_town_ES4_2185862 fine=3506 days=2 | stage=Active firstQuote=0@Dormant lastQuote=0 escalations=[none]
+[10:46:02.005] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到17点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[10:46:02.007] [Brain-Tick] 帝国熟练步兵(Idx=3) 完成 FightEnemyAction
+[10:46:02.007] [CombatManager] UnregisterCombatant: 帝国熟练步兵(Idx=3), total=0
+[10:46:02.007] [CombatManager] EndFight: 帝国熟练步兵(Idx=3) restored to original team
+[10:46:02.008] [Brain-Alert] 帝国熟练步兵(Idx=3) ClearAllAlerts: 警戒值归零
+[10:46:02.008] [FightEnd] 帝国熟练步兵(Idx=3) 战斗结束，收起武器，且警戒值归零
+[10:46:02.011] [AI-Debug] Resume 帝国熟练步兵 (Idx=3) | 集合size=1
+[10:46:03.987] [Detention] EndMission → settlement menu
+[10:46:04.221] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+    标题: 被制住
+    正文: 你被人从地上拖起来，胳膊反剪在背后 —— 武器被踢到一边，围上来的人还在喘。 ⏎  ⏎ 带头的没跟你废话：钱赔了，这事就算了；不赔，就在牢房里待着，吕卡隆什么时候消气什么时候放人。
+    选项:
+      1. 赔钱了事 —— 交 3506<img src="General\Icons\Coin@2x" extend="8"> 罚金给吕卡隆的人。  [id=lwn_detention_pay_fine] 可点
+      2. 认罚 —— 在牢房里关2天。  [id=lwn_detention_accept] 可点
+[10:46:17.716] [GameMenu] ● 点击 menu=town 选项="赔钱了事 —— 交 3506<img src="General\Icons\Coin@2x" extend="8"> 罚金给吕卡隆的人。" [id=lwn_detention_pay_fine] @吕卡隆(城镇)
+[10:46:17.717] [DisplayMessage] "你支付了3506<img src="General\Icons\Coin@2x" extend="8">。"
+[10:46:17.717] [Detention] Fine paid: 3506 → 拉盖娅
+[10:46:17.718] [WorldEvent] misconduct_town_ES4_2185862 Stage: Active → Resolved
+[10:46:17.720] [Player] NinjaReport(resolved): ✅ 事件解决 · 吕卡隆
+[10:46:17.727] [WorldEvent] OnPlayerDetained: id=misconduct_town_ES4_2185862 paidFine=True → Resolved
+[10:46:17.731] [Detention] Menu shown: lwn_detention_release
+[10:46:17.731] [GameMenu] ▶ 打开 menu=lwn_detention_release @吕卡隆(城镇)
+    标题: 放人
+    正文: 钱货两清。按着你的手一只只松开，你的东西被丢回脚边。 ⏎  ⏎ 吕卡隆的人散了，这事算是了了。
+    选项:
+      1. 继续……  [id=lwn_detention_release_continue] 可点
+[10:46:19.323] [GameMenu] ● 点击 menu=lwn_detention_release 选项="继续……" [id=lwn_detention_release_continue] @吕卡隆(城镇)
+[10:46:19.347] [DisplayMessage] [Yellow] "罚金已付，这桩事了了。"
+[10:46:19.347] [Detention] Released (reason=fine, wasJailed=False)
+[10:46:19.348] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
     标题: 城镇中心
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
@@ -60,3 +138,27 @@
       7. 进入铁匠铺  [id=town_smithy] 可点
       8. 稍作等待  [id=town_wait] 可点
       9. 离开  [id=town_leave] 可点
+[10:46:21.335] [ShowInquiry] "✅ 吕卡隆 — 事件（已解决）" | "════ 事件已解决 ════
+
+✅ 吕卡隆 的事件已解决。
+
+——
+地点：吕卡隆
+类型：事件
+严重度：0/100
+加害方：亨利
+
+此事件已了结，不再需要你的介入。" | Btn1="(hidden)" Btn2="知道了"
+[10:46:21.348] [Player] ResolvedInquiry shown: "吕卡隆 — 事件"
+════ 事件已解决 ════
+
+✅ 吕卡隆 的事件已解决。
+
+——
+地点：吕卡隆
+类型：事件
+严重度：0/100
+加害方：亨利
+
+此事件已了结，不再需要你的介入。
+[10:46:22.196] [Player] ResolvedInquiry: '知道了' — 吕卡隆 Misconduct

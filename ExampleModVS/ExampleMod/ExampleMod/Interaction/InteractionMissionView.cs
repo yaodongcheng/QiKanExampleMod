@@ -1570,9 +1570,19 @@ namespace LivingWorldNpcs
                     await Task.Delay(400);
                 }
 
+                // ── 公共：无论成败，出手即是袭击，记账 + 第三方目击广播 ──
+                // 受害者始终 exclude：击晕场景玩家在背后，sight check 必然 false，
+                // 受害者通过直接事件（order_attack / event_agent_knocked_out）反应
+                AgentAIController.Instance?.RecordAssaultVictim(target);
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    target.Position, 25f, "WitnessCrime",
+                    exclude: new HashSet<Agent> { target },
+                    requireSight: true,
+                    Agent.Main, target);
+
                 if (knockSuccess)
                 {
-                    // ── 成功：目标倒地 + 击晕事件 + 目击广播 + 记账 ──
+                    // ── 成功：目标倒地 + 击晕事件 ──
                     if (target.IsActive())
                     {
                         AgentControlHelper.ForcePlayAction(target, "act_death_fall_front");
@@ -1581,14 +1591,6 @@ namespace LivingWorldNpcs
 
                     AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
 
-                    AgentAIController.Instance?.BroadcastEventInRange(
-                        target.Position, 25f, "WitnessCrime",
-                        exclude: new HashSet<Agent> { target },
-                        requireSight: true,
-                        Agent.Main, target);
-
-                    AgentAIController.Instance?.RecordAssaultVictim(target);
-
                     InformationManager.DisplayMessage(
                         new InformationMessage($"从背后击晕了 {targetName}！（{knockRoll * 100:F0}% ≤ {knockSuccessRate:P0}）", Colors.Green));
 
@@ -1596,7 +1598,7 @@ namespace LivingWorldNpcs
                 }
                 else if (isChild)
                 {
-                    // ── 小孩：100% 躲开，不反击 ──
+                    // ── 小孩：100% 躲开，不反击（目击广播已发，周围成人会反应）──
                     DebugLogger.Log($"[Knockout] Child dodged: {targetName}");
                     InformationManager.DisplayMessage(
                         new InformationMessage($"{targetName} 非常敏锐，躲开了你的攻击。", Colors.Gray));
@@ -1612,7 +1614,9 @@ namespace LivingWorldNpcs
                         new TextObject($"背后偷袭失手！你(活力{pVigor} 控制{pControl})不敌{targetName}(活力{tVigor} 控制{tControl})，胜算仅{knockSuccessRate:P0}"));
                     InformationManager.DisplayMessage(
                         new InformationMessage($"{targetName} 察觉了你的意图，转身反击！（{knockRoll * 100:F0}% > {knockSuccessRate:P0}）", Colors.Red));
-                    AgentAIController.Instance?.SendEventToAgent(target, "order_attack", Agent.Main);
+
+                    // 受害者直接进战斗（sight check 拦不住直接事件）
+                    AgentAIController.Instance?.SendEventToAgent(target, "event_agent_damaged", Agent.Main, target);
                 }
 
                 // 隐藏交互 UI，重置状态
