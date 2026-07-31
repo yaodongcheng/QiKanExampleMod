@@ -604,7 +604,8 @@ namespace LivingWorldNpcs
             }
             DebugLogger.Log(sb.ToString());
 
-            InformationManager.ShowInquiry(new InquiryData("大人：最新坊间传闻", sb.ToString(), true, false, "已阅", null, null, null));
+            // 已由 WorldEventNotificationController.OnCrimeDiscovered 的 NinjaReport 统一通知玩家，此处仅轻量飘字
+            InformationManager.DisplayMessage(new InformationMessage(sb.ToString()));
         }
 
         // 辅助方法：获取关系网 (代码略)

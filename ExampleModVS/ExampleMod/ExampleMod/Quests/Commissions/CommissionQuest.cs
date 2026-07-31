@@ -455,8 +455,8 @@ namespace LivingWorldNpcs
             // 动态变故检测
             ComplicationTable.CheckAndTrigger(_data, this);
 
-            // 旅途事件
-            JourneyEvents.TryTrigger(_data, this);
+            // 旅途事件，先屏蔽了，突然弹窗特别突兀
+            // JourneyEvents.TryTrigger(_data, this);
 
             // ── DecoyMission: 生存计时 ──
             if (_data.Category == CommissionCategory.DecoyMission)
