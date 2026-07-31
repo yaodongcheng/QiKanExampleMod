@@ -1744,12 +1744,10 @@ namespace LivingWorldNpcs
 
             int lootedGold = villageGold + clanGold;
 
-            // B. 构建物品列表 (ItemRoster)
-            ItemRoster lootRoster = new ItemRoster();
+            // B. 构建物品列表 (ItemRoster) —— 分武器/防具
+            ItemRoster weaponRoster = new ItemRoster();
+            ItemRoster armorRoster = new ItemRoster();
 
-            // 活人使用的是 SpawnEquipment 或者 Equipment，尸体也是。
-            // 注意：偷活人时，我们是在生成副本。如果你拿走了，NPC身上的视觉模型不会消失（除非写非常复杂的逻辑去剥离装备）
-            // 这里我们做"顺手牵羊"：你拿到了装备，但NPC还没发现自己丢了东西。
             var equipmentToInspect = targetAgent.SpawnEquipment;
             string itemsName = "";
             for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i < EquipmentIndex.NumEquipmentSetSlots; i++)
@@ -1757,10 +1755,17 @@ namespace LivingWorldNpcs
                 EquipmentElement element = equipmentToInspect[i];
                 if (!element.IsEmpty && element.Item != null)
                 {
-                    lootRoster.AddToCounts(element.Item, 1);
+                    bool isWeapon = i <= EquipmentIndex.Weapon3;
+                    if (isWeapon)
+                        weaponRoster.AddToCounts(element.Item, 1);
+                    else
+                        armorRoster.AddToCounts(element.Item, 1);
                     itemsName += element.Item.Name.ToString() + " ";
                 }
             }
+            ItemRoster lootRoster = new ItemRoster();
+            lootRoster.Add(weaponRoster);
+            lootRoster.Add(armorRoster);
             string partyItems = "";
             if(targetHero != null)
             {
@@ -1844,18 +1849,54 @@ namespace LivingWorldNpcs
 
                     if (!lootRoster.IsEmpty())
                     {
-                        // 推迟到库存界面关闭后再处理：标记已搜刮 + 精准扒掉被拿走的装备
-                        _pendingLootCorpse = targetAgent;
-                        _pendingLootRoster = lootRoster;
-                        _pendingIsStealing = isStealing;
-                        _pendingLootAllItems = CollectEquipmentItems(targetAgent);
-                        var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
-                        rosterDictionary.Add(PartyBase.MainParty, lootRoster);
-#if !MB2_V1212
-                        // InventoryManager not available in Latest; skip loot screen for now
-                        DebugLogger.Log("[InteractionMissionView] InventoryManager not available in this version, skipping loot screen");
+                        // 死人/昏迷者（!IsActive）走"自己挑选"→ProcessPendingLoot→UpdateSpawnEquipmentAndRefreshVisuals
+                        // 会在 native WieldInitialWeapons 操作 ragdoll 骨骼 → AccessViolation（详见 pitfalls.md）。
+                        // 解决：武器跳过不进库存（死人的武器引擎已掉在地上），只留防具进库存让玩家挑。
+                        // 这样 newEquipment 里没有武器，WieldInitialWeapons 空操作 → 安全。
+                        bool isDead = !targetAgent.IsActive();
+#if MB2_V1212
+                        if (isDead)
+                        {
+                            // 死人：武器引擎已掉在地上，不管；只把防具进库存让玩家挑
+                            if (!armorRoster.IsEmpty())
+                            {
+                                _pendingLootCorpse = targetAgent;
+                                _pendingLootRoster = armorRoster;        // 只放防具
+                                _pendingIsStealing = isStealing;
+                                _pendingLootAllItems = CollectEquipmentItems(targetAgent);
+                                var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
+                                rosterDictionary.Add(PartyBase.MainParty, armorRoster);
+                                InventoryManager.OpenScreenAsLoot(rosterDictionary);
+                            }
+                            else
+                            {
+                                // 没有防具，扒装备收尾（武器视觉清理）
+                                if (!isStealing)
+                                {
+                                    _lootedCorpses.Add(targetAgent);
+                                    StealManager.StripAgentEquipment(targetAgent, true, true);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            // 活人：正常库存界面（偷窃场景）
+                            _pendingLootCorpse = targetAgent;
+                            _pendingLootRoster = lootRoster;
+                            _pendingIsStealing = isStealing;
+                            _pendingLootAllItems = CollectEquipmentItems(targetAgent);
+                            var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
+                            rosterDictionary.Add(PartyBase.MainParty, lootRoster);
+                            InventoryManager.OpenScreenAsLoot(rosterDictionary);
+                        }
 #else
-                        InventoryManager.OpenScreenAsLoot(rosterDictionary);
+                        // Latest: InventoryManager.OpenScreenAsLoot 不可用，全部拿走
+                        MobileParty.MainParty.ItemRoster.Add(lootRoster);
+                        InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootRoster.Count} 件物品。", Colors.Green));
+                        if (!isStealing && IsUnconsciousAlive(targetAgent))
+                            StealManager.RecordUnconsciousLootTheft(targetAgent, CollectEquipmentItems(targetAgent), lootedGold);
+                        if (!isStealing) _lootedCorpses.Add(targetAgent);
+                        StealManager.StripAgentEquipment(targetAgent, true, true);
 #endif
                     }
                     else if (!isStealing)

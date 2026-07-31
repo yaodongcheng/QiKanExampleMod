@@ -1,7 +1,7 @@
-﻿[10:44:11.369] [WorldEventStore] Deserialized 1 events, 0 alerts
-[10:44:15.190] [Detention] Game menus registered
-[10:44:16.027] [AddQuickInformation] "成就被禁用！"
-[10:44:18.004] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+﻿[12:56:45.724] [WorldEventStore] Deserialized 1 events, 0 alerts
+[12:56:49.494] [Detention] Game menus registered
+[12:56:50.330] [AddQuickInformation] "成就被禁用！"
+[12:56:52.067] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
     标题: 城镇中心
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
@@ -14,151 +14,353 @@
       7. 进入铁匠铺  [id=town_smithy] 可点
       8. 稍作等待  [id=town_wait] 可点
       9. 离开  [id=town_leave] 可点
-[10:44:30.111] [GameMenu] ● 点击 menu=town 选项="前往主楼" [id=town_keep] @吕卡隆(城镇)
-[10:44:30.119] [GameMenu] ▶ 打开 menu=town_keep_bribe @吕卡隆(城镇)
-    标题: 主楼
-    正文: 守卫声称不可以随便放人进去。
+[12:56:53.986] [GameMenu] ● 点击 menu=town 选项="离开" [id=town_leave] @吕卡隆(城镇)
+[12:56:53.992] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 匹配到 0 个 owner: []（现存 0 个）
+[12:56:53.993] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 没有匹配的 owner（现存 0 个: []）
+[12:56:53.999] [GameMenu] ◀ 关闭 menu=town
+[12:57:00.363] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
+    标题: 村庄
+    正文: <a style="Link.Settlement" href="event:Settlement-village_ES3_2"><b>特维亚</b></a>附近的领地多为<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的一位执政官<a style="Link.Hero" href="event:Hero-lord_1_15"><b>法戎</b></a>所拥有。这个村庄的经济程度一般，人们和牲口看上去都健康强壮，村民们都忙于农活。
     选项:
-      1. 贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼  [id=town_keep_bribe_pay] 可点
-      2. 离开  [id=town_keep_bribe_back] 可点
-[10:44:31.791] [GameMenu] ● 点击 menu=town_keep_bribe 选项="贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼" [id=town_keep_bribe_pay] @吕卡隆(城镇)
-[10:44:31.798] [DisplayMessage] "你支付了800<img src="General\Icons\Coin@2x" extend="8">。"
-[10:44:31.799] [DisplayMessage] "你发现了维里娜"
-[10:44:31.799] [DisplayMessage] "你发现了维维安娜"
-[10:44:31.804] [GameMenu] ▶ 打开 menu=town_keep @吕卡隆(城镇)
-    标题: 主楼
-    正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。
+      1. 敌对行动  [id=hostile_action] 可点
+      2. 四处转转  [id=village_center] 可点
+      3. 招募士兵  [id=recruit_volunteers] 可点
+      4. 购买给养  [id=trade] 可点
+      5. 稍作等待  [id=village_wait] 可点
+      6. 离开  [id=leave] 可点
+[13:01:37.530] [GameMenu] ● 点击 menu=village 选项="四处转转" [id=village_center] @特维亚(村庄)
+[13:01:39.359] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       16       0        
+  cow        10       10       0        
+  hog        10       9        1        remove 1
+  goose      5        5        0        
+  chicken    16       15       1        remove 1
+  =========================================
+
+[13:01:39.367] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
+[13:01:39.370] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=97, 乡绅2人=136, 英雄1人=39, 村民54人=486), 箱子200第纳尔, 物资4种(过滤后)
+[13:01:39.373] [Chest] 锚点 '特维亚的加里托普斯' at (551.0961, 189.8186, 21.52596) → 正后方 0.7m 命中，相对偏移 (0.69, -0.13, 0.03)
+[13:01:39.390] [Chest] Spawned prefab 'bd_chest_c' at (551.7831, 189.6845, 21.55834) (scale=0.5)
+[13:01:39.391] [Chest] Visual highlight applied (warm gold tint)
+[13:01:39.391] [Chest] Spawned at (551.7831, 189.6845, 21.55834), context=Village, gold=200, items=4
+[13:02:01.725] [Knockout] 帝国农民: isChild=False, successRate=0.95, roll=0.62, success=True
+[13:02:01.726] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[13:02:02.129] [Assault] 帝国农民 身价=2 → 事件 misconduct_village_ES3_2_2185863_1 AssaultValue=2（赔偿基数 2）
+[13:02:02.138] [Brain-Receive] 特维亚的奥刻洛斯(Idx=3) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[13:02:02.141] [Brain-Clear] 特维亚的奥刻洛斯(Idx=3) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[13:02:02.141] [Brain-Enqueue] 特维亚的奥刻洛斯(Idx=3) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[13:02:02.143] [AI-Debug] Suspend 特维亚的奥刻洛斯 (Idx=3) | 集合size=1 | 当前行为=null
+[13:02:02.144] [ForcePlayAction] 帝国农民 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_villager_3'→'as_human_warrior'
+[13:02:02.146] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国农民 (Index:18, 距离:1.6m, 方位:东南)"
+[13:02:02.146] [Brain-Receive] 帝国农民(Idx=18) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
+[13:02:02.146] [Brain-Clear] 帝国农民(Idx=18) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[13:02:02.147] [Brain-Enqueue] 帝国农民(Idx=18) 入队 StayAction | 当前行为=null | 队列=0→1
+[13:02:02.147] [AI-Debug] Suspend 帝国农民 (Idx=18) | 集合size=2 | 当前行为=null
+[13:02:02.147] [DisplayMessage] [Green] "从背后击晕了 帝国农民！（62% ≤ 95 %）"
+[13:02:02.147] [Knockout] 亨利 knocked out 帝国农民 (anim: act_shield_bash)
+[13:02:02.148] [Brain-Tick] 特维亚的奥刻洛斯(Idx=3) 开始执行 ReactionDecisionAction | 队列剩余=0
+[13:02:02.149] [Brain-Tick] 帝国农民(Idx=18) 开始执行 StayAction | 队列剩余=0
+[13:02:02.181] [Brain-Phase] 特维亚的奥刻洛斯(Idx=3) 警戒上升: Normal → Cautious (警戒值=2.98) 因素=[Steal=2.98➔帝国农民] → 发送 'BecomeCautious'
+[13:02:02.181] [Brain-Receive] 特维亚的奥刻洛斯(Idx=3) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
+[13:02:02.193] [Placeholder] UNRESOLVED in '': ITEM
+[13:02:02.193] [BubbleSay] 特维亚的奥刻洛斯(Idx=3): "（惊呼）你这小子！你偷了{ITEM}！"
+[13:02:02.941] [ShowInquiry] "搜刮 帝国农民" | "你在 帝国农民 身上发现了些东西:简易束腰布衣 扎带皮靴 
+金币: 9 第纳尔
+" | Btn1="全部拿走" Btn2="自己挑选"
+[13:02:03.748] [DisplayMessage] [Yellow] "获得了 9 第纳尔。"
+[13:02:03.748] [DisplayMessage] [Green] "获得了 2 件物品。"
+[13:02:03.751] [TheftLedger] Recorded: cloth_tunic x1 by main_hero from village_ES3_2
+[13:02:03.751] [TheftLedger] Recorded: strapped_leather_boots x1 by main_hero from village_ES3_2
+[13:02:03.752] [TheftLedger] Recorded: gold x9 by main_hero from village_ES3_2
+[13:02:03.752] [LootTheft] Witness system DISABLED — treating as no witnesses.
+[13:02:03.752] [LootTheft] 搜刮 帝国农民：无人目击。
+[13:02:03.752] [DarkTheft] Unwitnessed: 简易束腰布衣 → pending misconduct_village_ES3_2_2185863_1 stays Dormant
+[13:02:03.754] [DarkTheft] Unwitnessed: 扎带皮靴 → pending misconduct_village_ES3_2_2185863_1 stays Dormant
+[13:02:03.754] [DarkTheft] Unwitnessed: 9 第纳尔 → pending misconduct_village_ES3_2_2185863_1 stays Dormant
+[13:02:04.868] [WorldEvent] New event: Misconduct id=misconduct_village_ES3_2_2185863_1 settlement=village_ES3_2 items=[cloth_tunicx1, strapped_leather_bootsx1, goldx9] assault=[帝国农民:2] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=0 occurredDay=91077.63
+[13:02:06.850] [GameMenu] ● 点击 menu=village 选项="离开" [id=leave] @特维亚(村庄)
+[13:02:06.852] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[13:02:06.852] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[13:02:06.853] [GameMenu] ◀ 关闭 menu=village
+[13:02:10.659] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
+[13:02:12.496] [WorldEvent] ProcessDaily: 2 active event(s), day=91077.87
+[13:02:12.497] [WorldEvent] ProcessDaily: id=misconduct_town_ES4_2185862 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91077.87 overnight=False
+[13:02:12.499] [WorldEvent] ProcessDaily: id=misconduct_village_ES3_2_2185863_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91077.87 overnight=False
+[13:02:14.457] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
+[13:02:22.796] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
+[13:02:27.672] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1596"><b>狼皮部落的埃德温</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_17"><b>阿拉德维尔</b></a>俘虏。"
+[13:02:32.069] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
+[13:02:32.500] [WorldEvent] ProcessDaily: 2 active event(s), day=91078.87
+[13:02:32.500] [WorldEvent] ProcessDaily: id=misconduct_town_ES4_2185862 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91078.87 overnight=True
+[13:02:32.502] [Player] NinjaReport(discovered): ⚠ 吕卡隆 · 东窗事发 — 少了一件啤酒、一件artisan_beer等20项财物
+[13:02:32.504] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Emerging
+[13:02:32.505] [WorldEvent] ProcessDaily: id=misconduct_village_ES3_2_2185863_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91078.87 overnight=True
+[13:02:32.505] [Player] NinjaReport(discovered): ⚠ 特维亚 · 东窗事发 — 帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物
+[13:02:32.506] [WorldEvent] misconduct_village_ES3_2_2185863_1 Stage: Dormant → Emerging
+[13:02:32.506] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185863_1 stage=Emerging settlement=特维亚 — refreshing issue signals
+[13:02:32.509] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185863_1 stage=Emerging
+[13:02:34.529] [ShowInquiry] "东窗事发" | "暗探来报——特维亚的村民发现帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物，村长正在挨家挨户问话，看样子是要查个水落石出。
+
+好在暂时没人把你和这事联系起来。你可以回去介入——自首赔偿、帮忙"调查"、或者设法把嫌疑推到别人头上；也可以从此绕着特维亚走。" | Btn1="知道了" Btn2="(hidden)"
+[13:02:34.727] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1599"><b>狼皮部落的乌德里斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_21"><b>卡费德</b></a>俘虏。"
+[13:02:37.052] [AnimalSync] Topped up 羊: roster 11 → 16 (natural=16 stolen=0)
+[13:02:37.052] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
+[13:02:37.052] [AnimalSync] Topped up 肉猪: roster 4 → 10 (natural=10 stolen=0)
+[13:02:37.052] [AnimalSync] Topped up 鹅: roster 2 → 5 (natural=5 stolen=0)
+[13:02:37.052] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
+[13:02:37.053] [AnimalSync] 特维亚: topped up 30 animal(s) in ItemRoster
+[13:02:37.067] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
+    标题: 村庄
+    正文: <a style="Link.Settlement" href="event:Settlement-village_ES3_2"><b>特维亚</b></a>附近的领地多为<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的一位执政官<a style="Link.Hero" href="event:Hero-lord_1_15"><b>法戎</b></a>所拥有。这个村庄的经济程度一般，人们和牲口看上去都健康强壮，村民们都忙于农活。
     选项:
-      1. 前往领主大厅  [id=town_lords_hall] 可点
-      2. 前往地牢  [id=town_lords_hall_go_to_dungeon] 可点
-      3. 返回城镇中心  [id=town_castle_back] 可点
-[10:44:33.088] [GameMenu] ● 点击 menu=town_keep 选项="前往地牢" [id=town_lords_hall_go_to_dungeon] @吕卡隆(城镇)
-[10:44:33.092] [GameMenu] ▶ 打开 menu=town_keep_dungeon @吕卡隆(城镇)
-    标题: 地牢
-    正文: 这里没有俘虏。
-    选项:
-      1. 进入地牢  [id=town_prison] 可点
-      2. 离开  [id=town_keep_dungeon_back] 可点
-[10:44:33.975] [GameMenu] ● 点击 menu=town_keep_dungeon 选项="进入地牢" [id=town_prison] @吕卡隆(城镇)
-[10:44:34.768] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → 地牢里
-[10:44:44.025] [Knockout] 帝国资深步兵: isChild=False, successRate=0.30, roll=0.07, success=True
-[10:44:44.027] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[10:44:44.432] [Assault] 帝国资深步兵 身价=50 → 事件 misconduct_town_ES4_2185862 AssaultValue=50（赔偿基数 50）
-[10:44:44.437] [ForcePlayAction] 帝国资深步兵 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_guard'→'as_human_warrior'
-[10:44:44.438] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国资深步兵 (Index:5, 距离:1.8m, 方位:西)"
-[10:44:44.442] [Brain-Receive] 帝国资深步兵(Idx=5) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
-[10:44:44.443] [Brain-Clear] 帝国资深步兵(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[10:44:44.443] [Brain-Enqueue] 帝国资深步兵(Idx=5) 入队 StayAction | 当前行为=null | 队列=0→1
-[10:44:44.444] [AI-Debug] Suspend 帝国资深步兵 (Idx=5) | 集合size=1 | 当前行为=null
-[10:44:44.444] [DisplayMessage] [Green] "从背后击晕了 帝国资深步兵！（7% ≤ 30 %）"
-[10:44:44.444] [Knockout] 亨利 knocked out 帝国资深步兵 (anim: act_shield_bash)
-[10:44:44.445] [Brain-Tick] 帝国资深步兵(Idx=5) 开始执行 StayAction | 队列剩余=0
-[10:45:29.978] [Knockout] 帝国熟练步兵: isChild=False, successRate=0.38, roll=0.76, success=False
-[10:45:29.979] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[10:45:30.383] [Assault] 帝国熟练步兵 身价=25 → 事件 misconduct_town_ES4_2185862 AssaultValue=75（赔偿基数 75）
-[10:45:30.383] [Knockout] Failed: 亨利 vs 帝国熟练步兵
-[10:45:30.383] [AddQuickInformation] "背后偷袭失手！你(活力2 控制4)不敌帝国熟练步兵(活力4 控制4)，胜算仅38 %"
-[10:45:30.384] [DisplayMessage] [Red] "帝国熟练步兵 察觉了你的意图，转身反击！（76% > 38 %）"
-[10:45:30.384] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国熟练步兵 (Index:3, 距离:0.7m, 方位:南)"
-[10:45:30.384] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
-[10:45:30.384] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
-[10:45:30.392] [BubbleSay] 帝国熟练步兵(Idx=3): "你！你敢打我？！"
-[10:45:30.392] [Brain-Clear] 帝国熟练步兵(Idx=3) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[10:45:30.393] [Brain-Enqueue] 帝国熟练步兵(Idx=3) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
-[10:45:30.393] [AI-Debug] Suspend 帝国熟练步兵 (Idx=3) | 集合size=2 | 当前行为=null
-[10:45:30.395] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Active
-[10:45:30.402] [RegisterWitness] 帝国熟练步兵 witnessed crime → WorldEvent misconduct_town_ES4_2185862 Stage → Active (suspect=player)
-[10:45:30.403] [Brain-Phase] 帝国熟练步兵(Idx=3) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[AttackAlly=3.00➔帝国熟练步兵] → 发送 'BecomeAlarmed'
-[10:45:30.403] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
-[10:45:30.404] [Brain-Tick] 帝国熟练步兵(Idx=3) 开始执行 FightEnemyAction | 队列剩余=0
-[10:45:30.405] [DisplayMessage] [Yellow] "帝国熟练步兵(Idx=3)  开始攻击 亨利！"
-[10:45:30.405] [CombatManager] RegisterCombatant: 帝国熟练步兵(Idx=3), total=1
-[10:45:46.925] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国熟练步兵 对 亨利 造成了16 点伤害"
-[10:45:46.933] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到16点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.43米/秒</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
-[10:45:51.749] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国熟练步兵 造成了45 点伤害"
-[10:45:51.749] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国熟练步兵 (Index:3, 距离:1.2m, 方位:西)"
-[10:45:51.749] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[10:45:51.749] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
-[10:45:51.751] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[10:45:51.751] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
-[10:45:51.754] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成45点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：1.05米/秒</Detail><Detail>吸收伤害：22</Detail>" | category=Combat
-[10:45:54.389] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 亨利 对 帝国熟练步兵 造成了35 点伤害"
-[10:45:54.389] [DisplayMessage] "[事件发送] 发送事件 'event_agent_damaged' 给 帝国熟练步兵 (Index:3, 距离:1.6m, 方位:西)"
-[10:45:54.389] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[10:45:54.389] [DisplayMessage] [Yellow] "AgentBrain - event_agent_damaged: 亨利 对 帝国熟练步兵 造成了伤害"
-[10:45:54.390] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成35点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：1.62米/秒</Detail><Detail>吸收伤害：19</Detail>" | category=Combat
-[10:45:54.391] [DisplayMessage] "[事件发送] 发送事件 'event_npc_surrender' 给 帝国熟练步兵 (Index:3, 距离:1.6m, 方位:西)"
-[10:45:54.391] [Brain-Receive] 帝国熟练步兵(Idx=3) 收到事件 'event_npc_surrender' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
-[10:45:58.465] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国熟练步兵 对 亨利 造成了16 点伤害"
-[10:45:58.466] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到16点穿刺伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[10:46:00.399] [DisplayMessage] [Yellow] "AttackTriggerMissionLogic - OnRegisterBlow: 帝国熟练步兵 对 亨利 造成了17 点伤害"
-[10:46:00.400] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到17点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[10:46:02.000] [Detention] Player knocked out at 吕卡隆, case=misconduct_town_ES4_2185862
-[10:46:02.000] [DisplayMessage] [Red] "你被按在地上，武器被夺走了……"
-[10:46:02.003] [Detention] Requested at 吕卡隆 event=misconduct_town_ES4_2185862 fine=3506 days=2 | stage=Active firstQuote=0@Dormant lastQuote=0 escalations=[none]
-[10:46:02.005] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到17点挥砍伤害。<Detail>命中部位：头</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
-[10:46:02.007] [Brain-Tick] 帝国熟练步兵(Idx=3) 完成 FightEnemyAction
-[10:46:02.007] [CombatManager] UnregisterCombatant: 帝国熟练步兵(Idx=3), total=0
-[10:46:02.007] [CombatManager] EndFight: 帝国熟练步兵(Idx=3) restored to original team
-[10:46:02.008] [Brain-Alert] 帝国熟练步兵(Idx=3) ClearAllAlerts: 警戒值归零
-[10:46:02.008] [FightEnd] 帝国熟练步兵(Idx=3) 战斗结束，收起武器，且警戒值归零
-[10:46:02.011] [AI-Debug] Resume 帝国熟练步兵 (Idx=3) | 集合size=1
-[10:46:03.987] [Detention] EndMission → settlement menu
-[10:46:04.221] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
-    标题: 被制住
-    正文: 你被人从地上拖起来，胳膊反剪在背后 —— 武器被踢到一边，围上来的人还在喘。 ⏎  ⏎ 带头的没跟你废话：钱赔了，这事就算了；不赔，就在牢房里待着，吕卡隆什么时候消气什么时候放人。
-    选项:
-      1. 赔钱了事 —— 交 3506<img src="General\Icons\Coin@2x" extend="8"> 罚金给吕卡隆的人。  [id=lwn_detention_pay_fine] 可点
-      2. 认罚 —— 在牢房里关2天。  [id=lwn_detention_accept] 可点
-[10:46:17.716] [GameMenu] ● 点击 menu=town 选项="赔钱了事 —— 交 3506<img src="General\Icons\Coin@2x" extend="8"> 罚金给吕卡隆的人。" [id=lwn_detention_pay_fine] @吕卡隆(城镇)
-[10:46:17.717] [DisplayMessage] "你支付了3506<img src="General\Icons\Coin@2x" extend="8">。"
-[10:46:17.717] [Detention] Fine paid: 3506 → 拉盖娅
-[10:46:17.718] [WorldEvent] misconduct_town_ES4_2185862 Stage: Active → Resolved
-[10:46:17.720] [Player] NinjaReport(resolved): ✅ 事件解决 · 吕卡隆
-[10:46:17.727] [WorldEvent] OnPlayerDetained: id=misconduct_town_ES4_2185862 paidFine=True → Resolved
-[10:46:17.731] [Detention] Menu shown: lwn_detention_release
-[10:46:17.731] [GameMenu] ▶ 打开 menu=lwn_detention_release @吕卡隆(城镇)
-    标题: 放人
-    正文: 钱货两清。按着你的手一只只松开，你的东西被丢回脚边。 ⏎  ⏎ 吕卡隆的人散了，这事算是了了。
-    选项:
-      1. 继续……  [id=lwn_detention_release_continue] 可点
-[10:46:19.323] [GameMenu] ● 点击 menu=lwn_detention_release 选项="继续……" [id=lwn_detention_release_continue] @吕卡隆(城镇)
-[10:46:19.347] [DisplayMessage] [Yellow] "罚金已付，这桩事了了。"
-[10:46:19.347] [Detention] Released (reason=fine, wasJailed=False)
-[10:46:19.348] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
-    标题: 城镇中心
-    正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
-    选项:
-      1. 在镇中心附近转转  [id=town_streets] 可点
-      2. 前往主楼  [id=town_keep] 可点
-      3. 前往竞技场  [id=town_arena] 可点
-      4. 前往酒馆区  [id=town_backstreet] 可点
-      5. 招募士兵  [id=recruit_volunteers] 可点
-      6. 交易  [id=trade] 可点
-      7. 进入铁匠铺  [id=town_smithy] 可点
-      8. 稍作等待  [id=town_wait] 可点
-      9. 离开  [id=town_leave] 可点
-[10:46:21.335] [ShowInquiry] "✅ 吕卡隆 — 事件（已解决）" | "════ 事件已解决 ════
+      1. 敌对行动  [id=hostile_action] 可点
+      2. 四处转转  [id=village_center] 可点
+      3. 招募士兵  [id=recruit_volunteers] 可点
+      4. 购买给养  [id=trade] 可点
+      5. 稍作等待  [id=village_wait] 可点
+      6. 离开  [id=leave] 可点
+[13:02:51.388] [AI-Debug] Resume 特维亚的奥刻洛斯 (Idx=3) | 集合size=1
+[13:02:51.388] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       16       0        
+  cow        10       10       0        
+  hog        10       10       0        
+  goose      5        5        0        
+  chicken    16       16       0        
+  =========================================
 
-✅ 吕卡隆 的事件已解决。
+[13:02:51.388] [Chest] 锚点 '特维亚的加里托普斯' at (554.2104, 326.8709, 8.111679) → 正后方 0.7m 命中，相对偏移 (0.25, 0.66, 0.00)
+[13:02:51.394] [Chest] Spawned prefab 'bd_chest_c' at (554.4569, 327.5261, 8.114143) (scale=0.5)
+[13:02:51.394] [Chest] Visual highlight applied (warm gold tint)
+[13:02:51.394] [Chest] Spawned at (554.4569, 327.5261, 8.114143), context=Village, gold=200, items=4
+[13:02:51.396] [ConvLock] Acquire by 特维亚的加里托普斯(Idx=2) | reason=MissionStartPrefix
+[13:02:51.453] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
+[13:02:51.478] [ConvEntry] FindOnGoing(village_ES3_2) → evt=misconduct_village_ES3_2_2185863_1 stage=Emerging assault=[帝国农民:2] pendingId=misconduct_village_ES3_2_2185863_1 pendingStage=Emerging pendingAssault=[帝国农民:2]
+[13:02:51.478] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[13:02:51.478] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[13:02:51.480] [ConvEntry] BuildScript: partner=特维亚的加里托普斯 partnerStringId=CharacterObject_2909 agent=特维亚的加里托普斯 agentIdx=2 character=特维亚的加里托普斯 characterStringId=CharacterObject_2909 evtId=misconduct_village_ES3_2_2185863_1 trigger=Normal confrontation=Deter triggerAction=Crouching
+[13:02:51.482] [Placeholder][对话预填充] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
+[13:02:51.482] [Placeholder][对话预填充] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}出事了——{DiscoveryFacts}。{InvestigationProgressWord}。{WitnessCountWord}，…" → "（冷淡地）昨儿特维亚出事了——帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
+[13:02:51.484] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子村里丢了一件简易束腰布衣、一件扎带皮靴等3项财物，市值308第纳尔，一直没找到是谁干的。今天你把帝国农民打晕了，身价2第纳尔——既然抓着的是你，两笔账一起算。既然你自己认了，闹事按规矩罚2倍，一共434第纳尔。你认不认？"
+[13:02:51.484] [Placeholder][对话预填充] NpcLine: "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" → "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。"
+[13:02:51.484] [Placeholder][对话预填充] PlayerLine: "行，就这个数——217第纳尔。" → "行，就这个数——217第纳尔。"
+[13:02:51.484] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[13:02:51.484] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[0] id=injectedStart NpcLine="（冷淡地）昨儿特维亚出事了——帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "是我干的。" → INTENT:Confess | NextNodeOnSuccess=confess
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "我可以帮忙查查是谁干的。" → INTENT:Investigate | NextNodeOnSuccess=discovery_accept_ack
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "我还有事。" → INTENT:WalkAway | NextNodeOnSuccess=discovery_decline_ack
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[1] id=confess NpcLine="你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我愿意赔。你说个数。" → NONE | NextNodeOnSuccess=restitution_demand
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "开个玩笑……刚才是我胡说的" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=charm_ok | NextNodeOnFail=charm_fail
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "转身就走" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[2] id=restitution_demand NpcLine="" [Lazy]
+[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[3] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[4] id=continue_chat NpcLine="还有什么别的想说的吗?"
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[5] id=farewell NpcLine="" [Lazy]
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[6] id=restitution_haggle_ok NpcLine="……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" [Lazy]
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就这个数——217第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[7] id=restitution_refuse_warn NpcLine="" [Lazy]
+[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[8] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[9] id=charm_ok NpcLine="……说清楚？好，老夫倒要听听。"
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[10] id=charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[11] id=discovery_accept_ack NpcLine="拜托了！查出来了老夫必有重谢。"
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[12] id=discovery_decline_ack NpcLine="那你这小子忙吧……老夫们自己想办法。"
+[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:02:51.490] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_injectedStart' | priority=125 | owner=crime_misconduct_village_ES3_2_2185863_1_v0
+[13:02:51.492] [ConvCondition] Building condition for intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" actionParam=(null)
+[13:02:51.492] [ConvCondition] Building condition for intent=WalkAway playerLine="转身就走" actionParam=(null)
+[13:02:51.493] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[13:02:51.493] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[13:02:51.493] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——217第纳尔。" actionParam=haggle
+[13:02:51.493] [ConvCondition] Building condition for intent=Confess playerLine="是我干的。" actionParam=(null)
+[13:02:51.493] [ConvCondition] Building condition for intent=Investigate playerLine="我可以帮忙查查是谁干的。" actionParam=(null)
+[13:02:51.493] [ConvCondition] Building condition for intent=WalkAway playerLine="我还有事。" actionParam=(null)
+[13:02:51.493] [ConvCondition] Building condition for intent=WalkAway playerLine="我得走了。" actionParam=(null)
+[13:02:51.493] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_village_ES3_2_2185863_1 stage=Emerging trigger=Normal partner=特维亚的加里托普斯 nodes=13
+[13:02:52.533] [VanillaDialog] Token='lord_meet_player_response' Hero=特维亚的加里托普斯 | Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[13:02:52.533] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[13:02:52.539] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
+[13:02:53.481] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
+[13:02:55.301] [VanillaDialog] Token='hero_main_options' Hero=特维亚的加里托普斯 | Options (2): 村长，听说特维亚出了点事？ | 我现在得走了。
+[13:02:55.301] [VanillaDialog] Player says: "村长，听说特维亚出了点事？"
+[13:02:55.302] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "（冷淡地）昨儿特维亚出事了——帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
+[13:02:55.303] [ConvCondition] intent=Confess playerLine="是我干的。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[13:02:55.303] [ConvCondition] intent=Investigate playerLine="我可以帮忙查查是谁干的。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[13:02:55.303] [ConvCondition] intent=WalkAway playerLine="我还有事。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[13:03:08.653] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_atk_10' Hero=特维亚的加里托普斯 | Options (3): [自首]是我干的。 | [接案]我可以帮忙查查是谁干的。 | [离开]我还有事。
+[13:03:08.655] [Accountability] Player accepted investigation quest for misconduct_village_ES3_2_2185863_1
+[13:03:08.656] [CommissionGen] Accountability Investigation quest: hero=特维亚的加里托普斯 event=misconduct_village_ES3_2_2185863_1 stage=Emerging reward=150
+[13:03:08.658] [CommissionQuest] OnStartQuest: 调查：特维亚刑案 narrativePhase=False questId=crime_misconduct_village_ES3_2_2185863_1
+[13:03:08.659] [CommissionQuest] Full startup: giver=特维亚的加里托普斯 reward=150 deposit=30 days=5 tier=Basic
+[13:03:08.661] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
+[13:03:08.663] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
+[13:03:08.663] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
+[13:03:08.663] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
+[13:03:08.664] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
+[13:03:08.664] [CommissionQuest] OnStartQuest DONE: category=Investigation giver=特维亚的加里托普斯 questId=crime_misconduct_village_ES3_2_2185863_1
+[13:03:08.664] [CommissionQuest] RegisterEvents: category=Investigation questId=crime_misconduct_village_ES3_2_2185863_1
+[13:03:08.666] [AddQuickInformation] "任务激活：调查：特维亚刑案"
+[13:03:08.666] [QuestStart] CommissionQuest "调查：特维亚刑案" | giver=特维亚的加里托普斯 | IsOngoing=True | RewardGold=150
+[13:03:08.667] [CommissionHubIssue] GenerateIssueQuest: crime_misconduct_village_ES3_2_2185863_1 category=Investigation giver=特维亚的加里托普斯
+[13:03:08.667] [VanillaDialog] Player says: "[接案]我可以帮忙查查是谁干的。"
+[13:03:08.667] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "拜托了！查出来了老夫必有重谢。"
+[13:03:10.253] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_atk_11' Hero=特维亚的加里托普斯 | Options (1): 嗯…
+[13:03:10.253] [VanillaDialog] Player says: "嗯…"
+[13:03:10.253] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "还有什么别的想说的吗?"
+[13:03:10.253] [ConvCondition] intent=WalkAway playerLine="我得走了。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[13:03:10.918] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_atk_13' Hero=特维亚的加里托普斯 | Options (1): [离开]我得走了。
+[13:03:10.919] [VanillaDialog] Player says: "[离开]我得走了。"
+[13:03:10.919] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "快去查，有消息了来告诉老夫。"
+[13:03:11.572] [ConvLock] Release by 特维亚的加里托普斯(Idx=2) | reason=EndConversation
+[13:03:11.572] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185863_1_CharacterObject_2909_Emerging_1_2_3 lastTag=crime_misconduct_village_ES3_2_2185863_1
+[13:03:11.572] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 1 个 owner: [crime_misconduct_village_ES3_2_2185863_1(crime_misconduct_village_ES3_2_2185863_1_v0)]（现存 1 个）
+[13:03:11.572] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 已清理 owner BaseLabel="crime_misconduct_village_ES3_2_2185863_1" FileName="crime_misconduct_village_ES3_2_2185863_1_v0"
+[13:03:11.572] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 清理完毕，剩余注入项 0 个: []
+[13:03:11.573] [ConvEnd] Haggle flag cleared for misconduct_village_ES3_2_2185863_1
+[13:03:15.234] 
+══════════════════════════════════════
+📋 [QuestJournal] 任务: "建立你的家族" [MainQuest] [Tracked]
+   类型: RebuildPlayerClanQuest
+   委托人: ?
+   剩余天数:  天
+   IsOngoing=True | IsTrackEnabled=True
+   ── 阶段日志 (5 条) ──
+   [0] 卡拉迪亚大陆危机四伏，同时又充满机遇。你需要壮大自己的家族来面对前方的挑战。
+你哥哥告诉你，实现这个目标有很多途径，但是都需要金钱。贸易是赚钱的一种方法，另一种则是去战斗，再到城里卖掉俘获的强盗。无论选择何种途径，独自行动都会容易让你成为他人的猎物。
+你可以到村庄或城镇向当地要人招募一些人手，不过在他们准许你招募更精锐的战士前，也许会让你先帮几个忙。
+通常来讲，你也可以在卡拉迪亚的酒馆里找到更多有个性的人物。但是这些人更认可名门望族。
+       日期: 2天之前
+   [1] 赚1000第纳尔
+       日期: 2天之前 | ✅
+       📌 子任务: 第纳尔 2000/2000 (2000/2000)
+   [2] 将你的部队扩大到20人。
+       日期: 2天之前
+       📌 子任务: 当前部队规模 7/20 (7/20)
+   [3] 家族等级达到 1 级
+       日期: 2天之前
+       📌 子任务: 声望 5/50 (5/50)
+   [4] 雇佣1名同伴
+       日期: 2天之前 | 🔚
+       📌 子任务: 雇佣的同伴 0/1 (0/1)
+══════════════════════════════════════
+[13:03:16.092] 
+══════════════════════════════════════
+📋 [QuestJournal] 任务: "调查：特维亚刑案" [Tracked]
+   类型: CommissionQuest
+   委托人: 特维亚的加里托普斯
+   剩余天数:  天
+   IsOngoing=True | IsTrackEnabled=True
+   ── 阶段日志 (5 条) ──
+   [0] 【委托】调查：特维亚刑案
+委托人：特维亚的加里托普斯
+报酬：150 第纳尔 | 定金：30
+期限：6 天
+在案发定居点附近搜索或与村民交谈可推进调查。
+       日期: 今天
+   [1] 第二步：搜集线索，找出真凶
+       日期: 今天
+       📌 子任务: 完成度 0/1 (0/1)
+   [2] 定金 30 第纳尔已到账。
+       日期: 今天
+   [3] 前往 特维亚 的当地附近搜集线索。帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物，暂时无人目击。与当地人交谈或回现场调查，找出是谁干的。
+       日期: 今天
+   [4] 提示：调查窗口约5天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。
+       日期: 今天 | 🔚
+══════════════════════════════════════
+[13:03:27.286] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       16       0        
+  cow        10       10       0        
+  hog        10       10       0        
+  goose      5        5        0        
+  chicken    16       16       0        
+  =========================================
 
-——
-地点：吕卡隆
-类型：事件
-严重度：0/100
-加害方：亨利
-
-此事件已了结，不再需要你的介入。" | Btn1="(hidden)" Btn2="知道了"
-[10:46:21.348] [Player] ResolvedInquiry shown: "吕卡隆 — 事件"
-════ 事件已解决 ════
-
-✅ 吕卡隆 的事件已解决。
-
-——
-地点：吕卡隆
-类型：事件
-严重度：0/100
-加害方：亨利
-
-此事件已了结，不再需要你的介入。
-[10:46:22.196] [Player] ResolvedInquiry: '知道了' — 吕卡隆 Misconduct
+[13:03:27.287] [Chest] 锚点 '特维亚的加里托普斯' at (563.1435, 279.7509, 10.87698) → 正后方 0.7m 命中，相对偏移 (0.25, 0.66, -0.01)
+[13:03:27.343] [Chest] Spawned prefab 'bd_chest_c' at (563.3898, 280.4061, 10.87074) (scale=0.5)
+[13:03:27.343] [Chest] Visual highlight applied (warm gold tint)
+[13:03:27.343] [Chest] Spawned at (563.3898, 280.4061, 10.87074), context=Village, gold=200, items=4
+[13:03:27.343] [ConvLock] Acquire by 特维亚的加里托普斯(Idx=2) | reason=MissionStartPrefix
+[13:03:27.367] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "亨利..."
+[13:03:27.367] [ConvEntry] FindOnGoing(village_ES3_2) → evt=misconduct_village_ES3_2_2185863_1 stage=Emerging assault=[帝国农民:2] pendingId=misconduct_village_ES3_2_2185863_1 pendingStage=Emerging pendingAssault=[帝国农民:2]
+[13:03:27.367] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[13:03:27.367] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[13:03:27.368] [ConvEntry] BuildScript: partner=特维亚的加里托普斯 partnerStringId=CharacterObject_2909 agent=特维亚的加里托普斯 agentIdx=2 character=特维亚的加里托普斯 characterStringId=CharacterObject_2909 evtId=misconduct_village_ES3_2_2185863_1 trigger=Normal confrontation=Deter triggerAction=Crouching
+[13:03:27.368] [Placeholder][对话预填充] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
+[13:03:27.368] [Placeholder][对话预填充] EntryOption: "关于{TargetSettlementName}那个案子……" → "关于特维亚那个案子……"
+[13:03:27.370] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子村里丢了一件简易束腰布衣、一件扎带皮靴等3项财物，市值308第纳尔，一直没找到是谁干的。今天你把帝国农民打晕了，身价2第纳尔——既然抓着的是你，两笔账一起算。既然你自己认了，闹事按规矩罚2倍，一共434第纳尔。你认不认？"
+[13:03:27.370] [Placeholder][对话预填充] NpcLine: "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" → "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。"
+[13:03:27.370] [Placeholder][对话预填充] PlayerLine: "行，就这个数——217第纳尔。" → "行，就这个数——217第纳尔。"
+[13:03:27.370] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[13:03:27.370] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[13:03:27.370] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[0] id=injectedStart NpcLine="怎么样，查到什么了吗？"
+[13:03:27.370] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "是附近藏身处的强盗干的！" → INTENT:FrameSuspect Param=bandit [SkillCheck] | NextNodeOnSuccess=frame_bandit_ok | NextNodeOnFail=frame_bandit_fail
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "还没查到什么。" → NONE | NextNodeOnSuccess=report_nothing_ack
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "我还有事。" → INTENT:WalkAway | NextNodeOnSuccess=report_leave_ack
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[3] "（低头）……是我干的。" → INTENT:Confess | NextNodeOnSuccess=confess
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[1] id=frame_bandit_ok NpcLine="藏身处的强盗？好，那就是他们了！老夫这就张罗悬赏。"
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[2] id=continue_chat NpcLine="还有什么别的想说的吗?"
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
+[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[3] id=farewell NpcLine="" [Lazy]
+[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[4] id=frame_bandit_fail NpcLine="强盗？光凭你这小子一句话可不行……再去查查。"
+[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[5] id=report_nothing_ack NpcLine="那你再去看看。刚开始查。"
+[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[6] id=report_leave_ack NpcLine="快去查，有消息了来告诉老夫。"
+[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[7] id=confess NpcLine="你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我愿意赔。你说个数。" → NONE | NextNodeOnSuccess=restitution_demand
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "开个玩笑……刚才是我胡说的" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=charm_ok | NextNodeOnFail=charm_fail
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "转身就走" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[8] id=restitution_demand NpcLine="" [Lazy]
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[9] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[10] id=restitution_haggle_ok NpcLine="……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" [Lazy]
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就这个数——217第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[11] id=restitution_refuse_warn NpcLine="" [Lazy]
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[12] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[13] id=charm_ok NpcLine="……说清楚？好，老夫倒要听听。"
+[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.376] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[14] id=charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
+[13:03:27.376] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[13:03:27.376] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_village_ES3_2_2185863_1_v1_injectedStart' | priority=125 | owner=crime_misconduct_village_ES3_2_2185863_1_v1
+[13:03:27.376] [ConvCondition] Building condition for intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" actionParam=(null)
+[13:03:27.376] [ConvCondition] Building condition for intent=WalkAway playerLine="转身就走" actionParam=(null)
+[13:03:27.376] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[13:03:27.376] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[13:03:27.376] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——217第纳尔。" actionParam=haggle
+[13:03:27.376] [ConvCondition] Building condition for intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" actionParam=bandit
+[13:03:27.376] [ConvCondition] Building condition for intent=WalkAway playerLine="我还有事。" actionParam=(null)
+[13:03:27.376] [ConvCondition] Building condition for intent=Confess playerLine="（低头）……是我干的。" actionParam=(null)
+[13:03:27.377] [ConvCondition] Building condition for intent=WalkAway playerLine="我得走了。" actionParam=(null)
+[13:03:27.377] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_village_ES3_2_2185863_1 stage=Emerging trigger=Normal partner=特维亚的加里托普斯 nodes=15
+[13:03:27.909] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "再次感谢你同意接手此事。"
+[13:03:28.428] [VanillaDialog] Token='hero_main_options' Hero=特维亚的加里托普斯 | Options (2): 关于特维亚那个案子…… | 我现在得走了。
+[13:03:28.428] [VanillaDialog] Player says: "关于特维亚那个案子……"
+[13:03:28.428] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "怎么样，查到什么了吗？"
+[13:03:28.429] [ConvCondition] intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=bandit eligibility=Enabled reason=
+[13:03:28.429] [ConvCondition] intent=WalkAway playerLine="我还有事。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[13:03:28.429] [ConvCondition] intent=Confess playerLine="（低头）……是我干的。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=

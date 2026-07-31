@@ -321,10 +321,12 @@ namespace LivingWorldNpcs
                 V.SetAgentAI(agent);
             }
 
-            // 5. 如果之前在使用物体（比如椅子），强制停止
+            // 5. 如果之前在使用物体（比如椅子），完整起身序列
             if (agent.IsUsingGameObject)
             {
-                agent.StopUsingGameObject(true, Agent.StopUsingGameObjectFlags.None);
+                agent.StopUsingGameObject(false, Agent.StopUsingGameObjectFlags.None);
+                agent.SetInteractionAgent(null);
+                agent.StopUsingGameObject(true);
             }
         }
 

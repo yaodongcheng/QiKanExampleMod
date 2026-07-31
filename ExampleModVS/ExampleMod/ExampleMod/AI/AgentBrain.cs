@@ -253,6 +253,7 @@ namespace LivingWorldNpcs
 
                 InteractedAgent = target;
                 ClearAllActions();
+                AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
                 EnqueueAction(new FightEnemyAction(target));
                 DebugLogger.Log($"[Brain-DeferredCombat] {Owner.Name}(Idx={Owner.Index}) 开始攻击 {target.Name}");
             }
@@ -325,6 +326,7 @@ namespace LivingWorldNpcs
                     SetNpcIntent(NpcIntentType.Fighting, attacker);
                     InteractedAgent = attacker;
                     ClearAllActions();
+                    AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
                     EnqueueAction(new FightEnemyAction(attacker));
 
                     //时序处理： 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
