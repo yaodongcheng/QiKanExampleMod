@@ -456,7 +456,7 @@ namespace LivingWorldNpcs
     public class ThreatIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Threat;
-        public override string DisplayName => "【威胁】你再说一遍？（手按在剑柄上）";
+        public override string DisplayName => "【威胁】你再说一遍？";
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 

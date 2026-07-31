@@ -305,7 +305,7 @@ namespace LivingWorldNpcs
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}出事了——{DiscoveryFacts}。{InvestigationProgressWord}。{WitnessCountWord}，{SuspectDescription}。{SpeakerPlayerAddr}能帮忙查查吗？", "NpcLine"),
+                NpcLine = r.Resolve("{TimeWord}{TargetSettlementName}出事了——{DiscoveryFacts}。{InvestigationProgressWord}。{WitnessCountWord}，{SuspectDescription}。{SpeakerPlayerAddr}能帮忙查查吗？", "NpcLine"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
@@ -515,8 +515,8 @@ namespace LivingWorldNpcs
                             NextNodeOnSuccess = okId,
                             NextNodeOnFail = failId
                         });
-                        nodes.Add(Node(okId, $"（仔细看了看{evItem.ItemName}）……这确实是他的东西。好，那就是他了！", "continue_chat"));
-                        nodes.Add(Node(failId, $"（仔细看了看{evItem.ItemName}）……这东西说明不了什么。{r.Resolve("{SpeakerPlayerAddr}")}再去查查。", "continue_chat"));
+                        nodes.Add(Node(okId, $"……这确实是他的东西。好，那就是他了！", "continue_chat"));
+                        nodes.Add(Node(failId, $"……这东西说明不了什么。{r.Resolve("{SpeakerPlayerAddr}")}再去查查。", "continue_chat"));
                         frameIdx++;
                     }
                 }
@@ -569,7 +569,7 @@ namespace LivingWorldNpcs
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("（{SpeakerEmotion}地）{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{ActionDescription}。有什么要说的？", "NpcLine"),
+                NpcLine = r.Resolve("{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{ActionDescription}。有什么要说的？", "NpcLine"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
@@ -631,7 +631,7 @@ namespace LivingWorldNpcs
 
             if (evt.SuspectIsPlayer)
             {
-                string npcLine = r.Resolve("（{SpeakerEmotion}地）好话说尽，{SpeakerPlayerAddr}非要走到这一步。{SpeakerSelfRef}也不想多费口舌——今天不给{TargetSettlementName}一个交代，别想走着出去。", "NpcLine");
+                string npcLine = r.Resolve("好话说尽，{SpeakerPlayerAddr}非要走到这一步。{SpeakerSelfRef}也不想多费口舌——今天不给{TargetSettlementName}一个交代，别想走着出去。", "NpcLine");
                 var transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition { PlayerLine = r.Resolve("我赔钱！你说个数。"), Action = "NONE", NextNodeOnSuccess = "restitution_detail" },
@@ -647,7 +647,7 @@ namespace LivingWorldNpcs
             }
             else
             {
-                string npcLine = r.Resolve("（{SpeakerEmotion}地）客客气气说话不管用，那就只能动手了。我们已经雇了人去抓{SuspectDescription}。{SpeakerPlayerAddr}要是站在我们这边的，可以带他们去。", "NpcLine");
+                string npcLine = r.Resolve("客客气气说话不管用，那就只能动手了。我们已经雇了人去抓{SuspectDescription}。{SpeakerPlayerAddr}要是站在我们这边的，可以带他们去。", "NpcLine");
                 var transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition { PlayerLine = "我带人去！", Action = "INTENT:LeadRetaliation", NextNodeOnSuccess = "retaliate_lead_ack" },
@@ -683,8 +683,8 @@ namespace LivingWorldNpcs
             {
                 Id = "injectedStart",
                 NpcLine = evt.InitiatorIsPlayer
-                    ? r.Resolve($"（{{SpeakerEmotion}}地）{{SpeakerPlayerAddr}}是来问{{CrimeScene}}的事？{{SpeakerSelfRef}}看见了——{witnessedDesc}。")
-                    : r.Resolve($"（{{SpeakerEmotion}}地）{{SpeakerSelfRef}}{{TimeWord}}在{{CrimeScene}}附近看见了——{witnessedDesc}"),
+                    ? r.Resolve($"{{SpeakerPlayerAddr}}是来问{{CrimeScene}}的事？{{SpeakerSelfRef}}看见了——{witnessedDesc}。")
+                    : r.Resolve($"{{SpeakerSelfRef}}{{TimeWord}}在{{CrimeScene}}附近看见了——{witnessedDesc}"),
                 Transitions = new List<DialogueInjector.DialogueTransition>()
             };
 
@@ -712,7 +712,7 @@ namespace LivingWorldNpcs
             }
             else if (evt.WitnessesSilenced)
             {
-                node.NpcLine = r.Resolve("（紧张地看了看四周）{SpeakerPlayerAddr}找错人了。{SpeakerSelfRef}什么也不知道。", "NpcLine");
+                node.NpcLine = r.Resolve("{SpeakerPlayerAddr}找错人了。{SpeakerSelfRef}什么也不知道。", "NpcLine");
                 node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = "……好吧。", Action = "NONE", NextNodeOnSuccess = "continue_chat" });
             }
             else
@@ -723,9 +723,9 @@ namespace LivingWorldNpcs
 
             nodes.Add(node);
             nodes.Add(Node("witness_silence_ack", r.Resolve("……好吧，{SpeakerSelfRef}什么也没看见。"), "continue_chat"));
-            nodes.Add(Node("witness_silence_fail", r.Resolve("（提高嗓门）你当{SpeakerSelfRef}是什么人？！{SpeakerSelfRef}这就去告诉村长！"), "continue_chat"));
+            nodes.Add(Node("witness_silence_fail", r.Resolve("你当{SpeakerSelfRef}是什么人？！{SpeakerSelfRef}这就去告诉{AuthorityRole}！"), "continue_chat"));
             nodes.Add(Node("witness_threat_ack", r.Resolve("明白、明白……{SpeakerSelfRef}一个字也不说。"), "continue_chat"));
-            nodes.Add(Node("witness_threat_fail", r.Resolve("（后退一步，手按在腰间）你敢威胁{SpeakerSelfRef}？！来人——！"), "continue_chat"));
+            nodes.Add(Node("witness_threat_fail", r.Resolve("你敢威胁{SpeakerSelfRef}？！来人——！"), "continue_chat"));
             nodes.Add(Node("witness_desc_ack", r.Resolve("那人……{SuspectDescription}。"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
             return new DialogueInjector.DialogueInjectScript { EntryOption = "听说你看到了……？", EntryNode = "injectedStart", Nodes = nodes };
@@ -739,12 +739,12 @@ namespace LivingWorldNpcs
                 new DialogueInjector.DialogueNode
                 {
                     Id = "injectedStart",
-                    NpcLine = r.Resolve("（警惕地）{SpeakerPlayerAddr}盯着{SpeakerSelfRef}看什么？", "NpcLine"),
+                    NpcLine = r.Resolve("{SpeakerPlayerAddr}盯着{SpeakerSelfRef}看什么？", "NpcLine"),
                     Transitions = new List<DialogueInjector.DialogueTransition>
                     {
                         new DialogueInjector.DialogueTransition
                         {
-                            PlayerLine = "跟我走一趟，村长找你有事。",
+                            PlayerLine = r.Resolve("跟我走一趟，{AuthorityRole}找你有事。"),
                             CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                             Action = "INTENT:LureArrest",
                             NextNodeOnSuccess = "suspect_lure_ack",
@@ -756,10 +756,10 @@ namespace LivingWorldNpcs
                 }
             };
             nodes.Add(Node("suspect_lure_ack", r.Resolve("什么？！{SpeakerSelfRef}什么也没干……"), "continue_chat"));
-            nodes.Add(Node("suspect_lure_fail", r.Resolve("村长找我？他自己怎么不来？{SpeakerPlayerAddr}少在这骗人。"), "continue_chat"));
+            nodes.Add(Node("suspect_lure_fail", r.Resolve("{AuthorityRole}找{SpeakerSelfRef}？他自己怎么不来？{SpeakerPlayerAddr}少在这骗人。"), "continue_chat"));
             nodes.Add(Node("suspect_betray_ack", r.Resolve("什么？！……谢了！"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
-            return new DialogueInjector.DialogueInjectScript { EntryOption = "（打量了一下）……", EntryNode = "injectedStart", Nodes = nodes };
+            return new DialogueInjector.DialogueInjectScript { EntryOption = "……", EntryNode = "injectedStart", Nodes = nodes };
         }
 
         private static DialogueInjector.DialogueInjectScript BuildBystanderScript(
@@ -770,9 +770,9 @@ namespace LivingWorldNpcs
 
             string npcLine = evt.Stage switch
             {
-                EventStage.Emerging => r.Resolve("（压低声音）{SpeakerPlayerAddr}听说了吗？{TargetSettlementName}出事了——{DiscoveryFacts}！谁干的还不知道。", "NpcLine"),
+                EventStage.Emerging => r.Resolve("{SpeakerPlayerAddr}听说了吗？{TargetSettlementName}出事了——{DiscoveryFacts}！谁干的还不知道。", "NpcLine"),
                 EventStage.Active => r.Resolve("听说了吗？是{SuspectDescription}干的！{TargetSettlementName}悬赏{BountyAmount}第纳尔抓他呢。", "NpcLine"),
-                EventStage.Confrontation => r.Resolve("（紧张地）{TargetSettlementName}的人真动手了——雇了打手满世界找人。这事闹大了……", "NpcLine"),
+                EventStage.Confrontation => r.Resolve("{TargetSettlementName}的人真动手了——雇了打手满世界找人。这事闹大了……", "NpcLine"),
                 _ => r.Resolve("这事好像已经过去了……", "NpcLine"),
             };
 
@@ -824,7 +824,7 @@ namespace LivingWorldNpcs
                     if (evt.PlayerTookInvestigationQuest)
                         return r.Resolve("快去查，有消息了来告诉{SpeakerSelfRef}。");
                     if (evt.SuspectIsPlayer && evt.Stage == EventStage.Active)
-                        return r.Resolve("（冷冷地）这事不算完。");
+                        return r.Resolve("这事不算完。");
                     if (evt.Stage == EventStage.Confrontation)
                         return r.Resolve("这事没完。");
                     return r.Resolve("嗯，{SpeakerPlayerAddr}去吧。");
@@ -970,28 +970,28 @@ namespace LivingWorldNpcs
                 ConfrontationType.Deter => primaryAction switch
                 {
                     PlayerActionType.WeaponDrawn =>
-                        r.Resolve("（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
+                        r.Resolve("把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
                     _ => // Crouching
-                        r.Resolve("（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
+                        r.Resolve("喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
                 },
 
                 ConfrontationType.Search =>
-                    r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。"),
+                    r.Resolve("{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。"),
 
                 ConfrontationType.Recover =>
-                    r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+                    r.Resolve("{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
 
                 ConfrontationType.Stop => primaryAction switch
                 {
                     PlayerActionType.AttackAlly =>
-                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
+                        r.Resolve("{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
                     PlayerActionType.Knockout =>
-                        r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！"),
+                        r.Resolve("{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！"),
                     PlayerActionType.SuspectFlee =>
-                        r.Resolve("（{SPEAKER_EMOTION}地）站住！这事没了结，{SPEAKER_PLAYER_ADDR}哪儿也别想去！"),
-                    _ => r.Resolve("（{SPEAKER_EMOTION}地）住手！")
+                        r.Resolve("站住！这事没了结，{SPEAKER_PLAYER_ADDR}哪儿也别想去！"),
+                    _ => r.Resolve("住手！")
                 },
-                _ => r.Resolve("（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}！你在干什么？")
+                _ => r.Resolve("{SPEAKER_PLAYER_ADDR}！你在干什么？")
             };
         }
 
@@ -1106,7 +1106,7 @@ namespace LivingWorldNpcs
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "recover_confront",
-                NpcLine = r.Resolve("不敢让人看？那就是有鬼了！（{SPEAKER_EMOTION}地）{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+                NpcLine = r.Resolve("不敢让人看？那就是有鬼了！{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
@@ -1198,12 +1198,12 @@ namespace LivingWorldNpcs
             {
                 Id = "search_result",
                 NpcLine = hasStolenItems
-                    ? r.Resolve("（{SPEAKER_EMOTION}地）这是什么？！还说没偷！")
-                    : r.Resolve("（{SPEAKER_EMOTION}地）……行吧。是{SPEAKER_SELF}多心了。"),
+                    ? r.Resolve("这是什么？！还说没偷！")
+                    : r.Resolve("……行吧。是{SPEAKER_SELF}多心了。"),
                 Transitions = hasStolenItems
                     ? new List<DialogueInjector.DialogueTransition>
                     {
-                        new() { PlayerLine = "……（无言以对）", Action = "INTENT:Confess", NextNodeOnSuccess = "continue_chat" },
+                        new() { PlayerLine = "……", Action = "INTENT:Confess", NextNodeOnSuccess = "continue_chat" },
                         new() { PlayerLine = "那是我的东西！", Action = "NONE", NextNodeOnSuccess = "alert_search_deny_ack" },
                     }
                     : new List<DialogueInjector.DialogueTransition>
@@ -1251,7 +1251,7 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueNode
                     {
                         Id = "player_lose",
-                        NpcLine = $"（喘着粗气，收起武器）哼，知道打不过了吧？把钱袋交出来——{baseRansom}第纳尔，饶你一命。",
+                        NpcLine = $"哼，知道打不过了吧？把钱袋交出来——{baseRansom}第纳尔，饶你一命。",
                         Transitions = new List<DialogueInjector.DialogueTransition>
                         {
                             new DialogueInjector.DialogueTransition
@@ -1285,11 +1285,11 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueNode { Id = "surrender_pay_ack", NpcLine = $"算你识相。{baseRansom}第纳尔，下次长点眼力见，滚吧！", Transitions = new List<DialogueInjector.DialogueTransition>() },
                     new DialogueInjector.DialogueNode { Id = "surrender_beg_ok", NpcLine = "……啧，算你运气好。滚，别让我再看见你。", Transitions = new List<DialogueInjector.DialogueTransition>() },
                     new DialogueInjector.DialogueNode { Id = "surrender_threaten_ok", NpcLine = "……疯子。滚，别让我再看见你。", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "surrender_threaten_fail", NpcLine = "找死！！（暴怒地扑了上来）", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    new DialogueInjector.DialogueNode { Id = "surrender_threaten_fail", NpcLine = "找死！！", Transitions = new List<DialogueInjector.DialogueTransition>() },
                     new DialogueInjector.DialogueNode
                     {
                         Id = "player_lose_counteroffer",
-                        NpcLine = $"（冷笑）最后一次机会——{counterRansom} 第纳尔，或者咱们接着打。你选。",
+                        NpcLine = $"最后一次机会——{counterRansom} 第纳尔，或者咱们接着打。你选。",
                         Transitions = new List<DialogueInjector.DialogueTransition>
                         {
                             new DialogueInjector.DialogueTransition
@@ -1329,7 +1329,7 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueNode
                     {
                         Id = "npc_beg",
-                        NpcLine = "（丢下武器，踉跄后退，举起双手）别、别打了……我认输！",
+                        NpcLine = "别、别打了……我认输！",
                         Transitions = new List<DialogueInjector.DialogueTransition>
                         {
                             new DialogueInjector.DialogueTransition
@@ -1363,9 +1363,9 @@ namespace LivingWorldNpcs
                         }
                     },
                     new DialogueInjector.DialogueNode { Id = "npc_surrender_accept_ack", NpcLine = "多、多谢！我这就走……", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_humiliate_ack", NpcLine = $"（屈辱地跪倒在地，额头重重磕在地上……）", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_humiliate_ack", NpcLine = "……小人知错了。", Transitions = new List<DialogueInjector.DialogueTransition>() },
                     new DialogueInjector.DialogueNode { Id = "npc_surrender_ransom_ack", NpcLine = "好、好……都给你！求你放过我……", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_refuse_ack", NpcLine = $"不——！（绝望地重新抓起武器）", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_refuse_ack", NpcLine = "不——！我跟你拼了！", Transitions = new List<DialogueInjector.DialogueTransition>() },
                 }
             };
         }

@@ -58,8 +58,7 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 犯罪案件过夜被发现（Dormant→Emerging）时通知作案玩家。
-        /// 村民知道丢了什么、还不知道是谁——给玩家介入（自首赔偿/帮忙"调查"/栽赃误导）或跑路的决策窗口。
-        /// 案情文本走 BuildDiscoveryFacts：袭击（击晕）与失窃都如实还原，不再只按偷牲口算。
+        /// 案情文本走 BuildDiscoveryFacts：袭击（击晕）与失窃都如实还原。
         /// </summary>
         public static void OnCrimeDiscovered(WorldEvent e)
         {
@@ -67,13 +66,30 @@ namespace LivingWorldNpcs
 
             string loc = e.TargetSettlement.Name?.ToString() ?? "某地";
             string lossDesc = e.BuildDiscoveryFacts();
-            string authority = e.Config?.AuthorityRole ?? "村长";
+            string authorityRole = WorldEventStore.GetAuthorityRoleDisplayName(e);
+            var authorityNpc = WorldEventStore.GetAuthorityNpc(e);
+            string authorityName = authorityNpc?.Name?.ToString();
+            string locationHint = WorldEventStore.GetAuthorityLocationHint(authorityNpc, e.TargetSettlement);
+
+            // 按定居点类型适配文案
+            bool isVillage = e.TargetSettlement.IsVillage;
+            string peopleWord = isVillage ? "村民" : "居民";
+            string actionWord = isVillage ? "正在挨家挨户问话" : "正在调查此事";
+
+            // 权威 NPC 点名（能找到就点名，找不到只给角色名）+ 位置提示
+            string authorityDesc = !string.IsNullOrEmpty(authorityName)
+                ? $"{authorityRole}{authorityName}"
+                : authorityRole;
+            string whereClause = !isVillage && !string.IsNullOrEmpty(locationHint)
+                ? $"去{loc}的{locationHint}找{authorityName ?? authorityRole}即可介入此事。"
+                : "";
+
             string shortSummary = $"⚠ {loc} · 东窗事发";
             string body =
-                $"暗探来报——{loc}的村民发现{lossDesc}，{authority}正在挨家挨户问话，看样子是要查个水落石出。\n\n" +
-                $"好在暂时没人把你和这事联系起来。你可以回去介入——自首赔偿、帮忙\"调查\"、或者设法把嫌疑推到别人头上；也可以从此绕着{loc}走。";
+                $"暗探来报——{loc}的{peopleWord}发现{lossDesc}，{authorityDesc}{actionWord}，看样子是要查个水落石出。\n\n" +
+                $"好在暂时没人把你和这事联系起来。{whereClause}你也可以从此绕着{loc}走。";
 
-            DebugLogger.Log($"[Player] NinjaReport(discovered): {shortSummary} — {lossDesc}");
+            DebugLogger.Log($"[Player] NinjaReport(discovered): {shortSummary} — {lossDesc} (authority={authorityName ?? "none"}, location={locationHint ?? "none"})");
             NinjaNotificationManager.Show(shortSummary, () =>
             {
                 InformationManager.ShowInquiry(new InquiryData(

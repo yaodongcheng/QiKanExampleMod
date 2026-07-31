@@ -1536,23 +1536,108 @@ namespace LivingWorldNpcs
             InvestigationEngine.CheckBudgetAndRespawn(evt);
         }
 
-        /// <summary>获取权威 NPC（村长/族长/领主）</summary>
+        /// <summary>
+        /// 权威 NPC 所在的场景提示（"主楼" / "镇中心" / "暗巷"），用于通知里告诉玩家去哪儿找。
+        /// </summary>
+        public static string GetAuthorityLocationHint(Hero authority, Settlement settlement)
+        {
+            if (authority == null || settlement == null) return null;
+
+            // 城主 / 总督 / 贵族 → 主楼
+            if (authority == settlement.OwnerClan?.Leader
+                || authority == settlement.Town?.Governor
+                || authority.IsLord)
+                return "主楼";
+
+            // 帮派头目 → 暗巷
+            if (authority.Occupation == Occupation.GangLeader)
+                return "暗巷";
+
+            // 商人 / 工匠 → 镇中心
+            if (authority.Occupation == Occupation.Merchant
+                || authority.Occupation == Occupation.Artisan)
+                return "镇中心";
+
+            return null;
+        }
+
+        /// <summary>获取权威 NPC（村长/城主/堡主/领主）</summary>
         public static Hero GetAuthorityNpc(WorldEvent evt)
         {
             var settlement = evt.TargetSettlement;
             if (settlement == null) return null;
 
             var cfg = evt.Config;
-            if (cfg?.AuthorityRole == "领主" || cfg?.AuthorityRole == "族长")
+
+            // 村庄：保持原有逻辑（Headman / RuralNotable，领主/族长走 OwnerClan.Leader）
+            if (settlement.IsVillage)
             {
-                // 领主/族长 = 定居点所属家族领袖
-                var owner = settlement.OwnerClan?.Leader;
-                if (owner != null) return owner;
+                if (cfg?.AuthorityRole == "领主" || cfg?.AuthorityRole == "族长")
+                    return settlement.OwnerClan?.Leader;
+
+                return settlement.Notables?.FirstOrDefault(n =>
+                    n.Occupation == Occupation.Headman || n.Occupation == Occupation.RuralNotable);
             }
 
-            // 默认：村长 = Headman notable
-            return settlement.Notables?.FirstOrDefault(n =>
-                n.Occupation == Occupation.Headman || n.Occupation == Occupation.RuralNotable);
+            // 城镇 / 城堡：总督 → 城主(在城) → 城中领主 → 贵族 Notable 回落链
+            if (settlement.IsTown || settlement.IsCastle)
+            {
+                // ① 总督（最可能在城里，专门指派治理此地）
+                var governor = settlement.Town?.Governor;
+                if (governor != null && governor.IsAlive && governor != Hero.MainHero)
+                    return governor;
+
+                // ② 城主 / 堡主（OwnerClan Leader）
+                //    CurrentSettlement 或部队在城里都算在——城主带兵驻扎时 CurrentSettlement 可能未更新
+                var owner = settlement.OwnerClan?.Leader;
+                if (owner != null && owner.IsAlive && owner != Hero.MainHero
+                    && (owner.CurrentSettlement == settlement
+                        || settlement.Parties?.Any(p => p?.LeaderHero == owner) == true))
+                    return owner;
+
+                // ③ 其他领主——扫 settlement.Parties 找目前在城里的贵族
+                if (settlement.Parties != null)
+                {
+                    foreach (var party in settlement.Parties)
+                    {
+                        var lord = party?.LeaderHero;
+                        if (lord != null && lord.IsAlive && lord != Hero.MainHero
+                            && lord.IsLord
+                            && lord != governor && lord != owner)
+                            return lord;
+                    }
+                }
+
+                // ④ 兜底：城镇贵族 Notable（商人 / 工匠 / 帮派头目）
+                return settlement.Notables?.FirstOrDefault(n =>
+                    n.Occupation == Occupation.Merchant
+                    || n.Occupation == Occupation.Artisan
+                    || n.Occupation == Occupation.GangLeader);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 按定居点类型动态返回权威角色显示名（"村长" / "城主" / "堡主"），
+        /// 替代 EventConfig.AuthorityRole 在 UI 和对话占位符中的硬编码。
+        /// </summary>
+        public static string GetAuthorityRoleDisplayName(WorldEvent evt)
+        {
+            if (evt == null) return "村长";
+
+            var settlement = evt.TargetSettlement;
+            if (settlement == null)
+                return evt.Config?.AuthorityRole ?? "村长";
+
+            if (settlement.IsVillage)
+                return "村长";
+            if (settlement.IsCastle)
+                return "堡主";
+            if (settlement.IsTown)
+                return "城主";
+
+            return evt.Config?.AuthorityRole ?? "村长";
         }
 
         /// <summary>初始化报复经费：Headman Gold + 村庄繁荣度折算</summary>

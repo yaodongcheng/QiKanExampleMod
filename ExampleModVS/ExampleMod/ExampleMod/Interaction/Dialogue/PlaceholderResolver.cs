@@ -158,7 +158,7 @@ namespace LivingWorldNpcs
                 case "CrimeVerbGerund": return cfg?.CrimeVerbGerund ?? "作案";
                 case "CrimeScene": return cfg?.CrimeScene ?? "现场";
                 case "VictimLabel": return cfg?.VictimLabel ?? "受害者";
-                case "AuthorityRole": return cfg?.AuthorityRole ?? "村长";
+                case "AuthorityRole": return WorldEventStore.GetAuthorityRoleDisplayName(evt);
                 case "SeverityWord": return EventConfig.GetSeverityWord(evt?.Severity ?? 0);
                 case "DefaultPenalty": return (cfg?.BaseRestitutionMultiplier ?? 1).ToString();
 
@@ -266,7 +266,7 @@ namespace LivingWorldNpcs
                 case "SpeakerIdentity": return AttitudeSystem.GetSocialIdentity(speaker);
                 case "SpeakerRole":
                     return speaker != null && AttitudeSystem.ComputeStance(speaker, evt).WillAct > -1
-                        ? (cfg?.AuthorityRole ?? "村民") : "村民";
+                        ? WorldEventStore.GetAuthorityRoleDisplayName(evt) : "村民";
                 case "SpeakerSelfRef": return AttitudeSystem.GetSelfReference(speaker);
                 case "SpeakerPlayerAddr": return AttitudeSystem.GetPlayerAddress(speaker);
                 case "SpeakerEmotion":
@@ -293,10 +293,9 @@ namespace LivingWorldNpcs
                 // G2. 对峙收尾（按 NPC 当前态度选不同的最后一句）
                 case "ConfrontClosingLine":
                     string selfRef = AttitudeSystem.GetSelfReference(speaker);
-                    string spkName = speaker?.Name?.ToString() ?? SpeakerCharacter?.Name?.ToString();
-                    return stance.Outrage > 0.7f ? $"（{spkName}盯着你的背影，一言不发。）"
+                    return stance.Outrage > 0.7f ? $"……"
                          : stance.Outrage > 0.3f ? "这事没完。你好自为之。"
-                         : stance.Fear > 0.5f ? "（后退一步）……你走吧。别再来了。"
+                         : stance.Fear > 0.5f ? "……你走吧。别再来了。"
                          : $"{selfRef}话说到了。你自己掂量吧。";
 
                 // H. 选项参数

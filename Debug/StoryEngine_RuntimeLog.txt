@@ -1,7 +1,7 @@
-﻿[12:56:45.724] [WorldEventStore] Deserialized 1 events, 0 alerts
-[12:56:49.494] [Detention] Game menus registered
-[12:56:50.330] [AddQuickInformation] "成就被禁用！"
-[12:56:52.067] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+﻿[19:31:59.472] [WorldEventStore] Deserialized 1 events, 0 alerts
+[19:32:03.314] [Detention] Game menus registered
+[19:32:04.141] [AddQuickInformation] "成就被禁用！"
+[19:32:07.077] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
     标题: 城镇中心
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
@@ -14,225 +14,256 @@
       7. 进入铁匠铺  [id=town_smithy] 可点
       8. 稍作等待  [id=town_wait] 可点
       9. 离开  [id=town_leave] 可点
-[12:56:53.986] [GameMenu] ● 点击 menu=town 选项="离开" [id=town_leave] @吕卡隆(城镇)
-[12:56:53.992] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 匹配到 0 个 owner: []（现存 0 个）
-[12:56:53.993] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 没有匹配的 owner（现存 0 个: []）
-[12:56:53.999] [GameMenu] ◀ 关闭 menu=town
-[12:57:00.363] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
-    标题: 村庄
-    正文: <a style="Link.Settlement" href="event:Settlement-village_ES3_2"><b>特维亚</b></a>附近的领地多为<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的一位执政官<a style="Link.Hero" href="event:Hero-lord_1_15"><b>法戎</b></a>所拥有。这个村庄的经济程度一般，人们和牲口看上去都健康强壮，村民们都忙于农活。
+[19:32:10.644] [GameMenu] ● 点击 menu=town 选项="离开" [id=town_leave] @吕卡隆(城镇)
+[19:32:10.651] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 匹配到 0 个 owner: []（现存 0 个）
+[19:32:10.651] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 没有匹配的 owner（现存 0 个: []）
+[19:32:10.657] [GameMenu] ◀ 关闭 menu=town
+[19:32:34.338] [DisplayMessage] "你发现了酿酒工额干"
+[19:32:34.338] [DisplayMessage] "你发现了代理商迭尼"
+[19:32:34.338] [DisplayMessage] "你发现了木匠塔儿该"
+[19:32:34.338] [DisplayMessage] "你发现了“小不点”豁鲁库"
+[19:32:34.338] [DisplayMessage] "你发现了“狗脸”的宁"
+[19:32:34.352] [GameMenu] ▶ 打开 menu=town @奥通加德(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
-      1. 敌对行动  [id=hostile_action] 可点
-      2. 四处转转  [id=village_center] 可点
-      3. 招募士兵  [id=recruit_volunteers] 可点
-      4. 购买给养  [id=trade] 可点
-      5. 稍作等待  [id=village_wait] 可点
-      6. 离开  [id=leave] 可点
-[13:01:37.530] [GameMenu] ● 点击 menu=village 选项="四处转转" [id=village_center] @特维亚(村庄)
-[13:01:39.359] === [AnimalSync] 特维亚 (village_ES3_2) ===
-  Type       Scene    Roster   Stolen   Action
-  ----       -----    ------   ------   ------
-  sheep      16       16       0        
-  cow        10       10       0        
-  hog        10       9        1        remove 1
-  goose      5        5        0        
-  chicken    16       15       1        remove 1
-  =========================================
-
-[13:01:39.367] [AnimalSync] 特维亚: removed 2 stolen animal(s) across 5 type(s)
-[13:01:39.370] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=97, 乡绅2人=136, 英雄1人=39, 村民54人=486), 箱子200第纳尔, 物资4种(过滤后)
-[13:01:39.373] [Chest] 锚点 '特维亚的加里托普斯' at (551.0961, 189.8186, 21.52596) → 正后方 0.7m 命中，相对偏移 (0.69, -0.13, 0.03)
-[13:01:39.390] [Chest] Spawned prefab 'bd_chest_c' at (551.7831, 189.6845, 21.55834) (scale=0.5)
-[13:01:39.391] [Chest] Visual highlight applied (warm gold tint)
-[13:01:39.391] [Chest] Spawned at (551.7831, 189.6845, 21.55834), context=Village, gold=200, items=4
-[13:02:01.725] [Knockout] 帝国农民: isChild=False, successRate=0.95, roll=0.62, success=True
-[13:02:01.726] [ForcePlayAction] 亨利 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
-[13:02:02.129] [Assault] 帝国农民 身价=2 → 事件 misconduct_village_ES3_2_2185863_1 AssaultValue=2（赔偿基数 2）
-[13:02:02.138] [Brain-Receive] 特维亚的奥刻洛斯(Idx=3) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:02:02.141] [Brain-Clear] 特维亚的奥刻洛斯(Idx=3) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:02:02.141] [Brain-Enqueue] 特维亚的奥刻洛斯(Idx=3) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
-[13:02:02.143] [AI-Debug] Suspend 特维亚的奥刻洛斯 (Idx=3) | 集合size=1 | 当前行为=null
-[13:02:02.144] [ForcePlayAction] 帝国农民 'act_death_fall_front' UsingObj=True flags=GoToPosition, ConsiderRotation, DoNotRun action_set:'as_human_villager_3'→'as_human_warrior'
-[13:02:02.146] [DisplayMessage] "[事件发送] 发送事件 'event_agent_knocked_out' 给 帝国农民 (Index:18, 距离:1.6m, 方位:东南)"
-[13:02:02.146] [Brain-Receive] 帝国农民(Idx=18) 收到事件 'event_agent_knocked_out' | 当前行为=null | 队列=0 | 阶段=Normal
-[13:02:02.146] [Brain-Clear] 帝国农民(Idx=18) 清空动作 | 当前=null | 队列=0 | hadActions=False
-[13:02:02.147] [Brain-Enqueue] 帝国农民(Idx=18) 入队 StayAction | 当前行为=null | 队列=0→1
-[13:02:02.147] [AI-Debug] Suspend 帝国农民 (Idx=18) | 集合size=2 | 当前行为=null
-[13:02:02.147] [DisplayMessage] [Green] "从背后击晕了 帝国农民！（62% ≤ 95 %）"
-[13:02:02.147] [Knockout] 亨利 knocked out 帝国农民 (anim: act_shield_bash)
-[13:02:02.148] [Brain-Tick] 特维亚的奥刻洛斯(Idx=3) 开始执行 ReactionDecisionAction | 队列剩余=0
-[13:02:02.149] [Brain-Tick] 帝国农民(Idx=18) 开始执行 StayAction | 队列剩余=0
-[13:02:02.181] [Brain-Phase] 特维亚的奥刻洛斯(Idx=3) 警戒上升: Normal → Cautious (警戒值=2.98) 因素=[Steal=2.98➔帝国农民] → 发送 'BecomeCautious'
-[13:02:02.181] [Brain-Receive] 特维亚的奥刻洛斯(Idx=3) 收到事件 'BecomeCautious' | 当前行为=ReactionDecisionAction | 队列=0 | 阶段=Normal
-[13:02:02.193] [Placeholder] UNRESOLVED in '': ITEM
-[13:02:02.193] [BubbleSay] 特维亚的奥刻洛斯(Idx=3): "（惊呼）你这小子！你偷了{ITEM}！"
-[13:02:02.941] [ShowInquiry] "搜刮 帝国农民" | "你在 帝国农民 身上发现了些东西:简易束腰布衣 扎带皮靴 
-金币: 9 第纳尔
-" | Btn1="全部拿走" Btn2="自己挑选"
-[13:02:03.748] [DisplayMessage] [Yellow] "获得了 9 第纳尔。"
-[13:02:03.748] [DisplayMessage] [Green] "获得了 2 件物品。"
-[13:02:03.751] [TheftLedger] Recorded: cloth_tunic x1 by main_hero from village_ES3_2
-[13:02:03.751] [TheftLedger] Recorded: strapped_leather_boots x1 by main_hero from village_ES3_2
-[13:02:03.752] [TheftLedger] Recorded: gold x9 by main_hero from village_ES3_2
-[13:02:03.752] [LootTheft] Witness system DISABLED — treating as no witnesses.
-[13:02:03.752] [LootTheft] 搜刮 帝国农民：无人目击。
-[13:02:03.752] [DarkTheft] Unwitnessed: 简易束腰布衣 → pending misconduct_village_ES3_2_2185863_1 stays Dormant
-[13:02:03.754] [DarkTheft] Unwitnessed: 扎带皮靴 → pending misconduct_village_ES3_2_2185863_1 stays Dormant
-[13:02:03.754] [DarkTheft] Unwitnessed: 9 第纳尔 → pending misconduct_village_ES3_2_2185863_1 stays Dormant
-[13:02:04.868] [WorldEvent] New event: Misconduct id=misconduct_village_ES3_2_2185863_1 settlement=village_ES3_2 items=[cloth_tunicx1, strapped_leather_bootsx1, goldx9] assault=[帝国农民:2] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=0 occurredDay=91077.63
-[13:02:06.850] [GameMenu] ● 点击 menu=village 选项="离开" [id=leave] @特维亚(村庄)
-[13:02:06.852] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
-[13:02:06.852] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 没有匹配的 owner（现存 0 个: []）
-[13:02:06.853] [GameMenu] ◀ 关闭 menu=village
-[13:02:10.659] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
-[13:02:12.496] [WorldEvent] ProcessDaily: 2 active event(s), day=91077.87
-[13:02:12.497] [WorldEvent] ProcessDaily: id=misconduct_town_ES4_2185862 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91077.87 overnight=False
-[13:02:12.499] [WorldEvent] ProcessDaily: id=misconduct_village_ES3_2_2185863_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91077.87 overnight=False
-[13:02:14.457] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
-[13:02:22.796] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
-[13:02:27.672] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1596"><b>狼皮部落的埃德温</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_17"><b>阿拉德维尔</b></a>俘虏。"
-[13:02:32.069] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_15"><b>埃尔杜兰</b></a>俘虏。"
-[13:02:32.500] [WorldEvent] ProcessDaily: 2 active event(s), day=91078.87
-[13:02:32.500] [WorldEvent] ProcessDaily: id=misconduct_town_ES4_2185862 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91078.87 overnight=True
-[13:02:32.502] [Player] NinjaReport(discovered): ⚠ 吕卡隆 · 东窗事发 — 少了一件啤酒、一件artisan_beer等20项财物
-[13:02:32.504] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Emerging
-[13:02:32.505] [WorldEvent] ProcessDaily: id=misconduct_village_ES3_2_2185863_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91078.87 overnight=True
-[13:02:32.505] [Player] NinjaReport(discovered): ⚠ 特维亚 · 东窗事发 — 帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物
-[13:02:32.506] [WorldEvent] misconduct_village_ES3_2_2185863_1 Stage: Dormant → Emerging
-[13:02:32.506] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185863_1 stage=Emerging settlement=特维亚 — refreshing issue signals
-[13:02:32.509] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的加里托普斯 (CharacterObject_2909) crimeEvent=misconduct_village_ES3_2_2185863_1 stage=Emerging
-[13:02:34.529] [ShowInquiry] "东窗事发" | "暗探来报——特维亚的村民发现帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物，村长正在挨家挨户问话，看样子是要查个水落石出。
-
-好在暂时没人把你和这事联系起来。你可以回去介入——自首赔偿、帮忙"调查"、或者设法把嫌疑推到别人头上；也可以从此绕着特维亚走。" | Btn1="知道了" Btn2="(hidden)"
-[13:02:34.727] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1599"><b>狼皮部落的乌德里斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_21"><b>卡费德</b></a>俘虏。"
-[13:02:37.052] [AnimalSync] Topped up 羊: roster 11 → 16 (natural=16 stolen=0)
-[13:02:37.052] [AnimalSync] Topped up 牛: roster 4 → 10 (natural=10 stolen=0)
-[13:02:37.052] [AnimalSync] Topped up 肉猪: roster 4 → 10 (natural=10 stolen=0)
-[13:02:37.052] [AnimalSync] Topped up 鹅: roster 2 → 5 (natural=5 stolen=0)
-[13:02:37.052] [AnimalSync] Topped up 鸡: roster 6 → 16 (natural=16 stolen=0)
-[13:02:37.053] [AnimalSync] 特维亚: topped up 30 animal(s) in ItemRoster
-[13:02:37.067] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
-    标题: 村庄
-    正文: <a style="Link.Settlement" href="event:Settlement-village_ES3_2"><b>特维亚</b></a>附近的领地多为<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的一位执政官<a style="Link.Hero" href="event:Hero-lord_1_15"><b>法戎</b></a>所拥有。这个村庄的经济程度一般，人们和牲口看上去都健康强壮，村民们都忙于农活。
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[19:32:37.957] [GameMenu] ● 点击 menu=town 选项="前往主楼" [id=town_keep] @奥通加德(城镇)
+[19:32:37.960] [GameMenu] ▶ 打开 menu=town_keep_bribe @奥通加德(城镇)
+    标题: 主楼
+    正文: 守卫声称不可以随便放人进去。
     选项:
-      1. 敌对行动  [id=hostile_action] 可点
-      2. 四处转转  [id=village_center] 可点
-      3. 招募士兵  [id=recruit_volunteers] 可点
-      4. 购买给养  [id=trade] 可点
-      5. 稍作等待  [id=village_wait] 可点
-      6. 离开  [id=leave] 可点
-[13:02:51.388] [AI-Debug] Resume 特维亚的奥刻洛斯 (Idx=3) | 集合size=1
-[13:02:51.388] === [AnimalSync] 特维亚 (village_ES3_2) ===
-  Type       Scene    Roster   Stolen   Action
-  ----       -----    ------   ------   ------
-  sheep      16       16       0        
-  cow        10       10       0        
-  hog        10       10       0        
-  goose      5        5        0        
-  chicken    16       16       0        
-  =========================================
+      1. 贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼  [id=town_keep_bribe_pay] 可点
+      2. 离开  [id=town_keep_bribe_back] 可点
+[19:32:39.468] [GameMenu] ● 点击 menu=town_keep_bribe 选项="贿赂800<img src="General\Icons\Coin@2x" extend="8">进入主楼" [id=town_keep_bribe_pay] @奥通加德(城镇)
+[19:32:39.469] [DisplayMessage] "你支付了800<img src="General\Icons\Coin@2x" extend="8">。"
+[19:32:39.470] [DisplayMessage] "你发现了阿巴该"
+[19:32:39.470] [DisplayMessage] "你发现了豁力真"
+[19:32:39.470] [DisplayMessage] "你发现了辞成"
+[19:32:39.470] [DisplayMessage] "你发现了廓儿帖"
+[19:32:39.470] [DisplayMessage] "你发现了帖蒙"
+[19:32:39.475] [GameMenu] ▶ 打开 menu=town_keep @奥通加德(城镇)
+    标题: 主楼
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。
+    选项:
+      1. 前往领主大厅  [id=town_lords_hall] 可点
+      2. 前往地牢  [id=town_lords_hall_go_to_dungeon] 可点
+      3. 返回城镇中心  [id=town_castle_back] 可点
+[19:32:46.449] [GameMenu] ● 点击 menu=town_keep 选项="前往地牢" [id=town_lords_hall_go_to_dungeon] @奥通加德(城镇)
+[19:32:46.453] [GameMenu] ▶ 打开 menu=town_keep_dungeon @奥通加德(城镇)
+    标题: 地牢
+    正文: 这里没有俘虏。
+    选项:
+      1. 进入地牢  [id=town_prison] 可点
+      2. 离开  [id=town_keep_dungeon_back] 可点
+[19:32:47.381] [GameMenu] ● 点击 menu=town_keep_dungeon 选项="进入地牢" [id=town_prison] @奥通加德(城镇)
+[19:32:59.330] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
+[19:33:02.520] [DarkTheft] Unwitnessed: 枪骑兵扎甲 → pending misconduct_town_K4_2185863_1 stays Dormant
+[19:33:02.522] [DisplayMessage] [RGB(0.3,0.9,0.3)] "神不知鬼不觉:枪骑兵扎甲"
+[19:33:02.522] [StealBar] 完美窃取 枪骑兵扎甲 ← 库赛特枪骑兵（零警戒脉冲）
+[19:33:11.232] [WorldEvent] New event: Misconduct id=misconduct_town_K4_2185863_1 settlement=town_K4 items=[eastern_lamellar_armorx1] culprit=main_hero stage=Dormant suspect=none witnesses=0h+0v severity=0 occurredDay=91077.66
+[19:33:13.379] [GameMenu] ● 点击 menu=town_keep_dungeon 选项="离开" [id=town_keep_dungeon_back] @奥通加德(城镇)
+[19:33:13.383] [GameMenu] ▶ 打开 menu=town_keep @奥通加德(城镇)
+    标题: 主楼
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。
+    选项:
+      1. 前往领主大厅  [id=town_lords_hall] 可点
+      2. 前往地牢  [id=town_lords_hall_go_to_dungeon] 可点
+      3. 返回城镇中心  [id=town_castle_back] 可点
+[19:33:15.051] [GameMenu] ● 点击 menu=town_keep 选项="返回城镇中心" [id=town_castle_back] @奥通加德(城镇)
+[19:33:15.058] [GameMenu] ▶ 打开 menu=town @奥通加德(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
+    选项:
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[19:33:15.876] [GameMenu] ● 点击 menu=town 选项="离开" [id=town_leave] @奥通加德(城镇)
+[19:33:15.878] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[19:33:15.878] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[19:33:15.879] [GameMenu] ◀ 关闭 menu=town
+[19:33:32.687] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1597"><b>狼皮部落的布雷阿丹</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_9"><b>库尔哈恩</b></a>俘虏。"
+[19:33:34.153] [WorldEvent] ProcessDaily: 2 active event(s), day=91077.88
+[19:33:34.153] [WorldEvent] ProcessDaily: id=misconduct_town_ES4_2185862 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91077.88 overnight=False
+[19:33:34.153] [WorldEvent] ProcessDaily: id=misconduct_town_K4_2185863_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.66 now=91077.88 overnight=False
+[19:33:34.813] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1600"><b>绿林兄弟会的托古德</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_6"><b>卡拉蒂尔德</b></a>俘虏。"
+[19:33:44.413] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
+[19:33:50.050] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1596"><b>狼皮部落的埃德温</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_17"><b>阿拉德维尔</b></a>俘虏。"
+[19:33:52.907] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1599"><b>狼皮部落的乌德里斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_5_21"><b>卡费德</b></a>俘虏。"
+[19:33:54.132] [WorldEvent] ProcessDaily: 2 active event(s), day=91078.88
+[19:33:54.133] [WorldEvent] ProcessDaily: id=misconduct_town_ES4_2185862 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.63 now=91078.88 overnight=True
+[19:33:54.137] [Player] NinjaReport(discovered): ⚠ 吕卡隆 · 东窗事发 — 少了一件啤酒、一件artisan_beer等20项财物 (authority=弥娜, location=主楼)
+[19:33:54.138] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Emerging
+[19:33:54.138] [CommissionIssue] StageChanged: event=misconduct_town_ES4_2185862 stage=Emerging settlement=吕卡隆 — refreshing issue signals
+[19:33:54.143] [CommissionIssue] Assigned CommissionHubIssue to 弥娜 (lord_1_47_1) crimeEvent=misconduct_town_ES4_2185862 stage=Emerging
+[19:33:54.143] [WorldEvent] ProcessDaily: id=misconduct_town_K4_2185863_1 stage=Dormant suspect=none awareness=0.00 investProgress=0.00 occurredDay=91077.66 now=91078.88 overnight=True
+[19:33:54.143] [Player] NinjaReport(discovered): ⚠ 奥通加德 · 东窗事发 — 少了一件枪骑兵扎甲 (authority=阿巴该, location=主楼)
+[19:33:54.144] [WorldEvent] misconduct_town_K4_2185863_1 Stage: Dormant → Emerging
+[19:33:54.144] [CommissionIssue] StageChanged: event=misconduct_town_K4_2185863_1 stage=Emerging settlement=奥通加德 — refreshing issue signals
+[19:33:54.144] [CommissionIssue] Assigned CommissionHubIssue to 阿巴该 (lord_6_12) crimeEvent=misconduct_town_K4_2185863_1 stage=Emerging
+[19:33:54.568] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1603"><b>绿林兄弟会的撒马得力</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_9"><b>托蒙德</b></a>俘虏。"
+[19:33:54.569] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Hero" href="event:Hero-CharacterObject_1601"><b>绿林兄弟会的拉马克</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-vlandia"><b>瓦兰迪亚</b></a>的<a style="Link.Hero" href="event:Hero-lord_4_9"><b>托蒙德</b></a>俘虏。"
+[19:33:55.423] [ShowInquiry] "东窗事发" | "暗探来报——奥通加德的居民发现少了一件枪骑兵扎甲，城主阿巴该正在调查此事，看样子是要查个水落石出。
 
-[13:02:51.388] [Chest] 锚点 '特维亚的加里托普斯' at (554.2104, 326.8709, 8.111679) → 正后方 0.7m 命中，相对偏移 (0.25, 0.66, 0.00)
-[13:02:51.394] [Chest] Spawned prefab 'bd_chest_c' at (554.4569, 327.5261, 8.114143) (scale=0.5)
-[13:02:51.394] [Chest] Visual highlight applied (warm gold tint)
-[13:02:51.394] [Chest] Spawned at (554.4569, 327.5261, 8.114143), context=Village, gold=200, items=4
-[13:02:51.396] [ConvLock] Acquire by 特维亚的加里托普斯(Idx=2) | reason=MissionStartPrefix
-[13:02:51.453] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "嗯？抱歉，我觉得我应该不认识你。"
-[13:02:51.478] [ConvEntry] FindOnGoing(village_ES3_2) → evt=misconduct_village_ES3_2_2185863_1 stage=Emerging assault=[帝国农民:2] pendingId=misconduct_village_ES3_2_2185863_1 pendingStage=Emerging pendingAssault=[帝国农民:2]
-[13:02:51.478] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
-[13:02:51.478] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 没有匹配的 owner（现存 0 个: []）
-[13:02:51.480] [ConvEntry] BuildScript: partner=特维亚的加里托普斯 partnerStringId=CharacterObject_2909 agent=特维亚的加里托普斯 agentIdx=2 character=特维亚的加里托普斯 characterStringId=CharacterObject_2909 evtId=misconduct_village_ES3_2_2185863_1 trigger=Normal confrontation=Deter triggerAction=Crouching
-[13:02:51.482] [Placeholder][对话预填充] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
-[13:02:51.482] [Placeholder][对话预填充] NpcLine: "（{SpeakerEmotion}地）{TimeWord}{TargetSettlementName}出事了——{DiscoveryFacts}。{InvestigationProgressWord}。{WitnessCountWord}，…" → "（冷淡地）昨儿特维亚出事了——帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
-[13:02:51.484] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子村里丢了一件简易束腰布衣、一件扎带皮靴等3项财物，市值308第纳尔，一直没找到是谁干的。今天你把帝国农民打晕了，身价2第纳尔——既然抓着的是你，两笔账一起算。既然你自己认了，闹事按规矩罚2倍，一共434第纳尔。你认不认？"
-[13:02:51.484] [Placeholder][对话预填充] NpcLine: "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" → "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。"
-[13:02:51.484] [Placeholder][对话预填充] PlayerLine: "行，就这个数——217第纳尔。" → "行，就这个数——217第纳尔。"
-[13:02:51.484] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
-[13:02:51.484] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[0] id=injectedStart NpcLine="（冷淡地）昨儿特维亚出事了——帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "是我干的。" → INTENT:Confess | NextNodeOnSuccess=confess
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "我可以帮忙查查是谁干的。" → INTENT:Investigate | NextNodeOnSuccess=discovery_accept_ack
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "我还有事。" → INTENT:WalkAway | NextNodeOnSuccess=discovery_decline_ack
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[1] id=confess NpcLine="你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我愿意赔。你说个数。" → NONE | NextNodeOnSuccess=restitution_demand
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "开个玩笑……刚才是我胡说的" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=charm_ok | NextNodeOnFail=charm_fail
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "转身就走" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[2] id=restitution_demand NpcLine="" [Lazy]
-[13:02:51.486] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[3] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[4] id=continue_chat NpcLine="还有什么别的想说的吗?"
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[5] id=farewell NpcLine="" [Lazy]
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[6] id=restitution_haggle_ok NpcLine="……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" [Lazy]
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就这个数——217第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[7] id=restitution_refuse_warn NpcLine="" [Lazy]
-[13:02:51.487] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[8] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[9] id=charm_ok NpcLine="……说清楚？好，老夫倒要听听。"
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[10] id=charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[11] id=discovery_accept_ack NpcLine="拜托了！查出来了老夫必有重谢。"
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[12] id=discovery_decline_ack NpcLine="那你这小子忙吧……老夫们自己想办法。"
-[13:02:51.488] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:02:51.490] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_injectedStart' | priority=125 | owner=crime_misconduct_village_ES3_2_2185863_1_v0
-[13:02:51.492] [ConvCondition] Building condition for intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" actionParam=(null)
-[13:02:51.492] [ConvCondition] Building condition for intent=WalkAway playerLine="转身就走" actionParam=(null)
-[13:02:51.493] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
-[13:02:51.493] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
-[13:02:51.493] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——217第纳尔。" actionParam=haggle
-[13:02:51.493] [ConvCondition] Building condition for intent=Confess playerLine="是我干的。" actionParam=(null)
-[13:02:51.493] [ConvCondition] Building condition for intent=Investigate playerLine="我可以帮忙查查是谁干的。" actionParam=(null)
-[13:02:51.493] [ConvCondition] Building condition for intent=WalkAway playerLine="我还有事。" actionParam=(null)
-[13:02:51.493] [ConvCondition] Building condition for intent=WalkAway playerLine="我得走了。" actionParam=(null)
-[13:02:51.493] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_village_ES3_2_2185863_1 stage=Emerging trigger=Normal partner=特维亚的加里托普斯 nodes=13
-[13:02:52.533] [VanillaDialog] Token='lord_meet_player_response' Hero=特维亚的加里托普斯 | Options (3): 我是亨利，你是谁？ | 我叫亨利，先生。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
-[13:02:52.533] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
-[13:02:52.539] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我是加里托普斯。我在这里生活了一辈子，在这片土地上劳作，我的族人也一样。生活在特维亚的许多人，都是像我一样的普通农民和手艺人，他们希望我来代表他们。"
-[13:02:53.481] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "我会记下你的名字。"
-[13:02:55.301] [VanillaDialog] Token='hero_main_options' Hero=特维亚的加里托普斯 | Options (2): 村长，听说特维亚出了点事？ | 我现在得走了。
-[13:02:55.301] [VanillaDialog] Player says: "村长，听说特维亚出了点事？"
-[13:02:55.302] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "（冷淡地）昨儿特维亚出事了——帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
-[13:02:55.303] [ConvCondition] intent=Confess playerLine="是我干的。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
-[13:02:55.303] [ConvCondition] intent=Investigate playerLine="我可以帮忙查查是谁干的。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
-[13:02:55.303] [ConvCondition] intent=WalkAway playerLine="我还有事。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
-[13:03:08.653] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_atk_10' Hero=特维亚的加里托普斯 | Options (3): [自首]是我干的。 | [接案]我可以帮忙查查是谁干的。 | [离开]我还有事。
-[13:03:08.655] [Accountability] Player accepted investigation quest for misconduct_village_ES3_2_2185863_1
-[13:03:08.656] [CommissionGen] Accountability Investigation quest: hero=特维亚的加里托普斯 event=misconduct_village_ES3_2_2185863_1 stage=Emerging reward=150
-[13:03:08.658] [CommissionQuest] OnStartQuest: 调查：特维亚刑案 narrativePhase=False questId=crime_misconduct_village_ES3_2_2185863_1
-[13:03:08.659] [CommissionQuest] Full startup: giver=特维亚的加里托普斯 reward=150 deposit=30 days=5 tier=Basic
-[13:03:08.661] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
-[13:03:08.663] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
-[13:03:08.663] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
-[13:03:08.663] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
-[13:03:08.664] [AddQuickInformation] "调查：特维亚刑案：日志已更新。"
-[13:03:08.664] [CommissionQuest] OnStartQuest DONE: category=Investigation giver=特维亚的加里托普斯 questId=crime_misconduct_village_ES3_2_2185863_1
-[13:03:08.664] [CommissionQuest] RegisterEvents: category=Investigation questId=crime_misconduct_village_ES3_2_2185863_1
-[13:03:08.666] [AddQuickInformation] "任务激活：调查：特维亚刑案"
-[13:03:08.666] [QuestStart] CommissionQuest "调查：特维亚刑案" | giver=特维亚的加里托普斯 | IsOngoing=True | RewardGold=150
-[13:03:08.667] [CommissionHubIssue] GenerateIssueQuest: crime_misconduct_village_ES3_2_2185863_1 category=Investigation giver=特维亚的加里托普斯
-[13:03:08.667] [VanillaDialog] Player says: "[接案]我可以帮忙查查是谁干的。"
-[13:03:08.667] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "拜托了！查出来了老夫必有重谢。"
-[13:03:10.253] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_atk_11' Hero=特维亚的加里托普斯 | Options (1): 嗯…
-[13:03:10.253] [VanillaDialog] Player says: "嗯…"
-[13:03:10.253] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "还有什么别的想说的吗?"
-[13:03:10.253] [ConvCondition] intent=WalkAway playerLine="我得走了。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
-[13:03:10.918] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185863_1_v0_atk_13' Hero=特维亚的加里托普斯 | Options (1): [离开]我得走了。
-[13:03:10.919] [VanillaDialog] Player says: "[离开]我得走了。"
-[13:03:10.919] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "快去查，有消息了来告诉老夫。"
-[13:03:11.572] [ConvLock] Release by 特维亚的加里托普斯(Idx=2) | reason=EndConversation
-[13:03:11.572] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185863_1_CharacterObject_2909_Emerging_1_2_3 lastTag=crime_misconduct_village_ES3_2_2185863_1
-[13:03:11.572] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 1 个 owner: [crime_misconduct_village_ES3_2_2185863_1(crime_misconduct_village_ES3_2_2185863_1_v0)]（现存 1 个）
-[13:03:11.572] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 已清理 owner BaseLabel="crime_misconduct_village_ES3_2_2185863_1" FileName="crime_misconduct_village_ES3_2_2185863_1_v0"
-[13:03:11.572] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 清理完毕，剩余注入项 0 个: []
-[13:03:11.573] [ConvEnd] Haggle flag cleared for misconduct_village_ES3_2_2185863_1
-[13:03:15.234] 
+好在暂时没人把你和这事联系起来。去奥通加德的主楼找阿巴该即可介入此事。你也可以从此绕着奥通加德走。" | Btn1="知道了" Btn2="(hidden)"
+[19:34:00.782] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Kingdom" href="event:Kingdom-aserai"><b>阿塞莱</b></a>的<a style="Link.Hero" href="event:Hero-lord_3_11"><b>阿尔瓦</b></a>已被<a style="Link.Hero" href="event:Hero-CharacterObject_1592"><b>暗影之子的塔海亚</b></a>俘虏。"
+[19:34:01.141] [GameMenu] ▶ 打开 menu=town @奥通加德(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
+    选项:
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[19:34:02.532] [GameMenu] ● 点击 menu=town 选项="前往主楼" [id=town_keep] @奥通加德(城镇)
+[19:34:02.539] [GameMenu] ▶ 打开 menu=town_keep @奥通加德(城镇)
+    标题: 主楼
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。
+    选项:
+      1. 前往领主大厅  [id=town_lords_hall] 可点
+      2. 前往地牢  [id=town_lords_hall_go_to_dungeon] 可点
+      3. 返回城镇中心  [id=town_castle_back] 可点
+[19:34:10.341] [Wealth] 奥通加德 (LordsHall, ×0.30): 金库16904→场景5071→流通池5071, NPC池4056(英雄4人=3604, 村民2人=450), 箱子1015第纳尔, 物资66种(过滤后)
+[19:34:10.343] [Chest] 锚点 '亨利' at (6.674694, 3.059874, 7.202374) → 正后方 0.7m 命中，相对偏移 (-0.46, -0.53, 0.00)
+[19:34:10.396] [Chest] Spawned prefab 'bd_chest_c' at (6.212563, 2.534103, 7.200525) (scale=0.5)
+[19:34:10.398] [Chest] Visual highlight applied (warm gold tint)
+[19:34:10.398] [Chest] Spawned at (6.212563, 2.534103, 7.200525), context=LordsHall, gold=1015, items=60
+[19:34:10.399] [ConvLock] Acquire by 阿巴该(Idx=1) | reason=MissionStartPrefix
+[19:34:10.482] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "好了，陌生人，愿你安好。你叫什么名字？"
+[19:34:10.502] [ConvEntry] FindOnGoing(town_K4) → evt=misconduct_town_K4_2185863_1 stage=Emerging assault=[none:0] pendingId=misconduct_town_K4_2185901_2 pendingStage=Dormant pendingAssault=[none:0]
+[19:34:10.502] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[19:34:10.503] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[19:34:10.503] [ConvEntry] BuildScript: partner=阿巴该 partnerStringId=lord_6_12 agent=阿巴该 agentIdx=1 character=阿巴该 characterStringId=lord_6_12 evtId=misconduct_town_K4_2185863_1 trigger=Normal confrontation=Deter triggerAction=Crouching
+[19:34:10.513] [Placeholder][对话预填充] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "城主，听说奥通加德出了点事？"
+[19:34:10.514] [Placeholder][对话预填充] NpcLine: "{TimeWord}{TargetSettlementName}出事了——{DiscoveryFacts}。{InvestigationProgressWord}。{WitnessCountWord}，{SuspectDescription…" → "前天奥通加德出事了——少了一件枪骑兵扎甲。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
+[19:34:10.516] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "地牢里丢了一件枪骑兵扎甲，市值27826第纳尔，一直没找到是谁干的。既然你自己认了，闹事按规矩罚2倍，一共38956第纳尔。你认不认？"
+[19:34:10.517] [Placeholder][对话预填充] NpcLine: "……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。" → "……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。"
+[19:34:10.517] [Placeholder][对话预填充] PlayerLine: "行，就这个数——19478第纳尔。" → "行，就这个数——19478第纳尔。"
+[19:34:10.517] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[19:34:10.517] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[19:34:10.519] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[0] id=injectedStart NpcLine="前天奥通加德出事了——少了一件枪骑兵扎甲。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
+[19:34:10.520] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "是我干的。" → INTENT:Confess | NextNodeOnSuccess=confess
+[19:34:10.520] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "我可以帮忙查查是谁干的。" → INTENT:Investigate | NextNodeOnSuccess=discovery_accept_ack
+[19:34:10.520] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "我还有事。" → INTENT:WalkAway | NextNodeOnSuccess=discovery_decline_ack
+[19:34:10.520] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[1] id=confess NpcLine="你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
+[19:34:10.520] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "我愿意赔。你说个数。" → NONE | NextNodeOnSuccess=restitution_demand
+[19:34:10.520] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "开个玩笑……刚才是我胡说的" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=charm_ok | NextNodeOnFail=charm_fail
+[19:34:10.521] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "转身就走" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
+[19:34:10.521] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[2] id=restitution_demand NpcLine="" [Lazy]
+[19:34:10.521] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[19:34:10.521] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[19:34:10.521] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[19:34:10.521] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[3] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[19:34:10.521] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:34:10.522] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[4] id=continue_chat NpcLine="还有什么别的想说的吗?"
+[19:34:10.522] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
+[19:34:10.522] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[5] id=farewell NpcLine="" [Lazy]
+[19:34:10.522] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[6] id=restitution_haggle_ok NpcLine="……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。" [Lazy]
+[19:34:10.522] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "行，就这个数——19478第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[19:34:10.522] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[19:34:10.522] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[7] id=restitution_refuse_warn NpcLine="" [Lazy]
+[19:34:10.523] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:34:10.523] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[8] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[19:34:10.523] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[19:34:10.523] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[9] id=charm_ok NpcLine="……说清楚？好，本官倒要听听。"
+[19:34:10.524] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:34:10.524] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[10] id=charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
+[19:34:10.524] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:34:10.524] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[11] id=discovery_accept_ack NpcLine="拜托了！查出来了本官必有重谢。"
+[19:34:10.524] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:34:10.525] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[12] id=discovery_decline_ack NpcLine="那你这小子忙吧……本官们自己想办法。"
+[19:34:10.525] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:34:10.526] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_town_K4_2185863_1_v0_injectedStart' | priority=125 | owner=crime_misconduct_town_K4_2185863_1_v0
+[19:34:10.529] [ConvCondition] Building condition for intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" actionParam=(null)
+[19:34:10.529] [ConvCondition] Building condition for intent=WalkAway playerLine="转身就走" actionParam=(null)
+[19:34:10.529] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[19:34:10.529] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[19:34:10.531] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——19478第纳尔。" actionParam=haggle
+[19:34:10.531] [ConvCondition] Building condition for intent=Confess playerLine="是我干的。" actionParam=(null)
+[19:34:10.531] [ConvCondition] Building condition for intent=Investigate playerLine="我可以帮忙查查是谁干的。" actionParam=(null)
+[19:34:10.531] [ConvCondition] Building condition for intent=WalkAway playerLine="我还有事。" actionParam=(null)
+[19:34:10.532] [ConvCondition] Building condition for intent=WalkAway playerLine="我得走了。" actionParam=(null)
+[19:34:10.532] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_town_K4_2185863_1 stage=Emerging trigger=Normal partner=阿巴该 nodes=13
+[19:34:14.241] [VanillaDialog] Token='lord_meet_player_response' Hero=阿巴该 | Options (3): 我是亨利，你是谁？ | 我叫亨利，女士。能告诉我你的名字吗？ | 他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。
+[19:34:14.242] [VanillaDialog] Player says: "他们叫我亨利。记住这个名字，因为你将会听到很多关于我的事情。"
+[19:34:14.248] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "我是<a style="Link.Clan" href="event:Faction-clan_khuzait_3"><b>阿契特</b></a>的<a style="Link.Hero" href="event:Hero-lord_6_12"><b>阿巴该</b></a>。我们部族世世代代效忠于库赛特汗国。"
+[19:34:15.345] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "如果你想要扬名立万，你可以考虑为我而战。将来有一天，你可以告诉你的孙辈们，你曾经在我的麾下效忠。"
+[19:34:18.976] [VanillaDialog] Token='hero_main_options' Hero=阿巴该 | Options (5): “涅雷采斯的愚行”是什么？ | 城主，听说奥通加德出了点事？ | 有件事我想和你谈谈。 | 你愿意玩一局普鲁克来打发时间吗？ | 我现在得走了。
+[19:34:18.977] [VanillaDialog] Player says: "城主，听说奥通加德出了点事？"
+[19:34:18.977] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "前天奥通加德出事了——少了一件枪骑兵扎甲。刚开始查。没人看见，不知道是谁。你这小子能帮忙查查吗？"
+[19:34:18.978] [ConvCondition] intent=Confess playerLine="是我干的。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:34:18.978] [ConvCondition] intent=Investigate playerLine="我可以帮忙查查是谁干的。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:34:18.978] [ConvCondition] intent=WalkAway playerLine="我还有事。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:34:33.207] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v0_atk_10' Hero=阿巴该 | Options (3): [自首]是我干的。 | [接案]我可以帮忙查查是谁干的。 | [离开]我还有事。
+[19:34:33.209] [Accountability] Player accepted investigation quest for misconduct_town_K4_2185863_1
+[19:34:33.210] [CommissionGen] Accountability Investigation quest: hero=阿巴该 event=misconduct_town_K4_2185863_1 stage=Emerging reward=150
+[19:34:33.212] [CommissionQuest] OnStartQuest: 调查：奥通加德失窃案 narrativePhase=False questId=crime_misconduct_town_K4_2185863_1
+[19:34:33.212] [CommissionQuest] Full startup: giver=阿巴该 reward=150 deposit=30 days=5 tier=Basic
+[19:34:33.214] [AddQuickInformation] "调查：奥通加德失窃案：日志已更新。"
+[19:34:33.216] [AddQuickInformation] "调查：奥通加德失窃案：日志已更新。"
+[19:34:33.216] [AddQuickInformation] "调查：奥通加德失窃案：日志已更新。"
+[19:34:33.217] [AddQuickInformation] "调查：奥通加德失窃案：日志已更新。"
+[19:34:33.217] [AddQuickInformation] "调查：奥通加德失窃案：日志已更新。"
+[19:34:33.217] [CommissionQuest] OnStartQuest DONE: category=Investigation giver=阿巴该 questId=crime_misconduct_town_K4_2185863_1
+[19:34:33.218] [CommissionQuest] RegisterEvents: category=Investigation questId=crime_misconduct_town_K4_2185863_1
+[19:34:33.220] [AddQuickInformation] "任务激活：调查：奥通加德失窃案"
+[19:34:33.221] [QuestStart] CommissionQuest "调查：奥通加德失窃案" | giver=阿巴该 | IsOngoing=True | RewardGold=150
+[19:34:33.221] [CommissionHubIssue] GenerateIssueQuest: crime_misconduct_town_K4_2185863_1 category=Investigation giver=阿巴该
+[19:34:33.221] [VanillaDialog] Player says: "[接案]我可以帮忙查查是谁干的。"
+[19:34:33.221] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "拜托了！查出来了本官必有重谢。"
+[19:34:34.724] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v0_atk_11' Hero=阿巴该 | Options (1): 嗯…
+[19:34:34.724] [VanillaDialog] Player says: "嗯…"
+[19:34:34.725] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "还有什么别的想说的吗?"
+[19:34:34.725] [ConvCondition] intent=WalkAway playerLine="我得走了。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:34:35.624] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v0_atk_13' Hero=阿巴该 | Options (1): [离开]我得走了。
+[19:34:35.625] [VanillaDialog] Player says: "[离开]我得走了。"
+[19:34:35.625] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "快去查，有消息了来告诉本官。"
+[19:34:36.205] [ConvLock] Release by 阿巴该(Idx=1) | reason=EndConversation
+[19:34:36.205] [ConvEnd] Conversation ended. lastEvent=misconduct_town_K4_2185863_1_lord_6_12_Emerging_1_0_1 lastTag=crime_misconduct_town_K4_2185863_1
+[19:34:36.205] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 1 个 owner: [crime_misconduct_town_K4_2185863_1(crime_misconduct_town_K4_2185863_1_v0)]（现存 1 个）
+[19:34:36.205] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 已清理 owner BaseLabel="crime_misconduct_town_K4_2185863_1" FileName="crime_misconduct_town_K4_2185863_1_v0"
+[19:34:36.206] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 清理完毕，剩余注入项 0 个: []
+[19:34:36.206] [ConvEnd] Haggle flag cleared for misconduct_town_K4_2185863_1
+[19:34:36.366] [DisplayMessage] [Yellow] "你注意到大厅角落有个微微泛金的储物箱，上面挂着一把旧锁……"
+[19:34:48.078] [GameMenu] ● 点击 menu=town_keep 选项="返回城镇中心" [id=town_castle_back] @奥通加德(城镇)
+[19:34:48.085] [GameMenu] ▶ 打开 menu=town @奥通加德(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
+    选项:
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[19:34:50.080] [GameMenu] ● 点击 menu=town 选项="离开" [id=town_leave] @奥通加德(城镇)
+[19:34:50.081] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[19:34:50.081] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[19:34:50.081] [GameMenu] ◀ 关闭 menu=town
+[19:34:51.523] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Kingdom" href="event:Kingdom-empire"><b>北帝国</b></a>的<a style="Link.Hero" href="event:Hero-lord_NE8_l"><b>马利齐俄斯</b></a>已被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的<a style="Link.Hero" href="event:Hero-lord_6_23"><b>斤帖格</b></a>俘虏。"
+[19:34:52.202] 
 ══════════════════════════════════════
 📋 [QuestJournal] 任务: "建立你的家族" [MainQuest] [Tracked]
    类型: RebuildPlayerClanQuest
@@ -258,16 +289,16 @@
        日期: 2天之前 | 🔚
        📌 子任务: 雇佣的同伴 0/1 (0/1)
 ══════════════════════════════════════
-[13:03:16.092] 
+[19:34:53.252] 
 ══════════════════════════════════════
-📋 [QuestJournal] 任务: "调查：特维亚刑案" [Tracked]
+📋 [QuestJournal] 任务: "调查：奥通加德失窃案" [Tracked]
    类型: CommissionQuest
-   委托人: 特维亚的加里托普斯
+   委托人: 阿巴该
    剩余天数:  天
    IsOngoing=True | IsTrackEnabled=True
    ── 阶段日志 (5 条) ──
-   [0] 【委托】调查：特维亚刑案
-委托人：特维亚的加里托普斯
+   [0] 【委托】调查：奥通加德失窃案
+委托人：阿巴该
 报酬：150 第纳尔 | 定金：30
 期限：6 天
 在案发定居点附近搜索或与村民交谈可推进调查。
@@ -277,90 +308,298 @@
        📌 子任务: 完成度 0/1 (0/1)
    [2] 定金 30 第纳尔已到账。
        日期: 今天
-   [3] 前往 特维亚 的当地附近搜集线索。帝国农民被人打晕了，还少了一件简易束腰布衣、一件扎带皮靴等3项财物，暂时无人目击。与当地人交谈或回现场调查，找出是谁干的。
+   [3] 前往 奥通加德 的当地附近搜集线索。少了一件枪骑兵扎甲，暂时无人目击。与当地人交谈或回现场调查，找出是谁干的。
        日期: 今天
    [4] 提示：调查窗口约5天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。
        日期: 今天 | 🔚
 ══════════════════════════════════════
-[13:03:27.286] === [AnimalSync] 特维亚 (village_ES3_2) ===
-  Type       Scene    Roster   Stolen   Action
-  ----       -----    ------   ------   ------
-  sheep      16       16       0        
-  cow        10       10       0        
-  hog        10       10       0        
-  goose      5        5        0        
-  chicken    16       16       0        
-  =========================================
+[19:35:02.247] 
+══════════════════════════════════════
+📋 [QuestJournal] 任务: "调查：奥通加德失窃案" [Tracked]
+   类型: CommissionQuest
+   委托人: 阿巴该
+   剩余天数:  天
+   IsOngoing=True | IsTrackEnabled=True
+   ── 阶段日志 (5 条) ──
+   [0] 【委托】调查：奥通加德失窃案
+委托人：阿巴该
+报酬：150 第纳尔 | 定金：30
+期限：6 天
+在案发定居点附近搜索或与村民交谈可推进调查。
+       日期: 今天
+   [1] 第二步：搜集线索，找出真凶
+       日期: 今天
+       📌 子任务: 完成度 0/1 (0/1)
+   [2] 定金 30 第纳尔已到账。
+       日期: 今天
+   [3] 前往 奥通加德 的当地附近搜集线索。少了一件枪骑兵扎甲，暂时无人目击。与当地人交谈或回现场调查，找出是谁干的。
+       日期: 今天
+   [4] 提示：调查窗口约5天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。
+       日期: 今天 | 🔚
+══════════════════════════════════════
+[19:35:09.291] [DisplayMessage] "每日第纳尔收支：-12<img src="General\Icons\Coin@2x" extend="8">"
+[19:35:10.386] [DisplayMessage] [RGB(0.7,0.7,0.7)] "<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的<a style="Link.Hero" href="event:Hero-lord_6_8"><b>额速儿</b></a>已被<a style="Link.Hero" href="event:Hero-CharacterObject_1621"><b>喀拉库吉特的阿勒般</b></a>俘虏。"
+[19:35:18.296] [DisplayMessage] [RGB(0.6,0.6,0.6)] "<a style="Link.Settlement" href="event:Settlement-castle_EW5"><b>维戎堡</b></a>遭遇<a style="Link.Kingdom" href="event:Kingdom-battania"><b>巴旦尼亚</b></a>的围攻。"
+[19:35:18.997] [CommissionQuest] DailyTick: 调查：奥通加德失窃案 timeRemain=96h reward=150
+[19:35:18.998] [CommissionQuest] JourneyEvent triggered for 调查：奥通加德失窃案
+[19:35:18.998] [ShowInquiry] "陷进泥里的货车" | "一辆货车陷进了泥里，车主焦急地挥手求助。帮忙修好车轮可能需要一些工程技巧……" | Btn1="出手相助" Btn2="爱莫能助"
+[19:35:19.000] [NotificationPipeline] PopupWithChoice: 陷进泥里的货车 — 一辆货车陷进了泥里，车主焦急地挥手求助。帮忙修好车轮可能需要一些工程技巧……
+[19:35:19.002] [WorldEvent] ProcessDaily: 2 active event(s), day=91079.87
+[19:35:19.002] [WorldEvent] ProcessDaily: id=misconduct_town_ES4_2185862 stage=Emerging suspect=none awareness=0.10 investProgress=0.00 occurredDay=91077.63 now=91079.87 overnight=True
+[19:35:19.005] 吕卡隆出了事：少了一件啤酒、一件artisan_beer等20项财物
 
-[13:03:27.287] [Chest] 锚点 '特维亚的加里托普斯' at (563.1435, 279.7509, 10.87698) → 正后方 0.7m 命中，相对偏移 (0.25, 0.66, -0.01)
-[13:03:27.343] [Chest] Spawned prefab 'bd_chest_c' at (563.3898, 280.4061, 10.87074) (scale=0.5)
-[13:03:27.343] [Chest] Visual highlight applied (warm gold tint)
-[13:03:27.343] [Chest] Spawned at (563.3898, 280.4061, 10.87074), context=Village, gold=200, items=4
-[13:03:27.343] [ConvLock] Acquire by 特维亚的加里托普斯(Idx=2) | reason=MissionStartPrefix
-[13:03:27.367] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "亨利..."
-[13:03:27.367] [ConvEntry] FindOnGoing(village_ES3_2) → evt=misconduct_village_ES3_2_2185863_1 stage=Emerging assault=[帝国农民:2] pendingId=misconduct_village_ES3_2_2185863_1 pendingStage=Emerging pendingAssault=[帝国农民:2]
-[13:03:27.367] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
-[13:03:27.367] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185863_1": 没有匹配的 owner（现存 0 个: []）
-[13:03:27.368] [ConvEntry] BuildScript: partner=特维亚的加里托普斯 partnerStringId=CharacterObject_2909 agent=特维亚的加里托普斯 agentIdx=2 character=特维亚的加里托普斯 characterStringId=CharacterObject_2909 evtId=misconduct_village_ES3_2_2185863_1 trigger=Normal confrontation=Deter triggerAction=Crouching
-[13:03:27.368] [Placeholder][对话预填充] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "村长，听说特维亚出了点事？"
-[13:03:27.368] [Placeholder][对话预填充] EntryOption: "关于{TargetSettlementName}那个案子……" → "关于特维亚那个案子……"
-[13:03:27.370] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "前阵子村里丢了一件简易束腰布衣、一件扎带皮靴等3项财物，市值308第纳尔，一直没找到是谁干的。今天你把帝国农民打晕了，身价2第纳尔——既然抓着的是你，两笔账一起算。既然你自己认了，闹事按规矩罚2倍，一共434第纳尔。你认不认？"
-[13:03:27.370] [Placeholder][对话预填充] NpcLine: "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" → "……行，原价434，给你对半砍——217。这是最后价了，不能再少了。"
-[13:03:27.370] [Placeholder][对话预填充] PlayerLine: "行，就这个数——217第纳尔。" → "行，就这个数——217第纳尔。"
-[13:03:27.370] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
-[13:03:27.370] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
-[13:03:27.370] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[0] id=injectedStart NpcLine="怎么样，查到什么了吗？"
-[13:03:27.370] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "是附近藏身处的强盗干的！" → INTENT:FrameSuspect Param=bandit [SkillCheck] | NextNodeOnSuccess=frame_bandit_ok | NextNodeOnFail=frame_bandit_fail
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "还没查到什么。" → NONE | NextNodeOnSuccess=report_nothing_ack
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "我还有事。" → INTENT:WalkAway | NextNodeOnSuccess=report_leave_ack
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[3] "（低头）……是我干的。" → INTENT:Confess | NextNodeOnSuccess=confess
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[1] id=frame_bandit_ok NpcLine="藏身处的强盗？好，那就是他们了！老夫这就张罗悬赏。"
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[2] id=continue_chat NpcLine="还有什么别的想说的吗?"
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
-[13:03:27.372] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[3] id=farewell NpcLine="" [Lazy]
-[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[4] id=frame_bandit_fail NpcLine="强盗？光凭你这小子一句话可不行……再去查查。"
-[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[5] id=report_nothing_ack NpcLine="那你再去看看。刚开始查。"
-[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[6] id=report_leave_ack NpcLine="快去查，有消息了来告诉老夫。"
-[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.373] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[7] id=confess NpcLine="你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "我愿意赔。你说个数。" → NONE | NextNodeOnSuccess=restitution_demand
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "开个玩笑……刚才是我胡说的" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=charm_ok | NextNodeOnFail=charm_fail
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "转身就走" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[8] id=restitution_demand NpcLine="" [Lazy]
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[9] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.374] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[10] id=restitution_haggle_ok NpcLine="……行，原价434，给你对半砍——217。这是最后价了，不能再少了。" [Lazy]
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "行，就这个数——217第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[11] id=restitution_refuse_warn NpcLine="" [Lazy]
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[12] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[13] id=charm_ok NpcLine="……说清楚？好，老夫倒要听听。"
-[13:03:27.375] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.376] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging Turn[14] id=charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
-[13:03:27.376] [CrimeDialog] speaker=特维亚的加里托普斯 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
-[13:03:27.376] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_village_ES3_2_2185863_1_v1_injectedStart' | priority=125 | owner=crime_misconduct_village_ES3_2_2185863_1_v1
-[13:03:27.376] [ConvCondition] Building condition for intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" actionParam=(null)
-[13:03:27.376] [ConvCondition] Building condition for intent=WalkAway playerLine="转身就走" actionParam=(null)
-[13:03:27.376] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
-[13:03:27.376] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
-[13:03:27.376] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——217第纳尔。" actionParam=haggle
-[13:03:27.376] [ConvCondition] Building condition for intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" actionParam=bandit
-[13:03:27.376] [ConvCondition] Building condition for intent=WalkAway playerLine="我还有事。" actionParam=(null)
-[13:03:27.376] [ConvCondition] Building condition for intent=Confess playerLine="（低头）……是我干的。" actionParam=(null)
-[13:03:27.377] [ConvCondition] Building condition for intent=WalkAway playerLine="我得走了。" actionParam=(null)
-[13:03:27.377] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_village_ES3_2_2185863_1 stage=Emerging trigger=Normal partner=特维亚的加里托普斯 nodes=15
-[13:03:27.909] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "再次感谢你同意接手此事。"
-[13:03:28.428] [VanillaDialog] Token='hero_main_options' Hero=特维亚的加里托普斯 | Options (2): 关于特维亚那个案子…… | 我现在得走了。
-[13:03:28.428] [VanillaDialog] Player says: "关于特维亚那个案子……"
-[13:03:28.428] [VanillaDialog] NPC  | NPC: 特维亚的加里托普斯 (HeroId: CharacterObject_2909) says: "怎么样，查到什么了吗？"
-[13:03:28.429] [ConvCondition] intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=bandit eligibility=Enabled reason=
-[13:03:28.429] [ConvCondition] intent=WalkAway playerLine="我还有事。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
-[13:03:28.429] [ConvCondition] intent=Confess playerLine="（低头）……是我干的。" npc=特维亚的加里托普斯 settlement=特维亚 evt=misconduct_village_ES3_2_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:35:19.005] [ShowInquiry] "大人：最新坊间传闻" | "吕卡隆出了事：少了一件啤酒、一件artisan_beer等20项财物
+" | Btn1="已阅" Btn2="(hidden)"
+[19:35:19.031] Story Generation Error: LLMService not initialized!
+[19:35:19.031] [SocialEvent] BroadcastWorldEvent: Misconduct at town_ES4 severity=0 → SocialEvent propagated
+[19:35:19.033] [Investigation] misconduct_town_ES4_2185862 DailyTick: progress=0.12 (+0.12) base=0.15 witness=0.00 evidence=0.00 closeness=0.00 counter=0.03 suspect=null
+[19:35:19.034] [WorldEvent] ProcessDaily: id=misconduct_town_K4_2185863_1 stage=Emerging suspect=none awareness=0.10 investProgress=0.00 occurredDay=91077.66 now=91079.87 overnight=True
+[19:35:19.034] 奥通加德出了事：少了一件枪骑兵扎甲
+
+[19:35:19.034] [ShowInquiry] "大人：最新坊间传闻" | "奥通加德出了事：少了一件枪骑兵扎甲
+" | Btn1="已阅" Btn2="(hidden)"
+[19:35:19.039] Story Generation Error: LLMService not initialized!
+[19:35:19.040] [SocialEvent] BroadcastWorldEvent: Misconduct at town_K4 severity=0 → SocialEvent propagated
+[19:35:19.040] [Investigation] misconduct_town_K4_2185863_1 DailyTick: progress=0.12 (+0.12) base=0.15 witness=0.00 evidence=0.00 closeness=0.00 counter=0.03 suspect=null
+[19:35:21.419] [DisplayMessage] [RGB(0.6,0.6,0.6)] "<a style="Link.Settlement" href="event:Settlement-castle_EN7"><b>厄毗诺萨堡</b></a>遭遇<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的围攻。"
+[19:35:22.056] [VanillaDialog] NPC  | NPC: 响马 (CharacterId: steppe_bandits_bandit) says: "在那儿停下——别紧张。上天把这些土地赐予我们，任何人都不能在未经我们允许的情况下贸然通过。"
+[19:35:22.058] [GameMenu] ▶ 打开 menu=encounter_meeting
+    标题: 
+    正文: .
+    选项: (无)
+[19:35:26.992] [AddQuickInformation] "调查：奥通加德失窃案：日志已更新。"
+[19:35:34.647] [VanillaDialog] Token='bandit_defender' NPC=亨利 | Options (2): 够胆就过来动手吧！ | 也许我们可以找个两全其美的办法。
+[19:35:34.647] [VanillaDialog] Player says: "也许我们可以找个两全其美的办法。"
+[19:35:34.648] [VanillaDialog] NPC  | NPC: 响马 (CharacterId: steppe_bandits_bandit) says: "付钱，你就可以过去。"
+[19:35:35.271] [VanillaDialog] NPC  | NPC: 响马 (CharacterId: steppe_bandits_bandit) says: "Barter screen goes here"
+[19:35:52.965] [DisplayMessage] "你支付了264<img src="General\Icons\Coin@2x" extend="8">。"
+[19:35:52.968] [VanillaDialog] NPC  | NPC: 响马 (CharacterId: steppe_bandits_bandit) says: "我们准许你继续上路。"
+[19:35:52.968] [AddQuickInformation] "对方接受谈判提案！"
+[19:35:53.841] [ConvLock] Release by null(Idx=?) | reason=EndConversation
+[19:35:53.841] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[19:35:53.848] [GameMenu] ◀ 关闭 menu=encounter_meeting
+[19:36:05.504] [GameMenu] ▶ 打开 menu=town @奥通加德(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
+    选项:
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[19:36:07.794] [GameMenu] ● 点击 menu=town 选项="前往主楼" [id=town_keep] @奥通加德(城镇)
+[19:36:07.801] [GameMenu] ▶ 打开 menu=town_keep @奥通加德(城镇)
+    标题: 主楼
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K4"><b>奥通加德</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_5"><b>突剌格</b></a>统治着。
+    选项:
+      1. 前往领主大厅  [id=town_lords_hall] 可点
+      2. 前往地牢  [id=town_lords_hall_go_to_dungeon] 可点
+      3. 返回城镇中心  [id=town_castle_back] 可点
+[19:36:11.691] [Chest] 锚点 '亨利' at (6.674694, 3.059874, 7.202374) → 正后方 0.7m 命中，相对偏移 (-0.47, -0.52, 0.00)
+[19:36:11.692] [Chest] Spawned prefab 'bd_chest_c' at (6.205802, 2.540123, 7.200498) (scale=0.5)
+[19:36:11.692] [Chest] Visual highlight applied (warm gold tint)
+[19:36:11.693] [Chest] Spawned at (6.205802, 2.540123, 7.200498), context=LordsHall, gold=1015, items=60
+[19:36:11.693] [ConvLock] Acquire by 阿巴该(Idx=1) | reason=MissionStartPrefix
+[19:36:11.710] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "亨利..."
+[19:36:11.710] [ConvEntry] FindOnGoing(town_K4) → evt=misconduct_town_K4_2185863_1 stage=Emerging assault=[none:0] pendingId=misconduct_town_K4_2185922_3 pendingStage=Dormant pendingAssault=[none:0]
+[19:36:11.711] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[19:36:11.711] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[19:36:11.711] [ConvEntry] BuildScript: partner=阿巴该 partnerStringId=lord_6_12 agent=阿巴该 agentIdx=1 character=阿巴该 characterStringId=lord_6_12 evtId=misconduct_town_K4_2185863_1 trigger=Normal confrontation=Deter triggerAction=Crouching
+[19:36:11.711] [Placeholder][对话预填充] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "城主，听说奥通加德出了点事？"
+[19:36:11.712] [Placeholder][对话预填充] EntryOption: "关于{TargetSettlementName}那个案子……" → "关于奥通加德那个案子……"
+[19:36:11.714] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "地牢里丢了一件枪骑兵扎甲，市值27826第纳尔，一直没找到是谁干的。既然你自己认了，闹事按规矩罚2倍，一共38956第纳尔。你认不认？"
+[19:36:11.714] [Placeholder][对话预填充] NpcLine: "……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。" → "……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。"
+[19:36:11.714] [Placeholder][对话预填充] PlayerLine: "行，就这个数——19478第纳尔。" → "行，就这个数——19478第纳尔。"
+[19:36:11.714] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[19:36:11.714] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[19:36:11.714] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[0] id=injectedStart NpcLine="怎么样，查到什么了吗？"
+[19:36:11.714] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "是附近藏身处的强盗干的！" → INTENT:FrameSuspect Param=bandit [SkillCheck] | NextNodeOnSuccess=frame_bandit_ok | NextNodeOnFail=frame_bandit_fail
+[19:36:11.716] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "还没查到什么。" → NONE | NextNodeOnSuccess=report_nothing_ack
+[19:36:11.716] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "我还有事。" → INTENT:WalkAway | NextNodeOnSuccess=report_leave_ack
+[19:36:11.716] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[3] "（低头）……是我干的。" → INTENT:Confess | NextNodeOnSuccess=confess
+[19:36:11.716] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[1] id=frame_bandit_ok NpcLine="藏身处的强盗？好，那就是他们了！本官这就张罗悬赏。"
+[19:36:11.716] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.716] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[2] id=continue_chat NpcLine="还有什么别的想说的吗?"
+[19:36:11.716] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
+[19:36:11.717] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[3] id=farewell NpcLine="" [Lazy]
+[19:36:11.717] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[4] id=frame_bandit_fail NpcLine="强盗？光凭你这小子一句话可不行……再去查查。"
+[19:36:11.717] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.717] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[5] id=report_nothing_ack NpcLine="那你再去看看。刚开始查。"
+[19:36:11.717] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.717] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[6] id=report_leave_ack NpcLine="快去查，有消息了来告诉本官。"
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[7] id=confess NpcLine="你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "我愿意赔。你说个数。" → NONE | NextNodeOnSuccess=restitution_demand
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "开个玩笑……刚才是我胡说的" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=charm_ok | NextNodeOnFail=charm_fail
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "转身就走" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[8] id=restitution_demand NpcLine="" [Lazy]
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[19:36:11.718] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[9] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[10] id=restitution_haggle_ok NpcLine="……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。" [Lazy]
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "行，就这个数——19478第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[11] id=restitution_refuse_warn NpcLine="" [Lazy]
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[12] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[19:36:11.719] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[19:36:11.720] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[13] id=charm_ok NpcLine="……说清楚？好，本官倒要听听。"
+[19:36:11.720] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.720] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[14] id=charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
+[19:36:11.720] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:11.720] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_town_K4_2185863_1_v1_injectedStart' | priority=125 | owner=crime_misconduct_town_K4_2185863_1_v1
+[19:36:11.720] [ConvCondition] Building condition for intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" actionParam=(null)
+[19:36:11.721] [ConvCondition] Building condition for intent=WalkAway playerLine="转身就走" actionParam=(null)
+[19:36:11.721] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[19:36:11.721] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[19:36:11.721] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——19478第纳尔。" actionParam=haggle
+[19:36:11.721] [ConvCondition] Building condition for intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" actionParam=bandit
+[19:36:11.722] [ConvCondition] Building condition for intent=WalkAway playerLine="我还有事。" actionParam=(null)
+[19:36:11.722] [ConvCondition] Building condition for intent=Confess playerLine="（低头）……是我干的。" actionParam=(null)
+[19:36:11.722] [ConvCondition] Building condition for intent=WalkAway playerLine="我得走了。" actionParam=(null)
+[19:36:11.722] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_town_K4_2185863_1 stage=Emerging trigger=Normal partner=阿巴该 nodes=15
+[19:36:12.568] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "再次感谢你同意接手我的问题，祝你好运。"
+[19:36:13.687] [VanillaDialog] Token='hero_main_options' Hero=阿巴该 | Options (5): “涅雷采斯的愚行”是什么？ | 关于奥通加德那个案子…… | 有件事我想和你谈谈。 | 你愿意玩一局普鲁克来打发时间吗？ | 我现在得走了。
+[19:36:13.688] [VanillaDialog] Player says: "关于奥通加德那个案子……"
+[19:36:13.688] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "怎么样，查到什么了吗？"
+[19:36:13.688] [ConvCondition] intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=bandit eligibility=Enabled reason=
+[19:36:13.688] [ConvCondition] intent=WalkAway playerLine="我还有事。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:13.689] [ConvCondition] intent=Confess playerLine="（低头）……是我干的。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:16.323] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v1_atk_10' Hero=阿巴该 | Options (4): [栽赃]是附近藏身处的强盗干的！ | 还没查到什么。 | [离开]我还有事。 | [自首]（低头）……是我干的。
+[19:36:16.324] [SkillCheck] FrameSuspect | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=87 献礼=0.20 → 成功率=0.13 | 掷骰=失败 (chance=13 %)
+[19:36:16.324] [AddQuickInformation] "魅力检定失败: 你的魅力(11) vs 阿巴该(87)，差76点，成功率仅13 %"
+[19:36:16.325] [VanillaDialog] Player says: "[栽赃]是附近藏身处的强盗干的！"
+[19:36:16.325] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "强盗？光凭你这小子一句话可不行……再去查查。"
+[19:36:17.523] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v1_atk_13' Hero=阿巴该 | Options (1): 嗯…
+[19:36:17.523] [VanillaDialog] Player says: "嗯…"
+[19:36:17.523] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "还有什么别的想说的吗?"
+[19:36:17.523] [ConvCondition] intent=WalkAway playerLine="我得走了。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:18.113] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v1_atk_16' Hero=阿巴该 | Options (1): [离开]我得走了。
+[19:36:18.113] [VanillaDialog] Player says: "[离开]我得走了。"
+[19:36:18.113] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "快去查，有消息了来告诉本官。"
+[19:36:18.658] [ConvLock] Release by 阿巴该(Idx=1) | reason=EndConversation
+[19:36:18.658] [ConvEnd] Conversation ended. lastEvent=misconduct_town_K4_2185863_1_lord_6_12_Emerging_1_0_1 lastTag=crime_misconduct_town_K4_2185863_1
+[19:36:18.658] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 1 个 owner: [crime_misconduct_town_K4_2185863_1(crime_misconduct_town_K4_2185863_1_v1)]（现存 1 个）
+[19:36:18.659] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 已清理 owner BaseLabel="crime_misconduct_town_K4_2185863_1" FileName="crime_misconduct_town_K4_2185863_1_v1"
+[19:36:18.659] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 清理完毕，剩余注入项 0 个: []
+[19:36:18.659] [ConvEnd] Haggle flag cleared for misconduct_town_K4_2185863_1
+[19:36:18.862] [DisplayMessage] [Yellow] "你注意到大厅角落有个微微泛金的储物箱，上面挂着一把旧锁……"
+[19:36:31.993] [ConvLock] Acquire by 阿巴该(Idx=1) | reason=MissionStartPrefix
+[19:36:32.002] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "亨利..."
+[19:36:32.002] [ConvEntry] FindOnGoing(town_K4) → evt=misconduct_town_K4_2185863_1 stage=Emerging assault=[none:0] pendingId=misconduct_town_K4_2185922_3 pendingStage=Dormant pendingAssault=[none:0]
+[19:36:32.002] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 0 个 owner: []（现存 0 个）
+[19:36:32.002] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 没有匹配的 owner（现存 0 个: []）
+[19:36:32.002] [ConvEntry] BuildScript: partner=阿巴该 partnerStringId=lord_6_12 agent=阿巴该 agentIdx=1 character=阿巴该 characterStringId=lord_6_12 evtId=misconduct_town_K4_2185863_1 trigger=Normal confrontation=Deter triggerAction=Crouching
+[19:36:32.002] [Placeholder][对话预填充] EntryOption: "{SpeakerRole}，听说{TargetSettlementName}出了点事？" → "城主，听说奥通加德出了点事？"
+[19:36:32.003] [Placeholder][对话预填充] EntryOption: "关于{TargetSettlementName}那个案子……" → "关于奥通加德那个案子……"
+[19:36:32.003] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "地牢里丢了一件枪骑兵扎甲，市值27826第纳尔，一直没找到是谁干的。既然你自己认了，闹事按规矩罚2倍，一共38956第纳尔。你认不认？"
+[19:36:32.003] [Placeholder][对话预填充] NpcLine: "……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。" → "……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。"
+[19:36:32.003] [Placeholder][对话预填充] PlayerLine: "行，就这个数——19478第纳尔。" → "行，就这个数——19478第纳尔。"
+[19:36:32.003] [Placeholder][对话预填充] NpcLine: "不行，一文都不能少。" → "不行，一文都不能少。"
+[19:36:32.003] [Placeholder][对话预填充] NpcLine: "好，钱留下，这事就算了。" → "好，钱留下，这事就算了。"
+[19:36:32.003] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[0] id=injectedStart NpcLine="怎么样，查到什么了吗？"
+[19:36:32.003] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "是附近藏身处的强盗干的！" → INTENT:FrameSuspect Param=bandit [SkillCheck] | NextNodeOnSuccess=frame_bandit_ok | NextNodeOnFail=frame_bandit_fail
+[19:36:32.003] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "还没查到什么。" → NONE | NextNodeOnSuccess=report_nothing_ack
+[19:36:32.003] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "我还有事。" → INTENT:WalkAway | NextNodeOnSuccess=report_leave_ack
+[19:36:32.003] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[3] "（低头）……是我干的。" → INTENT:Confess | NextNodeOnSuccess=confess
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[1] id=frame_bandit_ok NpcLine="藏身处的强盗？好，那就是他们了！本官这就张罗悬赏。"
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[2] id=continue_chat NpcLine="还有什么别的想说的吗?"
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "我得走了。" → INTENT:WalkAway | NextNodeOnSuccess=farewell
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[3] id=farewell NpcLine="" [Lazy]
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[4] id=frame_bandit_fail NpcLine="强盗？光凭你这小子一句话可不行……再去查查。"
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[5] id=report_nothing_ack NpcLine="那你再去看看。刚开始查。"
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.004] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[6] id=report_leave_ack NpcLine="快去查，有消息了来告诉本官。"
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[7] id=confess NpcLine="你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "我愿意赔。你说个数。" → NONE | NextNodeOnSuccess=restitution_demand
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "开个玩笑……刚才是我胡说的" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=charm_ok | NextNodeOnFail=charm_fail
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "转身就走" → INTENT:WalkAway | NextNodeOnSuccess=(关闭)
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[8] id=restitution_demand NpcLine="" [Lazy]
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[9] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[10] id=restitution_haggle_ok NpcLine="……行，原价38956，给你对半砍——19478。这是最后价了，不能再少了。" [Lazy]
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "行，就这个数——19478第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[11] id=restitution_refuse_warn NpcLine="" [Lazy]
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.005] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[12] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[19:36:32.006] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[19:36:32.006] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[13] id=charm_ok NpcLine="……说清楚？好，本官倒要听听。"
+[19:36:32.006] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.006] [CrimeDialog] speaker=阿巴该 stage=Emerging Turn[14] id=charm_fail NpcLine="说清楚？证据确凿，没什么好说的。"
+[19:36:32.006] [CrimeDialog] speaker=阿巴该 stage=Emerging   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[19:36:32.006] [DialogueInjector] Gateway: added PlayerLine at 'hero_main_options' → 'lwnpc_crime_misconduct_town_K4_2185863_1_v2_injectedStart' | priority=125 | owner=crime_misconduct_town_K4_2185863_1_v2
+[19:36:32.006] [ConvCondition] Building condition for intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" actionParam=(null)
+[19:36:32.006] [ConvCondition] Building condition for intent=WalkAway playerLine="转身就走" actionParam=(null)
+[19:36:32.006] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[19:36:32.006] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[19:36:32.006] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——19478第纳尔。" actionParam=haggle
+[19:36:32.007] [ConvCondition] Building condition for intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" actionParam=bandit
+[19:36:32.007] [ConvCondition] Building condition for intent=WalkAway playerLine="我还有事。" actionParam=(null)
+[19:36:32.007] [ConvCondition] Building condition for intent=Confess playerLine="（低头）……是我干的。" actionParam=(null)
+[19:36:32.007] [ConvCondition] Building condition for intent=WalkAway playerLine="我得走了。" actionParam=(null)
+[19:36:32.007] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_town_K4_2185863_1 stage=Emerging trigger=Normal partner=阿巴该 nodes=15
+[19:36:32.780] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "所以……怎么了？"
+[19:36:33.509] [VanillaDialog] Token='hero_main_options' Hero=阿巴该 | Options (5): “涅雷采斯的愚行”是什么？ | 关于奥通加德那个案子…… | 有件事我想和你谈谈。 | 你愿意玩一局普鲁克来打发时间吗？ | 我现在得走了。
+[19:36:33.509] [VanillaDialog] Player says: "关于奥通加德那个案子……"
+[19:36:33.509] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "怎么样，查到什么了吗？"
+[19:36:33.510] [ConvCondition] intent=FrameSuspect playerLine="是附近藏身处的强盗干的！" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=bandit eligibility=Enabled reason=
+[19:36:33.510] [ConvCondition] intent=WalkAway playerLine="我还有事。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:33.510] [ConvCondition] intent=Confess playerLine="（低头）……是我干的。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:35.979] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v2_atk_10' Hero=阿巴该 | Options (4): [栽赃]是附近藏身处的强盗干的！ | 还没查到什么。 | [离开]我还有事。 | [自首]（低头）……是我干的。
+[19:36:35.980] [Accountability] Player confessed for misconduct_town_K4_2185863_1 — suspect=self, awaiting resolution
+[19:36:35.980] [AddQuickInformation] "调查：奥通加德失窃案：日志已更新。"
+[19:36:35.981] [VanillaDialog] Player says: "[自首]（低头）……是我干的。"
+[19:36:35.981] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "你这小子？！……好，既然自己认了，咱们可以商量。有什么要说的？"
+[19:36:35.981] [IntentEval] CharmDefense → Show
+[19:36:35.981] [ConvCondition] intent=CharmDefense playerLine="开个玩笑……刚才是我胡说的" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:35.982] [ConvCondition] intent=WalkAway playerLine="转身就走" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:39.275] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v2_atk_0' Hero=阿巴该 | Options (3): 我愿意赔。你说个数。 | [狡辩]开个玩笑……刚才是我胡说的 | [离开]转身就走
+[19:36:39.275] [IntentEval] CharmDefense → Show
+[19:36:39.276] [SkillCheck] CharmDefense | [单次检定] 手段=Flatter 技能=魅力 你的等级=11 对方等级=87 献礼=0.00 → 成功率=0.10 | 掷骰=失败 (chance=10 %)
+[19:36:39.276] [AddQuickInformation] "魅力检定失败: 你的魅力(11) vs 阿巴该(87)，差76点，成功率仅10 %"
+[19:36:39.277] [AddQuickInformation] "你与阿契特的关系-3，现为-3。"
+[19:36:39.277] [AddQuickInformation] "你与阿契特的关系-10，现为-13。"
+[19:36:39.277] [WorldEvent] misconduct_town_K4_2185863_1 Stage: Emerging → Confrontation
+[19:36:39.277] [CommissionIssue] StageChanged: event=misconduct_town_K4_2185863_1 stage=Confrontation settlement=奥通加德 — refreshing issue signals
+[19:36:39.278] [AddQuickInformation] "危机：奥通加德遭报复：日志已更新。"
+[19:36:39.278] [AddQuickInformation] "危机：奥通加德遭报复：日志已更新。"
+[19:36:39.284] [CommissionQuest] CompleteInvestigationExternally: crime_misconduct_town_K4_2185863_1 betrayed (suspect=self)
+[19:36:39.285] [CommissionIssue] StageChanged — completed old investigation quest crime_misconduct_town_K4_2185863_1 (suspectIsPlayer=True)
+[19:36:39.285] [CommissionIssue] Assigned CommissionHubIssue to 阿巴该 (lord_6_12) crimeEvent=misconduct_town_K4_2185863_1 stage=Confrontation
+[19:36:39.286] [Accountability] Charm defense failed for misconduct_town_K4_2185863_1 — → Confrontation
+[19:36:39.286] [VanillaDialog] Player says: "[狡辩]开个玩笑……刚才是我胡说的"
+[19:36:39.286] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "说清楚？证据确凿，没什么好说的。"
+[19:36:41.428] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v2_atk_3' Hero=阿巴该 | Options (1): 嗯…
+[19:36:41.429] [VanillaDialog] Player says: "嗯…"
+[19:36:41.429] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "还有什么别的想说的吗?"
+[19:36:41.429] [ConvCondition] intent=WalkAway playerLine="我得走了。" npc=阿巴该 settlement=奥通加德 evt=misconduct_town_K4_2185863_1 actionParam=(null) eligibility=Enabled reason=
+[19:36:42.329] [VanillaDialog] Token='lwnpc_crime_misconduct_town_K4_2185863_1_v2_atk_16' Hero=阿巴该 | Options (1): [离开]我得走了。
+[19:36:42.329] [AddQuickInformation] "你与阿契特的关系-20，现为-33。"
+[19:36:42.335] [Retaliation] misconduct_town_K4_2185863_1 Wave 1: 8 men, cost=500, budget=9500
+[19:36:42.335] [Accountability] WalkAway (Confrontation): misconduct_town_K4_2185863_1 — retaliation + rep -20
+[19:36:42.335] [VanillaDialog] Player says: "[离开]我得走了。"
+[19:36:42.335] [VanillaDialog] NPC  | NPC: 阿巴该 (HeroId: lord_6_12) says: "快去查，有消息了来告诉本官。"
+[19:36:43.091] [ConvLock] Release by 阿巴该(Idx=1) | reason=EndConversation
+[19:36:43.093] [ConvEnd] Conversation ended. lastEvent=misconduct_town_K4_2185863_1_lord_6_12_Emerging_1_0_1 lastTag=crime_misconduct_town_K4_2185863_1
+[19:36:43.093] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 匹配到 1 个 owner: [crime_misconduct_town_K4_2185863_1(crime_misconduct_town_K4_2185863_1_v2)]（现存 1 个）
+[19:36:43.093] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 已清理 owner BaseLabel="crime_misconduct_town_K4_2185863_1" FileName="crime_misconduct_town_K4_2185863_1_v2"
+[19:36:43.093] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_K4_2185863_1": 清理完毕，剩余注入项 0 个: []
+[19:36:43.093] [ConvEnd] Haggle flag cleared for misconduct_town_K4_2185863_1
+[19:36:43.093] [ShowInquiry] "“你跑不掉的！”" | "你转身就跑。身后阿巴该的吼声回荡——
+
+"躲得过初一躲不过十五！奥通加德跟你不死不休！"
+
+你在此地已是死敌。小心——他们雇的人随时可能出现。" | Btn1="……" Btn2="(hidden)"

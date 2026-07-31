@@ -605,7 +605,7 @@ namespace LivingWorldNpcs
                 } : new[] {
                     $"您来了……虽然咱们交情不算深，但我敬您是条汉子。",
                     $"哦，{playerName}。听说您在这一带名声不错。请说吧。",
-                    $"（露出微笑）是您啊。请说。",
+                    $"是您啊。请说。",
                 };
                 return warm[MBRandom.RandomInt(0, warm.Length)];
             }
@@ -615,10 +615,10 @@ namespace LivingWorldNpcs
                 // 冷淡/敌意
                 string[] cold = trust >= 50 ? new[] {
                     $"你来了。虽然我不喜欢你——但我欠你人情，说吧。",
-                    $"（皱了皱眉）……看在上次帮过我的份上，说吧，什么事。",
+                    $"……看在上次帮过我的份上，说吧，什么事。",
                 } : new[] {
-                    $"（警惕地打量着你）……什么事。",
-                    $"（后退了半步）你想干什么？",
+                    $"……什么事。",
+                    $"你想干什么？",
                     $"哼。又是你。有话快说。",
                 };
                 return cold[MBRandom.RandomInt(0, cold.Length)];
@@ -628,9 +628,9 @@ namespace LivingWorldNpcs
             if (npc.Occupation == Occupation.GangLeader)
             {
                 string[] gang = new[] {
-                    $"（叼着牙签打量你）想做什么买卖？",
+                    $"想做什么买卖？",
                     $"有胆量来找我的人不多。说吧，什么事？",
-                    $"（似笑非笑）你是来谈生意的，还是来找麻烦的？",
+                    $"你是来谈生意的，还是来找麻烦的？",
                 };
                 return gang[MBRandom.RandomInt(0, gang.Length)];
             }
@@ -639,7 +639,7 @@ namespace LivingWorldNpcs
             {
                 string[] merchant = new[] {
                     $"有生意要谈吗？我的时间就是金钱。",
-                    $"（拨弄着算盘）买还是卖？别浪费我时间。",
+                    $"买还是卖？别浪费我时间。",
                     $"哦，一位潜在的客户。进来谈吧。",
                 };
                 return merchant[MBRandom.RandomInt(0, merchant.Length)];
@@ -649,7 +649,7 @@ namespace LivingWorldNpcs
             {
                 string[] headman = new[] {
                     $"这村子不太太平——不过您来了，也许能帮上忙。",
-                    $"（疲惫地抬起头）又有什么事？这村子已经够乱的了。",
+                    $"又有什么事？这村子已经够乱的了。",
                     $"您是从外地来的吧？我们这儿平时可没什么外人。",
                 };
                 return headman[MBRandom.RandomInt(0, headman.Length)];
@@ -658,9 +658,9 @@ namespace LivingWorldNpcs
             if (npc.IsWanderer)
             {
                 string[] wanderer = new[] {
-                    $"（靠在墙上，眼神游移）你是来找帮手的？我可不便宜。",
+                    $"你是来找帮手的？我可不便宜。",
                     $"哼，又一个过路的。你有什么事？",
-                    $"（把玩着匕首）听说你也在这一带混。想聊什么？",
+                    $"听说你也在这一带混。想聊什么？",
                 };
                 return wanderer[MBRandom.RandomInt(0, wanderer.Length)];
             }
@@ -671,17 +671,17 @@ namespace LivingWorldNpcs
                     $"哦，{playerName}阁下。有失远迎——请说。",
                     $"欢迎。我的城堡随时对有荣誉的人敞开。",
                 } : new[] {
-                    $"（端坐不动）说吧，什么事？",
-                    $"（微微点头）讲。",
+                    $"说吧，什么事？",
+                    $"讲。",
                 };
                 return lord[MBRandom.RandomInt(0, lord.Length)];
             }
 
             // ── 4. 兜底：好感度微调 ──
             if (relation >= 20)
-                return $"（见到你微微点头）有事吗？";
+                return $"有事吗？";
             if (relation <= -20)
-                return $"（瞟了你一眼，没说话）……";
+                return $"……";
 
             return null; // 返回 null → 用默认 "看着你揣测"
         }
