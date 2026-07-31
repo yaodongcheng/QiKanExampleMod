@@ -233,7 +233,7 @@ namespace LivingWorldNpcs
     public class FightOnIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
-        public override string DisplayName => "（拼死一战）";
+        public override string DisplayName => "拼死一战";
         public override NegotiationGoalType? Goal => null; // 即时类
 
         public override string GetDialoguePrefix(string actionParam = null) => "[死战]";

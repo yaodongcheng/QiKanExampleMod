@@ -783,7 +783,7 @@ namespace LivingWorldNpcs
                 payerProfile.BaseHero != giverProfile.BaseHero)
             {
                 string payerName = payerProfile.BaseHero?.Name?.ToString() ?? "结账人";
-                text += $"（{payerName}代为转交了报酬。）";
+                text += $"这钱是{payerName}托我转交的。";
             }
 
             return text;
@@ -924,7 +924,7 @@ namespace LivingWorldNpcs
             return result.Text;
         }
 
-        /// <summary>判断 Resolve 返回的文本是否是兜底/无效文本（"……" 及其变体，如"……（微微颔首）"）。</summary>
+        /// <summary>判断 Resolve 返回的文本是否是兜底/无效文本（"……" 及其变体，如"……嗯。"）。</summary>
         public static bool IsFallbackText(string text)
         {
             return string.IsNullOrEmpty(text) || text.StartsWith("……");
@@ -954,14 +954,14 @@ namespace LivingWorldNpcs
 
             // 对话 Success
             if (filters.Outcome == "Success")
-                return new NarrativeResult("……（微微颔首，似是默许了）", "positive");
+                return new NarrativeResult("……嗯，行吧。", "positive");
 
             // 对话 Fail
             if (filters.Outcome == "Fail")
-                return new NarrativeResult("……（摇了摇头，并未应允）", "negative");
+                return new NarrativeResult("……不行。", "negative");
 
             // 通用
-            return new NarrativeResult("……（微微颔首）", "normal");
+            return new NarrativeResult("……嗯。", "normal");
         }
 
         /// <summary>委托叙事 CSV 查不到时的兜底。</summary>

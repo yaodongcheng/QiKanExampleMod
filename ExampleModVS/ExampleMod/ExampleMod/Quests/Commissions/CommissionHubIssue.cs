@@ -39,7 +39,7 @@ namespace LivingWorldNpcs
         public string CaseLabel;
         /// <summary>叙事：案情事实句（袭击+失窃如实还原，事实派生）</summary>
         public string DiscoveryFacts;
-        /// <summary>叙事：权威角色（"村长"/"镇长"，来自 EventConfig）</summary>
+        /// <summary>叙事：权威角色（动态，"村长"/"城主"/"堡主"，由 GetAuthorityRoleDisplayName 计算）</summary>
         public string AuthorityRole;
         /// <summary>叙事：目击人数</summary>
         public int WitnessCount;
@@ -179,8 +179,8 @@ namespace LivingWorldNpcs
 
         private string GetAuthorityRoleText()
         {
-            // 权威角色直接来自 EventConfig.AuthorityRole（Misconduct=村长），
-            // 不再按事件类型字符串硬编码——容器类型统一为 Misconduct 后 switch 永远落空
+            // 权威角色动态显示名（村庄=村长/城镇=城主/城堡=堡主），
+            // 已在 ResolveIssueContext 中通过 GetAuthorityRoleDisplayName 预计算
             if (_context.IsCrimeEvent && !string.IsNullOrEmpty(_context.AuthorityRole))
                 return _context.AuthorityRole;
             return "委托人";
@@ -601,7 +601,7 @@ namespace LivingWorldNpcs
                         CrimeEventType = evt.Type.ToString(),
                         CaseLabel = evt.CaseLabel,
                         DiscoveryFacts = evt.BuildDiscoveryFacts(),
-                        AuthorityRole = evt.Config?.AuthorityRole,
+                        AuthorityRole = WorldEventStore.GetAuthorityRoleDisplayName(evt),
                         WitnessCount = evt.WitnessCount,
                     };
                 }

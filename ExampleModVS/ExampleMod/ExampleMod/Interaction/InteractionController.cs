@@ -348,7 +348,7 @@ namespace LivingWorldNpcs
                 // 如果事件文本生成失败但有事件缠身 → 保底事件句，绝不回退到普通寒暄
                 if (string.IsNullOrEmpty(initialText) && urgentEvent != null)
                 {
-                    initialText = "（一脸凝重，似乎被什么事深深困扰着……）";
+                    initialText = "……这可怎么办……";
                     DebugLogger.Log($"[EventAware] WARNING: NPC={_targetHero?.Name} has urgent event {urgentEvent.Type} but text generation returned empty, using fallback");
                 }
 
@@ -358,7 +358,7 @@ namespace LivingWorldNpcs
                     string contextual = WorldEventDirector.GetContextualOpening(_targetHero);
                     initialText = !string.IsNullOrEmpty(contextual)
                         ? contextual
-                        : "（看着你，似乎在揣测你的想法...）";
+                        : "……你想说什么？";
                 }
 
                 _vm.Show(displayName, initialText);
@@ -802,7 +802,7 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"LLM Error: {ex.Message}");
-                _vm.DialogueContent = $"（{npcName}似乎走神了...）";
+                _vm.DialogueContent = $"……嗯？什么？";
                 _vm.ShowOptions(new[] { new StoryOptionVM("离开", () => { _vm.Close(); 
                 //    AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
@@ -1137,7 +1137,7 @@ namespace LivingWorldNpcs
                 // 容错处理
                 result = new LLMResponse_Casual
                 {
-                    NpcReply = "（对方看起来有点疑惑...）",
+                    NpcReply = "……我不太明白你的意思。",
                     NpcEmotion = "Neutral",
                     NpcAction = "NONE"
                 };
