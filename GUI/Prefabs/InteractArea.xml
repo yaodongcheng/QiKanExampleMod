@@ -34,7 +34,7 @@
 
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                    LayoutMethod="HorizontalRightToLeft" StackLayout.LayoutMethod="HorizontalRightToLeft" MarginRight="0"
-                                   HorizontalAlignment="Center">
+                                   HorizontalAlignment="Right">
                             <Children>
 
 
