@@ -25,6 +25,25 @@ namespace LivingWorldNpcs
 
             // 默认选中第一个 Tab
             ExecuteSelectPersonal();
+
+            // ── Tab 标签（本地化）──
+            // 探查面板 Tab：个人属性
+            TabPersonalLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_personal", "Personal");
+            // 探查面板 Tab：家族信息
+            TabClanLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_clan", "Clan");
+            // 探查面板 Tab：势力信息
+            TabKingdomLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_kingdom", "Kingdom");
+            // 探查面板 Tab：人际关系
+            TabRelationLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_relation", "Relations");
+            // 探查面板 Tab：记忆传闻
+            TabMemoryLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_memory", "Memories");
+            // 探查面板 Tab：背包辎重
+            TabInventoryLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_inventory", "Inventory");
+            // 探查面板 Tab：部队信息
+            TabPartyLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_party", "Party");
+            // 探查面板按钮：关闭面板
+            CloseButtonLabel = LWNTextHelper.ResolveText("LWN_ui_info_btn_close", "Close");
+
             RefreshValues();
         }
 
@@ -32,10 +51,8 @@ namespace LivingWorldNpcs
         {
             base.RefreshValues();
 
-            // ── 标题（模板 NPC 用 Agent 名兜底）──
-            // 信息面板兜底名字：未知
+            // ── 标题 ──
             string name = _profile?.Name ?? _agent?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_info_name_unknown", "Unknown");
-            // 信息面板标题：{NAME}的信息面板
             TitleText = LWNTextHelper.ResolveCompound("LWN_ui_info_title", "{NAME}'s Info Panel", ("NAME", name));
 
             // ── 个人属性 ──
@@ -177,6 +194,24 @@ namespace LivingWorldNpcs
         // ================= 属性定义 (Data Source Properties) =================
         [DataSourceProperty]
         public string TitleText { get; set; }
+
+        // ── Tab 标签属性 ──
+        [DataSourceProperty]
+        public string TabPersonalLabel { get; set; }
+        [DataSourceProperty]
+        public string TabClanLabel { get; set; }
+        [DataSourceProperty]
+        public string TabKingdomLabel { get; set; }
+        [DataSourceProperty]
+        public string TabRelationLabel { get; set; }
+        [DataSourceProperty]
+        public string TabMemoryLabel { get; set; }
+        [DataSourceProperty]
+        public string TabInventoryLabel { get; set; }
+        [DataSourceProperty]
+        public string TabPartyLabel { get; set; }
+        [DataSourceProperty]
+        public string CloseButtonLabel { get; set; }
 
 
 

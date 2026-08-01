@@ -554,85 +554,203 @@ namespace LivingWorldNpcs
   
 
        
+        #region Localization Helpers
+
+        /// <summary>将中文 trait 数据值映射到 LWN 本地化 key 并返回当前语言显示文本。</summary>
+        private static string LocalizeTrait(string chineseValue)
+        {
+            if (string.IsNullOrEmpty(chineseValue)) return "";
+            if (TraitKeyMap.TryGetValue(chineseValue, out string key))
+                // 不传 fallback —— 让 GetEnglishFallback 从 English prompts XML 取英文文本
+                return LWNTextHelper.ResolveText(key);
+            return chineseValue; // fallback: raw value for unknown traits
+        }
+
+        /// <summary>快捷性别本地化</summary>
+        private static string LocalizeGender(bool isFemale) =>
+            // 本地化性别标签
+            LWNTextHelper.ResolveText(isFemale ? "LWN_prompt_trait_gender_female" : "LWN_prompt_trait_gender_male",
+                isFemale ? "Female" : "Male");
+
+        /// <summary>快捷士兵/平民本地化</summary>
+        private static string LocalizeRole(bool isSoldier) =>
+            // 本地化士兵/平民标签
+            LWNTextHelper.ResolveText(isSoldier ? "LWN_prompt_trait_role_soldier" : "LWN_prompt_trait_role_civilian",
+                isSoldier ? "Soldier" : "Civilian");
+
+        /// <summary>中文 trait 值 → LWN key 后缀 映射表</summary>
+        /// lwn-ignore: B (all entries below — data lookup keys, not display text)
+        private static readonly Dictionary<string, string> TraitKeyMap = new Dictionary<string, string>
+        {
+            // Temper
+            {"温和", "LWN_prompt_trait_temper_mild"}, // lwn-ignore: B,
+            {"性急", "LWN_prompt_trait_temper_impatient"}, // lwn-ignore: B,
+            {"普通", "LWN_prompt_trait_temper_normal"}, // lwn-ignore: B,
+            // Spirit
+            {"胆小", "LWN_prompt_trait_spirit_timid"}, // lwn-ignore: B,
+            {"勇敢", "LWN_prompt_trait_spirit_brave"}, // lwn-ignore: B,
+            // Ism
+            {"现实", "LWN_prompt_trait_ism_realistic"}, // lwn-ignore: B,
+            {"理想", "LWN_prompt_trait_ism_ideal"}, // lwn-ignore: B,
+            // ActStyle
+            {"慎重", "LWN_prompt_trait_style_cautious"}, // lwn-ignore: B,
+            {"轻率", "LWN_prompt_trait_style_reckless"}, // lwn-ignore: B,
+            // Friendship
+            {"不重情义", "LWN_prompt_trait_friendship_pragmatic"}, // lwn-ignore: B,
+            {"重视情义", "LWN_prompt_trait_friendship_loyal"}, // lwn-ignore: B,
+            // Desire
+            {"无欲", "LWN_prompt_trait_desire_content"}, // lwn-ignore: B,
+            {"贪心", "LWN_prompt_trait_desire_greedy"}, // lwn-ignore: B,
+            // DesireType
+            {"金钱", "LWN_prompt_trait_desiretype_money"}, // lwn-ignore: B,
+            {"书籍", "LWN_prompt_trait_desiretype_books"}, // lwn-ignore: B,
+            {"武具", "LWN_prompt_trait_desiretype_weapons"}, // lwn-ignore: B,
+            {"南蛮物", "LWN_prompt_trait_desiretype_exotic"}, // lwn-ignore: B,
+            {"艺术品", "LWN_prompt_trait_desiretype_art"}, // lwn-ignore: B,
+            // Alcohol
+            {"滴酒不沾", "LWN_prompt_trait_alcohol_teetotaler"}, // lwn-ignore: B,
+            {"嗜酒如命", "LWN_prompt_trait_alcohol_alcoholic"}, // lwn-ignore: B,
+            // Origin
+            {"藤原氏", "LWN_prompt_trait_origin_fujiwara"}, // lwn-ignore: B,
+            {"平氏", "LWN_prompt_trait_origin_taira"}, // lwn-ignore: B,
+            {"源氏", "LWN_prompt_trait_origin_minamoto"}, // lwn-ignore: B,
+            {"其他", "LWN_prompt_trait_origin_other"}, // lwn-ignore: B,
+            // Weapon
+            {"刀剑", "LWN_prompt_trait_weapon_sword"}, // lwn-ignore: B,
+            {"枪", "LWN_prompt_trait_weapon_spear"}, // lwn-ignore: B,
+            {"弓", "LWN_prompt_trait_weapon_bow"}, // lwn-ignore: B,
+            {"火绳枪", "LWN_prompt_trait_weapon_gun"}, // lwn-ignore: B,
+            {"锁镰", "LWN_prompt_trait_weapon_kusarigama"}, // lwn-ignore: B,
+            // Job
+            {"没那个意思", "LWN_prompt_trait_job_uninterested"}, // lwn-ignore: B,
+            {"只限武将", "LWN_prompt_trait_job_warrior_only"}, // lwn-ignore: B,
+            {"全职种", "LWN_prompt_trait_job_all"}, // lwn-ignore: B,
+            {"武将以外优先", "LWN_prompt_trait_job_prefers_noncombat"}, // lwn-ignore: B,
+            // Occupation 职业
+            {"贵族", "LWN_prompt_trait_occupation_noble"}, // lwn-ignore: B,
+            {"商人", "LWN_prompt_trait_occupation_merchant"}, // lwn-ignore: B,
+            {"帮派头目", "LWN_prompt_trait_occupation_gang_leader"}, // lwn-ignore: B,
+            {"游民", "LWN_prompt_trait_occupation_wanderer"}, // lwn-ignore: B,
+            {"足轻", "LWN_prompt_trait_occupation_foot_soldier"}, // lwn-ignore: B,
+            {"村民", "LWN_prompt_trait_occupation_villager"}, // lwn-ignore: B,
+        };
+
+        #endregion
+
         public string GetClanInfo()
         {
             StringBuilder sb = new StringBuilder();
             if (BaseHero == null && BaseCharacter == null)
             {
-                return "无家族势力，孤身一人，没有任何家族背景支持。";
+                // 无家族势力兜底
+                return LWNTextHelper.ResolveText("LWN_prompt_clan_no_hero");
             }
             else if (BaseHero == null && BaseCharacter != null)
             {
-                if(ClanId!="")
-                {
-                    return $"--- 家族背景 ---\n无显赫家族背景。作为一名普通的{Occupation}，依靠在{Clan}家族中服役维持生计。";
-                }
+                // 模板 NPC：在某家族服役
+                string localizedRole = LocalizeTrait(Occupation);
+                if (ClanId != "")
+                    // --- 家族背景 ---\n无显赫家族背景。作为一名普通的{ROLE}，依靠在{CLAN_NAME}家族中服役维持生计。
+                    return LWNTextHelper.ResolveCompound("LWN_prompt_clan_template_has_clan",
+                        ("ROLE", localizedRole), ("CLAN_NAME", Clan));
                 else
-                {
-                    return $"--- 家族背景 ---\n无显赫家族背景。作为一名普通的{Occupation}，依靠在别人家族中服役维持生计。";
-                }
+                    // --- 家族背景 ---\n无显赫家族背景。作为一名普通的{ROLE}，依靠在别人家族中服役维持生计。
+                    return LWNTextHelper.ResolveCompound("LWN_prompt_clan_template_no_clan",
+                        ("ROLE", localizedRole));
             }
             else
             {
-
                 Clan clan = BaseHero.Clan;
                 if (clan == null)
                 {
-                    return "无家族势力（游民），孤身一人，没有任何家族背景支持。";
+                    // 游民兜底
+                    return LWNTextHelper.ResolveText("LWN_prompt_clan_wanderer");
                 }
 
+                // 1. 家族内身份
+                string selfStatus;
+                if (BaseHero == clan.Leader)
+                    // 家族族长 (拥有家族最高决策权)
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_leader");
+                else if (BaseHero == clan.Leader.Spouse)
+                    // 族长配偶 (享有极高尊荣)
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_spouse");
+                else if (BaseHero.Father == clan.Leader || BaseHero.Mother == clan.Leader)
+                    // 家族少主/千金 (嫡系血亲)
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_heir");
+                else if (clan.Companions.Contains(BaseHero))
+                    // 家族家臣/同伴 (因能力被招募，地位取决于功绩)
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_companion");
+                else
+                    // 普通成员
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_member");
 
-                // 1. 确定家族内身份 (细化版)
-                string selfStatus = "普通成员";
-                if (BaseHero == clan.Leader) selfStatus = "家族族长 (拥有家族最高决策权)";
-                else if (BaseHero == clan.Leader.Spouse) selfStatus = "族长配偶 (享有极高尊荣)";
-                else if (BaseHero.Father == clan.Leader || BaseHero.Mother == clan.Leader) selfStatus = "家族少主/千金 (嫡系血亲)";
-                else if (clan.Companions.Contains(BaseHero)) selfStatus = "家族家臣/同伴 (因能力被招募，地位取决于功绩)";
-
-                // 2. 领地统计 (计算世界占比)
+                // 2. 领地统计
                 int myTowns = clan.Fiefs.Count(f => f.IsTown);
                 int myCastles = clan.Fiefs.Count(f => f.IsCastle);
                 int myTotalFiefs = myTowns + myCastles;
-
-                // 获取全图所有的城镇和城堡数量
                 var allSettlements = Campaign.Current.Settlements;
                 int worldTotalTowns = allSettlements.Count(s => s.IsTown);
                 int worldTotalCastles = allSettlements.Count(s => s.IsCastle);
                 int worldTotalFiefs = worldTotalTowns + worldTotalCastles;
-
-                // 计算占比
                 double fiefPercentage = worldTotalFiefs > 0 ? (double)myTotalFiefs / worldTotalFiefs * 100 : 0;
-                // 通常主要看 Leader 的钱，因为钱袋子是通用的
+
                 // 3. 经济评估
                 int clanWealth = clan.Leader.Gold;
-                string wealthDesc = clanWealth > 1000000 ? "富可敌国" :
-                                   (clanWealth > 500000 ? "腰缠万贯" :
-                                   (clanWealth > 100000 ? "家境殷实" :
-                                   (clanWealth > 30000 ? "勉强维持" : "囊中羞涩")));
+                string wealthDesc;
+                if (clanWealth > 1000000)
+                    // 富可敌国
+                    wealthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_wealth_fabulous");
+                else if (clanWealth > 500000)
+                    // 腰缠万贯
+                    wealthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_wealth_rich");
+                else if (clanWealth > 100000)
+                    // 家境殷实
+                    wealthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_wealth_comfortable");
+                else if (clanWealth > 30000)
+                    // 勉强维持
+                    wealthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_wealth_struggling");
+                else
+                    // 囊中羞涩
+                    wealthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_wealth_poor");
 
-                // 4. 综合实力评估 (不再只看 Tier)
+                // 4. 综合实力评估
                 string strengthDesc;
-                if (fiefPercentage >= 10.0) strengthDesc = "一方诸侯 (领土广阔，足以自立)";
-                else if (fiefPercentage >= 3.0 && clan.Tier >= 4) strengthDesc = "顶级权贵 (拥有大量封地)";
-                else if (clanWealth > 1000000 && clan.Tier >= 3) strengthDesc = "金融巨鳄 (虽领地不多但财力惊人)";
-                else if (clan.Tier >= 5) strengthDesc = "传统豪门 (声望极高)";
-                else if (myTotalFiefs > 0) strengthDesc = "有地贵族 (拥有根基)";
-                else strengthDesc = "无地游族 (飘摇不定)";
+                if (fiefPercentage >= 10.0)
+                    // 一方诸侯 (领土广阔，足以自立)
+                    strengthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_strength_warlord");
+                else if (fiefPercentage >= 3.0 && clan.Tier >= 4)
+                    // 顶级权贵 (拥有大量封地)
+                    strengthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_strength_top");
+                else if (clanWealth > 1000000 && clan.Tier >= 3)
+                    // 金融巨鳄 (虽领地不多但财力惊人)
+                    strengthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_strength_finance");
+                else if (clan.Tier >= 5)
+                    // 传统豪门 (声望极高)
+                    strengthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_strength_traditional");
+                else if (myTotalFiefs > 0)
+                    // 有地贵族 (拥有根基)
+                    strengthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_strength_landed");
+                else
+                    // 无地游族 (飘摇不定)
+                    strengthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_strength_landless");
 
-                // 5. 组装 Prompt
-                sb.AppendLine($"--- 家族背景 ---");
-                sb.AppendLine($"家族名称：[{clan.Name}]，等级：{clan.Tier}级。声望：{clan.Renown:F0}。");
-                sb.AppendLine($"综合评价：{strengthDesc}。");
-                sb.AppendLine($"在家族中的地位：{selfStatus}。");
-
-                // 显示具体领地数据和全球占比
-                sb.Append($"家族领地：拥有 {myTowns} 座城市 和 {myCastles} 座城堡");
-                sb.AppendLine($" (共占全境的 {fiefPercentage:F2}%，{myTotalFiefs}/{worldTotalFiefs})。");
-
-                sb.AppendLine($"家族财力：{wealthDesc} (现有资金 {clanWealth} 两黄金)。");
-                sb.AppendLine($"家族影响力：{clan.Influence:F0}。");
+                // 5. 组装
+                return LWNTextHelper.ResolveCompoundMixed("LWN_prompt_clan_hero",
+                    ("CLAN", (object)clan.Name),
+                    ("TIER", clan.Tier.ToString()),
+                    ("RENOWN", clan.Renown.ToString("F0")),
+                    ("STRENGTH", strengthDesc),
+                    ("STATUS", selfStatus),
+                    ("TOWNS", myTowns.ToString()),
+                    ("CASTLES", myCastles.ToString()),
+                    ("PCT", fiefPercentage.ToString("F2")),
+                    ("MY", myTotalFiefs.ToString()),
+                    ("TOTAL", worldTotalFiefs.ToString()),
+                    ("WEALTH", wealthDesc),
+                    ("GOLD", clanWealth.ToString()),
+                    ("INF", clan.Influence.ToString("F0")));
             }
-            return sb.ToString();
         }
 
         public string GetKingdomInfo()
@@ -640,238 +758,285 @@ namespace LivingWorldNpcs
             StringBuilder sb = new StringBuilder();
             if (BaseHero == null)
             {
-                if(KingdomId!="")
-                    return $"--- 国家势力 ---\n隶属于 {Kingdom} 。";
+                if (KingdomId != "")
+                    // --- 国家势力 ---\n隶属于 {KINGDOM} 。
+                    return LWNTextHelper.ResolveCompound("LWN_prompt_kingdom_template_has",
+                        ("KINGDOM", Kingdom));
                 else
-                    return $"--- 国家势力 ---\n不效忠任何国家。";
+                    // --- 国家势力 ---\n不效忠任何国家。
+                    return LWNTextHelper.ResolveText("LWN_prompt_kingdom_template_no");
             }
             else
             {
-
                 Clan clan = BaseHero.Clan;
                 if (clan == null || clan.Kingdom == null)
                 {
-                    return "--- 国家势力 ---\n当前不效忠于任何国家，处于独立状态。这意味着没有国王的庇护，但也无需纳税或响应征召。";
+                    // --- 国家势力 ---\n当前不效忠于任何国家，处于独立状态。这意味着没有国王的庇护，但也无需纳税或响应征召。
+                    return LWNTextHelper.ResolveText("LWN_prompt_kingdom_independent");
                 }
 
                 Kingdom kingdom = clan.Kingdom;
 
-                // 1. 国家实力评估 (引入相对排名)
-                // 获取所有未灭亡的国家并按实力排序
+                // 1. 国家实力评估
                 var allKingdoms = Campaign.Current.Kingdoms
-                    .Where(k => !k.IsEliminated) // 排除已经灭亡的国家
+                    .Where(k => !k.IsEliminated)
                     .OrderByDescending(k => V.KingdomStr(k))
                     .ToList();
 
                 int totalKingdomCount = allKingdoms.Count;
                 int rankIndex = allKingdoms.IndexOf(kingdom);
-                int rank = rankIndex + 1; // 索引转排名
-
-                // 计算排位百分比 (前20%算霸主)
+                int rank = rankIndex + 1;
                 double rankPercent = (double)rank / totalKingdomCount;
 
                 string powerStatus;
-                if (rank == 1) powerStatus = "大陆霸主 (最强帝国)";
-                else if (rankPercent <= 0.3) powerStatus = "列强之一 (第一梯队)";
-                else if (rankPercent <= 0.6) powerStatus = "中等国家 (区域势力)";
-                else powerStatus = "弱势国家 (风雨飘摇)";
+                if (rank == 1)
+                    // 大陆霸主 (最强帝国)
+                    powerStatus = LWNTextHelper.ResolveText("LWN_prompt_kingdom_power_hegemon");
+                else if (rankPercent <= 0.3)
+                    // 列强之一 (第一梯队)
+                    powerStatus = LWNTextHelper.ResolveText("LWN_prompt_kingdom_power_great");
+                else if (rankPercent <= 0.6)
+                    // 中等国家 (区域势力)
+                    powerStatus = LWNTextHelper.ResolveText("LWN_prompt_kingdom_power_middle");
+                else
+                    // 弱势国家 (风雨飘摇)
+                    powerStatus = LWNTextHelper.ResolveText("LWN_prompt_kingdom_power_weak");
 
                 // 2. 战争状态
                 var enemies = V.GetEnemyKingdoms(kingdom).ToList();
                 string warStatus = enemies.Count > 0
-                    ? $"处于战争状态！正在与 [{string.Join(", ", enemies.Select(e => e.Name))}] 交战。"
-                    : "当前处于和平时期，休养生息。";
+                    // 处于战争状态！正在与 [{ENEMIES}] 交战。
+                    ? LWNTextHelper.ResolveCompound("LWN_prompt_kingdom_war_active",
+                        ("ENEMIES", string.Join(", ", enemies.Select(e => e.Name))))
+                    // 当前处于和平时期，休养生息。
+                    : LWNTextHelper.ResolveText("LWN_prompt_kingdom_war_peace");
 
                 // 3. 统治者关系
                 string rulerRel;
-                if (kingdom.Leader == BaseHero) rulerRel = "自身就是君主";
+                if (kingdom.Leader == BaseHero)
+                    // 自身就是君主
+                    rulerRel = LWNTextHelper.ResolveText("LWN_prompt_kingdom_ruler_self");
                 else
                 {
                     int relation = BaseHero.GetRelation(kingdom.Leader);
-                    rulerRel = relation > 50 ? $"君臣相知 (关系 {relation})" :
-                              (relation < -10 ? $"受到猜忌 (关系 {relation})" : $"泛泛之交 (关系 {relation})");
+                    if (relation > 50)
+                        // 君臣相知 (关系 {REL})
+                        rulerRel = LWNTextHelper.ResolveCompound("LWN_prompt_kingdom_ruler_trusted", ("REL", relation.ToString()));
+                    else if (relation < -10)
+                        // 受到猜忌 (关系 {REL})
+                        rulerRel = LWNTextHelper.ResolveCompound("LWN_prompt_kingdom_ruler_suspect", ("REL", relation.ToString()));
+                    else
+                        // 泛泛之交 (关系 {REL})
+                        rulerRel = LWNTextHelper.ResolveCompound("LWN_prompt_kingdom_ruler_neutral", ("REL", relation.ToString()));
                 }
 
-                sb.AppendLine($"--- 效忠国家 ---");
-                sb.AppendLine($"国家名称：[{kingdom.Name}]，文化：{kingdom.Culture.Name}。");
-                // 显示排名/总数
-                sb.AppendLine($"国家国力：{powerStatus} (综合战力排名：第 {rank} / {totalKingdomCount} 位)。");
-                sb.AppendLine($"军事规模：现有正规军团 {kingdom.Armies.Count} 支，总战力指数 {V.KingdomStr(kingdom):F0}。");
-                sb.AppendLine($"外交局势：{warStatus}");
-                sb.AppendLine($"与君主关系：{rulerRel}");
+                // --- 效忠国家 ---
+                return LWNTextHelper.ResolveCompoundMixed("LWN_prompt_kingdom_hero",
+                    ("NAME", (object)kingdom.Name),
+                    ("CULTURE", (object)kingdom.Culture.Name),
+                    ("POWER", powerStatus),
+                    ("RANK", rank.ToString()),
+                    ("TOTAL", totalKingdomCount.ToString()),
+                    ("ARMIES", kingdom.Armies.Count.ToString()),
+                    ("STRENGTH", V.KingdomStr(kingdom).ToString("F0")),
+                    ("WAR", warStatus),
+                    ("RULER_REL", rulerRel));
             }
-            return sb.ToString();
         }
 
         // 核心：推导当前的人物动机
         public string CalCurrentMotivation()
         {
-            if (BaseHero == null && Occupation == "临时工")
+            if (BaseHero == null)
             {
-                LifeGoal = "完成当下的工作";
-                ShortGoal = "听从雇主安排，不出差错。";
-                return $"长期目标：{LifeGoal}\n短期目标：{ShortGoal}";
-            }
-            if (BaseHero == null) 
-            {
-                if (Occupation == "士兵")
+                if (Occupation == "村民")
                 {
-                    LifeGoal = "在军队中晋升或退役还乡。";
-                    ShortGoal = "严格执行长官的命令，守卫此地，排除可疑人员。";                    
-                }
-                else if(Occupation == "村民")
-                {
-                    LifeGoal = "平平安安过日子。";
-                    ShortGoal = "做完手头的活。";
+                    // 村民的长期/短期目标
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_villager_long");
+                    // 做完手头的活。
+                    ShortGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_villager_short");
                 }
                 else
                 {
-                    LifeGoal = "活着领到军饷/工钱";
-                    ShortGoal = "执行当前的站岗或巡逻任务";
+                    // 模板 NPC 默认目标
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_template_long");
+                    // 执行当前的站岗或巡逻任务
+                    ShortGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_template_short");
                 }
-
-
-                return $"长期目标：{LifeGoal}\n短期目标：{ShortGoal}";
+                // 长期目标：{LIFE_GOAL}
+                return LWNTextHelper.ResolveCompound("LWN_prompt_motivation_label",
+                    ("LIFE_GOAL", LifeGoal), ("SHORT_GOAL", ShortGoal));
             }
 
             // --- 1. 数据准备 & 特性提取 ---
             Clan clan = BaseHero.Clan;
             Kingdom kingdom = clan?.Kingdom;
 
-            // 获取核心性格数值 (如果没有则默认为0)
             int honor = CoreValues.ContainsKey("Honor") ? CoreValues["Honor"] : 0;
             int valor = CoreValues.ContainsKey("Valor") ? CoreValues["Valor"] : 0;
             int calculating = CoreValues.ContainsKey("Calculating") ? CoreValues["Calculating"] : 0;
-            int mercy = CoreValues.ContainsKey("Mercy") ? CoreValues["Mercy"] : 0;
 
-            // 经济状况
             bool isPoor = (BaseHero.Gold < 10000);
             bool isRich = (BaseHero.Gold > 500000);
-
-            // 战争状态
             bool atWar = kingdom != null && V.GetEnemyKingdoms(kingdom).Any();
 
-            // 身份判断
             bool isKing = (kingdom != null && kingdom.Leader == BaseHero);
             bool isClanLeader = (clan != null && clan.Leader == BaseHero);
             bool isWanderer = BaseHero.IsWanderer;
 
             // --- 2. 计算人生目标 (LifeGoal) ---
-            // 逻辑：身份决定上限，野心决定高度，主义(Ism)决定方向
-
             if (isKing)
             {
-                if (Ism == IsmEnum.Ideal && Ambition > 50) LifeGoal = "统一大陆，建立万世不朽的理想国度";
-                else if (Ambition > 80) LifeGoal = "征服一切，让所有国家臣服于我的脚下";
-                else if (ActStyle == ActStyleEnum.Considerate) LifeGoal = "维持国内稳定，确保王朝平稳传承";
-                else LifeGoal = "享受权力的巅峰，维持现状";
+                if (Ism == IsmEnum.Ideal && Ambition > 50)
+                    // 统一大陆，建立万世不朽的理想国度
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_king_ideal");
+                else if (Ambition > 80)
+                    // 征服一切，让所有国家臣服于我的脚下
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_king_conquer");
+                else if (ActStyle == ActStyleEnum.Considerate)
+                    // 维持国内稳定，确保王朝平稳传承
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_king_stable");
+                else
+                    // 享受权力的巅峰，维持现状
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_king_default");
             }
             else if (isClanLeader)
             {
-                // 野心极高且不重荣誉 -> 篡位/自立
-                if (Ambition > 80 && honor < 0) LifeGoal = "积蓄力量，推翻现有的君主，自立为王";
-                // 野心高但重荣誉 -> 权臣
-                else if (Ambition > 60) LifeGoal = "带领家族成为王国中最有权势的豪门";
-                // 现实主义者 -> 搞钱
-                else if (Ism == IsmEnum.Realistic && Desire == DesireEnum.Greedy) LifeGoal = "垄断贸易，建立富可敌国的商业帝国";
-                // 荣誉高 -> 忠臣
-                else if (honor > 0) LifeGoal = "作为家族的守护者，尽忠职守，光耀门楣";
-                else LifeGoal = "在这个乱世中保全家族，使其延续下去";
+                if (Ambition > 80 && honor < 0)
+                    // 积蓄力量，推翻现有的君主，自立为王
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_clan_leader_usurp");
+                else if (Ambition > 60)
+                    // 带领家族成为王国中最有权势的豪门
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_clan_leader_magnate");
+                else if (Ism == IsmEnum.Realistic && Desire == DesireEnum.Greedy)
+                    // 垄断贸易，建立富可敌国的商业帝国
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_clan_leader_commerce");
+                else if (honor > 0)
+                    // 作为家族的守护者，尽忠职守，光耀门楣
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_clan_leader_loyal");
+                else
+                    // 在这个乱世中保全家族，使其延续下去
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_clan_leader_default");
             }
             else if (isWanderer)
             {
-                if (Ambition > 50) LifeGoal = "寻找明主或机会，摆脱流浪身份，晋升为贵族";
-                else if (Desire == DesireEnum.Greedy) LifeGoal = "作为雇佣兵或强盗，攫取尽可能多的财富";
-                else LifeGoal = "四海为家，寻找属于自己的归宿";
+                if (Ambition > 50)
+                    // 寻找明主或机会，摆脱流浪身份，晋升为贵族
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_wanderer_ambitious");
+                else if (Desire == DesireEnum.Greedy)
+                    // 作为雇佣兵或强盗，攫取尽可能多的财富
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_wanderer_greedy");
+                else
+                    // 四海为家，寻找属于自己的归宿
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_wanderer_default");
             }
             else // 普通家族成员/配偶
             {
-                // 即使是配偶，如果野心大能力强，也不只是想安稳
-                if (Ambition > 70 && calculating > 0) LifeGoal = "在幕后操纵家族政治，掌握实权";
-                else if (valor > 1) LifeGoal = "在战场上证明自己，成为家族的利剑";
-                else if (theImportanceOfFriendship == FriendshipImportanceEnum.Important) LifeGoal = "辅佐家主（或配偶），维系家族成员间的羁绊";
-                else LifeGoal = "享受贵族生活，安稳度过一生";
+                if (Ambition > 70 && calculating > 0)
+                    // 在幕后操纵家族政治，掌握实权
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_member_manipulate");
+                else if (valor > 1)
+                    // 在战场上证明自己，成为家族的利剑
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_member_blade");
+                else if (theImportanceOfFriendship == FriendshipImportanceEnum.Important)
+                    // 辅佐家主（或配偶），维系家族成员间的羁绊
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_member_support");
+                else
+                    // 享受贵族生活，安稳度过一生
+                    LifeGoal = LWNTextHelper.ResolveText("LWN_prompt_goal_member_default");
             }
 
             // --- 3. 计算短期目标 (ShortGoal) ---
-            // 逻辑：生理需求 > 紧迫危机(战争/破产) > 个人欲望
-
             List<string> shortGoals = new List<string>();
 
             // [优先级0]：特殊癖好 (酒鬼)
             if (AlcoholDesire == AlcoholDesireEnum.Alcoholic)
             {
-                shortGoals.Add("非常渴求酒精，现在的首要念头是找个酒馆喝个烂醉");
+                // 非常渴求酒精，现在的首要念头是找个酒馆喝个烂醉
+                shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_alcoholic"));
             }
 
             // [优先级1]：战争状态
             if (atWar)
             {
                 if (valor > 0 || Spirit == SpiritEnum.Brave)
-                    shortGoals.Add("备战：渴望在当前的战争中击败敌将，赢取声望与战利品");
+                    // 备战：渴望在当前的战争中击败敌将，赢取声望与战利品
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_war_eager"));
                 else if (Spirit == SpiritEnum.Timid || valor < 0)
-                    shortGoals.Add("避战：战火纷飞，只想躲在安全的城墙后，避免被俘虏");
+                    // 避战：战火纷飞，只想躲在安全的城墙后，避免被俘虏
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_war_avoid"));
                 else if (honor < 0 && calculating > 0)
-                    shortGoals.Add("投机：趁着战争混乱，通过掠夺村庄或发战争财来获利");
+                    // 投机：趁着战争混乱，通过掠夺村庄或发战争财来获利
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_war_profit"));
                 else
-                    shortGoals.Add("尽职：响应国家号召，保卫领土");
+                    // 尽职：响应国家号召，保卫领土
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_war_duty"));
             }
 
             // [优先级2]：经济危机
             if (isPoor)
             {
-                if (honor > 0) shortGoals.Add("筹款：家族财政赤字，需要通过正当贸易或任务来维持开支");
-                else shortGoals.Add("搞钱：缺钱了，不论是抢劫商队还是敲诈勒索，必须尽快弄到第纳尔");
+                if (honor > 0)
+                    // 筹款：家族财政赤字，需要通过正当贸易或任务来维持开支
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_economy_shortfall"));
+                else
+                    // 搞钱：缺钱了，不论是抢劫商队还是敲诈勒索，必须尽快弄到第纳尔
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_economy_cash"));
             }
 
             // [优先级3]：平稳时期的个人欲望
-            if (shortGoals.Count == 0) // 如果没有紧急情况
+            if (shortGoals.Count == 0)
             {
-                // 根据物欲类型
                 switch (DesireType)
                 {
                     case DesireTypeEnum.Book:
-                        shortGoals.Add("求知：希望能在这个城市找到珍稀的古籍或知识");
+                        // 求知：希望能在这个城市找到珍稀的古籍或知识
+                        shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_desire_knowledge"));
                         break;
                     case DesireTypeEnum.Weapon:
-                        shortGoals.Add("整备：正在寻找一把趁手的神兵利器，或者改良现有的装备");
+                        // 整备：正在寻找一把趁手的神兵利器，或者改良现有的装备
+                        shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_desire_gear"));
                         break;
                     case DesireTypeEnum.Nanman:
                     case DesireTypeEnum.Art:
-                        shortGoals.Add("收藏：对异域的珍宝或艺术品非常感兴趣，想要将其收入囊中");
+                        // 收藏：对异域的珍宝或艺术品非常感兴趣，想要将其收入囊中
+                        shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_desire_collect"));
                         break;
                     case DesireTypeEnum.Money:
-                        if (Desire == DesireEnum.Greedy) shortGoals.Add("敛财：虽然不缺钱，但看到金币增加是最快乐的事");
-                        else shortGoals.Add("经营：管理好现有的产业和商队");
+                        if (Desire == DesireEnum.Greedy)
+                            // 敛财：虽然不缺钱，但看到金币增加是最快乐的事
+                            shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_desire_hoard"));
+                        else
+                            // 经营：管理好现有的产业和商队
+                            shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_desire_manage"));
                         break;
                 }
 
-                // 根据社交/性格
-                if (Spouse == "None" &&  BaseHero.Age < 40 && BaseHero.Age > 16)
+                if (Spouse == "None" && BaseHero.Age < 40 && BaseHero.Age > 16)
                 {
-                    shortGoals.Add("联姻：正在物色合适的政治联姻对象");
+                    // 联姻：正在物色合适的政治联姻对象
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_marriage"));
                 }
                 else if (JobTendency == JobTendencyEnum.WarriorOnly)
                 {
-                    shortGoals.Add("磨炼：在竞技场打磨武艺，或者训练手下的士兵");
+                    // 磨炼：在竞技场打磨武艺，或者训练手下的士兵
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_training"));
                 }
                 else if (ActStyle == ActStyleEnum.Flippancy)
                 {
-                    shortGoals.Add("享乐：最近只想举办宴会，吃喝玩乐");
+                    // 享乐：最近只想举办宴会，吃喝玩乐
+                    shortGoals.Add(LWNTextHelper.ResolveText("LWN_prompt_shortgoal_pleasure"));
                 }
             }
 
-            // 整合短期目标，取最重要的一条
-            if (shortGoals.Count > 0)
-            {
-                ShortGoal = shortGoals[0]; // 取优先级最高的
-            }
-            else
-            {
-                ShortGoal = "待命：目前没有什么特别的打算，随遇而安。";
-            }
+            ShortGoal = shortGoals.Count > 0
+                ? shortGoals[0]
+                // 待命：目前没有什么特别的打算，随遇而安。
+                : LWNTextHelper.ResolveText("LWN_prompt_shortgoal_standby");
 
-            return $"长期目标：{LifeGoal}\n短期目标：{ShortGoal}";
+            // 长期目标：{LIFE_GOAL}
+            return LWNTextHelper.ResolveCompound("LWN_prompt_motivation_label",
+                ("LIFE_GOAL", LifeGoal), ("SHORT_GOAL", ShortGoal));
         }
 
         public string GetSelfInfo()
@@ -880,85 +1045,86 @@ namespace LivingWorldNpcs
 
             StringBuilder sb = new StringBuilder();
 
-
-
-
-            sb.AppendLine("## 人物核心设定");
+            // ## 人物核心设定
+            sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_hero_header",
+                "## Core Identity\n- Name: [{NAME}]\n- Gender: {GENDER}\n- Age: {AGE}\n- Spouse: [{SPOUSE}]\n- Occupation: [{OCC}]"));
 
             if (BaseHero == null && BaseCharacter == null)
-            { 
-                sb.AppendLine("无");
+            {
+                // 无
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_none"));
             }
             if (BaseHero == null && BaseCharacter != null)
             {
-                sb.AppendLine($"-身份：{BaseCharacter.Name}\n" +
-                    $"-等级：{BaseCharacter.Tier}\n职业1：{BaseCharacter.Occupation}\n" +
-                    $"-职业2：{(BaseCharacter.IsSoldier ? "士兵" : "平民")}");
+                // -身份：{NAME}\n-等级：{TIER}\n职业1：{OCC1}\n-职业2：{OCC2}
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_prompt_self_template_npc",
+                    ("NAME", (object)BaseCharacter.Name),
+                    ("TIER", BaseCharacter.Tier.ToString()),
+                    ("OCC1", BaseCharacter.Occupation.ToString()),
+                    ("OCC2", LocalizeRole(BaseCharacter.IsSoldier))));
             }
             else
             {
-                sb.AppendLine($"-姓名：[{BaseHero.Name}]。\n" +
-                    $"-性别：{(BaseHero.IsFemale ? "女" : "男")}。" +
-                    $"\n-年龄：{(int)BaseHero.Age}岁。");
-                sb.AppendLine($"-配偶[{Spouse}]" +
-                    $"\n-职业[{Occupation}]。");
-                //sb.AppendLine($"性格特征：{PersonalityTraits}。" ); // 使用游戏自带的性格描述字符串
-                /*
-                if (CoreValues != null && CoreValues.Count > 0)
-                {
-                    sb.Append("核心价值观(Values)：");
-                    foreach (var kv in CoreValues) sb.Append($"{kv.Key}({kv.Value}), ");
-                    sb.AppendLine();
-                }
-                */
+                // 人物核心设定
+                var heroHeader = LWNTextHelper.ResolveCompoundMixed("LWN_prompt_self_hero_header",
+                    ("NAME", (object)BaseHero.Name),
+                    ("GENDER", LocalizeGender(BaseHero.IsFemale)),
+                    ("AGE", ((int)BaseHero.Age).ToString()),
+                    ("SPOUSE", Spouse ?? ""),
+                    ("OCC", LocalizeTrait(Occupation)));
+                // Replace the generic header with actual data
+                sb.Clear();
+                sb.AppendLine(heroHeader);
 
-                sb.AppendLine("\n## 自我阶级认知##");
+                // 自我阶级认知
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_worth_header"));
                 sb.AppendLine(GetSelfWorthDescription());
 
-                // --- 行为动机 (AI 的思考指引) ---
-                sb.AppendLine("\n##目标与动机##");
+                // 目标与动机
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_goals_header"));
                 sb.AppendLine(CalCurrentMotivation());
 
-                /*
-                sb.AppendLine("\n##角色属性技能##");
-                sb.AppendLine($"-仁慈：{BaseHero.GetTraitLevel(DefaultTraits.Mercy)}\n");
-                sb.AppendLine($"-勇敢：{BaseHero.GetTraitLevel(DefaultTraits.Valor)}\n");
-                sb.AppendLine($"-荣誉：{BaseHero.GetTraitLevel(DefaultTraits.Honor)}\n");
-                sb.AppendLine($"-精明：{BaseHero.GetTraitLevel(DefaultTraits.Calculating)}\n");
-                sb.AppendLine($"-魅力：{BaseHero.GetSkillValue(DefaultSkills.Charm)}\n");
-                sb.AppendLine($"-智力（策略）：{BaseHero.GetSkillValue(DefaultSkills.Tactics)}\n");
-                sb.AppendLine($"-流氓：{BaseHero.GetSkillValue(DefaultSkills.Roguery)}\n");
-                sb.AppendLine($"-体力：{BaseHero.GetSkillValue(DefaultSkills.Athletics)}\n");
-                sb.AppendLine($"-侦查：{BaseHero.GetSkillValue(DefaultSkills.Scouting)}\n");
-                */
+                // 喜好信息
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_prefs_header"));
+                // -物欲：{DESIRE}
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_self_prefs_line",
+                    ("DESIRE", LocalizeTrait(DesireStr)),
+                    ("DESIRE_TYPE", LocalizeTrait(DesireTypeStr)),
+                    ("ALCOHOL", LocalizeTrait(AlcoholDesireStr)),
+                    ("WEAPON", LocalizeTrait(WeaponDesireStr)),
+                    ("JOB", LocalizeTrait(JobTendencyStr))));
 
-                //各种性格、喜好信息
-                sb.AppendLine("\n##喜好信息##");
-                sb.AppendLine($"-物欲：{DesireStr}\n" +
-                    $"-喜好类型：{DesireTypeStr}。\n" +
-                    $"对酒的态度: {AlcoholDesireStr}\n" +
-                    $"偏好武器: {WeaponDesireStr}\n" +
-                     $"工作偏好: {JobTendencyStr}\n");
-
-                sb.AppendLine("##性格和价值观##");
-                sb.AppendLine($"-野心程度：{Ambition}\n" +
-                    $"-行事风格: {ActStyleStr}\n" +
-                    $"-脾气: {TemperStr}\n" +
-                     $"-精神: {SpiritStr}\n" +
-                    $"-主义: {IsmStr}\n" +
-                    $"-对情义的态度: {theImportanceOfFriendshipStr}\n");
+                // 性格和价值观
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_personality_header"));
+                // -野心程度：{AMBITION}
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_self_personality_line",
+                    ("AMBITION", Ambition.ToString()),
+                    ("STYLE", LocalizeTrait(ActStyleStr)),
+                    ("TEMPER", LocalizeTrait(TemperStr)),
+                    ("SPIRIT", LocalizeTrait(SpiritStr)),
+                    ("ISM", LocalizeTrait(IsmStr)),
+                    ("FRIENDSHIP", LocalizeTrait(theImportanceOfFriendshipStr))));
             }
             // --- 当前状态 (Agent 层面) ---
             if (Mission.Current != null && Mission.Current.MainAgent != null)
             {
-
                 var agent = Mission.Current.Agents.FirstOrDefault(a => a.Character == BaseCharacter);
                 if (agent != null)
                 {
                     float hpPercent = agent.Health / agent.HealthLimit * 100;
-                    string healthDesc = hpPercent > 80 ? "精力充沛" : (hpPercent > 30 ? "受了些伤" : "身负重伤，濒临倒下");
-                    sb.AppendLine($"##当前生理状态##");
-                    sb.AppendLine($"健康状况：{healthDesc} (HP: {hpPercent:F0}%)。");
+                    string healthDesc = hpPercent > 80
+                        // 精力充沛
+                        ? LWNTextHelper.ResolveText("LWN_prompt_self_health_energetic")
+                        : (hpPercent > 30
+                            // 受了些伤
+                            ? LWNTextHelper.ResolveText("LWN_prompt_self_health_wounded")
+                            // 身负重伤，濒临倒下
+                            : LWNTextHelper.ResolveText("LWN_prompt_self_health_critical"));
+                    // ## 当前生理状态
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_status_header"));
+                    // 健康状况：{DESC} (HP: {HP}%)。
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_self_health_line",
+                        ("DESC", healthDesc), ("HP", hpPercent.ToString("F0"))));
                 }
             }
             return sb.ToString();
@@ -1075,16 +1241,26 @@ namespace LivingWorldNpcs
         public string GetSelfWorthDescription()
         {
             float val = CalculateEstimatedValue();
-            string valDesc = "";
+            string valDesc;
 
-            if (val < 5000) valDesc = "微不足道。只要对方给点小恩小惠，或者表现出诚意，就愿意跟随对方。";
-            else if (val < 50000) valDesc = "颇有身价。是有一定身份的人，一般的筹码打动不了，对方需要拿出真金白银。";
-            else if (val < 200000) valDesc = "价值连城。作为名门望族的核心成员，身价极高。除非有巨大的利益交换（如城池、巨额财富），否则对方免谈。";
-            else valDesc = "无价之宝/权倾天下。你想收买？这简直是天方夜谭，除非你能拿出半个王国的财富。";
+            if (val < 5000)
+                // 微不足道。只要对方给点小恩小惠，或者表现出诚意，就愿意跟随对方。
+                valDesc = LWNTextHelper.ResolveText("LWN_prompt_worth_low");
+            else if (val < 50000)
+                // 颇有身价。是有一定身份的人，一般的筹码打动不了，对方需要拿出真金白银。
+                valDesc = LWNTextHelper.ResolveText("LWN_prompt_worth_medium");
+            else if (val < 200000)
+                // 价值连城。作为名门望族的核心成员，身价极高。除非有巨大的利益交换（如城池、巨额财富），否则对方免谈。
+                valDesc = LWNTextHelper.ResolveText("LWN_prompt_worth_high");
+            else
+                // 无价之宝/权倾天下。你想收买？这简直是天方夜谭，除非你能拿出半个王国的财富。
+                valDesc = LWNTextHelper.ResolveText("LWN_prompt_worth_extreme");
 
-            return $"出身源头：{OriginStr}\n" +
-                $"身价：{val:F0} 两金子。" +
-                $"\n自我认知：{valDesc}";
+            // 出身源头：{ORIGIN}
+            return LWNTextHelper.ResolveCompound("LWN_prompt_worth_template",
+                ("ORIGIN", LocalizeTrait(OriginStr)),
+                ("VAL", val.ToString("F0")),
+                ("DESC", valDesc));
         }
 
         public List<Hero> GetCloseRelations(Hero hero, out string relationStr)
@@ -1092,7 +1268,11 @@ namespace LivingWorldNpcs
             //获取配偶、家人、好友
             HashSet<Hero> relations = new HashSet<Hero>();
             StringBuilder sb = new StringBuilder();
-            sb.AppendLine($"获取 {hero.Name}的关系网：");
+            // 本地化：关系网头部（{NAME}=英雄名）
+            string deceased = LWNTextHelper.ResolveText("LWN_prompt_relations_deceased", " (deceased)");
+            // 获取 {NAME} 的关系网：
+            sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_prompt_relations_header",
+                ("NAME", (object)hero.Name)));
             // 返回 true 表示成功添加（也就是之前没加过）
            
 
@@ -1100,13 +1280,17 @@ namespace LivingWorldNpcs
             if (hero.Spouse != null)
             {
                 relations.Add(hero.Spouse);
-                sb.AppendLine($"-配偶：{hero.Spouse.Name} {((!hero.Spouse.IsAlive)? "已过世":"") }");
+                // 本地化：配偶行（{NAME}=配偶名，{DECEASED}=已过世标记或空）
+                string spouseDeceased = !hero.Spouse.IsAlive ? deceased : "";
+                // -配偶：{NAME}{DECEASED}
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_prompt_relations_spouse",
+                    ("NAME", (object)hero.Spouse.Name), ("DECEASED", spouseDeceased)));
             }
 
             if(hero.Children.Count >0)
             {
-                string children = "-子女：";
-                sb.Append(children);
+                // 本地化：子女标签
+                sb.Append(LWNTextHelper.ResolveText("LWN_prompt_relations_children_label"));
                 foreach (var child in hero.Children)
                 {
                     sb.Append($"{child.Name} ");
@@ -1119,18 +1303,27 @@ namespace LivingWorldNpcs
             {
                 relations.Add(hero.Father);
                 rawSiblings.AddRange(hero.Father.Children);
-                sb.AppendLine($"-父亲：{hero.Father.Name}{((!hero.Father.IsAlive) ? "(已过世)" : "")}");
+                // 本地化：父亲行（{NAME}=父亲名，{DECEASED}=已过世标记）
+                string fatherDeceased = !hero.Father.IsAlive ? deceased : "";
+                // -父亲：{NAME}{DECEASED}
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_prompt_relations_father",
+                    ("NAME", (object)hero.Father.Name), ("DECEASED", fatherDeceased)));
             }
             if (hero.Mother != null)
             {
                 relations.Add(hero.Mother);
                 rawSiblings.AddRange(hero.Mother.Children);
-                sb.AppendLine($"-母亲：{hero.Mother.Name}{((!hero.Mother.IsAlive) ? "(已过世)" : "")}");
+                // 本地化：母亲行（{NAME}=母亲名，{DECEASED}=已过世标记）
+                string motherDeceased = !hero.Mother.IsAlive ? deceased : "";
+                // -母亲：{NAME}{DECEASED}
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_prompt_relations_mother",
+                    ("NAME", (object)hero.Mother.Name), ("DECEASED", motherDeceased)));
             }
 
             if (rawSiblings.Count > 0)
             {
-                string brothers = "-兄弟：";
+                // 本地化：兄弟标签
+                string brothers = LWNTextHelper.ResolveText("LWN_prompt_relations_siblings_label");
                 bool hasBrother = false;
                 foreach (var sibling in rawSiblings)
                 {
@@ -1144,7 +1337,8 @@ namespace LivingWorldNpcs
                 }
                 if (hasBrother) sb.AppendLine(brothers);
 
-                string sisters = "-姐妹：";
+                // 本地化：姐妹标签
+                string sisters = LWNTextHelper.ResolveText("LWN_prompt_relations_siblings_label");
                 bool hasSister = false;
                 foreach (var sibling in rawSiblings)
                 {
@@ -1175,7 +1369,8 @@ namespace LivingWorldNpcs
 
             if (rawUncles.Count > 0)
             {
-                string uncles = "-叔伯姑舅姨：";
+                // 本地化：叔伯姑舅姨标签
+                string uncles = LWNTextHelper.ResolveText("LWN_prompt_relations_uncles_label");
                 bool hasUncle = false;
                 foreach (var uncle in rawUncles)
                 {
@@ -1194,7 +1389,8 @@ namespace LivingWorldNpcs
 
             if (hero.Clan != null)
             {
-                string family = "-其他家族成员：";
+                // 本地化：其他家族成员标签
+                string family = LWNTextHelper.ResolveText("LWN_prompt_relations_other_clan_label");
 
                 
 
@@ -1215,7 +1411,8 @@ namespace LivingWorldNpcs
             // 注意：遍历所有英雄比较耗时，可以限制范围，比如只遍历同一国家的
             if (hero.MapFaction != null)
             {
-                string friends = "-好友：";
+                // 本地化：好友标签
+                string friends = LWNTextHelper.ResolveText("LWN_prompt_relations_friends_label");
                 foreach (var other in hero.MapFaction.Heroes)
                 {
                     if (other != hero && other.IsAlive && other.GetRelation(hero) > 20 && !relations.Contains(other))
@@ -1226,7 +1423,8 @@ namespace LivingWorldNpcs
                 }
                 sb.AppendLine(friends);
 
-                string enemy = "-政敌：";
+                // 本地化：政敌标签
+                string enemy = LWNTextHelper.ResolveText("LWN_prompt_relations_rivals_label");
                 foreach (var other in hero.MapFaction.Heroes)
                 {
                     if (other != hero && other.IsAlive && other.GetRelation(hero) < -10 && !relations.Contains(other))
@@ -1240,7 +1438,8 @@ namespace LivingWorldNpcs
             //如果自己是Clan的leader，那么同一王国内的其他Clan的leader也会收到传闻（同事）
             if (hero.Clan != null && hero.Clan.Leader == hero && hero.Clan.Kingdom != null)
             {
-                string leaders = "-族长圈子：";
+                // 本地化：族长圈子标签
+                string leaders = LWNTextHelper.ResolveText("LWN_prompt_relations_clan_circle_label");
                 foreach (var clan in hero.Clan.Kingdom.Clans)
                 {
                     if (clan.Leader != hero && clan.Leader.IsAlive && !relations.Contains(clan.Leader))

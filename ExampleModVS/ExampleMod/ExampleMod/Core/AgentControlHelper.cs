@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using TaleWorlds.Localization;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party;
@@ -445,8 +446,8 @@ namespace LivingWorldNpcs
             if (party != null)
             {
                 // 情报：所属部队名
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_party_belongs_to",
-                    "Belongs to party: {NAME}", ("NAME", party.Name?.ToString() ?? "")));
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_party_belongs_to",
+                    "Belongs to party: {NAME}", ("NAME", (object)(party.Name ?? TextObject.Empty))));
                 // 情报：部队成员区块标题
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_info_member_header", "\n--- Party members (troops) ---"));
 
@@ -458,7 +459,7 @@ namespace LivingWorldNpcs
                     int totalHeroes = memberRoster.TotalHeroes;
 
                     // 情报：部队人数概览（总人数/英雄/伤员）
-                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_overview",
+                    sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_overview",
                         "  [Overview] Total: {TOTAL} (Heroes: {HEROES}, Wounded: {WOUNDED})",
                         ("TOTAL", totalMen.ToString()), ("HEROES", totalHeroes.ToString()), ("WOUNDED", totalWounded.ToString())));
 
@@ -478,12 +479,12 @@ namespace LivingWorldNpcs
                         // 情报：伤员后缀
                         string woundInfo = wounded > 0
                             // (含伤员: {WOUNDED})
-                            ? LWNTextHelper.ResolveCompound("LWN_info_wounded_suffix",
+                            ? LWNTextHelper.ResolveCompoundMixed("LWN_info_wounded_suffix",
                                 "(incl. wounded: {WOUNDED})", ("WOUNDED", wounded.ToString()))
                             : "";
 
                         // 情报：单条士兵行（等级/名字/人数/伤员/ID）
-                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_troop_line",
+                        sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_troop_line",
                             "  - [{TIER}] {NAME} : {COUNT} men {WOUND} [ID:{ID}]",
                             ("TIER", tier), ("NAME", charName), ("COUNT", count.ToString()),
                             ("WOUND", woundInfo), ("ID", id)));
@@ -498,9 +499,9 @@ namespace LivingWorldNpcs
             else
             {
                 // 情报：英雄没有所属部队
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_no_party",
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_no_party",
                     " {NAME} has no party right now.",
-                    ("NAME", targetHero.Name?.ToString() ?? "")));
+                    ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
             }
             return sb.ToString();
         }
@@ -516,9 +517,9 @@ namespace LivingWorldNpcs
             }
 
             // 情报：背包报告标题
-            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_bag_report_header",
+            sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_bag_report_header",
                 "========== [{NAME}] Bag Info Report ==========",
-                ("NAME", targetHero.Name?.ToString() ?? "")));
+                ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
 
             // ---------------------------------------------------------
             // 第一部分：装备检查 (优先检查 Agent 实体，否则检查 Hero 配置)
@@ -549,7 +550,7 @@ namespace LivingWorldNpcs
             //sb.AppendLine($"状态: {(agent != null ? "在场景中" : "未在场景中/大地图模式")} {sourceInfo}");
 
             // 情报：持有金钱
-            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_held_gold",
+            sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_held_gold",
                 "-Gold held: {GOLD}", ("GOLD", targetHero.Gold.ToString())));
 
             // 3. 遍历打印装备
@@ -561,7 +562,7 @@ namespace LivingWorldNpcs
                 // 情报：所骑马匹
                 if(!equipmentToInspect.Horse.IsEmpty)
                     // -所骑马匹: {NAME}
-                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_horse",
+                    sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_horse",
                         "-Riding horse: {NAME}", ("NAME", equipmentToInspect.Horse.Item.Name?.ToString() ?? "")));
 
                 for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i < EquipmentIndex.NumEquipmentSetSlots; i++)
@@ -579,12 +580,12 @@ namespace LivingWorldNpcs
                         // 情报：品质修饰后缀（如"精良的"）
                         modifyName = string.IsNullOrEmpty(modifyName) ? "" :
                             // [{MODIFY}的]
-                            LWNTextHelper.ResolveCompound("LWN_info_modifier_suffix", "[{MODIFY}]", ("MODIFY", modifyName));
+                            LWNTextHelper.ResolveCompoundMixed("LWN_info_modifier_suffix", "[{MODIFY}]", ("MODIFY", modifyName));
                         // Format: [SlotName] ItemID
                         if (!IsPrompt)
                         {
                             // 情报：单条装备槽位行
-                            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_slot_line",
+                            sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_slot_line",
                                 "  - Slot[{SLOT}]: {MODIFIED}{NAME} (ID: {ID})",
                                 ("SLOT", slotName.PadRight(12)), ("MODIFIED", modifyName),
                                 ("NAME", itemName), ("ID", itemId)));
@@ -615,8 +616,8 @@ namespace LivingWorldNpcs
             if (party != null)
             {
                 // 情报：所属部队名
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_party_belongs_to",
-                    "Belongs to party: {NAME}", ("NAME", party.Name?.ToString() ?? "")));
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_party_belongs_to",
+                    "Belongs to party: {NAME}", ("NAME", (object)(party.Name ?? TextObject.Empty))));
 
                 // 检查物品
                 var itemRoster = party.ItemRoster;
@@ -644,7 +645,7 @@ namespace LivingWorldNpcs
                         totalValue += subTotal;
                         string displayName = itemName.Length > 10 ? itemName.Substring(0, 9) + ".." : itemName;
                         // 情报：单条物品行（数量/单价/总价）
-                        string itemDesc = LWNTextHelper.ResolveCompound("LWN_info_item_line",
+                        string itemDesc = LWNTextHelper.ResolveCompoundMixed("LWN_info_item_line",
                             "- {NAME} x{AMOUNT} (unit:{UNIT}|total:{TOTAL})",
                             ("NAME", displayName), ("AMOUNT", amount.ToString()),
                             ("UNIT", valuePerItem.ToString()), ("TOTAL", subTotal.ToString()));
@@ -671,24 +672,24 @@ namespace LivingWorldNpcs
                         sb.AppendLine();
                     }
                     // 情报：物品统计行（种类数/总估值）
-                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_stats",
+                    sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_stats",
                         "  [Stats] Item kinds: {KINDS} | Total value: {VALUE}",
                         ("KINDS", itemRoster.Count.ToString()), ("VALUE", totalValue.ToString())));
                 }
                 else
                 {
                     // 情报：辎重为空
-                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_empty_luggage",
+                    sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_empty_luggage",
                         "{NAME}'s luggage is empty.",
-                        ("NAME", targetHero.Name?.ToString() ?? "")));
+                        ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
                 }               
             }
             else
             {
                 // 情报：没有部队辎重
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_info_no_luggage",
+                sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_no_luggage",
                     "{NAME} currently has no party luggage.",
-                    ("NAME", targetHero.Name?.ToString() ?? "")));
+                    ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
             }
 
             return sb.ToString();
@@ -875,7 +876,7 @@ namespace LivingWorldNpcs
                 // 离婚公告：报出双方名字
                 InformationManager.DisplayMessage(new InformationMessage(
                     // {NAME1} 与 {NAME2} 离婚了。
-                    LWNTextHelper.ResolveCompound("LWN_info_divorce_announcement",
+                    LWNTextHelper.ResolveCompoundMixed("LWN_info_divorce_announcement",
                         "{NAME1} and {NAME2} are divorced.",
                         ("NAME1", targetHero.Name?.ToString() ?? ""),
                         ("NAME2", targetHeroSpouse.Name?.ToString() ?? ""))));

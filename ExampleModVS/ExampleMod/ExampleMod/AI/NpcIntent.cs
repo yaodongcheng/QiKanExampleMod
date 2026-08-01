@@ -31,21 +31,32 @@ namespace LivingWorldNpcs
         {
             string typeName = Type switch
             {
-                NpcIntentType.None => "空闲",
-                NpcIntentType.Fighting => "战斗中",
-                NpcIntentType.Surrendering => "想认输",
-                NpcIntentType.Confronting => "质问",
-                NpcIntentType.Following => "跟随",
-                NpcIntentType.Interacting => "交互中",
-                NpcIntentType.KnockedOut => "被击晕",
+                // 空闲意图：NPC 无特定行为
+                NpcIntentType.None => LWNTextHelper.ResolveText("LWN_ui_npcintent_none"),
+                // 战斗中意图：NPC 正在交战
+                NpcIntentType.Fighting => LWNTextHelper.ResolveText("LWN_ui_npcintent_fighting"),
+                // 想认输意图：NPC 想要投降
+                NpcIntentType.Surrendering => LWNTextHelper.ResolveText("LWN_ui_npcintent_surrendering"),
+                // 质问意图：NPC 正在质问/对峙玩家
+                NpcIntentType.Confronting => LWNTextHelper.ResolveText("LWN_ui_npcintent_confronting"),
+                // 跟随意图：NPC 正在跟随某人
+                NpcIntentType.Following => LWNTextHelper.ResolveText("LWN_ui_npcintent_following"),
+                // 交互中意图：NPC 正在与玩家交互
+                NpcIntentType.Interacting => LWNTextHelper.ResolveText("LWN_ui_npcintent_interacting"),
+                // 被击晕意图：NPC 被击晕倒地
+                NpcIntentType.KnockedOut => LWNTextHelper.ResolveText("LWN_ui_npcintent_knockedout"),
                 _ => Type.ToString()
             };
             string detailStr = InterceptDetail switch
             {
-                ConfrontationType.Deter => "(威慑)",
-                ConfrontationType.Search => "(搜查)",
-                ConfrontationType.Recover => "(追回)",
-                ConfrontationType.Stop => "(制止)",
+                // 威慑子类型：驱离警告
+                ConfrontationType.Deter => LWNTextHelper.ResolveText("LWN_ui_npcintent_deter"),
+                // 搜查子类型：要求搜查包裹
+                ConfrontationType.Search => LWNTextHelper.ResolveText("LWN_ui_npcintent_search"),
+                // 追回子类型：人赃并获追回赃物
+                ConfrontationType.Recover => LWNTextHelper.ResolveText("LWN_ui_npcintent_recover"),
+                // 制止子类型：制止暴力行为
+                ConfrontationType.Stop => LWNTextHelper.ResolveText("LWN_ui_npcintent_stop"),
                 _ => ""
             };
             string targetStr = Target != null ? $"→{Target.Name}" : "";

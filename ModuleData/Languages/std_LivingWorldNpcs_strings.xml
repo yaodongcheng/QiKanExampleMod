@@ -1635,6 +1635,15 @@
     <!-- ═══════════════════════════════════════════ -->
     <!-- 信息面板兜底名字：未知 -->
     <string id="LWN_ui_info_name_unknown" text="Unknown" />
+    <!-- 探查面板 Tab 标签 -->
+    <string id="LWN_ui_info_tab_personal" text="Personal" />
+    <string id="LWN_ui_info_tab_clan" text="Clan" />
+    <string id="LWN_ui_info_tab_kingdom" text="Kingdom" />
+    <string id="LWN_ui_info_tab_relation" text="Relations" />
+    <string id="LWN_ui_info_tab_memory" text="Memories" />
+    <string id="LWN_ui_info_tab_inventory" text="Inventory" />
+    <string id="LWN_ui_info_tab_party" text="Party" />
+    <string id="LWN_ui_info_btn_close" text="Close" />
     <!-- 信息面板标题：{NAME}的信息面板 -->
     <string id="LWN_ui_info_title" text="{NAME}'s Info Panel" />
     <!-- 个人属性 Tab：模板 NPC 无详细人设的兜底文案 -->
@@ -3777,5 +3786,19 @@
     <string id="LWN_intent_commission_reward_title" text="Claim Reward" />
     <!-- 结账弹窗正文：报酬叙事台词 -->
     <string id="LWN_intent_commission_reward_body" text="&amp;quot;{LINE}&amp;quot;" />
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- NPC 头顶意图标签（AgentHUD）                      -->
+    <!-- ═══════════════════════════════════════════ -->
+    <string id="LWN_ui_npcintent_none" text="Idle" />
+    <string id="LWN_ui_npcintent_fighting" text="Fighting" />
+    <string id="LWN_ui_npcintent_surrendering" text="Surrendering" />
+    <string id="LWN_ui_npcintent_confronting" text="Confronting" />
+    <string id="LWN_ui_npcintent_following" text="Following" />
+    <string id="LWN_ui_npcintent_interacting" text="Interacting" />
+    <string id="LWN_ui_npcintent_knockedout" text="Knocked Out" />
+    <string id="LWN_ui_npcintent_deter" text="(Deter)" />
+    <string id="LWN_ui_npcintent_search" text="(Search)" />
+    <string id="LWN_ui_npcintent_recover" text="(Recover)" />
+    <string id="LWN_ui_npcintent_stop" text="(Stop)" />
   </strings>
 </base>

@@ -1,6 +1,6 @@
 # 本地化迁移方案：CSV → 标准 Bannerlord XML
 
-> **状态：Phase 1 ✅ | Phase 2 ⚠️ EN XML 已生成但不生效 | Phase 3 ✅ | CSV 已删除 ✅**
+> **状态：Phase 1 ✅ | Phase 2 ✅ 已修复 | Phase 3 ✅ | CSV 已删除 ✅**
 
 ## 执行进度
 
@@ -16,8 +16,8 @@
 | Step 7: 验收 | ✅ | build 0 errors, 0 CJK 硬编码, XML ~2200 条目 |
 | CSV 删除 | ✅ | Narrative.csv + NpcSpeech.csv 已删除，C# 中 CSV 引用全清 |
 | Emoji 清理 | ✅ | CNs XML 中 41 个 BMP+ emoji 已移除（会导致 UTF-16 解析崩溃） |
-| **Phase 2: EN 翻译** | ✅ | 2218 条目已翻译，`EN/std_LivingWorldNpcs_strings.xml` |
-| **Phase 2: EN 生效** | ❌ | 🔴 **EN XML 在游戏中不生效**，需排查原因 |
+| **Phase 2: EN 翻译** | ✅ | 2218 条目已翻译，`std_LivingWorldNpcs_strings.xml`（根目录 English） |
+| **Phase 2: EN 生效** | ✅ | 已修复（详见底部排查记录）。额外修复：NpcIntent 硬编码中文、LWNTextHelper English fallback 字典 |
 | **Phase 3: 收尾** | ✅ | 注释补全 + 白名单更新 + CJK 残留清理 |
 
 ### Phase 1 最终数据
@@ -392,15 +392,16 @@ public static class LWNTextHelper
 **新建**：
 ```
 ModuleData/Languages/
+├── language_data.xml                             (English, root level)
+├── std_LivingWorldNpcs_strings.xml               (English strings)
 ├── CNs/
-│   ├── language_data.xml                        (修改：加 include)
-│   ├── addition_2_CNs.xml                       (已有，不动)
-│   ├── output_strings2.xml                      (已有，不动)
-│   └── std_LivingWorldNpcs_strings.xml          (NEW — 全部叙事+警戒台词中文)
-├── EN/
-│   ├── language_data.xml                        (NEW — 英文清单)
-│   └── std_LivingWorldNpcs_strings.xml          (Phase 2 由 skill 自动生成)
+│   ├── language_data.xml                         (简体中文)
+│   ├── addition_2_CNs.xml                        (已有，不动)
+│   ├── output_strings2.xml                       (已有，不动)
+│   └── std_LivingWorldNpcs_strings.xml           (中文 strings)
 ```
+
+> **🔴 English 在根目录，不在 `EN/` 子目录。** 这是 Native/SandBox/Diplomacy/Shokuho 的统一模式。引擎通过根 `language_data.xml`（`id="English"`）加载根目录下所有 `<tag language="English" />` 的 XML。非英语语言放子目录（`CNs/`、`DE/` 等），各自带 `language_data.xml`。
 
 > **Narrative 和 NpcSpeech 合并到一个 XML。** XML 引擎按 key 查找，不关心 key 来自哪个 CSV。Key 前缀（`LWN_narr_*` vs `LWN_speech_*`）本身就区分了语义来源。
 
@@ -783,20 +784,40 @@ Phase 1 只产出中文 XML + C# 桥接 + 脚本校验。Phase 2 用 `/localize`
 
 ---
 
-## 🔴 EN 语言包不生效 — 待排查
+## 🔴 EN 语言包不生效 — 已修复
 
-### 现象
-- CNs XML 在简体中文下正常加载，mod 中文文本正确显示
-- EN XML 已放入 `ModuleData/Languages/EN/std_LivingWorldNpcs_strings.xml`（2218 条目，0 BMP+ 字符）
-- `EN/language_data.xml` 已创建，引用 `EN/std_LivingWorldNpcs_strings.xml`
-- **但切换到 English 后，mod 文本仍显示为 C# fallback，未加载 EN XML 翻译**
+### 根因
 
-### 已尝试
-1. `EN/language_data.xml` + `EN/std_LivingWorldNpcs_strings.xml` → ❌ 不生效
-2. 把 en xml 直接放 `Languages/` 根目录并修改路径引用 → ❌ 不生效
-3. `LoadLocalizationXmls` 调用 → ❌ 反而导致全局语言系统崩溃（语言选项只剩简体中文）
+Native、SandBox、Diplomacy、Shokuho 等所有官方模块和主流 mod 的 **English 都在 `Languages/` 根目录**，不在 `EN/` 子目录。引擎的约定是：
 
-### 待排查方向
+- **English** → 根 `Languages/language_data.xml`（`id="English"`）+ 根目录 XML（`<tag language="English" />`）
+- **非英语** → 子目录 `XX/language_data.xml` + `XX/*.xml`
+
+我们的 mod 同时存在 **两份** `language_data.xml` 声明 `id="English"`：
+1. `Languages/language_data.xml`（根目录，正确）
+2. `Languages/EN/language_data.xml`（子目录，冲突！）
+
+这导致引擎困惑，EN XML 无法被正确加载。
+
+### 修复（2024-08-01）
+
+1. **删除 `Languages/EN/` 整个目录** — 与根 `language_data.xml` 的 `id="English"` 冲突
+2. **根 `language_data.xml` 补上 `text_processor`** — 对齐 Native，添加 `text_processor="TaleWorlds.Localization.TextProcessor.LanguageProcessors.EnglishTextProcessor"`（处理英文复数等）
+
+修复后的结构：
+```
+Languages/
+├── language_data.xml                       ← id="English" + EnglishTextProcessor
+├── std_LivingWorldNpcs_strings.xml         ← <tag language="English" /> 
+└── CNs/
+    ├── language_data.xml                   ← id="简体中文"
+    └── std_LivingWorldNpcs_strings.xml     ← <tag language="简体中文" />
+```
+
+与 Native/SandBox/Diplomacy 完全一致。
+
+### 原排查记录（保留参考）
+
 - Bannerlord 引擎到底如何加载子模块（非 Native）的 `Languages/EN/`？
 - Native 模块没有 `EN/` 子目录，英文是引擎内置 fallback。子模块是否需要特殊处理才能注册新语言？
 - 是否需要在 `SubModule.xml` 或其他地方声明语言支持？

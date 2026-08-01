@@ -1,7 +1,8 @@
-﻿[08:51:12.587] [WorldEventStore] Deserialized 1 events, 0 alerts
-[08:51:16.430] [Detention] Game menus registered
-[08:51:17.282] [AddQuickInformation] "Achievements are disabled!"
-[08:51:19.108] [GameMenu] ▶ 打开 menu=town @Lycaron(城镇)
+﻿[11:30:00.872] LWNTextHelper: Loaded 2390 English fallback entries from 2 files
+[11:30:14.643] [WorldEventStore] Deserialized 1 events, 0 alerts
+[11:30:18.409] [Detention] Game menus registered
+[11:30:19.230] [AddQuickInformation] "Achievements are disabled!"
+[11:30:22.003] [GameMenu] ▶ 打开 menu=town @Lycaron(城镇)
     标题: Town Center
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>Lycaron</b></a> is governed by <a style="Link.Hero" href="event:Hero-lord_1_14"><b>Rhagaea</b></a>, empress of the <a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>southern Empire</b></a>. The town is of average wealth. You hear some complaints about prices, shortages and greedy merchants, but no more than normal.
     选项:
@@ -14,12 +15,12 @@
       7. Enter smithy  [id=town_smithy] 可点
       8. Wait here for some time  [id=town_wait] 可点
       9. Leave  [id=town_leave] 可点
-[08:51:20.820] [GameMenu] ● 点击 menu=town 选项="Go to the tavern district" [id=town_backstreet] @Lycaron(城镇)
-[08:51:20.827] [GameMenu] ▶ 打开 menu=town_backstreet @Lycaron(城镇)
+[11:30:23.345] [GameMenu] ● 点击 menu=town 选项="Go to the tavern district" [id=town_backstreet] @Lycaron(城镇)
+[11:30:23.353] [GameMenu] ▶ 打开 menu=town_backstreet @Lycaron(城镇)
     标题: Backstreet
     正文: You are in the backstreets. The local tavern seems to be attracting its usual crowd.
     选项:
       1. Visit the tavern  [id=town_tavern] 可点
       2. Back to town center  [id=town_backstreet_back] 可点
-[08:51:22.186] [GameMenu] ● 点击 menu=town_backstreet 选项="Visit the tavern" [id=town_tavern] @Lycaron(城镇)
-[08:51:22.893] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → in the tavern
+[11:30:24.456] [GameMenu] ● 点击 menu=town_backstreet 选项="Visit the tavern" [id=town_tavern] @Lycaron(城镇)
+[11:30:25.174] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → in the tavern
