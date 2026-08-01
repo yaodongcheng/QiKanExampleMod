@@ -1,5 +1,5 @@
 <Prefab>
-  <Window>
+  <Window Id="LWN">
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
             HorizontalAlignment="Center" VerticalAlignment="Center">
       <Children>
