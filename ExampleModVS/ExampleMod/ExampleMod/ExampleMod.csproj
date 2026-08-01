@@ -277,6 +277,8 @@
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <Compile Include="Debug\MyCustomUIVM.cs" />
+    <!-- GUI -->
+    <Compile Include="GUI\StackLayoutVerticalSwapPatch.cs" />
     <!-- Interaction -->
     <Compile Include="Interaction\Dialogue\DialogueInjector.cs" />
     <Compile Include="Interaction\InteractionController.cs" />
