@@ -439,13 +439,13 @@ namespace LivingWorldNpcs
 
         // ── Set agent AI controlled ─────────────────────────────────
         // v1.2.12: agent.Controller = Agent.ControllerType.AI
-        // Latest:  ControllerType enum removed; use IsAIControlled (read-only)
+        // Latest:  agent.Controller = AgentControllerType.AI (type renamed from nested enum to top-level)
 
         public static void SetAgentAI(Agent agent)
         {
             if (agent == null) return;
 #if MB2_GE_130
-            // Agent.ControllerType removed in Latest; agents default to AI
+            agent.Controller = AgentControllerType.AI;
 #else
             agent.Controller = Agent.ControllerType.AI;
 #endif
@@ -469,24 +469,24 @@ namespace LivingWorldNpcs
         {
             if (agent == null) return;
 #if MB2_GE_130
-            // TODO: Find Latest API for setting player control
+            agent.Controller = AgentControllerType.Player;
 #else
             agent.Controller = Agent.ControllerType.Player;
 #endif
         }
 
         // ── Freeze/unfreeze player control（偷窃条输入隔离）────────────
-        // v1.2.12: agent.Controller = ControllerType.AI 冻结——输入处理权从玩家控制器移交 AI 组件，
-        //          主角无 AI 指令 = 原地待机（SandBox 官方同款用法；AgentBrain.Tick 对 Agent.Main 早退，
-        //          本 mod 不会接管）。实测 ControllerType.None 无效（MainAgent 疑被原生特判仍处理输入）。
-        //          恢复 Player 时 Mission.MainAgent 自动重指 + 广播 OnAgentControllerSetToPlayer，官方可逆。
-        // Latest:  ControllerType 枚举已被官方删除，冻结 API 待查——暂 no-op（Latest 侧空格误跳待解）。
+        // v1.2.12: agent.Controller = Agent.ControllerType.AI/Player 切换
+        // Latest:  agent.Controller = AgentControllerType.AI/Player（类型从嵌套枚举改名，setter 仍可用）
+        //          切换后主角待机，跳/走/攻击全死。空格/ESC 轮询是原始设备状态与此无关，照常可用。
 
         public static void SetPlayerControlFrozen(Agent agent, bool frozen)
         {
             if (agent == null) return;
 #if MB2_GE_130
-            // TODO: Find Latest API for freezing player control
+            var target = frozen ? AgentControllerType.AI : AgentControllerType.Player;
+            if (agent.Controller != target)
+                agent.Controller = target;
 #else
             var target = frozen ? Agent.ControllerType.AI : Agent.ControllerType.Player;
             if (agent.Controller != target)

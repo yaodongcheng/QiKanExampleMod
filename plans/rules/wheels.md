@@ -1192,7 +1192,7 @@ if (mission.GetRequestedTimeSpeed(requestId, out _))
 ```csharp
 V.SetPlayerControlFrozen(Agent.Main, true);   // 开 UI：v1.2.12 切 ControllerType.AI → 主角待机
 V.SetPlayerControlFrozen(Agent.Main, false);  // 关 UI：切回 Player（自动重指 MainAgent + 广播）
-// Latest：ControllerType 已删，暂 no-op（TODO 待查）。配 _playerControlFrozen 幂等标志。
+// Latest：ControllerType→AgentControllerType 改名，setter 仍可用。配 _playerControlFrozen 幂等标志。
 ```
 
 安全性：`AgentBrain.Tick` 对 `Owner == Agent.Main` 早退——本 mod brain 不会接管主角；SandBox 官方有同款切 AI 用法。
@@ -1298,7 +1298,7 @@ V.SetPartyName(party, name)         // SetCustomName / Party.SetCustomName
 // ── Agent 控制
 V.IsAgentAI(agent) → bool           V.SetAgentAI(agent)
 V.IsAgentPlayer(agent) → bool       V.SetAgentPlayer(agent)
-V.SetPlayerControlFrozen(agent, frozen)  // 冻结/恢复玩家控制（v1.2.12: ControllerType.AI/Player；Latest 暂 no-op）
+V.SetPlayerControlFrozen(agent, frozen)  // 冻结/恢复玩家控制（v1.2.12: ControllerType.AI/Player；Latest: AgentControllerType.AI/Player）
 
 // ── 武器 / 动作
 V.MainWpn(agent) → EquipmentIndex   V.OffWpn(agent) → EquipmentIndex

@@ -55,7 +55,7 @@ namespace LivingWorldNpcs
         private const int StealSlowmoRequestId = 731007;
         private bool _stealSlowmoActive = false;
 
-        // 偷窃期间冻结玩家控制（ControllerType.AI：输入移交 AI 组件，主角待机；仅 v1.2.12，Latest 待查）
+        // 偷窃期间冻结玩家控制（Controller→AI：输入移交 AI 组件，主角待机；v1.2.12/1.4.x 均支持）
         private bool _playerControlFrozen = false;
 
         // 冻结前的蹲姿（切 AI 后原生姿态被重置为站立，需用 scripted flag 保持）
