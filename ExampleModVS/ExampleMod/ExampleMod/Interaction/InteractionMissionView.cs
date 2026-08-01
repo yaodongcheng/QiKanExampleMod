@@ -1612,16 +1612,12 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                // ── 公共：无论成败，出手即是袭击，记账 + 第三方目击广播 ──
-                // 受害者始终 exclude：击晕场景玩家在背后，sight check 必然 false，
-                // 受害者通过直接事件（order_attack / event_agent_knocked_out）反应
+                // ── 公共：无论成败，出手即是袭击，记账 ──
                 AgentAIController.Instance?.RecordAssaultVictim(target);
-                AgentAIController.Instance?.BroadcastEventInRange(
-                    target.Position, 25f, "WitnessCrime",
-                    exclude: new HashSet<Agent> { target },
-                    requireSight: true,
-                    Agent.Main, target);
 
+                // ★ 击晕成功时，必须先标记受害者状态，再广播第三方目击事件。
+                // 否则证人 AgentBrain 处理 WitnessCrime_GatherOnLook 时调用 IsKnockedOut(victim)
+                // 会返回 false（event_agent_knocked_out 尚未入队），罪行被错误归类为 Steal。
                 if (knockSuccess)
                 {
                     // ── 成功：目标倒地 + 击晕事件 ──
@@ -1632,6 +1628,18 @@ namespace LivingWorldNpcs
                     }
 
                     AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
+                }
+
+                // 第三方目击广播：受害者始终 exclude（击晕场景玩家在背后，sight check 必然 false，
+                // 受害者通过直接事件 event_agent_knocked_out 反应）
+                AgentAIController.Instance?.BroadcastEventInRange(
+                    target.Position, 25f, "WitnessCrime",
+                    exclude: new HashSet<Agent> { target },
+                    requireSight: true,
+                    Agent.Main, target);
+
+                if (knockSuccess)
+                {
 
                     InformationManager.DisplayMessage(
                         // 本地化：击晕成功消息

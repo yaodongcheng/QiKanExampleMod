@@ -1703,6 +1703,7 @@ namespace LivingWorldNpcs
         /// <summary>获取权威 NPC（村长/城主/堡主/领主）</summary>
         public static Hero GetAuthorityNpc(WorldEvent evt)
         {
+            if (evt == null) return null;
             var settlement = evt.TargetSettlement;
             if (settlement == null) return null;
 
