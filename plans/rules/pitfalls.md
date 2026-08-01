@@ -155,7 +155,7 @@ GenerateCommissions → GetAvailableDefsForHero
 - 封装：`V.SetPlayerControlFrozen(agent, bool)`（`Core/VersionCompat.cs`）；接线范本：`InteractionMissionView.FreezePlayerControl/UnfreezePlayerControl`（`_playerControlFrozen` 幂等标志 + Finalize 兜底）。
 - 安全性：`AgentBrain.Tick` 对 `Owner == Agent.Main` 早退，本 mod brain 不会接管切了 AI 的主角；SandBox 官方有同款切 AI 用法。
 - 空格/ESC 的 `Input.IsKeyPressed` 轮询是原始设备状态，与 mask/控制器无关，照常可用。
-- ⚠️ Latest（1.4.6）`ControllerType` 枚举已被官方删除，等效冻结 API 待查（VersionCompat TODO）——Latest 侧此坑暂存。
+- Latest（1.4.6）`ControllerType` 嵌套枚举改为顶层 `AgentControllerType`，但 `agent.Controller` setter 仍在，等效写法 `AgentControllerType.AI`/`AgentControllerType.Player`。
 
 ---
 
