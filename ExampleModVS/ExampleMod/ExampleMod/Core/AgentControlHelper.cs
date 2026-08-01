@@ -80,18 +80,25 @@ namespace LivingWorldNpcs
                 MBActionSet warriorSet = MBActionSet.GetActionSet("as_human_warrior");
                 if (!warriorSet.IsValid) return;
 
-                // 2. 构造临时 AnimationSystemData
-                AnimationSystemData warriorData = agent.Monster.FillAnimationSystemData(
-                    warriorSet, agent.Character.GetStepSize(), hasClippingPlane: false);
+                // 如果 agent 已经是 warrior action_set，跳过 SetActionSet 以避免
+                // 不必要的 native AnimationSystemData 替换（可能触发异步 AI tick 竞态 → AccessViolation）
+                bool alreadyWarrior = originalSetName == "as_human_warrior";
 
-                // 3. 切到战士 action_set
-                agent.SetActionSet(ref warriorData);
+                if (!alreadyWarrior)
+                {
+                    // 2. 构造临时 AnimationSystemData
+                    AnimationSystemData warriorData = agent.Monster.FillAnimationSystemData(
+                        warriorSet, agent.Character.GetStepSize(), hasClippingPlane: false);
+
+                    // 3. 切到战士 action_set
+                    agent.SetActionSet(ref warriorData);
+                }
 
                 // 4. 播放动画
                 agent.SetActionChannel(0, actionCache, ignorePriority: true, blendInPeriod: 0.15f);
 
-                // 5. 恢复原始 action_set（如有需要）
-                if (restoreAfter && originalSet.IsValid)
+                // 5. 恢复原始 action_set（如有需要；alreadyWarrior 时无需恢复）
+                if (restoreAfter && originalSet.IsValid && !alreadyWarrior)
                 {
                     AnimationSystemData originalData = agent.Monster.FillAnimationSystemData(
                         originalSet, agent.Character.GetStepSize(), hasClippingPlane: false);
