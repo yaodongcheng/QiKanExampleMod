@@ -85,8 +85,6 @@ namespace LivingWorldNpcs
         public override void OnMissionBehaviorInitialize(Mission mission)
         {
             base.OnMissionBehaviorInitialize(mission);
-            //喝酒功能
-            mission.AddMissionBehavior(new ArtisanBeerMissionView());
             //吸血功能
             mission.AddMissionBehavior(new KillMissionLogic());
             //召唤某个英雄并且和他对话功能
@@ -261,29 +259,6 @@ namespace LivingWorldNpcs
             {
                 StoryEngine.Instance.OnTick();
             }
-            //自定义UI部分
-            if (Input.IsKeyPressed(InputKey.F9))
-            {
-                if (myLayer == null)
-                {                    
-                    
-                   // 调试：尝试开启自定义 UI
-                   InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_try_open", "Attempting to open custom UI"), Color.FromUint(0xFF0000)));
-                   OpenMyScreen();
-                   // 调试：自定义 UI 已开启
-                   InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_opened", "Custom UI opened"), Color.FromUint(0xFF0000)));
-                                 
-                }
-                else
-                {
-                    // 调试：尝试关闭自定义 UI
-                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_try_close", "Attempting to close custom UI"), Color.FromUint(0xFF0000)));
-                    CloseMyScreen();
-                    // 调试：自定义 UI 已关闭
-                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_closed", "Custom UI closed"), Color.FromUint(0xFF0000)));
-                }
-            }
-
             //给头盔打贴头皮patch
         //    PatchXml();
            
@@ -350,41 +325,8 @@ namespace LivingWorldNpcs
 
         }
 
-        private GauntletLayer myLayer;
-        private MyCustomUIVM myVM;
-#if !MB2_V1212
-        private GauntletMovieIdentifier myMovie;
-#else
-        private IGauntletMovie myMovie;
-#endif
-        
-        private void OpenMyScreen()
-        {
-            myVM = new MyCustomUIVM();
-            myVM.OnClose += CloseMyScreen;
-            myLayer = V.NewLayer(100);
-            myMovie = myLayer.LoadMovie("MyCustomPopup",myVM);
-            ScreenManager.TopScreen.AddLayer(myLayer);
-            myLayer.InputRestrictions.SetInputRestrictions(true,InputUsageMask.All);
-            ScreenManager.TrySetFocus(myLayer);
-        }
-        private void CloseMyScreen()
-        {
-            // 调试：监听到关闭 UI 事件
-            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_close_event", "Close UI event received"), Color.FromUint(0xFF0000)));
-            if (myLayer != null) {
-
-                myLayer.ReleaseMovie(myMovie);
-                ScreenManager.TopScreen.RemoveLayer(myLayer);
-                myLayer = null;
-                myMovie = null;
-                myVM = null;
-            
-            }
-        }
 
 
-        
     }
 }
 

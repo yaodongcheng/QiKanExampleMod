@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
@@ -599,9 +600,12 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var data = new Dictionary<string, int>();
-                foreach (var kvp in _completionCounts)
-                    data[kvp.Key.ToString()] = kvp.Value;
+                var data = new Dictionary<string, object>
+                {
+                    { "counts", _completionCounts.ToDictionary(k => k.Key.ToString(), v => v.Value) },
+                    { "grades", _bestGrades.ToDictionary(k => k.Key.ToString(), v => v.Value.ToString()) },
+                    { "tiers", _tierCounts }
+                };
                 return Newtonsoft.Json.JsonConvert.SerializeObject(data);
             }
             catch { return "{}"; }
@@ -609,18 +613,57 @@ namespace LivingWorldNpcs
 
         public static void Deserialize(string json)
         {
+            _completionCounts = new Dictionary<CommissionCategory, int>();
+            _bestGrades = new Dictionary<CommissionCategory, CommissionGrade>();
+            _tierCounts = new Dictionary<string, int>();
+
+            if (string.IsNullOrEmpty(json) || json == "{}") return;
+
             try
             {
                 var data = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
                 if (data == null) return;
-                // 简化处理：反序列化后重建
-                _completionCounts = new Dictionary<CommissionCategory, int>();
-                _bestGrades = new Dictionary<CommissionCategory, CommissionGrade>();
+
+                // Restore _completionCounts
+                if (data.TryGetValue("counts", out var countsObj) && countsObj != null)
+                {
+                    var countsDict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, int>>(countsObj.ToString());
+                    if (countsDict != null)
+                    {
+                        foreach (var kvp in countsDict)
+                        {
+                            if (System.Enum.TryParse<CommissionCategory>(kvp.Key, out var cat))
+                                _completionCounts[cat] = kvp.Value;
+                        }
+                    }
+                }
+
+                // Restore _bestGrades
+                if (data.TryGetValue("grades", out var gradesObj) && gradesObj != null)
+                {
+                    var gradesDict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, string>>(gradesObj.ToString());
+                    if (gradesDict != null)
+                    {
+                        foreach (var kvp in gradesDict)
+                        {
+                            if (System.Enum.TryParse<CommissionCategory>(kvp.Key, out var cat)
+                                && System.Enum.TryParse<CommissionGrade>(kvp.Value, out var grade))
+                                _bestGrades[cat] = grade;
+                        }
+                    }
+                }
+
+                // Restore _tierCounts
+                if (data.TryGetValue("tiers", out var tiersObj) && tiersObj != null)
+                {
+                    var tiersDict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, int>>(tiersObj.ToString());
+                    if (tiersDict != null)
+                        _tierCounts = tiersDict;
+                }
             }
             catch
             {
-                _completionCounts = new Dictionary<CommissionCategory, int>();
-                _bestGrades = new Dictionary<CommissionCategory, CommissionGrade>();
+                // Leave the empty dictionaries — clean state is better than corrupted
             }
         }
         #endregion

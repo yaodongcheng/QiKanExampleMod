@@ -63,7 +63,7 @@ namespace LivingWorldNpcs
         private const float APPROACH_COOLDOWN = 0.25f; // 每个定居点 6 小时内不重复汇总
 
         /// <summary>拦截通知冷却：per event Id → 上次推送的游戏日。防止同一事件每 2 秒刷屏。</summary>
-        private static readonly Dictionary<string, float> _interceptCooldowns = new Dictionary<string, float>();
+        private static Dictionary<string, float> _interceptCooldowns = new Dictionary<string, float>();
         private const float INTERCEPT_COOLDOWN_DAYS = 0.15f; // 同一事件 ~3.6 小时内不重复拦截
 
         public static WorldEvent CheckRoadIntercept()
@@ -1211,13 +1211,51 @@ namespace LivingWorldNpcs
 
         public static string Serialize()
         {
-            return LastCommissionDay.ToString("F2");
+            try
+            {
+                var data = new Dictionary<string, object>
+                {
+                    { "lastCommissionDay", LastCommissionDay },
+                    { "interceptCooldowns", _interceptCooldowns },
+                    { "lastApproachNotifyDay", _lastApproachNotifyDay }
+                };
+                return Newtonsoft.Json.JsonConvert.SerializeObject(data);
+            }
+            catch { return "{}"; }
         }
 
         public static void Deserialize(string data)
         {
-            if (float.TryParse(data, out float val))
-                LastCommissionDay = val;
+            if (string.IsNullOrEmpty(data)) return;
+
+            // Backward compatibility: old format was just "123.45" (a float string)
+            if (!data.TrimStart().StartsWith("{"))
+            {
+                if (float.TryParse(data, out float oldVal))
+                    LastCommissionDay = oldVal;
+                return;
+            }
+
+            try
+            {
+                var dict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(data);
+                if (dict == null) return;
+
+                if (dict.TryGetValue("lastCommissionDay", out var lcd) && lcd != null)
+                    LastCommissionDay = Convert.ToSingle(lcd);
+
+                if (dict.TryGetValue("interceptCooldowns", out var icd) && icd != null)
+                    _interceptCooldowns = Newtonsoft.Json.JsonConvert
+                        .DeserializeObject<Dictionary<string, float>>(icd.ToString())
+                        ?? new Dictionary<string, float>();
+
+                if (dict.TryGetValue("lastApproachNotifyDay", out var land) && land != null)
+                    _lastApproachNotifyDay = Convert.ToSingle(land);
+            }
+            catch
+            {
+                // Keep defaults on failure
+            }
         }
 
         #endregion

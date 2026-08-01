@@ -96,7 +96,7 @@ namespace LivingWorldNpcs
         /// 调试开关：true = 因果链后续立即出现（delay 归零，跳过所有概率检查）。
         /// 仅用于测试，发布前改回 false。
         /// </summary>
-        public static bool DebugInstantFollowUps = true;
+        public static bool DebugInstantFollowUps = false;
 
         /// <summary>
         /// 从 JSON 文件加载因果表。

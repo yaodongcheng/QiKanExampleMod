@@ -251,7 +251,6 @@
     <Compile Include="Camera\SpringArmCameraDebuggerVM.cs" />
     <Compile Include="Camera\SpringArmCameraView.cs" />
     <!-- Combat -->
-    <Compile Include="Combat\ArtisanBeerMissionView.cs" />
     <Compile Include="Combat\AttackTriggerMissionLogic.cs" />
     <Compile Include="Combat\CombatManager.cs" />
     <Compile Include="Combat\DuelMissionView.cs" />
@@ -270,13 +269,11 @@
     <!-- Debug -->
     <Compile Include="Debug\AddQuickInformationLoggerPatch.cs" />
     <Compile Include="Debug\AiPatrollingNullFix.cs" />
-    <Compile Include="Debug\DebugBehavior.cs" />
     <Compile Include="Debug\DebugLogger.cs" />
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
     <Compile Include="Debug\MyCommands.cs" />
-    <Compile Include="Debug\MyCustomUIVM.cs" />
     <!-- GUI -->
     <Compile Include="GUI\StackLayoutVerticalSwapPatch.cs" />
     <!-- Interaction -->
