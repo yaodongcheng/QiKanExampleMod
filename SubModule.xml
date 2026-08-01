@@ -11,6 +11,10 @@
     <DependedModule Id="Sandbox"/>
     <DependedModule Id="CustomBattle"/>
     <DependedModule Id="StoryMode"/>
+    <DependedModule Id="Bannerlord.Harmony"/>
+    <DependedModule Id="Bannerlord.ButterLib"/>
+    <DependedModule Id="Bannerlord.UIExtenderEx"/>
+    <DependedModule Id="Bannerlord.MBOptionScreen"/>
   </DependedModules>
   <SubModules>
     <SubModule>
@@ -24,44 +28,5 @@
     </SubModule>
   </SubModules>
   <Xmls>
-    <XmlNode>
-      <XmlName id="SpriteData" path="GUI/SpriteParts/ui_character_illustration"/>
-    </XmlNode>
-    <XmlNode>
-      <XmlName id="Factions" path="Native/clans"/>
-      <IncludedGameTypes>
-        <GameType value="Campaign"/>
-        <GameType value="CampaignStoryMode"/>
-        <GameType value="Sandbox"/>
-        <GameType value="SandBoxCore"/>
-      </IncludedGameTypes>
-    </XmlNode>
-    <XmlNode>
-      <XmlName id="Items" path="Native/artisan_beer"/>
-      <IncludedGameTypes>
-        <GameType value="Campaign"/>
-        <GameType value="CampaignStoryMode"/>
-        <GameType value="Sandbox"/>
-        <GameType value="SandBoxCore"/>
-      </IncludedGameTypes>
-    </XmlNode>
-    <XmlNode>
-      <XmlName id="NPCCharacters" path="Native/lords"/>
-      <IncludedGameTypes>
-        <GameType value="Campaign"/>
-        <GameType value="CampaignStoryMode"/>
-        <GameType value="Sandbox"/>
-        <GameType value="SandBoxCore"/>
-      </IncludedGameTypes>
-    </XmlNode>
-    <XmlNode>
-      <XmlName id="Heroes" path="Native/heroes"/>
-      <IncludedGameTypes>
-        <GameType value="Campaign"/>
-        <GameType value="CampaignStoryMode"/>
-        <GameType value="Sandbox"/>
-        <GameType value="SandBoxCore"/>
-      </IncludedGameTypes>
-    </XmlNode>
   </Xmls>
 </Module>

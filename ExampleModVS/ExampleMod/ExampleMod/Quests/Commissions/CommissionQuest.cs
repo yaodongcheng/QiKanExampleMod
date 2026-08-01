@@ -35,7 +35,7 @@ namespace LivingWorldNpcs
         [SaveableField(52)] private bool _bribeSuccessful;
         [SaveableField(49)] private JournalLog _findGiverLog;  // 阶段1：找委托人
         [SaveableField(50)] private JournalLog _rewardLog;     // 阶段3：领报酬
-        private bool _suspectIdentifiedLogged;  // 防止 Intent 和事件双重日志
+        [SaveableField(54)] private bool _suspectIdentifiedLogged;  // 防止 Intent 和事件双重日志
 
         public override bool IsRemainingTimeHidden => false;
         // 任务标题兜底：无风味描述时的通用委托标题

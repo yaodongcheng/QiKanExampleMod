@@ -2417,15 +2417,12 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 从 JSON 文件注入动态对话到当前 NPC 的对话树中。
         /// 用法:
-        ///   custom.inject_dialogue test_talk           → 加载 test_talk.json
         ///   custom.inject_dialogue my_dialogue.json    → 加载 my_dialogue.json
         ///   custom.inject_dialogue clear               → 清除所有注入的对话
         ///
         /// 文件查找顺序:
         ///   1. Modules/LivingWorldNpcs/ModuleData/DesignData/Dialogues/&lt;name&gt;.json
         ///   2. 文档/Mount and Blade II Bannerlord/Configs/&lt;name&gt;.json
-        ///
-        /// JSON 格式见 ModuleData/DesignData/Dialogues/test_talk.json
         /// </summary>
         [CommandLineFunctionality.CommandLineArgumentFunction("inject_dialogue", "custom")]
         public static string InjectDialogueFromJson(List<string> args)
