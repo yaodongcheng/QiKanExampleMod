@@ -151,8 +151,8 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
-                        // 可选：提示找不到场景 ID
-                        InformationManager.DisplayMessage(new InformationMessage($"找不到场景 ID: {sceneId}"));
+                        if (Settings.Instance.ShowDebugMessages)
+                            InformationManager.DisplayMessage(new InformationMessage($"找不到场景 ID: {sceneId}"));
                     }
                 }
             };

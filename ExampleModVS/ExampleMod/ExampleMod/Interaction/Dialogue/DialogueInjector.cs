@@ -390,16 +390,18 @@ namespace LivingWorldNpcs
                         }
                         else
                         {
-                            InformationManager.DisplayMessage(
-                                new InformationMessage($"[DialogueInjector] Unknown action: {transition.Action}"));
+                            if (Settings.Instance.ShowDebugMessages)
+                                InformationManager.DisplayMessage(
+                                    new InformationMessage($"[DialogueInjector] Unknown action: {transition.Action}"));
                         }
                         break;
                 }
             }
             catch (Exception ex)
             {
-                InformationManager.DisplayMessage(
-                    new InformationMessage($"[DialogueInjector] Action '{transition.Action}' failed: {ex.Message}"));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(
+                        new InformationMessage($"[DialogueInjector] Action '{transition.Action}' failed: {ex.Message}"));
             }
         }
 

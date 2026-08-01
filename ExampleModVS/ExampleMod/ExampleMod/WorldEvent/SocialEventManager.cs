@@ -615,8 +615,8 @@ namespace LivingWorldNpcs
             }
             DebugLogger.Log(sb.ToString());
 
-            // 已由 WorldEventNotificationController.OnCrimeDiscovered 的 NinjaReport 统一通知玩家，此处仅轻量飘字
-            InformationManager.DisplayMessage(new InformationMessage(sb.ToString()));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage(sb.ToString()));
         }
 
         // 辅助方法：获取关系网 (代码略)

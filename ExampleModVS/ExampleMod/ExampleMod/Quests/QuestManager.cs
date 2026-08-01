@@ -829,10 +829,9 @@ namespace LivingWorldNpcs
         {
             _currentProgress += amount;
 
-            // 实时更新日志（如果有进度条日志的话需要在这里更新，这里仅弹个提示）
-            // 调试加进度飘字：当前进度 {PROGRESS}/{TARGET}
-            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_quest_debug_progress_added",
-                ("PROGRESS", _currentProgress.ToString()), ("TARGET", _data.TargetCount.ToString()))));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_quest_debug_progress_added",
+                    ("PROGRESS", _currentProgress.ToString()), ("TARGET", _data.TargetCount.ToString()))));
             if (_progressLog != null)
             {
                 UpdateQuestTaskStage(_progressLog, _currentProgress);

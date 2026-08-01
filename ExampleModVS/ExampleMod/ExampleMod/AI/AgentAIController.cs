@@ -400,9 +400,10 @@ namespace LivingWorldNpcs
             {
                 var dist = Agent.Main != null ? target.Position.Distance(Agent.Main.Position).ToString("F1") : "?";
                 var dir = Agent.Main != null ? GetDirectionFromTo(Agent.Main.Position, target.Position) : "?";
-                // 事件发送调试飘字：通知事件已发给目标 Agent
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ai_event_send",
-                    ("EVENT", eventType), ("NAME", target.Name.ToString()), ("INDEX", target.Index.ToString()), ("DIST", dist), ("DIR", dir))));
+                if (Settings.Instance.ShowDebugMessages)
+                    // 事件发送调试飘字：通知事件已发给目标 Agent
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ai_event_send",
+                        ("EVENT", eventType), ("NAME", target.Name.ToString()), ("INDEX", target.Index.ToString()), ("DIST", dist), ("DIR", dir))));
                 if (IsDebugMode)
                     DebugLogger.Log($"[事件发送] 发送事件 '{eventType}' 给 {target.Name} (Index:{target.Index}, 距离:{dist}m, 方位:{dir})");
                 var evt = new AIEvent { EventType = eventType, Sender = null, Args = args };
@@ -410,9 +411,10 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // 事件发送失败飘字：目标 Agent 没有对应的大脑
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ai_event_send_no_brain",
-                    ("EVENT", eventType), ("NAME", target.Name.ToString()))));
+                if (Settings.Instance.ShowDebugMessages)
+                    // 事件发送失败飘字：目标 Agent 没有对应的大脑
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ai_event_send_no_brain",
+                        ("EVENT", eventType), ("NAME", target.Name.ToString()))));
                 if(IsDebugMode)
                     DebugLogger.Log($"[警告] 试图发送事件 '{eventType}' 给 {target.Name}，但未找到对应的大脑。");
             }

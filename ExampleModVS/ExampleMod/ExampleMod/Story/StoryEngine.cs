@@ -222,7 +222,8 @@ namespace LivingWorldNpcs
         {
             if (scripts == null || scripts.Count == 0)
             {
-                InformationManager.DisplayMessage(new InformationMessage($"scripts == null || scripts.Count == 0 {scripts.Count}!"));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage($"scripts == null || scripts.Count == 0 {scripts.Count}!"));
                 return; 
             }
             _stack.Clear();

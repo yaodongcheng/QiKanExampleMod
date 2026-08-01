@@ -582,7 +582,8 @@ namespace LivingWorldNpcs
             Name = name;
             EstimatedValue = NegotiationRegistry.CalculateChipValue(costType,stringId,amount);
 
-            InformationManager.DisplayMessage(new InformationMessage($"筹码创建{costType.ToString()}：{Name}，价值：{EstimatedValue}"));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage($"筹码创建{costType.ToString()}：{Name}，价值：{EstimatedValue}"));
             if(EstimatedValue == 0)
             {
                 DebugLogger.Log($"0 warning:筹码创建{costType.ToString()}：{Name}，数量 {amount} 价值：{EstimatedValue}");

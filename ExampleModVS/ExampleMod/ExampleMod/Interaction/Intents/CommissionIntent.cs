@@ -176,8 +176,8 @@ namespace LivingWorldNpcs
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"[CommissionIntent] StartIssueQuest exception: {ex.Message}");
-                    // 接取委托异常飘字：显示错误原因
-                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_intent_commission_failed_error", ("MESSAGE", ex.Message)), Colors.Red));
+                    if (Settings.Instance.ShowDebugMessages)
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_intent_commission_failed_error", ("MESSAGE", ex.Message)), Colors.Red));
                 }
 
                 if (ctx.Controller != null)

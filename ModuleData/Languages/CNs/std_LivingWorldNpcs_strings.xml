@@ -778,6 +778,8 @@
     <string id="LWN_ui_steal_msg_lock_open" text="咔哒——锁开了！" />
     <string id="LWN_ui_steal_msg_pin_open" text="第 {PIN} 个簧片开了…" />
     <string id="LWN_ui_steal_msg_crowbar_slip" text="撬棍滑了！" />
+    <string id="LWN_ui_steal_msg_overburdened" text="你的队伍负重已满，装不下更多东西了。" />
+    <string id="LWN_ui_steal_msg_degraded" text="摸到手才发现{ITEM}远不如看上去那么值钱……" />
     <!-- 盲盒预览 -->
     <string id="LWN_ui_steal_preview_purse" text="摸到一个沉甸甸的钱袋。" />
     <string id="LWN_ui_steal_preview_strange" text="摸到一件说不清的东西。" />

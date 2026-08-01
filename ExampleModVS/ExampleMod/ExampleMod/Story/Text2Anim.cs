@@ -239,8 +239,8 @@ namespace LivingWorldNpcs
                         actionId = "act_conversation_normal_start";
                     }
                 }
-                //打印匹配到的关键字、动作ID和情感类型，使用Infomation
-                InformationManager.DisplayMessage(new InformationMessage($"匹配到的关键字：{matchedKeyword}，动作ID：{actionId}，情感类型：{finalEmotion}"));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage($"匹配到的关键字：{matchedKeyword}，动作ID：{actionId}，情感类型：{finalEmotion}"));
 
                 return new MatchResult
                 {

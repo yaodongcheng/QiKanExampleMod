@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -59,13 +60,13 @@ namespace LivingWorldNpcs
     {
         // ═══════════════════════ 手感常量区（调手感只动这里） ═══════════════════════
         private const float BarWidth = 640f;                    // 父条像素宽（与 XML 一致）
-        private const float BaseZoneWidthPickpocket = 110f;     // 偷人基础子横条宽 px
+        private const float BaseZoneWidthPickpocket = 90f;     // 偷人基础子横条宽 px（发布前平衡：110→90，缩短~18%）
         private const float BaseZoneWidthLockpick = 80f;        // 撬锁基础子横条宽 px
         private const float PerfectHalfWidth = 6f;              // 金区半宽（全宽 12px，兼作有效区下限）
         private const float CursorBaseSpeed = 260f;             // 浮标速度 px/s（恒定，不挂钩警戒）
         private const float PinWidthDecay = 0.85f;              // 撬锁第 n pin 宽度 ×0.85ⁿ
         private const float PinSpeedGrowth = 1.15f;             // 撬锁第 n pin 浮标速度 ×1.15ⁿ
-        private const float AlertWidthMax = 2.2f;               // 警戒归一化分母 clamp(alert/2.2)
+        private const float AlertWidthMax = 1.8f;               // 警戒归一化分母 clamp(alert/1.8)（发布前平衡：2.2→1.8，警戒更快达最大左扣）
         private const float AlertWidthImpact = 0.75f;           // 警戒对基础宽的最大左扣比例 75%
         private const float RoguerySkillCap = 300f;             // 流氓技能满值（减速归一化分母）
         private const float RogueryCursorSlowMax = 0.25f;       // 满技能浮标减速 25%（技能走"手"通道，不污染宽度域）// lwn-ignore: A (comment)
@@ -79,7 +80,7 @@ namespace LivingWorldNpcs
         private const float NoisePulseCooldown = 0.5f;          // 撬锁噪音脉冲节流（防连按刷爆）
         private const float NormalHitVictimAlert = 0.35f;       // 普通命中：受害者警戒脉冲
         private const float MissVictimAlert = 3.0f;             // 失误：受害者警戒脉冲（红区手滑 → 立刻 Alarmed）
-        private const float NoiseWitnessAlert = 0.5f;           // 撬锁失误：目击者警戒脉冲
+        private const float NoiseWitnessAlert = 1.5f;           // 撬锁失误：目击者警戒脉冲（发布前平衡：0.5→1.5）
         private const float PurseChance = 0.35f;                // 扒窃盲盒摸到钱袋的概率（身上有钱时）
         private const float AnimalLargeTierFactor = 0.6f;       // 大动物（猪/羊/牛）判定区定价：右扣 40%（小动物 1.0 不扣）
 
@@ -123,6 +124,7 @@ namespace LivingWorldNpcs
         private EquipmentIndex? _pendingSlot;   // 本回合预摸的槽位（钱袋回合为 null）
         private bool _pendingIsPurse;           // 本回合预摸的是钱袋（金钱独立偷窃目标）
         private float _itemTierFactor = 1f;     // 预摸物品的双维定价（重量×价值）；Animal 模式复用为体型定价
+        private float _stealSessionPeakAlert = 0f; // 本次偷窃会话受害者的最高警戒值（黏性用）
 
         // ── Animal 状态 ──
         private string _animalName;
@@ -352,11 +354,15 @@ namespace LivingWorldNpcs
                 CloseReason = StealBarCloseReason.Alarmed;
         }
 
-        /// <summary>扒窃读受害者警戒；撬锁无受害者——锁难度固定，目击压力由 NPC 自身警戒系统承担（IsUIOpen 累积 → Alarmed → 质问机器强制收手）。</summary>
+        /// <summary>扒窃读受害者警戒；撬锁无受害者——锁难度固定，目击压力由 NPC 自身警戒系统承担（IsUIOpen 累积 → Alarmed → 质问机器强制收手）。
+        /// 引入会话峰值黏性：取 max(当前值, 峰值×0.8)，防止受害者看不到玩家时警戒衰减导致黄区越偷越宽。</summary>
         private float GetCurrentAlert()
         {
             if (_mode == StealBarMode.Lockpick || _target == null) return 0f;
-            return AgentAIController.GetBrainForAgent(_target)?.AlertValue ?? 0f;
+            float current = AgentAIController.GetBrainForAgent(_target)?.AlertValue ?? 0f;
+            _stealSessionPeakAlert = MathF.Max(_stealSessionPeakAlert, current);
+            // 黏性：取当前与峰值 80% 的较大值——衰减 20% 后不再下降
+            return MathF.Max(current, _stealSessionPeakAlert * 0.8f);
         }
 
         /// <summary>
@@ -459,6 +465,17 @@ namespace LivingWorldNpcs
 
             if (HitTest(out bool perfect))
             {
+                // 负重检查：物品入袋前确认 party 装得下（发布前新增）
+                if (MobileParty.MainParty != null
+                    && MobileParty.MainParty.ItemRoster.TotalWeight >= MobileParty.MainParty.InventoryCapacity)
+                {
+                    // 本地化：party 负重已满，无法再偷
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveText("LWN_ui_steal_msg_overburdened",
+                        "Your party is overburdened and cannot carry any more."), Colors.Red));
+                    return; // 不转移物品，等玩家下次出手
+                }
+
                 if (_pendingIsPurse)
                 {
                     // 钱袋独立偷窃：命中才偷到钱（金钱=特殊物品，不再顺手白摸）
@@ -470,10 +487,11 @@ namespace LivingWorldNpcs
                     }
                     else if (perfect)
                     {
-                        // 完美窃取：受害者零警戒脉冲（目击者 IsUIOpen 累积不受影响）
+                        // 完美窃取：微量脉冲——NPC "隐约觉得不对"（发布前平衡：0→0.1）
+                        brain?.AddAlert(PlayerActionType.Steal, 0.1f);
                         // 本地化：完美窃取钱袋消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_perfect_gold", ("GOLD", gold.ToString())), ZoneColorPerfect, MsgColorPerfect);
-                        DebugLogger.Log($"[StealBar] 完美窃取钱袋 {gold} 第纳尔 ← {_target.Name}（零警戒脉冲）");
+                        DebugLogger.Log($"[StealBar] 完美窃取钱袋 {gold} 第纳尔 ← {_target.Name}（微量脉冲 0.1）");
                     }
                     else
                     {
@@ -497,10 +515,11 @@ namespace LivingWorldNpcs
                     }
                     else if (perfect)
                     {
-                        // 完美窃取：受害者零警戒脉冲（目击者 IsUIOpen 累积不受影响）
+                        // 完美窃取：微量脉冲——NPC "隐约觉得不对"（发布前平衡：0→0.1）
+                        brain?.AddAlert(PlayerActionType.Steal, 0.1f);
                         // 本地化：完美窃取物品消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_perfect_item", ("ITEM", itemName)), ZoneColorPerfect, MsgColorPerfect);
-                        DebugLogger.Log($"[StealBar] 完美窃取 {itemName} ← {_target.Name}（零警戒脉冲）");
+                        DebugLogger.Log($"[StealBar] 完美窃取 {itemName} ← {_target.Name}（微量脉冲 0.1）");
                     }
                     else
                     {

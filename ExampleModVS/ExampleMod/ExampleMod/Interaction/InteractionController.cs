@@ -1015,8 +1015,8 @@ namespace LivingWorldNpcs
                     tacticDesc += LWNTextHelper.ResolveCompound("LWN_ui_interact_tactic_chips", ("AMOUNT", oneChip.Amount.ToString()), ("TYPE", oneChip.Type.ToString()));
                 }
                 
-                // 本地化：谈判计算过程消息
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_negotiation_calc", ("BASE", tacticBaseScore.ToString()), ("CHIPS", chipsValue.ToString()), ("MULT", finalMultiplier.ToString()), ("TOTAL", calculatedDelta.ToString()))));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_negotiation_calc", ("BASE", tacticBaseScore.ToString()), ("CHIPS", chipsValue.ToString()), ("MULT", finalMultiplier.ToString()), ("TOTAL", calculatedDelta.ToString()))));
                 DebugLogger.Log($"【谈判计算】牌面效果：{tacticBaseScore} 筹码加成：{chipsValue} LLM 乘数：{finalMultiplier} 最终得分：{calculatedDelta}");
             }
             else
@@ -1571,8 +1571,8 @@ namespace LivingWorldNpcs
 
 
 
-            // 本地化：预测条进度消息
-            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_progress", ("CURRENT", state.CurrentProgress.ToString()), ("TARGET", state.TargetThreshold.ToString()), ("GAIN", gainValue.ToString()), ("PCT", $"{gainPercent:F1}")), Colors.Green));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_progress", ("CURRENT", state.CurrentProgress.ToString()), ("TARGET", state.TargetThreshold.ToString()), ("GAIN", gainValue.ToString()), ("PCT", $"{gainPercent:F1}")), Colors.Green));
          
         }
 
@@ -1923,8 +1923,8 @@ namespace LivingWorldNpcs
                 _memory.AddHistory("assistant", $"{_targetAgent.Name}: {reply}");
             }
             _vm.Show(_targetAgent.Name.ToString(), reply);
-            // 本地化：NPC 回复消息
-            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_reply", ("NAME", _targetAgent.Name.ToString()), ("REPLY", reply)), Colors.Red));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_reply", ("NAME", _targetAgent.Name.ToString()), ("REPLY", reply)), Colors.Red));
             // 更新动画/表情动作
             if (!string.IsNullOrEmpty(emotion))
             {

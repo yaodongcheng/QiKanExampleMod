@@ -145,8 +145,9 @@ namespace LivingWorldNpcs
 
             memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
             // 1. 让 NPC 停下来，防止一边滑步一边说话
-            // 质问准备飘字：{NAME} 正走向玩家准备开口
-            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_ask_prepare", ("NAME", agent.Name.ToString())), Colors.Yellow));
+            if (Settings.Instance.ShowDebugMessages)
+                // 质问准备飘字：{NAME} 正走向玩家准备开口
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_ask_prepare", ("NAME", agent.Name.ToString())), Colors.Yellow));
             // 2. 如果 LLM 响应已经就绪（无 LLM 时立即 fallback），跳过等待
             if (memory.CurrentInitiative != null && memory.CurrentInitiative.IsReady)
             {
@@ -181,8 +182,9 @@ namespace LivingWorldNpcs
                 }
                 _ = InteractionMissionView.Instance.StartFreeConversationFlow(agent, false);
 
-                // 质问开始飘字：{NAME} 开始质问玩家
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_ask_begin", ("NAME", agent.Name.ToString())), Colors.Yellow));
+                if (Settings.Instance.ShowDebugMessages)
+                    // 质问开始飘字：{NAME} 开始质问玩家
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_ask_begin", ("NAME", agent.Name.ToString())), Colors.Yellow));
             }
         }
 
@@ -801,9 +803,10 @@ namespace LivingWorldNpcs
             // 不能追人也不能出手（登记为战斗者却傻站着）。
             // 各事件处理器（order_attack / DeferredCombat / 目击反击）无需各自补 ForceUnlockAgent。
             AgentControlHelper.ForceUnlockAgent(agent);
-            // 开战飘字：{NAME} 开始攻击 {ENEMY}
-            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_attack_start",
-                ("NAME", agent.Name.ToString()), ("INDEX", agent.Index.ToString()), ("ENEMY", _targetEnemy.Name.ToString())), Colors.Yellow));
+            if (Settings.Instance.ShowDebugMessages)
+                // 开战飘字：{NAME} 开始攻击 {ENEMY}
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_attack_start",
+                    ("NAME", agent.Name.ToString()), ("INDEX", agent.Index.ToString()), ("ENEMY", _targetEnemy.Name.ToString())), Colors.Yellow));
             //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
             //玩家阵营1，自己阵营2，这里之后再看
             CombatManager.StartFight(agent, _targetEnemy,2,1);

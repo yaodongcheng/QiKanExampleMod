@@ -138,8 +138,8 @@ namespace LivingWorldNpcs
         {
             if (Input.IsKeyReleased(InputKey.H))
             {
-                // 调试：大地图 H 键测试消息
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_map_h_test", "H pressed on the map (test)")));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_map_h_test", "H pressed on the map (test)")));
             }
         }
 
@@ -211,11 +211,11 @@ namespace LivingWorldNpcs
                 //newParty.Ai.SetMovePatrolAroundPoint(newParty.Position2D);
                 //
                 // 调试：部队生成成功提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    // 成功生成部队 {NAME} 军！
-                    LWNTextHelper.ResolveCompound("LWN_sys_party_spawned",
-                        "Successfully spawned {NAME}'s army!",
-                        ("NAME", hero.Name?.ToString() ?? ""))));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_sys_party_spawned",
+                            "Successfully spawned {NAME}'s army!",
+                            ("NAME", hero.Name?.ToString() ?? ""))));
 
                 //测试大地图弹窗功能
                 // 测试用弹窗（标题/正文/按钮全本地化）
@@ -252,12 +252,11 @@ namespace LivingWorldNpcs
                 {
                     //玩家在野外召唤
                     SpawnIndependentPartyInWilderness(newHero);
-                    // 野外召唤成功提示：报出带队英雄名
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        // 一支由 {NAME} 带领的部队已出现在附近！
-                        LWNTextHelper.ResolveCompound("LWN_sys_party_appeared",
-                            "A party led by {NAME} has appeared nearby!",
-                            ("NAME", newHero.Name?.ToString() ?? ""))));
+                    if (Settings.Instance.ShowDebugMessages)
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            LWNTextHelper.ResolveCompound("LWN_sys_party_appeared",
+                                "A party led by {NAME} has appeared nearby!",
+                                ("NAME", newHero.Name?.ToString() ?? ""))));
                 }
 
             }

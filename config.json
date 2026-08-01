@@ -2,5 +2,7 @@
   "LLMBaseUrl": "",
   "LLMApiKey": "",
   "LLMModel": "",
+  "ShowDebugMessages": false,
+  "WitnessSystemEnabled": true,
   "DisabledInteractionMissionModes": ["Battle", "Deployment", "Duel"]
 }

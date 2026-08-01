@@ -121,7 +121,8 @@ namespace LivingWorldNpcs
             float eventNum = 0;
             if (!Directory.Exists(directoryPath))
             {
-                InformationManager.DisplayMessage(new InformationMessage($"错误: 找不到目录 {directoryPath}"));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage($"错误: 找不到目录 {directoryPath}"));
                 return;
             }
             // 【修改点2】获取目录下所有 .json 文件 (如果只想读EC开头的，可以改成 "EC*.json")
@@ -147,7 +148,8 @@ namespace LivingWorldNpcs
                     Debug.Print($"[MyOdaMod] 解析文件 {fileNameKey} 失败: {ex.Message}");
                 }
             }
-            InformationManager.DisplayMessage(new InformationMessage($"共加载了 {eventsMap.Count} 个文件数据，一共{eventNum}个事件。"));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage($"共加载了 {eventsMap.Count} 个文件数据，一共{eventNum}个事件。"));
 
 
 
@@ -174,8 +176,8 @@ namespace LivingWorldNpcs
         {
             if (storyEvent == null)
             {
-                //Debug.Print("[StorySystem] Error: Event is null.");
-                InformationManager.DisplayMessage(new InformationMessage("[StorySystem] Error: Event is null."));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage("[StorySystem] Error: Event is null."));
                 return "[StorySystem] Error: Event is null.";
             }
 
@@ -218,8 +220,8 @@ namespace LivingWorldNpcs
 
             // 输出到游戏控制台或调试窗口
             // 注意：如果内容太长，Debug.Print 可能会截断，建议结合断点查看 sb.ToString()
-            //Debug.Print(sb.ToString());
-            InformationManager.DisplayMessage(new InformationMessage(sb.ToString()));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage(sb.ToString()));
             return sb.ToString();
         }
 

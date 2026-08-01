@@ -736,6 +736,8 @@
     <string id="LWN_ui_steal_msg_lock_open" text="Click! The lock springs open!" />
     <string id="LWN_ui_steal_msg_pin_open" text="Pin {PIN} clicks open..." />
     <string id="LWN_ui_steal_msg_crowbar_slip" text="The crowbar slipped!" />
+    <string id="LWN_ui_steal_msg_overburdened" text="Your party is overburdened and cannot carry any more." />
+    <string id="LWN_ui_steal_msg_degraded" text="Upon closer look, the {ITEM} turns out to be far shabbier than it appeared..." />
     <!-- 盲盒预览 -->
     <string id="LWN_ui_steal_preview_purse" text="You feel a heavy coin purse." />
     <string id="LWN_ui_steal_preview_strange" text="You feel something you can't quite place." />

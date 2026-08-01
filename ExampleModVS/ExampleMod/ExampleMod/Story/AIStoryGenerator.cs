@@ -80,7 +80,8 @@ namespace LivingWorldNpcs
         {
             if (Status == StoryGenStatus.Processing)
             {
-                InformationManager.DisplayMessage(new InformationMessage("剧本正在生成中，请稍后..."));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage("剧本正在生成中，请稍后..."));
                 return;
             }
 
@@ -133,7 +134,8 @@ namespace LivingWorldNpcs
                     Status = StoryGenStatus.Ready;
                 }
 
-                InformationManager.DisplayMessage(new InformationMessage("新的传闻剧本已生成！", Colors.Green));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage("新的传闻剧本已生成！", Colors.Green));
                 
             }
             catch (Exception ex)

@@ -526,7 +526,8 @@ namespace LivingWorldNpcs
                     PermanentMemory.Append(updatedPermMemory);
                     DebugLogger.Log($"NPC[{_profile.Name}] 永续记忆发生了变化，更新为: {PermanentMemory.ToString()}");
 
-                    InformationManager.DisplayMessage(new InformationMessage($"NPC[{_profile.Name}] 永续记忆发生了变化，更新为: {PermanentMemory.ToString()}"));
+                    if (Settings.Instance.ShowDebugMessages)
+                        InformationManager.DisplayMessage(new InformationMessage($"NPC[{_profile.Name}] 永续记忆发生了变化，更新为: {PermanentMemory.ToString()}"));
                 }
             }
             catch

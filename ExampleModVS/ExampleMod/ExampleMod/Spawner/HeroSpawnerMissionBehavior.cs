@@ -64,12 +64,14 @@ namespace LivingWorldNpcs
                 if(Mission.Current != null && Mission.Current.MainAgent != null)
                 {
                     SpawnHeroInFrontOfPlayer(existingHero, distance);
-                    InformationManager.DisplayMessage(new InformationMessage($"{existingHero.Name} come Here！"));
+                    if (Settings.Instance.ShowDebugMessages)
+                        InformationManager.DisplayMessage(new InformationMessage($"{existingHero.Name} come Here！"));
                 }
             }
-            else 
+            else
             {
-                InformationManager.DisplayMessage(new InformationMessage($"{targetHeroId} can not find a hero！"));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage($"{targetHeroId} can not find a hero！"));
             }
         }
         
@@ -95,13 +97,13 @@ namespace LivingWorldNpcs
                     if(Mission.Current!=null && Mission.Current.MainAgent !=null)
                     {
                         SpawnHeroInFrontOfPlayer(newHero);
-                        // 召唤成功飘字：{NAME} 出现在玩家面前
-                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_appeared", ("NAME", newHero.Name.ToString()))));
+                        if (Settings.Instance.ShowDebugMessages)
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_appeared", ("NAME", newHero.Name.ToString()))));
                     }
                     else
                     {
-                        // 召唤入列飘字：{NAME} 已到达据点列表但玩家不在 3D 场景中
-                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_added_no_scene", ("NAME", newHero.Name.ToString()))));
+                        if (Settings.Instance.ShowDebugMessages)
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_added_no_scene", ("NAME", newHero.Name.ToString()))));
                     }
 
                 }

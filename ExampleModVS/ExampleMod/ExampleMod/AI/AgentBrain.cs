@@ -233,9 +233,9 @@ namespace LivingWorldNpcs
                     return;
                 SetNpcIntent(NpcIntentType.Fighting, targetAgent);
                 InteractedAgent = targetAgent;
-                // 收到攻击命令飘字：{OWNER} 收到命令攻击 {TARGET}
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_attack_order",
-                    ("OWNER", Owner.Name.ToString()), ("TARGET", targetAgent.Name.ToString())), Colors.Red));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_attack_order",
+                        ("OWNER", Owner.Name.ToString()), ("TARGET", targetAgent.Name.ToString())), Colors.Red));
                 ClearAllActions();
                 EnqueueAction(new FightEnemyAction(targetAgent));
             }
@@ -280,9 +280,10 @@ namespace LivingWorldNpcs
 
                 var victimMemory = AllNpcMemoryManager.GetMemoryForAgent(victim);
                 
-                // 伤害目击飘字：{ATTACKER} 对 {VICTIM} 造成了伤害
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_damage_seen",
-                    ("ATTACKER", attacker.Name.ToString()), ("VICTIM", victim.Name.ToString())), Colors.Yellow));
+                if (Settings.Instance.ShowDebugMessages)
+                    // 伤害目击飘字：{ATTACKER} 对 {VICTIM} 造成了伤害
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_damage_seen",
+                        ("ATTACKER", attacker.Name.ToString()), ("VICTIM", victim.Name.ToString())), Colors.Yellow));
                 // --- 核心护主逻辑 ---
 
                 bool shouldHelp = false;
@@ -502,9 +503,10 @@ namespace LivingWorldNpcs
                 float prob = MathF.Clamp(0.05f + honor * 0.01f, 0.01f, 0.15f);
                 if (MBRandom.RandomFloat >= prob) return;
 
-                // 冒泡问候判定飘字：{NAME} 决定向玩家打招呼（概率 {PROB}，声望 {HONOR}）
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_bubble_greet_decided",
-                    ("NAME", Owner.Name.ToString()), ("INDEX", Owner.Index.ToString()), ("PROB", $"{prob:P0}"), ("HONOR", honor.ToString()))));
+                if (Settings.Instance.ShowDebugMessages)
+                    // 冒泡问候判定飘字：{NAME} 决定向玩家打招呼（概率 {PROB}，声望 {HONOR}）
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_bubble_greet_decided",
+                        ("NAME", Owner.Name.ToString()), ("INDEX", Owner.Index.ToString()), ("PROB", $"{prob:P0}"), ("HONOR", honor.ToString()))));
 
                 var factors = new DialogueFactors
                 {
@@ -517,9 +519,10 @@ namespace LivingWorldNpcs
                 string line = DialogueTemplateHelper.Get("BubbleGreet", factors, out emotion, null, Owner);
                 if (!string.IsNullOrEmpty(line))
                 {
-                    // 冒泡问候台词飘字：{NAME} 说出了问候语 {LINE}
-                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_bubble_greet_line",
-                        ("NAME", Owner.Name.ToString()), ("LINE", line))));
+                    if (Settings.Instance.ShowDebugMessages)
+                        // 冒泡问候台词飘字：{NAME} 说出了问候语 {LINE}
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_bubble_greet_line",
+                            ("NAME", Owner.Name.ToString()), ("LINE", line))));
                     BubbleSay(line);
                 }
             }
