@@ -418,3 +418,23 @@ if (owner != null && sentence != null)
 **规避**：`Id="LWN_xxx"` 直接写在目标 `<ListPanel>` 自身上，patch 里 `widget.Id.StartsWith("LWN")` 直接命中。
 - 落地：`GUI/StackLayoutVerticalSwapPatch.cs` + `InteractArea.xml` / `AgentHudNearby.xml`
 - 2026-08-01 实踩：四种方案轮番失败（Id on Window / Tag on Window / Tag on ListPanel / HashSet），最终 `Id on ListPanel + StartsWith` 成功。
+
+---
+
+## Harmony Patch `ConversationMissionLogic.OnMissionTick` → v1.4.7 角色模型横置
+
+**症状**
+- v1.4.7：新建战役角色创建界面人形横过来（躺平），进游戏后物品界面也是如此
+- v1.2.12：完全正常
+- 注释 `harmony.PatchAll()` 后恢复正常
+- 二分排查锁定凶手：`SuppressVanillaConversationMissionPatch`（`Interaction/Dialogue/ConversationEntryPatch.cs`）
+
+**根因**
+- 对 `ConversationMissionLogic.OnMissionTick` 打 Harmony Prefix，无论哪种形式（`bool Prefix()` / `void Prefix()` / `Prefix(float dt)` / `Prefix(ref bool __runOriginal)`），在 v1.4.7 中均触发角色模型横置
+- 问题不在 Prefix 的返回值逻辑，而在 Harmony 对这个方法的 **detour 机制本身**——角色创建和物品界面底层竟然也复用了 `ConversationMissionLogic`，Harmony 的方法重定向在 v1.4.7 运行时下破坏了引擎的渲染初始化
+- 该补丁原始目的：抑制我们的大地图遭遇对话 Mission 中原版 `ConversationMissionLogic` 的"自动对话初始化"和"对话结束后自动结束 Mission"。分析 `OnMissionTick` 源码后确认这两件事可能不需要抑制——初始化只执行一次（`_conversationStarted` 守卫），自动结束在对话进行中不会触发
+
+**规避**
+- 用 `#if false` 永久禁用此补丁
+- 如果之后大地图遭遇对话出现异常（NPC 不自动说话、Mission 不结束等），优先怀疑此补丁缺失 → 换用非 Harmony 方案（如移除 `ConversationMissionLogic` behavior、用 Transpiler 代替 Prefix、或在 `InteractionMissionView` 中自行处理原版行为）
+- 2026-08-01 排查记录：`plans/harmony-patch-bug-hunt.md`

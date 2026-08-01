@@ -12,6 +12,8 @@ namespace LivingWorldNpcs
     ///
     /// 标识方式：遍历 widget 的 ParentWidget 链，检查是否有任一节点的类型名包含 "LWN"（或检查特定的 Widget 类型）。
     /// </summary>
+    /// 
+    
     [HarmonyPatch(typeof(StackLayout), "OnLayout")]
     public static class StackLayoutVerticalSwapPatch
     {
@@ -52,5 +54,6 @@ namespace LivingWorldNpcs
             __instance.LayoutMethod = __state;
         }
     }
+    
 }
 #endif

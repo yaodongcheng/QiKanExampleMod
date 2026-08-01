@@ -2559,6 +2559,7 @@ namespace LivingWorldNpcs
         }
     }
 #else
+
     [HarmonyPatch(typeof(TaleWorlds.MountAndBlade.ViewModelCollection.Missions.Interaction.AgentInteractionInterfaceVM), "SetHumanAgent")]
     public static class ChangeInteractionTextPatch
     {
@@ -2573,6 +2574,7 @@ namespace LivingWorldNpcs
             }
         }
     }
+    
 #endif
 
 #if MB2_V1212
