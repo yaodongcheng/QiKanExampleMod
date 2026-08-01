@@ -461,8 +461,8 @@ namespace LivingWorldNpcs
         {
             // 找附近藏身处的强盗头子
             var hideout = Settlement.All?.FirstOrDefault(s =>
-                s.IsHideout && s.Position2D.Distance(
-                    Hero.MainHero.CurrentSettlement?.Position2D ?? s.Position2D) < 80f);
+                s.IsHideout && V.Pos(s).Distance(
+                    V.Pos(Hero.MainHero.CurrentSettlement)) < 80f);
             if (hideout?.Notables?.FirstOrDefault() != null)
                 return hideout.Notables.First().StringId;
 
@@ -1349,7 +1349,7 @@ namespace LivingWorldNpcs
             if (suspect.PartyBelongedTo != null && suspect.PartyBelongedTo != MobileParty.MainParty)
             {
                 // 嫌犯有 party → 发起战斗
-                TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.GetActionForEngagingParty(
+                V.EngageParty(
                     MobileParty.MainParty, suspect.PartyBelongedTo);
                 DebugLogger.Log($"[Arrest] Engaging suspect party: {suspect.Name}");
             }
@@ -1369,7 +1369,7 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[Arrest] TakePrisonerAction failed: {ex.Message} — engaging party instead");
                     // 降级：发起战斗
                     if (suspect.PartyBelongedTo != null)
-                        TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.GetActionForEngagingParty(
+                        V.EngageParty(
                             MobileParty.MainParty, suspect.PartyBelongedTo);
                 }
             }

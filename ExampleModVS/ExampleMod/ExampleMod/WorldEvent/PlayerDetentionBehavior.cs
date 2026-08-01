@@ -6,7 +6,9 @@ using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.CampaignBehaviors;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.GameState;
+#if MB2_V1212
 using TaleWorlds.CampaignSystem.Overlay;
+#endif
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.CampaignSystem.ViewModelCollection.GameMenu;
@@ -309,7 +311,11 @@ namespace LivingWorldNpcs
 
             // ── 放人（叙事收尾，Continue 里干真活）──
             starter.AddGameMenu(MENU_RELEASE, "{=LWN_ui_detention_release_menu}{LWN_DETENTION_TEXT}", DetentionReleaseOnInit,
+#if MB2_V1212
                 GameOverlays.MenuOverlayType.None);
+#else
+                GameMenu.MenuOverlayType.None);
+#endif
 
             starter.AddGameMenuOption(MENU_RELEASE, "lwn_detention_release_continue", "{=LWN_ui_detention_release_continue}Continue...",
                 ContinueOnCondition, ReleaseContinueOnConsequence);

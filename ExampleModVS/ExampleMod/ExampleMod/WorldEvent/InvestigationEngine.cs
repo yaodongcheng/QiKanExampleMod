@@ -217,14 +217,14 @@ namespace LivingWorldNpcs
                     var suspectParty = suspect?.PartyBelongedTo;
                     if (suspectParty != null)
                     {
-                        TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.GetActionForEngagingParty(party, suspectParty);
+                        V.EngageParty(party, suspectParty);
                         party.Ai.SetDoNotMakeNewDecisions(true);
                     }
                 }
                 else
                 {
                     // 嫌犯=玩家
-                    TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.GetActionForEngagingParty(party, MobileParty.MainParty);
+                    V.EngageParty(party, MobileParty.MainParty);
                     party.Ai.SetDoNotMakeNewDecisions(true);
                 }
 
@@ -312,11 +312,11 @@ namespace LivingWorldNpcs
                     var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
                     var suspectParty = suspect?.PartyBelongedTo;
                     if (suspectParty != null)
-                        TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.GetActionForEngagingParty(party, suspectParty);
+                        V.EngageParty(party, suspectParty);
                 }
                 else
                 {
-                    TaleWorlds.CampaignSystem.Actions.SetPartyAiAction.GetActionForEngagingParty(party, MobileParty.MainParty);
+                    V.EngageParty(party, MobileParty.MainParty);
                 }
 
                 party.Ai.SetDoNotMakeNewDecisions(true);

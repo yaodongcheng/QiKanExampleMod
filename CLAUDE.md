@@ -80,12 +80,14 @@ ilspycmd <dll路径> | grep -n "关键字"    # 全 DLL 搜索
 
 实际使用时先用 `Glob` 找 `.csproj`，再从 `<HintPath>` 取完整路径。
 
-**版本参考 DLL**：项目根下的 `Modules/` 目录存放了其他版本的 DLL 副本，**仅用于 `ilspycmd` 反编译对比 API 差异，不参与编译**：
+**版本参考 DLL**：项目根下的 `Modules/` 目录存放了其他版本的 DLL 副本，**🔴 仅用于 `ilspycmd` 反编译对比 API 差异，禁止用于交叉编译**：
 
 | 目录 | 版本 | 用途 |
 |------|------|------|
-| `Modules/1.2.12DLL/` | v1.2.12 | 在 Latest 电脑上查 v1.2.12 的 API 签名 |
-| `Modules/1.4.6DLL/` | v1.4.6 | 在 1.2.12 电脑上查 Latest 的 API 签名 |
+| `Modules/1.2.12DLL/` | v1.2.12 | 在 Latest 电脑上反编译查 v1.2.12 的 API 签名 |
+| `Modules/1.4.6DLL/` | v1.4.6 | 在 1.2.12 电脑上反编译查 Latest 的 API 签名（1.4.6 与 1.4.7 签名一致，可代表整套 1.4.x）
+
+**🔴 不要交叉编译**：不要用 `Debug_v1.2.12` 等配置去编译——该配置已废弃。编译只走 `Debug`/`Release`，每台电脑用自己的游戏 DLL，版本由 `Version.xml` 自动检测。
 
 开发时先反编译当前版本看签名，再反编译另一个版本对比，确定 `VersionCompat.cs` 里该用 `#if MB2_V1212` 还是 `#if !MB2_V1212`。
 
@@ -107,6 +109,61 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 
 // 泛型 T 支持：ItemObject, CharacterObject, Settlement, CultureObject 等所有 MBObjectBase 子类
 ```
+
+## 版本兼容与发布
+
+🔴 **禁止交叉编译。** 两台电脑各装一个目标版本，同一份源码分别编译。踩过坑，不要重犯。
+
+### 两机编译策略
+
+| 机器 | 游戏版本 | 产出 |
+|------|---------|------|
+| 1.2.12 电脑 | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
+| Latest 电脑 | v1.4.7 | `LivingWorldNpcs.dll`（Latest 版） |
+
+### 累积阈值宏体系
+
+csproj 编译时读 `Version.xml` 自动定义累积宏（GE = "Greater or Equal"）：
+
+| 游戏版本 | 定义的宏 |
+|----------|---------|
+| v1.2.12 | `MB2_V1212` |
+| v1.3.x | `MB2_V1212` + `MB2_GE_130` |
+| v1.4.x | `MB2_V1212` + `MB2_GE_130` + `MB2_GE_140` |
+| v1.5.x | 全部 + `MB2_GE_150` |
+
+代码按阈值从高到低写分支：
+```csharp
+#if MB2_GE_150
+    // v1.5.0+ 的新 API（预留）
+#elif MB2_GE_130
+    // v1.3.0+ 的 API（当前 Latest）
+#else
+    // v1.2.12 的旧 API
+#endif
+```
+
+**为什么用阈值宏而非精确版本匹配**：99% 的 API 变更只发生在一个版本边界。阈值宏只为真正发生变更的边界写分支，避免穷举所有版本号。
+
+### VersionCompat.cs
+
+所有 API 差异走 `Core/VersionCompat.cs` 的 `V.xxx()` 静态方法。**业务代码禁止裸写版本 `#if`**。
+
+**合规例外**（不可迁入 V，必须直接写在业务文件里）：override/abstract 签名差异、type-level 字段类型差异、Harmony 补丁目标差异、structural 多语句算法差异、namespace 差异。完整注册表见 `VersionCompat.cs` class doc comment 和 [plans/version-compat-plan.md](plans/version-compat-plan.md)。每次新增版本时必须逐条核查注册表。
+
+**1.4.6 与 1.4.7 的 API 签名经逐方法对比确认完全一致**——`MB2_GE_130` 分支覆盖 v1.3.0 ~ v1.4.x 全系列。
+
+### 发布步骤
+
+```bash
+# Latest 电脑上
+dotnet build -c Release   # → Latest 版 DLL
+
+# 1.2.12 电脑上
+git pull && dotnet build -c Release   # → v1.2.12 版 DLL
+```
+
+两份 DLL 分别打包发布。详细策略见 [plans/version-compat-plan.md](plans/version-compat-plan.md)。
 
 ## 参考资料：CSDN 付费专栏
 

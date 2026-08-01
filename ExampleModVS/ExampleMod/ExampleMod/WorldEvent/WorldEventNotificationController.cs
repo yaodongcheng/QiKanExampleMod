@@ -518,11 +518,7 @@ namespace LivingWorldNpcs
                                 targetPos = V.Pos(targetSettlement);
                                 DebugLogger.Log($"[WorldEvent] Camera animating to settlement: {targetSettlement.Name} at {targetPos}");
                             }
-#if !MB2_V1212
-                            mapState.Handler.StartCameraAnimation(new CampaignVec2(targetPos, true), 3.0f);
-#else
-                            mapState.Handler.StartCameraAnimation(targetPos, 3.0f);
-#endif
+                            V.CameraAnimate(mapState, targetPos, 3.0f);
                         }
                     }
                     catch (Exception ex)

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Runtime.ExceptionServices;
 using TaleWorlds.Localization;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -42,6 +43,7 @@ namespace LivingWorldNpcs
         ///
         /// 用于村民/平民等非战斗 NPC 播放战斗动作（如击倒、死亡倒地等）。
         /// </summary>
+        [HandleProcessCorruptedStateExceptions]
         public static void ForcePlayAction(Agent agent, string actionId, bool restoreAfter = false)
         {
             if (agent == null || string.IsNullOrEmpty(actionId) || !agent.IsActive())
@@ -50,10 +52,13 @@ namespace LivingWorldNpcs
             ActionIndexCache actionCache = ActionIndexCache.Create(actionId);
             if (actionCache == ActionIndexCache.act_none) return;
 
+            // 提前取 agentName，供日志和 catch 块使用（避免在 native 崩溃后还访问 agent.Name）
+            string agentName = "?";
+            try { agentName = agent.Name?.ToString() ?? "?"; }
+            catch { agentName = "<error>"; }
+
             try
             {
-                string agentName = agent.Name?.ToString() ?? "?";
-
                 // 0. 打断任何进行中的交互（坐椅子、跟人对话等），
                 //    否则引擎每帧会覆盖我们的动画
                 bool wasUsingObj = agent.IsUsingGameObject;
@@ -62,10 +67,14 @@ namespace LivingWorldNpcs
                 {
                     agent.StopUsingGameObject(true, Agent.StopUsingGameObjectFlags.None);
                 }
-                // 获取当前 action_set 信息用于日志
-                MBActionSet originalSet = agent.ActionSet;
 
-                DebugLogger.Log($"[ForcePlayAction] {agentName} '{actionId}' UsingObj={wasUsingObj} flags={scriptedFlags} action_set:'{originalSet.GetName()}'→'as_human_warrior'");
+                // 获取当前 action_set 信息用于日志（防御性：native 属性可能抛异常）
+                MBActionSet originalSet = agent.ActionSet;
+                string originalSetName = "?";
+                try { originalSetName = originalSet.IsValid ? originalSet.GetName() : "<invalid>"; }
+                catch { originalSetName = "<error>"; }
+
+                DebugLogger.Log($"[ForcePlayAction] {agentName} '{actionId}' UsingObj={wasUsingObj} flags={scriptedFlags} action_set:'{originalSetName}'→'as_human_warrior'");
 
                 // 1. 获取战士 action_set（所有人类动作的根）
                 MBActionSet warriorSet = MBActionSet.GetActionSet("as_human_warrior");
@@ -92,7 +101,7 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[ForcePlayAction] Error playing '{actionId}': {ex.Message}");
+                DebugLogger.Log($"[ForcePlayAction] Error playing '{actionId}' on {agentName}: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
             }
         }
 
@@ -137,11 +146,7 @@ namespace LivingWorldNpcs
             {
                 if (targetPos.GetNavMesh() == UIntPtr.Zero)
                 {
-#if !MB2_V1212
-                    agent.Mission.Scene.GetNavigationMeshForPosition(in targetVec);
-#else
-                    agent.Mission.Scene.GetNavigationMeshForPosition(ref targetVec);
-#endif
+                V.NavMeshSnap(agent.Mission.Scene, ref targetVec);
                     targetPos = new WorldPosition(agent.Mission.Scene, targetVec);
                 }
             }
@@ -379,11 +384,7 @@ namespace LivingWorldNpcs
             // 如果点无效，尝试获取最近的导航网格
             if (targetPos.GetNavMesh() == UIntPtr.Zero)
             {
-#if !MB2_V1212
-                npcAgent.Mission.Scene.GetNavigationMeshForPosition(in targetVec);
-#else
-                npcAgent.Mission.Scene.GetNavigationMeshForPosition(ref targetVec);
-#endif
+                V.NavMeshSnap(npcAgent.Mission.Scene, ref targetVec);
                 targetPos = new WorldPosition(npcAgent.Mission.Scene, targetVec);
             }
 
@@ -447,7 +448,7 @@ namespace LivingWorldNpcs
             {
                 // 情报：所属部队名
                 sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_party_belongs_to",
-                    "Belongs to party: {NAME}", ("NAME", (object)(party.Name ?? TextObject.Empty))));
+                    "Belongs to party: {NAME}", ("NAME", (object)(party.Name ?? V.EmptyText()))));
                 // 情报：部队成员区块标题
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_info_member_header", "\n--- Party members (troops) ---"));
 
@@ -501,7 +502,7 @@ namespace LivingWorldNpcs
                 // 情报：英雄没有所属部队
                 sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_no_party",
                     " {NAME} has no party right now.",
-                    ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
+                    ("NAME", (object)(targetHero.Name ?? V.EmptyText()))));
             }
             return sb.ToString();
         }
@@ -519,7 +520,7 @@ namespace LivingWorldNpcs
             // 情报：背包报告标题
             sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_bag_report_header",
                 "========== [{NAME}] Bag Info Report ==========",
-                ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
+                ("NAME", (object)(targetHero.Name ?? V.EmptyText()))));
 
             // ---------------------------------------------------------
             // 第一部分：装备检查 (优先检查 Agent 实体，否则检查 Hero 配置)
@@ -617,7 +618,7 @@ namespace LivingWorldNpcs
             {
                 // 情报：所属部队名
                 sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_party_belongs_to",
-                    "Belongs to party: {NAME}", ("NAME", (object)(party.Name ?? TextObject.Empty))));
+                    "Belongs to party: {NAME}", ("NAME", (object)(party.Name ?? V.EmptyText()))));
 
                 // 检查物品
                 var itemRoster = party.ItemRoster;
@@ -681,7 +682,7 @@ namespace LivingWorldNpcs
                     // 情报：辎重为空
                     sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_empty_luggage",
                         "{NAME}'s luggage is empty.",
-                        ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
+                        ("NAME", (object)(targetHero.Name ?? V.EmptyText()))));
                 }               
             }
             else
@@ -689,7 +690,7 @@ namespace LivingWorldNpcs
                 // 情报：没有部队辎重
                 sb.AppendLine(LWNTextHelper.ResolveCompoundMixed("LWN_info_no_luggage",
                     "{NAME} currently has no party luggage.",
-                    ("NAME", (object)(targetHero.Name ?? TextObject.Empty))));
+                    ("NAME", (object)(targetHero.Name ?? V.EmptyText()))));
             }
 
             return sb.ToString();

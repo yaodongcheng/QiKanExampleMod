@@ -20,14 +20,40 @@
     <MB2_SANDBOX_REF>$(MB2_PATH)\Modules\SandBox\bin\Win64_Shipping_Client</MB2_SANDBOX_REF>
     <MB2_NATIVE_REF>$(MB2_PATH)\Modules\Native\bin\Win64_Shipping_Client</MB2_NATIVE_REF>
   </PropertyGroup>
-  <!-- ── 自动检测游戏版本：读 Version.xml ──
-    定义精确版本宏：MB2_V1212 / MB2_V146 / ...
-    代码用 #if !MB2_V1212 判断"比 1.2.12 新"，用 #if MB2_V146 判断"恰好 1.4.6"
-    新增版本时加一行 DefineConstants 即可。
+  <!-- ── 版本检测 + 累积阈值宏 ──
+    每台电脑只装一个版本，编译时自动检测 Version.xml：
+      v1.2.12 → MB2_V1212
+      v1.3.x  → MB2_V1212 + MB2_GE_130
+      v1.4.x  → MB2_V1212 + MB2_GE_130 + MB2_GE_140
+      v1.5.x  → MB2_V1212 + MB2_GE_130 + MB2_GE_140 + MB2_GE_150
+
+    GE = "Greater or Equal"。每个 GE 宏表示『从这个版本开始可用』。
+    代码中按阈值从高到低写分支：#if MB2_GE_150 / #elif MB2_GE_130 / #else。
+
+    新增版本时（如 v1.6.0）：
+    1. 加 <MB2_IsV16x> 侦测
+    2. 所有现有 GE_* 的 Or 链上追加 '$(MB2_IsV16x)' == 'true'
+    3. 加 MB2_GE_160 的 DefineConstants
   ── -->
   <PropertyGroup>
     <MB2_VersionFile>$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml</MB2_VersionFile>
     <MB2_VersionFileContent Condition="Exists('$(MB2_VersionFile)')">$([System.IO.File]::ReadAllText('$(MB2_VersionFile)'))</MB2_VersionFileContent>
+    <!-- 版本系列侦测（精确到 minor） -->
+    <MB2_IsV12x Condition="$(MB2_VersionFileContent.Contains('v1.2.'))">true</MB2_IsV12x>
+    <MB2_IsV13x Condition="$(MB2_VersionFileContent.Contains('v1.3.'))">true</MB2_IsV13x>
+    <MB2_IsV14x Condition="$(MB2_VersionFileContent.Contains('v1.4.'))">true</MB2_IsV14x>
+    <MB2_IsV15x Condition="$(MB2_VersionFileContent.Contains('v1.5.'))">true</MB2_IsV15x>
+  </PropertyGroup>
+  <!-- 公共版本宏（Debug / Release 共享；各配置 DefineConstants 引用 $(MB2_VersionDefines)） -->
+  <PropertyGroup>
+    <MB2_VersionDefines></MB2_VersionDefines>
+    <MB2_VersionDefines Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(MB2_VersionDefines);MB2_V1212</MB2_VersionDefines>
+    <!-- MB2_GE_130: v1.3.x 或更高 -->
+    <MB2_VersionDefines Condition="'$(MB2_IsV13x)' == 'true' Or '$(MB2_IsV14x)' == 'true' Or '$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_130</MB2_VersionDefines>
+    <!-- MB2_GE_140: v1.4.x 或更高 -->
+    <MB2_VersionDefines Condition="'$(MB2_IsV14x)' == 'true' Or '$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_140</MB2_VersionDefines>
+    <!-- MB2_GE_150: v1.5.x 或更高（预留，当前无 API 差异需要它） -->
+    <MB2_VersionDefines Condition="'$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_150</MB2_VersionDefines>
   </PropertyGroup>
   <!-- Debug：自动检测 -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -35,10 +61,7 @@
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
     <OutputPath>$(MB2_PATH)\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <!-- 精确版本宏：按 Version.xml 中的版本号定义（新增版本时在这里加一行） -->
-    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
-    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
+    <DefineConstants>DEBUG;TRACE;$(MB2_VersionDefines)</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>3</WarningLevel>
     <PlatformTarget>x64</PlatformTarget>
@@ -48,9 +71,7 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
-    <DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
+    <DefineConstants>TRACE;$(MB2_VersionDefines)</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>

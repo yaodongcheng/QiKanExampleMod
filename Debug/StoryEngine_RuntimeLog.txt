@@ -1,26 +1,83 @@
-﻿[11:30:00.872] LWNTextHelper: Loaded 2390 English fallback entries from 2 files
-[11:30:14.643] [WorldEventStore] Deserialized 1 events, 0 alerts
-[11:30:18.409] [Detention] Game menus registered
-[11:30:19.230] [AddQuickInformation] "Achievements are disabled!"
-[11:30:22.003] [GameMenu] ▶ 打开 menu=town @Lycaron(城镇)
-    标题: Town Center
-    正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>Lycaron</b></a> is governed by <a style="Link.Hero" href="event:Hero-lord_1_14"><b>Rhagaea</b></a>, empress of the <a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>southern Empire</b></a>. The town is of average wealth. You hear some complaints about prices, shortages and greedy merchants, but no more than normal.
+﻿[13:27:57.485] LWNTextHelper: Loaded 2390 English fallback entries from 2 files
+[13:28:41.428] [AddQuickInformation] "由于使用了作弊，成就已被禁用。"
+[13:28:41.980] [Detention] Game menus registered
+[13:28:56.972] [DisplayMessage] "你已认识扎图。"
+[13:28:56.973] [DisplayMessage] "你已认识阿儿帖。"
+[13:29:31.941] 重要错误，一定要关注：[ConvLock] Prefix: effectiveAgent is null, cannot acquire lock.
+[13:29:32.017] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "弟弟……我们已经追踪那帮混蛋三天了，我觉得很快就要追上了。得想想到时候该怎么办，怎么把<a style="Link.Hero" href="event:Hero-storymode_little_brother"><b>扎图</b></a>和<a style="Link.Hero" href="event:Hero-storymode_little_sister"><b>阿儿帖</b></a>给救出来？准备好战斗了吗？"
+[13:29:32.029] 重要错误，一定要关注：[ConvLock] Postfix: effectiveAgent is null, cannot acquire lock.
+[13:29:32.034] [ConvEntry] FindOnGoing(tutorial_training_field) → evt=misconduct_tutorial_training_field_2185856_1 stage=Dormant assault=[none:0] pendingId=misconduct_tutorial_training_field_2185856_1 pendingStage=Dormant pendingAssault=[none:0]
+[13:29:32.040] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 匹配到 0 个 owner: []（现存 0 个）
+[13:29:32.040] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 没有匹配的 owner（现存 0 个: []）
+[13:29:32.041] [ConvEntry] BuildScript: partner=null partnerStringId=null agent=null agentIdx=null character=null characterStringId=null evtId=misconduct_tutorial_training_field_2185856_1 trigger=Normal confrontation=Deter triggerAction=Crouching
+[13:29:32.062] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
+[13:29:33.783] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "这里像是个帝国军团用过的旧训练场。也许我们可以花点时间磨练一下自己的本领？等追上那伙掠袭者，这些本领就会派上用场。"
+[13:29:36.252] [VanillaDialog] Token='player_answer_training_field' Hero=努逊 | Options (4): 我要先练习一下。我得弄清楚要是真动起手来，自己能不能应付得了。（继续教程） | 我们必须抓紧时间。如果我们分头行动的话，效率会更高。（跳过教程） | 那么，你觉得马上就能追上那伙掠袭者了？ | 我们该如何准备这场战斗?
+[13:29:36.253] [VanillaDialog] Player says: "我们必须抓紧时间。如果我们分头行动的话，效率会更高。（跳过教程）"
+[13:29:36.254] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "你确定吗？（该选项会结束包含剧情的教程，并直接开始单人游戏。如果你已完成过教程，我们建议选择该选项。）"
+[13:29:37.997] [VanillaDialog] Token='skip_tutorial_confirmation' Hero=努逊 | Options (2): 是的，时间要紧。（跳过教程） | 不，我要再想想。
+[13:29:37.997] [VanillaDialog] Player says: "是的，时间要紧。（跳过教程）"
+[13:29:37.999] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "那好吧，我们分头去找小家伙们。要是我先找到他俩，就告诉你。"
+[13:29:38.791] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "还有一件事，弟弟，我们得看起来像那么回事才行。毕竟，我们说不定很快就得带兵打仗、冲锋陷阵了。要给家族取个名号、选面旗帜，就像贵族们那样。"
+[13:29:39.464] [ConvLock] Release by null(Idx=?) | reason=EndConversation
+[13:29:39.465] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[13:29:39.465] [ConvEnd] Haggle flag cleared for misconduct_tutorial_training_field_2185856_1
+[13:29:39.599] [AddQuickInformation] "任务激活：建立你的家族"
+[13:29:39.601] [QuestStart] RebuildPlayerClanQuest "建立你的家族" | giver=? | IsOngoing=True | RewardGold=0
+[13:29:39.612] [AddQuickInformation] "调查“涅雷采斯的愚行”：日志已更新。"
+[13:29:39.613] [AddQuickInformation] "任务激活：调查“涅雷采斯的愚行”"
+[13:29:39.613] [QuestStart] BannerInvestigationQuest "调查“涅雷采斯的愚行”" | giver=? | IsOngoing=True | RewardGold=0
+[13:29:39.615] [AddQuickInformation] "你找到了第一旗帜部件！"
+[13:29:39.861] [GameMenu] ▶ 打开 menu=training_field_menu @训练场(定居点)
+    标题: 
+    正文: 你在训练场。你能在这里学到有关战斗的基础知识。
     选项:
-      1. Take a walk around the town center  [id=town_streets] 可点
-      2. Go to the keep  [id=town_keep] 可点
-      3. Go to the arena  [id=town_arena] 可点
-      4. Go to the tavern district  [id=town_backstreet] 可点
-      5. Recruit troops  [id=recruit_volunteers] 可点
-      6. Trade  [id=trade] 可点
-      7. Enter smithy  [id=town_smithy] 可点
-      8. Wait here for some time  [id=town_wait] 可点
-      9. Leave  [id=town_leave] 可点
-[11:30:23.345] [GameMenu] ● 点击 menu=town 选项="Go to the tavern district" [id=town_backstreet] @Lycaron(城镇)
-[11:30:23.353] [GameMenu] ▶ 打开 menu=town_backstreet @Lycaron(城镇)
-    标题: Backstreet
-    正文: You are in the backstreets. The local tavern seems to be attracting its usual crowd.
+      1. 回去训练。  [id=training_field_enter] 可点
+      2. 离开  [id=training_field_leave] 可点
+[13:29:44.769] [GameMenu] ● 点击 menu=training_field_menu 选项="离开" [id=training_field_leave] @训练场(定居点)
+[13:29:44.772] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 匹配到 0 个 owner: []（现存 0 个）
+[13:29:44.772] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 没有匹配的 owner（现存 0 个: []）
+[13:29:44.773] [ShowInquiry] "通知" | "离开训练场几小时后，你发现有个受伤的人躺在树下。你喂给了他一些水，然后尽力包扎了他的伤口。他告诉你自己是个旅行医生。为了感谢你的帮助，他给了你一个铜制小物件，说是一名战士给他的报酬，据说与“涅雷采斯的愚行”有关。他猜这物件可能价值不菲，而你决定去探寻它的秘密。" | Btn1="好" Btn2="(hidden)"
+[13:29:44.790] [GameMenu] ◀ 关闭 menu=training_field_menu
+[13:29:54.699] [ShowInquiry] "潜行教程" | "你和哥哥分别而行。当他骑过山丘的山脊时，他向你举手致意，然后从视线中消失。几天前，你们还是一个六口之家。如今，你孤身一人，突然意识到，尽管自己充满勇气和决心，或许再也见不到哥哥了。
+然而，你的孤独并没有持续太久。在你准备好出发的时候，一个小男孩踉跄着走进了你的营地。等他稍微平复了气息后，他告诉你，一小股强盗袭击了他的村庄，抓走了头人作为人质。村民们看见你骑马穿越乡间，认为你或许能够帮助他们。" | Btn1="继续" Btn2="(hidden)"
+[13:29:56.891] [AddQuickInformation] "村民需要帮助：日志已更新。"
+[13:29:56.893] [AddQuickInformation] "任务激活：村民需要帮助"
+[13:29:56.894] [QuestStart] VillagersInNeed "村民需要帮助" | giver=? | IsOngoing=True | RewardGold=0
+[13:30:13.853] [AddQuickInformation] "哈基米提高了1级。"
+[13:31:30.578] [DisplayMessage] "每日第纳尔收支：0<img src="General\Icons\Coin@2x" extend="6">"
+[13:32:15.471] [DisplayMessage] "你已认识酿酒工图沃尔。"
+[13:32:15.471] [DisplayMessage] "你已认识羊毛纺织工阿剌古儿。"
+[13:32:15.472] [DisplayMessage] "你已认识羊毛纺织工那图。"
+[13:32:15.472] [DisplayMessage] "你已认识残酷的脱赤。"
+[13:32:15.472] [DisplayMessage] "你已认识喜怒无常的阿勒般。"
+[13:32:15.560] [GameMenu] ▶ 打开 menu=town @奥多赫(城镇)
+    标题: 城镇中心
+    正文: <a style="Link.Settlement" href="event:Settlement-town_K6"><b>奥多赫</b></a>被<a style="Link.Kingdom" href="event:Kingdom-khuzait"><b>库赛特</b></a>的一位伯克，<a style="Link.Hero" href="event:Hero-lord_6_17"><b>阿克鲁木</b></a>统治着。这座城镇显然处境艰难，人们看起来营养不良，房屋破败不堪。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
-      1. Visit the tavern  [id=town_tavern] 可点
-      2. Back to town center  [id=town_backstreet_back] 可点
-[11:30:24.456] [GameMenu] ● 点击 menu=town_backstreet 选项="Visit the tavern" [id=town_tavern] @Lycaron(城镇)
-[11:30:25.174] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → in the tavern
+      1. 前往主楼  [id=town_keep] 可点
+      2. 前往竞技场  [id=town_arena] 可点
+      3. 前往酒馆区  [id=town_backstreet] 可点
+      4. 招募士兵  [id=recruit_volunteers] 可点
+      5. 交易  [id=trade] 可点
+      6. 进入铁匠铺  [id=town_smithy] 可点
+      7. 在镇中心附近转转  [id=town_streets] 可点
+      8. 稍作等待  [id=town_wait] 可点
+      9. 离开  [id=town_leave] 可点
+[13:32:18.682] [GameMenu] ● 点击 menu=town 选项="前往酒馆区" [id=town_backstreet] @奥多赫(城镇)
+[13:32:18.687] [DisplayMessage] "你已认识“美发”卡杜甘。"
+[13:32:18.697] [GameMenu] ▶ 打开 menu=town_backstreet @奥多赫(城镇)
+    标题: 后街
+    正文: 你进入了后巷。当地酒馆内似乎非常热闹。
+    选项:
+      1. 造访酒馆  [id=town_tavern] 可点
+      2. 招募3名女剑士团追随者（900<img src="General\Icons\Coin@2x" extend="6">）  [id=recruit_mercenaries] 可点
+      3. 回镇中心  [id=town_backstreet_back] 可点
+[13:32:22.681] [GameMenu] ● 点击 menu=town_backstreet 选项="造访酒馆" [id=town_tavern] @奥多赫(城镇)
+[13:32:24.169] [Wealth] 奥多赫 (TownTavern, ×0.15): 金库16569→场景2485→流通池2485, NPC池1988(英雄2人=588, 村民19人=1387), 箱子497第纳尔, 物资8种(过滤后)
+[13:32:24.172] [Chest] 锚点 '酒馆店主' at (19.435, 24.447, 0) → 正后方 0.7m 命中，相对偏移 (0.68, -0.16, 0.00)
+[13:32:24.174] [Chest] Spawned prefab 'bd_chest_c' at (20.11754, 24.29165, 0) (scale=0.5)
+[13:32:24.177] [Chest] Visual highlight applied (warm gold tint)
+[13:32:24.178] [Chest] Spawned at (20.11754, 24.29165, 0), context=TownTavern, gold=497, items=8
+[13:32:50.672] [Knockout] “美发”卡杜甘: isChild=False, successRate=0.42, roll=0.02, success=True
+[13:32:50.673] [ForcePlayAction] 哈基米 'act_shield_bash' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
