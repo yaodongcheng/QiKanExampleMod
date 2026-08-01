@@ -26,12 +26,14 @@ namespace LivingWorldNpcs
         {
             // ① XML：查 LWN_speech_{templateId}
             string xmlKey = $"LWN_speech_{templateId.ToLower()}";
-            string xmlText = LWNTextHelper.TryResolveText(xmlKey);
 
-            if (!string.IsNullOrEmpty(xmlText))
+            // TryResolveText 只判 key 存不存在——不拿它的返回值做模板，因为 TextObject.ToString()
+            // 在未设变量时会把 {SPEAKER_PLAYER_ADDR}/{TARGET} 等标记吞成空串。
+            // 实际解析走 LWNTextHelper.Resolve：TextObject + SetTextVariable → ToString() 正确替换。
+            if (LWNTextHelper.TryResolveText(xmlKey) != null)
             {
                 var r = new PlaceholderResolver(evt, speaker, listener, targetName, itemName, speakerCharacter);
-                return r.Resolve(xmlText);
+                return LWNTextHelper.Resolve(xmlKey, r);
             }
 
             // ② 回落 NarrativeResolver
