@@ -402,4 +402,19 @@ if (owner != null && sentence != null)
 
 - 落地：`Interaction/Dialogue/DialogueInjector.cs` → `AddNodeNpcLine`（所有 NPC 台词注册的统一出口）。
 - 修复后 `RemoveRelatedLines` 原生逻辑直接生效，NPC 台词不再残留。
-- 2026-07-31 实踩：town_ES4 对话结束后，village_ES3_2 新对话 NPC 仍在说 "你把帝国步兵打晕了"（旧事件目标名），玩家只有原版联姻选项。
+- 2026-07-31 实踩：town_ES4 对话结束后，village_ES3_2 新对话 NPC 仍在说 "你把帝国步兵打晕了"
+
+---
+
+## GauntletUI XML `Id`/`Tag` 在父级 `<Window>` 上设 → 子 `ListPanel` 读不到
+
+**症状**：Harmony patch 中沿 `ParentWidget` 链找 `Id="LWN"` 永远找不到。`Tag` 同样不生效。但去掉守卫全局 swap 后自定义 UI 正常——ListPanel 确实经过 patch，只是标识方式不对。
+
+**根因**：
+1. `<Window>` 是 `CustomWidgetType`，内部结构导致 `ParentWidget` 链不保证贯通
+2. `Tag` 属性：`widget.Tag = Tag` 代码存在但不被 XML 解析器填充
+3. `Id` 设在父 `<Window>` 上，子 `ListPanel` 是不同 widget，它的 `widget.Id` 不是父的 Id
+
+**规避**：`Id="LWN_xxx"` 直接写在目标 `<ListPanel>` 自身上，patch 里 `widget.Id.StartsWith("LWN")` 直接命中。
+- 落地：`GUI/StackLayoutVerticalSwapPatch.cs` + `InteractArea.xml` / `AgentHudNearby.xml`
+- 2026-08-01 实踩：四种方案轮番失败（Id on Window / Tag on Window / Tag on ListPanel / HashSet），最终 `Id on ListPanel + StartsWith` 成功。

@@ -1,5 +1,5 @@
 <Prefab>
-  <Window Id="LWN">
+  <Window>
     <!-- 1. 右下角容器 -->
     <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
             HorizontalAlignment="Right" VerticalAlignment="Bottom" IsVisible = "@IsVisible"
@@ -8,7 +8,7 @@
 
         <!-- 2. 主列表：从下往上排列 (名字在最下，选项在上方) -->
         <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalTopToBottom"
-                   LayoutMethod="VerticalBottomToTop">
+                   Id="LWN_MainList_InteractArea" LayoutMethod="VerticalBottomToTop">
             <Children>
 
                  <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -25,7 +25,7 @@
 
                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                            DataSource="{InteractionList}"
-                           LayoutMethod="VerticalBottomToTop" StackLayout.LayoutMethod="VerticalBottomToTop"
+                           Id="LWN_InteractArea_Items" LayoutMethod="VerticalBottomToTop" StackLayout.LayoutMethod="VerticalBottomToTop"
                            MarginBottom="5" HorizontalAlignment="Right"
                            ItemGap="10">
                     

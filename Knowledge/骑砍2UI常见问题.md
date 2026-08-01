@@ -5,6 +5,12 @@
 
 【结论】两个枚举值都会导致 XML 子元素顺序与屏幕视觉顺序不一致，根源在于引擎从容器边界开始向另一端迭代放置子元素，枚举名只是标定从哪端开始。
 
+【v1.2.12 bug】：VerticalBottomToTop 和 VerticalTopToBottom 实现互换了——BottomToTop 实际从上到下堆，TopToBottom 实际从下到上堆。v1.3.0+ 修复。
+
+【双版本兼容方案】：v1.3.0+ 上 Harmony patch `StackLayout.OnLayout` 对自定义 UI 的 ListPanel 做反向 swap，使行为与 v1.2.12 一致。需要 swap 的 ListPanel 在 XML 中加 `Id="LWN_xxx"`（前缀匹配）。详见 `plans/rules/wheels.md`「双版本 XML 布局兼容」。
+
+【踩坑：Id 不能标在 `<Window>` 上，必须标在 `<ListPanel>` 自身】：`<Window>` 是 GauntletUI 的 CustomWidgetType（从单独 XML 加载），内部结构导致 ParentWidget 链不通。且 GauntletUI XML 不把 `Tag` 属性映射到 `Widget.Tag`。正确做法：`Id="LWN_xxx"` 直接写在目标 `<ListPanel>` 上，patch 里 `widget.Id.StartsWith("LWN")` 直接命中。已验证。
+
 【反编译源码】TaleWorlds.GauntletUI.dll → StackLayout.LayoutLinearVertical()：
 
     private void LayoutLinearVertical(Widget widget, float left, float bottom, float right, float top)

@@ -7,7 +7,7 @@
       <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="50">
         
         <!-- === 选手 1 (左边) === -->
-        <ListPanel LayoutImp.LayoutMethod="VerticalBottomToTop" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginRight="20">
+        <ListPanel Id="LWN_DuelUI_Left" LayoutImp.LayoutMethod="VerticalBottomToTop" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginRight="20">
           <!-- 名字 -->
           <TextWidget Text="@Fighter1Name" Brush="Mission.NameMarker.Text" Brush.FontSize="30" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center"/>
           
@@ -25,7 +25,7 @@
         <TextWidget Text=" VS " Brush="Mission.NameMarker.Text" Brush.FontSize="50" VerticalAlignment="Center" MarginRight="20" MarginLeft="20"/>
 
         <!-- === 选手 2 (右边) === -->
-        <ListPanel LayoutImp.LayoutMethod="VerticalBottomToTop" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginLeft="20">
+        <ListPanel Id="LWN_DuelUI_Right" LayoutImp.LayoutMethod="VerticalBottomToTop" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MarginLeft="20">
           <!-- 名字 -->
           <TextWidget Text="@Fighter2Name" Brush="Mission.NameMarker.Text" Brush.FontSize="30" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" HorizontalAlignment="Center"/>
           
