@@ -171,8 +171,8 @@ namespace LivingWorldNpcs
             float chance = state.TargetThreshold > 0f ? finalProg / state.TargetThreshold : 0f;
             r.Chance = MathF.Clamp(chance, 0.02f, 0.95f);
 
-            r.Log = $"[单次检定] 目标={goal} 阈值={state.TargetThreshold:0} 开局={state.CurrentProgress:0} " +
-                    $"技能胜率={skillWin:0.00} 献礼占比={offerFactor:0.00} 性格倍率={traitMult:0.00} → 成功率={r.Chance:0.00}";
+            r.Log = $"[单次检定] 目标={goal} 阈值={state.TargetThreshold:0} 开局={state.CurrentProgress:0} " + // lwn-ignore: A (debug log)
+                    $"技能胜率={skillWin:0.00} 献礼占比={offerFactor:0.00} 性格倍率={traitMult:0.00} → 成功率={r.Chance:0.00}"; // lwn-ignore: A (debug log)
             return r;
         }
 
@@ -208,7 +208,7 @@ namespace LivingWorldNpcs
             r.Chance = MathF.Clamp(chance, 0.05f, 0.95f);
             r.State = null;   // 不依赖 NegotiationState
             r.Threshold = 0f;
-            r.Log = $"[单次检定] 手段={tactic} 技能={skill.Name} 你的等级={playerLevel:F0} 对方等级={npcLevel:F0} 献礼={offerBonus:0.00} → 成功率={r.Chance:0.00}";
+            r.Log = $"[单次检定] 手段={tactic} 技能={skill.Name} 你的等级={playerLevel:F0} 对方等级={npcLevel:F0} 献礼={offerBonus:0.00} → 成功率={r.Chance:0.00}"; // lwn-ignore: A (debug log)
 
             return r;
         }

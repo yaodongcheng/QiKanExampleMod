@@ -28,18 +28,9 @@ namespace LivingWorldNpcs
         protected override void OnSubModuleLoad()
         {
             base.OnSubModuleLoad();
-            //加载太阁的故事事件，这个mod先屏蔽
-            //但是下面的函数是教你如何在主菜单里面增加按钮
-            /*
-            TaleWorlds.MountAndBlade.Module.CurrentModule.AddInitialStateOption(new InitialStateOption("LoadStoryEvents",
-                new TextObject("LoadStoryEvents", null),
-                9990,
-                () => { LoadEvent(); InformationManager.DisplayMessage(new InformationMessage("click message Success!")); },
-                () => { return (false, null); }));
 
+            // 语言包由引擎自动扫描 Languages/ 目录加载，无需手动 LoadLocalizationXmls
 
-            LoadEvent();
-            */
             //harmony测试，屏蔽掉F的交互
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
             harmony.PatchAll( );
@@ -220,11 +211,23 @@ namespace LivingWorldNpcs
                 File.WriteAllLines(outputPath, outputLines);
 
                 // 提示用户 (Message)
-                InformationManager.DisplayMessage(new InformationMessage($"[LivingWorldNpcs] 动作已导出至: {outputPath}", Color.FromUint(0x00FF00)));
+                // 调试：动作导出成功提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // [LivingWorldNpcs] 动作已导出至: {PATH}
+                    LWNTextHelper.ResolveCompound("LWN_sys_actions_exported",
+                        "[LivingWorldNpcs] Actions exported to: {PATH}",
+                        ("PATH", outputPath)),
+                    Color.FromUint(0x00FF00)));
             }
             catch (Exception ex)
             {
-                InformationManager.DisplayMessage(new InformationMessage($"[LivingWorldNpcs] 导出失败: {ex.Message}", Color.FromUint(0xFF0000)));
+                // 调试：动作导出失败提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // [LivingWorldNpcs] 导出失败: {MESSAGE}
+                    LWNTextHelper.ResolveCompound("LWN_sys_actions_export_failed",
+                        "[LivingWorldNpcs] Export failed: {MESSAGE}",
+                        ("MESSAGE", ex.Message)),
+                    Color.FromUint(0xFF0000)));
             }
         }
 
@@ -249,16 +252,20 @@ namespace LivingWorldNpcs
                 if (myLayer == null)
                 {                    
                     
-                   InformationManager.DisplayMessage(new InformationMessage($"尝试开启自定义UI", Color.FromUint(0xFF0000)));
+                   // 调试：尝试开启自定义 UI
+                   InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_try_open", "Attempting to open custom UI"), Color.FromUint(0xFF0000)));
                    OpenMyScreen();
-                   InformationManager.DisplayMessage(new InformationMessage($"成功开启自定义UI", Color.FromUint(0xFF0000)));
+                   // 调试：自定义 UI 已开启
+                   InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_opened", "Custom UI opened"), Color.FromUint(0xFF0000)));
                                  
                 }
                 else
                 {
-                    InformationManager.DisplayMessage(new InformationMessage($"尝试关闭自定义UI", Color.FromUint(0xFF0000)));
+                    // 调试：尝试关闭自定义 UI
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_try_close", "Attempting to close custom UI"), Color.FromUint(0xFF0000)));
                     CloseMyScreen();
-                    InformationManager.DisplayMessage(new InformationMessage($"成功关闭自定义UI", Color.FromUint(0xFF0000)));
+                    // 调试：自定义 UI 已关闭
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_closed", "Custom UI closed"), Color.FromUint(0xFF0000)));
                 }
             }
 
@@ -348,7 +355,8 @@ namespace LivingWorldNpcs
         }
         private void CloseMyScreen()
         {
-            InformationManager.DisplayMessage(new InformationMessage($"监听到关闭UI事件", Color.FromUint(0xFF0000)));
+            // 调试：监听到关闭 UI 事件
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_ui_close_event", "Close UI event received"), Color.FromUint(0xFF0000)));
             if (myLayer != null) {
 
                 myLayer.ReleaseMovie(myMovie);

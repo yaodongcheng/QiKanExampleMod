@@ -112,7 +112,7 @@ namespace LivingWorldNpcs
             return dict;
         }
 
-        private string ResolveOne(string key)
+        internal string ResolveOne(string key)
         {
             var evt = Event;
             var cfg = evt?.Config;
@@ -122,8 +122,12 @@ namespace LivingWorldNpcs
             switch (key)
             {
                 // ── 🆕 NpcSpeech.csv 占位符别名（模板简写 → 标准 key）──
-                case "PLAYER": return Listener?.Name?.ToString() ?? "你";
-                case "SPEAKER": return speaker?.Name?.ToString() ?? SpeakerCharacter?.Name?.ToString() ?? "我";
+                case "PLAYER":
+                    // 玩家称呼占位符：指名道姓，无名时兜底"你"
+                    return Listener?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_pronoun_you", "you");
+                case "SPEAKER":
+                    // NPC 自称占位符：指名道姓，无名时兜底"我"
+                    return speaker?.Name?.ToString() ?? SpeakerCharacter?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_pronoun_me", "me");
                 case "SPEAKER_SELF": return ResolveOne("SpeakerSelfRef");
                 case "SPEAKER_PLAYER_ADDR": return ResolveOne("SpeakerPlayerAddr");
                 case "SPEAKER_EMOTION": return ResolveOne("SpeakerEmotion");
@@ -152,12 +156,24 @@ namespace LivingWorldNpcs
                     return Settlement.CurrentSettlement?.Name?.ToString() ?? "";
 
                 // A. 事件事实（EventConfig 级）
-                case "EventTypeName": return cfg?.DisplayName ?? "犯罪";
-                case "CrimeVerb": return cfg?.CrimeVerb ?? "做了";
-                case "CrimeVerbPast": return cfg?.CrimeVerbPast ?? "出了事";
-                case "CrimeVerbGerund": return cfg?.CrimeVerbGerund ?? "作案";
-                case "CrimeScene": return cfg?.CrimeScene ?? "现场";
-                case "VictimLabel": return cfg?.VictimLabel ?? "受害者";
+                case "EventTypeName":
+                    // 事件类型名兜底：Config 未配置时默认显示"犯罪"
+                    return cfg?.DisplayName ?? LWNTextHelper.ResolveText("LWN_ph_event_type_default", "crime");
+                case "CrimeVerb":
+                    // 罪行动词兜底（如"偷了"）
+                    return cfg?.CrimeVerb ?? LWNTextHelper.ResolveText("LWN_ph_crime_verb", "did it");
+                case "CrimeVerbPast":
+                    // 罪行动词过去式兜底（如"出了事"）
+                    return cfg?.CrimeVerbPast ?? LWNTextHelper.ResolveText("LWN_ph_crime_verb_past", "something happened");
+                case "CrimeVerbGerund":
+                    // 罪行动词动名词兜底（如"作案"）
+                    return cfg?.CrimeVerbGerund ?? LWNTextHelper.ResolveText("LWN_ph_crime_verb_gerund", "committing a crime");
+                case "CrimeScene":
+                    // 案发现场名词兜底（如"现场"）
+                    return cfg?.CrimeScene ?? LWNTextHelper.ResolveText("LWN_ph_crime_scene", "crime scene");
+                case "VictimLabel":
+                    // 受害者称谓兜底（如"受害者"）
+                    return cfg?.VictimLabel ?? LWNTextHelper.ResolveText("LWN_ph_victim_label", "victim");
                 case "AuthorityRole": return WorldEventStore.GetAuthorityRoleDisplayName(evt);
                 case "SeverityWord": return EventConfig.GetSeverityWord(evt?.Severity ?? 0);
                 case "DefaultPenalty": return (cfg?.BaseRestitutionMultiplier ?? 1).ToString();
@@ -173,10 +189,12 @@ namespace LivingWorldNpcs
                 }
                 case "DiscoveryFacts":  // 案情事实句（袭击+失窃如实还原）：发现通知/对话模板共用
                     return evt?.BuildDiscoveryFacts() ?? "";
-                case "StolenItemClause":  // 通用被盗物品从句：有物品→"，三只羊不见了"；暗杀等无物品犯罪→""
+                // 通用被盗物品从句：有物品→"，三只羊不见了"；暗杀等无物品犯罪→""
+                case "StolenItemClause":
                 {
                     var desc = ResolveOne("StolenItemDesc");
-                    return string.IsNullOrEmpty(desc) ? "" : $"，{desc}不见了";
+                    // 被盗物品从句：物品描述+“不见了”（语序由 XML 控制）
+                    return string.IsNullOrEmpty(desc) ? "" : LWNTextHelper.ResolveCompound("LWN_ph_stolen_clause", ("DESC", desc));
                 }
                 case "ActionDescription":
                     return evt?.ActionDescription ?? "";
@@ -192,32 +210,65 @@ namespace LivingWorldNpcs
                 case "DaysSinceEvent":
                     return evt != null ? ((int)((float)CampaignTime.Now.ToDays - evt.OccurredDay)).ToString() : "0";
                 case "TimeWord":
-                    if (evt == null) return "最近";
+                    // 事件距今时间词：无事件时兜底"最近"
+                    if (evt == null) return LWNTextHelper.ResolveText("LWN_ph_time_recent", "recently");
                     float diff = (float)CampaignTime.Now.ToDays - evt.OccurredDay;
-                    return diff < 0.5f ? "刚才" : diff < 1.5f ? "昨儿" : diff < 2.5f ? "前天"
-                         : diff < 4f ? "前几天" : diff < 7f ? "上周" : diff < 14f ? "前阵子"
-                         : diff < 30f ? "上个月" : "很久以前";
+                    // 半天内：刚才
+                    return diff < 0.5f ? LWNTextHelper.ResolveText("LWN_ph_time_just_now", "just now")
+                        // 一天左右：昨儿
+                         : diff < 1.5f ? LWNTextHelper.ResolveText("LWN_ph_time_yesterday", "yesterday")
+                        // 两天左右：前天
+                         : diff < 2.5f ? LWNTextHelper.ResolveText("LWN_ph_time_day_before", "day before yesterday")
+                        // 三四天：前几天
+                         : diff < 4f ? LWNTextHelper.ResolveText("LWN_ph_time_few_days_ago", "a few days ago")
+                        // 一周内：上周
+                         : diff < 7f ? LWNTextHelper.ResolveText("LWN_ph_time_last_week", "last week")
+                        // 两周内：前阵子
+                         : diff < 14f ? LWNTextHelper.ResolveText("LWN_ph_time_recently", "a while ago")
+                        // 一月内：上个月
+                         : diff < 30f ? LWNTextHelper.ResolveText("LWN_ph_time_last_month", "last month")
+                        // 更早：很久以前
+                         : LWNTextHelper.ResolveText("LWN_ph_time_long_ago", "long ago");
                 case "DaysSinceDiscovery":
                     return evt != null ? ((int)((float)CampaignTime.Now.ToDays - evt._stageEnteredDay)).ToString() : "0";
                 case "DaysRemaining":
                     if (evt == null) return "0";
                     return ((cfg?.InvestigationWindowDays ?? 7) - (int)((float)CampaignTime.Now.ToDays - evt.OccurredDay)).ToString();
                 case "InvestigationDuration":
-                    return $"查了{(evt != null ? (int)((float)CampaignTime.Now.ToDays - evt._stageEnteredDay) : 0)}天了";
+                    // 自进入调查阶段起经过的天数
+                    int invDays = evt != null ? (int)((float)CampaignTime.Now.ToDays - evt._stageEnteredDay) : 0;
+                    // 调查时长占位符：查了 N 天了（天数由 XML 变量注入）
+                    return LWNTextHelper.ResolveCompound("LWN_ph_investigation_duration",
+                        ("DAYS", invDays.ToString()));
 
                 // D. 公共认知
                 case "PublicAwarenessWord":
+                    // 公共认知度词：按认知度分五档
                     return (evt?.PublicAwareness ?? 0) switch
                     {
-                        < 0.1f => "还没人知道", < 0.2f => "私下在议论",
-                        < 0.5f => "很多人都知道了", < 0.8f => "传开了",
-                        _ => "全社会都知道了"
+                        // 认知度最低档：还没人知道
+                        < 0.1f => LWNTextHelper.ResolveText("LWN_ph_awareness_none", "nobody knows yet"),
+                        // 认知度低档：私下在议论
+                        < 0.2f => LWNTextHelper.ResolveText("LWN_ph_awareness_rumors", "people are whispering"),
+                        // 认知度中档：很多人都知道了
+                        < 0.5f => LWNTextHelper.ResolveText("LWN_ph_awareness_many_know", "many people know"),
+                        // 认知度高档：传开了
+                        < 0.8f => LWNTextHelper.ResolveText("LWN_ph_awareness_spread", "news has spread"),
+                        // 认知度最高档：全社会都知道了
+                        _ => LWNTextHelper.ResolveText("LWN_ph_awareness_everyone", "everyone knows")
                     };
                 case "InvestigationProgressWord":
+                    // 调查进度词：按进度分四档
                     return (evt?.InvestigationProgress ?? 0) switch
                     {
-                        < 0.3f => "刚开始查", < 0.6f => "正在查",
-                        < 0.9f => "快查出来了", _ => "查清楚了"
+                        // 进度低档：刚开始查
+                        < 0.3f => LWNTextHelper.ResolveText("LWN_ph_investigation_started", "just started investigating"),
+                        // 进度中低档：正在查
+                        < 0.6f => LWNTextHelper.ResolveText("LWN_ph_investigation_ongoing", "investigating"),
+                        // 进度中高档：快查出来了
+                        < 0.9f => LWNTextHelper.ResolveText("LWN_ph_investigation_close", "close to finding out"),
+                        // 进度最高档：查清楚了
+                        _ => LWNTextHelper.ResolveText("LWN_ph_investigation_clear", "investigation complete")
                     };
                 case "SuspectName":
                     if (evt == null || string.IsNullOrEmpty(evt.SuspectHeroId)) return null;
@@ -228,8 +279,11 @@ namespace LivingWorldNpcs
                 case "SuspectDescription":
                     var sn = ResolveOne("SuspectName");
                     var si = ResolveOne("SuspectIdentity");
-                    if (sn == null) return "不知道是谁";
-                    return $"{si}{sn}";
+                    // 嫌疑人身份未知时的兜底描述
+                    if (sn == null) return LWNTextHelper.ResolveText("LWN_ph_suspect_unknown", "unknown who");
+                    // 嫌疑人身份+姓名的完整描述（语序由 XML 控制）
+                    return LWNTextHelper.ResolveCompound("LWN_ph_suspect_description",
+                        ("IDENTITY", si ?? ""), ("NAME", sn ?? ""));
                 case "SuspectIsPlayer": return (evt?.SuspectIsPlayer == true).ToString().ToLower();
                 case "SuspectIsUnknown": return (evt == null || evt.SuspectHeroId == null).ToString().ToLower();
                 case "InitiatorIsPlayer": return (evt?.InitiatorIsPlayer == true).ToString().ToLower();
@@ -240,10 +294,15 @@ namespace LivingWorldNpcs
                 case "WitnessExist": return ((evt?.WitnessCount ?? 0) > 0).ToString().ToLower();
                 case "WitnessCount": return (evt?.WitnessCount ?? 0).ToString();
                 case "WitnessCountWord":
+                    // 目击人数词：0/1/多 三档
                     return (evt?.WitnessCount ?? 0) switch
                     {
-                        0 => "没人看见", 1 => "有一个人看见了",
-                        _ => $"有{evt.WitnessCount}个人看见了"
+                        // 无目击者
+                        0 => LWNTextHelper.ResolveText("LWN_ph_witness_none", "nobody saw"),
+                        // 一名目击者
+                        1 => LWNTextHelper.ResolveText("LWN_ph_witness_one", "one person saw it"),
+                        // 多名目击者（人数由 XML 变量控制）
+                        _ => LWNTextHelper.ResolveCompound("LWN_ph_witness_multi", ("COUNT", evt.WitnessCount.ToString()))
                     };
                 case "PrimaryWitnessName":
                     var firstW = evt?.WitnessHeroIds?.FirstOrDefault();
@@ -254,7 +313,11 @@ namespace LivingWorldNpcs
                 case "PrimaryWitnessDesc":
                     var pwn = ResolveOne("PrimaryWitnessName");
                     var pwi = ResolveOne("PrimaryWitnessIdentity");
-                    return string.IsNullOrEmpty(pwn) ? "" : $"{pwi}{pwn}";
+                    // 无名目击者不输出描述
+                    if (string.IsNullOrEmpty(pwn)) return "";
+                    // 目击者身份+姓名的完整描述（语序由 XML 控制）
+                    return LWNTextHelper.ResolveCompound("LWN_ph_witness_description",
+                        ("IDENTITY", pwi ?? ""), ("NAME", pwn));
                 case "WitnessesSilenced": return (evt?.WitnessesSilenced == true).ToString().ToLower();
                 case "EvidenceExist": return ((evt?.EvidenceList?.Count ?? 0) > 0).ToString().ToLower();
                 case "EvidenceCount": return (evt?.EvidenceList?.Count ?? 0).ToString();
@@ -265,26 +328,52 @@ namespace LivingWorldNpcs
                 case "SpeakerName": return speaker?.Name?.ToString() ?? SpeakerCharacter?.Name?.ToString() ?? "";
                 case "SpeakerIdentity": return AttitudeSystem.GetSocialIdentity(speaker);
                 case "SpeakerRole":
-                    return speaker != null && AttitudeSystem.ComputeStance(speaker, evt).WillAct > -1
-                        ? WorldEventStore.GetAuthorityRoleDisplayName(evt) : "村民";
+                    // 说话者身份角色：有行动意愿的权威显示职权名，否则兜底"村民"
+                    if (speaker != null && AttitudeSystem.ComputeStance(speaker, evt).WillAct > -1)
+                        return WorldEventStore.GetAuthorityRoleDisplayName(evt);
+                    // 非权威 NPC 的兜底身份：村民
+                    return LWNTextHelper.ResolveText("LWN_ph_role_villager", "villager");
                 case "SpeakerSelfRef": return AttitudeSystem.GetSelfReference(speaker);
                 case "SpeakerPlayerAddr": return AttitudeSystem.GetPlayerAddress(speaker);
                 case "SpeakerEmotion":
-                    return stance.Outrage > 0.7f ? "愤怒" : stance.Outrage > 0.3f ? "焦虑"
-                         : stance.Fear > 0.5f ? "畏惧" : stance.SelfInterest > 0.4f ? "意味深长"
-                         : stance.Sympathy < -0.3f ? "温和" : "冷淡";
+                    // 说话者情绪词：按愤怒/恐惧/利益/同情四维分档
+                    return stance.Outrage > 0.7f ? LWNTextHelper.ResolveText("LWN_ph_emotion_angry", "angry")
+                        // 愤怒中等：焦虑
+                         : stance.Outrage > 0.3f ? LWNTextHelper.ResolveText("LWN_ph_emotion_anxious", "anxious")
+                        // 恐惧高：畏惧
+                         : stance.Fear > 0.5f ? LWNTextHelper.ResolveText("LWN_ph_emotion_fearful", "fearful")
+                        // 有利益诉求：意味深长
+                         : stance.SelfInterest > 0.4f ? LWNTextHelper.ResolveText("LWN_ph_emotion_meaningful", "meaningful")
+                        // 同情高：温和
+                         : stance.Sympathy < -0.3f ? LWNTextHelper.ResolveText("LWN_ph_emotion_gentle", "gentle")
+                        // 默认：冷淡
+                         : LWNTextHelper.ResolveText("LWN_ph_emotion_cold", "cold");
                 case "SpeakerAttitudeWord":
+                    // 说话者态度词：按对玩家的态度枚举分档
                     return stance.TowardActor switch
                     {
-                        Attitude.Sympathetic => "同情", Attitude.Understanding => "理解",
-                        Attitude.Neutral => "无所谓", Attitude.Disapproving => "不赞同",
-                        Attitude.Angry => "愤怒", Attitude.Vengeful => "仇恨", _ => "平静"
+                        // 态度：同情
+                        Attitude.Sympathetic => LWNTextHelper.ResolveText("LWN_ph_attitude_sympathetic", "sympathetic"),
+                        // 态度：理解
+                        Attitude.Understanding => LWNTextHelper.ResolveText("LWN_ph_attitude_understanding", "understanding"),
+                        // 态度：无所谓
+                        Attitude.Neutral => LWNTextHelper.ResolveText("LWN_ph_attitude_neutral", "indifferent"),
+                        // 态度：不赞同
+                        Attitude.Disapproving => LWNTextHelper.ResolveText("LWN_ph_attitude_disapproving", "disapproving"),
+                        // 态度：愤怒（复用情绪词 key）
+                        Attitude.Angry => LWNTextHelper.ResolveText("LWN_ph_emotion_angry", "angry"),
+                        // 态度：仇恨
+                        Attitude.Vengeful => LWNTextHelper.ResolveText("LWN_ph_attitude_vengeful", "vengeful"),
+                        // 默认态度：平静
+                        _ => LWNTextHelper.ResolveText("LWN_ph_attitude_calm", "calm")
                     };
                 case "SpeakerIsAuthority":
                     return WorldEventStore.GetAuthorityNpc(evt) == speaker ? "true" : "false";
 
                 // G. 听者
-                case "ListenerName": return Listener?.Name?.ToString() ?? "你";
+                case "ListenerName":
+                    // 听者称呼占位符：指名道姓，无名时兜底"你"
+                    return Listener?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_pronoun_you", "you");
                 case "ListenerIdentity": return AttitudeSystem.GetSocialIdentity(Listener);
                 case "ListenerIsThief": return (evt?.InitiatorId == Hero.MainHero?.StringId).ToString().ToLower();
                 case "ListenerIsSuspect": return (evt?.SuspectHeroId == Hero.MainHero?.StringId).ToString().ToLower();
@@ -293,10 +382,14 @@ namespace LivingWorldNpcs
                 // G2. 对峙收尾（按 NPC 当前态度选不同的最后一句）
                 case "ConfrontClosingLine":
                     string selfRef = AttitudeSystem.GetSelfReference(speaker);
-                    return stance.Outrage > 0.7f ? $"……"
-                         : stance.Outrage > 0.3f ? "这事没完。你好自为之。"
-                         : stance.Fear > 0.5f ? "……你走吧。别再来了。"
-                         : $"{selfRef}话说到了。你自己掂量吧。";
+                    // 对峙收尾句：按 NPC 态度分四档（沉默/未了/驱赶/警告）
+                    return stance.Outrage > 0.7f ? LWNTextHelper.ResolveText("LWN_ph_closing_silence", "...")
+                        // 中度愤怒：事情没完
+                         : stance.Outrage > 0.3f ? LWNTextHelper.ResolveText("LWN_ph_closing_unfinished", "This isn't over. Watch yourself.")
+                        // 高度恐惧：驱赶玩家
+                         : stance.Fear > 0.5f ? LWNTextHelper.ResolveText("LWN_ph_closing_leave", "...Just go. Don't come back.")
+                        // 默认：警告式收尾（自称由 XML 变量控制）
+                         : LWNTextHelper.ResolveCompound("LWN_ph_closing_warned", ("SELF_REF", selfRef ?? ""));
 
                 // H. 选项参数
                 case "RestitutionCost": return (evt != null ? CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution) : 0).ToString();

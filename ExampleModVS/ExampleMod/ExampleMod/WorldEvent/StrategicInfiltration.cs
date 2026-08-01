@@ -76,7 +76,8 @@ namespace LivingWorldNpcs
             _records[hero.StringId] = new InfiltrationRecord
             {
                 HeroId = hero.StringId,
-                HeroName = hero.Name?.ToString() ?? "无名",
+                // 叛变对象名兜底：无名
+                HeroName = hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_infiltration_unnamed", "Unknown"),
                 Status = InfiltrationStatus.Available,
                 RelatedEventId = eventId,
             };

@@ -29,10 +29,14 @@ namespace LivingWorldNpcs
                                && !string.IsNullOrWhiteSpace(LLMModel);
 
         // ── 世界观 flavor（硬编码卡拉迪亚默认，供 Mod B 代码覆盖）──
-        public string WorldDescription { get; set; } = "骑马与砍杀2 卡拉迪亚中世纪世界";
-        public string EraDescription { get; set; } = "中世纪卡拉迪亚大陆";
-        public string SpeechStyle { get; set; } = "风格口语化、符合中世纪背景。不要使用现代网络用语。";
-        public string WarriorTerms { get; set; } = "使用\"大人\"、\"爵士\"等符合中世纪语境的词汇。";
+        // 世界观描述默认值：通用卡拉迪亚中世纪世界
+        public string WorldDescription { get; set; } = LWNTextHelper.ResolveText("LWN_config_world_description", "Mount & Blade II: Calradia medieval world");
+        // 时代描述默认值：中世纪卡拉迪亚大陆
+        public string EraDescription { get; set; } = LWNTextHelper.ResolveText("LWN_config_era_description", "Medieval Calradia");
+        // 说话风格默认值：口语化、贴合中世纪背景，禁用现代网络用语
+        public string SpeechStyle { get; set; } = LWNTextHelper.ResolveText("LWN_config_speech_style", "Speak in a colloquial style fitting the medieval setting. Do not use modern internet slang.");
+        // 称谓用语默认值：使用"大人"、"爵士"等中世纪语境词汇
+        public string WarriorTerms { get; set; } = LWNTextHelper.ResolveText("LWN_config_warrior_terms", "Use terms like \"my lord\" and \"sir\" appropriate to the medieval setting.");
         public string FemaleSelfAddress { get; set; } = "";
 
         // ── 目击系统开关（默认开启，关掉后偷窃/犯罪不会被目击）──

@@ -94,8 +94,10 @@ namespace LivingWorldNpcs
                 //基于数量来生成不同的提示文本
                 string summary = count switch
                 {
-                    1 => $"你靠近了{settlement.Name}——这里正面临{types[0]}的威胁。",
-                    _ => $"你靠近了{settlement.Name}——这里同时面临{string.Join("、", types)}等多重危机。这个村子正在崩溃边缘。"
+                    // 靠近提示：单事件
+                    1 => LWNTextHelper.ResolveCompound("LWN_director_approach_single", ("LOC", settlement.Name.ToString()), ("TYPE", types[0])),
+                    // 靠近提示：多事件叠加
+                    _ => LWNTextHelper.ResolveCompound("LWN_director_approach_multi", ("LOC", settlement.Name.ToString()), ("TYPES", string.Join("、", types)))
                 };
 
                 // 冷却检查：触发过提示之后短时间内不重复触发
@@ -124,35 +126,64 @@ namespace LivingWorldNpcs
                 bool impending = selected.Phase == WorldEventPhase.Impending;
                 string msg = selected.Type switch
                 {
+                    // 路途拦截：匪患
                     EventType.BanditRaid =>
-                        $"一个从{selected.TargetSettlement?.Name?.ToString() ?? "村庄"}逃出来的村民拦住了你——匪徒正在劫掠他们的家园！",
+                        // 一个从{LOC}逃出来的村民拦住了你——匪徒正在劫掠他们的家园！
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_banditraid", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_village", "Village"))),
+                    // 路途拦截：绑架
                     EventType.Kidnapping =>
-                        $"一位母亲跪在你面前——她的孩子被可疑人士盯上了。她指向{selected.TargetSettlement?.Name?.ToString() ?? "村子"}方向：'他们这几天一直在附近转悠！'",
+                        // 一位母亲跪在你面前——她的孩子被可疑人士盯上了。她指向{LOC}方向：'他...
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_kidnapping", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_village", "Village"))),
+                    // 路途拦截：饥荒
                     EventType.Famine =>
-                        $"一个面黄肌瘦的村民拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "村子"}断粮了，老人孩子撑不了多久了。",
+                        // 一个面黄肌瘦的村民拦住了你——{LOC}断粮了，老人孩子撑不了多久了。
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_famine", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_village", "Village"))),
+                    // 路途拦截：背叛
                     EventType.Betrayal =>
-                        $"一个神色慌张的人拦在你面前——他压低声音说{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}有人暗中联络外人，'还被蒙在鼓里……'",
+                        // 一个神色慌张的人拦在你面前——他压低声音说{LOC}有人暗中联络外人，'还...
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_betrayal", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截：债务陷阱
                     EventType.DebtTrap =>
-                        $"一个老人跪在你面前——债主今天就要收走他的地契。全家都要被赶出家门了。",
+                        // 一个老人跪在你面前——债主今天就要收走他的地契。全家都要被赶出家门了。
+                        LWNTextHelper.ResolveText("LWN_director_intercept_debttrap", "An old man kneels before you — the creditor comes today to take his deed. His whole family is about to be thrown out."),
+                    // 路途拦截：暗杀（酝酿中）
                     EventType.Assassination => impending
-                        ? $"一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}方向过来的旅人低声告诉你：镇上来了几个生面孔，到处打听事。他觉得不对劲。"
-                        : $"你遇到了一个从{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}逃出来的人——他说有人被刺杀了，现在镇上谁也不敢出门。",
+                        // 一个从{LOC}方向过来的旅人低声告诉你：镇上来了几个生面孔，到处打听事。...
+                        ? LWNTextHelper.ResolveCompound("LWN_director_intercept_assassination_impending", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere")))
+                        // 路途拦截：暗杀（已发生）
+                        : LWNTextHelper.ResolveCompound("LWN_director_intercept_assassination_done", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截：逃犯
                     EventType.Fugitive =>
-                        $"路边藏着一个人——他自称是被冤枉的，追捕他的人就在不远。他是逃犯还是无辜者？",
+                        // 路边藏着一个人——他自称是被冤枉的，追捕他的人就在不远。他是逃犯还是无辜者？
+                        LWNTextHelper.ResolveText("LWN_director_intercept_fugitive", "Someone is hiding by the roadside — he claims he is innocent, and his pursuers are not far. Fugitive, or innocent man?"),
+                    // 路途拦截：贵族冲突
                     EventType.NobleConflict =>
-                        $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！",
+                        // 前方{LOC}边境烟尘滚滚——两支军队剑拔弩张，战争一触即发！
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_nobleconflict", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截：圣物失窃（酝酿中）
                     EventType.SacredTheft => impending
-                        ? $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}最近来了不少生人，到处打听祖祠的位置。老人觉得不对劲，怕是冲着圣物来的。"
-                        : $"一个老人拦住了你——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的圣物被人盗走了！那是他们宗族的命根子……",
+                        // 一个老人拦住了你——{LOC}最近来了不少生人，到处打听祖祠的位置。老人觉...
+                        ? LWNTextHelper.ResolveCompound("LWN_director_intercept_sacredtheft_impending", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere")))
+                        // 路途拦截：圣物失窃（已被盗）
+                        : LWNTextHelper.ResolveCompound("LWN_director_intercept_sacredtheft_done", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截：情仇
                     EventType.RomanticConflict =>
-                        $"一个年轻人请求你的帮助——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}有人为情所困，两家人的脸面都挂不住了。",
+                        // 一个年轻人请求你的帮助——{LOC}有人为情所困，两家人的脸面都挂不住了。
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_romantic", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截：冤案
                     EventType.FalseAccusation =>
-                        $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}有冤案——一个无辜的人就要被定罪了，时间不多了！",
+                        // 前方{LOC}有冤案——一个无辜的人就要被定罪了，时间不多了！
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_falseaccusation", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截：继承争端
                     EventType.InheritanceDispute =>
-                        $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}的老族长走了——继承人们已经撕破脸，怕是收不了场。",
+                        // 前方{LOC}的老族长走了——继承人们已经撕破脸，怕是收不了场。
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_inheritance", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截：贸易争端
                     EventType.TradeDispute =>
-                        $"你遇到了一个破产的商人——{selected.TargetSettlement?.Name?.ToString() ?? "某地"}的市场被人垄断，小商人们活不下去了。",
-                    _ => $"前方{selected.TargetSettlement?.Name?.ToString() ?? "定居点"}出事了——有人向你求救。"
+                        // 你遇到了一个破产的商人——{LOC}的市场被人垄断，小商人们活不下去了。
+                        LWNTextHelper.ResolveCompound("LWN_director_intercept_tradedispute", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere"))),
+                    // 路途拦截兜底
+                    _ => LWNTextHelper.ResolveCompound("LWN_director_intercept_default", ("LOC", selected.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere")))
                 };
 
                 if (selected.Severity >= 60)
@@ -196,21 +227,36 @@ namespace LivingWorldNpcs
         {
             return type switch
             {
-                EventType.BanditRaid => "匪患",
-                EventType.Kidnapping => "绑架",
-                EventType.Famine => "饥荒",
-                EventType.Betrayal => "背叛",
-                EventType.DebtTrap => "债务危机",
-                EventType.RomanticConflict => "情仇",
-                EventType.FalseAccusation => "冤案",
-                EventType.InheritanceDispute => "继承争端",
-                EventType.Fugitive => "逃犯",
-                EventType.TradeDispute => "贸易争端",
-                EventType.NobleConflict => "贵族冲突",
-                EventType.SacredTheft => "圣物失窃",
-                EventType.Assassination => "暗杀",
-                EventType.NemesisRevenge => "宿敌来袭",
-                _ => "不明事件"
+                // 事件类型简称：匪患
+                EventType.BanditRaid => LWNTextHelper.ResolveText("LWN_director_type_banditraid", "Bandit raid"),
+                // 事件类型简称：绑架
+                EventType.Kidnapping => LWNTextHelper.ResolveText("LWN_director_type_kidnapping", "Kidnapping"),
+                // 事件类型简称：饥荒
+                EventType.Famine => LWNTextHelper.ResolveText("LWN_director_type_famine", "Famine"),
+                // 事件类型简称：背叛
+                EventType.Betrayal => LWNTextHelper.ResolveText("LWN_director_type_betrayal", "Betrayal"),
+                // 事件类型简称：债务危机
+                EventType.DebtTrap => LWNTextHelper.ResolveText("LWN_director_type_debttrap", "Debt crisis"),
+                // 事件类型简称：情仇
+                EventType.RomanticConflict => LWNTextHelper.ResolveText("LWN_director_type_romantic", "Love feud"),
+                // 事件类型简称：冤案
+                EventType.FalseAccusation => LWNTextHelper.ResolveText("LWN_director_type_falseacc", "False accusation"),
+                // 事件类型简称：继承争端
+                EventType.InheritanceDispute => LWNTextHelper.ResolveText("LWN_director_type_inheritance", "Inheritance dispute"),
+                // 事件类型简称：逃犯
+                EventType.Fugitive => LWNTextHelper.ResolveText("LWN_director_type_fugitive", "Fugitive"),
+                // 事件类型简称：贸易争端
+                EventType.TradeDispute => LWNTextHelper.ResolveText("LWN_director_type_tradedispute", "Trade dispute"),
+                // 事件类型简称：贵族冲突
+                EventType.NobleConflict => LWNTextHelper.ResolveText("LWN_director_type_nobleconflict", "Noble conflict"),
+                // 事件类型简称：圣物失窃
+                EventType.SacredTheft => LWNTextHelper.ResolveText("LWN_director_type_sacredtheft", "Sacred relic theft"),
+                // 事件类型简称：暗杀
+                EventType.Assassination => LWNTextHelper.ResolveText("LWN_director_type_assassination", "Assassination"),
+                // 事件类型简称：宿敌来袭
+                EventType.NemesisRevenge => LWNTextHelper.ResolveText("LWN_director_type_nemesis", "Nemesis strikes"),
+                // 事件类型简称兜底：不明事件
+                _ => LWNTextHelper.ResolveText("LWN_director_type_unknown", "Unknown event")
             };
         }
 
@@ -242,8 +288,10 @@ namespace LivingWorldNpcs
                     .FirstOrDefault();
                 if (recentResolved != null)
                 {
-                    string loc = recentResolved.TargetSettlement?.Name?.ToString() ?? "某地";
-                    return $"听说{loc}那边的事已经平息了——多亏有人出手。";
+                    // 地点名兜底：某地
+                    string loc = recentResolved.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere");
+                    // 传闻：近期事件已平息
+                    return LWNTextHelper.ResolveCompound("LWN_director_rumor_resolved", ("LOC", loc));
                 }
                 return null;
             }
@@ -278,31 +326,52 @@ namespace LivingWorldNpcs
                 return csvText;
 
             // 兜底硬编码
-            string location = evt.TargetSettlement?.Name?.ToString() ?? "某地";
-            string target = evt.TargetHero?.Name?.ToString() ?? "村民";
+            // 地点名兜底：某地
+            string location = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere");
+            // 受害者名兜底：村民
+            string target = evt.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_villager", "a villager");
             bool impending = evt.Phase == WorldEventPhase.Impending;
 
             return evt.Type switch
             {
-                EventType.BanditRaid => $"听说{location}遭了匪……百姓夜里都不敢出门。",
-                EventType.Kidnapping => $"听说{location}有人被绑了……家里人急得团团转。",
-                EventType.Famine => $"听说{location}粮食见底了……再这样下去要饿死人。",
-                EventType.Betrayal => $"听说{location}出了内鬼……自己人捅了自己人一刀。",
-                EventType.DebtTrap => $"听说{location}有人被债主逼得走投无路……",
-                EventType.RomanticConflict => $"听说{location}有人为情决斗……啧啧。",
-                EventType.FalseAccusation => $"听说{location}有人被冤枉了……真凶还在逍遥法外。",
-                EventType.InheritanceDispute => $"听说{location}的老爷子走了……儿子们为遗产打起来了。",
-                EventType.Fugitive => $"听说{location}附近藏了个逃犯……追捕的人悬了重赏。",
-                EventType.TradeDispute => $"听说{location}的商人闹起来了……这生意不好做啊。",
-                EventType.NobleConflict => $"听说{location}的领主和对面起了摩擦……怕是要打。",
+                // 酒馆传闻：匪患
+                EventType.BanditRaid => LWNTextHelper.ResolveCompound("LWN_director_rumor_banditraid", ("LOC", location)),
+                // 酒馆传闻：绑架
+                EventType.Kidnapping => LWNTextHelper.ResolveCompound("LWN_director_rumor_kidnapping", ("LOC", location)),
+                // 酒馆传闻：饥荒
+                EventType.Famine => LWNTextHelper.ResolveCompound("LWN_director_rumor_famine", ("LOC", location)),
+                // 酒馆传闻：背叛
+                EventType.Betrayal => LWNTextHelper.ResolveCompound("LWN_director_rumor_betrayal", ("LOC", location)),
+                // 酒馆传闻：债务陷阱
+                EventType.DebtTrap => LWNTextHelper.ResolveCompound("LWN_director_rumor_debttrap", ("LOC", location)),
+                // 酒馆传闻：情仇
+                EventType.RomanticConflict => LWNTextHelper.ResolveCompound("LWN_director_rumor_romantic", ("LOC", location)),
+                // 酒馆传闻：冤案
+                EventType.FalseAccusation => LWNTextHelper.ResolveCompound("LWN_director_rumor_falseaccusation", ("LOC", location)),
+                // 酒馆传闻：继承争端
+                EventType.InheritanceDispute => LWNTextHelper.ResolveCompound("LWN_director_rumor_inheritance", ("LOC", location)),
+                // 酒馆传闻：逃犯
+                EventType.Fugitive => LWNTextHelper.ResolveCompound("LWN_director_rumor_fugitive", ("LOC", location)),
+                // 酒馆传闻：贸易争端
+                EventType.TradeDispute => LWNTextHelper.ResolveCompound("LWN_director_rumor_tradedispute", ("LOC", location)),
+                // 酒馆传闻：贵族冲突
+                EventType.NobleConflict => LWNTextHelper.ResolveCompound("LWN_director_rumor_nobleconflict", ("LOC", location)),
+                // 酒馆传闻：圣物失窃（外乡人出没）
                 EventType.SacredTheft => impending
-                    ? $"听说{location}最近来了不少外乡人……神神秘秘的，说是跟当地的圣物有关。"
-                    : $"听说{location}的传家宝被人偷了……这是要断人家的根啊。",
+                    // 听说{LOC}最近来了不少外乡人……神神秘秘的，说是跟当地的圣物有关。
+                    ? LWNTextHelper.ResolveCompound("LWN_director_rumor_sacredtheft_impending", ("LOC", location))
+                    // 酒馆传闻：圣物失窃（传家宝被偷）
+                    : LWNTextHelper.ResolveCompound("LWN_director_rumor_sacredtheft_done", ("LOC", location)),
+                // 酒馆传闻：暗杀（暗中活动）
                 EventType.Assassination => impending
-                    ? $"听说{location}不太平……有人在暗中活动，怕是冲着有头有脸的人物去的。"
-                    : $"听说{location}有重要人物被刺杀了……人心惶惶。",
-                EventType.NemesisRevenge => $"听说有人在找你……那道疤还在疼。",
-                _ => $"听说{location}那边不太平……"
+                    // 听说{LOC}不太平……有人在暗中活动，怕是冲着有头有脸的人物去的。
+                    ? LWNTextHelper.ResolveCompound("LWN_director_rumor_assassination_impending", ("LOC", location))
+                    // 酒馆传闻：暗杀（重要人物被刺）
+                    : LWNTextHelper.ResolveCompound("LWN_director_rumor_assassination_done", ("LOC", location)),
+                // 酒馆传闻：宿敌复仇
+                EventType.NemesisRevenge => LWNTextHelper.ResolveText("LWN_director_rumor_nemesis", "They say someone is looking for you... that scar still aches."),
+                // 酒馆传闻兜底
+                _ => LWNTextHelper.ResolveCompound("LWN_director_rumor_default", ("LOC", location))
             };
         }
 
@@ -318,8 +387,10 @@ namespace LivingWorldNpcs
                 var result = NarrativeResolver.Resolve(filters);
                 if (result != null && !NarrativeResolver.IsFallbackText(result.Text))
                 {
-                    string loc = evt.TargetSettlement?.Name?.ToString() ?? "某地";
-                    string target = evt.TargetHero?.Name?.ToString() ?? "某人";
+                    // 地点名兜底：某地
+                    string loc = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere");
+                    // 目标名兜底：某人
+                    string target = evt.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_someone", "someone");
                     return result.Text.Replace("{LOCATION}", loc).Replace("{TARGET}", target);
                 }
             }
@@ -400,28 +471,29 @@ namespace LivingWorldNpcs
         {
             try
             {
-                string world = "卡拉迪亚";
-                try { world = Settings.Instance?.WorldDescription ?? "卡拉迪亚"; } catch { }
+                // 世界名兜底：卡拉迪亚
+                string world = LWNTextHelper.ResolveText("LWN_director_world_name", "Calradia");
+                // 卡拉迪亚
+                try { world = Settings.Instance?.WorldDescription ?? LWNTextHelper.ResolveText("LWN_director_world_name", "Calradia"); } catch { }
 
-                // 简短摘要（hover 显示，一行）
-                string shortSummary = $"踏上了{world}的土地";
+                // 简短摘要（hover 显示，一行）：踏上了{世界}的土地
+                string shortSummary = LWNTextHelper.ResolveCompound("LWN_director_welcome_short", ("WORLD", world));
 
                 // 完整欢迎信（点击后 Inquiry 显示）
-                string fullBody =
-                    $"踏上了{world}的土地，风吹过旷野——但这片土地并不平静。\n\n" +
-                    $"每一天，都有人在为生存挣扎：匪患、饥荒、背叛、冤案……\n" +
-                    $"留意酒馆里的闲谈，注意路上的求救——\n" +
-                    $"这个世界，需要你。";
+                // 欢迎信正文
+                string fullBody = LWNTextHelper.ResolveCompound("LWN_director_welcome_body", ("WORLD", world));
 
                 NinjaNotificationManager.Show(shortSummary, () =>
                 {
                     InformationManager.ShowInquiry(new InquiryData(
-                        $"欢迎来到{world}",
+                        // 欢迎弹窗标题：欢迎来到{世界}
+                        LWNTextHelper.ResolveCompound("LWN_director_welcome_title", ("WORLD", world)),
                         fullBody,
                         false,
                         true,
                         "",
-                        "我知道了",
+                        // 欢迎弹窗按钮：我知道了
+                        LWNTextHelper.ResolveText("LWN_director_welcome_ok", "I understand"),
                         null,
                         () => { })); // 关闭即可
                 });
@@ -442,25 +514,31 @@ namespace LivingWorldNpcs
                 var activeEvents = WorldEventStore.ActiveEvents;
                 if (activeEvents.Count == 0) return;
 
-                string playerName = Hero.MainHero?.Name?.ToString() ?? "旅人";
+                // 玩家名兜底：旅人
+                string playerName = Hero.MainHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_traveler", "Traveler");
 
                 if (activeEvents.Count == 1)
                 {
                     var evt = activeEvents[0];
-                    string loc = evt.TargetSettlement?.Name?.ToString() ?? "某地";
+                    // 地点名兜底：某地
+                    string loc = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere");
                     string typeName = EventTypeShortName(evt.Type);
-                    string msg = $"📜 {playerName}，有一件事你需要知道——{loc}{typeName}。";
+                    // 世界摘要（单事件）：📜 {玩家}，有一件事你需要知道——{地点}{类型}
+                    string msg = LWNTextHelper.ResolveCompound("LWN_director_digest_single", ("PLAYER", playerName), ("LOC", loc), ("TYPE", typeName));
                     InformationManager.DisplayMessage(new InformationMessage(msg));
                 }
                 else
                 {
                     var summaries = activeEvents.Take(5).Select(e =>
                     {
-                        string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
+                        // 某地
+                        string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_place", "Somewhere");
                         string type = EventTypeShortName(e.Type);
-                        return $"  • {loc}：{type}（严重度 {e.Severity}/10）";
+                        // 世界摘要条目：  • {地点}：{类型}（严重度 {N}/10）
+                        return LWNTextHelper.ResolveCompound("LWN_director_digest_item", ("LOC", loc), ("TYPE", type), ("SEV", e.Severity.ToString()));
                     });
-                    string header = $"📜 世界动态——{activeEvents.Count} 起事件正在发生：";
+                    // 世界摘要标题：📜 世界动态——{N} 起事件正在发生
+                    string header = LWNTextHelper.ResolveCompound("LWN_director_digest_header", ("COUNT", activeEvents.Count.ToString()));
                     string fullMsg = header + "\n" + string.Join("\n", summaries);
                     InformationManager.DisplayMessage(new InformationMessage(fullMsg));
                 }
@@ -493,7 +571,8 @@ namespace LivingWorldNpcs
                 string rumor = BuildRumorText(selected);
                 if (!string.IsNullOrEmpty(rumor))
                 {
-                    string prefix = "🗣 酒馆里有人在议论：\"";
+                    // 酒馆传闻前缀：🗣 酒馆里有人在议论："{传闻}"
+                    string prefix = LWNTextHelper.ResolveText("LWN_director_tavern_prefix", "🗣 Someone in the tavern is murmuring: \"");
                     InformationManager.DisplayMessage(new InformationMessage(prefix + rumor + "\""));
                 }
             }
@@ -560,9 +639,12 @@ namespace LivingWorldNpcs
                 var result = NarrativeResolver.Resolve(filters);
                 if (result != null && !NarrativeResolver.IsFallbackText(result.Text))
                 {
-                    string name = npc.Name?.ToString() ?? "陌生人";
+                    // NPC 名兜底：陌生人
+                    string name = npc.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_stranger", "stranger");
+                    // 玩家名兜底：你
                     return result.Text.Replace("{NPC_NAME}", name)
-                                       .Replace("{PLAYER}", Hero.MainHero.Name?.ToString() ?? "你");
+                                       // 你
+                                       .Replace("{PLAYER}", Hero.MainHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_you", "you"));
                 }
             }
             catch { }
@@ -578,16 +660,21 @@ namespace LivingWorldNpcs
             float renown = Hero.MainHero.Clan?.Renown ?? 0f;
             int trust = TrustSystem.GetTrust(npc);
 
-            string npcName = npc.Name?.ToString() ?? "某人";
-            string playerName = Hero.MainHero.Name?.ToString() ?? "你";
+            // NPC 名兜底：某人
+            string npcName = npc.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_someone", "someone");
+            // 玩家名兜底：你
+            string playerName = Hero.MainHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_you", "you");
 
             // ── 1. 高声望：路人皆知 ──
             if (renown > 500 && MBRandom.RandomFloat < 0.4f)
             {
                 string[] famous = new[] {
-                    $"久仰大名——没想到{playerName}会到这儿来。",
-                    $"你就是{playerName}？传闻果然不虚……有何贵干？",
-                    $"天哪，是{playerName}本人！小的有什么能为您效劳的？",
+                    // 开场白：久仰大名
+                    LWNTextHelper.ResolveCompound("LWN_director_opening_famous_1", ("PLAYER", playerName)),
+                    // 开场白：传闻果然不虚
+                    LWNTextHelper.ResolveCompound("LWN_director_opening_famous_2", ("PLAYER", playerName)),
+                    // 开场白：本人亲临
+                    LWNTextHelper.ResolveCompound("LWN_director_opening_famous_3", ("PLAYER", playerName)),
                 };
                 return famous[MBRandom.RandomInt(0, famous.Length)];
             }
@@ -597,29 +684,40 @@ namespace LivingWorldNpcs
 
             if (warmth >= 40)
             {
-                // 热情
+                // 热情（高信任）
                 string[] warm = trust >= 60 ? new[] {
-                    $"大人来了！您交代的事我一直记着。有什么吩咐？",
-                    $"{playerName}大人！见到您真好——有什么能为您效劳？",
-                    $"您来了啊——上次的事还没好好谢您。请说，什么事？",
+                    // 开场白：热情且信任
+                    LWNTextHelper.ResolveText("LWN_director_opening_warm_trust_1", "My lord is here! I have kept in mind everything you entrusted me with. What do you need?"),
+                    // 开场白：热情且信任（呼名）
+                    LWNTextHelper.ResolveCompound("LWN_director_opening_warm_trust_2", ("PLAYER", playerName)),
+                    // 开场白：热情且信任（旧恩未报）
+                    LWNTextHelper.ResolveText("LWN_director_opening_warm_trust_3", "You've come! I never properly thanked you for last time. Tell me, what is it?"),
                 } : new[] {
-                    $"您来了……虽然咱们交情不算深，但我敬您是条汉子。",
-                    $"哦，{playerName}。听说您在这一带名声不错。请说吧。",
-                    $"是您啊。请说。",
+                    // 开场白：热情但交情不深
+                    LWNTextHelper.ResolveText("LWN_director_opening_warm_1", "You've come... we don't know each other well, but I respect a man of your kind."),
+                    // 开场白：热情但交情不深（名声不错）
+                    LWNTextHelper.ResolveCompound("LWN_director_opening_warm_2", ("PLAYER", playerName)),
+                    // 开场白：热情但交情不深（请说）
+                    LWNTextHelper.ResolveText("LWN_director_opening_warm_3", "It's you. Speak."),
                 };
                 return warm[MBRandom.RandomInt(0, warm.Length)];
             }
 
             if (warmth <= -30)
             {
-                // 冷淡/敌意
+                // 冷淡/敌意（欠人情）
                 string[] cold = trust >= 50 ? new[] {
-                    $"你来了。虽然我不喜欢你——但我欠你人情，说吧。",
-                    $"……看在上次帮过我的份上，说吧，什么事。",
+                    // 开场白：冷淡但欠人情
+                    LWNTextHelper.ResolveText("LWN_director_opening_cold_trust_1", "You're here. I don't like you — but I owe you. Speak."),
+                    // 开场白：冷淡但欠人情（看在旧情）
+                    LWNTextHelper.ResolveText("LWN_director_opening_cold_trust_2", "...For the help you gave me before, I'll hear you out. What is it?"),
                 } : new[] {
-                    $"……什么事。",
-                    $"你想干什么？",
-                    $"哼。又是你。有话快说。",
+                    // 开场白：冷淡敌意（什么事）
+                    LWNTextHelper.ResolveText("LWN_director_opening_cold_1", "...What is it?"),
+                    // 开场白：冷淡敌意（你想干什么）
+                    LWNTextHelper.ResolveText("LWN_director_opening_cold_2", "What do you want?"),
+                    // 开场白：冷淡敌意（又是你）
+                    LWNTextHelper.ResolveText("LWN_director_opening_cold_3", "Hmph. You again. Out with it."),
                 };
                 return cold[MBRandom.RandomInt(0, cold.Length)];
             }
@@ -628,9 +726,12 @@ namespace LivingWorldNpcs
             if (npc.Occupation == Occupation.GangLeader)
             {
                 string[] gang = new[] {
-                    $"想做什么买卖？",
-                    $"有胆量来找我的人不多。说吧，什么事？",
-                    $"你是来谈生意的，还是来找麻烦的？",
+                    // 开场白：帮派头目（什么买卖）
+                    LWNTextHelper.ResolveText("LWN_director_opening_gang_1", "What business do you have?"),
+                    // 开场白：帮派头目（有胆量）
+                    LWNTextHelper.ResolveText("LWN_director_opening_gang_2", "Not many dare come to me. Speak — what do you want?"),
+                    // 开场白：帮派头目（谈生意还是找麻烦）
+                    LWNTextHelper.ResolveText("LWN_director_opening_gang_3", "Are you here to do business, or to make trouble?"),
                 };
                 return gang[MBRandom.RandomInt(0, gang.Length)];
             }
@@ -638,9 +739,12 @@ namespace LivingWorldNpcs
             if (npc.Occupation == Occupation.Merchant)
             {
                 string[] merchant = new[] {
-                    $"有生意要谈吗？我的时间就是金钱。",
-                    $"买还是卖？别浪费我时间。",
-                    $"哦，一位潜在的客户。进来谈吧。",
+                    // 开场白：商人（时间就是金钱）
+                    LWNTextHelper.ResolveText("LWN_director_opening_merchant_1", "Business to discuss? My time is money."),
+                    // 开场白：商人（买还是卖）
+                    LWNTextHelper.ResolveText("LWN_director_opening_merchant_2", "Buying or selling? Don't waste my time."),
+                    // 开场白：商人（潜在客户）
+                    LWNTextHelper.ResolveText("LWN_director_opening_merchant_3", "Ah, a potential customer. Come inside."),
                 };
                 return merchant[MBRandom.RandomInt(0, merchant.Length)];
             }
@@ -648,9 +752,12 @@ namespace LivingWorldNpcs
             if (npc.Occupation == Occupation.Headman || npc.Occupation == Occupation.RuralNotable)
             {
                 string[] headman = new[] {
-                    $"这村子不太太平——不过您来了，也许能帮上忙。",
-                    $"又有什么事？这村子已经够乱的了。",
-                    $"您是从外地来的吧？我们这儿平时可没什么外人。",
+                    // 开场白：村长（村子不太平）
+                    LWNTextHelper.ResolveText("LWN_director_opening_headman_1", "This village has not been peaceful — but since you've come, perhaps you can help."),
+                    // 开场白：村长（村子够乱了）
+                    LWNTextHelper.ResolveText("LWN_director_opening_headman_2", "What now? This village is chaotic enough as it is."),
+                    // 开场白：村长（外地人）
+                    LWNTextHelper.ResolveText("LWN_director_opening_headman_3", "You're from outside, aren't you? We don't usually see strangers here."),
                 };
                 return headman[MBRandom.RandomInt(0, headman.Length)];
             }
@@ -658,9 +765,12 @@ namespace LivingWorldNpcs
             if (npc.IsWanderer)
             {
                 string[] wanderer = new[] {
-                    $"你是来找帮手的？我可不便宜。",
-                    $"哼，又一个过路的。你有什么事？",
-                    $"听说你也在这一带混。想聊什么？",
+                    // 开场白：流浪汉（找帮手）
+                    LWNTextHelper.ResolveText("LWN_director_opening_wanderer_1", "Looking for a hand? I'm not cheap."),
+                    // 开场白：流浪汉（过路的）
+                    LWNTextHelper.ResolveText("LWN_director_opening_wanderer_2", "Hmph, another passerby. What do you want?"),
+                    // 开场白：流浪汉（同道中人）
+                    LWNTextHelper.ResolveText("LWN_director_opening_wanderer_3", "I hear you wander these parts too. What shall we talk about?"),
                 };
                 return wanderer[MBRandom.RandomInt(0, wanderer.Length)];
             }
@@ -668,20 +778,28 @@ namespace LivingWorldNpcs
             if (npc.IsLord)
             {
                 string[] lord = honor >= 5 ? new[] {
-                    $"哦，{playerName}阁下。有失远迎——请说。",
-                    $"欢迎。我的城堡随时对有荣誉的人敞开。",
+                    // 开场白：领主（有失远迎）
+                    LWNTextHelper.ResolveCompound("LWN_director_opening_lord_honor_1", ("PLAYER", playerName)),
+                    // 开场白：领主（对有荣誉的人敞开）
+                    LWNTextHelper.ResolveText("LWN_director_opening_lord_honor_2", "Welcome. My castle is always open to people of honor."),
                 } : new[] {
-                    $"说吧，什么事？",
-                    $"讲。",
+                    // 开场白：领主（说吧）
+                    LWNTextHelper.ResolveText("LWN_director_opening_lord_1", "Speak. What is it?"),
+                    // 开场白：领主（讲）
+                    LWNTextHelper.ResolveText("LWN_director_opening_lord_2", "Talk."),
                 };
                 return lord[MBRandom.RandomInt(0, lord.Length)];
             }
 
             // ── 4. 兜底：好感度微调 ──
+            // 开场白兜底：关系好 → 有事吗
             if (relation >= 20)
-                return $"有事吗？";
+                // 有事吗？
+                return LWNTextHelper.ResolveText("LWN_director_opening_relation_high", "Can I help you?");
+            // 开场白兜底：关系差 → 沉默
             if (relation <= -20)
-                return $"……";
+                // 沉默（关系差兜底）……
+                return LWNTextHelper.ResolveText("LWN_director_opening_relation_low", "...");
 
             return null; // 返回 null → 用默认 "看着你揣测"
         }
@@ -774,30 +892,19 @@ namespace LivingWorldNpcs
                 string role = isVictim ? "Victim" : "Instigator";
                 string eventId = $"WorldEvent_{topic}_{evt.Type}_{role}";
 
-                // 直接查 CSV，不经过 NarrativeResolver（它会 fallback 到 GetCodeFallback 污染结果）
-                var table = GameDatabase.Narrative;
-                if (table == null) return null;
-                var allRows = table.GetAll().ToList();
-                if (allRows.Count == 0) return null;
+                // 直接查 XML key
+                string xmlKey = $"LWN_narr_{eventId.ToLower()}";
+                string text = LWNTextHelper.TryResolveText(xmlKey);
+                if (string.IsNullOrEmpty(text)) return null;
 
-                // 按 ID 列精确匹配
-                var match = allRows.FirstOrDefault(r =>
-                    string.Equals(r.GetString("ID"), eventId, StringComparison.OrdinalIgnoreCase));
-                if (match == null) return null;
-
-                // 读取 Text 列（list 类型，| 分隔随机选一条）
-                var lines = match.GetList("Text");
-                string text = "";
-                if (lines != null && lines.Count > 0)
-                    text = lines[MBRandom.RandomInt(lines.Count)];
-                if (string.IsNullOrEmpty(text))
-                    text = match.GetString("Text");
-                if (string.IsNullOrEmpty(text) || text == "Any")
-                    return null;
-
-                string loc = evt.TargetSettlement?.Name?.ToString() ?? "这里";
-                string instigatorName = evt.IsGenericInstigator ? "那帮人" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
-                string victimName = evt.TargetHero?.Name?.ToString() ?? "我们";
+                // 地点名兜底：这里
+                string loc = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_here", "here");
+                // 加害方名兜底：那帮人（通用）/ 他们
+                string instigatorName = evt.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_director_fallback_those_people", "that gang")
+                    // 他们
+                    : (evt.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_them", "they"));
+                // 受害者名兜底：我们
+                string victimName = evt.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_us", "us");
                 return text.Replace("{LOCATION}", loc)
                            .Replace("{INSTIGATOR}", instigatorName)
                            .Replace("{VICTIM}", victimName);
@@ -809,9 +916,14 @@ namespace LivingWorldNpcs
         /// <summary>兜底硬编码：根据事件类型、NPC 角色和事件阶段生成情境对话。</summary>
         private static string BuildEventAwareDialogueFallback(WorldEvent evt, bool isVictim, bool isInstigator, string topic)
         {
-            string loc = evt.TargetSettlement?.Name?.ToString() ?? "这里";
-            string instigatorName = evt.IsGenericInstigator ? "一帮匪徒" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
-            string victimName = evt.TargetHero?.Name?.ToString() ?? "我们";
+            // 地点名兜底：这里
+            string loc = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_here", "here");
+            // 加害方名兜底：一帮匪徒（通用）/ 他们
+            string instigatorName = evt.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_director_fallback_bandits", "a band of outlaws")
+                // 他们
+                : (evt.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_them", "they"));
+            // 受害者名兜底：我们
+            string victimName = evt.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_director_fallback_us", "us");
             bool impending = evt.Phase == WorldEventPhase.Impending;
 
             if (isVictim)
@@ -819,77 +931,134 @@ namespace LivingWorldNpcs
                 // 受害者视角：慌张、求助、愤怒、悲痛
                 string[] greetings = evt.Type switch
                 {
+                    // 受害者台词：匪患
                     EventType.BanditRaid => new[] {
-                        $"你来得正好！{instigatorName}就在村外——{loc}的乡亲们日夜担惊受怕，你能帮帮我们吗？",
-                        $"终于有人来了……{instigatorName}已经在{loc}外扎了营，每家每户都在等一个能打的人。"
+                        // 你来得正好！{INSTIGATOR}就在村外——{LOC}的乡亲们日夜担惊...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_banditraid_1", ("INSTIGATOR", instigatorName), ("LOC", loc)),
+                        // 终于有人来了……{INSTIGATOR}已经在{LOC}外扎了营，每家每户...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_banditraid_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词：绑架（酝酿中）
                     EventType.Kidnapping => impending ? new[] {
-                        $"求求你——{instigatorName}的人正在路上，他们要绑走{victimName}！我们没有时间了……",
-                        $"你听说了吗？{instigatorName}盯上了{victimName}……再不阻止就来不及了。"
+                        // 求求你——{INSTIGATOR}的人正在路上，他们要绑走{VICTIM}...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_kidnapping_imp_1", ("INSTIGATOR", instigatorName), ("VICTIM", victimName)),
+                        // 你听说了吗？{INSTIGATOR}盯上了{VICTIM}……再不阻止就来...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_kidnapping_imp_2", ("INSTIGATOR", instigatorName), ("VICTIM", victimName))
+                    // 受害者台词：绑架（已被绑走）
                     } : new[] {
-                        $"求求你——{victimName}被{instigatorName}绑走了！每多等一刻就多一分危险……",
-                        $"你听说了吗？{victimName}被人绑走了……{instigatorName}要的赎金我们根本拿不出来。"
+                        // 求求你——{VICTIM}被{INSTIGATOR}绑走了！每多等一刻就多...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_kidnapping_done_1", ("VICTIM", victimName), ("INSTIGATOR", instigatorName)),
+                        // 你听说了吗？{VICTIM}被人绑走了……{INSTIGATOR}要的赎金...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_kidnapping_done_2", ("VICTIM", victimName), ("INSTIGATOR", instigatorName))
                     },
+                    // 受害者台词：饥荒
                     EventType.Famine => new[] {
-                        $"{loc}的粮仓已经见底了……老人孩子吃了好几天野菜。你能帮我们弄点粮食来吗？",
-                        $"你看到了——{loc}在挨饿。不是谁害的，是天灾。但再没有粮食，真会死人。"
+                        // {LOC}的粮仓已经见底了……老人孩子吃了好几天野菜。你能帮我们弄点粮食来吗？
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_famine_1", ("LOC", loc)),
+                        // 你看到了——{LOC}在挨饿。不是谁害的，是天灾。但再没有粮食，真会死人。
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_famine_2", ("LOC", loc))
                     },
+                    // 受害者台词：背叛（酝酿中）
                     EventType.Betrayal => impending ? new[] {
-                        $"你能感觉到吗——{loc}的气氛越来越不对了。{instigatorName}看{victimName}的眼神……我怕迟早要出事。",
-                        $"我听到了一些风声……{instigatorName}在暗中联络人，怕是冲{victimName}来的。你能帮我查查吗？"
+                        // 你能感觉到吗——{LOC}的气氛越来越不对了。{INSTIGATOR}看{...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_betrayal_imp_1", ("LOC", loc), ("INSTIGATOR", instigatorName), ("VICTIM", victimName)),
+                        // 我听到了一些风声……{INSTIGATOR}在暗中联络人，怕是冲{VICT...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_betrayal_imp_2", ("INSTIGATOR", instigatorName), ("VICTIM", victimName))
+                    // 受害者台词：背叛（已被背叛）
                     } : new[] {
-                        $"你不知道被自己最信任的人捅一刀是什么感觉……{instigatorName}，他曾经是我最信赖的人。",
-                        $"{instigatorName}背叛了{loc}的所有人。卷走了钱，也卷走了信任。你能帮我们讨回公道吗？"
+                        // 你不知道被自己最信任的人捅一刀是什么感觉……{INSTIGATOR}，他曾...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_betrayal_done_1", ("INSTIGATOR", instigatorName)),
+                        // {INSTIGATOR}背叛了{LOC}的所有人。卷走了钱，也卷走了信任。...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_betrayal_done_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词：债务陷阱
                     EventType.DebtTrap => new[] {
-                        $"{instigatorName}逼债逼到了家门口……再不还钱，{victimName}的地就要被收走了。",
-                        $"你看起来是个有本事的人——{victimName}被{instigatorName}的高利贷压得快喘不过气了。能帮一把吗？"
+                        // {INSTIGATOR}逼债逼到了家门口……再不还钱，{VICTIM}的地...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_debttrap_1", ("INSTIGATOR", instigatorName), ("VICTIM", victimName)),
+                        // 你看起来是个有本事的人——{VICTIM}被{INSTIGATOR}的高利...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_debttrap_2", ("VICTIM", victimName), ("INSTIGATOR", instigatorName))
                     },
+                    // 受害者台词：情仇
                     EventType.RomanticConflict => new[] {
-                        $"感情的事……比刀剑更伤人。{instigatorName}和我之间的事，不是几句话能说清的。",
-                        $"你谈过那种让你夜不能寐的感情吗？{instigatorName}现在就是我心头的一根刺。"
+                        // 感情的事……比刀剑更伤人。{INSTIGATOR}和我之间的事，不是几句话...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_romantic_1", ("INSTIGATOR", instigatorName)),
+                        // 你谈过那种让你夜不能寐的感情吗？{INSTIGATOR}现在就是我心头的一根刺。
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_romantic_2", ("INSTIGATOR", instigatorName))
                     },
+                    // 受害者台词：冤案
                     EventType.FalseAccusation => new[] {
-                        $"我是被冤枉的！{instigatorName}编造的罪名根本没有证据，{loc}的人却都信了……",
-                        $"你相信我吗？{instigatorName}说我做了那件事，但我连碰都没碰过。{loc}现在没人敢替我说话。"
+                        // 我是被冤枉的！{INSTIGATOR}编造的罪名根本没有证据，{LOC}的...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_falseacc_1", ("INSTIGATOR", instigatorName), ("LOC", loc)),
+                        // 你相信我吗？{INSTIGATOR}说我做了那件事，但我连碰都没碰过。{L...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_falseacc_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词：继承争端
                     EventType.InheritanceDispute => new[] {
-                        $"那本该是我的……{instigatorName}用卑鄙手段夺走了继承权，{loc}的老人全都知道。",
-                        $"家族的遗产被{instigatorName}一个人霸占了。我不在乎钱——但这口气咽不下去。"
+                        // 那本该是我的……{INSTIGATOR}用卑鄙手段夺走了继承权，{LOC}...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_inheritance_1", ("INSTIGATOR", instigatorName), ("LOC", loc)),
+                        // 家族的遗产被{INSTIGATOR}一个人霸占了。我不在乎钱——但这口气咽...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_inheritance_2", ("INSTIGATOR", instigatorName))
                     },
+                    // 受害者台词：逃犯
                     EventType.Fugitive => new[] {
-                        $"我知道{instigatorName}过去犯了事……但他本性不坏。{loc}的人只要肯给他一个机会……",
-                        $"有人说{instigatorName}是逃犯、是祸害。但他在{loc}帮了我很多——是那些追他的人不讲道理。"
+                        // 我知道{INSTIGATOR}过去犯了事……但他本性不坏。{LOC}的人只...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_fugitive_1", ("INSTIGATOR", instigatorName), ("LOC", loc)),
+                        // 有人说{INSTIGATOR}是逃犯、是祸害。但他在{LOC}帮了我很多—...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_fugitive_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词：贸易争端
                     EventType.TradeDispute => new[] {
-                        $"{instigatorName}抢了我在{loc}的生意——不是用刀，是用骗的。商人也有商人的仗要打。",
-                        $"生意场上的事，有时候比战场还脏。{instigatorName}在{loc}压价、断货、散布谣言——这是要赶尽杀绝。"
+                        // {INSTIGATOR}抢了我在{LOC}的生意——不是用刀，是用骗的。商...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_tradedispute_1", ("INSTIGATOR", instigatorName), ("LOC", loc)),
+                        // 生意场上的事，有时候比战场还脏。{INSTIGATOR}在{LOC}压价、...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_tradedispute_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词：贵族冲突
                     EventType.NobleConflict => new[] {
-                        $"{instigatorName}的大军已经在{loc}外集结了……这不是私人恩怨，是整个地区的灾难。",
-                        $"贵族之间的冲突，从来都是平民遭殃。{instigatorName}要的不过是面子，可{loc}的人要付出的是命。"
+                        // {INSTIGATOR}的大军已经在{LOC}外集结了……这不是私人恩怨，...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_nobleconflict_1", ("INSTIGATOR", instigatorName), ("LOC", loc)),
+                        // 贵族之间的冲突，从来都是平民遭殃。{INSTIGATOR}要的不过是面子，...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_nobleconflict_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词：圣物失窃（酝酿中）
                     EventType.SacredTheft => impending ? new[] {
-                        $"那不只是件东西……那是{loc}的魂。{instigatorName}正在打它的主意——我们必须赶在他们前面！",
-                        $"传家之物被{instigatorName}盯上了——{loc}的老人说，丢了它，整个地方都会遭厄运。一定能拦住他们！"
+                        // 那不只是件东西……那是{LOC}的魂。{INSTIGATOR}正在打它的主...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_sacredtheft_imp_1", ("LOC", loc), ("INSTIGATOR", instigatorName)),
+                        // 传家之物被{INSTIGATOR}盯上了——{LOC}的老人说，丢了它，整...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_sacredtheft_imp_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
+                    // 受害者台词：圣物失窃（已被盗）
                     } : new[] {
-                        $"那不只是件东西……那是{loc}的魂。{instigatorName}把它偷走了，等于把我们的根也拔了。",
-                        $"传家之物被{instigatorName}盗走了——{loc}的老人说，丢了它，整个地方都会遭厄运。"
+                        // 那不只是件东西……那是{LOC}的魂。{INSTIGATOR}把它偷走了，...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_sacredtheft_done_1", ("LOC", loc), ("INSTIGATOR", instigatorName)),
+                        // 传家之物被{INSTIGATOR}盗走了——{LOC}的老人说，丢了它，整...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_sacredtheft_done_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词：暗杀（酝酿中）
                     EventType.Assassination => impending ? new[] {
-                        $"你来得正好——{instigatorName}的人在路上了，他们要杀我！你能保护我吗？",
-                        $"有人告诉我{instigatorName}派了刺客……目标就是我。{loc}没人能帮我——直到你来了。"
+                        // 你来得正好——{INSTIGATOR}的人在路上了，他们要杀我！你能保护我吗？
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_assassination_imp_1", ("INSTIGATOR", instigatorName)),
+                        // 有人告诉我{INSTIGATOR}派了刺客……目标就是我。{LOC}没人能...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_assassination_imp_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
+                    // 受害者台词：暗杀（已发生）
                     } : new[] {
-                        $"……是我运气好，捡了一条命。{instigatorName}的人差点就得手了。",
-                        $"你不知道眼睁睁看着刀刺过来是什么感觉……如果不是跑得快，{victimName}现在已经是一具尸体了。"
+                        // ……是我运气好，捡了一条命。{INSTIGATOR}的人差点就得手了。
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_assassination_done_1", ("INSTIGATOR", instigatorName)),
+                        // 你不知道眼睁睁看着刀刺过来是什么感觉……如果不是跑得快，{VICTIM}现...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_assassination_done_2", ("VICTIM", victimName))
                     },
+                    // 受害者台词：宿敌复仇
                     EventType.NemesisRevenge => new[] {
-                        $"那个人回来了……{instigatorName}。我以为这辈子再也不会听到他的名字——但他到{loc}来了。",
-                        $"有些恩怨，过多少年都不会散。{instigatorName}是冲着我来的——{loc}只是刚好在路中间。"
+                        // 那个人回来了……{INSTIGATOR}。我以为这辈子再也不会听到他的名字...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_nemesis_1", ("INSTIGATOR", instigatorName), ("LOC", loc)),
+                        // 有些恩怨，过多少年都不会散。{INSTIGATOR}是冲着我来的——{LO...
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_nemesis_2", ("INSTIGATOR", instigatorName), ("LOC", loc))
                     },
+                    // 受害者台词兜底
                     _ => new[] {
-                        $"{loc}出事了……{victimName}现在真的很需要帮助。",
-                        $"你来得正好——{loc}这边实在不太平，{victimName}正愁找不到帮手。"
+                        // {LOC}出事了……{VICTIM}现在真的很需要帮助。
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_default_1", ("LOC", loc), ("VICTIM", victimName)),
+                        // 你来得正好——{LOC}这边实在不太平，{VICTIM}正愁找不到帮手。
+                        LWNTextHelper.ResolveCompound("LWN_director_victim_default_2", ("LOC", loc), ("VICTIM", victimName))
                     }
                 };
                 return greetings[MBRandom.RandomInt(0, greetings.Length)];
@@ -900,77 +1069,134 @@ namespace LivingWorldNpcs
                 // 加害方视角：威胁、嚣张、傲慢、辩护、不屑
                 string[] lines = evt.Type switch
                 {
+                    // 加害方台词：匪患
                     EventType.BanditRaid => new[] {
-                        $"哼，又一个多管闲事的？{loc}的事你最好别掺和。",
-                        $"你是来替{loc}那些村民出头的？我劝你想清楚——刀剑不长眼。"
+                        // 哼，又一个多管闲事的？{LOC}的事你最好别掺和。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_banditraid_1", ("LOC", loc)),
+                        // 你是来替{LOC}那些村民出头的？我劝你想清楚——刀剑不长眼。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_banditraid_2", ("LOC", loc))
                     },
+                    // 加害方台词：绑架（酝酿中）
                     EventType.Kidnapping => impending ? new[] {
-                        $"你就是来碍事的？{victimName}的命已经在我手心里了——就差最后一程。识相的就别挡道。",
-                        $"想要{victimName}平安？你最好现在就走——这事跟你没关系。"
+                        // 你就是来碍事的？{VICTIM}的命已经在我手心里了——就差最后一程。识相...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_kidnapping_imp_1", ("VICTIM", victimName)),
+                        // 想要{VICTIM}平安？你最好现在就走——这事跟你没关系。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_kidnapping_imp_2", ("VICTIM", victimName))
+                    // 加害方台词：绑架（已得手）
                     } : new[] {
-                        $"你是来赎人的？钱带来了吗？没带钱就滚——{victimName}的命可是有价的。",
-                        $"想救人？没那么容易。{victimName}在我手上，想要人——先拿钱来。"
+                        // 你是来赎人的？钱带来了吗？没带钱就滚——{VICTIM}的命可是有价的。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_kidnapping_done_1", ("VICTIM", victimName)),
+                        // 想救人？没那么容易。{VICTIM}在我手上，想要人——先拿钱来。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_kidnapping_done_2", ("VICTIM", victimName))
                     },
+                    // 加害方台词：饥荒
                     EventType.Famine => new[] {
-                        $"看什么看？{loc}的粮食又不是我烧的——天不下雨，怪我？要怪就怪他们自己种不出东西来。",
-                        $"你也想替{loc}的人说话？粮价就是这样——嫌贵就别吃。这是生意，不是慈善。"
+                        // 看什么看？{LOC}的粮食又不是我烧的——天不下雨，怪我？要怪就怪他们自己...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_famine_1", ("LOC", loc)),
+                        // 你也想替{LOC}的人说话？粮价就是这样——嫌贵就别吃。这是生意，不是慈善。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_famine_2", ("LOC", loc))
                     },
+                    // 加害方台词：背叛（酝酿中）
                     EventType.Betrayal => impending ? new[] {
-                        $"你怎么知道的？……也好。既然你来了，给你个机会——站在我这边。{victimName}的时代该结束了。",
-                        $"你听说了什么？不重要。重要的是——{victimName}的信任太脆弱了。我只是在合适的时机推一把。"
+                        // 你怎么知道的？……也好。既然你来了，给你个机会——站在我这边。{VICTI...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_betrayal_imp_1", ("VICTIM", victimName)),
+                        // 你听说了什么？不重要。重要的是——{VICTIM}的信任太脆弱了。我只是在...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_betrayal_imp_2", ("VICTIM", victimName))
+                    // 加害方台词：背叛（已得手）
                     } : new[] {
-                        $"你是{victimName}派来的？告诉他——钱我已经花了，有本事来拿。",
-                        $"叛徒？哈！我只是比{victimName}更懂得怎么活下去。弱者就该被淘汰。"
+                        // 你是{VICTIM}派来的？告诉他——钱我已经花了，有本事来拿。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_betrayal_done_1", ("VICTIM", victimName)),
+                        // 叛徒？哈！我只是比{VICTIM}更懂得怎么活下去。弱者就该被淘汰。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_betrayal_done_2", ("VICTIM", victimName))
                     },
+                    // 加害方台词：债务陷阱
                     EventType.DebtTrap => new[] {
-                        $"你是来替{victimName}还钱的？{victimName}欠的可不是小数目——利滚利，到今天已经翻了几倍了。",
-                        $"怎么，你也想替{victimName}求情？契约白纸黑字，欠债还钱天经地义。"
+                        // 你是来替{VICTIM}还钱的？{VICTIM}欠的可不是小数目——利滚利...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_debttrap_1", ("VICTIM", victimName)),
+                        // 怎么，你也想替{VICTIM}求情？契约白纸黑字，欠债还钱天经地义。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_debttrap_2", ("VICTIM", victimName))
                     },
+                    // 加害方台词：情仇
                     EventType.RomanticConflict => new[] {
-                        $"这是我和{victimName}之间的事——感情的事，外人少插嘴。",
-                        $"你懂什么？{victimName}辜负我在先。有些伤不是刀剑留下的，却比刀剑更深。"
+                        // 这是我和{VICTIM}之间的事——感情的事，外人少插嘴。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_romantic_1", ("VICTIM", victimName)),
+                        // 你懂什么？{VICTIM}辜负我在先。有些伤不是刀剑留下的，却比刀剑更深。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_romantic_2", ("VICTIM", victimName))
                     },
+                    // 加害方台词：冤案
                     EventType.FalseAccusation => new[] {
-                        $"你说我冤枉了{victimName}？证据摆在那里——{loc}的人都看着呢。你想替他翻案？",
-                        $"正义？哈！{victimName}做的事他自己清楚。我只是让{loc}的人看清真相而已。"
+                        // 你说我冤枉了{VICTIM}？证据摆在那里——{LOC}的人都看着呢。你想...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_falseacc_1", ("VICTIM", victimName), ("LOC", loc)),
+                        // 正义？哈！{VICTIM}做的事他自己清楚。我只是让{LOC}的人看清真相而已。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_falseacc_2", ("VICTIM", victimName), ("LOC", loc))
                     },
+                    // 加害方台词：继承争端
                     EventType.InheritanceDispute => new[] {
-                        $"{victimName}有什么资格来争？论血统、论能力、论贡献——哪一样比得上我？{loc}的产业落在我手里才是正道。",
-                        $"继承的事，外人少管。{victimName}不过是不甘心罢了——但规矩就是规矩，{loc}的一切现在是我的。"
+                        // {VICTIM}有什么资格来争？论血统、论能力、论贡献——哪一样比得上我？...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_inheritance_1", ("VICTIM", victimName), ("LOC", loc)),
+                        // 继承的事，外人少管。{VICTIM}不过是不甘心罢了——但规矩就是规矩，{...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_inheritance_2", ("VICTIM", victimName), ("LOC", loc))
                     },
+                    // 加害方台词：逃犯
                     EventType.Fugitive => new[] {
-                        $"我知道有人在追我——但{loc}是个藏身的好地方。你不是来抓我的吧？最好不是。",
-                        $"每个人都有过去。我在{loc}就是想重新开始——但要是有人追到这里来，我不介意再沾一次血。"
+                        // 我知道有人在追我——但{LOC}是个藏身的好地方。你不是来抓我的吧？最好不是。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_fugitive_1", ("LOC", loc)),
+                        // 每个人都有过去。我在{LOC}就是想重新开始——但要是有人追到这里来，我不...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_fugitive_2", ("LOC", loc))
                     },
+                    // 加害方台词：贸易争端
                     EventType.TradeDispute => new[] {
-                        $"生意就是生意——{victimName}在{loc}的买卖做不下去是他自己没本事。我的手段都合规矩，有本事他也可以学。",
-                        $"你看起来不像商人——别被{victimName}的一面之词骗了。{loc}的市场谁占上风，凭的是脑子，不是眼泪。"
+                        // 生意就是生意——{VICTIM}在{LOC}的买卖做不下去是他自己没本事。...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_tradedispute_1", ("VICTIM", victimName), ("LOC", loc)),
+                        // 你看起来不像商人——别被{VICTIM}的一面之词骗了。{LOC}的市场谁...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_tradedispute_2", ("VICTIM", victimName), ("LOC", loc))
                     },
+                    // 加害方台词：贵族冲突
                     EventType.NobleConflict => new[] {
-                        $"你是{victimName}的说客？回去告诉他——{loc}的事，战场上见分晓。刀剑比嘴皮子管用。",
-                        $"这是贵族之间的事。{victimName}在{loc}的所作所为已经越过底线了——没有人可以这样践踏我的荣誉而不付出代价。"
+                        // 你是{VICTIM}的说客？回去告诉他——{LOC}的事，战场上见分晓。刀...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_nobleconflict_1", ("VICTIM", victimName), ("LOC", loc)),
+                        // 这是贵族之间的事。{VICTIM}在{LOC}的所作所为已经越过底线了——...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_nobleconflict_2", ("VICTIM", victimName), ("LOC", loc))
                     },
+                    // 加害方台词：圣物失窃（酝酿中，两句共用"重见天日"与"不配拥有"）
                     EventType.SacredTheft => impending ? new[] {
-                        $"那东西在{loc}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。",
-                        $"你说这是偷？我只是去替{loc}取一件他们不配拥有的东西。识相的就别拦着。"
+                        // 那东西在{LOC}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_sacredtheft_imp_1", ("LOC", loc)),
+                        // 你说这是偷？我只是去替{LOC}取一件他们不配拥有的东西。识相的就别拦着。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_sacredtheft_imp_2", ("LOC", loc))
+                    // 加害方台词：圣物失窃（已得手）
                     } : new[] {
-                        $"那东西在{loc}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。",
-                        $"你说这是偷？我只是替{loc}保管一件他们不配拥有的东西。历史会证明我是对的。"
+                        // 那东西在{LOC}放了那么久，没人真正懂得它的价值——在我手里，它才能重见天日。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_sacredtheft_imp_1", ("LOC", loc)),
+                        // 你说这是偷？我只是替{LOC}保管一件他们不配拥有的东西。历史会证明我是对的。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_sacredtheft_done_2", ("LOC", loc))
                     },
+                    // 加害方台词：暗杀（酝酿中）
                     EventType.Assassination => impending ? new[] {
-                        $"你听说了？{victimName}的命已经进了倒计时。你是想来帮忙的，还是来碍事的？",
-                        $"有些事知道了对你没好处。{victimName}的事还没结束——但你最好当作什么都不知道。"
+                        // 你听说了？{VICTIM}的命已经进了倒计时。你是想来帮忙的，还是来碍事的？
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_assassination_imp_1", ("VICTIM", victimName)),
+                        // 有些事知道了对你没好处。{VICTIM}的事还没结束——但你最好当作什么都...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_assassination_imp_2", ("VICTIM", victimName))
+                    // 加害方台词：暗杀（已得手）
                     } : new[] {
-                        $"你也在打听{victimName}的事？我劝你别多问——知道太多的人，往往活不长。",
-                        $"{victimName}死了。下一个就是你——如果你继续多管闲事的话。"
+                        // 你也在打听{VICTIM}的事？我劝你别多问——知道太多的人，往往活不长。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_assassination_done_1", ("VICTIM", victimName)),
+                        // {VICTIM}死了。下一个就是你——如果你继续多管闲事的话。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_assassination_done_2", ("VICTIM", victimName))
                     },
+                    // 加害方台词：宿敌复仇
                     EventType.NemesisRevenge => new[] {
-                        $"我和{victimName}的账，不是一天两天了。这是我私人的事——{loc}只是刚好成了清算的舞台。",
-                        $"你认识{victimName}？那你最好给他带句话——不管他躲到哪里，该还的迟早要还。"
+                        // 我和{VICTIM}的账，不是一天两天了。这是我私人的事——{LOC}只是...
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_nemesis_1", ("VICTIM", victimName), ("LOC", loc)),
+                        // 你认识{VICTIM}？那你最好给他带句话——不管他躲到哪里，该还的迟早要还。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_nemesis_2", ("VICTIM", victimName))
                     },
+                    // 加害方台词兜底
                     _ => new[] {
-                        $"这事跟你没关系。{loc}的事让{loc}的人自己解决。",
-                        $"你想插手？我劝你再想想。不是什么闲事都能管的。"
+                        // 这事跟你没关系。{LOC}的事让{LOC}的人自己解决。
+                        LWNTextHelper.ResolveCompound("LWN_director_instigator_default_1", ("LOC", loc)),
+                        // 你想插手？我劝你再想想。不是什么闲事都能管的。
+                        LWNTextHelper.ResolveText("LWN_director_instigator_default_2", "You want to interfere? Think again. Not every matter is yours to meddle in.")
                     }
                 };
                 return lines[MBRandom.RandomInt(0, lines.Length)];

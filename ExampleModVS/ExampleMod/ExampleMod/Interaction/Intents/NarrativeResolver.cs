@@ -5,6 +5,7 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
+using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.ObjectSystem;
 
@@ -253,252 +254,102 @@ namespace LivingWorldNpcs
         #region 主查询
 
         /// <summary>
-        /// 主查询入口：按 filters 查询 Narrative.csv，渐进式 fallback。
+        /// 主查询入口：按 filters 构造 XML key，直接查本地化表。
         /// 返回匹配的文本和情绪，保证不返回 null。
         /// </summary>
         public static NarrativeResult Resolve(NarrativeFilters filters)
         {
             if (filters == null)
-                return new NarrativeResult("……", "normal");
+                // 兜底省略号：查询条件为空时的默认叙事文本
+                return new NarrativeResult(LWNTextHelper.ResolveText("LWN_ph_ellipsis", "..."), "normal");
 
-            var table = GameDatabase.Narrative;
-            if (table == null)
-                return GetCodeFallback(filters);
-
-            var allRows = table.GetAll().ToList();
-            if (allRows.Count == 0)
-                return GetCodeFallback(filters);
-
-            // 决定使用哪种 fallback 策略
-            bool isCommission = !string.IsNullOrEmpty(filters.Category);
-            bool isDialogue = !string.IsNullOrEmpty(filters.EventName);
-
-            DynamicRecord match = null;
-
-            if (isCommission)
-                match = ResolveCommission(allRows, filters);
-            else if (isDialogue)
-                match = ResolveDialogue(allRows, filters);
-            else
-                match = ResolveSimple(allRows, filters);
-
-            if (match != null)
-            {
-                var lines = match.GetList("Text");
-                string text = "";
-                if (lines != null && lines.Count > 0)
-                    text = lines[MBRandom.RandomInt(lines.Count)];
-                if (string.IsNullOrEmpty(text))
-                    text = match.GetString("Text"); // fallback to string read
-
-                string emotion = match.GetString("Emotion", "normal");
-                if (string.IsNullOrEmpty(emotion)) emotion = "normal";
-
-                return new NarrativeResult(text, emotion);
-            }
+            string text = TryResolveByKey(filters);
+            if (text != null)
+                return new NarrativeResult(text, "normal");
 
             return GetCodeFallback(filters);
         }
 
-        /// <summary>委托叙事查询：Category + Phase 为主键。</summary>
-        private static DynamicRecord ResolveCommission(List<DynamicRecord> rows, NarrativeFilters filters)
+        /// <summary>从 filters 构造候选 XML key，逐个尝试，命中返回文本，未命中返回 null。</summary>
+        private static string TryResolveByKey(NarrativeFilters filters)
         {
-            // 1. Category + Phase 精确
-            var candidates = rows.Where(r =>
-                r.GetString("Category") == filters.Category &&
-                r.GetString("Phase") == filters.Phase
-            ).ToList();
+            bool isCommission = !string.IsNullOrEmpty(filters.Category);
+            bool isDialogue = !string.IsNullOrEmpty(filters.EventName);
 
-            if (candidates.Count == 0)
+            var keys = new List<string>();
+
+            if (isCommission)
+            {
+                BuildCommissionKeys(keys, filters);
+            }
+            else if (isDialogue)
+            {
+                BuildDialogueKeys(keys, filters);
+            }
+            else
+            {
                 return null;
-
-            // 2. Grade（仅 Closure 阶段）
-            if (filters.Phase == "Closure" && !string.IsNullOrEmpty(filters.Grade))
-            {
-                var gradeMatch = candidates.Where(r =>
-                    r.GetString("Grade") == filters.Grade).ToList();
-                if (gradeMatch.Count > 0)
-                    candidates = gradeMatch;
-                // 精确 Grade 不匹配 → 保留全部 candidates 兜底
             }
 
-            // 3. PersonalityTrait：精确 > Any
-            var traitFiltered = FilterByTrait(candidates, filters.PersonalityTrait);
-            if (traitFiltered.Count > 0)
-                candidates = traitFiltered;
-
-            // 4. Trust 区间
-            if (filters.TrustMin.HasValue || filters.TrustMax.HasValue)
+            foreach (var key in keys)
             {
-                int trust = filters.TrustMin ?? 0;
-                int trustMax = filters.TrustMax ?? 100;
-                var trustMatch = candidates.Where(r =>
-                    trust >= r.GetInt("TrustMin", 0) &&
-                    trust <= r.GetInt("TrustMax", 100)
-                ).ToList();
-                if (trustMatch.Count > 0)
-                    candidates = trustMatch;
+                string result = LWNTextHelper.TryResolveText(key);
+                if (result != null) return result;
             }
-
-            // 5. 随机取一条
-            return candidates.Count > 0
-                ? candidates[MBRandom.RandomInt(0, candidates.Count)]
-                : null;
-        }
-
-        /// <summary>对话查询：EventName 为主键，Honor/Gender/Identity 渐进 fallback。</summary>
-        private static DynamicRecord ResolveDialogue(List<DynamicRecord> rows, NarrativeFilters filters)
-        {
-            // 1. EventName 精确
-            var byEvent = rows.Where(r =>
-                r.GetString("EventName") == filters.EventName
-            ).ToList();
-
-            // 如果 EventName 无匹配，尝试直接用 ID 搜索（兼容裸 ID 查询）
-            if (byEvent.Count == 0)
-            {
-                byEvent = rows.Where(r =>
-                    r.GetString("ID") == filters.EventName ||
-                    r.GetString("EventName") == filters.EventName
-                ).ToList();
-            }
-
-            if (byEvent.Count == 0)
-            {
-                // 尝试匹配 ID 前缀
-                byEvent = rows.Where(r =>
-                    r.GetString("ID").StartsWith(filters.EventName, StringComparison.OrdinalIgnoreCase)
-                ).ToList();
-            }
-
-            if (byEvent.Count == 0)
-                return null;
-
-            // 2. Outcome 筛选
-            if (!string.IsNullOrEmpty(filters.Outcome))
-            {
-                var outcomeMatch = byEvent.Where(r =>
-                    filters.ColumnMatches(filters.Outcome, r.GetString("Outcome"))
-                ).ToList();
-                if (outcomeMatch.Count > 0)
-                    byEvent = outcomeMatch;
-            }
-
-            // 3. GoalType 筛选
-            if (!string.IsNullOrEmpty(filters.GoalType))
-            {
-                var goalMatch = byEvent.Where(r =>
-                    filters.ColumnMatches(filters.GoalType, r.GetString("GoalType"))
-                ).ToList();
-                if (goalMatch.Count > 0)
-                    byEvent = goalMatch;
-            }
-
-            // 4. Honor + Gender + Identity 渐进 fallback
-            var result = ResolveWithHonorGenderIdentity(byEvent, filters);
-            if (result != null) return result;
-
-            // 5. 最宽泛：Any/Any/Any
-            var anyMatch = byEvent.FirstOrDefault(r =>
-                (r.GetString("Honor") == "Any" || string.IsNullOrEmpty(r.GetString("Honor"))) &&
-                (r.GetString("Gender") == "Any" || string.IsNullOrEmpty(r.GetString("Gender"))) &&
-                (r.GetString("Identity") == "Any" || string.IsNullOrEmpty(r.GetString("Identity")))
-            );
-            if (anyMatch != null) return anyMatch;
-
-            // 6. 随便返回一条匹配 EventName 的
-            return byEvent.Count > 0
-                ? byEvent[MBRandom.RandomInt(0, byEvent.Count)]
-                : null;
-        }
-
-        /// <summary>Honor/Gender/Identity 渐进 fallback，优先级与旧 BuildFallbackIds 一致。</summary>
-        private static DynamicRecord ResolveWithHonorGenderIdentity(
-            List<DynamicRecord> candidates, NarrativeFilters filters)
-        {
-            string h = filters.Honor ?? "Any";
-            string g = filters.Gender ?? "Any";
-            string i = filters.Identity ?? "Any";
-
-            // 优先级：exact → 逐维改 Any
-            var fallbackOrders = new List<(string honor, string gender, string identity)>
-            {
-                (h, g, i),           // exact
-                (h, g, "Any"),       // wildcard identity
-                ("Any", g, i),       // wildcard honor, keep gender+identity
-                ("Any", g, "Any"),   // wildcard honor+identity, keep gender
-                (h, "Any", "Any"),   // wildcard gender+identity, keep honor
-                ("Any", "Any", "Any"), // 最宽泛
-            };
-
-            foreach (var (fh, fg, fi) in fallbackOrders)
-            {
-                var match = candidates.FirstOrDefault(r =>
-                    DimensionMatches(fh, r.GetString("Honor")) &&
-                    DimensionMatches(fg, r.GetString("Gender")) &&
-                    DimensionMatches(fi, r.GetString("Identity"))
-                );
-                if (match != null) return match;
-            }
-
             return null;
         }
 
-        private static bool DimensionMatches(string filter, string rowValue)
+        /// <summary>委托叙事 key：LWN_narr_{category}_{phase}_{trait}_{trustMin}_{trustMax}_{grade?}</summary>
+        private static void BuildCommissionKeys(List<string> keys, NarrativeFilters filters)
         {
-            if (filter == "Any" || string.IsNullOrEmpty(filter)) return true;
-            if (string.IsNullOrEmpty(rowValue)) return true;  // 行未填视为 Any
-            if (rowValue == "Any") return true;
-            return string.Equals(filter, rowValue, StringComparison.OrdinalIgnoreCase);
-        }
+            string cat = filters.Category.ToLower();
+            string phase = filters.Phase.ToLower();
+            string trait = string.IsNullOrEmpty(filters.PersonalityTrait) || filters.PersonalityTrait == "Any"
+                ? "any" : filters.PersonalityTrait.ToLower();
+            int tMin = filters.TrustMin ?? 0;
+            int tMax = filters.TrustMax ?? 100;
+            string grade = filters.Grade?.ToLower();
 
-        /// <summary>简单查询：不区分对话/委托模式，按所有非空过滤列精确匹配。</summary>
-        private static DynamicRecord ResolveSimple(List<DynamicRecord> rows, NarrativeFilters filters)
-        {
-            var candidates = rows.Where(r =>
+            // 精确 → 泛化
+            if (!string.IsNullOrEmpty(grade))
             {
-                if (!string.IsNullOrEmpty(filters.GoalType) &&
-                    !filters.ColumnMatches(filters.GoalType, r.GetString("GoalType")))
-                    return false;
-                if (!string.IsNullOrEmpty(filters.Outcome) &&
-                    !filters.ColumnMatches(filters.Outcome, r.GetString("Outcome")))
-                    return false;
-                return true;
-            }).ToList();
-
-            return candidates.Count > 0
-                ? candidates[MBRandom.RandomInt(0, candidates.Count)]
-                : null;
-        }
-
-        /// <summary>按 PersonalityTrait 筛选：精确匹配优先于 Any。</summary>
-        private static List<DynamicRecord> FilterByTrait(List<DynamicRecord> candidates, string trait)
-        {
-            if (string.IsNullOrEmpty(trait) || trait == "Any")
-            {
-                // 不指定性格 → 优先返回 Any 行
-                var any = candidates.Where(r =>
-                {
-                    string t = r.GetString("PersonalityTrait");
-                    return string.IsNullOrEmpty(t) || t == "Any";
-                }).ToList();
-                return any.Count > 0 ? any : candidates;
+                keys.Add($"LWN_narr_{cat}_{phase}_{trait}_{tMin}_{tMax}_{grade}");
+                keys.Add($"LWN_narr_{cat}_{phase}_{trait}_0_100_{grade}");
+                keys.Add($"LWN_narr_{cat}_{phase}_any_0_100_{grade}");
             }
+            keys.Add($"LWN_narr_{cat}_{phase}_{trait}_{tMin}_{tMax}");
+            keys.Add($"LWN_narr_{cat}_{phase}_{trait}_0_100");
+            keys.Add($"LWN_narr_{cat}_{phase}_any_{tMin}_{tMax}");
+            keys.Add($"LWN_narr_{cat}_{phase}_any_0_100");
+        }
 
-            // 指定性格 → 精确匹配优先
-            var exact = candidates.Where(r =>
-                string.Equals(r.GetString("PersonalityTrait"), trait, StringComparison.OrdinalIgnoreCase)
-            ).ToList();
-            if (exact.Count > 0)
-                return exact;
+        /// <summary>对话叙事 key：LWN_narr_{eventName}_{outcome}_{honor?}_{gender?}_{identity?}</summary>
+        private static void BuildDialogueKeys(List<string> keys, NarrativeFilters filters)
+        {
+            string evt = filters.EventName.ToLower();
+            string outcome = filters.Outcome?.ToLower();
+            string honor = filters.Honor?.ToLower();
+            string gender = filters.Gender?.ToLower();
+            string identity = filters.Identity?.ToLower();
 
-            // 没有精确匹配 → 返回 Any 兜底
-            var anyFallback = candidates.Where(r =>
+            // 先试原始 EventName（兼容 WorldEvent_xxx 格式的 CSV ID）
+            keys.Add($"LWN_narr_{evt}");
+
+            if (!string.IsNullOrEmpty(outcome))
             {
-                string t = r.GetString("PersonalityTrait");
-                return string.IsNullOrEmpty(t) || t == "Any";
-            }).ToList();
-            return anyFallback.Count > 0 ? anyFallback : new List<DynamicRecord>();
+                keys.Add($"LWN_narr_{evt}_{outcome}");
+
+                if (!string.IsNullOrEmpty(honor))
+                {
+                    string g = gender ?? "any";
+                    string i = identity ?? "any";
+                    // 精确 → 逐维泛化
+                    keys.Add($"LWN_narr_{evt}_{outcome}_{honor}_{g}_{i}");
+                    keys.Add($"LWN_narr_{evt}_{outcome}_{honor}_{g}_any");
+                    keys.Add($"LWN_narr_{evt}_{outcome}_{honor}_any_any");
+                }
+                keys.Add($"LWN_narr_{evt}_{outcome}_any_any_any");
+            }
         }
 
         #endregion
@@ -538,7 +389,8 @@ namespace LivingWorldNpcs
         /// <summary>委托开场叙事。</summary>
         public static string GetCommissionOpening(CommissionData data, NPCProfile giverProfile)
         {
-            if (data == null) return "我需要有人帮我办一件事。";
+            // 委托数据为空时的开场兜底台词（本地化 key，缺 XML 时回退英文）
+            if (data == null) return LWNTextHelper.ResolveText("LWN_narr_fallback_commission_opening_null", "I need someone to handle a matter for me.");
 
             // 如果有 WorldEvent 关联，优先使用事件背景叙事
             if (!string.IsNullOrEmpty(data.WorldEventId))
@@ -597,9 +449,12 @@ namespace LivingWorldNpcs
         /// <summary>硬编码兜底：按事件类型 × 角色 × 委托类别 生成开场叙事。</summary>
         private static string BuildHardcodedEventOpening(WorldEvent evt, CommissionData data, string role)
         {
-            string loc = evt.TargetSettlement?.Name?.ToString() ?? "附近";
-            string victim = evt.TargetHero?.Name?.ToString() ?? "村民";
-            string instigator = evt.IsGenericInstigator ? "一伙人" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
+            // 地点名兜底：村庄名缺失时用本地化文本
+            string loc = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_narr_fallback_nearby", "around here");
+            // 受害者名兜底：受害者缺失时用本地化称呼
+            string victim = evt.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_narr_fallback_villager", "a villager");
+            // 加害者名兜底：无名团伙用泛指称呼（本地化文本）
+            string instigator = evt.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_narr_fallback_gang", "a gang of men") : (evt.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_narr_fallback_they", "they"));
             string reward = data.NegotiatedReward.ToString();
             bool isVictim = role == "Victim";
 
@@ -611,12 +466,24 @@ namespace LivingWorldNpcs
                     return data.Category switch
                     {
                         CommissionCategory.VillageDefense =>
-                            $"{instigator}的大军正在逼近{loc}。帮我们守住村子，不能让乡亲们遭殃——{reward}第纳尔。",
+                            // 贵族冲突·受害方·守村委托开场：敌军逼近，雇玩家守村
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_nobleconflict_victim_villagedefense",
+                                "The army of {INSTIGATOR} is closing in on {LOCATION}. Help us hold the village — our people must not suffer. {REWARD} denars.",
+                                ("INSTIGATOR", instigator), ("LOCATION", loc), ("REWARD", reward)),
                         CommissionCategory.CaravanEscort =>
-                            $"{instigator}随时会打过来。帮我把家眷和细软撤出{loc}，护送到安全的地方——{reward}第纳尔。",
+                            // 贵族冲突·受害方·护送家眷委托开场：战前撤离家眷细软
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_nobleconflict_victim_caravanescort",
+                                "{INSTIGATOR} could strike at any moment. Help me move my family and valuables out of {LOCATION} to a safe place — {REWARD} denars.",
+                                ("INSTIGATOR", instigator), ("LOCATION", loc), ("REWARD", reward)),
                         CommissionCategory.SupplyEmergency =>
-                            $"{instigator}要围城了。趁道路还没被切断，帮{loc}囤一批物资——{reward}第纳尔，越快越好。",
-                        _ => $"{instigator}在{loc}边境集结了兵力。{victim}需要一个有本事的佣兵替他打前哨——{reward}第纳尔，生死自负。"
+                            // 贵族冲突·受害方·囤积物资委托开场：围城前抢运物资
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_nobleconflict_victim_supplyemergency",
+                                "{INSTIGATOR} is about to besiege us. Before the roads are cut off, stock {LOCATION} with supplies — {REWARD} denars, the sooner the better.",
+                                ("INSTIGATOR", instigator), ("LOCATION", loc), ("REWARD", reward)),
+                        // 贵族冲突·受害方·其他委托开场：边境集结，雇佣兵打前哨
+                        _ => LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_nobleconflict_victim_default",
+                            "{INSTIGATOR} has massed troops at {LOCATION}'s border. {TARGET} needs a capable mercenary to scout ahead — {REWARD} denars, and you answer for your own life.",
+                            ("INSTIGATOR", instigator), ("LOCATION", loc), ("TARGET", victim), ("REWARD", reward))
                     };
                 }
                 else // Instigator
@@ -624,10 +491,19 @@ namespace LivingWorldNpcs
                     return data.Category switch
                     {
                         CommissionCategory.SupplyIntercept =>
-                            $"我要对{victim}动手了。有一批补给正运往{loc}——你去截下来。物资归你，或者交给我换{reward}第纳尔。",
+                            // 贵族冲突·加害方·截断补给委托开场：拦截运往目标的补给
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_nobleconflict_instigator_supplyintercept",
+                                "I'm moving against {TARGET}. A shipment of supplies is heading to {LOCATION} — intercept it. The goods are yours, or hand them to me for {REWARD} denars.",
+                                ("TARGET", victim), ("LOCATION", loc), ("REWARD", reward)),
                         CommissionCategory.DecoyMission =>
-                            $"进攻之前，我需要{victim}的斥候被引开。你带小队在{loc}另一边制造动静，吸引他们的注意——{reward}第纳尔。",
-                        _ => $"{victim}在{loc}的部署已经拖太久了。我手上有些活需要人去办——{reward}第纳尔，你看着选。"
+                            // 贵族冲突·加害方·诱敌委托开场：制造动静引开敌方斥候
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_nobleconflict_instigator_decoymission",
+                                "Before the attack, I need {TARGET}'s scouts drawn away. Take a small force to the other side of {LOCATION} and make a racket to draw their attention — {REWARD} denars.",
+                                ("TARGET", victim), ("LOCATION", loc), ("REWARD", reward)),
+                        // 贵族冲突·加害方·其他委托开场：目标部署拖太久，需人办杂活
+                        _ => LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_nobleconflict_instigator_default",
+                            "{TARGET}'s position at {LOCATION} has dragged on too long. I have some work that needs doing — {REWARD} denars, take your pick.",
+                            ("TARGET", victim), ("LOCATION", loc), ("REWARD", reward))
                     };
                 }
             }
@@ -640,10 +516,19 @@ namespace LivingWorldNpcs
                     return data.Category switch
                     {
                         CommissionCategory.SupplyEmergency =>
-                            $"{instigator}垄断了{loc}的市场，粮价翻了三倍。{victim}的生意快撑不住了——{reward}第纳尔雇你帮忙打破困局。",
+                            // 贸易争端·受害方·囤货委托开场：垄断者抬价，雇玩家破局
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_tradedispute_victim_supplyemergency",
+                                "{INSTIGATOR} has monopolized {LOCATION}'s market — grain prices have tripled. {TARGET}'s business can't hold out much longer — {REWARD} denars to help break the stranglehold.",
+                                ("INSTIGATOR", instigator), ("LOCATION", loc), ("TARGET", victim), ("REWARD", reward)),
                         CommissionCategory.ProcurementAgent =>
-                            $"{instigator}控制了{loc}的所有货源。我需要你跨城代购一批货，绕开他的垄断——{reward}第纳尔。",
-                        _ => $"{loc}的粮价突然翻了三倍——{instigator}在背后垄断了市场。{victim}的生意快撑不住了，{reward}第纳尔雇你帮忙打破这个困局。"
+                            // 贸易争端·受害方·代购委托开场：跨城代购绕开垄断
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_tradedispute_victim_procurementagent",
+                                "{INSTIGATOR} controls every source of goods in {LOCATION}. I need you to buy supplies from another city, bypassing his monopoly — {REWARD} denars.",
+                                ("INSTIGATOR", instigator), ("LOCATION", loc), ("REWARD", reward)),
+                        // 贸易争端·受害方·其他委托开场：粮价暴涨，雇玩家打破垄断困局
+                        _ => LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_tradedispute_victim_default",
+                            "Grain prices in {LOCATION} suddenly tripled — {INSTIGATOR} is monopolizing the market behind it. {TARGET}'s business is about to collapse; {REWARD} denars for your help in breaking this deadlock.",
+                            ("INSTIGATOR", instigator), ("LOCATION", loc), ("TARGET", victim), ("REWARD", reward))
                     };
                 }
                 else // Instigator（垄断商）
@@ -651,10 +536,19 @@ namespace LivingWorldNpcs
                     return data.Category switch
                     {
                         CommissionCategory.SupplyIntercept =>
-                            $"有人想绕过我在{loc}的生意网，从外地运货进来。帮我把那批货截下来——{reward}第纳尔，别让它们进城。",
+                            // 贸易争端·加害方·截断货源委托开场：拦截绕过自己生意网的货源
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_tradedispute_instigator_supplyintercept",
+                                "Someone is trying to bypass my trade network in {LOCATION} and bring goods in from outside. Intercept that shipment — {REWARD} denars, and don't let it reach the city.",
+                                ("LOCATION", loc), ("REWARD", reward)),
                         CommissionCategory.DecoyMission =>
-                            $"{victim}的人在{loc}四处打听，想挖我的墙角。你去制造点混乱，转移他们的注意——{reward}第纳尔。",
-                        _ => $"{loc}的生意现在是我说了算。{victim}不服气想翻盘，帮我压住场子——{reward}第纳尔。"
+                            // 贸易争端·加害方·诱敌委托开场：制造混乱转移对手注意
+                            LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_tradedispute_instigator_decoymission",
+                                "{TARGET}'s people are asking around in {LOCATION}, trying to poach my business. Stir up some confusion to divert their attention — {REWARD} denars.",
+                                ("TARGET", victim), ("LOCATION", loc), ("REWARD", reward)),
+                        // 贸易争端·加害方·其他委托开场：压住不服气的对手
+                        _ => LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_tradedispute_instigator_default",
+                            "Business in {LOCATION} answers to me now. {TARGET} won't accept it and wants to turn the tables — help me hold the ground — {REWARD} denars.",
+                            ("TARGET", victim), ("LOCATION", loc), ("REWARD", reward))
                     };
                 }
             }
@@ -664,11 +558,17 @@ namespace LivingWorldNpcs
             {
                 if (isVictim)
                 {
-                    return $"{victim}的事没那么简单——追他的人说他是叛徒，他自己说是被陷害的。先帮我找到他藏身的地方，护送他安全离开——{reward}第纳尔。";
+                    // 逃犯·受害方开场：真假难辨，先找到藏身处护送离开
+                    return LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_fugitive_victim",
+                        "{TARGET}'s case is not so simple — his pursuers call him a traitor, while he claims he was framed. First, help me find where he is hiding and escort him to safety — {REWARD} denars.",
+                        ("TARGET", victim), ("REWARD", reward));
                 }
                 else
                 {
-                    return $"{victim}是个叛徒，至少追他的人这么说。不管真相如何，把他揪出来——活的死的都行，{reward}第纳尔。";
+                    // 逃犯·加害方开场：把叛徒揪出来，死活不论
+                    return LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_fugitive_instigator",
+                        "{TARGET} is a traitor — at least that's what his pursuers say. Whatever the truth, drag him out — dead or alive — for {REWARD} denars.",
+                        ("TARGET", victim), ("REWARD", reward));
                 }
             }
 
@@ -680,61 +580,89 @@ namespace LivingWorldNpcs
             return evt.Type switch
             {
                 EventType.BanditRaid =>
-                    $"{victim}从{loc}逃出来报信——{instigator}带人正在劫掠村子！乡亲们凑了{reward}第纳尔，雇人去打退他们。你愿意出手吗？",
+                    // 匪徒劫掠开场：受害者逃出报信，雇玩家打退匪徒
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_banditraid",
+                        "{TARGET} fled {LOCATION} to raise the alarm — {INSTIGATOR} is raiding the village right now! The villagers scraped together {REWARD} denars to hire someone to drive them off. Will you help?",
+                        ("TARGET", victim), ("LOCATION", loc), ("INSTIGATOR", instigator), ("REWARD", reward)),
                 EventType.Kidnapping =>
-                    $"{victim}的家人急疯了——{instigator}把人绑走了，指定了赎金和地点。我们没有{reward}第纳尔去赎人，但有钱雇你去把人救回来。",
+                    // 绑架开场：家人急疯，雇玩家把人救回
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_kidnapping",
+                        "{TARGET}'s family is frantic — {INSTIGATOR} has taken someone and set a ransom and a meeting point. We don't have {REWARD} denars to pay the ransom, but we can afford to hire you to bring them back.",
+                        ("TARGET", victim), ("INSTIGATOR", instigator), ("REWARD", reward)),
                 EventType.Famine =>
-                    $"这是{loc}的村长{victim}——村里断粮了，老人孩子已经吃了三天野菜。这{reward}第纳尔是乡亲们最后凑的，托你去买粮救命。",
+                    // 饥荒开场：村长求助，雇玩家买粮救命
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_famine",
+                        "This is {TARGET}, the village elder of {LOCATION} — the village has run out of grain, and the old and young have eaten wild greens for three days. These {REWARD} denars are the last the villagers could scrape together; take them and buy grain to save lives.",
+                        ("TARGET", victim), ("LOCATION", loc), ("REWARD", reward)),
                 EventType.Betrayal =>
-                    $"{victim}声音发抖——{instigator}，他最信任的人，卷走了账上的钱还带走了半个商队。{reward}第纳尔，帮我把人和钱追回来。",
+                    // 背叛开场：最信任的人卷款逃跑，雇玩家追回人财
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_betrayal",
+                        "{TARGET}'s voice trembles — {INSTIGATOR}, his most trusted man, made off with the accounts and half the caravan. {REWARD} denars to bring back both the man and the money.",
+                        ("TARGET", victim), ("INSTIGATOR", instigator), ("REWARD", reward)),
                 EventType.DebtTrap =>
-                    $"{victim}低下了头——{instigator}放的高利贷已经滚到了他还不起的数目。如果不还，地就要被收走。{reward}第纳尔，帮我家渡过这个坎……",
+                    // 债务陷阱开场：高利贷滚雪球，雇玩家渡难关
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_debttrap",
+                        "{TARGET} hangs his head — {INSTIGATOR}'s usury has grown to a sum he can never repay. If he doesn't, the land will be seized. {REWARD} denars — help my family through this crisis...",
+                        ("TARGET", victim), ("INSTIGATOR", instigator), ("REWARD", reward)),
                 EventType.RomanticConflict =>
-                    $"{victim}叹了口气——这事说来话长。总之现在需要有人替他出面解决一场决斗，{reward}第纳尔报酬。具体细节到了再说。",
+                    // 情场冲突开场：替人出面解决决斗
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_romanticconflict",
+                        "{TARGET} sighs — it's a long story. In short, someone needs to stand in for a duel on his behalf — {REWARD} denars for the task. The details can wait until you get there.",
+                        ("TARGET", victim), ("REWARD", reward)),
                 EventType.FalseAccusation =>
-                    $"城主要杀鸡儆猴，{victim}成了替罪羊。我知道真凶是谁——但需要证据。{reward}第纳尔，帮我把证据找回来，救人一命。",
+                    // 冤案开场：找证据救替罪羊
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_falseaccusation",
+                        "The lord wants to make an example of someone, and {TARGET} became the scapegoat. I know who the real culprit is — but we need proof. {REWARD} denars to find that evidence and save a life.",
+                        ("TARGET", victim), ("REWARD", reward)),
                 EventType.InheritanceDispute =>
-                    $"老族长走了，遗嘱却不见了。{victim}说父亲生前把信物交给了某个人——找到它，就能证明继承权。{reward}第纳尔。",
+                    // 遗产纠纷开场：找回信物证明继承权
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_inheritancedispute",
+                        "The old clan chief is gone, and the will has vanished. {TARGET} says his father entrusted a token to someone before his death — find it and the inheritance can be proven. {REWARD} denars.",
+                        ("TARGET", victim), ("REWARD", reward)),
                 EventType.SacredTheft =>
-                    $"这是我们{loc}一族的祖传圣物——{instigator}从祠堂里把它盗走了。没有它新族长没法召开族会。{reward}第纳尔，把它追回来。",
+                    // 圣物失窃开场：从祠堂追回祖传圣物
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_sacredtheft",
+                        "This is the heirloom of {LOCATION}'s clan — {INSTIGATOR} stole it from the shrine. Without it, the new chief cannot convene the clan council. {REWARD} denars to recover it.",
+                        ("LOCATION", loc), ("INSTIGATOR", instigator), ("REWARD", reward)),
                 EventType.Assassination =>
-                    $"{victim}死了。{loc}现在人心惶惶，下属们互相猜忌。有人悬赏{reward}第纳尔追查真凶——你接不接？",
+                    // 暗杀悬案开场：悬赏追查真凶
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_opening_assassination",
+                        "{TARGET} is dead. {LOCATION} is restless — subordinates suspect each other. Someone has offered {REWARD} denars to find the true killer — will you take it?",
+                        ("TARGET", victim), ("LOCATION", loc), ("REWARD", reward)),
                 _ => null
             };
         }
 
-        /// <summary>从 Narrative.csv 读取 WorldEvent 叙事文本。
-        /// ID 格式逐级 fallback：
-        ///   1. WorldEvent_{EventType}_{Role}_{Category}_{Phase}  （最精确）
-        ///   2. WorldEvent_{EventType}_{Role}_{Phase}
-        ///   3. WorldEvent_{EventType}_{Phase}                     （旧格式兼容）
-        /// Closure 时追加 _Grade。</summary>
+        /// <summary>从 XML 直接查 WorldEvent 叙事文本（原 CSV 路径已移除）。
+        /// Key 格式逐级 fallback：
+        ///   1. LWN_narr_worldevent_{eventType}_{role}_{category}_{phase}_{grade}
+        ///   2. LWN_narr_worldevent_{eventType}_{role}_{phase}_{grade}
+        ///   3. LWN_narr_worldevent_{eventType}_{phase}_{grade}
+        ///   4. LWN_narr_worldevent_{eventType}_{phase}（无 grade）</summary>
         private static string TryGetWorldEventNarrative(WorldEvent evt, CommissionData data, string phase, string grade, string role = null)
         {
             try
             {
-                string gradeSuffix = !string.IsNullOrEmpty(grade) ? $"_{grade}" : "";
-                string categorySuffix = data?.Category != null ? $"_{data.Category}" : "";
+                string et = evt.Type.ToString().ToLower();
+                string gradeSuffix = !string.IsNullOrEmpty(grade) ? $"_{grade.ToLower()}" : "";
+                string cat = data?.Category.ToString()?.ToLower();
 
-                // 定义 fallback 键列表，从最精确到最泛
                 var keys = new List<string>();
 
-                if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(categorySuffix))
-                    keys.Add($"WorldEvent_{evt.Type}_{role}{categorySuffix}_{phase}{gradeSuffix}");
+                if (!string.IsNullOrEmpty(role) && !string.IsNullOrEmpty(cat))
+                    keys.Add($"LWN_narr_worldevent_{et}_{role.ToLower()}_{cat}_{phase.ToLower()}{gradeSuffix}");
 
                 if (!string.IsNullOrEmpty(role))
-                    keys.Add($"WorldEvent_{evt.Type}_{role}_{phase}{gradeSuffix}");
+                    keys.Add($"LWN_narr_worldevent_{et}_{role.ToLower()}_{phase.ToLower()}{gradeSuffix}");
 
-                keys.Add($"WorldEvent_{evt.Type}_{phase}{gradeSuffix}");
+                keys.Add($"LWN_narr_worldevent_{et}_{phase.ToLower()}{gradeSuffix}");
+                keys.Add($"LWN_narr_worldevent_{et}_{phase.ToLower()}");
 
-                foreach (var eventId in keys)
+                foreach (var key in keys)
                 {
-                    var filters = new NarrativeFilters { EventName = eventId };
-                    var result = Resolve(filters);
-                    if (result != null && !IsFallbackText(result.Text))
-                    {
-                        return SubstituteCommissionPlaceholders(result.Text, data);
-                    }
+                    string result = LWNTextHelper.TryResolveText(key);
+                    if (result != null)
+                        return SubstituteCommissionPlaceholders(result, data);
                 }
             }
             catch { }
@@ -745,7 +673,8 @@ namespace LivingWorldNpcs
         public static string GetCommissionClosure(CommissionData data, NPCProfile giverProfile,
             NPCProfile payerProfile, CommissionGrade grade)
         {
-            if (data == null) return "这是你的报酬。";
+            // 委托数据为空时的结账兜底台词（本地化 key，缺 XML 时回退英文）
+            if (data == null) return LWNTextHelper.ResolveText("LWN_narr_fallback_closure_payment_null", "Here is your payment.");
 
             // 如果有 WorldEvent 关联，优先使用事件背景结局
             string text;
@@ -782,8 +711,11 @@ namespace LivingWorldNpcs
             if (payerProfile != null && giverProfile != null &&
                 payerProfile.BaseHero != giverProfile.BaseHero)
             {
-                string payerName = payerProfile.BaseHero?.Name?.ToString() ?? "结账人";
-                text += $"这钱是{payerName}托我转交的。";
+                // 结账人名兜底：结账人姓名缺失时用本地化称呼
+                string payerName = payerProfile.BaseHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_narr_fallback_payer", "the payer");
+                // 追加结账人转交台词：结账人 ≠ 委托人时说明钱的来源（{PAYER} 由 ResolveCompound 填充）
+                text += LWNTextHelper.ResolveCompound("LWN_narr_fallback_payer_transfer",
+                    "This money was entrusted to me by {PAYER} to pass on to you.", ("PAYER", payerName));
             }
 
             return text;
@@ -800,51 +732,102 @@ namespace LivingWorldNpcs
                 return csvText;
 
             // 兜底硬编码
-            string loc = evt.TargetSettlement?.Name?.ToString() ?? "那边";
-            string victim = evt.TargetHero?.Name?.ToString() ?? "委托人";
-            string instigator = evt.IsGenericInstigator ? "那帮人" : (evt.InstigatorHero?.Name?.ToString() ?? "他们");
+            // 地点名兜底：村庄名缺失时用本地化文本
+            string loc = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_narr_fallback_over_there", "over there");
+            // 受害者名兜底：受害者缺失时用本地化称呼
+            string victim = evt.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_narr_fallback_client", "the client");
+            // 加害者名兜底：无名团伙用泛指称呼（本地化文本）
+            string instigator = evt.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_narr_fallback_those_men", "those men") : (evt.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_narr_fallback_they", "they"));
             string reward = data.NegotiatedReward.ToString();
 
             return (evt.Type, grade) switch
             {
                 (EventType.BanditRaid, CommissionGrade.Perfect) =>
-                    $"{victim}眼含热泪——{instigator}被彻底打跑了，{loc}的乡亲们终于能睡个安稳觉。{reward}第纳尔，这是我们能拿出的全部了。",
+                    // 结账·匪徒劫掠·完美完成：匪徒全灭，乡亲安睡
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_banditraid_perfect",
+                        "{TARGET} is in tears — {INSTIGATOR} was driven off for good, and the folk of {LOCATION} can finally sleep soundly. {REWARD} denars — it's all we can afford.",
+                        ("TARGET", victim), ("INSTIGATOR", instigator), ("LOCATION", loc), ("REWARD", reward)),
                 (EventType.BanditRaid, CommissionGrade.Good) =>
-                    $"匪帮退了！{loc}暂时安全了。{reward}第纳尔，拿好。",
+                    // 结账·匪徒劫掠·顺利完成：匪帮撤退，暂得安宁
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_banditraid_good",
+                        "The raiders have fled! {LOCATION} is safe for now. {REWARD} denars — take them.",
+                        ("LOCATION", loc), ("REWARD", reward)),
                 (EventType.BanditRaid, _) =>
-                    $"总算是有了个结果。{reward}第纳尔报酬。",
+                    // 结账·匪徒劫掠·勉强完成：总算有了结果
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_banditraid_other",
+                        "Well, there's a result at last. {REWARD} denars for your trouble.",
+                        ("REWARD", reward)),
 
                 (EventType.Kidnapping, CommissionGrade.Perfect) =>
-                    $"{victim}一把抱住被救回来的人——失声痛哭。{reward}第纳尔……这份恩情我们全家记一辈子。",
+                    // 结账·绑架·完美完成：人质毫发无伤回家
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_kidnapping_perfect",
+                        "{TARGET} throws his arms around the rescued one and breaks into sobs. {REWARD} denars... our whole family will remember this debt for a lifetime.",
+                        ("TARGET", victim), ("REWARD", reward)),
                 (EventType.Kidnapping, CommissionGrade.Good) =>
-                    $"人回来了。{victim}握着你的手说不出话。{reward}第纳尔，谢谢你。",
+                    // 结账·绑架·顺利完成：人质平安归来
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_kidnapping_good",
+                        "They're back. {TARGET} grips your hand, unable to speak. {REWARD} denars — thank you.",
+                        ("TARGET", victim), ("REWARD", reward)),
                 (EventType.Kidnapping, _) =>
-                    $"人救回来了。虽然过程不太完美……{reward}第纳尔报酬。",
+                    // 结账·绑架·勉强完成：人救回但过程波折
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_kidnapping_other",
+                        "The person is rescued, though the process was far from perfect... {REWARD} denars for your trouble.",
+                        ("REWARD", reward)),
 
                 (EventType.Famine, CommissionGrade.Perfect) =>
-                    $"粮食刚好赶上！{loc}的老人孩子终于有饭吃了。{victim}代表全村向你道谢——{reward}第纳尔。",
+                    // 结账·饥荒·完美完成：粮食及时送到救急
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_famine_perfect",
+                        "The grain arrived just in time! The old and young of {LOCATION} finally have food. {TARGET} thanks you on behalf of the whole village — {REWARD} denars.",
+                        ("LOCATION", loc), ("TARGET", victim), ("REWARD", reward)),
                 (EventType.Famine, _) =>
-                    $"粮食送到了。虽然晚了一些……总算是救了急。{reward}第纳尔。",
+                    // 结账·饥荒·勉强完成：粮食迟到但救急
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_famine_other",
+                        "The grain has arrived. It was late, but it still saved the day. {REWARD} denars.",
+                        ("REWARD", reward)),
 
                 (EventType.Betrayal, CommissionGrade.Perfect) =>
-                    $"{victim}看着被追回的财物，沉默了很久。'他曾经是我最信任的人……' {reward}第纳尔，谢谢你还我公道。",
+                    // 结账·背叛·完美完成：追回人财，讨回公道
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_betrayal_perfect",
+                        "{TARGET} looks at the recovered goods and is silent for a long time. 'He was once my most trusted man...' {REWARD} denars — thank you for setting things right.",
+                        ("TARGET", victim), ("REWARD", reward)),
                 (EventType.Betrayal, _) =>
-                    $"事情了结了。{victim}叹了口气——有些伤不是钱能弥补的。{reward}第纳尔。",
+                    // 结账·背叛·勉强完成：事情了结，伤痕难愈
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_betrayal_other",
+                        "It's over. {TARGET} sighs — some wounds cannot be mended with money. {REWARD} denars.",
+                        ("TARGET", victim), ("REWARD", reward)),
 
                 (EventType.DebtTrap, CommissionGrade.Perfect) =>
-                    $"{victim}跪下了——'我终于不用躲着他们了。' {reward}第纳尔，这份恩情我当牛做马也会还。",
+                    // 结账·债务陷阱·完美完成：债主退散，如释重负
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_debttrap_perfect",
+                        "{TARGET} kneels — 'I no longer have to hide from them.' {REWARD} denars — I will repay this kindness even if I must work like a beast of burden.",
+                        ("TARGET", victim), ("REWARD", reward)),
                 (EventType.DebtTrap, _) =>
-                    $"债主暂时不会来骚扰了。{victim}终于能喘口气。{reward}第纳尔。",
+                    // 结账·债务陷阱·勉强完成：债主暂缓骚扰
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_debttrap_other",
+                        "The creditors won't be coming around for a while. {TARGET} can finally breathe. {REWARD} denars.",
+                        ("TARGET", victim), ("REWARD", reward)),
 
                 (EventType.SacredTheft, CommissionGrade.Perfect) =>
-                    $"圣物完好无损地回到了祠堂。{loc}的族老们含着泪向你致意——'祖宗的魂终于归位了。' {reward}第纳尔。",
+                    // 结账·圣物失窃·完美完成：圣物完璧归祠
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_sacredtheft_perfect",
+                        "The relic returned to the shrine undamaged. The elders of {LOCATION} pay their respects with tears in their eyes — 'The ancestors' spirit has finally come home.' {REWARD} denars.",
+                        ("LOCATION", loc), ("REWARD", reward)),
                 (EventType.SacredTheft, _) =>
-                    $"东西追回来了。虽然有些磕碰……{reward}第纳尔。",
+                    // 结账·圣物失窃·勉强完成：圣物追回但有磕碰
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_sacredtheft_other",
+                        "The relic is recovered, though a bit battered... {REWARD} denars.",
+                        ("REWARD", reward)),
 
                 (EventType.Assassination, CommissionGrade.Perfect) =>
-                    $"真凶被绳之以法。{loc}恢复了秩序——至少表面上是这样。{reward}第纳尔，你让正义得到了伸张。",
+                    // 结账·暗杀悬案·完美完成：真凶伏法，正义伸张
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_assassination_perfect",
+                        "The true killer has been brought to justice. {LOCATION} has returned to order — at least on the surface. {REWARD} denars — you made justice prevail.",
+                        ("LOCATION", loc), ("REWARD", reward)),
                 (EventType.Assassination, _) =>
-                    $"凶手处理了。但{loc}的伤痕不会那么快愈合。{reward}第纳尔。",
+                    // 结账·暗杀悬案·勉强完成：凶手已除但伤痕难愈
+                    LWNTextHelper.ResolveCompound("LWN_narr_worldevent_closure_assassination_other",
+                        "The killer has been dealt with. But {LOCATION}'s wounds will not heal quickly. {REWARD} denars.",
+                        ("LOCATION", loc), ("REWARD", reward)),
 
                 _ => null
             };
@@ -859,17 +842,20 @@ namespace LivingWorldNpcs
         {
             if (string.IsNullOrEmpty(raw)) return raw;
 
-            string playerName = Hero.MainHero?.Name?.ToString() ?? "你";
+            // 玩家名兜底：主英雄名缺失时用本地化文本（复用称呼兜底 key）
+            string playerName = Hero.MainHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_pronoun_you", "you");
             string npcName = target?.Name?.ToString()
                 ?? agent?.Name?.ToString()
-                ?? "对方";
+                // NPC 名兜底：目标与 Agent 名都缺失时用本地化文本
+                ?? LWNTextHelper.ResolveText("LWN_ph_fallback_npc", "the other person");
             string world = Settings.Instance?.WorldDescription ?? "";
 
             return raw
                 .Replace("{PLAYER}", playerName)
                 .Replace("{NPC}", npcName)
                 .Replace("{WORLD}", world ?? "")
-                .Replace("{TERM_LORD}", "大人");
+                // {TERM_LORD} 占位符：贵族称呼词，由本地化文本控制
+                .Replace("{TERM_LORD}", LWNTextHelper.ResolveText("LWN_ph_term_lord", "Lord"));
         }
 
         /// <summary>委托占位符替换。</summary>
@@ -878,9 +864,11 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(template)) return template;
 
             if (data.TargetHero != null)
-                template = template.Replace("{TARGET}", data.TargetHero.Name?.ToString() ?? "目标");
+                // {TARGET} 占位符：目标人物名缺失时用本地化文本兜底
+                template = template.Replace("{TARGET}", data.TargetHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_fallback_target", "target"));
             else
-                template = template.Replace("{TARGET}", "目标");
+                // {TARGET} 占位符：无目标人物时用本地化文本兜底
+                template = template.Replace("{TARGET}", LWNTextHelper.ResolveText("LWN_ph_fallback_target", "target"));
 
             if (!string.IsNullOrEmpty(data.TargetSettlementId))
             {
@@ -888,7 +876,8 @@ namespace LivingWorldNpcs
                 template = template.Replace("{LOCATION}", s?.Name?.ToString() ?? data.TargetSettlementId);
             }
             else
-                template = template.Replace("{LOCATION}", "目的地");
+                // {LOCATION} 占位符：无目标城镇时用本地化文本兜底
+                template = template.Replace("{LOCATION}", LWNTextHelper.ResolveText("LWN_ph_fallback_destination", "destination"));
 
             if (!string.IsNullOrEmpty(data.TargetItemId))
             {
@@ -896,14 +885,17 @@ namespace LivingWorldNpcs
                 template = template.Replace("{ITEM}", item?.Name?.ToString() ?? data.TargetItemId);
             }
             else
-                template = template.Replace("{ITEM}", "某物");
+                // {ITEM} 占位符：无目标物品时用本地化文本兜底
+                template = template.Replace("{ITEM}", LWNTextHelper.ResolveText("LWN_ph_fallback_item", "something"));
 
             template = template.Replace("{REWARD}", data.NegotiatedReward.ToString());
             template = template.Replace("{DEPOSIT}", data.DepositAmount.ToString());
-            template = template.Replace("{GIVER}", data.QuestGiver?.Name?.ToString() ?? "委托人");
+            // {GIVER} 占位符：委托人名缺失时用本地化文本兜底
+            template = template.Replace("{GIVER}", data.QuestGiver?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_fallback_giver", "client"));
             template = template.Replace("{COUNT}", data.TargetItemCount.ToString());
             template = template.Replace("{DAYS}", ((int)(data.TimeRemainingHours / 24f) + 1).ToString());
-            template = template.Replace("{PAYER}", data.RewardPayer?.Name?.ToString() ?? "结算人");
+            // {PAYER} 占位符：结算人名字缺失时用本地化文本兜底
+            template = template.Replace("{PAYER}", data.RewardPayer?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_fallback_payer", "payer"));
 
             return template;
         }
@@ -913,55 +905,61 @@ namespace LivingWorldNpcs
         #region 兜底
 
         /// <summary>
-        /// 查询 Narrative.csv，命中返回文本，未命中/兜底返回 null。
-        /// 与 Resolve 的区别：Resolve 保证不返回 null（兜底"……"），此方法 null = 没查到。
-        /// 方便调用方用 ?? 链式回落。
+        /// 尝试从 XML 解析叙事文本，未命中返回 null。
+        /// 与 Resolve 的区别：Resolve 保证不返回 null（兜底 GetCodeFallback），此方法 null = 没查到。
         /// </summary>
         public static string TryResolveText(NarrativeFilters filters)
         {
-            var result = Resolve(filters);
-            if (result == null || IsFallbackText(result.Text)) return null;
-            return result.Text;
+            if (filters == null) return null;
+            return TryResolveByKey(filters);
         }
 
-        /// <summary>判断 Resolve 返回的文本是否是兜底/无效文本（"……" 及其变体，如"……嗯。"）。</summary>
+        /// <summary>判断 Resolve 返回的文本是否是兜底文本。</summary>
         public static bool IsFallbackText(string text)
         {
-            return string.IsNullOrEmpty(text) || text.StartsWith("……");
+            return string.IsNullOrEmpty(text);
         }
 
-        /// <summary>查询无结果时的代码级硬编码兜底（目标 &lt; 5 条）。</summary>
+        /// <summary>查询无结果时的代码级硬编码兜底。</summary>
         private static NarrativeResult GetCodeFallback(NarrativeFilters filters)
         {
-            // 委托 Opening
+            // 委托 Opening 兜底：委托人开场白（含 {REWARD} 占位符）
             if (filters.Category != null && filters.Phase == "Opening")
                 return new NarrativeResult(
-                    $"我需要有人帮我处理一件事。报酬{{REWARD}}第纳尔。你愿意接下吗？", "normal");
+                    // 委托开场兜底 key：本地化查不到时回退英文
+                    LWNTextHelper.ResolveText("LWN_narr_fallback_commission_opening", "I need someone to handle something. {REWARD} denars. Will you take it?"), "normal");
 
-            // 委托 Closure
+            // 委托 Closure 兜底：按评级取结账台词（含 {REWARD} 占位符）
             if (filters.Category != null && filters.Phase == "Closure")
             {
                 string gradeText = filters.Grade switch
                 {
-                    "Perfect" => "做得漂亮！{REWARD}第纳尔——你比我想的还要靠得住。",
-                    "Good" => "办妥了。{REWARD}第纳尔，拿好。",
-                    "Passable" => "总算是完成了。{REWARD}，说好的数。",
-                    "Failed" => "这次就算了吧。希望下回能好些。",
-                    _ => "这是{REWARD}第纳尔报酬。"
+                    // 委托完美完成时的结账台词
+                    "Perfect" => LWNTextHelper.ResolveText("LWN_narr_fallback_closure_perfect", "Well done! {REWARD} denars — you're more reliable than I thought."),
+                    // 委托顺利完成时的结账台词
+                    "Good" => LWNTextHelper.ResolveText("LWN_narr_fallback_closure_good", "It's done. {REWARD} denars, take it."),
+                    // 委托勉强完成时的结账台词
+                    "Passable" => LWNTextHelper.ResolveText("LWN_narr_fallback_closure_passable", "Finally done. {REWARD}, as agreed."),
+                    // 委托失败时的结账台词
+                    "Failed" => LWNTextHelper.ResolveText("LWN_narr_fallback_closure_failed", "Let's forget this one. Hope next time is better."),
+                    // 未知评级时的结账兜底台词
+                    _ => LWNTextHelper.ResolveText("LWN_narr_fallback_closure_default", "Here's {REWARD} denars for your trouble.")
                 };
                 return new NarrativeResult(gradeText, "normal");
             }
 
-            // 对话 Success
+            // 对话 Success 兜底：成功台词的通用兜底
             if (filters.Outcome == "Success")
-                return new NarrativeResult("……嗯，行吧。", "positive");
+                // 对话成功兜底 key：本地化查不到时回退英文
+                return new NarrativeResult(LWNTextHelper.ResolveText("LWN_narr_fallback_success", "...Fine, alright."), "positive");
 
-            // 对话 Fail
+            // 对话 Fail 兜底：失败台词的通用兜底
             if (filters.Outcome == "Fail")
-                return new NarrativeResult("……不行。", "negative");
+                // 对话失败兜底 key：本地化查不到时回退英文
+                return new NarrativeResult(LWNTextHelper.ResolveText("LWN_narr_fallback_fail", "...No."), "negative");
 
-            // 通用
-            return new NarrativeResult("……嗯。", "normal");
+            // 通用兜底 key：任何查询都无结果时的最后兜底
+            return new NarrativeResult(LWNTextHelper.ResolveText("LWN_narr_fallback_generic", "...Mm."), "normal");
         }
 
         /// <summary>委托叙事 CSV 查不到时的兜底。</summary>
@@ -969,21 +967,32 @@ namespace LivingWorldNpcs
         {
             if (phase == "Opening")
             {
+                // 委托开场兜底（含目标）：TARGET/REWARD 由 ResolveCompound 显式填充
                 string target = data.TargetHero?.Name?.ToString()
                     ?? (data.TargetSettlementId != null
-                        ? Settlement.Find(data.TargetSettlementId)?.Name?.ToString() ?? "某地"
-                        : "目标");
-                return $"我需要有人帮我处理一件事——和{target}有关。报酬{data.NegotiatedReward}第纳尔。你愿意接下吗？";
+                        // 目标地点名缺失时的本地化兜底
+                        ? Settlement.Find(data.TargetSettlementId)?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_fallback_place", "some place")
+                        // 无目标地点时的本地化兜底
+                        : LWNTextHelper.ResolveText("LWN_ph_fallback_target", "target"));
+                // 委托开场兜底 key：含目标场景，TARGET/REWARD 由 ResolveCompound 显式填充
+                return LWNTextHelper.ResolveCompound("LWN_narr_fallback_commission_opening_target",
+                    ("TARGET", target), ("REWARD", data.NegotiatedReward.ToString()));
             }
             else
             {
+                // 委托结账兜底：按评级取台词，复用 GetCodeFallback 的 Closure key
                 return grade switch
                 {
-                    CommissionGrade.Perfect => $"做得漂亮！{data.NegotiatedReward}第纳尔——你比我想的还要靠得住。",
-                    CommissionGrade.Good => $"办妥了。{data.NegotiatedReward}第纳尔，拿好。",
-                    CommissionGrade.Passable => $"总算是完成了。{data.NegotiatedReward}，说好的数。",
-                    CommissionGrade.Failed => $"这次就算了吧。希望下回能好些。",
-                    _ => $"这是{data.NegotiatedReward}第纳尔报酬。"
+                    // 委托完美完成时的结账台词（{REWARD} 由 ResolveCompound 填充）
+                    CommissionGrade.Perfect => LWNTextHelper.ResolveCompound("LWN_narr_fallback_closure_perfect", ("REWARD", data.NegotiatedReward.ToString())),
+                    // 委托顺利完成时的结账台词（{REWARD} 由 ResolveCompound 填充）
+                    CommissionGrade.Good => LWNTextHelper.ResolveCompound("LWN_narr_fallback_closure_good", ("REWARD", data.NegotiatedReward.ToString())),
+                    // 委托勉强完成时的结账台词（{REWARD} 由 ResolveCompound 填充）
+                    CommissionGrade.Passable => LWNTextHelper.ResolveCompound("LWN_narr_fallback_closure_passable", ("REWARD", data.NegotiatedReward.ToString())),
+                    // 委托失败时的结账台词
+                    CommissionGrade.Failed => LWNTextHelper.ResolveCompound("LWN_narr_fallback_closure_failed"),
+                    // 未知评级时的结账兜底台词（{REWARD} 由 ResolveCompound 填充）
+                    _ => LWNTextHelper.ResolveCompound("LWN_narr_fallback_closure_default", ("REWARD", data.NegotiatedReward.ToString()))
                 };
             }
         }

@@ -12,8 +12,10 @@ namespace LivingWorldNpcs
     public class InfoIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Info; } }
-        public override string DisplayName { get { return "【情报】 查看信息"; } }
-        public override string ToolTip { get { return "查看对方的人物属性和关系"; } }
+        // 情报意图名：打开百科查看对方信息
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_general_info_name", "Intel: View information"); } }
+        // 情报意图提示：查看人物属性与关系
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_general_info_tooltip", "View the character's attributes and relations"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -32,8 +34,10 @@ namespace LivingWorldNpcs
     public class OrderSoldierIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Order; } }
-        public override string DisplayName { get { return "【命令】 询问状况"; } }
-        public override string ToolTip { get { return "询问士兵当前的状态"; } }
+        // 命令意图名：询问士兵状况
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_general_order_name", "Order: Report your status"); } }
+        // 命令意图提示：询问士兵当前状态
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_general_order_tooltip", "Ask the soldier about their current status"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -45,7 +49,8 @@ namespace LivingWorldNpcs
         {
             if (Settings.Instance.IsLLMReady)
             {
-                ctx.Controller.SendIntent("Order", "汇报你的情况，士兵！");
+                // LLM 命令开场白：让士兵汇报当前情况
+                ctx.Controller.SendIntent("Order", LWNTextHelper.ResolveText("LWN_intent_general_order_prompt", "Report your situation, soldier!"));
             }
             else
             {
@@ -59,8 +64,10 @@ namespace LivingWorldNpcs
     public class FollowIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Order_Follow; } }
-        public override string DisplayName { get { return "【跟随】 跟随我"; } }
-        public override string ToolTip { get { return "让对方跟随你行动"; } }
+        // 跟随意图名：让对方跟随行动
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_general_follow_name", "Follow: Follow me"); } }
+        // 跟随意图提示：让对方跟随你行动
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_general_follow_tooltip", "Ask the other to follow you"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -83,8 +90,10 @@ namespace LivingWorldNpcs
     public class ChatIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Chat; } }
-        public override string DisplayName { get { return "【寒暄】 随便说两句..."; } }
-        public override string ToolTip { get { return "与对方闲聊"; } }
+        // 寒暄意图名：随便聊聊
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_general_chat_name", "Chat: Just talk..."); } }
+        // 寒暄意图提示：与对方闲聊
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_general_chat_tooltip", "Have a chat with the other"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -107,8 +116,10 @@ namespace LivingWorldNpcs
     public class ExpandOptionsIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Chat; } }
-        public override string DisplayName { get { return "【其他事情】 有别的事找你..."; } }
-        public override string ToolTip { get { return "展开更多选项"; } }
+        // 展开折叠选项名：还有其他事情要说
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_general_expand_name", "Other matters: Something else..."); } }
+        // 展开折叠选项提示：展开更多选项
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_general_expand_tooltip", "Expand more options"); } }
         public override NegotiationGoalType? Goal => null;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -128,8 +139,10 @@ namespace LivingWorldNpcs
     public class PersuadeSurrenderIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.PersuadeSurrender; } }
-        public override string DisplayName { get { return "【劝降】 放下武器，饶你不死"; } }
-        public override string ToolTip { get { return "威吓敌方士兵投降——兵力悬殊时成功率更高"; } }
+        // 劝降意图名：威吓敌方士兵投降
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_general_surrender_name", "Surrender: Lay down your arms and live"); } }
+        // 劝降意图提示：兵力悬殊时成功率更高
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_general_surrender_tooltip", "Intimidate enemy soldiers into surrendering - better odds when outnumbered"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -178,17 +191,36 @@ namespace LivingWorldNpcs
                     float surrenderRatio = (float)captured / Math.Max(enemyTroops, 1);
                     if (surrenderRatio > 0.3f || enemyParty == null || enemyParty.MemberRoster.TotalRegulars <= 1)
                     {
-                        string line = captured > 1
-                            ? $"「……我们投降！别杀我们——」对方战意全失，{captured} 人放下武器束手就擒。"
-                            : $"「……我投降！」对方颤抖着扔下武器，束手就擒。";
+                        string line;
+                        if (captured > 1)
+                        {
+                            // 劝降成功台词：对方多人集体投降
+                            line = LWNTextHelper.ResolveCompound("LWN_intent_general_surrender_success_multi",
+                                ("CAPTURED", captured.ToString()));
+                        }
+                        else
+                        {
+                            // 劝降成功台词：对方单人投降
+                            line = LWNTextHelper.ResolveText("LWN_intent_general_surrender_success_single", "...I surrender! They threw down their weapons, shaking.");
+                        }
                         ctx.Controller.SceneSay(line,
-                            new StoryOptionVM("（离开）", () => ctx.Controller._vm.Close()));
+                            // 劝降成功后的离开选项：玩家告辞离开
+                            new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_general_leave_option", "(Leave)"), () => ctx.Controller._vm.Close()));
                     }
                     else
                     {
-                        string line = captured > 1
-                            ? $"「……我们投降！」有 {captured} 人扔下武器，被押入你的俘虏队。"
-                            : $"「……饶命！」对方跪地求饶，成了你的俘虏。";
+                        string line;
+                        if (captured > 1)
+                        {
+                            // 劝降部分成功台词：多人扔下武器被押入俘虏队
+                            line = LWNTextHelper.ResolveCompound("LWN_intent_general_surrender_partial_multi",
+                                ("CAPTURED", captured.ToString()));
+                        }
+                        else
+                        {
+                            // 劝降部分成功台词：单人跪地求饶成为俘虏
+                            line = LWNTextHelper.ResolveText("LWN_intent_general_surrender_partial_single", "...Mercy! He knelt and begged, taken as your prisoner.");
+                        }
                         ctx.Controller.SceneSay(line);
                     }
                     DebugLogger.Log($"[PersuadeSurrender] SUCCESS: captured {captured}/{enemyTroops} from {enemyParty?.Name}, chance={finalChance:P0}");
@@ -196,11 +228,20 @@ namespace LivingWorldNpcs
                 else
                 {
                     // 失败：对方被激怒，对话强制结束
-                    string line = enemyTroops > 20
-                        ? $"「就凭你？」对方大笑，战意反而更盛。交涉破裂。"
-                        : $"「……滚。」对方握紧了武器，拒绝再谈。";
+                    string line;
+                    if (enemyTroops > 20)
+                    {
+                        // 劝降失败台词：对方人多势众，嘲笑并拒绝
+                        line = LWNTextHelper.ResolveText("LWN_intent_general_surrender_fail_confident", "You? They laughed, their fighting spirit even fiercer. Negotiations broke down.");
+                    }
+                    else
+                    {
+                        // 劝降失败台词：对方愤怒拒绝再谈
+                        line = LWNTextHelper.ResolveText("LWN_intent_general_surrender_fail_angry", "...Get lost. They gripped their weapon and refused to talk.");
+                    }
                     ctx.Controller.SceneSay(line,
-                        new StoryOptionVM("（离开）", () => ctx.Controller._vm.Close()));
+                        // 劝降失败后的离开选项：玩家告辞离开
+                        new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_general_leave_option", "(Leave)"), () => ctx.Controller._vm.Close()));
                     DebugLogger.Log($"[PersuadeSurrender] FAIL: chance={finalChance:P0}");
                 }
             }
@@ -215,8 +256,10 @@ namespace LivingWorldNpcs
     public class LeaveIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Leave; } }
-        public override string DisplayName { get { return "【离开】 告辞"; } }
-        public override string ToolTip { get { return "结束对话"; } }
+        // 离开意图名：结束对话告辞
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_general_leave_name", "Leave: Take my leave"); } }
+        // 离开意图提示：结束对话
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_general_leave_tooltip", "End the conversation"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {

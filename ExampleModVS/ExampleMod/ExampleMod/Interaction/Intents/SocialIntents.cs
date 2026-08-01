@@ -9,8 +9,10 @@ namespace LivingWorldNpcs
     public class ProposeMarriageIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.ProposalMarriage; } }
-        public override string DisplayName { get { return "【求婚】 表达爱意"; } }
-        public override string ToolTip { get { return "表达你的爱意，希望对方能接受你的求婚"; } }
+        // 求婚意图名：向对方表达爱意
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_social_propose_marriage_name", "Proposal: Declare your affection"); } }
+        // 求婚意图提示：表达爱意，希望对方接受求婚
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_social_propose_marriage_tooltip", "Express your love, hoping they accept your proposal"); } }
         public override NegotiationGoalType? Goal { get { return NegotiationGoalType.ProposeMarriage; } }
         public override NegotiationTactic Tactic { get { return NegotiationTactic.Flatter; } }
         public override int FailRelationPenalty { get { return 5; } }
@@ -21,8 +23,11 @@ namespace LivingWorldNpcs
             if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero) return Eligibility.Hide();
             if (!ctx.OppositeSex || ctx.IsMarried || Hero.MainHero.Spouse != null) return Eligibility.Hide();
-            if (ctx.OnCooldown(Goal.Value)) return Eligibility.Grey($"对方仍在回避你（还需 {ctx.CooldownDaysLeft(Goal.Value)} 天）");
-            if (ctx.Relation < 0) return Eligibility.Grey("门第悬殊、情分未到，先培养感情");
+            // 求婚冷却置灰：对方仍在回避，显示剩余天数
+            if (ctx.OnCooldown(Goal.Value)) return Eligibility.Grey(LWNTextHelper.ResolveCompound("LWN_intent_social_propose_marriage_cooldown",
+                ("DAYS", ctx.CooldownDaysLeft(Goal.Value).ToString())));
+            // 求婚置灰：交情未到，需先培养感情
+            if (ctx.Relation < 0) return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_social_propose_marriage_relation_low", "Not enough closeness - build the bond first"));
             return Eligibility.Show();
         }
 
@@ -36,8 +41,10 @@ namespace LivingWorldNpcs
     public class GiftIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Gift; } }
-        public override string DisplayName { get { return "【送礼】 赠予物品"; } }
-        public override string ToolTip { get { return "赠送物品以提升关系（贵重 / 投其所好 效果更佳）"; } }
+        // 送礼意图名：赠予物品
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_social_gift_name", "Gift: Give a present"); } }
+        // 送礼意图提示：贵重或投其所好的物品效果更佳
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_social_gift_tooltip", "Give a gift to improve relations (valuable or well-suited gifts work best)"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -55,14 +62,17 @@ namespace LivingWorldNpcs
     public class TeaCeremonyIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.TeaCeremony; } }
-        public override string DisplayName { get { return "【茶席】 共饮一盏"; } }
-        public override string ToolTip { get { return "邀请对方共饮，依其性情增进交情"; } }
+        // 茶席意图名：邀对方共饮一盏
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_social_tea_name", "Tea: Share a cup"); } }
+        // 茶席意图提示：依对方性情增进交情
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_social_tea_tooltip", "Invite them to tea, deepening the bond to their temperament"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.HasUrgentWorldEvent && !ctx.ExpandedOptions) return Eligibility.Hide();
             if (!ctx.IsHero) return Eligibility.Hide();
-            if (ctx.EnemyFaction) return Eligibility.Grey("敌对之人，岂会与你共饮");
+            // 茶席置灰：敌对之人不会共饮
+            if (ctx.EnemyFaction) return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_social_tea_enemy", "An enemy would never share tea with you"));
             return Eligibility.Show();
         }
 
@@ -78,7 +88,9 @@ namespace LivingWorldNpcs
             }
             if (delta < 1) delta = 1;
             ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, delta);
-            InformationManager.DisplayMessage(new InformationMessage($"你与{ctx.Speaker.Name}共饮一盏，关系 +{delta}", Colors.Green));
+            // 共饮一盏飘字：与 {NAME} 共饮，关系 +{DELTA}
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_intent_social_tea_shared",
+                ("NAME", ctx.Speaker.Name.ToString()), ("DELTA", delta.ToString())), Colors.Green));
         }
     }
 
@@ -86,8 +98,10 @@ namespace LivingWorldNpcs
     public class SparIntent : IntentBase
     {
         public override InteractionOptionType Type { get { return InteractionOptionType.Spar; } }
-        public override string DisplayName { get { return "【交手】 切磋武艺"; } }
-        public override string ToolTip { get { return "点到为止，不伤性命"; } }
+        // 交手意图名：切磋武艺
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_social_spar_name", "Spar: Test your skill"); } }
+        // 交手意图提示：点到为止不伤性命
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_social_spar_tooltip", "A friendly bout, no blood drawn"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -96,7 +110,8 @@ namespace LivingWorldNpcs
             // Hero：未受伤的领主可切磋；战场敌人也可
             if (ctx.IsHero)
             {
-                if (ctx.Speaker.IsWounded) return Eligibility.Grey("对方负伤在身，不宜动武");
+                // 交手置灰：对方负伤不宜动武
+                if (ctx.Speaker.IsWounded) return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_social_spar_wounded", "They are wounded - no fighting"));
                 if (!ctx.Speaker.IsLord) return Eligibility.Hide();
                 return Eligibility.Show();
             }

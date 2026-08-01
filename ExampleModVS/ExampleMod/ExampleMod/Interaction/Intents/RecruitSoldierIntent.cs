@@ -18,8 +18,10 @@ namespace LivingWorldNpcs
         private static HashSet<int> _recruitedAgents = new HashSet<int>();
 
         public override InteractionOptionType Type { get { return InteractionOptionType.RecruitSoldier; } }
-        public override string DisplayName { get { return "【招募】 应募入伍"; } }
-        public override string ToolTip { get { return "花钱招募此地平民为兵（荣誉高可打折）"; } }
+        // 招募意图名：花钱招募平民入伍
+        public override string DisplayName { get { return LWNTextHelper.ResolveText("LWN_intent_recruit_name", "Recruit: Enlist"); } }
+        // 招募意图提示：花钱招募本地平民，荣誉高可打折
+        public override string ToolTip { get { return LWNTextHelper.ResolveText("LWN_intent_recruit_tooltip", "Pay to recruit local civilians as soldiers (high honor earns a discount)"); } }
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -64,7 +66,8 @@ namespace LivingWorldNpcs
             CharacterObject troop = culture != null ? culture.BasicTroop : null;
             if (troop == null)
             {
-                InformationManager.DisplayMessage(new InformationMessage("此人无从应募。"));
+                // 招募失败：该文化没有可招募的基础兵种
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_intent_recruit_msg_no_troop", "There is no one to enlist here.")));
                 return;
             }
 
@@ -87,30 +90,67 @@ namespace LivingWorldNpcs
 
             if (Hero.MainHero.Gold < finalCost)
             {
+                // 招募失败：钱不够（报出所需金额）
                 InformationManager.DisplayMessage(new InformationMessage(
-                    $"招募 {troop.Name} 需 {finalCost} 第纳尔，你的钱不够。", Colors.Red));
+                    // 招募 {TROOP} 需 {COST} 第纳尔，你的钱不够。
+                    LWNTextHelper.ResolveCompound("LWN_intent_recruit_msg_no_gold",
+                        "Recruiting {TROOP} costs {COST} denars — you don't have enough.",
+                        ("TROOP", troop.Name.ToString()), ("COST", finalCost.ToString())), Colors.Red));
                 return;
             }
 
             // ── 确认弹窗 ──
-            string honorHint = honor > 0 ? $"（声望折扣 {honor * 2}%）" : "";
-            string charmHint = haggled ? $" 讨价还价成功！" : "";
+            // 声望折扣附注（荣誉高时出现，可为空，作为片段注入确认文案）
+            string honorHint = honor > 0
+                // （声望折扣 {PERCENT}%）
+                ? LWNTextHelper.ResolveCompound("LWN_intent_recruit_hint_honor", " (reputation discount {PERCENT}%)", ("PERCENT", (honor * 2).ToString()))
+                : "";
+            // 砍价成功附注（可为空，作为片段注入确认文案）
+            string charmHint = haggled
+                //  讨价还价成功！
+                ? LWNTextHelper.ResolveText("LWN_intent_recruit_hint_haggle", " Haggled successfully!")
+                : "";
             InformationManager.ShowInquiry(new InquiryData(
-                "应募入伍",
-                $"招募 {troop.Name} 需要 {finalCost} 第纳尔{honorHint}{charmHint}，是否招募？",
-                true, true, "招募", "算了",
+                // 招募确认弹窗标题
+                LWNTextHelper.ResolveText("LWN_intent_recruit_inquiry_title", "Enlist"),
+                // 招募确认正文：价格 + 折扣附注 + 是否招募（语序由 XML 控制）
+                LWNTextHelper.ResolveCompound("LWN_intent_recruit_inquiry_prompt",
+                    "Recruiting {TROOP} costs {COST} denars{HONOR}{CHARM}. Recruit?",
+                    ("TROOP", troop.Name.ToString()), ("COST", finalCost.ToString()),
+                    ("HONOR", honorHint), ("CHARM", charmHint)),
+                true, true,
+                // 招募确认按钮：确认
+                LWNTextHelper.ResolveText("LWN_intent_recruit_btn_yes", "Recruit"),
+                // 招募确认按钮：取消
+                LWNTextHelper.ResolveText("LWN_intent_recruit_btn_no", "Never mind"),
                 () =>
                 {
                     if (finalCost > 0) AgentControlHelper.TransferGold(Hero.MainHero, null, finalCost, false);
                     MobileParty.MainParty.MemberRoster.AddToCounts(troop, 1);
                     Hero.MainHero.AddSkillXp(DefaultSkills.Charm, 10);
 
+                    // 成交价描述：砍价成功 / 按标准价（片段，供外层模板注入）
                     string priceDesc = haggled
-                        ? $"经一番说和 只花了 {finalCost}"
-                        : $"按例付了 {finalCost}";
-                    if (honor > 0) priceDesc += $"（原价 20，声望折 {honor * 2}%）";
+                        // 经一番说和 只花了 {COST}
+                        ? LWNTextHelper.ResolveCompound("LWN_intent_recruit_price_haggle",
+                            "after some talk, only {COST}",
+                            ("COST", finalCost.ToString()))
+                        // 按例付了 {COST}
+                        : LWNTextHelper.ResolveCompound("LWN_intent_recruit_price_standard",
+                            "paid the usual {COST}",
+                            ("COST", finalCost.ToString()));
+                    // 成交价附注：原价与声望折扣（荣誉高时出现，可为空）
+                    if (honor > 0)
+                        // （原价 20，声望折 {PERCENT}%）
+                        priceDesc += LWNTextHelper.ResolveCompound("LWN_intent_recruit_price_honor_note",
+                            " (original 20, {PERCENT}% off by reputation)",
+                            ("PERCENT", (honor * 2).ToString()));
+                    // 招募成功消息：兵种应募入伍 + 成交价描述
                     InformationManager.DisplayMessage(new InformationMessage(
-                        $"{troop.Name} 应募入伍！{priceDesc} 第纳尔。", Colors.Green));
+                        // {TROOP} 应募入伍！{PRICE} 第纳尔。
+                        LWNTextHelper.ResolveCompound("LWN_intent_recruit_success_msg",
+                            "{TROOP} enlisted! {PRICE} denars.",
+                            ("TROOP", troop.Name.ToString()), ("PRICE", priceDesc)), Colors.Green));
 
                     // 追踪已招募
                     _recruitedAgents.Add(ctx.Agent.Index);

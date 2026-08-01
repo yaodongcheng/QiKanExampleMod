@@ -43,7 +43,8 @@ namespace LivingWorldNpcs
                     if (player.Health >= player.HealthLimit)
                     {
                         //生命值已满
-                        InformationManager.DisplayMessage(new InformationMessage("Your health is full! 血量已满 不可以消耗回血道具"));
+                        // 生命值已满提示：不能消耗回血道具
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_beer_health_full", "Your health is full — no need for a healing item.")));
                     }
                     else
                     {
@@ -54,13 +55,16 @@ namespace LivingWorldNpcs
                         {
                             player.Health = player.HealthLimit; //确保生命值不超过上限
                         }
-                        InformationManager.DisplayMessage(new InformationMessage($"You restored {healAmount} health points! 当前生命值: {player.Health}/{player.HealthLimit}"));
+                        // 回血成功提示：恢复了 {AMOUNT} 点生命值（{HP}/{MAX}）
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_beer_health_restored",
+                            ("AMOUNT", $"{healAmount:F1}"), ("HP", $"{player.Health:F0}"), ("MAX", $"{player.HealthLimit:F0}"))));
                     }
                 }
                 else
                 {
                     //没有物品提示
-                    InformationManager.DisplayMessage(new InformationMessage("You don't have any Artisan Beer! 库存不足"));
+                    // 背包里没有工匠啤酒的提示
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_beer_not_owned", "You don't have any Artisan Beer!")));
                 }
             }
         }

@@ -77,6 +77,14 @@ namespace LivingWorldNpcs
             evt.ResolvedBy = resolvedBy;
             WorldEventStore.TransitionStage(evt, EventStage.Resolved);
         }
+
+        /// <summary>权威 NPC 名字（村长等），无 Hero 时回落本地化兜底</summary>
+        public static string GetAuthorityName(WorldEvent evt)
+        {
+            // 权威 NPC 名兜底：无名 NPC 时显示"村长"
+            var fallback = LWNTextHelper.ResolveText("LWN_intent_accountability_elder_fallback", "village elder");
+            return WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? fallback;
+        }
     }
 
     #region InteractionOptionType Extension
@@ -97,7 +105,8 @@ namespace LivingWorldNpcs
     public class PayRestitutionIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.PayRestitution;
-        public override string DisplayName => "【赔钱消灾】我愿意赔偿损失";
+        // 玩家选项名：赔钱消灾——我愿意赔偿损失
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_pay_restitution", "Pay restitution — I'm willing to compensate the losses");
 
         // 动态 Tactic/Goal/OfferValue —— Evaluate 中按 ActionParam 设置，
         // ExecuteIntentAction 保证调用顺序：Evaluate → Goal/Tactic/GetOfferValue → SimpleCompute
@@ -109,7 +118,8 @@ namespace LivingWorldNpcs
         public override NegotiationTactic Tactic => _tactic;
         public override float GetOfferValue(IntentContext ctx) => _offerValue;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[赔钱]";
+        // 对话选项前缀：赔钱
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_pay_restitution", "[Pay]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -136,7 +146,8 @@ namespace LivingWorldNpcs
                             if (Hero.MainHero.Gold < bribeCost)
                             {
                                 DebugLogger.Log($"[IntentEval] PayRestitution → Grey (bribe, gold={Hero.MainHero.Gold} < {bribeCost})");
-                                return Eligibility.Grey($"钱不够（需要 {bribeCost} 第纳尔）");
+                                // 置灰原因：金币不足以支付贿赂款（{GOLD}=所需金额）
+                                return Eligibility.Grey(LWNTextHelper.ResolveCompound("LWN_intent_accountability_insufficient_gold", ("GOLD", bribeCost.ToString())));
                             }
                             DebugLogger.Log($"[IntentEval] PayRestitution → Show (bribe, cost={bribeCost})");
                             return Eligibility.Show();
@@ -183,7 +194,8 @@ namespace LivingWorldNpcs
             if (Hero.MainHero.Gold < cost)
             {
                 DebugLogger.Log($"[IntentEval] PayRestitution → Grey (gold={Hero.MainHero.Gold} < {cost})");
-                return Eligibility.Grey($"钱不够（需要 {cost} 第纳尔）");
+                // 置灰原因：金币不足以支付赔偿金（{GOLD}=所需金额）
+                return Eligibility.Grey(LWNTextHelper.ResolveCompound("LWN_intent_accountability_insufficient_gold", ("GOLD", cost.ToString())));
             }
             DebugLogger.Log($"[IntentEval] PayRestitution → Show (stage={ctx.ActiveEvent.Stage}, cost={cost})");
             return Eligibility.Show();
@@ -259,7 +271,9 @@ namespace LivingWorldNpcs
 
             string sceneTag = isOnSpot ? "[OnSpot]" : "";
             DebugLogger.Log($"[Accountability]{sceneTag} Player paid restitution {cost} gold for {evt.EventId}");
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"赔了{cost}第纳尔。{authority?.Name?.ToString() ?? "村长"}收了钱，这事总算翻篇了。");
+            // 叙事日志：玩家赔款了结（{GOLD}=金额，{NAME}=收钱人）
+            CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_paid_log",
+                ("GOLD", cost.ToString()), ("NAME", AccountabilityHelper.GetAuthorityName(evt))));
         }
 
         /// <summary>贿赂检定通过：扣钱、清警戒、结案。</summary>
@@ -298,18 +312,25 @@ namespace LivingWorldNpcs
     public class CharmDefenseIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.CharmDefense;
-        public override string DisplayName => "【Charm 辩护】你们搞错了，给我个机会说清楚";
+        // 玩家选项名：Charm 辩护——你们搞错了，给我个机会说清楚
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_charm_defense", "[Charm defense] You've got it wrong — give me a chance to explain");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
         public override float CooldownDays => 0f; // 每案仅一次，靠 CharmReprieveUsed 守卫
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[狡辩]";
+        // 对话选项前缀：狡辩
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_charm_defense", "[Deny]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) { DebugLogger.Log($"[IntentEval] CharmDefense → Hide (no event)"); return Eligibility.Hide(); }
             if (ctx.ActiveEvent.SuspectHeroId != Hero.MainHero.StringId) { DebugLogger.Log($"[IntentEval] CharmDefense → Hide (suspect={ctx.ActiveEvent.SuspectHeroId} != {Hero.MainHero.StringId})"); return Eligibility.Hide(); }
-            if (ctx.ActiveEvent.CharmReprieveUsed) { DebugLogger.Log($"[IntentEval] CharmDefense → Grey (CharmReprieveUsed)"); return Eligibility.Grey("已经用过一次了（村长不会再信）"); }
+            if (ctx.ActiveEvent.CharmReprieveUsed)
+            {
+                DebugLogger.Log($"[IntentEval] CharmDefense → Grey (CharmReprieveUsed)");
+                // 置灰原因：魅力辩护已经用过一次，村长不会再信
+                return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_accountability_charm_used", "You've already used this once (the elder won't believe you again)"));
+            }
             DebugLogger.Log($"[IntentEval] CharmDefense → Show");
             return Eligibility.Show();
         }
@@ -325,8 +346,10 @@ namespace LivingWorldNpcs
             WalkAwayIntent.PendingInquiryBody = null;
 
             DebugLogger.Log($"[Accountability] Charm defense succeeded for {evt.EventId} — suspect downgraded");
-            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"我设法说服了{giverName}，暂时洗脱了嫌疑。但他看我的眼神还是不太对……");
+            var giverName = AccountabilityHelper.GetAuthorityName(evt);
+            // 叙事日志：魅力辩护成功（{NAME}=信服的权威 NPC）
+            CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_charm_success_log",
+                ("NAME", giverName)));
         }
 
         public override void OnFail(IntentContext ctx)
@@ -337,10 +360,13 @@ namespace LivingWorldNpcs
             // 模板 NPC（村民/守卫等无 HeroObject）没有好感度系统，跳过关系惩罚
             if (ctx.Speaker != null)
                 ChangeRelationAction.ApplyPlayerRelation(ctx.Speaker, -10, false, true);
-            WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你还想狡辩，被当场驳了回来");
+            // 阶段升级缘由：狡辩被当场驳回（赔款涨价说明里给玩家看）
+            WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, LWNTextHelper.ResolveText("LWN_intent_accountability_charm_fail_reason", "you tried to weasel out of it and were shut down on the spot"));
             DebugLogger.Log($"[Accountability] Charm defense failed for {evt.EventId} — → Confrontation");
-            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"辩解没用。{giverName}根本不买账，事态反而更严重了。");
+            var giverName = AccountabilityHelper.GetAuthorityName(evt);
+            // 叙事日志：魅力辩护失败（{NAME}=不信服的权威 NPC）
+            CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_charm_fail_log",
+                ("NAME", giverName)));
         }
     }
 
@@ -351,11 +377,13 @@ namespace LivingWorldNpcs
     public class FrameSuspectIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.FrameSuspect;
-        public override string DisplayName => "【栽赃】是别人干的！";
+        // 玩家选项名：栽赃——是别人干的！
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_frame_suspect", "[Frame] It was someone else!");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[栽赃]";
+        // 对话选项前缀：栽赃
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_frame_suspect", "[Frame]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -391,9 +419,12 @@ namespace LivingWorldNpcs
 
             // Intent 驱动：通知调查 Quest "嫌犯已锁定"
             var suspectHero = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
-            string suspectName = suspectHero?.Name?.ToString() ?? "某人";
-            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"我成功把嫌疑推给了{suspectName}。{giverName}信了。");
+            // 嫌犯名兜底：无 Hero 时显示"某人"
+            string suspectName = suspectHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_intent_accountability_someone_fallback", "someone");
+            var giverName = AccountabilityHelper.GetAuthorityName(evt);
+            // 叙事日志：栽赃成功（{SUSPECT}=被嫁祸者，{NAME}=信服的权威 NPC）
+            CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_frame_success_log",
+                ("SUSPECT", suspectName), ("NAME", giverName)));
             foreach (var q in Campaign.Current.QuestManager.Quests)
             {
                 if (q is CommissionQuest cq
@@ -419,8 +450,10 @@ namespace LivingWorldNpcs
                 evt.InvestigationProgress = 1.0f;
                 WorldEventStore.TransitionStage(evt, EventStage.Active);
                 DebugLogger.Log($"[Accountability] Frame suspicion failed twice — suspect reverts to player");
-                var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-                CommissionQuest.AddNarrativeLogForEvent(evt, $"栽赃再次被识破——{giverName}已经不再相信我。嫌疑转回了我的头上。");
+                var giverName = AccountabilityHelper.GetAuthorityName(evt);
+                // 叙事日志：栽赃被识破、嫌疑转回玩家（{NAME}=权威 NPC）
+                CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_frame_fail_log",
+                    ("NAME", giverName)));
             }
         }
 
@@ -456,11 +489,13 @@ namespace LivingWorldNpcs
     public class ThreatIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Threat;
-        public override string DisplayName => "【威胁】你再说一遍？";
+        // 玩家选项名：威胁——你再说一遍？
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_threat", "[Threat] Say that again?");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[威胁]";
+        // 对话选项前缀：威胁
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_threat", "[Threat]");
 
         /// <summary>威胁失败后延迟进入战斗的 Agent（对话关闭后由 Patch 消费）</summary>
         internal static Agent PendingCombatAgent;
@@ -476,7 +511,11 @@ namespace LivingWorldNpcs
             }
             if (ctx.ActiveEvent.SuspectHeroId != Hero.MainHero.StringId) return Eligibility.Hide();
             if (Hero.MainHero.GetSkillValue(DefaultSkills.Roguery) < 50)
-                return Eligibility.Grey($"Roguery 技能不足（需要 50，当前 {Hero.MainHero.GetSkillValue(DefaultSkills.Roguery):0}）");
+            {
+                // 置灰原因：Roguery 技能不足（{CURRENT}=当前技能值）
+                return Eligibility.Grey(LWNTextHelper.ResolveCompound("LWN_intent_accountability_threat_roguery_low",
+                    ("CURRENT", Hero.MainHero.GetSkillValue(DefaultSkills.Roguery).ToString())));
+            }
             return Eligibility.Show();
         }
 
@@ -488,8 +527,10 @@ namespace LivingWorldNpcs
                 WorldEventStore.OnIntimidated(evt);
                 InfamySystem.AddInfamy(1);
                 DebugLogger.Log($"[Accountability] Threat succeeded for {evt.EventId}");
-                var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-                CommissionQuest.AddNarrativeLogForEvent(evt, $"我放了狠话。{giverName}退缩了，不敢再追究。但我在这地方的名声怕是完了。");
+                var giverName = AccountabilityHelper.GetAuthorityName(evt);
+                // 叙事日志：威胁成功（{NAME}=被震慑的权威 NPC）
+                CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_threat_success_log",
+                    ("NAME", giverName)));
             }
             else
             {
@@ -509,10 +550,13 @@ namespace LivingWorldNpcs
             {
                 // 威胁失败 → 设 PendingCombatAgent（对话关闭后由 ConversationEntryPatch 消费）
                 PendingCombatAgent = ctx.Agent;
-                WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你出言威胁，没吓住人");
+                // 阶段升级缘由：威胁未吓住对方（赔款涨价说明里给玩家看）
+                WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, LWNTextHelper.ResolveText("LWN_intent_accountability_threat_fail_reason", "you tried to threaten him and failed to intimidate him"));
                 DebugLogger.Log($"[Accountability] Threat failed — PendingCombatAgent={ctx.Agent?.Name}, → Confrontation");
-                var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
-                CommissionQuest.AddNarrativeLogForEvent(evt, $"威胁没吓住{giverName}——他叫人了。事情彻底闹大了。");
+                var giverName = AccountabilityHelper.GetAuthorityName(evt);
+                // 叙事日志：威胁失败（{NAME}=叫人的权威 NPC）
+                CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_threat_fail_log",
+                    ("NAME", giverName)));
             }
             else
             {
@@ -524,7 +568,8 @@ namespace LivingWorldNpcs
 
                 var misconduct = AccountabilityHelper.GetMisconductEvent(ctx.Agent);
                 if (misconduct != null)
-                    WorldEventStore.TransitionStage(misconduct, EventStage.Confrontation, null, "你出言威胁，没吓住人");
+                    // 阶段升级缘由：威胁未吓住对方（赔款涨价说明里给玩家看）
+                    WorldEventStore.TransitionStage(misconduct, EventStage.Confrontation, null, LWNTextHelper.ResolveText("LWN_intent_accountability_threat_fail_reason", "you tried to threaten him and failed to intimidate him"));
 
                 DebugLogger.Log($"[Accountability] Threat failed (Alert) — PendingCombatAgent={ctx.Agent?.Name}, relation -5, WorldEvent→Confrontation");
             }
@@ -538,17 +583,23 @@ namespace LivingWorldNpcs
     public class InvestigateIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Investigate;
-        public override string DisplayName => "【接调查任务】我可以帮忙查查是谁干的";
+        // 玩家选项名：接调查任务——我可以帮忙查查是谁干的
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_investigate", "[Take investigation] I can help find out who did it");
         public override NegotiationGoalType? Goal => null; // 即时类
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[接案]";
+        // 对话选项前缀：接案
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_investigate", "[Take the case]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (ctx.ActiveEvent == null) return Eligibility.Hide();
             var evt = ctx.ActiveEvent;
             if (evt.Stage != EventStage.Emerging) return Eligibility.Hide();
-            if (evt.PlayerTookInvestigationQuest) return Eligibility.Grey("你已经在调查这个案子了");
+            if (evt.PlayerTookInvestigationQuest)
+            {
+                // 置灰原因：玩家已经在调查这个案子
+                return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_accountability_investigating_already", "You're already investigating this case"));
+            }
             return Eligibility.Show();
         }
 
@@ -591,10 +642,12 @@ namespace LivingWorldNpcs
     public class ConfessIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Confess;
-        public override string DisplayName => "【自首】是我干的";
+        // 玩家选项名：自首——是我干的
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_confess", "[Confess] It was me");
         public override NegotiationGoalType? Goal => null;  // 即时类——不检定，直接跳转
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[自首]";
+        // 对话选项前缀：自首
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_confess", "[Confess]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -616,10 +669,12 @@ namespace LivingWorldNpcs
             evt.InvestigationProgress = 1.0f;
 
             DebugLogger.Log($"[Accountability] Player confessed for {evt.EventId} — suspect=self, awaiting resolution");
-            var giverName = WorldEventStore.GetAuthorityNpc(evt)?.Name?.ToString() ?? "村长";
+            var giverName = AccountabilityHelper.GetAuthorityName(evt);
             // 自首叙事如实还原罪行（袭击+失窃），不只说"拿了东西"
             var facts = evt.BuildDiscoveryFacts();
-            CommissionQuest.AddNarrativeLogForEvent(evt, $"我向{giverName}坦白了——{facts}，都是我干的。");
+            // 叙事日志：自首坦白（{NAME}=听自首的权威 NPC，{FACTS}=罪行事实）
+            CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_confess_log",
+                ("NAME", giverName), ("FACTS", facts)));
         }
     }
 
@@ -639,10 +694,12 @@ namespace LivingWorldNpcs
     public class WalkAwayIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Leave;
-        public override string DisplayName => "【离开】";
+        // 玩家选项名：离开
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_leave", "[Leave]");
         public override NegotiationGoalType? Goal => null;  // 即时——不检定（Mission 逃脱在 OnInstant 内部掷骰）
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[离开]";
+        // 对话选项前缀：离开
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_leave", "[Leave]");
 
         /// <summary>延迟到对话结束后弹出的 Inquiry 数据</summary>
         internal static string PendingInquiryTitle;
@@ -686,52 +743,60 @@ namespace LivingWorldNpcs
 
             // ══ 第四层：玩家是嫌犯 → 按事件阶段决定后果；最内层按是否在 Mission 区分处理方式 ══
             var authority = WorldEventStore.GetAuthorityNpc(evt);
-            string npcName = authority?.Name?.ToString() ?? "村长";
+            string npcName = AccountabilityHelper.GetAuthorityName(evt);
+            // 村庄名兜底：无名字时显示"村子"
+            string villageFallback = LWNTextHelper.ResolveText("LWN_intent_accountability_village_fallback", "the village");
             string villageName = authority?.CurrentSettlement?.Name?.ToString()
-                ?? settlement.Name?.ToString() ?? "村子";
+                ?? settlement.Name?.ToString() ?? villageFallback;
 
             switch (evt.Stage)
             {
                 case EventStage.Emerging:
                     // 已被怀疑（自首后）转身就走 → 村民确信是你干的，事件升级 Active
-                    WorldEventStore.TransitionStage(evt, EventStage.Active, null, "你转身就走，没把钱给出去");
-                    PendingInquiryTitle = "“站住！”";
-                    PendingInquiryBody =
-                        $"你转身离开，身后传来{npcName}愤怒的吼声——\n\n" +
-                        $"\"你以为认了就完了？！这事没完！\"\n\n" +
-                        $"{villageName}的村民们纷纷侧目，你在此地的名声已经坏了。" +
-                        $"下次再见到{npcName}，可就不是商量那么简单了。";
+                    // 阶段升级缘由：转身就走没付钱（赔款涨价说明里给玩家看）
+                    WorldEventStore.TransitionStage(evt, EventStage.Active, null, LWNTextHelper.ResolveText("LWN_intent_accountability_walkaway_emerging_reason", "you turned and walked away without paying"));
+                    // 延迟弹窗标题：叫住玩家
+                    PendingInquiryTitle = LWNTextHelper.ResolveText("LWN_intent_accountability_walkaway_halt_title", "\"Stop!\"");
+                    // 延迟弹窗正文：村民怒斥（{NAME}=权威 NPC，{VILLAGE}=村庄名）
+                    PendingInquiryBody = LWNTextHelper.ResolveCompound("LWN_intent_accountability_walkaway_emerging_inquiry",
+                        ("NAME", npcName), ("VILLAGE", villageName));
                     NotifyInvestigationQuest(evt);
                     DebugLogger.Log($"[Accountability] WalkAway (Emerging suspect): {evt.EventId} → Active");
-                    CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。身后传来{npcName}的怒吼——这事没完。");
+                    // 叙事日志：逃跑后村民怒斥（{NAME}=权威 NPC）
+                    CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_walkaway_emerging_log",
+                        ("NAME", npcName)));
                     break;
 
                 case EventStage.Active:
                     // ── 转身就走，NPC 放话 + 关系惩罚
-                    PendingInquiryTitle = "“站住！”";
-                    PendingInquiryBody =
-                        $"你转身离开，身后传来{npcName}的怒吼——\n\n" +
-                        $"\"跑了？！好，{villageName}的人不会放过你！\"\n\n" +
-                        $"下次见面，就不会再跟你废话了。";
+                    // 延迟弹窗标题：叫住玩家
+                    PendingInquiryTitle = LWNTextHelper.ResolveText("LWN_intent_accountability_walkaway_halt_title", "\"Stop!\"");
+                    // 延迟弹窗正文：NPC 放狠话（{NAME}=权威 NPC，{VILLAGE}=村庄名）
+                    PendingInquiryBody = LWNTextHelper.ResolveCompound("LWN_intent_accountability_walkaway_active_inquiry",
+                        ("NAME", npcName), ("VILLAGE", villageName));
                     if (authority != null)
                         ChangeRelationAction.ApplyPlayerRelation(authority, -10, false, true);
                     DebugLogger.Log($"[Accountability] WalkAway (Active suspect): {evt.EventId} — rep -10");
-                    CommissionQuest.AddNarrativeLogForEvent(evt, $"我转身走了。{npcName}气得发抖——下次见面不会跟我客气了。");
+                    // 叙事日志：逃跑后 NPC 气急（{NAME}=权威 NPC）
+                    CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_walkaway_active_log",
+                        ("NAME", npcName)));
                     break;
 
                 case EventStage.Confrontation:
                     // 不死不休阶段 —— 无论是否在 Mission，都是放狠话 + 关系重罚 + 报复部队
-                    PendingInquiryTitle = "“你跑不掉的！”";
-                    PendingInquiryBody =
-                        $"你转身就跑。身后{npcName}的吼声回荡——\n\n" +
-                        $"\"躲得过初一躲不过十五！{villageName}跟你不死不休！\"\n\n" +
-                        $"你在此地已是死敌。小心——他们雇的人随时可能出现。";
+                    // 延迟弹窗标题：追捕警告
+                    PendingInquiryTitle = LWNTextHelper.ResolveText("LWN_intent_accountability_walkaway_confront_title", "\"You can't run!\"");
+                    // 延迟弹窗正文：不死不休（{NAME}=权威 NPC，{VILLAGE}=村庄名）
+                    PendingInquiryBody = LWNTextHelper.ResolveCompound("LWN_intent_accountability_walkaway_confront_inquiry",
+                        ("NAME", npcName), ("VILLAGE", villageName));
                     if (authority != null)
                         ChangeRelationAction.ApplyPlayerRelation(authority, -20, false, true);
                     if (!evt.RetaliationSpawned)
                         InvestigationEngine.SpawnRetaliationParty(evt);
                     DebugLogger.Log($"[Accountability] WalkAway (Confrontation): {evt.EventId} — retaliation + rep -20");
-                    CommissionQuest.AddNarrativeLogForEvent(evt, $"我跑了。{npcName}追了出来——{villageName}跟我不死不休。");
+                    // 叙事日志：逃跑被追（{NAME}=权威 NPC，{VILLAGE}=村庄名）
+                    CommissionQuest.AddNarrativeLogForEvent(evt, LWNTextHelper.ResolveCompound("LWN_intent_accountability_walkaway_confront_log",
+                        ("NAME", npcName), ("VILLAGE", villageName)));
                     break;
             }
         }
@@ -744,7 +809,8 @@ namespace LivingWorldNpcs
                     && cq.Data?.WorldEventId == evt.EventId
                     && cq.Data?.Category == CommissionCategory.Investigation)
                 {
-                    cq.NotifySuspectIdentified(Hero.MainHero.Name?.ToString() ?? "你");
+                    // 嫌疑人名兜底：无名字时显示"你"
+                    cq.NotifySuspectIdentified(Hero.MainHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ph_pronoun_you", "you"));
                     break;
                 }
             }
@@ -758,11 +824,13 @@ namespace LivingWorldNpcs
     public class SilenceWitnessIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.SilenceWitness;
-        public override string DisplayName => "【封口】这事你别往外说……";
+        // 玩家选项名：封口——这事你别往外说……
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_silence_witness", "[Silence] Don't tell anyone about this...");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[封口]";
+        // 对话选项前缀：封口
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_silence_witness", "[Silence]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -800,7 +868,8 @@ namespace LivingWorldNpcs
     public class WorkOffDebtIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.WorkOffDebt;
-        public override string DisplayName => "【干活抵债】我没钱，但我可以帮当地干活";
+        // 玩家选项名：干活抵债——我没钱，但我可以帮当地干活
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_work_off_debt", "[Work off the debt] I have no money, but I can work for you");
         public override NegotiationGoalType? Goal => null;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -820,9 +889,13 @@ namespace LivingWorldNpcs
             evt._workOffDebtDay = (float)CampaignTime.Now.ToDays;
             evt._workOffDebtAccepted = true;
             evt._workOffDaysDone = 0;
-            var settlementName = evt.TargetSettlement?.Name?.ToString() ?? "当地";
+            // 地名兜底：无名字时显示"当地"
+            var settlementName = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_intent_accountability_place_fallback", "the area");
+            // 系统提示：干活抵债已生效（{PLACE}=干活地点）
+            var workOffMessage = LWNTextHelper.ResolveCompound("LWN_intent_accountability_workoff_message",
+                ("PLACE", settlementName));
             TaleWorlds.Library.InformationManager.DisplayMessage(
-                new TaleWorlds.Library.InformationMessage($"[干活抵债] 3天内每天回 {settlementName} 干活，违约后果自负。"));
+                new TaleWorlds.Library.InformationMessage(workOffMessage));
             DebugLogger.Log($"[Accountability] Work-off-debt accepted for {evt.EventId}, due at day {evt._workOffDebtDay + 3}");
         }
     }
@@ -834,10 +907,12 @@ namespace LivingWorldNpcs
     public class FightVillagersIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Assault;
-        public override string DisplayName => "【拔剑】（拔出武器）谁敢拦我！";
+        // 玩家选项名：拔剑——（拔出武器）谁敢拦我！
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_fight_villagers", "[Draw] (Draw your weapon) Who dares stop me!");
         public override NegotiationGoalType? Goal => null;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[拔剑]";
+        // 对话选项前缀：拔剑
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_fight_villagers", "[Draw]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -858,7 +933,8 @@ namespace LivingWorldNpcs
             var evt = ctx.ActiveEvent ?? AccountabilityHelper.GetMisconductEvent(ctx.Agent);
             if (evt != null)
             {
-                WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, "你拔剑动了手");
+                // 阶段升级缘由：玩家拔剑动手（赔款涨价说明里给玩家看）
+                WorldEventStore.TransitionStage(evt, EventStage.Confrontation, null, LWNTextHelper.ResolveText("LWN_intent_accountability_fight_reason", "you drew your blade and attacked"));
                 InfamySystem.AddInfamy(5);
                 // 标记村庄警觉
                 if (!string.IsNullOrEmpty(evt.TargetSettlementId))
@@ -895,8 +971,10 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance?.BroadcastEventInRange(
                     Agent.Main.Position, 30f, "order_attack", exclude, false, Agent.Main);
                 DebugLogger.Log($"[Accountability] FightVillagers in-mission: order_attack broadcast, deferred={ctx.Agent?.Name ?? "none"}");
+                // 场景内信息提示：村民抄家伙围过来
+                var fightSceneMsg = LWNTextHelper.ResolveText("LWN_intent_accountability_fight_scene_message", "The villagers are furious! They've grabbed whatever they can and are closing in... get out of here!");
                 TaleWorlds.Library.InformationManager.DisplayMessage(
-                    new TaleWorlds.Library.InformationMessage("村民愤怒了！有人抄起家伙围了过来……快离开这里！",
+                    new TaleWorlds.Library.InformationMessage(fightSceneMsg,
                         Colors.Red));
             }
             else
@@ -905,8 +983,10 @@ namespace LivingWorldNpcs
                 if (evt != null)
                     InvestigationEngine.SpawnRetaliationParty(evt);
                 DebugLogger.Log($"[Accountability] FightVillagers on-map: retaliation party spawned");
+                // 大地图信息提示：村民誓言复仇
+                var fightMapMsg = LWNTextHelper.ResolveText("LWN_intent_accountability_fight_map_message", "The villagers are furious! They swear you will pay in blood...");
                 TaleWorlds.Library.InformationManager.DisplayMessage(
-                    new TaleWorlds.Library.InformationMessage("村民愤怒了！他们发誓要让你血债血偿……",
+                    new TaleWorlds.Library.InformationMessage(fightMapMsg,
                         Colors.Red));
             }
 
@@ -921,10 +1001,12 @@ namespace LivingWorldNpcs
     public class BetrayQuestIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.BetrayQuest;
-        public override string DisplayName => "【背叛】快跑！当地人在抓你。";
+        // 玩家选项名：背叛——快跑！当地人在抓你。
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_betray_quest", "[Betray] Run! The locals are after you.");
         public override NegotiationGoalType? Goal => null;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[告密]";
+        // 对话选项前缀：告密
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_betray_quest", "[Inform]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -980,7 +1062,8 @@ namespace LivingWorldNpcs
     public class InnocenceProofIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.InnocenceProof;
-        public override string DisplayName => "【自证清白】不是我干的！查清楚就知道。";
+        // 玩家选项名：自证清白——不是我干的！查清楚就知道。
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_innocence_proof", "[Prove innocence] It wasn't me! Investigate and you'll see.");
         public override NegotiationGoalType? Goal => null;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -1017,11 +1100,13 @@ namespace LivingWorldNpcs
     public class SettleIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Settle;
-        public override string DisplayName => "【砍价】太贵了，能便宜点吗？";
+        // 玩家选项名：砍价——太贵了，能便宜点吗？
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_settle", "[Haggle] Too expensive — can you go lower?");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[砍价]";
+        // 对话选项前缀：砍价
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_settle", "[Haggle]");
 
         /// <summary>
         /// 砍价的 OfferValue：交易技能 + 流氓习气双重加成。
@@ -1068,10 +1153,12 @@ namespace LivingWorldNpcs
     public class AcceptBountyQuestIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.AcceptBountyQuest;
-        public override string DisplayName => "【接悬赏】我接这个悬赏！";
+        // 玩家选项名：接悬赏——我接这个悬赏！
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_accept_bounty", "[Take bounty] I'll take this bounty!");
         public override NegotiationGoalType? Goal => null;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[接悬赏]";
+        // 对话选项前缀：接悬赏
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_accept_bounty", "[Take bounty]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -1079,7 +1166,11 @@ namespace LivingWorldNpcs
             var evt = ctx.ActiveEvent;
             if (evt.Stage != EventStage.Active) return Eligibility.Hide();
             if (evt.SuspectIsPlayer) return Eligibility.Hide();
-            if (evt.PlayerTookBountyQuest) return Eligibility.Grey("你已经接了悬赏");
+            if (evt.PlayerTookBountyQuest)
+            {
+                // 置灰原因：玩家已经接了悬赏
+                return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_accountability_bounty_taken", "You've already taken the bounty"));
+            }
             return Eligibility.Show();
         }
 
@@ -1127,10 +1218,12 @@ namespace LivingWorldNpcs
     public class LeadRetaliationIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.LeadRetaliation;
-        public override string DisplayName => "【带队报复】我带人去！";
+        // 玩家选项名：带队报复——我带人去！
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_lead_retaliation", "[Lead retaliation] I'll lead the men!");
         public override NegotiationGoalType? Goal => null;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[带队]";
+        // 对话选项前缀：带队
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_lead_retaliation", "[Lead]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -1157,11 +1250,13 @@ namespace LivingWorldNpcs
     public class LureArrestIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.LureArrest;
-        public override string DisplayName => "【诱捕】跟我走一趟，村长找你有事";
+        // 玩家选项名：诱捕——跟我走一趟，村长找你有事
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_lure_arrest", "[Lure] Come with me — the elder wants to see you");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[诱捕]";
+        // 对话选项前缀：诱捕
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_lure_arrest", "[Lure]");
 
         /// <summary>Mission 内诱捕成功后待淡出的 Agent。EndConversation 时消费。</summary>
         public static Agent PendingFadeAgent;
@@ -1187,9 +1282,11 @@ namespace LivingWorldNpcs
                         MobileParty.MainParty.Party, suspect);
                     DebugLogger.Log($"[Accountability] LureArrest succeeded: {evt.SuspectHeroId}");
 
-                    // 反馈：提示玩家俘虏成功
+                    // 反馈：提示玩家诱捕成功（{NAME}=被诱捕者）
+                    var captureMsg = LWNTextHelper.ResolveCompound("LWN_intent_accountability_lure_captured_message",
+                        ("NAME", suspect.Name?.ToString() ?? ""));
                     InformationManager.DisplayMessage(
-                        new InformationMessage($"{suspect.Name} 被你诱捕，关进了俘虏栏。"));
+                        new InformationMessage(captureMsg));
                     DebugLogger.Log($"[Accountability] LureArrest InformationMessage displayed for {suspect.Name}");
 
                     // 延迟 FadeOut：Mission 内 Agent 需等对话结束后再消失，避免 NPC 一边说话一边淡出
@@ -1218,7 +1315,8 @@ namespace LivingWorldNpcs
     public class ArrestIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Arrest;
-        public override string DisplayName => "【抓捕】束手就擒！";
+        // 玩家选项名：抓捕——束手就擒！
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_arrest", "[Arrest] Surrender!");
         public override NegotiationGoalType? Goal => null;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -1234,7 +1332,9 @@ namespace LivingWorldNpcs
             if (suspect == null) return Eligibility.Hide();
             if (suspect.CurrentSettlement?.StringId != evt.TargetSettlementId
                 && suspect.PartyBelongedTo?.CurrentSettlement?.StringId != evt.TargetSettlementId)
-                return Eligibility.Grey($"{suspect.Name} 不在这里（无法直接抓捕）");
+                // 置灰原因：嫌犯不在场（{NAME}=嫌犯名）
+                return Eligibility.Grey(LWNTextHelper.ResolveCompound("LWN_intent_accountability_arrest_not_here",
+                    ("NAME", suspect.Name?.ToString() ?? "")));
             return Eligibility.Show();
         }
 
@@ -1290,10 +1390,12 @@ namespace LivingWorldNpcs
     public class SurrenderJailIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.SurrenderJail;
-        public override string DisplayName => "【坐牢】我没钱。要抓就抓吧。";
+        // 玩家选项名：坐牢——我没钱。要抓就抓吧。
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_surrender_jail", "[Jail] I have no money. Arrest me then.");
         public override NegotiationGoalType? Goal => null; // 即时类
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[坐牢]";
+        // 对话选项前缀：坐牢
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_jail", "[Jail]");
 
         /// <summary>坐牢后延迟踢出村庄的标记（对话关闭后由 ConversationEntryPatch 消费，
         /// 转交 PlayerDetentionBehavior 走原版俘虏流程）</summary>
@@ -1384,10 +1486,12 @@ namespace LivingWorldNpcs
     public class ComplyIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Comply;
-        public override string DisplayName => "【服从】";
+        // 玩家选项名：服从
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_comply", "[Comply]");
         public override NegotiationGoalType? Goal => null; // 即时类
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[服从]";
+        // 对话选项前缀：服从
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_comply", "[Comply]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -1430,11 +1534,13 @@ namespace LivingWorldNpcs
     public class ApologizeIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.Apologize;
-        public override string DisplayName => "【道歉】可以放我走吗？";
+        // 玩家选项名：道歉——可以放我走吗？
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_apologize", "[Apologize] Can you let me go?");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Apology;
         public override NegotiationTactic Tactic => NegotiationTactic.Plead;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[道歉]";
+        // 对话选项前缀：道歉
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_apologize", "[Apologize]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -1485,7 +1591,8 @@ namespace LivingWorldNpcs
     public class ContinueChatIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.ContinueChat;
-        public override string DisplayName => "说点别的……";
+        // 玩家选项名：说点别的……
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_continue_chat", "Talk about something else...");
         public override NegotiationGoalType? Goal => null;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -1512,10 +1619,12 @@ namespace LivingWorldNpcs
     public class ReturnStolenItemsIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.PayRestitution;
-        public override string DisplayName => "【归还赃物】东西还你，我们两清";
+        // 玩家选项名：归还赃物——东西还你，我们两清
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_return_stolen", "[Return goods] Here's your stuff back — we're even");
         public override NegotiationGoalType? Goal => null; // 即时类，不掷骰
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[归还]";
+        // 对话选项前缀：归还
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_return_stolen", "[Return]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -1555,8 +1664,10 @@ namespace LivingWorldNpcs
     public class SubmitToSearchIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.System;
-        public override string DisplayName => "【配合搜查】";
-        public override string GetDialoguePrefix(string actionParam = null) => "[配合]";
+        // 玩家选项名：配合搜查
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_submit_search", "[Allow search]");
+        // 对话选项前缀：配合
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_submit_search", "[Allow]");
         public override Eligibility Evaluate(IntentContext ctx) => Eligibility.Hide(); // 仅对话 Transition，不出现在交互菜单
     }
 
@@ -1571,8 +1682,10 @@ namespace LivingWorldNpcs
     public class RefuseSearchIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.System;
-        public override string DisplayName => "【拒绝搜查】";
-        public override string GetDialoguePrefix(string actionParam = null) => "[拒绝]";
+        // 玩家选项名：拒绝搜查
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_refuse_search", "[Refuse search]");
+        // 对话选项前缀：拒绝
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_refuse_search", "[Refuse]");
         public override Eligibility Evaluate(IntentContext ctx) => Eligibility.Hide(); // 仅对话 Transition，不出现在交互菜单
     }
 

@@ -80,9 +80,11 @@ namespace LivingWorldNpcs
             {
                 // —— 网关 ———
                 string entryNodeToken = NodeToken(fileTag, script.EntryNode);
+                // 网关入口选项文本兜底：JSON 未配 EntryOption 时用「文件名」
                 string entryText = !string.IsNullOrEmpty(script.EntryOption)
                     ? script.EntryOption
-                    : $"「{Path.GetFileNameWithoutExtension(jsonPath)}」";
+                    // 网关入口选项兜底「{NAME}」
+                    : LWNTextHelper.ResolveCompound("LWN_dialogue_entry_default", "({NAME})", ("NAME", Path.GetFileNameWithoutExtension(jsonPath)));
                 var gateDf = DialogFlow.CreateDialogFlow(startToken, 125);
                 gateDf.AddPlayerLine(
                     "inj_gateway", startToken, entryNodeToken,
@@ -297,9 +299,9 @@ namespace LivingWorldNpcs
                     string checkInfo = transition.CheckType == TransitionCheckType.SkillCheck
                         ? $" [SkillCheck]"
                         : "";
-                    string next = !string.IsNullOrEmpty(transition.NextNodeOnSuccess) ? transition.NextNodeOnSuccess : "(关闭)";
+                    string next = !string.IsNullOrEmpty(transition.NextNodeOnSuccess) ? transition.NextNodeOnSuccess : "(关闭)"; // lwn-ignore: A (debug)
                     string nextFail = transition.CheckType == TransitionCheckType.SkillCheck
-                        ? (!string.IsNullOrEmpty(transition.NextNodeOnFail) ? transition.NextNodeOnFail : "(同Success)")
+                        ? (!string.IsNullOrEmpty(transition.NextNodeOnFail) ? transition.NextNodeOnFail : "(同Success)") // lwn-ignore: A (debug)
                         : "";
                     string actionParam = !string.IsNullOrEmpty(transition.ActionParam) ? $" Param={transition.ActionParam}" : "";
                     string routeInfo = transition.CheckType == TransitionCheckType.SkillCheck
@@ -444,8 +446,10 @@ namespace LivingWorldNpcs
                 }
                 if (eligibility.State == EligState.Disabled)
                 {
+                    // 意图被禁用时的提示兜底文案
                     string reason = !string.IsNullOrEmpty(eligibility.Reason)
-                        ? eligibility.Reason : "现在不行。";
+                        // 现在不行。
+                        ? eligibility.Reason : LWNTextHelper.ResolveText("LWN_dialogue_not_now", "Not now.");
                     InformationManager.DisplayMessage(new InformationMessage(reason));
                     DebugLogger.Log($"[DialogueInjector] Intent {intentName} disabled: {eligibility.Reason}");
                     return;
@@ -469,7 +473,10 @@ namespace LivingWorldNpcs
                         try
                         {
                             SkillObject skill = SkillCheckSystem.MapTacticToSkill(intent.Tactic);
-                            MBInformationManager.AddQuickInformation(new TextObject($"{skill.Name}检定成功"));
+                            // 检定成功提示：XX 检定成功
+                            MBInformationManager.AddQuickInformation(new TextObject(LWNTextHelper.ResolveCompound("LWN_dialogue_skill_success",
+                                "Your {SKILL} check succeeded",
+                                ("SKILL", skill.Name.ToString()))));
                         }
                         catch { }
                         intent.OnSuccess(ctx);
@@ -482,11 +489,21 @@ namespace LivingWorldNpcs
                             SkillObject skill = SkillCheckSystem.MapTacticToSkill(intent.Tactic);
                             float myLevel = Hero.MainHero.GetSkillValue(skill);
                             float npcLevel = ctx.Speaker?.GetSkillValue(skill) ?? 50f;
+                            // 对方名字兜底
                             string npcName = ctx.Speaker?.Name?.ToString()
                                           ?? ctx.Agent?.Name?.ToString()
-                                          ?? "对方";
+                                          // 对方
+                                          ?? LWNTextHelper.ResolveText("LWN_dialogue_name_other", "the other person");
                             float gap = npcLevel - myLevel;
-                            string msg = $"{skill.Name}检定失败: 你的{skill.Name}({myLevel:F0}) vs {npcName}({npcLevel:F0})，差{gap:F0}点，成功率仅{roll.Chance:P0}";
+                            // 检定失败提示：技能、双方等级差、成功率
+                            string msg = LWNTextHelper.ResolveCompound("LWN_dialogue_check_fail",
+                                "{SKILL} check failed: your {SKILL} ({MYLEVEL}) vs {NPCNAME} ({NPLEVEL}), gap {GAP} points, success rate only {CHANCE}",
+                                ("SKILL", skill.Name.ToString()),
+                                ("MYLEVEL", myLevel.ToString("F0")),
+                                ("NPCNAME", npcName),
+                                ("NPLEVEL", npcLevel.ToString("F0")),
+                                ("GAP", gap.ToString("F0")),
+                                ("CHANCE", roll.Chance.ToString("P0")));
                             MBInformationManager.AddQuickInformation(new TextObject(msg));
                         }
                         catch { }
@@ -718,7 +735,8 @@ namespace LivingWorldNpcs
             ConversationSentence sentence;
             if (node.LazyNpcLine != null)
             {
-                var textObj = new TextObject("…");
+                // 惰性台词占位符：求值前短暂显示的省略号
+                var textObj = new TextObject(LWNTextHelper.ResolveText("LWN_dialogue_placeholder_ellipsis", "…"));
                 sentence = cm.AddDialogLineMultiAgent(id, inputToken, outputToken, textObj,
                     () =>
                     {
@@ -779,8 +797,10 @@ namespace LivingWorldNpcs
             {
                 // 网关：入口选项
                 string entryNodeToken = NodeToken(fileTag, script.EntryNode);
+                // 网关入口选项文本兜底：JSON 未配 EntryOption 时用「文件名」
                 string entryText = !string.IsNullOrEmpty(script.EntryOption)
-                    ? script.EntryOption : $"「{fileTag}」";
+                    // 网关入口选项兜底「{NAME}」
+                    ? script.EntryOption : LWNTextHelper.ResolveCompound("LWN_dialogue_entry_default", "({NAME})", ("NAME", fileTag));
                 var gateDf = DialogFlow.CreateDialogFlow(startToken, 125);
                 gateDf.AddPlayerLine("inj_gateway", startToken, entryNodeToken,
                     entryText, () => true, null, owner, 125);
@@ -833,8 +853,10 @@ namespace LivingWorldNpcs
                     text = intent.DisplayName;
             }
 
+            // 选项文本兜底：无文本时显示省略号
             if (text == null)
-                return "…";
+                // 省略号兜底…
+                return LWNTextHelper.ResolveText("LWN_dialogue_placeholder_ellipsis", "…");
 
             // 自动拼接 Intent 前缀（如 "[威胁]"），PlayerLine 本身不再携带前缀
             if (!string.IsNullOrEmpty(transition.Action) && transition.Action.StartsWith("INTENT:"))

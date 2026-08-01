@@ -310,7 +310,9 @@ namespace LivingWorldNpcs
             if (agentStringId == "player")
             {
                 Instance.AddSpeech(Mission.Current.MainAgent, text);
-                InformationManager.DisplayMessage(new InformationMessage($"让 {agentStringId} 说话了{text}"));
+                // 让 NPC 说话的调试飘字：{ID} 说话了 {TEXT}
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_said",
+                    ("ID", agentStringId), ("TEXT", text))));
                 return;
             }
 
@@ -319,12 +321,16 @@ namespace LivingWorldNpcs
                 if (agent.IsActive() && agent.Character != null && agent.Character.StringId == agentStringId)
                 {
                     Instance.AddSpeech(agent, text);
-                    InformationManager.DisplayMessage(new InformationMessage($"让 {agentStringId} 说话了{text}"));
+                    // 让 NPC 说话的调试飘字：{ID} 说话了 {TEXT}
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_said",
+                        ("ID", agentStringId), ("TEXT", text))));
                     return;
                 }
             }
 
-            InformationManager.DisplayMessage(new InformationMessage($"未找到 ID 为 {agentStringId} 的 NPC"));
+            // 未找到目标 NPC 的调试飘字：ID 为 {ID} 的 NPC 不存在
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_not_found",
+                ("ID", agentStringId))));
         }
 
         // ============================================================

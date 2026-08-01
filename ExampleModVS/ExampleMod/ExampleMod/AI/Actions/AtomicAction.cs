@@ -55,7 +55,8 @@ namespace LivingWorldNpcs
             if (!Settings.Instance.IsLLMReady)
             {
                 memory.CurrentInitiative.JsonResponseOpening =
-                   "{ \"npc_reply\": \"(警惕地看着你) \", \"player_next_options\": [] }";
+                    // LLM 降级开场白：NPC 警惕地看着玩家（对话中直接显示给玩家）
+                   "{ \"npc_reply\": \"" + LWNTextHelper.ResolveText("LWN_action_llm_fallback_wary", "(looks at you warily)") + "\", \"player_next_options\": [] }";
             }
             else
             {
@@ -69,7 +70,8 @@ namespace LivingWorldNpcs
                 catch (Exception )
                 {
                     memory.CurrentInitiative.JsonResponseOpening =
-                       "{ \"npc_reply\": \"(警惕地看着你) \", \"player_next_options\": [] }";
+                        // LLM 降级开场白：NPC 警惕地看着玩家（对话中直接显示给玩家）
+                       "{ \"npc_reply\": \"" + LWNTextHelper.ResolveText("LWN_action_llm_fallback_wary", "(looks at you warily)") + "\", \"player_next_options\": [] }";
                 }
             }
             //反序列化
@@ -143,7 +145,8 @@ namespace LivingWorldNpcs
 
             memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
             // 1. 让 NPC 停下来，防止一边滑步一边说话
-            InformationManager.DisplayMessage(new InformationMessage($"{agent.Name} 正在向准备向你问话...", Colors.Yellow));
+            // 质问准备飘字：{NAME} 正走向玩家准备开口
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_ask_prepare", ("NAME", agent.Name.ToString())), Colors.Yellow));
             // 2. 如果 LLM 响应已经就绪（无 LLM 时立即 fallback），跳过等待
             if (memory.CurrentInitiative != null && memory.CurrentInitiative.IsReady)
             {
@@ -178,7 +181,8 @@ namespace LivingWorldNpcs
                 }
                 _ = InteractionMissionView.Instance.StartFreeConversationFlow(agent, false);
 
-                InformationManager.DisplayMessage(new InformationMessage($"{agent.Name} 开启质问你...", Colors.Yellow));
+                // 质问开始飘字：{NAME} 开始质问玩家
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_ask_begin", ("NAME", agent.Name.ToString())), Colors.Yellow));
             }
         }
 
@@ -189,28 +193,44 @@ namespace LivingWorldNpcs
         private void ShowVanillaConfrontation(Agent victim)
         {
             var victimHeroObj = (victim.Character as CharacterObject)?.HeroObject;
-            string victimName = victim.Name?.ToString() ?? "守卫";
+            string victimName = victim.Name?.ToString()
+                // 兜底称呼：受害者是模板 NPC（无 HeroObject）时叫"守卫"
+                ?? LWNTextHelper.ResolveText("LWN_action_victim_name_guard", "Guard");
             int stolenValue = StealManager.GetStolenValue(victim);
             int compensationGold = stolenValue > 50 ? stolenValue : 50;
 
             // 使用 NarrativeResolver 获取叙事文本
             string openingBubble = NarrativeResolver.GetDialogue("Steal_Caught", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-            AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(openingBubble) ? "好哇，敢偷到我头上来！你今天必须给个交代。" : openingBubble);
+            AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(openingBubble)
+                // 冒泡台词：当场抓住偷窃的开场白（NarrativeResolver 无结果时兜底）
+                ? LWNTextHelper.ResolveText("LWN_action_steal_caught_opening", "Ha! You dare steal from me?! You will answer for this!")
+                : openingBubble);
 
+            // UI 弹窗标题：{NAME} 发现了你的偷窃行为
+            string inquiryTitle = LWNTextHelper.ResolveCompound("LWN_action_steal_caught_inquiry_title", ("NAME", victimName));
+            // UI 弹窗描述：{NAME} 怒气冲冲地瞪着你，手已经按在了武器上
+            string inquiryDesc = LWNTextHelper.ResolveCompound("LWN_action_steal_caught_inquiry_desc", ("NAME", victimName));
+            // UI 按钮：破财消灾——掏出 {GOLD} 第纳尔赔钱
+            string payButton = LWNTextHelper.ResolveCompound("LWN_action_steal_caught_pay_button", ("GOLD", compensationGold.ToString()));
+            // UI 按钮：归还财物——双手奉还，低头认错
+            string returnButton = LWNTextHelper.ResolveText("LWN_action_steal_caught_return_button", "Return the goods and beg forgiveness");
             InformationManager.ShowInquiry(new InquiryData(
-                $"{victimName} 发现了你的偷窃行为！",
-                $"{victimName} 怒气冲冲地瞪着你，手已经按在了武器上。",
+                inquiryTitle,
+                inquiryDesc,
                 true,
                 true,
-                $"【破财消灾】掏出 {compensationGold} 第纳尔",
-                "【归还财物】双手奉还，低头认错",
+                payButton,
+                returnButton,
                 () =>
                 {
                     if (Hero.MainHero.Gold >= compensationGold)
                     {
                         AgentControlHelper.TransferGold(Hero.MainHero, victimHeroObj, compensationGold, notify: false);
                         string payBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(payBubble) ? "哼，算你识相。" : payBubble);
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(payBubble)
+                            // 冒泡台词：赔钱成功（NarrativeResolver 无结果时兜底）
+                            ? LWNTextHelper.ResolveText("LWN_action_steal_caught_pay_success", "Hmph. At least you know what's good for you.")
+                            : payBubble);
                         string payNarrator = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{GIVER}", compensationGold.ToString())
                             .Replace("{NPC}", victimName);
@@ -221,9 +241,12 @@ namespace LivingWorldNpcs
                     else
                     {
                         string tooPoorBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_TooPoor", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(tooPoorBubble) ? "没钱还敢偷？那就拿命来抵！" : tooPoorBubble);
-                        InformationManager.DisplayMessage(
-                            new InformationMessage($"你摸了摸空瘪的钱袋……{victimName} 见状大怒，拔出了武器！", Colors.Red));
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(tooPoorBubble)
+                            // 冒泡台词：想赔钱但钱不够（NarrativeResolver 无结果时兜底）
+                            ? LWNTextHelper.ResolveText("LWN_action_steal_caught_too_poor", "Steal with no coin to pay? Then pay with your life!")
+                            : tooPoorBubble);
+                        // 赔不起钱飘字：{NAME} 见玩家没钱大怒拔刀
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_too_poor_fight", ("NAME", victimName)), Colors.Red));
                         AgentAIController.Instance?.SendEventToAgent(victim, "order_attack", Agent.Main);
                         AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 15, "event_agent_damaged", true, victim, Agent.Main);
                     }
@@ -234,7 +257,10 @@ namespace LivingWorldNpcs
                     if (returned > 0)
                     {
                         string returnBubble = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(returnBubble) ? "滚！别再让我看见你。" : returnBubble);
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(returnBubble)
+                            // 冒泡台词：归还赃物成功（NarrativeResolver 无结果时兜底）
+                            ? LWNTextHelper.ResolveText("LWN_action_steal_caught_return_success", "Get lost! Don't let me see you again.")
+                            : returnBubble);
                         string returnNarrator = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{COUNT}", returned.ToString())
                             .Replace("{NPC}", victimName);
@@ -245,7 +271,10 @@ namespace LivingWorldNpcs
                     else
                     {
                         string refuseBubble = NarrativeResolver.GetDialogue("Steal_Caught_Refuse", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(refuseBubble) ? "还想赖账？" : refuseBubble);
+                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(refuseBubble)
+                            // 冒泡台词：拒绝归还赃物（NarrativeResolver 无结果时兜底）
+                            ? LWNTextHelper.ResolveText("LWN_action_steal_caught_refuse", "Trying to weasel out of it?")
+                            : refuseBubble);
                         string refuseNarrator = NarrativeResolver.GetDialogue("Steal_Caught_Refuse_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{NPC}", victimName);
                         InformationManager.DisplayMessage(new InformationMessage(refuseNarrator, Colors.Red));
@@ -776,7 +805,9 @@ namespace LivingWorldNpcs
             // 不能追人也不能出手（登记为战斗者却傻站着）。
             // 各事件处理器（order_attack / DeferredCombat / 目击反击）无需各自补 ForceUnlockAgent。
             AgentControlHelper.ForceUnlockAgent(agent);
-            InformationManager.DisplayMessage(new InformationMessage($"{agent.Name}(Idx={agent.Index})  开始攻击 {_targetEnemy.Name}！", Colors.Yellow));
+            // 开战飘字：{NAME} 开始攻击 {ENEMY}
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_attack_start",
+                ("NAME", agent.Name.ToString()), ("INDEX", agent.Index.ToString()), ("ENEMY", _targetEnemy.Name.ToString())), Colors.Yellow));
             //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
             //玩家阵营1，自己阵营2，这里之后再看
             CombatManager.StartFight(agent, _targetEnemy,2,1);
@@ -814,7 +845,9 @@ namespace LivingWorldNpcs
                 {
                     _surrenderTriggered = true;
                     AgentAIController.Instance?.SendEventToAgent(agent, "event_npc_surrender", Agent.Main);
-                    AgentHudMissionView.AgentSay(agent, "我认输！别打了！");
+                    AgentHudMissionView.AgentSay(agent,
+                        // 冒泡台词：残血认输喊话
+                        LWNTextHelper.ResolveText("LWN_action_surrender_bubble", "I surrender! Stop!"));
                 }
             }
 
@@ -995,7 +1028,7 @@ namespace LivingWorldNpcs
             }
 
             var npcHero = (agent.Character as CharacterObject)?.HeroObject;
-            string npcDesc = npcHero != null ? $"Hero={npcHero.Name}" : $"模板NPC({agent.Name})";
+            string npcDesc = npcHero != null ? $"Hero={npcHero.Name}" : $"模板NPC({agent.Name})"; // lwn-ignore: A (debug)
             DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) {npcDesc} — 使用 InjectScriptAsOpening (start token)");
 
             var brain = AgentAIController.GetBrainForAgent(agent);
@@ -1039,14 +1072,18 @@ namespace LivingWorldNpcs
                 else
                 {
                     DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动失败: MissionConversationLogic=null");
-                    AgentHudMissionView.AgentSay(agent, "喂！说你呢！");
+                    AgentHudMissionView.AgentSay(agent,
+                        // 冒泡台词：强制对话启动失败时喊住玩家
+                        LWNTextHelper.ResolveText("LWN_action_alert_force_callout", "Hey! You there!"));
                 }
             }
             catch (Exception ex)
             {
                 ActiveConversationAgent = null; // 启动失败 → 清理，防止残留
                 DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动异常: {ex.Message} ActiveConversationAgent 变成null");
-                AgentHudMissionView.AgentSay(agent, "喂！说你呢！");
+                AgentHudMissionView.AgentSay(agent,
+                    // 冒泡台词：强制对话启动失败时喊住玩家
+                    LWNTextHelper.ResolveText("LWN_action_alert_force_callout", "Hey! You there!"));
             }
         }
 

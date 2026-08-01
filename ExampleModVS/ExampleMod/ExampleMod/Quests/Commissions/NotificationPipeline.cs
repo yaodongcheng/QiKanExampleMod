@@ -54,12 +54,15 @@ namespace LivingWorldNpcs
             try
             {
                 InformationManager.ShowInquiry(new InquiryData(
-                    title ?? "事件",
+                    // 弹窗默认标题兜底：事件
+                    title ?? LWNTextHelper.ResolveText("LWN_pipeline_popup_default_title", "Event"),
                     message,
                     true,       // canOptionA = true
                     optionBText != null,  // canOptionB
-                    optionAText ?? "是",
-                    optionBText ?? "否",
+                    // 弹窗默认按钮 A 文本兜底：是
+                    optionAText ?? LWNTextHelper.ResolveText("LWN_pipeline_popup_default_option_a", "Yes"),
+                    // 弹窗默认按钮 B 文本兜底：否
+                    optionBText ?? LWNTextHelper.ResolveText("LWN_pipeline_popup_default_option_b", "No"),
                     () => {
                         try { onOptionA?.Invoke(); }
                         catch (Exception ex) { DebugLogger.Log($"PopupChoice A error: {ex.Message}"); }
@@ -128,9 +131,12 @@ namespace LivingWorldNpcs
         {
             try
             {
-                string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
-                string target = e.TargetHero?.Name?.ToString() ?? "村民";
-                string instigator = e.IsGenericInstigator ? "一伙歹徒" : (e.InstigatorHero?.Name?.ToString() ?? "加害方");
+                // 叙事查表兜底：地点未知时默认显示"某地"
+                string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_pipeline_placeholder_location", "somewhere");
+                // 叙事查表兜底：目标未知时默认称呼"村民"
+                string target = e.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_pipeline_placeholder_target", "a villager");
+                // 叙事查表兜底：团伙作案默认"一伙歹徒"，无名加害方默认"加害方"
+                string instigator = e.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_pipeline_placeholder_bandit_gang", "a gang of bandits") : (e.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_pipeline_placeholder_perpetrator", "the culprit"));
                 string phaseSuffix = e.Phase == WorldEventPhase.Impending ? "_Impending" : "_Consummated";
 
                 // ① 优先：阶段感知条目 EventNotify_Assassination_Impending
@@ -158,25 +164,8 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var table = GameDatabase.Narrative;
-                if (table == null) return null;
-                var allRows = table.GetAll().ToList();
-                if (allRows.Count == 0) return null;
-
-                var match = allRows.FirstOrDefault(r =>
-                    string.Equals(r.GetString("ID"), id, StringComparison.OrdinalIgnoreCase));
-                if (match == null) return null;
-
-                var lines = match.GetList("Text");
-                string text = "";
-                if (lines != null && lines.Count > 0)
-                    text = lines[MBRandom.RandomInt(lines.Count)];
-                if (string.IsNullOrEmpty(text))
-                    text = match.GetString("Text");
-                if (string.IsNullOrEmpty(text) || text == "Any" || text == "……")
-                    return null;
-
-                return text;
+                string xmlKey = $"LWN_narr_{id.ToLower()}";
+                return LWNTextHelper.TryResolveText(xmlKey);
             }
             catch { return null; }
         }
@@ -184,83 +173,168 @@ namespace LivingWorldNpcs
         /// <summary>硬编码兜底叙事（暗探情报渠道，禁止上帝视角）。</summary>
         private static string BuildEventNarrativeHardcoded(WorldEvent e)
         {
-            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
-            string victim = e.TargetHero?.Name?.ToString() ?? "村民";
-            string instigator = e.InstigatorHero?.Name?.ToString() ?? "一伙人";
-            string severityTag = e.Severity >= 80 ? "万分紧急" : e.Severity >= 50 ? "需要关注" : "";
+            // 事件叙事兜底：地点未知时默认显示"某地"
+            string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_pipeline_placeholder_location", "somewhere");
+            // 事件叙事兜底：目标未知时默认称呼"村民"
+            string victim = e.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_pipeline_placeholder_target", "a villager");
+            // 事件叙事兜底：加害方未知时默认"一伙人"
+            string instigator = e.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_pipeline_placeholder_instigator", "a group of people");
+            // 事件严重度标签：≥80 万分紧急 / ≥50 需要关注
+            string severityTag = e.Severity >= 80 ? LWNTextHelper.ResolveText("LWN_pipeline_severity_critical", "Urgent") : e.Severity >= 50 ? LWNTextHelper.ResolveText("LWN_pipeline_severity_attention", "Needs attention") : "";
             bool impending = e.Phase == WorldEventPhase.Impending;
 
             return e.Type switch
             {
                 // ── 匪患 ──
                 EventType.BanditRaid => impending
-                    ? $"暗探来报——{instigator}近日在{loc}周边集结人手，频繁骚扰过往商队。当地村民人心惶惶，暗探判断其意图已是明摆着的——{victim}和乡亲们危在旦夕。"
-                    : $"急报——{instigator}的匪帮已于昨夜洗劫了{loc}。{victim}和村民们损失惨重，哭声遍野。暗探已确认属实。",
+                    // 事件叙事兜底：匪患案发（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_banditraid_impending",
+                        "Spy report — {INSTIGATOR} has been gathering men around {LOCATION} lately, harrying passing caravans. The locals are terrified, and the spy reads the intent as plain: {VICTIM} and the villagers are in mortal danger.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：匪患案发（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_banditraid_consummated",
+                        "Urgent — {INSTIGATOR}'s gang raided {LOCATION} last night. {VICTIM} and the villagers suffered heavy losses; weeping echoes across the fields. The spy has confirmed it.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim)),
 
                 // ── 绑架 ──
                 EventType.Kidnapping => impending
-                    ? $"暗探来报——{instigator}近日频频在{loc}出没，暗中打探{victim}的日常行踪。暗探判断：此人欲对{victim}不利，动手只是时间问题。"
-                    : $"急报——{victim}已被{instigator}绑走。家人哭求无门，绑匪至今未递赎金要求。暗探正在追查去向。",
+                    // 事件叙事兜底：绑架（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_kidnapping_impending",
+                        "Spy report — {INSTIGATOR} has been seen around {LOCATION} often lately, quietly probing {VICTIM}'s daily movements. The spy judges: this one means {VICTIM} harm, and it is only a matter of time.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：绑架（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_kidnapping_consummated",
+                        "Urgent — {VICTIM} has been abducted by {INSTIGATOR}. The family begs with no one to turn to; the kidnappers have yet to send a ransom demand. The spy is tracking their whereabouts.",
+                        ("INSTIGATOR", instigator), ("VICTIM", victim)),
 
                 // ── 饥荒 ──
                 EventType.Famine => impending
-                    ? $"暗探来报——{loc}的粮仓已经见底，百姓靠野菜充饥已有多日。若再无外援，饿死人只是迟早的事。"
-                    : $"急报——{loc}的饥荒已经失控。粮食耗尽，饿殍遍野。暗探摇头：来得太晚了。",
+                    // 事件叙事兜底：饥荒（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_famine_impending",
+                        "Spy report — {LOCATION}'s granaries are nearly empty, and the folk have been living on wild greens for days. Unless outside help arrives, deaths by starvation are only a matter of time.",
+                        ("LOCATION", loc))
+                    // 事件叙事兜底：饥荒（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_famine_consummated",
+                        "Urgent — famine in {LOCATION} has spiraled out of control. Grain is gone, and the dead lie in the streets. The spy shakes his head: we came too late.",
+                        ("LOCATION", loc)),
 
                 // ── 背叛 ──
                 EventType.Betrayal => impending
-                    ? $"暗探来报——{instigator}近日与{loc}以外的势力暗中往来频繁，对{victim}的态度也愈发冷淡。暗探评注：此人恐有二心，{victim}尚蒙在鼓里。"
-                    : $"急报——{loc}出了内鬼。{instigator}已背叛{victim}，卷走大笔钱财。暗探评注：这刀是从背后捅的。",
+                    // 事件叙事兜底：背叛（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_betrayal_impending",
+                        "Spy report — {INSTIGATOR} has been dealing furtively with powers beyond {LOCATION}, and has grown ever colder toward {VICTIM}. The spy notes: this one has two minds, and {VICTIM} is still in the dark.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：背叛（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_betrayal_consummated",
+                        "Urgent — {LOCATION} has a traitor within. {INSTIGATOR} has betrayed {VICTIM} and made off with a large sum. The spy notes: that knife came from behind.",
+                        ("LOCATION", loc), ("INSTIGATOR", instigator), ("VICTIM", victim)),
 
                 // ── 债务陷阱 ──
                 EventType.DebtTrap => impending
-                    ? $"暗探来报——{instigator}正步步紧逼{victim}还债，利息已滚到了还不清的数目。再拖下去，{victim}的地契就要易手了。"
-                    : $"急报——{victim}已被{instigator}逼到绝路。地契被收走，一家人失去了安身之所。暗探评注：合法的抢劫，比匪帮更狠。",
+                    // 事件叙事兜底：债务陷阱（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_debt_trap_impending",
+                        "Spy report — {INSTIGATOR} is pressing {VICTIM} hard over a debt whose interest has grown beyond any hope of repayment. Drag it out further and {VICTIM}'s land deed will change hands.",
+                        ("INSTIGATOR", instigator), ("VICTIM", victim))
+                    // 事件叙事兜底：债务陷阱（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_debt_trap_consummated",
+                        "Urgent — {INSTIGATOR} has driven {VICTIM} to the wall. The deed was seized, and the family has lost their home. The spy notes: lawful robbery is crueler than any bandit.",
+                        ("INSTIGATOR", instigator), ("VICTIM", victim)),
 
                 // ── 情仇 ──
                 EventType.RomanticConflict =>
-                    $"暗探来报——{loc}有人为情所困。{victim}卷入了一场无法脱身的情感纠葛，两家人的脸面都挂不住了。",
+                    // 事件叙事兜底：情仇（未发生）暗探急报
+                    LWNTextHelper.ResolveCompound("LWN_pipeline_event_romantic_conflict",
+                        "Spy report — someone in {LOCATION} is lovesick. {VICTIM} is tangled in a romance with no clean way out, and both families are losing face.",
+                        ("LOCATION", loc), ("VICTIM", victim)),
 
                 // ── 冤案 ──
                 EventType.FalseAccusation => impending
-                    ? $"暗探来报——{instigator}正在{loc}四处散布不利于{victim}的言论。证据尚未坐实，但流言已经传开。暗探评注：若无人出面，冤案恐将铸成。"
-                    : $"急报——{victim}已被定罪。暗探评注：证据始终没能找到，这不是审判，是谋杀。",
+                    // 事件叙事兜底：冤案（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_false_accusation_impending",
+                        "Spy report — {INSTIGATOR} is spreading damaging words about {VICTIM} throughout {LOCATION}. The evidence is not yet set in stone, but the rumor is already abroad. The spy notes: unless someone steps in, a wrongful verdict will be set.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：冤案（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_false_accusation_consummated",
+                        "Urgent — {VICTIM} has been convicted. The spy notes: no evidence was ever found. This was not a trial; it was murder.",
+                        ("VICTIM", victim)),
 
                 // ── 继承争端 ──
                 EventType.InheritanceDispute =>
-                    $"暗探来报——{loc}的老族长走了。继承人之间剑拔弩张，{victim}的继承权正被{instigator}公开挑战。",
+                    // 事件叙事兜底：继承争端（未发生）暗探急报
+                    LWNTextHelper.ResolveCompound("LWN_pipeline_event_inheritance_dispute",
+                        "Spy report — the old clan head of {LOCATION} has passed. The heirs are at daggers drawn, and {VICTIM}'s claim is being openly challenged by {INSTIGATOR}.",
+                        ("LOCATION", loc), ("VICTIM", victim), ("INSTIGATOR", instigator)),
 
                 // ── 逃犯 ──
                 EventType.Fugitive => impending
-                    ? $"暗探来报——{loc}附近藏着一个逃犯，名为{victim}。追捕方悬了重赏，但这个人的故事可能没那么简单。暗探建议主公亲自过问。"
-                    : $"暗探来报——{victim}的踪迹已彻底断了。也许是逃走了，也许是被人抓回去了。{loc}又恢复了表面的平静。",
+                    // 事件叙事兜底：逃犯（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_fugitive_impending",
+                        "Spy report — a fugitive named {VICTIM} is hiding near {LOCATION}. The hunters have put a heavy price on this one's head, but the story may not be so simple. The spy advises my lord to look into it personally.",
+                        ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：逃犯（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_fugitive_consummated",
+                        "Spy report — every trace of {VICTIM} is gone. Fled, perhaps, or dragged back by the hunters. {LOCATION} has returned to its uneasy calm.",
+                        ("VICTIM", victim), ("LOCATION", loc)),
 
                 // ── 贸易争端 ──
                 EventType.TradeDispute => impending
-                    ? $"暗探来报——{instigator}正在{loc}打压{victim}的生意。压价、断货、散布谣言——手段不干净，但还没到撕破脸的程度。"
-                    : $"急报——{instigator}已垄断了{loc}的市场。{victim}的生意彻底垮了。暗探评注：商人的战争，不见血也能要命。",
+                    // 事件叙事兜底：贸易争端（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_trade_dispute_impending",
+                        "Spy report — {INSTIGATOR} is crushing {VICTIM}'s trade in {LOCATION}. Price-slashing, cut supply lines, whispered slander — dirty tricks, but nothing that has come to blows yet.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：贸易争端（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_trade_dispute_consummated",
+                        "Urgent — {INSTIGATOR} has cornered the market in {LOCATION}. {VICTIM}'s trade is ruined outright. The spy notes: a merchant's war can kill without a drop of blood.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim)),
 
                 // ── 贵族冲突 ──
                 EventType.NobleConflict => impending
-                    ? $"暗探来报——{instigator}近日在{loc}边境频频调动兵力。暗探判断其目标极可能是{victim}——摩擦一触即发。"
-                    : $"急报——{instigator}与{victim}已在{loc}边境兵戎相见。烟尘滚滚，血流成河。暗探已确认交战属实。",
+                    // 事件叙事兜底：贵族冲突（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_noble_conflict_impending",
+                        "Spy report — {INSTIGATOR} has been moving troops along {LOCATION}'s border lately. The spy judges {VICTIM} the likely target — the clash could flare at any moment.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：贵族冲突（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_noble_conflict_consummated",
+                        "Urgent — {INSTIGATOR} and {VICTIM} have come to blows on {LOCATION}'s border. Smoke and blood cover the field. The spy has confirmed the battle.",
+                        ("INSTIGATOR", instigator), ("VICTIM", victim), ("LOCATION", loc)),
 
                 // ── 圣物失窃 ──
                 EventType.SacredTheft => impending
-                    ? $"暗探来报——{instigator}近日频频遣人在{loc}附近打探，目标似乎与当地的祖传圣物有关。暗探评注：此人觊觎已久，动手只是时间问题。{victim}一族若丢了圣物，传承便断了。"
-                    : $"急报——{loc}的祖传圣物已于昨夜失窃。现场线索指向{instigator}的人。{victim}一族的族老们低下了头——传承断了。暗探已确认属实。",
+                    // 事件叙事兜底：圣物失窃（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_sacred_theft_impending",
+                        "Spy report — {INSTIGATOR} has been sending people to scout around {LOCATION} of late; the aim seems to be the clan's heirloom relic. The spy notes: this one has coveted it for a long time — action is only a matter of time. Should the {VICTIM} clan lose the relic, their lineage would be broken.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：圣物失窃（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_sacred_theft_consummated",
+                        "Urgent — the heirloom relic of {LOCATION} was stolen last night. The trail at the scene points to {INSTIGATOR}'s men. The elders of the {VICTIM} clan bowed their heads — the lineage is broken. The spy has confirmed it.",
+                        ("LOCATION", loc), ("INSTIGATOR", instigator), ("VICTIM", victim)),
 
                 // ── 行刺 ──
                 EventType.Assassination => impending
-                    ? $"暗探来报——{instigator}近日行踪诡秘，暗中遣人在{loc}附近观察{victim}的行踪。暗探评注：此乃行刺前兆，{victim}恐有大难。主公若想阻止，当速作决断。"
-                    : $"急报——{victim}已于{loc}遇刺身亡。暗探已确认属实，刺客身份指向{instigator}。当地人人自危，都在猜下一个是谁。",
+                    // 事件叙事兜底：行刺（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_assassination_impending",
+                        "Spy report — {INSTIGATOR} has been skulking about, sending men to watch {VICTIM}'s movements near {LOCATION}. The spy notes: this is the portent of an assassination, and {VICTIM} is in grave danger. If my lord means to stop it, he must decide at once.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc), ("VICTIM", victim))
+                    // 事件叙事兜底：行刺（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_assassination_consummated",
+                        "Urgent — {VICTIM} has been slain in {LOCATION}. The spy has confirmed it, and the trail of the blade points to {INSTIGATOR}. Everyone in the region is on edge, wondering who is next.",
+                        ("VICTIM", victim), ("LOCATION", loc), ("INSTIGATOR", instigator)),
 
                 // ── 宿敌复仇 ──
                 EventType.NemesisRevenge => impending
-                    ? $"暗探来报——{instigator}正在找你。那道疤还在疼。暗探评注：此人离{loc}越来越近了。"
-                    : $"暗探来报——{instigator}已经找到{loc}来了。那道疤还在疼。该来的终于来了。",
+                    // 事件叙事兜底：宿敌复仇（未发生）暗探急报
+                    ? LWNTextHelper.ResolveCompound("LWN_pipeline_event_nemesis_revenge_impending",
+                        "Spy report — {INSTIGATOR} is coming for you. That old scar still aches. The spy notes: this one draws closer to {LOCATION} with every passing day.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc))
+                    // 事件叙事兜底：宿敌复仇（已发生）急报
+                    : LWNTextHelper.ResolveCompound("LWN_pipeline_event_nemesis_revenge_consummated",
+                        "Spy report — {INSTIGATOR} has tracked you here to {LOCATION}. That old scar still aches. What was bound to come has come.",
+                        ("INSTIGATOR", instigator), ("LOCATION", loc)),
 
-                _ => $"暗探来报——{loc}出了事，具体情况尚待追查。"
+                // 事件叙事兜底：未知事件类型的兜底情报
+                _ => LWNTextHelper.ResolveCompound("LWN_pipeline_event_default",
+                    "Spy report — something has happened in {LOCATION}; the details are still being investigated.",
+                    ("LOCATION", loc))
             };
         }
     }

@@ -56,7 +56,10 @@ namespace LivingWorldNpcs
             };
 
         static List<DialogueInjector.DialogueTransition> SingleContinue(string next)
-            => new() { new() { PlayerLine = "嗯…", NextNodeOnSuccess = next } };
+        {
+            // 玩家继续话题的通用确认语："嗯…"
+            return new() { new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_continue", "Mm-hm."), NextNodeOnSuccess = next } };
+        }
 
         /// <summary>
         /// 注入时机：玩家对 NPC 点"交谈"时调用。MissionConversationLogic.StartConversation、CampaignMapConversation.OpenConversation调用TryInjectCrimeDialogue
@@ -79,7 +82,7 @@ namespace LivingWorldNpcs
             // ── 预填充阶段标记：本方法内所有 Resolve 都是对话开启时的整树预构建（非运行时播放），
             // 日志统一带 [对话预填充] 前缀；finally 保证任意 return 路径都还原 ──
             string prevLogPhaseTag = PlaceholderResolver.LogPhaseTag;
-            PlaceholderResolver.LogPhaseTag = "对话预填充";
+            PlaceholderResolver.LogPhaseTag = "对话预填充"; // lwn-ignore: A (debug tag)
             try
             {
                 return BuildScriptInternal(speaker, listener, evt, trigger, alertConfrontation, alertTriggerAction, speakerCharacter, speakerAgent);
@@ -239,7 +242,9 @@ namespace LivingWorldNpcs
         {
             List<DialogueInjector.DialogueNode> nodes = new List<DialogueInjector.DialogueNode>();
             WorldEvent evt = ctx.ActiveEvent;
-            string entryOption = r.Resolve("{SpeakerRole}，听说{TargetSettlementName}出了点事？", "EntryOption");
+            // 权威NPC开场白（默认/沉睡期）：听说出事，引出案件话题
+            string entryOption = LWNTextHelper.Resolve("LWN_crime_authority_entry_dormant", r,
+                "{SpeakerRole}, I hear something happened in {TargetSettlementName}?");
             switch (evt.Stage)
             {
                 case EventStage.Dormant:
@@ -250,7 +255,9 @@ namespace LivingWorldNpcs
                     if (evt.PlayerTookInvestigationQuest)
                     {
                         //玩家接了调查任务，那么对话就是关于任务情况的报告
-                        entryOption = r.Resolve("关于{TargetSettlementName}那个案子……", "EntryOption");
+                        // 权威NPC开场白（Emerging+玩家已接调查任务）：直奔案件话题
+                        entryOption = LWNTextHelper.Resolve("LWN_crime_authority_entry_report", r,
+                            "About that case in {TargetSettlementName}...");
                         BuildReportNode(nodes, r, ctx);
                     }
                     else
@@ -269,7 +276,9 @@ namespace LivingWorldNpcs
                     else
                     {
                         //是别的人干的，请求玩家去帮忙
-                        entryOption = r.Resolve("{SpeakerRole}，关于那桩悬赏……", "EntryOption");
+                        // 权威NPC开场白（Active+非玩家作案）：提起悬赏
+                        entryOption = LWNTextHelper.Resolve("LWN_crime_authority_entry_bounty", r,
+                            "{SpeakerRole}, about that bounty...");
                         BuildBountyOfferNode(nodes, r, ctx);
                     }
                     break;
@@ -305,18 +314,22 @@ namespace LivingWorldNpcs
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("{TimeWord}{TargetSettlementName}出事了——{DiscoveryFacts}。{InvestigationProgressWord}。{WitnessCountWord}，{SuspectDescription}。{SpeakerPlayerAddr}能帮忙查查吗？", "NpcLine"),
+                // 权威NPC委托调查开场：陈述案件事实，请玩家帮忙查
+                NpcLine = LWNTextHelper.Resolve("LWN_crime_authority_discovery_opening", r,
+                    "{TimeWord} something happened in {TargetSettlementName} — {DiscoveryFacts}. {InvestigationProgressWord}. {WitnessCountWord}, {SuspectDescription}. Can {SpeakerPlayerAddr} help look into it?"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "我可以帮忙查查是谁干的。",
+                        // 玩家接受调查委托
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_discovery_accept", "I can help find out who did it."),
                         Action = "INTENT:Investigate",
                         NextNodeOnSuccess = "discovery_accept_ack"
                     },
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "我还有事。",
+                        // 玩家婉拒调查委托（走人）
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_busy", "I have other matters."),
                         Action = "INTENT:WalkAway",
                         NextNodeOnSuccess = "discovery_decline_ack"
                     }
@@ -328,7 +341,8 @@ namespace LivingWorldNpcs
             {
                 node.Transitions.Insert(0, new DialogueInjector.DialogueTransition
                 {
-                    PlayerLine = "是我干的。",
+                    // 玩家主动认罪（调查阶段）
+                    PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_confess", "It was me."),
                     Action = "INTENT:Confess",
                     NextNodeOnSuccess = "confess"
                 });
@@ -336,8 +350,12 @@ namespace LivingWorldNpcs
             }
 
             nodes.Add(node);
-            nodes.Add(Node("discovery_accept_ack", r.Resolve("拜托了！查出来了{SpeakerSelfRef}必有重谢。"), "continue_chat"));
-            nodes.Add(Node("discovery_decline_ack", r.Resolve("那{SpeakerPlayerAddr}忙吧……{SpeakerSelfRef}们自己想办法。"), "continue_chat"));
+            // 权威NPC：接受调查的回应（承诺重谢）
+            nodes.Add(Node("discovery_accept_ack", LWNTextHelper.Resolve("LWN_crime_authority_discovery_accept_ack", r,
+                "Please! Find the culprit and {SpeakerSelfRef} will reward you well."), "continue_chat"));
+            // 权威NPC：拒绝调查的回应（放行）
+            nodes.Add(Node("discovery_decline_ack", LWNTextHelper.Resolve("LWN_crime_authority_discovery_decline_ack", r,
+                "Then go about {SpeakerPlayerAddr}'s business... {SpeakerSelfRef} will manage on their own."), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
         }
 
@@ -350,28 +368,36 @@ namespace LivingWorldNpcs
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "confess",
-                NpcLine = r.Resolve("{SpeakerPlayerAddr}？！……好，既然自己认了，咱们可以商量。有什么要说的？"),
+                // 权威NPC：玩家主动认罪后的回应（可以商量）
+                NpcLine = LWNTextHelper.Resolve("LWN_crime_authority_confess_opening", r,
+                    "{SpeakerPlayerAddr}?! ...Very well, since you admit it, we can talk. What do you have to say?"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new()
                     {
-                        PlayerLine = "我愿意赔。你说个数。",
+                        // 玩家认赔（不标价，由 NPC 在 restitution_demand 开价）
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_confess_pay", "I'll pay. Name your price."),
                         Action = "NONE",
                         NextNodeOnSuccess = "restitution_demand"
                     },
                     new()
                     {
-                        PlayerLine = "开个玩笑……刚才是我胡说的",
+                        // 玩家试图狡辩（魅力检定）
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_confess_joke", "Just kidding... I was talking nonsense."),
                         CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:CharmDefense",
                         NextNodeOnSuccess = "charm_ok",
                         NextNodeOnFail = "charm_fail"
                     },
-                    new() { PlayerLine = "转身就走", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    // 玩家转身就走（承担关系后果）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_turn_and_leave", "Turn and leave"), Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             });
-            nodes.Add(Node("charm_ok", r.Resolve("……说清楚？好，{SpeakerSelfRef}倒要听听。"), "continue_chat"));
-            nodes.Add(Node("charm_fail", r.Resolve("说清楚？证据确凿，没什么好说的。"), "continue_chat"));
+            // 权威NPC：狡辩成功（愿意听解释）
+            nodes.Add(Node("charm_ok", LWNTextHelper.Resolve("LWN_crime_authority_confess_charm_ok", r,
+                "...Explain yourself? Very well, {SpeakerSelfRef} will listen."), "continue_chat"));
+            // 权威NPC：狡辩失败（证据确凿）
+            nodes.Add(Node("charm_fail", LWNTextHelper.ResolveText("LWN_crime_authority_charm_fail", "Explain? The evidence is conclusive. Nothing to say."), "continue_chat"));
             BuildRestitutionSubtree(nodes, r, ctx);
         }
 
@@ -402,7 +428,10 @@ namespace LivingWorldNpcs
             // NPC 开价台词：优先用 RestitutionBreakdown，否则兜底
             string demandNpcLine = r.Resolve("{RestitutionBreakdown}", "NpcLine");
             if (string.IsNullOrEmpty(demandNpcLine) || demandNpcLine == "{RestitutionBreakdown}")
-                demandNpcLine = r.Resolve($"罚款{cost}第纳尔。你认不认？", "NpcLine");
+                // 兜底开价台词：报出罚款金额，问玩家认不认
+                demandNpcLine = LWNTextHelper.ResolveCompound("LWN_crime_common_demand_fallback",
+                    "The fine is {COST} denars. Do you accept?",
+                    ("COST", cost.ToString()));
 
             // demand 节点：NPC 开价
             // 🆕 惰性求值：首次进入用原价 cost，砍价成功后再进来 → 沿用砍后价 _hagglePrice，NPC 交代"刚才砍过一轮"
@@ -415,17 +444,21 @@ namespace LivingWorldNpcs
                     evt?.RecordQuote(currentCost);
                     if (evt?._hagglePrice > 0)
                     {
-                        return r.Resolve(
-                            $"刚才砍到{currentCost}第纳尔，你嫌贵没要。那还是这个数——{currentCost}第纳尔。你认不认？",
-                            "NpcLine");
+                        // 砍过价后再来：NPC 重申砍后价（强调价格不变）
+                        return LWNTextHelper.ResolveCompound("LWN_crime_common_demand_after_haggle",
+                            "We bargained down to {COST} denars and you refused. Same price — {COST} denars. Do you accept?",
+                            ("COST", currentCost.ToString()));
                     }
                     return demandNpcLine;
                 },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "行，就按这个价。", Action = "INTENT:PayRestitution", ActionParam = null, NextNodeOnSuccess = "restitution_pay_ack" },
-                    new() { PlayerLine = "太贵了，能便宜点吗？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:Settle", NextNodeOnSuccess = "restitution_haggle_ok", NextNodeOnFail = "restitution_haggle_fail" },
-                    new() { PlayerLine = "太贵了，不赔。", Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
+                    // 玩家全价接受
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_demand_accept", "Fine, deal."), Action = "INTENT:PayRestitution", ActionParam = null, NextNodeOnSuccess = "restitution_pay_ack" },
+                    // 玩家砍价（说服检定）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_demand_haggle", "Too expensive. Can you lower it?"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:Settle", NextNodeOnSuccess = "restitution_haggle_ok", NextNodeOnFail = "restitution_haggle_fail" },
+                    // 玩家拒赔
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_demand_refuse", "Too expensive. I won't pay."), Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
                 }
             });
 
@@ -438,14 +471,17 @@ namespace LivingWorldNpcs
                 () =>
                 {
                     int warnCost = evt?.LastQuotedAmount > 0 ? evt.LastQuotedAmount : cost;
-                    return r.Resolve($"不赔？{{SpeakerSelfRef}}把话放这儿：现在给，就是{warnCost}。" +
-                                     $"等这事传开、等你我动了手，价钱只会往上翻。你自己掂量。", "NpcLine");
+                    // 拒赔警告：强调现在给是这个价，往后只会翻倍
+                    return LWNTextHelper.ResolveCompound("LWN_crime_common_refuse_warn",
+                        "Refuse? {SELF} will say this plainly: pay {COST} now. Once word spreads, once we come to blows, the price will only climb. Think carefully.",
+                        ("SELF", r.ResolveOne("SpeakerSelfRef")), ("COST", warnCost.ToString()));
                 },
                 "continue_chat"));
 
             // haggle_ok：砍价成功 — 明盘：原价多少、怎么砍的、砍到多少
-            string haggleNpcLine = r.Resolve(
-                $"……行，原价{cost}，给你对半砍——{haggleCost}。这是最后价了，不能再少了。", "NpcLine");
+            string haggleNpcLine = LWNTextHelper.ResolveCompound("LWN_crime_common_haggle_ok",
+                "Hmph... original price {COST}. I'll cut it in half for you — {HAGGLECOST}. Final price, no more discounts.",
+                ("COST", cost.ToString()), ("HAGGLECOST", haggleCost.ToString()));
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "restitution_haggle_ok",
@@ -453,16 +489,20 @@ namespace LivingWorldNpcs
                 LazyNpcLine = () => { evt!.RecordQuote(haggleCost); evt._hagglePrice = haggleCost; return haggleNpcLine; },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = r.Resolve($"行，就这个数——{haggleCost}第纳尔。", "PlayerLine"), Action = "INTENT:PayRestitution", ActionParam = "haggle", NextNodeOnSuccess = "restitution_pay_ack" },
-                    new() { PlayerLine = "还是太贵，不赔了。", Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
+                    // 玩家接受砍后价
+                    new() { PlayerLine = LWNTextHelper.ResolveCompound("LWN_crime_player_haggle_accept", "Fine — {COST} denars it is.", ("COST", haggleCost.ToString())), Action = "INTENT:PayRestitution", ActionParam = "haggle", NextNodeOnSuccess = "restitution_pay_ack" },
+                    // 玩家仍嫌贵，不赔
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_haggle_refuse", "Still too expensive. I'm not paying."), Action = "NONE", NextNodeOnSuccess = "restitution_refuse_warn" },
                 }
             });
 
             // haggle_fail → 回到 demand
-            nodes.Add(Node("restitution_haggle_fail", r.Resolve("不行，一文都不能少。", "NpcLine"), "restitution_demand"));
+            // 砍价失败：一分不让
+            nodes.Add(Node("restitution_haggle_fail", LWNTextHelper.ResolveText("LWN_crime_common_haggle_fail", "No. Not a single coin less."), "restitution_demand"));
 
             // pay_ack：付款确认
-            nodes.Add(Node("restitution_pay_ack", r.Resolve("好，钱留下，这事就算了。", "NpcLine"), afterPayNodeId));
+            // 付款确认：钱留下，事两清
+            nodes.Add(Node("restitution_pay_ack", LWNTextHelper.ResolveText("LWN_crime_common_pay_ack", "Good. Leave the money, and this matter is settled."), afterPayNodeId));
         }
 
         private static void BuildReportNode(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
@@ -472,22 +512,26 @@ namespace LivingWorldNpcs
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = "怎么样，查到什么了吗？",
+                // 权威NPC：问玩家调查进度
+                NpcLine = LWNTextHelper.ResolveText("LWN_crime_authority_report_opening", "Well? Found anything?"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "是附近藏身处的强盗干的！",
+                        // 玩家栽赃藏身处强盗（说服检定）
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_report_frame_bandit", "It was the bandits from the nearby hideout!"),
                         CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:FrameSuspect",
                         ActionParam = "bandit",
                         NextNodeOnSuccess = "frame_bandit_ok",
                         NextNodeOnFail = "frame_bandit_fail"
                     },
-                    new DialogueInjector.DialogueTransition { PlayerLine = "还没查到什么。", Action = "NONE", NextNodeOnSuccess = "report_nothing_ack" },
+                    // 玩家暂无进展
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_report_nothing", "Nothing yet."), Action = "NONE", NextNodeOnSuccess = "report_nothing_ack" },
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "我还有事。",
+                        // 玩家告辞
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_busy", "I have other matters."),
                         Action = "INTENT:WalkAway",
                         NextNodeOnSuccess = "report_leave_ack"
                     },
@@ -508,15 +552,22 @@ namespace LivingWorldNpcs
                         string failId = $"frame_{frameIdx}_fail";
                         node.Transitions.Insert(node.Transitions.Count - 1, new DialogueInjector.DialogueTransition
                         {
-                            PlayerLine = $"是 {target.DisplayName} 干的——[出示{evItem.ItemName}]",
+                            // 玩家拿证据栽赃目标（[出示{ITEM}] 是证据展示框）
+                            PlayerLine = LWNTextHelper.ResolveCompound("LWN_crime_player_frame_evidence",
+                                "It was {NAME} — [shows {ITEM}]",
+                                ("NAME", target.DisplayName), ("ITEM", evItem.ItemName)),
                             CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                             Action = "INTENT:FrameSuspect",
                             ActionParam = target.TargetId,
                             NextNodeOnSuccess = okId,
                             NextNodeOnFail = failId
                         });
-                        nodes.Add(Node(okId, $"……这确实是他的东西。好，那就是他了！", "continue_chat"));
-                        nodes.Add(Node(failId, $"……这东西说明不了什么。{r.Resolve("{SpeakerPlayerAddr}")}再去查查。", "continue_chat"));
+                        // 权威NPC：证据坐实目标
+                        nodes.Add(Node(okId, LWNTextHelper.ResolveText("LWN_crime_authority_frame_ok", "...This is indeed his. Alright, he's the one!"), "continue_chat"));
+                        // 权威NPC：证据不足，继续查
+                        nodes.Add(Node(failId, LWNTextHelper.ResolveCompound("LWN_crime_authority_frame_fail_evidence",
+                            "This proves nothing. {ADDR}, keep investigating.",
+                            ("ADDR", r.ResolveOne("SpeakerPlayerAddr"))), "continue_chat"));
                         frameIdx++;
                     }
                 }
@@ -526,15 +577,24 @@ namespace LivingWorldNpcs
                     string failId = $"frame_{frameIdx}_fail";
                     node.Transitions.Insert(node.Transitions.Count - 1, new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = $"是 {target.DisplayName} 干的。",
+                        // 玩家口头指认目标（无证据）
+                        PlayerLine = LWNTextHelper.ResolveCompound("LWN_crime_player_frame_simple",
+                            "It was {NAME}.",
+                            ("NAME", target.DisplayName)),
                         CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:FrameSuspect",
                         ActionParam = target.TargetId,
                         NextNodeOnSuccess = okId,
                         NextNodeOnFail = failId
                     });
-                    nodes.Add(Node(okId, $"是{target.DisplayName}干的？……好，{r.Resolve("{SpeakerSelfRef}")}信你。", "continue_chat"));
-                    nodes.Add(Node(failId, $"就凭一句话？{r.Resolve("{SpeakerPlayerAddr}")}再去查查。", "continue_chat"));
+                    // 权威NPC：采信口头指认
+                    nodes.Add(Node(okId, LWNTextHelper.ResolveCompound("LWN_crime_authority_frame_ok_simple",
+                        "It was {NAME}? ...Very well, {SELF} believes you.",
+                        ("NAME", target.DisplayName), ("SELF", r.ResolveOne("SpeakerSelfRef"))), "continue_chat"));
+                    // 权威NPC：单凭一句话不予采信
+                    nodes.Add(Node(failId, LWNTextHelper.ResolveCompound("LWN_crime_authority_frame_fail_simple",
+                        "Just a word? {ADDR}, keep investigating.",
+                        ("ADDR", r.ResolveOne("SpeakerPlayerAddr"))), "continue_chat"));
                     frameIdx++;
                 }
             }
@@ -544,7 +604,8 @@ namespace LivingWorldNpcs
             {
                 node.Transitions.Add(new DialogueInjector.DialogueTransition
                 {
-                    PlayerLine = "（低头）……是我干的。",
+                    // 玩家低头认罪（报告阶段）
+                    PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_report_confess", "(head down) ...It was me."),
                     Action = "INTENT:Confess",
                     NextNodeOnSuccess = "confess"
                 });
@@ -552,10 +613,18 @@ namespace LivingWorldNpcs
             }
 
             nodes.Add(node);
-            nodes.Add(Node("frame_bandit_ok", r.Resolve("藏身处的强盗？好，那就是他们了！{SpeakerSelfRef}这就张罗悬赏。"), "continue_chat"));
-            nodes.Add(Node("frame_bandit_fail", r.Resolve("强盗？光凭{SpeakerPlayerAddr}一句话可不行……再去查查。"), "continue_chat"));
-            nodes.Add(Node("report_nothing_ack", r.Resolve("那你再去看看。{InvestigationProgressWord}。"), "continue_chat"));
-            nodes.Add(Node("report_leave_ack", r.Resolve("快去查，有消息了来告诉{SpeakerSelfRef}。"), "continue_chat"));
+            // 权威NPC：采信强盗说法，张罗悬赏
+            nodes.Add(Node("frame_bandit_ok", LWNTextHelper.Resolve("LWN_crime_authority_frame_bandit_ok", r,
+                "The hideout bandits? Alright, it's them then! {SpeakerSelfRef} will set up a bounty right away."), "continue_chat"));
+            // 权威NPC：强盗说法缺证据
+            nodes.Add(Node("frame_bandit_fail", LWNTextHelper.Resolve("LWN_crime_authority_frame_bandit_fail", r,
+                "Bandits? Just {SpeakerPlayerAddr}'s word is not enough... go investigate again."), "continue_chat"));
+            // 权威NPC：没查到就继续查
+            nodes.Add(Node("report_nothing_ack", LWNTextHelper.Resolve("LWN_crime_authority_report_nothing_ack", r,
+                "Then take another look. {InvestigationProgressWord}."), "continue_chat"));
+            // 权威NPC：催促玩家快查
+            nodes.Add(Node("report_leave_ack", LWNTextHelper.Resolve("LWN_crime_common_go_investigate", r,
+                "Go investigate, and report back to {SpeakerSelfRef} when you have news."), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
         }
 
@@ -563,18 +632,26 @@ namespace LivingWorldNpcs
         {
             WorldEvent evt = r.Event;
             // 真场景才能叫守卫/当场开打；大地图（含临时对话 Mission）威胁失败的 NPC 回应降级为口头警告
+            // 权威NPC：真场景威胁失败（叫守卫）
             string threatFailLine = ctx.InRealScene
-                ? r.Resolve("威胁{SpeakerSelfRef}？来人！")
-                : r.Resolve("威胁{SpeakerSelfRef}？{SpeakerPlayerAddr}等着，{SpeakerSelfRef}会告到上面去。");
+                // 威胁{SpeakerSelfRef}？来人！
+                ? LWNTextHelper.Resolve("LWN_crime_authority_confront_threat_fail_scene", r,
+                    "Threaten {SpeakerSelfRef}? Guards!")
+                // 权威NPC：大地图威胁失败（口头警告，告到上面去）
+                : LWNTextHelper.Resolve("LWN_crime_authority_confront_threat_fail_map", r,
+                    "Threaten {SpeakerSelfRef}? {SpeakerPlayerAddr} just wait — {SpeakerSelfRef} will report this to the higher-ups.");
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("{SpeakerPlayerAddr}还敢来？{PrimaryWitnessDesc}{TimeWord}就来找{SpeakerSelfRef}，说亲眼瞧见是{SpeakerPlayerAddr}{ActionDescription}。有什么要说的？", "NpcLine"),
+                // 权威NPC对峙开场：证人指认玩家作案
+                NpcLine = LWNTextHelper.Resolve("LWN_crime_authority_confront_opening", r,
+                    "{SpeakerPlayerAddr} dares to show up? {PrimaryWitnessDesc} came to {SpeakerSelfRef} {TimeWord}, saying they saw with their own eyes that {SpeakerPlayerAddr} {ActionDescription}. Anything to say?"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "你们搞错了。给我个机会说清楚。",
+                        // 玩家辩解（魅力检定）
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_confront_charm", "You've got it wrong. Give me a chance to explain."),
                         CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:CharmDefense",
                         NextNodeOnSuccess = "confront_charm_ok",
@@ -582,27 +659,35 @@ namespace LivingWorldNpcs
                     },
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "赔偿的事……你要多少？",
+                        // 玩家问赔偿金额（不标价，由 NPC 开价）
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_confront_pay", "About restitution... how much?"),
                         Action = "NONE",
                         NextNodeOnSuccess = "restitution_demand"
                     },
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "你再说一遍？",
+                        // 玩家反威胁（威胁检定）
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_confront_threat", "Say that again?"),
                         CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:Threat",
                         NextNodeOnSuccess = "confront_threat_ok",
                         NextNodeOnFail = "confront_threat_fail"
                     },
-                    new DialogueInjector.DialogueTransition { PlayerLine = "转身就走", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    // 玩家转身就走（承担后果）
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_turn_and_leave", "Turn and leave"), Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 }
             };
             nodes.Add(node);
 
             // ack nodes
-            nodes.Add(Node("confront_charm_ok", r.Resolve("……{SpeakerPlayerAddr}说的也有道理。那{SpeakerSelfRef}再查查。"), "continue_chat"));
-            nodes.Add(Node("confront_charm_fail", r.Resolve("说清楚？证据确凿，没什么好说的。"), "continue_chat"));
-            nodes.Add(Node("confront_threat_ok", r.Resolve("……{SpeakerSelfRef}不说了。{SpeakerPlayerAddr}走吧。"), "continue_chat"));
+            // 权威NPC：辩解成功，愿意再查
+            nodes.Add(Node("confront_charm_ok", LWNTextHelper.Resolve("LWN_crime_authority_confront_charm_ok", r,
+                "...{SpeakerPlayerAddr} makes some sense. {SpeakerSelfRef} will investigate further."), "continue_chat"));
+            // 权威NPC：辩解失败，证据确凿
+            nodes.Add(Node("confront_charm_fail", LWNTextHelper.ResolveText("LWN_crime_authority_charm_fail", "Explain? The evidence is conclusive. Nothing to say."), "continue_chat"));
+            // 权威NPC：威胁成功，放玩家走
+            nodes.Add(Node("confront_threat_ok", LWNTextHelper.Resolve("LWN_crime_authority_confront_threat_ok", r,
+                "...{SpeakerSelfRef} will say no more. {SpeakerPlayerAddr}, go."), "continue_chat"));
             nodes.Add(Node("confront_threat_fail", threatFailLine, "continue_chat"));
 
             BuildRestitutionSubtree(nodes, r, ctx);
@@ -614,14 +699,20 @@ namespace LivingWorldNpcs
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
-                NpcLine = r.Resolve("还记得{TimeWord}{DiscoveryFacts}的事吗？查清楚了——是{SuspectDescription}干的。村上凑了{BountyAmount}第纳尔悬赏，谁把他抓回来就给谁。{SpeakerPlayerAddr}接不接？", "NpcLine"),
+                // 权威NPC：说明案件已查清，提出悬赏邀请
+                NpcLine = LWNTextHelper.Resolve("LWN_crime_authority_bounty_opening", r,
+                    "Remember {TimeWord} {DiscoveryFacts}? We've got it figured out — it was {SuspectDescription}. The village pooled {BountyAmount} denars as a bounty; whoever brings them back gets it. Will {SpeakerPlayerAddr} take it?"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new DialogueInjector.DialogueTransition { PlayerLine = "我接这个悬赏！", Action = "INTENT:AcceptBountyQuest", NextNodeOnSuccess = "bounty_accept_ack" },
-                    new DialogueInjector.DialogueTransition { PlayerLine = "我先想想。", Action = "NONE", NextNodeOnSuccess = "continue_chat" },
+                    // 玩家接下悬赏
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_bounty_accept", "I'll take the bounty!"), Action = "INTENT:AcceptBountyQuest", NextNodeOnSuccess = "bounty_accept_ack" },
+                    // 玩家暂不表态
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_bounty_decline", "Let me think about it."), Action = "NONE", NextNodeOnSuccess = "continue_chat" },
                 }
             });
-            nodes.Add(Node("bounty_accept_ack", r.Resolve("好！人就交给{SpeakerPlayerAddr}了。"), "continue_chat"));
+            // 权威NPC：接受悬赏的回应（人交给你了）
+            nodes.Add(Node("bounty_accept_ack", LWNTextHelper.Resolve("LWN_crime_authority_bounty_accept_ack", r,
+                "Good! The matter is in {SpeakerPlayerAddr}'s hands."), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
         }
 
@@ -631,11 +722,15 @@ namespace LivingWorldNpcs
 
             if (evt.SuspectIsPlayer)
             {
-                string npcLine = r.Resolve("好话说尽，{SpeakerPlayerAddr}非要走到这一步。{SpeakerSelfRef}也不想多费口舌——今天不给{TargetSettlementName}一个交代，别想走着出去。", "NpcLine");
+                // 权威NPC（玩家作案）：最后通牒，今天必须给个交代
+                string npcLine = LWNTextHelper.Resolve("LWN_crime_authority_retaliation_opening_player", r,
+                    "Kind words are spent, {SpeakerPlayerAddr} insists on going this far. {SpeakerSelfRef} will not waste more breath — without settling for {TargetSettlementName} today, you won't walk out of here.");
                 var transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new DialogueInjector.DialogueTransition { PlayerLine = r.Resolve("我赔钱！你说个数。"), Action = "NONE", NextNodeOnSuccess = "restitution_detail" },
-                    new DialogueInjector.DialogueTransition { PlayerLine = "我走了。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                    // 玩家答应赔钱（不标价，由 NPC 开价）
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_retaliation_pay", "I'll pay! Name your price."), Action = "NONE", NextNodeOnSuccess = "restitution_detail" },
+                    // 玩家硬走（承担后果）
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."), Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                 };
                 nodes.Add(new DialogueInjector.DialogueNode
                 {
@@ -647,11 +742,15 @@ namespace LivingWorldNpcs
             }
             else
             {
-                string npcLine = r.Resolve("客客气气说话不管用，那就只能动手了。我们已经雇了人去抓{SuspectDescription}。{SpeakerPlayerAddr}要是站在我们这边的，可以带他们去。", "NpcLine");
+                // 权威NPC（他人作案）：已雇人去抓，邀玩家带队
+                string npcLine = LWNTextHelper.Resolve("LWN_crime_authority_retaliation_opening_other", r,
+                    "Polite words don't work, so it comes to action. We've already hired men to hunt {SuspectDescription}. If {SpeakerPlayerAddr} stands with us, you can lead them.");
                 var transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new DialogueInjector.DialogueTransition { PlayerLine = "我带人去！", Action = "INTENT:LeadRetaliation", NextNodeOnSuccess = "retaliate_lead_ack" },
-                    new DialogueInjector.DialogueTransition { PlayerLine = "我没空。", Action = "NONE", NextNodeOnSuccess = "" },
+                    // 玩家带队抓人
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_retaliation_lead", "I'll lead the men!"), Action = "INTENT:LeadRetaliation", NextNodeOnSuccess = "retaliate_lead_ack" },
+                    // 玩家拒绝带队
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_retaliation_busy", "I'm busy."), Action = "NONE", NextNodeOnSuccess = "" },
                 };
                 nodes.Add(new DialogueInjector.DialogueNode
                 {
@@ -659,7 +758,9 @@ namespace LivingWorldNpcs
                     NpcLine = npcLine,
                     Transitions = transitions
                 });
-                nodes.Add(Node("retaliate_lead_ack", r.Resolve("好！有{SpeakerPlayerAddr}带队，那{SuspectDescription}跑不了。"), "continue_chat"));
+                // 权威NPC：同意玩家带队
+                nodes.Add(Node("retaliate_lead_ack", LWNTextHelper.Resolve("LWN_crime_authority_retaliation_lead_ack", r,
+                    "Good! With {SpeakerPlayerAddr} leading, {SuspectDescription} won't get away."), "continue_chat"));
             }
 
             AddContinueChatWithFarewell(nodes, r);
@@ -682,9 +783,18 @@ namespace LivingWorldNpcs
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
             {
                 Id = "injectedStart",
+                // 目击者开场（玩家是作案者）：看见玩家作案的证词
                 NpcLine = evt.InitiatorIsPlayer
-                    ? r.Resolve($"{{SpeakerPlayerAddr}}是来问{{CrimeScene}}的事？{{SpeakerSelfRef}}看见了——{witnessedDesc}。")
-                    : r.Resolve($"{{SpeakerSelfRef}}{{TimeWord}}在{{CrimeScene}}附近看见了——{witnessedDesc}"),
+                    // {ADDR}是来问{SCENE}的事？{SELF}看见了——{DESC}。
+                    ? LWNTextHelper.ResolveCompound("LWN_crime_witness_opening_player",
+                        "{ADDR} is here to ask about {SCENE}? {SELF} saw it — {DESC}.",
+                        ("ADDR", r.ResolveOne("SpeakerPlayerAddr")), ("SCENE", r.ResolveOne("CrimeScene")),
+                        ("SELF", r.ResolveOne("SpeakerSelfRef")), ("DESC", witnessedDesc))
+                    // 目击者开场（他人作案）：陈述所见
+                    : LWNTextHelper.ResolveCompound("LWN_crime_witness_opening_other",
+                        "{SELF} saw it near {SCENE} {TIME} — {DESC}",
+                        ("SELF", r.ResolveOne("SpeakerSelfRef")), ("TIME", r.ResolveOne("TimeWord")),
+                        ("SCENE", r.ResolveOne("CrimeScene")), ("DESC", witnessedDesc)),
                 Transitions = new List<DialogueInjector.DialogueTransition>()
             };
 
@@ -692,7 +802,8 @@ namespace LivingWorldNpcs
             {
                 node.Transitions.Add(new DialogueInjector.DialogueTransition
                 {
-                    PlayerLine = "（给些钱）这事你别往外说……",
+                    // 玩家行贿封口（说服检定）
+                    PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_witness_bribe", "(offers money) Don't tell anyone about this..."),
                     CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                     Action = "INTENT:SilenceWitness",
                     ActionParam = "bribe",
@@ -701,34 +812,52 @@ namespace LivingWorldNpcs
                 });
                 node.Transitions.Add(new DialogueInjector.DialogueTransition
                 {
-                    PlayerLine = "（威胁）你什么也没看见，明白吗？",
+                    // 玩家威胁封口（威胁检定）
+                    PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_witness_threat", "(threatens) You saw nothing, understand?"),
                     CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                     Action = "INTENT:SilenceWitness",
                     ActionParam = "threat",
                     NextNodeOnSuccess = "witness_threat_ack",
                     NextNodeOnFail = "witness_threat_fail"
                 });
-                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = "当我没来过。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" });
+                // 玩家装作没来过（走人）
+                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_witness_leave", "Pretend I was never here."), Action = "INTENT:WalkAway", NextNodeOnSuccess = "" });
             }
             else if (evt.WitnessesSilenced)
             {
-                node.NpcLine = r.Resolve("{SpeakerPlayerAddr}找错人了。{SpeakerSelfRef}什么也不知道。", "NpcLine");
-                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = "……好吧。", Action = "NONE", NextNodeOnSuccess = "continue_chat" });
+                // 目击者已被封口：矢口否认
+                node.NpcLine = LWNTextHelper.Resolve("LWN_crime_witness_silenced", r,
+                    "{SpeakerPlayerAddr} has the wrong person. {SpeakerSelfRef} knows nothing.");
+                // 玩家接受封口结果
+                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_witness_silenced_accept", "...Alright."), Action = "NONE", NextNodeOnSuccess = "continue_chat" });
             }
             else
             {
-                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = "能说说那人的特征吗？", Action = "NONE", NextNodeOnSuccess = "witness_desc_ack" });
-                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = "谢谢，我知道了。", Action = "NONE", NextNodeOnSuccess = "continue_chat" });
+                // 玩家打听嫌疑人特征
+                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_witness_ask_desc", "Can you describe the person?"), Action = "NONE", NextNodeOnSuccess = "witness_desc_ack" });
+                // 玩家道谢走人
+                node.Transitions.Add(new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_witness_thanks", "Thanks, that's all."), Action = "NONE", NextNodeOnSuccess = "continue_chat" });
             }
 
             nodes.Add(node);
-            nodes.Add(Node("witness_silence_ack", r.Resolve("……好吧，{SpeakerSelfRef}什么也没看见。"), "continue_chat"));
-            nodes.Add(Node("witness_silence_fail", r.Resolve("你当{SpeakerSelfRef}是什么人？！{SpeakerSelfRef}这就去告诉{AuthorityRole}！"), "continue_chat"));
-            nodes.Add(Node("witness_threat_ack", r.Resolve("明白、明白……{SpeakerSelfRef}一个字也不说。"), "continue_chat"));
-            nodes.Add(Node("witness_threat_fail", r.Resolve("你敢威胁{SpeakerSelfRef}？！来人——！"), "continue_chat"));
-            nodes.Add(Node("witness_desc_ack", r.Resolve("那人……{SuspectDescription}。"), "continue_chat"));
+            // 目击者：收钱封口
+            nodes.Add(Node("witness_silence_ack", LWNTextHelper.Resolve("LWN_crime_witness_bribe_ack", r,
+                "...Alright, {SpeakerSelfRef} saw nothing."), "continue_chat"));
+            // 目击者：拒收贿赂，要去告发
+            nodes.Add(Node("witness_silence_fail", LWNTextHelper.Resolve("LWN_crime_witness_bribe_fail", r,
+                "What do you take {SpeakerSelfRef} for?! {SpeakerSelfRef} will go tell {AuthorityRole}!"), "continue_chat"));
+            // 目击者：被威胁服软
+            nodes.Add(Node("witness_threat_ack", LWNTextHelper.Resolve("LWN_crime_witness_threat_ack", r,
+                "Understood, understood... {SpeakerSelfRef} won't say a word."), "continue_chat"));
+            // 目击者：被威胁激怒，喊人
+            nodes.Add(Node("witness_threat_fail", LWNTextHelper.Resolve("LWN_crime_witness_threat_fail", r,
+                "You dare threaten {SpeakerSelfRef}?! Guards —!"), "continue_chat"));
+            // 目击者：描述嫌疑人特征
+            nodes.Add(Node("witness_desc_ack", LWNTextHelper.Resolve("LWN_crime_witness_desc_ack", r,
+                "That person... {SuspectDescription}."), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
-            return new DialogueInjector.DialogueInjectScript { EntryOption = "听说你看到了……？", EntryNode = "injectedStart", Nodes = nodes };
+            // 玩家主动提起目击话题的入口选项
+            return new DialogueInjector.DialogueInjectScript { EntryOption = LWNTextHelper.ResolveText("LWN_crime_player_witness_entry", "I heard you saw something...?"), EntryNode = "injectedStart", Nodes = nodes };
         }
 
         private static DialogueInjector.DialogueInjectScript BuildSuspectScript(
@@ -739,27 +868,39 @@ namespace LivingWorldNpcs
                 new DialogueInjector.DialogueNode
                 {
                     Id = "injectedStart",
-                    NpcLine = r.Resolve("{SpeakerPlayerAddr}盯着{SpeakerSelfRef}看什么？", "NpcLine"),
+                    // 嫌疑人：被盯得心里发毛
+                    NpcLine = LWNTextHelper.Resolve("LWN_crime_suspect_opening", r,
+                        "Why is {SpeakerPlayerAddr} staring at {SpeakerSelfRef}?"),
                     Transitions = new List<DialogueInjector.DialogueTransition>
                     {
                         new DialogueInjector.DialogueTransition
                         {
-                            PlayerLine = r.Resolve("跟我走一趟，{AuthorityRole}找你有事。"),
+                            // 玩家诱骗嫌疑人去见权威（说服检定）
+                            PlayerLine = LWNTextHelper.Resolve("LWN_crime_player_suspect_lure", r,
+                                "Come with me. {AuthorityRole} wants to see you."),
                             CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                             Action = "INTENT:LureArrest",
                             NextNodeOnSuccess = "suspect_lure_ack",
                             NextNodeOnFail = "suspect_lure_fail"
                         },
-                        new DialogueInjector.DialogueTransition { PlayerLine = "快跑！当地人在抓你。", Action = "INTENT:BetrayQuest", NextNodeOnSuccess = "suspect_betray_ack" },
-                        new DialogueInjector.DialogueTransition { PlayerLine = "没什么。", Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
+                        // 玩家出卖嫌疑人（通风报信）
+                        new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_suspect_betray", "Run! The locals are after you."), Action = "INTENT:BetrayQuest", NextNodeOnSuccess = "suspect_betray_ack" },
+                        // 玩家装作无事走人
+                        new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_suspect_nothing", "Nothing."), Action = "INTENT:WalkAway", NextNodeOnSuccess = "" },
                     }
                 }
             };
-            nodes.Add(Node("suspect_lure_ack", r.Resolve("什么？！{SpeakerSelfRef}什么也没干……"), "continue_chat"));
-            nodes.Add(Node("suspect_lure_fail", r.Resolve("{AuthorityRole}找{SpeakerSelfRef}？他自己怎么不来？{SpeakerPlayerAddr}少在这骗人。"), "continue_chat"));
-            nodes.Add(Node("suspect_betray_ack", r.Resolve("什么？！……谢了！"), "continue_chat"));
+            // 嫌疑人：被诱骗成功（惊愕否认）
+            nodes.Add(Node("suspect_lure_ack", LWNTextHelper.Resolve("LWN_crime_suspect_lure_ack", r,
+                "What?! {SpeakerSelfRef} hasn't done anything..."), "continue_chat"));
+            // 嫌疑人：识破诱骗（反问玩家）
+            nodes.Add(Node("suspect_lure_fail", LWNTextHelper.Resolve("LWN_crime_suspect_lure_fail", r,
+                "{AuthorityRole} wants {SpeakerSelfRef}? Why doesn't he come himself? {SpeakerPlayerAddr}, stop lying."), "continue_chat"));
+            // 嫌疑人：感谢玩家通风报信
+            nodes.Add(Node("suspect_betray_ack", LWNTextHelper.ResolveText("LWN_crime_suspect_betray_ack", "What?! ...Thanks!"), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
-            return new DialogueInjector.DialogueInjectScript { EntryOption = "……", EntryNode = "injectedStart", Nodes = nodes };
+            // 玩家沉默搭话的入口选项
+            return new DialogueInjector.DialogueInjectScript { EntryOption = LWNTextHelper.ResolveText("LWN_ph_ellipsis", "..."), EntryNode = "injectedStart", Nodes = nodes };
         }
 
         private static DialogueInjector.DialogueInjectScript BuildBystanderScript(
@@ -768,12 +909,20 @@ namespace LivingWorldNpcs
             List<DialogueInjector.DialogueNode> nodes = new List<DialogueInjector.DialogueNode>();
             WorldEvent evt = ctx.ActiveEvent;
 
+            // 路人NPC台词按案件阶段切换：Emerging（案子刚发现）/ Active（已锁定嫌疑人）/ Confrontation（闹大了）/ 已了结
             string npcLine = evt.Stage switch
             {
-                EventStage.Emerging => r.Resolve("{SpeakerPlayerAddr}听说了吗？{TargetSettlementName}出事了——{DiscoveryFacts}！谁干的还不知道。", "NpcLine"),
-                EventStage.Active => r.Resolve("听说了吗？是{SuspectDescription}干的！{TargetSettlementName}悬赏{BountyAmount}第纳尔抓他呢。", "NpcLine"),
-                EventStage.Confrontation => r.Resolve("{TargetSettlementName}的人真动手了——雇了打手满世界找人。这事闹大了……", "NpcLine"),
-                _ => r.Resolve("这事好像已经过去了……", "NpcLine"),
+                // {SpeakerPlayerAddr}听说了吗？{TargetSettle...
+                EventStage.Emerging => LWNTextHelper.Resolve("LWN_crime_bystander_emerging", r,
+                    "Have {SpeakerPlayerAddr} heard? Something happened in {TargetSettlementName} — {DiscoveryFacts}! Nobody knows who did it yet."),
+                // 听说了吗？是{SuspectDescription}干的！{TargetS...
+                EventStage.Active => LWNTextHelper.Resolve("LWN_crime_bystander_active", r,
+                    "Heard the news? It was {SuspectDescription}! {TargetSettlementName} put {BountyAmount} denars on their head."),
+                // {TargetSettlementName}的人真动手了——雇了打手满世界...
+                EventStage.Confrontation => LWNTextHelper.Resolve("LWN_crime_bystander_confrontation", r,
+                    "The people of {TargetSettlementName} really moved — hired thugs searching everywhere. This is getting big..."),
+                // 这事好像已经过去了……
+                _ => LWNTextHelper.ResolveText("LWN_crime_bystander_resolved", "Looks like that matter is over..."),
             };
 
             nodes.Add(new DialogueInjector.DialogueNode
@@ -782,14 +931,18 @@ namespace LivingWorldNpcs
                 NpcLine = npcLine,
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new DialogueInjector.DialogueTransition { PlayerLine = "详细说说？", Action = "NONE", NextNodeOnSuccess = "bystander_detail_ack" },
-                    new DialogueInjector.DialogueTransition { PlayerLine = "哦。", Action = "NONE", NextNodeOnSuccess = "continue_chat" },
+                    // 玩家打听细节
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_bystander_detail", "Tell me more?"), Action = "NONE", NextNodeOnSuccess = "bystander_detail_ack" },
+                    // 玩家随口应和
+                    new DialogueInjector.DialogueTransition { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_bystander_ack", "Oh."), Action = "NONE", NextNodeOnSuccess = "continue_chat" },
                 }
             });
-            nodes.Add(Node("bystander_detail_ack", r.Resolve("我就知道这么多……"), "continue_chat"));
+            // 路人NPC：知道的就这么多
+            nodes.Add(Node("bystander_detail_ack", LWNTextHelper.ResolveText("LWN_crime_bystander_detail_ack", "That's all I know..."), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
 
-            return new DialogueInjector.DialogueInjectScript { EntryOption = "最近{TargetSettlementName}有什么新鲜事？", EntryNode = "injectedStart", Nodes = nodes };
+            // 玩家打听新鲜事的入口选项
+            return new DialogueInjector.DialogueInjectScript { EntryOption = LWNTextHelper.Resolve("LWN_crime_player_bystander_entry", r, "Anything new in {TargetSettlementName} lately?"), EntryNode = "injectedStart", Nodes = nodes };
         }
 
         /// <summary>继续聊 node：NPC 说完事后 → 玩家走人。告别语按阶段动态切换，引擎展示前才求值。</summary>
@@ -799,12 +952,14 @@ namespace LivingWorldNpcs
             return new DialogueInjector.DialogueNode
             {
                 Id = "continue_chat",
-                NpcLine = "还有什么别的想说的吗?",
+                // 通用继续聊：NPC 问玩家还有什么想说的
+                NpcLine = LWNTextHelper.ResolveText("LWN_crime_common_continue_chat", "Anything else you want to say?"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     new DialogueInjector.DialogueTransition
                     {
-                        PlayerLine = "我得走了。",
+                        // 玩家告辞
+                        PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave_now", "I have to go."),
                         Action = "INTENT:WalkAway",
                         NextNodeOnSuccess = "farewell"
                     },
@@ -821,13 +976,21 @@ namespace LivingWorldNpcs
                 Id = "farewell",
                 LazyNpcLine = () =>
                 {
+                    // 告别语（接了调查任务）：催促快去查
                     if (evt.PlayerTookInvestigationQuest)
-                        return r.Resolve("快去查，有消息了来告诉{SpeakerSelfRef}。");
+                        // 快去查，有消息了来告诉{SpeakerSelfRef}。
+                        return LWNTextHelper.Resolve("LWN_crime_common_go_investigate", r,
+                            "Go investigate, and report back to {SpeakerSelfRef} when you have news.");
+                    // 告别语（玩家是嫌疑人且案件 Active）：这事不算完
                     if (evt.SuspectIsPlayer && evt.Stage == EventStage.Active)
-                        return r.Resolve("这事不算完。");
+                        // 这事不算完。
+                        return LWNTextHelper.ResolveText("LWN_crime_common_farewell_unfinished_active", "This isn't over.");
+                    // 告别语（对峙阶段）：这事没完
                     if (evt.Stage == EventStage.Confrontation)
-                        return r.Resolve("这事没完。");
-                    return r.Resolve("嗯，{SpeakerPlayerAddr}去吧。");
+                        // 这事没完。
+                        return LWNTextHelper.ResolveText("LWN_crime_common_farewell_unfinished_confrontation", "This isn't over yet.");
+                    // 告别语（默认）：放玩家走
+                    return LWNTextHelper.Resolve("LWN_crime_common_farewell_ok", r, "Alright, {SpeakerPlayerAddr} may go.");
                 },
                 Transitions = new List<DialogueInjector.DialogueTransition>()  // terminal
             };
@@ -848,38 +1011,56 @@ namespace LivingWorldNpcs
         /// <summary>从单条 WitnessTestimony 构建中文描述（如"偷了村民甲的鸡，还把人打晕了"）</summary>
         public static string BuildWitnessedActionDescription(WitnessTestimony testimony, string locationWord = null)
         {
+            // 无有效证词时的兜底描述："有人在闹事"
             if (testimony?.Actions == null || testimony.Actions.Count == 0)
-                return "有人在闹事";
+                // 有人在闹事
+                return LWNTextHelper.ResolveText("LWN_crime_witness_act_someone_stirring", "someone was making trouble");
 
-            string loc = locationWord ?? "当地";
+            // 地点缺省时的兜底："当地"
+            string loc = locationWord ?? LWNTextHelper.ResolveText("LWN_crime_witness_act_loc_fallback", "around here");
 
             List<string> parts = new List<string>();
             foreach (ActionRecord a in testimony.Actions.OrderByDescending(a => a.AlertValue))
             {
+                // 按动作类型生成目击描述片段（偷窃/拔刀/打人/击晕等）
                 string desc = a.ActionType switch
                 {
-                    "Crouching" => "鬼鬼祟祟蹲了半天",
-                    "WeaponDrawn" => $"在{loc}拔刀",
-                    "StealUIOpen" => "翻箱倒柜",
+                    // 鬼鬼祟祟蹲了半天
+                    "Crouching" => LWNTextHelper.ResolveText("LWN_crime_witness_act_crouching", "crouched around suspiciously for a while"),
+                    // 在{LOC}拔刀
+                    "WeaponDrawn" => LWNTextHelper.ResolveCompound("LWN_crime_witness_act_weapondrawn", "drew a blade in {LOC}", ("LOC", loc)),
+                    // 翻箱倒柜
+                    "StealUIOpen" => LWNTextHelper.ResolveText("LWN_crime_witness_act_steal_ui", "rummaging through things"),
                     "Steal" when a.ItemName != null =>
                         a.TargetName != null
-                            ? $"偷了{a.TargetName}的{a.ItemName}"
-                            : $"偷了{a.ItemName}",
-                    "Steal" => "偷了东西",
-                    "AttackAlly" when a.TargetName != null => $"动手打了{a.TargetName}",
-                    "AttackAlly" => "动手打人",
-                    "Knockout" when a.TargetName != null => $"把{a.TargetName}打晕了",
-                    "Knockout" => "把人打晕了",
+                            // 偷了{TARGET}的{ITEM}
+                            ? LWNTextHelper.ResolveCompound("LWN_crime_witness_act_steal_target_item", "stole {ITEM} from {TARGET}", ("TARGET", a.TargetName), ("ITEM", a.ItemName))
+                            // 偷了{ITEM}
+                            : LWNTextHelper.ResolveCompound("LWN_crime_witness_act_steal_item", "stole {ITEM}", ("ITEM", a.ItemName)),
+                    // 偷了东西
+                    "Steal" => LWNTextHelper.ResolveText("LWN_crime_witness_act_steal", "stole something"),
+                    // 动手打了{TARGET}
+                    "AttackAlly" when a.TargetName != null => LWNTextHelper.ResolveCompound("LWN_crime_witness_act_attack_target", "attacked {TARGET}", ("TARGET", a.TargetName)),
+                    // 动手打人
+                    "AttackAlly" => LWNTextHelper.ResolveText("LWN_crime_witness_act_attack", "started a fight"),
+                    // 把{TARGET}打晕了
+                    "Knockout" when a.TargetName != null => LWNTextHelper.ResolveCompound("LWN_crime_witness_act_knockout_target", "knocked out {TARGET}", ("TARGET", a.TargetName)),
+                    // 把人打晕了
+                    "Knockout" => LWNTextHelper.ResolveText("LWN_crime_witness_act_knockout", "knocked someone out"),
                     _ => null
                 };
                 if (desc != null) parts.Add(desc);
             }
+            // 多段描述拼接：0 段兜底 / 1 段原样 / 2 段"…，还…" / 3 段"…、…，还…"
             return parts.Count switch
             {
-                0 => "有人在闹事",
+                // 有人在闹事
+                0 => LWNTextHelper.ResolveText("LWN_crime_witness_act_someone_stirring", "someone was making trouble"),
                 1 => parts[0],
-                2 => $"{parts[0]}，还{parts[1]}",
-                _ => $"{parts[0]}、{parts[1]}，还{parts[2]}"
+                // {ACT1}，还{ACT2}
+                2 => LWNTextHelper.ResolveCompound("LWN_crime_witness_act_join_two", "{ACT1}, and also {ACT2}", ("ACT1", parts[0]), ("ACT2", parts[1])),
+                // {ACT1}、{ACT2}，还{ACT3}
+                _ => LWNTextHelper.ResolveCompound("LWN_crime_witness_act_join_three", "{ACT1}, {ACT2}, and also {ACT3}", ("ACT1", parts[0]), ("ACT2", parts[1]), ("ACT3", parts[2]))
             };
         }
 
@@ -932,14 +1113,22 @@ namespace LivingWorldNpcs
                     var st = Settlement.CurrentSettlement;
                     var evt = st != null ? WorldEventStore.FindOnGoing(st.StringId) : null;
                     bool escalated = evt != null && evt.Stage >= EventStage.Active;
-                    return escalated ? "最后一次警告——别逼我叫人！" : "还有什么想说的？";
+                    // 警戒冲突继续聊：已升级 → 最后一次警告；未升级 → 还有什么想说的
+                    return escalated
+                        // 最后一次警告——别逼我叫人！
+                        ? LWNTextHelper.ResolveText("LWN_crime_alert_continue_escalated", "Final warning — don't make me call the men!")
+                        // 还有什么想说的？
+                        : LWNTextHelper.ResolveText("LWN_crime_alert_continue_peaceful", "Anything else you want to say?");
                 },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
                     // 冲突未解决 → 只有对抗性出口，没有"离开"
-                    new() { PlayerLine = "谁拦着我就杀谁！", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
-                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
-                    new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
+                    // 玩家开打（对抗出口）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_stand_in_my_way", "Stand in my way and I'll kill you!"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
+                    // 玩家认赔（由 NPC 开价）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_willing_to_pay", "I'm willing to pay."), Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
+                    // 玩家放弃抵抗坐牢
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_no_money_arrest", "I have no money. Arrest me if you must."), Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
                 }
             });
 
@@ -947,15 +1136,19 @@ namespace LivingWorldNpcs
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "continue_chat_safe",
-                NpcLine = "还有什么想说的？",
+                // 警戒冲突已和解：还有什么想说的
+                NpcLine = LWNTextHelper.ResolveText("LWN_crime_alert_continue_peaceful", "Anything else you want to say?"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "我走了。", Action = "INTENT:WalkAway", ActionParam = "safe", NextNodeOnSuccess = "" },
+                    // 玩家安全离开
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."), Action = "INTENT:WalkAway", ActionParam = "safe", NextNodeOnSuccess = "" },
                 }
             });
             // Escalated ack nodes
-            nodes.Add(Node("alert_esc_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
-            nodes.Add(Node("alert_esc_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
+            // 警戒NPC：玩家动武 → 喊人
+            nodes.Add(Node("alert_esc_fight_ack", LWNTextHelper.Resolve("LWN_crime_alert_fight_ack", r, "{SPEAKER_PLAYER_ADDR} has gone mad! Call for help!")));
+            // 警戒NPC：玩家没钱还闹事 → 关地牢
+            nodes.Add(Node("alert_esc_jail_ack", LWNTextHelper.Resolve("LWN_crime_alert_jail_ack", r, "No money and still causing trouble?! Guards, throw him in the dungeon!")));
 
             BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
 
@@ -967,31 +1160,51 @@ namespace LivingWorldNpcs
         {
             return npcIntent switch
             {
+                // 驱离质问：拔刀 → 叫收刀
                 ConfrontationType.Deter => primaryAction switch
                 {
                     PlayerActionType.WeaponDrawn =>
-                        r.Resolve("把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！"),
+                        // 把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子...
+                        LWNTextHelper.Resolve("LWN_crime_alert_deter_weapondrawn", r,
+                            "Put away {ITEM}! {SPEAKER_PLAYER_ADDR}! This is a village, not a battlefield!"),
                     _ => // Crouching
-                        r.Resolve("喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？"),
+                        // 喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？
+                        LWNTextHelper.Resolve("LWN_crime_alert_deter_crouching", r,
+                            "Hey! {SPEAKER_PLAYER_ADDR}! What are you doing crouching around so furtively?"),
                 },
 
+                // 搜身质问：命令玩家打开背包
                 ConfrontationType.Search =>
-                    r.Resolve("{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。"),
+                    // {SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEA...
+                    LWNTextHelper.Resolve("LWN_crime_alert_search", r,
+                        "What is {SPEAKER_PLAYER_ADDR} rummaging through? Move your hands, let {SPEAKER_SELF} see your bag."),
 
+                // 追回质问：人赃并获
                 ConfrontationType.Recover =>
-                    r.Resolve("{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+                    // {SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADD...
+                    LWNTextHelper.Resolve("LWN_crime_alert_recover", r,
+                        "{SPEAKER_SELF} saw it! {SPEAKER_PLAYER_ADDR} stole {StolenItemName}! Hand it over!"),
 
+                // 制止质问：按具体行为分派
                 ConfrontationType.Stop => primaryAction switch
                 {
                     PlayerActionType.AttackAlly =>
-                        r.Resolve("{SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！"),
+                        // {SPEAKER_PLAYER_ADDR}竟敢动手打人？！住手！
+                        LWNTextHelper.Resolve("LWN_crime_alert_stop_attack", r,
+                            "{SPEAKER_PLAYER_ADDR} dares to strike people?! Stop!"),
                     PlayerActionType.Knockout =>
-                        r.Resolve("{SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！"),
+                        // {SPEAKER_PLAYER_ADDR}把{TARGET}打晕了！来人！
+                        LWNTextHelper.Resolve("LWN_crime_alert_stop_knockout", r,
+                            "{SPEAKER_PLAYER_ADDR} knocked out {TARGET}! Guards!"),
                     PlayerActionType.SuspectFlee =>
-                        r.Resolve("站住！这事没了结，{SPEAKER_PLAYER_ADDR}哪儿也别想去！"),
-                    _ => r.Resolve("住手！")
+                        // 站住！这事没了结，{SPEAKER_PLAYER_ADDR}哪儿也别想去！
+                        LWNTextHelper.Resolve("LWN_crime_alert_stop_flee", r,
+                            "Stop! This isn't over — {SPEAKER_PLAYER_ADDR} isn't going anywhere!"),
+                    // 住手！
+                    _ => LWNTextHelper.ResolveText("LWN_crime_alert_stop_generic", "Stop!")
                 },
-                _ => r.Resolve("{SPEAKER_PLAYER_ADDR}！你在干什么？")
+                // {SPEAKER_PLAYER_ADDR}！你在干什么？
+                _ => LWNTextHelper.Resolve("LWN_crime_alert_generic", r, "{SPEAKER_PLAYER_ADDR}! What are you doing?")
             };
         }
 
@@ -1039,9 +1252,11 @@ namespace LivingWorldNpcs
             // ══ Layer 1: NPC 质问 → 威胁（高风险高回报）或 道歉（检定门控） ══
             var layer1Transitions = new List<DialogueInjector.DialogueTransition>
             {
-                new() { PlayerLine = "关你什么事？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
+                // 玩家反呛（威胁检定）
+                new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_deter_threat", "None of your business."), CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:Threat", NextNodeOnSuccess = "alert_deter_threat_ok", NextNodeOnFail = "alert_deter_threat_fail" },
-                new() { PlayerLine = "抱歉，可以放我走吗？", CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
+                // 玩家道歉求放行（魅力检定）
+                new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_deter_apologize", "Sorry, can you let me go?"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                         Action = "INTENT:Apologize", NextNodeOnSuccess = "alert_deter_apologize_ok", NextNodeOnFail = "alert_deter_apologize_fail" },
             };
 
@@ -1053,28 +1268,39 @@ namespace LivingWorldNpcs
             });
 
             // Layer 1 ack nodes
-            nodes.Add(Node("alert_deter_threat_ok", r.Resolve("……算了。")));
-            nodes.Add(Node("alert_deter_threat_fail", r.Resolve("来人！这有个闹事的！")));
-            nodes.Add(Node("alert_deter_apologize_ok", r.Resolve("……算你识相。别再让{SPEAKER_SELF}看见你鬼鬼祟祟的。")));
+            // 警戒NPC：威胁成功（算了）
+            nodes.Add(Node("alert_deter_threat_ok", LWNTextHelper.ResolveText("LWN_crime_alert_deter_threat_ok", "...Forget it.")));
+            // 警戒NPC：威胁失败（喊人）
+            nodes.Add(Node("alert_deter_threat_fail", LWNTextHelper.ResolveText("LWN_crime_alert_deter_threat_fail", "Guards! We've got a troublemaker here!")));
+            // 警戒NPC：道歉成功（警告别再鬼鬼祟祟）
+            nodes.Add(Node("alert_deter_apologize_ok", LWNTextHelper.Resolve("LWN_crime_alert_deter_apologize_ok", r,
+                "...Sensible of you. Don't let {SPEAKER_SELF} catch you skulking around again.")));
 
             // ══ Layer 2: 道歉失败 → NPC 拒绝，升级选项 ══
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "alert_deter_apologize_fail",
-                NpcLine = r.Resolve("道歉有用的话，还要我们干什么？两条路——认罚，还是咱们换个方式解决。你选吧。"),
+                // 警戒NPC：道歉无用，给玩家两条路（认罚或开打）
+                NpcLine = LWNTextHelper.Resolve("LWN_crime_alert_deter_apologize_fail", r,
+                    "If apologies worked, what would we be here for? Two ways — pay the fine, or we settle this another way. Your choice."),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
-                    new() { PlayerLine = "谁拦着我就杀谁！", Action = "INTENT:FightVillagers",
+                    // 玩家认罚（由 NPC 开价）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_willing_to_pay", "I'm willing to pay."), Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
+                    // 玩家开打
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_stand_in_my_way", "Stand in my way and I'll kill you!"), Action = "INTENT:FightVillagers",
                             NextNodeOnSuccess = "alert_deter_fight_ack" },
-                    new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail",
+                    // 玩家放弃抵抗坐牢
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_no_money_arrest", "I have no money. Arrest me if you must."), Action = "INTENT:SurrenderJail",
                             ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_deter_jail_ack" },
                 }
             });
 
             // Layer 2 ack nodes
-            nodes.Add(Node("alert_deter_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
-            nodes.Add(Node("alert_deter_jail_ack", r.Resolve("没钱还敢闹事？！来人，把他关进地牢！")));
+            // 警戒NPC：玩家动武 → 喊人
+            nodes.Add(Node("alert_deter_fight_ack", LWNTextHelper.Resolve("LWN_crime_alert_fight_ack", r, "{SPEAKER_PLAYER_ADDR} has gone mad! Call for help!")));
+            // 警戒NPC：玩家没钱还闹事 → 关地牢
+            nodes.Add(Node("alert_deter_jail_ack", LWNTextHelper.Resolve("LWN_crime_alert_jail_ack", r, "No money and still causing trouble?! Guards, throw him in the dungeon!")));
 
             BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
         }
@@ -1092,27 +1318,41 @@ namespace LivingWorldNpcs
                 NpcLine = npcOpening,
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "……行，你看吧。", Action = "INTENT:SubmitToSearch", NextNodeOnSuccess = "search_result" },
-                    new() { PlayerLine = "凭什么翻我东西？", Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "recover_confront" },
-                    new() { PlayerLine = "别查了，我赔你点钱。", CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:PayRestitution", ActionParam = "bribe", NextNodeOnSuccess = "alert_search_bribe_ack", NextNodeOnFail = "alert_search_bribe_fail" },
+                    // 玩家同意搜查
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_search_submit", "...Fine, take a look."), Action = "INTENT:SubmitToSearch", NextNodeOnSuccess = "search_result" },
+                    // 玩家拒绝搜查（升级为追回对峙）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_search_refuse", "Why should you search my things?"), Action = "INTENT:RefuseSearch", NextNodeOnSuccess = "recover_confront" },
+                    // 玩家行贿免查（说服检定）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_search_bribe", "Skip the search, I'll pay you off."), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:PayRestitution", ActionParam = "bribe", NextNodeOnSuccess = "alert_search_bribe_ack", NextNodeOnFail = "alert_search_bribe_fail" },
                 }
             });
 
-            nodes.Add(Node("alert_search_bribe_ack", r.Resolve("……做贼心虚。拿了钱滚。")));
-            nodes.Add(Node("alert_search_bribe_fail", r.Resolve("少来这套。把包打开，{SPEAKER_SELF}自己看！"), "continue_chat"));
-            nodes.Add(Node("alert_search_deny_ack", r.Resolve("你的？上面还写着{TARGET}的名字呢！"), "continue_chat"));
+            // 警戒NPC：收下贿赂（做贼心虚）
+            nodes.Add(Node("alert_search_bribe_ack", LWNTextHelper.ResolveText("LWN_crime_alert_search_bribe_ack", "...Guilty conscience, eh? Take your money and go.")));
+            // 警戒NPC：拒收贿赂（强行搜包）
+            nodes.Add(Node("alert_search_bribe_fail", LWNTextHelper.Resolve("LWN_crime_alert_search_bribe_fail", r,
+                "None of that. Open the bag, {SPEAKER_SELF} will see for himself!"), "continue_chat"));
+            // 警戒NPC：赃物上有失主名字
+            nodes.Add(Node("alert_search_deny_ack", LWNTextHelper.Resolve("LWN_crime_alert_search_deny_ack", r,
+                "Yours? It even has {TARGET}'s name on it!"), "continue_chat"));
 
             // recover_confront（refuse search → recover mode）
             nodes.Add(new DialogueInjector.DialogueNode
             {
                 Id = "recover_confront",
-                NpcLine = r.Resolve("不敢让人看？那就是有鬼了！{SPEAKER_SELF}看见了！{SPEAKER_PLAYER_ADDR}偷了{StolenItemName}！交出来！"),
+                // 警戒NPC：拒绝搜查 = 心里有鬼，人赃并获
+                NpcLine = LWNTextHelper.Resolve("LWN_crime_alert_recover_confront", r,
+                    "Afraid to be seen? Then you're hiding something! {SPEAKER_SELF} saw it! {SPEAKER_PLAYER_ADDR} stole {StolenItemName}! Hand it over!"),
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
-                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
-                    new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
-                    new() { PlayerLine = "推开就跑", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
+                    // 玩家归还赃物两清
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_return_items", "Here, take your things back. We're even."), Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
+                    // 玩家认赔（由 NPC 开价）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_willing_to_pay", "I'm willing to pay."), Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
+                    // 玩家狡辩否认（魅力检定）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_deny_eyes", "What did you see with your own eyes?"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
+                    // 玩家推开就跑
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_shove_and_run", "Shove past and run"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
                 }
             });
 
@@ -1142,10 +1382,14 @@ namespace LivingWorldNpcs
                 NpcLine = npcOpening,
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "东西还你，我们两清。", Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
-                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
-                    new() { PlayerLine = r.Resolve("你哪只眼睛看见的？"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
-                    new() { PlayerLine = "推开就跑", Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
+                    // 玩家归还赃物两清
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_return_items", "Here, take your things back. We're even."), Action = "INTENT:ReturnStolenItems", NextNodeOnSuccess = "alert_recover_return_ack" },
+                    // 玩家认赔（由 NPC 开价）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_willing_to_pay", "I'm willing to pay."), Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
+                    // 玩家狡辩否认（魅力检定）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_deny_eyes", "What did you see with your own eyes?"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_recover_charm_ok", NextNodeOnFail = "alert_recover_charm_fail" },
+                    // 玩家推开就跑
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_shove_and_run", "Shove past and run"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_esc_fight_ack" },
                 }
             });
 
@@ -1169,16 +1413,24 @@ namespace LivingWorldNpcs
                 NpcLine = npcOpening,
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
-                    new() { PlayerLine = "我愿意赔偿。", Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
-                    new() { PlayerLine = r.Resolve("他先惹我的。"), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_stop_charm_ok", NextNodeOnFail = "alert_stop_charm_fail" },
-                    new() { PlayerLine = r.Resolve("谁拦着我就杀谁！"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_stop_fight_ack" },
-                    new() { PlayerLine = "我没钱。要抓就抓吧。", Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
+                    // 玩家认赔（由 NPC 开价）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_willing_to_pay", "I'm willing to pay."), Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
+                    // 玩家辩解对方先动手（魅力检定）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_stop_charm", "He started it."), CheckType = DialogueInjector.TransitionCheckType.SkillCheck, Action = "INTENT:CharmDefense", NextNodeOnSuccess = "alert_stop_charm_ok", NextNodeOnFail = "alert_stop_charm_fail" },
+                    // 玩家开打
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_stand_in_my_way", "Stand in my way and I'll kill you!"), Action = "INTENT:FightVillagers", NextNodeOnSuccess = "alert_stop_fight_ack" },
+                    // 玩家放弃抵抗坐牢
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_no_money_arrest", "I have no money. Arrest me if you must."), Action = "INTENT:SurrenderJail", ActionParam = "surrender_jail", NextNodeOnSuccess = "alert_esc_jail_ack" },
                 }
             });
 
-            nodes.Add(Node("alert_stop_charm_ok", r.Resolve("……下次再动手没这么好说话。"), "continue_chat_safe"));
-            nodes.Add(Node("alert_stop_charm_fail", r.Resolve("在{SPEAKER_SELF}眼皮底下动手，就得有个说法！"), "continue_chat"));
-            nodes.Add(Node("alert_stop_fight_ack", r.Resolve("{SPEAKER_PLAYER_ADDR}疯了！快叫人！")));
+            // 警戒NPC：辩解成功（下次没这么好说话）
+            nodes.Add(Node("alert_stop_charm_ok", LWNTextHelper.ResolveText("LWN_crime_alert_stop_charm_ok", "...Next time it won't be so easy."), "continue_chat_safe"));
+            // 警戒NPC：辩解失败（眼皮底下动手要有说法）
+            nodes.Add(Node("alert_stop_charm_fail", LWNTextHelper.Resolve("LWN_crime_alert_stop_charm_fail", r,
+                "Striking someone under {SPEAKER_SELF}'s very eyes demands an answer!"), "continue_chat"));
+            // 警戒NPC：玩家动武 → 喊人
+            nodes.Add(Node("alert_stop_fight_ack", LWNTextHelper.Resolve("LWN_crime_alert_fight_ack", r, "{SPEAKER_PLAYER_ADDR} has gone mad! Call for help!")));
 
             BuildRestitutionSubtree(nodes, r, ctx, "continue_chat_safe");
         }
@@ -1186,9 +1438,14 @@ namespace LivingWorldNpcs
         /// <summary>Recover ack nodes：被 BuildRecoverSubtree 和 BuildSearchSubtree（via recover_confront）共享。</summary>
         static void AddRecoverAckNodes(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r)
         {
-            nodes.Add(Node("alert_recover_return_ack", r.Resolve("东西都在。……算你老实。别再来了。")));
-            nodes.Add(Node("alert_recover_charm_ok", r.Resolve("……{SPEAKER_SELF}可能看错了。"), "continue_chat_safe"));
-            nodes.Add(Node("alert_recover_charm_fail", r.Resolve("{SPEAKER_SELF}两只眼睛都看见了！"), "continue_chat"));
+            // 警戒NPC：赃物归还确认（算你老实）
+            nodes.Add(Node("alert_recover_return_ack", LWNTextHelper.ResolveText("LWN_crime_alert_recover_return_ack", "It's all here. ...You're being honest. Don't come back.")));
+            // 警戒NPC：狡辩成功（可能看错了）
+            nodes.Add(Node("alert_recover_charm_ok", LWNTextHelper.Resolve("LWN_crime_alert_recover_charm_ok", r,
+                "...{SPEAKER_SELF} might have been mistaken."), "continue_chat_safe"));
+            // 警戒NPC：狡辩失败（两只眼睛都看见）
+            nodes.Add(Node("alert_recover_charm_fail", LWNTextHelper.Resolve("LWN_crime_alert_recover_charm_fail", r,
+                "{SPEAKER_SELF} saw it with both eyes!"), "continue_chat"));
         }
 
         /// <summary>搜查结果 node：接受搜查后，系统查 TheftLedger 判定玩家背包是否有赃物。依赖调用方已添加 alert_search_deny_ack。</summary>
@@ -1197,18 +1454,25 @@ namespace LivingWorldNpcs
             return new DialogueInjector.DialogueNode
             {
                 Id = "search_result",
+                // 搜查结果：搜出赃物（人赃并获）/ 没搜到（多心了）
                 NpcLine = hasStolenItems
-                    ? r.Resolve("这是什么？！还说没偷！")
-                    : r.Resolve("……行吧。是{SPEAKER_SELF}多心了。"),
+                    // 这是什么？！还说没偷！
+                    ? LWNTextHelper.ResolveText("LWN_crime_alert_search_result_stolen", "What's this?! And you said you didn't steal!")
+                    // ……行吧。是{SPEAKER_SELF}多心了。
+                    : LWNTextHelper.Resolve("LWN_crime_alert_search_result_clean", r,
+                        "...Fine then. {SPEAKER_SELF} was being paranoid."),
                 Transitions = hasStolenItems
                     ? new List<DialogueInjector.DialogueTransition>
                     {
-                        new() { PlayerLine = "……", Action = "INTENT:Confess", NextNodeOnSuccess = "continue_chat" },
-                        new() { PlayerLine = "那是我的东西！", Action = "NONE", NextNodeOnSuccess = "alert_search_deny_ack" },
+                        // 玩家沉默认罪
+                        new() { PlayerLine = LWNTextHelper.ResolveText("LWN_ph_ellipsis", "..."), Action = "INTENT:Confess", NextNodeOnSuccess = "continue_chat" },
+                        // 玩家死不承认（赃物上有名字）
+                        new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_search_deny", "That's mine!"), Action = "NONE", NextNodeOnSuccess = "alert_search_deny_ack" },
                     }
                     : new List<DialogueInjector.DialogueTransition>
                     {
-                        new() { PlayerLine = "我说了没拿吧。", Action = "NONE", NextNodeOnSuccess = "" },
+                        // 玩家自证清白
+                        new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_search_clean", "I told you I didn't take anything."), Action = "NONE", NextNodeOnSuccess = "" },
                     }
             };
         }
@@ -1251,19 +1515,26 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueNode
                     {
                         Id = "player_lose",
-                        NpcLine = $"哼，知道打不过了吧？把钱袋交出来——{baseRansom}第纳尔，饶你一命。",
+                        // NPC：玩家认输后的勒索开场（报赎金）
+                        NpcLine = LWNTextHelper.ResolveCompound("LWN_crime_surrender_npc_player_lose",
+                            "Hmph, know you can't win? Hand over your purse — {RANSOM} denars and I'll spare you.",
+                            ("RANSOM", baseRansom.ToString())),
                         Transitions = new List<DialogueInjector.DialogueTransition>
                         {
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = $"……交出{baseRansom}第纳尔。",
+                                // 玩家乖乖交出赎金
+                                PlayerLine = LWNTextHelper.ResolveCompound("LWN_crime_player_surrender_pay",
+                                    "...Here's {RANSOM} denars.",
+                                    ("RANSOM", baseRansom.ToString())),
                                 Action = "INTENT:PlayerSurrenderPay",
                                 ActionParam = "pay",
                                 NextNodeOnSuccess = "surrender_pay_ack"
                             },
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "求你放过我，我只是路过……",
+                                // 玩家求饶（魅力检定）
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_surrender_beg", "Please let me go, I was just passing through..."),
                                 CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                                 Action = "INTENT:PlayerSurrenderBeg",
                                 ActionParam = "beg",
@@ -1272,7 +1543,8 @@ namespace LivingWorldNpcs
                             },
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "你这条狗！杀了我你也别想好过！",
+                                // 玩家放狠话（威胁检定）
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_surrender_threaten", "You dog! Kill me and you'll regret it!"),
                                 CheckType = DialogueInjector.TransitionCheckType.SkillCheck,
                                 Action = "INTENT:PlayerSurrenderThreaten",
                                 ActionParam = "threaten",
@@ -1282,33 +1554,46 @@ namespace LivingWorldNpcs
                         }
                     },
                     // Ack nodes for player_lose
-                    new DialogueInjector.DialogueNode { Id = "surrender_pay_ack", NpcLine = $"算你识相。{baseRansom}第纳尔，下次长点眼力见，滚吧！", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "surrender_beg_ok", NpcLine = "……啧，算你运气好。滚，别让我再看见你。", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "surrender_threaten_ok", NpcLine = "……疯子。滚，别让我再看见你。", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "surrender_threaten_fail", NpcLine = "找死！！", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：收下赎金放人
+                    new DialogueInjector.DialogueNode { Id = "surrender_pay_ack", NpcLine = LWNTextHelper.ResolveCompound("LWN_crime_surrender_npc_pay_ack", "Sensible choice. {RANSOM} denars. Watch your step next time — now get out!", ("RANSOM", baseRansom.ToString())), Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：求饶成功，放玩家走
+                    new DialogueInjector.DialogueNode { Id = "surrender_beg_ok", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_beg_ok", "...Tch, lucky you. Get out of my sight."), Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：威胁成功，放玩家走
+                    new DialogueInjector.DialogueNode { Id = "surrender_threaten_ok", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_threaten_ok", "...You're insane. Get out of my sight."), Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：威胁失败，直接动手
+                    new DialogueInjector.DialogueNode { Id = "surrender_threaten_fail", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_threaten_fail", "You're asking for death!!"), Transitions = new List<DialogueInjector.DialogueTransition>() },
                     new DialogueInjector.DialogueNode
                     {
                         Id = "player_lose_counteroffer",
-                        NpcLine = $"最后一次机会——{counterRansom} 第纳尔，或者咱们接着打。你选。",
+                        // NPC：求饶失败后的最后通牒（赎金翻倍）
+                        NpcLine = LWNTextHelper.ResolveCompound("LWN_crime_surrender_npc_counteroffer",
+                            "Last chance — {RANSOM} denars, or we keep fighting. Your choice.",
+                            ("RANSOM", counterRansom.ToString())),
                         Transitions = new List<DialogueInjector.DialogueTransition>
                         {
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = $"……交出{counterRansom}第纳尔。",
+                                // 玩家接受翻倍赎金
+                                PlayerLine = LWNTextHelper.ResolveCompound("LWN_crime_player_surrender_pay_counter",
+                                    "...Here's {RANSOM} denars.",
+                                    ("RANSOM", counterRansom.ToString())),
                                 Action = "INTENT:PlayerSurrenderPay",
                                 ActionParam = "counteroffer_beg",
                                 NextNodeOnSuccess = "surrender_counter_ack"
                             },
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "拼死一战",
+                                // 玩家拼死一战
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_surrender_fight", "Fight to the death"),
                                 Action = "INTENT:FightOn",
                                 NextNodeOnSuccess = "surrender_fight_ack"
                             }
                         }
                     },
-                    new DialogueInjector.DialogueNode { Id = "surrender_counter_ack", NpcLine = $"算你识相。{counterRansom}第纳尔，滚吧！", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "surrender_fight_ack", NpcLine = "好！那就打到你爬不起来！", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：收下翻倍赎金放人
+                    new DialogueInjector.DialogueNode { Id = "surrender_counter_ack", NpcLine = LWNTextHelper.ResolveCompound("LWN_crime_surrender_npc_counter_ack", "Sensible choice. {RANSOM} denars. Now get out!", ("RANSOM", counterRansom.ToString())), Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：应战（打到玩家爬不起来）
+                    new DialogueInjector.DialogueNode { Id = "surrender_fight_ack", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_fight_ack", "Fine! I'll beat you until you can't get up!"), Transitions = new List<DialogueInjector.DialogueTransition>() },
                 }
             };
         }
@@ -1329,43 +1614,52 @@ namespace LivingWorldNpcs
                     new DialogueInjector.DialogueNode
                     {
                         Id = "npc_beg",
-                        NpcLine = "别、别打了……我认输！",
+                        // NPC：被打服认输
+                        NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_beg", "S-stop! I surrender!"),
                         Transitions = new List<DialogueInjector.DialogueTransition>
                         {
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "你走吧。",
+                                // 玩家放走 NPC
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_surrender_accept", "You may go."),
                                 Action = "INTENT:ResolveNpcSurrender",
                                 ActionParam = "accept",
                                 NextNodeOnSuccess = "npc_surrender_accept_ack"
                             },
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "给我跪下磕头认错！",
+                                // 玩家羞辱 NPC（跪下认错）
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_surrender_humiliate", "Kneel and beg for forgiveness!"),
                                 Action = "INTENT:ResolveNpcSurrender",
                                 ActionParam = "humiliate",
                                 NextNodeOnSuccess = "npc_surrender_humiliate_ack"
                             },
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "把钱交出来，饶你一命。",
+                                // 玩家勒索 NPC 财物
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_surrender_ransom", "Hand over your money and I'll spare you."),
                                 Action = "INTENT:ResolveNpcSurrender",
                                 ActionParam = "ransom",
                                 NextNodeOnSuccess = "npc_surrender_ransom_ack"
                             },
                             new DialogueInjector.DialogueTransition
                             {
-                                PlayerLine = "太迟了。继续打！",
+                                // 玩家不接受投降，继续打
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_surrender_refuse", "Too late. Keep fighting!"),
                                 Action = "INTENT:ResolveNpcSurrender",
                                 ActionParam = "refuse",
                                 NextNodeOnSuccess = "npc_surrender_refuse_ack"
                             }
                         }
                     },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_accept_ack", NpcLine = "多、多谢！我这就走……", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_humiliate_ack", NpcLine = "……小人知错了。", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_ransom_ack", NpcLine = "好、好……都给你！求你放过我……", Transitions = new List<DialogueInjector.DialogueTransition>() },
-                    new DialogueInjector.DialogueNode { Id = "npc_surrender_refuse_ack", NpcLine = "不——！我跟你拼了！", Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：被放走的回应
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_accept_ack", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_accept_ack", "Th-thanks! I'll be on my way..."), Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：被羞辱后的服软
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_humiliate_ack", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_humiliate_ack", "...I've learned my lesson."), Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：交钱求饶
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_ransom_ack", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_ransom_ack", "O-okay... take it all! Please spare me..."), Transitions = new List<DialogueInjector.DialogueTransition>() },
+                    // NPC：拒绝投降后的拼死反扑
+                    new DialogueInjector.DialogueNode { Id = "npc_surrender_refuse_ack", NpcLine = LWNTextHelper.ResolveText("LWN_crime_surrender_npc_refuse_ack", "No —! I'll fight you to the end!"), Transitions = new List<DialogueInjector.DialogueTransition>() },
                 }
             };
         }

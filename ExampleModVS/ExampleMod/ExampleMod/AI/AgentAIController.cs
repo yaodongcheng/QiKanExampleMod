@@ -400,7 +400,9 @@ namespace LivingWorldNpcs
             {
                 var dist = Agent.Main != null ? target.Position.Distance(Agent.Main.Position).ToString("F1") : "?";
                 var dir = Agent.Main != null ? GetDirectionFromTo(Agent.Main.Position, target.Position) : "?";
-                InformationManager.DisplayMessage(new InformationMessage($"[事件发送] 发送事件 '{eventType}' 给 {target.Name} (Index:{target.Index}, 距离:{dist}m, 方位:{dir})"));
+                // 事件发送调试飘字：通知事件已发给目标 Agent
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ai_event_send",
+                    ("EVENT", eventType), ("NAME", target.Name.ToString()), ("INDEX", target.Index.ToString()), ("DIST", dist), ("DIR", dir))));
                 if (IsDebugMode)
                     DebugLogger.Log($"[事件发送] 发送事件 '{eventType}' 给 {target.Name} (Index:{target.Index}, 距离:{dist}m, 方位:{dir})");
                 var evt = new AIEvent { EventType = eventType, Sender = null, Args = args };
@@ -408,7 +410,9 @@ namespace LivingWorldNpcs
             }
             else
             {
-                InformationManager.DisplayMessage(new InformationMessage($"[警告] 试图发送事件 '{eventType}' 给 {target.Name}，但未找到对应的大脑。"));
+                // 事件发送失败飘字：目标 Agent 没有对应的大脑
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ai_event_send_no_brain",
+                    ("EVENT", eventType), ("NAME", target.Name.ToString()))));
                 if(IsDebugMode)
                     DebugLogger.Log($"[警告] 试图发送事件 '{eventType}' 给 {target.Name}，但未找到对应的大脑。");
             }
@@ -569,14 +573,22 @@ namespace LivingWorldNpcs
             float angle = MathF.Atan2(dx, dy) * (180f / MathF.PI); // 0° = 北, 顺时针
             if (angle < 0) angle += 360f;
 
-            if (angle < 22.5f || angle >= 337.5f) return "北";
-            if (angle < 67.5f) return "东北";
-            if (angle < 112.5f) return "东";
-            if (angle < 157.5f) return "东南";
-            if (angle < 202.5f) return "南";
-            if (angle < 247.5f) return "西南";
-            if (angle < 292.5f) return "西";
-            return "西北";
+            // 罗盘八方向本地化：北（英文 N）
+            if (angle < 22.5f || angle >= 337.5f) return LWNTextHelper.ResolveText("LWN_ai_dir_north", "N");
+            // 罗盘八方向本地化：东北（英文 NE）
+            if (angle < 67.5f) return LWNTextHelper.ResolveText("LWN_ai_dir_northeast", "NE");
+            // 罗盘八方向本地化：东（英文 E）
+            if (angle < 112.5f) return LWNTextHelper.ResolveText("LWN_ai_dir_east", "E");
+            // 罗盘八方向本地化：东南（英文 SE）
+            if (angle < 157.5f) return LWNTextHelper.ResolveText("LWN_ai_dir_southeast", "SE");
+            // 罗盘八方向本地化：南（英文 S）
+            if (angle < 202.5f) return LWNTextHelper.ResolveText("LWN_ai_dir_south", "S");
+            // 罗盘八方向本地化：西南（英文 SW）
+            if (angle < 247.5f) return LWNTextHelper.ResolveText("LWN_ai_dir_southwest", "SW");
+            // 罗盘八方向本地化：西（英文 W）
+            if (angle < 292.5f) return LWNTextHelper.ResolveText("LWN_ai_dir_west", "W");
+            // 罗盘八方向本地化：西北（英文 NW）
+            return LWNTextHelper.ResolveText("LWN_ai_dir_northwest", "NW");
         }
     }
 }

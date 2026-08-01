@@ -66,11 +66,13 @@ namespace LivingWorldNpcs
         public override TextObject IssueBriefByIssueGiver =>
             IssueBriefForContext();
         public override TextObject IssueAcceptByPlayer =>
-            new TextObject("让我看看有什么委托。");
+            // 玩家接受委托的回应台词
+            new TextObject(LWNTextHelper.ResolveText("LWN_issue_accept_player", "Let me see what commissions you have."));
         public override TextObject IssueQuestSolutionExplanationByIssueGiver =>
             DescriptionForContext();
         public override TextObject IssueQuestSolutionAcceptByPlayer =>
-            new TextObject("接取委托");
+            // 玩家确认接取委托的选项文本
+            new TextObject(LWNTextHelper.ResolveText("LWN_issue_accept_solution", "Take the commission"));
         public override bool IsThereAlternativeSolution => false;
         public override bool IsThereLordSolution => false;
         public override TextObject Title =>
@@ -87,15 +89,35 @@ namespace LivingWorldNpcs
                 switch (_context.CrimeEventStage)
                 {
                     case EventStage.Emerging:
-                        return new TextObject($"调查：{_context.SettlementName}{_context.CaseLabel ?? "案件"}");
+                    {
+                        // 案件定性标签兜底（无标签时显示"案件"）
+                        string caseLabel = _context.CaseLabel ?? LWNTextHelper.ResolveText("LWN_issue_case_label_fallback", "case");
+                        // 委托标题：调查定居点案件
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_title_investigate",
+                            "Investigate: {LOCATION} {CASE}",
+                            ("LOCATION", _context.SettlementName),
+                            ("CASE", caseLabel)));
+                    }
                     case EventStage.Active:
                         if (!string.IsNullOrEmpty(_context.SuspectName))
-                            return new TextObject($"悬赏缉拿：{_context.SuspectName}");
-                        return new TextObject($"追凶：{_context.SettlementName}案");
+                            // 委托标题：悬赏缉拿嫌犯
+                            return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_title_bounty",
+                                "Bounty: {TARGET}",
+                                ("TARGET", _context.SuspectName)));
+                        // 委托标题：追凶定居点案件
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_title_manhunt",
+                            "Manhunt: The {LOCATION} case",
+                            ("LOCATION", _context.SettlementName)));
                     case EventStage.Confrontation:
-                        return new TextObject($"危机：{_context.SettlementName}遭报复");
+                        // 委托标题：定居点遭报复危机
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_title_retaliation",
+                            "Crisis: {LOCATION} is under threat of retaliation",
+                            ("LOCATION", _context.SettlementName)));
                     default:
-                        return new TextObject($"案件：{_context.SettlementName}");
+                        // 委托标题：定居点案件
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_title_case",
+                            "Case: {LOCATION}",
+                            ("LOCATION", _context.SettlementName)));
                 }
             }
 
@@ -103,13 +125,15 @@ namespace LivingWorldNpcs
             {
                 if (_context.PrimaryCategory.HasValue)
                     return CategoryToTitle(_context.PrimaryCategory.Value);
-                return new TextObject("紧急委托");
+                // 委托标题：紧急委托
+                return new TextObject(LWNTextHelper.ResolveText("LWN_issue_title_urgent", "Urgent commission"));
             }
 
             if (_context.PrimaryCategory.HasValue)
                 return CategoryToTitle(_context.PrimaryCategory.Value);
 
-            return new TextObject("委托任务");
+            // 委托标题：通用委托任务
+            return new TextObject(LWNTextHelper.ResolveText("LWN_issue_title_generic", "Commission"));
         }
 
         private TextObject IssueBriefForContext()
@@ -119,25 +143,45 @@ namespace LivingWorldNpcs
                 switch (_context.CrimeEventStage)
                 {
                     case EventStage.Emerging:
-                        return new TextObject($"调查{_context.SettlementName}的{_context.CaseLabel ?? "案件"}");
+                    {
+                        // 案件定性标签兜底（无标签时显示"案件"）
+                        string caseLabel = _context.CaseLabel ?? LWNTextHelper.ResolveText("LWN_issue_case_label_fallback", "case");
+                        // 委托简报：调查定居点案件
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_brief_investigate",
+                            "Investigate the {CASE} in {LOCATION}",
+                            ("LOCATION", _context.SettlementName),
+                            ("CASE", caseLabel)));
+                    }
                     case EventStage.Active:
                         if (!string.IsNullOrEmpty(_context.SuspectName))
-                            return new TextObject($"缉拿嫌犯{_context.SuspectName}");
-                        return new TextObject($"追查{_context.SettlementName}案件真凶");
+                            // 委托简报：缉拿嫌犯
+                            return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_brief_bounty",
+                                "Hunt down the suspect {TARGET}",
+                                ("TARGET", _context.SuspectName)));
+                        // 委托简报：追查定居点案件真凶
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_brief_manhunt",
+                            "Track down the culprit in {LOCATION}",
+                            ("LOCATION", _context.SettlementName)));
                     case EventStage.Confrontation:
-                        return new TextObject($"保卫{_context.SettlementName}免受报复");
+                        // 委托简报：保卫定居点免受报复
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_brief_retaliation",
+                            "Defend {LOCATION} from retaliation",
+                            ("LOCATION", _context.SettlementName)));
                     default:
-                        return new TextObject("有案件需要处理");
+                        // 委托简报：有案件需要处理
+                        return new TextObject(LWNTextHelper.ResolveText("LWN_issue_brief_case", "There is a case to handle"));
                 }
             }
 
             if (_context.IsUrgentEvent)
-                return new TextObject("有紧急委托需要帮手");
+                // 委托简报：有紧急委托需要帮手
+                return new TextObject(LWNTextHelper.ResolveText("LWN_issue_brief_urgent", "An urgent commission needs a hand"));
 
             if (_context.PrimaryCategory.HasValue)
                 return CategoryToBrief(_context.PrimaryCategory.Value);
 
-            return new TextObject("有委托任务可接");
+            // 委托简报：有委托任务可接
+            return new TextObject(LWNTextHelper.ResolveText("LWN_issue_brief_generic", "Commissions are available"));
         }
 
         private TextObject DescriptionForContext()
@@ -149,32 +193,63 @@ namespace LivingWorldNpcs
                     case EventStage.Emerging:
                     {
                         // 案情从事实派生（袭击+失窃如实还原），不再用 EventType 静态模板拼接
-                        string facts = !string.IsNullOrEmpty(_context.DiscoveryFacts)
-                            ? _context.DiscoveryFacts : "出了案子";
+                        // 案情事实句兜底（无事实时显示"出了案子"）
+                        string facts = !string.IsNullOrEmpty(_context.DiscoveryFacts) ? _context.DiscoveryFacts : LWNTextHelper.ResolveText("LWN_issue_emerging_facts_fallback", "something has happened");
                         string witnessClause = _context.WitnessCount > 0
-                            ? $"，{_context.WitnessCount}人目击" : "，无人目击";
+                            // 目击人数从句（有目击者）：{COUNT}人目击
+                            ? LWNTextHelper.ResolveCompound("LWN_issue_emerging_witness_clause",
+                                ", {COUNT} witnesses",
+                                ("COUNT", _context.WitnessCount.ToString()))
+                            // 目击人数从句（无目击者）：无人目击
+                            : LWNTextHelper.ResolveText("LWN_issue_emerging_no_witness_clause", ", no witnesses");
                         return new TextObject(
-                            $"{_context.SettlementName}{facts}{witnessClause}。" +
-                            $"{GetAuthorityRoleText()}正在找人帮忙调查。");
+                            // 案情描述：定居点 + 事实 + 目击情况 + 权威角色求助
+                            LWNTextHelper.ResolveCompound("LWN_issue_emerging_desc",
+                                "{LOCATION}: {FACTS}{WITNESS_CLAUSE}. {AUTHORITY} is looking for someone to help investigate.",
+                                ("LOCATION", _context.SettlementName),
+                                ("FACTS", facts),
+                                ("WITNESS_CLAUSE", witnessClause),
+                                ("AUTHORITY", GetAuthorityRoleText())));
                     }
                     case EventStage.Active:
                         if (!string.IsNullOrEmpty(_context.SuspectName))
-                            return new TextObject($"{_context.SettlementName}的案子查出了眉目——嫌犯是{_context.SuspectName}。{GetAuthorityRoleText()}悬赏缉拿。");
-                        return new TextObject($"{_context.SettlementName}的案子有了进展，嫌犯已锁定。上前对话了解详情。");
+                            // 案情描述：嫌犯已查明，权威角色悬赏缉拿
+                            return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_desc_active_suspect",
+                                "The case in {LOCATION} has taken shape — the suspect is {TARGET}. {AUTHORITY} offers a bounty for their capture.",
+                                ("LOCATION", _context.SettlementName),
+                                ("TARGET", _context.SuspectName),
+                                ("AUTHORITY", GetAuthorityRoleText())));
+                        // 案情描述：嫌犯已锁定但未查明身份
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_desc_active",
+                            "The case in {LOCATION} has progressed — the suspect has been identified. Speak to this person for details.",
+                            ("LOCATION", _context.SettlementName)));
                     case EventStage.Confrontation:
-                        return new TextObject($"{_context.SettlementName}正遭受报复威胁，急需帮手应援。");
+                        // 案情描述：定居点遭报复威胁急需应援
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_desc_confrontation",
+                            "{LOCATION} is under threat of retaliation and urgently needs help.",
+                            ("LOCATION", _context.SettlementName)));
                     default:
-                        return new TextObject($"{_context.SettlementName}有案件需要处理，上前对话了解详情。");
+                        // 案情描述：定居点有案件待处理
+                        return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_desc_case",
+                            "There is a case to handle in {LOCATION}. Speak to this person for details.",
+                            ("LOCATION", _context.SettlementName)));
                 }
             }
 
             if (_context.IsUrgentEvent)
-                return new TextObject("这位人物有紧急委托需要帮手。上前对话可了解详情。");
+                // 案情描述：紧急委托需要帮手
+                return new TextObject(LWNTextHelper.ResolveText("LWN_issue_desc_urgent",
+                    "This person has an urgent commission and needs a hand. Speak to them for details."));
 
             if (_context.PrimaryCategory.HasValue)
-                return new TextObject($"这位人物有{CategoryToTitle(_context.PrimaryCategory.Value)}委托需要帮手。上前对话可了解详情。");
+                // 案情描述：带委托类别标题的描述
+                return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_desc_category",
+                    "This person has a {TITLE} commission and needs a hand. Speak to them for details.",
+                    ("TITLE", CategoryToTitle(_context.PrimaryCategory.Value).ToString())));
 
-            return new TextObject("这位人物有委托任务需要帮手。上前对话可了解详情。");
+            // 案情描述：常规委托通用描述
+            return new TextObject(LWNTextHelper.ResolveText("LWN_issue_desc_generic",
+                "This person has a commission and needs a hand. Speak to them for details."));
         }
 
         private string GetAuthorityRoleText()
@@ -183,30 +258,48 @@ namespace LivingWorldNpcs
             // 已在 ResolveIssueContext 中通过 GetAuthorityRoleDisplayName 预计算
             if (_context.IsCrimeEvent && !string.IsNullOrEmpty(_context.AuthorityRole))
                 return _context.AuthorityRole;
-            return "委托人";
+            // 权威角色兜底（非犯罪事件时显示"委托人"）
+            return LWNTextHelper.ResolveText("LWN_issue_authority_role_fallback", "the client");
         }
 
         private static TextObject CategoryToTitle(CommissionCategory category)
         {
             switch (category)
             {
-                case CommissionCategory.BountyHunt: return new TextObject("悬赏缉拿");
-                case CommissionCategory.LegendaryHunt: return new TextObject("猎杀传奇匪首");
-                case CommissionCategory.CaravanEscort: return new TextObject("护卫商队");
-                case CommissionCategory.VillageDefense: return new TextObject("村防应援");
-                case CommissionCategory.HideoutClear: return new TextObject("清剿匪穴");
-                case CommissionCategory.PrisonBreak: return new TextObject("越狱营救");
-                case CommissionCategory.SupplyEmergency: return new TextObject("紧急供货");
-                case CommissionCategory.EmergencyDelivery: return new TextObject("限时运粮");
-                case CommissionCategory.LostItem: return new TextObject("失物追寻");
-                case CommissionCategory.TreasureHunt: return new TextObject("寻宝");
-                case CommissionCategory.HorseAcquisition: return new TextObject("寻购名马");
-                case CommissionCategory.UndergroundFight: return new TextObject("地下拳赛");
-                case CommissionCategory.ArenaSpecial: return new TextObject("竞技场特别赛");
-                case CommissionCategory.SupplyIntercept: return new TextObject("物资截获");
-                case CommissionCategory.DecoyMission: return new TextObject("引开追兵");
-                case CommissionCategory.ProcurementAgent: return new TextObject("跨城代购");
-                default: return new TextObject("委托任务");
+                // 委托类别标题：悬赏缉拿
+                case CommissionCategory.BountyHunt: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_bounty_hunt", "Bounty hunting"));
+                // 委托类别标题：猎杀传奇匪首
+                case CommissionCategory.LegendaryHunt: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_legendary_hunt", "Hunt a legendary bandit chief"));
+                // 委托类别标题：护卫商队
+                case CommissionCategory.CaravanEscort: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_caravan_escort", "Escort a caravan"));
+                // 委托类别标题：村防应援
+                case CommissionCategory.VillageDefense: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_village_defense", "Defend a village"));
+                // 委托类别标题：清剿匪穴
+                case CommissionCategory.HideoutClear: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_hideout_clear", "Clear out a hideout"));
+                // 委托类别标题：越狱营救
+                case CommissionCategory.PrisonBreak: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_prison_break", "Prison rescue"));
+                // 委托类别标题：紧急供货
+                case CommissionCategory.SupplyEmergency: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_supply_emergency", "Urgent supply"));
+                // 委托类别标题：限时运粮
+                case CommissionCategory.EmergencyDelivery: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_emergency_delivery", "Timed grain delivery"));
+                // 委托类别标题：失物追寻
+                case CommissionCategory.LostItem: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_lost_item", "Find a lost item"));
+                // 委托类别标题：寻宝
+                case CommissionCategory.TreasureHunt: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_treasure_hunt", "Treasure hunt"));
+                // 委托类别标题：寻购名马
+                case CommissionCategory.HorseAcquisition: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_horse_acquisition", "Procure a fine horse"));
+                // 委托类别标题：地下拳赛
+                case CommissionCategory.UndergroundFight: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_underground_fight", "Underground fight"));
+                // 委托类别标题：竞技场特别赛
+                case CommissionCategory.ArenaSpecial: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_arena_special", "Arena special"));
+                // 委托类别标题：物资截获
+                case CommissionCategory.SupplyIntercept: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_supply_intercept", "Intercept supplies"));
+                // 委托类别标题：引开追兵
+                case CommissionCategory.DecoyMission: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_decoy_mission", "Lure away pursuers"));
+                // 委托类别标题：跨城代购
+                case CommissionCategory.ProcurementAgent: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_title_procurement_agent", "Cross-city procurement"));
+                // 委托类别标题：通用委托任务
+                default: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_title_generic", "Commission"));
             }
         }
 
@@ -214,23 +307,40 @@ namespace LivingWorldNpcs
         {
             switch (category)
             {
-                case CommissionCategory.BountyHunt: return new TextObject("有悬赏缉拿委托");
-                case CommissionCategory.LegendaryHunt: return new TextObject("有猎杀传奇匪首委托");
-                case CommissionCategory.CaravanEscort: return new TextObject("有商队护卫委托");
-                case CommissionCategory.VillageDefense: return new TextObject("有村庄防卫委托");
-                case CommissionCategory.HideoutClear: return new TextObject("有清剿匪穴委托");
-                case CommissionCategory.PrisonBreak: return new TextObject("有越狱营救委托");
-                case CommissionCategory.SupplyEmergency: return new TextObject("有紧急供货委托");
-                case CommissionCategory.EmergencyDelivery: return new TextObject("有限时运粮委托");
-                case CommissionCategory.LostItem: return new TextObject("有失物追寻委托");
-                case CommissionCategory.TreasureHunt: return new TextObject("有寻宝委托");
-                case CommissionCategory.HorseAcquisition: return new TextObject("有寻购名马委托");
-                case CommissionCategory.UndergroundFight: return new TextObject("有地下拳赛委托");
-                case CommissionCategory.ArenaSpecial: return new TextObject("有竞技场特别赛委托");
-                case CommissionCategory.SupplyIntercept: return new TextObject("有物资截获委托");
-                case CommissionCategory.DecoyMission: return new TextObject("有引开追兵委托");
-                case CommissionCategory.ProcurementAgent: return new TextObject("有跨城代购委托");
-                default: return new TextObject("有委托任务可接");
+                // 委托类别简报：有悬赏缉拿委托
+                case CommissionCategory.BountyHunt: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_bounty_hunt", "Bounty hunting commission available"));
+                // 委托类别简报：有猎杀传奇匪首委托
+                case CommissionCategory.LegendaryHunt: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_legendary_hunt", "Commission to hunt a legendary bandit chief available"));
+                // 委托类别简报：有商队护卫委托
+                case CommissionCategory.CaravanEscort: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_caravan_escort", "Caravan escort commission available"));
+                // 委托类别简报：有村庄防卫委托
+                case CommissionCategory.VillageDefense: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_village_defense", "Village defense commission available"));
+                // 委托类别简报：有清剿匪穴委托
+                case CommissionCategory.HideoutClear: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_hideout_clear", "Hideout clearing commission available"));
+                // 委托类别简报：有越狱营救委托
+                case CommissionCategory.PrisonBreak: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_prison_break", "Prison rescue commission available"));
+                // 委托类别简报：有紧急供货委托
+                case CommissionCategory.SupplyEmergency: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_supply_emergency", "Urgent supply commission available"));
+                // 委托类别简报：有限时运粮委托
+                case CommissionCategory.EmergencyDelivery: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_emergency_delivery", "Timed grain delivery commission available"));
+                // 委托类别简报：有失物追寻委托
+                case CommissionCategory.LostItem: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_lost_item", "Lost item search commission available"));
+                // 委托类别简报：有寻宝委托
+                case CommissionCategory.TreasureHunt: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_treasure_hunt", "Treasure hunt commission available"));
+                // 委托类别简报：有寻购名马委托
+                case CommissionCategory.HorseAcquisition: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_horse_acquisition", "Fine horse procurement commission available"));
+                // 委托类别简报：有地下拳赛委托
+                case CommissionCategory.UndergroundFight: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_underground_fight", "Underground fight commission available"));
+                // 委托类别简报：有竞技场特别赛委托
+                case CommissionCategory.ArenaSpecial: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_arena_special", "Arena special commission available"));
+                // 委托类别简报：有物资截获委托
+                case CommissionCategory.SupplyIntercept: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_supply_intercept", "Supply intercept commission available"));
+                // 委托类别简报：有引开追兵委托
+                case CommissionCategory.DecoyMission: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_decoy_mission", "Pursuer luring commission available"));
+                // 委托类别简报：有跨城代购委托
+                case CommissionCategory.ProcurementAgent: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_cat_brief_procurement_agent", "Cross-city procurement commission available"));
+                // 委托类别简报：有委托任务可接
+                default: return new TextObject(LWNTextHelper.ResolveText("LWN_issue_brief_generic", "Commissions are available"));
             }
         }
 
@@ -574,7 +684,8 @@ namespace LivingWorldNpcs
         private static CommissionIssueContext ResolveIssueContext(Hero hero)
         {
             var settlement = hero.CurrentSettlement ?? hero.HomeSettlement;
-            string settlementName = settlement?.Name?.ToString() ?? "本地";
+            // 定居点名称兜底（无法解析时显示"本地"）
+            string settlementName = settlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_issue_settlement_fallback", "the local area");
 
             // 1. 犯罪事件：NPC 是对应定居点犯罪事件的权威人物
             var evt = WorldEventStore.FindOnGoing(settlement?.StringId);

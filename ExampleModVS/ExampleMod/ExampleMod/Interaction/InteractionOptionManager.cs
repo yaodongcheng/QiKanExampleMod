@@ -184,16 +184,25 @@ namespace LivingWorldNpcs
                     try
                     {
                         RollResult rr = SingleRollResolver.Compute(ctx, intent.Goal.Value, intent.Tactic, intent.GetOfferValue(ctx));
-                        text = $"{intent.DisplayName}（{rr.Chance * 100f:0}%）";
+                        // 选项文本：意图名+成功率后缀（{NAME}=意图名，{CHANCE}=成功率百分数）
+                        text = LWNTextHelper.ResolveCompound("LWN_ui_option_chance_suffix", "{NAME} ({CHANCE}%)",
+                            ("NAME", intent.DisplayName), ("CHANCE", $"{rr.Chance * 100f:0}"));
+                        // 预测文本：纯成功率（{CHANCE}=成功率百分数）
+                        string chanceText = LWNTextHelper.ResolveCompound("LWN_ui_option_success_rate", "Success rate {CHANCE}%",
+                            ("CHANCE", $"{rr.Chance * 100f:0}"));
+                        // 预测文本：工具提示+换行+成功率（{TOOLTIP}=意图提示，{CHANCE}=成功率百分数）
                         predict = string.IsNullOrEmpty(intent.ToolTip)
-                            ? $"成功率 {rr.Chance * 100f:0}%"
-                            : $"{intent.ToolTip}\n成功率 {rr.Chance * 100f:0}%";
+                            ? chanceText
+                            // {TOOLTIP} 成功率 {CHANCE}%
+                            : LWNTextHelper.ResolveCompound("LWN_ui_option_success_rate_with_tooltip", "{TOOLTIP}\nSuccess rate {CHANCE}%",
+                                ("TOOLTIP", intent.ToolTip), ("CHANCE", $"{rr.Chance * 100f:0}"));
                     }
                     catch { }
                 }
 
                 if (!enabled)
-                    text = "[不可用] " + intent.DisplayName;
+                    // 置灰选项前缀：不可用（{NAME}=意图名）
+                    text = LWNTextHelper.ResolveCompound("LWN_ui_option_disabled", "[Unavailable] {NAME}", ("NAME", intent.DisplayName));
 
                 // 闭包捕获
                 IntentBase capturedIntent = intent;

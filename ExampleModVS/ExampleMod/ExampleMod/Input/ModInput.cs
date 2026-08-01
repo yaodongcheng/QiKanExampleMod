@@ -68,7 +68,8 @@ namespace LivingWorldNpcs
             [ModInputAction.StealAttempt] = new Binding
             {
                 Keyboard = InputKey.Space, Gamepad = InputKey.ControllerRDown,
-                KbGlyph = "空格", XboxGlyph = "A", PsGlyph = "✕",
+                // 键盘提示字形：空格键
+                KbGlyph = LWNTextHelper.ResolveText("LWN_input_key_space", "Space"), XboxGlyph = "A", PsGlyph = "✕",
             },
             // 偷窃条收手：B/○（取消键）
             [ModInputAction.StealLeave] = new Binding

@@ -33,6 +33,9 @@
 10. 🔴**赔偿对话纪律** — 所有赔钱相关的对话选项，**禁止玩家在 NPC 开价前说出具体金额**。流程必须是：玩家"我愿意赔偿"（不标价）→ NPC 在 `restitution_demand` 节点里算账开价（明细 + 倍率 + 总价）→ 玩家接受/砍价/拒绝。**实现**：所有 `INTENT:PayRestitution` 入口改为 `Action="NONE"` + `NextNodeOnSuccess="restitution_demand"`，子树末尾调 `BuildRestitutionSubtree(nodes, r, ctx)`。详参 [plans/rules/wheels.md](plans/rules/wheels.md)「赔偿对话子图」章节。
 11. 🔴**赔偿金统一计算入口** — 所有犯罪相关的金额（赔偿/罚款/私了/悬赏）统一走 `CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution)`。**禁止**同一场对话中出现两个不同公式算出的价格（如 `ComputeCost(Restitution)` vs `ComputePenalty→ComputeCost(Fine)`）。`{AlertFineCost}` 占位符废弃，统一用 `{RestitutionCost}`。
 12. 🔴**每个选项必须有代价或检定——禁止零成本最优解** — 对话中的每一个出口，要么考验玩家能力（技能检定），要么付出资源（赔钱/坐牢），要么承担后果（拔剑开打/关系恶化/追击部队）。**绝不允许出现"既不用检定、又不付代价、还能安全脱身"的选项。** 这种选项一旦存在，其他所有选项都失去意义——玩家永远会选它。Example：RealScene 对峙中"我走了"= 零成本脱身 → 禁止。大地图 WalkAway = 关系惩罚 + 追击 party → 合法。
+13. 🔴**所有玩家可见文本走标准本地化系统** — 任何 `InformationManager.DisplayMessage` / `AddQuickInformation` / 对话节点 / UI 标签 / 飘字等**玩家能看到**的文本，**必须**通过 `LWNTextHelper` 获取，最终走 Bannerlord 的 `{=LWN_KEY}English fallback` 机制。流程：C# 代码 → `LWNTextHelper.ResolveText/Resolve/ResolveCompound` → `TextObject("{=LWN_KEY}fallback")` → 引擎查 `Languages/{lang}/std_*.xml` → 命中用翻译，未命中用 fallback。**禁止**：① C# 硬编码中文字符串（`"中文"`）② `{=!}` 标记（跳过翻译表）③ `DebugLogger.Log` 之外的裸中文字面量。`DebugLogger.Log` / 注释 / LLM prompt 豁免。
+14. 🔴**语言 XML 禁止 emoji 和 BMP 外字符** — `Languages/` 下所有 XML 文件**不得包含** emoji 等 Unicode 码点 > U+FFFF 的字符。游戏引擎的 UTF-16 XML 解析器不支持代理对，遇到直接崩溃，导致整个语言加载失败，连锁反应为系统菜单变英文、语言选项只剩当前语言。**Python 检测**：`ord(ch) > 0xFFFF`。validator 待加此检查。
+15. 🔴**禁止手动调用 LoadLocalizationXmls** — 引擎在启动时**自动扫描**各模块 `Languages/` 子目录加载语言包，**不需要**在 `OnSubModuleLoad` 里手动调 `LocalizedTextManager.LoadLocalizationXmls()`。手动调反而会干扰全局语言注册表，导致 Native 的语言列表被挤掉、系统菜单退化为英文、可选语言只剩 mod 注册的语种。
 
 ## API 探索：反编译 DLL 禁止瞎猜
 

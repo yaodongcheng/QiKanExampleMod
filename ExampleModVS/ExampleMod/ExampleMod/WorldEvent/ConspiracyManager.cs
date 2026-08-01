@@ -75,7 +75,8 @@ namespace LivingWorldNpcs
             {
                 ConspiracyId = conspiracyId,
                 MastermindHeroId = mastermind.StringId,
-                MastermindName = mastermind.Name?.ToString() ?? "幕后之人",
+                // 幕后黑手名兜底：幕后之人
+                MastermindName = mastermind.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_conspiracy_unknown_mastermind", "The one behind it all"),
                 LinkedEventIds = { worldEvent.EventId },
                 CluesDiscovered = 0,
             };
@@ -134,7 +135,8 @@ namespace LivingWorldNpcs
             if (!state.IsRevealed && state.CluesDiscovered >= CLUES_TO_UNLOCK)
             {
                 state.IsRevealed = true;
-                clueMessage = $"俘虏吐出了一个名字——{state.MastermindName}。这一切都是此人在幕后操纵……";
+                // 线索揭示：俘虏吐出幕后黑手之名
+                clueMessage = LWNTextHelper.ResolveCompound("LWN_conspiracy_clue_reveal", ("NAME", state.MastermindName));
                 NinjaNotificationManager.Show(clueMessage, () => { });
                 return true;
             }
@@ -142,13 +144,16 @@ namespace LivingWorldNpcs
             switch (state.CluesDiscovered)
             {
                 case 1:
-                    clueMessage = "俘虏眼神闪烁，似乎背后还有人……但你问不出更多了。";
+                    // 线索 1：俘虏闪烁其词
+                    clueMessage = LWNTextHelper.ResolveText("LWN_conspiracy_clue_1", "The prisoner's eyes dart around — there is someone behind all this... but you cannot get more out of him.");
                     break;
                 case 2:
-                    clueMessage = $"俘虏在恐惧中漏出了半句话：'我们都是听命于……'但随即闭口不言。又一次听到那个名字，你开始觉得这些事件之间有某种联系。";
+                    // 线索 2：俘虏漏出半句话
+                    clueMessage = LWNTextHelper.ResolveText("LWN_conspiracy_clue_2", "In fear the prisoner lets slip half a sentence: 'We all take orders from...' then clams up. You hear that name again, and begin to feel these events are connected.");
                     break;
                 default:
-                    clueMessage = "俘虏交代了一些零碎的信息。你隐隐觉得有人在操控这一切。";
+                    // 线索 3+：零碎信息
+                    clueMessage = LWNTextHelper.ResolveText("LWN_conspiracy_clue_3", "The prisoner gives up scattered scraps of information. You feel someone is pulling the strings behind all this.");
                     break;
             }
 
@@ -181,7 +186,8 @@ namespace LivingWorldNpcs
             if (mastermind == null || !mastermind.IsAlive) return false;
 
             state.IsConfronted = true;
-            narrativeHint = $"所有的线索都指向一个人——{state.MastermindName}。一直以来的匪患、背叛、失窃……全是此人在幕后操纵。现在，是时候让他付出代价了。";
+            // 对决解锁：所有线索指向幕后黑手
+            narrativeHint = LWNTextHelper.ResolveCompound("LWN_conspiracy_confront_unlock", ("NAME", state.MastermindName));
 
             DebugLogger.Log($"[Conspiracy] Confrontation unlocked: {state.ConspiracyId} → {state.MastermindName}");
             return true;
@@ -196,8 +202,10 @@ namespace LivingWorldNpcs
 
             int remaining = CLUES_TO_UNLOCK - state.CluesDiscovered;
             return state.IsRevealed
-                ? $"你已知道幕后黑手是{state.MastermindName}。"
-                : $"你感觉事情没那么简单……还需要 {remaining} 条线索才能揭开真相。";
+                // 叙事：已揭示幕后黑手
+                ? LWNTextHelper.ResolveCompound("LWN_conspiracy_narrative_revealed", ("NAME", state.MastermindName))
+                // 叙事：还差几条线索
+                : LWNTextHelper.ResolveCompound("LWN_conspiracy_narrative_progress", ("REMAINING", remaining.ToString()));
         }
 
         #region Persistence

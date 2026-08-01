@@ -337,7 +337,8 @@ namespace LivingWorldNpcs
                     NinjaNotificationManager.Show(arrivalSummary, () =>
                     {
                         WorldEventNotificationController.ShowEventInquiry(evt,
-                            $"⚔ 部队已到达！\n\n{fullNarrative}\n\n——\n敌军正在城外集结，即将进攻。");
+                            // 部队到达弹窗正文：⚔ 部队已到达！
+                            LWNTextHelper.ResolveCompound("LWN_simulator_arrival_inquiry", ("NARRATIVE", fullNarrative)));
                     });
                 }
             }
@@ -410,7 +411,8 @@ namespace LivingWorldNpcs
                     continue;
                 }
 
-                string loc = target.Name?.ToString() ?? "目标";
+                // 目标名兜底：目标
+                string loc = target.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_target", "the target");
                 string actionName;
 
                 // 按定居点类型选择原生 AI Action（全部搭配 true 防拐跑）
@@ -451,14 +453,20 @@ namespace LivingWorldNpcs
                 {
                     string attackMsg = evt.Type switch
                     {
-                        EventType.NobleConflict => $"⚔ {evt.InstigatorHero?.Name?.ToString() ?? "军队"} 对 {loc} 发起了进攻！",
-                        EventType.BanditRaid => $"⚔ 匪徒开始劫掠 {loc}！",
-                        _ => $"⚔ 敌军开始攻击 {loc}！"
+                        // 进攻通知：贵族冲突
+                        EventType.NobleConflict => LWNTextHelper.ResolveCompound("LWN_simulator_attack_nobleconflict",
+                            // 加害方名兜底：一伙人
+                            ("NAME", evt.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_army", "an army")), ("LOC", loc)),
+                        // 进攻通知：匪患
+                        EventType.BanditRaid => LWNTextHelper.ResolveCompound("LWN_simulator_attack_banditraid", ("LOC", loc)),
+                        // 进攻通知兜底
+                        _ => LWNTextHelper.ResolveCompound("LWN_simulator_attack_default", ("LOC", loc))
                     };
                     NinjaNotificationManager.Show(attackMsg, () =>
                     {
                         WorldEventNotificationController.ShowEventInquiry(evt,
-                            $"⚔ 进攻开始！\n\n{NotificationPipeline.BuildEventNarrativePublic(evt)}\n\n——\n战斗已经打响。");
+                            // 进攻开始弹窗正文：⚔ 进攻开始！
+                            LWNTextHelper.ResolveCompound("LWN_simulator_attack_inquiry", ("NARRATIVE", NotificationPipeline.BuildEventNarrativePublic(evt))));
                     });
                 }
             }
@@ -467,20 +475,32 @@ namespace LivingWorldNpcs
         /// <summary>构建到达通知摘要（TK5 忍者通报风格）。</summary>
         private static string BuildArrivalSummary(WorldEvent e)
         {
-            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
-            string instigator = e.IsGenericInstigator ? "一伙歹徒" : (e.InstigatorHero?.Name?.ToString() ?? "加害方");
+            // 地点名兜底：某地
+            string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_place", "Somewhere");
+            // 加害方名兜底：一伙歹徒（通用）/ 加害方
+            string instigator = e.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_simulator_generic_gang", "a gang of ruffians")
+                // 加害方名兜底：加害方
+                : (e.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_instigator", "the instigator"));
             string victim = e.TargetHero?.Name?.ToString() ?? loc;
 
             return e.Type switch
             {
-                EventType.BanditRaid => $"⚔ {instigator} 已抵达{loc}——劫掠开始！",
-                EventType.Kidnapping => $"⚔ {instigator} 带走了{victim}——绑匪已经得手！",
-                EventType.NobleConflict => $"⚔ {instigator} 的军队已开进{loc}——与{victim}短兵相接！",
-                EventType.Assassination => $"🗡 {victim}遇刺——{instigator}的刺客在{loc}得手了……",
-                EventType.SacredTheft => $"🔮 {instigator} 已从{loc}带走圣物——传承断绝。",
-                EventType.Betrayal => $"💔 {instigator} 背叛了{victim}——事成定局。",
-                EventType.Famine => $"⚠ {loc}粮食耗尽——饥荒已至。",
-                _ => $"⚔ {instigator} 的行动已在{loc}得手。"
+                // 到达摘要：匪患
+                EventType.BanditRaid => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_banditraid", ("INSTIGATOR", instigator), ("LOC", loc)),
+                // 到达摘要：绑架
+                EventType.Kidnapping => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_kidnapping", ("INSTIGATOR", instigator), ("VICTIM", victim)),
+                // 到达摘要：贵族冲突
+                EventType.NobleConflict => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_nobleconflict", ("INSTIGATOR", instigator), ("LOC", loc), ("VICTIM", victim)),
+                // 到达摘要：暗杀
+                EventType.Assassination => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_assassination", ("VICTIM", victim), ("INSTIGATOR", instigator), ("LOC", loc)),
+                // 到达摘要：圣物失窃
+                EventType.SacredTheft => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_sacredtheft", ("INSTIGATOR", instigator), ("LOC", loc)),
+                // 到达摘要：背叛
+                EventType.Betrayal => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_betrayal", ("INSTIGATOR", instigator), ("VICTIM", victim)),
+                // 到达摘要：饥荒
+                EventType.Famine => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_famine", ("LOC", loc)),
+                // 到达摘要兜底
+                _ => LWNTextHelper.ResolveCompound("LWN_simulator_arrival_default", ("INSTIGATOR", instigator), ("LOC", loc))
             };
         }
 
@@ -505,9 +525,14 @@ namespace LivingWorldNpcs
 
             Settlement settlement = evt.TargetSettlement;
             Hero targetHero = evt.TargetHero;
-            string loc = settlement?.Name?.ToString() ?? "某地";
-            string victim = targetHero?.Name?.ToString() ?? "村民";
-            string instigator = evt.IsGenericInstigator ? "一伙歹徒" : (evt.InstigatorHero?.Name?.ToString() ?? "加害方");
+            // 地点名兜底：某地
+            string loc = settlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_place", "Somewhere");
+            // 受害者名兜底：村民
+            string victim = targetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_villager", "a villager");
+            // 加害方名兜底：一伙歹徒（通用）/ 加害方
+            string instigator = evt.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_simulator_generic_gang", "a gang of ruffians")
+                // 加害方名兜底：加害方
+                : (evt.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_instigator", "the instigator"));
 
             string playerMsg = null;
 
@@ -518,19 +543,24 @@ namespace LivingWorldNpcs
                     {
                         settlement.Village.Hearth = Math.Max(0, settlement.Village.Hearth - 30);
                         playerMsg = isArrival
-                            ? $"⚔ {instigator}的部队已经抵达{loc}——劫掠开始了！村民们四散奔逃……"
-                            : $"噩耗传来——{instigator}劫掠了{loc}！村子损失惨重，百姓流离失所。";
+                            // 过期后果：匪患（部队抵达时）
+                            ? LWNTextHelper.ResolveCompound("LWN_simulator_expiry_banditraid_arrival", ("INSTIGATOR", instigator), ("LOC", loc))
+                            // 过期后果：匪患（劫掠已成）
+                            : LWNTextHelper.ResolveCompound("LWN_simulator_expiry_banditraid", ("INSTIGATOR", instigator), ("LOC", loc));
                     }
                     break;
 
                 case EventType.Kidnapping:
                     if (targetHero != null && targetHero.IsAlive && !targetHero.IsLord)
                     {
-                        string name = targetHero.Name?.ToString() ?? "人质";
+                        // 人质名兜底：人质
+                        string name = targetHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_hostage", "the hostage");
                         KillCharacterAction.ApplyByMurder(null, targetHero, true);
                         playerMsg = isArrival
-                            ? $"⚔ {instigator}已经绑走了{name}——{victim}的家人绝望地看着匪徒扬长而去……"
-                            : $"噩耗——{name}被绑匪撕票了。赎金没来得及送到……{loc}的百姓悲愤交加。";
+                            // 过期后果：绑架（绑走时）
+                            ? LWNTextHelper.ResolveCompound("LWN_simulator_expiry_kidnapping_arrival", ("INSTIGATOR", instigator), ("NAME", name), ("VICTIM", victim))
+                            // 过期后果：绑架（撕票）
+                            : LWNTextHelper.ResolveCompound("LWN_simulator_expiry_kidnapping", ("NAME", name), ("LOC", loc));
                     }
                     break;
 
@@ -539,7 +569,8 @@ namespace LivingWorldNpcs
                     {
                         int stolen = targetHero.Gold / 2;
                         AgentControlHelper.TransferGold(targetHero, evt.InstigatorHero, stolen);
-                        playerMsg = $"消息传来——{victim}被{instigator}背叛了！多年积蓄被卷走，信任化为乌有。";
+                        // 过期后果：背叛
+                        playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_betrayal", ("VICTIM", victim), ("INSTIGATOR", instigator));
                     }
                     break;
 
@@ -547,7 +578,8 @@ namespace LivingWorldNpcs
                     if (targetHero != null)
                     {
                         AgentControlHelper.TransferGold(targetHero, null, targetHero.Gold / 3);
-                        playerMsg = $"{victim}的地契被{instigator}收走了——一家人失去了安身之所。债主们如愿以偿。";
+                        // 过期后果：债务陷阱
+                        playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_debttrap", ("VICTIM", victim), ("INSTIGATOR", instigator));
                     }
                     break;
 
@@ -555,18 +587,22 @@ namespace LivingWorldNpcs
                     if (settlement?.Village != null)
                     {
                         settlement.Village.Hearth = Math.Max(0, settlement.Village.Hearth - 50);
-                        playerMsg = $"{loc}的饥荒已经到了极限——粮食耗尽，饿殍遍野。没人能救得了他们了。";
+                        // 过期后果：饥荒
+                        playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_famine", ("LOC", loc));
                     }
                     break;
 
                 case EventType.Assassination:
                     if (targetHero != null && targetHero.IsAlive)
                     {
-                        string name = targetHero.Name?.ToString() ?? "重要人物";
+                        // 重要人物名兜底：重要人物
+                        string name = targetHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_vip", "an important person");
                         KillCharacterAction.ApplyByMurder(null, targetHero, true);
                         playerMsg = isArrival
-                            ? $"⚔ {name}被刺杀了——{instigator}的刺客成功潜入{loc}！人们震惊地盯着尸体，不敢出声。"
-                            : $"震惊——{name}被刺杀了！{loc}陷入混乱，人人自危。刺客已经不见踪影。";
+                            // 过期后果：暗杀（刺客得手时）
+                            ? LWNTextHelper.ResolveCompound("LWN_simulator_expiry_assassination_arrival", ("NAME", name), ("INSTIGATOR", instigator), ("LOC", loc))
+                            // 过期后果：暗杀（已成定局）
+                            : LWNTextHelper.ResolveCompound("LWN_simulator_expiry_assassination", ("NAME", name), ("LOC", loc));
                     }
                     break;
 
@@ -575,8 +611,10 @@ namespace LivingWorldNpcs
                     {
                         SettlementHonorStore.Modify(settlement, -5);
                         playerMsg = isArrival
-                            ? $"⚔ {instigator}的人摸进了{loc}的祠堂——圣物被带走了！族老们跪在地上，耻辱刻进了族谱。"
-                            : $"{loc}的圣物没能追回来——祖宗的传承断了。族老们低下了头，耻辱刻进了族谱。";
+                            // 过期后果：圣物失窃（被带走时）
+                            ? LWNTextHelper.ResolveCompound("LWN_simulator_expiry_sacredtheft_arrival", ("INSTIGATOR", instigator), ("LOC", loc))
+                            // 过期后果：圣物失窃（未能追回）
+                            : LWNTextHelper.ResolveCompound("LWN_simulator_expiry_sacredtheft", ("LOC", loc));
                     }
                     break;
 
@@ -586,43 +624,52 @@ namespace LivingWorldNpcs
                         ChangeRelationAction.ApplyPlayerRelation(evt.InstigatorHero, -10);
                         ChangeRelationAction.ApplyPlayerRelation(targetHero, -10);
                         playerMsg = isArrival
-                            ? $"⚔ {instigator}的军队开到了{loc}——与{victim}的部队短兵相接！边境烽火已经点燃。"
-                            : $"{instigator}与{victim}的矛盾彻底爆发了！双方在{loc}边境兵戎相见，血流成河。";
+                            // 过期后果：贵族冲突（军队开到时）
+                            ? LWNTextHelper.ResolveCompound("LWN_simulator_expiry_nobleconflict_arrival", ("INSTIGATOR", instigator), ("LOC", loc), ("VICTIM", victim))
+                            // 过期后果：贵族冲突（兵戎相见）
+                            : LWNTextHelper.ResolveCompound("LWN_simulator_expiry_nobleconflict", ("INSTIGATOR", instigator), ("VICTIM", victim), ("LOC", loc));
                     }
                     break;
 
                 case EventType.Fugitive:
                     if (targetHero != null && targetHero.IsAlive)
                     {
-                        string name = targetHero.Name?.ToString() ?? "逃犯";
-                        playerMsg = $"{name}的踪迹彻底断了——也许是逃走了，也许是被人抓回去了。{loc}又恢复了表面的平静。";
+                        // 逃犯名兜底：逃犯
+                        string name = targetHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_fugitive", "the fugitive");
+                        // 过期后果：逃犯下落不明
+                        playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_fugitive", ("NAME", name), ("LOC", loc));
                     }
                     break;
 
                 case EventType.RomanticConflict:
                     if (targetHero != null)
                     {
-                        playerMsg = $"{victim}的心被伤透了——那场决斗没有赢家。{loc}的人茶余饭后又多了一段谈资。";
+                        // 过期后果：情仇无赢家
+                        playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_romantic", ("VICTIM", victim), ("LOC", loc));
                     }
                     break;
 
                 case EventType.FalseAccusation:
                     if (targetHero != null)
                     {
-                        playerMsg = $"{victim}被定罪了——证据始终没能找到。{loc}少了一个清白的人，多了一个冤魂。";
+                        // 过期后果：冤案成定局
+                        playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_falseaccusation", ("VICTIM", victim), ("LOC", loc));
                     }
                     break;
 
                 case EventType.InheritanceDispute:
-                    playerMsg = $"{loc}的继承之争尘埃落定——但不是通过法理，而是通过拳头。家族的裂痕怕是永远无法弥合了。";
+                    // 过期后果：继承之争靠拳头解决
+                    playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_inheritance", ("LOC", loc));
                     break;
 
                 case EventType.TradeDispute:
-                    playerMsg = $"{loc}的市场被{instigator}垄断了——小商人们破产的破产，远走他乡的远走他乡。";
+                    // 过期后果：市场被垄断
+                    playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_tradedispute", ("LOC", loc), ("INSTIGATOR", instigator));
                     break;
 
                 default:
-                    playerMsg = $"{loc}的危机没能得到解决——事情正在向最坏的方向发展。";
+                    // 过期后果兜底
+                    playerMsg = LWNTextHelper.ResolveCompound("LWN_simulator_expiry_default", ("LOC", loc));
                     break;
             }
 
@@ -1547,7 +1594,8 @@ namespace LivingWorldNpcs
                 }
 
                 // 创建 party
-                string displayName = auxConfig.NameTemplate.Replace("{TARGET}", targetSettlement.Name?.ToString() ?? "目的地");
+                // 目标名兜底：目的地
+                string displayName = auxConfig.NameTemplate.Replace("{TARGET}", targetSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_destination", "destination"));
                 var component = new CustomPartyComponent(targetSettlement, displayName);
                 MobileParty party = V.MakeParty(partyId, component);
                 if (party != null) V.SetPartyName(party,new TextObject(displayName));
@@ -1750,42 +1798,67 @@ namespace LivingWorldNpcs
 
         private string GetPartyNameTemplate(WorldEventConfig config, Hero instigator, Settlement settlement, Hero target)
         {
-            string name = instigator?.Name?.ToString() ?? "某人";
-            string loc = settlement?.Name?.ToString() ?? "某地";
-            string tgt = target?.Name?.ToString() ?? "目标";
+            // 加害方名兜底：某人
+            string name = instigator?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_someone", "someone");
+            // 地点名兜底：某地
+            string loc = settlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_place", "Somewhere");
+            // 目标名兜底：目标
+            string tgt = target?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_target", "the target");
 
             switch (config.EventType)
             {
-                case EventType.BanditRaid: return $"{name}的劫掠队";
-                case EventType.Kidnapping: return $"{name}的绑匪帮";
-                case EventType.Betrayal: return $"{name}的叛军";
-                case EventType.DebtTrap: return $"{name}的讨债队";
-                case EventType.NobleConflict: return $"{name}的征讨军";
-                case EventType.SacredTheft: return $"{name}的盗贼团";
-                case EventType.Assassination: return $"{name}的刺客";
-                case EventType.Fugitive: return $"追捕{tgt}的{name}部队";
-                default: return $"{name}的部队";
+                // 事件部队名：劫掠队
+                case EventType.BanditRaid: return LWNTextHelper.ResolveCompound("LWN_simulator_party_banditraid", ("NAME", name));
+                // 事件部队名：绑匪帮
+                case EventType.Kidnapping: return LWNTextHelper.ResolveCompound("LWN_simulator_party_kidnapping", ("NAME", name));
+                // 事件部队名：叛军
+                case EventType.Betrayal: return LWNTextHelper.ResolveCompound("LWN_simulator_party_betrayal", ("NAME", name));
+                // 事件部队名：讨债队
+                case EventType.DebtTrap: return LWNTextHelper.ResolveCompound("LWN_simulator_party_debttrap", ("NAME", name));
+                // 事件部队名：征讨军
+                case EventType.NobleConflict: return LWNTextHelper.ResolveCompound("LWN_simulator_party_nobleconflict", ("NAME", name));
+                // 事件部队名：盗贼团
+                case EventType.SacredTheft: return LWNTextHelper.ResolveCompound("LWN_simulator_party_sacredtheft", ("NAME", name));
+                // 事件部队名：刺客
+                case EventType.Assassination: return LWNTextHelper.ResolveCompound("LWN_simulator_party_assassination", ("NAME", name));
+                // 事件部队名：追捕部队
+                case EventType.Fugitive: return LWNTextHelper.ResolveCompound("LWN_simulator_party_fugitive", ("TGT", tgt), ("NAME", name));
+                // 事件部队名兜底
+                default: return LWNTextHelper.ResolveCompound("LWN_simulator_party_default", ("NAME", name));
             }
         }
 
         private string GetGenericPartyName(WorldEventConfig config, Settlement settlement, Hero target)
         {
-            string loc = settlement?.Name?.ToString() ?? "某地";
-            string tgt = target?.Name?.ToString() ?? "目标";
+            // 地点名兜底：某地
+            string loc = settlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_place", "Somewhere");
+            // 目标名兜底：目标
+            string tgt = target?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_simulator_fallback_target", "the target");
 
             switch (config.EventType)
             {
-                case EventType.BanditRaid: return $"劫掠{loc}的匪帮";
-                case EventType.Kidnapping: return $"绑走{tgt}的匪徒";
-                case EventType.Betrayal: return $"{loc}的叛变者";
-                case EventType.DebtTrap: return $"{loc}的催债人";
-                case EventType.RomanticConflict: return $"{loc}的决斗者";
-                case EventType.FalseAccusation: return $"{loc}的真凶";
-                case EventType.Fugitive: return $"追捕{tgt}的赏金猎人";
-                case EventType.SacredTheft: return $"偷走{loc}圣物的盗贼";
-                case EventType.Assassination: return $"刺杀{tgt}的不知名刺客";
-                case EventType.NemesisRevenge: return $"{tgt}的宿敌";
-                default: return $"{loc}的事件部队";
+                // 通用部队名：劫掠匪帮
+                case EventType.BanditRaid: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_banditraid", ("LOC", loc));
+                // 通用部队名：绑匪
+                case EventType.Kidnapping: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_kidnapping", ("TGT", tgt));
+                // 通用部队名：叛变者
+                case EventType.Betrayal: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_betrayal", ("LOC", loc));
+                // 通用部队名：催债人
+                case EventType.DebtTrap: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_debttrap", ("LOC", loc));
+                // 通用部队名：决斗者
+                case EventType.RomanticConflict: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_romantic", ("LOC", loc));
+                // 通用部队名：真凶
+                case EventType.FalseAccusation: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_falseacc", ("LOC", loc));
+                // 通用部队名：赏金猎人
+                case EventType.Fugitive: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_fugitive", ("TGT", tgt));
+                // 通用部队名：盗圣物的贼
+                case EventType.SacredTheft: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_sacredtheft", ("LOC", loc));
+                // 通用部队名：不知名刺客
+                case EventType.Assassination: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_assassination", ("TGT", tgt));
+                // 通用部队名：宿敌
+                case EventType.NemesisRevenge: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_nemesis", ("TGT", tgt));
+                // 通用部队名兜底
+                default: return LWNTextHelper.ResolveCompound("LWN_simulator_generic_default", ("LOC", loc));
             }
         }
 
