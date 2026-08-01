@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
+  <tags>
+    <tag language="简体中文" />
+  </tags>
+  <strings>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- NPCProfile — LLM prompt / 探查 UI 模板        -->
+    <!-- ═══════════════════════════════════════════ -->
+
+    <!-- ═══ GetClanInfo ═══ -->
+    <!-- 无 Hero 无 Character：无家族势力 -->
+    <string id="LWN_prompt_clan_no_hero" text="无家族势力，孤身一人，没有任何家族背景支持。" />
+    <!-- 模板 NPC 有 ClanId：在某家族服役 -->
+    <string id="LWN_prompt_clan_template_has_clan" text="--- 家族背景 ---\n无显赫家族背景。作为一名普通的{ROLE}，依靠在{CLAN_NAME}家族中服役维持生计。" />
+    <!-- 模板 NPC 无 ClanId：在别人家族服役 -->
+    <string id="LWN_prompt_clan_template_no_clan" text="--- 家族背景 ---\n无显赫家族背景。作为一名普通的{ROLE}，依靠在别人家族中服役维持生计。" />
+    <!-- Hero 但无 Clan：游民 -->
+    <string id="LWN_prompt_clan_wanderer" text="无家族势力（游民），孤身一人，没有任何家族背景支持。" />
+    <!-- Hero 有 Clan：完整家族信息模板 -->
+    <string id="LWN_prompt_clan_hero" text="--- 家族背景 ---
+家族名称：[{CLAN}]，等级：{TIER}级。声望：{RENOWN}。
+综合评价：{STRENGTH}。
+在家族中的地位：{STATUS}。
+家族领地：拥有 {TOWNS} 座城市 和 {CASTLES} 座城堡 (共占全境的 {PCT}%，{MY}/{TOTAL})。
+家族财力：{WEALTH} (现有资金 {GOLD} 两黄金)。
+家族影响力：{INF}。" />
+
+    <!-- 家族身份描述 -->
+    <string id="LWN_prompt_clan_status_leader" text="家族族长 (拥有家族最高决策权)" />
+    <string id="LWN_prompt_clan_status_spouse" text="族长配偶 (享有极高尊荣)" />
+    <string id="LWN_prompt_clan_status_heir" text="家族少主/千金 (嫡系血亲)" />
+    <string id="LWN_prompt_clan_status_companion" text="家族家臣/同伴 (因能力被招募，地位取决于功绩)" />
+    <string id="LWN_prompt_clan_status_member" text="普通成员" />
+
+    <!-- 财力描述 -->
+    <string id="LWN_prompt_clan_wealth_fabulous" text="富可敌国" />
+    <string id="LWN_prompt_clan_wealth_rich" text="腰缠万贯" />
+    <string id="LWN_prompt_clan_wealth_comfortable" text="家境殷实" />
+    <string id="LWN_prompt_clan_wealth_struggling" text="勉强维持" />
+    <string id="LWN_prompt_clan_wealth_poor" text="囊中羞涩" />
+
+    <!-- 实力描述 -->
+    <string id="LWN_prompt_clan_strength_warlord" text="一方诸侯 (领土广阔，足以自立)" />
+    <string id="LWN_prompt_clan_strength_top" text="顶级权贵 (拥有大量封地)" />
+    <string id="LWN_prompt_clan_strength_finance" text="金融巨鳄 (虽领地不多但财力惊人)" />
+    <string id="LWN_prompt_clan_strength_traditional" text="传统豪门 (声望极高)" />
+    <string id="LWN_prompt_clan_strength_landed" text="有地贵族 (拥有根基)" />
+    <string id="LWN_prompt_clan_strength_landless" text="无地游族 (飘摇不定)" />
+
+    <!-- ═══ GetKingdomInfo ═══ -->
+    <!-- 模板 NPC 有 KingdomId -->
+    <string id="LWN_prompt_kingdom_template_has" text="--- 国家势力 ---\n隶属于 {KINGDOM} 。" />
+    <!-- 模板 NPC 无 KingdomId -->
+    <string id="LWN_prompt_kingdom_template_no" text="--- 国家势力 ---\n不效忠任何国家。" />
+    <!-- Hero 无 Clan/Kingdom：独立状态 -->
+    <string id="LWN_prompt_kingdom_independent" text="--- 国家势力 ---\n当前不效忠于任何国家，处于独立状态。这意味着没有国王的庇护，但也无需纳税或响应征召。" />
+    <!-- Hero 有 Kingdom：完整国家信息模板 -->
+    <string id="LWN_prompt_kingdom_hero" text="--- 效忠国家 ---
+国家名称：[{NAME}]，文化：{CULTURE}。
+国家国力：{POWER} (综合战力排名：第 {RANK} / {TOTAL} 位)。
+军事规模：现有正规军团 {ARMIES} 支，总战力指数 {STRENGTH}。
+外交局势：{WAR}。
+与君主关系：{RULER_REL}。" />
+
+    <!-- 国力描述 -->
+    <string id="LWN_prompt_kingdom_power_hegemon" text="大陆霸主 (最强帝国)" />
+    <string id="LWN_prompt_kingdom_power_great" text="列强之一 (第一梯队)" />
+    <string id="LWN_prompt_kingdom_power_middle" text="中等国家 (区域势力)" />
+    <string id="LWN_prompt_kingdom_power_weak" text="弱势国家 (风雨飘摇)" />
+
+    <!-- 战争/和平状态 -->
+    <!-- 处于战争状态：{ENEMIES}=敌方列表 -->
+    <string id="LWN_prompt_kingdom_war_active" text="处于战争状态！正在与 [{ENEMIES}] 交战。" />
+    <!-- 和平状态 -->
+    <string id="LWN_prompt_kingdom_war_peace" text="当前处于和平时期，休养生息。" />
+
+    <!-- 统治者关系 -->
+    <string id="LWN_prompt_kingdom_ruler_self" text="自身就是君主" />
+    <!-- 君臣相知：{REL}=关系值 -->
+    <string id="LWN_prompt_kingdom_ruler_trusted" text="君臣相知 (关系 {REL})" />
+    <!-- 受到猜忌：{REL}=关系值 -->
+    <string id="LWN_prompt_kingdom_ruler_suspect" text="受到猜忌 (关系 {REL})" />
+    <!-- 泛泛之交：{REL}=关系值 -->
+    <string id="LWN_prompt_kingdom_ruler_neutral" text="泛泛之交 (关系 {REL})" />
+
+    <!-- ═══ GetSelfInfo ═══ -->
+    <!-- 模板 NPC（无 Hero）身份描述 -->
+    <string id="LWN_prompt_self_template_npc" text="-身份：{NAME}\n-等级：{TIER}\n职业1：{OCC1}\n-职业2：{OCC2}" />
+    <!-- 模板 NPC 无数据兜底 -->
+    <string id="LWN_prompt_self_none" text="无" />
+    <!-- Hero 人物核心设定头部 -->
+    <string id="LWN_prompt_self_hero_header" text="## 人物核心设定
+-姓名：[{NAME}]
+-性别：{GENDER}
+-年龄：{AGE}岁
+-配偶：[{SPOUSE}]
+-职业：[{OCC}]" />
+    <!-- 自我阶级认知区块头 -->
+    <string id="LWN_prompt_self_worth_header" text="## 自我阶级认知" />
+    <!-- 目标与动机区块头 -->
+    <string id="LWN_prompt_self_goals_header" text="## 目标与动机" />
+    <!-- 喜好信息区块头 -->
+    <string id="LWN_prompt_self_prefs_header" text="## 喜好信息" />
+    <!-- 喜好行模板 -->
+    <string id="LWN_prompt_self_prefs_line" text="-物欲：{DESIRE}
+-喜好类型：{DESIRE_TYPE}
+对酒的态度: {ALCOHOL}
+偏好武器: {WEAPON}
+工作偏好: {JOB}" />
+    <!-- 性格和价值观区块头 -->
+    <string id="LWN_prompt_self_personality_header" text="## 性格和价值观" />
+    <!-- 性格行模板 -->
+    <string id="LWN_prompt_self_personality_line" text="-野心程度：{AMBITION}
+-行事风格: {STYLE}
+-脾气: {TEMPER}
+-精神: {SPIRIT}
+-主义: {ISM}
+-对情义的态度: {FRIENDSHIP}" />
+    <!-- 当前生理状态区块头 -->
+    <string id="LWN_prompt_self_status_header" text="## 当前生理状态" />
+    <!-- 健康状况行模板 -->
+    <string id="LWN_prompt_self_health_line" text="健康状况：{DESC} (HP: {HP}%)。" />
+    <!-- 健康描述 -->
+    <string id="LWN_prompt_self_health_energetic" text="精力充沛" />
+    <string id="LWN_prompt_self_health_wounded" text="受了些伤" />
+    <string id="LWN_prompt_self_health_critical" text="身负重伤，濒临倒下" />
+
+    <!-- ═══ CalCurrentMotivation ═══ -->
+    <!-- 动机标签 -->
+    <string id="LWN_prompt_motivation_label" text="长期目标：{LIFE_GOAL}
+短期目标：{SHORT_GOAL}" />
+    <!-- 模板 NPC — 村民 -->
+    <string id="LWN_prompt_goal_villager_long" text="平平安安过日子。" />
+    <string id="LWN_prompt_goal_villager_short" text="做完手头的活。" />
+    <!-- 模板 NPC — 默认（守卫等） -->
+    <string id="LWN_prompt_goal_template_long" text="活着领到军饷/工钱" />
+    <string id="LWN_prompt_goal_template_short" text="执行当前的站岗或巡逻任务" />
+    <!-- 国王 — 理想主义+高野心 -->
+    <string id="LWN_prompt_goal_king_ideal" text="统一大陆，建立万世不朽的理想国度" />
+    <!-- 国王 — 高野心（≥80） -->
+    <string id="LWN_prompt_goal_king_conquer" text="征服一切，让所有国家臣服于我的脚下" />
+    <!-- 国王 — 慎重行事 -->
+    <string id="LWN_prompt_goal_king_stable" text="维持国内稳定，确保王朝平稳传承" />
+    <!-- 国王 — 默认 -->
+    <string id="LWN_prompt_goal_king_default" text="享受权力的巅峰，维持现状" />
+    <!-- 族长 — 高野心+低荣誉 → 篡位 -->
+    <string id="LWN_prompt_goal_clan_leader_usurp" text="积蓄力量，推翻现有的君主，自立为王" />
+    <!-- 族长 — 高野心+荣誉正常 → 权臣 -->
+    <string id="LWN_prompt_goal_clan_leader_magnate" text="带领家族成为王国中最有权势的豪门" />
+    <!-- 族长 — 现实主义+贪心 → 商业帝国 -->
+    <string id="LWN_prompt_goal_clan_leader_commerce" text="垄断贸易，建立富可敌国的商业帝国" />
+    <!-- 族长 — 荣誉高 → 忠臣 -->
+    <string id="LWN_prompt_goal_clan_leader_loyal" text="作为家族的守护者，尽忠职守，光耀门楣" />
+    <!-- 族长 — 默认 -->
+    <string id="LWN_prompt_goal_clan_leader_default" text="在这个乱世中保全家族，使其延续下去" />
+    <!-- 流浪者 — 高野心 -->
+    <string id="LWN_prompt_goal_wanderer_ambitious" text="寻找明主或机会，摆脱流浪身份，晋升为贵族" />
+    <!-- 流浪者 — 贪心 -->
+    <string id="LWN_prompt_goal_wanderer_greedy" text="作为雇佣兵或强盗，攫取尽可能多的财富" />
+    <!-- 流浪者 — 默认 -->
+    <string id="LWN_prompt_goal_wanderer_default" text="四海为家，寻找属于自己的归宿" />
+    <!-- 普通家族成员 — 高野心+精明 → 幕后操纵 -->
+    <string id="LWN_prompt_goal_member_manipulate" text="在幕后操纵家族政治，掌握实权" />
+    <!-- 普通家族成员 — 勇敢 → 家族利剑 -->
+    <string id="LWN_prompt_goal_member_blade" text="在战场上证明自己，成为家族的利剑" />
+    <!-- 普通家族成员 — 重情义 → 辅佐 -->
+    <string id="LWN_prompt_goal_member_support" text="辅佐家主（或配偶），维系家族成员间的羁绊" />
+    <!-- 普通家族成员 — 默认 -->
+    <string id="LWN_prompt_goal_member_default" text="享受贵族生活，安稳度过一生" />
+
+    <!-- ShortGoal 各分支 -->
+    <!-- 酒鬼当前念头 -->
+    <string id="LWN_prompt_shortgoal_alcoholic" text="非常渴求酒精，现在的首要念头是找个酒馆喝个烂醉" />
+    <!-- 战争状态 — 备战 -->
+    <string id="LWN_prompt_shortgoal_war_eager" text="备战：渴望在当前的战争中击败敌将，赢取声望与战利品" />
+    <!-- 战争状态 — 避战 -->
+    <string id="LWN_prompt_shortgoal_war_avoid" text="避战：战火纷飞，只想躲在安全的城墙后，避免被俘虏" />
+    <!-- 战争状态 — 投机 -->
+    <string id="LWN_prompt_shortgoal_war_profit" text="投机：趁着战争混乱，通过掠夺村庄或发战争财来获利" />
+    <!-- 战争状态 — 尽职 -->
+    <string id="LWN_prompt_shortgoal_war_duty" text="尽职：响应国家号召，保卫领土" />
+    <!-- 经济困难 — 筹款 -->
+    <string id="LWN_prompt_shortgoal_economy_shortfall" text="筹款：家族财政赤字，需要通过正当贸易或任务来维持开支" />
+    <!-- 经济困难 — 搞钱 -->
+    <string id="LWN_prompt_shortgoal_economy_cash" text="搞钱：缺钱了，不论是抢劫商队还是敲诈勒索，必须尽快弄到第纳尔" />
+    <!-- 物欲驱动的 ShortGoal — 求知/整备/收藏/敛财/经营 -->
+    <string id="LWN_prompt_shortgoal_desire_knowledge" text="求知：希望能在这个城市找到珍稀的古籍或知识" />
+    <string id="LWN_prompt_shortgoal_desire_gear" text="整备：正在寻找一把趁手的神兵利器，或者改良现有的装备" />
+    <string id="LWN_prompt_shortgoal_desire_collect" text="收藏：对异域的珍宝或艺术品非常感兴趣，想要将其收入囊中" />
+    <string id="LWN_prompt_shortgoal_desire_hoard" text="敛财：虽然不缺钱，但看到金币增加是最快乐的事" />
+    <string id="LWN_prompt_shortgoal_desire_manage" text="经营：管理好现有的产业和商队" />
+    <!-- 联姻 -->
+    <string id="LWN_prompt_shortgoal_marriage" text="联姻：正在物色合适的政治联姻对象" />
+    <!-- 磨炼 -->
+    <string id="LWN_prompt_shortgoal_training" text="磨炼：在竞技场打磨武艺，或者训练手下的士兵" />
+    <!-- 享乐 -->
+    <string id="LWN_prompt_shortgoal_pleasure" text="享乐：最近只想举办宴会，吃喝玩乐" />
+    <!-- 待命（默认兜底） -->
+    <string id="LWN_prompt_shortgoal_standby" text="待命：目前没有什么特别的打算，随遇而安。" />
+
+    <!-- ═══ GetSelfWorthDescription ═══ -->
+    <!-- 自我认知模板 -->
+    <string id="LWN_prompt_worth_template" text="出身源头：{ORIGIN}
+身价：{VAL} 两金子。
+自我认知：{DESC}" />
+    <!-- 身价描述 -->
+    <string id="LWN_prompt_worth_low" text="微不足道。只要对方给点小恩小惠，或者表现出诚意，就愿意跟随对方。" />
+    <string id="LWN_prompt_worth_medium" text="颇有身价。是有一定身份的人，一般的筹码打动不了，对方需要拿出真金白银。" />
+    <string id="LWN_prompt_worth_high" text="价值连城。作为名门望族的核心成员，身价极高。除非有巨大的利益交换（如城池、巨额财富），否则对方免谈。" />
+    <string id="LWN_prompt_worth_extreme" text="无价之宝/权倾天下。你想收买？这简直是天方夜谭，除非你能拿出半个王国的财富。" />
+
+    <!-- ═══ GetCloseRelations ═══ -->
+    <!-- 关系网头部：{NAME}=英雄名 -->
+    <string id="LWN_prompt_relations_header" text="获取 {NAME} 的关系网：" />
+    <!-- 关系标签 -->
+    <string id="LWN_prompt_relations_spouse" text="-配偶：{NAME}{DECEASED}" />
+    <string id="LWN_prompt_relations_father" text="-父亲：{NAME}{DECEASED}" />
+    <string id="LWN_prompt_relations_mother" text="-母亲：{NAME}{DECEASED}" />
+    <string id="LWN_prompt_relations_children_label" text="-子女：" />
+    <string id="LWN_prompt_relations_siblings_label" text="-兄弟：" />
+    <string id="LWN_prompt_relations_uncles_label" text="-叔伯姑舅姨：" />
+    <string id="LWN_prompt_relations_other_clan_label" text="-其他家族成员：" />
+    <string id="LWN_prompt_relations_friends_label" text="-好友：" />
+    <string id="LWN_prompt_relations_rivals_label" text="-政敌：" />
+    <string id="LWN_prompt_relations_clan_circle_label" text="-族长圈子：" />
+    <!-- 已过世标记 -->
+    <string id="LWN_prompt_relations_deceased" text="(已过世)" />
+
+    <!-- ═══ Trait 属性显示值 ═══ -->
+    <!-- Temper 脾气 — 温和 / 性急 / 普通 -->
+    <string id="LWN_prompt_trait_temper_mild" text="温和" />
+    <string id="LWN_prompt_trait_temper_impatient" text="性急" />
+    <string id="LWN_prompt_trait_temper_normal" text="普通" />
+    <!-- Spirit 精神 — 胆小 / 勇敢 / 普通 -->
+    <string id="LWN_prompt_trait_spirit_timid" text="胆小" />
+    <string id="LWN_prompt_trait_spirit_brave" text="勇敢" />
+    <string id="LWN_prompt_trait_spirit_normal" text="普通" />
+    <!-- Ism 主义 — 现实 / 理想 / 普通 -->
+    <string id="LWN_prompt_trait_ism_realistic" text="现实" />
+    <string id="LWN_prompt_trait_ism_ideal" text="理想" />
+    <string id="LWN_prompt_trait_ism_normal" text="普通" />
+    <!-- ActStyle 行事风格 — 慎重 / 轻率 / 普通 -->
+    <string id="LWN_prompt_trait_style_cautious" text="慎重" />
+    <string id="LWN_prompt_trait_style_reckless" text="轻率" />
+    <string id="LWN_prompt_trait_style_normal" text="普通" />
+    <!-- Friendship 情义 — 不重情义 / 重视情义 / 普通 -->
+    <string id="LWN_prompt_trait_friendship_pragmatic" text="不重情义" />
+    <string id="LWN_prompt_trait_friendship_loyal" text="重视情义" />
+    <string id="LWN_prompt_trait_friendship_normal" text="普通" />
+    <!-- Desire 物欲 — 无欲 / 贪心 / 普通 -->
+    <string id="LWN_prompt_trait_desire_content" text="无欲" />
+    <string id="LWN_prompt_trait_desire_greedy" text="贪心" />
+    <string id="LWN_prompt_trait_desire_normal" text="普通" />
+    <!-- DesireType 喜好类型 — 金钱 / 书籍 / 武具 / 南蛮物 / 艺术品 -->
+    <string id="LWN_prompt_trait_desiretype_money" text="金钱" />
+    <string id="LWN_prompt_trait_desiretype_books" text="书籍" />
+    <string id="LWN_prompt_trait_desiretype_weapons" text="武具" />
+    <string id="LWN_prompt_trait_desiretype_exotic" text="南蛮物" />
+    <string id="LWN_prompt_trait_desiretype_art" text="艺术品" />
+    <!-- Alcohol 酒精 — 滴酒不沾 / 嗜酒如命 / 普通 -->
+    <string id="LWN_prompt_trait_alcohol_teetotaler" text="滴酒不沾" />
+    <string id="LWN_prompt_trait_alcohol_alcoholic" text="嗜酒如命" />
+    <string id="LWN_prompt_trait_alcohol_normal" text="普通" />
+    <!-- Origin 出身 — 藤原氏 / 平氏 / 源氏 / 其他 -->
+    <string id="LWN_prompt_trait_origin_fujiwara" text="藤原氏" />
+    <string id="LWN_prompt_trait_origin_taira" text="平氏" />
+    <string id="LWN_prompt_trait_origin_minamoto" text="源氏" />
+    <string id="LWN_prompt_trait_origin_other" text="其他" />
+    <!-- Weapon 武器偏好 — 刀剑 / 枪 / 弓 / 火绳枪 / 锁镰 / 其他 -->
+    <string id="LWN_prompt_trait_weapon_sword" text="刀剑" />
+    <string id="LWN_prompt_trait_weapon_spear" text="枪" />
+    <string id="LWN_prompt_trait_weapon_bow" text="弓" />
+    <string id="LWN_prompt_trait_weapon_gun" text="火绳枪" />
+    <string id="LWN_prompt_trait_weapon_kusarigama" text="锁镰" />
+    <string id="LWN_prompt_trait_weapon_other" text="其他" />
+    <!-- Job 工作倾向 — 没那个意思 / 只限武将 / 全职种 / 武将以外优先 -->
+    <string id="LWN_prompt_trait_job_uninterested" text="没那个意思" />
+    <string id="LWN_prompt_trait_job_warrior_only" text="只限武将" />
+    <string id="LWN_prompt_trait_job_all" text="全职种" />
+    <string id="LWN_prompt_trait_job_prefers_noncombat" text="武将以外优先" />
+    <!-- Gender / Role 标签 -->
+    <string id="LWN_prompt_trait_gender_female" text="女" />
+    <string id="LWN_prompt_trait_gender_male" text="男" />
+    <string id="LWN_prompt_trait_role_soldier" text="士兵" />
+    <string id="LWN_prompt_trait_role_civilian" text="平民" />
+    <!-- Occupation 职业 -->
+    <string id="LWN_prompt_trait_occupation_noble" text="贵族" />
+    <string id="LWN_prompt_trait_occupation_merchant" text="商人" />
+    <string id="LWN_prompt_trait_occupation_gang_leader" text="帮派头目" />
+    <string id="LWN_prompt_trait_occupation_wanderer" text="游民" />
+    <string id="LWN_prompt_trait_occupation_foot_soldier" text="足轻" />
+    <string id="LWN_prompt_trait_occupation_villager" text="村民" />
+  </strings>
+</base>

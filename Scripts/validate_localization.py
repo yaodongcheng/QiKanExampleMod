@@ -80,6 +80,15 @@ KNOWN_PLACEHOLDERS = {
     "VICTIM_LINE", "VIGOR", "WAGERED", "WEIGHT", "WHERECLAUSE", "WIFE",
     "WITNESS", "WITNESS_CLAUSE", "WORLDDESC", "WORLD_DESCRIPTION",
     "WOUND", "WOUNDED",
+    # Prompt template placeholders (NPCProfile / ResolveCompound)
+    "AGE", "ALCOHOL", "AMBITION", "ARMIES", "CASTLES", "CLAN_NAME",
+    "CULTURE", "DECEASED", "DESIRE", "DESIRE_TYPE", "ENEMIES",
+    "FRIENDSHIP", "GENDER", "INF", "ISM", "JOB", "KINGDOM",
+    "LIFE_GOAL", "MY", "OCC", "OCC1", "OCC2", "ORIGIN",
+    "POWER", "RANK", "REL", "RENOWN", "RULER_REL",
+    "SHORT_GOAL", "SPIRIT", "STATUS", "STRENGTH", "STYLE",
+    "TEMPER", "TOWNS", "VAL", "WAR", "WEALTH", "WEAPON",
+    "PCT", "TIER", "HP", "SPOUSE", "ROLE", "CLAN",
 }
 
 # Files exempt from {=!} check (known legacy code pending migration)
@@ -143,7 +152,7 @@ def check_cs_no_hardcoded_cjk():
         'CommandManager.cs', 'LogicCommands.cs', 'SystemCommands.cs',
         'VisualCommands.cs', 'StageDirector.cs', 'Text2Anim.cs',
         'ReadStory.cs', 'DesignDataLoad.cs',
-        'GroupStageManager.cs', 'NpcIntent.cs',
+        'GroupStageManager.cs',
         'AiSuspendPatch.cs', 'AiPatrollingNullFix.cs',
         'DebugBehavior.cs', 'MyCustomUIVM.cs',
         'IssueFilterBehavior.cs', 'IssueFilterPatch.cs',

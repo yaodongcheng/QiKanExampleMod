@@ -74,7 +74,7 @@
                         <Children>
                              <!-- "点击继续" 提示（NPC 说话中显示，选项出现时隐藏） -->
                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                        Text="点击屏幕继续"
+                                        Text="@ContinueHintText"
                                         IsVisible="true"
                                         Brush="Brush_DialogText"
                                         TextColor="#88888888"

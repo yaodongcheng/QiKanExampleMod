@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Xml;
 using TaleWorlds.Localization;
 
 namespace LivingWorldNpcs
@@ -6,12 +10,15 @@ namespace LivingWorldNpcs
     /// 本地化文本统一入口：封装 TextObject + PlaceholderResolver。
     /// TextObject("{=KEY}fallback") 自带 XML 查找：查到用翻译，查不到用 fallback。
     ///
+    /// 🔴 English 特殊处理：引擎对 English 直接使用 C# fallback，不查 XML。
+    ///    因此 InitializeEnglishFallback() 必须在启动时调用，从 English XML 构建 fallback 字典。
+    ///
     /// 使用方式：
     ///   // 带 PlaceholderResolver 的叙事文本
     ///   string text = LWNTextHelper.Resolve("LWN_narr_supply_emergency_opening_any", resolver, "fallback text");
     ///
-    ///   // 纯文本（无占位符）
-    ///   string text = LWNTextHelper.ResolveText("LWN_ui_detention_pay_fine", "Pay fine");
+    ///   // 纯文本（无占位符）— 无显式 fallback 时自动从 English XML 取
+    ///   string text = LWNTextHelper.ResolveText("LWN_ui_detention_pay_fine");
     ///
     ///   // 拼接场景：key + 显式键值对（语序由 XML 控制）
     ///   string text = LWNTextHelper.ResolveCompound("LWN_ph_suspect_description",
@@ -20,21 +27,96 @@ namespace LivingWorldNpcs
     public static class LWNTextHelper
     {
         /// <summary>
+        /// English fallback 字典：key → English text（从 std_LivingWorldNpcs_strings.xml 加载）。
+        /// 引擎对 English 语言直接使用 C# fallback 文本，不查 XML 翻译表，
+        /// 因此必须在启动时加载此字典，为所有无显式 fallback 的调用提供英文兜底。
+        /// </summary>
+        private static Dictionary<string, string> _englishFallback;
+
+        /// <summary>
+        /// 从 Languages/ 根目录扫描所有 std_*.xml（string + prompts 等），加载为 English fallback 字典。
+        /// 必须在 OnSubModuleLoad 中调用。
+        /// </summary>
+        /// <param name="modulePath">模块根目录路径（ModuleHelper.GetModuleFullPath("LivingWorldNpcs")）</param>
+        public static void InitializeEnglishFallback(string modulePath)
+        {
+            _englishFallback = new Dictionary<string, string>();
+            string langDir = Path.Combine(modulePath, "ModuleData", "Languages");
+
+            if (!Directory.Exists(langDir))
+            {
+                DebugLogger.Log($"LWNTextHelper: Languages dir not found at {langDir}");
+                return;
+            }
+
+            // Scan ALL std_*.xml files in the root Languages/ directory
+            var xmlFiles = Directory.GetFiles(langDir, "std_*.xml", SearchOption.TopDirectoryOnly);
+            int totalCount = 0;
+
+            foreach (string xmlPath in xmlFiles)
+            {
+                try
+                {
+                    var doc = new XmlDocument();
+                    doc.Load(xmlPath);
+
+                    var stringsNode = doc.SelectSingleNode("base/strings") ?? doc.SelectSingleNode("//strings");
+                    if (stringsNode == null) continue;
+
+                    int fileCount = 0;
+                    foreach (XmlNode node in stringsNode.ChildNodes)
+                    {
+                        if (node.Name == "string" && node.NodeType != XmlNodeType.Comment && node.Attributes != null)
+                        {
+                            string id = node.Attributes["id"]?.Value;
+                            string text = node.Attributes["text"]?.Value;
+                            if (!string.IsNullOrEmpty(id) && text != null)
+                            {
+                                _englishFallback[id] = text;
+                                fileCount++;
+                            }
+                        }
+                    }
+                    totalCount += fileCount;
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"LWNTextHelper: Failed to load {Path.GetFileName(xmlPath)}: {ex.Message}");
+                }
+            }
+
+            DebugLogger.Log($"LWNTextHelper: Loaded {totalCount} English fallback entries from {xmlFiles.Length} files");
+        }
+
+        /// <summary>
+        /// 从 English fallback 字典取 key 对应的英文文本。未加载或 key 不存在返回 null。
+        /// </summary>
+        private static string GetEnglishFallback(string key)
+        {
+            if (_englishFallback != null && _englishFallback.TryGetValue(key, out string text))
+                return text;
+            return null;
+        }
+
+        /// <summary>
         /// 用 localization key 取文本 + 用 PlaceholderResolver 填占位符。
         /// TextObject("{=KEY}fallback") 自带 XML 查找：查到用翻译，查不到用 fallback。
         /// </summary>
         public static string Resolve(string key, PlaceholderResolver resolver, string fallback = null)
         {
-            string fallbackText = fallback ?? key;
+            string fallbackText = fallback ?? GetEnglishFallback(key) ?? key;
             TextObject text = new TextObject($"{{={key}}}{fallbackText}", null);
             ApplyAllVariables(text, resolver);
             return text.ToString();
         }
 
-        /// <summary>不带 PlaceholderResolver 的纯文本解析。</summary>
+        /// <summary>
+        /// 不带 PlaceholderResolver 的纯文本解析。
+        /// 无显式 fallback 时自动从 English XML 字典取英文兜底。
+        /// </summary>
         public static string ResolveText(string key, string fallback = null)
         {
-            string fallbackText = fallback ?? key;
+            string fallbackText = fallback ?? GetEnglishFallback(key) ?? key;
             TextObject text = new TextObject($"{{={key}}}{fallbackText}", null);
             return text.ToString();
         }
@@ -55,11 +137,12 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 拼接场景专用：key + 显式指定的键值对（不走 PlaceholderResolver 全局扫）。
         /// 用于语序敏感拼接——每个变量由调用方显式传递，不由 ResolveOne 全局匹配。
-        /// 无 fallback 参数的重载：XML 缺失时直接显示 key（调试期便于发现遗漏）。
+        /// 无 fallback 参数时自动从 English XML 字典取英文兜底。
         /// </summary>
         public static string ResolveCompound(string key, params (string var, string value)[] variables)
         {
-            TextObject text = new TextObject($"{{={key}}}{key}", null);
+            string fallbackText = GetEnglishFallback(key) ?? key;
+            TextObject text = new TextObject($"{{={key}}}{fallbackText}", null);
             foreach (var (var, value) in variables)
             {
                 if (!string.IsNullOrEmpty(value))
@@ -69,9 +152,76 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 拼接场景专用（NAME 变量为 TextObject，保留 CJK 编码上下文）。
+        /// 解决 agent.Name 等 TextObject 被 .ToString() 降级后，英文模式下 CJK 字符显示为 ? 的问题。
+        /// </summary>
+        public static string ResolveCompoundWithNameObject(string key, string fallback, TaleWorlds.MountAndBlade.Agent agent, string nameFallback)
+        {
+            TextObject text = new TextObject($"{{={key}}}{fallback}", null);
+            var nameObj = agent?.Name;
+            if (nameObj != null)
+                TaleWorlds.Localization.MBTextManager.SetTextVariable("NAME", nameObj);
+            else
+                text.SetTextVariable("NAME", nameFallback);
+            return text.ToString();
+        }
+
+        /// <summary>
+        /// 拼接场景：混用 TextObject 和 string 变量。
+        /// TextObject 变量保留原始编码（CJK 名在英文下不会变 ?），string 走标准路径。
+        /// </summary>
+        public static string ResolveCompoundMixed(string key, string fallback, params (string var, object value)[] variables)
+        {
+            TextObject text = new TextObject($"{{={key}}}{fallback}", null);
+            foreach (var (var, value) in variables)
+            {
+                if (value == null) continue;
+                if (value is TextObject to)
+                    TaleWorlds.Localization.MBTextManager.SetTextVariable(var, to);
+                else
+                {
+                    string s = value.ToString();
+                    if (!string.IsNullOrEmpty(s))
+                        text.SetTextVariable(var, s);
+                }
+            }
+            return text.ToString();
+        }
+
+        /// <summary>
+        /// 返回 TextObject（不调用 .ToString()），GauntletUI 原生渲染保留语言/字体上下文。
+        /// 用于标题等需要嵌入 CJK 名字的场景。
+        /// </summary>
+        public static TextObject BuildCompoundTextObject(string key, string fallback, params (string var, object value)[] variables)
+        {
+            TextObject text = new TextObject($"{{={key}}}{fallback}", null);
+            foreach (var (var, value) in variables)
+            {
+                if (value == null) continue;
+                if (value is TextObject to)
+                    TaleWorlds.Localization.MBTextManager.SetTextVariable(var, to);
+                else
+                {
+                    string s = value.ToString();
+                    if (!string.IsNullOrEmpty(s))
+                        text.SetTextVariable(var, s);
+                }
+            }
+            return text;
+        }
+
+        /// <summary>
+        /// 拼接场景（无显式 fallback，自动从 English XML 取）：混用 TextObject 和 string 变量。
+        /// </summary>
+        public static string ResolveCompoundMixed(string key, params (string var, object value)[] variables)
+        {
+            string fallback = GetEnglishFallback(key) ?? key;
+            return ResolveCompoundMixed(key, fallback, variables);
+        }
+
+        /// <summary>
         /// 拼接场景专用（带 fallback）：key + 英文兜底 + 显式键值对。
         /// XML 缺失时展示 fallback（其中的 {VAR} 仍会被显式变量替换）。
-        /// 与无 fallback 重载并存：`(key, tuple...)` 走旧重载，`(key, "str", tuple...)` 走本重载。
         /// </summary>
         public static string ResolveCompound(string key, string fallback, params (string var, string value)[] variables)
         {

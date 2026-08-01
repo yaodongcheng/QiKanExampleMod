@@ -13,6 +13,7 @@ using System.IO;
 using TaleWorlds.CampaignSystem.MapEvents;
 using TaleWorlds.ObjectSystem;
 using System.Reflection;
+using TaleWorlds.ModuleManager;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.GauntletUI.Data;
 using TaleWorlds.ScreenSystem;
@@ -30,6 +31,9 @@ namespace LivingWorldNpcs
             base.OnSubModuleLoad();
 
             // 语言包由引擎自动扫描 Languages/ 目录加载，无需手动 LoadLocalizationXmls
+            // 🔴 但引擎对 English 直接使用 C# fallback，不查 XML。
+            //    因此必须加载 English XML 作为 fallback 字典，否则英文玩家看到的是 raw key 名。
+            LWNTextHelper.InitializeEnglishFallback(ModuleHelper.GetModuleFullPath("LivingWorldNpcs"));
 
             //harmony测试，屏蔽掉F的交互
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
