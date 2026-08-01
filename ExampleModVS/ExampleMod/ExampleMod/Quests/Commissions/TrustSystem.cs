@@ -60,10 +60,14 @@ namespace LivingWorldNpcs
         /// <summary>获取信任等级描述</summary>
         public static string GetTrustDescription(int trust)
         {
-            if (trust >= 81) return "心腹";
-            if (trust >= 51) return "信赖";
-            if (trust >= 21) return "熟人";
-            return "陌生人";
+            // 信任等级：心腹（81+）
+            if (trust >= 81) return LWNTextHelper.ResolveText("LWN_trust_level_confidant", "Confidant");
+            // 信任等级：信赖（51+）
+            if (trust >= 51) return LWNTextHelper.ResolveText("LWN_trust_level_trusted", "Trusted");
+            // 信任等级：熟人（21+）
+            if (trust >= 21) return LWNTextHelper.ResolveText("LWN_trust_level_acquaintance", "Acquaintance");
+            // 信任等级：陌生人
+            return LWNTextHelper.ResolveText("LWN_trust_level_stranger", "Stranger");
         }
 
         #region Persistence (JSON via MyBehavior.SyncData)

@@ -205,7 +205,9 @@ namespace LivingWorldNpcs
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
                 SetNpcIntent(NpcIntentType.Interacting, Agent.Main);
-                AgentHudMissionView.AgentSay(Owner, $"{targetAgent.Name},你在叫我吗？");
+                AgentHudMissionView.AgentSay(Owner,
+                    // 冒泡回复：被喊名字时的回应（{NAME}=喊话的人）
+                    LWNTextHelper.ResolveCompound("LWN_brain_comehere_reply", ("NAME", targetAgent.Name)));
                 InteractedAgent = targetAgent;
                 ClearAllActions();
                 EnqueueAction(new LookAtAction(targetAgent, 0.3f));
@@ -231,7 +233,9 @@ namespace LivingWorldNpcs
                     return;
                 SetNpcIntent(NpcIntentType.Fighting, targetAgent);
                 InteractedAgent = targetAgent;
-                InformationManager.DisplayMessage(new InformationMessage($"Agent {Owner.Name} 收到攻击命令，目标是 {targetAgent.Name}", Colors.Red));
+                // 收到攻击命令飘字：{OWNER} 收到命令攻击 {TARGET}
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_attack_order",
+                    ("OWNER", Owner.Name.ToString()), ("TARGET", targetAgent.Name.ToString())), Colors.Red));
                 ClearAllActions();
                 EnqueueAction(new FightEnemyAction(targetAgent));
             }
@@ -248,7 +252,9 @@ namespace LivingWorldNpcs
                 {
                     var existing = WorldEventStore.Find(pending.EventId);
                     WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation,
-                        Hero.MainHero?.StringId, "现场打了起来");
+                        Hero.MainHero?.StringId,
+                        // 阶段升级原因：现场打了起来（会出现在赔款涨价说明里给玩家看）
+                        LWNTextHelper.ResolveText("LWN_brain_escalation_fighting", "a fight broke out"));
                 }
 
                 InteractedAgent = target;
@@ -274,7 +280,9 @@ namespace LivingWorldNpcs
 
                 var victimMemory = AllNpcMemoryManager.GetMemoryForAgent(victim);
                 
-                InformationManager.DisplayMessage(new InformationMessage($"AgentBrain - event_agent_damaged: {attacker.Name} 对 {victim.Name} 造成了伤害", Colors.Yellow));
+                // 伤害目击飘字：{ATTACKER} 对 {VICTIM} 造成了伤害
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_damage_seen",
+                    ("ATTACKER", attacker.Name.ToString()), ("VICTIM", victim.Name.ToString())), Colors.Yellow));
                 // --- 核心护主逻辑 ---
 
                 bool shouldHelp = false;
@@ -321,7 +329,11 @@ namespace LivingWorldNpcs
                     string line = NpcSpeechResolver.Resolve(templateId,
                         speaker: (Owner.Character as CharacterObject)?.HeroObject,
                         listener: Hero.MainHero);
-                    BubbleSay(line ?? (Owner == victim ? "你敢打我？！" : "你敢动我们村的人？！"));
+                    BubbleSay(line ?? (Owner == victim
+                        // 冒泡兜底：受害者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
+                        ? LWNTextHelper.ResolveText("LWN_brain_combatjoin_victim", "You dare strike me?!")
+                        // 冒泡兜底：旁观者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
+                        : LWNTextHelper.ResolveText("LWN_brain_combatjoin_bystander", "You dare touch someone from our village?!")));
 
                     SetNpcIntent(NpcIntentType.Fighting, attacker);
                     InteractedAgent = attacker;
@@ -411,8 +423,10 @@ namespace LivingWorldNpcs
                         // 受害者：直接指控（击晕受害者跳过，event_agent_knocked_out 会最终覆盖）
                         var conflictData = new PendingConflict(
                     eventId: $"Theft_{TaleWorlds.CampaignSystem.CampaignTime.Now.ToHours}",
-                    topicName: "当众行窃",
-                    goalDesc: $"要求 {criminal.Name} 立刻归还财物并赔偿精神损失",
+                    // 冲突主题：当众行窃（对话开场 / 谈判上下文可见）
+                    topicName: LWNTextHelper.ResolveText("LWN_brain_theft_topic", "Theft in public"),
+                    // 冲突目标：要求 {NAME} 立刻归还财物并赔偿精神损失（UI 目标栏可见）
+                    goalDesc: LWNTextHelper.ResolveCompound("LWN_brain_theft_goal", ("NAME", criminal.Name)),
                     severity: 70.0f,
                     type: NegotiationGoalType.ResolveConflict_Apology
                         );
@@ -488,7 +502,9 @@ namespace LivingWorldNpcs
                 float prob = MathF.Clamp(0.05f + honor * 0.01f, 0.01f, 0.15f);
                 if (MBRandom.RandomFloat >= prob) return;
 
-                InformationManager.DisplayMessage(new InformationMessage($"[冒泡问候] {Owner.Name} (Index:{Owner.Index}) 决定向你打招呼 (概率:{prob:P0}, 声望:{honor})"));
+                // 冒泡问候判定飘字：{NAME} 决定向玩家打招呼（概率 {PROB}，声望 {HONOR}）
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_bubble_greet_decided",
+                    ("NAME", Owner.Name.ToString()), ("INDEX", Owner.Index.ToString()), ("PROB", $"{prob:P0}"), ("HONOR", honor.ToString()))));
 
                 var factors = new DialogueFactors
                 {
@@ -501,7 +517,9 @@ namespace LivingWorldNpcs
                 string line = DialogueTemplateHelper.Get("BubbleGreet", factors, out emotion, null, Owner);
                 if (!string.IsNullOrEmpty(line))
                 {
-                    InformationManager.DisplayMessage(new InformationMessage($"[冒泡问候] {Owner.Name}: \"{line}\""));
+                    // 冒泡问候台词飘字：{NAME} 说出了问候语 {LINE}
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_bubble_greet_line",
+                        ("NAME", Owner.Name.ToString()), ("LINE", line))));
                     BubbleSay(line);
                 }
             }
@@ -991,7 +1009,7 @@ namespace LivingWorldNpcs
         /// <summary>格式化警戒因素明细，供日志输出。如 "偷窃=0.50, 蹲下=0.10"；有脉冲目标时追加目标名。</summary>
         string FormatBreakdown()
         {
-            if (_alertBreakdown.Count == 0) return "无";
+            if (_alertBreakdown.Count == 0) return "无"; // lwn-ignore: A (debug internal)
             var parts = new List<string>();
             foreach (var kv in _alertBreakdown)
             {
@@ -1101,7 +1119,9 @@ namespace LivingWorldNpcs
             {
                 var existing = WorldEventStore.Find(pending.EventId);
                 WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation,
-                    Hero.MainHero?.StringId, "现场打了起来");
+                    Hero.MainHero?.StringId,
+                    // 阶段升级原因：现场打了起来（会出现在赔款涨价说明里给玩家看）
+                    LWNTextHelper.ResolveText("LWN_brain_escalation_fighting", "a fight broke out"));
             }
 
             EnqueueAction(new FightEnemyAction(player));

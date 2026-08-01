@@ -16,10 +16,12 @@ namespace LivingWorldNpcs
     public class PlayerSurrenderPayIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
-        public override string DisplayName => "（交出钱袋）";
+        // 玩家选项名：交出钱袋
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_surrender_pay", "(Hand over your purse)");
         public override NegotiationGoalType? Goal => null; // 无条件，不检定
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[交钱]";
+        // 对话选项前缀：交钱
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_pay", "[Pay up]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
@@ -31,7 +33,11 @@ namespace LivingWorldNpcs
             int cost = isCounteroffer ? baseRansom * 2 : baseRansom;
 
             if (Hero.MainHero.Gold < cost)
-                return Eligibility.Grey($"钱不够（需要 {cost} 第纳尔，你只有 {Hero.MainHero.Gold}）");
+            {
+                // 置灰原因：金币不足（{NEED}=所需金额，{HAVE}=现有金额）
+                return Eligibility.Grey(LWNTextHelper.ResolveCompound("LWN_intent_surrender_insufficient_gold",
+                    ("NEED", cost.ToString()), ("HAVE", Hero.MainHero.Gold.ToString())));
+            }
             return Eligibility.Show();
         }
 
@@ -68,11 +74,13 @@ namespace LivingWorldNpcs
     public class PlayerSurrenderBegIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
-        public override string DisplayName => "求你放过我……";
+        // 玩家选项名：求饶
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_surrender_beg", "Please spare me...");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Explain;
         public override NegotiationTactic Tactic => NegotiationTactic.Flatter;
         public override float CooldownDays => 0f; // 每次战斗仅一次
-        public override string GetDialoguePrefix(string actionParam = null) => "[求饶]";
+        // 对话选项前缀：求饶
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_beg", "[Beg]");
         public override bool ReofferOnFail => true; // 🆕 失败后重新渲染选项
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -80,7 +88,10 @@ namespace LivingWorldNpcs
             if (!ctx.InRealScene) return Eligibility.Hide();
             // 已经求饶失败过了 → 置灰
             if (ctx.ActionParam == "counteroffer_beg")
-                return Eligibility.Grey("已经求饶过了");
+            {
+                // 置灰原因：已经求饶过一次
+                return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_surrender_beg_used", "You've already begged once"));
+            }
             return Eligibility.Show();
         }
 
@@ -112,19 +123,24 @@ namespace LivingWorldNpcs
     public class PlayerSurrenderThreatenIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
-        public override string DisplayName => "你这条狗！……";
+        // 玩家选项名：辱骂威胁
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_surrender_threaten", "You cur!...");
         public override NegotiationGoalType? Goal => NegotiationGoalType.ResolveConflict_Intimidate;
         public override NegotiationTactic Tactic => NegotiationTactic.Threaten;
         public override float CooldownDays => 0f;
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[威胁]";
+        // 对话选项前缀：威胁
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_threaten", "[Threaten]");
 
         public override Eligibility Evaluate(IntentContext ctx)
         {
             if (!ctx.InRealScene) return Eligibility.Hide();
             // counteroffer 阶段：已经求饶失败过了，威胁选项不可用
             if (ctx.ActionParam == "counteroffer_beg")
-                return Eligibility.Grey("已经求饶过了");
+            {
+                // 置灰原因：已经求饶过一次
+                return Eligibility.Grey(LWNTextHelper.ResolveText("LWN_intent_surrender_beg_used", "You've already begged once"));
+            }
             return Eligibility.Show();
         }
 
@@ -161,10 +177,14 @@ namespace LivingWorldNpcs
 
         public override string GetDialoguePrefix(string actionParam = null) => actionParam switch
         {
-            "accept" => "[放走]",
-            "humiliate" => "[羞辱]",
-            "ransom" => "[索钱]",
-            "refuse" => "[杀]",
+            // 对话选项前缀：放走投降的 NPC
+            "accept" => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_npc_accept", "[Let go]"),
+            // 对话选项前缀：羞辱投降的 NPC
+            "humiliate" => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_npc_humiliate", "[Humiliate]"),
+            // 对话选项前缀：向投降的 NPC 索要赎金
+            "ransom" => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_npc_ransom", "[Ransom]"),
+            // 对话选项前缀：拒绝投降并击杀
+            "refuse" => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_npc_refuse", "[Kill]"),
             _ => null
         };
 
@@ -215,7 +235,8 @@ namespace LivingWorldNpcs
                 case "refuse":
                     // 拒绝认输 → NPC 战后重回战斗（两阶段：对话中只标记，EndConversation 消费）
                     FightOnIntent.PendingSurrenderRefusedAgent = ctx.Agent;
-                    AgentHudMissionView.AgentSay(ctx.Agent, "不——！！");
+                    // NPC 拒绝投降的喊话气泡
+                    AgentHudMissionView.AgentSay(ctx.Agent, LWNTextHelper.ResolveText("LWN_intent_surrender_npc_refused_say", "No——!!"));
                     DebugLogger.Log("[Combat] ResolveNpcSurrender: refuse (标记战后重回战斗)");
                     break;
             }
@@ -233,10 +254,12 @@ namespace LivingWorldNpcs
     public class FightOnIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.PersuadeSurrender;
-        public override string DisplayName => "拼死一战";
+        // 玩家选项名：拼死一战
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_surrender_fight_on", "Fight to the death");
         public override NegotiationGoalType? Goal => null; // 即时类
 
-        public override string GetDialoguePrefix(string actionParam = null) => "[死战]";
+        // 对话选项前缀：死战
+        public override string GetDialoguePrefix(string actionParam = null) => LWNTextHelper.ResolveText("LWN_ui_prefix_surrender_fight_on", "[Fight on]");
 
         /// <summary>
         /// 投降谈判破裂 → 对话结束后重回战斗。

@@ -231,17 +231,8 @@ namespace LivingWorldNpcs
 
         public static DataTable Emotion { get; private set; }
 
-        // 统一叙事文本表（所有维度列可选）
-        public static DataTable Narrative { get; private set; }
-
-        // 对话台词视图：由 Narrative 表筛选生成（Category 列为空的行）
-        public static DataTable Dialogue { get; private set; }
-
-        // 委托叙事视图：由 Narrative 表筛选生成（Category 列非空的行）
-        public static DataTable CommissionNarrative { get; private set; }
-
-        // NPC 警戒/台词模板表（ID,Template,Emotion）
-        public static DataTable NpcSpeech { get; private set; }
+        // Narrative/NpcSpeech/Dialogue/CommissionNarrative 已迁移到 XML 本地化系统
+        // 不再通过 CSV 加载，直接走 LWNTextHelper + Language XML
 
         static string moduleName = "LivingWorldNpcs";
         static string directoryPath = Path.Combine(ModuleHelper.GetModuleFullPath(moduleName), "ModuleData\\DesignData");
@@ -261,21 +252,7 @@ namespace LivingWorldNpcs
             TagPoint = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "TagPoint.csv"), "TagPoint");
             Emotion = CsvLoader.LoadTable(Path.Combine(externalDesignDataPath, "Emotion.csv"), "Emotion");
 
-            // 统一叙事表：内容包提供了才覆盖，否则保留 Mod A 的卡拉迪亚默认版
-            string narrativePath = Path.Combine(externalDesignDataPath, "Narrative.csv");
-            if (File.Exists(narrativePath))
-            {
-                Narrative = CsvLoader.LoadTable(narrativePath, "Narrative");
-                BuildLegacyTablesFromNarrative();
-            }
-
-            // NPC 警戒台词模板表：内容包提供了才覆盖
-            string npcSpeechPath = Path.Combine(externalDesignDataPath, "NpcSpeech.csv");
-            if (File.Exists(npcSpeechPath))
-            {
-                NpcSpeech = CsvLoader.LoadTable(npcSpeechPath, "NpcSpeech");
-                ValidateNpcSpeechEmotions();
-            }
+            // Narrative.csv / NpcSpeech.csv 已废弃，文本迁移到 XML 本地化系统
         }
 
         // === 初始化：一次性加载所有表 ===
@@ -284,15 +261,7 @@ namespace LivingWorldNpcs
             // Camera.csv 是唯一泛用表，始终从 Mod A 加载
             Camera = CsvLoader.LoadTable(Path.Combine(directoryPath, "Camera.csv"), "Camera");
 
-            // 统一叙事表
-            Narrative = CsvLoader.LoadTable(Path.Combine(directoryPath, "Narrative.csv"), "Narrative");
-
-            // NPC 警戒台词模板表
-            NpcSpeech = CsvLoader.LoadTable(Path.Combine(directoryPath, "NpcSpeech.csv"), "NpcSpeech");
-            ValidateNpcSpeechEmotions();
-
-            // 从 Narrative 表筛选构建 Dialogue 和 CommissionNarrative 视图
-            BuildLegacyTablesFromNarrative();
+            // Narrative/NpcSpeech 已迁移到 XML，不再加载
 
             // 织丰内容表初始化为空，等待内容包注入
             Heroes   = new DataTable("Heroes");
@@ -301,63 +270,5 @@ namespace LivingWorldNpcs
             Emotion  = CsvLoader.LoadTable(Path.Combine(directoryPath, "Emotion.csv"), "Emotion");
         }
 
-        /// <summary>
-        /// 从 Narrative 表筛选构建 Dialogue 和 CommissionNarrative 表，确保旧代码无缝运行。
-        /// Dialogue = Category 列为空的行（纯对话）。
-        /// CommissionNarrative = Category 列非空的行（委托叙事）。
-        /// </summary>
-        private static void BuildLegacyTablesFromNarrative()
-        {
-            Dialogue = new DataTable("Dialogue");
-            CommissionNarrative = new DataTable("CommissionNarrative");
-
-            if (Narrative == null) return;
-
-            foreach (var record in Narrative.GetAll())
-            {
-                string id = record.GetString("ID");
-                string scriptName = record.GetString("EventName");
-                string category = record.GetString("Category");
-
-                if (string.IsNullOrEmpty(category))
-                {
-                    // 对话行：Category 为空
-                    Dialogue.AddRecord(id, scriptName, record);
-                }
-                else
-                {
-                    // 委托叙事行：Category 非空
-                    CommissionNarrative.AddRecord(id, scriptName, record);
-                }
-            }
-        }
-
-        /// <summary>重新从 Narrative 构建旧表（内容包覆盖 Narrative 后调用）。</summary>
-        public static void RebuildLegacyTables()
-        {
-            BuildLegacyTablesFromNarrative();
-        }
-
-        /// <summary>
-        /// 校验 NpcSpeech.csv 的 Emotion 列值是否都在 Emotion.csv 中已定义。
-        /// 未命中记错误日志 + 回落 "normal"。
-        /// </summary>
-        private static void ValidateNpcSpeechEmotions()
-        {
-            if (NpcSpeech == null || Emotion == null) return;
-
-            foreach (var row in NpcSpeech.GetAll())
-            {
-                string emotion = row.GetString("Emotion", "normal");
-                if (string.IsNullOrEmpty(emotion)) continue;
-                if (Emotion.GetByID(emotion) == null)
-                {
-                    DebugLogger.Log($"[NpcSpeech] 未定义的 Emotion: '{emotion}' in row {row.GetString("ID")}");
-                }
-            }
-        }
-
-
-        
     }
 }

@@ -68,7 +68,7 @@ namespace LivingWorldNpcs
         private const float AlertWidthMax = 2.2f;               // 警戒归一化分母 clamp(alert/2.2)
         private const float AlertWidthImpact = 0.75f;           // 警戒对基础宽的最大左扣比例 75%
         private const float RoguerySkillCap = 300f;             // 流氓技能满值（减速归一化分母）
-        private const float RogueryCursorSlowMax = 0.25f;       // 满技能浮标减速 25%（技能走"手"通道，不污染宽度域）
+        private const float RogueryCursorSlowMax = 0.25f;       // 满技能浮标减速 25%（技能走"手"通道，不污染宽度域）// lwn-ignore: A (comment)
         private const float CursorDriftMinRatio = 2.5f;         // 铁律：浮标速度 ≥ 游动 2.5 倍（游动动态封顶保证）
         private const float DriftAmplitudeNorm = 0.06f;         // Cautious 游动幅度 ±6% 条宽
         private const float DriftBaseSpeed = 55f;               // 游动峰值速度 @alert=1.0（px/s）
@@ -150,9 +150,11 @@ namespace LivingWorldNpcs
             Pins = new MBBindingList<StealPinVM>();
             IsPickpocketMode = true;
             IsLockpickMode = false;
-            TitleText = $"正在偷:{target?.Name ?? "?"}";
+            // 本地化：扒窃条标题
+            TitleText = LWNTextHelper.ResolveCompound("LWN_ui_steal_title_pickpocket", ("NAME", target?.Name ?? "?"));
             RefreshButtonTexts();
-            RuleText = "<span style=\"Perfect\">【完美】绿区偷窃。</span><span style=\"Normal\">【普通】黄区偷窃。</span><span style=\"Fail\">【失败】红区偷窃。</span>";
+            // 本地化：扒窃规则行（区域语义总述）
+            RuleText = LWNTextHelper.ResolveText("LWN_ui_steal_rule_pickpocket", "<span style=\"Perfect\">[Perfect] Steal in the green zone.</span><span style=\"Normal\">[Normal] Steal in the yellow zone.</span><span style=\"Fail\">[Fail] Steal in the red zone.</span>");
 
             NextPickpocketRound();
             RecalcZoneSize();
@@ -175,7 +177,8 @@ namespace LivingWorldNpcs
             IsLockpickMode = true;
             TitleText = title;
             RefreshButtonTexts();
-            RuleText = "<span style=\"Perfect\">【完美】绿区撬锁。</span><span style=\"Normal\">【普通】黄区撬锁。</span><span style=\"Fail\">【失败】红区撬棍必滑。</span>";
+            // 本地化：撬锁规则行（区域语义总述）
+            RuleText = LWNTextHelper.ResolveText("LWN_ui_steal_rule_lockpick", "<span style=\"Perfect\">[Perfect] Pick in the green zone.</span><span style=\"Normal\">[Normal] Pick in the yellow zone.</span><span style=\"Fail\">[Fail] The crowbar slips in the red zone.</span>");
             PreviewText = "";
 
             RecalcZoneSize();
@@ -187,17 +190,21 @@ namespace LivingWorldNpcs
         {
             _mode = mode;
             _target = animal;
-            _animalName = string.IsNullOrWhiteSpace(animalName) ? "动物" : animalName;
+            // 本地化：动物名兜底
+            _animalName = string.IsNullOrWhiteSpace(animalName) ? LWNTextHelper.ResolveText("LWN_ui_name_animal", "animal") : animalName;
             _closeAction = closeAction;
 
             Pins = new MBBindingList<StealPinVM>();
             IsPickpocketMode = true;    // 显示上复用扒窃布局（预览行、无簧片）
             IsLockpickMode = false;
-            TitleText = $"正在抓:{_animalName}";
+            // 本地化：抓动物条标题
+            TitleText = LWNTextHelper.ResolveCompound("LWN_ui_steal_title_animal", ("NAME", _animalName));
             RefreshButtonTexts();
-            RuleText = "<span style=\"Perfect\">【完美】绿区出手。</span><span style=\"Normal\">【普通】黄区出手。</span><span style=\"Fail\">【失败】红区必被挣脱。</span>";
+            // 本地化：抓动物规则行（区域语义总述）
+            RuleText = LWNTextHelper.ResolveText("LWN_ui_steal_rule_animal", "<span style=\"Perfect\">[Perfect] Act in the green zone.</span><span style=\"Normal\">[Normal] Act in the yellow zone.</span><span style=\"Fail\">[Fail] You'll be shaken off in the red zone.</span>");
             _itemTierFactor = isLarge ? AnimalLargeTierFactor : 1f;
-            PreviewText = isLarge ? "它会拼命挣扎，瞅准时机一把抓住！" : "小家伙很警觉，瞅准时机一把抓住！";
+            // 本地化：抓动物预览行（大动物/小动物）
+            PreviewText = isLarge ? LWNTextHelper.ResolveText("LWN_ui_steal_preview_animal_large", "It will struggle wildly — wait for the right moment and grab it!") : LWNTextHelper.ResolveText("LWN_ui_steal_preview_animal_small", "It's alert — wait for the right moment and grab it!");
 
             RecalcZoneSize();
             NewZonePosition();
@@ -266,38 +273,50 @@ namespace LivingWorldNpcs
             if (MathF.Abs(cursorPx - effCenterPx) <= PerfectHalfWidth)
             {
                 // 完美区（有效区正中 12px）
-                text = _mode == StealBarMode.Lockpick ? "【完美】此时撬不会发出任何声响"
-                     : _mode == StealBarMode.Animal ? "【完美】此时出手不会惊吓到动物"
-                     : "【完美】此时下手，不会让对方察觉";
+                // 本地化：完美区提示（按模式区分）
+                text = _mode == StealBarMode.Lockpick ? LWNTextHelper.ResolveText("LWN_ui_steal_hint_perfect_lockpick", "[Perfect] The pick makes no sound")
+                     // 【完美】此时出手不会惊吓到动物
+                     : _mode == StealBarMode.Animal ? LWNTextHelper.ResolveText("LWN_ui_steal_hint_perfect_animal", "[Perfect] The animal won't be startled")
+                     // 【完美】此时下手，不会让对方察觉
+                     : LWNTextHelper.ResolveText("LWN_ui_steal_hint_perfect_pickpocket", "[Perfect] Your target won't notice");
                 color = HintColorPerfect;
             }
             else if (cursorPx >= effLeft && cursorPx <= effRight)
             {
                 // 有效判定区
-                text = _mode == StealBarMode.Lockpick ? "【可撬】能撬开但是会发出声响"
-                     : _mode == StealBarMode.Animal ? "【可抓】此时出手能抓住但是会有点动静"
-                     : "【可偷】能偷到，但是对方可能会更加警惕";
+                // 本地化：有效区提示（按模式区分）
+                text = _mode == StealBarMode.Lockpick ? LWNTextHelper.ResolveText("LWN_ui_steal_hint_effective_lockpick", "[Can Pick] You'll open it, but it makes a sound")
+                     // 【可抓】此时出手能抓住但是会有点动静
+                     : _mode == StealBarMode.Animal ? LWNTextHelper.ResolveText("LWN_ui_steal_hint_effective_animal", "[Can Catch] You'll grab it, but it causes a stir")
+                     // 【可偷】能偷到，但是对方可能会更加警惕
+                     : LWNTextHelper.ResolveText("LWN_ui_steal_hint_effective_pickpocket", "[Can Steal] You'll get it, but your target grows wary");
                 color = HintColorEffective;
             }
             else if (cursorPx >= baseLeft && cursorPx < effLeft)
             {
                 // 左扣：警戒损失（仅人有；宽度为 0 时区间为空，天然不命中）
-                text = "【小心】此时会被对方察觉";
+                // 本地化：左扣警戒区提示
+                text = LWNTextHelper.ResolveText("LWN_ui_steal_hint_careful", "[Careful] Your target will notice you");
                 color = HintColorAlert;
             }
             else if (cursorPx > effRight && cursorPx <= baseLeft + _baseWidthPx && _itemLossPx > 0.5f)
             {
                 // 右扣：物品/体型损失
-                text = _mode == StealBarMode.Animal ? "【勿动】此时不要轻举妄动"
-                     : "【勿动】对方正接触此物品，不可出手";
+                // 本地化：右扣区提示（物品/体型损失）
+                text = _mode == StealBarMode.Animal ? LWNTextHelper.ResolveText("LWN_ui_steal_hint_nomove_animal", "[Don't Move] Stay still")
+                     // 【勿动】对方正接触此物品，不可出手
+                     : LWNTextHelper.ResolveText("LWN_ui_steal_hint_nomove_item", "[Don't Move] They're touching that item — don't act");
                 color = HintColorItem;
             }
             else
             {
                 // 界外（父条背景）
-                text = _mode == StealBarMode.Lockpick ? "【勿动】时机未到，必撬不开"
-                     : _mode == StealBarMode.Animal ? "【勿动】时机不对，必被吓跑"
-                     : "【勿动】此时出手必被发现";
+                // 本地化：界外区提示（按模式区分）
+                text = _mode == StealBarMode.Lockpick ? LWNTextHelper.ResolveText("LWN_ui_steal_hint_outside_lockpick", "[Don't Move] Not yet — you won't open it")
+                     // 【勿动】时机不对，必被吓跑
+                     : _mode == StealBarMode.Animal ? LWNTextHelper.ResolveText("LWN_ui_steal_hint_outside_animal", "[Don't Move] Wrong timing — it will flee")
+                     // 【勿动】此时出手必被发现
+                     : LWNTextHelper.ResolveText("LWN_ui_steal_hint_outside_pickpocket", "[Don't Move] You'll be caught");
                 color = HintColorOutside;
             }
             CursorZoneText = text;
@@ -431,7 +450,8 @@ namespace LivingWorldNpcs
         {
             if ((!_pendingSlot.HasValue && !_pendingIsPurse) || _target == null)
             {
-                FlashResult("他身上已经没什么可偷的了。", ZoneColorFail, MsgColorFail);
+                // 本地化：目标被摸空提示
+                FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_nothing_left", "There's nothing left to steal from them."), ZoneColorFail, MsgColorFail);
                 return;
             }
 
@@ -445,20 +465,23 @@ namespace LivingWorldNpcs
                     int gold = StealManager.StealPurseGold(_target);
                     if (gold <= 0)
                     {
-                        FlashResult("摸了个空。", ZoneColorFail, MsgColorFail);
+                        // 本地化：摸空提示
+                        FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_grabbed_empty", "You grab nothing."), ZoneColorFail, MsgColorFail);
                     }
                     else if (perfect)
                     {
                         // 完美窃取：受害者零警戒脉冲（目击者 IsUIOpen 累积不受影响）
-                        FlashResult($"神不知鬼不觉:{gold} 第纳尔", ZoneColorPerfect, MsgColorPerfect);
+                        // 本地化：完美窃取钱袋消息
+                        FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_perfect_gold", ("GOLD", gold.ToString())), ZoneColorPerfect, MsgColorPerfect);
                         DebugLogger.Log($"[StealBar] 完美窃取钱袋 {gold} 第纳尔 ← {_target.Name}（零警戒脉冲）");
                     }
                     else
                     {
-                        brain?.SetPulseTarget(PlayerActionType.Steal, _target?.Name?.ToString(), $"{gold} 第纳尔", _target?.Index ?? -1);
+                        brain?.SetPulseTarget(PlayerActionType.Steal, _target?.Name?.ToString(), $"{gold} 第纳尔", _target?.Index ?? -1); // lwn-ignore: A (debug label)
                         brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
-                        PulsePickpocketWitnesses("gold", $"{gold} 第纳尔");
-                        FlashResult($"得手了:{gold} 第纳尔", ZoneColorSuccess, MsgColorSuccess);
+                        PulsePickpocketWitnesses("gold", $"{gold} 第纳尔"); // lwn-ignore: A (debug label)
+                        // 本地化：窃取钱袋得手消息
+                        FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold_short", ("GOLD", gold.ToString())), ZoneColorSuccess, MsgColorSuccess);
                         DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（受害者+{NormalHitVictimAlert}，目击者+3.0）");
                     }
                 }
@@ -469,12 +492,14 @@ namespace LivingWorldNpcs
                     string itemName = StealManager.StealSpecificItem(_target, _pendingSlot.Value);
                     if (string.IsNullOrEmpty(itemName))
                     {
-                        FlashResult("摸了个空。", ZoneColorFail, MsgColorFail);
+                        // 本地化：摸空提示
+                        FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_grabbed_empty", "You grab nothing."), ZoneColorFail, MsgColorFail);
                     }
                     else if (perfect)
                     {
                         // 完美窃取：受害者零警戒脉冲（目击者 IsUIOpen 累积不受影响）
-                        FlashResult($"神不知鬼不觉:{itemName}", ZoneColorPerfect, MsgColorPerfect);
+                        // 本地化：完美窃取物品消息
+                        FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_perfect_item", ("ITEM", itemName)), ZoneColorPerfect, MsgColorPerfect);
                         DebugLogger.Log($"[StealBar] 完美窃取 {itemName} ← {_target.Name}（零警戒脉冲）");
                     }
                     else
@@ -482,7 +507,8 @@ namespace LivingWorldNpcs
                         brain?.SetPulseTarget(PlayerActionType.Steal, _target?.Name?.ToString(), itemName, _target?.Index ?? -1);
                         brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
                         PulsePickpocketWitnesses(itemId ?? itemName, itemName);
-                        FlashResult($"得手了:{itemName}", ZoneColorSuccess, MsgColorSuccess);
+                        // 本地化：窃取物品得手消息
+                        FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_item", ("ITEM", itemName)), ZoneColorSuccess, MsgColorSuccess);
                         DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（受害者+{NormalHitVictimAlert}，目击者+3.0）");
                     }
                 }
@@ -491,7 +517,8 @@ namespace LivingWorldNpcs
             else
             {
                 brain?.AddAlert(PlayerActionType.Steal, MissVictimAlert);
-                FlashResult("手滑了！", ZoneColorFail, MsgColorFail);
+                // 本地化：出手失误提示
+                FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_slipped", "Your hand slipped!"), ZoneColorFail, MsgColorFail);
                 DebugLogger.Log($"[StealBar] 扒窃失误 ← {_target.Name}（+{MissVictimAlert} 警戒）");
             }
         }
@@ -507,7 +534,8 @@ namespace LivingWorldNpcs
 
             if (HitTest(out bool perfect))
             {
-                FlashResult(perfect ? $"一把揪住了{_animalName}！" : $"抓到了{_animalName}！",
+                // 本地化：抓住动物提示（完美/普通）
+                FlashResult(perfect ? LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_caught_animal_perfect", ("NAME", _animalName)) : LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_caught_animal", ("NAME", _animalName)),
                     perfect ? ZoneColorPerfect : ZoneColorSuccess,
                     perfect ? MsgColorPerfect : MsgColorSuccess);
                 DebugLogger.Log($"[StealBar] 抓住 {_animalName}{(perfect ? "（完美）" : "")}");
@@ -516,7 +544,8 @@ namespace LivingWorldNpcs
             else
             {
                 StealManager.OnAnimalStruggleFlee(_target, _animalName);
-                FlashResult($"手滑了，{_animalName}挣脱跑了！", ZoneColorFail, MsgColorFail);
+                // 本地化：抓动物手滑提示
+                FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_animal_slipped", ("NAME", _animalName)), ZoneColorFail, MsgColorFail);
                 DebugLogger.Log($"[StealBar] 抓 {_animalName} 手滑 → 惊叫逃跑");
                 CloseReason = StealBarCloseReason.AnimalFled;
             }
@@ -532,17 +561,20 @@ namespace LivingWorldNpcs
 
                 if (_currentPin >= _pinCount)
                 {
-                    FlashResult("咔哒——锁开了！", ZoneColorSuccess, MsgColorSuccess);
+                    // 本地化：撬锁完成提示
+                    FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_lock_open", "Click — the lock opens!"), ZoneColorSuccess, MsgColorSuccess);
                     DebugLogger.Log("[StealBar] 撬锁完成");
                     CloseReason = StealBarCloseReason.Completed;
                     return;
                 }
-                FlashResult($"第 {_currentPin} 个簧片开了…", ZoneColorSuccess, MsgColorSuccess);
+                // 本地化：簧片解开提示
+                FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_pin_open", ("PIN", _currentPin.ToString())), ZoneColorSuccess, MsgColorSuccess);
                 NewZonePosition(); // 宽度/速度在 UpdateFrame 按新 pin 重算
             }
             else
             {
-                FlashResult("撬棍滑了！", ZoneColorFail, MsgColorFail);
+                // 本地化：撬棍滑脱提示
+                FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_crowbar_slip", "The crowbar slips!"), ZoneColorFail, MsgColorFail);
                 // 噪音脉冲：当前能看见玩家的观察者警戒 +0.5（节流防连按刷爆）
                 float now = Mission.Current?.CurrentTime ?? 0f;
                 if (now - _lastNoiseTime >= NoisePulseCooldown)
@@ -572,13 +604,15 @@ namespace LivingWorldNpcs
                 _pendingIsPurse = true;
                 _pendingSlot = null;
                 _itemTierFactor = 1f;   // 钱袋轻巧但系在腰间，标准难度
-                PreviewText = "摸到一个沉甸甸的钱袋。";
+                // 本地化：摸到钱袋预览
+                PreviewText = LWNTextHelper.ResolveText("LWN_ui_steal_preview_purse", "You feel a heavy purse.");
                 return;
             }
 
             if (!_pendingSlot.HasValue)
             {
-                PreviewText = "他身上已经没什么可偷的了。";
+                // 本地化：目标被摸空预览
+                PreviewText = LWNTextHelper.ResolveText("LWN_ui_steal_msg_nothing_left", "There's nothing left to steal from them.");
                 _itemTierFactor = 1f;
                 CloseReason = StealBarCloseReason.NothingLeft;  // 摸空 → View 自动收口 + 提示，不再让玩家对着空口袋
                 return;
@@ -588,7 +622,8 @@ namespace LivingWorldNpcs
             var item = element.Item;
             if (item == null)
             {
-                PreviewText = "摸到一件说不清的东西。";
+                // 本地化：摸到说不清物品预览
+                PreviewText = LWNTextHelper.ResolveText("LWN_ui_steal_preview_strange", "You touch something you can't quite make out.");
                 _itemTierFactor = 1f;
                 return;
             }
@@ -598,9 +633,11 @@ namespace LivingWorldNpcs
             float valueFactor = item.Value < 50 ? 1.10f : item.Value > 500 ? 0.65f : 0.90f;
             _itemTierFactor = weightFactor * valueFactor;
 
-            string weightDesc = item.Weight < 2f ? "轻巧" : item.Weight > 8f ? "沉甸甸" : "有些分量";
+            // 本地化：盲盒物品重量描述
+            string weightDesc = item.Weight < 2f ? LWNTextHelper.ResolveText("LWN_ui_steal_weight_light", "light") : item.Weight > 8f ? LWNTextHelper.ResolveText("LWN_ui_steal_weight_heavy", "heavy") : LWNTextHelper.ResolveText("LWN_ui_steal_weight_somewhat", "weighty");
             string typeDesc = GetTouchTypeDesc(item.Type);
-            PreviewText = $"摸到一件{weightDesc}的物件（像是{typeDesc}）";
+            // 本地化：盲盒物品预览（重量+类型）
+            PreviewText = LWNTextHelper.ResolveCompound("LWN_ui_steal_preview_weigh", ("WEIGHT", weightDesc), ("TYPE", typeDesc));
         }
 
         private static string GetTouchTypeDesc(ItemObject.ItemTypeEnum type)
@@ -610,28 +647,39 @@ namespace LivingWorldNpcs
                 case ItemObject.ItemTypeEnum.OneHandedWeapon:
                 case ItemObject.ItemTypeEnum.TwoHandedWeapon:
                 case ItemObject.ItemTypeEnum.Polearm:
-                    return "武器";
+                    // 本地化：盲盒物品类型名（武器）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_weapon", "weapon");
                 case ItemObject.ItemTypeEnum.Bow:
                 case ItemObject.ItemTypeEnum.Crossbow:
-                    return "远程家伙";
+                    // 本地化：盲盒物品类型名（远程武器）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_ranged", "ranged weapon");
                 case ItemObject.ItemTypeEnum.HeadArmor:
-                    return "头盔";
+                    // 本地化：盲盒物品类型名（头盔）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_helmet", "helmet");
                 case ItemObject.ItemTypeEnum.BodyArmor:
-                    return "上身衣着";
+                    // 本地化：盲盒物品类型名（上身衣着）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_body", "garment");
                 case ItemObject.ItemTypeEnum.LegArmor:
-                    return "下身着装";
+                    // 本地化：盲盒物品类型名（下身着装）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_leg", "legwear");
                 case ItemObject.ItemTypeEnum.HandArmor:
-                    return "手部护具";
+                    // 本地化：盲盒物品类型名（手部护具）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_hand", "gloves");
                 case ItemObject.ItemTypeEnum.Cape:
-                    return "披风";
+                    // 本地化：盲盒物品类型名（披风）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_cape", "cape");
                 case ItemObject.ItemTypeEnum.Shield:
-                    return "盾牌";
+                    // 本地化：盲盒物品类型名（盾牌）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_shield", "shield");
                 case ItemObject.ItemTypeEnum.Horse:
-                    return "坐骑";
+                    // 本地化：盲盒物品类型名（坐骑）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_mount", "mount");
                 case ItemObject.ItemTypeEnum.Goods:
-                    return "值钱货";
+                    // 本地化：盲盒物品类型名（值钱货）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_goods", "valuables");
                 default:
-                    return "小物件";
+                    // 本地化：盲盒物品类型名（小物件）
+                    return LWNTextHelper.ResolveText("LWN_ui_steal_type_small", "small trinket");
             }
         }
 
@@ -809,9 +857,12 @@ namespace LivingWorldNpcs
         /// <summary>按当前输入设备刷新按钮文本（构造时 + 键盘↔手柄切换时由 View 调用）。</summary>
         public void RefreshButtonTexts()
         {
-            string verb = _mode == StealBarMode.Lockpick ? "撬" : _mode == StealBarMode.Animal ? "抓" : "出手";
-            AttemptButtonText = $"[{ModInput.Glyph(ModInputAction.StealAttempt)}] {verb}";
-            LeaveButtonText = $"[{ModInput.Glyph(ModInputAction.StealLeave)}] 收手";
+            // 本地化：偷窃条出手按钮动词（撬锁/抓动物/出手）
+            string verb = _mode == StealBarMode.Lockpick ? LWNTextHelper.ResolveText("LWN_ui_steal_verb_lockpick", "Pick") : _mode == StealBarMode.Animal ? LWNTextHelper.ResolveText("LWN_ui_steal_verb_catch", "Catch") : LWNTextHelper.ResolveText("LWN_ui_steal_verb_attempt", "Act");
+            // 本地化：偷窃条出手按钮文本
+            AttemptButtonText = LWNTextHelper.ResolveCompound("LWN_ui_steal_btn_attempt", ("KEY", ModInput.Glyph(ModInputAction.StealAttempt)), ("VERB", verb));
+            // 本地化：偷窃条收手按钮文本
+            LeaveButtonText = LWNTextHelper.ResolveCompound("LWN_ui_steal_btn_leave", ("KEY", ModInput.Glyph(ModInputAction.StealLeave)));
         }
 
         [DataSourceProperty]

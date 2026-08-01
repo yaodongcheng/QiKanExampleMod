@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
+using TaleWorlds.Localization;
 
 namespace LivingWorldNpcs
 {
@@ -313,7 +314,11 @@ namespace LivingWorldNpcs
                 AuxiliaryParties = new[] {
                     new AuxiliaryPartyConfig {
                         RoleTag = "SupplyConvoy",
-                        NameTemplate = "运往{TARGET}的补给队",
+                        // 补给队名模板：运往{TARGET}的补给队（{TARGET} 由 SpawnAuxiliaryParty 替换）。
+                        // 🔴 不能用 ResolveText/ResolveCompound：TextObject 会把未赋值的 {TARGET} 渲染成空串，
+                        // 模板会变成"运往的补给队"且下游 .Replace("{TARGET}", …) 匹配不到。必须原文直取。
+                        NameTemplate = LocalizedTextManager.GetTranslatedText(MBTextManager.ActiveTextLanguage, "LWN_config_supplyconvoy_name")
+                            ?? "Supply convoy bound for {TARGET}",
                         Behavior = EventPartyBehavior.PatrolNearTarget,
                         CultureSource = AuxiliaryCultureSource.Victim,
                         Faction = AuxiliaryFaction.Victim,

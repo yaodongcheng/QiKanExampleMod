@@ -95,11 +95,13 @@ namespace LivingWorldNpcs
                     if(Mission.Current!=null && Mission.Current.MainAgent !=null)
                     {
                         SpawnHeroInFrontOfPlayer(newHero);
-                        InformationManager.DisplayMessage(new InformationMessage($"{newHero.Name} 已出现在你面前！"));
+                        // 召唤成功飘字：{NAME} 出现在玩家面前
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_appeared", ("NAME", newHero.Name.ToString()))));
                     }
                     else
                     {
-                        InformationManager.DisplayMessage(new InformationMessage($"{newHero.Name} 已到达据点列表，但你不在3D场景中。"));
+                        // 召唤入列飘字：{NAME} 已到达据点列表但玩家不在 3D 场景中
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_added_no_scene", ("NAME", newHero.Name.ToString()))));
                     }
 
                 }

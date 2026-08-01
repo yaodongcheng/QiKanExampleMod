@@ -70,13 +70,17 @@ namespace LivingWorldNpcs
 
         private static string BuildSocialEventDescription(WorldEvent evt)
         {
-            string location = evt.TargetSettlement?.Name?.ToString() ?? evt.LocationName ?? "某地";
+            // 某地
+            string location = evt.TargetSettlement?.Name?.ToString() ?? evt.LocationName ?? LWNTextHelper.ResolveText("LWN_social_unknown_place", "Somewhere");
             // 犯罪事件（Misconduct 容器）：案情从事实派生（袭击+失窃如实还原）
             if (evt.Category == EventCategory.Crime)
-                return $"{location}出了事：{evt.BuildDiscoveryFacts()}";
+                // 犯罪事件描述：{地点}出了事：{案情}
+                return LWNTextHelper.ResolveCompound("LWN_social_crime_desc", ("LOCATION", location), ("FACTS", evt.BuildDiscoveryFacts()));
             var cfg = evt.Config;
-            string verb = cfg?.CrimeVerbPast ?? "出了事";
-            return $"{location}{verb}";
+            // 事件动词兜底：出了事
+            string verb = cfg?.CrimeVerbPast ?? LWNTextHelper.ResolveText("LWN_social_verb_default", "has been hit by trouble");
+            // 事件描述：{地点}{动词}
+            return LWNTextHelper.ResolveCompound("LWN_social_desc", ("LOCATION", location), ("VERB", verb));
         }
 
         private static List<string> BuildSocialEventTags(WorldEvent evt)
@@ -247,14 +251,18 @@ namespace LivingWorldNpcs
                 VictimName = divorce.Target.Name.ToString(),
                 BaseSeverity = 90, // 这种事非常严重
                 OccurTime = CampaignTime.Now.ToString(),
-                Location = divorce.Initiator.CurrentSettlement?.Name?.ToString() ?? "未知",
-                Description = $"{divorce.Initiator.Name} 狠心地休掉了 {divorce.Target.Name}，转头就迎娶了 {marriage.Target.Name}！",
+                // 地点兜底：未知
+                Location = divorce.Initiator.CurrentSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_social_unknown", "Unknown"),
+                // 负心汉事件描述：狠心休妻另娶新欢
+                Description = LWNTextHelper.ResolveCompound("LWN_social_betrayal_desc",
+                    ("HUSBAND", divorce.Initiator.Name.ToString()), ("WIFE", divorce.Target.Name.ToString()), ("NEW", marriage.Target.Name.ToString())),
                 Tags = new List<string> { "Dishonorable", "Scandal", "Romance" },
                 TimeStamp = (float)CampaignTime.Now.ToHours,
 
                 // 关键证据：这里可以由 LLM 生成，或者预设模板
                 KeyQuoteSpeakerName = divorce.Initiator.Name.ToString(),
-                KeyQuoteText = $"我不爱你了，{marriage.Target.Name} 才是我的真爱！"
+                // 负心汉关键证言：不爱了，新欢才是真爱
+                KeyQuoteText = LWNTextHelper.ResolveCompound("LWN_social_betrayal_quote", ("NEW", marriage.Target.Name.ToString()))
             };
 
             // 自动填充目击者 (假设只有当事人在场，或者你可以通过 Settlement 获取)
@@ -272,7 +280,9 @@ namespace LivingWorldNpcs
                 VictimId = act.Target.StringId, // 结婚里没有受害者，但为了兼容字段，填配偶
                 VictimName = act.Target.Name.ToString(),
                 BaseSeverity = 20, // 喜事，严重程度低（或者是正向的关注度）
-                Description = $"{act.Initiator.Name} 与 {act.Target.Name} 喜结连理。",
+                // 结婚事件描述：喜结连理
+                Description = LWNTextHelper.ResolveCompound("LWN_social_marriage_desc",
+                    ("A", act.Initiator.Name.ToString()), ("B", act.Target.Name.ToString())),
                 Tags = new List<string> { "Ceremony", "Happy" },
                 // ... 其他字段
             };
@@ -592,7 +602,8 @@ namespace LivingWorldNpcs
             }
             if (report.HighImpactHeroes.Count > 0)
             {
-                sb.AppendLine($"据传这些人颇为关注此事：");
+                // 关注者名单标题：据传这些人颇为关注此事
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_social_followers_header", "It is said these people are quite interested in this:"));
                 string names = "";
                 foreach (var hero in report.HighImpactHeroes)
                 {

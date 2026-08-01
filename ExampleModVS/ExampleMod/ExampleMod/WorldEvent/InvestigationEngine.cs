@@ -184,8 +184,10 @@ namespace LivingWorldNpcs
                 evt.RetaliationSpawned = true;
 
                 // 命名
-                string partyName = evt.TargetSettlement?.Name?.ToString() ?? "村庄";
-                V.SetPartyName(party, new TaleWorlds.Localization.TextObject($"{partyName}的复仇队"));
+                // 报复部队名兜底：村庄
+                string partyName = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
+                // 报复部队名：{村名}的复仇队
+                V.SetPartyName(party, new TaleWorlds.Localization.TextObject(LWNTextHelper.ResolveCompound("LWN_investigation_revenge_party", ("NAME", partyName))));
 
                 // 位置
                 Vec2 basePos = V.Pos(settlement);
@@ -289,8 +291,10 @@ namespace LivingWorldNpcs
                 evt.RetaliationSpawnDay = (float)CampaignTime.Now.ToDays;
                 evt.RetaliationSpawned = true;
 
-                string partyName = evt.TargetSettlement?.Name?.ToString() ?? "村庄";
-                V.SetPartyName(party, new TaleWorlds.Localization.TextObject($"{partyName}的打手"));
+                // 打手队名兜底：村庄
+                string partyName = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
+                // 打手队名：{村名}的打手
+                V.SetPartyName(party, new TaleWorlds.Localization.TextObject(LWNTextHelper.ResolveCompound("LWN_investigation_thug_party", ("NAME", partyName))));
 
                 Vec2 basePos = V.Pos(settlement);
                 Vec2 spawnPos = basePos + new Vec2(MBRandom.RandomFloatRanged(-5f, 5f), MBRandom.RandomFloatRanged(-5f, 5f));

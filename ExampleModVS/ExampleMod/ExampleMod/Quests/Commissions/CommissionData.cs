@@ -109,8 +109,10 @@ namespace LivingWorldNpcs
             {
                 Id = "bounty_hunt",
                 Category = CommissionCategory.BountyHunt,
-                TitleTemplate = "悬赏缉拿：{TARGET_NAME}",
-                DescriptionTemplate = "有消息说{TARGET_NAME}最近在这一带出没。找到并击败他，死活不论——不过活捉的话报酬翻倍。",
+                // 悬赏缉拿标题模板（{TARGET_NAME} 由 GetFlavorDescription 填充）
+                TitleTemplate = "Bounty Hunt: {TARGET_NAME}",
+                // 悬赏缉拿风味描述模板（目标名占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "Rumor has it {TARGET_NAME} has been seen around here lately. Find and defeat him, dead or alive — though capture pays double.",
                 TargetType = CommissionTargetType.NamedHero,
                 BaseDifficulty = 0.3f,
                 BaseRewardGold = 500,
@@ -125,8 +127,10 @@ namespace LivingWorldNpcs
             {
                 Id = "caravan_escort",
                 Category = CommissionCategory.CaravanEscort,
-                TitleTemplate = "护卫商队：前往 {TARGET_NAME}",
-                DescriptionTemplate = "我有一批货要运到{TARGET_NAME}，但路上不太平。你护送我的商队安全抵达，我付你报酬。",
+                // 护卫商队标题模板（目的地占位）
+                TitleTemplate = "Escort Caravan: Travel to {TARGET_NAME}",
+                // 护卫商队风味描述模板（目的地占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "I have goods to ship to {TARGET_NAME}, but the roads are unsafe. Escort my caravan safely there and I'll pay you.",
                 TargetType = CommissionTargetType.Settlement,
                 BaseDifficulty = 0.25f,
                 BaseRewardGold = 400,
@@ -141,8 +145,10 @@ namespace LivingWorldNpcs
             {
                 Id = "supply_emergency",
                 Category = CommissionCategory.SupplyEmergency,
-                TitleTemplate = "紧急供货：{ITEM_NAME} ×{COUNT} 送往 {TARGET_NAME}",
-                DescriptionTemplate = "{TARGET_NAME}急缺{ITEM_NAME}！在{DAYS}天内送{COUNT}单位的{ITEM_NAME}过来，越快报酬越高。",
+                // 紧急供货标题模板（物品/数量/目的地占位）
+                TitleTemplate = "Emergency Supply: {ITEM_NAME} x{COUNT} to {TARGET_NAME}",
+                // 紧急供货风味描述模板（目的地/物品/天数/数量占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "{TARGET_NAME} urgently needs {ITEM_NAME}! Deliver {COUNT} units of {ITEM_NAME} within {DAYS} days — the sooner, the better the pay.",
                 TargetType = CommissionTargetType.Item,
                 BaseDifficulty = 0.2f,
                 BaseRewardGold = 300,
@@ -157,8 +163,10 @@ namespace LivingWorldNpcs
             {
                 Id = "underground_fight",
                 Category = CommissionCategory.UndergroundFight,
-                TitleTemplate = "地下拳赛：在 {TARGET_NAME} 出战",
-                DescriptionTemplate = "我的人在{TARGET_NAME}的竞技场下了注，但我们的拳手受伤了。你替他上场，赢了奖金对半分。",
+                // 地下拳赛标题模板（地点占位）
+                TitleTemplate = "Underground Fight: Fight in {TARGET_NAME}",
+                // 地下拳赛风味描述模板（地点占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "My people put money on the fight in {TARGET_NAME}'s arena, but our fighter got hurt. Take his place — win, and we split the prize.",
                 TargetType = CommissionTargetType.Any,
                 BaseDifficulty = 0.35f,
                 BaseRewardGold = 350,
@@ -175,8 +183,10 @@ namespace LivingWorldNpcs
             {
                 Id = "legendary_hunt",
                 Category = CommissionCategory.LegendaryHunt,
-                TitleTemplate = "猎杀传奇匪首：{TARGET_NAME}",
-                DescriptionTemplate = "{TARGET_NAME}——这个名字在这一带无人不知。横行多年的匪王，身上带着一件独一无二的装备。击败他，装备归你，另有重赏。",
+                // 猎杀传奇匪首标题模板（目标名占位）
+                TitleTemplate = "Legendary Hunt: {TARGET_NAME}",
+                // 猎杀传奇匪首风味描述模板（目标名占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "{TARGET_NAME} — that name is known to everyone around here. A bandit king who has terrorized these lands for years, carrying a unique piece of equipment. Defeat him: the gear is yours, plus a handsome reward.",
                 TargetType = CommissionTargetType.NamedHero,
                 BaseDifficulty = 0.7f,
                 BaseRewardGold = 5000,
@@ -191,8 +201,10 @@ namespace LivingWorldNpcs
             {
                 Id = "village_defense",
                 Category = CommissionCategory.VillageDefense,
-                TitleTemplate = "村防应援：保护 {TARGET_NAME}",
-                DescriptionTemplate = "{TARGET_NAME}即将遭到劫掠！赶在匪徒到达之前布置防御，保护村民。",
+                // 村防应援标题模板（村子占位）
+                TitleTemplate = "Village Defense: Protect {TARGET_NAME}",
+                // 村防应援风味描述模板（村子占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "{TARGET_NAME} is about to be raided! Set up defenses before the bandits arrive and protect the villagers.",
                 TargetType = CommissionTargetType.Settlement,
                 BaseDifficulty = 0.4f,
                 BaseRewardGold = 600,
@@ -207,8 +219,10 @@ namespace LivingWorldNpcs
             {
                 Id = "lost_item",
                 Category = CommissionCategory.LostItem,
-                TitleTemplate = "失物追寻：找回 {ITEM_NAME}",
-                DescriptionTemplate = "我的{ITEM_NAME}被偷了！最后有人看到小偷往{TARGET_NAME}方向跑了。帮我把东西找回来，必有重谢。",
+                // 失物追寻标题模板（物品占位）
+                TitleTemplate = "Lost Item: Recover {ITEM_NAME}",
+                // 失物追寻风味描述模板（物品/去向地点占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "My {ITEM_NAME} was stolen! Someone saw the thief heading toward {TARGET_NAME}. Get my property back and you'll be richly rewarded.",
                 TargetType = CommissionTargetType.Item,
                 BaseDifficulty = 0.3f,
                 BaseRewardGold = 300,
@@ -223,8 +237,10 @@ namespace LivingWorldNpcs
             {
                 Id = "prison_break",
                 Category = CommissionCategory.PrisonBreak,
-                TitleTemplate = "越狱营救：救出 {TARGET_NAME}",
-                DescriptionTemplate = "我的朋友{TARGET_NAME}被关在敌对城镇的监狱里。帮我把他救出来——你可以贿赂守卫，也可以潜入地牢。",
+                // 越狱营救标题模板（目标名占位）
+                TitleTemplate = "Prison Break: Rescue {TARGET_NAME}",
+                // 越狱营救风味描述模板（目标名占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "My friend {TARGET_NAME} is locked up in a hostile town's prison. Get him out — bribe the guards or sneak into the dungeon.",
                 TargetType = CommissionTargetType.NamedHero,
                 BaseDifficulty = 0.5f,
                 BaseRewardGold = 800,
@@ -239,8 +255,10 @@ namespace LivingWorldNpcs
             {
                 Id = "supply_intercept",
                 Category = CommissionCategory.SupplyIntercept,
-                TitleTemplate = "物资截获：拦截运往 {TARGET_NAME} 的补给",
-                DescriptionTemplate = "敌方有一批补给正在运往{TARGET_NAME}。在它们到达之前截下来——物资归你处置，或者交给我换报酬。",
+                // 物资截获标题模板（目的地占位）
+                TitleTemplate = "Supply Intercept: Cut Off Supplies to {TARGET_NAME}",
+                // 物资截获风味描述模板（目的地占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "The enemy is shipping supplies to {TARGET_NAME}. Intercept them before they arrive — keep the goods, or hand them over for a reward.",
                 TargetType = CommissionTargetType.Settlement,
                 BaseDifficulty = 0.45f,
                 BaseRewardGold = 700,
@@ -257,8 +275,10 @@ namespace LivingWorldNpcs
             {
                 Id = "hideout_clear",
                 Category = CommissionCategory.HideoutClear,
-                TitleTemplate = "清剿匪穴：{TARGET_NAME} 附近的藏身处",
-                DescriptionTemplate = "{TARGET_NAME}附近有一个匪徒藏身处，不断骚扰过往商队。清理掉它——可以白天强攻，也可以夜间潜入。",
+                // 清剿匪穴标题模板（附近地点占位）
+                TitleTemplate = "Clear the Hideout: Den Near {TARGET_NAME}",
+                // 清剿匪穴风味描述模板（地点占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "There's a bandit hideout near {TARGET_NAME} that keeps harrying passing caravans. Clear it out — assault by day, or sneak in at night.",
                 TargetType = CommissionTargetType.Settlement,
                 BaseDifficulty = 0.35f,
                 BaseRewardGold = 450,
@@ -273,8 +293,10 @@ namespace LivingWorldNpcs
             {
                 Id = "emergency_delivery",
                 Category = CommissionCategory.EmergencyDelivery,
-                TitleTemplate = "限时运粮：{ITEM_NAME} ×{COUNT} 送往 {TARGET_NAME}",
-                DescriptionTemplate = "{TARGET_NAME}断粮了！这里有一批{ITEM_NAME}，{DAYS}天内送到。带得越多报酬越高——但载重会影响你的行军速度。",
+                // 限时运粮标题模板（物品/数量/目的地占位）
+                TitleTemplate = "Emergency Delivery: {ITEM_NAME} x{COUNT} to {TARGET_NAME}",
+                // 限时运粮风味描述模板（目的地/物品/天数占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "{TARGET_NAME} has run out of food! Here's a batch of {ITEM_NAME} — deliver it within {DAYS} days. The more you carry, the higher the pay — but the load will slow you down.",
                 TargetType = CommissionTargetType.Item,
                 BaseDifficulty = 0.3f,
                 BaseRewardGold = 400,
@@ -289,8 +311,10 @@ namespace LivingWorldNpcs
             {
                 Id = "treasure_hunt",
                 Category = CommissionCategory.TreasureHunt,
-                TitleTemplate = "寻宝：{TARGET_NAME} 的藏宝传说",
-                DescriptionTemplate = "我搞到了一张藏宝图，据说宝物埋在{TARGET_NAME}附近。但我一个人不敢去——你陪我去，找到宝物对半分。",
+                // 寻宝标题模板（传说地点占位）
+                TitleTemplate = "Treasure Hunt: The {TARGET_NAME} Treasure Legend",
+                // 寻宝风味描述模板（地点占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "I got hold of a treasure map — the treasure is said to be buried near {TARGET_NAME}. I don't dare go alone — come with me and we split whatever we find.",
                 TargetType = CommissionTargetType.Settlement,
                 BaseDifficulty = 0.4f,
                 BaseRewardGold = 600,
@@ -305,8 +329,10 @@ namespace LivingWorldNpcs
             {
                 Id = "horse_acquisition",
                 Category = CommissionCategory.HorseAcquisition,
-                TitleTemplate = "寻购名马：{ITEM_NAME}",
-                DescriptionTemplate = "我想要一匹{ITEM_NAME}。各大城镇的马市价格不同——帮我去比价找到最便宜的，预算省下来的部分归你。",
+                // 寻购名马标题模板（马匹品种占位）
+                TitleTemplate = "Acquire a Horse: {ITEM_NAME}",
+                // 寻购名马风味描述模板（马匹品种占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "I want a {ITEM_NAME}. Horse prices differ between towns — compare prices and find the cheapest; whatever's left of the budget is yours.",
                 TargetType = CommissionTargetType.Item,
                 BaseDifficulty = 0.25f,
                 BaseRewardGold = 350,
@@ -321,8 +347,10 @@ namespace LivingWorldNpcs
             {
                 Id = "arena_special",
                 Category = CommissionCategory.ArenaSpecial,
-                TitleTemplate = "竞技场特别赛：在 {TARGET_NAME} 连胜",
-                DescriptionTemplate = "我安排了一场特别规则的竞技——禁用盾牌，纯靠身手。在{TARGET_NAME}的竞技场连赢两场，押注赚的我们对半分。",
+                // 竞技场特别赛标题模板（地点占位）
+                TitleTemplate = "Arena Special: Consecutive Wins in {TARGET_NAME}",
+                // 竞技场特别赛风味描述模板（地点占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "I've arranged a special-rules bout — no shields, pure skill. Win two straight fights in {TARGET_NAME}'s arena and we split the betting winnings.",
                 TargetType = CommissionTargetType.Any,
                 BaseDifficulty = 0.45f,
                 BaseRewardGold = 500,
@@ -337,8 +365,10 @@ namespace LivingWorldNpcs
             {
                 Id = "decoy_mission",
                 Category = CommissionCategory.DecoyMission,
-                TitleTemplate = "引开追兵：掩护委托人撤离",
-                DescriptionTemplate = "我正在被追杀！你带少量兵力引开追兵的注意，我趁机逃跑。坚持的时间越长报酬越高——但千万别被追上了。",
+                // 引开追兵标题模板（无占位）
+                TitleTemplate = "Decoy: Cover the Client's Escape",
+                // 引开追兵风味描述模板（无占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "I'm being hunted! Draw the pursuers' attention with a small force while I escape. The longer you hold them, the higher the pay — but don't get caught.",
                 TargetType = CommissionTargetType.Any,
                 BaseDifficulty = 0.5f,
                 BaseRewardGold = 700,
@@ -353,8 +383,10 @@ namespace LivingWorldNpcs
             {
                 Id = "procurement_agent",
                 Category = CommissionCategory.ProcurementAgent,
-                TitleTemplate = "跨城代购：{ITEM_NAME}",
-                DescriptionTemplate = "我需要一件{ITEM_NAME}，但不方便亲自出面。给你一笔预算，去各大城镇比价——花得越少，剩下的归你。如果市场上买不到，就去找拥有这件装备的人交涉。",
+                // 跨城代购标题模板（物品占位）
+                TitleTemplate = "Cross-Town Procurement: {ITEM_NAME}",
+                // 跨城代购风味描述模板（物品占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "I need a {ITEM_NAME}, but I can't show my face in the market myself. Here's a budget — compare prices across towns; the less you spend, the more stays with you. If it's not on the market, negotiate with whoever owns one.",
                 TargetType = CommissionTargetType.Item,
                 BaseDifficulty = 0.35f,
                 BaseRewardGold = 500,
@@ -369,8 +401,10 @@ namespace LivingWorldNpcs
             {
                 Id = "investigation",
                 Category = CommissionCategory.Investigation,
-                TitleTemplate = "调查：{TARGET_NAME}失窃案",
-                DescriptionTemplate = "{TARGET_NAME}发生了失窃案，尚不知道是谁干的。{DAYS}天内搜集线索找出真凶——可以去附近打探，也可以回现场找证据。",
+                // 调查委托标题模板（案发地点占位）
+                TitleTemplate = "Investigation: Theft at {TARGET_NAME}",
+                // 调查委托风味描述模板（案发地点/天数占位，未接入消费点，暂为英文直译）
+                DescriptionTemplate = "A theft has occurred in {TARGET_NAME} and the culprit is unknown. Gather clues within {DAYS} days to find the true culprit — question the locals or search the scene for evidence.",
                 TargetType = CommissionTargetType.Settlement,
                 BaseDifficulty = 0.15f,
                 BaseRewardGold = 200,
@@ -435,51 +469,70 @@ namespace LivingWorldNpcs
                     switch (evt.Stage)
                     {
                         case EventStage.Emerging:
-                            // 案件定性从事实派生：伤人+失窃=刑案 / 伤人案 / 失窃案
-                            return $"调查：{settlementName}{evt.CaseLabel}";
+                            // 调查案标题：地点 + 案件定性（伤人+失窃=刑案 / 伤人案 / 失窃案）
+                            return LWNTextHelper.ResolveCompound("LWN_commission_data_worldevent_investigation_title", "Investigation: {LOCATION} {CASE_LABEL}", ("LOCATION", settlementName), ("CASE_LABEL", evt.CaseLabel));
                         case EventStage.Active:
                         {
                             var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
                             if (suspect != null)
                             {
                                 if (evt.SuspectIsPlayer)
-                                    return $"被指控：{settlementName}案";
-                                return $"悬赏缉拿：{suspect.Name}";
+                                    // 标题：玩家被指控犯下此案
+                                    return LWNTextHelper.ResolveCompound("LWN_commission_data_worldevent_accused_title", "Accused in the {LOCATION} Case", ("LOCATION", settlementName));
+                                // 标题：悬赏缉拿嫌犯
+                                return LWNTextHelper.ResolveCompound("LWN_commission_data_worldevent_bounty_title", "Bounty Hunt: {TARGET_NAME}", ("TARGET_NAME", suspect.Name.ToString()));
                             }
-                            return $"追凶：{settlementName}案";
+                            // 标题：追查嫌犯下落
+                            return LWNTextHelper.ResolveCompound("LWN_commission_data_worldevent_hunt_title", "Hunting the {LOCATION} Case", ("LOCATION", settlementName));
                         }
                         case EventStage.Confrontation:
-                            return $"危机：{settlementName}遭报复";
+                            // 标题：案发城镇遭报复的危机
+                            return LWNTextHelper.ResolveCompound("LWN_commission_data_worldevent_crisis_title", "Crisis: {LOCATION} Under Attack", ("LOCATION", settlementName));
                         default:
                             break;
                     }
                 }
             }
 
-            // 回退：静态模板
+            // 回退：静态模板（按委托类型 ID 查本地化模板，占位符由 TextObject 变量填充）
             var def = GetDef();
-            if (def == null) return "委托进行中...";
+            if (def == null)
+                // 无模板定义时的兜底标题
+                return LWNTextHelper.ResolveText("LWN_commission_data_ongoing", "Commission in progress...");
 
-            string desc = def.TitleTemplate;
+            // 目标名占位取值（与旧 .Replace 逻辑一一对应）
+            string targetName = null;
             if (TargetHero != null)
-                desc = desc.Replace("{TARGET_NAME}", TargetHero.Name.ToString());
+                targetName = TargetHero.Name.ToString();
             else if (!string.IsNullOrEmpty(TargetSettlementId) && Category == CommissionCategory.Investigation)
             {
                 // Investigation: settlement IS the target（调查某地的案件）
                 var s = Settlement.Find(TargetSettlementId);
-                if (s != null) desc = desc.Replace("{TARGET_NAME}", s.Name.ToString());
+                if (s != null) targetName = s.Name.ToString();
             }
 
+            // 物品名/数量占位取值（仅当指定了物品目标）
+            string itemName = null;
+            string itemCount = null;
             if (!string.IsNullOrEmpty(TargetItemId))
             {
                 var item = TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(TargetItemId);
-                desc = desc.Replace("{ITEM_NAME}", item?.Name.ToString() ?? TargetItemId);
-                desc = desc.Replace("{COUNT}", TargetItemCount.ToString());
+                itemName = item?.Name.ToString() ?? TargetItemId;
+                itemCount = TargetItemCount.ToString();
             }
 
-            desc = desc.Replace("{DAYS}", ((int)(TimeRemainingHours / 24f) + 1).ToString());
+            // 剩余天数占位（向上取整）
+            string daysLeft = ((int)(TimeRemainingHours / 24f) + 1).ToString();
 
-            return desc;
+            // 委托标题：XML 查中文 / 英文兜底，填充目标/物品/数量/天数
+            return LWNTextHelper.ResolveCompound(
+                // 委托标题 key 前缀：LWN_commission_data_
+                "LWN_commission_data_" + def.Id + "_title",
+                def.TitleTemplate,
+                ("TARGET_NAME", targetName),
+                ("ITEM_NAME", itemName),
+                ("COUNT", itemCount),
+                ("DAYS", daysLeft));
         }
     }
 

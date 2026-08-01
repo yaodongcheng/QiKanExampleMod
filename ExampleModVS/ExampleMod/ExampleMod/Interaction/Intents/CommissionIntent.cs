@@ -24,16 +24,32 @@ namespace LivingWorldNpcs
         private bool _hasIssue = false;
 
         public override InteractionOptionType Type => InteractionOptionType.FindWork;
-        public override string DisplayName =>
-            _hasUrgentEvent && !_hasIssue
-                ? "【关于当前的事】 我能帮上什么忙？"
-                : _hasIssue
-                    ? "【找工作】 打听委托"
-                    : "【找工作】 打听委托";
-        public override string ToolTip =>
-            _hasUrgentEvent
-                ? "对方正被事件困扰——询问需要你做什么"
-                : "向对方打听是否有委托可接";
+        public override string DisplayName
+        {
+            get
+            {
+                if (_hasUrgentEvent && !_hasIssue)
+                {
+                    // 委托入口名（事件困扰时）：询问能否帮上忙
+                    return LWNTextHelper.ResolveText("LWN_intent_commission_urgent_name", "About current matters: How can I help?");
+                }
+                // 委托入口名（普通）：打听委托
+                return LWNTextHelper.ResolveText("LWN_intent_commission_name", "Find work: Ask about commissions");
+            }
+        }
+        public override string ToolTip
+        {
+            get
+            {
+                if (_hasUrgentEvent)
+                {
+                    // 委托入口提示（事件困扰时）：对方正被事件困扰，询问需要做什么
+                    return LWNTextHelper.ResolveText("LWN_intent_commission_urgent_tooltip", "They are troubled by an event - ask what they need");
+                }
+                // 委托入口提示（普通）：打听是否有委托可接
+                return LWNTextHelper.ResolveText("LWN_intent_commission_tooltip", "Ask if there is any commission to take");
+            }
+        }
         public override float CooldownDays => 0.5f;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -76,11 +92,13 @@ namespace LivingWorldNpcs
 
             // 兜底：无可用委托
             if (ctx.Controller != null)
-                ctx.Controller.SceneSay("我这儿暂时没有需要帮手的活计。",
-                    new StoryOptionVM("（离开）", () => ctx.Controller.CloseDialogue()));
+                // 兜底台词：暂无委托可接
+                ctx.Controller.SceneSay(LWNTextHelper.ResolveText("LWN_intent_commission_no_work", "I have no work that needs a hand right now."),
+                    // 兜底后的离开选项：玩家告辞
+                    new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_leave_option", "(Leave)"), () => ctx.Controller.CloseDialogue()));
             else
-                InformationManager.DisplayMessage(
-                    new InformationMessage("我这儿暂时没有需要帮手的活计。"));
+                // 无对话控制器时的兜底飘字：暂无委托可接
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_intent_commission_no_work", "I have no work that needs a hand right now.")));
         }
 
         /// <summary>
@@ -145,21 +163,21 @@ namespace LivingWorldNpcs
 
                         DebugLogger.Log($"[CommissionIntent] Player accepted: {issueTypeName} from {ctx.Speaker.Name} — questObj={quest?.GetType().Name ?? "null"}");
 
-                        InformationManager.DisplayMessage(
-                            new InformationMessage($"接取了委托：{questTitle}", Colors.Green));
+                        // 接取委托成功飘字：提示已接下 {TITLE} 委托
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_intent_commission_accepted", ("TITLE", questTitle)), Colors.Green));
                     }
                     else
                     {
                         DebugLogger.Log($"[CommissionIntent] StartIssueQuest returned FALSE for {issueTypeName} from {ctx.Speaker.Name} — issue may already be solved or invalid");
-                        InformationManager.DisplayMessage(
-                            new InformationMessage($"接取委托失败：此委托可能已失效。", Colors.Red));
+                        // 接取委托失败飘字：委托可能已失效
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_intent_commission_failed_expired", "Failed to accept the commission: it may no longer be available."), Colors.Red));
                     }
                 }
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"[CommissionIntent] StartIssueQuest exception: {ex.Message}");
-                    InformationManager.DisplayMessage(
-                        new InformationMessage($"接取委托失败：{ex.Message}", Colors.Red));
+                    // 接取委托异常飘字：显示错误原因
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_intent_commission_failed_error", ("MESSAGE", ex.Message)), Colors.Red));
                 }
 
                 if (ctx.Controller != null)
@@ -179,12 +197,22 @@ namespace LivingWorldNpcs
                 if (sentences.Count <= 2)
                 {
                     // 短文本（1-2 句）：直接展示 + 选项
-                    string line = hasCausality
-                        ? $"{narrativeText}\n\n（{questTitle}）"
-                        : narrativeText;
+                    string line;
+                    if (hasCausality)
+                    {
+                        // 委托叙事展示：有前因时在正文后附任务标题
+                        line = LWNTextHelper.ResolveCompound("LWN_intent_commission_line_with_quest",
+                            ("NARRATIVE", narrativeText), ("QUEST", questTitle));
+                    }
+                    else
+                    {
+                        line = narrativeText;
+                    }
                     ctx.Controller.SceneSay(line,
-                        new StoryOptionVM("【接取】", onAccept),
-                        new StoryOptionVM("【拒绝】", onDecline));
+                        // 委托展示选项：接取委托
+                        new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_accept_option", "Accept"), onAccept),
+                        // 委托展示选项：拒绝委托
+                        new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_decline_option", "Decline"), onDecline));
                 }
                 else
                 {
@@ -195,12 +223,16 @@ namespace LivingWorldNpcs
             else
             {
                 // 无对话控制器时走 Inquiry 弹窗
-                InformationManager.ShowInquiry(new InquiryData(
-                    $"委托 — {ctx.Speaker.Name}",
-                    $"「{narrativeText}」\n\n委托：{questTitle}",
-                    true, true,
-                    "接取", "拒绝",
-                    onAccept, onDecline));
+                // 委托弹窗标题：{NAME} 发布的委托
+                string inquiryTitle = LWNTextHelper.ResolveCompound("LWN_intent_commission_inquiry_title", ("NAME", ctx.Speaker.Name.ToString()));
+                // 委托弹窗正文：叙事 + 任务标题
+                string inquiryBody = LWNTextHelper.ResolveCompound("LWN_intent_commission_inquiry_body",
+                    ("NARRATIVE", narrativeText), ("QUEST", questTitle));
+                // 委托弹窗按钮：接取
+                string acceptBtn = LWNTextHelper.ResolveText("LWN_intent_commission_accept_option", "Accept");
+                // 委托弹窗按钮：拒绝
+                string declineBtn = LWNTextHelper.ResolveText("LWN_intent_commission_decline_option", "Decline");
+                InformationManager.ShowInquiry(new InquiryData(inquiryTitle, inquiryBody, true, true, acceptBtn, declineBtn, onAccept, onDecline));
             }
         }
 
@@ -220,10 +252,14 @@ namespace LivingWorldNpcs
             if (index >= sentences.Count - 1)
             {
                 // 最后一句：展示选项
-                string finalLine = $"{sentences[index]}\n\n（{questTitle}）";
+                // 逐句展示的最后一句：正文后附任务标题
+                string finalLine = LWNTextHelper.ResolveCompound("LWN_intent_commission_line_with_quest",
+                    ("NARRATIVE", sentences[index]), ("QUEST", questTitle));
                 ctx.Controller.SceneSay(finalLine,
-                    new StoryOptionVM("【接取】", onAccept),
-                    new StoryOptionVM("【拒绝】", onDecline));
+                    // 逐句展示最后一句的选项：接取委托
+                    new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_accept_option", "Accept"), onAccept),
+                    // 逐句展示最后一句的选项：拒绝委托
+                    new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_decline_option", "Decline"), onDecline));
             }
             else
             {
@@ -286,28 +322,51 @@ namespace LivingWorldNpcs
             if (urgentEvent == null) return;
 
             bool isVictim = urgentEvent.TargetHeroId == ctx.Speaker?.StringId;
-            string instigatorName = urgentEvent.InstigatorHero?.Name?.ToString() ?? "他们";
-            string victimName = urgentEvent.TargetHero?.Name?.ToString() ?? "我们";
+            string instigatorName = urgentEvent.InstigatorHero?.Name?.ToString()
+                // 事件肇事者名字兜底：无名时用泛指称呼
+                ?? LWNTextHelper.ResolveText("LWN_intent_commission_them", "They");
+            string victimName = urgentEvent.TargetHero?.Name?.ToString()
+                // 事件受害者名字兜底：无名时用自称称呼
+                ?? LWNTextHelper.ResolveText("LWN_intent_commission_us", "us");
 
             string eventDesc = urgentEvent.Type switch
             {
-                EventType.BanditRaid => "匪帮正在劫掠这一带",
-                EventType.Famine => "粮食短缺，日子越来越难过了",
-                EventType.NobleConflict => "贵族之间的争端波及到了这里",
-                EventType.DebtTrap => "有人欠了一屁股债，被追得紧",
-                EventType.Kidnapping => "有人被绑了，整个镇子都人心惶惶",
-                EventType.Betrayal => "出了叛徒，不知道还能信谁",
-                EventType.TradeDispute => "商路上的争端让买卖越来越难做",
-                _ => "最近发生了一些事"
+                // 匪患事件描述：匪帮正在劫掠
+                EventType.BanditRaid => LWNTextHelper.ResolveText("LWN_intent_commission_event_banditraid", "Bandits are raiding this area"),
+                // 饥荒事件描述：粮食短缺
+                EventType.Famine => LWNTextHelper.ResolveText("LWN_intent_commission_event_famine", "Food is scarce, and days grow harder"),
+                // 贵族冲突事件描述：争端波及此地
+                EventType.NobleConflict => LWNTextHelper.ResolveText("LWN_intent_commission_event_nobleconflict", "A feud among nobles has reached this place"),
+                // 债务陷阱事件描述：有人被债主追逼
+                EventType.DebtTrap => LWNTextHelper.ResolveText("LWN_intent_commission_event_debttrap", "Someone is drowning in debt, hounded by creditors"),
+                // 绑架事件描述：人心惶惶
+                EventType.Kidnapping => LWNTextHelper.ResolveText("LWN_intent_commission_event_kidnapping", "Someone has been seized - the whole town is on edge"),
+                // 背叛事件描述：出了叛徒
+                EventType.Betrayal => LWNTextHelper.ResolveText("LWN_intent_commission_event_betrayal", "A traitor has emerged - no one knows who to trust"),
+                // 商路争端事件描述：买卖难做
+                EventType.TradeDispute => LWNTextHelper.ResolveText("LWN_intent_commission_event_tradedispute", "Disputes on the trade routes are making business hard"),
+                // 未知事件描述兜底
+                _ => LWNTextHelper.ResolveText("LWN_intent_commission_event_default", "Something has happened recently")
             };
 
-            string line = isVictim
-                ? $"唉……{eventDesc}。{instigatorName}的事你应该也听说了。我现在自顾不暇，等这阵子过去再看有什么活计能派给你。"
-                : $"我这边的事还没了结——{eventDesc}。等我把手头的事处理完，再看看有什么能让你帮忙的。";
+            string line;
+            if (isVictim)
+            {
+                // 受害者委托台词：叙述困境并谢绝当前委托
+                line = LWNTextHelper.ResolveCompound("LWN_intent_commission_urgent_victim_line",
+                    ("EVENT_DESC", eventDesc), ("INSTIGATOR", instigatorName));
+            }
+            else
+            {
+                // 旁观者委托台词：叙述困境，稍后再谈委托
+                line = LWNTextHelper.ResolveCompound("LWN_intent_commission_urgent_other_line",
+                    ("EVENT_DESC", eventDesc));
+            }
 
             if (ctx.Controller != null)
                 ctx.Controller.SceneSay(line,
-                    new StoryOptionVM("（我理解，告辞）", () => ctx.Controller.CloseDialogue()));
+                    // 困境叙事的离开选项：表示理解并告辞
+                    new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_understand_leave_option", "(I understand - farewell)"), () => ctx.Controller.CloseDialogue()));
             else
                 InformationManager.DisplayMessage(new InformationMessage(line));
         }
@@ -346,7 +405,9 @@ namespace LivingWorldNpcs
             // ③ 兜底：原版 TextObject
             return !string.IsNullOrEmpty(vanillaExplanation)
                 ? vanillaExplanation
-                : $"我需要人帮个忙——是关于{questTitle}的事。";
+                // 叙事生成兜底：无原版说明时直述需要帮忙的事
+                : LWNTextHelper.ResolveCompound("LWN_intent_commission_narrative_fallback",
+                    ("QUEST", questTitle));
         }
 
         /// <summary>
@@ -451,7 +512,8 @@ namespace LivingWorldNpcs
             var replacements = new Dictionary<string, string>
             {
                 { "{PREVIOUS_QUEST}", ctx.PreviousQuestId ?? "" },
-                { "{CAUSE_HERO}", ctx.CauseHeroName ?? "某人" },
+                // 因果肇事者名字兜底：无名时用泛指称呼（注入玩家可见叙事）
+                { "{CAUSE_HERO}", ctx.CauseHeroName ?? LWNTextHelper.ResolveText("LWN_intent_commission_cause_hero_fallback", "Someone") },
                 { "{CAUSE_EVENT}", ctx.Summary ?? "" },
                 { "{CHAIN_DEPTH}", ctx.ChainDepth > 0 ? ctx.ChainDepth.ToString() : "" },
                 { "{QUEST_DESC}", questDesc },
@@ -529,7 +591,9 @@ namespace LivingWorldNpcs
 
             return !string.IsNullOrEmpty(brief) ? brief
                 : !string.IsNullOrEmpty(explanation) ? explanation
-                : $"我需要人帮个忙——（{issue.Title}）";
+                // 完整叙事兜底：无任何说明时用任务标题兜底
+                : LWNTextHelper.ResolveCompound("LWN_intent_commission_full_narrative_fallback",
+                    ("QUEST", issue.Title?.ToString() ?? ""));
         }
     }
 
@@ -542,8 +606,10 @@ namespace LivingWorldNpcs
     public class ConfirmCommissionIntent : IntentBase
     {
         public override InteractionOptionType Type => InteractionOptionType.FindWork;
-        public override string DisplayName => "【委托详情】 听说是你需要帮手？";
-        public override string ToolTip => "[已废弃]";
+        // 已废弃委托详情意图名：询问是否需要帮手
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_intent_commission_confirm_name", "Commission details: I heard you need a hand?");
+        // 已废弃委托详情意图提示：占位说明
+        public override string ToolTip => LWNTextHelper.ResolveText("LWN_intent_commission_confirm_tooltip", "[Deprecated]");
         public override float CooldownDays => 0f;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -566,8 +632,10 @@ namespace LivingWorldNpcs
         private QuestBase _foundQuest;
 
         public override InteractionOptionType Type => InteractionOptionType.Info;
-        public override string DisplayName => "【领取报酬】 委托任务有结果了？";
-        public override string ToolTip => "领取已完成委托的报酬";
+        // 领取报酬意图名：询问委托结果
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_intent_commission_reward_name", "Collect reward: Is my commission done?");
+        // 领取报酬意图提示：领取已完成委托的报酬
+        public override string ToolTip => LWNTextHelper.ResolveText("LWN_intent_commission_reward_tooltip", "Collect the reward for a completed commission");
         public override float CooldownDays => 0f;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -622,7 +690,9 @@ namespace LivingWorldNpcs
                 // CommissionQuest 路径（旧系统兼容）
                 var data = cq.Data;
                 string closureText = cq.Data.GetFlavorDescription();
-                string line = $"委托「{closureText}」已经办妥了。\n（报酬 {data.NegotiatedReward} 第纳尔）";
+                // 旧委托系统结账台词：委托已办妥，列出报酬
+                string line = LWNTextHelper.ResolveCompound("LWN_intent_commission_reward_line",
+                    ("CLOSURE", closureText), ("REWARD", data.NegotiatedReward.ToString()));
 
                 Action onCollect = () =>
                 {
@@ -635,20 +705,30 @@ namespace LivingWorldNpcs
                 if (ctx.Controller != null)
                 {
                     ctx.Controller.SceneSay(line,
-                        new StoryOptionVM("收下报酬", onCollect),
-                        new StoryOptionVM("（稍后再说）", () => ctx.Controller.CloseDialogue()));
+                        // 结账选项：收下报酬
+                        new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_collect_option", "Take the reward"), onCollect),
+                        // 结账选项：稍后再说
+                        new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_later_option", "(Later)"), () => ctx.Controller.CloseDialogue()));
                 }
                 else
                 {
-                    InformationManager.ShowInquiry(new InquiryData(
-                        "领取报酬", $"「{line}」", true, true,
-                        "领取", "稍后再说", onCollect, null));
+                    // 结账弹窗标题：领取报酬
+                    string rewardTitle = LWNTextHelper.ResolveText("LWN_intent_commission_reward_title", "Collect reward");
+                    // 结账弹窗正文：报酬叙事台词
+                    string rewardBody = LWNTextHelper.ResolveCompound("LWN_intent_commission_reward_body", ("LINE", line));
+                    // 结账弹窗按钮：领取
+                    string collectBtn = LWNTextHelper.ResolveText("LWN_intent_commission_collect_option", "Take the reward");
+                    // 结账弹窗按钮：稍后再说
+                    string laterBtn = LWNTextHelper.ResolveText("LWN_intent_commission_later_option", "(Later)");
+                    InformationManager.ShowInquiry(new InquiryData(rewardTitle, rewardBody, true, true, collectBtn, laterBtn, onCollect, null));
                 }
             }
             else
             {
                 // 通用 Quest（兜底）
-                string questTitle = _foundQuest.Title?.ToString() ?? "委托";
+                string questTitle = _foundQuest.Title?.ToString()
+                    // 任务标题兜底：无标题时用通称
+                    ?? LWNTextHelper.ResolveText("LWN_intent_commission_quest_fallback", "Quest");
                 int reward = _foundQuest.RewardGold;
 
                 Action onCollect = () =>
@@ -661,19 +741,29 @@ namespace LivingWorldNpcs
                         ctx.Controller.CloseDialogue();
                 };
 
-                string line = $"委托「{questTitle}」已经办妥了。\n（报酬 {reward} 第纳尔）";
+                // 通用任务结账台词：委托已办妥，列出报酬
+                string line = LWNTextHelper.ResolveCompound("LWN_intent_commission_reward_line_generic",
+                    ("QUEST", questTitle), ("REWARD", reward.ToString()));
 
                 if (ctx.Controller != null)
                 {
                     ctx.Controller.SceneSay(line,
-                        new StoryOptionVM("收下报酬", onCollect),
-                        new StoryOptionVM("（稍后再说）", () => ctx.Controller.CloseDialogue()));
+                        // 结账选项：收下报酬
+                        new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_collect_option", "Take the reward"), onCollect),
+                        // 结账选项：稍后再说
+                        new StoryOptionVM(LWNTextHelper.ResolveText("LWN_intent_commission_later_option", "(Later)"), () => ctx.Controller.CloseDialogue()));
                 }
                 else
                 {
-                    InformationManager.ShowInquiry(new InquiryData(
-                        "领取报酬", $"「{line}」", true, true,
-                        "领取", "稍后再说", onCollect, null));
+                    // 结账弹窗标题：领取报酬
+                    string rewardTitle = LWNTextHelper.ResolveText("LWN_intent_commission_reward_title", "Collect reward");
+                    // 结账弹窗正文：报酬叙事台词
+                    string rewardBody = LWNTextHelper.ResolveCompound("LWN_intent_commission_reward_body", ("LINE", line));
+                    // 结账弹窗按钮：领取
+                    string collectBtn = LWNTextHelper.ResolveText("LWN_intent_commission_collect_option", "Take the reward");
+                    // 结账弹窗按钮：稍后再说
+                    string laterBtn = LWNTextHelper.ResolveText("LWN_intent_commission_later_option", "(Later)");
+                    InformationManager.ShowInquiry(new InquiryData(rewardTitle, rewardBody, true, true, collectBtn, laterBtn, onCollect, null));
                 }
             }
         }

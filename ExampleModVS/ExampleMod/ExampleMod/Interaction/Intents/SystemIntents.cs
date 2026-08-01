@@ -21,7 +21,8 @@ namespace LivingWorldNpcs
     {
         public override InteractionOptionType Type => InteractionOptionType.System;
         public override InteractionCategory Category => InteractionCategory.System;
-        public override string DisplayName => "【系统】增加好感";
+        // 系统意图名：增加与 NPC 的好感
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_intent_system_increase_relation_name", "System: Increase relations");
         public override IntentSource Source => IntentSource.Player; // 仅玩家通过对话触发
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -44,7 +45,8 @@ namespace LivingWorldNpcs
     {
         public override InteractionOptionType Type => InteractionOptionType.System;
         public override InteractionCategory Category => InteractionCategory.System;
-        public override string DisplayName => "【系统】减少好感";
+        // 系统意图名：减少与 NPC 的好感
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_intent_system_decrease_relation_name", "System: Decrease relations");
         public override IntentSource Source => IntentSource.Player;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -67,7 +69,8 @@ namespace LivingWorldNpcs
     {
         public override InteractionOptionType Type => InteractionOptionType.System;
         public override InteractionCategory Category => InteractionCategory.System;
-        public override string DisplayName => "【系统】给予金币";
+        // 系统意图名：给予玩家金币
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_intent_system_give_gold_name", "System: Give gold");
         public override IntentSource Source => IntentSource.Player;
 
         public override Eligibility Evaluate(IntentContext ctx)
@@ -89,7 +92,8 @@ namespace LivingWorldNpcs
     {
         public override InteractionOptionType Type => InteractionOptionType.System;
         public override InteractionCategory Category => InteractionCategory.System;
-        public override string DisplayName => "【系统】收取金币";
+        // 系统意图名：从玩家收取金币
+        public override string DisplayName => LWNTextHelper.ResolveText("LWN_intent_system_take_gold_name", "System: Take gold");
         public override IntentSource Source => IntentSource.Player;
 
         public override Eligibility Evaluate(IntentContext ctx)

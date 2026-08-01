@@ -216,36 +216,55 @@ namespace LivingWorldNpcs
         public static string GetSocialIdentity(Hero hero)
         {
             if (hero == null) return "";
-            if (hero.IsLord) return "领主";
-            if (hero.IsMerchant) return "商人";
-            if (hero.IsGangLeader) return "帮派头目";
-            if (hero.IsWanderer) return "流浪汉";
-            if (hero.Occupation == Occupation.Headman) return "村长";
-            if (hero.Occupation == Occupation.RuralNotable) return "乡绅";
-            if (hero.Occupation == Occupation.Artisan) return "工匠";
-            if (hero.Occupation == Occupation.Preacher) return "传教士";
-            return "村民";
+            // 社会身份：领主
+            if (hero.IsLord) return LWNTextHelper.ResolveText("LWN_identity_lord", "Lord");
+            // 社会身份：商人
+            if (hero.IsMerchant) return LWNTextHelper.ResolveText("LWN_identity_merchant", "Merchant");
+            // 社会身份：帮派头目
+            if (hero.IsGangLeader) return LWNTextHelper.ResolveText("LWN_identity_gangleader", "Gang leader");
+            // 社会身份：流浪汉
+            if (hero.IsWanderer) return LWNTextHelper.ResolveText("LWN_identity_wanderer", "Wanderer");
+            // 社会身份：村长
+            if (hero.Occupation == Occupation.Headman) return LWNTextHelper.ResolveText("LWN_identity_headman", "Village headman");
+            // 社会身份：乡绅
+            if (hero.Occupation == Occupation.RuralNotable) return LWNTextHelper.ResolveText("LWN_identity_ruralnotable", "Rural notable");
+            // 社会身份：工匠
+            if (hero.Occupation == Occupation.Artisan) return LWNTextHelper.ResolveText("LWN_identity_artisan", "Artisan");
+            // 社会身份：传教士
+            if (hero.Occupation == Occupation.Preacher) return LWNTextHelper.ResolveText("LWN_identity_preacher", "Preacher");
+            // 社会身份：村民（兜底）
+            return LWNTextHelper.ResolveText("LWN_identity_villager", "Villager");
         }
 
         /// <summary>获取说话者自称</summary>
         public static string GetSelfReference(Hero speaker)
         {
-            if (speaker == null) return "我";
-            if (speaker.IsLord) return "本官";
-            if (speaker.Occupation == Occupation.Headman || speaker.Occupation == Occupation.RuralNotable) return "老夫";
-            if (speaker.Age > 40) return "老夫";
-            return "我";
+            // 自称：兜底"我"
+            if (speaker == null) return LWNTextHelper.ResolveText("LWN_identity_selfref_me", "I");
+            // 自称：领主自称"本官"
+            if (speaker.IsLord) return LWNTextHelper.ResolveText("LWN_identity_selfref_lord", "This official");
+            // 自称：村老自称"老夫"
+            if (speaker.Occupation == Occupation.Headman || speaker.Occupation == Occupation.RuralNotable) return LWNTextHelper.ResolveText("LWN_identity_selfref_elder", "This old man");
+            // 自称：年长者自称"老夫"
+            if (speaker.Age > 40) return LWNTextHelper.ResolveText("LWN_identity_selfref_elder", "This old man");
+            // 自称：普通"我"
+            return LWNTextHelper.ResolveText("LWN_identity_selfref_me", "I");
         }
 
         /// <summary>获取对玩家的称呼</summary>
         public static string GetPlayerAddress(Hero speaker)
         {
-            if (speaker == null) return "你";
+            // 对玩家的称呼：兜底"你"
+            if (speaker == null) return LWNTextHelper.ResolveText("LWN_identity_addr_you", "you");
             int relation = speaker.GetRelation(Hero.MainHero);
-            if (relation >= 20) return "你";
-            if (relation >= -5) return "你这小子";
-            if (relation >= -20) return "你";
-            return "你这家伙";
+            // 对玩家的称呼：关系好 → "你"
+            if (relation >= 20) return LWNTextHelper.ResolveText("LWN_identity_addr_you", "you");
+            // 对玩家的称呼：关系一般 → 略带轻视的"你这小子"
+            if (relation >= -5) return LWNTextHelper.ResolveText("LWN_identity_addr_kid", "you, you brat");
+            // 对玩家的称呼：关系差 → "你"
+            if (relation >= -20) return LWNTextHelper.ResolveText("LWN_identity_addr_you", "you");
+            // 对玩家的称呼：关系很差 → "你这家伙"
+            return LWNTextHelper.ResolveText("LWN_identity_addr_bozo", "you, you wretch");
         }
     }
 

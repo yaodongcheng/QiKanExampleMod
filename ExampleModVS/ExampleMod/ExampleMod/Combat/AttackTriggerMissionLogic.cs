@@ -168,7 +168,13 @@ namespace LivingWorldNpcs
                     lock (_deadAgents) // 简单的线程安全（虽然通常在主线程跑，但保险起见）
                     {
                         _deadAgents.Add(affectedAgent);
-                        InformationManager.DisplayMessage(new InformationMessage($"Agent {affectedAgent.Name} 被加入尸体列表", Colors.Red));
+                        // 尸体登记提示：报出被登记 Agent 名
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            // Agent {NAME} 被加入尸体列表
+                            LWNTextHelper.ResolveCompound("LWN_combat_body_added",
+                                "Agent {NAME} added to corpse list",
+                                ("NAME", affectedAgent.Name?.ToString() ?? "")),
+                            Colors.Red));
                     }
                 }
             }
@@ -191,12 +197,30 @@ namespace LivingWorldNpcs
                 // 扣除“虚拟血量”用于判定胜负
                 _agentA_VirtualHP -= damage;
 
-                InformationManager.DisplayMessage(new InformationMessage($"{attackerAgent.Name} 击中 {affectedAgent.Name}，伤害: {damage:F1}, 剩余虚拟血量: {_agentA_VirtualHP:F1}", Colors.Yellow));
+                // 切磋伤害提示（甲）：谁击中谁、伤害、剩余虚拟血量
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // {ATTACKER} 击中 {VICTIM}，伤害: {DAMAGE}, ...
+                    LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
+                        "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
+                        ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
+                        ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
+                        ("DAMAGE", damage.ToString("F1")),
+                        ("HP", _agentA_VirtualHP.ToString("F1"))),
+                    Colors.Yellow));
             }
             else if (affectedAgent == _agentB)
             {
                 _agentB_VirtualHP -= damage;
-                InformationManager.DisplayMessage(new InformationMessage($"{attackerAgent.Name} 击中 {affectedAgent.Name}，伤害: {damage:F1}, 剩余虚拟血量: {_agentB_VirtualHP:F1}", Colors.Yellow));
+                // 切磋伤害提示（乙）：谁击中谁、伤害、剩余虚拟血量
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // {ATTACKER} 击中 {VICTIM}，伤害: {DAMAGE}, ...
+                    LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
+                        "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
+                        ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
+                        ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
+                        ("DAMAGE", damage.ToString("F1")),
+                        ("HP", _agentB_VirtualHP.ToString("F1"))),
+                    Colors.Yellow));
             }
 
             // ==========================================
@@ -226,7 +250,13 @@ namespace LivingWorldNpcs
             if (loser != null && _agentA != null && _agentB != null)
             {
                 Agent winner = (loser == _agentA) ? _agentB : _agentA;
-                InformationManager.DisplayMessage(new InformationMessage($"切磋结束，胜者: {winner.Name}", Colors.Green));
+                // 切磋结束提示：报出胜者
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // 切磋结束，胜者: {NAME}
+                    LWNTextHelper.ResolveCompound("LWN_combat_duel_end",
+                        "Duel over, winner: {NAME}",
+                        ("NAME", winner.Name?.ToString() ?? "")),
+                    Colors.Green));
             }
 
             // 3. 恢复 AI 状态
@@ -319,8 +349,11 @@ namespace LivingWorldNpcs
             // 其 OnEnd 会走 CombatManager.EndFight（归还原队伍 + WatchState=Patrolling）+ 收刀 + 清警戒，
             // 比手动 AbortCurrentAction 做得更全；归队后玩家队伍不再敌对，引擎自动掉目标。
 
+            // 玩家在定居点被打倒的系统提示
             InformationManager.DisplayMessage(new InformationMessage(
-                "你被按在地上，武器被夺走了……", Colors.Red));
+                // 你被按在地上，武器被夺走了……
+                LWNTextHelper.ResolveText("LWN_combat_knocked_down", "You are pinned to the ground, your weapon taken away..."),
+                Colors.Red));
 
             // ① 交棒给大地图层
             try { PlayerDetentionBehavior.RequestDetention(settlement, evt); }
@@ -373,7 +406,15 @@ namespace LivingWorldNpcs
             // 只要 attacker 或 victim 任意一方是玩家就打印
             if ((attacker.IsMainAgent || victim.IsMainAgent) && victim != attacker)
             {
-                InformationManager.DisplayMessage(new InformationMessage($"AttackTriggerMissionLogic - OnRegisterBlow: {attacker.Name} 对 {victim.Name} 造成了{b.InflictedDamage} 点伤害", Colors.Yellow));
+                // 调试：伤害事件日志提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // 调试：伤害日志（AttackTriggerMissionLogic - OnRegisterBlow）
+                    LWNTextHelper.ResolveCompound("LWN_combat_damage_log",
+                        "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",
+                        ("ATTACKER", attacker.Name?.ToString() ?? ""),
+                        ("VICTIM", victim.Name?.ToString() ?? ""),
+                        ("DAMAGE", b.InflictedDamage.ToString())),
+                    Colors.Yellow));
             }
 
             if (!attacker.IsMainAgent || !victim.IsHuman || victim.IsMainAgent) return;

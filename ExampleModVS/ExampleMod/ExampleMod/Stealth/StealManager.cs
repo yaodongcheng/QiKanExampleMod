@@ -204,7 +204,8 @@ namespace LivingWorldNpcs
                     settlementId: Settlement.CurrentSettlement.StringId,
                     itemId: itemToSteal.Item.StringId,
                     count: 1,
-                    locationName: $"在{Settlement.CurrentSettlement.Name}",
+                    // 本地化：扒窃账本地名（地点前缀）
+                    locationName: LWNTextHelper.ResolveCompound("LWN_ui_steal_loc_in", ("NAME", Settlement.CurrentSettlement.Name.ToString())),
                     worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId
                 );
             }
@@ -269,7 +270,8 @@ namespace LivingWorldNpcs
                 RecordStolenGold(agent, actual);
                 // 失窃事实暗账（同 StealSpecificItem）：无人目击时等次日发现钱袋空了
                 AgentAIController.Instance?.RegisterUnwitnessedTheft(
-                    "gold", $"{actual} 第纳尔", agent.Name?.ToString(), count: actual);
+                    // 本地化：金币失窃账目名称
+                    "gold", LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_amount", ("GOLD", actual.ToString())), agent.Name?.ToString(), count: actual);
             }
             return actual;
         }
@@ -425,7 +427,8 @@ namespace LivingWorldNpcs
                     settlementId: settlement.StringId,
                     itemId: livestockItem.StringId,
                     count: 1,
-                    locationName: $"在{settlement.Name}",
+                    // 本地化：动物偷窃账本地名
+                    locationName: LWNTextHelper.ResolveCompound("LWN_ui_steal_loc_in", ("NAME", settlement.Name.ToString())),
                     worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId
                 );
             }
@@ -547,13 +550,16 @@ namespace LivingWorldNpcs
                     if (items != null)
                     {
                         foreach (var (itemId, itemName, _) in items)
+                            // 本地化：保管箱暗账目标名
                             AgentAIController.Instance?.RegisterUnwitnessedTheft(
-                                itemId, itemName ?? itemId, targetName: "保管箱");
+                                // 保管箱
+                                itemId, itemName ?? itemId, targetName: LWNTextHelper.ResolveText("LWN_ui_steal_target_chest", "the storage chest"));
                     }
                     if (gold > 0)
                     {
                         AgentAIController.Instance?.RegisterUnwitnessedTheft(
-                            "gold", $"{gold} 第纳尔", targetName: "保管箱", count: gold);
+                            // 本地化：保管箱金币失窃账目
+                            "gold", LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_amount", ("GOLD", gold.ToString())), targetName: LWNTextHelper.ResolveText("LWN_ui_steal_target_chest", "the storage chest"), count: gold);
                     }
                     return;
                 }
@@ -567,14 +573,16 @@ namespace LivingWorldNpcs
                     {
                         AgentAIController.Instance?.RegisterTheftWitnesses(
                             witnessHeroIds, templateWitness,
-                            itemId, itemName ?? itemId, targetName: "保管箱");
+                            // 保管箱
+                            itemId, itemName ?? itemId, targetName: LWNTextHelper.ResolveText("LWN_ui_steal_target_chest", "the storage chest"));
                     }
                 }
                 if (gold > 0)
                 {
                     AgentAIController.Instance?.RegisterTheftWitnesses(
                         witnessHeroIds, templateWitness,
-                        "gold", $"{gold} 第纳尔", targetName: "保管箱", count: gold);
+                        // 本地化：保管箱金币目击证词
+                        "gold", LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_amount", ("GOLD", gold.ToString())), targetName: LWNTextHelper.ResolveText("LWN_ui_steal_target_chest", "the storage chest"), count: gold);
                 }
 
                 // 抓现行围堵：victim=null（保管箱没有具体受害者 Agent）
@@ -610,7 +618,8 @@ namespace LivingWorldNpcs
                 if (victim == null || Agent.Main == null) return;
                 if ((items == null || items.Count == 0) && gold <= 0) return;
 
-                string victimName = victim.Name?.ToString() ?? "昏迷者";
+                // 本地化：昏迷受害者名兜底
+                string victimName = victim.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_steal_name_unconscious", "the unconscious person");
                 var victimHero = (victim.Character as CharacterObject)?.HeroObject;
                 var settlement = Settlement.CurrentSettlement;
 
@@ -628,7 +637,8 @@ namespace LivingWorldNpcs
                                 settlementId: settlement.StringId,
                                 itemId: itemId,
                                 count: count,
-                                locationName: $"在{settlement.Name}",
+                                // 本地化：昏迷搜刮物品账本地名
+                                locationName: LWNTextHelper.ResolveCompound("LWN_ui_steal_loc_in", ("NAME", settlement.Name.ToString())),
                                 worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
                         }
                     }
@@ -640,7 +650,8 @@ namespace LivingWorldNpcs
                             settlementId: settlement.StringId,
                             itemId: "gold",
                             count: gold,
-                            locationName: $"在{settlement.Name}",
+                            // 本地化：昏迷搜刮金币账本地名
+                            locationName: LWNTextHelper.ResolveCompound("LWN_ui_steal_loc_in", ("NAME", settlement.Name.ToString())),
                             worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
                     }
                 }
@@ -685,7 +696,8 @@ namespace LivingWorldNpcs
                     if (gold > 0)
                     {
                         AgentAIController.Instance?.RegisterUnwitnessedTheft(
-                            "gold", $"{gold} 第纳尔", targetName: victimName, count: gold);
+                            // 本地化：昏迷搜刮金币暗账名称
+                            "gold", LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_amount", ("GOLD", gold.ToString())), targetName: victimName, count: gold);
                     }
                     return;
                 }
@@ -707,7 +719,8 @@ namespace LivingWorldNpcs
                 {
                     AgentAIController.Instance?.RegisterTheftWitnesses(
                         witnessHeroIds, templateWitness,
-                        "gold", $"{gold} 第纳尔", targetName: victimName, count: gold);
+                        // 本地化：昏迷搜刮金币目击证词
+                        "gold", LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_amount", ("GOLD", gold.ToString())), targetName: victimName, count: gold);
                 }
 
                 // ④ 抓现行围堵：victim=null（受害者昏迷无法指控；WitnessCrime 分类落到 Steal，
@@ -1085,7 +1098,8 @@ namespace LivingWorldNpcs
                 initiatorId: Hero.MainHero.StringId,
                 victimHeroId: null, settlementId: settlement.StringId,
                 itemId: item.StringId, count: actual,
-                locationName: $"在{settlement.Name}的保管箱",
+                // 本地化：保管箱物品失窃账本地名
+                locationName: LWNTextHelper.ResolveCompound("LWN_ui_steal_loc_chest", ("NAME", settlement.Name.ToString())),
                 worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
             return actual;
         }
@@ -1105,7 +1119,8 @@ namespace LivingWorldNpcs
                 initiatorId: Hero.MainHero.StringId,
                 victimHeroId: null, settlementId: settlement.StringId,
                 itemId: item.StringId, count: actual,
-                locationName: $"在{settlement.Name}的保管箱",
+                // 本地化：保管箱物品失窃账本地名
+                locationName: LWNTextHelper.ResolveCompound("LWN_ui_steal_loc_chest", ("NAME", settlement.Name.ToString())),
                 worldEventId: AgentAIController.Instance?.PendingWorldEvent?.EventId);
         }
 

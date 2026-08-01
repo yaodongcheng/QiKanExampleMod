@@ -388,11 +388,16 @@ namespace LivingWorldNpcs
             get
             {
                 var s = TargetSettlement;
-                if (s == null) return "当地";
-                if (s.IsVillage) return "村里";
-                if (s.IsTown) return "镇上";
-                if (s.IsCastle) return "堡里";
-                return "当地";
+                // 地点词兜底：当地
+                if (s == null) return LWNTextHelper.ResolveText("LWN_worldevent_loc_local", "locally");
+                // 地点词：村里
+                if (s.IsVillage) return LWNTextHelper.ResolveText("LWN_worldevent_loc_village", "in the village");
+                // 地点词：镇上
+                if (s.IsTown) return LWNTextHelper.ResolveText("LWN_worldevent_loc_town", "in town");
+                // 地点词：堡里
+                if (s.IsCastle) return LWNTextHelper.ResolveText("LWN_worldevent_loc_castle", "in the castle");
+                // 地点词兜底：当地
+                return LWNTextHelper.ResolveText("LWN_worldevent_loc_local", "locally");
             }
         }
 
@@ -406,11 +411,16 @@ namespace LivingWorldNpcs
             get
             {
                 var s = TargetSettlement;
-                if (s == null) return "当地人";
-                if (s.IsVillage) return "村里人";
-                if (s.IsTown) return "镇上人";
-                if (s.IsCastle) return "堡里人";
-                return "当地人";
+                // 当地人称兜底：当地人
+                if (s == null) return LWNTextHelper.ResolveText("LWN_worldevent_people_local", "locals");
+                // 当地人称：村里人
+                if (s.IsVillage) return LWNTextHelper.ResolveText("LWN_worldevent_people_village", "villagers");
+                // 当地人称：镇上人
+                if (s.IsTown) return LWNTextHelper.ResolveText("LWN_worldevent_people_town", "townsfolk");
+                // 当地人称：堡里人
+                if (s.IsCastle) return LWNTextHelper.ResolveText("LWN_worldevent_people_castle", "castle folk");
+                // 当地人称兜底：当地人
+                return LWNTextHelper.ResolveText("LWN_worldevent_people_local", "locals");
             }
         }
 
@@ -439,21 +449,28 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(locationStringId)) return null;
 
             // 室内场景 → 带"里"后缀
-            if (locationStringId.Contains("tavern")) return "酒馆里";
-            if (locationStringId.Contains("lordshall")) return "领主大厅里";
-            if (locationStringId.Contains("prison") || locationStringId.Contains("dungeon")) return "地牢里";
-            if (locationStringId.Contains("alley")) return "后巷里";
-            if (locationStringId.Contains("arena")) return "竞技场里";
+            // 场景名：酒馆里
+            if (locationStringId.Contains("tavern")) return LWNTextHelper.ResolveText("LWN_worldevent_scene_tavern", "in the tavern");
+            // 场景名：领主大厅里
+            if (locationStringId.Contains("lordshall")) return LWNTextHelper.ResolveText("LWN_worldevent_scene_lordshall", "in the lord's hall");
+            // 场景名：地牢里
+            if (locationStringId.Contains("prison") || locationStringId.Contains("dungeon")) return LWNTextHelper.ResolveText("LWN_worldevent_scene_prison", "in the dungeon");
+            // 场景名：后巷里
+            if (locationStringId.Contains("alley")) return LWNTextHelper.ResolveText("LWN_worldevent_scene_alley", "in the back alley");
+            // 场景名：竞技场里
+            if (locationStringId.Contains("arena")) return LWNTextHelper.ResolveText("LWN_worldevent_scene_arena", "in the arena");
 
             // 室外场景 → 按定居点类型区分
             if (locationStringId == "center" || locationStringId.Contains("village"))
             {
                 var s = Settlement.CurrentSettlement;
-                if (s != null && s.IsVillage) return "村里";
+                // 场景名：村里
+                if (s != null && s.IsVillage) return LWNTextHelper.ResolveText("LWN_worldevent_scene_village", "in the village");
                 return null; // 城镇中心 → 回退到 SettlementLocationWord（"镇上"）
             }
 
-            if (locationStringId.Contains("castle")) return "堡里";
+            // 场景名：堡里
+            if (locationStringId.Contains("castle")) return LWNTextHelper.ResolveText("LWN_worldevent_scene_castle", "in the castle");
 
             return null; // 未知场景 → 回退
         }
@@ -483,8 +500,10 @@ namespace LivingWorldNpcs
         {
             get
             {
+                // 行为描述兜底：闹事
+                string fallbackGerund = Config?.CrimeVerbGerund ?? LWNTextHelper.ResolveText("LWN_worldevent_action_misconduct", "caused trouble");
                 if (WitnessTestimonies == null || WitnessTestimonies.Count == 0)
-                    return Config?.CrimeVerbGerund ?? "闹事";
+                    return fallbackGerund;
 
                 // 从所有目击者证词中聚合每种 ActionType 的总 AlertValue
                 var agg = new Dictionary<string, float>();
@@ -503,12 +522,18 @@ namespace LivingWorldNpcs
                 {
                     string desc = kv.Key switch
                     {
-                        "Crouching" => "鬼鬼祟祟蹲了半天",
-                        "WeaponDrawn" => $"在{BestLocationWord}拔出武器",
-                        "StealUIOpen" => "手脚不干净",
-                        "Steal" => "偷了东西",
-                        "AttackAlly" => "袭击别人",
-                        "Knockout" => "把人打晕了",
+                        // 行为描述：鬼鬼祟祟蹲了半天
+                        "Crouching" => LWNTextHelper.ResolveText("LWN_worldevent_action_crouching", "skulked about for ages"),
+                        // 行为描述：在{地点}拔出武器
+                        "WeaponDrawn" => LWNTextHelper.ResolveCompound("LWN_worldevent_action_weapondrawn", ("LOCATION", BestLocationWord)),
+                        // 行为描述：手脚不干净
+                        "StealUIOpen" => LWNTextHelper.ResolveText("LWN_worldevent_action_stealuiopen", "was caught rummaging through belongings"),
+                        // 行为描述：偷了东西
+                        "Steal" => LWNTextHelper.ResolveText("LWN_worldevent_action_steal", "stole something"),
+                        // 行为描述：袭击别人
+                        "AttackAlly" => LWNTextHelper.ResolveText("LWN_worldevent_action_attack", "attacked someone"),
+                        // 行为描述：把人打晕了
+                        "Knockout" => LWNTextHelper.ResolveText("LWN_worldevent_action_knockout", "knocked someone out"),
                         _ => null
                     };
                     if (desc != null && kv.Value > 0) parts.Add(desc);
@@ -516,10 +541,12 @@ namespace LivingWorldNpcs
 
                 return parts.Count switch
                 {
-                    0 => Config?.CrimeVerbGerund ?? "闹事",
+                    0 => fallbackGerund,
                     1 => parts[0],
-                    2 => $"{parts[0]}，还{parts[1]}",
-                    _ => $"{parts[0]}、{parts[1]}，还{parts[2]}"
+                    // 行为拼接：{A}，还{B}
+                    2 => LWNTextHelper.ResolveCompound("LWN_worldevent_action_join2", ("A", parts[0]), ("B", parts[1])),
+                    // 行为拼接：{A}、{B}，还{C}
+                    _ => LWNTextHelper.ResolveCompound("LWN_worldevent_action_join3", ("A", parts[0]), ("B", parts[1]), ("C", parts[2]))
                 };
             }
         }
@@ -546,43 +573,63 @@ namespace LivingWorldNpcs
             bool hasAssault = AssaultVictimNames?.Count > 0;
             string loc = BestLocationWord;
 
+            // 失窃事实句：丢了{物品}，市值{N}第纳尔，一直没找到是谁干的
             string theftPart = hasTheft
-                ? $"丢了{BuildStolenItemsDescription()}，市值{TotalStolenValue}第纳尔，一直没找到是谁干的"
+                // 丢了{ITEMS}，市值{VALUE}第纳尔，一直没找到是谁干的
+                ? LWNTextHelper.ResolveCompound("LWN_worldevent_harm_stolen",
+                    ("ITEMS", BuildStolenItemsDescription()), ("VALUE", TotalStolenValue.ToString()))
                 : "";
             string assaultPart = "";
             if (hasAssault)
             {
+                // 受害者名单拼接：{名单}等{N}人
                 string victimDesc = AssaultVictimNames.Count == 1
                     ? AssaultVictimNames[0]
-                    : $"{string.Join("、", AssaultVictimNames)}等{AssaultVictimNames.Count}人";
-                assaultPart = $"你把{victimDesc}打晕了，身价{AssaultRestitutionValue}第纳尔";
+                    // {NAMES}等{COUNT}人
+                    : LWNTextHelper.ResolveCompound("LWN_worldevent_harm_victims_multi",
+                        ("NAMES", string.Join("、", AssaultVictimNames)), ("COUNT", AssaultVictimNames.Count.ToString()));
+                // 袭击事实句：你把{受害者}打晕了，身价{N}第纳尔
+                assaultPart = LWNTextHelper.ResolveCompound("LWN_worldevent_harm_assault",
+                    ("VICTIM", victimDesc), ("VALUE", AssaultRestitutionValue.ToString()));
             }
 
             if (hasTheft && hasAssault)
-                return $"前阵子{loc}{theftPart}。今天{assaultPart}——既然抓着的是你，两笔账一起算";
-            if (hasTheft) return $"{loc}{theftPart}";
+                // 两案合并：前阵子{地点}{失窃}。今天{袭击}——既然抓着的是你，两笔账一起算
+                return LWNTextHelper.ResolveCompound("LWN_worldevent_harm_both",
+                    ("LOC", loc), ("THEFT", theftPart), ("ASSAULT", assaultPart));
+            // 仅失窃：{地点}{失窃}
+            if (hasTheft) return LWNTextHelper.ResolveCompound("LWN_worldevent_harm_theft_only", ("LOC", loc), ("THEFT", theftPart));
             if (hasAssault) return assaultPart;
-            return "闹了事";
+            // 无事实兜底：闹了事
+            return LWNTextHelper.ResolveText("LWN_worldevent_harm_none", "caused trouble");
         }
 
         /// <summary>赔偿金额的明细解释（给玩家看为什么是这个数）</summary>
         public string GetRestitutionBreakdown()
         {
             var cfg = Config;
-            if (cfg == null) return "赔100第纳尔。";
+            // 无配置兜底：赔100第纳尔
+            if (cfg == null) return LWNTextHelper.ResolveText("LWN_worldevent_restitution_fallback", "Pay 100 denars.");
 
             string harm = BuildDetailedHarmBreakdown();
             int total = CrimePenaltyCalculator.ComputeCost(this, CostType.Restitution);
-            string crimeGerund = cfg.CrimeVerbGerund ?? "犯事";
+            // 罪行动名词兜底：犯事
+            string crimeGerund = cfg.CrimeVerbGerund ?? LWNTextHelper.ResolveText("LWN_worldevent_crimegerund_fallback", "the offense");
             int multiplier = cfg.BaseRestitutionMultiplier;
             string peopleWord = SettlementPeopleWord;
 
             if (Stage <= EventStage.Emerging)
-                return $"{harm}。既然你自己认了，{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。你认不认？";
+                // 赔偿明细：初发阶段——自己认了按规矩罚{N}倍
+                return LWNTextHelper.ResolveCompound("LWN_worldevent_restitution_emerging",
+                    ("HARM", harm), ("CRIME", crimeGerund), ("MULT", multiplier.ToString()), ("TOTAL", total.ToString()));
             else if (Stage == EventStage.Active)
-                return $"{harm}。{peopleWord}都知道了，{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。你认不认？";
+                // 赔偿明细：公开阶段——{人群}都知道了
+                return LWNTextHelper.ResolveCompound("LWN_worldevent_restitution_active",
+                    ("HARM", harm), ("PEOPLE", peopleWord), ("CRIME", crimeGerund), ("MULT", multiplier.ToString()), ("TOTAL", total.ToString()));
             else
-                return $"{harm}。最后一次机会——{crimeGerund}按规矩罚{multiplier}倍，一共{total}第纳尔。否则后果自负。你认不认？";
+                // 赔偿明细：最后通牒——最后一次机会
+                return LWNTextHelper.ResolveCompound("LWN_worldevent_restitution_final",
+                    ("HARM", harm), ("CRIME", crimeGerund), ("MULT", multiplier.ToString()), ("TOTAL", total.ToString()));
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -634,12 +681,18 @@ namespace LivingWorldNpcs
             if (currentAmount <= (int)(FirstQuotedAmount * 1.05f)) return null;
 
             float times = currentAmount / (float)FirstQuotedAmount;
+            // 涨价缘由兜底：事情一路闹大
             string because = (PriceEscalationReasons?.Count > 0)
                 ? string.Join("、", PriceEscalationReasons)
-                : "事情一路闹大";
+                // 事情一路闹大
+                : LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_default", "things escalated all along");
 
-            return $"当初{because} —— 那时候赔 {FirstQuotedAmount} 就能了事，" +
-                   $"现在他们开口要 {currentAmount}，翻了 {times:0.#} 倍。";
+            // 涨价说明：当初{原因} —— 那时候赔 {N} 就能了事，现在他们开口要 {N}，翻了 {N} 倍
+            return LWNTextHelper.ResolveCompound("LWN_worldevent_escalation_note",
+                ("BECAUSE", because),
+                ("FIRST", FirstQuotedAmount.ToString()),
+                ("CURRENT", currentAmount.ToString()),
+                ("TIMES", times.ToString("0.#")));
         }
 
         /// <summary>损失描述（赔偿对话主语）：赃物市值 + 袭击身价，合并成一句；啥都没有时回落旧文案。</summary>
@@ -647,10 +700,13 @@ namespace LivingWorldNpcs
         {
             var parts = new List<string>();
             if (TotalStolenCount > 0)
-                parts.Add($"{BuildStolenItemsDescription()}，市值{TotalStolenValue}第纳尔");
+                // 损失描述：{物品}，市值{N}第纳尔
+                parts.Add(LWNTextHelper.ResolveCompound("LWN_worldevent_loss_stolen", ("ITEMS", BuildStolenItemsDescription()), ("VALUE", TotalStolenValue.ToString())));
             if (AssaultVictimNames?.Count > 0)
-                parts.Add($"{BuildAssaultVictimsDescription()}，身价{AssaultRestitutionValue}第纳尔");
-            return parts.Count > 0 ? string.Join("；", parts) : "东西，市值0第纳尔";
+                // 损失描述：{袭击}，身价{N}第纳尔
+                parts.Add(LWNTextHelper.ResolveCompound("LWN_worldevent_loss_assault", ("ASSAULT", BuildAssaultVictimsDescription()), ("VALUE", AssaultRestitutionValue.ToString())));
+            // 损失描述兜底：东西，市值0第纳尔
+            return parts.Count > 0 ? string.Join("；", parts) : LWNTextHelper.ResolveText("LWN_worldevent_loss_empty", "goods, worth 0 denars");
         }
 
         /// <summary>袭击受害者的自然语言描述（用于赔偿/对话）</summary>
@@ -658,9 +714,12 @@ namespace LivingWorldNpcs
         {
             var names = AssaultVictimNames;
             if (names == null || names.Count == 0) return "";
-            if (names.Count == 1) return $"把{names[0]}打晕了";
-            if (names.Count == 2) return $"把{names[0]}和{names[1]}打晕了";
-            return $"把{names[0]}、{names[1]}等{names.Count}人打晕了";
+            // 袭击描述：把{某人}打晕了
+            if (names.Count == 1) return LWNTextHelper.ResolveCompound("LWN_worldevent_assaultvictim_single", ("NAME", names[0]));
+            // 袭击描述：把{A}和{B}打晕了
+            if (names.Count == 2) return LWNTextHelper.ResolveCompound("LWN_worldevent_assaultvictim_two", ("A", names[0]), ("B", names[1]));
+            // 袭击描述：把{A}、{B}等{N}人打晕了
+            return LWNTextHelper.ResolveCompound("LWN_worldevent_assaultvictim_multi", ("A", names[0]), ("B", names[1]), ("COUNT", names.Count.ToString()));
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -684,10 +743,14 @@ namespace LivingWorldNpcs
             get
             {
                 bool hasStolen = TotalStolenCount > 0;
-                if (HasAssault && hasStolen) return "刑案";
-                if (HasAssault) return "伤人案";
-                if (hasStolen) return "失窃案";
-                return "案件";
+                // 案件定性：刑案（伤人+失窃）
+                if (HasAssault && hasStolen) return LWNTextHelper.ResolveText("LWN_worldevent_caselabel_crime", "criminal case");
+                // 案件定性：伤人案
+                if (HasAssault) return LWNTextHelper.ResolveText("LWN_worldevent_caselabel_assault", "assault case");
+                // 案件定性：失窃案
+                if (hasStolen) return LWNTextHelper.ResolveText("LWN_worldevent_caselabel_theft", "theft case");
+                // 案件定性兜底：案件
+                return LWNTextHelper.ResolveText("LWN_worldevent_caselabel_case", "case");
             }
         }
 
@@ -704,20 +767,29 @@ namespace LivingWorldNpcs
 
             if (HasAssault && hasStolen)
             {
+                // 受害人事实句：{某人}被人打晕了 / 有{N}人被人打晕了
                 string victimPart = names.Count == 1
-                    ? $"{names[0]}被人打晕了"
-                    : $"有{names.Count}人被人打晕了";
-                return $"{victimPart}，还少了{BuildStolenItemsDescription()}";
+                    // {NAME}被人打晕了
+                    ? LWNTextHelper.ResolveCompound("LWN_worldevent_facts_assault_single", ("NAME", names[0]))
+                    // 有{COUNT}人被人打晕了
+                    : LWNTextHelper.ResolveCompound("LWN_worldevent_facts_assault_multi", ("COUNT", names.Count.ToString()));
+                // 案情事实：{受害人}，还少了{物品}
+                return LWNTextHelper.ResolveCompound("LWN_worldevent_facts_both", ("VICTIM", victimPart), ("ITEMS", BuildStolenItemsDescription()));
             }
             if (HasAssault)
             {
+                // 受害人事实句：{某人}被人打晕了 / 有{N}人被人打晕了
                 return names.Count == 1
-                    ? $"{names[0]}被人打晕了"
-                    : $"有{names.Count}人被人打晕了";
+                    // {NAME}被人打晕了
+                    ? LWNTextHelper.ResolveCompound("LWN_worldevent_facts_assault_single", ("NAME", names[0]))
+                    // 有{COUNT}人被人打晕了
+                    : LWNTextHelper.ResolveCompound("LWN_worldevent_facts_assault_multi", ("COUNT", names.Count.ToString()));
             }
             if (hasStolen)
-                return $"少了{BuildStolenItemsDescription()}";
-            return Config?.CrimeVerbPast ?? "出了事";
+                // 案情事实：少了{物品}
+                return LWNTextHelper.ResolveCompound("LWN_worldevent_facts_stolen", ("ITEMS", BuildStolenItemsDescription()));
+            // 案情事实兜底：出了事
+            return Config?.CrimeVerbPast ?? LWNTextHelper.ResolveText("LWN_worldevent_facts_fallback", "something happened");
         }
 
         /// <summary>构建被盗物品的自然语言描述（用于赔偿/对话）。
@@ -726,7 +798,8 @@ namespace LivingWorldNpcs
         public string BuildStolenItemsDescription()
         {
             var items = StolenItemsSnapshot;
-            if (items.Count == 0) return "东西";
+            // 赃物描述兜底：东西
+            if (items.Count == 0) return LWNTextHelper.ResolveText("LWN_worldevent_items_empty", "goods");
 
             var parts = new List<string>();
             int totalCount = 0;      // 总项数（金算 1 项）
@@ -738,7 +811,8 @@ namespace LivingWorldNpcs
                 // 金钱 = 特殊物品（铁律 4）：按面额直呼，不占"件/只"量词
                 if (kv.Key == "gold")
                 {
-                    parts.Add($"{kv.Value}第纳尔");
+                    // 赃物：金面额
+                    parts.Add(LWNTextHelper.ResolveCompound("LWN_worldevent_items_gold", ("VALUE", kv.Value.ToString())));
                     totalCount += 1;
                     hasNonAnimal = true;
                     continue;
@@ -747,16 +821,27 @@ namespace LivingWorldNpcs
                 string name = item?.Name?.ToString() ?? kv.Key;
                 bool isAnimal = item?.Type == ItemObject.ItemTypeEnum.Animal;
                 if (isAnimal) hasAnimal = true; else hasNonAnimal = true;
-                string unit = isAnimal ? "只" : "件";
-                parts.Add(kv.Value == 1 ? $"一{unit}{name}" : $"{kv.Value}{unit}{name}");
+                // 赃物：一只{物品} / {N}只{物品}（牲畜），一件{物品} / {N}件{物品}（财物）
+                parts.Add(kv.Value == 1
+                    // 一只{NAME}
+                    ? LWNTextHelper.ResolveCompound(isAnimal ? "LWN_worldevent_items_animal_one" : "LWN_worldevent_items_goods_one", ("NAME", name))
+                    // {COUNT}只{NAME}
+                    : LWNTextHelper.ResolveCompound(isAnimal ? "LWN_worldevent_items_animal_multi" : "LWN_worldevent_items_goods_multi", ("COUNT", kv.Value.ToString()), ("NAME", name)));
                 totalCount += kv.Value;
             }
 
             if (parts.Count == 1) return parts[0];
-            if (parts.Count == 2) return $"{parts[0]}和{parts[1]}";
+            // 赃物拼接：{A}和{B}
+            if (parts.Count == 2) return LWNTextHelper.ResolveCompound("LWN_worldevent_items_join2", ("A", parts[0]), ("B", parts[1]));
             // 3+ 种不同物品：列举前两项 + 泛称总量（纯牲畜才叫"牲口"）
-            string tail = hasAnimal && !hasNonAnimal ? $"等{totalCount}只牲口" : $"等{totalCount}项财物";
-            return $"{parts[0]}、{parts[1]}{tail}";
+            // 赃物尾巴：等{N}只牲口（纯牲畜）
+            string tail = hasAnimal && !hasNonAnimal
+                // 等{COUNT}只牲口
+                ? LWNTextHelper.ResolveCompound("LWN_worldevent_items_tail_animal", ("COUNT", totalCount.ToString()))
+                // 赃物尾巴：等{N}项财物（混合）
+                : LWNTextHelper.ResolveCompound("LWN_worldevent_items_tail_goods", ("COUNT", totalCount.ToString()));
+            // 赃物拼接：{A}、{B}{尾巴}
+            return LWNTextHelper.ResolveCompound("LWN_worldevent_items_join3", ("A", parts[0]), ("B", parts[1]), ("TAIL", tail));
         }
     }
 
@@ -822,11 +907,16 @@ namespace LivingWorldNpcs
         {
             return severity switch
             {
-                <= 30 => "小事",
-                <= 50 => "有点严重",
-                <= 70 => "严重",
-                <= 85 => "很严重",
-                _ => "天大的事"
+                // 严重度词：小事
+                <= 30 => LWNTextHelper.ResolveText("LWN_worldevent_severity_low", "a small matter"),
+                // 严重度词：有点严重
+                <= 50 => LWNTextHelper.ResolveText("LWN_worldevent_severity_mid", "somewhat serious"),
+                // 严重度词：严重
+                <= 70 => LWNTextHelper.ResolveText("LWN_worldevent_severity_high", "serious"),
+                // 严重度词：很严重
+                <= 85 => LWNTextHelper.ResolveText("LWN_worldevent_severity_severe", "very serious"),
+                // 严重度词：天大的事
+                _ => LWNTextHelper.ResolveText("LWN_worldevent_severity_critical", "a matter of utmost gravity")
             };
         }
 
@@ -843,14 +933,21 @@ namespace LivingWorldNpcs
         {
             Type = EventType.Theft_Animal,
             Category = EventCategory.Crime,
-            DisplayName = "偷牲口",
+            // 事件类型名：偷牲口
+            DisplayName = LWNTextHelper.ResolveText("LWN_worldevent_cfg_animaltheft_name", "Livestock theft"),
             DefaultSeverity = 30,
-            VictimLabel = "村庄",
-            AuthorityRole = "村长",
-            CrimeVerb = "偷了",
-            CrimeVerbPast = "牲口被偷了",
-            CrimeVerbGerund = "偷牲口",
-            CrimeScene = "牲口圈",
+            // 受害者称谓：村庄
+            VictimLabel = LWNTextHelper.ResolveText("LWN_worldevent_cfg_victim_village", "Village"),
+            // 权威角色：村长
+            AuthorityRole = LWNTextHelper.ResolveText("LWN_worldevent_cfg_authority_headman", "Village headman"),
+            // 罪行动词：偷了
+            CrimeVerb = LWNTextHelper.ResolveText("LWN_worldevent_cfg_verb_steal", "stole"),
+            // 罪行动词过去式：牲口被偷了
+            CrimeVerbPast = LWNTextHelper.ResolveText("LWN_worldevent_cfg_animaltheft_verbpast", "livestock was stolen"),
+            // 罪行动名词：偷牲口
+            CrimeVerbGerund = LWNTextHelper.ResolveText("LWN_worldevent_cfg_animaltheft_gerund", "stealing livestock"),
+            // 案发场景：牲口圈
+            CrimeScene = LWNTextHelper.ResolveText("LWN_worldevent_cfg_animaltheft_scene", "the livestock pen"),
             BaseSpreadRate = 0.1f,
             BaseRestitutionMultiplier = 3,
             BaseBountyPerUnit = 50,
@@ -869,7 +966,10 @@ namespace LivingWorldNpcs
                         TargetId = evt.InitiatorId,
                         Kind = EvidenceKind.Witness,
                         Strength = 0.7f,
-                        SourceDescription = $"目击者称看到有人在{evt.LocationName ?? "牲口圈"}附近鬼鬼祟祟",
+                        // 目击证据描述：目击者称看到有人在{地点}附近鬼鬼祟祟
+                        SourceDescription = LWNTextHelper.ResolveCompound("LWN_worldevent_evidence_witness",
+                            // 牲口圈
+                            ("LOC", evt.LocationName ?? LWNTextHelper.ResolveText("LWN_worldevent_cfg_animaltheft_scene", "the livestock pen"))),
                         DiscoveredDay = evt.OccurredDay
                     });
                 }
@@ -881,14 +981,21 @@ namespace LivingWorldNpcs
         {
             Type = EventType.Theft_Pickpocket,
             Category = EventCategory.Crime,
-            DisplayName = "扒窃",
+            // 事件类型名：扒窃
+            DisplayName = LWNTextHelper.ResolveText("LWN_worldevent_cfg_pickpocket_name", "Pickpocketing"),
             DefaultSeverity = 20,
-            VictimLabel = "受害者",
-            AuthorityRole = "镇长",
-            CrimeVerb = "偷了",
-            CrimeVerbPast = "随身财物被偷了",
-            CrimeVerbGerund = "扒窃",
-            CrimeScene = "市集",
+            // 受害者称谓：受害者
+            VictimLabel = LWNTextHelper.ResolveText("LWN_worldevent_cfg_pickpocket_victim", "Victim"),
+            // 权威角色：镇长
+            AuthorityRole = LWNTextHelper.ResolveText("LWN_worldevent_cfg_pickpocket_authority", "Town mayor"),
+            // 罪行动词：偷了
+            CrimeVerb = LWNTextHelper.ResolveText("LWN_worldevent_cfg_verb_steal", "stole"),
+            // 罪行动词过去式：随身财物被偷了
+            CrimeVerbPast = LWNTextHelper.ResolveText("LWN_worldevent_cfg_pickpocket_verbpast", "belongings were stolen"),
+            // 罪行动名词：扒窃
+            CrimeVerbGerund = LWNTextHelper.ResolveText("LWN_worldevent_cfg_pickpocket_gerund", "pickpocketing"),
+            // 案发场景：市集
+            CrimeScene = LWNTextHelper.ResolveText("LWN_worldevent_cfg_pickpocket_scene", "the marketplace"),
             BaseSpreadRate = 0.08f,
             BaseRestitutionMultiplier = 2,
             BaseBountyPerUnit = 30,
@@ -901,14 +1008,21 @@ namespace LivingWorldNpcs
         {
             Type = EventType.Murder,
             Category = EventCategory.Crime,
-            DisplayName = "暗杀",
+            // 事件类型名：暗杀
+            DisplayName = LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_name", "Assassination"),
             DefaultSeverity = 100,
-            VictimLabel = "死者家族",
-            AuthorityRole = "族长",
-            CrimeVerb = "杀了",
-            CrimeVerbPast = "人被杀了",
-            CrimeVerbGerund = "杀人",
-            CrimeScene = "{victim}家附近",
+            // 受害者称谓：死者家族
+            VictimLabel = LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_victim", "Family of the slain"),
+            // 权威角色：族长
+            AuthorityRole = LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_authority", "Clan chief"),
+            // 罪行动词：杀了
+            CrimeVerb = LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_verb", "killed"),
+            // 罪行动词过去式：人被杀了
+            CrimeVerbPast = LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_verbpast", "someone was killed"),
+            // 罪行动名词：杀人
+            CrimeVerbGerund = LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_gerund", "killing"),
+            // 案发场景：{victim}家附近
+            CrimeScene = LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_scene", "near {victim}'s home"),
             BaseSpreadRate = 0.5f,
             BaseRestitutionMultiplier = 50,
             BaseBountyPerUnit = 5000,
@@ -921,14 +1035,21 @@ namespace LivingWorldNpcs
         {
             Type = EventType.Poaching,
             Category = EventCategory.Crime,
-            DisplayName = "盗猎",
+            // 事件类型名：盗猎
+            DisplayName = LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_name", "Poaching"),
             DefaultSeverity = 50,
-            VictimLabel = "领主猎场",
-            AuthorityRole = "领主",
-            CrimeVerb = "在猎场下了套",
-            CrimeVerbPast = "猎场的猎物被偷了",
-            CrimeVerbGerund = "盗猎",
-            CrimeScene = "领主猎场",
+            // 受害者称谓：领主猎场
+            VictimLabel = LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_victim", "Lord's hunting grounds"),
+            // 权威角色：领主
+            AuthorityRole = LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_authority", "Lord"),
+            // 罪行动词：在猎场下了套
+            CrimeVerb = LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_verb", "set traps in the hunting grounds"),
+            // 罪行动词过去式：猎场的猎物被偷了
+            CrimeVerbPast = LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_verbpast", "game was stolen from the hunting grounds"),
+            // 罪行动名词：盗猎
+            CrimeVerbGerund = LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_gerund", "poaching"),
+            // 案发场景：领主猎场
+            CrimeScene = LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_scene", "the lord's hunting grounds"),
             BaseSpreadRate = 0.15f,
             BaseRestitutionMultiplier = 10,
             BaseBountyPerUnit = 200,
@@ -946,14 +1067,21 @@ namespace LivingWorldNpcs
         {
             Type = EventType.Misconduct,
             Category = EventCategory.Crime,
-            DisplayName = "行为不端",
+            // 事件类型名：行为不端
+            DisplayName = LWNTextHelper.ResolveText("LWN_worldevent_cfg_misconduct_name", "Misconduct"),
             DefaultSeverity = 25,
-            VictimLabel = "村庄",
-            AuthorityRole = "村长",
-            CrimeVerb = "闹事",
-            CrimeVerbPast = "有人在当地闹事",
-            CrimeVerbGerund = "闹事",
-            CrimeScene = "当地",
+            // 受害者称谓：村庄
+            VictimLabel = LWNTextHelper.ResolveText("LWN_worldevent_cfg_victim_village", "Village"),
+            // 权威角色：村长
+            AuthorityRole = LWNTextHelper.ResolveText("LWN_worldevent_cfg_authority_headman", "Village headman"),
+            // 罪行动词：闹事
+            CrimeVerb = LWNTextHelper.ResolveText("LWN_worldevent_cfg_misconduct_verb", "caused trouble"),
+            // 罪行动词过去式：有人在当地闹事
+            CrimeVerbPast = LWNTextHelper.ResolveText("LWN_worldevent_cfg_misconduct_verbpast", "someone caused trouble around here"),
+            // 罪行动名词：闹事
+            CrimeVerbGerund = LWNTextHelper.ResolveText("LWN_worldevent_cfg_misconduct_gerund", "causing trouble"),
+            // 案发场景：当地
+            CrimeScene = LWNTextHelper.ResolveText("LWN_worldevent_cfg_misconduct_scene", "around here"),
             BaseSpreadRate = 0.05f,
             BaseRestitutionMultiplier = 2,
             BaseBountyPerUnit = 30,
@@ -1300,7 +1428,9 @@ namespace LivingWorldNpcs
                         var authority = GetAuthorityNpc(evt);
                         if (authority != null)
                             TaleWorlds.CampaignSystem.Actions.ChangeRelationAction.ApplyPlayerRelation(authority, -20, false, true);
-                        TransitionStage(evt, EventStage.Confrontation, null, "你没干完答应的活");
+                        TransitionStage(evt, EventStage.Confrontation, null,
+                            // 涨价原因：没干完答应的活（干活抵债违约）
+                            LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_workoff_breach", "you didn't finish the work you promised"));
                         InvestigationEngine.SpawnRetaliationParty(evt);
                         DebugLogger.Log($"[WorkOffDebt] {evt.EventId} Breached! Only {evt._workOffDaysDone}/3 days. → Confrontation");
                     }
@@ -1311,7 +1441,9 @@ namespace LivingWorldNpcs
             float deadline = evt.SuspectIsPlayer ? 10f : 15f;
             if ((now - evt._stageEnteredDay) > deadline && !evt.PlayerPaidRestitution && !evt._workOffDebtAccepted)
             {
-                TransitionStage(evt, EventStage.Confrontation, null, "你一直拖着不给钱，他们不等了");
+                TransitionStage(evt, EventStage.Confrontation, null,
+                    // 涨价原因：一直拖着不给钱，他们不等了
+                    LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_stall", "you kept stalling on payment, and they ran out of patience"));
                 InvestigationEngine.SpawnRetaliationParty(evt);
             }
             InvestigationEngine.ProcessAuthorityAction(evt);
@@ -1432,10 +1564,14 @@ namespace LivingWorldNpcs
         {
             switch (newStage)
             {
-                case EventStage.Emerging:      return "事情被发现了";
-                case EventStage.Active:        return "你没把这笔钱给出去，事情被摆上了明面";
-                case EventStage.Confrontation: return "你跟他们动了手";
-                default:                       return "事情又闹大了一层";
+                // 兜底涨价原因：事情被发现了
+                case EventStage.Emerging:      return LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_discovered", "the matter was found out");
+                // 兜底涨价原因：没给钱，事情摆上了明面
+                case EventStage.Active:        return LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_public", "you didn't pay, and the matter was brought into the open");
+                // 兜底涨价原因：动了手
+                case EventStage.Confrontation: return LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_fought", "you came to blows with them");
+                // 兜底涨价原因：事情又闹大了一层
+                default:                       return LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_grew", "the matter escalated further");
             }
         }
 
@@ -1547,16 +1683,19 @@ namespace LivingWorldNpcs
             if (authority == settlement.OwnerClan?.Leader
                 || authority == settlement.Town?.Governor
                 || authority.IsLord)
-                return "主楼";
+                // 权威位置提示：主楼
+                return LWNTextHelper.ResolveText("LWN_worldevent_authority_hint_lordshall", "main hall");
 
             // 帮派头目 → 暗巷
             if (authority.Occupation == Occupation.GangLeader)
-                return "暗巷";
+                // 权威位置提示：暗巷
+                return LWNTextHelper.ResolveText("LWN_worldevent_authority_hint_alley", "back alley");
 
             // 商人 / 工匠 → 镇中心
             if (authority.Occupation == Occupation.Merchant
                 || authority.Occupation == Occupation.Artisan)
-                return "镇中心";
+                // 权威位置提示：镇中心
+                return LWNTextHelper.ResolveText("LWN_worldevent_authority_hint_center", "town center");
 
             return null;
         }
@@ -1572,7 +1711,10 @@ namespace LivingWorldNpcs
             // 村庄：保持原有逻辑（Headman / RuralNotable，领主/族长走 OwnerClan.Leader）
             if (settlement.IsVillage)
             {
-                if (cfg?.AuthorityRole == "领主" || cfg?.AuthorityRole == "族长")
+                // 权威角色判定：领主/族长（与 EventConfig 本地化后的 AuthorityRole 比对）
+                if (cfg?.AuthorityRole == LWNTextHelper.ResolveText("LWN_worldevent_cfg_poaching_authority", "Lord")
+                    // 族长
+                    || cfg?.AuthorityRole == LWNTextHelper.ResolveText("LWN_worldevent_cfg_murder_authority", "Clan chief"))
                     return settlement.OwnerClan?.Leader;
 
                 return settlement.Notables?.FirstOrDefault(n =>
@@ -1624,20 +1766,29 @@ namespace LivingWorldNpcs
         /// </summary>
         public static string GetAuthorityRoleDisplayName(WorldEvent evt)
         {
-            if (evt == null) return "村长";
+            // 权威角色显示名兜底：村长
+            if (evt == null) return LWNTextHelper.ResolveText("LWN_worldevent_authorityrole_village", "Village headman");
 
             var settlement = evt.TargetSettlement;
             if (settlement == null)
-                return evt.Config?.AuthorityRole ?? "村长";
+                // 权威角色显示名兜底：村长（配置值优先）
+                return evt.Config?.AuthorityRole ?? LWNTextHelper.ResolveText("LWN_worldevent_authorityrole_village", "Village headman");
 
+            // 权威角色显示名：村庄=村长
             if (settlement.IsVillage)
-                return "村长";
+                // 村长
+                return LWNTextHelper.ResolveText("LWN_worldevent_authorityrole_village", "Village headman");
+            // 权威角色显示名：城堡=堡主
             if (settlement.IsCastle)
-                return "堡主";
+                // 堡主
+                return LWNTextHelper.ResolveText("LWN_worldevent_authorityrole_castle", "Castle lord");
+            // 权威角色显示名：城镇=城主
             if (settlement.IsTown)
-                return "城主";
+                // 城主
+                return LWNTextHelper.ResolveText("LWN_worldevent_authorityrole_town", "Town lord");
 
-            return evt.Config?.AuthorityRole ?? "村长";
+            // 权威角色显示名兜底：村长（配置值优先）
+            return evt.Config?.AuthorityRole ?? LWNTextHelper.ResolveText("LWN_worldevent_authorityrole_village", "Village headman");
         }
 
         /// <summary>初始化报复经费：Headman Gold + 村庄繁荣度折算</summary>
@@ -1963,7 +2114,8 @@ namespace LivingWorldNpcs
                 new FrameSubOption
                 {
                     TargetId = "bandit",
-                    DisplayName = "附近藏身处的强盗",
+                    // 栽赃候选名：附近藏身处的强盗
+                    DisplayName = LWNTextHelper.ResolveText("LWN_worldevent_frame_bandit", "Bandits from a nearby hideout"),
                     BaseDC = 40,
                     CanShowEvidence = false,
                     IsPowerful = false,
@@ -2029,7 +2181,8 @@ namespace LivingWorldNpcs
             }
 
             var parts = bySource.Select(kv => $"{kv.Key}×{kv.Value}");
-            return $"⚠ 偷自 {string.Join(", ", parts)}";
+            // 赃物来源标注：偷自{来源}
+            return LWNTextHelper.ResolveCompound("LWN_worldevent_stolen_from", ("SOURCES", string.Join(", ", parts)));
         }
 
         /// <summary>某英雄是否在账本中有未清记录</summary>

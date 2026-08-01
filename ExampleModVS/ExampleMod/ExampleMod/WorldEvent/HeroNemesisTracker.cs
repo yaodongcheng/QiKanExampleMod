@@ -65,16 +65,23 @@ namespace LivingWorldNpcs
         /// <summary>生成描述文本。</summary>
         public string GetDescription()
         {
-            string name = HeroName ?? "某人";
+            // 宿敌名兜底：无名字时用"某人"
+            string name = HeroName ?? LWNTextHelper.ResolveText("LWN_nemesis_someone", "Someone");
             return Level switch
             {
-                NemesisLevel.Rival => $"{name} — 萍水相逢的对手",
-                NemesisLevel.Enemy => $"{name} — 交手过的敌人",
+                // 宿敌描述：萍水相逢的对手
+                NemesisLevel.Rival => LWNTextHelper.ResolveCompound("LWN_nemesis_desc_rival", ("NAME", name)),
+                // 宿敌描述：交手过的敌人
+                NemesisLevel.Enemy => LWNTextHelper.ResolveCompound("LWN_nemesis_desc_enemy", ("NAME", name)),
                 NemesisLevel.Nemesis => HasScar
-                    ? $"{name} — 带伤疤的宿敌，那道疤还是你留下的"
-                    : $"{name} — 多次交锋的宿敌",
-                NemesisLevel.ArchNemesis => $"{name} — 不死不休的宿敌，每次见面都是生死战",
-                NemesisLevel.Legendary => $"{name} — 宿命之敌，你们的对决已成为传说",
+                    // 宿敌描述：带伤疤的宿敌（疤是玩家留下的）
+                    ? LWNTextHelper.ResolveCompound("LWN_nemesis_desc_nemesis_scar", ("NAME", name))
+                    // 宿敌描述：多次交锋的宿敌
+                    : LWNTextHelper.ResolveCompound("LWN_nemesis_desc_nemesis", ("NAME", name)),
+                // 宿敌描述：不死不休的宿敌
+                NemesisLevel.ArchNemesis => LWNTextHelper.ResolveCompound("LWN_nemesis_desc_arch", ("NAME", name)),
+                // 宿敌描述：宿命之敌
+                NemesisLevel.Legendary => LWNTextHelper.ResolveCompound("LWN_nemesis_desc_legendary", ("NAME", name)),
                 _ => name
             };
         }
@@ -240,8 +247,10 @@ namespace LivingWorldNpcs
 
                 // 推送通知
                 string msg = record.HasScar
-                    ? $"那道疤还在疼——{hero.Name}回来了，带着你留给他的印记。"
-                    : $"你以为已经了结了？{hero.Name}不这么想。他在找你。";
+                    // 复仇通知：带疤的宿敌归来
+                    ? LWNTextHelper.ResolveCompound("LWN_nemesis_revenge_scar", ("NAME", hero.Name.ToString()))
+                    // 复仇通知：宿敌归来（无疤）
+                    : LWNTextHelper.ResolveCompound("LWN_nemesis_revenge_normal", ("NAME", hero.Name.ToString()));
                 NinjaNotificationManager.Show(msg, () => { });
 
                 record.NextRevengeDay = 0; // 清除计划
@@ -266,8 +275,14 @@ namespace LivingWorldNpcs
                 MobileParty party = V.MakeParty(partyId, component);
                 if (party != null)
                 {
-                    string title = record.Level >= NemesisLevel.ArchNemesis ? "宿敌" : "复仇者";
-                    V.SetPartyName(party, new TextObject($"{hero.Name}的{title}队"));
+                    // 宿敌部队头衔：高级宿敌叫"宿敌"，普通叫"复仇者"
+                    string title = record.Level >= NemesisLevel.ArchNemesis
+                        // 宿敌
+                        ? LWNTextHelper.ResolveText("LWN_nemesis_title_arch", "Nemesis")
+                        // 复仇者
+                        : LWNTextHelper.ResolveText("LWN_nemesis_title_revenger", "Avenger");
+                    // 宿敌部队名：{名字}的{头衔}队
+                    V.SetPartyName(party, new TextObject(LWNTextHelper.ResolveCompound("LWN_nemesis_party_name", ("NAME", hero.Name.ToString()), ("TITLE", title))));
                 }
 
                 if (party == null) return null;
@@ -338,7 +353,8 @@ namespace LivingWorldNpcs
                 record = new NemesisRecord
                 {
                     HeroId = hero.StringId,
-                    HeroName = hero.Name?.ToString() ?? "无名",
+                    // 宿敌名兜底：无名（与旧存档"无名"字面值对比保持兼容）
+                    HeroName = hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_nemesis_unnamed", "Unknown"),
                 };
                 _records[hero.StringId] = record;
             }
@@ -374,10 +390,13 @@ namespace LivingWorldNpcs
                 if (defeatedPlayer.Count > 0)
                 {
                     var r = defeatedPlayer[MBRandom.RandomInt(0, defeatedPlayer.Count)];
-                    string playerName = Hero.MainHero?.Name?.ToString() ?? "你";
+                    // 闲聊兜底：玩家名
+                    string playerName = Hero.MainHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_nemesis_you", "you");
                     return r.TimesDefeatedPlayer >= 3
-                        ? $"听说{ r.HeroName }曾经不止一次地击败过{ playerName }……真没想到。"
-                        : $"听说{ r.HeroName }和{ playerName }交过手……结果不太好看。";
+                        // 闲聊：宿敌多次击败玩家
+                        ? LWNTextHelper.ResolveCompound("LWN_nemesis_gossip_defeated_many", ("NAME", r.HeroName), ("PLAYER", playerName))
+                        // 闲聊：宿敌与玩家交过手
+                        : LWNTextHelper.ResolveCompound("LWN_nemesis_gossip_defeated_once", ("NAME", r.HeroName), ("PLAYER", playerName));
                 }
                 return null;
             }
@@ -386,14 +405,18 @@ namespace LivingWorldNpcs
             if (nemesis.TimesDefeatedPlayer > 0)
             {
                 return nemesis.Level >= NemesisLevel.ArchNemesis
-                    ? $"提起{ nemesis.HeroName }……这名字让很多人噤声。听说你和他之间的恩怨可不是一两天的事了。"
-                    : $"上回{ nemesis.HeroName }打赢你的事，附近已经传开了。你打算什么时候找回场子？";
+                    // 闲聊：宿敌之名令人噤声
+                    ? LWNTextHelper.ResolveCompound("LWN_nemesis_gossip_legendary", ("NAME", nemesis.HeroName))
+                    // 闲聊：宿敌打赢过玩家
+                    : LWNTextHelper.ResolveCompound("LWN_nemesis_gossip_defeated_player", ("NAME", nemesis.HeroName));
             }
             if (nemesis.HasScar)
             {
-                return $"有人说看到{ nemesis.HeroName }脸上多了道新疤——他们说是你留下的。他在找你。";
+                // 闲聊：宿敌脸上有新疤
+                return LWNTextHelper.ResolveCompound("LWN_nemesis_gossip_scar", ("NAME", nemesis.HeroName));
             }
-            return $"最近有人在打听你的下落……一个叫{ nemesis.HeroName }的家伙。小心点。";
+            // 闲聊：有人在打听玩家下落
+            return LWNTextHelper.ResolveCompound("LWN_nemesis_gossip_searching", ("NAME", nemesis.HeroName));
         }
 
         #endregion

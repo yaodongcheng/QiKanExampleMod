@@ -28,10 +28,14 @@ namespace LivingWorldNpcs
         /// <summary>获取恶名描述</summary>
         public static string GetDescription()
         {
-            if (_infamy >= 10) return "臭名昭著 — 诚实之人避之不及，但灰色地带的人视你为同道";
-            if (_infamy >= 5) return "声名狼藉 — 正经委托减少，高风险委托增多";
-            if (_infamy >= 2) return "略有微词 — 部分 NPC 对你有所顾虑";
-            return "清清白白";
+            // 恶名描述：臭名昭著（恶名10+）
+            if (_infamy >= 10) return LWNTextHelper.ResolveText("LWN_infamy_rank_notorious", "Notorious — honest folk avoid you, but those in the gray area regard you as a kindred spirit");
+            // 恶名描述：声名狼藉（恶名5+）
+            if (_infamy >= 5) return LWNTextHelper.ResolveText("LWN_infamy_rank_disreputable", "Disreputable — legitimate commissions dwindle, while high-risk ones grow");
+            // 恶名描述：略有微词（恶名2+）
+            if (_infamy >= 2) return LWNTextHelper.ResolveText("LWN_infamy_rank_slightly_tarnished", "Slightly tarnished — some NPCs harbor reservations about you");
+            // 恶名描述：清清白白（低恶名）
+            return LWNTextHelper.ResolveText("LWN_infamy_rank_clean", "Unblemished");
         }
 
         /// <summary>检查某委托是否受恶名影响而不可接</summary>

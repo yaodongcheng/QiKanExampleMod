@@ -108,7 +108,8 @@ namespace LivingWorldNpcs
 
                     };
 
-                    InformationManager.ShowInquiry(new InquiryData("危险", $"{targetName} 即将对你发起攻击", true, false, "来战！", null, confirmFight, null));
+                    // 本地化：攻击确认弹窗（标题/内容/按钮）
+                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_attack_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
                 }
             });
             _actions.Add(new ActionDefinition
@@ -131,7 +132,8 @@ namespace LivingWorldNpcs
                         // 开启战斗
                     };
 
-                    InformationManager.ShowInquiry(new InquiryData("提示", $"{targetName} 想与你切磋一场，你准备好了吗？", true, false, "来战！", null, confirmFight, null));
+                    // 本地化：切磋确认弹窗（标题/内容/按钮）
+                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_hint", "Notice"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_duel_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
                 }
             });
 
@@ -158,7 +160,8 @@ namespace LivingWorldNpcs
                     if (npc != null)
                     {
                         MarriageAction.Apply(player, npc);
-                        InformationManager.DisplayMessage(new InformationMessage($"{npc.Name} 接受了你的求婚！", Colors.Green));
+                        // 本地化：求婚成功消息
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_marry_accept", ("NAME", npc.Name.ToString())), Colors.Green));
                     }
                 }
             });
@@ -179,7 +182,8 @@ namespace LivingWorldNpcs
                     if (npc != null)
                     {
                         // 具体的招募逻辑 (示例)                        
-                        InformationManager.DisplayMessage(new InformationMessage($"{npc.Name} 加入了你的家族。", Colors.Blue));
+                        // 本地化：招募加入家族消息
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_join_clan", ("NAME", npc.Name.ToString())), Colors.Blue));
                     }
                 }
             });
@@ -225,7 +229,8 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    InformationManager.DisplayMessage(new InformationMessage($"无法执行动作: {actionCode} (条件不满足)", Colors.Red));
+                    // 本地化：动作执行失败消息
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_action_fail", ("CODE", actionCode)), Colors.Red));
                 }
             }
             else
@@ -348,7 +353,8 @@ namespace LivingWorldNpcs
                 // 如果事件文本生成失败但有事件缠身 → 保底事件句，绝不回退到普通寒暄
                 if (string.IsNullOrEmpty(initialText) && urgentEvent != null)
                 {
-                    initialText = "……这可怎么办……";
+                    // 本地化：事件开场白兜底句
+                    initialText = LWNTextHelper.ResolveText("LWN_ui_interact_opening_fallback_worry", "...What am I to do...");
                     DebugLogger.Log($"[EventAware] WARNING: NPC={_targetHero?.Name} has urgent event {urgentEvent.Type} but text generation returned empty, using fallback");
                 }
 
@@ -358,7 +364,8 @@ namespace LivingWorldNpcs
                     string contextual = WorldEventDirector.GetContextualOpening(_targetHero);
                     initialText = !string.IsNullOrEmpty(contextual)
                         ? contextual
-                        : "……你想说什么？";
+                        // 本地化：普通开场白兜底句
+                        : LWNTextHelper.ResolveText("LWN_ui_interact_opening_fallback", "...What do you want to say?");
                 }
 
                 _vm.Show(displayName, initialText);
@@ -441,9 +448,15 @@ namespace LivingWorldNpcs
         {
             if (ctx.Speaker == null) { ResolveAdversarialIntent(intent, ctx); return; }
             _memory.CurrentNegotiationState = new NegotiationState(ctx.Agent, intent.Goal.Value.ToString(), intent.DisplayName);
-            var startCard = new NegotiationCard(intent.Tactic.ToString(), $"（{intent.DisplayName}）");
+            // 谈判开局玩家话语：以意图名作为开场（语序由 XML 控制）
+            var startCard = new NegotiationCard(intent.Tactic.ToString(),
+                // 谈判开场白（{NAME}）
+                LWNTextHelper.ResolveCompound("LWN_ui_interact_nego_opening", "(about {NAME})", ("NAME", intent.DisplayName)));
             _vm.LockPrediction();
-            _ = Task.Run(() => HandlePlayerInputAsync($"（{intent.DisplayName}）", startCard));
+            // 谈判开局玩家发言文本
+            _ = Task.Run(() => HandlePlayerInputAsync(
+                // 谈判开场白（{NAME}）
+                LWNTextHelper.ResolveCompound("LWN_ui_interact_nego_opening", "(about {NAME})", ("NAME", intent.DisplayName)), startCard));
         }
 
         /// <summary>无 LLM：一次掷骰决定成败，模板台词 + 直接结算。</summary>
@@ -453,7 +466,8 @@ namespace LivingWorldNpcs
             // P3：守卫/无人设的 agent 不能进对抗结算（对抗意图本就只对 Hero 开放，这里二次兜底）
             if (ctx.Speaker == null || ctx.Profile == null)
             {
-                InformationManager.DisplayMessage(new InformationMessage("无法与此人深谈。"));
+                // 本地化：无法深谈提示
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_interact_msg_no_deep_talk", "You can't have a deep talk with this person.")));
                 return;
             }
 
@@ -480,13 +494,15 @@ namespace LivingWorldNpcs
 
             // ── 默认收尾：【离开】/【继续】──
             var opts = new List<StoryOptionVM>();
-            opts.Add(new StoryOptionVM("【离开】 告辞", () =>
+            // 本地化：对话收尾选项（离开）
+            opts.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_leave", "[Leave] Farewell"), () =>
             {
                 AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
                 GroupStageManager.Reset(Agent.Main);
                 _vm.Close();
             }));
-            opts.Add(new StoryOptionVM("【继续】 再说点别的", () => RefreshInitialOptions()));
+            // 本地化：对话收尾选项（继续）
+            opts.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_continue", "[Continue] Something else"), () => RefreshInitialOptions()));
             opts.Reverse();
             _vm.ShowOptions(opts.ToArray());
         }
@@ -503,7 +519,8 @@ namespace LivingWorldNpcs
         {
             string name = agent.Name.ToString();
             InformationManager.ShowTextInquiry(new TextInquiryData(
-              "寒暄", $"你想对{name}说什么?：", true, true, "发送", "取消",
+              // 本地化：自由聊天输入框（标题/提示/按钮）
+              LWNTextHelper.ResolveText("LWN_ui_interact_smalltalk_title", "Small Talk"), LWNTextHelper.ResolveCompound("LWN_ui_interact_smalltalk_prompt", ("NAME", name)), true, true, LWNTextHelper.ResolveText("LWN_ui_interact_btn_send", "Send"), LWNTextHelper.ResolveText("LWN_ui_interact_btn_cancel", "Cancel"),
               async (text) =>
               {
                   _vm.LockPrediction();
@@ -517,10 +534,14 @@ namespace LivingWorldNpcs
             var factors = DialogueFactors.FromContext(ctx);
             var topics = new[]
             {
-                new KeyValuePair<string,string>("Greeting", "问候寒暄"),
-                new KeyValuePair<string,string>("Weather",  "聊聊近况"),
-                new KeyValuePair<string,string>("Gossip",   "打听消息"),
-                new KeyValuePair<string,string>("Praise",   "恭维几句"),
+                // 本地化：闲聊话题选项（问候/近况/消息/恭维）
+                new KeyValuePair<string,string>("Greeting", LWNTextHelper.ResolveText("LWN_ui_interact_topic_greeting", "Greetings")),
+                // 聊聊近况
+                new KeyValuePair<string,string>("Weather",  LWNTextHelper.ResolveText("LWN_ui_interact_topic_weather", "Talk about recent days")),
+                // 打听消息
+                new KeyValuePair<string,string>("Gossip",   LWNTextHelper.ResolveText("LWN_ui_interact_topic_gossip", "Ask for news")),
+                // 恭维几句
+                new KeyValuePair<string,string>("Praise",   LWNTextHelper.ResolveText("LWN_ui_interact_topic_praise", "Pay compliments")),
             };
             var options = new List<StoryOptionVM>();
             foreach (var t in topics)
@@ -573,32 +594,42 @@ namespace LivingWorldNpcs
             }
 
             // 打听声望：动态构建回复（含数值 + 解释）
-            options.Add(new StoryOptionVM("打听声望", () =>
+            // 本地化：打听声望选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_ask_reputation", "Ask about reputation"), () =>
             {
                 int honor = 0;
                 if (Hero.MainHero.CurrentSettlement != null)
                     honor = SettlementHonorStore.Get(Hero.MainHero.CurrentSettlement);
                 string npcName = ctx.Speaker != null && ctx.Speaker.Name != null
                     ? ctx.Speaker.Name.ToString()
-                    : (ctx.Agent != null ? ctx.Agent.Name.ToString() : "对方");
+                    // 本地化：对话对象名兜底
+                    : (ctx.Agent != null ? ctx.Agent.Name.ToString() : LWNTextHelper.ResolveText("LWN_ui_interact_name_other", "the other person"));
 
                 string desc;
+                // 本地化：本地声望描述（分五档）
                 if (honor >= 10)
-                    desc = $"你在本地的声望极高（{honor}），乡亲们都把你当自家人，征兵能便宜一半，说话也格外热情。";
+                    // 你在本地的声望极高（{HONOR}），乡亲们都把你当自家人，征兵能便宜一半...
+                    desc = LWNTextHelper.ResolveCompound("LWN_ui_interact_rep_high", ("HONOR", honor.ToString()));
                 else if (honor >= 5)
-                    desc = $"你在本地声望不错（{honor}），大家见了你都愿意招呼一声，征兵也有折扣。";
+                    // 你在本地声望不错（{HONOR}），大家见了你都愿意招呼一声，征兵也有折扣。
+                    desc = LWNTextHelper.ResolveCompound("LWN_ui_interact_rep_good", ("HONOR", honor.ToString()));
                 else if (honor >= 0)
-                    desc = $"你在本地声望一般（{honor}），就是普通路人，没什么特别的。";
+                    // 你在本地声望一般（{HONOR}），就是普通路人，没什么特别的。
+                    desc = LWNTextHelper.ResolveCompound("LWN_ui_interact_rep_neutral", ("HONOR", honor.ToString()));
                 else if (honor >= -3)
-                    desc = $"你在本地风评不太好（{honor}），大家见你来了都不怎么搭理。";
+                    // 你在本地风评不太好（{HONOR}），大家见你来了都不怎么搭理。
+                    desc = LWNTextHelper.ResolveCompound("LWN_ui_interact_rep_bad", ("HONOR", honor.ToString()));
                 else
-                    desc = $"你在本地的名声很差（{honor}），乡亲们避之不及，征兵价格也更贵。";
+                    // 你在本地的名声很差（{HONOR}），乡亲们避之不及，征兵价格也更贵。
+                    desc = LWNTextHelper.ResolveCompound("LWN_ui_interact_rep_terrible", ("HONOR", honor.ToString()));
 
-                string line = $"{npcName} 看了看你，说道：\"{desc}\"";
+                // 本地化：声望回答引语
+                string line = LWNTextHelper.ResolveCompound("LWN_ui_interact_rep_says", ("NAME", npcName), ("DESC", desc));
                 UpdateNpcVisuals(line, "normal", "NONE", "");
                 OpenChatTopicMenu(ctx);
             }));
-            options.Add(new StoryOptionVM("【返回】", () => RefreshInitialOptions()));
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () => RefreshInitialOptions()));
             options.Reverse();
             _vm.ShowOptions(options.ToArray());
         }
@@ -625,17 +656,23 @@ namespace LivingWorldNpcs
                 var item = items[i].EquipmentElement.Item;
                 int delta = GiftRelationDelta(target, item);
                 var captured = item;
-                options.Add(new StoryOptionVM($"{item.Name}（+{delta}）", () =>
+                // 本地化：送礼选项文本（物品名+好感增量）
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveCompound("LWN_ui_interact_gift_option", ("ITEM", item.Name.ToString()), ("DELTA", delta.ToString())), () =>
                 {
                     AgentControlHelper.TransferItems(Hero.MainHero, target, captured, 1);
                     ChangeRelationAction.ApplyPlayerRelation(target, delta);
-                    InformationManager.DisplayMessage(new InformationMessage($"你将 {captured.Name} 赠予 {target.Name}，关系 +{delta}", Colors.Green));
+                    // 本地化：送礼成功消息
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_gift_give_msg", ("ITEM", captured.Name.ToString()), ("NAME", target.Name.ToString()), ("DELTA", delta.ToString())), Colors.Green));
                     RefreshInitialOptions();
-                }, $"赠予后关系 +{delta}"));
+                // 本地化：送礼选项提示
+                }, LWNTextHelper.ResolveCompound("LWN_ui_interact_gift_tooltip", ("DELTA", delta.ToString()))));
             }
-            if (page > 0) options.Add(new StoryOptionVM("【上一页】", () => OpenGiftMenu(target, page - 1)));
-            if (page < pages - 1) options.Add(new StoryOptionVM("【下一页】", () => OpenGiftMenu(target, page + 1)));
-            options.Add(new StoryOptionVM("【返回】", () => RefreshInitialOptions()));
+            // 本地化：送礼分页按钮（上一页/下一页）
+            if (page > 0) options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_prev_page", "[Previous Page]"), () => OpenGiftMenu(target, page - 1)));
+            // 本地化：送礼分页按钮（下一页）
+            if (page < pages - 1) options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_next_page", "[Next Page]"), () => OpenGiftMenu(target, page + 1)));
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () => RefreshInitialOptions()));
             options.Reverse();
             _vm.ShowOptions(options.ToArray());
         }
@@ -802,8 +839,10 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"LLM Error: {ex.Message}");
-                _vm.DialogueContent = $"……嗯？什么？";
-                _vm.ShowOptions(new[] { new StoryOptionVM("离开", () => { _vm.Close(); 
+                // 本地化：LLM 失败时兜底台词
+                _vm.DialogueContent = LWNTextHelper.ResolveText("LWN_ui_interact_err_reply", "...Huh? What?");
+                // 本地化：LLM 失败时的离开选项
+                _vm.ShowOptions(new[] { new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_leave_short", "Leave"), () => { _vm.Close();
                 //    AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
                 AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position,15.0f,"EndInteraction", false, Agent.Main);
@@ -887,7 +926,8 @@ namespace LivingWorldNpcs
                         // 读心模式：显示内心独白
                         // 加一些特殊的格式让玩家一眼看出这是心里话
                         _vm.DialogueContent = currentCasualResponse.NpcThinking;
-                        mindBtn.OptionText = "【读心】查看明面回复";
+                        // 本地化：读心切换按钮（查看明面回复）
+                mindBtn.OptionText = LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_reply", "[Read Mind] Show the surface reply");
                         _isReadingMind = true;
                     }
                     else
@@ -895,7 +935,8 @@ namespace LivingWorldNpcs
                         // 正常模式：显示明面回复
                         _vm.DialogueContent = currentCasualResponse.NpcReply;
                         _isReadingMind = false;
-                        mindBtn.OptionText = "【读心】查看内心独白";
+                        // 本地化：读心切换按钮（查看内心独白）
+                mindBtn.OptionText = LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_thoughts", "[Read Mind] Show inner thoughts");
                     }
                 }
                 
@@ -912,7 +953,8 @@ namespace LivingWorldNpcs
                 // 读心模式：显示内心独白
                 // 加一些特殊的格式让玩家一眼看出这是心里话
                 _vm.DialogueContent = _currentLog.NpcThinking;
-                mindBtn.OptionText = "【读心】查看明面回复";
+                // 本地化：读心切换按钮（查看明面回复）
+                mindBtn.OptionText = LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_reply", "[Read Mind] Show the surface reply");
                 _isReadingMind = true;
             }
             else
@@ -920,7 +962,8 @@ namespace LivingWorldNpcs
                 // 正常模式：显示明面回复
                 _vm.DialogueContent = _currentLog.NpcReply;
                 _isReadingMind=false;
-                mindBtn.OptionText = "【读心】查看内心独白";
+                // 本地化：读心切换按钮（查看内心独白）
+                mindBtn.OptionText = LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_thoughts", "[Read Mind] Show inner thoughts");
             }
 
 
@@ -936,7 +979,8 @@ namespace LivingWorldNpcs
             catch
             {
                 // 如果解析失败，回退到基础处理
-                _vm.DialogueContent = "（对方的话语有些含糊不清...）";
+                // 本地化：LLM 响应解析失败兜底
+                _vm.DialogueContent = LWNTextHelper.ResolveText("LWN_ui_interact_msg_unclear", "(Their words are hard to make out...)");
                 UpdateUiForNextTurn(new List<NegotiationCard>(), false);
                 return json;
             }
@@ -947,7 +991,8 @@ namespace LivingWorldNpcs
             UpdateNpcVisuals(result.NpcReply, result.NpcEmotion, result.NpcAction,result.NpcThinking);
             float calculatedDelta = 0f;
             float finalMultiplier = 1.0f; // 默认为 1
-            string tacticDesc= "付出了";
+            // 本地化：谈判代价描述前缀
+            string tacticDesc= LWNTextHelper.ResolveText("LWN_ui_interact_tactic_paid", "paid ");
             float chipsValue = 0f;
 
 
@@ -966,10 +1011,12 @@ namespace LivingWorldNpcs
                 
                 foreach (var oneChip in selectedOption.Chips)
                 {
-                    tacticDesc += $"{oneChip.Amount}个{oneChip.Type}";
+                    // 本地化：谈判代价筹码描述
+                    tacticDesc += LWNTextHelper.ResolveCompound("LWN_ui_interact_tactic_chips", ("AMOUNT", oneChip.Amount.ToString()), ("TYPE", oneChip.Type.ToString()));
                 }
                 
-                InformationManager.DisplayMessage(new InformationMessage($"【谈判计算】\n牌面效果：{tacticBaseScore}\n筹码加成：{chipsValue}\nLLM 乘数：{finalMultiplier} 最终得分：{calculatedDelta}"));
+                // 本地化：谈判计算过程消息
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_negotiation_calc", ("BASE", tacticBaseScore.ToString()), ("CHIPS", chipsValue.ToString()), ("MULT", finalMultiplier.ToString()), ("TOTAL", calculatedDelta.ToString()))));
                 DebugLogger.Log($"【谈判计算】牌面效果：{tacticBaseScore} 筹码加成：{chipsValue} LLM 乘数：{finalMultiplier} 最终得分：{calculatedDelta}");
             }
             else
@@ -1028,13 +1075,19 @@ namespace LivingWorldNpcs
             {
                 _memory.CurrentNegotiationState = null; // 清除状态
 
-                string endText = isWin ? "【谈判达成】" : "【谈判破裂】";
+                // 谈判结束标题（成功/破裂）——调试遗留变量，未在 UI 展示
+                string endText = isWin
+                    // 【谈判达成】
+                    ? LWNTextHelper.ResolveText("LWN_ui_interact_nego_win", "Negotiation succeeded")
+                    // 【谈判破裂】
+                    : LWNTextHelper.ResolveText("LWN_ui_interact_nego_fail", "Negotiation broke down");
 
                 // 结束后的选项
                 var endOptions = new List<StoryOptionVM>();
                 if (isWin)
                 {
-                    endOptions.Add(new StoryOptionVM($"{_targetHero.Name}被你说服了", () =>
+                    // 本地化：谈判成功选项
+                    endOptions.Add(new StoryOptionVM(LWNTextHelper.ResolveCompound("LWN_ui_interact_win_option", ("NAME", _targetHero.Name.ToString())), () =>
                     {
                         ExecuteTransaction(_draftProposal);
                        // AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
@@ -1046,7 +1099,8 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    endOptions.Add(new StoryOptionVM($"{_targetHero.Name}耐心已耗尽，遗憾离开", () => { _vm.Close(); AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main); }));
+                    // 本地化：谈判破裂选项
+                    endOptions.Add(new StoryOptionVM(LWNTextHelper.ResolveCompound("LWN_ui_interact_loss_option", ("NAME", _targetHero.Name.ToString())), () => { _vm.Close(); AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main); }));
                 }
                 if (_memory.ActiveConflict != null)
                     _memory.ActiveConflict = null; // [关键] 清除标记，避免死循环
@@ -1097,7 +1151,8 @@ namespace LivingWorldNpcs
                 string skillName = checkOpt.RelatedSkill.Name.ToString();
                 string chanceText = $"{(checkOpt.SuccessChance * 100):0}%";
                 string btnTitle = $"[{skillName} {chanceText}] {checkOpt.Text} ({checkOpt.TacticRaw})";
-                string tooltip = $"预期后果: {checkOpt.Prediction}";
+                // 本地化：开场选项后果提示
+                string tooltip = LWNTextHelper.ResolveCompound("LWN_ui_interact_tooltip_consequences", ("PREDICTION", checkOpt.Prediction));
                 var vmOption = new StoryOptionVM(btnTitle, async () =>
                 {
                     await HandlePlayerInputAsync(checkOpt.Text, null, checkOpt);
@@ -1107,17 +1162,21 @@ namespace LivingWorldNpcs
             }
 
             // 4. 添加一个兜底的战斗选项 (防止卡死)
-            options.Add(new StoryOptionVM("【拔刀】多说无益", () =>
+            // 本地化：拔刀选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_draw_sword", "[Draw] Words are wasted"), () =>
             {
                 _vm.Close();
                 AgentAIController.Instance.SendEventToAgent(_targetAgent, "order_attack", Agent.Main);
                 Agent.Main.TryToWieldWeaponInSlot(EquipmentIndex.WeaponItemBeginSlot, Agent.WeaponWieldActionType.WithAnimation, false);
-            }, "放弃交涉，直接动手"));
+            // 本地化：拔刀选项提示（放弃交涉，直接动手）
+            }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_draw_sword", "Abandon negotiation and fight")));
 
-            options.Add(new StoryOptionVM("【读心】查看内心独白", () => {
+            // 本地化：读心选项（查看内心独白）
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_thoughts", "[Read Mind] Show inner thoughts"), () => {
 
                 ToggleReadThinking(_memory.CurrentNegotiationState);
-            }, "尝试查看对方的真实想法", 0, null, null, "MIND_READING"));
+            // 本地化：读心选项提示（尝试查看对方的真实想法）
+            }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_mind", "Try to glimpse their true thoughts"), 0, null, null, "MIND_READING"));
 
 
             options.Reverse();
@@ -1137,7 +1196,8 @@ namespace LivingWorldNpcs
                 // 容错处理
                 result = new LLMResponse_Casual
                 {
-                    NpcReply = "……我不太明白你的意思。",
+                    // 本地化：技能检定失败兜底台词
+                    NpcReply = LWNTextHelper.ResolveText("LWN_ui_interact_msg_dont_understand", "...I don't quite understand you."),
                     NpcEmotion = "Neutral",
                     NpcAction = "NONE"
                 };
@@ -1146,48 +1206,60 @@ namespace LivingWorldNpcs
             var fixedOptions = new List<StoryOptionVM>();
             if (isSuccess)
             {
-                fixedOptions.Add(new StoryOptionVM("【离开】顺利解决", () =>
+                // 本地化：检定成功选项
+                fixedOptions.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_solved", "[Leave] Resolved"), () =>
                 {
                     _vm.Close();
                     _memory.CurrentInitiative = null; // 清除开场状态，避免重复触发
                                                       //AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
                     AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
-                }, "结束对话"));
+                // 本地化：检定成功选项提示
+                }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_end", "End the conversation")));
             }
             else
             {
                 var conflict = _memory.CurrentInitiative.ConflictData;
                 var newState = new NegotiationState(_targetAgent, conflict);
                 //这里加入谈判分析
+                // 本地化：谈判分析弹窗（标题/按钮）
                 InformationManager.ShowInquiry(new InquiryData(
-        $"谈判分析：{newState.Name}",
+        // 谈判分析：{NAME}
+        LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_analysis_title", ("NAME", newState.Name)),
         newState.CalculationLog.ToString(),
-        true, false, "我心里有数了", null,
+        // 我心里有数了
+        true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_understood", "I understand"), null,
         () => { }, null));
 
 
-                fixedOptions.Add(new StoryOptionVM("【尝试补救】进入谈判", async () =>
+                // 本地化：检定失败补救选项
+                fixedOptions.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_try_recover", "[Try to Recover] Enter negotiation"), async () =>
                 {
                     _memory.CurrentNegotiationState = newState;
                     // 2. 构造第一张虚拟卡牌，刷新界面
-                    var startCard = new NegotiationCard("Plead", "（无论如何，请听我解释...）");
+                    // 本地化：补救谈判起始卡牌文本
+                    var startCard = new NegotiationCard("Plead", LWNTextHelper.ResolveText("LWN_ui_interact_card_please_listen", "(Please, just hear me out...)"));
 
                     // 3. 进入谈判循环
-                    await HandlePlayerInputAsync("（试图挽回局面，开始解释）", startCard);
+                    // 本地化：补救谈判玩家发言文本
+                    await HandlePlayerInputAsync(LWNTextHelper.ResolveText("LWN_ui_interact_input_recover", "(Trying to recover the situation and explain)"), startCard);
 
-                }, "进入谈判模式"));
+                // 本地化：补救选项提示
+                }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_enter_nego", "Enter negotiation mode")));
 
                 // 选项 2: 战斗 (谈崩了)
-                fixedOptions.Add(new StoryOptionVM("【拔刀】 多说无益", () =>
+                // 本地化：拔刀选项（谈崩）
+                fixedOptions.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_draw_sword", "[Draw] Words are wasted"), () =>
                 {
                     _vm.Close();
                     AgentAIController.Instance.SendEventToAgent(_targetAgent, "order_attack", Agent.Main);
                     Agent.Main.TryToWieldWeaponInSlot(EquipmentIndex.WeaponItemBeginSlot, Agent.WeaponWieldActionType.WithAnimation, false);
 
-                }, "放弃交涉，直接动手"));
+                // 本地化：拔刀选项提示
+                }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_draw_sword", "Abandon negotiation and fight")));
 
-                fixedOptions.Add(new StoryOptionVM("【投降】 (任由处置)", () =>
+                // 本地化：投降选项
+                fixedOptions.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_surrender_option", "[Surrender] (accept any judgment)"), () =>
                 {
                     // 让自己成为对方的俘虏
 
@@ -1196,10 +1268,12 @@ namespace LivingWorldNpcs
                 }));
                 
             }
-            fixedOptions.Add(new StoryOptionVM("【读心】查看内心独白", () => {
+            // 本地化：读心选项（技能检定流程）
+            fixedOptions.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_thoughts", "[Read Mind] Show inner thoughts"), () => {
 
                 ToggleReadThinking(_memory.CurrentNegotiationState);
-            }, "尝试查看对方的真实想法", 0, null, null, "MIND_READING"));
+            // 本地化：读心选项提示（尝试查看对方的真实想法）
+            }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_mind", "Try to glimpse their true thoughts"), 0, null, null, "MIND_READING"));
 
 
             fixedOptions.Reverse(); 
@@ -1219,7 +1293,8 @@ namespace LivingWorldNpcs
             catch
             {
                 // 如果解析失败，回退到基础处理
-                _vm.DialogueContent = "（对方的话语有些含糊不清...）";
+                // 本地化：LLM 响应解析失败兜底
+                _vm.DialogueContent = LWNTextHelper.ResolveText("LWN_ui_interact_msg_unclear", "(Their words are hard to make out...)");
                 UpdateUiForNextTurn(new List<NegotiationCard>(), false);
                 return json;
             }
@@ -1232,10 +1307,12 @@ namespace LivingWorldNpcs
 
                 _memory.CurrentNegotiationState = newState;
                 // 【修改点】：弹窗展示计算来源
+                // 本地化：谈判分析弹窗（标题/按钮）
                 InformationManager.ShowInquiry(new InquiryData(
-                    $"谈判分析：{newState.Name}",
+                    // 谈判分析：{NAME}
+                    LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_analysis_title", ("NAME", newState.Name)),
                     newState.CalculationLog.ToString(), // 这里显示刚才记录的日志
-                    true, false, "我心里有数了", null,
+                    true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_understood", "I understand"), null,
                     () => { }, null));
 
             }
@@ -1248,22 +1325,28 @@ namespace LivingWorldNpcs
 
 
                 // 强制给一个"开始谈判"的按钮，点击后再次调用 HandlePlayerInputAsync 刷新出真正的谈判卡牌
-                var startOpt = new StoryOptionVM("【开始协商】 (进入博弈)", async () =>
+                // 本地化：开始协商选项
+                var startOpt = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_start_nego", "[Start Negotiating] (enter the game)"), async () =>
                 {
                     _vm.LockPrediction();
                     //需要构造一个Card，用于刷新谈判界面
-                    var startCard = new NegotiationCard("Flatter", "（开始谈判）");                  
+                    // 本地化：协商起始卡牌文本
+                    var startCard = new NegotiationCard("Flatter", LWNTextHelper.ResolveText("LWN_ui_interact_card_start_nego", "(Start negotiating)"));                  
 
                     // 传入空输入，旨在刷新谈判界面的第一轮 Prompt
-                    await HandlePlayerInputAsync("（眼神坚定，准备开始谈判）", startCard);
-                }, "进入博弈");
+                    // 本地化：开始协商玩家发言文本
+                    await HandlePlayerInputAsync(LWNTextHelper.ResolveText("LWN_ui_interact_input_start_nego", "(With a determined look, ready to negotiate)"), startCard);
+                // 本地化：开始协商选项提示
+                }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_enter_game", "Enter the game of wits"));
                 //补充一个，放弃谈判，回归闲聊
-                var cancelOpt = new StoryOptionVM("【误会我了】 (返回闲聊)", () =>
+                // 本地化：取消协商选项
+                var cancelOpt = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_misunderstood", "[You Misunderstand] (Return to small talk)"), () =>
                 {
                     _memory.CurrentNegotiationState = null ;
                     // 正常闲聊选项
                     UpdateUiForNextTurn(result.PlayerNextOptions, false);
-                }, "返回闲聊");
+                // 本地化：取消协商选项提示
+                }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_back_chat", "Return to small talk"));
                 _vm.ShowOptions(new[] { startOpt, cancelOpt });
             }
             else
@@ -1293,12 +1376,15 @@ namespace LivingWorldNpcs
                 //区分当前回合新增筹码，以及从谈判到现在桌上已经放的筹码
 
                 float currentDraftValue = _draftProposal.GetTotalEstimatedValue();
-                string currentOfferStr = _draftProposal.chips.Count > 0   ? $"{_draftProposal.GetDescription()}"  : "当前未开出条件";            
+                // 本地化：当前提案为空时的占位文本
+                string currentOfferStr = _draftProposal.chips.Count > 0   ? $"{_draftProposal.GetDescription()}"  : LWNTextHelper.ResolveText("LWN_ui_interact_no_offer_yet", "No conditions proposed yet");            
 
                 var customProposalOpt = new StoryOptionVM(
-                    $"【自定义提案】{currentOfferStr}", // 按钮文本
+                    // 本地化：自定义提案选项文本
+                    LWNTextHelper.ResolveCompound("LWN_ui_interact_custom_proposal", ("OFFER", currentOfferStr)), // 按钮文本
                     () => OpenCustomProposalMenu(),      // 点击进入子菜单
-                    "调整提案内容或者提交本轮提案",                      // Tooltip
+                    // 本地化：自定义提案选项提示
+                    LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_custom_proposal", "Adjust the proposal or submit it"),                      // Tooltip
                     currentDraftValue                    // [修改点 2]：传入价值用于显示数字
                 );
 
@@ -1331,9 +1417,11 @@ namespace LivingWorldNpcs
                         // 闲聊模式显示意图
                         btnText = $"[{TacticStr}] {card.Text}";
                     }
-                    string PredictText = $"付出：{costStr}";
+                    // 本地化：卡牌代价提示前缀
+                    string PredictText = LWNTextHelper.ResolveCompound("LWN_ui_interact_cost_prefix", ("COST", costStr));
                     if(!string.IsNullOrEmpty(card.PredictedImpact))
-                        PredictText += $"\n预测：{card.PredictedImpact}";
+                        // 本地化：卡牌预测提示行
+                        PredictText += LWNTextHelper.ResolveCompound("LWN_ui_interact_predict_line", ("PREDICTION", card.PredictedImpact));
                     float estimatedValue = NegotiationRegistry.CalculateCardValue(card);
                     var opt = new StoryOptionVM(btnText, async () =>
                     {
@@ -1351,38 +1439,46 @@ namespace LivingWorldNpcs
                 }
             }
 
-            options.Add(new StoryOptionVM("【读心】查看内心独白", () =>            {
+            // 本地化：读心选项（下一轮卡牌）
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_thoughts", "[Read Mind] Show inner thoughts"), () =>            {
 
-                ToggleReadThinking(_memory.CurrentNegotiationState);                
-            }, "尝试查看对方的真实想法",0,null,null, "MIND_READING"));
+                ToggleReadThinking(_memory.CurrentNegotiationState);
+            // 本地化：读心选项提示（尝试查看对方的真实想法）
+            }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_mind", "Try to glimpse their true thoughts"),0,null,null, "MIND_READING"));
 
 
             //自由聊天卡
-            NegotiationCard freeTalkCard = new NegotiationCard("Flatter", "自由对话");
+            // 本地化：自由对话卡牌文本
+            NegotiationCard freeTalkCard = new NegotiationCard("Flatter", LWNTextHelper.ResolveText("LWN_ui_interact_card_free_talk", "Free talk"));
 
 
-            options.Add(new StoryOptionVM("【寒暄】", () =>
+            // 本地化：寒暄选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_smalltalk_opt", "[Small Talk]"), () =>
             {
 
 
 
                 InformationManager.ShowTextInquiry(new TextInquiryData(
-                  "寒暄", $"你想对{npcName}说什么?：", true, true, "发送", "取消",
+                  // 本地化：自由聊天输入框（标题/提示/按钮）
+                  LWNTextHelper.ResolveText("LWN_ui_interact_smalltalk_title", "Small Talk"), LWNTextHelper.ResolveCompound("LWN_ui_interact_smalltalk_prompt", ("NAME", npcName)), true, true, LWNTextHelper.ResolveText("LWN_ui_interact_btn_send", "Send"), LWNTextHelper.ResolveText("LWN_ui_interact_btn_cancel", "Cancel"),
                   async (text) =>
                   {
                       _vm.LockPrediction();
                       freeTalkCard.Text = text;
                       await HandlePlayerInputAsync(freeTalkCard.Text, freeTalkCard);
                   }, null));
-            }, "自由输入你想说的内容"));
+            // 本地化：寒暄选项提示
+            }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_free_input", "Type whatever you want to say")));
 
-            options.Add(new StoryOptionVM("【离开】告辞", () => { 
+            // 本地化：离开对话选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_leave_farewell", "[Leave] Farewell"), () => {
                 //AgentAIController.Instance.SendEventToAgent(_targetAgent, "EndInteraction", Agent.Main);
 
                 AgentAIController.Instance.BroadcastEventInRange(Agent.Main.Position, 15.0f, "EndInteraction", false, Agent.Main);
                 GroupStageManager.Reset(Agent.Main);
                 _vm.Close();
-            }, "退出对话"));
+            // 本地化：离开对话选项提示
+            }, LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_exit", "Exit the conversation")));
             options.Reverse();
             _vm.ShowOptions(options.ToArray());
         }
@@ -1396,12 +1492,15 @@ namespace LivingWorldNpcs
             if (hasChips)
             {
                 var submitOpt = new StoryOptionVM(
-                    "【确认提交并发言】",
+                    // 本地化：提交提案选项
+                    LWNTextHelper.ResolveText("LWN_ui_interact_confirm_submit", "[Confirm and Speak]"),
                     () => {
                         // 弹出输入框
                         InformationManager.ShowTextInquiry(new TextInquiryData(
-                         "确认条件", $"当前条件：{_draftProposal.GetDescription()}。\n附加一句什么话？",
-                         true, true, "发送", "取消",
+                         // 本地化：提交提案输入框（标题/内容/按钮）
+                         LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_confirm_title", "Confirm the terms"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_confirm_prompt", ("TERMS", _draftProposal.GetDescription())),
+                         // 发送
+                         true, true, LWNTextHelper.ResolveText("LWN_ui_interact_btn_send", "Send"), LWNTextHelper.ResolveText("LWN_ui_interact_btn_cancel", "Cancel"),
                          async (text) =>
                          {
                              _vm.LockPrediction();
@@ -1419,7 +1518,8 @@ namespace LivingWorldNpcs
                              await HandlePlayerInputAsync(text, proposalCard);
                          }, null));
                     },
-                    "将当前选定的筹码发送给对方",
+                    // 本地化：提交提案选项提示
+                    LWNTextHelper.ResolveText("LWN_ui_interact_tooltip_send_terms", "Send the selected chips to the other party"),
                     currentTotalValue // 显示价值
                 );
 
@@ -1436,16 +1536,19 @@ namespace LivingWorldNpcs
             }
 
             // 2. 加注
-            options.Add(new StoryOptionVM("【加注】 增加筹码", () => OpenCategorySelectMenu_Refactored()));
+            // 本地化：加注选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_add_wager", "[Raise] Add chips"), () => OpenCategorySelectMenu_Refactored()));
 
             // 3. 减注
             if (_draftProposal.chips.Count > 0)
             {
-                options.Add(new StoryOptionVM("【减注】 移除筹码", () => OpenRemoveMenu()));
+                // 本地化：减注选项
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_remove_wager", "[Fold] Remove chips"), () => OpenRemoveMenu()));
             }
 
             // 4. 返回上一级
-            options.Add(new StoryOptionVM("【返回】", () =>
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () =>
             {
                 // 返回上一级，实际上就是刷新回 UpdateUiForNextTurn
                 // 需要把上一轮的大模型建议卡牌传回去
@@ -1468,7 +1571,8 @@ namespace LivingWorldNpcs
 
 
 
-            InformationManager.DisplayMessage(new InformationMessage($"当前进度：{state.CurrentProgress}/{state.TargetThreshold} 增加值{gainValue} 增加百分比{gainPercent:F1}，", Colors.Green));
+            // 本地化：预测条进度消息
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_progress", ("CURRENT", state.CurrentProgress.ToString()), ("TARGET", state.TargetThreshold.ToString()), ("GAIN", gainValue.ToString()), ("PCT", $"{gainPercent:F1}")), Colors.Green));
          
         }
 
@@ -1482,14 +1586,17 @@ namespace LivingWorldNpcs
         {
             var options = new List<StoryOptionVM>();
 
-            options.Add(new StoryOptionVM("【加注】 增加条件", () => OpenCategorySelectMenu_Refactored()));
+            // 本地化：加注选项（增加条件）
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_add_condition", "[Raise] Add conditions"), () => OpenCategorySelectMenu_Refactored()));
 
             if (_draftProposal.chips.Count > 0)
             {
-                options.Add(new StoryOptionVM("【减注】 撤回条件", () => OpenRemoveMenu()));
+                // 本地化：减注选项（撤回条件）
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_remove_condition", "[Fold] Withdraw conditions"), () => OpenRemoveMenu()));
             }
 
-            options.Add(new StoryOptionVM("【返回】", () =>
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () =>
             {
                 // 重新刷新主界面 (需要缓存上一次的 LLM 建议卡牌，这里简化处理，假设 memory 里有)
                 // 实际操作中，最好把 UpdateUiForNextTurn 的参数存起来
@@ -1508,22 +1615,26 @@ namespace LivingWorldNpcs
             // ================= Group 1: 财富与资产 =================
 
             // 1.1 个人金钱 (PersonalGold)
-            AddNumericResourceOption(options, "个人金钱", NegotiationCostType.PersonalGold, playerRes.PersonalGold);
+            // 本地化：资源类别选项（个人金钱）
+            AddNumericResourceOption(options, LWNTextHelper.ResolveText("LWN_ui_interact_res_personal_gold", "Personal Gold"), NegotiationCostType.PersonalGold, playerRes.PersonalGold);
 
             // 1.2 势力资金 (FactionGold)
             // 只有当玩家是国王或有权限时显示
             if (playerRes.FactionGold > 0)
             {
-                AddNumericResourceOption(options, "势力公款", NegotiationCostType.FactionGold, playerRes.FactionGold);
+                // 本地化：资源类别选项（势力公款）
+                AddNumericResourceOption(options, LWNTextHelper.ResolveText("LWN_ui_interact_res_faction_gold", "Faction Funds"), NegotiationCostType.FactionGold, playerRes.FactionGold);
             }
 
             // 1.3 物品 (Item) - 打开物品选择器
-            options.Add(new StoryOptionVM("【物品】 (纳贡)", () => OpenItemSelectMenu()));
+            // 本地化：物品纳贡选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_res_item", "[Items] (tribute)"), () => OpenItemSelectMenu()));
 
             // 1.4 城池 (Settlement) - 打开城池选择器
             if (playerRes.OwnedSettlements.Count > 0)
             {
-                options.Add(new StoryOptionVM("【城池】 (割地)", () => OpenFiefSelectMenu()));
+                // 本地化：城池割地选项
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_res_settlement", "[Fiefs] (cede land)"), () => OpenFiefSelectMenu()));
             }
 
             // ================= Group 2: 社会资本 (抽象资源) =================
@@ -1532,14 +1643,16 @@ namespace LivingWorldNpcs
             // 逻辑：玩家消耗声望值，一旦违约或失败，声望暴跌
             if (playerRes.Reputation > 10) // 门槛
             {
-                AddNumericResourceOption(options, "名誉担保", NegotiationCostType.Reputation, (int)playerRes.Reputation);
+                // 本地化：资源类别选项（名誉担保）
+                AddNumericResourceOption(options, LWNTextHelper.ResolveText("LWN_ui_interact_res_reputation", "Reputation"), NegotiationCostType.Reputation, (int)playerRes.Reputation);
             }
 
             // 2.2 人情 (SocialRelation) - "看在我们的交情上"
             if (playerRes.SocialRelation > 5)
             {
                 // 这里可以直接最大值梭哈，或者输入数值
-                AddNumericResourceOption(options, "动用人情", NegotiationCostType.SocialRelation, (int)playerRes.SocialRelation);
+                // 本地化：资源类别选项（动用人情）
+                AddNumericResourceOption(options, LWNTextHelper.ResolveText("LWN_ui_interact_res_social", "Social Favor"), NegotiationCostType.SocialRelation, (int)playerRes.SocialRelation);
             }
 
             // 2.3 恶名 (Notoriety) - "你也不想把事情闹大吧" (威慑)
@@ -1548,8 +1661,10 @@ namespace LivingWorldNpcs
             if (playerRes.Notoriety > 0)
             {
                 // 恐吓不需要输入数量，通常是一次性行为
-                options.Add(new StoryOptionVM("【恶名】 施加恐吓", () => {
-                    AddWagerItem(new Chip(NegotiationCostType.Notoriety, "暴力威胁", "让对方感到恐惧", 100)); // 这里的Value 100是估值
+                // 本地化：恶名恐吓选项
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_res_notoriety", "[Notoriety] Intimidate"), () => {
+                    // 本地化：恶名筹码名称与描述
+                    AddWagerItem(new Chip(NegotiationCostType.Notoriety, LWNTextHelper.ResolveText("LWN_ui_interact_chip_violence", "violent threat"), LWNTextHelper.ResolveText("LWN_ui_interact_chip_violence_desc", "fills them with fear"), 100)); // 这里的Value 100是估值
                     OpenCustomProposalMenu();
                 }));
             }
@@ -1557,17 +1672,20 @@ namespace LivingWorldNpcs
             // ================= Group 3: 期货与承诺 =================
 
             // 3.1 承诺 (Promise)
-            options.Add(new StoryOptionVM("【空头支票】 (许诺)", () => OpenPromiseSubMenu()));
+            // 本地化：空头支票选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_res_promise", "[Empty Promise] (pledge)"), () => OpenPromiseSubMenu()));
 
 
-            options.Add(new StoryOptionVM("【返回】", () => OpenCustomProposalMenu()));
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () => OpenCustomProposalMenu()));
             _vm.ShowOptions(options.ToArray());
         }
 
         // --- 辅助方法：添加数值型资源的选项 ---
         private void AddNumericResourceOption(List<StoryOptionVM> options, string label, NegotiationCostType type, int maxAvailable)
         {
-            options.Add(new StoryOptionVM($"[{label}]", () =>
+            // 本地化：数值资源选项文本
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveCompound("LWN_ui_interact_res_label", ("LABEL", label)), () =>
             {
                 // 1. 计算这一类资源已经被草稿箱，以及本次的累计资源池占用了多少
                 int currentWagered = _draftProposal.chips
@@ -1578,14 +1696,19 @@ namespace LivingWorldNpcs
 
                 if (realAvailable <= 0)
                 {
-                    InformationManager.DisplayMessage(new InformationMessage($"你没有足够的{label}了！"));
+                    // 本地化：资源不足消息
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_not_enough", ("LABEL", label))));
                     return;
                 }
 
+                // 本地化：投入资源输入框（标题/内容/按钮）
                 InformationManager.ShowTextInquiry(new TextInquiryData(
-                   $"投入{label}",
-                   $"背包总量: {maxAvailable}\n已加注: {currentWagered}\n当前剩余可用: {realAvailable}",
-                   true, true, "确认", "取消",
+                   // 投入{LABEL}
+                   LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_put_title", ("LABEL", label)),
+                   // 背包总量: {MAX} 已加注: {WAGERED} 当前剩余可用: {A...
+                   LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_put_prompt", ("MAX", maxAvailable.ToString()), ("WAGERED", currentWagered.ToString()), ("AVAILABLE", realAvailable.ToString())),
+                   // 确认
+                   true, true, LWNTextHelper.ResolveText("LWN_ui_interact_btn_confirm", "Confirm"), LWNTextHelper.ResolveText("LWN_ui_interact_btn_cancel", "Cancel"),
                    (text) => {
                        if (int.TryParse(text, out int amount))
                        {
@@ -1593,7 +1716,8 @@ namespace LivingWorldNpcs
                            if (amount > 0)
                            {
                                // 【关键】创建 Chip 时严格传入 Type
-                               AddWagerItem(new Chip(type, $"{amount} {label}", label, amount));
+                               // 本地化：筹码名称（数量+资源标签）
+                               AddWagerItem(new Chip(type, LWNTextHelper.ResolveCompound("LWN_ui_interact_chip_amount", ("AMOUNT", amount.ToString()), ("LABEL", label)), label, amount));
                            }
                        }
                    }, null));
@@ -1605,20 +1729,27 @@ namespace LivingWorldNpcs
         {
             var options = new List<StoryOptionVM>();
             // 选项 B: 预设 - 联姻
-            options.Add(new StoryOptionVM("【承诺分期】", () => {
-                AddWagerItem(new Chip(NegotiationCostType.Promise, "分期支付", "Promise", 500));
+            // 本地化：承诺分期选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_promise_installments", "[Promise: Installments]"), () => {
+                // 本地化：分期支付筹码名
+                AddWagerItem(new Chip(NegotiationCostType.Promise, LWNTextHelper.ResolveText("LWN_ui_interact_chip_installments", "installment payments"), "Promise", 500));
             }));
             // 选项 B: 预设 - 联姻
-            options.Add(new StoryOptionVM("【承诺联姻】", () => {
-                AddWagerItem(new Chip(NegotiationCostType.Promise, "家族联姻", "Promise", 500));
+            // 本地化：承诺联姻选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_promise_marriage", "[Promise: Marriage]"), () => {
+                // 本地化：家族联姻筹码名
+                AddWagerItem(new Chip(NegotiationCostType.Promise, LWNTextHelper.ResolveText("LWN_ui_interact_chip_marriage", "family marriage"), "Promise", 500));
             }));
 
             // 选项 C: 预设 - 晋升
-            options.Add(new StoryOptionVM("【承诺晋升】", () => {
-                AddWagerItem(new Chip(NegotiationCostType.Promise, "推荐晋升", "Promise", 200));
+            // 本地化：承诺晋升选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_promise_promotion", "[Promise: Promotion]"), () => {
+                // 本地化：推荐晋升筹码名
+                AddWagerItem(new Chip(NegotiationCostType.Promise, LWNTextHelper.ResolveText("LWN_ui_interact_chip_promotion", "recommended promotion"), "Promise", 200));
             }));
 
-            options.Add(new StoryOptionVM("【返回】", () => OpenCategorySelectMenu_Refactored()));
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () => OpenCategorySelectMenu_Refactored()));
             _vm.ShowOptions(options.ToArray());
         }
         private void AddWagerItem(Chip item)
@@ -1686,16 +1817,19 @@ namespace LivingWorldNpcs
             // 6. 添加翻页按钮
             if (page > 0)
             {
-                options.Add(new StoryOptionVM("【上一页】", () => OpenItemSelectMenu(page - 1)));
+                // 本地化：物品选择翻页按钮（上一页）
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_prev_page", "[Previous Page]"), () => OpenItemSelectMenu(page - 1)));
             }
 
             if (page < totalPages - 1)
             {
-                options.Add(new StoryOptionVM("【下一页】", () => OpenItemSelectMenu(page + 1)));
+                // 本地化：物品选择翻页按钮（下一页）
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_next_page", "[Next Page]"), () => OpenItemSelectMenu(page + 1)));
             }
 
             // 7. 返回按钮
-            options.Add(new StoryOptionVM("【返回】", () => OpenCategorySelectMenu_Refactored()));
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () => OpenCategorySelectMenu_Refactored()));
 
             options.Reverse();
             // 显示选项
@@ -1723,7 +1857,8 @@ namespace LivingWorldNpcs
                 options.Add(opt);
             }
 
-            options.Add(new StoryOptionVM("【返回】", () => OpenCategorySelectMenu_Refactored()));
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () => OpenCategorySelectMenu_Refactored()));
 
             // 支持翻页逻辑 (如果城池太多)可以在这里加分页
 
@@ -1736,13 +1871,15 @@ namespace LivingWorldNpcs
             var options = new List<StoryOptionVM>();
             foreach (var item in _draftProposal.chips)
             {
-                options.Add(new StoryOptionVM($"移除: {item.Name}", () =>
+                // 本地化：移除筹码选项
+                options.Add(new StoryOptionVM(LWNTextHelper.ResolveCompound("LWN_ui_interact_remove_item", ("NAME", item.Name)), () =>
                 {
                     _draftProposal.Remove(item);
                     OpenProposalRootMenu();
                 }));
             }
-            options.Add(new StoryOptionVM("【返回】", () => OpenProposalRootMenu()));
+            // 本地化：返回选项
+            options.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_ui_interact_back", "[Back]"), () => OpenProposalRootMenu()));
             _vm.ShowOptions(options.ToArray());
         }
 
@@ -1755,14 +1892,16 @@ namespace LivingWorldNpcs
             {
                 // -> 切换到读心模式
                 _vm.DialogueContent = _cachedCurrentThinking;
-                mindBtn.OptionText = "【读心】查看明面回复";
+                // 本地化：读心切换按钮（查看明面回复）
+                mindBtn.OptionText = LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_reply", "[Read Mind] Show the surface reply");
                 _isReadingMind = true;
             }
             else
             {
                 // -> 切换回正常模式
                 _vm.DialogueContent = _cachedCurrentReply;
-                mindBtn.OptionText = "【读心】查看内心独白";
+                // 本地化：读心切换按钮（查看内心独白）
+                mindBtn.OptionText = LWNTextHelper.ResolveText("LWN_ui_interact_mind_show_thoughts", "[Read Mind] Show inner thoughts");
                 _isReadingMind = false;
             }
         }
@@ -1773,7 +1912,8 @@ namespace LivingWorldNpcs
             // 1. 缓存数据（核心修改）
             _cachedCurrentReply = reply;
             // 如果没有传 thoughts (比如旧代码或某些特殊情况)，给个默认值防止报错
-            _cachedCurrentThinking = string.IsNullOrEmpty(thoughts) ? "（看不出在想什么...）" : thoughts;
+            // 本地化：读心内容兜底
+            _cachedCurrentThinking = string.IsNullOrEmpty(thoughts) ? LWNTextHelper.ResolveText("LWN_ui_interact_thoughts_default", "(Can't tell what they're thinking...)") : thoughts;
 
             // 重置读心状态为 false，因为 NPC 说了新话，默认显示明面回复
             _isReadingMind = false;
@@ -1783,7 +1923,8 @@ namespace LivingWorldNpcs
                 _memory.AddHistory("assistant", $"{_targetAgent.Name}: {reply}");
             }
             _vm.Show(_targetAgent.Name.ToString(), reply);
-            InformationManager.DisplayMessage(new InformationMessage($"{_targetAgent.Name}回复: {reply}", Colors.Red));
+            // 本地化：NPC 回复消息
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_reply", ("NAME", _targetAgent.Name.ToString()), ("REPLY", reply)), Colors.Red));
             // 更新动画/表情动作
             if (!string.IsNullOrEmpty(emotion))
             {

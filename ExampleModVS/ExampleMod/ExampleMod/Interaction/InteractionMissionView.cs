@@ -328,13 +328,13 @@ namespace LivingWorldNpcs
                 {
                     string animalName = bestAgent.Name?.ToString() ?? "unknown";
                     InformationManager.DisplayMessage(new InformationMessage(
-                        $"吸附检测 找到了{actualDist:F1}米的 动物({animalName})"));
+                        $"吸附检测 找到了{actualDist:F1}米的 动物({animalName})")); // lwn-ignore: A (debug)
                 }
                 else
                 {
                     string name = bestAgent.Character?.Name?.ToString() ?? "???";
                     InformationManager.DisplayMessage(new InformationMessage(
-                        $"吸附检测 找到了{actualDist:F1}米的 {name}"));
+                        $"吸附检测 找到了{actualDist:F1}米的 {name}")); // lwn-ignore: A (debug)
                 }
                 */
             }
@@ -456,7 +456,8 @@ namespace LivingWorldNpcs
                     _interactVM.IsVisible = true;
                     IsHandlingInteraction = true;
                     var actions = new List<(string, ModInputAction?)>();
-                    actions.Add(("撬锁", ModInputAction.Interact));
+                    // 本地化：撬锁交互按钮
+                    actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_lockpick", "Pick Lock"), ModInputAction.Interact));
                     var chestCtx2 = StealManager.GetCurrentChestContext();
                     var (_, title2, _) = GetChestTexts(chestCtx2);
                     _interactVM.UpdateTarget(title2, actions);
@@ -521,12 +522,14 @@ namespace LivingWorldNpcs
                     if (isAlive)
                     {
                         if (isCrouching)
-                            actions.Add(("偷", ModInputAction.Interact));
+                            // 本地化：偷动物交互按钮
+                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_steal_animal", "Steal"), ModInputAction.Interact));
                        
                     }
                     else
                     {
-                        actions.Add(("搜刮", ModInputAction.Interact));
+                        // 本地化：搜刮交互按钮
+                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"), ModInputAction.Interact));
                     }
                 }
                 else if (isAlive)
@@ -534,32 +537,42 @@ namespace LivingWorldNpcs
                     // 战斗意图优先（正面背后都显示）
                     if (currentNpcIntentType == NpcIntentType.Fighting || currentNpcIntentType == NpcIntentType.Surrendering)
                     {
-                        actions.Add(("认输", ModInputAction.Interact));
+                        // 本地化：认输交互按钮
+                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_surrender", "Surrender"), ModInputAction.Interact));
                         if (currentNpcIntentType == NpcIntentType.Surrendering)
-                            actions.Add(("接受认输", ModInputAction.AltInteract));
+                            // 本地化：接受认输交互按钮
+                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_accept_surrender", "Accept Surrender"), ModInputAction.AltInteract));
                     }
                     else if (isBehind)
                     {
                         if (isCrouching)
-                            actions.Add(("偷窃", ModInputAction.Interact));
+                            // 本地化：偷窃交互按钮
+                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"), ModInputAction.Interact));
                         else
-                            actions.Add(($"击晕({ComputeKnockoutChance(currentAgent).difficulty})", ModInputAction.Interact));
+                            // 本地化：击晕交互按钮（附难度预览）
+                            actions.Add((LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)), ModInputAction.Interact));
                         if (EnableSmallTalk)
-                            actions.Add(("闲聊", ModInputAction.AltInteract));
-                        actions.Add(("探查", ModInputAction.Inspect));
+                            // 本地化：闲聊交互按钮
+                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_smalltalk", "Small Talk"), ModInputAction.AltInteract));
+                        // 本地化：探查交互按钮
+                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"), ModInputAction.Inspect));
                     }
                     else
                     {
-                        actions.Add(("对话", ModInputAction.Interact));
+                        // 本地化：对话交互按钮
+                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"), ModInputAction.Interact));
                         if (EnableSmallTalk)
-                            actions.Add(("闲聊", ModInputAction.AltInteract));
-                        actions.Add(("探查", ModInputAction.Inspect));
+                            // 本地化：闲聊交互按钮
+                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_smalltalk", "Small Talk"), ModInputAction.AltInteract));
+                        // 本地化：探查交互按钮
+                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"), ModInputAction.Inspect));
                     }
 
                 }
                 else
                 {
-                    actions.Add(("搜刮", ModInputAction.Interact));
+                    // 本地化：搜刮交互按钮
+                    actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"), ModInputAction.Interact));
                 }
 
                 // 只有名字不为空才显示，避免报错
@@ -567,15 +580,18 @@ namespace LivingWorldNpcs
                 if (isAnimal)
                 {
                     // 动物：用 agent.Name（"鹅"/"羊" 等），没有 Character
-                    name = !string.IsNullOrWhiteSpace(currentAgent.Name) ? currentAgent.Name.Trim() : "动物";
+                    // 本地化：动物名兜底
+                    name = !string.IsNullOrWhiteSpace(currentAgent.Name) ? currentAgent.Name.Trim() : LWNTextHelper.ResolveText("LWN_ui_name_animal", "animal");
                 }
                 else
                 {
-                    name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : "未知";
+                    // 本地化：未知目标名兜底
+                    name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : LWNTextHelper.ResolveText("LWN_ui_name_unknown", "Unknown");
                 }
                 if (!currentAgent.IsActive())
                 {
-                    name += isAnimal ? "(死亡)" : (isKnockedOut ? "(昏迷)" : "(重伤)");
+                    // 本地化：目标死亡/昏迷/重伤状态后缀
+                    name += isAnimal ? LWNTextHelper.ResolveText("LWN_ui_state_dead", "(dead)") : (isKnockedOut ? LWNTextHelper.ResolveText("LWN_ui_state_unconscious", "(unconscious)") : LWNTextHelper.ResolveText("LWN_ui_state_injured", "(badly injured)"));
                 }
                 _interactVM.UpdateTarget(name, actions);
 
@@ -782,7 +798,8 @@ namespace LivingWorldNpcs
 
             // 超时处理：如果走到这里说明 NPC 卡住了或者路太远
             // 可以强制瞬移，或者直接开始对话，视需求而定
-            InformationManager.DisplayMessage(new InformationMessage("NPC 移动超时，强制进入对话。", Colors.Red));
+            // 本地化：NPC 就位超时提示
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_npc_timeout", "The NPC took too long to settle — starting the conversation anyway."), Colors.Red));
 
             // 可选：强制瞬移过去，保证对话镜头正常
             // agent.TeleportToPosition(Agent.Main.Position + Agent.Main.LookDirection * 1.5f);
@@ -1013,10 +1030,12 @@ namespace LivingWorldNpcs
             // 目标走开/死亡 → 强制收手，不算被发现（无脉冲无广播）
             if (reason == StealBarCloseReason.TargetGone)
                 InformationManager.DisplayMessage(new InformationMessage(
-                    _stealAnimalTarget != null ? "它溜走了..." : "对方走远了，不能继续偷窃。", Colors.Gray));
+                    // 本地化：偷窃条自动收手提示（动物溜走/目标走远）
+                    _stealAnimalTarget != null ? LWNTextHelper.ResolveText("LWN_ui_steal_msg_animal_fled", "It slipped away...") : LWNTextHelper.ResolveText("LWN_ui_steal_msg_target_gone", "Your target moved away — you can't continue stealing."), Colors.Gray));
             // 摸空了 → 自动收手提示（无装备也无钱袋）
             else if (reason == StealBarCloseReason.NothingLeft)
-                InformationManager.DisplayMessage(new InformationMessage("他身上已经没什么可偷的了。", Colors.Gray));
+                // 本地化：目标被摸空提示
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_nothing_left", "There's nothing left to steal from them."), Colors.Gray));
             // AnimalFled：VM 内已完成惊叫/逃跑/围堵广播，此处只收口
 
             bool lockpickDone = reason == StealBarCloseReason.Completed;
@@ -1355,7 +1374,8 @@ namespace LivingWorldNpcs
             _lastFocusedAgent = null;
 
             // 抓动物偷窃条：大动物判定区窄 40%；命中 → CompleteAnimalSteal，手滑 → VM 内惊叫逃跑
-            string animalName = !string.IsNullOrWhiteSpace(animal.Name) ? animal.Name.Trim() : "动物";
+            // 本地化：动物名兜底
+            string animalName = !string.IsNullOrWhiteSpace(animal.Name) ? animal.Name.Trim() : LWNTextHelper.ResolveText("LWN_ui_name_animal", "animal");
             bool isLarge = StealManager.IsLargeAnimal(animal.Monster?.StringId);
             _stealBarVM = new StealBarVM(StealBarMode.Animal, animal, animalName, isLarge, () => CloseStealInterface());
             _stealLayer = V.NewLayer(16);
@@ -1376,7 +1396,8 @@ namespace LivingWorldNpcs
             _isStealingAnimal = true;   // CloseStealInterface 已复位并发守卫，这里重新拉起直到流程结束
 
             Agent mainAgent = Agent.Main;
-            string animalName = !string.IsNullOrWhiteSpace(animal?.Name) ? animal.Name.Trim() : "动物";
+            // 本地化：动物名兜底
+            string animalName = !string.IsNullOrWhiteSpace(animal?.Name) ? animal.Name.Trim() : LWNTextHelper.ResolveText("LWN_ui_name_animal", "animal");
             string monsterId = animal?.Monster?.StringId;
 
             try
@@ -1392,7 +1413,8 @@ namespace LivingWorldNpcs
                 if (!animal.IsActive() || animal.Position.Distance(mainAgent.Position) > 5f)
                 {
                     InformationManager.DisplayMessage(
-                        new InformationMessage("它趁机溜走了...", Colors.Gray));
+                        // 本地化：动物趁机溜走提示
+                        new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_animal_escaped", "It took the chance and ran..."), Colors.Gray));
                     AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
                     return;
                 }
@@ -1402,7 +1424,8 @@ namespace LivingWorldNpcs
 
                 if (livestockItem == null)
                 {
-                    string errMsg = $"无法将 {animalName}（monster={monsterId}）转化为库存物品——未找到匹配的 Animal 类型物品";
+                    // 本地化：动物无法转化为库存物品错误提示
+                    string errMsg = LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_animal_convert_fail", ("ANIMAL", animalName), ("MONSTER", monsterId));
                     DebugLogger.Log($"[StealAnimal] {errMsg}");
                     InformationManager.DisplayMessage(new InformationMessage(errMsg, Colors.Red));
                     AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
@@ -1426,14 +1449,16 @@ namespace LivingWorldNpcs
                 AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
 
                 // ── 步骤 7：UI 反馈 ──
-                string msg = $"获得了 {livestockItem.Name}！";
+                // 本地化：偷到牲畜成功提示
+                string msg = LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_livestock", ("ITEM", livestockItem.Name.ToString()));
                 InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Green));
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[StealAnimal] Error: {ex.Message}");
                 InformationManager.DisplayMessage(
-                    new InformationMessage("偷动物失败", Colors.Red));
+                    // 本地化：偷动物失败提示
+                    new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_animal_fail", "Failed to steal the animal"), Colors.Red));
 
                 // 出错了也尝试站起来
                 if (mainAgent != null && mainAgent.IsActive())
@@ -1453,11 +1478,13 @@ namespace LivingWorldNpcs
             // 没东西可偷（无装备也无钱袋）→ 直接提示，不开条
             if (!StealManager.HasAnythingToSteal(target))
             {
-                InformationManager.DisplayMessage(new InformationMessage("他身上没什么可偷的。", Colors.Gray));
+                // 本地化：目标无可偷之物提示
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_nothing_to_steal", "There's nothing to steal from them."), Colors.Gray));
                 return;
             }
 
-            InformationManager.DisplayMessage(new InformationMessage("你屏住呼吸，悄悄伸出了手...", Colors.Green));
+            // 本地化：偷窃出手前屏息提示
+            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_hold_breath", "You hold your breath and reach out quietly..."), Colors.Green));
 
                 // 【核心修改】：打开你的 Gauntlet UI
                 OpenStealInterface(target);
@@ -1517,14 +1544,19 @@ namespace LivingWorldNpcs
             float successRate = Math.Max(0.05f, Math.Min(0.95f, 0.5f * ratio));
 
             string difficulty;
+            // 本地化：击晕难度标签（易/中/难）
             if (monsterId == "human_child")
-                difficulty = "难";
+                // 难
+                difficulty = LWNTextHelper.ResolveText("LWN_ui_difficulty_hard", "Hard");
             else if (successRate >= 0.70f)
-                difficulty = "易";
+                // 易
+                difficulty = LWNTextHelper.ResolveText("LWN_ui_difficulty_easy", "Easy");
             else if (successRate >= 0.40f)
-                difficulty = "中";
+                // 中
+                difficulty = LWNTextHelper.ResolveText("LWN_ui_difficulty_medium", "Medium");
             else
-                difficulty = "难";
+                // 难
+                difficulty = LWNTextHelper.ResolveText("LWN_ui_difficulty_hard", "Hard");
 
             return (successRate, difficulty);
         }
@@ -1541,7 +1573,8 @@ namespace LivingWorldNpcs
             // 战斗模式下禁止击晕
             if (Settings.Instance.IsInteractionDisabled()) return;
 
-            string targetName = target.Name?.ToString() ?? "目标";
+            // 本地化：击晕目标名兜底
+            string targetName = target.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
 
             // human_child monster 的骨骼比例（臂长 0.6、眼高 1.2）与 adult 不同，
             // death_fall_front 动画无法在其骨架上播放，成功率强制 0（100% 免疫）
@@ -1592,7 +1625,8 @@ namespace LivingWorldNpcs
                     AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
 
                     InformationManager.DisplayMessage(
-                        new InformationMessage($"从背后击晕了 {targetName}！（{knockRoll * 100:F0}% ≤ {knockSuccessRate:P0}）", Colors.Green));
+                        // 本地化：击晕成功消息
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_success", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("CHANCE", $"{knockSuccessRate:P0}")), Colors.Green));
 
                     DebugLogger.Log($"[Knockout] {Agent.Main.Name} knocked out {targetName} (anim: {attackAnim})");
                 }
@@ -1601,7 +1635,8 @@ namespace LivingWorldNpcs
                     // ── 小孩：100% 躲开，不反击（目击广播已发，周围成人会反应）──
                     DebugLogger.Log($"[Knockout] Child dodged: {targetName}");
                     InformationManager.DisplayMessage(
-                        new InformationMessage($"{targetName} 非常敏锐，躲开了你的攻击。", Colors.Gray));
+                        // 本地化：小孩躲开击晕提示
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_target_dodged", ("NAME", targetName)), Colors.Gray));
                 }
                 else
                 {
@@ -1611,9 +1646,11 @@ namespace LivingWorldNpcs
                     int pControl = Hero.MainHero.GetAttributeValue(DefaultCharacterAttributes.Control);
                     var (tVigor, tControl) = GetAgentStats(target);
                     MBInformationManager.AddQuickInformation(
-                        new TextObject($"背后偷袭失手！你(活力{pVigor} 控制{pControl})不敌{targetName}(活力{tVigor} 控制{tControl})，胜算仅{knockSuccessRate:P0}"));
+                        // 本地化：背后偷袭失败快速提示（属性对比）
+                        new TextObject(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_fail_quick", ("VIGOR", pVigor.ToString()), ("CONTROL", pControl.ToString()), ("NAME", targetName), ("TVIGOR", tVigor.ToString()), ("TCONTROL", tControl.ToString()), ("CHANCE", $"{knockSuccessRate:P0}"))));
                     InformationManager.DisplayMessage(
-                        new InformationMessage($"{targetName} 察觉了你的意图，转身反击！（{knockRoll * 100:F0}% > {knockSuccessRate:P0}）", Colors.Red));
+                        // 本地化：目标察觉反击消息
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_target_retaliates", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("CHANCE", $"{knockSuccessRate:P0}")), Colors.Red));
 
                     // 受害者直接进战斗（sight check 拦不住直接事件）
                     AgentAIController.Instance?.SendEventToAgent(target, "event_agent_damaged", Agent.Main, target);
@@ -1628,7 +1665,8 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[Knockout] Error: {ex.Message}");
                 InformationManager.DisplayMessage(
-                    new InformationMessage("击晕失败", Colors.Red));
+                    // 本地化：击晕失败提示
+                    new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_knockout_fail", "Failed to knock out"), Colors.Red));
             }
         }
 
@@ -1713,7 +1751,8 @@ namespace LivingWorldNpcs
             // 1. 去重检查 (只针对尸体，活人可以反复偷，或者你可以加冷却)
             if (!isStealing && _lootedCorpses.Contains(targetAgent))
             {
-                InformationManager.DisplayMessage(new InformationMessage($"{targetAgent.Name} 已经被搜刮过了。", Colors.Red));
+                // 本地化：目标已被搜刮提示
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_already_looted", ("NAME", targetAgent.Name.ToString())), Colors.Red));
                 return;
             }
 
@@ -1775,32 +1814,40 @@ namespace LivingWorldNpcs
                     var rst = party.ItemRoster;
                     if(rst!=null && rst.Count > 0)
                     {
-                        partyItems = $"似乎{targetAgent.Name}还有{rst.Count}件东西在队伍里没带身上";
+                        // 本地化：目标还有东西在队伍里（战利品询问内容）
+                        partyItems = LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_party_items", ("NAME", targetAgent.Name.ToString()), ("COUNT", rst.Count.ToString()));
                     }
                 }
             }
             // 空空如也检查
             if (lootedGold == 0 && lootRoster.IsEmpty())
             {
-                InformationManager.DisplayMessage(new InformationMessage($"{targetAgent.Name} 身上啥也没有。", Colors.Gray));
+                // 本地化：目标身上空空如也提示
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_nothing_on_target", ("NAME", targetAgent.Name.ToString())), Colors.Gray));
                 return;
             }
 
 
 
             // --- 步骤二：构建 Inquiry (复用原有逻辑) ---
-            string actionName = isStealing ? "偷窃" : "搜刮";
-            string titleText = $"{actionName} {targetAgent.Name}";
-            string goldPreview = lootedGold > 0 ? $"\n金币: {lootedGold} 第纳尔" : "";
-            string contentText = $"你在 {targetAgent.Name} 身上发现了些东西:{itemsName}{goldPreview}\n{partyItems}";
+            // 本地化：战利品询问框动作名（偷窃/搜刮）
+            string actionName = isStealing ? LWNTextHelper.ResolveText("LWN_ui_interact_loot_action_steal", "Steal") : LWNTextHelper.ResolveText("LWN_ui_interact_loot_action_loot", "Loot");
+            // 本地化：战利品询问框标题
+            string titleText = LWNTextHelper.ResolveCompound("LWN_ui_interact_loot_title", ("ACTION", actionName), ("NAME", targetAgent.Name.ToString()));
+            // 本地化：战利品金币预览行
+            string goldPreview = lootedGold > 0 ? LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_line", ("GOLD", lootedGold.ToString())) : "";
+            // 本地化：战利品询问框内容
+            string contentText = LWNTextHelper.ResolveCompound("LWN_ui_interact_loot_content", ("NAME", targetAgent.Name.ToString()), ("ITEMS", itemsName), ("GOLD", goldPreview), ("PARTY", partyItems));
 
             InformationManager.ShowInquiry(new InquiryData(
                 titleText,
                 contentText,
                 true,
                 true,
-                "全部拿走",
-                "自己挑选",
+                // 本地化：战利品询问框按钮（全部拿走/自己挑选）
+                LWNTextHelper.ResolveText("LWN_ui_interact_btn_take_all", "Take All"),
+                // 自己挑选
+                LWNTextHelper.ResolveText("LWN_ui_interact_btn_pick_yourself", "Pick Yourself"),
                 () =>
                 {
                     // 全部拿走回调
@@ -1808,18 +1855,21 @@ namespace LivingWorldNpcs
                     {
                         int actual = StealManager.ConsumeAgentGold(targetAgent, villageGold, Settlement.CurrentSettlement);
                         if (actual > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {actual} 第纳尔。", Colors.Yellow));
+                            // 本地化：获得金币消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", actual.ToString())), Colors.Yellow));
                     }
                     if (clanGold > 0 && targetHero != null)
                     {
                         int actual = AgentControlHelper.TransferGold(targetHero, Hero.MainHero, clanGold, notify: false);
                         if (actual > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"从{targetHero.Name}的家族金库里拿到了 {actual} 第纳尔。", Colors.Yellow));
+                            // 本地化：获得家族金库金币消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_clan_gold", ("NAME", targetHero.Name.ToString()), ("GOLD", actual.ToString())), Colors.Yellow));
                     }
                     if (!lootRoster.IsEmpty())
                     {
                         MobileParty.MainParty.ItemRoster.Add(lootRoster);
-                        InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootRoster.Count} 件物品。", Colors.Green));
+                        // 本地化：获得物品数量消息
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", lootRoster.Count.ToString())), Colors.Green));
                     }
                     // 搜刮昏迷者 = 偷窃：物品+金钱一次性记账（须在扒装备前取装备快照）
                     if (!isStealing && IsUnconsciousAlive(targetAgent))
@@ -1834,13 +1884,15 @@ namespace LivingWorldNpcs
                     {
                         int actual = StealManager.ConsumeAgentGold(targetAgent, villageGold, Settlement.CurrentSettlement);
                         if (actual > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {actual} 第纳尔。", Colors.Yellow));
+                            // 本地化：获得金币消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", actual.ToString())), Colors.Yellow));
                     }
                     if (clanGold > 0 && targetHero != null)
                     {
                         int actual = AgentControlHelper.TransferGold(targetHero, Hero.MainHero, clanGold, notify: false);
                         if (actual > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"从{targetHero.Name}的家族金库里拿到了 {actual} 第纳尔。", Colors.Yellow));
+                            // 本地化：获得家族金库金币消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_clan_gold", ("NAME", targetHero.Name.ToString()), ("GOLD", actual.ToString())), Colors.Yellow));
                     }
 
                     // 搜刮昏迷者 = 偷窃：金钱在此刻已实际易手，立即记账（物品等界面关闭后按拿走的记）
@@ -1892,7 +1944,8 @@ namespace LivingWorldNpcs
 #else
                         // Latest: InventoryManager.OpenScreenAsLoot 不可用，全部拿走
                         MobileParty.MainParty.ItemRoster.Add(lootRoster);
-                        InformationManager.DisplayMessage(new InformationMessage($"获得了 {lootRoster.Count} 件物品。", Colors.Green));
+                        // 本地化：获得物品数量消息
+                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", lootRoster.Count.ToString())), Colors.Green));
                         if (!isStealing && IsUnconsciousAlive(targetAgent))
                             StealManager.RecordUnconsciousLootTheft(targetAgent, CollectEquipmentItems(targetAgent), lootedGold);
                         if (!isStealing) _lootedCorpses.Add(targetAgent);
@@ -2074,24 +2127,36 @@ namespace LivingWorldNpcs
             return ctx switch
             {
                 ChestContext.TownTavern => (
-                    "你注意到酒馆角落有个微微泛金的储物桶，上面挂着一把旧锁……",
-                    "酒馆保管箱",
-                    "你找到了酒馆的保管箱。"
+                    // 本地化：酒馆保管箱提示/标题/内容
+                    LWNTextHelper.ResolveText("LWN_ui_chest_hint_tavern", "You notice a faintly golden storage barrel in the corner of the tavern, fitted with an old lock..."),
+                    // 酒馆保管箱
+                    LWNTextHelper.ResolveText("LWN_ui_chest_title_tavern", "Tavern Storage Chest"),
+                    // 你找到了酒馆的保管箱。
+                    LWNTextHelper.ResolveText("LWN_ui_chest_content_tavern", "You found the tavern's storage chest.")
                 ),
                 ChestContext.LordsHall => (
-                    "你注意到大厅角落有个微微泛金的储物箱，上面挂着一把旧锁……",
-                    "领主保管箱",
-                    "你找到了领主的保管箱。"
+                    // 本地化：领主大厅保管箱提示/标题/内容
+                    LWNTextHelper.ResolveText("LWN_ui_chest_hint_lordshall", "You notice a faintly golden storage chest in the corner of the hall, fitted with an old lock..."),
+                    // 领主保管箱
+                    LWNTextHelper.ResolveText("LWN_ui_chest_title_lordshall", "Lord's Storage Chest"),
+                    // 你找到了领主的保管箱。
+                    LWNTextHelper.ResolveText("LWN_ui_chest_content_lordshall", "You found the lord's storage chest.")
                 ),
                 ChestContext.TownCenter => (
-                    "你注意到商铺旁有个微微泛金的储物箱，上面挂着一把旧锁……",
-                    "城镇保管箱",
-                    "你找到了城镇的保管箱。"
+                    // 本地化：城镇中心保管箱提示/标题/内容
+                    LWNTextHelper.ResolveText("LWN_ui_chest_hint_towncenter", "You notice a faintly golden storage chest by the shops, fitted with an old lock..."),
+                    // 城镇保管箱
+                    LWNTextHelper.ResolveText("LWN_ui_chest_title_towncenter", "Town Storage Chest"),
+                    // 你找到了城镇的保管箱。
+                    LWNTextHelper.ResolveText("LWN_ui_chest_content_towncenter", "You found the town's storage chest.")
                 ),
                 ChestContext.Alley => (
-                    "你注意到暗巷角落有个微微泛金的储物桶，上面挂着一把旧锁……",
-                    "暗巷保管箱",
-                    "你找到了暗巷的保管箱。"
+                    // 本地化：暗巷保管箱提示/标题/内容
+                    LWNTextHelper.ResolveText("LWN_ui_chest_hint_alley", "You notice a faintly golden storage barrel in the corner of the dark alley, fitted with an old lock..."),
+                    // 暗巷保管箱
+                    LWNTextHelper.ResolveText("LWN_ui_chest_title_alley", "Alley Storage Chest"),
+                    // 你找到了暗巷的保管箱。
+                    LWNTextHelper.ResolveText("LWN_ui_chest_content_alley", "You found the alley's storage chest.")
                 ),
                 ChestContext.Arena => (
                     "",
@@ -2104,19 +2169,28 @@ namespace LivingWorldNpcs
                     ""
                 ),
                 ChestContext.Castle => (
-                    "你注意到城堡仓库有个微微泛金的储物箱，上面挂着一把旧锁……",
-                    "城堡保管箱",
-                    "你找到了城堡的保管箱。"
+                    // 本地化：城堡保管箱提示/标题/内容
+                    LWNTextHelper.ResolveText("LWN_ui_chest_hint_castle", "You notice a faintly golden storage chest in the castle storeroom, fitted with an old lock..."),
+                    // 城堡保管箱
+                    LWNTextHelper.ResolveText("LWN_ui_chest_title_castle", "Castle Storage Chest"),
+                    // 你找到了城堡的保管箱。
+                    LWNTextHelper.ResolveText("LWN_ui_chest_content_castle", "You found the castle's storage chest.")
                 ),
                 ChestContext.Village => (
-                    "你注意到村长屋旁有个微微泛金的储物桶，上面挂着一把旧锁……",
-                    "村庄保管箱",
-                    "你找到了村庄的保管箱。"
+                    // 本地化：村庄保管箱提示/标题/内容
+                    LWNTextHelper.ResolveText("LWN_ui_chest_hint_village", "You notice a faintly golden storage barrel by the headman's house, fitted with an old lock..."),
+                    // 村庄保管箱
+                    LWNTextHelper.ResolveText("LWN_ui_chest_title_village", "Village Storage Chest"),
+                    // 你找到了村庄的保管箱。
+                    LWNTextHelper.ResolveText("LWN_ui_chest_content_village", "You found the village's storage chest.")
                 ),
                 _ => (
-                    "你注意到附近有个微微泛金的储物箱，上面挂着一把旧锁……",
-                    "保管箱",
-                    "你找到了保管箱。"
+                    // 本地化：默认保管箱提示/标题/内容
+                    LWNTextHelper.ResolveText("LWN_ui_chest_hint_default", "You notice a faintly golden storage chest nearby, fitted with an old lock..."),
+                    // 保管箱
+                    LWNTextHelper.ResolveText("LWN_ui_chest_title_default", "Storage Chest"),
+                    // 你找到了保管箱。
+                    LWNTextHelper.ResolveText("LWN_ui_chest_content_default", "You found a storage chest.")
                 )
             };
         }
@@ -2172,7 +2246,8 @@ namespace LivingWorldNpcs
 
             if (gold == 0 && (roster == null || roster.IsEmpty()))
             {
-                InformationManager.DisplayMessage(new InformationMessage("箱子是空的。", Colors.Gray));
+                // 本地化：空箱子提示
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_chest_empty", "The chest is empty."), Colors.Gray));
                 return;
             }
             if (_stealLayer != null) return;
@@ -2182,7 +2257,8 @@ namespace LivingWorldNpcs
             var (_, title, _) = GetChestTexts(chestCtx);
 
             // 撬锁条：pin 全开后由 TickStealBar 接 ShowChestInquiry
-            _stealBarVM = new StealBarVM(StealBarMode.Lockpick, pins, $"正在撬锁:{title}", () => CloseStealInterface());
+            // 本地化：撬锁条标题
+            _stealBarVM = new StealBarVM(StealBarMode.Lockpick, pins, LWNTextHelper.ResolveCompound("LWN_ui_steal_lockpick_title", ("TITLE", title)), () => CloseStealInterface());
             _stealLayer = V.NewLayer(16);
             V.LoadMov(_stealLayer, "StealBar", _stealBarVM);
             _stealLayer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse);
@@ -2205,7 +2281,8 @@ namespace LivingWorldNpcs
             // IsUIOpen 在 CloseStealInterface 中被复位，这里重新拉起，贯穿 loot 全程
             StealManager.IsUIOpen = true;
 
-            string goldLine = gold > 0 ? $"\n金币: {gold} 第纳尔" : "";
+            // 本地化：开箱询问金币预览行
+            string goldLine = gold > 0 ? LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_line", ("GOLD", gold.ToString())) : "";
             string itemsPreview = "";
             if (roster != null)
             {
@@ -2215,17 +2292,20 @@ namespace LivingWorldNpcs
                     if (item != null)
                         itemsPreview += $"\n  {item.Name} x{roster.GetElementNumber(i)}";
                 }
-                if (roster.Count > 5) itemsPreview += $"\n  ...还有 {roster.Count - 5} 种物品";
+                // 本地化：开箱物品预览省略行
+                if (roster.Count > 5) itemsPreview += LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_chest_more_items", ("COUNT", (roster.Count - 5).ToString()));
             }
 
             var chestCtx = StealManager.GetCurrentChestContext();
             var (_, title, contentPrefix) = GetChestTexts(chestCtx);
-            string content = $"{contentPrefix}{goldLine}\n物品:{itemsPreview}";
+            // 本地化：开箱询问框内容（物品标签）
+            string content = LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_chest_items_label", ("PREFIX", contentPrefix), ("GOLD", goldLine), ("ITEMS", itemsPreview));
 
             InformationManager.ShowInquiry(new InquiryData(
                 title, content,
                 true, true,
-                "全部拿走", "自己挑选",
+                // 本地化：开箱询问框按钮（全部拿走/自己挑选）
+                LWNTextHelper.ResolveText("LWN_ui_interact_btn_take_all", "Take All"), LWNTextHelper.ResolveText("LWN_ui_interact_btn_pick_yourself", "Pick Yourself"),
                 () =>
                 {
                     // ── 全部拿走 ──
@@ -2234,7 +2314,8 @@ namespace LivingWorldNpcs
                     {
                         takenGold = StealManager.LootStash(gold, settlement);
                         if (takenGold > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {takenGold} 第纳尔。", Colors.Yellow));
+                            // 本地化：开箱获得金币消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", takenGold.ToString())), Colors.Yellow));
                     }
 
                     var takenItems = new List<(string itemId, string itemName, int count)>();
@@ -2254,7 +2335,8 @@ namespace LivingWorldNpcs
                             }
                         }
                         if (totalItems > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {totalItems} 件物品。", Colors.Green));
+                            // 本地化：开箱获得物品数量消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", totalItems.ToString())), Colors.Green));
                     }
 
                     // 犯罪统一接线：目击检测 → 证词 → 围堵质问
@@ -2273,7 +2355,8 @@ namespace LivingWorldNpcs
                     {
                         _pendingChestGold = StealManager.LootStash(gold, settlement);
                         if (_pendingChestGold > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {_pendingChestGold} 第纳尔。", Colors.Yellow));
+                            // 本地化：开箱挑选金币入账消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", _pendingChestGold.ToString())), Colors.Yellow));
                     }
 
                     if (roster != null && !roster.IsEmpty())
@@ -2296,7 +2379,8 @@ namespace LivingWorldNpcs
                             }
                         }
                         if (totalItems > 0)
-                            InformationManager.DisplayMessage(new InformationMessage($"获得了 {totalItems} 件物品。", Colors.Green));
+                            // 本地化：开箱获得物品数量消息
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", totalItems.ToString())), Colors.Green));
                         if (settlement != null && (_pendingChestGold > 0 || takenItems.Count > 0))
                             StealManager.RecordChestTheft(settlement, takenItems, _pendingChestGold);
                         _pendingChestGold = 0;

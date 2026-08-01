@@ -132,7 +132,8 @@ namespace LivingWorldNpcs
         {
             if (Input.IsKeyReleased(InputKey.H))
             {
-                InformationManager.DisplayMessage(new InformationMessage($"大地图按下了H键测试"));
+                // 调试：大地图 H 键测试消息
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_map_h_test", "H pressed on the map (test)")));
             }
         }
 
@@ -166,7 +167,12 @@ namespace LivingWorldNpcs
             MobileParty newParty = V.MakeParty($"party_{hero.StringId}_{MBRandom.RandomInt(1000)}", partyComponent);
             if (newParty != null)
             {
-                V.SetPartyName(newParty, new TextObject($"{hero.Name}的部队"));
+                // 生成的部队命名：{英雄名}的部队
+                V.SetPartyName(newParty, new TextObject(
+                    // {NAME}的部队
+                    LWNTextHelper.ResolveCompound("LWN_sys_party_name_of_hero",
+                        "{NAME}'s party",
+                        ("NAME", hero.Name?.ToString() ?? ""))));
                 //敌对关系
                 var banditClan = Clan.BanditFactions.FirstOrDefault(c => c.StringId == "looters");
                 if (banditClan != null)
@@ -198,10 +204,23 @@ namespace LivingWorldNpcs
 
                 //newParty.Ai.SetMovePatrolAroundPoint(newParty.Position2D);
                 //
-                InformationManager.DisplayMessage(new InformationMessage($"成功生成部队 {hero.Name} 军！"));
+                // 调试：部队生成成功提示
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // 成功生成部队 {NAME} 军！
+                    LWNTextHelper.ResolveCompound("LWN_sys_party_spawned",
+                        "Successfully spawned {NAME}'s army!",
+                        ("NAME", hero.Name?.ToString() ?? ""))));
 
                 //测试大地图弹窗功能
-                InformationManager.ShowInquiry(new InquiryData("织田信忠","该死，为什么要输给光秀...",true,false,"继续","",null,null));
+                // 测试用弹窗（标题/正文/按钮全本地化）
+                InformationManager.ShowInquiry(new InquiryData(
+                    // 织田信忠
+                    LWNTextHelper.ResolveText("LWN_sys_test_inquiry_title", "Nobunaga"),
+                    // 该死，为什么要输给光秀...
+                    LWNTextHelper.ResolveText("LWN_sys_test_inquiry_body", "Damn it, why did we lose to Mitsuhide..."),
+                    true, false,
+                    // 继续
+                    LWNTextHelper.ResolveText("LWN_sys_test_inquiry_continue", "Continue"), "", null, null));
             }
         }
         public void SpawnHeroById(string targetHeroId)
@@ -227,7 +246,12 @@ namespace LivingWorldNpcs
                 {
                     //玩家在野外召唤
                     SpawnIndependentPartyInWilderness(newHero);
-                    InformationManager.DisplayMessage(new InformationMessage($"一支由 {newHero.Name} 带领的部队已出现在附近！"));
+                    // 野外召唤成功提示：报出带队英雄名
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        // 一支由 {NAME} 带领的部队已出现在附近！
+                        LWNTextHelper.ResolveCompound("LWN_sys_party_appeared",
+                            "A party led by {NAME} has appeared nearby!",
+                            ("NAME", newHero.Name?.ToString() ?? ""))));
                 }
 
             }

@@ -38,7 +38,8 @@ namespace LivingWorldNpcs
         private bool _suspectIdentifiedLogged;  // 防止 Intent 和事件双重日志
 
         public override bool IsRemainingTimeHidden => false;
-        public override TextObject Title => new TextObject(_data?.GetFlavorDescription() ?? "委托任务");
+        // 任务标题兜底：无风味描述时的通用委托标题
+        public override TextObject Title => new TextObject(_data?.GetFlavorDescription() ?? LWNTextHelper.ResolveText("LWN_quest_commission_title_fallback", "Commission"));
         public CommissionData Data => _data;
         public Hero CommissionGiver => _data?.QuestGiver;
         public CommissionGrade FinalGrade => _finalGrade;
@@ -95,14 +96,18 @@ namespace LivingWorldNpcs
         public void BeginNarrativePhase()
         {
             string giverLoc = QuestGiver?.CurrentSettlement?.Name?.ToString()
-                ?? QuestGiver?.HomeSettlement?.Name?.ToString() ?? "未知地点";
+                // 委托人所在地未知时的兜底文本
+                ?? QuestGiver?.HomeSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_unknown_location", "Unknown location");
             DebugLogger.Log($"[CommissionQuest] BeginNarrativePhase: {_data.GetFlavorDescription()} giver={QuestGiver?.Name} at {giverLoc}");
-            AddLog(new TextObject($"📋 委托情报已记录：{_data.GetFlavorDescription()}"));
+            // 委托情报已记录的叙事日志：附委托风味描述
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_intel_recorded", "📋 Commission intel recorded: {DESC}", ("DESC", _data.GetFlavorDescription()))));
 
             // 阶段1：找到委托人（离散日志，0/1 表示是否完成）
             _findGiverLog = AddDiscreteLog(
-                new TextObject($"第一步：前往 {giverLoc} 找 {QuestGiver?.Name} 当面了解委托详情"),
-                new TextObject($"找到 {QuestGiver?.Name}"),
+                // 阶段1日志标题：前往委托人所在地当面了解详情
+                new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_step1_goto", "Step 1: Go to {LOCATION} and find {GIVER} to learn the details of the commission in person", ("LOCATION", giverLoc), ("GIVER", QuestGiver?.Name.ToString()))),
+                // 阶段1日志进度：已找到委托人
+                new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_step1_found_giver", "Find {GIVER}", ("GIVER", QuestGiver?.Name.ToString()))),
                 0, 1);
             // 不注册事件，不定金，不启动——只是占个位
         }
@@ -124,7 +129,8 @@ namespace LivingWorldNpcs
             {
                 int actualDeposit = AgentControlHelper.TransferGold(_data.QuestGiver, Hero.MainHero, _data.DepositAmount);
                 _data.DepositAmount = actualDeposit;
-                AddLog(new TextObject($"定金 {actualDeposit} 第纳尔已到账。"));
+                // 委托定金到账日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_received", "The {GOLD} denar deposit has been received.", ("GOLD", actualDeposit.ToString()))));
             }
 
             // 正式启动（事件已在 OnStartQuest 的叙事分支里注册过了，这里只补运行启动逻辑）
@@ -136,7 +142,8 @@ namespace LivingWorldNpcs
         private void PerformFullStartup()
         {
             TextObject logText = new TextObject(
-                "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n{EXTRA}");
+                // 委托启动日志模板：任务标题+委托人+报酬+定金+期限+附加信息汇总
+                "{=LWN_quest_commission_start}[Commission] {TITLE}\nGiver: {GIVER}\nReward: {REWARD} denars | Deposit: {DEPOSIT}\nDeadline: {DAYS} days\n{EXTRA}");
             logText.SetTextVariable("TITLE", _data.GetFlavorDescription());
             logText.SetTextVariable("GIVER", QuestGiver.Name);
             logText.SetTextVariable("REWARD", _data.NegotiatedReward);
@@ -152,7 +159,8 @@ namespace LivingWorldNpcs
             }
 
             if (_data.DepositAmount > 0)
-                AddLog(new TextObject($"定金 {_data.DepositAmount} 第纳尔已到账。"));
+                // 委托定金到账日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_received", "The {GOLD} denar deposit has been received.", ("GOLD", _data.DepositAmount.ToString()))));
 
             if (Settings.Instance.IsLLMReady)
                 _ = EnhanceFlavorText(_data.GetFlavorDescription());
@@ -210,7 +218,8 @@ namespace LivingWorldNpcs
                         _data.Category == CommissionCategory.SupplyIntercept ||
                         _data.Category == CommissionCategory.DecoyMission)
                     {
-                        AddLog(new TextObject("读档后委托目标部队已消失，委托自动取消。"));
+                        // 读档后委托目标部队已消失的失败日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_target_party_gone", "The commission's target party has disappeared after loading the save — the commission was cancelled automatically.")));
                         _escortPartyId = null;
                         FailQuest();
                         return;
@@ -290,7 +299,8 @@ namespace LivingWorldNpcs
             WorldEventDirector.RecordCommissionAccepted();
 
             TextObject logText = new TextObject(
-                "{=commission_start}【委托】{TITLE}\n委托人：{GIVER}\n报酬：{REWARD} 第纳尔 | 定金：{DEPOSIT}\n期限：{DAYS} 天\n{EXTRA}");
+                // 委托启动日志模板：任务标题+委托人+报酬+定金+期限+附加信息汇总
+                "{=LWN_quest_commission_start}[Commission] {TITLE}\nGiver: {GIVER}\nReward: {REWARD} denars | Deposit: {DEPOSIT}\nDeadline: {DAYS} days\n{EXTRA}");
             logText.SetTextVariable("TITLE", _data.GetFlavorDescription());
             logText.SetTextVariable("GIVER", QuestGiver.Name);
             logText.SetTextVariable("REWARD", _data.NegotiatedReward);
@@ -307,7 +317,8 @@ namespace LivingWorldNpcs
 
             if (_data.DepositAmount > 0)
             {
-                AddLog(new TextObject($"定金 {_data.DepositAmount} 第纳尔已到账。"));
+                // 委托定金到账日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_received", "The {GOLD} denar deposit has been received.", ("GOLD", _data.DepositAmount.ToString()))));
             }
 
             // 异步增强风味文本
@@ -381,15 +392,24 @@ namespace LivingWorldNpcs
             if (_data.Tier >= CommissionTier.Expert && InfamySystem.Infamy > 0)
             {
                 InfamySystem.ReduceInfamy(1);
-                AddLog(new TextObject("完成高难度委托，恶名 -1。"));
+                // 完成高难度委托削减恶名的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_hard_complete_infamy", "Completed a high-difficulty commission — infamy -1.")));
             }
 
             // 清理生成的地图部队
             CleanupSpawnedParty();
 
             string gradeStr = GetGradeDisplayName();
-            AddLog(new TextObject($"委托完成！评级：{gradeStr}，尾款 {reward} 第纳尔到账。"));
-            AddLog(new TextObject($"与 {QuestGiver.Name} 的信任度 { (trustDelta >= 0 ? "+" : "") }{trustDelta}（当前：{TrustSystem.GetTrustDescription(TrustSystem.GetTrust(QuestGiver))}）"));
+            // 委托完成日志：评级+尾款到账
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_complete_final_payment",
+                "Commission complete! Grade: {GRADE} — final payment of {REWARD} denars received.",
+                ("GRADE", gradeStr), ("REWARD", reward.ToString()))));
+            // 委托完成日志：与委托人的信任度变化
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_trust_changed",
+                "Your standing with {GIVER} changed by {TRUSTDELTA} (currently: {TRUSTDESC})",
+                ("GIVER", QuestGiver.Name.ToString()),
+                ("TRUSTDELTA", (trustDelta >= 0 ? "+" : "") + trustDelta),
+                ("TRUSTDESC", TrustSystem.GetTrustDescription(TrustSystem.GetTrust(QuestGiver))))));
         }
 
         protected override void OnTimedOut()
@@ -417,7 +437,8 @@ namespace LivingWorldNpcs
                 int penalty = _data.DepositAmount > 0 ? -15 : -5;
                 ChangeRelationAction.ApplyPlayerRelation(QuestGiver, penalty);
                 TrustSystem.AddTrust(QuestGiver, -10);
-                AddLog(new TextObject($"委托超时失败！与 {QuestGiver.Name} 的关系恶化了。"));
+                // 委托超时失败日志：与委托人关系恶化
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_timeout_failed", "The commission failed due to timeout! Your relationship with {GIVER} has worsened.", ("GIVER", QuestGiver.Name.ToString()))));
             }
         }
 
@@ -428,7 +449,8 @@ namespace LivingWorldNpcs
             CleanupSpawnedParty();
             ChangeRelationAction.ApplyPlayerRelation(QuestGiver, -20);
             TrustSystem.AddTrust(QuestGiver, -20);
-            AddLog(new TextObject($"委托失败！{QuestGiver.Name} 对你非常失望。"));
+            // 委托失败日志：委托人对玩家失望
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_failed_disappoint", "The commission failed! {GIVER} is deeply disappointed in you.", ("GIVER", QuestGiver.Name.ToString()))));
         }
 
         #endregion
@@ -466,7 +488,8 @@ namespace LivingWorldNpcs
                 // 坚持到时限结束即成功
                 if (_data.TimeRemainingHours <= 0)
                 {
-                    AddLog(new TextObject("委托人已安全撤离！引开追兵的任务完成了。"));
+                    // 诱敌任务成功：委托人安全撤离
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_decoy_safe", "The giver has safely escaped! The mission to lure away the pursuers is complete.")));
                     CleanupSpawnedParty();
                     UpdateProgress(_totalProgress);
                     return;
@@ -481,12 +504,14 @@ namespace LivingWorldNpcs
                 // 如果目标已完成但未领报酬，先自动支付再失败
                 if (_data != null && _data.IsObjectivesComplete)
                 {
-                    AddLog(new TextObject($"委托人 {QuestGiver.Name} 已去世，报酬自动结算。"));
+                    // 委托人去世但目标已完成：报酬自动结算
+                    AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_giver_deceased_pay", "The giver {GIVER} has passed away — the reward has been settled automatically.", ("GIVER", QuestGiver.Name.ToString()))));
                     _data.RewardPayer = null; // 强制用 QuestGiver 遗产支付
                     CompleteWithRewardCollection();
                     return;
                 }
-                AddLog(new TextObject($"委托人 {QuestGiver.Name} 已去世，委托自动取消。"));
+                // 委托人去世导致委托取消的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_giver_deceased_cancel", "The giver {GIVER} has passed away — the commission was cancelled automatically.", ("GIVER", QuestGiver.Name.ToString()))));
                 FailQuest();
                 return;
             }
@@ -495,7 +520,8 @@ namespace LivingWorldNpcs
             if (QuestGiver != null && QuestGiver.IsPrisoner)
             {
                 DebugLogger.Log($"[CommissionQuest] OnDailyTick FAIL: giver imprisoned, giver={QuestGiver.Name} category={_data?.Category}");
-                AddLog(new TextObject($"委托人 {QuestGiver.Name} 被囚禁已久，委托自动取消。"));
+                // 委托人长期被囚禁导致委托取消的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_giver_imprisoned_cancel", "The giver {GIVER} has been imprisoned for too long — the commission was cancelled automatically.", ("GIVER", QuestGiver.Name.ToString()))));
                 FailQuest();
                 return;
             }
@@ -506,7 +532,8 @@ namespace LivingWorldNpcs
                 _data.TargetHero != null && !_data.TargetHero.IsAlive && _currentProgress == 0)
             {
                 DebugLogger.Log($"[CommissionQuest] OnDailyTick FAIL: target killed by third party, target={_data.TargetHero.Name} category={_data.Category}");
-                AddLog(new TextObject($"目标 {_data.TargetHero.Name} 已被他人击杀，委托失败。"));
+                // 目标被第三方击杀导致委托失败的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_target_killed_third_party", "The target {TARGET} has been killed by someone else — the commission failed.", ("TARGET", _data.TargetHero.Name.ToString()))));
                 FailQuest();
                 return;
             }
@@ -523,7 +550,8 @@ namespace LivingWorldNpcs
                 if (escortParty == null || escortParty.MemberRoster?.TotalManCount <= 0)
                 {
                     DebugLogger.Log($"[CommissionQuest] OnDailyTick FAIL: caravan destroyed, partyId={_escortPartyId}");
-                    AddLog(new TextObject("商队已被摧毁！委托失败。"));
+                    // 商队被摧毁导致委托失败的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_caravan_destroyed", "The caravan has been destroyed! The commission failed.")));
                     _escortPartyId = null;
                     FailQuest();
                     return;
@@ -546,14 +574,18 @@ namespace LivingWorldNpcs
                     if (!_data.TargetHero.IsPrisoner)
                     {
                         // 目标已被释放！立即检测完成
-                        AddLog(new TextObject($"{_data.TargetHero.Name} 似乎已经不在监狱里了！"));
+                        // 目标已不在监狱的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prisoner_escaped", "{TARGET} no longer seems to be in prison!", ("TARGET", _data.TargetHero.Name.ToString()))));
                         UpdateProgress(_totalProgress);
                         return;
                     }
                     // 提醒玩家
                     if (_data.PhaseProgress % 3 == 0) // 每 3 天提醒一次
                     {
-                        AddLog(new TextObject($"提示：你已在 {Hero.MainHero.CurrentSettlement.Name}，寻找潜入监狱的方法解救 {_data.TargetHero.Name}。"));
+                        // 定期提醒玩家解救囚犯的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prison_reminder",
+                            "Hint: You are in {LOCATION} — find a way to sneak into the prison and rescue {TARGET}.",
+                            ("LOCATION", Hero.MainHero.CurrentSettlement.Name.ToString()), ("TARGET", _data.TargetHero.Name.ToString()))));
                     }
                     _data.PhaseProgress++;
                 }
@@ -615,7 +647,8 @@ namespace LivingWorldNpcs
                     // Hero 切换阵营支援玩家
                     infiltrator.Clan = Clan.PlayerClan;
                     NinjaNotificationManager.Show(
-                        $"战场上，一个熟悉的身影转向了你这边——{infiltrator.Name}倒戈了！",
+                        // 卧底战场倒戈的弹窗提示
+                        LWNTextHelper.ResolveCompound("LWN_quest_commission_infiltrator_defect_battle", "On the battlefield, a familiar figure turns toward you — {NAME} has defected!", ("NAME", infiltrator.Name.ToString())),
                         () => { });
                     DebugLogger.Log($"[Infiltration] {infiltrator.Name} switched sides in battle!");
                 }
@@ -662,9 +695,12 @@ namespace LivingWorldNpcs
                                     record.Level = (NemesisLevel)(Math.Min((int)record.Level + 1, (int)NemesisLevel.Legendary));
                                     // 下次复仇间隔缩短
                                     HeroNemesisTracker.ScheduleRevenge(record);
+                                    // 宿敌逃脱的弹窗文案
                                     string escalateMsg = record.Level >= NemesisLevel.ArchNemesis
-                                        ? $"{instigator.Name}又逃了——你们之间的恩怨已到了不死不休的地步。"
-                                        : $"{instigator.Name}再次逃脱了。他知道你更强了——下一次他会带更多人来。";
+                                        // 宿敌升级为死仇的文案
+                                        ? LWNTextHelper.ResolveCompound("LWN_quest_commission_nemesis_escalated", "{NAME} escaped again — the feud between you has reached the point of no return.", ("NAME", instigator.Name.ToString()))
+                                        // 宿敌准备卷土重来的文案
+                                        : LWNTextHelper.ResolveCompound("LWN_quest_commission_nemesis_escaped", "{NAME} escaped once more. He knows you are stronger now — next time he will bring more men.", ("NAME", instigator.Name.ToString()));
                                     NinjaNotificationManager.Show(escalateMsg, () => { });
                                     DebugLogger.Log($"[Nemesis] {instigator.Name} escaped again, escalated to {record.Level}");
                                 }
@@ -679,7 +715,8 @@ namespace LivingWorldNpcs
                     var defector = StrategicInfiltration.CheckBattlefieldTrigger();
                     if (defector != null)
                     {
-                        string defectMsg = $"{defector.Name}在战场上倒戈了！——这就是策反的代价。";
+                        // 策反成功的战场倒戈弹窗文案
+                        string defectMsg = LWNTextHelper.ResolveCompound("LWN_quest_commission_defector_battle", "{NAME} has defected on the battlefield! — This is the payoff of your recruitment.", ("NAME", defector.Name.ToString()));
                         NinjaNotificationManager.Show(defectMsg, () => { });
                         InformationManager.DisplayMessage(new InformationMessage(defectMsg));
                         DebugLogger.Log($"[Infiltration] Defector triggered in battle: {defector.Name}");
@@ -704,7 +741,8 @@ namespace LivingWorldNpcs
                     {
                         CleanupSpawnedParty();
                         UpdateProgress(_totalProgress);
-                        AddLog(new TextObject($"到达了目的地 {settlement.Name}！"));
+                        // 护送任务到达目的地的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_arrived_destination", "Arrived at the destination {LOCATION}!", ("LOCATION", settlement.Name.ToString()))));
                     }
                     break;
                 case CommissionCategory.EmergencyDelivery:
@@ -715,11 +753,13 @@ namespace LivingWorldNpcs
                             ConsumeRequiredItems();
                             CleanupSpawnedParty();
                             UpdateProgress(_totalProgress);
-                            AddLog(new TextObject($"已将所需物资送达 {settlement.Name}！"));
+                            // 紧急送货任务送达成功的日志
+                            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_delivery_delivered", "The required supplies have been delivered to {LOCATION}!", ("LOCATION", settlement.Name.ToString()))));
                         }
                         else
                         {
-                            AddLog(new TextObject($"已到达 {settlement.Name}，但物资不足！请确认携带了所有物资。"));
+                            // 到达目的地但物资不足的日志
+                            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_delivery_missing_items", "Arrived at {LOCATION}, but the supplies are insufficient! Make sure you are carrying all of them.", ("LOCATION", settlement.Name.ToString()))));
                         }
                     }
                     break;
@@ -732,11 +772,13 @@ namespace LivingWorldNpcs
                         {
                             ConsumeRequiredItems();
                             UpdateProgress(_totalProgress);
-                            AddLog(new TextObject($"已将所需物资送达 {settlement.Name}！"));
+                            // 供应/采购任务送达成功的日志
+                            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_delivery_delivered", "The required supplies have been delivered to {LOCATION}!", ("LOCATION", settlement.Name.ToString()))));
                         }
                         else
                         {
-                            AddLog(new TextObject($"已到达 {settlement.Name}，但尚未备齐所需物资。请先去采购。"));
+                            // 到达目的地但物资未备齐的日志
+                            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_delivery_not_ready", "Arrived at {LOCATION}, but the required supplies are not ready yet. Go purchase them first.", ("LOCATION", settlement.Name.ToString()))));
                         }
                     }
                     break;
@@ -752,11 +794,13 @@ namespace LivingWorldNpcs
                             {
                                 AgentControlHelper.TransferItems(null, Hero.MainHero, foundItem,
                                     _data.TargetItemCount > 0 ? _data.TargetItemCount : 1);
-                                AddLog(new TextObject($"找到了 {foundItem.Name} ×{_data.TargetItemCount}！"));
+                                // 找到失物/宝藏的日志：物品名+数量
+                                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_item_found", "Found {ITEM} ×{COUNT}!", ("ITEM", foundItem.Name.ToString()), ("COUNT", _data.TargetItemCount.ToString()))));
                             }
                         }
                         UpdateProgress(_totalProgress);
-                        AddLog(new TextObject($"在 {settlement.Name} 找到了目标！"));
+                        // 在目标地点找到目标的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_target_found", "Found the target in {LOCATION}!", ("LOCATION", settlement.Name.ToString()))));
                     }
                     break;
             }
@@ -774,7 +818,8 @@ namespace LivingWorldNpcs
             {
                 _currentProgress = 1;
                 if (_progressLog != null) _progressLog.UpdateCurrentProgress(_currentProgress);
-                AddLog(new TextObject("所需物资已备齐！前往目的地交货即可。"));
+                // 物资备齐可交货的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_goods_ready", "All required supplies are ready! Head to the destination to deliver them.")));
             }
         }
 
@@ -787,7 +832,8 @@ namespace LivingWorldNpcs
             {
                 case CommissionCategory.UndergroundFight:
                     UpdateProgress(_totalProgress);
-                    AddLog(new TextObject("在竞技场中获胜！委托人会很满意。"));
+                    // 地下格斗任务在竞技场获胜的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_arena_won", "You won in the arena! The giver will be pleased.")));
                     break;
                 case CommissionCategory.ArenaSpecial:
                     _currentProgress++;
@@ -796,11 +842,13 @@ namespace LivingWorldNpcs
                     if (_currentProgress >= _totalProgress)
                     {
                         UpdateProgress(_totalProgress);
-                        AddLog(new TextObject($"在竞技场中连胜 {_totalProgress} 场！委托人非常满意。"));
+                        // 竞技场连胜达标完成的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_arena_streak_complete", "Won {COUNT} consecutive arena matches! The giver is very pleased.", ("COUNT", _totalProgress.ToString()))));
                     }
                     else
                     {
-                        AddLog(new TextObject($"竞技场胜利 {_currentProgress}/{_totalProgress}！再赢一场即可完成委托。"));
+                        // 竞技场连胜进度日志：还差一场
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_arena_progress", "Arena victory {PROGRESS}/{TOTAL}! One more win and the commission is done.", ("PROGRESS", _currentProgress.ToString()), ("TOTAL", _totalProgress.ToString()))));
                     }
                     break;
             }
@@ -812,7 +860,8 @@ namespace LivingWorldNpcs
             if (village.Settlement.StringId == _data.TargetSettlementId &&
                 village.Settlement.LastAttackerParty != MobileParty.MainParty)
             {
-                AddLog(new TextObject($"警告：{village.Settlement.Name} 已被洗劫！委托可能已失败。"));
+                // 村庄被洗劫的警告日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_village_looted_warning", "Warning: {LOCATION} has been looted! The commission may have failed.", ("LOCATION", village.Settlement.Name.ToString()))));
             }
         }
 
@@ -826,7 +875,8 @@ namespace LivingWorldNpcs
                     if (element.Troop?.HeroObject == _data.TargetHero)
                     {
                         UpdateProgress(_totalProgress);
-                        AddLog(new TextObject($"{_data.TargetHero.Name} 已成功救出！"));
+                        // 越狱任务成功救出目标的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prisoner_rescued", "{TARGET} has been successfully rescued!", ("TARGET", _data.TargetHero.Name.ToString()))));
                         break;
                     }
                 }
@@ -884,9 +934,12 @@ namespace LivingWorldNpcs
 
             UpdateProgress(_totalProgress);
 
+            // 悬赏任务胜利结算文案：活捉/击杀分支
             string resultDesc = _isTargetCaptured
-                ? $"已活捉目标 {_data.TargetHero.Name}！押送回去可获全额报酬。注意：途中可能有同伙劫囚。"
-                : $"已击败目标 {_data.TargetHero.Name}（击杀）。活捉可获得更高报酬。";
+                // 活捉目标的胜利文案
+                ? LWNTextHelper.ResolveCompound("LWN_quest_commission_bounty_captured", "The target {TARGET} has been captured alive! Escort them back for the full reward. Beware — allies may try to free them en route.", ("TARGET", _data.TargetHero.Name.ToString()))
+                // 击杀目标的胜利文案
+                : LWNTextHelper.ResolveCompound("LWN_quest_commission_bounty_killed", "The target {TARGET} has been defeated (killed). Capturing them alive would have paid more.", ("TARGET", _data.TargetHero.Name.ToString()));
 
             AddLog(new TextObject(resultDesc));
             DebugLogger.Log($"[CommissionQuest] BountyHuntVictory: target={_data.TargetHero?.Name} captured={_isTargetCaptured}");
@@ -902,7 +955,8 @@ namespace LivingWorldNpcs
                 if (supplyPartyDefeated)
                 {
                     UpdateProgress(_totalProgress);
-                    AddLog(new TextObject("已成功截获敌方补给队！"));
+                    // 成功截获敌方补给队的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_supply_intercepted", "Enemy supply convoy successfully intercepted!")));
                     return;
                 }
             }
@@ -914,7 +968,8 @@ namespace LivingWorldNpcs
                 if (targetDefeated)
                 {
                     UpdateProgress(_totalProgress);
-                    AddLog(new TextObject("已成功截获敌方补给队！"));
+                    // 成功截获敌方补给队的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_supply_intercepted", "Enemy supply convoy successfully intercepted!")));
                 }
             }
         }
@@ -942,7 +997,8 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[CommissionQuest] VillageDefenseVictory: target={_data?.TargetSettlementId} party={_escortPartyId}");
                 UpdateProgress(_totalProgress);
-                AddLog(new TextObject("村庄防守成功！击退了来犯之敌。"));
+                // 村庄防守成功的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_village_defended", "The village was defended! The attackers have been driven off.")));
             }
         }
 
@@ -954,7 +1010,8 @@ namespace LivingWorldNpcs
             if (banditsDefeated)
             {
                 UpdateProgress(_totalProgress);
-                AddLog(new TextObject("匪穴已清剿！这片区域终于安全了。"));
+                // 匪穴清剿成功的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_hideout_cleared", "The bandit hideout has been cleared! This area is finally safe.")));
             }
         }
 
@@ -966,7 +1023,8 @@ namespace LivingWorldNpcs
             {
                 // 反击成功，提前完成（报酬按已坚持天数计算）
                 DebugLogger.Log($"[CommissionQuest] HandleDecoyFightResult: player WON — completing quest early");
-                AddLog(new TextObject("你成功击退了追兵！委托人趁这段时间安全撤离了。"));
+                // 诱敌任务反击追兵成功的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_decoy_counterattack_won", "You drove off the pursuers! The giver used this time to escape safely.")));
                 CleanupSpawnedParty();
                 UpdateProgress(_totalProgress);
             }
@@ -974,7 +1032,8 @@ namespace LivingWorldNpcs
             {
                 // 被追上击败 → 委托失败
                 DebugLogger.Log($"[CommissionQuest] HandleDecoyFightResult: player LOST — failing quest");
-                AddLog(new TextObject("你被追兵击败了。委托人可能还来不及逃脱……"));
+                // 诱敌任务被追兵击败的失败日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_decoy_was_defeated", "You were defeated by the pursuers. The giver may not have had time to escape...")));
                 _finalGrade = CommissionGrade.Failed;
                 CleanupSpawnedParty();
                 FailQuest();
@@ -1002,8 +1061,10 @@ namespace LivingWorldNpcs
             if (!raidersInvolved) return;
 
             _bribeAttempted = true;
+            // 村庄名称兜底文本
+            string villageFallback = LWNTextHelper.ResolveText("LWN_quest_commission_village_fallback", "village");
             string villageName = !string.IsNullOrEmpty(_data.TargetSettlementId)
-                ? Settlement.Find(_data.TargetSettlementId)?.Name?.ToString() ?? "村庄" : "村庄";
+                ? Settlement.Find(_data.TargetSettlementId)?.Name?.ToString() ?? villageFallback : villageFallback;
 
             int tierFactor = _data.Tier switch
             { CommissionTier.Basic => 10, CommissionTier.Skilled => 15,
@@ -1013,15 +1074,26 @@ namespace LivingWorldNpcs
             float charmDiscount = 0.3f + (charmSkill / 300f) * 0.3f;
             int charmedCost = Math.Max(50, (int)(bribeCost * (1f - charmDiscount)));
 
-            string body = $"前方出现劫掠 {villageName} 的匪徒！\n\n" +
-                          $"⚔ 战斗 —— 正面迎击匪徒\n" +
-                          $"💰 贿赂匪徒离开 —— 花费 {charmedCost} 第纳尔（原价 {bribeCost}，Charm {charmSkill:0} 减免 {(int)(charmDiscount * 100)}%）\n\n你的选择？";
+            // 贿赂弹窗正文：前方匪徒情报 + 战斗/贿赂选项与费用明细
+            string body = LWNTextHelper.ResolveCompound("LWN_quest_commission_raider_inquiry_body",
+                "Raiders are ahead, about to pillage {LOCATION}!\n\n" +
+                "⚔ Fight — meet the raiders head-on\n" +
+                "💰 Bribe them to leave — {CHARMEDCOST} denars (originally {BRIBECOST}, Charm {CHARMSKILL} cuts it by {DISCOUNT}%)\n\nWhat will you do?",
+                ("LOCATION", villageName), ("CHARMEDCOST", charmedCost.ToString()),
+                ("BRIBECOST", bribeCost.ToString()), ("CHARMSKILL", charmSkill.ToString("0")),
+                ("DISCOUNT", ((int)(charmDiscount * 100)).ToString()));
 
             DebugLogger.Log($"[CommissionQuest] VillageDefense bribe inquiry: raiders={raiderTroopCount} cost={charmedCost}/{bribeCost}");
 
             InformationManager.ShowInquiry(new InquiryData(
-                "遭遇匪徒", body, true, true, "⚔ 战斗", $"💰 贿赂 ({charmedCost}G)",
-                () => { AddLog(new TextObject("你选择了战斗迎击匪徒。")); },
+                // 贿赂弹窗标题：遭遇匪徒
+                LWNTextHelper.ResolveText("LWN_quest_commission_raider_inquiry_title", "Raiders Ahead"), body, true, true,
+                // 战斗按钮文案
+                LWNTextHelper.ResolveText("LWN_quest_commission_fight_button", "⚔ Fight"),
+                // 贿赂按钮文案：含贿赂金额
+                LWNTextHelper.ResolveCompound("LWN_quest_commission_bribe_button", "💰 Bribe ({COST}G)", ("COST", charmedCost.ToString())),
+                // 选择战斗的日志
+                () => { AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_fight_chosen", "You chose to fight the raiders."))); },
                 () => TryBribeRaiders(charmedCost, bribeCost, charmSkill, mapEvent)));
         }
 
@@ -1034,7 +1106,8 @@ namespace LivingWorldNpcs
             if (Hero.MainHero.Gold < finalCost)
             {
                 InformationManager.DisplayMessage(
-                    new InformationMessage($"你只有 {Hero.MainHero.Gold} 第纳尔，不够（需要 {finalCost}）。", Colors.Red));
+                    // 金币不足的提示信息
+                    new InformationMessage(LWNTextHelper.ResolveCompound("LWN_quest_commission_gold_insufficient", "You only have {GOLD} denars — not enough (need {NEED}).", ("GOLD", Hero.MainHero.Gold.ToString()), ("NEED", finalCost.ToString())), Colors.Red));
                 _bribeAttempted = false;
                 return;
             }
@@ -1070,9 +1143,11 @@ namespace LivingWorldNpcs
             }
 
             if (charmSuccess)
-                AddLog(new TextObject($"Charm 检定成功！你将贿赂从 {baseCost} 砍到 {finalCost} 第纳尔。匪首掂了掂钱袋，招呼手下转身离去。"));
+                // Charm 检定成功后的砍价日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_bribe_charm_success", "Charm check succeeded! You haggled the bribe from {BASECOST} down to {FINALCOST} denars. The raider leader weighed the coin pouch, then turned and led his men away.", ("BASECOST", baseCost.ToString()), ("FINALCOST", finalCost.ToString()))));
             else
-                AddLog(new TextObject($"你花了 {finalCost} 第纳尔。匪首掂了掂钱袋，骂骂咧咧地招呼手下转身离去。"));
+                // 按原价支付贿赂后的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_bribe_paid", "You paid {FINALCOST} denars. The raider leader weighed the coin pouch, then turned grumbling and led his men away.", ("FINALCOST", finalCost.ToString()))));
 
             if (mapEvent != null)
             { try { mapEvent.FinalizeEvent(); } catch { } }
@@ -1150,11 +1225,16 @@ namespace LivingWorldNpcs
         {
             return _finalGrade switch
             {
-                CommissionGrade.Perfect => "⭐⭐⭐ 完美",
-                CommissionGrade.Good => "⭐⭐ 优良",
-                CommissionGrade.Passable => "⭐ 完成",
-                CommissionGrade.Failed => "✗ 失败",
-                _ => "完成"
+                // 评级显示名：完美
+                CommissionGrade.Perfect => LWNTextHelper.ResolveText("LWN_quest_commission_grade_perfect", "⭐⭐⭐ Perfect"),
+                // 评级显示名：优良
+                CommissionGrade.Good => LWNTextHelper.ResolveText("LWN_quest_commission_grade_good", "⭐⭐ Good"),
+                // 评级显示名：完成
+                CommissionGrade.Passable => LWNTextHelper.ResolveText("LWN_quest_commission_grade_passable", "⭐ Completed"),
+                // 评级显示名：失败
+                CommissionGrade.Failed => LWNTextHelper.ResolveText("LWN_quest_commission_grade_failed", "✗ Failed"),
+                // 评级显示名兜底：完成
+                _ => LWNTextHelper.ResolveText("LWN_quest_commission_grade_default", "Completed")
             };
         }
 
@@ -1162,11 +1242,16 @@ namespace LivingWorldNpcs
         {
             return _data.Tier switch
             {
-                CommissionTier.Basic => "$ 简单",
-                CommissionTier.Skilled => "$$ 普通",
-                CommissionTier.Expert => "$$$ 困难",
-                CommissionTier.Legendary => "★★★★ 传奇",
-                _ => "简单"
+                // 难度显示名：简单
+                CommissionTier.Basic => LWNTextHelper.ResolveText("LWN_quest_commission_tier_basic", "$ Easy"),
+                // 难度显示名：普通
+                CommissionTier.Skilled => LWNTextHelper.ResolveText("LWN_quest_commission_tier_skilled", "$$ Normal"),
+                // 难度显示名：困难
+                CommissionTier.Expert => LWNTextHelper.ResolveText("LWN_quest_commission_tier_expert", "$$$ Hard"),
+                // 难度显示名：传奇
+                CommissionTier.Legendary => LWNTextHelper.ResolveText("LWN_quest_commission_tier_legendary", "★★★★ Legendary"),
+                // 难度显示名兜底：简单
+                _ => LWNTextHelper.ResolveText("LWN_quest_commission_tier_default", "Easy")
             };
         }
 
@@ -1193,7 +1278,8 @@ namespace LivingWorldNpcs
         {
             var settlement = !string.IsNullOrEmpty(_data.TargetSettlementId)
                 ? Settlement.Find(_data.TargetSettlementId) : null;
-            string locationName = settlement?.Name?.ToString() ?? "案发地";
+            // 案发地名称兜底文本
+            string locationName = settlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_crime_scene_fallback", "the crime scene");
 
             // 优先：从 WorldEvent 提取案情细节生成叙事日志
             var evt = !string.IsNullOrEmpty(_data.WorldEventId)
@@ -1203,26 +1289,38 @@ namespace LivingWorldNpcs
             {
                 // 案情从事实派生（袭击+失窃如实还原），不再用 EventType 静态模板拼接
                 string facts = evt.BuildDiscoveryFacts();
-                string scene = !string.IsNullOrEmpty(evt.Config?.CrimeScene) ? evt.Config.CrimeScene : "现场";
+                // 现场描述兜底文本
+                string scene = !string.IsNullOrEmpty(evt.Config?.CrimeScene) ? evt.Config.CrimeScene : LWNTextHelper.ResolveText("LWN_quest_commission_scene_fallback", "the scene");
                 int witnessCount = evt.WitnessCount;
                 int windowDays = evt.Config?.InvestigationWindowDays ?? 7;
 
+                // 目击者人数的叙事表述
                 string witnessClause = witnessCount > 0
-                    ? $"有{witnessCount}人目击了事发经过。"
-                    : "暂时无人目击。";
+                    // 有目击者的表述：目击人数
+                    ? LWNTextHelper.ResolveCompound("LWN_quest_commission_witness_count", "{COUNT} people witnessed the incident.", ("COUNT", witnessCount.ToString()))
+                    // 无目击者的表述
+                    : LWNTextHelper.ResolveText("LWN_quest_commission_witness_none", "No one witnessed it for now.");
 
+                // 调查任务叙事日志：前往案发地搜集线索
                 AddLog(new TextObject(
-                    $"前往 {locationName} 的{scene}附近搜集线索。" +
-                    $"{facts}，{witnessClause}" +
-                    $"与当地人交谈或回现场调查，找出是谁干的。"));
+                    // 调查叙事日志主体：地点+案情+目击情况+调查指引
+                    LWNTextHelper.ResolveCompound("LWN_quest_commission_investigation_gather_clues",
+                    "Go to {LOCATION} and gather clues near {SCENE}. {FACTS}, {WITNESS} Speak with the locals or return to the scene to investigate and find out who did it.",
+                    ("LOCATION", locationName), ("SCENE", scene), ("FACTS", facts), ("WITNESS", witnessClause))));
+                // 调查窗口提示日志：约多少天
                 AddLog(new TextObject(
-                    $"提示：调查窗口约{windowDays}天，超时后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));
+                    // 调查窗口天数提示
+                    LWNTextHelper.ResolveCompound("LWN_quest_commission_investigation_window",
+                    "Hint: The investigation window is about {DAYS} days. Once it lapses, the case will stall. Use the Scouting skill to speed up clue gathering.",
+                    ("DAYS", windowDays.ToString()))));
             }
             else
             {
                 // 回退：无 WorldEvent 时使用通用文本
-                AddLog(new TextObject($"前往 {locationName} 附近搜集线索。与当地人交谈或回现场调查，找出是谁干的。"));
-                AddLog(new TextObject("提示：时间有限——调查窗口关闭后案件将陷入僵局。可用 Scouting 技能加速线索搜集。"));
+                // 无 WorldEvent 时的调查引导日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_investigation_generic", "Go to {LOCATION} to gather clues. Speak with the locals or return to the scene to investigate and find out who did it.", ("LOCATION", locationName))));
+                // 无 WorldEvent 时的调查时间提示
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_investigation_window_generic", "Hint: Time is limited — once the investigation window closes, the case will stall. Use the Scouting skill to speed up clue gathering.")));
             }
         }
 
@@ -1237,8 +1335,12 @@ namespace LivingWorldNpcs
                 if (worldEvent != null && !string.IsNullOrEmpty(worldEvent.GeneratedPartyId))
                 {
                     _escortPartyId = worldEvent.GeneratedPartyId;
-                    AddLog(new TextObject($"目标 {_data.TargetHero.Name} 的匪帮正在劫掠{worldEvent.TargetSettlement?.Name?.ToString() ?? "附近"}。快去阻止他们！"));
-                    AddLog(new TextObject("提示：活捉目标可获得额外报酬。可使用 Roguery 技能夜间偷袭增加活捉概率。"));
+                    // 劫掠地点名称兜底文本
+                    string raidingLoc = worldEvent.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_nearby_fallback", "nearby");
+                    // 目标匪帮正在劫掠的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_bounty_gang_raiding", "The gang of {TARGET} is raiding {LOCATION}. Go stop them!", ("TARGET", _data.TargetHero.Name.ToString()), ("LOCATION", raidingLoc))));
+                    // 活捉目标可获得额外报酬的提示
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_bounty_capture_hint", "Hint: capturing the target alive earns extra reward. Use the Roguery skill for a night raid to improve your chances.")));
                     return;
                 }
             }
@@ -1246,8 +1348,10 @@ namespace LivingWorldNpcs
             // 无 WorldEvent 关联 → 在大地图上生成目标部队
             SpawnBountyTargetParty();
 
-            AddLog(new TextObject($"目标 {_data.TargetHero.Name} 的部队已出现在附近。追踪并击败他们！"));
-            AddLog(new TextObject("提示：活捉目标可获得额外报酬。可使用 Roguery 技能夜间偷袭增加活捉概率。"));
+            // 目标部队已出现的追踪引导日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_bounty_party_spawned", "The troops of {TARGET} have appeared nearby. Track them down and defeat them!", ("TARGET", _data.TargetHero.Name.ToString()))));
+            // 活捉目标可获得额外报酬的提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_bounty_capture_hint", "Hint: capturing the target alive earns extra reward. Use the Roguery skill for a night raid to improve your chances.")));
         }
 
         private void OnStartCaravanEscort()
@@ -1260,8 +1364,10 @@ namespace LivingWorldNpcs
 
             if (targetSettlement != null)
             {
-                AddLog(new TextObject($"商队已出发，目的地：{targetSettlement.Name}。请全程护送。"));
-                AddLog(new TextObject("提示：Scout 技能可提前发现伏击。路上可能遭遇随机事件。"));
+                // 商队出发日志：目的地+全程护送要求
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_caravan_departed", "The caravan has departed, destination: {LOCATION}. Escort it the whole way.", ("LOCATION", targetSettlement.Name.ToString()))));
+                // 商队护送提示：Scout 侦察与随机事件
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_caravan_hint", "Hint: the Scout skill lets you spot ambushes in advance. Random events may occur on the road.")));
             }
         }
 
@@ -1270,25 +1376,33 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrEmpty(_data.TargetItemId))
             {
                 var item = MBObjectManager.Instance.GetObject<ItemObject>(_data.TargetItemId);
-                AddLog(new TextObject($"需要采购：{(item != null ? item.Name.ToString() : _data.TargetItemId)} ×{_data.TargetItemCount}。"));
-                AddLog(new TextObject("各城镇市场价格不同，Trade 技能可帮你砍价。预算管理好，差价归自己。"));
-                AddLog(new TextObject("超时后每天报酬递减 5%，请尽快完成。"));
+                // 采购清单日志：物品名+数量
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_supply_need_purchase", "Purchase needed: {ITEM} ×{COUNT}.", ("ITEM", item != null ? item.Name.ToString() : _data.TargetItemId), ("COUNT", _data.TargetItemCount.ToString()))));
+                // 采购任务提示：跨城比价与砍价
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_supply_trade_hint", "Market prices differ between towns — the Trade skill helps you haggle. Manage the budget well; the difference is yours to keep.")));
+                // 采购任务提示：超时报酬递减
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_supply_timeout_decay", "The reward decays 5% per day after the deadline — finish quickly.")));
             }
         }
 
         private void OnStartUndergroundFight()
         {
-            AddLog(new TextObject("前往竞技场参加比赛并获胜即可。"));
-            AddLog(new TextObject("提示：可在自己身上押注（下注功能即将开放），赛前练级可提升胜率。"));
+            // 地下格斗任务引导日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_underground_win", "Head to the arena, compete, and win.")));
+            // 地下格斗任务提示：押注与练级
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_underground_bet_hint", "Hint: you can bet on yourself (betting opens soon); level up beforehand to improve your odds.")));
         }
 
         private void OnStartLegendaryHunt()
         {
             if (_data.TargetHero == null) return;
             SpawnBountyTargetParty();
-            AddLog(new TextObject($"⚔ 传奇悬赏：{_data.TargetHero.Name} —— 横行已久的匪王！"));
-            AddLog(new TextObject($"击败后可获得 {_data.TargetHero.Name} 身上独一无二的装备。"));
-            AddLog(new TextObject("提示：战前务必充分准备——带足兵力、医疗物资和克制装备。"));
+            // 传奇悬赏任务公告日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_legendary_announce", "⚔ Legendary bounty: {TARGET} — the bandit king who has plagued the land!", ("TARGET", _data.TargetHero.Name.ToString()))));
+            // 传奇悬赏任务奖励提示
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_legendary_reward_hint", "Defeating {TARGET} grants his unique equipment.", ("TARGET", _data.TargetHero.Name.ToString()))));
+            // 传奇悬赏任务战前准备提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_legendary_prepare_hint", "Hint: prepare thoroughly before battle — bring enough troops, medical supplies, and counter-gear.")));
         }
 
         private void OnStartVillageDefense()
@@ -1307,9 +1421,14 @@ namespace LivingWorldNpcs
                     if (existingParty != null && existingParty.IsActive)
                     {
                         _escortPartyId = existingParty.StringId;
-                        AddLog(new TextObject($"⚠ {village.Name} 即将遭到 {worldEvent.InstigatorHero?.Name?.ToString() ?? "敌人"} 的劫掠！"));
-                        AddLog(new TextObject("你可以选择：主动出击拦截 / 在村庄等待迎击 / 花钱请对方离开。"));
-                        AddLog(new TextObject("提示：Engineering 可修筑路障减少敌人数，Leadership 可组织民兵增加友军。"));
+                        // 加害方名称兜底文本
+                        string instigatorName = worldEvent.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_enemy_fallback", "enemies");
+                        // 村庄即将遭到劫掠的警告日志（WorldEvent 复用分支）
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_village_threat_worldevent", "⚠ {LOCATION} is about to be raided by {ENEMY}!", ("LOCATION", village.Name.ToString()), ("ENEMY", instigatorName))));
+                        // 村庄防守三种应对方式的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_village_choices_worldevent", "You can choose: attack to intercept / wait in the village to meet them / pay them to leave.")));
+                        // 村庄防守提示：工程与领导力技能
+                        AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_village_engineering_hint", "Hint: Engineering lets you build barricades to reduce enemy numbers; Leadership lets you rally militia for allies.")));
                         return;
                     }
                 }
@@ -1317,9 +1436,12 @@ namespace LivingWorldNpcs
 
             // 兜底：spawn 新的劫掠部队
             SpawnRaiderParty(village);
-            AddLog(new TextObject($"⚠ {village.Name} 即将遭到劫掠！"));
-            AddLog(new TextObject("你可以选择：主动出击拦截匪徒 / 在村庄等待迎击 / 花钱请匪徒离开。"));
-            AddLog(new TextObject("提示：Engineering 可修筑路障减少敌人数，Leadership 可组织民兵增加友军。"));
+            // 村庄即将遭到劫掠的警告日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_village_threat", "⚠ {LOCATION} is about to be raided!", ("LOCATION", village.Name.ToString()))));
+            // 村庄防守三种应对方式的日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_village_choices", "You can choose: attack the bandits to intercept / wait in the village to meet them / pay the bandits to leave.")));
+            // 村庄防守提示：工程与领导力技能
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_village_engineering_hint", "Hint: Engineering lets you build barricades to reduce enemy numbers; Leadership lets you rally militia for allies.")));
         }
 
         private void OnStartLostItem()
@@ -1327,11 +1449,14 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(_data.TargetSettlementId)) return;
             var targetSettlement = Settlement.Find(_data.TargetSettlementId);
             string settleName = targetSettlement != null ? targetSettlement.Name.ToString() : _data.TargetSettlementId;
-            AddLog(new TextObject($"线索指向 {settleName}。"));
-            AddLog(new TextObject("前往该地，使用 Scout 技能搜索线索。找到物品后决定如何处理。"));
+            // 失物任务线索指向日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_lost_item_clue", "The clues point to {LOCATION}.", ("LOCATION", settleName))));
+            // 失物任务搜索引导日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_lost_item_search_hint", "Go there and use the Scout skill to search for clues. Once you find the item, decide how to handle it.")));
             float scoutSkill = Hero.MainHero.GetSkillValue(DefaultSkills.Scouting);
             if (scoutSkill > 80)
-                AddLog(new TextObject("你的 Scout 技能很高——直觉告诉你小偷可能藏在当地的帮派据点。"));
+                // 高 Scout 技能玩家的直觉提示
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_lost_item_scout_intuition", "Your Scout skill is high — instinct tells you the thief may be hiding in a local gang hideout.")));
         }
 
         private void OnStartPrisonBreak()
@@ -1360,18 +1485,25 @@ namespace LivingWorldNpcs
 
             if (prisonSettlement == null)
             {
-                AddLog(new TextObject($"目标 {_data.TargetHero.Name} 的下落不明。先去酒馆打听消息。"));
+                // 目标下落不明的引导日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prison_target_unknown", "The whereabouts of {TARGET} are unknown. Go ask around at the tavern first.", ("TARGET", _data.TargetHero.Name.ToString()))));
                 return;
             }
 
             _data.TargetSettlementId = prisonSettlement.StringId;
 
-            AddLog(new TextObject($"🔓 {_data.TargetHero.Name} 被关在 {prisonSettlement.Name} 的监狱里。"));
-            AddLog(new TextObject($"前往 {prisonSettlement.Name}，进入城镇后："));
-            AddLog(new TextObject("  方案A：贿赂守卫（花费数百第纳尔）→ 正大光明进入地牢 → 带走囚犯"));
-            AddLog(new TextObject("  方案B：潜入地牢（Roguery 检定）→ 高风险，省钱"));
-            AddLog(new TextObject("  方案C：外交施压（你必须是领主）→ 和平交涉释放"));
-            AddLog(new TextObject($"提示：到达 {prisonSettlement.Name} 后，在城镇界面留意「潜入监狱」或「进入地牢」选项。"));
+            // 目标被关押地点的日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prison_located", "🔓 {TARGET} is locked in the prison of {LOCATION}.", ("TARGET", _data.TargetHero.Name.ToString()), ("LOCATION", prisonSettlement.Name.ToString()))));
+            // 进入城镇后的引导日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prison_go_town", "Go to {LOCATION}; once inside the town:", ("LOCATION", prisonSettlement.Name.ToString()))));
+            // 越狱方案A：贿赂守卫
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_prison_plan_a", "  Plan A: bribe the guards (costs a few hundred denars) → enter the dungeon openly → take the prisoner")));
+            // 越狱方案B：潜入地牢
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_prison_plan_b", "  Plan B: sneak into the dungeon (Roguery check) → high risk, saves money")));
+            // 越狱方案C：外交施压
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_prison_plan_c", "  Plan C: diplomatic pressure (you must be a lord) → peaceful release")));
+            // 越狱界面入口提示
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prison_ui_hint", "Hint: once you reach {LOCATION}, look for the \"Sneak into the Prison\" or \"Enter the Dungeon\" options in the town screen.", ("LOCATION", prisonSettlement.Name.ToString()))));
         }
 
         private void OnStartSupplyIntercept()
@@ -1393,9 +1525,14 @@ namespace LivingWorldNpcs
                         existingParty.Ai.SetDoNotMakeNewDecisions(false);
                         if (targetSettlement != null)
                             V.SetMoveToTown(existingParty,targetSettlement);
-                        AddLog(new TextObject($"敌方补给队已在运往 {targetSettlement?.Name?.ToString() ?? "目的地"} 的路上。必须在到达前拦截！"));
-                        AddLog(new TextObject("提示：Scout 可提前发现补给队位置，寻找最佳伏击点。"));
-                        AddLog(new TextObject("截获物资后可以选择：交给委托人（报酬）/ 自己留着（物资价值可能更高）。"));
+                        // 补给队目的地的兜底文本
+                        string convoyDest = targetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_destination_fallback", "its destination");
+                        // 敌方补给队已在途中的拦截日志（WorldEvent 复用分支）
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_intercept_en_route", "The enemy supply convoy is already en route to {LOCATION}. Intercept it before it arrives!", ("LOCATION", convoyDest))));
+                        // 补给拦截提示：Scout 侦察伏击点
+                        AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_intercept_scout_hint", "Hint: the Scout skill reveals the convoy's position early, helping you find the best ambush point.")));
+                        // 截获物资后的处置选择提示
+                        AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_intercept_loot_choice", "After seizing the supplies you can choose: hand them to the giver (reward) / keep them for yourself (may be worth more).")));
                         return;
                     }
                 }
@@ -1404,9 +1541,12 @@ namespace LivingWorldNpcs
             // 兜底：WorldEvent 辅助部队已被消灭或不存在 → spawn 替代
             SpawnSupplyParty(targetSettlement);
             if (targetSettlement != null)
-                AddLog(new TextObject($"敌方补给队正在前往 {targetSettlement.Name}。必须在到达前拦截！"));
-            AddLog(new TextObject("提示：Scout 可提前发现补给队位置，寻找最佳伏击点。"));
-            AddLog(new TextObject("截获物资后可以选择：交给委托人（报酬）/ 自己留着（物资价值可能更高）。"));
+                // 敌方补给队正在前往目标的拦截日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_intercept_heading", "The enemy supply convoy is heading for {LOCATION}. Intercept it before it arrives!", ("LOCATION", targetSettlement.Name.ToString()))));
+            // 补给拦截提示：Scout 侦察伏击点
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_intercept_scout_hint", "Hint: the Scout skill reveals the convoy's position early, helping you find the best ambush point.")));
+            // 截获物资后的处置选择提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_intercept_loot_choice", "After seizing the supplies you can choose: hand them to the giver (reward) / keep them for yourself (may be worth more).")));
         }
 
         private void OnStartHideoutClear()
@@ -1415,10 +1555,14 @@ namespace LivingWorldNpcs
                 ? Settlement.Find(_data.TargetSettlementId) : null;
             string settleName = targetSettlement != null ? targetSettlement.Name.ToString() : _data.TargetSettlementId;
 
-            AddLog(new TextObject($"目标：清剿 {settleName} 附近的匪徒藏身处。"));
-            AddLog(new TextObject("前往该区域，清除所有匪徒即可完成委托。"));
-            AddLog(new TextObject("白天进攻——敌人全在但视野好；夜间潜入——敌人少但黑暗。你选择哪种方式？"));
-            AddLog(new TextObject("提示：先派斥候侦察（Scout）可得知内部敌人数量，针对性配兵。"));
+            // 匪穴清剿任务目标日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_hideout_target", "Objective: clear the bandit hideout near {LOCATION}.", ("LOCATION", settleName))));
+            // 匪穴清剿任务完成条件日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_hideout_clear_all", "Go there and eliminate all the bandits to complete the commission.")));
+            // 匪穴清剿进攻时机选择日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_hideout_approach", "Attack by day — all enemies present but good visibility; sneak in at night — fewer enemies but darkness. Which way do you choose?")));
+            // 匪穴清剿侦察提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_hideout_recon_hint", "Hint: send a scout ahead (Scout) to learn the enemy count inside and tailor your forces.")));
         }
 
         private void OnStartEmergencyDelivery()
@@ -1430,13 +1574,16 @@ namespace LivingWorldNpcs
             if (item != null && MobileParty.MainParty != null)
             {
                 AgentControlHelper.TransferItems(null, Hero.MainHero, item, _data.TargetItemCount);
-                AddLog(new TextObject($"收到物资：{item.Name} ×{_data.TargetItemCount}。"));
+                // 收到起始物资的日志：物品名+数量
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_delivery_goods_received", "Supplies received: {ITEM} ×{COUNT}.", ("ITEM", item.Name.ToString()), ("COUNT", _data.TargetItemCount.ToString()))));
             }
 
             var targetSettlement = !string.IsNullOrEmpty(_data.TargetSettlementId)
                 ? Settlement.Find(_data.TargetSettlementId) : null;
-            AddLog(new TextObject($"限时送达 {targetSettlement?.Name?.ToString() ?? _data.TargetSettlementId}！"));
-            AddLog(new TextObject("提示：载重影响行军速度——带得越多赚得越多，但超时报酬会递减。也可以在途中分批次运输。"));
+            // 限时送达目的地的日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_delivery_time_limit", "Deliver within the time limit to {LOCATION}!", ("LOCATION", targetSettlement?.Name?.ToString() ?? _data.TargetSettlementId))));
+            // 送货任务载重与分批次运输提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_delivery_carry_hint", "Hint: carrying capacity affects march speed — the more you carry, the more you earn, but the reward decays after the deadline. You can also transport in batches.")));
         }
 
         private void OnStartTreasureHunt()
@@ -1444,9 +1591,12 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(_data.TargetSettlementId)) return;
             var targetSettlement = Settlement.Find(_data.TargetSettlementId);
 
-            AddLog(new TextObject($"藏宝图指向 {targetSettlement?.Name?.ToString() ?? _data.TargetSettlementId} 附近。"));
-            AddLog(new TextObject($"到达后使用 Scout 技能搜索具体位置。宝藏附近可能有一些守护者——做好准备。"));
-            AddLog(new TextObject("提示：也可以花金币雇当地向导，缩小搜索范围。或直接把藏宝图卖给他人变现。"));
+            // 藏宝图指向位置的日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_treasure_map", "The treasure map points near {LOCATION}.", ("LOCATION", targetSettlement?.Name?.ToString() ?? _data.TargetSettlementId))));
+            // 宝藏搜索方式与守护者提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_treasure_search_hint", "Use the Scout skill to search for the exact spot after arriving. There may be guardians near the treasure — be prepared.")));
+            // 宝藏任务雇向导或卖图的提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_treasure_guide_hint", "Hint: you can also hire a local guide with gold to narrow the search, or sell the treasure map to someone else for cash.")));
         }
 
         private void OnStartHorseAcquisition()
@@ -1455,9 +1605,12 @@ namespace LivingWorldNpcs
             {
                 var item = MBObjectManager.Instance.GetObject<ItemObject>(_data.TargetItemId);
                 string itemName = item != null ? item.Name.ToString() : _data.TargetItemId;
-                AddLog(new TextObject($"委托人想要一匹 {itemName}。"));
-                AddLog(new TextObject("各大城镇马市价格不同——多走几个城镇比价。Trade 技能可帮你砍价。"));
-                AddLog(new TextObject("提示：如果市场上找不到，可以去看看有没有 NPC 拥有这匹马——交涉购买或直接抢夺（Roguery）。"));
+                // 委托人求购马匹的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_horse_wanted", "The giver wants a {ITEM}.", ("ITEM", itemName))));
+                // 马匹市场比价提示
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_horse_market_hint", "Horse market prices differ between towns — compare prices across several towns. The Trade skill helps you haggle.")));
+                // 市场上无马时的 NPC 获取提示
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_horse_npc_hint", "Hint: if it is not on the market, check whether any NPC owns this horse — negotiate a purchase or simply take it by force (Roguery).")));
             }
         }
 
@@ -1467,11 +1620,15 @@ namespace LivingWorldNpcs
 
             var targetSettlement = !string.IsNullOrEmpty(_data.TargetSettlementId)
                 ? Settlement.Find(_data.TargetSettlementId) : null;
-            string settleName = targetSettlement != null ? targetSettlement.Name.ToString() : "任意竞技场";
+            // 竞技场名称兜底文本
+            string settleName = targetSettlement != null ? targetSettlement.Name.ToString() : LWNTextHelper.ResolveText("LWN_quest_commission_arena_fallback", "any arena");
 
-            AddLog(new TextObject($"前往 {settleName} 的竞技场，连赢两场比赛。"));
-            AddLog(new TextObject("特别规则：禁用盾牌，纯武器对决。可在自己身上押注，赢了双倍报酬！"));
-            AddLog(new TextObject("提示：赛前练级提升技能可以增加胜率。也可以雇高手代打（花钱）。"));
+            // 特殊竞技场任务引导日志
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_arena_go_win", "Go to the arena of {LOCATION} and win two matches in a row.", ("LOCATION", settleName))));
+            // 特殊竞技场特别规则日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_arena_special_rule", "Special rule: shields banned — pure weapon duels. You can bet on yourself; win and the payout doubles!")));
+            // 特殊竞技场赛前准备提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_arena_train_hint", "Hint: level up skills before the match to improve your odds. You can also hire a pro to fight for you (pay gold).")));
         }
 
         private void OnStartDecoyMission()
@@ -1480,10 +1637,14 @@ namespace LivingWorldNpcs
             // 生成一个追击玩家的强敌部队
             SpawnPursuerParty();
 
-            AddLog(new TextObject("追兵已经咬上你了！带少量兵力吸引他们注意，让委托人趁机逃跑。"));
-            AddLog(new TextObject("坚持的时间越长——委托人逃得越远——报酬越高。如果被追上就只能硬拼了。"));
-            AddLog(new TextObject("提示：可以诱敌深入——把追兵拉到友军附近；也可以花钱请佣兵帮忙挡一阵。"));
-            AddLog(new TextObject("不要硬刚——边打边跑才是上策。"));
+            // 诱敌任务开局日志：追兵已咬上
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_decoy_pursued", "The pursuers are on your tail! Keep them busy with a small force while the giver escapes.")));
+            // 诱敌任务坚持时间与报酬的关系日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_decoy_longer_better", "The longer you hold out — the farther the giver gets — the higher the reward. If they catch you, you must fight.")));
+            // 诱敌任务战术提示
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_decoy_tactic_hint", "Hint: you can lure the pursuers deep — drag them near friendly troops; or hire mercenaries with gold to hold them off.")));
+            // 诱敌任务边打边跑的建议
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_decoy_run_advice", "Do not fight head-on — hit and run is the best strategy.")));
         }
 
         private void OnStartProcurementAgent()
@@ -1493,9 +1654,12 @@ namespace LivingWorldNpcs
                 var item = MBObjectManager.Instance.GetObject<ItemObject>(_data.TargetItemId);
                 string itemName = item != null ? item.Name.ToString() : _data.TargetItemId;
 
-                AddLog(new TextObject($"委托人需要一件 {itemName}，给了你 {_data.NegotiatedReward} 第纳尔的预算。"));
-                AddLog(new TextObject("去各大城镇搜索比价——花费越少，剩下的预算归你自己。"));
-                AddLog(new TextObject($"提示：Trade 技能影响砍价幅度。如果市场上买不到，需要找到拥有此装备的 NPC 交涉购买。"));
+                // 采购代理任务：需求物品与预算日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_procurement_needed", "The giver needs a {ITEM} and gives you a budget of {BUDGET} denars.", ("ITEM", itemName), ("BUDGET", _data.NegotiatedReward.ToString()))));
+                // 采购代理任务比价提示
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_procurement_compare_hint", "Search and compare prices across towns — the less you spend, the more of the budget is yours.")));
+                // 采购代理任务交易技能提示
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_procurement_trade_hint", "Hint: the Trade skill affects haggling. If it is not on the market, find an NPC who owns this equipment and negotiate a purchase.")));
             }
         }
 
@@ -1516,7 +1680,8 @@ namespace LivingWorldNpcs
                 var partyId = $"commission_bounty_{_data.TargetHero.StringId}_{MBRandom.RandomInt(1000)}";
                 MobileParty targetParty = V.MakeParty(partyId, partyComponent);
                 if (targetParty != null)
-                    V.SetPartyName(targetParty, new TextObject($"{_data.TargetHero.Name}的匪帮"));
+                    // 悬赏目标匪帮的部队名称
+                    V.SetPartyName(targetParty, new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_party_bounty_name", "{NAME}'s gang", ("NAME", _data.TargetHero.Name.ToString()))));
 
                 if (targetParty == null) return;
 
@@ -1558,7 +1723,8 @@ namespace LivingWorldNpcs
                 targetParty.SetPartyUsedByQuest(true);
                 targetParty.Party.SetVisualAsDirty();
 
-                AddLog(new TextObject($"{_data.TargetHero.Name} 的部队出现在地图上，开始追踪吧。"));
+                // 悬赏目标部队出现在地图上的追踪日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_bounty_party_spawned_map", "The troops of {TARGET} have appeared on the map. Start tracking them down.", ("TARGET", _data.TargetHero.Name.ToString()))));
             }
             catch (Exception ex)
             {
@@ -1574,7 +1740,8 @@ namespace LivingWorldNpcs
                 var escortComponent = new SafeLordPartyComponent(QuestGiver);
                 MobileParty escortParty = V.MakeParty(partyId, escortComponent);
                 if (escortParty != null)
-                    V.SetPartyName(escortParty, new TextObject($"{QuestGiver.Name}的商队"));
+                    // 护送商队的部队名称
+                    V.SetPartyName(escortParty, new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_party_caravan_name", "{NAME}'s caravan", ("NAME", QuestGiver.Name.ToString()))));
 
                 if (escortParty == null) return;
 
@@ -1615,7 +1782,8 @@ namespace LivingWorldNpcs
                 if (banditClan == null) return;
 
                 // 使用自定义 PartyComponent（泛型匪帮，无 Hero leader）
-                string raiderName = $"劫掠{targetVillage.Name}的匪帮";
+                // 劫掠村庄的匪帮部队名称
+                string raiderName = LWNTextHelper.ResolveCompound("LWN_quest_commission_party_raider_name", "Raiders pillaging {VILLAGE}", ("VILLAGE", targetVillage.Name.ToString()));
                 var component = new CustomPartyComponent(targetVillage, raiderName);
                 MobileParty raiderParty = V.MakeParty(partyId, component);
                 if (raiderParty != null)
@@ -1651,7 +1819,8 @@ namespace LivingWorldNpcs
                 raiderParty.SetPartyUsedByQuest(true);
                 raiderParty.Party.SetVisualAsDirty();
 
-                AddLog(new TextObject($"劫掠部队已出现在 {targetVillage.Name} 附近！"));
+                // 劫掠部队出现在村庄附近的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_raider_party_spawned", "The raiding party has appeared near {LOCATION}!", ("LOCATION", targetVillage.Name.ToString()))));
             }
             catch (Exception ex)
             {
@@ -1669,10 +1838,12 @@ namespace LivingWorldNpcs
                     ?? Clan.BanditFactions.FirstOrDefault();
                 if (enemyClan == null) enemyClan = Clan.PlayerClan;
 
-                var component = new CustomPartyComponent(targetSettlement, "敌方补给队");
+                // 敌方补给队的部队名称
+                var component = new CustomPartyComponent(targetSettlement, LWNTextHelper.ResolveText("LWN_quest_commission_party_supply_name", "Enemy Supply Convoy"));
                 MobileParty supplyParty = V.MakeParty(partyId, component);
                 if (supplyParty != null)
-                    V.SetPartyName(supplyParty, new TextObject("敌方补给队"));
+                    // 敌方补给队的部队名称（设置部队显示名）
+                    V.SetPartyName(supplyParty, new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_party_supply_name", "Enemy Supply Convoy")));
 
                 if (supplyParty == null) return;
 
@@ -1699,7 +1870,8 @@ namespace LivingWorldNpcs
                 supplyParty.SetPartyUsedByQuest(true);
                 supplyParty.Party.SetVisualAsDirty();
 
-                AddLog(new TextObject("敌方补给队已出现在地图上。必须在它到达目的地之前拦截！"));
+                // 敌方补给队已出现在地图上的拦截日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_supply_party_spawned", "The enemy supply convoy has appeared on the map. Intercept it before it reaches its destination!")));
             }
             catch (Exception ex)
             {
@@ -1723,10 +1895,12 @@ namespace LivingWorldNpcs
                 Settlement home = Settlement.Find(_data?.TargetSettlementId)
                     ?? MobileParty.MainParty?.CurrentSettlement
                     ?? Settlement.All.FirstOrDefault();
-                var component = new CustomPartyComponent(home, "追兵");
+                // 追兵部队的名称
+                var component = new CustomPartyComponent(home, LWNTextHelper.ResolveText("LWN_quest_commission_party_pursuer_name", "Pursuers"));
                 MobileParty pursuerParty = V.MakeParty(partyId, component);
                 if (pursuerParty != null)
-                    V.SetPartyName(pursuerParty, new TextObject("追兵"));
+                    // 追兵部队的名称（设置部队显示名）
+                    V.SetPartyName(pursuerParty, new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_party_pursuer_name", "Pursuers")));
 
                 if (pursuerParty == null)
                 {
@@ -1764,7 +1938,8 @@ namespace LivingWorldNpcs
 
                 DebugLogger.Log($"[CommissionQuest] SpawnPursuerParty OK: partyId={partyId} troopCount={troopCount} pos=({V.Pos(pursuerParty).X:F1},{V.Pos(pursuerParty).Y:F1}) clan={banditClan.StringId}");
 
-                AddLog(new TextObject($"⚠ 追兵已出现在地图上，正在追击你！坚持 {((int)(_data.TimeRemainingHours / 24f) + 1)} 天。"));
+                // 追兵出现在地图上的警告日志：需坚持的天数
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_pursuer_spawned", "⚠ Pursuers have appeared on the map and are chasing you! Hold out for {DAYS} days.", ("DAYS", ((int)(_data.TimeRemainingHours / 24f) + 1).ToString()))));
             }
             catch (Exception ex)
             {
@@ -1813,7 +1988,10 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[CommissionQuest] FailQuest called: category={_data?.Category} giver={QuestGiver?.Name} worldEventId={_data?.WorldEventId} progress={_currentProgress}/{_totalProgress} timeRemain={_data?.TimeRemainingHours}h");
             CleanupSpawnedParty();
             _finalGrade = CommissionGrade.Failed;
-            AddLog(new TextObject($"委托被迫终止。与 {QuestGiver?.Name.ToString() ?? "委托人"} 的关系下降了。"));
+            // 委托人名称兜底文本
+            string giverNameFallback = LWNTextHelper.ResolveText("LWN_quest_commission_giver_fallback", "the giver");
+            // 委托被迫终止的日志：与委托人关系下降
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_forced_failure", "The commission was forcibly ended. Your relationship with {GIVER} has suffered.", ("GIVER", QuestGiver?.Name?.ToString() ?? giverNameFallback))));
             CompleteQuestWithFail(); // 触发 OnFailed() 统一处理惩罚
             DebugLogger.Log($"[CommissionQuest] FailQuest finished: category={_data?.Category}");
         }
@@ -1826,7 +2004,8 @@ namespace LivingWorldNpcs
         {
             if (_data == null) return;
             _data.IsObjectivesComplete = true; // 跳过 OnCompleteWithSuccess 的旧版报酬逻辑
-            AddLog(new TextObject("调查完成：嫌犯已锁定，转入悬赏缉拿阶段。"));
+            // 调查完成转入悬赏缉拿阶段的日志
+            AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_investigation_bounty_stage", "Investigation complete: the suspect has been identified. Moving to the bounty hunt phase.")));
             CompleteQuestWithSuccess();
             DebugLogger.Log($"[CommissionQuest] CompleteObjectivesFromExternal: {StringId} category={_data.Category}");
         }
@@ -1845,13 +2024,16 @@ namespace LivingWorldNpcs
 
             if (suspectIsPlayer)
             {
-                AddLog(new TextObject("调查指向了我自己。委托人不会再信任我了。"));
-                CompleteQuestWithBetrayal(new TextObject("背叛了委托人的信任——贼喊捉贼。"));
+                // 嫌犯是玩家本人的背叛日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_investigation_self", "The investigation points to myself. The giver will never trust me again.")));
+                // 背叛结局的任务名：贼喊捉贼
+                CompleteQuestWithBetrayal(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_betrayal_trust", "Betrayed the giver's trust — crying thief while being one.")));
                 DebugLogger.Log($"[CommissionQuest] CompleteInvestigationExternally: {StringId} betrayed (suspect=self)");
             }
             else
             {
-                AddLog(new TextObject("调查完成：嫌犯已锁定，转入悬赏缉拿阶段。"));
+                // 调查完成转入悬赏缉拿阶段的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_investigation_bounty_stage", "Investigation complete: the suspect has been identified. Moving to the bounty hunt phase.")));
                 CompleteQuestWithSuccess();
                 DebugLogger.Log($"[CommissionQuest] CompleteInvestigationExternally: {StringId} completed (suspect identified)");
             }
@@ -1866,7 +2048,8 @@ namespace LivingWorldNpcs
         {
             if (_data == null || _suspectIdentifiedLogged) return;
             _suspectIdentifiedLogged = true;
-            string giverName = QuestGiver?.Name?.ToString() ?? "委托人";
+            // 委托人名称兜底文本
+            string giverName = QuestGiver?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_giver_fallback", "the giver");
 
             // 判断嫌犯是不是玩家自己
             bool suspectIsPlayer = suspectName == Hero.MainHero.Name?.ToString();
@@ -1884,12 +2067,14 @@ namespace LivingWorldNpcs
                 if (_progressLog != null)
                     _progressLog.UpdateCurrentProgress(_currentProgress);
                 _data.IsObjectivesComplete = true;
-                AddLog(new TextObject($"调查取得进展——嫌犯锁定为{suspectName}。回去向{giverName}汇报。"));
+                // 嫌犯锁定的进展日志：向委托人汇报
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_suspect_identified", "The investigation progresses — the suspect is {SUSPECT}. Go report back to {GIVER}.", ("SUSPECT", suspectName), ("GIVER", giverName))));
                 DebugLogger.Log($"[CommissionQuest] NotifySuspectIdentified: {StringId} suspect=self — progress={_currentProgress}/{_totalProgress}, Phase 3 skipped (confrontation path)");
             }
             else
             {
-                AddLog(new TextObject($"调查取得进展——嫌犯锁定为{suspectName}。回去向{giverName}汇报。"));
+                // 嫌犯锁定的进展日志：向委托人汇报
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_suspect_identified", "The investigation progresses — the suspect is {SUSPECT}. Go report back to {GIVER}.", ("SUSPECT", suspectName), ("GIVER", giverName))));
                 UpdateProgress(_totalProgress);
                 DebugLogger.Log($"[CommissionQuest] NotifySuspectIdentified: {StringId} suspect={suspectName}");
             }
@@ -1912,21 +2097,25 @@ namespace LivingWorldNpcs
             if (evt.Stage == EventStage.Active && !string.IsNullOrEmpty(evt.SuspectHeroId) && !_suspectIdentifiedLogged)
             {
                 var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
-                NotifySuspectIdentified(suspect?.Name?.ToString() ?? "某人");
+                // 嫌犯名称兜底文本：未知时称"某人"
+                NotifySuspectIdentified(suspect?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_someone_fallback", "someone"));
                 DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active (suspect identified)");
 
                 // 嫌犯=玩家 → 调查任务直接背叛结局（WalkAway / 自首后跑路 / NPC查出玩家）
                 if (suspectIsPlayer)
                 {
-                    AddLog(new TextObject("调查指向了我自己。委托人不会再信任我了。"));
-                    CompleteQuestWithBetrayal(new TextObject("背叛了委托人的信任——贼喊捉贼。"));
+                    // 嫌犯是玩家本人的背叛日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_investigation_self", "The investigation points to myself. The giver will never trust me again.")));
+                    // 背叛结局的任务名：贼喊捉贼
+                    CompleteQuestWithBetrayal(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_betrayal_trust", "Betrayed the giver's trust — crying thief while being one.")));
                     DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Active suspect=self → Betrayal");
                 }
             }
             else if (evt.Stage == EventStage.Unsolved)
             {
                 // 冷案：调查走入死胡同——不算玩家违约，取消收尾（无定金/信任惩罚）
-                AddLog(new TextObject("线索断了，案件陷入僵局。委托人也只能接受这个结果。"));
+                // 冷案日志：线索中断案件陷入僵局
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_cold_case", "The trail went cold and the case has stalled. The giver can only accept this outcome.")));
                 CompleteQuestWithCancel();
                 DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Unsolved — cold case, quest cancelled without penalty");
             }
@@ -1939,13 +2128,16 @@ namespace LivingWorldNpcs
                 if (suspectIsPlayer)
                 {
                     // 嫌犯=玩家 → 背叛结局（赔钱了事 / 威胁成功 / 以工抵债完成）
-                    AddLog(new TextObject("案件已结案。虽然事情摆平了，但委托人知道我是贼。"));
-                    CompleteQuestWithBetrayal(new TextObject("罪行败露，被迫承担责任。"));
+                    // 案件结案但委托人已知玩家是贼的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_resolved_self", "The case is closed. Even though it was settled, the giver knows I was the thief.")));
+                    // 背叛结局的任务名：罪行败露
+                    CompleteQuestWithBetrayal(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_resolved_forced_duty", "The crime came to light and I was forced to answer for it.")));
                     DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Resolved suspect=self → Betrayal");
                 }
                 else
                 {
-                    AddLog(new TextObject("案件已结案，调查委托自动完成。"));
+                    // 案件结案调查委托自动完成的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_resolved_auto_complete", "The case is closed — the investigation commission is automatically complete.")));
                     CompleteQuestWithSuccess();
                     DebugLogger.Log($"[CommissionQuest] OnWorldEventStageChanged: {StringId} stage=Resolved — investigation quest auto-completed");
                 }
@@ -1958,17 +2150,23 @@ namespace LivingWorldNpcs
 
         private void ShowDepositRepaymentInquiry()
         {
-            string body = $"委托超时失败。{QuestGiver.Name} 要求你退还定金 {_data.DepositAmount} 第纳尔。\n\n" +
-                          "• 退还定金：信任 -10，可继续接委托\n" +
-                          "• Charm 检定：减半退还（失败 = 拒绝退还后果）\n" +
-                          "• 拒绝退还：信任 -40 + 恶名 +1 + 关系恶化";
+            // 定金追讨弹窗正文：超时说明与三个选项的后果
+            string body = LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_inquiry_body",
+                "The commission failed due to timeout. {GIVER} demands the return of your {DEPOSIT} denar deposit.\n\n" +
+                "• Return the deposit: -10 trust, you may take commissions again\n" +
+                "• Charm check: return half (failure = consequences of refusing)\n" +
+                "• Refuse: -40 trust + 1 infamy + relationship damage",
+                ("GIVER", QuestGiver.Name.ToString()), ("DEPOSIT", _data.DepositAmount.ToString()));
 
             InformationManager.ShowInquiry(new InquiryData(
-                "定金追讨",
+                // 定金追讨弹窗标题
+                LWNTextHelper.ResolveText("LWN_quest_commission_deposit_inquiry_title", "Deposit Repayment"),
                 body,
                 true, true,
-                "退还定金",
-                "拒绝退还",
+                // 退还定金按钮文案
+                LWNTextHelper.ResolveText("LWN_quest_commission_deposit_return_button", "Return the deposit"),
+                // 拒绝退还按钮文案
+                LWNTextHelper.ResolveText("LWN_quest_commission_deposit_refuse_button", "Refuse to return"),
                 () =>
                 {
                     // 退还
@@ -1977,7 +2175,8 @@ namespace LivingWorldNpcs
                     _data.DepositRepaid = true;
                     TrustSystem.AddTrust(QuestGiver, -10);
                     ChangeRelationAction.ApplyPlayerRelation(QuestGiver, -5);
-                    AddLog(new TextObject($"已退还定金 {_data.DepositAmount} 第纳尔。"));
+                    // 已退还定金的日志
+                    AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_returned", "Deposit of {GOLD} denars returned.", ("GOLD", _data.DepositAmount.ToString()))));
                 },
                 () =>
                 {
@@ -1992,7 +2191,8 @@ namespace LivingWorldNpcs
                         _data.DepositRepaid = true;
                         TrustSystem.AddTrust(QuestGiver, -15);
                         ChangeRelationAction.ApplyPlayerRelation(QuestGiver, -8);
-                        AddLog(new TextObject($"Charm 检定成功！减半退还 {halfDeposit} 第纳尔。"));
+                        // Charm 检定成功减半退还定金的日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_charm_half", "Charm check succeeded! Half the deposit ({GOLD} denars) was returned.", ("GOLD", halfDeposit.ToString()))));
                     }
                     else
                     {
@@ -2002,7 +2202,8 @@ namespace LivingWorldNpcs
                         TrustSystem.AddTrust(QuestGiver, -40);
                         ChangeRelationAction.ApplyPlayerRelation(QuestGiver, -15);
                         InfamySystem.AddInfamy(1);
-                        AddLog(new TextObject($"拒绝退还定金！恶名 +1，与 {QuestGiver.Name} 的关系严重恶化。"));
+                        // 拒绝退还定金的后果日志
+                        AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_refused", "You refused to return the deposit! Infamy +1, and your relationship with {GIVER} has seriously worsened.", ("GIVER", QuestGiver.Name.ToString()))));
                     }
                 }));
         }
@@ -2016,8 +2217,10 @@ namespace LivingWorldNpcs
             float chance = 0.15f; // 每天 15% 概率劫囚
             if (MBRandom.RandomFloat < chance)
             {
-                string prisonerName = _data.TargetHero != null ? _data.TargetHero.Name.ToString() : "囚犯";
-                AddLog(new TextObject($"⚠ 警报：{prisonerName} 的同伙正在接近，试图劫囚！"));
+                // 囚犯名称兜底文本
+                string prisonerName = _data.TargetHero != null ? _data.TargetHero.Name.ToString() : LWNTextHelper.ResolveText("LWN_quest_commission_prisoner_fallback", "the prisoner");
+                // 同伙试图劫囚的警报日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_prison_escape_alert", "⚠ Alert: allies of {NAME} are approaching, trying to free the prisoner!", ("NAME", prisonerName))));
                 // 可以在此生成一个劫囚 MobileParty
             }
         }
@@ -2034,8 +2237,10 @@ namespace LivingWorldNpcs
             else if (_totalProgress > 0)
             {
                 _progressLog = AddDiscreteLog(
-                    new TextObject("{=commission_progress}委托进度"),
-                    new TextObject("{=commission_progress_detail}完成度"),
+                    // 委托进度日志标题（引擎模板键：委托进度）
+                    new TextObject("{=LWN_quest_commission_progress}Quest Progress"),
+                    // 委托进度日志标题（引擎模板键：完成度）
+                    new TextObject("{=LWN_quest_commission_progress_detail}Completion"),
                     _currentProgress, _totalProgress);
             }
             if (_currentProgress >= _totalProgress)
@@ -2047,17 +2252,23 @@ namespace LivingWorldNpcs
 
                 // 结账人
                 Hero payer = _data.RewardPayer ?? QuestGiver;
-                string payerName = payer?.Name?.ToString() ?? "委托人";
+                // 结账人名称兜底文本
+                string payerName = payer?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_giver_fallback", "the giver");
+                // 结账人所在地兜底文本
                 string payerLoc = payer?.CurrentSettlement?.Name?.ToString()
-                    ?? payer?.HomeSettlement?.Name?.ToString() ?? "未知地点";
+                    // 结账人所在地未知时的兜底文本
+                    ?? payer?.HomeSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_quest_commission_unknown_location", "Unknown location");
 
                 // 阶段3：找结账人领报酬
                 _rewardLog = AddDiscreteLog(
-                    new TextObject($"第三步：前往 {payerLoc} 找 {payerName} 领取报酬"),
-                    new TextObject($"领取报酬"),
+                    // 阶段3日志标题：前往结账人所在地领取报酬
+                    new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_step3_claim_reward", "Step 3: Go to {LOCATION} and find {GIVER} to claim the reward", ("LOCATION", payerLoc), ("GIVER", payerName))),
+                    // 阶段3日志进度：领取报酬
+                    new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_reward_claim", "Claim the reward")),
                     0, 1);
 
-                AddLog(new TextObject($"委托目标已完成！前往 {payerLoc} 找 {payerName} 领取报酬。"));
+                // 委托目标已完成前往领报酬的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_objectives_complete", "The commission objective is complete! Go to {LOCATION} and find {GIVER} to claim your reward.", ("LOCATION", payerLoc), ("GIVER", payerName))));
                 DebugLogger.Log($"[CommissionQuest] Objectives complete: {_data.GetFlavorDescription()} payer={payerName} at {payerLoc}");
             }
         }
@@ -2107,12 +2318,21 @@ namespace LivingWorldNpcs
             if (_data.Tier >= CommissionTier.Expert && InfamySystem.Infamy > 0)
             {
                 InfamySystem.ReduceInfamy(1);
-                AddLog(new TextObject("完成高难度委托，恶名 -1。"));
+                // 完成高难度委托削减恶名的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_hard_complete_infamy", "Completed a high-difficulty commission — infamy -1.")));
             }
 
             string gradeStr = GetGradeDisplayName();
-            AddLog(new TextObject($"委托完成！评级：{gradeStr}，报酬 {reward} 第纳尔已领取。"));
-            AddLog(new TextObject($"与 {QuestGiver.Name} 的信任度 {(trustDelta >= 0 ? "+" : "")}{trustDelta}（当前：{TrustSystem.GetTrustDescription(TrustSystem.GetTrust(QuestGiver))}）"));
+            // 委托完成日志：评级+报酬已领取
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_complete_reward_claimed",
+                "Commission complete! Grade: {GRADE} — the reward of {REWARD} denars has been claimed.",
+                ("GRADE", gradeStr), ("REWARD", reward.ToString()))));
+            // 委托完成日志：与委托人的信任度变化
+            AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_trust_changed",
+                "Your standing with {GIVER} changed by {TRUSTDELTA} (currently: {TRUSTDESC})",
+                ("GIVER", QuestGiver.Name.ToString()),
+                ("TRUSTDELTA", (trustDelta >= 0 ? "+" : "") + trustDelta),
+                ("TRUSTDESC", TrustSystem.GetTrustDescription(TrustSystem.GetTrust(QuestGiver))))));
 
             // 关联了 WorldEvent → 结算事件
             if (!string.IsNullOrEmpty(_data.WorldEventId))
@@ -2142,7 +2362,8 @@ namespace LivingWorldNpcs
                     AddLog(new TextObject($"🔍 {hint}"));
                 }
 
-                AddLog(new TextObject("关联的世界事件已解决。"));
+                // 关联世界事件已解决的日志
+                AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_related_event_resolved", "The linked world event has been resolved.")));
                 DebugLogger.Log($"[CommissionQuest] Resolved WorldEvent: {_data.WorldEventId}");
             }
 
@@ -2154,17 +2375,23 @@ namespace LivingWorldNpcs
             switch (_data.Category)
             {
                 case CommissionCategory.Investigation:
-                    return "在案发定居点附近搜索或与村民交谈可推进调查。";
+                    // 调查委托的附加说明：搜索或询问推进调查
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_extra_investigation", "Search near the settlement or talk to the villagers to advance the investigation.");
                 case CommissionCategory.BountyHunt:
+                    // 悬赏委托附加信息：活捉奖励
                     return _data.TargetHero != null
-                        ? $"目标：{_data.TargetHero.Name} — 活捉报酬 ×2.25"
+                        // 悬赏附加信息：含目标名
+                        ? LWNTextHelper.ResolveCompound("LWN_quest_commission_extra_bounty", "Target: {TARGET} — capture alive for ×2.25 reward", ("TARGET", _data.TargetHero.Name.ToString()))
                         : "";
                 case CommissionCategory.CaravanEscort:
-                    return "注意：旅途中可能遭遇盗贼伏击，Scout 技能可提前发现。";
+                    // 护送委托附加说明：盗贼伏击风险
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_extra_caravan", "Note: bandit ambushes may occur en route; the Scout skill lets you spot them in advance.");
                 case CommissionCategory.SupplyEmergency:
-                    return "超时后每天报酬递减 5%。";
+                    // 供应委托附加说明：超时报酬递减
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_extra_supply", "The reward decays 5% per day after the deadline.");
                 case CommissionCategory.UndergroundFight:
-                    return "赛前练级提升技能可增加胜率。";
+                    // 地下格斗委托附加说明：练级提升胜率
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_extra_fight", "Level up skills before the match to improve your odds.");
                 default: return "";
             }
         }
@@ -2172,52 +2399,76 @@ namespace LivingWorldNpcs
         /// <summary>阶段2目标的简短描述（用于 quest 日志步骤标题）。</summary>
         private string GetObjectiveStepText()
         {
+            // 阶段2目标/物资名称的兜底文本
+            string targetFallback = LWNTextHelper.ResolveText("LWN_quest_commission_target_fallback", "the target");
+            // 阶段2目标地点名称的兜底文本
+            string targetLocFallback = LWNTextHelper.ResolveText("LWN_quest_commission_target_location_fallback", "the target location");
+            // 阶段2物资名称的兜底文本
+            string goodsFallback = LWNTextHelper.ResolveText("LWN_quest_commission_goods_fallback", "supplies");
             string target = _data.TargetHero?.Name?.ToString()
                 ?? (!string.IsNullOrEmpty(_data.TargetSettlementId)
-                    ? Settlement.Find(_data.TargetSettlementId)?.Name?.ToString() ?? "目标地"
-                    : "目标");
+                    ? Settlement.Find(_data.TargetSettlementId)?.Name?.ToString() ?? targetLocFallback
+                    : targetFallback);
             string item = !string.IsNullOrEmpty(_data.TargetItemId)
-                ? MBObjectManager.Instance.GetObject<ItemObject>(_data.TargetItemId)?.Name?.ToString() ?? "物资"
-                : "物资";
+                ? MBObjectManager.Instance.GetObject<ItemObject>(_data.TargetItemId)?.Name?.ToString() ?? goodsFallback
+                : goodsFallback;
 
             switch (_data.Category)
             {
                 case CommissionCategory.Investigation:
-                    return $"第二步：搜集线索，找出真凶";
+                    // 阶段2目标：搜集线索找出真凶
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_step2_investigation", "Step 2: Gather clues and find the culprit");
                 case CommissionCategory.BountyHunt:
-                    return $"第二步：击败（最好活捉）{target}";
+                    // 阶段2目标：击败（最好活捉）目标
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_bounty", "Step 2: Defeat (preferably capture alive) {TARGET}", ("TARGET", target));
                 case CommissionCategory.LegendaryHunt:
-                    return $"第二步：讨伐匪王 {target}";
+                    // 阶段2目标：讨伐匪王
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_legendary", "Step 2: Hunt down the bandit king {TARGET}", ("TARGET", target));
                 case CommissionCategory.HideoutClear:
-                    return $"第二步：清剿 {target} 附近的匪窝";
+                    // 阶段2目标：清剿目标附近的匪窝
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_hideout", "Step 2: Clear the bandit hideout near {TARGET}", ("TARGET", target));
                 case CommissionCategory.CaravanEscort:
-                    return $"第二步：护送商队抵达 {target}";
+                    // 阶段2目标：护送商队抵达目标
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_caravan", "Step 2: Escort the caravan to {TARGET}", ("TARGET", target));
                 case CommissionCategory.EmergencyDelivery:
-                    return $"第二步：将 {item}×{_data.TargetItemCount} 送达 {target}";
+                    // 阶段2目标：送达物资到目标
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_delivery", "Step 2: Deliver {ITEM}×{COUNT} to {TARGET}", ("ITEM", item), ("COUNT", _data.TargetItemCount.ToString()), ("TARGET", target));
                 case CommissionCategory.SupplyEmergency:
-                    return $"第二步：采购 {item}×{_data.TargetItemCount} 送往 {target}";
+                    // 阶段2目标：采购物资送往目标
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_supply", "Step 2: Purchase {ITEM}×{COUNT} and deliver to {TARGET}", ("ITEM", item), ("COUNT", _data.TargetItemCount.ToString()), ("TARGET", target));
                 case CommissionCategory.ProcurementAgent:
-                    return $"第二步：购得 {item} 交付";
+                    // 阶段2目标：购得物品交付
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_procurement", "Step 2: Acquire {ITEM} and deliver it", ("ITEM", item));
                 case CommissionCategory.LostItem:
-                    return $"第二步：在 {target} 寻回失物";
+                    // 阶段2目标：在目标处寻回失物
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_lost_item", "Step 2: Recover the lost item in {TARGET}", ("TARGET", target));
                 case CommissionCategory.TreasureHunt:
-                    return $"第二步：在 {target} 附近寻得宝藏";
+                    // 阶段2目标：在目标附近寻得宝藏
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_treasure", "Step 2: Find the treasure near {TARGET}", ("TARGET", target));
                 case CommissionCategory.HorseAcquisition:
-                    return $"第二步：寻购 {item}";
+                    // 阶段2目标：寻购马匹
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_horse", "Step 2: Find and buy {ITEM}", ("ITEM", item));
                 case CommissionCategory.UndergroundFight:
-                    return $"第二步：在竞技场获胜";
+                    // 阶段2目标：在竞技场获胜
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_step2_arena", "Step 2: Win in the arena");
                 case CommissionCategory.ArenaSpecial:
-                    return $"第二步：在竞技场连胜";
+                    // 阶段2目标：在竞技场连胜
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_step2_arena_streak", "Step 2: Win consecutive arena matches");
                 case CommissionCategory.VillageDefense:
-                    return $"第二步：保卫 {target}（迎击或贿赂匪徒）";
+                    // 阶段2目标：保卫目标村庄（迎击或贿赂匪徒）
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_defense", "Step 2: Defend {TARGET} (fight off or bribe the bandits)", ("TARGET", target));
                 case CommissionCategory.PrisonBreak:
-                    return $"第二步：从监狱救出 {target}";
+                    // 阶段2目标：从监狱救出目标
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_prison", "Step 2: Rescue {TARGET} from prison", ("TARGET", target));
                 case CommissionCategory.SupplyIntercept:
-                    return $"第二步：拦截运往 {target} 的补给队";
+                    // 阶段2目标：拦截运往目标的补给队
+                    return LWNTextHelper.ResolveCompound("LWN_quest_commission_step2_intercept", "Step 2: Intercept the supply convoy heading for {TARGET}", ("TARGET", target));
                 case CommissionCategory.DecoyMission:
-                    return $"第二步：引开追兵，坚持到委托人撤离";
+                    // 阶段2目标：引开追兵坚持到委托人撤离
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_step2_decoy", "Step 2: Lure the pursuers away and hold out until the giver escapes");
                 default:
-                    return "第二步：完成委托目标";
+                    // 阶段2目标兜底：完成委托目标
+                    return LWNTextHelper.ResolveText("LWN_quest_commission_step2_default", "Step 2: Complete the commission objective");
             }
         }
 
@@ -2227,7 +2478,8 @@ namespace LivingWorldNpcs
             if (_totalProgress <= 0) return;
             _progressLog = AddDiscreteLog(
                 new TextObject(GetObjectiveStepText()),
-                new TextObject("完成度"),
+                // 进度日志的完成度标题
+                new TextObject(LWNTextHelper.ResolveText("LWN_quest_commission_progress_detail", "Completion")),
                 _currentProgress, _totalProgress);
         }
 
@@ -2272,7 +2524,10 @@ namespace LivingWorldNpcs
         {
             try
             {
-                string prompt = $"给这句委托描述加一点简短的风味描写（{Settings.Instance.WorldDescription}世界观，20字以内，不要改核心信息）：\n{baseText}";
+                // LLM 风味文本提示词：请求为委托描述添加简短风味描写
+                string prompt = LWNTextHelper.ResolveCompound("LWN_quest_commission_llm_flavor_prompt",
+                    "Add a short flavor description to this commission text ({WORLDDESC} setting, within 20 words, do not change the core information):\n{TEXT}",
+                    ("WORLDDESC", Settings.Instance.WorldDescription), ("TEXT", baseText));
                 string result = await LLMService.Instance.ChatAsync(prompt, 60, false);
                 if (!string.IsNullOrEmpty(result))
                     AddLog(new TextObject(result.Trim()));

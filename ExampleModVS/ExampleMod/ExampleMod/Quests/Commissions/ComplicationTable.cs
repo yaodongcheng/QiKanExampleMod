@@ -42,45 +42,76 @@ namespace LivingWorldNpcs
         private static void TryBountyHuntComplication(CommissionData data, CommissionQuest quest)
         {
             float roll = MBRandom.RandomFloat;
-            string targetName = data.TargetHero?.Name?.ToString() ?? "目标";
+            // 目标名兜底（无目标英雄时显示"目标"）
+            string targetName = data.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_complication_target_fallback", "the target");
 
             if (roll < 0.3f)
             {
                 NotificationPipeline.PopupWithChoice(
-                    "竞争者出现",
-                    $"另一个赏金猎人也在追捕{targetName}。他可能会先你一步得手。",
-                    "加快追踪",
+                    // 弹窗标题：竞争者出现
+                    LWNTextHelper.ResolveText("LWN_complication_rival_hunter", "A rival hunter appears"),
+                    // 弹窗正文：另一个赏金猎人也在追捕目标
+                    LWNTextHelper.ResolveCompound("LWN_complication_rival_hunter_desc",
+                        "Another bounty hunter is also after {TARGET}. They might get there first.",
+                        ("TARGET", targetName)),
+                    // 弹窗选项：加快追踪
+                    LWNTextHelper.ResolveText("LWN_complication_rival_hurry", "Hurry the hunt"),
                     () => {
-                        quest.AddLog(new TextObject("你加快了步伐——不能让别人抢了先。"));
+                        // 任务日志：加快步伐抢先一步
+                        quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_rival_hurry_log",
+                            "You quicken your pace — you cannot let anyone else get there first.")));
                         data.TimeRemainingHours = Math.Max(1, data.TimeRemainingHours - 12);
                     },
-                    "顺其自然",
-                    () => quest.AddLog(new TextObject("多个猎人也好——也许他会把目标赶到你这边来。")));
+                    // 弹窗选项：顺其自然
+                    LWNTextHelper.ResolveText("LWN_complication_rival_let_be", "Let it be"),
+                    // 任务日志：多个猎人也许能把目标赶到这边
+                    () => quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_rival_let_be_log",
+                        "More hunters is fine — maybe they will drive the target right to you."))));
             }
             else if (roll < 0.55f)
             {
                 NotificationPipeline.PopupWithChoice(
-                    "目标壮大",
-                    $"情报：{targetName}招募了更多手下。但这也意味着赏金更高了。",
-                    "接受挑战",
+                    // 弹窗标题：目标壮大
+                    LWNTextHelper.ResolveText("LWN_complication_target_stronger", "The target grows stronger"),
+                    // 弹窗正文：目标招募更多手下，赏金更高
+                    LWNTextHelper.ResolveCompound("LWN_complication_target_stronger_desc",
+                        "Word is that {TARGET} has recruited more men. But that also means a bigger bounty.",
+                        ("TARGET", targetName)),
+                    // 弹窗选项：接受挑战
+                    LWNTextHelper.ResolveText("LWN_complication_accept_challenge", "Accept the challenge"),
                     () => {
                         data.NegotiatedReward = (int)(data.NegotiatedReward * 1.1f);
-                        quest.AddLog(new TextObject($"目标更强了——但报酬也涨到了{data.NegotiatedReward}第纳尔。"));
+                        // 任务日志：目标更强但报酬上涨
+                        quest.AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_complication_target_stronger_log",
+                            "The target is stronger — but the reward has grown to {GOLD} denars.",
+                            ("GOLD", data.NegotiatedReward.ToString()))));
                     },
-                    "无视",
-                    () => quest.AddLog(new TextObject("不过是多几个小喽啰而已。")));
+                    // 弹窗选项：无视
+                    LWNTextHelper.ResolveText("LWN_complication_ignore", "Ignore it"),
+                    // 任务日志：不过是多几个喽啰
+                    () => quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_ignore_log",
+                        "Just a few more thugs, nothing more."))));
             }
             else if (roll < 0.75f)
             {
                 NotificationPipeline.Notify(
-                    $"探子来报：{targetName}更换了藏身地点。继续追踪。", "normal");
-                quest.AddLog(new TextObject($"目标转移了位置——继续追踪。"));
+                    // 通知正文：目标更换藏身地点
+                    LWNTextHelper.ResolveCompound("LWN_complication_target_moved",
+                        "Your scout reports that {TARGET} has moved hiding places. Keep tracking.",
+                        ("TARGET", targetName)), "normal");
+                // 任务日志：目标转移位置继续追踪
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_target_moved_log",
+                    "The target has moved — keep tracking.")));
             }
             else
             {
                 NotificationPipeline.Notify(
-                    "暴雨来袭！视野和移速大降。但也许多了这层雨幕，敌人同样看不清你。", "normal");
-                quest.AddLog(new TextObject("暴风雨降低了所有人的视野和移动速度。"));
+                    // 通知正文：暴雨来袭影响视野移速
+                    LWNTextHelper.ResolveText("LWN_complication_storm",
+                        "A storm hits! Visibility and speed drop sharply. But in this downpour, the enemy cannot see you any better."), "normal");
+                // 任务日志：暴风雨降低视野移速
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_storm_log",
+                    "The storm lowers everyone's visibility and movement speed.")));
             }
         }
 
@@ -90,52 +121,83 @@ namespace LivingWorldNpcs
             if (roll < 0.3f)
             {
                 NotificationPipeline.PopupWithChoice(
-                    "前方可疑",
-                    "斥候发现前方有可疑队伍——可能是埋伏的盗贼。",
-                    "绕路躲开",
+                    // 弹窗标题：前方可疑
+                    LWNTextHelper.ResolveText("LWN_complication_suspicious_ahead", "Something suspicious ahead"),
+                    // 弹窗正文：斥候发现可疑队伍
+                    LWNTextHelper.ResolveText("LWN_complication_suspicious_ahead_desc",
+                        "Scouts spot a suspicious band ahead — possibly bandits lying in ambush."),
+                    // 弹窗选项：绕路躲开
+                    LWNTextHelper.ResolveText("LWN_complication_reroute", "Take a detour"),
                     () => {
                         Hero.MainHero.AddSkillXp(DefaultSkills.Scouting, 25);
-                        quest.AddLog(new TextObject("你的Scout技能让你提前发现了埋伏，成功绕行。"));
+                        // 任务日志：侦察技能发现埋伏成功绕行
+                        quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_reroute_log",
+                            "Your scouting skill lets you spot the ambush in time and detour around it.")));
                     },
-                    "正面硬闯",
-                    () => quest.AddLog(new TextObject("你决定正面通过——准备战斗！")));
+                    // 弹窗选项：正面硬闯
+                    LWNTextHelper.ResolveText("LWN_complication_charge_through", "Charge straight through"),
+                    // 任务日志：正面通过准备战斗
+                    () => quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_charge_through_log",
+                        "You decide to push straight through — prepare for battle!"))));
             }
             else if (roll < 0.6f)
             {
-                quest.AddLog(new TextObject("商队的一头驮马跛了脚，移动速度暂时下降。"));
+                // 任务日志：驮马跛脚移速下降
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_lame_pack_horse_log",
+                    "One of the caravan's pack horses has gone lame, slowing the group for a while.")));
                 data.TimeRemainingHours = Math.Max(1, data.TimeRemainingHours - 4);
             }
             else
             {
-                quest.AddLog(new TextObject("路上遇到难民——他们说前方有战事，最好绕路。"));
+                // 任务日志：难民提示前方有战事
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_refugee_warning_log",
+                    "You come across refugees — they say there is fighting ahead and advise going around.")));
             }
         }
 
         private static void TrySupplyComplication(CommissionData data, CommissionQuest quest)
         {
             float roll = MBRandom.RandomFloat;
-            string loc = data.TargetSettlementId ?? "目标城镇";
+            // 目标城镇名兜底（无法解析时显示"目标城镇"）
+            string loc = data.TargetSettlementId ?? LWNTextHelper.ResolveText("LWN_complication_location_fallback", "the target town");
             if (roll < 0.4f)
             {
                 NotificationPipeline.PopupWithChoice(
-                    "需求紧迫",
-                    $"{loc}的需求变得更加紧迫。加快送达可获得额外报酬！",
-                    "全速前进",
+                    // 弹窗标题：需求紧迫
+                    LWNTextHelper.ResolveText("LWN_complication_urgent_demand", "Urgent demand"),
+                    // 弹窗正文：目标城镇需求紧迫加快送达有额外报酬
+                    LWNTextHelper.ResolveCompound("LWN_complication_urgent_demand_desc",
+                        "Demand in {LOCATION} has grown more urgent. Deliver faster for extra pay!",
+                        ("LOCATION", loc)),
+                    // 弹窗选项：全速前进
+                    LWNTextHelper.ResolveText("LWN_complication_full_speed", "Full speed ahead"),
                     () => {
                         data.NegotiatedReward = (int)(data.NegotiatedReward * 1.15f);
                         data.TimeRemainingHours = Math.Max(1, data.TimeRemainingHours - 8);
-                        quest.AddLog(new TextObject($"全速赶往{loc}——报酬涨至{data.NegotiatedReward}第纳尔。"));
+                        // 任务日志：全速赶往目标城镇报酬上涨
+                        quest.AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_complication_full_speed_log",
+                            "You race to {LOCATION} — the reward has grown to {GOLD} denars.",
+                            ("LOCATION", loc),
+                            ("GOLD", data.NegotiatedReward.ToString()))));
                     },
-                    "保持节奏",
-                    () => quest.AddLog(new TextObject("按原计划走——急中出错更麻烦。")));
+                    // 弹窗选项：保持节奏
+                    LWNTextHelper.ResolveText("LWN_complication_keep_pace", "Keep the pace"),
+                    // 任务日志：按原计划走避免出错
+                    () => quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_keep_pace_log",
+                        "Stick to the plan — rushing invites mistakes."))));
             }
             else if (roll < 0.7f)
             {
-                quest.AddLog(new TextObject("听说有其他商人也看到了这个商机——比速度的时候到了！"));
+                // 任务日志：其他商人加入竞争
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_rival_merchant_log",
+                    "You hear other merchants have spotted the same opportunity — time to race!")));
             }
             else
             {
-                quest.AddLog(new TextObject($"市场传言{loc}的价格又涨了——现在送去赚更多。"));
+                // 任务日志：市场价格上涨现在送去赚更多
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_complication_market_price_log",
+                    "Rumors say prices in {LOCATION} have risen again — deliver now for more profit.",
+                    ("LOCATION", loc))));
                 data.NegotiatedReward = (int)(data.NegotiatedReward * 1.05f);
             }
         }
@@ -146,14 +208,22 @@ namespace LivingWorldNpcs
             if (roll < 0.5f)
             {
                 NotificationPipeline.Notify(
-                    "委托人派信使来询问进度——看来对方挺着急的。", "normal");
-                quest.AddLog(new TextObject("信使来催了——动作快点。"));
+                    // 通知正文：委托人派信使询问进度
+                    LWNTextHelper.ResolveText("LWN_complication_messenger_inquiry",
+                        "Your client sends a messenger to check on your progress — they seem anxious."), "normal");
+                // 任务日志：信使催促进度
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_messenger_inquiry_log",
+                    "The messenger urges you on — hurry up.")));
             }
             else
             {
                 NotificationPipeline.Notify(
-                    "天气骤变，行进困难。但坏事也是好事——敌人同样被拖慢了。", "normal");
-                quest.AddLog(new TextObject("天气变坏了。视野和移动速度都受了影响。"));
+                    // 通知正文：天气骤变行进困难敌人同样被拖慢
+                    LWNTextHelper.ResolveText("LWN_complication_bad_weather",
+                        "The weather turns harsh, slowing travel. But every cloud has a silver lining — the enemy is slowed too."), "normal");
+                // 任务日志：天气变坏影响视野移速
+                quest.AddLog(new TextObject(LWNTextHelper.ResolveText("LWN_complication_bad_weather_log",
+                    "The weather has worsened. Visibility and movement speed both suffer.")));
             }
         }
     }

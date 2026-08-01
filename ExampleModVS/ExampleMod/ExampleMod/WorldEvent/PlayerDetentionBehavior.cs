@@ -291,27 +291,27 @@ namespace LivingWorldNpcs
             foreach (var menu in SETTLEMENT_MENUS)
             {
                 starter.AddGameMenuOption(menu, "lwn_detention_pay_fine",
-                    "{=!}赔钱了事 —— 交 {LWN_FINE}{GOLD_ICON} 罚金给{LWN_SETTLEMENT}的人。",
+                    "{=LWN_ui_detention_pay_fine}Pay fine — {LWN_FINE}{GOLD_ICON} to {LWN_SETTLEMENT}.",
                     PayFineOfferOnCondition, PayFineFromOfferOnConsequence,
                     false, 1);
 
                 starter.AddGameMenuOption(menu, "lwn_detention_accept",
-                    "{=!}认罚 —— 在{LWN_LOCKUP}里关{LWN_DAYS}天。",
+                    "{=LWN_ui_detention_accept_jail}Accept punishment — {LWN_DAYS} days in {LWN_LOCKUP}.",
                     AcceptDetentionOnCondition, AcceptDetentionOnConsequence,
                     false, 2);
             }
 
             // ── 复用原版俘虏等待菜单，只加一个"赎身"选项 ──
             starter.AddGameMenuOption(MENU_WAIT, "lwn_detention_pay_fine_wait",
-                "{=!}托人带话，交 {LWN_FINE}{GOLD_ICON} 罚金赎身。",
+                "{=LWN_ui_detention_pay_while_jailed}Send word — pay {LWN_FINE}{GOLD_ICON} for release.",
                 PayFineWhileDetainedOnCondition, PayFineWhileDetainedOnConsequence,
                 false, 0);
 
             // ── 放人（叙事收尾，Continue 里干真活）──
-            starter.AddGameMenu(MENU_RELEASE, "{=!}{LWN_DETENTION_TEXT}", DetentionReleaseOnInit,
+            starter.AddGameMenu(MENU_RELEASE, "{=LWN_ui_detention_release_menu}{LWN_DETENTION_TEXT}", DetentionReleaseOnInit,
                 GameOverlays.MenuOverlayType.None);
 
-            starter.AddGameMenuOption(MENU_RELEASE, "lwn_detention_release_continue", "{=!}继续……",
+            starter.AddGameMenuOption(MENU_RELEASE, "lwn_detention_release_continue", "{=LWN_ui_detention_release_continue}Continue...",
                 ContinueOnCondition, ReleaseContinueOnConsequence);
 
             DebugLogger.Log("[Detention] Game menus registered");
@@ -392,7 +392,8 @@ namespace LivingWorldNpcs
             {
                 if (Array.IndexOf(SETTLEMENT_MENUS, menuId) < 0) return;
                 if (!inst.IsOfferVisible()) return;
-                vm.TitleText = "被制住";
+                // 扣押菜单标题：玩家被当地人制住
+                vm.TitleText = LWNTextHelper.ResolveText("LWN_ui_detention_title_grappled", "Grappled");
                 vm.ContextText = inst.BuildOfferText();
                 return;
             }
@@ -409,12 +410,15 @@ namespace LivingWorldNpcs
         private string BuildOfferText()
         {
             var settlement = DetentionSettlement;
-            string name = settlement?.Name?.ToString() ?? "这里";
+            // 就地名兜底：查不到定居点就称"这里"
+            string name = settlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_detention_place_here", "here");
             string lockup = LockupName(settlement);
 
-            string text = $"你被人从地上拖起来，胳膊反剪在背后 —— 武器被踢到一边，围上来的人还在喘。\n\n" +
-                          $"带头的没跟你废话：钱赔了，这事就算了；不赔，就在{lockup}里待着，" +
-                          $"{name}什么时候消气什么时候放人。";
+            // 扣押菜单正文：刚被按在地上，两条路摆在面前——赔钱或关押
+            string text = LWNTextHelper.ResolveCompound("LWN_ui_detention_offer_text",
+                "You are dragged up from the ground, arms pinned behind your back — your weapon kicked aside, the crowd around you still catching their breath.\n\n" +
+                "The one in charge wastes no words: pay up and this is settled; refuse, and you stay in the {LOCKUP} until {NAME} calms down.",
+                ("LOCKUP", lockup), ("NAME", name));
 
             // 涨价缘由：玩家之前听过一个数，现在要的比那个数高 → 必须当面把账算清，
             // 否则玩家只看到"刚才 680、现在 1652"，会当成 bug 或系统坑人。
@@ -431,9 +435,11 @@ namespace LivingWorldNpcs
             string lockup = LockupName(settlement);
             int daysLeft = Math.Max(1, (int)Math.Ceiling(_releaseDay - (float)CampaignTime.Now.ToDays));
 
-            string text = $"{lockup}里没有窗。门外有人来回走动，偶尔停下来往里看一眼。\n\n" +
-                          $"你的东西都不在身上了。看这架势还得再关 {daysLeft} 天 —— " +
-                          $"除非托人带话回去，把罚金交了。";
+            // 关押阶段正文：无窗的关押处 + 剩余刑期，除非交罚金
+            string text = LWNTextHelper.ResolveCompound("LWN_ui_detention_detained_text",
+                "There are no windows in the {LOCKUP}. Footsteps pace outside the door, occasionally stopping to peer in.\n\n" +
+                "Your belongings are no longer on you. At this rate, {DAYS} more days — unless you send word back and pay the fine.",
+                ("LOCKUP", lockup), ("DAYS", daysLeft.ToString()));
 
             string note = BuildFineEscalationNote();
             if (note != null) text += $"\n\n{note}";
@@ -468,12 +474,13 @@ namespace LivingWorldNpcs
             args.optionLeaveType = GameMenuOption.LeaveType.Bribe;
             MBTextManager.SetTextVariable("LWN_FINE", _fine);
             MBTextManager.SetTextVariable("LWN_SETTLEMENT",
-                DetentionSettlement?.Name ?? new TextObject("{=!}这里"), false);
+                DetentionSettlement?.Name ?? new TextObject("{=LWN_ui_detention_place_here}here"), false);
 
             if (Hero.MainHero.Gold < _fine)
             {
                 args.IsEnabled = false;
-                args.Tooltip = new TextObject("{=!}" + BuildCannotAffordHint());
+                // 付不起罚金时灰掉选项的提示（BuildCannotAffordHint 已返回本地化文本）
+                args.Tooltip = new TextObject(BuildCannotAffordHint());
             }
             return true;
         }
@@ -505,7 +512,8 @@ namespace LivingWorldNpcs
             if (Hero.MainHero.Gold < _fine)
             {
                 args.IsEnabled = false;
-                args.Tooltip = new TextObject("{=!}" + BuildCannotAffordHint());
+                // 付不起罚金时灰掉选项的提示（BuildCannotAffordHint 已返回本地化文本）
+                args.Tooltip = new TextObject(BuildCannotAffordHint());
             }
             return true;
         }
@@ -527,9 +535,14 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Detention] BuildCannotAffordHint failed: {ex.Message}");
             }
 
+            // 付不起提示（带原价锚点版）：点出当初听过的最低价
             return (first > 0 && _fine > (int)(first * 1.05f))
-                ? $"你身上凑不出这个数。当初赔 {first} 就能了事的。"
-                : "你身上凑不出这个数。";
+                // 你身上凑不出这个数。当初赔 {FIRST} 就能了事的。
+                ? LWNTextHelper.ResolveCompound("LWN_ui_detention_cannot_afford_anchor",
+                    "You cannot scrape together that much. Back then, {FIRST} would have settled it.",
+                    ("FIRST", first.ToString()))
+                // 付不起提示（普通版）
+                : LWNTextHelper.ResolveText("LWN_ui_detention_cannot_afford", "You cannot scrape together that much.");
         }
 
         private void PayFineFromOfferOnConsequence(MenuCallbackArgs args)
@@ -552,25 +565,35 @@ namespace LivingWorldNpcs
         private void DetentionReleaseOnInit(MenuCallbackArgs args)
         {
             var settlement = DetentionSettlement;
-            string name = settlement?.Name?.ToString() ?? "这里";
+            // 就地名兜底：查不到定居点就称"这里"
+            string name = settlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_detention_place_here", "here");
             string text;
 
             if (_releaseReason == "fine")
             {
                 text = _jailed
-                    ? $"钱货两清。栓门的绳子被解开，你的东西一件件丢回给你 —— 少了什么也没人认。\n\n" +
-                      $"{name}的人看着你走出村口，没人吭声。"
-                    : $"钱货两清。按着你的手一只只松开，你的东西被丢回脚边。\n\n" +
-                      $"{name}的人散了，这事算是了了。";
+                    // 释放叙事（真关过）：交钱放人，东西一件件丢回
+                    ? LWNTextHelper.ResolveCompound("LWN_ui_detention_release_fine_jailed",
+                        "Paid in full. The rope on the door is untied, your belongings tossed back to you one by one — no one owns up to anything missing.\n\n" +
+                        "{NAME}'s people watch you walk out of the village, silent.",
+                        ("NAME", name))
+                    // 释放叙事（没真关）：就地交钱，人散事了
+                    : LWNTextHelper.ResolveCompound("LWN_ui_detention_release_fine_notjailed",
+                        "Paid in full. The hands holding you loosen one by one, your belongings dropped at your feet.\n\n" +
+                        "{NAME}'s people disperse — this matter is settled.",
+                        ("NAME", name));
             }
             else
             {
-                text = $"关到第 {_days} 天，看着你的人越来越少 —— 农忙时节，谁也没工夫成天守着一个外乡人。\n\n" +
-                       $"天没亮，你自己推开了{LockupName(settlement)}的门。{name}还在睡，没人拦你。";
+                // 释放叙事（关满刑期）：自己推开关押处的门走出去
+                text = LWNTextHelper.ResolveCompound("LWN_ui_detention_release_served",
+                    "By day {DAYS}, your guards are fewer and fewer — it is the busy season, and no one has time to watch an outsider day and night.\n\n" +
+                    "Before dawn you push open the {LOCKUP} door yourself. {NAME} is still asleep; no one stops you.",
+                    ("DAYS", _days.ToString()), ("LOCKUP", LockupName(settlement)), ("NAME", name));
             }
 
             MBTextManager.SetTextVariable("LWN_DETENTION_TEXT", text, false);
-            args.MenuTitle = new TextObject("{=!}放人");
+            args.MenuTitle = new TextObject("{=LWN_ui_detention_release_menu}Release");
         }
 
         private void ReleaseContinueOnConsequence(MenuCallbackArgs args)
@@ -608,8 +631,13 @@ namespace LivingWorldNpcs
                 }
             }
 
+            // 释放后的黄色系统提示：交钱出来 / 刑满出来
             InformationManager.DisplayMessage(new InformationMessage(
-                reason == "fine" ? "罚金已付，这桩事了了。" : "你从关押里出来了。",
+                reason == "fine"
+                    // 罚金已付，这桩事了了。
+                    ? LWNTextHelper.ResolveText("LWN_ui_detention_released_fine_msg", "Fine paid, this matter is settled.")
+                    // 你从关押里出来了。
+                    : LWNTextHelper.ResolveText("LWN_ui_detention_released_served_msg", "You are out of detention."),
                 Colors.Yellow));
 
             DebugLogger.Log($"[Detention] Released (reason={reason}, wasJailed={wasJailed})");
@@ -624,9 +652,12 @@ namespace LivingWorldNpcs
 
         private static string LockupName(Settlement settlement)
         {
-            if (settlement == null) return "柴房";
-            if (settlement.IsVillage) return "柴房";
-            return "牢房";
+            // 村庄（或无定居点上下文）关在柴房
+            if (settlement == null || settlement.IsVillage)
+                // 柴房
+                return LWNTextHelper.ResolveText("LWN_ui_detention_lockup_woodshed", "woodshed");
+            // 城镇/城堡关在牢房
+            return LWNTextHelper.ResolveText("LWN_ui_detention_lockup_cell", "prison cell");
         }
 
         /// <summary>
@@ -660,8 +691,15 @@ namespace LivingWorldNpcs
                 _releaseDay = (float)CampaignTime.Now.ToDays + Math.Max(1, _days);
                 DebugLogger.Log($"[Detention] Jailed at {settlement.Name} ({reason}), release on day {_releaseDay:F1}");
 
+                // 关押开始的红色系统提示：报出关押地点与场所
                 InformationManager.DisplayMessage(new InformationMessage(
-                    $"你被关进了{settlement.Name}的{LockupName(settlement)}。", Colors.Red));
+                    // 你被关进了{SETTLEMENT}的{LOCKUP}。
+                    LWNTextHelper.ResolveCompound("LWN_ui_detention_jailed_msg",
+                        "You have been locked in the {LOCKUP} of {SETTLEMENT}.",
+                        // 这里
+                        ("SETTLEMENT", settlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_detention_place_here", "here")),
+                        ("LOCKUP", LockupName(settlement))),
+                    Colors.Red));
 
                 // 复用原版俘虏等待菜单（背景图/天数文本/时间流逝全是原版的）
                 GameMenu.SwitchToMenu(MENU_WAIT);

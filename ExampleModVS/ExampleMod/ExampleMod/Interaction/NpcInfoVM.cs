@@ -33,11 +33,14 @@ namespace LivingWorldNpcs
             base.RefreshValues();
 
             // ── 标题（模板 NPC 用 Agent 名兜底）──
-            string name = _profile?.Name ?? _agent?.Name?.ToString() ?? "未知";
-            TitleText = $"{name}的信息面板";
+            // 信息面板兜底名字：未知
+            string name = _profile?.Name ?? _agent?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_info_name_unknown", "Unknown");
+            // 信息面板标题：{NAME}的信息面板
+            TitleText = LWNTextHelper.ResolveCompound("LWN_ui_info_title", "{NAME}'s Info Panel", ("NAME", name));
 
             // ── 个人属性 ──
-            SelfCognitionText = _profile?.GetSelfInfo() ?? "（非英雄单位，无详细人设）";
+            // 个人属性 Tab：模板 NPC 无详细人设的兜底文案
+            SelfCognitionText = _profile?.GetSelfInfo() ?? LWNTextHelper.ResolveText("LWN_ui_info_no_persona", "(Non-hero unit: no detailed profile)");
             MotivationText = "";
             AgentStateText = "";
 
@@ -45,35 +48,57 @@ namespace LivingWorldNpcs
             int allocatedGold = StealManager.GetAgentGold(_agent);
             bool isClanLeader = _hero != null && _hero.Clan?.Leader == _hero;
 
+            // 金钱 Tab：可偷现金+家族资金两行（{STEAL}=可偷现金，{CLAN}=家族资金）
             if (allocatedGold > 0 && isClanLeader)
-                GoldInfoText = $"可偷窃现金: {allocatedGold} 第纳尔\n家族资金: {_hero.Gold} 第纳尔";
+                // 可偷窃现金: {STEAL} 第纳尔 家族资金: {CLAN} 第纳尔
+                GoldInfoText = LWNTextHelper.ResolveCompound("LWN_ui_info_gold_steal_and_clan", "Stealable cash: {STEAL} denars\nClan funds: {CLAN} denars",
+                    ("STEAL", allocatedGold.ToString()), ("CLAN", _hero.Gold.ToString()));
+            // 金钱 Tab：仅可偷现金（{STEAL}=可偷现金）
             else if (allocatedGold > 0)
-                GoldInfoText = $"可偷窃现金: {allocatedGold} 第纳尔";
+                // 可偷窃现金: {STEAL} 第纳尔
+                GoldInfoText = LWNTextHelper.ResolveCompound("LWN_ui_info_gold_stealable", "Stealable cash: {STEAL} denars",
+                    ("STEAL", allocatedGold.ToString()));
+            // 金钱 Tab：仅家族资金（{CLAN}=家族资金）
             else if (isClanLeader)
-                GoldInfoText = $"家族资金: {_hero.Gold} 第纳尔";
+                // 家族资金: {CLAN} 第纳尔
+                GoldInfoText = LWNTextHelper.ResolveCompound("LWN_ui_info_gold_clan", "Clan funds: {CLAN} denars",
+                    ("CLAN", _hero.Gold.ToString()));
+            // 金钱 Tab：个人资产（{GOLD}=个人资产）
             else if (_hero != null)
-                GoldInfoText = $"个人资产: {_hero.Gold} 第纳尔";
+                // 个人资产: {GOLD} 第纳尔
+                GoldInfoText = LWNTextHelper.ResolveCompound("LWN_ui_info_gold_personal", "Personal wealth: {GOLD} denars",
+                    ("GOLD", _hero.Gold.ToString()));
+            // 金钱 Tab：身上没钱
             else
-                GoldInfoText = "身上没有钱";
+                // 身上没有钱
+                GoldInfoText = LWNTextHelper.ResolveText("LWN_ui_info_gold_none", "Carrying no money");
 
             // ── 家族信息 ──
-            ClanInfoText = _profile?.GetClanInfo() ?? "（非英雄单位，无家族信息）";
+            // 家族 Tab：模板 NPC 无家族信息的兜底文案
+            ClanInfoText = _profile?.GetClanInfo() ?? LWNTextHelper.ResolveText("LWN_ui_info_no_clan", "(Non-hero unit: no clan info)");
 
             // ── 王国信息 ──
-            KingdomInfoText = _profile?.GetKingdomInfo() ?? "（非英雄单位，无王国信息）";
+            // 王国 Tab：模板 NPC 无王国信息的兜底文案
+            KingdomInfoText = _profile?.GetKingdomInfo() ?? LWNTextHelper.ResolveText("LWN_ui_info_no_kingdom", "(Non-hero unit: no kingdom info)");
 
             // ── 记忆 ──
+            // 记忆 Tab：模板 NPC 无记忆数据的兜底文案
             MemoryInfoText = _memory != null
                 ? PromptBuilder.GetPrompt_History_Memory_Events(_memory)
-                : "（非英雄单位，无记忆数据）";
+                // （非英雄单位，无记忆数据）
+                : LWNTextHelper.ResolveText("LWN_ui_info_no_memory", "(Non-hero unit: no memory data)");
 
             // ── 人际关系 ──
             if (_hero != null)
             {
                 StringBuilder sbRel = new StringBuilder();
-                sbRel.AppendLine($"配偶: {(_profile?.Spouse ?? "无")}");
+                // 人际关系 Tab：配偶行（{SPOUSE}=配偶名，无配偶显示"无"）
+                string spouseName = _profile?.Spouse ?? LWNTextHelper.ResolveText("LWN_ui_info_none", "None");
+                // 配偶: {SPOUSE}
+                sbRel.AppendLine(LWNTextHelper.ResolveCompound("LWN_ui_info_spouse", "Spouse: {SPOUSE}", ("SPOUSE", spouseName)));
                 // 子女
-                sbRel.Append("子女: ");
+                // 人际关系 Tab：子女标签
+                sbRel.Append(LWNTextHelper.ResolveText("LWN_ui_info_children_label", "Children: "));
                 if (_hero.Children != null && _hero.Children.Count > 0)
                 {
                     foreach (var child in _hero.Children)
@@ -83,17 +108,22 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    sbRel.Append("无");
+                    // 人际关系 Tab：无子女
+                    sbRel.Append(LWNTextHelper.ResolveText("LWN_ui_info_none", "None"));
                 }
                 sbRel.AppendLine("\n");
 
                 int relationWithPlayer = _hero.GetRelation(Hero.MainHero);
-                sbRel.AppendLine($"与玩家关系: {relationWithPlayer}");
+                // 人际关系 Tab：与玩家关系行（{RELATION}=关系值）
+                sbRel.AppendLine(LWNTextHelper.ResolveCompound("LWN_ui_info_relation_with_player", "Relation with player: {RELATION}",
+                    ("RELATION", relationWithPlayer.ToString())));
 
                 if (_profile != null)
                 {
                     _profile.GetCloseRelations(_hero, out string relationStr);
-                    RelationInfoText = relationStr + $"\n与玩家关系: {relationWithPlayer}";
+                    // 人际关系 Tab：与玩家关系追加行（前置换行，{RELATION}=关系值）
+                    RelationInfoText = relationStr + LWNTextHelper.ResolveCompound("LWN_ui_info_relation_with_player_suffix", "\nRelation with player: {RELATION}",
+                        ("RELATION", relationWithPlayer.ToString()));
                 }
                 else
                 {
@@ -102,16 +132,21 @@ namespace LivingWorldNpcs
             }
             else
             {
-                RelationInfoText = "（非英雄单位，无人际关系数据）";
+                // 人际关系 Tab：模板 NPC 无人际关系数据的兜底文案
+                RelationInfoText = LWNTextHelper.ResolveText("LWN_ui_info_no_relations", "(Non-hero unit: no relations data)");
             }
 
             // ── 背包和部队 ──
+            // 背包 Tab：模板 NPC 无辎重信息的兜底文案
             InventoryInfoText = _hero != null
                 ? AgentControlHelper.GetBagInfo(_hero)
-                : "（非英雄单位，无辎重信息）";
+                // （非英雄单位，无辎重信息）
+                : LWNTextHelper.ResolveText("LWN_ui_info_no_inventory", "(Non-hero unit: no inventory info)");
+            // 部队 Tab：模板 NPC 无部队信息的兜底文案
             PartyInfoText = _hero != null
                 ? AgentControlHelper.GetPartyInfo(_hero)
-                : "（非英雄单位，无部队信息）";
+                // （非英雄单位，无部队信息）
+                : LWNTextHelper.ResolveText("LWN_ui_info_no_party", "(Non-hero unit: no party info)");
         }
 
         public void ExecuteClose()

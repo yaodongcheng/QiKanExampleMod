@@ -129,9 +129,21 @@ namespace LivingWorldNpcs
             TraitList = new MBBindingList<StoryTraitVM>();
 
             // 修改：传入回调函数 OnTraitHoverBegin 和 OnTraitHoverEnd
-            TraitList.Add(new StoryTraitVM("贪婪", "此人极度贪财，只需给钱即可。", true, OnTraitHoverBegin, OnTraitHoverEnd));
-            TraitList.Add(new StoryTraitVM("荣耀", "看重名誉，不可羞辱他。", false, OnTraitHoverBegin, OnTraitHoverEnd));
-            TraitList.Add(new StoryTraitVM("鲁莽", "做事不计后果，容易被激怒。", true, OnTraitHoverBegin, OnTraitHoverEnd));
+            // 默认特质：贪婪（特征名）
+            string traitGreedyName = LWNTextHelper.ResolveText("LWN_ui_dialog_trait_greedy", "Greedy");
+            // 默认特质：贪婪（特征描述：极度贪财，给钱即可收买）
+            string traitGreedyDesc = LWNTextHelper.ResolveText("LWN_ui_dialog_trait_greedy_desc", "Extremely money-grubbing; money alone will win him over.");
+            TraitList.Add(new StoryTraitVM(traitGreedyName, traitGreedyDesc, true, OnTraitHoverBegin, OnTraitHoverEnd));
+            // 默认特质：荣耀（特征名）
+            string traitHonorName = LWNTextHelper.ResolveText("LWN_ui_dialog_trait_honor", "Honor");
+            // 默认特质：荣耀（特征描述：看重名誉，不可羞辱）
+            string traitHonorDesc = LWNTextHelper.ResolveText("LWN_ui_dialog_trait_honor_desc", "Values his reputation; do not humiliate him.");
+            TraitList.Add(new StoryTraitVM(traitHonorName, traitHonorDesc, false, OnTraitHoverBegin, OnTraitHoverEnd));
+            // 默认特质：鲁莽（特征名）
+            string traitRecklessName = LWNTextHelper.ResolveText("LWN_ui_dialog_trait_reckless", "Reckless");
+            // 默认特质：鲁莽（特征描述：不计后果，容易被激怒）
+            string traitRecklessDesc = LWNTextHelper.ResolveText("LWN_ui_dialog_trait_reckless_desc", "Acts without thought of consequence and is easily provoked.");
+            TraitList.Add(new StoryTraitVM(traitRecklessName, traitRecklessDesc, true, OnTraitHoverBegin, OnTraitHoverEnd));
         }
 
         // --- 新增选项相关属性 ---
@@ -455,7 +467,8 @@ namespace LivingWorldNpcs
             SpeakerName = name;
             DialogueContent = content;
             IsVisible = true;
-            ContinueHintText = "— 点击屏幕任意位置继续 —";
+            // 点击继续提示：点击屏幕任意位置继续
+            ContinueHintText = LWNTextHelper.ResolveText("LWN_ui_dialog_continue_hint", "— Click anywhere to continue —");
             ShowContinueHint = OnClickContinue != null; // 有回调 = NPC 在说话，需要点继续
         }
 
@@ -473,8 +486,11 @@ namespace LivingWorldNpcs
 
             // 2. 更新静态文本 (立即生效)
             // 这里负责把复杂的数据格式化成人类能看的字符串
-            ConflictGoalText = $"目标: {state.PlayerGoalDescription}"; // 例如："让对方赔偿"
-            ConflictPatienceText = $"耐心: {state.MaxTurns-state.TurnCount}/{state.MaxTurns}";
+            // 谈判面板：谈判目标（{GOAL}=目标描述，例如"让对方赔偿"）
+            ConflictGoalText = LWNTextHelper.ResolveCompound("LWN_ui_dialog_conflict_goal", "Goal: {GOAL}", ("GOAL", state.PlayerGoalDescription));
+            // 谈判面板：剩余耐心（{LEFT}=剩余回合数，{MAX}=总回合数）
+            ConflictPatienceText = LWNTextHelper.ResolveCompound("LWN_ui_dialog_conflict_patience", "Patience: {LEFT}/{MAX}",
+                ("LEFT", (state.MaxTurns - state.TurnCount).ToString()), ("MAX", state.MaxTurns.ToString()));
 
             // 你甚至可以在这里根据耐心值改变颜色 (这也是封装的好处)
             // if (state.CurrentPatience < 20) { ... }
@@ -524,7 +540,9 @@ namespace LivingWorldNpcs
             if (ConflictBarWidth + pixelWidth > MaxProgressBarWidth)
             {
                 pixelWidth = MaxProgressBarWidth - ConflictBarWidth;
-                InformationManager.DisplayMessage(new InformationMessage($"预测溢出，截断宽度:总宽度{MaxProgressBarWidth}当前进度{ConflictBarWidth}预测进度增量{pixelWidth}", Color.FromUint(0xFFFFFF)));
+                // 预测条溢出截断的调试飘字：报告总宽度/当前进度/预测增量
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_dialog_prediction_overflow",
+                    ("MAXWIDTH", MaxProgressBarWidth.ToString("F1")), ("CURRENT", ConflictBarWidth.ToString("F1")), ("PIXEL", pixelWidth.ToString("F1"))), Color.FromUint(0xFFFFFF)));
             }
             if (pixelWidth < 0) pixelWidth = 0;
 
@@ -843,7 +861,8 @@ namespace LivingWorldNpcs
         public StoryTraitVM(string name, string description, bool isUnlocked, Action<StoryTraitVM> onHoverBegin, Action onHoverEnd)
         {
             // 如果未解锁，显示问号和锁图标；解锁后显示真名和开锁图标
-            TraitName = isUnlocked ? name : "特征?";
+            // 锁定特质显示名：特征?
+            TraitName = isUnlocked ? name : LWNTextHelper.ResolveText("LWN_ui_dialog_trait_locked", "Trait?");
             _description = description;
 
             IconSprite = isUnlocked ? "StdAssets\\lock_opened" : "StdAssets\\lock_closed";

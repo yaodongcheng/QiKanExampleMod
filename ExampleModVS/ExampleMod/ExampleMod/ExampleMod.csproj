@@ -284,6 +284,7 @@
     <Compile Include="Interaction\Dialogue\CrimeDialogueBuilder.cs" />
     <Compile Include="Interaction\Dialogue\PlaceholderResolver.cs" />
     <Compile Include="Interaction\Dialogue\NpcSpeechResolver.cs" />
+    <Compile Include="Localization\LWNTextHelper.cs" />
     <!-- Dialogue (dynamic dialogue injection pipeline) -->
     <!-- Input (UE4-style action mapping: keyboard/gamepad glyphs) -->
     <Compile Include="Input\ModInput.cs" />

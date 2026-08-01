@@ -54,7 +54,10 @@ namespace LivingWorldNpcs
                     partnerChar = partyLeader.CharacterObject;
                 }
 
-                string npcName = partnerChar?.Name?.ToString() ?? "对方";
+                // 对话对象名兜底：查不到名字时称"对方"
+                string npcName = partnerChar?.Name?.ToString()
+                    // 对方
+                    ?? LWNTextHelper.ResolveText("LWN_dialogue_name_other", "the other person");
 
                 var p = playerCharacterData;
                 var q = conversationPartnerData;
@@ -78,11 +81,20 @@ namespace LivingWorldNpcs
                     return false;
                 }
 
+                // 大地图遇敌分流弹窗：标题（报出对方名字）
+                string encounterTitle = LWNTextHelper.ResolveCompound("LWN_dialogue_encounter_title",
+                    "You have encountered {NAME}", ("NAME", npcName));
+                // 大地图遇敌分流弹窗：正文（问玩家想怎么说话）
+                string encounterBody = LWNTextHelper.ResolveCompound("LWN_dialogue_encounter_body",
+                    "How do you want to talk to {NAME}?", ("NAME", npcName));
                 InformationManager.ShowInquiry(new InquiryData(
-                    $"你和{npcName}相遇了",
-                    $"你想怎么和{npcName}说话？",
+                    encounterTitle,
+                    encounterBody,
                     true, true,
-                    "闲聊", "对话",
+                    // 分流按钮：闲聊
+                    LWNTextHelper.ResolveText("LWN_dialogue_smalltalk", "Chat"),
+                    // 分流按钮：对话
+                    LWNTextHelper.ResolveText("LWN_dialogue_talk", "Talk"),
                     affirmativeAction: () =>
                     {
                         MapEncounterDialogState.Active = true;
@@ -317,7 +329,8 @@ namespace LivingWorldNpcs
                                 && cq.Data?.WorldEventId == evt.EventId
                                 && cq.Data?.Category == CommissionCategory.Investigation)
                             {
-                                cq.NotifySuspectIdentified(Hero.MainHero.Name?.ToString() ?? "你");
+                                // 嫌犯名兜底：查不到玩家名时称"你"（会写进任务日志）
+                                cq.NotifySuspectIdentified(Hero.MainHero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_dialogue_suspect_you", "you"));
                                 break;
                             }
                         }
@@ -331,7 +344,8 @@ namespace LivingWorldNpcs
                 InformationManager.ShowInquiry(new InquiryData(
                     title, body,
                     true, false,
-                    "……", null, null, null));
+                    // 延迟弹出询问框按钮：省略号
+                    LWNTextHelper.ResolveText("LWN_dialogue_ellipsis", "..."), null, null, null));
             }
 
             // 🆕 投降谈判破裂延迟战斗：对话关闭后向 NPC 发送 event_surrender_refused。

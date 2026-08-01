@@ -64,7 +64,8 @@ namespace LivingWorldNpcs
         {
             if (e == null || e.TargetSettlement == null) return;
 
-            string loc = e.TargetSettlement.Name?.ToString() ?? "某地";
+            // 地点名兜底：某地
+            string loc = e.TargetSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_place", "Somewhere");
             string lossDesc = e.BuildDiscoveryFacts();
             string authorityRole = WorldEventStore.GetAuthorityRoleDisplayName(e);
             var authorityNpc = WorldEventStore.GetAuthorityNpc(e);
@@ -73,27 +74,41 @@ namespace LivingWorldNpcs
 
             // 按定居点类型适配文案
             bool isVillage = e.TargetSettlement.IsVillage;
-            string peopleWord = isVillage ? "村民" : "居民";
-            string actionWord = isVillage ? "正在挨家挨户问话" : "正在调查此事";
+            // 当地人称：村民（村庄）
+            string peopleWord = isVillage ? LWNTextHelper.ResolveText("LWN_notify_people_village", "villagers")
+                // 当地人称：居民（城镇/城堡）
+                : LWNTextHelper.ResolveText("LWN_notify_people_town", "residents");
+            // 权威动作：正在挨家挨户问话（村庄）
+            string actionWord = isVillage ? LWNTextHelper.ResolveText("LWN_notify_action_ask", "is going door to door asking questions")
+                // 权威动作：正在调查此事（城镇/城堡）
+                : LWNTextHelper.ResolveText("LWN_notify_action_investigating", "is investigating the matter");
 
             // 权威 NPC 点名（能找到就点名，找不到只给角色名）+ 位置提示
             string authorityDesc = !string.IsNullOrEmpty(authorityName)
-                ? $"{authorityRole}{authorityName}"
+                // 权威称谓拼接：{角色}{名字}
+                ? LWNTextHelper.ResolveCompound("LWN_notify_authority_full", ("ROLE", authorityRole), ("NAME", authorityName))
                 : authorityRole;
             string whereClause = !isVillage && !string.IsNullOrEmpty(locationHint)
-                ? $"去{loc}的{locationHint}找{authorityName ?? authorityRole}即可介入此事。"
+                // 介入地点提示：去{地点}的{位置}找{权威}即可介入此事
+                ? LWNTextHelper.ResolveCompound("LWN_notify_where_clause",
+                    ("LOC", loc), ("HINT", locationHint), ("AUTHORITY", authorityName ?? authorityRole))
                 : "";
 
-            string shortSummary = $"⚠ {loc} · 东窗事发";
-            string body =
-                $"暗探来报——{loc}的{peopleWord}发现{lossDesc}，{authorityDesc}{actionWord}，看样子是要查个水落石出。\n\n" +
-                $"好在暂时没人把你和这事联系起来。{whereClause}你也可以从此绕着{loc}走。";
+            // 犯罪暴露通知摘要：⚠ {地点} · 东窗事发
+            string shortSummary = LWNTextHelper.ResolveCompound("LWN_notify_discovered_short", ("LOC", loc));
+            // 犯罪暴露通知正文：暗探来报
+            string body = LWNTextHelper.ResolveCompound("LWN_notify_discovered_body",
+                ("LOC", loc), ("PEOPLE", peopleWord), ("FACTS", lossDesc),
+                ("AUTHORITY", authorityDesc), ("ACTION", actionWord), ("WHERECLAUSE", whereClause));
 
             DebugLogger.Log($"[Player] NinjaReport(discovered): {shortSummary} — {lossDesc} (authority={authorityName ?? "none"}, location={locationHint ?? "none"})");
             NinjaNotificationManager.Show(shortSummary, () =>
             {
                 InformationManager.ShowInquiry(new InquiryData(
-                    "东窗事发", body, true, false, "知道了", null, null, null));
+                    // 犯罪暴露弹窗标题：东窗事发
+                    LWNTextHelper.ResolveText("LWN_notify_discovered_title", "Exposed"), body, true, false,
+                    // 弹窗按钮：知道了
+                    LWNTextHelper.ResolveText("LWN_notify_ok", "I see"), null, null, null));
             });
         }
 
@@ -106,23 +121,31 @@ namespace LivingWorldNpcs
             float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(settlement));
             string msg = e.Type switch
             {
-                EventType.BanditRaid => $"⚠ 局势恶化！{settlement.Name} 的匪患已升级，匪徒越聚越多！",
-                EventType.Kidnapping => $"⚠ 时间不多了！{settlement.Name} 的绑匪发出了最后通牒……",
-                EventType.Famine => $"⚠ {settlement.Name} 的饥荒持续恶化——再没有粮食就要死人了！",
-                EventType.Assassination => $"⚠ {settlement.Name} 的暗杀事件引发了更多混乱！",
-                _ => $"⚠ 局势恶化！{settlement.Name} 的事件已升级。"
+                // 升级通知：匪患升级
+                EventType.BanditRaid => LWNTextHelper.ResolveCompound("LWN_notify_escalated_banditraid", ("LOC", settlement.Name.ToString())),
+                // 升级通知：绑匪最后通牒
+                EventType.Kidnapping => LWNTextHelper.ResolveCompound("LWN_notify_escalated_kidnapping", ("LOC", settlement.Name.ToString())),
+                // 升级通知：饥荒恶化
+                EventType.Famine => LWNTextHelper.ResolveCompound("LWN_notify_escalated_famine", ("LOC", settlement.Name.ToString())),
+                // 升级通知：暗杀引发混乱
+                EventType.Assassination => LWNTextHelper.ResolveCompound("LWN_notify_escalated_assassination", ("LOC", settlement.Name.ToString())),
+                // 升级通知兜底
+                _ => LWNTextHelper.ResolveCompound("LWN_notify_escalated_default", ("LOC", settlement.Name.ToString()))
             };
 
             if (dist < NEAR_DIST)
             {
-                string shortSummary = $"⚠ 局势恶化 · {settlement.Name}";
+                // 升级通知摘要：⚠ 局势恶化 · {地点}
+                string shortSummary = LWNTextHelper.ResolveCompound("LWN_notify_escalated_short", ("LOC", settlement.Name.ToString()));
                 DebugLogger.Log($"[Player] NinjaReport(escalated): {shortSummary}");
                 NinjaNotificationManager.Show(shortSummary, () => ShowEventInquiry(e, msg));
             }
             else
             {
-                string loc = settlement.Name?.ToString() ?? "某地";
-                InformationManager.DisplayMessage(new InformationMessage($"传闻{loc}的局势正在恶化……已经持续了好一阵了。"));
+                // 远处升级传闻
+                string loc = settlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_place", "Somewhere");
+                // 远处升级传闻播报
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_notify_escalated_far", ("LOC", loc))));
             }
         }
 
@@ -135,20 +158,25 @@ namespace LivingWorldNpcs
             float dist = V.Pos(MobileParty.MainParty).Distance(V.Pos(settlement));
             string msg = e.Type switch
             {
-                EventType.BanditRaid => $"✅ {settlement.Name} 的匪患已平息。百姓终于能睡个安稳觉了。",
-                _ => $"✅ {settlement.Name} 的事件已解决。"
+                // 解决通知：匪患平息
+                EventType.BanditRaid => LWNTextHelper.ResolveCompound("LWN_notify_resolved_banditraid", ("LOC", settlement.Name.ToString())),
+                // 解决通知兜底
+                _ => LWNTextHelper.ResolveCompound("LWN_notify_resolved_default", ("LOC", settlement.Name.ToString()))
             };
 
             if (dist < NEAR_DIST)
             {
-                string shortSummary = $"✅ 事件解决 · {settlement.Name}";
+                // 解决通知摘要：✅ 事件解决 · {地点}
+                string shortSummary = LWNTextHelper.ResolveCompound("LWN_notify_resolved_short", ("LOC", settlement.Name.ToString()));
                 DebugLogger.Log($"[Player] NinjaReport(resolved): {shortSummary}");
                 NinjaNotificationManager.Show(shortSummary, () => ShowResolvedInquiry(e, msg));
             }
             else
             {
-                string loc = settlement.Name?.ToString() ?? "某地";
-                InformationManager.DisplayMessage(new InformationMessage($"听说{loc}那边的事已经有人摆平了。"));
+                // 远处解决传闻
+                string loc = settlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_place", "Somewhere");
+                // 远处解决传闻播报
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_notify_resolved_far", ("LOC", loc))));
             }
         }
 
@@ -156,43 +184,68 @@ namespace LivingWorldNpcs
 
         private static string BuildMidRangeMessage(WorldEvent e)
         {
-            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
-            string severityTag = e.Severity >= 70 ? "紧急——" : "";
+            // 地点名兜底：某地
+            string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_place", "Somewhere");
+            // 紧急标记：紧急——
+            string severityTag = e.Severity >= 70 ? LWNTextHelper.ResolveText("LWN_notify_severity_urgent", "Urgent — ") : "";
             bool impending = e.Phase == WorldEventPhase.Impending;
 
             return e.Type switch
             {
                 EventType.BanditRaid => impending
-                    ? $"📢 {severityTag}{loc}周边匪情骤增——暗探判断有人正在集结人手。"
-                    : $"📢 {severityTag}{loc}遭了匪！暗探确认村子已被洗劫。",
+                    // 中距消息：匪患（集结中）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_banditraid_impending", ("SEV", severityTag), ("LOC", loc))
+                    // 中距消息：匪患（已遭劫掠）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_banditraid_done", ("SEV", severityTag), ("LOC", loc)),
                 EventType.Kidnapping => impending
-                    ? $"📢 {severityTag}{loc}有可疑人士出没——暗探疑其意在绑人。"
-                    : $"📢 {severityTag}{loc}出了绑架案——人已被带走，暗探在追去向。",
-                EventType.Famine => $"📢 {severityTag}{loc}粮荒——暗探报粮仓已见底。",
+                    // 中距消息：绑架（可疑人士出没）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_kidnapping_impending", ("SEV", severityTag), ("LOC", loc))
+                    // 中距消息：绑架（人已被带走）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_kidnapping_done", ("SEV", severityTag), ("LOC", loc)),
+                // 中距消息：饥荒
+                EventType.Famine => LWNTextHelper.ResolveCompound("LWN_notify_mid_famine", ("SEV", severityTag), ("LOC", loc)),
                 EventType.Betrayal => impending
-                    ? $"📢 {severityTag}{loc}有人正在暗中串联——暗探疑其心怀不轨。"
-                    : $"📢 {severityTag}{loc}出了内鬼……暗探确认是身边人干的。",
-                EventType.DebtTrap => $"📢 {severityTag}{loc}有人被高利贷逼到绝路。",
-                EventType.RomanticConflict => $"📢 {loc}有人在为情所困——闹得沸沸扬扬。",
+                    // 中距消息：背叛（暗中串联）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_betrayal_impending", ("SEV", severityTag), ("LOC", loc))
+                    // 中距消息：背叛（内鬼已现）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_betrayal_done", ("SEV", severityTag), ("LOC", loc)),
+                // 中距消息：债务陷阱
+                EventType.DebtTrap => LWNTextHelper.ResolveCompound("LWN_notify_mid_debttrap", ("SEV", severityTag), ("LOC", loc)),
+                // 中距消息：情仇
+                EventType.RomanticConflict => LWNTextHelper.ResolveCompound("LWN_notify_mid_romantic", ("LOC", loc)),
                 EventType.FalseAccusation => impending
-                    ? $"📢 {severityTag}{loc}有流言在暗中传播——暗探疑是诬告。"
-                    : $"📢 {severityTag}{loc}有人被冤枉了——暗探评注证据不足。",
-                EventType.InheritanceDispute => $"📢 {loc}的老爷子走了——继承人们为遗产撕破了脸。",
-                EventType.Fugitive => $"📢 {loc}附近藏了个人——暗探说追捕令已经发出。",
+                    // 中距消息：冤案（流言传播）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_falseacc_impending", ("SEV", severityTag), ("LOC", loc))
+                    // 中距消息：冤案（已定冤）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_falseacc_done", ("SEV", severityTag), ("LOC", loc)),
+                // 中距消息：继承争端
+                EventType.InheritanceDispute => LWNTextHelper.ResolveCompound("LWN_notify_mid_inheritance", ("LOC", loc)),
+                // 中距消息：逃犯
+                EventType.Fugitive => LWNTextHelper.ResolveCompound("LWN_notify_mid_fugitive", ("LOC", loc)),
                 EventType.TradeDispute => impending
-                    ? $"📢 {loc}的市场不太平——有商人正在排挤同行。"
-                    : $"📢 {loc}的市场已被人垄断——小商人们出局了。",
+                    // 中距消息：贸易争端（排挤同行）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_tradedispute_impending", ("LOC", loc))
+                    // 中距消息：贸易争端（市场被垄断）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_tradedispute_done", ("LOC", loc)),
                 EventType.NobleConflict => impending
-                    ? $"📢 {severityTag}{loc}边境兵力调动频繁——暗探判断摩擦在即。"
-                    : $"📢 {severityTag}{loc}的领主已经打起来了——暗探确认边境交火。",
+                    // 中距消息：贵族冲突（摩擦在即）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_nobleconflict_impending", ("SEV", severityTag), ("LOC", loc))
+                    // 中距消息：贵族冲突（边境交火）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_nobleconflict_done", ("SEV", severityTag), ("LOC", loc)),
                 EventType.SacredTheft => impending
-                    ? $"📢 {severityTag}暗探注意到{loc}附近有可疑人士——似在打圣物的主意。"
-                    : $"📢 {severityTag}{loc}的传家宝被盗——暗探确认属实。",
+                    // 中距消息：圣物失窃（可疑人士）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_sacredtheft_impending", ("SEV", severityTag), ("LOC", loc))
+                    // 中距消息：圣物失窃（传家宝被盗）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_sacredtheft_done", ("SEV", severityTag), ("LOC", loc)),
                 EventType.Assassination => impending
-                    ? $"📢 {severityTag}{loc}有可疑活动——暗探判断有人欲行不轨。"
-                    : $"📢 {severityTag}{loc}有重要人物遇刺——暗探已确认。",
-                EventType.NemesisRevenge => $"📢 有人在找你——暗探说他越来越近了。",
-                _ => $"📢 {loc}出了事——暗探正在追查详情。"
+                    // 中距消息：暗杀（可疑活动）
+                    ? LWNTextHelper.ResolveCompound("LWN_notify_mid_assassination_impending", ("SEV", severityTag), ("LOC", loc))
+                    // 中距消息：暗杀（重要人物遇刺）
+                    : LWNTextHelper.ResolveCompound("LWN_notify_mid_assassination_done", ("SEV", severityTag), ("LOC", loc)),
+                // 中距消息：宿敌来袭
+                EventType.NemesisRevenge => LWNTextHelper.ResolveText("LWN_notify_mid_nemesis", "📢 Someone is looking for you — the spy says they are getting closer."),
+                // 中距消息兜底
+                _ => LWNTextHelper.ResolveCompound("LWN_notify_mid_default", ("LOC", loc))
             };
         }
 
@@ -203,30 +256,61 @@ namespace LivingWorldNpcs
 
             string flavor = e.Type switch
             {
-                EventType.BanditRaid => impending ? "不太平——听说有匪帮正在往那边集结。" : "不太平——听说有匪帮在活动。",
-                EventType.Kidnapping => impending ? "不太平——听说有人被盯上了。" : "出了绑架案——传得人心惶惶。",
-                EventType.Famine => "闹饥荒——粮价已经翻了好几倍。",
-                EventType.Betrayal => impending ? "气氛紧张——听说内部有人心怀不轨。" : "出了桩背叛的丑事——自己人捅了自己人。",
-                EventType.DebtTrap => "有人在被逼债——高利贷滚到了还不清的数目。",
-                EventType.Assassination => impending ? "有人在密谋行刺——目标是个有头有脸的人物。" : "有大人物被刺杀了——具体情况还不明朗。",
-                EventType.NobleConflict => impending ? "领主们在调兵遣将——摩擦随时升级。" : "领主们剑拔弩张——小规模摩擦已经开始了。",
-                EventType.SacredTheft => impending ? "有人在打传家宝的主意——盯上的不是普通东西。" : "有传家宝被盗了——不只是一件东西那么简单。",
-                _ => impending ? "出了些事——具体还不太清楚，但那边的人很不安。" : "出了些事——具体还不太清楚。"
+                // 远处传闻：匪患（集结中）
+                EventType.BanditRaid => impending ? LWNTextHelper.ResolveText("LWN_notify_far_banditraid_impending", "unsettled — they say a bandit gang is gathering there.")
+                    // 远处传闻：匪患（在活动）
+                    : LWNTextHelper.ResolveText("LWN_notify_far_banditraid_done", "unsettled — they say bandits are active."),
+                // 远处传闻：绑架（被盯上）
+                EventType.Kidnapping => impending ? LWNTextHelper.ResolveText("LWN_notify_far_kidnapping_impending", "unsettled — they say someone is being watched.")
+                    // 远处传闻：绑架（人心惶惶）
+                    : LWNTextHelper.ResolveText("LWN_notify_far_kidnapping_done", "a kidnapping happened — it has everyone on edge."),
+                // 远处传闻：饥荒
+                EventType.Famine => LWNTextHelper.ResolveText("LWN_notify_far_famine", "a famine — grain prices have multiplied."),
+                // 远处传闻：背叛（气氛紧张）
+                EventType.Betrayal => impending ? LWNTextHelper.ResolveText("LWN_notify_far_betrayal_impending", "tension in the air — they say someone inside is plotting.")
+                    // 远处传闻：背叛（丑事败露）
+                    : LWNTextHelper.ResolveText("LWN_notify_far_betrayal_done", "a betrayal scandal — one of their own stabbed them in the back."),
+                // 远处传闻：债务陷阱
+                EventType.DebtTrap => LWNTextHelper.ResolveText("LWN_notify_far_debttrap", "someone is being hounded by debt — usury has grown beyond what they can ever repay."),
+                // 远处传闻：暗杀（密谋中）
+                EventType.Assassination => impending ? LWNTextHelper.ResolveText("LWN_notify_far_assassination_impending", "someone is plotting an assassination — the target is a person of rank.")
+                    // 远处传闻：暗杀（已发生）
+                    : LWNTextHelper.ResolveText("LWN_notify_far_assassination_done", "a great person has been assassinated — details are still murky."),
+                // 远处传闻：贵族冲突（调兵遣将）
+                EventType.NobleConflict => impending ? LWNTextHelper.ResolveText("LWN_notify_far_nobleconflict_impending", "lords are mustering troops — friction could escalate at any moment.")
+                    // 远处传闻：贵族冲突（摩擦开始）
+                    : LWNTextHelper.ResolveText("LWN_notify_far_nobleconflict_done", "lords are at each other's throats — small skirmishes have already begun."),
+                // 远处传闻：圣物失窃（有人打主意）
+                EventType.SacredTheft => impending ? LWNTextHelper.ResolveText("LWN_notify_far_sacredtheft_impending", "someone has designs on a family heirloom — not an ordinary thing.")
+                    // 远处传闻：圣物失窃（已被盗）
+                    : LWNTextHelper.ResolveText("LWN_notify_far_sacredtheft_done", "a family heirloom was stolen — it is more than just a thing."),
+                // 远处传闻兜底（情况不明）
+                _ => impending ? LWNTextHelper.ResolveText("LWN_notify_far_default_impending", "something happened — unclear what, but the people there are uneasy.")
+                    // 远处传闻兜底（已发生）
+                    : LWNTextHelper.ResolveText("LWN_notify_far_default_done", "something happened — unclear what exactly.")
             };
 
-            return $"🗞 有商队从{direction}方带来消息——那边{flavor}";
+            // 远处传闻模板：🗞 有商队从{方向}方带来消息——那边{传闻}
+            return LWNTextHelper.ResolveCompound("LWN_notify_far_template", ("DIR", direction), ("FLAVOR", flavor));
         }
 
         private static string GetDirectionToEvent(WorldEvent e)
         {
-            if (e.TargetSettlement == null || MobileParty.MainParty == null) return "远";
+            // 方向兜底：远
+            if (e.TargetSettlement == null || MobileParty.MainParty == null) return LWNTextHelper.ResolveText("LWN_notify_dir_far", "far");
             Vec2 playerPos = V.Pos(MobileParty.MainParty);
             Vec2 eventPos = V.Pos(e.TargetSettlement);
             Vec2 delta = eventPos - playerPos;
             if (Math.Abs(delta.X) > Math.Abs(delta.Y))
-                return delta.X > 0 ? "东" : "西";
+                // 方向：东
+                return delta.X > 0 ? LWNTextHelper.ResolveText("LWN_notify_dir_east", "east")
+                    // 方向：西
+                    : LWNTextHelper.ResolveText("LWN_notify_dir_west", "west");
             else
-                return delta.Y > 0 ? "北" : "南";
+                // 方向：北
+                return delta.Y > 0 ? LWNTextHelper.ResolveText("LWN_notify_dir_north", "north")
+                    // 方向：南
+                    : LWNTextHelper.ResolveText("LWN_notify_dir_south", "south");
         }
 
         #endregion
@@ -235,106 +319,186 @@ namespace LivingWorldNpcs
 
         private static string BuildShortSummary(WorldEvent e)
         {
-            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
+            // 地点名兜底：某地
+            string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_place", "Somewhere");
             string sevMark = e.Severity >= 80 ? "‼" : e.Severity >= 50 ? "⚠" : "";
             bool impending = e.Phase == WorldEventPhase.Impending;
 
             if (!e.IsGenericInstigator && !string.IsNullOrEmpty(e.InitiatorId))
             {
-                string instigator = e.InstigatorHero?.Name?.ToString() ?? "某人";
+                // 加害方名兜底：某人
+                string instigator = e.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_someone", "Someone");
                 string target = e.TargetHero?.Name?.ToString() ?? loc;
 
                 string action = e.Type switch
                 {
-                    EventType.BanditRaid => impending ? $"近日动向可疑，{loc}周边匪情骤增" : $"已率匪洗劫{loc}，暗探确认属实",
-                    EventType.Kidnapping => impending ? $"近日在{loc}附近活动频繁，{target}疑为猎物" : $"已绑走{loc}的{target}，当地证实",
-                    EventType.Betrayal => impending ? $"与{target}之间暗流涌动，似有异心" : $"已背叛{target}，内部确认",
-                    EventType.DebtTrap => impending ? $"正步步紧逼{target}，债据已在手上" : $"已逼垮{target}，地契易手",
-                    EventType.RomanticConflict => $"与{target}情仇难解",
-                    EventType.FalseAccusation => impending ? $"正四处散布不利于{target}的言论" : $"已诬告{target}得逞",
-                    EventType.InheritanceDispute => $"正与{target}争夺继承权",
-                    EventType.Fugitive => $"线索指向{target}",
-                    EventType.TradeDispute => impending ? $"正在{loc}排挤{target}的生意" : $"已垄断{loc}市场，{target}出局",
-                    EventType.NobleConflict => impending ? $"兵力调动频繁，{target}或是目标" : $"已出兵征讨{target}，边境交战",
-                    EventType.SacredTheft => impending ? $"近日频繁遣人打探{loc}，似与圣物有关" : $"已盗走{loc}圣物，暗探确认属实",
-                    EventType.Assassination => impending ? $"近日行踪诡秘，暗探疑其欲对{target}不利" : $"已刺杀{target}，{loc}现场确认",
-                    EventType.NemesisRevenge => $"正在找你……",
-                    _ => impending ? $"近日在{loc}附近动向异常" : $"已在{loc}得手，暗探来报"
+                    // 摘要动作：匪患（集结中）
+                    EventType.BanditRaid => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_banditraid_impending", ("LOC", loc))
+                        // 摘要动作：匪患（已劫掠）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_banditraid_done", ("LOC", loc)),
+                    // 摘要动作：绑架（猎物被盯上）
+                    EventType.Kidnapping => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_kidnapping_impending", ("LOC", loc), ("TARGET", target))
+                        // 摘要动作：绑架（已绑走）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_kidnapping_done", ("LOC", loc), ("TARGET", target)),
+                    // 摘要动作：背叛（暗流涌动）
+                    EventType.Betrayal => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_betrayal_impending", ("TARGET", target))
+                        // 摘要动作：背叛（已背叛）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_betrayal_done", ("TARGET", target)),
+                    // 摘要动作：债务陷阱（步步紧逼）
+                    EventType.DebtTrap => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_debttrap_impending", ("TARGET", target))
+                        // 摘要动作：债务陷阱（地契易手）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_debttrap_done", ("TARGET", target)),
+                    // 摘要动作：情仇
+                    EventType.RomanticConflict => LWNTextHelper.ResolveCompound("LWN_notify_short_action_romantic", ("TARGET", target)),
+                    // 摘要动作：冤案（散布言论）
+                    EventType.FalseAccusation => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_falseacc_impending", ("TARGET", target))
+                        // 摘要动作：冤案（诬告得逞）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_falseacc_done", ("TARGET", target)),
+                    // 摘要动作：继承争端
+                    EventType.InheritanceDispute => LWNTextHelper.ResolveCompound("LWN_notify_short_action_inheritance", ("TARGET", target)),
+                    // 摘要动作：逃犯
+                    EventType.Fugitive => LWNTextHelper.ResolveCompound("LWN_notify_short_action_fugitive", ("TARGET", target)),
+                    // 摘要动作：贸易争端（排挤生意）
+                    EventType.TradeDispute => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_tradedispute_impending", ("LOC", loc), ("TARGET", target))
+                        // 摘要动作：贸易争端（市场被垄断）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_tradedispute_done", ("LOC", loc), ("TARGET", target)),
+                    // 摘要动作：贵族冲突（调兵）
+                    EventType.NobleConflict => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_nobleconflict_impending", ("TARGET", target))
+                        // 摘要动作：贵族冲突（出兵征讨）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_nobleconflict_done", ("TARGET", target)),
+                    // 摘要动作：圣物失窃（打探圣物）
+                    EventType.SacredTheft => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_sacredtheft_impending", ("LOC", loc))
+                        // 摘要动作：圣物失窃（已盗走）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_sacredtheft_done", ("LOC", loc)),
+                    // 摘要动作：暗杀（行踪诡秘）
+                    EventType.Assassination => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_assassination_impending", ("TARGET", target))
+                        // 摘要动作：暗杀（已刺杀）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_assassination_done", ("LOC", loc), ("TARGET", target)),
+                    // 摘要动作：宿敌复仇
+                    EventType.NemesisRevenge => LWNTextHelper.ResolveText("LWN_notify_short_action_nemesis", "is looking for you..."),
+                    // 摘要动作兜底（动向异常）
+                    _ => impending ? LWNTextHelper.ResolveCompound("LWN_notify_short_action_default_impending", ("LOC", loc))
+                        // 摘要动作兜底（已得手）
+                        : LWNTextHelper.ResolveCompound("LWN_notify_short_action_default_done", ("LOC", loc))
                 };
-                return $"{sevMark} {instigator} {action}";
+                // 摘要模板（有加害方）：{标记} {加害方} {动作}
+                return LWNTextHelper.ResolveCompound("LWN_notify_short_instigator", ("SEV", sevMark), ("INSTIGATOR", instigator), ("ACTION", action));
             }
 
             string typeName = e.Type switch
             {
-                EventType.BanditRaid => "匪患",
-                EventType.Kidnapping => "绑架",
-                EventType.Famine => "饥荒",
-                EventType.Betrayal => "背叛",
-                EventType.DebtTrap => "债务危机",
-                EventType.RomanticConflict => "情仇",
-                EventType.FalseAccusation => "冤案",
-                EventType.InheritanceDispute => "继承争端",
-                EventType.Fugitive => "逃犯",
-                EventType.TradeDispute => "贸易争端",
-                EventType.NobleConflict => "贵族冲突",
-                EventType.SacredTheft => "圣物失窃",
-                EventType.Assassination => "暗杀",
-                EventType.NemesisRevenge => "宿敌来袭",
-                _ => "事件"
+                // 事件类型名：匪患
+                EventType.BanditRaid => LWNTextHelper.ResolveText("LWN_notify_type_banditraid", "Bandit raid"),
+                // 事件类型名：绑架
+                EventType.Kidnapping => LWNTextHelper.ResolveText("LWN_notify_type_kidnapping", "Kidnapping"),
+                // 事件类型名：饥荒
+                EventType.Famine => LWNTextHelper.ResolveText("LWN_notify_type_famine", "Famine"),
+                // 事件类型名：背叛
+                EventType.Betrayal => LWNTextHelper.ResolveText("LWN_notify_type_betrayal", "Betrayal"),
+                // 事件类型名：债务危机
+                EventType.DebtTrap => LWNTextHelper.ResolveText("LWN_notify_type_debttrap", "Debt crisis"),
+                // 事件类型名：情仇
+                EventType.RomanticConflict => LWNTextHelper.ResolveText("LWN_notify_type_romantic", "Love feud"),
+                // 事件类型名：冤案
+                EventType.FalseAccusation => LWNTextHelper.ResolveText("LWN_notify_type_falseacc", "False accusation"),
+                // 事件类型名：继承争端
+                EventType.InheritanceDispute => LWNTextHelper.ResolveText("LWN_notify_type_inheritance", "Inheritance dispute"),
+                // 事件类型名：逃犯
+                EventType.Fugitive => LWNTextHelper.ResolveText("LWN_notify_type_fugitive", "Fugitive"),
+                // 事件类型名：贸易争端
+                EventType.TradeDispute => LWNTextHelper.ResolveText("LWN_notify_type_tradedispute", "Trade dispute"),
+                // 事件类型名：贵族冲突
+                EventType.NobleConflict => LWNTextHelper.ResolveText("LWN_notify_type_nobleconflict", "Noble conflict"),
+                // 事件类型名：圣物失窃
+                EventType.SacredTheft => LWNTextHelper.ResolveText("LWN_notify_type_sacredtheft", "Sacred relic theft"),
+                // 事件类型名：暗杀
+                EventType.Assassination => LWNTextHelper.ResolveText("LWN_notify_type_assassination", "Assassination"),
+                // 事件类型名：宿敌来袭
+                EventType.NemesisRevenge => LWNTextHelper.ResolveText("LWN_notify_type_nemesis", "Nemesis strikes"),
+                // 事件类型名兜底：事件
+                _ => LWNTextHelper.ResolveText("LWN_notify_type_default", "Event")
             };
-            return $"{sevMark} {loc} · {typeName}";
+            // 摘要模板（无加害方）：{标记} {地点} · {类型}
+            return LWNTextHelper.ResolveCompound("LWN_notify_short_generic", ("SEV", sevMark), ("LOC", loc), ("TYPE", typeName));
         }
 
         public static void ShowEventInquiry(WorldEvent e, string fullNarrative)
         {
             if (e == null) return;
 
-            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
+            // 地点名兜底：某地
+            string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_place", "Somewhere");
             string typeName = e.Type switch
             {
-                EventType.BanditRaid => "匪患",
-                EventType.Kidnapping => "绑架",
-                EventType.Famine => "饥荒",
-                EventType.Betrayal => "背叛",
-                EventType.DebtTrap => "债务危机",
-                EventType.RomanticConflict => "情仇",
-                EventType.FalseAccusation => "冤案",
-                EventType.InheritanceDispute => "继承争端",
-                EventType.Fugitive => "逃犯",
-                EventType.TradeDispute => "贸易争端",
-                EventType.NobleConflict => "贵族冲突",
-                EventType.SacredTheft => "圣物失窃",
-                EventType.Assassination => "暗杀",
-                EventType.NemesisRevenge => "宿敌复仇",
-                _ => "事件"
+                // 事件类型名：匪患
+                EventType.BanditRaid => LWNTextHelper.ResolveText("LWN_notify_type_banditraid", "Bandit raid"),
+                // 事件类型名：绑架
+                EventType.Kidnapping => LWNTextHelper.ResolveText("LWN_notify_type_kidnapping", "Kidnapping"),
+                // 事件类型名：饥荒
+                EventType.Famine => LWNTextHelper.ResolveText("LWN_notify_type_famine", "Famine"),
+                // 事件类型名：背叛
+                EventType.Betrayal => LWNTextHelper.ResolveText("LWN_notify_type_betrayal", "Betrayal"),
+                // 事件类型名：债务危机
+                EventType.DebtTrap => LWNTextHelper.ResolveText("LWN_notify_type_debttrap", "Debt crisis"),
+                // 事件类型名：情仇
+                EventType.RomanticConflict => LWNTextHelper.ResolveText("LWN_notify_type_romantic", "Love feud"),
+                // 事件类型名：冤案
+                EventType.FalseAccusation => LWNTextHelper.ResolveText("LWN_notify_type_falseacc", "False accusation"),
+                // 事件类型名：继承争端
+                EventType.InheritanceDispute => LWNTextHelper.ResolveText("LWN_notify_type_inheritance", "Inheritance dispute"),
+                // 事件类型名：逃犯
+                EventType.Fugitive => LWNTextHelper.ResolveText("LWN_notify_type_fugitive", "Fugitive"),
+                // 事件类型名：贸易争端
+                EventType.TradeDispute => LWNTextHelper.ResolveText("LWN_notify_type_tradedispute", "Trade dispute"),
+                // 事件类型名：贵族冲突
+                EventType.NobleConflict => LWNTextHelper.ResolveText("LWN_notify_type_nobleconflict", "Noble conflict"),
+                // 事件类型名：圣物失窃
+                EventType.SacredTheft => LWNTextHelper.ResolveText("LWN_notify_type_sacredtheft", "Sacred relic theft"),
+                // 事件类型名：暗杀
+                EventType.Assassination => LWNTextHelper.ResolveText("LWN_notify_type_assassination", "Assassination"),
+                // 事件类型名：宿敌复仇
+                EventType.NemesisRevenge => LWNTextHelper.ResolveText("LWN_notify_type_nemesis_revenge", "Nemesis revenge"),
+                // 事件类型名兜底：事件
+                _ => LWNTextHelper.ResolveText("LWN_notify_type_default", "Event")
             };
 
-            string victim = e.TargetHero?.Name?.ToString() ?? "村民";
-            string instigator = e.IsGenericInstigator ? "一伙人" : (e.InstigatorHero?.Name?.ToString() ?? "某人");
+            // 受害者名兜底：村民
+            string victim = e.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_villager", "a villager");
+            // 加害方名兜底：一伙人（通用加害方）/ 某人
+            string instigator = e.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_notify_fallback_gang", "a band of outlaws")
+                // 加害方名兜底：某人
+                : (e.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_someone", "Someone"));
             float daysLeft = e.ExpiryDay - (float)CampaignTime.Now.ToDays;
-            string timeStr = daysLeft > 0 ? $"约 {daysLeft:F0} 天" : "迫在眉睫";
+            string timeStr = daysLeft > 0
+                // 剩余时间：约 {N} 天
+                ? LWNTextHelper.ResolveCompound("LWN_notify_time_left", ("DAYS", daysLeft.ToString("F0")))
+                // 时间不足：迫在眉睫
+                : LWNTextHelper.ResolveText("LWN_notify_time_urgent", "imminent");
 
-            string body =
-                $"════ 事件详情 ════\n\n" +
-                $"{fullNarrative}\n\n" +
-                $"——\n" +
-                $"地点：{loc}\n" +
-                $"类型：{typeName}\n" +
-                $"严重度：{e.Severity}/100\n" +
-                $"剩余时间：{timeStr}\n" +
-                (e.IsGenericInstigator ? $"加害方：{instigator}\n" : $"加害方：{instigator}\n") +
-                (!string.IsNullOrEmpty(e.TargetHeroId) ? $"受害者：{victim}\n" : "");
+            string victimLine = !string.IsNullOrEmpty(e.TargetHeroId)
+                // 受害者行（有受害者才显示）
+                ? LWNTextHelper.ResolveCompound("LWN_notify_inquiry_victim_line", ("VICTIM", victim))
+                : "";
+
+            // 事件详情弹窗正文
+            string body = LWNTextHelper.ResolveCompound("LWN_notify_inquiry_body",
+                ("NARRATIVE", fullNarrative), ("LOC", loc), ("TYPE", typeName),
+                ("SEVERITY", e.Severity.ToString()), ("TIME", timeStr),
+                ("INSTIGATOR", instigator), ("VICTIM_LINE", victimLine));
 
             Settlement targetSettlement = e.TargetSettlement;
             bool canGoSee = targetSettlement != null && GameStateManager.Current?.ActiveState is MapState;
 
             InformationManager.ShowInquiry(new InquiryData(
-                $"{loc} — {typeName}",
+                // 事件详情弹窗标题：{地点} — {类型}
+                LWNTextHelper.ResolveCompound("LWN_notify_inquiry_title", ("LOC", loc), ("TYPE", typeName)),
                 body,
                 canGoSee,
                 true,
-                "过去看看",
-                "知道了",
+                // 弹窗按钮：过去看看
+                LWNTextHelper.ResolveText("LWN_notify_go_see", "Go take a look"),
+                // 弹窗按钮：知道了
+                LWNTextHelper.ResolveText("LWN_notify_ok", "I see"),
                 () =>
                 {
                     DebugLogger.Log($"[Player] Inquiry: '过去看看' — {targetSettlement?.Name} {e.Type}");
@@ -381,47 +545,69 @@ namespace LivingWorldNpcs
         {
             if (e == null) return;
 
-            string loc = e.TargetSettlement?.Name?.ToString() ?? "某地";
+            // 地点名兜底：某地
+            string loc = e.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_place", "Somewhere");
             string typeName = e.Type switch
             {
-                EventType.BanditRaid => "匪患",
-                EventType.Kidnapping => "绑架",
-                EventType.Famine => "饥荒",
-                EventType.Betrayal => "背叛",
-                EventType.DebtTrap => "债务危机",
-                EventType.RomanticConflict => "情仇",
-                EventType.FalseAccusation => "冤案",
-                EventType.InheritanceDispute => "继承争端",
-                EventType.Fugitive => "逃犯",
-                EventType.TradeDispute => "贸易争端",
-                EventType.NobleConflict => "贵族冲突",
-                EventType.SacredTheft => "圣物失窃",
-                EventType.Assassination => "暗杀",
-                EventType.NemesisRevenge => "宿敌复仇",
-                _ => "事件"
+                // 事件类型名：匪患
+                EventType.BanditRaid => LWNTextHelper.ResolveText("LWN_notify_type_banditraid", "Bandit raid"),
+                // 事件类型名：绑架
+                EventType.Kidnapping => LWNTextHelper.ResolveText("LWN_notify_type_kidnapping", "Kidnapping"),
+                // 事件类型名：饥荒
+                EventType.Famine => LWNTextHelper.ResolveText("LWN_notify_type_famine", "Famine"),
+                // 事件类型名：背叛
+                EventType.Betrayal => LWNTextHelper.ResolveText("LWN_notify_type_betrayal", "Betrayal"),
+                // 事件类型名：债务危机
+                EventType.DebtTrap => LWNTextHelper.ResolveText("LWN_notify_type_debttrap", "Debt crisis"),
+                // 事件类型名：情仇
+                EventType.RomanticConflict => LWNTextHelper.ResolveText("LWN_notify_type_romantic", "Love feud"),
+                // 事件类型名：冤案
+                EventType.FalseAccusation => LWNTextHelper.ResolveText("LWN_notify_type_falseacc", "False accusation"),
+                // 事件类型名：继承争端
+                EventType.InheritanceDispute => LWNTextHelper.ResolveText("LWN_notify_type_inheritance", "Inheritance dispute"),
+                // 事件类型名：逃犯
+                EventType.Fugitive => LWNTextHelper.ResolveText("LWN_notify_type_fugitive", "Fugitive"),
+                // 事件类型名：贸易争端
+                EventType.TradeDispute => LWNTextHelper.ResolveText("LWN_notify_type_tradedispute", "Trade dispute"),
+                // 事件类型名：贵族冲突
+                EventType.NobleConflict => LWNTextHelper.ResolveText("LWN_notify_type_nobleconflict", "Noble conflict"),
+                // 事件类型名：圣物失窃
+                EventType.SacredTheft => LWNTextHelper.ResolveText("LWN_notify_type_sacredtheft", "Sacred relic theft"),
+                // 事件类型名：暗杀
+                EventType.Assassination => LWNTextHelper.ResolveText("LWN_notify_type_assassination", "Assassination"),
+                // 事件类型名：宿敌复仇
+                EventType.NemesisRevenge => LWNTextHelper.ResolveText("LWN_notify_type_nemesis_revenge", "Nemesis revenge"),
+                // 事件类型名兜底：事件
+                _ => LWNTextHelper.ResolveText("LWN_notify_type_default", "Event")
             };
 
-            string instigator = e.IsGenericInstigator ? "一伙人" : (e.InstigatorHero?.Name?.ToString() ?? "某人");
-            string victim = e.TargetHero?.Name?.ToString() ?? "村民";
+            // 加害方名兜底：一伙人（通用加害方）/ 某人
+            string instigator = e.IsGenericInstigator ? LWNTextHelper.ResolveText("LWN_notify_fallback_gang", "a band of outlaws")
+                // 加害方名兜底：某人
+                : (e.InstigatorHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_someone", "Someone"));
+            // 受害者名兜底：村民
+            string victim = e.TargetHero?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_notify_fallback_villager", "a villager");
 
-            string body =
-                $"════ 事件已解决 ════\n\n" +
-                $"{msg}\n\n" +
-                $"——\n" +
-                $"地点：{loc}\n" +
-                $"类型：{typeName}\n" +
-                $"严重度：{e.Severity}/100\n" +
-                (e.IsGenericInstigator ? $"加害方：{instigator}\n" : $"加害方：{instigator}\n") +
-                (!string.IsNullOrEmpty(e.TargetHeroId) ? $"受害者：{victim}\n" : "") +
-                $"\n此事件已了结，不再需要你的介入。";
+            string victimLine = !string.IsNullOrEmpty(e.TargetHeroId)
+                // 受害者行（有受害者才显示）
+                ? LWNTextHelper.ResolveCompound("LWN_notify_resolved_victim_line", ("VICTIM", victim))
+                : "";
+
+            // 事件已解决弹窗正文
+            string body = LWNTextHelper.ResolveCompound("LWN_notify_resolved_body",
+                ("MSG", msg), ("LOC", loc), ("TYPE", typeName),
+                ("SEVERITY", e.Severity.ToString()),
+                ("INSTIGATOR", instigator), ("VICTIM_LINE", victimLine));
 
             InformationManager.ShowInquiry(new InquiryData(
-                $"✅ {loc} — {typeName}（已解决）",
+                // 事件已解决弹窗标题：✅ {地点} — {类型}（已解决）
+                LWNTextHelper.ResolveCompound("LWN_notify_resolved_title", ("LOC", loc), ("TYPE", typeName)),
                 body,
                 false,
                 true,
                 "",
-                "知道了",
+                // 弹窗按钮：知道了
+                LWNTextHelper.ResolveText("LWN_notify_ok", "I see"),
                 null,
                 () =>
                 {
