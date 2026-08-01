@@ -285,7 +285,7 @@ namespace LivingWorldNpcs
             }
 
             //给头盔打贴头皮patch
-            PatchXml();
+        //    PatchXml();
            
 
            

@@ -481,15 +481,21 @@ namespace LivingWorldNpcs
     /// <summary>
     /// 抑制「我们的遭遇 mission」中原版 ConversationMissionLogic 的自动对话与自动结束。
     /// </summary>
+#if false
+    // 🔴 v1.4.7 兼容问题：任何形式的 Harmony Prefix 打在 ConversationMissionLogic.OnMissionTick 上
+    // 都会导致角色创建界面和物品界面的人形模型横置。已尝试 bool Prefix / void Prefix / Prefix(float dt) /
+    // Prefix(ref bool __runOriginal) 全部无效，问题出在 Harmony detour 机制本身。详见 plans/rules/pitfalls.md
     [HarmonyPatch(typeof(ConversationMissionLogic), "OnMissionTick")]
     public static class SuppressVanillaConversationMissionPatch
     {
         [HarmonyPrefix]
-        public static bool Prefix()
+        public static void Prefix(ref bool __runOriginal)
         {
-            return !MapEncounterDialogState.Active;
+            if (MapEncounterDialogState.Active)
+                __runOriginal = false;
         }
     }
+#endif
 
     /// <summary>
     /// 拦截原版 Issue 对话入口句的条件检查 —— 从根本上阻止 "我听说你有个问题需要帮助。" 出现。
