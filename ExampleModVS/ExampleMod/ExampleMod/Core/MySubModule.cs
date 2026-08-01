@@ -72,7 +72,8 @@ namespace LivingWorldNpcs
         {
             StoryDataLoader.LoadEvents();
             var eventsMap = StoryDataLoader.eventsMap;
-            InformationManager.DisplayMessage(new InformationMessage("Story Load to check!"));
+            if (Settings.Instance.ShowDebugMessages)
+                InformationManager.DisplayMessage(new InformationMessage("Story Load to check!"));
             //StoryEvent testEvent = StoryDataLoader.FindEvent("EP120500","0");
             //StoryDebugHelper.PrintEventInfo(testEvent);            
         }
@@ -223,24 +224,21 @@ namespace LivingWorldNpcs
             {
                 File.WriteAllLines(outputPath, outputLines);
 
-                // 提示用户 (Message)
-                // 调试：动作导出成功提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    // [LivingWorldNpcs] 动作已导出至: {PATH}
-                    LWNTextHelper.ResolveCompound("LWN_sys_actions_exported",
-                        "[LivingWorldNpcs] Actions exported to: {PATH}",
-                        ("PATH", outputPath)),
-                    Color.FromUint(0x00FF00)));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_sys_actions_exported",
+                            "[LivingWorldNpcs] Actions exported to: {PATH}",
+                            ("PATH", outputPath)),
+                        Color.FromUint(0x00FF00)));
             }
             catch (Exception ex)
             {
-                // 调试：动作导出失败提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    // [LivingWorldNpcs] 导出失败: {MESSAGE}
-                    LWNTextHelper.ResolveCompound("LWN_sys_actions_export_failed",
-                        "[LivingWorldNpcs] Export failed: {MESSAGE}",
-                        ("MESSAGE", ex.Message)),
-                    Color.FromUint(0xFF0000)));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_sys_actions_export_failed",
+                            "[LivingWorldNpcs] Export failed: {MESSAGE}",
+                            ("MESSAGE", ex.Message)),
+                        Color.FromUint(0xFF0000)));
             }
         }
 

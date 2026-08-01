@@ -13,6 +13,7 @@ using TaleWorlds.Engine;
 using TaleWorlds.DotNet;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.ObjectSystem;
 
 namespace LivingWorldNpcs
 {
@@ -179,6 +180,28 @@ namespace LivingWorldNpcs
             EquipmentElement itemToSteal = agent.SpawnEquipment[index];
             string itemName = itemToSteal.Item.Name.ToString();
 
+            // 1b. 装备降质（发布前平衡）：非 Hero 目标（普通士兵/村民），物品价值远超其身价时
+            //     给装备加"生锈的/破损的"前缀。Hero 不受此规则影响。
+            var victimHero2 = (agent.Character as CharacterObject)?.HeroObject;
+            if (victimHero2 == null && itemToSteal.ItemModifier == null)
+            {
+                int victimValue = CrimePenaltyCalculator.EstimateVictimValue(agent);
+                if (victimValue > 0 && itemToSteal.Item.Value > victimValue * 1.5f)
+                {
+                    ItemModifier poorMod = FindPoorItemModifier(itemToSteal.Item.Type);
+                    if (poorMod != null)
+                    {
+                        itemToSteal = new EquipmentElement(itemToSteal.Item, poorMod);
+                        // 本地化：装备降质提示（品质前缀会显示在物品名上，这里只提醒玩家注意到）
+                        InformationManager.DisplayMessage(new InformationMessage(
+                            LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_degraded",
+                            ("ITEM", itemToSteal.Item.Name.ToString())),
+                            new Color(0.85f, 0.65f, 0.35f)));
+                        DebugLogger.Log($"[Steal] 装备降质: {itemToSteal.Item.Name} ← {agent.Name}（身价={victimValue}, 物价={itemToSteal.Item.Value}, modifier={poorMod.StringId}）");
+                    }
+                }
+            }
+
             // 2. 玩家获得赃物（穿戴件，带品质）：从「身上(世界)」grant 到玩家队伍背包
             if (PartyBase.MainParty != null)
             {
@@ -229,6 +252,45 @@ namespace LivingWorldNpcs
             }
 
             return itemName;
+        }
+
+        /// <summary>
+        /// 查找适合指定物品类型的低品质 ItemModifier（"生锈的"/"破损的"等）。
+        /// 两轮策略（铁律 5）：①按物品类型选预设 ID 尝试 ②遍历全部取 PriceMultiplier&lt;1.0 的兜底。
+        /// </summary>
+        private static ItemModifier FindPoorItemModifier(ItemObject.ItemTypeEnum itemType)
+        {
+            // 第一轮：按物品类型预设低品质 modifier ID
+            string[] poorIds = itemType switch
+            {
+                ItemObject.ItemTypeEnum.Shield
+                    => new[] { "battered_shield", "cracked_shield" },
+                ItemObject.ItemTypeEnum.Bow or ItemObject.ItemTypeEnum.Crossbow
+                    => new[] { "cracked_bow", "splintered_bow", "bent_crossbow", "cracked_crossbow" },
+                ItemObject.ItemTypeEnum.HeadArmor or ItemObject.ItemTypeEnum.BodyArmor
+                    or ItemObject.ItemTypeEnum.LegArmor or ItemObject.ItemTypeEnum.HandArmor
+                    or ItemObject.ItemTypeEnum.Cape
+                    => new[] { "rusty_plate", "dented_plate", "rusty_chain", "loose_chain",
+                               "worn_leather", "battered_leather", "worn_cloth", "ripped_cloth" },
+                _ // 武器类（单手/双手/长杆/飞斧/飞刀/标枪等）
+                    => new[] { "dull_sword", "rusty_sword", "bent_cheap", "cracked_cheap",
+                               "bent_polearm", "cracked_polearm", "dented_axe", "rusty_axe",
+                               "unbalanced_mace", "splintered_mace" },
+            };
+
+            foreach (var id in poorIds)
+            {
+                var mod = MBObjectManager.Instance.GetObject<ItemModifier>(id);
+                if (mod != null) return mod;
+            }
+
+            // 第二轮：兜底——任意低品质 modifier
+            try
+            {
+                return MBObjectManager.Instance.GetObject<ItemModifier>(
+                    m => m.PriceMultiplier < 1.0f && m.PriceMultiplier > 0f);
+            }
+            catch { return null; }
         }
 
         /// <summary>目标身上是否还有任何可偷之物（任一装备槽或钱袋）。扒窃开条前预检用。</summary>

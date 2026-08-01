@@ -117,6 +117,7 @@ namespace LivingWorldNpcs
             {
                 // 关键：将子节点推入引擎的执行栈
 
+                if (Settings.Instance.ShowDebugMessages)
                 InformationManager.DisplayMessage(new InformationMessage($"当前选择值{lastChoice}推入了新的一层", Colors.Red));
                 engine.PushSubScript(node.Children);
                 // 分歧本身不是阻塞的（瞬间完成进入子集），所以返回 false

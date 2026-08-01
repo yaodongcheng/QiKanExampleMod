@@ -1428,7 +1428,8 @@ namespace LivingWorldNpcs
                     // 本地化：动物无法转化为库存物品错误提示
                     string errMsg = LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_animal_convert_fail", ("ANIMAL", animalName), ("MONSTER", monsterId));
                     DebugLogger.Log($"[StealAnimal] {errMsg}");
-                    InformationManager.DisplayMessage(new InformationMessage(errMsg, Colors.Red));
+                    if (Settings.Instance.ShowDebugMessages)
+                        InformationManager.DisplayMessage(new InformationMessage(errMsg, Colors.Red));
                     AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
                     return;
                 }
@@ -1741,8 +1742,8 @@ namespace LivingWorldNpcs
 
             if (!isStealing)
             {
-                // 搜刮昏迷者 = 偷窃：快照 − 剩余 = 实际挑走的，逐件记账（金钱已在开界面时记过）
-                if (IsUnconsciousAlive(corpse) && allItems != null && allItems.Count > 0)
+                // 搜刮 = 偷窃（发布前统一：死/活均走犯罪记账）
+                if (allItems != null && allItems.Count > 0)
                 {
                     var taken = new List<(string, string, int)>();
                     foreach (var grp in allItems.GroupBy(t => t.itemId))
@@ -1787,9 +1788,9 @@ namespace LivingWorldNpcs
             if (allocatedGold > 0)
                 villageGold = allocatedGold;
 
-            // 来源 2：族长家族金库（Hero.Gold = 全族资金，不分死活全偷）
+            // 来源 2：族长家族金库（上限 5000，防一次掏空全族资金——发布前平衡）
             if (isClanLeader && targetHero.Gold > 0)
-                clanGold = targetHero.Gold;
+                clanGold = Math.Min(targetHero.Gold, 5000);
 
             // 来源 3：回落随机（模板 NPC 无分配金且非族长时）
             if (villageGold == 0 && clanGold == 0 && character != null)
@@ -1890,10 +1891,10 @@ namespace LivingWorldNpcs
                         // 本地化：获得物品数量消息
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", lootRoster.Count.ToString())), Colors.Green));
                     }
-                    // 搜刮昏迷者 = 偷窃：物品+金钱一次性记账（须在扒装备前取装备快照）
-                    if (!isStealing && IsUnconsciousAlive(targetAgent))
+                    // 搜刮 = 偷窃：物品+金钱一次性记账（发布前统一：死/活均走犯罪记账）
+                    if (!isStealing)
                         StealManager.RecordUnconsciousLootTheft(targetAgent, CollectEquipmentItems(targetAgent), lootedGold);
-                    if (!isStealing) _lootedCorpses.Add(targetAgent); // 只有尸体才标记为彻底搜空
+                    if (!isStealing) _lootedCorpses.Add(targetAgent); // 倒地目标搜空标记（死/昏迷均防重复搜刮）
                     StealManager.StripAgentEquipment(targetAgent, true, true);
                 },
                 () =>
@@ -1914,8 +1915,8 @@ namespace LivingWorldNpcs
                             InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_clan_gold", ("NAME", targetHero.Name.ToString()), ("GOLD", actual.ToString())), Colors.Yellow));
                     }
 
-                    // 搜刮昏迷者 = 偷窃：金钱在此刻已实际易手，立即记账（物品等界面关闭后按拿走的记）
-                    if (!isStealing && IsUnconsciousAlive(targetAgent) && lootedGold > 0)
+                    // 搜刮 = 偷窃：金钱在此刻已实际易手，立即记账（发布前统一：死/活均走犯罪记账）
+                    if (!isStealing && lootedGold > 0)
                         StealManager.RecordUnconsciousLootTheft(targetAgent, null, lootedGold);
 
                     if (!lootRoster.IsEmpty())
@@ -1965,7 +1966,7 @@ namespace LivingWorldNpcs
                         MobileParty.MainParty.ItemRoster.Add(lootRoster);
                         // 本地化：获得物品数量消息
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", lootRoster.Count.ToString())), Colors.Green));
-                        if (!isStealing && IsUnconsciousAlive(targetAgent))
+                        if (!isStealing)
                             StealManager.RecordUnconsciousLootTheft(targetAgent, CollectEquipmentItems(targetAgent), lootedGold);
                         if (!isStealing) _lootedCorpses.Add(targetAgent);
                         StealManager.StripAgentEquipment(targetAgent, true, true);
@@ -2528,8 +2529,8 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                // 防止你的代码报错导致游戏崩溃
-                InformationManager.DisplayMessage(new InformationMessage("Patch Error: " + ex.Message));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage("Patch Error: " + ex.Message));
             }
 
             // 默认放行

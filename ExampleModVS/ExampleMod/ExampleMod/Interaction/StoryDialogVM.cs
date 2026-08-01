@@ -540,9 +540,9 @@ namespace LivingWorldNpcs
             if (ConflictBarWidth + pixelWidth > MaxProgressBarWidth)
             {
                 pixelWidth = MaxProgressBarWidth - ConflictBarWidth;
-                // 预测条溢出截断的调试飘字：报告总宽度/当前进度/预测增量
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_dialog_prediction_overflow",
-                    ("MAXWIDTH", MaxProgressBarWidth.ToString("F1")), ("CURRENT", ConflictBarWidth.ToString("F1")), ("PIXEL", pixelWidth.ToString("F1"))), Color.FromUint(0xFFFFFF)));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_dialog_prediction_overflow",
+                        ("MAXWIDTH", MaxProgressBarWidth.ToString("F1")), ("CURRENT", ConflictBarWidth.ToString("F1")), ("PIXEL", pixelWidth.ToString("F1"))), Color.FromUint(0xFFFFFF)));
             }
             if (pixelWidth < 0) pixelWidth = 0;
 

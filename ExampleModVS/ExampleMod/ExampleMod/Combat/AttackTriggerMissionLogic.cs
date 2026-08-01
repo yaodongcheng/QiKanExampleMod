@@ -168,13 +168,12 @@ namespace LivingWorldNpcs
                     lock (_deadAgents) // 简单的线程安全（虽然通常在主线程跑，但保险起见）
                     {
                         _deadAgents.Add(affectedAgent);
-                        // 尸体登记提示：报出被登记 Agent 名
-                        InformationManager.DisplayMessage(new InformationMessage(
-                            // Agent {NAME} 被加入尸体列表
-                            LWNTextHelper.ResolveCompound("LWN_combat_body_added",
-                                "Agent {NAME} added to corpse list",
-                                ("NAME", affectedAgent.Name?.ToString() ?? "")),
-                            Colors.Red));
+                        if (Settings.Instance.ShowDebugMessages)
+                            InformationManager.DisplayMessage(new InformationMessage(
+                                LWNTextHelper.ResolveCompound("LWN_combat_body_added",
+                                    "Agent {NAME} added to corpse list",
+                                    ("NAME", affectedAgent.Name?.ToString() ?? "")),
+                                Colors.Red));
                     }
                 }
             }
@@ -197,30 +196,28 @@ namespace LivingWorldNpcs
                 // 扣除“虚拟血量”用于判定胜负
                 _agentA_VirtualHP -= damage;
 
-                // 切磋伤害提示（甲）：谁击中谁、伤害、剩余虚拟血量
-                InformationManager.DisplayMessage(new InformationMessage(
-                    // {ATTACKER} 击中 {VICTIM}，伤害: {DAMAGE}, ...
-                    LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
-                        "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
-                        ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
-                        ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
-                        ("DAMAGE", damage.ToString("F1")),
-                        ("HP", _agentA_VirtualHP.ToString("F1"))),
-                    Colors.Yellow));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
+                            "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
+                            ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
+                            ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
+                            ("DAMAGE", damage.ToString("F1")),
+                            ("HP", _agentA_VirtualHP.ToString("F1"))),
+                        Colors.Yellow));
             }
             else if (affectedAgent == _agentB)
             {
                 _agentB_VirtualHP -= damage;
-                // 切磋伤害提示（乙）：谁击中谁、伤害、剩余虚拟血量
-                InformationManager.DisplayMessage(new InformationMessage(
-                    // {ATTACKER} 击中 {VICTIM}，伤害: {DAMAGE}, ...
-                    LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
-                        "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
-                        ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
-                        ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
-                        ("DAMAGE", damage.ToString("F1")),
-                        ("HP", _agentB_VirtualHP.ToString("F1"))),
-                    Colors.Yellow));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
+                            "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
+                            ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
+                            ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
+                            ("DAMAGE", damage.ToString("F1")),
+                            ("HP", _agentB_VirtualHP.ToString("F1"))),
+                        Colors.Yellow));
             }
 
             // ==========================================
@@ -250,13 +247,12 @@ namespace LivingWorldNpcs
             if (loser != null && _agentA != null && _agentB != null)
             {
                 Agent winner = (loser == _agentA) ? _agentB : _agentA;
-                // 切磋结束提示：报出胜者
-                InformationManager.DisplayMessage(new InformationMessage(
-                    // 切磋结束，胜者: {NAME}
-                    LWNTextHelper.ResolveCompound("LWN_combat_duel_end",
-                        "Duel over, winner: {NAME}",
-                        ("NAME", winner.Name?.ToString() ?? "")),
-                    Colors.Green));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_combat_duel_end",
+                            "Duel over, winner: {NAME}",
+                            ("NAME", winner.Name?.ToString() ?? "")),
+                        Colors.Green));
             }
 
             // 3. 恢复 AI 状态
@@ -406,15 +402,14 @@ namespace LivingWorldNpcs
             // 只要 attacker 或 victim 任意一方是玩家就打印
             if ((attacker.IsMainAgent || victim.IsMainAgent) && victim != attacker)
             {
-                // 调试：伤害事件日志提示
-                InformationManager.DisplayMessage(new InformationMessage(
-                    // 调试：伤害日志（AttackTriggerMissionLogic - OnRegisterBlow）
-                    LWNTextHelper.ResolveCompound("LWN_combat_damage_log",
-                        "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",
-                        ("ATTACKER", attacker.Name?.ToString() ?? ""),
-                        ("VICTIM", victim.Name?.ToString() ?? ""),
-                        ("DAMAGE", b.InflictedDamage.ToString())),
-                    Colors.Yellow));
+                if (Settings.Instance.ShowDebugMessages)
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_combat_damage_log",
+                            "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",
+                            ("ATTACKER", attacker.Name?.ToString() ?? ""),
+                            ("VICTIM", victim.Name?.ToString() ?? ""),
+                            ("DAMAGE", b.InflictedDamage.ToString())),
+                        Colors.Yellow));
             }
 
             if (!attacker.IsMainAgent || !victim.IsHuman || victim.IsMainAgent) return;

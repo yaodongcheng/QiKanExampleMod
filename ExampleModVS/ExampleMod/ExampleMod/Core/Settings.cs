@@ -39,8 +39,11 @@ namespace LivingWorldNpcs
         public string WarriorTerms { get; set; } = LWNTextHelper.ResolveText("LWN_config_warrior_terms", "Use terms like \"my lord\" and \"sir\" appropriate to the medieval setting.");
         public string FemaleSelfAddress { get; set; } = "";
 
+        // ── 调试消息全局开关（工作时打开，发布前关掉）──
+        public bool ShowDebugMessages { get; set; } = true;
+
         // ── 目击系统开关（默认开启，关掉后偷窃/犯罪不会被目击）──
-        public bool WitnessSystemEnabled { get; set; } = false;
+        public bool WitnessSystemEnabled { get; set; } = true;
 
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
