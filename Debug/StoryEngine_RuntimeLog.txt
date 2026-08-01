@@ -1,17 +1,112 @@
-﻿[22:16:15.313] LWNTextHelper: Loaded 2390 English fallback entries from 2 files
-[22:16:31.793] [WorldEventStore] Deserialized 0 events, 0 alerts
-[22:16:35.814] [Detention] Game menus registered
-[22:16:36.823] [AddQuickInformation] "由于使用了作弊，成就已被禁用。"
-[22:16:37.216] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+﻿[20:58:07.062] LWNTextHelper: Loaded 2390 English fallback entries from 2 files
+[20:58:22.555] [WorldEventStore] Deserialized 1 events, 0 alerts
+[20:58:26.360] [Detention] Game menus registered
+[20:58:27.217] [AddQuickInformation] "成就被禁用！"
+[20:58:29.641] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
     标题: 城镇中心
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
-      1. 前往主楼  [id=town_keep] 可点
-      2. 前往竞技场  [id=town_arena] 可点
-      3. 前往酒馆区  [id=town_backstreet] 可点
-      4. 招募士兵  [id=recruit_volunteers] 可点
-      5. 交易  [id=trade] 可点
-      6. 进入铁匠铺  [id=town_smithy] 可点
-      7. 在镇中心附近转转  [id=town_streets] 可点
+      1. 在镇中心附近转转  [id=town_streets] 可点
+      2. 前往主楼  [id=town_keep] 可点
+      3. 前往竞技场  [id=town_arena] 可点
+      4. 前往酒馆区  [id=town_backstreet] 可点
+      5. 招募士兵  [id=recruit_volunteers] 可点
+      6. 交易  [id=trade] 可点
+      7. 进入铁匠铺  [id=town_smithy] 可点
       8. 稍作等待  [id=town_wait] 可点
       9. 离开  [id=town_leave] 可点
+[20:58:35.069] [GameMenu] ● 点击 menu=town 选项="在镇中心附近转转" [id=town_streets] @吕卡隆(城镇)
+[20:58:57.861] [DisplayMessage] [Green] "你屏住呼吸，悄悄伸出了手..."
+[20:59:01.302] [DarkTheft] Unwitnessed: 圆顶锅盔衬链甲 → pending misconduct_town_ES4_2185862 stays Dormant
+[20:59:01.303] [DisplayMessage] [RGB(0.3,0.9,0.3)] "神不知鬼不觉:圆顶锅盔衬链甲"
+[20:59:01.303] [StealBar] 完美窃取 圆顶锅盔衬链甲 ← 帝国弩手军士（零警戒脉冲）
+[20:59:02.703] [DisplayMessage] [RGB(0.9,0.3,0.3)] "手滑了！"
+[20:59:02.703] [StealBar] 扒窃失误 ← 帝国弩手军士（+3 警戒）
+[20:59:02.798] [WorldEvent] misconduct_town_ES4_2185862 Stage: Dormant → Active
+[20:59:02.804] [CommissionIssue] StageChanged: event=misconduct_town_ES4_2185862 stage=Active settlement=吕卡隆 — refreshing issue signals
+[20:59:02.815] [CommissionIssue] Assigned CommissionHubIssue to 木匠安德洛斯 (CharacterObject_1991) crimeEvent=misconduct_town_ES4_2185862 stage=Active
+[20:59:02.815] [RegisterWitness] 帝国弩手军士 witnessed crime → WorldEvent misconduct_town_ES4_2185862 Stage → Active (suspect=player)
+[20:59:02.816] [Brain-Phase] 帝国弩手军士(Idx=56) 警戒上升: Normal → Alarmed (警戒值=2.98) 因素=[Steal=2.98] → 发送 'BecomeAlarmed'
+[20:59:02.820] [Brain-Receive] 帝国弩手军士(Idx=56) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=0 | 阶段=Normal
+[20:59:02.821] [Brain-Clear] 帝国弩手军士(Idx=56) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[20:59:02.822] [ConvLock] Acquire by 帝国弩手军士(Idx=56) | reason=StartL3Confrontation
+[20:59:02.822] [Brain-Enqueue] 帝国弩手军士(Idx=56) 入队 FollowAgentAction | 当前行为=null | 队列=0→1
+[20:59:02.823] [AI-Debug] Suspend 帝国弩手军士 (Idx=56) | 集合size=1 | 当前行为=null
+[20:59:02.823] [Brain-Enqueue] 帝国弩手军士(Idx=56) 入队 LookAtAction | 当前行为=null | 队列=1→2
+[20:59:02.824] [Brain-Enqueue] 帝国弩手军士(Idx=56) 入队 AlertForceConversationAction | 当前行为=null | 队列=2→3
+[20:59:02.827] [Brain-Tick] 帝国弩手军士(Idx=56) 开始执行 FollowAgentAction | 队列剩余=2
+[20:59:02.829] [Brain-Tick] 帝国弩手军士(Idx=56) 完成 FollowAgentAction
+[20:59:02.834] [Brain-Tick] 帝国弩手军士(Idx=56) 开始执行 LookAtAction | 队列剩余=1
+[20:59:02.834] [Brain-Tick] 帝国弩手军士(Idx=56) 完成 LookAtAction
+[20:59:02.838] [Brain-Tick] 帝国弩手军士(Idx=56) 开始执行 AlertForceConversationAction | 队列剩余=0
+[20:59:02.839] [AlertForceConv] 帝国弩手军士(Idx=56) 模板NPC(帝国弩手军士) — 使用 InjectScriptAsOpening (start token)
+[20:59:02.839] [AlertForceConv] 帝国弩手军士(Idx=56) ActiveConversationAgent 设置成功
+[20:59:02.841] [ConvLock] Acquire by 帝国弩手军士(Idx=56) | reason=MissionStartPrefix
+[20:59:02.841] [ConvEntry] Mission start Prefix: pre-injecting for trigger=Alert partner=帝国弩手军士
+[20:59:02.843] [ConvEntry] FindOnGoing(town_ES4) → evt=misconduct_town_ES4_2185862 stage=Active assault=[none:0] pendingId=misconduct_town_ES4_2185862 pendingStage=Active pendingAssault=[none:0]
+[20:59:02.845] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 匹配到 0 个 owner: []（现存 0 个）
+[20:59:02.845] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_town_ES4_2185862": 没有匹配的 owner（现存 0 个: []）
+[20:59:02.845] [ConvEntry] BuildScript: partner=null partnerStringId=null agent=帝国弩手军士 agentIdx=56 character=帝国弩手军士 characterStringId=imperial_sergeant_crossbowman evtId=misconduct_town_ES4_2185862 trigger=Alert confrontation=Recover triggerAction=Steal
+[20:59:02.846] [Placeholder] SpeakingWitness match: speaker=null speakerTemplateId=imperial_sergeant_crossbowman totalTestimonies=2 ids=[dark:actions=21:first=Steal=保管箱, imperial_sergeant_crossbowman:actions=1:first=Steal=]
+[20:59:02.846] [Placeholder] SpeakingWitness try: t.WitnessHeroId=null t.TemplateId=null spId=null spTplId=imperial_sergeant_crossbowman matchHero=False matchTpl=False
+[20:59:02.847] [Placeholder] SpeakingWitness try: t.WitnessHeroId=null t.TemplateId=imperial_sergeant_crossbowman spId=null spTplId=imperial_sergeant_crossbowman matchHero=False matchTpl=True
+[20:59:02.856] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
+[20:59:02.865] [Placeholder] {TARGET} resolve: SpeakingWitness=imperial_sergeant_crossbowman primaryAction=Steal: r.TargetName= → ""
+[20:59:02.866] [Placeholder] {TARGET} resolve: SpeakingWitness=imperial_sergeant_crossbowman primaryAction=Steal: r.TargetName= → ""
+[20:59:02.869] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "镇上丢了一件啤酒、一件artisan_beer等21项财物，市值12416第纳尔，一直没找到是谁干的。镇上人都知道了，闹事按规矩罚2倍，一共24832第纳尔。你认不认？"
+[20:59:02.869] [Placeholder] {TARGET} resolve: SpeakingWitness=imperial_sergeant_crossbowman primaryAction=Steal: r.TargetName= → ""
+[20:59:02.870] [Placeholder] {TARGET} resolve: SpeakingWitness=imperial_sergeant_crossbowman primaryAction=Steal: r.TargetName= → ""
+[20:59:02.873] [Placeholder][对话预填充] NpcLine: "{RestitutionBreakdown}" → "镇上丢了一件啤酒、一件artisan_beer等21项财物，市值12416第纳尔，一直没找到是谁干的。镇上人都知道了，闹事按规矩罚2倍，一共24832第纳尔。你认不认？"
+[20:59:02.874] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[0] id=injectedStart NpcLine="（冷淡地）我看见了！你偷了！交出来！"
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "东西还你，我们两清。" → INTENT:ReturnStolenItems | NextNodeOnSuccess=alert_recover_return_ack
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "你哪只眼睛看见的？" → INTENT:CharmDefense [SkillCheck] | NextNodeOnSuccess=alert_recover_charm_ok | NextNodeOnFail=alert_recover_charm_fail
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[3] "推开就跑" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[1] id=alert_recover_return_ack NpcLine="东西都在。……算你老实。别再来了。"
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[2] id=restitution_demand NpcLine="" [Lazy]
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就按这个价。" → INTENT:PayRestitution | NextNodeOnSuccess=restitution_pay_ack
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "太贵了，能便宜点吗？" → INTENT:Settle [SkillCheck] | NextNodeOnSuccess=restitution_haggle_ok | NextNodeOnFail=restitution_haggle_fail
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "太贵了，不赔。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[3] id=restitution_pay_ack NpcLine="好，钱留下，这事就算了。"
+[20:59:02.875] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[4] id=continue_chat_safe NpcLine="还有什么想说的？"
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "我走了。" → INTENT:WalkAway Param=safe | NextNodeOnSuccess=(关闭)
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[5] id=restitution_haggle_ok NpcLine="……行，原价24832，给你对半砍——12416。这是最后价了，不能再少了。" [Lazy]
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "行，就这个数——12416第纳尔。" → INTENT:PayRestitution Param=haggle | NextNodeOnSuccess=restitution_pay_ack
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "还是太贵，不赔了。" → NONE | NextNodeOnSuccess=restitution_refuse_warn
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[6] id=restitution_refuse_warn NpcLine="" [Lazy]
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[7] id=continue_chat NpcLine="" [Lazy]
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "谁拦着我就杀谁！" → INTENT:FightVillagers | NextNodeOnSuccess=alert_esc_fight_ack
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[1] "我愿意赔偿。" → NONE | NextNodeOnSuccess=restitution_demand
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[2] "我没钱。要抓就抓吧。" → INTENT:SurrenderJail Param=surrender_jail | NextNodeOnSuccess=alert_esc_jail_ack
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[8] id=alert_esc_fight_ack NpcLine="你疯了！快叫人！"
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[9] id=alert_esc_jail_ack NpcLine="没钱还敢闹事？！来人，把他关进地牢！"
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[10] id=restitution_haggle_fail NpcLine="不行，一文都不能少。"
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=restitution_demand
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[11] id=alert_recover_charm_ok NpcLine="……我可能看错了。"
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat_safe
+[20:59:02.876] [CrimeDialog] trigger=Alert speaker=(template) stage=Active Turn[12] id=alert_recover_charm_fail NpcLine="我两只眼睛都看见了！"
+[20:59:02.877] [CrimeDialog] trigger=Alert speaker=(template) stage=Active   Transition[0] "嗯…" → NONE | NextNodeOnSuccess=continue_chat
+[20:59:02.878] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_town_ES4_2185862_v0_atk_0' | priority=200 | owner=crime_misconduct_town_ES4_2185862_v0
+[20:59:02.880] [ConvCondition] Building condition for intent=ReturnStolenItems playerLine="东西还你，我们两清。" actionParam=(null)
+[20:59:02.880] [ConvCondition] Building condition for intent=CharmDefense playerLine="你哪只眼睛看见的？" actionParam=(null)
+[20:59:02.880] [ConvCondition] Building condition for intent=FightVillagers playerLine="推开就跑" actionParam=(null)
+[20:59:02.881] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[20:59:02.881] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[20:59:02.881] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——12416第纳尔。" actionParam=haggle
+[20:59:02.881] [ConvCondition] Building condition for intent=FightVillagers playerLine="谁拦着我就杀谁！" actionParam=(null)
+[20:59:02.881] [ConvCondition] Building condition for intent=SurrenderJail playerLine="我没钱。要抓就抓吧。" actionParam=surrender_jail
+[20:59:02.881] [ConvCondition] Building condition for intent=WalkAway playerLine="我走了。" actionParam=safe
+[20:59:02.881] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就按这个价。" actionParam=(null)
+[20:59:02.882] [ConvCondition] Building condition for intent=Settle playerLine="太贵了，能便宜点吗？" actionParam=(null)
+[20:59:02.882] [ConvCondition] Building condition for intent=PayRestitution playerLine="行，就这个数——12416第纳尔。" actionParam=haggle
+[20:59:02.882] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_town_ES4_2185862 stage=Active trigger=Alert partner=帝国弩手军士 nodes=18
+[20:59:02.914] [VanillaDialog] NPC  | NPC: 帝国弩手军士 (CharacterId: imperial_sergeant_crossbowman) says: "（冷淡地）我看见了！你偷了！交出来！"
+[20:59:02.918] [ConvCondition] intent=ReturnStolenItems playerLine="东西还你，我们两清。" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[20:59:02.919] [IntentEval] CharmDefense → Show
+[20:59:02.919] [ConvCondition] intent=CharmDefense playerLine="你哪只眼睛看见的？" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[20:59:02.919] [IntentEval] FightVillagers → Show
+[20:59:02.919] [ConvCondition] intent=FightVillagers playerLine="推开就跑" npc=(null) settlement=吕卡隆 evt=misconduct_town_ES4_2185862 actionParam=(null) eligibility=Enabled reason=
+[20:59:02.928] [ConvEntry] FindOnGoing(town_ES4) → evt=misconduct_town_ES4_2185862 stage=Active assault=[none:0] pendingId=misconduct_town_ES4_2185862 pendingStage=Active pendingAssault=[none:0]
+[20:59:02.928] [AlertForceConv] 帝国弩手军士(Idx=56) 对话启动成功
