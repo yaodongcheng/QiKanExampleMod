@@ -89,7 +89,7 @@
                                                     Brush.FontSize="180" DoNotAcceptEvents="true" />
                                         
                                         <!-- 模糊信息 -->
-                                        <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                        <ListPanel Id="LWN_Popup_BlindBoxInfo" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                                    VerticalAlignment="Bottom" MarginBottom="0" 
                                                    LayoutMethod="VerticalTopToBottom" StackLayout.LayoutMethod="VerticalTopToBottom"
                                                    DoNotAcceptEvents="true"> 
@@ -214,8 +214,8 @@
                                             DoNotAcceptEvents="true"/>
 
                                 <!-- 战利品列表 -->
-                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                                           MarginTop="135" MarginLeft="10" MarginRight="10" 
+                                <ListPanel Id="LWN_Popup_LootList" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                           MarginTop="135" MarginLeft="10" MarginRight="10"
                                            LayoutMethod="VerticalBottomToTop" StackLayout.LayoutMethod="VerticalBottomToTop"
                                            DoNotAcceptEvents="true">
                                     <Children>

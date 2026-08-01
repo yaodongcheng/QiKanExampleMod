@@ -94,6 +94,32 @@ per-Mission 生命周期，新 Mission 自动清空。
 
 **文件位置**：`Combat/AttackTriggerMissionLogic.cs`
 
+## Gauntlet UI：双版本 XML 布局兼容 — `GUI/StackLayoutVerticalSwapPatch.cs`
+
+**问题**：v1.2.12 的 `StackLayout.LayoutLinearVertical` 有 bug——`VerticalBottomToTop` 和 `VerticalTopToBottom` 实现互换了。v1.3.0+ 修复了该 bug，但导致同一套 XML 在两个版本上视觉顺序相反。
+
+**方案**：Harmony patch `StackLayout.OnLayout` 的 Prefix，对标记了 `Id="LWN_xxx"` 的 ListPanel 做 swap。只在 `#if MB2_GE_130`（v1.3.0+）编译。v1.2.12 不编译此 patch，保持 bug 行为。双版本共用同一套 XML。
+
+### 用法：需要 swap 的 ListPanel 加 Id
+
+```xml
+<!-- XML：在需要 swap 的 ListPanel 上直接加 Id="LWN_xxx" -->
+<ListPanel Id="LWN_MainList_InteractArea" StackLayout.LayoutMethod="VerticalBottomToTop" ...>
+```
+
+```csharp
+// C# 自动匹配：widget.Id.StartsWith("LWN") → swap VerticalBottomToTop ↔ VerticalTopToBottom
+// 无需注册新 Id，只需确保前缀 "LWN"
+```
+
+### 关键踩坑
+
+- **Id 必须写在 `<ListPanel>` 自身上**，不能写在父级 `<Window>` 上。`<Window>` 是 `CustomWidgetType`（从单独 XML 加载），其内部 widget 树结构与外层不同，`ParentWidget` 链可能不通。
+- **`Tag` 属性在 GauntletUI XML 中不生效**——XML 解析器不把 `Tag` 映射到 `Widget.Tag`。
+- **`LayoutMethod` 直接属性无效**——GauntletUI ListPanel 的有效属性是 `StackLayout.LayoutMethod`（attached property）。
+
+**文件位置**：`GUI/StackLayoutVerticalSwapPatch.cs`
+
 ## Gauntlet UI：新增 VM 属性 → 必同步改 XML
 
 **铁律**：给 ViewModel（`.cs`）新增 `[DataSourceProperty]` 属性时，**必须同时修改对应的 `.xml` widget 绑定文件**。只加 C# 属性不改 XML，Gauntlet 不会自动绑定——属性白写了。

@@ -12,8 +12,8 @@
                 MarginRight="0" MarginTop="300" DoNotAcceptEvents="true"
                 IsVisible="@AreOptionsVisible">
           <Children>
-            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" 
-                       StackLayout.LayoutMethod="VerticalTopToBottom"
+            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       Id="LWN_DialogChoice_Options" StackLayout.LayoutMethod="VerticalTopToBottom"
                        DataSource="{OptionList}">
                 <ItemTemplate>
                     <!-- 单个选项按钮模板 -->
@@ -69,7 +69,7 @@
                 <Children>
                     <!-- 内容布局 -->
                     <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                               LayoutMethod="VerticalTopToBottom" StackLayout.LayoutMethod="VerticalTopToBottom" DoNotAcceptEvents="true"
+                               Id="LWN_DialogChoice_Content" LayoutMethod="VerticalTopToBottom" StackLayout.LayoutMethod="VerticalTopToBottom" DoNotAcceptEvents="true"
                                PaddingLeft="40" PaddingRight="40" PaddingTop="20" PaddingBottom="30">
                         <Children>
                              <!-- "点击继续" 提示（NPC 说话中显示，选项出现时隐藏） -->
@@ -109,7 +109,7 @@
         <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" 
                    SuggestedWidth="@MaxProgressBarWidth"
                    HorizontalAlignment="Center" VerticalAlignment="Top" MarginTop="50"
-                   StackLayout.LayoutMethod="VerticalBottomToTop"
+                   Id="LWN_DialogChoice_Conflict" StackLayout.LayoutMethod="VerticalBottomToTop"
                    IsVisible="@IsConflictInfoVisible" 
                    DoNotAcceptEvents="true">
           <Children>      
@@ -192,7 +192,7 @@
                                   DoNotAcceptEvents="false">
                         <Children>
                             <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" DoNotAcceptEvents="true"
-                                       StackLayout.LayoutMethod="VerticalBottomToTop">
+                                       Id="LWN_DialogChoice_SkillCheck" StackLayout.LayoutMethod="VerticalBottomToTop">
                                 <Children>
                                     
                                     <!-- 1. 锁图标 -->

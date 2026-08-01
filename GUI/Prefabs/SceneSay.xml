@@ -11,7 +11,7 @@
             <Children>
                 
                 <!-- 3. 内容布局 (垂直排列：名字在上，内容在下，但是因为是Bottom，所以会反着来) -->
-                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                <ListPanel Id="LWN_SceneSay_Content" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                            LayoutMethod="VerticalTopToBottom" StackLayout.LayoutMethod="VerticalTopToBottom" DoNotAcceptEvents="true"
                            PaddingLeft="40" PaddingRight="40" PaddingTop="20" PaddingBottom="30">
                     <Children>

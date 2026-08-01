@@ -7,7 +7,7 @@
       <Children>
 
         <!-- 2. 主列表：从下往上排列 (名字在最下，选项在上方) -->
-        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalTopToBottom"
+        <ListPanel Id="LWN_InteractArea_Main" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalTopToBottom"
                    LayoutMethod="VerticalBottomToTop">
             <Children>
 
@@ -23,7 +23,7 @@
                                 MarginBottom="5" IsVisible="@HasTarget"
                                />
 
-                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                <ListPanel Id="LWN_InteractArea_InteractionList" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                            DataSource="{InteractionList}"
                            LayoutMethod="VerticalBottomToTop" StackLayout.LayoutMethod="VerticalBottomToTop"
                            MarginBottom="20"

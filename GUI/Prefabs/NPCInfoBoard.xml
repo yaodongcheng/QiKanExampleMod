@@ -101,7 +101,7 @@
                 <!-- ================= Tab 1: 个人属性 ================= -->
 
 							
-				<ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsPersonalSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+				<ListPanel Id="LWN_InfoBoard_Personal" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsPersonalSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
                     <Children>
                
                      <!-- 左对齐：HorizontalAlignment="Left" + MarginLeft="20" -->
@@ -129,7 +129,7 @@
           
 				
 				<!-- ================= Tab 3: 家族信息 ================= -->
-                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsClanSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                <ListPanel Id="LWN_InfoBoard_Clan" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsClanSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
                                     Text="@ClanInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
@@ -138,7 +138,7 @@
 				
 
                 <!-- ================= Tab 3: 王国信息 ================= -->
-                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsKingdomSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                <ListPanel Id="LWN_InfoBoard_Kingdom" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsKingdomSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
                                     Text="@KingdomInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
@@ -146,7 +146,7 @@
                 </ListPanel>
 
                 <!-- ================= Tab 4: 人际关系 ================= -->
-                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsRelationSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                <ListPanel Id="LWN_InfoBoard_Relation" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsRelationSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
                                     Text="@RelationInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
@@ -154,7 +154,7 @@
                 </ListPanel>
 
                 <!-- ================= Tab 5: 记忆 ================= -->
-                 <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsMemorySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                 <ListPanel Id="LWN_InfoBoard_Memory" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsMemorySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
                                     Text="@MemoryInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
@@ -162,7 +162,7 @@
                 </ListPanel>
 
                 <!-- ================= Tab 6: 背包和辎重物品 ================= -->
-                 <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsInventorySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                 <ListPanel Id="LWN_InfoBoard_Inventory" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsInventorySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
                                     Text="@InventoryInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
@@ -170,7 +170,7 @@
                 </ListPanel>
 				
 				<!-- ================= Tab 7: 部队信息 ================= -->
-                 <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsPartySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                 <ListPanel Id="LWN_InfoBoard_Party" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsPartySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
                     <Children>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
                                     Text="@PartyInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>

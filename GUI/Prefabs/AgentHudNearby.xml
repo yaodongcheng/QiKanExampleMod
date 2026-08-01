@@ -23,7 +23,7 @@
                 <Children>
                   <!-- 使用 ListPanel 实现垂直堆叠：从上到下为 警戒眼睛 -> 名字 -> 说话 -> 血条 -> 伤害 -->
                   <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                             StackLayout.LayoutMethod="VerticalBottomToTop"
+                             Id="LWN_AgentHud_Main" StackLayout.LayoutMethod="VerticalBottomToTop"
                              HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Children>
 
@@ -83,7 +83,7 @@
 
                       <!-- 3.血条部分 -->
                       <ListPanel WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren"
-                                   SuggestedWidth="100"
+                                   Id="LWN_AgentHud_HealthBar" SuggestedWidth="100"
                                    StackLayout.LayoutMethod="VerticalBottomToTop"
                                    HorizontalAlignment="Center">
                           <Children>
