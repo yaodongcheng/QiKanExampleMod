@@ -1601,7 +1601,9 @@ namespace LivingWorldNpcs
 
                     EquipmentIndex mainWpn = V.MainWpn(mainAgent);
                     attackAnim = mainWpn != EquipmentIndex.None ? "act_1h_bash" : "act_shield_bash";
-                    AgentControlHelper.ForcePlayAction(mainAgent, attackAnim);
+                    // 玩家永远是 as_human_warrior，直接用 SetPose 跳过 SetActionSet，
+                    // 避免不必要的 native AnimationSystemData 替换触发异步 AI tick 竞态
+                    AgentControlHelper.SetPose(mainAgent, attackAnim);
                     await Task.Delay(400);
                 }
 
