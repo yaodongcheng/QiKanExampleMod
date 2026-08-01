@@ -1,5 +1,5 @@
 <Prefab>
-  <Window>
+  <Window Id="LWN">
     <!-- 1. 全屏背景层：半透明黑色，阻挡视线 -->
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
             HorizontalAlignment="Center" VerticalAlignment="Center"

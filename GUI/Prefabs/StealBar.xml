@@ -1,5 +1,5 @@
 <Prefab>
-  <Window>
+  <Window Id="LWN">
     <!-- 全屏根 = 轻遮罩 + 点击盾牌：面板外点击到此为止（防穿透到游戏误挥刀），20% 黑压暗世界聚焦面板 -->
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
             Sprite="BlankWhiteSquare_9" Color="#00000033"

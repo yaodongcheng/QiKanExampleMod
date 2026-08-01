@@ -1,5 +1,5 @@
 <Prefab>
-  <Window>
+  <Window Id="LWN">
     <!-- 根容器：IsVisible 绑定了 IsDuelActive，只有当它为真时，整个界面才显示 -->
     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsDuelActive">
       

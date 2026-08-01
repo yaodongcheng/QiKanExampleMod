@@ -1,5 +1,5 @@
 <Prefab>
-  <Window>
+  <Window Id="LWN">
     <!-- 1. 底部居中容器 -->
     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="1920"
             HorizontalAlignment="Center" VerticalAlignment="Bottom"  IsVisible = "@IsVisible"  Command.Click="ExecuteClick"

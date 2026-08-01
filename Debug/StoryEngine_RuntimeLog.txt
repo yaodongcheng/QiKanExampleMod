@@ -1,8 +1,8 @@
-﻿[14:31:03.613] LWNTextHelper: Loaded 2390 English fallback entries from 2 files
-[14:31:31.845] [WorldEventStore] Deserialized 1 events, 0 alerts
-[14:31:35.745] [Detention] Game menus registered
-[14:31:36.579] [AddQuickInformation] "成就被禁用！"
-[14:31:40.006] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
+﻿[14:42:52.183] LWNTextHelper: Loaded 2390 English fallback entries from 2 files
+[14:43:04.657] [WorldEventStore] Deserialized 1 events, 0 alerts
+[14:43:08.514] [Detention] Game menus registered
+[14:43:09.366] [AddQuickInformation] "成就被禁用！"
+[14:43:11.243] [GameMenu] ▶ 打开 menu=town @吕卡隆(城镇)
     标题: 城镇中心
     正文: <a style="Link.Settlement" href="event:Settlement-town_ES4"><b>吕卡隆</b></a>被<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的女皇，<a style="Link.Hero" href="event:Hero-lord_1_14"><b>拉盖娅</b></a>统治着。这座城镇的经济水平一般。你听到一些关于物价高昂、物资短缺和商家贪婪的抱怨，但这些其实都再正常不过了。
     选项:
@@ -15,12 +15,12 @@
       7. 进入铁匠铺  [id=town_smithy] 可点
       8. 稍作等待  [id=town_wait] 可点
       9. 离开  [id=town_leave] 可点
-[14:31:43.632] [GameMenu] ● 点击 menu=town 选项="前往酒馆区" [id=town_backstreet] @吕卡隆(城镇)
-[14:31:43.640] [GameMenu] ▶ 打开 menu=town_backstreet @吕卡隆(城镇)
+[14:43:12.744] [GameMenu] ● 点击 menu=town 选项="前往酒馆区" [id=town_backstreet] @吕卡隆(城镇)
+[14:43:12.752] [GameMenu] ▶ 打开 menu=town_backstreet @吕卡隆(城镇)
     标题: 后街
     正文: 你进入了后巷。当地酒馆内似乎非常热闹。
     选项:
       1. 进入酒馆  [id=town_tavern] 可点
       2. 返回城镇中心  [id=town_backstreet_back] 可点
-[14:31:44.472] [GameMenu] ● 点击 menu=town_backstreet 选项="进入酒馆" [id=town_tavern] @吕卡隆(城镇)
-[14:31:45.192] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → 酒馆里
+[14:43:13.586] [GameMenu] ● 点击 menu=town_backstreet 选项="进入酒馆" [id=town_tavern] @吕卡隆(城镇)
+[14:43:14.265] [WorldEvent] Upgraded legacy event misconduct_town_ES4_2185862 LocationName: null → 酒馆里
