@@ -39,6 +39,17 @@ namespace LivingWorldNpcs
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
             harmony.PatchAll( );
 
+            // ── 全局未处理异常日志：mod 发布后玩家遇到崩溃时自动写入 DebugLogger ──
+            try
+            {
+                AppDomain.CurrentDomain.UnhandledException += (sender, args)
+                    => DebugLogger.Log($"[Crash] UnhandledException: {(args.ExceptionObject as Exception)?.ToString() ?? args.ExceptionObject?.ToString() ?? "unknown"}");
+            }
+            catch (Exception ex)
+            {
+                Debug.PrintError($"[LivingWorldNpcs] Failed to register crash handler: {ex.Message}");
+            }
+
             //加载策划表数据
             try
             {

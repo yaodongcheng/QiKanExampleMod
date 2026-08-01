@@ -113,11 +113,7 @@ namespace LivingWorldNpcs
                     // 如果点无效，尝试获取最近的导航网格
                     if (targetPos.GetNavMesh() == UIntPtr.Zero)
                     {
-#if !MB2_V1212
-                        target.Mission.Scene.GetNavigationMeshForPosition(in navMeshPos);
-#else
-                        target.Mission.Scene.GetNavigationMeshForPosition(ref navMeshPos);
-#endif
+                        V.NavMeshSnap(target.Mission.Scene, ref navMeshPos);
                         targetPos = new WorldPosition(target.Mission.Scene, navMeshPos);
                     }
                     validPoints.Add(new StagePoint

@@ -170,11 +170,7 @@ namespace LivingWorldNpcs
             string stTarget = party.ShortTermTargetParty?.StringId ?? "";
             string def = party.DefaultBehavior.ToString();
             string defTarget = party.TargetSettlement?.StringId
-#if !MB2_V1212
-                ?? party.MoveTargetParty?.StringId
-#else
-                ?? party.Ai?.MoveTargetParty?.StringId
-#endif
+                ?? V.MoveTarget(party)?.StringId
                 ?? "";
             return $"{st}|{stTarget}|{def}|{defTarget}";
         }
@@ -197,11 +193,7 @@ namespace LivingWorldNpcs
 
             string goal = defaultBehavior.ToString();
             string defTarget = party.TargetSettlement?.Name?.ToString()
-#if !MB2_V1212
-                ?? party.MoveTargetParty?.Name?.ToString() ?? "";
-#else
-                ?? party.Ai?.MoveTargetParty?.Name?.ToString() ?? "";
-#endif
+                ?? V.MoveTarget(party)?.Name?.ToString() ?? "";
             if (!string.IsNullOrEmpty(defTarget)) goal = $"{defaultBehavior}→{defTarget}";
 
             return $"shortTerm={instant} default={goal} pos={pos} troops={troops}";
@@ -317,11 +309,7 @@ namespace LivingWorldNpcs
 
                 // 刚到达：记录时间，切换为巡逻 Action（原生 API + true 防拐跑）
                 _arrivedParties[partyId] = currentDay;
-#if !MB2_V1212
-                SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement, MobileParty.NavigationType.Default, false, false);
-#else
-                SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
-#endif
+                V.PatrolAround(party, evt.TargetSettlement);
                 party.Ai.SetDoNotMakeNewDecisions(true);
 
                 string loc = evt.TargetSettlement?.Name?.ToString() ?? "目标";
@@ -364,11 +352,7 @@ namespace LivingWorldNpcs
                     if (_arrivedParties.ContainsKey(partyId)) continue; // 已在巡逻
 
                     _arrivedParties[partyId] = currentDay;
-#if !MB2_V1212
-                    SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement, MobileParty.NavigationType.Default, false, false);
-#else
-                    SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, evt.TargetSettlement);
-#endif
+                    V.PatrolAround(party, evt.TargetSettlement);
                     party.Ai.SetDoNotMakeNewDecisions(true);
 
                     DebugLogger.Log($"[WorldEventSimulator] High-freq arrival: {evt.Type} partyId={partyId} at {evt.TargetSettlement.Name} — patrol phase, attack in ~{PATROL_DAYS_BEFORE_ATTACK} day(s)");
@@ -418,29 +402,17 @@ namespace LivingWorldNpcs
                 // 按定居点类型选择原生 AI Action（全部搭配 true 防拐跑）
                 if (target.IsVillage)
                 {
-#if !MB2_V1212
-                    SetPartyAiAction.GetActionForRaidingSettlement(party, target, MobileParty.NavigationType.Default, false, false);
-#else
-                    SetPartyAiAction.GetActionForRaidingSettlement(party, target);
-#endif
+                    V.RaidSettlement(party, target);
                     actionName = "RaidSettlement";
                 }
                 else if (target.IsFortification)
                 {
-#if !MB2_V1212
-                    SetPartyAiAction.GetActionForBesiegingSettlement(party, target, MobileParty.NavigationType.Default, false);
-#else
-                    SetPartyAiAction.GetActionForBesiegingSettlement(party, target);
-#endif
+                    V.BesiegeSettlement(party, target);
                     actionName = "BesiegeSettlement";
                 }
                 else
                 {
-#if !MB2_V1212
-                    SetPartyAiAction.GetActionForRaidingSettlement(party, target, MobileParty.NavigationType.Default, false, false);
-#else
-                    SetPartyAiAction.GetActionForRaidingSettlement(party, target);
-#endif
+                    V.RaidSettlement(party, target);
                     actionName = "RaidSettlement(fallback)";
                 }
                 party.Ai.SetDoNotMakeNewDecisions(true);
@@ -1571,21 +1543,13 @@ namespace LivingWorldNpcs
                         Vec2 victimPos = victim?.PartyBelongedTo != null ? V.Pos(victim.PartyBelongedTo)
                             : V.Pos(targetSettlement);
                         Vec2 mid = (instPos + victimPos) * 0.5f;
-#if !MB2_V1212
-                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(new CampaignVec2(mid, true), 15f).ToVec2() ?? mid;
-#else
-                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(mid, 15f) ?? mid;
-#endif
+                        spawnPos = V.AccessiblePointNear(Campaign.Current?.MapSceneWrapper, mid, 15f);
                         break;
                     case AuxiliarySpawnPosition.NearInstigator:
                         Vec2 instBase = instigator?.PartyBelongedTo != null ? V.Pos(instigator.PartyBelongedTo)
                             : evt.GeneratedParty != null ? V.Pos(evt.GeneratedParty)
                             : V.Pos(targetSettlement);
-#if !MB2_V1212
-                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(new CampaignVec2(instBase, true), 10f).ToVec2() ?? instBase;
-#else
-                        spawnPos = Campaign.Current?.MapSceneWrapper?.GetAccessiblePointNearPosition(instBase, 10f) ?? instBase;
-#endif
+                        spawnPos = V.AccessiblePointNear(Campaign.Current?.MapSceneWrapper, instBase, 10f);
                         break;
                     case AuxiliarySpawnPosition.NearTarget:
                     default:
@@ -1671,19 +1635,11 @@ namespace LivingWorldNpcs
                 return targetSettlement != null ? V.Pos(targetSettlement) : Vec2.Zero;
 
             Vec2 settlementPos = V.Pos(targetSettlement);
-#if !MB2_V1212
-            PathFaceRecord settlementFace = wrapper.GetFaceIndex(new CampaignVec2(settlementPos, true));
-#else
-            PathFaceRecord settlementFace = wrapper.GetFaceIndex(settlementPos);
-#endif
+            PathFaceRecord settlementFace = V.FaceIndex(wrapper, settlementPos);
             if (!settlementFace.IsValid())
             {
                 DebugLogger.Log($"[WorldEventSimulator] FindReachableSpawnPosition: settlement face invalid for {targetSettlement.Name}! Using GetAccessiblePointNearPosition fallback.");
-#if !MB2_V1212
-                return wrapper.GetAccessiblePointNearPosition(new CampaignVec2(settlementPos, true), 30f).ToVec2();
-#else
-                return wrapper.GetAccessiblePointNearPosition(settlementPos, 30f);
-#endif
+                return V.AccessiblePointNear(wrapper, settlementPos, 30f);
             }
 
             const int MAX_ATTEMPTS = 24; // 3 圈 × 8 个方向
@@ -1705,11 +1661,7 @@ namespace LivingWorldNpcs
                     Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
                         settlementFace, candidate, settlementPos);
 
-#if !MB2_V1212
-                    PathFaceRecord projectedFace = wrapper.GetFaceIndex(new CampaignVec2(projected, true));
-#else
-                    PathFaceRecord projectedFace = wrapper.GetFaceIndex(projected);
-#endif
+                    PathFaceRecord projectedFace = V.FaceIndex(wrapper, projected);
                     if (!projectedFace.IsValid())
                         continue;
 
@@ -1762,11 +1714,7 @@ namespace LivingWorldNpcs
                         (float)Math.Sin(angle) * radius);
                     Vec2 projected = wrapper.GetLastPointOnNavigationMeshFromPositionToDestination(
                         settlementFace, candidate, settlementPos);
-#if !MB2_V1212
-                    PathFaceRecord projFace = wrapper.GetFaceIndex(new CampaignVec2(projected, true));
-#else
-                    PathFaceRecord projFace = wrapper.GetFaceIndex(projected);
-#endif
+                    PathFaceRecord projFace = V.FaceIndex(wrapper, projected);
                     if (!projFace.IsValid()) continue;
 #if !MB2_V1212
                     // AreFacesOnSameIsland removed in Latest; use GetPathDistanceBetweenAIFaces directly

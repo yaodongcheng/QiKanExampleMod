@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.Map;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Party.PartyComponents;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -16,9 +18,47 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// Version-compatibility static helpers. Each method wraps an API that changed between v1.2.12 and Latest.
-    /// Call sites use V.xxx() instead of the raw API; the #if !MB2_V1212 branches select the correct implementation.
+    /// Version-compatibility static helpers. Each method wraps an API that changed between versions.
+    /// Call sites use V.xxx() instead of raw API; the version macros select the correct implementation.
     ///
+    /// 🔴 Version macro convention (threshold-based, cumulative):
+    ///   #if MB2_GE_150   — API introduced/modified in v1.5.0+ (future, not yet used)
+    ///   #elif MB2_GE_130 — API introduced in v1.3.0+
+    ///   #else            — v1.2.12 (oldest supported)
+    ///
+    /// MB2_V1212 is the legacy "minimum version" marker; #else is semantically "≤ 1.2.12".
+    /// New methods SHOULD use the #if MB2_GE_XXX / #elif / #else convention.
+    /// Older methods may still use #if MB2_V1212 / #else — both are valid.
+    ///
+    /// 🔴 Non-VersionCompat #if registry（不可迁入 V 的合法裸 #if 桌面级扫描清单）:
+    ///   每次新增版本或改动 API 后，必须核查以下所有位置是否仍需 #if、是否需要增删：
+    ///
+    ///   [override/abstract] — 基类虚方法签名跨版本不同：
+    ///     SafeLordPartyComponent.cs:41        GetDefaultComponentBanner() override
+    ///     CustomPartyComponent.cs:42          GetDefaultComponentBanner() override
+    ///     AttackTriggerMissionLogic.cs:395    OnRegisterBlow(GameEntity→WeakGameEntity)
+    ///     CommissionHubIssue.cs:388,399      CanPlayerTakeQuestConditions(out gold)
+    ///
+    ///   [type-level] — 字段/变量类型跨版本不同：
+    ///     MySubModule.cs:344                  IGauntletMovie vs GauntletMovieIdentifier
+    ///     CameraDebuggerView.cs:34            同上
+    ///     SpringArmCameraView.cs:40           同上
+    ///     NinjaNotificationMissionView.cs:19  同上
+    ///     MyCommands.cs:646                   MissionObject.GameEntity 返回类型
+    ///     PlayerDetentionBehavior.cs:9,312    GameOverlays→GameMenu.MenuOverlayType
+    ///
+    ///   [Harmony] — 补丁目标/参数类型跨版本不同：
+    ///     InteractionMissionView.cs:2529     F-to-talk 隐藏目标类+属性类型
+    ///     InteractionMissionView.cs:2559     InventoryManager.OpenScreenAsTrade（1.2.12 only）
+    ///     DebugLogger.cs:18                  FillPartyStacks→FillPartyManuallyAfterCreation
+    ///
+    ///   [structural] — 多语句算法/功能模块跨版本完全不同的实现：
+    ///     WorldEventSimulator.cs:1668,1719    AreFacesOnSameIsland 移除
+    ///     InteractionMissionView.cs:1909     搜刮 Loot 流（InventoryManager 不可用）
+    ///     InteractionMissionView.cs:2364     开箱搜刮流（同上）
+    ///     MyCommands.cs:1619                  stealth_debug 命令（1.4.x only）
+    ///     MyCommands.cs:30                    using SandBox.Missions（1.4.x only）
+    /// </summary>
     /// IMPORTANT: Compile BOTH Debug (LATEST) and Debug_v1.2.12 after every change to this file.
     /// </summary>
     public static class V
@@ -30,7 +70,7 @@ namespace LivingWorldNpcs
         public static Vec2 Pos(MobileParty party)
         {
             if (party == null) return Vec2.Zero;
-#if !MB2_V1212
+#if MB2_GE_130
             return party.GetPosition2D;
 #else
             return party.Position2D;
@@ -40,7 +80,7 @@ namespace LivingWorldNpcs
         public static Vec2 Pos(Settlement settlement)
         {
             if (settlement == null) return Vec2.Zero;
-#if !MB2_V1212
+#if MB2_GE_130
             return settlement.GetPosition2D;
 #else
             return settlement.Position2D;
@@ -54,7 +94,7 @@ namespace LivingWorldNpcs
         public static void SetPos(MobileParty party, Vec2 pos)
         {
             if (party == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.Position = new CampaignVec2(pos, true);
 #else
             party.Position2D = pos;
@@ -68,7 +108,7 @@ namespace LivingWorldNpcs
         public static bool IsAgentAI(Agent agent)
         {
             if (agent == null) return false;
-#if !MB2_V1212
+#if MB2_GE_130
             return agent.IsAIControlled;
 #else
             return agent.Controller == Agent.ControllerType.AI;
@@ -81,7 +121,7 @@ namespace LivingWorldNpcs
 
         public static CampaignTime GetStartTime()
         {
-#if !MB2_V1212
+#if MB2_GE_130
             return Campaign.Current.Models.CampaignTimeModel.CampaignStartTime;
 #else
             return Campaign.Current.CampaignStartTime;
@@ -95,7 +135,7 @@ namespace LivingWorldNpcs
         public static float KingdomStr(Kingdom kingdom)
         {
             if (kingdom == null) return 0f;
-#if !MB2_V1212
+#if MB2_GE_130
             return kingdom.CurrentTotalStrength;
 #else
             return kingdom.TotalStrength;
@@ -108,7 +148,7 @@ namespace LivingWorldNpcs
 
         public static TextObject EmptyText()
         {
-#if !MB2_V1212
+#if MB2_GE_130
             return TextObject.GetEmpty();
 #else
             return TextObject.Empty;
@@ -122,7 +162,7 @@ namespace LivingWorldNpcs
         public static EquipmentIndex MainWpn(Agent agent)
         {
             if (agent == null) return EquipmentIndex.None;
-#if !MB2_V1212
+#if MB2_GE_130
             return agent.GetPrimaryWieldedItemIndex();
 #else
             return agent.GetWieldedItemIndex(Agent.HandIndex.MainHand);
@@ -132,7 +172,7 @@ namespace LivingWorldNpcs
         public static EquipmentIndex OffWpn(Agent agent)
         {
             if (agent == null) return EquipmentIndex.None;
-#if !MB2_V1212
+#if MB2_GE_130
             return agent.GetOffhandWieldedItemIndex();
 #else
             return agent.GetWieldedItemIndex(Agent.HandIndex.OffHand);
@@ -146,7 +186,7 @@ namespace LivingWorldNpcs
         public static void SetMoveTo(MobileParty party, Vec2 pos)
         {
             if (party == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.SetMoveGoToPoint(new CampaignVec2(pos, true), MobileParty.NavigationType.All);
 #else
             party.Ai.SetMoveGoToPoint(pos);
@@ -156,7 +196,7 @@ namespace LivingWorldNpcs
         public static void SetMoveEngage(MobileParty party, MobileParty target)
         {
             if (party == null || target == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.SetMoveEngageParty(target, MobileParty.NavigationType.All);
 #else
             party.Ai.SetMoveEngageParty(target);
@@ -166,7 +206,7 @@ namespace LivingWorldNpcs
         public static void SetMoveToTown(MobileParty party, Settlement settlement)
         {
             if (party == null || settlement == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.SetMoveGoToSettlement(settlement, MobileParty.NavigationType.All, false);
 #else
             party.Ai.SetMoveGoToSettlement(settlement);
@@ -176,7 +216,7 @@ namespace LivingWorldNpcs
         public static void SetMovePatrol(MobileParty party, Vec2 pos)
         {
             if (party == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.SetMovePatrolAroundPoint(new CampaignVec2(pos, true), MobileParty.NavigationType.All);
 #else
             party.Ai.SetMovePatrolAroundPoint(pos);
@@ -186,7 +226,7 @@ namespace LivingWorldNpcs
         public static void SetMoveEscort(MobileParty party, MobileParty target)
         {
             if (party == null || target == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.SetMoveEscortParty(target, MobileParty.NavigationType.All, false);
 #else
             party.Ai.SetMoveEscortParty(target);
@@ -196,7 +236,7 @@ namespace LivingWorldNpcs
         public static MobileParty MoveTarget(MobileParty party)
         {
             if (party == null) return null;
-#if !MB2_V1212
+#if MB2_GE_130
             return party.MoveTargetParty;
 #else
             return party.Ai.MoveTargetParty;
@@ -210,7 +250,7 @@ namespace LivingWorldNpcs
         public static MobileParty MakeParty(string id, PartyComponent comp)
         {
             if (string.IsNullOrEmpty(id) || comp == null) return null;
-#if !MB2_V1212
+#if MB2_GE_130
             return MobileParty.CreateParty(id, comp);
 #else
             return MobileParty.CreateParty(id, comp, null);
@@ -223,7 +263,7 @@ namespace LivingWorldNpcs
         public static void DelParty(MobileParty party)
         {
             if (party == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             DestroyPartyAction.Apply(null, party);
 #else
             party.RemoveParty();
@@ -237,7 +277,7 @@ namespace LivingWorldNpcs
         public static void JoinDefect(Clan clan, Kingdom fromKingdom, Kingdom toKingdom)
         {
             if (clan == null || toKingdom == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             ChangeKingdomAction.ApplyByJoinToKingdomByDefection(clan, fromKingdom, toKingdom, CampaignTime.Zero, false);
 #else
             ChangeKingdomAction.ApplyByJoinToKingdomByDefection(clan, toKingdom);
@@ -251,7 +291,7 @@ namespace LivingWorldNpcs
         public static string ActName(Agent agent, int channelIndex = 0)
         {
             if (agent == null) return "";
-#if !MB2_V1212
+#if MB2_GE_130
             return agent.GetCurrentActionType(channelIndex).ToString();
 #else
             return agent.GetCurrentActionValue(channelIndex).Name;
@@ -268,7 +308,7 @@ namespace LivingWorldNpcs
         public static Agent RayCastForClosestAgent(Vec3 rayStart, Vec3 rayEnd, int excludedAgentIndex,
             out float collisionDistance, float rayThickness = 0.1f)
         {
-#if !MB2_V1212
+#if MB2_GE_130
             return Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, excludedAgentIndex, rayThickness, out collisionDistance);
 #else
             return Mission.Current.RayCastForClosestAgent(rayStart, rayEnd, out collisionDistance, excludedAgentIndex, rayThickness);
@@ -277,7 +317,7 @@ namespace LivingWorldNpcs
 
         public static bool RayBlocked(Vec3 from, Vec3 to, float maxDist)
         {
-#if !MB2_V1212
+#if MB2_GE_130
             // In Latest, raycast uses out WeakGameEntity
             float dist = to.Distance(from);
             if (dist > maxDist) return true;
@@ -304,7 +344,7 @@ namespace LivingWorldNpcs
                 closestPoint = Vec3.Invalid;
                 return false;
             }
-#if !MB2_V1212
+#if MB2_GE_130
             return Mission.Current.Scene.RayCastForClosestEntityOrTerrain(
                 from, to, out collisionDistance, out closestPoint, out WeakGameEntity _,
                 rayThickness, bodyFlags);
@@ -321,7 +361,7 @@ namespace LivingWorldNpcs
 
         public static GauntletLayer NewLayer(int order, string name = null)
         {
-#if !MB2_V1212
+#if MB2_GE_130
             return new GauntletLayer(name ?? "LivingWorldLayer", order);
 #else
             return new GauntletLayer(order, name ?? "LivingWorldLayer");
@@ -335,7 +375,7 @@ namespace LivingWorldNpcs
         public static void LoadMov(GauntletLayer layer, string name, TaleWorlds.Library.ViewModel vm)
         {
             if (layer == null || vm == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             layer.LoadMovie(name, vm);
 #else
             layer.LoadMovie(name, vm);
@@ -350,7 +390,7 @@ namespace LivingWorldNpcs
         {
             faceIndex = -1;
             if (scene == null) return false;
-#if !MB2_V1212
+#if MB2_GE_130
             scene.GetNavigationMeshForPosition(in position, out faceIndex, 1.5f, false);
             return faceIndex != -1;
 #else
@@ -361,7 +401,7 @@ namespace LivingWorldNpcs
         public static bool SaveNavMesh(Scene scene, Vec3 position)
         {
             if (scene == null) return false;
-#if !MB2_V1212
+#if MB2_GE_130
             scene.GetNavigationMeshForPosition(in position, out _, 1.5f, false);
             return true;
 #else
@@ -376,7 +416,7 @@ namespace LivingWorldNpcs
         public static void InitPartyPos(MobileParty party, PartyTemplateObject template, Vec2 pos)
         {
             if (party == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.InitializeMobilePartyAtPosition(template, new CampaignVec2(pos, true));
 #else
             party.InitializeMobilePartyAtPosition(template, pos);
@@ -390,7 +430,7 @@ namespace LivingWorldNpcs
         public static void SetPartyName(MobileParty party, TextObject name)
         {
             if (party == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             party.Party.SetCustomName(name);
 #else
             party.SetCustomName(name);
@@ -404,7 +444,7 @@ namespace LivingWorldNpcs
         public static void SetAgentAI(Agent agent)
         {
             if (agent == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             // Agent.ControllerType removed in Latest; agents default to AI
 #else
             agent.Controller = Agent.ControllerType.AI;
@@ -418,7 +458,7 @@ namespace LivingWorldNpcs
         public static bool IsAgentPlayer(Agent agent)
         {
             if (agent == null) return false;
-#if !MB2_V1212
+#if MB2_GE_130
             return !agent.IsAIControlled;
 #else
             return agent.Controller == Agent.ControllerType.Player;
@@ -428,7 +468,7 @@ namespace LivingWorldNpcs
         public static void SetAgentPlayer(Agent agent)
         {
             if (agent == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             // TODO: Find Latest API for setting player control
 #else
             agent.Controller = Agent.ControllerType.Player;
@@ -445,7 +485,7 @@ namespace LivingWorldNpcs
         public static void SetPlayerControlFrozen(Agent agent, bool frozen)
         {
             if (agent == null) return;
-#if !MB2_V1212
+#if MB2_GE_130
             // TODO: Find Latest API for freezing player control
 #else
             var target = frozen ? Agent.ControllerType.AI : Agent.ControllerType.Player;
@@ -461,7 +501,7 @@ namespace LivingWorldNpcs
         public static IEnumerable<Kingdom> GetEnemyKingdoms(Kingdom kingdom)
         {
             if (kingdom == null) yield break;
-#if !MB2_V1212
+#if MB2_GE_130
             foreach (var k in Kingdom.All)
             {
                 if (k != kingdom && kingdom.IsAtWarWith(k))
@@ -496,7 +536,7 @@ namespace LivingWorldNpcs
         {
             var r = new LookAtHit();
             if (scene == null) return r;
-#if !MB2_V1212
+#if MB2_GE_130
             r.Hit = scene.RayCastForClosestEntityOrTerrain(src, dst, out float d, out Vec3 p, out WeakGameEntity e);
             r.Distance = d; r.Point = p;
             if (r.Hit && e.IsValid)
@@ -516,6 +556,110 @@ namespace LivingWorldNpcs
             }
 #endif
             return r;
+        }
+
+        // ── SetPartyAiAction overloads (2-arg → 3～5-arg) ──
+        // v1.2.12: SetPartyAiAction.GetActionFor*(party, settlement)
+        // v1.3.0+: SetPartyAiAction.GetActionFor*(..., NavigationType, bool, ...)
+
+        public static void PatrolAround(MobileParty party, Settlement settlement)
+        {
+            if (party == null || settlement == null) return;
+#if MB2_GE_130
+            SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, settlement,
+                MobileParty.NavigationType.Default, false, false);
+#else
+            SetPartyAiAction.GetActionForPatrollingAroundSettlement(party, settlement);
+#endif
+        }
+
+        public static void RaidSettlement(MobileParty party, Settlement settlement)
+        {
+            if (party == null || settlement == null) return;
+#if MB2_GE_130
+            SetPartyAiAction.GetActionForRaidingSettlement(party, settlement,
+                MobileParty.NavigationType.Default, false, false);
+#else
+            SetPartyAiAction.GetActionForRaidingSettlement(party, settlement);
+#endif
+        }
+
+        public static void BesiegeSettlement(MobileParty party, Settlement settlement)
+        {
+            if (party == null || settlement == null) return;
+#if MB2_GE_130
+            SetPartyAiAction.GetActionForBesiegingSettlement(party, settlement,
+                MobileParty.NavigationType.Default, false);
+#else
+            SetPartyAiAction.GetActionForBesiegingSettlement(party, settlement);
+#endif
+        }
+
+        public static void EngageParty(MobileParty party, MobileParty target)
+        {
+            if (party == null || target == null) return;
+#if MB2_GE_130
+            SetPartyAiAction.GetActionForEngagingParty(party, target,
+                MobileParty.NavigationType.Default, false);
+#else
+            SetPartyAiAction.GetActionForEngagingParty(party, target);
+#endif
+        }
+
+        // ── Navigation mesh snap (in/ref + return-type difference) ──
+        // v1.2.12: scene.GetNavigationMeshForPosition(ref pos, out faceIndex) → bool
+        // v1.3.0+: scene.GetNavigationMeshForPosition(in pos, out faceIndex, 1.5f, false) → UIntPtr
+
+        public static void NavMeshSnap(Scene scene, ref Vec3 position)
+        {
+            if (scene == null) return;
+#if MB2_GE_130
+            scene.GetNavigationMeshForPosition(in position, out _, 1.5f, false);
+#else
+            scene.GetNavigationMeshForPosition(ref position, out _);
+#endif
+        }
+
+        // ── NavigationMeshWrapper helpers ──
+        // v1.2.12: wrapper.GetAccessiblePointNearPosition(Vec2, float) → Vec2
+        // v1.3.0+: wrapper.GetAccessiblePointNearPosition(CampaignVec2, float) → CampaignVec2
+
+        public static Vec2 AccessiblePointNear(IMapScene wrapper, Vec2 pos, float radius)
+        {
+            if (wrapper == null) return pos;
+#if MB2_GE_130
+            return wrapper.GetAccessiblePointNearPosition(
+                new CampaignVec2(pos, true), radius).ToVec2();
+#else
+            return wrapper.GetAccessiblePointNearPosition(pos, radius);
+#endif
+        }
+
+        // v1.2.12: wrapper.GetFaceIndex(Vec2) → PathFaceRecord
+        // v1.3.0+: wrapper.GetFaceIndex(CampaignVec2) → PathFaceRecord
+
+        public static PathFaceRecord FaceIndex(IMapScene wrapper, Vec2 pos)
+        {
+            if (wrapper == null) return default;
+#if MB2_GE_130
+            return wrapper.GetFaceIndex(new CampaignVec2(pos, true));
+#else
+            return wrapper.GetFaceIndex(pos);
+#endif
+        }
+
+        // ── Camera animation ──
+        // v1.2.12: mapState.Handler.StartCameraAnimation(Vec2, float)
+        // v1.3.0+: mapState.Handler.StartCameraAnimation(CampaignVec2, float)
+
+        public static void CameraAnimate(MapState mapState, Vec2 pos, float duration)
+        {
+            if (mapState?.Handler == null) return;
+#if MB2_GE_130
+            mapState.Handler.StartCameraAnimation(new CampaignVec2(pos, true), duration);
+#else
+            mapState.Handler.StartCameraAnimation(pos, duration);
+#endif
         }
     }
 }

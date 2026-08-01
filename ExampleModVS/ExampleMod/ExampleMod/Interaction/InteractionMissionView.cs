@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
@@ -1566,6 +1567,7 @@ namespace LivingWorldNpcs
         /// 引擎 Immortal + Health=0 → AgentState.Unconscious（等同 ragdoll 倒地）。
         /// 若引擎未自动处理，强制播放击倒动画兜底。
         /// </summary>
+        [HandleProcessCorruptedStateExceptions]
         private async void TryKnockoutAgent(Agent target)
         {
             if (target == null || !target.IsActive()) return;
@@ -1601,6 +1603,13 @@ namespace LivingWorldNpcs
                     attackAnim = mainWpn != EquipmentIndex.None ? "act_1h_bash" : "act_shield_bash";
                     AgentControlHelper.ForcePlayAction(mainAgent, attackAnim);
                     await Task.Delay(400);
+                }
+
+                // ── 延迟后重新验证目标：400ms 内 target 可能已被引擎回收 ──
+                if (target == null || !target.IsActive())
+                {
+                    DebugLogger.Log($"[Knockout] Target became invalid after delay: {targetName}");
+                    return;
                 }
 
                 // ── 公共：无论成败，出手即是袭击，记账 + 第三方目击广播 ──
@@ -1663,7 +1672,7 @@ namespace LivingWorldNpcs
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[Knockout] Error: {ex.Message}");
+                DebugLogger.Log($"[Knockout] {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}");
                 InformationManager.DisplayMessage(
                     // 本地化：击晕失败提示
                     new InformationMessage(LWNTextHelper.ResolveText("LWN_ui_steal_msg_knockout_fail", "Failed to knock out"), Colors.Red));
@@ -2556,6 +2565,7 @@ namespace LivingWorldNpcs
     }
 #endif
 
+#if MB2_V1212
     /// <summary>
     /// 村庄交易界面打开时打印 ItemRoster 中的牲畜物品，
     /// 方便对比"商人卖什么"vs"场景里有什么"。
@@ -2595,6 +2605,7 @@ namespace LivingWorldNpcs
             }
         }
     }
+#endif
 
     /// <summary>
     /// 村庄非本地动物价格修正：本地不产的动物买入 5 倍、卖出 0.3 倍。

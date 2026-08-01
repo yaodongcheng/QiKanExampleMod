@@ -107,7 +107,7 @@ namespace LivingWorldNpcs
             sb.AppendLine($"LastVisitedSettlement: {Safe(() => party.LastVisitedSettlement?.Name?.ToString())}");
             sb.AppendLine($"TargetSettlement: {Safe(() => party.TargetSettlement?.Name?.ToString())}");
             sb.AppendLine($"Army: {Safe(() => party.Army?.Name?.ToString())}");
-            sb.AppendLine($"Position: {party.Position2D}");
+            sb.AppendLine($"Position: {V.Pos(party)}");
             return sb.ToString();
         }
 

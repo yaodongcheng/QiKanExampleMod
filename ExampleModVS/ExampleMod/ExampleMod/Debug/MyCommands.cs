@@ -1710,6 +1710,7 @@ namespace LivingWorldNpcs
 
                     // 尝试获取该守卫的 AlarmFactor
                     string alarmStr = "";
+#if false // TODO: CampaignAgentComponent doesn't exist in any known MB2 version — find correct API
                     var nav = guard.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
                     var alarmGroup = nav?.GetBehaviorGroup<AlarmedBehaviorGroup>();
                     if (alarmGroup != null)
@@ -1720,6 +1721,7 @@ namespace LivingWorldNpcs
                                           guard.IsPatrollingCautious() ? "PATROL-CAUTIOUS" : "NORMAL";
                         alarmStr = $"  AlarmFactor={af:F2} [{stateStr}]";
                     }
+#endif
 
                     sb.AppendLine($"  {guard.Name} ({guard.Character?.StringId ?? "?"}): {offenseStr} {camSee}{alarmStr}");
                 }
@@ -1733,6 +1735,7 @@ namespace LivingWorldNpcs
                 if (!agent.IsHuman || agent.Team == null || agent.Team.IsPlayerAlly) continue;
                 if (agent == Agent.Main) continue;
 
+#if false // TODO: CampaignAgentComponent doesn't exist in any known MB2 version
                 var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
                 var alarmGroup = nav?.GetBehaviorGroup<AlarmedBehaviorGroup>();
                 if (alarmGroup == null) continue;
@@ -1744,6 +1747,7 @@ namespace LivingWorldNpcs
                                   agent.IsPatrollingCautious() ? "PATROL-CAUTIOUS" : "NORMAL";
                 string dnc = alarmGroup.DoNotCheckForAlarmFactorIncrease ? " [BLIND]" : "";
                 sb.AppendLine($"  {agent.Name}: AF={af:F3} {stateStr}{dnc}");
+#endif
             }
             if (guardCount == 0)
                 sb.AppendLine("  (no guards with AlarmedBehaviorGroup found)");
@@ -1776,6 +1780,7 @@ namespace LivingWorldNpcs
             if (target == null)
                 return $"Error: no human agent found with StringId='{targetId}'.";
 
+#if false // TODO: CampaignAgentComponent doesn't exist in any known MB2 version
             var nav = target.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
             if (nav == null)
                 return $"Error: {target.Name} has no AgentNavigator (not a campaign agent?).";
@@ -1798,6 +1803,8 @@ namespace LivingWorldNpcs
                    $"  DoNotCheck=false (guard is WATCHING)\n" +
                    $"  DisableCalmDown=true (won't auto-calm down)\n" +
                    $"  AlarmFactor={group.AlarmFactor:F3}";
+#endif
+            return "Not available: CampaignAgentComponent not found in this game version.";
         }
 
         /// <summary>
@@ -1829,6 +1836,7 @@ namespace LivingWorldNpcs
             if (target == null)
                 return $"Error: no human agent found with StringId='{targetId}'. Use custom.stealth_arm_npc first if needed.";
 
+#if false // TODO: CampaignAgentComponent doesn't exist in any known MB2 version
             var nav = target.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
             var group = nav?.GetBehaviorGroup<AlarmedBehaviorGroup>();
             if (group == null)
@@ -1866,6 +1874,8 @@ namespace LivingWorldNpcs
             }
 
             return $"Error: unknown sub-command '{args[1]}'. Use 0/1/2 or 'push <val>'.";
+#endif
+            return "Not available: CampaignAgentComponent not found in this game version.";
         }
 #endif
 

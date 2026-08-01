@@ -1235,12 +1235,22 @@ if (usingGamepad != _lastUsingGamepad)
 
 # 版本兼容层 — `Core/VersionCompat.cs`
 
-**同一份源码，双版本编译。** `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。每一对 API 差异用一个 `V.xxx()` 方法封装，内部 `#if !MB2_V1212` / `#else` 分支。
+**同一份源码，多版本编译。** `V` 静态类封装了全部跨版本 API 差异。每个方法用**累积阈值宏**（`MB2_GE_130`、`MB2_GE_140`）分支，而非精确版本匹配。
+
+**宏体系**：csproj 编译时读 `Version.xml` 自动定义累积宏：
+| 游戏版本 | 定义的宏 |
+|----------|---------|
+| v1.2.12 | `MB2_V1212` |
+| v1.3.x  | `MB2_V1212` + `MB2_GE_130` |
+| v1.4.x  | `MB2_V1212` + `MB2_GE_130` + `MB2_GE_140` |
+| v1.5.x  | 全部上述 + `MB2_GE_150` |
+
+GE = "Greater or Equal"。代码按阈值从高到低写：`#if MB2_GE_150` / `#elif MB2_GE_130` / `#else`（v1.2.12）。
 
 **使用纪律**：
-- 凡是两个版本 API 不一样的调用，**一律走 `V.xxx()`，禁止在业务代码里裸写 `#if !MB2_V1212`**（除非是 Harmony 补丁或结构级差异）
-- 新加 V 方法后**必须两个配置都编译通过**
-- 版本宏 `MB2_V1212` / `MB2_V146` 由 csproj 读 `Version.xml` 自动定义，不要手动定义
+- 凡是两个版本 API 不一样的调用，**一律走 `V.xxx()`，禁止在业务代码里裸写版本 `#if`**（Harmony 补丁 / override / type-level 差异例外，详见「不可迁 #if 注册表」）
+- 新加 V 方法后**必须在两台电脑上分别编译通过**（v1.2.12 + Latest 各 build 一次）
+- 1.4.6 和 1.4.7 的 API 经逐方法对比确认**完全一致**，`MB2_GE_130` 分支覆盖 v1.3.0 ~ v1.4.x 全系列
 
 ```csharp
 // ── 位置（v1.2.12: .Position2D / Latest: .GetPosition2D）
@@ -1276,6 +1286,18 @@ V.LoadMov(layer, name, vm)                       // 返回类型不同，v1.2.12
 V.GetStartTime() → CampaignTime      V.KingdomStr(kingdom) → float
 V.EmptyText() → TextObject           V.NavMesh(scene, pos, out faceIndex) → bool
 V.JoinDefect(clan, from, to)         V.GetEnemyKingdoms(kingdom) → IEnumerable<Kingdom>
+
+// ── SetPartyAiAction 重载（v1.2.12: 2参 / v1.3.0+: 3~5参）
+V.PatrolAround(party, settlement)     // GetActionForPatrollingAroundSettlement
+V.RaidSettlement(party, settlement)   // GetActionForRaidingSettlement
+V.BesiegeSettlement(party, settlement)// GetActionForBesiegingSettlement
+V.EngageParty(party, target)          // GetActionForEngagingParty
+
+// ── 导航网格 / 地图
+V.NavMeshSnap(scene, ref pos)         // GetNavigationMeshForPosition in/ref 差异
+V.AccessiblePointNear(wrapper, pos, r)→ Vec2  // GetAccessiblePointNearPosition Vec2/CampaignVec2
+V.FaceIndex(wrapper, pos) → PathFaceRecord    // GetFaceIndex Vec2/CampaignVec2
+V.CameraAnimate(mapState, pos, dur)   // StartCameraAnimation Vec2/CampaignVec2
 ```
 
 **文件位置**：`Core/VersionCompat.cs`（约 420 行）。
@@ -1284,31 +1306,55 @@ V.JoinDefect(clan, from, to)         V.GetEnemyKingdoms(kingdom) → IEnumerable
 
 ---
 
-# csproj 版本自动检测
+# csproj 版本自动检测（累积阈值宏）
 
-**一个 `Debug` 配置通吃两台电脑**，无需手动切换。原理：编译时读 `$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml`，根据其中的版本号自动定义宏。
+**一个配置通吃所有版本**，无需手动切换。编译时读 `Version.xml`，通过版本系列侦测 + `Or` 链自动定义累积阈值宏。
 
 ```xml
-<!-- 读 Version.xml -->
-<MB2_VersionFile>$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml</MB2_VersionFile>
-<MB2_VersionFileContent Condition="Exists('$(MB2_VersionFile)')">$([System.IO.File]::ReadAllText('$(MB2_VersionFile)'))</MB2_VersionFileContent>
+<!-- 版本系列侦测（精确到 minor） -->
+<MB2_IsV12x Condition="$(MB2_VersionFileContent.Contains('v1.2.'))">true</MB2_IsV12x>
+<MB2_IsV14x Condition="$(MB2_VersionFileContent.Contains('v1.4.'))">true</MB2_IsV14x>
 
-<!-- 按版本号定义精确宏 -->
-<DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(DefineConstants);MB2_V1212</DefineConstants>
-<DefineConstants Condition="$(MB2_VersionFileContent.Contains('v1.4.6'))">$(DefineConstants);MB2_V146</DefineConstants>
+<!-- 累积阈值：GE_130 = v1.3.x OR v1.4.x OR ... -->
+<MB2_VersionDefines Condition="'$(MB2_IsV14x)' == 'true'">$(MB2_VersionDefines);MB2_GE_130;MB2_GE_140</MB2_VersionDefines>
+<!-- 各配置引用 $(MB2_VersionDefines) -->
+<DefineConstants>DEBUG;TRACE;$(MB2_VersionDefines)</DefineConstants>
 ```
 
 **结果**：
 | 电脑 | Version.xml | 定义的宏 |
 |------|-----------|---------|
 | v1.2.12 | `v1.2.12` | `DEBUG;TRACE;MB2_V1212` |
-| v1.4.6  | `v1.4.6`  | `DEBUG;TRACE;MB2_V146` |
+| v1.4.7  | `v1.4.7`  | `DEBUG;TRACE;MB2_V1212;MB2_GE_130;MB2_GE_140` |
 
-**新增版本**：TaleWorlds 出新版本时，在 csproj 里加一行 `MB2_VXXX` 宏即可。代码里用 `#if !MB2_V1212` 判断"比 v1.2.12 新"，用 `#if MB2_V146` 判断"恰好 v1.4.6"。
+**新增版本**：TaleWorlds 出新版本（如 v1.5.0）时：
+1. 加 `<MB2_IsV15x>` 侦测行
+2. 在已有 `GE_*` 的 `Or` 链中追加 `'$(MB2_IsV15x)' == 'true'`
+3. 加 `MB2_GE_150` 的定义行
 
-`Debug_v1.2.12` 保留作为手动兜底（强制 v1.2.12，不读 Version.xml）。
+完整清单见 [plans/version-compat-plan.md](../version-compat-plan.md)。
 
 **文件位置**：`ExampleMod.csproj` PropertyGroup 段。
+
+---
+
+# 不可迁入 V 的 #if（合规例外注册表）
+
+以下类别的 `#if` **不能**封装为 `V.xxx()`，直接写在业务文件里是合法的。每次新增版本时必须逐条核查：
+
+| 类别 | 典型文件:行号 | 原因 |
+|------|-------------|------|
+| override | `SafeLordPartyComponent.cs:41` 等 4 处 | 基类虚方法签名跨版本不同 |
+| type | `MySubModule.cs:344` 等 5 处 | 字段类型 `IGauntletMovie`→`GauntletMovieIdentifier` |
+| type | `PlayerDetentionBehavior.cs:9,312` | `GameOverlays.MenuOverlayType`→`GameMenu.MenuOverlayType` |
+| Harmony | `InteractionMissionView.cs:2529,2559` | 补丁目标类/方法跨版本不同 |
+| Harmony | `DebugLogger.cs:18` | `FillPartyStacks`→`FillPartyManuallyAfterCreation` |
+| structural | `InteractionMissionView.cs:1909,2364` | 搜刮 Loot 流（`InventoryManager` 不可用） |
+| structural | `WorldEventSimulator.cs:1716,1771` | `AreFacesOnSameIsland` 移除 |
+| structural | `MyCommands.cs:1619` | stealth_debug 命令（依赖仅 Latest 存在） |
+| namespace | `MyCommands.cs:30` | `SandBox.Missions.*` 命名空间仅 Latest 存在 |
+
+完整注册表在 [VersionCompat.cs class doc comment](../../ExampleModVS/ExampleMod/ExampleMod/Core/VersionCompat.cs) 和 [version-compat-plan.md](../version-compat-plan.md)。
 
 ---
 
