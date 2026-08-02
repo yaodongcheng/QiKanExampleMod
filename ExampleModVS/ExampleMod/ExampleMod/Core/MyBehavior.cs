@@ -126,12 +126,6 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
             if (dataStore.IsLoading)
                 TheftLedger.Deserialize(theftLedgerJson);
-
-            // Issue 抑制表 (IssueFilterBehavior — 因果链 Suppress action 写入)
-            string issueSuppressionJson = IssueFilterBehavior.Serialize();
-            dataStore.SyncData("lwn_issue_suppressions", ref issueSuppressionJson);
-            if (dataStore.IsLoading)
-                IssueFilterBehavior.Deserialize(issueSuppressionJson);
         }
 
         private void OnTick(float dt)

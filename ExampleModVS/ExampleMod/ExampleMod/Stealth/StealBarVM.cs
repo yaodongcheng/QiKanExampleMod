@@ -467,7 +467,7 @@ namespace LivingWorldNpcs
             {
                 // 负重检查：物品入袋前确认 party 装得下（发布前新增）
                 if (MobileParty.MainParty != null
-                    && MobileParty.MainParty.ItemRoster.TotalWeight >= MobileParty.MainParty.InventoryCapacity)
+                    && MobileParty.MainParty.TotalWeightCarried >= MobileParty.MainParty.InventoryCapacity)
                 {
                     // 本地化：party 负重已满，无法再偷
                     InformationManager.DisplayMessage(new InformationMessage(
