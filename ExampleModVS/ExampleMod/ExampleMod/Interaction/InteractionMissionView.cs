@@ -1449,11 +1449,6 @@ namespace LivingWorldNpcs
 
                 // ── 步骤 6：播放站起来动画 ──
                 AgentControlHelper.ForcePlayAction(mainAgent, "act_pickup_down_end");
-
-                // ── 步骤 7：UI 反馈 ──
-                // 本地化：偷到牲畜成功提示
-                string msg = LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_livestock", ("ITEM", livestockItem.Name.ToString()));
-                InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Green));
             }
             catch (Exception ex)
             {
