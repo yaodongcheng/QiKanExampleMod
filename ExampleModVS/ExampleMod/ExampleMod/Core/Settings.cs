@@ -1,6 +1,8 @@
 using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
@@ -60,8 +62,12 @@ namespace LivingWorldNpcs
         /// <summary>当前 Mission 是否应关闭非战斗互动（视野感知/警戒/击晕/偷窃/对话）</summary>
         public bool IsInteractionDisabled()
         {
-            if (Mission.Current == null) return false;
-            return DisabledInteractionMissionModes.Contains(Mission.Current.Mode.ToString());
+            if (Mission.Current == null) return true;
+            if (DisabledInteractionMissionModes.Contains(Mission.Current.Mode.ToString())) return true;
+            // 新手训练场（tutorial_training_field）不适用 MissionMode 过滤（其 Mode 为 StartUp 与城镇相同），
+            // 但训练场是教程关，不应出现交互功能干扰教学流程，按 Settlement ID 直判
+            if (Settlement.CurrentSettlement?.StringId == "tutorial_training_field") return true;
+            return false;
         }
 
         private static Settings Load()
