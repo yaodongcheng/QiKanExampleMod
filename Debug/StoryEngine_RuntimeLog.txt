@@ -1,40 +1,484 @@
-﻿[08:19:04.102] LWNTextHelper: Loaded 2392 English fallback entries from 2 files
-[08:20:47.183] [AddQuickInformation] "由于使用了作弊，成就已被禁用。"
-[08:20:47.801] [Detention] Game menus registered
-[08:21:01.039] [DisplayMessage] "你已认识扎图。"
-[08:21:01.040] [DisplayMessage] "你已认识阿儿帖。"
-[08:21:28.208] 重要错误，一定要关注：[ConvLock] Prefix: effectiveAgent is null, cannot acquire lock.
-[08:21:28.288] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "弟弟……我们已经追踪那帮混蛋三天了，我觉得很快就要追上了。得想想到时候该怎么办，怎么把<a style="Link.Hero" href="event:Hero-storymode_little_brother"><b>扎图</b></a>和<a style="Link.Hero" href="event:Hero-storymode_little_sister"><b>阿儿帖</b></a>给救出来？准备好战斗了吗？"
-[08:21:28.301] 重要错误，一定要关注：[ConvLock] Postfix: effectiveAgent is null, cannot acquire lock.
-[08:21:28.304] [ConvEntry] FindOnGoing(tutorial_training_field) → evt=misconduct_tutorial_training_field_2185856_1 stage=Dormant assault=[none:0] pendingId=misconduct_tutorial_training_field_2185856_1 pendingStage=Dormant pendingAssault=[none:0]
-[08:21:28.312] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 匹配到 0 个 owner: []（现存 0 个）
-[08:21:28.312] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 没有匹配的 owner（现存 0 个: []）
-[08:21:28.313] [ConvEntry] BuildScript: partner=null partnerStringId=null agent=null agentIdx=null character=null characterStringId=null evtId=misconduct_tutorial_training_field_2185856_1 trigger=Normal confrontation=Deter triggerAction=Crouching
-[08:21:28.331] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
-[08:21:29.556] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "这里像是个帝国军团用过的旧训练场。也许我们可以花点时间磨练一下自己的本领？等追上那伙掠袭者，这些本领就会派上用场。"
-[08:21:31.107] [VanillaDialog] Token='player_answer_training_field' Hero=努逊 | Options (4): 我要先练习一下。我得弄清楚要是真动起手来，自己能不能应付得了。（继续教程） | 我们必须抓紧时间。如果我们分头行动的话，效率会更高。（跳过教程） | 那么，你觉得马上就能追上那伙掠袭者了？ | 我们该如何准备这场战斗?
-[08:21:31.108] [VanillaDialog] Player says: "我们必须抓紧时间。如果我们分头行动的话，效率会更高。（跳过教程）"
-[08:21:31.109] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "你确定吗？（该选项会结束包含剧情的教程，并直接开始单人游戏。如果你已完成过教程，我们建议选择该选项。）"
-[08:21:32.473] [AddQuickInformation] "Henry提高了1级。"
-[08:21:32.566] [VanillaDialog] Token='skip_tutorial_confirmation' Hero=努逊 | Options (2): 是的，时间要紧。（跳过教程） | 不，我要再想想。
-[08:21:32.567] [VanillaDialog] Player says: "是的，时间要紧。（跳过教程）"
-[08:21:32.567] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "那好吧，我们分头去找小家伙们。要是我先找到他俩，就告诉你。"
-[08:21:33.265] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "还有一件事，弟弟，我们得看起来像那么回事才行。毕竟，我们说不定很快就得带兵打仗、冲锋陷阵了。要给家族取个名号、选面旗帜，就像贵族们那样。"
-[08:21:33.910] [ConvLock] Release by null(Idx=?) | reason=EndConversation
-[08:21:33.910] [ConvEnd] Conversation ended. lastEvent= lastTag=
-[08:21:33.911] [ConvEnd] Haggle flag cleared for misconduct_tutorial_training_field_2185856_1
-[08:21:34.059] [AddQuickInformation] "任务激活：建立你的家族"
-[08:21:34.060] [QuestStart] RebuildPlayerClanQuest "建立你的家族" | giver=? | IsOngoing=True | RewardGold=0
-[08:21:34.072] [AddQuickInformation] "调查“涅雷采斯的愚行”：日志已更新。"
-[08:21:34.073] [AddQuickInformation] "任务激活：调查“涅雷采斯的愚行”"
-[08:21:34.074] [QuestStart] BannerInvestigationQuest "调查“涅雷采斯的愚行”" | giver=? | IsOngoing=True | RewardGold=0
-[08:21:34.075] [AddQuickInformation] "你找到了第一旗帜部件！"
-[08:21:34.334] [GameMenu] ▶ 打开 menu=training_field_menu @训练场(定居点)
+﻿[09:13:33.705] LWNTextHelper: Loaded 2392 English fallback entries from 2 files
+[09:14:11.738] [AddQuickInformation] "由于使用了作弊，成就已被禁用。"
+[09:14:12.088] [Detention] Game menus registered
+[09:14:40.822] [DisplayMessage] "你发现了扎图"
+[09:14:40.822] [DisplayMessage] "你发现了阿儿帖"
+[09:14:44.370] 重要错误，一定要关注：[ConvLock] Prefix: effectiveAgent is null, cannot acquire lock.
+[09:14:44.428] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "弟弟……我们已经追踪那帮混蛋三天了，我觉得很快就要追上了。得想想到时候该怎么办，怎么把<a style="Link.Hero" href="event:Hero-storymode_little_brother"><b>扎图</b></a>和<a style="Link.Hero" href="event:Hero-storymode_little_sister"><b>阿儿帖</b></a>给救出来？准备好战斗了吗？"
+[09:14:44.435] 重要错误，一定要关注：[ConvLock] Postfix: effectiveAgent is null, cannot acquire lock.
+[09:14:44.438] [ConvEntry] FindOnGoing(tutorial_training_field) → evt=misconduct_tutorial_training_field_2185856_1 stage=Dormant assault=[none:0] pendingId=misconduct_tutorial_training_field_2185856_1 pendingStage=Dormant pendingAssault=[none:0]
+[09:14:44.441] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 匹配到 0 个 owner: []（现存 0 个）
+[09:14:44.441] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_1": 没有匹配的 owner（现存 0 个: []）
+[09:14:44.441] [ConvEntry] BuildScript: partner=null partnerStringId=null agent=null agentIdx=null character=null characterStringId=null evtId=misconduct_tutorial_training_field_2185856_1 trigger=Normal confrontation=Deter triggerAction=Crouching
+[09:14:44.454] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
+[09:14:45.748] [AddQuickInformation] "Henry提高了1级。"
+[09:14:46.261] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "这里像是个帝国军团用过的旧训练场。也许我们可以花点时间磨练一下自己的本领？等追上那伙掠袭者，这些本领就会派上用场。"
+[09:14:48.785] [VanillaDialog] Token='player_answer_training_field' Hero=努逊 | Options (4): 我要先练习一下。我得弄清楚要是真动起手来，自己能不能应付得了。（继续教程） | 我们必须抓紧时间。如果我们分头行动的话，效率会更高。（跳过教程） | 那么，你觉得马上就能追上那伙掠袭者了？ | 我们该如何准备这场战斗?
+[09:14:48.786] [VanillaDialog] Player says: "我们必须抓紧时间。如果我们分头行动的话，效率会更高。（跳过教程）"
+[09:14:48.790] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "你确定吗？（该选项会结束包含剧情的教程，并直接开始单人游戏。如果你已完成过教程，我们建议选择该选项。）"
+[09:14:49.487] [VanillaDialog] Token='skip_tutorial_confirmation' Hero=努逊 | Options (2): 是的，时间要紧。（跳过教程） | 不，我要再想想。
+[09:14:49.487] [VanillaDialog] Player says: "是的，时间要紧。（跳过教程）"
+[09:14:49.492] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "那好吧，我们分头去找小家伙们。要是我先找到他俩，就告诉你。"
+[09:14:50.145] [VanillaDialog] NPC  | NPC: 努逊 (HeroId: tutorial_npc_brother) says: "还有一件事，弟弟，我们得看起来像那么回事才行。毕竟，我们说不定很快就得带兵打仗、冲锋陷阵了。要给家族取个名号、选面旗帜，就像贵族们那样。"
+[09:14:50.803] [ConvLock] Release by null(Idx=?) | reason=EndConversation
+[09:14:50.804] [ConvEnd] Conversation ended. lastEvent= lastTag=
+[09:14:50.804] [ConvEnd] Haggle flag cleared for misconduct_tutorial_training_field_2185856_1
+[09:14:50.856] [AddQuickInformation] "任务激活：建立你的家族"
+[09:14:50.857] [QuestStart] RebuildPlayerClanQuest "建立你的家族" | giver=? | IsOngoing=True | RewardGold=0
+[09:14:50.865] [AddQuickInformation] "调查“涅雷采斯的愚行”：日志已更新。"
+[09:14:50.865] [AddQuickInformation] "任务激活：调查“涅雷采斯的愚行”"
+[09:14:50.867] [QuestStart] BannerInvestigationQuest "调查“涅雷采斯的愚行”" | giver=? | IsOngoing=True | RewardGold=0
+[09:14:50.887] [AddQuickInformation] "你找到了第一块旗帜碎片！"
+[09:14:51.110] [GameMenu] ▶ 打开 menu=training_field_menu @训练场(定居点)
     标题: 
     正文: 你在训练场。你能在这里学到有关战斗的基础知识。
     选项:
       1. 回去训练。  [id=training_field_enter] 可点
       2. 离开  [id=training_field_leave] 可点
-[08:21:58.093] [ShowInquiry] "覆盖" | "你想覆盖这个存档吗？" | Btn1="是" Btn2="否"
-[08:22:06.215] [GameMenu] ● 点击 menu=training_field_menu 选项="回去训练。" [id=training_field_enter] @训练场(定居点)
-[08:22:24.953] 重要错误，一定要关注：[ConvLock] Prefix: effectiveAgent is null, cannot acquire lock.
+[09:15:13.316] [GameMenu] ● 点击 menu=training_field_menu 选项="回去训练。" [id=training_field_enter] @训练场(定居点)
+[09:15:34.002] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成2点钝击伤害。<Detail>命中部位：肩</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[09:15:36.047] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成2点钝击伤害。<Detail>命中部位：胸</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[09:15:38.733] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.737] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.743] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.748] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.755] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.760] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.766] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.771] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.777] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.784] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.789] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.795] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.799] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.806] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.811] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.817] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.822] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.828] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.833] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.840] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.846] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.850] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.857] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.862] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.868] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.873] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.879] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.887] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.893] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.898] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.904] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.916] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.922] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.926] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.932] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.936] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.942] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.946] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.952] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.958] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.964] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.969] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.974] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.981] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.986] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.992] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:38.998] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.004] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.009] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.015] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.019] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.026] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.032] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.037] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.044] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.049] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.055] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.060] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.065] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.070] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.077] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.082] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.089] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.094] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.099] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.105] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.111] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.116] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.123] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.128] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.134] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.139] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.145] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.150] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.156] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.163] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.168] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.174] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.180] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.185] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.191] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.196] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.202] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.208] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.214] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.219] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.226] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.231] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.237] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.243] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.248] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.254] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.259] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.265] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.271] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.277] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.282] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.287] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.293] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.299] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.305] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.310] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.316] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.322] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.327] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.333] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.338] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.344] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.350] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.356] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.361] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.367] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.373] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.377] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.383] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.389] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.394] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.401] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.406] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.412] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.418] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.423] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.428] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.434] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.439] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.446] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.452] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.457] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.463] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.468] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.474] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.479] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.485] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.491] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.496] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.502] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.507] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.513] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.518] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.524] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.531] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.536] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.542] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.547] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.553] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.559] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.565] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.570] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.576] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.581] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.587] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.593] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.598] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.604] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.609] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.615] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.620] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.627] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.632] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.638] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.643] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.649] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.655] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.660] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.666] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.671] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.677] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.682] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.688] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.694] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.699] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:39.705] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.162] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.168] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.174] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.180] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.185] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.191] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.197] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.203] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.209] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.214] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.219] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.226] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.230] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:40.237] [AddQuickInformation] "无法撤退，附近有敌人！"
+[09:15:45.234] [GameMenu] ● 点击 menu=training_field_menu 选项="离开" [id=training_field_leave] @训练场(定居点)
+[09:15:45.237] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_2": 匹配到 0 个 owner: []（现存 0 个）
+[09:15:45.238] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_tutorial_training_field_2185856_2": 没有匹配的 owner（现存 0 个: []）
+[09:15:45.238] [ShowInquiry] "通知" | "离开训练场几小时后，你发现有个受伤的人躺在树下。你喂给了他一些水，然后尽力包扎了他的伤口。他告诉你自己是个旅行医生。为了感谢你的帮助，他给了你一个铜制小物件，说是一名战士给他的报酬，据说与“涅雷采斯的愚行”有关。他猜这物件可能价值不菲，而你决定去探寻它的秘密。" | Btn1="好" Btn2="(hidden)"
+[09:15:45.253] [GameMenu] ◀ 关闭 menu=training_field_menu
+[09:15:57.445] [DisplayMessage] "每日第纳尔收支：0<img src="General\Icons\Coin@2x" extend="8">"
+[09:15:57.516] [DisplayMessage] "你发现了特维亚的约戎"
+[09:15:57.517] [DisplayMessage] "你发现了特维亚的维弥俄洛斯"
+[09:15:57.517] [DisplayMessage] "你发现了特维亚的图卡叙斯"
+[09:15:57.584] [GameMenu] ▶ 打开 menu=village @特维亚(村庄)
+    标题: 村庄
+    正文: <a style="Link.Settlement" href="event:Settlement-village_ES3_2"><b>特维亚</b></a>附近的领地多为<a style="Link.Kingdom" href="event:Kingdom-empire_s"><b>南帝国</b></a>的一位执政官<a style="Link.Hero" href="event:Hero-lord_1_15"><b>法戎</b></a>所拥有。这个村庄的经济程度一般，人们和牲口看上去都健康强壮，村民们都忙于农活。
+    选项:
+      1. 敌对行动  [id=hostile_action] 可点
+      2. 四处转转  [id=village_center] 可点
+      3. 招募士兵  [id=recruit_volunteers] 可点
+      4. 购买给养  [id=trade] 可点
+      5. 稍作等待  [id=village_wait] 可点
+      6. 离开  [id=leave] 可点
+[09:15:59.363] [GameMenu] ● 点击 menu=village 选项="四处转转" [id=village_center] @特维亚(村庄)
+[09:16:01.903] === [AnimalSync] 特维亚 (village_ES3_2) ===
+  Type       Scene    Roster   Stolen   Action
+  ----       -----    ------   ------   ------
+  sheep      16       4        0        
+  cow        10       0        0        decorative (not in roster)
+  hog        10       0        0        decorative (not in roster)
+  goose      5        0        0        decorative (not in roster)
+  chicken    16       0        0        decorative (not in roster)
+  =========================================
+
+[09:16:01.904] [AnimalSync] Topped up 羊: roster 4 → 16 (natural=16 stolen=0)
+[09:16:01.904] [AnimalSync] Topped up 牛: roster 0 → 10 (natural=10 stolen=0)
+[09:16:01.904] [AnimalSync] Topped up 肉猪: roster 0 → 10 (natural=10 stolen=0)
+[09:16:01.904] [AnimalSync] Topped up 鹅: roster 0 → 5 (natural=5 stolen=0)
+[09:16:01.905] [AnimalSync] Topped up 鸡: roster 0 → 16 (natural=16 stolen=0)
+[09:16:01.905] [AnimalSync] 特维亚: topped up 53 animal(s) in ItemRoster
+[09:16:01.909] [Wealth] 特维亚: 金库1000→场景1000→流通池1000, NPC池800(村长1人=126, 乡绅2人=176, 英雄1人=50, 村民35人=420), 箱子200第纳尔, 物资4种(过滤后)
+[09:16:01.913] [Chest] 锚点 '特维亚的约戎' at (532.3551, 233.8244, 17.14368) → 正后方 0.7m 命中，相对偏移 (0.21, -0.67, 0.08)
+[09:16:01.947] [Chest] Spawned prefab 'bd_chest_c' at (532.564, 233.1563, 17.22217) (scale=0.5)
+[09:16:01.949] [Chest] Visual highlight applied (warm gold tint)
+[09:16:01.949] [Chest] Spawned at (532.564, 233.1563, 17.22217), context=Village, gold=200, items=4
+[09:16:32.384] [DisplayMessage] [RGB(1.0,0.9,0.4)] "抓到了鹅！"
+[09:16:32.385] [StealBar] 抓住 鹅
+[09:16:32.389] [ForcePlayAction] Henry 'act_pickup_down_begin' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[09:16:32.806] [StealAnimal] 鹅 (monster=goose) → goose, 特维亚 stock: 5→4
+[09:16:32.810] [AnimalTheft] Witnessed! 0 hero(es) + 1 villagers saw the theft. Suspect = Player.
+[09:16:32.811] [WorldEvent] misconduct_village_ES3_2_2185857_3 Stage: Dormant → Active
+[09:16:32.811] [CommissionIssue] StageChanged: event=misconduct_village_ES3_2_2185857_3 stage=Active settlement=特维亚 — refreshing issue signals
+[09:16:32.818] [CommissionIssue] Assigned CommissionHubIssue to 特维亚的约戎 (CharacterObject_2907) crimeEvent=misconduct_village_ES3_2_2185857_3 stage=Active
+[09:16:32.821] [TheftLedger] Recorded: goose x1 by main_hero from village_ES3_2
+[09:16:32.829] [ForcePlayAction] Henry 'act_pickup_down_end' UsingObj=False flags=None action_set:'as_human_warrior'→'as_human_warrior'
+[09:16:32.829] [DisplayMessage] [Green] "获得了 鹅！"
+[09:17:03.665] [Brain-Phase] 帝国农民(Idx=15) 警戒上升: Normal → Suspicious (警戒值=0.26) 因素=[WeaponDrawn=0.26] → 发送 'BecomeSuspicious'
+[09:17:03.670] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'BecomeSuspicious' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:03.673] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
+[09:17:03.673] [BubbleSay] 帝国农民(Idx=15): "（不安地看了一眼）怎么还拔铁刀了……"
+[09:17:07.033] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Suspicious
+[09:17:07.033] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
+[09:17:07.033] [BubbleSay] 帝国农民(Idx=15): "你！你敢打我？！"
+[09:17:07.035] [Brain-Clear] 帝国农民(Idx=15) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:07.037] [Brain-Enqueue] 帝国农民(Idx=15) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[09:17:07.037] [AI-Debug] Suspend 帝国农民 (Idx=15) | 集合size=1 | 当前行为=null
+[09:17:07.039] [Brain-Phase] 帝国农民(Idx=15) 警戒上升: Suspicious → Alarmed (警戒值=3.78) 因素=[WeaponDrawn=0.78, AttackAlly=3.00➔帝国农民] → 发送 'BecomeAlarmed'
+[09:17:07.039] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Suspicious
+[09:17:07.039] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:07.039] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
+[09:17:07.040] [BubbleSay] 帝国农民(Idx=5): "你！你敢动我们村的人？！"
+[09:17:07.040] [Brain-Clear] 帝国农民(Idx=5) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:07.040] [Brain-Enqueue] 帝国农民(Idx=5) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[09:17:07.040] [AI-Debug] Suspend 帝国农民 (Idx=5) | 集合size=2 | 当前行为=null
+[09:17:07.040] [Brain-Phase] 帝国农民(Idx=5) 警戒上升: Normal → Alarmed (警戒值=3.00) 因素=[WeaponDrawn=0.00, AttackAlly=3.00➔帝国农民] → 发送 'BecomeAlarmed'
+[09:17:07.040] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[09:17:07.040] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=1 | 阶段=Alarmed
+[09:17:07.040] [Brain-Receive] 男孩(Idx=26) 收到事件 'event_agent_damaged' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:07.040] [Placeholder] {TARGET} resolve: SpeakingWitness=null primaryAction=: r.TargetName= → ""
+[09:17:07.040] [BubbleSay] 男孩(Idx=26): "你！你敢动我们村的人？！"
+[09:17:07.040] [Brain-Clear] 男孩(Idx=26) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:07.041] [Brain-Enqueue] 男孩(Idx=26) 入队 FightEnemyAction | 当前行为=null | 队列=0→1
+[09:17:07.041] [AI-Debug] Suspend 男孩 (Idx=26) | 集合size=3 | 当前行为=null
+[09:17:07.041] [Brain-Phase] 男孩(Idx=26) 警戒上升: Normal → Alarmed (警戒值=3.02) 因素=[WeaponDrawn=0.02, AttackAlly=3.00➔男孩] → 发送 'BecomeAlarmed'
+[09:17:07.041] [Brain-Receive] 男孩(Idx=26) 收到事件 'BecomeAlarmed' | 当前行为=null | 队列=1 | 阶段=Normal
+[09:17:07.042] [Brain-Tick] 帝国农民(Idx=5) 开始执行 FightEnemyAction | 队列剩余=0
+[09:17:07.042] [CombatManager] RegisterCombatant: 帝国农民(Idx=5), total=1
+[09:17:07.046] [Brain-Tick] 帝国农民(Idx=15) 开始执行 FightEnemyAction | 队列剩余=0
+[09:17:07.047] [CombatManager] RegisterCombatant: 帝国农民(Idx=15), total=2
+[09:17:07.047] [Brain-Tick] 男孩(Idx=26) 开始执行 FightEnemyAction | 队列剩余=0
+[09:17:07.047] [CombatManager] RegisterCombatant: 男孩(Idx=26), total=3
+[09:17:11.697] [DisplayMessage] [RGB(0.9,0.7,0.7)] "受到14点挥砍伤害。<Detail>命中部位：头</Detail><Detail>相对移动速度：0.57米/秒</Detail>" | category=Combat
+[09:17:12.921] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:12.922] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:12.922] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:12.922] [Brain-Receive] 男孩(Idx=26) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:12.923] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成22点挥砍伤害。<Detail>命中部位：肩</Detail><Detail>相对移动速度：0.46米/秒</Detail><Detail>吸收伤害：2</Detail>" | category=Combat
+[09:17:13.869] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'event_agent_damaged' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:13.870] [DisplayMessage] [RGB(1.0,0.9,1.0)] "造成35点挥砍伤害。<Detail>命中部位：胸</Detail><Detail>相对移动速度：0.87米/秒</Detail><Detail>吸收伤害：3</Detail>" | category=Combat
+[09:17:14.663] [Combat] 玩家向 男孩 认输，玩家收起武器
+[09:17:14.663] [Brain-Receive] 男孩(Idx=26) 收到事件 'event_player_surrendered' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:14.664] [Brain-Clear] 男孩(Idx=26) 清空动作 | 当前=FightEnemyAction | 队列=0 | hadActions=True
+[09:17:14.664] [CombatManager] UnregisterCombatant: 男孩(Idx=26), total=2
+[09:17:14.664] [CombatManager] EndFight: 男孩(Idx=26) restored to original team
+[09:17:14.666] [Brain-Alert] 男孩(Idx=26) ClearAllAlerts: 警戒值归零
+[09:17:14.666] [FightEnd] 男孩(Idx=26) 战斗结束，收起武器，且警戒值归零
+[09:17:14.667] [Brain-Enqueue] 男孩(Idx=26) 入队 StayAction | 当前行为=null | 队列=0→1
+[09:17:14.667] [Brain-Surrender] 男孩(Idx=26) 玩家投降 — 停战 + StayAction（对话结束后统一恢复）
+[09:17:14.668] [Brain-Receive] 帝国农民(Idx=5) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:14.669] [Brain-Clear] 帝国农民(Idx=5) 清空动作 | 当前=FightEnemyAction | 队列=0 | hadActions=True
+[09:17:14.669] [CombatManager] UnregisterCombatant: 帝国农民(Idx=5), total=1
+[09:17:14.669] [CombatManager] EndFight: 帝国农民(Idx=5) restored to original team
+[09:17:14.669] [Brain-Alert] 帝国农民(Idx=5) ClearAllAlerts: 警戒值归零
+[09:17:14.669] [FightEnd] 帝国农民(Idx=5) 战斗结束，收起武器，且警戒值归零
+[09:17:14.669] [Brain-Enqueue] 帝国农民(Idx=5) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[09:17:14.669] [Brain-Receive] 帝国农民(Idx=15) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=FightEnemyAction | 队列=0 | 阶段=Alarmed
+[09:17:14.669] [Brain-Clear] 帝国农民(Idx=15) 清空动作 | 当前=FightEnemyAction | 队列=0 | hadActions=True
+[09:17:14.670] [CombatManager] UnregisterCombatant: 帝国农民(Idx=15), total=0
+[09:17:14.670] [CombatManager] EndFight: 帝国农民(Idx=15) restored to original team
+[09:17:14.670] [Brain-Alert] 帝国农民(Idx=15) ClearAllAlerts: 警戒值归零
+[09:17:14.670] [FightEnd] 帝国农民(Idx=15) 战斗结束，收起武器，且警戒值归零
+[09:17:14.670] [Brain-Enqueue] 帝国农民(Idx=15) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[09:17:14.670] [Brain-Receive] 男孩(Idx=25) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:14.670] [Brain-Clear] 男孩(Idx=25) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:14.670] [Brain-Enqueue] 男孩(Idx=25) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[09:17:14.670] [AI-Debug] Suspend 男孩 (Idx=25) | 集合size=4 | 当前行为=null
+[09:17:14.670] [Brain-Receive] 女孩(Idx=27) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:14.670] [Brain-Clear] 女孩(Idx=27) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:14.670] [Brain-Enqueue] 女孩(Idx=27) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[09:17:14.670] [AI-Debug] Suspend 女孩 (Idx=27) | 集合size=5 | 当前行为=null
+[09:17:14.670] [Brain-Receive] 女孩(Idx=28) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:14.670] [Brain-Clear] 女孩(Idx=28) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:14.671] [Brain-Enqueue] 女孩(Idx=28) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[09:17:14.671] [AI-Debug] Suspend 女孩 (Idx=28) | 集合size=6 | 当前行为=null
+[09:17:14.671] [Brain-Receive] 少年(Idx=29) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:14.671] [Brain-Clear] 少年(Idx=29) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:14.671] [Brain-Enqueue] 少年(Idx=29) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[09:17:14.671] [AI-Debug] Suspend 少年 (Idx=29) | 集合size=7 | 当前行为=null
+[09:17:14.671] [Brain-Receive] 帝国女农民(Idx=35) 收到事件 'WitnessCrime_GatherOnLook' | 当前行为=null | 队列=0 | 阶段=Normal
+[09:17:14.671] [Brain-Clear] 帝国女农民(Idx=35) 清空动作 | 当前=null | 队列=0 | hadActions=False
+[09:17:14.671] [Brain-Enqueue] 帝国女农民(Idx=35) 入队 ReactionDecisionAction | 当前行为=null | 队列=0→1
+[09:17:14.672] [AI-Debug] Suspend 帝国女农民 (Idx=35) | 集合size=8 | 当前行为=null
+[09:17:14.672] [ConvLock] Acquire by 男孩(Idx=26) | reason=PlayerSurrender
+[09:17:14.672] 重要错误，一定要关注：[ConvLock] Prefix: effectiveAgent is null, cannot acquire lock.
+[09:17:14.672] [ConvEntry] Mission start Prefix: pre-injecting for trigger=PlayerSurrender partner=(template)
+[09:17:14.672] [ConvEntry] FindOnGoing(village_ES3_2) → evt=misconduct_village_ES3_2_2185857_3 stage=Active assault=[none:0] pendingId=misconduct_village_ES3_2_2185857_3 pendingStage=Active pendingAssault=[none:0]
+[09:17:14.672] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185857_3": 匹配到 0 个 owner: []（现存 0 个）
+[09:17:14.672] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185857_3": 没有匹配的 owner（现存 0 个: []）
+[09:17:14.672] [ConvEntry] BuildScript: partner=null partnerStringId=null agent=null agentIdx=null character=null characterStringId=null evtId=misconduct_village_ES3_2_2185857_3 trigger=PlayerSurrender confrontation=Deter triggerAction=Crouching
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[0] id=player_lose NpcLine="哼，知道打不过了吧？把钱袋交出来——200第纳尔，饶你一命。"
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[0] "……交出200第纳尔。" → INTENT:PlayerSurrenderPay Param=pay | NextNodeOnSuccess=surrender_pay_ack
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[1] "求你放过我，我只是路过……" → INTENT:PlayerSurrenderBeg Param=beg [SkillCheck] | NextNodeOnSuccess=surrender_beg_ok | NextNodeOnFail=player_lose_counteroffer
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[2] "你这条狗！杀了我你也别想好过！" → INTENT:PlayerSurrenderThreaten Param=threaten [SkillCheck] | NextNodeOnSuccess=surrender_threaten_ok | NextNodeOnFail=surrender_threaten_fail
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[1] id=surrender_pay_ack NpcLine="算你识相。200第纳尔，下次长点眼力见，滚吧！"
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[2] id=surrender_beg_ok NpcLine="……啧，算你运气好。滚，别让我再看见你。"
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[3] id=player_lose_counteroffer NpcLine="最后一次机会——400 第纳尔，或者咱们接着打。你选。"
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[0] "……交出400第纳尔。" → INTENT:PlayerSurrenderPay Param=counteroffer_beg | NextNodeOnSuccess=surrender_counter_ack
+[09:17:14.674] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active   Transition[1] "拼死一战" → INTENT:FightOn | NextNodeOnSuccess=surrender_fight_ack
+[09:17:14.676] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[4] id=surrender_counter_ack NpcLine="算你识相。400第纳尔，滚吧！"
+[09:17:14.676] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[5] id=surrender_fight_ack NpcLine="好！那就打到你爬不起来！"
+[09:17:14.676] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[6] id=surrender_threaten_ok NpcLine="……疯子。滚，别让我再看见你。"
+[09:17:14.676] [CrimeDialog] trigger=PlayerSurrender speaker=(template) stage=Active Turn[7] id=surrender_threaten_fail NpcLine="找死！！"
+[09:17:14.678] [DialogueInjector] 跳过原版Opening: NPC line at 'start' → 'lwnpc_crime_misconduct_village_ES3_2_2185857_3_v0_atk_0' | priority=200 | owner=crime_misconduct_village_ES3_2_2185857_3_v0
+[09:17:14.679] [ConvCondition] Building condition for intent=PlayerSurrenderPay playerLine="……交出200第纳尔。" actionParam=pay
+[09:17:14.680] [ConvCondition] Building condition for intent=PlayerSurrenderBeg playerLine="求你放过我，我只是路过……" actionParam=beg
+[09:17:14.680] [ConvCondition] Building condition for intent=PlayerSurrenderThreaten playerLine="你这条狗！杀了我你也别想好过！" actionParam=threaten
+[09:17:14.680] [ConvCondition] Building condition for intent=PlayerSurrenderPay playerLine="……交出400第纳尔。" actionParam=counteroffer_beg
+[09:17:14.680] [ConvCondition] Building condition for intent=FightOn playerLine="拼死一战" actionParam=(null)
+[09:17:14.681] [ConvEntry] 注入对话执行成功 Injected dialogue: event=misconduct_village_ES3_2_2185857_3 stage=Active trigger=PlayerSurrender partner=(template) nodes=8
+[09:17:14.687] [VanillaDialog] NPC  | NPC: 男孩 (CharacterId: villager_child_empire) says: "哼，知道打不过了吧？把钱袋交出来——200第纳尔，饶你一命。"
+[09:17:14.688] [ConvCondition] intent=PlayerSurrenderPay playerLine="……交出200第纳尔。" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185857_3 actionParam=pay eligibility=Enabled reason=
+[09:17:14.688] [ConvCondition] intent=PlayerSurrenderBeg playerLine="求你放过我，我只是路过……" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185857_3 actionParam=beg eligibility=Enabled reason=
+[09:17:14.689] [ConvCondition] intent=PlayerSurrenderThreaten playerLine="你这条狗！杀了我你也别想好过！" npc=(null) settlement=特维亚 evt=misconduct_village_ES3_2_2185857_3 actionParam=threaten eligibility=Enabled reason=
+[09:17:14.691] 重要错误，一定要关注：[ConvLock] Postfix: effectiveAgent is null, cannot acquire lock.
+[09:17:14.691] [ConvEntry] FindOnGoing(village_ES3_2) → evt=misconduct_village_ES3_2_2185857_3 stage=Active assault=[none:0] pendingId=misconduct_village_ES3_2_2185857_3 pendingStage=Active pendingAssault=[none:0]
+[09:17:14.694] [Brain-Tick] 帝国农民(Idx=5) 开始执行 ReactionDecisionAction | 队列剩余=0
+[09:17:14.694] [Brain-Tick] 帝国农民(Idx=15) 开始执行 ReactionDecisionAction | 队列剩余=0
+[09:17:14.694] [Brain-Tick] 男孩(Idx=25) 开始执行 ReactionDecisionAction | 队列剩余=0
+[09:17:14.695] [Brain-Tick] 男孩(Idx=26) 开始执行 StayAction | 队列剩余=0
+[09:17:14.695] [Brain-Tick] 女孩(Idx=27) 开始执行 ReactionDecisionAction | 队列剩余=0
+[09:17:14.695] [Brain-Tick] 女孩(Idx=28) 开始执行 ReactionDecisionAction | 队列剩余=0
+[09:17:14.695] [Brain-Tick] 少年(Idx=29) 开始执行 ReactionDecisionAction | 队列剩余=0
+[09:17:14.695] [Brain-Tick] 帝国女农民(Idx=35) 开始执行 ReactionDecisionAction | 队列剩余=0
+[09:17:16.983] [VanillaDialog] Token='lwnpc_crime_misconduct_village_ES3_2_2185857_3_v0_atk_0' NPC=Henry | Options (3): [交钱]……交出200第纳尔。 | [求饶]求你放过我，我只是路过…… | [威胁]你这条狗！杀了我你也别想好过！
+[09:17:16.986] [SkillCheck] PlayerSurrenderBeg | [单次检定] 手段=Flatter 技能=魅力 你的等级=20 对方等级=50 献礼=0.00 → 成功率=0.24 | 掷骰=通过 (chance=24 %)
+[09:17:16.986] [AddQuickInformation] "魅力检定成功"
+[09:17:16.987] [Combat] SurrenderBeg SUCCESS: 免单放人, honor=0→-1
+[09:17:16.987] [VanillaDialog] Player says: "[求饶]求你放过我，我只是路过……"
+[09:17:16.987] [VanillaDialog] NPC  | NPC: 男孩 (CharacterId: villager_child_empire) says: "……啧，算你运气好。滚，别让我再看见你。"
+[09:17:17.172] [Brain-Enqueue] 帝国农民(Idx=5) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[09:17:17.172] [Brain-Enqueue] 帝国农民(Idx=5) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[09:17:17.172] [Brain-Enqueue] 帝国农民(Idx=5) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[09:17:17.172] [Brain-Tick] 帝国农民(Idx=5) 完成 ReactionDecisionAction
+[09:17:17.177] [Brain-Tick] 帝国农民(Idx=5) 开始执行 LookAtAction | 队列剩余=2
+[09:17:17.198] [Brain-Enqueue] 帝国农民(Idx=15) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[09:17:17.198] [Brain-Enqueue] 帝国农民(Idx=15) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[09:17:17.199] [Brain-Enqueue] 帝国农民(Idx=15) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[09:17:17.199] [Brain-Tick] 帝国农民(Idx=15) 完成 ReactionDecisionAction
+[09:17:17.204] [Brain-Tick] 帝国农民(Idx=15) 开始执行 LookAtAction | 队列剩余=2
+[09:17:17.674] [Brain-Tick] 帝国农民(Idx=5) 完成 LookAtAction
+[09:17:17.679] [Brain-Tick] 帝国农民(Idx=5) 开始执行 MoveToPositionAction | 队列剩余=1
+[09:17:17.700] [Brain-Tick] 帝国农民(Idx=15) 完成 LookAtAction
+[09:17:17.705] [Brain-Tick] 帝国农民(Idx=15) 开始执行 MoveToPositionAction | 队列剩余=1
+[09:17:17.876] [ConvLock] Release by 男孩(Idx=26) | reason=EndConversation
+[09:17:17.876] [ConvEnd] Conversation ended. lastEvent=misconduct_village_ES3_2_2185857_3_(template)_Active_3_0_1 lastTag=crime_misconduct_village_ES3_2_2185857_3
+[09:17:17.876] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185857_3": 匹配到 1 个 owner: [crime_misconduct_village_ES3_2_2185857_3(crime_misconduct_village_ES3_2_2185857_3_v0)]（现存 1 个）
+[09:17:17.876] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185857_3": 已清理 owner BaseLabel="crime_misconduct_village_ES3_2_2185857_3" FileName="crime_misconduct_village_ES3_2_2185857_3_v0"
+[09:17:17.876] [DialogueInjector] RemoveRelatedLines label="crime_misconduct_village_ES3_2_2185857_3": 清理完毕，剩余注入项 0 个: []
+[09:17:17.876] [ConvEnd] Haggle flag cleared for misconduct_village_ES3_2_2185857_3
+[09:17:17.877] [Brain-PostConvCleanup] 男孩(Idx=26) 对话结束清理 | 当前=StayAction | 队列=0
+[09:17:17.877] [Brain-Clear] 男孩(Idx=26) 清空动作 | 当前=StayAction | 队列=0 | hadActions=True
+[09:17:17.877] [Brain-Alert] 男孩(Idx=26) ClearAllAlerts: 警戒值归零
+[09:17:17.878] [AI-Debug] Resume 男孩 (Idx=26) | 集合size=7
+[09:17:19.885] [Brain-Tick] 帝国农民(Idx=15) 完成 MoveToPositionAction
+[09:17:19.892] [Brain-Tick] 帝国农民(Idx=15) 开始执行 StayAction | 队列剩余=0
+[09:17:21.656] [Brain-Enqueue] 少年(Idx=29) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[09:17:21.657] [Brain-Enqueue] 少年(Idx=29) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[09:17:21.657] [Brain-Enqueue] 少年(Idx=29) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[09:17:21.657] [Brain-Tick] 少年(Idx=29) 完成 ReactionDecisionAction
+[09:17:21.663] [Brain-Tick] 少年(Idx=29) 开始执行 LookAtAction | 队列剩余=2
+[09:17:22.160] [Brain-Tick] 少年(Idx=29) 完成 LookAtAction
+[09:17:22.165] [Brain-Tick] 少年(Idx=29) 开始执行 MoveToPositionAction | 队列剩余=1
+[09:17:23.087] [Brain-Enqueue] 帝国女农民(Idx=35) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[09:17:23.087] [Brain-Enqueue] 帝国女农民(Idx=35) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[09:17:23.087] [Brain-Enqueue] 帝国女农民(Idx=35) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[09:17:23.087] [Brain-Tick] 帝国女农民(Idx=35) 完成 ReactionDecisionAction
+[09:17:23.092] [Brain-Tick] 帝国女农民(Idx=35) 开始执行 LookAtAction | 队列剩余=2
+[09:17:23.307] [Brain-Enqueue] 女孩(Idx=27) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[09:17:23.308] [Brain-Enqueue] 女孩(Idx=27) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[09:17:23.308] [Brain-Enqueue] 女孩(Idx=27) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[09:17:23.308] [Brain-Tick] 女孩(Idx=27) 完成 ReactionDecisionAction
+[09:17:23.314] [Brain-Tick] 女孩(Idx=27) 开始执行 LookAtAction | 队列剩余=2
+[09:17:23.587] [Brain-Tick] 帝国女农民(Idx=35) 完成 LookAtAction
+[09:17:23.592] [Brain-Tick] 帝国女农民(Idx=35) 开始执行 MoveToPositionAction | 队列剩余=1
+[09:17:23.742] [Brain-Enqueue] 男孩(Idx=25) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[09:17:23.742] [Brain-Enqueue] 男孩(Idx=25) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[09:17:23.742] [Brain-Enqueue] 男孩(Idx=25) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[09:17:23.742] [Brain-Tick] 男孩(Idx=25) 完成 ReactionDecisionAction
+[09:17:23.748] [Brain-Tick] 男孩(Idx=25) 开始执行 LookAtAction | 队列剩余=2
+[09:17:23.810] [Brain-Tick] 女孩(Idx=27) 完成 LookAtAction
+[09:17:23.816] [Brain-Tick] 女孩(Idx=27) 开始执行 MoveToPositionAction | 队列剩余=1
+[09:17:24.171] [Brain-Enqueue] 女孩(Idx=28) 入队 LookAtAction | 当前行为=ReactionDecisionAction | 队列=0→1
+[09:17:24.171] [Brain-Enqueue] 女孩(Idx=28) 入队 MoveToPositionAction | 当前行为=ReactionDecisionAction | 队列=1→2
+[09:17:24.172] [Brain-Enqueue] 女孩(Idx=28) 入队 StayAction | 当前行为=ReactionDecisionAction | 队列=2→3
+[09:17:24.172] [Brain-Tick] 女孩(Idx=28) 完成 ReactionDecisionAction
+[09:17:24.178] [Brain-Tick] 女孩(Idx=28) 开始执行 LookAtAction | 队列剩余=2
+[09:17:24.245] [Brain-Tick] 男孩(Idx=25) 完成 LookAtAction
+[09:17:24.251] [Brain-Tick] 男孩(Idx=25) 开始执行 MoveToPositionAction | 队列剩余=1
+[09:17:24.675] [Brain-Tick] 女孩(Idx=28) 完成 LookAtAction
+[09:17:24.681] [Brain-Tick] 女孩(Idx=28) 开始执行 MoveToPositionAction | 队列剩余=1
+[09:17:25.679] [Brain-Tick] 帝国农民(Idx=5) 完成 MoveToPositionAction
+[09:17:25.685] [Brain-Tick] 帝国农民(Idx=5) 开始执行 StayAction | 队列剩余=0
+[09:17:30.160] [Brain-Tick] 少年(Idx=29) 完成 MoveToPositionAction
+[09:17:30.166] [Brain-Tick] 少年(Idx=29) 开始执行 StayAction | 队列剩余=0
+[09:17:31.587] [Brain-Tick] 帝国女农民(Idx=35) 完成 MoveToPositionAction
+[09:17:31.593] [Brain-Tick] 帝国女农民(Idx=35) 开始执行 StayAction | 队列剩余=0
+[09:17:31.812] [Brain-Tick] 女孩(Idx=27) 完成 MoveToPositionAction
+[09:17:31.817] [Brain-Tick] 女孩(Idx=27) 开始执行 StayAction | 队列剩余=0
+[09:17:32.247] [Brain-Tick] 男孩(Idx=25) 完成 MoveToPositionAction
+[09:17:32.254] [Brain-Tick] 男孩(Idx=25) 开始执行 StayAction | 队列剩余=0
+[09:17:32.678] [Brain-Tick] 女孩(Idx=28) 完成 MoveToPositionAction
+[09:17:32.684] [Brain-Tick] 女孩(Idx=28) 开始执行 StayAction | 队列剩余=0
