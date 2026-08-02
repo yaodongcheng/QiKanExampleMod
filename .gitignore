@@ -22,6 +22,7 @@ packages/
 
 # 日志文件
 *.log
+Debug/StoryEngine_RuntimeLog.txt
 
 # 临时文件
 *.tmp

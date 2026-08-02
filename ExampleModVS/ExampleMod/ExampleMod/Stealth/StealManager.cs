@@ -472,7 +472,7 @@ namespace LivingWorldNpcs
 
                     // 抓现行围堵：victim=null（牲畜没有具体受害者 Agent），与保管箱偷窃对齐
                     AgentAIController.Instance?.BroadcastEventInRange(
-                        Agent.Main.Position, 25f, "WitnessCrime",
+                        Agent.Main.Position, 20f, "WitnessCrime",
                         exclude: null, requireSight: true,
                         Agent.Main, null);
                 }
@@ -530,7 +530,7 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[AnimalTheft] {animalName} 挣脱惊叫，{witnesses.Count} 名目击者被惊动");
                     AgentAIController.Instance?.BroadcastEventInRange(
-                        Agent.Main.Position, 25f, "WitnessCrime",
+                        Agent.Main.Position, 20f, "WitnessCrime",
                         exclude: null, requireSight: true,
                         Agent.Main, null);
                 }
@@ -650,7 +650,7 @@ namespace LivingWorldNpcs
 
                 // 抓现行围堵：victim=null（保管箱没有具体受害者 Agent）
                 AgentAIController.Instance?.BroadcastEventInRange(
-                    Agent.Main.Position, 25f, "WitnessCrime",
+                    Agent.Main.Position, 20f, "WitnessCrime",
                     exclude: null, requireSight: true,
                     Agent.Main, null);
             }
@@ -789,7 +789,7 @@ namespace LivingWorldNpcs
                 // ④ 抓现行围堵：victim=null（受害者昏迷无法指控；WitnessCrime 分类落到 Steal，
                 //    若传 victim 会被 IsKnockedOut 误判为 Knockout——与保管箱/偷猪完全对齐）
                 AgentAIController.Instance?.BroadcastEventInRange(
-                    Agent.Main.Position, 25f, "WitnessCrime",
+                    Agent.Main.Position, 20f, "WitnessCrime",
                     exclude: null, requireSight: true,
                     Agent.Main, null);
             }
