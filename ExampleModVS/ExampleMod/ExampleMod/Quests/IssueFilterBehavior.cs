@@ -201,56 +201,6 @@ namespace LivingWorldNpcs
         private static string MakeSuppressionKey(Hero hero, string issueTypeName)
             => $"{hero.StringId}|{issueTypeName}";
 
-        // ── Persistence ──
-
-        /// <summary>序列化活跃的 Issue 抑制表供存档。</summary>
-        public static string Serialize()
-        {
-            try
-            {
-                var data = new Dictionary<string, object>
-                {
-                    { "suppressions", _activeSuppressions },
-                    { "lastLogDay", _lastLogDay }
-                };
-                return Newtonsoft.Json.JsonConvert.SerializeObject(data);
-            }
-            catch { return "{}"; }
-        }
-
-        /// <summary>从存档恢复 Issue 抑制表。</summary>
-        public static void Deserialize(string json)
-        {
-            lock (_activeSuppressions)
-            {
-                _activeSuppressions.Clear();
-                _lastLogDay = -1f;
-
-                if (string.IsNullOrEmpty(json) || json == "{}") return;
-
-                try
-                {
-                    var dict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, object>>(json);
-                    if (dict == null) return;
-
-                    if (dict.TryGetValue("suppressions", out var supp) && supp != null)
-                    {
-                        var restored = Newtonsoft.Json.JsonConvert
-                            .DeserializeObject<Dictionary<string, float>>(supp.ToString());
-                        if (restored != null)
-                        {
-                            foreach (var kvp in restored)
-                                _activeSuppressions[kvp.Key] = kvp.Value;
-                        }
-                    }
-
-                    if (dict.TryGetValue("lastLogDay", out var lld) && lld != null)
-                        _lastLogDay = Convert.ToSingle(lld);
-                }
-                catch { /* keep clean state */ }
-            }
-        }
-
         // ── CampaignBehaviorBase ──
 
         public override void RegisterEvents()
