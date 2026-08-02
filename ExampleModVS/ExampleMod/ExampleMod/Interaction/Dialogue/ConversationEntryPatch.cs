@@ -376,13 +376,17 @@ namespace LivingWorldNpcs
                 // 从 MissionConversationLogic 获取战斗层 Agent（而不是 ConversationManager 的战役层 IAgent）
                 var missionConvLogic = Mission.Current?.GetMissionBehavior<MissionConversationLogic>();
                 var partnerAgent = missionConvLogic?.ConversationAgent;
+                AgentBrain surrenderBrain = null;
+                bool surrenderCleanupPending = false;
                 if (partnerAgent != null && partnerAgent != Agent.Main)
                 {
                     var brain = AgentAIController.GetBrainForAgent(partnerAgent);
+                    surrenderBrain = brain;
+                    surrenderCleanupPending = brain != null && brain.PendingPostConversationCleanup;
                     // ⚠️ 仅当谈判成功（Agent 仍在 StayAction 待命中）才清理。
                     // 如果 PendingPostConversationCleanup 已被 event_surrender_refused 置为 false
                     // （威胁失败 / 拼死一战），说明 Agent 已重回 FightEnemyAction，跳过。
-                    if (brain != null && brain.PendingPostConversationCleanup)
+                    if (surrenderCleanupPending)
                     {
                         brain.PostConversationCleanup();
                     }
@@ -392,19 +396,50 @@ namespace LivingWorldNpcs
                     // 兜底：投降等路径中 missionConvLogic.ConversationAgent 可能为 null，
                     // 但 ConfrontingBrain 已在 AgentBrain 发起对话时直接设置，直接用它清理。
                     releasingBrain.PostConversationCleanup();
+                    surrenderBrain = releasingBrain;
+                    surrenderCleanupPending = true;
                 }
 
                 // 广播 EndInteraction 给围观 NPC（bystanders 的 InteractedAgent 匹配时清理自己）
+                // Alert 路径：alertAgent 非 null，用它匹配
+                // 认输路径：AlertForceConversationAction 未设置 alertAgent，
+                //   但 bystanders 通过 WitnessCrime_GatherOnLook 围观了玩家（InteractedAgent=Agent.Main）
+                //   或投降 NPC（InteractedAgent=partnerAgent），分别广播匹配。
+                // ⚠️ 散场半径 25f > 围观半径 20f，保证所有围观 NPC 都能收到散场信号。
+                const float endInteractionRadius = 25.0f;
                 if (alertAgent != null)
                 {
                     try
                     {
                         AgentAIController.Instance?.BroadcastEventInRange(
-                            alertAgent.Position, 15.0f, "EndInteraction", false, alertAgent);
+                            alertAgent.Position, endInteractionRadius, "EndInteraction", false, alertAgent);
                     }
                     catch (Exception ex)
                     {
                         DebugLogger.Log($"[ConvEnd] EndInteraction broadcast failed: {ex.Message}");
+                    }
+                }
+                else if (surrenderCleanupPending)
+                {
+                    // 认输路径：missionConvLogic.ConversationAgent 可能为 null（已经进了 releasingBrain 分支），
+                    // 用 surrenderBrain.Owner 作为广播中心。
+                    var broadcastCenter = partnerAgent ?? surrenderBrain?.Owner;
+                    if (broadcastCenter != null)
+                    {
+                        try
+                        {
+                            // 围观 NPC 的 InteractedAgent 可能是 Agent.Main（玩家认输）
+                            // 或 partnerAgent/broadcastCenter（NPC 认输），两发都发各自匹配
+                            AgentAIController.Instance?.BroadcastEventInRange(
+                                broadcastCenter.Position, endInteractionRadius, "EndInteraction", false, Agent.Main);
+                            AgentAIController.Instance?.BroadcastEventInRange(
+                                broadcastCenter.Position, endInteractionRadius, "EndInteraction", false, broadcastCenter);
+                            DebugLogger.Log($"[ConvEnd] EndInteraction broadcast (surrender) via {broadcastCenter.Name}(Idx={broadcastCenter.Index})");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"[ConvEnd] EndInteraction broadcast (surrender) failed: {ex.Message}");
+                        }
                     }
                 }
             }

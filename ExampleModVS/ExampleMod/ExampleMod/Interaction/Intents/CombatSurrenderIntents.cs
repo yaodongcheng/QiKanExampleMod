@@ -2,6 +2,7 @@ using System;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
 
@@ -63,6 +64,9 @@ namespace LivingWorldNpcs
             // ④ 清除"拼死一战"标记（防御：威胁失败 → counteroffer → 玩家最终交钱，不应再重回战斗）
             FightOnIntent.PendingSurrenderRefusedAgent = null;
 
+            // ⑤ 结案：赎金已付，事件了结
+            SurrenderIntentHelper.ResolveSurrenderWorldEvent("payment");
+
             DebugLogger.Log($"[Combat] SurrenderPay: penalty={penalty}G{(isCounteroffer ? " (counteroffer x2)" : "")}, honor={honor}→{honor - 1}, valor={valor}→{valor - 1}");
         }
     }
@@ -100,6 +104,10 @@ namespace LivingWorldNpcs
             // 魅力说服成功：免单放人，但荣誉仍 -1（求饶本身就不光彩）
             int honor = Hero.MainHero.GetTraitLevel(DefaultTraits.Honor);
             Hero.MainHero.SetTraitLevel(DefaultTraits.Honor, honor - 1);
+
+            // 结案：NPC 宽恕放人
+            SurrenderIntentHelper.ResolveSurrenderWorldEvent("forgiven");
+
             DebugLogger.Log($"[Combat] SurrenderBeg SUCCESS: 免单放人, honor={honor}→{honor - 1}");
         }
 
@@ -150,6 +158,8 @@ namespace LivingWorldNpcs
             int honor = Hero.MainHero.GetTraitLevel(DefaultTraits.Honor);
             Hero.MainHero.SetTraitLevel(DefaultTraits.Honor, honor - 1);
 
+            // 结案：NPC 被吓退
+            SurrenderIntentHelper.ResolveSurrenderWorldEvent("intimidated");
 
             DebugLogger.Log($"[Combat] SurrenderThreaten SUCCESS: NPC 怂了, honor={honor}→{honor - 1}");
         }
@@ -280,6 +290,47 @@ namespace LivingWorldNpcs
             // 谈判破裂 → 标记战后重回战斗（不在此处发事件，对话尚未结束）
             PendingSurrenderRefusedAgent = ctx.Agent;
             DebugLogger.Log("[Combat] FightOn: 谈判破裂，标记战后重回战斗");
+        }
+    }
+
+    /// <summary>
+    /// 认输 Intent 共享工具方法。
+    /// </summary>
+    internal static class SurrenderIntentHelper
+    {
+        /// <summary>
+        /// 查找认输关联的 WorldEvent 并结案。
+        /// 攻击 NPC 本身就是犯罪（PendingWorldEvent 已在 Confrontation 阶段），
+        /// 认输交赎金/求饶/威胁成功后应了结此案。
+        /// </summary>
+        internal static void ResolveSurrenderWorldEvent(string resolvedBy)
+        {
+            try
+            {
+                var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
+                if (settlement == null) return;
+
+                var evt = WorldEventStore.FindOnGoing(settlement.StringId);
+                if (evt == null)
+                {
+                    DebugLogger.Log("[Combat] ResolveSurrenderWorldEvent: no ongoing event found");
+                    return;
+                }
+                if (evt.Stage == EventStage.Resolved)
+                {
+                    DebugLogger.Log($"[Combat] ResolveSurrenderWorldEvent: event {evt.EventId} already resolved");
+                    return;
+                }
+
+                WorldEventStore.TransitionStage(evt, EventStage.Resolved);
+                evt.ResolvedBy = resolvedBy;
+                TheftLedger.MarkCleared(evt.TargetSettlementId);
+                DebugLogger.Log($"[Combat] ResolveSurrenderWorldEvent: event {evt.EventId} resolved as '{resolvedBy}'");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Combat] ResolveSurrenderWorldEvent failed: {ex.Message}");
+            }
         }
     }
 }

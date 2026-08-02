@@ -1631,7 +1631,7 @@ namespace LivingWorldNpcs
                 // 第三方目击广播：受害者始终 exclude（击晕场景玩家在背后，sight check 必然 false，
                 // 受害者通过直接事件 event_agent_knocked_out 反应）
                 AgentAIController.Instance?.BroadcastEventInRange(
-                    target.Position, 25f, "WitnessCrime",
+                    target.Position, 20f, "WitnessCrime",
                     exclude: new HashSet<Agent> { target },
                     requireSight: true,
                     Agent.Main, target);

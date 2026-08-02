@@ -634,7 +634,7 @@ namespace LivingWorldNpcs
                 // 广播围观 + 启动对话
                 var excludeSelf = new HashSet<Agent> { Owner };
                 AgentAIController.Instance?.BroadcastEventInRange(
-                    Agent.Main.Position, 25f, "WitnessCrime", excludeSelf, false, Agent.Main, Owner);
+                    Agent.Main.Position, 20f, "WitnessCrime", excludeSelf, true, Agent.Main, Owner);
                 ConversationEntryPatch._pendingTrigger = DialogueTrigger.PlayerSurrender;
                 ConfrontingBrain = this;
                 DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=PlayerSurrender");
@@ -653,7 +653,7 @@ namespace LivingWorldNpcs
 
                 // 广播围观 + 启动对话
                 AgentAIController.Instance?.BroadcastEventInRange(
-                    Owner.Position, 25f, "WitnessCrime", false, Owner, Agent.Main);
+                    Owner.Position, 20f, "WitnessCrime", true, Owner, Agent.Main);
                 ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
                 ConfrontingBrain = this;
                 DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=NpcSurrender");
