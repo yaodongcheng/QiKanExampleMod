@@ -1854,11 +1854,18 @@ namespace LivingWorldNpcs
             // 本地化：战利品询问框内容
             string contentText = LWNTextHelper.ResolveCompound("LWN_ui_interact_loot_content", ("NAME", targetAgent.Name.ToString()), ("ITEMS", itemsName), ("GOLD", goldPreview), ("PARTY", partyItems));
 
+#if MB2_V1212
+            bool showPickButton = targetAgent.IsActive();  // 只有活人偷窃时才有挑选界面；死人/昏迷不给
+#else
+            // Latest: InventoryManager.OpenScreenAsLoot 不可用，不显示"自己挑选"
+            bool showPickButton = false;
+#endif
+
             InformationManager.ShowInquiry(new InquiryData(
                 titleText,
                 contentText,
                 true,
-                true,
+                showPickButton,
                 // 本地化：战利品询问框按钮（全部拿走/自己挑选）
                 LWNTextHelper.ResolveText("LWN_ui_interact_btn_take_all", "Take All"),
                 // 自己挑选
@@ -1916,10 +1923,9 @@ namespace LivingWorldNpcs
 
                     if (!lootRoster.IsEmpty())
                     {
-                        // 死人/昏迷者（!IsActive）走"自己挑选"→ProcessPendingLoot→UpdateSpawnEquipmentAndRefreshVisuals
-                        // 会在 native WieldInitialWeapons 操作 ragdoll 骨骼 → AccessViolation（详见 pitfalls.md）。
-                        // 解决：武器跳过不进库存（死人的武器引擎已掉在地上），只留防具进库存让玩家挑。
-                        // 这样 newEquipment 里没有武器，WieldInitialWeapons 空操作 → 安全。
+                        // 死人/昏迷者（!IsActive）：武器已由引擎掉在地上，只放防具进库存。
+                        // StripAgentEquipment 内置 agent.IsActive() 守卫，死人跳过
+                        // UpdateSpawnEquipmentAndRefreshVisuals → 不会 AccessViolation。
                         bool isDead = !targetAgent.IsActive();
 #if MB2_V1212
                         if (isDead)

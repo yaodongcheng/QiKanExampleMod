@@ -5,12 +5,12 @@
 
 ---
 
-## 对尸体/昏迷 Agent 刷新带武器的装备 → AccessViolation
+## 对尸体/昏迷 Agent 调 `UpdateSpawnEquipmentAndRefreshVisuals` → AccessViolation
 
 **症状**
 - `agent.UpdateSpawnEquipmentAndRefreshVisuals(newEquipment)` 抛 `System.AccessViolationException`（读写受保护内存）。
 - 只在**死人/昏迷**的 Agent 上发生；活人正常。
-- "全部拿走/扒光"不崩，"自己挑选只拿一部分"才崩；"一件没拿"（不触发刷新）也不崩。
+- ~~"全部拿走/扒光"不崩~~ **（2026-08-02 修正：全部拿走也会崩！）**，"自己挑选只拿一部分"也崩；"一件没拿"（不触发刷新）不崩。
 
 **根因**（反编译 `TaleWorlds.MountAndBlade.Agent` 确认）
 
@@ -20,15 +20,14 @@ UpdateSpawnEquipmentAndRefreshVisuals(newEquipment)
         └─ TryToWieldWeaponInSlot(GetPtr(), ...)   // 纯 native，无 IsActive 守卫
 ```
 
-- 死人骨骼已交给物理系统（ragdoll），native 再去"把武器握进手里"就操作到失效骨骼内存 → 崩。
-- **崩的只有「武器 wield」这一步**。防具留在 `newEquipment` 里**不崩**——防具走 `AddSkinMeshes`，纯渲染挂网格，不碰骨骼物理。
-- "全部拿走"安全的真正原因不是时机（不是因为尸体新鲜），而是**武器被拿光、`WieldInitialWeapons` 空操作**。
+- 死人骨骼已交给物理系统（ragdoll），native 方法内部不止 `WieldInitialWeapons` 碰骨骼——**detach 旧 mesh / 刷新骨骼引用**阶段也会操作已被物理接管的 ragdoll 内存 → 崩。
+- ~~"全部拿走"安全的真正原因不是时机，而是武器被拿光、`WieldInitialWeapons` 空操作~~ **（2026-08-02 修正：此假设错误。即使 newEquipment 里空无一物，native 方法仍在 ragdoll 骨骼上崩——说明崩溃点不止武器 wield 一个环节。）**
 
 **规避**
-- 对 `!agent.IsActive()` 的 Agent（死亡/昏迷都算）刷新前，**无条件清空所有武器槽**，让刷新等价于"全部拿走"——无武器可 wield 即安全。防具仍可按需精准扒/保留。
-- 活人不受限制，照常刷新（活人能正常重新 wield 剩余武器）。
-- 落地范例：`Stealth/StealManager.cs` → `StripAgentEquipment`（`bool isCorpse = !agent.IsActive();` 时武器槽过滤器传 `null`）。
-- 同理：任何对尸体调 `UpdateSpawnEquipmentAndRefreshVisuals` 的新路径（如未来 `StealSpecificItem` 作用到尸体），都要先清武器槽。
+- **正解：对 `!agent.IsActive()` 的 Agent（死亡/昏迷）直接跳过 `UpdateSpawnEquipmentAndRefreshVisuals`**。死人不需要刷新外观，`_lootedCorpses` 已防重复搜刮，尸体很快被引擎清理。
+- 活人不受限制，照常刷新。
+- 落地范例：`Stealth/StealManager.cs` → `StripAgentEquipment`（`if (agent.IsActive() && ...)` 守卫，Inactive agent 跳过整段 native 调用）。
+- ~~旧规避（清空武器槽）~~ 已在 2026-08-02 废弃——清空武器槽不足以防止崩溃。
 
 ---
 

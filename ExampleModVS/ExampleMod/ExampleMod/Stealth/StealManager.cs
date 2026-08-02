@@ -349,10 +349,10 @@ namespace LivingWorldNpcs
             Equipment newEquipment = agent.SpawnEquipment.Clone();
             bool anyChange = false;
 
-            // 尸体（ragdoll）不能重新 wield 武器：UpdateSpawnEquipmentAndRefreshVisuals 内部会对
-            // SpawnEquipment 里残留的武器执行 WieldInitialWeapons → native TryToWieldWeaponInSlot，
-            // 而死人的骨骼已交给物理系统，再去握武器会操作失效内存 → AccessViolation。
-            // 因此对尸体一律清空所有武器槽（与"全部拿走"路径等价：无武器可 wield 即安全）。
+            // 尸体（ragdoll）不能调 UpdateSpawnEquipmentAndRefreshVisuals：
+            // 即使清空了武器槽让 WieldInitialWeapons 空操作，native 方法仍可能在
+            // detach 旧 mesh / 刷新骨骼引用时碰到已被物理系统接管的 ragdoll 内存
+            // → AccessViolation。死人不需要刷新外观，直接跳过。
             // 昏迷(Unconscious)同样是 ragdoll，IsActive()=false 一并覆盖。
             bool isCorpse = !agent.IsActive();
 
@@ -381,7 +381,8 @@ namespace LivingWorldNpcs
             }
 
             // remainingRoster 为 null 时始终刷新（保持原行为）；非 null 时只有变化才刷新
-            if (remainingRoster == null || anyChange)
+            // 🔴 尸体/昏迷跳过：ragdoll 骨骼已被物理接管，native 方法碰它就崩
+            if (agent.IsActive() && (remainingRoster == null || anyChange))
             {
                 agent.UpdateSpawnEquipmentAndRefreshVisuals(newEquipment);
 
