@@ -650,7 +650,6 @@
     <string id="LWN_ui_steal_msg_nothing_left" text="There's nothing left on them to steal." />
     <string id="LWN_ui_steal_msg_animal_escaped" text="It took the chance and slipped away..." />
     <string id="LWN_ui_steal_msg_animal_convert_fail" text="Could not convert {ANIMAL} *monster={MONSTER}* into an inventory item — no matching Animal-type item was found" />
-    <string id="LWN_ui_steal_msg_got_livestock" text="You got {ITEM}!" />
     <string id="LWN_ui_steal_msg_animal_fail" text="Failed to steal the animal" />
     <string id="LWN_ui_steal_msg_nothing_to_steal" text="There's nothing on them worth stealing." />
     <string id="LWN_ui_steal_msg_hold_breath" text="You hold your breath and reach out quietly..." />

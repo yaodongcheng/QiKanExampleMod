@@ -691,7 +691,6 @@
     <string id="LWN_ui_steal_msg_nothing_left" text="他身上已经没什么可偷的了。" />
     <string id="LWN_ui_steal_msg_animal_escaped" text="它趁机溜走了..." />
     <string id="LWN_ui_steal_msg_animal_convert_fail" text="无法将 {ANIMAL}（monster={MONSTER}）转化为库存物品——未找到匹配的 Animal 类型物品" />
-    <string id="LWN_ui_steal_msg_got_livestock" text="获得了 {ITEM}！" />
     <string id="LWN_ui_steal_msg_animal_fail" text="偷动物失败" />
     <string id="LWN_ui_steal_msg_nothing_to_steal" text="他身上没什么可偷的。" />
     <string id="LWN_ui_steal_msg_hold_breath" text="你屏住呼吸，悄悄伸出了手..." />
