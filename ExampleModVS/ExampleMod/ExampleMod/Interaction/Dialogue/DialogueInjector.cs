@@ -94,6 +94,7 @@ namespace LivingWorldNpcs
                 nodeCount++;
 
                 // —— 逐 node 注册 ——
+                var nodeIds = CollectNodeIds(script);
                 foreach (var node in script.Nodes)
                 {
                     string nodeEntryToken = NodeToken(fileTag, node.Id);
@@ -112,7 +113,7 @@ namespace LivingWorldNpcs
 
                         foreach (var transition in node.Transitions)
                         {
-                            nodeCount += RegisterTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+                            nodeCount += RegisterTransition(cm, node, transition, afterNpcLine, fileTag, owner, nodeIds);
                         }
                     }
                 }
@@ -532,11 +533,12 @@ namespace LivingWorldNpcs
                 return "Empty script";
 
             var fileTag = debugLabel ?? $"dyn_{_injectedOwners.Count}";
+            var nodeIds = CollectNodeIds(script);
 
             if (script.SkipVanillaOpening)
-                InjectScriptNoOpening(script, fileTag);
+                InjectScriptNoOpening(script, fileTag, nodeIds);
             else
-                InjectScriptGateway(script, fileTag);
+                InjectScriptGateway(script, fileTag, nodeIds);
 
             return $"Injected dynamic script [{fileTag}] ({script.Nodes.Count} nodes)";
         }
@@ -545,7 +547,7 @@ namespace LivingWorldNpcs
         /// 直挂注入模式：NPC 台词直接挂在 start token（优先级 200），不经过 gateway PlayerLine。
         /// 适用场景：NPC 主动锁定玩家 — 警戒质问、战斗认输、对峙等。
         /// </summary>
-        private static void InjectScriptNoOpening(DialogueInjectScript script, string fileTag)
+        private static void InjectScriptNoOpening(DialogueInjectScript script, string fileTag, HashSet<string> nodeIds)
         {
             string baseLabel = fileTag;
             fileTag = $"{fileTag}_v{_injectionCounter++}";
@@ -573,7 +575,7 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[DialogueInjector] 跳过原版Opening: NPC line at '{startToken}' → '{afterNpcLine}' | priority=200 | owner={owner.FileName}");
 
                 // 注册入口 node 的玩家选项
-                RegisterNodeTransitions(cm, entryNode, afterNpcLine, fileTag, owner);
+                RegisterNodeTransitions(cm, entryNode, afterNpcLine, fileTag, owner, nodeIds);
 
                 // Debug: 检查 start token 上是否还有残留线路
                 try
@@ -615,7 +617,7 @@ namespace LivingWorldNpcs
                     {
                         string nodeAfterNpc = NextToken(fileTag);
                         AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, nodeAfterNpc, node, owner);
-                        RegisterNodeTransitions(cm, node, nodeAfterNpc, fileTag, owner);
+                        RegisterNodeTransitions(cm, node, nodeAfterNpc, fileTag, owner, nodeIds);
                     }
                 }
             }
@@ -631,13 +633,13 @@ namespace LivingWorldNpcs
         /// </summary>
         private static void RegisterNodeTransitions(
             ConversationManager cm, DialogueNode node,
-            string afterNpcLine, string fileTag, InjectOwner owner)
+            string afterNpcLine, string fileTag, InjectOwner owner, HashSet<string> nodeIds)
         {
             if (node.Transitions == null || node.Transitions.Count == 0) return;
 
             foreach (var transition in node.Transitions)
             {
-                RegisterTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+                RegisterTransition(cm, node, transition, afterNpcLine, fileTag, owner, nodeIds);
             }
         }
 
@@ -646,26 +648,29 @@ namespace LivingWorldNpcs
         /// </summary>
         private static int RegisterTransition(
             ConversationManager cm, DialogueNode node, DialogueTransition transition,
-            string afterNpcLine, string fileTag, InjectOwner owner)
+            string afterNpcLine, string fileTag, InjectOwner owner, HashSet<string> nodeIds)
         {
             if (transition.CheckType == TransitionCheckType.SkillCheck)
             {
-                return RegisterSkillCheckTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+                return RegisterSkillCheckTransition(cm, node, transition, afterNpcLine, fileTag, owner, nodeIds);
             }
             else
             {
-                return RegisterDirectTransition(cm, node, transition, afterNpcLine, fileTag, owner);
+                return RegisterDirectTransition(cm, node, transition, afterNpcLine, fileTag, owner, nodeIds);
             }
         }
 
         /// <summary>CheckType.None：直连目标 Node（或 close_window）。</summary>
         private static int RegisterDirectTransition(
             ConversationManager cm, DialogueNode node, DialogueTransition transition,
-            string afterNpcLine, string fileTag, InjectOwner owner)
+            string afterNpcLine, string fileTag, InjectOwner owner, HashSet<string> nodeIds)
         {
-            string afterPlayer = !string.IsNullOrEmpty(transition.NextNodeOnSuccess)
-                ? NodeToken(fileTag, transition.NextNodeOnSuccess)
-                : "close_window";
+            // 🔴 悬空节点引用防护：NextNodeOnSuccess 指向脚本里不存在的节点时，
+            // 该 token 上没有 NPC 台词也没有玩家选项 → 对话死胡同 → 点"继续"NRE
+            // （外网反馈 ExecuteContinue crash，见 plans/outnet_fix_plans/）。
+            // 检测到悬空 → 改走 close_window 干净收场。
+            string dest = ResolveDestinationNode(transition.NextNodeOnSuccess, nodeIds, node, transition);
+            string afterPlayer = dest != null ? NodeToken(fileTag, dest) : "close_window";
 
             var pdf = DialogFlow.CreateDialogFlow(afterNpcLine, 125);
             pdf.AddPlayerLine($"inj_opt_{node.Id}", afterNpcLine, afterPlayer,
@@ -678,7 +683,7 @@ namespace LivingWorldNpcs
         /// <summary>CheckType.SkillCheck：在 consequence 中直接覆写 ActiveToken 跳转，无需静默路由行。</summary>
         private static int RegisterSkillCheckTransition(
             ConversationManager cm, DialogueNode node, DialogueTransition transition,
-            string afterNpcLine, string fileTag, InjectOwner owner)
+            string afterNpcLine, string fileTag, InjectOwner owner, HashSet<string> nodeIds)
         {
             string afterPlayer = NextToken(fileTag);
             string capturedKey = afterPlayer;
@@ -710,6 +715,11 @@ namespace LivingWorldNpcs
                         dest = null;
                     }
 
+                    // 🔴 悬空节点引用防护：目标节点不在脚本 Nodes 中 → 死胡同 token → 关窗。
+                    // GetStateIndex 会对未知 token 自动注册，但那个 token 上没有任何
+                    // NPC 台词，玩家会卡在"继续"按钮上 → ExecuteContinue NRE。
+                    dest = ResolveDestinationNode(dest, nodeIds, node, transition);
+
                     if (!string.IsNullOrEmpty(dest))
                         cm.ActiveToken = cm.GetStateIndex(NodeToken(fileTag, dest));
                     else
@@ -723,6 +733,32 @@ namespace LivingWorldNpcs
             // 铁律 6（KCD2 品质）：禁止出现空白对话框。
 
             return 1; // 仅 PlayerLine
+        }
+
+        /// <summary>
+        /// 收集脚本中所有已注册的节点 Id（含 null 过滤）。
+        /// </summary>
+        private static HashSet<string> CollectNodeIds(DialogueInjectScript script)
+        {
+            var ids = new HashSet<string>();
+            if (script?.Nodes == null) return ids;
+            foreach (var n in script.Nodes)
+                if (n?.Id != null) ids.Add(n.Id);
+            return ids;
+        }
+
+        /// <summary>
+        /// 校验 Transition 的目标节点引用。空/null = 关窗（合法）；引用存在 = 原样返回；
+        /// 悬空（不在脚本 Nodes 中）= 记日志并返回 null（调用方改走 close_window）。
+        /// </summary>
+        private static string ResolveDestinationNode(string nodeRef, HashSet<string> nodeIds,
+            DialogueNode node, DialogueTransition transition)
+        {
+            if (string.IsNullOrEmpty(nodeRef)) return null;
+            if (nodeIds != null && nodeIds.Contains(nodeRef)) return nodeRef;
+
+            DebugLogger.Log($"[DialogueInjector] ⚠️ 悬空节点引用: node '{node?.Id}' transition \"{transition?.PlayerLine}\" → '{nodeRef}' 不在脚本 Nodes 中，改走 close_window 防死胡同");
+            return null;
         }
 
         /// <summary>
@@ -781,7 +817,7 @@ namespace LivingWorldNpcs
         /// Gateway 注入模式：在 hero_main_options 挂 PlayerLine 入口，保留原版开场白。
         /// 适用场景：NPC 等玩家主动来找 — 打听消息、接任务、路人闲聊等。
         /// </summary>
-        private static void InjectScriptGateway(DialogueInjectScript script, string fileTag)
+        private static void InjectScriptGateway(DialogueInjectScript script, string fileTag, HashSet<string> nodeIds)
         {
             string baseLabel = fileTag;
             // 每次注入用唯一版本号，防止旧线未清理导致的 token 碰撞
@@ -823,7 +859,7 @@ namespace LivingWorldNpcs
                         string afterNpcLine = NextToken(fileTag);
                         AddNodeNpcLine(cm, $"inj_npc_{node.Id}", nodeEntryToken, afterNpcLine, node, owner);
 
-                        RegisterNodeTransitions(cm, node, afterNpcLine, fileTag, owner);
+                        RegisterNodeTransitions(cm, node, afterNpcLine, fileTag, owner, nodeIds);
                     }
                 }
             }

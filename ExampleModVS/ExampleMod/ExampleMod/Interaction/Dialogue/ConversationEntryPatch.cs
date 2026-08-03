@@ -820,4 +820,47 @@ namespace LivingWorldNpcs
             }
         }
     }
+
+    /// <summary>
+    /// 🔴 兜底：`ConversationManager.ContinueConversation`（原版"…/继续"按钮）
+    /// 在对话处于死胡同状态时抛 NRE（`ListenerAgent.Character` 空引用）。
+    ///
+    /// 死胡同 = 当前 ActiveToken 没有玩家选项、没有下一条 NPC 台词、且 != close_window，
+    /// 此时 UI 弹出"继续"，点击后 `ProcessPartnerSentence()` 返回 false，
+    /// 引擎评估 `ListenerAgent.Character` —— 若 `_listenerAgent` 为 null
+    /// （对话已拆解 EndConversation 已清空 agent 状态 / IsListener 委托未匹配），
+    /// 直接 NRE 崩溃（外网玩家反馈，详见 plans/outnet_fix_plans/executecontinue-crash-fix.md）。
+    ///
+    /// 本 Prefix 检测到该状态 → 强制 EndConversation 干净收场（走正常关窗 +
+    /// ResetCrimeDialogueOnConversationEndPatch 清理链），把崩溃变成正常结束。
+    /// 对任何来源的死胡同都生效（本 mod 注入脚本 / 第三方 mod 动态对话 / 二次结束）。
+    /// </summary>
+    [HarmonyPatch(typeof(ConversationManager), nameof(ConversationManager.ContinueConversation))]
+    public static class ContinueConversationGuardPatch
+    {
+        [HarmonyPrefix]
+        public static bool Prefix(ConversationManager __instance)
+        {
+            try
+            {
+                // 兜底条件：ListenerAgent 为 null 且对话未正常走到 close_window，
+                // 且当前没有可点的选项 → 引擎状态已坏，强制收场防 NRE。
+                // 正常对话中 _listenerAgent 恒非 null（每次句子处理都会设置），
+                // 所以此分支只在异常状态下命中。
+                if (__instance.ListenerAgent == null
+                    && !__instance.IsConversationEnded()
+                    && (__instance.CurOptions == null || __instance.CurOptions.Count <= 1))
+                {
+                    DebugLogger.Log("[ConvContinue] Guard: ListenerAgent 为 null（死胡同/对话已拆解）→ 强制 EndConversation 兜底，避免 ExecuteContinue NRE");
+                    __instance.EndConversation();
+                    return false; // 跳过原方法，杜绝 ListenerAgent.Character NRE
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ConvContinue] Guard error: {ex.Message}");
+            }
+            return true; // 正常状态：放行原方法
+        }
+    }
 }

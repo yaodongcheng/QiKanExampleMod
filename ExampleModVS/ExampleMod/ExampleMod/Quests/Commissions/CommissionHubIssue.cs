@@ -7,6 +7,7 @@ using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
+using TaleWorlds.SaveSystem;
 
 namespace LivingWorldNpcs
 {
@@ -16,32 +17,52 @@ namespace LivingWorldNpcs
     /// </summary>
     public struct CommissionIssueContext
     {
-        /// <summary>犯罪事件 ID（IsCrimeEvent=true 时有效）</summary>
+        // ── SaveableField 标记：存档修复阶段二——读档后 _context 需要还原（否则 Title 落默认"委托任务"）──
+        [SaveableField(1)]
         public string CrimeEventId;
         /// <summary>犯罪事件阶段</summary>
+        [SaveableField(2)]
         public EventStage CrimeEventStage;
         /// <summary>相关定居点名称（用于展示）</summary>
+        [SaveableField(3)]
         public string SettlementName;
         /// <summary>嫌犯名称（Stage=Active 时有效）</summary>
+        [SaveableField(4)]
         public string SuspectName;
         /// <summary>犯罪事件类型字符串（Theft_Animal / Theft_Pickpocket 等）</summary>
+        [SaveableField(5)]
         public string CrimeEventType;
 
         /// <summary>世界事件驱动委托的事件类型字符串</summary>
+        [SaveableField(6)]
         public string UrgentEventType;
         /// <summary>是否受害者视角（用于世界事件委托）</summary>
+        [SaveableField(7)]
         public bool IsEventVictim;
 
         /// <summary>常规委托的主类别（非犯罪、非紧急事件时使用）</summary>
-        public CommissionCategory? PrimaryCategory;
+        /// <remarks>
+        /// ⚠️ SaveSystem 不支持 Nullable 字段：空值 box 后为 null，序列化落 CustomStruct 兜底分支
+        /// 触发 (int)Value 解箱 NRE（存档崩溃，见 plans/outnet_fix_plans/save-failure-fix.md）。
+        /// 改为 枚举 + HasPrimaryCategory 标志，值语义不变。
+        /// </remarks>
+        [SaveableField(8)]
+        public CommissionCategory PrimaryCategory;
+        /// <summary>PrimaryCategory 是否有值（SaveSystem 无 Nullable 支持，用标志位替代）</summary>
+        [SaveableField(13)]
+        public bool HasPrimaryCategory;
 
         /// <summary>叙事：案件定性标签（"刑案"/"伤人案"/"失窃案"，事实派生）</summary>
+        [SaveableField(9)]
         public string CaseLabel;
         /// <summary>叙事：案情事实句（袭击+失窃如实还原，事实派生）</summary>
+        [SaveableField(10)]
         public string DiscoveryFacts;
         /// <summary>叙事：权威角色（动态，"村长"/"城主"/"堡主"，由 GetAuthorityRoleDisplayName 计算）</summary>
+        [SaveableField(11)]
         public string AuthorityRole;
         /// <summary>叙事：目击人数</summary>
+        [SaveableField(12)]
         public int WitnessCount;
 
         public bool IsCrimeEvent => !string.IsNullOrEmpty(CrimeEventId);
@@ -54,6 +75,8 @@ namespace LivingWorldNpcs
     /// </summary>
     public class CommissionHubIssue : IssueBase
     {
+        // 存档修复：_context 必须持久化，否则读档后 Title/Description 丢失（落默认"委托任务"）
+        [SaveableField(1)]
         private readonly CommissionIssueContext _context;
 
         public CommissionHubIssue(Hero issueOwner, CommissionIssueContext context)
@@ -123,14 +146,14 @@ namespace LivingWorldNpcs
 
             if (_context.IsUrgentEvent)
             {
-                if (_context.PrimaryCategory.HasValue)
-                    return CategoryToTitle(_context.PrimaryCategory.Value);
+                if (_context.HasPrimaryCategory)
+                    return CategoryToTitle(_context.PrimaryCategory);
                 // 委托标题：紧急委托
                 return new TextObject(LWNTextHelper.ResolveText("LWN_issue_title_urgent", "Urgent commission"));
             }
 
-            if (_context.PrimaryCategory.HasValue)
-                return CategoryToTitle(_context.PrimaryCategory.Value);
+            if (_context.HasPrimaryCategory)
+                return CategoryToTitle(_context.PrimaryCategory);
 
             // 委托标题：通用委托任务
             return new TextObject(LWNTextHelper.ResolveText("LWN_issue_title_generic", "Commission"));
@@ -177,8 +200,8 @@ namespace LivingWorldNpcs
                 // 委托简报：有紧急委托需要帮手
                 return new TextObject(LWNTextHelper.ResolveText("LWN_issue_brief_urgent", "An urgent commission needs a hand"));
 
-            if (_context.PrimaryCategory.HasValue)
-                return CategoryToBrief(_context.PrimaryCategory.Value);
+            if (_context.HasPrimaryCategory)
+                return CategoryToBrief(_context.PrimaryCategory);
 
             // 委托简报：有委托任务可接
             return new TextObject(LWNTextHelper.ResolveText("LWN_issue_brief_generic", "Commissions are available"));
@@ -241,11 +264,11 @@ namespace LivingWorldNpcs
                 return new TextObject(LWNTextHelper.ResolveText("LWN_issue_desc_urgent",
                     "This person has an urgent commission and needs a hand. Speak to them for details."));
 
-            if (_context.PrimaryCategory.HasValue)
+            if (_context.HasPrimaryCategory)
                 // 案情描述：带委托类别标题的描述
                 return new TextObject(LWNTextHelper.ResolveCompound("LWN_issue_desc_category",
                     "This person has a {TITLE} commission and needs a hand. Speak to them for details.",
-                    ("TITLE", CategoryToTitle(_context.PrimaryCategory.Value).ToString())));
+                    ("TITLE", CategoryToTitle(_context.PrimaryCategory).ToString())));
 
             // 案情描述：常规委托通用描述
             return new TextObject(LWNTextHelper.ResolveText("LWN_issue_desc_generic",
@@ -373,11 +396,13 @@ namespace LivingWorldNpcs
         /// </summary>
         public CommissionQuest AcceptQuest()
         {
-            string eventId = _context.CrimeEventId;
-            var quest = GenerateIssueQuest($"crime_{eventId}") as CommissionQuest;
-            if (quest != null)
-                CompleteIssueWithQuest();
-            return quest;
+            // 只走官方 StartIssueWithQuest 建立 Issue→Quest 关联（内部 `IssueQuest = GenerateIssueQuest(...)`）：
+            //  ① 读档时 QuestManager.OnGameLoaded 校验活动 quest 必须有关联 Issue，否则 CompleteQuestWithCancel
+            //  ② issue 的完成交给 quest 结束时的官方 IssueManager.OnQuestCompleted 自动收尾（Success→CompleteIssueWithQuest）
+            //     —— 绝不能在 quest 刚创建时就 CompleteIssueWithQuest：会立即发 IssueFinishedWithSuccess，
+            //        让任务日志在 quest 进行中就显示[成功完成]（曾踩坑）。
+            if (!StartIssueWithQuest()) return null;
+            return IssueQuest as CommissionQuest;
         }
 
         public override IssueFrequency GetFrequency()
@@ -667,7 +692,7 @@ namespace LivingWorldNpcs
                         ? $" crimeEvent={context.CrimeEventId} stage={context.CrimeEventStage}"
                         : context.IsUrgentEvent
                             ? $" urgentEvent={context.UrgentEventType}"
-                            : $" category={context.PrimaryCategory}"));
+                            : $" category={(context.HasPrimaryCategory ? context.PrimaryCategory.ToString() : "none")}"));
                 return true;
             }
             catch (System.Exception ex)
@@ -732,7 +757,8 @@ namespace LivingWorldNpcs
                     SettlementName = settlementName,
                     UrgentEventType = urgentEvent.Type.ToString(),
                     IsEventVictim = isVictim,
-                    PrimaryCategory = primaryCategory,
+                    PrimaryCategory = primaryCategory ?? default,
+                    HasPrimaryCategory = primaryCategory != null,
                 };
             }
 
@@ -743,7 +769,8 @@ namespace LivingWorldNpcs
             return new CommissionIssueContext
             {
                 SettlementName = settlementName,
-                PrimaryCategory = firstCategory,
+                PrimaryCategory = firstCategory ?? default,
+                HasPrimaryCategory = firstCategory != null,
             };
         }
 
