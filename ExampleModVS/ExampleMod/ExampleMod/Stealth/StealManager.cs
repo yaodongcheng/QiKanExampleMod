@@ -520,7 +520,7 @@ namespace LivingWorldNpcs
 
             try
             {
-                // ① 惊叫：目击者警戒脉冲（复用撬锁噪音模式）
+                // ① 惊叫：目击者警戒脉冲（复用撬锁噪音模式；队友豁免由 AddAlert 内部判定）
                 var witnesses = GetWitnesses(Agent.Main, animal, maxDistance: 20f);
                 foreach (var w in witnesses)
                     AgentAIController.GetBrainForAgent(w)?.AddAlert(PlayerActionType.Steal, 0.5f);

@@ -345,9 +345,11 @@ namespace LivingWorldNpcs
                     //时序处理： 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
                     if (attacker == Agent.Main)
                     {
-                        AddAlert(PlayerActionType.AttackAlly, 3.0f);
-                        SetPulseTarget(PlayerActionType.AttackAlly, Owner.Name, null, Owner.Index);
-                        CheckPhaseTransition();
+                        // 先写脉冲上下文再加值：受害者 = 真受害者——本人被攻击 → 上下文指向本人，
+                        // 队友豁免（AddAlert 内判定）因此不豁免；队友围观玩家打别人 → 上下文指向他人 → 豁免。
+                        SetPulseTarget(PlayerActionType.AttackAlly, victim.Name, null, victim.Index);
+                        if (AddAlert(PlayerActionType.AttackAlly, 3.0f))  // 队友围观豁免（false）→ 跳过阶段检查
+                            CheckPhaseTransition();
                     }
                 }
             }
@@ -385,29 +387,39 @@ namespace LivingWorldNpcs
                     {
                         if (!isSurrenderScene)
                         {
+                            // 先写脉冲上下文再加值：受害者 = 真受害者（victim.Index）。
+                            // 队友豁免由 AddAlert 内部判定——队友围观（上下文 ≠ 本人）豁免不质问；
+                            // 队友本人被侵害（上下文 = 本人）照常分类 + 指控。
                             if (IsKnockedOut(victim))
                             {
-                                AddAlert(PlayerActionType.Knockout, 3.0f);
                                 SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null, victim?.Index ?? -1);
-                                _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
-                                SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
+                                // 队友围观豁免（AddAlert 返回 false）→ 连带跳过质问意图
+                                if (AddAlert(PlayerActionType.Knockout, 3.0f))
+                                {
+                                    _pulseSuppressedUntil = 0f; // 清除抑制，让 Alarmed 过渡正常触发
+                                    SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
+                                }
                             }
                             else if (CombatManager.IsAgentFightingPlayer(victim) || CombatManager.IsPlayerInCombat)
                             {
                                 // 斗殴/攻击：victim 正在和玩家战斗，不是偷窃
-                                AddAlert(PlayerActionType.AttackAlly, 3.0f);
                                 SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null, victim?.Index ?? -1);
-                                _pulseSuppressedUntil = 0f;
-                                SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
+                                if (AddAlert(PlayerActionType.AttackAlly, 3.0f))  // 队友围观豁免 → 连带跳过质问意图
+                                {
+                                    _pulseSuppressedUntil = 0f;
+                                    SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Stop);
+                                }
                             }
                             else
                             {
                                 // 偷窃：立刻加警戒 + 3s 脉冲抑制
                                 // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
-                                AddAlert(PlayerActionType.Steal, 3.0f);
                                 SetPulseTarget(PlayerActionType.Steal, victim?.Name, null, victim?.Index ?? -1);
-                                _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
-                                SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Recover);
+                                if (AddAlert(PlayerActionType.Steal, 3.0f))  // 队友围观豁免 → 连带跳过质问意图
+                                {
+                                    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                                    SetNpcIntent(NpcIntentType.Confronting, Agent.Main, interceptDetail: ConfrontationType.Recover);
+                                }
                             }
                         }
 
@@ -845,6 +857,14 @@ namespace LivingWorldNpcs
             if (CombatManager.IsAgentFightingPlayer(Owner))
                 return;
 
+            // 🆕 玩家队友豁免：队友看到玩家蹲下/拔刀/开偷窃UI 不涨警戒（信任玩家），
+            // 残留值（如曾被玩家直接攻击的脉冲）照常衰减归零。
+            if (IsPlayerTeammate(Owner))
+            {
+                DecayAlertBreakdown(dt);
+                return;
+            }
+
             // Npc看不到玩家 → 衰减
             if (!NpcSightSystem.CanNpcSeePlayer(Owner))
             {
@@ -879,6 +899,27 @@ namespace LivingWorldNpcs
             // 阶段穿越检测（向上或向下）
             CheckPhaseTransition();
         }
+
+        /// <summary>
+        /// 玩家队友判定：① 招募入队的同伴 Hero（IsPlayerCompanion）；
+        /// ② 当前正在玩家队伍里的任何 Hero（PartyBelongedTo == 玩家主队，含随队家族成员等）。
+        /// Campaign 层信息（Hero.MainHero.PartyBelongedTo）在 Mission 内照常可读。
+        /// 模板士兵（无 Hero）无法与队伍名册一一对应（MemberRoster 只有聚合计数），
+        /// 且正规军只在战场场景出现——战场模式警戒系统已被 Settings.IsInteractionDisabled 冻结，无需覆盖。
+        /// ⚠️ 不用 Mission Team 比较——和平场景所有 NPC 同属玩家队（见 IntentContext「对话场景中所有
+        /// agent 同队」踩坑），同队判断会把全村人当队友。
+        /// </summary>
+        public static bool IsPlayerTeammate(Agent agent)
+        {
+            if (agent == null || agent == Agent.Main) return false;
+            var co = agent.Character as CharacterObject;
+            var hero = co?.HeroObject;
+            if (hero == null) return false;
+            if (hero.IsPlayerCompanion) return true;
+            var mainParty = Hero.MainHero?.PartyBelongedTo;
+            return mainParty != null && hero.PartyBelongedTo == mainParty;
+        }
+
         //玩家拔刀状态：主手或副手有武器
         bool IsPlayerWeaponDrawn()
         {
@@ -988,16 +1029,35 @@ namespace LivingWorldNpcs
         // 🆕 警戒值操作（Phase 1）
         // ═══════════════════════════════════════════════════════════════
 
-        public void AddAlert(PlayerActionType type, float amount)
+        /// <summary>加警戒值。返回 false = 本次加值被队友豁免吞掉（调用方应据此跳过配套行为，如质问意图/阶段检查）。</summary>
+        public bool AddAlert(PlayerActionType type, float amount)
         {
+            // 🆕 玩家队友豁免（全项目唯一入口——StealBarVM/StealManager 等外部调用点自动覆盖，
+            // 无需也不允许在各调用点重复写队友判断）：
+            // 队友不因玩家的可疑/犯罪类行为涨警戒（信任玩家）；
+            // 例外：脉冲上下文记录受害者 = 本脑主人（玩家直接侵害他本人，如被攻击/被扒窃抓到）→ 照常涨。
+            // ⚠️ 前提约定：所有调用点先 SetPulseTarget 后 AddAlert（内部站点已统一此顺序）。
+            if (IsPlayerTeammate(Owner) && !IsSelfVictimPulse(type))
+                return false;
+
             if (!_alertBreakdown.TryGetValue(type, out var entry))
                 entry = new AlertEntry();
 
             entry.Value += amount;
             _alertBreakdown[type] = entry;  // struct 是值类型，写回
+            return true;
         }
 
-        /// <summary>脉冲上下文：设置 AlertEntry 的 TargetName/TargetAgentIndex（不改变 Value，Value 由 AddAlert 加）</summary>
+        /// <summary>该类型条目的脉冲上下文是否指向本脑主人（玩家直接侵害本人）——队友豁免的唯一例外信号。</summary>
+        bool IsSelfVictimPulse(PlayerActionType type)
+        {
+            return Owner.Index >= 0
+                && _alertBreakdown.TryGetValue(type, out var entry)
+                && entry.TargetAgentIndex == Owner.Index;
+        }
+
+        /// <summary>脉冲上下文：设置 AlertEntry 的 TargetName/TargetAgentIndex（不改变 Value，Value 由 AddAlert 加）。
+        /// ⚠️ 约定：先 SetPulseTarget 后 AddAlert——AddAlert 内的队友豁免依赖此受害者上下文。</summary>
         public void SetPulseTarget(PlayerActionType type, string targetName, string itemName, int targetAgentIndex = -1)
         {
             if (!_alertBreakdown.TryGetValue(type, out var entry))

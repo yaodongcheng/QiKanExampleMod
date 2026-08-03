@@ -96,12 +96,21 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="0Harmony">
+    <!-- Harmony 双路径兜底：优先 Steam workshop（2859188632），workshop 未装则回落本地 Modules\Bannerlord.Harmony -->
+    <Reference Include="0Harmony" Condition="Exists('$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\0Harmony.dll')">
       <HintPath>$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\0Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
-    <Reference Include="Bannerlord.Harmony">
+    <Reference Include="0Harmony" Condition="!Exists('$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\0Harmony.dll')">
+      <HintPath>$(MB2_PATH)\Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\0Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Bannerlord.Harmony" Condition="Exists('$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll')">
       <HintPath>$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
+    <Reference Include="Bannerlord.Harmony" Condition="!Exists('$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll')">
+      <HintPath>$(MB2_PATH)\Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
