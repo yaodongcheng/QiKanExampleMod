@@ -46,7 +46,8 @@
   </PropertyGroup>
   <!-- 公共版本宏（Debug / Release 共享；各配置 DefineConstants 引用 $(MB2_VersionDefines)） -->
   <PropertyGroup>
-    <MB2_VersionDefines></MB2_VersionDefines>
+    <MB2_VersionDefines>
+    </MB2_VersionDefines>
     <MB2_VersionDefines Condition="$(MB2_VersionFileContent.Contains('v1.2.12'))">$(MB2_VersionDefines);MB2_V1212</MB2_VersionDefines>
     <!-- MB2_GE_130: v1.3.x 或更高 -->
     <MB2_VersionDefines Condition="'$(MB2_IsV13x)' == 'true' Or '$(MB2_IsV14x)' == 'true' Or '$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_130</MB2_VersionDefines>
@@ -172,7 +173,7 @@
     <!-- TooltipExtensions 只在 v1.2.12 的游戏目录里存在；Latest 里没有，自动跳过 -->
     <Reference Include="TaleWorlds.GauntletUI.TooltipExtensions" Condition="Exists('$(MB2_CORE_REF)\TaleWorlds.GauntletUI.TooltipExtensions.dll')">
       <HintPath>$(MB2_CORE_REF)\TaleWorlds.GauntletUI.TooltipExtensions.dll</HintPath>
-      <Private>True</Private>
+      <Private>False</Private>
     </Reference>
     <Reference Include="TaleWorlds.InputSystem, Version=1.0.0.0, Culture=neutral, processorArchitecture=AMD64">
       <SpecificVersion>False</SpecificVersion>
@@ -273,6 +274,7 @@
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
+    <Compile Include="Debug\SaveErrorReporter.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\StackLayoutVerticalSwapPatch.cs" />

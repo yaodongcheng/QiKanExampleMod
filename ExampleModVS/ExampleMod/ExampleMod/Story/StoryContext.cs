@@ -204,9 +204,45 @@ namespace LivingWorldNpcs
         protected override void DefineClassTypes()
         {
             // 给每个类分配一个在这个 Definer 内部唯一的 ID
+            // ── 存档修复阶段二：全部自定义存档类型注册（2026-08-03，根因=实例进存档图无定义即崩）──
 
             // 1. 注册 GeneratedStoryResult (生成结果)
             AddClassDefinition(typeof(LivingWorldNpcs.GeneratedStoryResult), 10);
+            // 2. 注册 CommissionHubIssue (犯罪委托信号 Issue —— 已复现并验证修复)
+            AddClassDefinition(typeof(LivingWorldNpcs.CommissionHubIssue), 15);
+            // 3. Quest 体系
+            // QuestData/GenericQuest 已标记 Obsolete（统一到 CommissionQuest）——
+            // 但存档注册必须保留：GenericQuest 创建路径仍存活（QuestManager 控制台命令），
+            // 且旧档可能含这些类型的实例，不注册会导致读档时对象解析为 null。
+#pragma warning disable CS0618
+            AddClassDefinition(typeof(LivingWorldNpcs.QuestData), 11);
+            AddClassDefinition(typeof(LivingWorldNpcs.GenericQuest), 12);
+#pragma warning restore CS0618
+            AddClassDefinition(typeof(LivingWorldNpcs.CommissionQuest), 13);
+            AddClassDefinition(typeof(LivingWorldNpcs.CommissionData), 14);
+            // 4. 自定义 PartyComponent（quest 护送/追击、报复部队、控制台事件）
+            AddClassDefinition(typeof(LivingWorldNpcs.SafeLordPartyComponent), 16);
+            AddClassDefinition(typeof(LivingWorldNpcs.CustomPartyComponent), 17);
+        }
+
+        protected override void DefineStructTypes()
+        {
+            // CommissionIssueContext：CommissionHubIssue._context 的载体（读档后 Title 还原用）
+            AddStructDefinition(typeof(LivingWorldNpcs.CommissionIssueContext), 18);
+        }
+
+        protected override void DefineEnumTypes()
+        {
+            // QuestType 已标记 Obsolete，但 QuestData.Type 字段仍在用（存档注册必须保留）
+#pragma warning disable CS0618
+            AddEnumDefinition(typeof(LivingWorldNpcs.QuestType), 20);
+#pragma warning restore CS0618
+            AddEnumDefinition(typeof(LivingWorldNpcs.CommissionCategory), 21);
+            AddEnumDefinition(typeof(LivingWorldNpcs.ResolutionPath), 22);
+            AddEnumDefinition(typeof(LivingWorldNpcs.CommissionTier), 23);
+            AddEnumDefinition(typeof(LivingWorldNpcs.CommissionGrade), 24);
+            // EventStage：CommissionIssueContext.CrimeEventStage 依赖（2026-08-03 补）
+            AddEnumDefinition(typeof(LivingWorldNpcs.EventStage), 25);
         }
     }
 

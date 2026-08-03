@@ -2587,6 +2587,126 @@ namespace LivingWorldNpcs
             { Settings.Instance.AlertDialogueMode = AlertDialogueMode.VanillaConversation; return "Set to VanillaConversation."; }
             return $"Unknown mode: {mode}. Use StoryVM or Vanilla.";
         }
+
+        /// <summary>
+        /// 打印 WorldEvent × 对应 Issue × 对应 Quest 的关联视图（存档修复调试用）。
+        /// 用法: custom.worldevent_chain
+        /// 用途：核对犯罪事件 → 权威 NPC 挂的 Issue → 接取的 Quest 三者链条是否完整
+        /// （读档校验依赖 IssueQuest 关联，此命令可直接观察关联是否建立）。
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("worldevent_chain", "custom")]
+        public static string WorldEventChain(List<string> args)
+        {
+            if (Campaign.Current == null) return "Error: Campaign not loaded.";
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("\n════════ WorldEvent × Issue × Quest ════════");
+
+            // ── 1. 每个活跃 WorldEvent → 对应 Issue / Quest ──
+            var active = WorldEventStore.ActiveEvents;
+            if (active.Count == 0)
+                sb.AppendLine("(无活跃 WorldEvent)");
+            foreach (var e in active)
+            {
+                sb.AppendLine($"\n[Event] {e.Type} id={e.EventId}");
+                sb.AppendLine($"   Stage={e.Stage} sev={e.Severity} settlement={e.TargetSettlementId ?? "-"} suspect={e.SuspectHeroId ?? "-"} witnesses={e.WitnessCount}");
+
+                // 对应 Issue：该事件的权威 NPC 头顶挂的
+                try
+                {
+                    var authority = WorldEventStore.GetAuthorityNpc(e);
+                    if (authority != null)
+                    {
+                        var issue = authority.Issue;
+                        if (issue is CommissionHubIssue hub)
+                        {
+                            // 反射读 _context（private readonly，命令场景可接受）
+                            string crimeEvent = "?", stage = "?", suspect = "?";
+                            try
+                            {
+                                var ctxField = typeof(CommissionHubIssue).GetField("_context", BindingFlags.NonPublic | BindingFlags.Instance);
+                                var ctx = ctxField?.GetValue(hub);
+                                crimeEvent = ctx?.GetType().GetField("CrimeEventId")?.GetValue(ctx) as string ?? "-";
+                                stage = ctx?.GetType().GetField("CrimeEventStage")?.GetValue(ctx)?.ToString() ?? "-";
+                                suspect = ctx?.GetType().GetField("SuspectName")?.GetValue(ctx) as string ?? "-";
+                            }
+                            catch { }
+                            sb.AppendLine($"   Issue: {authority.Name} → CommissionHubIssue \"{hub.Title}\"");
+                        }
+                        else if (issue != null)
+                        {
+                            sb.AppendLine($"   Issue: {authority.Name} → [{issue.GetType().Name}] \"{issue.Title}\" IssueQuest={issue.IssueQuest?.StringId ?? "(null)"}");
+                        }
+                        else
+                        {
+                            sb.AppendLine($"   Issue: {authority.Name} → (无)");
+                        }
+                    }
+                    else
+                    {
+                        sb.AppendLine($"   Issue: (无权威 NPC)");
+                    }
+                }
+                catch (Exception ex) { sb.AppendLine($"   Issue: 读取失败 {ex.Message}"); }
+
+                // 对应 Quest：扫活动 quest 按 WorldEventId 匹配
+                var related = Campaign.Current.QuestManager.Quests
+                    .Where(q => GetQuestWorldEventId(q) == e.EventId)
+                    .ToList();
+                if (related.Count == 0)
+                    sb.AppendLine($"   Quest: (无关联)");
+                else
+                    foreach (var q in related)
+                        sb.AppendLine($"   Quest: [{q.GetType().Name}] \"{q.Title}\" id={q.StringId} ongoing={q.IsOngoing} finalized={q.IsFinalized}");
+            }
+
+            // ── 2. 活动 Quest 全览 ──
+            sb.AppendLine("\n=== 活动 Quest（QuestManager.Quests）===");
+            var quests = Campaign.Current.QuestManager.Quests;
+            if (quests.Count == 0)
+                sb.AppendLine("(无)");
+            foreach (var q in quests)
+            {
+                string weId = GetQuestWorldEventId(q);
+                sb.AppendLine($"  [{q.GetType().Name}] \"{q.Title}\" id={q.StringId} ongoing={q.IsOngoing} finalized={q.IsFinalized} worldEventId={weId ?? "-"} giver={q.QuestGiver?.Name?.ToString() ?? "-"}");
+            }
+
+            // ── 3. 活动 Issue 全览 ──
+            sb.AppendLine("\n=== 活动 Issue（IssueManager.Issues）===");
+            var issues = Campaign.Current.IssueManager.Issues;
+            if (issues.Count == 0)
+                sb.AppendLine("(无)");
+            foreach (var kv in issues)
+            {
+                var iss = kv.Value;
+                string questLink = iss.IssueQuest != null ? iss.IssueQuest.StringId : "(null)";
+                sb.AppendLine($"  {kv.Key?.Name?.ToString() ?? "?"} → [{iss.GetType().Name}] \"{iss.Title}\" IssueQuest={questLink}");
+            }
+
+            sb.AppendLine("══════════════════════════════════════════");
+            DebugLogger.Log(sb.ToString());
+            return sb.ToString();
+        }
+
+        /// <summary>取 quest 关联的 WorldEventId（CommissionQuest 反射 _data.WorldEventId，其他类型返回 null）。</summary>
+        private static string GetQuestWorldEventId(QuestBase q)
+        {
+            try
+            {
+                if (q is CommissionQuest cq)
+                {
+                    var dataField = typeof(CommissionQuest).GetField("_data", BindingFlags.NonPublic | BindingFlags.Instance);
+                    var data = dataField?.GetValue(cq);
+                    if (data != null)
+                    {
+                        var weField = data.GetType().GetField("WorldEventId");
+                        return weField?.GetValue(data) as string;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
     }
 
 
