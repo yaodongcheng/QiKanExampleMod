@@ -2,7 +2,7 @@
 <Module>
   <Name value="Living World NPCs"/>
   <Id value="LivingWorldNpcs"/>
-  <Version value="v1.0.0"/>
+  <Version value="v1.0.1"/>
   <SingleplayerModule value="true"/>
   <MultiplayerModule value="false"/>
   <DependedModules>
