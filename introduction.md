@@ -1,160 +1,347 @@
-## LivingWorldNpc——又名我在骑砍2玩天国拯救
+本帖最后由 ydc19950809 于 2026-8-2 12:11 编辑
 
-玩完天国拯救2不过瘾？我也是。
 
-波西米亚兜了一圈回来，习惯不了。骑砍2的NPC是什么？是会走路的快捷键。走到面前按F，弹五个选项：我要和你交易、我想问你一些事、告辞。没了。卫兵是空气，村民是可再生的第纳尔来源，全世界都在等你发号施令。
+[霸主功能][原创][2026.7.31][LivingWorldNpcs][1.0.0]
 
-我就想蹲下来。就想趁老板转身摸他抽屉。就想被发现了然后编个理由糊弄过去。这要求很高吗？原版做不到，那我只能自己动手。
+英文名称：LivingWorldNpcs
+中文名称：生动的世界Npc——又名我在骑砍2玩天国拯救
+作者：仿圣泪滴，QQ群 1044467952
+下载：
+迅雷网盘
 
-做了一年多，修修补补，现在是这么个东西：
+https://pan.xunlei.com/s/VOz-bEk87z6uQcVtAZ1YTC0OA1?pwd=74ar#
+夸克网盘
+https://pan.quark.cn/s/e900a5d0d00d
+百度网盘
+https://pan.baidu.com/s/1_7f9-yf7BW4k4ukWT434vA?pwd=d5fk
 
-**所有NPC都能互动**
 
-不是只跟领主说话，城里站着的卫兵、田里干活的农民、酒馆里晃悠的醉汉——F对话，G自由交互，H看他的底细。有名字的NPC有个人记忆，没名字的模板NPC共享定居点的"公共记忆"。你上个月在这村子偷过羊，他们不知道具体是你干的，但知道"村里出了贼"，对你的态度就是跟别处不一样。
+支持游戏版本：1.2.12与最新1.4.7，中间版本没测过
+需要Mod四前置
 
-**蹲下、偷窃、背后敲闷棍**
+玩法介绍
+重生之我在骑砍2里玩天国拯救！
+骑砍2原版村庄、酒馆、城镇里的Npc能做的互动太少了，本Mod对游戏里的Npc机制做了大幅升级。
 
-C蹲。绕到背后，开偷——一个来回弹的条形UI，绿区下手红区被抓。光标速度跟你的流氓习气挂钩。你看不到NPC兜里具体有什么，只能看到"一件中等重量的武器"这种模糊提示，开不开看你自己。偷完了还能把赃物栽赃给别人——真能把人栽进牢里，不过对方要是领主，后面的事你自己想。
+Hud系统升级
+为每个Npc增加了血条、头顶冒泡说话。
 
-牲口也能偷，猪牛羊鸡都有。大牲口命中区小，容易失手。
+互动面板升级
+任意场景的任意Npc均可互动，不限於有名有姓的领主，卫兵、村民、商贩等。采用《荒野大镖客2》和《天国拯救2》的交互模式，对单个Npc的交互收归到右下角显示。
 
-背后击晕是非致命的，人晕一会儿自己起来。但打晕本身就是犯罪，目击者照报官。
 
-**偷完不是结束，是刚开始**
+犯罪玩法互动
+Z - 下蹲：下蹲后才能偷窃。但如果Npc看到你下蹲，会觉得你在偷偷摸摸做什么事情，累计警惕，甚至上前质问你。  
+F - 对话：(大部分情况）原版的对话。
+ 
 
-原版你杀了人最多扣点关系，过两天跟没事一样。这mod不是。
+F - 击晕：(在Npc背后才可做）基于你的活力/控制技能影响成功率。
+F - 偷窃：（下蹲&在Npc背后）进入偷窃玩法，逐个偷取对方包裹中的物品。也可直接偷村庄中的牲畜。
 
-你偷东西的时候旁边有人——他们看见了。他们会站住、盯着你、交头接耳。几分钟后有人跑去告诉村长。村长开始查，每天有概率推进调查：锁定你、锁错人、或者不了了之。
+F - 撬锁：撬开村庄的宝箱偷取物资。
+F - 搜刮：（Npc晕倒时才可做）直接拿走对方的包裹，甚至可以把对方扒个精光。
+ 
+F - 认输：（战斗时）战斗过程中向对方认输，可能要交钱或者下跪才能被原谅。
+G - 接受认输：（战斗时）对方残血时有概率向你发起认输，你也可以要求对方做一些事。
 
-查到你头上以后，这几个出口你自己选：
+H- 探查：当前Npc的个人信息界面。包含个人属性、家族背包、辎重等信息。
 
-- NPC开价，你赔。价格是他算的——偷的东西、调查成本、"精神损失"，合在一起报个数。你觉得贵可以砍价，砍不成可以选择不给，但不给的后果自己扛
-- 魅力狡辩，赌一次。过了就过了，但这个人以后对你永远多留个心眼
-- 威胁村长，流氓习气检定。过了案子销了但全村红名，没过当场被围
-- 蹲几天牢
-- 或者跑——但村里会出钱雇人在大地图上追你。不止一波，打到村子没钱为止
+鼠标左键攻击：和平场景也可攻击Npc，也会触发Npc的警戒，招致其反击。
+坐牢：如果做坏事反抗过程中被打败，要么交钱，要么蹲大牢。
+ 
 
-中间任何一个环节，你都可以把偷来的东西还回去认怂。NPC的反应不一样——看你退了什么、退了多久、什么态度。
+目击系统
+NPC会目击犯罪行为，现场围观，或者上前阻拦你。
 
-**NPC记住你**
+经济系统关联Npc
+每个村庄、城堡、城镇里的资金不再是一个冷冰冰的数字，而是来自于每个Npc身上携带的钱包和物资汇总。地位越高的带的钱越多。
+ 
 
-不光是"好感度+1"那种记法。你和每个NPC交手几次、谁输谁赢、有没有被打出疤——这些攒着。栽赃过的人、得罪过的村长、战场上放跑的敌人，会在几个月后变成复仇事件刷在你脸上。不是系统随机刷的"复仇者"，是你自己造的。
+此外每个村庄、酒馆、主城等都会有一个保管箱，等你来取。
+  
+你偷了村庄里面的猪或羊，真的会导致交易界面的猪羊减少。
 
-**接个AI（不想接也行）**
 
-这个可能是mod最离谱的地方——你接个LLM（本地跑或者api都行，OpenAI格式），NPC就真的会跟你聊天了。
+犯罪调查推进
+玩家犯罪之后，并不只是单纯扣好感了事。村庄里的Npc会自发的产生任务，调查犯罪事实直到捉拿你归案。
+  
 
-打字随便说什么，他根据自己的人设回你。酒馆老板娘跟你八卦，你知道的事她知道的事不一样，她不会上帝视角。你问她"村东头那事听说了吗"，如果她没渠道知道，她就一脸懵。
+多种应对机制
+玩家犯罪被人找上门时，可以选择使用钞能力直接赔钱，对自己武力有信心的也可以直接威胁对方，甚至直接摆烂坐牢也行。当然魅力高的玩家可能直接说服对方放弃追捕。
+ 
 
-不接AI完全不影响玩，所有对话系统都有纯规则兜底。接了是另一个游戏。
 
-**委托任务**
+后续更新计划（尚未实装）
+犯罪后栽赃、嫁祸给其他Npc。
+Npc看到晕倒的人、尸体的反应。
+允许接入自定义大语言模型API（如Deepseek），直接给Npc下达指示。
+队伍内聊天系统。
+大语言模型润色对话文本。
+城镇内随从护卫。
 
-酒馆老板、村长、甚至路人都会派活。悬赏抓人、商队护送、寻宝、越狱、限时送货、地下拳赛——16种。跟原版的任务系统对接，但每个任务不止一种解法，中间会出随机变数。做完有信任值积累，坑了委托人会涨恶名，NPC对你的态度跟着变。
+玩前须知
+作者刚学习制作Mod不久，经验还比较稚嫩，但是对骑砍2和其他的高自由度游戏都非常热爱，会持续更新优化这个Mod。
+如果遇到游戏Bug，或者有其他的关于Npc互动的点子，可以通过如下在线文档给作者反馈：
 
-**其他零零碎碎**
+【腾讯文档】骑砍2LivingWorldNpcs问题反馈与优化建议
+https://docs.qq.com/sheet/DTXpuZ1ZnUE9ucUFv?tab=BB08J2
 
-- 可以跟NPC约决斗，规则自己定
-- 打架的时候Q键嗑药回血
-- 接手柄玩，按键图标自动切
-- 世界观是参数化的，默认卡拉迪亚，配个TaikouContent就变日本战国——织丰mod就是这路数
 
-**版本**
 
-1.2.12和1.4.6都能跑。四前置必装（Harmony、ButterLib、UIExtenderEx、MCM）。解压扔Modules里勾上就行。
+下载方式
+
+迅雷网盘
+
+https://pan.xunlei.com/s/VOz-bEk87z6uQcVtAZ1YTC0OA1?pwd=74ar#
+夸克网盘
+https://pan.quark.cn/s/e900a5d0d00d
+百度网盘
+https://pan.baidu.com/s/1_7f9-yf7BW4k4ukWT434vA?pwd=d5fk
 
 ---
 
-说实话骑砍2的mod我玩了挺多，大部分是加装备加兵种加地图。这些东西好是好，但底层还是那套——世界等你操作，NPC等你指令。
+# English Version (原汁原味翻译)
 
-我想做的是反过来：世界不等你，你不操作世界也在转，NPC有自己要忙的事，你说的话做的事会被记住、会被传开、会在某个你没想到的时候回来找你。
+**[Bannerlord Mod][Original][2026.7.31][LivingWorldNpcs][1.0.0]**
 
-就是天国拯救那个味。
+**English Name:** LivingWorldNpcs
+**Chinese Name:** 生动的世界Npc — a.k.a. "I'm Playing Kingdom Come: Deliverance in Bannerlord"
+**Author:** 仿圣泪滴 (QQ: 1044467952)
+**Download:**
+- Xunlei: https://pan.xunlei.com/s/VOz-bEk87z6uQcVtAZ1YTC0OA1?pwd=74ar#
+- Quark: https://pan.quark.cn/s/e900a5d0d00d
+- Baidu: https://pan.baidu.com/s/1_7f9-yf7BW4k4ukWT434vA?pwd=d5fk
 
-不是所有人都喜欢这种。有些人就想骑马砍人，不想进村还得跟村长掰扯上次偷羊的事。没事，这mod那些部分你不碰就不触发，该打架打架该攻城攻城。
-
-但如果你跟我一样，觉得"世界回应你"比"世界听你指挥"更有意思——试一下。
+**Supported Game Versions:** v1.2.12 and latest v1.4.7 (intermediate versions untested)
+**Requires:** Harmony / ButterLib / UIExtenderEx / Mod Configuration Menu (the "Big Four" prerequisites)
 
 ---
 
-## 功能一览
+## Gameplay Overview
 
-**通用NPC互动**
+**Reincarnated in Bannerlord — playing it like Kingdom Come: Deliverance!**
 
-在任意场景中与任意NPC互动——不限於有名有姓的领主，卫兵、村民、商贩等所有角色均可对话。
+In vanilla Bannerlord, NPCs in villages, taverns, and towns offer very few interactions. This mod massively overhauls the NPC interaction system.
 
-- F 对话 — 根据对方身份与关系，提供交涉、招募、闲聊、决斗、求婚等选项
-- G 自由交互 — 快捷互动选单
-- H 检视 — 查看该NPC的身份、关系、随身物品（含赃物来源标注）
+### HUD System Upgrade
+Every NPC now has a **health bar** and **overhead speech bubbles**.
 
-**潜行与偷窃**
+### Interaction Panel Upgrade
+You can interact with **any NPC in any scene** — not just named lords, but also guards, villagers, merchants, and more. Inspired by *Red Dead Redemption 2* and *Kingdom Come: Deliverance 2*, all interactions with a single NPC are consolidated into a **bottom-right radial panel**.
 
-- 蹲下潜行 — 按C进入潜行姿态，绕至目标身後进行操作
-- 扒窃小游戏 — 游标在红绿区间来回摆动，流氓习气技能影响游标速度；物品以"重量/类型"模糊提示，开盲盒式博弈
-- 偷窃牲畜 — 村庄场景中可偷取猪、牛、羊、鸡等牲口，大型牲畜命中区域更小
-- 背後击晕 — 摸到任意NPC身後发动非致命击倒；击晕本身即为犯罪，目击者将触发报案
+### Crime & Interaction Mechanics
 
-**犯罪与调查**
+| Key | Action | Description |
+|-----|--------|-------------|
+| **Z** | Crouch | Crouching enables stealing. But if NPCs see you crouching, they'll grow suspicious — their alertness accumulates, and they may even confront you. |
+| **F** | Talk | (Most cases) Vanilla dialogue. |
+| **F** | Knock Out | (Behind the NPC only) Success rate scales with your Vigor/Control skills. |
+| **F** | Steal | (Crouching + Behind the NPC) Enter the stealing minigame — pick items from the target's inventory one by one. You can also steal livestock directly from villages. |
+| **F** | Lockpick | Pick the locks on village treasure chests to loot supplies. |
+| **F** | Loot | (NPC must be unconscious) Directly take everything from the target's inventory — you can even strip them bare. |
+| **F** | Surrender | (During combat) Surrender to your opponent mid-fight. You may have to pay gold or kneel to be forgiven. |
+| **G** | Accept Surrender | (During combat) When an enemy is at low health, they may offer surrender. You can demand things in return. |
+| **H** | Inspect | View the NPC's detailed info panel: personal attributes, clan inventory, baggage train, and more. |
+| **Left Mouse** | Attack | You can attack NPCs even in peaceful scenes. This triggers NPC alertness and provokes retaliation. |
 
-犯罪行为不再是扣关系了事——目击者、报案、调查、追责形成完整链条。
+**Jail Time:** If you're defeated while resisting arrest for your crimes, you'll either pay up or **serve time in prison**.
 
-- 目击系统 — NPC会目击犯罪行为，现场围观丶交头接耳，随後向当地权威人物报案
-- 调查推进 — 村长或当地权威每日进行概率检定，推进调查进度；可能锁定嫌犯丶锁错他人、或成为悬案
-- 多种应对路径 — 赔钱私了、魅力辩解丶威胁村长（流氓习气检定）、蹲牢服刑、逃跑（触发大地图追兵）
-- 赔偿协商 — NPC根据损失丶调查成本丶精神赔偿等综合开价；玩家可接受丶砍价或拒付
-- 追兵机制 — 逃跑後村庄出资雇佣追兵在大地图上追杀，多波次递增，直至村庄资金耗尽
-- 赃物退还 — 任何阶段均可退还赃物认怂，NPC反应因退还内容、时机、态度而异
-- 栽赃陷害 — 可将赃物放至他人身上转移嫌疑；栽赃对象为领主时将引发长期复仇
+### Witness System
+NPCs will **witness criminal acts**, gather around the scene, or step in to stop you.
 
-**Nemesis 仇敌系统**
+### Economy Tied to NPCs
+The gold in every village, castle, and town is no longer just a cold number — it's the **sum of every NPC's personal wallet and inventory**. Higher-status NPCs carry more money. Additionally, every village, tavern, and city has a **storage chest** waiting for you to discover.
 
-- 记录与每位NPC的交手历史：胜负次数、是否留疤、仇怨深度
-- 被栽赃的领主丶被得罪的村长丶战场上放跑的敌人将在数月後以复仇事件形式主动追杀玩家
-- 非随机生成——复仇者均为玩家亲手制造的仇敌
+**Stealing a pig or sheep from a village actually reduces the number of pigs and sheep in the trade interface.**
 
-**LLM AI 对话（可选）**
+### Crime Investigation Progression
+After you commit a crime, it's not just a simple relationship penalty. NPCs in the village will **spontaneously generate investigation quests**, tracking down the facts until they bring you to justice.
 
-- 接入任意OpenAI相容格式的LLM API（本地或远端均可）
-- NPC根据人设丶个人记忆丶世界事件认知即时应答
-- 自由打字输入，无固定选项
-- NPC认知有边界：目击者的说法≠传闻的说法≠当事人的说法，无上帝视角
-- 不启用LLM完全不影向游戏，所有对话系统均有纯C#规则兜底
+### Multiple Ways to Handle Accusations
+When you're confronted about your crimes, you have options:
+- **Pay up** with your wallet
+- **Threaten** your accuser (if you're confident in your combat skills)
+- **Accept jail time** and just do the time
+- **Persuade** them to drop the case (high Charm characters)
 
-**委托任务系统**
+---
 
-与原版任务发放机制对接，酒馆老板、村长、路人NPC均可派发任务，共16种类型。
+## Planned Features (Not Yet Implemented)
+- Frame / shift blame onto other NPCs after committing a crime
+- NPC reactions to unconscious bodies and corpses
+- **Custom LLM API integration** (e.g. DeepSeek) — give direct instructions to NPCs via natural language
+- Party chat system
+- LLM-polished dialogue text
+- Town escort / bodyguard followers
 
-- 悬赏追捕 — 活捉报酬为击杀的两倍；目标可能被同夥中途劫囚
-- 商队护送 — 侦查技能可预判埋伏；可选择路线
-- 寻宝任务 — 线索碎片从不同管道（酒馆、暗探、路人）分别收集
-- 越狱任务 — 贿赂守卫或潜行硬闯两条路线
-- 限时急送 — 货物重量与速度取舍，超时报酬递减
-- 地下拳赛 — 可押注自己
-- 信任值积累 — 完成任务提升Trust等级，解锁更高报酬与独占委托
-- 恶名值 — 坑害委托人将累积Infamy，影响NPC对你的态度
+---
 
-**决斗系统**
+## Before You Play
+The author is relatively new to modding and still gaining experience, but has a deep passion for Bannerlord and high-freedom games. This mod will be continuously updated and improved.
 
-- 与任意NPC约战决斗
-- 规则可自订
+If you encounter bugs or have ideas for NPC interactions, please submit feedback via this online document:
+**[Tencent Docs] Bannerlord LivingWorldNpcs — Bug Reports & Suggestions**
+https://docs.qq.com/sheet/DTXpuZ1ZnUE9ucUFv?tab=BB08J2
 
-**战场消耗品**
+---
 
-- 战斗中按Q键快速使用道具（如酒类回血）
+## Download Links
+- **Xunlei:** https://pan.xunlei.com/s/VOz-bEk87z6uQcVtAZ1YTC0OA1?pwd=74ar#
+- **Quark:** https://pan.quark.cn/s/e900a5d0d00d
+- **Baidu:** https://pan.baidu.com/s/1_7f9-yf7BW4k4ukWT434vA?pwd=d5fk
 
-**世界观参数化**
+---
 
-- 默认为卡拉迪亚世界观
-- 配合TaikouContent自动切换为日本战国风味（语言丶称谓丶叙事风格全面替换）
+# 发布指南 / Publishing Guide
 
-**控制器支援**
+## Steam 创意工坊 / Steam Workshop
 
-- 键盘与手柄同时适配
-- 按键提示图示自动切换（键鼠/Xbox/PlayStation）
+Bannerlord 使用专用的 `TaleWorlds.MountAndBlade.SteamWorkshop.exe` 上传，不是从启动器一键发布。
 
-**相容性**
+### 第一步：导出模块 / Step 1: Export Module
+1. 启动器里勾选你的 mod，然后打开 **Modding Kit**（从启动器进入）
+2. 从主菜单 UI 打开 **Editor**
+3. **File** → **Publish Module**
+4. 弹窗里：
+   - **Module** 下拉选 `LivingWorldNpcs`（⚠️ 千万别选成 Native，会很慢）
+   - 勾选 **Client**（必选，让玩家能用）
+   - 选一个输出目录，点 Publish
+5. 导出的就是一个干净的、可直接上传的 mod 副本
 
-- 支援游戏版本：1.2.12 / 1.4.6
-- 需安装四前置：Harmony / ButterLib / UIExtenderEx / MCM
-- LLM功能为可选模组，不配置不影响游戏
-- 安装：解压至 Modules 目录，启动器勾选即可
+### 第二步：创建 WorkshopCreate.xml / Step 2: Create WorkshopCreate.xml
+
+在你方便的地方（比如桌面）新建 `WorkshopCreate.xml`：
+
+```xml
+<Tasks>
+    <CreateItem/>
+    <UpdateItem>
+        <ModuleFolder Value="H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"/>
+        <ItemDescription Value="NPC interaction overhaul — steal, knock out, lockpick, loot, surrender, and investigate crimes. Inspired by Kingdom Come: Deliverance 2 and Red Dead Redemption 2. Works on v1.2.12 and v1.4.7."/>
+        <Tags>
+            <Tag Value="Gameplay"/>
+            <Tag Value="UI"/>
+            <Tag Value="Medieval"/>
+            <Tag Value="Singleplayer"/>
+            <Tag Value="v1.4.7"/>
+        </Tags>
+        <Image Value="H:\path\to\preview.jpg"/>
+        <Visibility Value="Public"/>
+    </UpdateItem>
+</Tasks>
+```
+
+⚠️ **注意**：XML 属性名是 `Value="..."`，不是 `<Tag>Value</Tag>` 这种嵌套文本！
+
+⚠️ **格式细节**：`<CreateItem/>` 是单独的空标签，`<UpdateItem>` 里才放具体数据。
+
+**Tags 可用值 / Allowed tag values：**
+- **Type**: Graphical Enhancement, Map Pack, Partial Conversion, Sound, Total Conversion, Troops, UI, Utility, Weapons and Armour
+- **Setting**: Native, Antiquity, Dark Ages, Medieval, Musket Era, Modern, Sci-Fi, Fantasy, Oriental, Apocalypse, Other
+- **Game Mode**: Singleplayer, Multiplayer
+- **Compatible Version**: v1.2.12, v1.4.7 等（可写多个 `<Tag Value="..."/>`）
+- **War Sails**（如果你的 mod 需要该 DLC 才加）
+
+> 不用纠结——大部分 tag 都可以发布后在 Steam 页面手动改。
+
+### 第三步：运行上传工具 / Step 3: Run the Uploader
+
+**前提**：确保 Steam 云存档已启用（Steam 库 → 右键 Bannerlord → 属性 → 通用 → Steam 云）。
+
+1. 打开文件夹：`H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\bin\Win64_Shipping_Client`
+2. 在地址栏输入 `cmd` 回车，打开命令行
+3. 输入以下命令（**XML 路径改成你自己的**）：
+   ```cmd
+   TaleWorlds.MountAndBlade.SteamWorkshop.exe C:\Users\你的用户名\Desktop\WorkshopCreate.xml
+   ```
+4. 按回车，看到 `Starting...` 后如果没有报错直接退出了 → **上传成功** ✅
+5. 如果卡在 `k_EItemUpdateStatusInvalid 0/0` 一直刷 → 大概率也传完了，直接 Ctrl+C 关掉
+6. 去 Steam 创意工坊 → 你的文件 → 编辑描述、补截图
+
+> ⚠️ 不能直接双击 exe！它需要 XML 路径作为参数，双击就是 "Wrong argument count"。
+
+---
+
+### 更新现有 Mod / Updating an Existing Mod
+
+用 `WorkshopUpdate.xml`（需要 ItemId——去你的创意工坊页面 URL 里找那串数字）：
+
+```xml
+<Tasks>
+    <GetItem>
+        <ItemId Value="1234567890"/>
+    </GetItem>
+    <UpdateItem>
+        <ModuleFolder Value="H:\SteamLibrary\steamapps\common\Mount & Blade II Bannerlord\Modules\LivingWorldNpcs"/>
+        <ChangeNotes Value="v1.0.1: Fixed crime investigation quest not triggering in towns."/>
+        <Tags>
+            <Tag Value="Gameplay"/>
+            <Tag Value="UI"/>
+            <Tag Value="Medieval"/>
+            <Tag Value="Singleplayer"/>
+            <Tag Value="v1.4.7"/>
+        </Tags>
+    </UpdateItem>
+</Tasks>
+```
+
+然后同样的命令运行：`TaleWorlds.MountAndBlade.SteamWorkshop.exe WorkshopUpdate.xml`
+
+---
+
+### 测试技巧 / Testing Tip
+上传后想测试 Workshop 版本是否正常：**临时把 `Modules\LivingWorldNpcs` 文件夹移走**，让游戏从 `workshop\content\261550\` 加载订阅版。否则游戏优先加载本地 Modules 文件夹的版本。
+
+### 注意事项 / Tips
+- **封面图很重要**：创意工坊浏览时第一眼看到的就是封面，建议挑一张最能展示 mod 特色的截图
+- 描述里放 **GIF 动图** 或视频链接效果最好
+- 每次更新后在页面写 **Changelog**，订阅者会收到通知
+- 图片大小 < 1MB
+
+---
+
+## Nexus Mods 发布步骤 / Nexus Mods Publishing
+
+1. **注册账号 / Register**: https://www.nexusmods.com → 右上角 Register（免费）
+2. **进入骑砍2专区**: https://www.nexusmods.com/mountandblade2bannerlord
+3. **点击 "Add a mod"** → 填写：
+   - **Name**: `LivingWorldNpcs`
+   - **Short summary**: `NPC interaction overhaul — steal, knock out, lockpick, and investigate crimes like KCD2 in Bannerlord`
+   - **Category**: `Gameplay`, `Immersion`, `NPC`
+   - **Long description**: 把上面英文版帖子贴进去（Nexus 支持 Markdown）
+   - **Adult content**: No
+4. **上传文件 / Upload Files**:
+   - 在 Files 页面点 **"Add a file"**
+   - 把 `LivingWorldNpcs` 整个文件夹打包成 `.zip` 或 `.7z`
+   - 文件命名建议: `LivingWorldNpcs-1.0.0.zip`
+   - 选择对应的游戏版本号，点 Upload
+5. **添加截图 / Add Images**: 在 Images 页面传截图（至少 3-5 张）
+   - 建议：HUD展示、偷窃界面、击晕动画、对话面板 各一张
+   - Nexus 用户看图比看字多，**截图是第一说服力**
+6. **发布 / Publish**: 确认无误后点击 Publish
+
+### 注意事项 / Tips
+- **Nexus DP（捐赠点）系统**：mod 被下载可以累积点数兑换奖励
+- **Vortex 兼容**：mod 结构标准（`Modules/LivingWorldNpcs/SubModule.xml`），Vortex 用户直接安装
+- **更新**：每次更新在 Files 页面上传新版本，旧版本可以 Archive（归档）保留
+
+---
+
+## 两平台对比 / Platform Comparison
+
+| | Steam Workshop | Nexus Mods |
+|---|---|---|
+| 安装方式 | 一键订阅，自动更新 | 手动下载 或 Vortex 安装 |
+| 受众 | 普通玩家多 | 硬核 mod 玩家多 |
+| 平台抽成 | 无 | 无（有捐赠点系统） |
+| 版本管理 | 自动更新所有人 | 用户自选版本 |
+| 搜索曝光 | Steam 内搜索 | Google 也能搜到 |
+| Installation | One-click subscribe, auto-update | Manual download or Vortex |
+| Audience | More casual players | More hardcore mod users |
+| Revenue | None | None (has Donation Points) |
+| Versioning | Auto-updates everyone | Users choose versions |
+| Visibility | Steam search only | Google-searchable |
+
+**建议两个平台都发布 / Publish on both** — 受众不完全重叠，覆盖面最广。Nexus 用户更愿意写详细反馈，Steam 用户量大。
+
+Audiences don't fully overlap — both platforms together give the widest reach. Nexus users tend to write more detailed feedback; Steam has the larger player base.
