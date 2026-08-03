@@ -729,6 +729,7 @@ namespace LivingWorldNpcs
                 var wBrain = AgentAIController.GetBrainForAgent(w);
                 if (wBrain == null) continue;
 
+                // 队友豁免由 AddAlert 内部判定（上下文受害者 ≠ 本人 → 豁免）；证词登记照常（村庄依然知道"有人看见"）
                 wBrain.SetPulseTarget(PlayerActionType.Steal, victimName, itemName);
                 wBrain.AddAlert(PlayerActionType.Steal, 3.0f);
 
