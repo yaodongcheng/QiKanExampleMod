@@ -54,9 +54,10 @@ namespace LivingWorldNpcs
         //这里的值会被 config.json覆盖 只作为默认值
         public List<string> DisabledInteractionMissionModes { get; set; } = new List<string>
         {
-            "Battle",       // 野战/攻城/藏身处
+            "Battle",       // 野战/攻城
             "Deployment",   // 战前部署阶段
             "Duel",         // 竞技场决斗
+            "Stealth",      // 藏身处潜入阶段（HideoutAmbushMission）
         };
 
         /// <summary>当前 Mission 是否应关闭非战斗互动（视野感知/警戒/击晕/偷窃/对话）</summary>

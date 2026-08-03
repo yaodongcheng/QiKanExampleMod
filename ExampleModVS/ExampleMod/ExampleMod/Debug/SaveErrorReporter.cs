@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using HarmonyLib;
 using TaleWorlds.Core;
@@ -133,9 +134,30 @@ namespace LivingWorldNpcs
         {
             public static MethodBase TargetMethod()
             {
-                var m = AccessTools.Method("TaleWorlds.SaveSystem.Save.ObjectSaveData:SaveTo");
-                DebugLogger.Log($"[SaveReporter-Bind] ObjectSaveData.SaveTo bound={m != null}");
-                return m;
+                // 1.4.x 新增了 SaveTo(BinaryWriter, ref int) 重载，只传名字会 AmbiguousMatch。
+                // internal 类型 (SaveEntryFolder/IArchiveContext) 无法被 TypeByName/GetType 解析，
+                // 所以直接枚举 ObjectSaveData 的方法，按参数名排除 BinaryWriter 重载（v1.4.x 独有）。
+                var asm = typeof(SaveManager).Assembly;
+                var type = asm.GetType("TaleWorlds.SaveSystem.Save.ObjectSaveData");
+                if (type == null) return null;
+                MethodBase found = null;
+                foreach (var mi in type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly))
+                {
+                    if (mi.Name != "SaveTo") continue;
+                    var parms = mi.GetParameters();
+                    // 选非 BinaryWriter 的重载（SaveEntryFolder 版本），两个版本通用
+                    if (parms.Length == 2 && !parms[0].ParameterType.Name.Contains("BinaryWriter"))
+                    {
+                        found = mi;
+                        break;
+                    }
+                }
+                // 兜底：如果上面没找到（如 BinaryWriter 版改名），取第一个找到的 SaveTo
+                if (found == null)
+                    found = type.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly)
+                        .FirstOrDefault(mi => mi.Name == "SaveTo");
+                DebugLogger.Log($"[SaveReporter-Bind] ObjectSaveData.SaveTo bound={found != null}");
+                return found;
             }
 
             [HarmonyPrefix]

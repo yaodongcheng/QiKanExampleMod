@@ -301,7 +301,7 @@ namespace LivingWorldNpcs
             // 情况 1: 独立阵营 (ID=-1)，每次都新建，不存缓存 (像疯狗一样)
             if (factionId == -1)
             {
-                return mission.Teams.Add(BattleSideEnum.None, 0xFFFFFF, 0xFFFFFF, null, true, false, true);
+                return mission.Teams.Add(BattleSideEnum.Attacker, 0xFFFFFF, 0xFFFFFF, null, true, false, true);
             }
 
             // 情况 2: 自定义阵营 (ID > 0)，查缓存
@@ -314,7 +314,7 @@ namespace LivingWorldNpcs
                 // 创建新队伍并缓存
                 // 为了区分颜色，可以写个简单的哈希算法生成颜色，这里暂用白色
                 uint color = (uint)(0xFF0000 + (factionId * 50)); // 简单变色区分
-                Team newTeam = mission.Teams.Add(BattleSideEnum.None, color, color, null, true, false, true);
+                Team newTeam = mission.Teams.Add(BattleSideEnum.Attacker, color, color, null, true, false, true);
                 _factionTeams[factionId] = newTeam;
 
                 // 新创建的阵营，默认要和玩家敌对 (看你需要，如果 factionId=0 是玩家队友则不需要)
