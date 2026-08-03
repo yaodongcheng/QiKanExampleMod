@@ -101,6 +101,48 @@ namespace LivingWorldNpcs
             Instance = this;
         }
 
+        /// <summary>
+        /// 玩家被复仇队/打手队俘虏 → 转押事件村庄监狱（复用 StartJail：先转押、后结案解散队）。
+        /// 识别方式：partyId 前缀（retaliation_ / thugs_）+ 从 partyId 反查事件。
+        /// 非本 mod 俘虏（战斗失败等）不受影响，保持原版流程。
+        /// </summary>
+        private void OnHeroPrisonerTaken(PartyBase capturer, Hero prisoner)
+        {
+            try
+            {
+                if (prisoner != Hero.MainHero) return;
+                var partyId = capturer?.MobileParty?.StringId;
+                if (string.IsNullOrEmpty(partyId)) return;
+                // partyId 形如 retaliation_{eventId}_w{n} / thugs_{eventId}_{day}——贪婪提取中间的 EventId
+                var m = System.Text.RegularExpressions.Regex.Match(partyId, @"^(?:retaliation|thugs)_(.+)_[^_]+$");
+                if (!m.Success) return;
+                string eventId = m.Groups[1].Value;
+
+                var evt = WorldEventStore.Find(eventId);
+                if (evt == null)
+                {
+                    DebugLogger.Log($"[Detention] Captured by retaliation party but event {eventId} not found — vanilla release path");
+                    return;
+                }
+                DebugLogger.Log($"[Detention] Player captured by {partyId} → event {eventId} stage={evt.Stage} — transferring to jail");
+
+                // 🔴 关键：先把玩家从复仇队俘虏名单移除，再转押村庄。
+                // TroopRoster 对"已在其他 roster 的英雄"重复 AddToCounts 不会重新回调
+                // OnAddedToPartyAsPrisoner → Hero.PartyBelongedToAsPrisoner 残留指向复仇队
+                // （MobileParty.Settlement=null）→ settlement_wait_on_init 读 .Settlement.Name 直接 NRE。
+                // 先 RemoveTroop（回调 OnRemovedFromPartyAsPrisoner 清空引用），转押时干净重设。
+                var captorRoster = capturer?.MobileParty?.Party.PrisonRoster;
+                if (captorRoster != null)
+                    captorRoster.RemoveTroop(Hero.MainHero.CharacterObject, 1);
+
+                ApplyImmediateDetention(evt.TargetSettlement, evt, "captured-by-retaliation");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Detention] OnHeroPrisonerTaken error: {ex.Message}");
+            }
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // 对外入口
         // ═══════════════════════════════════════════════════════════════
@@ -193,6 +235,8 @@ namespace LivingWorldNpcs
             CampaignEvents.OnSessionLaunchedEvent.AddNonSerializedListener(this, OnSessionLaunched);
             CampaignEvents.TickEvent.AddNonSerializedListener(this, OnTick);
             CampaignEvents.HourlyTickEvent.AddNonSerializedListener(this, OnHourlyTick);
+            // 🆕 大地图被复仇队/打手队俘虏（encounter 菜单投降）→ 转押村庄监狱坐牢
+            CampaignEvents.HeroPrisonerTaken.AddNonSerializedListener(this, OnHeroPrisonerTaken);
         }
 
         public override void SyncData(IDataStore dataStore)
@@ -441,10 +485,10 @@ namespace LivingWorldNpcs
             string lockup = LockupName(settlement);
             int daysLeft = Math.Max(1, (int)Math.Ceiling(_releaseDay - (float)CampaignTime.Now.ToDays));
 
-            // 关押阶段正文：无窗的关押处 + 剩余刑期，除非交罚金
+            // 关押阶段正文：天数直接报在开头——玩家一眼看到还要关多久，才不会"无穷无尽"地干等
             string text = LWNTextHelper.ResolveCompound("LWN_ui_detention_detained_text",
-                "There are no windows in the {LOCKUP}. Footsteps pace outside the door, occasionally stopping to peer in.\n\n" +
-                "Your belongings are no longer on you. At this rate, {DAYS} more days — unless you send word back and pay the fine.",
+                "You are locked in the {LOCKUP}. {DAYS} days remain — pay the fine or serve them out.\n\n" +
+                "Someone paces beyond the door, stopping now and then to peer in. Your belongings are gone from you.",
                 ("LOCKUP", lockup), ("DAYS", daysLeft.ToString()));
 
             string note = BuildFineEscalationNote();
@@ -514,6 +558,9 @@ namespace LivingWorldNpcs
 
             args.optionLeaveType = GameMenuOption.LeaveType.Bribe;
             MBTextManager.SetTextVariable("LWN_FINE", _fine);
+            // 剩余刑期（选项文本里也带天数，玩家一眼看到还要关多久）
+            int daysLeft = Math.Max(1, (int)Math.Ceiling(_releaseDay - (float)CampaignTime.Now.ToDays));
+            MBTextManager.SetTextVariable("LWN_DAYS_LEFT", daysLeft);
 
             if (Hero.MainHero.Gold < _fine)
             {
@@ -691,6 +738,10 @@ namespace LivingWorldNpcs
             try
             {
                 TakePrisonerAction.Apply(settlement.Party, Hero.MainHero);
+                // 坐牢 = 已伏法结案：玩家嫌犯的进行中事件 Resolved + 复仇队解散。
+                // 时机在 MissionEnd 后、Campaign tick 前——源头防生成（后续 DailyTick/AI 不会再派队），
+                // 而不是先派队再删除（见 WorldEventStore.OnPlayerJailed）。
+                WorldEventStore.OnPlayerJailed();
                 _jailed = true;
                 _stage = STAGE_DETAINED;
                 _settlementId = settlement.StringId;

@@ -91,7 +91,7 @@ namespace LivingWorldNpcs
 
     // AccountabilityOptionType 已删除 — 追责 Intent 现在使用 InteractionOptionType 枚举新增值。
     // 这些值在 InteractionOptionManager.cs 中定义：PayRestitution, CharmDefense, FrameSuspect, Threat,
-    // Investigate, Confess, SilenceWitness, LeadRetaliation, WorkOffDebt,
+    // Investigate, Confess, SilenceWitness, LeadRetaliation,
     // BetrayQuest, InnocenceProof, Settle, AcceptBountyQuest, LureArrest, Arrest
 
     #endregion
@@ -732,10 +732,11 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // ══ 第二层：是否有定居点 ══
-            // 有事件但玩家不在定居点（大地图偶遇对话）——目前后果都依赖定居点场景，无法落地。
-            // TODO: 未来支持"大地图上 NPC 找上门追责"时在这里接。
-            if (settlement == null) return;
+            // ══ 第二层（已放宽）：定居点不再是门槛 ══
+            // 野外对话（复仇队追上，FindOnGoingByNpc 注入）同样走阶段分支——
+            // 各分支的 villageName 有 ?? 兜底（无村名时显示"the village"），
+            // Confrontation 分支（关系 -20 + 追捕警告 + 队保持追击）在野外完全成立。
+            // 旧逻辑 settlement==null 直接 return = 野外走人零成本脱身（违反铁律 12），已修复。
 
             // ══ 第三层：玩家是否是嫌犯 ══
             // 不是嫌犯（路人闲聊 / 受托查案的调查者）→ 纯自然离开，任何阶段都无后果。
@@ -858,45 +859,6 @@ namespace LivingWorldNpcs
             // 封口失败 → 目击者马上去报告
             evt.InvestigationProgress += 0.2f;
             DebugLogger.Log($"[Accountability] Witness silencing failed — investigation +0.2");
-        }
-    }
-
-    #endregion
-
-    #region WorkOffDebtIntent
-
-    public class WorkOffDebtIntent : IntentBase
-    {
-        public override InteractionOptionType Type => InteractionOptionType.WorkOffDebt;
-        // 玩家选项名：干活抵债——我没钱，但我可以帮当地干活
-        public override string DisplayName => LWNTextHelper.ResolveText("LWN_ui_option_work_off_debt", "[Work off the debt] I have no money, but I can work for you");
-        public override NegotiationGoalType? Goal => null;
-
-        public override Eligibility Evaluate(IntentContext ctx)
-        {
-            if (ctx.ActiveEvent == null) return Eligibility.Hide();
-            if (ctx.ActiveEvent.Stage != EventStage.Emerging && ctx.ActiveEvent.Stage != EventStage.Active)
-                return Eligibility.Hide();
-            return Eligibility.Show();
-        }
-
-        public override void OnInstant(IntentContext ctx)
-        {
-            var evt = ctx.ActiveEvent;
-            if (evt == null) return;
-            // 3 天软约束：标记为干活抵债模式，不立即结案
-            // 每天 DailyTick 检查玩家是否在村庄附近（≤1天距离），未到→违约→Confrontation
-            evt._workOffDebtDay = (float)CampaignTime.Now.ToDays;
-            evt._workOffDebtAccepted = true;
-            evt._workOffDaysDone = 0;
-            // 地名兜底：无名字时显示"当地"
-            var settlementName = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_intent_accountability_place_fallback", "the area");
-            // 系统提示：干活抵债已生效（{PLACE}=干活地点）
-            var workOffMessage = LWNTextHelper.ResolveCompound("LWN_intent_accountability_workoff_message",
-                ("PLACE", settlementName));
-            TaleWorlds.Library.InformationManager.DisplayMessage(
-                new TaleWorlds.Library.InformationMessage(workOffMessage));
-            DebugLogger.Log($"[Accountability] Work-off-debt accepted for {evt.EventId}, due at day {evt._workOffDebtDay + 3}");
         }
     }
 

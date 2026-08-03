@@ -42,6 +42,25 @@ namespace LivingWorldNpcs
                 CharacterObject partnerChar = conversationPartnerData.Character;
                 if (partnerChar == null) return true;
 
+                // 🆕 提前注入：SkipVanillaOpening 模式（Confrontation 对峙替换开场白）的脚本
+                // 必须赶在对话 start token 评估前注入——Postfix 注入时原版开场白已播放，
+                // start 覆盖失效，玩家看到纯原版对话（曾实测：村庄/大地图 Confrontation 对话
+                // 注入"成功"但不生效）。村庄对话与大地图遭遇对话都走本入口，统一覆盖。
+                // Postfix 的防重复注入指纹会挡掉二次注入，无重复风险。
+                try
+                {
+                    var preHero = partnerChar.HeroObject;
+                    if (preHero != null)
+                    {
+                        DebugLogger.Log($"[ConvEntry] Pre-inject (OpenConversation): partner={preHero.Name} trigger={_pendingTrigger} ActiveToken={Campaign.Current?.ConversationManager?.ActiveToken}");
+                        TryInjectCrimeDialogue(preHero, agent: null, character: partnerChar);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[ConvEntry] Prefix pre-inject error: {ex.Message}");
+                }
+
                 // ── 定居点内对话（无 Party）：直接放行，让 Postfix 注入犯罪对话 ──
                 if (conversationPartnerData.Party == null)
                     return true;
@@ -165,6 +184,14 @@ namespace LivingWorldNpcs
                     var pending = AgentAIController.Instance?.PendingWorldEvent;
                     DebugLogger.Log($"[ConvEntry] FindOnGoing({settlement.StringId}) → evt={evt?.EventId ?? "null"} stage={evt?.Stage} assault=[{(evt?.AssaultVictimNames != null ? string.Join(",", evt.AssaultVictimNames) : "none")}:{evt?.AssaultValue ?? 0}] pendingId={pending?.EventId ?? "null"} pendingStage={pending?.Stage} pendingAssault=[{(pending?.AssaultVictimNames != null ? string.Join(",", pending.AssaultVictimNames) : "none")}:{pending?.AssaultValue ?? 0}]");
                 }
+                // 🆕 权威 NPC 带队离开定居点（野外遭遇复仇队/打手队）：三路 settlement 全 null 时，
+                // 按对话对象本人反查事件——村长人在野外，案子照样能谈（FindOnGoingByNpc）
+                if (evt == null && partner != null)
+                {
+                    evt = WorldEventStore.FindOnGoingByNpc(partner);
+                    if (evt != null)
+                        DebugLogger.Log($"[ConvEntry] Found by NPC {partner.StringId} → evt={evt.EventId} stage={evt.Stage} (authority in the field)");
+                }
 
                 // ── 2. 消费 trigger ──
                 var trigger = _pendingTrigger;
@@ -234,7 +261,8 @@ namespace LivingWorldNpcs
                     _lastInjectedEventId = eventKey + "_" + partnerKey + dataFp;
                     _lastInjectedTag = tag;
                     DebugLogger.Log($"[ConvEntry] 注入对话执行成功 Injected dialogue: event={eventKey} stage={evt?.Stage.ToString() ?? "none"} " +
-                        $"trigger={trigger} partner={partner?.Name?.ToString() ?? character?.Name?.ToString() ?? agent?.Name?.ToString() ?? "(template)"} nodes={script.Nodes.Count}");
+                        $"trigger={trigger} partner={partner?.Name?.ToString() ?? character?.Name?.ToString() ?? agent?.Name?.ToString() ?? "(template)"} nodes={script.Nodes.Count} " +
+                        $"mode={(script.SkipVanillaOpening ? "SkipVanillaOpening(start覆盖)" : "Gateway(hero_main_options)")}");
                 }
             }
             catch (Exception ex)
@@ -647,7 +675,7 @@ namespace LivingWorldNpcs
                         var ev = st != null ? WorldEventStore.FindOnGoing(st.StringId) : null;
                         if (CrimeDialogueBuilder.NeedsEarlyInjection(normalHero, ev))
                         {
-                            DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting confrontation (Normal trigger, SkipVanillaOpening) partner={normalHero.Name}");
+                            DebugLogger.Log($"[ConvEntry] Mission start Prefix: pre-injecting confrontation (Normal trigger, SkipVanillaOpening) partner={normalHero.Name} ActiveToken={Campaign.Current?.ConversationManager?.ActiveToken}");
                             ConversationEntryPatch.TryInjectCrimeDialogue(normalHero, effectiveAgent);
                         }
                     }
