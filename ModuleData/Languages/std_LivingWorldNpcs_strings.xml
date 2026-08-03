@@ -464,7 +464,7 @@
     <!-- ═══════════════════════════════════════════ -->
     <string id="LWN_ui_detention_pay_fine" text="Pay a fine — give {LWN_FINE}{GOLD_ICON} to the folk of {LWN_SETTLEMENT}." />
     <string id="LWN_ui_detention_accept_jail" text="Accept the punishment — spend {LWN_DAYS} days in the {LWN_LOCKUP}." />
-    <string id="LWN_ui_detention_pay_while_jailed" text="Send word to pay {LWN_FINE}{GOLD_ICON} as a fine to gain release." />
+    <string id="LWN_ui_detention_pay_while_jailed" text="Send word to pay {LWN_FINE}{GOLD_ICON} as a fine to gain release — or wait {LWN_DAYS_LEFT} more days." />
     <string id="LWN_ui_detention_release_continue" text="Continue..." />
     <string id="LWN_ui_detention_place_here" text="Here" />
     <string id="LWN_ui_detention_release_menu" text="Release" />
@@ -908,8 +908,6 @@
     <string id="LWN_ui_option_leave" text="[Leave]" />
     <!-- 玩家选项名：封口——这事你别往外说…… -->
     <string id="LWN_ui_option_silence_witness" text="[Silence] Do not tell anyone about this..." />
-    <!-- 玩家选项名：干活抵债——我没钱，但我可以帮当地干活 -->
-    <string id="LWN_ui_option_work_off_debt" text="[Work off debt] I have no money, but I can work for the locals" />
     <!-- 玩家选项名：拔剑——（拔出武器）谁敢拦我！ -->
     <string id="LWN_ui_option_fight_villagers" text="[Draw steel] *you draw your weapon* Who dares stop me!" />
     <!-- 玩家选项名：背叛——快跑！当地人在抓你。 -->
@@ -1064,8 +1062,6 @@
     <string id="LWN_intent_accountability_walkaway_confront_inquiry" text="You turn and flee. Behind you, {NAME}'s roar echoes -&amp;#10;&amp;#10;“Dodge us today, but you cannot dodge us forever! {VILLAGE} will not rest until you are dead!”&amp;#10;&amp;#10;You have made a mortal enemy here. Beware - the men they hire could appear at any moment." />
     <!-- 叙事日志：逃跑被追（{NAME}=权威 NPC，{VILLAGE}=村庄名） -->
     <string id="LWN_intent_accountability_walkaway_confront_log" text="I ran. {NAME} gave chase - {VILLAGE} will not rest until I am dead." />
-    <!-- 系统提示：干活抵债已生效（{PLACE}=干活地点） -->
-    <string id="LWN_intent_accountability_workoff_message" text="[Work off debt] Work in {PLACE} every day for 3 days. Break your word and bear the consequences." />
     <!-- 阶段升级缘由：玩家拔剑动手（赔款涨价说明里给玩家看） -->
     <string id="LWN_intent_accountability_fight_reason" text="You drew your blade and struck" />
     <!-- 场景内信息提示：村民抄家伙围过来 -->
@@ -1755,7 +1751,7 @@
     <string id="LWN_conspiracy_confront_unlock" text="Every thread leads back to one man — {NAME}. The raids, the betrayals, the thefts... all of it, pulled by that hand. Now it is time he paid the price." />
     <string id="LWN_conspiracy_narrative_revealed" text="You now know the one behind it all is {NAME}." />
     <string id="LWN_conspiracy_narrative_progress" text="You sense this affair runs deeper than it seems... {REMAINING} more clues before the truth is laid bare." />
-    <!-- 报复/打手部队（InvestigationEngine） -->
+    <!-- 报复/打手部队（InvestigationEngine）：{NAME}=挂此事的权威 NPC（村长/头人/总督）本人带队，兜底为村名 -->
     <string id="LWN_investigation_village" text="Village" />
     <string id="LWN_investigation_revenge_party" text="{NAME}'s Revenge Party" />
     <string id="LWN_investigation_thug_party" text="{NAME}'s Thugs" />
@@ -1886,7 +1882,6 @@
     <string id="LWN_worldevent_cfg_misconduct_gerund" text="causing trouble" />
     <string id="LWN_worldevent_cfg_misconduct_scene" text="the area" />
     <!-- 涨价原因（WorldEvent.TransitionStage / DefaultEscalationReason） -->
-    <string id="LWN_worldevent_escalation_reason_workoff_breach" text="you failed to finish the work you promised" />
     <string id="LWN_worldevent_escalation_reason_stall" text="you kept stalling on the payment, and they lost patience" />
     <string id="LWN_worldevent_escalation_reason_discovered" text="the deed came to light" />
     <string id="LWN_worldevent_escalation_reason_public" text="you never paid, and the matter was laid bare before everyone" />
@@ -2466,7 +2461,7 @@
     <!-- 扣押菜单正文：被按在地上后的两条路——赔钱或关押（{LOCKUP}=关押处 {NAME}=定居点名） -->
     <string id="LWN_ui_detention_offer_text" text="They drag you up off the ground, arms wrenched behind your back — your weapon kicked aside, the ring of men still panting.&amp;#10;&amp;#10;The leader wastes no words: pay the recompense and the matter is settled; refuse, and you'll rot in {LOCKUP} until {NAME} calms down enough to let you go." />
     <!-- 关押阶段正文：无窗的关押处 + 剩余刑期（{LOCKUP}=关押处 {DAYS}=剩余天数） -->
-    <string id="LWN_ui_detention_detained_text" text="{LOCKUP} has no window. Someone paces beyond the door, stopping now and then to peer in.&amp;#10;&amp;#10;Your belongings are gone from you. By the look of it, you'll be held {DAYS} more days — unless you can get word out to pay the fine." />
+    <string id="LWN_ui_detention_detained_text" text="You are locked in the {LOCKUP}. {DAYS} days remain — pay the fine or serve them out.&amp;#10;&amp;#10;Someone paces beyond the door, stopping now and then to peer in. Your belongings are gone from you." />
     <!-- 付不起提示（带原价锚点版）：点出当初听过的最低价（{FIRST}=当初报价） -->
     <string id="LWN_ui_detention_cannot_afford_anchor" text="You can't scrape together that sum. {FIRST} would have settled it, back then." />
     <!-- 付不起提示（普通版） -->
@@ -3801,5 +3796,16 @@
     <string id="LWN_ui_npcintent_search" text="(Search)" />
     <string id="LWN_ui_npcintent_recover" text="(Recover)" />
     <string id="LWN_ui_npcintent_stop" text="(Stop)" />
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- 存档错误诊断（SaveErrorReporter）           -->
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- 存档失败弹窗 fallback（官方 str_* key 未命中时使用；玩家可见，可翻译） -->
+    <string id="LWN_save_error_title" text="Save Failed!" />
+    <string id="LWN_save_error_body" text="Cannot create save data." />
+    <string id="LWN_save_error_ok" text="OK" />
+    <!-- 诊断详情占位 -->
+    <string id="LWN_save_error_no_detail" text="(no error detail captured)" />
+    <string id="LWN_save_error_platform" text="[Platform] " />
+    <string id="LWN_save_error_debug_line" text="[SaveDebug] Result={RESULT}&#10;{DETAIL}" />
   </strings>
 </base>

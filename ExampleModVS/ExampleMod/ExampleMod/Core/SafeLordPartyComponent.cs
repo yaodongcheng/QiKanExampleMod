@@ -9,12 +9,16 @@ using TaleWorlds.CampaignSystem.Party.PartyComponents;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Localization;
+using TaleWorlds.SaveSystem;
 
 namespace LivingWorldNpcs
 {
     public class SafeLordPartyComponent : PartyComponent
     {
-        private readonly Hero _leader;
+        // ⚠️ 必须存档：类型注册只解决"读档能解析类型"，字段不标 [SaveableField] 读档后为 null
+        //（曾实测：坐牢存档→读档→get_HomeSettlement NRE，_leader 为 null。原版 LordPartyComponent 同款 [SaveableField] Hero 字段）
+        [SaveableField(1)]
+        private Hero _leader;
 
         public SafeLordPartyComponent(Hero leader)
         {
@@ -23,7 +27,8 @@ namespace LivingWorldNpcs
 
 
         // 【关键修复2】必须返回一个名称，否则UI显示会报错
-        public override TextObject Name => _leader.Name;
+        // 读档兜底：旧档无字段数据时 _leader==null，返回空名（引擎可容忍，返回 null TextObject 会崩）
+        public override TextObject Name => _leader != null ? _leader.Name : new TextObject("");
 
         // 【关键修复3】必须返回一个家乡定居点。
         // 如果英雄没有家乡，就默认给全图第一个定居点，防止引擎读取null崩溃
@@ -31,6 +36,7 @@ namespace LivingWorldNpcs
         {
             get
             {
+                if (_leader == null) return Settlement.All.FirstOrDefault();
                 return _leader.HomeSettlement ?? _leader.Clan?.HomeSettlement ?? Settlement.All.FirstOrDefault();
             }
         }

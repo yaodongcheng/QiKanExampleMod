@@ -53,7 +53,6 @@ namespace LivingWorldNpcs
         Confess,             // 自首
         SilenceWitness,      // 封口目击者
         LeadRetaliation,     // 带队报复
-        WorkOffDebt,         // 干活抵债
         BetrayQuest,         // 背叛 Quest
         InnocenceProof,      // 自证清白
         Settle,              // 和解劝说
@@ -124,7 +123,6 @@ namespace LivingWorldNpcs
                 case InteractionOptionType.Confess:
                 case InteractionOptionType.SilenceWitness:
                 case InteractionOptionType.LeadRetaliation:
-                case InteractionOptionType.WorkOffDebt:
                 case InteractionOptionType.BetrayQuest:
                 case InteractionOptionType.InnocenceProof:
                 case InteractionOptionType.Settle:

@@ -11,11 +11,12 @@ using TaleWorlds.SaveSystem.Save;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// 存档失败诊断补丁（排查期使用，定位问题后可移除）：
+    /// 存档失败诊断补丁（🔴 常驻诊断工具——新增 Saveable 类型后如遇存档问题，靠它取证）：
     /// ① SaveManager.Save Postfix — 缓存存档失败时的底层错误详情（SaveOutput.Errors，
     ///    如 "Could not find type definition of type: X" / "SaveContext Error: ..."）。
     /// ② MBSaveLoad.ShowErrorFromResult Prefix — 拦截存档失败弹窗，把详情追加到弹窗正文，
-    ///    玩家截图即可反馈具体原因。定位后应删除本文件。
+    ///    玩家截图即可反馈具体原因。
+    /// 玩家可见文本走标准本地化（LWN key，英文条目注册于 std_LivingWorldNpcs_strings.xml）。
     /// </summary>
     public static class SaveErrorReporter
     {
@@ -73,24 +74,34 @@ namespace LivingWorldNpcs
                 {
                     if (result == SaveResult.Success) return true; // 成功：放行原方法（原方法直接 return）
 
-                    // 文本走标准本地化（Native 的 str_* key，引擎表已注册，命中中文翻译）
-                    string title = GameTexts.FindText("str_save_unsuccessful_title")?.ToString() ?? "Save Failed!";
-                    string baseMsg = GameTexts.FindText("str_game_save_result", result.ToString())?.ToString() ?? "Cannot create save data.";
+                    // 文本走标准本地化：官方 key（str_*，引擎表已注册，命中各语言翻译）优先，
+                    // fallback 走 LWN key 机制（英文条目注册于 std_LivingWorldNpcs_strings.xml）
+                    string title = GameTexts.FindText("str_save_unsuccessful_title")?.ToString()
+                        ?? LWNTextHelper.ResolveText("LWN_save_error_title", "Save Failed!");
+                    string baseMsg = GameTexts.FindText("str_game_save_result", result.ToString())?.ToString()
+                        ?? LWNTextHelper.ResolveText("LWN_save_error_body", "Cannot create save data.");
 
                     string detail = LastErrorDetail;
-                    if (string.IsNullOrEmpty(detail)) detail = "(no error detail captured)";
+                    if (string.IsNullOrEmpty(detail))
+                        detail = LWNTextHelper.ResolveText("LWN_save_error_no_detail", "(no error detail captured)");
                     try
                     {
                         string platformErr = Common.PlatformFileHelper.GetError();
-                        if (!string.IsNullOrEmpty(platformErr)) detail += "\n[Platform] " + platformErr;
+                        if (!string.IsNullOrEmpty(platformErr))
+                            detail += "\n" + LWNTextHelper.ResolveText("LWN_save_error_platform", "[Platform] ") + platformErr;
                     }
                     catch { }
 
-                    string body = baseMsg + "\n\n[SaveDebug] Result=" + result + "\n" + detail;
+                    // 诊断行走 LWN key（玩家可见）；{DETAIL} 为引擎原始错误消息（不可翻译，原样透传）
+                    string debugLine = LWNTextHelper.ResolveCompound("LWN_save_error_debug_line",
+                        "[SaveDebug] Result={RESULT}\n{DETAIL}",
+                        ("RESULT", result.ToString()), ("DETAIL", detail));
+                    string body = baseMsg + "\n\n" + debugLine;
 
                     InformationManager.ShowInquiry(new InquiryData(
                         title, body, true, false,
-                        GameTexts.FindText("str_ok")?.ToString() ?? "OK", "",
+                        GameTexts.FindText("str_ok")?.ToString()
+                            ?? LWNTextHelper.ResolveText("LWN_save_error_ok", "OK"), "",
                         null, null), false, false);
 
                     DebugLogger.Log($"[SaveErrorReporter] Save failed: Result={result}, detail={detail}");
@@ -110,7 +121,7 @@ namespace LivingWorldNpcs
     /// 并在 VariableSaveData.Value==null（会导致 (int)Value 解箱 NRE 崩溃）时打印对象类型 + 成员。
     /// 目标类型是 internal（SaveSystem），用 AccessTools 动态绑定 + 反射读值。
     /// ⚠️ TargetMethod 必须 public static（Harmony 按 public 反射查找，private 会静默跳过补丁）。
-    /// 定位后随 SaveErrorReporter 一起移除。
+    /// 常驻诊断工具，随 SaveErrorReporter 保留。
     /// </summary>
     public static class SaveSerializeDiagPatch
     {

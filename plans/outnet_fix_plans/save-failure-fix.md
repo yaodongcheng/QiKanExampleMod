@@ -1,6 +1,6 @@
 # 存档失败（Cannot create save data）— 诊断与修复计划
 
-> **状态**：✅ 阶段二（修复）完成 —— 8 类 + 1 struct + 6 枚举已注册（issue 路径已验证）；✅ 对峙 NRE 崩溃根因已定位并修复（`CommissionIssueContext.PrimaryCategory` 的 Nullable 字段，见 1.6/2.5），待全路径复现验证
+> **状态**：✅ 阶段二（修复）完成 —— 8 类 + 1 struct + 6 枚举已注册（issue 路径已验证）；✅ 对峙 NRE 崩溃根因已定位并修复（`CommissionIssueContext.PrimaryCategory` 的 Nullable 字段，见 1.6/2.5）；✅ 存-读-存循环 + 读档 issue 标题还原（_context 往返）验证通过；✅ SaveErrorReporter 决定**保留为常驻诊断工具**（玩家可见文本已正式化走 LWN key，英文条目）；剩余：2.2 全路径验证 → 双版本发布
 > **来源**：外网玩家反馈"无法存档"（弹窗 `str_save_unsuccessful_title` / `str_game_save_result.GeneralFailure` = "无法创建存档数据"）+ 本地复现（含对峙阶段 NRE 崩溃）
 > **相关代码**：`Debug/SaveErrorReporter.cs`（诊断补丁）、`Story/StoryContext.cs`（SaveDefiner）、`Quests/Commissions/CommissionHubIssue.cs`（_context 存档 + Nullable 修复）、`WorldEvent/`、`Core/SafeLordPartyComponent.cs`、`Core/CustomPartyComponent.cs`
 
@@ -29,12 +29,18 @@
 - 我们的 `AcceptQuest`（AccountabilityIntents 犯罪追责路径）直接 GenerateIssueQuest，**跳过关联** → IssueQuest=null → 读档取消（CommissionIntent 常规委托走官方 `IssueManager.StartIssueQuest` 本就正常）
 - 修复：`CommissionHubIssue.AcceptQuest()` 改为 `StartIssueWithQuest()` → 取 `IssueQuest` → `CompleteIssueWithQuest()`；已编译，待验证
 
+**🔴 新发现并已修复：读档后 PartyComponent 字段丢失 NRE（2026-08-03）**：
+- 现象：自首→对抗→被打死→坐牢→坐牢界面存档→读档 → `SafeLordPartyComponent.get_HomeSettlement()` NRE（`_leader` null，SafeLordPartyComponent.cs:34）
+- 根因：类型注册（id 16/17）只解决"读档能解析类型"；`_leader`/`_homeSettlement`/`_displayName` 未标 `[SaveableField]` → 读档后为 null。CustomPartyComponent 有 `?? Settlement.All.FirstOrDefault()` 兜底不崩，SafeLordPartyComponent 直接解引用崩
+- 修复：SafeLordPartyComponent `_leader` 加 `[SaveableField(1)]`；CustomPartyComponent `_homeSettlement`(1)/`_displayName`(2)；两处属性（Name/HomeSettlement）null-guard 兜底（旧档字段缺失不崩）；参考原版 `LordPartyComponent` 同款 `[SaveableField(30)] Hero _leader`
+- 经验：**类型已注册 ≠ 字段已存档**，两者缺一不可——wheels.md「存档错误诊断」排查流程第 4 条已固化
+
 **诊断补丁调整**：`[SaveReporter-Null]` 只报 Object/Container/CustomStruct 的 null（String null 安全——`GetStringId(null)` 返回 -1，原版 null string 是常态，之前是噪音）
 
 **下一步（待办主线）**：
-1. 进游戏复现：对峙走人 → 存档（应**成功**，不再崩溃）
-2. 顺带验证：存-读-存循环、读档后 issue 标题正确（_context 往返）
-3. 2.2 全路径验证 → 双版本发布 → 移除 SaveErrorReporter.cs（含 SaveSerializeDiagPatch）→ csproj 同步删 Compile Include
+1. 进游戏复现：对峙走人 → 存档（应**成功**，不再崩溃）✅ 已通过（存-读-存循环 + 读档 issue 标题验证）
+2. 顺带验证：存-读-存循环、读档后 issue 标题正确（_context 往返）✅ 已通过（2026-08-03）
+3. 2.2 全路径验证 → 双版本发布；~~移除 SaveErrorReporter.cs~~ → **已决定保留为常驻诊断工具**（玩家可见文本已正式化：LWN key 英文条目，见 wheels.md「存档错误诊断」）
 
 **待确认项**：`CommissionTargetType` 是否被 Saveable 字段引用（决定是否注册，id 可给 26）。
 
@@ -313,5 +319,5 @@ protected override void DefineEnumTypes()
 
 1. 发布说明写明：存档 bug 修复；被卡住的玩家需读 bug 之前的旧档
 2. 让反馈玩家更新验证；收集确认（存档正常）
-3. **确认修复后移除 `SaveErrorReporter.cs`**（csproj 同步删除 Compile Include）——排查期诊断工具，非产品功能
+3. ~~移除 `SaveErrorReporter.cs`~~ → **保留为常驻诊断工具**（2026-08-03 决定）：玩家可见文本已正式化走 LWN key（英文条目），后续新增 Saveable 类型遇存档问题靠它取证，wheels.md「存档错误诊断」有排查流程
 4. 日志观测：`Debug/StoryEngine_RuntimeLog.txt` 搜 `[SaveErrorReporter]`（存档失败详情）、`[SaveReporter-Null]`（序列化 null 成员定位）、`[SaveReporter-Bind]`（诊断补丁绑定验证）、`[Crash]`（崩溃现场）；`rgl_log.txt` 搜 `Could not find type definition` / `Unable to create save game data`（存档异常时）

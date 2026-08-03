@@ -252,9 +252,6 @@ namespace LivingWorldNpcs
         [JsonIgnore] public float _stageEnteredDay;
         [JsonIgnore] public bool _coldCaseTailTriggered;
         [JsonIgnore] public bool _coldCaseTailRolled;
-        [JsonIgnore] public float _workOffDebtDay;
-        [JsonIgnore] public bool _workOffDebtAccepted;
-        [JsonIgnore] public int _workOffDaysDone;
         [JsonIgnore] public bool _haggleAttempted;   // 砍价已尝试（同一对话内禁止重试）
         [JsonIgnore] public int _hagglePrice;        // 砍后价（0=还没砍成）。同一对话内重进 restitution_demand 时沿用此价
 
@@ -1119,6 +1116,38 @@ namespace LivingWorldNpcs
         public static int TotalEventCount => _allEvents.Count;
         public static int ActiveEventCount => _allEvents.Count(e => e.IsActive);
 
+        /// <summary>
+        /// 玩家被关押 = 已伏法结案：以玩家为嫌犯的进行中事件全部 Resolved。
+        /// 🔴 源头防生成（不是"生成后删除"）：坐牢发生在 MissionEnd 后、Campaign tick 前，
+        /// 此时把事件结案，后续所有派队入口（Active 拖延自动派 / Confrontation 重派 /
+        /// ProcessAuthorityAction AI 自主 / 走人·对抗·违约对话）因事件不活跃全部失效；
+        /// 已存在的复仇队/打手队同步解散（结案 = 复仇取消，否则队会追到监狱门口出戏）。
+        /// </summary>
+        public static void OnPlayerJailed()
+        {
+            foreach (var evt in _allEvents.Where(e => e.IsActive && e.SuspectIsPlayer))
+            {
+                DismissRetaliationParty(evt);
+                TransitionStage(evt, EventStage.Resolved, null, "player_jailed");
+                evt.ResolvedBy = "player_jailed";
+                DebugLogger.Log($"[WorldEvent] {evt.EventId} resolved (player jailed)");
+            }
+        }
+
+        /// <summary>解散事件的复仇队/打手队（按 RetaliationPartyId 定位），重置派队标记（出狱后若再逃跑可重新派）。</summary>
+        private static void DismissRetaliationParty(WorldEvent evt)
+        {
+            if (string.IsNullOrEmpty(evt.RetaliationPartyId)) return;
+            var party = MobileParty.All.FirstOrDefault(p => p.StringId == evt.RetaliationPartyId);
+            if (party != null)
+            {
+                V.DelParty(party);
+                DebugLogger.Log($"[WorldEvent] {evt.EventId} retaliation party {evt.RetaliationPartyId} dismissed (player jailed)");
+            }
+            evt.RetaliationPartyId = null;
+            evt.RetaliationSpawned = false;
+        }
+
         /// <summary>查找指定定居点的活跃事件（同村同时最多一个活跃案件）。
         /// 同时考察持久化事件和 PendingWorldEvent，选"最相关"的返回：
         /// suspect=player 优先；同 suspect 则阶段高者优先。
@@ -1158,6 +1187,18 @@ namespace LivingWorldNpcs
                 predicate(e));
             var pending = MatchPending(settlementId, predicate: predicate);
             return PickBest(stored, pending);
+        }
+
+        /// <summary>按 NPC 反查进行中事件：对话对象是事件的权威 NPC（村长/头人/总督）或受害者本人。
+        /// 用于权威 NPC 带队离开定居点后在野外遭遇（复仇队/打手队）——人在野外，案子照样能谈。
+        /// 语义与 FindOnGoing 一致（Resolved/Unsolved 不算进行中）；人已对上号，无需 settlement 相关度筛选。</summary>
+        public static WorldEvent FindOnGoingByNpc(Hero npc)
+        {
+            if (npc == null) return null;
+            return _allEvents.FirstOrDefault(e =>
+                e.Stage != EventStage.Resolved &&
+                e.Stage != EventStage.Unsolved &&
+                (GetAuthorityNpc(e)?.StringId == npc.StringId || e.TargetHeroId == npc.StringId));
         }
 
         /// <summary>从 stored 和 pending 中选更相关的：suspect=player 优先；同 suspect 则阶段高者优先。</summary>
@@ -1402,44 +1443,10 @@ namespace LivingWorldNpcs
 
         private static void ProcessActive(WorldEvent evt, float now)
         {
-            // ── 干活抵债每日跟踪 ──
-            if (evt._workOffDebtAccepted && !evt.PlayerPaidRestitution)
-            {
-                // 检查玩家今天是否在目标村庄
-                if (Hero.MainHero.CurrentSettlement?.StringId == evt.TargetSettlementId)
-                {
-                    evt._workOffDaysDone++;
-                    DebugLogger.Log($"[WorkOffDebt] {evt.EventId} Day {evt._workOffDaysDone}/3: Player at {evt.TargetSettlementId}");
-                }
-
-                float daysPassed = now - evt._workOffDebtDay;
-                if (daysPassed >= 3f)
-                {
-                    if (evt._workOffDaysDone >= 3)
-                    {
-                        // 履约 → 结案
-                        OnPlayerPaidRestitution(evt);
-                        evt.ResolvedBy = "work_off_debt";
-                        DebugLogger.Log($"[WorkOffDebt] {evt.EventId} Completed — debt worked off");
-                    }
-                    else
-                    {
-                        // 违约 → Trust -20, Confrontation
-                        var authority = GetAuthorityNpc(evt);
-                        if (authority != null)
-                            TaleWorlds.CampaignSystem.Actions.ChangeRelationAction.ApplyPlayerRelation(authority, -20, false, true);
-                        TransitionStage(evt, EventStage.Confrontation, null,
-                            // 涨价原因：没干完答应的活（干活抵债违约）
-                            LWNTextHelper.ResolveText("LWN_worldevent_escalation_reason_workoff_breach", "you didn't finish the work you promised"));
-                        InvestigationEngine.SpawnRetaliationParty(evt);
-                        DebugLogger.Log($"[WorkOffDebt] {evt.EventId} Breached! Only {evt._workOffDaysDone}/3 days. → Confrontation");
-                    }
-                    return;
-                }
-            }
-
-            float deadline = evt.SuspectIsPlayer ? 10f : 15f;
-            if ((now - evt._stageEnteredDay) > deadline && !evt.PlayerPaidRestitution && !evt._workOffDebtAccepted)
+            // 追讨节奏（0 天调试档）：嫌犯一锁定，次日凌晨权威 NPC 就亲自带队上门——玩家立刻感受到被追。
+            // ⚠️ 0 天是调参体验用的激进值：玩家刚犯案，隔天复仇队就刷在附近。
+            float deadline = 0f;
+            if ((now - evt._stageEnteredDay) > deadline && !evt.PlayerPaidRestitution)
             {
                 TransitionStage(evt, EventStage.Confrontation, null,
                     // 涨价原因：一直拖着不给钱，他们不等了

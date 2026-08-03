@@ -74,7 +74,6 @@ namespace LivingWorldNpcs
             Register(new WalkAwayIntent());
             Register(new SilenceWitnessIntent());
             Register(new LeadRetaliationIntent());
-            Register(new WorkOffDebtIntent());
             Register(new FightVillagersIntent());
             Register(new BetrayQuestIntent());
             Register(new InnocenceProofIntent());

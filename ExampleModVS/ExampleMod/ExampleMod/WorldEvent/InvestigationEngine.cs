@@ -150,6 +150,10 @@ namespace LivingWorldNpcs
             try
             {
                 if (evt.RetaliationSpawned) return;
+                // 🔴 必须已锁定嫌犯才派队：Emerging/Dormant 期 SuspectHeroId 被阶段不变式强制清空，
+                // 此时派队无追击目标（旧逻辑 fallback 追玩家 = 上帝视角 + 可能冤枉无辜）。
+                // 所有合法调用点（Active 拖延超时/干活违约/Confrontation 走人·开打·补波次）到达时嫌犯均已锁定。
+                if (string.IsNullOrEmpty(evt.SuspectHeroId)) return;
                 var settlement = evt.TargetSettlement;
                 if (settlement == null) return;
 
@@ -183,10 +187,13 @@ namespace LivingWorldNpcs
                 evt.RetaliationSpawnDay = (float)CampaignTime.Now.ToDays;
                 evt.RetaliationSpawned = true;
 
-                // 命名
-                // 报复部队名兜底：村庄
-                string partyName = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
-                // 报复部队名：{村名}的复仇队
+                // 命名：带队人 = 挂此事的权威 NPC（村长/头人/总督）本人带队——
+                // 队名挂带队人名字，玩家一眼看出"谁在追我"，不是泛泛的"村名复仇队"
+                // 带队人兜底：村名 → "Village"
+                string partyName = authority?.Name?.ToString()
+                    ?? evt.TargetSettlement?.Name?.ToString()
+                    ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
+                // 报复部队名：{带队人名}'s Revenge Party
                 V.SetPartyName(party, new TaleWorlds.Localization.TextObject(LWNTextHelper.ResolveCompound("LWN_investigation_revenge_party", ("NAME", partyName))));
 
                 // 位置
@@ -203,15 +210,20 @@ namespace LivingWorldNpcs
                     party.MemberRoster.Clear();
                 }
 
-                // 填充部队
+                // 填充部队：只放村民——村长名义带队（leader 是村长，队名/归属/对话都算他），
+                // 但本人不加入成员列表：名义带队不会战死/被俘，村庄 Notable 永续。
                 var basicTroop = settlement.Culture?.BasicTroop;
                 if (basicTroop != null)
                     party.MemberRoster.AddToCounts(basicTroop, partySize);
-                if (authority != null)
-                    party.MemberRoster.AddToCounts(authority.CharacterObject, 1);
 
-                // AI：追击嫌犯
-                if (!string.IsNullOrEmpty(evt.SuspectHeroId))
+                // AI：追击嫌犯（SuspectHeroId 已由入口守卫保证非空；
+                // 目标判定按 SuspectIsPlayer，不再"null=玩家"——嫌犯为其他英雄但暂无部队时，队原地待命等目标入网）
+                if (evt.SuspectIsPlayer)
+                {
+                    V.EngageParty(party, MobileParty.MainParty);
+                    party.Ai.SetDoNotMakeNewDecisions(true);
+                }
+                else
                 {
                     var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
                     var suspectParty = suspect?.PartyBelongedTo;
@@ -220,12 +232,6 @@ namespace LivingWorldNpcs
                         V.EngageParty(party, suspectParty);
                         party.Ai.SetDoNotMakeNewDecisions(true);
                     }
-                }
-                else
-                {
-                    // 嫌犯=玩家
-                    V.EngageParty(party, MobileParty.MainParty);
-                    party.Ai.SetDoNotMakeNewDecisions(true);
                 }
 
                 party.SetPartyUsedByQuest(true);
@@ -274,6 +280,8 @@ namespace LivingWorldNpcs
             try
             {
                 if (evt.RetaliationSpawned) return;
+                // 🔴 同 SpawnRetaliationParty：未锁定嫌犯不派（Emerging 期 SuspectHeroId 为 null）
+                if (string.IsNullOrEmpty(evt.SuspectHeroId)) return;
                 var settlement = evt.TargetSettlement;
                 if (settlement == null) return;
 
@@ -291,9 +299,11 @@ namespace LivingWorldNpcs
                 evt.RetaliationSpawnDay = (float)CampaignTime.Now.ToDays;
                 evt.RetaliationSpawned = true;
 
-                // 打手队名兜底：村庄
-                string partyName = evt.TargetSettlement?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
-                // 打手队名：{村名}的打手
+                // 打手队名：挂权威 NPC 名字（他派来的打手，主使可见）；带队人兜底：村名 → "Village"
+                string partyName = authority?.Name?.ToString()
+                    ?? evt.TargetSettlement?.Name?.ToString()
+                    ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
+                // 打手队名：{权威 NPC 名}'s Thugs
                 V.SetPartyName(party, new TaleWorlds.Localization.TextObject(LWNTextHelper.ResolveCompound("LWN_investigation_thug_party", ("NAME", partyName))));
 
                 Vec2 basePos = V.Pos(settlement);
@@ -306,17 +316,17 @@ namespace LivingWorldNpcs
                 if (basicTroop != null)
                     party.MemberRoster.AddToCounts(basicTroop, partySize);
 
-                // AI：追击嫌犯
-                if (!string.IsNullOrEmpty(evt.SuspectHeroId))
+                // AI：追击嫌犯（同 SpawnRetaliationParty：按 SuspectIsPlayer 判定，不再"null=玩家"）
+                if (evt.SuspectIsPlayer)
+                {
+                    V.EngageParty(party, MobileParty.MainParty);
+                }
+                else
                 {
                     var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
                     var suspectParty = suspect?.PartyBelongedTo;
                     if (suspectParty != null)
                         V.EngageParty(party, suspectParty);
-                }
-                else
-                {
-                    V.EngageParty(party, MobileParty.MainParty);
                 }
 
                 party.Ai.SetDoNotMakeNewDecisions(true);
