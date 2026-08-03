@@ -58,6 +58,8 @@ namespace LivingWorldNpcs
             "Deployment",   // 战前部署阶段
             "Duel",         // 竞技场决斗
             "Stealth",      // 藏身处潜入阶段（HideoutAmbushMission）
+            "CutScene",     // 剧情对话（CutsceneMission）
+            "Conversation"  // 对话（ConversationMission）
         };
 
         /// <summary>当前 Mission 是否应关闭非战斗互动（视野感知/警戒/击晕/偷窃/对话）</summary>
@@ -68,6 +70,7 @@ namespace LivingWorldNpcs
             // 新手训练场（tutorial_training_field）不适用 MissionMode 过滤（其 Mode 为 StartUp 与城镇相同），
             // 但训练场是教程关，不应出现交互功能干扰教学流程，按 Settlement ID 直判
             if (Settlement.CurrentSettlement?.StringId == "tutorial_training_field") return true;
+            DebugLogger.Log($"[Interaction] Mission mode 通过检查: {Mission.Current.Mode}");
             return false;
         }
 
