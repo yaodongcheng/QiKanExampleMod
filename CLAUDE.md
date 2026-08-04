@@ -84,16 +84,18 @@ ilspycmd <dll路径> | grep -n "关键字"    # 全 DLL 搜索
 
 | 目录 | 版本 | 用途 |
 |------|------|------|
-| `Modules/1.2.12DLL/` | v1.2.12 | 在 Latest 电脑上反编译查 v1.2.12 的 API 签名 |
-| `Modules/1.4.6DLL/` | v1.4.6 | 在 1.2.12 电脑上反编译查 Latest 的 API 签名（1.4.6 与 1.4.7 签名一致，可代表整套 1.4.x）
+| `Modules/1.2.12DLL/` | v1.2.12 | 反编译查 v1.2.12 的 API 签名（任意电脑可用） |
+| `Modules/1.3.15DLL/` | v1.3.15 | 反编译查 v1.3.15 的 API 签名（1.3.x 独有的中间形态，非 1.2.12 亦非 1.4.x） |
+| `Modules/1.4.6DLL/` | v1.4.6 | 反编译查 Latest 的 API 签名（1.4.6 与 1.4.7 签名一致，可代表整套 1.4.x） |
 
 **🔴 不要交叉编译**：不要用 `Debug_v1.2.12` 等配置去编译——该配置已废弃。编译只走 `Debug`/`Release`，每台电脑用自己的游戏 DLL，版本由 `Version.xml` 自动检测。
 
-开发时先反编译当前版本看签名，再反编译另一个版本对比，确定 `VersionCompat.cs` 里该用 `#if MB2_V1212` 还是 `#if !MB2_V1212`。
+开发时先反编译当前版本看签名，再反编译其他版本对比，确定 `VersionCompat.cs` 里该走哪个阈值分支（`MB2_GE_140` / `MB2_GE_130` / `#else`）。**🔴 1.3.x 有独有形态**：如 `SetPartyAiAction.GetActionForRaidingSettlement`（1.3.x=4参）和 `IssueBase.CanPlayerTakeQuestConditions`（1.2.12~1.3.x=4参）——遇到"1.3.x 与 1.2.12 相同、1.4.x 不同"的 API 必须写 `MB2_GE_140` 三分支，不能沿用 `!MB2_V1212` 二分（override 签名会编译失败）。详细差异清单见 `plans/version-compat-plan.md`「三锚点验证结论」。
 
 ```bash
-# 对比两个版本的同个方法
+# 对比三个版本的同个方法
 ilspycmd Modules/1.2.12DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
+ilspycmd Modules/1.3.15DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ilspycmd Modules/1.4.6DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ```
 
@@ -114,12 +116,13 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 
 🔴 **禁止交叉编译。** 两台电脑各装一个目标版本，同一份源码分别编译。踩过坑，不要重犯。
 
-### 两机编译策略
+### 三锚点编译策略
 
 | 机器 | 游戏版本 | 产出 |
 |------|---------|------|
 | 1.2.12 电脑 | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| Latest 电脑 | v1.4.7 | `LivingWorldNpcs.dll`（Latest 版） |
+| 1.3.15 电脑（当前主环境） | v1.3.15 | `LivingWorldNpcs.dll`（v1.3.15 版） |
+| Latest 电脑 | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
 
 ### 累积阈值宏体系
 
@@ -156,14 +159,17 @@ csproj 编译时读 `Version.xml` 自动定义累积宏（GE = "Greater or Equal
 ### 发布步骤
 
 ```bash
-# Latest 电脑上
-dotnet build -c Release   # → Latest 版 DLL
+# 1.3.15 电脑上（当前主环境）
+dotnet build -c Release   # → v1.3.15 版 DLL
 
 # 1.2.12 电脑上
 git pull && dotnet build -c Release   # → v1.2.12 版 DLL
+
+# Latest 电脑上
+git pull && dotnet build -c Release   # → Latest 版 DLL
 ```
 
-两份 DLL 分别打包发布。详细策略见 [plans/version-compat-plan.md](plans/version-compat-plan.md)。
+各版本 DLL 分别打包发布。详细策略见 [plans/version-compat-plan.md](plans/version-compat-plan.md)。
 
 ## 参考资料：CSDN 付费专栏
 

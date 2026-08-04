@@ -76,25 +76,6 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
-  <!-- Debug_v1.2.12：手动兜底，强制 v1.2.12 模式 -->
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug_v1.2.12|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>$(MB2_PATH)\Modules\LivingWorldNpcs\bin\Win64_Shipping_Client\</OutputPath>
-    <DefineConstants>DEBUG;TRACE;MB2_V1212</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>3</WarningLevel>
-    <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release_v1.2.12|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE;MB2_V1212</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
   <ItemGroup>
     <!-- Harmony 双路径兜底：优先 Steam workshop（2859188632），workshop 未装则回落本地 Modules\Bannerlord.Harmony -->
     <Reference Include="0Harmony" Condition="Exists('$(MB2_PATH_STEAMWORKSHOP)\2859188632\bin\Win64_Shipping_Client\0Harmony.dll')">

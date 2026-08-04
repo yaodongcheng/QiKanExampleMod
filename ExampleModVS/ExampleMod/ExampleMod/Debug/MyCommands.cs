@@ -271,6 +271,33 @@ namespace LivingWorldNpcs
         }
 
 
+        /// <summary>
+        /// 打印当前 Mission 的 Mode、SceneName、Settlement 及玩法级竞技场标志。
+        /// 用法: custom.print_mission_mode
+        /// 输出会同时写入 Debug/StoryEngine_RuntimeLog.txt
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("print_mission_mode", "custom")]
+        public static string PrintMissionMode(List<string> args)
+        {
+            if (Mission.Current == null)
+            {
+                return "error: not in mission";
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine($"[Interaction] Mission mode: {Mission.Current.Mode}");
+            sb.AppendLine($"[Interaction] SceneName: {Mission.Current.SceneName ?? "(null)"}");
+            sb.AppendLine($"[Interaction] Settlement: {Settlement.CurrentSettlement?.StringId ?? "(null)"}");
+#if !MB2_V1212
+            // 玩法级竞技场标志（SandBox MissionLogic，场景加载即挂载，比 Mode 可靠）
+            sb.AppendLine($"[Interaction] ArenaPracticeFight: {Mission.Current.HasMissionBehavior<SandBox.Missions.MissionLogics.Arena.ArenaPracticeFightMissionController>()}");
+            sb.AppendLine($"[Interaction] Tournament: {Mission.Current.HasMissionBehavior<SandBox.Tournaments.MissionLogics.TournamentBehavior>()}");
+            sb.AppendLine($"[Interaction] ArenaDuel: {Mission.Current.HasMissionBehavior<SandBox.Missions.MissionLogics.Arena.ArenaDuelMissionController>()}");
+#endif
+            string msg = sb.ToString();
+            DebugLogger.Log(msg);
+            return msg;
+        }
+
         [CommandLineFunctionality.CommandLineArgumentFunction("weapon_sheath", "custom")]
         public static string ExecuteTeleportToNpc(List<string> args)
         {

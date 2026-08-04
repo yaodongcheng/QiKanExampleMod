@@ -37,7 +37,8 @@ namespace LivingWorldNpcs
     ///     SafeLordPartyComponent.cs:41        GetDefaultComponentBanner() override
     ///     CustomPartyComponent.cs:42          GetDefaultComponentBanner() override
     ///     AttackTriggerMissionLogic.cs:395    OnRegisterBlow(GameEntity→WeakGameEntity)
-    ///     CommissionHubIssue.cs:388,399      CanPlayerTakeQuestConditions(out gold)
+    ///     CommissionHubIssue.cs:413,424      CanPlayerTakeQuestConditions：v1.4.0+ 多 out int requiredGold；
+    ///                                          v1.2.12~v1.3.x 为 4 参（MB2_GE_140 三分支，非 !MB2_V1212 二分）
     ///
     ///   [type-level] — 字段/变量类型跨版本不同：
     ///     MySubModule.cs:344                  IGauntletMovie vs GauntletMovieIdentifier
@@ -576,9 +577,13 @@ namespace LivingWorldNpcs
         public static void RaidSettlement(MobileParty party, Settlement settlement)
         {
             if (party == null || settlement == null) return;
-#if MB2_GE_130
+            // v1.4.0+：5 参（新增 isTargetingPort）；v1.3.x：4 参（无 isTargetingPort）；v1.2.12：2 参
+#if MB2_GE_140
             SetPartyAiAction.GetActionForRaidingSettlement(party, settlement,
                 MobileParty.NavigationType.Default, false, false);
+#elif MB2_GE_130
+            SetPartyAiAction.GetActionForRaidingSettlement(party, settlement,
+                MobileParty.NavigationType.Default, false);
 #else
             SetPartyAiAction.GetActionForRaidingSettlement(party, settlement);
 #endif

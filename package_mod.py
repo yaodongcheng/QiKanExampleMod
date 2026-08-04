@@ -63,7 +63,7 @@ if not existing:
 release_dir = MOD_ROOT / "release"
 release_dir.mkdir(exist_ok=True)
 
-zip_name = f"{MOD_DIR_NAME}_v{mod_version}_适配骑砍2_v{game_version}.zip"
+zip_name = f"{MOD_DIR_NAME}_v{mod_version}_for_MB2_v{game_version}.zip"
 zip_path = release_dir / zip_name
 
 if zip_path.exists():
