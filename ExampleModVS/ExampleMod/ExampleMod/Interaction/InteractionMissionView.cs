@@ -2515,6 +2515,10 @@ namespace LivingWorldNpcs
 
             try
             {
+                // 0. 战斗/训练场/竞技场等本 mod 交互整体关闭的场景：放行原版 F 对话
+                if (Settings.Instance.IsInteractionDisabled())
+                    return true;
+
                 // 1. 基础校验
                 if (userAgent != Agent.Main || agent == null)
                 {
@@ -2553,6 +2557,8 @@ namespace LivingWorldNpcs
     {
         public static void Postfix(TaleWorlds.MountAndBlade.ViewModelCollection.AgentInteractionInterfaceVM __instance, Agent focusedAgent)
         {
+            // 战斗/教程/竞技场等本 mod 交互关闭的场景：保留原版"按F对话"提示
+            if (Settings.Instance.IsInteractionDisabled()) return;
             if (focusedAgent != null)
             {
                 __instance.SecondaryInteractionMessage = "";
@@ -2567,6 +2573,8 @@ namespace LivingWorldNpcs
     {
         public static void Postfix(TaleWorlds.MountAndBlade.ViewModelCollection.Missions.Interaction.AgentInteractionInterfaceVM __instance, Agent focusedAgent)
         {
+            // 战斗/教程/竞技场等本 mod 交互关闭的场景：保留原版"按F对话"提示
+            if (Settings.Instance.IsInteractionDisabled()) return;
             if (focusedAgent != null)
             {
                 // Reset content without removing items — ResetFocus() accesses [0]/[1] by index

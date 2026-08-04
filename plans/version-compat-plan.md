@@ -1,49 +1,42 @@
-# 版本兼容策略 — 两机编译，禁止交叉编译
+# 版本兼容策略 — 三锚点验证，禁止交叉编译
 
-## 当前状态（2026-08-01）
+## 当前状态（2026-08-03）
 
 ### ✅ 已完成
 
 | 项目 | 状态 | 说明 |
 |------|:----:|------|
-| csproj 累积阈值宏 | ✅ | `MB2_GE_130/140/150`，版本系列自动侦测 + Or 链 |
-| VersionCompat.cs V 方法 | ✅ | 原有 25 个 + 新增 8 个（PatrolAround/RaidSettlement/BesiegeSettlement/EngageParty/NavMeshSnap/AccessiblePointNear/FaceIndex/CameraAnimate） |
-| VersionCompat.cs #if 注册表 | ✅ | class doc comment 中登记了全部 18 处不可迁 #if |
-| 业务代码裸 #if 清理 | ✅ | **22 处** could-be-V 迁入 V.xxx()，文件：WorldEventSimulator / InvestigationEngine / AccountabilityIntents / AgentControlHelper / AiPatrollingNullFix / AtomicAction / GroupStageManager / WorldEventNotificationController |
-| 预存错误修复 | ✅ | PlayerDetentionBehavior（GameOverlays→GameMenu）、InteractionMissionView（TradeScreenAnimalLoggerPatch 包裹）、MyCommands（CampaignAgentComponent 死代码包裹） |
-| v1.4.7 编译 | ✅ | **0 errors 0 warnings** |
-| CLAUDE.md 同步 | ✅ | 阈值宏 + 注册表 + 发布步骤 |
-| wheels.md 同步 | ✅ | VersionCompat API 参考 + csproj 检测 + #if 注册表 |
+| **v1.3.15 三锚点验证** | ✅ | 用 1.3.15 DLL（游戏目录）+ 1.2.12/1.4.6 备份 DLL 逐 API 反编译对比，27 个 V 方法 + 14 处注册表 #if 全部验证 |
+| **RaidSettlement 修复** | ✅ | VersionCompat.cs：`GetActionForRaidingSettlement` 1.3.x=4 参 / 1.4.x=5 参，新增 `#elif MB2_GE_130` 分支 |
+| **CanPlayerTakeQuestConditions 修复** | ✅ | CommissionHubIssue.cs:413：1.2.12~1.3.x 基类 4 参 / 1.4.x 基类 5 参，override 改 `MB2_GE_140` 三分支 |
+| **本机 v1.3.15 编译** | ✅ | `dotnet build -c Debug` **0 errors 0 warnings** |
+| csproj 累积阈值宏 | ✅ | v1.3.x → `MB2_V1212`+`MB2_GE_130` 自动侦测，无需改动 |
+| VersionCompat.cs 注册表注释 | ✅ | CommissionHubIssue 行更新为三分支说明 |
 
 ### ❌ 待办
 
 | 项目 | 优先级 | 说明 |
 |------|:------:|------|
-| **v1.2.12 编译验证** | 🔴 P0 | 必须在 v1.2.12 电脑上 `dotnet build -c Release` 确认 0 errors |
-| WorldEventNotificationController StartCameraAnimation | ✅ | 第 522 行 → 改用 `V.CameraAnimate` |
-| AgentControlHelper NavMeshSnap 替换 | ✅ | 第 140/382 行 → 改用 `V.NavMeshSnap` |
-| GroupStageManager NavMeshSnap 替换 | ✅ | 第 116 行 → 改用 `V.NavMeshSnap` |
-| AtomicAction NavMeshSnap 替换 | ✅ | 第 629 行 → 改用 `V.NavMeshSnap` |
+| **v1.2.12 编译验证** | 🔴 P0 | 在 v1.2.12 电脑上 `dotnet build -c Release` 确认 0 errors |
+| **v1.4.6+ 编译验证** | 🟡 P1 | 在 1.4.x 电脑上编译确认（RaidSettlement 5 参 / requiredGold 分支） |
+| ~~发布策略确认~~ | ✅ | **已确认：三版全出**（1.2.12 / 1.3.15 / 1.4.6+ 各一台机器出 DLL） |
 | CampaignAgentComponent 死代码 | 🟢 P2 | MyCommands.cs 中 4 处被 `#if false` 包裹，需找到正确 API 或彻底删除 |
-| WorldEventSimulator structural | 🟢 P2 | 第 1668/1719 行 `AreFacesOnSameIsland` 多语句差异——评估是否可抽象为 V 方法 |
-| 发布 build | 🔴 P0 | 两台电脑分别 `dotnet build -c Release`，产出两份 DLL 打包 |
 
 ---
 
 ## 核心原则
 
-**不支持跨版本编译。** 不要试图用一台装了 v1.4.7 的电脑去编译 v1.2.12 的 DLL，反之亦然。每次交叉编译尝试都会踩坑——API 差异不是简单的 `#if` 能完全隔离的（DLL 引用本身就不兼容）。
+**不支持跨版本编译。** 不要试图用一台装了 v1.3.15 的电脑去编译 v1.2.12 的 DLL，反之亦然。API 差异不是简单的 `#if` 能完全隔离的（DLL 引用本身就不兼容）。
 
-## 两机编译工作流
+## 三锚点编译工作流
 
-两台电脑，各自装一个目标版本：
+每台电脑装一个目标版本，**同一份源码**，分别在每台电脑上编译，产出多份 DLL，分别打包发布（标注版本号）：
 
 | 机器 | 游戏版本 | 产出 |
 |------|---------|------|
 | A | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| B | v1.4.7（当前 Latest） | `LivingWorldNpcs.dll`（Latest 版） |
-
-**同一份源码**，分别在两台电脑上编译，产出两份 DLL，分别打包发布。
+| B | v1.3.15（当前主环境） | `LivingWorldNpcs.dll`（v1.3.15 版） |
+| C | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
 
 ## 版本检测机制（自动，无需手动干预）
 
@@ -64,100 +57,59 @@ $(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml
 | v1.4.x | `MB2_V1212` + `MB2_GE_130` + `MB2_GE_140` |
 | v1.5.x | `MB2_V1212` + `MB2_GE_130` + `MB2_GE_140` + `MB2_GE_150` |
 
-csproj 实现：先侦测版本系列（`MB2_IsV12x`/`MB2_IsV13x`/`MB2_IsV14x`/...），再用 `Or` 链组合出累积阈值：
-```xml
-<!-- 侦测 -->
-<MB2_IsV14x Condition="$(MB2_VersionFileContent.Contains('v1.4.'))">true</MB2_IsV14x>
-<!-- MB2_GE_130：v1.3.x 或更高（即所有非 v1.2.x 的版本） -->
-<MB2_VersionDefines Condition="'$(MB2_IsV13x)' == 'true' Or '$(MB2_IsV14x)' == 'true' Or '$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_130</MB2_VersionDefines>
-<!-- MB2_GE_140：v1.4.x 或更高 -->
-<MB2_VersionDefines Condition="'$(MB2_IsV14x)' == 'true' Or '$(MB2_IsV15x)' == 'true'">$(MB2_VersionDefines);MB2_GE_140</MB2_VersionDefines>
-```
+代码按阈值从高到低写分支：`#if MB2_GE_140 / #elif MB2_GE_130 / #else`。
 
-各配置引用 `$(MB2_VersionDefines)` 即可，不需要在每个 PropertyGroup 里重复版本检测逻辑。
+## 🔴 三锚点验证结论（2026-08-03）
 
-### 为什么用阈值宏而不是精确版本匹配
+之前只有 1.2.12 / 1.4.6 两个端点，所有差异都归到 `MB2_GE_130` 且无法验证 1.3.x 中间形态。
+现在有 **1.2.12 / 1.3.15 / 1.4.6 三个锚点**（1.3.15 用当前游戏目录 DLL，1.2.12/1.4.6 用备份 DLL），
+用 ilspycmd 逐 API 反编译对比，结论：
 
-99% 的 API 变更只发生在**一个版本边界**（v1.2.12 → v1.3.0）。阈值宏让你只为**真正发生了变更的边界**写分支：
+### 与 1.4.6 一致的 API（`MB2_GE_130` 分支正确，无需改动）
 
-```csharp
-// ✅ 阈值宏：只在变更点分支
-#if MB2_GE_130
-    return party.GetPosition2D;    // v1.3.0+
-#else
-    return party.Position2D;       // v1.2.12
-#endif
+以下 API 在 **1.3.15 与 1.4.6 签名完全一致**（均已反编译验证）：
 
-// ❌ 精确匹配：即使 1.3~1.5 API 完全一样也得穷举
-#if MB2_V1212
-    ...
-#elif MB2_V130
-    ...  // 完全一样的代码
-#elif MB2_V140
-    ...  // 完全一样的代码
-#elif MB2_V150
-    ...  // 完全一样的代码
-#endif
-```
+- `MobileParty.GetPosition2D` / `Position`(CampaignVec2 setter) / `SetMove*` 家族 / `MoveTargetParty` / `CreateParty(2参)` / `InitializeMobilePartyAtPosition(CampaignVec2)`
+- `DestroyPartyAction.Apply` / `ChangeKingdomAction.ApplyByJoinToKingdomByDefection(5参带CampaignTime)`
+- `Kingdom.CurrentTotalStrength` / `Kingdom.All` + `IsAtWarWith`（`FactionManager.GetEnemyKingdoms` 已删）
+- `Campaign.Models.CampaignTimeModel.CampaignStartTime` / `TextObject.GetEmpty()`
+- `Agent.IsAIControlled` / `AgentControllerType`（1.3.15 定义在 **TaleWorlds.Core.dll**）/ `GetPrimaryWieldedItemIndex` / `GetCurrentActionType`
+- `Mission.RayCastForClosestAgent(out 在最后)` / `Scene.RayCastForClosestEntityOrTerrain(out WeakGameEntity)` / `GetNavigationMeshForPosition(in, UIntPtr)`
+- `GauntletLayer(string, int)` 构造 / `LoadMovie` 返回 `GauntletMovieIdentifier`
+- `SetPartyAiAction.GetActionForPatrollingAroundSettlement(5参)` / `BesiegingSettlement(4参)` / `EngagingParty(4参)`
+- `IMapScene.GetAccessiblePointNearPosition(in CampaignVec2)` / `GetFaceIndex(in CampaignVec2)` / `GetPathDistanceBetweenAIFaces(10参)`
+- `IMapStateHandler.StartCameraAnimation(CampaignVec2, float)`
+- 注册表各位置：`OnRegisterBlow(WeakGameEntity)` / `GetDefaultComponentBanner` / `GameMenu.MenuOverlayType` / `MissionObject.GameEntity→WeakGameEntity` / `AgentInteractionInterfaceVM(Missions.Interaction)` / `DisguiseMissionLogic`+`StealthFailCounterMissionLogic` / `MobilePartyHelper.FillPartyManuallyAfterCreation` / `SandBox.Missions` 命名空间
 
-如果未来 v1.5.0 又改了一个 API，只需在对应方法里插入一行：
-```csharp
-#if MB2_GE_150
-    return party.GetPosition3D();  // v1.5.0+
-#elif MB2_GE_130
-    return party.GetPosition2D;    // v1.3.0 - v1.4.x
-#else
-    return party.Position2D;       // v1.2.12
-#endif
-```
+### 🔴 需要 `MB2_GE_140` 分支的 API（1.3.15 ≠ 1.4.6）
 
-**开发者不需要手动选配置**，日常 `dotnet build -c Debug` 或 `dotnet build -c Release` 即可。
+| API | 1.2.12 | 1.3.15 | 1.4.6 | 处理 |
+|-----|--------|--------|-------|------|
+| `SetPartyAiAction.GetActionForRaidingSettlement` | 2 参 | **4 参**（navType, isFromPort） | **5 参**（+isTargetingPort） | `V.RaidSettlement` 三分支 ✅ |
+| `IssueBase.CanPlayerTakeQuestConditions` | 4 参 | **4 参**（同 1.2.12） | **5 参**（+out int requiredGold） | CommissionHubIssue override 三分支 ✅ |
 
-### ⚠️ 阈值宏的局限性：只有两个端点，没有中间版本
+**注意**：这两个 API 的 1.3.x 形态是 1.3.x **独有**（既不是 1.2.12 也不是 1.4.6）——
+RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本只在 1.3.x 存在。
+`MB2_GE_140` 不再只是"预留"，已是实际使用的分支。
 
-`MB2_GE_130` 标注的是「API 在 v1.2.12 → v1.3.0 之间发生了变更」，但这个结论**不是靠官方 changelog，而是靠反编译对比两个端点 DLL 推断出来的**：
+### 1.2.12 独有（`#else` / `MB2_V1212` 分支，已验证 1.3.15 无）
 
-| 可用 DLL | 版本 |
-|----------|------|
-| `Modules/1.2.12DLL/` | v1.2.12 |
-| `Modules/1.4.6DLL/` | v1.4.6（1.4.7 经逐方法对比确认完全一致） |
-
-**没有 v1.3.0 / v1.3.1 / v1.4.0 等中间版本的 DLL 做精确验证。** 推断逻辑：
-
-1. v1.2.12 用旧签名（如 `party.Position2D`）
-2. v1.4.6/1.4.7 用新签名（如 `party.GetPosition2D`）
-3. 1.4.6 和 1.4.7 逐方法对比确定 API 一致
-4. → 变更发生在 v1.2.12 和 v1.4.6 之间的某个版本
-5. → 最晚可能在 v1.3.0（第一个 1.3.x）→ 打 `MB2_GE_130` 标签
-
-**这意味着**：
-- `MB2_GE_130` 实际上是一个**下界估计**："这个 API 不晚于 v1.3.0 改了，之后到 v1.4.7 没再变过"
-- 如果某个 API 其实是 v1.4.0 才改的，那 `MB2_GE_130` 这个名字就**名不副实**——功能没问题（v1.3.x 上会走旧路径），但标签有误导性
-- 除非 TaleWorlds 发布中间版本的完整 changelog，或者有人用 Steam depot 下载每个小版本对比，否则无法做到精确标注
-
-**应对**：目前所有 API 变更都归到 `MB2_GE_130`，因为实测 v1.2.12 和 v1.4.7 之间只有这一个分水岭需要分支。如果未来某个 API 发现是在更晚的版本（如 v1.4.0）才变的，届时再引入 `MB2_GE_140` 分支，把该 API 从 `MB2_GE_130` 移到 `MB2_GE_140`。
+`MobileParty.Position2D`(Vec2 setter) / `Ai.SetMove*` / `Ai.MoveTargetParty` / `CreateParty(3参)` / `RemoveParty()` /
+`Agent.ControllerType` 嵌套枚举 / `TextObject.Empty` / `GetWieldedItemIndex(HandIndex)` / `FactionManager.GetEnemyKingdoms` /
+`RayCastForClosestAgent(out 在第3位)` / `Scene.RayCastForClosestEntityOrTerrain(out GameEntity)` /
+`GetNavigationMeshForPosition(ref, bool)` / `GauntletLayer(int, string)` / `ChangeKingdomAction(3参)` /
+`IMapScene.AreFacesOnSameIsland` / `SetPartyAiAction.GetActionFor*(2参)` / `Vec2` 版 IMapScene/StartCameraAnimation /
+`InventoryManager.OpenScreenAsLoot`（搜刮流）/ `FillPartyStacks`
 
 ## VersionCompat.cs：版本差异统一入口
 
-[Core/VersionCompat.cs](../ExampleModVS/ExampleMod/ExampleMod/Core/VersionCompat.cs) — `V` 静态类封装了 v1.2.12 ↔ Latest 的全部 API 差异。
-
-```csharp
-// 阈值宏分支：MB2_GE_130 = v1.3.0 及以上
-public static Vec2 Pos(MobileParty party)
-{
-#if MB2_GE_130
-    return party.GetPosition2D;    // v1.3.0+
-#else
-    return party.Position2D;       // v1.2.12
-#endif
-}
-```
+[Core/VersionCompat.cs](../ExampleModVS/ExampleMod/ExampleMod/Core/VersionCompat.cs) — `V` 静态类封装了全部 API 差异。
 
 **纪律**：
-- 凡是两版本 API 不同的调用，**一律走 `V.xxx()`**，禁止在业务代码里裸写 `#if`
-- 新增 V 方法后，**必须在两台电脑上分别编译通过**
-- 1.4.6 和 1.4.7 的 API 签名经逐方法对比确认**完全一致**，`MB2_GE_130` 分支覆盖 v1.3.0 ~ v1.4.x 全系列
-- `MB2_GE_140` / `MB2_GE_150` 已由 csproj 定义，仅当未来实际 API 变更需要时才使用
+- 凡是跨版本 API 不同的调用，**一律走 `V.xxx()`**，禁止在业务代码里裸写 `#if`
+- 新增 V 方法后，**必须在每台目标版本电脑上分别编译通过**
+- 三锚点已验证：除 RaidSettlement 外所有 V 方法的 `MB2_GE_130` 分支覆盖 v1.3.0~v1.4.x 正确
+- 遇到 1.3.x 与 1.4.x 不同而 1.3.x 与 1.2.12 相同的 API（如 `CanPlayerTakeQuestConditions`），**必须用 `MB2_GE_140` 三分支**，不能沿用 `!MB2_V1212` 二分
 
 ### 不可迁入 V 的 #if（合规例外登记表）
 
@@ -165,54 +117,66 @@ public static Vec2 Pos(MobileParty party)
 
 | 类别 | 文件:行号 | 原因 |
 |------|----------|------|
-| override | `SafeLordPartyComponent.cs:41` | `GetDefaultComponentBanner()` 只存在于 Latest 基类虚方法 |
-| override | `CustomPartyComponent.cs:42` | 同上 |
-| override | `AttackTriggerMissionLogic.cs:395` | `OnRegisterBlow` 第三参 `GameEntity`→`WeakGameEntity` |
-| override | `CommissionHubIssue.cs:388,399` | `CanPlayerTakeQuestConditions` 多一个 `out int requiredGold` |
-| type | `MySubModule.cs:344` | 字段类型 `IGauntletMovie`→`GauntletMovieIdentifier` |
+| override | `SafeLordPartyComponent.cs:41` | `GetDefaultComponentBanner()` 只存在于 1.3.0+ 基类虚方法 |
+| override | `CustomPartyComponent.cs:47` | 同上 |
+| override | `AttackTriggerMissionLogic.cs:391` | `OnRegisterBlow` 第三参 `GameEntity`→`WeakGameEntity`（1.3.15 已验证） |
+| override | `CommissionHubIssue.cs:413` | 🔴 `CanPlayerTakeQuestConditions`：**1.2.12~1.3.x 4 参 / 1.4.x 5 参**，用 `MB2_GE_140` 三分支（不是 `!MB2_V1212` 二分） |
+| type | `MySubModule.cs:344` | 字段类型 `IGauntletMovie`→`GauntletMovieIdentifier`（1.3.15 已验证） |
 | type | `CameraDebuggerView.cs:34` | 同上 |
 | type | `SpringArmCameraView.cs:40` | 同上 |
 | type | `NinjaNotificationMissionView.cs:19` | 同上 |
-| type | `MyCommands.cs:646` | `MissionObject.GameEntity` 返回类型变化 |
-| type | `PlayerDetentionBehavior.cs:9,312` | `GameOverlays.MenuOverlayType`→`GameMenu.MenuOverlayType` |
-| Harmony | `InteractionMissionView.cs:2529` | F-to-talk 补丁目标类+方法+属性类型全不同 |
-| Harmony | `InteractionMissionView.cs:2559` | `InventoryManager.OpenScreenAsTrade`（v1.2.12 only） |
-| Harmony | `DebugLogger.cs:18` | `FillPartyStacks`→`FillPartyManuallyAfterCreation` |
-| structural | `WorldEventSimulator.cs:1668,1719` | `AreFacesOnSameIsland` 移除，多语句路径差异 |
-| structural | `InteractionMissionView.cs:1909` | 搜刮 Loot 流（`InventoryManager` 不可用） |
-| structural | `InteractionMissionView.cs:2364` | 开箱搜刮流（同上） |
-| structural | `MyCommands.cs:1619` | stealth_debug 命令（依赖的类仅 Latest 存在） |
-| namespace | `MyCommands.cs:30` | `SandBox.Missions.*` 命名空间仅 Latest 存在 |
+| type | `MyCommands.cs:646` | `MissionObject.GameEntity` 返回 `WeakGameEntity`（1.3.15 已验证） |
+| type | `PlayerDetentionBehavior.cs:9,358` | `GameOverlays.MenuOverlayType`→`GameMenu.MenuOverlayType`（1.3.15 已验证） |
+| Harmony | `InteractionMissionView.cs:2550` | F-to-talk 补丁：`AgentInteractionInterfaceVM` 命名空间从顶层移到 `Missions.Interaction`（1.3.15 已验证） |
+| Harmony | `InteractionMissionView.cs:2582` | 村庄交易日志补丁：`InventoryManager.OpenScreenAsTrade` 三版本都存在（1.2.12 第 4 参 `DoneLogicExtrasDelegate` vs 1.3.15+ `Action`），补丁只在 1.2.12 编译，功能缺失不影响 |
+| Harmony | `DebugLogger.cs:18` | `FillPartyStacks`→`FillPartyManuallyAfterCreation`（1.3.15 已验证 MobilePartyHelper 存在） |
+| structural | `WorldEventSimulator.cs:1668,1719` | `AreFacesOnSameIsland` 移除（1.3.15 已验证）；`GetPathDistanceBetweenAIFaces` 1.3.15 已是 10 参 |
+| structural | `InteractionMissionView.cs:1930,2385` | 搜刮 Loot 流（`InventoryManager.OpenScreenAsLoot` 1.2.12 only，1.3.15 走自研 fallback） |
+| structural | `MyCommands.cs:1619` | stealth_debug 命令（`DisguiseMissionLogic` 等 1.3.15 已存在，同 1.4.6） |
+| namespace | `MyCommands.cs:30` | `SandBox.Missions` 命名空间三版本都存在，仅 1.2.12 用不上 |
 
 ## Modules/ 目录：仅用于 ilspycmd，不参与编译
 
 | 目录 | 版本 | 用途 |
 |------|------|------|
-| `Modules/1.2.12DLL/` | v1.2.12 | **反编译对比 API 差异**（在 Latest 电脑上查 1.2.12 的方法签名） |
-| `Modules/1.4.6DLL/` | v1.4.6 | **反编译对比 API 差异**（在 1.2.12 电脑上查 Latest 的方法签名） |
+| `Modules/1.2.12DLL/` | v1.2.12 | **反编译对比 API 差异**（在任意电脑上查 1.2.12 的方法签名） |
+| `Modules/1.3.15DLL/` | v1.3.15 | **反编译对比 API 差异**（在非 1.3.15 电脑上查 1.3.15 的签名） |
+| `Modules/1.4.6DLL/` | v1.4.6 | **反编译对比 API 差异**（1.4.6 与 1.4.7 签名一致，可代表整套 1.4.x） |
 
 ```bash
-# 对比两个版本的同个方法
+# 对比三个版本的同个方法
 ilspycmd Modules/1.2.12DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ilspycmd Modules/1.4.6DLL/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
+# 当前机器的 1.3.15 用游戏目录 DLL：
+ilspycmd bin/Win64_Shipping_Client/TaleWorlds.CampaignSystem.dll -t <Type> | grep "MethodName"
 ```
 
-**这些 DLL 不参与编译。** 不要试图用 `Debug_v1.2.12` 配置去交叉编译——该配置已废弃。
+**这些 DLL 不参与编译。** 不要试图用备份 DLL 配置去交叉编译——该配置已废弃。
+
+**ilspycmd 注意**：`-t` 参数一次只能传一个类型（传多个会参数解析失败，输出 "Specify --help"）。
+类型全名以 `ilspycmd <dll> -l c`（类）/ `-l e`（枚举）列出的为准，例如 `MobileParty` 的全名是
+`TaleWorlds.CampaignSystem.Party.MobileParty`（中间有 `Party`），`AgentControllerType` 定义在
+`TaleWorlds.Core.dll` 而非常见的 MountAndBlade。
 
 ## 发布步骤
 
 ```bash
-# 在 v1.4.7 电脑上
+# 在 v1.3.15 电脑上（当前主环境）
 dotnet build -c Release
-# → LivingWorldNpcs.dll（Latest 版，支持 1.4.6+）
+# → LivingWorldNpcs.dll（v1.3.15 版）
 
 # 在 v1.2.12 电脑上
 git pull
 dotnet build -c Release
 # → LivingWorldNpcs.dll（v1.2.12 版）
+
+# 在 v1.4.6+ 电脑上（若需要 Latest 版）
+git pull
+dotnet build -c Release
+# → LivingWorldNpcs.dll（Latest 版）
 ```
 
-两份 DLL 分别打包，发布时标注版本号。
+各版本 DLL 分别打包，发布时标注版本号。
 
 ## 新增游戏版本时
 
@@ -244,7 +208,7 @@ ilspycmd bin/Win64_Shipping_Client/TaleWorlds.CampaignSystem.dll -t <Type> | gre
 | 某个 API 在新版本被删除 | 可能需要 `#if !MB2_GE_150` 排除新版本，或新增 V 方法封装替代方案 |
 
 ### 4. 核查 #if 注册表
-逐条检查版本兼容 plan 中「不可迁入 V 的 #if」登记表的每一行，确认：
+逐条检查本文件「不可迁入 V 的 #if」登记表的每一行，确认：
 - override/abstract 基类签名是否变化
 - type-level 字段类型是否需要新增分支
 - Harmony 补丁目标是否移动
@@ -257,6 +221,8 @@ ilspycmd bin/Win64_Shipping_Client/TaleWorlds.CampaignSystem.dll -t <Type> | gre
 
 1. **交叉编译**：试图在一台电脑上用备份 DLL 编译另一个版本的 DLL。DLL 引用级别就不兼容，编译报错会铺天盖地，且修复了也不代表运行时正确。
 2. **正则批量替换 C# 代码**：嵌套括号、lambda 会错位。
-3. **只在一台电脑上验证**：改完 VersionCompat.cs 必须两台电脑分别 build。
-4. **GauntletLayer 参数顺序**：v1.2.12 是 `(int order, string name)`，Latest 是 `(string name, int order)`——两个参数反了，不是增加/减少参数。
-5. **ControllerType 枚举在 Latest 被删除**：不要试图在 Latest 路径里设 `agent.Controller = ...`，Agent 控制必须走其他方式。
+3. **只在一台电脑上验证**：改完 VersionCompat.cs 必须每台目标版本电脑分别 build。
+4. **`!MB2_V1212` 二分陷阱**：默认假设"1.3.x 与 1.4.x 一样"；遇到 1.3.x 与 1.2.12 相同的 API（如 `CanPlayerTakeQuestConditions`）时 `!MB2_V1212` 分支会编译失败（override 签名不匹配）。**有 1.3.x 的锚点前，此类差异不可见**——这正是本次三锚点验证的价值。
+5. **GauntletLayer 参数顺序**：v1.2.12 是 `(int order, string name)`，v1.3.0+ 是 `(string name, int order)`——两个参数反了，不是增加/减少参数。
+6. **ControllerType 枚举**：v1.2.12 是 `Agent.ControllerType` 嵌套枚举，v1.3.0+ 是 `TaleWorlds.Core.AgentControllerType` 顶层枚举（注意在 Core.dll，不在 MountAndBlade.dll）。
+7. **ilspycmd 多类型**：`-t` 一次只能一个类型，多传会整体失败（输出 "Specify --help"）；类型全名要先 `-l c`/`-l e` 确认（如 `Party.MobileParty` 的中间命名空间易漏）。

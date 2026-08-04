@@ -2154,3 +2154,49 @@ Settings.Instance.AlertDialogueMode  // AlertDialogueMode — StoryVM（默认�
 旧 `_alertValues` 字典、`GetAlertValue`、`AddAlertPulse`、`GetAllAlertValues`、`UpdateAlertValue`、`CleanupDeadAlertEntries` 全部删除。`NpcSightSystem` 回归纯感知工具——只回答"能不能看到"，不维护认知状态。
 
 **文件位置**：`AI/NpcSightSystem.cs`（删除约 100 行警戒值相关代码）
+
+## 版本兼容三锚点 — `Core/VersionCompat.cs`（🔴 加新 API 前必查）
+
+**问题**：骑砍 2 API 在 1.2.12 / 1.3.x / 1.4.x 三个版本段有**三种形态**——有些 1.3.x 与 1.4.x 一致（绝大多数），
+有些 1.3.x 与 1.2.12 一致（如 `IssueBase.CanPlayerTakeQuestConditions`），有些 1.3.x 是**独有形态**
+（如 `SetPartyAiAction.GetActionForRaidingSettlement`：1.3.x=4参、1.4.x=5参）。**没有 1.3.x 的 DLL 之前这些差异不可见。**
+
+**三锚点**（反编译对比基线）：
+
+| 锚点 | DLL 来源 | 用途 |
+|------|---------|------|
+| v1.2.12 | `Modules/1.2.12DLL/` | 旧 API 签名 |
+| v1.3.15 | `Modules/1.3.15DLL/`（或当前游戏目录） | 中间形态签名 |
+| v1.4.6 | `Modules/1.4.6DLL/` | Latest 签名（=1.4.7） |
+
+**🔴 铁律：遇到"1.3.x 与 1.2.12 相同、1.4.x 不同"的 API，必须写 `MB2_GE_140` 三分支**，不能沿用 `!MB2_V1212` 二分——
+override 签名不匹配基类会直接编译失败（踩过：`CommissionHubIssue.CanPlayerTakeQuestConditions`）。
+
+```csharp
+// ✅ 三分支范式（阈值从高到低）
+#if MB2_GE_140
+    SetPartyAiAction.GetActionForRaidingSettlement(party, settlement, NavigationType.Default, false, false); // 1.4.x: 5参
+#elif MB2_GE_130
+    SetPartyAiAction.GetActionForRaidingSettlement(party, settlement, NavigationType.Default, false);        // 1.3.x: 4参
+#else
+    SetPartyAiAction.GetActionForRaidingSettlement(party, settlement);                                        // 1.2.12: 2参
+#endif
+// ❌ 禁止：用 !MB2_V1212 二分处理 1.3.x/1.4.x 有差异的 override
+```
+
+**已确认的三版本差异清单**（2026-08-03 反编译验证，详表见 `plans/version-compat-plan.md`「三锚点验证结论」）：
+- `SetPartyAiAction.GetActionForRaidingSettlement`：2参 / **4参** / 5参（唯一需要 `MB2_GE_140` 的 V 方法）
+- `IssueBase.CanPlayerTakeQuestConditions`：4参 / 4参 / **5参**（唯一需要 `MB2_GE_140` 的 override）
+- 其余 25 个 V 方法 + 13 处注册表 #if：1.3.15 与 1.4.6 完全一致，`MB2_GE_130`/`MB2_V1212` 分支正确
+
+**反编译验证流程**（给签名下结论前先跑）：
+```bash
+# 1. 找类型全名（全名可能藏命名空间，如 MobileParty 是 TaleWorlds.CampaignSystem.Party.MobileParty）
+ilspycmd <dll> -l c | grep -i <类型名>
+# 2. 反编译单个类型（⚠️ -t 一次只能一个类型，多传整体失败输出 "Specify --help"）
+ilspycmd <dll> -t <全名> | grep "<方法名>"
+# 3. 三个版本对比（1.3.15 用游戏目录或 Modules/1.3.15DLL/）
+# 缓存：Modules/decompile/<版本>/<类型名>.cs 已入库，对比前先查缓存
+```
+
+**文件位置**：`Core/VersionCompat.cs`（V 方法全部差异）；`ExampleModVS/ExampleMod/ExampleMod.csproj`（版本宏自动侦测）；详细策略 `plans/version-compat-plan.md`。

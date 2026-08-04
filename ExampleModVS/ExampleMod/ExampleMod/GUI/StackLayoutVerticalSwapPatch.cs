@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-#if MB2_GE_130
+#if MB2_GE_140
 using HarmonyLib;
 using TaleWorlds.GauntletUI.BaseTypes;
 using TaleWorlds.GauntletUI.Layout;

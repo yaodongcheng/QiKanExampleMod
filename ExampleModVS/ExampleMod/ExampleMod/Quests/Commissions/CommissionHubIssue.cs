@@ -410,10 +410,12 @@ namespace LivingWorldNpcs
             return IssueFrequency.Common;
         }
 
-#if !MB2_V1212
+#if MB2_GE_140
+        // v1.4.0+ 基类：5 参（多 out int requiredGold）
         protected override bool CanPlayerTakeQuestConditions(Hero issueGiver,
             out PreconditionFlags flag, out Hero relationHero, out SkillObject skill, out int requiredGold)
 #else
+        // v1.2.12 ~ v1.3.x 基类：4 参（无 requiredGold）
         protected override bool CanPlayerTakeQuestConditions(Hero issueGiver,
             out PreconditionFlags flag, out Hero relationHero, out SkillObject skill)
 #endif
@@ -421,7 +423,7 @@ namespace LivingWorldNpcs
             flag = PreconditionFlags.None;
             relationHero = issueGiver;
             skill = null;
-#if !MB2_V1212
+#if MB2_GE_140
             requiredGold = 0;
 #endif
 

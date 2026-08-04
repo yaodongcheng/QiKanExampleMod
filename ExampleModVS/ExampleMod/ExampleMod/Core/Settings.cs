@@ -54,12 +54,16 @@ namespace LivingWorldNpcs
         //这里的值会被 config.json覆盖 只作为默认值
         public List<string> DisabledInteractionMissionModes { get; set; } = new List<string>
         {
+            "Conversation", // 对话（ConversationMission）
             "Battle",       // 野战/攻城
-            "Deployment",   // 战前部署阶段
             "Duel",         // 竞技场决斗
+            "Tournament",   // 竞技大赛
             "Stealth",      // 藏身处潜入阶段（HideoutAmbushMission）
+            "Barter",       // 讨价还价（BarterMission）
+            "Deployment",   // 战前部署阶段
+            "Replay",       // 战斗回放
             "CutScene",     // 剧情对话（CutsceneMission）
-            "Conversation"  // 对话（ConversationMission）
+            "Benchmark"     // 性能测试场景
         };
 
         /// <summary>当前 Mission 是否应关闭非战斗互动（视野感知/警戒/击晕/偷窃/对话）</summary>
@@ -70,7 +74,15 @@ namespace LivingWorldNpcs
             // 新手训练场（tutorial_training_field）不适用 MissionMode 过滤（其 Mode 为 StartUp 与城镇相同），
             // 但训练场是教程关，不应出现交互功能干扰教学流程，按 Settlement ID 直判
             if (Settlement.CurrentSettlement?.StringId == "tutorial_training_field") return true;
-            DebugLogger.Log($"[Interaction] Mission mode 通过检查: {Mission.Current.Mode}");
+            // 竞技场练习（arena_* 场景）Mode 同为 StartUp，不在上面的 Mode 列表中。
+            // 按 SceneName 前缀或玩法级 MissionLogic（ArenaPracticeFightMissionController）直判——
+            // Behavior 标志语义最准；前缀兜底低版本（1.2.12 无 SandBox 引用）
+            if (Mission.Current.SceneName?.StartsWith("arena_") == true) return true;
+#if !MB2_V1212
+            if (Mission.Current.HasMissionBehavior<SandBox.Missions.MissionLogics.Arena.ArenaPracticeFightMissionController>()) return true;
+#endif
+            //DebugLogger.Log($"[Interaction] Mission mode 通过检查: {Mission.Current.Mode}");
+            
             return false;
         }
 
