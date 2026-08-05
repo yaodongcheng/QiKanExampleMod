@@ -145,11 +145,17 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>Spawn 报复部队</summary>
-        public static void SpawnRetaliationParty(WorldEvent evt)
+        /// <param name="playerInitiated">true = 玩家主动带队报复（LeadRetaliationIntent，SuspectIsPlayer==false）。
+        /// 那是玩家自己的选择，豁免复仇队开关；世界机制派队（权威自主行动/拖延超时/补波次/走人·开打）均走默认 false。</param>
+        public static void SpawnRetaliationParty(WorldEvent evt, bool playerInitiated = false)
         {
             try
             {
                 if (evt.RetaliationSpawned) return;
+                // 🔴 复仇队开关（MCM Mod 选项）：关闭则不派复仇队——玩家选择不会被追击的世界。
+                // 覆盖全部 NPC 派队入口（权威自主行动/拖延超时/打赢补波次/走人·开打），
+                // 单点守卫，防止任何调用路径绕过；唯一豁免 = 玩家主动带队（playerInitiated）。
+                if (!Settings.Instance.EnableRevengeParty && !playerInitiated) return;
                 // 🔴 必须已锁定嫌犯才派队：Emerging/Dormant 期 SuspectHeroId 被阶段不变式强制清空，
                 // 此时派队无追击目标（旧逻辑 fallback 追玩家 = 上帝视角 + 可能冤枉无辜）。
                 // 所有合法调用点（Active 拖延超时/干活违约/Confrontation 走人·开打·补波次）到达时嫌犯均已锁定。
@@ -280,6 +286,9 @@ namespace LivingWorldNpcs
             try
             {
                 if (evt.RetaliationSpawned) return;
+                // 🔴 复仇队开关（MCM Mod 选项）：打手队与复仇队同属"派人追击"通道，
+                // 开关关闭时一并禁止，避免玩家关了开关仍被打手队骚扰。
+                if (!Settings.Instance.EnableRevengeParty) return;
                 // 🔴 同 SpawnRetaliationParty：未锁定嫌犯不派（Emerging 期 SuspectHeroId 为 null）
                 if (string.IsNullOrEmpty(evt.SuspectHeroId)) return;
                 var settlement = evt.TargetSettlement;

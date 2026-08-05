@@ -22,6 +22,9 @@ namespace LivingWorldNpcs
         private Dictionary<int, AgentBrain> _brains = new Dictionary<int, AgentBrain>();
         private static bool IsDebugMode = false; // 排查时改 true
 
+        /// <summary>广播事件楼层闸门：与事件中心高度差超过该值视为不同楼层，不接收广播（二楼打晕不惊动一楼）</summary>
+        private const float SAME_FLOOR_MAX_HEIGHT_DIFF = 2.0f;
+
         /// <summary>全局 Misconduct 事件序号，确保同小时内多次犯案 EventId 不撞车</summary>
         private static int _misconductSeq = 0;
 
@@ -443,6 +446,15 @@ namespace LivingWorldNpcs
             {
                 if (!brain.Owner.IsActive() || brain.Owner == Agent.Main) continue;
                 if (brain.Owner.Position.Distance(center) > radius) continue;
+                // 楼层闸门：与事件中心高度差 > 2m 视为不同楼层，拦截（二楼打晕不应惊动一楼）
+                if (MathF.Abs(brain.Owner.Position.z - center.z) > SAME_FLOOR_MAX_HEIGHT_DIFF)
+                {
+                    if (IsDebugMode)
+                        DebugLogger.Log($"{brain.Owner.Name} 与事件中心高度差 {brain.Owner.Position.z - center.z:F1}m > {SAME_FLOOR_MAX_HEIGHT_DIFF}m，跨楼层拦截广播 '{eventType}'");
+                      //InformationManager.DisplayMessage(new InformationMessage($"{brain.Owner.Name} 跨楼层拦截 '{eventType}' 高度差 {brain.Owner.Position.z - center.z:F1}m"));
+                      
+                    continue;
+                }
                 if (exclude != null && exclude.Contains(brain.Owner)) continue;
 
                 // 视线过滤：requireSight 时跳过看不见玩家的 NPC

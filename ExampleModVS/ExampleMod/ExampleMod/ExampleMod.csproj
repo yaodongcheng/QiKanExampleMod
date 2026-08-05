@@ -94,6 +94,11 @@
       <HintPath>$(MB2_PATH)\Modules\Bannerlord.Harmony\bin\Win64_Shipping_Client\Bannerlord.Harmony.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <!-- MCM（Bannerlord.MBOptionScreen）—— Mod 选项界面依赖库；MCMv5 启动时自动扫描 AttributeGlobalSettings 子类注册设置页（参考 Bannerlord.Diplomacy） -->
+    <Reference Include="MCMv5">
+      <HintPath>$(MB2_PATH)\Modules\Bannerlord.MBOptionScreen\bin\Win64_Shipping_Client\MCMv5.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>..\packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -254,6 +259,7 @@
     <Compile Include="Core\SafeLordPartyComponent.cs" />
     <Compile Include="Core\CustomPartyComponent.cs" />
     <Compile Include="Core\Settings.cs" />
+    <Compile Include="Core\MCMSettings.cs" />
     <Compile Include="Core\VersionCompat.cs" />
     <!-- Data -->
     <Compile Include="Data\DesignDataLoad.cs" />

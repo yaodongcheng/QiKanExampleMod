@@ -37,6 +37,23 @@
 14. 🔴**语言 XML 禁止 emoji 和 BMP 外字符** — `Languages/` 下所有 XML 文件**不得包含** emoji 等 Unicode 码点 > U+FFFF 的字符。游戏引擎的 UTF-16 XML 解析器不支持代理对，遇到直接崩溃，导致整个语言加载失败，连锁反应为系统菜单变英文、语言选项只剩当前语言。**Python 检测**：`ord(ch) > 0xFFFF`。validator 待加此检查。
 15. 🔴**禁止手动调用 LoadLocalizationXmls** — 引擎在启动时**自动扫描**各模块 `Languages/` 子目录加载语言包，**不需要**在 `OnSubModuleLoad` 里手动调 `LocalizedTextManager.LoadLocalizationXmls()`。手动调反而会干扰全局语言注册表，导致 Native 的语言列表被挤掉、系统菜单退化为英文、可选语言只剩 mod 注册的语种。
 
+## 双配置体系 — `Core/MCMSettings.cs`（小白 UI） vs `Core/Settings.cs`（config.json 高级配置）
+
+**新增可配置项时先想清楚它属于哪一边，两边禁止交叉。**
+
+| | `MCMSettings`（游戏内 Mod 选项） | `Settings`（config.json） |
+|---|---|---|
+| 面向用户 | 小白玩家：游戏内 选项 → Mod 选项 → Living World NPCs 改 | 高级玩家/开发者：手动编辑 `Modules/LivingWorldNpcs/config.json` |
+| 存储文件 | `{USERPROFILE}\Documents\Mount and Blade II Bannerlord\Configs\ModSettings\Global\LivingWorldNpcs\LivingWorldNpcsSettings_v1.json`（MCM json2，改即自动存） | `Modules/LivingWorldNpcs/config.json`（`JsonConvert.PopulateObject` 启动时加载，`Settings.Reload()` 热重载） |
+| 字段特征 | 玩家高频调整、需要即时反馈的开关/文本框 | 开发者调试、世界观参数、列表型配置、内容包（Mod B）注入 |
+| 目前字段 | `LLMBaseUrl` / `LLMApiKey` / `LLMModel` | 世界观 flavor（`WorldDescription` 等 5 个）、`DisabledInteractionMissionModes`、`ShowDebugMessages`、`WitnessSystemEnabled`、`AlertDialogueMode` |
+
+**🔴 禁止交叉配置**：同一个配置项**只能**存在于一边——要么进 MCM UI，要么进 config.json。两边都写 = 玩家不知道哪个生效。LLM 三字段已用 `[JsonIgnore]` 从 config.json 侧切断（唯一来源 = MCM UI），新字段照此办理。
+
+**允许单向读取（facade 模式）**：`MCMSettings` 可以读写核心 `Settings`（getter/setter 透传）；`Settings` **禁止**反向引用 `MCMSettings`——业务代码只认 `Settings.Instance`（永不 null，铁律 1 天然保障），不感知 MCM 生命周期。
+
+**判断标准**：小白玩家需要在游戏里改这项吗？→ 需要 → 加进 `MCMSettings`（一个 `[SettingPropertyXxx]` 属性 + `{=LWN_mcm_*}` 本地化条目）；不需要 → 放 `Settings` + config.json（不用动 MCMSettings）。
+
 ## API 探索：反编译 DLL 禁止瞎猜
 
 **骑砍2 大量 API 是 native C++ 实现，C# 层只是薄封装。** 分析 API 行为前，先用 `ilspycmd` 反编译相关 DLL 看实现和调用上下文，禁止仅凭名字推断。
