@@ -129,7 +129,7 @@ namespace LivingWorldNpcs
             int humanCount = 0;
             foreach (var agent in Mission.Agents)
             {
-                if (!agent.IsHuman) continue;
+                if (!AgentControlHelper.IsHumanOrChild(agent)) continue;
                 humanCount++;
 
                 var nav = agent.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
@@ -151,7 +151,8 @@ namespace LivingWorldNpcs
 
         public override void OnAgentCreated(Agent agent)
         {
-            if (agent.IsHuman)
+            // 人类或儿童都注册 brain：小孩在玩家认知里也是人，对话/警戒/感知与大人同等对待
+            if (AgentControlHelper.IsHumanOrChild(agent))
             {
                 // 3. 修改注册逻辑：判断 Key 是否存在
                 if (!_brains.ContainsKey(agent.Index))

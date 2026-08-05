@@ -227,6 +227,18 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 人类或儿童（human_child）。引擎把 human_child 排除在 IsHuman 外（无 IsHumanoid 标志，
+        /// 非战斗人员设定），但玩家认知里小孩也是人：对话/警戒/感知/战斗事件一律与大人同等对待。
+        /// 凡原本判定 <c>agent.IsHuman</c> 且语义为「人形角色」的地方，统一改用它。
+        /// </summary>
+        public static bool IsHumanOrChild(Agent agent)
+        {
+            if (agent == null) return false;
+            if (agent.IsHuman) return true;
+            return agent.Monster != null && agent.Monster.StringId?.Contains("child") == true;
+        }
+
+        /// <summary>
         /// 动态查找并发放一把近战武器。先试预设 ID，找不到则遍历内存中已注册的所有 ItemObject，
         /// 取第一把符合条件的单手/双手近战（排除盾牌、远程、弹药、投掷）。
         /// 适配任意 mod 组合（织丰/Shokuho 等屏蔽原版武器后也能工作）。

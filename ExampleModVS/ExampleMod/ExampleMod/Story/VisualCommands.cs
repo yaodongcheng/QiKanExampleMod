@@ -877,7 +877,7 @@ namespace LivingWorldNpcs
             foreach (Agent a in Mission.Current.Agents)
             {
 
-                if (a.IsHuman && (a.Character.StringId == stringId || a.Name == engineName))
+                if (AgentControlHelper.IsHumanOrChild(a) && (a.Character.StringId == stringId || a.Name == engineName))
                 {
                     targetAgent = a;
                     return targetAgent;

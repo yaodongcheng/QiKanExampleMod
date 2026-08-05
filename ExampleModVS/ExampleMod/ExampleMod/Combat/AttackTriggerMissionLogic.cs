@@ -110,7 +110,7 @@ namespace LivingWorldNpcs
             // 死亡的可靠信号：被击杀 / 击晕的人类计入可搜刮尸体列表。
             // 这是主入口（OnAgentHit 里的 Health<=0 只能兜住「最后一击恰好被本逻辑捕获」的情况，
             // 补刀、击晕、流血致死等都会漏）。_deadAgents 是 HashSet，重复 Add 自动去重。
-            if (affectedAgent != null && affectedAgent.IsHuman
+            if (affectedAgent != null && AgentControlHelper.IsHumanOrChild(affectedAgent)
                 && !affectedAgent.IsMainAgent // 玩家自己永远不进可搜刮尸体列表
                 && (affectedAgentState == AgentState.Killed || affectedAgentState == AgentState.Unconscious))
             {
@@ -149,7 +149,7 @@ namespace LivingWorldNpcs
             // 🆕 记录玩家实际命中过的敌方 Agent（战场血条过滤用）
             // 放在 OnAgentHit 而非 OnRegisterBlow：只有真正造成伤害才算，格挡/空挥不计
             if (attackerAgent != null && attackerAgent.IsMainAgent
-                && affectedAgent != null && affectedAgent.IsHuman
+                && affectedAgent != null && AgentControlHelper.IsHumanOrChild(affectedAgent)
                 && !affectedAgent.IsMainAgent
                 && attackerAgent.Team != null && affectedAgent.Team != null
                 && attackerAgent.Team.IsValid && affectedAgent.Team.IsValid // Team.Invalid 单例 != null，IsEnemyOf 内部解引用 null mission 必 NRE
@@ -163,7 +163,7 @@ namespace LivingWorldNpcs
             // 玩家吃到致命一击时这里会看到 Health<=0。
             if (affectedAgent.Health <= 0 && !affectedAgent.IsMainAgent)
             {
-                if(affectedAgent.IsHuman)
+                if (AgentControlHelper.IsHumanOrChild(affectedAgent))
                 {
                     lock (_deadAgents) // 简单的线程安全（虽然通常在主线程跑，但保险起见）
                     {
@@ -315,6 +315,11 @@ namespace LivingWorldNpcs
             if (_playerDown) return;
             if (Campaign.Current == null) return;
 
+            // 竞技场（Duel/Tournament/arena_* 场景）/ 战场（Battle/Deployment）等场景不接管：
+            // 这些场景的非战斗互动已被 Settings.IsInteractionDisabled() 关闭，
+            // 倒地一律交回原版流程（竞技场判负/战死），不触发"武器被夺走"扣押
+            if (Settings.Instance.IsInteractionDisabled()) return;
+
             var settlement = Settlement.CurrentSettlement;
             if (settlement == null) return;
 
@@ -412,7 +417,11 @@ namespace LivingWorldNpcs
                         Colors.Yellow));
             }
 
-            if (!attacker.IsMainAgent || !victim.IsHuman || victim.IsMainAgent) return;
+            if (!attacker.IsMainAgent || victim.IsMainAgent) return;
+
+            // 人类或儿童（human_child）受害者都走正常事件链——小孩已注册 brain，与大人同等对待。
+            // 动物等非人受害者保持原行为。
+            if (!AgentControlHelper.IsHumanOrChild(victim)) return;
 
 
             if (victim != null && attacker != null && victim != attacker)
@@ -420,7 +429,7 @@ namespace LivingWorldNpcs
                 AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
 
                 // 范围广播：周围 25m 内 NPC 收到 event_agent_damaged，同一对 3 秒内最多一次
-                
+
                 var key = (attacker.Index, victim.Index);
                 float now = Mission.Current?.CurrentTime ?? 0f;
                 if (!_lastEventDamagedBroadcast.TryGetValue(key, out float last) || now - last >= EVENT_DAMAGED_BROADCAST_COOLDOWN)

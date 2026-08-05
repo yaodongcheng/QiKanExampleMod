@@ -211,8 +211,8 @@ namespace LivingWorldNpcs
         {
             // 1. 快速排除
             if (agent == null || agent == Agent.Main) return;
-            // 2. 类型排除：非人类且非动物 → 排除
-            if (!agent.IsHuman && !IsAnimalAgent(agent)) return;
+            // 2. 类型排除：非人类（含儿童）且非动物 → 排除
+            if (!AgentControlHelper.IsHumanOrChild(agent) && !IsAnimalAgent(agent)) return;
 
   
 
@@ -221,7 +221,7 @@ namespace LivingWorldNpcs
             if (distSq > maxDistanceSq) return;
 
             // 活着且不再玩家屏幕里的人，不参与搜索
-            if (agent.IsActive() && !NpcSightSystem.IsPlayerSeeing(agent) && agent.IsHuman)
+            if (agent.IsActive() && !NpcSightSystem.IsPlayerSeeing(agent) && AgentControlHelper.IsHumanOrChild(agent))
             {
                 return;
             }
@@ -264,7 +264,7 @@ namespace LivingWorldNpcs
             // 人类：需要 Character 有名字；动物：IsHuman=false，靠 Monster 识别
             if (raycastedAgent != null)
             {
-                bool isHumanTarget = raycastedAgent.IsHuman
+                bool isHumanTarget = AgentControlHelper.IsHumanOrChild(raycastedAgent)
                     && raycastedAgent.Character != null
                     && !string.IsNullOrWhiteSpace(raycastedAgent.Character.Name?.ToString());
                 bool isAnimalTarget = IsAnimalAgent(raycastedAgent);
@@ -1542,7 +1542,7 @@ namespace LivingWorldNpcs
 
             string difficulty;
             // 本地化：击晕难度标签（易/中/难）
-            if (monsterId == "human_child")
+            if (monsterId?.Contains("child") == true)
                 // 难
                 difficulty = LWNTextHelper.ResolveText("LWN_ui_difficulty_hard", "Hard");
             else if (successRate >= 0.70f)
@@ -1574,10 +1574,10 @@ namespace LivingWorldNpcs
             // 本地化：击晕目标名兜底
             string targetName = target.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
 
-            // human_child monster 的骨骼比例（臂长 0.6、眼高 1.2）与 adult 不同，
+            // 儿童（monster StringId 含 "child"，如 human_child）骨骼比例（臂长 0.6、眼高 1.2）与 adult 不同，
             // death_fall_front 动画无法在其骨架上播放，成功率强制 0（100% 免疫）
             string monsterId = target.Monster?.StringId;
-            bool isChild = monsterId == "human_child";
+            bool isChild = monsterId?.Contains("child") == true;
 
             // ── 击晕成功率判定：玩家 Vigor+Control vs 目标 Vigor+Control ──
             var (knockSuccessRate, _) = ComputeKnockoutChance(target);
@@ -1700,7 +1700,7 @@ namespace LivingWorldNpcs
         /// </summary>
         private static bool IsUnconsciousAlive(Agent agent)
         {
-            if (agent == null || !agent.IsHuman) return false;
+            if (agent == null || !AgentControlHelper.IsHumanOrChild(agent)) return false;
             return AgentBrain.IsKnockedOut(agent) || agent.State == AgentState.Unconscious;
         }
 

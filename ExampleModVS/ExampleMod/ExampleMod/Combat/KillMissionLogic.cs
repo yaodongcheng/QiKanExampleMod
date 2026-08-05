@@ -11,7 +11,7 @@ namespace LivingWorldNpcs
         //当有角色从战场上移除的时候触发
         public override void OnAgentRemoved(Agent affectedAgent, Agent affectorAgent, AgentState agentState, KillingBlow blow)
         {
-            if(IsValidKill(affectedAgent,affectorAgent) && affectedAgent.IsHuman && IsPlayer(affectorAgent))
+            if(IsValidKill(affectedAgent,affectorAgent) && AgentControlHelper.IsHumanOrChild(affectedAgent) && IsPlayer(affectorAgent))
             {
                 float newHealth = MathF.Clamp(affectorAgent.Health + HealValue, 0, affectorAgent.HealthLimit);
                 affectorAgent.Health = newHealth;
