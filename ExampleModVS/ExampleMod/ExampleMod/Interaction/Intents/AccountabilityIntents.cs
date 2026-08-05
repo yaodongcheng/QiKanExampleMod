@@ -1200,7 +1200,8 @@ namespace LivingWorldNpcs
         {
             var evt = ctx.ActiveEvent;
             if (evt == null) return;
-            InvestigationEngine.SpawnRetaliationParty(evt);
+            // 玩家主动带队：不受复仇队开关控制（playerInitiated=true 豁免守卫）
+            InvestigationEngine.SpawnRetaliationParty(evt, playerInitiated: true);
             DebugLogger.Log($"[Accountability] Player leading retaliation for {evt.EventId}");
         }
     }

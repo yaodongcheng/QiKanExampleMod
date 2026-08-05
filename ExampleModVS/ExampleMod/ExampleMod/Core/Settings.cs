@@ -22,9 +22,14 @@ namespace LivingWorldNpcs
             }
         }
 
-        // ── 玩家 LLM 配置（从 config.json 读取）──
+        // ── 玩家 LLM 配置（唯一来源 = MCM Mod 选项 UI，Core/MCMSettings.cs 写入）──
+        // [JsonIgnore]：config.json 不再读取这些字段（删掉旧兜底，避免玩家在两个地方配置 LLM 产生误会）。
+        // 修改流程：选项 → Mod 选项 → Living World NPCs → LLM 配置 → 即时生效（IsLLMReady 调用点实时计算）。
+        [Newtonsoft.Json.JsonIgnore]
         public string LLMBaseUrl { get; set; } = "";
+        [Newtonsoft.Json.JsonIgnore]
         public string LLMApiKey { get; set; } = "";
+        [Newtonsoft.Json.JsonIgnore]
         public string LLMModel { get; set; } = "";
         public bool IsLLMReady => !string.IsNullOrWhiteSpace(LLMBaseUrl)
                                && !string.IsNullOrWhiteSpace(LLMApiKey)
@@ -46,6 +51,12 @@ namespace LivingWorldNpcs
 
         // ── 目击系统开关（默认开启，关掉后偷窃/犯罪不会被目击）──
         public bool WitnessSystemEnabled { get; set; } = true;
+
+        // ── 复仇队开关（默认开启，关掉后事件方不会派出复仇队/打手队追击嫌犯）──
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool EnableRevengeParty { get; set; } = true;
 
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;

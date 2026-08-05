@@ -2494,6 +2494,27 @@
     <!-- 称谓用语默认值：使用"大人"、"爵士"等中世纪语境词汇 -->
     <string id="LWN_config_warrior_terms" text="Use words befitting the medieval context, such as &amp;quot;my lord&amp;quot; and &amp;quot;sir knight&amp;quot;." />
     <!-- ══════════════════════════════════════════════════════ -->
+    <!-- MCM — Mod 选项界面（Bannerlord.MBOptionScreen）设置页      -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!-- 设置页标题（Mod 选项列表中的显示名） -->
+    <string id="LWN_mcm_display_name" text="Living World NPCs" />
+    <!-- 分组：LLM 配置 -->
+    <string id="LWN_mcm_grp_llm" text="LLM Configuration" />
+    <!-- LLM API 地址 -->
+    <string id="LWN_mcm_llm_base_url" text="LLM API Base URL" />
+    <string id="LWN_mcm_llm_base_url_hint" text="The LLM API endpoint base URL, e.g. https://api.example.com/v1" />
+    <!-- LLM API 密钥 -->
+    <string id="LWN_mcm_llm_api_key" text="LLM API Key" />
+    <string id="LWN_mcm_llm_api_key_hint" text="Your LLM API key. Saved in the MCM settings file." />
+    <!-- LLM 模型名 -->
+    <string id="LWN_mcm_llm_model" text="LLM Model" />
+    <string id="LWN_mcm_llm_model_hint" text="The model name to use, e.g. gpt-4o-mini" />
+    <!-- 分组：世界事件 -->
+    <string id="LWN_mcm_grp_world" text="World Events" />
+    <!-- 复仇队开关 -->
+    <string id="LWN_mcm_revenge_party" text="Send Revenge Party" />
+    <string id="LWN_mcm_revenge_party_hint" text="When enabled, the victim party may dispatch revenge parties (and thugs) to hunt down the suspect on the campaign map. Disable to keep the world from sending pursuers." />
+    <!-- ══════════════════════════════════════════════════════ -->
     <!-- Sys — 调试 UI / 测试消息 (MySubModule / MyBehavior)         -->
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- 调试：尝试开启自定义 UI -->

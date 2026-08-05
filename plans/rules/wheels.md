@@ -19,6 +19,32 @@ Settings.Reload();                     // 重载 config.json
 
 世界观相关字串**只能**从这里取，禁止硬编码（见 [worldview.md](worldview.md)）。需要新 flavor 字段就往 Settings 加，默认值给卡拉迪亚版。
 
+## 双配置体系 — `Core/Settings.cs`（config.json）+ `Core/MCMSettings.cs`（MCM Mod 选项 UI）
+
+**🔴 同一个配置项只能存在于一边（禁止交叉）；允许 MCMSettings 单向读写 Settings（facade 透传）。** 详细纪律见 CLAUDE.md「双配置体系」。小白玩家高频调整的开关/文本框 → `MCMSettings`（游戏内 选项→Mod 选项→Living World NPCs）；开发者调试/世界观参数/列表型 → `Settings` + config.json。
+
+```csharp
+// MCM（Bannerlord.MBOptionScreen）设置页：继承 AttributeGlobalSettings<T> 即被 MCM 启动时自动扫描注册（AppDomain 全程序集扫描），无需手动注册
+public sealed class MCMSettings : AttributeGlobalSettings<MCMSettings>
+{
+    public override string Id => "LivingWorldNpcsSettings_v1";  // 文件名 = Id + ".json"
+    public override string DisplayName => new TextObject("{=LWN_mcm_display_name}Living World NPCs").ToString();
+    public override string FolderName => "LivingWorldNpcs";     // 存储目录名
+    public override string FormatType => "json2";               // 存 {USERPROFILE}\Documents\Mount and Blade II Bannerlord\Configs\ModSettings\Global\{FolderName}\
+
+    [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 0, RequireRestart = false, HintText = "{=LWN_mcm_llm_base_url_hint}...")]
+    [SettingPropertyGroup("{=LWN_mcm_grp_llm}LLM Configuration")]
+    public string LLMBaseUrl { get => Settings.Instance.LLMBaseUrl; set => Settings.Instance.LLMBaseUrl = value; }  // facade 透传核心 Settings
+}
+```
+
+- **加新 UI 配置项** = 加一个 `[SettingPropertyXxx]` 属性（v2 特性：Bool/Integer/FloatingInteger/Dropdown/Text/Button + Group 支持 `"组/子组"` 嵌套，下拉用 `MCM.Common.Dropdown<T>`），显示名用 `{=LWN_mcm_*}`（铁律 13），**再补** `std_LivingWorldNpcs_strings.xml`（英）+ `CNs/`（中）条目。
+- **MCM 特性参数是编译期常量**：显示名只能写 `{=KEY}fallback` 字面量（引擎显示时查表），不能调 `LWNTextHelper`。
+- **MCM json 只序列化带 `[SettingProperty]` 的属性**（`BaseSettingsJsonConverter` 遍历 `GetAllSettingPropertyDefinitions`）——隐藏字段放 MCMSettings 既不显示也不存盘（数据丢），隐藏变量必须留 config.json。
+- **`MCMSettings.Instance` 在 MCM 注册前为 null**（`GlobalSettings<T>.Instance` 查容器），业务代码禁止读它，一律走 `Settings.Instance`（永不 null，铁律 1 保障）。LLM 三字段已 `[JsonIgnore]` 切断 config.json 侧（唯一来源 = MCM UI），新增玩家可配置字段照此办理。
+
+**文件位置**：`Core/MCMSettings.cs`（MCM 设置页）、`Core/Settings.cs`（config.json 内部源）。csproj 引用：`<Reference Include="MCMv5">` → `$(MB2_PATH)\Modules\Bannerlord.MBOptionScreen\bin\Win64_Shipping_Client\MCMv5.dll`（`Private=False`，各锚点电脑必须装 MBOptionScreen——SubModule.xml 已声明硬依赖）。
+
 ## Mission 非战斗互动开关 — `Settings.DisabledInteractionMissionModes`
 
 **设计意图**：战场中很多系统是多余的——敌人不需要"警戒"你拔刀（已经在打了），满屏血条碍眼，击晕/偷窃/对话也不该在两军对垒时触发。统一用一个可配置列表控制这些非战斗系统的开关。

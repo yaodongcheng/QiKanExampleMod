@@ -1460,6 +1460,12 @@ namespace LivingWorldNpcs
         {
             if (!evt.RetaliationSpawned)
             {
+                // 🔴 复仇队开关关闭：SpawnRetaliationParty 守卫拦截派队，此处不再触发
+                // CheckBudgetAndRespawn（否则 budget 不扣减、每日重复调派 → 死循环）。
+                // 事件保留在 Confrontation 等玩家主动解决——对话赔钱/自首/坐牢均有结案出口
+                // （OnPlayerPaidRestitution / OnPlayerDetained 等），且涨价格局不变，
+                // 拖延不处理的代价仍在，不产生零成本最优解（铁律 12）。
+                if (!Settings.Instance.EnableRevengeParty) return;
                 if (evt.RetaliationBudget > 0 && !evt.PermanentEnemy)
                     InvestigationEngine.CheckBudgetAndRespawn(evt);
                 else

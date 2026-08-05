@@ -1,7 +1,4 @@
 {
-  "LLMBaseUrl": "",
-  "LLMApiKey": "",
-  "LLMModel": "",
   "ShowDebugMessages": false,
   "WitnessSystemEnabled": true,
   "DisabledInteractionMissionModes": ["Conversation", "Battle", "Duel", "Tournament", "Stealth", "Barter", "Deployment", "Replay", "CutScene", "Benchmark"]

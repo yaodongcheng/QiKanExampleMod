@@ -24,7 +24,7 @@ import sys
 # 填 "1.2.12" / "1.3.15" / "1.4.7"：无参数运行（VSCode 点运行）时切换到该版本
 # 留空 ""：无参数运行 = 只查询当前值，不切换
 # 命令行带参数（python set_mb2_path.py 1.3.15）优先于本变量
-DEFAULT_VERSION = ""
+DEFAULT_VERSION = "1.4.7"
 
 # 版本 -> 游戏根目录（不带尾斜杠；新增客户端位置时改这里）
 TARGETS = {
