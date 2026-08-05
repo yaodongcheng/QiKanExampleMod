@@ -71,7 +71,7 @@ namespace LivingWorldNpcs
 
             foreach (var agent in nearby)
             {
-                if (!agent.IsHuman || !agent.IsActive()) continue;
+                if (!AgentControlHelper.IsHumanOrChild(agent) || !agent.IsActive()) continue;
                 if (agent == target) continue;
                 if (CanAgentSeeTarget(agent, target, radius, fovDegrees))
                     result.Add(agent);
@@ -96,7 +96,7 @@ namespace LivingWorldNpcs
             if (Mission.Current == null) return result;
             foreach (var agent in Mission.Current.Agents)
             {
-                if (agent.IsHuman && agent.IsActive() && agent != Mission.Current.MainAgent)
+                if (AgentControlHelper.IsHumanOrChild(agent) && agent.IsActive() && agent != Mission.Current.MainAgent)
                     if (IsPlayerSeeing(agent)) result.Add(agent);
             }
             return result;
@@ -368,7 +368,7 @@ namespace LivingWorldNpcs
 
             foreach (var agent in nearby)
             {
-                if (!agent.IsHuman || !agent.IsActive()) continue;
+                if (!AgentControlHelper.IsHumanOrChild(agent) || !agent.IsActive()) continue;
                 if (agent == tracked.Agent) continue;
 
                 if (CanAgentSeeTarget(agent, tracked.Agent, tracked.ObserverRadius, 120f))

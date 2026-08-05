@@ -218,6 +218,8 @@ AgentControlHelper.MoveEndAndInteractPrepare(npc[, initPos]);  // 到位后锁�
 AgentControlHelper.LookAtAgent(agent, target);  StopLooking(agent);
 AgentControlHelper.FaceToActor(turnAgent, targetAgent);
 AgentControlHelper.ForceUnlockAgent(agent);  StopAndReset(agent);  // 恢复自由
+// 人形判定（人类或儿童 human_child——引擎把儿童排除在 IsHuman 外，玩家认知里小孩也是人）
+AgentControlHelper.IsHumanOrChild(agent);     // 所有「人形角色」判定统一用它，见「引擎级非战斗人员」专节
 // 信息抽取（拼 prompt 用）
 AgentControlHelper.GetPartyInfo(hero);  GetBagInfo(hero, IsPrompt = false);
 // 资源操作（铁律4 —— 金钱=特殊物品，三类各有纪律，禁止裸调 ChangeHeroGold/ItemRoster.AddToCounts）
@@ -408,9 +410,43 @@ AgentAIController.Instance.SendEventToAgent(target, "事件名", args);
 // EnqueueAction、ClearAllActions 均为 private，外部不可调用
 ```
 
-- **已有的 Action（先复用，别重写）**：`FollowAgentAction`、`MoveToPositionAction`、`LookAtAction`、`TurnToDirectionAction`、`PlayAnimAction`、`FightEnemyAction`、`DrawWeaponAction`、`StayAction`、`ForceTalkAction`、`PrepareOpeningAction`、`ReactionDecisionAction`。
+- **已有的 Action（先复用，别重写）**：`FollowAgentAction`、`MoveToPositionAction`、`LookAtAction`、`TurnToDirectionAction`、`PlayAnimAction`、`FightEnemyAction`、`DrawWeaponAction`、`StayAction`、`ForceTalkAction`、`PrepareOpeningAction`、`ReactionDecisionAction`、`FleeFromAction`（儿童恐惧逃离，见下方专节）。
 - **什么才该放进原子 Action 库**：只有**高可复用**（多种行为链都会用到，如移动、朝向、播放动画）或**不可再拆分**（最小行为单元，拆了就没意义）的行为，才进 `AtomicAction.cs`。一次性的、只服务某个具体玩法的复合流程**不要**塞进来——那应该是「多个原子 Action 入队组合」。
 - 复杂行为 = 多个原子 Action 入队组合，而不是写一个大 Action。
+
+## 引擎级非战斗人员（儿童 human_child）— `AI/Actions/AtomicAction.cs` + `AI/AgentBrain.cs`
+
+**引擎把儿童排除在 `Agent.IsHuman` 之外**（无 IsHumanoid 标志、非战斗人员设定），但玩家认知里小孩也是人：对话/警戒/感知/战斗事件必须与大人同等对待。凡原本判定 `agent.IsHuman` 且语义为「人形角色」的地方统一改用 `IsHumanOrChild`；凡「进入战斗」流程对儿童替换为恐惧逃离。
+
+```csharp
+// ① 人形判定（AgentControlHelper.IsHumanOrChild — 已接入 AgentAIController/NpcSightSystem/
+//    AttackTriggerMissionLogic/KillMissionLogic/InteractionMissionView/VisualCommands 全部替换点）
+AgentControlHelper.IsHumanOrChild(agent);
+//    = agent.IsHuman || agent.Monster?.StringId?.Contains("child") == true（null-safe）
+
+// ② 儿童身份判定（AgentBrain.IsChildOwner — Monster StringId 含 "child" 即儿童，
+//    不写死 "human_child"，兼容其他 mod 的儿童 monster 命名）
+bool isChild = Owner != null && Owner.Monster != null && Owner.Monster.StringId?.Contains("child") == true;
+
+// ③ 儿童逃离动作：远离威胁 8~14m ±45° 抖动，walk 逃跑，跑完恢复原版 AI
+EnqueueAction(new FleeFromAction(threatAgent));
+//   OnStart 照动物挣脱轮子（StealManager.OnAnimalStruggleFlee）：6 次随机方向取第一个 navmesh
+//   有效点（V.NavMesh 版本封装），兜底直线逃离（引擎自动修正 navmesh）
+//   OnTick 每 200ms 刷新 ScriptedMoveToPoint(isRun:false)（as_human_child 无 run 动画）
+//   OnEnd → AgentControlHelper.ForceUnlockAgent（恢复原版 AI，不像 MoveToPositionAction 锁定进对话）
+```
+
+**儿童不参战三处替换点**（`AgentBrain.ReceiveEvent`，儿童一律 `FleeFromAction` 替代 `FightEnemyAction`）：
+
+| 事件 | 大人行为 | 儿童行为 |
+|------|---------|---------|
+| `order_attack`（玩家下令攻击） | `FightEnemyAction` | `FleeFromAction` |
+| `DeferredCombat`（威胁失败延迟开战） | `FightEnemyAction` | `FleeFromAction` |
+| 护主参战（`event_agent_damaged` 旁观者/受害者） | `FightEnemyAction` + CombatJoin 台词 | `FleeFromAction` + 求救台词（`LWN_brain_child_flee`） |
+
+**击晕免疫判定同样用 `Contains("child")` 而非 `== "human_child"`**（`InteractionMissionView`）：child monster 骨骼比例（臂长 0.6/眼高 1.2）与 adult 不同，`death_fall_front` 动画无法在其骨架播放，成功率强制 0（100% 免疫）。精确匹配会漏掉其他 mod 的儿童命名。
+
+**文件位置**：`Core/AgentControlHelper.cs`（IsHumanOrChild）、`AI/AgentBrain.cs`（IsChildOwner + 三处替换）、`AI/Actions/AtomicAction.cs`（FleeFromAction）
 
 ---
 

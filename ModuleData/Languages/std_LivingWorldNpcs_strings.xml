@@ -2635,6 +2635,8 @@
     <string id="LWN_combat_knocked_down" text="You were pinned to the ground, and your weapon was taken away..." />
     <!-- 调试：伤害事件日志提示（{ATTACKER}=攻击者 {VICTIM}=受害者 {DAMAGE}=伤害值） -->
     <string id="LWN_combat_damage_log" text="AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}" />
+    <!-- 儿童看到冲突时的求救（human_child 不参战，喊叫后逃离） -->
+    <string id="LWN_brain_child_flee" text="Waaah! Run!! | Help! Someone's attacking!" />
       <!-- 委托标题：竞技场特别赛（地点占位） -->
     <string id="LWN_commission_data_arena_special_title" text="Arena Special: Win streak in {TARGET_NAME}" />
     <!-- 委托标题：悬赏缉拿（目标名占位） -->

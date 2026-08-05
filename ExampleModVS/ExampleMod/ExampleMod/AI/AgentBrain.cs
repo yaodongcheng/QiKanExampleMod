@@ -188,6 +188,9 @@ namespace LivingWorldNpcs
         {
             _isGuardMode = isGuard;
         }
+
+        /// <summary>儿童（monster StringId 含 "child"，如 human_child）引擎级非战斗人员：任何进入战斗的流程都替换为恐惧逃离，不参战。</summary>
+        private bool IsChildOwner => Owner != null && Owner.Monster != null && Owner.Monster.StringId?.Contains("child") == true;
         public void SetLeader(Agent newLeader)
         {
             if (newLeader == Owner) return; // 不能认自己做老大
@@ -237,6 +240,8 @@ namespace LivingWorldNpcs
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_attack_order",
                         ("OWNER", Owner.Name.ToString()), ("TARGET", targetAgent.Name.ToString())), Colors.Red));
                 ClearAllActions();
+                // 儿童不参战：恐惧逃离
+                if (IsChildOwner) { EnqueueAction(new FleeFromAction(targetAgent)); return; }
                 EnqueueAction(new FightEnemyAction(targetAgent));
             }
             if (aiEvent.EventType == "DeferredCombat")
@@ -260,6 +265,8 @@ namespace LivingWorldNpcs
                 InteractedAgent = target;
                 ClearAllActions();
                 AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
+                // 儿童不参战：恐惧逃离
+                if (IsChildOwner) { EnqueueAction(new FleeFromAction(target)); return; }
                 EnqueueAction(new FightEnemyAction(target));
                 DebugLogger.Log($"[Brain-DeferredCombat] {Owner.Name}(Idx={Owner.Index}) 开始攻击 {target.Name}");
             }
@@ -277,6 +284,9 @@ namespace LivingWorldNpcs
                 if (attacker == Leader) return;
                 if(!victim.IsActive()) return;
                 if(attacker == victim) return;
+
+                // 受害者身份日志：区分自己是受害者（应反击）还是旁观者（看护主条件），排查小孩无法参战用
+                DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 'event_agent_damaged' | victim={victim.Name}(Idx={victim.Index}) | 是否自己={Owner == victim} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
 
                 var victimMemory = AllNpcMemoryManager.GetMemoryForAgent(victim);
                 
@@ -324,23 +334,37 @@ namespace LivingWorldNpcs
                 
 
                     // BubbleSay 参战理由（走 NpcSpeech.csv + PlaceholderResolver 标准管道）
-                    string templateId = Owner == victim
-                        ? "CombatJoin_Victim"
-                        : "CombatJoin_Bystander";
-                    string line = NpcSpeechResolver.Resolve(templateId,
-                        speaker: (Owner.Character as CharacterObject)?.HeroObject,
-                        listener: Hero.MainHero);
-                    BubbleSay(line ?? (Owner == victim
-                        // 冒泡兜底：受害者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
-                        ? LWNTextHelper.ResolveText("LWN_brain_combatjoin_victim", "You dare strike me?!")
-                        // 冒泡兜底：旁观者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
-                        : LWNTextHelper.ResolveText("LWN_brain_combatjoin_bystander", "You dare touch someone from our village?!")));
+                    string line;
+                    if (IsChildOwner)
+                    {
+                        // 儿童不参战：喊求救后逃离（不播大人参战台词）
+                        line = LWNTextHelper.ResolveText("LWN_brain_child_flee", "Waaah! Run!!");
+                    }
+                    else
+                    {
+                        string templateId = Owner == victim
+                            ? "CombatJoin_Victim"
+                            : "CombatJoin_Bystander";
+                        line = NpcSpeechResolver.Resolve(templateId,
+                            speaker: (Owner.Character as CharacterObject)?.HeroObject,
+                            listener: Hero.MainHero);
+                        line ??= (Owner == victim
+                            // 冒泡兜底：受害者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
+                            ? LWNTextHelper.ResolveText("LWN_brain_combatjoin_victim", "You dare strike me?!")
+                            // 冒泡兜底：旁观者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
+                            : LWNTextHelper.ResolveText("LWN_brain_combatjoin_bystander", "You dare touch someone from our village?!"));
+                    }
+                    BubbleSay(line);
 
                     SetNpcIntent(NpcIntentType.Fighting, attacker);
                     InteractedAgent = attacker;
                     ClearAllActions();
                     AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
-                    EnqueueAction(new FightEnemyAction(attacker));
+                    // 儿童不参战：恐惧逃离；大人才进战斗
+                    if (IsChildOwner)
+                        EnqueueAction(new FleeFromAction(attacker));
+                    else
+                        EnqueueAction(new FightEnemyAction(attacker));
 
                     //时序处理： 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
                     if (attacker == Agent.Main)

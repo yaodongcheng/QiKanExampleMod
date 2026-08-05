@@ -481,6 +481,85 @@ namespace LivingWorldNpcs
         }
     }
 
+    // 2.5 逃离动作：远离威胁 Agent 跑开一段距离（引擎级非战斗人员——儿童专用）。
+    // 任何"进入战斗"的流程（order_attack / DeferredCombat / 护主参战）对儿童都替换为本动作：
+    // 不战斗、单纯逃离。跑完恢复原版 AI（不像 MoveToPositionAction 那样锁定进对话）。
+    public class FleeFromAction : IAtomicAction
+    {
+        private readonly Agent _threat;
+        private Vec3 _targetPos;
+        private bool _foundTarget;
+        private float _timer;
+        private float _fixedTimer;
+        private float _maxTime;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
+        /// <param name="threat">要逃离的威胁（通常是玩家或攻击者）</param>
+        public FleeFromAction(Agent threat)
+        {
+            _threat = threat;
+            _timer = 0f;
+            _fixedTimer = 0f;
+            _maxTime = 10f; // 8~14m walk 速度约 6~10s，留 10s 保险
+        }
+
+        public void OnStart(Agent agent)
+        {
+            if (agent == null || !agent.IsActive()) { _interrupted = true; return; }
+
+            // 逃跑方向：远离威胁 ±45° 抖动，8~14m，取第一个 navmesh 有效点（照动物挣脱轮子 OnAnimalStruggleFlee）
+            Vec3 away = _threat != null && _threat.IsActive()
+                ? agent.Position - _threat.Position
+                : new Vec3(1f, 0f, 0f);
+            away.z = 0f;
+            if (away.LengthSquared < 0.001f) away = new Vec3(1f, 0f, 0f);
+            away = away.NormalizedCopy();
+
+            for (int i = 0; i < 6; i++)
+            {
+                float angle = (MBRandom.RandomFloat - 0.5f) * MathF.PI * 0.5f; // ±45°
+                float cos = MathF.Cos(angle), sin = MathF.Sin(angle);
+                Vec3 dir = new Vec3(away.x * cos - away.y * sin, away.x * sin + away.y * cos, 0f);
+                Vec3 fleePos = agent.Position + dir * (8f + MBRandom.RandomFloat * 6f);
+                if (agent.Mission?.Scene != null && V.NavMesh(agent.Mission.Scene, fleePos, out _))
+                {
+                    _targetPos = fleePos;
+                    _foundTarget = true;
+                    break;
+                }
+            }
+            // 兜底：找不到可寻路点 → 直线逃离方向（引擎自动修正 navmesh）
+            if (!_foundTarget)
+                _targetPos = agent.Position + away * 8f;
+
+            _ = AgentControlHelper.MovePrepare(agent);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _timer += dt;
+            _fixedTimer += dt;
+            if (_fixedTimer < 0.2f) return;
+            _fixedTimer = 0f;
+            // 持续刷新脚本移动目标（as_human_child 无 run 动画，isRun=false 走 walk）
+            AgentControlHelper.ScriptedMoveToPoint(agent, _targetPos, isRun: false);
+        }
+
+        public bool IsFinished(Agent agent)
+        {
+            float distSq = agent.Position.DistanceSquared(_targetPos);
+            return _interrupted || distSq <= 1.0f || _timer > _maxTime || !agent.IsActive();
+        }
+
+        public void OnEnd(Agent agent)
+        {
+            // 逃跑完成 → 恢复原版 AI（DisableScriptedMovement + 回 AI 控制）
+            if (agent != null && agent.IsActive())
+                AgentControlHelper.ForceUnlockAgent(agent);
+        }
+    }
+
     // 2. 跟随/追逐目标动作
     public class FollowAgentAction : IAtomicAction
     {
