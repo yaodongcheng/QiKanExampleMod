@@ -34,5 +34,5 @@
     "StealLeave":      { "Keyboard": "Tab",   "Gamepad": "B",  "PressMode": "Short" }
     // 可选：单独调阈值，如击晕想更久： "Knockout": { ..., "HoldMs": 600 }
   },
-  "LongPressDurationMs": 450
+  "LongPressDurationMs": 650
 }

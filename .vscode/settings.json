@@ -1,4 +1,9 @@
 {
+  // config.json 用了 // 注释（Newtonsoft 支持），按 JSONC 解析避免 VSCode 爆红
+  "files.associations": {
+    "config.json": "jsonc"
+  },
+
   // === 方案：根据你装的扩展选一条启用 ===
 
   // 如果装了 C# Dev Kit (新版):

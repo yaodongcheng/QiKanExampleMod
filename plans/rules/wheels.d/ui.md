@@ -71,6 +71,7 @@ ShowIntentDebug = Settings.Instance.ShowNpcIntent
 5. XML 绑定名 `@PropertyName` 与 C# 属性名大小写严格一致
 6. 🔴 **绑定值初始值必须可解析（实机踩过崩溃）**：绑定建立时引擎会读取属性初始值推给 Widget——绑 `Color` 的 string 属性若初始为 `null`/空串，`Color.ConvertStringToColor` 直接 `ArgumentOutOfRangeException` 崩溃（InteractionVM.SegColor 踩过：Short 项进度框不可见但绑定仍存在）。**凡是绑 Color 的 string 字段必须在声明处初始化合法颜色串**，绑数值的 float/int 默认 0 合法无需处理。
 7. 🔴 **引擎颜色只支持 `#RRGGBBAA`（8 位 hex）**（实机踩过崩溃）：写 6 位 hex（`#RRGGBB`，7 字符）会在 Alpha 解析时 `Substring(7, 2)` 越界崩溃（InteractionVM.SegColor 踩过：`#33CCFF`/`#FFE97F` 皆崩，补齐 `FF` 为 `#33CCFFFF`/`#FFE97FFF` 即好）。**项目惯例全部颜色必须 9 字符**（`#FFFFFF33`、`#8B0000FF`…）；新增颜色写完后用正则 `#[0-9A-Fa-f]{6,8}` 扫一遍长度。
+8. 🔴 **颜色顺序 = RRGGBBAA（alpha 在最后两位），纯黑必须写 `#000000FF`**（实机踩过不显示）：按 HTML 习惯把 alpha 写前头的 `#FF000000`，在引擎里解析为 **R=255,G=0,B=0,A=00 = 全透明红 → 永远不可见**（InteractArea 蓄力进度黑条踩过：绑定版与 XML 写死版均无影，同层白边 `#FFFFFFFF` 因两序同义渲染正常，误导排查方向）。`#FFFFFFFF`/`#FFE97FFF`/`#B5F0E8FF` 等 alpha 天然在尾的色不受影响。**写颜色按"RR GG BB AA"四段核对**：想表达不透明 X 色 → `#XXYYZZFF`。
 
 
 ---

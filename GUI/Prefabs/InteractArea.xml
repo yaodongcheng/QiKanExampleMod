@@ -43,8 +43,8 @@
                                 <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30">
                                     <Children>
 
-                                        <!-- 底纹：白中偏青绿实心（用户保留）。被下方不透明四周边盖住外缘 = 底纹不超四周边 -->
-                                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="BlankWhiteSquare_9" Color="#B5F0E8FF" />
+                                        <!-- 底纹：按按法区分——Short 纯白（无四边）、Long 青绿（+四边），玩家一眼看出交互方式（用户拍板 2026-08-06） -->
+                                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="BlankWhiteSquare_9" Color="@KeycapColor" />
 
                                         <!-- 四周边 + 填充（Long 玩法常显；短按项整体 IsVisible=false，RequiresHold 由 PressMode==Long 推导） -->
                                         <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@RequiresHold">
@@ -71,7 +71,7 @@
                                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                                     Text="@KeyText"
                                                     Brush="MyBrush_24"
-                                                    TextColor="#FF000000"
+                                                    TextColor="#000000FF"
                                                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Children>
                                 </Widget>

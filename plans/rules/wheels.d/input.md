@@ -36,7 +36,7 @@ ModInput.Glyph(id);        // 按最近设备返回键盘/Xbox/PS 字形
 - **阈值**：玩法级 `HoldMs`（>0 覆盖）→ 全局 `Settings.LongPressDurationMs`（默认 450ms，KCD 手感）。
 - **同键同按法冲突检查在"上下文构建时"而非加载时**：默认配置 F/Long 挂 6 行但各上下文互斥（永不同时可用），加载时检查会刷屏；改为 available 列表变化时对"同键同按法且同时可用"的行对告警，只在真实危险时发声。
 
-**上下文唯一真相源**（`InteractionMissionView`）：`PerformPerformanceHeavyLogic` 构建一次 `_availableIds`（可用玩法列表），**同一份列表同时驱动 UI 显示（`_uiItems`）与输入响应**（`HandleInput` 遍历 available，`ExecuteInteraction(id)` 静态 switch 分发）——杜绝"显示不响应 / 响应不显示"。门控 = `available 非空`（`IsVisible` 只管 UI 显示）：无目标场景 `available=[Inspect]` 且 UI 隐藏时探查键照常响应"看自己"。列表变化 → 退出项 `Reset`。偷窃条（StealAttempt/StealLeave）= **独立输入通道**（available 体系之外，开条时先 Reset 清陈旧状态）。
+**上下文唯一真相源**（`InteractionMissionView`）：`PerformPerformanceHeavyLogic` 构建一次 `_availableIds`（可用玩法列表），**同一份列表同时驱动 UI 显示（`_uiItems`）与输入响应**（`HandleInput` 遍历 available，`ExecuteInteraction(id)` 静态 switch 分发）——杜绝"显示不响应 / 响应不显示"。门控 = `available 非空`（`IsVisible` 只管 UI 显示）：无目标场景 `available=[Inspect]` 且 UI 隐藏时探查键照常响应"看自己"。列表变化 → **退出项与进入项均 `Reset`**（退出 = 长按作废、进度框消退、不误触发；进入 = 清零跨上下文继承的按住电荷——状态机按物理键计时，同键挂多行同时计时，若沿用上一上下文的电荷会"对话长按 → 目标转身 → 击晕凭空满金、松手犯罪"；新电荷从该行在本上下文重新按下算起，不影响"满框待命"）。偷窃条（StealAttempt/StealLeave）= **独立输入通道**（available 体系之外，开条时先 Reset 清陈旧状态）。
 
 **文件位置**：`Input/ModInput.cs`（InteractionIds/ModInputPressMode/InteractionBinding/状态机/别名表）、`Core/Settings.cs`（`InteractionBindingConfig` + `DefaultInteractions` + `LongPressDurationMs`）、`Interaction/InteractionMissionView.cs`（available 上下文构建 + ExecuteInteraction 分发 + SyncAvailable）、`Interaction/InteractionVM.cs`（`InteractionItemVM` 玩法行绑定 + 4 段方框进度）。
 

@@ -250,9 +250,9 @@ public int LongPressDurationMs { get; set; } = 450;
 **进度条：4 段方框**（用户拍板——12 段小方块方案被否，体验不连续）：
 - 方块键帽内嵌 4 条进度条组成**正方形框**：上/右/下/左各 1 条（厚 3px，距边 2px），围绕居中键名，**顺时针填充（上 → 右 → 下 → 左）**——类似"方块加载框"，KCD 空心圈同款思路（平时淡白空心框提示"这里要按住"，按住时逐边点亮成实框）。
 - **实现（零新增依赖，复用血条模式）**：纯 XML Sprite + `SuggestedWidth/@float`、`SuggestedHeight/@float` 绑定——即 `GUI/Prefabs/AgentHudNearby.xml` 血条（`SuggestedWidth="@CurrentHealthWidth"` 每帧改宽度，99-102 行）与警戒眼睛（`SuggestedHeight="@AlertFillHeight"` 竖填充，40-52 行）的现成模式，**该 XML 在 1.2.12 / 1.3.15 / 1.4.6 三版本均已实机运行**。
-  - 每条 = 白色进度条底（**常显 100% 纯白 `#FFFFFFFF`**——没蓄力时的空白状态）+ 进度填充（`Color=@SegColor`，**蓄力中黑 `#FF000000` → 蓄力完成金 `#FFE97FFF`**，覆盖白底之上，100% 不透明，声明在底之后渲染在上层）；三色方案（用户拍板 2026-08-06）：①没蓄力=白边 ②蓄力中=黑（进度覆盖到哪哪变黑，顺时针推进）③完成=金（待命"可以松手"）；填充条 `WidthSizePolicy="Fixed"` / `HeightSizePolicy="Fixed"`，尺寸绑 VM 每帧算好的像素值。
-  - **键帽底纹（用户拍板保留）**：白中偏青绿实心 `#B5F0E8FF` 垫底，被不透明白边盖住外缘 = **底纹不超四周边**；键名黑字 `#FF000000`（青绿浅底上可读）。
-  - 🔴 引擎颜色只支持 `#RRGGBBAA`（8 位 hex，6 位会 Substring 越界崩溃，实机踩过）。
+  - 每条 = 白色进度条底（**常显 100% 纯白 `#FFFFFFFF`**——没蓄力时的空白状态）+ 进度填充（`Color=@SegColor`，**蓄力中黑 `#000000FF` → 蓄力完成金 `#FFE97FFF`**，覆盖白底之上，100% 不透明，声明在底之后渲染在上层）；三色方案（用户拍板 2026-08-06）：①没蓄力=白边 ②蓄力中=黑（进度覆盖到哪哪变黑，顺时针推进）③完成=金（待命"可以松手"）；填充条 `WidthSizePolicy="Fixed"` / `HeightSizePolicy="Fixed"`，尺寸绑 VM 每帧算好的像素值。
+  - **键帽底纹按按法区分（用户拍板 2026-08-06）**：**Short 纯白 `#FFFFFFFF`、无四周边；Long 青绿 `#B5F0E8FF` + 白色四周边**——玩家一眼看出交互方式（键帽底色 = 按法标识）；键名黑字 `#000000FF`（白/青绿底上均可读）。
+  - 🔴 引擎颜色只支持 `#RRGGBBAA`（8 位 hex）：① 6 位 hex 会在 Alpha 解析时 `Substring` 越界崩溃（实机踩过）；② **顺序是 RRGGBBAA（alpha 在最后两位）**——写黑色若按 HTML 习惯写 `#FF000000`，在引擎里 = **R=255,G=0,B=0,A=00 → 全透明红，永远不可见**（实机踩过：进度黑条绑定版/写死版均无影，白边 `#FFFFFFFF` 恰好两序同义所以正常）；**纯黑必须写 `#000000FF`**。写颜色时按"RR GG BB AA"四段核对 alpha 结尾是 FF。
   - 条长常量 L=24px，第 i 条填充长度 = `clamp(progress*4 − i, 0, 1) × L`（i=0..3）。
   - 锚定方向构成**顺时针连续闭环**（左上→右上→右下→左下→左上，段间无跳变）：上条 `HorizontalAlignment="Left"` + `VerticalAlignment="Top"`（左→右）→ 右条 `HorizontalAlignment="Right"` + `VerticalAlignment="Top"`（上→下）→ 下条 `HorizontalAlignment="Right"` + `VerticalAlignment="Bottom"`（右→左）→ 左条 `HorizontalAlignment="Left"` + `VerticalAlignment="Bottom"`（下→上）。
     - ⚠️ **方向易错点（实机踩过两版）**：① Gauntlet 双轴独立，每条必须同时显式写两个轴（缺一个默认 Left/Top，全堆左上角）；② 右条/左条若用 Bottom/Top 锚定会变成逆时针 + 段间跳变（顶边→右缘↑→底边←→左缘↓），正确应为右条 Top、左条 Bottom。
@@ -299,7 +299,7 @@ foreach (string id in _availableIds)
 - **分层明确**：config 只管"键 + 按法"；显隐/生效条件仍在代码（上下文构建）——玩家改 config 改不了上下文，两者通过 available 列表桥接。
 - **上下文清单**（现状复刻，行为不变）：动物活+蹲=`[StealAnimal]`；动物死=`[Loot]`；活人战斗意图=`[PlayerSurrender(+AcceptSurrender)]`；背后+蹲=`[Pickpocket, Inspect]`；背后=`[Knockout, Inspect]`；正面=`[Talk, Inspect]`；昏迷/尸体=`[Loot]`；**无目标=`[Inspect]`**（保留现状"探查键无 focus 看自己"，统一为迷你列表，不再游离于响应树外）；**近箱子=`[Lockpick]`**（原箱子分支并入）。
 - **偷窃条 = 独立输入通道（available 体系之外）**：`TickStealBar` 打开期间独占输入（现状 687-691 行先于 available 逻辑 return），直接监听 `ShortFired("StealAttempt")` / `ShortFired("StealLeave")`，不走 available——节奏玩法与上下文列表解耦；玩家控制冻结（`FreezePlayerControl`）不影响状态机（冻结在 Agent 控制层，物理键轮询照常）。
-- **available 变化 → 失效清理**：列表变化时，对退出列表的玩法 `ModInput.Reset(id)`——长按中目标转身/走开，进度框立即消退、不会误触发。
+- **available 变化 → 失效清理**：列表变化时，**退出项与进入项均** `ModInput.Reset(id)`——退出：长按中目标转身/走开，进度框立即消退、不会误触发；进入：清零跨上下文继承的按住电荷（状态机按物理键计时，同键挂多行同时计时——若沿用上一上下文的电荷，"对话长按 F → 目标转身 → 击晕行凭空满金、松手直接犯罪"），该行在本上下文重新按下才重新蓄力；不影响"满框待命"（行一直在 available 中时无列表变化，不走此路径）。
 - UI 与响应共享同一份列表，不存在"显示与响应不同步"的结构性可能。
 
 ---
