@@ -879,10 +879,10 @@ namespace LivingWorldNpcs
         {
             // 本地化：偷窃条出手按钮动词（撬锁/抓动物/出手）
             string verb = _mode == StealBarMode.Lockpick ? LWNTextHelper.ResolveText("LWN_ui_steal_verb_lockpick", "Pick") : _mode == StealBarMode.Animal ? LWNTextHelper.ResolveText("LWN_ui_steal_verb_catch", "Catch") : LWNTextHelper.ResolveText("LWN_ui_steal_verb_attempt", "Act");
-            // 本地化：偷窃条出手按钮文本
-            AttemptButtonText = LWNTextHelper.ResolveCompound("LWN_ui_steal_btn_attempt", ("KEY", ModInput.Glyph(ModInputAction.StealAttempt)), ("VERB", verb));
-            // 本地化：偷窃条收手按钮文本
-            LeaveButtonText = LWNTextHelper.ResolveCompound("LWN_ui_steal_btn_leave", ("KEY", ModInput.Glyph(ModInputAction.StealLeave)));
+            // 本地化：偷窃条出手按钮文本（玩法行 StealAttempt，键位/字形随 config）
+            AttemptButtonText = LWNTextHelper.ResolveCompound("LWN_ui_steal_btn_attempt", ("KEY", ModInput.Glyph(InteractionIds.StealAttempt)), ("VERB", verb));
+            // 本地化：偷窃条收手按钮文本（玩法行 StealLeave）
+            LeaveButtonText = LWNTextHelper.ResolveCompound("LWN_ui_steal_btn_leave", ("KEY", ModInput.Glyph(InteractionIds.StealLeave)));
         }
 
         [DataSourceProperty]

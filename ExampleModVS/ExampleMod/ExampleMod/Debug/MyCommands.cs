@@ -2734,6 +2734,26 @@ namespace LivingWorldNpcs
             catch { }
             return null;
         }
+
+        // ── 玩法键位热重载：改 config.json 后执行 custom.input_reload 立即生效（键位/按法/阈值）──
+        [CommandLineFunctionality.CommandLineArgumentFunction("input_reload", "custom")]
+        public static string ReloadInputBindings(List<string> args)
+        {
+            try
+            {
+                Settings.Reload();
+                ModInput.RebuildBindings();
+                // 刷新场景内全部按键提示与长按按法（交互列表/偷窃条按钮）
+                InteractionMissionView.Instance?.RefreshAllBindingTexts();
+                DebugLogger.Log("[InputReload] Bindings reloaded from config.json");
+                return "Input bindings reloaded from config.json";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[InputReload] Error: {ex}");
+                return "Input reload failed: " + ex.Message;
+            }
+        }
     }
 
 

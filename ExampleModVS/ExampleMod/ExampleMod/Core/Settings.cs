@@ -7,6 +7,19 @@ using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
+    /// <summary>
+    /// 一个玩法交互行的键位配置（config.json "Interactions" 条目）。
+    /// 同一物理键可挂多个玩法行（默认 F 挂 7 行），同一次按下各按各自阈值与按法触发，短/长互斥。
+    /// 解析与校验在 ModInput.RebuildBindings（空值 = 内置默认；非法值 = 回落默认 + 日志警告）。
+    /// </summary>
+    public class InteractionBindingConfig
+    {
+        public string Keyboard { get; set; } = "";   // 键盘：InputKey 枚举名（"F"/"Q"/"Space"/"Tab"…）
+        public string Gamepad { get; set; } = "";    // 手柄：人类可读逻辑键（"Y"/"LB"/"R3"…；PS 名等价，见 config.json 注释）
+        public string PressMode { get; set; } = "";  // Short / Long（空 = 内置默认）
+        public int HoldMs { get; set; } = 0;         // 可选：覆盖全局 LongPressDurationMs（0 = 用全局）
+    }
+
     public class Settings
     {
         private static Settings _instance;
@@ -78,6 +91,35 @@ namespace LivingWorldNpcs
 
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
+
+        // ── 玩法键位配置（config.json 侧，不进 MCM：小白玩家不改，资深玩家可编辑热重载）──
+        // 一个玩法行 = 一个玩法交互的 (键盘键, 手柄键, 按法)。同一物理键可挂多个玩法行
+        // （默认 F 挂 7 行），同一次按下各按各自阈值与按法触发，短/长互斥。
+        // 解析与校验在 ModInput.RebuildBindings（空值 = 内置默认；非法值 = 回落默认 + 日志警告）。
+        // 条目类型 InteractionBindingConfig 见本文件顶级类。
+
+        /// <summary>内置默认玩法行表（config.json 缺失/删除/非法时回落；示例即真实默认值）。</summary>
+        public static readonly Dictionary<string, InteractionBindingConfig> DefaultInteractions = new Dictionary<string, InteractionBindingConfig>
+        {
+            [InteractionIds.Talk] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Short" },
+            [InteractionIds.Loot] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            [InteractionIds.Knockout] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            [InteractionIds.Pickpocket] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            [InteractionIds.StealAnimal] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            [InteractionIds.Lockpick] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            [InteractionIds.PlayerSurrender] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Long" },
+            [InteractionIds.AcceptSurrender] = new InteractionBindingConfig { Keyboard = "Q", Gamepad = "LB", PressMode = "Long" },
+            [InteractionIds.Inspect] = new InteractionBindingConfig { Keyboard = "H", Gamepad = "R3", PressMode = "Short" },
+            [InteractionIds.StealAttempt] = new InteractionBindingConfig { Keyboard = "Space", Gamepad = "A", PressMode = "Short" },
+            [InteractionIds.StealLeave] = new InteractionBindingConfig { Keyboard = "Tab", Gamepad = "B", PressMode = "Short" },
+        };
+
+        /// <summary>玩法行配置（玩家在 config.json 覆盖/增删；PopulateObject 合并，删行 = 回落内置默认）。</summary>
+        public Dictionary<string, InteractionBindingConfig> Interactions { get; set; } =
+            new Dictionary<string, InteractionBindingConfig>(DefaultInteractions);
+
+        /// <summary>长按全局默认阈值（毫秒）；玩法级 HoldMs 可单独覆盖。450ms = KCD 手感。</summary>
+        public int LongPressDurationMs { get; set; } = 450;
 
 
         //这里的值会被 config.json覆盖 只作为默认值

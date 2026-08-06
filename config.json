@@ -1,5 +1,38 @@
 {
+  // ══════════════════════════════════════════════════════════════
+  // 玩法键位配置（键名 = 玩法 ID；删行/改值即改键，控制台 custom.input_reload 热重载生效）
+  //
+  // ── Gamepad 用"逻辑键"命名（Xbox 惯例），PS 玩家对照表：──────
+  //    Y  = △ 三角     A  = ✕ 叉       X  = □ 方块     B  = ○ 圆圈
+  //    LB = L1         RB = R1         LT = L2          RT = R2
+  //    L3 = 左摇杆按下  R3 = 右摇杆按下
+  //    DUp/DDown/DLeft/DRight = 十字键 上 / 下 / 左 / 右
+  //    View = 触控板    Menu = Options
+  //    PS 玩家也可直接写 PS 名（Triangle / Cross / Square / Circle
+  //    / L1 / R1 / L2 / R2 / Options…），与 Xbox 名等价；显示时按当前
+  //    手柄自动切换字形（配置写 Y，Xbox 显示 Y、PS 显示 △）。
+  //
+  // ── PressMode：Short=短按（快速按下松开即触发）/ Long=长按（按住蓄力，
+  //    进度框满后变金色待命，松手才执行——可等目标转身/目击者走开再出手）
+  // ── HoldMs：可选，单独调该玩法的长按阈值（毫秒）；0 或省略 = 用全局
+  //    LongPressDurationMs
+  // ══════════════════════════════════════════════════════════════
   "ShowDebugMessages": false,
   "WitnessSystemEnabled": true,
-  "DisabledInteractionMissionModes": ["Conversation", "Battle", "Duel", "Tournament", "Stealth", "Barter", "Deployment", "Replay", "CutScene", "Benchmark"]
+  "DisabledInteractionMissionModes": ["Conversation", "Battle", "Duel", "Tournament", "Stealth", "Barter", "Deployment", "Replay", "CutScene", "Benchmark"],
+  "Interactions": {
+    "Talk":            { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Short" },
+    "Loot":            { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Long" },
+    "Knockout":        { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Long" },
+    "Pickpocket":      { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Long" },
+    "StealAnimal":     { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Long" },
+    "Lockpick":        { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Long" },
+    "PlayerSurrender": { "Keyboard": "F",     "Gamepad": "Y",  "PressMode": "Long" },
+    "AcceptSurrender": { "Keyboard": "Q",     "Gamepad": "LB", "PressMode": "Long" },
+    "Inspect":         { "Keyboard": "H",     "Gamepad": "R3", "PressMode": "Short" },
+    "StealAttempt":    { "Keyboard": "Space", "Gamepad": "A",  "PressMode": "Short" },
+    "StealLeave":      { "Keyboard": "Tab",   "Gamepad": "B",  "PressMode": "Short" }
+    // 可选：单独调阈值，如击晕想更久： "Knockout": { ..., "HoldMs": 600 }
+  },
+  "LongPressDurationMs": 450
 }

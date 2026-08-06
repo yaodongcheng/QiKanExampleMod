@@ -1,4 +1,47 @@
 # input — 轮子速查分卷（wheels.md 索引导航）
+
+---
+
+## 玩法行输入模型（短/长按状态机 + config.json 键位化）— `Input/ModInput.cs`
+
+**解决什么问题**：① press 沿无法区分短按/长按——犯罪/战斗决策/搜刮等"需要确认"的互动应长按（给玩家确认时间，铁律 12），普通互动短按；② 键位冲突（手柄 X=踢人）无法用 Harmony 修复（native 层），只能改绑；③ 改键要满世界找 `IsKeyPressed`。
+
+**玩法行 = 配置一等公民**：每个玩法交互一行 `(键盘键, 手柄键, 按法)`，同一物理键可挂多行（默认 F 挂 7 行），同一次按下各按各自阈值触发。
+
+```csharp
+// 玩法 ID 常量（config.json 键名 = 玩法行；Settings.DefaultInteractions 内置默认表）
+InteractionIds.Talk / Loot / Knockout / Pickpocket / StealAnimal / Lockpick
+InteractionIds.PlayerSurrender / AcceptSurrender / Inspect / StealAttempt / StealLeave
+
+// 每帧驱动（InteractionMissionView.OnMissionTick 顶部，先于一切消费点）：
+ModInput.Tick(dt);                        // 状态机：按行跟踪，短/长互斥
+
+// 消费（一次按下只短或长其一；不同键各触发各的，不互相吞事件）：
+ModInput.ShortFired(id);   // 一次性：松开且按住时长 < 阈值
+ModInput.LongFired(id);    // 一次性：按住跨阈值
+ModInput.IsHeld(id);       // 按住中
+ModInput.HoldProgress(id); // 0..1（进度 UI 每帧喂给 4 段方框）
+ModInput.Reset(id);        // 上下文退出/目标丢失时取消按住（进度框消退、不误触发）
+ModInput.ResetAll();       // Mission Finalize 兜底
+ModInput.RebuildBindings();// Settings.Reload() 后重建（控制台 custom.input_reload）
+ModInput.GetBinding(id);   // → InteractionBinding（UI 读键位/按法，与输入共享同一份配置）
+ModInput.Glyph(id);        // 按最近设备返回键盘/Xbox/PS 字形
+```
+
+**关键纪律**：
+- **帧窗口一次性触发**：Tick 每帧先清上一帧未消费的标志 → 消费即清。模态覆盖（对话/剧情）期间的按压不会陈旧触发——这是防"陈旧触发"的根。
+- **短按 = 阈值前松开**；长按行阈值前松开无触发。Short 行按住超阈值 = 取消（转入同键其他行的长按路径）。
+- **手柄配置写逻辑键**（`Y`/`Triangle` 等价解析到 `ControllerRUp`，别名表大小写不敏感；显示 = 引擎键反查 `_engineDisplay` 表，Xbox 显示 Y、PS 显示 △）；键盘直接 `Enum.TryParse<InputKey>`（单词键 Space/Tab 走 `LWN_input_key_*` 本地化，铁律 13）。
+- **解析失败回落内置默认 + `DebugLogger.Log` 警告**（空值 = 内置默认，config 文档约定；非法值 = 回落 + 警告）。
+- **阈值**：玩法级 `HoldMs`（>0 覆盖）→ 全局 `Settings.LongPressDurationMs`（默认 450ms，KCD 手感）。
+- **同键同按法冲突检查在"上下文构建时"而非加载时**：默认配置 F/Long 挂 6 行但各上下文互斥（永不同时可用），加载时检查会刷屏；改为 available 列表变化时对"同键同按法且同时可用"的行对告警，只在真实危险时发声。
+
+**上下文唯一真相源**（`InteractionMissionView`）：`PerformPerformanceHeavyLogic` 构建一次 `_availableIds`（可用玩法列表），**同一份列表同时驱动 UI 显示（`_uiItems`）与输入响应**（`HandleInput` 遍历 available，`ExecuteInteraction(id)` 静态 switch 分发）——杜绝"显示不响应 / 响应不显示"。门控 = `available 非空`（`IsVisible` 只管 UI 显示）：无目标场景 `available=[Inspect]` 且 UI 隐藏时探查键照常响应"看自己"。列表变化 → 退出项 `Reset`。偷窃条（StealAttempt/StealLeave）= **独立输入通道**（available 体系之外，开条时先 Reset 清陈旧状态）。
+
+**文件位置**：`Input/ModInput.cs`（InteractionIds/ModInputPressMode/InteractionBinding/状态机/别名表）、`Core/Settings.cs`（`InteractionBindingConfig` + `DefaultInteractions` + `LongPressDurationMs`）、`Interaction/InteractionMissionView.cs`（available 上下文构建 + ExecuteInteraction 分发 + SyncAvailable）、`Interaction/InteractionVM.cs`（`InteractionItemVM` 玩法行绑定 + 4 段方框进度）。
+
+---
+
 ## 三件套
 
 ```csharp

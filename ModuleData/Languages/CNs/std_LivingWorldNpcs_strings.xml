@@ -2701,6 +2701,8 @@
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- 键盘提示字形：空格键 -->
     <string id="LWN_input_key_space" text="空格" />
+    <!-- 键盘提示字形：Tab 键 -->
+    <string id="LWN_input_key_tab" text="Tab" />
 
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- Dialogue — 对话入口/检定提示 (ConversationEntryPatch / DialogueInjector) -->
