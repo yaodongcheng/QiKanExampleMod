@@ -15,10 +15,10 @@ namespace LivingWorldNpcs
         private string _keyText;
         private readonly string _interactionId;   // 玩法 ID（null/空 = 无键位提示）
         private bool _requiresHold;               // 该玩法配置 PressMode == Long → 显示四边进度
-        private string _keycapColor = KeycapColorShort;   // 键帽底色：Short 纯白 / Long 青绿（按法一眼区分，用户拍板 2026-08-06）。
+        private string _keycapColor = KeycapColorShort;   // 键帽底色：Short 纯白 / Long 淡青白（按法一眼区分，用户拍板 2026-08-06）。
                                                           // ⚠️ 必须字段级初始化合法颜色串——Gauntlet 绑定建立时读取初始值
                                                           // 推给 Color 属性，null/空串会让引擎 ConvertStringToColor 崩溃
-        private string _segColor = SegColorCharging;   // 四边进度颜色：蓄力中黑 / 蓄力完成金。
+        private string _segColor = SegColorCharging;   // 四边进度颜色：蓄力中绿 / 蓄力完成金。
                                                        // ⚠️ 必须字段级初始化合法颜色串——Gauntlet 绑定建立时读取初始值
                                                        // 推给 Color 属性，null/空串会让引擎 ConvertStringToColor 崩溃
                                                        // （Short 项进度条不可见但绑定仍存在，更要保证非 null）
@@ -30,19 +30,19 @@ namespace LivingWorldNpcs
         /// <summary>进度条单段最大长度 px（= 键帽边长 30，与 InteractArea.xml 布局常量一致——贴键帽边缘）。</summary>
         private const float SegLength = 30f;
 
-        /// <summary>键帽底色：Short 纯白（无四边）/ Long 青绿（+四边），按法一眼区分。</summary>
+        /// <summary>键帽底色：Short 纯白（无四边）/ Long 淡青白（+四边），按法一眼区分。</summary>
         private const string KeycapColorShort = "#FFFFFFFF";
-        private const string KeycapColorLong = "#B5F0E8FF";
+        private const string KeycapColorLong = "#E8FAF6FF";   // 近白：保留一丝青调与 Short 纯白区分（用户拍板 2026-08-06）
 
         /// <summary>
-        /// 四边进度条颜色——只有三种状态色（用户拍板 2026-08-06）：
-        /// ① 没蓄力 = 白色（InteractArea.xml 四条白底条常显 100% 不透明，即空白框状态）；
-        /// ② 蓄力中 = 黑色（进度覆盖到哪，哪里就黑，顺时针推进，盖在白边之上）；
+        /// 四边进度条颜色——三种状态色（用户拍板 2026-08-06）：
+        /// ① 没蓄力 = 灰白（InteractArea.xml 四条灰白底条常显 100% 不透明，即空白框状态）；
+        /// ② 蓄力中 = 绿色（进度覆盖到哪，哪里就绿，顺时针推进，盖在灰黑边之上）；
         /// ③ 蓄力完成 = 金色（满框待命，"可以松手"）。
         /// ⚠️ 引擎 ConvertStringToColor 只支持 #RRGGBBAA（8 位 hex）——6 位 hex 会 Substring 越界崩溃（实机踩过），必须补齐 FF。
         /// </summary>
-        private const string SegColorCharging = "#000000FF";
-        private const string SegColorReady = "#FFE97FFF";
+        private const string SegColorCharging = "#00E676FF";   // 蓄力中：绿
+        private const string SegColorReady = "#FFE97FFF";      // 蓄力完成：金
 
         // 构造函数：键位/按法由 ModInput.GetBinding(interactionId) 从配置取（UI 与输入共享同一份配置）
         public InteractionItemVM(string actionText, string interactionId)
@@ -72,16 +72,16 @@ namespace LivingWorldNpcs
             }
             KeyText = ModInput.Glyph(_interactionId);
             RequiresHold = binding.PressMode == ModInputPressMode.Long;
-            // 键帽底色随按法：Short 纯白（无四边）/ Long 青绿（+四边）——按法一眼区分
+            // 键帽底色随按法：Short 纯白（无四边）/ Long 淡青白（+四边）——按法一眼区分
             KeycapColor = RequiresHold ? KeycapColorLong : KeycapColorShort;
-            // 初始：黑色进度（未蓄力时长 0 不可见，露出白色底条；满框待命由 UpdateHoldProgress 切金）
+            // 初始：绿色进度（未蓄力时长 0 不可见，露出灰白底条；满框待命由 UpdateHoldProgress 切金）
             if (RequiresHold) SegColor = SegColorCharging;
         }
 
         /// <summary>
-        /// 四边进度每帧驱动：进度条底 = 白色四边（XML 常显），黑色进度段覆盖其上（蓄力中），
+        /// 四边进度每帧驱动：进度条底 = 灰白四边（XML 常显），绿色进度段覆盖其上（蓄力中），
         /// 满框切金色（蓄力完成待命，"可以松手"）。三种状态色（用户拍板 2026-08-06）：
-        /// ① 没蓄力 = 白边（空白）；② 蓄力中 = 黑（进度覆盖到哪哪变黑，顺时针推进）；③ 完成 = 金。
+        /// ① 没蓄力 = 灰白边（空白）；② 蓄力中 = 绿（进度覆盖到哪哪变绿，顺时针推进）；③ 完成 = 金。
         /// 第 i 段填充长度 = clamp(progress*4 − i, 0, 1) × 段长。
         /// </summary>
         public void UpdateHoldProgress(float progress)
@@ -92,7 +92,7 @@ namespace LivingWorldNpcs
             SegFillHeight1 = MathF.Clamp(p * 4f - 1f, 0f, 1f) * SegLength;
             SegFillWidth2 = MathF.Clamp(p * 4f - 2f, 0f, 1f) * SegLength;
             SegFillHeight3 = MathF.Clamp(p * 4f - 3f, 0f, 1f) * SegLength;
-            SegColor = p >= 1f ? SegColorReady : SegColorCharging;   // 蓄力中黑 → 完成金
+            SegColor = p >= 1f ? SegColorReady : SegColorCharging;   // 蓄力中绿 → 完成金
         }
 
         // 对应 XML 中的 Text="@ActionText"
@@ -140,7 +140,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        // 对应 XML 中的 Color="@KeycapColor"（键帽底色：Short 纯白 / Long 青绿）
+        // 对应 XML 中的 Color="@KeycapColor"（键帽底色：Short 纯白 / Long 近白）
         [DataSourceProperty]
         public string KeycapColor
         {
@@ -155,7 +155,7 @@ namespace LivingWorldNpcs
             }
         }
 
-        // 对应 XML 中的 Color="@SegColor"（4 条填充条共用：蓄力琥珀 / 满框待命金色）
+        // 对应 XML 中的 Color="@SegColor"（4 条填充条共用：蓄力中绿 / 满框待命金色）
         [DataSourceProperty]
         public string SegColor
         {
