@@ -1,13 +1,14 @@
 # LivingWorldNpcs — 项目规则
 
-> **会话必读（写任何代码前先做）：完整读一遍 [plans/rules/wheels.md](plans/rules/wheels.md)。**
-> 这是已造轮子速查，避免重复造轮子 / 绕过既有引擎。**不读 wheels.md 不准动手写新功能。**
+> **会话必读（写任何代码前先做）：读一遍 [plans/rules/wheels.md](plans/rules/wheels.md) 索引（~40 行），定位任务命中的域 → 打开 [wheels.d/](plans/rules/wheels.d/) 对应分卷。**
+> 这是已造轮子速查，避免重复造轮子 / 绕过既有引擎。**不查索引不准动手写新功能。**
+> ⚠️ wheels.d/ 分卷按需加载——**只读命中域的卷**，禁止整卷全读（正文共 2200+ 行，全读会烧掉大量上下文）。
 
-详细规则见 `plans/rules/`。**wheels.md 每次会话必读**，其余按需加载：
+详细规则见 `plans/rules/`。**wheels.md 索引每次会话必读**，其余按需加载：
 
 | 规则文件 | 主题 |
 |----------|------|
-| [wheels.md](plans/rules/wheels.md) | 🔴**【必读】已造轮子速查**，加功能前先查再写，命中即复用 |
+| [wheels.md](plans/rules/wheels.md) | 🔴**【必读】已造轮子速查（索引）**：先看索引定位域 → 打开 `wheels.d/` 对应分卷，命中即复用 |
 | [llm-optional.md](plans/rules/llm-optional.md) | **LLM 是可选功能**，IsLLMReady 总闸，所有入口点必须检查 |
 | [worldview.md](plans/rules/worldview.md) | **禁止硬编码日本战国字串**，世界观通过 Settings.Instance 参数化 |
 | [defensive-coding.md](plans/rules/defensive-coding.md) | **LLM JSON 响应必须 null-guard**，JSON key 必须匹配 [JsonProperty] |
@@ -135,11 +136,18 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 
 ### 三锚点编译策略
 
+**🔴 当前版本完全由 `MB2_PATH` 环境变量指向的游戏安装决定**：csproj 编译时读
+`$(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml` 自动检测版本并定义累积宏——
+本机装的是哪个版本，编出来的 DLL 就是哪个版本，**不需要也不允许手动指定**。
+本仓库没有「主环境」概念：换一台电脑（改 `MB2_PATH` 指向另一份游戏），编出来的就是那份游戏的版本。
+查看某台电脑当前版本：`cat "$MB2_PATH/bin/Win64_Shipping_Client/Version.xml"`。
+
 | 机器 | 游戏版本 | 产出 |
 |------|---------|------|
 | 1.2.12 电脑 | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| 1.3.15 电脑（当前主环境） | v1.3.15 | `LivingWorldNpcs.dll`（v1.3.15 版） |
 | Latest 电脑 | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
+
+> 本仓库当前开发机（H: 盘）：**v1.4.7**（Version.xml 实测；1.4.6 与 1.4.7 签名一致，见下方 VersionCompat 章节）。
 
 ### 累积阈值宏体系
 
@@ -176,14 +184,11 @@ csproj 编译时读 `Version.xml` 自动定义累积宏（GE = "Greater or Equal
 ### 发布步骤
 
 ```bash
-# 1.3.15 电脑上（当前主环境）
-dotnet build -c Release   # → v1.3.15 版 DLL
+# 任意一台电脑：版本 = 本机 MB2_PATH 指向的游戏版本（自动检测，无需指定）
+dotnet build -c Release   # → 本机游戏版本的 DLL（版本见 Version.xml）
 
-# 1.2.12 电脑上
-git pull && dotnet build -c Release   # → v1.2.12 版 DLL
-
-# Latest 电脑上
-git pull && dotnet build -c Release   # → Latest 版 DLL
+# 发布多版本：到对应版本的电脑上
+git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 ```
 
 各版本 DLL 分别打包发布。详细策略见 [plans/version-compat-plan.md](plans/version-compat-plan.md)。
@@ -221,10 +226,10 @@ git pull && dotnet build -c Release   # → Latest 版 DLL
 
 ## 工作流约定
 
-**每完成一个功能后，必须主动询问用户：是否要把本次产出提炼成新的轮子并登记进 [wheels.md](plans/rules/wheels.md)。**
+**每完成一个功能后，必须主动询问用户：是否要把本次产出提炼成新的轮子并登记进 [wheels.d/](plans/rules/wheels.d/) 对应域文件（[wheels.md](plans/rules/wheels.md) 是索引）。**
 
 - 判断标准：本次是否产生了可复用的基础设施、新的引擎扩展点、或值得固化的模式。
-- 若用户同意 → 在 wheels.md 增补条目（解决什么问题 + 关键签名 + 调用范例 + 文件路径），与现有格式一致。
+- 若用户同意 → 在 `plans/rules/wheels.d/` 对应域文件增补条目（解决什么问题 + 关键签名 + 调用范例 + 文件路径），与现有格式一致。
 - 即使本次只是用了已有轮子、没产出新轮子，也简短说明一句"无新轮子"，不要跳过这一步。
 
 ## 拆分架构

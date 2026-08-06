@@ -2588,8 +2588,8 @@
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- 设置页标题（Mod 选项列表中的显示名） -->
     <string id="LWN_mcm_display_name" text="Living World NPCs" />
-    <!-- 分组：LLM 配置 -->
-    <string id="LWN_mcm_grp_llm" text="LLM 配置" />
+    <!-- 分组：设置（单组。MCM footer 式标题渲染下多组会错位，见 MCMSettings.cs 注释） -->
+    <string id="LWN_mcm_grp_main" text="设置" />
     <!-- LLM API 地址 -->
     <string id="LWN_mcm_llm_base_url" text="LLM API 地址" />
     <string id="LWN_mcm_llm_base_url_hint" text="LLM API 接口地址，例如 https://api.example.com/v1" />
@@ -2599,13 +2599,9 @@
     <!-- LLM 模型名 -->
     <string id="LWN_mcm_llm_model" text="LLM 模型" />
     <string id="LWN_mcm_llm_model_hint" text="要使用的模型名称，例如 gpt-4o-mini" />
-    <!-- 分组：世界事件 -->
-    <string id="LWN_mcm_grp_world" text="世界事件" />
     <!-- 复仇队开关 -->
     <string id="LWN_mcm_revenge_party" text="派出复仇队" />
     <string id="LWN_mcm_revenge_party_hint" text="开启后，被害一方可能在大地图派出复仇队（及打手队）追击嫌犯。关闭后这个世界不会派人追你。" />
-    <!-- 分组：战斗 -->
-    <string id="LWN_mcm_grp_combat" text="战斗" />
     <!-- 击杀回血开关 -->
     <string id="LWN_mcm_heal_on_kill" text="击杀回血" />
     <string id="LWN_mcm_heal_on_kill_hint" text="开启后，玩家在战场上击杀敌人后恢复部分血量。关闭后不再获得此加成。" />

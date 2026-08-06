@@ -32,19 +32,26 @@ namespace LivingWorldNpcs
         public override string FolderName => "LivingWorldNpcs";
         public override string FormatType => "json2";
 
+        // ── 分组显示说明（踩坑记录，MCM v5.11.4 + 游戏 v1.4.7 实测）──
+        // MCM 设置页所有列表都是 VerticalBottomToTop（从底部往上排）：显示顺序 =
+        // Order 排序结果的倒序；组标题渲染在分隔行下方（footer 式），标题永远紧贴
+        // 下一组的正文。多组 + 单设置组会让标题看起来属于别的组 —— 所以这里全部
+        // 设置归入一个组（LWN_mcm_grp_main），彻底消除标题错位观感。
+        // ⚠️ Order 按「显示倒序」赋值：期望显示 地址→密钥→模型→复仇队→回血，
+        //    Order 就必须反过来（回血=0 … 地址=4），显示时才能恢复正序。
         // ── LLM 配置（透传核心 Settings；IsLLMReady 在调用点实时计算 → 无需重启）──
-        [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 0, RequireRestart = false,
+        [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 4, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_base_url_hint}The LLM API endpoint base URL, e.g. https://api.example.com/v1")]
-        [SettingPropertyGroup("{=LWN_mcm_grp_llm}LLM Configuration")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public string LLMBaseUrl
         {
             get => Settings.Instance.LLMBaseUrl;
             set => Settings.Instance.LLMBaseUrl = value;
         }
 
-        [SettingPropertyText("{=LWN_mcm_llm_api_key}LLM API Key", Order = 1, RequireRestart = false,
+        [SettingPropertyText("{=LWN_mcm_llm_api_key}LLM API Key", Order = 3, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_api_key_hint}Your LLM API key. Saved in the MCM settings file.")]
-        [SettingPropertyGroup("{=LWN_mcm_grp_llm}LLM Configuration")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public string LLMApiKey
         {
             get => Settings.Instance.LLMApiKey;
@@ -53,7 +60,7 @@ namespace LivingWorldNpcs
 
         [SettingPropertyText("{=LWN_mcm_llm_model}LLM Model", Order = 2, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_model_hint}The model name to use, e.g. gpt-4o-mini")]
-        [SettingPropertyGroup("{=LWN_mcm_grp_llm}LLM Configuration")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public string LLMModel
         {
             get => Settings.Instance.LLMModel;
@@ -61,9 +68,9 @@ namespace LivingWorldNpcs
         }
 
         // ── 世界事件（透传核心 Settings）──
-        [SettingPropertyBool("{=LWN_mcm_revenge_party}Send Revenge Party", Order = 3, RequireRestart = false,
+        [SettingPropertyBool("{=LWN_mcm_revenge_party}Send Revenge Party", Order = 1, RequireRestart = false,
             HintText = "{=LWN_mcm_revenge_party_hint}When enabled, the victim party may dispatch revenge parties (and thugs) to hunt down the suspect on the campaign map. Disable to keep the world from sending pursuers.")]
-        [SettingPropertyGroup("{=LWN_mcm_grp_world}World Events")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public bool EnableRevengeParty
         {
             get => Settings.Instance.EnableRevengeParty;
@@ -71,9 +78,9 @@ namespace LivingWorldNpcs
         }
 
         // ── 战斗（透传核心 Settings）──
-        [SettingPropertyBool("{=LWN_mcm_heal_on_kill}Heal on Kill", Order = 4, RequireRestart = false,
+        [SettingPropertyBool("{=LWN_mcm_heal_on_kill}Heal on Kill", Order = 0, RequireRestart = false,
             HintText = "{=LWN_mcm_heal_on_kill_hint}When enabled, the player restores health after killing an enemy on the battlefield. Disable to remove this bonus.")]
-        [SettingPropertyGroup("{=LWN_mcm_grp_combat}Combat")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public bool HealOnKill
         {
             get => Settings.Instance.HealOnKill;

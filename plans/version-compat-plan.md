@@ -30,12 +30,13 @@
 
 ## 三锚点编译工作流
 
-每台电脑装一个目标版本，**同一份源码**，分别在每台电脑上编译，产出多份 DLL，分别打包发布（标注版本号）：
+每台电脑装一个目标版本，**同一份源码**，分别在每台电脑上编译，产出多份 DLL，分别打包发布（标注版本号）。
+**每台电脑的实际版本 = 其 `MB2_PATH` 指向的游戏安装版本（csproj 自动读 Version.xml 检测，无需手动指定）**：
 
 | 机器 | 游戏版本 | 产出 |
 |------|---------|------|
 | A | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| B | v1.3.15（当前主环境） | `LivingWorldNpcs.dll`（v1.3.15 版） |
+| B | v1.4.6+（当前开发机，实测 v1.4.7） | `LivingWorldNpcs.dll`（Latest 版） |
 | C | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
 
 ## 版本检测机制（自动，无需手动干预）
@@ -161,19 +162,14 @@ ilspycmd bin/Win64_Shipping_Client/TaleWorlds.CampaignSystem.dll -t <Type> | gre
 ## 发布步骤
 
 ```bash
-# 在 v1.3.15 电脑上（当前主环境）
+# 任意电脑：版本 = 本机 MB2_PATH 指向的游戏版本（自动检测）
 dotnet build -c Release
-# → LivingWorldNpcs.dll（v1.3.15 版）
+# → 本机游戏版本的 DLL（版本见 Version.xml）
 
-# 在 v1.2.12 电脑上
+# 发布多版本：到对应版本的电脑上
 git pull
 dotnet build -c Release
-# → LivingWorldNpcs.dll（v1.2.12 版）
-
-# 在 v1.4.6+ 电脑上（若需要 Latest 版）
-git pull
-dotnet build -c Release
-# → LivingWorldNpcs.dll（Latest 版）
+# → 该电脑游戏版本的 DLL
 ```
 
 各版本 DLL 分别打包，发布时标注版本号。
