@@ -27,8 +27,8 @@ namespace LivingWorldNpcs
         private float _segFillWidth2;             // 下条填充长度 px（右→左）
         private float _segFillHeight3;            // 左条填充长度 px（下→上）
 
-        /// <summary>进度条单段最大长度 px（与 InteractArea.xml 布局常量一致）。</summary>
-        private const float SegLength = 24f;
+        /// <summary>进度条单段最大长度 px（= 键帽边长 30，与 InteractArea.xml 布局常量一致——贴键帽边缘）。</summary>
+        private const float SegLength = 30f;
 
         /// <summary>键帽底色：Short 纯白（无四边）/ Long 青绿（+四边），按法一眼区分。</summary>
         private const string KeycapColorShort = "#FFFFFFFF";

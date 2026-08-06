@@ -50,21 +50,22 @@
                                         <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@RequiresHold">
                                             <Children>
                                                 <!-- 四边白色底（常显纯白实心，未蓄力时的空白状态）；进度填充 = @SegColor（蓄力中黑→完成金），覆盖白边之上
+                                                     贴键帽边缘（Margin=0、满宽 30）——盖住青绿底纹外缘，青色只露出在框内中心。
                                                      锚定方向构成顺时针连续闭环：上条 Left+Top(左→右) → 右条 Right+Top(上→下) → 下条 Right+Bottom(右→左) → 左条 Left+Bottom(下→上)（左上→右上→右下→左下→左上，段间无跳变）。
                                                      Gauntlet 双轴独立：每条必须同时显式写 HorizontalAlignment + VerticalAlignment（缺一个轴默认 Left/Top，会全部堆到左上角）。
-                                                     填充条 = 琥珀→金（100% 不透明，声明在边之后渲染在上层），长度绑 VM 每帧算好的像素值。 -->
-                                                <!-- 上：左→右 -->
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="3" MarginTop="2" MarginLeft="2" HorizontalAlignment="Left" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@SegFillWidth0" SuggestedHeight="3" MarginTop="2" MarginLeft="2" HorizontalAlignment="Left" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                                                     填充条 = 黑→金（100% 不透明，声明在边之后渲染在上层），长度绑 VM 每帧算好的像素值（满长 30 = 键帽边长）。 -->
+                                                <!-- 上：左→右（贴键帽边缘：盖住青绿底纹外缘，青色只露出在框内中心） -->
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="3" MarginTop="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@SegFillWidth0" SuggestedHeight="3" MarginTop="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
                                                 <!-- 右：上→下 -->
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="26" MarginTop="2" MarginRight="2" HorizontalAlignment="Right" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="@SegFillHeight1" MarginTop="2" MarginRight="2" HorizontalAlignment="Right" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="30" MarginTop="0" MarginRight="0" HorizontalAlignment="Right" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="@SegFillHeight1" MarginTop="0" MarginRight="0" HorizontalAlignment="Right" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
                                                 <!-- 下：右→左 -->
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="26" SuggestedHeight="3" MarginRight="2" MarginBottom="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@SegFillWidth2" SuggestedHeight="3" MarginRight="2" MarginBottom="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="3" MarginRight="0" MarginBottom="0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@SegFillWidth2" SuggestedHeight="3" MarginRight="0" MarginBottom="0" HorizontalAlignment="Right" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
                                                 <!-- 左：下→上 -->
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="26" MarginBottom="2" MarginLeft="2" HorizontalAlignment="Left" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="@SegFillHeight3" MarginBottom="2" MarginLeft="2" HorizontalAlignment="Left" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="30" MarginBottom="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="#FFFFFFFF" />
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="3" SuggestedHeight="@SegFillHeight3" MarginBottom="0" MarginLeft="0" HorizontalAlignment="Left" VerticalAlignment="Bottom" Sprite="BlankWhiteSquare_9" Color="@SegColor" />
                                             </Children>
                                         </Widget>
 
