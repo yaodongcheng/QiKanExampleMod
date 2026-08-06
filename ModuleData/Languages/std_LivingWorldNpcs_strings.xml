@@ -1332,6 +1332,8 @@
     <string id="LWN_crime_alert_continue_escalated" text="Last warning — don't make me call for help!" />
     <!-- 警戒冲突继续聊：未升级 / 已和解 → 还有什么想说的（共用） -->
     <string id="LWN_crime_alert_continue_peaceful" text="Anything else you'd like to say?" />
+    <!-- 案件已结案后的质问兜底：NPC 不再要账，放玩家走 -->
+    <string id="LWN_crime_alert_already_settled" text="...Weren't you already dealt with? Be on your way." />
     <!-- 警戒NPC：玩家动武 → 喊人（三处共用） -->
     <string id="LWN_crime_alert_fight_ack" text="{SPEAKER_PLAYER_ADDR} has gone mad! Call everyone!" />
     <!-- 警戒NPC：玩家没钱还闹事 → 关地牢（两处共用） -->

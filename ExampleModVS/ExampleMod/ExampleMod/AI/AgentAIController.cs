@@ -387,6 +387,43 @@ namespace LivingWorldNpcs
             WorldEventStore.AddOrMerge(pending);
         }
 
+        /// <summary>
+        /// 结案广播清警戒：事件 Resolved（赔钱/坐牢/自首/宽恕等）时调用。
+        /// 清掉场景内所有与该事件受害者相关的警戒条目——否则其他目击者（如旁观群众）
+        /// 带着旧警戒值在结案后升级 Alarmed → 再次质问玩家（"已经付过钱还要道歉"bug）。
+        /// 受害者名来源：AssaultVictimNames（袭击受害者）+ WitnessTestimonies 的 TargetName（失窃/袭击目标）。
+        /// </summary>
+        public void ClearAlertsForEvent(WorldEvent evt)
+        {
+            if (evt == null) return;
+
+            var victimNames = new HashSet<string>();
+            if (evt.AssaultVictimNames != null)
+            {
+                foreach (var n in evt.AssaultVictimNames)
+                    if (!string.IsNullOrEmpty(n)) victimNames.Add(n);
+            }
+            if (evt.WitnessTestimonies != null)
+            {
+                foreach (var t in evt.WitnessTestimonies)
+                {
+                    if (t?.Actions == null) continue;
+                    foreach (var a in t.Actions)
+                        if (!string.IsNullOrEmpty(a?.TargetName)) victimNames.Add(a.TargetName);
+                }
+            }
+            if (victimNames.Count == 0) return;
+
+            int cleared = 0;
+            foreach (var brain in _brains.Values)
+            {
+                if (brain != null && brain.ClearAlertsForVictimNames(victimNames))
+                    cleared++;
+            }
+            if (cleared > 0)
+                DebugLogger.Log($"[WorldEvent] 结案广播清警戒: {evt.EventId} 清除 {cleared} 个 brain 的警戒");
+        }
+
         // --- 外部调用接口 ---
 
         

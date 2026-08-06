@@ -1663,5 +1663,40 @@ namespace LivingWorldNpcs
                 }
             };
         }
+
+        /// <summary>
+        /// 防御兜底：Alert 质问但案件已结案（Resolved）时注入的简短"已了结"对话。
+        /// 玩家已赔钱/坐牢/自首 → NPC 不再质问要账，只说一句"事已了结"放玩家走。
+        /// 正常路径结案广播（WorldEventStore.TransitionStage → AgentAIController.ClearAlertsForEvent）
+        /// 已清掉目击者警戒不会走到这，此处兜底时序竞争（如质问已入队后结案）。
+        /// </summary>
+        public static DialogueInjector.DialogueInjectScript BuildResolvedAlertScript()
+        {
+            return new DialogueInjector.DialogueInjectScript
+            {
+                SkipVanillaOpening = true,
+                EntryNode = "injectedStart",
+                Nodes = new List<DialogueInjector.DialogueNode>
+                {
+                    new DialogueInjector.DialogueNode
+                    {
+                        Id = "injectedStart",
+                        // NPC：事已了结，放人走（不标价、不追责——案件已经结清）
+                        NpcLine = LWNTextHelper.ResolveText("LWN_crime_alert_already_settled", "...Weren't you already dealt with? Be on your way."),
+                        Transitions = new List<DialogueInjector.DialogueTransition>
+                        {
+                            new DialogueInjector.DialogueTransition
+                            {
+                                // 玩家离开（安全离开，无后果）
+                                PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."),
+                                Action = "INTENT:WalkAway",
+                                ActionParam = "safe",
+                                NextNodeOnSuccess = ""
+                            }
+                        }
+                    }
+                }
+            };
+        }
     }
 }
