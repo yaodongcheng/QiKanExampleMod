@@ -99,11 +99,15 @@ namespace LivingWorldNpcs
         private bool _chestLootPending = false;
         private ItemRoster _pendingChestSnapshot = null;
 
-        // 玩家是否在箱子交互范围内（PerformPerformanceHeavyLogic 更新）
-        private bool _nearChest = false;
-
         // 首次靠近箱子时给出提示（KCD2 风格沉浸引导）
         private bool _chestHintShown = false;
+
+        // ── 上下文唯一真相源：当前可用玩法 ID 列表（同时驱动输入响应与 UI 显示，杜绝"显示与响应不同步"）──
+        private readonly List<string> _availableIds = new List<string>();
+        private readonly List<string> _prevAvailableIds = new List<string>();
+        private readonly List<(string action, string interactionId)> _uiItems = new List<(string, string)>();
+        private string _uiTargetName = "";
+        private bool _availableChanged = false;
 
 
         public MissionScreen thisMissionScreen;
@@ -371,62 +375,49 @@ namespace LivingWorldNpcs
             if (Settings.Instance.IsInteractionDisabled())
                 return;
 
-            // 箱子互动优先：靠近箱子时按互动键 → 打开保管箱
-            if (_nearChest && _chestEntity != null && ModInput.Pressed(ModInputAction.Interact))
+            // 遍历当前可用玩法列表：短/长按触发即执行。
+            // 同一物理键多玩法行的互斥由状态机保证（一次按下只短或长其一）；
+            // 不同键（如长按 F 途中点 H）各自命中各自执行，不互相吞事件。
+            foreach (string id in _availableIds)
             {
-                OpenChest();
-                return;
+                if (ModInput.LongFired(id)) ExecuteInteraction(id);
+                if (ModInput.ShortFired(id)) ExecuteInteraction(id);
             }
+        }
 
-            // 如果没有缓存的目标，直接返回，防止空引用
-            if (_lastFocusedAgent == null) return;
-
-            if (ModInput.Pressed(ModInputAction.Interact))
+        /// <summary>玩法 ID → 业务执行（上下文条件已在构建 available 列表时判定，此处只分发）。</summary>
+        private void ExecuteInteraction(string id)
+        {
+            switch (id)
             {
-                // 动物：活的蹲下偷，死的搜刮
-                if (_lastWasAnimal)
-                {
-                    if (_lastAgentWasAlive)
-                    {
-                        if (IsMainAgentCrouching())
-                            TryStealAnimal(_lastFocusedAgent);
-                    }
-                    else
-                        LootAgent(_lastFocusedAgent, isStealing: false);
-                }
-                else if (_lastAgentWasAlive)
-                {
-                    if (_lastNpcIntentType == NpcIntentType.Fighting || _lastNpcIntentType == NpcIntentType.Surrendering)
-                    {
-                        CombatManager.PlayerSurrenderToAgent(_lastFocusedAgent);
-                    }
-                    else if (_lastIsBehind)
-                    {
-                        if (IsMainAgentCrouching())
-                            TryStealFromAgent(_lastFocusedAgent);
-                        else
-                            TryKnockoutAgent(_lastFocusedAgent);
-                    }
-                    else
-                    {
-                        StartVanillaConversation(_lastFocusedAgent);
-                    }
-                }
-                else
-                {
-                    // 尸体/昏迷直接搜刮
-                    LootAgent(_lastFocusedAgent, isStealing: false);
-                }
-            }
-            else if (ModInput.Released(ModInputAction.AltInteract))
-            {
-                if (_lastAgentWasAlive)
-                {
-                    if (_lastNpcIntentType == NpcIntentType.Surrendering)
-                        CombatManager.AcceptAgentSurrender(_lastFocusedAgent);
-                    else if (EnableSmallTalk && _lastNpcIntentType != NpcIntentType.Fighting)
-                        _ = StartFreeConversationFlow(_lastFocusedAgent);
-                }
+                case InteractionIds.Talk:
+                    if (_lastFocusedAgent != null) StartVanillaConversation(_lastFocusedAgent);
+                    break;
+                case InteractionIds.Loot:
+                    if (_lastFocusedAgent != null) LootAgent(_lastFocusedAgent, isStealing: false);
+                    break;
+                case InteractionIds.PlayerSurrender:
+                    if (_lastFocusedAgent != null) CombatManager.PlayerSurrenderToAgent(_lastFocusedAgent);
+                    break;
+                case InteractionIds.Knockout:
+                    if (_lastFocusedAgent != null) TryKnockoutAgent(_lastFocusedAgent);
+                    break;
+                case InteractionIds.Pickpocket:
+                    if (_lastFocusedAgent != null) TryStealFromAgent(_lastFocusedAgent);
+                    break;
+                case InteractionIds.StealAnimal:
+                    if (_lastFocusedAgent != null) TryStealAnimal(_lastFocusedAgent);
+                    break;
+                case InteractionIds.AcceptSurrender:
+                    if (_lastFocusedAgent != null) CombatManager.AcceptAgentSurrender(_lastFocusedAgent);
+                    break;
+                case InteractionIds.Inspect:
+                    // 有 focus 看目标，无 focus 看自己（无目标上下文 available=[Inspect] 且 UI 隐藏，响应照常）
+                    OpenNPCInfoBoard(_lastFocusedAgent != null ? _lastFocusedAgent : Agent.Main);
+                    break;
+                case InteractionIds.Lockpick:
+                    OpenChest();
+                    break;
             }
         }
 
@@ -435,13 +426,15 @@ namespace LivingWorldNpcs
             // A. 获取目标
             Agent currentAgent = GetFocusdAgent();
 
-            // A2. 箱子接近度检测（每 3 帧更新，用于 HUD 提示 + HandleInput 缓存）
+            // A2. 箱子接近度检测（每 3 帧更新，用于上下文判定 + 首次接近提示）
             bool nearChest = _chestEntity != null && Agent.Main != null
                 && Agent.Main.Position.Distance(_chestEntity.GetGlobalFrame().origin) < 3f;
 
-            // B. 排除空目标或玩家自己 → 显示箱子提示或隐藏 UI
+            // B. 排除空目标或玩家自己 → 箱子上下文 / 无目标上下文
             if (currentAgent == null || currentAgent == Mission.Current.MainAgent)
             {
+                _lastFocusedAgent = null;
+
                 if (nearChest)
                 {
                     // 首次靠近 → KCD2 风格沉浸提示（仅一次）
@@ -452,36 +445,38 @@ namespace LivingWorldNpcs
                         var (hint, _, _) = GetChestTexts(chestCtx);
                         InformationManager.DisplayMessage(new InformationMessage(hint, Colors.Yellow));
                     }
-
-                    // 没在看人但在箱子旁边 → 显示箱子提示
-                    _interactVM.IsVisible = true;
-                    IsHandlingInteraction = true;
-                    var actions = new List<(string, ModInputAction?)>();
-                    // 本地化：撬锁交互按钮
-                    actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_lockpick", "Pick Lock"), ModInputAction.Interact));
-                    var chestCtx2 = StealManager.GetCurrentChestContext();
-                    var (_, title2, _) = GetChestTexts(chestCtx2);
-                    _interactVM.UpdateTarget(title2, actions);
-                    _nearChest = true;
-                    _lastFocusedAgent = null;
+                    BuildNoTargetContext(nearChest: true);
                 }
                 else
                 {
-                    _nearChest = false;
+                    BuildNoTargetContext(nearChest: false);
+                }
+
+                // 可用列表同步（退出项 Reset + 同键同按法冲突检查）
+                SyncAvailable();
+
+                // UI 显隐：近箱子 → 显示 Lockpick 按钮；无目标 → 隐藏（available=[Inspect] 保留探查响应）
+                if (nearChest)
+                {
+                    if (!_interactVM.IsVisible || _availableChanged)
+                    {
+                        _interactVM.UpdateTarget(_uiTargetName, _uiItems);
+                        _interactVM.IsVisible = true;
+                        IsHandlingInteraction = true;
+                    }
+                }
+                else
+                {
                     if (_interactVM.IsVisible)
                     {
                         _interactVM.IsVisible = false;
                         IsHandlingInteraction = false;
-                        _lastFocusedAgent = null;
                     }
                 }
                 return;
             }
 
-            // 有聚焦目标时也更新箱子接近状态（供 HandleInput 判断优先级）
-            _nearChest = nearChest;
-
-            // C. 计算状态
+            // C. 计算状态（缓存字段，供 UI 刷新对比）
             bool isAnimal = IsAnimalAgent(currentAgent);
             bool isAlive = currentAgent.IsActive();
             bool isKnockedOut = AgentBrain.IsKnockedOut(currentAgent);
@@ -496,105 +491,30 @@ namespace LivingWorldNpcs
             // 蹲姿对动物也要真实追踪：蹲下才能偷动物，蹲下/站起需触发 UI 刷新
             bool isCrouching = IsMainAgentCrouching();
 
-
-            // E. 判断是否需要刷新 UI (对比上一状态)
-            bool targetChanged = (currentAgent != _lastFocusedAgent);
-            bool lifeStateChanged = (isAlive != _lastAgentWasAlive);
-            bool behindStateChanged = (isBehind != _lastIsBehind);
-            bool crouchStateChanged = (isCrouching != _lastWasCrouching);
-            bool animalStateChanged = (isAnimal != _lastWasAnimal);
-
             // NpcIntent: 从 Brain 读取 NPC 当前意图
             var brain = AgentAIController.GetBrainForAgent(currentAgent);
             var currentNpcIntentType = brain?.CurrentIntent?.Type ?? NpcIntentType.None;
             var prevNpcIntentType = brain?.PreviousIntent?.Type ?? NpcIntentType.None;
             bool intentChanged = (currentNpcIntentType != prevNpcIntentType);
 
-            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || intentChanged || !_interactVM.IsVisible)
+            // D. 上下文唯一真相源：构建可用玩法列表 + UI 显示项 + 目标名
+            BuildAgentContext(currentAgent, isAnimal, isAlive, isKnockedOut, isBehind, isCrouching, currentNpcIntentType);
+
+            // E. 可用列表同步（退出项 Reset + 同键同按法冲突检查）
+            SyncAvailable();
+
+            // F. 判断是否需要刷新 UI（对比上一状态；available 变化 / UI 隐藏也强制刷新）
+            bool targetChanged = (currentAgent != _lastFocusedAgent);
+            bool lifeStateChanged = (isAlive != _lastAgentWasAlive);
+            bool behindStateChanged = (isBehind != _lastIsBehind);
+            bool crouchStateChanged = (isCrouching != _lastWasCrouching);
+            bool animalStateChanged = (isAnimal != _lastWasAnimal);
+
+            if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || intentChanged || _availableChanged || !_interactVM.IsVisible)
             {
+                _interactVM.UpdateTarget(_uiTargetName, _uiItems);
                 _interactVM.IsVisible = true;
                 IsHandlingInteraction = true;
-
-                var actions = new List<(string, ModInputAction?)>();
-
-                if (isAnimal)
-                {
-                    // 动物：活的蹲下可偷（站立时给提示不给按键），死的搜刮
-                    if (isAlive)
-                    {
-                        if (isCrouching)
-                            // 本地化：偷动物交互按钮
-                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_steal_animal", "Steal"), ModInputAction.Interact));
-                       
-                    }
-                    else
-                    {
-                        // 本地化：搜刮交互按钮
-                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"), ModInputAction.Interact));
-                    }
-                }
-                else if (isAlive)
-                {
-                    // 战斗意图优先（正面背后都显示）
-                    if (currentNpcIntentType == NpcIntentType.Fighting || currentNpcIntentType == NpcIntentType.Surrendering)
-                    {
-                        // 本地化：认输交互按钮
-                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_surrender", "Surrender"), ModInputAction.Interact));
-                        if (currentNpcIntentType == NpcIntentType.Surrendering)
-                            // 本地化：接受认输交互按钮
-                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_accept_surrender", "Accept Surrender"), ModInputAction.AltInteract));
-                    }
-                    else if (isBehind)
-                    {
-                        if (isCrouching)
-                            // 本地化：偷窃交互按钮
-                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"), ModInputAction.Interact));
-                        else
-                            // 本地化：击晕交互按钮（附难度预览）
-                            actions.Add((LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)), ModInputAction.Interact));
-                        if (EnableSmallTalk)
-                            // 本地化：闲聊交互按钮
-                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_smalltalk", "Small Talk"), ModInputAction.AltInteract));
-                        // 本地化：探查交互按钮
-                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"), ModInputAction.Inspect));
-                    }
-                    else
-                    {
-                        // 本地化：对话交互按钮
-                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"), ModInputAction.Interact));
-                        if (EnableSmallTalk)
-                            // 本地化：闲聊交互按钮
-                            actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_smalltalk", "Small Talk"), ModInputAction.AltInteract));
-                        // 本地化：探查交互按钮
-                        actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"), ModInputAction.Inspect));
-                    }
-
-                }
-                else
-                {
-                    // 本地化：搜刮交互按钮
-                    actions.Add((LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"), ModInputAction.Interact));
-                }
-
-                // 只有名字不为空才显示，避免报错
-                string name;
-                if (isAnimal)
-                {
-                    // 动物：用 agent.Name（"鹅"/"羊" 等），没有 Character
-                    // 本地化：动物名兜底
-                    name = !string.IsNullOrWhiteSpace(currentAgent.Name) ? currentAgent.Name.Trim() : LWNTextHelper.ResolveText("LWN_ui_name_animal", "animal");
-                }
-                else
-                {
-                    // 本地化：未知目标名兜底
-                    name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : LWNTextHelper.ResolveText("LWN_ui_name_unknown", "Unknown");
-                }
-                if (!currentAgent.IsActive())
-                {
-                    // 本地化：目标死亡/昏迷/重伤状态后缀
-                    name += isAnimal ? LWNTextHelper.ResolveText("LWN_ui_state_dead", "(dead)") : (isKnockedOut ? LWNTextHelper.ResolveText("LWN_ui_state_unconscious", "(unconscious)") : LWNTextHelper.ResolveText("LWN_ui_state_injured", "(badly injured)"));
-                }
-                _interactVM.UpdateTarget(name, actions);
 
                 // 更新对比缓存
                 _lastFocusedAgent = currentAgent;
@@ -606,10 +526,191 @@ namespace LivingWorldNpcs
             }
         }
 
+        // ═══════════════════════ 上下文唯一真相源（available 列表 = 响应与显隐的同源数据） ═══════════════════════
+
+        /// <summary>
+        /// 向当前上下文添加一个玩法行：available（响应）与 UI 项（显示）同源添加。
+        /// 结构性杜绝"加了响应忘加按钮 / 加了按钮忘加响应"——显隐与响应不可能错位。
+        /// </summary>
+        private void AddInteractionRow(string interactionId, string displayText)
+        {
+            _availableIds.Add(interactionId);
+            _uiItems.Add((displayText, interactionId));
+        }
+
+        /// <summary>无目标上下文：近箱子 → [Lockpick]；否则 → [Inspect]（探查键无 focus 看自己，UI 隐藏但响应保留）。</summary>
+        private void BuildNoTargetContext(bool nearChest)
+        {
+            _availableIds.Clear();
+            _uiItems.Clear();
+            _uiTargetName = "";
+
+            if (nearChest)
+            {
+                var chestCtx = StealManager.GetCurrentChestContext();
+                var (_, title, _) = GetChestTexts(chestCtx);
+                _uiTargetName = title;
+                // 本地化：撬锁交互按钮
+                AddInteractionRow(InteractionIds.Lockpick, LWNTextHelper.ResolveText("LWN_ui_interact_lockpick", "Pick Lock"));
+            }
+            else
+            {
+                // 无目标探查：只加响应（UI 隐藏、无按钮），探查键无 focus 看自己
+                _availableIds.Add(InteractionIds.Inspect);
+            }
+        }
+
+        /// <summary>有目标上下文：按 动物/活人/昏迷 与 意图/背后/蹲姿 构建可用玩法列表 + UI 显示项（复刻既有显示条件，行为不变）。</summary>
+        private void BuildAgentContext(Agent currentAgent, bool isAnimal, bool isAlive, bool isKnockedOut, bool isBehind, bool isCrouching, NpcIntentType intent)
+        {
+            _availableIds.Clear();
+            _uiItems.Clear();
+
+            // 目标名（动物用 agent.Name；人类用 Character.Name；死亡/昏迷加状态后缀）
+            string name;
+            if (isAnimal)
+            {
+                // 动物：用 agent.Name（"鹅"/"羊" 等），没有 Character
+                // 本地化：动物名兜底
+                name = !string.IsNullOrWhiteSpace(currentAgent.Name) ? currentAgent.Name.Trim() : LWNTextHelper.ResolveText("LWN_ui_name_animal", "animal");
+            }
+            else
+            {
+                // 本地化：未知目标名兜底
+                name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : LWNTextHelper.ResolveText("LWN_ui_name_unknown", "Unknown");
+            }
+            if (!currentAgent.IsActive())
+            {
+                // 本地化：目标死亡/昏迷/重伤状态后缀
+                name += isAnimal ? LWNTextHelper.ResolveText("LWN_ui_state_dead", "(dead)") : (isKnockedOut ? LWNTextHelper.ResolveText("LWN_ui_state_unconscious", "(unconscious)") : LWNTextHelper.ResolveText("LWN_ui_state_injured", "(badly injured)"));
+            }
+            _uiTargetName = name;
+
+            if (isAnimal)
+            {
+                // 动物：活的蹲下可偷（站立时给提示不给按键），死的搜刮
+                if (isAlive)
+                {
+                    if (isCrouching)
+                    {
+                        // 本地化：偷动物交互按钮
+                        AddInteractionRow(InteractionIds.StealAnimal, LWNTextHelper.ResolveText("LWN_ui_interact_steal_animal", "Steal"));
+                    }
+                    // 动物活但未蹲：无可用玩法（仅显示名字，不响应输入）
+                }
+                else
+                {
+                    // 本地化：搜刮交互按钮
+                    AddInteractionRow(InteractionIds.Loot, LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"));
+                }
+            }
+            else if (isAlive)
+            {
+                // 战斗意图优先（正面背后都显示）
+                if (intent == NpcIntentType.Fighting || intent == NpcIntentType.Surrendering)
+                {
+                    // 本地化：认输交互按钮（玩家认输）
+                    AddInteractionRow(InteractionIds.PlayerSurrender, LWNTextHelper.ResolveText("LWN_ui_interact_surrender", "Surrender"));
+                    if (intent == NpcIntentType.Surrendering)
+                    {
+                        // 本地化：接受认输交互按钮（NPC 投降时玩家才能接受）
+                        AddInteractionRow(InteractionIds.AcceptSurrender, LWNTextHelper.ResolveText("LWN_ui_interact_accept_surrender", "Accept Surrender"));
+                    }
+                }
+                else if (isBehind)
+                {
+                    if (isCrouching)
+                    {
+                        // 本地化：偷窃交互按钮
+                        AddInteractionRow(InteractionIds.Pickpocket, LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"));
+                    }
+                    else
+                    {
+                        // 本地化：击晕交互按钮（附难度预览）
+                        AddInteractionRow(InteractionIds.Knockout, LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)));
+                    }
+                    // 闲聊已屏蔽（EnableSmallTalk=false）：若未来恢复，在此加一行 SmallTalk 玩法行 + ExecuteInteraction 分发即可，无需改键位
+                    // 本地化：探查交互按钮
+                    AddInteractionRow(InteractionIds.Inspect, LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"));
+                }
+                else
+                {
+                    // 本地化：对话交互按钮
+                    AddInteractionRow(InteractionIds.Talk, LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"));
+                    // 本地化：探查交互按钮
+                    AddInteractionRow(InteractionIds.Inspect, LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"));
+                }
+            }
+            else
+            {
+                // 尸体/昏迷直接搜刮
+                // 本地化：搜刮交互按钮
+                AddInteractionRow(InteractionIds.Loot, LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"));
+            }
+        }
+
+        /// <summary>
+        /// 可用列表同步：列表变化时 Reset 退出项的按住状态（长按作废、进度框立即消退、不误触发），
+        /// 并对"同键同按法且同时可用"的玩法行给出冲突警告（玩家自担责，运行时照常执行）。
+        /// </summary>
+        private void SyncAvailable()
+        {
+            _availableChanged = !_availableIds.SequenceEqual(_prevAvailableIds);
+            if (!_availableChanged) return;
+
+            foreach (string id in _prevAvailableIds)
+                if (!_availableIds.Contains(id))
+                    ModInput.Reset(id);
+
+            _prevAvailableIds.Clear();
+            _prevAvailableIds.AddRange(_availableIds);
+
+            LogBindingConflicts();
+        }
+
+        /// <summary>同键同按法且同时可用的玩法行 → 警告（默认配置各玩法上下文互斥，不会触发；玩家改键可能造成）。</summary>
+        private void LogBindingConflicts()
+        {
+            for (int i = 0; i < _availableIds.Count; i++)
+            {
+                for (int j = i + 1; j < _availableIds.Count; j++)
+                {
+                    var a = ModInput.GetBinding(_availableIds[i]);
+                    var b = ModInput.GetBinding(_availableIds[j]);
+                    if (a == null || b == null) continue;
+                    if (a.PressMode == b.PressMode && (a.Keyboard == b.Keyboard || a.Gamepad == b.Gamepad))
+                        DebugLogger.Log($"[ModInput] 键位冲突警告: {a.InteractionId}({a.Keyboard}/{a.Gamepad} {a.PressMode}) 与 {b.InteractionId}({b.Keyboard}/{b.Gamepad} {b.PressMode}) 同键同按法且同时可用，可能双触发");
+                }
+            }
+        }
+
+        /// <summary>模态覆盖（对话/剧情等）期间清空上下文：隐藏 UI + Reset 全部玩法行（不残留进度、不误触发）。</summary>
+        private void ClearInteractionContext()
+        {
+            if (_interactVM.IsVisible) _interactVM.IsVisible = false;
+            IsHandlingInteraction = false;
+            _lastFocusedAgent = null;
+            foreach (string id in _availableIds)
+                ModInput.Reset(id);
+            _availableIds.Clear();
+            _prevAvailableIds.Clear();
+            _uiItems.Clear();
+        }
+
+        /// <summary>配置热重载（控制台 custom.input_reload）后刷新全部按键提示与按法。</summary>
+        public void RefreshAllBindingTexts()
+        {
+            _interactVM?.RefreshGlyphs();
+            _stealBarVM?.RefreshButtonTexts();
+        }
+
 
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
+
+            // ── 输入状态机每帧驱动（先于一切消费点；战斗禁用期间也保持物理键状态一致，帧窗口过期防陈旧触发）──
+            ModInput.Tick(dt);
 
             // ── 输入设备切换追踪：键盘↔手柄 → 刷新全部按键提示字形 ──
             bool usingGamepad = ModInput.UsingGamepad;
@@ -710,16 +811,20 @@ namespace LivingWorldNpcs
             // ----------------- 1. 基础拦截条件 -----------------
             if (Mission.Current.Mode == MissionMode.Conversation || Mission.Current.Mode == MissionMode.Barter)
             {
-                if (_interactVM.IsVisible) _interactVM.IsVisible = false;
+                ClearInteractionContext();
                 return;
             }
 
             var storyengine = StoryEngine.Instance;
-            if (storyengine != null && storyengine.GetIsRunning()) { return; }
+            if (storyengine != null && storyengine.GetIsRunning())
+            {
+                ClearInteractionContext();
+                return;
+            }
 
             if (_dialogueVM.IsVisible)
             {
-                _interactVM.IsVisible = false;
+                ClearInteractionContext();
                 return;
             }
 
@@ -731,16 +836,7 @@ namespace LivingWorldNpcs
                 PerformPerformanceHeavyLogic();
             }
 
-            // ----------------- 3. 探查键全局输入：有focus看NPC，无focus看自己 -----------------
-            if (ModInput.Released(ModInputAction.Inspect))
-            {
-                if (_lastFocusedAgent != null)
-                    OpenNPCInfoBoard(_lastFocusedAgent);
-                else
-                    OpenNPCInfoBoard(Agent.Main);
-            }
-
-            // ----------------- 4. NPC信息面板关闭：ESC / 手柄B -----------------
+            // ----------------- 3. NPC信息面板关闭：ESC / 手柄B -----------------
             if (_npcInfoLayer != null)
             {
                 if (TaleWorlds.InputSystem.Input.IsKeyReleased(InputKey.Escape) ||
@@ -750,9 +846,12 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // ----------------- 4. 高频逻辑：F/G输入监听 (每帧必须执行) -----------------
-            // 只有当 UI 显示时，才允许输入
-            if (_interactVM.IsVisible)
+            // ----------------- 3b. 长按进度框每帧驱动（Long 玩法行 → 4 段像素值；短按项内部跳过） -----------------
+            _interactVM?.UpdateHoldProgresses();
+
+            // ----------------- 4. 高频逻辑：available 列表驱动输入响应（每帧必须执行） -----------------
+            // 门控 = available 非空（IsVisible 只管 UI 显示）：无目标场景 available=[Inspect] 且 UI 隐藏时，探查键依然响应
+            if (_availableIds.Count > 0)
             {
                 HandleInput();
             }
@@ -951,6 +1050,10 @@ namespace LivingWorldNpcs
             // 1. 如果已经打开了，先不要重开
             if (_stealLayer != null) return;
 
+            // 新会话：清空偷窃条玩法的陈旧按下状态（上次收手后未消费的松开沿不得带入本次会话）
+            ModInput.Reset(InteractionIds.StealAttempt);
+            ModInput.Reset(InteractionIds.StealLeave);
+
             // 2. 初始化 VM（扒窃模式：光标-子横条时机判定）
             _stealBarVM = new StealBarVM(StealBarMode.Pickpocket, targetAgent, () => CloseStealInterface());
 
@@ -1014,9 +1117,12 @@ namespace LivingWorldNpcs
 
             vm.UpdateFrame(dt);
 
-            if (ModInput.Pressed(ModInputAction.StealAttempt))
+            // 偷窃条 = 独立输入通道（available 体系之外）：节奏玩法直接监听玩法行按下沿事件
+            // （PressedFired = 按下的那一帧即触发，与旧实现按下沿手感一致——松开触发会晚一次点按发粘；
+            //  配置层 StealAttempt/StealLeave 仍为 Short，内部按需选择通道，plan §4.1 兜底）。
+            if (ModInput.PressedFired(InteractionIds.StealAttempt))
                 vm.ExecuteAttempt();
-            if (ModInput.Pressed(ModInputAction.StealLeave))
+            if (ModInput.PressedFired(InteractionIds.StealLeave))
             {
                 CloseStealInterface();
                 return;
@@ -1098,6 +1204,12 @@ namespace LivingWorldNpcs
         public override void OnMissionScreenFinalize()
         {
             base.OnMissionScreenFinalize();
+
+            // ── 输入状态机兜底清理：Mission 结束全部玩法行复位（防按住状态泄漏到下一个 Mission）──
+            ModInput.ResetAll();
+            _availableIds.Clear();
+            _prevAvailableIds.Clear();
+            _uiItems.Clear();
 
             // ── 大世界遭遇对话安全网：防玩家 ESC 直接退 mission 时标志泄漏 ──
             if (MapEncounterDialogState.Active)
@@ -1368,6 +1480,10 @@ namespace LivingWorldNpcs
             if (_stealLayer != null) return;
             _isStealingAnimal = true;
             _stealAnimalTarget = animal;
+
+            // 新会话：清空偷窃条玩法的陈旧按下状态
+            ModInput.Reset(InteractionIds.StealAttempt);
+            ModInput.Reset(InteractionIds.StealLeave);
 
             // 立即隐藏交互 UI，防止条打开期间被重新聚焦
             _interactVM.IsVisible = false;
@@ -2272,6 +2388,10 @@ namespace LivingWorldNpcs
                 return;
             }
             if (_stealLayer != null) return;
+
+            // 新会话：清空偷窃条玩法的陈旧按下状态
+            ModInput.Reset(InteractionIds.StealAttempt);
+            ModInput.Reset(InteractionIds.StealLeave);
 
             var chestCtx = StealManager.GetCurrentChestContext();
             int pins = StealManager.GetLockpickPinCount(chestCtx);
