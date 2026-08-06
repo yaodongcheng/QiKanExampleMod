@@ -248,12 +248,12 @@ public int LongPressDurationMs { get; set; } = 450;
 **键帽改方块**：`Sprite="BlankWhiteCircle"` → `Sprite="BlankWhiteSquare_9"`（mod 已在用的 sprite），30×30 保持。
 
 **进度条：4 段方框**（用户拍板——12 段小方块方案被否，体验不连续）：
-- 方块键帽内嵌 4 条进度条组成**正方形框**：上/右/下/左各 1 条（厚 3px，距边 2px），围绕居中键名，**顺时针填充（上 → 右 → 下 → 左）**——类似"方块加载框"，KCD 空心圈同款思路（平时淡白空心框提示"这里要按住"，按住时逐边点亮成实框）。
+- 方块键帽内嵌 4 条进度条组成**正方形框**：上/右/下/左各 1 条（厚 3px，**贴键帽边缘**——盖住青绿底纹外缘，青色只露出在框内中心；曾用"距边 2px"内缩导致青绿外圈露出、白框悬空，用户否决 2026-08-06），围绕居中键名，**顺时针填充（上 → 右 → 下 → 左）**——类似"方块加载框"，KCD 空心圈同款思路（平时淡白空心框提示"这里要按住"，按住时逐边点亮成实框）。
 - **实现（零新增依赖，复用血条模式）**：纯 XML Sprite + `SuggestedWidth/@float`、`SuggestedHeight/@float` 绑定——即 `GUI/Prefabs/AgentHudNearby.xml` 血条（`SuggestedWidth="@CurrentHealthWidth"` 每帧改宽度，99-102 行）与警戒眼睛（`SuggestedHeight="@AlertFillHeight"` 竖填充，40-52 行）的现成模式，**该 XML 在 1.2.12 / 1.3.15 / 1.4.6 三版本均已实机运行**。
   - 每条 = 白色进度条底（**常显 100% 纯白 `#FFFFFFFF`**——没蓄力时的空白状态）+ 进度填充（`Color=@SegColor`，**蓄力中黑 `#000000FF` → 蓄力完成金 `#FFE97FFF`**，覆盖白底之上，100% 不透明，声明在底之后渲染在上层）；三色方案（用户拍板 2026-08-06）：①没蓄力=白边 ②蓄力中=黑（进度覆盖到哪哪变黑，顺时针推进）③完成=金（待命"可以松手"）；填充条 `WidthSizePolicy="Fixed"` / `HeightSizePolicy="Fixed"`，尺寸绑 VM 每帧算好的像素值。
   - **键帽底纹按按法区分（用户拍板 2026-08-06）**：**Short 纯白 `#FFFFFFFF`、无四周边；Long 青绿 `#B5F0E8FF` + 白色四周边**——玩家一眼看出交互方式（键帽底色 = 按法标识）；键名黑字 `#000000FF`（白/青绿底上均可读）。
   - 🔴 引擎颜色只支持 `#RRGGBBAA`（8 位 hex）：① 6 位 hex 会在 Alpha 解析时 `Substring` 越界崩溃（实机踩过）；② **顺序是 RRGGBBAA（alpha 在最后两位）**——写黑色若按 HTML 习惯写 `#FF000000`，在引擎里 = **R=255,G=0,B=0,A=00 → 全透明红，永远不可见**（实机踩过：进度黑条绑定版/写死版均无影，白边 `#FFFFFFFF` 恰好两序同义所以正常）；**纯黑必须写 `#000000FF`**。写颜色时按"RR GG BB AA"四段核对 alpha 结尾是 FF。
-  - 条长常量 L=24px，第 i 条填充长度 = `clamp(progress*4 − i, 0, 1) × L`（i=0..3）。
+  - 条长常量 L=30px（= 键帽边长，贴边），第 i 条填充长度 = `clamp(progress*4 − i, 0, 1) × L`（i=0..3）。
   - 锚定方向构成**顺时针连续闭环**（左上→右上→右下→左下→左上，段间无跳变）：上条 `HorizontalAlignment="Left"` + `VerticalAlignment="Top"`（左→右）→ 右条 `HorizontalAlignment="Right"` + `VerticalAlignment="Top"`（上→下）→ 下条 `HorizontalAlignment="Right"` + `VerticalAlignment="Bottom"`（右→左）→ 左条 `HorizontalAlignment="Left"` + `VerticalAlignment="Bottom"`（下→上）。
     - ⚠️ **方向易错点（实机踩过两版）**：① Gauntlet 双轴独立，每条必须同时显式写两个轴（缺一个默认 Left/Top，全堆左上角）；② 右条/左条若用 Bottom/Top 锚定会变成逆时针 + 段间跳变（顶边→右缘↑→底边←→左缘↓），正确应为右条 Top、左条 Bottom。
   - ⚠️ **Gauntlet 双轴独立坑（实机踩过）**：`HorizontalAlignment` 与 `VerticalAlignment` 是独立两轴，每条必须**同时显式写全两个轴**——只写一个轴时未写轴默认 `Left/Top`，右条/下条会全部堆到左上角与左条/上条重叠（表现为"四条边只在左和上"）。
