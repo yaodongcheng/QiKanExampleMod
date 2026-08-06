@@ -2514,6 +2514,11 @@
     <!-- 复仇队开关 -->
     <string id="LWN_mcm_revenge_party" text="Send Revenge Party" />
     <string id="LWN_mcm_revenge_party_hint" text="When enabled, the victim party may dispatch revenge parties (and thugs) to hunt down the suspect on the campaign map. Disable to keep the world from sending pursuers." />
+    <!-- 分组：战斗 -->
+    <string id="LWN_mcm_grp_combat" text="Combat" />
+    <!-- 击杀回血开关 -->
+    <string id="LWN_mcm_heal_on_kill" text="Heal on Kill" />
+    <string id="LWN_mcm_heal_on_kill_hint" text="When enabled, the player restores health after killing an enemy on the battlefield. Disable to remove this bonus." />
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- Sys — 调试 UI / 测试消息 (MySubModule / MyBehavior)         -->
     <!-- ══════════════════════════════════════════════════════ -->

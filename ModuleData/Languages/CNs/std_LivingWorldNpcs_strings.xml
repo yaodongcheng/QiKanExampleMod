@@ -2604,6 +2604,11 @@
     <!-- 复仇队开关 -->
     <string id="LWN_mcm_revenge_party" text="派出复仇队" />
     <string id="LWN_mcm_revenge_party_hint" text="开启后，被害一方可能在大地图派出复仇队（及打手队）追击嫌犯。关闭后这个世界不会派人追你。" />
+    <!-- 分组：战斗 -->
+    <string id="LWN_mcm_grp_combat" text="战斗" />
+    <!-- 击杀回血开关 -->
+    <string id="LWN_mcm_heal_on_kill" text="击杀回血" />
+    <string id="LWN_mcm_heal_on_kill_hint" text="开启后，玩家在战场上击杀敌人后恢复部分血量。关闭后不再获得此加成。" />
 
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- Sys — 调试 UI / 测试消息 (MySubModule / MyBehavior)         -->

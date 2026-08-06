@@ -14,13 +14,15 @@ namespace LivingWorldNpcs
 {
     /// <summary>
     /// 本 mod 的战斗监控总线（Mission 层唯一的伤害/死亡仲裁者）。
-    /// 目前承载四件事，全部围绕 OnAgentHit / OnRegisterBlow / OnAgentRemoved 三个引擎钩子：
+    /// 目前承载五件事，全部围绕 OnAgentHit / OnRegisterBlow / OnAgentRemoved 三个引擎钩子：
     /// ① 尸体登记（可搜刮列表）；
     /// ② 玩家命中记录（战场血条过滤）；
     /// ③ 切磋（Duel）虚拟血量 —— 打不死，虚拟血见底判胜负
     ///   （手法：引擎 HandleBlow 内 OnAgentHit 早于 `if (Health &lt; 1f) Die()`，在这里把血写回就能吃掉致命一击）；
     /// ④ 玩家在定居点里被打倒 → 结束 Mission 并把菜单落到定居点菜单，
     ///   由 <see cref="PlayerDetentionBehavior"/> 在那里给出"赔钱 / 认罚"选项。
+    /// ⑤ 击杀回血 —— 玩家亲手击杀人类/儿童后回复 <see cref="HealValue"/> 血（MCM 选项
+    ///   <see cref="Settings.HealOnKill"/>，默认开启）。
     ///
     /// ④ 不碰玩家的生死判定：不设无敌、不改血量、不做虚拟血。玩家倒地本来就是引擎
     /// （SandboxAgentDecideKilledOrUnconsciousModel）的既有结果，我们只在倒地**之后**接手。
@@ -45,6 +47,14 @@ namespace LivingWorldNpcs
         /// <summary>战斗广播冷却字典：同一对 (attacker.Index, victim.Index) 3秒内最多广播一次</summary>
         private static Dictionary<(int, int), float> _lastEventDamagedBroadcast = new Dictionary<(int, int), float>();
         private const float EVENT_DAMAGED_BROADCAST_COOLDOWN = 3.0f;
+
+        /// <summary>击杀回血回复量（⑤）</summary>
+        private const int HealValue = 20;
+
+        /// <summary>击杀回血判定模式（⑤）：false = 仅主角本人击杀回血（默认，主角的战场特性）；
+        /// true = 放宽为「玩家当前控制的角色」——玩家倒地接管小兵后，替身击杀也回血。
+        /// 内部开关（非 MCM）：内容包 / 调试代码按需设置。</summary>
+        internal static bool HealPlayerControlledAgent = false;
 
         // ══════════════════ 玩家在定居点被打倒 ══════════════════
         /// <summary>已经处理过本次倒地（每个 Mission 只处理一次）</summary>
@@ -107,6 +117,20 @@ namespace LivingWorldNpcs
         {
             base.OnAgentRemoved(affectedAgent, affectedAgentAffectsCalc, affectedAgentState, blow);
 
+            // ⑤ 击杀回血（MCM 选项 Settings.Instance.HealOnKill，默认开启）：
+            //    玩家亲手击杀（或击倒）人类/儿童 → 回复固定血量，不超过血量上限。
+            //    击杀者判定用「身份是主角 Hero」（IsPlayer）而非 IsMainAgent：
+            //    玩家倒地后控制替身时，替身的击杀仍算主角的击杀。
+            if (Settings.Instance.HealOnKill
+                && IsValidKill(affectedAgent, affectedAgentAffectsCalc)
+                && AgentControlHelper.IsHumanOrChild(affectedAgent)
+                && IsPlayer(affectedAgentAffectsCalc))
+            {
+                float newHealth = MathF.Clamp(
+                    affectedAgentAffectsCalc.Health + HealValue, 0, affectedAgentAffectsCalc.HealthLimit);
+                affectedAgentAffectsCalc.Health = newHealth;
+            }
+
             // 死亡的可靠信号：被击杀 / 击晕的人类计入可搜刮尸体列表。
             // 这是主入口（OnAgentHit 里的 Health<=0 只能兜住「最后一击恰好被本逻辑捕获」的情况，
             // 补刀、击晕、流血致死等都会漏）。_deadAgents 是 HashSet，重复 Add 自动去重。
@@ -126,6 +150,23 @@ namespace LivingWorldNpcs
             {
                 OnPlayerKnockedOut();
             }
+        }
+
+        //验证击杀是否有效,并且不是自杀
+        private bool IsValidKill(Agent affectedAgent, Agent affectorAgent)
+        {
+            return affectedAgent != null && affectorAgent != null && affectedAgent != affectorAgent;
+        }
+        //验证击杀者是否为玩家：
+        //  默认（HealPlayerControlledAgent=false）—— 身份判定，CharacterObject.IsPlayerCharacter 引擎原生
+        //    （玩家倒地换人后替身击杀不算，回血是主角的战场特性）；
+        //  HealPlayerControlledAgent=true —— 控制判定，玩家当前操控的角色（IsMainAgent）击杀都回血。
+        private bool IsPlayer(Agent agent)
+        {
+            if (agent == null) return false;
+            return HealPlayerControlledAgent
+                ? agent.IsMainAgent
+                : agent.Character?.IsPlayerCharacter == true;
         }
 
         [CommandLineFunctionality.CommandLineArgumentFunction("print_death", "custom")]
