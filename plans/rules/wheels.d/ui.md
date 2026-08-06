@@ -49,8 +49,13 @@ public bool ShowIntentDebug { get => ...; set { ...; OnPropertyChangedWithValue(
 // ② 构造函数初始化：设 false
 ShowIntentDebug = false;
 
-// ③ UpdateLogic 中设值
-ShowIntentDebug = !Settings.Instance.IsInteractionDisabled() && intent != null;
+// ③ UpdateLogic 中设值（ShowIntentDebug 现已被 MCM 开关 Settings.ShowNpcIntent 门控，默认开）
+//    两个过滤缺一不可：①空闲意图（NpcIntentType.None）不算内容——所有 NPC 默认意图就是 None，
+//    不过滤会导致满屏"空闲"+名字；②文本非空（intent != null 不够，ToString 可能返回空串）
+NpcIntentDebugText = intent != null && intent.Type != NpcIntentType.None ? intent.ToString() : "";
+ShowIntentDebug = Settings.Instance.ShowNpcIntent
+    && !Settings.Instance.IsInteractionDisabled()
+    && !string.IsNullOrWhiteSpace(NpcIntentDebugText);
 ```
 
 ```xml
@@ -94,17 +99,17 @@ custom.agentHud_say <agentStringId> <text>
 
 | 元素 | VM 属性 | 显隐条件 | 持续时间 | FOV |
 |------|---------|----------|----------|:---:|
-| **名字** | `ShowName` + `AgentName` | ShowSpeech \|\| ShowHealth \|\| ShowDamage | 跟随触发元素 | ✅ |
+| **名字** | `ShowName` + `AgentName` | ShowSpeech \|\| ShowHealth \|\| ShowDamage \|\| ShowAlert \|\| ShowIntentDebug（任意元素真的显示；MCM 血条开关关闭时 ShowHealth/ShowDamage 恒 false、意图开关关闭时 ShowIntentDebug 恒 false） | 跟随触发元素 | ✅ |
 | **说话** | `ShowSpeech` + `SpeechText` | `Speak(text)` 调用 | `4s + text.Length * 0.1s` | ✅ |
-| **血条** | `ShowHealth` + `CurrentHealthWidth` | 战斗中/血量<95%/戒备（`CurrentWatchState` Alarmed\|Cautious，敌意驱动，不看持械） | 持续（条件消失隐藏） | ✅ |
-| **伤害** | `ShowDamage` + `DamageText` | 受伤害瞬间 | 2s | ✅ |
-| **警戒** | `ShowAlert` + `AlertFillHeight/EyeBgColor/EyeFillColor` | 警戒值 > 0 | 持续（归零隐藏） | ❌ **豁免** |
+| **血条** | `ShowHealth` + `CurrentHealthWidth` | 战斗中/血量<95%/戒备（`CurrentWatchState` Alarmed，敌意驱动，不看持械）；**MCM 开关 `Settings.ShowAgentHealthBar`（默认开）关闭 → 血条与伤害数字一并隐藏** | 持续（条件消失隐藏） | ✅ |
+| **伤害** | `ShowDamage` + `DamageText` | 受伤害瞬间；随 MCM 血条开关关闭而隐藏 | 2s | ✅ |
+| **警戒** | `ShowAlert` + `AlertFillHeight/EyeBgColor/EyeFillColor` | 警戒值 > 0，**且非战斗状态**（战场 `IsInteractionDisabled()` / 个体 `brain.IsInCombat` 时强置 0） | 持续（归零隐藏） | ❌ **豁免** |
 
-**警戒 FOV 豁免**：警戒眼睛不受 FOV 角度限制——NPC 在玩家身后盯你，更该知道。屏幕外时 clamp 到边缘做方向指示。名字只在 FOV 内显示（ShowAlert 不触发名字），玩家转身面对 NPC 后名字浮现。
+**警戒 FOV 豁免**：警戒眼睛不受 FOV 角度限制——NPC 在玩家身后盯你，更该知道。屏幕外时 clamp 到边缘做方向指示。名字只在 FOV 内显示，玩家转身面对 NPC 后名字浮现。
 
-**名字总领规则**：`ShowName = ShowSpeech || ShowHealth || ShowDamage`（不含 ShowAlert）。
+**名字总领规则**：`ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug`（UpdateLogic 只在 FOV 内执行，故 FOV 外名字不计算、眼睛独立显示）。**MCM 血条开关（`Settings.ShowAgentHealthBar`）关闭时 `ShowHealth`/`ShowDamage` 被强制置 false；意图开关（`Settings.ShowNpcIntent`）关闭时 `ShowIntentDebug` 恒 false**——名字只在说话/警戒/意图真的显示时浮现，不会出现光秃秃的头顶名字。⚠️ **意图项必须三处联动**（否则意图单独显示时 HUD 整个不出现）：①名字总领规则 ②`UpdateFrame` 最终可见性兜底检查（`!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert && !ShowIntentDebug`）③MissionView FOV 外分支 `hud.ShowIntentDebug = false` 防残留。
 
-**容器可见性**：`IsVisible = ShowName || ShowAlert`（警戒眼睛可独立触发容器显示）。
+**警戒抑制**：战场（Mission Mode 在 `DisabledInteractionMissionModes`）与个体战斗中（`brain.IsInCombat` = `IsCurrentOrPending<FightEnemyAction>()`）警戒眼强置 0 不显示——战斗中血条已表达敌意，警戒指示无意义。两者覆盖场景不同：战场=Mission 级（整场抑制），个体战斗=Agent 级（城镇斗殴等可互动场景里打起来的 NPC 只留血条，战斗结束警戒眼恢复）。
 
 
 ---

@@ -2605,6 +2605,12 @@
     <!-- 击杀回血开关 -->
     <string id="LWN_mcm_heal_on_kill" text="击杀回血" />
     <string id="LWN_mcm_heal_on_kill_hint" text="开启后，玩家在战场上击杀敌人后恢复部分血量。关闭后不再获得此加成。" />
+    <!-- NPC 血条显示开关 -->
+    <string id="LWN_mcm_show_health_bar" text="显示NPC血条" />
+    <string id="LWN_mcm_show_health_bar_hint" text="开启后，NPC 头顶显示血条（战斗中/受伤/警戒时）。关闭可减少屏幕上的血条元素——此时 NPC 名字仅在说话或显示警戒时出现。" />
+    <!-- NPC 意图文本显示开关 -->
+    <string id="LWN_mcm_show_npc_intent" text="显示NPC意图" />
+    <string id="LWN_mcm_show_npc_intent_hint" text="开启后，NPC 头顶显示当前 AI 意图（城镇等可互动场景中，战场上不显示）。关闭后隐藏该文本。" />
 
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- Sys — 调试 UI / 测试消息 (MySubModule / MyBehavior)         -->

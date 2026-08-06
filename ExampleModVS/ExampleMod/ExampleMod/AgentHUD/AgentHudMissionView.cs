@@ -150,8 +150,12 @@ namespace LivingWorldNpcs
                 // ── 第五层：警戒值更新（FOV 豁免，距离内始终追踪） ──
                 // 🆕 从 AgentBrain 读警戒值（Phase 1 迁移：状态从 NpcSightSystem → AgentBrain）
                 var brain = AgentAIController.GetBrainForAgent(agent);
-                // 战场下警戒眼睛不显示（alertValue 强置 0）
-                float alertValue = Settings.Instance.IsInteractionDisabled()
+                // 警戒眼不显示（alertValue 强置 0）：
+                //   战场 = IsInteractionDisabled()（Mission 级，Mode 在禁用列表）；
+                //   战斗中 = brain.IsInCombat（个体级）——城镇等可互动场景里打起来的 NPC
+                //   已不需要警戒指示（血条已表达敌意），警戒值等战斗结束再恢复
+                bool inCombat = brain?.IsInCombat ?? false;
+                float alertValue = (Settings.Instance.IsInteractionDisabled() || inCombat)
                     ? 0f
                     : (brain?.AlertValue ?? 0f);
                 hud.AlertValue = alertValue;  // VM 内部 UpdateAlertVisuals 自决 ShowAlert
@@ -213,7 +217,8 @@ namespace LivingWorldNpcs
                     hud.ShowHealth = false;
                     hud.ShowSpeech = false;
                     hud.ShowDamage = false;
-                    hud.ShowName = false;   // 屏幕外不显示名字（防残留）
+                    hud.ShowName = false;           // 屏幕外不显示名字（防残留）
+                    hud.ShowIntentDebug = false;    // 意图文本同样防残留（回 FOV 后由 UpdateLogic 重算）
 
                     if (!hud.ShowAlert)
                     {

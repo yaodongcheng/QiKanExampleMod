@@ -110,7 +110,7 @@ namespace LivingWorldNpcs
             //    戒备信号用 CurrentWatchState（两版 DLL 都有，免去 #if）：
             //    我方战斗系统开打时 CombatManager.ActivateFightMode 设 Alarmed、打完重置 Patrolling；
             //    守卫由原版 AlarmedBehaviorGroup 驱动，起疑 Cautious → 确认威胁 Alarmed。
-            bool isFighting = AgentAIController.GetBrainForAgent(TargetAgent)?.IsCurrentOrPending<FightEnemyAction>() ?? false;
+            bool isFighting = AgentAIController.GetBrainForAgent(TargetAgent)?.IsInCombat ?? false;
             bool isHealthLow = hpPercentage < 0.95f && currentHp > 0;
             bool isAlerted = TargetAgent.CurrentWatchState == Agent.WatchState.Alarmed;
 
@@ -125,20 +125,34 @@ namespace LivingWorldNpcs
                 ShowDamage = ShowDamage && playerAttacked;
             }
 
-            // 🆕 NpcIntent 调试文本（玩家自己/战场中不显示——玩家无 AI Intent）
+            // 🆕 MCM 血条开关（Settings.ShowAgentHealthBar，默认开启）：
+            // 关闭后血条与伤害数字一并隐藏，名字总领规则随之收缩——
+            // 名字只在说话/警戒值真的显示时才出现，不会留下光秃秃的头顶名字
+            if (!Settings.Instance.ShowAgentHealthBar)
+            {
+                ShowHealth = false;
+                ShowDamage = false;
+            }
+
+            // 🆕 NpcIntent 调试文本（玩家自己/战场中不显示——玩家无 AI Intent；MCM 开关 ShowNpcIntent 默认开）
             {
                 var brain = AgentAIController.GetBrainForAgent(TargetAgent);
                 var intent = brain?.CurrentIntent;
-                NpcIntentDebugText = intent?.ToString() ?? "";
-                ShowIntentDebug = !TargetAgent.IsMainAgent
+                // 空闲意图（None）不算"有内容"：啥也没干的 NPC 不显示意图文本（防满屏"空闲"）
+                // 意图文本只在正经状态（战斗/质问/跟随/击晕…）时作为 HUD 附加注释出现
+                bool hasMeaningfulIntent = intent != null && intent.Type != NpcIntentType.None;
+                NpcIntentDebugText = hasMeaningfulIntent ? intent.ToString() : "";
+                ShowIntentDebug = Settings.Instance.ShowNpcIntent
+                    && !TargetAgent.IsMainAgent
                     && !Settings.Instance.IsInteractionDisabled()
-                    && intent != null;
+                    && !string.IsNullOrWhiteSpace(NpcIntentDebugText);
             }
 
-            // 5. 名字总领规则：FOV 内任意元素显示时浮现名字
+            // 5. 名字总领规则：FOV 内任意元素真的显示时浮现名字
+            //    意图（ShowIntentDebug）也在总领规则内——意图单独显示时名字跟随浮现
             //    ShowAlert 在此处生效是因为 UpdateLogic 只在 FOV 内执行——
             //    FOV 外 NPC 的 ShowName 不会被计算，眼睛独立显示但不带名字
-            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert;
+            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug;
 
             // 6. 容器可见性
             //    IsVisible = ShowName || ShowAlert（警戒眼睛可以独立触发容器显示）
@@ -203,7 +217,7 @@ namespace LivingWorldNpcs
 
             // 最终可见性检查
             // 如果没有任何东西要显示且不在警戒状态，关闭 IsVisible
-            if (!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert)
+            if (!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert && !ShowIntentDebug)
             {
                 IsVisible = false;
             }

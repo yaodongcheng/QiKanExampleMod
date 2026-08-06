@@ -85,6 +85,9 @@ namespace LivingWorldNpcs
         public IAtomicAction CurrentAction => _currentAction;
         public bool IsInStayMode => IsCurrentOrPending<StayAction>();
 
+        /// <summary>是否处于战斗行为（当前或排队）——HUD 用它决定战斗中不显示警戒眼</summary>
+        public bool IsInCombat => IsCurrentOrPending<FightEnemyAction>();
+
         /// <summary>
         /// 当前有效行为：_currentAction 不为 null 就返回它，否则 fallback 到队列头。
         /// 代表"NPC 此刻在做什么或马上就要做什么"，用于需要读 Action 属性的场景。
