@@ -162,6 +162,19 @@ namespace LivingWorldNpcs
         public static void RemoveRelatedLines(string label)
         {
             if (Campaign.Current == null) return;
+            // 🔴 防御性守卫：对话激活中禁止物理删除。引擎实现是 _sentences.RemoveAll(...)，
+            // 删除后列表条目前移，ConversationManager 缓存的 SentenceNo 下标全部失效 →
+            // 玩家下一点击执行到错误句子（实测走进原版越狱树 NRE，见 ConversationEntryPatch.cs 第 4 步）。
+            // 正常路径的清理由 EndConversation postfix 在对话结束后统一执行。
+            try
+            {
+                if (Campaign.Current.ConversationManager.IsConversationFlowActive)
+                {
+                    DebugLogger.Log($"[DialogueInjector] 🔴 对话激活中拒绝 RemoveRelatedLines label=\"{label}\"（防 _sentences 下标失效）");
+                    return;
+                }
+            }
+            catch { }
             // BaseLabel 匹配（正常路径）；FileName 前缀匹配（兼容 InjectScriptNoOpening 旧 bug 遗留的 owner，
             // 其 BaseLabel 被错误设为带版本后缀如 "crime_xxx_v0"，导致 BaseLabel == label 永远匹配不上）
             var toRemove = _injectedOwners.Where(o =>

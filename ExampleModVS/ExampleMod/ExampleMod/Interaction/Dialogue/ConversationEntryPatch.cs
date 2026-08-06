@@ -207,6 +207,25 @@ namespace LivingWorldNpcs
                 {
                     if (trigger == DialogueTrigger.Alert)
                     {
+                        // 🔴 防御兜底：案件已结案（Resolved）仍被质问（时序竞争：质问已入队后才结案）。
+                        // 玩家已赔钱/坐牢/自首 → 注入"已了结"对话，不再质问要账（禁止同一案件二次要账）。
+                        // 正常路径结案广播已清警戒，这里兜底 `_pendingTrigger=Alert` 已消费但事件已 Resolved 的情况。
+                        var pendingEvt = AgentAIController.Instance?.PendingWorldEvent;
+                        if (pendingEvt != null && pendingEvt.Stage == EventStage.Resolved)
+                        {
+                            DebugLogger.Log($"[ConvEntry] Alert trigger 但事件 {pendingEvt.EventId} 已 Resolved — 注入已了结对话，不再质问要账。");
+                            var resolvedScript = CrimeDialogueBuilder.BuildResolvedAlertScript();
+                            if (resolvedScript != null)
+                            {
+                                string resolvedTag = $"crime_resolved_{pendingEvt.EventId}";
+                                if (!IsConversationActive())
+                                    DialogueInjector.RemoveRelatedLines(resolvedTag);
+                                DialogueInjector.InjectScript(resolvedScript, resolvedTag);
+                                _lastInjectedEventId = $"resolved_{pendingEvt.EventId}";
+                                _lastInjectedTag = resolvedTag;
+                            }
+                            return;
+                        }
                         // 无 WorldEvent 的纯警戒质问（玩家蹲下/拔刀被看见，但尚未造成犯罪事件）。
                         // BuildAlertInterceptScriptInternal 内部用无 evt 的 PlaceholderResolver 构造器，
                         // {CRIME} 等占位符回落空串，对话仍然正常注入。
@@ -224,7 +243,13 @@ namespace LivingWorldNpcs
                 // ── 4. 无事件 + Normal trigger → 清理上次注入残留，退出 ──
                 if (evt == null && trigger == DialogueTrigger.Normal)
                 {
-                    if (_lastInjectedTag != null)
+                    // 🔴 对话激活中禁止 RemoveRelatedLines：引擎实现是 _sentences.RemoveAll(...)，
+                    // 物理删除列表条目 → 已缓存的 CurOptions.SentenceNo 全部失效 → 玩家下一点击
+                    // 执行到错误句子（实测：Prefix 注入后 Postfix 走本分支删掉刚注入的脚本 →
+                    // 对话走进原版越狱树 → PrisonBreakCampaignBehavior._prisonerHero null NRE 崩溃）。
+                    // Postfix 跑在原版 StartConversation 之后，开场白已播、选项已算好。
+                    // 激活中不删除、不清空标记——残留由 EndConversation postfix 统一清理。
+                    if (_lastInjectedTag != null && !IsConversationActive())
                     {
                         DialogueInjector.RemoveRelatedLines(_lastInjectedTag);
                         _lastInjectedTag = null;
@@ -249,7 +274,15 @@ namespace LivingWorldNpcs
 
                 // ── 6. 统一走 BuildScript ──
                 string tag = evt != null ? $"crime_{evt.EventId}" : $"crime_alert_{partnerKey}";
-                DialogueInjector.RemoveRelatedLines(tag);
+                // 🔴 对话激活中只跳过"删除"，注入（追加）保留：引擎 RemoveAll 会使已缓存的
+                // CurOptions.SentenceNo 失效（见第 4 步崩溃案例），但注入只是 append 到 _sentences
+                // 末尾，不影响已缓存下标。Postfix 的 gateway 补充注入（带开场白 NPC 场景，
+                // 见下方 MissionConversationStartPatch 注释）依赖此注入路径，必须保留。
+                // 激活中残留的旧线（同 tag）由 EndConversation postfix 统一清理。
+                if (!IsConversationActive())
+                {
+                    DialogueInjector.RemoveRelatedLines(tag);
+                }
 
                 DebugLogger.Log($"[ConvEntry] BuildScript: partner={partner?.Name?.ToString() ?? "null"} partnerStringId={partner?.StringId ?? "null"} agent={agent?.Name ?? "null"} agentIdx={agent?.Index.ToString() ?? "null"} character={character?.Name?.ToString() ?? "null"} characterStringId={character?.StringId ?? "null"} evtId={evt?.EventId ?? "null"} trigger={trigger} confrontation={confrontation} triggerAction={triggerAction}");
                 var script = CrimeDialogueBuilder.BuildScript(
@@ -269,6 +302,21 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[ConvEntry] Inject error: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 对话是否处于激活状态（开场白已播、选项已计算、引擎缓存了下标）。
+        /// 激活中禁止 RemoveRelatedLines —— 引擎实现是 _sentences.RemoveAll(...)，
+        /// 物理删除会使已缓存的 CurOptions.SentenceNo 失效（见第 4 步注释的崩溃案例）。
+        /// </summary>
+        private static bool IsConversationActive()
+        {
+            try
+            {
+                return Campaign.Current?.ConversationManager != null
+                    && Campaign.Current.ConversationManager.IsConversationFlowActive;
+            }
+            catch { return false; }
         }
 
         [HarmonyPostfix]

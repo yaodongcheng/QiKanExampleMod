@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
@@ -254,6 +255,12 @@ namespace LivingWorldNpcs
         [JsonIgnore] public bool _coldCaseTailRolled;
         [JsonIgnore] public bool _haggleAttempted;   // 砍价已尝试（同一对话内禁止重试）
         [JsonIgnore] public int _hagglePrice;        // 砍后价（0=还没砍成）。同一对话内重进 restitution_demand 时沿用此价
+
+        /// <summary>本事件是否已提升过犯罪等级（持久化——读档后 Active→Emerging→Active 不会重复叠加）。</summary>
+        public bool CrimeRatingApplied;
+
+        /// <summary>本事件进入 Active 时提升的犯罪值（持久化——读档后 Resolved 仍能正确扣回）。0 = 未提升。</summary>
+        public float CrimeRatingDelta;
 
         // ═══ 辅助方法 ═══
 
@@ -1535,6 +1542,31 @@ namespace LivingWorldNpcs
             evt.Stage = newStage;
             evt._stageEnteredDay = (float)CampaignTime.Now.ToDays;
 
+            // 🔴 犯罪等级联动：嫌犯=玩家的事件首次进入 Active → 提升该阵营的犯罪等级。
+            // 原版 CrimeModel 阈值：30 轻微 / 65 严重 / 60 宣战线；每日自然衰减；
+            // 坐牢洗罪后残留 25（GetCrimeRatingAfterPunishment）。
+            // 量级按案情轻重（参考原版任务失败档位 5~60）：
+            //   仅偷窃 +8 / 仅袭击 +12 / 袭击+失窃 +18 / 兜底 +5
+            // 提升量记录进 evt.CrimeRatingDelta（持久化）——Resolved 时按同额扣回。
+            if (newStage == EventStage.Active && evt.SuspectIsPlayer && !evt.CrimeRatingApplied)
+            {
+                evt.CrimeRatingApplied = true;
+                try
+                {
+                    var faction = evt.TargetSettlement?.MapFaction;
+                    if (faction != null)
+                    {
+                        float delta = evt.TotalStolenCount > 0 && evt.AssaultValue > 0 ? 18f
+                            : evt.AssaultValue > 0 ? 12f
+                            : evt.TotalStolenCount > 0 ? 8f : 5f;
+                        evt.CrimeRatingDelta = delta;
+                        ChangeCrimeRatingAction.Apply(faction, delta);
+                        DebugLogger.Log($"[WorldEvent] {evt.EventId} 犯罪等级 +{delta} ({faction.Name}) → {faction.MainHeroCrimeRating:F0}");
+                    }
+                }
+                catch (Exception ex) { DebugLogger.Log($"[WorldEvent] CrimeRating apply error: {ex.Message}"); }
+            }
+
             // ── 报价台账：阶段升级 = 赔款涨价，留下"是哪一步把价钱抬上去的" ──
             // 只在玩家已经听过价之后才记（RecordPriceEscalation 内部自己守卫）。
             if (newStage > oldStage && newStage <= EventStage.Confrontation)
@@ -1544,6 +1576,18 @@ namespace LivingWorldNpcs
             if (newStage == EventStage.Resolved && evt.SuspectIsPlayer)
             {
                 _villageAlertFlags[evt.TargetSettlementId] = true;
+
+                // 🔴 结案广播清警戒：玩家已赔钱/坐牢/自首/被宽恕 → 清掉场景内所有与本案受害者相关的警戒，
+                // 防止其他目击者（旁观群众）带着旧警戒值在结案后升级 Alarmed → 再次质问玩家要账。
+                // 实测 bug：投降付钱结案后 0.6s，赎金经纪人仍 Cautious→Alarmed → 强制质问"你鬼鬼祟祟干什么"。
+                try { AgentAIController.Instance?.ClearAlertsForEvent(evt); }
+                catch (Exception ex) { DebugLogger.Log($"[WorldEvent] ClearAlertsForEvent error: {ex.Message}"); }
+
+                // 🔴 犯罪等级扣回：玩家已付出代价结案（赔钱/坐牢/自首/被宽恕/被抓/贿赂）→ 扣回本次提升的犯罪值。
+                // 原版机制：私了/受罚即洗罪（ChangeCrimeRatingAction 扣分 + 飘字），案件翻篇不留案底。
+                // ⚠️ 排除未付出代价的结案路径（budget_depleted/timeout/expired——拖到复仇队耗尽/超时不算了结罪行，
+                //    案底保留；否则玩家可零成本拖延洗罪，违反铁律 12 零成本最优解）。
+                RollbackCrimeRating(evt);
             }
 
             // 过夜被发现（Dormant→Emerging）：通知作案玩家——村民知道丢了什么，还不知道是谁
@@ -1567,6 +1611,34 @@ namespace LivingWorldNpcs
 
             DebugLogger.Log($"[WorldEvent] {evt.EventId} Stage: {oldStage} → {newStage}");
             OnEventStageChanged?.Invoke(evt);
+        }
+
+        /// <summary>
+        /// 犯罪等级扣回：玩家已付出代价结案 → 扣回本次提升的犯罪值（案件翻篇不留案底）。
+        /// 原版机制：私了/受罚即洗罪（ChangeCrimeRatingAction 扣分 + 飘字）。
+        /// ⚠️ 排除未付出代价的结案路径（budget_depleted/timeout/expired——拖到复仇队耗尽/超时不算了结罪行，
+        ///    案底保留；否则玩家可零成本拖延洗罪，违反铁律 12 零成本最优解）。
+        /// 幂等：扣回后置 CrimeRatingDelta=0，任何路径都不会重复扣。
+        /// </summary>
+        private static void RollbackCrimeRating(WorldEvent evt)
+        {
+            if (evt == null || evt.CrimeRatingDelta <= 0f) return;
+            if (evt.ResolvedBy == "budget_depleted" || evt.ResolvedBy == "timeout" || evt.ResolvedBy == "expired")
+            {
+                DebugLogger.Log($"[WorldEvent] {evt.EventId} 犯罪等级保留（未付出代价结案 resolvedBy={evt.ResolvedBy}）");
+                return;
+            }
+            try
+            {
+                var faction = evt.TargetSettlement?.MapFaction;
+                if (faction != null)
+                {
+                    ChangeCrimeRatingAction.Apply(faction, -evt.CrimeRatingDelta);
+                    DebugLogger.Log($"[WorldEvent] {evt.EventId} 犯罪等级 -{evt.CrimeRatingDelta} ({faction.Name}) → {faction.MainHeroCrimeRating:F0} (resolvedBy={evt.ResolvedBy})");
+                }
+                evt.CrimeRatingDelta = 0f; // 防重复扣回
+            }
+            catch (Exception ex) { DebugLogger.Log($"[WorldEvent] CrimeRating rollback error: {ex.Message}"); }
         }
 
         /// <summary>
@@ -1840,6 +1912,9 @@ namespace LivingWorldNpcs
             evt.Stage = EventStage.Resolved;
             evt.ResolvedBy = "resolved";
             evt.LastUpdateDay = (float)CampaignTime.Now.ToDays;
+
+            // 🔴 委托结算路径不走 TransitionStage，这里补犯罪等级扣回（玩家嫌疑事件同样洗罪）
+            RollbackCrimeRating(evt);
 
             RemoveEventParty(evt);
             DebugLogger.Log($"[WorldEvent] Resolved: {evt.Type} id={eventId}");

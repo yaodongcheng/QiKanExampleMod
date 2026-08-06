@@ -1123,6 +1123,35 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[Brain-Alert] {Owner.Name}(Idx={Owner.Index}) ClearAllAlerts: 警戒值归零");
         }
 
+        /// <summary>
+        /// 结案广播清警戒：移除所有 TargetName 命中受害者名单的警戒条目（赔钱/坐牢/自首结案时调用）。
+        /// 解决"玩家已付钱，其他目击者仍带着旧警戒值升级 Alarmed → 再次质问要账"问题——
+        /// 只清本案相关条目，不误伤与本案无关的警戒（如玩家还在蹲着带来的 Crouching）。
+        /// 返回是否有条目被清除。
+        /// </summary>
+        public bool ClearAlertsForVictimNames(HashSet<string> victimNames)
+        {
+            if (_alertBreakdown.Count == 0 || victimNames == null || victimNames.Count == 0) return false;
+
+            var keys = _alertBreakdown
+                .Where(kv => !string.IsNullOrEmpty(kv.Value.TargetName) && victimNames.Contains(kv.Value.TargetName))
+                .Select(kv => kv.Key).ToList();
+            if (keys.Count == 0) return false;
+
+            foreach (var key in keys)
+                _alertBreakdown.Remove(key);
+
+            // 全部清空 → 重置阶段追踪，防止 CheckPhaseTransition 误判下降
+            if (_alertBreakdown.Count == 0)
+            {
+                _bubbledPhases.Clear();
+                _pulseSuppressedUntil = 0f;
+                _lastAlertPhase = AlarmPhase.Normal;
+            }
+            DebugLogger.Log($"[Brain-Alert] {Owner.Name}(Idx={Owner.Index}) 结案清除 {keys.Count} 个警戒条目: [{string.Join(", ", keys)}]");
+            return true;
+        }
+
         // ═══════════════════════════════════════════════════════════════
         // 🆕 BubbleSay（Phase 2）
         // ═══════════════════════════════════════════════════════════════
