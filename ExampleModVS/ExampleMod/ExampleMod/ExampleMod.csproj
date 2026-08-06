@@ -251,7 +251,6 @@
     <Compile Include="Combat\CombatManager.cs" />
     <Compile Include="Combat\DuelMissionView.cs" />
     <Compile Include="Combat\DuelVM.cs" />
-    <Compile Include="Combat\KillMissionLogic.cs" />
     <!-- Core -->
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\MyBehavior.cs" />

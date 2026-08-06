@@ -86,8 +86,6 @@ namespace LivingWorldNpcs
         public override void OnMissionBehaviorInitialize(Mission mission)
         {
             base.OnMissionBehaviorInitialize(mission);
-            //吸血功能
-            mission.AddMissionBehavior(new KillMissionLogic());
             //召唤某个英雄并且和他对话功能
             mission.AddMissionBehavior(new HeroSpawnerMissionBehavior());
 

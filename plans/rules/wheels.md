@@ -420,7 +420,7 @@ AgentAIController.Instance.SendEventToAgent(target, "事件名", args);
 
 ```csharp
 // ① 人形判定（AgentControlHelper.IsHumanOrChild — 已接入 AgentAIController/NpcSightSystem/
-//    AttackTriggerMissionLogic/KillMissionLogic/InteractionMissionView/VisualCommands 全部替换点）
+//    AttackTriggerMissionLogic/InteractionMissionView/VisualCommands 全部替换点）
 AgentControlHelper.IsHumanOrChild(agent);
 //    = agent.IsHuman || agent.Monster?.StringId?.Contains("child") == true（null-safe）
 

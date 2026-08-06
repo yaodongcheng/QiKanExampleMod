@@ -69,5 +69,15 @@ namespace LivingWorldNpcs
             get => Settings.Instance.EnableRevengeParty;
             set => Settings.Instance.EnableRevengeParty = value;
         }
+
+        // ── 战斗（透传核心 Settings）──
+        [SettingPropertyBool("{=LWN_mcm_heal_on_kill}Heal on Kill", Order = 4, RequireRestart = false,
+            HintText = "{=LWN_mcm_heal_on_kill_hint}When enabled, the player restores health after killing an enemy on the battlefield. Disable to remove this bonus.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_combat}Combat")]
+        public bool HealOnKill
+        {
+            get => Settings.Instance.HealOnKill;
+            set => Settings.Instance.HealOnKill = value;
+        }
     }
 }

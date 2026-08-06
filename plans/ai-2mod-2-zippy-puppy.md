@@ -57,7 +57,7 @@ ExampleModVS/ExampleMod/ExampleMod/
 │                 StoryDialogVM.cs (对话UI的ViewModel)
 ├── Stealth/      StealManager.cs, StealVM.cs
 ├── Combat/       AttackTriggerMissionLogic.cs, CombatManager.cs,
-│                 KillMissionLogic.cs, DuelMissionView.cs, DuelVM.cs,
+│                 DuelMissionView.cs, DuelVM.cs,
 │                 ArtisanBeerMissionView.cs (战斗中按Q消耗道具回血)
 ├── AI/           AgentAIController.cs, AgentBrain.cs, GroupStageManager.cs,
 │                 Actions/AtomicAction.cs

@@ -58,6 +58,12 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool EnableRevengeParty { get; set; } = true;
 
+        // ── 击杀回血开关（默认关闭，玩家在 MCM 里主动开启后生效）──
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool HealOnKill { get; set; } = false;
+
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
 
