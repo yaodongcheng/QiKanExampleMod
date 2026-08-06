@@ -64,6 +64,18 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool HealOnKill { get; set; } = false;
 
+        // ── NPC 血条显示开关（默认开启，玩家在 MCM 里关闭后 NPC 头顶血条/伤害数字隐藏）──
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowAgentHealthBar { get; set; } = true;
+
+        // ── NPC 意图文本显示开关（默认开启，NPC 头顶显示当前 AI 意图的调试文本）──
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowNpcIntent { get; set; } = true;
+
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
 

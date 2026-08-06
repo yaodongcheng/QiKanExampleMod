@@ -239,6 +239,7 @@ public struct AlertEntry { float Value; string TargetName; string ItemName; }
 brain.AlertValue     // float — 所有条目的总和
 brain.AlertPhase     // AlarmPhase — 由 AlertValue 自动计算
 brain.PrimaryAction  // PlayerActionType? — 当前最高警戒值的来源
+brain.IsInCombat     // bool — 是否处于战斗行为（当前或排队）；HUD 用它做战斗中警戒眼抑制（配合 Mission 级 IsInteractionDisabled）
 
 // ── 脉冲操作 ──
 brain.AddAlert(PlayerActionType.Steal, 2.0f);  // 加值（持续累加或脉冲）

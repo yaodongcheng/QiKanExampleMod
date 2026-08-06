@@ -2515,6 +2515,12 @@
     <!-- 击杀回血开关 -->
     <string id="LWN_mcm_heal_on_kill" text="Heal on Kill" />
     <string id="LWN_mcm_heal_on_kill_hint" text="When enabled, the player restores health after killing an enemy on the battlefield. Disable to remove this bonus." />
+    <!-- NPC 血条显示开关 -->
+    <string id="LWN_mcm_show_health_bar" text="Show NPC Health Bars" />
+    <string id="LWN_mcm_show_health_bar_hint" text="When enabled, health bars appear above NPCs (in combat, when damaged, or when alerted). Disable to reduce on-screen clutter; NPC names then only appear while they speak or show an alert." />
+    <!-- NPC 意图文本显示开关 -->
+    <string id="LWN_mcm_show_npc_intent" text="Show NPC Intent" />
+    <string id="LWN_mcm_show_npc_intent_hint" text="When enabled, the current AI intent is displayed above NPCs (in towns and other interactive scenes, not on the battlefield). Disable to hide this text." />
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- Sys — 调试 UI / 测试消息 (MySubModule / MyBehavior)         -->
     <!-- ══════════════════════════════════════════════════════ -->

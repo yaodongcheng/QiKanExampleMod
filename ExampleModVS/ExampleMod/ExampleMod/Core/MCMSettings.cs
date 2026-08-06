@@ -86,5 +86,27 @@ namespace LivingWorldNpcs
             get => Settings.Instance.HealOnKill;
             set => Settings.Instance.HealOnKill = value;
         }
+
+        // ── 战斗（透传核心 Settings）──
+        // Order = -1：显示顺序为 Order 升序的倒序（见类头部注释），-1 使其排在列表最底部
+        [SettingPropertyBool("{=LWN_mcm_show_health_bar}Show NPC Health Bars", Order = -1, RequireRestart = false,
+            HintText = "{=LWN_mcm_show_health_bar_hint}When enabled, health bars appear above NPCs (in combat, when damaged, or when alerted). Disable to reduce on-screen clutter; NPC names then only appear while they speak or show an alert.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool ShowAgentHealthBar
+        {
+            get => Settings.Instance.ShowAgentHealthBar;
+            set => Settings.Instance.ShowAgentHealthBar = value;
+        }
+
+        // ── 战斗（透传核心 Settings）──
+        // Order = -2：显示在血条开关（-1）之后，列表最底部
+        [SettingPropertyBool("{=LWN_mcm_show_npc_intent}Show NPC Intent", Order = -2, RequireRestart = false,
+            HintText = "{=LWN_mcm_show_npc_intent_hint}When enabled, the current AI intent is displayed above NPCs (in towns and other interactive scenes, not on the battlefield). Disable to hide this text.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool ShowNpcIntent
+        {
+            get => Settings.Instance.ShowNpcIntent;
+            set => Settings.Instance.ShowNpcIntent = value;
+        }
     }
 }
