@@ -650,7 +650,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 可用列表同步：列表变化时 Reset 退出项的按住状态（长按作废、进度框立即消退、不误触发），
+        /// 可用列表同步：列表变化时，退出项与进入项均 Reset（退出 = 长按作废、进度框立即消退、不误触发；
+        /// 进入 = 清零跨上下文继承的按住电荷——状态机按物理键计时，同键挂多行同时计时，
+        /// 若沿用上一上下文的电荷，"对话长按 F → 目标转身 → 击晕行凭空满金、松手直接犯罪"）。
         /// 并对"同键同按法且同时可用"的玩法行给出冲突警告（玩家自担责，运行时照常执行）。
         /// </summary>
         private void SyncAvailable()
@@ -658,8 +660,15 @@ namespace LivingWorldNpcs
             _availableChanged = !_availableIds.SequenceEqual(_prevAvailableIds);
             if (!_availableChanged) return;
 
+            // 退出项 Reset：长按作废、进度框立即消退、不误触发
             foreach (string id in _prevAvailableIds)
                 if (!_availableIds.Contains(id))
+                    ModInput.Reset(id);
+
+            // 进入项也 Reset：上下文切换后，该行在本上下文重新按下才重新蓄力（新电荷从 0 起）。
+            // 不影响"满框待命"（行一直在 available 中时不会走到这里）——只消灭跨上下文继承电荷。
+            foreach (string id in _availableIds)
+                if (!_prevAvailableIds.Contains(id))
                     ModInput.Reset(id);
 
             _prevAvailableIds.Clear();

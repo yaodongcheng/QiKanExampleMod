@@ -15,26 +15,33 @@ namespace LivingWorldNpcs
         private string _keyText;
         private readonly string _interactionId;   // 玩法 ID（null/空 = 无键位提示）
         private bool _requiresHold;               // 该玩法配置 PressMode == Long → 显示四边进度
+        private string _keycapColor = KeycapColorShort;   // 键帽底色：Short 纯白 / Long 青绿（按法一眼区分，用户拍板 2026-08-06）。
+                                                          // ⚠️ 必须字段级初始化合法颜色串——Gauntlet 绑定建立时读取初始值
+                                                          // 推给 Color 属性，null/空串会让引擎 ConvertStringToColor 崩溃
         private string _segColor = SegColorCharging;   // 四边进度颜色：蓄力中黑 / 蓄力完成金。
-                                                   // ⚠️ 必须字段级初始化合法颜色串——Gauntlet 绑定建立时读取初始值
-                                                   // 推给 Color 属性，null/空串会让引擎 ConvertStringToColor 崩溃
-                                                   // （Short 项进度条不可见但绑定仍存在，更要保证非 null）
+                                                       // ⚠️ 必须字段级初始化合法颜色串——Gauntlet 绑定建立时读取初始值
+                                                       // 推给 Color 属性，null/空串会让引擎 ConvertStringToColor 崩溃
+                                                       // （Short 项进度条不可见但绑定仍存在，更要保证非 null）
         private float _segFillWidth0;             // 上条填充长度 px（左→右）
-        private float _segFillHeight1;            // 右条填充长度 px（下→上）
+        private float _segFillHeight1;            // 右条填充长度 px（上→下）
         private float _segFillWidth2;             // 下条填充长度 px（右→左）
-        private float _segFillHeight3;            // 左条填充长度 px（上→下）
+        private float _segFillHeight3;            // 左条填充长度 px（下→上）
 
         /// <summary>进度条单段最大长度 px（与 InteractArea.xml 布局常量一致）。</summary>
         private const float SegLength = 24f;
 
+        /// <summary>键帽底色：Short 纯白（无四边）/ Long 青绿（+四边），按法一眼区分。</summary>
+        private const string KeycapColorShort = "#FFFFFFFF";
+        private const string KeycapColorLong = "#B5F0E8FF";
+
         /// <summary>
         /// 四边进度条颜色——只有三种状态色（用户拍板 2026-08-06）：
-        /// ① 没蓄力 = 底纹色不动（青绿底纹 `#B5F0E8FF` 见 InteractArea.xml，四边未被覆盖时露出它）；
-        /// ② 蓄力中 = 黑色（进度覆盖到哪，哪里就黑，顺时针推进）；
+        /// ① 没蓄力 = 白色（InteractArea.xml 四条白底条常显 100% 不透明，即空白框状态）；
+        /// ② 蓄力中 = 黑色（进度覆盖到哪，哪里就黑，顺时针推进，盖在白边之上）；
         /// ③ 蓄力完成 = 金色（满框待命，"可以松手"）。
         /// ⚠️ 引擎 ConvertStringToColor 只支持 #RRGGBBAA（8 位 hex）——6 位 hex 会 Substring 越界崩溃（实机踩过），必须补齐 FF。
         /// </summary>
-        private const string SegColorCharging = "#FF000000";
+        private const string SegColorCharging = "#000000FF";
         private const string SegColorReady = "#FFE97FFF";
 
         // 构造函数：键位/按法由 ModInput.GetBinding(interactionId) 从配置取（UI 与输入共享同一份配置）
@@ -65,7 +72,9 @@ namespace LivingWorldNpcs
             }
             KeyText = ModInput.Glyph(_interactionId);
             RequiresHold = binding.PressMode == ModInputPressMode.Long;
-            // 初始：黑色进度（未蓄力时长 0 不可见，露出青绿底纹；满框待命由 UpdateHoldProgress 切金）
+            // 键帽底色随按法：Short 纯白（无四边）/ Long 青绿（+四边）——按法一眼区分
+            KeycapColor = RequiresHold ? KeycapColorLong : KeycapColorShort;
+            // 初始：黑色进度（未蓄力时长 0 不可见，露出白色底条；满框待命由 UpdateHoldProgress 切金）
             if (RequiresHold) SegColor = SegColorCharging;
         }
 
@@ -131,6 +140,21 @@ namespace LivingWorldNpcs
             }
         }
 
+        // 对应 XML 中的 Color="@KeycapColor"（键帽底色：Short 纯白 / Long 青绿）
+        [DataSourceProperty]
+        public string KeycapColor
+        {
+            get => _keycapColor;
+            set
+            {
+                if (value != _keycapColor)
+                {
+                    _keycapColor = value;
+                    OnPropertyChangedWithValue(value, nameof(KeycapColor));
+                }
+            }
+        }
+
         // 对应 XML 中的 Color="@SegColor"（4 条填充条共用：蓄力琥珀 / 满框待命金色）
         [DataSourceProperty]
         public string SegColor
@@ -154,7 +178,7 @@ namespace LivingWorldNpcs
             set { if (value != _segFillWidth0) { _segFillWidth0 = value; OnPropertyChangedWithValue(value, nameof(SegFillWidth0)); } }
         }
 
-        // 对应 XML 中的 SuggestedHeight="@SegFillHeight1"（右条，下→上）
+        // 对应 XML 中的 SuggestedHeight="@SegFillHeight1"（右条，上→下）
         [DataSourceProperty]
         public float SegFillHeight1
         {
@@ -170,7 +194,7 @@ namespace LivingWorldNpcs
             set { if (value != _segFillWidth2) { _segFillWidth2 = value; OnPropertyChangedWithValue(value, nameof(SegFillWidth2)); } }
         }
 
-        // 对应 XML 中的 SuggestedHeight="@SegFillHeight3"（左条，上→下）
+        // 对应 XML 中的 SuggestedHeight="@SegFillHeight3"（左条，下→上）
         [DataSourceProperty]
         public float SegFillHeight3
         {
