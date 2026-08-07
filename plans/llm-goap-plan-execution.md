@@ -18,13 +18,13 @@
 ### 0.1 玩法 case（16 个，成败树状）
 
 > case 格式 = **玩家原始输入（标题带意图标注：`case A（DISTRACT｜引开=随从，偷=玩家）`）→ 并联执行人（每个 actor 一块）→ 块内串联树 → 附 Plan JSON 执行视图**（✓ 成功 / ✗ 失败分支；框架标注 GATE/GOAL/MAINTAIN/TRIGGER、原子行为、§引用挂在节点上）。镜像 §5.4 并行执行模型：actor 间并行、actor 内串行。**三层呈现，无中间层**：意图标注 = 一行索引（链接 §2.1 意图词表 / §2.3 GoalTemplate / §7.1 R5 白名单）；JSON = 权威视图（信息全量——语义解析的正式载体是 `intent` 字段，§2.2）；树 = 人读逻辑视图。
-> **书写纪律①接近步必须显式**：凡 say_to/近距离互动的步骤，树里必须写 move_to + face（§5.1 s1→s2 范本）；接近步已内置于原子行为的（lead 节奏 / steal_attempt 绕背 / FightEnemyAction 追击）不展开。**书写纪律②成败分支齐全**：每个有成败的节点必须写 ✓/✗ 两个出口（含空情报、摸空、拒绝、打不过等失败态），玩家体验列完整呈现两种结局。**书写纪律③驱动模式必须标注**：每块块头标注驱动模式——① 执行者（随从）= **计划驱动**：PlanExecutor 按步骤+预案+安全网确定性驱动（actor 内串行推进）；② 玩家 = **自主驱动**：真人自由行动，计划只给窗口/信号提示（何时动手），**绝不驱动玩家**——玩家块永远"玩家侧自理"；③ 对抗方/被叫方（ReactiveAgent）= **事件驱动**：触发词→人格演算→反应动作（§6），计划不驱动其行动。读者看块头即知该块靠什么推进。**书写纪律④报告方式必须标注**：每个报告/信号节点必须指明报告方式（§5.4）——**当面报告**（随从可脱身：走回玩家身边 3m 内冒泡转述，用"回来报告/返回当面"字样）或**密信报告**（随从脱不开身或紧急中断：望风/盯梢/折返警报，用"秘密消息/即时信号"字样）。两种方式并存的计划必须逐分支分别标注，禁止笼统写"报告"。
+> **书写纪律①接近步必须显式**：凡 say_to/近距离互动的步骤，树里必须写 move_to（§5.1 s1→s2 范本）；**face 已内置 say_to（§4 先 face），不单独成步**，与"接近步已内置于原子行为的（lead 节奏 / steal_attempt 绕背 / FightEnemyAction 追击 / say_to 的 face）不展开"同类。**🔴 树让步原则**：JSON 是执行器实际读取的权威视图，树是给人读的逻辑视图——树节点与 JSON 步骤 id 一一对应，凡树与 JSON 不一致，一律树让步。**书写纪律②成败分支齐全**：每个有成败的节点必须写 ✓/✗ 两个出口（含空情报、摸空、拒绝、打不过等失败态），玩家体验列完整呈现两种结局。**书写纪律③驱动模式必须标注**：每块块头标注驱动模式——① 执行者（随从）= **计划驱动**：PlanExecutor 按步骤+预案+安全网确定性驱动（actor 内串行推进）；② 玩家 = **自主驱动**：真人自由行动，计划只给窗口/信号提示（何时动手），**绝不驱动玩家**——玩家块永远"玩家侧自理"；③ 对抗方/被叫方（ReactiveAgent）= **事件驱动**：触发词→人格演算→反应动作（§6），计划不驱动其行动。读者看块头即知该块靠什么推进。**书写纪律④报告方式必须标注**：每个报告/信号节点必须指明报告方式（§5.4）——**当面报告**（随从可脱身：走回玩家身边 3m 内冒泡转述，用"回来报告/返回当面"字样）或**密信报告**（随从脱不开身或紧急中断：望风/盯梢/折返警报，用"秘密消息/即时信号"字样）。两种方式并存的计划必须逐分支分别标注，禁止笼统写"报告"。
 
 **A. "我想偷那箱子，有人盯着怎么办？"（DISTRACT｜引开=随从，偷=玩家）**
 **执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
-走到守卫面前（move_to + face）→ 诱骗跟走（say_to，引开手段）
-├─ [守卫跟走]（following(guard, self) 成立）→ 走向引开点（move_to lure_spot——动态选点（§5.0）：距 watch_point > 10m（窗口前提）+ 距 player > 阈值（不把守卫引到玩家埋伏点）+ 半径内无其他目击者 + navmesh 可达，**不硬编码 door**；守卫 follow_for_a_bit 跟随随从移动，随从不动守卫就不走；GATE：distance(guard, lure_spot) < 4 提前推进）→ 窗口达成（GATE：distance(guard, watch_point) > 10 sustained 5s）→ 跳 s7"动手"（密信报告玩家——行动窗口提示，玩家趁窗口偷）✓
+走到守卫面前（move_to）→ 诱骗跟走（say_to，引开手段）
+├─ [守卫跟走]（following(guard, self) 成立）→ 走向引开点（move_to lure_spot——动态选点（§5.0）：距 watch_point > 10m（窗口前提）+ 距 player > 阈值（不把守卫引到玩家埋伏点）+ 半径内无其他目击者 + navmesh 可达，**不硬编码 door**；守卫 follow_for_a_bit 跟随随从移动，随从不动守卫就不走；GATE：distance(guard, lure_spot) < 4 提前推进）→ 途中安抚（say_to s5，"别让人等急了"）→ 窗口达成（GATE：distance(guard, watch_point) > 10 sustained 5s）→ 跳 s7"动手"（密信报告玩家——行动窗口提示，玩家趁窗口偷）✓
 │   └─ [守卫折返]（GATE：following(guard, self) 由成立变不成立——跟走有时限，left_post_seconds 到点折返，区分"从未跟随"见 §5.1 折返检测语义）→ s8"快收手！"（密信报告玩家）✗
 └─ [守卫拒绝]（following(guard, self) 从未成立）→ 再哄一次 → 放弃（当面报告玩家"他不上当"——守卫拒绝后随从可脱身，走回玩家身边 3m 内冒泡转述）✗
 ```
@@ -95,11 +95,12 @@
 > - `fallbacks` 分区（三个预案，只被跳转进入、不参与游标推进）：fb1 再哄（s10/s11）、fb2 放弃（s12）、fb3 折返警报（s8/s9）
 > - contingencies `when`（异常/跳转条件）：警戒 Alarmed → @abort（异常收尾）；折返 `following==false && was==true`（曾成立变不成立）→ 跳 s8（密信警报 + s9 失败收尾）；combat → @abort（安全网中止）
 > - `goal`（GOAL）：守卫离岗 10m sustained = 计划成功（失败无独立字段——意外全走 contingencies，计划性失败走超时/fallbacks 的 end_plan）
+> - s1→s2（接近步）：s1 仅 move_to——face 由 s2 say_to 执行期内置（§4），树不写"+ face"（内置不展开，纪律①）；s5（途中安抚）："别让人等急了"的 say_to，挂在树"走向引开点"与"窗口达成"之间
 
 **B. "请村长到我面前来"（BRING）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
-找到村长（move_to + face）→ 开口邀请（say_to）
+找到村长（move_to）→ 开口邀请（say_to）
 ├─ 跟来（被叫方 ReactiveAgent 决策通过，见目标方块）→ 到达（GOAL：distance(chief, player) < 3 && !moving(chief)）
 │   ├─ 村长开口后玩家搭话 → 对话结束 → 随从回位 ✓
 │   └─ 玩家不理 → 村长到点回岗 → 随从回位 ✓
@@ -144,7 +145,9 @@
 **执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 等窗口（GATE：!seeing(any, self) sustained 3s——唯一安全条件，判定对象=随从本人）
-├─ 窗口成立 → steal_attempt（蹲下+Intent 显示 → 公式判定）→ 物品到手 → 密信报告玩家"得手了，撤！"（即时信号）→ 撤出 → 当面移交玩家（铁律 4 守恒）✓
+├─ 窗口成立 → steal_attempt（蹲下+Intent 显示 → 公式判定）
+│   ├─ 物品到手 → 密信报告玩家"得手了，撤！"（即时信号）→ 撤出 → 当面移交玩家（铁律 4 守恒）✓
+│   ├─ 摸空（空箱子）→ 当面报告玩家"没摸到" ✗
 │   └─ 守卫脱身回看 → 窗口自动翻转 → steal_attempt 中断 → 密信报告玩家"守卫回看了，我停一下"（即时信号）
 │       ├─ 玩家重新缠住 → 窗口恢复 → 回到等窗口重试
 │       └─ 窗口迟迟不恢复 → 放弃 → 当面报告玩家"没机会了" ✗
@@ -317,7 +320,7 @@
 **G. "把那个守卫引到巷子里打晕"（KNOCKOUT）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
-走到守卫面前（move_to + face）→ 诱骗跟走（say_to，同 case A）→ 引到隐蔽点（move_to hidden_spot——动态选点（§5.0）：周围无人 + 无视野 + navmesh 可达）
+走到守卫面前（move_to）→ 诱骗跟走（say_to，同 case A）→ 引到隐蔽点（move_to hidden_spot——动态选点（§5.0）：周围无人 + 无视野 + navmesh 可达）
 ├─ 窗口成立（GATE：!seeing(any, self) sustained 3s）→ 绕背 knockout（复用击晕轮子）→ 目标击晕（GOAL）→ 收手 → 回来报告"放倒了"（当面）✓
 │   └─ 中途折返（同 case A 预案：密信报告玩家"他折回去了" → 中止）✗
 └─ 隐蔽点不可达 → 当面报告"没地方下手" ✗
@@ -381,7 +384,7 @@
 **I. "告诉他，我在老地方等他"（DELIVER）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
-走到目标面前（move_to + face）→ 传话（say_to）
+走到目标面前（move_to）→ 传话（say_to）
 ├─ 目标听到（GOAL）→ 回来报告"说好了"（当面报告玩家）✓
 └─ 目标不理/赶走 → 回来如实转述"他让我滚开"（当面，台词与原话一致）✗
 ```
@@ -441,7 +444,7 @@
 **K. "把那个醉鬼从我身边赶走"（DRIVE_AWAY）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
-走到醉鬼面前（move_to + face）→ say_to 恐吓（剧本骨架，§6.4）
+走到醉鬼面前（move_to）→ say_to 恐吓（剧本骨架，§6.4）
 ├─ 被吓走（目标方反应，见目标方块）→ GOAL 达成 → 收手回位 ✓
 └─ 反抗（目标方反应，见目标方块）→ R5 目标敌对 → 密信报告玩家"他急眼了"（紧急中断）→ Aborted / 演变成战斗 ✗（铁律 12：恐吓失败有代价）
 ```
@@ -498,7 +501,7 @@
 **M. "干掉他"（ATTACK）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
-走到目标面前（move_to + face——接近到交战距离是前置步骤，玩家可尾随验证；FightEnemyAction 的追击只在开战后生效）→ order_attack（战斗风格：不留恋）
+走到目标面前（move_to——接近到交战距离是前置步骤，玩家可尾随验证；FightEnemyAction 的追击只在开战后生效）→ order_attack（战斗风格：不留恋）
 ├─ 目标被击倒（GOAL）→ 收手 → 返回当面报告"办完了" ✓
 └─ 打不过/目标逃跑 → 脱战 → 密信报告"他太硬，我先撤了"（紧急中断，随从离玩家可能远）✗（R1 受伤 → 护主/撤退）
 ```
@@ -534,7 +537,7 @@
 ↓
 循环段（until 清空）：query 下一个敌人 → 击杀
 ├─ 清空 zone（GOAL）→ 收手 → 返回当面报告战果 ✓
-└─ 目标逃出 zone / 随从受伤（R1）→ 循环中止 → 返回当面报告战果"跑了几个"（R1 先护主再回报）✗
+└─ 目标逃出 zone（区内已无敌人 = loop.until 达成，部分达成）→ 循环自然结束 → 返回当面报告战果（"跑了几个"由收尾动态统计）✓ ／ 随从受伤（R1 安全网）→ 中止 → 护主先于回报 ✗
 （恐慌传播链：see_ally_killed → flee/attack/call_guards 链式传播）
 ```
 
@@ -551,9 +554,6 @@
     ],
     "until": {"type": "count", "of": {"query": "all_in(zone)"}, "op": "=", "value": 0}
   },
-  "fallbacks": [
-    [{"id": "n3", "action": "end_plan", "result": "fail", "report": "跑了几个，剩下的还在村里", "timeout_s": 3}]
-  ],
   "contingencies": [
     {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
   ]
@@ -966,6 +966,7 @@ public class SceneSnapshot
 | 7 | 预期战斗声明与 abort 兜底边界 | O 声明了预期 combat（参战）后再写 `combat(self)→abort` 会在参战中误杀计划——需裁决：参战期间 abort 兜底是否保留（或改用 `combat(第三方, self)` 谓词）；§7.1 只写了豁免方向 | O |
 | 8 | R2 对战斗意图豁免 | ATTACK 目标死亡 = GOAL，非"参与者死亡 → Aborted" | M |
 | 9 | 掉线预案只保一次 | E/F 的 one_shot 掉线再缠，恢复后再次掉线无保护 | E/F |
+| 10 | 收尾报告机制 | N/P 的 loop 正常退出后没有报告步骤（loop 与 steps 共存语法未定义）；L/N/P 的报告/战果文本是运行时内容（PlaceholderResolver 已有先例，§5.5 `{AMOUNT}`）——需定：loop 后接报告步骤 + report 占位符支持 | L/N/P |
 
 ### 5.1 Plan JSON（LLM 输出，封闭语法）
 
@@ -984,7 +985,7 @@ public class SceneSnapshot
 玩家密谋："我想偷那箱子，有人盯着怎么办？" → LLM 一次调用（意图 DISTRACT + 计划 JSON + 守卫反应计划）→ 玩家批准"同意，去办" → 执行开始（全程零 LLM）：
 
 t=0    执行器启动；随从 NpcIntent = ExecutingCommand(引开)
-t=0~3  随从走向守卫（move_to + face）——玩家看到随从真走过去
+t=0~3  随从走向守卫（move_to）——玩家看到随从真走过去
 t=3    随从冒泡"那边有人找你…"           ← 台词来源①：plan step.text
        执行器广播 asked_to_follow(guard)（s2 带 ask: follow）→ 守卫反应表演算（duty 高 → 跟走权重下调）← 来源②：ReactiveAgent
 t=5    守卫跟走 → 随从带路走向 lure_spot；随从状态行"正在把守卫引开"（执行摘要）
