@@ -18,32 +18,32 @@
 ### 0.1 玩法 case（16 个，成败树状）
 
 > case 格式 = **玩家原始输入 → 语义解析（意图 + 目标/锚点 + 分工）→ 并联执行人（每个 actor 一块）→ 块内串联树**（✓ 成功 / ✗ 失败分支；框架标注 GATE/GOAL/MAINTAIN/TRIGGER、原子行为、§引用挂在节点上）。镜像 §5.4 并行执行模型：actor 间并行、actor 内串行。
-> **书写纪律①接近步必须显式**：凡 say_to/近距离互动的步骤，树里必须写 move_to + face（§5.1 s1→s2 范本）；接近步已内置于原子行为的（lead 节奏 / steal_attempt 绕背 / FightEnemyAction 追击）不展开。**书写纪律②成败分支齐全**：每个有成败的节点必须写 ✓/✗ 两个出口（含空情报、摸空、拒绝、打不过等失败态），玩家体验列完整呈现两种结局。
+> **书写纪律①接近步必须显式**：凡 say_to/近距离互动的步骤，树里必须写 move_to + face（§5.1 s1→s2 范本）；接近步已内置于原子行为的（lead 节奏 / steal_attempt 绕背 / FightEnemyAction 追击）不展开。**书写纪律②成败分支齐全**：每个有成败的节点必须写 ✓/✗ 两个出口（含空情报、摸空、拒绝、打不过等失败态），玩家体验列完整呈现两种结局。**书写纪律③驱动模式必须标注**：每块块头标注驱动模式——① 执行者（随从）= **计划驱动**：PlanExecutor 按步骤+预案+安全网确定性驱动（actor 内串行推进）；② 玩家 = **自主驱动**：真人自由行动，计划只给窗口/信号提示（何时动手），**绝不驱动玩家**——玩家块永远"玩家侧自理"；③ 对抗方/被叫方（ReactiveAgent）= **事件驱动**：触发词→人格演算→反应动作（§6），计划不驱动其行动。读者看块头即知该块靠什么推进。**书写纪律④报告方式必须标注**：每个报告/信号节点必须指明报告方式（§5.4）——**当面报告**（随从可脱身：走回玩家身边 3m 内冒泡转述，用"回来报告/返回当面"字样）或**密信报告**（随从脱不开身或紧急中断：望风/盯梢/折返警报，用"秘密消息/即时信号"字样）。两种方式并存的计划必须逐分支分别标注，禁止笼统写"报告"。
 
 **A. "我想偷那箱子，有人盯着怎么办？"**
 **语义解析**：DISTRACT ｜ target=守卫（=目标物潜在目击者集合成员，§2.2）｜ watch_point=箱子位置 ｜ 分工：引开=随从，偷=玩家
-**执行人① 随从（actor=self）· 串联**
+**执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到守卫面前（move_to + face）→ 诱骗跟走（say_to，引开手段）
-├─ [守卫跟走] → 窗口达成（GATE：distance(guard, watch_point) > 10 sustained 5s）→ 跳 s7"动手" ✓
-│   └─ [守卫折返]（GATE：following(guard, self) == false）→ s8"快收手！"（秘密消息·双轨特殊档）✗
-└─ [守卫拒绝] → 再哄一次 → 放弃报告"他不上当" ✗
+├─ [守卫跟走]（following(guard, self) 成立）→ 走向引开点（move_to lure_spot——动态选点（§5.0）：距 watch_point > 10m（窗口前提）+ 距 player > 阈值（不把守卫引到玩家埋伏点）+ 半径内无其他目击者 + navmesh 可达，**不硬编码 door**；守卫 follow_for_a_bit 跟随随从移动，随从不动守卫就不走；GATE：distance(guard, lure_spot) < 4 提前推进）→ 窗口达成（GATE：distance(guard, watch_point) > 10 sustained 5s）→ 跳 s7"动手"（密信报告玩家——行动窗口提示，玩家趁窗口偷）✓
+│   └─ [守卫折返]（GATE：following(guard, self) 由成立变不成立——跟走有时限，left_post_seconds 到点折返，区分"从未跟随"见 §5.1 折返检测语义）→ s8"快收手！"（密信报告玩家）✗
+└─ [守卫拒绝]（following(guard, self) 从未成立）→ 再哄一次 → 放弃（当面报告玩家"他不上当"——守卫拒绝后随从可脱身，走回玩家身边 3m 内冒泡转述）✗
 ```
-**执行人② 玩家（actor=player）· 玩家侧自理（计划不驱动）**
+**执行人② 玩家（actor=player · 自主驱动）· 玩家侧自理（计划不驱动）**
 ```text
 纠缠守卫（对话/战斗）
-└─ 收 s7 → 偷箱子 ✓ ／ 收 s8 → 收手 ✗
+└─ 收到"动手！"密信 → 偷箱子 ✓ ／ 收到"快收手！"密信 → 收手 ✗
 ```
 **目标方 守卫（ReactiveAgent · 事件驱动）**——非执行人：计划不驱动其行动，反应由人格演算决定（§6）
 ```text
 [触发：spoken_to / asked_to_follow]（人格：duty/gullibility 演算）
-├─ 跟走（follow_for_a_bit）→ 离岗超时（left_post_seconds）→ 折返回岗（return_post）
+├─ 跟走（follow_for_a_bit——跟随随从走向引开点，跟随时长/折返时机按 duty 运行时定，§6.4）→ 离岗超时（left_post_seconds）→ 折返回岗（return_post）
 └─ 拒绝（duty 高）→ 不动 + 拒绝台词
 ```
 
 **B. "请村长到我面前来"**
 **语义解析**：BRING ｜ target=村长（occupation 匹配，同名消歧按位置，§2.2）｜ meet_point=玩家旁 ｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 找到村长（move_to）→ 开口邀请（say_to）
 ├─ 跟来（目标方 ReactiveAgent 决策：duty/social 通过）→ 到达（GOAL：distance < 3 && !moving）
@@ -55,21 +55,21 @@
 
 **C. "我引开守卫，你去偷那箱子"**
 **语义解析**：STEAL ｜ target=箱子 ｜ 分工：偷=随从（actor=self），引开=玩家（actor=player）｜ 窗口=`!seeing(any, self)`
-**执行人① 随从（actor=self）· 串联**
+**执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 等窗口（GATE：!seeing(any, self) sustained——唯一安全条件，判定对象=随从本人）
 ├─ 窗口成立 → steal_attempt（蹲下+Intent 显示 → 公式判定）→ 物品移交（铁律 4 守恒）✓
 │   └─ 守卫脱身回看 → 窗口自动翻转 → 预案 ✗
 └─ 窗口超时（一直有人看）→ 放弃报告 ✗
 ```
-**执行人② 玩家（actor=player）· 玩家侧自理（计划不驱动）**
+**执行人② 玩家（actor=player · 自主驱动）· 玩家侧自理（计划不驱动）**
 ```text
 纠缠守卫 —— 守卫被缠住 = 窗口成立的前提（玩家侧）
 ```
 
 **D. "去把那个守卫的钱袋摸来"**
 **语义解析**：STEAL（target=人）｜ target=守卫 ｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 绕背定位（steal_attempt 人变体：盲区几何搜索 + 无目击者视野；站位不可行 → 诚实报告）
 ├─ 窗口成立（GATE：!seeing(any, self) sustained）→ 扒窃结算（公式）
@@ -80,7 +80,7 @@
 
 **E. "缠住掌柜，我去翻那保管箱"**
 **语义解析**：ENGAGE ｜ target=掌柜 ｜ 目标=`!seeing(掌柜, player) sustained && !moving(掌柜)`（GOAL+MAINTAIN）｜ 分工：缠=随从，翻=玩家
-**执行人① 随从（actor=self）· 串联**
+**执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 站位（保管箱对侧，掌柜背对箱子）→ 循环说话（face 纪律自动面向随从）
 ├─ 达成（GOAL + MAINTAIN）→ 保持缠住
@@ -88,14 +88,14 @@
 │   └─ 掉线（掌柜转头/走开）→ 预案（再缠/提醒）✗
 └─ 站位失败 → 报告"没位置" ✗
 ```
-**执行人② 玩家（actor=player）· 玩家侧自理（计划不驱动）**
+**执行人② 玩家（actor=player · 自主驱动）· 玩家侧自理（计划不驱动）**
 ```text
 翻保管箱 —— 掌柜维度由执行人①保证；其他目击者走既有犯罪系统
 ```
 
 **F. "闹出点动静，把人都引过来"**
 **语义解析**：COMMOTION ｜ 目标=`seeing(all, companion)`（GOAL+MAINTAIN，被看到是目的）｜ 分工：闹=随从，下手=玩家
-**执行人① 随从（actor=self）· 串联**
+**执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 闹动作（砸酒桶/喊叫）→ 复用 WitnessCrime 围观聚集（§10，criminal=随从纯围观无犯罪副作用）
 ├─ 达成 → 保持 + 信号"都看过来了，快动手！"
@@ -103,14 +103,14 @@
 │   └─ 视线散开 → 预案（再闹/提醒玩家收手）✗
 └─ 引不过来 → 报告"没人看热闹" ✗
 ```
-**执行人② 玩家（actor=player）· 玩家侧自理（计划不驱动）**
+**执行人② 玩家（actor=player · 自主驱动）· 玩家侧自理（计划不驱动）**
 ```text
 收信号 → 下手 ✓
 ```
 
 **G. "把那个守卫引到巷子里打晕"**
 **语义解析**：KNOCKOUT ｜ target=守卫 ｜ 隐蔽点=`hidden_spot` 动态查询（mission 无"巷子"标记，§5.0）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到守卫面前（move_to + face）→ 诱骗跟走（say_to，同 case A）→ 引到隐蔽点（hidden_spot：周围无人 + 无视野）
 ├─ 窗口成立（GATE：!seeing(any, self) sustained）→ 绕背 knockout（复用击晕轮子）→ 目标击晕（GOAL）✓
@@ -119,25 +119,25 @@
 ```
 
 **H. "帮我望风，来人了叫我"**
-**语义解析**：LOOKOUT ｜ watch_zone=望风点 ｜ 执行=随从 ｜ 报告=即时消息（双轨特殊档）
-**执行人 随从（actor=self）· 串联**
+**语义解析**：LOOKOUT ｜ watch_zone=望风点 ｜ 执行=随从 ｜ 报告=密信
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到望风点（move_to）→ 望风（MAINTAIN：保持望风位置，R6 豁免——无 success，玩家 R3 叫停收尾）
-└─ TRIGGER 上升沿（in_zone(any, watch_zone)）→ "有人来了！" → 继续望风（可重复）
+└─ TRIGGER 上升沿（in_zone(any, watch_zone)）→ "有人来了！"（密信报告玩家——望风留守脱不开身）→ 继续望风（可重复）
 ```
 
 **I. "告诉他，我在老地方等他"**
 **语义解析**：DELIVER ｜ target=目标（occupation 匹配）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 传话（move → say_to）
-├─ 目标听到（GOAL）→ 回来报告"说好了"（返回当面说·默认档）✓
+├─ 目标听到（GOAL）→ 回来报告"说好了"（当面报告玩家）✓
 └─ 目标不理/赶走 → 回来如实转述"他让我滚开"（台词一致）✗
 ```
 
 **J. "带我去河边"**
 **语义解析**：GUIDE ｜ destination=河边（空间条件）｜ 目标=`distance(player, destination) < 3`（GOAL，目标参与者=玩家）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 lead（§4：节奏同步在 `lead` 原子行为内部——前进 + 定期回望，不自顾自走）
 ├─ 玩家跟上 → 到达目的地（GOAL）✓
@@ -147,7 +147,7 @@ lead（§4：节奏同步在 `lead` 原子行为内部——前进 + 定期回�
 
 **K. "把那个醉鬼从我身边赶走"**
 **语义解析**：DRIVE_AWAY ｜ target=醉鬼 ｜ 目标=`distance(target, player) > 10`（GOAL）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到醉鬼面前（move_to + face）→ say_to 恐吓 → 目标方反应（剧本骨架 + 人格演算，§6.4）
 ├─ 走开（gullibility 高/temper 低）→ GOAL 达成 ✓
@@ -156,7 +156,7 @@ lead（§4：节奏同步在 `lead` 原子行为内部——前进 + 定期回�
 
 **L. "你在这等我，去那边看看有什么"**
 **语义解析**：SCOUT ｜ 目标点=那边（空间条件）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 侦察往返（move_to 目标点 → 观察 → 返回）
 ├─ 有发现 → 回来报告"巷子里有伙人" ✓
@@ -165,7 +165,7 @@ lead（§4：节奏同步在 `lead` 原子行为内部——前进 + 定期回�
 
 **M. "干掉他"**
 **语义解析**：ATTACK ｜ target=目标 ｜ 目标=`dead(target)`（GOAL）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 order_attack（战斗风格：不留恋）
 ├─ 目标被击倒（GOAL）→ 收手 ✓
@@ -174,7 +174,7 @@ order_attack（战斗风格：不留恋）
 
 **N. "把全村人都杀了"**
 **语义解析**：ANNIHILATE ｜ zone=全村 ｜ 目标=`all_in(zone)` 敌对 = 0（GOAL）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 循环段（until 清空）：query 下一个敌人 → 击杀
 ├─ 清空 zone（GOAL）✓
@@ -184,7 +184,7 @@ order_attack（战斗风格：不留恋）
 
 **O. "他要是敢还手，你就上"**
 **语义解析**：GUARD + 条件参战 ｜ 目标=护卫对象 ｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 压阵（MAINTAIN：戒备跟随）
 ├─ 目标不动手 → 持续压阵 ✓
@@ -193,7 +193,7 @@ order_attack（战斗风格：不留恋）
 
 **P. "打晕门口那两个守卫"**
 **语义解析**：批量 KNOCKOUT ｜ target=`all_in(门口)` ｜ 目标=全部击晕（GOAL）｜ 执行=随从
-**执行人 随从（actor=self）· 串联**
+**执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 循环段：query 下一个守卫 → 绕背击晕
 ├─ 全部击晕（GOAL）→ 收手 ✓
@@ -205,7 +205,7 @@ order_attack（战斗风格：不留恋）
 | # | 意外 | 机制 | 期望 |
 |---|------|------|------|
 | Y1 | 守卫中途折返 | ReactiveAgent 职责记忆（duty 参数） | 玩家窗口内偷完 / 失败收尾 |
-| Y2 | 村长拒绝来 | 拒绝型反应（duty 高走不开 / social 低不给面子，§6.4 人格演算） | 拒绝台词 → 随从返回玩家旁 → 当面冒泡转述"村长说忙，不来"（报告双轨·默认档，§5.4）→ 计划收尾 |
+| Y2 | 村长拒绝来 | 拒绝型反应（duty 高走不开 / social 低不给面子，§6.4 人格演算） | 拒绝台词 → 随从返回玩家旁 → 当面冒泡转述"村长说忙，不来"（当面报告，§5.4）→ 计划收尾 |
 | Y3 | 守卫和玩家打起来 | Guardrail R5 + Replan | 中止报告 → 战斗结束可 replan |
 | Y4 | 偷到一半玩家被打 | Guardrail R1 Paused + 护主 | 随从护主 → 打完恢复计划 |
 
@@ -365,7 +365,7 @@ CommandIntent { type, target, who_does, params }
   "target": "guard",            // 角色表引用（歧义 → questions 澄清）
   "who_does": "companion",      // 谁执行主动作：companion / player
   "watch_point": "chest",       // 意图相关锚点（DISTRACT 的看守点 = 目标物"箱子"的位置，快照 ObjectInfo.Position 解析；BRING 的集合点 = 玩家位置）
-  "destination": "door",        // 可选：引到哪 / 带到哪
+  "destination": "lure_spot",   // 可选：引开点/去向（DISTRACT 默认 = lure_spot 动态搜索（§5.0）：距 watch_point 远 + 距玩家远 + 人少 + 可达，**不硬编码语义锚点**；LLM 可给叙事方向，实际落点仍由运行时按条件搜）
   "params": { "distance": 10 }
 }
 ```
@@ -484,7 +484,7 @@ public class SceneSnapshot
 | 条件跳转 | `contingencies`（when → then） | v1 | A（折返预案）/O（条件参战） |
 | 提前推进 | 步骤内 `until` | v1 | A（守卫到位即走） |
 | **循环段** | `loop { steps, until }`——段内步骤循环执行，每轮求值 until | **v2** | N（清剿）/P（批量击晕） |
-| **动态目标引用** | query refs：`nearest_enemy(self)` / `all_in(zone)` / **`hidden_spot(near, min_dist)`**（运行时空间搜索：navmesh 可达 + 半径内无 agent + 不被 any eligible 目击者看见——case G"引到巷子"的落地：**mission 没有"巷子"标记**，自然语言位置描述 → 空间条件，由运行时找点）——目标引用运行时求值，不只快照实体 | **v2** | N/P、G |
+| **动态目标引用** | query refs：`nearest_enemy(self)` / `all_in(zone)` / **`hidden_spot(near, min_dist)`** / **`lure_spot(watch_point, min_dist)`**（运行时空间搜索——case G"引到巷子"的落地：**mission 没有"巷子"标记**，自然语言位置描述 → 空间条件，由运行时找点。`hidden_spot` = 隐蔽点：navmesh 可达 + 半径内无 agent + 不被 any eligible 目击者看见；**`lure_spot` = 引开点**：hidden_spot 条件 + 距 watch_point > min_dist（窗口前提，杜绝"引开点不够远→窗口永不成立"）+ 距 player > 阈值（不把守卫引到玩家埋伏点）——case A 引开点动态搜索，**不硬编码 door**（无 door 锚点时可用；玩家恰在 door 旁时选点绕开））。**query refs 求值一次后注册为具名引用，后续步骤/谓词可复用**（如 until 引用本步的 lure_spot 落点） | **v2** | N/P、G、A |
 | **步骤级 actor 寻址** | `actor: c1 / "all"`——**计划属于小队**：步骤可分配给任何执行者；单随从 = 全部缺省 self | **v1** | Q1-Q6（一带多） |
 | **actor 维度并行** | 步骤按 actor 分组，各 actor **并行推进**（actor 内串行）；跨 actor 同步用步骤前置条件 `when`（等世界状态），**不提供步骤间 wait_for 依赖** | **v1** | Q2/Q4/C |
 | 相对站位 | 复用 `FollowAgentAction` 极坐标参数（radius+angleOffset） | v1 | Q2/Q6 |
@@ -507,14 +507,14 @@ public class SceneSnapshot
 
 ```json
 {
-  "summary": "我去和守卫说门外有人找，把他引到门口，你趁机动。",
+  "summary": "我把守卫引到远处清净处拖住，你趁机动。",
   "steps": [
     {"id": "s1", "action": "move_to",  "target": "guard", "within": 2.0, "timeout_s": 15},
-    {"id": "s2", "action": "say_to",   "target": "guard", "text": "门外有人找你，好像有急事", "timeout_s": 8},
+    {"id": "s2", "action": "say_to",   "target": "guard", "text": "那边有人找你，说是有急事，让我来叫你", "timeout_s": 8},
     {"id": "s3", "action": "wait",     "seconds": 2, "timeout_s": 5},
-    {"id": "s4", "action": "move_to",  "target": "door", "within": 1.0,
-        "until": {"type": "distance", "a": "guard", "b": "door", "op": "<", "value": 4}, "timeout_s": 25},
-    {"id": "s5", "action": "say_to",   "target": "guard", "text": "就在门外等着呢，别让人等急了", "timeout_s": 6},
+    {"id": "s4", "action": "move_to",  "target": {"query": "lure_spot(watch_point, 12)"}, "within": 1.0,
+        "until": {"type": "distance", "a": "guard", "b": "lure_spot", "op": "<", "value": 4}, "timeout_s": 25},
+    {"id": "s5", "action": "say_to",   "target": "guard", "text": "就在那边等着呢，别让人等急了", "timeout_s": 6},
     {"id": "s6", "action": "wait",     "seconds": 10,
         "until": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5}, "timeout_s": 25},
     {"id": "s7", "action": "signal_player", "text": "我把他引到门口了，快动手！", "timeout_s": 3},
@@ -533,7 +533,7 @@ public class SceneSnapshot
 ```
 
 > **示例计划的条件角色**（每个条件的位置即角色，§5.2 条件角色）：
-> - s4 `until`（GATE）：守卫到门口（< 4m）→ 本步提前完成，去门外招呼
+> - s4 `until`（GATE）：守卫到引开点（< 4m，`lure_spot` = s4 query 求值后的具名落点）→ 本步提前完成，拖住守卫
 > - s6 `until`（GATE）：守卫离岗（> 10m sustained 5s）→ 窗口成立，推进到 s7 发动手信号
 > - contingencies `when`（GATE）：警戒 Alarmed → @abort（FAIL 收尾）；离岗 10m sustained → 跳 s7；折返 `following==false` → 跳 s8（秘密消息警报 + s9 失败收尾）；combat → @abort
 > - `success_condition`（GOAL）：守卫离岗 10m sustained = 计划成功
@@ -620,7 +620,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 ```
 
 - **until 提前推进**、**超时**（`timeout_s`，缺省 → `@abort_gracefully`）、**收尾统一三路一函数**（成功/失败/中断一个收口，发信号 → 清队列 → 释放控制 → 恢复默认行为）——沿用 `StealBarVM.CloseReason` 单一收口纪律。
-- **报告双轨制**（收尾时如何告知玩家）：①**默认 = 返回当面说**——随从 abort 后恢复默认跟随（`FollowAgentAction(Leader)`，AgentBrain.cs:859-871）物理走回玩家身边，到达 ~3m 内触发一句冒泡报告（say_to + face，**转述实情原话**，情报有来源）再彻底收尾。适用：BRING 拒绝（Y2）/ DELIVER 传话 / SCOUT 侦察回报 / FETCH 取物失败等"随从本就该回到玩家身边"的收尾；②**特殊 = 即时秘密消息**（signal_player）——随从脱不开身的场景：LOOKOUT 望风 / SHADOW 盯梢（随从回不来，须留守）+ 紧急中断（R2 目标死 / R5 开战，随从可能在战斗或离玩家远）。**选型规则：收尾时随从按默认行为本来就回得来 → 当面说；回不来或紧急 → 即时消息。**
+- **报告方式：当面 / 密信，二选一**（收尾时如何告知玩家）：①**当面报告**（默认）——随从 abort 后恢复默认跟随（`FollowAgentAction(Leader)`，AgentBrain.cs:859-871）物理走回玩家身边，到达 ~3m 内触发一句冒泡报告（say_to + face，**转述实情原话**，情报有来源）再彻底收尾。适用：BRING 拒绝（Y2）/ DELIVER 传话 / SCOUT 侦察回报 / FETCH 取物失败等"随从本就该回到玩家身边"的收尾；②**密信报告**（signal_player）——随从脱不开身的场景：LOOKOUT 望风 / SHADOW 盯梢（随从回不来，须留守）+ 紧急中断（R2 目标死 / R5 开战，随从可能在战斗或离玩家远）。**选型规则：收尾时随从按默认行为本来就回得来 → 当面报告；回不来或紧急 → 密信报告。**
 - **玩家干预**：执行中玩家对新 NPC 按 Plot → 旧计划作废（玩家最高优先级，自由感铁律）。
 - **与既有警戒系统交接**：玩家真实犯罪 → 既有 `WitnessCrime` 流程接管（`StealManager.cs:474` 等），执行器监听 `combat`/`alarm` 谓词自动收尾
 - **执行状态反馈（KCD2 反馈明确原则）**：执行器每步维护一句可读摘要（"正在引开守卫"/"正在前往村长家"），暴露给 `AgentHudVM` 随从状态行——玩家随时知道随从在忙什么
@@ -829,7 +829,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 **M1 — 骨架 + case A 执行链（无 LLM）**
 - Plot 交互四处接线 + 密谋面板壳 + 文本输入
 - `SceneSnapshot` + 角色表 + `PlanGrammar`（词表/验证器）+ `PlanExecutor`（含状态机骨架）+ `order_execute_plan` 事件
-- **硬编码示例计划**跑通 case A 全链路：move_to→say_to→wait→move_to(door)→signal_player
+- **硬编码示例计划**跑通 case A 全链路：move_to→say_to→wait→move_to(lure_spot)→signal_player
 - PlanExecutor **多 actor 游标** + 步骤 actor 寻址（一带多 v1 就位：Q1/Q2/Q6 硬编码验证）
 - GuardrailEngine R1-R7 规则框架就位（先硬编码触发点，验证暂停/恢复/中止路径）
 
