@@ -46,6 +46,10 @@ PlanCommandFlow.Start(companion);       // 需 Settings.Instance.IsLLMReady（�
 - **文本本地化**：执行器/安全网玩家可见消息走 `PlanTexts` 静态表（`LWN_plan_abort_*` 等）；LLM 生成的 signal 文本豁免（运行时内容直接显示）。
 - **R4 豁免**：当前步骤 target/zone 距玩家 >30m = 独行任务不叫回（按世界状态判定，不用意图白名单）。
 - **Replan**：`PlanReplan.Wire(executor, originalCommand, intentType)` 在 order_execute_plan 分支自动接；成功产出新计划才消耗额度（≤2）。
+- **validator 谎报硬检查**：条件等待步骤（带 until 的 wait/move_to）的 `on_timeout`/`on_event[].then` 指向 `result="success"` 的 end_plan = 谎报 → 忽略跳转（按 @abort_gracefully）；纯时长等待（wait seconds）不查。**py `validate_plan`（test_llm_plan.py）与 C# `PlanValidator` 双份同步**。
+- **validator 谓词词表检查**：until/when/goal/triggers/contingencies/loop.until 的 type ∈ 16 个谓词；**事件词（approach_by/player_suspicious_near 等）写进条件 = 未定义谓词**（v10 实测）→ 丢弃条件；`then` 字段必须是字符串（模型会把 trigger 对象结构写进 contingency → 类型报错不崩溃）。
+- **保持型纪律（prompt 纪律 15）**：望风/压阵/缠住/盯梢 = 无限 wait（省略 seconds/until/timeout）+ triggers，**不设 goal、不 success 收尾**（"等 N 秒没人来 = 成功"是高频错误），结束 = 玩家 R3 叫停。任务型 vs 保持型：有成功时刻 → goal + success 收尾；无成功时刻 → 保持 + 叫停。
+- **prompt-代码同步维护**（改一边必须同步全部）：C# `PromptBuilder.BuildPlanPrompt`（纪律 1-18 + 质量要求 + 双示范）、`PlanCommandFlow.BuildIntentTable`（意图 few-shot）/`BuildGrammar`（词表）、`PlanGrammar`（Actions/Predicates/Queries/ActionAliases）、`ReactiveAgent`（反应词表）↔ py `test_llm_plan.py`（INTENT_TABLE/GRAMMAR/ALLOWED_ACTIONS/PREDICATES/REACTIVE_EVENTS/REACTIVE_ACTIONS）+ `test_llm_plan_stress.py`（命令集与期望标注）。每份都有"与 C# xxx 同步"注释。
 
 **接线改动清单**（改这些文件时别漏）：
 - `AgentBrain.cs`：`order_execute_plan` / `plan_decision` 事件分支、`RunReactiveAction`（ReactiveAgent 反应通道）、`EnqueueActionInternal/ClearAllActionsInternal`（plan_debug 专用）、`OnPlanExecutorFinished`（收尾恢复 Following，仅当意图仍为 ExecutingCommand）

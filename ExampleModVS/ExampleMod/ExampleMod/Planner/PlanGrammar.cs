@@ -416,6 +416,17 @@ namespace LivingWorldNpcs
                 }
             }
 
+            // 条件谓词词表（与步骤级 ValidateCondition 同规）：goal / contingencies.when /
+            // triggers.when / loop.until 同样受检——LLM 把事件词（approach_by 等）写进条件 = 未定义谓词
+            if (plan.Goal != null) ValidateCondition(plan.Goal, result, "goal");
+            if (plan.Loop != null && plan.Loop.Until != null) ValidateCondition(plan.Loop.Until, result, "loop.until");
+            if (plan.Contingencies != null)
+                foreach (var c in plan.Contingencies)
+                    if (c?.When != null) ValidateCondition(c.When, result, "contingency");
+            if (plan.Triggers != null)
+                foreach (var t in plan.Triggers)
+                    if (t?.When != null) ValidateCondition(t.When, result, "trigger");
+
             // 跳转双向校验（S1 目标存在 / S2 入口可达 / S3 只跳入口步）
             var allJumps = PlanValidationResult.CollectJumpTargets(plan);
             foreach (var t in allJumps)

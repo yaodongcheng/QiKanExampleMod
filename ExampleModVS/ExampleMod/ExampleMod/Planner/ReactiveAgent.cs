@@ -370,6 +370,14 @@ namespace LivingWorldNpcs
                     AgentAIController.Instance?.BroadcastEventInRange(
                         agent.Position, 30f, "combat_nearby", exclude: null, requireSight: false, agent);
                     break;
+                case "flee":
+                    // 跑离现场（恐慌反应 §6.2：远离触发者一段距离后停下；恐慌传播链 v2）
+                    if (requester != null)
+                    {
+                        Vec3 away = agent.Position + (agent.Position - requester.Position).NormalizedCopy() * 20f;
+                        brain.RunReactiveAction(new ReactiveFleeAction(away, agent));
+                    }
+                    break;
                 case "ignore":
                 default:
                     // 不动（不消费队列）
@@ -562,6 +570,47 @@ namespace LivingWorldNpcs
                 AgentControlHelper.ScriptedMoveToPoint(agent, _pos, false);
             }
             if (agent.Position.Distance(_pos) < 2f || _totalTimer > 30f) _done = true;
+        }
+
+        public bool IsFinished(Agent agent) => _done || _interrupted;
+
+        public void OnEnd(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+    }
+
+    /// <summary>跑离现场（flee 恐慌反应）：跑向远离点，到达或超时结束。</summary>
+    public class ReactiveFleeAction : IAtomicAction
+    {
+        private readonly Vec3 _awayPos;
+        private bool _done;
+        private float _fixedTimer;
+        private float _totalTimer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
+        public ReactiveFleeAction(Vec3 awayPos, Agent owner)
+        {
+            _awayPos = awayPos;
+        }
+
+        public void OnStart(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _fixedTimer += dt;
+            _totalTimer += dt;
+            if (_interrupted) { _done = true; return; }
+            if (_fixedTimer >= 0.2f)
+            {
+                _fixedTimer = 0f;
+                AgentControlHelper.ScriptedMoveToPoint(agent, _awayPos, true); // 跑（sprinting）
+            }
+            if (agent.Position.Distance(_awayPos) < 2f || _totalTimer > 15f) _done = true;
         }
 
         public bool IsFinished(Agent agent) => _done || _interrupted;

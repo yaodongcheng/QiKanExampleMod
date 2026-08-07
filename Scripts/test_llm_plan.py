@@ -49,7 +49,15 @@ REACTIVE_EVENTS = {
 REACTIVE_ACTIONS = {
     "listen", "consider", "refuse", "follow_for_a_bit", "investigate",
     "return_post", "stare", "alert_raise", "attack", "call_guards",
-    "ignore", "relay_message", "pay", "hand_over_item",
+    "ignore", "relay_message", "pay", "hand_over_item", "flee",
+}
+
+# 封闭谓词词表（与 C# PlanVocab.Predicates 同步，§5.2）。
+# 事件词（approach_by/see_crime 等 REACTIVE_EVENTS）只能出现在 reactions.event，禁止写进条件。
+PREDICATES = {
+    "distance", "seeing", "alert_phase", "following", "facing", "moving", "in_zone",
+    "combat", "player_action", "time_since", "dead", "knocked_out", "count",
+    "and", "or", "not",
 }
 
 # 场景锚点（真实游戏场景 = 语义 tag 探测，原生场景通常为空 → 锚点集为空；
@@ -110,6 +118,8 @@ FOLLOW 跟我走 / WAIT 在这等我 / STOP 住手 / ATTACK 干掉他 / GUARD �
 "缠住/拖住/别让他走/稳住他" → ENGAGE（对话/周旋，不让对方脱身）
 "偷/摸/拿那东西" → STEAL；"请/叫某人过来" → BRING；"望风/盯梢/来人了叫我" → LOOKOUT
 "带我去/领我去" → GUIDE；"赶走/轰走/撵走" → DRIVE_AWAY；"传话/告诉他" → DELIVER
+"去和X切磋/比试，试他深浅" → DUEL（随从与第三方比武，非致死，回报评估）；"和我切磋/和我比划" → SPAR（玩家是互动对象）
+"订房/安排事务/订酒菜" → TALK_TO（交涉安排）；"买/购买某物" → PURCHASE（随从花钱买货带回来）；"讨债/要钱/收账" → COLLECT（把钱要回来）
 【复合命令判定（重要：按最终目的分类，不是第一个动作）】
 "引开/骗走 X 打晕/干掉/放倒" → KNOCKOUT/ATTACK（引开只是手段，最终目的是击晕/击杀）
 "我引开/缠住/望风，你去偷/翻/动手" → STEAL 等（"我…你…" = 角色分工，随从执行的是后半句的主动作）
@@ -119,14 +129,14 @@ FOLLOW 跟我走 / WAIT 在这等我 / STOP 住手 / ATTACK 干掉他 / GUARD �
 【指代纪律】命令里的"他/她/它/那东西/那个人"若场景存在多个候选或指代不明 → 必须 questions 澄清（列候选位置让玩家选），禁止自行挑一个；"跟他走"无明确指代也须澄清（除非场景只有唯一可跟随者）。"""
 
 GRAMMAR = """【计划语法纪律】
-1. 只允许已定义 action/谓词。2. 每步有唯一 id。3. 每个跳转必须指向真实存在的步骤 id 或 @abort_gracefully。4. fallbacks 必须是数组的数组 [[预案1],[预案2]]，每个预案第一条 id 必须被至少一个跳转引用，只能跳预案第一条。5. 顺利路径走 steps，失败/意外走 fallbacks/contingencies。6. 每个失败出口必须落到跳转/超时路径。7. 目标引用只能用场景角色/物件或 query（nearest_enemy(self)/all_in(zone)/lure_spot(watch_point,12)/hidden_spot(self,15)/stand_spot(target,anchor)/zone(名称)/point(描述)）。8. say_to 前必须有 move_to。9. 安全窗口加 sustained_s（窗口3s/离岗5s，上限30s）。10. 只基于场景可见事实。11. say_to 台词字段是 text（不是 content）；wait 退出条件写 until（必须是对象 {"type":...}，禁止写成字符串）；ask 只允许写 "follow"。12. 成功收尾与失败收尾是两个不同节点：主链末尾放 end_plan result="success"（成功收尾，report 成功台词）；on_timeout / on_event 是失败路径，只能指向 result="fail" 的 end_plan 或重试预案，禁止指向 success 收尾。13. wait 步骤的 on_timeout 语义 = "条件没等到"（守卫没跟来/目标没到位），是失败路径，必须指向 fail 收尾；只有计划真正完成才走 success 收尾。14. 地点诚实纪律：命令提到的地点（河边/城堡/张员外家等）若场景快照里没有该角色/物件/锚点 → 不编造带路，用 questions 澄清或 CUSTOM 诚实说"不知道在哪"；只有场景里存在的实体（角色/物件/锚点）才能作为 target。
+1. 只允许已定义 action/谓词。2. 每步有唯一 id。3. 每个跳转必须指向真实存在的步骤 id 或 @abort_gracefully。4. fallbacks 必须是数组的数组 [[预案1],[预案2]]，每个预案第一条 id 必须被至少一个跳转引用，只能跳预案第一条。5. 顺利路径走 steps，失败/意外走 fallbacks/contingencies。6. 每个失败出口必须落到跳转/超时路径。7. 目标引用只能用场景角色/物件或 query（nearest_enemy(self)/all_in(zone)/lure_spot(watch_point,12)/hidden_spot(self,15)/stand_spot(target,anchor)/zone(名称)/point(描述)）。8. say_to 前必须有 move_to。9. 安全窗口加 sustained_s（窗口3s/离岗5s，上限30s）。10. 只基于场景可见事实。11. say_to 台词字段是 text（不是 content）；wait 退出条件写 until（必须是对象 {"type":...}，禁止写成字符串）；ask 只允许写 "follow"。12. 成功收尾与失败收尾是两个不同节点：主链末尾放 end_plan result="success"（成功收尾，report 成功台词）；on_timeout / on_event 是失败路径，只能指向 result="fail" 的 end_plan 或重试预案，禁止指向 success 收尾。13. wait 步骤的 on_timeout 语义 = "条件没等到"（守卫没跟来/目标没到位），是失败路径，必须指向 fail 收尾；只有计划真正完成才走 success 收尾。14. 地点诚实纪律：命令提到的地点（河边/城堡/张员外家等）若场景快照里没有该角色/物件/锚点 → 不编造带路，用 questions 澄清或 CUSTOM 诚实说"不知道在哪"；只有场景里存在的实体（角色/物件/锚点）才能作为 target。15. 保持型命令（望风/压阵/盯梢/缠住/跟随/闹事引众/"别让他走"这类持续到玩家叫停的任务）用无限 wait（不写 seconds/until/timeout）或无限 follow 表达保持，用 triggers 表达事件报告，不设 goal，结束由玩家按停止键；禁止把"等 N 秒没人来/没动静"写成 success 收尾（望风不是看一会就收工，是持续待命）。**任务型 vs 保持型的区别**：有成功时刻（请到人/偷到物/杀死目标）→ goal + 主链 end_plan success 收尾；无成功时刻（望风/缠住/压阵/跟随/闹事）→ 保持 + 玩家叫停——缠住/拖住/闹事是保持型：达成后进入保持期（GOAL→MAINTAIN），**不因"缠住了/引来了"就 success 收尾**；"跟我来/跟着我" = 无限 follow（{"action":"follow","target":"player"}），不是走到玩家身边就收尾。16. until/when/goal/triggers/contingencies 的条件里只能写谓词词表（distance/seeing/following/combat/in_zone/count/time_since 等）；approach_by/spoken_to/see_crime/left_post_seconds/player_suspicious_near/**combat_nearby** 等事件词只能出现在 reactions 的 event 字段，禁止写进条件（想表达"有人靠近/进入区域"→ 用谓词 in_zone(any, 区域)；**想表达"附近有战斗"→ 用谓词 combat(any, any)，不是 combat_nearby**；**想表达"等对方回应/说完"→ 用谓词 time_since(对应 say_to 步骤的 step_id, 秒)，不是 spoken_to**；想表达"物品到手"→ 没有专用谓词，省略该条件，用步骤自身 result 路由或 time_since）。**goal/until 只能写谓词词表**：无法用谓词表达的成功（如"物品到手"）→ 省略 goal，用主链 end_plan result="success" 表达成功。17. ask:"follow" 只用于"请对方跟走/过来"的邀请（请人来/引开人）；缠住/传话/望风等任务不写 ask。18. contingencies[].then 必须是字符串（步骤 id 或 @abort_gracefully）——写 {"action":...} 对象是非法结构（那是 triggers[].then 的形态，triggers 与 contingencies 结构不同，禁止混写）。
 
 【动作词表】move_to/follow/stop_following/order_attack/knockout/lead/face/look_at/say_to/wait/emote/make_noise/signal_player/steal_attempt/give_item/give_gold/deliver_item/shadow/negotiate/duel/end_plan
 【谓词词表】distance/seeing/alert_phase/following/facing/moving/in_zone/combat/player_action/time_since/dead/knocked_out/count/and/or/not（修饰：sustained_s、was）
 
 【reactions 封闭词表（事件/动作严禁自创）】
-事件 event 只能写：approach_by / spoken_to / asked_to_follow / asked_to_stay / player_suspicious_near / see_crime / combat_nearby / left_post_seconds / alone_with / seen_speaking / see_ally_killed（注意是 approach_by，不是 approached_by；没有 flee 这个动作）
-动作 action 只能写：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item
+事件 event 只能写：approach_by / spoken_to / asked_to_follow / asked_to_stay / player_suspicious_near / see_crime / combat_nearby / left_post_seconds / alone_with / seen_speaking / see_ally_killed（注意是 approach_by，不是 approached_by）
+动作 action 只能写：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item / flee（flee = 看到同伴被杀等恐慌情境下跑离现场）
 
 【输出格式】只输出一个 JSON 对象，不要 Markdown。完整模板（BRING 示范：显式 success 收尾 + fail 收尾双出口；照此粒度输出，禁止缩水）：
 {"reply":"我去请村长过来见你。","emotion":"normal","intent":{"intent_type":"BRING","subjects":["self"],"target":"chief","who_does":"companion"},"questions":[],"needs_clarification":false,"plan":{"summary":"我去请村长过来见你。","goal":{"type":"and","conditions":[{"type":"distance","a":"chief","b":"player","op":"<","value":3},{"type":"moving","a":"chief","op":"false"}]},"steps":[{"id":"b1","action":"move_to","target":"chief","within":2.0,"timeout_s":30},{"id":"b2","action":"say_to","target":"chief","ask":"follow","text":"村长，我家主人请您过去一趟，有事相商","timeout_s":8},{"id":"b3","action":"wait","until":{"type":"following","a":"chief","b":"self","op":"true"},"timeout_s":10,"on_timeout":"b7"},{"id":"b4","action":"move_to","target":"player","within":3.0,"until":{"type":"distance","a":"chief","b":"player","op":"<","value":3},"timeout_s":40,"on_timeout":"b7"},{"id":"b5","action":"wait","until":{"type":"distance","a":"chief","b":"player","op":"<","value":3,"sustained_s":5},"timeout_s":20,"on_timeout":"b7"},{"id":"b6","action":"end_plan","result":"success","report":"村长请来了","timeout_s":3}],"fallbacks":[[{"id":"b7","action":"end_plan","result":"fail","report":"村长说忙，不肯来","timeout_s":3}]],"contingencies":[{"when":{"type":"combat","entity":"self"},"then":"@abort_gracefully","one_shot":true}]},"reactions":[{"role":"chief","personality":{"gullibility":0.4,"duty":0.6,"temper":0.4,"social":0.7,"greed":0.4},"responses":[{"event":"asked_to_follow","reactions":[{"action":"follow_for_a_bit","weight":0.7},{"action":"refuse","weight":0.3}]}]}]}
@@ -134,11 +144,30 @@ GRAMMAR = """【计划语法纪律】
 批量目标（杀/打晕一群人）用 loop 段（示例）：
 "loop":{"steps":[{"id":"p1","action":"move_to","target":{"query":"nearest_enemy(self)"},"within":1.5,"timeout_s":15},{"id":"p2","action":"knockout","target":{"query":"nearest_enemy(self)"},"timeout_s":10}],"until":{"type":"count","of":{"query":"all_in(zone)"},"op":"=","value":0}}，loop 之后接主链报告步骤
 
+【失败路径示范（照抄此结构）】条件等待超时/拒绝事件 = 失败，on_timeout/on_event 只能指向 fail 收尾或重试预案：
+{"id":"w3","action":"wait","until":{"type":"following","a":"guard","b":"self","op":"true"},"timeout_s":10,"on_timeout":"w4"},
+{"id":"w4","action":"end_plan","result":"fail","report":"他没跟来，不肯走","timeout_s":3}
+（禁止 on_timeout 指向 result="success" 的 end_plan——条件没等到却说成功 = 谎报）
+
+【等对方回应示范（照抄此结构）】"等目标回应/说完"用 time_since 引用 say_to 步骤（禁止用 spoken_to——那是事件词）：
+{"id":"i2","action":"say_to","target":"contact","text":"我家主人说，他在老地方等你","timeout_s":8},
+{"id":"i3","action":"wait","until":{"type":"time_since","step_id":"i2","op":">","value":2},"on_event":[{"type":"refused","then":"i5"}],"timeout_s":6,"on_timeout":"i6"},
+{"id":"i4","action":"end_plan","result":"success","report":"说好了","timeout_s":3}，i5/i6 为 fail 收尾
+
+【保持型示范（望风/压阵，照抄此结构）】持续待命 = 无限 wait（省略 seconds/until/timeout）+ triggers 事件报告，不设 goal：
+"steps":[{"id":"h1","action":"move_to","target":"player","within":2.0,"timeout_s":30},{"id":"h2","action":"wait"}],
+"triggers":[{"when":{"type":"in_zone","a":"any","b":"player","op":"true"},"then":{"action":"signal_player","text":"有人来了！"}}]
+（h2 无限等待，结束 = 玩家按停止键；禁止把"等 N 秒没人来"写成 success 收尾）
+
+【判定型步骤示范（照抄此结构）】偷窃/拿取类"物品到手"用 result 路由表达结果，不写 has_item 类条件：
+{"id":"c1","action":"steal_attempt","target":"chest","variant":"item","when":{"type":"seeing","a":"any","b":"self","op":"false","sustained_s":3},"result":{"success":"c2","empty":"c6","interrupted":"c8"},"timeout_s":40,"on_timeout":"c7"},
+{"id":"c2","action":"signal_player","text":"得手了，撤！","timeout_s":3}，c6/c7/c8 为 fail 收尾（result 的每个键都必须指向存在的步骤）
+
 【输出质量要求（不满足视为不合格，必须重写）】
 1. 主链 steps ≥ 5 步（简单任务至少 4 步），粒度到"走→说→等→验证→报告"，禁止 2-3 步糊弄。
 2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。
 3. contingencies ≥ 2 条：combat → @abort_gracefully 必写 + 至少 1 条任务相关意外（折返 following was 检测/警戒 alert_phase/掉线 seeing 翻转）。
-4. 必须带 goal（计划成功条件：distance/seeing/count 谓词组合）。
+4. 非保持型计划必须带 goal（计划成功条件：distance/seeing/count 谓词组合）；保持型计划（望风/压阵/盯梢）不设 goal，用无限 wait + triggers 表达，结束由玩家叫停。
 5. reactions：事件/动作必须在封闭词表内，禁止自创。
 6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如"办好了/我就在这等你"），禁止裸 wait 结尾。
 7. 动态目标优先用 query 找点（lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point），禁止硬编码场景里不存在的区域名。
@@ -184,16 +213,19 @@ def validate_plan(parsed):
         return issues, it, None
     steps = pl.get("steps") or []
     fbs = pl.get("fallbacks") or []
+    loop_steps = ((pl.get("loop") or {}).get("steps") or []) if isinstance(pl.get("loop"), dict) else []
+    # 统一遍历对象：主链 + 预案 + 循环段（与 C# IterSteps 同步——loop 内部同样受全部校验）
+    all_steps = steps + [x for fb in fbs for x in fb] + loop_steps
     if fbs and isinstance(fbs[0], dict):
         issues.append("fallbacks 单层（应为数组的数组）")
         fbs = [fbs]
     ids = []
-    for s in steps + [x for fb in fbs for x in fb]:
+    for s in all_steps:
         if isinstance(s, dict) and s.get("id"):
             ids.append(s["id"])
     if len(ids) != len(set(ids)):
         issues.append("重复 id")
-    for s in steps + [x for fb in fbs for x in fb]:
+    for s in all_steps:
         if not isinstance(s, dict):
             continue
         action = s.get("action")
@@ -210,46 +242,52 @@ def validate_plan(parsed):
             issues.append(f"until 必须是对象，实际是字符串 {until}")
         for f in ("on_timeout", "on_success"):
             t = s.get(f)
-            if t and not t.startswith("@") and t not in ids:
+            if t is not None and not isinstance(t, str):
+                issues.append(f"{f} 必须是字符串，实际是 {type(t).__name__}")
+            elif t and not t.startswith("@") and t not in ids:
                 issues.append(f"悬空跳转 {f}={t}")
         for e in (s.get("on_event") or []):
-            if isinstance(e, dict) and e.get("then") and not e["then"].startswith("@") \
-                    and e["then"] not in ids:
-                issues.append(f"悬空 on_event {e['then']}")
+            if isinstance(e, dict) and e.get("then") is not None:
+                if not isinstance(e["then"], str):
+                    issues.append(f"on_event.then 必须是字符串，实际是 {type(e['then']).__name__}")
+                elif not e["then"].startswith("@") and e["then"] not in ids:
+                    issues.append(f"悬空 on_event {e['then']}")
         until = s.get("until")
         if isinstance(until, dict) and until.get("type") == "time_since":
             sid = until.get("step_id")
             if sid and sid not in ids:
                 issues.append(f"悬空 time_since {sid}")
     for c in (pl.get("contingencies") or []):
-        if isinstance(c, dict) and c.get("then") and not c["then"].startswith("@") \
-                and c["then"] not in ids:
-            issues.append(f"悬空 contingency {c['then']}")
+        if isinstance(c, dict) and c.get("then") is not None:
+            if not isinstance(c["then"], str):
+                issues.append(f"contingency.then 必须是字符串（跳转目标 id 或 @指令），实际是 {type(c['then']).__name__}")
+            elif not c["then"].startswith("@") and c["then"] not in ids:
+                issues.append(f"悬空 contingency {c['then']}")
     # 失败跳转指向 success 收尾 = 谎报成功（只查"条件等待"步骤：带 until 的 wait/move_to 超时 =
     # 条件没达成 = 失败；纯时长等待（wait seconds，无 until）超时 = 等够了 = 完成，不算谎报）
     id2step = {}
-    for st in steps + [x for fb in fbs for x in fb]:
+    for st in all_steps:
         if isinstance(st, dict) and st.get("id"):
             id2step[st["id"]] = st
     def is_condition_wait(st):
         return bool(st.get("until")) or (st.get("action") == "move_to" and st.get("until"))
-    for st in steps + [x for fb in fbs for x in fb]:
+    for st in all_steps:
         if not isinstance(st, dict):
             continue
         if not is_condition_wait(st):
             continue
         for f, t in (("on_timeout", st.get("on_timeout")), ("on_event", None)):
-            if t and not str(t).startswith("@"):
+            if isinstance(t, str) and not t.startswith("@"):
                 target = id2step.get(t)
                 if target and target.get("action") == "end_plan" and target.get("result") == "success":
                     issues.append(f"{f} 指向 success 收尾 {t}（条件等待失败路径谎报成功）")
         for e in (st.get("on_event") or []):
-            if isinstance(e, dict) and e.get("then") and not str(e["then"]).startswith("@"):
+            if isinstance(e, dict) and isinstance(e.get("then"), str) and not e["then"].startswith("@"):
                 target = id2step.get(e["then"])
                 if target and target.get("action") == "end_plan" and target.get("result") == "success":
                     issues.append(f"on_event 指向 success 收尾 {e['then']}（条件等待失败路径谎报成功）")
     # zone/point 引用纪律：引用的名称必须在场景锚点段出现（场景无锚点 → 引用 zone = 不合规）
-    for st in steps + [x for fb in fbs for x in fb]:
+    for st in all_steps:
         if not isinstance(st, dict):
             continue
         t = st.get("target")
@@ -262,6 +300,41 @@ def validate_plan(parsed):
             name = q[q.index("(") + 1:q.rindex(")")].strip('"\'')
             if name not in SCENE_ANCHORS:
                 issues.append(f"zone/point 引用场景锚点外的名称 {name}（锚点: {sorted(SCENE_ANCHORS)}）")
+    # 谓词词表校验（与 C# ValidateCondition 同步）：until/when/goal/triggers/contingencies/loop.until
+    # 的 type 必须在 PREDICATES；事件词（approach_by 等）写进条件 = 模型把事件当谓词用 → 不合规
+    def check_condition(c, where):
+        if not isinstance(c, dict):
+            return
+        t = c.get("type")
+        if not t or t not in PREDICATES:
+            issues.append(f"{where} 未知谓词 {t}")
+            return
+        subs = c.get("conditions")
+        if t in ("and", "or") and not isinstance(subs, list):
+            issues.append(f"{where} {t} 缺 conditions 数组")
+        if isinstance(subs, list):
+            for sub in subs:
+                check_condition(sub, where)
+        if t == "not" and isinstance(subs, list) and len(subs) != 1:
+            issues.append(f"{where} not 应只有 1 个子条件")
+    for st in all_steps:
+        if not isinstance(st, dict):
+            continue
+        if st.get("until") is not None:
+            check_condition(st["until"], f"step {st.get('id')} until")
+        if st.get("when") is not None:
+            check_condition(st["when"], f"step {st.get('id')} when")
+    for c in (pl.get("contingencies") or []):
+        if isinstance(c, dict) and c.get("when") is not None:
+            check_condition(c["when"], "contingency when")
+    if pl.get("goal") is not None:
+        check_condition(pl["goal"], "goal")
+    for tr in (pl.get("triggers") or []):
+        if isinstance(tr, dict) and tr.get("when") is not None:
+            check_condition(tr["when"], "trigger when")
+    lp = pl.get("loop")
+    if isinstance(lp, dict) and lp.get("until") is not None:
+        check_condition(lp["until"], "loop until")
     # reactions 词表校验（自创事件/动作 → 该 NPC 会失聪/无操作，按不合规记）
     for rp in (parsed.get("reactions") or []):
         if not isinstance(rp, dict):
@@ -296,14 +369,14 @@ def load_config():
     return base, key, model
 
 
-def call_llm(base, key, model, prompt, timeout=120):
+def call_llm(base, key, model, prompt, timeout=120, temperature=0.4, reasoning="none"):
     body = {
         "model": model,
         "messages": [{"role": "system", "content": prompt}],
-        "temperature": 0.4,
+        "temperature": temperature,
         "max_tokens": 4000,
         "response_format": {"type": "json_object"},
-        "reasoning_effort": "none",  # 关思考模式（deepseek-v4-flash 默认可能进思考）
+        "reasoning_effort": reasoning,  # none=关思考（默认，实测 25s→3.5s）；low/medium=开思考（质量/延迟权衡）
     }
     req = urllib.request.Request(
         base + "/chat/completions",
@@ -323,10 +396,10 @@ def call_llm(base, key, model, prompt, timeout=120):
         return None, 0, f"{type(e).__name__}: {e}"
 
 
-def run_case(base, key, model, command, expected, label, scene=None, verbose=True):
+def run_case(base, key, model, command, expected, label, scene=None, verbose=True, temperature=0.4, reasoning="none"):
     scene = scene or FIXED_SCENE
     prompt = build_prompt(scene, command)
-    parsed, elapsed, err = call_llm(base, key, model, prompt)
+    parsed, elapsed, err = call_llm(base, key, model, prompt, temperature=temperature, reasoning=reasoning)
     if err:
         print(f"[FAIL] {label}: {err}")
         return False
@@ -389,7 +462,13 @@ def main():
         return 0 if validate_example_json(path) else 1
 
     base, key, model = load_config()
-    print(f"模型: {model}  端点: {base}  key: ***{key[-4:]}")
+    temperature = 0.4
+    if "--temp" in args:
+        temperature = float(args[args.index("--temp") + 1])
+    reasoning = "none"
+    if "--reasoning" in args:
+        reasoning = args[args.index("--reasoning") + 1]
+    print(f"模型: {model}  端点: {base}  key: ***{key[-4:]}  温度: {temperature}  思考: {reasoning}")
     print(f"（reasoning_effort: none — 关思考模式）")
 
     scene_arg = None
@@ -407,13 +486,13 @@ def main():
         if idx + 1 < len(args):
             print("\n=== 单命令测试 ===")
             ok = run_case(base, key, model, args[idx + 1], None, "单命令",
-                          scene=scene_arg)
+                          scene=scene_arg, temperature=temperature)
             return 0 if ok else 1
         print("用法: --cmd <命令文本>")
         return 2
 
     print(f"\n=== 预设命令回归（{len(PRESET_COMMANDS)} 个）===")
-    results = [run_case(base, key, model, cmd, exp, f"{label}", scene=scene_arg)
+    results = [run_case(base, key, model, cmd, exp, f"{label}", scene=scene_arg, temperature=temperature)
                for cmd, exp, label in PRESET_COMMANDS]
     passed = sum(1 for r in results if r)
     print(f"\n--- 汇总: 通过 {passed}/{len(results)} "

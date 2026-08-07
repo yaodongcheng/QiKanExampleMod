@@ -33,3 +33,12 @@ release/
 
 # 不同步 AIInfluence 子项目
 ExampleModVS/ExampleMod/ExampleMod/AIInfluenceProject/
+
+# LLM 密谋回归测试产物（迭代样本，不进 git；v12 = 定稿样本可另行提交）
+Debug/llm_samples*/
+Debug/_archive_old_samples/
+Debug/regress_*.log
+
+# Python 缓存
+__pycache__/
+*.pyc
