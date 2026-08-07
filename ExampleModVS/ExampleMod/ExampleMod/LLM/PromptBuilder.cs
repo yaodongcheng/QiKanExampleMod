@@ -1332,12 +1332,12 @@ namespace LivingWorldNpcs
 {""id"": ""c2"", ""action"": ""signal_player"", ""text"": ""得手了，撤！"", ""timeout_s"": 3}，c6/c7/c8 为 fail 收尾（result 的每个键都必须指向存在的步骤）");
             sb.AppendLine();
             sb.AppendLine("【输出质量要求（不满足视为不合格，必须重写）】");
-            sb.AppendLine("1. 主链 steps ≥ 5 步（简单任务至少 4 步），粒度到\"走→说→等→验证→报告\"，禁止 2-3 步糊弄。");
+            sb.AppendLine("1. 任务型计划主链 steps ≥ 5 步（简单任务至少 4 步），粒度到\"走→说→等→验证→报告\"，禁止 2-3 步糊弄；**保持型计划（望风/压阵/缠住等）豁免步数要求**——2-3 步无限保持 + triggers 即完整，禁止为凑步数编造多余动作。");
             sb.AppendLine("2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。");
             sb.AppendLine("3. contingencies ≥ 2 条：combat → @abort_gracefully 必写 + 至少 1 条任务相关意外（折返 following was 检测/警戒 alert_phase/掉线 seeing 翻转）。");
             sb.AppendLine("4. 非保持型计划必须带 goal（计划成功条件：distance/seeing/count 谓词组合）；保持型计划（望风/压阵/盯梢）不设 goal，用无限 wait + triggers 表达，结束由玩家叫停。");
             sb.AppendLine("5. reactions：事件/动作必须在封闭词表内，禁止自创。");
-            sb.AppendLine("6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如\"办好了/我就在这等你\"），禁止裸 wait 结尾。");
+            sb.AppendLine("6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如\"办好了/我就在这等你\"）；**保持型计划以无限 wait 结尾 = 合法收尾，不适用本条**。");
             sb.AppendLine("7. 动态目标优先用 query 找点（lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point），禁止硬编码场景里不存在的区域名。");
             sb.AppendLine("8. 引开/望风/拖延/得手类计划必须用 signal_player 给玩家行动窗口提示；成功/失败收尾尽量带 report 当面报告。");
             sb.AppendLine("9. zone(名称)/point(描述) 只能引用【场景区域锚点】段列出的名称；场景未列出的区域 → 改用 hidden_spot/lure_spot 动态找点，找不到就按失败收尾，禁止编造锚点。");
