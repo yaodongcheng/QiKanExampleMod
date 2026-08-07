@@ -1471,6 +1471,19 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 **IsLLMReady 总闸（铁律 1）**：不可用 → Plot 行不出现/点开提示"随从想不出主意"。v2 可做预设脚本兜底，v1 不做。
 
+### 9.1 注册新行为（单一事实源，2026-08-08 重构）
+
+> **prompt 构建已改为数据驱动**：`PlanCommandFlow.BuildIntentTable()` 从 `IntentPhrases` 注册表拼意图词表，`BuildGrammar()` 从 `*InPromptOrder` 数组拼动作/谓词/查询/触发词/反应词表——**注册一处，prompt 自动读到**。`Scripts/check_vocab_sync.py` 校验 C# 词表与 py 测试词表一致（改一边跑一次，改崩前拦截）。词表顺序 = 数组声明顺序（保持手写序，防 prompt 漂移——82% 回归基线是此顺序跑出来的，**禁止改成字母序**）。
+
+| 注册对象 | C# 改动（prompt 自动读到） | 执行语义 | py 测试侧 |
+|---------|--------------------------|---------|----------|
+| **新动作**（如下毒） | `PlanGrammar.cs` `ActionsInPromptOrder` 加一行 | `InlineSteps.ExecuteStep` 补 case；带结果路由则 `AllowedResultKeys` 加行 | `ALLOWED_ACTIONS` 加行 |
+| **新意图** | `GoalTemplates.cs` 枚举加行 + `PlanCommandFlow.IntentPhrases` 加行 | GoalTemplates 表（Success/Maintain）+ `BuildIntentTable` 手写区补 few-shot 判定基准（分类示范知识） | `INTENT_TABLE` 期望标注 |
+| **新谓词/新查询** | `PlanGrammar.cs` `PredicatesInPromptOrder`/`QueriesInPromptOrder` 加行 | `RuntimeWorldState.Evaluate` 补求值 | `PREDICATES`/`QUERIES` 加行 |
+| **新触发词/新反应** | `ReactiveAgent.cs` `TriggerEventsInPromptOrder`/`ReactionActionsInPromptOrder` 加行 | `TryHandleEvent`/`ExecuteReaction` 补分支 | `REACTIVE_EVENTS`/`REACTIVE_ACTIONS` 加行 |
+
+完成后跑 `python Scripts/check_vocab_sync.py`（退出码 0 = 词表一致）→ 跑 LLM 回归（文档顶部回归流程）。
+
 ---
 
 ## 10. 与现有系统的关系（复用清单）

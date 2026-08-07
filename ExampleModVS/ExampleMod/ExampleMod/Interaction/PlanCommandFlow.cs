@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
@@ -406,17 +407,55 @@ namespace LivingWorldNpcs
             return BuildGrammar();
         }
 
+        /// <summary>意图注册表（单一事实源）：注册新意图 = 枚举加一行（GoalTemplates.cs）+ 此处加一行话术，
+        /// prompt 意图词表自动读到；few-shot 判定基准需在 BuildIntentTable 手写（分类示范知识）。</summary>
+        private static readonly Dictionary<CommandIntentType, string> IntentPhrases =
+            new Dictionary<CommandIntentType, string>
+            {
+                { CommandIntentType.Follow, "跟我走" },
+                { CommandIntentType.Wait, "在这等我" },
+                { CommandIntentType.Stop, "住手" },
+                { CommandIntentType.Attack, "干掉他" },
+                { CommandIntentType.Guard, "护住他/条件参战" },
+                { CommandIntentType.Bring, "请人到面前" },
+                { CommandIntentType.Distract, "引开某人" },
+                { CommandIntentType.Lookout, "望风" },
+                { CommandIntentType.Deliver, "传话/送物" },
+                { CommandIntentType.Engage, "缠住/拖住" },
+                { CommandIntentType.DriveAway, "赶走" },
+                { CommandIntentType.Steal, "偷物/扒窃" },
+                { CommandIntentType.Formation, "站位" },
+                { CommandIntentType.Spar, "切磋" },
+                { CommandIntentType.Fetch, "取物" },
+                { CommandIntentType.Purchase, "购买" },
+                { CommandIntentType.Knockout, "打晕" },
+                { CommandIntentType.Guide, "带路" },
+                { CommandIntentType.Scout, "侦察" },
+                { CommandIntentType.TalkTo, "交涉" },
+                { CommandIntentType.Find, "找人" },
+                { CommandIntentType.Shadow, "跟踪" },
+                { CommandIntentType.Collect, "讨债" },
+                { CommandIntentType.Duel, "比武" },
+                { CommandIntentType.Annihilate, "清剿（把某个区域的所有人杀掉/打晕，批量战斗）" },
+                { CommandIntentType.Commotion, "闹出动静" },
+                { CommandIntentType.Interact, "实体互动（把门打开/把灯吹灭，能力待验证）" },
+                { CommandIntentType.Discreet, "低调/别惹事（行为参数）" },
+            };
+
         private static string BuildIntentTable()
         {
-            // 意图词表 + few-shot 映射（语义相近意图的区分基准，防跨轮漂移）
-            return string.Join(" / ",
-                "FOLLOW 跟我走", "WAIT 在这等我", "STOP 住手", "ATTACK 干掉他", "GUARD 护住他/条件参战",
-                "BRING 请人到面前", "DISTRACT 引开某人", "LOOKOUT 望风", "DELIVER 传话/送物",
-                "ENGAGE 缠住/拖住", "DRIVE_AWAY 赶走", "STEAL 偷物/扒窃", "FORMATION 站位",
-                "SPAR 切磋", "FETCH 取物", "PURCHASE 购买", "KNOCKOUT 打晕", "GUIDE 带路",
-                "SCOUT 侦察", "TALK_TO 交涉", "FIND 找人", "SHADOW 跟踪", "COLLECT 讨债",
-                "DUEL 比武", "ANNIHILATE 清剿（把某个区域的所有人杀掉/打晕，批量战斗）", "COMMOTION 闹出动静",
-                "CUSTOM 词表外（现实做不到的动作：翻译/施法/修装备等 → 诚实拒绝）")
+            // 意图词表行动态拼接（单一事实源 = IntentPhrases + CommandIntentType 枚举）：
+            // 注册新意图 → 两处加行，prompt 自动读到。
+            var table = string.Join(" / ",
+                Enum.GetValues(typeof(CommandIntentType)).Cast<CommandIntentType>()
+                    .Where(t => t != CommandIntentType.None)
+                    .Select(t => t == CommandIntentType.Custom
+                        ? "CUSTOM 词表外（现实做不到的动作：翻译/施法/修装备等 → 诚实拒绝）"
+                        : IntentPhrases.TryGetValue(t, out var phrase)
+                            ? $"{t.ToString().ToUpperInvariant()} {phrase}"
+                            : t.ToString()));
+            // few-shot 判定基准（分类示范知识，手写维护；注册新意图时在此补判定基准）
+            return table
                 + "\n【意图判定基准（few-shot）】"
                 + "\n\"干掉他/杀了他/解决他/做了他\" → ATTACK（要动手见血）"
                 + "\n\"引开/骗走/调虎离山/把某人支开\" → DISTRACT（不交手，只转移注意力）"
@@ -436,16 +475,22 @@ namespace LivingWorldNpcs
 
         private static string BuildGrammar()
         {
+            // 词表动态拼接（单一事实源 = PlanVocab / ReactiveAgent 的 *InPromptOrder 数组）：
+            // 注册新动作/谓词/查询/触发词/反应动作 → 词表数组加一行，prompt 自动读到。
+            // 顺序 = 数组声明顺序（保持手写序，防 prompt 漂移——82% 回归基线是此顺序跑出来的）。
             return string.Join("\n",
-                "动作（action）：move_to / follow / stop_following / order_attack（攻击动作必须写 order_attack，禁止缩写 attack）/ knockout / lead / face / look_at / say_to / wait / emote / make_noise / signal_player / steal_attempt / give_item / give_gold / deliver_item / shadow / negotiate / duel / end_plan",
-                "谓词（type）：distance / seeing / alert_phase / following / facing / moving / in_zone / combat / player_action / time_since / dead / knocked_out / count / and / or / not",
+                "动作（action）：" + string.Join(" / ", PlanVocab.ActionsInPromptOrder)
+                    + "（攻击动作必须写 order_attack，禁止缩写 attack）",
+                "谓词（type）：" + string.Join(" / ", PlanVocab.PredicatesInPromptOrder),
                 "谓词修饰：sustained_s（连续成立 N 秒）、was（曾成立过）",
                 "实体：self（执行者）/ player / 场景角色 / 场景物件 / 区域",
                 "字段纪律：say_to 台词写 text（不是 content）；wait 退出条件写 until（必须是对象 {\"type\":...}，禁止字符串）；ask 只允许 \"follow\"",
                 "end_plan 的 result 只能是 \"success\" 或 \"fail\"；report 可选（当面报告文本）",
                 "【reactions 封闭词表（事件/动作严禁自创）】",
-                "事件：approach_by / spoken_to / asked_to_follow / asked_to_stay / player_suspicious_near / see_crime / combat_nearby / left_post_seconds / alone_with / seen_speaking / see_ally_killed（注意是 approach_by，不是 approached_by）",
-                "动作：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item / flee（flee = 看到同伴被杀等恐慌情境下跑离现场）",
+                "事件：" + string.Join(" / ", ReactiveAgent.TriggerEventsInPromptOrder)
+                    + "（注意是 approach_by，不是 approached_by）",
+                "动作：" + string.Join(" / ", ReactiveAgent.ReactionActionsInPromptOrder)
+                    + "（flee = 看到同伴被杀等恐慌情境下跑离现场）",
                 "【输出质量要求（不满足视为不合格，必须重写）】",
                 "1. 主链 steps ≥ 5 步（简单任务至少 4 步），粒度到\"走→说→等→验证→报告\"，禁止 2-3 步糊弄。",
                 "2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。",

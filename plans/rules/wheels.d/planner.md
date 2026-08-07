@@ -14,10 +14,11 @@
 | 执行器 | `Planner/PlanExecutor.cs` + `InlineSteps.cs` | `PlanExecutor.Create(ownerAgent, plan, intentType, roleAgents)` + `AgentAIController.SendEventToAgent(npc, "order_execute_plan", planJson, intentType, target, originalCommand)`；`AgentAIController.OnMissionTick` 已挂 `PlanExecutor.TickAll(dt)` |
 | 对抗方 | `Planner/ReactiveAgent.cs` | 触发词 `spoken_to`/`asked_to_follow`/`left_post_seconds`… → 人格演算（weight×修正取最高）→ 反应动作；决策结果广播 `plan_decision`（refused/followed）；职业默认模板兜底 |
 
-**新增玩法意图的接入点**（三处）：
-1. `PlanGrammar.cs` `PlanVocab.Actions`（动作词表）/ `Predicates`（谓词词表）/ `Queries`（动态查询）
-2. `GoalTemplates.cs` `CommandIntentType` 枚举 + `GoalTemplates.IsCombatIntent/IsEventDriven/IsKeepType`
-3. `PlanCommandFlow.BuildIntentTable()`（prompt 意图词表描述）
+**新增玩法意图的接入点**（2026-08-08 重构为单一事实源：词表 = `*InPromptOrder` 数组，prompt 自动读到；注册后跑 `Scripts/check_vocab_sync.py` 验证 C#/py 词表一致）：
+1. **新动作**（如"下毒"）：`PlanGrammar.cs` `ActionsInPromptOrder` 加一行（`Actions` 自动派生，`BuildGrammar` 动态拼 → **prompt 自动读到**）→ `InlineSteps.ExecuteStep` 补执行 case → py `ALLOWED_ACTIONS` 加行（回归测试）
+2. **新意图**：`GoalTemplates.cs` `CommandIntentType` 枚举加行 + `PlanCommandFlow.IntentPhrases` 加行（**prompt 意图词表自动读到**）→ `BuildIntentTable` 手写区补 few-shot 判定基准（分类示范知识）→ GoalTemplates 表（Success/Maintain）
+3. **新谓词/新查询**：`PlanGrammar.cs` `PredicatesInPromptOrder`/`QueriesInPromptOrder` 加行（**prompt 自动读到**）→ `RuntimeWorldState.Evaluate` 补求值实现 → py `PREDICATES`/`QUERIES` 加行
+4. **新触发词/新反应**：`ReactiveAgent.cs` `TriggerEventsInPromptOrder`/`ReactionActionsInPromptOrder` 加行（**prompt 自动读到**）→ `TryHandleEvent`/`ExecuteReaction` 补分支 → py `REACTIVE_EVENTS`/`REACTIVE_ACTIONS` 加行
 
 **常用调用范例**：
 

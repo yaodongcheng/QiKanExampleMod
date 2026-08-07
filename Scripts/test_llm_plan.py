@@ -60,6 +60,11 @@ PREDICATES = {
     "and", "or", "not",
 }
 
+# 封闭查询词表（与 C# PlanVocab.Queries 同步，§5.0 动态目标引用）
+QUERIES = {
+    "nearest_enemy", "all_in", "hidden_spot", "lure_spot", "stand_spot", "zone", "point",
+}
+
 # 场景锚点（真实游戏场景 = 语义 tag 探测，原生场景通常为空 → 锚点集为空；
 # zone(名称) 只能引用锚点段出现的名称，未列出的区域 → 用 hidden_spot/lure_spot 动态找点或按 fail）
 SCENE_ANCHORS = set()
