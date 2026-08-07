@@ -41,7 +41,8 @@
 └─ 拒绝（duty 高）→ 不动 + 拒绝台词
 ```
 
-**示例计划（§5.1 语法的 case A 完整实例——上面的树是逻辑视图，JSON 是执行视图；M1 硬编码跑通即用此份。每份 = PlanResponse 截取：intent + plan 顶层字段，省略 reply/emotion/options/questions 对话壳字段）**
+**示例计划（§5.1 语法的 case A 完整实例——上面的树是逻辑视图，JSON 是执行视图；M1 开发期测试数据，不交付玩家。每份 = PlanResponse 截取：intent + plan 顶层字段，省略 reply/emotion/options/questions 对话壳字段）**
+> 🔴 **示例定位：开发期测试数据，不随 Mod 交付、不上运行线**——**开发期**：全部 17 份示例（case A–P + §5.5 COLLECT 模板）逐一跑通执行器（§11 M1 / §12：`custom.plan_debug run <json>`，静态校验 + 动态执行**双通过**才算合格）。**M2 接入 LLM 后**：真实游玩每次下命令都由 LLM **现场生成**计划（测试矩阵以示例行为为期望基准），示例退役为三类参考：①**prompt 格式模板**（§5.5 COLLECT 完整模板进 BuildPlanPrompt）；②**LLM 输出对照基准**（§12 测试矩阵期望值）；③**语法权威示范**（词表/谓词/预案链/事件挂载的唯一完整用法）。v1 无 LLM 不可用时的示例兜底（§9 明示"v1 不做预设脚本兜底"）。示例质量 = LLM 输出质量的下限，但示例本身不上运行线。
 
 ```json
 {
@@ -53,7 +54,7 @@
     {"id": "s2", "action": "say_to",  "target": "guard", "ask": "follow", "text": "那边有人找你，说是有急事，让我来叫你", "timeout_s": 8},
     {"id": "s3", "action": "wait",
         "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
-        "on_event": [{"type": "refused_to_follow", "then": "s10"}],
+        "on_event": [{"type": "refused", "then": "s10"}],
         "timeout_s": 10, "on_timeout": "s10"},
     {"id": "s4", "action": "move_to", "target": {"query": "lure_spot(watch_point, 12)"}, "within": 1.0,
         "until": {"type": "distance", "a": "guard", "b": "lure_spot", "op": "<", "value": 4},
@@ -69,7 +70,7 @@
       {"id": "s10", "action": "say_to",  "target": "guard", "ask": "follow", "text": "就说几句话的事，劳驾跟我走一趟吧", "timeout_s": 6},
       {"id": "s11", "action": "wait",
           "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
-          "on_event": [{"type": "refused_to_follow", "then": "s12"}],
+          "on_event": [{"type": "refused", "then": "s12"}],
           "timeout_s": 6, "on_timeout": "s12", "on_success": "s4"}
     ],
     [
@@ -94,12 +95,12 @@
 
 > **条件角色标注**（对应 §5.3 条件角色表；角色由 JSON 字段直接命名，不需要槽位→角色映射表）：
 > - s2 `ask: "follow"`（§4 say_to 参数）：播完广播 `asked_to_follow(guard)` 而非仅 `spoken_to`——守卫"跟不跟"的演算挂在 `asked_to_follow` 触发词上（§6.1），没有这个桥 s3 的 `following` 永远等不到
-> - s3 `until` + `on_event` + `on_timeout`（wait 退出条件）：守卫跟走（`following(guard, self)` 成立）→ 本步完成推进 s4；**守卫拒绝** = ReactiveAgent 决策结果事件 `refused_to_follow` 即时到达（§6.3 广播）→ `on_event` 跳 s10"再哄"（树上"再哄一次"✗ 分支，**不等超时**）；`on_timeout` 10s 仅为兜底（say_to 未被听到/事件未达，`was` 从未置真）
+> - s3 `until` + `on_event` + `on_timeout`（wait 退出条件）：守卫跟走（`following(guard, self)` 成立）→ 本步完成推进 s4；**守卫拒绝** = ReactiveAgent 决策结果事件 `refused` 即时到达（§6.3 广播）→ `on_event` 跳 s10"再哄"（树上"再哄一次"✗ 分支，**不等超时**）；`on_timeout` 10s 仅为兜底（say_to 未被听到/事件未达，`was` 从未置真）
 > - s4 `until` + `on_timeout`（动作提前完成条件）：守卫到引开点（< 4m，`lure_spot` = s4 query 求值后的具名落点）→ 提前截断 move_to，本步完成，拖住守卫；`on_timeout`（仍在跟随但走得慢/路径长，25s 没到位）→ 跳 s6 直接等窗口——引开点不是目的，窗口才是
 > - s6 `until`（wait 退出条件）：守卫离岗（> 10m sustained 5s）→ 窗口成立，推进到 s7 发动手信号；s6 `on_timeout`（窗口 25s 不成立 = 守卫没离岗）→ 跳 s13 密信"他没走远，拖不住了，先收手"（树"窗口迟迟不成立"✗ 分支）
-> - s11 `on_success` / `on_timeout`：再哄成功（第二次跟走，`following` 首置真 → `was` 记录）→ `on_success` 跳回主链 s4 继续引；再哄失败（超时）→ `on_timeout` 跳 s12 放弃（预案可跳回主链）
+> - s11 `on_success` / `on_timeout` / `on_event`：再哄成功（第二次跟走，`following` 首置真 → `was` 记录）→ `on_success` 跳回主链 s4 继续引；再哄失败（超时）→ `on_timeout` 跳 s12 放弃；**再拒绝** = `refused` 事件即时到达 → `on_event` 跳 s12 放弃（不等超时，预案可跳回主链）
 > - s12 `end_plan report`（放弃收尾）：`report` 触发**当面报告**——恢复默认跟随走回玩家 ~3m 内冒泡转述"他不上当"（§5.4 当面报告），对应树上"放弃（当面报告）"✗ 分支
-> - `fallbacks` 分区（三个预案，只被跳转进入、不参与游标推进）：fb1 再哄（s10/s11）、fb2 放弃（s12）、fb3 折返警报（s8/s9）
+> - `fallbacks` 分区（**四个预案**，只被跳转进入、不参与游标推进）：fb1 再哄（s10/s11）、fb2 放弃（s12）、fb3 折返警报（s8/s9）、fb4 窗口超时（s13/s14）
 > - contingencies `when`（异常/跳转条件）：警戒 Alarmed → @abort（异常收尾）；折返 `following==false && was==true`（曾成立变不成立）→ 跳 s8（密信警报 + s9 失败收尾）；combat → @abort（安全网中止）
 > - `goal`（GOAL）：守卫离岗 10m sustained = 计划成功（失败无独立字段——意外全走 contingencies，计划性失败走超时/fallbacks 的 end_plan）
 > - s1→s2（接近步）：s1 仅 move_to——face 由 s2 say_to 执行期内置（§4），树不写"+ face"（内置不展开，纪律①）；s5（途中安抚）："别让人等急了"的 say_to，挂在树"走向引开点"与"窗口达成"之间
@@ -122,7 +123,7 @@
 └─ 拒绝（duty 高走不开 / social 低不给面子）→ 拒绝台词 → 回原岗位
 ```
 
-**示例计划（B–P 与 case A 同构：树 = 逻辑视图，JSON = 执行视图；M1 硬编码以 A 为准，B–P 为设计验证）**
+**示例计划（B–P 与 case A 同构：树 = 逻辑视图，JSON = 执行视图；M1 以 A 为测试数据，B–P 为设计验证）**
 
 ```json
 {
@@ -350,7 +351,7 @@
     {"id": "g1", "action": "move_to", "target": "guard", "within": 2.0, "timeout_s": 15},
     {"id": "g2", "action": "say_to", "target": "guard", "ask": "follow", "text": "那边有人找你，说是有急事", "timeout_s": 8},
     {"id": "g3", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
-        "on_event": [{"type": "refused_to_follow", "then": "g10"}],
+        "on_event": [{"type": "refused", "then": "g10"}],
         "timeout_s": 10, "on_timeout": "g10"},
     {"id": "g4", "action": "move_to", "target": {"query": "hidden_spot(self, 15)"}, "within": 1.0, "until": {"type": "distance", "a": "guard", "b": "hidden_spot", "op": "<", "value": 4}, "timeout_s": 30, "on_timeout": "g13"},
     {"id": "g5", "action": "wait", "until": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3}, "timeout_s": 20, "on_timeout": "g14"},
@@ -362,7 +363,7 @@
      {"id": "g9", "action": "end_plan", "result": "fail", "timeout_s": 3}],
     [{"id": "g10", "action": "say_to", "target": "guard", "ask": "follow", "text": "劳驾跟我走一趟，就问几句话", "timeout_s": 6},
      {"id": "g11", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
-          "on_event": [{"type": "refused_to_follow", "then": "g12"}],
+          "on_event": [{"type": "refused", "then": "g12"}],
           "timeout_s": 6, "on_timeout": "g12", "on_success": "g4"}],
     [{"id": "g12", "action": "end_plan", "result": "fail", "report": "他不上当，不肯跟我走", "timeout_s": 3}],
     [{"id": "g13", "action": "end_plan", "result": "fail", "report": "没地方下手", "timeout_s": 3}],
@@ -473,7 +474,7 @@
 ```text
 [触发：spoken_to(随从) 恐吓语气]（人格：gullibility/temper 演算）
 ├─ 被吓走（gullibility 高/temper 低）→ 离开 → 随从 GOAL 达成
-└─ 反抗（temper 高）→ 骂回/挥拳 → 进入战斗（R5 目标敌对）
+└─ 反抗（temper 高）→ 骂回/挥拳 → 进入战斗（combat 事件 → 随从 k7 密信"他急眼了" + 中止）
 ```
 
 ```json
@@ -621,7 +622,6 @@
 }
 ```
 > o1 无限压阵：follow 省略 timeout_s = 无限保持（R3 停止键收尾）。abort 兜底 = and 组合（缺口 7 已裁决）：**随从被打 且 对手未在打玩家** 才中止——参战期间（对手在打玩家）豁免，不误杀计划。
-```
 
 **P. "打晕门口那两个守卫"（KNOCKOUT·批量）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
@@ -799,7 +799,7 @@ CommandIntent { type, target, who_does, params }
 | FETCH | 去把我的剑拿来 | 物品获得并移交玩家 | move_to + 取物 | v2 |
 | PURCHASE | 去买两桶酒 | 物品获得（花随从自己的钱）并移交 | 交易 API | v2 |
 | KNOCKOUT | 打晕他 | 目标击晕 | 背后击晕轮子（已有）→ 原子行为封装 | v2 |
-| GUIDE | 带我去河边 | `distance(player, destination) < 3`（GOAL：玩家到达目标点；Impossible = 目的地不可达预检） | `lead` 原子行为（§4：节奏同步在 `lead` 原子行为内部，不自顾自走）+ signal | v2 |
+| GUIDE | 带我去河边 | `distance(player, destination) < 3`（GOAL：玩家到达目标点；Impossible = 目的地不可达预检） | `lead` 原子行为（§4：节奏同步在 `lead` 原子行为内部，不自顾自走；玩家跟丢/等待超时报告在 lead 内部） | v2 |
 | SCOUT | 去那边看看有什么 | 随从返回并报告所见 | move_to + 感知快照 + report（`{OBSERVATION}` 运行时填充，缺口 10） | v2 |
 | TALK_TO | 去和掌柜谈酒钱 | 目标被交涉（状态变化） | say_to（v1 简化为传话）+ 交涉系统 | v2 |
 | **FIND** | 找到卖药的郎中 | 报告目标当前位置（目标不在角色表，特征搜索后定位） | 快照特征检索 + move_to + signal | v2 |
@@ -973,7 +973,7 @@ public class SceneSnapshot
 | **actor 维度并行** | 步骤按 actor 分组，各 actor **并行推进**（actor 内串行）；跨 actor 同步用步骤前置条件 `when`（等世界状态），**不提供步骤间 wait_for 依赖** | **v1** | Q2/Q4/C |
 | 相对站位 | 复用 `FollowAgentAction` 极坐标参数（radius+angleOffset） | v1 | Q2/Q6 |
 | 台本 | 结算型步骤的 `script`（§5.5） | v1.5 | W4/W9（讨债/切磋） |
-| 步骤级跳转 | `on_timeout` / `on_success` / **`on_event`**（超时/完成/**事件到达** → 跳转指定步骤；`on_timeout` 缺省 @abort_gracefully、`on_success` 缺省顺序下一歩；`on_event` = 本步执行期间收到决策结果事件（§6.3 广播的 `refused_to_follow`/`followed` 等）→ **即时跳转，不等超时**，跳转目标随步骤而异（s3 拒绝 → s10 再哄；s11 再拒绝 → s12 放弃）；预案经此跳回主链） | v1 | A（拒绝再哄 / 再哄成功回主链 / 引开超时跳窗口） |
+| 步骤级跳转 | `on_timeout` / `on_success` / **`on_event`**（超时/完成/**事件到达** → 跳转指定步骤；`on_timeout` 缺省 @abort_gracefully、`on_success` 缺省顺序下一歩；`on_event` = 本步执行期间收到决策结果事件（§6.3 广播的 `refused`/`followed` 等）→ **即时跳转，不等超时**，跳转目标随步骤而异（s3 拒绝 → s10 再哄；s11 再拒绝 → s12 放弃）；预案经此跳回主链） | v1 | A（拒绝再哄 / 再哄成功回主链 / 引开超时跳窗口） |
 
 ```json
 // 循环段示例（case N 清剿：逐敌作战直到 zone 无敌人）
@@ -988,7 +988,7 @@ public class SceneSnapshot
 
 **实现要点**：循环段 = 执行器 step pointer 段内回跳 + until 谓词求值；query refs 由引用解析层运行时解析（查快照 + 谓词过滤），与静态 refs 共用同一解析入口。
 
-**循环内步骤的退出路径（四层，不需要 break 语法）**：①步骤 `until`（条件成立提前完成本步——如目标失效 → 回循环顶重 query）；②步骤 `timeout_s`（超时 = 本步失败 → 回循环顶重新求值 `loop.until`，清空则退出、否则继续）；③`loop.until`（**正常退出**：zone 清空）；④Guardrail（**异常退出**：R1 受伤 / R2 目标死亡 / R5 敌对 → 循环中止，计划不用写 break）。
+**循环内步骤的退出路径（四层，不需要 break 语法）**：①步骤 `until`（条件成立提前完成本步——如目标失效 → 回循环顶重 query）；②步骤 `timeout_s`（超时 = 本步失败 → 回循环顶重新求值 `loop.until`，清空则退出、否则继续）；③`loop.until`（**正常退出**：zone 清空）；④Guardrail（**异常退出**：R1 玩家战斗 Paused / R2 随从死亡 / R5 敌对 → 循环中止，计划不用写 break）。
 
 **语法缺口清单（§0.1 的 16 份 JSON 示范暴露，v2 补齐）**
 
@@ -996,12 +996,12 @@ public class SceneSnapshot
 |---|------|------|-----------|
 | 1 | 逻辑组合 `and` | 复合条件（`distance<3 && !moving`）缺组合节点——B/E/M 的 goal 与脱战判定需要 | B/E/M |
 | 2 | 结果路由 `result{}` | 判定型原子（steal_attempt/knockout）有内部结果（success/empty/impossible/interrupted），需按结果跳转；`on_timeout` 只覆盖超时 | C/D/G |
-| 3 | 瞬间事件谓词 | ✅ 已裁决：步骤级 `on_event`（§5.0 步骤级跳转行）——决策结果事件（`refused_to_follow`/`refused` 等）进计划侧，执行器本步期间即时跳转，timeout 降级为兜底；case A s3/s11、G g3/g11、I i3 已用 | A/G/I |
+| 3 | 瞬间事件谓词 | ✅ 已裁决：步骤级 `on_event`（§5.0 步骤级跳转行）——决策结果事件（`refused`/`followed` 等）进计划侧，执行器本步期间即时跳转，timeout 降级为兜底；case A s3/s11、G g3/g11、I i3 已用 | A/G/I |
 | 4 | `knocked_out` 谓词 / `knockout` 原子 | ✅ 已落地：`knockout` 原子（§4）+ `knocked_out` 谓词（§5.2）已注册（G/P 用）；**残余**：P 的"目标醒转"检测（knocked_out 翻转）语义待定 | G/P |
 | 5 | 新查询/动作落语法 | ✅ 已落地：`make_noise` 原子（§4）、`stand_spot`/`zone`/`point` 查询（§5.0 动态目标引用行）、`lead`（§4 已有）；**残余**：语义锚点解析（"河边"→zone）的运行时实现能力待验证（case J 预检①） | F/E/J/L |
-| 6 | 保持位时长豁免 | 望风/压阵/缠住的保持步 >60s（§5.3 钳制冲突），与 R6 豁免同源 | H/O/E/F |
+| 6 | 保持位时长豁免 | ✅ 已解决：`wait` 省略 seconds/until = 无限保持（§4 wait 行）+ §5.3 的 30s 默认豁免 + R6 事件驱动豁免；H h2 / O o1 已用 | H/O/E/F |
 | 7 | 预期战斗声明与 abort 兜底边界 | ✅ 已裁决：O 的 abort 兜底改为 and 组合（`combat(self) && !combat(rival, player)` 才 abort——压阵时被第三方攻击 → 中止；参战期间豁免），见 O 示例 | O |
-| 8 | R2 对战斗意图豁免 | ATTACK 目标死亡 = GOAL，非"参与者死亡 → Aborted" | M |
+| 8 | R2 对战斗意图豁免 | ✅ 已解决：§7.1 R2 行补战斗意图豁免注释（战斗意图的目标死亡 = GOAL 达成，不触发 Aborted；随从死亡/非战斗意图目标离场仍触发） | M |
 | 9 | 掉线预案只保一次 | ✅ 已解决：E/F 掉线 contingency 改 `one_shot: false`（EDGE 上升沿触发，恢复后再次掉线可反复触发），见 E/F 示例 | E/F |
 | 10 | 收尾报告机制 | ✅ 已落地：loop 后接 steps（报告步骤）已定义（§5.0 循环段行，N/P 示例已用）；L `{OBSERVATION}` / N `{BATTLE_REPORT}` 占位符运行时填充（PlaceholderResolver 先例 §5.5 `{AMOUNT}`）；**残余**：PlaceholderResolver 的报告占位符扩展实现 | L/N/P |
 
@@ -1018,9 +1018,9 @@ public class SceneSnapshot
 > ① **每个跳转必须有明确目标 id**——`on_timeout` / `on_success` / `on_event[].then` / `contingencies[].then` / `result` 路由 / `time_since.step_id` 引用的 id 必须真实存在（`steps` / `fallbacks` / `loop.steps`），或为 @-保留指令（`@abort_gracefully` 等）；
 > ② **每个 fallback 的第一条 id 必须有注入源头**——`fallbacks[i][0].id` 必须被至少一个跳转引用，禁止写"没人能跳进去"的死预案；跳进 fallback 只能跳**入口步**（预案内顺流），禁止跳中间步（会跳过开头的信号/动作）；
 > ③ **JSON 生成后必须过静态脚本检查**——`Scripts/validate_plan_json.py`：提取文档/文件中的全部 plan JSON，校验 S1 目标存在 / S2 入口可达 / S3 不跳预案中间步 / S4 id 唯一，退出码非 0 = 不通过。手写示例与 LLM 输出（进 `custom.plan_debug run` 前）都过此脚本；运行时 PlanValidator（§5.3）执行同一规则（缺失 → 忽略跳转 + 日志警告）。
-> **分叉 = 双通道（事件即时跳转 + 状态轮询推进）**：对方**决策结果**（拒绝/接受）由 ReactiveAgent 事件广播（§6.3：`refused_to_follow`/`followed`），执行器步骤级 `on_event` **即时跳转**——守卫 2 秒拒绝，随从 2 秒去再哄，不干等超时；**持续事实**（`following(guard, self)` 是否成立、`sustained` 防抖、距离/组合条件）由每 tick（100ms）**轮询谓词**看到；`spoken_to` 等输入事件只在 ReactiveAgent 内部触发演算。`timeout_s` 是兜底不是主信号（say_to 未被听到/事件未达时兜底推进）。
+> **分叉 = 双通道（事件即时跳转 + 状态轮询推进）**：对方**决策结果**（拒绝/接受）由 ReactiveAgent 事件广播（§6.3：`refused`/`followed`），执行器步骤级 `on_event` **即时跳转**——守卫 2 秒拒绝，随从 2 秒去再哄，不干等超时；**持续事实**（`following(guard, self)` 是否成立、`sustained` 防抖、距离/组合条件）由每 tick（100ms）**轮询谓词**看到；`spoken_to` 等输入事件只在 ReactiveAgent 内部触发演算。`timeout_s` 是兜底不是主信号（say_to 未被听到/事件未达时兜底推进）。
 
-**端到端执行画面（case A，M1 硬编码示例跑通的画面）**：
+**端到端执行画面（case A，M1 开发期测试数据跑通的画面）**：
 
 ```
 玩家密谋："我想偷那箱子，有人盯着怎么办？" → LLM 一次调用（意图 DISTRACT + 计划 JSON + 守卫反应计划）→ 玩家批准"同意，去办" → 执行开始（全程零 LLM）：
@@ -1119,13 +1119,11 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 - **单 actor 计划天然线性**：A/B/I 等 case 全部单 actor 串行，不受并行模型影响。
 - **prompt 约束**：LLM 表达跨 actor 同步必须用 when 谓词（few-shot："等守卫离开 watch_point"而非"等 s3"）。
 
-**等待机制：状态轮询 + 事件累积（分工明确）**：
+**等待机制：双通道（事件即时跳转 + 状态轮询推进）**：
 ```
-感知事件（NpcSightSystem 观察事件 / WitnessCrime 广播 / 执行器动作完成广播）
-        ↓ 累积
-世界状态快照（每 tick 刷新）
-        ↓ 求值（100ms 节流，O(1) 谓词）
-when 谓词 → 推进（sustained 由条件计时器积分）
+事件通道：决策结果广播（§6.3 refused/followed 等）→ 执行器步骤 on_event 匹配 → 即时跳转
+状态通道：感知事件（NpcSightSystem / WitnessCrime / 动作完成）→ 世界状态快照（每 tick 刷新）
+        → 谓词求值（100ms 节流，O(1)）→ until/when 推进（sustained 由条件计时器积分）
 ```
 - **执行器双通道（事件 + 状态/超时，由语义分工，不是二选一）**：
   ① **事件通道——瞬间决策与瞬间事实**：拒绝/接受/折返/目击等**决策结果必须事件广播**给相关方（§6.3 决策结果广播；复用 `AgentBrain.ReceiveEvent` / `BroadcastEventInRange` 既有通道——`AgentBrain.cs` 全代码库事件驱动先例）。执行器以**步骤级 `on_event`** 消费：本步执行期间收到指定事件 → 即时跳转，不等超时。单机单线程同步投递，可靠性是工程问题（事件入队 + tick 消费），不是架构理由。
@@ -1217,7 +1215,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
     {"when": {"type": "combat", "entity": "self"}, "then": "w4", "one_shot": true}
   ]
 }
-```。
+```
 
 ---
 
@@ -1230,7 +1228,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 ### 6.1 反应计划（LLM 在计划阶段为整场戏生成，每 NPC 一份）
 
-> **驱动方式**：事件驱动（与计划侧状态轮询对称，见 §5.4 等待机制）。触发词 = "瞬间时刻"，由动作完成广播触发（执行器在 say_to/接近/攻击完成时广播；既有感知系统广播观察/犯罪事件）。
+> **驱动方式**：事件驱动（与计划侧双通道配合：计划侧事件通道消费本表广播的决策结果，状态通道轮询持续事实，见 §5.4）。触发词 = "瞬间时刻"，由动作完成广播触发（执行器在 say_to/接近/攻击完成时广播；既有感知系统广播观察/犯罪事件）。
 
 ```json
 {
@@ -1258,7 +1256,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 **后置状态**：每个反应词带"执行完回哪"的通用语义（investigate → 回岗位或继续盯；follow_for_a_bit → 到点自动回位或折返；listen/refuse → 回 Idle）——§6.1 的守卫状态机是这套通用语义的一个实例，不是特例。
 
-**决策结果广播**：涉及"跟不跟/答不答应"的**决策型反应执行后必须把结果广播给请求方**——`follow_for_a_bit` → 广播 `followed(请求方)`；`refuse` → 广播 `refused_to_follow(请求方)`。广播走既有 AIEvent 通道（`AgentAIController.SendEventToAgent` / `BroadcastEventInRange`，`AgentBrain.ReceiveEvent` 模式），执行器步骤级 `on_event` 消费（§5.4 事件通道）。`followed` 与 `following` 状态并存：事件给即时性（拒绝零延迟可见），状态给可查性（轮询/防抖兜底）。**BRING 的逗留窗口**：被叫方到达后进入逗留（下限 ~10s，人格修正：duty 高呆得短），**开口问事**（`NpcSpeechResolver` 模板台词"找我什么事？"走 `LWN_speech_*` key，人格变体可选；LLM 反应表可覆盖为性格化台词）——逗留既是被请到位的反馈，也是"快搭话"的行动暗示；玩家对话/交互 → 回岗取消（对话结束才走），玩家不理 → 到点自行回岗。
+**决策结果广播**：涉及"跟不跟/答不答应"的**决策型反应执行后必须把结果广播给请求方**——`follow_for_a_bit` → 广播 `followed(请求方)`；`refuse` → 广播 `refused(请求方)`（**统一事件名**，拒绝任何请求：拒绝跟随/拒绝传话——case A/G 的 ask:follow 与 case I 传话共用，执行器按发送者 + 当前步骤的 `on_event` 匹配）。广播走既有 AIEvent 通道（`AgentAIController.SendEventToAgent` / `BroadcastEventInRange`，`AgentBrain.ReceiveEvent` 模式），执行器步骤级 `on_event` 消费（§5.4 事件通道）。`followed` 与 `following` 状态并存：事件给即时性（拒绝零延迟可见），状态给可查性（轮询/防抖兜底）。**BRING 的逗留窗口**：被叫方到达后进入逗留（下限 ~10s，人格修正：duty 高呆得短），**开口问事**（`NpcSpeechResolver` 模板台词"找我什么事？"走 `LWN_speech_*` key，人格变体可选；LLM 反应表可覆盖为性格化台词）——逗留既是被请到位的反馈，也是"快搭话"的行动暗示；玩家对话/交互 → 回岗取消（对话结束才走），玩家不理 → 到点自行回岗。
 
 ### 6.4 运行时演算（对抗性的保障）
 
@@ -1283,7 +1281,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 | # | 规则 | 触发 → 行为 |
 |---|------|------------|
 | R1 | 玩家进入战斗（`Agent.Main` 被攻击/开战） | 计划 **Paused** → 随从转护卫玩家（既有护主逻辑 `AgentBrain.cs:304` 复用）→ 战斗结束且目标仍有效 → 恢复 |
-| R2 | 计划参与者死亡/离场 | 相关步骤失效 → **Aborted** + `signal_player(原因)` |
+| R2 | 计划参与者死亡/离场 | 相关步骤失效 → **Aborted** + `signal_player(原因)`。⚠️ **战斗意图豁免**（缺口 8 已裁决）：ATTACK/ANNIHILATE 的**目标死亡 = GOAL 达成**（§2.1 目标状态），不触发本规则——本规则只管**执行者（随从）**死亡/离场，与非战斗意图的目标离场 |
 | R3 | 玩家干预：按停止键（仅对执行中的随从：近距离当面喊停 / 远距离密信中止，§8.1）或下达新命令（再次 Plot / `order_*`） | 旧计划作废（玩家最高优先级） |
 | R4 | 玩家与随从距离 > 30m | **Paused** → 随从追回玩家身边 → 恢复。⚠️ **豁免随从独行任务**：当前步骤的 target/zone 远离玩家 > 30m（DELIVER/FETCH/SCOUT/BRING 等"离开玩家去办事"）→ R4 不触发——玩家走开不能把正在远处办事的随从叫回来（按世界状态判定，不用意图白名单） |
 | R5 | 计划目标变为敌对（target 与人开战，**包括守卫和玩家打起来**） | **Aborted** + 报告；若玩家主动结束战斗 → 可选 **Replan**。⚠️ **计划预期的状态不触发**：①战斗型意图（ATTACK/ANNIHILATE/批量 KNOCKOUT）**自动豁免**（combat 是其正常进展，不依赖 LLM 声明）；②非战斗意图下 LLM 把 `combat` 写进计划**任何条件**（success / fail / **contingencies 的 when**）也可豁免——**必须含 contingencies**：case O（条件参战）的 `combat(对手, 护卫对象) → attack` 只在预案里，漏了预案 → 预期战斗被误杀。Validator 按「意图 → 允许声明的战斗谓词」白名单校验（ATTACK/ANNIHILATE/批量 KNOCKOUT/GUARD-参战 可声明 combat；纯 DISTRACT/BRING 声明 combat → 拒收），防 LLM 借豁免钻空子 |
@@ -1391,9 +1389,10 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 **M1 — 骨架 + case A 执行链（无 LLM）**
 - Plot 交互四处接线 + 密谋面板壳 + 文本输入
 - `SceneSnapshot` + 角色表 + `PlanGrammar`（词表/验证器）+ `PlanExecutor`（含状态机骨架）+ `order_execute_plan` 事件
-- **硬编码示例计划**跑通 case A 全链路（§0.1 case A 的完整 JSON）：move_to→say_to→wait→move_to(lure_spot)→signal_player + 再哄/放弃预案（on_timeout 跳转）+ 折返警报
-- PlanExecutor **多 actor 游标** + 步骤 actor 寻址（一带多 v1 就位：Q1/Q2/Q6 硬编码验证）
-- GuardrailEngine R1-R7 规则框架就位（先硬编码触发点，验证暂停/恢复/中止路径）
+- 用 case A 示例 JSON（§0.1）作为**开发期测试数据**跑通**完整交互链路**（对话壳 → 调试占位计划 → 执行；调试占位非产品行为，M2 移除）：move_to→say_to→wait→move_to(lure_spot)→signal_player + 再哄/放弃预案（on_timeout 跳转）+ 折返警报
+- **全部 17 份示例跑通 = 验收基线**：每份示例随其依赖原子落地（steal_attempt/negotiate 等按 M2-M5 排期）经 `custom.plan_debug run <json>` 完成执行验证（步骤推进/跳转/预案/收尾），M5 结束时全部跑通——**不允许"只跑 case A 就宣布执行器验证完成"**
+- PlanExecutor **多 actor 游标** + 步骤 actor 寻址（一带多 v1 就位：Q1/Q2/Q6 以示例 JSON 经控制台注入验证）
+- GuardrailEngine R1-R7 规则框架就位（先以调试触发点验证暂停/恢复/中止路径）
 
 **M2 — 意图分类 + LLM 计划生成**
 - `LLMService` 参数升级 + `BuildPlanPrompt` + `PlanResponse` + `PlanValidator` + `GoalTemplates`
@@ -1418,6 +1417,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 ## 12. 验证方案
 
 - **控制台指令**（`MyCommands.cs` 惯例）：`custom.plan_debug snapshot` / `run <json>` / `step` / `replan`
+- **全部示例跑通**：17 份示例 JSON 逐一 `custom.plan_debug run <json>` **动态执行验证**（实体引用按快照角色匹配就近解析，§2.2 target 解析）；静态校验（`validate_plan_json.py`）+ 动态执行**双通过** = 该示例合格（§0.1 示例定位）
 - **测试矩阵**：
 
 | 场景 | 期望 |
