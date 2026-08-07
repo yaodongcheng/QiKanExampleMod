@@ -1,0 +1,67 @@
+{
+  "intent": {
+    "intent_type": "ANNIHILATE",
+    "subjects": [
+      "companion"
+    ],
+    "zone": "village",
+    "filter": "exclude_allies",
+    "who_does": "companion"
+  },
+  "questions": [
+    {
+      "q": "全村人——连自己人也算进去吗？",
+      "options": [
+        "只杀外人（默认）",
+        "连自己人也杀"
+      ]
+    }
+  ],
+  "summary": "我把这村子里的人清了（不含自己人）。",
+  "goal": {
+    "type": "count",
+    "of": {
+      "query": "all_in(zone)"
+    },
+    "op": "=",
+    "value": 0
+  },
+  "loop": {
+    "steps": [
+      {
+        "id": "n1",
+        "action": "move_to",
+        "target": {
+          "query": "nearest_enemy(self)"
+        },
+        "within": 1.5,
+        "timeout_s": 15
+      },
+      {
+        "id": "n2",
+        "action": "order_attack",
+        "target": {
+          "query": "nearest_enemy(self)"
+        },
+        "timeout_s": 30
+      }
+    ],
+    "until": {
+      "type": "count",
+      "of": {
+        "query": "all_in(zone)"
+      },
+      "op": "=",
+      "value": 0
+    }
+  },
+  "steps": [
+    {
+      "id": "n3",
+      "action": "end_plan",
+      "result": "success",
+      "report": "{BATTLE_REPORT}",
+      "timeout_s": 3
+    }
+  ]
+}

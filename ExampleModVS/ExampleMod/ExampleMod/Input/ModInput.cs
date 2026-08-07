@@ -23,6 +23,8 @@ namespace LivingWorldNpcs
         public const string Inspect = "Inspect";
         public const string StealAttempt = "StealAttempt";
         public const string StealLeave = "StealLeave";
+        public const string Plot = "Plot";          // 密谋：对随从下达自然语言命令（G 长按）
+        public const string StopPlan = "StopPlan";  // 停止键：对执行中的随从喊停（X 短按）
     }
 
     /// <summary>

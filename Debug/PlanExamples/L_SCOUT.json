@@ -1,0 +1,36 @@
+{
+  "intent": {
+    "intent_type": "SCOUT",
+    "subjects": [
+      "companion"
+    ],
+    "destination": {
+      "query": "point(那边)"
+    },
+    "who_does": "companion"
+  },
+  "summary": "我去那边看看有什么。",
+  "steps": [
+    {
+      "id": "l1",
+      "action": "move_to",
+      "target": {
+        "query": "point(那边)"
+      },
+      "within": 2.0,
+      "timeout_s": 60
+    },
+    {
+      "id": "l2",
+      "action": "wait",
+      "seconds": 5
+    },
+    {
+      "id": "l3",
+      "action": "end_plan",
+      "result": "success",
+      "report": "{OBSERVATION}",
+      "timeout_s": 3
+    }
+  ]
+}

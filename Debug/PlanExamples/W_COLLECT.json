@@ -1,0 +1,98 @@
+{
+  "intent": {
+    "intent_type": "COLLECT",
+    "subjects": [
+      "companion"
+    ],
+    "target": "merchant",
+    "amount": "debt",
+    "who_does": "companion"
+  },
+  "summary": "我去把酒钱讨回来。",
+  "steps": [
+    {
+      "id": "w1",
+      "action": "move_to",
+      "target": "merchant",
+      "within": 2.0,
+      "timeout_s": 20
+    },
+    {
+      "id": "w2",
+      "action": "negotiate",
+      "target": "merchant",
+      "topic": "酒钱",
+      "desired": "全额",
+      "script": {
+        "opening": [
+          {
+            "self": "掌柜的，上回的酒钱该结了吧？"
+          },
+          {
+            "target": "催什么催，这不生意还没周转开么。"
+          }
+        ],
+        "outcomes": {
+          "success": [
+            {
+              "target": "行行行，拿去吧，别再来烦我。"
+            },
+            {
+              "self": "痛快，告辞。"
+            }
+          ],
+          "partial": [
+            {
+              "self": "要不先还一半，剩下的下月再说？"
+            },
+            {
+              "target": "……就一半，别再催了。"
+            }
+          ],
+          "fail": [
+            {
+              "target": "没钱，你看着办。"
+            },
+            {
+              "self": "那我回去禀报主人。"
+            }
+          ]
+        },
+        "announce": "要到 {AMOUNT}。"
+      },
+      "result": {
+        "success": "w3",
+        "partial": "w3",
+        "fail": "w4"
+      },
+      "timeout_s": 15
+    },
+    {
+      "id": "w3",
+      "action": "end_plan",
+      "result": "success",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "w4",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没要到钱，那掌柜说没有",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "w4",
+      "one_shot": true
+    }
+  ]
+}

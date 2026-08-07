@@ -70,16 +70,45 @@ namespace LivingWorldNpcs
         private string _apiKey;
         private readonly HttpClient _httpClient;
 
-        //Instance
-        // DeepSeek API 地址 (如果是豆包，需替换为豆包的Endpoint)
-        private const string ApiUrl = "https://api.deepseek.com/v1/chat/completions";
+        // Instance
+        // OpenAI 兼容端点 = {LLMBaseUrl}/chat/completions（MCM 配置；缺省回落 DeepSeek 官方）
+        private static string ApiUrl
+        {
+            get
+            {
+                var baseUrl = Settings.Instance?.LLMBaseUrl;
+                if (!string.IsNullOrWhiteSpace(baseUrl))
+                    return baseUrl.TrimEnd('/') + "/chat/completions";
+                return "https://api.deepseek.com/v1/chat/completions";
+            }
+        }
+
+        /// <summary>当前模型（MCM 配置 LLMModel；缺省回落 deepseek-chat）。</summary>
+        private static string CurrentModel => Settings.Instance?.LLMModel ?? "deepseek-chat";
 
         private static LLMService _instance;
+        private static readonly object _instanceLock = new object();
+
+        /// <summary>懒初始化单例：从 Settings（MCM 配置）读 API key。
+        /// 历史遗留：Initialize(apiKey) 全库无调用点，旧代码直接抛 "not initialized!" 被调用方 try-catch 吞掉静默降级
+        /// ——LLM 功能实际从未工作。现在首次访问时用 Settings.Instance.LLMApiKey 自动初始化。</summary>
         public static LLMService Instance
         {
             get
             {
-                if (_instance == null) throw new Exception("LLMService not initialized!");
+                if (_instance == null)
+                {
+                    lock (_instanceLock)
+                    {
+                        if (_instance == null)
+                        {
+                            var key = Settings.Instance?.LLMApiKey;
+                            if (string.IsNullOrWhiteSpace(key))
+                                throw new Exception("LLMService not initialized: LLMApiKey 未配置（请在 Mod 选项中填写）");
+                            _instance = new LLMService(key);
+                        }
+                    }
+                }
                 return _instance;
             }
         }
@@ -118,7 +147,9 @@ namespace LivingWorldNpcs
         }
 
         // 通用的聊天请求
-        public async Task<string> ChatAsync(string systemPrompt,int max_tokens = 150,bool needJson=true)
+        /// <param name="disableReasoning">关闭思考模式（reasoning_effort=none）：deepseek-v4-flash 默认可能进思考模式，
+        /// reasoning_content 占 output 配额 60% 且慢 6-8 倍——计划生成调用必须关（实测 25s→3.5s、推理 token 归零）。</param>
+        public async Task<string> ChatAsync(string systemPrompt, int max_tokens = 150, bool needJson = true, float temperature = 0.7f, bool disableReasoning = false)
         {
             var messages = new List<object>
             {
@@ -128,23 +159,24 @@ namespace LivingWorldNpcs
             //考虑是否需要json格式
             if (needJson)
             {
-                var requestBody = new
+                var requestBody = new Dictionary<string, object>
                 {
-                    model = "deepseek-chat",
-                    messages = messages,
-                    temperature = 0.7,
-                    max_tokens = max_tokens,
-                    response_format = new { type = "json_object" }
+                    ["model"] = CurrentModel,
+                    ["messages"] = messages,
+                    ["temperature"] = temperature,
+                    ["max_tokens"] = max_tokens,
+                    ["response_format"] = new { type = "json_object" },
                 };
+                if (disableReasoning) requestBody["reasoning_effort"] = "none";
                 return await CallApiAsync(requestBody);
             }
             else
             {
                 var requestBody = new
                 {
-                    model = "deepseek-chat",
+                    model = CurrentModel,
                     messages = messages,
-                    temperature = 0.7,
+                    temperature = temperature,
                     max_tokens = max_tokens
                 };
                 return await CallApiAsync(requestBody);
@@ -161,7 +193,7 @@ namespace LivingWorldNpcs
 
             var requestBody = new
             {
-                model = "deepseek-chat",
+                model = CurrentModel,
                 messages = messages,
                 temperature = 0.7,
                 max_tokens = 50,
@@ -181,7 +213,7 @@ namespace LivingWorldNpcs
 
             var requestBody = new
             {
-                model = "deepseek-chat",
+                model = CurrentModel,
                 messages = messages,
                 temperature = 0.7,
                 max_tokens = 300,

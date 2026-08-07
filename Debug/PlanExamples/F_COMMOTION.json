@@ -1,0 +1,116 @@
+{
+  "intent": {
+    "intent_type": "COMMOTION",
+    "subjects": [
+      "companion"
+    ],
+    "target": "all",
+    "who_does": "companion"
+  },
+  "summary": "我闹出点动静把人都引过来，你趁乱动手。",
+  "goal": {
+    "type": "seeing",
+    "a": "all",
+    "b": "self",
+    "op": "true",
+    "sustained_s": 5
+  },
+  "steps": [
+    {
+      "id": "f1",
+      "action": "make_noise",
+      "timeout_s": 10
+    },
+    {
+      "id": "f2",
+      "action": "wait",
+      "until": {
+        "type": "seeing",
+        "a": "all",
+        "b": "self",
+        "op": "true",
+        "sustained_s": 5
+      },
+      "timeout_s": 30,
+      "on_timeout": "f9"
+    },
+    {
+      "id": "f3",
+      "action": "signal_player",
+      "text": "都看过来了，快动手！",
+      "timeout_s": 3
+    },
+    {
+      "id": "f4",
+      "action": "wait",
+      "seconds": 600
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "f5",
+        "action": "make_noise",
+        "timeout_s": 10
+      },
+      {
+        "id": "f6",
+        "action": "wait",
+        "until": {
+          "type": "seeing",
+          "a": "all",
+          "b": "self",
+          "op": "true",
+          "sustained_s": 5
+        },
+        "timeout_s": 20,
+        "on_timeout": "f7",
+        "on_success": "f4"
+      }
+    ],
+    [
+      {
+        "id": "f7",
+        "action": "signal_player",
+        "text": "人散了，收手！",
+        "timeout_s": 3
+      },
+      {
+        "id": "f8",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "f9",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没人看热闹",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "seeing",
+        "a": "all",
+        "b": "self",
+        "op": "false",
+        "was": "true"
+      },
+      "then": "f5",
+      "one_shot": false
+    },
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

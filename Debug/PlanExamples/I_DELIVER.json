@@ -1,0 +1,83 @@
+{
+  "intent": {
+    "intent_type": "DELIVER",
+    "subjects": [
+      "companion"
+    ],
+    "target": "contact",
+    "message": "我在老地方等他",
+    "who_does": "companion"
+  },
+  "summary": "我去把你的话带到。",
+  "steps": [
+    {
+      "id": "i1",
+      "action": "move_to",
+      "target": "contact",
+      "within": 2.0,
+      "timeout_s": 30
+    },
+    {
+      "id": "i2",
+      "action": "say_to",
+      "target": "contact",
+      "text": "我家主人说，他在老地方等你",
+      "timeout_s": 8
+    },
+    {
+      "id": "i3",
+      "action": "wait",
+      "until": {
+        "type": "time_since",
+        "step_id": "i2",
+        "op": ">",
+        "value": 2
+      },
+      "on_event": [
+        {
+          "type": "refused",
+          "then": "i5"
+        }
+      ],
+      "timeout_s": 6,
+      "on_timeout": "i6"
+    },
+    {
+      "id": "i4",
+      "action": "end_plan",
+      "result": "success",
+      "report": "说好了",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "i5",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "他让我滚开",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "i6",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "他没应我",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

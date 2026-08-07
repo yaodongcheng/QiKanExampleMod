@@ -70,6 +70,14 @@
                                             HorizontalAlignment="Center"
                                             Brush.FontSize="12"
                                             Brush.FontColor="#00FFBFFF" />
+                      <!-- 计划执行摘要（密谋命令系统；随从状态行动态细节） -->
+                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            Brush="MyBrush_16_Left"
+                                            Text="@PlanSummaryText"
+                                            IsVisible="@ShowPlanSummary"
+                                            HorizontalAlignment="Center"
+                                            Brush.FontSize="12"
+                                            Brush.FontColor="#FFA500FF" />
                       <!-- 2. 说话文本 (中间) -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                       Brush="Brush_HeadText"

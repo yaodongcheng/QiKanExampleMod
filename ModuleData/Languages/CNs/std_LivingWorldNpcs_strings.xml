@@ -3936,5 +3936,62 @@
     <string id="LWN_ui_npcintent_recover" text="(追回)" />
     <string id="LWN_ui_npcintent_stop" text="(制止)" />
 
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Planner - 密谋命令系统 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <string id="LWN_ui_npcintent_executingcommand" text="正在执行命令" />
+    <string id="LWN_ui_interact_plot" text="密谋：下达命令" />
+    <string id="LWN_ui_interact_stopplan" text="停止计划" />
+    <string id="LWN_plan_no_llm" text="随从现在想不出主意。" />
+    <string id="LWN_plan_opening" text="小声——你说吧，我听着。" />
+    <string id="LWN_plan_stop_face" text="是，这就收手。" />
+    <string id="LWN_plan_stop_far" text="你远远地向随从打了个手势：停下。" />
+    <string id="LWN_plan_input_title" text="密谋" />
+    <string id="LWN_plan_input_prompt" text="告诉{NAME}你想让他做什么：" />
+    <string id="LWN_plan_fail_llm" text="我没想出办法，你再换个说法说说。" />
+    <string id="LWN_plan_btn_retry" text="重说" />
+    <string id="LWN_plan_btn_giveup" text="算了" />
+    <string id="LWN_plan_clarify_default" text="你说的是哪个？" />
+    <string id="LWN_plan_clarify_exhausted" text="我还是没听明白，改日再说吧。" />
+    <string id="LWN_plan_custom_reject" text="这个我做不来，你换个说法。" />
+    <string id="LWN_plan_default_summary" text="我有个主意，要动手吗？" />
+    <string id="LWN_plan_btn_approve" text="同意，去办" />
+    <string id="LWN_plan_btn_rethink" text="再想想" />
+    <string id="LWN_plan_reject" text="这个我做不来。" />
+    <string id="LWN_plan_noise" text="嘿！这边！快来看这个！" />
+    <string id="LWN_reactive_refuse" text="不行，这我做不了。" />
+    <string id="LWN_reactive_warnaway" text="别靠近！再近我就不客气了。" />
+    <string id="LWN_ui_commandintent_distract" text="引开" />
+    <string id="LWN_ui_commandintent_bring" text="请人" />
+    <string id="LWN_ui_commandintent_lookout" text="望风" />
+    <string id="LWN_ui_commandintent_deliver" text="传话" />
+    <string id="LWN_ui_commandintent_steal" text="偷窃" />
+    <string id="LWN_ui_commandintent_engage" text="缠住" />
+    <string id="LWN_ui_commandintent_knockout" text="击晕" />
+    <string id="LWN_ui_commandintent_guide" text="带路" />
+    <string id="LWN_ui_commandintent_scout" text="侦察" />
+    <string id="LWN_ui_commandintent_attack" text="攻击" />
+    <string id="LWN_ui_commandintent_guard" text="护卫" />
+    <string id="LWN_ui_commandintent_annihilate" text="清剿" />
+    <string id="LWN_ui_commandintent_follow" text="跟随" />
+    <string id="LWN_ui_commandintent_wait" text="等待" />
+    <string id="LWN_ui_commandintent_stop" text="停手" />
+    <string id="LWN_ui_commandintent_custom" text="其他请求" />
+
+    <string id="LWN_plan_replan_summary" text="我想了个新法子：{SUMMARY}" />
+    <string id="LWN_plan_replan_fail" text="随从想不出别的办法了。" />
+    <string id="LWN_plan_handover" text="给你，拿好。" />
+    <string id="LWN_plan_handover_msg" text="{NAME}把{ITEM}交到你手上。" />
+    <string id="LWN_plan_abort_down" text="随从倒下了！" />
+    <string id="LWN_plan_abort_fight" text="打起来了，先撤！" />
+    <string id="LWN_plan_abort_toolong" text="拖太久了，先撤。" />
+    <string id="LWN_plan_abort_interrupted" text="计划被打断了。" />
+    <string id="LWN_plan_abort_generic" text="计划作罢了。" />
+    <string id="LWN_plan_abort_timeout" text="有一步拖太久了，先撤。" />
+    <string id="LWN_plan_abort_badjump" text="计划出了岔子，先撤。" />
+    <string id="LWN_plan_goal_notmet" text="事情没办成。" />
+    <string id="LWN_plan_lead_waiting" text="你走不走啊？" />
+    <string id="LWN_plan_loot" text="赃物" />
+    <string id="LWN_plan_gold" text="金币" />
 </strings>
 </base>

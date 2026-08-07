@@ -1,0 +1,129 @@
+{
+  "intent": {
+    "intent_type": "STEAL",
+    "subjects": [
+      "companion"
+    ],
+    "target": "chest",
+    "who_does": "companion"
+  },
+  "summary": "你引开守卫，我趁他背身去偷那箱子。",
+  "steps": [
+    {
+      "id": "c1",
+      "action": "steal_attempt",
+      "target": "chest",
+      "variant": "item",
+      "when": {
+        "type": "seeing",
+        "a": "any",
+        "b": "self",
+        "op": "false",
+        "sustained_s": 3
+      },
+      "result": {
+        "success": "c2",
+        "empty": "c6",
+        "interrupted": "c8"
+      },
+      "timeout_s": 40,
+      "on_timeout": "c7"
+    },
+    {
+      "id": "c2",
+      "action": "signal_player",
+      "text": "得手了，撤！",
+      "timeout_s": 3
+    },
+    {
+      "id": "c3",
+      "action": "move_to",
+      "target": "player",
+      "within": 3.0,
+      "timeout_s": 20
+    },
+    {
+      "id": "c4",
+      "action": "give_item",
+      "target": "player",
+      "item": "stolen",
+      "timeout_s": 5
+    },
+    {
+      "id": "c5",
+      "action": "end_plan",
+      "result": "success",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "c6",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没摸到，他太精了",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "c7",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "一直有人盯着，没机会",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "c8",
+        "action": "signal_player",
+        "text": "守卫回看了，我停一下",
+        "timeout_s": 3
+      },
+      {
+        "id": "c9",
+        "action": "wait",
+        "until": {
+          "type": "seeing",
+          "a": "any",
+          "b": "self",
+          "op": "false",
+          "sustained_s": 3
+        },
+        "timeout_s": 60,
+        "on_timeout": "c10",
+        "on_success": "c1"
+      }
+    ],
+    [
+      {
+        "id": "c10",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没机会了",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    },
+    {
+      "when": {
+        "type": "alert_phase",
+        "entity": "any",
+        "phase": "Alarmed"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

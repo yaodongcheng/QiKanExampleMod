@@ -1,0 +1,94 @@
+{
+  "intent": {
+    "intent_type": "KNOCKOUT",
+    "subjects": [
+      "companion"
+    ],
+    "target": {
+      "query": "all_in(gate)"
+    },
+    "who_does": "companion"
+  },
+  "summary": "我把门口那俩守卫全放倒。",
+  "goal": {
+    "type": "count",
+    "of": {
+      "query": "all_in(gate)"
+    },
+    "op": "=",
+    "value": 0
+  },
+  "loop": {
+    "steps": [
+      {
+        "id": "p1",
+        "action": "move_to",
+        "target": {
+          "query": "nearest_enemy(self)"
+        },
+        "within": 1.5,
+        "timeout_s": 15
+      },
+      {
+        "id": "p2",
+        "action": "knockout",
+        "target": {
+          "query": "nearest_enemy(self)"
+        },
+        "timeout_s": 10
+      }
+    ],
+    "until": {
+      "type": "count",
+      "of": {
+        "query": "all_in(gate)"
+      },
+      "op": "=",
+      "value": 0
+    }
+  },
+  "steps": [
+    {
+      "id": "p5",
+      "action": "end_plan",
+      "result": "success",
+      "report": "全放倒了",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "p3",
+        "action": "signal_player",
+        "text": "来了增援，先撤",
+        "timeout_s": 3
+      },
+      {
+        "id": "p4",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "alert_phase",
+        "entity": "any",
+        "phase": "Alarmed"
+      },
+      "then": "p3",
+      "one_shot": true
+    },
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "p3",
+      "one_shot": true
+    }
+  ]
+}

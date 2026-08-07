@@ -20,11 +20,19 @@ namespace LivingWorldNpcs
         /// </summary>
         public ConfrontationType? InterceptDetail { get; }
 
-        public NpcIntent(NpcIntentType type, Agent target = null, ConfrontationType? interceptDetail = null)
+        /// <summary>
+        /// 命令类别 detail（仅在 Type == ExecutingCommand 时有值）。
+        /// 复用 Confronting + InterceptDetail 的 detail 模式：
+        /// 计划层键 CommandIntentType 被 NpcIntent 直接持有（包含关系，无映射）。
+        /// </summary>
+        public CommandIntentType? CommandDetail { get; }
+
+        public NpcIntent(NpcIntentType type, Agent target = null, ConfrontationType? interceptDetail = null, CommandIntentType? commandDetail = null)
         {
             Type = type;
             Target = target;
             InterceptDetail = interceptDetail;
+            CommandDetail = commandDetail;
         }
 
         public override string ToString()
@@ -45,6 +53,8 @@ namespace LivingWorldNpcs
                 NpcIntentType.Interacting => LWNTextHelper.ResolveText("LWN_ui_npcintent_interacting"),
                 // 被击晕意图：NPC 被击晕倒地
                 NpcIntentType.KnockedOut => LWNTextHelper.ResolveText("LWN_ui_npcintent_knockedout"),
+                // 执行命令中：NPC 正在执行玩家密谋计划（携带 CommandDetail）
+                NpcIntentType.ExecutingCommand => LWNTextHelper.ResolveText("LWN_ui_npcintent_executingcommand"),
                 _ => Type.ToString()
             };
             string detailStr = InterceptDetail switch
@@ -59,8 +69,13 @@ namespace LivingWorldNpcs
                 ConfrontationType.Stop => LWNTextHelper.ResolveText("LWN_ui_npcintent_stop"),
                 _ => ""
             };
+            // 命令类别 detail（"执行计划中·引开→守卫"；与既有 Confronting 拼接模式同构）
+            string cmdStr = "";
+            if (CommandDetail != null)
+                cmdStr = LWNTextHelper.ResolveText($"LWN_ui_commandintent_{CommandDetail.ToString().ToLowerInvariant()}",
+                    CommandDetail.ToString());
             string targetStr = Target != null ? $"→{Target.Name}" : "";
-            return $"{typeName}{detailStr}{targetStr}";
+            return $"{typeName}{cmdStr}{targetStr}";
         }
     }
 
@@ -76,5 +91,6 @@ namespace LivingWorldNpcs
         Following,      // 跟随某人（护卫/命令跟随）
         Interacting,    // 正在与玩家交互/对话中
         KnockedOut,     // 被击晕（StayAction 占位）
+        ExecutingCommand, // 正在执行玩家密谋计划（§10）。携带 CommandIntentType detail。
     }
 }

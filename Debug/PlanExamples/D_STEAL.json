@@ -1,0 +1,102 @@
+{
+  "intent": {
+    "intent_type": "STEAL",
+    "subjects": [
+      "companion"
+    ],
+    "target": "guard",
+    "what": "purse",
+    "who_does": "companion"
+  },
+  "summary": "我去把那守卫的钱袋摸来。",
+  "steps": [
+    {
+      "id": "d1",
+      "action": "steal_attempt",
+      "target": "guard",
+      "variant": "pickpocket",
+      "when": {
+        "type": "seeing",
+        "a": "any",
+        "b": "self",
+        "op": "false",
+        "sustained_s": 3
+      },
+      "result": {
+        "success": "d2",
+        "empty": "d5",
+        "impossible": "d6"
+      },
+      "timeout_s": 30,
+      "on_timeout": "d7"
+    },
+    {
+      "id": "d2",
+      "action": "move_to",
+      "target": "player",
+      "within": 3.0,
+      "timeout_s": 20
+    },
+    {
+      "id": "d3",
+      "action": "give_gold",
+      "target": "player",
+      "amount": "stolen",
+      "timeout_s": 5
+    },
+    {
+      "id": "d4",
+      "action": "end_plan",
+      "result": "success",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "d5",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没摸到，他太精了",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "d6",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没地方下手",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "d7",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "一直有人盯着，没机会",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    },
+    {
+      "when": {
+        "type": "alert_phase",
+        "entity": "any",
+        "phase": "Alarmed"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

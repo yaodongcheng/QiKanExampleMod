@@ -1,0 +1,38 @@
+{
+  "intent": {
+    "intent_type": "GUIDE",
+    "subjects": [
+      "companion"
+    ],
+    "destination": {
+      "query": "zone(河边)"
+    },
+    "who_does": "companion"
+  },
+  "summary": "我带你去河边。",
+  "goal": {
+    "type": "distance",
+    "a": "player",
+    "b": "destination",
+    "op": "<",
+    "value": 3
+  },
+  "steps": [
+    {
+      "id": "j1",
+      "action": "lead",
+      "target": "destination",
+      "timeout_s": 300
+    }
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

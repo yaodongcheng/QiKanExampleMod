@@ -192,10 +192,14 @@ namespace LivingWorldNpcs
                 }
             }
 
+            // 密谋命令系统：执行器统一驱动（与 brain 队列解耦，收尾报告流程也在此推进）
+            PlanExecutor.TickAll(dt);
         }
 
         public override void OnRemoveBehavior()
         {
+            // 密谋命令系统：Mission 结束 → 执行器统一收尾（OnMissionScreenFinalize 兜底纪律）
+            PlanExecutor.ShutdownAll();
             FinalizePendingWorldEvent();
             CombatManager.OnMissionEnd();
             base.OnRemoveBehavior();

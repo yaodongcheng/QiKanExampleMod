@@ -161,6 +161,30 @@ def validate_plan(obj, name):
 
 
 def validate_file(path, strict=False):
+    if path.lower().endswith(".json"):
+        # 纯 JSON 文件：整文件即一个 plan 对象
+        with open(path, encoding="utf-8") as f:
+            text = f.read()
+        try:
+            obj = json.loads(text)
+        except json.JSONDecodeError as e:
+            print(f"[{os.path.basename(path)}] invalid JSON: {e.msg} @ {e.lineno}")
+            return 1
+        if not is_plan_object(obj):
+            print(f"[{os.path.basename(path)}] skipped (not a plan object)")
+            return 0
+        name = obj.get("intent", {}).get("intent_type") if isinstance(obj.get("intent"), dict) else None
+        label = os.path.basename(path) if not name else f"{os.path.basename(path)} ({name})"
+        errors, warnings = validate_plan(obj, name)
+        status = "PASS" if not errors else "FAIL"
+        suffix = f" ({len(errors)} error(s), {len(warnings)} warning(s))" if errors or warnings else ""
+        print(f"[{os.path.basename(path)}] {label}: {status}{suffix}")
+        for w in warnings:
+            print(f"  WARN {w} (warning)")
+        for e in errors:
+            print(f"  ERROR {e}")
+        return 1 if (errors or (strict and warnings)) else 0
+
     with open(path, encoding="utf-8") as f:
         text = f.read()
     blocks = find_json_blocks(text)

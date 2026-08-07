@@ -1,0 +1,198 @@
+{
+  "intent": {
+    "intent_type": "DISTRACT",
+    "subjects": [
+      "companion"
+    ],
+    "target": "guard",
+    "who_does": "companion",
+    "watch_point": "chest",
+    "destination": "lure_spot"
+  },
+  "summary": "我把守卫引到远处清净处拖住，你趁机动。",
+  "goal": {
+    "type": "distance",
+    "a": "guard",
+    "b": "watch_point",
+    "op": ">",
+    "value": 10,
+    "sustained_s": 5
+  },
+  "steps": [
+    {
+      "id": "s1",
+      "action": "move_to",
+      "target": "guard",
+      "within": 2.0,
+      "timeout_s": 15
+    },
+    {
+      "id": "s2",
+      "action": "say_to",
+      "target": "guard",
+      "ask": "follow",
+      "text": "那边有人找你，说是有急事，让我来叫你",
+      "timeout_s": 8
+    },
+    {
+      "id": "s3",
+      "action": "wait",
+      "until": {
+        "type": "following",
+        "a": "guard",
+        "b": "self",
+        "op": "true"
+      },
+      "on_event": [
+        {
+          "type": "refused",
+          "then": "s10"
+        }
+      ],
+      "timeout_s": 10,
+      "on_timeout": "s10"
+    },
+    {
+      "id": "s4",
+      "action": "move_to",
+      "target": {
+        "query": "lure_spot(watch_point, 12)"
+      },
+      "within": 1.0,
+      "until": {
+        "type": "distance",
+        "a": "guard",
+        "b": "lure_spot",
+        "op": "<",
+        "value": 4
+      },
+      "timeout_s": 25,
+      "on_timeout": "s6"
+    },
+    {
+      "id": "s5",
+      "action": "say_to",
+      "target": "guard",
+      "text": "就在那边等着呢，别让人等急了",
+      "timeout_s": 6
+    },
+    {
+      "id": "s6",
+      "action": "wait",
+      "until": {
+        "type": "distance",
+        "a": "guard",
+        "b": "watch_point",
+        "op": ">",
+        "value": 10,
+        "sustained_s": 5
+      },
+      "timeout_s": 25,
+      "on_timeout": "s13"
+    },
+    {
+      "id": "s7",
+      "action": "signal_player",
+      "text": "守卫被我引开了，快动手！",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "s10",
+        "action": "say_to",
+        "target": "guard",
+        "ask": "follow",
+        "text": "就说几句话的事，劳驾跟我走一趟吧",
+        "timeout_s": 6
+      },
+      {
+        "id": "s11",
+        "action": "wait",
+        "until": {
+          "type": "following",
+          "a": "guard",
+          "b": "self",
+          "op": "true"
+        },
+        "on_event": [
+          {
+            "type": "refused",
+            "then": "s12"
+          }
+        ],
+        "timeout_s": 6,
+        "on_timeout": "s12",
+        "on_success": "s4"
+      }
+    ],
+    [
+      {
+        "id": "s12",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "他不上当，不肯跟我走",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "s8",
+        "action": "signal_player",
+        "text": "守卫回岗了，快收手！",
+        "timeout_s": 3
+      },
+      {
+        "id": "s9",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "s13",
+        "action": "signal_player",
+        "text": "他没走远，拖不住了，先收手",
+        "timeout_s": 3
+      },
+      {
+        "id": "s14",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "alert_phase",
+        "entity": "guard",
+        "phase": "Alarmed"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    },
+    {
+      "when": {
+        "type": "following",
+        "a": "guard",
+        "b": "self",
+        "op": "false",
+        "was": "true"
+      },
+      "then": "s8",
+      "one_shot": true
+    },
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

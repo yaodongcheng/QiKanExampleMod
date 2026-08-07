@@ -1,7 +1,85 @@
 # 密谋命令系统 v2 — 意图分类 + LLM 计划生成 + 确定性执行
 
-> **状态**：设计阶段（v2 重写）
+> **状态**：✅ 已实施（2026-08-07，M1-M4 核心全部落地；LLM 链路已实测打通）
+> - 代码落地：`Planner/`（PlanGrammar/SceneSnapshot/RuntimeWorldState/PlanExecutor/InlineSteps/ReactiveAgent/PlanReplan + GoalTemplates）、`Interaction/PlanCommandFlow.cs`、`Debug/PlanDebugCommands.cs` + `Debug/PlanExamples/`（17 份示例 JSON）
+> - 接线：`AgentBrain` order_execute_plan/plan_decision/ReactiveAgent 触发词分支、`NpcIntent.ExecutingCommand`（CommandDetail）、`AgentAIController.OnMissionTick → PlanExecutor.TickAll`、Plot(G长按)/StopPlan(X短按) 玩法行、AgentHudVM 执行摘要
+> - LLM：`LLMService.ChatAsync` 增加 temperature 参数 + **懒初始化修复**（原 Initialize 无调用点，LLM 功能从未工作）+ **URL/model 参数化**（读 MCM 配置）+ `reasoning_effort: none` 关思考模式（实测 25s→3.5s）；`PromptBuilder.BuildPlanPrompt`（意图词表+few-shot+封闭词表+JSON模板+跳转纪律）
+> - 验证：`Scripts/validate_plan_json.py` 支持 .json 直验（17 示例全 PASS）；**`Scripts/test_llm_plan.py` LLM 链路回归（已固化进 §12 流程）**；`custom.plan_debug snapshot/list/run/status/stop/role/step/replan`
+> - 已知实现偏差：contingency 的 `was` 修饰 + `one_shot: false` 组合下，触发后清除 wasEver 记录以恢复"掉线重触发"语义（§5.2）；signal_player 用非模态 DisplayMessage（NinjaNotification 模态锁鼠标会挡玩家操作）；执行期零 LLM 的铁律不变
 > ⚠️ **代码库中不存在 v1 实现**（`RivalBrain`/`SceneSnapshot`/`PlanExecutor` 均未落地，grep 全库无命中）——文中的"v1 教训/v1 设计保留"指上一版设计文档，实施时无旧代码可继承、无需找旧实现，以本文为准。
+
+---
+
+## 📋 实施完成度总表（2026-08-07 复盘）
+
+> ✅ = 实现完成（代码就绪，部分待实机验证）｜🟡 = 部分完成（见说明）｜❌ = 未实现
+> **待实机项统一标注「🔧实机」**：代码链路已就绪，需进游戏验证行为（动态执行/动画/模态冲突等）。
+
+| 章节 | 完成度 | 说明 |
+|------|--------|------|
+| §0.1 玩法 case（16） | 🟡 | 17 份示例 JSON 全部提取 + 静态校验 PASS；执行器支持全部示例语法（move_to/say_to/wait/steal_attempt/knockout/lead/make_noise/signal_player/give/loop/query/fallbacks/contingencies）；**🔧实机**：动态执行验证（`plan_debug run`） |
+| §0.2 意外演练（Y1-Y4） | ✅ | Y1 折返（ReactiveFollowAction + was 检测）、Y2 拒绝（refuse 反应 + 当面报告）、Y3 战斗（R5 + Replan）、Y4 玩家被打（R1 Paused + 护主恢复）代码全就绪；**🔧实机**验证 |
+| §1 四层架构 | ✅ | 意图分类→计划生成→批准→确定性执行管线完整 |
+| §2.1 意图全表（29） | 🟡 | 枚举 29 值 + few-shot 判定基准 ✓；v2 梯队部分原子未实现：FETCH/PURCHASE/TALK_TO/FIND/SHADOW/COLLECT/DUEL/DISCREET/INTERACT（→ CUSTOM 诚实拒绝 ✓） |
+| §2.2 CommandIntent | ✅ | PlanIntent 模型 + target 解析 + 分工（who_does）+ 一次调用 |
+| §2.3 GoalTemplate | 🟡 | GoalTemplate 类 + 静态判定表 ✓；Success/Maintain Func 模板未实例化——**替代实现**：goal 缺失回落 = 主链走完即成功 |
+| §3 SceneSnapshot | ✅ | 角色自动打标（StringId 关键词）/物件枚举/可见性矩阵/ToPromptText；铁律 5 语义版 |
+| §4 原子行为库 | 🟡 | 17/21 实现：move_to/follow(极坐标)/stop_following/order_attack/knockout(完整)/lead/face/look_at/say_to(+ask广播)/wait/emote(降级no-op)/make_noise/signal_player/steal_attempt(绕背+目击问责)/give_item/give_gold/end_plan；**❌ 未实现**：deliver_item/shadow/negotiate/duel（stub 明确失败路径，§5.3 步骤级降级）；emote 动画表 **🔧实机**验证 |
+| §4.1 随从犯罪责权 | ✅ | 目击问责（RegisterTheftWitnesses→嫌犯=玩家）/暗账（RegisterUnwitnessedTheft）/守恒转移（扒窃源 Hero→玩家，箱子记账=Grant） |
+| §5.0 能力矩阵 | 🟡 | 线性/跳转/until/循环段/动态引用(lure_spot等6查询)/actor寻址/actor并行/相对站位/步骤级跳转 ✓；台本 script 播放 ❌（§5.5） |
+| §5.1 Plan JSON 铁律 | ✅ | S1-S4 双向校验（validate_plan_json.py + PlanValidator）+ 运行期跳转缺失 Abort |
+| §5.2 谓词词表 | ✅ | 13 谓词 + sustained/was 修饰（was 记录基础谓词，语义已修正） |
+| §5.3 PlanValidator | ✅ | 步骤级降级（未知动作丢弃该步，>50% 拒收）/参数钳制/别名容错（attack→order_attack 等 6 个别名） |
+| §5.4 PlanExecutor | ✅ | 多 actor 游标/双通道（事件+轮询）/收尾三路（当面/密信报告）/Paused 保留 Inline 状态/R1-R7 安全网（§7）/执行摘要 HUD |
+| §5.5 台本演出 | 🟡 | script 模型 + validator 分支完整性校验 ✓；**执行器播放未实现**（negotiate/duel 依赖，v2 排期） |
+| §6 ReactiveAgent | 🟡 | 触发词/反应词/人格演算/决策结果广播（refused/followed）/职业默认模板/深拷贝 ✓；**❌ 未实现**：恐慌传播链（see_ally_killed→flee/call_guards 链式）、relay_message（间接 BRING） |
+| §7 Guardrail R1-R7 | ✅ | 全部实现（R1 战斗 Paused/R2 死亡/R3 停止键/R4 追回+独行豁免/R5 敌对+Replan/R6 总时长+事件驱动豁免/R7 模态）；Replan 节流 ≤2（成功才计数） |
+| §8 密谋对话壳 | 🟡 | Plot(G长按)/StopPlan(X短按) 玩法行、自由输入→LLM→澄清轮(≤2)→批准轮(同意/再想想/算了)、密谋中 Talk 互斥移除 ✓；**❌ 未实现**：TextInputWidget + 手柄预设 chips（用既有 ShowTextInquiry 替代，功能等价） |
+| §9 LLM 升级点 | ✅ | 超额完成：temperature 参数 + max_tokens 4000 + BuildPlanPrompt + **懒初始化修复**（原单例从未初始化，LLM 功能实际从未工作）+ **URL/model 参数化** + **reasoning_effort:none 关思考**（实测 25s→3.5s） |
+| §10 复用清单 | ✅ | 全部接线完成（NpcIntent.ExecutingCommand/order_execute_plan/执行摘要 HUD/护主/警戒/WitnessCrime 围观） |
+| §11 M1 骨架+case A | ✅ | 交互四接线/SceneSnapshot/PlanGrammar/PlanExecutor/order_execute_plan/17 示例/多 actor 游标/Guardrail 框架 |
+| §11 M2 LLM 计划生成 | ✅ | LLMService 升级/BuildPlanPrompt/PlanResponse/PlanValidator/GoalTemplates/澄清+批准循环/降级路径；case B（BRING）执行器支持 |
+| §11 M3 ReactiveAgent | ✅ | 触发词表/反应词表/人格演算/默认模板兜底/决策广播；传播作用域部分（§6 见上） |
+| §11 M4 Replan+STEAL | ✅ | Replan 循环（事件日志→重入→新计划→summary 播报）+ steal_attempt 完整版（绕背/目击问责/守恒）+ knockout 完整版 |
+| §11 M5 打磨 | 🟡 | 本地化（中英 60+ 键）/冒泡/HUD 执行摘要/emote 点缀/边界（随从死亡/并发 Plot 互斥）✓；**❌ 待做**：SPAR 意图、双版本编译（1.2.12）、实机体验 |
+| §12 验证方案 | 🟡 | plan_debug 8 子命令 ✓（snapshot/list/run/status/stop/role/step/replan）；17 示例静态校验 ✓；**LLM 回归流程已固化（见下）**；**🔧实机**：测试矩阵（多疑守卫/尽责守卫/村长拒绝/意外三连/停止键/模态/R4 豁免） |
+| §13 风险对策 | ✅ | 全部有对策且落地（LLM 分类错→few-shot+澄清；自说自话→人格演算+默认模板；竞争→统一接管+收尾三路；Replan 死循环→节流；冒泡无听者→face 前置；零成本→§4.1 问责） |
+
+---
+
+## 🔬 LLM 链路回归测试流程（已固化，2026-08-07）
+
+> 每次修改 prompt / 意图表 / 换模型 / 调温度后，**必须**跑一次回归，退出码 0 才算合格。
+
+```bash
+# 完整回归（11 个预设命令：8 意图 + 歧义 + 词表外 + 清剿）
+python Scripts/test_llm_plan.py
+
+# 单命令 / 场景规模压力 / 示例 JSON 校验（不发请求）
+python Scripts/test_llm_plan.py --cmd "干掉他"
+python Scripts/test_llm_plan.py --scene 30
+python Scripts/test_llm_plan.py --json Debug/PlanExamples/A_DISTRACT.json
+```
+
+**脚本职责**（`Scripts/test_llm_plan.py`）：读 MCM 配置（key 掩码）→ 构建与 C# `BuildPlanPrompt` 逐段同构的 prompt（意图表 + few-shot + 纪律 + 词表 + JSON 模板）→ `reasoning_effort: none` 发真实请求 → 模拟 `PlanValidator`（S1 跳转存在/S4 id 唯一/fallbacks 双层/动作词表+别名/say_to 字段名）→ 汇总分类正确率。
+
+**回归基线（2026-08-07 实测，deepseek-v4-flash 关思考）**：
+- 11 命令通过 **10/11**（唯一失败 = "杀全村人"被模型自主道德拒绝 → CUSTOM，属预期行为，见 §0.1 case N 注）
+- 分类正确率 91%；schema 合规 100%；0 解析失败；耗时 1.5-5.4s（input ~1000-1700 tok，output ~480-550 tok）
+- 已修复的不稳定项：①动作别名漂移（attack→order_attack，C# ActionAliases + prompt 强调）②相近意图漂移（"干掉他"在 ATTACK/DISTRACT 间漂移 → few-shot 意图判定基准）
+- **同步维护纪律**：C#（`PlanCommandFlow.BuildIntentTable`/`BuildGrammar` + `PlanGrammar.ActionAliases`）与 py（`INTENT_TABLE`/`ACTION_ALIASES`）双份，改一边必须同步另一边
+
+**实机验证入口**（游戏内，取真实环境/agent 数据）：
+```
+custom.plan_debug snapshot        # 真实场景快照（LLM 将看到的内容）
+custom.plan_debug run A_DISTRACT  # 注入示例计划动态执行
+custom.plan_debug step            # 当前步骤详情
+custom.plan_debug status          # 执行器状态
+custom.plan_debug replan          # 强制触发 replan 链路
+```
+或 Plot 流程：面向随从长按 G → 输入命令 → 澄清/批准 → 观察随从执行（日志 `Debug/StoryEngine_RuntimeLog.txt` 的 `[PlanExecutor]`/`[PlanCommandFlow]` 前缀）。
+
+
 > **v1 教训**：v1 只解决了"随从引开守卫"一个 case——RivalBrain 是特化的守卫模型，命令处理没有分类层。用户指出：①命令可以是"请村长到我面前"、"我引开守卫你去偷"（角色互换）；②守卫模型不能特化；③老滚5/KCD/GTA 里的随从命令大部分要接得住；④计划提前写好，执行中意外（玩家被打、目标开战）怎么办。
 > **v2 核心转变**：
 > - 命令的本质 = **目标状态** + **角色分配**，不是动作序列 → 新增 **意图分类层（CommandIntent）+ GoalTemplate 表**
@@ -1416,7 +1494,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 ## 12. 验证方案
 
-- **控制台指令**（`MyCommands.cs` 惯例）：`custom.plan_debug snapshot` / `run <json>` / `step` / `replan`
+- **控制台指令**（`Debug/PlanDebugCommands.cs`，`custom` 前缀）：`custom.plan_debug snapshot` / `list` / `run <示例名> [agentId]` / `status [agentId]` / `stop [agentId]` / `role <角色名> [agentId]` / `step [agentId]` / `replan [agentId]`（step = 当前步骤详情；replan = 强制触发 R5 重入链路）
 - **全部示例跑通**：17 份示例 JSON 逐一 `custom.plan_debug run <json>` **动态执行验证**（实体引用按快照角色匹配就近解析，§2.2 target 解析）；静态校验（`validate_plan_json.py`）+ 动态执行**双通过** = 该示例合格（§0.1 示例定位）
 - **测试矩阵**：
 

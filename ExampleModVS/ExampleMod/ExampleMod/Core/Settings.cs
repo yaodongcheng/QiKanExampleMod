@@ -112,6 +112,8 @@ namespace LivingWorldNpcs
             [InteractionIds.Inspect] = new InteractionBindingConfig { Keyboard = "H", Gamepad = "R3", PressMode = "Short" },
             [InteractionIds.StealAttempt] = new InteractionBindingConfig { Keyboard = "Space", Gamepad = "A", PressMode = "Short" },
             [InteractionIds.StealLeave] = new InteractionBindingConfig { Keyboard = "Tab", Gamepad = "B", PressMode = "Short" },
+            [InteractionIds.Plot] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            [InteractionIds.StopPlan] = new InteractionBindingConfig { Keyboard = "X", Gamepad = "Back", PressMode = "Short" },
         };
 
         /// <summary>玩法行配置（玩家在 config.json 覆盖/增删；PopulateObject 合并，删行 = 回落内置默认）。</summary>

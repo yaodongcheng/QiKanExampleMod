@@ -1,0 +1,134 @@
+{
+  "intent": {
+    "intent_type": "ENGAGE",
+    "subjects": [
+      "companion"
+    ],
+    "target": "tavernkeeper",
+    "watch_point": "chest",
+    "who_does": "companion"
+  },
+  "summary": "我缠住掌柜，你翻那保管箱。",
+  "goal": {
+    "type": "and",
+    "conditions": [
+      {
+        "type": "seeing",
+        "a": "tavernkeeper",
+        "b": "player",
+        "op": "false",
+        "sustained_s": 3
+      },
+      {
+        "type": "moving",
+        "a": "tavernkeeper",
+        "op": "false"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "e1",
+      "action": "move_to",
+      "target": {
+        "query": "stand_spot(tavernkeeper, chest)"
+      },
+      "within": 1.0,
+      "timeout_s": 15,
+      "on_timeout": "e9"
+    },
+    {
+      "id": "e2",
+      "action": "say_to",
+      "target": "tavernkeeper",
+      "text": "掌柜的，听说店里进了批好酒？",
+      "timeout_s": 6
+    },
+    {
+      "id": "e3",
+      "action": "say_to",
+      "target": "tavernkeeper",
+      "text": "跟我讲讲呗，我主人想打听",
+      "timeout_s": 6,
+      "on_success": "e2"
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "e5",
+        "action": "say_to",
+        "target": "tavernkeeper",
+        "text": "掌柜的您别走啊，我还没说完",
+        "timeout_s": 6
+      },
+      {
+        "id": "e6",
+        "action": "wait",
+        "until": {
+          "type": "seeing",
+          "a": "tavernkeeper",
+          "b": "player",
+          "op": "false",
+          "sustained_s": 3
+        },
+        "timeout_s": 15,
+        "on_timeout": "e7",
+        "on_success": "e2"
+      }
+    ],
+    [
+      {
+        "id": "e7",
+        "action": "signal_player",
+        "text": "掌柜转头了，快收手！",
+        "timeout_s": 3
+      },
+      {
+        "id": "e8",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "e9",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没位置",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "seeing",
+        "a": "tavernkeeper",
+        "b": "player",
+        "op": "true",
+        "was": "true"
+      },
+      "then": "e5",
+      "one_shot": false
+    },
+    {
+      "when": {
+        "type": "moving",
+        "a": "tavernkeeper",
+        "op": "true"
+      },
+      "then": "e5",
+      "one_shot": false
+    },
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}
