@@ -17,11 +17,10 @@
 
 ### 0.1 玩法 case（16 个，成败树状）
 
-> case 格式 = **玩家原始输入 → 语义解析（意图 + 目标/锚点 + 分工）→ 并联执行人（每个 actor 一块）→ 块内串联树**（✓ 成功 / ✗ 失败分支；框架标注 GATE/GOAL/MAINTAIN/TRIGGER、原子行为、§引用挂在节点上）。镜像 §5.4 并行执行模型：actor 间并行、actor 内串行。
+> case 格式 = **玩家原始输入（标题带意图标注：`case A（DISTRACT｜引开=随从，偷=玩家）`）→ 并联执行人（每个 actor 一块）→ 块内串联树 → 附 Plan JSON 执行视图**（✓ 成功 / ✗ 失败分支；框架标注 GATE/GOAL/MAINTAIN/TRIGGER、原子行为、§引用挂在节点上）。镜像 §5.4 并行执行模型：actor 间并行、actor 内串行。**三层呈现，无中间层**：意图标注 = 一行索引（链接 §2.1 意图词表 / §2.3 GoalTemplate / §7.1 R5 白名单）；JSON = 权威视图（信息全量——语义解析的正式载体是 `intent` 字段，§2.2）；树 = 人读逻辑视图。
 > **书写纪律①接近步必须显式**：凡 say_to/近距离互动的步骤，树里必须写 move_to + face（§5.1 s1→s2 范本）；接近步已内置于原子行为的（lead 节奏 / steal_attempt 绕背 / FightEnemyAction 追击）不展开。**书写纪律②成败分支齐全**：每个有成败的节点必须写 ✓/✗ 两个出口（含空情报、摸空、拒绝、打不过等失败态），玩家体验列完整呈现两种结局。**书写纪律③驱动模式必须标注**：每块块头标注驱动模式——① 执行者（随从）= **计划驱动**：PlanExecutor 按步骤+预案+安全网确定性驱动（actor 内串行推进）；② 玩家 = **自主驱动**：真人自由行动，计划只给窗口/信号提示（何时动手），**绝不驱动玩家**——玩家块永远"玩家侧自理"；③ 对抗方/被叫方（ReactiveAgent）= **事件驱动**：触发词→人格演算→反应动作（§6），计划不驱动其行动。读者看块头即知该块靠什么推进。**书写纪律④报告方式必须标注**：每个报告/信号节点必须指明报告方式（§5.4）——**当面报告**（随从可脱身：走回玩家身边 3m 内冒泡转述，用"回来报告/返回当面"字样）或**密信报告**（随从脱不开身或紧急中断：望风/盯梢/折返警报，用"秘密消息/即时信号"字样）。两种方式并存的计划必须逐分支分别标注，禁止笼统写"报告"。
 
-**A. "我想偷那箱子，有人盯着怎么办？"**
-**语义解析**：DISTRACT ｜ target=守卫（=目标物潜在目击者集合成员，§2.2）｜ watch_point=箱子位置 ｜ 分工：引开=随从，偷=玩家
+**A. "我想偷那箱子，有人盯着怎么办？"（DISTRACT｜引开=随从，偷=玩家）**
 **执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到守卫面前（move_to + face）→ 诱骗跟走（say_to，引开手段）
@@ -41,10 +40,11 @@
 └─ 拒绝（duty 高）→ 不动 + 拒绝台词
 ```
 
-**示例计划（§5.1 语法的 case A 完整实例——上面的树是逻辑视图，JSON 是执行视图；M1 硬编码跑通即用此份）**
+**示例计划（§5.1 语法的 case A 完整实例——上面的树是逻辑视图，JSON 是执行视图；M1 硬编码跑通即用此份。每份 = PlanResponse 截取：intent + plan 顶层字段，省略 reply/emotion/options/questions 对话壳字段）**
 
 ```json
 {
+  "intent": {"intent_type": "DISTRACT", "subjects": ["companion"], "target": "guard", "who_does": "companion", "watch_point": "chest", "destination": "lure_spot"},
   "summary": "我把守卫引到远处清净处拖住，你趁机动。",
   "goal": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5},
   "steps": [
@@ -96,8 +96,7 @@
 > - contingencies `when`（异常/跳转条件）：警戒 Alarmed → @abort（异常收尾）；折返 `following==false && was==true`（曾成立变不成立）→ 跳 s8（密信警报 + s9 失败收尾）；combat → @abort（安全网中止）
 > - `goal`（GOAL）：守卫离岗 10m sustained = 计划成功（失败无独立字段——意外全走 contingencies，计划性失败走超时/fallbacks 的 end_plan）
 
-**B. "请村长到我面前来"**
-**语义解析**：BRING ｜ target=村长（occupation 匹配，同名消歧按位置，§2.2）｜ meet_point=玩家旁 ｜ 执行=随从
+**B. "请村长到我面前来"（BRING）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 找到村长（move_to + face）→ 开口邀请（say_to）
@@ -115,8 +114,33 @@
 └─ 拒绝（duty 高走不开 / social 低不给面子）→ 拒绝台词 → 回原岗位
 ```
 
-**C. "我引开守卫，你去偷那箱子"**
-**语义解析**：STEAL ｜ target=箱子 ｜ 分工：偷=随从（actor=self），引开=玩家（actor=player）｜ 窗口=`!seeing(any, self)`
+**示例计划（B–P 与 case A 同构：树 = 逻辑视图，JSON = 执行视图；M1 硬编码以 A 为准，B–P 为设计验证）**
+
+```json
+{
+  "intent": {"intent_type": "BRING", "subjects": ["companion"], "target": "chief", "who_does": "companion", "meet_point": "player"},
+  "summary": "我去请村长过来见你。",
+  "goal": {"type": "and", "conditions": [
+    {"type": "distance", "a": "chief", "b": "player", "op": "<", "value": 3},
+    {"type": "moving", "a": "chief", "op": "false"}
+  ]},
+  "steps": [
+    {"id": "b1", "action": "move_to", "target": "chief", "within": 2.0, "timeout_s": 30},
+    {"id": "b2", "action": "say_to", "target": "chief", "ask": "follow", "text": "村长，我家主人请您过去一趟，有事相商", "timeout_s": 8},
+    {"id": "b3", "action": "wait", "until": {"type": "following", "a": "chief", "b": "self", "op": "true"}, "timeout_s": 10, "on_timeout": "b6"},
+    {"id": "b4", "action": "move_to", "target": "player", "within": 3.0, "until": {"type": "distance", "a": "chief", "b": "player", "op": "<", "value": 3}, "timeout_s": 40, "on_timeout": "b5"},
+    {"id": "b5", "action": "wait", "until": {"type": "distance", "a": "chief", "b": "player", "op": "<", "value": 3, "sustained_s": 5}, "timeout_s": 20, "on_timeout": "b6"}
+  ],
+  "fallbacks": [
+    [{"id": "b6", "action": "end_plan", "result": "fail", "report": "村长说忙，不肯来", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**C. "我引开守卫，你去偷那箱子"（STEAL｜偷=随从，引开=玩家）**
 **执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 等窗口（GATE：!seeing(any, self) sustained 3s——唯一安全条件，判定对象=随从本人）
@@ -140,8 +164,35 @@
     └─ 再被缠住（玩家重新对话/开战）→ 注意力回到玩家（窗口恢复）
 ```
 
-**D. "去把那个守卫的钱袋摸来"**
-**语义解析**：STEAL（target=人）｜ target=守卫 ｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "STEAL", "subjects": ["companion"], "target": "chest", "who_does": "companion"},
+  "summary": "你引开守卫，我趁他背身去偷那箱子。",
+  "steps": [
+    {"id": "c1", "action": "steal_attempt", "target": "chest", "variant": "item",
+        "when": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3},
+        "result": {"success": "c2", "empty": "c6", "interrupted": "c8"},
+        "timeout_s": 40, "on_timeout": "c7"},
+    {"id": "c2", "action": "signal_player", "text": "得手了，撤！", "timeout_s": 3},
+    {"id": "c3", "action": "move_to", "target": "player", "within": 3.0, "timeout_s": 20},
+    {"id": "c4", "action": "give_item", "target": "player", "item": "stolen", "timeout_s": 5},
+    {"id": "c5", "action": "end_plan", "result": "success", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [{"id": "c6", "action": "end_plan", "result": "fail", "report": "没摸到，他太精了", "timeout_s": 3}],
+    [{"id": "c7", "action": "end_plan", "result": "fail", "report": "一直有人盯着，没机会", "timeout_s": 3}],
+    [{"id": "c8", "action": "signal_player", "text": "守卫回看了，我停一下", "timeout_s": 3},
+     {"id": "c9", "action": "wait", "until": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3}, "timeout_s": 60, "on_timeout": "c10", "on_success": "c1"}],
+    [{"id": "c10", "action": "end_plan", "result": "fail", "report": "没机会了", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true},
+    {"when": {"type": "alert_phase", "entity": "any", "phase": "Alarmed"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**D. "去把那个守卫的钱袋摸来"（STEAL·人）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 绕背定位（steal_attempt 人变体：盲区几何搜索 + 无目击者视野；站位不可行 → 诚实报告）
@@ -151,8 +202,31 @@
 └─ 站位不可行 → 当面报告"没地方下手" ✗
 ```
 
-**E. "缠住掌柜，我去翻那保管箱"**
-**语义解析**：ENGAGE ｜ target=掌柜 ｜ 目标=`!seeing(掌柜, player) sustained 3s && !moving(掌柜)`（GOAL+MAINTAIN：**先达成**——缠住成立 → **后保持**——维持到玩家翻完）｜ 分工：缠=随从，翻=玩家
+```json
+{
+  "intent": {"intent_type": "STEAL", "subjects": ["companion"], "target": "guard", "what": "purse", "who_does": "companion"},
+  "summary": "我去把那守卫的钱袋摸来。",
+  "steps": [
+    {"id": "d1", "action": "steal_attempt", "target": "guard", "variant": "pickpocket",
+        "when": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3},
+        "result": {"success": "d2", "empty": "d5", "impossible": "d6"},
+        "timeout_s": 30, "on_timeout": "d5"},
+    {"id": "d2", "action": "move_to", "target": "player", "within": 3.0, "timeout_s": 20},
+    {"id": "d3", "action": "give_gold", "target": "player", "amount": "stolen", "timeout_s": 5},
+    {"id": "d4", "action": "end_plan", "result": "success", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [{"id": "d5", "action": "end_plan", "result": "fail", "report": "没摸到，他太精了", "timeout_s": 3}],
+    [{"id": "d6", "action": "end_plan", "result": "fail", "report": "没地方下手", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true},
+    {"when": {"type": "alert_phase", "entity": "any", "phase": "Alarmed"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**E. "缠住掌柜，我去翻那保管箱"（ENGAGE｜缠=随从，翻=玩家）**
 **执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 站位（保管箱对侧，掌柜背对箱子）→ 循环说话（face 纪律自动面向随从）
@@ -174,8 +248,34 @@
 └─ 不耐烦（temper 高/缠太久）→ 转头/走开（= 掉线，窗口翻转的机制，§5.2）
 ```
 
-**F. "闹出点动静，把人都引过来"**
-**语义解析**：COMMOTION ｜ 目标=`seeing(all, companion)`（GOAL+MAINTAIN：**先达成**——围观聚拢 → **后保持**——维持到玩家下手；被看到是目的）｜ 分工：闹=随从，下手=玩家
+```json
+{
+  "intent": {"intent_type": "ENGAGE", "subjects": ["companion"], "target": "tavernkeeper", "watch_point": "chest", "who_does": "companion"},
+  "summary": "我缠住掌柜，你翻那保管箱。",
+  "goal": {"type": "and", "conditions": [
+    {"type": "seeing", "a": "tavernkeeper", "b": "player", "op": "false", "sustained_s": 3},
+    {"type": "moving", "a": "tavernkeeper", "op": "false"}
+  ]},
+  "steps": [
+    {"id": "e1", "action": "move_to", "target": {"query": "stand_spot(tavernkeeper, chest)"}, "within": 1.0, "timeout_s": 15, "on_timeout": "e9"},
+    {"id": "e2", "action": "say_to", "target": "tavernkeeper", "text": "掌柜的，听说店里进了批好酒？", "timeout_s": 6},
+    {"id": "e3", "action": "say_to", "target": "tavernkeeper", "text": "跟我讲讲呗，我主人想打听", "timeout_s": 6, "on_success": "e2"}
+  ],
+  "fallbacks": [
+    [{"id": "e5", "action": "say_to", "target": "tavernkeeper", "text": "掌柜的您别走啊，我还没说完", "timeout_s": 6},
+     {"id": "e6", "action": "wait", "until": {"type": "seeing", "a": "tavernkeeper", "b": "player", "op": "false", "sustained_s": 3}, "timeout_s": 15, "on_timeout": "e7", "on_success": "e2"}],
+    [{"id": "e7", "action": "signal_player", "text": "掌柜转头了，快收手！", "timeout_s": 3},
+     {"id": "e8", "action": "end_plan", "result": "fail", "timeout_s": 3}],
+    [{"id": "e9", "action": "end_plan", "result": "fail", "report": "没位置", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "seeing", "a": "tavernkeeper", "b": "player", "op": "true", "was": "true"}, "then": "e5", "one_shot": true},
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**F. "闹出点动静，把人都引过来"（COMMOTION｜闹=随从，下手=玩家）**
 **执行人① 随从（actor=self · 计划驱动）· 串联**
 ```text
 闹动作（砸酒桶/喊叫）→ 复用 WitnessCrime 围观聚集（§10，criminal=随从纯围观无犯罪副作用）
@@ -189,8 +289,32 @@
 收"动手"信号 → 下手 ✓ ／ 收"人散了"信号 → 收手 ✗
 ```
 
-**G. "把那个守卫引到巷子里打晕"**
-**语义解析**：KNOCKOUT ｜ target=守卫 ｜ 隐蔽点=`hidden_spot` 动态查询（mission 无"巷子"标记，§5.0）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "COMMOTION", "subjects": ["companion"], "target": "all", "who_does": "companion"},
+  "summary": "我闹出点动静把人都引过来，你趁乱动手。",
+  "goal": {"type": "seeing", "a": "all", "b": "self", "op": "true", "sustained_s": 5},
+  "steps": [
+    {"id": "f1", "action": "make_noise", "timeout_s": 10},
+    {"id": "f2", "action": "wait", "until": {"type": "seeing", "a": "all", "b": "self", "op": "true", "sustained_s": 5}, "timeout_s": 30, "on_timeout": "f9"},
+    {"id": "f3", "action": "signal_player", "text": "都看过来了，快动手！", "timeout_s": 3},
+    {"id": "f4", "action": "wait", "seconds": 600}
+  ],
+  "fallbacks": [
+    [{"id": "f5", "action": "make_noise", "timeout_s": 10},
+     {"id": "f6", "action": "wait", "until": {"type": "seeing", "a": "all", "b": "self", "op": "true", "sustained_s": 5}, "timeout_s": 20, "on_timeout": "f7", "on_success": "f3"}],
+    [{"id": "f7", "action": "signal_player", "text": "人散了，收手！", "timeout_s": 3},
+     {"id": "f8", "action": "end_plan", "result": "fail", "timeout_s": 3}],
+    [{"id": "f9", "action": "end_plan", "result": "fail", "report": "没人看热闹", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "seeing", "a": "all", "b": "self", "op": "false", "was": "true"}, "then": "f5", "one_shot": true},
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**G. "把那个守卫引到巷子里打晕"（KNOCKOUT）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到守卫面前（move_to + face）→ 诱骗跟走（say_to，同 case A）→ 引到隐蔽点（move_to hidden_spot——动态选点（§5.0）：周围无人 + 无视野 + navmesh 可达）
@@ -203,16 +327,58 @@
 [触发：spoken_to / asked_to_follow]（人格：duty/gullibility 演算，同 case A）
 ```
 
-**H. "帮我望风，来人了叫我"**
-**语义解析**：LOOKOUT ｜ watch_zone=望风点 ｜ 执行=随从 ｜ 报告=密信
+```json
+{
+  "intent": {"intent_type": "KNOCKOUT", "subjects": ["companion"], "target": "guard", "who_does": "companion"},
+  "summary": "我把他引到巷子里放倒。",
+  "goal": {"type": "knocked_out", "entity": "guard"},
+  "steps": [
+    {"id": "g1", "action": "move_to", "target": "guard", "within": 2.0, "timeout_s": 15},
+    {"id": "g2", "action": "say_to", "target": "guard", "ask": "follow", "text": "那边有人找你，说是有急事", "timeout_s": 8},
+    {"id": "g3", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"}, "timeout_s": 10, "on_timeout": "g10"},
+    {"id": "g4", "action": "move_to", "target": {"query": "hidden_spot(self, 15)"}, "within": 1.0, "until": {"type": "distance", "a": "guard", "b": "hidden_spot", "op": "<", "value": 4}, "timeout_s": 30, "on_timeout": "g13"},
+    {"id": "g5", "action": "wait", "until": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3}, "timeout_s": 20, "on_timeout": "g9"},
+    {"id": "g6", "action": "knockout", "target": "guard", "timeout_s": 10},
+    {"id": "g7", "action": "end_plan", "result": "success", "report": "放倒了", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [{"id": "g8", "action": "signal_player", "text": "他折回去了，先算了", "timeout_s": 3},
+     {"id": "g9", "action": "end_plan", "result": "fail", "timeout_s": 3}],
+    [{"id": "g10", "action": "say_to", "target": "guard", "ask": "follow", "text": "劳驾跟我走一趟，就问几句话", "timeout_s": 6},
+     {"id": "g11", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"}, "timeout_s": 6, "on_timeout": "g12", "on_success": "g4"}],
+    [{"id": "g12", "action": "end_plan", "result": "fail", "report": "他不上当，不肯跟我走", "timeout_s": 3}],
+    [{"id": "g13", "action": "end_plan", "result": "fail", "report": "没地方下手", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "following", "a": "guard", "b": "self", "op": "false", "was": "true"}, "then": "g8", "one_shot": true},
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true},
+    {"when": {"type": "alert_phase", "entity": "guard", "phase": "Alarmed"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**H. "帮我望风，来人了叫我"（LOOKOUT）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到望风点（move_to）→ 望风（MAINTAIN：保持望风位置——望风是无限期待命，不套 5 分钟总时长上限（R6 豁免）；结束方式 = 玩家按停止键（仅对执行中的随从）：随从在身边 → 当面喊停；离远了 → 密信通知中止；**无 GOAL：达成点 = 下令时刻 t0，没有"等待达成"阶段**）
 └─ 有人进望风区（从"没人"变"有人"的那一瞬间，TRIGGER）→ "有人来了！"（密信报告玩家——望风留守脱不开身）→ 继续望风（可重复）
 ```
 
-**I. "告诉他，我在老地方等他"**
-**语义解析**：DELIVER ｜ target=目标（occupation 匹配）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "LOOKOUT", "subjects": ["companion"], "target": "watch_zone", "who_does": "companion"},
+  "summary": "我去望风，来人了叫你。",
+  "steps": [
+    {"id": "h1", "action": "move_to", "target": "watch_zone", "within": 1.5, "timeout_s": 30},
+    {"id": "h2", "action": "wait", "seconds": 600}
+  ],
+  "triggers": [
+    {"when": {"type": "in_zone", "a": "any", "b": "watch_zone", "op": "true"}, "then": {"action": "signal_player", "text": "有人来了！"}}
+  ]
+}
+```
+
+**I. "告诉他，我在老地方等他"（DELIVER）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到目标面前（move_to + face）→ 传话（say_to）
@@ -226,8 +392,27 @@
 └─ 不理/赶走（temper 高/social 低）→ 拒绝台词"滚开" → 随从如实转述
 ```
 
-**J. "带我去河边"**
-**语义解析**：GUIDE ｜ destination=河边（空间条件——语义锚点解析：预定义 Zone / 动态空间查询（§5.0），场景无此地 → 诚实报告"不知道"）｜ 目标=`distance(player, destination) < 3`（GOAL，目标参与者=玩家）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "DELIVER", "subjects": ["companion"], "target": "contact", "message": "我在老地方等他", "who_does": "companion"},
+  "summary": "我去把你的话带到。",
+  "steps": [
+    {"id": "i1", "action": "move_to", "target": "contact", "within": 2.0, "timeout_s": 30},
+    {"id": "i2", "action": "say_to", "target": "contact", "text": "我家主人说，他在老地方等你", "timeout_s": 8},
+    {"id": "i3", "action": "wait", "until": {"type": "time_since", "step_id": "i2", "op": ">", "value": 2}, "timeout_s": 6, "on_timeout": "i5"},
+    {"id": "i4", "action": "end_plan", "result": "success", "report": "说好了", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [{"id": "i5", "action": "end_plan", "result": "fail", "report": "他让我滚开", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "refused", "entity": "contact"}, "then": "i5", "one_shot": true},
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**J. "带我去河边"（GUIDE）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 [计划期预检①：语义锚点解析] "河边" → 预定义 Zone 或动态空间查询（§5.0，水网格/语义标记，能力待验证）
@@ -239,8 +424,21 @@
         └─ 玩家跟丢 → 停下等 → 跟上继续；等待超时 → 当面报告"你走不走啊" → 中止 ✗
 ```
 
-**K. "把那个醉鬼从我身边赶走"**
-**语义解析**：DRIVE_AWAY ｜ target=醉鬼 ｜ 目标=`distance(target, player) > 10`（GOAL）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "GUIDE", "subjects": ["companion"], "destination": {"query": "zone(河边)"}, "who_does": "companion"},
+  "summary": "我带你去河边。",
+  "goal": {"type": "distance", "a": "player", "b": "destination", "op": "<", "value": 3},
+  "steps": [
+    {"id": "j1", "action": "lead", "target": "destination", "timeout_s": 300}
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**K. "把那个醉鬼从我身边赶走"（DRIVE_AWAY）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到醉鬼面前（move_to + face）→ say_to 恐吓（剧本骨架，§6.4）
@@ -254,8 +452,30 @@
 └─ 反抗（temper 高）→ 骂回/挥拳 → 进入战斗（R5 目标敌对）
 ```
 
-**L. "你在这等我，去那边看看有什么"**
-**语义解析**：SCOUT ｜ 目标点=那边（空间条件）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "DRIVE_AWAY", "subjects": ["companion"], "target": "drunkard", "who_does": "companion"},
+  "summary": "我去把那醉鬼赶走。",
+  "goal": {"type": "distance", "a": "drunkard", "b": "player", "op": ">", "value": 10},
+  "steps": [
+    {"id": "k1", "action": "move_to", "target": "drunkard", "within": 2.0, "timeout_s": 15},
+    {"id": "k2", "action": "say_to", "target": "drunkard", "text": "滚远点，别在这碍事！", "timeout_s": 6},
+    {"id": "k3", "action": "wait", "until": {"type": "distance", "a": "drunkard", "b": "player", "op": ">", "value": 10, "sustained_s": 3}, "timeout_s": 20, "on_timeout": "k5"},
+    {"id": "k4", "action": "end_plan", "result": "success", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [{"id": "k5", "action": "say_to", "target": "drunkard", "text": "再不滚，对你不客气！", "timeout_s": 6},
+     {"id": "k6", "action": "wait", "until": {"type": "distance", "a": "drunkard", "b": "player", "op": ">", "value": 10, "sustained_s": 3}, "timeout_s": 15, "on_timeout": "k7", "on_success": "k4"}],
+    [{"id": "k7", "action": "signal_player", "text": "他急眼了，我先撤", "timeout_s": 3},
+     {"id": "k8", "action": "end_plan", "result": "fail", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**L. "你在这等我，去那边看看有什么"（SCOUT）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 侦察往返（move_to 目标点 → 观察 → 返回）
@@ -263,8 +483,19 @@
 └─ 空情报 → 回来报告"那边没什么"（GOAL：报告送达）✓（信息如实，空情报也是情报）
 ```
 
-**M. "干掉他"**
-**语义解析**：ATTACK ｜ target=目标 ｜ 目标=`dead(target)`（GOAL）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "SCOUT", "subjects": ["companion"], "destination": {"query": "point(那边)"}, "who_does": "companion"},
+  "summary": "我去那边看看有什么。",
+  "steps": [
+    {"id": "l1", "action": "move_to", "target": {"query": "point(那边)"}, "within": 2.0, "timeout_s": 60},
+    {"id": "l2", "action": "wait", "seconds": 5},
+    {"id": "l3", "action": "end_plan", "result": "success", "timeout_s": 3}
+  ]
+}
+```
+
+**M. "干掉他"（ATTACK）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到目标面前（move_to + face——接近到交战距离是前置步骤，玩家可尾随验证；FightEnemyAction 的追击只在开战后生效）→ order_attack（战斗风格：不留恋）
@@ -272,8 +503,29 @@
 └─ 打不过/目标逃跑 → 脱战 → 密信报告"他太硬，我先撤了"（紧急中断，随从离玩家可能远）✗（R1 受伤 → 护主/撤退）
 ```
 
-**N. "把全村人都杀了"**
-**语义解析**：ANNIHILATE ｜ zone=全村 ｜ 目标=`all_in(zone)` 敌对 = 0（GOAL）｜ 执行=随从 ｜ **目标集合过滤需计划期澄清：是否含己方/同伴（默认排除，玩家明确确认才无差别）**
+```json
+{
+  "intent": {"intent_type": "ATTACK", "subjects": ["companion"], "target": "foe", "who_does": "companion"},
+  "summary": "我去办了他。",
+  "goal": {"type": "dead", "entity": "foe"},
+  "steps": [
+    {"id": "m1", "action": "move_to", "target": "foe", "within": 1.5, "timeout_s": 20},
+    {"id": "m2", "action": "order_attack", "target": "foe", "until": {"type": "dead", "entity": "foe"}, "timeout_s": 120},
+    {"id": "m3", "action": "end_plan", "result": "success", "report": "办完了", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [{"id": "m4", "action": "signal_player", "text": "他太硬，我先撤了", "timeout_s": 3},
+     {"id": "m5", "action": "end_plan", "result": "fail", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "and", "conditions": [
+        {"type": "combat", "entity": "self", "op": "false", "was": "true"},
+        {"type": "dead", "entity": "foe", "op": "false"}]}, "then": "m4", "one_shot": true}
+  ]
+}
+```
+
+**N. "把全村人都杀了"（ANNIHILATE）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 [计划期澄清（questions，≤2 轮）：目标集合边界] "全村人" 是否含己方/同伴？
@@ -286,8 +538,29 @@
 （恐慌传播链：see_ally_killed → flee/attack/call_guards 链式传播）
 ```
 
-**O. "他要是敢还手，你就上"**
-**语义解析**：GUARD + 条件参战 ｜ 护卫对象=玩家（被保护者）｜ 对手=玩家正在冲突/对峙的人（快照实体解析，歧义走澄清轮）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "ANNIHILATE", "subjects": ["companion"], "zone": "village", "filter": "exclude_allies", "who_does": "companion"},
+  "questions": [{"q": "全村人——连自己人也算进去吗？", "options": ["只杀外人（默认）", "连自己人也杀"]}],
+  "summary": "我把这村子里的人清了（不含自己人）。",
+  "goal": {"type": "count", "of": {"query": "all_in(zone)"}, "op": "=", "value": 0},
+  "loop": {
+    "steps": [
+      {"id": "n1", "action": "move_to", "target": {"query": "nearest_enemy(self)"}, "within": 1.5, "timeout_s": 15},
+      {"id": "n2", "action": "fight", "target": {"query": "nearest_enemy(self)"}, "timeout_s": 30}
+    ],
+    "until": {"type": "count", "of": {"query": "all_in(zone)"}, "op": "=", "value": 0}
+  },
+  "fallbacks": [
+    [{"id": "n3", "action": "end_plan", "result": "fail", "report": "跑了几个，剩下的还在村里", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**O. "他要是敢还手，你就上"（GUARD·条件参战）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 压阵（MAINTAIN：戒备跟随——无 GOAL：达成点 = 下令时刻 t0，下令即开始保持）
@@ -301,14 +574,54 @@
 └─ 对手认怂/冲突结束 → 按停止键收尾（R3）✓
 ```
 
-**P. "打晕门口那两个守卫"**
-**语义解析**：批量 KNOCKOUT ｜ target=`all_in(门口)` ｜ 目标=全部击晕（GOAL）｜ 执行=随从
+```json
+{
+  "intent": {"intent_type": "GUARD", "subjects": ["companion"], "target": "player", "opponent": "rival", "who_does": "companion"},
+  "summary": "我就在你旁边压阵，谁还手我上。",
+  "steps": [
+    {"id": "o1", "action": "follow", "target": "player", "rel_pos": "behind", "timeout_s": 600}
+  ],
+  "fallbacks": [
+    [{"id": "o2", "action": "order_attack", "target": "rival", "timeout_s": 30},
+     {"id": "o3", "action": "wait", "until": {"type": "combat", "a": "rival", "b": "player", "op": "false"}, "timeout_s": 90, "on_success": "o1"}]
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "a": "rival", "b": "player", "op": "true"}, "then": "o2", "one_shot": false},
+    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  ]
+}
+```
+
+**P. "打晕门口那两个守卫"（KNOCKOUT·批量）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 循环段：query 下一个守卫 → 绕背击晕
 ├─ 全部击晕（GOAL）→ 收手 → 返回当面报告"全放倒了" ✓
 └─ 惊动增援 / 目标醒转 → 中止 + 密信报告"来了增援，先撤"（紧急中断）✗
    惊动判定（两级信号，取早者）：①**警戒上升**——附近任一 ReactiveAgent 进入 Alarmed（`alert_phase` 谓词，WitnessCrime 目击脉冲源，case A 警戒 @abort 同款）→ 惊动了，立刻中止跑路；②**开打兜底**——增援已敌对化（`combat(self)` = 有人把随从设为 enemy）→ 晚信号，此时已被围，脱战即跑
+```
+
+```json
+{
+  "intent": {"intent_type": "KNOCKOUT", "subjects": ["companion"], "target": {"query": "all_in(gate)"}, "who_does": "companion"},
+  "summary": "我把门口那俩守卫全放倒。",
+  "goal": {"type": "count", "of": {"query": "all_in(gate)"}, "op": "=", "value": 0},
+  "loop": {
+    "steps": [
+      {"id": "p1", "action": "move_to", "target": {"query": "nearest_enemy(self)"}, "within": 1.5, "timeout_s": 15},
+      {"id": "p2", "action": "knockout", "target": {"query": "nearest_enemy(self)"}, "timeout_s": 10}
+    ],
+    "until": {"type": "count", "of": {"query": "all_in(gate)"}, "op": "=", "value": 0}
+  },
+  "fallbacks": [
+    [{"id": "p3", "action": "signal_player", "text": "来了增援，先撤", "timeout_s": 3},
+     {"id": "p4", "action": "end_plan", "result": "fail", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "alert_phase", "entity": "any", "phase": "Alarmed"}, "then": "p3", "one_shot": true},
+    {"when": {"type": "combat", "entity": "self"}, "then": "p3", "one_shot": true}
+  ]
+}
 ```
 
 ### 0.2 意外演练 case（4 个，执行期验证）
@@ -639,6 +952,20 @@ public class SceneSnapshot
 **实现要点**：循环段 = 执行器 step pointer 段内回跳 + until 谓词求值；query refs 由引用解析层运行时解析（查快照 + 谓词过滤），与静态 refs 共用同一解析入口。
 
 **循环内步骤的退出路径（四层，不需要 break 语法）**：①步骤 `until`（条件成立提前完成本步——如目标失效 → 回循环顶重 query）；②步骤 `timeout_s`（超时 = 本步失败 → 回循环顶重新求值 `loop.until`，清空则退出、否则继续）；③`loop.until`（**正常退出**：zone 清空）；④Guardrail（**异常退出**：R1 受伤 / R2 目标死亡 / R5 敌对 → 循环中止，计划不用写 break）。
+
+**语法缺口清单（§0.1 的 16 份 JSON 示范暴露，v2 补齐）**
+
+| # | 缺口 | 说明 | 涉及 case |
+|---|------|------|-----------|
+| 1 | 逻辑组合 `and` | 复合条件（`distance<3 && !moving`）缺组合节点——B/E/M 的 goal 与脱战判定需要 | B/E/M |
+| 2 | 结果路由 `result{}` | 判定型原子（steal_attempt/knockout）有内部结果（success/empty/impossible/interrupted），需按结果跳转；`on_timeout` 只覆盖超时 | C/D/G |
+| 3 | 瞬间事件谓词 | DELIVER 成败取决于"目标是否拒绝"——计划侧需最小事件谓词（`refused`），与 §5.4 分工线（瞬间全在反应表）的衔接待定 | I |
+| 4 | `knocked_out` 谓词 / `knockout` 原子 | §2.1 已登记意图，语法层空白；P 的"目标醒转"检测也缺 | G/P |
+| 5 | 新查询/动作落语法 | `stand_spot(目标,点)` 站位、`zone(河边)`/`point(那边)` 语义锚点、`make_noise`、`lead` | F/E/J/L |
+| 6 | 保持位时长豁免 | 望风/压阵/缠住的保持步 >60s（§5.3 钳制冲突），与 R6 豁免同源 | H/O/E/F |
+| 7 | 预期战斗声明与 abort 兜底边界 | O 声明了预期 combat（参战）后再写 `combat(self)→abort` 会在参战中误杀计划——需裁决：参战期间 abort 兜底是否保留（或改用 `combat(第三方, self)` 谓词）；§7.1 只写了豁免方向 | O |
+| 8 | R2 对战斗意图豁免 | ATTACK 目标死亡 = GOAL，非"参与者死亡 → Aborted" | M |
+| 9 | 掉线预案只保一次 | E/F 的 one_shot 掉线再缠，恢复后再次掉线无保护 | E/F |
 
 ### 5.1 Plan JSON（LLM 输出，封闭语法）
 
