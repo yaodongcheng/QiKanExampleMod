@@ -1257,6 +1257,10 @@ namespace LivingWorldNpcs
             sb.AppendLine("12. 成功收尾与失败收尾是两个不同节点：主链末尾放 end_plan result=\"success\"（成功收尾，report 成功台词）；on_timeout / on_event 是失败路径，只能指向 result=\"fail\" 的 end_plan 或重试预案，禁止指向 success 收尾。");
             sb.AppendLine("13. wait 步骤的 on_timeout 语义 = \"条件没等到\"（守卫没跟来/目标没到位），是失败路径，必须指向 fail 收尾；只有计划真正完成才走 success 收尾。");
             sb.AppendLine("14. 地点诚实纪律：命令提到的地点（河边/城堡/张员外家等）若场景快照里没有该角色/物件/锚点 → 不编造带路，用 questions 澄清或 CUSTOM 诚实说\"不知道在哪\"；只有场景里存在的实体（角色/物件/锚点）才能作为 target。");
+            sb.AppendLine("15. 保持型命令（望风/压阵/盯梢/缠住/跟随/闹事引众/\"别让他走\"这类持续到玩家叫停的任务）用无限 wait（不写 seconds/until/timeout）或无限 follow 表达保持，用 triggers 表达事件报告，不设 goal，结束由玩家按停止键；禁止把\"等 N 秒没人来/没动静\"写成 success 收尾（望风不是看一会就收工，是持续待命）。**任务型 vs 保持型的区别**：有成功时刻（请到人/偷到物/杀死目标）→ goal + 主链 end_plan success 收尾；无成功时刻（望风/缠住/压阵/跟随/闹事）→ 保持 + 玩家叫停——缠住/拖住/闹事是保持型：达成后进入保持期（GOAL→MAINTAIN），**不因\"缠住了/引来了\"就 success 收尾**；\"跟我来/跟着我\" = 无限 follow（{\"action\":\"follow\",\"target\":\"player\"}），不是走到玩家身边就收尾。");
+            sb.AppendLine("16. until/when/goal/triggers/contingencies 的条件里只能写谓词词表（distance/seeing/following/combat/in_zone/count/time_since 等）；approach_by/spoken_to/see_crime/left_post_seconds/player_suspicious_near/**combat_nearby** 等事件词只能出现在 reactions 的 event 字段，禁止写进条件（想表达\"有人靠近/进入区域\"→ 用谓词 in_zone(any, 区域)；**想表达\"附近有战斗\"→ 用谓词 combat(any, any)，不是 combat_nearby**；**想表达\"等对方回应/说完\"→ 用谓词 time_since(对应 say_to 步骤的 step_id, 秒)，不是 spoken_to**；想表达\"物品到手\"→ 没有专用谓词，省略该条件，用步骤自身 result 路由或 time_since）。**goal/until 只能写谓词词表**：无法用谓词表达的成功（如\"物品到手\"）→ 省略 goal，用主链 end_plan result=\"success\" 表达成功。");
+            sb.AppendLine("17. ask:\"follow\" 只用于\"请对方跟走/过来\"的邀请（请人来/引开人）；缠住/传话/望风等任务不写 ask。");
+            sb.AppendLine("18. contingencies[].then 必须是字符串（步骤 id 或 @abort_gracefully）——写 {\"action\":...} 对象是非法结构（那是 triggers[].then 的形态，triggers 与 contingencies 结构不同，禁止混写）。");
             sb.AppendLine();
             if (!string.IsNullOrEmpty(grammarRules))
             {
@@ -1305,11 +1309,33 @@ namespace LivingWorldNpcs
   {""id"": ""p2"", ""action"": ""knockout"", ""target"": {""query"": ""nearest_enemy(self)""}, ""timeout_s"": 10}],
   ""until"": {""type"": ""count"", ""of"": {""query"": ""all_in(zone)""}, ""op"": ""="", ""value"": 0}}，loop 之后接主链报告步骤");
             sb.AppendLine();
+            sb.AppendLine("【失败路径示范（照抄此结构）】条件等待超时/拒绝事件 = 失败，on_timeout/on_event 只能指向 fail 收尾或重试预案：");
+            sb.AppendLine(@"{""id"": ""w3"", ""action"": ""wait"", ""until"": {""type"": ""following"", ""a"": ""guard"", ""b"": ""self"", ""op"": ""true""}, ""timeout_s"": 10, ""on_timeout"": ""w4""},
+{""id"": ""w4"", ""action"": ""end_plan"", ""result"": ""fail"", ""report"": ""他没跟来，不肯走"", ""timeout_s"": 3}");
+            sb.AppendLine("（禁止 on_timeout 指向 result=\"success\" 的 end_plan——条件没等到却说成功 = 谎报）");
+            sb.AppendLine();
+            sb.AppendLine("【等对方回应示范（照抄此结构）】\"等目标回应/说完\"用 time_since 引用 say_to 步骤（禁止用 spoken_to——那是事件词）：");
+            sb.AppendLine(@"{""id"": ""i2"", ""action"": ""say_to"", ""target"": ""contact"", ""text"": ""我家主人说，他在老地方等你"", ""timeout_s"": 8},
+{""id"": ""i3"", ""action"": ""wait"", ""until"": {""type"": ""time_since"", ""step_id"": ""i2"", ""op"": "">"", ""value"": 2}, ""on_event"": [{""type"": ""refused"", ""then"": ""i5""}], ""timeout_s"": 6, ""on_timeout"": ""i6""},
+{""id"": ""i4"", ""action"": ""end_plan"", ""result"": ""success"", ""report"": ""说好了"", ""timeout_s"": 3}，i5/i6 为 fail 收尾");
+            sb.AppendLine();
+            sb.AppendLine("【保持型示范（望风/压阵，照抄此结构）】持续待命 = 无限 wait（省略 seconds/until/timeout）+ triggers 事件报告，不设 goal：");
+            sb.AppendLine(@"""steps"": [
+  {""id"": ""h1"", ""action"": ""move_to"", ""target"": ""player"", ""within"": 2.0, ""timeout_s"": 30},
+  {""id"": ""h2"", ""action"": ""wait""}],
+""triggers"": [
+  {""when"": {""type"": ""in_zone"", ""a"": ""any"", ""b"": ""player"", ""op"": ""true""}, ""then"": {""action"": ""signal_player"", ""text"": ""有人来了！""}}]");
+            sb.AppendLine("（h2 无限等待，结束 = 玩家按停止键；禁止把\"等 N 秒没人来\"写成 success 收尾）");
+            sb.AppendLine();
+            sb.AppendLine("【判定型步骤示范（照抄此结构）】偷窃/拿取类\"物品到手\"用 result 路由表达结果，不写 has_item 类条件：");
+            sb.AppendLine(@"{""id"": ""c1"", ""action"": ""steal_attempt"", ""target"": ""chest"", ""variant"": ""item"", ""when"": {""type"": ""seeing"", ""a"": ""any"", ""b"": ""self"", ""op"": ""false"", ""sustained_s"": 3}, ""result"": {""success"": ""c2"", ""empty"": ""c6"", ""interrupted"": ""c8""}, ""timeout_s"": 40, ""on_timeout"": ""c7""},
+{""id"": ""c2"", ""action"": ""signal_player"", ""text"": ""得手了，撤！"", ""timeout_s"": 3}，c6/c7/c8 为 fail 收尾（result 的每个键都必须指向存在的步骤）");
+            sb.AppendLine();
             sb.AppendLine("【输出质量要求（不满足视为不合格，必须重写）】");
             sb.AppendLine("1. 主链 steps ≥ 5 步（简单任务至少 4 步），粒度到\"走→说→等→验证→报告\"，禁止 2-3 步糊弄。");
             sb.AppendLine("2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。");
             sb.AppendLine("3. contingencies ≥ 2 条：combat → @abort_gracefully 必写 + 至少 1 条任务相关意外（折返 following was 检测/警戒 alert_phase/掉线 seeing 翻转）。");
-            sb.AppendLine("4. 必须带 goal（计划成功条件：distance/seeing/count 谓词组合）。");
+            sb.AppendLine("4. 非保持型计划必须带 goal（计划成功条件：distance/seeing/count 谓词组合）；保持型计划（望风/压阵/盯梢）不设 goal，用无限 wait + triggers 表达，结束由玩家叫停。");
             sb.AppendLine("5. reactions：事件/动作必须在封闭词表内，禁止自创。");
             sb.AppendLine("6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如\"办好了/我就在这等你\"），禁止裸 wait 结尾。");
             sb.AppendLine("7. 动态目标优先用 query 找点（lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point），禁止硬编码场景里不存在的区域名。");

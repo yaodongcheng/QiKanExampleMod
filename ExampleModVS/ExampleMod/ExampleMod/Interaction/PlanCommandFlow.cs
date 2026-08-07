@@ -423,6 +423,8 @@ namespace LivingWorldNpcs
                 + "\n\"缠住/拖住/别让他走/稳住他\" → ENGAGE（对话/周旋，不让对方脱身）"
                 + "\n\"偷/摸/拿那东西\" → STEAL；\"请/叫某人过来\" → BRING；\"望风/盯梢/来人了叫我\" → LOOKOUT"
                 + "\n\"带我去/领我去\" → GUIDE；\"赶走/轰走/撵走\" → DRIVE_AWAY；\"传话/告诉他\" → DELIVER"
+                + "\n\"去和X切磋/比试，试他深浅\" → DUEL（随从与第三方比武，非致死，回报评估）；\"和我切磋/和我比划\" → SPAR（玩家是互动对象）"
+                + "\n\"订房/安排事务/订酒菜\" → TALK_TO（交涉安排）；\"买/购买某物\" → PURCHASE（随从花钱买货带回来）；\"讨债/要钱/收账\" → COLLECT（把钱要回来）"
                 + "\n【复合命令判定（重要：按最终目的分类，不是第一个动作）】"
                 + "\n\"引开/骗走 X 打晕/干掉/放倒\" → KNOCKOUT/ATTACK（引开只是手段，最终目的是击晕/击杀）"
                 + "\n\"我引开/缠住/望风，你去偷/翻/动手\" → STEAL 等（\"我…你…\" = 角色分工，随从执行的是后半句的主动作）"
@@ -442,13 +444,13 @@ namespace LivingWorldNpcs
                 "字段纪律：say_to 台词写 text（不是 content）；wait 退出条件写 until（必须是对象 {\"type\":...}，禁止字符串）；ask 只允许 \"follow\"",
                 "end_plan 的 result 只能是 \"success\" 或 \"fail\"；report 可选（当面报告文本）",
                 "【reactions 封闭词表（事件/动作严禁自创）】",
-                "事件：approach_by / spoken_to / asked_to_follow / asked_to_stay / player_suspicious_near / see_crime / combat_nearby / left_post_seconds / alone_with / seen_speaking / see_ally_killed（注意是 approach_by，不是 approached_by；没有 flee 这个动作）",
-                "动作：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item",
+                "事件：approach_by / spoken_to / asked_to_follow / asked_to_stay / player_suspicious_near / see_crime / combat_nearby / left_post_seconds / alone_with / seen_speaking / see_ally_killed（注意是 approach_by，不是 approached_by）",
+                "动作：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item / flee（flee = 看到同伴被杀等恐慌情境下跑离现场）",
                 "【输出质量要求（不满足视为不合格，必须重写）】",
                 "1. 主链 steps ≥ 5 步（简单任务至少 4 步），粒度到\"走→说→等→验证→报告\"，禁止 2-3 步糊弄。",
                 "2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。",
                 "3. contingencies ≥ 2 条：combat → @abort_gracefully 必写 + 至少 1 条任务相关意外（折返 following was 检测/警戒 alert_phase/掉线 seeing 翻转）。",
-                "4. 必须带 goal（计划成功条件：distance/seeing/count 谓词组合）。",
+                "4. 非保持型计划必须带 goal（计划成功条件：distance/seeing/count 谓词组合）；保持型计划（望风/压阵/盯梢）不设 goal，用无限 wait + triggers 表达，结束由玩家叫停。",
                 "5. reactions：事件/动作必须在封闭词表内，禁止自创。",
                 "6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如\"办好了/我就在这等你\"），禁止裸 wait 结尾。",
                 "7. 动态目标优先用 query 找点（lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point），禁止硬编码场景里不存在的区域名。",

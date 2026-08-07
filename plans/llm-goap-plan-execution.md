@@ -1,5 +1,11 @@
 # 密谋命令系统 v2 — 意图分类 + LLM 计划生成 + 确定性执行
 
+> **⚠️ 待办（2026-08-07/08 晚间迭代，✅ 全面收敛）**：
+> 1. **✅ 收敛**：v12 prompt + temperature 0.4 + **reasoning_effort: none** 为定稿（基础 10/11 + 压力 82%（修正期望后）/ 质量 6.66 ≈ 基准 / 延迟 avg 3.4s）。**四个方向验证完毕**：纪律加法到顶（v12）、纪律减法失败（v13=57%，回滚）、温度无差异（0.3=0.4）、reasoning 无收益（none=medium=90%，low=81%，medium 复杂任务延迟 14s/峰值 34s）。模型锁定 flash（性价比最高）+ 关思考 = 双重性价比最优。**prompt/参数侧无剩余杠杆**，剩余残余（分类轮间漂移/CUSTOM+plan/道德拒绝/schema）均有设计兜底
+> 2. **测试产物**：有效集 = v9-v14/v14b + rmed（reasoning 实验部分样本）；v4-v8/tmp_engage 归档至 `Debug/_archive_old_samples/`；v13 保留作失败对照
+> 3. **实机验证待做**（🔧实机项，与 LLM 回归互补）：`custom.plan_debug run` 动态执行 + 测试矩阵（多疑守卫/尽责守卫/村长拒绝/意外三连/停止键/模态/R4 豁免）——LLM 输出质量已达标，执行层行为需进游戏验证
+> 4. **本轮已改文件**（全部落盘 + build 通过）：`Scripts/test_llm_plan.py`（validator 全量检查 + 纪律 15-18 + 六示范 + flee 词表 + few-shot 补行 + `--temp`/`--reasoning` 参数）、`Scripts/test_llm_plan_stress.py`（--cmd 修复/expected=None/ANY/W2-W5 期望修正/ENGAGE 入集/`--temp`/`--reasoning` 透传）、`Scripts/compare_plan_quality.py`（默认目录 v11）、`Planner/PlanGrammar.cs`（contingencies/goal/triggers/loop.until 谓词校验）、`Planner/ReactiveAgent.cs`（flee 反应词 + ReactiveFleeAction）、`LLM/PromptBuilder.cs`（纪律 15-18 + 六示范 + 质量要求 4）、`Interaction/PlanCommandFlow.cs`（few-shot 补行/flee 词表/质量要求 4）、`plans/llm-goap-plan-execution.md`、`plans/rules/wheels.d/planner.md`
+
 > **状态**：✅ 已实施（2026-08-07，M1-M4 核心全部落地；LLM 链路已实测打通）
 > - 代码落地：`Planner/`（PlanGrammar/SceneSnapshot/RuntimeWorldState/PlanExecutor/InlineSteps/ReactiveAgent/PlanReplan + GoalTemplates）、`Interaction/PlanCommandFlow.cs`、`Debug/PlanDebugCommands.cs` + `Debug/PlanExamples/`（17 份示例 JSON）
 > - 接线：`AgentBrain` order_execute_plan/plan_decision/ReactiveAgent 触发词分支、`NpcIntent.ExecutingCommand`（CommandDetail）、`AgentAIController.OnMissionTick → PlanExecutor.TickAll`、Plot(G长按)/StopPlan(X短按) 玩法行、AgentHudVM 执行摘要
@@ -32,7 +38,7 @@
 | §5.3 PlanValidator | ✅ | 步骤级降级（未知动作丢弃该步，>50% 拒收）/参数钳制/别名容错（attack→order_attack 等 6 个别名） |
 | §5.4 PlanExecutor | ✅ | 多 actor 游标/双通道（事件+轮询）/收尾三路（当面/密信报告）/Paused 保留 Inline 状态/R1-R7 安全网（§7）/执行摘要 HUD |
 | §5.5 台本演出 | 🟡 | script 模型 + validator 分支完整性校验 ✓；**执行器播放未实现**（negotiate/duel 依赖，v2 排期） |
-| §6 ReactiveAgent | 🟡 | 触发词/反应词/人格演算/决策结果广播（refused/followed）/职业默认模板/深拷贝 ✓；**❌ 未实现**：恐慌传播链（see_ally_killed→flee/call_guards 链式）、relay_message（间接 BRING） |
+| §6 ReactiveAgent | 🟡 | 触发词/反应词/人格演算/决策结果广播（refused/followed）/职业默认模板/深拷贝 ✓；**flee 反应词已落地**（跑离现场，ReactiveFleeAction，§6.3）；**❌ 未实现**：恐慌传播链（see_ally_killed→flee/call_guards 链式传播，flee 本体已就绪）、relay_message（间接 BRING） |
 | §7 Guardrail R1-R7 | ✅ | 全部实现（R1 战斗 Paused/R2 死亡/R3 停止键/R4 追回+独行豁免/R5 敌对+Replan/R6 总时长+事件驱动豁免/R7 模态）；Replan 节流 ≤2（成功才计数） |
 | §8 密谋对话壳 | 🟡 | Plot(G长按)/StopPlan(X短按) 玩法行、自由输入→LLM→澄清轮(≤2)→批准轮(同意/再想想/算了)、密谋中 Talk 互斥移除 ✓；**❌ 未实现**：TextInputWidget + 手柄预设 chips（用既有 ShowTextInquiry 替代，功能等价） |
 | §9 LLM 升级点 | ✅ | 超额完成：temperature 参数 + max_tokens 4000 + BuildPlanPrompt + **懒初始化修复**（原单例从未初始化，LLM 功能实际从未工作）+ **URL/model 参数化** + **reasoning_effort:none 关思考**（实测 25s→3.5s） |
@@ -42,7 +48,7 @@
 | §11 M3 ReactiveAgent | ✅ | 触发词表/反应词表/人格演算/默认模板兜底/决策广播；传播作用域部分（§6 见上） |
 | §11 M4 Replan+STEAL | ✅ | Replan 循环（事件日志→重入→新计划→summary 播报）+ steal_attempt 完整版（绕背/目击问责/守恒）+ knockout 完整版 |
 | §11 M5 打磨 | 🟡 | 本地化（中英 60+ 键）/冒泡/HUD 执行摘要/emote 点缀/边界（随从死亡/并发 Plot 互斥）✓；**❌ 待做**：SPAR 意图、双版本编译（1.2.12）、实机体验 |
-| §12 验证方案 | 🟡 | plan_debug 8 子命令 ✓（snapshot/list/run/status/stop/role/step/replan）；17 示例静态校验 ✓；**LLM 回归流程已固化（见下）**；**🔧实机**：测试矩阵（多疑守卫/尽责守卫/村长拒绝/意外三连/停止键/模态/R4 豁免） |
+| §12 验证方案 | 🟡 | plan_debug 8 子命令 ✓（snapshot/list/run/status/stop/role/step/replan）；17 示例静态校验 ✓；**LLM 回归双脚本已固化（见文档顶部：test_llm_plan.py 基础 + test_llm_plan_stress.py 压力 + compare_plan_quality.py 评分；v9 基线 74%，v10 待更新）**；**🔧实机**：测试矩阵（多疑守卫/尽责守卫/村长拒绝/意外三连/停止键/模态/R4 豁免） |
 | §13 风险对策 | ✅ | 全部有对策且落地（LLM 分类错→few-shot+澄清；自说自话→人格演算+默认模板；竞争→统一接管+收尾三路；Replan 死循环→节流；冒泡无听者→face 前置；零成本→§4.1 问责） |
 
 ---
@@ -52,22 +58,36 @@
 > 每次修改 prompt / 意图表 / 换模型 / 调温度后，**必须**跑一次回归，退出码 0 才算合格。
 
 ```bash
-# 完整回归（11 个预设命令：8 意图 + 歧义 + 词表外 + 清剿）
+# 基础回归（11 个预设命令：8 意图 + 歧义 + 词表外 + 清剿）
 python Scripts/test_llm_plan.py
+
+# 压力回归（33 命令 × N 轮：全谱系 case + 武侠谱系 + 群组谱系 + 歧义边界，落盘完整 input/output）
+python Scripts/test_llm_plan_stress.py --rounds 2 --out Debug/llm_samples_v<N>
 
 # 单命令 / 场景规模压力 / 示例 JSON 校验（不发请求）
 python Scripts/test_llm_plan.py --cmd "干掉他"
 python Scripts/test_llm_plan.py --scene 30
 python Scripts/test_llm_plan.py --json Debug/PlanExamples/A_DISTRACT.json
+
+# 5 维质量评分（v5 起全维度超 PlanExamples 基准）
+python Scripts/compare_plan_quality.py Debug/llm_samples_v<N> Debug/llm_samples_v<N-1>
 ```
 
-**脚本职责**（`Scripts/test_llm_plan.py`）：读 MCM 配置（key 掩码）→ 构建与 C# `BuildPlanPrompt` 逐段同构的 prompt（意图表 + few-shot + 纪律 + 词表 + JSON 模板）→ `reasoning_effort: none` 发真实请求 → 模拟 `PlanValidator`（S1 跳转存在/S4 id 唯一/fallbacks 双层/动作词表+别名/say_to 字段名）→ 汇总分类正确率。
+**脚本职责**（`Scripts/test_llm_plan.py`）：读 MCM 配置（key 掩码）→ 构建与 C# `BuildPlanPrompt` 逐段同构的 prompt（意图表 + few-shot + 纪律 + 词表 + JSON 模板）→ `reasoning_effort: none` 发真实请求 → 模拟 `PlanValidator`（S1 跳转存在/S4 id 唯一/fallbacks 双层/动作词表+别名/say_to 字段名/**loop 内部全校验/谓词词表/谎报检查/zone 锚点纪律**）→ 汇总分类正确率。`test_llm_plan_stress.py` 同构但命令集覆盖 0.1/0.4/0.6 全谱系 33 命令，落盘每 case 的完整 prompt+output 供人工检查。
 
 **回归基线（2026-08-07 实测，deepseek-v4-flash 关思考）**：
-- 11 命令通过 **10/11**（唯一失败 = "杀全村人"被模型自主道德拒绝 → CUSTOM，属预期行为，见 §0.1 case N 注）
-- 分类正确率 91%；schema 合规 100%；0 解析失败；耗时 1.5-5.4s（input ~1000-1700 tok，output ~480-550 tok）
-- 已修复的不稳定项：①动作别名漂移（attack→order_attack，C# ActionAliases + prompt 强调）②相近意图漂移（"干掉他"在 ATTACK/DISTRACT 间漂移 → few-shot 意图判定基准）
-- **同步维护纪律**：C#（`PlanCommandFlow.BuildIntentTable`/`BuildGrammar` + `PlanGrammar.ActionAliases`）与 py（`INTENT_TABLE`/`ACTION_ALIASES`）双份，改一边必须同步另一边
+- v9（旧 prompt）：基础 8/11、压力 49/66 = 74%；质量分 7.45（B 可执行 9.35/C 分支 9.47/D 对白 5.7/E 乐趣 4.62）
+- v10（纪律 15/16/17 + 保持型/失败路径示范 + flee 词表 + few-shot 补行）：基础 6/11、压力 43/66 = 65%——**同 validator 公平对比 v9=72% / v10=68%**：validator 变严是主因（未知谓词 20→14 改善），文本纪律边际收益到顶
+- v11（v10 + time_since 等回应示范 + FOLLOW 无限跟随 + then 类型对比）：基础 10/11、压力 57/68 = 83%（**峰值**）；质量 6.87（≈ 基准）
+- v12（v11 + combat_nearby→combat(any,any) + COMMOTION 点名 + result 路由示范）：基础 10/11、压力 54/68 = **82%（修正 ANY 期望后 56/68）**；质量 6.66（≈ 基准）——**收敛版本**，combat_nearby 当谓词清零
+- **v13（prompt 减法实验，❌ 失败）**：纪律 18→12 压缩 + 示范 5→3 整合 → 基础 6/11、压力 39/68 = **57%（严重退化）**——**该模型需要完整明确的纪律文本，压缩/合并纪律 = 丢失关键细节（contingencies/triggers 结构对比、保持型细则等），不得再试**。已回滚（py 从 v12 样本 input_prompt 提取恢复，C# 反向 Edit 恢复）
+- v14（v12 复现验证）：基础 9/11、压力 55/68 = **80%**（≈ v12，复现成功，噪声范围内）；W2 期望修正（场景无郎中 → CUSTOM/澄清 = 地点纪律预期行为，同 W4/W5）
+- v14b（温度实验 0.3）：压力 56/68 = **82%**（与 0.4 持平——修正 W2 期望后 0.4=82%、0.3=82%，**温度不是轮间漂移的杠杆，保持 0.4**（与 C# LLMService 计划调用一致））
+- **reasoning_effort 对比实验（2026-08-08，模型锁定 deepseek-v4-flash）**：none=10/11（90%，avg 3.4s）/ low=9/11（81%，avg 4.0s，**反而退化**——思考让模型偏离封闭词表纪律）/ medium=10/11（90%，简单命令 avg 3.3s 但复杂任务 stress 实测 **avg 14s、峰值 33.8s**）。**结论：保持 `reasoning_effort: none`**——flash 的思考模式对封闭词表 JSON 生成无质量收益（甚至 low 档违规），延迟 3-4 倍。模型（flash）+ 关思考 = 双重性价比最优
+- **收敛结论（2026-08-07/08 终版）**：四个方向全部验证完毕——①**纪律加法**（v9→v12）：74%→82% 有效，到顶（v12 实测继续加边际为负）；②**纪律减法**（v13）：57% 严重退化，**该模型需要完整明确的纪律文本，压缩=丢细节**；③**温度**（0.3 vs 0.4）：无差异；④**reasoning_effort**（none/low/medium）：无质量收益 + 延迟 3-4 倍，保持 none。**80-83% 是当前模型 + 当前 prompt 结构的稳定水平**。剩余失败 = ①分类轮间漂移（SCOUT"等我+侦察"归 WAIT、STOP"住手"归 ENGAGE、施法"变戏法"归 COMMOTION、case C 分工归 DISTRACT——few-shot 基准已尽力，模型随机性）②CUSTOM 分类仍出 plan（低频，2-3/68）③道德拒绝（ANNIHILATE，预期）④schema 残余（悬空/重复 id，运行时兜底）。**prompt/参数侧已全面收敛，无剩余杠杆**
+- **收敛结论（2026-08-07）**：79-83% 是当前模型（deepseek-v4-flash 关思考）在严格 validator 下的稳定水平——剩余失败 = ①分类轮间漂移（SCOUT"等我+侦察"归 WAIT、STOP"住手"归 ENGAGE、施法"变戏法"归 COMMOTION，few-shot 基准已尽力，模型随机性）②CUSTOM 分类仍出 plan（低频，3/68）③道德拒绝（ANNIHILATE，预期）④schema 残余（悬空/重复 id，运行时兜底）。**质量 vs 合规权衡**：纪律越严合规率越高（72%→83%），但模型过约束致表现力略降（质量分 7.45→6.66，仍 ≈ PlanExamples 6.76 基准）——合规优先（不可执行的漂亮计划 = 谎言，铁律 2）。**继续加纪律的边际收益为负（v12 实测），收敛；后续优化方向 = prompt 减法（压缩纪律、整合示范）而非加法**
+- 已修复的不稳定项：①动作别名漂移（attack→order_attack，C# ActionAliases + prompt 强调）②相近意图漂移（"干掉他"在 ATTACK/DISTRACT 间漂移 → few-shot 意图判定基准）③**条件等待谎报**（on_timeout 指向 success 收尾 → validator 硬检查 + prompt 纪律 12/13 + 失败路径示范）④**保持型误写**（望风写成"等 N 秒 → success" → 纪律 15 + 保持型示范，保持型不设 goal；望风 v11 起两轮全 OK）⑤**事件词当谓词**（approach_by/player_suspicious_near/combat_nearby 进条件 → 纪律 16 + py/C# 谓词词表校验；combat_nearby v12 清零）⑥**spoken_to 当谓词**（"等对方回应" → time_since 等回应示范，v11 生效）⑦**reactions 自创 flee**（→ flee 落地为正式反应词 §6.3）⑧**SPAR/DUEL、TALK_TO/PURCHASE 分类混淆**（→ few-shot 判定基准补行，v10 起 W9/W12 分类正确）⑨**FOLLOW 写成一次性任务**（"跟我来"= 走到玩家身边就收尾 → 纪律 15 无限 follow）⑩**validator 对 then 非字符串崩溃**（contingency.then 被写成对象 → 类型判断 + issue 上报）⑪**CUSTOM 仍出 plan**（分类对但 plan 非 null → 执行要求 2，低频残余）⑫**ANY 期望过窄**（"你看着办吧"→WAIT 被判失败 → 期望修正：任何合理意图）
+- **同步维护纪律**：C#（`PlanCommandFlow.BuildIntentTable`/`BuildGrammar` + `PlanGrammar.ActionAliases/Predicates` + `ReactiveAgent` 反应词表）与 py（`INTENT_TABLE`/`ACTION_ALIASES`/`REACTIVE_ACTIONS`/`PREDICATES`）多份，改一边必须同步全部（每份开头都有"与 C# xxx 同步"注释）
 
 **实机验证入口**（游戏内，取真实环境/agent 数据）：
 ```
@@ -326,6 +346,7 @@ custom.plan_debug replan          # 强制触发 replan 链路
 │   └─ 掉线（掌柜转头/走开）→ 预案：再缠（say_to 拉回视线）→ 拉不回 → 密信报告玩家"掌柜转头了，快收手！"（即时信号）✗
 └─ 站位失败 → 当面报告"没位置" ✗
 ```
+> 🔴 **保持型语义（2026-08-07 迭代，prompt 纪律 15）**：ENGAGE = 达成型+保持型（GOAL 达成 → 进入保持期，**不因"缠住了"就 success 收尾**——v10 基础回归实测模型仍把缠住写成"缠住 → 信号 → success 收尾"，被谎报硬检查拦截；修复 = 纪律 15 明确"缠住达成后保持，结束由玩家叫停"）。
 **执行人② 玩家（actor=player · 自主驱动）· 玩家侧自理（计划不驱动）**
 ```text
 翻保管箱 —— 掌柜维度由执行人①保证；其他目击者走既有犯罪系统
@@ -477,6 +498,7 @@ custom.plan_debug replan          # 强制触发 replan 链路
 }
 ```
 > h2 无限保持：`wait` 省略 seconds/until/timeout = 无限期待命（§4 wait 行），结束 = 玩家 R3 停止键 / R4 收尾——与树"无限期待命"一致（R6 豁免同源，不套 5 分钟上限）。
+> 🔴 **保持型示范（2026-08-07 迭代）**：v9 回归实测模型把望风写成"等 30s 没人来 → success 收尾"（保持型误写为时限定任务 + 谎报）。修复 = prompt 纪律 15 + 保持型示范（无限 wait + triggers + 无 goal）；**场景无 watch_zone 锚点时降级**：h1 target 用 player（在玩家身边望风）或 query 动态找点（lure_spot/hidden_spot），禁止编造锚点（prompt 纪律 9）。
 
 **I. "告诉他，我在老地方等他"（DELIVER）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
@@ -518,13 +540,14 @@ custom.plan_debug replan          # 强制触发 replan 链路
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 [计划期预检①：语义锚点解析] "河边" → 预定义 Zone 或动态空间查询（§5.0，水网格/语义标记，能力待验证）
-├─ 场景无此地 → 当面报告"我不知道河边在哪"（知识诚实：情报只能来自场景可见事实，不瞎带路）✗
+├─ 场景无此地（或锚点探测为空）→ **计划期即诚实拒绝/澄清**：questions 澄清（"河边？这附近没有河，你指哪里"）或 CUSTOM "我不知道河边在哪"——**禁止编造带路**（地点诚实纪律，prompt 纪律 14：情报只能来自场景可见事实）✗
 └─ 解析成功 → [预检②：navmesh 可达性]
     ├─ 不可达 → 当面报告"去不了那边" ✗
     └─ 可达 → lead（§4：节奏同步在 `lead` 原子行为内部——前进 + 定期回望，不自顾自走）
         ├─ 玩家跟上 → 到达目的地（GOAL）✓
         └─ 玩家跟丢 → 停下等 → 跟上继续；等待超时 → 当面报告"你走不走啊" → 中止 ✗
 ```
+> 🔴 **地点诚实前移（2026-08-07 迭代）**：v9 回归实测 W4"去张员外家讨债"/W5"送信到李秀才家"（场景无此角色/地点）→ 模型**计划期** CUSTOM 诚实拒绝/澄清（预期行为，非失败）——语义锚点缺失的诚实报告发生在计划期（prompt 纪律 14），不再等到执行期才报"我不知道河边在哪"。case J 的 JSON 保持执行视图（运行期解析到锚点即可达时），计划期失败走 CUSTOM/questions 不下发 plan。
 
 ```json
 {
@@ -1127,6 +1150,8 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 
 ### 5.2 封闭谓词词表（条件即数据，不执行任意代码）
 
+> 🔴 **谓词-事件分离（2026-08-07 迭代，prompt 纪律 16 + validator 硬检查）**：条件（until/when/goal/triggers/contingencies/loop.until）只能写本表谓词；**事件词（§6.2 触发词表：approach_by/spoken_to/see_crime/left_post_seconds/player_suspicious_near 等）只能出现在 reactions 的 event 字段**——事件 = 瞬间发生的事实（进触发演算），谓词 = 可查询的持续状态（进条件求值），两者词表分离、禁止混用（v10 实测模型把 `player_suspicious_near` 写进 when、`approach_by` 写进 until = 未定义谓词，validator 丢弃条件）。想表达"有人靠近/进入区域"用 `in_zone(any, 区域)`。**goal 也受此约束**：无法用谓词表达的成功（物品到手无专用谓词）→ 省略 goal（缺省回落 GoalTemplate / 主链 end_plan success 表达）。
+
 **实体引用语义**：`self` = 该步骤的执行 actor（单随从 = 随从本人；一带多 = 该步的 actor，§0.6）；`player` = 玩家（永远显式引用，不会指代不明）。例：`following(guard, self)` = 守卫跟随随从；`!seeing(掌柜, player)` = 掌柜看不到玩家。
 
 | 谓词 | 参数 | 语义 |
@@ -1179,6 +1204,13 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 ### 5.3 PlanValidator（铁律 2：LLM 输出不可信任）
 
 未知动作/谓词/实体/phase → 该步丢弃 + 日志警告；缺 `timeout_s` 补默认 30s（**保持型/无限等待步骤除外**：wait 省略 seconds/until、follow 省略 timeout = 无限保持，不套 30s 与总时长上限，§4 wait 行 + R6）；跳转目标引用不存在的 step id（contingencies `then` / `on_timeout` / `on_success` / `on_event[].then` / `result` 路由 / `time_since.step_id`）→ 忽略跳转按默认处理（@abort_gracefully / 顺序下一歩）；整体失败 → `signal_player` 告知 + 释放控制。**跳转一致性双向校验**（与 §5.1 铁律同规）：①正向——所有跳转目标必须存在，缺失 → 忽略跳转 + 日志警告；②反向——`fallbacks[i][0].id` 必须被至少一个跳转引用（死预案 → 日志警告），且跳进 fallback 只能跳入口步。生成后静态检查走 `Scripts/validate_plan_json.py`（S1 目标存在 / S2 入口可达 / S3 不跳预案中间步 / S4 id 唯一，退出码非 0 = 不通过）。**参数范围钳制**：数值型参数钳到合理上限（`within` = move_to/follow 的**到达判定半径**（走到目标 within 米内 = 本步完成），≤ 5m；距离 ≤ 50m、时长 ≤ 60s、sustained ≤ 30s 等，超限 = 钳制 + 日志警告而非拒收——计划大体可用，只修不合理的量）。校验在 `Planner/PlanGrammar.cs`。
+
+> 🔴 **v9/v10 迭代新增检查（2026-08-07，py validator 与 C# PlanValidator 同步）**：
+> ① **谎报硬检查**：条件等待步骤（带 `until` 的 wait/move_to）的 `on_timeout`/`on_event[].then` 指向 `result="success"` 的 end_plan = 条件没等到却说成功 → **忽略该跳转**（按缺省 @abort_gracefully 失败收尾）；纯时长等待（wait seconds 无 until）超时 = 等够了 = 完成，**不查**。
+> ② **谓词词表检查**：`until`/`when`/`goal`/`triggers[].when`/`contingencies[].when`/`loop.until` 的 `type` 必须在谓词词表（§5.2 16 个）；**事件词（approach_by/see_crime/left_post_seconds 等）写进条件 = 未定义谓词** → 丢弃该条件（v9 实测模型把 approach_by 当谓词用）；`and`/`or` 必须带 `conditions` 数组、`not` 必须 1 个子条件（递归校验）。
+> ③ **loop 内部步骤全校验**：循环段内步骤与主链/预案同规（id 唯一/跳转/谎报/谓词/zone）——py `all_steps` 与 C# `IterSteps` 均含 loop。
+> ④ **then 类型容错**：`contingency.then`/`on_timeout`/`on_event[].then` 被写成对象（模型把 trigger 结构误写进 contingency）→ 报"必须为字符串"而非崩溃（v10 回归实测踩到，铁律 2 的 null-guard 延伸：**类型也要 guard**）。
+> ⑤ **zone/point 锚点纪律**：`zone(名称)`/`point(描述)` 引用的名称必须出现在场景锚点段（真实游戏语义 tag 探测通常为空集 → 引用 zone = 不合规），违规 → issue 上报，运行时按 query 失败处理。
 
 ### 5.4 PlanExecutor — 解释器 + 状态机（新增意外处理）
 
@@ -1330,7 +1362,9 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 ### 6.3 反应词表（全部映射到 §4 原子行为）
 
-`listen` / `consider`（短暂犹豫）/ `refuse`（说句拒绝的话 + 不动）/ `follow_for_a_bit`（→ `follow` 动作）/ `investigate`（→ `move_to` zone + `look_at`）/ `return_post` / `stare` / `alert_raise`（→ `brain.AddAlert` 脉冲，复用 `AgentBrain.cs:1060`）/ `attack`（→ `FightEnemyAction`）/ `call_guards`（→ `BroadcastEventInRange`）/ `ignore` / `relay_message`（→ 转告他人，信息经 NPC 链传递——通报门卫让主人来见的间接 BRING）/ `pay`（→ `TransferGold` 守恒转移，铁律 4）/ `hand_over_item`（→ `TransferItems`）…
+`listen` / `consider`（短暂犹豫）/ `refuse`（说句拒绝的话 + 不动）/ `follow_for_a_bit`（→ `follow` 动作）/ `investigate`（→ `move_to` zone + `look_at`）/ `return_post` / `stare` / `alert_raise`（→ `brain.AddAlert` 脉冲，复用 `AgentBrain.cs:1060`）/ `attack`（→ `FightEnemyAction`）/ `call_guards`（→ `BroadcastEventInRange`）/ `ignore` / `relay_message`（→ 转告他人，信息经 NPC 链传递——通报门卫让主人来见的间接 BRING）/ `pay`（→ `TransferGold` 守恒转移，铁律 4）/ `hand_over_item`（→ `TransferItems`）/ **`flee`（→ 跑离现场：远离触发者 20m 奔跑，`ReactiveFleeAction`，✅ 2026-08-07 落地——恐慌情境反应本体，见下）**…
+
+**flee 反应（2026-08-07 落地）**：`see_ally_killed` 恐慌触发链（§6.2）的反应本体已实现——`ReactiveFleeAction` 跑离触发者（ScriptedMoveToPoint isRun=true）；LLM 反应表可直接写 `flee`（v9 回归实测模型高频自创 flee 6/66 → 从"词表外自创"改为正式反应词）。**恐慌传播链（flee 的人引发周围人连锁逃跑，`BroadcastEventInRange` 衰减、≤3 跳）仍为 v2**——flee 只作用于触发者本人。
 
 **后置状态**：每个反应词带"执行完回哪"的通用语义（investigate → 回岗位或继续盯；follow_for_a_bit → 到点自动回位或折返；listen/refuse → 回 Idle）——§6.1 的守卫状态机是这套通用语义的一个实例，不是特例。
 
@@ -1494,6 +1528,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 ## 12. 验证方案
 
+- **LLM 链路回归**（改 prompt/意图表/换模型后必跑，见文档顶部「🔬 LLM 链路回归测试流程」）：`Scripts/test_llm_plan.py`（11 预设命令）+ `Scripts/test_llm_plan_stress.py --rounds 2 --out Debug/llm_samples_v<N>`（34 命令全谱系，本轮含 ENGAGE）双通过 + `Scripts/compare_plan_quality.py --dir Debug/llm_samples_v<N>` 质量评分（基准：PlanExamples 总分 6.76；v9 = 7.45 胜，B 可执行 9.35 / C 分支 9.47 领先，D/E 弱项集中在简单命令——"站这别动"类无台词/无乐趣点属评分尺度特征非缺陷）
 - **控制台指令**（`Debug/PlanDebugCommands.cs`，`custom` 前缀）：`custom.plan_debug snapshot` / `list` / `run <示例名> [agentId]` / `status [agentId]` / `stop [agentId]` / `role <角色名> [agentId]` / `step [agentId]` / `replan [agentId]`（step = 当前步骤详情；replan = 强制触发 R5 重入链路）
 - **全部示例跑通**：17 份示例 JSON 逐一 `custom.plan_debug run <json>` **动态执行验证**（实体引用按快照角色匹配就近解析，§2.2 target 解析）；静态校验（`validate_plan_json.py`）+ 动态执行**双通过** = 该示例合格（§0.1 示例定位）
 - **测试矩阵**：

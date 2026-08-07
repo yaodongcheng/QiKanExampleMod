@@ -249,7 +249,7 @@ def main():
               f"D={sc['D_dialogue']} E={sc['E_fun']} 总分(去A)={total(sc, 10)}")
         return 0
 
-    llm_dir = args[args.index("--dir") + 1] if "--dir" in args else "Debug/llm_samples_v4"
+    llm_dir = args[args.index("--dir") + 1] if "--dir" in args else "Debug/llm_samples_v11"
     ex_plans = [json.load(open(f, encoding="utf-8-sig"))
                 for f in sorted(glob.glob("Debug/PlanExamples/*.json"))]
     llm_docs = load_llm_docs(llm_dir)

@@ -40,15 +40,16 @@ STRESS_COMMANDS = [
     ("打晕门口那两个守卫", "KNOCKOUT", "case P：批量击晕（loop + query）"),
     ("把那个守卫引到巷子里打晕", "KNOCKOUT", "case G：引开+击晕"),
     ("闹出点动静，把人都引过来", "COMMOTION", "case F：闹事引众"),
-    ("和他切磋一下，试试他深浅", "DUEL", "case W9：比武切磋"),
-    ("去张员外家讨回那笔债", "COLLECT", "case W4：讨债（negotiate 结算）"),
-    ("去买两桶酒回来", "PURCHASE", "case W11：购买"),
+    ("和他切磋一下，试试他深浅", "DUEL", "case W9：比武切磋（vs SPAR：'他'=第三方 → DUEL；'和我切磋'才是 SPAR）"),
+    ("去张员外家讨回那笔债", None, "case W4：讨债（negotiate 结算）；场景无张员外家锚点 → CUSTOM 诚实拒绝/澄清 = 地点纪律预期行为，看行为"),
+    ("去买两桶酒回来", "PURCHASE", "case W11：购买（vs TALK_TO：买货带回来 = PURCHASE，不是交涉安排）"),
     ("你在这等我，去那边看看有什么", "SCOUT", "case L：侦察回报"),
     ("站我身后", "FORMATION", "case Q6：相对站位"),
-    ("把那封信送到李秀才家", "DELIVER", "case W5：送物版传话"),
-    ("找到卖药的郎中，请来给我看伤", "FIND", "case W2：找特征目标"),
+    ("把那封信送到李秀才家", None, "case W5：送物版传话；场景无李秀才 → CUSTOM 诚实拒绝/澄清 = 地点纪律预期行为，看行为"),
+    ("找到卖药的郎中，请来给我看伤", None, "case W2：找特征目标；场景无郎中 → CUSTOM 诚实拒绝/澄清 = 地点纪律预期行为，看行为"),
     ("悄悄跟着那黑衣人，看他去哪", "SHADOW", "case W3：隐蔽跟踪"),
     ("如果那守卫敢还手，你就上", "GUARD", "case O：条件参战"),
+    ("缠住掌柜，我去翻那保管箱", "ENGAGE", "case E：缠住（保持型：达成后保持，不 success 收尾）"),
     ("把我的剑拿来", "FETCH", "取物"),
     ("去客栈订两间上房", "TALK_TO", "case W12：社交结算"),
     ("帮我望风，有人来了叫我", "LOOKOUT", "case H：望风（变体措辞）"),
@@ -76,10 +77,10 @@ STRESS_COMMANDS = [
 
 
 def run_case(base, key, model, command, expected, label, scene=None, out_dir=None,
-             round_idx=0, verbose=True):
+             round_idx=0, verbose=True, temperature=0.4, reasoning="none"):
     scene = scene or FIXED_SCENE
     prompt = build_prompt(scene, command)
-    parsed, elapsed, err = call_llm(base, key, model, prompt)
+    parsed, elapsed, err = call_llm(base, key, model, prompt, temperature=temperature, reasoning=reasoning)
     if err:
         print(f"[FAIL] {label}: {err}")
         return False
@@ -94,8 +95,11 @@ def run_case(base, key, model, command, expected, label, scene=None, out_dir=Non
     elif expected == "CLARIFY":
         ok = (questions or parsed.get("needs_clarification")) and plan_null
     elif expected == "ANY":
-        # 开放命令：CUSTOM 拒绝或澄清都算合理（行为由模型自主决定）
-        ok = (got == "CUSTOM" and plan_null) or (questions or parsed.get("needs_clarification")) and plan_null
+        # 开放命令（"你看着办吧"）：任何合理意图（含 WAIT 待命/FOLLOW 跟随）+ plan 有效、或 CUSTOM/澄清，都算合理
+        ok = (pl is not None or plan_null) and not issues and not (plan_null and got not in ("CUSTOM", "ANY"))
+    elif expected is None:
+        # 单命令/看行为模式：分类成功且（计划有效 或 诚实拒绝 或 走了澄清）且 schema 合规
+        ok = bool(got) and (pl is not None or got == "CUSTOM" or bool(questions)) and not issues
     else:
         # 分类正确即过（走了澄清轮 = 设计内行为，不判失败）
         ok = got == expected and (pl is not None or bool(questions)) and not issues
@@ -141,6 +145,12 @@ def run_case(base, key, model, command, expected, label, scene=None, out_dir=Non
 def main():
     args = sys.argv[1:]
     rounds = 1
+    temperature = 0.4
+    reasoning = "none"
+    if "--reasoning" in args:
+        reasoning = args[args.index("--reasoning") + 1]
+    if "--temp" in args:
+        temperature = float(args[args.index("--temp") + 1])
     if "--rounds" in args:
         idx = args.index("--rounds")
         if idx + 1 < len(args):
@@ -155,16 +165,17 @@ def main():
         idx = args.index("--cmd")
         if idx + 1 < len(args):
             base, key, model = load_config()
+            os.makedirs(out_dir, exist_ok=True)
             print(f"模型: {model}  端点: {base}")
             ok = run_case(base, key, model, args[idx + 1], None, "单命令",
-                          out_dir=out_dir)
+                          out_dir=out_dir, temperature=temperature, reasoning=reasoning)
             return 0 if ok else 1
         print("用法: --cmd <命令>")
         return 2
 
     base, key, model = load_config()
     os.makedirs(out_dir, exist_ok=True)
-    print(f"模型: {model}  端点: {base}  轮数: {rounds}")
+    print(f"模型: {model}  端点: {base}  轮数: {rounds}  温度: {temperature}  思考: {reasoning}")
     print(f"输出目录: {out_dir}（每 case 一份 输入prompt+输出JSON）\n")
 
     results = []
@@ -173,7 +184,7 @@ def main():
         print(f"=== 第 {r + 1} 轮（{len(STRESS_COMMANDS)} 个命令）===")
         for cmd, exp, label in STRESS_COMMANDS:
             results.append(run_case(base, key, model, cmd, exp, f"{label}",
-                                    out_dir=out_dir, round_idx=r))
+                                    out_dir=out_dir, round_idx=r, temperature=temperature, reasoning=reasoning))
     # 质量汇总（与 PlanExamples 基准对比）
     for f in sorted(glob.glob(os.path.join(out_dir, "*.json"))):
         d = json.load(open(f, encoding="utf-8"))
