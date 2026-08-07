@@ -293,3 +293,9 @@ public static class ChangeInteractionTextPatch
 # 原版对话流注入 — `Interaction/Dialogue/DialogueInjector.cs`
 
 **JSON 驱动的原版 `ConversationManager` 对话注入器。当 NPC 对话需要走原版 UI（而不是 StoryDialogVM）时，优先用 JSON 注入，禁止硬编码 `DialogFlow` 链式调用。**
+
+## 密谋命令系统玩法行（2026-08-07）
+
+- `InteractionIds.Plot`（G 长按）= 密谋：对随从下达自然语言命令 → `PlanCommandFlow.Start(agent)`（available 条件 = 随从关系 `brain.Leader==Main || Following/ExecutingCommand`；密谋进行中该随从 Talk 行互斥移除）。
+- `InteractionIds.StopPlan`（X 短按）= 停止键：对执行中的随从喊停（`PlanExecutor.GetExecutorFor(agent) != null` 才显示；近距离当面冒泡 / 远距离密信，双通道对称）。
+- 两行都在 `Settings.DefaultInteractions` 注册（config.json 可热重载）。

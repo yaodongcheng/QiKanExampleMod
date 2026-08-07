@@ -1,0 +1,38 @@
+{
+  "intent": {
+    "intent_type": "LOOKOUT",
+    "subjects": [
+      "companion"
+    ],
+    "target": "watch_zone",
+    "who_does": "companion"
+  },
+  "summary": "我去望风，来人了叫你。",
+  "steps": [
+    {
+      "id": "h1",
+      "action": "move_to",
+      "target": "watch_zone",
+      "within": 1.5,
+      "timeout_s": 30
+    },
+    {
+      "id": "h2",
+      "action": "wait"
+    }
+  ],
+  "triggers": [
+    {
+      "when": {
+        "type": "in_zone",
+        "a": "any",
+        "b": "watch_zone",
+        "op": "true"
+      },
+      "then": {
+        "action": "signal_player",
+        "text": "有人来了！"
+      }
+    }
+  ]
+}

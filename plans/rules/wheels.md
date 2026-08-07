@@ -18,6 +18,7 @@
 | 记忆 / 叙事迁移 | [wheels.d/memory.md](wheels.d/memory.md) | 记忆系统三件套、QuestManager 硬编码字串清理 |
 | 存档诊断 | [wheels.d/save.md](wheels.d/save.md) | SaveErrorReporter（新增 Saveable 后遇存档问题的第一取证入口） |
 | LLM | [wheels.d/llm.md](wheels.d/llm.md) | LLMService（重试/HttpClient 复用）、PromptBuilder（静态 prompt 工厂） |
+| 密谋命令系统 | [wheels.d/planner.md](wheels.d/planner.md) | LLM 计划生成 + PlanExecutor 确定性执行（四件套：语法/世界状态/执行器/ReactiveAgent）、Plot 玩法行、plan_debug、Replan、执行摘要 HUD |
 | 按键映射 / 输入 | [wheels.d/input.md](wheels.d/input.md) | 输入三件套、当前映射表（改键唯一入口）、设备检测原理、UI 按键提示接入范式 |
 
 **登记新轮子**：进 `wheels.d/` 对应域文件追加条目（解决什么问题 + 关键签名 + 调用范例 + 文件路径，与现有格式一致）。域归属拿不准时先问，或就近放入最相关的卷。

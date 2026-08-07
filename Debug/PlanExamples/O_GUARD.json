@@ -1,0 +1,74 @@
+{
+  "intent": {
+    "intent_type": "GUARD",
+    "subjects": [
+      "companion"
+    ],
+    "target": "player",
+    "opponent": "rival",
+    "who_does": "companion"
+  },
+  "summary": "我就在你旁边压阵，谁还手我上。",
+  "steps": [
+    {
+      "id": "o1",
+      "action": "follow",
+      "target": "player",
+      "rel_pos": "behind"
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "o2",
+        "action": "order_attack",
+        "target": "rival",
+        "timeout_s": 30
+      },
+      {
+        "id": "o3",
+        "action": "wait",
+        "until": {
+          "type": "combat",
+          "a": "rival",
+          "b": "player",
+          "op": "false"
+        },
+        "timeout_s": 90,
+        "on_success": "o1"
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "a": "rival",
+        "b": "player",
+        "op": "true"
+      },
+      "then": "o2",
+      "one_shot": false
+    },
+    {
+      "when": {
+        "type": "and",
+        "conditions": [
+          {
+            "type": "combat",
+            "entity": "self",
+            "op": "true"
+          },
+          {
+            "type": "combat",
+            "a": "rival",
+            "b": "player",
+            "op": "false"
+          }
+        ]
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

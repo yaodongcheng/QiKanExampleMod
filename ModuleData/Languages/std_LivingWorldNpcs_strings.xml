@@ -3841,5 +3841,62 @@
     <string id="LWN_save_error_no_detail" text="(no error detail captured)" />
     <string id="LWN_save_error_platform" text="[Platform] " />
     <string id="LWN_save_error_debug_line" text="[SaveDebug] Result={RESULT}&#10;{DETAIL}" />
-  </strings>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- Planner — 密谋命令系统 -->
+    <!-- ═══════════════════════════════════════════ -->
+    <string id="LWN_ui_npcintent_executingcommand" text="Carrying out your order" />
+    <string id="LWN_ui_interact_plot" text="Plot: give an order" />
+    <string id="LWN_ui_interact_stopplan" text="Stop the plan" />
+    <string id="LWN_plan_no_llm" text="The companion cannot think of a plan right now." />
+    <string id="LWN_plan_opening" text="Quiet... tell me what you need." />
+    <string id="LWN_plan_stop_face" text="As you say. Stopping." />
+    <string id="LWN_plan_stop_far" text="You signal the companion from afar: stop what you are doing." />
+    <string id="LWN_plan_input_title" text="Plot an Order" />
+    <string id="LWN_plan_input_prompt" text="Tell {NAME} what to do:" />
+    <string id="LWN_plan_fail_llm" text="I could not think of a plan. Tell me again in different words." />
+    <string id="LWN_plan_btn_retry" text="Try again" />
+    <string id="LWN_plan_btn_giveup" text="Never mind" />
+    <string id="LWN_plan_clarify_default" text="What do you mean exactly?" />
+    <string id="LWN_plan_clarify_exhausted" text="I still do not understand. Perhaps another time." />
+    <string id="LWN_plan_custom_reject" text="I cannot do this. Try something else." />
+    <string id="LWN_plan_default_summary" text="I have a plan. Shall I go?" />
+    <string id="LWN_plan_btn_approve" text="Go ahead" />
+    <string id="LWN_plan_btn_rethink" text="Think again" />
+    <string id="LWN_plan_reject" text="I cannot do this." />
+    <string id="LWN_plan_noise" text="Hey! Over here! Look at this!" />
+    <string id="LWN_reactive_refuse" text="No, I cannot do that." />
+    <string id="LWN_reactive_warnaway" text="Stay back! Do not come closer." />
+    <string id="LWN_ui_commandintent_distract" text="lure away" />
+    <string id="LWN_ui_commandintent_bring" text="bring someone" />
+    <string id="LWN_ui_commandintent_lookout" text="keep watch" />
+    <string id="LWN_ui_commandintent_deliver" text="deliver a message" />
+    <string id="LWN_ui_commandintent_steal" text="steal" />
+    <string id="LWN_ui_commandintent_engage" text="occupy" />
+    <string id="LWN_ui_commandintent_knockout" text="knock out" />
+    <string id="LWN_ui_commandintent_guide" text="guide" />
+    <string id="LWN_ui_commandintent_scout" text="scout" />
+    <string id="LWN_ui_commandintent_attack" text="attack" />
+    <string id="LWN_ui_commandintent_guard" text="guard" />
+    <string id="LWN_ui_commandintent_annihilate" text="annihilate" />
+    <string id="LWN_ui_commandintent_follow" text="follow" />
+    <string id="LWN_ui_commandintent_wait" text="wait" />
+    <string id="LWN_ui_commandintent_stop" text="stop" />
+    <string id="LWN_ui_commandintent_custom" text="custom request" />
+
+      <string id="LWN_plan_replan_summary" text="I thought of another way: {SUMMARY}" />
+    <string id="LWN_plan_replan_fail" text="The companion could not find another way." />
+    <string id="LWN_plan_handover" text="Here, take it." />
+    <string id="LWN_plan_handover_msg" text="{NAME} hands over: {ITEM}" />
+    <string id="LWN_plan_abort_down" text="The companion has fallen!" />
+    <string id="LWN_plan_abort_fight" text="A fight broke out. Falling back." />
+    <string id="LWN_plan_abort_toolong" text="This is taking too long. Falling back." />
+    <string id="LWN_plan_abort_interrupted" text="The plan was interrupted." />
+    <string id="LWN_plan_abort_generic" text="The plan is called off." />
+    <string id="LWN_plan_abort_timeout" text="A step took too long. Falling back." />
+    <string id="LWN_plan_abort_badjump" text="The plan went wrong. Falling back." />
+    <string id="LWN_plan_goal_notmet" text="It did not work out." />
+    <string id="LWN_plan_lead_waiting" text="Are you coming or not?" />
+    <string id="LWN_plan_loot" text="loot" />
+    <string id="LWN_plan_gold" text="gold" />
+</strings>
 </base>

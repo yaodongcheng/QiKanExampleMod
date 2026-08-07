@@ -1,0 +1,94 @@
+{
+  "intent": {
+    "intent_type": "ATTACK",
+    "subjects": [
+      "companion"
+    ],
+    "target": "foe",
+    "who_does": "companion"
+  },
+  "summary": "我去办了他。",
+  "goal": {
+    "type": "dead",
+    "entity": "foe"
+  },
+  "steps": [
+    {
+      "id": "m1",
+      "action": "move_to",
+      "target": "foe",
+      "within": 1.5,
+      "timeout_s": 20
+    },
+    {
+      "id": "m2",
+      "action": "order_attack",
+      "target": "foe",
+      "until": {
+        "type": "dead",
+        "entity": "foe"
+      },
+      "timeout_s": 120,
+      "on_timeout": "m6"
+    },
+    {
+      "id": "m3",
+      "action": "end_plan",
+      "result": "success",
+      "report": "办完了",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "m4",
+        "action": "signal_player",
+        "text": "他太硬，我先撤了",
+        "timeout_s": 3
+      },
+      {
+        "id": "m5",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "m6",
+        "action": "signal_player",
+        "text": "拖太久了，我先撤",
+        "timeout_s": 3
+      },
+      {
+        "id": "m7",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "and",
+        "conditions": [
+          {
+            "type": "combat",
+            "entity": "self",
+            "op": "false",
+            "was": "true"
+          },
+          {
+            "type": "dead",
+            "entity": "foe",
+            "op": "false"
+          }
+        ]
+      },
+      "then": "m4",
+      "one_shot": true
+    }
+  ]
+}

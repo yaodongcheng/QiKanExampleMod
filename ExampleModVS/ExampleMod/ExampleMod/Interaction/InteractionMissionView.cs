@@ -57,9 +57,11 @@ namespace LivingWorldNpcs
 
         // 偷窃期间冻结玩家控制（Controller→AI：输入移交 AI 组件，主角待机；v1.2.12/1.4.x 均支持）
         private bool _playerControlFrozen = false;
-
         // 冻结前的蹲姿（切 AI 后原生姿态被重置为站立，需用 scripted flag 保持）
         private bool _frozenWasCrouching = false;
+
+        /// <summary>玩家控制是否被冻结（偷窃条子弹时间等模态；PlanExecutor R7 检测用）。</summary>
+        internal bool IsPlayerControlFrozen => _playerControlFrozen;
 
         // 箱子"自己挑选"路径：金币先落袋暂存，物品在 ProcessPendingChestLoot 一并记账
         private int _pendingChestGold = 0;
@@ -418,6 +420,13 @@ namespace LivingWorldNpcs
                 case InteractionIds.Lockpick:
                     OpenChest();
                     break;
+                // ── 密谋命令系统（§8.1 交互入口）──
+                case InteractionIds.Plot:
+                    if (_lastFocusedAgent != null) PlanCommandFlow.Start(_lastFocusedAgent);
+                    break;
+                case InteractionIds.StopPlan:
+                    if (_lastFocusedAgent != null) PlanCommandFlow.StopPlan(_lastFocusedAgent);
+                    break;
             }
         }
 
@@ -606,6 +615,28 @@ namespace LivingWorldNpcs
             }
             else if (isAlive)
             {
+                // ── 密谋命令系统（§8.1）：Plot（对随从下命令）/ StopPlan（对执行中的随从喊停）──
+                // 战斗意图除外；正面背后都可用——跟随中的随从常站玩家身后，背后分支也要接得住
+                if (intent != NpcIntentType.Fighting && intent != NpcIntentType.Surrendering)
+                {
+                    var targetBrain = AgentAIController.GetBrainForAgent(currentAgent);
+                    bool isCompanion = targetBrain != null
+                        && (targetBrain.Leader == Agent.Main
+                            || targetBrain.CurrentIntent?.Type == NpcIntentType.Following
+                            || targetBrain.CurrentIntent?.Type == NpcIntentType.ExecutingCommand);
+                    bool executing = PlanExecutor.GetExecutorFor(currentAgent) != null;
+                    if (isCompanion && !executing && !PlanCommandFlow.IsActiveFor(currentAgent))
+                    {
+                        // 本地化：密谋交互按钮（对随从下达自然语言命令）
+                        AddInteractionRow(InteractionIds.Plot, LWNTextHelper.ResolveText("LWN_ui_interact_plot", "Plot: give an order"));
+                    }
+                    if (executing)
+                    {
+                        // 本地化：停止键（对执行中的随从喊停；当面/密信双通道）
+                        AddInteractionRow(InteractionIds.StopPlan, LWNTextHelper.ResolveText("LWN_ui_interact_stopplan", "Stop the plan"));
+                    }
+                }
+
                 // 战斗意图优先（正面背后都显示）
                 if (intent == NpcIntentType.Fighting || intent == NpcIntentType.Surrendering)
                 {
@@ -635,8 +666,12 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    // 本地化：对话交互按钮
-                    AddInteractionRow(InteractionIds.Talk, LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"));
+                    // 密谋进行中该随从的 Talk 行移除（§8.2 互斥）
+                    if (!PlanCommandFlow.IsActiveFor(currentAgent))
+                    {
+                        // 本地化：对话交互按钮
+                        AddInteractionRow(InteractionIds.Talk, LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"));
+                    }
                     // 本地化：探查交互按钮
                     AddInteractionRow(InteractionIds.Inspect, LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"));
                 }
@@ -729,6 +764,10 @@ namespace LivingWorldNpcs
                 _interactVM?.RefreshGlyphs();
                 _stealBarVM?.RefreshButtonTexts();
             }
+
+            // ── 密谋对话壳驱动（LLM 结果回主线程消费 + 随从打断检测）──
+            PlanCommandFlow.Tick();
+            PlanReplan.Tick();
 
             // 战斗模式下跳过交互 UI 全部逻辑：大世界遭遇/箱子/射线检测/交互选项构建
             if (Settings.Instance.IsInteractionDisabled())

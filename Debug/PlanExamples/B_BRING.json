@@ -1,0 +1,108 @@
+{
+  "intent": {
+    "intent_type": "BRING",
+    "subjects": [
+      "companion"
+    ],
+    "target": "chief",
+    "who_does": "companion",
+    "meet_point": "player"
+  },
+  "summary": "我去请村长过来见你。",
+  "goal": {
+    "type": "and",
+    "conditions": [
+      {
+        "type": "distance",
+        "a": "chief",
+        "b": "player",
+        "op": "<",
+        "value": 3
+      },
+      {
+        "type": "moving",
+        "a": "chief",
+        "op": "false"
+      }
+    ]
+  },
+  "steps": [
+    {
+      "id": "b1",
+      "action": "move_to",
+      "target": "chief",
+      "within": 2.0,
+      "timeout_s": 30
+    },
+    {
+      "id": "b2",
+      "action": "say_to",
+      "target": "chief",
+      "ask": "follow",
+      "text": "村长，我家主人请您过去一趟，有事相商",
+      "timeout_s": 8
+    },
+    {
+      "id": "b3",
+      "action": "wait",
+      "until": {
+        "type": "following",
+        "a": "chief",
+        "b": "self",
+        "op": "true"
+      },
+      "timeout_s": 10,
+      "on_timeout": "b6"
+    },
+    {
+      "id": "b4",
+      "action": "move_to",
+      "target": "player",
+      "within": 3.0,
+      "until": {
+        "type": "distance",
+        "a": "chief",
+        "b": "player",
+        "op": "<",
+        "value": 3
+      },
+      "timeout_s": 40,
+      "on_timeout": "b5"
+    },
+    {
+      "id": "b5",
+      "action": "wait",
+      "until": {
+        "type": "distance",
+        "a": "chief",
+        "b": "player",
+        "op": "<",
+        "value": 3,
+        "sustained_s": 5
+      },
+      "timeout_s": 20,
+      "on_timeout": "b6"
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "b6",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "村长说忙，不肯来",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

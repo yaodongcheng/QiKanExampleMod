@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using SandBox.Conversation.MissionLogics;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -57,10 +58,54 @@ namespace LivingWorldNpcs
         /// 设置 NPC 当前意图，同时记录上一个意图。
         /// 所有意图变更必须走此方法，类内部也不允许直接写 _currentIntent。
         /// </summary>
-        public void SetNpcIntent(NpcIntentType type, Agent target = null, ConfrontationType? interceptDetail = null)
+        public void SetNpcIntent(NpcIntentType type, Agent target = null, ConfrontationType? interceptDetail = null, CommandIntentType? commandDetail = null)
         {
             _previousIntent = _currentIntent;
-            _currentIntent = new NpcIntent(type, target, interceptDetail);
+            _currentIntent = new NpcIntent(type, target, interceptDetail, commandDetail);
+        }
+
+        /// <summary>计划收尾 → 恢复默认意图（§10：值优先，Following）。仅当没有新命令覆盖时恢复。</summary>
+        private void OnPlanExecutorFinished(PlanExecutor executor)
+        {
+            try
+            {
+                if (Owner == null || !Owner.IsActive()) return;
+                if (_currentIntent != null && _currentIntent.Type == NpcIntentType.ExecutingCommand)
+                {
+                    if (Leader != null && Leader.IsActive())
+                        SetNpcIntent(NpcIntentType.Following, Leader);
+                    else
+                        SetNpcIntent(NpcIntentType.None);
+                }
+                // 恢复默认行为的动作侧由 DecideDefaultBehavior 自动处理（脑空 → 护卫跟随/原版 AI）
+            }
+            catch { }
+        }
+
+        /// <summary>ReactiveAgent 反应通道（§6）：清当前行为并入队反应动作。
+        /// 与 ReceiveEvent 内联分支同权——ReactiveAgent 是 brain 事件处理的内部扩展。</summary>
+        internal void RunReactiveAction(IAtomicAction action)
+        {
+            if (action == null || !Owner.IsActive()) return;
+            ClearAllActions();
+            EnqueueAction(action);
+        }
+
+        /// <summary>计划调试入口（plan_debug 用）：与 order_execute_plan 分支同构但绕开事件闸门。</summary>
+        internal void EnqueueActionInternal(IAtomicAction action)
+        {
+            if (action == null) return;
+            EnqueueAction(action);
+        }
+
+        internal void ClearAllActionsInternal()
+        {
+            ClearAllActions();
+        }
+
+        internal void OnPlanFinishedDebug(PlanExecutor executor)
+        {
+            OnPlanExecutorFinished(executor);
         }
 
         public static bool IsKnockedOut(Agent agent)
@@ -207,6 +252,16 @@ namespace LivingWorldNpcs
                 return;
 
             DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 '{aiEvent.EventType}' | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
+
+            // ── ReactiveAgent 触发词分发（密谋命令系统 §6）──
+            // 被叫方/对手方的人格演算：speaker 请求 → 演算 → 反应动作 + 决策结果广播。
+            // 任何触发词都被消费（不再走下方既有分支）。
+            if (ReactiveAgent.IsTriggerEvent(aiEvent.EventType))
+            {
+                ReactiveAgent.TryHandleEvent(this, aiEvent);
+                return;
+            }
+
             if (aiEvent.EventType == "ComeHere")
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
@@ -230,6 +285,51 @@ namespace LivingWorldNpcs
                 EnqueueAction(new FollowAgentAction(targetAgent, run: true,keepFollow:true));
 
             }
+            // ── 密谋命令系统：计划执行（§5.4 执行通道）──
+            if (aiEvent.EventType == "order_execute_plan")
+            {
+                string planJson = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as string : null;
+                if (string.IsNullOrEmpty(planJson)) return;
+                string intentType = aiEvent.Args.Length > 1 ? aiEvent.Args[1] as string : null;
+                Agent target = aiEvent.Args.Length > 2 ? aiEvent.Args[2] as Agent : null;
+
+                Plan plan = null;
+                try
+                {
+                    plan = JsonConvert.DeserializeObject<Plan>(LLMService.CleanJson(planJson));
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[Brain] order_execute_plan 解析失败: {ex.Message}");
+                    return;
+                }
+                var executor = PlanExecutor.Create(Owner, plan, intentType, null);
+                if (executor == null)
+                {
+                    // 本地化：计划校验未通过 → 诚实回应（词表外命令拒绝）
+                    AgentHudMissionView.AgentSay(Owner, LWNTextHelper.ResolveText("LWN_plan_reject", "I cannot do this."));
+                    return;
+                }
+                SetNpcIntent(NpcIntentType.ExecutingCommand, target,
+                    commandDetail: PlanExecutor.ParseIntentType(intentType ?? plan?.Intent?.IntentType));
+                InteractedAgent = target;
+                ClearAllActions();
+                EnqueueAction(new ExecutePlanAction(executor));
+                // 计划收尾 → 恢复默认（Following）；仅当没有新命令覆盖当前意图时
+                var exRef = executor;
+                executor.OnFinished += e => OnPlanExecutorFinished(exRef);
+                // Replan 接线（原命令 + 意外重入，§7.2）
+                string originalCommand = aiEvent.Args != null && aiEvent.Args.Length > 4 ? aiEvent.Args[4] as string : null;
+                PlanReplan.Wire(executor, originalCommand, intentType);
+            }
+            // ── 密谋命令系统：ReactiveAgent 决策结果广播（§5.4 事件通道）──
+            if (aiEvent.EventType == "plan_decision")
+            {
+                string decisionType = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as string : null;
+                if (string.IsNullOrEmpty(decisionType)) return;
+                var exec = PlanExecutor.GetExecutorFor(Owner);
+                exec?.NotifyDecisionEvent(decisionType);
+            }
             if(aiEvent.EventType == "order_attack")
             {
 
@@ -240,6 +340,7 @@ namespace LivingWorldNpcs
                 SetNpcIntent(NpcIntentType.Fighting, targetAgent);
                 InteractedAgent = targetAgent;
                 if (Settings.Instance.ShowDebugMessages)
+                    // 本地化：攻击命令飘字（{OWNER} 开始攻击 {TARGET}）
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_attack_order",
                         ("OWNER", Owner.Name.ToString()), ("TARGET", targetAgent.Name.ToString())), Colors.Red));
                 ClearAllActions();

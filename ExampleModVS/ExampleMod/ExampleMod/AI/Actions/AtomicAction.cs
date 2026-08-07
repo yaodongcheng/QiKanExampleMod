@@ -584,6 +584,9 @@ namespace LivingWorldNpcs
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
 
+        /// <summary>跟随目标（执行器 following 谓词判定用）。</summary>
+        internal Agent TargetAgent => _target;
+
         public FollowAgentAction(Agent target, bool run, float radius = 0.0f, float angleOffset = 0f, float stopDistance = 3.5f, float buffer = 1.5f, bool keepFollow = false)
         {
             _target = target;

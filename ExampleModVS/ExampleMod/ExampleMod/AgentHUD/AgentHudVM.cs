@@ -148,11 +148,27 @@ namespace LivingWorldNpcs
                     && !string.IsNullOrWhiteSpace(NpcIntentDebugText);
             }
 
+            // 🆕 计划执行摘要（执行器每步动态细节；玩家可见 = 反馈明确原则）
+            {
+                var executor = PlanExecutor.GetExecutorFor(TargetAgent);
+                if (executor != null && !string.IsNullOrWhiteSpace(executor.CurrentSummary))
+                {
+                    PlanSummaryText = executor.CurrentSummary;
+                    ShowPlanSummary = !TargetAgent.IsMainAgent && !Settings.Instance.IsInteractionDisabled();
+                }
+                else
+                {
+                    PlanSummaryText = "";
+                    ShowPlanSummary = false;
+                }
+            }
+
             // 5. 名字总领规则：FOV 内任意元素真的显示时浮现名字
-            //    意图（ShowIntentDebug）也在总领规则内——意图单独显示时名字跟随浮现
+            //    意图（ShowIntentDebug）与执行摘要（ShowPlanSummary）也在总领规则内——
+            //    意图单独显示时名字跟随浮现
             //    ShowAlert 在此处生效是因为 UpdateLogic 只在 FOV 内执行——
             //    FOV 外 NPC 的 ShowName 不会被计算，眼睛独立显示但不带名字
-            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug;
+            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug || ShowPlanSummary;
 
             // 6. 容器可见性
             //    IsVisible = ShowName || ShowAlert（警戒眼睛可以独立触发容器显示）
@@ -217,7 +233,7 @@ namespace LivingWorldNpcs
 
             // 最终可见性检查
             // 如果没有任何东西要显示且不在警戒状态，关闭 IsVisible
-            if (!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert && !ShowIntentDebug)
+            if (!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert && !ShowIntentDebug && !ShowPlanSummary)
             {
                 IsVisible = false;
             }
@@ -529,6 +545,23 @@ namespace LivingWorldNpcs
         {
             get => _npcIntentDebugText;
             set { if (value != _npcIntentDebugText) { _npcIntentDebugText = value; OnPropertyChangedWithValue(value, "NpcIntentDebugText"); } }
+        }
+
+        // 🆕 计划执行摘要（密谋命令系统 §5.4：执行器每步一句动态细节）
+        private bool _showPlanSummary;
+        [DataSourceProperty]
+        public bool ShowPlanSummary
+        {
+            get => _showPlanSummary;
+            set { if (value != _showPlanSummary) { _showPlanSummary = value; OnPropertyChangedWithValue(value, "ShowPlanSummary"); } }
+        }
+
+        private string _planSummaryText;
+        [DataSourceProperty]
+        public string PlanSummaryText
+        {
+            get => _planSummaryText;
+            set { if (value != _planSummaryText) { _planSummaryText = value; OnPropertyChangedWithValue(value, "PlanSummaryText"); } }
         }
     }
 }

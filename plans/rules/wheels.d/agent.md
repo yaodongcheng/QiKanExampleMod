@@ -275,3 +275,11 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 旧 `_alertValues` 字典、`GetAlertValue`、`AddAlertPulse`、`GetAllAlertValues`、`UpdateAlertValue`、`CleanupDeadAlertEntries` 全部删除。`NpcSightSystem` 回归纯感知工具——只回答"能不能看到"，不维护认知状态。
 
 **文件位置**：`AI/NpcSightSystem.cs`（删除约 100 行警戒值相关代码）
+
+## 密谋命令系统接线（2026-08-07，详见 planner.md）
+
+- `AgentBrain.ReceiveEvent` 新增事件分支：`order_execute_plan`（收 plan JSON → `PlanExecutor.Create` → `SetNpcIntent(ExecutingCommand)` → `ClearAllActions` → `EnqueueAction(new ExecutePlanAction(executor))`；收尾 OnFinished → 恢复 Following，仅当意图仍为 ExecutingCommand）与 `plan_decision`（ReactiveAgent 决策结果 → 转发 `executor.NotifyDecisionEvent`）。
+- `RunReactiveAction(IAtomicAction)`：ReactiveAgent 反应通道（清当前行为并入队反应动作；brain 事件处理的内部扩展）。
+- `EnqueueActionInternal`/`ClearAllActionsInternal`：plan_debug 调试专用（绕开事件闸门）。
+- `AgentAIController.OnMissionTick` 末尾加 `PlanExecutor.TickAll(dt)`（执行器统一驱动）；`OnRemoveBehavior` 加 `PlanExecutor.ShutdownAll()`。
+- 执行器挂接 = IAtomicAction（`ExecutePlanAction`，IsFinished = 计划完成）；执行器本体独立 tick——护主/战斗 ClearAllActions 踢掉队列项不影响执行器继续运行。

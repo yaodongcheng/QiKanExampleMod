@@ -1,0 +1,200 @@
+{
+  "intent": {
+    "intent_type": "KNOCKOUT",
+    "subjects": [
+      "companion"
+    ],
+    "target": "guard",
+    "who_does": "companion"
+  },
+  "summary": "我把他引到巷子里放倒。",
+  "goal": {
+    "type": "knocked_out",
+    "entity": "guard"
+  },
+  "steps": [
+    {
+      "id": "g1",
+      "action": "move_to",
+      "target": "guard",
+      "within": 2.0,
+      "timeout_s": 15
+    },
+    {
+      "id": "g2",
+      "action": "say_to",
+      "target": "guard",
+      "ask": "follow",
+      "text": "那边有人找你，说是有急事",
+      "timeout_s": 8
+    },
+    {
+      "id": "g3",
+      "action": "wait",
+      "until": {
+        "type": "following",
+        "a": "guard",
+        "b": "self",
+        "op": "true"
+      },
+      "on_event": [
+        {
+          "type": "refused",
+          "then": "g10"
+        }
+      ],
+      "timeout_s": 10,
+      "on_timeout": "g10"
+    },
+    {
+      "id": "g4",
+      "action": "move_to",
+      "target": {
+        "query": "hidden_spot(self, 15)"
+      },
+      "within": 1.0,
+      "until": {
+        "type": "distance",
+        "a": "guard",
+        "b": "hidden_spot",
+        "op": "<",
+        "value": 4
+      },
+      "timeout_s": 30,
+      "on_timeout": "g13"
+    },
+    {
+      "id": "g5",
+      "action": "wait",
+      "until": {
+        "type": "seeing",
+        "a": "any",
+        "b": "self",
+        "op": "false",
+        "sustained_s": 3
+      },
+      "timeout_s": 20,
+      "on_timeout": "g14"
+    },
+    {
+      "id": "g6",
+      "action": "knockout",
+      "target": "guard",
+      "timeout_s": 10
+    },
+    {
+      "id": "g7",
+      "action": "end_plan",
+      "result": "success",
+      "report": "放倒了",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "g8",
+        "action": "signal_player",
+        "text": "他折回去了，先算了",
+        "timeout_s": 3
+      },
+      {
+        "id": "g9",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "g10",
+        "action": "say_to",
+        "target": "guard",
+        "ask": "follow",
+        "text": "劳驾跟我走一趟，就问几句话",
+        "timeout_s": 6
+      },
+      {
+        "id": "g11",
+        "action": "wait",
+        "until": {
+          "type": "following",
+          "a": "guard",
+          "b": "self",
+          "op": "true"
+        },
+        "on_event": [
+          {
+            "type": "refused",
+            "then": "g12"
+          }
+        ],
+        "timeout_s": 6,
+        "on_timeout": "g12",
+        "on_success": "g4"
+      }
+    ],
+    [
+      {
+        "id": "g12",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "他不上当，不肯跟我走",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "g13",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "没地方下手",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "g14",
+        "action": "signal_player",
+        "text": "没机会下手，先撤了",
+        "timeout_s": 3
+      },
+      {
+        "id": "g15",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "following",
+        "a": "guard",
+        "b": "self",
+        "op": "false",
+        "was": "true"
+      },
+      "then": "g8",
+      "one_shot": true
+    },
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    },
+    {
+      "when": {
+        "type": "alert_phase",
+        "entity": "guard",
+        "phase": "Alarmed"
+      },
+      "then": "@abort_gracefully",
+      "one_shot": true
+    }
+  ]
+}

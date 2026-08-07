@@ -270,6 +270,7 @@
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
     <Compile Include="Debug\SaveErrorReporter.cs" />
+    <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
     <Compile Include="GUI\StackLayoutVerticalSwapPatch.cs" />
@@ -298,6 +299,7 @@
     <Compile Include="Interaction\Dialogue\VanillaConversationLoggerPatch.cs" />
     <Compile Include="Interaction\NpcInfoVM.cs" />
     <Compile Include="Interaction\StoryDialogVM.cs" />
+    <Compile Include="Interaction\PlanCommandFlow.cs" />
     <Compile Include="Interaction\Dialogue\CrimeDialogueBuilder.cs" />
     <Compile Include="Interaction\Dialogue\PlaceholderResolver.cs" />
     <Compile Include="Interaction\Dialogue\NpcSpeechResolver.cs" />
@@ -323,6 +325,15 @@
     <Compile Include="Notify\CustomNotify.cs" />
     <Compile Include="Notify\NinjaNotificationMissionView.cs" />
     <Compile Include="Notify\NinjaNotificationVM.cs" />
+    <!-- Planner（密谋命令系统：意图分类 → 计划生成 → 确定性执行） -->
+    <Compile Include="Planner\PlanGrammar.cs" />
+    <Compile Include="Planner\GoalTemplates.cs" />
+    <Compile Include="Planner\SceneSnapshot.cs" />
+    <Compile Include="Planner\RuntimeWorldState.cs" />
+    <Compile Include="Planner\PlanExecutor.cs" />
+    <Compile Include="Planner\InlineSteps.cs" />
+    <Compile Include="Planner\ReactiveAgent.cs" />
+    <Compile Include="Planner\PlanReplan.cs" />
     <!-- Properties -->
     <Compile Include="Properties\AssemblyInfo.cs" />
     <!-- Quests -->

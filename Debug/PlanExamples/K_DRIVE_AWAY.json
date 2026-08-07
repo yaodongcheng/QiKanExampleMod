@@ -1,0 +1,113 @@
+{
+  "intent": {
+    "intent_type": "DRIVE_AWAY",
+    "subjects": [
+      "companion"
+    ],
+    "target": "drunkard",
+    "who_does": "companion"
+  },
+  "summary": "我去把那醉鬼赶走。",
+  "goal": {
+    "type": "distance",
+    "a": "drunkard",
+    "b": "player",
+    "op": ">",
+    "value": 10
+  },
+  "steps": [
+    {
+      "id": "k1",
+      "action": "move_to",
+      "target": "drunkard",
+      "within": 2.0,
+      "timeout_s": 15
+    },
+    {
+      "id": "k2",
+      "action": "say_to",
+      "target": "drunkard",
+      "text": "滚远点，别在这碍事！",
+      "timeout_s": 6
+    },
+    {
+      "id": "k3",
+      "action": "wait",
+      "until": {
+        "type": "distance",
+        "a": "drunkard",
+        "b": "player",
+        "op": ">",
+        "value": 10,
+        "sustained_s": 3
+      },
+      "timeout_s": 20,
+      "on_timeout": "k5"
+    },
+    {
+      "id": "k4",
+      "action": "end_plan",
+      "result": "success",
+      "timeout_s": 3
+    }
+  ],
+  "fallbacks": [
+    [
+      {
+        "id": "k5",
+        "action": "say_to",
+        "target": "drunkard",
+        "text": "再不滚，对你不客气！",
+        "timeout_s": 6
+      },
+      {
+        "id": "k6",
+        "action": "wait",
+        "until": {
+          "type": "distance",
+          "a": "drunkard",
+          "b": "player",
+          "op": ">",
+          "value": 10,
+          "sustained_s": 3
+        },
+        "timeout_s": 15,
+        "on_timeout": "k9",
+        "on_success": "k4"
+      }
+    ],
+    [
+      {
+        "id": "k7",
+        "action": "signal_player",
+        "text": "他急眼了，我先撤",
+        "timeout_s": 3
+      },
+      {
+        "id": "k8",
+        "action": "end_plan",
+        "result": "fail",
+        "timeout_s": 3
+      }
+    ],
+    [
+      {
+        "id": "k9",
+        "action": "end_plan",
+        "result": "fail",
+        "report": "他不理我，赶不走他",
+        "timeout_s": 3
+      }
+    ]
+  ],
+  "contingencies": [
+    {
+      "when": {
+        "type": "combat",
+        "entity": "self"
+      },
+      "then": "k7",
+      "one_shot": true
+    }
+  ]
+}
