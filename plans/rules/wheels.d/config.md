@@ -137,7 +137,7 @@ per-Mission 生命周期，新 Mission 自动清空。
 通用 CSV ORM。**新增可配置设计数据走 CSV，不要硬编码进 .cs**。
 
 ```csharp
-DataTable t = GameDatabase.Heroes;            // 已有表：Heroes/Music/TagPoint/Camera/Emotion/NpcSpeech
+DataTable t = GameDatabase.Heroes;            // 已有表：Heroes/Music/TagPoint/Camera/Emotion
 DynamicRecord r = t.GetByID("hero_001");      // 按英文 ID
 DynamicRecord r = t.GetByScriptName("某中文名"); // 按中文名（反向索引）
 r.GetString(key)/GetInt(key)/GetFloat(key)/GetBool(key)/GetList(key);
@@ -148,27 +148,12 @@ GameDatabase.LoadTablesFromPath(path);        // 内容包注入入口（TaikouC
 
 ---
 
-## Emotion ↔ NpcSpeech 一致性铁律 — `ModuleData/DesignData/Emotion.csv`
+## Emotion ↔ 台词模板一致性 — 模板里写 `{SPEAKER_EMOTION}` 占位符
 
-**`NpcSpeech.csv` 的 `Emotion` 列值必须是 `Emotion.csv` 中已定义的 ID。** 禁止使用未定义的 emotion。
+**CSV 时代的 `NpcSpeech.csv` Emotion 外键校验已随迁移删除**（`GameDatabase.NpcSpeech` 表已不存在）。现在 `LWN_speech_*` XML 模板里的情绪统一写 `{SPEAKER_EMOTION}` 占位符，由 `PlaceholderResolver.ResolveOne("SpeakerEmotion")` 运行时按说话者情绪解析（`PlaceholderResolver.cs:133,338`）——模板不写死 emotion ID，天然不会引用未定义的 emotion，无需加载时校验。
 
-```
-NpcSpeech.csv Emotion 列 ──外键──→ Emotion.csv ID 列
-      alert, threat, rage, …          alert → act_conversation_warrior_start
-                                      threat → act_conversation_threat_body
-                                      rage → act_conversation_rage
-```
-
-**检查方式**：加载 `NpcSpeech.csv` 时遍历所有行，`GameDatabase.Emotion.GetByID(emotion)` 判空，未命中记错误日志 + 回落 `normal`。
-
-```csharp
-// NpcSpeech.csv 加载后的校验
-foreach (var row in GameDatabase.NpcSpeech.GetAll())
-{
-    string emotion = row.GetString("Emotion", "normal");
-    if (GameDatabase.Emotion.GetByID(emotion) == null)
-        DebugLogger.Log($"[NpcSpeech] 未定义的 Emotion: '{emotion}' in row {row.GetString("ID")}");
-}
+```xml
+<string id="LWN_speech_l3_deter_weapondrawn" text="*{SPEAKER_EMOTION}* Put that {ITEM} away! ..." />
 ```
 
 **动作存在性校验（已知限制）**：`Emotion.csv` 中的 `Animations` 列（如 `act_conversation_threat_body`）由 `AgentControlHelper.ForcePlayAction` 播放。但动画是否真正可用取决于 Agent 的 `action_set`——平民、守卫、儿童各自继承了不同的 action_set，部分动画可能不存在于当前 Agent 的 action_set 中导致静默失败。**目前无编译时或加载时校验手段**（action_set 是 C++ native 层，C# 层只能 try-catch 运行时错误）。对策：① Emotion 只用已验证可用的动画 ID（参见 `Knowledge/击晕机制_引擎能力与实现踩坑.md` 的 action_set 继承链分析）；② `ForcePlayAction` 内部已有临时切换 `as_human_warrior` 的绕过逻辑；③ 新增动画前在实际游戏中验证。

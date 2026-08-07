@@ -94,7 +94,7 @@ custom.worldevent_status     // 内部状态
 1. 在 `WorldEventType` 枚举加类型
 2. 在 `WorldEventConfig` 静态构造里 `Register(new WorldEventConfig{...})`
 3. 在 `WorldEventDirector` / `WorldEventNotificationController` 的 switch 里加对应文本
-4. 在 `Narrative.csv` 加 `WorldEvent_Greeting_{Type}_Victim` / `Instigator` 条目
+4. 在 `std_LivingWorldNpcs_strings.xml` 加 `LWN_narr_worldevent_{type}_opening` / `closure_*` 条目（铁律 13：文本走 XML 本地化系统；`WorldEvent_Greeting_{Type}_Victim/Instigator` 旧 CSV 命名已随 Narrative.csv 废弃）
 
 ---
 
