@@ -414,6 +414,8 @@ CommandIntent { type, target, who_does, params }
 
 ### 2.2 CommandIntent 结构
 
+**与既有意图体系的关系（统一架构，无桥接）**：`IntentBase`（玩家交互选项）／`CommandIntent`（玩家命令的分类，计划层输入）／`NpcIntent`（NPC 运行时行为，互斥状态机，`NpcIntent.cs`）——**运行时意图只有一套 = `NpcIntent`**：既有状态值 + 新增 `ExecutingCommand`（detail = CommandIntentType，复用既有 Confronting + ConfrontationType 的 detail 模式）。`CommandIntent` 是计划期输入数据（LLM 分类 → GoalTemplate 查表），执行期被 NpcIntent **持有**（包含关系，非映射，无翻译函数）。细节见 §10。
+
 ```json
 {
   "intent_type": "DISTRACT",
@@ -435,8 +437,10 @@ CommandIntent { type, target, who_does, params }
 ### 2.3 GoalTemplate 表（C# 薄层，`Planner/GoalTemplates.cs`）
 
 ```csharp
+public enum CommandIntentType { /* §2.1 意图全表一一对应：Follow/Bring/Distract/Lookout/Steal/…/Custom */ }
+
 public class GoalTemplate {
-    public string IntentType;
+    public CommandIntentType IntentType;        // 命令层意图枚举——不是 NpcIntentType（见下）
     public Func<WorldState, bool> Success;      // GOAL：成立 = 意图达成（一次性成功）；保持型意图 = 达成锚点（先达成）
     public Func<WorldState, bool> Maintain;     // MAINTAIN（保持型意图）：达成之后保持条件持续成立；翻转 = 掉线预案（后保持）
     public Func<WorldState, bool> Impossible;   // 提前判定不可行（目标已死/不在场景）
@@ -453,6 +457,8 @@ public class GoalTemplate {
 // LOOKOUT:  Success = null（事件驱动：纯 MAINTAIN——异常即触发 signal_player，无限期待命，R6 豁免）
 ```
 
+**`CommandIntentType` 与 `NpcIntentType` 的关系（统一架构，无桥接）**：运行时意图只有一套 = `NpcIntent`（既有状态机）。`CommandIntentType` 是**计划层键**（LLM 分类输出 → GoalTemplate 查表，29 个命令类别），执行期作为 `NpcIntent.ExecutingCommand` 的 detail 被持有（复用既有 Confronting + ConfrontationType 的 detail 模式）——**包含关系，不是映射**：不需要把命令类别"翻译"成状态，NpcIntent 直接带着它。**值优先**：战斗中 → Fighting（既有值自然表达，不因计划内而变）、被击晕 → KnockedOut、跟随 → Following；计划特有行为（引开/望风/传话/带路…）→ ExecutingCommand(detail)。**LLM JSON 层 `intent_type` 是 string（LLM 只能输出字符串），C# 层 Parse 成 `CommandIntentType`，未知值 → validator 拒收/降级 CUSTOM**（封闭词表纪律，§5.3）。
+
 目标状态必须**执行器可验证**，所以不能是 LLM 自由文本——LLM 只能从词表选意图，目标状态由 C# 模板定义。这是"封闭语法"纪律的延伸（对齐现有 `tactic` 纪律）。
 
 **与 plan 的 success_condition 的关系**：GoalTemplate.Success 是权威，plan 里的 `success/fail_condition` 是**可选的具体化**（可省略，缺省回落模板）。并存时 validator 校验语义兼容（同意图同谓词族，如 DISTRACT 的模板 `distance > 10 sustained` 允许计划改写为 `following(companion)` 变体），**禁止与模板矛盾**（如 BRING 计划写"守卫离开"）。执行器只认一套判定：有 plan 条件用 plan 条件，没有用模板。
@@ -466,11 +472,14 @@ public class GoalTemplate {
 ```csharp
 public class SceneSnapshot
 {
-    public List<EntityInfo> Entities;      // 角色表 + 全部人形 Agent
+    // 采集源分两路（引擎两个遍历入口，互不混淆）：
+    public List<AgentInfo> Agents;         // ① ← Mission.Agents（人形活体）：角色表（Role 语义标签）+ 路人（Role=null）；几十~几百，超限近玩家优先采样
+    public List<ObjectInfo> Objects;       // ② ← Mission.Scene 上**可交互 GameEntity**（带 UsableMissionObject：门/箱/灯/桶/床…，StealBar 目标枚举同源）；几个~几十
+    // 纯装饰 GameEntity（无交互组件：桌椅/植被/网格，数量级几千）→ **不进快照**（全量 = prompt 爆炸）；
+    //    命令引用时按需语义查询（INTERACT"把灯吹灭"→ query 匹配"灯"），查不到 → 诚实报告
     public List<ZoneInfo> Zones;           // 预定义场景锚点：door / meet_point…（watch_point/destination 不是预定义 Zone，按意图语义解析：预定义锚点 → 动态空间查询（§5.0）→ 都查不到 → 诚实报告"不知道"，narrative 铁律）
-    public List<ObjectInfo> Objects;       // 目标物：箱子/保管箱等（复用 StealBar 目标枚举）
     public Dictionary<(int,int), bool> Visibility;  // 复用 NpcSightSystem.CanAgentSeeTarget
-    public class EntityInfo
+    public class AgentInfo
     {
         public string Role;        // "player" "self" "guard" "chief" "tavernkeeper"…
         public string DisplayName; public string FacingDesc; public string PositionDesc;
@@ -485,6 +494,7 @@ public class SceneSnapshot
 
 - 角色表按命令构建（不是固定守卫模板）：DISTRACT → target=正在看目标物的人（= 目标物潜在目击者集合成员，与 seeing(any, ·) eligible 同源，§2.2）；BRING → target=命令里指定的职业/名字匹配者；watch_point/meet_point/destination 由命令与场景解析。
 - 目标物（无生命对象）："那个箱子/保管箱" → ObjectInfo 快照（复用 StealBar 既有目标枚举）；"所指"解析 = 玩家视角最近的可偷物，模糊由澄清轮兜底。**Zone 只管位置锚点（door/meet_point），容器/家具一律走 ObjectInfo**——case A/C/F 的目标物不在 Zones 里。
+- **采集源分离（两路引擎遍历，互不混淆）**：`Agents` ← `Mission.Agents`（活体 Agent，含角色表 + 路人）；`Objects` ← `Mission.Scene` 上**可交互 GameEntity**（带 `UsableMissionObject` 组件：门/箱/灯/桶/床…，StealBar 目标枚举与它同源）——**骑砍2 里 GameEntity 不等于装饰**：可交互的那部分正是 Objects 的来源。**纯装饰 GameEntity**（无交互组件：桌椅/植被/网格，数量级几千）才是不进快照的部分——全量 = prompt 爆炸，只在命令引用时**按需语义查询**（INTERACT"把灯吹灭"），查不到 → 诚实报告"这我做不到"（§0.5：INTERACT 实体交互能力待验证后进词表）。
 - 视野矩阵复用 `NpcSightSystem.CanAgentSeeTarget`（`NpcSightSystem.cs:36-60`）。
 - `ToPromptText()` 纯相对语义描述；执行期读实时更新的同一模型（100ms 节流）。
 
@@ -497,14 +507,13 @@ public class SceneSnapshot
 | 动作 | 参数 | 底层实现（全部已有或 v1 内新增） |
 |------|------|---------------------|
 | `move_to` | target/zone, within | `AgentControlHelper.MoveTo` / `MoveToPositionAction`（`AtomicAction.cs:403`） |
-| `follow` | target, max_dist, until? | `FollowAgentAction`（`AtomicAction.cs:564`） |
-| `take_position` | target, rel_pos（behind/line/left/right） | **v1 新增**（M1 即需：Q2/Q6 硬编码验证）：相对站位——底层 = `FollowAgentAction` 极坐标参数（radius+angleOffset），站身后/排一列零新运动系统 |
+| `follow` | target, rel_pos?（behind/line/left/right）, max_dist?, until? | `FollowAgentAction`（`AtomicAction.cs:564`）：①不带 `rel_pos` = 普通跟随（跟随目标，`max_dist` 跟丢距离）；②带 `rel_pos` = **跟随式相对站位**（v1 新增，M1 即需 Q2/Q6 硬编码验证——极坐标参数 radius+angleOffset：站身后 = angleOffset≈π、一字排开 = 每人不同角度，保持偏移持续跟随目标，零新运动系统）——同一引擎行为，参数化区分，不占两个词表位 |
 | `stop_following` | — | brain 队列清理 |
 | `lead` | destination | **v2 新增**：带路（GUIDE 用）——朝目的地前进 + **定期回望**（distance(player, self) > 跟丢阈值 ~8m → 停下 + face 玩家 + 等）；玩家跟上（< 3m）继续；等待超时（玩家不走）→ 中止 + 报告（"你走不走啊"）。**节奏同步在原子行为内部，不自顾自走**——与 `follow` 镜像（follow = 跟随者，lead = 领路人） |
 | `face` / `look_at` | target, seconds | `TurnToDirectionAction` / `LookAtAction`（`AtomicAction.cs:327,765`） |
 | `say_to` | target, text | `AgentHudMissionView.AgentSay`（`AgentHUD\AgentHudMissionView.cs:302`）+ 先 `face` |
 | `wait` | seconds, until? | 执行器计时 |
-| `emote` | anim_id | `PlayAnimAction`（`AtomicAction.cs:807`） |
+| `emote` | anim_id（**语义标签**，见下动画表） | `PlayAnimAction`（`AtomicAction.cs:807`）：演出点缀（说话配动作/结果配情绪/台本配动作，M5 打磨）——可选装饰步骤，不改世界状态、不影响成败；LLM 只写语义标签，运行时查映射表出引擎动画 ID |
 | `signal_player` | text | `NinjaNotificationManager.Show`（`Notify\NinjaNotificationMissionView.cs:25`） |
 | `steal_attempt` | target_item / target_agent | **v1.5 新增**：NPC 侧偷窃原子行为，**两个 target 变体**：①**物**（箱子）：接近→蹲下 + **Intent 显示**（玩家靠视觉感知"他在偷"，**不复用玩家 StealBar UI/子弹时间**）→ **成功率公式判定**（随从技能 vs 目标参数）→ Transfer 移交/空手 → 复用 WitnessCrime 目击/警戒脉冲；②**人**（扒窃）：**绕背定位**（内部几何搜索——目标正背后盲区 + 可达 + 不被任何 eligible 目击者看见，复用相对站位轮子 + `CanAgentSeeTarget` 校验；盲区不可达/被盯 → 尝试侧面替代盲区，仍不行 → 判定不可行，诚实报告"没地方下手"）→ 蹲下 + Intent 显示 → 公式判定（复用扒窃盲盒参数）→ 移交/空手 → WitnessCrime。**分工：计划层管时机（`!seeing(any, self)` 窗口 GATE），原子行为管站位几何** |
 | `give_item` / `give_gold` | amount/item | `AgentControlHelper.TransferItems/TransferGold`（铁律 4 统一归口） |
@@ -513,6 +522,20 @@ public class SceneSnapshot
 | `negotiate` | target, topic, desired | **v2 新增**：社交结算（讲价/讨债/订房——随从技能 vs 目标参数确定性结算，非逐句对话） |
 | `duel` | target | **v2 新增**：切磋结算（非致死比武，复用既有切磋虚拟血量轮子 + 水平评估回报） |
 | `end_plan` | result | 执行器收尾 |
+
+**emote 动画表（语义标签 → 引擎动画）**：LLM 词表里 `anim_id` 只接受以下语义标签（封闭小表，validator 校验），运行时查映射表出引擎动画 ID。**动画校验两层，均与 action_set 相关**：①**XML 定义校验（构建期/启动期）**——解析 actions.xml（Native + 各模块），用 `MBAnimationManager.GetActionCodeWithID` 确认动画 ID 真实存在（候选表"待 M5 验证"即走这步，失败的标签从表里剔除）；②**运行时 action set 校验（播放前）**——按执行者 agent 的动作集（`Agent.Monster` 的 ActionSet，human/human_child 骨骼动作集不同）查该 ActionCode 可用性，**不可用 → 该 emote 降级为无动作**，不崩、不穿模（参击晕轮子 action_set 继承链坑）。两层校验都过才播放：
+
+| 语义标签 | 候选引擎动画（待 M5 验证） | 用途 |
+|----------|--------------------------|------|
+| `nod` | `act_agree_1` | 点头（确认/答应） |
+| `shake` | `act_disagree_1` | 摇头（拒绝） |
+| `wave` | `act_wave_1` | 招手（望风报告/叫人来） |
+| `cheer` | `act_cheer_1` | 欢呼（任务成功） |
+| `bow` | `act_bow_1` | 鞠躬（请人/敬意） |
+| `shrug` | `act_shrug_1` | 耸肩（无能为力） |
+| `point` | `act_point_1` | 指方向（带路/指引） |
+| `threaten` | `act_threaten_1` | 威胁（恐吓语气） |
+| `disappointed` | `act_defeat_1` | 泄气（失败收尾） |
 
 **执行通道**：`AgentAIController.SendEventToAgent(npc, "order_execute_plan", plan)`（`AgentAIController.cs:431`），`AgentBrain.ReceiveEvent` 新增事件分支：暂停护卫跟随 → 启动执行器 → 逐条入队。收尾统一：`ClearAllActions` → `ForceUnlockAgent` → 恢复默认行为（随从回 `FollowAgentAction(Leader)`，`AgentBrain.cs:859-871`）。
 
@@ -689,7 +712,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 - **报告方式：当面 / 密信，二选一**（收尾时如何告知玩家）：①**当面报告**（默认）——随从 abort 后恢复默认跟随（`FollowAgentAction(Leader)`，AgentBrain.cs:859-871）物理走回玩家身边，到达 ~3m 内触发一句冒泡报告（say_to + face，**转述实情原话**，情报有来源）再彻底收尾。适用：BRING 拒绝（Y2）/ DELIVER 传话 / SCOUT 侦察回报 / FETCH 取物失败等"随从本就该回到玩家身边"的收尾；②**密信报告**（signal_player）——随从脱不开身的场景：LOOKOUT 望风 / SHADOW 盯梢（随从回不来，须留守）+ 紧急中断（R2 目标死 / R5 开战，随从可能在战斗或离玩家远）。**选型规则：收尾时随从按默认行为本来就回得来 → 当面报告；回不来或紧急 → 密信报告。**
 - **玩家干预（两档）**：①**停止键**（轻量专用，仅对执行中的随从：交互距离内当面喊停（say_to 冒泡）；随从离远 > 交互距离 → 密信中止——当面/密信双通道对称覆盖玩家→随从方向，§8.1）；②**新命令**：再次 Plot 下新命令 → 旧计划作废（玩家最高优先级，自由感铁律）。
 - **与既有警戒系统交接**：玩家真实犯罪 → 既有 `WitnessCrime` 流程接管（`StealManager.cs:474` 等），执行器监听 `combat`/`alarm` 谓词自动收尾
-- **执行状态反馈（KCD2 反馈明确原则）**：执行器每步维护一句可读摘要（"正在引开守卫"/"正在前往村长家"），暴露给 `AgentHudVM` 随从状态行——玩家随时知道随从在忙什么
+- **执行状态反馈（KCD2 反馈明确原则，两层显示）**：①**NpcIntent 文本**（既有通道）：`ExecutingCommand` 拼接 = **"执行计划中·引开→守卫"**（状态 + 命令类别 detail + 目标 target，与既有 Confronting 拼接模式同构，本地化 `LWN_ui_npcintent_*` + `LWN_ui_commandintent_*`）；②**执行摘要**（AgentHudVM 随从状态行）：执行器每步一句动态细节（"正在把守卫往巷子引"/"正在前往村长家"）——粗状态、命令类别、步骤细节三层可见，玩家随时知道随从在忙什么
 - **执行物理可见（玩家可尾随）**：计划的每一步都是玩家可见的真实物理行为——move_to 真走、say_to 真冒泡、steal 真蹲下，**无瞬移、无抽象结算**。玩家发令后可全程尾随随从观察"是不是真听话在做了"（R4 允许随从独行走远，玩家跟得上就跟；跟丢了有执行摘要兜底）。执行摘要 + 物理行为 = 反馈明确原则在执行的完整落地
 - **快照惰性求值**：距离矩阵只对计划引用的实体对计算（O(N) 而非 O(N²)），缓存引用相关的中间结果
 
@@ -874,6 +897,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 | 现有部件 | 用途 | 改动 |
 |---------|------|------|
 | `AgentBrain` 动作队列 + `IAtomicAction` | 所有参与 NPC 的执行底层 | 加 `order_execute_plan` 事件分支；执行器挂 Tick |
+| `NpcIntent` / `AgentBrain.SetNpcIntent`（`NpcIntent.cs`） | 执行期 NPC 状态显示（互斥状态机，**唯一运行时意图体系**） | **统一架构（无桥接）**：`NpcIntentType` 新增 `ExecutingCommand` + 字段 `CommandIntentType? CommandDetail`（复用既有 `InterceptDetail` 模式，两 detail 按 Type 互斥生效）。**显示**：`ToString` 拼接 = "执行计划中·引开→守卫"（typeName + detailStr + targetStr，与既有 Confronting 同构，key = `LWN_ui_npcintent_executingcommand` + `LWN_ui_commandintent_*`）；细粒度步骤细节 = 执行摘要（AgentHudVM 随从状态行，§5.4）。**值优先**：战斗中 → Fighting、被击晕 → KnockedOut、跟随 → Following（既有值自然表达，不因计划内而变）；计划特有行为（引开/望风/传话/带路…）→ ExecutingCommand(detail)。计划收尾 → 恢复 Following。ReactiveAgent 长时行为走既有值，短时反应（investigate/return_post/say）不设（None） |
 | `AgentControlHelper.MoveTo/LookAtAgent/FaceToActor/ForceUnlockAgent` | 原子行为底层 | 无 |
 | `AgentHudMissionView.AgentSay` | say_to 冒泡（非原版对话流） | 无 |
 | `NpcSightSystem.CanAgentSeeTarget/GetObserversOf` | 视野矩阵 + 角色表"谁在盯着" | 无 |
