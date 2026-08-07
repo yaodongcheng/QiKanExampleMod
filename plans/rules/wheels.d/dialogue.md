@@ -585,10 +585,10 @@ custom.inject_dialogue clear           → 清除所有注入
 
 ---
 
-## NpcSpeech.csv + NpcSpeechResolver — 模板台词统一数据源
+## NpcSpeechResolver — 模板台词统一数据源（XML 本地化）
 
-模板思路替代枚举思路。极简三列 `ID,Template,Emotion`。
-**两阶段回落**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName, narrativeFallback)` 内部先查 NpcSpeech.csv → 未命中自动回落 Narrative.csv（过渡期）→ 均未命中返回 null。**调用方只需 `??` 硬编码兜底**，不应再手动调 NarrativeResolver。
+模板思路替代枚举思路。**数据源已从 CSV 迁移到 XML 本地化系统**（`NpcSpeech.csv` / `Narrative.csv` 已废弃，`DesignDataLoad.cs` 不再加载，注释明确"已迁移到 XML"）。
+**两阶段回落**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName, narrativeFallback)` 内部先查 XML key `LWN_speech_{templateId}` → 未命中且 narrativeFallback 非 null 时回落 `NarrativeResolver.TryResolveText(narrativeFallback)` → 均未命中返回 null。**调用方只需 `??` 硬编码兜底**，不应再手动调 NarrativeResolver。
 
 ```csharp
 // ✅ 调用方标准写法：两阶段回落
@@ -600,10 +600,10 @@ string line = NpcSpeechResolver.Resolve(templateId, speaker, listener,
 // ❌ 禁止：调用方直接调 NarrativeResolver.Resolve/NarrativeResolver.TryResolveText
 ```
 
-**长期方向**：Narrative.csv 逐步迁移到 NpcSpeech.csv 后，`narrativeFallback` 参数和内部回落代码删除，`NpcSpeechResolver` 回归纯 CSV 查询薄层。
+**长期方向（已完成）**：CSV → XML 迁移已全部完成（`DesignDataLoad.cs` 不再加载 Narrative/NpcSpeech）。模板文本统一进 `LWN_speech_*` key，翻译走 `Languages/{lang}/std_*.xml` 分语言覆盖（铁律 13）。
 
 **文件位置**：
-- `ModuleData/DesignData/NpcSpeech.csv`（~18 行：12 BubbleSay + 6 L3 开场白）
+- `ModuleData/Languages/std_LivingWorldNpcs_strings.xml`（`LWN_speech_*` keys：12 BubbleSay + 6 L3 开场白等）+ `ModuleData/Languages/CNs/std_LivingWorldNpcs_strings.xml`（中文翻译）
 - `Interaction/Dialogue/NpcSpeechResolver.cs`
 
 
@@ -622,7 +622,7 @@ string line = NpcSpeechResolver.Resolve(templateId, speaker, listener,
 
 ## PlaceholderResolver 扩展指南 — 新增占位符两步流程
 
-**调用链路**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName, narrativeFallback)` → ① 查 `NpcSpeech.csv` 取模板文本 → ② 未命中自动回落 `NarrativeResolver.TryResolveText(narrativeFallback)`（过渡期） → `new PlaceholderResolver(...)` → `r.Resolve(template)` → 正则 `\{(\w+)\}` 扫描 `{KEY}` → 逐个调 `ResolveOne(key)` 替换。
+**调用链路**：`NpcSpeechResolver.Resolve(id, speaker, listener, evt, targetName, itemName, narrativeFallback)` → ① `LWNTextHelper.TryResolveText("LWN_speech_" + id)` 判 key 存在 → `LWNTextHelper.Resolve(xmlKey, new PlaceholderResolver(...))` → ② 未命中且 narrativeFallback 非 null → `NarrativeResolver.TryResolveText(narrativeFallback)` → `r.Resolve(text)` → 正则 `\{(\w+)\}` 扫描 `{KEY}` → 逐个调 `ResolveOne(key)` 替换。
 
 **三种构造 → 三种数据可用范围**：
 
@@ -635,7 +635,7 @@ string line = NpcSpeechResolver.Resolve(templateId, speaker, listener,
 **新增占位符两步**：
 
 1. **`ResolveOne` 加 case**（[PlaceholderResolver.cs:94](Interaction/Dialogue/PlaceholderResolver.cs:94)）：在 `switch (key)` 中添加 `case "NEW_KEY": return ...;`。注意判断数据来源是否可能为 null（`evt?.` / `TargetName ?? ""`）。
-2. **`NpcSpeech.csv` 用上**：在模板文本中写入 `{NEW_KEY}`，`Resolve` 自动替换。
+2. **XML 模板用上**：在 `LWN_speech_*` 模板文本中写入 `{NEW_KEY}`，`Resolve` 自动替换。
 
 **关键守卫**：`ResolveOne` 返回 `null` 时，正则替换**保留原样 `{KEY}`**（玩家会看到原始占位符 = bug）。新增占位符后务必在对应场景实测，确保不会走到 `default: return null`。
 
@@ -662,7 +662,7 @@ EnqueueAction(new AlertForceConversationAction());
 ## CrimeDialogueBuilder.BuildAlertInterceptScript — L3 质问对话构建
 
 与 `BuildAuthorityScript` / `BuildWitnessScript` 同属 `CrimeDialogueBuilder`。
-台词通过 `NpcSpeechResolver.Resolve(..., narrativeFallback:)` 内部两阶段回落（NpcSpeech.csv → Narrative.csv），调用方仅 `?? HardcodedAlertLine()` 兜底。
+台词通过 `NpcSpeechResolver.Resolve(..., narrativeFallback:)` 内部两阶段回落（XML `LWN_speech_*` → NarrativeResolver），调用方仅 `?? HardcodedAlertLine()` 兜底。
 
 ```csharp
 var script = CrimeDialogueBuilder.BuildAlertInterceptScript(
