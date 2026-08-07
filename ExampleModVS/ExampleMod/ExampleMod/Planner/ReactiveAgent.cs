@@ -214,26 +214,35 @@ namespace LivingWorldNpcs
         // 触发词处理（brain ReceiveEvent 调用）
         // ═══════════════════════════════════════════════════════════
 
+        /// <summary>触发词封闭词表（§6.2）——prompt 展示顺序 = 本数组顺序（单一事实源）。
+        /// **注册新触发词 = 本数组加一行** + TryHandleEvent 处理分支；TriggerEvents 自动派生、
+        /// prompt（BuildGrammar）自动读到。</summary>
+        public static readonly string[] TriggerEventsInPromptOrder =
+        {
+            "approach_by", "spoken_to", "asked_to_follow", "asked_to_stay",
+            "player_suspicious_near", "see_crime", "combat_nearby", "left_post_seconds",
+            "alone_with", "seen_speaking", "see_ally_killed",
+        };
+
+        /// <summary>触发词封闭词表（校验用，由 TriggerEventsInPromptOrder 派生，勿单独修改）。</summary>
+        public static readonly HashSet<string> TriggerEvents = new HashSet<string>(TriggerEventsInPromptOrder, StringComparer.Ordinal);
+
+        /// <summary>反应动作封闭词表（§6.3）——prompt 展示顺序 = 本数组顺序（单一事实源）。
+        /// **注册新反应动作 = 本数组加一行** + ExecuteReaction 处理分支；ReactionActions 自动派生。</summary>
+        public static readonly string[] ReactionActionsInPromptOrder =
+        {
+            "listen", "consider", "refuse", "follow_for_a_bit", "investigate",
+            "return_post", "stare", "alert_raise", "attack", "call_guards",
+            "ignore", "relay_message", "pay", "hand_over_item", "flee",
+        };
+
+        /// <summary>反应动作封闭词表（校验用，由 ReactionActionsInPromptOrder 派生，勿单独修改）。</summary>
+        public static readonly HashSet<string> ReactionActions = new HashSet<string>(ReactionActionsInPromptOrder, StringComparer.Ordinal);
+
         /// <summary>触发词白名单（§6.2）。返回 true = 本事件被消费（不再走 brain 其它分支）。</summary>
         public static bool IsTriggerEvent(string eventType)
         {
-            switch (eventType)
-            {
-                case "approach_by":
-                case "spoken_to":
-                case "asked_to_follow":
-                case "asked_to_stay":
-                case "player_suspicious_near":
-                case "see_crime":
-                case "combat_nearby":
-                case "left_post_seconds":
-                case "alone_with":
-                case "seen_speaking":
-                case "see_ally_killed":
-                    return true;
-                default:
-                    return false;
-            }
+            return eventType != null && TriggerEvents.Contains(eventType);
         }
 
         /// <summary>处理触发词：人格演算 → 反应动作（brain ReceiveEvent 内联调用）。</summary>
