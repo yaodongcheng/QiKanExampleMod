@@ -25,8 +25,9 @@
 ```text
 走到守卫面前（move_to）→ 诱骗跟走（say_to，引开手段）
 ├─ [守卫跟走]（following(guard, self) 成立）→ 走向引开点（move_to lure_spot——动态选点（§5.0）：距 watch_point > 10m（窗口前提）+ 距 player > 阈值（不把守卫引到玩家埋伏点）+ 半径内无其他目击者 + navmesh 可达，**不硬编码 door**；守卫 follow_for_a_bit 跟随随从移动，随从不动守卫就不走；GATE：distance(guard, lure_spot) < 4 提前推进）→ 途中安抚（say_to s5，"别让人等急了"）→ 窗口达成（GATE：distance(guard, watch_point) > 10 sustained 5s）→ 跳 s7"动手"（密信报告玩家——行动窗口提示，玩家趁窗口偷）✓
+│   ├─ [窗口迟迟不成立]（守卫跟到引开点但没离岗 10m，s6 超时）→ s13 密信"他没走远，拖不住了，先收手" ✗
 │   └─ [守卫折返]（GATE：following(guard, self) 由成立变不成立——跟走有时限，left_post_seconds 到点折返，区分"从未跟随"见 §5.1 折返检测语义）→ s8"快收手！"（密信报告玩家）✗
-└─ [守卫拒绝]（following(guard, self) 从未成立）→ 再哄一次 → 放弃（当面报告玩家"他不上当"——守卫拒绝后随从可脱身，走回玩家身边 3m 内冒泡转述）✗
+└─ [守卫拒绝]（following(guard, self) 从未成立）→ 再哄一次 → 再哄成功（s11 on_success）→ 回主链继续引 ／ 再哄失败 → 放弃（当面报告玩家"他不上当"——守卫拒绝后随从可脱身，走回玩家身边 3m 内冒泡转述）✗
 ```
 **执行人② 玩家（actor=player · 自主驱动）· 玩家侧自理（计划不驱动）**
 ```text
@@ -52,6 +53,7 @@
     {"id": "s2", "action": "say_to",  "target": "guard", "ask": "follow", "text": "那边有人找你，说是有急事，让我来叫你", "timeout_s": 8},
     {"id": "s3", "action": "wait",
         "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
+        "on_event": [{"type": "refused_to_follow", "then": "s10"}],
         "timeout_s": 10, "on_timeout": "s10"},
     {"id": "s4", "action": "move_to", "target": {"query": "lure_spot(watch_point, 12)"}, "within": 1.0,
         "until": {"type": "distance", "a": "guard", "b": "lure_spot", "op": "<", "value": 4},
@@ -59,7 +61,7 @@
     {"id": "s5", "action": "say_to",  "target": "guard", "text": "就在那边等着呢，别让人等急了", "timeout_s": 6},
     {"id": "s6", "action": "wait",
         "until": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5},
-        "timeout_s": 25},
+        "timeout_s": 25, "on_timeout": "s13"},
     {"id": "s7", "action": "signal_player", "text": "守卫被我引开了，快动手！", "timeout_s": 3}
   ],
   "fallbacks": [
@@ -67,6 +69,7 @@
       {"id": "s10", "action": "say_to",  "target": "guard", "ask": "follow", "text": "就说几句话的事，劳驾跟我走一趟吧", "timeout_s": 6},
       {"id": "s11", "action": "wait",
           "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
+          "on_event": [{"type": "refused_to_follow", "then": "s12"}],
           "timeout_s": 6, "on_timeout": "s12", "on_success": "s4"}
     ],
     [
@@ -75,6 +78,10 @@
     [
       {"id": "s8", "action": "signal_player", "text": "守卫回岗了，快收手！", "timeout_s": 3},
       {"id": "s9", "action": "end_plan", "result": "fail", "timeout_s": 3}
+    ],
+    [
+      {"id": "s13", "action": "signal_player", "text": "他没走远，拖不住了，先收手", "timeout_s": 3},
+      {"id": "s14", "action": "end_plan", "result": "fail", "timeout_s": 3}
     ]
   ],
   "contingencies": [
@@ -87,9 +94,9 @@
 
 > **条件角色标注**（对应 §5.3 条件角色表；角色由 JSON 字段直接命名，不需要槽位→角色映射表）：
 > - s2 `ask: "follow"`（§4 say_to 参数）：播完广播 `asked_to_follow(guard)` 而非仅 `spoken_to`——守卫"跟不跟"的演算挂在 `asked_to_follow` 触发词上（§6.1），没有这个桥 s3 的 `following` 永远等不到
-> - s3 `until` + `on_timeout`（wait 退出条件）：守卫跟走（`following(guard, self)` 成立）→ 本步完成推进 s4；**守卫拒绝**（超时，`was` 从未置真）→ `on_timeout` 跳 s10"再哄"（树上"再哄一次"✗ 分支）
+> - s3 `until` + `on_event` + `on_timeout`（wait 退出条件）：守卫跟走（`following(guard, self)` 成立）→ 本步完成推进 s4；**守卫拒绝** = ReactiveAgent 决策结果事件 `refused_to_follow` 即时到达（§6.3 广播）→ `on_event` 跳 s10"再哄"（树上"再哄一次"✗ 分支，**不等超时**）；`on_timeout` 10s 仅为兜底（say_to 未被听到/事件未达，`was` 从未置真）
 > - s4 `until` + `on_timeout`（动作提前完成条件）：守卫到引开点（< 4m，`lure_spot` = s4 query 求值后的具名落点）→ 提前截断 move_to，本步完成，拖住守卫；`on_timeout`（仍在跟随但走得慢/路径长，25s 没到位）→ 跳 s6 直接等窗口——引开点不是目的，窗口才是
-> - s6 `until`（wait 退出条件）：守卫离岗（> 10m sustained 5s）→ 窗口成立，推进到 s7 发动手信号
+> - s6 `until`（wait 退出条件）：守卫离岗（> 10m sustained 5s）→ 窗口成立，推进到 s7 发动手信号；s6 `on_timeout`（窗口 25s 不成立 = 守卫没离岗）→ 跳 s13 密信"他没走远，拖不住了，先收手"（树"窗口迟迟不成立"✗ 分支）
 > - s11 `on_success` / `on_timeout`：再哄成功（第二次跟走，`following` 首置真 → `was` 记录）→ `on_success` 跳回主链 s4 继续引；再哄失败（超时）→ `on_timeout` 跳 s12 放弃（预案可跳回主链）
 > - s12 `end_plan report`（放弃收尾）：`report` 触发**当面报告**——恢复默认跟随走回玩家 ~3m 内冒泡转述"他不上当"（§5.4 当面报告），对应树上"放弃（当面报告）"✗ 分支
 > - `fallbacks` 分区（三个预案，只被跳转进入、不参与游标推进）：fb1 再哄（s10/s11）、fb2 放弃（s12）、fb3 折返警报（s8/s9）
@@ -202,6 +209,7 @@
 ├─ 窗口成立（GATE：!seeing(any, self) sustained 3s）→ 扒窃结算（公式）
 │   ├─ 到手 → 当面移交玩家（走回玩家旁，铁律 4 守恒）✓
 │   └─ 摸空/目标察觉 → 空手收尾 + 当面报告"没摸到，他太精了" ✗
+├─ 窗口超时（一直有人盯，d1 超时）→ 当面报告"一直有人盯着，没机会" ✗
 └─ 站位不可行 → 当面报告"没地方下手" ✗
 ```
 
@@ -213,14 +221,15 @@
     {"id": "d1", "action": "steal_attempt", "target": "guard", "variant": "pickpocket",
         "when": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3},
         "result": {"success": "d2", "empty": "d5", "impossible": "d6"},
-        "timeout_s": 30, "on_timeout": "d5"},
+        "timeout_s": 30, "on_timeout": "d7"},
     {"id": "d2", "action": "move_to", "target": "player", "within": 3.0, "timeout_s": 20},
     {"id": "d3", "action": "give_gold", "target": "player", "amount": "stolen", "timeout_s": 5},
     {"id": "d4", "action": "end_plan", "result": "success", "timeout_s": 3}
   ],
   "fallbacks": [
     [{"id": "d5", "action": "end_plan", "result": "fail", "report": "没摸到，他太精了", "timeout_s": 3}],
-    [{"id": "d6", "action": "end_plan", "result": "fail", "report": "没地方下手", "timeout_s": 3}]
+    [{"id": "d6", "action": "end_plan", "result": "fail", "report": "没地方下手", "timeout_s": 3}],
+    [{"id": "d7", "action": "end_plan", "result": "fail", "report": "一直有人盯着，没机会", "timeout_s": 3}]
   ],
   "contingencies": [
     {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true},
@@ -272,7 +281,8 @@
     [{"id": "e9", "action": "end_plan", "result": "fail", "report": "没位置", "timeout_s": 3}]
   ],
   "contingencies": [
-    {"when": {"type": "seeing", "a": "tavernkeeper", "b": "player", "op": "true", "was": "true"}, "then": "e5", "one_shot": true},
+    {"when": {"type": "seeing", "a": "tavernkeeper", "b": "player", "op": "true", "was": "true"}, "then": "e5", "one_shot": false},
+    {"when": {"type": "moving", "a": "tavernkeeper", "op": "true"}, "then": "e5", "one_shot": false},
     {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
   ]
 }
@@ -305,13 +315,13 @@
   ],
   "fallbacks": [
     [{"id": "f5", "action": "make_noise", "timeout_s": 10},
-     {"id": "f6", "action": "wait", "until": {"type": "seeing", "a": "all", "b": "self", "op": "true", "sustained_s": 5}, "timeout_s": 20, "on_timeout": "f7", "on_success": "f3"}],
+     {"id": "f6", "action": "wait", "until": {"type": "seeing", "a": "all", "b": "self", "op": "true", "sustained_s": 5}, "timeout_s": 20, "on_timeout": "f7", "on_success": "f4"}],
     [{"id": "f7", "action": "signal_player", "text": "人散了，收手！", "timeout_s": 3},
      {"id": "f8", "action": "end_plan", "result": "fail", "timeout_s": 3}],
     [{"id": "f9", "action": "end_plan", "result": "fail", "report": "没人看热闹", "timeout_s": 3}]
   ],
   "contingencies": [
-    {"when": {"type": "seeing", "a": "all", "b": "self", "op": "false", "was": "true"}, "then": "f5", "one_shot": true},
+    {"when": {"type": "seeing", "a": "all", "b": "self", "op": "false", "was": "true"}, "then": "f5", "one_shot": false},
     {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
   ]
 }
@@ -322,6 +332,7 @@
 ```text
 走到守卫面前（move_to）→ 诱骗跟走（say_to，同 case A）→ 引到隐蔽点（move_to hidden_spot——动态选点（§5.0）：周围无人 + 无视野 + navmesh 可达）
 ├─ 窗口成立（GATE：!seeing(any, self) sustained 3s）→ 绕背 knockout（复用击晕轮子）→ 目标击晕（GOAL）→ 收手 → 回来报告"放倒了"（当面）✓
+│   ├─ 窗口迟迟不成立（一直有人看着，g5 超时）→ 密信"没机会下手，先撤了" ✗
 │   └─ 中途折返（同 case A 预案：密信报告玩家"他折回去了" → 中止）✗
 └─ 隐蔽点不可达 → 当面报告"没地方下手" ✗
 ```
@@ -338,9 +349,11 @@
   "steps": [
     {"id": "g1", "action": "move_to", "target": "guard", "within": 2.0, "timeout_s": 15},
     {"id": "g2", "action": "say_to", "target": "guard", "ask": "follow", "text": "那边有人找你，说是有急事", "timeout_s": 8},
-    {"id": "g3", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"}, "timeout_s": 10, "on_timeout": "g10"},
+    {"id": "g3", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
+        "on_event": [{"type": "refused_to_follow", "then": "g10"}],
+        "timeout_s": 10, "on_timeout": "g10"},
     {"id": "g4", "action": "move_to", "target": {"query": "hidden_spot(self, 15)"}, "within": 1.0, "until": {"type": "distance", "a": "guard", "b": "hidden_spot", "op": "<", "value": 4}, "timeout_s": 30, "on_timeout": "g13"},
-    {"id": "g5", "action": "wait", "until": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3}, "timeout_s": 20, "on_timeout": "g9"},
+    {"id": "g5", "action": "wait", "until": {"type": "seeing", "a": "any", "b": "self", "op": "false", "sustained_s": 3}, "timeout_s": 20, "on_timeout": "g14"},
     {"id": "g6", "action": "knockout", "target": "guard", "timeout_s": 10},
     {"id": "g7", "action": "end_plan", "result": "success", "report": "放倒了", "timeout_s": 3}
   ],
@@ -348,9 +361,13 @@
     [{"id": "g8", "action": "signal_player", "text": "他折回去了，先算了", "timeout_s": 3},
      {"id": "g9", "action": "end_plan", "result": "fail", "timeout_s": 3}],
     [{"id": "g10", "action": "say_to", "target": "guard", "ask": "follow", "text": "劳驾跟我走一趟，就问几句话", "timeout_s": 6},
-     {"id": "g11", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"}, "timeout_s": 6, "on_timeout": "g12", "on_success": "g4"}],
+     {"id": "g11", "action": "wait", "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
+          "on_event": [{"type": "refused_to_follow", "then": "g12"}],
+          "timeout_s": 6, "on_timeout": "g12", "on_success": "g4"}],
     [{"id": "g12", "action": "end_plan", "result": "fail", "report": "他不上当，不肯跟我走", "timeout_s": 3}],
-    [{"id": "g13", "action": "end_plan", "result": "fail", "report": "没地方下手", "timeout_s": 3}]
+    [{"id": "g13", "action": "end_plan", "result": "fail", "report": "没地方下手", "timeout_s": 3}],
+    [{"id": "g14", "action": "signal_player", "text": "没机会下手，先撤了", "timeout_s": 3},
+     {"id": "g15", "action": "end_plan", "result": "fail", "timeout_s": 3}]
   ],
   "contingencies": [
     {"when": {"type": "following", "a": "guard", "b": "self", "op": "false", "was": "true"}, "then": "g8", "one_shot": true},
@@ -373,13 +390,14 @@
   "summary": "我去望风，来人了叫你。",
   "steps": [
     {"id": "h1", "action": "move_to", "target": "watch_zone", "within": 1.5, "timeout_s": 30},
-    {"id": "h2", "action": "wait", "seconds": 600}
+    {"id": "h2", "action": "wait"}
   ],
   "triggers": [
     {"when": {"type": "in_zone", "a": "any", "b": "watch_zone", "op": "true"}, "then": {"action": "signal_player", "text": "有人来了！"}}
   ]
 }
 ```
+> h2 无限保持：`wait` 省略 seconds/until/timeout = 无限期待命（§4 wait 行），结束 = 玩家 R3 停止键 / R4 收尾——与树"无限期待命"一致（R6 豁免同源，不套 5 分钟上限）。
 
 **I. "告诉他，我在老地方等他"（DELIVER）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
@@ -402,14 +420,16 @@
   "steps": [
     {"id": "i1", "action": "move_to", "target": "contact", "within": 2.0, "timeout_s": 30},
     {"id": "i2", "action": "say_to", "target": "contact", "text": "我家主人说，他在老地方等你", "timeout_s": 8},
-    {"id": "i3", "action": "wait", "until": {"type": "time_since", "step_id": "i2", "op": ">", "value": 2}, "timeout_s": 6, "on_timeout": "i5"},
+    {"id": "i3", "action": "wait", "until": {"type": "time_since", "step_id": "i2", "op": ">", "value": 2},
+        "on_event": [{"type": "refused", "then": "i5"}],
+        "timeout_s": 6, "on_timeout": "i6"},
     {"id": "i4", "action": "end_plan", "result": "success", "report": "说好了", "timeout_s": 3}
   ],
   "fallbacks": [
-    [{"id": "i5", "action": "end_plan", "result": "fail", "report": "他让我滚开", "timeout_s": 3}]
+    [{"id": "i5", "action": "end_plan", "result": "fail", "report": "他让我滚开", "timeout_s": 3}],
+    [{"id": "i6", "action": "end_plan", "result": "fail", "report": "他没应我", "timeout_s": 3}]
   ],
   "contingencies": [
-    {"when": {"type": "refused", "entity": "contact"}, "then": "i5", "one_shot": true},
     {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
   ]
 }
@@ -446,7 +466,8 @@
 ```text
 走到醉鬼面前（move_to）→ say_to 恐吓（剧本骨架，§6.4）
 ├─ 被吓走（目标方反应，见目标方块）→ GOAL 达成 → 收手回位 ✓
-└─ 反抗（目标方反应，见目标方块）→ R5 目标敌对 → 密信报告玩家"他急眼了"（紧急中断）→ Aborted / 演变成战斗 ✗（铁律 12：恐吓失败有代价）
+├─ 恐吓无效（不理不睬）→ 再恐吓（k5/k6）→ 仍无效 → 当面报告"他不理我，赶不走他" ✗
+└─ 反抗（目标方反应，见目标方块）→ 开战 → 密信报告玩家"他急眼了"（k7 密信 + 中止）✗（铁律 12：恐吓失败有代价）
 ```
 **目标方 醉鬼（ReactiveAgent · 事件驱动）**——非执行人：计划不驱动其行动，反应由人格演算决定（§6）
 ```text
@@ -468,12 +489,13 @@
   ],
   "fallbacks": [
     [{"id": "k5", "action": "say_to", "target": "drunkard", "text": "再不滚，对你不客气！", "timeout_s": 6},
-     {"id": "k6", "action": "wait", "until": {"type": "distance", "a": "drunkard", "b": "player", "op": ">", "value": 10, "sustained_s": 3}, "timeout_s": 15, "on_timeout": "k7", "on_success": "k4"}],
+     {"id": "k6", "action": "wait", "until": {"type": "distance", "a": "drunkard", "b": "player", "op": ">", "value": 10, "sustained_s": 3}, "timeout_s": 15, "on_timeout": "k9", "on_success": "k4"}],
     [{"id": "k7", "action": "signal_player", "text": "他急眼了，我先撤", "timeout_s": 3},
-     {"id": "k8", "action": "end_plan", "result": "fail", "timeout_s": 3}]
+     {"id": "k8", "action": "end_plan", "result": "fail", "timeout_s": 3}],
+    [{"id": "k9", "action": "end_plan", "result": "fail", "report": "他不理我，赶不走他", "timeout_s": 3}]
   ],
   "contingencies": [
-    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+    {"when": {"type": "combat", "entity": "self"}, "then": "k7", "one_shot": true}
   ]
 }
 ```
@@ -493,17 +515,19 @@
   "steps": [
     {"id": "l1", "action": "move_to", "target": {"query": "point(那边)"}, "within": 2.0, "timeout_s": 60},
     {"id": "l2", "action": "wait", "seconds": 5},
-    {"id": "l3", "action": "end_plan", "result": "success", "timeout_s": 3}
+    {"id": "l3", "action": "end_plan", "result": "success", "report": "{OBSERVATION}", "timeout_s": 3}
   ]
 }
 ```
+> l3 报告内容运行时填充（PlaceholderResolver 先例 §5.5 `{AMOUNT}`）：l2 观察期后按所见填充——有发现 → "巷子里有伙人"／空情报 → "那边没什么"，与树两条 ✓ 分支对应（缺口 10 的 report 占位符支持）。
 
 **M. "干掉他"（ATTACK）**
 **执行人 随从（actor=self · 计划驱动）· 串联**
 ```text
 走到目标面前（move_to——接近到交战距离是前置步骤，玩家可尾随验证；FightEnemyAction 的追击只在开战后生效）→ order_attack（战斗风格：不留恋）
 ├─ 目标被击倒（GOAL）→ 收手 → 返回当面报告"办完了" ✓
-└─ 打不过/目标逃跑 → 脱战 → 密信报告"他太硬，我先撤了"（紧急中断，随从离玩家可能远）✗（R1 受伤 → 护主/撤退）
+├─ 打不过/目标逃跑 → 脱战 → 密信报告"他太硬，我先撤了"（紧急中断，随从离玩家可能远）✗
+└─ 缠斗过久（120s 无结果，m2 超时）→ 密信"拖太久了，我先撤" ✗
 ```
 
 ```json
@@ -513,12 +537,14 @@
   "goal": {"type": "dead", "entity": "foe"},
   "steps": [
     {"id": "m1", "action": "move_to", "target": "foe", "within": 1.5, "timeout_s": 20},
-    {"id": "m2", "action": "order_attack", "target": "foe", "until": {"type": "dead", "entity": "foe"}, "timeout_s": 120},
+    {"id": "m2", "action": "order_attack", "target": "foe", "until": {"type": "dead", "entity": "foe"}, "timeout_s": 120, "on_timeout": "m6"},
     {"id": "m3", "action": "end_plan", "result": "success", "report": "办完了", "timeout_s": 3}
   ],
   "fallbacks": [
     [{"id": "m4", "action": "signal_player", "text": "他太硬，我先撤了", "timeout_s": 3},
-     {"id": "m5", "action": "end_plan", "result": "fail", "timeout_s": 3}]
+     {"id": "m5", "action": "end_plan", "result": "fail", "timeout_s": 3}],
+    [{"id": "m6", "action": "signal_player", "text": "拖太久了，我先撤", "timeout_s": 3},
+     {"id": "m7", "action": "end_plan", "result": "fail", "timeout_s": 3}]
   ],
   "contingencies": [
     {"when": {"type": "and", "conditions": [
@@ -537,7 +563,7 @@
 ↓
 循环段（until 清空）：query 下一个敌人 → 击杀
 ├─ 清空 zone（GOAL）→ 收手 → 返回当面报告战果 ✓
-└─ 目标逃出 zone（区内已无敌人 = loop.until 达成，部分达成）→ 循环自然结束 → 返回当面报告战果（"跑了几个"由收尾动态统计）✓ ／ 随从受伤（R1 安全网）→ 中止 → 护主先于回报 ✗
+└─ 目标逃出 zone（区内已无敌人 = loop.until 达成，部分达成）→ 循环自然结束 → 返回当面报告战果（"跑了几个"由收尾动态统计）✓ ／ 随从死亡/离场（R2 安全网）→ 中止 ✗（战斗意图不写 combat 兜底——combat 是正常进展；无独立"受伤"谓词，损失保护走 R2）
 （恐慌传播链：see_ally_killed → flee/attack/call_guards 链式传播）
 ```
 
@@ -550,12 +576,12 @@
   "loop": {
     "steps": [
       {"id": "n1", "action": "move_to", "target": {"query": "nearest_enemy(self)"}, "within": 1.5, "timeout_s": 15},
-      {"id": "n2", "action": "fight", "target": {"query": "nearest_enemy(self)"}, "timeout_s": 30}
+      {"id": "n2", "action": "order_attack", "target": {"query": "nearest_enemy(self)"}, "timeout_s": 30}
     ],
     "until": {"type": "count", "of": {"query": "all_in(zone)"}, "op": "=", "value": 0}
   },
-  "contingencies": [
-    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+  "steps": [
+    {"id": "n3", "action": "end_plan", "result": "success", "report": "{BATTLE_REPORT}", "timeout_s": 3}
   ]
 }
 ```
@@ -579,7 +605,7 @@
   "intent": {"intent_type": "GUARD", "subjects": ["companion"], "target": "player", "opponent": "rival", "who_does": "companion"},
   "summary": "我就在你旁边压阵，谁还手我上。",
   "steps": [
-    {"id": "o1", "action": "follow", "target": "player", "rel_pos": "behind", "timeout_s": 600}
+    {"id": "o1", "action": "follow", "target": "player", "rel_pos": "behind"}
   ],
   "fallbacks": [
     [{"id": "o2", "action": "order_attack", "target": "rival", "timeout_s": 30},
@@ -587,9 +613,14 @@
   ],
   "contingencies": [
     {"when": {"type": "combat", "a": "rival", "b": "player", "op": "true"}, "then": "o2", "one_shot": false},
-    {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
+    {"when": {"type": "and", "conditions": [
+        {"type": "combat", "entity": "self", "op": "true"},
+        {"type": "combat", "a": "rival", "b": "player", "op": "false"}]},
+      "then": "@abort_gracefully", "one_shot": true}
   ]
 }
+```
+> o1 无限压阵：follow 省略 timeout_s = 无限保持（R3 停止键收尾）。abort 兜底 = and 组合（缺口 7 已裁决）：**随从被打 且 对手未在打玩家** 才中止——参战期间（对手在打玩家）豁免，不误杀计划。
 ```
 
 **P. "打晕门口那两个守卫"（KNOCKOUT·批量）**
@@ -613,6 +644,9 @@
     ],
     "until": {"type": "count", "of": {"query": "all_in(gate)"}, "op": "=", "value": 0}
   },
+  "steps": [
+    {"id": "p5", "action": "end_plan", "result": "success", "report": "全放倒了", "timeout_s": 3}
+  ],
   "fallbacks": [
     [{"id": "p3", "action": "signal_player", "text": "来了增援，先撤", "timeout_s": 3},
      {"id": "p4", "action": "end_plan", "result": "fail", "timeout_s": 3}]
@@ -766,7 +800,7 @@ CommandIntent { type, target, who_does, params }
 | PURCHASE | 去买两桶酒 | 物品获得（花随从自己的钱）并移交 | 交易 API | v2 |
 | KNOCKOUT | 打晕他 | 目标击晕 | 背后击晕轮子（已有）→ 原子行为封装 | v2 |
 | GUIDE | 带我去河边 | `distance(player, destination) < 3`（GOAL：玩家到达目标点；Impossible = 目的地不可达预检） | `lead` 原子行为（§4：节奏同步在 `lead` 原子行为内部，不自顾自走）+ signal | v2 |
-| SCOUT | 去那边看看有什么 | 随从返回并报告所见 | move_to + 感知快照 + signal | v2 |
+| SCOUT | 去那边看看有什么 | 随从返回并报告所见 | move_to + 感知快照 + report（`{OBSERVATION}` 运行时填充，缺口 10） | v2 |
 | TALK_TO | 去和掌柜谈酒钱 | 目标被交涉（状态变化） | say_to（v1 简化为传话）+ 交涉系统 | v2 |
 | **FIND** | 找到卖药的郎中 | 报告目标当前位置（目标不在角色表，特征搜索后定位） | 快照特征检索 + move_to + signal | v2 |
 | **SHADOW** | 悄悄跟着那黑衣人 | 事件回报：目标停下/会面/离场时 `signal_player` | `shadow` 原子行为（隐蔽跟踪） | v2 |
@@ -877,11 +911,14 @@ public class SceneSnapshot
 | `move_to` | target/zone, within | `AgentControlHelper.MoveTo` / `MoveToPositionAction`（`AtomicAction.cs:403`） |
 | `follow` | target, rel_pos?（behind/line/left/right）, max_dist?, until? | `FollowAgentAction`（`AtomicAction.cs:564`）：①不带 `rel_pos` = 普通跟随（跟随目标，`max_dist` 跟丢距离）；②带 `rel_pos` = **跟随式相对站位**（v1 新增，M1 即需 Q2/Q6 硬编码验证——极坐标参数 radius+angleOffset：站身后 = angleOffset≈π、一字排开 = 每人不同角度，保持偏移持续跟随目标，零新运动系统）——同一引擎行为，参数化区分，不占两个词表位 |
 | `stop_following` | — | brain 队列清理 |
+| `order_attack` | target, until?, timeout_s | `FightEnemyAction`（既有轮子，`AgentBrain` 战斗接管）——战斗型意图主原子（M/O/N 用；旧示例的 `fight` 已统一为此名） |
+| `knockout` | target, timeout_s | 背后击晕轮子封装（击晕轮子见 Knowledge/击晕机制_引擎能力与实现踩坑.md）——KNOCKOUT 意图主原子（G/P 用） |
 | `lead` | destination | **v2 新增**：带路（GUIDE 用）——朝目的地前进 + **定期回望**（distance(player, self) > 跟丢阈值 ~8m → 停下 + face 玩家 + 等）；玩家跟上（< 3m）继续；等待超时（玩家不走）→ 中止 + 报告（"你走不走啊"）。**节奏同步在原子行为内部，不自顾自走**——与 `follow` 镜像（follow = 跟随者，lead = 领路人） |
 | `face` / `look_at` | target, seconds | `TurnToDirectionAction` / `LookAtAction`（`AtomicAction.cs:327,765`） |
 | `say_to` | target, text, ask? | `AgentHudMissionView.AgentSay`（`AgentHUD\AgentHudMissionView.cs:302`）+ 先 `face`：执行期队列 = `face`（TurnToDirectionAction 面向目标保持站立），AgentSay 是 HUD 层冒泡**不占队列**；完成 = 冒泡播完，`timeout_s` = 播完兜底上限（"N 秒内必须播完"，非"说 N 秒"）——**不是 StayAction**（StayAction = 原地不动占位，语义不同）。**`ask` 可选**：`"follow"` = 邀请跟随——播完广播 `asked_to_follow(target)`（对方"跟不跟"演算的触发词，§6.1）；缺省仅广播 `spoken_to` |
-| `wait` | seconds **或** until（互斥），timeout_s? | 执行器计时：完成 = 所写的那个条件到点（`seconds` 到点 或 `until` 成立）——**纯等待用 `seconds`（等 N 秒），等条件用 `until`（等世界状态），两者互斥使用，禁止同写**；`timeout_s` 兜底冗余可省略（完成点自己定的步骤，兜底只在计时器卡死时起作用；timeout 真正有意义的是完成取决于外部条件的步骤：move_to/say_to） |
+| `wait` | seconds **或** until（互斥；**保持型可两者皆省 = 无限等待**），timeout_s? | 执行器计时：完成 = 所写的那个条件到点（`seconds` 到点 或 `until` 成立）——**纯等待用 `seconds`（等 N 秒），等条件用 `until`（等世界状态），两者互斥使用，禁止同写**；`timeout_s` 兜底冗余可省略（完成点自己定的步骤，兜底只在计时器卡死时起作用；timeout 真正有意义的是完成取决于外部条件的步骤：move_to/say_to）；**两者皆省 = 无限保持**（LOOKOUT 望风 / GUARD 压阵等事件驱动 keep 步，结束 = 玩家 R3 停止键 / R4，R6 豁免同源，§5.3 的 30s 默认豁免） |
 | `emote` | anim_id（**语义标签**，见下动画表） | `PlayAnimAction`（`AtomicAction.cs:807`）：演出点缀（说话配动作/结果配情绪/台本配动作，M5 打磨）——可选装饰步骤，不改世界状态、不影响成败；LLM 只写语义标签，运行时查映射表出引擎动画 ID |
+| `make_noise` | — | 喊叫/砸物等行为参数（COMMOTION 引众用；criminal=随从 → 复用围观聚集，纯围观无犯罪副作用，`AgentBrain.cs:395,499`） |
 | `signal_player` | text | `NinjaNotificationManager.Show`（`Notify\NinjaNotificationMissionView.cs:25`） |
 | `steal_attempt` | target_item / target_agent | **v1.5 新增**：NPC 侧偷窃原子行为，**两个 target 变体**：①**物**（箱子）：接近→蹲下 + **Intent 显示**（玩家靠视觉感知"他在偷"，**不复用玩家 StealBar UI/子弹时间**）→ **成功率公式判定**（随从技能 vs 目标参数）→ Transfer 移交/空手 → 复用 WitnessCrime 目击/警戒脉冲；②**人**（扒窃）：**绕背定位**（内部几何搜索——目标正背后盲区 + 可达 + 不被任何 eligible 目击者看见，复用相对站位轮子 + `CanAgentSeeTarget` 校验；盲区不可达/被盯 → 尝试侧面替代盲区，仍不行 → 判定不可行，诚实报告"没地方下手"）→ 蹲下 + Intent 显示 → 公式判定（复用扒窃盲盒参数）→ 移交/空手 → WitnessCrime。**分工：计划层管时机（`!seeing(any, self)` 窗口 GATE），原子行为管站位几何** |
 | `give_item` / `give_gold` | amount/item | `AgentControlHelper.TransferItems/TransferGold`（铁律 4 统一归口） |
@@ -930,20 +967,20 @@ public class SceneSnapshot
 | 线性序列 | `steps[]` | v1 | 全部 |
 | 条件跳转 | `contingencies`（when → then） | v1 | A（折返预案）/O（条件参战） |
 | 提前推进 | 步骤内 `until` | v1 | A（守卫到位即走） |
-| **循环段** | `loop { steps, until }`——段内步骤循环执行，每轮求值 until | **v2** | N（清剿）/P（批量击晕） |
-| **动态目标引用** | query refs：`nearest_enemy(self)` / `all_in(zone)` / **`hidden_spot(near, min_dist)`** / **`lure_spot(watch_point, min_dist)`**（运行时空间搜索——case G"引到巷子"的落地：**mission 没有"巷子"标记**，自然语言位置描述 → 空间条件，由运行时找点。`hidden_spot` = 隐蔽点：navmesh 可达 + 半径内无 agent + 不被 any eligible 目击者看见；**`lure_spot` = 引开点**：hidden_spot 条件 + 距 watch_point > min_dist（窗口前提，杜绝"引开点不够远→窗口永不成立"）+ 距 player > 阈值（不把守卫引到玩家埋伏点）——case A 引开点动态搜索，**不硬编码 door**（无 door 锚点时可用；玩家恰在 door 旁时选点绕开））。**query refs 求值一次后注册为具名引用，后续步骤/谓词可复用**（如 until 引用本步的 lure_spot 落点） | **v2** | N/P、G、A |
+| **循环段** | `loop { steps, until }`——段内步骤循环执行，每轮求值 until；**loop 走完（until 达成）→ 顺序继续 `steps` 主链**（loop 后接报告步骤：case N 战果 `{BATTLE_REPORT}` / P"全放倒了"） | **v2** | N（清剿）/P（批量击晕） |
+| **动态目标引用** | query refs：`nearest_enemy(self)` / `all_in(zone)` / **`hidden_spot(near, min_dist)`** / **`lure_spot(watch_point, min_dist)`**（运行时空间搜索——case G"引到巷子"的落地：**mission 没有"巷子"标记**，自然语言位置描述 → 空间条件，由运行时找点。`hidden_spot` = 隐蔽点：navmesh 可达 + 半径内无 agent + 不被 any eligible 目击者看见；**`lure_spot` = 引开点**：hidden_spot 条件 + 距 watch_point > min_dist（窗口前提，杜绝"引开点不够远→窗口永不成立"）+ 距 player > 阈值（不把守卫引到玩家埋伏点）——case A 引开点动态搜索，**不硬编码 door**（无 door 锚点时可用；玩家恰在 door 旁时选点绕开））。**query refs 求值一次后注册为具名引用，后续步骤/谓词可复用**（如 until 引用本步的 lure_spot 落点）。**有效目标语义**：`nearest_enemy(self)` / `all_in(zone)` 只返回**清醒敌对活体**（排除 knocked_out / dead / 昏迷）——击晕/击杀的目标自动移出候选，`count(...) = 0` 循环才能终止（case P 全部击晕 = count 归零的前提）；**query 求值失败**（找不到满足条件的落点/目标）→ 该步失败，走 `on_timeout` / 缺省 abort，不静默。`stand_spot(target, anchor)`（站位：目标对侧 + 可达 + 不被目击者看见，E 用）、`zone(名称)` / `point(描述)`（语义锚点：预定义 Zone 或动态空间查询，J/L 用）同属 query 词表 | **v2** | N/P、G、A、E/J/L |
 | **步骤级 actor 寻址** | `actor: c1 / "all"`——**计划属于小队**：步骤可分配给任何执行者；单随从 = 全部缺省 self | **v1** | Q1-Q6（一带多） |
 | **actor 维度并行** | 步骤按 actor 分组，各 actor **并行推进**（actor 内串行）；跨 actor 同步用步骤前置条件 `when`（等世界状态），**不提供步骤间 wait_for 依赖** | **v1** | Q2/Q4/C |
 | 相对站位 | 复用 `FollowAgentAction` 极坐标参数（radius+angleOffset） | v1 | Q2/Q6 |
 | 台本 | 结算型步骤的 `script`（§5.5） | v1.5 | W4/W9（讨债/切磋） |
-| 步骤级跳转 | `on_timeout` / `on_success`（超时/完成 → 跳转指定步骤；`on_timeout` 缺省 @abort_gracefully、`on_success` 缺省顺序下一歩；预案经此跳回主链） | v1 | A（拒绝再哄 / 再哄成功回主链 / 引开超时跳窗口） |
+| 步骤级跳转 | `on_timeout` / `on_success` / **`on_event`**（超时/完成/**事件到达** → 跳转指定步骤；`on_timeout` 缺省 @abort_gracefully、`on_success` 缺省顺序下一歩；`on_event` = 本步执行期间收到决策结果事件（§6.3 广播的 `refused_to_follow`/`followed` 等）→ **即时跳转，不等超时**，跳转目标随步骤而异（s3 拒绝 → s10 再哄；s11 再拒绝 → s12 放弃）；预案经此跳回主链） | v1 | A（拒绝再哄 / 再哄成功回主链 / 引开超时跳窗口） |
 
 ```json
 // 循环段示例（case N 清剿：逐敌作战直到 zone 无敌人）
 "loop": {
   "steps": [
     {"action": "move_to", "target": {"query": "nearest_enemy(self)"}, "within": 2.0, "timeout_s": 15},
-    {"action": "fight",   "target": {"query": "nearest_enemy(self)"}, "timeout_s": 30}
+    {"action": "order_attack", "target": {"query": "nearest_enemy(self)"}, "timeout_s": 30}
   ],
   "until": {"type": "count", "of": "all_in(zone)", "op": "=", "value": 0}
 }
@@ -959,14 +996,14 @@ public class SceneSnapshot
 |---|------|------|-----------|
 | 1 | 逻辑组合 `and` | 复合条件（`distance<3 && !moving`）缺组合节点——B/E/M 的 goal 与脱战判定需要 | B/E/M |
 | 2 | 结果路由 `result{}` | 判定型原子（steal_attempt/knockout）有内部结果（success/empty/impossible/interrupted），需按结果跳转；`on_timeout` 只覆盖超时 | C/D/G |
-| 3 | 瞬间事件谓词 | DELIVER 成败取决于"目标是否拒绝"——计划侧需最小事件谓词（`refused`），与 §5.4 分工线（瞬间全在反应表）的衔接待定 | I |
-| 4 | `knocked_out` 谓词 / `knockout` 原子 | §2.1 已登记意图，语法层空白；P 的"目标醒转"检测也缺 | G/P |
-| 5 | 新查询/动作落语法 | `stand_spot(目标,点)` 站位、`zone(河边)`/`point(那边)` 语义锚点、`make_noise`、`lead` | F/E/J/L |
+| 3 | 瞬间事件谓词 | ✅ 已裁决：步骤级 `on_event`（§5.0 步骤级跳转行）——决策结果事件（`refused_to_follow`/`refused` 等）进计划侧，执行器本步期间即时跳转，timeout 降级为兜底；case A s3/s11、G g3/g11、I i3 已用 | A/G/I |
+| 4 | `knocked_out` 谓词 / `knockout` 原子 | ✅ 已落地：`knockout` 原子（§4）+ `knocked_out` 谓词（§5.2）已注册（G/P 用）；**残余**：P 的"目标醒转"检测（knocked_out 翻转）语义待定 | G/P |
+| 5 | 新查询/动作落语法 | ✅ 已落地：`make_noise` 原子（§4）、`stand_spot`/`zone`/`point` 查询（§5.0 动态目标引用行）、`lead`（§4 已有）；**残余**：语义锚点解析（"河边"→zone）的运行时实现能力待验证（case J 预检①） | F/E/J/L |
 | 6 | 保持位时长豁免 | 望风/压阵/缠住的保持步 >60s（§5.3 钳制冲突），与 R6 豁免同源 | H/O/E/F |
-| 7 | 预期战斗声明与 abort 兜底边界 | O 声明了预期 combat（参战）后再写 `combat(self)→abort` 会在参战中误杀计划——需裁决：参战期间 abort 兜底是否保留（或改用 `combat(第三方, self)` 谓词）；§7.1 只写了豁免方向 | O |
+| 7 | 预期战斗声明与 abort 兜底边界 | ✅ 已裁决：O 的 abort 兜底改为 and 组合（`combat(self) && !combat(rival, player)` 才 abort——压阵时被第三方攻击 → 中止；参战期间豁免），见 O 示例 | O |
 | 8 | R2 对战斗意图豁免 | ATTACK 目标死亡 = GOAL，非"参与者死亡 → Aborted" | M |
-| 9 | 掉线预案只保一次 | E/F 的 one_shot 掉线再缠，恢复后再次掉线无保护 | E/F |
-| 10 | 收尾报告机制 | N/P 的 loop 正常退出后没有报告步骤（loop 与 steps 共存语法未定义）；L/N/P 的报告/战果文本是运行时内容（PlaceholderResolver 已有先例，§5.5 `{AMOUNT}`）——需定：loop 后接报告步骤 + report 占位符支持 | L/N/P |
+| 9 | 掉线预案只保一次 | ✅ 已解决：E/F 掉线 contingency 改 `one_shot: false`（EDGE 上升沿触发，恢复后再次掉线可反复触发），见 E/F 示例 | E/F |
+| 10 | 收尾报告机制 | ✅ 已落地：loop 后接 steps（报告步骤）已定义（§5.0 循环段行，N/P 示例已用）；L `{OBSERVATION}` / N `{BATTLE_REPORT}` 占位符运行时填充（PlaceholderResolver 先例 §5.5 `{AMOUNT}`）；**残余**：PlaceholderResolver 的报告占位符扩展实现 | L/N/P |
 
 ### 5.1 Plan JSON（LLM 输出，封闭语法）
 
@@ -976,8 +1013,12 @@ public class SceneSnapshot
 
 > **线性 JSON ↔ 树状 case 的关系**：case 树状图是**逻辑视图**（给人读：分叉/成败一目了然）；执行的是**线性 `steps[]` + `contingencies`**（执行视图：主链顺序推进，分叉 = `when` 条件成立跳转对应步骤）。同一逻辑两种表示，**JSON 不需要写成树状**——执行器是线性游标 + 跳转，没有树遍历。
 > **contingencies 装"一切意外"**：异常收尾（警戒 Alarmed → @abort）、安全网（combat → @abort）、预案跳转（折返 → 跳 s8 入口）都放这里，跳转目标 = 主链步骤或 `fallbacks` 预案区入口；**顺利路径的推进全部由步骤 `until` 承担**——until 成立 = 步骤完成 = 主链自然推进到下一步（示例 v1 曾把"离岗 10m sustained → 跳 s7"写成 contingency，与 s6 until 冗余，已删除）。**树上的 ✓ 分支 = 主链 + until 达成**（守卫跟走由 s3 until 显式判定）；**树上的每个 ✗ 分支必须落到 contingencies 或超时路径**（case A 示例已含"守卫拒绝 → 再哄 → 放弃"完整预案 s10-s12；超时跳转走步骤级 `on_timeout`——§5.1 折返检测语义已要求区分"从未跟随/停止跟随"）。
-> **主链与预案分区（fallbacks）**：`steps` = 主链（游标顺序推进，走完越界即收尾）；`fallbacks` = **预案数组**（数组的数组：每个元素 = 一个预案的步骤序列；**不参与游标推进**，仅 contingencies 或步骤级 `on_timeout` 跳转进入预案内入口步骤，顺流限在预案内，预案尾完成 → 回收尾判定，不溢出到下一个预案）——失败预案（s8 折返警报 → s9 fail 收尾）必须放 fallbacks，躺在主链上会被线性游标顺流执行（s7 发完"快动手"后假发"快收手"）。**步骤级跳转**：`on_timeout`（超时 → 跳转，缺省 @abort_gracefully）与 `on_success`（完成 → 跳转，缺省顺序下一歩）指定跳转目标，预案经此可**跳回主链**（case A：s11 再哄成功 → 跳回 s4 继续引；s4 引开超时 → 跳 s6 直接等窗口）；跳转目标引用不存在的 step id → 忽略跳转按默认处理。**goal 收尾时序**：goal 达成 = 计划成功，但收尾检查放在**"步骤完成时"**而非每 tick 抢断——s6 完成瞬间 goal（同一条件）即达成，须等 s7 信号发完（3s）再收尾，否则"快动手"发不出去。
-> **分叉不是"监听守卫的决策回复"**：对方决策结果沉淀为**持续世界状态**（`following(guard, self)` 是否成立），执行器每 tick（100ms）**轮询谓词**看到它；`spoken_to` 等瞬间事件只在 ReactiveAgent 内部触发演算（§5.4 分工线：持续状态走轮询、瞬间时刻走事件）——**执行器永远不"等回复"，只"看状态"**（事件会丢，状态不会）。
+> **主链与预案分区（fallbacks）**：`steps` = 主链（游标顺序推进，走完越界即收尾）；`fallbacks` = **预案数组**（数组的数组：每个元素 = 一个预案的步骤序列；**不参与游标推进**，仅 contingencies 或步骤级跳转（`on_timeout`/`on_success`/`on_event`）进入预案内入口步骤，顺流限在预案内，预案尾完成 → 回收尾判定，不溢出到下一个预案）——失败预案（s8 折返警报 → s9 fail 收尾）必须放 fallbacks，躺在主链上会被线性游标顺流执行（s7 发完"快动手"后假发"快收手"）。**步骤级跳转**：`on_timeout`（超时 → 跳转，缺省 @abort_gracefully）、`on_success`（完成 → 跳转，缺省顺序下一歩）、`on_event`（事件到达 → 即时跳转，§5.4 事件通道）指定跳转目标，预案经此可**跳回主链**（case A：s11 再哄成功 → 跳回 s4 继续引；s4 引开超时 → 跳 s6 直接等窗口）；跳转目标引用不存在的 step id → 忽略跳转按默认处理。**goal 收尾时序**：goal 达成 = 计划成功，但收尾检查放在**"步骤完成时"**而非每 tick 抢断——s6 完成瞬间 goal（同一条件）即达成，须等 s7 信号发完（3s）再收尾，否则"快动手"发不出去。
+> 🔴 **计划语法铁律：跳转与预案入口双向校验（prompt 设计纪律 + 静态脚本检查）**：
+> ① **每个跳转必须有明确目标 id**——`on_timeout` / `on_success` / `on_event[].then` / `contingencies[].then` / `result` 路由 / `time_since.step_id` 引用的 id 必须真实存在（`steps` / `fallbacks` / `loop.steps`），或为 @-保留指令（`@abort_gracefully` 等）；
+> ② **每个 fallback 的第一条 id 必须有注入源头**——`fallbacks[i][0].id` 必须被至少一个跳转引用，禁止写"没人能跳进去"的死预案；跳进 fallback 只能跳**入口步**（预案内顺流），禁止跳中间步（会跳过开头的信号/动作）；
+> ③ **JSON 生成后必须过静态脚本检查**——`Scripts/validate_plan_json.py`：提取文档/文件中的全部 plan JSON，校验 S1 目标存在 / S2 入口可达 / S3 不跳预案中间步 / S4 id 唯一，退出码非 0 = 不通过。手写示例与 LLM 输出（进 `custom.plan_debug run` 前）都过此脚本；运行时 PlanValidator（§5.3）执行同一规则（缺失 → 忽略跳转 + 日志警告）。
+> **分叉 = 双通道（事件即时跳转 + 状态轮询推进）**：对方**决策结果**（拒绝/接受）由 ReactiveAgent 事件广播（§6.3：`refused_to_follow`/`followed`），执行器步骤级 `on_event` **即时跳转**——守卫 2 秒拒绝，随从 2 秒去再哄，不干等超时；**持续事实**（`following(guard, self)` 是否成立、`sustained` 防抖、距离/组合条件）由每 tick（100ms）**轮询谓词**看到；`spoken_to` 等输入事件只在 ReactiveAgent 内部触发演算。`timeout_s` 是兜底不是主信号（say_to 未被听到/事件未达时兜底推进）。
 
 **端到端执行画面（case A，M1 硬编码示例跑通的画面）**：
 
@@ -1020,6 +1061,7 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 | `player_action` | action | 玩家蹲下/偷窃等（`PlayerActionType`） |
 | `time_since` | step_id, seconds | 步骤完成计时 |
 | `dead` | entity | 死亡/离场（安全网共用） |
+| `knocked_out` | entity | 目标处于击晕状态（KNOCKOUT 意图的 GOAL/推进判定，G/P 用；"目标醒转" = 此谓词翻转，检测语义见缺口 4 残余） |
 
 **通用时间修饰符 `sustained`**——不属于任何谓词，**所有布尔条件**（distance/seeing/following/…）都可挂载的顶层修饰：
 - 语法：`<条件> sustained <N>s`（JSON：条件对象顶层字段 `"sustained_s": N`，case A 示例即此写法）
@@ -1058,7 +1100,7 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 
 ### 5.3 PlanValidator（铁律 2：LLM 输出不可信任）
 
-未知动作/谓词/实体/phase → 该步丢弃 + 日志警告；缺 `timeout_s` 补默认 30s；跳转目标引用不存在的 step id（contingencies `then` / `on_timeout` / `on_success`）→ 忽略跳转按默认处理（@abort_gracefully / 顺序下一歩）；整体失败 → `signal_player` 告知 + 释放控制。**参数范围钳制**：数值型参数钳到合理上限（`within` = move_to/follow 的**到达判定半径**（走到目标 within 米内 = 本步完成），≤ 5m；距离 ≤ 50m、时长 ≤ 60s、sustained ≤ 30s 等，超限 = 钳制 + 日志警告而非拒收——计划大体可用，只修不合理的量）。校验在 `Planner/PlanGrammar.cs`。
+未知动作/谓词/实体/phase → 该步丢弃 + 日志警告；缺 `timeout_s` 补默认 30s（**保持型/无限等待步骤除外**：wait 省略 seconds/until、follow 省略 timeout = 无限保持，不套 30s 与总时长上限，§4 wait 行 + R6）；跳转目标引用不存在的 step id（contingencies `then` / `on_timeout` / `on_success` / `on_event[].then` / `result` 路由 / `time_since.step_id`）→ 忽略跳转按默认处理（@abort_gracefully / 顺序下一歩）；整体失败 → `signal_player` 告知 + 释放控制。**跳转一致性双向校验**（与 §5.1 铁律同规）：①正向——所有跳转目标必须存在，缺失 → 忽略跳转 + 日志警告；②反向——`fallbacks[i][0].id` 必须被至少一个跳转引用（死预案 → 日志警告），且跳进 fallback 只能跳入口步。生成后静态检查走 `Scripts/validate_plan_json.py`（S1 目标存在 / S2 入口可达 / S3 不跳预案中间步 / S4 id 唯一，退出码非 0 = 不通过）。**参数范围钳制**：数值型参数钳到合理上限（`within` = move_to/follow 的**到达判定半径**（走到目标 within 米内 = 本步完成），≤ 5m；距离 ≤ 50m、时长 ≤ 60s、sustained ≤ 30s 等，超限 = 钳制 + 日志警告而非拒收——计划大体可用，只修不合理的量）。校验在 `Planner/PlanGrammar.cs`。
 
 ### 5.4 PlanExecutor — 解释器 + 状态机（新增意外处理）
 
@@ -1085,9 +1127,10 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
         ↓ 求值（100ms 节流，O(1) 谓词）
 when 谓词 → 推进（sustained 由条件计时器积分）
 ```
-- **谓词永远只对状态求值，不对事件求值**。原因：①组合条件（`distance>10 && sustained 5s`）无法事件化，状态快照上天然成立；②`sustained` 是时间积分（首次成立 → 计时 → 满时推进），只有状态+计时器能算；③事件会丢（没人听的瞬间消失），状态不会丢；④事件化需处理错过/重复/乱序/过期，复杂度翻倍，收益仅 100ms→帧级（玩家无感）。
-- **对称的另一半（§6）**：ReactiveAgent 反应表是**事件驱动**——`spoken_to(x)`/`approach_by(x)`/`see_ally_killed` 是"瞬间时刻"（轮询只能看到持续状态"站在旁边"，看不出"刚对我说了话"），必须由动作完成广播触发。
-- **分工线：持续条件走状态轮询，瞬间时刻走事件触发——由语义决定，不混用。** 计划侧谓词词表因此没有"瞬间"型谓词（计划语义只有等待），瞬间全在反应表。
+- **执行器双通道（事件 + 状态/超时，由语义分工，不是二选一）**：
+  ① **事件通道——瞬间决策与瞬间事实**：拒绝/接受/折返/目击等**决策结果必须事件广播**给相关方（§6.3 决策结果广播；复用 `AgentBrain.ReceiveEvent` / `BroadcastEventInRange` 既有通道——`AgentBrain.cs` 全代码库事件驱动先例）。执行器以**步骤级 `on_event`** 消费：本步执行期间收到指定事件 → 即时跳转，不等超时。单机单线程同步投递，可靠性是工程问题（事件入队 + tick 消费），不是架构理由。
+  ② **状态/超时通道——持续事实与时间积分**：`sustained` 是时间积分（首次成立 → 计时 → 满时推进），只有状态+计时器能算；组合条件（`distance>10 && sustained 5s`）无法事件化，状态快照上天然成立——这些照旧轮询。
+  **分工原则**：决策/瞬间事实 → 事件（即时）；持续事实 → 状态轮询；两者皆可观察的（折返 = following 翻转状态可查，也 = return_post 事件）→ 任选，事件更即时。**每步保留 `timeout_s` 兜底**——事件未达/未发生（say_to 没人听、目标无反应）时按超时推进，双保险。
 
 ```
 Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
@@ -1138,7 +1181,43 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 3. **目标台词是台本发言**——self 台词走执行器（AgentSay + face 纪律）；target 台词由执行器直接 `AgentHudMissionView.AgentSay(targetAgent, line)` 按序播放。**ReactiveAgent 只参与结果侧参数（是否松口），不碰台词文本**——防止"写对手台词 = 自说自话"。
 4. **台本播放期间执行器独占目标**——结算步骤播放时，目标的 ReactiveAgent 反应表**挂起**（其 `spoken_to/approach_by` 等触发词不响应），播完本步才恢复。否则目标一边播台本一边被自己的反应计划驱动（又拒绝又走开/重复发言=双重人格）。实现：结算步骤启动时对该目标 `ForceUnlockAgent` + 挂起反应表，结束（含分支播完）后恢复 + 重启反应表。
 
-**通用能力**：台本播放 = 执行器的通用"多句台词序列"能力（每句间隔 ~1.5s + 面向对方，逐句间隔走缩放 dt 纪律），任何结算型/演出型步骤复用——`duel`（开场叫阵 → 比武结算 → 胜负台词 + 水平评估回报）与 `negotiate` 同构。**序列推进者是执行器**（非对话双方自主对答）：lines = [{speaker, text}] 队列，播放循环 = 取行 → speaker face 对方 → AgentSay → 间隔 → 下一行；说话者可含第三方（不止 self/target）。播放期间执行器独占说话双方（反应表挂起，铁律 4）——**"来回"要么预写（台本，确定性播片），要么实时（ReactiveAgent 反应表，人格驱动），不存在两套同时抢说话**。。
+**通用能力**：台本播放 = 执行器的通用"多句台词序列"能力（每句间隔 ~1.5s + 面向对方，逐句间隔走缩放 dt 纪律），任何结算型/演出型步骤复用——`duel`（开场叫阵 → 比武结算 → 胜负台词 + 水平评估回报）与 `negotiate` 同构。**序列推进者是执行器**（非对话双方自主对答）：lines = [{speaker, text}] 队列，播放循环 = 取行 → speaker face 对方 → AgentSay → 间隔 → 下一行；说话者可含第三方（不止 self/target）。播放期间执行器独占说话双方（反应表挂起，铁律 4）——**"来回"要么预写（台本，确定性播片），要么实时（ReactiveAgent 反应表，人格驱动），不存在两套同时抢说话**。
+
+**结算步骤可配 `result` 路由**（success/partial/fail → 跳转，与判定型原子同规 §5.0 缺口 2）——fail 可跳失败收尾，缺省 = 播完顺序下一歩。
+
+**完整 PlanResponse 模板示范（prompt few-shot 用，自身也过 §5.1 铁律校验）**：`script` 字段只出现在结算型动作（negotiate/duel）上，分支枚举与运行时结算结果一一对应（缺分支 validator 拒收），目标台词写进 `script.outcomes.<branch>.target`（铁律 3），`announce` 走 PlaceholderResolver（`{AMOUNT}` 先例）：
+
+```json
+{
+  "intent": {"intent_type": "COLLECT", "subjects": ["companion"], "target": "merchant", "amount": "debt", "who_does": "companion"},
+  "summary": "我去把酒钱讨回来。",
+  "steps": [
+    {"id": "w1", "action": "move_to", "target": "merchant", "within": 2.0, "timeout_s": 20},
+    {"id": "w2", "action": "negotiate", "target": "merchant", "topic": "酒钱", "desired": "全额",
+        "script": {
+            "opening": [
+                {"self": "掌柜的，上回的酒钱该结了吧？"},
+                {"target": "催什么催，这不生意还没周转开么。"}
+            ],
+            "outcomes": {
+                "success": [{"target": "行行行，拿去吧，别再来烦我。"}, {"self": "痛快，告辞。"}],
+                "partial": [{"self": "要不先还一半，剩下的下月再说？"}, {"target": "……就一半，别再催了。"}],
+                "fail":    [{"target": "没钱，你看着办。"}, {"self": "那我回去禀报主人。"}]
+            },
+            "announce": "要到 {AMOUNT}。"
+        },
+        "result": {"success": "w3", "partial": "w3", "fail": "w4"},
+        "timeout_s": 15},
+    {"id": "w3", "action": "end_plan", "result": "success", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [{"id": "w4", "action": "end_plan", "result": "fail", "report": "没要到钱，那掌柜说没有", "timeout_s": 3}]
+  ],
+  "contingencies": [
+    {"when": {"type": "combat", "entity": "self"}, "then": "w4", "one_shot": true}
+  ]
+}
+```。
 
 ---
 
@@ -1177,7 +1256,9 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 `listen` / `consider`（短暂犹豫）/ `refuse`（说句拒绝的话 + 不动）/ `follow_for_a_bit`（→ `follow` 动作）/ `investigate`（→ `move_to` zone + `look_at`）/ `return_post` / `stare` / `alert_raise`（→ `brain.AddAlert` 脉冲，复用 `AgentBrain.cs:1060`）/ `attack`（→ `FightEnemyAction`）/ `call_guards`（→ `BroadcastEventInRange`）/ `ignore` / `relay_message`（→ 转告他人，信息经 NPC 链传递——通报门卫让主人来见的间接 BRING）/ `pay`（→ `TransferGold` 守恒转移，铁律 4）/ `hand_over_item`（→ `TransferItems`）…
 
-**后置状态**：每个反应词带"执行完回哪"的通用语义（investigate → 回岗位或继续盯；follow_for_a_bit → 到点自动回位或折返；listen/refuse → 回 Idle）——§6.1 的守卫状态机是这套通用语义的一个实例，不是特例。**BRING 的逗留窗口**：被叫方到达后进入逗留（下限 ~10s，人格修正：duty 高呆得短），**开口问事**（`NpcSpeechResolver` 模板台词"找我什么事？"走 `LWN_speech_*` key，人格变体可选；LLM 反应表可覆盖为性格化台词）——逗留既是被请到位的反馈，也是"快搭话"的行动暗示；玩家对话/交互 → 回岗取消（对话结束才走），玩家不理 → 到点自行回岗。
+**后置状态**：每个反应词带"执行完回哪"的通用语义（investigate → 回岗位或继续盯；follow_for_a_bit → 到点自动回位或折返；listen/refuse → 回 Idle）——§6.1 的守卫状态机是这套通用语义的一个实例，不是特例。
+
+**决策结果广播**：涉及"跟不跟/答不答应"的**决策型反应执行后必须把结果广播给请求方**——`follow_for_a_bit` → 广播 `followed(请求方)`；`refuse` → 广播 `refused_to_follow(请求方)`。广播走既有 AIEvent 通道（`AgentAIController.SendEventToAgent` / `BroadcastEventInRange`，`AgentBrain.ReceiveEvent` 模式），执行器步骤级 `on_event` 消费（§5.4 事件通道）。`followed` 与 `following` 状态并存：事件给即时性（拒绝零延迟可见），状态给可查性（轮询/防抖兜底）。**BRING 的逗留窗口**：被叫方到达后进入逗留（下限 ~10s，人格修正：duty 高呆得短），**开口问事**（`NpcSpeechResolver` 模板台词"找我什么事？"走 `LWN_speech_*` key，人格变体可选；LLM 反应表可覆盖为性格化台词）——逗留既是被请到位的反馈，也是"快搭话"的行动暗示；玩家对话/交互 → 回岗取消（对话结束才走），玩家不理 → 到点自行回岗。
 
 ### 6.4 运行时演算（对抗性的保障）
 
@@ -1274,7 +1355,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 | 文件 | 改动 |
 |------|------|
 | `LLM/LLMService.cs` | `ChatAsync` 加 `float temperature = 0.7f` 可选参（计划调用传 0.4）；`max_tokens` 传 **4000**（计划 + 台本 + 多 NPC 反应表 + 多 actor 步骤可能超出 2000；DeepSeek 输出上限 8k） |
-| `LLM/PromptBuilder.cs` | 新增 `BuildPlanPrompt(snapshotText, command, persona, history, intentTable, grammar)`：意图词表全表 + 动作/谓词封闭词表 + 角色表 + 人设 + 命令 + 澄清历史 + JSON 模板 + "严禁创造未定义 type" |
+| `LLM/PromptBuilder.cs` | 新增 `BuildPlanPrompt(snapshotText, command, persona, history, intentTable, grammar)`：意图词表全表 + 动作/谓词封闭词表 + 角色表 + 人设 + 命令 + 澄清历史 + **完整 PlanResponse JSON 模板（§5.5 模板块，含 script 示范步骤）** + "严禁创造未定义 type" + **跳转双向校验纪律（§5.1 铁律）——指令 + few-shot 双重示例**：每个跳转写明确目标 id、每个 fallback 入口必须被引用、禁止跳预案中间步 |
 | 新 `Planner/PlanGrammar.cs` | `PlanResponse` 模型 + `PlanValidator` |
 | 新 `Planner/GoalTemplates.cs` | 意图→目标状态表（§2.3） |
 
