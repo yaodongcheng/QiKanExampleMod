@@ -511,8 +511,8 @@ public class SceneSnapshot
 | `stop_following` | — | brain 队列清理 |
 | `lead` | destination | **v2 新增**：带路（GUIDE 用）——朝目的地前进 + **定期回望**（distance(player, self) > 跟丢阈值 ~8m → 停下 + face 玩家 + 等）；玩家跟上（< 3m）继续；等待超时（玩家不走）→ 中止 + 报告（"你走不走啊"）。**节奏同步在原子行为内部，不自顾自走**——与 `follow` 镜像（follow = 跟随者，lead = 领路人） |
 | `face` / `look_at` | target, seconds | `TurnToDirectionAction` / `LookAtAction`（`AtomicAction.cs:327,765`） |
-| `say_to` | target, text | `AgentHudMissionView.AgentSay`（`AgentHUD\AgentHudMissionView.cs:302`）+ 先 `face` |
-| `wait` | seconds, until? | 执行器计时 |
+| `say_to` | target, text | `AgentHudMissionView.AgentSay`（`AgentHUD\AgentHudMissionView.cs:302`）+ 先 `face`：执行期队列 = `face`（TurnToDirectionAction 面向目标保持站立），AgentSay 是 HUD 层冒泡**不占队列**；完成 = 冒泡播完，`timeout_s` = 播完兜底上限（"N 秒内必须播完"，非"说 N 秒"）——**不是 StayAction**（StayAction = 原地不动占位，语义不同） |
+| `wait` | seconds **或** until（互斥），timeout_s? | 执行器计时：完成 = `until` 成立或 `seconds` 到点（先到者）——**纯等待用 `seconds`（等 N 秒），等条件用 `until`（等世界状态），两者互斥使用，禁止同写**；`timeout_s` 兜底冗余可省略（完成点自己定的步骤，兜底只在计时器卡死时起作用；timeout 真正有意义的是完成取决于外部条件的步骤：move_to/say_to） |
 | `emote` | anim_id（**语义标签**，见下动画表） | `PlayAnimAction`（`AtomicAction.cs:807`）：演出点缀（说话配动作/结果配情绪/台本配动作，M5 打磨）——可选装饰步骤，不改世界状态、不影响成败；LLM 只写语义标签，运行时查映射表出引擎动画 ID |
 | `signal_player` | text | `NinjaNotificationManager.Show`（`Notify\NinjaNotificationMissionView.cs:25`） |
 | `steal_attempt` | target_item / target_agent | **v1.5 新增**：NPC 侧偷窃原子行为，**两个 target 变体**：①**物**（箱子）：接近→蹲下 + **Intent 显示**（玩家靠视觉感知"他在偷"，**不复用玩家 StealBar UI/子弹时间**）→ **成功率公式判定**（随从技能 vs 目标参数）→ Transfer 移交/空手 → 复用 WitnessCrime 目击/警戒脉冲；②**人**（扒窃）：**绕背定位**（内部几何搜索——目标正背后盲区 + 可达 + 不被任何 eligible 目击者看见，复用相对站位轮子 + `CanAgentSeeTarget` 校验；盲区不可达/被盯 → 尝试侧面替代盲区，仍不行 → 判定不可行，诚实报告"没地方下手"）→ 蹲下 + Intent 显示 → 公式判定（复用扒窃盲盒参数）→ 移交/空手 → WitnessCrime。**分工：计划层管时机（`!seeing(any, self)` 窗口 GATE），原子行为管站位几何** |
@@ -582,6 +582,8 @@ public class SceneSnapshot
 
 **实现要点**：循环段 = 执行器 step pointer 段内回跳 + until 谓词求值；query refs 由引用解析层运行时解析（查快照 + 谓词过滤），与静态 refs 共用同一解析入口。
 
+**循环内步骤的退出路径（四层，不需要 break 语法）**：①步骤 `until`（条件成立提前完成本步——如目标失效 → 回循环顶重 query）；②步骤 `timeout_s`（超时 = 本步失败 → 回循环顶重新求值 `loop.until`，清空则退出、否则继续）；③`loop.until`（**正常退出**：zone 清空）；④Guardrail（**异常退出**：R1 受伤 / R2 目标死亡 / R5 敌对 → 循环中止，计划不用写 break）。
+
 ### 5.1 Plan JSON（LLM 输出，封闭语法）
 
 ```json
@@ -590,11 +592,11 @@ public class SceneSnapshot
   "steps": [
     {"id": "s1", "action": "move_to",  "target": "guard", "within": 2.0, "timeout_s": 15},
     {"id": "s2", "action": "say_to",   "target": "guard", "text": "那边有人找你，说是有急事，让我来叫你", "timeout_s": 8},
-    {"id": "s3", "action": "wait",     "seconds": 2, "timeout_s": 5},
+    {"id": "s3", "action": "wait",     "seconds": 2},
     {"id": "s4", "action": "move_to",  "target": {"query": "lure_spot(watch_point, 12)"}, "within": 1.0,
         "until": {"type": "distance", "a": "guard", "b": "lure_spot", "op": "<", "value": 4}, "timeout_s": 25},
     {"id": "s5", "action": "say_to",   "target": "guard", "text": "就在那边等着呢，别让人等急了", "timeout_s": 6},
-    {"id": "s6", "action": "wait",     "seconds": 10,
+    {"id": "s6", "action": "wait",
         "until": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5}, "timeout_s": 25},
     {"id": "s7", "action": "signal_player", "text": "我把他引到门口了，快动手！", "timeout_s": 3},
     {"id": "s8", "action": "signal_player", "text": "守卫回岗了，快收手！", "timeout_s": 3},
@@ -619,6 +621,37 @@ public class SceneSnapshot
 > - `fail_condition`（FAIL）：警戒 Alarmed = 计划失败
 
 > **折返检测语义**：示例用 `following(guard, self) == false` 表达"守卫回岗"是语义简写——实现时需区分**"从未跟随"**（多疑守卫不跟走，应走"再哄/放弃"预案，测试矩阵 case A 多疑行）与**"停止跟随"**（真折返）：v1 用 `time_since(s7)` 组合判定（窗口先开过、后回落）或 ReactiveAgent `return_post` 状态（§6.5 暴露）精确区分，防止误报"守卫回岗了"。
+
+> **线性 JSON ↔ 树状 case 的关系**：case 树状图是**逻辑视图**（给人读：分叉/成败一目了然）；执行的是**线性 `steps[]` + `contingencies`**（执行视图：主链顺序推进，分叉 = `when` 条件成立跳转对应步骤）。同一逻辑两种表示，**JSON 不需要写成树状**——执行器是线性游标 + 跳转，没有树遍历。
+> **contingencies 装"主链外的一切跳转"，不限于意外**：顺利路径的信号跳转（离岗 10m sustained → 跳 s7 发动手信号）与意外预案（折返/警戒/combat）都放这里。**树上的 ✓ 分支 = 主链 + until 达成**（守卫跟走隐含在 s4 `until`：守卫到引开点 < 4m → 提前完成）；**树上的每个 ✗ 分支必须落到 contingencies 或超时路径**（示例为简洁省略了"守卫拒绝 → 再哄"预案，实现时补全——§5.1 折返检测语义已要求区分"从未跟随/停止跟随"）。
+> **分叉不是"监听守卫的决策回复"**：对方决策结果沉淀为**持续世界状态**（`following(guard, self)` 是否成立），执行器每 tick（100ms）**轮询谓词**看到它；`spoken_to` 等瞬间事件只在 ReactiveAgent 内部触发演算（§5.4 分工线：持续状态走轮询、瞬间时刻走事件）——**执行器永远不"等回复"，只"看状态"**（事件会丢，状态不会）。
+
+**端到端执行画面（case A，M1 硬编码示例跑通的画面）**：
+
+```
+玩家密谋："我想偷那箱子，有人盯着怎么办？" → LLM 一次调用（意图 DISTRACT + 计划 JSON + 守卫反应计划）→ 玩家批准"同意，去办" → 执行开始（全程零 LLM）：
+
+t=0    执行器启动；随从 NpcIntent = ExecutingCommand(引开)
+t=0~3  随从走向守卫（move_to + face）——玩家看到随从真走过去
+t=3    随从冒泡"那边有人找你…"           ← 台词来源①：plan step.text
+       执行器广播 spoken_to(guard) → 守卫反应表演算（duty 高 → 跟走权重下调）← 来源②：ReactiveAgent
+t=5    守卫跟走 → 随从带路走向 lure_spot；随从状态行"正在把守卫引开"（执行摘要）
+t=20   GATE 达成：distance(guard, watch_point) > 10 sustained 5s
+t=20   密信"我把他引开了，快动手！"        ← 来源①
+       玩家去偷（玩家侧自理）
+t=20+  守卫折返（following 变 false）→ 密信"守卫回岗了，快收手！" ← 来源①
+t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（NpcIntent = Following）
+```
+
+**三种台词来源的选用规则（何时用台本）**：
+
+| 场景 | 用哪个 | 为什么 |
+|------|--------|--------|
+| 只说一句话（诱骗/邀请/恐吓） | plan step.text（LLM 计划期写死） | 单句台词，执行期零 LLM |
+| 对方"要不要配合"（跟不跟/拒不拒绝） | ReactiveAgent 反应表 | 人格决定，运行时演算，LLM 只写骨架 |
+| 结算型步骤（谈价/讨债/比武） | 预写台本（script，§5.5） | 结果由公式结算，台词必须与结果一致——多轮对话预写 + 结算结果选分支 |
+
+**判据一句话**：这一步的结果由**公式结算**还是**人格反应**决定？公式 → 台本；人格 → 反应表；只是说一句话 → 计划文本。例：case B 请村长 = say_to 文本 + 村长反应表（**不需要台本**——村长回不回应是人格决定的）；W4 讨债 = 台本（让不让是公式算的）。
 
 ### 5.2 封闭谓词词表（条件即数据，不执行任意代码）
 
@@ -668,7 +701,7 @@ public class SceneSnapshot
 
 ### 5.3 PlanValidator（铁律 2：LLM 输出不可信任）
 
-未知动作/谓词/实体/phase → 该步丢弃 + 日志警告；缺 `timeout_s` 补默认 30s；引用不存在 step id → 顺序执行；整体失败 → `signal_player` 告知 + 释放控制。**参数范围钳制**：数值型参数钳到合理上限（距离 ≤ 50m、时长 ≤ 60s、sustained ≤ 30s、`within` ≤ 5m 等，超限 = 钳制 + 日志警告而非拒收——计划大体可用，只修不合理的量）。校验在 `Planner/PlanGrammar.cs`。
+未知动作/谓词/实体/phase → 该步丢弃 + 日志警告；缺 `timeout_s` 补默认 30s；引用不存在 step id → 顺序执行；整体失败 → `signal_player` 告知 + 释放控制。**参数范围钳制**：数值型参数钳到合理上限（`within` = move_to/follow 的**到达判定半径**（走到目标 within 米内 = 本步完成），≤ 5m；距离 ≤ 50m、时长 ≤ 60s、sustained ≤ 30s 等，超限 = 钳制 + 日志警告而非拒收——计划大体可用，只修不合理的量）。校验在 `Planner/PlanGrammar.cs`。
 
 ### 5.4 PlanExecutor — 解释器 + 状态机（新增意外处理）
 
@@ -748,7 +781,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 3. **目标台词是台本发言**——self 台词走执行器（AgentSay + face 纪律）；target 台词由执行器直接 `AgentHudMissionView.AgentSay(targetAgent, line)` 按序播放。**ReactiveAgent 只参与结果侧参数（是否松口），不碰台词文本**——防止"写对手台词 = 自说自话"。
 4. **台本播放期间执行器独占目标**——结算步骤播放时，目标的 ReactiveAgent 反应表**挂起**（其 `spoken_to/approach_by` 等触发词不响应），播完本步才恢复。否则目标一边播台本一边被自己的反应计划驱动（又拒绝又走开/重复发言=双重人格）。实现：结算步骤启动时对该目标 `ForceUnlockAgent` + 挂起反应表，结束（含分支播完）后恢复 + 重启反应表。
 
-**通用能力**：台本播放 = 执行器的通用"多句台词序列"能力（每句间隔 ~1.5s + 面向对方，逐句间隔走缩放 dt 纪律），任何结算型/演出型步骤复用——`duel`（开场叫阵 → 比武结算 → 胜负台词 + 水平评估回报）与 `negotiate` 同构。。
+**通用能力**：台本播放 = 执行器的通用"多句台词序列"能力（每句间隔 ~1.5s + 面向对方，逐句间隔走缩放 dt 纪律），任何结算型/演出型步骤复用——`duel`（开场叫阵 → 比武结算 → 胜负台词 + 水平评估回报）与 `negotiate` 同构。**序列推进者是执行器**（非对话双方自主对答）：lines = [{speaker, text}] 队列，播放循环 = 取行 → speaker face 对方 → AgentSay → 间隔 → 下一行；说话者可含第三方（不止 self/target）。播放期间执行器独占说话双方（反应表挂起，铁律 4）——**"来回"要么预写（台本，确定性播片），要么实时（ReactiveAgent 反应表，人格驱动），不存在两套同时抢说话**。。
 
 ---
 
