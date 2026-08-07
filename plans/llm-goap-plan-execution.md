@@ -253,7 +253,7 @@
 循环段：query 下一个守卫 → 绕背击晕
 ├─ 全部击晕（GOAL）→ 收手 → 返回当面报告"全放倒了" ✓
 └─ 惊动增援 / 目标醒转 → 中止 + 密信报告"来了增援，先撤"（紧急中断）✗
-   惊动判定（两级信号，取早者）：①**警戒上升**——附近任一 ReactiveAgent 进入 Alarmed（`alert_phase` 谓词，WitnessCrime 目击脉冲源，case A fail_condition 同款）→ 惊动了，立刻中止跑路；②**开打兜底**——增援已敌对化（`combat(self)` = 有人把随从设为 enemy）→ 晚信号，此时已被围，脱战即跑
+   惊动判定（两级信号，取早者）：①**警戒上升**——附近任一 ReactiveAgent 进入 Alarmed（`alert_phase` 谓词，WitnessCrime 目击脉冲源，case A 警戒 @abort 同款）→ 惊动了，立刻中止跑路；②**开打兜底**——增援已敌对化（`combat(self)` = 有人把随从设为 enemy）→ 晚信号，此时已被围，脱战即跑
 ```
 
 ### 0.2 意外演练 case（4 个，执行期验证）
@@ -461,7 +461,7 @@ public class GoalTemplate {
 
 目标状态必须**执行器可验证**，所以不能是 LLM 自由文本——LLM 只能从词表选意图，目标状态由 C# 模板定义。这是"封闭语法"纪律的延伸（对齐现有 `tactic` 纪律）。
 
-**与 plan 的 success_condition 的关系**：GoalTemplate.Success 是权威，plan 里的 `success/fail_condition` 是**可选的具体化**（可省略，缺省回落模板）。并存时 validator 校验语义兼容（同意图同谓词族，如 DISTRACT 的模板 `distance > 10 sustained` 允许计划改写为 `following(companion)` 变体），**禁止与模板矛盾**（如 BRING 计划写"守卫离开"）。执行器只认一套判定：有 plan 条件用 plan 条件，没有用模板。
+**与 plan 的 goal 的关系**：GoalTemplate.Success 是权威，plan 里的 `goal` 是**可选的具体化**（可省略，缺省回落模板）。并存时 validator 校验语义兼容（同意图同谓词族，如 DISTRACT 的模板 `distance > 10 sustained` 允许计划改写为 `following(companion)` 变体），**禁止与模板矛盾**（如 BRING 计划写"守卫离开"）。执行器只认一套判定：有 plan 条件用 plan 条件，没有用模板。**失败无独立字段**：意外（警戒/combat）走 contingencies @abort，计划性失败走超时 / fallbacks 的 end_plan。
 
 ---
 
@@ -512,7 +512,7 @@ public class SceneSnapshot
 | `lead` | destination | **v2 新增**：带路（GUIDE 用）——朝目的地前进 + **定期回望**（distance(player, self) > 跟丢阈值 ~8m → 停下 + face 玩家 + 等）；玩家跟上（< 3m）继续；等待超时（玩家不走）→ 中止 + 报告（"你走不走啊"）。**节奏同步在原子行为内部，不自顾自走**——与 `follow` 镜像（follow = 跟随者，lead = 领路人） |
 | `face` / `look_at` | target, seconds | `TurnToDirectionAction` / `LookAtAction`（`AtomicAction.cs:327,765`） |
 | `say_to` | target, text | `AgentHudMissionView.AgentSay`（`AgentHUD\AgentHudMissionView.cs:302`）+ 先 `face`：执行期队列 = `face`（TurnToDirectionAction 面向目标保持站立），AgentSay 是 HUD 层冒泡**不占队列**；完成 = 冒泡播完，`timeout_s` = 播完兜底上限（"N 秒内必须播完"，非"说 N 秒"）——**不是 StayAction**（StayAction = 原地不动占位，语义不同） |
-| `wait` | seconds **或** until（互斥），timeout_s? | 执行器计时：完成 = `until` 成立或 `seconds` 到点（先到者）——**纯等待用 `seconds`（等 N 秒），等条件用 `until`（等世界状态），两者互斥使用，禁止同写**；`timeout_s` 兜底冗余可省略（完成点自己定的步骤，兜底只在计时器卡死时起作用；timeout 真正有意义的是完成取决于外部条件的步骤：move_to/say_to） |
+| `wait` | seconds **或** until（互斥），timeout_s? | 执行器计时：完成 = 所写的那个条件到点（`seconds` 到点 或 `until` 成立）——**纯等待用 `seconds`（等 N 秒），等条件用 `until`（等世界状态），两者互斥使用，禁止同写**；`timeout_s` 兜底冗余可省略（完成点自己定的步骤，兜底只在计时器卡死时起作用；timeout 真正有意义的是完成取决于外部条件的步骤：move_to/say_to） |
 | `emote` | anim_id（**语义标签**，见下动画表） | `PlayAnimAction`（`AtomicAction.cs:807`）：演出点缀（说话配动作/结果配情绪/台本配动作，M5 打磨）——可选装饰步骤，不改世界状态、不影响成败；LLM 只写语义标签，运行时查映射表出引擎动画 ID |
 | `signal_player` | text | `NinjaNotificationManager.Show`（`Notify\NinjaNotificationMissionView.cs:25`） |
 | `steal_attempt` | target_item / target_agent | **v1.5 新增**：NPC 侧偷窃原子行为，**两个 target 变体**：①**物**（箱子）：接近→蹲下 + **Intent 显示**（玩家靠视觉感知"他在偷"，**不复用玩家 StealBar UI/子弹时间**）→ **成功率公式判定**（随从技能 vs 目标参数）→ Transfer 移交/空手 → 复用 WitnessCrime 目击/警戒脉冲；②**人**（扒窃）：**绕背定位**（内部几何搜索——目标正背后盲区 + 可达 + 不被任何 eligible 目击者看见，复用相对站位轮子 + `CanAgentSeeTarget` 校验；盲区不可达/被盯 → 尝试侧面替代盲区，仍不行 → 判定不可行，诚实报告"没地方下手"）→ 蹲下 + Intent 显示 → 公式判定（复用扒窃盲盒参数）→ 移交/空手 → WitnessCrime。**分工：计划层管时机（`!seeing(any, self)` 窗口 GATE），原子行为管站位几何** |
@@ -589,41 +589,48 @@ public class SceneSnapshot
 ```json
 {
   "summary": "我把守卫引到远处清净处拖住，你趁机动。",
+  "goal": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5},
   "steps": [
-    {"id": "s1", "action": "move_to",  "target": "guard", "within": 2.0, "timeout_s": 15},
-    {"id": "s2", "action": "say_to",   "target": "guard", "text": "那边有人找你，说是有急事，让我来叫你", "timeout_s": 8},
-    {"id": "s3", "action": "wait",     "seconds": 2},
-    {"id": "s4", "action": "move_to",  "target": {"query": "lure_spot(watch_point, 12)"}, "within": 1.0,
-        "until": {"type": "distance", "a": "guard", "b": "lure_spot", "op": "<", "value": 4}, "timeout_s": 25},
-    {"id": "s5", "action": "say_to",   "target": "guard", "text": "就在那边等着呢，别让人等急了", "timeout_s": 6},
+    {"id": "s1", "action": "move_to", "target": "guard", "within": 2.0, "timeout_s": 15},
+    {"id": "s2", "action": "say_to",  "target": "guard", "text": "那边有人找你，说是有急事，让我来叫你", "timeout_s": 8},
+    {"id": "s3", "action": "wait",
+        "until": {"type": "following", "a": "guard", "b": "self", "op": "true"},
+        "timeout_s": 10},
+    {"id": "s4", "action": "move_to", "target": {"query": "lure_spot(watch_point, 12)"}, "within": 1.0,
+        "until": {"type": "distance", "a": "guard", "b": "lure_spot", "op": "<", "value": 4},
+        "timeout_s": 25},
+    {"id": "s5", "action": "say_to",  "target": "guard", "text": "就在那边等着呢，别让人等急了", "timeout_s": 6},
     {"id": "s6", "action": "wait",
-        "until": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5}, "timeout_s": 25},
-    {"id": "s7", "action": "signal_player", "text": "我把他引到门口了，快动手！", "timeout_s": 3},
-    {"id": "s8", "action": "signal_player", "text": "守卫回岗了，快收手！", "timeout_s": 3},
-    {"id": "s9", "action": "end_plan", "result": "fail", "timeout_s": 3}
+        "until": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5},
+        "timeout_s": 25},
+    {"id": "s7", "action": "signal_player", "text": "我把他引到门口了，快动手！", "timeout_s": 3}
+  ],
+  "fallbacks": [
+    [
+      {"id": "s8", "action": "signal_player", "text": "守卫回岗了，快收手！", "timeout_s": 3},
+      {"id": "s9", "action": "end_plan", "result": "fail", "timeout_s": 3}
+    ]
   ],
   "contingencies": [
     {"when": {"type": "alert_phase", "entity": "guard", "phase": "Alarmed"}, "then": "@abort_gracefully", "one_shot": true},
-    {"when": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5}, "then": "s7", "one_shot": true},
-    {"when": {"type": "following", "a": "guard", "b": "self", "op": "false"}, "then": "s8", "one_shot": true},
+    {"when": {"type": "following", "a": "guard", "b": "self", "op": "false", "was": "true"}, "then": "s8", "one_shot": true},
     {"when": {"type": "combat", "entity": "self"}, "then": "@abort_gracefully", "one_shot": true}
-  ],
-  "success_condition": {"type": "distance", "a": "guard", "b": "watch_point", "op": ">", "value": 10, "sustained_s": 5},
-  "fail_condition":    {"type": "alert_phase", "entity": "guard", "phase": "Alarmed"}
+  ]
 }
 ```
 
-> **示例计划的条件角色**（每个条件的位置即角色，§5.2 条件角色）：
-> - s4 `until`（GATE）：守卫到引开点（< 4m，`lure_spot` = s4 query 求值后的具名落点）→ 本步提前完成，拖住守卫
-> - s6 `until`（GATE）：守卫离岗（> 10m sustained 5s）→ 窗口成立，推进到 s7 发动手信号
-> - contingencies `when`（GATE）：警戒 Alarmed → @abort（FAIL 收尾）；离岗 10m sustained → 跳 s7；折返 `following==false` → 跳 s8（秘密消息警报 + s9 失败收尾）；combat → @abort
-> - `success_condition`（GOAL）：守卫离岗 10m sustained = 计划成功
-> - `fail_condition`（FAIL）：警戒 Alarmed = 计划失败
+> **示例计划的条件角色**（角色由 JSON 字段直接命名，不需要槽位→角色映射表）：
+> - s3 `until`（wait 退出条件）：守卫跟走（`following(guard, self)` 成立）→ 本步完成；守卫拒绝（超时，`was` 从未置真）→ 走"再哄/放弃"预案（示例省略，实现时补全）
+> - s4 `until`（动作提前完成条件）：守卫到引开点（< 4m，`lure_spot` = s4 query 求值后的具名落点）→ 提前截断 move_to，本步完成，拖住守卫
+> - s6 `until`（wait 退出条件）：守卫离岗（> 10m sustained 5s）→ 窗口成立，推进到 s7 发动手信号
+> - contingencies `when`（异常/跳转条件）：警戒 Alarmed → @abort（异常收尾）；折返 `following==false && was==true`（曾成立变不成立）→ 跳 s8（秘密消息警报 + s9 失败收尾）；combat → @abort（安全网中止）
+> - `goal`（GOAL）：守卫离岗 10m sustained = 计划成功（失败无独立字段——意外全走 contingencies，计划性失败走超时/fallbacks 的 end_plan）
 
-> **折返检测语义**：示例用 `following(guard, self) == false` 表达"守卫回岗"是语义简写——实现时需区分**"从未跟随"**（多疑守卫不跟走，应走"再哄/放弃"预案，测试矩阵 case A 多疑行）与**"停止跟随"**（真折返）：v1 用 `time_since(s7)` 组合判定（窗口先开过、后回落）或 ReactiveAgent `return_post` 状态（§6.5 暴露）精确区分，防止误报"守卫回岗了"。
+> **折返检测语义**：示例用 `following(guard, self) == false && was == true` 表达"守卫回岗"——`was` 修饰符记录谓词**曾成立**（v1 曾用 `time_since(s7)` 组合判定，`was` 是同义的显式语法），由此区分**"从未跟随"**（多疑守卫不跟走，`was` 从未置真 → s3 超时 → 走"再哄/放弃"预案，测试矩阵 case A 多疑行）与**"停止跟随"**（真折返，`was` 曾真后回落 → 跳 s8），防止误报"守卫回岗了"。ReactiveAgent `return_post` 状态（§6.5 暴露）可与 `was` 互为校验。
 
 > **线性 JSON ↔ 树状 case 的关系**：case 树状图是**逻辑视图**（给人读：分叉/成败一目了然）；执行的是**线性 `steps[]` + `contingencies`**（执行视图：主链顺序推进，分叉 = `when` 条件成立跳转对应步骤）。同一逻辑两种表示，**JSON 不需要写成树状**——执行器是线性游标 + 跳转，没有树遍历。
-> **contingencies 装"主链外的一切跳转"，不限于意外**：顺利路径的信号跳转（离岗 10m sustained → 跳 s7 发动手信号）与意外预案（折返/警戒/combat）都放这里。**树上的 ✓ 分支 = 主链 + until 达成**（守卫跟走隐含在 s4 `until`：守卫到引开点 < 4m → 提前完成）；**树上的每个 ✗ 分支必须落到 contingencies 或超时路径**（示例为简洁省略了"守卫拒绝 → 再哄"预案，实现时补全——§5.1 折返检测语义已要求区分"从未跟随/停止跟随"）。
+> **contingencies 装"一切意外"**：异常收尾（警戒 Alarmed → @abort）、安全网（combat → @abort）、预案跳转（折返 → 跳 s8 入口）都放这里，跳转目标 = 主链步骤或 `fallbacks` 预案区入口；**顺利路径的推进全部由步骤 `until` 承担**——until 成立 = 步骤完成 = 主链自然推进到下一步（示例 v1 曾把"离岗 10m sustained → 跳 s7"写成 contingency，与 s6 until 冗余，已删除）。**树上的 ✓ 分支 = 主链 + until 达成**（守卫跟走由 s3 until 显式判定）；**树上的每个 ✗ 分支必须落到 contingencies 或超时路径**（示例为简洁省略了"守卫拒绝 → 再哄"预案，实现时补全——§5.1 折返检测语义已要求区分"从未跟随/停止跟随"）。
+> **主链与预案分区（fallbacks）**：`steps` = 主链（游标顺序推进，走完越界即收尾）；`fallbacks` = **预案数组**（数组的数组：每个元素 = 一个预案的步骤序列；**不参与游标推进**，仅 contingencies 跳转进入预案内入口步骤，顺流限在预案内，预案尾完成 → 回收尾判定，不溢出到下一个预案）——失败预案（s8 折返警报 → s9 fail 收尾）必须放 fallbacks，躺在主链上会被线性游标顺流执行（s7 发完"快动手"后假发"快收手"）。**goal 收尾时序**：goal 达成 = 计划成功，但收尾检查放在**"步骤完成时"**而非每 tick 抢断——s6 完成瞬间 goal（同一条件）即达成，须等 s7 信号发完（3s）再收尾，否则"快动手"发不出去。
 > **分叉不是"监听守卫的决策回复"**：对方决策结果沉淀为**持续世界状态**（`following(guard, self)` 是否成立），执行器每 tick（100ms）**轮询谓词**看到它；`spoken_to` 等瞬间事件只在 ReactiveAgent 内部触发演算（§5.4 分工线：持续状态走轮询、瞬间时刻走事件）——**执行器永远不"等回复"，只"看状态"**（事件会丢，状态不会）。
 
 **端到端执行画面（case A，M1 硬编码示例跑通的画面）**：
@@ -676,6 +683,11 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 - **何时必须加**：条件有抖动源（路过/转头一瞥/离岗折返）或成立瞬间直接生效会误判——安全门控（`!seeing(any, self)` 窗口）必加、离岗确认（`distance > 10`）必加；**何时不加（缺省 0s）**：运动学到达（`distance < 4` 到位即停）、状态翻转（`following` 由真变假）、行为态（`moving`/`combat`/`dead`）
 - 经验值：窗口/目击防抖 **3s**、离岗/折返确认 **5s**
 
+**通用状态修饰符 `was`**——记录谓词**曾成立**（与 sustained 互补：sustained 盯"现在连续成立 N 秒"，was 盯"过去成立过"）：
+- 语法：条件对象顶层字段 `"was": true`（§5.1 示例折返检测即此写法）
+- 语义：条件**曾成立过**即置真、此后保持——用于状态翻转检测：`following == false && was == true` = "曾跟随、已停止"（真折返），与"从未成立"（`was` 始终 false = 守卫拒绝）区分，防止把拒绝误报成折返
+- 用途：折返检测（§5.1 折返检测语义）；v1 曾用 `time_since` 组合判定，`was` 是同义的显式语法
+
 **完美犯罪安全原则**：想不被发现，**只有"小偷不被看到"**（`!seeing(any, 小偷)` sustained 是唯一安全条件，any = 任意会告发的目击者）——对抗意图的本质都是把小偷从目击者视线里剔除：DISTRACT 移人（引开守卫）、ENGAGE 转人（缠住 + 背对偷窃点）、KNOCKOUT 放倒、COMMOTION 反其道（**故意被看到**，用于脱身/掩护——被看到是目的，不是失败）。
 
 ### 条件角色（Condition Role）——每个条件的用途必须显式声明
@@ -684,11 +696,10 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 
 | 位置 | 角色 | 触发性 × 激活 | 语义 | 例 | 防抖建议 |
 |------|------|--------------|------|-----|---------|
-| 步骤 `until` | **GATE** | 成立触发 · LEVEL | 条件成立 → 本步提前完成，推进下一步 | case A s4：守卫到门口即走 | 推进类可不加；窗口类必加 |
+| 步骤 `until` | **GATE** | 成立触发 · LEVEL | 条件成立 → 本步提前完成，推进下一步（wait 步骤 = 退出条件；动作步骤 = 提前完成条件） | case A s4：守卫到引开点即走 | 推进类可不加；窗口类必加 |
 | 步骤 `when` | **GATE** | 成立触发 · LEVEL | 条件成立 → 本步才放行（前置门控） | case C 偷窃步骤：`!seeing(any, self)` 才动手 | 安全门控必加（3s） |
-| contingencies `when` | **GATE** | 成立触发 · EDGE | 条件成立 → 跳转一次（预案/警报/收尾；`one_shot` 可配防重入） | case A 折返：`following==false` → s8 警报 | 掉线防抖按需（折返可挂 sustained） |
-| `success_condition` | **GOAL** | 成立触发 · LEVEL | 条件成立 = 计划成功（收尾三路·成功） | case A：守卫离岗 10m sustained 5s | 有抖动源必加（5s） |
-| `fail_condition` | **FAIL** | 成立触发 · LEVEL | 条件成立 = 计划失败收尾 | 警戒 Alarmed → abort | 同 GOAL |
+| contingencies `when` | **GATE** | 成立触发 · EDGE | 条件成立 → 跳转一次（异常收尾 @abort / 跳主链步骤或 `fallbacks` 预案入口；`one_shot` 可配防重入） | case A：警戒 Alarmed → @abort；折返 `following==false && was==true` → 跳 s8 警报 | 掉线防抖按需（折返可挂 sustained） |
+| `goal`（顶层） | **GOAL** | 成立触发 · LEVEL | 条件成立 = 计划成功（收尾三路·成功） | case A：守卫离岗 10m sustained 5s | 有抖动源必加（5s） |
 | GoalTemplate.Success + Maintain（保持型意图） | **GOAL + MAINTAIN** | GOAL：成立触发 · LEVEL ／ MAINTAIN：**翻转触发** · LEVEL | **执行时序：先达成、后保持**——GOAL 盯**达成的那一刻**（条件首次成立 → 进入保持期）；MAINTAIN 盯**达成之后**（保持期条件持续成立，**翻转 = 掉线 → 预案**）；玩家 R3 叫停 = 收尾 | ENGAGE / COMMOTION / LOOKOUT | 达成判定按语义；掉线防抖按需 |
 | 计划 `triggers[]`（事件驱动意图专用） | **TRIGGER** | 成立触发（上升沿）· EDGE | 条件成立（上升沿：false→true）→ signal_player 报告，**计划不结束**（报告后继续等待，可重复触发）；玩家 R3 叫停 = 收尾 | LOOKOUT 望风"有人来了！"（`in_zone(any, watch_zone)` 上升沿）/ SHADOW 盯梢目标停下/会面/离场 | **禁用 sustained**（边缘触发不防抖） |
 
@@ -697,7 +708,7 @@ t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（Np
 - **GOAL**：成立 = 收尾三路·成功
 - **MAINTAIN**：达成后保持——条件翻转（掉线）→ 预案（再执行 / 报告玩家）；玩家干预（停止键 / 新命令，R3）→ 收尾
 - **TRIGGER**：上升沿成立 → signal_player（文本来自计划）→ 回到等待（可重复触发，非 one_shot）
-- **FAIL**：成立 = 收尾三路·失败
+- **FAIL**：成立 = 收尾三路·失败（**JSON 无独立字段**——意外触发走 contingencies @abort，计划性失败走 fallbacks 的 end_plan / 步骤超时）
 
 ### 5.3 PlanValidator（铁律 2：LLM 输出不可信任）
 
