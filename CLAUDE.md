@@ -223,6 +223,7 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 | [🔴 存档机制深度解析](Knowledge/存档机制深度解析.md) | 🔴 **SaveableField/SaveableProperty/SyncData/SaveableTypeDefiner 四件套**：field ID 作用域（类级别非全局）、步进编号惯例、SyncData JSON 模式、InitQuestOnGameLoad 读档重建、支持/不支持类型清单、8 个常见坑点、本项目存档架构总览 | 新增需要持久化的字段/子系统前必读、排查存档损坏/字段丢失、理解为什么不同 mod 用同样的 ID 不冲突 |
 | [🔴 击晕机制 — 引擎能力与实现踩坑](Knowledge/击晕机制_引擎能力与实现踩坑.md) | 🔴 **背后击晕完整实现**：action_set 继承链陷阱、ForcePlayAction 绕过方案、human/human_child 骨骼差异、Brain auto-Resume 竞争、IsUsingGameObject vs InConversation、动画 ID 验证、完整调用链 | 新增击晕/强制动画相关功能前必读 |
 | [🔴 原版对话流引擎逆向分析](Knowledge/原版对话流引擎逆向分析.md) | 🔴 **DialogFlow 底层token状态机逆向 + 动态化方案**：`ConversationManager._sentences` 大表模型、`DialogFlow` 只是建造者（非必需品）、`AddPlayerLine`/`AddDialogLineMultiAgent` 直接操作引擎、`PersuasionTask` 嵌入机制（`HasPersuasion` 标记）、LLM JSON → DynamicDialogueTurn 完整链路、与原版对话共存机制（`RemoveRelatedLines` 按归属清理） | 设计自定义 Quest 对话流、LLM 驱动动态对话、理解说服/技能检定挂接方式、实现"JSON/LLM输出直接变成游戏对话" |
+| [Ollama 本地模型接入](Knowledge/Ollama本地模型接入.md) | ✅ **代码零改动支持本地模型**：Ollama OpenAI 兼容端点逐字段实测验证（json_object/max_tokens/Bearer 全通）、**玩家配置两处与 Reddit 教程不同（BaseUrl 必须带 `/v1`、API Key 必须填占位符）**、小模型质量边界（3b~7b 计划生成锚定示范 → 建议 ≥14b 或云端）、冷启动延迟预算、Windows 部署速查 | 玩家问"能不能用本地模型"时的标准答复、排查本地端点 404/配置问题 |
 
 ## 工作流约定
 
