@@ -963,7 +963,10 @@ namespace LivingWorldNpcs
 
             if (_isGuardMode && Leader != null && Leader.IsActive())
             {
-                EnqueueAction(new FollowAgentAction(Leader, run: true));
+                // keepFollow:true 必须带——否则动作到达 stopDistance 即自结束，
+                // 下帧 Tick 又因 EffectiveAction==null 重新入队，形成每帧 入队→完成 循环刷屏。
+                // keepFollow 时 IsFinished 恒 false，动作常驻直到被 ClearAllActions 等流程接管。
+                EnqueueAction(new FollowAgentAction(Leader, run: true, keepFollow: true));
             }
             else
             {

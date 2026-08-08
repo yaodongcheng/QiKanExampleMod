@@ -17,8 +17,9 @@ namespace LivingWorldNpcs
     /// 目前承载五件事，全部围绕 OnAgentHit / OnRegisterBlow / OnAgentRemoved 三个引擎钩子：
     /// ① 尸体登记（可搜刮列表）；
     /// ② 玩家命中记录（战场血条过滤）；
-    /// ③ 切磋（Duel）虚拟血量 —— 打不死，虚拟血见底判胜负
-    ///   （手法：引擎 HandleBlow 内 OnAgentHit 早于 `if (Health &lt; 1f) Die()`，在这里把血写回就能吃掉致命一击）；
+    /// ③ 🔴【已废弃 2026-08-08】切磋（Duel）虚拟血量 —— 打不死，虚拟血见底判胜负
+    ///   （手法：引擎 HandleBlow 内 OnAgentHit 早于 `if (Health &lt; 1f) Die()`，在这里把血写回就能吃掉致命一击）。
+    ///   ⚠️ 虚拟血量仲裁已被否决：新切磋方案不再用它，代码保留仅作参考——新逻辑禁止调用 InitDuel/GetVirtualHealth；
     /// ④ 玩家在定居点里被打倒 → 结束 Mission 并把菜单落到定居点菜单，
     ///   由 <see cref="PlayerDetentionBehavior"/> 在那里给出"赔钱 / 认罚"选项。
     /// ⑤ 击杀回血 —— 玩家亲手击杀人类/儿童后回复 <see cref="HealValue"/> 血（MCM 选项
@@ -36,11 +37,12 @@ namespace LivingWorldNpcs
         /// <summary>战场中玩家攻击过的 Agent Index 集合（用于血条过滤）</summary>
         private HashSet<int> _playerAttackedAgents = new HashSet<int>();
 
+        // 🔴【废弃】旧切磋仲裁双方（虚拟血量方案，2026-08-08 否决——保留仅参考）
         private Agent _agentA;
         private Agent _agentB;
         private bool _isDuelActive;
 
-        // 用于存储切磋时的虚拟血量
+        // 🔴【废弃】旧切磋虚拟血量（否决方案，保留仅参考）
         private float _agentA_VirtualHP = 100;
         private float _agentB_VirtualHP = 100;
 
@@ -76,6 +78,7 @@ namespace LivingWorldNpcs
 
         public float? GetVirtualHealth(Agent agent)
         {
+            // 🔴【废弃】虚拟血量切磋仲裁（2026-08-08 否决，保留仅参考）——新切磋方案禁止调用
             if (!_isDuelActive || agent == null) return null;
 
             if (agent == _agentA) return _agentA_VirtualHP;
@@ -99,6 +102,7 @@ namespace LivingWorldNpcs
                 InitDuel(a, b);
             }
         }
+        /// <summary>🔴【废弃】旧切磋仲裁入口（虚拟血量方案，2026-08-08 否决——保留仅参考；新逻辑禁止调用）。</summary>
         public void InitDuel(Agent a, Agent b)
         {
             if (_isDuelActive)

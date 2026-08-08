@@ -147,9 +147,19 @@ namespace LivingWorldNpcs
         /// </summary>
         public static string ResolveText(string key, string fallback = null)
         {
-            string fallbackText = fallback ?? GetEnglishFallback(key) ?? key;
-            TextObject text = new TextObject($"{{={key}}}{fallbackText}", null);
-            return text.ToString();
+            try
+            {
+                string fallbackText = fallback ?? GetEnglishFallback(key) ?? key;
+                TextObject text = new TextObject($"{{={key}}}{fallbackText}", null);
+                return text.ToString();
+            }
+            catch
+            {
+                // 引擎本地化层异常（语言系统未就绪/Tokenizer 异常）→ 回落 fallback/key，不崩（铁律 1）。
+                // 🔴 曾真实踩坑：Settings 属性初始化器调本方法（new Settings() 在 Load() try 外），
+                // 这里抛 → Settings.Instance 抛 → 调用点如 if(Settings.Instance == null) 报"未初始化"假象。
+                return fallback ?? key;
+            }
         }
 
         /// <summary>

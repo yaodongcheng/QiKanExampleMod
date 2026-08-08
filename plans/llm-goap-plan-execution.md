@@ -63,7 +63,7 @@
 | §11 M2 LLM 计划生成 | ✅ | LLMService 升级/BuildPlanPrompt/PlanResponse/PlanValidator/GoalTemplates/澄清+批准循环/降级路径；case B（BRING）执行器支持 |
 | §11 M3 ReactiveAgent | ✅ | 触发词表/反应词表/人格演算/默认模板兜底/决策广播；传播作用域部分（§6 见上） |
 | §11 M4 Replan+STEAL | ✅ | Replan 循环（事件日志→重入→新计划→summary 播报）+ steal_attempt 完整版（绕背/目击问责/守恒）+ knockout 完整版 |
-| §11 M5 打磨 | 🟡 | 本地化（中英 60+ 键）/冒泡/HUD 执行摘要/emote 点缀/边界（随从死亡/并发 Plot 互斥）✓；**❌ 待做**：SPAR 意图、双版本编译（1.2.12）、实机体验 |
+| §11 M5 打磨 | 🟡 | 本地化（中英 60+ 键）/冒泡/HUD 执行摘要/emote 点缀/边界（随从死亡/并发 Plot 互斥）✓；**❌ 待做**：SPAR 意图（含切磋血不死机制，见文末🔴待办）、双版本编译（1.2.12）、实机体验 |
 | §12 验证方案 | 🟡 | plan_debug 8 子命令 ✓（snapshot/list/run/status/stop/role/step/replan）；17 示例静态校验 ✓；**LLM 回归双脚本已固化（见文档顶部：test_llm_plan.py 基础 + test_llm_plan_stress.py 压力 + compare_plan_quality.py 评分；v9 基线 74%，v10 待更新）**；**🔧实机**：测试矩阵（多疑守卫/尽责守卫/村长拒绝/意外三连/停止键/模态/R4 豁免） |
 | §13 风险对策 | ✅ | 全部有对策且落地（LLM 分类错→few-shot+澄清；自说自话→人格演算+默认模板；竞争→统一接管+收尾三路；Replan 死循环→节流；冒泡无听者→face 前置；零成本→§4.1 问责） |
 
@@ -1602,3 +1602,17 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 | 玩家把随从留在原地自己跑了 | R4 暂停 + 追回 |
 | 随从偷窃变零成本最优解 | §4.1 责权归属：随从犯罪 = 玩家代理（同风险结构），目击即问责玩家；随从技能只影响成功率 |
 | LLM 一次调用输出失败 | §2.2 降级：一次重试 → signal 告知 + 释放控制 |
+
+---
+
+## 🔴 待办：SPAR 切磋「血不死」机制（用户 2026-08-08 确认：先不做，记录待办）
+
+**背景**：玩家对随从下达"和我切磋"（SPAR 意图）时随从会主动出手，但执行层无非致命通道：
+`order_attack player` → `FightEnemyAction` → `CombatManager.StartFight` **真打**（玩家掉真血、守卫可能介入），
+唯一节流是随从残血认输（血量 <30% 投降）——"点到为止"在执行层无支撑。
+
+**已否决方案**：旧虚拟血量仲裁（`AttackTriggerMissionLogic.InitDuel` / `GetVirtualHealth` /
+`StartFight(Peace:true)` 分支 / `AgentHudVM` 虚拟血条）已标记 🔴【废弃】——**新机制禁止复用**。
+
+**待办要点**：切磋专用「血不死」机制——SPAR/DUEL 期间双方血量不致死（伤害拦截/血线钳制/血量不低于 1，
+不依赖废弃仲裁），胜负判定与收尾台词另行设计。接入点候选：`PlanExecutor` 执行 duel/order_attack(玩家) 拦截。

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
+using TaleWorlds.ScreenSystem;
 
 namespace LivingWorldNpcs
 {
@@ -280,9 +281,18 @@ namespace LivingWorldNpcs
         /// 每帧驱动全部玩法行状态机（MissionTick 调用）。
         /// 帧窗口：先清上一帧未消费的触发标志 → 再处理本帧输入 → 消费点（HandleInput/TickStealBar）
         /// 在同帧内读取；未消费的标志下一帧自动过期（模态覆盖期间的按压不会陈旧触发）。
+        /// 🔴 模态门控：Input.IsKeyDown 是物理键轮询，Gauntlet 层 InputRestrictions 拦不住——
+        /// ① 密谋命令流程激活（PlanCommandFlow.IsActive：inquiry 输入框打字期间）整体暂停，
+        ///    按 H 打字不会误触发探查等玩法行；② 系统弹窗（TopScreen 含 Inquiry）同样暂停。
         /// </summary>
         public static void Tick(float dt)
         {
+            if (IsSystemModalActive() || PlanCommandFlow.IsActive)
+            {
+                ResetAll();   // 清空按住/触发状态，弹窗期间松开也不会陈旧触发
+                return;
+            }
+
             foreach (RowState st in _states.Values)
             {
                 st.PressedFired = false;
@@ -353,6 +363,16 @@ namespace LivingWorldNpcs
             bool fired = st.PressedFired;
             st.PressedFired = false;   // 消费即清
             return fired;
+        }
+
+        /// <summary>系统模态弹窗激活（ShowTextInquiry 输入框 / ShowInquiry 确认框）。
+        /// 用 TopScreen 类型名判断（引擎稳定类名；含 "Inquiry" 即视为弹窗，覆盖 TextInquiryScreen 等变体）。
+        /// 不引引擎 Screen 类型强引用——漏判最坏只是少拦一次，不会崩。</summary>
+        public static bool IsSystemModalActive()
+        {
+            var top = ScreenManager.TopScreen;
+            string n = top?.GetType().Name;
+            return n != null && n.IndexOf("Inquiry", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>短按触发（一次性）：松开且按住时长 &lt; 该玩法阈值的一瞬间。</summary>

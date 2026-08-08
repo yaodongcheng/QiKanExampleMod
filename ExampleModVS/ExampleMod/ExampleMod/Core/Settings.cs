@@ -22,7 +22,7 @@ namespace LivingWorldNpcs
 
     public class Settings
     {
-        private static Settings _instance;
+        private static Settings _instance = null;
         public static Settings Instance
         {
             get
@@ -162,9 +162,12 @@ namespace LivingWorldNpcs
 
         private static Settings Load()
         {
-            Settings settings = new Settings();
+            // 🔴 new Settings() 必须在 try 内：属性初始化器（WorldDescription 等调 LWNTextHelper.ResolveText）
+            // 可能抛引擎本地化层异常——在 try 外 = Settings.Instance 抛 = 调用点"未初始化"假象。
+            Settings settings = null;
             try
             {
+                settings = new Settings();
                 string configPath = Path.Combine(
                     System.AppDomain.CurrentDomain.BaseDirectory,
                     "..", "..", "Modules", "LivingWorldNpcs", "config.json");
@@ -183,7 +186,12 @@ namespace LivingWorldNpcs
             }
             catch
             {
-                // 加载失败时使用全部默认值
+                // 加载失败时使用全部默认值（初始化器异常时二次尝试，仍失败则跳过初始化器兜底）
+                if (settings == null)
+                {
+                    try { settings = new Settings(); }
+                    catch { settings = (Settings)System.Runtime.Serialization.FormatterServices.GetUninitializedObject(typeof(Settings)); }
+                }
             }
             return settings;
         }

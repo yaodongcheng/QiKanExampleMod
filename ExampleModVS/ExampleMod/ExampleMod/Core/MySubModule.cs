@@ -39,11 +39,11 @@ namespace LivingWorldNpcs
             var harmony = new Harmony("com.ydc.LivingWorldNpcs");
             harmony.PatchAll( );
 
-            // ── 全局未处理异常日志：mod 发布后玩家遇到崩溃时自动写入 DebugLogger ──
+            // ── 全局异常钩子：崩溃/被吞异常自动写入运行日志 + 崩溃现场快照 ──
+            // 三层覆盖（FirstChance / UnobservedTask / Unhandled），噪声过滤与去重见 CrashLogHook。
             try
             {
-                AppDomain.CurrentDomain.UnhandledException += (sender, args)
-                    => DebugLogger.Log($"[Crash] UnhandledException: {(args.ExceptionObject as Exception)?.ToString() ?? args.ExceptionObject?.ToString() ?? "unknown"}");
+                CrashLogHook.Register();
             }
             catch (Exception ex)
             {

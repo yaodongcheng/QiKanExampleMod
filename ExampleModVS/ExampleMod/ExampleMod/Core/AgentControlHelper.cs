@@ -146,6 +146,10 @@ namespace LivingWorldNpcs
             }
             agent.ClearTargetFrame();
             V.SetAgentAI(agent);
+            // 恢复速度上限：MoveEndAndInteractPrepare 会 SetMaximumSpeedLimit(0) 原地钉死 Agent
+            // （对话结束/到达站定路径），若不解除，后续所有移动指令都会被钳到速度 0 = 原地不动。
+            // 该钳制是独立 native 状态，不随 SetScriptedPosition 重置——必须在此显式恢复（-1 = 默认）。
+            agent.SetMaximumSpeedLimit(-1f, false);
 
             // 2. 修正导航网格
             WorldPosition targetPos = new WorldPosition(agent.Mission.Scene, UIntPtr.Zero, targetVec, false);

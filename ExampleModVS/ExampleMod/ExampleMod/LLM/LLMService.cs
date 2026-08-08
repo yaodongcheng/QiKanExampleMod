@@ -1,9 +1,12 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LivingWorldNpcs
@@ -128,6 +131,95 @@ namespace LivingWorldNpcs
             return clean;
 
 
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // 连接测试（交付：Plot 玩法行显示/触发前验证 LLM 服务可达 + key 有效）
+        // ═══════════════════════════════════════════════════════════
+
+        public enum LLMConnectionState { Unknown, Ok, Failed }
+
+        private static LLMConnectionState _connState = LLMConnectionState.Unknown;
+        private static DateTime _connTestedAt = DateTime.MinValue;
+        private const double ConnCacheSeconds = 300;   // 连接状态缓存 5 分钟（避免每帧/每次检查都发请求）
+
+        /// <summary>连接状态查询（玩法行显示/触发门控用）：Unknown 放行（首次未测不误杀），
+        /// Failed 且在缓存期内拒绝；Ok/过期自动重测由 <see cref="TestConnection"/> 或按钮刷新。</summary>
+        public static bool IsConnectionOk()
+        {
+            if (_connState == LLMConnectionState.Failed
+                && (DateTime.Now - _connTestedAt).TotalSeconds < ConnCacheSeconds)
+                return false;
+            return true;
+        }
+
+        /// <summary>配置变更后失效缓存（MCM setter 调用）——下次查询/测试重新验证。
+        /// ⚠️ 2026-08-08 曾尝试顺带重建 LLMService 实例（_instance = null 换新 key），
+        /// 实机出现新异常（非法 key 时 new LLMService 的 header Add 可能抛）→ 已回滚，只清连接状态缓存。</summary>
+        public static void InvalidateConnectionCache()
+        {
+            _connState = LLMConnectionState.Unknown;
+            _connTestedAt = DateTime.MinValue;
+        }
+
+        /// <summary>发最小请求验证连接（BaseUrl 可达 + key 有效 + 模型存在）。
+        /// 用 1 token 的 chat/completions 而非 /models——OpenAI 兼容端点多支持前者，通用性最好。
+        /// 🔴 通道与生产一致（共享 HttpClient）：曾用 HttpWebRequest 测试——服务器返回 400
+        ///    （HttpWebRequest 默认 Expect:100-continue 等头不被网关接受），而游戏内 HttpClient 正常——
+        ///    测试通道必须与生产同源，否则"测试失败但游戏正常"的假象（2026-08-08 实测）。
+        /// 同步等待：ConfigureAwait(false) 让 continuation 在线程池执行（不被 UI 线程阻塞 = 无死锁），
+        /// GetResult 阻塞调用线程（UI 冻结最长 10s 超时）。</summary>
+        public static bool TestConnection()
+        {
+            // 调试：打印 LLM 设置（key 掩码——前 4 位 + 长度，明文不落日志；
+            // Url/Model 打实际请求值 ApiUrl/CurrentModel——含缺省回落，能看出"以为填了其实没填"）
+            try
+            {
+                var cfg = Settings.Instance;
+                string keyMask = !string.IsNullOrWhiteSpace(cfg?.LLMApiKey)
+                    ? cfg.LLMApiKey.Substring(0, Math.Min(4, cfg.LLMApiKey.Length)) + "…(" + cfg.LLMApiKey.Length + ")"
+                    : "(空)";
+                DebugLogger.Log($"[LLMTest] 设置打印");
+                DebugLogger.Log($"[LLMTest] 设置检查: Ready={cfg?.IsLLMReady} Url={ApiUrl} Model={CurrentModel} Key={keyMask}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[LLMTest] 设置打印失败: {ex.Message}");
+            }
+            try
+            {
+                var cfg = Settings.Instance;
+                if (!cfg.IsLLMReady)
+                {
+                    _connState = LLMConnectionState.Failed;
+                    _connTestedAt = DateTime.Now;
+                    return false;
+                }
+                var svc = Instance;   // 缺 key 时 Instance getter 抛异常 → 走 catch
+                var body = JsonConvert.SerializeObject(new
+                {
+                    model = CurrentModel,
+                    messages = new object[] { new { role = "user", content = "ping" } },
+                    max_tokens = 1,
+                });
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                using var content = new StringContent(body, Encoding.UTF8, "application/json");
+                // 与游戏内相同的 HttpClient 通道；ConfigureAwait(false) → 线程池 continuation → 无死锁
+                using var resp = svc._httpClient.PostAsync(ApiUrl, content, cts.Token)
+                    .ConfigureAwait(false).GetAwaiter().GetResult();
+                bool ok = resp.IsSuccessStatusCode;
+                _connState = ok ? LLMConnectionState.Ok : LLMConnectionState.Failed;
+                _connTestedAt = DateTime.Now;
+                return ok;
+            }
+            catch (Exception ex)
+            {
+                // 完整异常落日志（类型+消息+栈）
+                DebugLogger.Log($"[LLMTest] 连接测试异常: {ex}");
+                _connState = LLMConnectionState.Failed;
+                _connTestedAt = DateTime.Now;
+                return false;
+            }
         }
 
 

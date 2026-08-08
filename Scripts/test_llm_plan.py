@@ -74,6 +74,8 @@ SCENE_ANCHORS = set()
 
 # ═══════════════════════════════════════════════════════════════
 # 场景快照生成（模拟 C# SceneSnapshot.ToPromptText）
+# 🔴 2026-08-08 同步：实机已移除【场景可互动物件】段（121 个匿名 object 纯噪声，待按有意义 tag 重做）——
+#     py 场景必须同步移除，回归 prompt 才与实机一致；STEAL 类命令在无物件段下应走澄清/CUSTOM。
 # ═══════════════════════════════════════════════════════════════
 
 def build_scene(agent_count, obj_count=4):
@@ -90,14 +92,13 @@ def build_scene(agent_count, obj_count=4):
         lines.append(f"- {r}角色{i}（{occ}）：你{dirs[i % 4]}侧{3 + i * 2}米，"
                      f"{faces[i % 3]}，{states[i % 3]}"
                      f"{'（尽职尽责，坚守岗位）' if role == 'guard' else ''}")
-    lines.append(f"【场景可互动物件】（{obj_count} 个）")
-    for i in range(obj_count):
-        lines.append(f"- 箱子{i}（chest）：你东侧{5 + i}米")
+    # 物件段已按实机移除（obj_count 参数保留签名，不再输出）
     # 无锚点段：模拟真实游戏（语义 tag 探测，原生场景通常为空）
     return "\n".join(lines)
 
 # 固定场景（含全部目标角色，供预设命令引用）
 # 注意：无【场景区域锚点】段——模拟真实游戏（SceneSnapshot Zones 靠语义 tag 探测，原生场景通常为空）
+# 注意：无【场景可互动物件】段——实机已移除（2026-08-08 同步）
 FIXED_SCENE = """【场景当前人员】（9 人）
 - [player] 玩家：你身旁1米，面朝玩家，站着
 - [guard] 帝国守卫（守卫）：你东侧8米，背对玩家，站着（尽职尽责，坚守岗位）
@@ -107,12 +108,7 @@ FIXED_SCENE = """【场景当前人员】（9 人）
 - [drunkard] 醉汉（醉醺醺）：你东侧5米，坐着（醉醺醺）
 - [foe] 可疑黑衣人（路人）：你北侧18米，背对玩家，巡逻中
 - [contact] 瘦高个（路人）：你南侧20米，站着
-- [villager] 村民（村民）：你西南侧9米，站着
-【场景可互动物件】（4 个）
-- 箱子（chest）：你东侧9米
-- 酒桶（barrel）：你西侧8米
-- 保管箱（chest）：你东侧14米
-- 大门（door）：你东侧25米"""
+- [villager] 村民（村民）：你西南侧9米，站着"""
 
 # ═══════════════════════════════════════════════════════════════
 # prompt 构建（与 C# BuildPlanPrompt 逐段同构）
@@ -177,9 +173,9 @@ GRAMMAR = (
 
 # 预设命令：命令 → 期望意图（CLARIFY = 歧义应澄清；CUSTOM = 词表外应拒绝）
 PRESET_COMMANDS = [
-    ("我想偷那箱子，有人盯着怎么办？", "STEAL", "偷箱子+引开策略（复合命令按最终目的=STEAL；模型可能 STEAL+澄清，设计内）"),
+    ("我想偷那箱子，有人盯着怎么办？", "CLARIFY", "偷箱子（场景无物件段 → 按纪律 14 无目标应澄清，2026-08-08 随场景同步调整）"),
     ("请村长到我面前来", "BRING", "请村长"),
-    ("去把那个守卫的钱袋摸来", "STEAL", "扒守卫"),
+    ("去把那个守卫的钱袋摸来", "STEAL", "扒守卫（目标 [guard] 在场景中，无物件段不影响）"),
     ("帮我望风，来人了叫我", "LOOKOUT", "望风"),
     ("干掉他", "ATTACK", "攻击（歧义）"),
     ("带我去河边", None, "带路（场景无河边锚点 → 澄清/诚实报告/运行时失败兜底，看行为）"),
@@ -191,8 +187,19 @@ PRESET_COMMANDS = [
 ]
 
 
+# 世界观段（模拟 C# Settings.WorldDescription 实机默认文本；内容包注入的 flavor 不模拟）
+WORLD_DESC = "骑马与砍杀2 卡拉迪亚中世纪世界"
+
+# 身份段（模拟 C# BuildPersona 实机格式：你是 随从名，玩家名 的随从——2026-08-08 起主人=玩家名）
+PERSONA = ('你是 "铁匠"沃泰尔，奥斯帕克 的随从。说话简短、恭敬、务实，像游戏里的随从。')
+
+
 def build_prompt(scene, command):
-    return ("【当前场景】\n" + scene + "\n\n【玩家命令】\n" + command + "\n"
+    # 与 C# BuildPlanPrompt 逐段同构（2026-08-08 同步）：
+    # 世界观 → 场景 → 身份 → 命令 →（历史 py 不模拟）→ 意图表 → 语法
+    return ("【世界观】" + WORLD_DESC + "\n\n【当前场景】\n" + scene
+            + "\n\n【你的身份】\n" + PERSONA
+            + "\n\n【玩家命令】\n" + command + "\n"
             + INTENT_TABLE + "\n" + GRAMMAR)
 
 
