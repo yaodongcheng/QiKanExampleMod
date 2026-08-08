@@ -433,7 +433,22 @@ namespace LivingWorldNpcs
             if (plan.Loop != null && plan.Loop.Until != null) ValidateCondition(plan.Loop.Until, result, "loop.until");
             if (plan.Contingencies != null)
                 foreach (var c in plan.Contingencies)
+                {
                     if (c?.When != null) ValidateCondition(c.When, result, "contingency");
+                    // 纪律 19（2026-08-08 实机 badcase："找人" 79ms 跳失败收尾）：
+                    // seeing-false 类 contingency（掉线/丢目标检测）必须带 sustained_s 防抖——
+                    // 无防抖 → 目标转头/视线短暂丢失即瞬间触发 → 整个计划被误杀。
+                    if (c?.When?.Type == "seeing"
+                        && string.Equals(c.When.Op, "false", StringComparison.OrdinalIgnoreCase)
+                        && c.When.SustainedS <= 0f)
+                        result.Warnings.Add($"contingency seeing-false 无 sustained_s 防抖（纪律 19）：视线瞬时丢失会误杀计划 → {c.Then}");
+                    // 纪律 20（2026-08-08 实机 badcase 二连：following(player,self,false) 79ms 开局触发）：
+                    // following(A,B)=A 跟着 B。计划启动即停止跟随 → following(self,player) 立刻 false；
+                    // following(player,self) 恒 false。写进 contingency = 第一帧必触发、计划开局即毁。
+                    if (c?.When?.Type == "following"
+                        && string.Equals(c.When.Op, "false", StringComparison.OrdinalIgnoreCase))
+                        result.Warnings.Add($"contingency following-false 恒成立必触发（纪律 20）：计划启动即停止跟随 → {c.Then}");
+                }
             if (plan.Triggers != null)
                 foreach (var t in plan.Triggers)
                     if (t?.When != null) ValidateCondition(t.When, result, "trigger");

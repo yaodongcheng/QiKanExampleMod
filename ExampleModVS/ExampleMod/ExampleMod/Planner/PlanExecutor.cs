@@ -72,6 +72,22 @@ namespace LivingWorldNpcs
         /// <summary>统一驱动所有活动执行器（AgentAIController.OnMissionTick 调用）。</summary>
         public static void TickAll(float dt)
         {
+            // 心跳日志（1s 一次，只在计划活跃时打——空闲时每秒刷屏无意义）：
+            // 区分"OnMissionTick 没调 TickAll"（整链死）和"foreach 没驱动到执行器"（注册表/循环死）。
+            if (ActiveExecutors.Count > 0)
+            {
+                _tickAllHeartbeatAccum += dt;
+                if (_tickAllHeartbeatAccum >= 1f)
+                {
+                    _tickAllHeartbeatAccum = 0f;
+                    //DebugLogger.Log($"[PlanExecutor] TickAll 心跳: {ActiveExecutors.Count} 个执行器活跃");
+                }
+            }
+            else
+            {
+                _tickAllHeartbeatAccum = 0f;
+            }
+
             if (ActiveExecutors.Count == 0) return;
             foreach (var e in ActiveExecutors.Values.ToList())
                 e.Tick(dt);
@@ -120,6 +136,8 @@ namespace LivingWorldNpcs
         private readonly HashSet<Contingency> _oneShotFired = new HashSet<Contingency>();
         private readonly Dictionary<Trigger, bool> _triggerPrev = new Dictionary<Trigger, bool>();
         private float _tickAccum;
+        private float _heartbeatAccum;
+        private static float _tickAllHeartbeatAccum;
         private bool _goalMet;
         private bool _reportPending;
         private string _pendingReport;
@@ -211,6 +229,39 @@ namespace LivingWorldNpcs
 
         public void Tick(float dt)
         {
+            // 心跳日志（1s 一次，放最开头）：诊断"原地不动"——Tick 只要被调用就会打，
+            // 与节流/暂停/异常路径无关，直接区分"执行器没被驱动"和"驱动了但卡住"。
+            _heartbeatAccum += dt;
+            if (_heartbeatAccum >= 1f)
+            {
+                _heartbeatAccum = 0f;
+                LogHeartbeat();
+            }
+
+            try
+            {
+                TickInner(dt);
+            }
+            catch (Exception ex)
+            {
+                // 诊断：Tick 链静默死亡 → NPC 被钉在原地（latch 永不完成）。
+                // 抓到异常立即记日志 + 中止计划，不让 NPC 永久卡死。
+                DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: Tick 异常 → 计划中止: {ex}");
+                Finish(ExecutorState.Aborted, PlanTexts.Interrupted);
+            }
+        }
+
+        private void LogHeartbeat()
+        {
+            var step = _selfCursor?.Current;
+            string stepInfo = step != null ? $"{step.Id}({step.Action}{RenderStepTarget(step)})" : "-";
+            string subInfo = _selfCursor?.SubAction != null ? _selfCursor.SubAction.GetType().Name
+                : (_selfCursor?.Inline != null ? _selfCursor.Inline.GetType().Name : "-");
+            //DebugLogger.Log($"[PlanExecutor] 心跳 {Elapsed:F0}s | {State}{(PauseReason != null ? "(" + PauseReason + ")" : "")} | 步骤={stepInfo} | 子={subInfo} | 距目标={GetStepTargetDistance():F1}m");
+        }
+
+        private void TickInner(float dt)
+        {
             // 当面报告流程（收尾后置阶段：走回玩家旁冒泡转述）
             if (_reportPending)
             {
@@ -222,9 +273,13 @@ namespace LivingWorldNpcs
             Elapsed += dt;
             _tickAccum += dt;
             if (_tickAccum < 0.1f) return;      // 100ms 节流
+            // 🔴 时间基准：节流通过后必须把"真实经过时间"（约 0.1s+）传给下游——
+            // 传帧 dt（~16ms）会让子动作计时/步骤超时/sustained_s 全部 ~6 倍饿死
+            // （起身 2s→12.5s、_maxTime 8s→50s、timeout 20s→125s，实机表现 = NPC 原地发呆）。
+            float tickDt = _tickAccum;
             _tickAccum = 0f;
 
-            _world.Tick(dt);
+            _world.Tick(tickDt);
 
             // R7 玩家模态（偷窃条/对话/剧情演出）→ Pause；模态结束 → Resume
             bool modal = DetectPlayerModalUi();
@@ -257,7 +312,7 @@ namespace LivingWorldNpcs
             if (State != ExecutorState.Executing) return;
 
             // Guardrails R2/R5/R6
-            TickGuardrails(dt);
+            TickGuardrails(tickDt);
             if (State != ExecutorState.Executing) return;
 
             // contingencies（EDGE 上升沿）
@@ -274,7 +329,7 @@ namespace LivingWorldNpcs
                 if (!cursor.Done && cursor.Agent != null && cursor.Agent.IsActive())
                 {
                     anyActive = true;
-                    TickCursor(cursor, dt);
+                    TickCursor(cursor, tickDt);
                     if (IsFinished || State != ExecutorState.Executing) return;
                 }
             }
@@ -393,6 +448,18 @@ namespace LivingWorldNpcs
             return "";
         }
 
+        /// <summary>当前步骤目标与执行者的距离（心跳日志用；无目标/未解析 → -1）。</summary>
+        private float GetStepTargetDistance()
+        {
+            var step = _selfCursor?.Current;
+            if (step == null || step.Target == null || OwnerAgent == null || !OwnerAgent.IsActive()) return -1f;
+            string refName = PlanRefUtil.Normalize(step.Target, out string query);
+            if (query != null) refName = query;
+            if (string.IsNullOrEmpty(refName)) return -1f;
+            if (!_world.TryResolvePosition(refName, OwnerAgent, out Vec3 pos)) return -1f;
+            return OwnerAgent.Position.Distance(pos);
+        }
+
         private void TickCursor(ActorCursor cursor, float dt)
         {
             // 循环段入口（loop 先于 steps 主链执行；§5.0 循环段）
@@ -481,6 +548,9 @@ namespace LivingWorldNpcs
             if (cursor.Inline != null)
             {
                 cursor.Inline.OnTick(dt);
+                // 内联步骤的 OnTick 可能同步完成计划（end_plan → Finish → ClearSubAction 清空 Inline），
+                // 此时 cursor.Inline 已为 null——直接返回，由 IsFinished 收尾，禁止二次解引用（NRE 修复）。
+                if (cursor.Inline == null) return;
                 if (cursor.Inline.Finished)
                 {
                     CompleteStep(cursor, step);

@@ -1251,7 +1251,7 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_intent"));
             sb.AppendLine(string.IsNullOrEmpty(intentTable) ? "DISTRACT/BRING/LOOKOUT/DELIVER/STEAL/ATTACK" : intentTable);
             sb.AppendLine();
-            // 计划语法纪律 18 条（文本在 XML LWN_plan_rules，py/C# 同源——改 prompt 只改 XML）
+            // 计划语法纪律 19 条（文本在 XML LWN_plan_rules，py/C# 同源——改 prompt 只改 XML）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_rules"));
             sb.AppendLine();
             if (!string.IsNullOrEmpty(grammarRules))

@@ -182,6 +182,7 @@ PRESET_COMMANDS = [
     ("把那醉鬼从我身边赶走", "DRIVE_AWAY", "赶走"),
     ("告诉他，我在老地方等他", "DELIVER", "传话"),
     ("缠住掌柜，我去翻那保管箱", "ENGAGE", "缠住"),
+    ("去找酒馆老板聊聊，探探口风", "TALK_TO", "找人提前失败 badcase（纪律 19）：目标在场应 move_to 去找；seeing-false contingency 无 sustained_s = 违规"),
     ("帮我把这封信翻译成拉丁文", "CUSTOM", "词表外拒绝"),
     ("把全村人都杀了", "ANNIHILATE", "清剿（模型可能自主拒绝）"),
 ]
@@ -267,6 +268,24 @@ def validate_plan(parsed):
                 issues.append(f"contingency.then 必须是字符串（跳转目标 id 或 @指令），实际是 {type(c['then']).__name__}")
             elif not c["then"].startswith("@") and c["then"] not in ids:
                 issues.append(f"悬空 contingency {c['then']}")
+    # 纪律 19（2026-08-08 实机 badcase："找人" 79ms 跳失败收尾）：
+    # seeing-false 类 contingency（掉线/丢目标检测）必须带 sustained_s 防抖——
+    # 无防抖 → 目标转头/视线短暂丢失即瞬间触发 → 整个计划被误杀。
+    for c in (pl.get("contingencies") or []):
+        if isinstance(c, dict) and isinstance(c.get("when"), dict):
+            w = c["when"]
+            if w.get("type") == "seeing" \
+                    and str(w.get("op") or "true").lower() == "false" \
+                    and not (w.get("sustained_s") or 0):
+                issues.append(f"contingency seeing-false 无 sustained_s 防抖（纪律 19：视线瞬时丢失误杀计划）")
+    # 纪律 20（2026-08-08 实机 badcase 二连：following(player,self,false) 79ms 开局触发）：
+    # following(A,B)=A 跟着 B；计划启动即停止跟随 → following-false 恒成立必触发 → 违规。
+    for c in (pl.get("contingencies") or []):
+        if isinstance(c, dict) and isinstance(c.get("when"), dict):
+            w = c["when"]
+            if w.get("type") == "following" \
+                    and str(w.get("op") or "true").lower() == "false":
+                issues.append(f"contingency following-false 恒成立必触发（纪律 20：计划启动即停止跟随）")
     # 失败跳转指向 success 收尾 = 谎报成功（只查"条件等待"步骤：带 until 的 wait/move_to 超时 =
     # 条件没达成 = 失败；纯时长等待（wait seconds，无 until）超时 = 等够了 = 完成，不算谎报）
     id2step = {}
