@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -70,7 +71,6 @@ namespace LivingWorldNpcs
 
     public class LLMService
     {
-        private string _apiKey;
         private readonly HttpClient _httpClient;
 
         // Instance
@@ -92,9 +92,10 @@ namespace LivingWorldNpcs
         private static LLMService _instance;
         private static readonly object _instanceLock = new object();
 
-        /// <summary>懒初始化单例：从 Settings（MCM 配置）读 API key。
-        /// 历史遗留：Initialize(apiKey) 全库无调用点，旧代码直接抛 "not initialized!" 被调用方 try-catch 吞掉静默降级
-        /// ——LLM 功能实际从未工作。现在首次访问时用 Settings.Instance.LLMApiKey 自动初始化。</summary>
+        /// <summary>懒初始化单例：首次访问时检查 Settings（MCM 配置）的 API key 非空（门控），
+        /// 无 key 抛异常 → 调用方 try-catch 静默降级（铁律 1）。
+        /// 🔴 key 不在构造时固化：Authorization 头每次请求从 Settings.Instance.LLMApiKey 现读（CallApiAsync），
+        /// 玩家在 MCM 修改 key 后下一个请求立即生效，无需重建实例（重建有竞态 + 非法 key 构造异常，2026-08-08 踩坑回滚）。</summary>
         public static LLMService Instance
         {
             get
@@ -108,7 +109,7 @@ namespace LivingWorldNpcs
                             var key = Settings.Instance?.LLMApiKey;
                             if (string.IsNullOrWhiteSpace(key))
                                 throw new Exception("LLMService not initialized: LLMApiKey 未配置（请在 Mod 选项中填写）");
-                            _instance = new LLMService(key);
+                            _instance = new LLMService();
                         }
                     }
                 }
@@ -232,19 +233,12 @@ namespace LivingWorldNpcs
         }
 
 
-        public static void Initialize(string apiKey)
+        public LLMService()
         {
-            _instance = new LLMService(apiKey);
-        }
-        public LLMService(string apiKey)
-        {
-
-            _apiKey = apiKey;
             _httpClient = new HttpClient();
             _httpClient.Timeout = TimeSpan.FromSeconds(30);
-            // 注意：Header 只需添加一次
-            _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-
+            // 🔴 不在构造时固化 Authorization 头：key 每次请求现读（CallApiAsync），
+            // MCM 修改即时生效；且非法 key 在构造时 Add header 可能抛（2026-08-08 实机踩坑）。
         }
 
         // 通用的聊天请求
@@ -347,36 +341,47 @@ namespace LivingWorldNpcs
                     }
 
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
-                    var response = await _httpClient.PostAsync(ApiUrl, content);
-
-                    // 检查 HTTP 状态码
-                    if (!response.IsSuccessStatusCode)
+                    // 🔴 key 每次请求现读（MCM 修改即时生效）：Authorization 头随请求动态构造，
+                    // 不依赖构造时固化的 DefaultRequestHeaders（旧 key 永不更新——正是玩家改 key 后 401 的根源）。
+                    // 空 key 在此 throw → 走下方 catch 重试 → 最终降级，与 getter 门控双保险。
+                    var key = Settings.Instance?.LLMApiKey;
+                    if (string.IsNullOrWhiteSpace(key))
+                        throw new Exception("LLMApiKey 未配置");
+                    using (var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl))
                     {
-                        if ((int)response.StatusCode >= 500 || (int)response.StatusCode == 429)
+                        request.Content = content;
+                        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+                        var response = await _httpClient.SendAsync(request);
+
+                        // 检查 HTTP 状态码
+                        if (!response.IsSuccessStatusCode)
                         {
-                            throw new HttpRequestException($"Server Error: {response.StatusCode}");
+                            if ((int)response.StatusCode >= 500 || (int)response.StatusCode == 429)
+                            {
+                                throw new HttpRequestException($"Server Error: {response.StatusCode}");
+                            }
+
+                            errorString = $"[NPC正在思考...] (Error: {response.StatusCode})";
+                            DebugLogger.Log($"大模型API报错: {errorString}");
+                            return errorString;
                         }
 
-                        errorString = $"[NPC正在思考...] (Error: {response.StatusCode})";
-                        DebugLogger.Log($"大模型API报错: {errorString}");
-                        return errorString;
+                        string responseString = await response.Content.ReadAsStringAsync();
+                        DebugLogger.Log($"大模型生成结果\n{responseString}");
+
+                        dynamic result = JsonConvert.DeserializeObject(responseString);
+                        string finalContent = result.choices[0].message.content.ToString().Trim();
+
+                        // 【核心修复】检查 Content 是否为空白
+                        if (string.IsNullOrWhiteSpace(finalContent))
+                        {
+                            // 如果是大模型抽风回了空格，我们抛出异常，强迫它进入 catch 块重试
+                            DebugLogger.Log($"Model returned empty whitespace.");
+                            throw new Exception("Model returned empty whitespace.");
+                        }
+
+                        return finalContent; // 成功拿到结果，直接返回
                     }
-
-                    string responseString = await response.Content.ReadAsStringAsync();
-                    DebugLogger.Log($"大模型生成结果\n{responseString}");
-
-                    dynamic result = JsonConvert.DeserializeObject(responseString);
-                    string finalContent = result.choices[0].message.content.ToString().Trim();
-
-                    // 【核心修复】检查 Content 是否为空白
-                    if (string.IsNullOrWhiteSpace(finalContent))
-                    {
-                        // 如果是大模型抽风回了空格，我们抛出异常，强迫它进入 catch 块重试
-                        DebugLogger.Log($"Model returned empty whitespace.");
-                        throw new Exception("Model returned empty whitespace.");
-                    }
-
-                    return finalContent; // 成功拿到结果，直接返回
                 }
                 catch (Exception ex)
                 {
