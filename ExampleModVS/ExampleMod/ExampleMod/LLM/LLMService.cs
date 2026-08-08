@@ -136,11 +136,9 @@ namespace LivingWorldNpcs
         }
 
         // ═══════════════════════════════════════════════════════════
-        // 连接测试与失败诊断（交付：Plot 玩法行显示/触发前验证 LLM 服务可达 + key 有效；
-        // 测试连接与正式服务共用同一套诊断 → 连不上时按原因给出明确反馈，铁律 6/设计哲学①）
+        // 连接测试与失败诊断（交付：MCM「测试连接」按钮手动验证 LLM 服务可达 + key 有效；
+        // 连不上时按原因给出明确反馈，铁律 6/设计哲学①）
         // ═══════════════════════════════════════════════════════════
-
-        public enum LLMConnectionState { Unknown, Ok, Failed }
 
         /// <summary>连接失败原因分类（玩家可理解的 5 种 + 兜底）。</summary>
         public enum LLMFailureReason
@@ -168,34 +166,11 @@ namespace LivingWorldNpcs
             return new LLMConnectionResult { Success = false, Reason = reason, Detail = detail };
         }
 
-        private static LLMConnectionState _connState = LLMConnectionState.Unknown;
-        private static DateTime _connTestedAt = DateTime.MinValue;
-        private const double ConnCacheSeconds = 300;   // 连接状态缓存 5 分钟（避免每帧/每次检查都发请求）
-
-        /// <summary>连接状态查询（玩法行显示/触发门控用）：Unknown 放行（首次未测不误杀），
-        /// Failed 且在缓存期内拒绝；Ok/过期自动重测由 <see cref="TestConnection"/> 或按钮刷新。</summary>
-        public static bool IsConnectionOk()
-        {
-            if (_connState == LLMConnectionState.Failed
-                && (DateTime.Now - _connTestedAt).TotalSeconds < ConnCacheSeconds)
-                return false;
-            return true;
-        }
-
-        /// <summary>配置变更后失效缓存（MCM setter 调用）——下次查询/测试重新验证。
-        /// ⚠️ 2026-08-08 曾尝试顺带重建 LLMService 实例（_instance = null 换新 key），
-        /// 实机出现新异常（非法 key 时 new LLMService 的 header Add 可能抛）→ 已回滚，只清连接状态缓存。</summary>
-        public static void InvalidateConnectionCache()
-        {
-            _connState = LLMConnectionState.Unknown;
-            _connTestedAt = DateTime.MinValue;
-        }
-
         /// <summary>发最小请求验证连接（BaseUrl 可达 + key 有效 + 模型存在），返回分类诊断结果。
         /// 用 1 token 的 chat/completions 而非 /models——OpenAI 兼容端点多支持前者，通用性最好。
         /// 🔴 同步实现（HttpWebRequest）：MCM 按钮回调在 UI 线程——async + GetResult 会死锁
         ///    （await continuation 回不了被阻塞的 UI 线程 → 10s 超时假失败，2026-08-08 实测）。
-        ///    同步版无 async 死锁概念：UI 冻结最长 10s（超时），结果进缓存，返回本次测试结果。
+        ///    同步版无 async 死锁概念：UI 冻结最长 10s（超时），返回本次测试结果。
         /// 不负责展示——展示统一走 <see cref="ShowConnectionMessage"/>（MCM 按钮 showSuccess:true）。</summary>
         public static LLMConnectionResult TestConnection()
         {
@@ -220,8 +195,6 @@ namespace LivingWorldNpcs
             if (cfg2 == null || !cfg2.IsLLMConfigured)
             {
                 DebugLogger.Log("[LLMTest] LLM 未配置完整，拒绝发起请求");
-                _connState = LLMConnectionState.Failed;
-                _connTestedAt = DateTime.Now;
                 return Fail(LLMFailureReason.NotConfigured, BuildMissingFieldsText());
             }
             try
@@ -249,8 +222,6 @@ namespace LivingWorldNpcs
                 using (var resp = (HttpWebResponse)req.GetResponse())
                 {
                     bool ok = (int)resp.StatusCode >= 200 && (int)resp.StatusCode < 300;
-                    _connState = ok ? LLMConnectionState.Ok : LLMConnectionState.Failed;
-                    _connTestedAt = DateTime.Now;
                     // HttpWebRequest 对 4xx/5xx 抛 WebException，正常返回即 2xx（3xx 自动跟随）
                     if (!ok)
                         return Fail(LLMFailureReason.Other, $"Unexpected status {(int)resp.StatusCode}");
@@ -274,8 +245,6 @@ namespace LivingWorldNpcs
                 }
                 DebugLogger.Log($"[LLMTest] 连接测试异常(HTTP {(status.HasValue ? (int)status.Value : 0)}): {ex.Message}\n{respBody}");
                 var r = ClassifyFailure(ex, status, respBody);
-                _connState = LLMConnectionState.Failed;
-                _connTestedAt = DateTime.Now;
                 return r;
             }
             catch (Exception ex)
@@ -283,8 +252,6 @@ namespace LivingWorldNpcs
                 // 网络层/DNS/超时/证书等非 HTTP 异常（完整异常落日志——类型+消息+栈）
                 DebugLogger.Log($"[LLMTest] 连接测试异常: {ex}");
                 var r = ClassifyFailure(ex, null, null);
-                _connState = LLMConnectionState.Failed;
-                _connTestedAt = DateTime.Now;
                 return r;
             }
         }

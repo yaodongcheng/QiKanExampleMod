@@ -58,17 +58,11 @@ namespace LivingWorldNpcs
         public static void Start(Agent companion)
         {
             if (companion == null || _isActive) return;
-            // 铁律 1：LLM 总闸（配置齐全 + 连接未失败——显示层已门控，此处兜底触发路径）
+            // 铁律 1：LLM 总闸（配置齐全——显示层已门控，此处兜底触发路径）
             if (!Settings.Instance.IsLLMConfigured)
             {
                 // 本地化：LLM 未配置提示（随从想不出主意）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_plan_no_llm", "The companion cannot think of a plan right now."), Colors.Red));
-                return;
-            }
-            if (!LLMService.IsConnectionOk())
-            {
-                // 本地化：LLM 连接失败提示（配置在但服务不可达/key 无效——MCM 可测试连接）
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_plan_no_conn", "LLM connection failed. Test it in Mod Options."), Colors.Red));
                 return;
             }
             var brain = AgentAIController.GetBrainForAgent(companion);
