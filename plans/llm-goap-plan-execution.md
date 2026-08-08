@@ -1,10 +1,26 @@
 # 密谋命令系统 v2 — 意图分类 + LLM 计划生成 + 确定性执行
 
-> **⚠️ 待办（2026-08-07/08 晚间迭代，✅ 全面收敛）**：
-> 1. **✅ 收敛**：v12 prompt + temperature 0.4 + **reasoning_effort: none** 为定稿（基础 10/11 + 压力 82%（修正期望后）/ 质量 6.66 ≈ 基准 / 延迟 avg 3.4s）。**四个方向验证完毕**：纪律加法到顶（v12）、纪律减法失败（v13=57%，回滚）、温度无差异（0.3=0.4）、reasoning 无收益（none=medium=90%，low=81%，medium 复杂任务延迟 14s/峰值 34s）。模型锁定 flash（性价比最高）+ 关思考 = 双重性价比最优。**prompt/参数侧无剩余杠杆**，剩余残余（分类轮间漂移/CUSTOM+plan/道德拒绝/schema）均有设计兜底
-> 2. **测试产物**：有效集 = v9-v14/v14b + rmed（reasoning 实验部分样本）；v4-v8/tmp_engage 归档至 `Debug/_archive_old_samples/`；v13 保留作失败对照
-> 3. **实机验证待做**（🔧实机项，与 LLM 回归互补）：`custom.plan_debug run` 动态执行 + 测试矩阵（多疑守卫/尽责守卫/村长拒绝/意外三连/停止键/模态/R4 豁免）——LLM 输出质量已达标，执行层行为需进游戏验证
-> 4. **本轮已改文件**（全部落盘 + build 通过）：`Scripts/test_llm_plan.py`（validator 全量检查 + 纪律 15-18 + 六示范 + flee 词表 + few-shot 补行 + `--temp`/`--reasoning` 参数）、`Scripts/test_llm_plan_stress.py`（--cmd 修复/expected=None/ANY/W2-W5 期望修正/ENGAGE 入集/`--temp`/`--reasoning` 透传）、`Scripts/compare_plan_quality.py`（默认目录 v11）、`Planner/PlanGrammar.cs`（contingencies/goal/triggers/loop.until 谓词校验）、`Planner/ReactiveAgent.cs`（flee 反应词 + ReactiveFleeAction）、`LLM/PromptBuilder.cs`（纪律 15-18 + 六示范 + 质量要求 4）、`Interaction/PlanCommandFlow.cs`（few-shot 补行/flee 词表/质量要求 4）、`plans/llm-goap-plan-execution.md`、`plans/rules/wheels.d/planner.md`
+> **⚠️ 待办（2026-08-08 更新，新 session 从这里继续）**：
+>
+> **顶部 5 点 prompt 批评 → 裁决（2026-08-08 已闭环，勿再当未解问题重做实验）**：
+> - 「语义过载/上下文淹没」+「负向禁止敏感度低」→ 实验②（v16 正面表达）= 85% 失败**已回滚**——该模型实测偏好「明确禁止」的强约束表述（与 v13 压缩同类教训），**18 条纪律原文保留，措辞层改动不再尝试**
+> - 「矛盾风险（steps≥5 vs 无限 wait）」→ 实验①（v15 保持型豁免）= **91% 历史最高**，矛盾已消除，保留
+> - 「可维护性噩梦」→ 已两步走：①词表数据驱动化（49abbd4 提交，`*InPromptOrder` 单一事实源 + `check_vocab_sync.py` 6/6）；②剩余唯一动作 = 下方待办 3（prompt 本地化改造，py/C# 同源）
+>
+> 1. ✅ **回滚提交核实（2026-08-08 本 session 完成）**：实验②回滚已提交——`Scripts/test_llm_plan.py` 最后改动在 df82148「更新代码」；`PromptBuilder.cs` 工作区与 HEAD 一致（`git status` 的 M 是 **stat 缓存幻影**，`git diff` 为空）。~~旧待办 5「未提交改动」~~ 实质了结；当前唯一未提交 = 本文档自身（本待办块）
+> 2. ✅ **回归确认（2026-08-08 完成）**：基础 `test_llm_plan.py` = **10/11**；stress `--rounds 2 --out Debug/llm_samples_v17` = **60/68（88%）**——v15/v17 样本 prompt 逐字节一致，差异在噪声带内，**回滚确认干净**。基线已写入「回归基线」v17 行
+> 3. ✅ **prompt 本地化改造（2026-08-08 完成）**：prompt 静态块已迁到 `ModuleData/Languages/CNs/std_LivingWorldNpcs_prompts.xml`（+11 个 `LWN_plan_*` key）。**关键设计变更（反编译发现）**：`TextObject` 的 Tokenizer 会把 `{…}` 当变量表达式解析、JSON 引号无 token 定义 → `FindTokenMatches` 失败 → **字符串从第一个 `{` 起被整体截断**——含 JSON 的模板块**不能走 `ResolveText`（TextObject）**，新增 `LWNTextHelper.ResolvePrompt(key)` **纯字典读取绕过 TextObject**（`InitializeEnglishFallback` 扩展扫描 `Languages/CNs/` 子目录）。**同源文本 = py 已测基线（91%）**：py 纪律 18 条为单行压缩版、BRING 模板为紧凑单行 JSON、标题为「计划语法纪律」——C# 原 18 行展开版/带注释多行模板**与 py 不同（文档旧称「2 处已知差异」已过时，实际差异更大），本次全部统一到 py 已测文本**（C# 运行时 prompt 由此向已测基线对齐）。验证：py 重构后与 v17 基线**逐字节一致（34/34 命令）**；`dotnet build` 0 错误；`validate_localization.py` 191→178（净减 13，剩余全存量，B 段新增已清零）；`check_vocab_sync.py` 一致；LLM 回归 9-10/11（噪声带内，失败全为记载残留类）。**以后改 prompt 文本只改 XML（py/C# 双端自动读取），词表动态拼接段仍在代码**
+> 4. **C# 侧实机验证**：词表动态化 + BuildGrammar 删质量要求后，C# 运行时 prompt 与基线有 2 处已知差异（意图表 +INTERACT/DISCREET、order_attack 括号注释位置）——进游戏 `custom.plan_debug snapshot` 确认无异常
+> 5. 🔧**实机验证（一直未做）**：`custom.plan_debug run` 动态执行 + 测试矩阵（多疑守卫/尽责守卫/村长拒绝/意外三连/停止键/模态/R4 豁免）
+> 6. **提交**：待办 2 回归确认、待办 3 本地化改造各自完成后随文档一并提交（提交信息注明对应版本基线）
+>
+> **✅ 已完成（2026-08-07/08 三轮迭代）**：
+> - 收敛定稿：v12 prompt + temp 0.4 + reasoning_effort none（四方向验证：纪律加/减/温度/思考）
+> - **实验①（保持型豁免 + 质量要求删重）：v15 stress = 62/68 = 91%（历史最高）**——消除"steps≥5 vs 无限 wait"矛盾 + 消除双份质量要求重复，**保留**
+> - **实验②（正面表达）：v16 = 58/68 = 85%，失败回滚**——该模型偏好"明确禁止"的强约束表述，正向"唯一合法出口"削弱约束感（与 v13 压缩失败同类教训）
+> - 可维护性重构：词表 `*InPromptOrder` 数组单一事实源 + `check_vocab_sync.py` 6/6 + §9.1 注册流程（已提交 49abbd4）
+> - reasoning 对比：none=medium=90% > low=81%，medium 延迟 14s/峰值 34s → 保持 none
+> - git 清理：431 个样本/pycache + .gitignore（已提交 8184f34）；样本归档 `Debug/_archive_old_samples/`
 
 > **状态**：✅ 已实施（2026-08-07，M1-M4 核心全部落地；LLM 链路已实测打通）
 > - 代码落地：`Planner/`（PlanGrammar/SceneSnapshot/RuntimeWorldState/PlanExecutor/InlineSteps/ReactiveAgent/PlanReplan + GoalTemplates）、`Interaction/PlanCommandFlow.cs`、`Debug/PlanDebugCommands.cs` + `Debug/PlanExamples/`（17 份示例 JSON）
@@ -73,7 +89,7 @@ python Scripts/test_llm_plan.py --json Debug/PlanExamples/A_DISTRACT.json
 python Scripts/compare_plan_quality.py Debug/llm_samples_v<N> Debug/llm_samples_v<N-1>
 ```
 
-**脚本职责**（`Scripts/test_llm_plan.py`）：读 MCM 配置（key 掩码）→ 构建与 C# `BuildPlanPrompt` 逐段同构的 prompt（意图表 + few-shot + 纪律 + 词表 + JSON 模板）→ `reasoning_effort: none` 发真实请求 → 模拟 `PlanValidator`（S1 跳转存在/S4 id 唯一/fallbacks 双层/动作词表+别名/say_to 字段名/**loop 内部全校验/谓词词表/谎报检查/zone 锚点纪律**）→ 汇总分类正确率。`test_llm_plan_stress.py` 同构但命令集覆盖 0.1/0.4/0.6 全谱系 33 命令，落盘每 case 的完整 prompt+output 供人工检查。
+**脚本职责**（`Scripts/test_llm_plan.py`）：读 MCM 配置（key 掩码）→ **prompt 静态块从 `ModuleData/Languages/CNs/std_LivingWorldNpcs_prompts.xml` 的 `LWN_plan_*` key 读取（与 C# `ResolvePrompt` 同源同语义——改 prompt 只改 XML）**，词表段用脚本内数组（check_vocab_sync.py 校验）→ 构建与 C# `BuildPlanPrompt` 逐段同构的 prompt（意图表 + few-shot + 纪律 + 词表 + JSON 模板）→ `reasoning_effort: none` 发真实请求 → 模拟 `PlanValidator`（S1 跳转存在/S4 id 唯一/fallbacks 双层/动作词表+别名/say_to 字段名/**loop 内部全校验/谓词词表/谎报检查/zone 锚点纪律**）→ 汇总分类正确率。`test_llm_plan_stress.py` 同构但命令集覆盖 0.1/0.4/0.6 全谱系 33 命令，落盘每 case 的完整 prompt+output 供人工检查。
 
 **回归基线（2026-08-07 实测，deepseek-v4-flash 关思考）**：
 - v9（旧 prompt）：基础 8/11、压力 49/66 = 74%；质量分 7.45（B 可执行 9.35/C 分支 9.47/D 对白 5.7/E 乐趣 4.62）
@@ -83,6 +99,9 @@ python Scripts/compare_plan_quality.py Debug/llm_samples_v<N> Debug/llm_samples_
 - **v13（prompt 减法实验，❌ 失败）**：纪律 18→12 压缩 + 示范 5→3 整合 → 基础 6/11、压力 39/68 = **57%（严重退化）**——**该模型需要完整明确的纪律文本，压缩/合并纪律 = 丢失关键细节（contingencies/triggers 结构对比、保持型细则等），不得再试**。已回滚（py 从 v12 样本 input_prompt 提取恢复，C# 反向 Edit 恢复）
 - v14（v12 复现验证）：基础 9/11、压力 55/68 = **80%**（≈ v12，复现成功，噪声范围内）；W2 期望修正（场景无郎中 → CUSTOM/澄清 = 地点纪律预期行为，同 W4/W5）
 - v14b（温度实验 0.3）：压力 56/68 = **82%**（与 0.4 持平——修正 W2 期望后 0.4=82%、0.3=82%，**温度不是轮间漂移的杠杆，保持 0.4**（与 C# LLMService 计划调用一致））
+- **v15（实验①：质量要求 1/6 保持型豁免 + 消除 BuildGrammar/BuildPlanPrompt 质量要求双份重复）：基础 10/11、压力 62/68 = 91%（历史最高）**——消除"steps≥5 vs 无限 wait"矛盾后保持型命令不再靠运气；剩余失败 = 分类漂移 SCOUT×2/道德拒绝/schema 残余
+- v16（实验②：负向禁止改写为正面肯定）：基础 8/11、压力 58/68 = **85%（回退 6 个百分点，已回滚）**——该模型偏好"明确禁止"的强约束表述，正向措辞削弱约束感（失败教训：与 v13 压缩同类，措辞层改动必须回归验证）
+- **v17（2026-08-08 回滚后确认）：基础 10/11、压力 60/68 = 88%**——**与 v15 的 prompt 逐字节一致（v15/v17 样本 input_prompt 逐命令 diff 34/34 零差异）**，62/68→60/68 差异在轮间噪声带（80-91%）内，**回滚确认干净**。失败 8 = 全为记载残留类：SCOUT“等我+侦察”漂移 WAIT ×2（残留①）/ 道德拒绝 ANNIHILATE→CUSTOM ×1（残留③）/ CUSTOM 仍出 plan（“把火把吹灭”→吹灭计划，残留②）/ schema 残余 ×4（GUARD×2+ENGAGE 的 trigger when 事件词当谓词 approach_by/player_suspicious_near（纪律 16 残余）、W12 订房 on_timeout 指向 success 谎报（纪律 12/13 残余））
 - **reasoning_effort 对比实验（2026-08-08，模型锁定 deepseek-v4-flash）**：none=10/11（90%，avg 3.4s）/ low=9/11（81%，avg 4.0s，**反而退化**——思考让模型偏离封闭词表纪律）/ medium=10/11（90%，简单命令 avg 3.3s 但复杂任务 stress 实测 **avg 14s、峰值 33.8s**）。**结论：保持 `reasoning_effort: none`**——flash 的思考模式对封闭词表 JSON 生成无质量收益（甚至 low 档违规），延迟 3-4 倍。模型（flash）+ 关思考 = 双重性价比最优
 - **收敛结论（2026-08-07/08 终版）**：四个方向全部验证完毕——①**纪律加法**（v9→v12）：74%→82% 有效，到顶（v12 实测继续加边际为负）；②**纪律减法**（v13）：57% 严重退化，**该模型需要完整明确的纪律文本，压缩=丢细节**；③**温度**（0.3 vs 0.4）：无差异；④**reasoning_effort**（none/low/medium）：无质量收益 + 延迟 3-4 倍，保持 none。**80-83% 是当前模型 + 当前 prompt 结构的稳定水平**。剩余失败 = ①分类轮间漂移（SCOUT"等我+侦察"归 WAIT、STOP"住手"归 ENGAGE、施法"变戏法"归 COMMOTION、case C 分工归 DISTRACT——few-shot 基准已尽力，模型随机性）②CUSTOM 分类仍出 plan（低频，2-3/68）③道德拒绝（ANNIHILATE，预期）④schema 残余（悬空/重复 id，运行时兜底）。**prompt/参数侧已全面收敛，无剩余杠杆**
 - **收敛结论（2026-08-07）**：79-83% 是当前模型（deepseek-v4-flash 关思考）在严格 validator 下的稳定水平——剩余失败 = ①分类轮间漂移（SCOUT"等我+侦察"归 WAIT、STOP"住手"归 ENGAGE、施法"变戏法"归 COMMOTION，few-shot 基准已尽力，模型随机性）②CUSTOM 分类仍出 plan（低频，3/68）③道德拒绝（ANNIHILATE，预期）④schema 残余（悬空/重复 id，运行时兜底）。**质量 vs 合规权衡**：纪律越严合规率越高（72%→83%），但模型过约束致表现力略降（质量分 7.45→6.66，仍 ≈ PlanExamples 6.76 基准）——合规优先（不可执行的漂亮计划 = 谎言，铁律 2）。**继续加纪律的边际收益为负（v12 实测），收敛；后续优化方向 = prompt 减法（压缩纪律、整合示范）而非加法**
