@@ -796,8 +796,8 @@ LLM prompt 模板示例：
 玩家与 NPC 对话
   ├─ 走原版对话选项 → 模式 A（永远可用）
   └─ 走 StoryDialog "【闲聊】" → 
-      ├─ Settings.Instance.IsLLMReady → 模式 C（LLM）
-      └─ IsLLMReady = false → 模式 B（CSV 模板）
+      ├─ Settings.Instance.IsLLMConfigured → 模式 C（LLM）
+      └─ IsLLMConfigured = false → 模式 B（CSV 模板）
 ```
 
 ---

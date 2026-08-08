@@ -34,7 +34,7 @@ PlanCommandFlow.StopPlan(companion);   // 当面冒泡 / 远距离密信，双�
 // custom.plan_debug snapshot / status / stop
 
 // 密谋对话壳入口（Plot 玩法行分发）
-PlanCommandFlow.Start(companion);       // 需 Settings.Instance.IsLLMReady（铁律 1 总闸）
+PlanCommandFlow.Start(companion);       // 需 Settings.Instance.IsLLMConfigured（铁律 1 总闸）
 ```
 
 **关键纪律**（踩过的坑）：

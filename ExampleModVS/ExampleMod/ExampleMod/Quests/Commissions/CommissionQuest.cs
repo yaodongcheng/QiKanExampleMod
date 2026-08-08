@@ -162,7 +162,7 @@ namespace LivingWorldNpcs
                 // 委托定金到账日志
                 AddLog(new TextObject(LWNTextHelper.ResolveCompound("LWN_quest_commission_deposit_received", "The {GOLD} denar deposit has been received.", ("GOLD", _data.DepositAmount.ToString()))));
 
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
                 _ = EnhanceFlavorText(_data.GetFlavorDescription());
 
             switch (_data.Category)
@@ -322,7 +322,7 @@ namespace LivingWorldNpcs
             }
 
             // 异步增强风味文本
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
                 _ = EnhanceFlavorText(_data.GetFlavorDescription());
 
             switch (_data.Category)

@@ -52,7 +52,7 @@ namespace LivingWorldNpcs
         private async Task Thinking()
         {
             // LLM 不可用时跳过 HTTP 调用，避免 30s 超时让 NPC 原地发呆
-            if (!Settings.Instance.IsLLMReady)
+            if (!Settings.Instance.IsLLMConfigured)
             {
                 memory.CurrentInitiative.JsonResponseOpening =
                     // LLM 降级开场白：NPC 警惕地看着玩家（对话中直接显示给玩家）
@@ -175,7 +175,7 @@ namespace LivingWorldNpcs
             if (InteractionMissionView.Instance != null && Agent.Main != null && InteractionMissionView.IsChatting == false)
             {
                 // LLM 不可用时：KCD2/老滚 风格的本地化质问 — 固定选项 + 确定后果
-                if (!Settings.Instance.IsLLMReady)
+                if (!Settings.Instance.IsLLMConfigured)
                 {
                     ShowVanillaConfrontation(agent);
                     return;

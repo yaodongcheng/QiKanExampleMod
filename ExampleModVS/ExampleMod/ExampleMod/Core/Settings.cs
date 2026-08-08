@@ -37,14 +37,14 @@ namespace LivingWorldNpcs
 
         // ── 玩家 LLM 配置（唯一来源 = MCM Mod 选项 UI，Core/MCMSettings.cs 写入）──
         // [JsonIgnore]：config.json 不再读取这些字段（删掉旧兜底，避免玩家在两个地方配置 LLM 产生误会）。
-        // 修改流程：选项 → Mod 选项 → Living World NPCs → LLM 配置 → 即时生效（IsLLMReady 调用点实时计算）。
+        // 修改流程：选项 → Mod 选项 → Living World NPCs → LLM 配置 → 即时生效（IsLLMConfigured 调用点实时计算）。
         [Newtonsoft.Json.JsonIgnore]
         public string LLMBaseUrl { get; set; } = "";
         [Newtonsoft.Json.JsonIgnore]
         public string LLMApiKey { get; set; } = "";
         [Newtonsoft.Json.JsonIgnore]
         public string LLMModel { get; set; } = "";
-        public bool IsLLMReady => !string.IsNullOrWhiteSpace(LLMBaseUrl)
+        public bool IsLLMConfigured => !string.IsNullOrWhiteSpace(LLMBaseUrl)
                                && !string.IsNullOrWhiteSpace(LLMApiKey)
                                && !string.IsNullOrWhiteSpace(LLMModel);
 

@@ -104,7 +104,7 @@ namespace LivingWorldNpcs
             if (agent == null) return "error: agent not found";
             var ex = PlanExecutor.GetExecutorFor(agent);
             if (ex == null) return $"{agent.Name} 当前无执行中的计划";
-            if (!Settings.Instance.IsLLMReady) return "error: LLM 未配置（IsLLMReady=false）";
+            if (!Settings.Instance.IsLLMConfigured) return "error: LLM 未配置（IsLLMConfigured=false）";
             if (string.IsNullOrEmpty(ex.OriginalCommand)) return "error: 无原命令（replan 上下文缺失）";
             ex.EventLog.Add($"{ex.Elapsed:F0}s: 调试强制 replan（步骤 {ex.SelfCursorIndex} 处）");
             ex.AbortForReplanDebug(PlanTexts.FightBrokeOut);

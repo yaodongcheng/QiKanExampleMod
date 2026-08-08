@@ -135,7 +135,7 @@ if (issue != null)
     
     // 2. 叙事来源（三层 fallback）：
     //    ① 查 NarrativeResolver → CSV 模板（按 issueTypeName + NPC性格 匹配）
-    //    ② CSV 未命中 + IsLLMReady → LLM 生成（prompt 含 vanillaExplanation）
+    //    ② CSV 未命中 + IsLLMConfigured → LLM 生成（prompt 含 vanillaExplanation）
     //    ③ 都不可用 → SceneSay 直接展示 vanillaExplanation（原版 TextObject 兜底）
     
     // 3. 展示选项：【接取】/【拒绝】

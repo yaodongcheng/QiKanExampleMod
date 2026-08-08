@@ -672,7 +672,7 @@ public class CommissionData
 | 委托发起人 | **必须有 HeroId 的持久 NPC**（要人/头人/领主/浪人），禁止模板 NPC | ✅ `Hero.AllAliveHeroes` + `IsAlive` 检查 |
 | 委托目标 | 指名类必须有 HeroId；区域/地点/物品类不需要特定人物 | ✅ `CommissionTargetType` 枚举区分 |
 | 场所系统 | 6 种场所（酒馆/要人宅/领主大厅/村庄/竞技场/帮派暗巷），酒馆万能入口 | ⚠️ 当前按 Occupation 近似，30%随机无视（模拟万能入口）。精确场景判断未做 |
-| LLM 角色 | **仅风味文本增强**（委托描述/变故通知），不参与玩法决策 | ✅ `Settings.Instance.IsLLMReady` 总闸，无 LLM 模板兜底 |
+| LLM 角色 | **仅风味文本增强**（委托描述/变故通知），不参与玩法决策 | ✅ `Settings.Instance.IsLLMConfigured` 总闸，无 LLM 模板兜底 |
 | 委托并行 | 最多 3-5 个同时进行 | ✅ 按 Trust 等级：陌生人 1 → 心腹 4 |
 | 多解法 | 战力/潜行/财力/技术/借力——全是游戏操作，不需要打字 | ⚠️ `ResolutionPath` 枚举 + `PickBestPath()` 推荐，但实际 gameplay 分支未实现 |
 | 失败惩罚 | 定金追讨→退还/拒还→恶名+结仇 | ✅ `ShowDepositRepaymentInquiry` 三选一：全退 / Charm减半 / 拒还+恶名 |

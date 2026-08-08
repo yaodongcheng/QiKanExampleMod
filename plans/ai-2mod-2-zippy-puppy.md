@@ -36,7 +36,7 @@
 
 **目标产物**：
 
-- **Mod A `LivingWorldNpcs`**—— **所有 .cs 代码 + 所有 GUI prefab 整体留下**，按职责重组目录；namespace 从 `ExampleMod.*` 统一改为 `LivingWorldNpcs.*`；PromptBuilder 中硬编码的"日本战国"字串参数化成 `Settings` 中的可配置字段（默认值=卡拉迪亚中性世界观），外加 LLM 功能用 `Settings.IsLLMReady` 总闸控制（玩家未配置自定义模型时降级到 vanilla 对话）。先发布、独立迭代，原版骑砍玩家直接装上就能玩。
+- **Mod A `LivingWorldNpcs`**—— **所有 .cs 代码 + 所有 GUI prefab 整体留下**，按职责重组目录；namespace 从 `ExampleMod.*` 统一改为 `LivingWorldNpcs.*`；PromptBuilder 中硬编码的"日本战国"字串参数化成 `Settings` 中的可配置字段（默认值=卡拉迪亚中性世界观），外加 LLM 功能用 `Settings.IsLLMConfigured` 总闸控制（玩家未配置自定义模型时降级到 vanilla 对话）。先发布、独立迭代，原版骑砍玩家直接装上就能玩。
 - **Mod B `TaikouContent`**（接管 ExampleMod 的 ModuleData）—— **纯内容包**：Shokuho XMLs、StoryJson 剧本、UpdateSettlementsOwner 补丁。一个 ~30 行的 DLL 用来在加载时设置 `Settings` 中的世界观相关字段和 ShokuhoCampaign GameType 注册。`<DependedModule Id="LivingWorldNpcs"/>`。
 
 ---
@@ -115,7 +115,7 @@ LLMService.Initialize("sk-db03887a984d43caaaf2d30767e81bcd");
 
 ```csharp
 // 在 LLMService 首次调用时：
-if (Settings.Instance.IsLLMReady)
+if (Settings.Instance.IsLLMConfigured)
     LLMService.Initialize(Settings.Instance.LLMApiKey);
 ```
 
@@ -143,7 +143,7 @@ public class Settings {
     public string LLMBaseUrl { get; set; } = "";
     public string LLMApiKey { get; set; } = "";
     public string LLMModel { get; set; } = "";
-    public bool IsLLMReady => !string.IsNullOrWhiteSpace(LLMBaseUrl)
+    public bool IsLLMConfigured => !string.IsNullOrWhiteSpace(LLMBaseUrl)
                            && !string.IsNullOrWhiteSpace(LLMApiKey)
                            && !string.IsNullOrWhiteSpace(LLMModel);
 
@@ -158,7 +158,7 @@ public class Settings {
 ```
 
 **设计原则**：
-- `config.json` 只管 LLM 连接三要素，默认全空 → `IsLLMReady=false` → 普通玩家无需任何配置
+- `config.json` 只管 LLM 连接三要素，默认全空 → `IsLLMConfigured=false` → 普通玩家无需任何配置
 - 世界观 flavor 不从 JSON 读——硬编码卡拉迪亚默认，Mod B 启动时用代码覆盖
 - 两条线完全解耦：LLM 是玩家的事，世界观是内容包的事
 - 以后接 MCM 时，MCM 只管 LLM 三个字段；世界观 flavor 也可暴露给 MCM 作为可选高级项
@@ -195,7 +195,7 @@ private static Settings S => Settings.Instance;
 
 **当前代码实际行为**（经核实）：
 
-| 按键 | 当前 | 需要 LLM？ | `!IsLLMReady` 时的处理 |
+| 按键 | 当前 | 需要 LLM？ | `!IsLLMConfigured` 时的处理 |
 |------|------|-----------|----------------------|
 | F | `StartVanillaConversation()` → 原版对话 | **不需要** | 无改动，本来就能用 |
 | G | `StartFreeConversationFlow()` → InteractionController → LLM | **需要** | 隐藏提示/不响应，或显示"请先配置 LLM" |
@@ -204,8 +204,8 @@ private static Settings S => Settings.Instance;
 **实际只需改一处**：[InteractionMissionView.cs](ExampleModVS/ExampleMod/ExampleMod/InteractionMissionView.cs) G 键入口：
 
 ```csharp
-// G 键：仅 IsLLMReady 时可用
-if (Settings.Instance.IsLLMReady)
+// G 键：仅 IsLLMConfigured 时可用
+if (Settings.Instance.IsLLMConfigured)
     _ = StartFreeConversationFlow(_lastFocusedAgent);
 else
     InformationManager.DisplayMessage(new InformationMessage("请先在 config.json 中配置 LLM 后方可使用自由聊天。"));
@@ -384,13 +384,13 @@ namespace TaikouContent {
 
 | 场景 | 期望 |
 |---|---|
-| 仅启用 A，未配置 LLM (IsLLMReady=false) | KCD2 提示工作；F 弹 **vanilla 骑砍对话**；偷窃/搜刮/翻脸/气泡/巡逻 AI 全部工作；社交事件框架空跑（无脚本输入） |
+| 仅启用 A，未配置 LLM (IsLLMConfigured=false) | KCD2 提示工作；F 弹 **vanilla 骑砍对话**；偷窃/搜刮/翻脸/气泡/巡逻 AI 全部工作；社交事件框架空跑（无脚本输入） |
 | 仅启用 A，配置了 LLM | F 弹 StoryDialogVM 走 LLM 自由聊天；G 自由聊；目击犯罪触发谈判；persona prompt 用卡拉迪亚中性字串 |
 | A + B，未配置 LLM | 行为同"仅 A 不配 LLM"；ShokuhoCampaign 选项可见，进入后氏族/英雄/补丁加载正常；LLM 路径降级 |
 | A + B，配置了 LLM | persona prompt 自动变为日本战国风格（Mod B 注入）；剧情/谈判/演出全部生效 |
 | 仅 B（不勾 A） | 启动器报缺失依赖 LivingWorldNpcs |
-| 仅启用 A、config.json 全空 → 启动 | IsLLMReady=false，不崩，走全部默认值 |
-| 玩家手动修改 config.json 设 LLM 三字段 | 重启后 IsLLMReady=true，LLM 功能自动启用 |
+| 仅启用 A、config.json 全空 → 启动 | IsLLMConfigured=false，不崩，走全部默认值 |
+| 玩家手动修改 config.json 设 LLM 三字段 | 重启后 IsLLMConfigured=true，LLM 功能自动启用 |
 | 玩家设了 LLM + 附带改了 Settings | LLM 可用；世界观经由 Mod B 注入（如有） |
 
 代码层验证：
