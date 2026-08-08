@@ -1,6 +1,11 @@
 using MCM.Abstractions.Attributes;
 using MCM.Abstractions.Attributes.v2;
 using MCM.Abstractions.Base.Global;
+using System;
+using System.Threading.Tasks;
+using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace LivingWorldNpcs
@@ -46,7 +51,7 @@ namespace LivingWorldNpcs
         public string LLMBaseUrl
         {
             get => Settings.Instance.LLMBaseUrl;
-            set => Settings.Instance.LLMBaseUrl = value;
+            set { Settings.Instance.LLMBaseUrl = value; LLMService.InvalidateConnectionCache(); }
         }
 
         [SettingPropertyText("{=LWN_mcm_llm_api_key}LLM API Key", Order = 3, RequireRestart = false,
@@ -55,7 +60,7 @@ namespace LivingWorldNpcs
         public string LLMApiKey
         {
             get => Settings.Instance.LLMApiKey;
-            set => Settings.Instance.LLMApiKey = value;
+            set { Settings.Instance.LLMApiKey = value; LLMService.InvalidateConnectionCache(); }
         }
 
         [SettingPropertyText("{=LWN_mcm_llm_model}LLM Model", Order = 2, RequireRestart = false,
@@ -64,7 +69,29 @@ namespace LivingWorldNpcs
         public string LLMModel
         {
             get => Settings.Instance.LLMModel;
-            set => Settings.Instance.LLMModel = value;
+            set { Settings.Instance.LLMModel = value; LLMService.InvalidateConnectionCache(); }
+        }
+
+        // ── LLM 连接测试按钮（交付：验证 BaseUrl 可达 + key 有效；结果飘字提示）──
+        // MCM 按钮 = Action 类型属性（PropertyReference.Type == typeof(Action) → SettingType.Button）；
+        // 回调同步等待测试（HttpClient 30s 超时兜底，UI 冻结最长 30s 可接受）。
+        [SettingPropertyButton("{=LWN_mcm_llm_test}Test LLM Connection", Order = 1, RequireRestart = false,
+            HintText = "{=LWN_mcm_llm_test_hint}Send a minimal request to verify the LLM service is reachable and the API key is valid.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public Action TestLLMConnection
+        {
+            // MCM CheckIsValid 要求非 Dropdown 属性必须 CanWrite（有 setter）——按钮动作在 getter，setter 留空
+            // 同步调用 LLMService.TestConnection（HttpWebRequest 10s 超时）：无 async 死锁问题，UI 冻结最长 10s
+            get => () =>
+            {
+                bool ok = LLMService.TestConnection();
+                InformationManager.DisplayMessage(new InformationMessage(
+                    ok
+                        ? LWNTextHelper.ResolveText("LWN_mcm_llm_test_ok", "LLM connection OK.")
+                        : LWNTextHelper.ResolveText("LWN_mcm_llm_test_fail", "LLM connection failed. Check the URL / API key / network."),
+                    ok ? Colors.Green : Colors.Red));
+            };
+            set { }
         }
 
         // ── 世界事件（透传核心 Settings）──

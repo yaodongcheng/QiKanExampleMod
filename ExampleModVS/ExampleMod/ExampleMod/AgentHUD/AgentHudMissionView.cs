@@ -306,6 +306,7 @@ namespace LivingWorldNpcs
             if (agent == null) return;
             if (Instance == null) return;
             Instance.AddSpeech(agent, text);
+            DebugLogger.Log($"[AgentSay] {agent.Name}: {text}");
         }
 
         /// <summary>静态快捷方法：按 StringId 让 Agent 说话</summary>

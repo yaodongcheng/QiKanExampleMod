@@ -513,6 +513,59 @@ namespace LivingWorldNpcs
             return result;
         }
 
+        /// <summary>
+        /// 计划质量诊断（纯报告：不拒收、不改动）——对照 prompt【输出质量要求】逐条打分，
+        /// 抓 Validate 结构校验覆盖不到的质量项。调用方（PlanExecutor.Create）打进 [PlanQuality] 日志，
+        /// 供人工/调试核对 LLM 输出是否达标；不参与执行决策。
+        /// </summary>
+        public static List<string> Diagnose(Plan plan, CommandIntentType intentType)
+        {
+            var notes = new List<string>();
+            if (plan == null) { notes.Add("plan 为 null"); return notes; }
+            bool keep = GoalTemplates.IsKeepType(intentType);
+
+            // 1. 主链步数（任务型 ≥4；保持型豁免——2-3 步无限保持即完整）
+            int mainSteps = plan.Steps?.Count ?? 0;
+            if (!keep && mainSteps < 4)
+                notes.Add($"任务型主链仅 {mainSteps} 步（要求 ≥4）");
+
+            // 2. fallbacks 数量（≥2 个预案）
+            int fbCount = plan.Fallbacks?.Count ?? 0;
+            if (fbCount < 2)
+                notes.Add($"预案仅 {fbCount} 个（要求 ≥2）");
+
+            // 3. 预案步数（每条 ≥2 步，含 end_plan + report）
+            if (plan.Fallbacks != null)
+                foreach (var entry in plan.Fallbacks)
+                    if (entry != null && entry.Count > 0 && entry.Count < 2)
+                        notes.Add($"预案 {entry[0].Id} 仅 {entry.Count} 步（要求 ≥2，含 end_plan+report）");
+
+            // 4. contingencies 数量（≥2 条：combat 必写 + 至少 1 条任务相关意外）
+            int ctCount = plan.Contingencies?.Count ?? 0;
+            if (ctCount < 2)
+                notes.Add($"contingencies 仅 {ctCount} 条（要求 ≥2）");
+
+            // 5. combat→abort 与 SPAR/DUEL 矛盾：切磋的正常进展就是战斗，开打即 abort = 计划自杀
+            if (plan.Contingencies != null
+                && (intentType == CommandIntentType.Spar || intentType == CommandIntentType.Duel))
+            {
+                foreach (var c in plan.Contingencies)
+                {
+                    if (c?.When != null && c.When.Type == "combat" && c.Then == "@abort_gracefully")
+                        notes.Add($"combat contingency 与 {intentType} 矛盾：一开打就 abort（切磋中战斗是正常进展）");
+                }
+            }
+
+            // 6. goal 纪律：任务型应有 goal（成功条件）；保持型不应设 goal（无限 wait + triggers）
+            bool hasGoal = plan.Goal != null;
+            if (!keep && !hasGoal)
+                notes.Add("任务型计划缺 goal（成功条件）");
+            if (keep && hasGoal)
+                notes.Add("保持型计划不应设 goal（保持型 = 无限 wait + triggers，玩家叫停结束）");
+
+            return notes;
+        }
+
         /// <summary>步骤级校验（§5.3）：未知动作/参数非法 → 返回 true = 丢弃该步（不拒收整单）。
         /// 已知动作的参数问题 → 钳制/修复 + 警告。</summary>
         private static bool ValidateStep(PlanStep s, PlanValidationResult result, HashSet<string> discardIds)

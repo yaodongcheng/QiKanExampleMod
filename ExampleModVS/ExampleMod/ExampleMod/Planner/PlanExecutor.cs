@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Newtonsoft.Json.Linq;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -155,6 +156,11 @@ namespace LivingWorldNpcs
                 foreach (var w in validation.Warnings)
                     DebugLogger.Log($"[PlanExecutor] 计划校验警告: {w}");
             }
+
+            // 质量诊断（纯报告，不拒收不改动）：对照输出质量要求逐条打分，
+            // 抓结构校验覆盖不到的质量项（步数/预案数/contingencies/combat 与 SPAR 矛盾/goal 纪律）
+            foreach (var d in PlanValidator.Diagnose(plan, parsed))
+                DebugLogger.Log($"[PlanQuality] {d}");
 
             var ex = new PlanExecutor
             {
@@ -377,6 +383,16 @@ namespace LivingWorldNpcs
         // 步骤执行
         // ═══════════════════════════════════════════════════════════
 
+        /// <summary>步骤目标的人类可读描述（日志用）：" → player" / " → query:nearest_enemy(self)" / 空。</summary>
+        private static string RenderStepTarget(PlanStep step)
+        {
+            if (step?.Target == null) return "";
+            if (step.Target.Type == JTokenType.String) return $" → {step.Target.ToString()}";
+            if (step.Target.Type == JTokenType.Object && step.Target["query"] != null)
+                return $" → query:{step.Target["query"]}";
+            return "";
+        }
+
         private void TickCursor(ActorCursor cursor, float dt)
         {
             // 循环段入口（loop 先于 steps 主链执行；§5.0 循环段）
@@ -440,9 +456,10 @@ namespace LivingWorldNpcs
             cursor.StepElapsed += dt;
             CurrentSummary = BuildStepSummary(step);
 
-            // 子动作/内联步骤创建
+            // 子动作/内联步骤创建（每步仅创建一次 → 恰好每步打一条开始日志）
             if (cursor.SubAction == null && cursor.Inline == null)
             {
+                DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: ▶ 步骤 {step.Id} 开始（{step.Action}{RenderStepTarget(step)}）");
                 if (!TryCreateSubAction(cursor, step))
                 {
                     // 创建失败（不可解析目标/未实现动作）→ 按超时处理（不静默）
@@ -495,6 +512,7 @@ namespace LivingWorldNpcs
             cursor.StepElapsed = 0f;
             _stepStartTime = Elapsed;
             _world.MarkStepComplete(step.Id, Elapsed);
+            DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {step.Id} 完成（{step.Action}）");
             // 事件队列不整体清空：步骤切换后，本步期间到达的决策事件（say_to 广播 → 守卫演算）留给下一步 on_event 消费
             // （消费逻辑按 _stepStartTime 过滤过期事件）
 
@@ -604,6 +622,7 @@ namespace LivingWorldNpcs
                 if (target == "@abort_gracefully") Abort(PlanTexts.Aborted);
                 return;
             }
+            DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 跳转 → {target}");
 
             // 优先找 fallback 入口（只允许跳入口步，S3）
             if (Plan.Fallbacks != null)
@@ -1006,6 +1025,7 @@ namespace LivingWorldNpcs
             State = state;
             EndMessage = message;
             IsFinished = true;
+            DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 计划结束（{state}）: {message}");
             foreach (var c in _cursors) c.ClearSubAction();
 
             if (silent || string.IsNullOrEmpty(message))
@@ -1141,9 +1161,12 @@ namespace LivingWorldNpcs
         internal static CommandIntentType ParseIntentType(string s)
         {
             if (string.IsNullOrEmpty(s)) return CommandIntentType.Custom;
+            // 下划线别名兼容：few-shot 里模型可能抄 TALK_TO/DRIVE_AWAY（下划线格式），
+            // 词表输出与解析都归一化到去掉下划线再匹配，两种写法都能解析。
+            string norm = s.Replace("_", "");
             foreach (CommandIntentType t in Enum.GetValues(typeof(CommandIntentType)))
             {
-                if (string.Equals(t.ToString(), s, StringComparison.OrdinalIgnoreCase)) return t;
+                if (string.Equals(t.ToString(), norm, StringComparison.OrdinalIgnoreCase)) return t;
             }
             return CommandIntentType.Custom;
         }

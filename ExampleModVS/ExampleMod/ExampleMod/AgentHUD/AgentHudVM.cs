@@ -79,6 +79,7 @@ namespace LivingWorldNpcs
 
             if (_cachedDuelLogic == null) _cachedDuelLogic = AttackTriggerMissionLogic.Instance;
 
+            // 🔴【废弃】虚拟血量血条显示（旧切磋方案 2026-08-08 否决，保留仅参考；新切磋方案不走此路径）
             if (_cachedDuelLogic != null)
             {
                 float? virtualHp = _cachedDuelLogic.GetVirtualHealth(TargetAgent);

@@ -289,26 +289,50 @@ namespace LivingWorldNpcs
         // Prompt 文本
         // ═══════════════════════════════════════════════════════════
 
-        /// <summary>快照 → prompt 纯相对语义文本（角色表 + 目标物 + 区域）。</summary>
+        /// <summary>快照 → prompt 纯相对语义文本（角色表 + 区域）。
+        /// 注意：可互动物件段已临时去掉——原生场景 121 个匿名「物件（object）」全是噪声，
+        /// 等按有意义 tag 重新设计后再恢复（收集逻辑 Objects/ClassifyObject 保留）。</summary>
         public string ToPromptText()
         {
             var sb = new StringBuilder();
+            var playerPos = Agent.Main?.Position ?? Vec3.Zero;
             sb.AppendLine($"【场景当前人员】（{Agents.Count} 人）");
-            foreach (var info in Agents)
+            // 同名同职业的模板 NPC 合并成一条（英雄逐条列）——省 token 且信息不丢：
+            // 同一名字分布在多处 → "×N：大概方位（最近-最远距离）"
+            foreach (var group in Agents.GroupBy(i => $"{i.DisplayName}|{i.Occupation}"))
             {
-                sb.Append("- ");
-                if (info.Role != null) sb.Append($"[{info.Role}] ");
-                sb.Append(info.DisplayName);
-                if (!string.IsNullOrEmpty(info.Occupation)) sb.Append($"（{info.Occupation}）");
-                sb.Append($"：{info.PositionDesc}，{info.FacingDesc}，{info.State}");
-                if (!string.IsNullOrEmpty(info.PersonalityHint)) sb.Append($"（{info.PersonalityHint}）");
-                sb.AppendLine();
-            }
-            if (Objects.Count > 0)
-            {
-                sb.AppendLine($"【场景可互动物件】（{Objects.Count} 个）");
-                foreach (var obj in Objects)
-                    sb.AppendLine($"- {obj.DisplayName}（{obj.Kind}）：{obj.PositionDesc}");
+                var list = group.ToList();
+                if (list.Count == 1)
+                {
+                    var info = list[0];
+                    sb.Append("- ");
+                    if (info.Role != null) sb.Append($"[{info.Role}] ");
+                    sb.Append(info.DisplayName);
+                    if (!string.IsNullOrEmpty(info.Occupation)) sb.Append($"（{info.Occupation}）");
+                    sb.Append($"：{info.PositionDesc}，{info.FacingDesc}，{info.State}");
+                    if (!string.IsNullOrEmpty(info.PersonalityHint)) sb.Append($"（{info.PersonalityHint}）");
+                    sb.AppendLine();
+                }
+                else
+                {
+                    // 合并行：名字 + 人数 + 方位范围（方向取首条，距离取组内最近/最远）
+                    sb.Append("- ");
+                    var role = list.FirstOrDefault(i => i.Role != null)?.Role;
+                    if (role != null) sb.Append($"[{role}] ");
+                    sb.Append(list[0].DisplayName);
+                    if (!string.IsNullOrEmpty(list[0].Occupation)) sb.Append($"（{list[0].Occupation}）");
+                    var dists = list
+                        .Where(i => i.Agent != null)
+                        .Select(i => i.Agent.Position.Distance(playerPos))
+                        .OrderBy(d => d)
+                        .ToList();
+                    string range = dists.Count == 1
+                        ? $"{dists[0]:F0}米"
+                        : $"{dists[0]:F0}-{dists[dists.Count - 1]:F0}米";
+                    string dirWord = DirWordOf(list[0].PositionDesc);
+                    sb.Append($"×{list.Count}：{dirWord}{range}");
+                    sb.AppendLine();
+                }
             }
             if (Zones.Count > 0)
             {
@@ -317,6 +341,15 @@ namespace LivingWorldNpcs
                     sb.AppendLine($"- {z.DisplayName ?? z.Id}：{BuildPositionDesc(z.Position, Agent.Main?.Position ?? Vec3.Zero)}");
             }
             return sb.ToString();
+        }
+
+        /// <summary>位置描述的方向词部分（"你西南侧4米" → "你西南侧"；"你身旁1米" → "你身旁"）。</summary>
+        private static string DirWordOf(string posDesc)
+        {
+            if (string.IsNullOrEmpty(posDesc)) return "";
+            int i = 0;
+            while (i < posDesc.Length && !char.IsDigit(posDesc[i])) i++;
+            return posDesc.Substring(0, i);
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -427,6 +460,7 @@ namespace LivingWorldNpcs
             {
                 var c = a.Character;
                 if (c == null) return "";
+                if (a == Agent.Main) return "";   // 玩家行已有 [player] 标记，不再打"有名人物"标签
                 if ((c as CharacterObject)?.HeroObject != null) return "有名人物";
                 string id = c.StringId ?? "";
                 if (id.Contains("guard")) return "守卫";
@@ -446,6 +480,7 @@ namespace LivingWorldNpcs
             {
                 var c = a.Character;
                 if (c == null) return "";
+                if (a == Agent.Main) return "";   // 玩家是命令者，不需要行为提示
                 if ((c as CharacterObject)?.HeroObject != null) return "有名人物，行为可观测";
                 string id = c.StringId ?? "";
                 if (id.Contains("guard")) return "尽职尽责，坚守岗位";

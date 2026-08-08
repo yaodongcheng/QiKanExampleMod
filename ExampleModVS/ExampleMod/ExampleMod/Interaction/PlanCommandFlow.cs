@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
@@ -13,15 +14,16 @@ using TaleWorlds.ScreenSystem;
 namespace LivingWorldNpcs
 {
     // ═══════════════════════════════════════════════════════════════
-    // PlanCommandFlow.cs — 密谋对话壳（§8 计划阶段 UX）
+    // PlanCommandFlow.cs — 密谋命令流程（§8 计划阶段 UX）
     //
-    // 流程：Plot 交互（G 长按）→ 对话壳开场 → 自由文本输入命令
+    // 流程：Plot 交互（G 长按）→ 随从冒泡开场 → 系统输入框（ShowTextInquiry）输入命令
     //     → 快照构建 + LLM 调用（意图分类 + 计划 + 可含 questions）
-    //     → 澄清轮（≤2 轮，追加上下文再调）→ 批准轮（同意/再想想/算了）
+    //     → 澄清轮（≤2 轮，冒泡问句 + 输入框回答追加上下文）→ 批准轮（系统弹窗 同意/算了）
     //     → order_execute_plan 下发（ReactiveAgent 反应计划一并应用）→ 确定性执行
     //
-    // 复用：StoryDialogVM（对话壳）+ ShowTextInquiry（自由输入，既有先例）
+    // 复用：ShowTextInquiry（自由输入）/ ShowInquiry（确认弹窗，既有先例）
     //       + LLMService（支持 temperature/max_tokens 4000）。
+    // 🔴 禁止 DialogChoice/StoryDialogVM——废弃对话系统；随从台词一律 AgentSay 头顶冒泡。
     // LLM 结果回主线程消费（Tick 轮询），避免后台线程动 UI。
     //
     // 铁律 1：IsLLMReady 总闸——不可用 → Plot 行不出现/点开提示"随从想不出主意"。
@@ -30,13 +32,13 @@ namespace LivingWorldNpcs
     public static class PlanCommandFlow
     {
         private static Agent _companion;
-        private static GauntletLayer _layer;
-        private static StoryDialogVM _vm;
         private static bool _isActive;
         private static bool _processing;
         private static string _command;
         private static readonly List<string> _history = new List<string>();
         private static int _clarifyRound;
+        private static bool _awaitingClarifyAnswer;   // 澄清轮：输入框回答要追加上下文
+        private static string _lastClarifyQ;           // 澄清轮：冒泡问句（历史记录用）
         private static PlanResponse _pendingResult;
         private static bool _resultReady;
 
@@ -56,11 +58,17 @@ namespace LivingWorldNpcs
         public static void Start(Agent companion)
         {
             if (companion == null || _isActive) return;
-            // 铁律 1：LLM 总闸
+            // 铁律 1：LLM 总闸（配置齐全 + 连接未失败——显示层已门控，此处兜底触发路径）
             if (!Settings.Instance.IsLLMReady)
             {
                 // 本地化：LLM 未配置提示（随从想不出主意）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_plan_no_llm", "The companion cannot think of a plan right now."), Colors.Red));
+                return;
+            }
+            if (!LLMService.IsConnectionOk())
+            {
+                // 本地化：LLM 连接失败提示（配置在但服务不可达/key 无效——MCM 可测试连接）
+                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_plan_no_conn", "LLM connection failed. Test it in Mod Options."), Colors.Red));
                 return;
             }
             var brain = AgentAIController.GetBrainForAgent(companion);
@@ -70,12 +78,13 @@ namespace LivingWorldNpcs
             _isActive = true;
             _processing = false;
             _clarifyRound = 0;
+            _awaitingClarifyAnswer = false;
             _command = null;
             _history.Clear();
 
-            OpenDialog();
-            // 本地化：密谋开场白（随从小声示意）
-            ShowCompanionLine(LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."));
+            EnableInputBlock();   // 密谋全程屏蔽 Input 快捷键，防输入框打字误触发（如 H 开面板）
+            // 本地化：密谋开场白（随从头顶冒泡示意）
+            AgentHudMissionView.AgentSay(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."));
             PromptForCommand();
         }
 
@@ -101,56 +110,62 @@ namespace LivingWorldNpcs
         }
 
         // ═══════════════════════════════════════════════════════════
-        // 对话壳
+        // 说话/弹窗（🔴 禁止 DialogChoice：台词一律 AgentSay 冒泡，选择一律系统弹窗）
         // ═══════════════════════════════════════════════════════════
 
-        private static void OpenDialog()
+        private static GauntletLayer _inputBlocker;   // 纯输入屏蔽层（无 UI）：密谋期间挡住 Input 系统快捷键误触
+
+        /// <summary>密谋全程屏蔽底层输入：inquiry 输入框打字时 H 等快捷键会穿透到 Input 系统
+        /// （误开面板/误触发监听）——旧 DialogChoice 层靠 InputRestrictions 屏蔽，拆掉后补回等效机制。
+        /// 不加载任何 movie（纯屏蔽层，不算废弃对话系统 UI）。</summary>
+        private static void EnableInputBlock()
         {
             var screen = ScreenManager.TopScreen as MissionScreen;
-            if (screen == null) return;
-            if (_layer == null)
+            if (screen == null || _inputBlocker != null) return;
+            _inputBlocker = V.NewLayer(1000);
+            screen.AddLayer(_inputBlocker);
+            _inputBlocker.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+        }
+
+        private static void DisableInputBlock()
+        {
+            var screen = ScreenManager.TopScreen as MissionScreen;
+            if (_inputBlocker != null && screen != null)
             {
-                _vm = new StoryDialogVM();
-                _layer = V.NewLayer(1000);
-                _layer.LoadMovie("DialogChoice", _vm);
-                screen.AddLayer(_layer);
-                _layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+                try { screen.RemoveLayer(_inputBlocker); } catch { }
             }
+            _inputBlocker = null;
         }
 
         private static void ShowCompanionLine(string text)
         {
-            if (_vm == null) return;
+            if (_companion == null) return;
             try
             {
-                _vm.Show(_companion?.Name?.ToString() ?? "", text);
+                AgentHudMissionView.AgentSay(_companion, text);
             }
             catch { }
         }
 
-        private static void ShowOptions(params StoryOptionVM[] options)
+        /// <summary>通用确认弹窗（是/否两按钮）。标题带随从名。</summary>
+        private static void ShowConfirm(string body, string okBtn, string cancelBtn,
+            Action onOk, Action onCancel)
         {
-            if (_vm == null) return;
-            try
-            {
-                _vm.ShowOptions(options);
-            }
-            catch { }
+            // 本地化：通用确认弹窗标题（含随从名）
+            string title = LWNTextHelper.ResolveCompound("LWN_plan_msg_title", ("NAME", _companion?.Name?.ToString() ?? ""));
+            InformationManager.ShowInquiry(new InquiryData(
+                title, body, true, true, okBtn, cancelBtn, onOk, onCancel));
         }
 
         private static void CloseDialog()
         {
-            var screen = ScreenManager.TopScreen as MissionScreen;
-            if (_layer != null && screen != null)
-            {
-                try { screen.RemoveLayer(_layer); } catch { }
-                _layer = null;
-            }
-            _vm = null;
             _isActive = false;
             _companion = null;
             _pendingResult = null;
             _resultReady = false;
+            _awaitingClarifyAnswer = false;
+            _lastClarifyQ = null;
+            DisableInputBlock();   // 解除输入屏蔽，恢复正常快捷键
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -179,9 +194,19 @@ namespace LivingWorldNpcs
                         CloseDialog();
                         return;
                     }
-                    _command = text;
+                    if (_awaitingClarifyAnswer)
+                    {
+                        // 澄清轮：回答追加到原命令再调 LLM
+                        _awaitingClarifyAnswer = false;
+                        _history.Add($"随从（澄清）：{_lastClarifyQ}\n玩家：{text}");
+                        _command = $"{_command}（{text}）";
+                    }
+                    else
+                    {
+                        _command = text;
+                    }
                     _processing = true;
-                    _ = CallPlanAsync(text);
+                    _ = CallPlanAsync(_command);
                 },
                 () =>
                 {
@@ -243,15 +268,16 @@ namespace LivingWorldNpcs
                 _processing = false;
                 // 本地化：LLM 失败降级（建议改述重试）
                 ShowCompanionLine(LWNTextHelper.ResolveText("LWN_plan_fail_llm", "I could not think of a plan. Tell me again in different words."));
-                // 本地化：重试选项
-                var retry = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_retry", "Try again"), () => PromptForCommand());
-                // 本地化：放弃选项
-                var giveUp = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind"), () => CloseDialog());
-                ShowOptions(retry, giveUp);
+                // 本地化：重试按钮
+                string retryBtn = LWNTextHelper.ResolveText("LWN_plan_btn_retry", "Try again");
+                // 本地化：放弃按钮
+                string giveUpBtn = LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind");
+                ShowConfirm(LWNTextHelper.ResolveText("LWN_plan_fail_llm", "I could not think of a plan. Tell me again in different words."),
+                    retryBtn, giveUpBtn, () => PromptForCommand(), () => CloseDialog());
                 return;
             }
 
-            // 澄清轮（意图歧义优先澄清，最多 2 轮）
+            // 澄清轮（意图歧义优先澄清，最多 2 轮）：冒泡问句 + 候选，输入框回答追加
             bool needsClarify = response.NeedsClarification
                 || (response.Questions != null && response.Questions.Count > 0);
             if (needsClarify && _clarifyRound < 2)
@@ -262,25 +288,14 @@ namespace LivingWorldNpcs
                 // 本地化：澄清轮默认问句
                 string qText = q?.Q ?? LWNTextHelper.ResolveText("LWN_plan_clarify_default", "What do you mean exactly?");
                 _history.Add($"玩家：{_command}");
-                ShowCompanionLine(qText);
-                var opts = new List<StoryOptionVM>();
-                if (q != null && q.Options != null)
-                {
-                    foreach (var opt in q.Options)
-                    {
-                        string optCopy = opt;
-                        opts.Add(new StoryOptionVM(opt, () =>
-                        {
-                            _history.Add($"随从（澄清）：{qText}\n玩家：{optCopy}");
-                            _command = $"{_command}（{optCopy}）";
-                            _processing = true;
-                            _ = CallPlanAsync(_command);
-                        }));
-                    }
-                }
-                // 本地化：放弃选项（澄清轮）
-                opts.Add(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind"), () => CloseDialog()));
-                ShowOptions(opts.ToArray());
+                // 冒泡：问句 + 候选列表（提示玩家怎么答）
+                string bubble = qText;
+                if (q != null && q.Options != null && q.Options.Count > 0)
+                    bubble += "\n" + string.Join(" / ", q.Options.Select(o => $"「{o}」"));
+                ShowCompanionLine(bubble);
+                _awaitingClarifyAnswer = true;
+                _lastClarifyQ = qText;
+                PromptForCommand();
                 return;
             }
             if (needsClarify && _clarifyRound >= 2)
@@ -289,8 +304,12 @@ namespace LivingWorldNpcs
                 _processing = false;
                 // 本地化：澄清超轮放弃
                 ShowCompanionLine(LWNTextHelper.ResolveText("LWN_plan_clarify_exhausted", "I still do not understand. Perhaps another time."));
-                // 本地化：放弃选项（超轮）
-                ShowOptions(new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind"), () => CloseDialog()));
+                // 本地化：重试按钮
+                string retryBtn = LWNTextHelper.ResolveText("LWN_plan_btn_retry", "Try again");
+                // 本地化：放弃按钮
+                string giveUpBtn = LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind");
+                ShowConfirm(LWNTextHelper.ResolveText("LWN_plan_clarify_exhausted", "I still do not understand. Perhaps another time."),
+                    retryBtn, giveUpBtn, () => PromptForCommand(), () => CloseDialog());
                 return;
             }
 
@@ -305,32 +324,31 @@ namespace LivingWorldNpcs
                     // 本地化：词表外命令诚实拒绝（缺省文案）
                     : LWNTextHelper.ResolveText("LWN_plan_custom_reject", "I cannot do this. Try something else.");
                 ShowCompanionLine(rejectText);
-                // 本地化：重试选项（词表外）
-                var retry = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_retry", "Try again"), () => PromptForCommand());
-                // 本地化：放弃选项（词表外）
-                var giveUp = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind"), () => CloseDialog());
-                ShowOptions(retry, giveUp);
+                // 本地化：重试按钮
+                string retryBtn = LWNTextHelper.ResolveText("LWN_plan_btn_retry", "Try again");
+                // 本地化：放弃按钮
+                string giveUpBtn = LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind");
+                ShowConfirm(rejectText, retryBtn, giveUpBtn, () => PromptForCommand(), () => CloseDialog());
                 return;
             }
 
-            // 批准轮
+            // 批准轮：系统确认弹窗（同意/算了，无第三选项）——不再用 DialogChoice 自绘选项列表。
+            // 玩家输入命令的 inquiry 发送后系统自动关闭，这里新开一个纯按钮 inquiry 承载确认。
             _processing = false;
             // 本地化：计划摘要缺省文案
             string summary = !string.IsNullOrEmpty(response.Plan?.Summary) ? response.Plan.Summary
                 // 本地化：计划摘要缺省文案（缺省）
                 : LWNTextHelper.ResolveText("LWN_plan_default_summary", "I have a plan. Shall I go?");
             string reply = !string.IsNullOrEmpty(response.Reply) ? response.Reply + "\n" : "";
-            ShowCompanionLine(reply + summary);            // 本地化：批准执行选项
-            var approve = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_approve", "Go ahead"), () => ApplyPlan(response));
-            // 本地化：再想想选项（回到输入框重说/追加修改意见）
-            var rethink = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_rethink", "Think again"), () =>
-            {
-                _history.Add($"玩家：{_command}");
-                PromptForCommand();
-            });
-            // 本地化：放弃选项（批准轮）
-            var giveUp2 = new StoryOptionVM(LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind"), () => CloseDialog());
-            ShowOptions(approve, rethink, giveUp2);
+            // 本地化：批准弹窗标题（含随从名）
+            string approveTitle = LWNTextHelper.ResolveCompound("LWN_plan_approve_title", ("NAME", _companion?.Name?.ToString() ?? ""));
+            // 本地化：同意按钮
+            string approveOkBtn = LWNTextHelper.ResolveText("LWN_plan_btn_approve", "Go ahead");
+            // 本地化：放弃按钮
+            string giveUpOkBtn = LWNTextHelper.ResolveText("LWN_plan_btn_giveup", "Never mind");
+            InformationManager.ShowInquiry(new InquiryData(
+                approveTitle, reply + summary, true, true, approveOkBtn, giveUpOkBtn,
+                () => ApplyPlan(response), () => CloseDialog()));
         }
 
         /// <summary>批准：应用反应计划 + 下发执行（§10 执行通道）。</summary>
@@ -387,9 +405,18 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var hero = (companion?.Character as CharacterObject)?.HeroObject;
-                if (hero != null && !string.IsNullOrWhiteSpace(hero.Name?.ToString()))
-                    return $"你是 {hero.Name}，{companion.Name} 的随从。说话简短、恭敬、务实，像游戏里的随从。";
+                // 主人 = 玩家（命令永远来自玩家）；companion 是随从自己——之前错把 companion.Name（随从名）当主人名
+                string masterName = Agent.Main?.Name ?? "";
+                string heroName = (companion?.Character as CharacterObject)?.HeroObject?.Name?.ToString() ?? "";
+                if (!string.IsNullOrWhiteSpace(heroName))
+                {
+                    if (string.IsNullOrWhiteSpace(masterName))
+                        return $"你是 {heroName}。说话简短、恭敬、务实，像游戏里的随从。";
+                    return $"你是 {heroName}，{masterName} 的随从。说话简短、恭敬、务实，像游戏里的随从。";
+                }
+                // 模板 NPC 无名 → 至少让模型知道主人是谁
+                if (!string.IsNullOrWhiteSpace(masterName))
+                    return $"你是 {masterName} 的随从。说话简短、务实，像游戏里的随从。";
             }
             catch { }
             return "你是一名随从。说话简短、务实，像游戏里的随从。";
@@ -452,11 +479,27 @@ namespace LivingWorldNpcs
                     .Select(t => t == CommandIntentType.Custom
                         ? "CUSTOM 词表外（现实做不到的动作：翻译/施法/修装备等 → 诚实拒绝）"
                         : IntentPhrases.TryGetValue(t, out var phrase)
-                            ? $"{t.ToString().ToUpperInvariant()} {phrase}"
-                            : t.ToString()));
+                            ? $"{IntentCode(t)} {phrase}"
+                            : IntentCode(t)));
             // few-shot 判定基准（分类示范知识）——静态文本在 XML（LWN_plan_intent_fewshot，py/C# 同源）：
             // 注册新意图时除 IntentPhrases 加行外，还须在 XML 的 LWN_plan_intent_fewshot 补判定基准行。
+            // 词表输出用 IntentCode（驼峰拆下划线大写，与 few-shot 的 TALK_TO/DRIVE_AWAY 写法一致）；
+            // 解析侧 ParseIntentType 兼容两者（见 PlanExecutor）。
             return table + "\n" + LWNTextHelper.ResolvePrompt("LWN_plan_intent_fewshot");
+        }
+
+        /// <summary>意图代码的规范写法：驼峰拆成下划线大写（TalkTo→TALK_TO、DriveAway→DRIVE_AWAY），
+        /// 与 few-shot 判定基准（XML）写法一致，避免模型抄到两种写法导致解析降级 CUSTOM。</summary>
+        private static string IntentCode(CommandIntentType t)
+        {
+            var name = t.ToString();
+            var sb = new StringBuilder();
+            for (int i = 0; i < name.Length; i++)
+            {
+                if (i > 0 && char.IsUpper(name[i])) sb.Append('_');
+                sb.Append(char.ToUpperInvariant(name[i]));
+            }
+            return sb.ToString();
         }
 
         private static string BuildGrammar()

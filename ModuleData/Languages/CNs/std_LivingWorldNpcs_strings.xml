@@ -2601,6 +2601,11 @@
     <!-- LLM 模型名 -->
     <string id="LWN_mcm_llm_model" text="LLM 模型" />
     <string id="LWN_mcm_llm_model_hint" text="要使用的模型名称，例如 gpt-4o-mini" />
+    <string id="LWN_mcm_llm_test" text="测试 LLM 连接" />
+    <string id="LWN_mcm_llm_test_hint" text="发送一个最小请求，验证 LLM 服务可达、API 密钥有效。" />
+    <string id="LWN_mcm_llm_test_ok" text="LLM 连接正常。" />
+    <string id="LWN_mcm_llm_test_fail" text="LLM 连接失败，请检查地址 / 密钥 / 网络。" />
+    <string id="LWN_mcm_llm_test_err" text="测试出错：{MSG}" />
     <!-- 复仇队开关 -->
     <string id="LWN_mcm_revenge_party" text="派出复仇队" />
     <string id="LWN_mcm_revenge_party_hint" text="开启后，被害一方可能在大地图派出复仇队（及打手队）追击嫌犯。关闭后这个世界不会派人追你。" />
@@ -3943,6 +3948,7 @@
     <string id="LWN_ui_interact_plot" text="密谋：下达命令" />
     <string id="LWN_ui_interact_stopplan" text="停止计划" />
     <string id="LWN_plan_no_llm" text="随从现在想不出主意。" />
+    <string id="LWN_plan_no_conn" text="LLM 连接失败，可在 Mod 选项中测试连接。" />
     <string id="LWN_plan_opening" text="小声——你说吧，我听着。" />
     <string id="LWN_plan_stop_face" text="是，这就收手。" />
     <string id="LWN_plan_stop_far" text="你远远地向随从打了个手势：停下。" />
@@ -3955,6 +3961,8 @@
     <string id="LWN_plan_clarify_exhausted" text="我还是没听明白，改日再说吧。" />
     <string id="LWN_plan_custom_reject" text="这个我做不来，你换个说法。" />
     <string id="LWN_plan_default_summary" text="我有个主意，要动手吗？" />
+    <string id="LWN_plan_approve_title" text="{NAME}想出了一个主意" />
+    <string id="LWN_plan_msg_title" text="{NAME}有话要说" />
     <string id="LWN_plan_btn_approve" text="同意，去办" />
     <string id="LWN_plan_btn_rethink" text="再想想" />
     <string id="LWN_plan_reject" text="这个我做不来。" />

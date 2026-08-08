@@ -190,6 +190,8 @@ namespace LivingWorldNpcs
             var oldArbiter = AttackTriggerMissionLogic.Instance;
             if (oldArbiter != null && Peace)
             {
+                // 🔴【废弃 2026-08-08】Peace=true → InitDuel 虚拟血量仲裁已被否决（旧切磋方案，
+                // 保留仅参考）。新切磋方案禁止走此分支——SPAR/DUEL 的"点到为止"另行设计。
                 oldArbiter.InitDuel(agentA, agentB);
             }
 

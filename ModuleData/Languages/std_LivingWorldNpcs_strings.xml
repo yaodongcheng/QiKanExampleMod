@@ -2511,6 +2511,11 @@
     <!-- LLM 模型名 -->
     <string id="LWN_mcm_llm_model" text="LLM Model" />
     <string id="LWN_mcm_llm_model_hint" text="The model name to use, e.g. gpt-4o-mini" />
+    <string id="LWN_mcm_llm_test" text="Test LLM Connection" />
+    <string id="LWN_mcm_llm_test_hint" text="Send a minimal request to verify the LLM service is reachable and the API key is valid." />
+    <string id="LWN_mcm_llm_test_ok" text="LLM connection OK." />
+    <string id="LWN_mcm_llm_test_fail" text="LLM connection failed. Check the URL / API key / network." />
+    <string id="LWN_mcm_llm_test_err" text="Test error: {MSG}" />
     <!-- 复仇队开关 -->
     <string id="LWN_mcm_revenge_party" text="Send Revenge Party" />
     <string id="LWN_mcm_revenge_party_hint" text="When enabled, the victim party may dispatch revenge parties (and thugs) to hunt down the suspect on the campaign map. Disable to keep the world from sending pursuers." />
@@ -3848,6 +3853,7 @@
     <string id="LWN_ui_interact_plot" text="Plot: give an order" />
     <string id="LWN_ui_interact_stopplan" text="Stop the plan" />
     <string id="LWN_plan_no_llm" text="The companion cannot think of a plan right now." />
+    <string id="LWN_plan_no_conn" text="LLM connection failed. Test it in Mod Options." />
     <string id="LWN_plan_opening" text="Quiet... tell me what you need." />
     <string id="LWN_plan_stop_face" text="As you say. Stopping." />
     <string id="LWN_plan_stop_far" text="You signal the companion from afar: stop what you are doing." />
@@ -3860,6 +3866,8 @@
     <string id="LWN_plan_clarify_exhausted" text="I still do not understand. Perhaps another time." />
     <string id="LWN_plan_custom_reject" text="I cannot do this. Try something else." />
     <string id="LWN_plan_default_summary" text="I have a plan. Shall I go?" />
+    <string id="LWN_plan_approve_title" text="{NAME} has a plan" />
+    <string id="LWN_plan_msg_title" text="{NAME} has something to say" />
     <string id="LWN_plan_btn_approve" text="Go ahead" />
     <string id="LWN_plan_btn_rethink" text="Think again" />
     <string id="LWN_plan_reject" text="I cannot do this." />
