@@ -112,8 +112,9 @@ namespace LivingWorldNpcs
             [InteractionIds.Inspect] = new InteractionBindingConfig { Keyboard = "H", Gamepad = "R3", PressMode = "Short" },
             [InteractionIds.StealAttempt] = new InteractionBindingConfig { Keyboard = "Space", Gamepad = "A", PressMode = "Short" },
             [InteractionIds.StealLeave] = new InteractionBindingConfig { Keyboard = "Tab", Gamepad = "B", PressMode = "Short" },
+            // 密谋/停止同键（G/LB 长按）：执行中显示 StopPlan、空闲显示 Plot，互斥保证不同时 available（LogBindingConflicts 零冲突）
             [InteractionIds.Plot] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
-            [InteractionIds.StopPlan] = new InteractionBindingConfig { Keyboard = "X", Gamepad = "Back", PressMode = "Short" },
+            [InteractionIds.StopPlan] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
         };
 
         /// <summary>玩法行配置（玩家在 config.json 覆盖/增删；PopulateObject 合并，删行 = 回落内置默认）。</summary>
