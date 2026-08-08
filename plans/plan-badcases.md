@@ -44,7 +44,19 @@
 - [ ] 执行器收编 AgentBrain 重构——闩锁 5 职责迁移表 + 多 actor 方案 + 接线改动清单，开 `plans/plan-executor-into-brain.md`
 
 **F. 发现新 badcase**
-- [ ] 按台账格式补录（编号顺延 BC-006）
+- [x] **BC-006 已补录**（2026-08-08）：目标对 spoken_to 只转头不开口（反应词表缺 respond）
+
+**G. BC-006 修复（已实施 v2+v3，待实机验证）**
+- [x] ① 反应词表加 `respond`（`ReactiveAgent.ReactionActionsInPromptOrder`，prompt 自动读到；py `REACTIVE_ACTIONS` 同步）——**v2 方案：respond = 实时 LLM 开口回应**（用户拍板：不用计划期预写 reply，每次说话发 LLM 请求更符合情景）
+- [x] ② `LLMService.ChatOnceAsync`（单次请求、2s 超时、失败静默 null；**429 → 10s 全局冷却**）——区别于 ChatAsync（3 次重试 + 弹连接提示），回应请求禁用重试
+- [x] ③ **v3 记忆整合（2026-08-08，用户要求整体考虑）**：`StartRespond` 上下文与写入统一走 `AllNpcMemoryManager.GetMemoryForAgent(目标)` 三层记忆（`RecentHistory`/`DynamicMemories`/`PermanentMemory`）——简易 `DialogueHistory` 退役；随从对话写入 `AddHistory(role, "名字: 台词", speakerId)`；上下文 = `PromptBuilder.GetPrompt_RespondContext`（按 SpeakerId 过滤 + 永久截断 200 字 + 动态 2 条）；**演算意图进 prompt**（score → 热情/正常/敷衍态度段）；`ChatMessage.SpeakerId` + `BuildPromptForSummary` 归因泛化（NPC-NPC 总结不再写成"和玩家聊过"）；`SuppressFailureAlerts`（随从对话触发记忆维护失败静默）
+- [x] ④ 默认模板补 tavernkeeper/merchant/chief（spoken_to → respond 高权重）
+- [x] ⑤ 本地化（EN/CN）：occupation 补 key、trait 描述、respond 模板台词、回应 prompt 骨架（含态度/记忆段）
+- [x] ⑥ prompt：`LWN_plan_exec` 执行要求注明 respond；BuildGrammar reactions 说明加 respond
+- [x] ⑦ 单句延迟实测（`Scripts/test_respond_latency.py`）：**5/5 达标（avg 1.34s / max 1.42s，2026-08-08 复验）**——2s 预算可行；首次请求偶发 3s+（降级模板兜住）
+- [x] ⑨ **v4 对话模式（2026-08-08，用户拍板：计划期只定话题走向、执行期双方实时生成）**：`say_to` 扩展——省略 text、带 `topic` + `outline`（2-5 段走向）= 多轮对话；`SayInlineState` 对话状态机（开场[LLM 生成]→广播[带走向段]→轮询目标记忆等回应→随从续话[LLM 生成]→…→走向完收尾）；随从侧 `GenerateCompanionLine`（2s 预算 + 走向模板 `LWN_plan_chat_fallback` 兜底）；`PlanGrammar.OutlineSegments` JToken 容错 + validator 2-5 段校验（非法退化单句）；prompt 纪律 11 + quality + `LWN_plan_example_chat` 示范（EN/CN）；回归实测 LLM 已生成 `text:null + topic + 4 段 outline` ✓；py validator 同步
+- [ ] ⑧ 实机验证：TALK_TO"找酒馆老板聊聊天" → 老板开口回应（LLM 实时台词，态度与演算一致）；老板能接住玩家/随从先前对话（RecentHistory 生效）；**对话模式 4-7 句来回（随从/老板每句 LLM 实时，走向推进自然结束）**；断网/429 → 降级模板无红字；回归后把 BC-006 状态改为「实机通过」
+- [x] ⚠️ **429 限流风险（实测发现，已对策）**：连续请求触发网关限流 → `ChatOnceAsync` 429 分支设 10s 全局冷却（冷却期内直接降级模板）+ 记忆维护静默参数（D4）
 
 ---
 
@@ -113,6 +125,23 @@
 - **【根因】** `EndPlanInlineState.OnTick` → `ApplyEndPlan` → `Finish` → `ClearSubAction` **把 cursor.Inline 置 null** → 返回后 `cursor.Inline.Finished` 二次解引用。**任何计划到达 end_plan 必崩**（执行器 bug，非 LLM）
 - **【修复】** TickCursor 内联驱动：`OnTick` 后判 `cursor.Inline == null → return`（由 IsFinished 收尾）
 - **【回归】** 执行器层修复，实机验证（无独立回归用例）
+
+### BC-006 反应词表缺"回应台词"——目标收到 spoken_to 只转头不开口（2026-08-08 实机）
+
+- **【命令/场景】** 「去找酒馆老板聊聊天」（TALK_TO）；随从走到酒馆老板面前冒泡搭话，老板全程无台词
+- **【日志证据】**（Debug/StoryEngine_RuntimeLog.txt 17:12 会话；随从 t2/t4 连说两句，老板两次同样表现）
+  ```
+  17:12:16.387 [Brain-Receive] 酒馆店主(Idx=3) 收到事件 'spoken_to'   ← 事件送达（不是"没收到"）
+  17:12:16.389 [Brain-Enqueue] 酒馆店主(Idx=3) 入队 LookAtAction     ← 反应 = listen（LLM 注入 0.8/ignore 0.2）
+  17:12:18.387 [Brain-Tick] 酒馆店主(Idx=3) 完成 LookAtAction        ← 看完 2 秒，全程无台词
+  ```
+- **【根因】** 三层：
+  - ① **反应动作词表缺"开口回应"动作（主根因）**——`ReactiveAgent.ReactionActionsInPromptOrder` 15 个动作里，`listen`/`consider` 实现 = `LookAtAction`（只看不说）、`ignore` = 不动，只有 `refuse`/`warn_away` 会开口。LLM 想表达"回应"也无词可用，只能写 listen/ignore → **目标永远不开口**。设计文档明确要求目标对 spoken_to **开口回应**（case B 村长"开口'找我什么事？'"、case I"原地回应'知道了'"、case E"搭话/回应"）——**实现缺口，非设计缺口**（TALK_TO 不是结算型，走反应表不走 §5.5 台本，判据见 §5.1 三种台词来源）
+  - ② **LLM 反应计划写 listen**：对 TALK_TO 场景给 tavernkeeper 写 `spoken_to → listen(0.8)/ignore(0.2)`——prompt 无"被搭话要回应"的示范，listen 是词表里最接近回应的动作
+  - ③ **默认模板职业缺口**：`DefaultResponses` 只有 guard/villager/drunkard 三职业；tavernkeeper/merchant/chief 无兜底模板——LLM 没写 responses 的 NPC 对 spoken_to 走 `TryHandleEvent` response==null 分支直接 return（仅 asked_to_follow 有 "…" 默认）
+- **【修复】**（v2，用户拍板：实时 LLM 而非计划期预写）① 反应词表加 `respond`（`ReactiveAgent` respond 分支 → `StartRespond` 发 LLM 请求：身份/人格 + 主题 + 对话历史 + 对方刚说 → `ChatOnceAsync` 单次 2s 预算 → 结果入队 → `TickAll` 主线程 `FaceToActor` + `AgentSay` 播放）② 降级链：LLM 未配置/超时/失败/回合超限 → 职业模板台词（`LWN_reactive_respond_*`，铁律 1）③ 默认模板补 tavernkeeper/merchant/chief ④ prompt `LWN_plan_exec` 注明"被搭话目标写 respond"；py `REACTIVE_ACTIONS` 同步 ⑤ 单句延迟实测脚本 `Scripts/test_respond_latency.py`（**429 限流中待跑**）
+- **【回归】** `test_llm_plan.py` 反应词表校验（respond ∈ REACTIVE_ACTIONS）+ `Scripts/test_respond_latency.py` 2s 预算实测 + 实机 TALK_TO 验证酒馆老板开口回应（LLM 实时台词；超时/限流降级模板）
+- **【附注】** 同会话 `[PlanQuality] 预案 t6 仅 1 步（要求 ≥2）` = LLM 质量不达标但未被拦截（质量要求是提示不是硬校验），另案跟进
 
 ### BC-004 tickDt 时间基准饿死（2026-08-08 实机，执行器 bug，非 LLM）
 

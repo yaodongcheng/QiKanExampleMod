@@ -45,8 +45,12 @@ namespace LivingWorldNpcs
 
         private readonly object _lock = new object();
 
-        //事件传闻
+        // 事件传闻
         public List<NewsSpreadSystem.KnownEvent> KnownEvents { get; set; } = new List<NewsSpreadSystem.KnownEvent>();
+
+        /// <summary>记忆维护失败时抑制玩家红字提示（§八/D4：随从对话触发的总结失败应静默，防打扰 + 防 429 弹窗）。
+        /// 玩家对话路径默认 false 保持现状（连接失败要明确告知）。</summary>
+        public bool SuppressFailureAlerts { get; set; }
 
         //人生目标
         public string CurrentGoal { get; set; } = "维持现状";
@@ -213,15 +217,20 @@ namespace LivingWorldNpcs
         }
 
 
-        public void AddHistory(string Role,string content)
+        public void AddHistory(string Role, string content)
+        {
+            AddHistory(Role, content, null);
+        }
+
+        /// <summary>带说话人标识写入对话历史（§八 任意人对话泛化）。</summary>
+        public void AddHistory(string Role, string content, string speakerId)
         {
             lock (_lock)
             {
-                RecentHistory.Add(new ChatMessage (Role,content));
+                RecentHistory.Add(new ChatMessage(Role, content, speakerId));
             }
 
             _ = MaintainMemoryAsync();
-
         }
 
         /// <summary>
@@ -386,8 +395,8 @@ namespace LivingWorldNpcs
 
 
                 string summaryPrompt = PromptBuilder.BuildPromptForSummary(this,messagesToSummarize);
-                // 获取 JSON 字符串
-                string jsonResponse = await LLMService.Instance.SummarizeAsync(summaryPrompt);
+                // 获取 JSON 字符串（静默参数：随从对话触发的总结失败不弹玩家红字，D4）
+                string jsonResponse = await LLMService.Instance.SummarizeAsync(summaryPrompt, showFailureAlert: !SuppressFailureAlerts);
                 string summaryContent;
                 jsonResponse = LLMService.CleanJson(jsonResponse);
                 LLSSummaryResponse response = null;
@@ -498,7 +507,7 @@ namespace LivingWorldNpcs
             string updatedPermMemory;
                 
                 
-            string jsonResponse = await LLMService.Instance.MergeMemoryAsync(systemPrompt);
+            string jsonResponse = await LLMService.Instance.MergeMemoryAsync(systemPrompt, showFailureAlert: !SuppressFailureAlerts);
             jsonResponse = LLMService.CleanJson(jsonResponse);
             LLSSummaryResponse response = null;
             try

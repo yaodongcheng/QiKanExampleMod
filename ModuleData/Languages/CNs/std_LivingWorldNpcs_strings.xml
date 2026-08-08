@@ -3976,6 +3976,14 @@
     <string id="LWN_plan_noise" text="嘿！这边！快来看这个！" />
     <string id="LWN_reactive_refuse" text="不行，这我做不了。" />
     <string id="LWN_reactive_warnaway" text="别靠近！再近我就不客气了。" />
+    <string id="LWN_reactive_respond_default" text="嗯，知道了。" />
+    <string id="LWN_reactive_respond_guard" text="站住，别跟我套近乎。" />
+    <string id="LWN_reactive_respond_tavernkeeper" text="这位客官想打听什么？" />
+    <string id="LWN_reactive_respond_merchant" text="什么事？忙着呢，长话短说。" />
+    <string id="LWN_reactive_respond_chief" text="嗯，说吧，我听着。" />
+    <string id="LWN_reactive_respond_villager" text="啊？你说啥？" />
+    <string id="LWN_reactive_respond_drunkard" text="嗝……你谁啊？" />
+    <string id="LWN_hud_far_say" text="（远处传来{NAME}的声音）：{TEXT}" />
     <string id="LWN_ui_commandintent_distract" text="引开" />
     <string id="LWN_ui_commandintent_bring" text="请人" />
     <string id="LWN_ui_commandintent_lookout" text="望风" />

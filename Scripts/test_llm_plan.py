@@ -50,7 +50,7 @@ REACTIVE_EVENTS = {
     "alone_with", "seen_speaking", "see_ally_killed",
 }
 REACTIVE_ACTIONS = {
-    "listen", "consider", "refuse", "follow_for_a_bit", "investigate",
+    "listen", "consider", "respond", "refuse", "follow_for_a_bit", "investigate",
     "return_post", "stare", "alert_raise", "attack", "call_guards",
     "ignore", "relay_message", "pay", "hand_over_item", "flee",
 }
@@ -155,7 +155,7 @@ _GRAMMAR_VOCAB = """【动作词表】move_to/follow/stop_following/order_attack
 
 【reactions 封闭词表（事件/动作严禁自创）】
 事件 event 只能写：approach_by / spoken_to / asked_to_follow / asked_to_stay / player_suspicious_near / see_crime / combat_nearby / left_post_seconds / alone_with / seen_speaking / see_ally_killed（注意是 approach_by，不是 approached_by）
-动作 action 只能写：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item / flee（flee = 看到同伴被杀等恐慌情境下跑离现场）"""
+动作 action 只能写：listen / consider / respond / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item / flee（flee = 看到同伴被杀等恐慌情境下跑离现场；respond = 被搭话时开口回应，台词实时生成）"""
 
 # 静态块（纪律/模板/示范/质量/执行）全部读 XML（单一事实源）
 GRAMMAR = (
@@ -238,8 +238,14 @@ def validate_plan(parsed):
             action = ACTION_ALIASES[action]
         if action not in ALLOWED_ACTIONS:
             issues.append(f"未知动作 {action}")
-        if s.get("action") == "say_to" and "text" not in s:
-            issues.append("say_to 缺 text 字段")
+        if s.get("action") == "say_to" and "text" not in s and "outline" not in s:
+            issues.append("say_to 缺 text 或 outline 字段")
+        if s.get("action") == "say_to" and "outline" in s:
+            ol = s["outline"]
+            if not isinstance(ol, list) or not all(isinstance(x, str) and x.strip() for x in ol):
+                issues.append("outline 必须是字符串数组（对话模式走向段）")
+            elif not (2 <= len(ol) <= 5):
+                issues.append(f"outline 段数必须 2-5，实际 {len(ol)}")
         if s.get("action") == "say_to" and s.get("ask") and s["ask"] != "follow":
             issues.append(f"ask 只允许 follow，实际 {s['ask']}")
         until = s.get("until")

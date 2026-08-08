@@ -244,6 +244,79 @@ namespace LivingWorldNpcs
             return sb.ToString();
         }
 
+        /// <summary>respond 实时回应的裁剪版记忆上下文（BC-006 v2 / plan D3）：
+        /// 永久记忆（截断 200 字）+ 动态记忆最新 2 条 + 与 otherId 相关的近期对话（最多 6 句，不足补最近行）。
+        /// 不复用 GetPrompt_History_Memory_Events（玩家对话全量版，对 2s 预算太重）。
+        /// otherId = 当前搭话方标识（Hero StringId / TEMP_AGENT 键），null = 不过滤。</summary>
+        public static string GetPrompt_RespondContext(SingNpcMemorySystem memory, string otherId)
+        {
+            if (memory == null) return "";
+            var sb = new StringBuilder();
+
+            // 1. 永久记忆（截断，防 token 膨胀拖慢 2s 预算）
+            if (memory.PermanentMemory.Length > 0)
+            {
+                string perm = memory.PermanentMemory.ToString();
+                if (perm.Length > 200) perm = perm.Substring(0, 200) + "…";
+                // LWN_plan_respond_section_perm：旧事段标题
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_plan_respond_section_perm", "【你记得的旧事】"));
+                sb.AppendLine(perm);
+            }
+
+            // 2. 动态记忆最新 2 条（LinkedList 正序 = 旧→新）
+            if (memory.DynamicMemories.Count > 0)
+            {
+                // LWN_plan_respond_section_recall：回忆段标题
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_plan_respond_section_recall", "【近期回忆】"));
+                var recent = memory.DynamicMemories.Last;
+                int shown = 0;
+                while (recent != null && shown < 2)
+                {
+                    if (!string.IsNullOrEmpty(recent.Value.Content))
+                    {
+                        sb.AppendLine("- " + recent.Value.Content);
+                        shown++;
+                    }
+                    recent = recent.Previous;
+                }
+            }
+
+            // 3. 近期对话：优先取与 otherId 相关的行（最多 6 句）；无 SpeakerId 的旧行（玩家对话）也保留；
+            //    不足 6 句 → 从最近行补足（保持上下文连续）
+            if (memory.RecentHistory.Count > 0)
+            {
+                var selected = new List<ChatMessage>();
+                for (int i = memory.RecentHistory.Count - 1; i >= 0 && selected.Count < 6; i--)
+                {
+                    var msg = memory.RecentHistory[i];
+                    if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
+                    if (string.IsNullOrEmpty(msg.SpeakerId) || msg.SpeakerId == otherId)
+                        selected.Insert(0, msg);
+                }
+                if (selected.Count < 6)
+                {
+                    for (int i = memory.RecentHistory.Count - 1; i >= 0 && selected.Count < 6; i--)
+                    {
+                        var msg = memory.RecentHistory[i];
+                        if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
+                        if (!selected.Contains(msg))
+                            selected.Insert(0, msg);
+                    }
+                }
+                if (selected.Count > 0)
+                {
+                    // 修复历史乱序（日志暴露）：过滤 + 补足收集后按时间戳排序（related 行与补足行交错）
+                    selected.Sort((a, b) => a.TimeStamp.CompareTo(b.TimeStamp));
+                    // LWN_plan_respond_section_history：对话历史段标题
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_plan_respond_section_history", "【对话历史】"));
+                    foreach (var msg in selected)
+                        sb.AppendLine("- " + msg.Content);
+                }
+            }
+
+            return sb.ToString();
+        }
+
         /// <summary>
         /// 委托记录 Tab 的文本。从 QuestHistory 读取，按时间倒序展示。
         /// </summary>
@@ -1011,8 +1084,11 @@ namespace LivingWorldNpcs
         {
             StringBuilder sb = new StringBuilder();
             string npcName = memory._profile.Name;
+            // 对方名字（§八 任意人对话泛化）：从对话记录提取第一个"非我"的说话人（Content 惯例"名字: 台词"），
+            // 不再硬编码 Agent.Main——NPC-NPC 对话（随从搭话）总结归因正确
+            string otherName = ExtractOtherSpeakerName(memory, messagesToSummarize);
             sb.AppendLine("【任务描述】");
-            sb.AppendLine($"你是{npcName}。你刚刚和{Agent.Main.Name}进行了一段对话。");
+            sb.AppendLine($"你是{npcName}。你刚刚和{otherName}进行了一段对话。");
             sb.AppendLine($"请你以【{npcName}】的视角，回忆并总结这段经历。30字以内：");
             sb.AppendLine("【对话记录】");
             foreach (var msg in messagesToSummarize)
@@ -1037,6 +1113,28 @@ namespace LivingWorldNpcs
 
 
             return sb.ToString();
+        }
+
+        /// <summary>从对话记录提取对方说话人名字（Content 惯例"名字: 台词"；排除本 NPC 自己）。
+        /// 玩家对话 = 玩家名；NPC-NPC 对话 = 随从名——总结归因泛化（§八）。</summary>
+        private static string ExtractOtherSpeakerName(SingNpcMemorySystem memory, List<ChatMessage> messages)
+        {
+            string npcName = memory._profile.Name;
+            if (messages == null) return "某人";
+            foreach (var msg in messages)
+            {
+                if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
+                string name = msg.Content;
+                int colon = name.IndexOf(':');
+                if (colon <= 0) colon = name.IndexOf('：');
+                if (colon > 0)
+                {
+                    string candidate = name.Substring(0, colon).Trim();
+                    if (!string.IsNullOrEmpty(candidate) && !candidate.Equals(npcName, StringComparison.OrdinalIgnoreCase))
+                        return candidate;
+                }
+            }
+            return "某人";
         }
 
         public static string BuildDirectorPrompt(ScreenPlayOutline outline)
