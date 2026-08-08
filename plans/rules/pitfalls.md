@@ -467,3 +467,50 @@ Tokenizer.FindTokenMatchesAndText
 ` 字面量 → 换行；缺 key → 日志 + 空串，不崩）。落地范例：`LLM/PromptBuilder.cs` `BuildPlanPrompt` 的 `LWN_plan_*` 静态块。
 - 玩家可见文本（无大括号）照常走 `ResolveText`。
 - 2026-08-08 排查记录：`plans/llm-goap-plan-execution.md` 顶部待办 3（本地化改造）。
+
+
+---
+
+## HttpWebRequest POST OpenAI 兼容网关 → 400 Bad Request（chunked 被 nginx 拒）
+
+**症状**：连接测试用 `HttpWebRequest` POST 到 OpenAI 兼容端点（雷火 ai.leihuo.netease.com 等）返回 `WebException: (400) Bad Request`；**同一 URL/key/body 用 curl 或 HttpClient 原样请求 → 200**（游戏内 ChatAsync 一直正常，仅测试按钮失败——"测试失败但生产正常"的假象）。
+
+**根因**（2026-08-08 另一 session 用 chunked 复现验证）：.NET Framework `HttpWebRequest` 用流写入请求体时**未显式设置 `ContentLength`** → 退化为 `Transfer-Encoding: chunked` 传输；部分 OpenAI 兼容网关的 nginx 前置**拒绝 chunked 请求** → 400。`HttpClient` 自动计算 Content-Length 所以不受影响；curl 也自动 Content-Length。
+
+```csharp
+// ❌ 旧写法（chunked → 400）：
+var body = JsonConvert.SerializeObject(...);
+using (var stream = req.GetRequestStream())
+using (var writer = new StreamWriter(stream, Encoding.UTF8))   // 无 ContentLength → chunked
+{ writer.Write(body); }
+
+// ✅ 正解：body 先转 UTF-8 字节数组 + 显式 ContentLength + 直接写字节流：
+var bodyBytes = Encoding.UTF8.GetBytes(body);
+req.ContentLength = bodyBytes.Length;   // 关键：显式声明长度，避免 chunked
+using (var stream = req.GetRequestStream())
+{ stream.Write(bodyBytes, 0, bodyBytes.Length); }
+```
+
+**规避**：
+- 用 `HttpWebRequest` 发带 body 的 POST → **必须显式设 `req.ContentLength`**（写字节数组，别用 StreamWriter 流式写）。
+- 更稳：请求通道与生产一致（`HttpClient`），测试通道不一致 = 假失败/假成功的温床（LLMService.TestConnection 注释有完整踩坑史，2026-08-08）。
+- 排查 HTTP 错误先读响应 body/用复现对比（curl vs 代码），别猜头（Expect/UA 均非根因，已实测排除）。
+
+**实机复现对照（2026-08-08 双版本验证）**：
+- 版本 A（提交 23e111b，HttpClient + `ConfigureAwait(false)` + `GetResult`）→ 连接**正常**（绿字"LLM 连接正常"，日志无异常）。
+- 版本 B（HttpWebRequest + StreamWriter 流式写、无 ContentLength）→ **400**（日志 `WebException: (400) Bad Request`）。
+- 版本 C（HttpWebRequest + `bodyBytes` + 显式 `ContentLength`）→ 连接**正常**。
+- **结论：同一同步方法，差别只在 ContentLength——chunked 是唯一变量**（其余 Expect/UA 等头均实测排除）。
+
+**异步机制的真实坑（`PostAsync(...).GetAwaiter().GetResult()` 在 UI 线程）**：
+- 版本 A 确实用了异步机制：async HttpClient 调用 + 同步阻塞等待（GetResult）。
+- **真实坑 = 死锁**：`GetAwaiter().GetResult()` 阻塞 UI 线程 → await 的 continuation 需要回 UI 线程执行（若没 `ConfigureAwait(false)`）→ 互相等待 → 死锁 → 请求永远不完成 → 10s 超时 `TaskCanceledException` → **假"连接失败"**（最初版本实测过此症状，代码注释有记录）。
+- **解法 = `ConfigureAwait(false)`**：continuation 改在线程池执行，不被 UI 线程阻塞 → 无死锁（版本 A 实测 F5 后绿字正常 = 死锁已解除）。
+- **结论：async + GetResult 不是不能用，但必须 `ConfigureAwait(false)`**；纯同步（HttpWebRequest）则完全绕开该问题——两个方向都验证可行。
+
+**「VS 弹出异常断点」的定性（2026-08-08 排查教训）**：
+- 症状：断点停住、**无 $exception**、**catch 日志未写**；F5 继续后一切正常（版本 A 实测绿字"LLM 连接正常"）。
+- 定性：**代码没有抛异常**——无 $exception（异常断点必有）、无 catch 日志（真抛会被 catch 记录）、F5 后正常（真抛会红字/失败）。这是 VS「抛出时中断（Thrown）」断点命中了**游戏其他代码**（引擎/其他 mod 每天大量被 try-catch 捕获的常规异常），停住时显示位置 = 当前正在查看的代码行，与异常实际位置无关。
+- 与异步机制**无关**：版本 A（异步）与版本 B/C（纯同步）都弹过——弹不弹取决于 VS 异常设置，不取决于代码写法。
+- 辨识三步：① 看调用堆栈顶部帧是不是当前方法（多半不是）② 看 $exception 是否存在（无 = 不是该帧异常）③ F5 继续看是否正常（正常 = 无 bug）。
+- 规避：VS 异常设置只留 User-unhandled；代码侧 catch 全打日志——日志无痕 = 无异常。
