@@ -1222,24 +1222,33 @@ namespace LivingWorldNpcs
             string history, string intentTable, string grammarRules)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("【世界观】" + S.WorldDescription);
+            // 世界观段标题（XML LWN_plan_section_world，双语）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + S.WorldDescription);
             sb.AppendLine();
-            sb.AppendLine("【当前场景】");
-            sb.AppendLine(string.IsNullOrEmpty(snapshotText) ? "（无场景信息）" : snapshotText);
+            // 当前场景段标题（XML LWN_plan_section_scene）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_scene"));
+            // 场景快照为空时的兜底文案（XML LWN_plan_section_scene_empty）
+            sb.AppendLine(string.IsNullOrEmpty(snapshotText) ? LWNTextHelper.ResolvePrompt("LWN_plan_section_scene_empty") : snapshotText);
             sb.AppendLine();
-            sb.AppendLine("【你的身份】");
+            // 身份段标题（XML LWN_plan_section_identity）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_identity"));
+            // 默认随从人设（XML LWN_plan_identity_default）
             sb.AppendLine(string.IsNullOrEmpty(persona) ? LWNTextHelper.ResolvePrompt("LWN_plan_identity_default") : persona);
             sb.AppendLine();
-            sb.AppendLine("【玩家命令】");
-            sb.AppendLine(string.IsNullOrEmpty(command) ? "（玩家还没有下达命令）" : command);
+            // 玩家命令段标题（XML LWN_plan_section_command）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_command"));
+            // 命令为空时的兜底文案（XML LWN_plan_section_command_empty）
+            sb.AppendLine(string.IsNullOrEmpty(command) ? LWNTextHelper.ResolvePrompt("LWN_plan_section_command_empty") : command);
             sb.AppendLine();
             if (!string.IsNullOrEmpty(history))
             {
-                sb.AppendLine("【澄清历史】（之前的对话，追加改述时参考）");
+                // 澄清历史段标题（XML LWN_plan_section_history）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_history"));
                 sb.AppendLine(history);
                 sb.AppendLine();
             }
-            sb.AppendLine("【意图分类】你只能从以下意图中选择 intent_type（严禁创造未定义类型）：");
+            // 意图分类段标题（XML LWN_plan_section_intent；意图列表为动态拼接段，不进 XML）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_intent"));
             sb.AppendLine(string.IsNullOrEmpty(intentTable) ? "DISTRACT/BRING/LOOKOUT/DELIVER/STEAL/ATTACK" : intentTable);
             sb.AppendLine();
             // 计划语法纪律 18 条（文本在 XML LWN_plan_rules，py/C# 同源——改 prompt 只改 XML）
@@ -1247,7 +1256,8 @@ namespace LivingWorldNpcs
             sb.AppendLine();
             if (!string.IsNullOrEmpty(grammarRules))
             {
-                sb.AppendLine("【动作词表与谓词词表】");
+                // 动作/谓词词表段标题（XML LWN_plan_section_grammar；词表内容为动态拼接段）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_grammar"));
                 sb.AppendLine(grammarRules);
                 sb.AppendLine();
             }

@@ -27,20 +27,23 @@ namespace LivingWorldNpcs
     public static class LWNTextHelper
     {
         /// <summary>
-        /// English fallback 字典：key → English text（从 std_LivingWorldNpcs_strings.xml 加载）。
+        /// 按语言分桶的 fallback 字典：语言 id → (key → text)。
+        /// 语言 id 来源：Languages/ 根目录 = "English"（LanguageData id 惯例）；子目录（CNs 等）
+        /// 读各自 language_data.xml 的 id（如 "简体中文"）。
         /// 引擎对 English 语言直接使用 C# fallback 文本，不查 XML 翻译表，
         /// 因此必须在启动时加载此字典，为所有无显式 fallback 的调用提供英文兜底。
         /// </summary>
-        private static Dictionary<string, string> _englishFallback;
+        private static Dictionary<string, Dictionary<string, string>> _langFallbacks =
+            new Dictionary<string, Dictionary<string, string>>();
 
         /// <summary>
-        /// 从 Languages/ 根目录扫描所有 std_*.xml（string + prompts 等），加载为 English fallback 字典。
+        /// 扫描 Languages/ 全部语言文件（根目录 = English + 各语言子目录），按语言分桶加载。
         /// 必须在 OnSubModuleLoad 中调用。
         /// </summary>
         /// <param name="modulePath">模块根目录路径（ModuleHelper.GetModuleFullPath("LivingWorldNpcs")）</param>
         public static void InitializeEnglishFallback(string modulePath)
         {
-            _englishFallback = new Dictionary<string, string>();
+            _langFallbacks.Clear();
             string langDir = Path.Combine(modulePath, "ModuleData", "Languages");
 
             if (!Directory.Exists(langDir))
@@ -49,17 +52,42 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // Scan ALL std_*.xml files in the root Languages/ directory
-            var xmlFiles = new List<string>(Directory.GetFiles(langDir, "std_*.xml", SearchOption.TopDirectoryOnly));
-            // 语言子目录（CNs 等）内的 std_*.xml 也纳入——prompts XML（std_LivingWorldNpcs_prompts.xml）
-            // 位于 Languages/CNs/ 下，其 LWN_plan_* key 需被 ResolvePrompt 读到（py/C# 同源）。
+            // 根目录 = English 语言（LanguageData id="English" 惯例，见 Languages/language_data.xml）
+            LoadXmlsIntoLang(langDir, "English");
+            // 各语言子目录（CNs 等）→ 读各自 language_data.xml 的 id 作桶名
             foreach (string subDir in Directory.GetDirectories(langDir))
             {
-                xmlFiles.AddRange(Directory.GetFiles(subDir, "std_*.xml", SearchOption.TopDirectoryOnly));
+                string langId = ReadLanguageDataId(subDir);
+                if (!string.IsNullOrEmpty(langId))
+                {
+                    LoadXmlsIntoLang(subDir, langId);
+                }
             }
-            int totalCount = 0;
+        }
 
-            foreach (string xmlPath in xmlFiles)
+        /// <summary>读取语言子目录 language_data.xml 的 LanguageData id（如 "简体中文"）。</summary>
+        private static string ReadLanguageDataId(string subDir)
+        {
+            string ldPath = Path.Combine(subDir, "language_data.xml");
+            if (!File.Exists(ldPath)) return null;
+            try
+            {
+                var doc = new XmlDocument();
+                doc.Load(ldPath);
+                return doc.DocumentElement?.GetAttribute("id");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"LWNTextHelper: Failed to read language id from {ldPath}: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>加载一个语言目录的全部 std_*.xml 进对应桶。</summary>
+        private static void LoadXmlsIntoLang(string dir, string langId)
+        {
+            var dict = new Dictionary<string, string>();
+            foreach (string xmlPath in Directory.GetFiles(dir, "std_*.xml", SearchOption.TopDirectoryOnly))
             {
                 try
                 {
@@ -69,7 +97,6 @@ namespace LivingWorldNpcs
                     var stringsNode = doc.SelectSingleNode("base/strings") ?? doc.SelectSingleNode("//strings");
                     if (stringsNode == null) continue;
 
-                    int fileCount = 0;
                     foreach (XmlNode node in stringsNode.ChildNodes)
                     {
                         if (node.Name == "string" && node.NodeType != XmlNodeType.Comment && node.Attributes != null)
@@ -78,28 +105,26 @@ namespace LivingWorldNpcs
                             string text = node.Attributes["text"]?.Value;
                             if (!string.IsNullOrEmpty(id) && text != null)
                             {
-                                _englishFallback[id] = text;
-                                fileCount++;
+                                dict[id] = text;
                             }
                         }
                     }
-                    totalCount += fileCount;
                 }
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"LWNTextHelper: Failed to load {Path.GetFileName(xmlPath)}: {ex.Message}");
                 }
             }
-
-            DebugLogger.Log($"LWNTextHelper: Loaded {totalCount} English fallback entries from {xmlFiles.Count} files");
+            _langFallbacks[langId] = dict;
+            DebugLogger.Log($"LWNTextHelper: Loaded {dict.Count} entries for language {langId}");
         }
 
         /// <summary>
-        /// 从 English fallback 字典取 key 对应的英文文本。未加载或 key 不存在返回 null。
+        /// 从 English 语言桶取 key 对应的英文文本。未加载或 key 不存在返回 null。
         /// </summary>
         private static string GetEnglishFallback(string key)
         {
-            if (_englishFallback != null && _englishFallback.TryGetValue(key, out string text))
+            if (_langFallbacks.TryGetValue("English", out var dict) && dict.TryGetValue(key, out string text))
                 return text;
             return null;
         }
@@ -132,14 +157,26 @@ namespace LivingWorldNpcs
         /// 为什么必须绕过 TextObject：prompt 静态块含大量 JSON 大括号（{"type": ...}），
         /// TextObject 的 Tokenizer 会把 {…} 当变量表达式解析，而 JSON 引号没有对应 token
         /// 定义 → FindTokenMatches 失败 → 字符串从第一个 { 起被整体截断（TaleWorlds.Localization
-        /// Tokenizer 实测）。prompt 是 LLM 输入（铁律 13 豁免项），无需本地化渲染，
-        /// 直接从 English fallback 字典（启动时加载全部 std_*.xml，含 Languages/CNs/）取原文。
+        /// Tokenizer 实测，见 plans/rules/pitfalls.md）。
+        /// prompt 是 LLM 输入（铁律 13 豁免项），无需本地化渲染，直接从语言分桶字典取原文。
+        /// 语言链：当前语言（MBTextManager.ActiveTextLanguage，如 "简体中文"/"English"）→ English 桶 → 空。
         /// 缺 key → 日志警告 + 返回空串（铁律 1：不崩，prompt 缺段降级，日志可查）。
-        /// 与 py 测试脚本（Scripts/test_llm_plan.py _load_plan_prompts）同源同语义。
+        /// 与 py 测试脚本（Scripts/test_llm_plan.py _load_plan_prompts，读 CNs 中文）同源同语义。
         /// </summary>
         public static string ResolvePrompt(string key)
         {
-            string raw = GetEnglishFallback(key);
+            string raw = null;
+            string langId = MBTextManager.ActiveTextLanguage;
+            if (!string.IsNullOrEmpty(langId)
+                && _langFallbacks.TryGetValue(langId, out var dict)
+                && dict.TryGetValue(key, out raw))
+            {
+                // 当前语言命中
+            }
+            else
+            {
+                raw = GetEnglishFallback(key);
+            }
             if (raw == null)
             {
                 DebugLogger.Log($"LWNTextHelper: prompt key 缺失: {key}（该 prompt 段将缺失）");
