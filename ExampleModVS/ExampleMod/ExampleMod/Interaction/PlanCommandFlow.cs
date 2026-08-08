@@ -454,23 +454,9 @@ namespace LivingWorldNpcs
                         : IntentPhrases.TryGetValue(t, out var phrase)
                             ? $"{t.ToString().ToUpperInvariant()} {phrase}"
                             : t.ToString()));
-            // few-shot 判定基准（分类示范知识，手写维护；注册新意图时在此补判定基准）
-            return table
-                + "\n【意图判定基准（few-shot）】"
-                + "\n\"干掉他/杀了他/解决他/做了他\" → ATTACK（要动手见血）"
-                + "\n\"引开/骗走/调虎离山/把某人支开\" → DISTRACT（不交手，只转移注意力）"
-                + "\n\"缠住/拖住/别让他走/稳住他\" → ENGAGE（对话/周旋，不让对方脱身）"
-                + "\n\"偷/摸/拿那东西\" → STEAL；\"请/叫某人过来\" → BRING；\"望风/盯梢/来人了叫我\" → LOOKOUT"
-                + "\n\"带我去/领我去\" → GUIDE；\"赶走/轰走/撵走\" → DRIVE_AWAY；\"传话/告诉他\" → DELIVER"
-                + "\n\"去和X切磋/比试，试他深浅\" → DUEL（随从与第三方比武，非致死，回报评估）；\"和我切磋/和我比划\" → SPAR（玩家是互动对象）"
-                + "\n\"订房/安排事务/订酒菜\" → TALK_TO（交涉安排）；\"买/购买某物\" → PURCHASE（随从花钱买货带回来）；\"讨债/要钱/收账\" → COLLECT（把钱要回来）"
-                + "\n【复合命令判定（重要：按最终目的分类，不是第一个动作）】"
-                + "\n\"引开/骗走 X 打晕/干掉/放倒\" → KNOCKOUT/ATTACK（引开只是手段，最终目的是击晕/击杀）"
-                + "\n\"我引开/缠住/望风，你去偷/翻/动手\" → STEAL 等（\"我…你…\" = 角色分工，随从执行的是后半句的主动作）"
-                + "\n\"X 敢还手/动手/攻击，你就上/参战\" → GUARD（条件参战：平时压阵，对方动手才打）"
-                + "\n\"先…然后…/顺便…/同时…\" → 按最终目的分类"
-                + "\n\"在这等我，去那边看看/打听…\" → SCOUT（后半句的任务才是命令主体）"
-                + "\n【指代纪律】命令里的\"他/她/它/那东西/那个人\"若场景存在多个候选或指代不明 → 必须 questions 澄清（列候选位置让玩家选），禁止自行挑一个；\"跟他走\"无明确指代也须澄清（除非场景只有唯一可跟随者）。";
+            // few-shot 判定基准（分类示范知识）——静态文本在 XML（LWN_plan_intent_fewshot，py/C# 同源）：
+            // 注册新意图时除 IntentPhrases 加行外，还须在 XML 的 LWN_plan_intent_fewshot 补判定基准行。
+            return table + "\n" + LWNTextHelper.ResolvePrompt("LWN_plan_intent_fewshot");
         }
 
         private static string BuildGrammar()

@@ -115,73 +115,62 @@ FIXED_SCENE = """【场景当前人员】（9 人）
 # prompt 构建（与 C# BuildPlanPrompt 逐段同构）
 # ═══════════════════════════════════════════════════════════════
 
-INTENT_TABLE = """【意图分类】你只能从以下意图中选择 intent_type（严禁创造未定义类型）：
-FOLLOW 跟我走 / WAIT 在这等我 / STOP 住手 / ATTACK 干掉他 / GUARD 护住他/条件参战 / BRING 请人到面前 / DISTRACT 引开某人 / LOOKOUT 望风 / DELIVER 传话/送物 / ENGAGE 缠住/拖住 / DRIVE_AWAY 赶走 / STEAL 偷物/扒窃 / FORMATION 站位 / SPAR 切磋 / FETCH 取物 / PURCHASE 购买 / KNOCKOUT 打晕 / GUIDE 带路 / SCOUT 侦察 / TALK_TO 交涉 / FIND 找人 / SHADOW 跟踪 / COLLECT 讨债 / DUEL 比武 / ANNIHILATE 清剿（把某个区域的所有人杀掉/打晕，批量战斗） / COMMOTION 闹出动静 / CUSTOM 词表外（现实做不到的动作：翻译/施法/修装备等 → 诚实拒绝）
-【意图判定基准（few-shot）】
-"干掉他/杀了他/解决他/做了他" → ATTACK（要动手见血）
-"引开/骗走/调虎离山/把某人支开" → DISTRACT（不交手，只转移注意力）
-"缠住/拖住/别让他走/稳住他" → ENGAGE（对话/周旋，不让对方脱身）
-"偷/摸/拿那东西" → STEAL；"请/叫某人过来" → BRING；"望风/盯梢/来人了叫我" → LOOKOUT
-"带我去/领我去" → GUIDE；"赶走/轰走/撵走" → DRIVE_AWAY；"传话/告诉他" → DELIVER
-"去和X切磋/比试，试他深浅" → DUEL（随从与第三方比武，非致死，回报评估）；"和我切磋/和我比划" → SPAR（玩家是互动对象）
-"订房/安排事务/订酒菜" → TALK_TO（交涉安排）；"买/购买某物" → PURCHASE（随从花钱买货带回来）；"讨债/要钱/收账" → COLLECT（把钱要回来）
-【复合命令判定（重要：按最终目的分类，不是第一个动作）】
-"引开/骗走 X 打晕/干掉/放倒" → KNOCKOUT/ATTACK（引开只是手段，最终目的是击晕/击杀）
-"我引开/缠住/望风，你去偷/翻/动手" → STEAL 等（"我…你…" = 角色分工，随从执行的是后半句的主动作）
-"X 敢还手/动手/攻击，你就上/参战" → GUARD（条件参战：平时压阵，对方动手才打）
-"先…然后…/顺便…/同时…" → 按最终目的分类
-"在这等我，去那边看看/打听…" → SCOUT（后半句的任务才是命令主体）
-【指代纪律】命令里的"他/她/它/那东西/那个人"若场景存在多个候选或指代不明 → 必须 questions 澄清（列候选位置让玩家选），禁止自行挑一个；"跟他走"无明确指代也须澄清（除非场景只有唯一可跟随者）。"""
+# ═══════════════════════════════════════════════════════════════
+# prompt 文本单一事实源（与 C# 同源）：静态块读 std_LivingWorldNpcs_prompts.xml 的 LWN_plan_* key。
+# 词表动态拼接段（动作/谓词/reactions）保留在下方代码（check_vocab_sync.py 校验同步）。
+# 改 prompt 文本 → 只改 XML（ModuleData/Languages/CNs/std_LivingWorldNpcs_prompts.xml），
+# 改完跑 validate_localization.py + LLM 回归；XML 加载失败 → 缺段降级不崩（铁律 1 精神）。
+# ═══════════════════════════════════════════════════════════════
+import xml.etree.ElementTree as _ET
 
-GRAMMAR = """【计划语法纪律】
-1. 只允许已定义 action/谓词。2. 每步有唯一 id。3. 每个跳转必须指向真实存在的步骤 id 或 @abort_gracefully。4. fallbacks 必须是数组的数组 [[预案1],[预案2]]，每个预案第一条 id 必须被至少一个跳转引用，只能跳预案第一条。5. 顺利路径走 steps，失败/意外走 fallbacks/contingencies。6. 每个失败出口必须落到跳转/超时路径。7. 目标引用只能用场景角色/物件或 query（nearest_enemy(self)/all_in(zone)/lure_spot(watch_point,12)/hidden_spot(self,15)/stand_spot(target,anchor)/zone(名称)/point(描述)）。8. say_to 前必须有 move_to。9. 安全窗口加 sustained_s（窗口3s/离岗5s，上限30s）。10. 只基于场景可见事实。11. say_to 台词字段是 text（不是 content）；wait 退出条件写 until（必须是对象 {"type":...}，禁止写成字符串）；ask 只允许写 "follow"。12. 成功收尾与失败收尾是两个不同节点：主链末尾放 end_plan result="success"（成功收尾，report 成功台词）；on_timeout / on_event 是失败路径，只能指向 result="fail" 的 end_plan 或重试预案，禁止指向 success 收尾。13. wait 步骤的 on_timeout 语义 = "条件没等到"（守卫没跟来/目标没到位），是失败路径，必须指向 fail 收尾；只有计划真正完成才走 success 收尾。14. 地点诚实纪律：命令提到的地点（河边/城堡/张员外家等）若场景快照里没有该角色/物件/锚点 → 不编造带路，用 questions 澄清或 CUSTOM 诚实说"不知道在哪"；只有场景里存在的实体（角色/物件/锚点）才能作为 target。15. 保持型命令（望风/压阵/盯梢/缠住/跟随/闹事引众/"别让他走"这类持续到玩家叫停的任务）用无限 wait（不写 seconds/until/timeout）或无限 follow 表达保持，用 triggers 表达事件报告，不设 goal，结束由玩家按停止键；禁止把"等 N 秒没人来/没动静"写成 success 收尾（望风不是看一会就收工，是持续待命）。**任务型 vs 保持型的区别**：有成功时刻（请到人/偷到物/杀死目标）→ goal + 主链 end_plan success 收尾；无成功时刻（望风/缠住/压阵/跟随/闹事）→ 保持 + 玩家叫停——缠住/拖住/闹事是保持型：达成后进入保持期（GOAL→MAINTAIN），**不因"缠住了/引来了"就 success 收尾**；"跟我来/跟着我" = 无限 follow（{"action":"follow","target":"player"}），不是走到玩家身边就收尾。16. until/when/goal/triggers/contingencies 的条件里只能写谓词词表（distance/seeing/following/combat/in_zone/count/time_since 等）；approach_by/spoken_to/see_crime/left_post_seconds/player_suspicious_near/**combat_nearby** 等事件词只能出现在 reactions 的 event 字段，禁止写进条件（想表达"有人靠近/进入区域"→ 用谓词 in_zone(any, 区域)；**想表达"附近有战斗"→ 用谓词 combat(any, any)，不是 combat_nearby**；**想表达"等对方回应/说完"→ 用谓词 time_since(对应 say_to 步骤的 step_id, 秒)，不是 spoken_to**；想表达"物品到手"→ 没有专用谓词，省略该条件，用步骤自身 result 路由或 time_since）。**goal/until 只能写谓词词表**：无法用谓词表达的成功（如"物品到手"）→ 省略 goal，用主链 end_plan result="success" 表达成功。17. ask:"follow" 只用于"请对方跟走/过来"的邀请（请人来/引开人）；缠住/传话/望风等任务不写 ask。18. contingencies[].then 必须是字符串（步骤 id 或 @abort_gracefully）——写 {"action":...} 对象是非法结构（那是 triggers[].then 的形态，triggers 与 contingencies 结构不同，禁止混写）。
 
-【动作词表】move_to/follow/stop_following/order_attack/knockout/lead/face/look_at/say_to/wait/emote/make_noise/signal_player/steal_attempt/give_item/give_gold/deliver_item/shadow/negotiate/duel/end_plan
+def _load_plan_prompts():
+    xml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..",
+                            "ModuleData", "Languages", "CNs", "std_LivingWorldNpcs_prompts.xml")
+    if not os.path.exists(xml_path):
+        print(f"警告: prompt XML 不存在: {xml_path}（prompt 静态块将缺失）")
+        return {}
+    try:
+        root = _ET.parse(xml_path).getroot()
+        out = {}
+        for node in root.iter("string"):
+            kid = node.get("id") or ""
+            if kid.startswith("LWN_plan_"):
+                out[kid] = (node.get("text") or "").replace("\\n", "\n")
+        return out
+    except Exception as e:
+        print(f"警告: prompt XML 解析失败: {e}")
+        return {}
+
+
+_PLAN_PROMPTS = _load_plan_prompts()
+
+# 意图列表（词表动态拼接段，不移 XML；与 C# 枚举拼接同源，check_vocab_sync.py 校验）
+INTENT_TABLE = ("""【意图分类】你只能从以下意图中选择 intent_type（严禁创造未定义类型）：
+FOLLOW 跟我走 / WAIT 在这等我 / STOP 住手 / ATTACK 干掉他 / GUARD 护住他/条件参战 / BRING 请人到面前 / DISTRACT 引开某人 / LOOKOUT 望风 / DELIVER 传话/送物 / ENGAGE 缠住/拖住 / DRIVE_AWAY 赶走 / STEAL 偷物/扒窃 / FORMATION 站位 / SPAR 切磋 / FETCH 取物 / PURCHASE 购买 / KNOCKOUT 打晕 / GUIDE 带路 / SCOUT 侦察 / TALK_TO 交涉 / FIND 找人 / SHADOW 跟踪 / COLLECT 讨债 / DUEL 比武 / ANNIHILATE 清剿（把某个区域的所有人杀掉/打晕，批量战斗） / COMMOTION 闹出动静 / CUSTOM 词表外（现实做不到的动作：翻译/施法/修装备等 → 诚实拒绝）"""
+    + "\n" + _PLAN_PROMPTS.get("LWN_plan_intent_fewshot", ""))
+
+# 词表动态拼接段（不移 XML；与 C# BuildGrammar 同源，check_vocab_sync.py 校验）
+_GRAMMAR_VOCAB = """【动作词表】move_to/follow/stop_following/order_attack/knockout/lead/face/look_at/say_to/wait/emote/make_noise/signal_player/steal_attempt/give_item/give_gold/deliver_item/shadow/negotiate/duel/end_plan
 【谓词词表】distance/seeing/alert_phase/following/facing/moving/in_zone/combat/player_action/time_since/dead/knocked_out/count/and/or/not（修饰：sustained_s、was）
 
 【reactions 封闭词表（事件/动作严禁自创）】
 事件 event 只能写：approach_by / spoken_to / asked_to_follow / asked_to_stay / player_suspicious_near / see_crime / combat_nearby / left_post_seconds / alone_with / seen_speaking / see_ally_killed（注意是 approach_by，不是 approached_by）
-动作 action 只能写：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item / flee（flee = 看到同伴被杀等恐慌情境下跑离现场）
+动作 action 只能写：listen / consider / refuse / follow_for_a_bit / investigate / return_post / stare / alert_raise / attack / call_guards / ignore / relay_message / pay / hand_over_item / flee（flee = 看到同伴被杀等恐慌情境下跑离现场）"""
 
-【输出格式】只输出一个 JSON 对象，不要 Markdown。完整模板（BRING 示范：显式 success 收尾 + fail 收尾双出口；照此粒度输出，禁止缩水）：
-{"reply":"我去请村长过来见你。","emotion":"normal","intent":{"intent_type":"BRING","subjects":["self"],"target":"chief","who_does":"companion"},"questions":[],"needs_clarification":false,"plan":{"summary":"我去请村长过来见你。","goal":{"type":"and","conditions":[{"type":"distance","a":"chief","b":"player","op":"<","value":3},{"type":"moving","a":"chief","op":"false"}]},"steps":[{"id":"b1","action":"move_to","target":"chief","within":2.0,"timeout_s":30},{"id":"b2","action":"say_to","target":"chief","ask":"follow","text":"村长，我家主人请您过去一趟，有事相商","timeout_s":8},{"id":"b3","action":"wait","until":{"type":"following","a":"chief","b":"self","op":"true"},"timeout_s":10,"on_timeout":"b7"},{"id":"b4","action":"move_to","target":"player","within":3.0,"until":{"type":"distance","a":"chief","b":"player","op":"<","value":3},"timeout_s":40,"on_timeout":"b7"},{"id":"b5","action":"wait","until":{"type":"distance","a":"chief","b":"player","op":"<","value":3,"sustained_s":5},"timeout_s":20,"on_timeout":"b7"},{"id":"b6","action":"end_plan","result":"success","report":"村长请来了","timeout_s":3}],"fallbacks":[[{"id":"b7","action":"end_plan","result":"fail","report":"村长说忙，不肯来","timeout_s":3}]],"contingencies":[{"when":{"type":"combat","entity":"self"},"then":"@abort_gracefully","one_shot":true}]},"reactions":[{"role":"chief","personality":{"gullibility":0.4,"duty":0.6,"temper":0.4,"social":0.7,"greed":0.4},"responses":[{"event":"asked_to_follow","reactions":[{"action":"follow_for_a_bit","weight":0.7},{"action":"refuse","weight":0.3}]}]}]}
-
-批量目标（杀/打晕一群人）用 loop 段（示例）：
-"loop":{"steps":[{"id":"p1","action":"move_to","target":{"query":"nearest_enemy(self)"},"within":1.5,"timeout_s":15},{"id":"p2","action":"knockout","target":{"query":"nearest_enemy(self)"},"timeout_s":10}],"until":{"type":"count","of":{"query":"all_in(zone)"},"op":"=","value":0}}，loop 之后接主链报告步骤
-
-【失败路径示范（照抄此结构）】条件等待超时/拒绝事件 = 失败，on_timeout/on_event 只能指向 fail 收尾或重试预案：
-{"id":"w3","action":"wait","until":{"type":"following","a":"guard","b":"self","op":"true"},"timeout_s":10,"on_timeout":"w4"},
-{"id":"w4","action":"end_plan","result":"fail","report":"他没跟来，不肯走","timeout_s":3}
-（禁止 on_timeout 指向 result="success" 的 end_plan——条件没等到却说成功 = 谎报）
-
-【等对方回应示范（照抄此结构）】"等目标回应/说完"用 time_since 引用 say_to 步骤（禁止用 spoken_to——那是事件词）：
-{"id":"i2","action":"say_to","target":"contact","text":"我家主人说，他在老地方等你","timeout_s":8},
-{"id":"i3","action":"wait","until":{"type":"time_since","step_id":"i2","op":">","value":2},"on_event":[{"type":"refused","then":"i5"}],"timeout_s":6,"on_timeout":"i6"},
-{"id":"i4","action":"end_plan","result":"success","report":"说好了","timeout_s":3}，i5/i6 为 fail 收尾
-
-【保持型示范（望风/压阵，照抄此结构）】持续待命 = 无限 wait（省略 seconds/until/timeout）+ triggers 事件报告，不设 goal：
-"steps":[{"id":"h1","action":"move_to","target":"player","within":2.0,"timeout_s":30},{"id":"h2","action":"wait"}],
-"triggers":[{"when":{"type":"in_zone","a":"any","b":"player","op":"true"},"then":{"action":"signal_player","text":"有人来了！"}}]
-（h2 无限等待，结束 = 玩家按停止键；禁止把"等 N 秒没人来"写成 success 收尾）
-
-【判定型步骤示范（照抄此结构）】偷窃/拿取类"物品到手"用 result 路由表达结果，不写 has_item 类条件：
-{"id":"c1","action":"steal_attempt","target":"chest","variant":"item","when":{"type":"seeing","a":"any","b":"self","op":"false","sustained_s":3},"result":{"success":"c2","empty":"c6","interrupted":"c8"},"timeout_s":40,"on_timeout":"c7"},
-{"id":"c2","action":"signal_player","text":"得手了，撤！","timeout_s":3}，c6/c7/c8 为 fail 收尾（result 的每个键都必须指向存在的步骤）
-
-【输出质量要求（不满足视为不合格，必须重写）】
-1. 任务型计划主链 steps ≥ 5 步（简单任务至少 4 步），粒度到"走→说→等→验证→报告"，禁止 2-3 步糊弄；**保持型计划（望风/压阵/缠住等）豁免步数要求**——2-3 步无限保持 + triggers 即完整，禁止为凑步数编造多余动作。
-2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。
-3. contingencies ≥ 2 条：combat → @abort_gracefully 必写 + 至少 1 条任务相关意外（折返 following was 检测/警戒 alert_phase/掉线 seeing 翻转）。
-4. 非保持型计划必须带 goal（计划成功条件：distance/seeing/count 谓词组合）；保持型计划（望风/压阵/盯梢）不设 goal，用无限 wait + triggers 表达，结束由玩家叫停。
-5. reactions：事件/动作必须在封闭词表内，禁止自创。
-6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如"办好了/我就在这等你"）；**保持型计划以无限 wait 结尾 = 合法收尾，不适用本条**。
-7. 动态目标优先用 query 找点（lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point），禁止硬编码场景里不存在的区域名。
-8. 引开/望风/拖延/得手类计划必须用 signal_player 给玩家行动窗口提示；成功/失败收尾尽量带 report 当面报告。
-9. zone(名称)/point(描述) 只能引用【场景区域锚点】段列出的名称；场景未列出的区域 → 改用 hidden_spot/lure_spot 动态找点，找不到就按失败收尾，禁止编造锚点。
-10. 失败跳转纪律：on_timeout / on_event（refused 等拒绝类事件）是失败路径，必须指向 result="fail" 的 end_plan 或重试预案，禁止指向 success 收尾（谎报成功）。
-
-【执行要求】
-1. 歧义→填 questions 置 needs_clarification=true 不生成 plan。2. 词表外→CUSTOM 且 plan 为 null。3. reactions 给相关 NPC 写反应计划。4. 台词像随从说话，简短自然。"""
+# 静态块（纪律/模板/示范/质量/执行）全部读 XML（单一事实源）
+GRAMMAR = (
+    _PLAN_PROMPTS.get("LWN_plan_rules", "")
+    + "\n\n" + _GRAMMAR_VOCAB
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_template_bring", "")
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_template_loop", "")
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_example_fail", "")
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_example_respond", "")
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_example_keep", "")
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_example_result", "")
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_quality", "")
+    + "\n\n" + _PLAN_PROMPTS.get("LWN_plan_exec", "")
+)
 
 # 预设命令：命令 → 期望意图（CLARIFY = 歧义应澄清；CUSTOM = 词表外应拒绝）
 PRESET_COMMANDS = [

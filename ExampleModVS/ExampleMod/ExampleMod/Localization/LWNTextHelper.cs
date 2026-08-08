@@ -50,7 +50,13 @@ namespace LivingWorldNpcs
             }
 
             // Scan ALL std_*.xml files in the root Languages/ directory
-            var xmlFiles = Directory.GetFiles(langDir, "std_*.xml", SearchOption.TopDirectoryOnly);
+            var xmlFiles = new List<string>(Directory.GetFiles(langDir, "std_*.xml", SearchOption.TopDirectoryOnly));
+            // 语言子目录（CNs 等）内的 std_*.xml 也纳入——prompts XML（std_LivingWorldNpcs_prompts.xml）
+            // 位于 Languages/CNs/ 下，其 LWN_plan_* key 需被 ResolvePrompt 读到（py/C# 同源）。
+            foreach (string subDir in Directory.GetDirectories(langDir))
+            {
+                xmlFiles.AddRange(Directory.GetFiles(subDir, "std_*.xml", SearchOption.TopDirectoryOnly));
+            }
             int totalCount = 0;
 
             foreach (string xmlPath in xmlFiles)
@@ -85,7 +91,7 @@ namespace LivingWorldNpcs
                 }
             }
 
-            DebugLogger.Log($"LWNTextHelper: Loaded {totalCount} English fallback entries from {xmlFiles.Length} files");
+            DebugLogger.Log($"LWNTextHelper: Loaded {totalCount} English fallback entries from {xmlFiles.Count} files");
         }
 
         /// <summary>
@@ -119,6 +125,28 @@ namespace LivingWorldNpcs
             string fallbackText = fallback ?? GetEnglishFallback(key) ?? key;
             TextObject text = new TextObject($"{{={key}}}{fallbackText}", null);
             return text.ToString();
+        }
+
+        /// <summary>
+        /// LLM prompt 原始文本解析（🔴 不走 TextObject）。
+        /// 为什么必须绕过 TextObject：prompt 静态块含大量 JSON 大括号（{"type": ...}），
+        /// TextObject 的 Tokenizer 会把 {…} 当变量表达式解析，而 JSON 引号没有对应 token
+        /// 定义 → FindTokenMatches 失败 → 字符串从第一个 { 起被整体截断（TaleWorlds.Localization
+        /// Tokenizer 实测）。prompt 是 LLM 输入（铁律 13 豁免项），无需本地化渲染，
+        /// 直接从 English fallback 字典（启动时加载全部 std_*.xml，含 Languages/CNs/）取原文。
+        /// 缺 key → 日志警告 + 返回空串（铁律 1：不崩，prompt 缺段降级，日志可查）。
+        /// 与 py 测试脚本（Scripts/test_llm_plan.py _load_plan_prompts）同源同语义。
+        /// </summary>
+        public static string ResolvePrompt(string key)
+        {
+            string raw = GetEnglishFallback(key);
+            if (raw == null)
+            {
+                DebugLogger.Log($"LWNTextHelper: prompt key 缺失: {key}（该 prompt 段将缺失）");
+                return string.Empty;
+            }
+            // XML 中 \n 字面量（两字符：反斜杠+n）→ 真实换行（与 py 侧 replace 语义一致）
+            return raw.Replace((char)92 + "n", ((char)10).ToString());
         }
 
         /// <summary>

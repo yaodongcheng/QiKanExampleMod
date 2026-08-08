@@ -1228,7 +1228,7 @@ namespace LivingWorldNpcs
             sb.AppendLine(string.IsNullOrEmpty(snapshotText) ? "（无场景信息）" : snapshotText);
             sb.AppendLine();
             sb.AppendLine("【你的身份】");
-            sb.AppendLine(string.IsNullOrEmpty(persona) ? "你是一名随从。" : persona);
+            sb.AppendLine(string.IsNullOrEmpty(persona) ? LWNTextHelper.ResolvePrompt("LWN_plan_identity_default") : persona);
             sb.AppendLine();
             sb.AppendLine("【玩家命令】");
             sb.AppendLine(string.IsNullOrEmpty(command) ? "（玩家还没有下达命令）" : command);
@@ -1242,25 +1242,8 @@ namespace LivingWorldNpcs
             sb.AppendLine("【意图分类】你只能从以下意图中选择 intent_type（严禁创造未定义类型）：");
             sb.AppendLine(string.IsNullOrEmpty(intentTable) ? "DISTRACT/BRING/LOOKOUT/DELIVER/STEAL/ATTACK" : intentTable);
             sb.AppendLine();
-            sb.AppendLine("【计划语法纪律（必须严格遵守）】");
-            sb.AppendLine("1. 只能使用定义过的 action（动作词表）与谓词（条件词表），严禁创造未定义的 type/action。");
-            sb.AppendLine("2. 每个步骤都要有明确 id（s1/s2/...），id 全计划唯一。");
-            sb.AppendLine("3. 每个跳转（on_timeout/on_success/on_event[].then/contingencies[].then/result 路由）必须指向真实存在的步骤 id，或 @abort_gracefully。");
-            sb.AppendLine("4. fallbacks 必须是【数组的数组】（外层数组 = 多个预案，每个预案内部再套一层数组），例如 [[预案1步骤], [预案2步骤]]；每个预案的第一条 id 必须被至少一个跳转引用（否则是死预案）；跳进预案只能跳它的第一条。");
-            sb.AppendLine("5. 主链 steps 是顺利路径（按序推进），失败/意外分支全部放 fallbacks（预案）或 contingencies（意外跳转）。");
-            sb.AppendLine("6. 树上的每个失败出口必须落到某个跳转/超时路径，禁止无出口步骤。");
-            sb.AppendLine("7. 目标引用只能使用【当前场景】里出现的角色/物件/区域，或 query 动态查询（nearest_enemy(self)/all_in(zone)/lure_spot(watch_point, 12)/hidden_spot(self, 15)/stand_spot(target, anchor)/zone(名称)/point(描述)）。");
-            sb.AppendLine("8. 接近步必须显式：凡 say_to/近距离互动前必须有 move_to 步骤。");
-            sb.AppendLine("9. 观众可见的窗口/安全条件加 sustained_s 防抖（窗口 3s、离岗确认 5s，上限 30s）。");
-            sb.AppendLine("10. 不要编造玩家无法验证的信息：计划只能基于【当前场景】可见事实。");
-            sb.AppendLine("11. 字段名必须与示例 JSON 完全一致：say_to 的台词字段是 text（不是 content）；wait 的退出条件写 until（必须是对象 {\"type\": ...}，禁止写成字符串）；ask 只允许写 \"follow\"。");
-            sb.AppendLine("12. 成功收尾与失败收尾是两个不同节点：主链末尾放 end_plan result=\"success\"（成功收尾，report 成功台词）；on_timeout / on_event 是失败路径，只能指向 result=\"fail\" 的 end_plan 或重试预案，禁止指向 success 收尾。");
-            sb.AppendLine("13. wait 步骤的 on_timeout 语义 = \"条件没等到\"（守卫没跟来/目标没到位），是失败路径，必须指向 fail 收尾；只有计划真正完成才走 success 收尾。");
-            sb.AppendLine("14. 地点诚实纪律：命令提到的地点（河边/城堡/张员外家等）若场景快照里没有该角色/物件/锚点 → 不编造带路，用 questions 澄清或 CUSTOM 诚实说\"不知道在哪\"；只有场景里存在的实体（角色/物件/锚点）才能作为 target。");
-            sb.AppendLine("15. 保持型命令（望风/压阵/盯梢/缠住/跟随/闹事引众/\"别让他走\"这类持续到玩家叫停的任务）用无限 wait（不写 seconds/until/timeout）或无限 follow 表达保持，用 triggers 表达事件报告，不设 goal，结束由玩家按停止键；禁止把\"等 N 秒没人来/没动静\"写成 success 收尾（望风不是看一会就收工，是持续待命）。**任务型 vs 保持型的区别**：有成功时刻（请到人/偷到物/杀死目标）→ goal + 主链 end_plan success 收尾；无成功时刻（望风/缠住/压阵/跟随/闹事）→ 保持 + 玩家叫停——缠住/拖住/闹事是保持型：达成后进入保持期（GOAL→MAINTAIN），**不因\"缠住了/引来了\"就 success 收尾**；\"跟我来/跟着我\" = 无限 follow（{\"action\":\"follow\",\"target\":\"player\"}），不是走到玩家身边就收尾。");
-            sb.AppendLine("16. until/when/goal/triggers/contingencies 的条件里只能写谓词词表（distance/seeing/following/combat/in_zone/count/time_since 等）；approach_by/spoken_to/see_crime/left_post_seconds/player_suspicious_near/**combat_nearby** 等事件词只能出现在 reactions 的 event 字段，禁止写进条件（想表达\"有人靠近/进入区域\"→ 用谓词 in_zone(any, 区域)；**想表达\"附近有战斗\"→ 用谓词 combat(any, any)，不是 combat_nearby**；**想表达\"等对方回应/说完\"→ 用谓词 time_since(对应 say_to 步骤的 step_id, 秒)，不是 spoken_to**；想表达\"物品到手\"→ 没有专用谓词，省略该条件，用步骤自身 result 路由或 time_since）。**goal/until 只能写谓词词表**：无法用谓词表达的成功（如\"物品到手\"）→ 省略 goal，用主链 end_plan result=\"success\" 表达成功。");
-            sb.AppendLine("17. ask:\"follow\" 只用于\"请对方跟走/过来\"的邀请（请人来/引开人）；缠住/传话/望风等任务不写 ask。");
-            sb.AppendLine("18. contingencies[].then 必须是字符串（步骤 id 或 @abort_gracefully）——写 {\"action\":...} 对象是非法结构（那是 triggers[].then 的形态，triggers 与 contingencies 结构不同，禁止混写）。");
+            // 计划语法纪律 18 条（文本在 XML LWN_plan_rules，py/C# 同源——改 prompt 只改 XML）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_rules"));
             sb.AppendLine();
             if (!string.IsNullOrEmpty(grammarRules))
             {
@@ -1268,86 +1251,29 @@ namespace LivingWorldNpcs
                 sb.AppendLine(grammarRules);
                 sb.AppendLine();
             }
-            sb.AppendLine("【输出格式】只输出一个 JSON 对象，不要任何 Markdown 包裹。完整模板（BRING 示范：显式 success 收尾 + fail 收尾双出口；照此粒度输出，禁止缩水）：");
-            sb.AppendLine(@"{
-  ""reply"": ""我去请村长过来见你。"",
-  ""emotion"": ""normal/threat/rage/weary/confident/polite/arrogant/aggres/negative/promise/positive/nervous/confused/closed 之一"",
-  ""intent"": {""intent_type"": ""BRING"", ""subjects"": [""self""], ""target"": ""chief"", ""who_does"": ""companion""},
-  ""questions"": [],  // 意图/目标有歧义时放澄清问题（最多 2 个，每个 2-4 个选项），非空则不要生成 plan
-  ""needs_clarification"": false,
-  ""plan"": {
-    ""summary"": ""我去请村长过来见你。"",
-    ""goal"": {""type"": ""and"", ""conditions"": [
-      {""type"": ""distance"", ""a"": ""chief"", ""b"": ""player"", ""op"": ""<"", ""value"": 3},
-      {""type"": ""moving"", ""a"": ""chief"", ""op"": ""false""}]},
-    ""steps"": [
-      {""id"": ""b1"", ""action"": ""move_to"", ""target"": ""chief"", ""within"": 2.0, ""timeout_s"": 30},
-      {""id"": ""b2"", ""action"": ""say_to"", ""target"": ""chief"", ""ask"": ""follow"", ""text"": ""村长，我家主人请您过去一趟，有事相商"", ""timeout_s"": 8},
-      {""id"": ""b3"", ""action"": ""wait"", ""until"": {""type"": ""following"", ""a"": ""chief"", ""b"": ""self"", ""op"": ""true""}, ""timeout_s"": 10, ""on_timeout"": ""b7""},
-      {""id"": ""b4"", ""action"": ""move_to"", ""target"": ""player"", ""within"": 3.0, ""until"": {""type"": ""distance"", ""a"": ""chief"", ""b"": ""player"", ""op"": ""<"", ""value"": 3}, ""timeout_s"": 40, ""on_timeout"": ""b7""},
-      {""id"": ""b5"", ""action"": ""wait"", ""until"": {""type"": ""distance"", ""a"": ""chief"", ""b"": ""player"", ""op"": ""<"", ""value"": 3, ""sustained_s"": 5}, ""timeout_s"": 20, ""on_timeout"": ""b7""},
-      {""id"": ""b6"", ""action"": ""end_plan"", ""result"": ""success"", ""report"": ""村长请来了"", ""timeout_s"": 3}
-    ],
-    ""fallbacks"": [
-      [{""id"": ""b7"", ""action"": ""end_plan"", ""result"": ""fail"", ""report"": ""村长说忙，不肯来"", ""timeout_s"": 3}]
-    ],
-    ""contingencies"": [
-      {""when"": {""type"": ""combat"", ""entity"": ""self""}, ""then"": ""@abort_gracefully"", ""one_shot"": true}
-    ]
-  },
-  ""reactions"": [
-    {""role"": ""chief"", ""personality"": {""gullibility"": 0.4, ""duty"": 0.6, ""temper"": 0.4, ""social"": 0.7, ""greed"": 0.4},
-     ""responses"": [
-       {""event"": ""asked_to_follow"", ""reactions"": [{""action"": ""follow_for_a_bit"", ""weight"": 0.7}, {""action"": ""refuse"", ""weight"": 0.3}]}
-     ]}
-  ]
-}");
+            // 输出格式 BRING 完整模板（XML LWN_plan_template_bring）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_template_bring"));
             sb.AppendLine();
-            sb.AppendLine("批量目标（杀/打晕一群人）用 loop 段（示例）：");
-            sb.AppendLine(@"""loop"": {""steps"": [
-  {""id"": ""p1"", ""action"": ""move_to"", ""target"": {""query"": ""nearest_enemy(self)""}, ""within"": 1.5, ""timeout_s"": 15},
-  {""id"": ""p2"", ""action"": ""knockout"", ""target"": {""query"": ""nearest_enemy(self)""}, ""timeout_s"": 10}],
-  ""until"": {""type"": ""count"", ""of"": {""query"": ""all_in(zone)""}, ""op"": ""="", ""value"": 0}}，loop 之后接主链报告步骤");
+            // 批量目标 loop 段示范（XML LWN_plan_template_loop）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_template_loop"));
             sb.AppendLine();
-            sb.AppendLine("【失败路径示范（照抄此结构）】条件等待超时/拒绝事件 = 失败，on_timeout/on_event 只能指向 fail 收尾或重试预案：");
-            sb.AppendLine(@"{""id"": ""w3"", ""action"": ""wait"", ""until"": {""type"": ""following"", ""a"": ""guard"", ""b"": ""self"", ""op"": ""true""}, ""timeout_s"": 10, ""on_timeout"": ""w4""},
-{""id"": ""w4"", ""action"": ""end_plan"", ""result"": ""fail"", ""report"": ""他没跟来，不肯走"", ""timeout_s"": 3}");
-            sb.AppendLine("（禁止 on_timeout 指向 result=\"success\" 的 end_plan——条件没等到却说成功 = 谎报）");
+            // 失败路径示范（XML LWN_plan_example_fail）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_example_fail"));
             sb.AppendLine();
-            sb.AppendLine("【等对方回应示范（照抄此结构）】\"等目标回应/说完\"用 time_since 引用 say_to 步骤（禁止用 spoken_to——那是事件词）：");
-            sb.AppendLine(@"{""id"": ""i2"", ""action"": ""say_to"", ""target"": ""contact"", ""text"": ""我家主人说，他在老地方等你"", ""timeout_s"": 8},
-{""id"": ""i3"", ""action"": ""wait"", ""until"": {""type"": ""time_since"", ""step_id"": ""i2"", ""op"": "">"", ""value"": 2}, ""on_event"": [{""type"": ""refused"", ""then"": ""i5""}], ""timeout_s"": 6, ""on_timeout"": ""i6""},
-{""id"": ""i4"", ""action"": ""end_plan"", ""result"": ""success"", ""report"": ""说好了"", ""timeout_s"": 3}，i5/i6 为 fail 收尾");
+            // 等对方回应示范（XML LWN_plan_example_respond）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_example_respond"));
             sb.AppendLine();
-            sb.AppendLine("【保持型示范（望风/压阵，照抄此结构）】持续待命 = 无限 wait（省略 seconds/until/timeout）+ triggers 事件报告，不设 goal：");
-            sb.AppendLine(@"""steps"": [
-  {""id"": ""h1"", ""action"": ""move_to"", ""target"": ""player"", ""within"": 2.0, ""timeout_s"": 30},
-  {""id"": ""h2"", ""action"": ""wait""}],
-""triggers"": [
-  {""when"": {""type"": ""in_zone"", ""a"": ""any"", ""b"": ""player"", ""op"": ""true""}, ""then"": {""action"": ""signal_player"", ""text"": ""有人来了！""}}]");
-            sb.AppendLine("（h2 无限等待，结束 = 玩家按停止键；禁止把\"等 N 秒没人来\"写成 success 收尾）");
+            // 保持型示范（XML LWN_plan_example_keep）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_example_keep"));
             sb.AppendLine();
-            sb.AppendLine("【判定型步骤示范（照抄此结构）】偷窃/拿取类\"物品到手\"用 result 路由表达结果，不写 has_item 类条件：");
-            sb.AppendLine(@"{""id"": ""c1"", ""action"": ""steal_attempt"", ""target"": ""chest"", ""variant"": ""item"", ""when"": {""type"": ""seeing"", ""a"": ""any"", ""b"": ""self"", ""op"": ""false"", ""sustained_s"": 3}, ""result"": {""success"": ""c2"", ""empty"": ""c6"", ""interrupted"": ""c8""}, ""timeout_s"": 40, ""on_timeout"": ""c7""},
-{""id"": ""c2"", ""action"": ""signal_player"", ""text"": ""得手了，撤！"", ""timeout_s"": 3}，c6/c7/c8 为 fail 收尾（result 的每个键都必须指向存在的步骤）");
+            // 判定型步骤示范（XML LWN_plan_example_result）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_example_result"));
             sb.AppendLine();
-            sb.AppendLine("【输出质量要求（不满足视为不合格，必须重写）】");
-            sb.AppendLine("1. 任务型计划主链 steps ≥ 5 步（简单任务至少 4 步），粒度到\"走→说→等→验证→报告\"，禁止 2-3 步糊弄；**保持型计划（望风/压阵/缠住等）豁免步数要求**——2-3 步无限保持 + triggers 即完整，禁止为凑步数编造多余动作。");
-            sb.AppendLine("2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。");
-            sb.AppendLine("3. contingencies ≥ 2 条：combat → @abort_gracefully 必写 + 至少 1 条任务相关意外（折返 following was 检测/警戒 alert_phase/掉线 seeing 翻转）。");
-            sb.AppendLine("4. 非保持型计划必须带 goal（计划成功条件：distance/seeing/count 谓词组合）；保持型计划（望风/压阵/盯梢）不设 goal，用无限 wait + triggers 表达，结束由玩家叫停。");
-            sb.AppendLine("5. reactions：事件/动作必须在封闭词表内，禁止自创。");
-            sb.AppendLine("6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如\"办好了/我就在这等你\"）；**保持型计划以无限 wait 结尾 = 合法收尾，不适用本条**。");
-            sb.AppendLine("7. 动态目标优先用 query 找点（lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point），禁止硬编码场景里不存在的区域名。");
-            sb.AppendLine("8. 引开/望风/拖延/得手类计划必须用 signal_player 给玩家行动窗口提示；成功/失败收尾尽量带 report 当面报告。");
-            sb.AppendLine("9. zone(名称)/point(描述) 只能引用【场景区域锚点】段列出的名称；场景未列出的区域 → 改用 hidden_spot/lure_spot 动态找点，找不到就按失败收尾，禁止编造锚点。");
-            sb.AppendLine("10. 失败跳转纪律：on_timeout / on_event（refused 等拒绝类事件）是失败路径，必须指向 result=\"fail\" 的 end_plan 或重试预案，禁止指向 success 收尾（谎报成功）。");
+            // 输出质量要求 10 条（XML LWN_plan_quality）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_quality"));
             sb.AppendLine();
-            sb.AppendLine("【执行要求】");
-            sb.AppendLine("1. 意图有歧义（目标是谁/指哪个东西/范围不清）→ 填 questions 并置 needs_clarification=true，不要生成 plan。");
-            sb.AppendLine("2. 玩家命令在词表外 → intent_type 填 CUSTOM，plan 为 null，reply 如实说明做不到并提示改述。");
-            sb.AppendLine("3. reactions 给每个可能被计划影响的相关 NPC 写反应计划（缺省我会用默认人格模板）。");
-            sb.AppendLine("4. 台词要像游戏里的随从说话，简短自然，不要解释 JSON 结构。");
+            // 执行要求 4 条（XML LWN_plan_exec）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_exec"));
             return sb.ToString();
         }
     }
