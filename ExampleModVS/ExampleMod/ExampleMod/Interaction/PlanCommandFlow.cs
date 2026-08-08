@@ -508,13 +508,13 @@ namespace LivingWorldNpcs
                 "谓词（type）：" + string.Join(" / ", PlanVocab.PredicatesInPromptOrder),
                 "谓词修饰：sustained_s（连续成立 N 秒）、was（曾成立过）",
                 "实体：self（执行者）/ player / 场景角色 / 场景物件 / 区域",
-                "字段纪律：say_to 台词写 text（不是 content）；wait 退出条件写 until（必须是对象 {\"type\":...}，禁止字符串）；ask 只允许 \"follow\"",
+                "字段纪律：say_to 台词写 text（不是 content）；wait 退出条件写 until（必须是对象 {\"type\":...}，禁止字符串）；ask 只允许 \"follow\"；**对话任务（TALK_TO/DELIVER 闲聊）用 say_to 带 topic + outline（2-5 段走向数组）表达多轮对话，不写多句预写台词**",
                 "end_plan 的 result 只能是 \"success\" 或 \"fail\"；report 可选（当面报告文本）",
                 "【reactions 封闭词表（事件/动作严禁自创）】",
                 "事件：" + string.Join(" / ", ReactiveAgent.TriggerEventsInPromptOrder)
                     + "（注意是 approach_by，不是 approached_by）",
                 "动作：" + string.Join(" / ", ReactiveAgent.ReactionActionsInPromptOrder)
-                    + "（flee = 看到同伴被杀等恐慌情境下跑离现场）");
+                    + "（flee = 看到同伴被杀等恐慌情境下跑离现场；respond = 被搭话时开口回应，台词实时生成）");
             // 质量要求/纪律不在此重复——BuildPlanPrompt 已有完整版（2026-08-08 消除重复，防语义过载）
         }
     }

@@ -1,46 +1,40 @@
-<?xml version="1.0" encoding="utf-8"?>
-<base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
+<?xml version='1.0' encoding='utf-8'?>
+<base type="string">
   <tags>
     <tag language="English" />
   </tags>
   <strings>
-    <!-- ═══════════════════════════════════════════ -->
-    <!-- NPCProfile — LLM prompt / 探查 UI 模板        -->
-    <!-- ═══════════════════════════════════════════ -->
+    
+    
+    
 
-    <!-- ═══ GetClanInfo ═══ -->
-    <!-- 无 Hero 无 Character：无家族势力 -->
+    
+    
     <string id="LWN_prompt_clan_no_hero" text="No clan affiliation. Alone, with no family backing." />
-    <!-- 模板 NPC 有 ClanId：在某家族服役 -->
+    
     <string id="LWN_prompt_clan_template_has_clan" text="--- Clan Background ---\nNo prominent clan. An ordinary {ROLE}, serving in the {CLAN_NAME} clan." />
-    <!-- 模板 NPC 无 ClanId：在别人家族服役 -->
+    
     <string id="LWN_prompt_clan_template_no_clan" text="--- Clan Background ---\nNo prominent clan. An ordinary {ROLE}, serving in someone else's clan." />
-    <!-- Hero 但无 Clan：游民 -->
+    
     <string id="LWN_prompt_clan_wanderer" text="No clan (wanderer). Alone, with no family backing." />
-    <!-- Hero 有 Clan：完整家族信息模板 -->
-    <string id="LWN_prompt_clan_hero" text="--- Clan Background ---
-Clan: [{CLAN}], Tier: {TIER}. Renown: {RENOWN}.
-Overall: {STRENGTH}.
-Position in clan: {STATUS}.
-Fiefs: {TOWNS} towns, {CASTLES} castles ({PCT}% of the realm, {MY}/{TOTAL}).
-Wealth: {WEALTH} ({GOLD} gold).
-Influence: {INF}." />
+    
+    <string id="LWN_prompt_clan_hero" text="--- Clan Background --- Clan: [{CLAN}], Tier: {TIER}. Renown: {RENOWN}. Overall: {STRENGTH}. Position in clan: {STATUS}. Fiefs: {TOWNS} towns, {CASTLES} castles ({PCT}% of the realm, {MY}/{TOTAL}). Wealth: {WEALTH} ({GOLD} gold). Influence: {INF}." />
 
-    <!-- 家族身份描述 -->
+    
     <string id="LWN_prompt_clan_status_leader" text="Clan Leader (supreme authority)" />
     <string id="LWN_prompt_clan_status_spouse" text="Leader's Spouse (highest honor)" />
     <string id="LWN_prompt_clan_status_heir" text="Heir (direct bloodline)" />
     <string id="LWN_prompt_clan_status_companion" text="Retainer/Companion (recruited for ability, status depends on merit)" />
     <string id="LWN_prompt_clan_status_member" text="Ordinary member" />
 
-    <!-- 财力描述 -->
+    
     <string id="LWN_prompt_clan_wealth_fabulous" text="Fabulously wealthy" />
     <string id="LWN_prompt_clan_wealth_rich" text="Deep-pocketed" />
     <string id="LWN_prompt_clan_wealth_comfortable" text="Well-off" />
     <string id="LWN_prompt_clan_wealth_struggling" text="Scraping by" />
     <string id="LWN_prompt_clan_wealth_poor" text="Penniless" />
 
-    <!-- 实力描述 -->
+    
     <string id="LWN_prompt_clan_strength_warlord" text="A warlord — vast territory, could stand alone" />
     <string id="LWN_prompt_clan_strength_top" text="Top-tier nobility — extensive holdings" />
     <string id="LWN_prompt_clan_strength_finance" text="Financial titan — more gold than land" />
@@ -48,172 +42,150 @@ Influence: {INF}." />
     <string id="LWN_prompt_clan_strength_landed" text="Landed gentry — has roots" />
     <string id="LWN_prompt_clan_strength_landless" text="Landless — adrift and unstable" />
 
-    <!-- ═══ GetKingdomInfo ═══ -->
-    <!-- 模板 NPC 有 KingdomId -->
+    
+    
     <string id="LWN_prompt_kingdom_template_has" text="--- Allegiance ---\nServes {KINGDOM}." />
-    <!-- 模板 NPC 无 KingdomId -->
+    
     <string id="LWN_prompt_kingdom_template_no" text="--- Allegiance ---\nSwears fealty to no kingdom." />
-    <!-- Hero 无 Clan/Kingdom：独立状态 -->
+    
     <string id="LWN_prompt_kingdom_independent" text="--- Allegiance ---\nCurrently independent, owing fealty to none. This means no king's protection, but also no taxes or conscription." />
-    <!-- Hero 有 Kingdom：完整国家信息模板 -->
-    <string id="LWN_prompt_kingdom_hero" text="--- Allegiance ---
-Kingdom: [{NAME}], Culture: {CULTURE}.
-Strength: {POWER} (Rank {RANK} of {TOTAL}).
-Armies: {ARMIES} active, Power Index: {STRENGTH}.
-Diplomacy: {WAR}.
-Relation with ruler: {RULER_REL}." />
+    
+    <string id="LWN_prompt_kingdom_hero" text="--- Allegiance --- Kingdom: [{NAME}], Culture: {CULTURE}. Strength: {POWER} (Rank {RANK} of {TOTAL}). Armies: {ARMIES} active, Power Index: {STRENGTH}. Diplomacy: {WAR}. Relation with ruler: {RULER_REL}." />
 
-    <!-- 国力描述 -->
+    
     <string id="LWN_prompt_kingdom_power_hegemon" text="Continental Hegemon (strongest empire)" />
     <string id="LWN_prompt_kingdom_power_great" text="Great Power (first tier)" />
     <string id="LWN_prompt_kingdom_power_middle" text="Regional Power (second tier)" />
     <string id="LWN_prompt_kingdom_power_weak" text="Declining State (on the brink)" />
 
-    <!-- 战争/和平状态 -->
-    <!-- 处于战争状态：{ENEMIES}=敌方列表 -->
+    
+    
     <string id="LWN_prompt_kingdom_war_active" text="At war with: [{ENEMIES}]." />
-    <!-- 和平状态 -->
+    
     <string id="LWN_prompt_kingdom_war_peace" text="At peace, recovering." />
 
-    <!-- 统治者关系 -->
+    
     <string id="LWN_prompt_kingdom_ruler_self" text="You are the ruler" />
-    <!-- 君臣相知：{REL}=关系值 -->
+    
     <string id="LWN_prompt_kingdom_ruler_trusted" text="Trusted by the ruler (Relation {REL})" />
-    <!-- 受到猜忌：{REL}=关系值 -->
+    
     <string id="LWN_prompt_kingdom_ruler_suspect" text="Under suspicion (Relation {REL})" />
-    <!-- 泛泛之交：{REL}=关系值 -->
+    
     <string id="LWN_prompt_kingdom_ruler_neutral" text="On neutral terms (Relation {REL})" />
 
-    <!-- ═══ GetSelfInfo ═══ -->
-    <!-- 模板 NPC（无 Hero）身份描述 -->
+    
+    
     <string id="LWN_prompt_self_template_npc" text="- Identity: {NAME}\n- Tier: {TIER}\n- Occupation 1: {OCC1}\n- Occupation 2: {OCC2}" />
-    <!-- 模板 NPC 无数据兜底 -->
+    
     <string id="LWN_prompt_self_none" text="None" />
-    <!-- Hero 人物核心设定头部 -->
-    <string id="LWN_prompt_self_hero_header" text="## Core Identity
-- Name: [{NAME}]
-- Gender: {GENDER}
-- Age: {AGE}
-- Spouse: [{SPOUSE}]
-- Occupation: [{OCC}]" />
-    <!-- 自我阶级认知区块头 -->
+    
+    <string id="LWN_prompt_self_hero_header" text="## Core Identity - Name: [{NAME}] - Gender: {GENDER} - Age: {AGE} - Spouse: [{SPOUSE}] - Occupation: [{OCC}]" />
+    
     <string id="LWN_prompt_self_worth_header" text="## Self-Perception" />
-    <!-- 目标与动机区块头 -->
+    
     <string id="LWN_prompt_self_goals_header" text="## Goals &amp; Motivation" />
-    <!-- 喜好信息区块头 -->
+    
     <string id="LWN_prompt_self_prefs_header" text="## Preferences" />
-    <!-- 喜好行模板：物欲/喜好类型/酒态度/武器偏好/工作偏好 -->
-    <string id="LWN_prompt_self_prefs_line" text="- Material desire: {DESIRE}
-- Preference type: {DESIRE_TYPE}
-- Attitude toward alcohol: {ALCOHOL}
-- Weapon preference: {WEAPON}
-- Work preference: {JOB}" />
-    <!-- 性格和价值观区块头 -->
+    
+    <string id="LWN_prompt_self_prefs_line" text="- Material desire: {DESIRE} - Preference type: {DESIRE_TYPE} - Attitude toward alcohol: {ALCOHOL} - Weapon preference: {WEAPON} - Work preference: {JOB}" />
+    
     <string id="LWN_prompt_self_personality_header" text="## Personality &amp; Values" />
-    <!-- 性格行模板：野心/行事风格/脾气/精神/主义/情义态度 -->
-    <string id="LWN_prompt_self_personality_line" text="- Ambition: {AMBITION}
-- Style: {STYLE}
-- Temper: {TEMPER}
-- Spirit: {SPIRIT}
-- Ideology: {ISM}
-- Importance of friendship: {FRIENDSHIP}" />
-    <!-- 当前生理状态区块头 -->
+    
+    <string id="LWN_prompt_self_personality_line" text="- Ambition: {AMBITION} - Style: {STYLE} - Temper: {TEMPER} - Spirit: {SPIRIT} - Ideology: {ISM} - Importance of friendship: {FRIENDSHIP}" />
+    
     <string id="LWN_prompt_self_status_header" text="## Current Physical Status" />
-    <!-- 健康状况行模板：{DESC}=健康描述，{HP}=生命百分比 -->
+    
     <string id="LWN_prompt_self_health_line" text="Health: {DESC} (HP: {HP}%)." />
-    <!-- 健康描述 -->
+    
     <string id="LWN_prompt_self_health_energetic" text="Energetic" />
     <string id="LWN_prompt_self_health_wounded" text="Wounded" />
     <string id="LWN_prompt_self_health_critical" text="Critically wounded, near collapse" />
 
-    <!-- ═══ CalCurrentMotivation ═══ -->
-    <!-- 动机标签 -->
-    <string id="LWN_prompt_motivation_label" text="Long-term goal: {LIFE_GOAL}
-Short-term goal: {SHORT_GOAL}" />
-    <!-- 模板 NPC — 村民 -->
+    
+    
+    <string id="LWN_prompt_motivation_label" text="Long-term goal: {LIFE_GOAL} Short-term goal: {SHORT_GOAL}" />
+    
     <string id="LWN_prompt_goal_villager_long" text="Live a peaceful life." />
     <string id="LWN_prompt_goal_villager_short" text="Finish the work at hand." />
-    <!-- 模板 NPC — 默认（守卫等） -->
+    
     <string id="LWN_prompt_goal_template_long" text="Earn their pay and stay alive." />
     <string id="LWN_prompt_goal_template_short" text="Carry out their current guard or patrol duty." />
-    <!-- 国王 — 理想主义+高野心 -->
+    
     <string id="LWN_prompt_goal_king_ideal" text="Unite the continent and build an enduring ideal realm." />
-    <!-- 国王 — 高野心（≥80） -->
+    
     <string id="LWN_prompt_goal_king_conquer" text="Conquer everything — make all nations kneel." />
-    <!-- 国王 — 慎重行事 -->
+    
     <string id="LWN_prompt_goal_king_stable" text="Maintain internal stability and ensure a smooth dynastic succession." />
-    <!-- 国王 — 默认 -->
+    
     <string id="LWN_prompt_goal_king_default" text="Enjoy the pinnacle of power and preserve the status quo." />
-    <!-- 族长 — 高野心+低荣誉 → 篡位 -->
+    
     <string id="LWN_prompt_goal_clan_leader_usurp" text="Build up power, overthrow the current monarch, and seize the throne." />
-    <!-- 族长 — 高野心+荣誉正常 → 权臣 -->
+    
     <string id="LWN_prompt_goal_clan_leader_magnate" text="Lead the clan to become the most powerful house in the kingdom." />
-    <!-- 族长 — 现实主义+贪心 → 商业帝国 -->
+    
     <string id="LWN_prompt_goal_clan_leader_commerce" text="Monopolize trade and build a commercial empire wealthier than any kingdom." />
-    <!-- 族长 — 荣誉高 → 忠臣 -->
+    
     <string id="LWN_prompt_goal_clan_leader_loyal" text="As guardian of the clan, serve faithfully and bring glory to the family name." />
-    <!-- 族长 — 默认 -->
+    
     <string id="LWN_prompt_goal_clan_leader_default" text="Preserve the clan and ensure its survival through this age of chaos." />
-    <!-- 流浪者 — 高野心 -->
+    
     <string id="LWN_prompt_goal_wanderer_ambitious" text="Seek a worthy lord or opportunity — escape the life of a wanderer and rise to nobility." />
-    <!-- 流浪者 — 贪心 -->
+    
     <string id="LWN_prompt_goal_wanderer_greedy" text="As a mercenary or bandit, seize as much wealth as possible." />
-    <!-- 流浪者 — 默认 -->
+    
     <string id="LWN_prompt_goal_wanderer_default" text="Drift wherever the wind takes them, searching for a place to belong." />
-    <!-- 普通家族成员 — 高野心+精明 → 幕后操纵 -->
+    
     <string id="LWN_prompt_goal_member_manipulate" text="Manipulate clan politics from behind the scenes and seize real power." />
-    <!-- 普通家族成员 — 勇敢 → 家族利剑 -->
+    
     <string id="LWN_prompt_goal_member_blade" text="Prove themselves on the battlefield — become the clan's sword." />
-    <!-- 普通家族成员 — 重情义 → 辅佐 -->
+    
     <string id="LWN_prompt_goal_member_support" text="Support the clan head (or spouse) and strengthen the bonds between clan members." />
-    <!-- 普通家族成员 — 默认 -->
+    
     <string id="LWN_prompt_goal_member_default" text="Enjoy the noble life and live out their days in peace." />
 
-    <!-- ShortGoal 模板 NPC 的各分支 -->
-    <!-- 酒鬼当前念头 -->
+    
+    
     <string id="LWN_prompt_shortgoal_alcoholic" text="Desperately craves alcohol — their first thought right now is to find a tavern and drink themselves senseless." />
-    <!-- 战争状态 — 备战 -->
+    
     <string id="LWN_prompt_shortgoal_war_eager" text="Preparing for war: eager to defeat enemy captains in the current conflict and win renown and plunder." />
-    <!-- 战争状态 — 避战 -->
+    
     <string id="LWN_prompt_shortgoal_war_avoid" text="Avoiding war: with battles raging, wants nothing more than to hide behind safe walls and avoid capture." />
-    <!-- 战争状态 — 投机 -->
+    
     <string id="LWN_prompt_shortgoal_war_profit" text="Profiteering: taking advantage of the chaos to loot villages and profit from war." />
-    <!-- 战争状态 — 尽职 -->
+    
     <string id="LWN_prompt_shortgoal_war_duty" text="Doing their duty: answering the realm's call to arms and defending its territory." />
-    <!-- 经济困难 — 筹款 -->
+    
     <string id="LWN_prompt_shortgoal_economy_shortfall" text="Fundraising: the clan is running a deficit — needs legitimate trade or missions to cover expenses." />
-    <!-- 经济困难 — 搞钱 -->
+    
     <string id="LWN_prompt_shortgoal_economy_cash" text="Scrounging for cash: short on money. Whether it's robbing caravans or extortion — denars must be raised, and fast." />
-    <!-- 物欲驱动的 ShortGoal — 求知/整备/收藏/敛财/经营 -->
+    
     <string id="LWN_prompt_shortgoal_desire_knowledge" text="Seeking knowledge: hoping to find rare books or ancient lore in this city." />
     <string id="LWN_prompt_shortgoal_desire_gear" text="Gearing up: looking for a fine weapon, or seeking to improve existing equipment." />
     <string id="LWN_prompt_shortgoal_desire_collect" text="Collecting: deeply interested in exotic treasures or works of art — wants to add them to the collection." />
     <string id="LWN_prompt_shortgoal_desire_hoard" text="Hoarding: not short on money, but watching the gold pile grow is the greatest pleasure." />
     <string id="LWN_prompt_shortgoal_desire_manage" text="Managing: tending to existing enterprises and caravans." />
-    <!-- 联姻 -->
+    
     <string id="LWN_prompt_shortgoal_marriage" text="Matchmaking: looking for a suitable political marriage alliance." />
-    <!-- 磨炼 -->
+    
     <string id="LWN_prompt_shortgoal_training" text="Training: honing martial skills in the arena, or drilling their soldiers." />
-    <!-- 享乐 -->
+    
     <string id="LWN_prompt_shortgoal_pleasure" text="Pleasure-seeking: lately just wants to hold feasts — eat, drink, and make merry." />
-    <!-- 待命（默认兜底） -->
+    
     <string id="LWN_prompt_shortgoal_standby" text="Standing by: nothing in particular at the moment — takes things as they come." />
 
-    <!-- ═══ GetSelfWorthDescription ═══ -->
-    <!-- 自我认知模板 -->
-    <string id="LWN_prompt_worth_template" text="Origin: {ORIGIN}
-Worth: {VAL} gold.
-Self-Perception: {DESC}" />
-    <!-- 身价描述 -->
+    
+    
+    <string id="LWN_prompt_worth_template" text="Origin: {ORIGIN} Worth: {VAL} gold. Self-Perception: {DESC}" />
+    
     <string id="LWN_prompt_worth_low" text="Insignificant. Would follow anyone who shows a little favor or sincerity." />
     <string id="LWN_prompt_worth_medium" text="Considerable worth. A person of some standing — ordinary offers won't do. They need real gold on the table." />
     <string id="LWN_prompt_worth_high" text="Priceless. A core member of a great house, their worth is immense. Only enormous concessions (cities, vast fortunes) could possibly sway them." />
     <string id="LWN_prompt_worth_extreme" text="Invaluable — nearly supreme power. Trying to buy them? Utterly absurd — you would need half a kingdom's wealth." />
 
-    <!-- ═══ GetCloseRelations ═══ -->
-    <!-- 关系网头部：{NAME}=英雄名 -->
+    
+    
     <string id="LWN_prompt_relations_header" text="{NAME}'s social network:" />
-    <!-- 关系标签 -->
+    
     <string id="LWN_prompt_relations_spouse" text="- Spouse: {NAME}{DECEASED}" />
     <string id="LWN_prompt_relations_father" text="- Father: {NAME}{DECEASED}" />
     <string id="LWN_prompt_relations_mother" text="- Mother: {NAME}{DECEASED}" />
@@ -224,76 +196,105 @@ Self-Perception: {DESC}" />
     <string id="LWN_prompt_relations_friends_label" text="- Friends: " />
     <string id="LWN_prompt_relations_rivals_label" text="- Rivals: " />
     <string id="LWN_prompt_relations_clan_circle_label" text="- Clan circle: " />
-    <!-- 已过世标记 -->
+    
     <string id="LWN_prompt_relations_deceased" text=" (deceased)" />
 
-    <!-- ═══ Trait 属性显示值 ═══ -->
-    <!-- Temper 脾气 — 温和 / 性急 / 普通 -->
+    
+    
     <string id="LWN_prompt_trait_temper_mild" text="Mild" />
     <string id="LWN_prompt_trait_temper_impatient" text="Impatient" />
     <string id="LWN_prompt_trait_temper_normal" text="Normal" />
-    <!-- Spirit 精神 — 胆小 / 勇敢 / 普通 -->
+    
     <string id="LWN_prompt_trait_spirit_timid" text="Timid" />
     <string id="LWN_prompt_trait_spirit_brave" text="Brave" />
     <string id="LWN_prompt_trait_spirit_normal" text="Normal" />
-    <!-- Ism 主义 — 现实 / 理想 / 普通 -->
+    
     <string id="LWN_prompt_trait_ism_realistic" text="Realistic" />
     <string id="LWN_prompt_trait_ism_ideal" text="Idealistic" />
     <string id="LWN_prompt_trait_ism_normal" text="Normal" />
-    <!-- ActStyle 行事风格 — 慎重 / 轻率 / 普通 -->
+    
     <string id="LWN_prompt_trait_style_cautious" text="Cautious" />
     <string id="LWN_prompt_trait_style_reckless" text="Reckless" />
     <string id="LWN_prompt_trait_style_normal" text="Normal" />
-    <!-- Friendship 情义 — 不重情义 / 重视情义 / 普通 -->
+    
     <string id="LWN_prompt_trait_friendship_pragmatic" text="Pragmatic" />
     <string id="LWN_prompt_trait_friendship_loyal" text="Loyal" />
     <string id="LWN_prompt_trait_friendship_normal" text="Normal" />
-    <!-- Desire 物欲 — 无欲 / 贪心 / 普通 -->
+    
     <string id="LWN_prompt_trait_desire_content" text="Content" />
     <string id="LWN_prompt_trait_desire_greedy" text="Greedy" />
     <string id="LWN_prompt_trait_desire_normal" text="Normal" />
-    <!-- DesireType 喜好类型 — 金钱 / 书籍 / 武具 / 南蛮物 / 艺术品 -->
+    
     <string id="LWN_prompt_trait_desiretype_money" text="Money" />
     <string id="LWN_prompt_trait_desiretype_books" text="Books" />
     <string id="LWN_prompt_trait_desiretype_weapons" text="Weapons" />
     <string id="LWN_prompt_trait_desiretype_exotic" text="Exotic Goods" />
     <string id="LWN_prompt_trait_desiretype_art" text="Art" />
-    <!-- Alcohol 酒精 — 滴酒不沾 / 嗜酒如命 / 普通 -->
+    
     <string id="LWN_prompt_trait_alcohol_teetotaler" text="Teetotaler" />
     <string id="LWN_prompt_trait_alcohol_alcoholic" text="Alcoholic" />
     <string id="LWN_prompt_trait_alcohol_normal" text="Normal" />
-    <!-- Origin 出身 — 藤原氏 / 平氏 / 源氏 / 其他 -->
+    
     <string id="LWN_prompt_trait_origin_fujiwara" text="Fujiwara" />
     <string id="LWN_prompt_trait_origin_taira" text="Taira" />
     <string id="LWN_prompt_trait_origin_minamoto" text="Minamoto" />
     <string id="LWN_prompt_trait_origin_other" text="Other" />
-    <!-- Weapon 武器偏好 — 刀剑 / 枪 / 弓 / 火绳枪 / 锁镰 / 其他 -->
+    
     <string id="LWN_prompt_trait_weapon_sword" text="Swords" />
     <string id="LWN_prompt_trait_weapon_spear" text="Spears" />
     <string id="LWN_prompt_trait_weapon_bow" text="Bows" />
     <string id="LWN_prompt_trait_weapon_gun" text="Matchlocks" />
     <string id="LWN_prompt_trait_weapon_kusarigama" text="Kusarigama" />
     <string id="LWN_prompt_trait_weapon_other" text="Other" />
-    <!-- Job 工作倾向 — 没那个意思 / 只限武将 / 全职种 / 武将以外优先 -->
+    
     <string id="LWN_prompt_trait_job_uninterested" text="Uninterested" />
     <string id="LWN_prompt_trait_job_warrior_only" text="Warrior Only" />
     <string id="LWN_prompt_trait_job_all" text="All Jobs" />
     <string id="LWN_prompt_trait_job_prefers_noncombat" text="Prefers Non-Combat" />
-    <!-- Gender / Role 标签 -->
+    
     <string id="LWN_prompt_trait_gender_female" text="Female" />
     <string id="LWN_prompt_trait_gender_male" text="Male" />
     <string id="LWN_prompt_trait_role_soldier" text="Soldier" />
     <string id="LWN_prompt_trait_role_civilian" text="Civilian" />
-    <!-- Occupation 职业 -->
+    
     <string id="LWN_prompt_trait_occupation_noble" text="Noble" />
     <string id="LWN_prompt_trait_occupation_merchant" text="Merchant" />
     <string id="LWN_prompt_trait_occupation_gang_leader" text="Gang Leader" />
     <string id="LWN_prompt_trait_occupation_wanderer" text="Wanderer" />
     <string id="LWN_prompt_trait_occupation_foot_soldier" text="Foot Soldier" />
     <string id="LWN_prompt_trait_occupation_villager" text="Villager" />
+    <string id="LWN_prompt_trait_occupation_guard" text="Guard" />
+    <string id="LWN_prompt_trait_occupation_tavernkeeper" text="Tavern Keeper" />
+    <string id="LWN_prompt_trait_occupation_drunkard" text="Drunkard" />
+    <string id="LWN_prompt_trait_occupation_chief" text="Village Headman" />
+    <string id="LWN_prompt_trait_occupation_default" text="Passerby" />
+    <string id="LWN_trait_duty_high" text="dutiful" />
+    <string id="LWN_trait_duty_low" text="easygoing" />
+    <string id="LWN_trait_temper_high" text="hot-tempered" />
+    <string id="LWN_trait_social_high" text="sociable" />
+    <string id="LWN_trait_social_low" text="reserved" />
+    <string id="LWN_trait_gullible" text="gullible" />
+    <string id="LWN_trait_neutral" text="plain-natured" />
+    <string id="LWN_plan_respond_identity_template" text="You are {0}. {1}." />
+    <string id="LWN_plan_respond_section_identity" text="【Your Role】" />
+    <string id="LWN_plan_respond_section_attitude" text="【Your Current Attitude】" />
+    <string id="LWN_plan_respond_section_topic" text="【Topic】" />
+    <string id="LWN_plan_respond_section_other" text="【The Other】" />
+    <string id="LWN_plan_respond_section_history" text="【Conversation History】" />
+    <string id="LWN_plan_respond_section_perm" text="【Old Memories】" />
+    <string id="LWN_plan_respond_section_recall" text="【Recent Recollections】" />
+    <string id="LWN_plan_respond_section_last" text="【Just Said】" />
+    <string id="LWN_plan_respond_section_outline" text="【Conversation Direction】" />
+    <string id="LWN_plan_chat_fallback" text="By the way, {0}." />
+    <string id="LWN_plan_chat_opening_fallback" text="Excuse me, I would like to have a word with you." />
+    <string id="LWN_trait_companion" text="companion" />
+    <string id="LWN_plan_respond_attitude_hot" text="The other is talking to you and you are happy to chat (high willingness) — reply warmly and go along with the topic." />
+    <string id="LWN_plan_respond_attitude_normal" text="The other is talking to you and you are willing to reply (moderate willingness) — a normal pleasantry is fine." />
+    <string id="LWN_plan_respond_attitude_reluctant" text="You would rather not engage (low willingness), but reply briefly out of politeness — keep it dismissive, cold and short." />
+    <string id="LWN_plan_respond_rule" text="【Requirement】Reply in one casual spoken sentence (10-40 chars), fitting your role, personality and current attitude. Output only the line itself — no quotes, no explanation, no action descriptions." />
   
 
-    <!-- ═══ 密谋命令系统 prompt（LWN_plan_*：CNs 中文 / 本文件 English，py/C# 同源）═══ -->
+    
     <string id="LWN_plan_section_world" text="【World】" />
     <string id="LWN_plan_section_scene" text="【Current Scene】" />
     <string id="LWN_plan_section_scene_empty" text="（No scene information）" />
@@ -304,15 +305,15 @@ Self-Perception: {DESC}" />
     <string id="LWN_plan_section_intent" text="【Intent Classification】You may choose intent_type only from the following intents (never create undefined types):" />
     <string id="LWN_plan_section_grammar" text="【Action &amp; Predicate Vocabulary】" />
     <string id="LWN_plan_intent_fewshot" text="【Intent Judgment Reference (few-shot)】\n&quot;Kill him / Get rid of him / Take him out&quot; → ATTACK (combat, lethal)\n&quot;Lure away / Decoy / Lead him off&quot; → DISTRACT (no combat, just divert attention)\n&quot;Keep him occupied / Hold him / Stall him&quot; → ENGAGE (talk/play for time, do not let him leave)\n&quot;Steal / Pickpocket that thing&quot; → STEAL; &quot;Invite / Call someone over&quot; → BRING; &quot;Keep watch / Alert me when someone comes&quot; → LOOKOUT\n&quot;Lead me to / Take me to&quot; → GUIDE; &quot;Drive away / Chase off / Shoo away&quot; → DRIVE_AWAY; &quot;Deliver a message / Tell him&quot; → DELIVER\n&quot;Go spar with X / Duel him to test his skill&quot; → DUEL (companion duels a third party, non-lethal, report an assessment); &quot;Spar with me / Practice with me&quot; → SPAR (the player is the opponent; take the initiative and strike gently after readying — do not wait for the player to move first)\n&quot;Book rooms / Arrange matters / Order food and drink&quot; → TALK_TO (arrange through conversation); &quot;Buy / Purchase something&quot; → PURCHASE (companion buys goods with his own money and brings them back); &quot;Collect debts / Demand money / Settle accounts&quot; → COLLECT (get the money back)\n【Compound Command Judgment (important: classify by the FINAL goal, not the first action)】\n&quot;Lure/decoy X then knock out/kill&quot; → KNOCKOUT/ATTACK (luring is only a means; the final goal is to incapacitate/kill)\n&quot;I will lure/hold/watch, you steal/search/act&quot; → STEAL etc. (&quot;I…you…&quot; = role division; the companion executes the main action in the second half)\n&quot;If X fights back/attacks, you engage&quot; → GUARD (conditional engagement: hold position normally, fight only when provoked)\n&quot;First…then…/by the way…/at the same time…&quot; → classify by the final goal\n&quot;Wait here, go check/ask over there&quot; → SCOUT (the second half is the actual task)\n【Reference Discipline】If &quot;he/she/it/that thing/that person&quot; in the command has multiple candidates in the scene or is ambiguous → you MUST ask clarifying questions (list candidate positions for the player to choose), never pick one yourself; &quot;follow him&quot; with no clear referent also requires clarification (unless the scene has only one possible target)." />
-    <string id="LWN_plan_rules" text="【Plan Syntax Rules】\n1. Only use defined action/predicate. 2. Every step has a unique id. 3. Every jump must point to a real step id or @abort_gracefully. 4. fallbacks must be an array of arrays [[contingency1],[contingency2]], each contingency first id must be referenced by at least one jump; only jump to a contingency first step. 5. The happy path goes in steps; failures/accidents go in fallbacks/contingencies. 6. Every failure exit must land on a jump/timeout path. 7. Target references can only use scene characters/objects or query (nearest_enemy(self)/all_in(zone)/lure_spot(watch_point,12)/hidden_spot(self,15)/stand_spot(target,anchor)/zone(name)/point(description)). 8. Every say_to must be preceded by a move_to. 9. Safety windows need sustained_s (window 3s/departure confirm 5s, max 30s). 10. Base the plan only on visible facts in the scene. 11. say_to line field is text (not content); wait exit condition is written in until (must be an object {&quot;type&quot;:...}, never a string); ask only allows &quot;follow&quot;. 12. Success and failure endings are two different nodes: put end_plan result=&quot;success&quot; at the end of the main chain (success ending, report a success line); on_timeout / on_event are failure paths, can only point to end_plan result=&quot;fail&quot; or retry contingencies, never to a success ending. 13. wait step on_timeout means &quot;the condition was not met&quot; (guard did not follow/target did not arrive), it is a failure path and must point to a fail ending; only a truly completed plan uses a success ending. 14. Location honesty: if a place mentioned in the command (riverside/castle/Mr Zhang house etc.) does not exist in the scene snapshot → do not fabricate leading the way; use questions to clarify or CUSTOM with an honest &quot;I do not know where it is&quot;; only entities present in the scene (characters/objects/anchors) can be targets. 15. Sustained commands (keep watch/guard/occupy/follow/create a commotion/&quot;do not let him leave&quot; - tasks that last until the player calls them off) use infinite wait (no seconds/until/timeout) or infinite follow for the sustained state, triggers for event reports, no goal; ending is the player stop key; never write &quot;wait N seconds with nothing happening&quot; as a success ending (keeping watch is not a short task, it is standing by). **Task-type vs sustained-type**: has a success moment (person invited/thing stolen/target killed) → goal + end_plan success at the end of the main chain; no success moment (keep watch/occupy/guard/follow/commotion) → sustain + player calls it off — engage/occupy/commotion are sustained-type: after achieving, enter the sustain phase (GOAL→MAINTAIN), do NOT end with success just because &quot;occupied/attracted&quot;; &quot;follow me/come with me&quot; = infinite follow ({&quot;action&quot;:&quot;follow&quot;,&quot;target&quot;:&quot;player&quot;}), not ending when reaching the player. 16. Conditions in until/when/goal/triggers/contingencies can only use the predicate vocabulary (distance/seeing/following/combat/in_zone/count/time_since etc.); event words like approach_by/spoken_to/see_crime/left_post_seconds/player_suspicious_near/**combat_nearby** can only appear in reactions event field, never in conditions (to express &quot;someone approaching/entering an area&quot; → use the predicate in_zone(any, area); **&quot;combat nearby&quot; → use combat(any, any), not combat_nearby**; **&quot;wait for the other to respond/finish speaking&quot; → use time_since(the say_to step step_id, seconds), not spoken_to**; &quot;item acquired&quot; → no dedicated predicate, omit that condition and express success via the step own result routing or time_since). **goal/until can only use the predicate vocabulary**: success that cannot be expressed with predicates (e.g. &quot;item acquired&quot;) → omit goal, express success with end_plan result=&quot;success&quot; at the end of the main chain. 17. ask:&quot;follow&quot; is only for &quot;invite someone to follow/come over&quot; (inviting/calling someone over, luring someone away); tasks like occupy/deliver/keep watch do not use ask. 18. contingencies[].then must be a string (step id or @abort_gracefully) — writing an {&quot;action&quot;:...} object is invalid (that is the shape of triggers[].then; triggers and contingencies have different structures, never mix them).\n19. **Finding a target never uses vision**: move_to targets (character/object/zone) are resolved by scene query — if the entity is in the scene it can be found, regardless of line of sight or facing; if the target is missing or unresolvable, the move_to step fails automatically and goes to the failure path (on_timeout/fallback). **Never use the seeing predicate for &quot;target not found / lost&quot;** (seeing(A,B) direction is fixed: A sees B; it expresses real visual semantics only: keeping watch / witnessing theft / alertness). If a genuine &quot;lost sight&quot; check is needed (e.g. a stalked target disappears): write seeing(self, target) and MUST add sustained_s debounce — a head turn, brief pillar occlusion, or momentary loss of view does NOT count as losing the target; never trigger a contingency from an instant sight change.\n20. **Never use following-false contingencies**: following(A,B) means A follows B. At plan start the companion necessarily stops following (the executor takes over), so following(self, player) becomes false immediately; following(player, self) is always false (the player never follows the companion) — putting either in a contingency makes it fire on the very first tick and destroys the plan. **contingencies must never contain a following condition with op=&quot;false&quot;**; for &quot;target lost / disappeared&quot; checks use discipline 19 (seeing(self, target) + sustained_s) or leave it to step timeout / failure paths." />
+    <string id="LWN_plan_rules" text="【Plan Syntax Rules】\n1. Only use defined action/predicate. 2. Every step has a unique id. 3. Every jump must point to a real step id or @abort_gracefully. 4. fallbacks must be an array of arrays [[contingency1],[contingency2]], each contingency first id must be referenced by at least one jump; only jump to a contingency first step. 5. The happy path goes in steps; failures/accidents go in fallbacks/contingencies. 6. Every failure exit must land on a jump/timeout path. 7. Target references can only use scene characters/objects or query (nearest_enemy(self)/all_in(zone)/lure_spot(watch_point,12)/hidden_spot(self,15)/stand_spot(target,anchor)/zone(name)/point(description)). 8. Every say_to must be preceded by a move_to. 9. Safety windows need sustained_s (window 3s/departure confirm 5s, max 30s). 10. Base the plan only on visible facts in the scene. 11. say_to line field is text (not content); wait exit condition is written in until (must be an object {&quot;type&quot;:...}, never a string); ask only allows &quot;follow&quot;; **conversation tasks (TALK_TO/DELIVER/chat) use say_to with topic + outline (2-5 segment direction array) for multi-turn dialogue, omit text (both sides generate lines live during execution), never pre-write multiple scripted lines**. 12. Success and failure endings are two different nodes: put end_plan result=&quot;success&quot; at the end of the main chain (success ending, report a success line); on_timeout / on_event are failure paths, can only point to end_plan result=&quot;fail&quot; or retry contingencies, never to a success ending. 13. wait step on_timeout means &quot;the condition was not met&quot; (guard did not follow/target did not arrive), it is a failure path and must point to a fail ending; only a truly completed plan uses a success ending. 14. Location honesty: if a place mentioned in the command (riverside/castle/Mr Zhang house etc.) does not exist in the scene snapshot → do not fabricate leading the way; use questions to clarify or CUSTOM with an honest &quot;I do not know where it is&quot;; only entities present in the scene (characters/objects/anchors) can be targets. 15. Sustained commands (keep watch/guard/occupy/follow/create a commotion/&quot;do not let him leave&quot; - tasks that last until the player calls them off) use infinite wait (no seconds/until/timeout) or infinite follow for the sustained state, triggers for event reports, no goal; ending is the player stop key; never write &quot;wait N seconds with nothing happening&quot; as a success ending (keeping watch is not a short task, it is standing by). **Task-type vs sustained-type**: has a success moment (person invited/thing stolen/target killed) → goal + end_plan success at the end of the main chain; no success moment (keep watch/occupy/guard/follow/commotion) → sustain + player calls it off — engage/occupy/commotion are sustained-type: after achieving, enter the sustain phase (GOAL→MAINTAIN), do NOT end with success just because &quot;occupied/attracted&quot;; &quot;follow me/come with me&quot; = infinite follow ({&quot;action&quot;:&quot;follow&quot;,&quot;target&quot;:&quot;player&quot;}), not ending when reaching the player. 16. Conditions in until/when/goal/triggers/contingencies can only use the predicate vocabulary (distance/seeing/following/combat/in_zone/count/time_since etc.); event words like approach_by/spoken_to/see_crime/left_post_seconds/player_suspicious_near/**combat_nearby** can only appear in reactions event field, never in conditions (to express &quot;someone approaching/entering an area&quot; → use the predicate in_zone(any, area); **&quot;combat nearby&quot; → use combat(any, any), not combat_nearby**; **&quot;wait for the other to respond/finish speaking&quot; → use time_since(the say_to step step_id, seconds), not spoken_to**; &quot;item acquired&quot; → no dedicated predicate, omit that condition and express success via the step own result routing or time_since). **goal/until can only use the predicate vocabulary**: success that cannot be expressed with predicates (e.g. &quot;item acquired&quot;) → omit goal, express success with end_plan result=&quot;success&quot; at the end of the main chain. 17. ask:&quot;follow&quot; is only for &quot;invite someone to follow/come over&quot; (inviting/calling someone over, luring someone away); tasks like occupy/deliver/keep watch do not use ask. 18. contingencies[].then must be a string (step id or @abort_gracefully) — writing an {&quot;action&quot;:...} object is invalid (that is the shape of triggers[].then; triggers and contingencies have different structures, never mix them).\n19. **Finding a target never uses vision**: move_to targets (character/object/zone) are resolved by scene query — if the entity is in the scene it can be found, regardless of line of sight or facing; if the target is missing or unresolvable, the move_to step fails automatically and goes to the failure path (on_timeout/fallback). **Never use the seeing predicate for &quot;target not found / lost&quot;** (seeing(A,B) direction is fixed: A sees B; it expresses real visual semantics only: keeping watch / witnessing theft / alertness). If a genuine &quot;lost sight&quot; check is needed (e.g. a stalked target disappears): write seeing(self, target) and MUST add sustained_s debounce — a head turn, brief pillar occlusion, or momentary loss of view does NOT count as losing the target; never trigger a contingency from an instant sight change.\n20. **Never use following-false contingencies**: following(A,B) means A follows B. At plan start the companion necessarily stops following (the executor takes over), so following(self, player) becomes false immediately; following(player, self) is always false (the player never follows the companion) — putting either in a contingency makes it fire on the very first tick and destroys the plan. **contingencies must never contain a following condition with op=&quot;false&quot;**; for &quot;target lost / disappeared&quot; checks use discipline 19 (seeing(self, target) + sustained_s) or leave it to step timeout / failure paths." />
     <string id="LWN_plan_template_bring" text="【Output Format】Output only ONE JSON object, no Markdown wrapping. Full template (BRING example: explicit success ending + fail ending, both exits; output at this granularity, do not shrink):\n{&quot;reply&quot;:&quot;I will go fetch the village chief for you.&quot;,&quot;emotion&quot;:&quot;normal&quot;,&quot;intent&quot;:{&quot;intent_type&quot;:&quot;BRING&quot;,&quot;subjects&quot;:[&quot;self&quot;],&quot;target&quot;:&quot;chief&quot;,&quot;who_does&quot;:&quot;companion&quot;},&quot;questions&quot;:[],&quot;needs_clarification&quot;:false,&quot;plan&quot;:{&quot;summary&quot;:&quot;I will go fetch the village chief for you.&quot;,&quot;goal&quot;:{&quot;type&quot;:&quot;and&quot;,&quot;conditions&quot;:[{&quot;type&quot;:&quot;distance&quot;,&quot;a&quot;:&quot;chief&quot;,&quot;b&quot;:&quot;player&quot;,&quot;op&quot;:&quot;&lt;&quot;,&quot;value&quot;:3},{&quot;type&quot;:&quot;moving&quot;,&quot;a&quot;:&quot;chief&quot;,&quot;op&quot;:&quot;false&quot;}]},&quot;steps&quot;:[{&quot;id&quot;:&quot;b1&quot;,&quot;action&quot;:&quot;move_to&quot;,&quot;target&quot;:&quot;chief&quot;,&quot;within&quot;:2.0,&quot;timeout_s&quot;:30},{&quot;id&quot;:&quot;b2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;chief&quot;,&quot;ask&quot;:&quot;follow&quot;,&quot;text&quot;:&quot;Chief, my master asks you to come over, there is business to discuss&quot;,&quot;timeout_s&quot;:8},{&quot;id&quot;:&quot;b3&quot;,&quot;action&quot;:&quot;wait&quot;,&quot;until&quot;:{&quot;type&quot;:&quot;following&quot;,&quot;a&quot;:&quot;chief&quot;,&quot;b&quot;:&quot;self&quot;,&quot;op&quot;:&quot;true&quot;},&quot;timeout_s&quot;:10,&quot;on_timeout&quot;:&quot;b7&quot;},{&quot;id&quot;:&quot;b4&quot;,&quot;action&quot;:&quot;move_to&quot;,&quot;target&quot;:&quot;player&quot;,&quot;within&quot;:3.0,&quot;until&quot;:{&quot;type&quot;:&quot;distance&quot;,&quot;a&quot;:&quot;chief&quot;,&quot;b&quot;:&quot;player&quot;,&quot;op&quot;:&quot;&lt;&quot;,&quot;value&quot;:3},&quot;timeout_s&quot;:40,&quot;on_timeout&quot;:&quot;b7&quot;},{&quot;id&quot;:&quot;b5&quot;,&quot;action&quot;:&quot;wait&quot;,&quot;until&quot;:{&quot;type&quot;:&quot;distance&quot;,&quot;a&quot;:&quot;chief&quot;,&quot;b&quot;:&quot;player&quot;,&quot;op&quot;:&quot;&lt;&quot;,&quot;value&quot;:3,&quot;sustained_s&quot;:5},&quot;timeout_s&quot;:20,&quot;on_timeout&quot;:&quot;b7&quot;},{&quot;id&quot;:&quot;b6&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;The chief is coming&quot;,&quot;timeout_s&quot;:3}],&quot;fallbacks&quot;:[[{&quot;id&quot;:&quot;b7&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;fail&quot;,&quot;report&quot;:&quot;The chief is busy, he will not come&quot;,&quot;timeout_s&quot;:3}]],&quot;contingencies&quot;:[{&quot;when&quot;:{&quot;type&quot;:&quot;combat&quot;,&quot;entity&quot;:&quot;self&quot;},&quot;then&quot;:&quot;@abort_gracefully&quot;,&quot;one_shot&quot;:true}]},&quot;reactions&quot;:[{&quot;role&quot;:&quot;chief&quot;,&quot;personality&quot;:{&quot;gullibility&quot;:0.4,&quot;duty&quot;:0.6,&quot;temper&quot;:0.4,&quot;social&quot;:0.7,&quot;greed&quot;:0.4},&quot;responses&quot;:[{&quot;event&quot;:&quot;asked_to_follow&quot;,&quot;reactions&quot;:[{&quot;action&quot;:&quot;follow_for_a_bit&quot;,&quot;weight&quot;:0.7},{&quot;action&quot;:&quot;refuse&quot;,&quot;weight&quot;:0.3}]}]}]}" />
     <string id="LWN_plan_template_loop" text="For group targets (kill/knock out a group of people) use the loop section (example):\n&quot;loop&quot;:{&quot;steps&quot;:[{&quot;id&quot;:&quot;p1&quot;,&quot;action&quot;:&quot;move_to&quot;,&quot;target&quot;:{&quot;query&quot;:&quot;nearest_enemy(self)&quot;},&quot;within&quot;:1.5,&quot;timeout_s&quot;:15},{&quot;id&quot;:&quot;p2&quot;,&quot;action&quot;:&quot;knockout&quot;,&quot;target&quot;:{&quot;query&quot;:&quot;nearest_enemy(self)&quot;},&quot;timeout_s&quot;:10}],&quot;until&quot;:{&quot;type&quot;:&quot;count&quot;,&quot;of&quot;:{&quot;query&quot;:&quot;all_in(zone)&quot;},&quot;op&quot;:&quot;=&quot;,&quot;value&quot;:0}}, followed by the main-chain report step after the loop" />
     <string id="LWN_plan_example_fail" text="【Failure Path Example (copy this structure)】Condition wait timeout/refusal event = failure, on_timeout/on_event can only point to fail endings or retry contingencies:\n{&quot;id&quot;:&quot;w3&quot;,&quot;action&quot;:&quot;wait&quot;,&quot;until&quot;:{&quot;type&quot;:&quot;following&quot;,&quot;a&quot;:&quot;guard&quot;,&quot;b&quot;:&quot;self&quot;,&quot;op&quot;:&quot;true&quot;},&quot;timeout_s&quot;:10,&quot;on_timeout&quot;:&quot;w4&quot;},\n{&quot;id&quot;:&quot;w4&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;fail&quot;,&quot;report&quot;:&quot;He did not follow, he would not come&quot;,&quot;timeout_s&quot;:3}\n(Forbidden: on_timeout pointing to an end_plan with result=&quot;success&quot; — claiming success when the condition was never met = lying)" />
-    <string id="LWN_plan_example_respond" text="【Waiting for Response Example (copy this structure)】&quot;Waiting for the target to respond/finish speaking&quot; uses time_since referencing the say_to step (never spoken_to — that is an event word):\n{&quot;id&quot;:&quot;i2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;contact&quot;,&quot;text&quot;:&quot;My master says he will wait for you at the old place&quot;,&quot;timeout_s&quot;:8},\n{&quot;id&quot;:&quot;i3&quot;,&quot;action&quot;:&quot;wait&quot;,&quot;until&quot;:{&quot;type&quot;:&quot;time_since&quot;,&quot;step_id&quot;:&quot;i2&quot;,&quot;op&quot;:&quot;&gt;&quot;,&quot;value&quot;:2},&quot;on_event&quot;:[{&quot;type&quot;:&quot;refused&quot;,&quot;then&quot;:&quot;i5&quot;}],&quot;timeout_s&quot;:6,&quot;on_timeout&quot;:&quot;i6&quot;},\n{&quot;id&quot;:&quot;i4&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;It is arranged&quot;,&quot;timeout_s&quot;:3}, i5/i6 are fail endings" />
+    <string id="LWN_plan_example_respond" text="【Waiting for Response Example (copy this structure)】&quot;Waiting for the target to respond/finish speaking&quot; uses time_since referencing the say_to step (never spoken_to — that is an event word); time_since = 4s (the other side takes ~1.5-2s to generate + 2s bubble), wait timeout_s = 10s (don't fail early while a turn is pending):\n{&quot;id&quot;:&quot;i2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;contact&quot;,&quot;text&quot;:&quot;My master says he will wait for you at the old place&quot;,&quot;timeout_s&quot;:8},\n{&quot;id&quot;:&quot;i3&quot;,&quot;action&quot;:&quot;wait&quot;,&quot;until&quot;:{&quot;type&quot;:&quot;time_since&quot;,&quot;step_id&quot;:&quot;i2&quot;,&quot;op&quot;:&quot;&gt;&quot;,&quot;value&quot;:4},&quot;on_event&quot;:[{&quot;type&quot;:&quot;refused&quot;,&quot;then&quot;:&quot;i5&quot;}],&quot;timeout_s&quot;:10,&quot;on_timeout&quot;:&quot;i6&quot;},\n{&quot;id&quot;:&quot;i4&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;It is arranged&quot;,&quot;timeout_s&quot;:3}, i5/i6 are fail endings" />
     <string id="LWN_plan_example_keep" text="【Sustained-Type Example (keep watch/guard, copy this structure)】Standing by = infinite wait (omit seconds/until/timeout) + triggers for event reports, no goal:\n&quot;steps&quot;:[{&quot;id&quot;:&quot;h1&quot;,&quot;action&quot;:&quot;move_to&quot;,&quot;target&quot;:&quot;player&quot;,&quot;within&quot;:2.0,&quot;timeout_s&quot;:30},{&quot;id&quot;:&quot;h2&quot;,&quot;action&quot;:&quot;wait&quot;}],\n&quot;triggers&quot;:[{&quot;when&quot;:{&quot;type&quot;:&quot;in_zone&quot;,&quot;a&quot;:&quot;any&quot;,&quot;b&quot;:&quot;player&quot;,&quot;op&quot;:&quot;true&quot;},&quot;then&quot;:{&quot;action&quot;:&quot;signal_player&quot;,&quot;text&quot;:&quot;Someone is coming!&quot;}}]\n(h2 infinite wait, ended by the player stop key; forbidden: writing &quot;wait N seconds with no one coming&quot; as a success ending)" />
     <string id="LWN_plan_example_result" text="【Outcome-Type Step Example (copy this structure)】&quot;Item acquired&quot; in steal/take steps uses the result routing, never has_item-type conditions:\n{&quot;id&quot;:&quot;c1&quot;,&quot;action&quot;:&quot;steal_attempt&quot;,&quot;target&quot;:&quot;chest&quot;,&quot;variant&quot;:&quot;item&quot;,&quot;when&quot;:{&quot;type&quot;:&quot;seeing&quot;,&quot;a&quot;:&quot;any&quot;,&quot;b&quot;:&quot;self&quot;,&quot;op&quot;:&quot;false&quot;,&quot;sustained_s&quot;:3},&quot;result&quot;:{&quot;success&quot;:&quot;c2&quot;,&quot;empty&quot;:&quot;c6&quot;,&quot;interrupted&quot;:&quot;c8&quot;},&quot;timeout_s&quot;:40,&quot;on_timeout&quot;:&quot;c7&quot;},\n{&quot;id&quot;:&quot;c2&quot;,&quot;action&quot;:&quot;signal_player&quot;,&quot;text&quot;:&quot;Got it, pull out!&quot;,&quot;timeout_s&quot;:3}, c6/c7/c8 are fail endings (every key in result must point to an existing step)" />
-    <string id="LWN_plan_quality" text="【Output Quality Requirements (not meeting these = unqualified, must rewrite)】\n1. Task-type plans need main-chain steps &gt;= 5 (simple tasks at least 4), granularity of &quot;walk→talk→wait→verify→report&quot;; no 2-3 step sloppiness; **sustained-type plans (keep watch/guard/occupy etc.) are exempt from the step count** — 2-3 steps of infinite sustain + triggers is complete; never fabricate extra actions to pad the count.\n2. fallbacks &gt;= 2 contingencies (each = one failure case: target refused/timeout/accidental interruption, &gt;= 2 steps inside including end_plan + report).\n3. contingencies &gt;= 2: combat → @abort_gracefully mandatory + at least 1 task-related accident (retreat following was detection/alert alert_phase/disconnect seeing flip).\n4. Non-sustained plans must have a goal (plan success condition: distance/seeing/count predicate combination); sustained-type plans (keep watch/guard/stalk) have no goal, expressed with infinite wait + triggers, ended by the player call.\n5. reactions: events/actions must be within the closed vocabularies, never invent new ones.\n6. Simple commands also need a proper ending: the last step uses end_plan (optionally with a one-line report line like &quot;Done/I will wait here&quot;); **a sustained-type plan ending with infinite wait is a valid ending, this rule does not apply**.\n7. Prefer query for dynamic targets (lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point); never hardcode area names that do not exist in the scene.\n8. Lure/keep watch/stall/acquisition-type plans must use signal_player to give the player an action-window prompt; success/failure endings should include a report when possible.\n9. zone(name)/point(description) can only reference names listed in the 【Scene Area Anchors】section; areas not listed → use hidden_spot/lure_spot dynamic search instead, ending in failure if not found, never fabricate anchors.\n10. Failure jump discipline: on_timeout / on_event (refusal-type events like refused) are failure paths, must point to end_plan result=&quot;fail&quot; or retry contingencies, never to success endings (false success reporting)." />
-    <string id="LWN_plan_exec" text="【Execution Requirements】\n1. Ambiguity → fill questions with needs_clarification=true, do not generate a plan. 2. Out of vocabulary → CUSTOM with plan = null, needs_clarification=false and questions=[] (CUSTOM and clarification are MUTUALLY EXCLUSIVE: once classified CUSTOM, honestly refuse — never set needs_clarification). 3. reactions: write reaction plans for every NPC possibly affected by the plan. 4. Lines should sound like a companion speaking in-game, short and natural." />
+    <string id="LWN_plan_quality" text="【Output Quality Requirements (not meeting these = unqualified, must rewrite)】\n1. Task-type plans need main-chain steps &gt;= 5 (simple tasks at least 4), granularity of &quot;walk→talk→wait→verify→report&quot;; no 2-3 step sloppiness; **sustained-type plans (keep watch/guard/occupy etc.) are exempt from the step count** — 2-3 steps of infinite sustain + triggers is complete; never fabricate extra actions to pad the count. **Conversation tasks (TALK_TO/DELIVER/chat) use say_to with topic + outline (2-5 segments, e.g. greet → business → news → farewell); both sides' lines are generated live during execution, forming a 4-7 exchange dialogue — never end after a single line of small talk**.\n2. fallbacks &gt;= 2 contingencies (each = one failure case: target refused/timeout/accidental interruption, &gt;= 2 steps inside including end_plan + report).\n3. contingencies &gt;= 2: combat → @abort_gracefully mandatory + at least 1 task-related accident (retreat following was detection/alert alert_phase/disconnect seeing flip).\n4. Non-sustained plans must have a goal (plan success condition: distance/seeing/count predicate combination); sustained-type plans (keep watch/guard/stalk) have no goal, expressed with infinite wait + triggers, ended by the player call.\n5. reactions: events/actions must be within the closed vocabularies, never invent new ones.\n6. Simple commands also need a proper ending: the last step uses end_plan (optionally with a one-line report line like &quot;Done/I will wait here&quot;); **a sustained-type plan ending with infinite wait is a valid ending, this rule does not apply**.\n7. Prefer query for dynamic targets (lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point); never hardcode area names that do not exist in the scene.\n8. Lure/keep watch/stall/acquisition-type plans must use signal_player to give the player an action-window prompt; success/failure endings should include a report when possible.\n9. zone(name)/point(description) can only reference names listed in the 【Scene Area Anchors】section; areas not listed → use hidden_spot/lure_spot dynamic search instead, ending in failure if not found, never fabricate anchors.\n10. Failure jump discipline: on_timeout / on_event (refusal-type events like refused) are failure paths, must point to end_plan result=&quot;fail&quot; or retry contingencies, never to success endings (false success reporting)." />
+    <string id="LWN_plan_exec" text="【Execution Requirements】\n1. Ambiguity → fill questions with needs_clarification=true, do not generate a plan. 2. Out of vocabulary → CUSTOM with plan = null, needs_clarification=false and questions=[] (CUSTOM and clarification are MUTUALLY EXCLUSIVE: once classified CUSTOM, honestly refuse — never set needs_clarification). 3. reactions: write reaction plans for every NPC possibly affected by the plan (targets being talked to / invited: write respond = reply out loud, the line is generated live). 4. Lines should sound like a companion speaking in-game, short and natural." />
     <string id="LWN_plan_identity_default" text="You are a companion." />
   </strings>
-</base>
+<string id="LWN_plan_example_chat" text="【Chat Mode Example (copy this structure)】TALK_TO multi-turn: say_to omits text, carries topic + outline (2-5 segment direction); both sides' lines are generated live by LLM (4-7 exchanges), ending naturally:&#10;{&quot;id&quot;:&quot;t2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;tavernkeeper&quot;,&quot;topic&quot;:&quot;Ask about tavern business and town news&quot;,&quot;outline&quot;:[&quot;Greeting&quot;,&quot;Business these days&quot;,&quot;Town news&quot;,&quot;Farewell&quot;],&quot;timeout_s&quot;:120},&#10;{&quot;id&quot;:&quot;t3&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;Chatted with the owner&quot;,&quot;timeout_s&quot;:3}" /></base>

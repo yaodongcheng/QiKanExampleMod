@@ -27,7 +27,7 @@
 > - 接线：`AgentBrain` order_execute_plan/plan_decision/ReactiveAgent 触发词分支、`NpcIntent.ExecutingCommand`（CommandDetail）、`AgentAIController.OnMissionTick → PlanExecutor.TickAll`、Plot/StopPlan(G长按同键) 玩法行、AgentHudVM 执行摘要
 > - LLM：`LLMService.ChatAsync` 增加 temperature 参数 + **懒初始化修复**（原 Initialize 无调用点，LLM 功能从未工作）+ **URL/model 参数化**（读 MCM 配置）+ `reasoning_effort: none` 关思考模式（实测 25s→3.5s）；`PromptBuilder.BuildPlanPrompt`（意图词表+few-shot+封闭词表+JSON模板+跳转纪律）
 > - 验证：`Scripts/validate_plan_json.py` 支持 .json 直验（17 示例全 PASS）；**`Scripts/test_llm_plan.py` LLM 链路回归（已固化进 §12 流程）**；`custom.plan_debug snapshot/list/run/status/stop/role/step/replan`
-> - 已知实现偏差：contingency 的 `was` 修饰 + `one_shot: false` 组合下，触发后清除 wasEver 记录以恢复"掉线重触发"语义（§5.2）；signal_player 用非模态 DisplayMessage（NinjaNotification 模态锁鼠标会挡玩家操作）；执行期零 LLM 的铁律不变
+> - 已知实现偏差：contingency 的 `was` 修饰 + `one_shot: false` 组合下，触发后清除 wasEver 记录以恢复"掉线重触发"语义（§5.2）；signal_player 用非模态 DisplayMessage（NinjaNotification 模态锁鼠标会挡玩家操作）；执行期零 LLM——**目标实时回应例外（respond，2026-08-08 BC-006 落地，§5.1 台词来源表 + §6.3）**
 > ⚠️ **代码库中不存在 v1 实现**（`RivalBrain`/`SceneSnapshot`/`PlanExecutor` 均未落地，grep 全库无命中）——文中的"v1 教训/v1 设计保留"指上一版设计文档，实施时无旧代码可继承、无需找旧实现，以本文为准。
 
 ---
@@ -802,7 +802,7 @@ custom.plan_debug replan          # 强制触发 replan 链路
 
 **真正的能力边界**（诚实列举，不是设计缺陷）：词表外的命令 → CUSTOM 诚实拒绝；需要游戏引擎不存在的实体交互（INTERACT）→ 待验证后进词表；超出 Mission 层的能力（大地图指令）→ 不属于本系统。
 
-**性能铁律不变**：计划阶段可容忍 LLM 数秒；**执行阶段零 LLM**——所有参与 NPC（随从 + 对手 + 相关人）全部确定性运行。
+**性能铁律（2026-08-08 修订，BC-006）**：计划阶段可容忍 LLM 数秒；执行阶段——随从侧（执行器/谓词/原子行为）零 LLM，**唯一例外 = 目标被搭话的实时回应**（`ReactiveAgent respond` → `ChatOnceAsync` 每回合一次，2s 预算，超时/失败/限流降级职业模板台词，铁律 1 兜底）。其余参与 NPC（随从 + 对手 + 相关人）全部确定性运行。
 
 ### 0.4 压力测试：武侠 / 中世纪村镇（第二谱系）
 
@@ -1157,15 +1157,16 @@ t=20+  守卫折返（following 变 false）→ 密信"守卫回岗了，快收�
 t=X    玩家按停止键（R3）→ 收尾三路 → 随从回默认跟随（NpcIntent = Following）
 ```
 
-**三种台词来源的选用规则（何时用台本）**：
+**四种台词来源的选用规则（何时用台本）**：
 
 | 场景 | 用哪个 | 为什么 |
 |------|--------|--------|
 | 只说一句话（诱骗/邀请/恐吓） | plan step.text（LLM 计划期写死） | 单句台词，执行期零 LLM |
 | 对方"要不要配合"（跟不跟/拒不拒绝） | ReactiveAgent 反应表 | 人格决定，运行时演算，LLM 只写骨架 |
+| **对方"被搭话后的回应"（TALK_TO/DELIVER/闲聊）** | **ReactiveAgent `respond` → 实时 LLM（BC-006）** | 目标回应 = 每回合一次 LLM（主题 + 上一句 + 历史 + 身份人格，`ChatOnceAsync` 2s 预算，超时/失败/限流降级职业模板 `LWN_reactive_respond_*`）——比计划期预写更符合情景（随从的台词仍是计划预写，主链/失败路径都设计） |
 | 结算型步骤（谈价/讨债/比武） | 预写台本（script，§5.5） | 结果由公式结算，台词必须与结果一致——多轮对话预写 + 结算结果选分支 |
 
-**判据一句话**：这一步的结果由**公式结算**还是**人格反应**决定？公式 → 台本；人格 → 反应表；只是说一句话 → 计划文本。例：case B 请村长 = say_to 文本 + 村长反应表（**不需要台本**——村长回不回应是人格决定的）；W4 讨债 = 台本（让不让是公式算的）。
+**判据一句话**：这一步的结果由**公式结算**还是**人格反应**决定？公式 → 台本；人格 → 反应表；只是说一句话 → 计划文本；对方接话 → 实时回应（respond）。例：case B 请村长 = say_to 文本 + 村长反应表（**不需要台本**——村长回不回应是人格决定的）；W4 讨债 = 台本（让不让是公式算的）。
 
 ### 5.2 封闭谓词词表（条件即数据，不执行任意代码）
 
@@ -1381,7 +1382,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 
 ### 6.3 反应词表（全部映射到 §4 原子行为）
 
-`listen` / `consider`（短暂犹豫）/ `refuse`（说句拒绝的话 + 不动）/ `follow_for_a_bit`（→ `follow` 动作）/ `investigate`（→ `move_to` zone + `look_at`）/ `return_post` / `stare` / `alert_raise`（→ `brain.AddAlert` 脉冲，复用 `AgentBrain.cs:1060`）/ `attack`（→ `FightEnemyAction`）/ `call_guards`（→ `BroadcastEventInRange`）/ `ignore` / `relay_message`（→ 转告他人，信息经 NPC 链传递——通报门卫让主人来见的间接 BRING）/ `pay`（→ `TransferGold` 守恒转移，铁律 4）/ `hand_over_item`（→ `TransferItems`）/ **`flee`（→ 跑离现场：远离触发者 20m 奔跑，`ReactiveFleeAction`，✅ 2026-08-07 落地——恐慌情境反应本体，见下）**…
+`listen` / `consider`（短暂犹豫）/ **`respond`（✅ 2026-08-08 BC-006 落地——被搭话开口回应：实时 LLM 生成台词，`ChatOnceAsync` 2s 预算，超时/失败/限流降级职业模板 `LWN_reactive_respond_*`；请求上下文 = 世界观 + 身份[职业+人格描述] + 主题[plan summary] + 对话历史[最近 4 句] + 对方刚说；结果入队由 `AgentAIController.OnMissionTick → ReactiveAgent.TickAll` 主线程 `FaceToActor` + `AgentSay` 播放，不接管 brain；回合上限 6 轮防无限请求）** / `refuse`（说句拒绝的话 + 不动）/ `follow_for_a_bit`（→ `follow` 动作）/ `investigate`（→ `move_to` zone + `look_at`）/ `return_post` / `stare` / `alert_raise`（→ `brain.AddAlert` 脉冲，复用 `AgentBrain.cs:1060`）/ `attack`（→ `FightEnemyAction`）/ `call_guards`（→ `BroadcastEventInRange`）/ `ignore` / `relay_message`（→ 转告他人，信息经 NPC 链传递——通报门卫让主人来见的间接 BRING）/ `pay`（→ `TransferGold` 守恒转移，铁律 4）/ `hand_over_item`（→ `TransferItems`）/ **`flee`（→ 跑离现场：远离触发者 20m 奔跑，`ReactiveFleeAction`，✅ 2026-08-07 落地——恐慌情境反应本体，见下）**…
 
 **flee 反应（2026-08-07 落地）**：`see_ally_killed` 恐慌触发链（§6.2）的反应本体已实现——`ReactiveFleeAction` 跑离触发者（ScriptedMoveToPoint isRun=true）；LLM 反应表可直接写 `flee`（v9 回归实测模型高频自创 flee 6/66 → 从"词表外自创"改为正式反应词）。**恐慌传播链（flee 的人引发周围人连锁逃跑，`BroadcastEventInRange` 衰减、≤3 跳）仍为 v2**——flee 只作用于触发者本人。
 

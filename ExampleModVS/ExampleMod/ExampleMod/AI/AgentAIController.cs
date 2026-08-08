@@ -217,6 +217,8 @@ namespace LivingWorldNpcs
 
             // 密谋命令系统：执行器统一驱动（与 brain 队列解耦，收尾报告流程也在此推进）
             PlanExecutor.TickAll(dt);
+            // 密谋命令系统：ReactiveAgent 实时回应结果消费（BC-006：respond 的 LLM 台词主线程播放）
+            ReactiveAgent.TickAll(dt);
         }
 
         public override void OnRemoveBehavior()

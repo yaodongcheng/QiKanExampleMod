@@ -99,8 +99,10 @@ namespace LivingWorldNpcs
         [JsonProperty("target")] public JToken Target;    // string 或 {"query": "..."} 或 {"type": "..."}（谓词型）
         [JsonProperty("within")] public float Within;     // 到达判定半径（≤ 5m 钳制）
         [JsonProperty("timeout_s")] public float TimeoutS;
-        [JsonProperty("text")] public string Text;        // say_to 冒泡文本
+        [JsonProperty("text")] public string Text;        // say_to 冒泡文本（单句模式）；对话模式（带 outline）可省略，开场白由 LLM 生成
         [JsonProperty("content")] public string Content;  // 容错别名：模型常把 say_to 台词写成 content（§5.3 钳制精神）
+        [JsonProperty("topic")] public string Topic;      // say_to 对话模式：聊天话题（LLM 计划期定，真实对话执行期生成）
+        [JsonProperty("outline")] public JToken Outline;  // say_to 对话模式：走向数组 ["寒暄","问生意",...]（2-5 段；JToken 容错 LLM 类型错误）
         [JsonProperty("ask")] public string Ask;          // say_to 可选：follow = 邀请跟随
         [JsonProperty("seconds")] public float Seconds;   // wait 纯等待（与 until 互斥）
         [JsonProperty("until")] public Condition Until;   // wait 退出条件 / 动作步骤提前完成条件
@@ -130,6 +132,29 @@ namespace LivingWorldNpcs
         /// <summary>台词兼容读取（模型常写 content 而非 text）。</summary>
         [JsonIgnore]
         public string TextOrContent => Text ?? Content;
+
+        /// <summary>对话模式走向段（say_to 带 outline 时）：容错解析字符串数组（LLM 可能写成字符串/对象，铁律 2），非法 → null。</summary>
+        [JsonIgnore]
+        public List<string> OutlineSegments
+        {
+            get
+            {
+                if (Outline == null) return null;
+                if (Outline.Type == JTokenType.Array)
+                {
+                    var list = new List<string>();
+                    foreach (var item in Outline)
+                        if (item.Type == JTokenType.String && !string.IsNullOrWhiteSpace(item.Value<string>()))
+                            list.Add(item.Value<string>());
+                    return list.Count > 0 ? list : null;
+                }
+                return null;
+            }
+        }
+
+        /// <summary>是否对话模式（outline 2-5 段）：多轮对话由执行期 LLM 实时生成双方台词，计划期只定话题与走向。</summary>
+        [JsonIgnore]
+        public bool IsChatMode => OutlineSegments != null;
 
         /// <summary>保持型/无限等待步骤（wait 省略 seconds/until、follow 省略 timeout）不套 30s 默认与总时长上限。</summary>
         public static bool IsUnboundedStep(PlanStep s)
@@ -655,6 +680,22 @@ namespace LivingWorldNpcs
             {
                 result.Warnings.Add($"seconds 与 until 同写（id={s.Id}）→ 保留 until");
                 s.Seconds = 0;
+            }
+
+            // say_to 对话模式（BC-006 v3）：outline 段数 2-5（非法/超限 → 置 null 退化单句，不丢步骤）
+            if (s.Action == "say_to" && s.Outline != null)
+            {
+                var segs = s.OutlineSegments;
+                if (segs == null)
+                {
+                    result.Warnings.Add($"say_to outline 非法（id={s.Id}）→ 按单句处理");
+                    s.Outline = null;
+                }
+                else if (segs.Count < 2 || segs.Count > 5)
+                {
+                    result.Warnings.Add($"say_to outline 段数 {segs.Count} 超限（id={s.Id}，要求 2-5）→ 按单句处理");
+                    s.Outline = null;
+                }
             }
 
             // 台本：结算型步骤的分支必须覆盖运行时结果枚举（§5.5 铁律 1：缺分支 → 拒收该步骤）

@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -449,8 +450,78 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>轻量单次请求（ReactiveAgent 实时回应专用）：无重试、短超时、失败静默返回 null。
+        /// 区别于 ChatAsync（3 次重试 + 失败弹连接提示）——实时对话必须在 2s 预算内返回，
+        /// 超时/失败由调用方降级（职业模板台词），不打扰玩家（BC-006）。
+        /// 429 限流 → 触发全局冷却（RespondRateLimitCooldownS 内所有回应请求直接降级，防连发撞限流）。</summary>
+        public async Task<string> ChatOnceAsync(string systemPrompt, int maxTokens = 80, float temperature = 0.7f, bool disableReasoning = true, int timeoutMs = 2000)
+        {
+            if (!Settings.Instance.IsLLMConfigured) return null;
+            if (IsRespondRateLimited()) return null;
+            var messages = new List<object>
+            {
+                new { role = "system", content = systemPrompt }
+            };
+            var requestBody = new Dictionary<string, object>
+            {
+                ["model"] = CurrentModel,
+                ["messages"] = messages,
+                ["temperature"] = temperature,
+                ["max_tokens"] = maxTokens,
+            };
+            if (disableReasoning) requestBody["reasoning_effort"] = "none";
+            try
+            {
+                var json = JsonConvert.SerializeObject(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var key = Settings.Instance?.LLMApiKey;
+                if (string.IsNullOrWhiteSpace(key)) return null;
+                using (var request = new HttpRequestMessage(HttpMethod.Post, ApiUrl))
+                {
+                    request.Content = content;
+                    request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + key);
+                    // 请求日志（摘要，防刷屏）：确认实时请求确实发出（与 CallApiAsync 全量日志分工）
+                    DebugLogger.Log($"[ReactiveRespond] 请求发出: {(json.Length > 300 ? json.Substring(0, 300) + "…" : json)}");
+                    using (var cts = new CancellationTokenSource(timeoutMs))
+                    {
+                        var response = await _httpClient.SendAsync(request, cts.Token);
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            DebugLogger.Log($"[ReactiveRespond] 回应请求失败: {response.StatusCode}（降级模板）");
+                            // 429 限流：进入冷却，避免连发撞限流（2026-08-08 实测网关 429；老 .NET 枚举无 TooManyRequests，用数字）
+                            if ((int)response.StatusCode == 429)
+                                _respondRateLimitBlockedUntil = Mission.Current != null ? Mission.Current.CurrentTime + RespondRateLimitCooldownS : float.MaxValue;
+                            return null;
+                        }
+                        string responseString = await response.Content.ReadAsStringAsync();
+                        dynamic result = JsonConvert.DeserializeObject(responseString);
+                        string finalContent = result.choices[0].message.content.ToString().Trim();
+                        // 回包日志：确认实时回应内容（降级排查关键证据）
+                        DebugLogger.Log($"[ReactiveRespond] 回包: {finalContent}");
+                        if (string.IsNullOrWhiteSpace(finalContent)) return null;
+                        return finalContent;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ReactiveRespond] 回应请求失败（降级模板）: {ex.Message}");
+                return null;
+            }
+        }
+
+        // ── 429 限流冷却（回应专用；冷却期内直接降级模板，不发请求）──
+        private static float _respondRateLimitBlockedUntil;
+        private const float RespondRateLimitCooldownS = 10f;
+
+        private static bool IsRespondRateLimited()
+        {
+            return Mission.Current != null && Mission.Current.CurrentTime < _respondRateLimitBlockedUntil;
+        }
+
         // 总结功能 (将对话压缩为30字记忆)
-        public async Task<string> SummarizeAsync(string systemPrompt)
+        /// <param name="showFailureAlert">失败弹玩家红字（玩家对话默认 true；随从对话触发的记忆维护传 false 静默，D4）</param>
+        public async Task<string> SummarizeAsync(string systemPrompt, bool showFailureAlert = true)
         {
             var messages = new List<object>
             {
@@ -466,15 +537,15 @@ namespace LivingWorldNpcs
                 response_format = new { type = "json_object" }
             };
 
-            return await CallApiAsync(requestBody);
+            return await CallApiAsync(requestBody, showFailureAlert);
         }
 
-        public async Task<string> MergeMemoryAsync(string systemPrompt)
+        public async Task<string> MergeMemoryAsync(string systemPrompt, bool showFailureAlert = true)
         {
             var messages = new List<object>
             {
                     new { role = "system", content = systemPrompt },
-                  
+
             };
 
             var requestBody = new
@@ -485,8 +556,8 @@ namespace LivingWorldNpcs
                 max_tokens = 300,
                 response_format = new { type = "json_object" }
             };
-            
-            return await CallApiAsync(requestBody);
+
+            return await CallApiAsync(requestBody, showFailureAlert);
         }
 
         /// <summary>安全读错误响应体（截断防超大错误页），失败返回 null——只影响诊断精度，不影响主流程。</summary>
@@ -502,7 +573,7 @@ namespace LivingWorldNpcs
             catch { return null; }
         }
 
-        private async Task<string> CallApiAsync(object requestBody)
+        private async Task<string> CallApiAsync(object requestBody, bool showFailureAlert = true)
         {
             //可能是对话服务，也可能是总结短期、长期记忆服务
             int maxRetries = 3;
@@ -569,8 +640,10 @@ namespace LivingWorldNpcs
 
                             errorString = $"[NPC正在思考...] (Error: {response.StatusCode})";
                             DebugLogger.Log($"大模型API报错: {errorString} (body: {lastErrorBody})");
-                            // 不可重试的 4xx 终局：分类并提示玩家（连不上必须给出明确原因）
-                            ShowConnectionMessage(ClassifyFailure(null, lastStatus, lastErrorBody), showSuccess: false);
+                            // 不可重试的 4xx 终局：分类并提示玩家（连不上必须给出明确原因）；
+                            // showFailureAlert=false（随从对话记忆维护）→ 静默（D4）
+                            if (showFailureAlert)
+                                ShowConnectionMessage(ClassifyFailure(null, lastStatus, lastErrorBody), showSuccess: false);
                             return errorString;
                         }
 
@@ -601,7 +674,8 @@ namespace LivingWorldNpcs
                         errorString = $"[NPC似乎走神了...] ({ex.Message})";
                         DebugLogger.Log($"大模型请求最终失败: {errorString}");
                         // 重试耗尽终局：分类并提示玩家（连不上必须给出明确原因）
-                        ShowConnectionMessage(ClassifyFailure(ex, lastStatus, lastErrorBody), showSuccess: false);
+                        if (showFailureAlert)
+                            ShowConnectionMessage(ClassifyFailure(ex, lastStatus, lastErrorBody), showSuccess: false);
                         throw new Exception($"连接失败，请检查网络或 Key ({ex.Message})");
                     }
 

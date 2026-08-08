@@ -3881,6 +3881,14 @@
     <string id="LWN_plan_noise" text="Hey! Over here! Look at this!" />
     <string id="LWN_reactive_refuse" text="No, I cannot do that." />
     <string id="LWN_reactive_warnaway" text="Stay back! Do not come closer." />
+    <string id="LWN_reactive_respond_default" text="Hmm, I see." />
+    <string id="LWN_reactive_respond_guard" text="Halt. Do not try to get friendly with me." />
+    <string id="LWN_reactive_respond_tavernkeeper" text="What can I do for you, traveler?" />
+    <string id="LWN_reactive_respond_merchant" text="Business first. Make it quick." />
+    <string id="LWN_reactive_respond_chief" text="Speak, I am listening." />
+    <string id="LWN_reactive_respond_villager" text="Eh? What was that?" />
+    <string id="LWN_reactive_respond_drunkard" text="*hic* Who're you?" />
+    <string id="LWN_hud_far_say" text="(From afar, {NAME} says): {TEXT}" />
     <string id="LWN_ui_commandintent_distract" text="lure away" />
     <string id="LWN_ui_commandintent_bring" text="bring someone" />
     <string id="LWN_ui_commandintent_lookout" text="keep watch" />

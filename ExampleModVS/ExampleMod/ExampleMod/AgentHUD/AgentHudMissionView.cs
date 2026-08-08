@@ -7,6 +7,7 @@ using TaleWorlds.Core;
 using TaleWorlds.Engine;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.Library;
+using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.MissionViews;
 using TaleWorlds.MountAndBlade.View.Screens;
@@ -24,6 +25,8 @@ namespace LivingWorldNpcs
         // 性能设置：最大显示距离（米）
         private const float MaxDisplayDistance = 50f;
         private const float NearDistance = 15f;
+        // 远处"听到"兜底：超过此距离且视野外 → 屏幕消息显示台词（AgentSay 内判断）
+        private const float FarHearDistance = 30f;
 
         // 计数器
         private int _tickCounter = 0;
@@ -299,13 +302,27 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>静态快捷方法：让指定 Agent 说话</summary>
+        /// <summary>静态快捷方法：让指定 Agent 说话。
+        /// 远处兜底（模仿"听到"）：3D 冒泡按距离/FOV 裁剪（见 OnMissionTick 分层），玩家看不到时补一条屏幕消息。</summary>
         public static void AgentSay(Agent agent, string text)
         {
             if (Mission.Current == null) return;
             if (agent == null) return;
             if (Instance == null) return;
             Instance.AddSpeech(agent, text);
+            // 远处兜底：距离 > FarHearDistance 且玩家视野外 → 屏幕消息（远处"听到"说话声）
+            if (Agent.Main != null && agent != Agent.Main)
+            {
+                try
+                {
+                    float dist = agent.Position.Distance(Agent.Main.Position);
+                    if (dist > FarHearDistance && !NpcSightSystem.IsPlayerSeeing(agent))
+                        // LWN_hud_far_say：远处"听到"屏幕消息（3D 冒泡被距离/FOV 裁剪）
+                        MBInformationManager.AddQuickInformation(new TextObject(LWNTextHelper.ResolveCompound("LWN_hud_far_say",
+                            "（远处传来{NAME}的声音）：{TEXT}", ("NAME", agent.Name.ToString()), ("TEXT", text))));
+                }
+                catch { }
+            }
             DebugLogger.Log($"[AgentSay] {agent.Name}: {text}");
         }
 
