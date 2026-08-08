@@ -58,6 +58,12 @@ namespace LivingWorldNpcs
         public static void Start(Agent companion)
         {
             if (companion == null || _isActive) return;
+            // 密令玩法总闸（MCM 开关，默认关闭；显示层已门控，此处兜底触发路径）
+            if (!Settings.Instance.PlotEnabled)
+            {
+                DebugLogger.Log($"[PlanCommandFlow] 密令玩法未开启（PlotEnabled=false），拒绝启动");
+                return;
+            }
             // 铁律 1：LLM 总闸（配置齐全——显示层已门控，此处兜底触发路径）
             if (!Settings.Instance.IsLLMConfigured)
             {

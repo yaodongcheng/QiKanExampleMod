@@ -544,6 +544,14 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            // 🔴 超时检查必须在子动作/内联驱动之前（保持型/无限等待豁免）：
+            // 内联分支（wait 等）的 return 曾短路此检查 → wait 步骤条件不成立时永不超时（实机 b5 卡死，BC-006）
+            if (step.TimeoutS > 0f && cursor.StepElapsed > step.TimeoutS && !PlanStep.IsUnboundedStep(step))
+            {
+                HandleStepTimeout(cursor, step);
+                return;
+            }
+
             // 内联步骤驱动
             if (cursor.Inline != null)
             {
@@ -567,12 +575,6 @@ namespace LivingWorldNpcs
                     CompleteStep(cursor, step);
                     return;
                 }
-            }
-
-            // 超时（保持型/无限等待步骤豁免）
-            if (step.TimeoutS > 0f && cursor.StepElapsed > step.TimeoutS && !PlanStep.IsUnboundedStep(step))
-            {
-                HandleStepTimeout(cursor, step);
             }
         }
 
