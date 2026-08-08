@@ -4,8 +4,6 @@ using MCM.Abstractions.Base.Global;
 using System;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
-using TaleWorlds.Core;
-using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace LivingWorldNpcs
@@ -106,14 +104,11 @@ namespace LivingWorldNpcs
         {
             // MCM CheckIsValid 要求非 Dropdown 属性必须 CanWrite（有 setter）——按钮动作在 getter，setter 留空
             // 同步调用 LLMService.TestConnection（HttpWebRequest 10s 超时）：无 async 死锁问题，UI 冻结最长 10s
+            // 展示统一走 LLMService.ShowConnectionMessage：按 5 种失败原因分别提示（未配置/地址错/模型不存在/密钥错/余额不足）
             get => () =>
             {
-                bool ok = LLMService.TestConnection();
-                InformationManager.DisplayMessage(new InformationMessage(
-                    ok
-                        ? LWNTextHelper.ResolveText("LWN_mcm_llm_test_ok", "LLM connection OK.")
-                        : LWNTextHelper.ResolveText("LWN_mcm_llm_test_fail", "LLM connection failed. Check the URL / API key / network."),
-                    ok ? Colors.Green : Colors.Red));
+                var result = LLMService.TestConnection();
+                LLMService.ShowConnectionMessage(result, showSuccess: true);
             };
             set { }
         }

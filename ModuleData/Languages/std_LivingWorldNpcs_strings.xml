@@ -2516,6 +2516,13 @@
     <string id="LWN_mcm_llm_test_ok" text="LLM connection OK." />
     <string id="LWN_mcm_llm_test_fail" text="LLM connection failed. Check the URL / API key / network." />
     <string id="LWN_mcm_llm_test_err" text="Test error: {MSG}" />
+    <!-- LLM 连接失败原因分类（测试连接与正式玩法服务共用；{MISSING}=缺失字段列表，{URL}=实际请求地址，{MODEL}=配置的模型名） -->
+    <string id="LWN_llm_fail_not_configured" text="LLM is not fully configured. Please fill in: {MISSING} in Mod Options &gt; Living World NPCs." />
+    <string id="LWN_llm_fail_bad_base_url" text="Cannot reach the LLM service at {URL}. Check that the Base URL is correct and your network is available." />
+    <string id="LWN_llm_fail_model_not_found" text="The model &quot;{MODEL}&quot; does not exist or is unavailable. Check the model name in Mod Options." />
+    <string id="LWN_llm_fail_bad_api_key" text="The API key was rejected by the service. Check that the API key is correct and valid." />
+    <string id="LWN_llm_fail_insufficient_funds" text="The LLM account has insufficient balance. Recharge the account and try again." />
+    <string id="LWN_llm_fail_other" text="The LLM service is temporarily unavailable. Please try again later." />
     <!-- 复仇队开关 -->
     <string id="LWN_mcm_revenge_party" text="Send Revenge Party" />
     <string id="LWN_mcm_revenge_party_hint" text="When enabled, the victim party may dispatch revenge parties (and thugs) to hunt down the suspect on the campaign map. Disable to keep the world from sending pursuers." />
