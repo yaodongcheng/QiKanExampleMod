@@ -51,7 +51,31 @@ namespace LivingWorldNpcs
         public string LLMBaseUrl
         {
             get => Settings.Instance.LLMBaseUrl;
-            set { Settings.Instance.LLMBaseUrl = value; LLMService.InvalidateConnectionCache(); }
+            set
+            {
+                // 自动纠错：玩家误填完整端点时剥掉后缀（防 ApiUrl 拼出双后缀 404）——
+                // ① OpenAI 方言：…/chat/completions（本 mod 客户端格式）
+                // ② Anthropic 方言：…/messages（照网关 anthropic 说明复制来的）
+                // 🔴 只剥后缀、禁止 TrimEnd('/') 落盘：MCM 文本框实时提交（每按键调 setter），
+                //    输入 "https:/" 时剥尾部斜杠会立即变回 "https:"——斜杠永远打不进去（2026-08-08 实测）。
+                //    尾部斜杠交给 ApiUrl 请求时处理（LLMService 侧本就有 TrimEnd('/')）。
+                var cleaned = value;
+                if (cleaned != null)
+                {
+                    // 后缀匹配用临时剥斜杠的值判断，剥出的结果落盘（防 ".../messages/" 漏剥）
+                    var trimmed = cleaned.TrimEnd('/');
+                    foreach (var suffix in new[] { "/chat/completions", "/messages" })
+                    {
+                        if (trimmed.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                        {
+                            cleaned = trimmed.Substring(0, trimmed.Length - suffix.Length);
+                            break;
+                        }
+                    }
+                }
+                Settings.Instance.LLMBaseUrl = cleaned;
+                LLMService.InvalidateConnectionCache();
+            }
         }
 
         [SettingPropertyText("{=LWN_mcm_llm_api_key}LLM API Key", Order = 3, RequireRestart = false,
