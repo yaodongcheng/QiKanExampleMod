@@ -24,7 +24,7 @@
 
 > **状态**：✅ 已实施（2026-08-07，M1-M4 核心全部落地；LLM 链路已实测打通）
 > - 代码落地：`Planner/`（PlanGrammar/SceneSnapshot/RuntimeWorldState/PlanExecutor/InlineSteps/ReactiveAgent/PlanReplan + GoalTemplates）、`Interaction/PlanCommandFlow.cs`、`Debug/PlanDebugCommands.cs` + `Debug/PlanExamples/`（17 份示例 JSON）
-> - 接线：`AgentBrain` order_execute_plan/plan_decision/ReactiveAgent 触发词分支、`NpcIntent.ExecutingCommand`（CommandDetail）、`AgentAIController.OnMissionTick → PlanExecutor.TickAll`、Plot(G长按)/StopPlan(X短按) 玩法行、AgentHudVM 执行摘要
+> - 接线：`AgentBrain` order_execute_plan/plan_decision/ReactiveAgent 触发词分支、`NpcIntent.ExecutingCommand`（CommandDetail）、`AgentAIController.OnMissionTick → PlanExecutor.TickAll`、Plot/StopPlan(G长按同键) 玩法行、AgentHudVM 执行摘要
 > - LLM：`LLMService.ChatAsync` 增加 temperature 参数 + **懒初始化修复**（原 Initialize 无调用点，LLM 功能从未工作）+ **URL/model 参数化**（读 MCM 配置）+ `reasoning_effort: none` 关思考模式（实测 25s→3.5s）；`PromptBuilder.BuildPlanPrompt`（意图词表+few-shot+封闭词表+JSON模板+跳转纪律）
 > - 验证：`Scripts/validate_plan_json.py` 支持 .json 直验（17 示例全 PASS）；**`Scripts/test_llm_plan.py` LLM 链路回归（已固化进 §12 流程）**；`custom.plan_debug snapshot/list/run/status/stop/role/step/replan`
 > - 已知实现偏差：contingency 的 `was` 修饰 + `one_shot: false` 组合下，触发后清除 wasEver 记录以恢复"掉线重触发"语义（§5.2）；signal_player 用非模态 DisplayMessage（NinjaNotification 模态锁鼠标会挡玩家操作）；执行期零 LLM 的铁律不变
@@ -56,7 +56,7 @@
 | §5.5 台本演出 | 🟡 | script 模型 + validator 分支完整性校验 ✓；**执行器播放未实现**（negotiate/duel 依赖，v2 排期） |
 | §6 ReactiveAgent | 🟡 | 触发词/反应词/人格演算/决策结果广播（refused/followed）/职业默认模板/深拷贝 ✓；**flee 反应词已落地**（跑离现场，ReactiveFleeAction，§6.3）；**❌ 未实现**：恐慌传播链（see_ally_killed→flee/call_guards 链式传播，flee 本体已就绪）、relay_message（间接 BRING） |
 | §7 Guardrail R1-R7 | ✅ | 全部实现（R1 战斗 Paused/R2 死亡/R3 停止键/R4 追回+独行豁免/R5 敌对+Replan/R6 总时长+事件驱动豁免/R7 模态）；Replan 节流 ≤2（成功才计数） |
-| §8 密谋对话壳 | 🟡 | Plot(G长按)/StopPlan(X短按) 玩法行、自由输入→LLM→澄清轮(≤2)→批准轮(同意/再想想/算了)、密谋中 Talk 互斥移除 ✓；**❌ 未实现**：TextInputWidget + 手柄预设 chips（用既有 ShowTextInquiry 替代，功能等价） |
+| §8 密谋对话壳 | 🟡 | Plot/StopPlan(G长按同键) 玩法行、自由输入→LLM→澄清轮(≤2)→批准轮(同意/再想想/算了)、密谋中 Talk 互斥移除 ✓；**❌ 未实现**：TextInputWidget + 手柄预设 chips（用既有 ShowTextInquiry 替代，功能等价） |
 | §9 LLM 升级点 | ✅ | 超额完成：temperature 参数 + max_tokens 4000 + BuildPlanPrompt + **懒初始化修复**（原单例从未初始化，LLM 功能实际从未工作）+ **URL/model 参数化** + **reasoning_effort:none 关思考**（实测 25s→3.5s） |
 | §10 复用清单 | ✅ | 全部接线完成（NpcIntent.ExecutingCommand/order_execute_plan/执行摘要 HUD/护主/警戒/WitnessCrime 围观） |
 | §11 M1 骨架+case A | ✅ | 交互四接线/SceneSnapshot/PlanGrammar/PlanExecutor/order_execute_plan/17 示例/多 actor 游标/Guardrail 框架 |
@@ -1456,7 +1456,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 | 键位行 | `Core/Settings.cs:104-114` | G 键长按（AltInteract 空闲，无冲突） |
 | available | `InteractionMissionView.cs` `BuildAgentContext`(:564-650) | 条件：`brain.Leader == Agent.Main`（随从关系由 `FollowIntent` 建立，`GeneralIntents.cs:78-86`）。**执行器可驱动任意 NPC 当执行者，入口限随从是叙事选择**——v2 可放开到雇佣/临时伙伴/酒馆帮手，框架零改动（这是入口与执行器不对称，属特性非缺陷） |
 | 分发 | `ExecuteInteraction`(:389-422) | case → `PlanCommandFlow.Start(companionAgent)` |
-| **停止键**（新玩法行，键位待定——选空闲短键，不与 G 长按冲突） | `InteractionIds.StopPlan` | available：仅对**正在执行计划的随从**（`PlanExecutor` 活动）；执行：交互距离内 → 当面喊停（say_to 冒泡，复用 §5.4 当面通道）；超出交互距离 → 密信中止（signal_player，玩家→随从方向的对称通道）→ 收尾三路·中断 → 随从回默认跟随 |
+| **停止键**（与 Plot 同键：G/LB 长按——互斥逻辑保证同一时刻只有一行 available，零冲突；长按防误触，停止是玩家管理决策非紧急避险） | `InteractionIds.StopPlan` | available：仅对**正在执行计划的随从**（`PlanExecutor` 活动）；执行：交互距离内 → 当面喊停（say_to 冒泡，复用 §5.4 当面通道）；超出交互距离 → 密信中止（signal_player，玩家→随从方向的对称通道）→ 收尾三路·中断 → 随从回默认跟随 |
 
 ### 8.2 计划对话流（复用 StoryDialogVM）
 

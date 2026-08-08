@@ -297,5 +297,5 @@ public static class ChangeInteractionTextPatch
 ## 密谋命令系统玩法行（2026-08-07）
 
 - `InteractionIds.Plot`（G 长按）= 密谋：对随从下达自然语言命令 → `PlanCommandFlow.Start(agent)`（available 条件 = 随从关系 `brain.Leader==Main || Following/ExecutingCommand`；密谋进行中该随从 Talk 行互斥移除）。
-- `InteractionIds.StopPlan`（X 短按）= 停止键：对执行中的随从喊停（`PlanExecutor.GetExecutorFor(agent) != null` 才显示；近距离当面冒泡 / 远距离密信，双通道对称）。
+- `InteractionIds.StopPlan`（G 长按，与 Plot 同键）= 停止键：对执行中的随从喊停（`PlanExecutor.GetExecutorFor(agent) != null` 才显示；近距离当面冒泡 / 远距离密信，双通道对称）。**同键安全**：StopPlan 与 Plot 互斥（执行中显示 StopPlan、空闲显示 Plot），同一时刻只有一个 available → `LogBindingConflicts` 零冲突。
 - 两行都在 `Settings.DefaultInteractions` 注册（config.json 可热重载）。
