@@ -38,7 +38,7 @@ namespace LivingWorldNpcs
         {
             try
             {
-                if (!Settings.Instance.IsLLMReady) return;           // 铁律 1
+                if (!Settings.Instance.IsLLMConfigured) return;           // 铁律 1
                 if (ex.ReplanCount >= MaxReplans) return;            // 节流 ≤ 2
                 if (string.IsNullOrEmpty(ex.OriginalCommand)) return;
                 var owner = ex.OwnerAgent;

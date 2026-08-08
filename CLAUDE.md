@@ -9,7 +9,7 @@
 | 规则文件 | 主题 |
 |----------|------|
 | [wheels.md](plans/rules/wheels.md) | 🔴**【必读】已造轮子速查（索引）**：先看索引定位域 → 打开 `wheels.d/` 对应分卷，命中即复用 |
-| [llm-optional.md](plans/rules/llm-optional.md) | **LLM 是可选功能**，IsLLMReady 总闸，所有入口点必须检查 |
+| [llm-optional.md](plans/rules/llm-optional.md) | **LLM 是可选功能**，IsLLMConfigured 总闸，所有入口点必须检查 |
 | [worldview.md](plans/rules/worldview.md) | **禁止硬编码日本战国字串**，世界观通过 Settings.Instance 参数化 |
 | [defensive-coding.md](plans/rules/defensive-coding.md) | **LLM JSON 响应必须 null-guard**，JSON key 必须匹配 [JsonProperty] |
 | [architecture.md](plans/rules/architecture.md) | Namespace (`LivingWorldNpcs.*`)、目录结构、Mod A/B 拆分 |
@@ -22,7 +22,7 @@
 
 ## 八条铁律
 
-1. **LLM 不可用时游戏不能崩** — 任何 LLM 代码路径入口检查 `Settings.Instance.IsLLMReady`，不存在就降级或 return
+1. **LLM 不可用时游戏不能崩** — 任何 LLM 代码路径入口检查 `Settings.Instance.IsLLMConfigured`，不存在就降级或 return
 2. **LLM 返回的 JSON 不可信任** — 每个 `foreach` 前 null check，每个字段用 `?.` 传播
 3. **LivingWorldNpcs 是通用 mod** — 代码里不能出现 `Shokuho`/`日本战国`/`太阁`/`织丰` 等字串
 4. **资源进出统一归口、禁止半截操作** — 凡「看上去像资源进出」的地方都走 `AgentControlHelper`（**金钱 = 特殊物品**，Item==null），禁止业务层裸调 `Hero.ChangeHeroGold` / `ItemRoster.AddToCounts` 等单边 API。三类操作各有纪律：①**转移 Transfer**（贿赂/罚款/赏赐/买卖）守恒，一方扣一方加，**禁止只做半截**（钱扣了没人收）；②**收发 Grant/Sink**（战利品/凭空奖励/消耗）单边对接「世界」，用 `null` 显式标注虚空来源/去向，**合法非违规**；③**转换 Convert**（冶炼/工坊/吃苹果回饱腹）按配方刻意非守恒，但必须**守卫 + 原子**（输入不足则整体不发生）。

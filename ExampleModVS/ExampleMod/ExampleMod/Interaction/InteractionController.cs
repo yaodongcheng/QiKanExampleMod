@@ -437,7 +437,7 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
                 StartLLMNegotiation(intent, ctx);   // 有 LLM：走谈判博弈盘（目标已知，无需 LLM 猜）
             else
                 ResolveAdversarialIntent(intent, ctx); // 无 LLM：单次检定
@@ -1002,7 +1002,7 @@ namespace LivingWorldNpcs
                 // 性格倍率（纯 C#，命中 NPC 性格弱点/抗性）——以前写好却没人用，现在接回结算路径。
                 float traitMult = NegotiationRegistry.CalculateMultiplier(selectedOption, state);
                 // LLM 只做「润色微调」：配了才用它的 delta，没配就 1.0（纯性格驱动）。
-                float llmMult = Settings.Instance.IsLLMReady ? Mathf.Clamp(result.DeltaMultiplier, 0.5f, 2.0f) : 1.0f;
+                float llmMult = Settings.Instance.IsLLMConfigured ? Mathf.Clamp(result.DeltaMultiplier, 0.5f, 2.0f) : 1.0f;
                 finalMultiplier = Mathf.Clamp(traitMult * llmMult, 0.1f, 5.0f);
                 float tacticBaseScore = state.TargetThreshold*0.02f;//比如嘴炮基础分
                 chipsValue = selectedOption.Chips.Sum(x => x.EstimatedValue);
@@ -1129,7 +1129,7 @@ namespace LivingWorldNpcs
             var openingData = initiative.CachedOpening;
             // P8：无 LLM 时开场被填成空选项数组（非 null），原判空失效会让玩家只剩「拔刀/读心」。
             // 这里回退到本地意图菜单（仍先放出开场台词）。
-            if (!Settings.Instance.IsLLMReady &&
+            if (!Settings.Instance.IsLLMConfigured &&
                 (openingData.PlayerNextOptions == null || openingData.PlayerNextOptions.Count == 0))
             {
                 if (!string.IsNullOrEmpty(openingData.NpcReply))

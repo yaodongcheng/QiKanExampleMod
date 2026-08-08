@@ -10,7 +10,7 @@ await LLMService.Instance.MergeMemoryAsync(systemPrompt);  // 远期记忆合并
 LLMService.CleanJson(raw);             // 静态，剥离 markdown ```json 包裹
 ```
 
-调用前查 `IsLLMReady`；返回的 JSON 必须防御性处理（见 [defensive-coding.md](defensive-coding.md)）。
+调用前查 `IsLLMConfigured`；返回的 JSON 必须防御性处理（见 [defensive-coding.md](defensive-coding.md)）。
 
 
 ---

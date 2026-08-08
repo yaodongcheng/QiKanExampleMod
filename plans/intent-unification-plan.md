@@ -502,7 +502,7 @@ public override void OnInstant(IntentContext ctx)
 
 - **静态文本**（DisplayName/ToolTip）：走 `NarrativeResolver.Resolve(NarrativeFilters)` → CSV 模板匹配，以 `IntentType_Phase_NpcPersonality` 为 key
 - **动态对话**（NPC 开场白/场景模板）：走 `PlaceholderResolver` + `CrimeDialogueBuilder` 模式，参考 [narrative-placeholder-system.md](plans/narrative-placeholder-system.md)
-- **LLM 兜底**：CSV 未命中 + `IsLLMReady` → LLM 生成（已有模式，`RequestCommissionIntent.GenerateNarrative` 为范本）
+- **LLM 兜底**：CSV 未命中 + `IsLLMConfigured` → LLM 生成（已有模式，`RequestCommissionIntent.GenerateNarrative` 为范本）
 - **硬编码兜底**：无 LLM → `PlaceholderResolver.Resolve(template)` 拼接占位符（信息完整，不强求风味）
 
 **新增意图的叙事扩展流程**：参考 `plans/narrative-placeholder-system.md` 和 `.claude/skills/narrative-placeholder-extension.md`：

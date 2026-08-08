@@ -42,7 +42,7 @@ namespace LivingWorldNpcs
         // 设置归入一个组（LWN_mcm_grp_main），彻底消除标题错位观感。
         // ⚠️ Order 按「显示倒序」赋值：期望显示 地址→密钥→模型→复仇队→回血，
         //    Order 就必须反过来（回血=0 … 地址=4），显示时才能恢复正序。
-        // ── LLM 配置（透传核心 Settings；IsLLMReady 在调用点实时计算 → 无需重启）──
+        // ── LLM 配置（透传核心 Settings；IsLLMConfigured 在调用点实时计算 → 无需重启）──
         [SettingPropertyText("{=LWN_mcm_llm_base_url}LLM API Base URL", Order = 4, RequireRestart = false,
             HintText = "{=LWN_mcm_llm_base_url_hint}The LLM API endpoint base URL, e.g. https://api.example.com/v1")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]

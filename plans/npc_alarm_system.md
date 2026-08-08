@@ -661,7 +661,7 @@ PlaceholderResolver.Resolve(template)  ← 核心引擎（完整保留，~80 占
        ▼
 AgentHudMissionView.AgentSay  /  ConversationManager  ← 显示出口
 
-LLM 路径（IsLLMReady = true）：
+LLM 路径（IsLLMConfigured = true）：
   跳过模板系统 → LLM 实时生成 → 直接显示
 ```
 
@@ -711,8 +711,8 @@ NpcSpeech.csv Emotion列（如 alert / threat / rage）
 ### 路径 A：StoryDialogVM（默认）
 ```
 FollowAgentAction(player, keepFollow:false, stopDistance:1.5f) → PrepareOpeningAction → ForceTalkAction
-  ├─ IsLLMReady → StartFreeConversationFlow（自由对话）
-  └─ !IsLLMReady → ShowVanillaConfrontation（InquiryData 弹窗兜底）
+  ├─ IsLLMConfigured → StartFreeConversationFlow（自由对话）
+  └─ !IsLLMConfigured → ShowVanillaConfrontation（InquiryData 弹窗兜底）
 ```
 
 ### 路径 B：VanillaConversation（新增）

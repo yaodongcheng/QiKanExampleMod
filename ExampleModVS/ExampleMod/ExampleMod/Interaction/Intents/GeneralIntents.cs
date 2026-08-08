@@ -47,7 +47,7 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
             {
                 // LLM 命令开场白：让士兵汇报当前情况
                 ctx.Controller.SendIntent("Order", LWNTextHelper.ResolveText("LWN_intent_general_order_prompt", "Report your situation, soldier!"));
@@ -104,7 +104,7 @@ namespace LivingWorldNpcs
 
         public override void OnInstant(IntentContext ctx)
         {
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
                 ctx.Controller.OpenFreeChatInput(ctx.Agent);
             else
                 ctx.Controller.OpenChatTopicMenu(ctx);

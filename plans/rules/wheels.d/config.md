@@ -4,7 +4,7 @@
 全局配置单例 + 世界观参数化。
 
 ```csharp
-Settings.Instance.IsLLMReady           // LLM 总闸（三字段非空才 true）
+Settings.Instance.IsLLMConfigured           // LLM 总闸（三字段非空才 true）
 Settings.Instance.LLMBaseUrl/LLMApiKey/LLMModel
 Settings.Instance.WorldDescription     // 默认卡拉迪亚，TaikouContent 注入战国
 Settings.Instance.EraDescription / SpeechStyle / WarriorTerms / FemaleSelfAddress

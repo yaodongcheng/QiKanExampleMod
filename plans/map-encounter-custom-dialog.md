@@ -62,7 +62,7 @@ Hero-only 重构**），并抑制该 mission 自动拉起的原版对话、改�
 
 ### 约束（CLAUDE.md 铁律）
 
-LLM 路径走 `Settings.Instance.IsLLMReady` 总闸；C# 单次检定路径无 LLM 也要能跑。世界观字串不硬编码。
+LLM 路径走 `Settings.Instance.IsLLMConfigured` 总闸；C# 单次检定路径无 LLM 也要能跑。世界观字串不硬编码。
 资源进出走 `AgentControlHelper`。完成后登记 wheels.md。
 
 ---
@@ -225,6 +225,6 @@ public static class SuppressVanillaConversationMissionPatch
 6. **广覆盖风险（风险4）**：触发 俘获敌将 / 释放俘虏 / 任务相遇，走「新版」确认不卡死、不丢任务状态；
    走「原版」一切如常。
 7. **ESC 退出**：在我们的对话 mission 里直接 ESC 退出 → 标志被 Finalize 清除，下一次对话不被误抑制。
-8. **无 LLM**（`IsLLMReady=false`）再跑：对话走 C# 单次检定，不崩。
+8. **无 LLM**（`IsLLMConfigured=false`）再跑：对话走 C# 单次检定，不崩。
 
 观察 `Debug/StoryEngine_RuntimeLog.txt` 打点确认收尾状态机走向。

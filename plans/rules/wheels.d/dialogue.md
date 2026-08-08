@@ -36,7 +36,7 @@ public static class SuppressVanillaConversationMissionPatch
 
 **关键文件**：`Interaction/Dialogue/MapEncounterDialogState.cs`（静态标志）、`Interaction/Dialogue/ConversationEntryPatch.cs`（对话入口统一拦截 + 犯罪对话注入 + 原版 tick 抑制）、`Interaction/InteractionMissionView.cs`（自动触发/收尾）。
 
-**边界**：只对 Hero 生效（无 Hero 放行原版）；仅自家的 conversation mission 抑制（静态 gate）；settlement 内点 NPC / 请求会面不受影响；LLM 路径走 `IsLLMReady` 总闸。
+**边界**：只对 Hero 生效（无 Hero 放行原版）；仅自家的 conversation mission 抑制（静态 gate）；settlement 内点 NPC / 请求会面不受影响；LLM 路径走 `IsLLMConfigured` 总闸。
 
 ---
 

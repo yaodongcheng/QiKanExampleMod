@@ -625,10 +625,10 @@ namespace LivingWorldNpcs
                             || targetBrain.CurrentIntent?.Type == NpcIntentType.Following
                             || targetBrain.CurrentIntent?.Type == NpcIntentType.ExecutingCommand);
                     bool executing = PlanExecutor.GetExecutorFor(currentAgent) != null;
-                    // 显示门控：随从关系 + LLM 已配置（IsLLMReady）+ 连接未失败（IsConnectionOk 缓存 5 分钟；
+                    // 显示门控：随从关系 + LLM 已配置（IsLLMConfigured）+ 连接未失败（IsConnectionOk 缓存 5 分钟；
                     // Unknown 放行——首次未测不误杀，MCM「测试连接」按钮/Failed 缓存期后自动刷新）
                     if (isCompanion && !executing && !PlanCommandFlow.IsActiveFor(currentAgent)
-                        && Settings.Instance.IsLLMReady && LLMService.IsConnectionOk())
+                        && Settings.Instance.IsLLMConfigured && LLMService.IsConnectionOk())
                     {
                         // 本地化：密谋交互按钮（对随从下达自然语言命令）
                         AddInteractionRow(InteractionIds.Plot, LWNTextHelper.ResolveText("LWN_ui_interact_plot", "Plot: give an order"));
@@ -1340,7 +1340,7 @@ namespace LivingWorldNpcs
                 V.SetAgentPlayer(Agent.Main);
             }
             SocialEvent evt = null;
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
                 evt = await _interactionController.GenerateEventAsync();
             if (evt != null)
                 NewsSpreadSystem.Instance.BroadcastEvent(evt);

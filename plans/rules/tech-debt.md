@@ -22,15 +22,15 @@
 - "主公" → 给 `Settings` **新增** `LordTerm` 字段（卡拉迪亚默认 "领主"/"大人"，TaikouContent 注入 "主公"），全部改为引用。
 - 改完用 [worldview.md](worldview.md) 末尾的 grep 验证为空。
 
-## 🔴 2. IsLLMReady 守卫缺失（违反铁律 #1）
+## 🔴 2. IsLLMConfigured 守卫缺失（违反铁律 #1）
 
 部分 LLM 调用入口没有总闸检查，LLM 未配置时会走空调用 / 潜在崩溃。
 
 **证据：**
-- `Story/AIStoryGenerator.cs:107 / 111` — `GenerateTaskAsync` 内直接 `ChatAsync`，其入口 `StartGeneration`（:79）无 `IsLLMReady` 检查。
+- `Story/AIStoryGenerator.cs:107 / 111` — `GenerateTaskAsync` 内直接 `ChatAsync`，其入口 `StartGeneration`（:79）无 `IsLLMConfigured` 检查。
 - `Memory/SingNpcMemorySystem.cs:325`（`SummarizeAsync`）/ `:436`（`MergeMemoryAsync`）— 记忆总结/合并触发点无入口守卫。
 
-**建议：** 在 `StartGeneration` 和记忆总结/合并的触发入口处加 `if (!Settings.Instance.IsLLMReady) { /* 降级 return */ }`。参考已正确守卫的 `AI/Actions/AtomicAction.cs:49`、`Interaction/InteractionMissionView.cs:236`。
+**建议：** 在 `StartGeneration` 和记忆总结/合并的触发入口处加 `if (!Settings.Instance.IsLLMConfigured) { /* 降级 return */ }`。参考已正确守卫的 `AI/Actions/AtomicAction.cs:49`、`Interaction/InteractionMissionView.cs:236`。
 
 ## 🟡 3. 单例反模式
 

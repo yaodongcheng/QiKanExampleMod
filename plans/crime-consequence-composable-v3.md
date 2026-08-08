@@ -1545,7 +1545,7 @@ if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEve
 ### Phase 5：LLM 接入（顾问模式）
 - LLM 生成对话文本 / 选项文案 / 叙事文本
 - LLM 提议 DC / 后果选项 → 引擎校验后执行
-- 🛞 `IsLLMReady` 关 → 回落确定性公式（铁律 1）
+- 🛞 `IsLLMConfigured` 关 → 回落确定性公式（铁律 1）
 
 ### Phase 6：扩展新犯罪类型（验证通用性）
 - 用 `EventConfig` 注册 Poaching（盗猎）、Smuggling（走私）
@@ -1657,7 +1657,7 @@ if (activeEvent != null && activeEvent.Stage != EventStage.Resolved && activeEve
 
 | # | 操作 | 预期结果 |
 |---|------|---------|
-| F1 | `IsLLMReady = false` | 所有 Intent 走 `SingleRollResolver.Compute` 确定性检定；对话文案走 CSV 兜底 |
+| F1 | `IsLLMConfigured = false` | 所有 Intent 走 `SingleRollResolver.Compute` 确定性检定；对话文案走 CSV 兜底 |
 | F2 | LLM 不可用时触发追责对话 | 对话不报错、不崩；选项可见性和 DC 由 Intent.Evaluate 正常计算；NPC 台词使用 JSON 中的固定文本 |
 
 ### 测试 G: 当面对峙（Mission 内）

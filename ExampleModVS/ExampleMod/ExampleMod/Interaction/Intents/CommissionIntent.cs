@@ -374,7 +374,7 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 三层 fallback 叙事生成：
         /// ① NarrativeResolver CSV 模板（按 issueTypeName + NPC性格 匹配）
-        /// ② CSV 未命中 + IsLLMReady → LLM 生成（prompt 含 vanillaExplanation + 因果上下文）
+        /// ② CSV 未命中 + IsLLMConfigured → LLM 生成（prompt 含 vanillaExplanation + 因果上下文）
         /// ③ 都不可用 → 直接返回 vanillaExplanation（原版 TextObject 兜底）
         /// </summary>
         private static string GenerateNarrative(
@@ -394,7 +394,7 @@ namespace LivingWorldNpcs
             }
 
             // ② CSV 未命中 → LLM（如果可用）
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
             {
                 string llmText = TryGenerateLlmNarrative(issueTypeName, ctx, vanillaExplanation,
                     questTitle, causalityCtx, hasCausality);

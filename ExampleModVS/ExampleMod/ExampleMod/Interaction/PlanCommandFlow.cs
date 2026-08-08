@@ -26,7 +26,7 @@ namespace LivingWorldNpcs
     // 🔴 禁止 DialogChoice/StoryDialogVM——废弃对话系统；随从台词一律 AgentSay 头顶冒泡。
     // LLM 结果回主线程消费（Tick 轮询），避免后台线程动 UI。
     //
-    // 铁律 1：IsLLMReady 总闸——不可用 → Plot 行不出现/点开提示"随从想不出主意"。
+    // 铁律 1：IsLLMConfigured 总闸——不可用 → Plot 行不出现/点开提示"随从想不出主意"。
     // ═══════════════════════════════════════════════════════════════
 
     public static class PlanCommandFlow
@@ -59,7 +59,7 @@ namespace LivingWorldNpcs
         {
             if (companion == null || _isActive) return;
             // 铁律 1：LLM 总闸（配置齐全 + 连接未失败——显示层已门控，此处兜底触发路径）
-            if (!Settings.Instance.IsLLMReady)
+            if (!Settings.Instance.IsLLMConfigured)
             {
                 // 本地化：LLM 未配置提示（随从想不出主意）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_plan_no_llm", "The companion cannot think of a plan right now."), Colors.Red));
@@ -221,7 +221,7 @@ namespace LivingWorldNpcs
             PlanResponse response = null;
             try
             {
-                if (!Settings.Instance.IsLLMReady) { FinishWith(null); return; }
+                if (!Settings.Instance.IsLLMConfigured) { FinishWith(null); return; }
                 var snapshot = SceneSnapshot.Build(Mission.Current, agentLimit: 30);
                 string persona = BuildPersona(_companion);
                 string history = string.Join("\n", _history);

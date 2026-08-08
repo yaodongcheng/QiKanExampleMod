@@ -69,7 +69,7 @@ public bool AreOptionsVisible
 - LLM 调用一律 `await LLMService.Instance.ChatAsync(...)`（返回 `Task<string>`）。
 - **不阻塞引擎主线程**的后台触发用 fire-and-forget：`_ = Task.Run(() => SomethingAsync());`（范本 `AI/Actions/AtomicAction.cs`、`Story/AIStoryGenerator.cs:95`）。
 - LLM 回来后若要改 UI / 动 Agent，由调用方负责切回 Gauntlet 主线程上下文，**不要在后台线程直接操作引擎对象**。
-- 任何可能首次触发 LLM 的入口，先查 `Settings.Instance.IsLLMReady`（见 [llm-optional.md](llm-optional.md)）。
+- 任何可能首次触发 LLM 的入口，先查 `Settings.Instance.IsLLMConfigured`（见 [llm-optional.md](llm-optional.md)）。
 
 ## 注释与日志
 

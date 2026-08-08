@@ -106,7 +106,7 @@ namespace LivingWorldNpcs
             }
 
             // LLM 增强
-            if (Settings.Instance.IsLLMReady)
+            if (Settings.Instance.IsLLMConfigured)
                 _ = EnhanceJourneyEvent(quest);
         }
 

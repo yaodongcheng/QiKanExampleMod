@@ -1488,7 +1488,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 | 新 `Planner/PlanGrammar.cs` | `PlanResponse` 模型 + `PlanValidator` |
 | 新 `Planner/GoalTemplates.cs` | 意图→目标状态表（§2.3） |
 
-**IsLLMReady 总闸（铁律 1）**：不可用 → Plot 行不出现/点开提示"随从想不出主意"。v2 可做预设脚本兜底，v1 不做。
+**IsLLMConfigured 总闸（铁律 1）**：不可用 → Plot 行不出现/点开提示"随从想不出主意"。v2 可做预设脚本兜底，v1 不做。
 
 ### 9.1 注册新行为（单一事实源，2026-08-08 重构）
 

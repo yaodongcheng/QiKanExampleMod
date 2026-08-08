@@ -209,7 +209,7 @@ namespace LivingWorldNpcs
                     ? cfg.LLMApiKey.Substring(0, Math.Min(4, cfg.LLMApiKey.Length)) + "…(" + cfg.LLMApiKey.Length + ")"
                     : "(空)";
                 string baseForLog = string.IsNullOrWhiteSpace(cfg?.LLMBaseUrl) ? "(空)" : cfg.LLMBaseUrl;
-                DebugLogger.Log($"[LLMTest] 设置检查: Ready={cfg?.IsLLMReady} Base={baseForLog} Url={ApiUrl} Model={CurrentModel} Key={keyMask}");
+                DebugLogger.Log($"[LLMTest] 设置检查: Ready={cfg?.IsLLMConfigured} Base={baseForLog} Url={ApiUrl} Model={CurrentModel} Key={keyMask}");
             }
             catch (Exception ex)
             {
@@ -217,7 +217,7 @@ namespace LivingWorldNpcs
             }
             // ① 未配置完整：明确告诉玩家缺哪个字段（三字段任一为空都算）
             var cfg2 = Settings.Instance;
-            if (cfg2 == null || !cfg2.IsLLMReady)
+            if (cfg2 == null || !cfg2.IsLLMConfigured)
             {
                 DebugLogger.Log("[LLMTest] LLM 未配置完整，拒绝发起请求");
                 _connState = LLMConnectionState.Failed;
