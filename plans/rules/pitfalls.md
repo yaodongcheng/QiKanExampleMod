@@ -437,3 +437,33 @@ if (owner != null && sentence != null)
 - 用 `#if false` 永久禁用此补丁
 - 如果之后大地图遭遇对话出现异常（NPC 不自动说话、Mission 不结束等），优先怀疑此补丁缺失 → 换用非 Harmony 方案（如移除 `ConversationMissionLogic` behavior、用 Transpiler 代替 Prefix、或在 `InteractionMissionView` 中自行处理原版行为）
 - 2026-08-01 排查记录：`plans/harmony-patch-bug-hunt.md`
+
+
+---
+
+## 文本含 `{...}`（JSON/大括号）走 TextObject → 从第一个 `{` 起整体截断
+
+**症状**
+- 用 `LWNTextHelper.ResolveText` / `TextObject("{=key}...")` 渲染含 JSON 大括号的文本（如 LLM prompt 模板 `{"type": "distance"}`）→ 输出从第一个 `{` 起全部丢失（或只剩 `{` 之前的片段）。
+- 含 `{` 的普通中文文本同样中招——不只是 JSON。
+
+**根因**（反编译 `TaleWorlds.Localization.dll` 的 `Tokenizer` 确认）
+
+```
+Tokenizer.FindTokenMatchesAndText
+  └─ 遇 '{' → FindExpressionEnd 数括号配平取表达式
+        └─ FindTokenMatches：表达式内每个字符都要匹配 44 个 token 定义
+              └─ JSON 引号 '"' 无任何 token 定义 → ThrowLocalizationError + return false
+                    └─ mbTokenMatches.Clear() + return → 整个字符串从 '{' 起被丢弃
+```
+
+- `{...}` 会被当变量表达式解析，而 44 个 token 定义里没有双引号——JSON/任意含引号的大括号内容必然解析失败。
+- 失败后的"恢复"是**截断**（清空 token 列表、只保留 `{` 之前的缓冲文本），不是保留原文。
+- TextObject 的 `{=key}` 翻译标记本身正常，问题在标记之外的文本内容。
+
+**规避**
+- **含 `{`/JSON 的文本禁止走 TextObject**（`ResolveText`/`Resolve`/`ResolveCompound` 全不行——最终都过 `MBTextManager.ProcessTextToString`）。
+- LLM prompt 等非玩家可见文本 → 用 `LWNTextHelper.ResolvePrompt(key)` **纯字典读取**（启动时 `InitializeEnglishFallback` 已加载全部 `std_*.xml`，含 `Languages/CNs/` 子目录；`
+` 字面量 → 换行；缺 key → 日志 + 空串，不崩）。落地范例：`LLM/PromptBuilder.cs` `BuildPlanPrompt` 的 `LWN_plan_*` 静态块。
+- 玩家可见文本（无大括号）照常走 `ResolveText`。
+- 2026-08-08 排查记录：`plans/llm-goap-plan-execution.md` 顶部待办 3（本地化改造）。
