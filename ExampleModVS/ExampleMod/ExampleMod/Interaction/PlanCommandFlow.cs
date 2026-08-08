@@ -271,14 +271,15 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // 澄清轮（意图歧义优先澄清，最多 2 轮）：冒泡问句 + 候选，输入框回答追加
-            bool needsClarify = response.NeedsClarification
-                || (response.Questions != null && response.Questions.Count > 0);
+            // 澄清轮（意图歧义优先澄清，最多 2 轮）：冒泡问句 + 候选，输入框回答追加。
+            // 铁律 2：needs_clarification 标志位不可信——只有 questions 真的带候选才进入澄清轮，
+            // 否则（CUSTOM 拒绝/空 questions）落回下方拒绝或批准路径。
+            bool needsClarify = response.Questions != null && response.Questions.Count > 0;
             if (needsClarify && _clarifyRound < 2)
             {
                 _clarifyRound++;
                 _processing = false;
-                var q = response.Questions?[0];
+                var q = (response.Questions != null && response.Questions.Count > 0) ? response.Questions[0] : null;
                 // 本地化：澄清轮默认问句
                 string qText = q?.Q ?? LWNTextHelper.ResolveText("LWN_plan_clarify_default", "What do you mean exactly?");
                 _history.Add($"玩家：{_command}");
