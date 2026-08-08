@@ -15,6 +15,23 @@ LLMService.CleanJson(raw);             // 静态，剥离 markdown ```json 包�
 
 ---
 
+## LLM 配置热同步 — `LLM/LLMService.cs`（2026-08-08）
+
+**解决什么问题**：玩家在 MCM 随时改 LLM 三设置（BaseUrl/Key/Model），改完必须**下一个请求立即生效**，无需重启/重建实例。
+
+**机制**：三字段全部**请求时从 `Settings.Instance` 现读**（唯一来源，MCM setter 透传写入）：
+- `ApiUrl` / `CurrentModel` 静态属性每次访问现算 → URL/Model 天然同步，无需任何额外动作；
+- `CallApiAsync` 每次请求现读 `Settings.Instance.LLMApiKey`，动态构造 `HttpRequestMessage` + `AuthenticationHeaderValue("Bearer", key)`（`TestConnection` 同模式）。
+
+**🔴 禁止**：
+- 构造时把 key 固化进 `_httpClient.DefaultRequestHeaders` —— 旧 key 永不更新，玩家改 key 后游戏内请求 401（MCM 测试按钮反而正常，迷惑性极强）；
+- `_instance = null` 重建单例 —— 重建竞态（Mission 线程 + UI 线程同时 getter）+ 非法 key 在构造时 `Add` header 可能抛（2026-08-08 实机踩坑回滚）。
+
+**双保险**：空 key 门控在 getter（抛异常 → 调用方 try-catch 静默降级，铁律 1）+ `CallApiAsync`（throw → 既有 catch 重试 → 降级）。
+
+
+---
+
 ## Prompt 构建 — `LLM/PromptBuilder.cs`
 
 按场景的静态 prompt 工厂。加新对话场景 = 在这里加一个 `BuildXxxPrompt` 静态方法，**不要在业务代码里拼 prompt 字串**。现有方法覆盖：开场冲突、技能检定结果、闲聊、谈判（核心）、社交事件分析、记忆长期化、对话总结、导演梗概、演出脚本生成。
