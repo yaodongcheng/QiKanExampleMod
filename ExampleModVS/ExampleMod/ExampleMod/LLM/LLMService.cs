@@ -198,16 +198,19 @@ namespace LivingWorldNpcs
                     messages = new object[] { new { role = "user", content = "ping" } },
                     max_tokens = 1,
                 });
+                var bodyBytes = Encoding.UTF8.GetBytes(body);
                 var req = (HttpWebRequest)WebRequest.Create(ApiUrl);
                 req.Method = "POST";
                 req.ContentType = "application/json";
                 req.Headers["Authorization"] = "Bearer " + cfg.LLMApiKey;
+                // 🔴 必须显式设 ContentLength：HttpWebRequest 不设时默认 chunked 传输，
+                // 雷火等 OpenAI 兼容网关的 nginx 前置直接 400（2026-08-08 实机复现验证）
+                req.ContentLength = bodyBytes.Length;
                 req.Timeout = 10000;          // 连接超时 10s（UI 冻结上限）
                 req.ReadWriteTimeout = 10000; // 读写超时 10s
                 using (var stream = req.GetRequestStream())
-                using (var writer = new StreamWriter(stream, Encoding.UTF8))
                 {
-                    writer.Write(body);
+                    stream.Write(bodyBytes, 0, bodyBytes.Length);
                 }
                 bool ok;
                 using (var resp = (HttpWebResponse)req.GetResponse())
