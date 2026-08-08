@@ -32,6 +32,39 @@ LLMService.CleanJson(raw);             // 静态，剥离 markdown ```json 包�
 
 ---
 
+## LLM 连接失败诊断与统一展示 — `LLM/LLMService.cs`（2026-08-08）
+
+**解决什么问题**：LLM 连不上时玩家只看到一句笼统的"连接失败"。现按 5 种可理解原因分别提示（①未配置 ②Base URL 错 ③模型不存在 ④密钥错 ⑤余额不足 + 兜底 Other），测试连接与正式玩法服务共用同一套诊断，不重复实现。
+
+**关键签名**
+```csharp
+public enum LLMFailureReason { None, NotConfigured, BadBaseUrl, ModelNotFound, BadApiKey, InsufficientFunds, Other }
+public sealed class LLMConnectionResult { public bool Success; public LLMFailureReason Reason; public string Detail; } // Detail 只落日志不进 UI
+public static LLMConnectionResult TestConnection();                        // 同步诊断（MCM 按钮用，只返回不展示）
+public static void ShowConnectionMessage(LLMConnectionResult r, bool showSuccess); // 统一展示：成功仅 showSuccess=true 显示；失败按原因红字
+private static LLMConnectionResult ClassifyFailure(Exception ex, HttpStatusCode? status, string body); // 分类器
+```
+
+**分类判级（三层）**：① 响应体关键字（`model_not_found`/`invalid_api_key`/`insufficient_quota`/`not found`…）→ ② HTTP 状态码（401/403=密钥，402=余额，404=地址，其余=Other）→ ③ 网络层异常（DNS/拒连/超时/TLS=地址错）→ 兜底 Other。🔴 **关键字优先于状态码**——雷火等网关对不存在模型返回 503 + body `model_not_found`，只按状态码会判错。
+
+**调用范例**
+```csharp
+// MCM 测试按钮（同步；成功也显示绿字）
+var result = LLMService.TestConnection();
+LLMService.ShowConnectionMessage(result, showSuccess: true);
+
+// 正式玩法服务：CallApiAsync 内部已内置——两个失败终端点（不可重试 4xx 返回路径 / 重试耗尽 throw 路径）
+// 自动分类展示，调用方无需改动；成功不打扰
+```
+
+**纪律**：
+- 玩家文案走 `LWN_llm_fail_*` XML key（ResolveCompound 变量 MISSING/URL/MODEL 已入 validate_localization.py 白名单）；②地址消息显示玩家配置的**原始 baseurl**（`Settings.Instance.LLMBaseUrl`），禁止传 `ApiUrl`（带 /chat/completions 后缀，玩家看着对不上号，2026-08-08 实测修正）
+- 玩法路径防刷屏 300s（`_lastFailureShownAt`）：后台自动重试场景（记忆总结等）不每失败弹一条；测试按钮每次都给结果
+- 新增失败原因需四处同步：`LLMFailureReason` 枚举 + `ClassifyFailure` 判级 + `ShowConnectionMessage` 分支 + XML 文案
+
+
+---
+
 ## Prompt 构建 — `LLM/PromptBuilder.cs`
 
 按场景的静态 prompt 工厂。加新对话场景 = 在这里加一个 `BuildXxxPrompt` 静态方法，**不要在业务代码里拼 prompt 字串**。现有方法覆盖：开场冲突、技能检定结果、闲聊、谈判（核心）、社交事件分析、记忆长期化、对话总结、导演梗概、演出脚本生成。

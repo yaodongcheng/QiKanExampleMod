@@ -2606,6 +2606,13 @@
     <string id="LWN_mcm_llm_test_ok" text="LLM 连接正常。" />
     <string id="LWN_mcm_llm_test_fail" text="LLM 连接失败，请检查地址 / 密钥 / 网络。" />
     <string id="LWN_mcm_llm_test_err" text="测试出错：{MSG}" />
+    <!-- LLM 连接失败原因分类（测试连接与正式玩法服务共用；{MISSING}=缺失字段列表，{URL}=实际请求地址，{MODEL}=配置的模型名） -->
+    <string id="LWN_llm_fail_not_configured" text="LLM 尚未配置完整，请在 选项 → Mod 选项 → Living World NPCs 中填写：{MISSING}" />
+    <string id="LWN_llm_fail_bad_base_url" text="无法连接到 LLM 服务（{URL}），请检查 Base URL 是否正确、网络是否可用。" />
+    <string id="LWN_llm_fail_model_not_found" text="模型「{MODEL}」不存在或不可用，请在 Mod 选项中检查模型名称。" />
+    <string id="LWN_llm_fail_bad_api_key" text="API 密钥被服务端拒绝，请检查密钥是否正确、是否还有效。" />
+    <string id="LWN_llm_fail_insufficient_funds" text="LLM 账户余额不足，请充值后再试。" />
+    <string id="LWN_llm_fail_other" text="LLM 服务暂时不可用，请稍后再试。" />
     <!-- 复仇队开关 -->
     <string id="LWN_mcm_revenge_party" text="派出复仇队" />
     <string id="LWN_mcm_revenge_party_hint" text="开启后，被害一方可能在大地图派出复仇队（及打手队）追击嫌犯。关闭后这个世界不会派人追你。" />
