@@ -72,7 +72,6 @@ namespace LivingWorldNpcs
                     }
                 }
                 Settings.Instance.LLMBaseUrl = cleaned;
-                LLMService.InvalidateConnectionCache();
             }
         }
 
@@ -82,7 +81,7 @@ namespace LivingWorldNpcs
         public string LLMApiKey
         {
             get => Settings.Instance.LLMApiKey;
-            set { Settings.Instance.LLMApiKey = value; LLMService.InvalidateConnectionCache(); }
+            set { Settings.Instance.LLMApiKey = value; }
         }
 
         [SettingPropertyText("{=LWN_mcm_llm_model}LLM Model", Order = 2, RequireRestart = false,
@@ -91,7 +90,7 @@ namespace LivingWorldNpcs
         public string LLMModel
         {
             get => Settings.Instance.LLMModel;
-            set { Settings.Instance.LLMModel = value; LLMService.InvalidateConnectionCache(); }
+            set { Settings.Instance.LLMModel = value; }
         }
 
         // ── LLM 连接测试按钮（交付：验证 BaseUrl 可达 + key 有效；结果飘字提示）──

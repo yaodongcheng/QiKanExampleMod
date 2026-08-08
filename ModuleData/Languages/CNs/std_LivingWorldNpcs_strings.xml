@@ -3955,7 +3955,6 @@
     <string id="LWN_ui_interact_plot" text="密谋：下达命令" />
     <string id="LWN_ui_interact_stopplan" text="停止计划" />
     <string id="LWN_plan_no_llm" text="随从现在想不出主意。" />
-    <string id="LWN_plan_no_conn" text="LLM 连接失败，可在 Mod 选项中测试连接。" />
     <string id="LWN_plan_opening" text="小声——你说吧，我听着。" />
     <string id="LWN_plan_stop_face" text="是，这就收手。" />
     <string id="LWN_plan_stop_far" text="你远远地向随从打了个手势：停下。" />
