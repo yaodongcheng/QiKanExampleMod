@@ -21,6 +21,9 @@ py 侧（test_llm_plan.py，回归测试用，双份维护）：
 import os
 import re
 import sys
+# Windows 下强制 UTF-8 输出：默认 GBK 代码页会让重定向日志（regress_*.log）乱码（2026-08-08）
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(SCRIPT_DIR)

@@ -19,6 +19,9 @@ import glob
 import json
 import os
 import sys
+# Windows 下强制 UTF-8 输出：默认 GBK 代码页会让重定向日志（regress_*.log）乱码（2026-08-08）
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # ═══════════════════════════════════════════════════════════
 # 维度 A：命令理解（LLM 侧由测试脚本统计，这里只接收）

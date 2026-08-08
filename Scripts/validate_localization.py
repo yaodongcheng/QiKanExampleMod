@@ -13,6 +13,9 @@ import re
 import sys
 import glob as glob_mod
 from collections import defaultdict
+# Windows 下强制 UTF-8 输出：默认 GBK 代码页会让重定向日志（regress_*.log）乱码（2026-08-08）
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 # ── Paths ──
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
