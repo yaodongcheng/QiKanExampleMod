@@ -60,6 +60,19 @@ namespace LivingWorldNpcs
         {
             base.AfterStart();
 
+            // ── 自动随从关系兜底：OnAgentCreated 时 Agent.Main 可能未就绪（玩家 Agent 晚创建），
+            //    启动完成后给玩家队友（同伴/同部队）补设 Leader = Agent.Main。 ──
+            foreach (var kv in _brains)
+            {
+                var b = kv.Value;
+                if (b.Leader == null && Agent.Main != null && AgentBrain.IsPlayerTeammate(b.Owner))
+                {
+                    b.SetLeader(Agent.Main);
+                    if (IsDebugMode)
+                        DebugLogger.Log($"[随从关系-兜底] {b.Owner.Name} → Leader=玩家");
+                }
+            }
+
             // ── PendingWorldEvent 初始化 ──
             var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
             if (settlement != null)
@@ -161,6 +174,16 @@ namespace LivingWorldNpcs
                         DebugLogger.Log($"[新增] Name: {agent.Name} (Index: {agent.Index})");
 
                     _brains.Add(agent.Index, new AgentBrain(agent));
+                    // 自动随从关系：玩家 party 带入的随从（同伴/同部队）→ Leader = Agent.Main。
+                    // 真随从不走对话 FollowIntent 玩法行（该行大部分情况不出现），Leader 关系
+                    // 由身份判定直接建立——isCompanion（密谋入口/计划系统）依赖此关系。
+                    // Agent.Main 可能晚于 NPC 创建 → 未就绪时交给 AfterStart 兜底补设。
+                    if (Agent.Main != null && AgentBrain.IsPlayerTeammate(agent))
+                    {
+                        _brains[agent.Index].SetLeader(Agent.Main);
+                        if (IsDebugMode)
+                            DebugLogger.Log($"[随从关系] {agent.Name} → Leader=玩家（身份判定自动建立）");
+                    }
                 }
                 else
                 {
@@ -169,7 +192,7 @@ namespace LivingWorldNpcs
                     return;
                 }
             }
-            
+
         }
 
         public override void OnAgentDeleted(Agent agent)
