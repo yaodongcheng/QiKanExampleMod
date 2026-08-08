@@ -305,7 +305,8 @@ namespace LivingWorldNpcs
         {
             SpeechText = text;
             ShowSpeech = true;
-            _speechTimer = 4.0f + (text.Length * 0.1f);
+            // 显示时长（BC-006）：短句 ~3s，长句 ~6s——广播延迟 2.5s 后对方回应基本在冒泡尾声出现，避免双泡重叠盖住
+            _speechTimer = 2.8f + (text.Length * 0.08f);
         }
 
         // ============================================================

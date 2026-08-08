@@ -2592,6 +2592,8 @@
     <string id="LWN_mcm_display_name" text="Living World NPCs" />
     <!-- 分组：设置（单组。MCM footer 式标题渲染下多组会错位，见 MCMSettings.cs 注释） -->
     <string id="LWN_mcm_grp_main" text="设置" />
+    <string id="LWN_mcm_plot_enabled" text="行动密令(测试版)" />
+    <string id="LWN_mcm_plot_enabled_hint" text="开启后，可对随从下达自然语言行动密令（面向随从按下密令键）。默认关闭；关闭时密令入口隐藏，但已执行中的计划仍可用停止键终止。" />
     <!-- LLM API 地址 -->
     <string id="LWN_mcm_llm_base_url" text="LLM API 地址" />
     <string id="LWN_mcm_llm_base_url_hint" text="LLM API 接口地址，例如 https://api.example.com/v1" />
@@ -3953,8 +3955,8 @@
     <!-- Planner - 密谋命令系统 -->
     <!-- ═══════════════════════════════════════════ -->
     <string id="LWN_ui_npcintent_executingcommand" text="正在执行命令" />
-    <string id="LWN_ui_interact_plot" text="密谋：下达命令" />
-    <string id="LWN_ui_interact_stopplan" text="停止计划" />
+    <string id="LWN_ui_interact_plot" text="行动密令" />
+    <string id="LWN_ui_interact_stopplan" text="停止行动" />
     <string id="LWN_plan_no_llm" text="随从现在想不出主意。" />
     <string id="LWN_plan_opening" text="小声——你说吧，我听着。" />
     <string id="LWN_plan_stop_face" text="是，这就收手。" />
