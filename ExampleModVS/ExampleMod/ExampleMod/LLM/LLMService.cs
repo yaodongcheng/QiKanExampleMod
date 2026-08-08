@@ -147,7 +147,8 @@ namespace LivingWorldNpcs
             NotConfigured,      // ① 三个配置项有未填的
             BadBaseUrl,         // ② Base URL 不对（DNS/拒连/超时/端点不存在）
             ModelNotFound,      // ③ 模型不存在
-            BadApiKey,          // ④ API 密钥不对（401/403）
+            BadApiKey,          // ④ API 密钥不对（401/403 且响应体有明确 key 错误关键字）
+            BadUrlOrKey,        // ④' 401/403 但响应体无 key 关键字——无法区分 URL 错还是 key 错（如网关对不存在的路径统一回 401）
             InsufficientFunds,  // ⑤ 账户没钱了（402/insufficient_quota/balance）
             Other               // 兜底：服务器错误、限流、未知异常
         }
@@ -283,7 +284,11 @@ namespace LivingWorldNpcs
                 switch ((int)status.Value)
                 {
                     case 401:
-                    case 403: return Fail(LLMFailureReason.BadApiKey, text);          // 密钥无效
+                    case 403:
+                        // 走到这里说明 ① 的关键字检查未命中（无 invalid_api_key/authentication_error 等）——
+                        // 服务端并未明确说是 key 错。很多网关对不存在的路径（如 baseurl 的 v11 写成 v1）
+                        // 在认证/路由层统一回 401/403，此时归因给 key 是误导 → 归 BadUrlOrKey，提示同时指向 URL 与密钥
+                        return Fail(LLMFailureReason.BadUrlOrKey, text);
                     case 402: return Fail(LLMFailureReason.InsufficientFunds, text);   // 余额不足（DeepSeek 402）
                     case 404: return Fail(LLMFailureReason.BadBaseUrl, text);          // 无模型关键字 → 端点不存在
                     default: return Fail(LLMFailureReason.Other, text);                // 400/429/5xx 等
@@ -321,9 +326,12 @@ namespace LivingWorldNpcs
             return string.Join(", ", missing);
         }
 
-        // 玩法路径失败提示防刷屏：5 分钟内最多飘一次（后台自动触发场景——记忆总结/事件分析等，
+        // 玩法路径失败提示防刷屏：同一失败原因 5 分钟内最多飘一次（后台自动触发场景——记忆总结/事件分析等，
         // 否则每次失败都弹一条红字）。测试按钮路径（showSuccess:true）不受限，每次测试都给结果。
+        // 🔴 按原因区分冷却：原因变化（如先 URL/密钥被拒 401，后网络连不上）→ 立即提示，
+        // 不被上一条冷却吞掉——不同问题值得各自提示一次；同问题反复重试才抑制。
         private static DateTime _lastFailureShownAt = DateTime.MinValue;
+        private static LLMFailureReason _lastShownReason = LLMFailureReason.None;
         private const double FailureShowCooldownSeconds = 300;
 
         /// <summary>通用连接结果展示（测试连接与正式服务共用）。
@@ -340,10 +348,14 @@ namespace LivingWorldNpcs
                         LWNTextHelper.ResolveText("LWN_mcm_llm_test_ok", "LLM connection OK."), Colors.Green));
                 return;
             }
-            // 玩法路径防刷屏（MCM 按钮每次测试都显示，不走冷却）
-            if (!showSuccess && (DateTime.Now - _lastFailureShownAt).TotalSeconds < FailureShowCooldownSeconds)
-                return;
-            _lastFailureShownAt = DateTime.Now;
+            // 玩法路径防刷屏：同原因 5 分钟冷却（MCM 按钮每次测试都显示，不走冷却）
+            if (!showSuccess)
+            {
+                if (result.Reason == _lastShownReason && (DateTime.Now - _lastFailureShownAt).TotalSeconds < FailureShowCooldownSeconds)
+                    return;
+                _lastFailureShownAt = DateTime.Now;
+                _lastShownReason = result.Reason;
+            }
 
             string msg;
             switch (result.Reason)
@@ -369,6 +381,13 @@ namespace LivingWorldNpcs
                     // ④ 密钥被拒：提示检查 API 密钥
                     msg = LWNTextHelper.ResolveText("LWN_llm_fail_bad_api_key",
                         "The API key was rejected by the service. Check that the API key is correct.");
+                    break;
+                case LLMFailureReason.BadUrlOrKey:
+                    // ④' 401/403 无明确 key 错误信息：URL 或密钥都可能错（网关对错误路径也回 401）。
+                    // 把玩家填的原始 baseurl 亮出来——v1 写成 v11 这种一眼就能看出来
+                    var baseForMsg2 = Settings.Instance?.LLMBaseUrl;
+                    msg = LWNTextHelper.ResolveCompound("LWN_llm_fail_bad_url_or_key",
+                        ("URL", string.IsNullOrWhiteSpace(baseForMsg2) ? ApiUrl : baseForMsg2.TrimEnd('/')));
                     break;
                 case LLMFailureReason.InsufficientFunds:
                     // ⑤ 账户没钱：提示充值
@@ -501,6 +520,22 @@ namespace LivingWorldNpcs
 
                     if (currentRetry == 0)
                     {
+                        // 设置检查：key 掩码（前 4 位 + 长度，明文不落日志）；
+                        // Base=玩家配置的原始 baseurl（空则打 (空)）；Url=实际请求值 ApiUrl（含缺省回落 + /chat/completions 后缀），
+                        // 两者对照能看出"以为填了其实没填"以及后缀拼接是否正确——与 TestConnection 同格式
+                        try
+                        {
+                            var cfg = Settings.Instance;
+                            string keyMask = !string.IsNullOrWhiteSpace(cfg?.LLMApiKey)
+                                ? cfg.LLMApiKey.Substring(0, Math.Min(4, cfg.LLMApiKey.Length)) + "…(" + cfg.LLMApiKey.Length + ")"
+                                : "(空)";
+                            string baseForLog = string.IsNullOrWhiteSpace(cfg?.LLMBaseUrl) ? "(空)" : cfg.LLMBaseUrl;
+                            DebugLogger.Log($"[LLMRequest] 设置检查: Ready={cfg?.IsLLMConfigured} Base={baseForLog} Url={ApiUrl} Model={CurrentModel} Key={keyMask}");
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"[LLMRequest] 设置打印失败: {ex.Message}");
+                        }
                         DebugLogger.Log($"大模型请求结构 (尝试 {currentRetry + 1})\n{json}");
                     }
                     else
