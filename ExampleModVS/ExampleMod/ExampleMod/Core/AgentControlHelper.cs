@@ -145,6 +145,9 @@ namespace LivingWorldNpcs
                 agent.StopUsingGameObject(true, Agent.StopUsingGameObjectFlags.None);
             }
             agent.ClearTargetFrame();
+            // 清注视锁：跟随停驻态 SetLookAgent(目标) 不会随移动自动解除——
+            // 计划接管后不移除会导致"身体走向目标、头锁着玩家"的倒着走路（实机 badcase）。
+            agent.SetLookAgent(null);
             V.SetAgentAI(agent);
             // 恢复速度上限：MoveEndAndInteractPrepare 会 SetMaximumSpeedLimit(0) 原地钉死 Agent
             // （对话结束/到达站定路径），若不解除，后续所有移动指令都会被钳到速度 0 = 原地不动。
