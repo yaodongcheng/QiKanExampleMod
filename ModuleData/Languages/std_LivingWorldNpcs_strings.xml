@@ -2521,6 +2521,7 @@
     <string id="LWN_llm_fail_bad_base_url" text="Cannot reach the LLM service at {URL}. Check that the Base URL is correct and your network is available." />
     <string id="LWN_llm_fail_model_not_found" text="The model &quot;{MODEL}&quot; does not exist or is unavailable. Check the model name in Mod Options." />
     <string id="LWN_llm_fail_bad_api_key" text="The API key was rejected by the service. Check that the API key is correct and valid." />
+    <string id="LWN_llm_fail_bad_url_or_key" text="Cannot access the LLM service at {URL}. The Base URL or API key may be incorrect." />
     <string id="LWN_llm_fail_insufficient_funds" text="The LLM account has insufficient balance. Recharge the account and try again." />
     <string id="LWN_llm_fail_other" text="The LLM service is temporarily unavailable. Please try again later." />
     <!-- 复仇队开关 -->

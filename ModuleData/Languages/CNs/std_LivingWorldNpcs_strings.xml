@@ -2611,6 +2611,7 @@
     <string id="LWN_llm_fail_bad_base_url" text="无法连接到 LLM 服务（{URL}），请检查 Base URL 是否正确、网络是否可用。" />
     <string id="LWN_llm_fail_model_not_found" text="模型「{MODEL}」不存在或不可用，请在 Mod 选项中检查模型名称。" />
     <string id="LWN_llm_fail_bad_api_key" text="API 密钥被服务端拒绝，请检查密钥是否正确、是否还有效。" />
+    <string id="LWN_llm_fail_bad_url_or_key" text="无法访问 LLM 服务（{URL}），Base URL 或 API 密钥可能有误。" />
     <string id="LWN_llm_fail_insufficient_funds" text="LLM 账户余额不足，请充值后再试。" />
     <string id="LWN_llm_fail_other" text="LLM 服务暂时不可用，请稍后再试。" />
     <!-- 复仇队开关 -->
