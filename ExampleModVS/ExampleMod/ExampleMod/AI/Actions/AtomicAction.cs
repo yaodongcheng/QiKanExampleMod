@@ -407,8 +407,12 @@ namespace LivingWorldNpcs
         private bool _run;
         private float _stopDistance;
         private float _timer;
-        private float _maxTime;
+        private float _maxTime;           // 卡死预算（按距离/速度算，不固定）
         private float fixedTimer = 0;
+        private float _sampleTimer;       // 进度采样计时
+        private float _lastDist;          // 上次采样距目标距离
+        private float _lastProgressTime;  // 最近一次"有进展"时刻
+        private bool _teleportOnEnd;      // 仅卡死兜底才瞬移（正常到达不瞬移）
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
 
@@ -420,8 +424,6 @@ namespace LivingWorldNpcs
             _stopDistance = stopDistance;
 
             _timer = 0f;
-            _maxTime = 8.0f; //可能用距离更合理一点
-
         }
 
         public void OnStart(Agent agent)
@@ -437,9 +439,15 @@ namespace LivingWorldNpcs
 
             if (!needsDelay)
                 _timer = 2.0f;
-            // 调用 Helper，不再自己处理 Flags 和 NavMesh
-           //AgentControlHelper.ScriptedMoveToPoint(agent, _targetPos, _run);
 
+            // 🔴 卡死预算按"距离/速度"算，不固定 8s（实机 badcase：远距离目标走着走着被瞬移）。
+            // 走 ~1.5m/s / 跑 ~3.5m/s，×1.5 给寻路绕路余量，下限 5s。
+            float dist = agent.Position.Distance(_targetPos);
+            float speed = _run ? 3.5f : 1.5f;
+            _maxTime = Math.Max(5f, dist / speed * 1.5f);
+            _lastDist = dist;
+            _lastProgressTime = 0f;
+            _teleportOnEnd = false;
         }
 
         public void OnTick(Agent agent, float dt)
@@ -453,31 +461,47 @@ namespace LivingWorldNpcs
                 //给起身的时间
                 return;
             }
-            
+
             //每200ms 强制更新一次目标位置，避免Agent在移动过程中被打断
             if (fixedTimer > 0.2f)
             {
                 fixedTimer = 0;
-                //agent.SetScriptedPosition(ref _targetPos, false, _moveFlags);
                 AgentControlHelper.ScriptedMoveToPoint(agent, _targetPos, _run);
+            }
+
+            // 进度采样（每 0.5s）：仍在接近 = 有速度 → 记"最近有进展时刻"，永不瞬移
+            _sampleTimer += dt;
+            if (_sampleTimer >= 0.5f)
+            {
+                _sampleTimer = 0f;
+                float dist = agent.Position.Distance(_targetPos);
+                if (_lastDist - dist > 0.2f) { _lastDist = dist; _lastProgressTime = _timer; }
             }
         }
 
         public bool IsFinished(Agent agent)
         {
-            // 距离计算属于逻辑判断，保留在这里是合适的
-            float distSq = agent.Position.DistanceSquared(_targetPos);
-            return _interrupted || distSq <= (_stopDistance * _stopDistance) || _timer > _maxTime || !agent.IsActive();
+            if (_interrupted) return true;
+            if (!agent.IsActive()) return true;
+            float dist = agent.Position.Distance(_targetPos);
+            if (dist <= _stopDistance) return true;   // 正常到达 → 不瞬移（对齐 FollowAgentAction 纪律）
+            // 卡死判定：超预算 且 最近 3s 无进展 → 瞬移兜底；仍在走（有速度）→ 继续
+            if (_timer > _maxTime && _timer - _lastProgressTime > 3f)
+            {
+                _teleportOnEnd = true;
+                return true;
+            }
+            return false;
         }
 
         public void OnEnd(Agent agent)
         {
-            agent.TeleportToPosition(_targetPos);
-            // 保持朝向瞬移
+            // 仅卡死兜底才瞬移；正常到达保留原位（几十厘米偏差肉眼不可见，瞬移反而突兀）
+            if (_teleportOnEnd && agent.IsActive())
+                agent.TeleportToPosition(_targetPos);
             agent.SetMovementDirection(_targetDir);
 
             AgentControlHelper.MoveEndAndInteractPrepare(agent);
-            //AgentControlHelper.StopAndReset(agent);
         }
     }
 
