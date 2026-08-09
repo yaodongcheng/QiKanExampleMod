@@ -251,6 +251,12 @@ namespace LivingWorldNpcs
             if (Settings.Instance.IsInteractionDisabled())
                 return;
 
+            // 🔴 纵深防御：玩家不该有 brain（OnAgentCreated 已排除），万一存在（边缘路径）
+            // 也绝不处理玩家的事件——护主/参战链会把玩家当 NPC：BubbleSay NPC 台词 +
+            // Suspend 玩家导致整场无法移动（2026-08-09 致命 bug 修复）。
+            if (Owner == Agent.Main)
+                return;
+
             DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 '{aiEvent.EventType}' | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
 
             // ── ReactiveAgent 触发词分发（密谋命令系统 §6）──
@@ -447,16 +453,6 @@ namespace LivingWorldNpcs
                     }
                     BubbleSay(line);
 
-                    SetNpcIntent(NpcIntentType.Fighting, attacker);
-                    InteractedAgent = attacker;
-                    ClearAllActions();
-                    AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
-                    // 儿童不参战：恐惧逃离；大人才进战斗
-                    if (IsChildOwner)
-                        EnqueueAction(new FleeFromAction(attacker));
-                    else
-                        EnqueueAction(new FightEnemyAction(attacker));
-
                     //时序处理： 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
                     if (attacker == Agent.Main)
                     {
@@ -466,6 +462,23 @@ namespace LivingWorldNpcs
                         if (AddAlert(PlayerActionType.AttackAlly, 3.0f))  // 队友围观豁免（false）→ 跳过阶段检查
                             CheckPhaseTransition();
                     }
+
+                    // 🔴 已在战斗中（正在打别人）：只感知不换目标（2026-08-09 改）——
+                    // 索敌交给原版 AI（扫描敌对 Agent 按距离/威胁度排序，见 Knowledge/Agent_AI底层原理.md）。
+                    // 旧逻辑 ClearAllActions+重入队 → 多攻击者间来回切换的决策抖动；
+                    // 且 CombatManager 的目标锁（SetTargetAgent）已移除，换目标由原版索敌节奏接管。
+                    if (EffectiveAction is FightEnemyAction)
+                        return;
+
+                    SetNpcIntent(NpcIntentType.Fighting, attacker);
+                    InteractedAgent = attacker;
+                    ClearAllActions();
+                    AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
+                    // 儿童不参战：恐惧逃离；大人才进战斗
+                    if (IsChildOwner)
+                        EnqueueAction(new FleeFromAction(attacker));
+                    else
+                        EnqueueAction(new FightEnemyAction(attacker));
                 }
             }
             if (aiEvent.EventType == "EndInteraction")
@@ -874,6 +887,9 @@ namespace LivingWorldNpcs
         /// <summary>暂停原版 AgentNavigator / DailyBehaviorGroup 对该 Agent 的控制。幂等。</summary>
         private bool SuspendVanillaAI()
         {
+            // 🔴 永不 Suspend 玩家：控制权转移给 mod AI = 玩家整场无法移动（2026-08-09 致命 bug 修复）
+            if (Owner == Agent.Main) return false;
+
             if (!SuspendedAgentIndices.Add(Owner.Index))
                 return true; // 已在集合中，幂等
 

@@ -551,14 +551,10 @@ namespace LivingWorldNpcs
             // 3. 清除之前的脚本标志 (防止因剧情/脚本导致的呆立)
             actor.SetScriptedCombatFlags(Agent.AISpecialCombatModeFlags.None);
 
-            // 4. 强制仇恨锁定
-            // 注意：只在敌对时锁定，否则可能导致友军互砍逻辑混乱
-            // Team.Invalid 单例 != null，IsEnemyOf 内部解引用 null mission 必 NRE，需先查 IsValid
-            if (actor.Team != null && actor.Team.IsValid && enemy.Team != null && enemy.Team.IsValid
-                && actor.Team.IsEnemyOf(enemy.Team))
-            {
-                actor.SetTargetAgent(enemy);
-            }
+            // 🔴 不再 SetTargetAgent 锁死目标（2026-08-09 改）：原版 AI 自带索敌
+            // （扫描视野内敌对 Agent，按距离/威胁度排序选目标——见 Knowledge/Agent_AI底层原理.md）。
+            // 锁谁他就只打谁 → 被第三方（如友方援护）攻击时无动于衷、只盯着锁定目标砍。
+            // 队伍敌对关系由侧容器模型保证，原版索敌自然接管"谁近打谁、谁威胁大打谁"。
         }
 
         // --- 你提供的辅助函数 ---

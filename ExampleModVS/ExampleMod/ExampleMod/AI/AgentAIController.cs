@@ -164,6 +164,11 @@ namespace LivingWorldNpcs
 
         public override void OnAgentCreated(Agent agent)
         {
+            // 🔴 玩家本人永不注册 brain（根因防线）：Tick 有 Agent.Main 守卫但 ReceiveEvent 没有——
+            // 玩家被打时护主/参战链会把玩家当 NPC：BubbleSay NPC 台词 + ClearAllActions + EnqueueAction
+            // + SuspendVanillaAI（禁用玩家 DailyBehaviorGroup），且 Suspend 永不撤销 → 整场 Mission 无法移动。
+            if (agent.IsMainAgent) return;
+
             // 人类或儿童都注册 brain：小孩在玩家认知里也是人，对话/警戒/感知与大人同等对待
             if (AgentControlHelper.IsHumanOrChild(agent))
             {
