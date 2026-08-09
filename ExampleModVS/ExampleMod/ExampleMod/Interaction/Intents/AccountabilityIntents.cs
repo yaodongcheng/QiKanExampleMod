@@ -915,26 +915,20 @@ namespace LivingWorldNpcs
             if (inRealScene)
             {
                 // 场景内开战：在场村民立即敌对，不 spawn 大地图复仇队——
-                // 全村已经抄家伙围上来了，同时凭空冒出一支雇佣复仇队既出戏又双重惩罚。
                 // 事件随后由 ProcessConfrontation 自然结案（死敌标记与恶名保留）。
                 // 战斗一旦打响，后续 BecomeAlarmed 会被 IsPlayerInCombat / IsCurrentOrPending<FightEnemyAction>
                 // 守卫拦截（AgentBrain.ReceiveEvent），L3 强制质问对话循环自然中断。
-                // ① 对话对象 → 两阶段延迟战斗（复用 ThreatIntent.PendingCombatAgent 轮子）：
-                //    对话关闭后 ConversationEntryPatch 发 DeferredCombat，
-                //    避免对话进行中 ClearAllActions 把对话本身打断。
+                // 只对对话对象开战：两阶段延迟战斗（复用 ThreatIntent.PendingCombatAgent 轮子）——
+                // 对话关闭后 ConversationEntryPatch 发 DeferredCombat → AgentBrain.StartCombatAgainst，
+                // 避免对话进行中 ClearAllActions 把对话本身打断。
+                // 🔴 不广播 order_attack：拔剑是私人恩怨，围观村民不参与（广播无友方过滤，
+                //    会波及旁边站着的玩家随从；且警戒/围殴会让战斗规模失控）。
                 if (ctx.Agent != null && ctx.Agent != Agent.Main && ctx.Agent.IsActive())
                     ThreatIntent.PendingCombatAgent = ctx.Agent;
 
-                // ② 围观村民 → 立即广播 order_attack（排除对话对象）。
-                //    空手村民由 CombatManager.StartFight → TryGiveAnyMeleeWeapon 现场发武器——"抄起家伙"。
-                var exclude = ctx.Agent != null
-                    ? new System.Collections.Generic.HashSet<Agent> { ctx.Agent }
-                    : null;
-                AgentAIController.Instance?.BroadcastEventInRange(
-                    Agent.Main.Position, 30f, "order_attack", exclude, false, Agent.Main);
-                DebugLogger.Log($"[Accountability] FightVillagers in-mission: order_attack broadcast, deferred={ctx.Agent?.Name ?? "none"}");
-                // 场景内信息提示：村民抄家伙围过来
-                var fightSceneMsg = LWNTextHelper.ResolveText("LWN_intent_accountability_fight_scene_message", "The villagers are furious! They've grabbed whatever they can and are closing in... get out of here!");
+                DebugLogger.Log($"[Accountability] FightVillagers in-mission: deferred combat, target={ctx.Agent?.Name ?? "none"}");
+                // 场景内信息提示：对方拔剑相向
+                var fightSceneMsg = LWNTextHelper.ResolveText("LWN_intent_accountability_fight_scene_message", "He is furious! You drew your blade — and he answers with his own!");
                 TaleWorlds.Library.InformationManager.DisplayMessage(
                     new TaleWorlds.Library.InformationMessage(fightSceneMsg,
                         Colors.Red));

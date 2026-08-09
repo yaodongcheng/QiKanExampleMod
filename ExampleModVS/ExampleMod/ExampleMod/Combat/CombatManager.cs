@@ -145,22 +145,26 @@ namespace LivingWorldNpcs
             return Mission.Current.CurrentTime - _missionStartTime >= TeamChangeLogDelay;
         }
 
-        /// <summary>开场基线：全场所有 Agent 的初始队伍 Index（每 Mission 一次，与 [TeamChange] 流水对照用）。</summary>
+        /// <summary>开场基线：全场所有 Agent 的初始队伍 Index（每 Mission 一条日志，与 [TeamChange] 流水对照用）。</summary>
         private static void LogTeamBaseline(Mission mission)
         {
+            var sb = new StringBuilder();
+            int count = 0;
             foreach (var a in mission.Agents)
             {
                 if (a == null) continue;
                 try
                 {
-                    DebugLogger.Log($"[TeamBaseline] {a.Name}(Idx={a.Index}): team {a.Team?.TeamIndex ?? -1}");
+                    if (sb.Length > 0) sb.Append(", ");
+                    sb.Append($"{a.Index}:{a.Name}→{a.Team?.TeamIndex ?? -1}");
+                    count++;
                 }
                 catch
                 {
                     // 个别 Agent native 已销毁则跳过
                 }
             }
-            DebugLogger.Log($"[TeamBaseline] total agents={mission.Agents.Count()}");
+            DebugLogger.Log($"[TeamBaseline] {count} agents: {sb}");
         }
 
         /// <summary>

@@ -187,6 +187,28 @@ agent.SetScriptedPositionAndDirection(...);
 
 ---
 
+## 个体战斗统一入口 — `AgentBrain.StartCombatAgainst(target)`
+
+**所有"对指定 Agent 开战"的路径走同一入口**（2026-08-09 提取），禁止各自复制 DeferredCombat 分支代码。事件分支与直调同源：
+
+```csharp
+// AgentBrain 内部（private）。DeferredCombat 事件分支 与 StartL3CombatJoin 同源调用。
+StartCombatAgainst(target);
+// 行为链：SetNpcIntent(Fighting) + 推进 PendingWorldEvent → Confrontation（缘由 "a fight broke out"，
+//         进赔款涨价说明）+ ClearAllActions + ForceUnlockAgent + 儿童恐惧逃离守卫 + FightEnemyAction
+```
+
+- `DeferredCombat` 事件分支（威胁失败延迟开战 / 拔剑路径对话关闭后由 ConversationEntryPatch 发送）→ `StartCombatAgainst`
+- `StartL3CombatJoin`（`BecomeAlarmed` 直调；MCM 开关 `AlarmedDirectCombat` 开启后警戒拉满不走质问）→ `StartCombatAgainst(player)`
+- `FightEnemyAction.OnStart` 内部自带 `ForceUnlockAgent`（注释：各事件处理器无需补）——调用点显式调用是冗余无害
+
+**🔴 坑：`order_attack` 广播无友方过滤** — `BroadcastEventInRange` 只有 active/距离/楼层/exclude 过滤，接收端（order_attack 分支）也没有友方守卫；且玩家命令随从攻击（`InteractionController` / `PlanExecutor` / `SocialIntents`）也走同一事件 → **友方过滤只能放调用点 exclude，不能放接收端**（接收端过滤会废掉"命令随从攻击"）。已定决策（2026-08-09）：警戒拉满 / 拔剑路径**均不广播** order_attack（广播会波及玩家随从、战斗规模失控），只对单个目标走 DeferredCombat。
+
+**文件位置**：`AI/AgentBrain.cs`（StartCombatAgainst / StartL3CombatJoin / DeferredCombat 分支）
+
+
+---
+
 ## 警戒值系统（NpcSightSystem 维护）
 
 ```csharp
@@ -253,7 +275,7 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 **阶段穿越事件**（在 `ReceiveEvent` 中平级处理）：
 - `"BecomeSuspicious"` → `BubbleSayOnce`
 - `"BecomeCautious"` → `LookAtAction(Agent.Main, 2.0f)` + `BubbleSayOnce`
-- `"BecomeAlarmed"` → `StartL3Confrontation()`（脉冲抑制检查）
+- `"BecomeAlarmed"` → 默认 `StartL3Confrontation()`（脉冲抑制检查在前）；MCM 开关 `AlarmedDirectCombat` 开启 → `StartL3CombatJoin()` 跳过质问直接开战（见「个体战斗统一入口」节）
 - `"CalmDown"` → 清理 bubbled 记录 + 行为链清理
 
 **L3 质问**：`StartL3Confrontation` 按 `Settings.Instance.AlertDialogueMode` 分叉：

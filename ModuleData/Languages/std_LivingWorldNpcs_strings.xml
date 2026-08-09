@@ -1066,7 +1066,7 @@
     
     <string id="LWN_intent_accountability_fight_reason" text="You drew your blade and struck" />
     
-    <string id="LWN_intent_accountability_fight_scene_message" text="The villagers are furious! Some are grabbing weapons and closing in... leave this place now!" />
+    <string id="LWN_intent_accountability_fight_scene_message" text="He is furious! You drew your blade — and he answers with his own!" />
     
     <string id="LWN_intent_accountability_fight_map_message" text="The villagers are furious! They swear to make you pay with blood..." />
     
@@ -2531,7 +2531,10 @@
     
     <string id="LWN_mcm_heal_on_kill" text="Heal on Kill" />
     <string id="LWN_mcm_heal_on_kill_hint" text="When enabled, the player restores health after killing an enemy on the battlefield. Disable to remove this bonus." />
-    
+
+    <string id="LWN_mcm_alarmed_direct_combat" text="Fight on Full Alarm" />
+    <string id="LWN_mcm_alarmed_direct_combat_hint" text="When enabled, NPCs whose alarm reaches maximum attack you directly instead of confronting you in dialogue. The alarm escalation skips the interrogation and goes straight to combat." />
+
     <string id="LWN_mcm_show_health_bar" text="Show NPC Health Bars" />
     <string id="LWN_mcm_show_health_bar_hint" text="When enabled, health bars appear above NPCs (in combat, when damaged, or when alerted). Disable to reduce on-screen clutter; NPC names then only appear while they speak or show an alert." />
     
