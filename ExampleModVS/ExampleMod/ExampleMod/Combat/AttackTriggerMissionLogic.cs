@@ -498,10 +498,8 @@ namespace LivingWorldNpcs
                  //   InformationManager.DisplayMessage(new InformationMessage(                       LWNTextHelper.ResolveCompound("LWN_combat_damage_log",                            "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",                            ("ATTACKER", attacker.Name?.ToString() ?? ""),                            ("VICTIM", victim.Name?.ToString() ?? ""),                            ("DAMAGE", b.InflictedDamage.ToString())),                        Colors.Yellow));
             }
 
-            if (!attacker.IsMainAgent || victim.IsMainAgent) return;
-
-            // 🆕 友方保护：开关关闭时玩家攻击友方 → 不广播 event_agent_damaged
-            // （NPC 无反应：不警戒、不围观、不护主；伤害本身在 OnAgentHit 无效化）。
+            // 🆕 友方保护：玩家攻击友方 → 不广播 event_agent_damaged
+            // （NPC 攻击者不适用，条件自带 IsMainAgent；伤害无效化在 OnAgentHit）。
             // 开关打开（允许对友方动手）→ 广播照常（友方受害者/旁观者正常反应）。
             if (attacker.IsMainAgent && !Settings.Instance.AllowHostileOnAllies && FriendlinessHelper.IsFriendlyToPlayer(victim))
             {
@@ -516,7 +514,13 @@ namespace LivingWorldNpcs
 
             if (victim != null && attacker != null && victim != attacker)
             {
-                AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
+                // 🆕 直接受害者广播放行 NPC↔NPC：被打方的脑必须知道"谁在打我"才能转身还手。
+                // （旧代码整条事件链被 `!attacker.IsMainAgent` 门控掐死 → NPC 战斗中第三方攻击
+                //   完全无感，只会盯着开战时锁定的目标砍——学者背后捅纺织工 49 秒不回头，2026-08-09 实测）
+                // 玩家是受害者 → 不直发：玩家没有 brain（OnAgentCreated 排除），且直发会触发
+                // 玩家脑的护主/参战链（说 NPC 台词 + Suspend 玩家 → 整场无法移动，2026-08-09 修复）。
+                if (!victim.IsMainAgent)
+                    AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
 
                 // 范围广播：周围 25m 内 NPC 收到 event_agent_damaged，同一对 3 秒内最多一次
 
@@ -530,6 +534,9 @@ namespace LivingWorldNpcs
                 }
 
             }
+
+            // 以下为玩家门控逻辑（切磋为废弃分支）
+            if (!attacker.IsMainAgent || victim.IsMainAgent) return;
 
             // 【场景 1】当前正在切磋中
             if (_isDuelActive)
