@@ -487,7 +487,7 @@ namespace LivingWorldNpcs
             // 只要 attacker 或 victim 任意一方是玩家就打印
             if ((attacker.IsMainAgent || victim.IsMainAgent) && victim != attacker)
             {
-                if (Settings.Instance.ShowDebugMessages)
+                
                     InformationManager.DisplayMessage(new InformationMessage(
                         LWNTextHelper.ResolveCompound("LWN_combat_damage_log",
                             "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",
@@ -502,7 +502,7 @@ namespace LivingWorldNpcs
             // 🆕 友方保护：开关关闭时玩家攻击友方 → 不广播 event_agent_damaged
             // （NPC 无反应：不警戒、不围观、不护主；伤害本身在 OnAgentHit 无效化）。
             // 开关打开（允许对友方动手）→ 广播照常（友方受害者/旁观者正常反应）。
-            if (!Settings.Instance.AllowHostileOnAllies && FriendlinessHelper.IsFriendlyToPlayer(victim))
+            if (attacker.IsMainAgent && !Settings.Instance.AllowHostileOnAllies && FriendlinessHelper.IsFriendlyToPlayer(victim))
             {
                 ShowFriendlyBlockedHint(victim);   // 反馈明确：拦截提示（2s 冷却，与 OnAgentHit 共享防刷屏）
                 return;
@@ -525,7 +525,7 @@ namespace LivingWorldNpcs
                 {
                     _lastEventDamagedBroadcast[key] = now;
                     //暂时关闭广播
-                    AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", false, attacker, victim);
+                 //   AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 25f, "event_agent_damaged", false, attacker, victim);
                 }
 
             }

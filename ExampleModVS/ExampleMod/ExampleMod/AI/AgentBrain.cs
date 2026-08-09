@@ -385,62 +385,48 @@ namespace LivingWorldNpcs
                 if (!Owner.IsActive()) return;
                 if(!attacker.IsActive()) return;
                 if (attacker == Owner) return;
-                if (attacker == Leader) return;
                 if(!victim.IsActive()) return;
                 if(attacker == victim) return;
 
                 // 受害者身份日志：区分自己是受害者（应反击）还是旁观者（看护主条件），排查小孩无法参战用
                 DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 'event_agent_damaged' | victim={victim.Name}(Idx={victim.Index}) | 是否自己={Owner == victim} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
 
-                var victimMemory = AllNpcMemoryManager.GetMemoryForAgent(victim);
-                
                 if (Settings.Instance.ShowDebugMessages)
                     // 伤害目击飘字：{ATTACKER} 对 {VICTIM} 造成了伤害
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_damage_seen",
                         ("ATTACKER", attacker.Name.ToString()), ("VICTIM", victim.Name.ToString())), Colors.Yellow));
                 // --- 核心护主逻辑 ---
+                // 🆕 通用见义勇为（友方视角，玩家本人视为友方；不读开关）：
+                //   victim 是玩家友方（含玩家本人被打）且 attacker 不是 → 帮（救自己人）；
+                //   attacker 和 victim 都是友方（内斗）→ 不帮（不站队任何一方）；
+                //   victim 不是友方（含玩家打外人）→ 不帮（犯罪后果走 WitnessCrime 警戒链）。
 
                 bool shouldHelp = false;
-                // ── 🆕 玩家友方旁观者处理（友方一致对外，不读开关）──
-                // 玩家是当事方（攻击或被攻击）时，玩家友方旁观者：
-                //   玩家 vs 非友方 → 一致对外参战（帮忙）；
-                //   玩家 vs 友方（内斗，仅开关开可能）→ 不插手（不站队任何一方）。
                 if (Owner == victim)
                 {
                     // 受害者本人：任何人被打都反抗（含玩家侵害友方时受害者反抗——不豁免）
                     shouldHelp = true;
                 }
-                else if (FriendlinessHelper.IsFriendlyToPlayer(Owner)
-                    && (attacker == Agent.Main || victim == Agent.Main))
-                {
-                    Agent playerOpponent = attacker == Agent.Main ? victim : attacker;
-                    if (FriendlinessHelper.IsFriendlyToPlayer(playerOpponent))
-                        return;   // 玩家 vs 友方 → 不插手（中立旁观）
-                    shouldHelp = true;   // 玩家 vs 外人 → 一致对外
-                }
-                //护卫模式下，领导被攻击（NPC 领袖被打，玩家非当事方 → 原逻辑）
-                else if (Leader != null && victim == Leader && _isGuardMode)
+                //护卫模式下，领导被攻击（NPC 领袖的贴身护卫，与友方判定无关）
+                else if (Leader != null && victim == Leader )
                 {
                    shouldHelp = true;
                 }
-                // NPC 互殴见义勇为：受害者同族/同王国好友参战（与玩家无关，原逻辑）
-                else if(Owner!=victim && victimMemory._profile.Clan == _memory._profile.Clan)
+                else if (Owner != victim
+                    && (victim == Agent.Main || FriendlinessHelper.IsFriendlyToPlayer(victim))
+                    && attacker != Agent.Main
+                    && !FriendlinessHelper.IsFriendlyToPlayer(attacker))
                 {
-                    if(victimMemory._profile.Clan == _memory._profile.Clan)
-                        shouldHelp = true;
-                    if(victimMemory._profile.Kingdom == _memory._profile.Kingdom)
-                    {
-                        if(victimMemory._profile.BaseHero!= null && _memory._profile.BaseHero != null)
-                        {
-                            if(victimMemory._profile.BaseHero.IsFriend(_memory._profile.BaseHero))
-                            {
-                                shouldHelp = true;
-                            }
-                        }
-                    }
+                    // 🆕 通用见义勇为：victim 是玩家友方（含玩家本人被打）而 attacker 不是 → 帮
+                    shouldHelp = true;
                 }
 
 
+                // 见义勇为/护主/反抗：本脑准备攻击谁（排查参战逻辑用）
+                if (shouldHelp)
+                    DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 准备攻击 {attacker.Name}(Idx={attacker.Index}) 救援 {victim.Name}(Idx={victim.Index})");
+                else
+                    DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 不参战：victim={victim.Name}(Idx={victim.Index}) attacker={attacker.Name}(Idx={attacker.Index})");
                 if (shouldHelp)
                 {
                     if (EffectiveAction is FightEnemyAction currentFight)
