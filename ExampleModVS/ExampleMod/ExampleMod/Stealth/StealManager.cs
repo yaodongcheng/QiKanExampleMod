@@ -43,12 +43,27 @@ namespace LivingWorldNpcs
         // 0. 失窃记录：本场 Mission 内玩家从某 victim 身上偷走的物品，用于「归还」。
         //    用 ConditionalWeakTable（弱引用键），Mission 结束 Agent 被 GC 后自动清，无泄漏。
         // ----------------------------------------------------------------
+
+        /// <summary>
+        /// 受害者 hero 的 campaign 层装备中，被本次偷窃清空的装备集（归还时对称还原用）。
+        /// Battle/Civilian 全版本存在；Stealth 仅 v1.4.0+（见 V.GetStealthEquipment）。
+        /// 模板 NPC（无 HeroObject）不涉及任何层，恒为 None。
+        /// </summary>
+        [Flags]
+        private enum HeroEquipmentLayers
+        {
+            None = 0,
+            Battle = 1,
+            Civilian = 2,
+            Stealth = 4
+        }
+
         private struct StolenEntry
         {
-            public EquipmentIndex Slot;      // 物品来源槽位（金钱条目无意义）
-            public EquipmentElement Element; // 偷走的物品（带品质）；金钱条目时为空
-            public int StashTaken;           // 从受害者辎重实扣的物品数（金钱条目无意义）
-            public int Gold;                 // 偷走的金钱面额（物品条目时为 0）
+            public EquipmentIndex Slot;              // 物品来源槽位（金钱条目无意义）
+            public EquipmentElement Element;         // 偷走的物品（带品质）；金钱条目时为空
+            public HeroEquipmentLayers ClearedLayers; // hero 层中被清空的装备集（归还还原用；模板 NPC 恒 None）
+            public int Gold;                         // 偷走的金钱面额（物品条目时为 0）
         }
         private static readonly ConditionalWeakTable<Agent, List<StolenEntry>> _stolenLog
             = new ConditionalWeakTable<Agent, List<StolenEntry>>();
@@ -73,7 +88,8 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 归还：把本场从 <paramref name="victim"/> 偷走的赃物从玩家背包交出，对称复原——
-        /// 复原其穿戴外观，并把当初从其 party 辎重实扣的库存还回辎重。玩家已卖/丢的跳过。
+        /// 复原其穿戴外观，并把当初从其 hero 装备层（Battle/Civilian/1.4x Stealth）清掉的槽位还原。
+        /// 玩家已卖/丢的跳过。
         /// 返回实际归还件数。
         /// </summary>
         public static int ReturnStolenItems(Agent victim)
@@ -103,9 +119,8 @@ namespace LivingWorldNpcs
                 if (newEquipment != null && newEquipment[entry.Slot].IsEmpty)
                     newEquipment[entry.Slot] = entry.Element;
 
-                // 3. 把当初从其 party 辎重实扣的真实库存还回去：世界 → 受害者辎重
-                if (entry.StashTaken > 0 && victimHero?.PartyBelongedTo != null)
-                    AgentControlHelper.TransferItems(null, victimHero, entry.Element.Item, entry.StashTaken);
+                // 3. 还原 hero 的 campaign 层装备（偷时清掉的 Battle/Civilian/1.4x Stealth 槽位）
+                RestoreHeroEquipmentSlot(victimHero, entry);
 
                 returned++;
             }
@@ -121,10 +136,77 @@ namespace LivingWorldNpcs
             return returned;
         }
 
-        private static void RecordStolen(Agent victim, EquipmentIndex slot, EquipmentElement element, int stashTaken)
+        private static void RecordStolen(Agent victim, EquipmentIndex slot, EquipmentElement element, HeroEquipmentLayers clearedLayers)
         {
             if (victim == null || element.IsEmpty) return;
-            _stolenLog.GetOrCreateValue(victim).Add(new StolenEntry { Slot = slot, Element = element, StashTaken = stashTaken });
+            _stolenLog.GetOrCreateValue(victim).Add(new StolenEntry { Slot = slot, Element = element, ClearedLayers = clearedLayers });
+        }
+
+        /// <summary>
+        /// 槽位元素与目标物品是否为同款（引用相等即可——MBObjectBase 是 ObjectManager 单例）。
+        /// </summary>
+        private static bool MatchesHeroSlot(Equipment equipment, EquipmentIndex slot, ItemObject item)
+        {
+            if (equipment == null || item == null) return false;
+            var el = equipment[slot];
+            return !el.IsEmpty && el.Item != null && el.Item == item;
+        }
+
+        /// <summary>
+        /// 偷窃/搜刮 hero 时的「真实损失」承载：清空其 campaign 层装备中与偷走的物品同槽同款的槽位
+        /// （Battle/Civilian 全版本；Stealth 仅 v1.4.0+，见 <see cref="V.GetStealthEquipment"/>）。
+        /// 城镇/酒馆场景英雄穿便装层，战斗场景穿战斗层——两套都按「同槽同物品」匹配，谁命中清谁。
+        /// 🔴 只对 IsAlive 生效：死 hero 的 BattleEquipment getter 返回共享的
+        /// Campaign.DeadBattleEquipment（反编译实证 Hero.cs:219），写入会污染全体死英雄的装备。
+        /// 模板 NPC（无 HeroObject）不调用本方法——其装备只有场景层，无 campaign 层。
+        /// 返回被清空的层（归还时 <see cref="RestoreHeroEquipmentSlot"/> 对称还原）。
+        /// </summary>
+        private static HeroEquipmentLayers ClearHeroEquipmentSlot(Hero hero, EquipmentIndex slot, ItemObject item)
+        {
+            if (hero == null || !hero.IsAlive || item == null) return HeroEquipmentLayers.None;
+
+            var cleared = HeroEquipmentLayers.None;
+            if (MatchesHeroSlot(hero.BattleEquipment, slot, item))
+            {
+                hero.BattleEquipment[slot] = EquipmentElement.Invalid;
+                cleared |= HeroEquipmentLayers.Battle;
+            }
+            if (MatchesHeroSlot(hero.CivilianEquipment, slot, item))
+            {
+                hero.CivilianEquipment[slot] = EquipmentElement.Invalid;
+                cleared |= HeroEquipmentLayers.Civilian;
+            }
+            var stealth = V.GetStealthEquipment(hero);
+            if (stealth != null && MatchesHeroSlot(stealth, slot, item))
+            {
+                stealth[slot] = EquipmentElement.Invalid;
+                cleared |= HeroEquipmentLayers.Stealth;
+            }
+            return cleared;
+        }
+
+        /// <summary>
+        /// 归还时还原 hero 的 campaign 层装备槽（与 <see cref="ClearHeroEquipmentSlot"/> 对称）。
+        /// 仅当该层槽位现在为空才写回——他若已换上别的新装备，不覆盖。
+        /// </summary>
+        private static void RestoreHeroEquipmentSlot(Hero hero, StolenEntry entry)
+        {
+            if (hero == null || !hero.IsAlive) return;
+
+            if (entry.ClearedLayers.HasFlag(HeroEquipmentLayers.Battle)
+                && hero.BattleEquipment[entry.Slot].IsEmpty)
+                hero.BattleEquipment[entry.Slot] = entry.Element;
+
+            if (entry.ClearedLayers.HasFlag(HeroEquipmentLayers.Civilian)
+                && hero.CivilianEquipment[entry.Slot].IsEmpty)
+                hero.CivilianEquipment[entry.Slot] = entry.Element;
+
+            if (entry.ClearedLayers.HasFlag(HeroEquipmentLayers.Stealth))
+            {
+                var stealth = V.GetStealthEquipment(hero);
+                if (stealth != null && stealth[entry.Slot].IsEmpty)
+                    stealth[entry.Slot] = entry.Element;
+            }
         }
 
         /// <summary>
@@ -208,15 +290,18 @@ namespace LivingWorldNpcs
                 AgentControlHelper.TransferItems(null, Hero.MainHero, itemToSteal, 1);
             }
 
-            // 2b. 真实损失：受害者若有 party，从其辎重(ItemRoster)扣一件同款——保证不是「假偷」。
-            //     辎重里恰好没有同款则不扣(返回0)；记下实扣数，供归还对称还回。
-            int stashTaken = 0;
+            // 2b. 真实损失（hero）：清受害者的 campaign 层装备（Battle/Civilian/1.4x Stealth 中
+            //     与偷走的物品同槽同款的槽位）。玩家已拿到赃物——"入背包"那一端已被顶替，
+            //     🔴 禁止再从 PartyBelongedTo 辎重扣同款：同伴的 PartyBelongedTo 就是玩家自己的
+            //     队伍，扣了 = 玩家亏两份（旧实现 2b 的坑）。守恒：hero 装备 −1 ↔ 玩家背包 +1。
+            //     模板 NPC（victimHero == null）无 campaign 层，只清场景层（原有行为不变）。
             Hero victimHero = (agent.Character as CharacterObject)?.HeroObject;
-            if (victimHero?.PartyBelongedTo != null)
-                stashTaken = AgentControlHelper.TransferItems(victimHero, null, itemToSteal.Item, 1);
+            HeroEquipmentLayers clearedLayers = ClearHeroEquipmentSlot(victimHero, index, itemToSteal.Item);
+            if (clearedLayers != HeroEquipmentLayers.None)
+                DebugLogger.Log($"[Steal] {agent.Name} 装备层清空: {itemToSteal.Item.Name} 槽={index} 层={clearedLayers}");
 
-            // 记录失窃（槽位 + 带品质元素 + 辎重实扣数），供「归还」对称复原
-            RecordStolen(agent, index, itemToSteal, stashTaken);
+            // 记录失窃（槽位 + 带品质元素 + 被清的 hero 层），供「归还」对称复原
+            RecordStolen(agent, index, itemToSteal, clearedLayers);
 
             // 偷窃账本记账（犯罪后果系统用）
             if (victimHero != null && Settlement.CurrentSettlement != null)
@@ -341,6 +426,9 @@ namespace LivingWorldNpcs
         /// 扒掉 Agent 的装备。
         /// remainingRoster = null → 无条件扒光所有武器/防具（"全部拿走"）。
         /// remainingRoster 非 null → 只扒槽内物品不在 roster 中的（"自己挑选"后被拿走的）。
+        /// hero 受害者（活人）：同步清空其 campaign 层装备（Battle/Civilian/1.4x Stealth 中同槽同款的槽位）——
+        /// 搜刮 = 真实损失，出场景后 hero 不带装备重新出现。尸体（死 hero）跳过（IsAlive 守卫，
+        /// 防写入共享 DeadBattleEquipment 污染）。
         /// </summary>
         public static void StripAgentEquipment(Agent agent, bool stripWeapons, bool stripArmor, ItemRoster remainingRoster = null)
         {
@@ -348,6 +436,11 @@ namespace LivingWorldNpcs
 
             Equipment newEquipment = agent.SpawnEquipment.Clone();
             bool anyChange = false;
+
+            // hero 受害者（活人）才清 campaign 层：死 hero 的 BattleEquipment getter 返回
+            // 共享 DeadBattleEquipment（反编译实证 Hero.cs:219），写入污染全体死英雄。
+            Hero victimHero = (agent.Character as CharacterObject)?.HeroObject;
+            bool isHeroAlive = victimHero != null && victimHero.IsAlive;
 
             // 尸体（ragdoll）不能调 UpdateSpawnEquipmentAndRefreshVisuals：
             // 即使清空了武器槽让 WieldInitialWeapons 空操作，native 方法仍可能在
@@ -363,8 +456,13 @@ namespace LivingWorldNpcs
             {
                 foreach (var slot in armorSlots)
                 {
-                    if (TryStripSlot(agent.SpawnEquipment[slot], slot, remainingRoster, ref newEquipment))
+                    var el = agent.SpawnEquipment[slot];
+                    if (TryStripSlot(el, slot, remainingRoster, ref newEquipment))
+                    {
                         anyChange = true;
+                        if (isHeroAlive)
+                            ClearHeroEquipmentSlot(victimHero, slot, el.Item);
+                    }
                 }
             }
 
@@ -375,8 +473,13 @@ namespace LivingWorldNpcs
                     // 尸体：传 null → 无条件清空（绝不能给 ragdoll 留武器去 wield）；
                     // 活人：按 remainingRoster 精准扒（玩家拿走的才扒，活人可正常重新 wield 剩下的）。
                     ItemRoster slotFilter = isCorpse ? null : remainingRoster;
-                    if (TryStripSlot(agent.SpawnEquipment[i], i, slotFilter, ref newEquipment))
+                    var el = agent.SpawnEquipment[i];
+                    if (TryStripSlot(el, i, slotFilter, ref newEquipment))
+                    {
                         anyChange = true;
+                        if (isHeroAlive)
+                            ClearHeroEquipmentSlot(victimHero, i, el.Item);
+                    }
                 }
             }
 

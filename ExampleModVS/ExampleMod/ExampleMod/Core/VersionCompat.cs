@@ -611,6 +611,21 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        /// <summary>
+        /// hero 的 stealth 装备层（v1.4.0+ 新增；v1.3.x 及更早的 Hero 无此属性）。
+        /// 返回 null = 当前版本无此层，调用方跳过 stealth 处理即可。
+        /// 用于偷窃/搜刮时清空英雄第三套装备（Battle/Civilian/Stealth 三套一致处理）。
+        /// </summary>
+        public static Equipment GetStealthEquipment(Hero hero)
+        {
+            if (hero == null) return null;
+#if MB2_GE_140
+            return hero.StealthEquipment;
+#else
+            return null;
+#endif
+        }
+
         // ── Navigation mesh snap (in/ref + return-type difference) ──
         // v1.2.12: scene.GetNavigationMeshForPosition(ref pos, out faceIndex) → bool
         // v1.3.0+: scene.GetNavigationMeshForPosition(in pos, out faceIndex, 1.5f, false) → UIntPtr
