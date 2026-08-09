@@ -66,6 +66,35 @@ AgentAIController.Instance.SendEventToAgent(target, "事件名", args);
 
 ---
 
+## 🔴 玩家 agent 永不进入 mod AI 管线（AgentBrain 玩家排除纪律）— 2026-08-09
+
+**问题**：玩家被当 NPC 处理 —— `OnAgentCreated` 给玩家也注册了 AgentBrain → 玩家被打时 `event_agent_damaged` 直发到玩家脑 → 护主/参战链（`Owner == victim` → shouldHelp）触发 → BubbleSay NPC 参战台词（"你这小子！你敢打本官？！"，PlaceholderResolver 按 speaker=玩家 填自称/称呼）+ `SuspendVanillaAI` 禁用玩家 DailyBehaviorGroup。`Brain.Tick` 有 `Owner == Agent.Main` 守卫所以 FightEnemyAction 永不执行，但 **Suspend 已生效且永不撤销**（只有行为结束才 Resume）→ 玩家整场 Mission 无法移动（致命 bug）。
+
+**三层防线**（缺一不可，别只补一层）：
+
+```csharp
+// ① 根因：玩家永不注册 brain（AgentAIController.OnAgentCreated）
+if (agent.IsMainAgent) return;   // 在 IsHumanOrChild 检查之前
+
+// ② 事件源：受害者在场直发（AttackTriggerMissionLogic.OnRegisterBlow）排除玩家
+if (!victim.IsMainAgent)
+    AgentAIController.Instance.SendEventToAgent(victim, "event_agent_damaged", attacker, victim);
+
+// ③ 纵深防御：AgentBrain.ReceiveEvent 顶部 + SuspendVanillaAI 顶部
+if (Owner == Agent.Main) return;         // ReceiveEvent（IsInteractionDisabled 之后）
+if (Owner == Agent.Main) return false;   // SuspendVanillaAI
+```
+
+**注意**：
+- 引擎事件广播路径（`BroadcastEventInRange`）本来就有 `brain.Owner == Agent.Main` 过滤；漏网的是**直发**（`SendEventToAgent(victim, …)`）——排查时两个入口都查。
+- `GetBrainForAgent(Agent.Main)` 返回 null：唯一业务调用（`PlanExecutor.IsPlayerInCombat`）null-safe，其余调用全是 `?.`，玩家无脑后行为不变。
+- Tick 的玩家守卫**不是**完整防护——ReceiveEvent 与 Tick 是两条独立入口，只守 Tick 拦不住事件处理链。
+
+**文件位置**：`AI/AgentAIController.cs`（OnAgentCreated）、`Combat/AttackTriggerMissionLogic.cs`（OnRegisterBlow）、`AI/AgentBrain.cs`（ReceiveEvent / SuspendVanillaAI）
+
+
+---
+
 ## 引擎级非战斗人员（儿童 human_child）— `AI/Actions/AtomicAction.cs` + `AI/AgentBrain.cs`
 
 **引擎把儿童排除在 `Agent.IsHuman` 之外**（无 IsHumanoid 标志、非战斗人员设定），但玩家认知里小孩也是人：对话/警戒/感知/战斗事件必须与大人同等对待。凡原本判定 `agent.IsHuman` 且语义为「人形角色」的地方统一改用 `IsHumanOrChild`；凡「进入战斗」流程对儿童替换为恐惧逃离。
