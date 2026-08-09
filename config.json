@@ -56,7 +56,11 @@
     "AcceptSurrender": { "Keyboard": "Q",     "Gamepad": "LB", "PressMode": "Long" },
     "Inspect":         { "Keyboard": "H",     "Gamepad": "R3", "PressMode": "Short" },
     "StealAttempt":    { "Keyboard": "Space", "Gamepad": "A",  "PressMode": "Short" },
-    "StealLeave":      { "Keyboard": "Tab",   "Gamepad": "B",  "PressMode": "Short" }
+    "StealLeave":      { "Keyboard": "Tab",   "Gamepad": "B",  "PressMode": "Short" },
+    // 密令：Plot（对随从下自然语言命令）/ StopPlan（对执行中的随从喊停），同键互斥显示
+    //   ——空闲随从旁显示 Plot，执行中的随从旁显示 StopPlan；入口还受 MCM「Action Orders」开关控制（默认关）
+    "Plot":            { "Keyboard": "G",     "Gamepad": "LB", "PressMode": "Long" },
+    "StopPlan":        { "Keyboard": "G",     "Gamepad": "LB", "PressMode": "Long" }
     // 可选：单独调阈值，如击晕想更久： "Knockout": { ..., "HoldMs": 600 }
   },
   "LongPressDurationMs": 650
