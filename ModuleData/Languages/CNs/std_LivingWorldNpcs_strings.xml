@@ -666,6 +666,7 @@
     <string id="LWN_ui_interact_lockpick" text="撬锁" />
     <string id="LWN_ui_interact_steal_animal" text="偷" />
     <string id="LWN_ui_interact_loot" text="搜刮" />
+    <string id="LWN_ui_hostile_friendly_blocked" text="{NAME} 是自己人——你不能这么做。" />
     <string id="LWN_ui_interact_surrender" text="认输" />
     <string id="LWN_ui_interact_accept_surrender" text="接受认输" />
     <string id="LWN_ui_interact_pickpocket" text="偷窃" />
@@ -697,7 +698,7 @@
     <string id="LWN_ui_steal_msg_knockout_success" text="从背后击晕了 {NAME}！（{ROLL} ≤ {CHANCE}）" />
     <string id="LWN_ui_steal_msg_target_dodged" text="{NAME} 非常敏锐，躲开了你的攻击。" />
     <string id="LWN_ui_steal_msg_knockout_fail_quick" text="背后偷袭失手！你(活力{VIGOR} 控制{CONTROL})不敌{NAME}(活力{TVIGOR} 控制{TCONTROL})，胜算仅{CHANCE}" />
-    <string id="LWN_ui_steal_msg_target_retaliates" text="{NAME} 察觉了你的意图，转身反击！（{ROLL} > {CHANCE}）" />
+    <string id="LWN_ui_steal_msg_target_retaliates" text="{NAME} 察觉了你的意图！（{ROLL} > {CHANCE}）" />
     <string id="LWN_ui_steal_msg_knockout_fail" text="击晕失败" />
     <string id="LWN_ui_steal_msg_already_looted" text="{NAME} 已经被搜刮过了。" />
     <string id="LWN_ui_steal_msg_party_items" text="似乎{NAME}还有{COUNT}件东西在队伍里没带身上" />
@@ -2594,6 +2595,8 @@
     <string id="LWN_mcm_grp_main" text="设置" />
     <string id="LWN_mcm_plot_enabled" text="行动密令(测试版)" />
     <string id="LWN_mcm_plot_enabled_hint" text="开启后，可对随从下达自然语言行动密令（面向随从按下密令键）。默认关闭；关闭时密令入口隐藏，但已执行中的计划仍可用停止键终止。" />
+    <string id="LWN_mcm_hostile_on_allies" text="允许对友方使用敌意互动" />
+    <string id="LWN_mcm_hostile_on_allies_hint" text="关闭时，击晕/偷窃/搜刮/攻击将不能作用于友方——友方定义见 config.json 的 FriendlyRelationCriteria（默认：同队伍 + 同家族）与 FriendlyRelationThreshold（好感阈值）。默认开启（敌意互动均为长按蓄力触发，误触概率低）。无论开关，友方旁观者看到你对别人犯罪都会无动于衷。" />
     <!-- LLM API 地址 -->
     <string id="LWN_mcm_llm_base_url" text="LLM API 地址" />
     <string id="LWN_mcm_llm_base_url_hint" text="LLM API 接口地址，例如 https://api.example.com/v1" />

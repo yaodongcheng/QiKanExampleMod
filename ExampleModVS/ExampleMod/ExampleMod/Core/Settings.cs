@@ -95,6 +95,24 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool ShowNpcIntent { get; set; } = true;
 
+        // ── 友方敌意互动保护开关（唯一来源 = MCM Mod 选项 UI，Core/MCMSettings.cs 写入）──
+        // true（默认）= 允许对友方使用敌意互动（保持原行为——敌意互动均为长按蓄力触发，
+        // 误触概率低，不需要默认禁止）；false = 禁止（防误伤保护：击晕/偷窃/搜刮/主动攻击
+        // 不能作用于友方）。
+        // [JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool AllowHostileOnAllies { get; set; } = true;
+
+        // ── 友方定义（config.json 侧，玩家可改；不进 MCM——列表型配置，注释写清楚即可）──
+        // 取值："Party" 同队伍（随从/玩家部队成员）/ "Clan" 同家族 / "Kingdom" 同王国。
+        // 默认 = 同队伍 + 同家族。判定入口 FriendlinessHelper.IsFriendlyToPlayer。
+        public List<string> FriendlyRelationCriteria { get; set; } = new List<string> { "Party", "Clan" };
+
+        // ── 好感度友方阈值（config.json 侧，数值玩家自己设）──
+        // 对玩家好感 >= 此值的角色也视为友方（仅对 Hero 生效；模板 NPC 无个人好感值）。
+        // 默认 50；好感上限 100，不需要此规则时设 101（永远达不到）。
+        public int FriendlyRelationThreshold { get; set; } = 50;
+
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
 
