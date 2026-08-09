@@ -116,8 +116,13 @@ def main():
     print("Packaging...")
     print(f"  Items: {', '.join(existing)}")
 
-    # Debug folder: skip log files, keep folder itself
-    DEBUG_SKIP_SUFFIXES = {".log", ".txt"}
+    # Debug folder: whitelist — 只保留 StoryEngine_RuntimeLog.txt 运行时日志，
+    # 其余（回归测试日志、LLM 样本、崩溃转储、归档）都是临时文件，不打包
+    DEBUG_WHITELIST = {"StoryEngine_RuntimeLog.txt"}
+    # bin folder: skip debug symbol files (.pdb 仅供断点调试，发布包不需要)
+    BIN_SKIP_SUFFIXES = {".pdb"}
+    skipped_pdb = 0
+    skipped_debug = 0
 
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
         for item in existing:
@@ -130,8 +135,13 @@ def main():
                 for file in item_path.rglob("*"):
                     if not file.is_file():
                         continue
-                    # Debug folder: skip logs
-                    if item == "Debug" and file.suffix.lower() in DEBUG_SKIP_SUFFIXES:
+                    # Debug folder: only keep the runtime log (whitelist)
+                    if item == "Debug" and file.name not in DEBUG_WHITELIST:
+                        skipped_debug += 1
+                        continue
+                    # bin folder: skip .pdb debug symbols
+                    if item == "bin" and file.suffix.lower() in BIN_SKIP_SUFFIXES:
+                        skipped_pdb += 1
                         continue
                     arcname = f"{MOD_DIR_NAME}/{file.relative_to(MOD_ROOT).as_posix()}"
                     zf.write(file, arcname)
@@ -146,6 +156,10 @@ def main():
     print("  Package complete!")
     print(f"  {zip_path}")
     print(f"  Size: {size_mb:.2f}MB")
+    if skipped_pdb:
+        print(f"  Skipped {skipped_pdb} .pdb file(s)")
+    if skipped_debug:
+        print(f"  Skipped {skipped_debug} temp file(s) in Debug/")
     print("=" * 40)
 
 
