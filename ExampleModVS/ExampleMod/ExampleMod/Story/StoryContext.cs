@@ -126,12 +126,35 @@ namespace LivingWorldNpcs
         }
         public void SetExtendedProperty(string subjectId, string propertyKey, string value)
         {
+            if (string.IsNullOrEmpty(subjectId) || string.IsNullOrEmpty(propertyKey)) return;
+
+            // 单值上限（防存档 Strings 表 short 溢出）：LLM/外部写入可能无限长。
+            // 1000 字符中文 ≈ 3000 字节 < 32767 安全；截断只影响单个属性值，调用方全走 ?. 传播。
+            if (value != null && value.Length > MaxExtendedValueChars)
+            {
+                DebugLogger.Log($"[ExtPropsGuard] {subjectId}.{propertyKey} 超长 {value.Length} 字符 → 截断 {MaxExtendedValueChars}");
+                value = value.Substring(0, MaxExtendedValueChars);
+            }
+
             if (!_extendedProperties.ContainsKey(subjectId))
             {
+                // 总键上限：超限淘汰最老的 subject（Dictionary 枚举顺序 = 插入顺序），保持总量有界
+                while (_extendedProperties.Sum(s => s.Value?.Count ?? 0) >= MaxExtendedTotalKeys && _extendedProperties.Count > 0)
+                {
+                    var oldest = _extendedProperties.Keys.FirstOrDefault();
+                    if (oldest == null) break;
+                    _extendedProperties.Remove(oldest);
+                    DebugLogger.Log($"[ExtPropsGuard] 键总数达上限 {MaxExtendedTotalKeys}，淘汰最老 subject: {oldest}");
+                }
                 _extendedProperties[subjectId] = new Dictionary<string, string>();
             }
             _extendedProperties[subjectId][propertyKey] = value;
         }
+
+        /// <summary>扩展属性总键数上限（所有 subject 的 property 之和）</summary>
+        private const int MaxExtendedTotalKeys = 500;
+        /// <summary>单属性值长度上限（字符数；1000 中文字 ≈ 3000 字节，远低于 Strings 表 32767 上限）</summary>
+        private const int MaxExtendedValueChars = 1000;
 
         // 获取单例的快捷方式
         public static GlobalVariableBehavior Instance

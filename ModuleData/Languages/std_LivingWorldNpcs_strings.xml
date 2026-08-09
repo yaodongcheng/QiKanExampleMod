@@ -3858,6 +3858,9 @@
     <string id="LWN_save_error_no_detail" text="(no error detail captured)" />
     <string id="LWN_save_error_platform" text="[Platform] " />
     <string id="LWN_save_error_debug_line" text="[SaveDebug] Result={RESULT}&#10;{DETAIL}" />
+    <string id="LWN_save_trim_title" text="Save Warning" />
+    <string id="LWN_save_trim_body" text="The save completed, but some data exceeded the safe size limit and was trimmed: {KEYS}. The oldest affected records were discarded." />
+    <string id="LWN_save_trim_ok" text="OK" />
     
     
     
