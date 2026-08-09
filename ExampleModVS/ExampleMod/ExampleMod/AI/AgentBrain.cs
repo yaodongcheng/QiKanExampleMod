@@ -353,25 +353,8 @@ namespace LivingWorldNpcs
                 var target = aiEvent.Args[0] as Agent;
                 if (target == null || target == Owner) return;
 
-                SetNpcIntent(NpcIntentType.Fighting, target);
-
-                // 推进 PendingWorldEvent 到 Confrontation
-                var pending = AgentAIController.Instance?.PendingWorldEvent;
-                if (pending != null && pending.Stage < EventStage.Confrontation)
-                {
-                    var existing = WorldEventStore.Find(pending.EventId);
-                    WorldEventStore.TransitionStage(existing ?? pending, EventStage.Confrontation,
-                        Hero.MainHero?.StringId,
-                        // 阶段升级原因：现场打了起来（会出现在赔款涨价说明里给玩家看）
-                        LWNTextHelper.ResolveText("LWN_brain_escalation_fighting", "a fight broke out"));
-                }
-
-                InteractedAgent = target;
-                ClearAllActions();
-                AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
-                // 儿童不参战：恐惧逃离
-                if (IsChildOwner) { EnqueueAction(new FleeFromAction(target)); return; }
-                EnqueueAction(new FightEnemyAction(target));
+                // 个体战斗复用统一入口（StartL3CombatJoin 同源调用）
+                StartCombatAgainst(target);
                 DebugLogger.Log($"[Brain-DeferredCombat] {Owner.Name}(Idx={Owner.Index}) 开始攻击 {target.Name}");
             }
             if (aiEvent.EventType == "event_agent_damaged")
@@ -712,6 +695,14 @@ namespace LivingWorldNpcs
                 {
                     //通过别的方式进入战斗，就不在这里了
                     //StartL3CombatJoin();
+                    return;
+                }
+
+                // 🆕 MCM 开关：警戒拉满后直接战斗，不走质问
+                // （复用 StartL3CombatJoin 战斗加入路径：推进 WorldEvent 到 Confrontation + 入队 FightEnemyAction）
+                if (Settings.Instance.AlarmedDirectCombat)
+                {
+                    StartL3CombatJoin();
                     return;
                 }
 
@@ -1363,18 +1354,16 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>
-        /// L3 战斗加入：玩家已在战斗中 → NPC 不废话，直接参战。
-        /// 跳过 Follow/LookAt/AlertForceConversation/Stay 队列，直接入队 FightEnemyAction。
+        /// 对指定目标直接开战——个体战斗唯一入口，DeferredCombat 事件分支与 StartL3CombatJoin 同源复用：
+        /// 推进 PendingWorldEvent 到 Confrontation + 清动作 + 解锁 + 入队 FightEnemyAction（儿童恐惧逃离）。
         /// </summary>
-        void StartL3CombatJoin()
+        void StartCombatAgainst(Agent target)
         {
-            Agent player = Agent.Main;
-            if (player == null) return;
+            if (target == null || target == Owner) return;
 
-            ClearAllActions();
-            InteractedAgent = player;
+            SetNpcIntent(NpcIntentType.Fighting, target);
 
-            // 推进 PendingWorldEvent 到 Confrontation（战斗已是最高警戒状态）
+            // 推进 PendingWorldEvent 到 Confrontation
             var pending = AgentAIController.Instance?.PendingWorldEvent;
             if (pending != null && pending.Stage < EventStage.Confrontation)
             {
@@ -1385,8 +1374,28 @@ namespace LivingWorldNpcs
                     LWNTextHelper.ResolveText("LWN_brain_escalation_fighting", "a fight broke out"));
             }
 
-            EnqueueAction(new FightEnemyAction(player));
-            DebugLogger.Log($"[Brain-Alarmed] {Owner.Name}(Idx={Owner.Index}) 玩家已在战斗中，跳过质问直接加入战斗 | AlertValue={AlertValue:F2}");
+            InteractedAgent = target;
+            ClearAllActions();
+            AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack（FightEnemyAction.OnStart 亦有兜底）
+            // 儿童不参战：恐惧逃离
+            if (IsChildOwner) { EnqueueAction(new FleeFromAction(target)); return; }
+            EnqueueAction(new FightEnemyAction(target));
+        }
+
+        /// <summary>
+        /// L3 战斗加入：跳过质问，直接对玩家开战。
+        /// 两条入口：① 玩家已在战斗中 → 不废话直接参战（BecomeAlarmed 内联判定）；
+        /// ② MCM 开关「警戒拉满直接开战」→ 警戒 Alarmed 后不走质问，复用本路径。
+        /// 只对自身开战（复用 StartCombatAgainst = DeferredCombat 分支同源），
+        /// 不广播——警戒拉满是自己的事，不拖旁人下水（广播会波及玩家随从）。
+        /// </summary>
+        void StartL3CombatJoin()
+        {
+            Agent player = Agent.Main;
+            if (player == null) return;
+
+            StartCombatAgainst(player);
+            DebugLogger.Log($"[Brain-Alarmed] {Owner.Name}(Idx={Owner.Index}) 跳过质问直接加入战斗 | AlertValue={AlertValue:F2} | 模式={Settings.Instance.AlarmedDirectCombat}");
         }
 
         void StartL3Confrontation()

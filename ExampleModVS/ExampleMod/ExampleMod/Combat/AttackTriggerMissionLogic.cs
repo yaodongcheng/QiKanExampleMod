@@ -495,13 +495,7 @@ namespace LivingWorldNpcs
             if ((attacker.IsMainAgent || victim.IsMainAgent) && victim != attacker)
             {
                 
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveCompound("LWN_combat_damage_log",
-                            "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",
-                            ("ATTACKER", attacker.Name?.ToString() ?? ""),
-                            ("VICTIM", victim.Name?.ToString() ?? ""),
-                            ("DAMAGE", b.InflictedDamage.ToString())),
-                        Colors.Yellow));
+                 //   InformationManager.DisplayMessage(new InformationMessage(                       LWNTextHelper.ResolveCompound("LWN_combat_damage_log",                            "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",                            ("ATTACKER", attacker.Name?.ToString() ?? ""),                            ("VICTIM", victim.Name?.ToString() ?? ""),                            ("DAMAGE", b.InflictedDamage.ToString())),                        Colors.Yellow));
             }
 
             if (!attacker.IsMainAgent || victim.IsMainAgent) return;

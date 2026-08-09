@@ -83,6 +83,15 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool HealOnKill { get; set; } = false;
 
+        // ── 警戒拉满直接战斗开关（默认关闭，玩家在 MCM 里主动开启后生效）──
+        // true = NPC 警戒值达到 Alarmed 时直接动手攻击（复用 StartL3CombatJoin 战斗加入路径，
+        // 推进 WorldEvent 到 Confrontation 后入队 FightEnemyAction），跳过质问对话；
+        // false（默认）= 维持原流程：警戒拉满后进入 L3 质问对话。
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool AlarmedDirectCombat { get; set; } = false;
+
         // ── NPC 血条显示开关（默认开启，玩家在 MCM 里关闭后 NPC 头顶血条/伤害数字隐藏）──
         // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
         // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。

@@ -143,6 +143,17 @@ namespace LivingWorldNpcs
             set => Settings.Instance.HealOnKill = value;
         }
 
+        // ── 警戒行为（透传核心 Settings）──
+        // Order = 0 与击杀回血并列（Order 无空档整数位；平局按名称稳定排序，两者显示位置紧邻）
+        [SettingPropertyBool("{=LWN_mcm_alarmed_direct_combat}Fight on Full Alarm", Order = 0, RequireRestart = false,
+            HintText = "{=LWN_mcm_alarmed_direct_combat_hint}When enabled, NPCs whose alarm reaches maximum attack you directly instead of confronting you in dialogue. The alarm escalation skips the interrogation and goes straight to combat.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool AlarmedDirectCombat
+        {
+            get => Settings.Instance.AlarmedDirectCombat;
+            set => Settings.Instance.AlarmedDirectCombat = value;
+        }
+
         // ── 战斗（透传核心 Settings）──
         // Order = -1：显示顺序为 Order 升序的倒序（见类头部注释），-1 使其排在列表最底部
         [SettingPropertyBool("{=LWN_mcm_show_health_bar}Show NPC Health Bars", Order = -1, RequireRestart = false,
