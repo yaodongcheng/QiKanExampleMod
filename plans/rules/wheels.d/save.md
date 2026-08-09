@@ -52,3 +52,5 @@ dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
 **日志关键词**：`[SyncDataGuard]`（裁剪到 key）、`[SaveStrGuard]`（全局超长）、`[LoadDiag-ReadBytes]`（溢出还原/SUSPICIOUS）、`[LoadDiag#n]`/`[SaveDiag#n]`（FirstChance）、`[TheftLedger] Trim`/`[WorldEventStore] Trim`（根因裁剪）、`[ExtPropsGuard]`。
 
 **文件位置**：`Debug/SaveStringGuard.cs`（Harmony `PatchAll()` 自动注册，无调用点）；接入点 `Core/MyBehavior.cs`；排查案例 [plans/save-string-overflow-fix.md](../../save-string-overflow-fix.md)。
+
+**离线体检/修复工具**：`Scripts/save_inspect.py`（解析 .sav → 体检 Strings 表 → `--dump=<key>` 查看具体 JSON → `--fix --apply` 定点手术修复，自动备份）。玩家发来坏档时先跑它定位超长 key，再决定游戏内修还是工具修。格式细节与实测数据见 [Knowledge/存档机制深度解析.md](../../../Knowledge/存档机制深度解析.md) 第 10/12/13 章。
