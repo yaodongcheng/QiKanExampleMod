@@ -405,10 +405,25 @@ namespace LivingWorldNpcs
         /// </summary>
         private static void RecordAndMove(Agent agent, Team team)
         {
-            if (agent == null || team == null || agent.Team == team) return;
+            if (agent == null || team == null || agent.Team == team)
+            {
+                DebugLogger.Log($"[CombatManager] RecordAndMove SKIP: {agent?.Name ?? "null"}(Idx={agent?.Index ?? -1}), target=team{team?.TeamIndex ?? -1}, current=team{agent?.Team?.TeamIndex ?? -1}, reason={(agent == null ? "agent null" : team == null ? "team null" : "same team")}");
+                return;
+            }
             if (agent.Team != null && !_sideFightMembers.ContainsKey(agent))
                 _sideFightMembers[agent] = agent.Team;
-            agent.SetTeam(team, true);
+
+            // SetTeam 前一行日志：如果这里打了、DONE 没打 → SetTeam 抛异常（会被上层静默吞掉）
+            DebugLogger.Log($"[CombatManager] RecordAndMove: {agent.Name}(Idx={agent.Index}) team {agent.Team?.TeamIndex ?? -1} → {team.TeamIndex}");
+            try
+            {
+                agent.SetTeam(team, true);
+                DebugLogger.Log($"[CombatManager] RecordAndMove DONE: {agent.Name}(Idx={agent.Index}) now on team {agent.Team?.TeamIndex ?? -1}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[严重错误][CombatManager] RecordAndMove SetTeam FAILED: {agent.Name}(Idx={agent.Index}) → team {team.TeamIndex}: {ex.Message}\n堆栈: {ex.StackTrace}");
+            }
         }
 
         /// <summary>战斗开战时把在场友方移入队2（护主参战）。跳过玩家本人与忙中（对话/互动）的友方。</summary>
@@ -423,14 +438,16 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>切磋开战时把队2上的其他友方移回 PlayerTeam（旁观化）——防友方扑上来围殴对手。</summary>
+        /// <summary>切磋开战时把队2上的其他友方移回 PlayerTeam（旁观化）——防友方扑上来围殴对手。
+        /// 🔴 必须排除玩家本人：玩家刚被移入队2（切磋对手在对面的队4），sweep 会把玩家也旁观化，
+        ///    导致队2 变空、切磋打不起来（2026-08-09 实测踩坑）。</summary>
         private static void SweepAlliesOutOfPlayerSide(Mission mission, Team playerSide)
         {
             Team playerTeam = mission.PlayerTeam;
             if (playerTeam == null) return;
             foreach (var ally in mission.Agents)
             {
-                if (ally == null || !ally.IsActive()) continue;
+                if (ally == null || !ally.IsActive() || ally == Agent.Main) continue; // 玩家本人永不旁观化
                 if (ally.Team != playerSide) continue;
                 if (ally.IsUsingGameObject) continue;
                 RecordAndMove(ally, playerTeam);
@@ -443,6 +460,17 @@ namespace LivingWorldNpcs
             if (teamA == null || teamB == null || teamA == teamB) return;
             teamA.SetIsEnemyOf(teamB, true);
             teamB.SetIsEnemyOf(teamA, true);
+            DebugLogger.Log($"[CombatManager] SetEnemy: {TeamLabel(teamA)} ↔ {TeamLabel(teamB)}");
+        }
+
+        /// <summary>日志用队伍名：侧容器用语义名，其余用引擎 TeamIndex（避免"队2/队3"代号与引擎编号混淆）。</summary>
+        private static string TeamLabel(Team team)
+        {
+            if (team == null) return "null";
+            if (team == _playerSideTeam) return $"玩家侧容器(team{team.TeamIndex})";
+            if (team == _enemySideTeam) return $"敌方容器(team{team.TeamIndex})";
+            if (team == _opponentSideTeam) return $"切磋对手容器(team{team.TeamIndex})";
+            return $"team{team.TeamIndex}";
         }
 
         /// <summary>侧模型战斗全部结束（计数归零）：全员还原原队 + 清警戒（玩家不设 WatchState）。</summary>
@@ -644,6 +672,7 @@ namespace LivingWorldNpcs
             // 互相设为敌人
             teamA.SetIsEnemyOf(teamB, true);
             teamB.SetIsEnemyOf(teamA, true);
+            DebugLogger.Log($"[CombatManager] SetEnemy(legacy): {TeamLabel(teamA)} ↔ {TeamLabel(teamB)}");
 
             // 独立阵营：敌视玩家队 + 所有缓存阵营
             if (independentA) MakeHostileToEveryone(teamA, mission);
@@ -665,6 +694,7 @@ namespace LivingWorldNpcs
                 team.SetIsEnemyOf(cachedTeam, true);
                 cachedTeam.SetIsEnemyOf(team, true);
             }
+            DebugLogger.Log($"[CombatManager] SetEnemy: {TeamLabel(team)} ↔ 玩家队+全部缓存阵营 (独立阵营)");
         }
 
         /// <summary>玩家向目标 NPC 认输。发事件给 Brain，Brain 全权负责停战/围观/启动对话。</summary>
