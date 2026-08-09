@@ -65,7 +65,7 @@ namespace LivingWorldNpcs
             foreach (var kv in _brains)
             {
                 var b = kv.Value;
-                if (b.Leader == null && Agent.Main != null && AgentBrain.IsPlayerTeammate(b.Owner))
+                if (b.Leader == null && Agent.Main != null && FriendlinessHelper.IsPlayerPartyMember(b.Owner))
                 {
                     b.SetLeader(Agent.Main);
                     if (IsDebugMode)
@@ -178,7 +178,7 @@ namespace LivingWorldNpcs
                     // 真随从不走对话 FollowIntent 玩法行（该行大部分情况不出现），Leader 关系
                     // 由身份判定直接建立——isCompanion（密谋入口/计划系统）依赖此关系。
                     // Agent.Main 可能晚于 NPC 创建 → 未就绪时交给 AfterStart 兜底补设。
-                    if (Agent.Main != null && AgentBrain.IsPlayerTeammate(agent))
+                    if (Agent.Main != null && FriendlinessHelper.IsPlayerPartyMember(agent))
                     {
                         _brains[agent.Index].SetLeader(Agent.Main);
                         if (IsDebugMode)

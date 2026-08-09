@@ -401,14 +401,32 @@ namespace LivingWorldNpcs
                 // --- 核心护主逻辑 ---
 
                 bool shouldHelp = false;
-                //护卫模式下，领导被攻击
-                if ((Leader != null && victim == Leader && _isGuardMode) || Owner == victim)
+                // ── 🆕 玩家友方旁观者处理（友方一致对外，不读开关）──
+                // 玩家是当事方（攻击或被攻击）时，玩家友方旁观者：
+                //   玩家 vs 非友方 → 一致对外参战（帮忙）；
+                //   玩家 vs 友方（内斗，仅开关开可能）→ 不插手（不站队任何一方）。
+                if (Owner == victim)
+                {
+                    // 受害者本人：任何人被打都反抗（含玩家侵害友方时受害者反抗——不豁免）
+                    shouldHelp = true;
+                }
+                else if (FriendlinessHelper.IsFriendlyToPlayer(Owner)
+                    && (attacker == Agent.Main || victim == Agent.Main))
+                {
+                    Agent playerOpponent = attacker == Agent.Main ? victim : attacker;
+                    if (FriendlinessHelper.IsFriendlyToPlayer(playerOpponent))
+                        return;   // 玩家 vs 友方 → 不插手（中立旁观）
+                    shouldHelp = true;   // 玩家 vs 外人 → 一致对外
+                }
+                //护卫模式下，领导被攻击（NPC 领袖被打，玩家非当事方 → 原逻辑）
+                else if (Leader != null && victim == Leader && _isGuardMode)
                 {
                    shouldHelp = true;
                 }
+                // NPC 互殴见义勇为：受害者同族/同王国好友参战（与玩家无关，原逻辑）
                 else if(Owner!=victim && victimMemory._profile.Clan == _memory._profile.Clan)
                 {
-                    if(victimMemory._profile.Clan == _memory._profile.Clan)                    
+                    if(victimMemory._profile.Clan == _memory._profile.Clan)
                         shouldHelp = true;
                     if(victimMemory._profile.Kingdom == _memory._profile.Kingdom)
                     {
@@ -503,6 +521,11 @@ namespace LivingWorldNpcs
                     Vec3 assignedPos = (Vec3)aiEvent.Args[2];
                     Vec2 turnDir = (Vec2)aiEvent.Args[3];
                     float delay = GroupStageManager.CalculateReactionDelay(Owner, criminal, victim);
+
+                    // 🆕 友方旁观者豁免（双向豁免核心，不读开关）：玩家对非友方犯罪，
+                    // 友方旁观者无动于衷——不围观、不质问、不警戒（直接忽略本事件）。
+                    // 受害者是玩家友方（开关开时玩家侵害友方）→ 不豁免，照常围观/质问。
+                    if (criminal == Agent.Main && IsAllyBystander(victim)) return;
 
                     // ── 警戒脉冲：区分偷窃 vs 攻击 vs 击晕（criminal==玩家时）──
                     // 认输场景：受害者大脑的 PendingPostConversationCleanup 已置 true，
@@ -605,6 +628,9 @@ namespace LivingWorldNpcs
                     Agent thief = (Agent)aiEvent.Args[0];
                     Agent victim = (Agent)aiEvent.Args[1];
                     float delay = GroupStageManager.CalculateReactionDelay(Owner, thief, victim);
+
+                    // 🆕 友方旁观者豁免（同 GatherOnLook）：玩家对非友方犯罪，友方旁观者无动于衷。
+                    if (thief == Agent.Main && IsAllyBystander(victim)) return;
                    // InformationManager.DisplayMessage(new InformationMessage($"{Owner.Name} 没抢到位置，原地吃瓜。"));
                     ClearAllActions();
                     InteractedAgent = thief;
@@ -961,6 +987,10 @@ namespace LivingWorldNpcs
         {
             if (!Owner.IsActive()) return;
 
+            ResumeVanillaAI();
+
+            //原版玩家本身就可以控制随从是否跟随自己，所以这里不需要管
+            /*
             if (_isGuardMode && Leader != null && Leader.IsActive())
             {
                 // keepFollow:true 必须带——否则动作到达 stopDistance 即自结束，
@@ -972,6 +1002,7 @@ namespace LivingWorldNpcs
             {
                 ResumeVanillaAI();
             }
+            */
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1032,23 +1063,28 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 玩家队友判定：① 招募入队的同伴 Hero（IsPlayerCompanion）；
-        /// ② 当前正在玩家队伍里的任何 Hero（PartyBelongedTo == 玩家主队，含随队家族成员等）。
-        /// Campaign 层信息（Hero.MainHero.PartyBelongedTo）在 Mission 内照常可读。
-        /// 模板士兵（无 Hero）无法与队伍名册一一对应（MemberRoster 只有聚合计数），
-        /// 且正规军只在战场场景出现——战场模式警戒系统已被 Settings.IsInteractionDisabled 冻结，无需覆盖。
-        /// ⚠️ 不用 Mission Team 比较——和平场景所有 NPC 同属玩家队（见 IntentContext「对话场景中所有
-        /// agent 同队」踩坑），同队判断会把全村人当队友。
+        /// 玩家友方判定：按 Settings.FriendlyRelationCriteria（config.json，默认同队伍 + 同家族，
+        /// 可选同王国）判定 agent 是否被玩家视为友方。统一入口 = FriendlinessHelper.IsFriendlyToPlayer。
+        /// 用途：警戒豁免（AddAlert / UpdateAlertCognition——友方看到玩家可疑行为不涨警戒）、
+        /// 计划系统目标过滤（RuntimeWorldState——友方不列为攻击目标）等。
+        /// 🔴 注意：随从关系自动建立（AgentAIController 补设 Leader，密谋入口依赖）请用
+        /// FriendlinessHelper.IsPlayerPartyMember（严格同队伍）——家族成员不是随从，不得设 Leader。
         /// </summary>
         public static bool IsPlayerTeammate(Agent agent)
         {
-            if (agent == null || agent == Agent.Main) return false;
-            var co = agent.Character as CharacterObject;
-            var hero = co?.HeroObject;
-            if (hero == null) return false;
-            if (hero.IsPlayerCompanion) return true;
-            var mainParty = Hero.MainHero?.PartyBelongedTo;
-            return mainParty != null && hero.PartyBelongedTo == mainParty;
+            return FriendlinessHelper.IsFriendlyToPlayer(agent);
+        }
+
+        /// <summary>
+        /// 友方旁观者豁免判定（双向豁免核心，不读开关）：本脑（Owner）是玩家友方旁观者，
+        /// 且受害者不是玩家友方 → 玩家对非友方犯罪时本脑应无动于衷（不围观/不质问/不警戒/不护外人）。
+        /// 受害者是玩家友方（开关开时玩家侵害友方）→ 不豁免，照常反应。
+        /// </summary>
+        bool IsAllyBystander(Agent victim)
+        {
+            return victim != Owner
+                && FriendlinessHelper.IsFriendlyToPlayer(Owner)
+                && !FriendlinessHelper.IsFriendlyToPlayer(victim);
         }
 
         //玩家拔刀状态：主手或副手有武器
@@ -1163,12 +1199,12 @@ namespace LivingWorldNpcs
         /// <summary>加警戒值。返回 false = 本次加值被队友豁免吞掉（调用方应据此跳过配套行为，如质问意图/阶段检查）。</summary>
         public bool AddAlert(PlayerActionType type, float amount)
         {
-            // 🆕 玩家队友豁免（全项目唯一入口——StealBarVM/StealManager 等外部调用点自动覆盖，
+            // 🆕 玩家友方旁观者豁免（全项目唯一入口——StealBarVM/StealManager 等外部调用点自动覆盖，
             // 无需也不允许在各调用点重复写队友判断）：
-            // 队友不因玩家的可疑/犯罪类行为涨警戒（信任玩家）；
-            // 例外：脉冲上下文记录受害者 = 本脑主人（玩家直接侵害他本人，如被攻击/被扒窃抓到）→ 照常涨。
+            // 友方旁观者不因玩家的可疑/犯罪类行为涨警戒（信任玩家）；不读 AllowHostileOnAllies 开关。
+            // 例外：脉冲上下文记录受害者是「玩家友方」（本人被侵害，或开关开时玩家侵害友方）→ 照常涨。
             // ⚠️ 前提约定：所有调用点先 SetPulseTarget 后 AddAlert（内部站点已统一此顺序）。
-            if (IsPlayerTeammate(Owner) && !IsSelfVictimPulse(type))
+            if (FriendlinessHelper.IsFriendlyToPlayer(Owner) && !IsVictimFriendlyPulse(type))
                 return false;
 
             if (!_alertBreakdown.TryGetValue(type, out var entry))
@@ -1179,12 +1215,28 @@ namespace LivingWorldNpcs
             return true;
         }
 
-        /// <summary>该类型条目的脉冲上下文是否指向本脑主人（玩家直接侵害本人）——队友豁免的唯一例外信号。</summary>
-        bool IsSelfVictimPulse(PlayerActionType type)
+        /// <summary>
+        /// 该类型条目的脉冲上下文是否指向「玩家友方」受害者——友方旁观者豁免的唯一例外信号：
+        /// ① 受害者 = 本脑主人（玩家直接侵害本人，如被攻击/被扒窃抓到）→ 照常涨；
+        /// ② 受害者是玩家友方（开关开时玩家侵害友方，如击晕随从）→ 旁观者照常涨（有反应）。
+        /// </summary>
+        bool IsVictimFriendlyPulse(PlayerActionType type)
         {
-            return Owner.Index >= 0
-                && _alertBreakdown.TryGetValue(type, out var entry)
-                && entry.TargetAgentIndex == Owner.Index;
+            if (Owner.Index < 0 || !_alertBreakdown.TryGetValue(type, out var entry)) return false;
+            if (entry.TargetAgentIndex == Owner.Index) return true;
+            if (entry.TargetAgentIndex < 0) return false;
+            Agent victim = FindAgentByIndex(entry.TargetAgentIndex);
+            return victim != null && FriendlinessHelper.IsFriendlyToPlayer(victim);
+        }
+
+        /// <summary>Mission 内按 Agent.Index 找 Agent（豁免判定用；遍历成本仅在「友方 Owner + 有脉冲目标」时发生）。</summary>
+        static Agent FindAgentByIndex(int index)
+        {
+            var mission = Mission.Current;
+            if (mission == null) return null;
+            foreach (var a in mission.Agents)
+                if (a.Index == index) return a;
+            return null;
         }
 
         /// <summary>脉冲上下文：设置 AlertEntry 的 TargetName/TargetAgentIndex（不改变 Value，Value 由 AddAlert 加）。

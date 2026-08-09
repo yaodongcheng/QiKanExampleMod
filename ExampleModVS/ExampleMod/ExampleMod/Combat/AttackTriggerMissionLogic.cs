@@ -53,6 +53,28 @@ namespace LivingWorldNpcs
         /// <summary>击杀回血回复量（⑤）</summary>
         private const int HealValue = 20;
 
+        /// <summary>友方保护提示冷却：同一目标 2 秒内最多提示一次（防连续挥砍刷屏）。</summary>
+        private static readonly Dictionary<int, float> _lastFriendlyBlockedHint = new Dictionary<int, float>();
+        private const float FRIENDLY_BLOCKED_HINT_COOLDOWN = 2.0f;
+
+        /// <summary>友方保护拦截提示（反馈明确，铁律 13 本地化）：{NAME} 是自己人——你不能这么做。</summary>
+        private static void ShowFriendlyBlockedHint(Agent target)
+        {
+            if (target == null) return;
+            float now = Mission.Current?.CurrentTime ?? 0f;
+            if (_lastFriendlyBlockedHint.TryGetValue(target.Index, out float last)
+                && now - last < FRIENDLY_BLOCKED_HINT_COOLDOWN)
+                return;
+            _lastFriendlyBlockedHint[target.Index] = now;
+
+            string name = target.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
+            InformationManager.DisplayMessage(new InformationMessage(
+                LWNTextHelper.ResolveCompound("LWN_ui_hostile_friendly_blocked",
+                    "{NAME} is on your side — you can't do that.",
+                    ("NAME", name)),
+                Colors.Gray));
+        }
+
         /// <summary>击杀回血判定模式（⑤）：false = 仅主角本人击杀回血（默认，主角的战场特性）；
         /// true = 放宽为「玩家当前控制的角色」——玩家倒地接管小兵后，替身击杀也回血。
         /// 内部开关（非 MCM）：内容包 / 调试代码按需设置。</summary>
@@ -190,6 +212,19 @@ namespace LivingWorldNpcs
 
         public override void OnAgentHit(Agent affectedAgent, Agent attackerAgent, in MissionWeapon attackerWeapon, in Blow blow, in AttackCollisionData attackCollisionData)
         {
+
+            // 🆕 友方保护（主动攻击拦截）：MCM 开关关闭（默认）且目标是玩家友方 →
+            // 伤害无效化（镜像切磋虚拟血回血手法：引擎 HandleBlow 内 OnAgentHit 早于死亡判定，
+            // 写回能吃掉致命一击）+ 冷却提示；不进入死亡登记/犯罪广播链。
+            // 开关打开（允许对友方动手）→ 不拦，正常结算与后果。
+            if (attackerAgent?.IsMainAgent == true && affectedAgent != null && !affectedAgent.IsMainAgent
+                && !Settings.Instance.AllowHostileOnAllies
+                && FriendlinessHelper.IsFriendlyToPlayer(affectedAgent))
+            {
+                affectedAgent.Health = MathF.Min(affectedAgent.Health + blow.InflictedDamage, affectedAgent.HealthLimit);
+                ShowFriendlyBlockedHint(affectedAgent);
+                return;
+            }
 
             // 🆕 记录玩家实际命中过的敌方 Agent（战场血条过滤用）
             // 放在 OnAgentHit 而非 OnRegisterBlow：只有真正造成伤害才算，格挡/空挥不计
@@ -463,6 +498,15 @@ namespace LivingWorldNpcs
             }
 
             if (!attacker.IsMainAgent || victim.IsMainAgent) return;
+
+            // 🆕 友方保护：开关关闭时玩家攻击友方 → 不广播 event_agent_damaged
+            // （NPC 无反应：不警戒、不围观、不护主；伤害本身在 OnAgentHit 无效化）。
+            // 开关打开（允许对友方动手）→ 广播照常（友方受害者/旁观者正常反应）。
+            if (!Settings.Instance.AllowHostileOnAllies && FriendlinessHelper.IsFriendlyToPlayer(victim))
+            {
+                ShowFriendlyBlockedHint(victim);   // 反馈明确：拦截提示（2s 冷却，与 OnAgentHit 共享防刷屏）
+                return;
+            }
 
             // 人类或儿童（human_child）受害者都走正常事件链——小孩已注册 brain，与大人同等对待。
             // 动物等非人受害者保持原行为。

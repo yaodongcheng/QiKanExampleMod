@@ -538,6 +538,27 @@ namespace LivingWorldNpcs
         // ═══════════════════════ 上下文唯一真相源（available 列表 = 响应与显隐的同源数据） ═══════════════════════
 
         /// <summary>
+        /// 友方敌意互动保护判定：MCM 开关关闭（默认）且目标是玩家友方（FriendlinessHelper，
+        /// config.json FriendlyRelationCriteria）→ true（该目标的敌意互动应被拦截）。
+        /// 消费点：BuildAgentContext 注册层（主拦截——不注册 = 显示与触发双断）
+        /// 与 Try* 入口防御守卫（注册层之外的兜底路径）。
+        /// </summary>
+        private static bool IsHostileBlockedOnFriendly(Agent target)
+            => !Settings.Instance.AllowHostileOnAllies
+            && FriendlinessHelper.IsFriendlyToPlayer(target);
+
+        /// <summary>友方保护拦截提示（反馈明确，铁律 13 本地化）：{NAME} 是自己人——你不能这么做。</summary>
+        private static void ShowFriendlyBlocked(Agent target)
+        {
+            string name = target?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
+            InformationManager.DisplayMessage(new InformationMessage(
+                LWNTextHelper.ResolveCompound("LWN_ui_hostile_friendly_blocked",
+                    "{NAME} is on your side — you can't do that.",
+                    ("NAME", name)),
+                Colors.Gray));
+        }
+
+        /// <summary>
         /// 向当前上下文添加一个玩法行：available（响应）与 UI 项（显示）同源添加。
         /// 结构性杜绝"加了响应忘加按钮 / 加了按钮忘加响应"——显隐与响应不可能错位。
         /// </summary>
@@ -574,6 +595,13 @@ namespace LivingWorldNpcs
         {
             _availableIds.Clear();
             _uiItems.Clear();
+
+            // 🆕 友方敌意互动保护（注册层统一拦截，一处计算全上下文生效）：
+            // 友方目标整体屏蔽敌意玩法行（击晕/偷窃/搜刮）——AddInteractionRow 不注册
+            // = UI 不显示 + HandleInput 不监听（只遍历 _availableIds），显示与触发同源双断。
+            // 非敌意行（Talk/Inspect/Plot/StopPlan/PlayerSurrender 等）照常。
+            // 开关打开（允许对友方动手）→ 不过滤。动物无友方概念，天然不命中。
+            bool hostileBlocked = IsHostileBlockedOnFriendly(currentAgent);
 
             // 目标名（动物用 agent.Name；人类用 Character.Name；死亡/昏迷加状态后缀）
             string name;
@@ -654,13 +682,21 @@ namespace LivingWorldNpcs
                 {
                     if (isCrouching)
                     {
-                        // 本地化：偷窃交互按钮
-                        AddInteractionRow(InteractionIds.Pickpocket, LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"));
+                        // 🆕 友方保护：友方目标不注册偷窃行（显示与触发双断）
+                        if (!hostileBlocked)
+                        {
+                            // 本地化：偷窃交互按钮
+                            AddInteractionRow(InteractionIds.Pickpocket, LWNTextHelper.ResolveText("LWN_ui_interact_pickpocket", "Pickpocket"));
+                        }
                     }
                     else
                     {
-                        // 本地化：击晕交互按钮（附难度预览）
-                        AddInteractionRow(InteractionIds.Knockout, LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)));
+                        // 🆕 友方保护：友方目标不注册击晕行（显示与触发双断）
+                        if (!hostileBlocked)
+                        {
+                            // 本地化：击晕交互按钮（附难度预览）
+                            AddInteractionRow(InteractionIds.Knockout, LWNTextHelper.ResolveCompound("LWN_ui_interact_knockout", ("DIFFICULTY", ComputeKnockoutChance(currentAgent).difficulty)));
+                        }
                     }
                     // 闲聊已屏蔽（EnableSmallTalk=false）：若未来恢复，在此加一行 SmallTalk 玩法行 + ExecuteInteraction 分发即可，无需改键位
                     // 本地化：探查交互按钮
@@ -681,8 +717,12 @@ namespace LivingWorldNpcs
             else
             {
                 // 尸体/昏迷直接搜刮
-                // 本地化：搜刮交互按钮
-                AddInteractionRow(InteractionIds.Loot, LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"));
+                // 🆕 友方保护：友方尸体/昏迷不注册搜刮行（显示与触发双断；动物尸体分支在 isAnimal 内不受影响）
+                if (!hostileBlocked)
+                {
+                    // 本地化：搜刮交互按钮
+                    AddInteractionRow(InteractionIds.Loot, LWNTextHelper.ResolveText("LWN_ui_interact_loot", "Loot"));
+                }
             }
         }
 
@@ -1638,6 +1678,13 @@ namespace LivingWorldNpcs
             // 战斗模式下禁止偷窃
             if (Settings.Instance.IsInteractionDisabled()) return;
 
+            // 🆕 友方保护（防御兜底；正常路径已被 BuildAgentContext 注册层拦截）
+            if (IsHostileBlockedOnFriendly(target))
+            {
+                ShowFriendlyBlocked(target);
+                return;
+            }
+
             // 没东西可偷（无装备也无钱袋）→ 直接提示，不开条
             if (!StealManager.HasAnythingToSteal(target))
             {
@@ -1736,6 +1783,13 @@ namespace LivingWorldNpcs
 
             // 战斗模式下禁止击晕
             if (Settings.Instance.IsInteractionDisabled()) return;
+
+            // 🆕 友方保护（防御兜底；正常路径已被 BuildAgentContext 注册层拦截）
+            if (IsHostileBlockedOnFriendly(target))
+            {
+                ShowFriendlyBlocked(target);
+                return;
+            }
 
             // 本地化：击晕目标名兜底
             string targetName = target.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
@@ -1928,6 +1982,14 @@ namespace LivingWorldNpcs
 
         private void LootAgent(Agent targetAgent, bool isStealing)
         {
+            // 🆕 友方保护（防御兜底；覆盖全部搜刮路径——昏迷搜刮 isStealing 与尸体搜刮都走本入口，
+            // StripAgentEquipment 的全部调用点也在本方法流程内）：友方尸体/昏迷不允许搜刮
+            if (IsHostileBlockedOnFriendly(targetAgent))
+            {
+                ShowFriendlyBlocked(targetAgent);
+                return;
+            }
+
             Hero targetHero = (targetAgent.Character as CharacterObject)?.HeroObject;
             // 1. 去重检查 (只针对尸体，活人可以反复偷，或者你可以加冷却)
             if (!isStealing && _lootedCorpses.Contains(targetAgent))

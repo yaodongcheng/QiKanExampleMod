@@ -154,6 +154,17 @@ namespace LivingWorldNpcs
             set => Settings.Instance.ShowAgentHealthBar = value;
         }
 
+        // ── 友方敌意互动保护（透传核心 Settings）──
+        // Order = -3：显示在 ShowNpcIntent(-2) 之后，列表最底部
+        [SettingPropertyBool("{=LWN_mcm_hostile_on_allies}Allow Hostile Interactions on Allies", Order = -3, RequireRestart = false,
+            HintText = "{=LWN_mcm_hostile_on_allies_hint}When disabled, knockout/pickpocket/loot/attack are blocked on allies — friendly definition: config.json `FriendlyRelationCriteria` (default: same party + same clan) and `FriendlyRelationThreshold` (relation value). Enabled by default (hostile interactions require a long press). Allies always ignore your crimes against strangers, regardless of this setting.")]
+        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
+        public bool AllowHostileOnAllies
+        {
+            get => Settings.Instance.AllowHostileOnAllies;
+            set => Settings.Instance.AllowHostileOnAllies = value;
+        }
+
         // ── 战斗（透传核心 Settings）──
         // Order = -2：显示在血条开关（-1）之后，列表最底部
         [SettingPropertyBool("{=LWN_mcm_show_npc_intent}Show NPC Intent", Order = -2, RequireRestart = false,
