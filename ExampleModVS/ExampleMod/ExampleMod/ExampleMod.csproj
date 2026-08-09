@@ -272,6 +272,7 @@
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
     <Compile Include="Debug\SaveErrorReporter.cs" />
+    <Compile Include="Debug\SaveLoadDiagnostics.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
