@@ -44,85 +44,87 @@ namespace LivingWorldNpcs
         {
             // 意图冷却（求婚/招募/策反失败后的冷却）跨存档持久化。
             // 记忆系统不进存档，所以冷却走这里以 JSON 字符串保存。
-            string cooldownJson = IntentCooldownStore.Serialize();
+            // 🔴 所有 key 统一过 SaveStringGuard.GuardJson：JSON 超长（UTF-8 字节数 > 30000）即裁剪 +
+            // [SyncDataGuard] key 定位日志——存档 Strings 表 short 溢出（32767B）会导致整表错位、读档必崩。
+            string cooldownJson = SaveStringGuard.GuardJson("lwn_intent_cooldowns", IntentCooldownStore.Serialize());
             dataStore.SyncData("lwn_intent_cooldowns", ref cooldownJson);
             if (dataStore.IsLoading)
                 IntentCooldownStore.Deserialize(cooldownJson);
 
             // 据点荣誉
-            string honorJson = SettlementHonorStore.Serialize();
+            string honorJson = SaveStringGuard.GuardJson("lwn_settlement_honor", SettlementHonorStore.Serialize());
             dataStore.SyncData("lwn_settlement_honor", ref honorJson);
             if (dataStore.IsLoading)
                 SettlementHonorStore.Deserialize(honorJson);
 
             // 委托信任系统
-            string trustJson = TrustSystem.Serialize();
+            string trustJson = SaveStringGuard.GuardJson("lwn_commission_trust", TrustSystem.Serialize());
             dataStore.SyncData("lwn_commission_trust", ref trustJson);
             if (dataStore.IsLoading)
                 TrustSystem.Deserialize(trustJson);
 
             // 委托恶名
-            string infamyJson = InfamySystem.Serialize();
+            string infamyJson = SaveStringGuard.GuardJson("lwn_commission_infamy", InfamySystem.Serialize());
             dataStore.SyncData("lwn_commission_infamy", ref infamyJson);
             if (dataStore.IsLoading)
                 InfamySystem.Deserialize(infamyJson);
 
             // 委托难度递进
-            string tierJson = CommissionTierProgression.Serialize();
+            string tierJson = SaveStringGuard.GuardJson("lwn_commission_tiers", CommissionTierProgression.Serialize());
             dataStore.SyncData("lwn_commission_tiers", ref tierJson);
             if (dataStore.IsLoading)
                 CommissionTierProgression.Deserialize(tierJson);
 
             // 委托叙事状态
-            string narrativeJson = CommissionNarrative.Serialize();
+            string narrativeJson = SaveStringGuard.GuardJson("lwn_commission_narrative", CommissionNarrative.Serialize());
             dataStore.SyncData("lwn_commission_narrative", ref narrativeJson);
             if (dataStore.IsLoading)
                 CommissionNarrative.Deserialize(narrativeJson);
 
             // 世界事件导演状态
-            string directorJson = WorldEventDirector.Serialize();
+            string directorJson = SaveStringGuard.GuardJson("lwn_world_director", WorldEventDirector.Serialize());
             dataStore.SyncData("lwn_world_director", ref directorJson);
             if (dataStore.IsLoading)
                 WorldEventDirector.Deserialize(directorJson);
 
             // 宿敌追踪器
-            string nemesisJson = HeroNemesisTracker.Serialize();
+            string nemesisJson = SaveStringGuard.GuardJson("lwn_nemesis", HeroNemesisTracker.Serialize());
             dataStore.SyncData("lwn_nemesis", ref nemesisJson);
             if (dataStore.IsLoading)
                 HeroNemesisTracker.Deserialize(nemesisJson);
 
             // 幕后黑手机制
-            string conspiracyJson = ConspiracyManager.Serialize();
+            string conspiracyJson = SaveStringGuard.GuardJson("lwn_conspiracy", ConspiracyManager.Serialize());
             dataStore.SyncData("lwn_conspiracy", ref conspiracyJson);
             if (dataStore.IsLoading)
                 ConspiracyManager.Deserialize(conspiracyJson);
 
             // 卧底叛变
-            string infiltrationJson = StrategicInfiltration.Serialize();
+            string infiltrationJson = SaveStringGuard.GuardJson("lwn_infiltration", StrategicInfiltration.Serialize());
             dataStore.SyncData("lwn_infiltration", ref infiltrationJson);
             if (dataStore.IsLoading)
                 StrategicInfiltration.Deserialize(infiltrationJson);
 
             // 区域稳定性
-            string stabilityJson = WorldEventSimulator.SerializeStability();
+            string stabilityJson = SaveStringGuard.GuardJson("lwn_stability", WorldEventSimulator.SerializeStability());
             dataStore.SyncData("lwn_stability", ref stabilityJson);
             if (dataStore.IsLoading)
                 WorldEventSimulator.DeserializeStability(stabilityJson);
 
             // 村庄动物偷窃追踪（自然恢复 + 场景裁剪）
-            string animalTheftJson = VillageAnimalTracker.Serialize();
+            string animalTheftJson = SaveStringGuard.GuardJson("lwn_animal_theft", VillageAnimalTracker.Serialize());
             dataStore.SyncData("lwn_animal_theft", ref animalTheftJson);
             if (dataStore.IsLoading)
                 VillageAnimalTracker.Deserialize(animalTheftJson);
 
             // 世界事件存储 (WorldEventStore — 统一管理犯罪事件 + AI 模拟事件)
-            string worldEventsJson = WorldEventStore.Serialize();
+            string worldEventsJson = SaveStringGuard.GuardJson("lwn_crime_events", WorldEventStore.Serialize());
             dataStore.SyncData("lwn_crime_events", ref worldEventsJson);
             if (dataStore.IsLoading)
                 WorldEventStore.Deserialize(worldEventsJson);
 
             // 统一偷窃账本 (TheftLedger)
-            string theftLedgerJson = TheftLedger.Serialize();
+            string theftLedgerJson = SaveStringGuard.GuardJson("lwn_theft_ledger", TheftLedger.Serialize());
             dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
             if (dataStore.IsLoading)
                 TheftLedger.Deserialize(theftLedgerJson);

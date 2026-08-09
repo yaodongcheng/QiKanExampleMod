@@ -83,6 +83,21 @@ namespace LivingWorldNpcs
         private float _menuRetryDelay;
 
         /// <summary>
+        /// 当前扣押流程引用的 WorldEventId（OFFER/DETAINED/PENDING_RELEASE 任意阶段；无则 null）。
+        /// WorldEventStore 存档淘汰豁免用——被扣押引用的事件绝不淘汰（否则 Find(_eventId) 返回 null，
+        /// 罚款/释放结算失去事件上下文）。
+        /// </summary>
+        public static string CurrentEventId
+        {
+            get
+            {
+                var inst = Instance;
+                return (inst == null || inst._stage == STAGE_NONE || string.IsNullOrEmpty(inst._eventId))
+                    ? null : inst._eventId;
+            }
+        }
+
+        /// <summary>
         /// 扣押是否正在生效。Harmony 前缀用它压制原版 CheckCaptivityChange
         /// （否则村庄关押会被原版秒放）。
         /// </summary>

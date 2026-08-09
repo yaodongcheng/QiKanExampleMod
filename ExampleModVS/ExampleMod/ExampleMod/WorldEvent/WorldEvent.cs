@@ -2098,6 +2098,7 @@ namespace LivingWorldNpcs
         {
             try
             {
+                TrimResolvedForSerialize();
                 var data = new Dictionary<string, object>
                 {
                     { "events", _allEvents },
@@ -2111,6 +2112,76 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[WorldEventStore] Serialize error: {ex.Message}");
                 return "{}";
             }
+        }
+
+        /// <summary>
+        /// 序列化前瘦身（防存档 Strings 表 short 溢出）：已结案事件按 LastUpdateDay 只留最近 10 条、
+        /// 活跃事件只留 20 条（最老先淘汰）。被活跃 Quest / 扣押流程引用的事件豁免
+        /// （🔴 淘汰必须保证引用完整性——被引用的数据永不淘汰）。
+        /// 活跃事件中只淘汰 Dormant（尚未被发现、玩家零感知的案件）；已发现的事件
+        /// （Emerging/Active/Confrontation）保留——玩家有体验连接，预算失效时由 GuardJson 兜底。
+        /// </summary>
+        private static void TrimResolvedForSerialize()
+        {
+            const int MaxActiveEvents = 20;
+            const int MaxResolvedEvents = 10;
+            var protectedIds = GetProtectedEventIds();
+
+            // ① 活跃事件：只淘汰最老的 Dormant（未发现案件）
+            var dormant = _allEvents.Where(e => e.Stage == EventStage.Dormant)
+                .OrderBy(e => e.LastUpdateDay).ToList();
+            int activeCount = _allEvents.Count(e =>
+                e.Stage != EventStage.Resolved && e.Stage != EventStage.Unsolved);
+            int removedActive = 0;
+            foreach (var evt in dormant.Take(Math.Max(0, activeCount - MaxActiveEvents)))
+            {
+                if (protectedIds.Contains(evt.EventId)) continue;
+                _allEvents.Remove(evt);
+                removedActive++;
+            }
+
+            // ② 已结案事件：按 LastUpdateDay 只留最近 10 条
+            var resolved = _allEvents.Where(e => e.Stage == EventStage.Resolved || e.Stage == EventStage.Unsolved)
+                .OrderBy(e => e.LastUpdateDay).ToList();
+            int removedResolved = 0;
+            foreach (var evt in resolved.Take(Math.Max(0, resolved.Count - MaxResolvedEvents)))
+            {
+                if (protectedIds.Contains(evt.EventId)) continue; // 豁免：活跃 Quest/扣押引用
+                _allEvents.Remove(evt);
+                removedResolved++;
+            }
+
+            if (removedActive > 0 || removedResolved > 0)
+                DebugLogger.Log($"[WorldEventStore] Trim: 淘汰 {removedActive} 条 Dormant + {removedResolved} 条已结案事件 (活跃≤{MaxActiveEvents} 结案≤{MaxResolvedEvents})");
+        }
+
+        /// <summary>被活跃 Quest / 扣押流程引用的事件 ID 集合（绝不淘汰）。</summary>
+        private static HashSet<string> GetProtectedEventIds()
+        {
+            var ids = new HashSet<string>();
+            try
+            {
+                var quests = Campaign.Current?.QuestManager?.Quests;
+                if (quests != null)
+                {
+                    foreach (var q in quests)
+                    {
+                        if (q == null || !q.IsOngoing) continue;
+                        var cq = q as CommissionQuest;
+                        if (cq?.Data?.WorldEventId != null) ids.Add(cq.Data.WorldEventId);
+                    }
+                }
+            }
+            catch (Exception ex) { DebugLogger.Log($"[WorldEventStore] ProtectedEventIds quests error: {ex.Message}"); }
+
+            try
+            {
+                string detentionId = PlayerDetentionBehavior.CurrentEventId;
+                if (detentionId != null) ids.Add(detentionId);
+            }
+            catch (Exception ex) { DebugLogger.Log($"[WorldEventStore] ProtectedEventIds detention error: {ex.Message}"); }
+
+            return ids;
         }
 
         public static void Deserialize(string json)
@@ -2307,8 +2378,31 @@ namespace LivingWorldNpcs
 
         public static string Serialize()
         {
-            try { return JsonConvert.SerializeObject(_records, Formatting.None); }
+            try { return JsonConvert.SerializeObject(BuildSerializeList(), Formatting.None); }
             catch { return "[]"; }
+        }
+
+        /// <summary>
+        /// 序列化前瘦身（防存档 Strings 表 short 溢出，单条 JSON &gt; 32767 字节必崩档）：
+        /// 未清记录按 Day 留最近 60 条（活账：GetSourceTag 赃物标注 / GetFrameableTargets 栽赃候选引用，
+        /// 60 条 ≈ 24KB 预算——玩家同时挂 60 个未清案件已远超现实；超出的老记录标注丢失但存档安全），
+        /// 已清记录按 Day 只留最近 50 条（死账：仅 UI 历史，淘汰后空列表可接受）。
+        /// 总量预算 ≈ 110 条 × ~250B ≈ 27KB &lt; 30000B。只影响存档内容，不修改运行内存。
+        /// 预算失效时的最终兜底 = MyBehavior 的 GuardJson（结构感知截断，丢最老记录）。
+        /// </summary>
+        private static List<TheftTruthRecord> BuildSerializeList()
+        {
+            const int MaxActiveRecords = 60;   // 未清记录上限（按 Day 留最近）
+            const int MaxClearedRecords = 50;  // 已清记录上限（按 Day 留最近）
+            int totalActive = _records.Count(r => !r.IsCleared);
+            int totalCleared = _records.Count(r => r.IsCleared);
+            var active = _records.Where(r => !r.IsCleared)
+                .OrderByDescending(r => r.Day).Take(MaxActiveRecords).ToList();
+            var cleared = _records.Where(r => r.IsCleared)
+                .OrderByDescending(r => r.Day).Take(MaxClearedRecords).ToList();
+            if (active.Count == totalActive && cleared.Count == totalCleared) return _records; // 无需裁剪
+            DebugLogger.Log($"[TheftLedger] Trim: {_records.Count} → {active.Count + cleared.Count} 条记录 (未清 {active.Count}/{totalActive}, 已清 {cleared.Count}/{totalCleared})");
+            return active.Concat(cleared).ToList();
         }
 
         public static void Deserialize(string json)

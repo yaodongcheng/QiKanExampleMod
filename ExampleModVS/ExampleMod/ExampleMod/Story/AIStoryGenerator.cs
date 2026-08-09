@@ -124,11 +124,14 @@ namespace LivingWorldNpcs
                 // 6. 存入结果
                 lock (_lock)
                 {
+                    // 🔴 RawJson/EventSummary 按 UTF-8 字节截断（防存档 Strings 表 short 溢出 32767B）：
+                    // LLM 输出不可控，单条超长即崩档。截断只影响读档后的 JSON 备份还原
+                    // （ScriptNodes 运行中已解析完整），GetCurrentResult 已有解析失败容错返回 null。
                     CurrentResult = new GeneratedStoryResult
                     {
                         Outline = outline,
-                        EventSummary = directorBook,
-                        RawJson = showBookJson,
+                        EventSummary = SaveStringGuard.TruncateByBytes(directorBook ?? "", SaveStringGuard.MaxStringBytes),
+                        RawJson = SaveStringGuard.TruncateByBytes(showBookJson ?? "", SaveStringGuard.MaxStringBytes),
                         ScriptNodes = engineNodes
                     };
                     Status = StoryGenStatus.Ready;
