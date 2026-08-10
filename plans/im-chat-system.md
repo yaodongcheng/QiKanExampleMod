@@ -187,7 +187,7 @@ score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonu
 - **列表**：`MBBindingList` + `DataSource="{...}"` + `ItemTemplate`；左栏频道行 = ButtonWidget `IsSelected` 高亮 + 未读徽标（金色）；分组标题行（IsGroupHeader 分支）
 - **滚动**：ScrollablePanel + ScrollbarWidget（照 SPChatLog 抄，非 Encyclopedia）——✅ 滚轮/拖条/手柄右摇杆全部引擎原生（反编译确认 OnMouseScroll/OnRightStickMovement）；贴底锚定自动滚底；内容增长时 scrollbar ValueFloat 保持（向上翻阅不打扰）；引擎限制：无惯性滚动
 - **消息气泡（🔴 UX 优化 2026-08-10 终版）**：行容器 `StretchToParent` + 互斥分支（`ShowOtherBubble/ShowSelfBubble`，排除 PlanCard/System 防双渲染）；气泡与文本均 `CoverChildren` + `MaxWidth="520"`（**MaxWidth 必须在 TextWidget 上**——TextLayout 折行条件 = CoverChildren+MaxWidth≠0，反编译验证；🔴 放气泡上会把内容 margin 裁掉、长消息文字溢出底纹，已修）；**名字行在气泡内顶部**（被底纹包裹）：他人 = 名字+时间在气泡内左上、自己 = 时间+名字在气泡内右上，与内容同左/右缘严格对齐，**字号统一 16**；🔴 **气泡内必须用垂直 ListPanel（`LWN_ImChat_BubbleOther/Self` + VerticalBottomToTop）堆叠名字行+内容——普通 Widget 的 OnLayout 把所有子元素 Layout 到同一 rect 会完全重叠（「文字叠在一起」根因，三轮实机修复）**；自己文本右对齐（QQ 式）、他人左对齐（微信式）；气泡 `BlankWhiteSquare_9` 他人 `#FFFFFF1A`、自己 `#3DA53D33`
-- **模式切换（🔴 UX 优化 2026-08-10 终版：静态状态文本 + 切换按钮）**：分段控件（用户试后反馈"切换生硬"）改回——状态静态文本「当前：闲聊模式/密令模式/行军令模式」+ 按钮动作「切换到密令/切换到闲聊」（ModeStatusText / SwitchModeButtonText，LWN_im_mode_status / LWN_im_btn_switch_mode 复合 key，MODE 复用模式名）；Command.Click 固定方法绑定 → **双按钮按 IsCommandMode/IsNotCommandMode 互斥显示**（各自绑 ExecuteSwitchToCommand/ExecuteSwitchToChat）；密令侧模式名随上下文（Mission=密令 / 大地图=行军令）；仅密令可用会话显示（IsModeControlVisible）；**输入区联动反馈**：placeholder（输入消息…⇄下达密令…）+ 发送按钮文案（Send⇄Order/下令）
+- **模式切换（🔴 UX 优化 2026-08-10 终版：状态文本 + 单按钮）**：分段控件、双按钮方案均被用户试后推翻，终版 = **左侧当前模式静态文本**（ModeStatusText：「当前：闲聊模式/密令模式/行军令模式」）+ **右侧单个按钮，文本随模式变量切换**（SwitchModeButtonText：「切换到密令」⇄「切换到闲聊」）；🔴 **模式区与按钮用 ListPanel（HorizontalLeftToRight）并排**（普通 Widget 子元素重叠——用户反馈"叠在一起"根因）；Command.Click 固定方法绑定 → 单方法 `ExecuteSwitchMode` 内部按当前模式路由（密令→闲聊直接切 / 闲聊→密令走 ExecuteSwitchToCommand 含可用性检查）；密令侧模式名随上下文（Mission=密令 / 大地图=行军令）；仅密令可用会话显示（IsModeControlVisible）；**输入区联动反馈**：placeholder（输入消息…⇄下达密令…）+ 发送按钮文案（Send⇄Order/下令）
 - **PlanCard**：独立模板分支 + 卡片内 同意/拒绝/中止按钮（批准/拒绝/中止后强制重建消息列表——🔴 只读计算属性不通知，增量追加不刷新按钮状态）
 - **输入**：`EditableTextWidget`（`DefaultSearchText` placeholder「输入消息…」）+ 发送按钮（`IsEnabled="@CanSend"` 空输入置灰）+ **回车发送**（🔴 已实现，非留作增强）
 - **打开/关闭（🔴 交互修复终版，与原文「热键 toggle + ESC 让给系统菜单」完全不同）**：
@@ -214,6 +214,7 @@ score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonu
 | 🔴 **气泡内名字行（2026-08-10 二轮）** | 名字+时间移入气泡内顶部，被底纹包裹、与内容同缘对齐；字号统一 16；MaxWidth 只放 TextWidget（防溢出底纹） |
 | 🔴 **左栏两行式（2026-08-10 二轮）** | 行 = 上行标题+未读徽标（右）/ 下行预览左对齐（原预览右对齐与标题挤同一行）；分组标题加大字距提亮 |
 | 🔴 **三轮实机修复（2026-08-10）** | ① 气泡内 ListPanel 堆叠（普通 Widget 子元素重叠根因，文字叠一起）；② 预览拼完前缀整体截断 13 字符（中文 18 字超栏宽，左栏溢出）；③ 删除「频道」分组标题（用户反馈不需要），队伍/家族/王国直接列顶，仅保留「最近消息」 |
+| 🔴 **四轮实机修复（2026-08-10）** | ① 频道行标题加 `Brush.TextHorizontalAlignment="Left"`（Brush 默认 Center——标题看似未左对齐根因）；② 模式区改 ListPanel 并排（状态文本+按钮不再叠）+ 单按钮文本变量切换（ExecuteSwitchMode 内部路由）；③ 输入区加整体底色 `#00000088` + 顶部分隔线 + 输入框底加深 `#000000CC`（与消息流区分度） |
 | 🔴 **模式静态文本+切换按钮（2026-08-10 二轮）** | 「当前：XX模式」状态文本 + 「切换到XX」按钮（双按钮按当前模式互斥显示）；placeholder + 发送按钮文案随模式联动 |
 
 **明确不做（引擎/语境限制）**：圆角气泡（引擎无圆角 sprite，需自制 PNG）、已读回执/消息状态（单机无网络语义）、图片/语音/表情（需求 5 纯文本 + 中世纪语境）、消息合并显示、回到最新按钮（GauntletLayer 不暴露 widget 树）、声音提醒（无合适音效）。
@@ -300,6 +301,7 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
   - 🔴 **UX 优化验证（2026-08-10 二轮）**：日志——IM 发消息后 `Debug/StoryEngine_RuntimeLog.txt` 有 `[ImChat] Player →` 玩家消息 + `[ImReply] 请求发出/回包/模板降级`（能完整还原对话上下文）；RAG——队伍频道/随从私聊问「队伍有多少人/还有多少钱/在哪/什么季节」→ 随从答出真实数据；王国频道问「队伍多少人」→ 不知道（裁剪生效）；问无关问题 → 请求体无注入段；气泡——名字行在气泡内被底纹包裹、字号与内容一致（16）、短消息紧贴、长消息不溢出底纹；左栏——行内上行标题+未读、下行预览左对齐，分组标题醒目；模式——状态文本「当前：闲聊模式」+ 按钮「切换到密令」，切换后文本/按钮/placeholder/发送按钮文案立即翻转
   - 🔴 **实体层验证（2026-08-10 三轮，方案确认后实施）**：同国问「拉盖娅在哪」→ 定居点级精确；交战问 → 传闻级（「领兵在外，行踪难料」）；「我和张三关系咋样」→ 形容词档位；「李四几岁」→ 年龄；「陛下在哪」→ 玩家王国君主；「拉盖娅在哪」不再答出队伍位置（实体优先生效）；士气/驻军主题命中
   - 🔴 **三轮 UI 修复验证（2026-08-10）**：消息气泡内名字+内容不重叠（普通 Widget 子元素重叠根因已修，气泡内 ListPanel 堆叠）；左栏预览超长被截断（13 字符 + ClipContents 双保险）；左栏无「频道」分组标题（队伍/家族/王国直接列顶，仅「最近消息」分组标题）
+  - 🔴 **四轮 UI 修复验证（2026-08-10）**：队伍/家族/王国频道行标题靠左（Brush 覆盖 Left）；模式区 = 左侧「当前：XX模式」文本 + 右侧单按钮「切换到XX」（文本随模式翻转、不重叠）；输入区与消息流底色层次分明（分隔线 + 输入区底色 + 输入框加深）
   - 🔴 **UX 优化验证（2026-08-10 一轮）**：定居点菜单打开时按 O——聊天窗完整盖住定居点菜单（不被 202 层压）；ESC 系统菜单仍覆盖 IM（4400 > 400）；自己消息气泡贴文字右对齐（短消息紧贴右侧、长消息 520px 折行后文本右对齐）、他人气泡贴内容左对齐
   - 滚动：消息超一屏时滚轮/拖条/手柄摇杆手感；向上翻阅后新消息到达不打扰（位置保持）
   - 打开/关闭全路径：O 打开 / ESC / 手柄 B / 面板外点击 / ✕ 关闭；Mission 与大地图互切后层清理正常

@@ -267,12 +267,12 @@ Mission 侧（同 DLL 实测）：NameMarker=1、MissionQuestBar/AlarmState=10�
 - 默认 `LayoutImp.MeasureChildren`：父测量 = `子 MeasuredSize + 子 Margin` → 文本 Margin 天然当 padding 被气泡包住（无需额外 padding 容器）。
 
 ```xml
-<!-- 气泡：贴内容；HorizontalAlignment=Right 即右对齐（QQ 式文本再 TextHorizontalAlignment="Right"） -->
-<Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MaxWidth="520"
+<!-- 单元素气泡：贴内容；HorizontalAlignment=Right 即右对齐（QQ 式文本再 TextHorizontalAlignment="Right"） -->
+<Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
         HorizontalAlignment="Right" Sprite="BlankWhiteSquare_9" Color="#3DA53D33">
   <Children>
     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                MaxWidth="520"  <!-- 🔴 折行关键：MaxWidth 在 TextWidget 上 -->
+                MaxWidth="520"  <!-- 🔴 折行关键：MaxWidth 在 TextWidget 上（🔴 禁止放气泡上：会把子 Margin 裁掉，长消息文字溢出底纹——实机踩过） -->
                 Text="@Content" Brush.TextHorizontalAlignment="Right"
                 WordWrapping="Wrap"
                 MarginLeft="12" MarginRight="12" MarginTop="8" MarginBottom="8"/>
@@ -280,4 +280,27 @@ Mission 侧（同 DLL 实测）：NameMarker=1、MissionQuestBar/AlarmState=10�
 </Widget>
 ```
 
-**关键文件**：`GUI/Prefabs/ImChat.xml`（他人/自己气泡两处）。
+**🔴 多元素气泡（名字行+内容）必须内嵌垂直 ListPanel 堆叠**——普通 Widget 的 `OnLayout` 把**所有子元素 Layout 到同一个矩形**（反编译实测：`child.Layout(left2, bottom2, right2, top2)` 全部同一 rect），多个子元素必然完全重叠（「文字叠在一起」实机踩过）。结构：气泡（Sprite 底纹）→ 子 ListPanel（`Id="LWN_xxx"` + `VerticalBottomToTop`，双版本 swap 兼容，与消息流同款写法 → 先添加的子元素在顶部）→ 名字行/内容各自带 Margin（父测量含子 Margin 自动包边）。
+
+```xml
+<!-- 多元素气泡：名字行（上）+ 内容（下），ListPanel 堆叠防重叠 -->
+<Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+        HorizontalAlignment="Left" Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A">
+  <Children>
+    <ListPanel Id="LWN_ImChat_BubbleOther" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+               StackLayout.LayoutMethod="VerticalBottomToTop">
+      <Children>
+        <ListPanel StackLayout.LayoutMethod="HorizontalLeftToRight" MarginLeft="12" MarginTop="8">
+          <Children><!-- 名字 + 时间 --></Children>
+        </ListPanel>
+        <TextWidget MaxWidth="520" Text="@Content" WordWrapping="Wrap"
+                    MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"/>
+      </Children>
+    </ListPanel>
+  </Children>
+</Widget>
+```
+
+**同坑引申**：普通 Widget 内多个子元素若想不重叠，只能靠 HorizontalAlignment/VerticalAlignment 对齐定位（如"标题 Stretch 左 + 徽标 CoverChildren 右"）——需要垂直排布的必须 ListPanel。
+
+**关键文件**：`GUI/Prefabs/ImChat.xml`（他人/自己气泡两处，`LWN_ImChat_BubbleOther/Self`）。
