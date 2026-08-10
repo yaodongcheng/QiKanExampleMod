@@ -3992,5 +3992,6 @@
     <string id="LWN_im_btn_order" text="Order" />
     <string id="LWN_im_mode_status" text="Mode: {MODE}" />
     <string id="LWN_im_btn_switch_mode" text="Switch to {MODE}" />
+    <string id="LWN_im_new_message" text="New messages" />
 </strings>
 </base>

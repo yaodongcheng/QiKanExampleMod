@@ -225,6 +225,7 @@ namespace LivingWorldNpcs
         private string _sendText = "";
         private bool _isEmpty;
         private string _emptyHint = "";
+        private bool _hasNewMessageHint;
 
         [DataSourceProperty]
         public string Title
@@ -319,6 +320,19 @@ namespace LivingWorldNpcs
             set { if (_isEmpty != value) { _isEmpty = value; OnPropertyChangedWithValue(value, nameof(IsEmpty)); } }
         }
 
+        /// <summary>「有新消息」提示条可见性（🔴 八轮：翻历史时新消息到达 → 输入区分隔线上方提示；在底部不提示）。</summary>
+        [DataSourceProperty]
+        public bool HasNewMessageHint
+        {
+            get => _hasNewMessageHint;
+            set { if (_hasNewMessageHint != value) { _hasNewMessageHint = value; OnPropertyChangedWithValue(value, nameof(HasNewMessageHint)); } }
+        }
+
+        /// <summary>「有新消息」提示条文案。</summary>
+        [DataSourceProperty]
+        // 新消息提示条文案
+        public string NewMessageHintText => LWNTextHelper.ResolveText("LWN_im_new_message", "New messages");
+
         /// <summary>空会话引导文案。</summary>
         [DataSourceProperty]
         public string EmptyHint
@@ -333,5 +347,8 @@ namespace LivingWorldNpcs
 
         /// <summary>单切换按钮：内部按当前模式路由（闲聊→密令 含可用性检查；密令→闲聊 直接切）。</summary>
         public void ExecuteSwitchMode() => ImChatView.ExecuteSwitchMode();
+
+        /// <summary>「有新消息」提示条点击：滚到消息流底部并清除提示。</summary>
+        public void ExecuteNewMessageClick() => ImChatView.ExecuteNewMessageClick();
     }
 }

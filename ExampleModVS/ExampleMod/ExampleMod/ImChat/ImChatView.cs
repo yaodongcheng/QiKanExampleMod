@@ -237,11 +237,13 @@ namespace LivingWorldNpcs
                 "No messages yet. Say something to break the silence...");
         }
 
-        /// <summary>增量刷新消息（追加新增；记忆层总结裁剪导致变少才重建，防滚动跳变）。</summary>
+        /// <summary>增量刷新消息（追加新增；记忆层总结裁剪导致变少才重建，防滚动跳变）。
+        /// 🔴 八轮：检测「新消息到达且玩家不在底部」→ 显示「有新消息」提示条（在底部则内容自动可见不提示）。</summary>
         private static void RefreshMessages()
         {
             if (_vm == null || _selected == null) return;
             var msgs = ImChatManager.GetMessages(_selected);
+            bool hadNew = msgs.Count > _vm.Messages.Count;
             if (msgs.Count < _vm.Messages.Count)
             {
                 _vm.Messages.Clear();
@@ -254,7 +256,41 @@ namespace LivingWorldNpcs
             }
             // 空会话引导（UI 优化：新频道无消息时给玩家一个提示而非空白）
             _vm.IsEmpty = msgs.Count == 0;
+            // 新消息到达：玩家不在底部 → 提示；在底部 → 内容自动可见（贴底闭环）
+            if (hadNew && !IsMessageAtBottom())
+                _vm.HasNewMessageHint = true;
             RefreshChannelsDynamic();
+        }
+
+        /// <summary>消息流是否在底部（val 接近 max；±8px 容差）。</summary>
+        private static bool IsMessageAtBottom()
+        {
+            try
+            {
+                if (_messageScrollPanel?.VerticalScrollbar == null) return true;
+                var sb = _messageScrollPanel.VerticalScrollbar;
+                return sb.ValueFloat >= sb.MaxValue - 8f;
+            }
+            catch { return true; }
+        }
+
+        /// <summary>滚到消息流底部（🔴 八轮：发消息后自动贴底，翻历史后仍能看到自己的新消息）。</summary>
+        public static void ScrollToBottom()
+        {
+            try
+            {
+                if (_messageScrollPanel?.VerticalScrollbar != null)
+                    _messageScrollPanel.VerticalScrollbar.ValueFloat = _messageScrollPanel.VerticalScrollbar.MaxValue;
+                if (_vm != null) _vm.HasNewMessageHint = false;
+            }
+            catch { }
+        }
+
+        /// <summary>「有新消息」提示条点击：滚底 + 清提示。</summary>
+        public static void ExecuteNewMessageClick()
+        {
+            ScrollToBottom();
+            RefreshMessages();
         }
 
         /// <summary>所有频道行动态刷新（未读 + 最后消息预览）。</summary>
@@ -474,6 +510,8 @@ namespace LivingWorldNpcs
                 ImChatManager.SendPlayerMessage(_selected, text.Trim());
             }
             RefreshMessages();
+            // 🔴 八轮：发消息后自动滚底（玩家翻历史后发消息，新消息必须可见）
+            ScrollToBottom();
         }
 
         /// <summary>切换按钮：切到闲聊模式（点击非当前模式才有效，否则无操作）。</summary>
