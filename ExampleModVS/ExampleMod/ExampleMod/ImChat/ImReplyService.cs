@@ -144,7 +144,10 @@ namespace LivingWorldNpcs
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
                             memory, ImChatManager.PlayerId, p.HeroName, p.RespondText, facts);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
-                        DebugLogger.Log($"[ImReply] 请求发出({p.HeroName}): {prompt}");
+                        // 🔴 2026-08-10：换行转义 + 截断 300（原样打印 45+ 行难读；转义后与 JSON 侧日志同风格单行）
+                        string promptLog = prompt.Replace("\r", "\\r").Replace("\n", "\\n");
+                        if (promptLog.Length > 300) promptLog = promptLog.Substring(0, 300) + "…";
+                        DebugLogger.Log($"[ImReply] 请求发出({p.HeroName}): {promptLog}");
                         // ChatOnceAsync：单次请求、8s 预算（IM 异步可放宽到 2s 之外）、失败静默 null、429 内建冷却
                         reply = await LLMService.Instance.ChatOnceAsync(prompt, 150, 0.8f, disableReasoning: true, timeoutMs: 8000);
                         // 🔴 回包落日志（LLM 失败/超时回 null，走下方降级）
