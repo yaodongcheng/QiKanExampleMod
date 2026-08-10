@@ -217,8 +217,12 @@ namespace LivingWorldNpcs
         private string _title = "";
         private string _inputText = "";
         private string _typingText = "";
-        private string _modeLabel = "";
-        private bool _isModeToggleVisible;
+        private string _commandModeLabel = "";
+        private bool _isModeControlVisible;
+        private bool _isChatModeActive = true;
+        private bool _isCommandModeActive;
+        private string _placeholderText = "";
+        private string _sendText = "";
         private bool _isEmpty;
         private string _emptyHint = "";
 
@@ -246,10 +250,14 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>输入框 placeholder（微信：「输入消息」灰字提示；DefaultSearchText 官方属性）。</summary>
+        /// <summary>输入框 placeholder（微信：「输入消息」灰字提示；DefaultSearchText 官方属性）。
+        /// 随模式联动：闲聊="输入消息…" / 密令="下达密令…"（让玩家在输入区也感知当前模式）。</summary>
         [DataSourceProperty]
-        // 输入框占位提示（微信式）
-        public string PlaceholderText => LWNTextHelper.ResolveText("LWN_im_input_placeholder", "Type a message...");
+        public string PlaceholderText
+        {
+            get => _placeholderText;
+            set { if (_placeholderText != value) { _placeholderText = value; OnPropertyChangedWithValue(value, nameof(PlaceholderText)); } }
+        }
 
         /// <summary>发送按钮可用（非空输入才可发，微信置灰语义）。</summary>
         [DataSourceProperty]
@@ -263,26 +271,50 @@ namespace LivingWorldNpcs
             set { if (_typingText != value) { _typingText = value; OnPropertyChangedWithValue(value, nameof(TypingText)); } }
         }
 
-        /// <summary>模式标签（闲聊/密令）。</summary>
+        /// <summary>分段控件：闲聊段标签（静态）。</summary>
         [DataSourceProperty]
-        public string ModeLabel
+        // 模式段标签：闲聊
+        public string ChatModeLabel => LWNTextHelper.ResolveText("LWN_im_mode_chat", "Chat");
+
+        /// <summary>分段控件：密令段标签（Mission=密令 / Campaign 大地图=行军令，动态）。</summary>
+        [DataSourceProperty]
+        public string CommandModeLabel
         {
-            get => _modeLabel;
-            set { if (_modeLabel != value) { _modeLabel = value; OnPropertyChangedWithValue(value, nameof(ModeLabel)); } }
+            get => _commandModeLabel;
+            set { if (_commandModeLabel != value) { _commandModeLabel = value; OnPropertyChangedWithValue(value, nameof(CommandModeLabel)); } }
         }
 
-        /// <summary>模式切换按钮可见性（密令可用会话 + Plot 总闸 + LLM 已配置）。</summary>
+        /// <summary>闲聊段选中态（金卡高亮；二段互斥）。</summary>
         [DataSourceProperty]
-        public bool IsModeToggleVisible
+        public bool IsChatModeActive
         {
-            get => _isModeToggleVisible;
-            set { if (_isModeToggleVisible != value) { _isModeToggleVisible = value; OnPropertyChangedWithValue(value, nameof(IsModeToggleVisible)); } }
+            get => _isChatModeActive;
+            set { if (_isChatModeActive != value) { _isChatModeActive = value; OnPropertyChangedWithValue(value, nameof(IsChatModeActive)); } }
         }
 
-        /// <summary>发送按钮文案（本地化）。</summary>
+        /// <summary>密令段选中态（金卡高亮；二段互斥）。</summary>
         [DataSourceProperty]
-        // 发送按钮文案
-        public string SendText => LWNTextHelper.ResolveText("LWN_im_btn_send", "Send");
+        public bool IsCommandModeActive
+        {
+            get => _isCommandModeActive;
+            set { if (_isCommandModeActive != value) { _isCommandModeActive = value; OnPropertyChangedWithValue(value, nameof(IsCommandModeActive)); } }
+        }
+
+        /// <summary>分段控件可见性（密令可用会话 + Plot 总闸 + LLM 已配置；不可用时整个控件隐藏）。</summary>
+        [DataSourceProperty]
+        public bool IsModeControlVisible
+        {
+            get => _isModeControlVisible;
+            set { if (_isModeControlVisible != value) { _isModeControlVisible = value; OnPropertyChangedWithValue(value, nameof(IsModeControlVisible)); } }
+        }
+
+        /// <summary>发送按钮文案（随模式联动：闲聊=Send / 密令=Order）。</summary>
+        [DataSourceProperty]
+        public string SendText
+        {
+            get => _sendText;
+            set { if (_sendText != value) { _sendText = value; OnPropertyChangedWithValue(value, nameof(SendText)); } }
+        }
 
         /// <summary>会话无消息（空状态引导显示）。</summary>
         [DataSourceProperty]
@@ -304,6 +336,10 @@ namespace LivingWorldNpcs
 
         public void ExecuteClose() => ImChatView.Close();
 
-        public void ExecuteToggleMode() => ImChatView.ExecuteToggleMode();
+        /// <summary>分段控件：切到闲聊段（点击非当前段才有效）。</summary>
+        public void ExecuteSwitchToChat() => ImChatView.ExecuteSwitchToChat();
+
+        /// <summary>分段控件：切到密令段（含可用性检查）。</summary>
+        public void ExecuteSwitchToCommand() => ImChatView.ExecuteSwitchToCommand();
     }
 }

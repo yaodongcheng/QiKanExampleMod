@@ -42,3 +42,9 @@ Debug/regress_*.log
 # Python 缓存
 __pycache__/
 *.pyc
+
+# Debug 运行时产物（PlanExamples/*.json 开发夹具保留在 git）
+Debug/crash/
+Debug/dump_theft_ledger.txt
+Debug/save_report.txt
+*.sav
