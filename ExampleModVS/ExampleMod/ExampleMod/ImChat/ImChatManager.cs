@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
@@ -259,7 +261,10 @@ namespace LivingWorldNpcs
                     if (followUp != null)
                     {
                         ImHeatTracker.Add(followUp.StringId, 0.5f);
-                        ImReplyService.ScheduleReply(followUp.StringId, followUp.Name?.ToString() ?? followUp.StringId, trimmed, conv);
+                        // 🔴 群聊活力·拌嘴（2026-08-10）：跟随回复者带上 primary 作为"同僚互动对象"，
+                        // prompt 注入两人关系档位——捧场/呛声/插科打诨由关系决定（ImReplyService 组装）
+                        ImReplyService.ScheduleReply(followUp.StringId, followUp.Name?.ToString() ?? followUp.StringId,
+                            trimmed, conv, primary.StringId, primary.Name?.ToString() ?? primary.StringId);
                     }
                 }
             }
@@ -283,8 +288,9 @@ namespace LivingWorldNpcs
         /// （他回应的那句）补写给他，避免 A-B-A 三连对话时 A 收到重复行。
         /// 玩家无记忆系统（跳过）；Role="channel_{channel}"，与私聊 im_user/im_npc 隔离
         /// （私聊 UI 已按 Role 过滤，频道行不会混入私聊显示）。
+        /// 🔴 public：ImEventBroadcaster（事件主动话题）也走同一管道。
         /// </summary>
-        private static void WriteGroupMessageToMemory(ImConversation conv, string speakerId, string speakerName, string content)
+        public static void WriteGroupMessageToMemory(ImConversation conv, string speakerId, string speakerName, string content)
         {
             if (conv == null || conv.Type == ImConversationType.Direct) return;
             try
@@ -338,6 +344,53 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>新消息系统通知（NinjaReport 顶部横幅，TaleWorlds.Library.InformationManager.AddSystemNotification）：
+        /// 面板打开且当前选中会话 == 该会话 → 不弹（已有气泡）；否则弹「会话 · 说话人：预览」。
+        /// ImNotifyEnabled（config.json）可整体关闭。</summary>
+        public static void NotifyNewMessage(ImConversation conv, string speakerName, string content)
+        {
+            if (!Settings.Instance.ImNotifyEnabled) return;
+            if (conv == null) return;
+            try
+            {
+                if (ImChatView.IsOpen && ImChatView.Selected?.Id == conv.Id) return;
+                string preview = content ?? "";
+                if (preview.Length > 24) preview = preview.Substring(0, 24) + "…";
+                InformationManager.AddSystemNotification($"{conv.Title} · {speakerName}: {preview}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 系统通知失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>两人关系档位（群聊拌嘴基调，2026-08-10）：
+        /// 好感度定基调（捧/中立/呛），原版 trait 数值做性格调色（Valor 高爱逞强、Honor 低嘴滑）。
+        /// 例：「至交好友（好感 60，你性子硬、爱逞强）」。</summary>
+        public static string DescribeRelation(Hero self, Hero other)
+        {
+            if (self == null || other == null) return "素不相识";
+            try
+            {
+                int rel = self.GetRelation(other);
+                string level;
+                if (rel >= 40) level = "至交好友";
+                else if (rel >= 15) level = "关系不错";
+                else if (rel >= -10) level = "泛泛之交";
+                else if (rel >= -35) level = "素有过节";
+                else level = "宿怨仇敌";
+                string color = "";
+                int valor = self.GetTraitLevel(DefaultTraits.Valor);
+                int honor = self.GetTraitLevel(DefaultTraits.Honor);
+                int calc = self.GetTraitLevel(DefaultTraits.Calculating);
+                if (valor >= 2) color += "，你性子硬、爱逞强";
+                if (honor <= -1) color += "，你嘴滑、不讲究";
+                if (calc >= 2) color += "，你说话爱拐弯";
+                return $"{level}（好感 {rel}{color}）";
+            }
+            catch { return "泛泛之交"; }
+        }
+
         /// <summary>NPC 回复投递（ImReplyService 生成完成后调用）：私聊写记忆 / 群聊写 store + 未读 + 通知 + 热度。
         /// 玩家体验完善（Q1c）：对方在当前 Mission 场景中 → 头顶冒泡（飞鸽传书送达的即时反馈）。</summary>
         public static void DeliverNpcMessage(ImConversation conv, string npcHeroId, string npcName, string content)
@@ -357,6 +410,8 @@ namespace LivingWorldNpcs
                 // 方案 B：NPC 的频道发言同样按参与度写入成员记忆（其他成员看到他回了什么）
                 WriteGroupMessageToMemory(conv, npcHeroId, npcName, content);
                 ImHeatTracker.Add(npcHeroId, 1f);
+                // 🔴 群聊活力：NPC 消息到达 → 系统通知（面板未开/非当前会话时弹，NinjaReport）
+                NotifyNewMessage(conv, npcName, content);
             }
 
             // 同场景送达反馈：对方 Agent 在当前 Mission → 头顶冒泡
@@ -407,6 +462,7 @@ namespace LivingWorldNpcs
         {
             ImReplyService.Tick();
             ImCommandFlow.Tick();
+            ImEventBroadcaster.Tick();
         }
 
         // ───────────────────────── 工具 ─────────────────────────

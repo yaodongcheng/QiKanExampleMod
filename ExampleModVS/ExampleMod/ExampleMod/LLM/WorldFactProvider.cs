@@ -40,6 +40,8 @@ namespace LivingWorldNpcs
             {
                 Id = "party", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_party"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "队伍", "部队", "兵力", "人数", "人马", "士兵", "弟兄", "兄弟", "手下", "多少人",
+                    // 🔴 2026-08-10 日志实锤：缺"军队"→"我的军队规模咋样"不注入队伍事实 → LLM 编"百来号人"
+                    "军队", "兵种",
                     "army", "troop", "troops", "soldier", "soldiers", "manpower", "men", "party", "companion", "companions" },
                 Query = QueryPartyFacts,
             },

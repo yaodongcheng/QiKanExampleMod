@@ -23,6 +23,10 @@ namespace LivingWorldNpcs
             public string HeroName;
             public string RespondText;      // 合并语义：始终回复最新一条玩家消息
             public ImConversation Conv;
+            // 🔴 群聊活力·拌嘴（2026-08-10）：跟随回复者的"同僚互动对象"（主回复者）——
+            // prompt 注入两人关系档位，决定捧场/呛声/插科打诨
+            public string PriorPeerId;
+            public string PriorPeerName;
         }
 
         private static readonly object _lock = new object();
@@ -50,7 +54,10 @@ namespace LivingWorldNpcs
         /// 调度一次 NPC 回复。同一 NPC 已有待回任务 → 只更新待回文本（连发合并）；
         /// 冷却中 → 任务照常挂起，Tick 到冷却过再发（保证只回最新且不刷屏）。
         /// </summary>
-        public static void ScheduleReply(string npcHeroId, string npcName, string lastPlayerText, ImConversation conv)
+        /// <param name="priorPeerId">群聊活力·拌嘴（2026-08-10）：跟随回复者的同僚互动对象
+        /// （主回复者 HeroId）；主回复者传 null（他只回玩家）。</param>
+        public static void ScheduleReply(string npcHeroId, string npcName, string lastPlayerText, ImConversation conv,
+            string priorPeerId = null, string priorPeerName = null)
         {
             if (string.IsNullOrEmpty(npcHeroId)) return;
             lock (_lock)
@@ -67,6 +74,8 @@ namespace LivingWorldNpcs
                     HeroName = npcName,
                     RespondText = lastPlayerText,
                     Conv = conv,
+                    PriorPeerId = priorPeerId,
+                    PriorPeerName = priorPeerName,
                 };
             }
         }
@@ -153,8 +162,10 @@ namespace LivingWorldNpcs
                         // 群聊公区注入（方案 B 即时层）：频道近期消息拼入回复 prompt——
                         // 旁观者（没参与对话的成员）也能接住"频道里刚才聊了什么"；细节不占个人记忆
                         string channelRecent = BuildChannelRecentSection(p.Conv);
+                        // 🔴 群聊活力·拌嘴：跟随回复者带同僚互动段（两人关系档位 → 捧/呛/打岔）
+                        string peerInteraction = BuildPeerInteraction(p);
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
-                            memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent);
+                            memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）
@@ -208,6 +219,27 @@ namespace LivingWorldNpcs
                 catch { return false; }
             }
             return false;
+        }
+
+        /// <summary>群聊活力·拌嘴（2026-08-10）：跟随回复者拼入【同僚互动】段——
+        /// 上一位同伴是谁 + 两人关系档位（ImChatManager.DescribeRelation），LLM 据此决定
+        /// 捧场/呛声/插科打诨；主回复者（无 PriorPeerId）返回 null。</summary>
+        private static string BuildPeerInteraction(PendingReply p)
+        {
+            if (p == null || string.IsNullOrEmpty(p.PriorPeerId) || string.IsNullOrEmpty(p.PriorPeerName)) return null;
+            try
+            {
+                var self = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == p.HeroId);
+                var peer = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == p.PriorPeerId);
+                if (self == null || peer == null) return null;
+                string relation = ImChatManager.DescribeRelation(self, peer);
+                return $"## 同僚互动\n这次 {p.PriorPeerName} 也在回应主公。你与他的关系：{relation}。\n你可以接他的话——关系好就捧场维护，关系差就呛声拆台，普通就插科打诨；也可以不理他，专心回主公的话。";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImReply] BuildPeerInteraction 失败: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>群聊公区注入：频道近期消息（最近 8 条，带发言人）。

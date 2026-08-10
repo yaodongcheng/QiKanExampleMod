@@ -2754,9 +2754,31 @@ namespace LivingWorldNpcs
                 return "Input reload failed: " + ex.Message;
             }
         }
+
+        /// <summary>模拟触发群聊事件话题（调试用，2026-08-10）：与真实事件同走 ImEventBroadcaster 入口。
+        /// 用法：custom.im_test_event battle_win|battle_lose|imprison|release|quest|companion|raid|kingdom</summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("im_test_event", "custom")]
+        public static string ExecuteImTestEvent(List<string> args)
+        {
+            string type = args.Count > 0 ? args[0].ToLower() : "battle_win";
+            string desc = args.Count > 1 ? string.Join(" ", args.Skip(1)) : null;
+            desc ??= type switch
+            {
+                "battle_win" => "主公刚刚打赢了一场战斗，大获全胜",
+                "battle_lose" => "主公刚刚打了一场败仗，吃了亏",
+                "imprison" => "主公被俘了，如今身陷囹圄",
+                "release" => "主公平安获释，重获自由",
+                "quest" => "主公接下了一桩新差事",
+                "companion" => "队伍里来了一位新人",
+                "raid" => "咱们的村庄正在被洗劫",
+                "kingdom" => "有一个王国覆灭了，天下震动",
+                _ => "主公经历了一件大事",
+            };
+            ImEventBroadcaster.BroadcastPlayerEvent(type, desc);
+            return "已模拟事件 " + type + "：" + desc + "（队伍频道将有 NPC 主动发言，注意防刷屏冷却）";
+        }
+
     }
-
-
 
 }
 
