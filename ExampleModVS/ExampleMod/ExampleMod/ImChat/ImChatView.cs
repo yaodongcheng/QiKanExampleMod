@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using TaleWorlds.Engine.GauntletUI;
+using TaleWorlds.GauntletUI.BaseTypes;
 using TaleWorlds.GauntletUI.Data;
 using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
@@ -29,6 +30,11 @@ namespace LivingWorldNpcs
         private static float _refreshTimer;
         private static bool _subscribed;
         private static bool _welcomed;   // 首次打开引导提示（会话内一次）
+
+        // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
+        // 「查看模式」按钮规避贴底+滚轮冲突；这里直接从 UIContext 找 ScrollablePanel 操作 ValueFloat）
+        private static ScrollablePanel _messageScrollPanel;
+        private static float _scrollDiagTimer;
 
         public static bool IsOpen => _layer != null;
 
@@ -93,8 +99,10 @@ namespace LivingWorldNpcs
                 _layer = V.NewLayer(400, "ImChatLayer");
                 // LoadMovie 字符串 = GUI/Prefabs/ImChat.xml 文件名（不带后缀）；返回类型跨版本不同（同上 #if）
                 _movie = _layer.LoadMovie("ImChat", _vm);
-                // 对话框级输入限制：键盘鼠标全给 IM（输入框打字 + 点击发送）
-                _layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.All);
+                // 🔴 输入限制：MouseButtons|MouseWheels|Keyboardkeys——滚轮必须留在 IM 层（含 MouseWheels 位，
+                // 否则穿透到地图层触发镜头缩放，六轮实机修复）；滚动派发由 MessageClip DoNotAcceptEvents 保证
+                // （EventManager.MouseScroll 只调用 hit test 命中的 widget，不冒泡）
+                _layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys);
                 if (ScreenManager.TopScreen != null)
                     ScreenManager.TopScreen.AddLayer(_layer);
 
@@ -130,6 +138,7 @@ namespace LivingWorldNpcs
             }
             _vm = null;
             _selected = null;
+            _messageScrollPanel = null;   // 层关闭后 widget 树失效，缓存清空
         }
 
         // ───────────────────────── 会话选择与刷新 ─────────────────────────
@@ -256,11 +265,15 @@ namespace LivingWorldNpcs
                 RefreshChannelItem(ch);
         }
 
-        /// <summary>动态项：正在输入 + 模式状态/切换按钮 + 输入区联动（0.3s 节流调）。</summary>
+        /// <summary>动态项：标题带正在思考 + 模式状态/切换按钮 + 输入区联动（0.3s 节流调）。</summary>
         private static void RefreshDynamic()
         {
             if (_vm == null || _selected == null) return;
-            _vm.TypingText = ImReplyService.GetTypingText(_selected.Id);
+            // 🔴 五轮：正在输入提示移到标题带，且仅私聊显示（群聊不显示——用户反馈；私聊 = 回复在途时
+            // 标题带显示「XX 正在思考回复…」）
+            string typing = ImReplyService.GetTypingText(_selected.Id);
+            _vm.IsTypingVisible = _selected.Type == ImConversationType.Direct && !string.IsNullOrWhiteSpace(typing);
+            _vm.TypingText = typing;
 
             bool modeVisible = IsCommandModeAvailable(_selected);
             _vm.IsModeControlVisible = modeVisible;
@@ -360,6 +373,82 @@ namespace LivingWorldNpcs
                 _refreshTimer = 0f;
                 try { RefreshMessages(); RefreshDynamic(); }
                 catch (Exception ex) { DebugLogger.Log($"[ImChat] Tick 刷新失败: {ex.Message}"); }
+            }
+
+            // 🔴 七轮：手动滚轮接管（引擎滚轮派发在模态层下不可靠）+ 滚动条件诊断日志
+            HandleManualScroll(dt);
+        }
+
+        // ───────────────────────── 手动滚轮接管（七轮）─────────────────────────
+
+        /// <summary>从 UIContext 找消息流 ScrollablePanel（层不暴露树，但 UIContext.Root 可遍历）。</summary>
+        private static void FindMessageScrollPanel()
+        {
+            _messageScrollPanel = null;
+            try
+            {
+                if (_layer?.UIContext?.Root != null)
+                    _messageScrollPanel = FindWidgetById(_layer.UIContext.Root, "MessageScroll") as ScrollablePanel;
+            }
+            catch { }
+        }
+
+        private static Widget FindWidgetById(Widget root, string id)
+        {
+            if (root == null) return null;
+            if (root.Id == id) return root;
+            for (int i = 0; i < root.ChildCount; i++)
+            {
+                var found = FindWidgetById(root.GetChild(i), id);
+                if (found != null) return found;
+            }
+            return null;
+        }
+
+        /// <summary>手动滚轮：鼠标在消息流区域内时，把全局滚轮增量直接加到 ScrollbarWidget.ValueFloat
+        /// （ScrollablePanel.Update 每帧从 ValueFloat 重算 InnerPanel 偏移——贴底闭环兼容）。
+        /// 🔴 引擎链路（层 InputContext → EventManager 派发）在模态层下不可靠，官方 SPChatLog 也规避此问题。</summary>
+        private static void HandleManualScroll(float dt)
+        {
+            if (_messageScrollPanel == null)
+            {
+                FindMessageScrollPanel();
+                return;
+            }
+            try
+            {
+                // 🔴 诊断日志（滚动调试用，已确认修复后注释；需要取证时取消注释）：
+                // 每 1s 输出 inner=内容高度 clip=可视高度 max=滚动范围 val=当前值——
+                // inner=-1 说明 InnerPanel 路径解析失败（Id 与 LWN_ 前缀不一致）；
+                // max 恒等于 XML 初值说明引擎滚动更新未运行（InnerPanel=null 异常中断）。
+                //_scrollDiagTimer += dt;
+                //if (_scrollDiagTimer >= 1f)
+                //{
+                //    _scrollDiagTimer = 0f;
+                //    var panel = _messageScrollPanel;
+                //    float inner = panel.InnerPanel?.Size.Y ?? -1f;
+                //    float clip = panel.ClipRect?.Size.Y ?? -1f;
+                //    DebugLogger.Log($"[ImChat] ScrollDiag inner={inner:0} clip={clip:0} max={panel.VerticalScrollbar?.MaxValue ?? -1f:0} val={panel.VerticalScrollbar?.ValueFloat ?? -1f:0.0}");
+                //}
+
+                float delta = Input.DeltaMouseScroll;
+                if (MathF.Abs(delta) <= 0.001f) return;
+                var scrollbar = _messageScrollPanel.VerticalScrollbar;
+                if (scrollbar == null) return;
+
+                // 鼠标是否在消息流区域（GlobalPosition + Size 为屏幕像素坐标，与 MousePositionPixel 同系）
+                var pos = _messageScrollPanel.GlobalPosition;
+                var size = _messageScrollPanel.Size;
+                Vec2 mouse = Input.MousePositionPixel;
+                if (mouse.X < pos.X || mouse.X > pos.X + size.X || mouse.Y < pos.Y || mouse.Y > pos.Y + size.Y)
+                    return;
+
+                // 滚轮向上（delta>0）→ 往历史（ValueFloat 减小）；速度系数与引擎 MouseScrollSpeed 一致量级
+                scrollbar.ValueFloat -= delta * 0.05f;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 手动滚轮异常: {ex.Message}");
             }
         }
 

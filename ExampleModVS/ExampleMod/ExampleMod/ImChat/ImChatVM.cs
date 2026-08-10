@@ -217,6 +217,7 @@ namespace LivingWorldNpcs
         private string _title = "";
         private string _inputText = "";
         private string _typingText = "";
+        private bool _isTypingVisible;
         private string _modeStatusText = "";
         private string _switchModeButtonText = "";
         private bool _isModeControlVisible;
@@ -262,12 +263,20 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool CanSend => !string.IsNullOrWhiteSpace(InputText);
 
-        /// <summary>「XX 正在输入…」（输入栏上方灰字，空 = 隐藏）。</summary>
+        /// <summary>「XX 正在思考回复…」（🔴 五轮：移入标题带显示，仅私聊回复在途时可见；空 = 隐藏）。</summary>
         [DataSourceProperty]
         public string TypingText
         {
             get => _typingText;
             set { if (_typingText != value) { _typingText = value; OnPropertyChangedWithValue(value, nameof(TypingText)); } }
+        }
+
+        /// <summary>标题带「正在思考回复」可见性（私聊 && 回复在途；群聊不显示——用户反馈五轮）。</summary>
+        [DataSourceProperty]
+        public bool IsTypingVisible
+        {
+            get => _isTypingVisible;
+            set { if (_isTypingVisible != value) { _isTypingVisible = value; OnPropertyChangedWithValue(value, nameof(IsTypingVisible)); } }
         }
 
         /// <summary>模式状态静态文本（2026-08-10：分段控件改「状态文本 + 切换按钮」——玩家先看到当前模式，按钮表达动作）。</summary>

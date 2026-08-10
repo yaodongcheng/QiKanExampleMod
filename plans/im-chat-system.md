@@ -215,6 +215,9 @@ score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonu
 | 🔴 **左栏两行式（2026-08-10 二轮）** | 行 = 上行标题+未读徽标（右）/ 下行预览左对齐（原预览右对齐与标题挤同一行）；分组标题加大字距提亮 |
 | 🔴 **三轮实机修复（2026-08-10）** | ① 气泡内 ListPanel 堆叠（普通 Widget 子元素重叠根因，文字叠一起）；② 预览拼完前缀整体截断 13 字符（中文 18 字超栏宽，左栏溢出）；③ 删除「频道」分组标题（用户反馈不需要），队伍/家族/王国直接列顶，仅保留「最近消息」 |
 | 🔴 **四轮实机修复（2026-08-10）** | ① 频道行标题加 `Brush.TextHorizontalAlignment="Left"`（Brush 默认 Center——标题看似未左对齐根因）；② 模式区改 ListPanel 并排（状态文本+按钮不再叠）+ 单按钮文本变量切换（ExecuteSwitchMode 内部路由）；③ 输入区加整体底色 `#00000088` + 顶部分隔线 + 输入框底加深 `#000000CC`（与消息流区分度） |
+| 🔴 **五轮实机修复（2026-08-10）** | ① **聊天记录滚轮无法翻看根因**：`InputUsageMask.All=7` 含 `MouseWheels` 位，模态层吞掉滚轮 → `OnMouseScroll` 收不到事件；输入限制改 `MouseButtons\|Keyboardkeys`（反编译 InputUsageMask 枚举确认）；② 输入区紧凑 78→58px（删 TypingText 后输入框贴顶无空白）；③ 正在输入提示移到**标题带**（`IsTypingVisible`，仅私聊回复在途显示「XX 正在思考回复…」，群聊不显示）；标题带改 ListPanel 横向布局（标题/正在思考/模式区/关闭）；④ **术语「行军令/密令」→「计划」**（用户反馈从未用过行军令——LWN_im_mode_command/march/unavailable/need_mission/placeholder_cmd/march_* 全量替换） |
+| 🔴 **六轮实机修复（2026-08-10）** | ① **滚轮穿透地图触发镜头缩放根因**：`EventManager.MouseScroll` 只调用 hit test 命中的 widget（不冒泡），MessageClip 默认接收事件抢走滚轮命中 → ScrollablePanel 收不到；修复 = MessageClip/ChannelClip 加 `DoNotAcceptEvents="true"` + 输入限制恢复含 MouseWheels 位（滚轮留层内）；② 输入框加高 48→64px（引擎 EditableTextWidget **不支持自动换行**——无 wrap 属性，官方用法均单行；如实告知用户），输入区 58→74px |
+| 🔴 **七轮实机修复（2026-08-10）** | **消息流滚动失效——决定性根因（诊断日志确诊）**：ScrollablePanel 的 `InnerPanel="MessageClip\MessageInner"` 路径与 ListPanel 实际 Id `LWN_ImChat_MessageInner`（LWN_ 前缀）不一致 → **InnerPanel 解析为 null** → 引擎滚动更新每帧异常中断（MaxValue 永不重算、InnerPanel 永不移动）——日志证据：`ScrollDiag inner=-1 clip=481 max=100`（inner=-1=null、max 恒为 XML 初值 100）。修复 = InnerPanel 路径改用实际 Id（`MessageClip\LWN_ImChat_MessageInner` / `ChannelClip\LWN_ImChat_ChannelInner`）。🔴 **教训：ScrollablePanel 的 InnerPanel/ClipRect 路径必须与目标 widget 的 Id 完全一致（含 LWN_ 前缀）**。配套：手动滚轮接管（UIContext.Root 遍历找 ScrollablePanel，鼠标在区域内把 `Input.DeltaMouseScroll` 加到 `VerticalScrollbar.ValueFloat`，双保险）+ ScrollDiag 诊断日志（1s 一次 inner/clip/max/val）+ csproj 新增 System.Numerics.Vectors 引用 |
 | 🔴 **模式静态文本+切换按钮（2026-08-10 二轮）** | 「当前：XX模式」状态文本 + 「切换到XX」按钮（双按钮按当前模式互斥显示）；placeholder + 发送按钮文案随模式联动 |
 
 **明确不做（引擎/语境限制）**：圆角气泡（引擎无圆角 sprite，需自制 PNG）、已读回执/消息状态（单机无网络语义）、图片/语音/表情（需求 5 纯文本 + 中世纪语境）、消息合并显示、回到最新按钮（GauntletLayer 不暴露 widget 树）、声音提醒（无合适音效）。
@@ -302,6 +305,7 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
   - 🔴 **实体层验证（2026-08-10 三轮，方案确认后实施）**：同国问「拉盖娅在哪」→ 定居点级精确；交战问 → 传闻级（「领兵在外，行踪难料」）；「我和张三关系咋样」→ 形容词档位；「李四几岁」→ 年龄；「陛下在哪」→ 玩家王国君主；「拉盖娅在哪」不再答出队伍位置（实体优先生效）；士气/驻军主题命中
   - 🔴 **三轮 UI 修复验证（2026-08-10）**：消息气泡内名字+内容不重叠（普通 Widget 子元素重叠根因已修，气泡内 ListPanel 堆叠）；左栏预览超长被截断（13 字符 + ClipContents 双保险）；左栏无「频道」分组标题（队伍/家族/王国直接列顶，仅「最近消息」分组标题）
   - 🔴 **四轮 UI 修复验证（2026-08-10）**：队伍/家族/王国频道行标题靠左（Brush 覆盖 Left）；模式区 = 左侧「当前：XX模式」文本 + 右侧单按钮「切换到XX」（文本随模式翻转、不重叠）；输入区与消息流底色层次分明（分隔线 + 输入区底色 + 输入框加深）
+  - 🔴 **五轮 UI 修复验证（2026-08-10）**：滚轮在消息流上可上下翻看历史；拖动滚动条可翻看；输入框贴输入区顶部（无上方空白）；私聊回复在途时标题带显示「XX 正在思考回复…」、群聊不显示；模式名显示「计划」（不再有「行军令/密令」字样）
   - 🔴 **UX 优化验证（2026-08-10 一轮）**：定居点菜单打开时按 O——聊天窗完整盖住定居点菜单（不被 202 层压）；ESC 系统菜单仍覆盖 IM（4400 > 400）；自己消息气泡贴文字右对齐（短消息紧贴右侧、长消息 520px 折行后文本右对齐）、他人气泡贴内容左对齐
   - 滚动：消息超一屏时滚轮/拖条/手柄摇杆手感；向上翻阅后新消息到达不打扰（位置保持）
   - 打开/关闭全路径：O 打开 / ESC / 手柄 B / 面板外点击 / ✕ 关闭；Mission 与大地图互切后层清理正常
