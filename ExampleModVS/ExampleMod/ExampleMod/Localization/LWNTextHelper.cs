@@ -163,6 +163,25 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// LLM 回复语言指令（跟随游戏语言，2026-08-10 本地化补齐）：
+        /// EN 游戏 → "English"，否则 "简体中文"。🔴 硬编码"简体中文"会导致 EN 玩家收到中文回复
+        /// （PromptBuilder 曾 4 处写死，日志实锤）。注意：指令文本本身仍以中文为主（LLM 理解无碍），
+        /// 只要"输出语言"跟随游戏，NPC 台词即为玩家语言。
+        /// </summary>
+        public static string GetReplyLanguageInstruction()
+        {
+            try
+            {
+                string langId = MBTextManager.ActiveTextLanguage;
+                if (!string.IsNullOrEmpty(langId)
+                    && langId.IndexOf("English", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return "English";
+            }
+            catch { }
+            return "简体中文";
+        }
+
+        /// <summary>
         /// LLM prompt 原始文本解析（🔴 不走 TextObject）。
         /// 为什么必须绕过 TextObject：prompt 静态块含大量 JSON 大括号（{"type": ...}），
         /// TextObject 的 Tokenizer 会把 {…} 当变量表达式解析，而 JSON 引号没有对应 token

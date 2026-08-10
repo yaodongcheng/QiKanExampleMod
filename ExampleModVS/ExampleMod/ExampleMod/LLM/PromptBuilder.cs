@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.MountAndBlade;
+using TaleWorlds.ObjectSystem;
 
 namespace LivingWorldNpcs
 {
@@ -81,7 +82,7 @@ namespace LivingWorldNpcs
             sb.AppendLine("1、**绝对事实防御 **：玩家可能会撒谎。玩家说的话仅代表“玩家声称的内容”，不代表事实。\n   - 当玩家的话与你的【自我信息】(如配偶状态、所属势力、家族关系)发生冲突时，**判定玩家在撒谎或挑衅**。\n - 反应逻辑：不要顺从谎言，要根据你的[性格]进行反驳、嘲讽或无视。\n");
             sb.AppendLine("2、**拒绝复读 **：如果玩家重复类似的话，你不要重复之前的台词。你应该表现出不耐烦。");
             sb.AppendLine("3、**身份位阶演算 **：实时对比：[你的身份] vs [玩家身份]。如果你的身份高，使用俯视、傲慢、简洁的命令式语气。敌对判定：若对方[效忠势力]与我敌对，无论地位高低，均表现出警惕或仇视。");
-            sb.AppendLine($"4、**风格**：使用第一人称和简体中文（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
+            sb.AppendLine($"4、**风格**：使用第一人称和{LWNTextHelper.GetReplyLanguageInstruction()}（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
             sb.AppendLine("5、玩家可能会用括号，比如“（玩家说的虚假事实）”来刻意引导你的认知，如果看到这种形式的玩家输入，你可以嘲讽拆穿。");
 
             sb.AppendLine("【其他回复要求】");
@@ -131,7 +132,7 @@ namespace LivingWorldNpcs
 
             sb.AppendLine("【交谈注意事项】");
             sb.AppendLine("1、**身份位阶演算 **：实时对比：[你的身份] vs [玩家身份]。如果你的身份高，使用俯视、傲慢、简洁的命令式语气。敌对判定：若对方[效忠势力]与我敌对，无论地位高低，均表现出警惕或仇视。");
-            sb.AppendLine($"2、**风格**：使用第一人称和简体中文（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
+            sb.AppendLine($"2、**风格**：使用第一人称和{LWNTextHelper.GetReplyLanguageInstruction()}（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
             sb.AppendLine($"3、你需要基于系统指令，决定你的明面上的说话内容npc_reply、你的情绪npc_emotion、你的内心吐槽或者沾沾自喜npc_thinking，并以Json格式输出。");
 
             sb.AppendLine("【其他回复要求】");
@@ -324,7 +325,7 @@ namespace LivingWorldNpcs
         /// 知识注入段同样按可见性裁剪（队伍成员才见队伍现状）。
         /// 输出：直接一句台词，不要 JSON、不要引号、不要任何解释（ChatOnceAsync 纯文本通道）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -350,6 +351,14 @@ namespace LivingWorldNpcs
                 sb.AppendLine();
             }
 
+            // 频道公区近期消息（群聊回复注入；旁观者没参与也能接住"刚才聊了什么"——方案 B 即时层）
+            if (!string.IsNullOrWhiteSpace(channelRecent))
+            {
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_channel", "## Recent Channel Messages (public talk you witnessed)")); // lwn-ignore: B
+                sb.AppendLine(channelRecent);
+                sb.AppendLine();
+            }
+
             // 🔴 动态知识注入段（WorldFactProvider：命中「队伍/位置/时间」主题才拼，平时零开销）
             if (!string.IsNullOrWhiteSpace(worldFacts))
             {
@@ -357,7 +366,21 @@ namespace LivingWorldNpcs
                 sb.AppendLine();
             }
 
-            sb.AppendLine($"对方 {speakerName} 刚刚通过传讯对你说：");
+            // 家族/国家全量背景：玩家提到相关话题才拼入（平时人设只有一句自我认知，见 NPCProfile）
+            string mentioned = memory?._profile?.GetMentionedBackgroundPrompt(lastPlayerText);
+            if (!string.IsNullOrWhiteSpace(mentioned))
+            {
+                sb.AppendLine(mentioned);
+                sb.AppendLine();
+            }
+
+            // 🔴 2026-08-10 修复措辞：send 方恒为玩家（SendPlayerMessage 单入口）；
+            // NPC 是主公麾下 → "你的主公 X 传讯给你"，否则 "对方 X 传讯给你"。
+            // （旧 bug：ImReplyService 误传 NPC 自己的名字 → "对方 阿速甘 传讯给你" 自我传讯出戏）
+            string senderPrefix = memory?._profile?.IsPlayerSubordinate() == true
+                ? LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_lord", "Your lord {NAME} just sent you a message:", ("NAME", speakerName)) // lwn-ignore: B
+                : LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_other", "{NAME} just sent you a message:", ("NAME", speakerName)); // lwn-ignore: B
+            sb.AppendLine(senderPrefix);
             sb.AppendLine(lastPlayerText);
             sb.AppendLine();
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
@@ -412,6 +435,10 @@ namespace LivingWorldNpcs
             // Npc人设
             sb.AppendLine("【自我信息】");
             sb.AppendLine(memory.GetPersonaPrompt());
+            // 家族/国家全量背景：玩家提到相关话题才拼入（平时人设只有一句自我认知）
+            string mentionedBg = memory._profile?.GetMentionedBackgroundPrompt(playerInput);
+            if (!string.IsNullOrWhiteSpace(mentionedBg))
+                sb.AppendLine(mentionedBg);
 
             // [新增] B. 玩家(对话对象) 信息
             sb.AppendLine("【当前玩家信息】");
@@ -456,7 +483,7 @@ namespace LivingWorldNpcs
             sb.AppendLine("1、**绝对事实防御 **：玩家可能会撒谎。玩家说的话仅代表“玩家声称的内容”，不代表事实。\n   - 当玩家的话与你的【自我信息】(如配偶状态、所属势力、家族关系)发生冲突时，**判定玩家在撒谎或挑衅**。\n - 反应逻辑：不要顺从谎言，要根据你的[性格]进行反驳、嘲讽或无视。\n");
             sb.AppendLine("2、**拒绝复读 **：如果玩家重复类似的话，你不要重复之前的台词。你应该表现出不耐烦。");
             sb.AppendLine("3、**身份位阶演算 **：实时对比：[你的身份] vs [玩家身份]。如果你的身份高，使用俯视、傲慢、简洁的命令式语气。敌对判定：若对方[效忠势力]与我敌对，无论地位高低，均表现出警惕或仇视。");
-            sb.AppendLine($"4、**风格**：使用第一人称和简体中文（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
+            sb.AppendLine($"4、**风格**：使用第一人称和{LWNTextHelper.GetReplyLanguageInstruction()}（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
             sb.AppendLine("5、玩家可能会用括号，比如“（玩家说的虚假事实）”来刻意引导你的认知，如果看到这种形式的玩家输入，你可以嘲讽拆穿。");
 
             sb.AppendLine("【其他回复要求】");
@@ -810,7 +837,8 @@ namespace LivingWorldNpcs
                 throw new Exception();
             }
             sb.AppendLine("【当前任务：协商博弈】");
-            sb.AppendLine("你是一个高自由度{S.WorldDescription}中的“上帝裁判”兼“NPC扮演者”。");
+            // 🔴 2026-08-10 修 bug：原为 "你是一个高自由度{S.WorldDescription}..." 漏 $ 插值，原样字符串打给 LLM
+            sb.AppendLine($"你是一个高自由度{S.WorldDescription}中的“上帝裁判”兼“NPC扮演者”。");
             sb.AppendLine("你的任务是：");
             sb.AppendLine($"1. 扮演NPC{npcName}，根据人设和局势对玩家的话语做出反应。");
             sb.AppendLine("2. 作为裁判，基于玩家实际给出的筹码和玩家的话术，结合NPC自身顾虑，计算玩家本回合的谈判效果（进度暴击率）。");
@@ -824,6 +852,10 @@ namespace LivingWorldNpcs
             // 1. NPC 自我信息
             sb.AppendLine("【NPC (我方) 档案】");
             sb.AppendLine(memory.GetPersonaPrompt());
+            // 家族/国家全量背景：玩家提到相关话题才拼入（平时人设只有一句自我认知）
+            string mentionedBg = memory._profile?.GetMentionedBackgroundPrompt(playerInput);
+            if (!string.IsNullOrWhiteSpace(mentionedBg))
+                sb.AppendLine(mentionedBg);
 
             // 2. 玩家信息
             sb.AppendLine("【当前玩家 (对方) 信息】");
@@ -963,7 +995,7 @@ namespace LivingWorldNpcs
             sb.AppendLine("1、**绝对事实防御 **：玩家可能会撒谎。玩家说的话仅代表“玩家声称的内容”，不代表事实，但是玩家实际付出的筹码肯定是真的。\n   - 当玩家的话与你的【自我信息】(如配偶状态、所属势力、家族关系)发生冲突时，**判定玩家在撒谎或挑衅**。\n - 反应逻辑：不要顺从谎言，要根据你的[性格]进行反驳、嘲讽或无视。\n");
             sb.AppendLine("2、**拒绝复读 **：如果玩家重复类似的话，你不要重复之前的台词。你应该表现出不耐烦。");
             sb.AppendLine("3、**身份位阶演算 **：实时对比：[你的身份] vs [玩家身份]。如果你的身份高，使用俯视、傲慢、简洁的命令式语气。敌对判定：若对方[效忠势力]与我敌对，无论地位高低，均表现出警惕或仇视。");
-            sb.AppendLine($"4、**风格**：使用第一人称和简体中文（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
+            sb.AppendLine($"4、**风格**：使用第一人称和{LWNTextHelper.GetReplyLanguageInstruction()}（{S.SpeechStyle}）。不要提及你是AI，不要跳出角色。{S.FemaleSelfAddress}");
             sb.AppendLine("5、玩家可能会用括号，比如“（玩家说的虚假事实）”来刻意引导你的认知，如果看到这种形式的玩家输入，你可以嘲讽拆穿。");
             sb.AppendLine("6、**人情式虚伪**：严禁像商人一样直接对数字讨价还价（如不要说“五万两不够”）。你必须用冠冕堂皇的借口（如名誉、忠诚、家族未来）来掩饰你的贪婪。例如：不要说“再加点钱”，要说“这点诚意，如何能抵消浅井家的百年清誉？”");
 
@@ -1132,17 +1164,20 @@ namespace LivingWorldNpcs
         {
             StringBuilder sb = new StringBuilder();
             string npcName = memory._profile.Name;
-            // 对方名字（§八 任意人对话泛化）：从对话记录提取第一个"非我"的说话人（Content 惯例"名字: 台词"），
-            // 不再硬编码 Agent.Main——NPC-NPC 对话（随从搭话）总结归因正确
-            string otherName = ExtractOtherSpeakerName(memory, messagesToSummarize);
+            // （§八 任意人对话泛化的对方名提取不再需要：2026-08-10 起总结输入可能混合私聊与频道公开对话，
+            //  任务描述改为通用表述，不再假定"和某一个人的对话"）
             sb.AppendLine("【任务描述】");
-            sb.AppendLine($"你是{npcName}。你刚刚和{otherName}进行了一段对话。");
+            sb.AppendLine($"你是{npcName}。你刚刚经历了一段对话（可能是一对一交谈，也可能是你所在频道——队伍/家族——里的公开对话）。");
             sb.AppendLine($"请你以【{npcName}】的视角，回忆并总结这段经历。30字以内：");
             sb.AppendLine("【对话记录】");
             foreach (var msg in messagesToSummarize)
             {
-                sb.AppendLine($"- {msg.Content}");
+                // 频道来源标注：频道行带「（频道）」前缀，防把公区对话记成与某人的私聊（方案 B）
+                string prefix = msg?.Role != null && msg.Role.StartsWith("channel_") ? LWNTextHelper.ResolveText("LWN_prompt_summary_channel_mark", "(channel)") : "";
+                sb.AppendLine($"- {prefix}{msg.Content}");
             }
+            // 频道行补充说明：只记梗概，别记成私聊细节
+            sb.AppendLine("（标注了「（频道）」的对话是你所在频道的公开对话，你没全部参与——只需记住与你相关或重要的梗概。）");
             sb.AppendLine("【输出格式】");
             string OutputFormat = @"
 以纯 JSON 回复:
@@ -1160,6 +1195,82 @@ namespace LivingWorldNpcs
             sb.AppendLine("5.必须按照纯净的Json格式输出。不要在Json内容之外输出解释和任意Markdown等解释内容。");
 
 
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 人设精炼 prompt（SingNpcMemorySystem.EnsureProfileSummary 用，2026-08-10）：
+        /// 第一次有对话素材时，把身份信息 + 性格数值 + 武艺技能 + 对话记录一次 LLM 调用精炼成
+        /// 三字段第一人称常驻人设（BackgroundStory 身世 / Personality 性格 / Specialty 本事）。
+        /// 输出：纯 JSON。LLM 失败/未配置 → 不生成，下次再试（铁律 1）。
+        /// </summary>
+        public static string BuildPromptForProfileSummary(SingNpcMemorySystem memory)
+        {
+            if (memory == null || memory._profile == null) return "";
+            var profile = memory._profile;
+            var hero = profile.BaseHero;
+            var sb = new StringBuilder();
+            sb.AppendLine("【任务】");
+            sb.AppendLine($"你是{profile.Name}。请根据下面的【身份信息】【性格数值】【武艺技能】【对话记录】，用第一人称生成三段常驻人设。");
+            sb.AppendLine("要求：");
+            sb.AppendLine("1. 必须第一人称（我），是你说给别人听/自我介绍时的依据。");
+            sb.AppendLine("2. BackgroundStory（身世，30~60字）：你的过往——从对话记录中提取真实经历（如被主公招募的流浪者、提到过的家乡/牵挂），不要编造记录里不存在的内容。");
+            sb.AppendLine("3. Personality（性格，20~40字）：把【性格数值】翻译成人的性格描述（如：重荣誉、性急、见不得欺压弱小），不要罗列数字。");
+            sb.AppendLine("4. Specialty（本事，20~40字）：把【武艺技能】翻译成你会做什么（如：长于弓术与骑术，马上功夫过得去），不要罗列技能名和数字。");
+            sb.AppendLine("5. 不要用引号包裹整段。");
+            sb.AppendLine("【身份信息】");
+            sb.AppendLine($"- 姓名：{profile.Name}");
+            sb.AppendLine($"- 职业：{profile.Occupation}");
+            sb.AppendLine(profile.GetStandingSummary());
+            if (hero != null)
+            {
+                // 性格数值（引擎真实 trait，LLM 需翻译成人话）
+                int honor = profile.CoreValues.ContainsKey("Honor") ? profile.CoreValues["Honor"] : 0;
+                int mercy = profile.CoreValues.ContainsKey("Mercy") ? profile.CoreValues["Mercy"] : 0;
+                int valor = profile.CoreValues.ContainsKey("Valor") ? profile.CoreValues["Valor"] : 0;
+                int calc = profile.CoreValues.ContainsKey("Calculating") ? profile.CoreValues["Calculating"] : 0;
+                sb.AppendLine("【性格数值】（负值=相反倾向）");
+                sb.AppendLine($"- 荣誉 Honor={honor} 仁慈 Mercy={mercy} 胆略 Valor={valor} 谋略 Calculating={calc}");
+
+                // 武艺技能（动态遍历 MBObjectManager，铁律 5；前 6 项）
+                sb.AppendLine("【武艺技能】");
+                try
+                {
+                    var skills = MBObjectManager.Instance.GetObjectTypeList<SkillObject>()
+                        .Where(s => s != null && !string.IsNullOrEmpty(s.Name?.ToString()) && hero.GetSkillValue(s) > 0)
+                        .OrderByDescending(s => hero.GetSkillValue(s))
+                        .Take(6)
+                        .Select(s => $"{s.Name} {hero.GetSkillValue(s)}")
+                        .ToList();
+                    if (skills.Count == 0)
+                        sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_profile_no_skill", "- No outstanding skills")); // lwn-ignore: B
+                    else
+                        sb.AppendLine("- " + string.Join("、", skills));
+                }
+                catch
+                {
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_profile_skill_unavailable", "- (skill data unavailable)")); // lwn-ignore: B
+                }
+            }
+            if (!string.IsNullOrEmpty(memory.BackgroundStory))
+            {
+                // 旧存档升级场景：已有身世保持原文不重写（只补性格/本事）
+                sb.AppendLine("【你已有的身世（保持原文，不要改写）】");
+                sb.AppendLine(memory.BackgroundStory);
+            }
+            sb.AppendLine("【对话记录】");
+            foreach (var msg in memory.SnapshotRecentHistory())
+            {
+                if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
+                sb.AppendLine($"- {msg.Content}");
+            }
+            sb.AppendLine("【输出格式】");
+            sb.AppendLine(@"以纯 JSON 回复（不要输出 JSON 之外的解释或 Markdown）:
+{
+    ""BackgroundStory"": ""我的身世简介"",
+    ""Personality"": ""我的性格描述"",
+    ""Specialty"": ""我的本事描述""
+}");
             return sb.ToString();
         }
 

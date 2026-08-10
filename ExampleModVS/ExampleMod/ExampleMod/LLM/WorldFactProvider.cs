@@ -38,110 +38,110 @@ namespace LivingWorldNpcs
         {
             new FactTopic
             {
-                Id = "party", Title = "## 队伍现状（你亲眼所见，如实作答）", NeedsPartyMember = true,
+                Id = "party", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_party"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "队伍", "部队", "兵力", "人数", "人马", "士兵", "弟兄", "兄弟", "手下", "多少人",
                     "army", "troop", "troops", "soldier", "soldiers", "manpower", "men", "party", "companion", "companions" },
                 Query = QueryPartyFacts,
             },
             new FactTopic
             {
-                Id = "gold", Title = "## 钱财（队伍共有，你大致知晓）", NeedsPartyMember = true,
+                Id = "gold", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_gold"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "钱", "金币", "第纳尔", "金子", "积蓄", "身家", "盘缠", "富", "穷",
                     "gold", "coin", "coins", "money", "denar", "denars", "wealth", "poor", "rich" },
                 Query = QueryGoldFact,
             },
             new FactTopic
             {
-                Id = "location", Title = "## 当前位置（你与主人同行，亲眼所见）", NeedsPartyMember = true,
+                Id = "location", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_location"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "在哪", "位置", "何处", "何方", "哪里", "身在哪", "where", "location", "position" },
                 Query = QueryLocationFact,
             },
             new FactTopic
             {
-                Id = "food", Title = "## 粮草（队伍辎重，你亲眼所见）", NeedsPartyMember = true,
+                Id = "food", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_food"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "粮食", "食物", "口粮", "补给", "粮草", "food", "supply", "supplies", "provision", "provisions", "rations" },
                 Query = QueryFoodFact,
             },
             new FactTopic
             {
-                Id = "prisoner", Title = "## 俘虏（队伍押解，你亲眼所见）", NeedsPartyMember = true,
+                Id = "prisoner", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_prisoner"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "俘虏", "囚犯", "战俘", "prisoner", "prisoners", "captive", "captives" },
                 Query = QueryPrisonerFact,
             },
             new FactTopic
             {
-                Id = "wounded", Title = "## 伤员（队伍军医处，你亲眼所见）", NeedsPartyMember = true,
+                Id = "wounded", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_wounded"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "伤员", "伤兵", "受伤", "wounded", "injured", "hurt" },
                 Query = QueryWoundedFact,
             },
             new FactTopic
             {
-                Id = "fief", Title = "## 领地（地图明示，人尽皆知）", NeedsPartyMember = false,
+                Id = "fief", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_fief"), NeedsPartyMember = false, // lwn-ignore: B
                 Keywords = new[] { "领地", "封地", "城镇", "城堡", "村庄", "辖区",
                     "fief", "fiefs", "town", "castle", "village", "land", "lands" },
                 Query = QueryFiefFact,
             },
             new FactTopic
             {
-                Id = "renown", Title = "## 声望与影响力（坊间传颂，半公开）", NeedsPartyMember = false,
+                Id = "renown", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_renown"), NeedsPartyMember = false, // lwn-ignore: B
                 Keywords = new[] { "声望", "影响力", "名誉", "威名", "名气", "renown", "influence", "fame" },
                 Query = QueryRenownFact,
             },
             new FactTopic
             {
-                Id = "family", Title = "## 家族（亲缘关系，普世可知）", NeedsPartyMember = false,
+                Id = "family", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_family"), NeedsPartyMember = false, // lwn-ignore: B
                 Keywords = new[] { "家族", "家人", "亲人", "配偶", "妻子", "丈夫", "孩子", "儿女", "儿子", "女儿",
                     "family", "clan", "wife", "husband", "child", "children", "kid", "kids" },
                 Query = QueryFamilyFact,
             },
             new FactTopic
             {
-                Id = "war", Title = "## 王国与战事（驿站流言，人尽皆知）", NeedsPartyMember = false,
+                Id = "war", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_war"), NeedsPartyMember = false, // lwn-ignore: B
                 Keywords = new[] { "王国", "战争", "开战", "敌对", "交战", "停战", "和平", "敌人", "盟国",
                     "kingdom", "war", "enemy", "enemies", "allies", "peace", "battle" },
                 Query = QueryWarFact,
             },
             new FactTopic
             {
-                Id = "time", Title = "## 时日（普世可知）", NeedsPartyMember = false,
+                Id = "time", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_time"), NeedsPartyMember = false, // lwn-ignore: B
                 Keywords = new[] { "今天", "几号", "几月", "季节", "日期", "何时", "日子", "时辰", "是日",
                     "today", "date", "season", "month", "day", "when" },
                 Query = QueryTimeFact,
             },
             new FactTopic
             {
-                Id = "quest", Title = "## 委托（主公的事务，你略有耳闻）", NeedsPartyMember = true,
+                Id = "quest", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_quest"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "任务", "委托", "差事", "悬赏", "quest", "quests", "issue", "issues", "errand", "errands" },
                 Query = QueryQuestFact,
             },
             new FactTopic
             {
-                Id = "skill", Title = "## 主公的武艺与本事（队伍成员朝夕相处，看得真切）", NeedsPartyMember = true,
+                Id = "skill", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_skill"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "剑术", "刀法", "箭术", "弓术", "骑术", "战术", "医术", "技能", "本领", "武艺", "武艺如何",
                     "skill", "skills", "sword", "archery", "riding", "medicine", "tactics", "warrior" },
                 Query = QuerySkillFact,
             },
             new FactTopic
             {
-                Id = "level", Title = "## 主公的历练（队伍成员看在眼里）", NeedsPartyMember = true,
+                Id = "level", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_level"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "几级", "等级", "经验", "历练", "level", "experience", "xp" },
                 Query = QueryLevelFact,
             },
             new FactTopic
             {
-                Id = "business", Title = "## 产业（主公的营生，随行者略有耳闻）", NeedsPartyMember = true,
+                Id = "business", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_business"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "商队", "工坊", "产业", "生意", "收入", "铺子", "caravan", "workshop", "business", "income", "shop" },
                 Query = QueryBusinessFact,
             },
             new FactTopic
             {
-                Id = "morale", Title = "## 士气（队伍上下精神头，你亲眼所见）", NeedsPartyMember = true,
+                Id = "morale", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_morale"), NeedsPartyMember = true, // lwn-ignore: B
                 Keywords = new[] { "士气", "军心", "人心", "精神头", "低迷", "morale", "spirit", "morale low", "morale high" },
                 Query = QueryMoraleFact,
             },
             new FactTopic
             {
-                Id = "garrison", Title = "## 驻军（城头旗帜与甲兵，人尽皆知）", NeedsPartyMember = false,
+                Id = "garrison", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_garrison"), NeedsPartyMember = false, // lwn-ignore: B
                 Keywords = new[] { "驻军", "守军", "守备", "城防", "garrison", "defenders", "guards" },
                 Query = QueryGarrisonFact,
             },
@@ -183,7 +183,7 @@ namespace LivingWorldNpcs
             // 问句兜底：关键词全没命中但玩家在问 → 轻量世界概要（有数据的问题至少拿到基础事实可答）
             if (!anyHit && IsQuestion(playerText))
             {
-                body.AppendLine("## 世界概要（你知晓的普世事实）");
+                body.AppendLine(LWNTextHelper.ResolveText("LWN_fact_title_summary", "## World Overview (common facts you know)")); // lwn-ignore: B
                 body.AppendLine(QuerySummary(isPartyMember));
                 body.AppendLine();
             }
@@ -272,13 +272,15 @@ namespace LivingWorldNpcs
         private static string GetEntityTitle(EntityQuery eq)
         {
             string name = eq.Hero?.Name?.ToString() ?? "对方";
-            return eq.Property switch
+            string key = eq.Property switch
             {
-                "location" => $"## {name}的行踪（流言与见闻）",
-                "relation" => $"## 主公与{name}的交情（你随侍在侧，看在眼里）",
-                "age" => $"## {name}的年岁（坊间皆知）",
-                _ => $"## {name}的情况",
+                "location" => "LWN_fact_title_hero_location", // lwn-ignore: B
+                "relation" => "LWN_fact_title_hero_relation", // lwn-ignore: B
+                "age" => "LWN_fact_title_hero_age", // lwn-ignore: B
+                _ => "LWN_fact_title_hero_other", // lwn-ignore: B
             };
+            return LWNTextHelper.ResolveCompound(key,
+                "## About {NAME}", ("NAME", name));
         }
 
         private static string QueryEntityFact(EntityQuery eq)
@@ -371,7 +373,8 @@ namespace LivingWorldNpcs
         {
             var hero = Hero.MainHero;
             if (hero == null) return "- （此刻无从查知）";
-            return $"- 队伍钱袋现有 {hero.Gold} 枚第纳尔可供开销。";
+            // 货币单位走 Settings（默认原版 hYgmzZJX 本地化：第纳尔/Denar；Mod B 可注入"两"）
+            return $"- 队伍钱袋现有 {hero.Gold} 枚{Settings.Instance.CurrencyName}可供开销。";
         }
 
         private static string QueryLocationFact()
@@ -548,7 +551,7 @@ namespace LivingWorldNpcs
             if (isPartyMember && party != null)
             {
                 sb.AppendLine($"- 队伍现有 {party.MemberRoster.TotalRegulars} 名士兵、{party.MemberRoster.TotalHeroes} 名将领；" +
-                              $"钱袋 {Hero.MainHero?.Gold ?? 0} 第纳尔；粮草约 {party.Food:0.0} 天。");
+                              $"钱袋 {Hero.MainHero?.Gold ?? 0} {Settings.Instance.CurrencyName}；粮草约 {party.Food:0.0} 天。");
             }
             var clan = Clan.PlayerClan;
             if (clan != null)

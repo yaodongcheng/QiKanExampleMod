@@ -23,7 +23,7 @@
 综合评价：{STRENGTH}。
 在家族中的地位：{STATUS}。
 家族领地：拥有 {TOWNS} 座城市 和 {CASTLES} 座城堡 (共占全境的 {PCT}%，{MY}/{TOTAL})。
-家族财力：{WEALTH} (现有资金 {GOLD} 两黄金)。
+家族财力：{WEALTH} (现有资金 {GOLD} {CURRENCY})。
 家族影响力：{INF}。" />
 
     <!-- 家族身份描述 -->
@@ -202,7 +202,7 @@
     <!-- ═══ GetSelfWorthDescription ═══ -->
     <!-- 自我认知模板 -->
     <string id="LWN_prompt_worth_template" text="出身源头：{ORIGIN}
-身价：{VAL} 两金子。
+身价：{VAL} {CURRENCY}。
 自我认知：{DESC}" />
     <!-- 身价描述 -->
     <string id="LWN_prompt_worth_low" text="微不足道。只要对方给点小恩小惠，或者表现出诚意，就愿意跟随对方。" />
@@ -349,5 +349,43 @@
     <string id="LWN_plan_section_grammar" text="【动作词表与谓词词表】" />
       <string id="LWN_plan_im_reply_rule" text="【IM 回复纪律】
 请以你自己的身份，用一句话口语回复对方（贴合中世纪语境，不要用现代网络用语）。只输出台词本身——不要引号、不要冒号、不要任何解释。" />
+    <string id="LWN_prompt_section_standing" text="## 我的出身与立场" />
+    <string id="LWN_prompt_standing_family" text="- 家族：{TEXT}" />
+    <string id="LWN_prompt_standing_kingdom" text="- 国家：{TEXT}" />
+    <string id="LWN_prompt_section_lord" text="## 与主公的关系" />
+    <string id="LWN_prompt_lord_clan" text="你是 {NAME}（主公）的家族成员，正随他一同闯荡。他供养你、统领你，是你的主公。" />
+    <string id="LWN_prompt_lord_party" text="你此刻在 {NAME}（主公）的队伍中，是他的随从，正随军同行。" />
+    <string id="LWN_prompt_section_reputation" text="## 世人对我的评价" />
+    <string id="LWN_prompt_section_background" text="## 我的身世" />
+    <string id="LWN_prompt_section_personality" text="## 我的性格" />
+    <string id="LWN_prompt_section_specialty" text="## 我的本事" />
+    <string id="LWN_prompt_section_channel" text="## 频道近期消息（公区对话，你亲历但可能未全部参与）" />
+    <string id="LWN_prompt_im_sender_lord" text="你的主公 {NAME} 刚刚通过传讯对你说：" />
+    <string id="LWN_prompt_im_sender_other" text="对方 {NAME} 刚刚通过传讯对你说：" />
+    <string id="LWN_prompt_summary_channel_mark" text="（频道）" />
+    <string id="LWN_prompt_profile_no_skill" text="- 无突出技艺" />
+    <string id="LWN_prompt_profile_skill_unavailable" text="- （技能数据暂不可用）" />
+    <string id="LWN_fact_title_party" text="## 队伍现状（你亲眼所见，如实作答）" />
+    <string id="LWN_fact_title_gold" text="## 钱财（队伍共有，你大致知晓）" />
+    <string id="LWN_fact_title_location" text="## 当前位置（你与主人同行，亲眼所见）" />
+    <string id="LWN_fact_title_food" text="## 粮草（队伍辎重，你亲眼所见）" />
+    <string id="LWN_fact_title_prisoner" text="## 俘虏（队伍押解，你亲眼所见）" />
+    <string id="LWN_fact_title_wounded" text="## 伤员（队伍军医处，你亲眼所见）" />
+    <string id="LWN_fact_title_fief" text="## 领地（地图明示，人尽皆知）" />
+    <string id="LWN_fact_title_renown" text="## 声望与影响力（坊间传颂，半公开）" />
+    <string id="LWN_fact_title_family" text="## 家族（亲缘关系，普世可知）" />
+    <string id="LWN_fact_title_war" text="## 王国与战事（驿站流言，人尽皆知）" />
+    <string id="LWN_fact_title_time" text="## 时日（普世可知）" />
+    <string id="LWN_fact_title_quest" text="## 委托（主公的事务，你略有耳闻）" />
+    <string id="LWN_fact_title_skill" text="## 主公的武艺与本事（队伍成员朝夕相处，看得真切）" />
+    <string id="LWN_fact_title_level" text="## 主公的历练（队伍成员看在眼里）" />
+    <string id="LWN_fact_title_business" text="## 产业（主公的营生，随行者略有耳闻）" />
+    <string id="LWN_fact_title_morale" text="## 士气（队伍上下精神头，你亲眼所见）" />
+    <string id="LWN_fact_title_garrison" text="## 驻军（城头旗帜与甲兵，人尽皆知）" />
+    <string id="LWN_fact_title_summary" text="## 世界概要（你知晓的普世事实）" />
+    <string id="LWN_fact_title_hero_location" text="## {NAME}的行踪（流言与见闻）" />
+    <string id="LWN_fact_title_hero_relation" text="## 主公与{NAME}的交情（你随侍在侧，看在眼里）" />
+    <string id="LWN_fact_title_hero_age" text="## {NAME}的年岁（坊间皆知）" />
+    <string id="LWN_fact_title_hero_other" text="## {NAME}的情况" />
 </strings>
 </base>

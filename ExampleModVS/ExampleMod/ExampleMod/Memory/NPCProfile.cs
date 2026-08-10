@@ -637,6 +637,16 @@ namespace LivingWorldNpcs
 
         #endregion
 
+        /// <summary>领主级判定（身份深度用，2026-08-10）：领主 / 阵营领袖 / 家族族长 才有
+        /// 家族与王国的百科级认知；平民保持坊间常识。</summary>
+        private bool IsNobleTier()
+        {
+            if (BaseHero == null) return false;
+            if (BaseHero.IsLord || BaseHero.IsFactionLeader) return true;
+            var clan = BaseHero.Clan;
+            return clan != null && clan.Leader == BaseHero;
+        }
+
         public string GetClanInfo()
         {
             StringBuilder sb = new StringBuilder();
@@ -671,19 +681,19 @@ namespace LivingWorldNpcs
                 string selfStatus;
                 if (BaseHero == clan.Leader)
                     // 家族族长 (拥有家族最高决策权)
-                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_leader");
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_leader"); // lwn-ignore: B
                 else if (BaseHero == clan.Leader.Spouse)
                     // 族长配偶 (享有极高尊荣)
-                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_spouse");
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_spouse"); // lwn-ignore: B
                 else if (BaseHero.Father == clan.Leader || BaseHero.Mother == clan.Leader)
                     // 家族少主/千金 (嫡系血亲)
-                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_heir");
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_heir"); // lwn-ignore: B
                 else if (clan.Companions.Contains(BaseHero))
                     // 家族家臣/同伴 (因能力被招募，地位取决于功绩)
-                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_companion");
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_companion"); // lwn-ignore: B
                 else
                     // 普通成员
-                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_member");
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_member"); // lwn-ignore: B
 
                 // 2. 领地统计
                 int myTowns = clan.Fiefs.Count(f => f.IsTown);
@@ -736,7 +746,7 @@ namespace LivingWorldNpcs
                     strengthDesc = LWNTextHelper.ResolveText("LWN_prompt_clan_strength_landless");
 
                 // 5. 组装
-                return LWNTextHelper.ResolveCompoundMixed("LWN_prompt_clan_hero",
+                string clanInfo = LWNTextHelper.ResolveCompoundMixed("LWN_prompt_clan_hero",
                     ("CLAN", (object)clan.Name),
                     ("TIER", clan.Tier.ToString()),
                     ("RENOWN", clan.Renown.ToString("F0")),
@@ -749,7 +759,27 @@ namespace LivingWorldNpcs
                     ("TOTAL", worldTotalFiefs.ToString()),
                     ("WEALTH", wealthDesc),
                     ("GOLD", clanWealth.ToString()),
+                    ("CURRENCY", Settings.Instance.CurrencyName),
                     ("INF", clan.Influence.ToString("F0")));
+
+                // 🔴 身份深度（2026-08-10）：领主级 NPC 追加家族百科正文（引擎 XML 本地化描述，世界书层）。
+                // 平民不注入——村民不知道自己家族"百科"里写的那些，保持坊间常识级。
+                if (IsNobleTier())
+                {
+                    string encText = clan.EncyclopediaText?.ToString();
+                    if (!string.IsNullOrWhiteSpace(encText))
+                        clanInfo += "\n（家族百科）" + encText;
+                    // 领地百科（第一座城/堡）：领主对自己封地的认知
+                    try
+                    {
+                        var fief = clan.Fiefs.FirstOrDefault(f => f.IsTown || f.IsCastle);
+                        string fiefEnc = fief?.Settlement?.EncyclopediaText?.ToString();
+                        if (!string.IsNullOrWhiteSpace(fiefEnc))
+                            clanInfo += "\n（领地百科）" + fiefEnc;
+                    }
+                    catch { }
+                }
+                return clanInfo;
             }
         }
 
@@ -831,7 +861,7 @@ namespace LivingWorldNpcs
                 }
 
                 // --- 效忠国家 ---
-                return LWNTextHelper.ResolveCompoundMixed("LWN_prompt_kingdom_hero",
+                string kingdomInfo = LWNTextHelper.ResolveCompoundMixed("LWN_prompt_kingdom_hero",
                     ("NAME", (object)kingdom.Name),
                     ("CULTURE", (object)kingdom.Culture.Name),
                     ("POWER", powerStatus),
@@ -841,6 +871,16 @@ namespace LivingWorldNpcs
                     ("STRENGTH", V.KingdomStr(kingdom).ToString("F0")),
                     ("WAR", warStatus),
                     ("RULER_REL", rulerRel));
+
+                // 🔴 身份深度（2026-08-10）：领主级 NPC 追加王国百科正文（引擎 XML 本地化描述，世界书层）。
+                // 平民不注入——王国百科是贵族常识，村民只有坊间认知。
+                if (IsNobleTier())
+                {
+                    string encText = kingdom.EncyclopediaText?.ToString();
+                    if (!string.IsNullOrWhiteSpace(encText))
+                        kingdomInfo += "\n（王国百科）" + encText;
+                }
+                return kingdomInfo;
             }
         }
 
@@ -1080,30 +1120,23 @@ namespace LivingWorldNpcs
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_worth_header"));
                 sb.AppendLine(GetSelfWorthDescription());
 
-                // 目标与动机
-                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_goals_header"));
-                sb.AppendLine(CalCurrentMotivation());
+                // 🔴 Hero 百科文本（2026-08-10，世界书层）：有名英雄（国王/领主）带引擎 XML 写的百科介绍
+                // （如蒙楚格："...dreams of glory, of surpassing his ancestor Urkhun..."）——每个英雄不同，
+                // 是宝贵个性素材（区别于被裁剪的雷同数据）；平民英雄无此字段（空）自然跳过。
+                try
+                {
+                    string heroEnc = BaseHero.EncyclopediaText?.ToString();
+                    if (!string.IsNullOrWhiteSpace(heroEnc))
+                    {
+                        sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_reputation", "## What People Say of Me")); // lwn-ignore: B
+                        sb.AppendLine(heroEnc);
+                    }
+                }
+                catch { }
 
-                // 喜好信息
-                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_prefs_header"));
-                // -物欲：{DESIRE}
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_self_prefs_line",
-                    ("DESIRE", LocalizeTrait(DesireStr)),
-                    ("DESIRE_TYPE", LocalizeTrait(DesireTypeStr)),
-                    ("ALCOHOL", LocalizeTrait(AlcoholDesireStr)),
-                    ("WEAPON", LocalizeTrait(WeaponDesireStr)),
-                    ("JOB", LocalizeTrait(JobTendencyStr))));
-
-                // 性格和价值观
-                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_self_personality_header"));
-                // -野心程度：{AMBITION}
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_self_personality_line",
-                    ("AMBITION", Ambition.ToString()),
-                    ("STYLE", LocalizeTrait(ActStyleStr)),
-                    ("TEMPER", LocalizeTrait(TemperStr)),
-                    ("SPIRIT", LocalizeTrait(SpiritStr)),
-                    ("ISM", LocalizeTrait(IsmStr)),
-                    ("FRIENDSHIP", LocalizeTrait(theImportanceOfFriendshipStr))));
+                // 🔴 2026-08-10 裁剪：目标与动机 / 喜好信息 / 性格和价值观 三段不再拼入——
+                // 这些数据原版不存在（GameDatabase 无记录），所有 NPC 取值雷同（普通/0），
+                // 拼入只有噪声没有差异，还白白烧 token。要差异化的动机走谈判特质等游戏内真实数据。
             }
             // --- 当前状态 (Agent 层面) ---
             if (Mission.Current != null && Mission.Current.MainAgent != null)
@@ -1135,15 +1168,143 @@ namespace LivingWorldNpcs
         {
             StringBuilder sb = new StringBuilder();
 
-            
+
             sb.AppendLine(GetSelfInfo());
-            // --- 势力背景 (调用上面的方法) ---
-            sb.AppendLine(GetClanInfo());
-            sb.AppendLine(GetKingdomInfo());
+            // 🔴 2026-08-10 重构：家族背景/国家势力 平时只拼一句自我认知（GetStandingSummary），
+            // 全量数据（领地/财富/国家实力/战争状态等）在玩家提到相关话题时由
+            // GetMentionedBackgroundPrompt 按需拼入——平时零噪声，聊到了才给细节。
+            sb.AppendLine(GetStandingSummary());
+            // 队伍身份：NPC 知道自己随主公同行（否则会答出"我不认识你"这种出戏回复）
+            sb.AppendLine(GetPartyRoleInfo());
 
-           
+            return sb.ToString();
+        }
 
+        /// <summary>一句话的出身与立场（家族/国家的自我认知，无具体数据）。
+        /// 与 GetClanInfo/GetKingdomInfo（全量数据版）对应；平时人设只拼这段。</summary>
+        public string GetStandingSummary()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_standing", "## My Origins and Allegiance")); // lwn-ignore: B
+            if (BaseHero == null && BaseCharacter == null)
+            {
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", "出身不明，孤身一人。"))); // lwn-ignore: B
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", ("TEXT", "不效忠任何国家。"))); // lwn-ignore: B
+                return sb.ToString();
+            }
+            if (BaseHero == null)
+            {
+                // 模板 NPC（士兵/村民）：一介平民的自我认知
+                string role = LocalizeRole(BaseCharacter.IsSoldier);
+                sb.AppendLine(ClanId != ""
+                    ? LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", $"我是一介{role}，在 {Clan} 麾下服役谋生。")) // lwn-ignore: B
+                    : LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", $"我是一介{role}，出身平民。"))); // lwn-ignore: B
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", ("TEXT", "不效忠任何国家。"))); // lwn-ignore: B
+                return sb.ToString();
+            }
+            // Hero 版
+            Clan clan = BaseHero.Clan;
+            if (clan != null)
+            {
+                string selfStatus;
+                if (BaseHero == clan.Leader)
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_leader"); // lwn-ignore: B
+                else if (BaseHero == clan.Leader.Spouse)
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_spouse"); // lwn-ignore: B
+                else if (BaseHero.Father == clan.Leader || BaseHero.Mother == clan.Leader)
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_heir"); // lwn-ignore: B
+                else if (clan.Companions.Contains(BaseHero))
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_companion"); // lwn-ignore: B
+                else
+                    selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_member"); // lwn-ignore: B
+                // "家族家臣/同伴"等状态文本自带"家族"前缀，用"地位"措辞避免"家族的家族X"重复
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", // lwn-ignore: B
+                    ("TEXT", $"我属于 {clan.Name} 家族。我在家族中的地位：{selfStatus}。")));
+            }
+            else if (BaseHero.IsWanderer)
+            {
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", "我是无家可归的游民，独自闯荡。"))); // lwn-ignore: B
+            }
+            else
+            {
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", "我没有什么显赫的家族背景。"))); // lwn-ignore: B
+            }
 
+            Kingdom kingdom = clan?.Kingdom;
+            if (kingdom != null)
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
+                    ("TEXT", $"我效忠于 {kingdom.Name}。")));
+            else
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
+                    ("TEXT", "我不效忠任何国家，是自由之身。")));
+            return sb.ToString();
+        }
+
+        /// <summary>与玩家的关系（队伍身份注入）：NPC 在玩家家族/队伍里时，明确告知玩家是其主公。
+        /// 解决"NPC 不知道自己在玩家队伍、玩家是其主公"的出戏（2026-08-10 日志实锤）。</summary>
+        public string GetPartyRoleInfo()
+        {
+            if (BaseHero == null || Hero.MainHero == null || BaseHero == Hero.MainHero) return "";
+            // 🔴 注意：本类有 string Clan 字段遮蔽类型名，静态访问必须全限定
+            bool inPlayerClan = BaseHero.Clan != null && BaseHero.Clan == TaleWorlds.CampaignSystem.Clan.PlayerClan;
+            bool inPlayerParty = inPlayerClan || FriendlinessHelper.IsPlayerPartyMember(BaseHero);
+            if (!inPlayerParty) return "";
+            string playerName = Hero.MainHero.Name.ToString();
+            var sb = new StringBuilder();
+            sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_lord", "## My Lord")); // lwn-ignore: B
+            if (inPlayerClan)
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_clan", // lwn-ignore: B
+                    "You are a member of the clan of {NAME} (your lord), traveling with him. He feeds and commands you, he is your lord.",
+                    ("NAME", playerName)));
+            else
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_party", // lwn-ignore: B
+                    "You are in the party of {NAME} (your lord), his retainer on campaign.",
+                    ("NAME", playerName)));
+            return sb.ToString();
+        }
+
+        /// <summary>玩家是否自己的主公（同一家族或同队伍）——PromptBuilder 措辞用（"你的主公 vs 对方"）。</summary>
+        public bool IsPlayerSubordinate()
+        {
+            if (BaseHero == null || Hero.MainHero == null || BaseHero == Hero.MainHero) return false;
+            // 🔴 注意：本类有 string Clan 字段遮蔽类型名，静态访问必须全限定
+            if (BaseHero.Clan != null && BaseHero.Clan == TaleWorlds.CampaignSystem.Clan.PlayerClan) return true;
+            return FriendlinessHelper.IsPlayerPartyMember(BaseHero);
+        }
+
+        // 家族/国家话题触发词（提到才拼全量背景；与 WorldFactProvider 主题注册表同思路）
+        private static readonly string[] FamilyTopicKeywords =
+        {
+            "家族", "家世", "出身", "门第", "家门", "你家", "家底", "族人", "family", "clan", "lineage", "background",
+        };
+        private static readonly string[] KingdomTopicKeywords =
+        {
+            "王国", "国家", "效忠", "主公", "君主", "国王", "陛下", "阵营", "势力", "王国归属",
+            "kingdom", "king", "liege", "lord", "faction", "loyalty",
+        };
+
+        /// <summary>玩家提到家族/国家话题时，才拼入全量背景（GetClanInfo/GetKingdomInfo）。
+        /// 平时人设只有 GetStandingSummary 的一句自我认知，零噪声。调用方：IM 回复 / 当面闲聊 / 谈判。</summary>
+        public string GetMentionedBackgroundPrompt(string playerText)
+        {
+            if (string.IsNullOrWhiteSpace(playerText)) return "";
+            var sb = new StringBuilder();
+            foreach (var kw in FamilyTopicKeywords)
+            {
+                if (playerText.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    sb.AppendLine(GetClanInfo());
+                    break;
+                }
+            }
+            foreach (var kw in KingdomTopicKeywords)
+            {
+                if (playerText.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    sb.AppendLine(GetKingdomInfo());
+                    break;
+                }
+            }
             return sb.ToString();
         }
 
@@ -1231,8 +1392,10 @@ namespace LivingWorldNpcs
                 // 6. 特殊修正：流浪者 (Wanderer)
                 if (BaseHero.IsWanderer)
                 {
-                    // 流浪者的身价主要取决于招募费用，通常很低，但我们可以根据装备加成
-                    baseValue = 2000 + (BaseHero.Level * 500);
+                    // 🔴 身价 = 实际招募价（与 RecruitHero 谈判 BaseDifficulty=1.0 统一，见 NegotiationSystem.cs）。
+                    // 旧公式 2000 + level*500（17 级 = 10500）虚高——玩家按谈判 5% 系数实际只花 ~525 就招到人，
+                    // 但 prompt 里 NPC 自报身价 10500，自抬身价出戏。新公式 100 + level*25：17 级 ≈ 525，与招募花费同量级。
+                    baseValue = 100 + (BaseHero.Level * 25);
                 }
                 EstimatedValue = baseValue;
                 return baseValue;
@@ -1260,7 +1423,8 @@ namespace LivingWorldNpcs
             return LWNTextHelper.ResolveCompound("LWN_prompt_worth_template",
                 ("ORIGIN", LocalizeTrait(OriginStr)),
                 ("VAL", val.ToString("F0")),
-                ("DESC", valDesc));
+                ("DESC", valDesc),
+                ("CURRENCY", Settings.Instance.CurrencyName));
         }
 
         public List<Hero> GetCloseRelations(Hero hero, out string relationStr)

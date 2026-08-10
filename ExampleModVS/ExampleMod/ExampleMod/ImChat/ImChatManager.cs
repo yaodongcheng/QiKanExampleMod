@@ -242,8 +242,11 @@ namespace LivingWorldNpcs
             }
             else
             {
-                // 群聊：store 追加（不写个人记忆，防污染对话漏斗——需求 6「群聊单独处理」）
-                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(PlayerId, Hero.MainHero?.Name?.ToString() ?? "You", trimmed, ImMessageKind.Text));
+                // 群聊：store 追加（公区事实源，需求 6「群聊单独处理」——显示/注入走 store，不污染私聊漏斗）
+                string playerName = Hero.MainHero?.Name?.ToString() ?? "You";
+                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(PlayerId, playerName, trimmed, ImMessageKind.Text));
+                // 方案 B：按参与度写入成员记忆（说话人 + 相邻说话人；旁观者不写）
+                WriteGroupMessageToMemory(conv, PlayerId, playerName, trimmed);
 
                 // 非 LLM 语义检索挑回复者（用户决策 1）+ 10% 概率跟随回复
                 // 热度只给被挑中的回复者（防全频道成员批量加分集体升 Hot 档——「互动多者容量大」应指实际互动者）
@@ -265,6 +268,76 @@ namespace LivingWorldNpcs
             RaiseMessageArrived(conv);
         }
 
+        // ───────────────────────── 群聊 → 个体记忆（方案 B：统一记忆流 + 参与度过滤） ─────────────────────────
+
+        // 每频道最近两个说话人（[0]=S_{i-2}，[1]=S_{i-1}；参与度过滤写入用，运行时态，读档后自动重建）
+        private static readonly Dictionary<string, string[]> _lastChannelSpeakers = new Dictionary<string, string[]>();
+
+        private static readonly object _channelSpeakerLock = new object();
+
+        /// <summary>
+        /// 群聊消息按参与度写入成员记忆（方案 B 统一记忆流 + 参与度过滤，2026-08-10）：
+        /// 每条消息只写给「本消息说话人 + 上一条消息说话人」——旁观者（全程没搭话的成员）不写，
+        /// 他们的频道认知由群聊回复 prompt 的公区注入兜底（ImReplyService）。
+        /// 防重复补写：新说话人 S_i 若不在 M_{i-1} 的参与者集合（{S_{i-1}, S_{i-2}}）中，才把 M_{i-1}
+        /// （他回应的那句）补写给他，避免 A-B-A 三连对话时 A 收到重复行。
+        /// 玩家无记忆系统（跳过）；Role="channel_{channel}"，与私聊 im_user/im_npc 隔离
+        /// （私聊 UI 已按 Role 过滤，频道行不会混入私聊显示）。
+        /// </summary>
+        private static void WriteGroupMessageToMemory(ImConversation conv, string speakerId, string speakerName, string content)
+        {
+            if (conv == null || conv.Type == ImConversationType.Direct) return;
+            try
+            {
+                string channel = conv.Id;
+                string prev, prevPrev;
+                lock (_channelSpeakerLock)
+                {
+                    if (!_lastChannelSpeakers.TryGetValue(channel, out var sp))
+                    {
+                        sp = new string[2];
+                        _lastChannelSpeakers[channel] = sp;
+                    }
+                    prev = sp[1];
+                    prevPrev = sp[0];
+                    // 本消息写入后更新窗口
+                    sp[0] = prev;
+                    sp[1] = speakerId;
+                }
+
+                string role = "channel_" + channel;
+                // 参与者 = 本消息说话人（本人记得自己说过什么，与私聊 im_npc 先例一致）+ 对话对手
+                var participants = new HashSet<string> { speakerId };
+                if (!string.IsNullOrEmpty(prev) && prev != speakerId) participants.Add(prev);
+
+                foreach (var pid in participants)
+                {
+                    if (pid == ImChatManager.PlayerId) continue; // 玩家无记忆系统
+                    var mem = AllNpcMemoryManager.GetMemory(pid);
+                    mem?.AddHistory(role, $"{speakerName}: {content}", speakerId);
+                }
+
+                // 补写上一消息给新说话人（他回应的那句；仅当他原本不在 M_{i-1} 的参与者集合）
+                if (!string.IsNullOrEmpty(prev) && prev != speakerId && speakerId != prevPrev)
+                {
+                    var msgs = ImChatStore.GetGroupMessages(channel);
+                    if (msgs.Count >= 2) // 最后一条是本消息，倒数第二条是 M_{i-1}
+                    {
+                        var prevMsg = msgs[msgs.Count - 2];
+                        if (prevMsg != null && !string.IsNullOrEmpty(prevMsg.Content))
+                        {
+                            var mem = AllNpcMemoryManager.GetMemory(speakerId);
+                            mem?.AddHistory(role, $"{prevMsg.SenderName}: {prevMsg.Content}", prevMsg.SenderHeroId);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] WriteGroupMessageToMemory 失败: {ex.Message}");
+            }
+        }
+
         /// <summary>NPC 回复投递（ImReplyService 生成完成后调用）：私聊写记忆 / 群聊写 store + 未读 + 通知 + 热度。
         /// 玩家体验完善（Q1c）：对方在当前 Mission 场景中 → 头顶冒泡（飞鸽传书送达的即时反馈）。</summary>
         public static void DeliverNpcMessage(ImConversation conv, string npcHeroId, string npcName, string content)
@@ -281,6 +354,8 @@ namespace LivingWorldNpcs
             else
             {
                 ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(npcHeroId, npcName, content, ImMessageKind.Text));
+                // 方案 B：NPC 的频道发言同样按参与度写入成员记忆（其他成员看到他回了什么）
+                WriteGroupMessageToMemory(conv, npcHeroId, npcName, content);
                 ImHeatTracker.Add(npcHeroId, 1f);
             }
 

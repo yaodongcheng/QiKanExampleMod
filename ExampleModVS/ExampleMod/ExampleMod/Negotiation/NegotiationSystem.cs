@@ -1152,7 +1152,9 @@ namespace LivingWorldNpcs
                     Type = NegotiationGoalType.RecruitHero,
                     Name = "招募",
                     Description = "玩家希望NPC加入玩家队伍。",
-                    BaseDifficulty = 0.05f //一般和身价相乘
+                    // 🔴 身价即招募价（与 CalculateEstimatedValue 流浪者公式统一）：0.05 系数会导致
+                    // prompt 自报身价 10500、实际招募只花 ~525 的两套数字，NPC 自抬身价出戏。
+                    BaseDifficulty = 1.0f // 一般和身价相乘（1.0 = 招募花费 = 身价）
                 }
             },
              {

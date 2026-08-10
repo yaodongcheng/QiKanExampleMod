@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 
@@ -116,7 +117,11 @@ namespace LivingWorldNpcs
                     try
                     {
                         if (it.P?.Conv != null && !string.IsNullOrWhiteSpace(it.Reply))
+                        {
                             ImChatManager.DeliverNpcMessage(it.P.Conv, it.P.HeroId, it.P.HeroName, it.Reply);
+                            // 沉寂补偿数据源：记录本次回复时间（群聊选人用）
+                            ImHeatTracker.RecordReply(it.P.HeroId);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -141,12 +146,19 @@ namespace LivingWorldNpcs
                     {
                         // 动态知识注入（RAG）：命中「队伍/位置/时间」主题才拼事实段；队伍事实仅队伍成员可见
                         string facts = WorldFactProvider.BuildFactsForIm(p.RespondText, IsPartyMemberContext(p.Conv));
+                        // 🔴 2026-08-10 修复：speakerName 必须传「发送者」（=玩家）而不是 p.HeroName（NPC 自己）。
+                        // 旧代码把 NPC 自己的名字传进去 → prompt 变成"对方 阿速甘 传讯给你"，
+                        // NPC 以为自己在给自己传讯（日志实锤"他给他传讯"）。
+                        string playerName = Hero.MainHero?.Name?.ToString() ?? "主公";
+                        // 群聊公区注入（方案 B 即时层）：频道近期消息拼入回复 prompt——
+                        // 旁观者（没参与对话的成员）也能接住"频道里刚才聊了什么"；细节不占个人记忆
+                        string channelRecent = BuildChannelRecentSection(p.Conv);
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
-                            memory, ImChatManager.PlayerId, p.HeroName, p.RespondText, facts);
+                            memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
-                        // 🔴 2026-08-10：换行转义 + 截断 300（原样打印 45+ 行难读；转义后与 JSON 侧日志同风格单行）
+                        // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
+                        // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）
                         string promptLog = prompt.Replace("\r", "\\r").Replace("\n", "\\n");
-                        if (promptLog.Length > 300) promptLog = promptLog.Substring(0, 300) + "…";
                         DebugLogger.Log($"[ImReply] 请求发出({p.HeroName}): {promptLog}");
                         // ChatOnceAsync：单次请求、8s 预算（IM 异步可放宽到 2s 之外）、失败静默 null、429 内建冷却
                         reply = await LLMService.Instance.ChatOnceAsync(prompt, 150, 0.8f, disableReasoning: true, timeoutMs: 8000);
@@ -196,6 +208,32 @@ namespace LivingWorldNpcs
                 catch { return false; }
             }
             return false;
+        }
+
+        /// <summary>群聊公区注入：频道近期消息（最近 8 条，带发言人）。
+        /// 方案 B 即时层——旁观者没参与对话也能接住频道话题；细节沉淀由 ImChatManager 参与度写入负责。</summary>
+        private static string BuildChannelRecentSection(ImConversation conv)
+        {
+            if (conv == null || conv.Type == ImConversationType.Direct) return null;
+            try
+            {
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                if (msgs == null || msgs.Count == 0) return null;
+                var sb = new StringBuilder();
+                int from = Math.Max(0, msgs.Count - 8);
+                for (int i = from; i < msgs.Count; i++)
+                {
+                    var m = msgs[i];
+                    if (m == null || string.IsNullOrEmpty(m.Content) || m.IsSystem) continue;
+                    sb.AppendLine($"- {m.SenderName}: {m.Content}");
+                }
+                return sb.Length > 0 ? sb.ToString() : null;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImReply] BuildChannelRecentSection 失败: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>降级模板：按玩家文本命中主题取 LWN_speech_im_reply_{topic}（EN fallback + CN 覆盖）。</summary>

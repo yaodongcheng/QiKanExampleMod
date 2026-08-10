@@ -78,8 +78,39 @@ namespace LivingWorldNpcs
 
         public static ImHeatTier TierOf(string heroId) => TierOf(Get(heroId));
 
-        // ── 群聊回复挑选的加成（0~4 封顶，热度高者优先被回话）──
-        public static float ReplyBonus(string heroId) => Math.Min(Get(heroId), 4f);
+        // ── 群聊回复挑选的加成（选人专用，2026-08-10 上限 4→2.5）──
+        // 🔴 日志实锤：热度衰减按游戏日，同一场 IM 会话内恒定——高互动者（每轮回复 +1）恒满 4.0，
+        // 其他人永远追不上 → "怎么一直只有你一个人说话"。上限降到 2.5：差距缩到 1.0，
+        // 抖动(0~2)能让其他人有机会开口；点名（@提及 +5）与新人沉寂补偿(2.5)依然保证必回。
+        // 注意：只影响选人，不影响记忆容量档（容量档走 Get/TierOf，仍是 0~4 语义）。
+        public static float ReplyBonus(string heroId) => Math.Min(Get(heroId), 2.5f);
+
+        // ── 群聊回复挑选的沉寂补偿（没回过话/久未回话的成员优先开口，2026-08-10）──
+        // 背景：新招募成员 heat=0，语义匹配 + 抖动永远挑不中 → 频道里永远是老面孔在说话。
+        private static readonly Dictionary<string, double> _lastReplyAt = new Dictionary<string, double>();
+
+        /// <summary>记录一次回复投递（墙钟秒；ImReplyService 投递成功后调用）。</summary>
+        public static void RecordReply(string heroId)
+        {
+            if (string.IsNullOrEmpty(heroId)) return;
+            lock (_lastReplyAt)
+            {
+                _lastReplyAt[heroId] = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            }
+        }
+
+        /// <summary>沉寂补偿分（0~2.5）：从未回过话 +2.5（新人必回一次自我介绍）；
+        /// 回过话按距上次回复的墙钟小时递增（每 24h +0.5，封顶 2.5）。</summary>
+        public static float SilenceBonus(string heroId)
+        {
+            if (string.IsNullOrEmpty(heroId)) return 0f;
+            lock (_lastReplyAt)
+            {
+                if (!_lastReplyAt.TryGetValue(heroId, out var last)) return 2.5f;
+                double hours = (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - last) / 3600.0;
+                return Math.Min(2.5f, (float)(hours / 24.0 * 0.5));
+            }
+        }
 
         // ── 存档 ──
 

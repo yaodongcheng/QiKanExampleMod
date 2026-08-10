@@ -132,6 +132,17 @@ namespace LivingWorldNpcs
                 if (sentences != null && currentSentenceNo >= 0 && currentSentenceNo < sentences.Count)
                     isPlayer = sentences[currentSentenceNo].IsPlayer;
 
+                // 解析对话英雄（NPC 台词归属 + 记忆写入都用它）
+                Hero npcHero = null;
+                try
+                {
+                    var npcChar = __instance.SpeakerAgent?.Character as CharacterObject;
+                    npcHero = npcChar?.HeroObject;
+                    if (npcHero == null)
+                        npcHero = __instance.OneToOneConversationHero;
+                }
+                catch { }
+
                 if (isPlayer)
                 {
                     DebugLogger.Log($"[VanillaDialog] Player says: \"{cleanText}\"");
@@ -141,25 +152,45 @@ namespace LivingWorldNpcs
                     string npcInfo = "";
                     try
                     {
-                        // Try SpeakerAgent first (mission conversation, 3D scene)
-                        var npcChar = __instance.SpeakerAgent?.Character as CharacterObject;
-                        var npcHero = npcChar?.HeroObject;
-
-                        // Fallback to OneToOneConversationHero (map conversation, text-based)
-                        if (npcHero == null)
-                            npcHero = __instance.OneToOneConversationHero;
-                        if (npcChar == null && npcHero != null)
-                            npcChar = npcHero.CharacterObject;
-
                         if (npcHero != null)
                             npcInfo = $" | NPC: {npcHero.Name} (HeroId: {npcHero.StringId})";
-                        else if (npcChar != null)
-                            npcInfo = $" | NPC: {npcChar.Name} (CharacterId: {npcChar.StringId})";
+                        else if (__instance.SpeakerAgent?.Character != null)
+                            npcInfo = $" | NPC: {__instance.SpeakerAgent.Character.Name} (CharacterId: {__instance.SpeakerAgent.Character.StringId})";
                     }
                     catch { }
 
                     DebugLogger.Log($"[VanillaDialog] NPC {npcInfo} says: \"{cleanText}\"");
                 }
+
+                // 🔴 记录到 NPC 记忆（2026-08-10：背景故事拼接）——
+                // 招募对话（"我的部队需要你这样的人" → 流浪者身世台词）必须进 NPC 自己的记忆，
+                // 否则 prompt 里永远只有模板数据，没有他"自己说过的话"。
+                // 只记 Hero 对话（模板 NPC 无个体身份）；玩家行 speakerId="player" 让裁剪段能匹配。
+                try
+                {
+                    if (npcHero != null && !string.IsNullOrEmpty(cleanText))
+                    {
+                        var mem = AllNpcMemoryManager.GetMemory(npcHero.StringId);
+                        if (mem != null)
+                        {
+                            string role = isPlayer ? "user" : "assistant";
+                            string speakerId = isPlayer ? ImChatManager.PlayerId : npcHero.StringId;
+                            string speakerName = isPlayer
+                                ? (Hero.MainHero?.Name?.ToString() ?? "玩家")
+                                : (npcHero.Name?.ToString() ?? "NPC");
+                            string line = $"{speakerName}: {cleanText}";
+                            // 去重：与最近一条同角色同内容不重复写（mod 注入对话可能双路径记录同一句）
+                            var recent = mem.SnapshotRecentHistory();
+                            if (recent.Count == 0
+                                || recent[recent.Count - 1].Role != role
+                                || recent[recent.Count - 1].Content != line)
+                            {
+                                mem.AddHistory(role, line, speakerId);
+                            }
+                        }
+                    }
+                }
+                catch { }
             }
             catch { }
         }
