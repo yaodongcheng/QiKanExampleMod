@@ -256,31 +256,39 @@ namespace LivingWorldNpcs
             }
             // 空会话引导（UI 优化：新频道无消息时给玩家一个提示而非空白）
             _vm.IsEmpty = msgs.Count == 0;
-            // 新消息到达：玩家不在底部 → 提示；在底部 → 内容自动可见（贴底闭环）
-            if (hadNew && !IsMessageAtBottom())
-                _vm.HasNewMessageHint = true;
+            // 🔴 九轮：新消息处理二分——玩家在底部（未上拉）→ 自动滚底把新消息弹出来（贴底闭环兜底）；
+            // 玩家在上部（翻历史）→ 才提示「有新消息」
+            if (hadNew)
+            {
+                if (IsMessageAtBottom())
+                    ScrollToBottom();
+                else
+                    _vm.HasNewMessageHint = true;
+            }
             RefreshChannelsDynamic();
         }
 
-        /// <summary>消息流是否在底部（val 接近 max；±8px 容差）。</summary>
+        /// <summary>消息流是否在底部（🔴 十轮：Bottom 对齐时引擎每帧 offset = MaxValue - val——
+        /// val≈0 时 offset=max（InnerPanel 底部=Clip 底部=贴底）；val=max 反而是顶部。±8 容差）。</summary>
         private static bool IsMessageAtBottom()
         {
             try
             {
                 if (_messageScrollPanel?.VerticalScrollbar == null) return true;
                 var sb = _messageScrollPanel.VerticalScrollbar;
-                return sb.ValueFloat >= sb.MaxValue - 8f;
+                return MathF.Abs(sb.ValueFloat) <= 8f;
             }
             catch { return true; }
         }
 
-        /// <summary>滚到消息流底部（🔴 八轮：发消息后自动贴底，翻历史后仍能看到自己的新消息）。</summary>
+        /// <summary>滚到消息流底部（🔴 十轮：设 val=0 → 引擎 offset = MaxValue-0 = max = 贴底；
+        /// 原实现设 val=max 实际跳到顶部——用户实测「发送没拉到底」根因）。</summary>
         public static void ScrollToBottom()
         {
             try
             {
                 if (_messageScrollPanel?.VerticalScrollbar != null)
-                    _messageScrollPanel.VerticalScrollbar.ValueFloat = _messageScrollPanel.VerticalScrollbar.MaxValue;
+                    _messageScrollPanel.VerticalScrollbar.ValueFloat = 0f;
                 if (_vm != null) _vm.HasNewMessageHint = false;
             }
             catch { }
@@ -479,8 +487,9 @@ namespace LivingWorldNpcs
                 if (mouse.X < pos.X || mouse.X > pos.X + size.X || mouse.Y < pos.Y || mouse.Y > pos.Y + size.Y)
                     return;
 
-                // 滚轮向上（delta>0）→ 往历史（ValueFloat 减小）；速度系数与引擎 MouseScrollSpeed 一致量级
-                scrollbar.ValueFloat -= delta * 0.05f;
+                // 方向与引擎公式逐字一致（引擎 offset += DeltaMouseScroll ⇔ val -= DeltaMouseScroll，
+                // 引擎方向经实机验证正确）；clamp [0, max] 防越界（val<0 或 >max 会让 InnerPanel 超界出空白）
+                scrollbar.ValueFloat = MathF.Clamp(scrollbar.ValueFloat - delta * 0.05f, 0f, scrollbar.MaxValue);
             }
             catch (Exception ex)
             {
