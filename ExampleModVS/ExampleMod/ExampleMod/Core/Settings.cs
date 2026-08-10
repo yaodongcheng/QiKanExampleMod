@@ -64,6 +64,8 @@ namespace LivingWorldNpcs
         // 称谓用语默认值：使用"大人"、"爵士"等中世纪语境词汇
         public string WarriorTerms { get; set; } = LWNTextHelper.ResolveText("LWN_config_warrior_terms", "Use terms like \"my lord\" and \"sir\" appropriate to the medieval setting.");
         public string FemaleSelfAddress { get; set; } = "";
+        // IM 新消息系统通知（NinjaReport 顶部横幅）开关（config.json 侧）：面板打开且当前会话时不弹
+        public bool ImNotifyEnabled { get; set; } = true;
         // 货币单位（世界观参数化，config.json 侧）：默认解析原版本地化串 {=hYgmzZJX}
         // （CN="第纳尔" / EN="Denar"，随游戏语言自动变化，避免硬编码）；Mod B（如 TaikouContent）
         // 可在 MySubModule 注入"两"等自世界观货币名。

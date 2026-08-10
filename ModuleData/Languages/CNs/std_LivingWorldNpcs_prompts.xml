@@ -348,7 +348,8 @@
     <string id="LWN_plan_section_intent" text="【意图分类】你只能从以下意图中选择 intent_type（严禁创造未定义类型）：" />
     <string id="LWN_plan_section_grammar" text="【动作词表与谓词词表】" />
       <string id="LWN_plan_im_reply_rule" text="【IM 回复纪律】
-请以你自己的身份，用一句话口语回复对方（贴合中世纪语境，不要用现代网络用语）。只输出台词本身——不要引号、不要冒号、不要任何解释。" />
+请以你自己的身份，用一句话口语回复对方（贴合中世纪语境，不要用现代网络用语）。只输出台词本身——不要引号、不要冒号、不要任何解释。
+**归因纪律**：对话记录和频道消息中的每句话都标注了说话人。只有你亲口说过的话才认领。若主公问罪的是同僚说过的话，如实澄清是谁说的，并替同僚打圆场（如「那是阿速甘说的，回头我让他跟您赔罪」）——绝不认领不属于你的话。" />
     <string id="LWN_prompt_section_standing" text="## 我的出身与立场" />
     <string id="LWN_prompt_standing_family" text="- 家族：{TEXT}" />
     <string id="LWN_prompt_standing_kingdom" text="- 国家：{TEXT}" />
@@ -387,5 +388,13 @@
     <string id="LWN_fact_title_hero_relation" text="## 主公与{NAME}的交情（你随侍在侧，看在眼里）" />
     <string id="LWN_fact_title_hero_age" text="## {NAME}的年岁（坊间皆知）" />
     <string id="LWN_fact_title_hero_other" text="## {NAME}的情况" />
+    <string id="LWN_im_event_battle_win" text="听说主公开了大胜仗！" />
+    <string id="LWN_im_event_battle_lose" text="主公吃了败仗…大伙儿都别灰心，来日方长。" />
+    <string id="LWN_im_event_imprison" text="主公被俘了！这可如何是好？" />
+    <string id="LWN_im_event_release" text="主公平安回来了！" />
+    <string id="LWN_im_event_quest" text="主公接了新差事，有谁知道是什么活计？" />
+    <string id="LWN_im_event_companion" text="队伍里来了新人，给大伙儿介绍介绍？" />
+    <string id="LWN_im_event_raid" text="咱们的村子被抢了！这仇得记下。" />
+    <string id="LWN_im_event_kingdom" text="变天了——有个王国倒了。这世道，谁也说不准明天。" />
 </strings>
 </base>

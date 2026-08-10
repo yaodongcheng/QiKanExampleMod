@@ -128,11 +128,15 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(mem.BackgroundStory)) parts.Add(mem.BackgroundStory);
                 if (!string.IsNullOrEmpty(mem.Personality)) parts.Add(mem.Personality);
                 if (!string.IsNullOrEmpty(mem.Specialty)) parts.Add(mem.Specialty);
-                // 最近发言（最近 5 条，含频道行——话题延续者能接住）
+                // 🔴 最近发言（该成员自己说的最近 5 条，2026-08-10 修复）：
+                // 旧实现取 RecentHistory 前 5 条——玩家连发时全被玩家行占满，自己的发言进不了指纹
+                // → 玩家问"谁说过百来号人"时当事人相似度=0，背锅者被随机选中（日志实锤）。
+                // 过滤 SpeakerId == 本人，保证"谁说过什么谁回应"。
                 int shown = 0;
                 foreach (var m in mem.SnapshotRecentHistory())
                 {
                     if (m == null || string.IsNullOrEmpty(m.Content)) continue;
+                    if (m.SpeakerId != h.StringId) continue;
                     parts.Add(m.Content);
                     if (++shown >= 5) break;
                 }

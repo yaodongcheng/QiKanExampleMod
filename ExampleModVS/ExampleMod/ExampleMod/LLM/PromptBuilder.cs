@@ -325,7 +325,7 @@ namespace LivingWorldNpcs
         /// 知识注入段同样按可见性裁剪（队伍成员才见队伍现状）。
         /// 输出：直接一句台词，不要 JSON、不要引号、不要任何解释（ChatOnceAsync 纯文本通道）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -356,6 +356,13 @@ namespace LivingWorldNpcs
             {
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_channel", "## Recent Channel Messages (public talk you witnessed)")); // lwn-ignore: B
                 sb.AppendLine(channelRecent);
+                sb.AppendLine();
+            }
+
+            // 🔴 群聊活力·拌嘴（2026-08-10）：跟随回复者的同僚互动段（关系档位 → 捧/呛/打岔）
+            if (!string.IsNullOrWhiteSpace(peerInteraction))
+            {
+                sb.AppendLine(peerInteraction);
                 sb.AppendLine();
             }
 
@@ -1271,6 +1278,24 @@ namespace LivingWorldNpcs
     ""Personality"": ""我的性格描述"",
     ""Specialty"": ""我的本事描述""
 }");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 事件主动话题评论 prompt（ImEventBroadcaster 用，2026-08-10）：
+        /// NPC 听说玩家经历的大事件（战斗/坐牢/任务/新人/洗劫/王国兴灭）→ 在队伍频道说一句
+        /// 自己的看法。输出：一句台词（非 JSON）。LLM 失败/未配置 → 模板兜底（铁律 1）。
+        /// </summary>
+        public static string BuildPromptForEventComment(Hero speaker, string eventKey, string description)
+        {
+            if (speaker == null) return "";
+            var sb = new StringBuilder();
+            sb.AppendLine($"你是{speaker.Name}，{speaker.Name}是主公队伍里的随从。你刚刚听说了一件大事，想在队伍频道里说句话。");
+            sb.AppendLine($"事件：{description}");
+            sb.AppendLine("要求：");
+            sb.AppendLine("1. 用第一人称，一句口语化的评论（20~40字），符合你对主公的立场（关心/骄傲/担忧/议论）。");
+            sb.AppendLine("2. 不要复述事件细节，就表达你的看法，像在队伍里随口说的一句。");
+            sb.AppendLine("3. 只输出台词本身，不要引号、不要冒号、不要任何解释或 JSON。");
             return sb.ToString();
         }
 

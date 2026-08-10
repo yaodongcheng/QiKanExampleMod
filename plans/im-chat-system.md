@@ -380,3 +380,51 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
 | 弹窗构造/VM/列表绑定/输入框/ModInput 玩法行 | StealBar.xml / InteractArea.xml / PlanCommandFlow.cs:187 / ModInput.cs |
 | 存档：`MyBehavior.SyncData` + `SaveStringGuard.GuardJson`（数组裁剪）+ 分片 key | Core/MyBehavior.cs / Debug/SaveStringGuard.cs |
 | 战斗门控 `Settings.IsInteractionDisabled()` | Core/Settings.cs |
+
+---
+
+## 十三、群聊活力：NPC 互动（2026-08-10 追加）
+
+> **状态**：✅ 已实施（Debug 编译 0 错误；待实机验证）
+> 三个子功能：**拌嘴**（跟随回复升级）、**事件驱动主动话题**（玩家大事件 → NPC 群里发言）、**NinjaReport 新消息通知**。
+> 🔴 **实机卡死修复（2026-08-10）**：初版 `BroadcastPlayerEvent` 在事件回调（主线程）里 `task.GetAwaiter().GetResult()` 同步等 LLM → async-over-sync 死锁（主线程阻塞，continuation 回不来）→ 游戏冻结无崩溃。改为 ImReplyService 同款模式：同步段只做防刷屏+挑人 → 异步 fire-and-forget 生成 → 结果入队 → 主线程 `Tick()` 消费投递。
+
+### 13.1 拌嘴：跟随回复升级为"同僚互动"
+
+- 现状升级前：10% 跟随回复是独立回应玩家，NPC 之间不对话
+- 实现：`ImChatManager.SendPlayerMessage` 给跟随回复者传 `priorPeerId/priorPeerName`（=主回复者）→ `ImReplyService.BuildPeerInteraction` 拼【同僚互动】段 → `BuildPrompt_ImReply` 注入
+- 关系档位：`ImChatManager.DescribeRelation(self, peer)` —— 好感度定基调（≥40 捧 / -10~40 中立 / <-35 呛）+ 原版 trait 性格调色（Valor≥2 爱逞强、Honor≤-1 嘴滑、Calculating≥2 说话拐弯）
+- 指令语义：接话（关系好捧场/关系差呛声/普通插科打诨）或不理他专心回主公
+
+### 13.2 事件驱动主动话题（ImEventBroadcaster.cs）
+
+- 玩家大事件 → 队伍里最健谈的 NPC（热度最高）主动发言 → 走频道+记忆+未读+通知全管道
+- 挂载事件（MyBehavior.RegisterEvents）：`OnPlayerBattleEnd`（胜/败）、`HeroPrisonerTaken/Released`（坐牢/释放）、`QuestLogAdded`（接任务）、`NewCompanionAdded`、`VillageBeingRaided`（仅玩家村庄）、`KingdomDestroyed`
+- 生成：`PromptBuilder.BuildPromptForEventComment`（LLM 一句评论，1.5s 预算）→ 模板兜底（`LWN_im_event_*` 双语 XML）
+- 防刷屏：每 NPC 3 分钟冷却 + 同事件类型 5 分钟去重 + 每日 10 条上限
+- 调试指令：`custom.im_test_event battle_win|battle_lose|imprison|release|quest|companion|raid|kingdom`（与真实事件同入口）
+
+### 13.3 NinjaReport 新消息通知
+
+- `InformationManager.AddSystemNotification`（TaleWorlds.Library，反编译验证签名：单 string 参数）
+- 触发：NPC 群聊消息/主动话题到达，且面板未打开或非当前会话（`ImChatView.Selected`）
+- 开关：`Settings.ImNotifyEnabled`（config.json，默认开）
+
+### 实现文件
+
+| 文件 | 内容 |
+|------|------|
+| ImChat/ImEventBroadcaster.cs | 事件广播器（新）：挑人/生成/防刷屏/管道 |
+| ImChat/ImChatManager.cs | `WriteGroupMessageToMemory` 转 public；`NotifyNewMessage`；`DescribeRelation`；跟随传 prior |
+| ImChat/ImReplyService.cs | `ScheduleReply` 加 prior 参；`BuildPeerInteraction` |
+| LLM/PromptBuilder.cs | `BuildPrompt_ImReply` 加 peerInteraction 段；`BuildPromptForEventComment` |
+| Core/MyBehavior.cs | 挂 7 类 CampaignEvents |
+| Debug/MyCommands.cs | `custom.im_test_event` |
+| Core/Settings.cs | `ImNotifyEnabled` |
+| ModuleData/Languages/*/std_LivingWorldNpcs_prompts.xml | `LWN_im_event_*` ×8 双语 |
+
+### 待实机验证
+
+1. 拌嘴：群里连发消息触发 10% 跟随 → 观察两人是否互动（捧/呛）
+2. 事件：`custom.im_test_event battle_win` → 队伍频道 NPC 主动发言 + NinjaReport 横幅
+3. 通知：面板关闭时收到群消息 → 顶部横幅；打开当前会话 → 不弹

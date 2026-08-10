@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.MapEvents;
 using TaleWorlds.CampaignSystem.Party.PartyComponents;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
@@ -24,6 +25,94 @@ namespace LivingWorldNpcs
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, this.DailyTick);
             CampaignEvents.TickEvent.AddNonSerializedListener(this, this.OnTick);
             CampaignEvents.OnSettlementLeftEvent.AddNonSerializedListener(this, this.OnSettlementLeft);
+
+            // 🔴 群聊活力·事件驱动主动话题（2026-08-10）：玩家经历大事件 → 队伍频道 NPC 主动挑起话题
+            CampaignEvents.OnPlayerBattleEndEvent.AddNonSerializedListener(this, this.OnPlayerBattleEnd);
+            CampaignEvents.HeroPrisonerTaken.AddNonSerializedListener(this, this.OnHeroPrisonerTaken);
+            CampaignEvents.HeroPrisonerReleased.AddNonSerializedListener(this, this.OnHeroPrisonerReleased);
+            CampaignEvents.QuestLogAddedEvent.AddNonSerializedListener(this, this.OnQuestLogAdded);
+            CampaignEvents.NewCompanionAdded.AddNonSerializedListener(this, this.OnNewCompanionAdded);
+            CampaignEvents.VillageBeingRaided.AddNonSerializedListener(this, this.OnVillageRaided);
+            CampaignEvents.KingdomDestroyedEvent.AddNonSerializedListener(this, this.OnKingdomDestroyed);
+        }
+
+        // ───────────────────────── 群聊活力·玩家事件 → 主动话题（2026-08-10） ─────────────────────────
+
+        private void OnPlayerBattleEnd(MapEvent mapEvent)
+        {
+            try
+            {
+                if (mapEvent == null || !mapEvent.IsPlayerMapEvent) return;
+                bool won = mapEvent.WinningSide != BattleSideEnum.None && mapEvent.WinningSide == mapEvent.PlayerSide;
+                string key = won ? "battle_win" : "battle_lose";
+                string desc = won
+                    ? "主公刚刚打赢了一场战斗，大获全胜"
+                    : "主公刚刚打了一场败仗，吃了亏";
+                ImEventBroadcaster.BroadcastPlayerEvent(key, desc);
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImEvent] 战斗事件失败: {ex.Message}"); }
+        }
+
+        private void OnHeroPrisonerTaken(PartyBase capturer, Hero prisoner)
+        {
+            try
+            {
+                if (prisoner != Hero.MainHero) return;
+                ImEventBroadcaster.BroadcastPlayerEvent("imprison", "主公被俘了，如今身陷囹圄");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImEvent] 被俘事件失败: {ex.Message}"); }
+        }
+
+        private void OnHeroPrisonerReleased(Hero released, PartyBase party, IFaction faction, EndCaptivityDetail detail, bool isPlayer)
+        {
+            try
+            {
+                if (released != Hero.MainHero) return;
+                ImEventBroadcaster.BroadcastPlayerEvent("release", "主公平安获释，重获自由");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImEvent] 获释事件失败: {ex.Message}"); }
+        }
+
+        private void OnQuestLogAdded(QuestBase quest, bool isCheat)
+        {
+            try
+            {
+                if (quest == null) return;
+                string title = quest.Title?.ToString() ?? "一桩差事";
+                ImEventBroadcaster.BroadcastPlayerEvent("quest", $"主公接下了一桩新差事：{title}");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImEvent] 接任务事件失败: {ex.Message}"); }
+        }
+
+        private void OnNewCompanionAdded(Hero companion)
+        {
+            try
+            {
+                if (companion == null) return;
+                ImEventBroadcaster.BroadcastPlayerEvent("companion", $"队伍里来了一位新人：{companion.Name}");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImEvent] 新同伴事件失败: {ex.Message}"); }
+        }
+
+        private void OnVillageRaided(Village village)
+        {
+            try
+            {
+                // 只有玩家自己的村庄被洗劫才值得队伍议论（归属走 Settlement.OwnerClan，NPCProfile 同款）
+                if (village?.Settlement?.OwnerClan == null || village.Settlement.OwnerClan != Clan.PlayerClan) return;
+                ImEventBroadcaster.BroadcastPlayerEvent("raid", $"咱们的村庄 {village.Name} 正在被洗劫");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImEvent] 村庄被劫事件失败: {ex.Message}"); }
+        }
+
+        private void OnKingdomDestroyed(Kingdom kingdom)
+        {
+            try
+            {
+                if (kingdom == null) return;
+                ImEventBroadcaster.BroadcastPlayerEvent("kingdom", $"王国 {kingdom.Name} 覆灭了，天下震动");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImEvent] 王国覆灭事件失败: {ex.Message}"); }
         }
 
         

@@ -316,7 +316,8 @@
     <string id="LWN_plan_exec" text="【Execution Requirements】\n1. Ambiguity → fill questions with needs_clarification=true, do not generate a plan. 2. Out of vocabulary → CUSTOM with plan = null, needs_clarification=false and questions=[] (CUSTOM and clarification are MUTUALLY EXCLUSIVE: once classified CUSTOM, honestly refuse — never set needs_clarification). 3. reactions: write reaction plans for every NPC possibly affected by the plan (targets being talked to / invited: write respond = reply out loud, the line is generated live). 4. Lines should sound like a companion speaking in-game, short and natural." />
     <string id="LWN_plan_identity_default" text="You are a companion." />
       <string id="LWN_plan_im_reply_rule" text="【IM Reply Rule】
-Reply as yourself, in one colloquial sentence fitting the medieval setting (no modern slang). Output ONLY the line itself - no quotes, no colons, no explanations." />
+Reply as yourself, in one colloquial sentence fitting the medieval setting (no modern slang). Output ONLY the line itself - no quotes, no colons, no explanations.
+**Attribution discipline**: every line in the chat log and channel messages is labeled with its speaker. Only own the words you actually said. If your lord blames you for something a fellow companion said, honestly clarify who said it and smooth it over for your comrade (e.g. tell him that was Asugan words, you will have him apologize) - never claim words that are not yours." />
     <string id="LWN_prompt_section_standing" text='## My Origins and Allegiance' />
     <string id="LWN_prompt_standing_family" text='- Family: {TEXT}' />
     <string id="LWN_prompt_standing_kingdom" text='- Kingdom: {TEXT}' />
@@ -355,5 +356,13 @@ Reply as yourself, in one colloquial sentence fitting the medieval setting (no m
     <string id="LWN_fact_title_hero_relation" text='## Your Lord Relation with {NAME} (you serve at his side)' />
     <string id="LWN_fact_title_hero_age" text='## Age of {NAME} (common knowledge)' />
     <string id="LWN_fact_title_hero_other" text='## About {NAME}' />
+    <string id="LWN_im_event_battle_win" text='I hear our lord won a great victory!' />
+    <string id="LWN_im_event_battle_lose" text='Our lord took a beating in battle... but we will not lose heart.' />
+    <string id="LWN_im_event_imprison" text='Our lord has been captured! What shall we do?' />
+    <string id="LWN_im_event_release" text='Our lord is free and safe!' />
+    <string id="LWN_im_event_quest" text='Our lord took on a new errand. Does anyone know what it is?' />
+    <string id="LWN_im_event_companion" text='A newcomer joined the party. Who will introduce them?' />
+    <string id="LWN_im_event_raid" text='Our village is being raided! We must remember this grudge.' />
+    <string id="LWN_im_event_kingdom" text='The world has changed - a kingdom has fallen. No one knows what tomorrow brings.' />
 </strings>
 <string id="LWN_plan_example_chat" text="【Chat Mode Example (copy this structure)】TALK_TO multi-turn: say_to omits text, carries topic + outline (2-5 segment direction); both sides' lines are generated live by LLM (4-7 exchanges), ending naturally:&#10;{&quot;id&quot;:&quot;t2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;tavernkeeper&quot;,&quot;topic&quot;:&quot;Ask about tavern business and town news&quot;,&quot;outline&quot;:[&quot;Greeting&quot;,&quot;Business these days&quot;,&quot;Town news&quot;,&quot;Farewell&quot;],&quot;timeout_s&quot;:120},&#10;{&quot;id&quot;:&quot;t3&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;Chatted with the owner&quot;,&quot;timeout_s&quot;:3}" /></base>
