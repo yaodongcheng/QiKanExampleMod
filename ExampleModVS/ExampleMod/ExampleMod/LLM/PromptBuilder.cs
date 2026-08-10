@@ -318,11 +318,13 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// IM 闲聊回复 prompt（ImReplyService 用）：世界观 + 身份（人设聚合）+ 记忆裁剪段 + 对方刚说。
-        /// 叙事铁律：NPC 只见自己的记忆（GetPrompt_RespondContext 按对方过滤），无上帝视角。
+        /// IM 闲聊回复 prompt（ImReplyService 用）：世界观 + 身份（人设聚合）+ 记忆裁剪段 + 对方刚说
+        /// + 动态知识注入段（<see cref="WorldFactProvider"/> 命中才有；平时为空串零注入）。
+        /// 叙事铁律：NPC 只见自己的记忆（GetPrompt_RespondContext 按对方过滤），无上帝视角；
+        /// 知识注入段同样按可见性裁剪（队伍成员才见队伍现状）。
         /// 输出：直接一句台词，不要 JSON、不要引号、不要任何解释（ChatOnceAsync 纯文本通道）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -345,6 +347,13 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrWhiteSpace(ctx))
             {
                 sb.AppendLine(ctx);
+                sb.AppendLine();
+            }
+
+            // 🔴 动态知识注入段（WorldFactProvider：命中「队伍/位置/时间」主题才拼，平时零开销）
+            if (!string.IsNullOrWhiteSpace(worldFacts))
+            {
+                sb.AppendLine(worldFacts);
                 sb.AppendLine();
             }
 

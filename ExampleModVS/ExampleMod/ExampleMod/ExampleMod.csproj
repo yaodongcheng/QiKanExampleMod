@@ -326,6 +326,7 @@
     <!-- LLM -->
     <Compile Include="LLM\LLMService.cs" />
     <Compile Include="LLM\PromptBuilder.cs" />
+    <Compile Include="LLM\WorldFactProvider.cs" />
     <!-- Memory (split from MemoryManager.cs) -->
     <Compile Include="Memory\AllNpcMemoryManager.cs" />
     <Compile Include="Memory\ChatMessage.cs" />

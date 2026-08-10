@@ -25,39 +25,47 @@
                             VerticalAlignment="Center" MarginLeft="24"
                             DoNotAcceptEvents="true"/>
 
-                <!-- 模式切换（闲聊|密令 分段控件）：两段并排，选中段金卡高亮（ButtonWidget IsSelected → Test.Button3 Selected 态）。
-                     「点击段=切到该模式」的心智模型替代旧单按钮 toggle（旧按钮像"点一下闲聊"而非"切换模式"）。
-                     密令段标签随上下文（Mission=密令 / 大地图=行军令）；仅密令可用会话显示（IsModeControlVisible）。 -->
-                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                           StackLayout.LayoutMethod="HorizontalLeftToRight"
-                           HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66"
-                           IsVisible="@IsModeControlVisible">
+                <!-- 模式切换（2026-08-10：分段控件改「静态状态文本 + 切换按钮」）：
+                     状态文本 = 当前模式（「当前：闲聊模式」），按钮 = 动作（「切换到密令」）——
+                     玩家先明确看到当前是什么模式，按钮表达的是切换动作而非模式本身。
+                     密令侧模式名随上下文（Mission=密令 / 大地图=行军令）；仅密令可用会话显示（IsModeControlVisible）。 -->
+                <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66"
+                        IsVisible="@IsModeControlVisible"
+                        DoNotAcceptEvents="true">
                   <Children>
-                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="32"
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@ModeStatusText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#C8C8C8FF"
+                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                DoNotAcceptEvents="true"/>
+                    <!-- 切换到密令按钮（闲聊模式显示；Command.Click 固定方法绑定，故双按钮按模式互斥显示） -->
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
                                   Brush="Test.Button3"
-                                  Command.Click="ExecuteSwitchToChat"
-                                  IsSelected="@IsChatModeActive"
-                                  MarginRight="4">
+                                  Command.Click="ExecuteSwitchToCommand"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center" MarginLeft="10"
+                                  IsVisible="@IsNotCommandMode">
                       <Children>
                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                    Text="@ChatModeLabel" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                    Text="@SwitchModeButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     DoNotAcceptEvents="true"/>
                       </Children>
                     </ButtonWidget>
-                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="32"
+                    <!-- 切换到闲聊按钮（密令模式显示） -->
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
                                   Brush="Test.Button3"
-                                  Command.Click="ExecuteSwitchToCommand"
-                                  IsSelected="@IsCommandModeActive">
+                                  Command.Click="ExecuteSwitchToChat"
+                                  HorizontalAlignment="Right" VerticalAlignment="Center" MarginLeft="10"
+                                  IsVisible="@IsCommandMode">
                       <Children>
                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                    Text="@CommandModeLabel" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                    Text="@SwitchModeButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     DoNotAcceptEvents="true"/>
                       </Children>
                     </ButtonWidget>
                   </Children>
-                </ListPanel>
+                </Widget>
 
                 <!-- 关闭按钮 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
@@ -106,36 +114,45 @@
                                     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                             DoNotAcceptEvents="true">
                                       <Children>
-                                        <!-- 分组标题 -->
-                                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
-                                                    Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="15" Brush.FontColor="#FFD75E99"
+                                        <!-- 分组标题（2026-08-10：加大字距提亮，区块分隔更醒目） -->
+                                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="32"
+                                                    Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="#FFD75E99"
                                                     Brush.TextHorizontalAlignment="Left" HorizontalAlignment="Left" VerticalAlignment="Center"
-                                                    MarginLeft="14" MarginTop="4" MarginBottom="2"
+                                                    MarginLeft="14" MarginTop="6" MarginBottom="4"
                                                     IsVisible="@IsGroupHeader"
                                                     DoNotAcceptEvents="true"/>
 
-                                        <!-- 频道/私聊行 -->
-                                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="42"
+                                        <!-- 频道/私聊行：两行式（🔴 2026-08-10 UX 修复——标题与预览不再挤同一行：标题+未读在上、预览左对齐在下） -->
+                                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="52"
                                                       Brush="ImChat.RowBg"
                                                       IsSelected="@IsSelected"
                                                       Command.Click="ExecuteSelect"
                                                       MarginBottom="4"
                                                       IsVisible="@IsNotGroupHeader">
                                           <Children>
-                                            <!-- 标题：占满行宽、右侧预留副标题/未读位、超长裁剪（长名字不压右侧元素） -->
-                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                        Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="18" Brush.FontColor="@TitleColor"
-                                                        HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14" MarginRight="72"
-                                                        ClipContents="true"
-                                                        DoNotAcceptEvents="true"/>
-                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                            <!-- 第一行：标题（左对齐）+ 未读徽标（右） -->
+                                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="24"
+                                                    VerticalAlignment="Top" MarginLeft="14" MarginRight="12" MarginTop="6"
+                                                    DoNotAcceptEvents="true">
+                                              <Children>
+                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                            Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="17" Brush.FontColor="@TitleColor"
+                                                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginRight="40"
+                                                            ClipContents="true"
+                                                            DoNotAcceptEvents="true"/>
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                            Text="@UnreadText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#FFD75EFF"
+                                                            HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                            IsVisible="@HasUnread"
+                                                            DoNotAcceptEvents="true"/>
+                                              </Children>
+                                            </Widget>
+                                            <!-- 第二行：最后消息预览（左对齐，微信会话列表语义） -->
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="16"
                                                         Text="@Subtitle" Brush="MyBrush_18_White" Brush.FontSize="13" Brush.FontColor="#999999FF"
-                                                        HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="30"
-                                                        DoNotAcceptEvents="true"/>
-                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                        Text="@UnreadText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#FFD75EFF"
-                                                        HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="12"
-                                                        IsVisible="@HasUnread"
+                                                        Brush.TextHorizontalAlignment="Left"
+                                                        VerticalAlignment="Bottom" MarginLeft="14" MarginRight="12" MarginBottom="4"
+                                                        ClipContents="true"
                                                         DoNotAcceptEvents="true"/>
                                           </Children>
                                         </ButtonWidget>
@@ -203,80 +220,94 @@
                                             DoNotAcceptEvents="true">
                                       <Children>
 
-                                        <!-- 他人：左对齐（名字 + 时间 + 气泡；仅普通文本消息，卡片/系统走独立分支） -->
+                                        <!-- 他人：左对齐（名字行在气泡内顶部，被底纹包裹；仅普通文本消息，卡片/系统走独立分支） -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="520"
                                                 HorizontalAlignment="Left"
                                                 IsVisible="@ShowOtherBubble"
                                                 DoNotAcceptEvents="true">
                                           <Children>
-                                            <!-- 名字行：发送者（成员色）+ 相对时间（微信式） -->
-                                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                                       HorizontalAlignment="Left"
-                                                       DoNotAcceptEvents="true">
-                                              <Children>
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
-                                                            HorizontalAlignment="Left"
-                                                            DoNotAcceptEvents="true"/>
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
-                                                            MarginLeft="8" VerticalAlignment="Center"
-                                                            DoNotAcceptEvents="true"/>
-                                              </Children>
-                                            </ListPanel>
+                                            <!-- 气泡：贴内容。🔴 内部必须用垂直 ListPanel 堆叠（普通 Widget 的子元素全部 Layout 到同一
+                                                 rect 会重叠——「文字叠在一起」根因，2026-08-10 三轮修复）；MaxWidth 只放 TextWidget 上 -->
                                             <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                    MaxWidth="520"
-                                                    Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A" MarginTop="2"
+                                                    HorizontalAlignment="Left"
+                                                    Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A"
                                                     DoNotAcceptEvents="true">
                                               <Children>
-                                                <!-- 贴内容气泡：CoverChildren + 文本 MaxWidth 折行（微信式；父测量计入文本 margin 自动包边） -->
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            MaxWidth="520"
-                                                            Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="17" Brush.TextHorizontalAlignment="Left"
-                                                            WordWrapping="Wrap"
-                                                            MarginLeft="12" MarginRight="12" MarginTop="8" MarginBottom="8"
-                                                            DoNotAcceptEvents="true"/>
+                                                <ListPanel Id="LWN_ImChat_BubbleOther" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                                                           DoNotAcceptEvents="true">
+                                                  <Children>
+                                                    <!-- 名字行：气泡内顶部（发送者成员色 + 相对时间），与内容同左缘严格对齐 -->
+                                                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                               StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                               HorizontalAlignment="Left"
+                                                               MarginLeft="12" MarginTop="8"
+                                                               DoNotAcceptEvents="true">
+                                                      <Children>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                                                    HorizontalAlignment="Left"
+                                                                    DoNotAcceptEvents="true"/>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                                                                    MarginLeft="8" VerticalAlignment="Center"
+                                                                    DoNotAcceptEvents="true"/>
+                                                      </Children>
+                                                    </ListPanel>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                MaxWidth="520"
+                                                                Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Left"
+                                                                WordWrapping="Wrap"
+                                                                MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ListPanel>
                                               </Children>
                                             </Widget>
                                           </Children>
                                         </Widget>
 
-                                        <!-- 自己：右对齐（仅普通文本消息） -->
+                                        <!-- 自己：右对齐（名字行在气泡内顶部，被底纹包裹；仅普通文本消息） -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="520"
                                                 HorizontalAlignment="Right"
                                                 IsVisible="@ShowSelfBubble"
                                                 DoNotAcceptEvents="true">
                                           <Children>
-                                            <!-- 名字行：发送者 + 相对时间（自己消息时间在右侧） -->
-                                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                                       HorizontalAlignment="Right"
-                                                       DoNotAcceptEvents="true">
-                                              <Children>
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
-                                                            MarginRight="8" VerticalAlignment="Center"
-                                                            DoNotAcceptEvents="true"/>
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
-                                                            HorizontalAlignment="Right"
-                                                            DoNotAcceptEvents="true"/>
-                                              </Children>
-                                            </ListPanel>
+                                            <!-- 气泡：贴内容 + 右对齐；内部垂直 ListPanel 堆叠（同上）；MaxWidth 只放 TextWidget 上 -->
                                             <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                    MaxWidth="520"
                                                     HorizontalAlignment="Right"
-                                                    Sprite="BlankWhiteSquare_9" Color="#3DA53D33" MarginTop="2"
+                                                    Sprite="BlankWhiteSquare_9" Color="#3DA53D33"
                                                     DoNotAcceptEvents="true">
                                               <Children>
-                                                <!-- 自己消息：气泡贴内容右对齐 + 文本右对齐（QQ 手机版式；短消息紧贴右侧） -->
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            MaxWidth="520"
-                                                            Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="17" Brush.TextHorizontalAlignment="Right"
-                                                            WordWrapping="Wrap"
-                                                            MarginLeft="12" MarginRight="12" MarginTop="8" MarginBottom="8"
-                                                            DoNotAcceptEvents="true"/>
+                                                <ListPanel Id="LWN_ImChat_BubbleSelf" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                                                           DoNotAcceptEvents="true">
+                                                  <Children>
+                                                    <!-- 名字行：气泡内顶部右侧（时间 + 名字，名字贴最右），字号与内容统一 -->
+                                                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                               StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                               HorizontalAlignment="Right"
+                                                               MarginLeft="12" MarginRight="12" MarginTop="8"
+                                                               DoNotAcceptEvents="true">
+                                                      <Children>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                                                                    MarginRight="8" VerticalAlignment="Center"
+                                                                    DoNotAcceptEvents="true"/>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                                                    HorizontalAlignment="Right"
+                                                                    DoNotAcceptEvents="true"/>
+                                                      </Children>
+                                                    </ListPanel>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                MaxWidth="520"
+                                                                Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Right"
+                                                                WordWrapping="Wrap"
+                                                                MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ListPanel>
                                               </Children>
                                             </Widget>
                                           </Children>

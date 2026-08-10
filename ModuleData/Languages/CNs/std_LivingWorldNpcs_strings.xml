@@ -4082,5 +4082,7 @@
     <string id="LWN_im_input_placeholder" text="输入消息…" />
     <string id="LWN_im_input_placeholder_cmd" text="下达密令…" />
     <string id="LWN_im_btn_order" text="下令" />
+    <string id="LWN_im_mode_status" text="当前：{MODE}模式" />
+    <string id="LWN_im_btn_switch_mode" text="切换到{MODE}" />
 </strings>
 </base>

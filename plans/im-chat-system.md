@@ -1,9 +1,12 @@
 # IM 即时传讯系统 — 设计方案
 
-> **状态**：✅ 已实施 + 已自查修复 + 交互修复（2026-08-09；待实机验证）
-> **实施记录**：Phase 1-2 数据/核心/回复管线 → Phase 3-4 UI/命令模式 → Phase 5 存档/动态容量 → Phase 6 打磨/本地化 → 微信标准 UI 优化 → 事件驱动交互修复（Debug+Release 编译 0 错误；validate_localization.py 新文件条目清零，剩余为旧文件历史欠账；check_vocab_sync.py 通过；test_im_topics.py 26/26 通过）
+> **状态**：✅ 已实施 + 已自查修复 + 交互修复 + UX 优化（2026-08-10；待实机验证）
+> **实施记录**：Phase 1-2 数据/核心/回复管线 → Phase 3-4 UI/命令模式 → Phase 5 存档/动态容量 → Phase 6 打磨/本地化 → 微信标准 UI 优化 → 事件驱动交互修复 → **UX 优化三连（层级/气泡/模式切换）**（Debug+Release 编译 0 错误；validate_localization.py 新文件条目清零，剩余为旧文件历史欠账；check_vocab_sync.py 通过；test_im_topics.py 26/26 通过）
 > **审查记录（对照方案自查，完成度 93% → 修复后）**：自查发现并修复 6 项——① LLM continuation 跨线程投递（改主线程队列消费，ReactiveAgent 同款模式）；② PlanCard/System 消息与气泡双渲染（ShowOtherBubble/ShowSelfBubble 排除分支）；③ Campaign 侧未订阅 MessageArrived（大地图无通知）；④ 读档时序 Hero 未就绪导致记忆丢失（改待合并字典 + GetMemory 惰性合并）；⑤ 卡片按钮状态陈旧（批准/拒绝/中止后强制重建消息列表）；⑥ 选中会话未读只增不减。另修：群聊热度只给被挑中回复者、Mission 双 tick 门控、记忆无锁竞争快照、补挂墙钟超时、死代码清理（PostSystemMessage/TimeText/FormatRelativeTime/Status 枚举/PlanTarget）、读档消息超限收缩、family 关键词双字化、回复 prompt 规则段迁 XML（LWN_plan_im_reply_rule）
 > **交互修复记录（2026-08-10，用户实测反馈）**：① 大地图暂停（时间流速 0）按 O 打不开——根因 CampaignEvents.TickEvent 暂停时停发；热键驱动改挂 `ScreenBase.OnFrameTick`（Harmony patch，UI 层循环，暂停照常触发，与定居点菜单同层）；`ImChatCampaignBehavior` 删除退役。② 打字输入 o 误关面板——打开/关闭彻底分离：**O 只负责打开**，关闭走 ESC / 手柄 B / 面板外点击 / ✕ 按钮；ESC 由模态层拦截（与 Inquiry 同理，不弹系统菜单）
+> **UX 优化记录（2026-08-10，用户实测反馈三连 + 二轮四项）**：
+> **一轮**：① **UI 层级 20→400**——反编译 SandBox.GauntletUI.dll 实测原生层序：MapBar/MapMenuOverlay（定居点菜单）=202、地图名标=90、MapMenuView=100，IM 原 20 必被盖住；400 高于全部地图玩法 UI（≤310）、低于系统菜单（4400），ESC 系统菜单照常覆盖。② **气泡贴内容**——气泡改 CoverChildren + MaxWidth（TextWidget 上）贴文字宽度；机制经反编译验证（TextLayout 折行条件 = CoverChildren+MaxWidth≠0；父测量含子 Margin）。
+> **二轮（用户二批反馈 4 项）**：③ **IM 日志补全**——玩家消息（`[ImChat] Player → 会话: "…"`，ExecuteSend 统一入口覆盖闲聊/密令）+ LLM 请求体/回包（`[ImReply] 请求发出/回包/模板降级`，对齐 [ReactiveRespond] 惯例）——此前日志只有异常，无法分析对话上下文。④ **动态知识注入（WorldFactProvider 轻量 RAG）**——玩家消息命中「数据主题」才查询游戏状态拼入 prompt，平时零注入；**主题注册表**架构覆盖"游戏内有数据的任何情况"（v1 十二主题：队伍/金钱/位置/粮草/俘虏/伤员/领地/声望/家族/王国战事/时日/委托，每条 = 触发词表 + 查询函数，新增主题=追加注册）；**问句兜底**：关键词全未命中但玩家在问 → 注入轻量世界概要（队伍/金钱/声望/领地/季节一行式）；**叙事裁剪**：同行者隐私（队伍/金钱/位置/粮草/俘虏/伤员/任务）仅队伍成员可见（队伍频道/随从私聊），普世事实（领地/声望/家族/战争/时间——地图可见人尽皆知）任何会话可注入。⑤ **气泡内名字行**——名字+时间移入气泡内顶部（被底纹包裹、与内容同左/右缘严格对齐），字号统一 16（原名字 14 vs 内容 17）；🔴 顺带修复气泡 MaxWidth 裁掉内容 margin 导致长消息文字溢出底纹的隐患（MaxWidth 只放 TextWidget 上）。⑥ **左栏行内两行式**——标题+未读徽标在上行、最后消息预览左对齐在下行（原预览右对齐与标题挤同一行，用户反馈"队伍和最近消息在同一行了"）；分组标题加大字距提亮。⑦ **模式切换再改版**：分段控件（一轮方案，用户试后反馈"切换生硬"）→ **静态状态文本 + 切换按钮**：状态文本「当前：闲聊模式/密令模式/行军令模式」（ModeStatusText）+ 按钮动作「切换到密令/切换到闲聊」（SwitchModeButtonText）；Command.Click 固定方法绑定 → 双按钮按 IsCommandMode/IsNotCommandMode 互斥显示（各自绑 ExecuteSwitchToCommand/ExecuteSwitchToChat）。新增 LWN_im_mode_status / LWN_im_btn_switch_mode（复合 key，MODE 复用模式名）
 > **相对方案的两处小偏差**：① 热度独立存 `lwn_im_heat` 小 key（不入记忆条目，解耦更简单）；② 密令消息不写 NPC 记忆（Mission 级瞬态，与密令系统"计划不存档"决策一致；注：群聊 store 的命令消息会随 lwn_im_group_* 存档，执行状态读档后保留但执行器不在场，已注释注明）
 > **方案内自相矛盾已裁定**：§七「私聊 IM 显示条数三档（50/30/20）」与 §二「显示上限 = 记忆层容量」冲突——实现以 §二 为准（私聊显示字面同步记忆 RecentHistory，条数随热度档 20/10/4 轮）；§七 该列作废
 > **关联**：[wheels.d/ui.md](rules/wheels.d/ui.md)（UI 轮子）、[wheels.d/memory.md](rules/wheels.d/memory.md)（记忆三件套）、[wheels.d/planner.md](rules/wheels.d/planner.md)（密谋命令系统）、[npc-live-dialogue-memory-plan.md](npc-live-dialogue-memory-plan.md)（记忆+实时对话整合，§七存档决策）、[llm-goap-plan-execution.md](llm-goap-plan-execution.md)（密谋命令系统主文档）
@@ -18,8 +21,8 @@
 | 频道成员解析（队伍/家族/王国/私聊） | ✅ 已实施 | 王国仅族长可见；私聊列表 = 运行时索引（TouchDirectChat 维护，非全文扫描） |
 | 命令模式（计划卡片 + 执行 + 回报） | ✅ 已实施 | 多人协作（subjects 一带多）已激活；当面 Plot 互斥 |
 | 行军令（Campaign 其他 party） | ✅ 已实施 | 规则解析零 LLM；跟随/待命/前往定居点；敌方拒绝 |
-| UI 面板（双栏 + 滚动 + 通知 + 战斗门控） | ✅ 已实施 | 滚动：滚轮/拖条/手柄摇杆/自动滚底/翻阅不打扰（引擎原生） |
-| 微信标准 UI 优化 | ✅ 已实施 | 最后消息预览 / 时间小字 / 成员色 / placeholder / 发送置灰 / 回车发送 / 空会话引导 |
+| UI 面板（双栏 + 滚动 + 通知 + 战斗门控） | ✅ 已实施 | 滚动：滚轮/拖条/手柄摇杆/自动滚底/翻阅不打扰（引擎原生）；层序 400（高于定居点菜单 202/地图名标 90，低于系统菜单 4400） |
+| 微信标准 UI 优化 | ✅ 已实施 | 最后消息预览 / 时间小字 / 成员色 / placeholder / 发送置灰 / 回车发送 / 空会话引导 / **贴内容气泡（CoverChildren+MaxWidth）** / **模式分段控件（闲聊|密令）+ 输入区联动** |
 | 打开/关闭交互 | ✅ 已实施（交互修复） | **O 只开不关**；ESC / 手柄 B / 面板外点击 / ✕ 关闭；暂停可用（ScreenBase patch） |
 | 热度与动态容量（三档） | ✅ 已实施 | 群聊热度只给被挑中回复者（防全员膨胀） |
 | 存档（24 槽分片 + 群聊 + 索引 + 热度） | ✅ 已实施 | 读档延迟合并（防 Hero 未就绪时序） |
@@ -123,6 +126,12 @@ class NpcMemorySaveEntry {       // 存档用：每 Hero 一条（热度独立�
 - **降级链**（铁律 1）：LLM 未配置/超时/失败 → `NpcSpeechResolver.Resolve("im_reply_{topic}", …)` 模板台词（新增 `LWN_speech_im_*` keys）；429 → 复用 `ChatOnceAsync` 内建 10s 全局冷却
 - **防刷**：每 NPC 回复冷却 `ImReplyCooldownSeconds`（默认 5s）；每 NPC 一次只挂一个待回任务，新消息合并进待回内容（玩家连发 10 条 → NPC 只回一条综合的）
 - **正在输入**：LLM 请求在途 → 会话底部显示「XX 正在输入…」（TypingText，UI 上输入栏上方灰字）
+- 🔴 **动态知识注入（世界事实查询引擎，2026-08-10）**：`WorldFactProvider.BuildFactsForIm(playerText, isPartyMember)` —— 玩家消息命中才查询游戏状态拼入 prompt（`BuildPrompt_ImReply` 第 5 参 worldFacts），平时零注入。**三层架构**：
+  - **①识别层（实体优先）**：文本命中已知 Hero（`Hero.AllAliveHeroes` 遍历匹配 FirstName/Name，本地化名字中英文通用；`长度≥2` 防单字误伤）+ 属性词（在哪→location / 关系→relation / 几岁→age）→ 实体查询；**称号表**（陛下/国王/女王→玩家王国君主，首领/族长→玩家家族族长）。🔴 实体命中优先于主题表——根治「拉盖娅在哪」落进队伍位置主题的答非所问。未命中实体 → 主题词表（17 主题）→ 问句兜底
+  - **②查询层（C# 实时查询，铁律 5：动态遍历注册表无硬编码 ID）**：**实体属性**——位置（`PartyBelongedTo.CurrentSettlement/TargetSettlement` 或 `CurrentSettlement`）/ 关系（`Hero.GetRelation` 数值 → 挚友/友好/中立/反感/仇视）/ 年龄；**主题**（17 个）——队伍/金钱/队伍位置/粮草/俘虏/伤员/领地/声望/家族/战事/时日/委托/技能（MBObjectManager 遍历已练技能前 8）/等级/产业（商队/工坊）/**士气**/驻军
+  - **③注入层（叙事分级）**：**可见性**——同行者隐私（队伍/金钱/位置/粮草/俘虏/伤员/任务/技能/等级/产业/士气）仅队伍成员（队伍频道/随从私聊，他们亲历）；普世事实（领地/声望/家族/战争/时间/驻军——地图可见人尽皆知）任何会话可注入。**位置情报分级（实体专属，C# 确定性逻辑非 LLM）**——玩家与目标交战 → 传闻级（「领兵在外，行踪难料」）；同国/中立 → 定居点级精确（「正在萨哥特」）。**问句兜底**：主题/实体全未命中但玩家在问 → 轻量世界概要（队伍/金钱/声望/领地明细/等级年龄/商队工坊/季节）
+  - **LLM 补漏层（Phase B，数据说话后决定）**：规则全未命中+问句 → 轻量 LLM 判定目标主题（max_tokens 50，限查询器存在的主题集合）→ 回落 C# 查询；失败降级概要（铁律 1）。**上不上由日志漏网率决定**（`[ImReply] 请求发出` 落盘注入段，可直接统计）
+  - 玩家问「队伍有多少人」「我们还有多少钱」「我剑术几级」「拉盖娅在哪」→ 随从能如实回答真实数据（防 LLM 瞎编）；「王国频道问队伍人数」→ 无注入（裁剪生效），NPC 诚实不知道。**核心原则：事实全部 C# 实时查询，LLM 永不给事实（防幻觉）**
 - 群聊消息**不写**成员个人记忆（防污染对话漏斗）；直接聊天才写
 
 ### 4.3 非 LLM 语义检索（ImTopicMatcher）
@@ -177,7 +186,8 @@ score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonu
 - **面板**：`canvas_dark` + `frame_9` Extend 18 + 标题带（Inquiry 同款三层构造，StealBar.xml 范本）；全屏遮罩 `#00000066`（40% 黑，🔴 原设计 60% 过暗，降档保留情境感知——用户决策 4 原意）
 - **列表**：`MBBindingList` + `DataSource="{...}"` + `ItemTemplate`；左栏频道行 = ButtonWidget `IsSelected` 高亮 + 未读徽标（金色）；分组标题行（IsGroupHeader 分支）
 - **滚动**：ScrollablePanel + ScrollbarWidget（照 SPChatLog 抄，非 Encyclopedia）——✅ 滚轮/拖条/手柄右摇杆全部引擎原生（反编译确认 OnMouseScroll/OnRightStickMovement）；贴底锚定自动滚底；内容增长时 scrollbar ValueFloat 保持（向上翻阅不打扰）；引擎限制：无惯性滚动
-- **消息气泡**：行容器 `StretchToParent` + 互斥分支（🔴 终版为 `ShowOtherBubble/ShowSelfBubble`，排除 PlanCard/System 防双渲染）；气泡 `BlankWhiteSquare_9` 他人 `#FFFFFF1A`、自己 `#3DA53D33`；名字行 = 发送者（成员色 `NameColor` 哈希取色板）+ 相对时间小字（微信式）；内容行 `WordWrapping="Wrap"`（显式声明防溢出）
+- **消息气泡（🔴 UX 优化 2026-08-10 终版）**：行容器 `StretchToParent` + 互斥分支（`ShowOtherBubble/ShowSelfBubble`，排除 PlanCard/System 防双渲染）；气泡与文本均 `CoverChildren` + `MaxWidth="520"`（**MaxWidth 必须在 TextWidget 上**——TextLayout 折行条件 = CoverChildren+MaxWidth≠0，反编译验证；🔴 放气泡上会把内容 margin 裁掉、长消息文字溢出底纹，已修）；**名字行在气泡内顶部**（被底纹包裹）：他人 = 名字+时间在气泡内左上、自己 = 时间+名字在气泡内右上，与内容同左/右缘严格对齐，**字号统一 16**；🔴 **气泡内必须用垂直 ListPanel（`LWN_ImChat_BubbleOther/Self` + VerticalBottomToTop）堆叠名字行+内容——普通 Widget 的 OnLayout 把所有子元素 Layout 到同一 rect 会完全重叠（「文字叠在一起」根因，三轮实机修复）**；自己文本右对齐（QQ 式）、他人左对齐（微信式）；气泡 `BlankWhiteSquare_9` 他人 `#FFFFFF1A`、自己 `#3DA53D33`
+- **模式切换（🔴 UX 优化 2026-08-10 终版：静态状态文本 + 切换按钮）**：分段控件（用户试后反馈"切换生硬"）改回——状态静态文本「当前：闲聊模式/密令模式/行军令模式」+ 按钮动作「切换到密令/切换到闲聊」（ModeStatusText / SwitchModeButtonText，LWN_im_mode_status / LWN_im_btn_switch_mode 复合 key，MODE 复用模式名）；Command.Click 固定方法绑定 → **双按钮按 IsCommandMode/IsNotCommandMode 互斥显示**（各自绑 ExecuteSwitchToCommand/ExecuteSwitchToChat）；密令侧模式名随上下文（Mission=密令 / 大地图=行军令）；仅密令可用会话显示（IsModeControlVisible）；**输入区联动反馈**：placeholder（输入消息…⇄下达密令…）+ 发送按钮文案（Send⇄Order/下令）
 - **PlanCard**：独立模板分支 + 卡片内 同意/拒绝/中止按钮（批准/拒绝/中止后强制重建消息列表——🔴 只读计算属性不通知，增量追加不刷新按钮状态）
 - **输入**：`EditableTextWidget`（`DefaultSearchText` placeholder「输入消息…」）+ 发送按钮（`IsEnabled="@CanSend"` 空输入置灰）+ **回车发送**（🔴 已实现，非留作增强）
 - **打开/关闭（🔴 交互修复终版，与原文「热键 toggle + ESC 让给系统菜单」完全不同）**：
@@ -201,14 +211,19 @@ score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonu
 | 回车发送 | 微信习惯（`Input.IsKeyReleased(Enter)`） |
 | @提及优先回复 | 文本含成员名 → 该人 +5 必回（ImTopicMatcher） |
 | 频道行标题防溢出 | StretchToParent + MarginRight 预留 + ClipContents 裁剪 |
+| 🔴 **气泡内名字行（2026-08-10 二轮）** | 名字+时间移入气泡内顶部，被底纹包裹、与内容同缘对齐；字号统一 16；MaxWidth 只放 TextWidget（防溢出底纹） |
+| 🔴 **左栏两行式（2026-08-10 二轮）** | 行 = 上行标题+未读徽标（右）/ 下行预览左对齐（原预览右对齐与标题挤同一行）；分组标题加大字距提亮 |
+| 🔴 **三轮实机修复（2026-08-10）** | ① 气泡内 ListPanel 堆叠（普通 Widget 子元素重叠根因，文字叠一起）；② 预览拼完前缀整体截断 13 字符（中文 18 字超栏宽，左栏溢出）；③ 删除「频道」分组标题（用户反馈不需要），队伍/家族/王国直接列顶，仅保留「最近消息」 |
+| 🔴 **模式静态文本+切换按钮（2026-08-10 二轮）** | 「当前：XX模式」状态文本 + 「切换到XX」按钮（双按钮按当前模式互斥显示）；placeholder + 发送按钮文案随模式联动 |
 
 **明确不做（引擎/语境限制）**：圆角气泡（引擎无圆角 sprite，需自制 PNG）、已读回执/消息状态（单机无网络语义）、图片/语音/表情（需求 5 纯文本 + 中世纪语境）、消息合并显示、回到最新按钮（GauntletLayer 不暴露 widget 树）、声音提醒（无合适音效）。
 
 ### 6.3 VM 三件套（项目惯例：`ViewModel` + `[DataSourceProperty]` + `OnPropertyChangedWithValue`）
 - `ImChannelVM`：Title / UnreadCount / IsSelected / Type / Subtitle（成员数）
 - `ImMessageVM`：SenderName / Content / IsSelf / IsSystem / IsPlanCard / PlanSummary / CanApprove / CanReject / CanAbort + `ExecuteApprove/ExecuteReject/ExecuteAbort`
-- `ImChatVM`：ChannelList / Messages / InputText / IsCommandMode / ModeLabel / TypingText / Title + `ExecuteSend/ExecuteClose/ExecuteToggleMode`
+- `ImChatVM`：ChannelList / Messages / InputText / IsCommandMode / TypingText / Title + `ExecuteSend/ExecuteClose/ExecuteSwitchToChat/ExecuteSwitchToCommand`
 - 🔴 绑 Color 的 string 初始值必须合法 8 位 hex（`#RRGGBBAA`）；ListPanel 布局统一 `VerticalBottomToTop` + `Id="LWN_..."`（双版本 swap 补丁）；VM 加属性必同步 XML
+- 🔴 模式控件 VM 属性（2026-08-10 终版）：`ModeStatusText`（当前模式静态文本）/ `SwitchModeButtonText`（切换动作文案）/ `IsCommandMode` + `IsNotCommandMode`（互斥显示双按钮，后者只读互补属性 + setter 联动通知）/ `IsModeControlVisible` / `PlaceholderText` / `SendText`（后两者随模式联动）——旧 `ModeLabel` / `IsModeToggleVisible` / `ExecuteToggleMode` / 分段控件属性（ChatModeLabel/CommandModeLabel/IsChatModeActive/IsCommandModeActive）已删
 
 ## 七、热度与动态容量（✅ 已实施；🔴 群聊加分规则已改版）
 
@@ -282,6 +297,10 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
 - ✅ 已通过：`dotnet build` Debug+Release 0 错误；`validate_localization.py` 新文件条目清零（剩余为旧文件历史欠账）；`check_vocab_sync.py` 通过；`Scripts/test_im_topics.py` 26/26（词表同步 + 打分回归 + @提及 + 概率统计）
 - ⚠️ **实机清单（待验证，按优先级）**：
   - 🔴 **本轮修复重点**：大地图暂停（时间流速 0）按 O 能打开；打字输入 o 不误关面板；ESC 关面板不弹系统菜单（Mission + 大地图双场景）
+  - 🔴 **UX 优化验证（2026-08-10 二轮）**：日志——IM 发消息后 `Debug/StoryEngine_RuntimeLog.txt` 有 `[ImChat] Player →` 玩家消息 + `[ImReply] 请求发出/回包/模板降级`（能完整还原对话上下文）；RAG——队伍频道/随从私聊问「队伍有多少人/还有多少钱/在哪/什么季节」→ 随从答出真实数据；王国频道问「队伍多少人」→ 不知道（裁剪生效）；问无关问题 → 请求体无注入段；气泡——名字行在气泡内被底纹包裹、字号与内容一致（16）、短消息紧贴、长消息不溢出底纹；左栏——行内上行标题+未读、下行预览左对齐，分组标题醒目；模式——状态文本「当前：闲聊模式」+ 按钮「切换到密令」，切换后文本/按钮/placeholder/发送按钮文案立即翻转
+  - 🔴 **实体层验证（2026-08-10 三轮，方案确认后实施）**：同国问「拉盖娅在哪」→ 定居点级精确；交战问 → 传闻级（「领兵在外，行踪难料」）；「我和张三关系咋样」→ 形容词档位；「李四几岁」→ 年龄；「陛下在哪」→ 玩家王国君主；「拉盖娅在哪」不再答出队伍位置（实体优先生效）；士气/驻军主题命中
+  - 🔴 **三轮 UI 修复验证（2026-08-10）**：消息气泡内名字+内容不重叠（普通 Widget 子元素重叠根因已修，气泡内 ListPanel 堆叠）；左栏预览超长被截断（13 字符 + ClipContents 双保险）；左栏无「频道」分组标题（队伍/家族/王国直接列顶，仅「最近消息」分组标题）
+  - 🔴 **UX 优化验证（2026-08-10 一轮）**：定居点菜单打开时按 O——聊天窗完整盖住定居点菜单（不被 202 层压）；ESC 系统菜单仍覆盖 IM（4400 > 400）；自己消息气泡贴文字右对齐（短消息紧贴右侧、长消息 520px 折行后文本右对齐）、他人气泡贴内容左对齐
   - 滚动：消息超一屏时滚轮/拖条/手柄摇杆手感；向上翻阅后新消息到达不打扰（位置保持）
   - 打开/关闭全路径：O 打开 / ESC / 手柄 B / 面板外点击 / ✕ 关闭；Mission 与大地图互切后层清理正常
   - 频道成员正确：队伍/家族全成员、王国频道仅族长且成员=各家族组长、非族长看不到王国频道
@@ -291,7 +310,7 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
   - 行军令：大地图私聊有 party 的 Hero → 跟随/待命/前往定居点；敌方拒绝；词表外拒绝
   - **存档**：保存→读档后 IM 记录 + NPC 记忆 + 热度都在；旧存档兼容；SaveErrorReporter 无告警
   - 热度分档生效：高频互动 NPC 保留更多轮对话；UI 观感（分组标题/预览/成员色/placeholder/置灰/遮罩 40%）
-- **新轮子登记**（待用户确认）：IM 系统整体、ScrollablePanel 滚动容器引入、动态容量记忆存档分片、ScreenBase.OnFrameTick UI 层驱动钩子——进 wheels.d/（ui.md / memory.md / save.md）
+- **新轮子登记**（已登记 2026-08-10）：UI 域新增「GauntletLayer 层序表（原生层序实测）」+「贴内容气泡（CoverChildren+MaxWidth）」两条，进 wheels.d/ui.md；ScrollablePanel 滚动容器、动态容量记忆存档分片、ScreenBase.OnFrameTick UI 层驱动钩子此前已登记/待确认（ui.md / memory.md / save.md）
 
 ## 十三、设计问答与拓展（2026-08-09 补充，Q1-Q5 全部已实施；交互修复见头部「交互修复记录」）
 

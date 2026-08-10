@@ -217,10 +217,10 @@ namespace LivingWorldNpcs
         private string _title = "";
         private string _inputText = "";
         private string _typingText = "";
-        private string _commandModeLabel = "";
+        private string _modeStatusText = "";
+        private string _switchModeButtonText = "";
         private bool _isModeControlVisible;
-        private bool _isChatModeActive = true;
-        private bool _isCommandModeActive;
+        private bool _isCommandMode;
         private string _placeholderText = "";
         private string _sendText = "";
         private bool _isEmpty;
@@ -271,42 +271,49 @@ namespace LivingWorldNpcs
             set { if (_typingText != value) { _typingText = value; OnPropertyChangedWithValue(value, nameof(TypingText)); } }
         }
 
-        /// <summary>分段控件：闲聊段标签（静态）。</summary>
+        /// <summary>模式状态静态文本（2026-08-10：分段控件改「状态文本 + 切换按钮」——玩家先看到当前模式，按钮表达动作）。</summary>
         [DataSourceProperty]
-        // 模式段标签：闲聊
-        public string ChatModeLabel => LWNTextHelper.ResolveText("LWN_im_mode_chat", "Chat");
-
-        /// <summary>分段控件：密令段标签（Mission=密令 / Campaign 大地图=行军令，动态）。</summary>
-        [DataSourceProperty]
-        public string CommandModeLabel
+        public string ModeStatusText
         {
-            get => _commandModeLabel;
-            set { if (_commandModeLabel != value) { _commandModeLabel = value; OnPropertyChangedWithValue(value, nameof(CommandModeLabel)); } }
+            get => _modeStatusText;
+            set { if (_modeStatusText != value) { _modeStatusText = value; OnPropertyChangedWithValue(value, nameof(ModeStatusText)); } }
         }
 
-        /// <summary>闲聊段选中态（金卡高亮；二段互斥）。</summary>
+        /// <summary>模式切换按钮文案（动作语义：「切换到XX」，目标 = 非当前模式）。</summary>
         [DataSourceProperty]
-        public bool IsChatModeActive
+        public string SwitchModeButtonText
         {
-            get => _isChatModeActive;
-            set { if (_isChatModeActive != value) { _isChatModeActive = value; OnPropertyChangedWithValue(value, nameof(IsChatModeActive)); } }
+            get => _switchModeButtonText;
+            set { if (_switchModeButtonText != value) { _switchModeButtonText = value; OnPropertyChangedWithValue(value, nameof(SwitchModeButtonText)); } }
         }
 
-        /// <summary>密令段选中态（金卡高亮；二段互斥）。</summary>
-        [DataSourceProperty]
-        public bool IsCommandModeActive
-        {
-            get => _isCommandModeActive;
-            set { if (_isCommandModeActive != value) { _isCommandModeActive = value; OnPropertyChangedWithValue(value, nameof(IsCommandModeActive)); } }
-        }
-
-        /// <summary>分段控件可见性（密令可用会话 + Plot 总闸 + LLM 已配置；不可用时整个控件隐藏）。</summary>
+        /// <summary>模式控件可见性（密令可用会话 + Plot 总闸 + LLM 已配置；不可用时整个控件隐藏）。</summary>
         [DataSourceProperty]
         public bool IsModeControlVisible
         {
             get => _isModeControlVisible;
             set { if (_isModeControlVisible != value) { _isModeControlVisible = value; OnPropertyChangedWithValue(value, nameof(IsModeControlVisible)); } }
         }
+
+        /// <summary>当前是密令模式（切换按钮互斥显示用：密令模式显示「切换到闲聊」按钮）。</summary>
+        [DataSourceProperty]
+        public bool IsCommandMode
+        {
+            get => _isCommandMode;
+            set
+            {
+                if (_isCommandMode != value)
+                {
+                    _isCommandMode = value;
+                    OnPropertyChangedWithValue(value, nameof(IsCommandMode));
+                    OnPropertyChanged(nameof(IsNotCommandMode));   // 互补属性联动通知
+                }
+            }
+        }
+
+        /// <summary>当前不是密令模式（显示「切换到密令」按钮；与 IsCommandMode 互斥）。</summary>
+        [DataSourceProperty]
+        public bool IsNotCommandMode => !_isCommandMode;
 
         /// <summary>发送按钮文案（随模式联动：闲聊=Send / 密令=Order）。</summary>
         [DataSourceProperty]
@@ -336,10 +343,10 @@ namespace LivingWorldNpcs
 
         public void ExecuteClose() => ImChatView.Close();
 
-        /// <summary>分段控件：切到闲聊段（点击非当前段才有效）。</summary>
+        /// <summary>切换按钮：切到闲聊模式（点击非当前模式才有效）。</summary>
         public void ExecuteSwitchToChat() => ImChatView.ExecuteSwitchToChat();
 
-        /// <summary>分段控件：切到密令段（含可用性检查）。</summary>
+        /// <summary>切换按钮：切到密令模式（含可用性检查）。</summary>
         public void ExecuteSwitchToCommand() => ImChatView.ExecuteSwitchToCommand();
     }
 }

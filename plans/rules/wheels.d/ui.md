@@ -224,3 +224,60 @@ NinjaNotificationManager.Show(shortSummary, () =>
 ```
 
 **关键文件**：`Notify/NinjaNotificationMissionView.cs`（管理器）、`Notify/NinjaNotificationVM.cs`（VM）、`GUI/Prefabs/CustomNotify.xml`（Prefab）。
+
+
+---
+
+## GauntletLayer 层序选择 — 原生地图/菜单层序表（反编译实测）
+
+**问题**：`V.NewLayer(order)` 的 order 选多少？选低了被原生 UI 盖住（IM 曾用 20，被定居点菜单覆盖），选高了压住系统菜单（ESC 菜单 4400）体验更差。
+
+**方案**：反编译 `SandBox.GauntletUI.dll`（v1.4.7 实测）拿到原生层序表，自定义 UI 直接查表选值：
+
+| 原生层（层名） | 层序 | 说明 |
+|------|------|------|
+| 地图名标 MapNameplateLayer | 90 | 大地图标识 |
+| MapMenuView / MapNotification | 100 | 地图菜单主层/通知 |
+| MapBattleSimulation | 101 | 坐镇模拟 |
+| MapArmyOverlay | 201 | 军团覆盖 |
+| **MapBar / MapMenuOverlay** | **202** | 🔴 地图顶栏 + 定居点菜单/城镇菜单覆盖层（点击定居点弹出的菜单） |
+| MapIncidents / HeirSelection / MapMarriageOffer | 203 | 事件/继承人/求婚弹层 |
+| MapConversation | 205 | 地图对话层 |
+| MapRecruit / MapTownManagement / MapTroopSelection / MapTournamentLeaderboard | 206 | 征召/城镇管理/部队选择/锦标赛 |
+| MapBar_ArmyManagement / MapArmyManagement | 300 | 军团管理 |
+| EncyclopediaBar | 310 | 百科全书 |
+| MapEscapeMenu / MapCampaignOptions / MapCheats | 4400+ | 🔴 系统菜单（ESC），自定义 UI 必须低于它 |
+| MapReadyBlocker / MapSave | 9999+ | 加载遮罩，全场景最顶 |
+
+Mission 侧（同 DLL 实测）：NameMarker=1、MissionQuestBar/AlarmState=10、Conversation=ViewOrderPriority。
+
+**调用范例**（IM 聊天窗，2026-08-10）：`V.NewLayer(400, "ImChatLayer")`——高于全部地图玩法 UI（≤310），低于系统菜单（4400），系统菜单照常覆盖（符合「系统菜单自然覆盖」惯例）。
+
+**关键文件**：`Core/VersionCompat.cs`（V.NewLayer）、`ImChat/ImChatView.cs:90`。查表出处：`ilspycmd Modules/SandBox/bin/Win64_Shipping_Client/SandBox.GauntletUI.dll | grep "new GauntletLayer("`。
+
+
+---
+
+## 贴内容气泡（微信式）— TextWidget CoverChildren + MaxWidth
+
+**问题**：聊天气泡要「贴文字宽度」（微信式），而非固定宽度方块。直接 StretchToParent 会全宽（文字看着左/右没对齐）；直接 CoverChildren + WordWrapping 不折行（无限撑宽）。
+
+**方案**：**MaxWidth 必须放 TextWidget 上**，气泡（普通 Widget）CoverChildren 即可——反编译 `TaleWorlds.GauntletUI.dll` 实测两条机制：
+- `TextLayout.MeasureChildren`：`fixedWidth = WidthSizePolicy != CoverChildren || MaxWidth != 0f` → TextWidget 自身 CoverChildren + MaxWidth≠0 时 `GetPreferredSize` 按 MaxWidth 折行；
+- 默认 `LayoutImp.MeasureChildren`：父测量 = `子 MeasuredSize + 子 Margin` → 文本 Margin 天然当 padding 被气泡包住（无需额外 padding 容器）。
+
+```xml
+<!-- 气泡：贴内容；HorizontalAlignment=Right 即右对齐（QQ 式文本再 TextHorizontalAlignment="Right"） -->
+<Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MaxWidth="520"
+        HorizontalAlignment="Right" Sprite="BlankWhiteSquare_9" Color="#3DA53D33">
+  <Children>
+    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                MaxWidth="520"  <!-- 🔴 折行关键：MaxWidth 在 TextWidget 上 -->
+                Text="@Content" Brush.TextHorizontalAlignment="Right"
+                WordWrapping="Wrap"
+                MarginLeft="12" MarginRight="12" MarginTop="8" MarginBottom="8"/>
+  </Children>
+</Widget>
+```
+
+**关键文件**：`GUI/Prefabs/ImChat.xml`（他人/自己气泡两处）。

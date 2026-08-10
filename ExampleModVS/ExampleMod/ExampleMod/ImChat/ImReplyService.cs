@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 
@@ -138,15 +139,25 @@ namespace LivingWorldNpcs
                     var memory = AllNpcMemoryManager.GetMemory(p.HeroId);
                     if (memory != null)
                     {
+                        // 动态知识注入（RAG）：命中「队伍/位置/时间」主题才拼事实段；队伍事实仅队伍成员可见
+                        string facts = WorldFactProvider.BuildFactsForIm(p.RespondText, IsPartyMemberContext(p.Conv));
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
-                            memory, ImChatManager.PlayerId, p.HeroName, p.RespondText);
+                            memory, ImChatManager.PlayerId, p.HeroName, p.RespondText, facts);
+                        // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
+                        DebugLogger.Log($"[ImReply] 请求发出({p.HeroName}): {prompt}");
                         // ChatOnceAsync：单次请求、8s 预算（IM 异步可放宽到 2s 之外）、失败静默 null、429 内建冷却
                         reply = await LLMService.Instance.ChatOnceAsync(prompt, 150, 0.8f, disableReasoning: true, timeoutMs: 8000);
+                        // 🔴 回包落日志（LLM 失败/超时回 null，走下方降级）
+                        DebugLogger.Log($"[ImReply] {p.HeroName} 回包: {reply ?? "<null>"}");
                     }
                 }
 
                 if (string.IsNullOrWhiteSpace(reply))
+                {
                     reply = GetFallbackLine(p);
+                    // 🔴 降级路径落日志（区分 LLM 失败与模板回复）
+                    DebugLogger.Log($"[ImReply] {p.HeroName} 模板降级: {reply}");
+                }
 
                 reply = SanitizeReply(reply, p.HeroName);
 
@@ -165,6 +176,23 @@ namespace LivingWorldNpcs
             {
                 ClearTyping(p.Conv?.Id, p.HeroName);
             }
+        }
+
+        /// <summary>会话成员是否队伍成员（动态知识注入的可见性裁剪：队伍/位置事实只给同行者）。</summary>
+        private static bool IsPartyMemberContext(ImConversation conv)
+        {
+            if (conv == null) return false;
+            if (conv.Type == ImConversationType.Party) return true;
+            if (conv.Type == ImConversationType.Direct && !string.IsNullOrEmpty(conv.PartnerHeroId))
+            {
+                try
+                {
+                    var hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == conv.PartnerHeroId);
+                    return hero != null && FriendlinessHelper.IsPlayerPartyMember(hero);
+                }
+                catch { return false; }
+            }
+            return false;
         }
 
         /// <summary>降级模板：按玩家文本命中主题取 LWN_speech_im_reply_{topic}（EN fallback + CN 覆盖）。</summary>
