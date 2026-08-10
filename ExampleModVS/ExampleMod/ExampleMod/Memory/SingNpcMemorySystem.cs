@@ -17,19 +17,59 @@ namespace LivingWorldNpcs
     {
         // NPC 个人资料
         public readonly NPCProfile _profile;
-        // 1. 近期对话历史 (保留最近10轮)        
+        // 1. 近期对话历史 (保留容量随互动热度动态分档)
         public List<ChatMessage> RecentHistory { get; private set; } = new List<ChatMessage>();
         //实际上，这里的历史记录可以更多一些,比如翻倍，等到MaxRecentHistoryCount*2条时触发记忆维护
-        private const int MaxRecentHistoryCount = 10;
 
-        // 2. 近期记忆，由近期对话历史总结而来，先进先出，最多5个，每条30字以内
+        // 2. 近期记忆，由近期对话历史总结而来，先进先出，最多 MaxDynamicMemoryCount 条，每条30字以内
         public LinkedList<RecentMemory> DynamicMemories { get; private set; } = new LinkedList<RecentMemory>();
-        private const int MaxDynamicMemoryCount = 5;
 
-        // 3. 远期记忆 (Max 300字)
+        // 3. 远期记忆 (上限 MaxPermanentLength 字)
         public StringBuilder PermanentMemory { get; private set; } = new StringBuilder();
-        private const int MaxPermanentLength = 300;
         private volatile bool _isSummarizing = false; // 新增标记
+
+        // ── 动态容量（用户决策 3：互动热度分档，Hot > Normal > Cold；模板 NPC 无热度维持 Normal 现状）──
+        private bool? _isHeroMemory;
+
+        /// <summary>是否 Hero 记忆（按 StringId 能在存活英雄中找到；缓存一次）。模板 NPC（TEMP/无 Hero）→ 永远 Normal 容量。</summary>
+        private bool IsHeroMemory
+        {
+            get
+            {
+                if (_isHeroMemory == null)
+                {
+                    bool found = false;
+                    try
+                    {
+                        if (_profile != null && !string.IsNullOrEmpty(_profile.StringId))
+                            found = TaleWorlds.CampaignSystem.Hero.AllAliveHeroes?.Any(h => h != null && h.StringId == _profile.StringId) == true;
+                    }
+                    catch { }
+                    _isHeroMemory = found;
+                }
+                return _isHeroMemory.Value;
+            }
+        }
+
+        private int ComputeCap(int hot, int normal, int cold)
+        {
+            if (!IsHeroMemory) return normal;
+            switch (ImHeatTracker.TierOf(_profile.StringId))
+            {
+                case ImHeatTier.Hot: return hot;
+                case ImHeatTier.Cold: return cold;
+                default: return normal;
+            }
+        }
+
+        /// <summary>对话历史容量（轮数）：Hot 20 / Normal 10（现状）/ Cold 4。</summary>
+        public int MaxRecentHistoryCount => ComputeCap(20, 10, 4);
+
+        /// <summary>动态记忆容量（条数）：Hot 8 / Normal 5（现状）/ Cold 2。</summary>
+        public int MaxDynamicMemoryCount => ComputeCap(8, 5, 2);
+
+        /// <summary>永久记忆容量（字符）：Hot 500 / Normal 300（现状）/ Cold 100。</summary>
+        public int MaxPermanentLength => ComputeCap(500, 300, 100);
 
         //开场白
         public NpcInitiative CurrentInitiative  = null;
@@ -231,6 +271,52 @@ namespace LivingWorldNpcs
             }
 
             _ = MaintainMemoryAsync();
+        }
+
+        /// <summary>读档重建（MyBehavior.SyncData → AllNpcMemoryManager.DeserializeSlot 调用）。</summary>
+        public void RestoreFromSave(List<ChatMessage> history, List<RecentMemory> dynamic, string permanent)
+        {
+            lock (_lock)
+            {
+                if (history != null)
+                {
+                    RecentHistory.Clear();
+                    RecentHistory.AddRange(history);
+                }
+                if (dynamic != null)
+                {
+                    DynamicMemories.Clear();
+                    foreach (var d in dynamic)
+                    {
+                        if (d != null) DynamicMemories.AddLast(d);
+                    }
+                }
+                PermanentMemory.Clear();
+                if (!string.IsNullOrEmpty(permanent))
+                    PermanentMemory.Append(permanent);
+            }
+        }
+
+        /// <summary>
+        /// 线程安全的历史快照（IM 显示轮询用）：🔴 MaintainMemoryAsync 的 LLM 续体在线程池线程
+        /// 锁内 RemoveRange——主线程直接 foreach RecentHistory 会在极窄窗口抛 InvalidOperationException。
+        /// 读取端一律走快照。
+        /// </summary>
+        public List<ChatMessage> SnapshotRecentHistory()
+        {
+            lock (_lock)
+            {
+                return RecentHistory.ToList();
+            }
+        }
+
+        /// <summary>线程安全的动态记忆快照（IM 淡忘断层检测用，与 SnapshotRecentHistory 同理）。</summary>
+        public List<RecentMemory> SnapshotDynamicMemories()
+        {
+            lock (_lock)
+            {
+                return DynamicMemories.ToList();
+            }
         }
 
         /// <summary>

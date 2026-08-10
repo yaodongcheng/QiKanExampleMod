@@ -109,6 +109,8 @@ namespace LivingWorldNpcs
             mission.AddMissionBehavior(new AttackTriggerMissionLogic());
             //AI
             mission.AddMissionBehavior(new AgentAIController());
+            //IM 传讯（Mission 侧 tick 驱动 + 热键）
+            mission.AddMissionBehavior(new ImChatMissionView());
 
         }
         protected override void InitializeGameStarter(Game game, IGameStarter starterObject)

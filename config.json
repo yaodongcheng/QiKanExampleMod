@@ -20,6 +20,20 @@
   "ShowDebugMessages": false,
   "WitnessSystemEnabled": true,
   // ══════════════════════════════════════════════════════════════
+  // IM 传讯系统（聊天面板，热键 O）数值配置
+  //
+  // ImGroupFollowUpChance  群聊跟随回复概率（0~1）：主回复者之外第二人跟一句的概率，默认 0.1
+  // ImReplyCooldownSeconds 单 NPC 回复冷却（墙钟秒）：防连发刷爆 LLM 限流，默认 5
+  // ImHeatHotThreshold     互动热度分档阈值：热度 ≥ 此值 = 高频互动 → 该 NPC 记忆容量最大档
+  // ImHeatNormalThreshold  互动热度分档阈值：热度 ≥ 此值 = 普通档（现状容量）；以下 = 冷门小容量
+  // ImHeatDecayPerDay      每游戏日热度衰减量（互动多者保持档位，久不互动自然降档）
+  // ══════════════════════════════════════════════════════════════
+  "ImGroupFollowUpChance": 0.1,
+  "ImReplyCooldownSeconds": 5,
+  "ImHeatHotThreshold": 10,
+  "ImHeatNormalThreshold": 3,
+  "ImHeatDecayPerDay": 1,
+  // ══════════════════════════════════════════════════════════════
   // 友方定义（玩家改这里）——修改后保存即生效（下次启动读取）
   //
   // MCM「允许对友方使用敌意互动」开关（默认开启，保持原行为）**关闭**后，
@@ -60,7 +74,10 @@
     // 密令：Plot（对随从下自然语言命令）/ StopPlan（对执行中的随从喊停），同键互斥显示
     //   ——空闲随从旁显示 Plot，执行中的随从旁显示 StopPlan；入口还受 MCM「Action Orders」开关控制（默认关）
     "Plot":            { "Keyboard": "G",     "Gamepad": "LB", "PressMode": "Long" },
-    "StopPlan":        { "Keyboard": "G",     "Gamepad": "LB", "PressMode": "Long" }
+    "StopPlan":        { "Keyboard": "G",     "Gamepad": "LB", "PressMode": "Long" },
+    // IM 传讯：打开聊天面板（战场/对话中禁开；打开后关闭用 ESC / 手柄 B / 点面板外或关闭按钮——
+    // 注意 O 只负责打开，避免打字时误关。手柄不占打开键，走面板右下角通知点击）
+    "IM":              { "Keyboard": "O",     "Gamepad": "",   "PressMode": "Short" }
     // 可选：单独调阈值，如击晕想更久： "Knockout": { ..., "HoldMs": 600 }
   },
   "LongPressDurationMs": 650

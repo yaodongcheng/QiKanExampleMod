@@ -1,4 +1,5 @@
 ﻿
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,9 +11,41 @@ using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
-public static class AllNpcMemoryManager
+    /// <summary>记忆存档条目（每 Hero 一条；Heat 独立走 ImHeatTracker 的小 key）。</summary>
+    [Serializable]
+    public class NpcMemorySaveEntry
     {
+        public string HeroId { get; set; }
+        public List<ChatMessage> RecentHistory { get; set; }
+        public List<RecentMemory> DynamicMemories { get; set; }
+        public string PermanentMemory { get; set; }
+
+        public NpcMemorySaveEntry() { }
+
+        public NpcMemorySaveEntry(string heroId, SingNpcMemorySystem m)
+        {
+            HeroId = heroId;
+            RecentHistory = m.RecentHistory != null ? new List<ChatMessage>(m.RecentHistory) : new List<ChatMessage>();
+            DynamicMemories = m.DynamicMemories != null
+                ? m.DynamicMemories.Select(x => new RecentMemory(x.Content, x.TimeStamp_Start, x.TimeStamp_End)).ToList()
+                : new List<RecentMemory>();
+            PermanentMemory = m.PermanentMemory?.ToString() ?? "";
+        }
+    }
+
+    public static class AllNpcMemoryManager
+    {
+        /// <summary>记忆存档分槽数（单 key ≤ 30KB 防 SaveSystem Strings 表溢出；槽 = 稳定哈希 % 槽数，跨存档稳定）。</summary>
+        public const int SaveSlots = 24;
+
         private static Dictionary<string, SingNpcMemorySystem> _activeMemories = new Dictionary<string, SingNpcMemorySystem>();
+
+        /// <summary>
+        /// 读档待合并条目（heroId → 存档数据）。🔴 关键时序防御：CampaignBehavior.SyncData 加载时
+        /// Hero.AllAliveHeroes 可能尚未填充（对象图遍历顺序不定），直接查 Hero 会全部落空 → 记忆静默丢失。
+        /// 方案：DeserializeSlot 只缓存条目，不查 Hero；GetMemory 惰性创建时自然合并（幂等覆盖）。
+        /// </summary>
+        private static readonly Dictionary<string, NpcMemorySaveEntry> _pendingRestores = new Dictionary<string, NpcMemorySaveEntry>();
 
 
         /// <summary>
@@ -65,6 +98,8 @@ public static class AllNpcMemoryManager
                 NPCProfile profile = GenerateHeroProfile(hero);
                 SingNpcMemorySystem newMemory = new SingNpcMemorySystem(profile);
                 _activeMemories[stringId] = newMemory;
+                // 读档数据合并（Hero 就绪后自然生效；无存档条目 = 无操作）
+                TryMergePendingRestore(newMemory, stringId);
                 return newMemory;
             }
             return null;
@@ -109,6 +144,77 @@ public static class AllNpcMemoryManager
             foreach (var key in keysToRemove)
             {
                 _activeMemories.Remove(key);
+            }
+        }
+
+        // ───────────────────────── 存档（24 槽分片，MyBehavior.SyncData 接线） ─────────────────────────
+
+        /// <summary>FNV-1a 稳定哈希（不依赖 .NET GetHashCode 的实现差异，跨进程/版本稳定）。</summary>
+        private static int StableHash(string s)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (char c in s)
+                {
+                    hash ^= c;
+                    hash *= 16777619;
+                }
+                return (int)hash;
+            }
+        }
+
+        /// <summary>序列化一个槽：Hero 记忆（StringId 稳定），惰性跳过全空；TEMP 模板不存（键含 agent.Index 不稳定）。</summary>
+        public static string SerializeSlot(int slot)
+        {
+            var entries = new List<NpcMemorySaveEntry>();
+            foreach (var kv in _activeMemories)
+            {
+                if (string.IsNullOrEmpty(kv.Key) || kv.Key.StartsWith("TEMP_AGENT_")) continue;
+                if ((StableHash(kv.Key) & 0x7FFFFFFF) % SaveSlots != slot) continue;
+
+                var m = kv.Value;
+                if (m == null) continue;
+                // 惰性：无任何内容的记忆不写盘
+                if ((m.RecentHistory == null || m.RecentHistory.Count == 0)
+                    && (m.DynamicMemories == null || m.DynamicMemories.Count == 0)
+                    && (m.PermanentMemory == null || m.PermanentMemory.Length == 0))
+                    continue;
+
+                entries.Add(new NpcMemorySaveEntry(kv.Key, m));
+            }
+            return Newtonsoft.Json.JsonConvert.SerializeObject(entries);
+        }
+
+        /// <summary>读档缓存一个槽（旧存档无 key → json 为空直接跳过，兼容）。
+        /// 🔴 不在此查 Hero（时序风险，见 _pendingRestores 注释）——只缓存，GetMemory 时合并。</summary>
+        public static void DeserializeSlot(int slot, string json)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(json)) return;
+                var entries = Newtonsoft.Json.JsonConvert.DeserializeObject<List<NpcMemorySaveEntry>>(json);
+                if (entries == null) return;
+                foreach (var entry in entries)
+                {
+                    if (entry == null || string.IsNullOrEmpty(entry.HeroId)) continue;
+                    _pendingRestores[entry.HeroId] = entry;
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[MemorySave] DeserializeSlot({slot}) 失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>GetMemory 创建记忆后合并读档数据（幂等：RestoreFromSave 覆盖；合并后移除防泄漏/防重复）。</summary>
+        private static void TryMergePendingRestore(SingNpcMemorySystem memory, string stringId)
+        {
+            if (memory == null || string.IsNullOrEmpty(stringId)) return;
+            if (_pendingRestores.TryGetValue(stringId, out var entry))
+            {
+                _pendingRestores.Remove(stringId);
+                memory.RestoreFromSave(entry.RecentHistory, entry.DynamicMemories, entry.PermanentMemory);
             }
         }
 

@@ -32,6 +32,9 @@ namespace LivingWorldNpcs
             //AgentControlHelper.TransferGold((Hero)null, Hero.MainHero, 100, notify: false);
             //InformationManager.DisplayMessage(new InformationMessage($"每日低保 +{100}"));
 
+            // IM 互动热度每日衰减（决定 Hero 记忆容量分档，用户决策 3）
+            ImHeatTracker.DecayDaily();
+
             // 村庄动物自然恢复：每天每种被偷动物恢复 1 只
             VillageAnimalTracker.DecayDaily();
 
@@ -128,6 +131,38 @@ namespace LivingWorldNpcs
             dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
             if (dataStore.IsLoading)
                 TheftLedger.Deserialize(theftLedgerJson);
+
+            // ═══ IM 传讯 / Hero 记忆存档（用户决策 3：进存档 + 记忆总结 + 上限 + 动态容量）═══
+            // Hero 记忆 24 槽分片：单槽 ≤ 30KB 防 Strings 表溢出（SaveStringGuard 数组裁剪兜底丢最老记录）；
+            // 槽 = FNV-1a 稳定哈希 % 24（跨存档稳定，不随 NPC 数量/顺序漂移）。
+            for (int slot = 0; slot < AllNpcMemoryManager.SaveSlots; slot++)
+            {
+                string memJson = SaveStringGuard.GuardJson($"lwn_npc_mem_{slot}", AllNpcMemoryManager.SerializeSlot(slot));
+                dataStore.SyncData($"lwn_npc_mem_{slot}", ref memJson);
+                if (dataStore.IsLoading)
+                    AllNpcMemoryManager.DeserializeSlot(slot, memJson);
+            }
+
+            // IM 互动热度（小 key，仅存热度 > 0 的 Hero）
+            string heatJson = SaveStringGuard.GuardJson("lwn_im_heat", ImHeatTracker.Serialize());
+            dataStore.SyncData("lwn_im_heat", ref heatJson);
+            if (dataStore.IsLoading)
+                ImHeatTracker.Deserialize(heatJson);
+
+            // IM 群聊消息（每频道一个 key，GuardJson 数组裁剪丢最老）
+            foreach (var channelId in ImChatStore.GroupChannelIds)
+            {
+                string chatJson = SaveStringGuard.GuardJson($"lwn_im_group_{channelId}", ImChatStore.SerializeGroup(channelId));
+                dataStore.SyncData($"lwn_im_group_{channelId}", ref chatJson);
+                if (dataStore.IsLoading)
+                    ImChatStore.DeserializeGroup(channelId, chatJson);
+            }
+
+            // IM 私聊索引（「最近的单个人的聊天」列表；私聊消息本体在 Hero 记忆里随槽保存）
+            string directJson = SaveStringGuard.GuardJson("lwn_im_direct", ImChatStore.SerializeDirectIndex());
+            dataStore.SyncData("lwn_im_direct", ref directJson);
+            if (dataStore.IsLoading)
+                ImChatStore.DeserializeDirectIndex(directJson);
         }
 
         private void OnTick(float dt)

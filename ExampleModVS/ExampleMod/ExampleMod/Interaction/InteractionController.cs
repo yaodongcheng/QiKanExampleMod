@@ -298,6 +298,10 @@ namespace LivingWorldNpcs
 
             DebugLogger.Log($"[Player] Talk to: {_targetAgent.Name} (hero={_targetHero?.Name?.ToString() ?? "none"})");
 
+            // IM 互动热度：面对面对话开始 +2（用户决策 3：互动多 → 记忆容量大）
+            if (_targetHero != null && !string.IsNullOrEmpty(_targetHero.StringId))
+                ImHeatTracker.Add(_targetHero.StringId, 2f);
+
             _memory = AllNpcMemoryManager.GetMemoryForAgent(target);
 
             _memory.CurrentNegotiationState = null;

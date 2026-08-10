@@ -43,6 +43,8 @@ namespace LivingWorldNpcs
             TabPartyLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_party", "Party");
             // 探查面板按钮：关闭面板
             CloseButtonLabel = LWNTextHelper.ResolveText("LWN_ui_info_btn_close", "Close");
+            // IM 传信按钮：仅 Hero 可见（需求 3：模板 NPC 不进 IM）
+            IsMessengerVisible = _hero != null;
 
             RefreshValues();
         }
@@ -171,6 +173,16 @@ namespace LivingWorldNpcs
             _onClose?.Invoke();
         }
 
+        /// <summary>探查板「传信」：关闭信息板 → 打开 IM 并定位到与该 Hero 的私聊（需求 3：仅 Hero 可用）。</summary>
+        public void ExecuteSendMessage()
+        {
+            if (_hero == null) return;
+            var conv = ImChatManager.GetDirectConversation(_hero.StringId);
+            if (conv == null) return;
+            _onClose?.Invoke();
+            ImChatView.Open(conv);
+        }
+
         // ================= Tab 切换逻辑 =================
 
         public void ExecuteSelectPersonal() => SetTab(1);
@@ -194,6 +206,25 @@ namespace LivingWorldNpcs
         // ================= 属性定义 (Data Source Properties) =================
         [DataSourceProperty]
         public string TitleText { get; set; }
+
+        // ── IM 传信按钮（仅 Hero 可见，需求 3）──
+        private bool _isMessengerVisible;
+        [DataSourceProperty]
+        public bool IsMessengerVisible
+        {
+            get => _isMessengerVisible;
+            set
+            {
+                if (_isMessengerVisible != value)
+                {
+                    _isMessengerVisible = value;
+                    OnPropertyChangedWithValue(value, nameof(IsMessengerVisible));
+                }
+            }
+        }
+        [DataSourceProperty]
+        // 探查面板按钮：传信（仅 Hero 可见）
+        public string MessengerButtonLabel => LWNTextHelper.ResolveText("LWN_im_info_btn_message", "Send Message");
 
         // ── Tab 标签属性 ──
         [DataSourceProperty]

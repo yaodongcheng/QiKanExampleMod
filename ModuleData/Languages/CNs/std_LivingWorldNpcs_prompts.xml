@@ -347,5 +347,7 @@
     <string id="LWN_plan_section_history" text="【澄清历史】（之前的对话，追加改述时参考）" />
     <string id="LWN_plan_section_intent" text="【意图分类】你只能从以下意图中选择 intent_type（严禁创造未定义类型）：" />
     <string id="LWN_plan_section_grammar" text="【动作词表与谓词词表】" />
-  </strings>
+      <string id="LWN_plan_im_reply_rule" text="【IM 回复纪律】
+请以你自己的身份，用一句话口语回复对方（贴合中世纪语境，不要用现代网络用语）。只输出台词本身——不要引号、不要冒号、不要任何解释。" />
+</strings>
 </base>
