@@ -72,34 +72,150 @@ namespace LivingWorldNpcs
             return 0.5f;
         }
 
+        /// <summary>@提及候选名：全名 / 去引号全名 / 引号内称号 / FirstName。
+        /// 玩家口头点名常用称号或简称，全名（含引号）IndexOf 必失败（2026-08-10 日志实锤）。</summary>
+        private static IEnumerable<string> GetMentionCandidates(Hero h)
+        {
+            if (h == null) yield break;
+            string full = h.Name?.ToString() ?? "";
+            if (!string.IsNullOrEmpty(full)) yield return full;
+            string clean = full.Replace("“", "").Replace("”", "").Replace("\"", "");
+            if (!string.IsNullOrEmpty(clean) && clean != full) yield return clean;
+            int q1 = full.IndexOf('“');
+            int q2 = full.LastIndexOf('”');
+            if (q1 >= 0 && q2 > q1 + 1)
+            {
+                string title = full.Substring(q1 + 1, q2 - q1 - 1);
+                if (title.Length >= 2) yield return title;
+            }
+            string first = h.FirstName?.ToString() ?? "";
+            if (!string.IsNullOrEmpty(first) && first.Length >= 2 && first != full) yield return first;
+        }
+
+        // ───────────────────────── 个体文本指纹 + bigram 相似度（2026-08-10） ─────────────────────────
+        // 背景：关键词主题表对"人名/复杂表达"全 miss → default 兜底 → 打分退化成纯热度+随机
+        // （日志实锤"你知道蒙楚格吗" topics=[default]）。方案：给每个成员构建"个体知识指纹"
+        // （名字/称号/职业/家族王国/百科/人设三字段/最近发言），玩家文本 2-gram 与指纹的重叠率
+        // 作为话题相关分（×3 封顶）——"有没有药"只有百草药僧的指纹命中 → 只有他回。
+
+        // 指纹缓存（StringId → (文本, 构建时间戳)；5 分钟过期——百科/人设/发言会变）
+        private static readonly Dictionary<string, (string text, double ts)> _fingerprintCache =
+            new Dictionary<string, (string, double)>();
+        private static readonly object _fpLock = new object();
+        private const double FingerprintCacheSeconds = 300;
+
+        private static string GetFingerprint(Hero h)
+        {
+            if (h == null) return "";
+            lock (_fpLock)
+            {
+                if (_fingerprintCache.TryGetValue(h.StringId, out var cached)
+                    && DateTimeOffset.UtcNow.ToUnixTimeSeconds() - cached.ts < FingerprintCacheSeconds)
+                    return cached.text;
+            }
+            var parts = new List<string>();
+            string full = h.Name?.ToString() ?? "";
+            parts.Add(full);
+            string first = h.FirstName?.ToString() ?? "";
+            if (!string.IsNullOrEmpty(first) && first != full) parts.Add(first);
+            // 家族/王国
+            if (h.Clan != null) parts.Add(h.Clan.Name?.ToString() ?? "");
+            if (h.Clan?.Kingdom != null) parts.Add(h.Clan.Kingdom.Name?.ToString() ?? "");
+            // 人设三字段（身世/性格/本事——个体知识核心）
+            var mem = AllNpcMemoryManager.GetMemory(h.StringId);
+            if (mem != null)
+            {
+                if (!string.IsNullOrEmpty(mem.BackgroundStory)) parts.Add(mem.BackgroundStory);
+                if (!string.IsNullOrEmpty(mem.Personality)) parts.Add(mem.Personality);
+                if (!string.IsNullOrEmpty(mem.Specialty)) parts.Add(mem.Specialty);
+                // 最近发言（最近 5 条，含频道行——话题延续者能接住）
+                int shown = 0;
+                foreach (var m in mem.SnapshotRecentHistory())
+                {
+                    if (m == null || string.IsNullOrEmpty(m.Content)) continue;
+                    parts.Add(m.Content);
+                    if (++shown >= 5) break;
+                }
+            }
+            // Hero 百科文本（"库赛特可汗"这类世界认知）
+            try
+            {
+                string enc = h.EncyclopediaText?.ToString();
+                if (!string.IsNullOrWhiteSpace(enc)) parts.Add(enc);
+            }
+            catch { }
+            string fp = string.Join(" ", parts);
+            lock (_fpLock)
+            {
+                _fingerprintCache[h.StringId] = (fp, DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+            }
+            return fp;
+        }
+
+        /// <summary>中文 2-gram 重叠率（0~1）：玩家文本每 2 字切片在指纹中命中的比例。
+        /// 中文无分词器，bigram 是低成本近似——称号/本事/发言里的相关词会被命中。</summary>
+        private static float BigramSimilarity(string text, string fingerprint)
+        {
+            if (string.IsNullOrWhiteSpace(text) || string.IsNullOrWhiteSpace(fingerprint)) return 0f;
+            var grams = new HashSet<string>();
+            for (int i = 0; i < text.Length - 1; i++)
+            {
+                string g = text.Substring(i, 2);
+                if (!string.IsNullOrWhiteSpace(g)) grams.Add(g);
+            }
+            if (grams.Count == 0) return 0f;
+            int hit = 0;
+            foreach (var g in grams)
+            {
+                if (fingerprint.IndexOf(g, StringComparison.OrdinalIgnoreCase) >= 0) hit++;
+            }
+            return (float)hit / grams.Count;
+        }
+
         /// <summary>
-        /// 挑群聊回复者：score = Σ(命中主题 × 职业亲和) + 热度加成(0~4) + 随机抖动(0~2)。
+        /// 挑群聊回复者：score = Σ(命中主题 × 职业亲和) + @提及(5) + 相似度(0~3) + 热度(0~2.5) + 沉寂(0~2.5) + 随机抖动(0~2)。
         /// 返回 (主回复者, 跟随回复者)。跟随回复者仅当 <see cref="Settings.ImGroupFollowUpChance"/>
         /// 掷中且成员 ≥ 2 时非 null（10% 概率其他人跟着回复，用户决策 1，概率可调）。
         /// 纯规则、零 LLM；全部成员不可用时返回 (null, null)。
+        /// 🔴 打分明细落日志（[ImTopic]）：玩家问"为什么总是他回"时直接看日志定位。
         /// </summary>
         public static (Hero primary, Hero followUp) PickRepliers(List<Hero> members, string playerText)
         {
             if (members == null || members.Count == 0) return (null, null);
 
             var topics = MatchTopics(playerText);
+            DebugLogger.Log($"[ImTopic] 挑人 text=\"{playerText}\" 候选={string.Join(",", members.Select(m => m?.Name?.ToString() ?? "?"))} topics=[{string.Join(",", topics)}]");
 
-            var scored = new List<(Hero hero, float score)>();
+            var scored = new List<(Hero hero, float score, string detail)>();
             foreach (var h in members)
             {
                 if (h == null || h == Hero.MainHero) continue;
                 string occupation = AllNpcMemoryManager.GetMemory(h.StringId)?._profile?.Occupation;
-                float score = 0f;
+                float affSum = 0f;
                 foreach (var t in topics)
-                    score += Affinity(occupation, t);
-                // @提及优先（微信群聊语义）：玩家点名（文本含其名字）→ 大幅加分，必回
-                string heroName = h.Name?.ToString() ?? "";
-                if (!string.IsNullOrEmpty(heroName)
-                    && playerText.IndexOf(heroName, StringComparison.OrdinalIgnoreCase) >= 0)
-                    score += 5f;
-                score += ImHeatTracker.ReplyBonus(h.StringId);
-                score += MBRandom.RandomFloat * 2f; // 抖动：热度/职业相近时不完全可预测
-                scored.Add((h, score));
+                    affSum += Affinity(occupation, t);
+                // @提及优先（微信群聊语义）：玩家点名 → 大幅加分，必回。
+                // 🔴 2026-08-10 修复：全名 IndexOf 匹配不上称号/简称（玩家打"百草药僧"，
+                // 全名"“百草药僧”斯唐纳夫"含引号匹配失败，日志实锤 @提及=0）——
+                // 候选名 = 全名 / 去引号全名 / 引号内称号 / FirstName，任一命中即点名。
+                float mention = 0f;
+                foreach (var cand in GetMentionCandidates(h))
+                {
+                    if (cand.Length >= 2 && playerText.IndexOf(cand, StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        mention = 5f;
+                        break;
+                    }
+                }
+                // 字符串相似度（个体指纹 bigram 重叠率，×3 封顶）
+                float similarity = BigramSimilarity(playerText, GetFingerprint(h)) * 3f;
+                float heat = ImHeatTracker.ReplyBonus(h.StringId);
+                float silence = ImHeatTracker.SilenceBonus(h.StringId);
+                float jitter = MBRandom.RandomFloat * 2f; // 抖动：热度/职业相近时不完全可预测
+                float score = affSum + mention + similarity + heat + silence + jitter;
+                scored.Add((h, score,
+                    $"职业亲和={affSum:F1} @提及={mention:F1} 相似={similarity:F1} 热度={heat:F1} 沉寂={silence:F1} 抖动={jitter:F1}"));
+                DebugLogger.Log($"[ImTopic]   {h.Name} (Occupation={occupation ?? "?"}): {scored[scored.Count - 1].detail} → {score:F1}");
             }
             if (scored.Count == 0) return (null, null);
 
@@ -110,6 +226,7 @@ namespace LivingWorldNpcs
             if (scored.Count >= 2 && MBRandom.RandomFloat < Settings.Instance.ImGroupFollowUpChance)
                 followUp = scored[1].hero;
 
+            DebugLogger.Log($"[ImTopic] → 主回复={primary?.Name} 跟随={followUp?.Name?.ToString() ?? "无"}");
             return (primary, followUp);
         }
     }

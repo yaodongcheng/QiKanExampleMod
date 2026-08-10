@@ -274,7 +274,8 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>读档重建（MyBehavior.SyncData → AllNpcMemoryManager.DeserializeSlot 调用）。</summary>
-        public void RestoreFromSave(List<ChatMessage> history, List<RecentMemory> dynamic, string permanent)
+        public void RestoreFromSave(List<ChatMessage> history, List<RecentMemory> dynamic, string permanent,
+            string backgroundStory = null, string personality = null, string specialty = null)
         {
             lock (_lock)
             {
@@ -294,6 +295,14 @@ namespace LivingWorldNpcs
                 PermanentMemory.Clear();
                 if (!string.IsNullOrEmpty(permanent))
                     PermanentMemory.Append(permanent);
+                // 人设三字段（常驻人设）：旧存档无此字段 → null 不覆盖（保持兼容；
+                // 旧档只有身世 → 其余字段空，懒触发补生成，生成输入含已有身世保持稳定）
+                if (!string.IsNullOrEmpty(backgroundStory))
+                    BackgroundStory = backgroundStory;
+                if (!string.IsNullOrEmpty(personality))
+                    Personality = personality;
+                if (!string.IsNullOrEmpty(specialty))
+                    Specialty = specialty;
             }
         }
 
@@ -368,7 +377,111 @@ namespace LivingWorldNpcs
 
         public string GetPersonaPrompt()
         {
-            return _profile.GetPersonaPrompt();
+            // 🔴 人设精炼懒触发（2026-08-10）：第一次有对话素材时异步生成三字段常驻人设
+            // （身世/性格/本事）；当前回复先用旧人设，生成成功后下次对话自动拼入。幂等，不阻塞。
+            EnsureProfileSummary();
+            var sb = new StringBuilder(_profile.GetPersonaPrompt());
+            if (!string.IsNullOrEmpty(BackgroundStory))
+                sb.AppendLine("\n" + LWNTextHelper.ResolveText("LWN_prompt_section_background", "## My Story") + "\n" + BackgroundStory); // lwn-ignore: B
+            if (!string.IsNullOrEmpty(Personality))
+                sb.AppendLine("\n" + LWNTextHelper.ResolveText("LWN_prompt_section_personality", "## My Temperament") + "\n" + Personality); // lwn-ignore: B
+            if (!string.IsNullOrEmpty(Specialty))
+                sb.AppendLine("\n" + LWNTextHelper.ResolveText("LWN_prompt_section_specialty", "## My Skills") + "\n" + Specialty); // lwn-ignore: B
+            return sb.ToString();
+        }
+
+        // ───────────────────────── 人设精炼（常驻三字段，2026-08-10） ─────────────────────────
+        // 背景：招募台词等素材在 RecentHistory 里会被挤出；性格/技能是引擎真实数值但 LLM 用不好
+        // 硬数字。方案：第一次有素材时一次 LLM 调用精炼成三字段第一人称人设，此后每次对话拼入：
+        //   BackgroundStory 身世（过往） / Personality 性格（数值→人话） / Specialty 本事（技能→人话）。
+        // 🔴 必须存档（NpcMemorySaveEntry 管道，见 AllNpcMemoryManager）——不存档每次读档重生成，
+        // 重复烧 LLM 且人设漂移。旧存档只有 BackgroundStory → 读档后补生成其余字段（生成输入含已有值）。
+
+        public string BackgroundStory { get; set; } = "";
+        public string Personality { get; set; } = "";
+        public string Specialty { get; set; } = "";
+
+        // 生成防重 + 失败冷却（LLM 挂了不会每句话都重试）
+        private static readonly HashSet<string> _generatingStories = new HashSet<string>();
+        private static readonly Dictionary<string, double> _storyAttemptAt = new Dictionary<string, double>();
+        private static readonly object _storyLock = new object();
+        private const double StoryRetryCooldownSeconds = 300; // 失败后 5 分钟冷却再试
+
+        /// <summary>懒触发人设精炼（幂等）：三字段齐备 / 正在生成 / 冷却中 / 无素材 / LLM 未配置 → 跳过。
+        /// 触发成功落日志（[人设精炼] 触发）——排查"为什么没生成"看失败/跳过侧日志。</summary>
+        public void EnsureProfileSummary()
+        {
+            if (!string.IsNullOrEmpty(BackgroundStory)
+                && !string.IsNullOrEmpty(Personality)
+                && !string.IsNullOrEmpty(Specialty)) return;
+            if (!Settings.Instance.IsLLMConfigured) return; // 铁律 1：LLM 不可用不阻塞
+            if (SnapshotRecentHistory().Count == 0) return; // 无素材（招募台词等还没进记忆）
+            string id = _profile?.StringId ?? "";
+            if (string.IsNullOrEmpty(id)) return;
+            lock (_storyLock)
+            {
+                if (_generatingStories.Contains(id)) return;
+                double now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                if (_storyAttemptAt.TryGetValue(id, out var last) && now - last < StoryRetryCooldownSeconds) return;
+                _generatingStories.Add(id);
+                _storyAttemptAt[id] = now;
+            }
+            DebugLogger.Log($"[人设精炼] {_profile?.Name} 触发生成（素材 {SnapshotRecentHistory().Count} 条，缺 身世={string.IsNullOrEmpty(BackgroundStory)} 性格={string.IsNullOrEmpty(Personality)} 本事={string.IsNullOrEmpty(Specialty)}）");
+            _ = GenerateProfileSummaryAsync();
+        }
+
+        private async Task GenerateProfileSummaryAsync()
+        {
+            string id = _profile?.StringId ?? "";
+            try
+            {
+                string prompt = PromptBuilder.BuildPromptForProfileSummary(this);
+                // 🔴 2026-08-10 日志实锤：SummarizeAsync 默认 max_tokens=50 且不关 reasoning——
+                // 50 token 被 reasoning_content 占满 → content 空 → "Model returned empty whitespace" 三连败。
+                // 三字段 JSON 人设必须 300 token + 关闭思考模式。
+                string json = await LLMService.Instance.SummarizeAsync(prompt, showFailureAlert: false,
+                    maxTokens: 300, disableReasoning: true);
+                json = LLMService.CleanJson(json);
+                var resp = JsonConvert.DeserializeObject<ProfileSummaryResponse>(json);
+                bool any = false;
+                if (resp != null)
+                {
+                    string story = resp.BackgroundStory?.Trim();
+                    string person = resp.Personality?.Trim();
+                    string spec = resp.Specialty?.Trim();
+                    lock (_lock)
+                    {
+                        if (!string.IsNullOrWhiteSpace(story))
+                        {
+                            BackgroundStory = story.Length > 100 ? story.Substring(0, 100) : story;
+                            any = true;
+                        }
+                        if (!string.IsNullOrWhiteSpace(person))
+                        {
+                            Personality = person.Length > 60 ? person.Substring(0, 60) : person;
+                            any = true;
+                        }
+                        if (!string.IsNullOrWhiteSpace(spec))
+                        {
+                            Specialty = spec.Length > 60 ? spec.Substring(0, 60) : spec;
+                            any = true;
+                        }
+                    }
+                    if (any)
+                        DebugLogger.Log($"[人设精炼] {_profile?.Name} 完成 身世={BackgroundStory.Length}字 性格={Personality.Length}字 本事={Specialty.Length}字");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[人设精炼] {_profile?.Name} 生成失败: {ex.Message}（{StoryRetryCooldownSeconds}s 冷却后重试）");
+            }
+            finally
+            {
+                lock (_storyLock)
+                {
+                    _generatingStories.Remove(id);
+                }
+            }
         }
        
         public SocialEvent ParseSocialEventJson(string jsonResponse)

@@ -86,7 +86,7 @@ KNOWN_PLACEHOLDERS = {
     "WOUND", "WOUNDED",
     # Prompt template placeholders (NPCProfile / ResolveCompound)
     "AGE", "ALCOHOL", "AMBITION", "ARMIES", "CASTLES", "CLAN_NAME",
-    "CULTURE", "DECEASED", "DESIRE", "DESIRE_TYPE", "ENEMIES",
+    "CULTURE", "CURRENCY", "DECEASED", "DESIRE", "DESIRE_TYPE", "ENEMIES",
     "FRIENDSHIP", "GENDER", "INF", "ISM", "JOB", "KINGDOM",
     "LIFE_GOAL", "MY", "OCC", "OCC1", "OCC2", "ORIGIN",
     "POWER", "RANK", "REL", "RENOWN", "RULER_REL",

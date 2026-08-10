@@ -34,6 +34,14 @@ namespace LivingWorldNpcs
         public string Summary { get; set; }         // 对话总结内容
     }
 
+    /// <summary>人设精炼响应（三字段常驻人设，见 SingNpcMemorySystem.EnsureProfileSummary）。</summary>
+    public class ProfileSummaryResponse
+    {
+        public string BackgroundStory { get; set; } // 身世（第一人称，30~60字）
+        public string Personality { get; set; }     // 性格（数值翻译成人话，20~40字）
+        public string Specialty { get; set; }       // 本事（技能翻译成人话，20~40字）
+    }
+
     public class LLMResponse_SceneConflict
     {
         // NPC 的演出
@@ -480,8 +488,8 @@ namespace LivingWorldNpcs
                 {
                     request.Content = content;
                     request.Headers.TryAddWithoutValidation("Authorization", "Bearer " + key);
-                    // 请求日志（摘要，防刷屏）：确认实时请求确实发出（与 CallApiAsync 全量日志分工）
-                    DebugLogger.Log($"[ReactiveRespond] 请求发出: {(json.Length > 300 ? json.Substring(0, 300) + "…" : json)}");
+                    // 请求日志（2026-08-10 起不再截断：诊断 prompt 拼装必须看全，曾截断 300 导致问题无法定位）
+                    DebugLogger.Log($"[ReactiveRespond] 请求发出: {json}");
                     using (var cts = new CancellationTokenSource(timeoutMs))
                     {
                         var response = await _httpClient.SendAsync(request, cts.Token);
@@ -521,21 +529,27 @@ namespace LivingWorldNpcs
 
         // 总结功能 (将对话压缩为30字记忆)
         /// <param name="showFailureAlert">失败弹玩家红字（玩家对话默认 true；随从对话触发的记忆维护传 false 静默，D4）</param>
-        public async Task<string> SummarizeAsync(string systemPrompt, bool showFailureAlert = true)
+        /// <param name="maxTokens">输出上限（默认 50 只够单字段总结；人设精炼三字段 JSON 必须 300+，
+        /// 日志实锤：50 token 被 reasoning_content 占满 → content 恒空 → "Model returned empty whitespace" 三连败）。</param>
+        /// <param name="disableReasoning">关闭思考模式（同 ChatAsync 说明）：deepseek-v4-flash 默认进思考，
+        /// reasoning 占 output 配额且慢——结构化 JSON 生成必须关。</param>
+        public async Task<string> SummarizeAsync(string systemPrompt, bool showFailureAlert = true,
+            int maxTokens = 50, bool disableReasoning = false)
         {
             var messages = new List<object>
             {
                 new { role = "system", content = systemPrompt},
             };
 
-            var requestBody = new
+            var requestBody = new Dictionary<string, object>
             {
-                model = CurrentModel,
-                messages = messages,
-                temperature = 0.7,
-                max_tokens = 50,
-                response_format = new { type = "json_object" }
+                ["model"] = CurrentModel,
+                ["messages"] = messages,
+                ["temperature"] = 0.7,
+                ["max_tokens"] = maxTokens,
+                ["response_format"] = new { type = "json_object" },
             };
+            if (disableReasoning) requestBody["reasoning_effort"] = "none";
 
             return await CallApiAsync(requestBody, showFailureAlert);
         }

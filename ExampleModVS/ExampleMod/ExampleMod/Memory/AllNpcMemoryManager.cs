@@ -19,6 +19,10 @@ namespace LivingWorldNpcs
         public List<ChatMessage> RecentHistory { get; set; }
         public List<RecentMemory> DynamicMemories { get; set; }
         public string PermanentMemory { get; set; }
+        // 人设精炼三字段（常驻人设，2026-08-10）：一次性生成长期使用，必须存档否则读档后重复生成
+        public string BackgroundStory { get; set; }
+        public string Personality { get; set; }
+        public string Specialty { get; set; }
 
         public NpcMemorySaveEntry() { }
 
@@ -30,6 +34,9 @@ namespace LivingWorldNpcs
                 ? m.DynamicMemories.Select(x => new RecentMemory(x.Content, x.TimeStamp_Start, x.TimeStamp_End)).ToList()
                 : new List<RecentMemory>();
             PermanentMemory = m.PermanentMemory?.ToString() ?? "";
+            BackgroundStory = m.BackgroundStory ?? "";
+            Personality = m.Personality ?? "";
+            Specialty = m.Specialty ?? "";
         }
     }
 
@@ -175,10 +182,13 @@ namespace LivingWorldNpcs
 
                 var m = kv.Value;
                 if (m == null) continue;
-                // 惰性：无任何内容的记忆不写盘
+                // 惰性：无任何内容的记忆不写盘（含人设三字段——只有人设也要存）
                 if ((m.RecentHistory == null || m.RecentHistory.Count == 0)
                     && (m.DynamicMemories == null || m.DynamicMemories.Count == 0)
-                    && (m.PermanentMemory == null || m.PermanentMemory.Length == 0))
+                    && (m.PermanentMemory == null || m.PermanentMemory.Length == 0)
+                    && string.IsNullOrEmpty(m.BackgroundStory)
+                    && string.IsNullOrEmpty(m.Personality)
+                    && string.IsNullOrEmpty(m.Specialty))
                     continue;
 
                 entries.Add(new NpcMemorySaveEntry(kv.Key, m));
@@ -214,7 +224,8 @@ namespace LivingWorldNpcs
             if (_pendingRestores.TryGetValue(stringId, out var entry))
             {
                 _pendingRestores.Remove(stringId);
-                memory.RestoreFromSave(entry.RecentHistory, entry.DynamicMemories, entry.PermanentMemory);
+                memory.RestoreFromSave(entry.RecentHistory, entry.DynamicMemories, entry.PermanentMemory,
+                    entry.BackgroundStory, entry.Personality, entry.Specialty);
             }
         }
 

@@ -317,5 +317,43 @@
     <string id="LWN_plan_identity_default" text="You are a companion." />
       <string id="LWN_plan_im_reply_rule" text="【IM Reply Rule】
 Reply as yourself, in one colloquial sentence fitting the medieval setting (no modern slang). Output ONLY the line itself - no quotes, no colons, no explanations." />
+    <string id="LWN_prompt_section_standing" text='## My Origins and Allegiance' />
+    <string id="LWN_prompt_standing_family" text='- Family: {TEXT}' />
+    <string id="LWN_prompt_standing_kingdom" text='- Kingdom: {TEXT}' />
+    <string id="LWN_prompt_section_lord" text='## My Lord' />
+    <string id="LWN_prompt_lord_clan" text='You are a member of the clan of {NAME} (your lord), traveling with him. He feeds and commands you, he is your lord.' />
+    <string id="LWN_prompt_lord_party" text='You are in the party of {NAME} (your lord), his retainer on campaign.' />
+    <string id="LWN_prompt_section_reputation" text='## What People Say of Me' />
+    <string id="LWN_prompt_section_background" text='## My Story' />
+    <string id="LWN_prompt_section_personality" text='## My Temperament' />
+    <string id="LWN_prompt_section_specialty" text='## My Skills' />
+    <string id="LWN_prompt_section_channel" text='## Recent Channel Messages (public talk you witnessed)' />
+    <string id="LWN_prompt_im_sender_lord" text='Your lord {NAME} just sent you a message:' />
+    <string id="LWN_prompt_im_sender_other" text='{NAME} just sent you a message:' />
+    <string id="LWN_prompt_summary_channel_mark" text='(channel)' />
+    <string id="LWN_prompt_profile_no_skill" text='- No outstanding skills' />
+    <string id="LWN_prompt_profile_skill_unavailable" text='- (skill data unavailable)' />
+    <string id="LWN_fact_title_party" text='## The Party (you see it with your own eyes)' />
+    <string id="LWN_fact_title_gold" text='## Funds (shared by the party, you know roughly)' />
+    <string id="LWN_fact_title_location" text='## Current Location (you travel with your lord)' />
+    <string id="LWN_fact_title_food" text='## Provisions (party supplies, you see them)' />
+    <string id="LWN_fact_title_prisoner" text='## Prisoners (held by the party, you see them)' />
+    <string id="LWN_fact_title_wounded" text='## Wounded (in the party, you see them)' />
+    <string id="LWN_fact_title_fief" text='## Fiefs (shown on maps, common knowledge)' />
+    <string id="LWN_fact_title_renown" text='## Renown and Influence (half-public talk)' />
+    <string id="LWN_fact_title_family" text='## Family (kin ties, public knowledge)' />
+    <string id="LWN_fact_title_war" text='## Kingdoms and War (inn rumors, common knowledge)' />
+    <string id="LWN_fact_title_time" text='## Time (common knowledge)' />
+    <string id="LWN_fact_title_quest" text='## Quests (your lord affairs, you hear a little)' />
+    <string id="LWN_fact_title_skill" text='## Your Lord Skills (party members see them clearly)' />
+    <string id="LWN_fact_title_level" text='## Your Lord Experience (party members see it)' />
+    <string id="LWN_fact_title_business" text='## Ventures (your lord businesses, heard by companions)' />
+    <string id="LWN_fact_title_morale" text='## Morale (the party spirit, you see it)' />
+    <string id="LWN_fact_title_garrison" text='## Garrison (banners on the walls, common knowledge)' />
+    <string id="LWN_fact_title_summary" text='## World Overview (common facts you know)' />
+    <string id="LWN_fact_title_hero_location" text='## Whereabouts of {NAME} (rumors and sightings)' />
+    <string id="LWN_fact_title_hero_relation" text='## Your Lord Relation with {NAME} (you serve at his side)' />
+    <string id="LWN_fact_title_hero_age" text='## Age of {NAME} (common knowledge)' />
+    <string id="LWN_fact_title_hero_other" text='## About {NAME}' />
 </strings>
 <string id="LWN_plan_example_chat" text="【Chat Mode Example (copy this structure)】TALK_TO multi-turn: say_to omits text, carries topic + outline (2-5 segment direction); both sides' lines are generated live by LLM (4-7 exchanges), ending naturally:&#10;{&quot;id&quot;:&quot;t2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;tavernkeeper&quot;,&quot;topic&quot;:&quot;Ask about tavern business and town news&quot;,&quot;outline&quot;:[&quot;Greeting&quot;,&quot;Business these days&quot;,&quot;Town news&quot;,&quot;Farewell&quot;],&quot;timeout_s&quot;:120},&#10;{&quot;id&quot;:&quot;t3&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;Chatted with the owner&quot;,&quot;timeout_s&quot;:3}" /></base>
