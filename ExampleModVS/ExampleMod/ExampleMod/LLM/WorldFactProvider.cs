@@ -147,6 +147,15 @@ namespace LivingWorldNpcs
                 Keywords = new[] { "驻军", "守军", "守备", "城防", "garrison", "defenders", "guards" },
                 Query = QueryGarrisonFact,
             },
+            // 🔴 队伍成员名单（2026-08-10 幻觉修复）：玩家问"其他人呢/还有谁/随从是谁"时注入真实名单，
+            // 否则 LLM 开放式编人（日志实锤：编出"两个随从小满山杏"并持续圆谎）。
+            new FactTopic
+            {
+                Id = "member", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_member"), NeedsPartyMember = true, // lwn-ignore: B
+                Keywords = new[] { "其他人", "还有谁", "有谁", "谁在", "成员", "随从", "护卫", "侍从", "学徒", "有名", "有姓", "名字", "人都在",
+                    "who else", "member", "members", "retainer", "retainers", "servant", "servants", "apprentice", "companions" },
+                Query = QueryMemberFact,
+            },
         };
 
         /// <summary>玩家文本命中知识主题 → 返回事实段（多行，可直接拼入 prompt）；未命中返回空串（零注入）。</summary>
@@ -543,6 +552,42 @@ namespace LivingWorldNpcs
             var town = settlement?.Town;
             if (town == null || town.GarrisonParty == null) return "- 队伍眼下不在城中，驻军事宜无从查知。";
             return $"- {settlement.Name} 现有驻军 {town.GarrisonParty.MemberRoster.TotalRegulars} 人。";
+        }
+
+        /// <summary>队伍成员名单（幻觉修复）：有名有姓的 Hero 成员 + 无名士兵按兵种构成。
+        /// 玩家问"其他人呢/随从是谁/还有谁"时注入——名单完整（含兵种）LLM 就不会编造不存在的人。
+        /// 2026-08-10 v2：去掉"没有其他随从学徒侍从"式负向列举（覆盖不全且生硬），改正面收尾
+        /// "队伍里的人就这些了"——防幻觉由 IM 纪律的事实自检兜底。</summary>
+        private static string QueryMemberFact()
+        {
+            var sb = new StringBuilder();
+            try
+            {
+                // 有名有姓的成员（频道成员 = roster 里的 Hero，实时取）
+                var members = ImChatManager.GetChannelMembers(ImConversationType.Party);
+                if (members != null && members.Count > 0)
+                    sb.AppendLine("- 有名有姓的成员：" + string.Join("、", members.Select(m => m.Name?.ToString() ?? "无名")) + "。");
+            }
+            catch { }
+            // 无名士兵按兵种（复用 QueryPartyFacts 的构成逻辑，实时取）
+            try
+            {
+                var party = MobileParty.MainParty;
+                if (party?.MemberRoster != null)
+                {
+                    var top = party.MemberRoster.GetTroopRoster()
+                        .Where(e => e.Number > 0 && e.Character != null && !e.Character.IsHero)
+                        .OrderByDescending(e => e.Number)
+                        .Take(3)
+                        .Select(e => $"{e.Character.Name} {e.Number} 人")
+                        .ToList();
+                    if (top.Count > 0)
+                        sb.AppendLine("- 无名士兵（主要兵力）：" + string.Join("、", top) + "。");
+                }
+            }
+            catch { }
+            sb.AppendLine("- 队伍里的人就这些了。");
+            return sb.ToString();
         }
 
         /// <summary>问句兜底概要：一行式核心状态（队伍成员版含同行者隐私，外人版只有普世事实）。</summary>

@@ -387,9 +387,20 @@ namespace LivingWorldNpcs
             string senderPrefix = memory?._profile?.IsPlayerSubordinate() == true
                 ? LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_lord", "Your lord {NAME} just sent you a message:", ("NAME", speakerName)) // lwn-ignore: B
                 : LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_other", "{NAME} just sent you a message:", ("NAME", speakerName)); // lwn-ignore: B
-            sb.AppendLine(senderPrefix);
-            sb.AppendLine(lastPlayerText);
-            sb.AppendLine();
+            if (!string.IsNullOrWhiteSpace(peerInteraction))
+            {
+                // 🔴 v3.2（2026-08-10 用户反馈"两个NPC都在回我"）：跟随者改成**对主回复者说话**的对话流——
+                // 主公是话题发起者，跟随者的重点是接主回复者的茬（风格见【同僚互动】段），不是再回一遍主公
+                sb.AppendLine($"【对话流】主公 {speakerName} 问：\"{lastPlayerText}\"。");
+                sb.AppendLine("现在轮到你说话——你针对上一位同伴的那句话回应他（你的回应风格见上方【同僚互动】段），主公的事可以顺带提一句，但主角是你们俩的你来我往。");
+                sb.AppendLine();
+            }
+            else
+            {
+                sb.AppendLine(senderPrefix);
+                sb.AppendLine(lastPlayerText);
+                sb.AppendLine();
+            }
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_im_reply_rule"));
             return sb.ToString();

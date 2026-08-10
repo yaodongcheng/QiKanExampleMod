@@ -183,7 +183,8 @@ namespace LivingWorldNpcs
         /// 纯规则、零 LLM；全部成员不可用时返回 (null, null)。
         /// 🔴 打分明细落日志（[ImTopic]）：玩家问"为什么总是他回"时直接看日志定位。
         /// </summary>
-        public static (Hero primary, Hero followUp) PickRepliers(List<Hero> members, string playerText)
+        /// <param name="channelId">跟随保底追踪用（群聊频道 Id；null = 不做保底只走随机）。</param>
+        public static (Hero primary, Hero followUp) PickRepliers(List<Hero> members, string playerText, string channelId = null)
         {
             if (members == null || members.Count == 0) return (null, null);
 
@@ -226,12 +227,37 @@ namespace LivingWorldNpcs
             scored.Sort((a, b) => b.score.CompareTo(a.score));
             var primary = scored[0].hero;
 
+            // 🔴 跟随回复 = 随机 + 保底（2026-08-10 实机反馈"7 连不中"）：
+            // 纯 25% 随机可能连续几十条不触发（0.75^7≈13%），体验靠赌不可接受。
+            // 保底：每频道距上次跟随回复 ≥ ImFollowUpGuaranteeEvery 条消息时必触发一次（抽卡保底思路）。
             Hero followUp = null;
-            if (scored.Count >= 2 && MBRandom.RandomFloat < Settings.Instance.ImGroupFollowUpChance)
-                followUp = scored[1].hero;
+            if (scored.Count >= 2)
+            {
+                bool guarantee = false;
+                if (!string.IsNullOrEmpty(channelId))
+                {
+                    lock (_followUpTrackLock)
+                    {
+                        int msgCount = ImChatStore.GetGroupMessages(channelId).Count;
+                        int sinceLast = msgCount - (_lastFollowUpAt.TryGetValue(channelId, out var v) ? v : 0);
+                        int every = Math.Max(2, Settings.Instance.ImFollowUpGuaranteeEvery);
+                        if (sinceLast >= every)
+                        {
+                            guarantee = true;
+                            _lastFollowUpAt[channelId] = msgCount;
+                        }
+                    }
+                }
+                if (guarantee || MBRandom.RandomFloat < Settings.Instance.ImGroupFollowUpChance)
+                    followUp = scored[1].hero;
+            }
 
             DebugLogger.Log($"[ImTopic] → 主回复={primary?.Name} 跟随={followUp?.Name?.ToString() ?? "无"}");
             return (primary, followUp);
         }
+
+        // 跟随保底追踪（channelId → 上次跟随触发时的频道消息数）
+        private static readonly Dictionary<string, int> _lastFollowUpAt = new Dictionary<string, int>();
+        private static readonly object _followUpTrackLock = new object();
     }
 }

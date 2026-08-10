@@ -529,12 +529,13 @@ namespace LivingWorldNpcs
 
         // 总结功能 (将对话压缩为30字记忆)
         /// <param name="showFailureAlert">失败弹玩家红字（玩家对话默认 true；随从对话触发的记忆维护传 false 静默，D4）</param>
-        /// <param name="maxTokens">输出上限（默认 50 只够单字段总结；人设精炼三字段 JSON 必须 300+，
-        /// 日志实锤：50 token 被 reasoning_content 占满 → content 恒空 → "Model returned empty whitespace" 三连败）。</param>
+        /// <param name="maxTokens">输出上限（默认 150，2026-08-10 从 50 上调——日志两次实锤 50 token 被
+        /// reasoning_content 占满 → content 空 → "Model returned empty whitespace"；或 JSON 截断污染记忆）。
+        /// 人设精炼三字段 JSON 仍需显式传 300。</param>
         /// <param name="disableReasoning">关闭思考模式（同 ChatAsync 说明）：deepseek-v4-flash 默认进思考，
-        /// reasoning 占 output 配额且慢——结构化 JSON 生成必须关。</param>
+        /// reasoning 占 output 配额且慢——结构化 JSON 生成必须关，默认开。</param>
         public async Task<string> SummarizeAsync(string systemPrompt, bool showFailureAlert = true,
-            int maxTokens = 50, bool disableReasoning = false)
+            int maxTokens = 150, bool disableReasoning = true)
         {
             var messages = new List<object>
             {

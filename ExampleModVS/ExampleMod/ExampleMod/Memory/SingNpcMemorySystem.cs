@@ -607,12 +607,11 @@ namespace LivingWorldNpcs
                 }
                 catch (Exception) // 捕获 JsonReaderException 或其他解析错误
                 {
-                    DebugLogger.Log($"[警告] 大模型未返回标准 JSON，直接使用大模型生成内容作为Reply，其余使用默认值：{jsonResponse}");
-
-                    response = new LLSSummaryResponse
-                    {
-                        Summary = jsonResponse
-                    };
+                    // 🔴 2026-08-10 记忆污染修复：解析失败 → 该轮总结作废，**不存记忆、不移除历史**。
+                    // 旧实现把截断的 JSON 原文当总结存进动态记忆（日志实锤：
+                    // 动态记忆里出现 {"Summary":"那人自称拉盖娅女皇的老公，又问 这种垃圾行，污染后续 prompt）。
+                    DebugLogger.Log($"[警告] 记忆总结 JSON 解析失败，作废本轮总结（历史保留，下次触发重试）：{jsonResponse}");
+                    return;
                 }
 
                 try

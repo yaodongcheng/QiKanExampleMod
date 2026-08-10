@@ -116,11 +116,36 @@ namespace LivingWorldNpcs
                     ImChatManager.BroadcastMessageArrived(it.Conv);
                     ImChatManager.NotifyNewMessage(it.Conv, speakerName, it.Line);
                     DebugLogger.Log($"[ImEvent] {speakerName} 主动挑起话题: {it.Line}");
+                    // 🔴 v4 事件接话（2026-08-10）：30% 概率另一个 NPC 接一句（捧/呛），
+                    // 走 ImReplyService 延迟调度管道（prior = 话题发言者 + 实际台词 + 回应模式）
+                    TryFollowUp(it);
                 }
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"[ImEvent] 投递失败: {ex.Message}");
                 }
+            }
+        }
+
+        /// <summary>事件话题接话：随机挑另一个队伍成员，30% 概率调度他接话（回应模式自动算）。</summary>
+        private static void TryFollowUp(DeliverItem it)
+        {
+            try
+            {
+                if (it?.Conv == null || it.Speaker == null) return;
+                if (MBRandom.RandomFloat >= 0.3f) return;
+                var members = ImChatManager.GetChannelMembers(ImConversationType.Party);
+                var other = members?.Where(h => h != null && h != it.Speaker && h != Hero.MainHero)
+                    .OrderBy(x => MBRandom.RandomFloat)
+                    .FirstOrDefault();
+                if (other == null) return;
+                // 🔴 prior 注入：接话者 prompt 带话题发言者 + 实际台词 + 回应模式（ImReplyService 内组装）
+                ImReplyService.ScheduleFollowUp(other.StringId, other.Name?.ToString() ?? other.StringId,
+                    it.Conv, it.Speaker.StringId, it.Speaker.Name?.ToString() ?? it.Speaker.StringId, it.Line);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImEvent] 接话调度失败: {ex.Message}");
             }
         }
 

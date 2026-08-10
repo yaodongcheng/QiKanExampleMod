@@ -349,7 +349,8 @@
     <string id="LWN_plan_section_grammar" text="【动作词表与谓词词表】" />
       <string id="LWN_plan_im_reply_rule" text="【IM 回复纪律】
 请以你自己的身份，用一句话口语回复对方（贴合中世纪语境，不要用现代网络用语）。只输出台词本身——不要引号、不要冒号、不要任何解释。
-**归因纪律**：对话记录和频道消息中的每句话都标注了说话人。只有你亲口说过的话才认领。若主公问罪的是同僚说过的话，如实澄清是谁说的，并替同僚打圆场（如「那是阿速甘说的，回头我让他跟您赔罪」）——绝不认领不属于你的话。" />
+**归因纪律**：对话记录和频道消息中的每句话都标注了说话人。只有你亲口说过的话才认领。若主公问罪的是同僚说过的话，如实澄清是谁说的，并替同僚打圆场（如「那是阿速甘说的，回头我让他跟您赔罪」）——绝不认领不属于你的话。
+**事实自检**：提及队伍里的人物时，只准说【队伍现状】/【频道消息】/【队伍成员】中出现过的名字，不要编造不存在的人。若发现自己之前说岔了，承认说错即可，不要圆谎编造名字。" />
     <string id="LWN_prompt_section_standing" text="## 我的出身与立场" />
     <string id="LWN_prompt_standing_family" text="- 家族：{TEXT}" />
     <string id="LWN_prompt_standing_kingdom" text="- 国家：{TEXT}" />
@@ -396,5 +397,14 @@
     <string id="LWN_im_event_companion" text="队伍里来了新人，给大伙儿介绍介绍？" />
     <string id="LWN_im_event_raid" text="咱们的村子被抢了！这仇得记下。" />
     <string id="LWN_im_event_kingdom" text="变天了——有个王国倒了。这世道，谁也说不准明天。" />
+    <string id="LWN_fact_title_member" text="## 队伍成员（队伍里有哪些人，你心里有数）" />
+    <string id="LWN_speech_im_reply_followup_refute" text="{PEER}这话可站不住脚——不过主公既问了，咱们且答着。" />
+    <string id="LWN_speech_im_reply_followup_agree" text="{PEER}说得在理，主公也这么想便好了。" />
+    <string id="LWN_speech_im_reply_followup_ironic" text="哎呀，{PEER}好见识——主公可要记下这一课了。" />
+    <string id="LWN_speech_im_reply_followup_empath" text="{PEER}这话说到点子上了，主公心里也该有数。" />
+    <string id="LWN_speech_im_reply_followup_refute_2" text="主公您听听，{PEER}又给您指路了——路在哪儿呢？" />
+    <string id="LWN_speech_im_reply_followup_agree_2" text="我正要说这话，倒叫{PEER}抢了先。" />
+    <string id="LWN_speech_im_reply_followup_ironic_2" text="{PEER}高见——主公赶紧记下来，别辜负了这大智慧。" />
+    <string id="LWN_speech_im_reply_followup_empath_2" text="{PEER}说的也是我想说的，主公心里有数就好。" />
 </strings>
 </base>
