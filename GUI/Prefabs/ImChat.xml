@@ -392,9 +392,9 @@
                           </Children>
                         </ScrollablePanel>
 
-                        <!-- 消息流滚动条 -->
+                        <!-- 滚动条（🔴 八轮：MarginBottom=74 与消息流同高——滚动条不得伸进输入框区域） -->
                         <Widget Id="MessageScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
-                                HorizontalAlignment="Right" MarginRight="6" DoNotAcceptEvents="true">
+                                HorizontalAlignment="Right" MarginRight="6" MarginBottom="74" DoNotAcceptEvents="true">
                           <Children>
                             <ScrollbarWidget Id="MessageScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
                                              AlignmentAxis="Vertical" Handle="MessageScrollbarHandle"
@@ -411,6 +411,20 @@
                             </ScrollbarWidget>
                           </Children>
                         </Widget>
+
+                        <!-- 「有新消息」提示条（🔴 八轮：翻历史时新消息到达 → 输入区分隔线上方悬浮提示；点击滚底清提示） -->
+                        <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                      HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="78"
+                                      Brush="Test.Button3"
+                                      Command.Click="ExecuteNewMessageClick"
+                                      IsVisible="@HasNewMessageHint">
+                          <Children>
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        Text="@NewMessageHintText" Brush="MyBrush_18_White" Brush.FontSize="14"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center" MarginLeft="14" MarginRight="14"
+                                        DoNotAcceptEvents="true"/>
+                          </Children>
+                        </ButtonWidget>
 
                         <!-- 空会话引导（UI 优化：无消息时居中提示而非空白） -->
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"

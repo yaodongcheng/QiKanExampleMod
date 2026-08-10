@@ -4084,5 +4084,6 @@
     <string id="LWN_im_btn_order" text="下令" />
     <string id="LWN_im_mode_status" text="当前：{MODE}模式" />
     <string id="LWN_im_btn_switch_mode" text="切换到{MODE}" />
+    <string id="LWN_im_new_message" text="有新消息" />
 </strings>
 </base>
