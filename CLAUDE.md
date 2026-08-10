@@ -10,6 +10,7 @@
 |----------|------|
 | [wheels.md](plans/rules/wheels.md) | 🔴**【必读】已造轮子速查（索引）**：先看索引定位域 → 打开 `wheels.d/` 对应分卷，命中即复用 |
 | [llm-optional.md](plans/rules/llm-optional.md) | **LLM 是可选功能**，IsLLMConfigured 总闸，所有入口点必须检查 |
+| [im.md](plans/rules/wheels.d/im.md) | **IM 传讯/群聊轮子速查**：群聊回复管线（延迟调度+丢弃纪律）、群聊记忆参与度写入、回应模式人格化、事件广播线程模型（🔴 主线程禁止同步等 LLM）、选人增强 |
 | [worldview.md](plans/rules/worldview.md) | **禁止硬编码日本战国字串**，世界观通过 Settings.Instance 参数化 |
 | [defensive-coding.md](plans/rules/defensive-coding.md) | **LLM JSON 响应必须 null-guard**，JSON key 必须匹配 [JsonProperty] |
 | [architecture.md](plans/rules/architecture.md) | Namespace (`LivingWorldNpcs.*`)、目录结构、Mod A/B 拆分 |

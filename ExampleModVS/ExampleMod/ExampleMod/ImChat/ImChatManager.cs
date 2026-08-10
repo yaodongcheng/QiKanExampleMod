@@ -244,28 +244,29 @@ namespace LivingWorldNpcs
             }
             else
             {
+                // 🔴 v4.1（2026-08-10）：玩家新消息到达 → 作废旧跟随链条（未触发的跟随/往返/接话直接丢弃，带日志）
+                ImReplyService.CancelStaleFollowUps(conv.Id);
                 // 群聊：store 追加（公区事实源，需求 6「群聊单独处理」——显示/注入走 store，不污染私聊漏斗）
                 string playerName = Hero.MainHero?.Name?.ToString() ?? "You";
                 ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(PlayerId, playerName, trimmed, ImMessageKind.Text));
                 // 方案 B：按参与度写入成员记忆（说话人 + 相邻说话人；旁观者不写）
                 WriteGroupMessageToMemory(conv, PlayerId, playerName, trimmed);
 
-                // 非 LLM 语义检索挑回复者（用户决策 1）+ 10% 概率跟随回复
+                // 非 LLM 语义检索挑回复者（用户决策 1）+ 25% 概率跟随回复
                 // 热度只给被挑中的回复者（防全频道成员批量加分集体升 Hot 档——「互动多者容量大」应指实际互动者）
                 var members = GetChannelMembers(conv.Type);
-                var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed);
+                // 🔴 跟随保底：传 channelId 让 PickRepliers 做"满 N 条必跟随"（2026-08-10）
+                var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed, conv.Id);
                 if (primary != null)
                 {
                     ImHeatTracker.Add(primary.StringId, 1f);
-                    ImReplyService.ScheduleReply(primary.StringId, primary.Name?.ToString() ?? primary.StringId, trimmed, conv);
                     if (followUp != null)
-                    {
                         ImHeatTracker.Add(followUp.StringId, 0.5f);
-                        // 🔴 群聊活力·拌嘴（2026-08-10）：跟随回复者带上 primary 作为"同僚互动对象"，
-                        // prompt 注入两人关系档位——捧场/呛声/插科打诨由关系决定（ImReplyService 组装）
-                        ImReplyService.ScheduleReply(followUp.StringId, followUp.Name?.ToString() ?? followUp.StringId,
-                            trimmed, conv, primary.StringId, primary.Name?.ToString() ?? primary.StringId);
-                    }
+                    // 🔴 群聊活力·拌嘴（2026-08-10 v2 延迟调度）：followUp 不立即调度——
+                    // 挂到 primary 待回任务上，primary 回包投递后再调度（ImReplyService.Tick 内），
+                    // 这样跟随者生成时能看到 primary 的实际台词，真正"接话"（v1 并行生成接无可接）。
+                    ImReplyService.ScheduleReply(primary.StringId, primary.Name?.ToString() ?? primary.StringId, trimmed, conv,
+                        followUp?.StringId, followUp?.Name?.ToString());
                 }
             }
 
@@ -389,6 +390,76 @@ namespace LivingWorldNpcs
                 return $"{level}（好感 {rel}{color}）";
             }
             catch { return "泛泛之交"; }
+        }
+
+        /// <summary>群聊拌嘴·回应模式（2026-08-10 v3 人格化）：跟随者接话时的固定人格——
+        /// 由 C# 规则分配，LLM 只按人设写台词（v2 自由发挥 → 平庸复读"换个口吻再说一遍"）。
+        /// 人格底色（原版 trait 推导）+ 性格画像关键词修正 + 关系极值修正：
+        ///   Valor≥2 / Honor≤-1 → 反驳型（嘴硬爱抬杠）
+        ///   Mercy≥2            → 附和型（老好人顺着说）
+        ///   Calculating≥2      → 阴阳型（表面客气话里有刺）
+        ///   弱 trait            → 性格画像关键词修正（平和/随和→附和，急/直/冲→反驳）→ 稳定 hash 加权分配
+        /// 关系修正：至交（≥50）强制附和；宿怨（≤-30）强制反驳。
+        /// 🔴 v3.1（2026-08-10 日志实锤）：hash 随机曾与"我为人平和"的性格画像冲突 → LLM 服从
+        /// persona 拒绝执行反驳模式。加权 反驳40%/阴阳25%/附和20%/感同身受15%，并先做画像关键词修正。</summary>
+        public static string GetResponseMode(Hero self, Hero peer)
+        {
+            if (self == null || peer == null) return "随和";
+            try
+            {
+                int rel = self.GetRelation(peer);
+                int valor = self.GetTraitLevel(DefaultTraits.Valor);
+                int honor = self.GetTraitLevel(DefaultTraits.Honor);
+                int mercy = self.GetTraitLevel(DefaultTraits.Mercy);
+                int calc = self.GetTraitLevel(DefaultTraits.Calculating);
+
+                string mode;
+                if (valor >= 2 || honor <= -1) mode = "反驳";
+                else if (mercy >= 2) mode = "附和";
+                else if (calc >= 2) mode = "阴阳";
+                else
+                {
+                    // 弱 trait：性格画像关键词修正（人设一致性优先——LLM 会服从 persona 而非冲突的系统指令）
+                    string persona = AllNpcMemoryManager.GetMemory(self.StringId)?.Personality ?? "";
+                    if (persona.Contains("平和") || persona.Contains("随和") || persona.Contains("心软")
+                        || persona.Contains("恻隐") || persona.Contains("不争") || persona.Contains("宽厚"))
+                        mode = "附和";
+                    else if (persona.Contains("急") || persona.Contains("直") || persona.Contains("冲")
+                        || persona.Contains("硬") || persona.Contains("倔") || persona.Contains("嘴贫"))
+                        mode = "反驳";
+                    else
+                    {
+                        // 稳定 hash 加权分配（同一个人永远同一人格）：反驳为主（用户要"一部分抬杠"）
+                        int h = StableHash(self.StringId) % 10;
+                        mode = h switch
+                        {
+                            0 or 1 or 2 or 3 => "反驳",   // 40%
+                            4 or 5 or 6 => "阴阳",        // 30%
+                            7 or 8 => "附和",             // 20%
+                            _ => "感同身受",               // 10%
+                        };
+                    }
+                }
+                // 关系极值修正（压倒人格）
+                if (rel >= 50) mode = "附和";
+                else if (rel <= -30) mode = "反驳";
+                return mode;
+            }
+            catch { return "随和"; }
+        }
+
+        private static int StableHash(string s)
+        {
+            unchecked
+            {
+                uint hash = 2166136261;
+                foreach (char c in s ?? "")
+                {
+                    hash ^= c;
+                    hash *= 16777619;
+                }
+                return (int)(hash & 0x7FFFFFFF);
+            }
         }
 
         /// <summary>NPC 回复投递（ImReplyService 生成完成后调用）：私聊写记忆 / 群聊写 store + 未读 + 通知 + 热度。

@@ -1,6 +1,7 @@
 # IM 即时传讯系统 — 设计方案
 
 > **状态**：✅ 已实施 + 已自查修复 + 交互修复 + UX 优化（2026-08-10；待实机验证）
+> **群聊活力（2026-08-10 多轮迭代终版）**：拌嘴跟随（人格化回应模式/延迟调度/斗嘴往返/抓破绽/句式多样性）+ 事件驱动主动话题 + NinjaReport 通知 + 三层丢弃纪律（过期/重复）+ 群聊记忆方案 B（参与度写入）——完整机制见 **§十三**（v5 终版），本行下方历史记录保留演进轨迹
 > **实施记录**：Phase 1-2 数据/核心/回复管线 → Phase 3-4 UI/命令模式 → Phase 5 存档/动态容量 → Phase 6 打磨/本地化 → 微信标准 UI 优化 → 事件驱动交互修复 → **UX 优化三连（层级/气泡/模式切换）**（Debug+Release 编译 0 错误；validate_localization.py 新文件条目清零，剩余为旧文件历史欠账；check_vocab_sync.py 通过；test_im_topics.py 26/26 通过）
 > **审查记录（对照方案自查，完成度 93% → 修复后）**：自查发现并修复 6 项——① LLM continuation 跨线程投递（改主线程队列消费，ReactiveAgent 同款模式）；② PlanCard/System 消息与气泡双渲染（ShowOtherBubble/ShowSelfBubble 排除分支）；③ Campaign 侧未订阅 MessageArrived（大地图无通知）；④ 读档时序 Hero 未就绪导致记忆丢失（改待合并字典 + GetMemory 惰性合并）；⑤ 卡片按钮状态陈旧（批准/拒绝/中止后强制重建消息列表）；⑥ 选中会话未读只增不减。另修：群聊热度只给被挑中回复者、Mission 双 tick 门控、记忆无锁竞争快照、补挂墙钟超时、死代码清理（PostSystemMessage/TimeText/FormatRelativeTime/Status 枚举/PlanTarget）、读档消息超限收缩、family 关键词双字化、回复 prompt 规则段迁 XML（LWN_plan_im_reply_rule）
 > **交互修复记录（2026-08-10，用户实测反馈）**：① 大地图暂停（时间流速 0）按 O 打不开——根因 CampaignEvents.TickEvent 暂停时停发；热键驱动改挂 `ScreenBase.OnFrameTick`（Harmony patch，UI 层循环，暂停照常触发，与定居点菜单同层）；`ImChatCampaignBehavior` 删除退役。② 打字输入 o 误关面板——打开/关闭彻底分离：**O 只负责打开**，关闭走 ESC / 手柄 B / 面板外点击 / ✕ 按钮；ESC 由模态层拦截（与 Inquiry 同理，不弹系统菜单）
@@ -94,10 +95,11 @@ class ImMessage {
 
 class NpcMemorySaveEntry {       // 存档用：每 Hero 一条（热度独立存 lwn_im_heat key，不入本条目）
     string HeroId; List<ChatMessage> RecentHistory; List<RecentMemory> DynamicMemories; string PermanentMemory;
+    string BackgroundStory; string Personality; string Specialty;   // 🔴 人设精炼三字段（2026-08-10）
 }
 ```
 
-**直接聊天 = 读写 NPC 记忆层（需求 6 字面同步）**：直接会话不设 IM 侧存储，显示直接读对方 `SingNpcMemorySystem.RecentHistory` 中 **role 前缀 `im_`** 的行（`im_user`/`im_npc`，Role 是自由字符串，无需改 ChatMessage 结构）。显示上限 = 记忆层容量（10~20 轮），更早的被 LLM 总结漏斗（MaintainMemoryAsync）消化——与「不可能无限存」自洽，且对话内容天然进入 NPC 的 LLM 上下文（NPC 记得 IM 聊过什么）。记忆总结消化更早对话后，私聊开头插入「淡忘」系统行（叙事衔接）。
+**直接聊天 = 读写 NPC 记忆层（需求 6 字面同步）**：直接会话不设 IM 侧存储，显示直接读对方 `SingNpcMemorySystem.RecentHistory` 中 **role 前缀 `im_`** 的行（`im_user`/`im_npc`，Role 是自由字符串，无需改 ChatMessage 结构）。显示上限 = 记忆层容量（4~20 轮，随热度档），更早的被 LLM 总结漏斗（MaintainMemoryAsync）消化——与「不可能无限存」自洽，且对话内容天然进入 NPC 的 LLM 上下文（NPC 记得 IM 聊过什么）。记忆总结消化更早对话后，私聊开头插入「淡忘」系统行（叙事衔接）。
 
 ## 三、频道与成员解析（✅ 已实施；每次打开 IM 重新解析，Hero 判定）
 
@@ -122,25 +124,26 @@ class NpcMemorySaveEntry {       // 存档用：每 Hero 一条（热度独立�
 
 ### 4.2 回复调度（ImReplyService）
 - **直接聊天**：目标 NPC 回复。上下文 = 世界观 + 身份（persona/职业）+ 记忆裁剪段（复用 `PromptBuilder.GetPrompt_RespondContext` 按 speakerId 过滤模式，新方法 `BuildPrompt_ImReply`）+ 最近 im_ 语境。**叙事铁律：LLM 只见记忆内容，无上帝视角**
-- **群聊**：先 `ImTopicMatcher`（非 LLM）挑回复者 → 同管线回复；`ImGroupFollowUpChance`（Settings，默认 0.1）概率第二高分者再跟一句；**@点名（文本含成员名）→ 该人 +5 必回**（微信语义，2026-08-10 追加）
-- **降级链**（铁律 1）：LLM 未配置/超时/失败 → `NpcSpeechResolver.Resolve("im_reply_{topic}", …)` 模板台词（新增 `LWN_speech_im_*` keys）；429 → 复用 `ChatOnceAsync` 内建 10s 全局冷却
+- **群聊**：先 `ImTopicMatcher`（非 LLM）挑回复者 → 同管线回复；**跟随回复（2026-08-10 v2-v5 终版）**——`ImGroupFollowUpChance`（默认 0.25）随机 + `ImFollowUpGuaranteeEvery`（默认 4 条）保底必触发；**延迟调度**（跟随者等主回复者投递后才生成，prompt 带其实际台词）；**回应模式人格化**（C# 规则按 trait 分配反驳/附和/阴阳/感同身受 + 抓破绽 + 句式多样性纪律）；**斗嘴往返**（`ImBounceChance` 0.5，主回复者再回一句，`IsBounceReply` 防无限）；**过期/重复丢弃**（pending 层 CancelStaleFollowUps + 在途层 EnqueueMsgCount 频道版本检查 + 逐字重复丢弃，均带日志）；**@点名（称号/简称/全名候选匹配）→ +5 必回**
+- **降级链**（铁律 1）：LLM 未配置/超时/失败 → `LWNTextHelper` 取 `LWN_speech_im_reply_{topic}` 模板；**跟随/往返任务按回应模式取专用模板**（`LWN_speech_im_reply_followup_{refute/agree/ironic/empath}[_2]`，每模式 2 变体随机，引用对方名字防复读主回复模板）；429 → 复用 `ChatOnceAsync` 内建 10s 全局冷却；IM 超时 12s
 - **防刷**：每 NPC 回复冷却 `ImReplyCooldownSeconds`（默认 5s）；每 NPC 一次只挂一个待回任务，新消息合并进待回内容（玩家连发 10 条 → NPC 只回一条综合的）
 - **正在输入**：LLM 请求在途 → 会话底部显示「XX 正在输入…」（TypingText，UI 上输入栏上方灰字）
 - 🔴 **动态知识注入（世界事实查询引擎，2026-08-10）**：`WorldFactProvider.BuildFactsForIm(playerText, isPartyMember)` —— 玩家消息命中才查询游戏状态拼入 prompt（`BuildPrompt_ImReply` 第 5 参 worldFacts），平时零注入。**三层架构**：
   - **①识别层（实体优先）**：文本命中已知 Hero（`Hero.AllAliveHeroes` 遍历匹配 FirstName/Name，本地化名字中英文通用；`长度≥2` 防单字误伤）+ 属性词（在哪→location / 关系→relation / 几岁→age）→ 实体查询；**称号表**（陛下/国王/女王→玩家王国君主，首领/族长→玩家家族族长）。🔴 实体命中优先于主题表——根治「拉盖娅在哪」落进队伍位置主题的答非所问。未命中实体 → 主题词表（17 主题）→ 问句兜底
-  - **②查询层（C# 实时查询，铁律 5：动态遍历注册表无硬编码 ID）**：**实体属性**——位置（`PartyBelongedTo.CurrentSettlement/TargetSettlement` 或 `CurrentSettlement`）/ 关系（`Hero.GetRelation` 数值 → 挚友/友好/中立/反感/仇视）/ 年龄；**主题**（17 个）——队伍/金钱/队伍位置/粮草/俘虏/伤员/领地/声望/家族/战事/时日/委托/技能（MBObjectManager 遍历已练技能前 8）/等级/产业（商队/工坊）/**士气**/驻军
+  - **②查询层（C# 实时查询，铁律 5：动态遍历注册表无硬编码 ID）**：**实体属性**——位置（`PartyBelongedTo.CurrentSettlement/TargetSettlement` 或 `CurrentSettlement`）/ 关系（`Hero.GetRelation` 数值 → 挚友/友好/中立/反感/仇视）/ 年龄；**主题**（18 个）——队伍/金钱/队伍位置/粮草/俘虏/伤员/领地/声望/家族/战事/时日/委托/技能（MBObjectManager 遍历已练技能前 8）/等级/产业（商队/工坊）/**士气**/驻军/**成员**（🔴 2026-08-10 幻觉修复：队伍成员名单 = 有名有姓 Hero + 无名士兵按兵种，玩家问"其他人呢/随从是谁"注入——LLM 有名单就不会编造不存在的人）
   - **③注入层（叙事分级）**：**可见性**——同行者隐私（队伍/金钱/位置/粮草/俘虏/伤员/任务/技能/等级/产业/士气）仅队伍成员（队伍频道/随从私聊，他们亲历）；普世事实（领地/声望/家族/战争/时间/驻军——地图可见人尽皆知）任何会话可注入。**位置情报分级（实体专属，C# 确定性逻辑非 LLM）**——玩家与目标交战 → 传闻级（「领兵在外，行踪难料」）；同国/中立 → 定居点级精确（「正在萨哥特」）。**问句兜底**：主题/实体全未命中但玩家在问 → 轻量世界概要（队伍/金钱/声望/领地明细/等级年龄/商队工坊/季节）
   - **LLM 补漏层（Phase B，数据说话后决定）**：规则全未命中+问句 → 轻量 LLM 判定目标主题（max_tokens 50，限查询器存在的主题集合）→ 回落 C# 查询；失败降级概要（铁律 1）。**上不上由日志漏网率决定**（`[ImReply] 请求发出` 落盘注入段，可直接统计）
   - 玩家问「队伍有多少人」「我们还有多少钱」「我剑术几级」「拉盖娅在哪」→ 随从能如实回答真实数据（防 LLM 瞎编）；「王国频道问队伍人数」→ 无注入（裁剪生效），NPC 诚实不知道。**核心原则：事实全部 C# 实时查询，LLM 永不给事实（防幻觉）**
-- 群聊消息**不写**成员个人记忆（防污染对话漏斗）；直接聊天才写
+- 🔴 **群聊消息按参与度写入成员记忆（2026-08-10 方案 B 统一记忆流）**：`ImChatManager.WriteGroupMessageToMemory` —— 每条消息只写给「说话人 + 相邻说话人」（旁观者不写，防 N 份拷贝 + 私聊漏斗不被频道刷屏；私聊 UI 按 Role 过滤 `im_user/im_npc` 天然隔离 `channel_*` 行）；防重复补写（A-B-A 三连不重复）；「谁说过什么谁回应」由 ImTopicMatcher 指纹（只取本人发言）保证。群聊回复 prompt 另有**公区注入段**（ImChatStore 最近 8 条带发言人）——旁观者也能接住频道话题
 
 ### 4.3 非 LLM 语义检索（ImTopicMatcher）
 ```
-score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonus(npc) + rng
+score(npc) = Σ 命中主题×职业亲和 + @提及(5) + 相似度(bigram×3) + 热度(≤2.5) + 沉寂补偿(0~2.5) + 抖动(0~2)
 ```
-- 主题词表（C# 静态数组，v1 ~10 个）：combat 战斗 / trade 贸易 / food 粮食 / crime 犯罪 / news 传闻 / family 家人 / health 伤病 / location 地点 / greeting 问候 / default 兜底。关键词中英双语 + 游戏黑话（如「第纳尔」「口粮」）
+- 主题词表（C# 静态数组，v1 九个）：combat 战斗 / trade 贸易 / food 粮食 / crime 犯罪 / news 传闻 / family 家人 / health 伤病 / location 地点 / greeting 问候 / default 兜底。关键词中英双语 + 游戏黑话（如「第纳尔」「口粮」）
 - 职业亲和表：`NPCProfile.Occupation` → 主题权重（士兵→combat、商人→trade、农夫→food…）
-- 热度加成：近期互动多者优先回（与容量热度共用 ImHeatTracker）
+- 🔴 **2026-08-10 打分扩展**：**@提及**（候选名 = 全名/去引号/引号内称号/FirstName，玩家用称号也能点名）；**bigram 相似度**（个体指纹 = 名字/职业/家族王国/人设三字段/百科/本人最近发言，5 分钟缓存——"谁说过什么谁回应"、"百草药僧"接医术话题）；**沉寂补偿**（没回过话 +2.5，久未回话按墙钟递增——新人必开口）；热度上限 4→2.5（同一天会话内热度不衰减，高互动者不再垄断）
+- 跟随保底：每频道距上次跟随满 `ImFollowUpGuaranteeEvery` 条必触发（纯随机 0.75⁷≈13% 连不中实机出现过）
 - 纯规则、零 LLM，符合用户「非 LLM 语义检索」要求
 
 ## 五、命令模式（✅ 已实施；IM → 密令系统，需求 7）
@@ -249,7 +252,7 @@ score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonu
 | Cold | 4 | 2 | 100 | ~~20~~ 作废 |
 
 - 🔴 **「私聊 IM 显示条数」列作废**（见头部「方案内自相矛盾已裁定」）：私聊显示 = 记忆层 RecentHistory 字面同步，条数随热度档 20/10/4 轮
-- 热度在读档后按新档位分配容量（扩张免费、收缩触发总结漏斗）；`MaintainMemoryAsync`/`CheckAndPromoteToPermanent` 总结失败保持原文 + 下次再试（不丢数据）
+- 热度在读档后按新档位分配容量（扩张免费、收缩触发总结漏斗）；🔴 2026-08-10 记忆污染修复：`MaintainMemoryAsync` 总结 JSON 解析失败 → **作废本轮不存不移除**（旧实现把截断的 JSON 原文存进动态记忆污染 prompt）；`SummarizeAsync` 默认 max_tokens 50→150 + 默认关 reasoning（50 token 被思考内容占满 → content 空 → "Model returned empty whitespace" 两度实锤）
 
 ## 八、存档设计（✅ 已实施；🔴 读档为延迟合并模式）
 
@@ -270,8 +273,11 @@ score(npc) = Σ matched_topics( player_text ) × affinity(npc, topic) + heatBonu
 
 **Settings.cs（config.json，高级配置侧）**：
 ```csharp
-public float ImGroupFollowUpChance = 0.1f;   // 群聊跟随回复概率（用户要求可调）
-public float ImReplyCooldownSeconds = 5f;    // 单 NPC 回复冷却
+public float ImGroupFollowUpChance = 0.25f;      // 群聊跟随回复概率（10%→25%，2026-08-10）
+public int  ImFollowUpGuaranteeEvery = 4;        // 跟随保底：满 N 条消息必触发（0=关闭）
+public float ImBounceChance = 0.5f;              // 斗嘴往返：跟随者回应后主回复者再回一句的概率
+public bool ImNotifyEnabled = true;              // NinjaReport 系统通知开关（面板打开且当前会话不弹）
+public float ImReplyCooldownSeconds = 5f;        // 单 NPC 回复冷却
 public int  ImHeatHotThreshold = 10, ImHeatNormalThreshold = 3;
 public float ImHeatDecayPerDay = 1f;
 // 容量三档常量（v1 硬编码于 SingNpcMemorySystem，可后续迁 config）
@@ -315,7 +321,7 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
   - 打开/关闭全路径：O 打开 / ESC / 手柄 B / 面板外点击 / ✕ 关闭；Mission 与大地图互切后层清理正常
   - 频道成员正确：队伍/家族全成员、王国频道仅族长且成员=各家族组长、非族长看不到王国频道
   - 直接聊天：发送→记忆写入→NPC LLM 回复（含记忆上下文，能接住之前面谈内容）；断网/未配置→模板台词无红字；同场景回复到达头顶冒泡
-  - 群聊：非 LLM 挑人正确（说「粮食」→ 商人/农夫回）；@点名必回；10% 跟随概率；冷却防刷
+  - 群聊：非 LLM 挑人正确（说「粮食」→ 商人/农夫回）；@点名必回（称号/简称也行）；跟随 25% + 满 4 条保底；冷却防刷；跟随者接主回复者的茬（捧/呛有内容不复读）；丢弃日志（过期/重复）
   - 命令模式：Mission 内「让 XX 去望风」→ 计划卡片 → 同意 → 随从执行（头顶 HUD 摘要同步）→ 完成回报回 IM；当面 Plot 进行中拒绝；「你们俩」多人协作（subjects 一带多）
   - 行军令：大地图私聊有 party 的 Hero → 跟随/待命/前往定居点；敌方拒绝；词表外拒绝
   - **存档**：保存→读档后 IM 记录 + NPC 记忆 + 热度都在；旧存档兼容；SaveErrorReporter 无告警
@@ -383,48 +389,73 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
 
 ---
 
-## 十三、群聊活力：NPC 互动（2026-08-10 追加）
+## 十三、群聊活力：NPC 互动（2026-08-10 追加，v5 终版）
 
-> **状态**：✅ 已实施（Debug 编译 0 错误；待实机验证）
-> 三个子功能：**拌嘴**（跟随回复升级）、**事件驱动主动话题**（玩家大事件 → NPC 群里发言）、**NinjaReport 新消息通知**。
-> 🔴 **实机卡死修复（2026-08-10）**：初版 `BroadcastPlayerEvent` 在事件回调（主线程）里 `task.GetAwaiter().GetResult()` 同步等 LLM → async-over-sync 死锁（主线程阻塞，continuation 回不来）→ 游戏冻结无崩溃。改为 ImReplyService 同款模式：同步段只做防刷屏+挑人 → 异步 fire-and-forget 生成 → 结果入队 → 主线程 `Tick()` 消费投递。
+> **状态**：✅ 已实施（Debug 编译 0 错误；实机验证通过：人格化跟随/事件话题/通知/丢弃均生效）
+> **演进**：v1 跟随复读 → v2 延迟调度（能看到主回复者实际台词）→ v3 回应模式人格化 → v3.1 画像关键词修正+加权 → v3.2 对话流结构（跟随者对主回复者说话）→ v3.3 抓破绽 → v4 三件套（往返/接话/引旧话）→ v4.1 过期链条丢弃 → v4.2 重复回复丢弃 → v5 句式多样性
 
-### 13.1 拌嘴：跟随回复升级为"同僚互动"
+### 13.1 拌嘴：跟随回复（跟随者 = 对主回复者说话）
 
-- 现状升级前：10% 跟随回复是独立回应玩家，NPC 之间不对话
-- 实现：`ImChatManager.SendPlayerMessage` 给跟随回复者传 `priorPeerId/priorPeerName`（=主回复者）→ `ImReplyService.BuildPeerInteraction` 拼【同僚互动】段 → `BuildPrompt_ImReply` 注入
-- 关系档位：`ImChatManager.DescribeRelation(self, peer)` —— 好感度定基调（≥40 捧 / -10~40 中立 / <-35 呛）+ 原版 trait 性格调色（Valor≥2 爱逞强、Honor≤-1 嘴滑、Calculating≥2 说话拐弯）
-- 指令语义：接话（关系好捧场/关系差呛声/普通插科打诨）或不理他专心回主公
+**触发**：玩家发消息 → PickRepliers 挑主回复者 → 25% 随机（`ImGroupFollowUpChance`）+ **满 4 条保底**（`ImFollowUpGuaranteeEvery`，防 0.75⁷≈13% 连不中）→ 跟随者**延迟调度**（等主回复者投递后才生成，prompt 带其**实际台词**——v1 并行生成接无可接，实机"从不拌嘴"根因）
+
+**对话流结构**（v3.2）：跟随者 prompt 尾部 = `【对话流】主公 X 问："…"。轮到你说话——你针对上一位同伴的那句话回应他…`——**对主回复者说话**，不是再回一遍主公（用户反馈"两个NPC都在回我"后重构）
+
+**回应模式人格化**（v3/v3.1/v3.3，`ImChatManager.GetResponseMode`）：C# 规则按 trait 强制分配，LLM 只按人设写台词——
+| 依据 | 模式 |
+|------|------|
+| Valor≥2 / Honor≤-1 | 反驳型（抓话里破绽怼：不切实际/吹牛/自相矛盾） |
+| Mercy≥2 | 附和型（找站得住脚的点顺着补理由） |
+| Calculating≥2 | 阴阳型（表面客气话里有刺） |
+| 弱 trait | 性格画像关键词修正（平和/心软→附和，急/直/冲→反驳）→ 稳定 hash 加权（反驳40%/阴阳30%/附和20%/感同身受10%） |
+| 关系极值 | 至交（≥50）强制附和；宿怨（≤-30）强制反驳 |
+
+**句式多样性**（v5）：模式指令尾部硬纪律——禁止"XX说得在理/这话说得实在/站不住脚"固定句式开头，每次换说法（"要我说啊""倒也是"或直接亮观点）——固定句式=AI 味（实机三条附和型全同构后修复）
+
+**斗嘴往返**（v4）：跟随者回应后主回复者 50% 再回一句（`ImBounceChance`；`IsBounceReply` 标记防无限循环，最多一轮）；**引用旧话**（同僚互动段带"他之前还说过：…"，抬杠有历史包袱）
+
+**降级模板**（LLM 失败时）：跟随任务按回应模式取 `LWN_speech_im_reply_followup_{refute/agree/ironic/empath}[_2]`（每模式 2 变体随机，引用对方名字）——不复读主回复模板
 
 ### 13.2 事件驱动主动话题（ImEventBroadcaster.cs）
 
-- 玩家大事件 → 队伍里最健谈的 NPC（热度最高）主动发言 → 走频道+记忆+未读+通知全管道
-- 挂载事件（MyBehavior.RegisterEvents）：`OnPlayerBattleEnd`（胜/败）、`HeroPrisonerTaken/Released`（坐牢/释放）、`QuestLogAdded`（接任务）、`NewCompanionAdded`、`VillageBeingRaided`（仅玩家村庄）、`KingdomDestroyed`
-- 生成：`PromptBuilder.BuildPromptForEventComment`（LLM 一句评论，1.5s 预算）→ 模板兜底（`LWN_im_event_*` 双语 XML）
-- 防刷屏：每 NPC 3 分钟冷却 + 同事件类型 5 分钟去重 + 每日 10 条上限
-- 调试指令：`custom.im_test_event battle_win|battle_lose|imprison|release|quest|companion|raid|kingdom`（与真实事件同入口）
+玩家大事件 → 队伍里最健谈的 NPC（热度最高）主动发言 → 走频道+记忆+未读+通知全管道；30% 概率另一 NPC 接话（`ScheduleFollowUp`，prior=话题发言者+台词+回应模式）
+- 挂载事件（MyBehavior）：`OnPlayerBattleEnd`（胜/败）、`HeroPrisonerTaken/Released`、`QuestLogAdded`、`NewCompanionAdded`、`VillageBeingRaided`（仅玩家村庄）、`KingdomDestroyed`
+- 生成：`BuildPromptForEventComment`（LLM 一句评论，3s 预算）→ 模板兜底（`LWN_im_event_*` 双语）
+- 防刷屏：每 NPC 180s + 同类型 300s + 每日 10 条
+- 🔴 **线程模型**（实机卡死修复）：事件回调在主线程，**严禁同步等 LLM**（async-over-sync 死锁）——同步段只做防刷屏+挑人 → 异步 fire-and-forget 生成 → 结果入队 → 主线程 `Tick()` 消费投递（ImReplyService 同款模式）
+- 调试指令：`custom.im_test_event battle_win|battle_lose|imprison|release|quest|companion|raid|kingdom`
 
-### 13.3 NinjaReport 新消息通知
+### 13.3 通知（NinjaReport）
 
-- `InformationManager.AddSystemNotification`（TaleWorlds.Library，反编译验证签名：单 string 参数）
-- 触发：NPC 群聊消息/主动话题到达，且面板未打开或非当前会话（`ImChatView.Selected`）
-- 开关：`Settings.ImNotifyEnabled`（config.json，默认开）
+`InformationManager.AddSystemNotification`（TaleWorlds.Library，反编译验证）——NPC 群聊消息/主动话题到达且面板未开或非当前会话时弹顶部横幅；`Settings.ImNotifyEnabled` 开关
+
+### 13.4 丢弃纪律（v4.1/v4.2，发言链条延迟的配套）
+
+| 层 | 机制 | 日志 |
+|----|------|------|
+| pending（未生成） | 玩家发新消息 → `CancelStaleFollowUps(convId)` 移除该频道所有跟随/往返/接话任务 | `[ImReply] 丢弃过期跟随…` |
+| 在途（已生成） | DeliverItem 入队记频道消息数，投递时频道已更新 → 丢弃 | `[ImReply] 丢弃过期回复…（生成期间频道消息 N→M）` |
+| 重复 | 与频道最后一条逐字相同 = 模板降级重复（正常对话逐字相同概率≈0）→ 丢弃 | `[ImReply] 丢弃重复回复…` |
+
+主回复任务不丢（SendPlayerMessage 同 NPC 合并 RespondText）；私聊不受影响
 
 ### 实现文件
 
 | 文件 | 内容 |
 |------|------|
-| ImChat/ImEventBroadcaster.cs | 事件广播器（新）：挑人/生成/防刷屏/管道 |
-| ImChat/ImChatManager.cs | `WriteGroupMessageToMemory` 转 public；`NotifyNewMessage`；`DescribeRelation`；跟随传 prior |
-| ImChat/ImReplyService.cs | `ScheduleReply` 加 prior 参；`BuildPeerInteraction` |
-| LLM/PromptBuilder.cs | `BuildPrompt_ImReply` 加 peerInteraction 段；`BuildPromptForEventComment` |
+| ImChat/ImEventBroadcaster.cs | 事件广播器：挑人/生成/防刷屏/主线程 Tick 投递 |
+| ImChat/ImChatManager.cs | `WriteGroupMessageToMemory`（public）；`NotifyNewMessage`；`DescribeRelation`；`GetResponseMode`（+画像修正+稳定 hash）；跟随传 prior |
+| ImChat/ImReplyService.cs | 延迟调度；回应模式组装；句式纪律；斗嘴往返；过期/重复丢弃；跟随降级模板 |
+| ImChat/ImTopicMatcher.cs | @提及候选扩展；bigram 相似度指纹；沉寂补偿；热度上限 2.5；跟随保底 |
+| LLM/PromptBuilder.cs | `BuildPrompt_ImReply`（peerInteraction/对话流段）；`BuildPromptForEventComment` |
+| LLM/WorldFactProvider.cs | member 主题（成员名单+兵种构成，幻觉修复） |
 | Core/MyBehavior.cs | 挂 7 类 CampaignEvents |
 | Debug/MyCommands.cs | `custom.im_test_event` |
-| Core/Settings.cs | `ImNotifyEnabled` |
-| ModuleData/Languages/*/std_LivingWorldNpcs_prompts.xml | `LWN_im_event_*` ×8 双语 |
+| Core/Settings.cs | `ImGroupFollowUpChance`(0.25)/`ImFollowUpGuaranteeEvery`(4)/`ImBounceChance`(0.5)/`ImNotifyEnabled` |
+| ModuleData/Languages/*/std_LivingWorldNpcs_prompts.xml | `LWN_im_event_*`、`LWN_speech_im_reply_followup_*[_2]`、`LWN_fact_title_member` 双语 |
 
 ### 待实机验证
 
-1. 拌嘴：群里连发消息触发 10% 跟随 → 观察两人是否互动（捧/呛）
-2. 事件：`custom.im_test_event battle_win` → 队伍频道 NPC 主动发言 + NinjaReport 横幅
-3. 通知：面板关闭时收到群消息 → 顶部横幅；打开当前会话 → 不弹
+1. 拌嘴：连发 5-6 条 → 第 4 条保底跟随；跟随者**对主回复者**说话、句式多样、反驳抓具体破绽
+2. 往返：跟随后 50% 主回复者再回一句（不无限循环）
+3. 事件：`custom.im_test_event battle_win` → NPC 主动发言 + NinjaReport 横幅 + 30% 接话
+4. 丢弃：链条进行中快速发新消息 → `[ImReply] 丢弃过期…` 日志，无过期回复上屏

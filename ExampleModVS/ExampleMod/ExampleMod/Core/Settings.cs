@@ -134,7 +134,12 @@ namespace LivingWorldNpcs
 
         // ── IM 即时传讯系统（config.json 侧，不进 MCM：数值/概率类高级配置）──
         // 群聊跟随回复概率（用户决策 1：主回复者之外的第二人跟一句的概率，0~1）。
-        public float ImGroupFollowUpChance { get; set; } = 0.1f;
+        public float ImGroupFollowUpChance { get; set; } = 0.25f; // 🔴 2026-08-10 10%→25%：10% 太低用户几十条消息见不到一次拌嘴
+        // 跟随回复保底（2026-08-10）：每频道距上次跟随回复满 N 条消息时必触发一次（随机之外的经验保底，
+        // 0.75^7≈13% 的"7 连不中"实机出现过——纯随机体验靠赌不可接受）。0 = 关闭保底
+        public int ImFollowUpGuaranteeEvery { get; set; } = 4;
+        // 斗嘴往返概率（2026-08-10 v4）：跟随者回应后，主回复者再回一句的概率（0~1；0 = 关闭）
+        public float ImBounceChance { get; set; } = 0.5f;
         // 单 NPC 回复冷却（墙钟秒）：防玩家连发刷爆 LLM 限流。
         public float ImReplyCooldownSeconds { get; set; } = 5f;
         // 互动热度分档阈值（决定 NPC 记忆容量，Phase 5 生效）：heat >= Hot → 大容量；>= Normal → 现状；否则冷门小容量。
