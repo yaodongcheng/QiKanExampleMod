@@ -3990,5 +3990,7 @@
     <string id="LWN_im_input_placeholder" text="Type a message..." />
     <string id="LWN_im_input_placeholder_cmd" text="Type a command..." />
     <string id="LWN_im_btn_order" text="Order" />
+    <string id="LWN_im_mode_status" text="Mode: {MODE}" />
+    <string id="LWN_im_btn_switch_mode" text="Switch to {MODE}" />
 </strings>
 </base>

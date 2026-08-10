@@ -159,10 +159,8 @@ namespace LivingWorldNpcs
             if (_vm == null) return;
             _vm.ChannelList.Clear();
 
-            // 分组标题：频道（队伍/家族/王国）
-            // 分组标题：频道
-            _vm.ChannelList.Add(ImChannelVM.CreateHeader(LWNTextHelper.ResolveText("LWN_im_group_channels", "Channels")));
-
+            // 🔴 2026-08-10 三轮：删除「频道」分组标题（用户反馈不需要）——队伍/家族/王国频道直接列在顶部，
+            // 仅保留「最近消息」分组标题区分私聊区块
             // 队伍频道（恒显示）
             AddChannel(ImChatManager.GetGroupConversation(ImConversationType.Party));
 
@@ -207,9 +205,11 @@ namespace LivingWorldNpcs
             if (last != null && !string.IsNullOrWhiteSpace(last.Content))
             {
                 string preview = last.Content;
-                if (preview.Length > 18) preview = preview.Substring(0, 18) + "…";
                 if (conv.Type != ImConversationType.Direct && last.SenderHeroId != ImChatManager.PlayerId)
                     preview = $"{last.SenderName}：{preview}";
+                // 🔴 2026-08-10 三轮：前缀拼完再整体截断 13 字符（中文字符 13px 宽，13 字 ≈169px 不超 240px 左栏可用宽；
+                //     ClipContents 兜底裁，C# 截断保证不触发溢出）
+                if (preview.Length > 13) preview = preview.Substring(0, 13) + "…";
                 item.Subtitle = preview;
             }
             else
@@ -256,7 +256,7 @@ namespace LivingWorldNpcs
                 RefreshChannelItem(ch);
         }
 
-        /// <summary>动态项：正在输入 + 模式分段控件 + 输入区联动（0.3s 节流调）。</summary>
+        /// <summary>动态项：正在输入 + 模式状态/切换按钮 + 输入区联动（0.3s 节流调）。</summary>
         private static void RefreshDynamic()
         {
             if (_vm == null || _selected == null) return;
@@ -265,20 +265,17 @@ namespace LivingWorldNpcs
             bool modeVisible = IsCommandModeAvailable(_selected);
             _vm.IsModeControlVisible = modeVisible;
             bool isCommand = ImChatStore.GetMode(_selected.Id) == ImMode.Command;
-            // 分段控件互斥选中态（玩家一眼看到当前模式）
-            _vm.IsChatModeActive = !isCommand;
-            _vm.IsCommandModeActive = isCommand;
-            // 密令段标签：Mission = 密令；Campaign 大地图 = 行军令（Q5b）
-            if (isCommand && Mission.Current == null)
-            {
-                // 模式段标签：行军令（Campaign 大地图 = 规则行军令，Q5b）
-                _vm.CommandModeLabel = LWNTextHelper.ResolveText("LWN_im_mode_march", "March");
-            }
-            else
-            {
-                // 模式段标签：密令
-                _vm.CommandModeLabel = LWNTextHelper.ResolveText("LWN_im_mode_command", "Order");
-            }
+            _vm.IsCommandMode = isCommand;   // 切换按钮互斥显示（密令模式 → 「切换到闲聊」按钮）
+            // 密令侧模式名：Mission = 密令；Campaign 大地图 = 行军令（Q5b）
+            string commandModeName = Mission.Current == null
+                ? LWNTextHelper.ResolveText("LWN_im_mode_march", "March")   // 模式名：行军令
+                : LWNTextHelper.ResolveText("LWN_im_mode_command", "Order"); // 模式名：密令
+            string chatModeName = LWNTextHelper.ResolveText("LWN_im_mode_chat", "Chat"); // 模式名：闲聊
+            // 状态静态文本：「当前：XX模式」；按钮动作文本：「切换到XX」（目标 = 非当前模式）
+            _vm.ModeStatusText = LWNTextHelper.ResolveCompound("LWN_im_mode_status", "Mode: {MODE}",
+                ("MODE", isCommand ? commandModeName : chatModeName));
+            _vm.SwitchModeButtonText = LWNTextHelper.ResolveCompound("LWN_im_btn_switch_mode", "Switch to {MODE}",
+                ("MODE", isCommand ? chatModeName : commandModeName));
             // 输入区随模式联动（双重反馈：placeholder + 发送按钮文案）
             _vm.PlaceholderText = isCommand
                 ? LWNTextHelper.ResolveText("LWN_im_input_placeholder_cmd", "Type a command...")
@@ -376,6 +373,9 @@ namespace LivingWorldNpcs
             if (string.IsNullOrWhiteSpace(text)) return;
             _vm.InputText = "";
 
+            // 🔴 玩家消息落日志（上下文分析用，对齐 [VanillaDialog] Player says 惯例；闲聊/密令两路径都经过这里）
+            DebugLogger.Log($"[ImChat] Player → {_selected.Title}: \"{text.Trim()}\"");
+
             // 密令模式 → 命令管线（Phase 4）；闲聊 → 常规发送
             if (ImChatStore.GetMode(_selected.Id) == ImMode.Command)
             {
@@ -388,7 +388,7 @@ namespace LivingWorldNpcs
             RefreshMessages();
         }
 
-        /// <summary>分段控件：切到闲聊段（点击非当前段才有效，否则无操作）。</summary>
+        /// <summary>切换按钮：切到闲聊模式（点击非当前模式才有效，否则无操作）。</summary>
         public static void ExecuteSwitchToChat()
         {
             if (_vm == null || _selected == null) return;
@@ -396,7 +396,7 @@ namespace LivingWorldNpcs
             SetMode(ImMode.Chat);
         }
 
-        /// <summary>分段控件：切到密令段（含可用性 + 互斥检查，与旧 ExecuteToggleMode 的转入分支一致）。</summary>
+        /// <summary>切换按钮：切到密令模式（含可用性 + 互斥检查，与旧 ExecuteToggleMode 的转入分支一致）。</summary>
         public static void ExecuteSwitchToCommand()
         {
             if (_vm == null || _selected == null) return;
