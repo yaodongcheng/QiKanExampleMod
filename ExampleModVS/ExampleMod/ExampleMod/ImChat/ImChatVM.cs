@@ -220,7 +220,6 @@ namespace LivingWorldNpcs
         private string _modeStatusText = "";
         private string _switchModeButtonText = "";
         private bool _isModeControlVisible;
-        private bool _isCommandMode;
         private string _placeholderText = "";
         private string _sendText = "";
         private bool _isEmpty;
@@ -295,26 +294,6 @@ namespace LivingWorldNpcs
             set { if (_isModeControlVisible != value) { _isModeControlVisible = value; OnPropertyChangedWithValue(value, nameof(IsModeControlVisible)); } }
         }
 
-        /// <summary>当前是密令模式（切换按钮互斥显示用：密令模式显示「切换到闲聊」按钮）。</summary>
-        [DataSourceProperty]
-        public bool IsCommandMode
-        {
-            get => _isCommandMode;
-            set
-            {
-                if (_isCommandMode != value)
-                {
-                    _isCommandMode = value;
-                    OnPropertyChangedWithValue(value, nameof(IsCommandMode));
-                    OnPropertyChanged(nameof(IsNotCommandMode));   // 互补属性联动通知
-                }
-            }
-        }
-
-        /// <summary>当前不是密令模式（显示「切换到密令」按钮；与 IsCommandMode 互斥）。</summary>
-        [DataSourceProperty]
-        public bool IsNotCommandMode => !_isCommandMode;
-
         /// <summary>发送按钮文案（随模式联动：闲聊=Send / 密令=Order）。</summary>
         [DataSourceProperty]
         public string SendText
@@ -343,10 +322,7 @@ namespace LivingWorldNpcs
 
         public void ExecuteClose() => ImChatView.Close();
 
-        /// <summary>切换按钮：切到闲聊模式（点击非当前模式才有效）。</summary>
-        public void ExecuteSwitchToChat() => ImChatView.ExecuteSwitchToChat();
-
-        /// <summary>切换按钮：切到密令模式（含可用性检查）。</summary>
-        public void ExecuteSwitchToCommand() => ImChatView.ExecuteSwitchToCommand();
+        /// <summary>单切换按钮：内部按当前模式路由（闲聊→密令 含可用性检查；密令→闲聊 直接切）。</summary>
+        public void ExecuteSwitchMode() => ImChatView.ExecuteSwitchMode();
     }
 }

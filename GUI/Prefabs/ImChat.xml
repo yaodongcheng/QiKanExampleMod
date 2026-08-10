@@ -25,38 +25,26 @@
                             VerticalAlignment="Center" MarginLeft="24"
                             DoNotAcceptEvents="true"/>
 
-                <!-- 模式切换（2026-08-10：分段控件改「静态状态文本 + 切换按钮」）：
-                     状态文本 = 当前模式（「当前：闲聊模式」），按钮 = 动作（「切换到密令」）——
-                     玩家先明确看到当前是什么模式，按钮表达的是切换动作而非模式本身。
+                <!-- 模式切换（2026-08-10 终版）：状态文本 + 单按钮并排（ListPanel 防重叠）。
+                     左侧 = 当前模式静态文本（「当前：闲聊模式」）；右侧 = 单个按钮，文本随模式变量切换
+                     （「切换到密令」⇄「切换到闲聊」，点击路由由 View 按当前模式决定——Command.Click 固定方法绑定，
+                     故用单方法 ExecuteSwitchMode 内部路由）。
                      密令侧模式名随上下文（Mission=密令 / 大地图=行军令）；仅密令可用会话显示（IsModeControlVisible）。 -->
-                <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                        HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66"
-                        IsVisible="@IsModeControlVisible"
-                        DoNotAcceptEvents="true">
+                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                           HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66"
+                           IsVisible="@IsModeControlVisible">
                   <Children>
+                    <!-- 当前模式静态文本（按钮左侧） -->
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                 Text="@ModeStatusText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#C8C8C8FF"
-                                HorizontalAlignment="Right" VerticalAlignment="Center"
+                                VerticalAlignment="Center"
                                 DoNotAcceptEvents="true"/>
-                    <!-- 切换到密令按钮（闲聊模式显示；Command.Click 固定方法绑定，故双按钮按模式互斥显示） -->
+                    <!-- 单个切换按钮：文本随模式变量切换，点击内部路由 -->
                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
                                   Brush="Test.Button3"
-                                  Command.Click="ExecuteSwitchToCommand"
-                                  HorizontalAlignment="Right" VerticalAlignment="Center" MarginLeft="10"
-                                  IsVisible="@IsNotCommandMode">
-                      <Children>
-                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                    Text="@SwitchModeButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    DoNotAcceptEvents="true"/>
-                      </Children>
-                    </ButtonWidget>
-                    <!-- 切换到闲聊按钮（密令模式显示） -->
-                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
-                                  Brush="Test.Button3"
-                                  Command.Click="ExecuteSwitchToChat"
-                                  HorizontalAlignment="Right" VerticalAlignment="Center" MarginLeft="10"
-                                  IsVisible="@IsCommandMode">
+                                  Command.Click="ExecuteSwitchMode"
+                                  VerticalAlignment="Center" MarginLeft="10">
                       <Children>
                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                     Text="@SwitchModeButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
@@ -65,7 +53,7 @@
                       </Children>
                     </ButtonWidget>
                   </Children>
-                </Widget>
+                </ListPanel>
 
                 <!-- 关闭按钮 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
@@ -137,7 +125,7 @@
                                               <Children>
                                                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                                             Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="17" Brush.FontColor="@TitleColor"
-                                                            HorizontalAlignment="Left" VerticalAlignment="Center" MarginRight="40"
+                                                            Brush.TextHorizontalAlignment="Left" HorizontalAlignment="Left" VerticalAlignment="Center" MarginRight="40"
                                                             ClipContents="true"
                                                             DoNotAcceptEvents="true"/>
                                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -415,21 +403,29 @@
                                     IsVisible="@IsEmpty"
                                     DoNotAcceptEvents="true"/>
 
-                        <!-- 输入区（贴底 78px：正在输入提示 + 输入框 + 发送按钮） -->
+                        <!-- 输入区（贴底 78px：正在输入提示 + 输入框 + 发送按钮）。
+                             🔴 2026-08-10 四轮：输入区整体加底色 + 顶部分隔线（与消息流区分），输入框底加深拉开层次 -->
                         <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="78"
                                 VerticalAlignment="Bottom"
+                                Sprite="BlankWhiteSquare_9" Color="#00000088"
                                 DoNotAcceptEvents="true">
                           <Children>
+                            <!-- 分隔线：输入区与消息流的视觉边界 -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="2"
+                                    VerticalAlignment="Top"
+                                    Sprite="BlankWhiteSquare_9" Color="#FFFFFF33"
+                                    DoNotAcceptEvents="true"/>
+
                             <!-- 「XX 正在输入…」（空文本 = 不渲染） -->
                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="18"
                                         Text="@TypingText" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#88CC88FF"
-                                        VerticalAlignment="Top" MarginLeft="16" MarginRight="16"
+                                        VerticalAlignment="Top" MarginLeft="16" MarginRight="16" MarginTop="4"
                                         DoNotAcceptEvents="true"/>
 
-                            <!-- 输入框底 -->
+                            <!-- 输入框底（🔴 加深：与输入区底色拉开层次） -->
                             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
                                     VerticalAlignment="Bottom" MarginBottom="10" MarginLeft="14" MarginRight="14"
-                                    Sprite="BlankWhiteSquare_9" Color="#00000099"
+                                    Sprite="BlankWhiteSquare_9" Color="#000000CC"
                                     DoNotAcceptEvents="true">
                               <Children>
                                 <EditableTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"

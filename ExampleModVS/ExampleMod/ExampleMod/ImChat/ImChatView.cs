@@ -265,7 +265,6 @@ namespace LivingWorldNpcs
             bool modeVisible = IsCommandModeAvailable(_selected);
             _vm.IsModeControlVisible = modeVisible;
             bool isCommand = ImChatStore.GetMode(_selected.Id) == ImMode.Command;
-            _vm.IsCommandMode = isCommand;   // 切换按钮互斥显示（密令模式 → 「切换到闲聊」按钮）
             // 密令侧模式名：Mission = 密令；Campaign 大地图 = 行军令（Q5b）
             string commandModeName = Mission.Current == null
                 ? LWNTextHelper.ResolveText("LWN_im_mode_march", "March")   // 模式名：行军令
@@ -396,7 +395,18 @@ namespace LivingWorldNpcs
             SetMode(ImMode.Chat);
         }
 
-        /// <summary>切换按钮：切到密令模式（含可用性 + 互斥检查，与旧 ExecuteToggleMode 的转入分支一致）。</summary>
+        /// <summary>切换按钮（2026-08-10 终版：单按钮 + 文本变量「切换到密令」⇄「切换到闲聊」）。
+        /// Command.Click 固定方法绑定 → 单方法内部按当前模式路由。</summary>
+        public static void ExecuteSwitchMode()
+        {
+            if (_vm == null || _selected == null) return;
+            if (ImChatStore.GetMode(_selected.Id) == ImMode.Command)
+                SetMode(ImMode.Chat);
+            else
+                ExecuteSwitchToCommand();   // 含可用性 + 互斥检查
+        }
+
+        /// <summary>切到密令模式（含可用性 + 互斥检查）。</summary>
         public static void ExecuteSwitchToCommand()
         {
             if (_vm == null || _selected == null) return;
