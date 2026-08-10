@@ -34,7 +34,12 @@ namespace LivingWorldNpcs
         // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
         // 「查看模式」按钮规避贴底+滚轮冲突；这里直接从 UIContext 找 ScrollablePanel 操作 ValueFloat）
         private static ScrollablePanel _messageScrollPanel;
+#pragma warning disable CS0169 // 滚动诊断节流器——诊断日志注释期间未使用，取证时随注释块一起启用
         private static float _scrollDiagTimer;
+#pragma warning restore CS0169
+        // 🔴 十一轮：贴底状态机——锁定 = 内容增长时每帧重 pin 到最新（引擎 offset=MaxValue-val，
+        // 内容增长会让 max 变大、offset 漂移出新消息）；玩家上拉翻历史解锁
+        private static bool _pinnedToBottom;
 
         public static bool IsOpen => _layer != null;
 
@@ -148,6 +153,9 @@ namespace LivingWorldNpcs
         public static void SelectConversation(ImConversation conv)
         {
             _selected = conv;
+            // 🔴 十一轮：切会话默认贴底（IM 惯例：打开会话看最新；面板引用首帧才解析，
+            // ScrollToBottom 的 val=max 由 Tick 里的贴底闭环持续补上）
+            _pinnedToBottom = true;
             if (conv != null)
                 ImChatStore.ClearUnread(conv.Id);
             RefreshAll();
@@ -258,9 +266,11 @@ namespace LivingWorldNpcs
             _vm.IsEmpty = msgs.Count == 0;
             // 🔴 九轮：新消息处理二分——玩家在底部（未上拉）→ 自动滚底把新消息弹出来（贴底闭环兜底）；
             // 玩家在上部（翻历史）→ 才提示「有新消息」
+            // 🔴 十一轮：判底改用「贴底锁定态」而非数值——内容增长的同一帧 MaxValue 尚未更新，
+            // 数值判底（val≥max-8）会误判为「不在底部」→ 弹提示 + 停止跟新（>8px 的新消息必中招）
             if (hadNew)
             {
-                if (IsMessageAtBottom())
+                if (_pinnedToBottom)
                     ScrollToBottom();
                 else
                     _vm.HasNewMessageHint = true;
@@ -268,27 +278,30 @@ namespace LivingWorldNpcs
             RefreshChannelsDynamic();
         }
 
-        /// <summary>消息流是否在底部（🔴 十轮：Bottom 对齐时引擎每帧 offset = MaxValue - val——
-        /// val≈0 时 offset=max（InnerPanel 底部=Clip 底部=贴底）；val=max 反而是顶部。±8 容差）。</summary>
+        /// <summary>消息流是否在底部（🔴 十一轮：引擎 Bottom 对齐 offset=MaxValue-val——贴底 = offset=0 =
+        /// val=max，引擎每帧经 AdjustVerticalScrollBar 把 val 同步为 MaxValue；±8 容差）。
+        /// 十轮误判为 |val|≤8（贴底=val≈0），实为「内容不溢出时引擎强制 val=0」的巧合，溢出即翻转。</summary>
         private static bool IsMessageAtBottom()
         {
             try
             {
                 if (_messageScrollPanel?.VerticalScrollbar == null) return true;
                 var sb = _messageScrollPanel.VerticalScrollbar;
-                return MathF.Abs(sb.ValueFloat) <= 8f;
+                return sb.ValueFloat >= sb.MaxValue - 8f;
             }
             catch { return true; }
         }
 
-        /// <summary>滚到消息流底部（🔴 十轮：设 val=0 → 引擎 offset = MaxValue-0 = max = 贴底；
-        /// 原实现设 val=max 实际跳到顶部——用户实测「发送没拉到底」根因）。</summary>
+        /// <summary>滚到消息流底部并锁定贴底（🔴 十一轮：val=MaxValue → offset=MaxValue-MaxValue=0 =
+        /// 贴底（Bottom 对齐自然位，新消息可见）；十轮设 val=0 → offset=MaxValue → 面板下移露出最旧消息——
+        /// 「滚动条出现后发送没拉到底」根因，反编译 ScrollablePanel.UpdateScrollablePanel 确诊）。</summary>
         public static void ScrollToBottom()
         {
             try
             {
                 if (_messageScrollPanel?.VerticalScrollbar != null)
-                    _messageScrollPanel.VerticalScrollbar.ValueFloat = 0f;
+                    _messageScrollPanel.VerticalScrollbar.ValueFloat = _messageScrollPanel.VerticalScrollbar.MaxValue;
+                _pinnedToBottom = true;
                 if (_vm != null) _vm.HasNewMessageHint = false;
             }
             catch { }
@@ -419,6 +432,11 @@ namespace LivingWorldNpcs
                 catch (Exception ex) { DebugLogger.Log($"[ImChat] Tick 刷新失败: {ex.Message}"); }
             }
 
+            // 🔴 十一轮：贴底持续闭环——内容增长时引擎 offset 漂移（max 变大、val 不变），
+            // 锁定态每帧重 pin 到最新（val=max → offset=0），新消息永远弹出；解锁态不碰
+            if (_pinnedToBottom)
+                ScrollToBottom();
+
             // 🔴 七轮：手动滚轮接管（引擎滚轮派发在模态层下不可靠）+ 滚动条件诊断日志
             HandleManualScroll(dt);
         }
@@ -461,18 +479,18 @@ namespace LivingWorldNpcs
             }
             try
             {
-                // 🔴 诊断日志（滚动调试用，已确认修复后注释；需要取证时取消注释）：
-                // 每 1s 输出 inner=内容高度 clip=可视高度 max=滚动范围 val=当前值——
-                // inner=-1 说明 InnerPanel 路径解析失败（Id 与 LWN_ 前缀不一致）；
-                // max 恒等于 XML 初值说明引擎滚动更新未运行（InnerPanel=null 异常中断）。
+                // 🔴 诊断日志（十一轮已确认修复后注释；需要取证时取消注释）：
+                // 每 0.5s 输出 inner=内容高度 clip=可视高度 max=滚动范围 val=ValueFloat off=InnerPanel 下移量——
+                // 贴底态特征：val≈max、off≈0（引擎 Bottom 对齐 offset=MaxValue-val）。
                 //_scrollDiagTimer += dt;
-                //if (_scrollDiagTimer >= 1f)
+                //if (_scrollDiagTimer >= 0.5f)
                 //{
                 //    _scrollDiagTimer = 0f;
                 //    var panel = _messageScrollPanel;
                 //    float inner = panel.InnerPanel?.Size.Y ?? -1f;
                 //    float clip = panel.ClipRect?.Size.Y ?? -1f;
-                //    DebugLogger.Log($"[ImChat] ScrollDiag inner={inner:0} clip={clip:0} max={panel.VerticalScrollbar?.MaxValue ?? -1f:0} val={panel.VerticalScrollbar?.ValueFloat ?? -1f:0.0}");
+                //    float offset = panel.InnerPanel?.ScaledPositionYOffset ?? -1f;
+                //    DebugLogger.Log($"[ImChat] ScrollDiag inner={inner:0} clip={clip:0} max={panel.VerticalScrollbar?.MaxValue ?? -1f:0} val={panel.VerticalScrollbar?.ValueFloat ?? -1f:0.0} off={offset:0}");
                 //}
 
                 float delta = Input.DeltaMouseScroll;
@@ -490,6 +508,12 @@ namespace LivingWorldNpcs
                 // 方向与引擎公式逐字一致（引擎 offset += DeltaMouseScroll ⇔ val -= DeltaMouseScroll，
                 // 引擎方向经实机验证正确）；clamp [0, max] 防越界（val<0 或 >max 会让 InnerPanel 超界出空白）
                 scrollbar.ValueFloat = MathF.Clamp(scrollbar.ValueFloat - delta * 0.05f, 0f, scrollbar.MaxValue);
+
+                // 🔴 十一轮：贴底状态机——上拉（delta>0=往历史）解锁跟新；下拉到底（val 被 clamp 顶到 max）重新锁定
+                if (delta > 0f)
+                    _pinnedToBottom = false;
+                else if (IsMessageAtBottom())
+                    _pinnedToBottom = true;
             }
             catch (Exception ex)
             {

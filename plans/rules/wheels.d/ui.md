@@ -304,3 +304,33 @@ Mission 侧（同 DLL 实测）：NameMarker=1、MissionQuestBar/AlarmState=10�
 **同坑引申**：普通 Widget 内多个子元素若想不重叠，只能靠 HorizontalAlignment/VerticalAlignment 对齐定位（如"标题 Stretch 左 + 徽标 CoverChildren 右"）——需要垂直排布的必须 ListPanel。
 
 **关键文件**：`GUI/Prefabs/ImChat.xml`（他人/自己气泡两处，`LWN_ImChat_BubbleOther/Self`）。
+
+
+---
+
+## ScrollablePanel 贴底语义（Bottom 对齐聊天流）— val=MaxValue 才是贴底
+
+**问题**：Bottom 对齐的聊天列表（新消息在最下、列表向上生长）的 `ScrollbarWidget.ValueFloat` 贴底语义极容易误判——曾两轮判反（「发送没拉到底」反复复现）。且内容增长时即使值设对也会漂移出新消息。
+
+**引擎公式（反编译 `TaleWorlds.GauntletUI.dll` ScrollablePanel.UpdateScrollablePanel，v1.4.7 实测）**：
+- Bottom 对齐（InnerPanel `VerticalAlignment="Bottom"`）：每帧 `offset = MaxValue - val`，`AdjustVerticalScrollBar` 同步 `val = MaxValue - offset`；
+- **val=MaxValue → offset=0 = 贴底**（Bottom 对齐自然位，显示最新）；**val=0 → offset=MaxValue → 面板下移露出最旧消息**；
+- **🔴 最大陷阱：内容不溢出时引擎强制 val=0 且 offset=0（全可见）**——看着像「val≈0=贴底」，实际是「内容短所以全可见」的巧合，一旦溢出语义立即翻转；
+- 滚轮方向佐证：引擎 `offset += DeltaMouseScroll`（上拉=历史）⇔ 手动接管 `val -= delta` ⟹ `offset=MaxValue-val`；
+- 手柄 `UpdateHandleByValue`：val=MaxValue → 手柄在底（与内容一致，勿再反向 patch）。
+
+**🔴 第二个坑（内容增长漂移）**：贴底时新消息使 `MaxValue` 变大、val 不变 → `offset=MaxValue-val` 漂移出新消息。**数值判底（`val ≥ max-8`）在增长同帧必误判**（max 未更新）→ 弹提示/停跟新。**必须用状态机，不用数值**：
+
+```csharp
+private static bool _pinnedToBottom;                 // 贴底锁定态
+// Tick 每帧：锁定态持续重 pin（防漂移；val=max → offset=0）
+if (_pinnedToBottom) ScrollToBottom();
+// 滚轮接管里：上拉（delta>0=历史）解锁；下拉被 clamp 顶到 max → 重新锁定
+if (delta > 0f) _pinnedToBottom = false;
+else if (IsMessageAtBottom()) _pinnedToBottom = true;
+// ScrollToBottom(): ValueFloat = MaxValue + _pinnedToBottom = true（发送/提示条点击/切会话都走它）
+```
+
+**调用范例**（`ImChat/ImChatView.cs`，2026-08-10 十一轮）：`IsMessageAtBottom()` 判 `val ≥ MaxValue-8`；`ScrollToBottom()` 设 `val=MaxValue` 并锁定；`RefreshMessages` 的 hadNew 分支用 `_pinnedToBottom` 而非数值判底；滚轮 clamp `[0, max]`（防 val 越界把内容顶出底部）。
+
+**关键文件**：`ImChat/ImChatView.cs`（Tick / HandleManualScroll / ScrollToBottom / IsMessageAtBottom）、`GUI/Prefabs/ImChat.xml`（MessageScroll：InnerPanel Bottom 对齐 + AutoHideScrollBars）。反编译出处：`ilspycmd bin/Win64_Shipping_Client/TaleWorlds.GauntletUI.dll -t TaleWorlds.GauntletUI.BaseTypes.ScrollablePanel`。完整排查记录：`plans/im-chat-system.md` 十轮/十一轮。
