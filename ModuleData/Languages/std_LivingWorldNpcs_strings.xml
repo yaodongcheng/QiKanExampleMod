@@ -1,4 +1,4 @@
-<?xml version='1.0' encoding='utf-8'?>
+﻿<?xml version='1.0' encoding='utf-8'?>
 <base type="string">
   <tags>
     <tag language="English" />
@@ -3938,9 +3938,9 @@
     <string id="LWN_im_channel_kingdom" text="Kingdom" />
     <string id="LWN_im_typing" text="{NAMES} is typing..." />
     <string id="LWN_im_mode_chat" text="Chat" />
-    <string id="LWN_im_mode_command" text="Order" />
-    <string id="LWN_im_mode_unavailable" text="Command mode is unavailable here." />
-    <string id="LWN_im_mode_need_mission" text="Orders must be given in person - enter a scene first." />
+    <string id="LWN_im_mode_command" text="Plan" />
+    <string id="LWN_im_mode_unavailable" text="Plan mode is unavailable here." />
+    <string id="LWN_im_mode_need_mission" text="Plans must be given in person - enter a scene first." />
     <string id="LWN_im_mode_plot_active" text="Another secret order is already being discussed." />
     <string id="LWN_im_time_justnow" text="just now" />
     <string id="LWN_im_time_minutes" text="{N} min ago" />
@@ -3974,21 +3974,21 @@
     <string id="LWN_im_first_open" text="Messaging (IM) - talk to heroes across the land, or give orders to companions. Open with the configured key (default O); close with ESC, B, or by clicking outside the panel." />
     <string id="LWN_im_status_present" text="present" />
     <string id="LWN_im_status_away" text="away" />
-    <string id="LWN_im_mode_march" text="March" />
-    <string id="LWN_im_march_channel_only" text="Marching orders can only be sent to a single hero. Channel orders require a scene." />
+    <string id="LWN_im_mode_march" text="Plan" />
+    <string id="LWN_im_march_channel_only" text="Plans can only be sent to a single hero. Channel plans require a scene." />
     <string id="LWN_im_march_no_party" text="That hero has no army to command." />
     <string id="LWN_im_march_in_party" text="That hero marches with you - give orders in person, in a scene." />
     <string id="LWN_im_march_enemy" text="The messenger dares not approach an enemy army." />
     <string id="LWN_im_march_follow" text="{NAME}'s army is marching to join you." />
     <string id="LWN_im_march_hold" text="{NAME}'s army holds position." />
     <string id="LWN_im_march_move" text="{NAME}'s army is marching to {PLACE}." />
-    <string id="LWN_im_march_no_place" text="The messenger does not know that place. Marching orders: follow / hold position / march to a settlement." />
-    <string id="LWN_im_march_unclear" text="The messenger cannot make sense of this order. Marching orders: follow / hold position / march to a settlement." />
+    <string id="LWN_im_march_no_place" text="The messenger does not know that place. Plans: follow / hold position / march to a settlement." />
+    <string id="LWN_im_march_unclear" text="The messenger cannot make sense of this order. Plans: follow / hold position / march to a settlement." />
     <string id="LWN_im_group_channels" text="Channels" />
     <string id="LWN_im_group_directs" text="Recent" />
     <string id="LWN_im_empty_hint" text="No messages yet. Say something to break the silence..." />
     <string id="LWN_im_input_placeholder" text="Type a message..." />
-    <string id="LWN_im_input_placeholder_cmd" text="Type a command..." />
+    <string id="LWN_im_input_placeholder_cmd" text="Type a plan..." />
     <string id="LWN_im_btn_order" text="Order" />
     <string id="LWN_im_mode_status" text="Mode: {MODE}" />
     <string id="LWN_im_btn_switch_mode" text="Switch to {MODE}" />

@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
   <tags>
     <tag language="简体中文" />
@@ -4030,9 +4030,9 @@
     <string id="LWN_im_channel_kingdom" text="王国" />
     <string id="LWN_im_typing" text="{NAMES}正在输入…" />
     <string id="LWN_im_mode_chat" text="闲聊" />
-    <string id="LWN_im_mode_command" text="密令" />
-    <string id="LWN_im_mode_unavailable" text="此处无法下达密令。" />
-    <string id="LWN_im_mode_need_mission" text="密令需当面下达——先进到场景里。" />
+    <string id="LWN_im_mode_command" text="计划" />
+    <string id="LWN_im_mode_unavailable" text="此处无法下达计划。" />
+    <string id="LWN_im_mode_need_mission" text="计划需当面下达——先进到场景里。" />
     <string id="LWN_im_mode_plot_active" text="另一桩密谋正在进行中。" />
     <string id="LWN_im_time_justnow" text="刚刚" />
     <string id="LWN_im_time_minutes" text="{N} 分钟前" />
@@ -4066,21 +4066,21 @@
     <string id="LWN_im_first_open" text="传讯（IM）——可与远方的英雄通信，或给随从下达密令。按配置键（默认 O）打开；ESC / 手柄 B / 点击面板外关闭。" />
     <string id="LWN_im_status_present" text="在场" />
     <string id="LWN_im_status_away" text="他处" />
-    <string id="LWN_im_mode_march" text="行军令" />
-    <string id="LWN_im_march_channel_only" text="行军令只能发给单个英雄；频道内下命令需进入场景。" />
+    <string id="LWN_im_mode_march" text="计划" />
+    <string id="LWN_im_march_channel_only" text="计划只能发给单个英雄；频道内下达计划需进入场景。" />
     <string id="LWN_im_march_no_party" text="此人麾下并无军队可令。" />
     <string id="LWN_im_march_in_party" text="此人正随你行军——请在场景中当面下密令。" />
     <string id="LWN_im_march_enemy" text="使者不敢接近敌军营地。" />
     <string id="LWN_im_march_follow" text="{NAME}的军队正向你的位置汇合。" />
     <string id="LWN_im_march_hold" text="{NAME}的军队原地驻扎。" />
     <string id="LWN_im_march_move" text="{NAME}的军队正开赴{PLACE}。" />
-    <string id="LWN_im_march_no_place" text="使者不识此地。行军令：跟随 / 原地待命 / 前往某处定居点。" />
-    <string id="LWN_im_march_unclear" text="使者听不懂这道命令。行军令：跟随 / 原地待命 / 前往某处定居点。" />
+    <string id="LWN_im_march_no_place" text="使者不识此地。计划：跟随 / 原地待命 / 前往某处定居点。" />
+    <string id="LWN_im_march_unclear" text="使者听不懂这道命令。计划：跟随 / 原地待命 / 前往某处定居点。" />
     <string id="LWN_im_group_channels" text="频道" />
     <string id="LWN_im_group_directs" text="私聊" />
     <string id="LWN_im_empty_hint" text="还没有消息，说点什么打破沉默吧…" />
     <string id="LWN_im_input_placeholder" text="输入消息…" />
-    <string id="LWN_im_input_placeholder_cmd" text="下达密令…" />
+    <string id="LWN_im_input_placeholder_cmd" text="下达计划…" />
     <string id="LWN_im_btn_order" text="下令" />
     <string id="LWN_im_mode_status" text="当前：{MODE}模式" />
     <string id="LWN_im_btn_switch_mode" text="切换到{MODE}" />

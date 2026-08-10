@@ -14,52 +14,66 @@
                 DoNotAcceptEvents="true">
           <Children>
 
-            <!-- 标题带（Inquiry 同款：深色底带 + 左对齐金字 + 右侧分段模式切换/关闭） -->
+            <!-- 标题带（🔴 五轮：改 ListPanel 横向布局——标题 + 正在思考 + 模式区 + 关闭 顺序排布，杜绝普通 Widget 子元素重叠） -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
                     VerticalAlignment="Top"
                     Sprite="BlankWhiteSquare_9" Color="#000000B3"
                     DoNotAcceptEvents="true">
               <Children>
-                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Text="@Title" Brush="Popup.Title.Text" Brush.TextHorizontalAlignment="Left" Brush.FontSize="28"
-                            VerticalAlignment="Center" MarginLeft="24"
-                            DoNotAcceptEvents="true"/>
-
-                <!-- 模式切换（2026-08-10 终版）：状态文本 + 单按钮并排（ListPanel 防重叠）。
-                     左侧 = 当前模式静态文本（「当前：闲聊模式」）；右侧 = 单个按钮，文本随模式变量切换
-                     （「切换到密令」⇄「切换到闲聊」，点击路由由 View 按当前模式决定——Command.Click 固定方法绑定，
-                     故用单方法 ExecuteSwitchMode 内部路由）。
-                     密令侧模式名随上下文（Mission=密令 / 大地图=行军令）；仅密令可用会话显示（IsModeControlVisible）。 -->
-                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                            StackLayout.LayoutMethod="HorizontalLeftToRight"
-                           HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66"
-                           IsVisible="@IsModeControlVisible">
+                           DoNotAcceptEvents="true">
                   <Children>
-                    <!-- 当前模式静态文本（按钮左侧） -->
-                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                Text="@ModeStatusText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#C8C8C8FF"
-                                VerticalAlignment="Center"
+                    <!-- 标题：左对齐金字，撑满剩余空间（后置元素从右侧挤占） -->
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                Text="@Title" Brush="Popup.Title.Text" Brush.TextHorizontalAlignment="Left" Brush.FontSize="28"
+                                VerticalAlignment="Center" MarginLeft="24"
                                 DoNotAcceptEvents="true"/>
-                    <!-- 单个切换按钮：文本随模式变量切换，点击内部路由 -->
-                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
-                                  Brush="Test.Button3"
-                                  Command.Click="ExecuteSwitchMode"
-                                  VerticalAlignment="Center" MarginLeft="10">
+
+                    <!-- 「XX 正在思考回复…」：仅私聊回复在途时显示（🔴 五轮：从输入区移到标题带，群聊不显示） -->
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@TypingText" Brush="MyBrush_18_White" Brush.FontSize="13" Brush.FontColor="#88CC88FF"
+                                VerticalAlignment="Center" MarginLeft="16" MarginRight="16"
+                                IsVisible="@IsTypingVisible"
+                                DoNotAcceptEvents="true"/>
+
+                    <!-- 模式切换（2026-08-10 终版）：状态文本 + 单按钮并排（ListPanel 防重叠）。
+                         左侧 = 当前模式静态文本（「当前：计划模式」）；右侧 = 单个按钮，文本随模式变量切换
+                         （「切换到计划」⇄「切换到闲聊」，点击路由由 View 按当前模式决定——Command.Click 固定方法绑定，
+                         故用单方法 ExecuteSwitchMode 内部路由）。
+                         密令侧模式名随上下文（Mission=计划 / 大地图=计划）；仅密令可用会话显示（IsModeControlVisible）。 -->
+                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                               StackLayout.LayoutMethod="HorizontalLeftToRight"
+                               VerticalAlignment="Center" MarginLeft="8" MarginRight="8"
+                               IsVisible="@IsModeControlVisible">
                       <Children>
+                        <!-- 当前模式静态文本（按钮左侧） -->
                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                    Text="@SwitchModeButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    Text="@ModeStatusText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#C8C8C8FF"
+                                    VerticalAlignment="Center"
                                     DoNotAcceptEvents="true"/>
+                        <!-- 单个切换按钮：文本随模式变量切换，点击内部路由 -->
+                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
+                                      Brush="Test.Button3"
+                                      Command.Click="ExecuteSwitchMode"
+                                      VerticalAlignment="Center" MarginLeft="10">
+                          <Children>
+                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                        Text="@SwitchModeButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
+                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                        DoNotAcceptEvents="true"/>
+                          </Children>
+                        </ButtonWidget>
                       </Children>
-                    </ButtonWidget>
+                    </ListPanel>
+
+                    <!-- 关闭按钮 -->
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
+                                  VerticalAlignment="Center" MarginLeft="8" MarginRight="18"
+                                  Brush="Popup.CloseButton"
+                                  Command.Click="ExecuteClose"/>
                   </Children>
                 </ListPanel>
-
-                <!-- 关闭按钮 -->
-                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
-                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="18"
-                              Brush="Popup.CloseButton"
-                              Command.Click="ExecuteClose"/>
               </Children>
             </Widget>
 
@@ -85,12 +99,13 @@
                       <Children>
                         <ScrollablePanel Id="ChannelScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                          AutoHideScrollBars="true"
-                                         ClipRect="ChannelClip" InnerPanel="ChannelClip\ChannelInner"
+                                         ClipRect="ChannelClip" InnerPanel="ChannelClip\LWN_ImChat_ChannelInner"
                                          VerticalScrollbar="..\ChannelScrollbarHolder\ChannelScrollbar"
                                          MarginLeft="10" MarginRight="18" MarginTop="10" MarginBottom="10">
                           <Children>
                             <Widget Id="ChannelClip" ClipContents="true"
-                                    WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+                                    WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    DoNotAcceptEvents="true">
                               <Children>
                                 <!-- LWN_ 前缀：双版本布局 swap 补丁兼容（VerticalBottomToTop + 子元素按屏幕从上到下书写） -->
                                 <ListPanel Id="LWN_ImChat_ChannelInner" DataSource="{ChannelList}"
@@ -185,16 +200,19 @@
                             DoNotAcceptEvents="true">
                       <Children>
 
-                        <!-- 消息流（贴底锚定：新消息自然可见，向上翻阅；SPChatLog 同款 ScrollablePanel） -->
+                        <!-- 消息流（贴底锚定：新消息自然可见，向上翻阅；SPChatLog 同款 ScrollablePanel。
+                             🔴 七轮根因：InnerPanel 路径必须与实际 ListPanel Id 完全一致（LWN_ 前缀），
+                             路径错 → InnerPanel=null → 引擎滚动更新异常中断，滚动彻底失效（日志 inner=-1 确诊）） -->
                         <ScrollablePanel Id="MessageScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                          AutoHideScrollBars="true"
-                                         VerticalAlignment="Bottom" MarginBottom="78"
-                                         ClipRect="MessageClip" InnerPanel="MessageClip\MessageInner"
+                                         VerticalAlignment="Bottom" MarginBottom="74"
+                                         ClipRect="MessageClip" InnerPanel="MessageClip\LWN_ImChat_MessageInner"
                                          VerticalScrollbar="..\MessageScrollbarHolder\MessageScrollbar">
                           <Children>
                             <Widget Id="MessageClip" ClipContents="true"
                                     WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                                    MarginLeft="14" MarginRight="26" MarginTop="10" MarginBottom="6">
+                                    MarginLeft="14" MarginRight="26" MarginTop="10" MarginBottom="6"
+                                    DoNotAcceptEvents="true">
                               <Children>
                                 <ListPanel Id="LWN_ImChat_MessageInner" DataSource="{Messages}"
                                            WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
@@ -399,13 +417,12 @@
                                     Text="@EmptyHint" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="#888888FF"
                                     Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    MarginBottom="78"
+                                    MarginBottom="74"
                                     IsVisible="@IsEmpty"
                                     DoNotAcceptEvents="true"/>
 
-                        <!-- 输入区（贴底 78px：正在输入提示 + 输入框 + 发送按钮）。
-                             🔴 2026-08-10 四轮：输入区整体加底色 + 顶部分隔线（与消息流区分），输入框底加深拉开层次 -->
-                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="78"
+                        <!-- 输入区（🔴 六轮：输入框加宽 48→64px——单行输入更舒适，引擎 EditableTextWidget 不支持自动换行） -->
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="74"
                                 VerticalAlignment="Bottom"
                                 Sprite="BlankWhiteSquare_9" Color="#00000088"
                                 DoNotAcceptEvents="true">
@@ -416,15 +433,9 @@
                                     Sprite="BlankWhiteSquare_9" Color="#FFFFFF33"
                                     DoNotAcceptEvents="true"/>
 
-                            <!-- 「XX 正在输入…」（空文本 = 不渲染） -->
-                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="18"
-                                        Text="@TypingText" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#88CC88FF"
-                                        VerticalAlignment="Top" MarginLeft="16" MarginRight="16" MarginTop="4"
-                                        DoNotAcceptEvents="true"/>
-
-                            <!-- 输入框底（🔴 加深：与输入区底色拉开层次） -->
-                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
-                                    VerticalAlignment="Bottom" MarginBottom="10" MarginLeft="14" MarginRight="14"
+                            <!-- 输入框底（🔴 加深：与输入区底色拉开层次；贴顶紧凑布局） -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="64"
+                                    VerticalAlignment="Bottom" MarginBottom="4" MarginLeft="14" MarginRight="14"
                                     Sprite="BlankWhiteSquare_9" Color="#000000CC"
                                     DoNotAcceptEvents="true">
                               <Children>
