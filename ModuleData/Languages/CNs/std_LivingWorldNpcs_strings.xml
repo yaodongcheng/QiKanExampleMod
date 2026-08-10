@@ -4080,5 +4080,7 @@
     <string id="LWN_im_group_directs" text="私聊" />
     <string id="LWN_im_empty_hint" text="还没有消息，说点什么打破沉默吧…" />
     <string id="LWN_im_input_placeholder" text="输入消息…" />
+    <string id="LWN_im_input_placeholder_cmd" text="下达密令…" />
+    <string id="LWN_im_btn_order" text="下令" />
 </strings>
 </base>

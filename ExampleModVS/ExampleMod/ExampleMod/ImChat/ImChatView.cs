@@ -87,7 +87,10 @@ namespace LivingWorldNpcs
                 }
 
                 _vm = new ImChatVM();
-                _layer = V.NewLayer(20, "ImChatLayer");
+                // 🔴 层级 400：反编译 SandBox.GauntletUI.dll 实测原生层序——地图名标 90 / 菜单 100 /
+                // MapBar+定居点菜单覆盖层(MapMenuOverlay) 202 / 地图对话 205 / 百科 310 / 系统菜单 4400。
+                // 原 20 会被定居点菜单和地图 HUD 盖住（玩家报告）；400 高于全部地图玩法 UI，低于系统菜单。
+                _layer = V.NewLayer(400, "ImChatLayer");
                 // LoadMovie 字符串 = GUI/Prefabs/ImChat.xml 文件名（不带后缀）；返回类型跨版本不同（同上 #if）
                 _movie = _layer.LoadMovie("ImChat", _vm);
                 // 对话框级输入限制：键盘鼠标全给 IM（输入框打字 + 点击发送）
@@ -253,30 +256,36 @@ namespace LivingWorldNpcs
                 RefreshChannelItem(ch);
         }
 
-        /// <summary>动态项：正在输入 + 模式标签/可见性（0.3s 节流调）。</summary>
+        /// <summary>动态项：正在输入 + 模式分段控件 + 输入区联动（0.3s 节流调）。</summary>
         private static void RefreshDynamic()
         {
             if (_vm == null || _selected == null) return;
             _vm.TypingText = ImReplyService.GetTypingText(_selected.Id);
 
             bool modeVisible = IsCommandModeAvailable(_selected);
-            _vm.IsModeToggleVisible = modeVisible;
+            _vm.IsModeControlVisible = modeVisible;
             bool isCommand = ImChatStore.GetMode(_selected.Id) == ImMode.Command;
+            // 分段控件互斥选中态（玩家一眼看到当前模式）
+            _vm.IsChatModeActive = !isCommand;
+            _vm.IsCommandModeActive = isCommand;
+            // 密令段标签：Mission = 密令；Campaign 大地图 = 行军令（Q5b）
             if (isCommand && Mission.Current == null)
             {
-                // 模式标签：行军令（Campaign 大地图 = 规则行军令，Q5b）
-                _vm.ModeLabel = LWNTextHelper.ResolveText("LWN_im_mode_march", "March");
-            }
-            else if (isCommand)
-            {
-                // 模式标签：密令
-                _vm.ModeLabel = LWNTextHelper.ResolveText("LWN_im_mode_command", "Order");
+                // 模式段标签：行军令（Campaign 大地图 = 规则行军令，Q5b）
+                _vm.CommandModeLabel = LWNTextHelper.ResolveText("LWN_im_mode_march", "March");
             }
             else
             {
-                // 模式标签：闲聊
-                _vm.ModeLabel = LWNTextHelper.ResolveText("LWN_im_mode_chat", "Chat");
+                // 模式段标签：密令
+                _vm.CommandModeLabel = LWNTextHelper.ResolveText("LWN_im_mode_command", "Order");
             }
+            // 输入区随模式联动（双重反馈：placeholder + 发送按钮文案）
+            _vm.PlaceholderText = isCommand
+                ? LWNTextHelper.ResolveText("LWN_im_input_placeholder_cmd", "Type a command...")
+                : LWNTextHelper.ResolveText("LWN_im_input_placeholder", "Type a message...");
+            _vm.SendText = isCommand
+                ? LWNTextHelper.ResolveText("LWN_im_btn_order", "Order")
+                : LWNTextHelper.ResolveText("LWN_im_btn_send", "Send");
         }
 
         /// <summary>密令模式可用性：Plot 总闸 + LLM + 会话类型（队伍频道 / 私聊随从）。
@@ -379,31 +388,43 @@ namespace LivingWorldNpcs
             RefreshMessages();
         }
 
-        public static void ExecuteToggleMode()
+        /// <summary>分段控件：切到闲聊段（点击非当前段才有效，否则无操作）。</summary>
+        public static void ExecuteSwitchToChat()
         {
             if (_vm == null || _selected == null) return;
-            var conv = _selected;
-            bool nextCommand = ImChatStore.GetMode(conv.Id) != ImMode.Command;
+            if (ImChatStore.GetMode(_selected.Id) != ImMode.Command) return;
+            SetMode(ImMode.Chat);
+        }
 
-            if (nextCommand)
+        /// <summary>分段控件：切到密令段（含可用性 + 互斥检查，与旧 ExecuteToggleMode 的转入分支一致）。</summary>
+        public static void ExecuteSwitchToCommand()
+        {
+            if (_vm == null || _selected == null) return;
+            if (ImChatStore.GetMode(_selected.Id) == ImMode.Command) return;
+            var conv = _selected;
+
+            if (!IsCommandModeAvailable(conv))
             {
-                if (!IsCommandModeAvailable(conv))
-                {
-                    // 提示：密令不可用
-                    ShowHint(LWNTextHelper.ResolveText("LWN_im_mode_unavailable", "Command mode is unavailable here."));
-                    return;
-                }
-                // Campaign 大地图 = 行军令模式（IsCommandModeAvailable 已把关：私聊有 party 的 Hero）；
-                // Mission 内还需互斥检查（PlanCommandFlow 面谈进行中）
-                if (Mission.Current != null && PlanCommandFlow.IsActive)
-                {
-                    // 提示：另有密谋进行中
-                    ShowHint(LWNTextHelper.ResolveText("LWN_im_mode_plot_active", "Another secret order is already being discussed."));
-                    return;
-                }
+                // 提示：密令不可用
+                ShowHint(LWNTextHelper.ResolveText("LWN_im_mode_unavailable", "Command mode is unavailable here."));
+                return;
+            }
+            // Campaign 大地图 = 行军令模式（IsCommandModeAvailable 已把关：私聊有 party 的 Hero）；
+            // Mission 内还需互斥检查（PlanCommandFlow 面谈进行中）
+            if (Mission.Current != null && PlanCommandFlow.IsActive)
+            {
+                // 提示：另有密谋进行中
+                ShowHint(LWNTextHelper.ResolveText("LWN_im_mode_plot_active", "Another secret order is already being discussed."));
+                return;
             }
 
-            ImChatStore.SetMode(conv.Id, nextCommand ? ImMode.Command : ImMode.Chat);
+            SetMode(ImMode.Command);
+        }
+
+        private static void SetMode(ImMode mode)
+        {
+            if (_vm == null || _selected == null) return;
+            ImChatStore.SetMode(_selected.Id, mode);
             RefreshDynamic();
         }
 

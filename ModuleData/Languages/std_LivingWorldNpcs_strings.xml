@@ -3988,5 +3988,7 @@
     <string id="LWN_im_group_directs" text="Recent" />
     <string id="LWN_im_empty_hint" text="No messages yet. Say something to break the silence..." />
     <string id="LWN_im_input_placeholder" text="Type a message..." />
+    <string id="LWN_im_input_placeholder_cmd" text="Type a command..." />
+    <string id="LWN_im_btn_order" text="Order" />
 </strings>
 </base>
