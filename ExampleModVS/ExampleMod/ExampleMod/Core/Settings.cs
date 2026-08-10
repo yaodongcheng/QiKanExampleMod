@@ -125,6 +125,17 @@ namespace LivingWorldNpcs
         // ── L3 警戒质问对话模式 ──
         public AlertDialogueMode AlertDialogueMode { get; set; } = AlertDialogueMode.StoryVM;
 
+        // ── IM 即时传讯系统（config.json 侧，不进 MCM：数值/概率类高级配置）──
+        // 群聊跟随回复概率（用户决策 1：主回复者之外的第二人跟一句的概率，0~1）。
+        public float ImGroupFollowUpChance { get; set; } = 0.1f;
+        // 单 NPC 回复冷却（墙钟秒）：防玩家连发刷爆 LLM 限流。
+        public float ImReplyCooldownSeconds { get; set; } = 5f;
+        // 互动热度分档阈值（决定 NPC 记忆容量，Phase 5 生效）：heat >= Hot → 大容量；>= Normal → 现状；否则冷门小容量。
+        public int ImHeatHotThreshold { get; set; } = 10;
+        public int ImHeatNormalThreshold { get; set; } = 3;
+        // 每日热度衰减（每游戏日扣减，下限 0）。
+        public float ImHeatDecayPerDay { get; set; } = 1f;
+
         // ── 玩法键位配置（config.json 侧，不进 MCM：小白玩家不改，资深玩家可编辑热重载）──
         // 一个玩法行 = 一个玩法交互的 (键盘键, 手柄键, 按法)。同一物理键可挂多个玩法行
         // （默认 F 挂 7 行），同一次按下各按各自阈值与按法触发，短/长互斥。
@@ -148,6 +159,8 @@ namespace LivingWorldNpcs
             // 密谋/停止同键（G/LB 长按）：执行中显示 StopPlan、空闲显示 Plot，互斥保证不同时 available（LogBindingConflicts 零冲突）
             [InteractionIds.Plot] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
             [InteractionIds.StopPlan] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
+            // 传讯（IM 面板开关）：键盘 O 短按；手柄不占键（面板右下角通知点击打开）
+            [InteractionIds.IM] = new InteractionBindingConfig { Keyboard = "O", Gamepad = "", PressMode = "Short" },
         };
 
         /// <summary>玩法行配置（玩家在 config.json 覆盖/增删；PopulateObject 合并，删行 = 回落内置默认）。</summary>

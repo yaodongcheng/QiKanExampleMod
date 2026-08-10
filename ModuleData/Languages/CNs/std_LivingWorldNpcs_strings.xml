@@ -4024,5 +4024,61 @@
     <string id="LWN_plan_lead_waiting" text="你走不走啊？" />
     <string id="LWN_plan_loot" text="赃物" />
     <string id="LWN_plan_gold" text="金币" />
+    <!-- ── IM 传讯系统（LWN_im_*）── -->
+    <string id="LWN_im_channel_party" text="队伍" />
+    <string id="LWN_im_channel_clan" text="家族" />
+    <string id="LWN_im_channel_kingdom" text="王国" />
+    <string id="LWN_im_typing" text="{NAMES}正在输入…" />
+    <string id="LWN_im_mode_chat" text="闲聊" />
+    <string id="LWN_im_mode_command" text="密令" />
+    <string id="LWN_im_mode_unavailable" text="此处无法下达密令。" />
+    <string id="LWN_im_mode_need_mission" text="密令需当面下达——先进到场景里。" />
+    <string id="LWN_im_mode_plot_active" text="另一桩密谋正在进行中。" />
+    <string id="LWN_im_time_justnow" text="刚刚" />
+    <string id="LWN_im_time_minutes" text="{N} 分钟前" />
+    <string id="LWN_im_time_hours" text="{N} 小时前" />
+    <string id="LWN_im_time_days" text="{N} 天前" />
+    <string id="LWN_im_btn_send" text="发送" />
+    <string id="LWN_im_btn_approve" text="同意" />
+    <string id="LWN_im_btn_reject" text="拒绝" />
+    <string id="LWN_im_btn_abort" text="中止" />
+    <string id="LWN_im_info_btn_message" text="传信" />
+    <string id="LWN_im_cmd_busy" text="还在琢磨上一条命令…" />
+    <string id="LWN_im_cmd_fail" text="随从想不出主意，换个说法再试。" />
+    <string id="LWN_im_cmd_rejected" text="随从不明白这道命令。" />
+    <string id="LWN_im_cmd_cancelled" text="命令已撤回。" />
+    <string id="LWN_im_cmd_no_companion" text="没有随从在场，无法执行命令。" />
+    <string id="LWN_im_cmd_started" text="{NAME}开始执行命令。" />
+    <string id="LWN_im_cmd_aborted" text="命令已中止。" />
+    <string id="LWN_im_cmd_done" text="命令已经办妥。" />
+    <!-- ── IM 闲聊回复降级模板（LLM 不可用时按主题回）── -->
+    <string id="LWN_speech_im_reply_combat" text="刀兵之事非同儿戏，把话说清楚。" />
+    <string id="LWN_speech_im_reply_trade" text="等路上生意太平了，再谈买卖不迟。" />
+    <string id="LWN_speech_im_reply_food" text="粮仓就那点底子，走一步看一步吧。" />
+    <string id="LWN_speech_im_reply_crime" text="这种事也听说过，不便明说。" />
+    <string id="LWN_speech_im_reply_news" text="近来消息传得慢，有了准信我再捎给你。" />
+    <string id="LWN_speech_im_reply_family" text="家里人都还安好，你那边也保重。" />
+    <string id="LWN_speech_im_reply_health" text="我还撑得住，你自己当心身体。" />
+    <string id="LWN_speech_im_reply_location" text="身不由己，等能碰面的时候自然相见。" />
+    <string id="LWN_speech_im_reply_greeting" text="收到你的信了，别来无恙。" />
+    <string id="LWN_speech_im_reply_default" text="信已收到，此事容后详谈。" />
+    <string id="LWN_im_forgotten" text="更早的传讯已随时间淡忘。" />
+    <string id="LWN_im_first_open" text="传讯（IM）——可与远方的英雄通信，或给随从下达密令。按配置键（默认 O）打开；ESC / 手柄 B / 点击面板外关闭。" />
+    <string id="LWN_im_status_present" text="在场" />
+    <string id="LWN_im_status_away" text="他处" />
+    <string id="LWN_im_mode_march" text="行军令" />
+    <string id="LWN_im_march_channel_only" text="行军令只能发给单个英雄；频道内下命令需进入场景。" />
+    <string id="LWN_im_march_no_party" text="此人麾下并无军队可令。" />
+    <string id="LWN_im_march_in_party" text="此人正随你行军——请在场景中当面下密令。" />
+    <string id="LWN_im_march_enemy" text="使者不敢接近敌军营地。" />
+    <string id="LWN_im_march_follow" text="{NAME}的军队正向你的位置汇合。" />
+    <string id="LWN_im_march_hold" text="{NAME}的军队原地驻扎。" />
+    <string id="LWN_im_march_move" text="{NAME}的军队正开赴{PLACE}。" />
+    <string id="LWN_im_march_no_place" text="使者不识此地。行军令：跟随 / 原地待命 / 前往某处定居点。" />
+    <string id="LWN_im_march_unclear" text="使者听不懂这道命令。行军令：跟随 / 原地待命 / 前往某处定居点。" />
+    <string id="LWN_im_group_channels" text="频道" />
+    <string id="LWN_im_group_directs" text="私聊" />
+    <string id="LWN_im_empty_hint" text="还没有消息，说点什么打破沉默吧…" />
+    <string id="LWN_im_input_placeholder" text="输入消息…" />
 </strings>
 </base>

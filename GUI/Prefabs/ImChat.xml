@@ -1,0 +1,417 @@
+<Prefab>
+  <Window Id="LWN">
+    <!-- 全屏根 = 轻遮罩 + 点击盾牌：面板外点击关闭面板（微信式）；40% 黑压暗世界聚焦面板（保留情境感知） -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            Sprite="BlankWhiteSquare_9" Color="#00000066"
+            Command.Click="ExecuteClose"
+            DoNotAcceptEvents="false">
+      <Children>
+
+        <!-- 主面板 (1000x640 居中，canvas_dark + frame_9 边框 Extend 18 画在逻辑盒外) -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="1000" SuggestedHeight="640"
+                HorizontalAlignment="Center" VerticalAlignment="Center"
+                Sprite="StdAssets\Popup\canvas_dark"
+                DoNotAcceptEvents="true">
+          <Children>
+
+            <!-- 标题带（Inquiry 同款：深色底带 + 左对齐金字 + 右侧模式切换/关闭） -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
+                    VerticalAlignment="Top"
+                    Sprite="BlankWhiteSquare_9" Color="#000000B3"
+                    DoNotAcceptEvents="true">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Text="@Title" Brush="Popup.Title.Text" Brush.TextHorizontalAlignment="Left" Brush.FontSize="28"
+                            VerticalAlignment="Center" MarginLeft="24"
+                            DoNotAcceptEvents="true"/>
+
+                <!-- 模式切换（闲聊/密令）：仅密令可用会话显示（IsModeToggleVisible） -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="66"
+                              Brush="Test.Button3"
+                              Command.Click="ExecuteToggleMode"
+                              IsVisible="@IsModeToggleVisible">
+                  <Children>
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@ModeLabel" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                DoNotAcceptEvents="true"/>
+                  </Children>
+                </ButtonWidget>
+
+                <!-- 关闭按钮 -->
+                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
+                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="18"
+                              Brush="Popup.CloseButton"
+                              Command.Click="ExecuteClose"/>
+              </Children>
+            </Widget>
+
+            <!-- 标题分隔线 -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="23"
+                    VerticalAlignment="Top" MarginTop="46"
+                    Sprite="StdAssets\Popup\divider"
+                    DoNotAcceptEvents="true"/>
+
+            <!-- ══════════ 主体：左栏频道 + 右栏消息流/输入区 ══════════ -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    VerticalAlignment="Top" MarginTop="69"
+                    DoNotAcceptEvents="true">
+              <Children>
+                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                           DoNotAcceptEvents="true">
+                  <Children>
+
+                    <!-- ═══ 左栏 240px：频道/私聊列表 ═══ -->
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240"
+                            DoNotAcceptEvents="true">
+                      <Children>
+                        <ScrollablePanel Id="ChannelScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                         AutoHideScrollBars="true"
+                                         ClipRect="ChannelClip" InnerPanel="ChannelClip\ChannelInner"
+                                         VerticalScrollbar="..\ChannelScrollbarHolder\ChannelScrollbar"
+                                         MarginLeft="10" MarginRight="18" MarginTop="10" MarginBottom="10">
+                          <Children>
+                            <Widget Id="ChannelClip" ClipContents="true"
+                                    WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent">
+                              <Children>
+                                <!-- LWN_ 前缀：双版本布局 swap 补丁兼容（VerticalBottomToTop + 子元素按屏幕从上到下书写） -->
+                                <ListPanel Id="LWN_ImChat_ChannelInner" DataSource="{ChannelList}"
+                                           WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                                           DoNotAcceptEvents="true">
+                                  <ItemTemplate>
+                                    <!-- 分组标题行（频道/私聊，不可点击）与频道行（可点击）互斥 -->
+                                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                            DoNotAcceptEvents="true">
+                                      <Children>
+                                        <!-- 分组标题 -->
+                                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                                    Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="15" Brush.FontColor="#FFD75E99"
+                                                    Brush.TextHorizontalAlignment="Left" HorizontalAlignment="Left" VerticalAlignment="Center"
+                                                    MarginLeft="14" MarginTop="4" MarginBottom="2"
+                                                    IsVisible="@IsGroupHeader"
+                                                    DoNotAcceptEvents="true"/>
+
+                                        <!-- 频道/私聊行 -->
+                                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="42"
+                                                      Brush="ImChat.RowBg"
+                                                      IsSelected="@IsSelected"
+                                                      Command.Click="ExecuteSelect"
+                                                      MarginBottom="4"
+                                                      IsVisible="@IsNotGroupHeader">
+                                          <Children>
+                                            <!-- 标题：占满行宽、右侧预留副标题/未读位、超长裁剪（长名字不压右侧元素） -->
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="18" Brush.FontColor="@TitleColor"
+                                                        HorizontalAlignment="Left" VerticalAlignment="Center" MarginLeft="14" MarginRight="72"
+                                                        ClipContents="true"
+                                                        DoNotAcceptEvents="true"/>
+                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                        Text="@Subtitle" Brush="MyBrush_18_White" Brush.FontSize="13" Brush.FontColor="#999999FF"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="30"
+                                                        DoNotAcceptEvents="true"/>
+                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                        Text="@UnreadText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#FFD75EFF"
+                                                        HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="12"
+                                                        IsVisible="@HasUnread"
+                                                        DoNotAcceptEvents="true"/>
+                                          </Children>
+                                        </ButtonWidget>
+                                      </Children>
+                                    </Widget>
+                                  </ItemTemplate>
+                                </ListPanel>
+                              </Children>
+                            </Widget>
+                          </Children>
+                        </ScrollablePanel>
+
+                        <!-- 左栏滚动条（SPChatlog.Scrollbar.Handle 为 Native 笔刷，全局可用） -->
+                        <Widget Id="ChannelScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                HorizontalAlignment="Right" DoNotAcceptEvents="true">
+                          <Children>
+                            <ScrollbarWidget Id="ChannelScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                             AlignmentAxis="Vertical" Handle="ChannelScrollbarHandle"
+                                             MaxValue="100" MinValue="0">
+                              <Children>
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                        HorizontalAlignment="Center"
+                                        Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                        DoNotAcceptEvents="true"/>
+                                <ImageWidget Id="ChannelScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                             MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                             HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                              </Children>
+                            </ScrollbarWidget>
+                          </Children>
+                        </Widget>
+                      </Children>
+                    </Widget>
+
+                    <!-- 竖向分隔线 -->
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                            Sprite="BlankWhiteSquare_9" Color="#FFFFFF22"
+                            DoNotAcceptEvents="true"/>
+
+                    <!-- ═══ 右栏：消息流 + 输入区 ═══ -->
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            DoNotAcceptEvents="true">
+                      <Children>
+
+                        <!-- 消息流（贴底锚定：新消息自然可见，向上翻阅；SPChatLog 同款 ScrollablePanel） -->
+                        <ScrollablePanel Id="MessageScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                         AutoHideScrollBars="true"
+                                         VerticalAlignment="Bottom" MarginBottom="78"
+                                         ClipRect="MessageClip" InnerPanel="MessageClip\MessageInner"
+                                         VerticalScrollbar="..\MessageScrollbarHolder\MessageScrollbar">
+                          <Children>
+                            <Widget Id="MessageClip" ClipContents="true"
+                                    WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    MarginLeft="14" MarginRight="26" MarginTop="10" MarginBottom="6">
+                              <Children>
+                                <ListPanel Id="LWN_ImChat_MessageInner" DataSource="{Messages}"
+                                           WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           VerticalAlignment="Bottom" ClipContents="true"
+                                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                                           DoNotAcceptEvents="true">
+                                  <ItemTemplate>
+                                    <!-- 消息行：他人气泡（左）/ 自己气泡（右）/ 系统消息（居中）/ 计划卡片（居中）四分支互斥 -->
+                                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                            MarginBottom="6"
+                                            DoNotAcceptEvents="true">
+                                      <Children>
+
+                                        <!-- 他人：左对齐（名字 + 时间 + 气泡；仅普通文本消息，卡片/系统走独立分支） -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="520"
+                                                HorizontalAlignment="Left"
+                                                IsVisible="@ShowOtherBubble"
+                                                DoNotAcceptEvents="true">
+                                          <Children>
+                                            <!-- 名字行：发送者（成员色）+ 相对时间（微信式） -->
+                                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                       HorizontalAlignment="Left"
+                                                       DoNotAcceptEvents="true">
+                                              <Children>
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                            Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                            HorizontalAlignment="Left"
+                                                            DoNotAcceptEvents="true"/>
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                            Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                                                            MarginLeft="8" VerticalAlignment="Center"
+                                                            DoNotAcceptEvents="true"/>
+                                              </Children>
+                                            </ListPanel>
+                                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                    Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A" MarginTop="2"
+                                                    DoNotAcceptEvents="true">
+                                              <Children>
+                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                            Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="17" Brush.TextHorizontalAlignment="Left"
+                                                            WordWrapping="Wrap"
+                                                            MarginLeft="12" MarginRight="12" MarginTop="8" MarginBottom="8"
+                                                            DoNotAcceptEvents="true"/>
+                                              </Children>
+                                            </Widget>
+                                          </Children>
+                                        </Widget>
+
+                                        <!-- 自己：右对齐（仅普通文本消息） -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="520"
+                                                HorizontalAlignment="Right"
+                                                IsVisible="@ShowSelfBubble"
+                                                DoNotAcceptEvents="true">
+                                          <Children>
+                                            <!-- 名字行：发送者 + 相对时间（自己消息时间在右侧） -->
+                                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                       HorizontalAlignment="Right"
+                                                       DoNotAcceptEvents="true">
+                                              <Children>
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                            Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                                                            MarginRight="8" VerticalAlignment="Center"
+                                                            DoNotAcceptEvents="true"/>
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                            Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                            HorizontalAlignment="Right"
+                                                            DoNotAcceptEvents="true"/>
+                                              </Children>
+                                            </ListPanel>
+                                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                    Sprite="BlankWhiteSquare_9" Color="#3DA53D33" MarginTop="2"
+                                                    DoNotAcceptEvents="true">
+                                              <Children>
+                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                            Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="17" Brush.TextHorizontalAlignment="Left"
+                                                            WordWrapping="Wrap"
+                                                            MarginLeft="12" MarginRight="12" MarginTop="8" MarginBottom="8"
+                                                            DoNotAcceptEvents="true"/>
+                                              </Children>
+                                            </Widget>
+                                          </Children>
+                                        </Widget>
+
+                                        <!-- 系统消息：居中灰字 -->
+                                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                    Text="@Content" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#999999FF"
+                                                    Brush.TextHorizontalAlignment="Center"
+                                                    WordWrapping="Wrap"
+                                                    IsVisible="@IsSystem"
+                                                    DoNotAcceptEvents="true"/>
+
+                                        <!-- 计划卡片：摘要 + 同意/拒绝（待批）/ 中止（执行中） -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="560"
+                                                HorizontalAlignment="Center"
+                                                Sprite="BlankWhiteSquare_9" Color="#1A1A3AEE" MarginTop="2"
+                                                IsVisible="@IsPlanCard"
+                                                DoNotAcceptEvents="true">
+                                          <Children>
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@PlanSummary" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#FFE9B0FF"
+                                                        WordWrapping="Wrap"
+                                                        MarginLeft="14" MarginRight="14" MarginTop="10"
+                                                        DoNotAcceptEvents="true"/>
+                                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                       MarginRight="10" MarginBottom="8" MarginTop="8"
+                                                       DoNotAcceptEvents="true">
+                                              <Children>
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
+                                                              Command.Click="ExecuteApprove"
+                                                              IsVisible="@CanApprove" MarginRight="10">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@ApproveText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
+                                                              Command.Click="ExecuteReject"
+                                                              IsVisible="@CanReject" MarginRight="10">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@RejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
+                                                              Command.Click="ExecuteAbort"
+                                                              IsVisible="@CanAbort">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@AbortText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
+                                              </Children>
+                                            </ListPanel>
+                                          </Children>
+                                        </Widget>
+
+                                      </Children>
+                                    </Widget>
+                                  </ItemTemplate>
+                                </ListPanel>
+                              </Children>
+                            </Widget>
+                          </Children>
+                        </ScrollablePanel>
+
+                        <!-- 消息流滚动条 -->
+                        <Widget Id="MessageScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                HorizontalAlignment="Right" MarginRight="6" DoNotAcceptEvents="true">
+                          <Children>
+                            <ScrollbarWidget Id="MessageScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                             AlignmentAxis="Vertical" Handle="MessageScrollbarHandle"
+                                             MaxValue="100" MinValue="0">
+                              <Children>
+                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                        HorizontalAlignment="Center"
+                                        Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                        DoNotAcceptEvents="true"/>
+                                <ImageWidget Id="MessageScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                             MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                             HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                              </Children>
+                            </ScrollbarWidget>
+                          </Children>
+                        </Widget>
+
+                        <!-- 空会话引导（UI 优化：无消息时居中提示而非空白） -->
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    Text="@EmptyHint" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="#888888FF"
+                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    MarginBottom="78"
+                                    IsVisible="@IsEmpty"
+                                    DoNotAcceptEvents="true"/>
+
+                        <!-- 输入区（贴底 78px：正在输入提示 + 输入框 + 发送按钮） -->
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="78"
+                                VerticalAlignment="Bottom"
+                                DoNotAcceptEvents="true">
+                          <Children>
+                            <!-- 「XX 正在输入…」（空文本 = 不渲染） -->
+                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="18"
+                                        Text="@TypingText" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#88CC88FF"
+                                        VerticalAlignment="Top" MarginLeft="16" MarginRight="16"
+                                        DoNotAcceptEvents="true"/>
+
+                            <!-- 输入框底 -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="48"
+                                    VerticalAlignment="Bottom" MarginBottom="10" MarginLeft="14" MarginRight="14"
+                                    Sprite="BlankWhiteSquare_9" Color="#00000099"
+                                    DoNotAcceptEvents="true">
+                              <Children>
+                                <EditableTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                    Text="@InputText" DefaultSearchText="@PlaceholderText"
+                                                    TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="18"
+                                                    MarginLeft="12" MarginRight="100" VerticalAlignment="Center"/>
+                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="90" SuggestedHeight="38"
+                                              Brush="Test.Button3"
+                                              Command.Click="ExecuteSend"
+                                              IsEnabled="@CanSend"
+                                              HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="5">
+                                  <Children>
+                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                Text="@SendText" Brush="MyBrush_18_White" Brush.FontSize="17"
+                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                DoNotAcceptEvents="true"/>
+                                  </Children>
+                                </ButtonWidget>
+                              </Children>
+                            </Widget>
+                          </Children>
+                        </Widget>
+
+                      </Children>
+                    </Widget>
+
+                  </Children>
+                </ListPanel>
+              </Children>
+            </Widget>
+
+            <!-- 边框（Inquiry 同款 frame_9 九宫格，Extend 18 画在逻辑盒外，最上层压边） -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="frame_9" ExtendLeft="18" ExtendTop="18" ExtendRight="18" ExtendBottom="18"
+                    IsEnabled="false"
+                    DoNotAcceptEvents="true"/>
+
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

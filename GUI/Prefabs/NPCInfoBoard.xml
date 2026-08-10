@@ -180,12 +180,22 @@
               </Children>
             </Widget>
 
-            <!-- D. 底部关闭按钮 -->
+            <!-- D. 底部关闭按钮 + IM 传信按钮（传信仅 Hero 显示，需求 3：模板 NPC 不进 IM） -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="80"
+                          HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20" MarginLeft="-320"
+                          Brush="Simple.Button.Bg" Command.Click="ExecuteSendMessage"
+                          IsVisible="@IsMessengerVisible">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Text="@MessengerButtonLabel" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            DoNotAcceptEvents="true"/>
+              </Children>
+            </ButtonWidget>
             <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="80"
                           HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20"
                           Brush="Simple.Button.Bg" Command.Click="ExecuteClose">
               <Children>
-                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                             Text="@CloseButtonLabel" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center"
                             DoNotAcceptEvents="true"/>
               </Children>

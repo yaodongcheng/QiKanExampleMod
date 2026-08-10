@@ -353,25 +353,48 @@
     <!-- ========================================== -->
     <!-- 2. 按钮文字画刷：控制文字颜色变化 -->
     <!-- ========================================== -->
-    <Brush Name="Simple.Button.Text" 
-           Font="FiraSansExtraCondensed-Regular" 
-           TextHorizontalAlignment="Center" 
+    <Brush Name="Simple.Button.Text"
+           Font="FiraSansExtraCondensed-Regular"
+           TextHorizontalAlignment="Center"
            TextVerticalAlignment="Center">
         <Styles>
             <!-- 【默认状态】：普通的白色文字 -->
-            <Style Name="Default" 
-                   FontColor="#FFFFFFFF" 
+            <Style Name="Default"
+                   FontColor="#FFFFFFFF"
                    FontSize="24" />
-            
+
             <!-- 【悬浮状态】：文字变为金色/黄色 -->
-            <Style Name="Hovered" 
-                   FontColor="#000000FF" 
+            <Style Name="Hovered"
+                   FontColor="#000000FF"
                    FontSize="24" />
-                   
+
             <!-- 【按下状态】：文字变灰 -->
-            <Style Name="Pressed" 
-                   FontColor="#AAAAAAFF" 
+            <Style Name="Pressed"
+                   FontColor="#AAAAAAFF"
                    FontSize="24" />
+        </Styles>
+    </Brush>
+
+    <!-- ========================================== -->
+    <!-- IM 频道行背景：Default 透明；Hovered 淡金；Selected 深蓝高亮（ButtonWidget IsSelected 绑定激活） -->
+    <!-- ========================================== -->
+    <Brush Name="ImChat.RowBg">
+        <Layers>
+            <BrushLayer Name="Default" Sprite="BlankWhiteSquare_9" />
+        </Layers>
+        <Styles>
+            <Style Name="Default">
+                <BrushLayer Name="Default" Color="#00000000" />
+            </Style>
+            <Style Name="Hovered">
+                <BrushLayer Name="Default" Color="#BFAD6FFF" />
+            </Style>
+            <Style Name="Pressed">
+                <BrushLayer Name="Default" Color="#000000FF" />
+            </Style>
+            <Style Name="Selected">
+                <BrushLayer Name="Default" Color="#2A4A7A66" />
+            </Style>
         </Styles>
     </Brush>
 </Brushes>

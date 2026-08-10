@@ -26,6 +26,7 @@ namespace LivingWorldNpcs
         public const string StealLeave = "StealLeave";
         public const string Plot = "Plot";          // 密谋：对随从下达自然语言命令（G 长按）
         public const string StopPlan = "StopPlan";  // 停止键：对执行中的随从喊停（G 长按，与 Plot 同键；互斥不同时显示）
+        public const string IM = "IM";              // 传讯：打开/关闭 IM 聊天面板（键盘 O；手柄不占键，走通知点击）
     }
 
     /// <summary>

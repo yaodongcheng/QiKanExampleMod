@@ -318,6 +318,45 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// IM 闲聊回复 prompt（ImReplyService 用）：世界观 + 身份（人设聚合）+ 记忆裁剪段 + 对方刚说。
+        /// 叙事铁律：NPC 只见自己的记忆（GetPrompt_RespondContext 按对方过滤），无上帝视角。
+        /// 输出：直接一句台词，不要 JSON、不要引号、不要任何解释（ChatOnceAsync 纯文本通道）。
+        /// </summary>
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText)
+        {
+            if (memory == null) return "";
+            var sb = new StringBuilder();
+
+            // 世界观段（与 BuildPlanPrompt 同源 key）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + Settings.Instance.WorldDescription);
+            sb.AppendLine(Settings.Instance.SpeechStyle);
+            sb.AppendLine();
+
+            // 身份段：人设聚合（NPCProfile.GetPersonaPrompt：性格/动机/关系网）
+            string persona = memory.GetPersonaPrompt();
+            if (!string.IsNullOrWhiteSpace(persona))
+            {
+                sb.AppendLine(persona);
+                sb.AppendLine();
+            }
+
+            // 记忆裁剪段（永久记忆 + 动态回忆 + 与对方相关的近期对话）
+            string ctx = GetPrompt_RespondContext(memory, otherId);
+            if (!string.IsNullOrWhiteSpace(ctx))
+            {
+                sb.AppendLine(ctx);
+                sb.AppendLine();
+            }
+
+            sb.AppendLine($"对方 {speakerName} 刚刚通过传讯对你说：");
+            sb.AppendLine(lastPlayerText);
+            sb.AppendLine();
+            // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_im_reply_rule"));
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// 委托记录 Tab 的文本。从 QuestHistory 读取，按时间倒序展示。
         /// </summary>
         public static string GetPrompt_QuestHistory(SingNpcMemorySystem memory)
