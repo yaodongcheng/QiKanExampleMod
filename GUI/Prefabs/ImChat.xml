@@ -451,60 +451,74 @@
                                           </Children>
                                         </Widget>
 
-                                        <!-- 🔴 Q4（2026-08-10）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线） -->
+                                        <!-- 🔴 Q4（2026-08-10）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线）
+                                             🔴 2026-08-11（Q1 重叠修复）：内部必须 ListPanel 垂直堆叠——普通 Widget 的子元素
+                                             全部 Layout 到同一 rect（ui.md「贴内容气泡」同坑），名字行与内容文本叠在一起；
+                                             现 = 名字行 → 内容 → 按钮 流式占位，卡片在消息流中占据真实行高、把上方气泡顶上去。
+                                             Id 带 LWN_ 前缀 → StackLayout swap patch（v1.3.0+）→ 实际 TopToBottom（名字在上）。 -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="520"
                                                 HorizontalAlignment="Center"
                                                 Sprite="BlankWhiteSquare_9" Color="#3DA53D22" MarginTop="2"
                                                 IsVisible="@IsProposal"
                                                 DoNotAcceptEvents="true">
                                           <Children>
-                                            <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                                       MarginLeft="14" MarginTop="10"
+                                            <ListPanel Id="LWN_ImChat_ProposalBody" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                       StackLayout.LayoutMethod="VerticalBottomToTop"
                                                        DoNotAcceptEvents="true">
                                               <Children>
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
-                                                            DoNotAcceptEvents="true"/>
-                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                            Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
-                                                            MarginLeft="8" VerticalAlignment="Center"
-                                                            DoNotAcceptEvents="true"/>
-                                              </Children>
-                                            </ListPanel>
-                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                        Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#DDEEDDFF"
-                                                        WordWrapping="Wrap"
-                                                        MarginLeft="14" MarginRight="14" MarginTop="6"
-                                                        DoNotAcceptEvents="true"/>
-                                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                                       HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                                                       MarginRight="10" MarginBottom="8" MarginTop="8"
-                                                       DoNotAcceptEvents="true">
-                                              <Children>
-                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                              Brush="Test.Button3"
-                                                              Command.Click="ExecuteProposeApprove"
-                                                              IsVisible="@CanProposeApprove" MarginRight="10">
+                                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                           MarginLeft="14" MarginTop="6"
+                                                           DoNotAcceptEvents="true">
                                                   <Children>
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                Text="@ProposeApproveText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
                                                                 DoNotAcceptEvents="true"/>
-                                                  </Children>
-                                                </ButtonWidget>
-                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                              Brush="Test.Button3"
-                                                              Command.Click="ExecuteProposeReject"
-                                                              IsVisible="@CanProposeReject">
-                                                  <Children>
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                Text="@ProposeRejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                                                                MarginLeft="8" VerticalAlignment="Center"
                                                                 DoNotAcceptEvents="true"/>
                                                   </Children>
-                                                </ButtonWidget>
+                                                </ListPanel>
+                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                            Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#DDEEDDFF"
+                                                            WordWrapping="Wrap"
+                                                            MarginLeft="14" MarginRight="14" MarginTop="4"
+                                                            DoNotAcceptEvents="true"/>
+                                                <!-- 🔴 2026-08-11（Q1 二次修复）：按钮行禁止 VerticalAlignment——
+                                                    垂直 ListPanel 堆叠中 VerticalAlignment 与布局方向冲突（按钮被定位到
+                                                    父 rect 底部而非流式堆叠位：要么盖在内容上、要么撑出底部空白），
+                                                    与气泡（BubbleOther）已验证模式一致：内部子项只留水平对齐。 -->
+                                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                           HorizontalAlignment="Right"
+                                                           MarginRight="10" MarginBottom="4" MarginTop="4"
+                                                           DoNotAcceptEvents="true">
+                                                  <Children>
+                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                                  Brush="Test.Button3"
+                                                                  Command.Click="ExecuteProposeApprove"
+                                                                  IsVisible="@CanProposeApprove" MarginRight="10">
+                                                      <Children>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@ProposeApproveText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                    DoNotAcceptEvents="true"/>
+                                                      </Children>
+                                                    </ButtonWidget>
+                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                                  Brush="Test.Button3"
+                                                                  Command.Click="ExecuteProposeReject"
+                                                                  IsVisible="@CanProposeReject">
+                                                      <Children>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@ProposeRejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                    DoNotAcceptEvents="true"/>
+                                                      </Children>
+                                                    </ButtonWidget>
+                                                  </Children>
+                                                </ListPanel>
                                               </Children>
                                             </ListPanel>
                                           </Children>

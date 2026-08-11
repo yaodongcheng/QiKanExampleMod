@@ -169,13 +169,33 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsProposal => _msg != null && _msg.IsProposal;
 
-        /// <summary>批准可用：提议未了结。</summary>
-        [DataSourceProperty]
-        public bool CanProposeApprove => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved;
+        // 🔴 2026-08-11（Q2）：同会话多张未决提议 → UI 全保留（流式），效用上只有最新一张的按钮有效。
+        // 由 ImChatView.UpdateLatestProposalFlag 在消息流刷新时标记（最后一条未决 Proposal = true，其余 false）。
+        private bool _isLatestProposal;
 
-        /// <summary>拒绝可用：提议未了结。</summary>
         [DataSourceProperty]
-        public bool CanProposeReject => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved;
+        public bool IsLatestProposal
+        {
+            get => _isLatestProposal;
+            set
+            {
+                if (_isLatestProposal != value)
+                {
+                    _isLatestProposal = value;
+                    OnPropertyChangedWithValue(value, nameof(IsLatestProposal));
+                    OnPropertyChanged(nameof(CanProposeApprove));
+                    OnPropertyChanged(nameof(CanProposeReject));
+                }
+            }
+        }
+
+        /// <summary>批准可用：提议未了结 且 是会话内最新一张未决提议（旧卡片按钮隐藏 = 不可点，视觉保留）。</summary>
+        [DataSourceProperty]
+        public bool CanProposeApprove => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved && IsLatestProposal;
+
+        /// <summary>拒绝可用：同上（最新未决才可点）。</summary>
+        [DataSourceProperty]
+        public bool CanProposeReject => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved && IsLatestProposal;
 
             // 提议按钮：批准
         [DataSourceProperty]
