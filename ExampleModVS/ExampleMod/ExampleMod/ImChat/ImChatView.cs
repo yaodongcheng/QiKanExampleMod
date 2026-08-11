@@ -282,6 +282,7 @@ namespace LivingWorldNpcs
                 _vm.Messages.Clear();
                 foreach (var m in msgs) _vm.Messages.Add(new ImMessageVM(m));
                 _vm.IsEmpty = false;
+                UpdateLatestProposalFlag();
                 RefreshChannelsDynamic();
                 return;
             }
@@ -296,6 +297,8 @@ namespace LivingWorldNpcs
                 for (int i = _vm.Messages.Count; i < msgs.Count; i++)
                     _vm.Messages.Add(new ImMessageVM(msgs[i]));
             }
+            // 🔴 2026-08-11（Q2）：最新未决提议标记（新增卡片后旧卡片按钮失效）
+            UpdateLatestProposalFlag();
             // 空会话引导（UI 优化：新频道无消息时给玩家一个提示而非空白）
             _vm.IsEmpty = msgs.Count == 0;
             // 🔴 九轮：新消息处理二分——玩家在底部（未上拉）→ 自动滚底把新消息弹出来（贴底闭环兜底）；
@@ -354,6 +357,26 @@ namespace LivingWorldNpcs
             if (_vm == null) return;
             foreach (var ch in _vm.ChannelList)
                 RefreshChannelItem(ch);
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-11（Q2）：同会话多张未决提议 → UI 全保留（流式历史），效用上只有最新一张的按钮有效。
+        /// 遍历消息流找最后一条未决（IsProposal && ExecutorId 空）→ 标记 IsLatestProposal=true，其余清除；
+        /// CanProposeApprove/CanProposeReject 同时要求该标记 → 旧卡片按钮 IsVisible=false（视觉保留、不可点）。
+        /// 每次消息流刷新（含增量追加）后调用——新卡片上屏即"老卡作废"。
+        /// </summary>
+        private static void UpdateLatestProposalFlag()
+        {
+            if (_vm == null) return;
+            ImMessageVM latest = null;
+            foreach (var vm in _vm.Messages)
+            {
+                // IsProposalResolved 只依赖 ExecutorId，不依赖标记——筛选条件独立，无循环依赖
+                if (vm.Message != null && vm.Message.IsProposal && !vm.Message.IsProposalResolved)
+                    latest = vm;
+            }
+            foreach (var vm in _vm.Messages)
+                vm.IsLatestProposal = vm == latest;
         }
 
         /// <summary>动态项：标题带正在思考 + 模式状态/切换按钮 + 输入区联动（0.3s 节流调）。</summary>
@@ -717,7 +740,9 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrEmpty(msg.ActionCode))
             {
                 msg.ExecutorId = "done";
-                RefreshMessages();
+                // 🔴 2026-08-11（Q2）：CanProposeApprove/CanProposeReject 是计算属性，增量追加不会刷新
+                // 已存在消息的按钮状态 → 全量重建（本卡按钮消失 + 前一卡成为最新未决恢复可点）
+                if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
                 if (!approve) return;
                 try
                 {
@@ -729,8 +754,8 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[ImChat] 动作提议执行失败 {msg.ActionCode}: {ex.Message}");
                 }
-                // 消息列表重建（提议按钮消失 + 可能的动作副作用刷新）
-                if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+                // 🔴 2026-08-11（Q3）：同意后自动关闭 IM——开打了玩家该盯屏幕，而不是手动关面板
+                Close();
                 return;
             }
 

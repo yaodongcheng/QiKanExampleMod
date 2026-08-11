@@ -120,3 +120,8 @@ ExecuteCore = ...;        // 核心执行（卡片批准后直接跑，不再弹
 - **发卡前预检**：空间裁剪（`ResolveSpace`）+ `IsValid` 不过 → 不发卡（防"同意后无法执行"的死卡），与 HandleAction 降级 NONE 同语义。
 - **载荷字段**：`ImMessage` 加 `ActionCode/ActionTarget/ActionLevel`（全 JSON 存档，向后兼容；空 ActionCode = 既有 NPC 主动提议 → RequestCommand 计划管线，行为不变）。
 - 卡片投递：`ImChatStore.AppendGroupMessage(conv.Id, ...)` + `IncUnread` + `BroadcastMessageArrived`（私聊/群聊通用，与 ReactiveAgent 提议同款）。
+
+**UI 层三条纪律（2026-08-11 实机三修）**：
+1. **卡片内部必须 ListPanel 垂直堆叠**（名字行 → 内容 → 按钮）——普通 Widget 子元素全部 Layout 到同一 rect 会叠字（ui.md「贴内容气泡」同坑；Proposal 分支曾名字+内容叠成一片、行高失真）。Id 带 `LWN_` 前缀 + `VerticalBottomToTop` 声明（走 StackLayout swap patch，v1.2.12/v1.3+ 一致）。
+2. **多卡并存：UI 全保留（流式历史），效用上仅最新未决卡按钮有效**——`ImMessageVM.IsLatestProposal` 标记（ImChatView.UpdateLatestProposalFlag 每次刷新重算：最后一条未决 = true，其余 false），CanProposeApprove/CanProposeReject 同时要求标记 → 旧卡按钮 IsVisible=false 隐藏不可点；作废卡片置 `ExecutorId="done"` 后**必须全量重建消息列表**（按钮状态是计算属性，增量追加不刷新已存在消息）。
+3. **同意后自动 `Close()`**（拒绝不关）——执行完动作直接关面板，开打了玩家该盯屏幕。
