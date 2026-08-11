@@ -283,6 +283,7 @@
     <string id="LWN_plan_respond_section_history" text="【Conversation History】" />
     <string id="LWN_plan_respond_section_perm" text="【Old Memories】" />
     <string id="LWN_plan_respond_section_recall" text="【Recent Recollections】" />
+    <string id="LWN_plan_respond_section_experience" text="【Recent Experiences】" />
     <string id="LWN_plan_respond_section_last" text="【Just Said】" />
     <string id="LWN_plan_respond_section_outline" text="【Conversation Direction】" />
     <string id="LWN_plan_chat_fallback" text="By the way, {0}." />

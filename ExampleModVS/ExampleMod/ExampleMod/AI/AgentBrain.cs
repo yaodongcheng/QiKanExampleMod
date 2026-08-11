@@ -91,6 +91,34 @@ namespace LivingWorldNpcs
             EnqueueAction(action);
         }
 
+        /// <summary>
+        /// 经历旁白写入（2026-08-11）：→ SingNpcMemorySystem.NarrationLog（会话级）。
+        /// 只记真实发生的经历（出队翻译/事件事实）；内容 = 第一人称 LLM prompt 材料（豁免铁律 13），
+        /// 不渲染为 IM 聊天行（GetDirectMessages 只认 im_user/im_npc 角色）。
+        /// </summary>
+        internal void RecordNarration(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line) || _memory == null) return;
+            _memory.RecordNarration(line);
+            DebugLogger.Log($"[Narration] {Owner?.Name}(Idx={Owner?.Index}) 旁白: {line}");
+        }
+
+        /// <summary>
+        /// 动作开始执行时的经历翻译（2026-08-11）：只在动作真正开始执行时记录——**无幽灵**
+        /// （队列里被 ClearAllActions 丢弃的动作永远不会出队；PlanExecutor 的 SubAction 创建即执行）。
+        /// 两个调用方：①脑队列出队（Tick 内）②PlanExecutor 子动作 OnStart（密谋系统绕过队列）。
+        /// 旁白定义在**每个动作自身**（IAtomicAction.GetNarration，见 AtomicAction.cs 各动作定义处）——
+        /// 机械动作返回 null 零噪声；新增动作只改自身定义处，本方法零改动。
+        /// "被攻击"等事件事实不在此记录（事件层 handler 直记，见 event_agent_damaged）。
+        /// </summary>
+        internal void RecordActionNarration(IAtomicAction action)
+        {
+            if (action == null) return;
+            string line = action.GetNarration(Owner);
+            if (string.IsNullOrWhiteSpace(line)) return;
+            RecordNarration(line);
+        }
+
         /// <summary>计划调试入口（plan_debug 用）：与 order_execute_plan 分支同构但绕开事件闸门。</summary>
         internal void EnqueueActionInternal(IAtomicAction action)
         {
@@ -377,6 +405,14 @@ namespace LivingWorldNpcs
                 if(!victim.IsActive()) return;
                 if(attacker == victim) return;
 
+                // 🔴 经历旁白（2026-08-11）：被攻击 = 事件事实（与击晕/认输同类，引擎确认的命中）。
+                // 门控：正在交战时后续命中不记（交战开始已记录）；"被打了但没打起来"（攻击者逃跑）
+                // 也覆盖——这是 flag 消费方案漏掉的情况。
+                if (Owner == victim && !(EffectiveAction is FightEnemyAction))
+                {
+                    RecordNarration($"我遭到了{attacker.Name}的攻击");
+                }
+
                 // 受害者身份日志：区分自己是受害者（应反击）还是旁观者（看护主条件），排查小孩无法参战用
                 DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 'event_agent_damaged' | victim={victim.Name}(Idx={victim.Index}) | 是否自己={Owner == victim} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
 
@@ -526,6 +562,7 @@ namespace LivingWorldNpcs
                             if (IsKnockedOut(victim))
                             {
                                 SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null, victim?.Index ?? -1);
+                                RecordNarration($"我看见{criminal.Name}打晕了{victim?.Name ?? "人"}");
                                 // 队友围观豁免（AddAlert 返回 false）→ 连带跳过质问意图
                                 if (AddAlert(PlayerActionType.Knockout, 3.0f))
                                 {
@@ -537,6 +574,7 @@ namespace LivingWorldNpcs
                             {
                                 // 斗殴/攻击：victim 正在和玩家战斗，不是偷窃
                                 SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null, victim?.Index ?? -1);
+                                RecordNarration($"我看见{criminal.Name}在袭击{victim?.Name ?? "人"}");
                                 if (AddAlert(PlayerActionType.AttackAlly, 3.0f))  // 队友围观豁免 → 连带跳过质问意图
                                 {
                                     _pulseSuppressedUntil = 0f;
@@ -548,6 +586,7 @@ namespace LivingWorldNpcs
                                 // 偷窃：立刻加警戒 + 3s 脉冲抑制
                                 // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
                                 SetPulseTarget(PlayerActionType.Steal, victim?.Name, null, victim?.Index ?? -1);
+                                RecordNarration($"我看见{criminal.Name}在偷窃");
                                 if (AddAlert(PlayerActionType.Steal, 3.0f))  // 队友围观豁免 → 连带跳过质问意图
                                 {
                                     _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
@@ -630,6 +669,9 @@ namespace LivingWorldNpcs
             {
                 // 被击晕：清除所有行为，StayAction 占位永不结束
                 // EnqueueAction 自动 SuspendVanillaAI，StayAction 防止 Brain 自动 Resume
+                // 经历旁白：ClearAllActions 前捕获战斗目标（之后 _currentAction 会被清空）
+                string knockedBy = (_currentAction as FightEnemyAction)?.TargetEnemy?.Name?.ToString() ?? "人";
+                RecordNarration($"我被{knockedBy}打晕了");
                 SetNpcIntent(NpcIntentType.KnockedOut);
                 IsStunned = true;
                 ClearAllActions();
@@ -773,6 +815,7 @@ namespace LivingWorldNpcs
             if (aiEvent.EventType == "event_npc_surrender")
             {
                 // NPC 自己决定认输（残血触发）
+                RecordNarration($"我向{Agent.Main?.Name?.ToString() ?? "对手"}认输了");
                 SetNpcIntent(NpcIntentType.Surrendering, Agent.Main);
             }
 
@@ -781,6 +824,7 @@ namespace LivingWorldNpcs
                 // 玩家主动认输 → 立即停战，清掉 FightEnemyAction，进入 StayAction 原地待命。
                 // 对话中谈拢了 → EndConversation 时 PostConversationCleanup 收尾。
                 // 对话中谈崩了 → event_surrender_refused 会清 StayAction、重入 FightEnemyAction。
+                RecordNarration($"{Agent.Main?.Name?.ToString() ?? "对方"}向我认输了");
                 SetNpcIntent(NpcIntentType.None);
                 ClearAllActions(); // 触发 FightEnemyAction.OnEnd → EndFight
                 EnqueueAction(new StayAction(Agent.Main));
@@ -1491,6 +1535,8 @@ namespace LivingWorldNpcs
                 _currentAction = _actionQueue.Dequeue();
                 DebugLogger.Log($"[Brain-Tick] {Owner.Name}(Idx={Owner.Index}) 开始执行 {_currentAction.GetType().Name} | 队列剩余={_actionQueue.Count}");
                 _currentAction.OnStart(Owner);
+                // 🔴 经历旁白（2026-08-11）：出队 = 动作真正开始执行 → 白名单翻译记录（无幽灵）
+                RecordActionNarration(_currentAction);
             }
 
 

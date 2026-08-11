@@ -264,6 +264,21 @@ namespace LivingWorldNpcs
                 sb.AppendLine(perm);
             }
 
+            // 1.5 近期经历（旁白，2026-08-11）：AgentBrain 事件决策点写入的第一人称经历
+            // （"我遭到X的攻击"/"我看见X偷窃"/"我奉命攻击X"），最新 3 条，新→旧。
+            // 比【近期回忆】更即时——它是原始事件，回忆是总结产物。
+            var narration = memory.SnapshotNarrationLog();
+            if (narration.Count > 0)
+            {
+                // LWN_plan_respond_section_experience：近期经历段标题
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_plan_respond_section_experience", "【近期经历】"));
+                for (int i = narration.Count - 1; i >= 0 && i >= narration.Count - 3; i--)
+                {
+                    if (!string.IsNullOrEmpty(narration[i].Content))
+                        sb.AppendLine("- " + narration[i].Content);
+                }
+            }
+
             // 2. 动态记忆最新 2 条（LinkedList 正序 = 旧→新）
             if (memory.DynamicMemories.Count > 0)
             {
@@ -1241,6 +1256,43 @@ namespace LivingWorldNpcs
             sb.AppendLine($"4. {S.SpeechStyle}");
             sb.AppendLine("5.必须按照纯净的Json格式输出。不要在Json内容之外输出解释和任意Markdown等解释内容。");
 
+
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 旁白总结 prompt（SingNpcMemorySystem.MaintainNarrationAsync 用，2026-08-11）：
+        /// 第一人称经历记录（被攻击/目击/奉命/认输）→ 一句 30 字以内记忆总结，进 DynamicMemories。
+        /// 与 BuildPromptForSummary 同构（输出格式/防呆指令一致），输入换成旁白行。
+        /// </summary>
+        public static string BuildPromptForNarrationSummary(SingNpcMemorySystem memory, List<RecentMemory> narrationsToSummarize)
+        {
+            StringBuilder sb = new StringBuilder();
+            string npcName = memory._profile.Name;
+            sb.AppendLine("【任务描述】");
+            sb.AppendLine($"你是{npcName}。下面是你最近亲身经历的一段事件记录（第一人称旁白：谁打了你、你看见了什么、你做了什么）。");
+            sb.AppendLine($"请你以【{npcName}】的视角，回忆并总结这段经历。30字以内：");
+            sb.AppendLine("【经历记录】");
+            foreach (var n in narrationsToSummarize)
+            {
+                if (n != null && !string.IsNullOrEmpty(n.Content))
+                    sb.AppendLine($"- {n.Content}");
+            }
+            sb.AppendLine("【输出格式】");
+            string OutputFormat = @"
+以纯 JSON 回复:
+{
+    ""Summary"": ""NPC记忆总结""
+}";
+            sb.AppendLine(OutputFormat);
+
+            // G. 回复要求
+            sb.AppendLine("【回复要求】");
+            sb.AppendLine("1. 提炼出一句简短的记忆总结（30字以内）。");
+            sb.AppendLine($"2. 必须使用第一人称“我”（指代{npcName}）。"); //再次强调
+            sb.AppendLine($"3. 总结的是你自己的所见所闻，不要把别人经历的事记成自己做的。"); // 防呆指令
+            sb.AppendLine($"4. {S.SpeechStyle}");
+            sb.AppendLine("5.必须按照纯净的Json格式输出。不要在Json内容之外输出解释和任意Markdown等解释内容。");
 
             return sb.ToString();
         }
