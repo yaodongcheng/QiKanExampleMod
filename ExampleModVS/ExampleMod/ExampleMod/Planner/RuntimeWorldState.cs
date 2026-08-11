@@ -247,10 +247,10 @@ namespace LivingWorldNpcs
             if (FollowPairs.Contains((follower.Index, leader.Index))) return true;
 
             // 通道②：brain 当前动作是跟随该目标
+            // （原 ReactiveFollowAction 分支已删，附章③ 2026-08-11：跟走 = FollowAgentAction(optionalDuration)
+            // 执行中；折返 = 下一步 MoveToPositionAction——CurrentAction 类型自然区分两个阶段）
             var brain = AgentAIController.GetBrainForAgent(follower);
             if (brain?.CurrentAction is FollowAgentAction fa && fa.TargetAgent == leader)
-                return true;
-            if (brain?.CurrentAction is ReactiveFollowAction rfa && rfa.IsFollowingNow && rfa.TargetAgent == leader)
                 return true;
             if (brain?.CurrentIntent?.Type == NpcIntentType.Following && brain.CurrentIntent.Target == leader)
                 return true;

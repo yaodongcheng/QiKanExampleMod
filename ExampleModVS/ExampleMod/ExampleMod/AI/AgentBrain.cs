@@ -29,9 +29,7 @@ namespace LivingWorldNpcs
         /// <summary>已暂停原版 AI 的 Agent.Index 集合。AiSuspendPatch 读取以拦截 Navigator。</summary>
         internal static readonly HashSet<int> SuspendedAgentIndices = new HashSet<int>();
 
-        /// <summary>查询任意 Agent 是否处于击晕 StayAction 状态。</summary>
-        /// <summary>是否处于击晕状态（专用标记，避免依赖 CurrentAction 时序问题）</summary>
-        internal bool IsStunned;
+
 
         // ═══════════════════════════════════════════════════════════════
         // 🆕 NpcIntent — NPC 高层意图状态机
@@ -54,96 +52,6 @@ namespace LivingWorldNpcs
         /// </summary>
         internal bool PendingPostConversationCleanup;
 
-        /// <summary>
-        /// 设置 NPC 当前意图，同时记录上一个意图。
-        /// 所有意图变更必须走此方法，类内部也不允许直接写 _currentIntent。
-        /// </summary>
-        public void SetNpcIntent(NpcIntentType type, Agent target = null, ConfrontationType? interceptDetail = null, CommandIntentType? commandDetail = null)
-        {
-            _previousIntent = _currentIntent;
-            _currentIntent = new NpcIntent(type, target, interceptDetail, commandDetail);
-        }
-
-        /// <summary>计划收尾 → 恢复默认意图（§10：值优先，Following）。仅当没有新命令覆盖时恢复。</summary>
-        private void OnPlanExecutorFinished(PlanExecutor executor)
-        {
-            try
-            {
-                if (Owner == null || !Owner.IsActive()) return;
-                if (_currentIntent != null && _currentIntent.Type == NpcIntentType.ExecutingCommand)
-                {
-                    if (Leader != null && Leader.IsActive())
-                        SetNpcIntent(NpcIntentType.Following, Leader);
-                    else
-                        SetNpcIntent(NpcIntentType.None);
-                }
-                // 恢复默认行为的动作侧由 DecideDefaultBehavior 自动处理（脑空 → 护卫跟随/原版 AI）
-            }
-            catch { }
-        }
-
-        /// <summary>ReactiveAgent 反应通道（§6）：清当前行为并入队反应动作。
-        /// 与 ReceiveEvent 内联分支同权——ReactiveAgent 是 brain 事件处理的内部扩展。</summary>
-        internal void RunReactiveAction(IAtomicAction action)
-        {
-            if (action == null || !Owner.IsActive()) return;
-            ClearAllActions();
-            EnqueueAction(action);
-        }
-
-        /// <summary>
-        /// 经历旁白写入（2026-08-11）：→ SingNpcMemorySystem.NarrationLog（会话级）。
-        /// 只记真实发生的经历（出队翻译/事件事实）；内容 = 第一人称 LLM prompt 材料（豁免铁律 13），
-        /// 不渲染为 IM 聊天行（GetDirectMessages 只认 im_user/im_npc 角色）。
-        /// </summary>
-        internal void RecordNarration(string line)
-        {
-            if (string.IsNullOrWhiteSpace(line) || _memory == null) return;
-            _memory.RecordNarration(line);
-            DebugLogger.Log($"[Narration] {Owner?.Name}(Idx={Owner?.Index}) 旁白: {line}");
-        }
-
-        /// <summary>
-        /// 动作开始执行时的经历翻译（2026-08-11）：只在动作真正开始执行时记录——**无幽灵**
-        /// （队列里被 ClearAllActions 丢弃的动作永远不会出队；PlanExecutor 的 SubAction 创建即执行）。
-        /// 两个调用方：①脑队列出队（Tick 内）②PlanExecutor 子动作 OnStart（密谋系统绕过队列）。
-        /// 旁白定义在**每个动作自身**（IAtomicAction.GetNarration，见 AtomicAction.cs 各动作定义处）——
-        /// 机械动作返回 null 零噪声；新增动作只改自身定义处，本方法零改动。
-        /// "被攻击"等事件事实不在此记录（事件层 handler 直记，见 event_agent_damaged）。
-        /// </summary>
-        internal void RecordActionNarration(IAtomicAction action)
-        {
-            if (action == null) return;
-            string line = action.GetNarration(Owner);
-            if (string.IsNullOrWhiteSpace(line)) return;
-            RecordNarration(line);
-        }
-
-        /// <summary>计划调试入口（plan_debug 用）：与 order_execute_plan 分支同构但绕开事件闸门。</summary>
-        internal void EnqueueActionInternal(IAtomicAction action)
-        {
-            if (action == null) return;
-            EnqueueAction(action);
-        }
-
-        internal void ClearAllActionsInternal()
-        {
-            ClearAllActions();
-        }
-
-        internal void OnPlanFinishedDebug(PlanExecutor executor)
-        {
-            OnPlanExecutorFinished(executor);
-        }
-
-        public static bool IsKnockedOut(Agent agent)
-        {
-            if (agent == null) return false;
-            var brain = AgentAIController.GetBrainForAgent(agent);
-            // 优先检查专用标记（CurrentAction 可能尚未出队，有时序问题）
-            if (brain?.IsStunned == true) return true;
-            return brain?.CurrentAction is StayAction stay && stay.IsKnockout;
-        }
 
         public Agent Owner { get; private set; }
         public SingNpcMemorySystem _memory;
@@ -160,6 +68,9 @@ namespace LivingWorldNpcs
 
         /// <summary>是否处于战斗行为（当前或排队）——HUD 用它决定战斗中不显示警戒眼</summary>
         public bool IsInCombat => IsCurrentOrPending<FightEnemyAction>();
+                /// <summary>查询任意 Agent 是否处于击晕 StayAction 状态。</summary>
+        /// <summary>是否处于击晕状态（专用标记，避免依赖 CurrentAction 时序问题）</summary>
+        internal bool IsStunned;
 
         /// <summary>
         /// 当前有效行为：_currentAction 不为 null 就返回它，否则 fallback 到队列头。
@@ -272,6 +183,105 @@ namespace LivingWorldNpcs
             if (newLeader == Owner) return; // 不能认自己做老大
             Leader = newLeader;
         }
+        
+        /// <summary>
+        /// 设置 NPC 当前意图，同时记录上一个意图。
+        /// 所有意图变更必须走此方法，类内部也不允许直接写 _currentIntent。
+        /// </summary>
+        public void SetNpcIntent(NpcIntentType type, Agent target = null, ConfrontationType? interceptDetail = null, CommandIntentType? commandDetail = null)
+        {
+            _previousIntent = _currentIntent;
+            _currentIntent = new NpcIntent(type, target, interceptDetail, commandDetail);
+        }
+
+        /// <summary>计划收尾 → 意图复位为 None（2026-08-11 修正：不再恢复 Following）。
+        /// DecideDefaultBehavior 的护卫跟随逻辑已注释（跟随由原版玩家命令/原版 AI 接管），
+        /// 恢复 Following 意图无对应动作，HUD 却显示"跟随中"——误导。计划结束 = 回到无意图状态，
+        /// 脑空 → DecideDefaultBehavior → ResumeVanillaAI 由原版 AI 接管。
+        /// 🔴 守卫保留：仅当没有新命令覆盖意图（仍为 ExecutingCommand）时才复位——计划收尾前
+        /// 玩家已下新命令（order_follow 等）时不得覆盖新意图。</summary>
+        internal void OnPlanExecutorFinished(PlanExecutor executor)
+        {
+            try
+            {
+                if (Owner == null || !Owner.IsActive()) return;
+                if (_currentIntent != null && _currentIntent.Type == NpcIntentType.ExecutingCommand)
+                    SetNpcIntent(NpcIntentType.None);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 经历旁白写入（2026-08-11）：→ SingNpcMemorySystem.NarrationLog（会话级）。
+        /// 只记真实发生的经历（出队翻译/事件事实）；内容 = 第一人称 LLM prompt 材料（豁免铁律 13），
+        /// 不渲染为 IM 聊天行（GetDirectMessages 只认 im_user/im_npc 角色）。
+        /// </summary>
+        internal void RecordNarration(string line)
+        {
+            if (string.IsNullOrWhiteSpace(line) || _memory == null) return;
+            _memory.RecordNarration(line);
+            DebugLogger.Log($"[Narration] {Owner?.Name}(Idx={Owner?.Index}) 旁白: {line}");
+        }
+
+        /// <summary>
+        /// 动作开始执行时的经历翻译（2026-08-11）：只在动作真正开始执行时记录——**无幽灵**
+        /// （队列里被 ClearAllActions 丢弃的动作永远不会出队）。
+        /// 🔴 唯一调用方 = 脑队列出队（Tick 内）。单脑化重构（M2）后密谋子动作也走脑队列
+        /// （ExecutePlanAction 占位已删，行为步骤由执行器 EnqueuePlanAction 入队），
+        /// 执行器侧不再有 OnStart 旁路调用点。
+        /// 旁白定义在**每个动作自身**（IAtomicAction.GetNarration，见 AtomicAction.cs 各动作定义处）——
+        /// 机械动作返回 null 零噪声；新增动作只改自身定义处，本方法零改动。
+        /// "被攻击"等事件事实不在此记录（事件层 handler 直记，见 event_agent_damaged）。
+        /// </summary>
+        internal void RecordActionNarration(IAtomicAction action)
+        {
+            if (action == null) return;
+            string line = action.GetNarration(Owner);
+            if (string.IsNullOrWhiteSpace(line)) return;
+            RecordNarration(line);
+        }
+
+
+        /// <summary>ReactiveAgent 反应通道（§6）：清当前行为并入队反应动作。
+        /// 支持多动作顺序组合（params，附章③ 2026-08-11：follow_for_a_bit 拆"跟走 + 折返"两步入队）。
+        /// 与 ReceiveEvent 内联分支同权——ReactiveAgent 是 brain 事件处理的内部扩展。</summary>
+        internal void RunReactiveAction(params IAtomicAction[] actions)
+        {
+            if (actions == null || actions.Length == 0 || !Owner.IsActive()) return;
+            ClearAllActions();
+            foreach (var a in actions)
+            {
+                if (a != null) EnqueueAction(a);
+            }
+        }
+
+        /// <summary>计划行为步骤入队（PlanExecutor M2 用，单脑化重构 D1/D4b）：
+        /// 执行器只负责排序，动作生命周期归脑——OnStart/OnTick/OnEnd/IsFinished 全由脑驱动。
+        /// 🔴 纯入队唯一 internal 入口（2026-08-11）：重构前 plan_debug 用的 EnqueueActionInternal
+        /// 在 plan_debug 改走 executor.Start 后失去调用方，已删除，不再开第二个纯入队薄壳。</summary>
+        internal void EnqueuePlanAction(IAtomicAction action)
+        {
+            if (action == null) return;
+            EnqueueAction(action);
+        }
+
+        /// <summary>动作是否仍由本脑持有（当前执行中或排队中）。PlanExecutor 外部清除检测用（D4）：
+        /// 返回 false 且动作未完成 = 被 ClearAllActions 清掉（战斗/护主/击晕/搭话）= 计划中止。</summary>
+        internal bool IsActionAlive(IAtomicAction action)
+        {
+            if (action == null) return false;
+            if (_currentAction == action) return true;
+            return _actionQueue.Contains(action);
+        }
+
+        public static bool IsKnockedOut(Agent agent)
+        {
+            if (agent == null) return false;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            // 优先检查专用标记（CurrentAction 可能尚未出队，有时序问题）
+            if (brain?.IsStunned == true) return true;
+            return brain?.CurrentAction is StayAction stay && stay.IsKnockout;
+        }
         // --- 核心：决策中枢 ---
         public void ReceiveEvent(AIEvent aiEvent)
         {
@@ -348,8 +358,12 @@ namespace LivingWorldNpcs
                     commandDetail: PlanExecutor.ParseIntentType(intentType ?? plan?.Intent?.IntentType));
                 InteractedAgent = target;
                 ClearAllActions();
-                EnqueueAction(new ExecutePlanAction(executor));
-                // 计划收尾 → 恢复默认（Following）；仅当没有新命令覆盖当前意图时
+                // D1（单脑化重构）：占位动作 ExecutePlanAction 整个删除——执行器直接启动（不入队），
+                // 行为步骤由执行器逐步入队（EnqueuePlanAction → 生命周期归脑）。
+                // "计划执行中"哨兵 = ExecutingCommand 意图（D2 空窗守卫：脑空时不跑 DecideDefaultBehavior，
+                // 收尾 OnPlanExecutorFinished 意图复位 None 自动放行）。
+                executor.Start(Owner);
+                // 计划收尾 → 意图复位 None；仅当没有新命令覆盖当前意图时
                 var exRef = executor;
                 executor.OnFinished += e => OnPlanExecutorFinished(exRef);
                 // Replan 接线（原命令 + 意外重入，§7.2）
@@ -379,7 +393,7 @@ namespace LivingWorldNpcs
                         ("OWNER", Owner.Name.ToString()), ("TARGET", targetAgent.Name.ToString())), Colors.Red));
                 ClearAllActions();
                 // 儿童不参战：恐惧逃离
-                if (IsChildOwner) { EnqueueAction(new FleeFromAction(targetAgent)); return; }
+                if (IsChildOwner) { EnqueueAction(MoveToPositionAction.FleeFrom(Owner, targetAgent)); return; }
                 EnqueueAction(new FightEnemyAction(targetAgent));
             }
             if (aiEvent.EventType == "DeferredCombat")
@@ -512,7 +526,7 @@ namespace LivingWorldNpcs
                     AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
                     // 儿童不参战：恐惧逃离；大人才进战斗
                     if (IsChildOwner)
-                        EnqueueAction(new FleeFromAction(attacker));
+                        EnqueueAction(MoveToPositionAction.FleeFrom(Owner, attacker));
                     else
                         EnqueueAction(new FightEnemyAction(attacker));
                 }
@@ -902,7 +916,10 @@ namespace LivingWorldNpcs
             }
         }
 
-        private void ClearAllActions(bool lockPlace = true)
+        /// <summary>清空当前动作 + 队列（lockPlace=true 时设 DoNotRun|NoAttack 脚本锁）。
+        /// 🔴 internal（2026-08-11）：plan_debug 直接调用——原纯透传壳 ClearAllActionsInternal 已删
+        /// （壳无空判/无守卫/无组合，只有可见性差异，属多余包装）。脑内部调用不受影响。</summary>
+        internal void ClearAllActions(bool lockPlace = true)
         {
             bool hadActions = _currentAction != null || _actionQueue.Count > 0;
             DebugLogger.Log($"[Brain-Clear] {Owner.Name}(Idx={Owner.Index}) 清空动作 | 当前={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | hadActions={hadActions}");
@@ -1023,23 +1040,7 @@ namespace LivingWorldNpcs
         private void DecideDefaultBehavior()
         {
             if (!Owner.IsActive()) return;
-
-            ResumeVanillaAI();
-
-            //原版玩家本身就可以控制随从是否跟随自己，所以这里不需要管
-            /*
-            if (_isGuardMode && Leader != null && Leader.IsActive())
-            {
-                // keepFollow:true 必须带——否则动作到达 stopDistance 即自结束，
-                // 下帧 Tick 又因 EffectiveAction==null 重新入队，形成每帧 入队→完成 循环刷屏。
-                // keepFollow 时 IsFinished 恒 false，动作常驻直到被 ClearAllActions 等流程接管。
-                EnqueueAction(new FollowAgentAction(Leader, run: true, keepFollow: true));
-            }
-            else
-            {
-                ResumeVanillaAI();
-            }
-            */
+            ResumeVanillaAI();           
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -1438,7 +1439,7 @@ namespace LivingWorldNpcs
             ClearAllActions();
             AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack（FightEnemyAction.OnStart 亦有兜底）
             // 儿童不参战：恐惧逃离
-            if (IsChildOwner) { EnqueueAction(new FleeFromAction(target)); return; }
+            if (IsChildOwner) { EnqueueAction(MoveToPositionAction.FleeFrom(Owner, target)); return; }
             EnqueueAction(new FightEnemyAction(target));
         }
 
@@ -1525,7 +1526,14 @@ namespace LivingWorldNpcs
 
             if (EffectiveAction == null)
             {
-                DecideDefaultBehavior();
+                // 🔴 空窗守卫（D2，单脑化重构）：计划执行中不恢复默认行为。
+                // 执行器 100ms 轮询完成检测，动作完成瞬间脑就 OnEnd 出队，下一步计划动作
+                // 要等下一轮轮询才入队——空窗期若跑 DecideDefaultBehavior（跟随/恢复原版 AI），
+                // 跟随动作占住队头，下一步计划动作排在其后先执行跟随——比显式打架更隐蔽。
+                // 哨兵 = ExecutingCommand 意图（order_execute_plan 设一次无二次设置；收尾意图复位 None 放行）。
+                // null-guard 对齐本类既有模式（Owner 可能无意图）。
+                if (_currentIntent?.Type != NpcIntentType.ExecutingCommand)
+                    DecideDefaultBehavior();
             }
 
 

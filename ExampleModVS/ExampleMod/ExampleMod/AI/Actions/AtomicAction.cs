@@ -421,10 +421,18 @@ namespace LivingWorldNpcs
     }
 
     // 1. 移动到坐标动作
+    // 🔴 2026-08-11 参数化合并：原 FleeFromAction（儿童逃跑）/ ReactiveFleeAction（恐慌逃跑）/
+    // ReactiveReturnPostAction（回岗）并入本类——差异全部参数化（起身延迟/固定超时/收尾行为/旁白），
+    // 完成判定 = 到点 + 超时/卡死兜底，移动逻辑只剩一份，改移动节奏只改一个类。
     public class MoveToPositionAction : IAtomicAction
     {
-        /// <summary>机械动作：不产生旁白。</summary>
-        public string GetNarration(Agent owner) => null;
+        /// <summary>移动结束行为：InteractPrepare = 到位后准备互动（精确移动/赴约——对峙/对话场景）；
+        /// Unlock = 解锁恢复原版 AI（逃跑/回岗——逃完就该回归日常，不该准备互动）。</summary>
+        public enum EndBehavior { InteractPrepare, Unlock }
+
+        /// <summary>经历旁白：逃跑模式传"吓得逃走了"（值得记的经历）；机械移动传 null（零噪声）。</summary>
+        private readonly string _narration;
+        public string GetNarration(Agent owner) => _narration;
 
         private Vec3 _targetPos;
         private Vec2 _targetDir;
@@ -432,6 +440,11 @@ namespace LivingWorldNpcs
         private float _stopDistance;
         private float _timer;
         private float _maxTime;           // 卡死预算（按距离/速度算，不固定）
+        private readonly float _maxTimeOverride;   // 固定超时（>0 = 到时即完成，不瞬移——恐慌/逃跑"放弃"语义）
+        private readonly bool _skipGetupDelay;     // 跳过起身延迟（恐慌/逃跑：坐蹲躺也立即动）
+        private readonly Agent _lookTarget;        // 边走边盯的目标（调查场景；null = 不盯）
+        private readonly EndBehavior _endBehavior;
+        private float _moveStartTimer;             // 开始移动时刻（_timer 基准；起身预支 2s 不计入超时）
         private float fixedTimer = 0;
         private float _sampleTimer;       // 进度采样计时
         private float _lastDist;          // 上次采样距目标距离
@@ -440,12 +453,29 @@ namespace LivingWorldNpcs
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
 
-        public MoveToPositionAction(Vec3 pos, Vec2 dir ,bool run = false, float stopDistance = 1.0f)
+        /// <param name="pos">目标点</param>
+        /// <param name="dir">到位朝向（逃跑可传 Vec2.Zero）</param>
+        /// <param name="run">跑/走</param>
+        /// <param name="stopDistance">完成距离</param>
+        /// <param name="maxTime">固定超时（秒）；≤0 = 用动态卡死预算（精确移动兜底）</param>
+        /// <param name="skipGetupDelay">跳过起身延迟（恐慌/逃跑：立刻动，不等过渡动画）</param>
+        /// <param name="endBehavior">收尾行为（精确移动 InteractPrepare / 逃跑回岗 Unlock）</param>
+        /// <param name="narration">经历旁白（null = 不记录）</param>
+        /// <param name="lookTarget">边走边盯的目标（调查场景；null = 不盯）</param>
+        public MoveToPositionAction(Vec3 pos, Vec2 dir, bool run = false, float stopDistance = 1.0f,
+            float maxTime = 0f, bool skipGetupDelay = false,
+            EndBehavior endBehavior = EndBehavior.InteractPrepare, string narration = null,
+            Agent lookTarget = null)
         {
             _targetPos = pos;
             _targetDir = dir;
             _run = run;
             _stopDistance = stopDistance;
+            _maxTimeOverride = maxTime;
+            _skipGetupDelay = skipGetupDelay;
+            _endBehavior = endBehavior;
+            _narration = narration;
+            _lookTarget = lookTarget;
 
             _timer = 0f;
         }
@@ -461,8 +491,14 @@ namespace LivingWorldNpcs
 
             _= AgentControlHelper.MovePrepare(agent);
 
-            if (!needsDelay)
+            // 调查场景：边走边盯目标（原 ReactiveInvestigateAction 语义，2026-08-11 并入）
+            if (_lookTarget != null && _lookTarget.IsActive())
+                AgentControlHelper.LookAtAgent(agent, _lookTarget);
+
+            // 恐慌/逃跑（skipGetupDelay）：坐蹲躺也立即动；否则按现状（不需要过渡动画 → 提前起身）
+            if (!needsDelay || _skipGetupDelay)
                 _timer = 2.0f;
+            _moveStartTimer = _timer;   // 起身预支不计入超时预算（基准 = 实际开始移动时刻）
 
             // 🔴 卡死预算按"距离/速度"算，不固定 8s（实机 badcase：远距离目标走着走着被瞬移）。
             // 走 ~1.5m/s / 跑 ~3.5m/s，×1.5 给寻路绕路余量，下限 5s。
@@ -509,8 +545,11 @@ namespace LivingWorldNpcs
             if (!agent.IsActive()) return true;
             float dist = agent.Position.Distance(_targetPos);
             if (dist <= _stopDistance) return true;   // 正常到达 → 不瞬移（对齐 FollowAgentAction 纪律）
-            // 卡死判定：超预算 且 最近 3s 无进展 → 瞬移兜底；仍在走（有速度）→ 继续
-            if (_timer > _maxTime && _timer - _lastProgressTime > 3f)
+            // 固定超时模式（恐慌/逃跑）：到点或到时二选一，到时即完成且不瞬移——逃跑语义是"放弃"不是"到位"。
+            // 超时从开始移动算（2026-08-11 修正：起身预支 2s 不计入，10s 预算 = 实际走 10s）
+            if (_maxTimeOverride > 0f && _timer - _moveStartTimer > _maxTimeOverride) return true;
+            // 卡死判定（精确移动）：超预算 且 最近 3s 无进展 → 瞬移兜底；仍在走（有速度）→ 继续
+            if (_timer - _moveStartTimer > _maxTime && _timer - _lastProgressTime > 3f)
             {
                 _teleportOnEnd = true;
                 return true;
@@ -523,93 +562,51 @@ namespace LivingWorldNpcs
             // 仅卡死兜底才瞬移；正常到达保留原位（几十厘米偏差肉眼不可见，瞬移反而突兀）
             if (_teleportOnEnd && agent.IsActive())
                 agent.TeleportToPosition(_targetPos);
-            agent.SetMovementDirection(_targetDir);
+            // 朝向守卫：逃跑/回岗传 Vec2.Zero（无意义方向）→ 跳过，避免零向量下发给引擎（解锁后原版 AI 接管）
+            if (_targetDir.LengthSquared > 0.01f)
+                agent.SetMovementDirection(_targetDir);
 
-            AgentControlHelper.MoveEndAndInteractPrepare(agent);
-        }
-    }
-
-    // 2.5 逃离动作：远离威胁 Agent 跑开一段距离（引擎级非战斗人员——儿童专用）。
-    // 任何"进入战斗"的流程（order_attack / DeferredCombat / 护主参战）对儿童都替换为本动作：
-    // 不战斗、单纯逃离。跑完恢复原版 AI（不像 MoveToPositionAction 那样锁定进对话）。
-    public class FleeFromAction : IAtomicAction
-    {
-        /// <summary>经历旁白（2026-08-11）：逃跑。"被攻击"由事件层记录（event_agent_damaged 事件事实）。</summary>
-        public string GetNarration(Agent owner) => "吓得逃走了";
-
-        private readonly Agent _threat;
-        private Vec3 _targetPos;
-        private bool _foundTarget;
-        private float _timer;
-        private float _fixedTimer;
-        private float _maxTime;
-        private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
-
-        /// <param name="threat">要逃离的威胁（通常是玩家或攻击者）</param>
-        public FleeFromAction(Agent threat)
-        {
-            _threat = threat;
-            _timer = 0f;
-            _fixedTimer = 0f;
-            _maxTime = 10f; // 8~14m walk 速度约 6~10s，留 10s 保险
+            // 收尾行为参数化：精确移动 = 到位准备互动（对峙/对话）；逃跑/回岗 = 解锁恢复原版 AI
+            if (_endBehavior == EndBehavior.InteractPrepare)
+                AgentControlHelper.MoveEndAndInteractPrepare(agent);
+            else
+                AgentControlHelper.ForceUnlockAgent(agent);
         }
 
-        public void OnStart(Agent agent)
+        /// <summary>逃跑工厂（原 FleeFromAction，2026-08-11 并入）：远离威胁 ±45° 抖动 8~14m，
+        /// 取第一个 navmesh 有效点；找不到 → 直线方向 8m 兜底（引擎自动修正 navmesh）。
+        /// isRun=false = walk（as_human_child 无 run 动画）；maxTime 固定超时（默认 10s，到时即完成不瞬移）。</summary>
+        public static MoveToPositionAction FleeFrom(Agent agent, Agent threat, bool isRun = false, float maxTime = 10f)
         {
-            if (agent == null || !agent.IsActive()) { _interrupted = true; return; }
-
             // 逃跑方向：远离威胁 ±45° 抖动，8~14m，取第一个 navmesh 有效点（照动物挣脱轮子 OnAnimalStruggleFlee）
-            Vec3 away = _threat != null && _threat.IsActive()
-                ? agent.Position - _threat.Position
+            Vec3 away = threat != null && threat.IsActive()
+                ? agent.Position - threat.Position
                 : new Vec3(1f, 0f, 0f);
             away.z = 0f;
             if (away.LengthSquared < 0.001f) away = new Vec3(1f, 0f, 0f);
             away = away.NormalizedCopy();
 
+            Vec3 fleePos = agent.Position + away * 8f;
             for (int i = 0; i < 6; i++)
             {
                 float angle = (MBRandom.RandomFloat - 0.5f) * MathF.PI * 0.5f; // ±45°
                 float cos = MathF.Cos(angle), sin = MathF.Sin(angle);
                 Vec3 dir = new Vec3(away.x * cos - away.y * sin, away.x * sin + away.y * cos, 0f);
-                Vec3 fleePos = agent.Position + dir * (8f + MBRandom.RandomFloat * 6f);
-                if (agent.Mission?.Scene != null && V.NavMesh(agent.Mission.Scene, fleePos, out _))
+                Vec3 candidate = agent.Position + dir * (8f + MBRandom.RandomFloat * 6f);
+                if (agent.Mission?.Scene != null && V.NavMesh(agent.Mission.Scene, candidate, out _))
                 {
-                    _targetPos = fleePos;
-                    _foundTarget = true;
+                    fleePos = candidate;
                     break;
                 }
             }
-            // 兜底：找不到可寻路点 → 直线逃离方向（引擎自动修正 navmesh）
-            if (!_foundTarget)
-                _targetPos = agent.Position + away * 8f;
-
-            _ = AgentControlHelper.MovePrepare(agent);
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            _timer += dt;
-            _fixedTimer += dt;
-            if (_fixedTimer < 0.2f) return;
-            _fixedTimer = 0f;
-            // 持续刷新脚本移动目标（as_human_child 无 run 动画，isRun=false 走 walk）
-            AgentControlHelper.ScriptedMoveToPoint(agent, _targetPos, isRun: false);
-        }
-
-        public bool IsFinished(Agent agent)
-        {
-            float distSq = agent.Position.DistanceSquared(_targetPos);
-            return _interrupted || distSq <= 1.0f || _timer > _maxTime || !agent.IsActive();
-        }
-
-        public void OnEnd(Agent agent)
-        {
-            // 逃跑完成 → 恢复原版 AI（DisableScriptedMovement + 回 AI 控制）
-            if (agent != null && agent.IsActive())
-                AgentControlHelper.ForceUnlockAgent(agent);
+            return new MoveToPositionAction(fleePos, Vec2.Zero, isRun, stopDistance: 1f,
+                maxTime: maxTime, skipGetupDelay: true, endBehavior: EndBehavior.Unlock,
+                narration: "吓得逃走了");
         }
     }
+
+    // 2.5 逃离动作：已并入 MoveToPositionAction.FleeFrom 工厂（2026-08-11，参数化合并）——
+    // 儿童逃跑/恐慌逃跑共用"逃跑"语义（目标源/姿势/超时参数区分），见 MoveToPositionAction.FleeFrom。
 
     // 2. 跟随/追逐目标动作
     public class FollowAgentAction : IAtomicAction
@@ -641,7 +638,10 @@ namespace LivingWorldNpcs
         /// <summary>跟随目标（执行器 following 谓词判定用）。</summary>
         internal Agent TargetAgent => _target;
 
-        public FollowAgentAction(Agent target, bool run, float radius = 0.0f, float angleOffset = 0f, float stopDistance = 3.5f, float buffer = 1.5f, bool keepFollow = false)
+        private readonly float _optionalDuration;   // 跟走模式时长（>0 = 到时 IsFinished，忽略距离判定）
+        private float _moveStartTimer;              // 开始移动时刻（_timer 基准；起身预支 2s 不计入时长）
+
+        public FollowAgentAction(Agent target, bool run, float radius = 0.0f, float angleOffset = 0f, float stopDistance = 3.5f, float buffer = 1.5f, bool keepFollow = false, float optionalDuration = 0f)
         {
             _target = target;
             _run = run;
@@ -655,6 +655,10 @@ namespace LivingWorldNpcs
 
             _radiusOffset = radius;
             _angleOffsetDeg = angleOffset;
+
+            // 🔴 跟走模式（附章③，2026-08-11）：optionalDuration > 0 = 跟走一段后到时完成
+            // （原 ReactiveFollowAction 的 Follow 阶段——一直追目标，不因距离完成）
+            _optionalDuration = optionalDuration;
 
             _timer = 0f;
             _maxTime = 5f;
@@ -675,6 +679,7 @@ namespace LivingWorldNpcs
 
             if (!needsDelay)
                 _timer = 2.0f;
+            _moveStartTimer = _timer;   // 起身预支不计入跟走时长/超时预算（基准 = 实际开始移动时刻）
         }
 
         public void OnTick(Agent agent, float dt)
@@ -693,7 +698,11 @@ namespace LivingWorldNpcs
 
             // --- 状态机逻辑 ---
 
-            if (_timer > _maxTime && _currentDistanceSq > _stopDistanceSq)
+            // 🔴 追赶瞬移仅限持续跟随（keepFollow=true 抑制以外）——跟走模式（optionalDuration > 0）
+            // 禁止瞬移：跟走语义 = "跟不上就落后，到时自然结束"（原 ReactiveFollowAction 无瞬移，
+            // 2026-08-11 并入后若不抑制，玩家跑/骑马跑远 → 守卫 5s 后穿墙瞬移——可见 bug）
+            if (_timer - _moveStartTimer > _maxTime && _currentDistanceSq > _stopDistanceSq
+                && _optionalDuration <= 0f)
             {
                 if(!_keepFollow)
                     agent.TeleportToPosition(_currentIdealPosition);
@@ -825,6 +834,10 @@ namespace LivingWorldNpcs
         {
             if (_interrupted) return true;
             if (_target == null || !_target.IsActive()) return true;
+            // 🔴 跟走模式（optionalDuration > 0）：只按时长完成（目标消失已在上方拦截），
+            // 忽略距离判定——跟走语义 = 一直追目标直到时间到（原 ReactiveFollowAction Follow 阶段）。
+            // 时长从开始移动算（起身预支不计入，坐蹲躺的起身期不吞跟走时间）
+            if (_optionalDuration > 0f) return _timer - _moveStartTimer >= _optionalDuration;
             if(_keepFollow)
                 return false; // 永远跟随
             else
@@ -1387,257 +1400,33 @@ namespace LivingWorldNpcs
         public void OnEnd(Agent agent) { }
     }
 
-    /// <summary>跟走一段后折返回岗位（follow_for_a_bit + return_post 一体化；duty 决定时长）。</summary>
-    public class ReactiveFollowAction : IAtomicAction
-    {
-        /// <summary>持续状态动作：不产生旁白。</summary>
-        public string GetNarration(Agent owner) => null;
-
-        private enum Phase { Follow, Return, Done }
-        private readonly Agent _target;
-        private readonly Vec3 _postPos;
-        private readonly float _followTime;
-        private Phase _phase = Phase.Follow;
-        private float _timer;
-        private float _fixedTimer;
-        private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
-
-        /// <summary>是否仍在"跟随"阶段（following 谓词判定用：true = 守卫正在跟走）。</summary>
-        internal bool IsFollowingNow => _phase == Phase.Follow && !_interrupted;
-
-        /// <summary>跟随目标（following 谓词判定用）。</summary>
-        internal Agent TargetAgent => _target;
-
-        public ReactiveFollowAction(Agent target, Vec3 postPos, float followTime, Agent owner)
-        {
-            _target = target;
-            _postPos = postPos;
-            _followTime = followTime;
-        }
-
-        public void OnStart(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-            _timer = 0f;
-            _fixedTimer = 0f;
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            _timer += dt;
-            _fixedTimer += dt;
-            if (_interrupted) { _phase = Phase.Done; return; }
-
-            switch (_phase)
-            {
-                case Phase.Follow:
-                    // 跟随目标（跟走）
-                    if (_fixedTimer >= 0.2f)
-                    {
-                        _fixedTimer = 0f;
-                        if (_target != null && _target.IsActive())
-                            AgentControlHelper.ScriptedMoveToPoint(agent, _target.Position, false);
-                        else
-                            _phase = Phase.Return;   // 目标没了 → 折返
-                    }
-                    if (_timer >= _followTime)
-                        _phase = Phase.Return;       // 到点折返（left_post_seconds 语义）
-                    break;
-                case Phase.Return:
-                    if (_fixedTimer >= 0.2f)
-                    {
-                        _fixedTimer = 0f;
-                        AgentControlHelper.ScriptedMoveToPoint(agent, _postPos, false);
-                    }
-                    if (agent.Position.Distance(_postPos) < 1.5f || _timer > _followTime + 20f)
-                        _phase = Phase.Done;
-                    break;
-            }
-        }
-
-        public bool IsFinished(Agent agent) => _phase == Phase.Done || _interrupted;
-
-        public void OnEnd(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-        }
-    }
-
-    /// <summary>折返回岗位（return_post 反应）。</summary>
-    public class ReactiveReturnPostAction : IAtomicAction
-    {
-        /// <summary>机械动作（回岗）：不产生旁白。</summary>
-        public string GetNarration(Agent owner) => null;
-
-        private readonly Vec3 _postPos;
-        private bool _done;
-        private float _fixedTimer;
-        private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
-
-        public ReactiveReturnPostAction(Vec3 postPos, Agent owner)
-        {
-            _postPos = postPos;
-        }
-
-        public void OnStart(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            _fixedTimer += dt;
-            if (_interrupted) { _done = true; return; }
-            if (_fixedTimer >= 0.2f)
-            {
-                _fixedTimer = 0f;
-                AgentControlHelper.ScriptedMoveToPoint(agent, _postPos, false);
-            }
-            if (agent.Position.Distance(_postPos) < 1.5f) _done = true;
-        }
-
-        public bool IsFinished(Agent agent) => _done || _interrupted;
-
-        public void OnEnd(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-        }
-    }
-
-    /// <summary>调查（investigate）：走向目标位置 + 盯着。</summary>
-    public class ReactiveInvestigateAction : IAtomicAction
-    {
-        /// <summary>机械动作（调查）：不产生旁白。</summary>
-        public string GetNarration(Agent owner) => null;
-
-        private readonly Vec3 _pos;
-        private readonly Agent _lookTarget;
-        private bool _done;
-        private float _fixedTimer;
-        private float _totalTimer;
-        private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
-
-        public ReactiveInvestigateAction(Vec3 pos, Agent lookTarget, Agent owner)
-        {
-            _pos = pos;
-            _lookTarget = lookTarget;
-        }
-
-        public void OnStart(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-            if (_lookTarget != null) AgentControlHelper.LookAtAgent(agent, _lookTarget);
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            _fixedTimer += dt;
-            _totalTimer += dt;
-            if (_interrupted) { _done = true; return; }
-            if (_fixedTimer >= 0.2f)
-            {
-                _fixedTimer = 0f;
-                AgentControlHelper.ScriptedMoveToPoint(agent, _pos, false);
-            }
-            if (agent.Position.Distance(_pos) < 2f || _totalTimer > 30f) _done = true;
-        }
-
-        public bool IsFinished(Agent agent) => _done || _interrupted;
-
-        public void OnEnd(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-        }
-    }
-
-    /// <summary>跑离现场（flee 恐慌反应）：跑向远离点，到达或超时结束。</summary>
-    public class ReactiveFleeAction : IAtomicAction
-    {
-        /// <summary>经历旁白（2026-08-11）：反应链逃跑。"被攻击"由事件层记录。</summary>
-        public string GetNarration(Agent owner) => "吓得逃走了";
-
-        private readonly Vec3 _awayPos;
-        private bool _done;
-        private float _fixedTimer;
-        private float _totalTimer;
-        private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
-
-        public ReactiveFleeAction(Vec3 awayPos, Agent owner)
-        {
-            _awayPos = awayPos;
-        }
-
-        public void OnStart(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            _fixedTimer += dt;
-            _totalTimer += dt;
-            if (_interrupted) { _done = true; return; }
-            if (_fixedTimer >= 0.2f)
-            {
-                _fixedTimer = 0f;
-                AgentControlHelper.ScriptedMoveToPoint(agent, _awayPos, true); // 跑（sprinting）
-            }
-            if (agent.Position.Distance(_awayPos) < 2f || _totalTimer > 15f) _done = true;
-        }
-
-        public bool IsFinished(Agent agent) => _done || _interrupted;
-
-        public void OnEnd(Agent agent)
-        {
-            AgentControlHelper.ForceUnlockAgent(agent);
-        }
-    }
-
     // ═══════════════════════════════════════════════════════════════
-    // 密谋计划执行动作（PlanExecutor 使用，原定义于 PlanExecutor.cs，
-    // 2026-08-11 迁移统一）
+    // 行为性内联队列适配器（单脑化重构 M0/D3，原 ExecutePlanAction 已于 D1 删除）
     // ═══════════════════════════════════════════════════════════════
 
-    public class ExecutePlanAction : IAtomicAction
+    /// <summary>
+    /// 行为性内联步骤队列适配器（D3）：把内联状态机（lead/steal_attempt/knockout/emote）包成
+    /// IAtomicAction 入队，使中断语义覆盖到它们——OnStart/OnEnd 空实现（状态机构造时已初始化、
+    /// teardown 无资源需释放）；完成判定 = 状态机 Finished/Interrupted；RequestInterrupt 传导到
+    /// 状态机 Interrupt()（中断标记使 OnTick 直接结束、不会真执行——无僵尸动作）。
+    /// </summary>
+    public class InlinePlanAction : IAtomicAction
     {
-        /// <summary>内部驱动动作：不产生旁白（密谋子步骤单独记录）。</summary>
+        /// <summary>内部驱动动作：不产生旁白（行为性内联的经历由自身步骤结算记录，与重构前一致）。</summary>
         public string GetNarration(Agent owner) => null;
 
-        private readonly PlanExecutor _executor;
-        public PlanExecutor Executor => _executor;
+        private readonly IInlineStep _inline;
+        public IInlineStep Inline => _inline;
 
-        public ExecutePlanAction(PlanExecutor executor)
+        public InlinePlanAction(IInlineStep inline)
         {
-            _executor = executor;
+            _inline = inline;
         }
 
-        public void OnStart(Agent agent)
-        {
-            _executor?.Start(agent);
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            // 执行器由 AgentAIController.TickAll 统一驱动（与队列解耦，报告流程也能跑）
-        }
-
-        public bool IsFinished(Agent agent)
-        {
-            return _executor == null || _executor.IsFinished;
-        }
-
-        public void OnEnd(Agent agent)
-        {
-            // brain 标准清理后：恢复默认行为由 DecideDefaultBehavior 自动处理
-        }
-
-        public void RequestInterrupt()
-        {
-            _executor?.RequestInterrupt();
-        }
+        public void OnStart(Agent a) { }                                  // 状态机构造时已初始化
+        public void OnTick(Agent a, float dt) => _inline.OnTick(dt);
+        public bool IsFinished(Agent a) => _inline.Finished || _inline.Interrupted;
+        public void OnEnd(Agent a) { }
+        public void RequestInterrupt() => _inline.Interrupt();
     }
 }

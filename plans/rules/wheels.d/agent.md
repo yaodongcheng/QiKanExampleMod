@@ -59,7 +59,7 @@ AgentAIController.Instance.SendEventToAgent(target, "事件名", args);
 // EnqueueAction、ClearAllActions 均为 private，外部不可调用
 ```
 
-- **已有的 Action（先复用，别重写）**：`FollowAgentAction`、`MoveToPositionAction`、`LookAtAction`、`TurnToDirectionAction`、`PlayAnimAction`、`FightEnemyAction`、`DrawWeaponAction`、`StayAction`、`ForceTalkAction`、`PrepareOpeningAction`、`ReactionDecisionAction`、`FleeFromAction`（儿童恐惧逃离，见下方专节）。
+- **已有的 Action（先复用，别重写）**：`FollowAgentAction`、`MoveToPositionAction`（含 `FleeFrom` 逃跑工厂——原 FleeFromAction/ReactiveFleeAction/ReactiveReturnPostAction 已并入，2026-08-11）、`LookAtAction`、`TurnToDirectionAction`、`PlayAnimAction`、`FightEnemyAction`、`DrawWeaponAction`、`StayAction`、`ForceTalkAction`、`PrepareOpeningAction`、`ReactionDecisionAction`。
 - **什么才该放进原子 Action 库**：只有**高可复用**（多种行为链都会用到，如移动、朝向、播放动画）或**不可再拆分**（最小行为单元，拆了就没意义）的行为，才进 `AtomicAction.cs`。一次性的、只服务某个具体玩法的复合流程**不要**塞进来——那应该是「多个原子 Action 入队组合」。
 - 复杂行为 = 多个原子 Action 入队组合，而不是写一个大 Action。
 
@@ -133,24 +133,26 @@ AgentControlHelper.IsHumanOrChild(agent);
 bool isChild = Owner != null && Owner.Monster != null && Owner.Monster.StringId?.Contains("child") == true;
 
 // ③ 儿童逃离动作：远离威胁 8~14m ±45° 抖动，walk 逃跑，跑完恢复原版 AI
-EnqueueAction(new FleeFromAction(threatAgent));
-//   OnStart 照动物挣脱轮子（StealManager.OnAnimalStruggleFlee）：6 次随机方向取第一个 navmesh
-//   有效点（V.NavMesh 版本封装），兜底直线逃离（引擎自动修正 navmesh）
-//   OnTick 每 200ms 刷新 ScriptedMoveToPoint(isRun:false)（as_human_child 无 run 动画）
-//   OnEnd → AgentControlHelper.ForceUnlockAgent（恢复原版 AI，不像 MoveToPositionAction 锁定进对话）
+// 🔴 2026-08-11 参数化合并：原 FleeFromAction 已并入 MoveToPositionAction 的逃跑工厂
+EnqueueAction(MoveToPositionAction.FleeFrom(Owner, threatAgent));
+//   FleeFrom 工厂照动物挣脱轮子（StealManager.OnAnimalStruggleFlee）：6 次随机方向取第一个
+//   navmesh 有效点（V.NavMesh 版本封装），兜底直线逃离（引擎自动修正 navmesh）
+//   工厂产出 = MoveToPositionAction(walk, stopDistance 1f, 固定超时 10s 不瞬移,
+//   skipGetupDelay 立即动, EndBehavior.Unlock 恢复原版 AI, 旁白"吓得逃走了")
+//   恐慌逃跑（原 ReactiveFleeAction）= 同工厂参数化（外部给点/run/15s/2f），也已并入本类
 ```
 
-**儿童不参战三处替换点**（`AgentBrain.ReceiveEvent`，儿童一律 `FleeFromAction` 替代 `FightEnemyAction`）：
+**儿童不参战三处替换点**（`AgentBrain.ReceiveEvent`，儿童一律 `MoveToPositionAction.FleeFrom` 替代 `FightEnemyAction`）：
 
 | 事件 | 大人行为 | 儿童行为 |
 |------|---------|---------|
-| `order_attack`（玩家下令攻击） | `FightEnemyAction` | `FleeFromAction` |
-| `DeferredCombat`（威胁失败延迟开战） | `FightEnemyAction` | `FleeFromAction` |
-| 护主参战（`event_agent_damaged` 旁观者/受害者） | `FightEnemyAction` + CombatJoin 台词 | `FleeFromAction` + 求救台词（`LWN_brain_child_flee`） |
+| `order_attack`（玩家下令攻击） | `FightEnemyAction` | `MoveToPositionAction.FleeFrom(Owner, target)` |
+| `DeferredCombat`（威胁失败延迟开战） | `FightEnemyAction` | `MoveToPositionAction.FleeFrom(Owner, target)` |
+| 护主参战（`event_agent_damaged` 旁观者/受害者） | `FightEnemyAction` + CombatJoin 台词 | `MoveToPositionAction.FleeFrom(Owner, attacker)` + 求救台词（`LWN_brain_child_flee`） |
 
 **击晕免疫判定同样用 `Contains("child")` 而非 `== "human_child"`**（`InteractionMissionView`）：child monster 骨骼比例（臂长 0.6/眼高 1.2）与 adult 不同，`death_fall_front` 动画无法在其骨架播放，成功率强制 0（100% 免疫）。精确匹配会漏掉其他 mod 的儿童命名。
 
-**文件位置**：`Core/AgentControlHelper.cs`（IsHumanOrChild）、`AI/AgentBrain.cs`（IsChildOwner + 三处替换）、`AI/Actions/AtomicAction.cs`（FleeFromAction）
+**文件位置**：`Core/AgentControlHelper.cs`（IsHumanOrChild）、`AI/AgentBrain.cs`（IsChildOwner + 三处替换）、`AI/Actions/AtomicAction.cs`（MoveToPositionAction.FleeFrom 工厂）
 
 ---
 
@@ -352,8 +354,8 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 
 ## 密谋命令系统接线（2026-08-07，详见 planner.md）
 
-- `AgentBrain.ReceiveEvent` 新增事件分支：`order_execute_plan`（收 plan JSON → `PlanExecutor.Create` → `SetNpcIntent(ExecutingCommand)` → `ClearAllActions` → `EnqueueAction(new ExecutePlanAction(executor))`；收尾 OnFinished → 恢复 Following，仅当意图仍为 ExecutingCommand）与 `plan_decision`（ReactiveAgent 决策结果 → 转发 `executor.NotifyDecisionEvent`）。
+- `AgentBrain.ReceiveEvent` 新增事件分支：`order_execute_plan`（收 plan JSON → `PlanExecutor.Create` → `SetNpcIntent(ExecutingCommand)` → `ClearAllActions` → 🔴 单脑化重构后直接 `executor.Start(Owner)` 不入队；收尾 OnFinished → 意图复位 None，仅当意图仍为 ExecutingCommand）与 `plan_decision`（ReactiveAgent 决策结果 → 转发 `executor.NotifyDecisionEvent`）。
 - `RunReactiveAction(IAtomicAction)`：ReactiveAgent 反应通道（清当前行为并入队反应动作；brain 事件处理的内部扩展）。
-- `EnqueueActionInternal`/`ClearAllActionsInternal`：plan_debug 调试专用（绕开事件闸门）。
+- `ClearAllActions`（internal）：plan_debug 调试直接调用（绕开事件闸门）；纯入队入口收敛为 `EnqueuePlanAction`（原 `EnqueueActionInternal` 与纯透传壳 `ClearAllActionsInternal` 均在 2026-08-11 删除——无空判/守卫/组合的壳不保留）。
 - `AgentAIController.OnMissionTick` 末尾加 `PlanExecutor.TickAll(dt)`（执行器统一驱动）；`OnRemoveBehavior` 加 `PlanExecutor.ShutdownAll()`。
-- 执行器挂接 = IAtomicAction（`ExecutePlanAction`，IsFinished = 计划完成）；执行器本体独立 tick——护主/战斗 ClearAllActions 踢掉队列项不影响执行器继续运行。
+- 🔴 单脑化重构（2026-08-11）：行为步骤由执行器 `EnqueuePlanAction` 逐个入队（生命周期归脑，D4b），不再有 `ExecutePlanAction` 占位；脑 Tick 空脑分支加 ExecutingCommand 意图空窗守卫（D2）；动作完成 100ms 轮询三路径判定（IsFinished / IsActionAlive 外部清除 / RequestInterrupt）。完整纪律见 planner.md「执行器挂接」条目。

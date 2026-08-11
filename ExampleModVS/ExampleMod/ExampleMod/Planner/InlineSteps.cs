@@ -14,6 +14,13 @@ namespace LivingWorldNpcs
     // 不适合塞进原子行为库；每个步骤一个轻量状态机，由 ActorCursor 驱动。
     // 与 IAtomicAction 的界限：原子行为 = 可复用的引擎级动作；
     //              内联步骤 = 计划语法相关的编排逻辑。
+    //
+    // 🔴 单脑化重构（M0/D3）：内联分两类——
+    //   行为性内联（lead/steal_attempt/knockout/emote，IsBehavioral=true）：直接驱动表现层
+    //   （移动/姿态/击晕），经 InlinePlanAction 适配器（AtomicAction.cs）入队由脑驱动，
+    //   中断语义与普通动作一致（生命周期归脑）；
+    //   非行为性内联（say_to/wait/signal_player/end_plan/make_noise/give_*/deliver_*）：
+    //   纯逻辑/通信，留在排序器侧直接驱动，Pause 时保留状态（恢复不重播/不重计时）。
     // ═══════════════════════════════════════════════════════════════
 
     public interface IInlineStep
@@ -21,6 +28,26 @@ namespace LivingWorldNpcs
         bool Ok { get; }        // 创建成功（目标可解析等）
         bool Finished { get; }  // 本步完成
         void OnTick(float dt);
+
+        /// <summary>
+        /// 请求中断（单脑化重构 M0/D3）：行为性内联经 InlinePlanAction 入队后由脑驱动，
+        /// executor 侧任何迁移/终止（跳转/超时/Pause/中止）经 RequestInterrupt → 本方法传导到状态机。
+        /// 标记中断使 Finished 立即为真（中断标记使动作 OnTick 直接结束、不会真执行）。
+        /// 🔴 不可逆：Pause→Resume 必须重建全新状态机，复用旧实例 = 立即 IsFinished 死路。
+        /// </summary>
+        void Interrupt();
+
+        /// <summary>中断标记（InlinePlanAction.IsFinished 判定用：Finished 或 Interrupted 即完成）。</summary>
+        bool Interrupted { get; }
+
+        /// <summary>
+        /// 行为性内联标记（M0/D3）：直接驱动表现层（移动 ScriptedMoveToPoint / 姿态 SetPose /
+        /// 击晕 ForcePlayAction）的内联——lead/steal_attempt/knockout/emote——必须经
+        /// InlinePlanAction 入队由脑驱动（中断语义覆盖、无两个大脑打架）；
+        /// 纯逻辑/通信内联（say_to/wait/signal_player/end_plan/make_noise/give_*/deliver_*）
+        /// 留在排序器侧直接驱动。
+        /// </summary>
+        bool IsBehavioral { get; }
     }
 
     /// <summary>say_to：单句模式（text，现状）/ 对话模式（outline + topic，多轮 LLM 实时对话）。
@@ -37,8 +64,14 @@ namespace LivingWorldNpcs
         private float _duration;
         private bool _said;
         private bool _broadcastDone;
+        private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
+        // 非行为性内联：台词/广播 = 排序器侧编排（不进队列，不写移动/姿态表现层）
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现（非行为性内联不被 Pause/迁移中断——say_to 跨 Pause 保留状态不重播）。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public SayInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
@@ -127,8 +160,13 @@ namespace LivingWorldNpcs
     {
         private readonly PlanStep _step;
         private float _timer;
+        private bool _interrupted;
         public bool Ok { get; private set; } = true;
         public bool Finished { get; private set; }
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现（wait 跨 Pause 保留计时不重计）。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public WaitInlineState(PlanStep step)
         {
@@ -153,8 +191,13 @@ namespace LivingWorldNpcs
         private readonly PlanExecutor _executor;
         private readonly PlanStep _step;
         private bool _sent;
+        private bool _interrupted;
         public bool Ok { get; private set; } = true;
         public bool Finished { get; private set; }
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public SignalInlineState(PlanExecutor executor, PlanStep step)
         {
@@ -180,8 +223,13 @@ namespace LivingWorldNpcs
         private readonly PlanExecutor _executor;
         private readonly PlanStep _step;
         private bool _applied;
+        private bool _interrupted;
         public bool Ok { get; private set; } = true;
         public bool Finished { get; private set; }
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public EndPlanInlineState(PlanExecutor executor, PlanStep step)
         {
@@ -222,8 +270,13 @@ namespace LivingWorldNpcs
         private readonly Agent _agent;
         private float _timer;
         private bool _played;
+        private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
+        // 🔴 行为性内联（M0/D3）：SetPose 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
+        public bool IsBehavioral => true;
+        public bool Interrupted => _interrupted;
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public EmoteInlineState(Agent agent, PlanStep step)
         {
@@ -268,8 +321,14 @@ namespace LivingWorldNpcs
     {
         private readonly Agent _agent;
         private float _timer;
+        private bool _interrupted;
         public bool Ok { get; private set; } = true;
         public bool Finished { get; private set; }
+        // 非行为性：喊叫 + 事件广播 = 通信（不写移动/姿态表现层）
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public MakeNoiseInlineState(PlanExecutor executor, ActorCursor cursor)
         {
@@ -310,8 +369,14 @@ namespace LivingWorldNpcs
         private float _fixedTimer;
         private float _waitTimer;
         private bool _finishedFlag;
+        private bool _interrupted;
         public bool Ok { get; private set; }
-        public bool Finished => _finishedFlag;
+        public bool Finished => _finishedFlag || _interrupted;
+        // 🔴 行为性内联（M0/D3）：ScriptedMoveToPoint 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
+        public bool IsBehavioral => true;
+        public bool Interrupted => _interrupted;
+        /// <summary>中断：标记使 Finished 立即为真（脑下一帧见 IsFinished 自清出队，不再前进——无僵尸动作）。</summary>
+        public void Interrupt() { _interrupted = true; }
 
         public LeadInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
@@ -393,8 +458,14 @@ namespace LivingWorldNpcs
         private readonly bool _variantItem;
         private readonly Random _rng = new Random();
         private float _amount;
+        private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
+        // 🔴 行为性内联（M0/D3）：SetPose/ScriptedMoveToPoint 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
+        public bool IsBehavioral => true;
+        public bool Interrupted => _interrupted;
+        /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行偷窃动作）。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public StealAttemptInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
@@ -609,8 +680,14 @@ namespace LivingWorldNpcs
         private readonly Agent _agent;
         private readonly PlanStep _step;
         private bool _applied;
+        private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
+        // 非行为性：守恒转移 = 纯逻辑（不写移动/姿态表现层）
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public GiveInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
@@ -701,8 +778,13 @@ namespace LivingWorldNpcs
     /// <summary>deliver_item：送物（v2；M4 后落地）。</summary>
     public class DeliverInlineState : IInlineStep
     {
+        private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public DeliverInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
@@ -726,8 +808,14 @@ namespace LivingWorldNpcs
         private readonly Agent _agent;
         private readonly PlanStep _step;
         private readonly Random _rng = new Random();
+        private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
+        // 🔴 行为性内联（M0/D3）：ScriptedMoveToPoint/ForcePlayAction 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
+        public bool IsBehavioral => true;
+        public bool Interrupted => _interrupted;
+        /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行击晕动作）。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
 
         public KnockoutInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
