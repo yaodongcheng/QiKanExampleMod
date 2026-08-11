@@ -303,26 +303,40 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>静态快捷方法：让指定 Agent 说话。
-        /// 远处兜底（模仿"听到"）：3D 冒泡按距离/FOV 裁剪（见 OnMissionTick 分层），玩家看不到时补一条屏幕消息。</summary>
+        /// 🔴 2026-08-11 距离分层（用户裁定）：**远处说话根本不触发播放**——3D 冒泡挂在 agent 头上，
+        /// 距玩家 &gt; FarHearDistance（30m）玩家看不见，创建 HUD + 逐帧更新纯浪费；
+        /// nearby 频道同步只收可听半径内的冒泡（转发天然受限，无需二次过滤）。
+        /// 分层：
+        ///   ≤30m            → 3D 冒泡 + nearby 频道（视觉 + 频道）
+        ///   &gt;30m 且视野外  → 只弹屏幕消息「远处传来声音」（听觉语义，既有兜底保留）
+        ///   &gt;30m 但视野内  → 无声（原版语义：远处看得见但听不见，无字幕）
+        /// 玩家自己的冒泡恒播放（距离 0）。远处跳过不影响逻辑——记忆写入/执行器在调用方（respond/计划）侧。</summary>
         public static void AgentSay(Agent agent, string text)
         {
             if (Mission.Current == null) return;
             if (agent == null) return;
             if (Instance == null) return;
-            Instance.AddSpeech(agent, text);
-            // 远处兜底：距离 > FarHearDistance 且玩家视野外 → 屏幕消息（远处"听到"说话声）
-            if (Agent.Main != null && agent != Agent.Main)
+
+            // 🔴 距离分层前置：远处（> FarHearDistance）不冒泡不进频道
+            bool isFar = Agent.Main != null && agent != Agent.Main && Agent.Main.IsActive()
+                && agent.Position.Distance(Agent.Main.Position) > FarHearDistance;
+            if (isFar)
             {
+                // 远处"听到"：视野外 → 屏幕消息（既有语义）；视野内 → 无声（原版无字幕）
                 try
                 {
-                    float dist = agent.Position.Distance(Agent.Main.Position);
-                    if (dist > FarHearDistance && !NpcSightSystem.IsPlayerSeeing(agent))
-                        // LWN_hud_far_say：远处"听到"屏幕消息（3D 冒泡被距离/FOV 裁剪）
+                    if (!NpcSightSystem.IsPlayerSeeing(agent))
                         MBInformationManager.AddQuickInformation(new TextObject(LWNTextHelper.ResolveCompound("LWN_hud_far_say",
                             "（远处传来{NAME}的声音）：{TEXT}", ("NAME", agent.Name.ToString()), ("TEXT", text))));
                 }
                 catch { }
+                DebugLogger.Log($"[AgentSay] {agent.Name}（远处 {agent.Position.Distance(Agent.Main.Position):F0}m）: {text}");
+                return;
             }
+
+            Instance.AddSpeech(agent, text);
+            // 🔴 §5.7 附近频道转发（场景内真实冒泡流入玩家 IM；同 sender 200ms 合并防刷屏）
+            try { NearbyFeed.Forward(agent, text); } catch { }
             DebugLogger.Log($"[AgentSay] {agent.Name}: {text}");
         }
 

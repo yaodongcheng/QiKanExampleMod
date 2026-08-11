@@ -30,6 +30,10 @@ namespace LivingWorldNpcs
         [JsonProperty("questions")] public List<ClarifyQuestion> Questions;
         [JsonProperty("needs_clarification")] public bool NeedsClarification;
         [JsonProperty("reactions")] public List<ReactivePlan> Reactions;   // 相关 NPC 反应计划（§6.1）
+        // 🔴 2026-08-10（im-command-action-upgrade.md §3.1）：NPC 口语化计划陈述（≤100 字），
+        // 内容约束 = 只许转述计划内容（做什么/分几步/应急安排），禁止计划外新增行动（防幻觉，铁律 2 延伸）。
+        // null 兜底 → C# 用 Plan.Summary 渲染。
+        [JsonProperty("narration")] public string Narration;
     }
 
     /// <summary>澄清轮问题（意图歧义优先澄清，最多 2 轮）。</summary>

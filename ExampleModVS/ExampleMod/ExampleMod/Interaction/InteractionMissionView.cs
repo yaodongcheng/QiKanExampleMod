@@ -807,8 +807,7 @@ namespace LivingWorldNpcs
                 _stealBarVM?.RefreshButtonTexts();
             }
 
-            // ── 密谋对话壳驱动（LLM 结果回主线程消费 + 随从打断检测）──
-            PlanCommandFlow.Tick();
+            // ── 计划执行层驱动（PlanCommandFlow 已 IM 化，无主线程消费——结果全部由 ImChatManager.Tick 消费）──
             PlanReplan.Tick();
 
             // 战斗模式下跳过交互 UI 全部逻辑：大世界遭遇/箱子/射线检测/交互选项构建

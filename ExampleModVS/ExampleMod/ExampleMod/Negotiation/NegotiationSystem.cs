@@ -1778,6 +1778,15 @@ namespace LivingWorldNpcs
         [JsonProperty("npc_action")]
         public string NpcAction { get; set; }
 
+        // 🔴 2026-08-10（im-command-action-upgrade.md §5.1/§六）：IM 闲聊动作升级字段——
+        // action_target = defender **名字文本**（不是 StringId，铁律 2：LLM 输出 ID 不可信，C# 解析）；
+        // action_level = 档位（small/medium/large，仅关系/金额类用，LLM 只选档位不选数值）。
+        [JsonProperty("action_target")]
+        public string ActionTarget { get; set; }
+
+        [JsonProperty("action_level")]
+        public string ActionLevel { get; set; }
+
         [JsonProperty("suggest_negotiation_start")]
         public bool SuggestNegotiationStart { get; set; }
 

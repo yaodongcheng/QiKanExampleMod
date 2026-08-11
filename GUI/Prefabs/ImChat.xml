@@ -327,17 +327,63 @@
                                                     IsVisible="@IsSystem"
                                                     DoNotAcceptEvents="true"/>
 
-                                        <!-- 计划卡片：摘要 + 同意/拒绝（待批）/ 中止（执行中） -->
+                                        <!-- 生成中占位行（🔴 §3.3：阶段文案 + 模拟进度条；灰底卡片，卡片上屏/失败时被替换） -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="480"
+                                                HorizontalAlignment="Center"
+                                                Sprite="BlankWhiteSquare_9" Color="#1A1A3A88" MarginTop="2"
+                                                IsVisible="@IsGenerating"
+                                                DoNotAcceptEvents="true">
+                                          <Children>
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@GenerateText" Brush="MyBrush_16_Left" Brush.FontSize="15" Brush.FontColor="#999999FF"
+                                                        WordWrapping="Wrap"
+                                                        MarginLeft="14" MarginRight="14" MarginTop="10"
+                                                        DoNotAcceptEvents="true"/>
+                                            <!-- 进度条：色条 Widget 宽度绑定方案（Progress% × 固定宽；无 ProgressBarWidget 先例，色条确定可行） -->
+                                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="440" SuggestedHeight="6"
+                                                    HorizontalAlignment="Left"
+                                                    MarginLeft="14" MarginRight="14" MarginTop="8"
+                                                    Sprite="BlankWhiteSquare_9" Color="#222222CC"
+                                                    DoNotAcceptEvents="true">
+                                              <Children>
+                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ProgressBarWidth" SuggestedHeight="6"
+                                                        HorizontalAlignment="Left"
+                                                        Sprite="BlankWhiteSquare_9" Color="#FFE9B0FF"
+                                                        DoNotAcceptEvents="true"/>
+                                              </Children>
+                                            </Widget>
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@ProgressText" Brush="MyBrush_16_Left" Brush.FontSize="12" Brush.FontColor="#666666CC"
+                                                        MarginLeft="14" MarginRight="14" MarginTop="6" MarginBottom="10"
+                                                        DoNotAcceptEvents="true"/>
+                                          </Children>
+                                        </Widget>
+
+                                        <!-- 计划卡片：修改版徽标 + 摘要 + 详情（可展开）+ 同意/拒绝/中止/修改按钮 -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="560"
                                                 HorizontalAlignment="Center"
                                                 Sprite="BlankWhiteSquare_9" Color="#1A1A3AEE" MarginTop="2"
                                                 IsVisible="@IsPlanCard"
                                                 DoNotAcceptEvents="true">
                                           <Children>
+                                            <!-- 修改版徽标（Q2：PlanModifyCount > 0） -->
+                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                        Text="@ModifiedBadgeText" Brush="MyBrush_16_Left" Brush.FontSize="13" Brush.FontColor="#E8C55AFF"
+                                                        HorizontalAlignment="Left"
+                                                        IsVisible="@IsModifiedPlan"
+                                                        MarginLeft="14" MarginTop="8"
+                                                        DoNotAcceptEvents="true"/>
                                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                                         Text="@PlanSummary" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#FFE9B0FF"
                                                         WordWrapping="Wrap"
                                                         MarginLeft="14" MarginRight="14" MarginTop="10"
+                                                        DoNotAcceptEvents="true"/>
+                                            <!-- 详情区（§3.2：C# 确定性渲染的步骤/应急/安全网；默认收起） -->
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@PlanDetailText" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#BBBBCCFF"
+                                                        WordWrapping="Wrap"
+                                                        IsVisible="@IsDetailExpanded"
+                                                        MarginLeft="14" MarginRight="14" MarginTop="8"
                                                         DoNotAcceptEvents="true"/>
                                             <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                        StackLayout.LayoutMethod="HorizontalLeftToRight"
@@ -345,6 +391,17 @@
                                                        MarginRight="10" MarginBottom="8" MarginTop="8"
                                                        DoNotAcceptEvents="true">
                                               <Children>
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
+                                                              Command.Click="ExecuteToggleDetail"
+                                                              IsVisible="@CanApprove" MarginRight="10">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@DetailToggleText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
                                                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
                                                               Brush="Test.Button3"
                                                               Command.Click="ExecuteApprove"
@@ -369,11 +426,81 @@
                                                 </ButtonWidget>
                                                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
                                                               Brush="Test.Button3"
+                                                              Command.Click="ExecuteModify"
+                                                              IsVisible="@CanModify" MarginRight="10">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@ModifyText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
                                                               Command.Click="ExecuteAbort"
                                                               IsVisible="@CanAbort">
                                                   <Children>
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 Text="@AbortText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
+                                              </Children>
+                                            </ListPanel>
+                                          </Children>
+                                        </Widget>
+
+                                        <!-- 🔴 Q4（2026-08-10）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线） -->
+                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="520"
+                                                HorizontalAlignment="Center"
+                                                Sprite="BlankWhiteSquare_9" Color="#3DA53D22" MarginTop="2"
+                                                IsVisible="@IsProposal"
+                                                DoNotAcceptEvents="true">
+                                          <Children>
+                                            <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                       MarginLeft="14" MarginTop="10"
+                                                       DoNotAcceptEvents="true">
+                                              <Children>
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                            Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                                            DoNotAcceptEvents="true"/>
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                            Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                                                            MarginLeft="8" VerticalAlignment="Center"
+                                                            DoNotAcceptEvents="true"/>
+                                              </Children>
+                                            </ListPanel>
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#DDEEDDFF"
+                                                        WordWrapping="Wrap"
+                                                        MarginLeft="14" MarginRight="14" MarginTop="6"
+                                                        DoNotAcceptEvents="true"/>
+                                            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                       StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                       MarginRight="10" MarginBottom="8" MarginTop="8"
+                                                       DoNotAcceptEvents="true">
+                                              <Children>
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
+                                                              Command.Click="ExecuteProposeApprove"
+                                                              IsVisible="@CanProposeApprove" MarginRight="10">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@ProposeApproveText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
+                                                              Command.Click="ExecuteProposeReject"
+                                                              IsVisible="@CanProposeReject">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@ProposeRejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                 DoNotAcceptEvents="true"/>
                                                   </Children>
@@ -453,7 +580,7 @@
                                     Sprite="BlankWhiteSquare_9" Color="#000000CC"
                                     DoNotAcceptEvents="true">
                               <Children>
-                                <EditableTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                <EditableTextWidget Id="LWN_ImChat_Input" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                                     Text="@InputText" DefaultSearchText="@PlaceholderText"
                                                     TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="18"
                                                     MarginLeft="12" MarginRight="100" VerticalAlignment="Center"/>

@@ -438,6 +438,29 @@ if (owner != null && sentence != null)
 - 如果之后大地图遭遇对话出现异常（NPC 不自动说话、Mission 不结束等），优先怀疑此补丁缺失 → 换用非 Harmony 方案（如移除 `ConversationMissionLogic` behavior、用 Transpiler 代替 Prefix、或在 `InteractionMissionView` 中自行处理原版行为）
 - 2026-08-01 排查记录：`plans/harmony-patch-bug-hunt.md`
 
+---
+
+## Harmony 字符串式补丁目标静默失效：编译通过 ≠ 方法存在
+
+**症状**
+- 补丁对应的功能**无报错、无日志地不工作**（不崩游戏，纯静默）。排查半天找不到异常——因为根本没异常可找。
+- 曾误判"游戏更新后 API 变了"：游戏更新到 v1.4.8 后核对 22 个补丁目标，`RefreshBehaviorGroups` 在 `TaleWorlds.MountAndBlade.dll` 里二进制搜索 0 次命中，一度以为 1.4.8 删了方法。
+
+**根因**
+- `[HarmonyPatch(typeof(X), "字符串方法名")]` 的字符串目标是**运行期反射解析**，编译期不校验——编译通过 ≠ 方法存在。目标缺失时 Harmony 静默跳过该补丁。
+- 误判放大器：**类型归属不能靠猜**。`AgentNavigator` / `AgentBehavior` / `AgentBehaviorGroup` 在 **SandBox.dll**（namespace 仍是 `TaleWorlds.MountAndBlade`，跨程序集共用命名空间），只搜 MountAndBlade.dll 自然全 0；且 `ilspycmd -t <类型>` 在类型不存在的 DLL 上**静默输出空、无报错**，容易误判"类型不存在/工具坏了"。
+
+**规避**
+- 核对/新增任何 Harmony 字符串补丁目标时，先**二进制 grep 全游戏目录定位**（0 次 = 肯定不在；≥1 次 = 再用 `ilspycmd -t` 确认签名）：
+
+```bash
+grep -c -a "RefreshBehaviorGroups" "$MB2_PATH/bin/Win64_Shipping_Client/"*.dll \
+  "$MB2_PATH/Modules/SandBox/bin/Win64_Shipping_Client/"*.dll \
+  "$MB2_PATH/Modules/Native/bin/Win64_Shipping_Client/"*.dll 2>/dev/null | grep -v ":0"
+```
+
+- 完整流程（含 `RefreshBehaviorGroups` 到底在哪的实录）见 [CLAUDE.md「反编译 DLL 禁止瞎猜」](CLAUDE.md#L100-L118)。
+
 
 ---
 

@@ -99,13 +99,30 @@ ilspycmd <dll路径> | grep -n "关键字"    # 全 DLL 搜索
 
 实际使用时先用 `Glob` 找 `.csproj`，再从 `<HintPath>` 取完整路径。
 
+**🔴 类型/方法在哪个 DLL —— 禁止凭名字猜（2026-08-11 踩坑实录）**：
+
+上表只是「典型」，**类型归属不能猜**。反例：`AgentNavigator` / `AgentBehavior` / `AgentBehaviorGroup`（行为组接管体系，含 `RefreshBehaviorGroups`）在 **SandBox.dll**，**不在** `TaleWorlds.MountAndBlade.dll`——但 namespace 仍是 `TaleWorlds.MountAndBlade`（跨程序集共用命名空间，骑砍2 常见）。只按归属表搜 MountAndBlade.dll 会搜到 0 次，白白绕圈。
+
+定位方法（**二进制 grep 秒级定位，先于 ilspycmd**）：
+
+```bash
+# 在整个游戏目录的所有 DLL 里搜类型/方法名字符串（0 次 = 肯定不在；≥1 次 = 存在或引用）
+grep -c -a "RefreshBehaviorGroups" "$MB2_PATH/bin/Win64_Shipping_Client/"*.dll \
+  "$MB2_PATH/Modules/SandBox/bin/Win64_Shipping_Client/"*.dll \
+  "$MB2_PATH/Modules/Native/bin/Win64_Shipping_Client/"*.dll 2>/dev/null | grep -v ":0"
+```
+
+`ilspycmd -t <类型>` 在**类型不存在的 DLL 上静默输出空、无报错**——输出空 ≠ 工具坏了，先做上面的定位再决定反编译哪个 DLL。
+
+**🔴 Harmony 字符串式补丁目标编译不校验**：`[HarmonyPatch(typeof(X), "字符串方法名")]` 编译通过 **≠ 方法存在**——字符串目标是运行期反射解析，编译期不检查，找不到时补丁**静默跳过**（不崩游戏，功能失效）。每次核对/新增补丁目标，都必须按上面的二进制 grep 验证方法名存在于对应 DLL。
+
 **版本参考 DLL**：项目根下的 `Modules/` 目录存放了其他版本的 DLL 副本，**🔴 仅用于 `ilspycmd` 反编译对比 API 差异，禁止用于交叉编译**：
 
 | 目录 | 版本 | 用途 |
 |------|------|------|
 | `Modules/1.2.12DLL/` | v1.2.12 | 反编译查 v1.2.12 的 API 签名（任意电脑可用） |
 | `Modules/1.3.15DLL/` | v1.3.15 | 反编译查 v1.3.15 的 API 签名（1.3.x 独有的中间形态，非 1.2.12 亦非 1.4.x） |
-| `Modules/1.4.6DLL/` | v1.4.6 | 反编译查 Latest 的 API 签名（1.4.6 与 1.4.7 签名一致，可代表整套 1.4.x） |
+| `Modules/1.4.6DLL/` | v1.4.6 | 反编译查 Latest 的 API 签名（1.4.6/1.4.7/1.4.8 签名一致，可代表整套 1.4.x） |
 
 **🔴 不要交叉编译**：不要用 `Debug_v1.2.12` 等配置去编译——该配置已废弃。编译只走 `Debug`/`Release`，每台电脑用自己的游戏 DLL，版本由 `Version.xml` 自动检测。
 
@@ -148,7 +165,7 @@ MBObjectManager.Instance.GetObject<ItemObject>(item => item.PrimaryWeapon != nul
 | 1.2.12 电脑 | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
 | Latest 电脑 | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
 
-> 本仓库当前开发机（H: 盘）：**v1.4.7**（Version.xml 实测；1.4.6 与 1.4.7 签名一致，见下方 VersionCompat 章节）。
+> 本仓库当前开发机（H: 盘）：**v1.4.8**（Version.xml 实测；1.4.6/1.4.7/1.4.8 签名一致，编译验证通过，见下方 VersionCompat 章节）。
 
 ### 累积阈值宏体系
 
@@ -180,7 +197,7 @@ csproj 编译时读 `Version.xml` 自动定义累积宏（GE = "Greater or Equal
 
 **合规例外**（不可迁入 V，必须直接写在业务文件里）：override/abstract 签名差异、type-level 字段类型差异、Harmony 补丁目标差异、structural 多语句算法差异、namespace 差异。完整注册表见 `VersionCompat.cs` class doc comment 和 [plans/version-compat-plan.md](plans/version-compat-plan.md)。每次新增版本时必须逐条核查注册表。
 
-**1.4.6 与 1.4.7 的 API 签名经逐方法对比确认完全一致**——`MB2_GE_130` 分支覆盖 v1.3.0 ~ v1.4.x 全系列。
+**1.4.6 / 1.4.7 / 1.4.8 的 API 签名一致**（1.4.7、1.4.8 均在开发机编译验证通过）——`MB2_GE_130` 分支覆盖 v1.3.0 ~ v1.4.x 全系列。
 
 ### 发布步骤
 

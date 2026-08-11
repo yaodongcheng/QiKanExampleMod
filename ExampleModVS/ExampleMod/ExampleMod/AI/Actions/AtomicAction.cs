@@ -679,11 +679,18 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    if (_fixedTimer > 0.2f)
+                    // 🔴 2026-08-10 动态重算间隔（im-command-action-upgrade.md §5.4）：
+                    // 旧实现每 0.2s 无条件重算理想点 + 重发寻路（ScriptedMoveToPoint = SetScriptedPosition
+                    // native 全量路径重发）——远距目标动 1m 对百米外执行者毫无意义，纯浪费；
+                    // 近距离快速目标（0.2s 间隔）又可能跟不上冲刺/骑马。
+                    // 动态间隔 = 目标速度（AverageVelocity 内建平均窗口，防瞬时抖动）+ 距离双因子：
+                    // 越远间隔越大（远距微小位移无意义）、越快间隔越小（目标点变化快）。
+                    // 上限 = 心跳：目标不可达（跳崖/绕路/卡墙）仍周期性自愈纠偏，不永久走错方向。
+                    if (_fixedTimer > ComputeRepathInterval())
                     {
                         _fixedTimer = 0;
                         StartMoving(agent);
-                    }                   
+                    }
                 }
             }
             else
@@ -706,6 +713,30 @@ namespace LivingWorldNpcs
         {
             _isMoving = true;
             MoveToTarget(agent);
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-10 动态重算间隔（§5.4）：目标平面速度 + 欧氏直线距离双因子，C# 确定性。
+        /// interval = 0.15 * (1 + dist/10) / max(targetSpeed/2.5, 0.25)，clamp [FollowRepathMin, FollowRepathMax]。
+        /// 距离因子：越远间隔越大（远距微小位移无意义）；速度因子：越快间隔越小（目标点变化快）。
+        /// 速度用 AverageVelocity（native 平均窗口）不用 MovementVelocity（瞬时抖动会让间隔乱跳）。
+        /// 直线距离 ≈ 寻路长度×曲折系数，公式只做量级分级，够用。
+        /// </summary>
+        private float ComputeRepathInterval()
+        {
+            try
+            {
+                float targetSpeed = new Vec2(_target.AverageVelocity.x, _target.AverageVelocity.y).Length;
+                float dist = MathF.Sqrt(_currentDistanceSq);
+                float min = Settings.Instance.FollowRepathMin;
+                float max = Settings.Instance.FollowRepathMax;
+                float interval = 0.15f * (1f + dist / 10f) / MathF.Max(targetSpeed / 2.5f, 0.25f);
+                return MathF.Clamp(interval, min, max);
+            }
+            catch
+            {
+                return 0.15f;   // 解析失败 → 回到灵敏下限（行为不劣化）
+            }
         }
         private Vec3 CalculateIdealPosition()
         {

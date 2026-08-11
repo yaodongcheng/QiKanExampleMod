@@ -3933,7 +3933,8 @@
     <string id="LWN_mcm_hostile_on_allies" text="Allow Hostile Interactions on Allies" />
     <string id="LWN_mcm_hostile_on_allies_hint" text="When disabled, knockout/pickpocket/loot/attack are blocked on allies — friendly definition: config.json `FriendlyRelationCriteria` (default: same party + same clan) and `FriendlyRelationThreshold` (relation value). Enabled by default (hostile interactions require a long press). Allies always ignore your crimes against strangers, regardless of this setting." />
     <!-- ── IM 传讯系统（LWN_im_*）── -->
-    <string id="LWN_im_channel_party" text="Party" />
+        <string id="LWN_im_channel_nearby" text="Nearby" />
+<string id="LWN_im_channel_party" text="Party" />
     <string id="LWN_im_channel_clan" text="Clan" />
     <string id="LWN_im_channel_kingdom" text="Kingdom" />
     <string id="LWN_im_typing" text="{NAMES} is typing..." />
@@ -3959,6 +3960,57 @@
     <string id="LWN_im_cmd_started" text="{NAME} has begun carrying out the order." />
     <string id="LWN_im_cmd_aborted" text="The order has been called off." />
     <string id="LWN_im_cmd_done" text="The order has been carried out." />
+        <string id="LWN_im_btn_propose_approve" text="Go ahead" />
+    <string id="LWN_im_btn_propose_reject" text="No need" />
+<string id="LWN_im_btn_modify" text="Revise" />
+    <string id="LWN_im_btn_submit_modify" text="Submit" />
+    <string id="LWN_im_input_placeholder_modify" text="Revise the plan: ..." />
+    <string id="LWN_im_badge_modified" text="Revised v{N}" />
+    <string id="LWN_im_btn_detail_expand" text="Details" />
+    <string id="LWN_im_btn_detail_collapse" text="Collapse details" />
+    <string id="LWN_im_cmd_modify_pending" text="The companion is working out a revised plan..." />
+    <string id="LWN_im_cmd_modify_exhausted" text="The plan has been revised too many times. Approve it or start over." />
+    <string id="LWN_im_cmd_modify_need_mission" text="You can only revise a plan while in the field." />
+    <string id="LWN_im_cmd_unavailable_here" text="You cannot send messages right now." />
+    <string id="LWN_im_cmd_no_direct" text="This companion cannot be reached by message." />
+    <string id="LWN_im_npc_companion" text="Companion" />
+    <string id="LWN_im_gen_observe" text="Surveying the area..." />
+    <string id="LWN_im_gen_plan" text="Working out the steps..." />
+    <string id="LWN_im_gen_check" text="Checking the details..." />
+    <string id="LWN_plan_detail_steps" text="Steps:" />
+    <string id="LWN_plan_detail_timeout" text="    timeout → {TARGET}" />
+    <string id="LWN_plan_detail_contingencies" text="Contingencies:" />
+    <string id="LWN_plan_detail_contingency_line" text="    if {COND} then {THEN}" />
+    <string id="LWN_plan_detail_guardrail" text="    Safety: unexpected threats pause the plan; the stop key recalls the companion." />
+    <string id="LWN_plan_step_memory" text="By my lord's order, {ACTION} {TARGET}, done." />
+    <string id="LWN_plan_action_move_to" text="moved to" />
+    <string id="LWN_plan_action_follow" text="followed" />
+    <string id="LWN_plan_action_stop_following" text="stopped following" />
+    <string id="LWN_plan_action_order_attack" text="attacked" />
+    <string id="LWN_plan_action_knockout" text="knocked out" />
+    <string id="LWN_plan_action_lead" text="led the way to" />
+    <string id="LWN_plan_action_face" text="faced" />
+    <string id="LWN_plan_action_look_at" text="looked at" />
+    <string id="LWN_plan_action_say_to" text="spoke to" />
+    <string id="LWN_plan_action_wait" text="waited" />
+    <string id="LWN_plan_action_emote" text="gestured" />
+    <string id="LWN_plan_action_make_noise" text="shouted" />
+    <string id="LWN_plan_action_signal_player" text="signaled" />
+    <string id="LWN_plan_action_steal_attempt" text="stole from" />
+    <string id="LWN_plan_action_give_item" text="handed over" />
+    <string id="LWN_plan_action_give_gold" text="gave" />
+    <string id="LWN_plan_action_deliver_item" text="delivered" />
+    <string id="LWN_plan_action_shadow" text="shadowed" />
+    <string id="LWN_plan_action_negotiate" text="negotiated with" />
+    <string id="LWN_plan_action_duel" text="dueled" />
+    <string id="LWN_plan_action_end_plan" text="wrapped up" />
+    <string id="LWN_plan_action_rumor" text="{NAME} has been speaking ill of me behind my back" />
+    <string id="LWN_plan_action_rumor_self" text="I spoke ill of {NAME} behind his back" />
+    <string id="LWN_plan_action_threatened" text="{NAME} threatened me: {TEXT}" />
+    <string id="LWN_plan_action_threaten_default" text="You had better watch yourself." />
+    <string id="LWN_plan_action_promised" text="{NAME} promised me: {TEXT}" />
+
+
     <!-- ── IM 闲聊回复降级模板（LLM 不可用时按主题回）── -->
     <string id="LWN_speech_im_reply_combat" text="War is a grave matter - speak plainly." />
     <string id="LWN_speech_im_reply_trade" text="We can speak of trade later, when the road is safe." />

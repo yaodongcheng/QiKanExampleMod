@@ -148,6 +148,20 @@ namespace LivingWorldNpcs
         // 每日热度衰减（每游戏日扣减，下限 0）。
         public float ImHeatDecayPerDay { get; set; } = 1f;
 
+        // ── 闲聊行动系统（im-command-action-upgrade.md §5.2/§5.4，config.json 侧：数值类高级配置）──
+        // 关系/声望/party 类 action 冷却（墙钟秒）：同 attacker→同 defender 每 60s 最多 1 次，
+        // 超频 → 该次降级 NONE + DebugLogger（防 LLM 滥用掉好感贬值；演出类/高风险类不参与）。
+        public float ChatActionCooldownSeconds { get; set; } = 60f;
+        // FollowAgentAction 动态重算间隔上下限（秒，§5.4）：跟随目标时按「目标速度 + 距离」双因子
+        // 动态决定重发寻路的间隔；上限 = 心跳（目标不可达时周期性自愈纠偏），下限 = 跟上冲刺目标。
+        public float FollowRepathMin { get; set; } = 0.15f;
+        public float FollowRepathMax { get; set; } = 3.0f;
+        // 附近频道（§5.7）：玩家喊话的响应半径（米）——范围内最近 NPC 才可能应声
+        public float NearbyRespondRadius { get; set; } = 6f;
+        // 附近频道可听半径（米）：场景冒泡距玩家超过此距离不进 nearby（与 AgentHudMissionView.FarHearDistance
+        // 30m 的"远处听到"语义一致——玩家听不到的话就不该在频道里）
+        public float NearbyHearRadius { get; set; } = 30f;
+
         // ── 玩法键位配置（config.json 侧，不进 MCM：小白玩家不改，资深玩家可编辑热重载）──
         // 一个玩法行 = 一个玩法交互的 (键盘键, 手柄键, 按法)。同一物理键可挂多个玩法行
         // （默认 F 挂 7 行），同一次按下各按各自阈值与按法触发，短/长互斥。

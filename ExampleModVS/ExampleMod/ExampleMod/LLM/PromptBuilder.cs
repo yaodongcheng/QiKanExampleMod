@@ -323,9 +323,10 @@ namespace LivingWorldNpcs
         /// + 动态知识注入段（<see cref="WorldFactProvider"/> 命中才有；平时为空串零注入）。
         /// 叙事铁律：NPC 只见自己的记忆（GetPrompt_RespondContext 按对方过滤），无上帝视角；
         /// 知识注入段同样按可见性裁剪（队伍成员才见队伍现状）。
-        /// 输出：直接一句台词，不要 JSON、不要引号、不要任何解释（ChatOnceAsync 纯文本通道）。
+        /// 🔴 2026-08-10（im-command-action-upgrade.md §5.1）：actionSpace 段 = 按空间裁剪的动作空间
+        /// （ActionHandler.GetActionSpacePrompt），输出格式为 JSON（npc_reply/npc_action/action_target/action_level）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -401,6 +402,14 @@ namespace LivingWorldNpcs
                 sb.AppendLine(lastPlayerText);
                 sb.AppendLine();
             }
+            // 🔴 2026-08-10 动作空间段（§5.1/§5.2）：按空间裁剪的合法动作列表——LLM 只看到
+            // 当前空间的动作，无空间概念；输出格式 JSON 见 LWN_plan_im_reply_rule（XML 单一事实源）
+            if (!string.IsNullOrWhiteSpace(actionSpace))
+            {
+                sb.AppendLine(actionSpace);
+                sb.AppendLine();
+            }
+
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_im_reply_rule"));
             return sb.ToString();
@@ -1577,6 +1586,9 @@ namespace LivingWorldNpcs
             sb.AppendLine();
             // 执行要求 4 条（XML LWN_plan_exec）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_exec"));
+            sb.AppendLine();
+            // 计划陈述纪律（XML LWN_plan_narration_rule，双语；2026-08-10 im-command-action-upgrade.md §3.1）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_narration_rule"));
             return sb.ToString();
         }
     }

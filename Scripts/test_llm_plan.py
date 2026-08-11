@@ -53,6 +53,7 @@ REACTIVE_ACTIONS = {
     "listen", "consider", "respond", "refuse", "follow_for_a_bit", "investigate",
     "return_post", "stare", "alert_raise", "attack", "call_guards",
     "ignore", "relay_message", "pay", "hand_over_item", "flee",
+    "propose_plan",  # 与 C# ReactiveAgent.ReactionActionsInPromptOrder 同步（Q4 行动提议，2026-08-10）
 }
 
 # 封闭谓词词表（与 C# PlanVocab.Predicates 同步，§5.2）。

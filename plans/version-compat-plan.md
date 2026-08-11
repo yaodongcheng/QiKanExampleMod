@@ -36,7 +36,7 @@
 | 机器 | 游戏版本 | 产出 |
 |------|---------|------|
 | A | v1.2.12 | `LivingWorldNpcs.dll`（v1.2.12 版） |
-| B | v1.4.6+（当前开发机，实测 v1.4.7） | `LivingWorldNpcs.dll`（Latest 版） |
+| B | v1.4.6+（当前开发机，实测 v1.4.8） | `LivingWorldNpcs.dll`（Latest 版） |
 | C | v1.4.6+ | `LivingWorldNpcs.dll`（Latest 版） |
 
 ## 版本检测机制（自动，无需手动干预）
@@ -142,7 +142,7 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 |------|------|------|
 | `Modules/1.2.12DLL/` | v1.2.12 | **反编译对比 API 差异**（在任意电脑上查 1.2.12 的方法签名） |
 | `Modules/1.3.15DLL/` | v1.3.15 | **反编译对比 API 差异**（在非 1.3.15 电脑上查 1.3.15 的签名） |
-| `Modules/1.4.6DLL/` | v1.4.6 | **反编译对比 API 差异**（1.4.6 与 1.4.7 签名一致，可代表整套 1.4.x） |
+| `Modules/1.4.6DLL/` | v1.4.6 | **反编译对比 API 差异**（1.4.6/1.4.7/1.4.8 签名一致，可代表整套 1.4.x） |
 
 ```bash
 # 对比三个版本的同个方法

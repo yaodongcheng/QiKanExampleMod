@@ -574,6 +574,22 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        /// <summary>
+        /// 集结：defender party 移向玩家 party（闲聊 Party 空间动作 GATHER_TO_PLAYER，§5.2）。
+        /// 语义 = 护送玩家部队（SetPartyAiAction.EscortParty：跟随玩家 party 移动；反编译确认，
+        /// EngageParty 是交战追击不适合集结）。版本差异：v1.2.12 = 2 参；v1.3.0+ = 5 参（实测签名一致）。
+        /// </summary>
+        public static void GatherToPlayer(MobileParty party)
+        {
+            if (party == null || MobileParty.MainParty == null) return;
+#if MB2_GE_130
+            SetPartyAiAction.GetActionForEscortingParty(party, MobileParty.MainParty,
+                MobileParty.NavigationType.Default, false, false);
+#else
+            SetPartyAiAction.GetActionForEscortingParty(party, MobileParty.MainParty);
+#endif
+        }
+
         public static void RaidSettlement(MobileParty party, Settlement settlement)
         {
             if (party == null || settlement == null) return;
