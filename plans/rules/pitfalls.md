@@ -5,6 +5,36 @@
 
 ---
 
+## 玩家攻击 NPC 后无法攻击/格挡（移动正常）→ NinjaNotification 圆环拦鼠标
+
+**症状**（实机 2026-08-11 16:15 复现）
+- 玩家攻击任何 NPC（随从/守卫都一样）：**第一刀能打出去，之后左键攻击、右键格挡全部失效**；移动（WASD）正常；可正常掏武器。
+- 8-09 18:00 版 DLL 同操作正常（能持续战斗）——纯代码回归。
+- 与 CombatManager 移队**无关**（旧 DLL 同样 Spar 移队、犯罪+5，玩家照常战斗——已对照验证）。
+
+**根因**（代码链实锤）
+
+```
+玩家攻击 NPC（第一刀命中）
+  └─ NPC 说台词 → AgentHudMissionView.AgentSay
+        └─ NearbyFeed.Forward（🔴 8-11 b086b91 新增：场景冒泡转发到 IM 附近频道）
+              └─ ImChatStore 广播 → ImChatView.OnMessageArrived → NotifyIncoming
+                    └─ NinjaNotificationManager.Show（通知圆环）
+                          └─ _layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.Mouse)
+                                └─ 🔴 拦截鼠标左键（攻击）/右键（格挡）/滚轮，键盘（移动）不拦
+```
+
+- 通知层设计初衷：圆环可点击（打开 IM）→ 拦鼠标防穿透。但 NPC 被打必然说台词（冒泡）→ 8-11 接入 nearby 频道后**任何战斗都会弹通知**。
+- **NinjaNotificationVM 无自动消失**（无 timer）→ 通知永久挂着 → 鼠标输入永久被吞，直到点掉/换场景。
+- 旧 DLL 的 AgentSay 没有 `NearbyFeed.Forward`（b086b91 才加）→ 无此触发路径 → 正常。
+
+**规避**
+- `NinjaNotificationManager.Show` 入口加守卫：**`if (Mission.Current != null) return;`**（Mission 内一律不弹；消息仍在频道里，IM 面板可看；大地图保留）。
+- 后续若想在 Mission 内恢复通知：通知层输入限制必须降级（如战斗中 `InputUsageMask.None`）或加自动超时消失——**任何 Gauntlet 层只要含 Mouse 拦截，在战斗场景都是攻击/格挡杀手**。
+- 排查口诀：**"移动正常、仅鼠标键失效" = 有 Gauntlet 层拦了 Mouse**——先查屏幕上挂着的层（InputRestrictions），别往 Agent 控制/队伍方向查（这次移队是烟雾弹）。
+
+---
+
 ## 对尸体/昏迷 Agent 调 `UpdateSpawnEquipmentAndRefreshVisuals` → AccessViolation
 
 **症状**

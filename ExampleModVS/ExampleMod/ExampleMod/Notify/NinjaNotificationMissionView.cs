@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.GauntletUI.Data;
 using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
 using TaleWorlds.MountAndBlade.View.MissionViews;
 using TaleWorlds.MountAndBlade.View.Screens;
 using TaleWorlds.ScreenSystem;
@@ -24,6 +25,13 @@ namespace LivingWorldNpcs
 
         public static void Show(string text, Action onConfirm)
         {
+            // 🔴 Mission 内一律不弹通知圆环（2026-08-11 致命 bug 修复）：
+            // 本层 SetInputRestrictions(true, InputUsageMask.Mouse) 拦截鼠标（左键攻击/右键格挡/滚轮），
+            // 键盘（移动）不拦——玩家攻击 NPC → NPC 台词 → AgentSay→NearbyFeed→OnMessageArrived→
+            // NotifyIncoming→Show 弹出通知 → 玩家攻击/格挡全被吞、移动正常（实机 16:15 复现，见 pitfalls.md）。
+            // Mission 内消息仍在频道里（IM 面板可看），只是无圆环提醒；大地图保留原功能。
+            if (Mission.Current != null) return;
+
             // 1. 如果当前已有显示的 UI，先关闭，避免重叠
             Close();
 
