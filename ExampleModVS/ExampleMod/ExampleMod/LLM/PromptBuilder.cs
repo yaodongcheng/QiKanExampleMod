@@ -416,6 +416,26 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 计划讲解 prompt（🔴 2026-08-11 用户裁定：按钮 = 确定性事件 → LLM 人话讲解计划步骤 + 异常条件）。
+        /// 输入 = C# 确定性渲染的计划内容（BuildPlanDetail：动作标签表 + 目标 + 应急 + 安全网），
+        /// 纪律 = 只许转述（同 narration，防幻觉，铁律 2 延伸）；讲解人 = 执行者本人（当事人自述，叙事铁律）。
+        /// </summary>
+        public static string BuildPrompt_PlanExplain(string speakerName, string planDetail)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("【世界观】" + (Settings.Instance?.WorldDescription ?? "卡拉迪亚中世纪世界"));
+            sb.AppendLine($"【你的身份】你是 {speakerName}。");
+            sb.AppendLine("【背景】主公看到了你拟定的计划，想听你亲口讲一讲。");
+            sb.AppendLine("【计划内容】");
+            sb.AppendLine(planDetail);
+            sb.AppendLine();
+            sb.AppendLine("【要求】用第一人称口语化讲解这个计划：要做什么、分几步、出岔子怎么办。"
+                + "像对主公当面汇报一样，一句话 10-40 字，总共不超过 150 字。"
+                + "只许转述上面【计划内容】里的事，禁止编造计划外的新行动。");
+            return sb.ToString();
+        }
+
+        /// <summary>
         /// 委托记录 Tab 的文本。从 QuestHistory 读取，按时间倒序展示。
         /// </summary>
         public static string GetPrompt_QuestHistory(SingNpcMemorySystem memory)

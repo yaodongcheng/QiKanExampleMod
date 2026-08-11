@@ -159,7 +159,10 @@ namespace LivingWorldNpcs
     {
         private const float BroadcastDelayS = 2.5f;   // 台词播放后到广播的延迟（对方"听完"再响应）
         private const float ReplyDelayS = 2.5f;       // 对方回应后到续话的延迟（等对方冒泡播完）
-        private enum ChatPhase { None, Opening, PendingBroadcast, WaitReply, ReplyDelay, GenerateNext, Done }
+        // 🔴 预生成流水线（2026-08-11 用户裁定：请求层与播放层剥离）：
+        // LLM 生成耗时（timeoutMs 2000）隐藏在 ReplyDelayS（2500ms）播放等待里——回应内容写入记忆那一刻
+        // 下一段上下文已确定，立即发请求；播放时机仍由播放层（ReplyDelay）自决，节奏不变。
+        private enum ChatPhase { None, Opening, PendingBroadcast, WaitReply, ReplyDelay, Done }
 
         private readonly Agent _agent;
         private readonly Agent _target;
@@ -169,7 +172,9 @@ namespace LivingWorldNpcs
         private ChatPhase _phase = ChatPhase.None;
         private bool _said;
         private int _lastSeenHistoryCount;
-        private string _pendingLine;
+        private string _pendingLine;        // 预生成结果（WaitReply 阶段发出；LLM 成功/失败回调都必到——2s 预算 + 走向模板兜底）
+        private int _pendingIndex = -1;     // 预生成的目标走向段（-1 = 没有下一段，对方回应后收尾）
+        private float _noReplyTimer;        // 对方不理兜底（步骤超时豁免后防挂死，见 IsUnboundedStep）
         private float _broadcastTimer;
         private float _replyDelayTimer;
         private string _lastPlayedLine = "";
@@ -249,40 +254,56 @@ namespace LivingWorldNpcs
                         BroadcastSpokenTo(_lastPlayedLine, s.OutlineIndex < s.Outline.Count ? s.Outline[s.OutlineIndex] : null);
                         _phase = ChatPhase.WaitReply;
                         _lastSeenHistoryCount = _memory.RecentHistory.Count;
+                        _noReplyTimer = 0f;   // 新一轮等待从零计（60s 兜底按轮次算，不跨轮累计）
                     }
                     break;
 
                 case ChatPhase.WaitReply:
-                    // 轮询目标记忆：respond（成功/降级都写入 history）→ 对方回应了 → 延迟后再续话
+                    // 兜底：对方始终不理（respond 模板不写记忆/无人响应）→ 收尾（步骤超时豁免后唯一终止保证）
+                    _noReplyTimer += dt;
+                    if (_noReplyTimer >= SocialSlot.NoResponseTimeoutS)
+                    {
+                        _phase = ChatPhase.Done;
+                        Finished = true;
+                        break;
+                    }
+                    // 轮询目标记忆：respond（成功/降级都写入 history）→ 对方回应了
                     if (_memory.RecentHistory.Count > _lastSeenHistoryCount)
+                    {
+                        _lastSeenHistoryCount = _memory.RecentHistory.Count;
+                        // 🔴 预生成：对方回应内容已写入记忆 → 下一段上下文确定，立即请求 LLM
+                        //（生成耗时隐藏在 ReplyDelay 播放等待里；不再等 2.5s 才开始生成）
+                        int next = s.OutlineIndex + 1;
+                        if (next < s.Outline.Count)
+                        {
+                            _pendingIndex = next;
+                            GenerateNextLine(next, s.Outline[next]);
+                        }
+                        // next >= Count → _pendingIndex 保持 -1：这是最后一段，回应后收尾
                         _phase = ChatPhase.ReplyDelay;
+                    }
                     break;
 
                 case ChatPhase.ReplyDelay:
-                    // 等对方冒泡播完再续话（同样防密集请求；真人对话节奏）
+                    // 等对方冒泡播完再续话（同样防密集请求；真人对话节奏）——播放时机由播放层自决
                     _replyDelayTimer += dt;
                     if (_replyDelayTimer >= ReplyDelayS)
                     {
                         _replyDelayTimer = 0f;
-                        s.OutlineIndex++;
-                        if (s.OutlineIndex >= s.Outline.Count)
+                        // 先查无下一段（末段已回应，未发预生成 → _pendingLine 恒 null，不能按"未回包"处理）
+                        if (_pendingIndex < 0)
                         {
                             _phase = ChatPhase.Done;
                             Finished = true;
                             break;
                         }
-                        _phase = ChatPhase.GenerateNext;
-                        GenerateNextLine(s.OutlineIndex, s.Outline[s.OutlineIndex]);
-                    }
-                    break;
-
-                case ChatPhase.GenerateNext:
-                    if (_pendingLine != null)
-                    {
+                        if (_pendingLine == null) break;   // 预生成未回包（保底 2s 预算 + 走向模板兜底，必到）：再等
+                        s.OutlineIndex = _pendingIndex;
+                        _pendingIndex = -1;
+                        _phase = ChatPhase.PendingBroadcast;
                         string line = _pendingLine;
                         _pendingLine = null;
                         PlayLine(line);
-                        _phase = ChatPhase.PendingBroadcast;
                     }
                     break;
             }

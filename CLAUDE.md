@@ -38,6 +38,7 @@
 13. 🔴**所有玩家可见文本走标准本地化系统** — 任何 `InformationManager.DisplayMessage` / `AddQuickInformation` / 对话节点 / UI 标签 / 飘字等**玩家能看到**的文本，**必须**通过 `LWNTextHelper` 获取，最终走 Bannerlord 的 `{=LWN_KEY}English fallback` 机制。流程：C# 代码 → `LWNTextHelper.ResolveText/Resolve/ResolveCompound` → `TextObject("{=LWN_KEY}fallback")` → 引擎查 `Languages/{lang}/std_*.xml` → 命中用翻译，未命中用 fallback。**禁止**：① C# 硬编码中文字符串（`"中文"`）② `{=!}` 标记（跳过翻译表）③ `DebugLogger.Log` 之外的裸中文字面量。`DebugLogger.Log` / 注释 / LLM prompt 豁免。
 14. 🔴**语言 XML 禁止 emoji 和 BMP 外字符** — `Languages/` 下所有 XML 文件**不得包含** emoji 等 Unicode 码点 > U+FFFF 的字符。游戏引擎的 UTF-16 XML 解析器不支持代理对，遇到直接崩溃，导致整个语言加载失败，连锁反应为系统菜单变英文、语言选项只剩当前语言。**Python 检测**：`ord(ch) > 0xFFFF`。validator 待加此检查。
 15. 🔴**禁止手动调用 LoadLocalizationXmls** — 引擎在启动时**自动扫描**各模块 `Languages/` 子目录加载语言包，**不需要**在 `OnSubModuleLoad` 里手动调 `LocalizedTextManager.LoadLocalizationXmls()`。手动调反而会干扰全局语言注册表，导致 Native 的语言列表被挤掉、系统菜单退化为英文、可选语言只剩 mod 注册的语种。
+16. 🔴**废弃系统尽量别碰** — 旧对话 UI（`StoryDialogVM`/`DialogChoice.xml`/`InteractionController._vm`）与旧切磋 UI（`DuelMissionView`/`DuelUI`）已废弃。**不在上面加功能**；修 bug 前先确认路径是否还在现行调用链上。现行对话 = 原版对话流 + IM chat + AgentSay（DialogueComponent）；切磋 = CombatManager。🔴 **IM 弹窗确认回调（ATTACK/DUEL/KNOCKOUT/STEAL 的 confirmFight）禁止调 `_vm.Close()`**——触发旧链 `OnDialogClosed → OnDialogueEnded → GenerateEventAsync`，无当面对话时 `_memory` 为 null 必崩（实机 2026-08-11 11:13:37）。完整清单见 [wheels.d/deprecated.md](plans/rules/wheels.d/deprecated.md)。
 
 ## 双配置体系 — `Core/MCMSettings.cs`（小白 UI） vs `Core/Settings.cs`（config.json 高级配置）
 

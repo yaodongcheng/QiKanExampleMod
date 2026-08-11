@@ -378,10 +378,16 @@ namespace LivingWorldNpcs
                     string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
                     Action confirmFight = () =>
                     {
-                        ChatActionFlow.TryExecute(agent, "order_attack", targetName, null, null);
-                        // 当面对话 UI 关闭（IM 场景由弹窗与 IM 模态共存处理）
-                        if (InteractionController.Instance != null && InteractionController.Instance._vm != null)
-                            InteractionController.Instance._vm.Close();
+                        // 🔴 2026-08-11 用户裁定：发 order_attack 事件 → AgentBrain 既有战斗链
+                        //（ClearAllActions → FightEnemyAction，儿童逃离，CombatManager 队伍管理），
+                        // 与当面对话拔刀（SendEventToAgent(NPC, order_attack, 玩家)）同构；
+                        // 不走单步 Plan——战斗是持续行为，由 Brain 管理生命周期，执行器不该介入。
+                        Agent target = (defender != null && defender != Hero.MainHero)
+                            ? FindAgentByHeroId(defender.StringId)
+                            : Agent.Main;
+                        if (target == null) target = Agent.Main;   // 兜底（InScene 空间前提 = defender 在场）
+                        if (agent != null && target != null && agent.IsActive() && target.IsActive())
+                            AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
                     };
                     // 本地化：攻击确认弹窗（标题/内容/按钮）
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_attack_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
@@ -400,9 +406,13 @@ namespace LivingWorldNpcs
                     string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
                     Action confirmFight = () =>
                     {
-                        if (InteractionController.Instance != null && InteractionController.Instance._vm != null)
-                            InteractionController.Instance._vm.Close();
-                        ChatActionFlow.TryExecute(agent, "order_attack", targetName, null, null);
+                        // 🔴 2026-08-11 用户裁定：同上——order_attack 事件 → AgentBrain 既有战斗链
+                        Agent target = (defender != null && defender != Hero.MainHero)
+                            ? FindAgentByHeroId(defender.StringId)
+                            : Agent.Main;
+                        if (target == null) target = Agent.Main;
+                        if (agent != null && target != null && agent.IsActive() && target.IsActive())
+                            AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
                     };
                     // 本地化：切磋确认弹窗（标题/内容/按钮）
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_hint", "Notice"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_duel_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
@@ -582,16 +592,30 @@ namespace LivingWorldNpcs
             // ── Party 部队动作（玩家在 Campaign；资格守卫：仅玩家家族且有 party 者）──
 
             // 18. PARTY_PATROL：defender party 巡逻其所在 settlement
+            // 🔴 资格守卫（2026-08-11 修）：查 defender（文档 §5.2 语义）而非 attacker——招募同伴 Clan==PlayerClan
+            // 且 PartyBelongedTo==玩家 party（无独立部队），旧守卫恒通过 → 一句话把玩家整支部队调去巡逻（实机日志 09:58:55 注入实证）。
+            // 排除 MainHero/玩家 party：同伴（无独立 party）与玩家自己（自己命令自己）都不是合法对象；
+            // v1 合法对象 ≈ 未来王国的封臣（独立 party + 玩家家族）。
             _actions.Add(new ActionDefinition
             {
                 Code = "PARTY_PATROL",
                 Description = "率部在所在城镇周边巡逻（大地图）。",
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
-                IsValid = (npc, player, agent) => npc != null && npc.Clan == Clan.PlayerClan && npc.PartyBelongedTo != null,
+                IsValid = (attacker, defender, agent) => defender != null
+                    && defender != Hero.MainHero
+                    && defender.Clan == Clan.PlayerClan
+                    && defender.PartyBelongedTo != null
+                    && defender.PartyBelongedTo != MobileParty.MainParty,
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
-                    if (defender == null || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null) return;
+                    if (defender == null || defender == Hero.MainHero
+                        || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null
+                        || defender.PartyBelongedTo == MobileParty.MainParty)
+                    {
+                        DebugLogger.Log($"[ActionHandler] PARTY_PATROL {defender?.Name} 资格不符（非玩家家族独立部队）→ 降级 NONE");
+                        return;
+                    }
                     var settlement = defender.PartyBelongedTo.CurrentSettlement;
                     if (settlement == null)
                     {
@@ -605,16 +629,27 @@ namespace LivingWorldNpcs
             });
 
             // 19. GATHER_TO_PLAYER：defender party 移向玩家 party（集结/护送语义）
+            // 🔴 资格守卫同 PARTY_PATROL（2026-08-11 修）：查 defender + 排除 MainHero/玩家 party。
             _actions.Add(new ActionDefinition
             {
                 Code = "GATHER_TO_PLAYER",
                 Description = "率部集结到玩家身边（大地图）。",
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
-                IsValid = (npc, player, agent) => npc != null && npc.Clan == Clan.PlayerClan && npc.PartyBelongedTo != null,
+                IsValid = (attacker, defender, agent) => defender != null
+                    && defender != Hero.MainHero
+                    && defender.Clan == Clan.PlayerClan
+                    && defender.PartyBelongedTo != null
+                    && defender.PartyBelongedTo != MobileParty.MainParty,
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
-                    if (defender == null || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null) return;
+                    if (defender == null || defender == Hero.MainHero
+                        || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null
+                        || defender.PartyBelongedTo == MobileParty.MainParty)
+                    {
+                        DebugLogger.Log($"[ActionHandler] GATHER_TO_PLAYER {defender?.Name} 资格不符（非玩家家族独立部队）→ 降级 NONE");
+                        return;
+                    }
                     // 集结 = 护送玩家部队（SetPartyAiAction.EscortParty：跟随玩家 party 移动，反编译确认语义）
                     V.GatherToPlayer(defender.PartyBelongedTo);
                     DebugLogger.Log($"[ActionHandler] GATHER_TO_PLAYER {defender.Name} 集结到玩家部队");
@@ -648,6 +683,10 @@ namespace LivingWorldNpcs
             {
                 if (action == null || action.Code == "NONE") continue;
                 if ((action.Spaces & space) == 0) continue;   // 空间裁剪
+                // 🔴 资格裁剪（2026-08-11 修）：party 动作（部队巡逻/集结）注入前过 IsValid——
+                // 招募同伴 Clan==PlayerClan 但 PartyBelongedTo==玩家 party（无独立部队），旧注入直接给 LLM
+                //（实机日志 09:58:55 游民同伴被注入 PARTY_PATROL/GATHER_TO_PLAYER）；资格不符不再进 prompt。
+                if ((action.Spaces & ActionSpace.Party) != 0 && !action.IsValid(attacker, defender, agent)) continue;
                 sb.AppendLine($"- \"{action.Code}\": {action.Description}");
             }
             // 动作空间纪律段（LLM 输入）
@@ -2562,6 +2601,9 @@ namespace LivingWorldNpcs
         //基于近期记忆和对话，生成一个事件
         public async Task<SocialEvent> GenerateEventAsync()
         {
+            // 🔴 2026-08-11 修复：对话未开始过（_memory 未赋值，如 IM 弹窗确认路径误触发 OnDialogClosed）
+            // → 无对话可收尾，直接返回（铁律 2 null-guard；实机日志 11:13:37 NullReferenceException）
+            if (_memory == null) return null;
             StringBuilder sbHistory = new StringBuilder();
             StringBuilder sbMemory = new StringBuilder();
             int validHistoryNum = 0;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.Core;
 
 namespace LivingWorldNpcs
@@ -216,10 +217,15 @@ namespace LivingWorldNpcs
                 float similarity = BigramSimilarity(playerText, GetFingerprint(h)) * 3f;
                 float heat = ImHeatTracker.ReplyBonus(h.StringId);
                 float silence = ImHeatTracker.SilenceBonus(h.StringId);
+                // 🔴 不在队加权（2026-08-11 用户裁定）：招募同伴在队里天天能当面说话，
+                // 家族频道应优先不在玩家部队中的成员（配偶/外派者/定居在外的家人）——IM = 远程传讯，
+                // 频道是他们主要的沟通渠道。判断 = 是否属于玩家 party（在场景里时 PartyBelongedTo 不变）。
+                // 加权 2.0 < @提及(5)：玩家点名依然必回，不破坏点名语义。
+                float remote = (h.PartyBelongedTo == MobileParty.MainParty) ? 0f : 2f;
                 float jitter = MBRandom.RandomFloat * 2f; // 抖动：热度/职业相近时不完全可预测
-                float score = affSum + mention + similarity + heat + silence + jitter;
+                float score = affSum + mention + similarity + heat + silence + remote + jitter;
                 scored.Add((h, score,
-                    $"职业亲和={affSum:F1} @提及={mention:F1} 相似={similarity:F1} 热度={heat:F1} 沉寂={silence:F1} 抖动={jitter:F1}"));
+                    $"职业亲和={affSum:F1} @提及={mention:F1} 相似={similarity:F1} 热度={heat:F1} 沉寂={silence:F1} 远程={remote:F1} 抖动={jitter:F1}"));
                 DebugLogger.Log($"[ImTopic]   {h.Name} (Occupation={occupation ?? "?"}): {scored[scored.Count - 1].detail} → {score:F1}");
             }
             if (scored.Count == 0) return (null, null);

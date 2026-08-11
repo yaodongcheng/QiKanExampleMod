@@ -160,10 +160,13 @@ namespace LivingWorldNpcs
         [JsonIgnore]
         public bool IsChatMode => OutlineSegments != null;
 
-        /// <summary>保持型/无限等待步骤（wait 省略 seconds/until、follow 省略 timeout）不套 30s 默认与总时长上限。</summary>
+        /// <summary>保持型/无限等待步骤（wait 省略 seconds/until、follow 省略 timeout、🔴 对话模式 outline 2-5 段）
+        /// 不套 30s 默认与总时长上限。对话模式：时长由 SayToSlot 播放层自决（预生成流水线 + 60s 无回应兜底），
+        /// 步骤超时豁免——8s 固定预算只够 1 个来回，多轮对话必被腰斩（实机日志 2026-08-11）。</summary>
         public static bool IsUnboundedStep(PlanStep s)
         {
             if (s == null) return false;
+            if (s.IsChatMode) return true;
             if (s.Action == "wait" && s.Seconds <= 0 && s.Until == null) return true;
             if (s.Action == "follow" && s.TimeoutS <= 0) return true;
             return false;
@@ -634,6 +637,9 @@ namespace LivingWorldNpcs
                 s.TimeoutS = DefaultTimeout;
                 result.Warnings.Add($"缺 timeout_s（id={s.Id}）→ 补 {DefaultTimeout}s");
             }
+            // 缺 on_timeout → 警告（超时缺省落 @abort_gracefully = 整个计划中止而非走预案；实机日志 2026-08-11：t2 无 on_timeout 对话被一刀切）
+            if (string.IsNullOrEmpty(s.OnTimeout) && !IsUnbounded(s))
+                result.Warnings.Add($"步骤 {s.Id} 缺 on_timeout → 超时默认中止整个计划");
             if (s.TimeoutS > MaxTimeout)
             {
                 result.Warnings.Add($"timeout_s 超限（id={s.Id} {s.TimeoutS}s）→ 钳制 {MaxTimeout}s");
@@ -757,9 +763,10 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>保持型/无限等待步骤（wait 省略 seconds/until、follow 省略 timeout）不套 30s 默认与总时长上限。</summary>
+        /// <summary>保持型/无限等待步骤（wait 省略 seconds/until、follow 省略 timeout、🔴 对话模式）不套 30s 默认与总时长上限。</summary>
         private static bool IsUnbounded(PlanStep s)
         {
+            if (s.IsChatMode) return true;
             if (s.Action == "wait" && s.Seconds <= 0 && s.Until == null) return true;
             if (s.Action == "follow" && s.TimeoutS <= 0) return true;
             return false;

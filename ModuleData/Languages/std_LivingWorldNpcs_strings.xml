@@ -3968,6 +3968,8 @@
     <string id="LWN_im_badge_modified" text="Revised v{N}" />
     <string id="LWN_im_btn_detail_expand" text="Details" />
     <string id="LWN_im_btn_detail_collapse" text="Collapse details" />
+    <string id="LWN_im_btn_explain" text="Explain plan" />
+    <string id="LWN_im_btn_explaining" text="Explaining…" />
     <string id="LWN_im_cmd_modify_pending" text="The companion is working out a revised plan..." />
     <string id="LWN_im_cmd_modify_exhausted" text="The plan has been revised too many times. Approve it or start over." />
     <string id="LWN_im_cmd_modify_need_mission" text="You can only revise a plan while in the field." />
