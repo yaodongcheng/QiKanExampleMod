@@ -25,21 +25,51 @@ using static LivingWorldNpcs.PromptBuilder;
 namespace LivingWorldNpcs
 {
 
+    /// <summary>
+    /// 闲聊动作空间位掩码（im-command-action-upgrade.md §5.2）：
+    /// 动作空间不由「IM 还是当面对话」决定，而由 attacker 与 defender 的空间关系决定（C# 确定性裁决，
+    /// 不交 LLM）。同一句 IM 消息，对方在不在场、玩家在不在大地图，LLM 能选的动作完全不同。
+    /// </summary>
+    [Flags]
+    public enum ActionSpace
+    {
+        InScene = 1,    // 玩家在 Mission + 对方同场景：物理动作 + 当面仪式最丰富
+        ImRemote = 2,   // 玩家在 Mission + 对方不在场：远距语义（关系/声望/记忆类）
+        Party = 4,      // 玩家在 Campaign 大地图：部队动作为主
+    }
+
+    /// <summary>
+    /// 闲聊行动执行器（im-command-action-upgrade.md §5.2/§5.3/§六）：当面对话与 IM 共用一张动作注册表。
+    /// 2026-08-10 升级：
+    /// ① defender 双向化：核心效果 = attacker 表达的态度（NPC↔NPC 走官方 ApplyRelationChangeBetweenHeroes，
+    ///    反编译确认；玩家侧走 ApplyPlayerRelation）；
+    /// ② Spaces 位掩码按空间裁剪动作空间（LLM 只看到当前空间的合法动作，无空间概念）；
+    /// ③ 物理行为类（ATTACK/EMOTE/FOLLOW/MOVE_TO/...）走单步 Plan 通道（ChatActionFlow →
+    ///    PlanExecutor.TryCreateSubAction 既有分支），执行层零新代码；
+    /// ④ 频率纪律：关系/声望/party 类每 60s 冷却（演出类/高风险类不参与）。
+    /// </summary>
     public static class ActionHandler
     {
-        // 定义一个动作的结构，包含：代码、描述、判断条件、执行逻辑
+        // 动作定义（2026-08-10 升级）：defender 可 null（铁律 8 平权——模板 NPC 的合法动作照常执行）。
         private class ActionDefinition
         {
             public string Code { get; set; }
             public string Description { get; set; }
-            // [修改] 条件委托：传入NPC(可能为null), Player, Agent。增加Agent是为了辅助判断
+            public ActionSpace Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party;   // 空间位掩码（§5.2）
+            public bool AffectsBoth = false;    // 防御性效果开关（v1 全部默认 false：谣言只单向往 defender 声望；CS0649 显式初始化）
+            public bool NeedsCooldown;  // 频率纪律（§5.2）：关系/声望/party 类 60s 冷却
+            // 执行委托：(attacker, defender, agent, level, targetText, sayText)
+            //   agent = attacker 的物理载体（InScene 动作执行者）；level = 档位（small/medium/large，LLM 只选档位不选数值）；
+            //   targetText = LLM 目标名字文本（MOVE_TO/SAY_TO 用，C# 解析）；sayText = SAY_TO 台词（IM 回复正文复述）。
             public Func<Hero, Hero, Agent, bool> IsValid { get; set; }
-            // 执行委托：传入 actionCode, NPC, Player, Agent
-            public Action<Hero, Hero, Agent> Execute { get; set; }
+            public Action<Hero, Hero, Agent, string, string, string> Execute { get; set; }
         }
 
         // 静态列表存储所有可能的动作
         private static readonly List<ActionDefinition> _actions = new List<ActionDefinition>();
+
+        // 频率纪律冷却表（§5.2）："attackerId→defenderId" → 上次执行墙钟秒
+        private static readonly Dictionary<string, double> _actionCooldown = new Dictionary<string, double>();
 
         // 静态构造函数，程序启动时初始化动作列表
         static ActionHandler()
@@ -47,117 +77,263 @@ namespace LivingWorldNpcs
             InitializeActions();
         }
 
+        // ── 档位映射（LLM 只给档位，数值 C# 定——铁律 2）──
+
+        /// <summary>关系档位 → 变化量（small=±3 / medium=±5 / large=±10）。</summary>
+        private static int LevelDelta(string level, int sign)
+        {
+            string lv = level?.ToLowerInvariant();
+            int mag = lv == "small" ? 3 : (lv == "large" ? 10 : 5);
+            return sign * mag;
+        }
+
+        // ── 频率纪律（§5.2）：同 attacker→同 defender 的关系/声望/party 类 action 冷却 ──
+
+        private static bool IsCooledDown(string attackerId, string defenderId)
+        {
+            if (string.IsNullOrEmpty(attackerId) || string.IsNullOrEmpty(defenderId)) return true;
+            double now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            float cd = Settings.Instance.ChatActionCooldownSeconds;
+            string key = attackerId + "→" + defenderId;
+            bool cooled = _actionCooldown.TryGetValue(key, out double last) && now - last < cd;
+            if (!cooled) _actionCooldown[key] = now;
+            return !cooled;
+        }
+
         private static void InitializeActions()
         {
+            // ── 全空间 ──
             // 1. 默认动作 NONE
             _actions.Add(new ActionDefinition
             {
                 Code = "NONE",
-                Description = "默认无动作，仅进行对话。",
+                Description = "默认无动作，仅进行对话（普通寒暄必选）。",
                 IsValid = (npc, player, agent) => true,
-                Execute = (n, p, a) => { /* Do nothing */ }
+                Execute = (n, p, a, l, t, s) => { /* Do nothing */ }
             });
 
-            // 1. 默认动作 NONE
+            // ── 语义类：关系（全空间；模板 NPC 无好感系统 → IsValid 守卫）──
+            // 2. 好感上升（attacker 对 defender；NPC↔NPC 官方 API，反编译确认）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "RELATION_UP",
+                Description = "好感上升：你对对方印象变好（档位 small=+3 / medium=+5 / large=+10）。",
+                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => a != null && d != null,
+                Execute = (a, d, ag, l, t, s) =>
+                {
+                    if (a == null || d == null) return;
+                    int delta = LevelDelta(l, +1);
+                    if (d == Hero.MainHero)
+                    {
+                        // 玩家侧：官方玩家关系 API（showQuickNotification：玩家可见反馈，§5.2 裁定例外）
+                        ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                    }
+                    else
+                    {
+                        // NPC↔NPC：静默执行（不刷系统行，§5.2 反馈裁定）；后续言行体现
+                        ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
+                    }
+                    DebugLogger.Log($"[ActionHandler] RELATION_UP {a.Name}→{d.Name} {delta:+0;-0}");
+                }
+            });
+            // 3. 好感下降
+            _actions.Add(new ActionDefinition
+            {
+                Code = "RELATION_DOWN",
+                Description = "好感下降：你对对方印象变差（档位 small=-3 / medium=-5 / large=-10）。",
+                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => a != null && d != null,
+                Execute = (a, d, ag, l, t, s) =>
+                {
+                    if (a == null || d == null) return;
+                    int delta = LevelDelta(l, -1);
+                    if (d == Hero.MainHero)
+                        ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                    else
+                        ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
+                    DebugLogger.Log($"[ActionHandler] RELATION_DOWN {a.Name}→{d.Name} {delta:+0;-0}");
+                }
+            });
+            // 兼容别名（当面对话 LLM 旧词表）：INCREASE/DECREASE_RELATION = RELATION 语义同款（缺省档位 medium=±5，与旧 ±5 一致）
             _actions.Add(new ActionDefinition
             {
                 Code = "INCREASE_RELATION",
-                Description = "好感度小幅上升。",
-                IsValid = (npc, player, agent) => npc != null,
-                Execute = (n, p, a) => {
-
-                    if (n != null)
-                    {
-                        ChangeRelationAction.ApplyPlayerRelation(n, 5, true, true);
-                    }
+                Description = "好感度小幅上升（兼容旧词表）。",
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => a != null && d != null,
+                Execute = (a, d, ag, l, t, s) =>
+                {
+                    if (a == null || d == null) return;
+                    int delta = LevelDelta(null, +1);
+                    if (d == Hero.MainHero) ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                    else ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
                 }
             });
-
-            // 1. 默认动作 NONE
             _actions.Add(new ActionDefinition
             {
                 Code = "DECREASE_RELATION",
-                Description = "好感度小幅下降。",
-                IsValid = (npc, player, agent) => npc != null,
-                Execute = (n, p, a) => {
-                    if (n != null)
+                Description = "好感度小幅下降（兼容旧词表）。",
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => a != null && d != null,
+                Execute = (a, d, ag, l, t, s) =>
+                {
+                    if (a == null || d == null) return;
+                    int delta = LevelDelta(null, -1);
+                    if (d == Hero.MainHero) ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                    else ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
+                }
+            });
+
+            // ── 当面仪式类（InScene：隔空结婚/入伙 = 出戏）──
+
+            // ── 语义类：声望 + 记忆（全空间；🔴 C2，2026-08-10）──
+
+            // PRAISE：defender 本地声望小升（SettlementHonorStore；在场=当众夸/不在场=背后说好话）。
+            // InScene 当众夸 → 广播 spoken_to（被夸者 respond「过奖了」——说话类对抗广播链，§5.5）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "PRAISE",
+                Description = "夸赞对方：对方在当地声望小升（当众夸赞/背后说好话）。",
+                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => d != null,
+                Execute = (a, d, ag, l, t, s) =>
+                {
+                    if (d == null) return;
+                    var settlement = d.CurrentSettlement;
+                    if (settlement == null)
                     {
-                        ChangeRelationAction.ApplyPlayerRelation(n, -5, true, true);
+                        DebugLogger.Log($"[ActionHandler] PRAISE {d.Name} 不在定居点 → 降级 NONE");
+                        return;
+                    }
+                    SettlementHonorStore.Modify(settlement, 2);
+                    // InScene 当众夸 → 广播（line = 夸赞的话；无话可说不广播）
+                    if (Mission.Current != null && !string.IsNullOrWhiteSpace(s) && ImChatManager.IsPresentInMission(d.StringId))
+                    {
+                        Agent defenderAgent = FindAgentByHeroId(d.StringId);
+                        Agent attackerAgent = FindAgentByHeroId(a?.StringId);
+                        if (defenderAgent != null && attackerAgent != null)
+                            DialogueComponent.HandleDialogue(attackerAgent, defenderAgent, "praise", s);
+                    }
+                    DebugLogger.Log($"[ActionHandler] PRAISE {d.Name} 本地声望 +2");
+                }
+            });
+
+            // SPREAD_RUMOR：defender 本地声望小降 + 写双方记忆（造谣是恩怨，后续对话接得住）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "SPREAD_RUMOR",
+                Description = "散布关于对方的谣言：对方当地声望小降（背后说坏话）。",
+                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => d != null,
+                Execute = (a, d, ag, l, t, s) =>
+                {
+                    if (d == null) return;
+                    var settlement = d.CurrentSettlement;
+                    if (settlement == null)
+                    {
+                        DebugLogger.Log($"[ActionHandler] SPREAD_RUMOR {d.Name} 不在定居点 → 声望部分降级");
+                    }
+                    else
+                    {
+                        SettlementHonorStore.Modify(settlement, -2);
+                    }
+                    // 双方记忆（defender 记「被造谣」→ 后续对峙；attacker 记「我造了谣」→ 可自首）
+                    string rumorLine = LWNTextHelper.ResolveCompound("LWN_plan_action_rumor",
+                        "有人在背后说我的坏话", ("NAME", a?.Name?.ToString() ?? ""));
+                    WriteMemory(d, "user", rumorLine, a?.StringId ?? "");
+                    if (a != null)
+                        // 记忆：我造了谣（attacker 侧）
+                        WriteMemory(a, "user", LWNTextHelper.ResolveCompound("LWN_plan_action_rumor_self",
+                            "我在背后说了 {NAME} 的坏话", ("NAME", d.Name?.ToString() ?? "")), a.StringId);
+                    // InScene 当众造谣 → 广播 spoken_to（被造谣者 respond——撕破脸，§5.5 说话类对抗广播链）
+                    if (Mission.Current != null && !string.IsNullOrWhiteSpace(s) && ImChatManager.IsPresentInMission(d.StringId))
+                    {
+                        Agent defenderAgent = FindAgentByHeroId(d.StringId);
+                        Agent attackerAgent = FindAgentByHeroId(a?.StringId);
+                        if (defenderAgent != null && attackerAgent != null)
+                            DialogueComponent.HandleDialogue(attackerAgent, defenderAgent, "rumor", s);
+                    }
+                    DebugLogger.Log($"[ActionHandler] SPREAD_RUMOR {a?.Name} 造谣 {d.Name}");
+                }
+            });
+
+            // THREATEN_VERBAL：写 defender 记忆（威胁 = 搭话，InScene 版广播 spoken_to → defender 人格演算反应，§5.5）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "THREATEN_VERBAL",
+                Description = "出言威胁对方（对方会记住这次威胁；当面威胁对方可能当场翻脸）。",
+                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => d != null,
+                Execute = (a, d, ag, l, t, s) =>
+                {
+                    if (d == null) return;
+                    WriteMemory(d, "user",
+            // 记忆：被威胁（defender 侧）
+                        LWNTextHelper.ResolveCompound("LWN_plan_action_threatened",
+                            "{NAME} 威胁过我：{TEXT}", ("NAME", a?.Name?.ToString() ?? ""), ("TEXT", s ?? "")),
+                        a?.StringId ?? "");
+                    // InScene 版：威胁 = 搭话 → 广播 spoken_to（speaker=attacker，line=威胁台词）→ defender 人格演算（愤怒/畏惧/叫守卫/记仇）
+                    // InScene 版：威胁 = 搭话 → 广播 spoken_to → defender 人格演算（愤怒/畏惧/叫守卫/记仇）；
+                    // 收敛到 DialogueComponent.HandleDialogue（§5.6 统一入口，含旁观者 seen_speaking）
+                    if (Mission.Current != null && ImChatManager.IsPresentInMission(d.StringId))
+                    {
+                        Agent defenderAgent = FindAgentByHeroId(d.StringId);
+                        Agent attackerAgent = FindAgentByHeroId(a?.StringId);
+                        if (defenderAgent != null && attackerAgent != null)
+                        {
+                            // 威胁缺省台词（广播用）
+                            string line = !string.IsNullOrWhiteSpace(s) ? s : LWNTextHelper.ResolveText("LWN_plan_action_threaten_default", "You had better watch yourself.");
+                            DialogueComponent.HandleDialogue(attackerAgent, defenderAgent, "threat", line);
+                            // 🔴 2026-08-11 架构收敛：注册 SocialSlot 续话——defender respond 后 attacker 跟进（威胁对峙吵起来）
+                            DialogueComponent.RegisterSession(attackerAgent, defenderAgent, "threat", new SocialSlot());
+                            DebugLogger.Log($"[ActionHandler] THREATEN_VERBAL 广播 spoken_to: {a.Name} → {d.Name}");
+                        }
                     }
                 }
             });
 
-            // 2. 攻击动作 ATTACK
+            // PROMISE：写 defender 记忆（「A 答应过我…」→ 后续对话接得住）
             _actions.Add(new ActionDefinition
             {
-                Code = "ATTACK",
-                Description = "恼羞成怒，发起攻击（进入战斗）。",
-                IsValid = (npc, player, agent) => agent != null,
-                Execute = (npc, player, agent) =>
+                Code = "PROMISE",
+                Description = "向对方作出承诺（对方会记住这次承诺）。",
+                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (a, d, ag) => d != null,
+                Execute = (a, d, ag, l, t, s) =>
                 {
-                    // 获取名字：如果有Hero用Hero名，否则用Agent名
-                    string targetName = npc != null ? npc.Name.ToString() : agent.Name.ToString();
-
-                    Action confirmFight = () => {
-                        AgentAIController.Instance.SendEventToAgent(agent, "order_attack", Agent.Main);
-                        // 尝试关闭对话UI (根据你的Mod实现可能需要调整)
-                        if (InteractionController.Instance != null && InteractionController.Instance._vm != null)
-                        {
-                            InteractionController.Instance._vm.Close();
-                        }
-
-                    };
-
-                    // 本地化：攻击确认弹窗（标题/内容/按钮）
-                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_attack_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
-                }
-            });
-            _actions.Add(new ActionDefinition
-            {
-                Code = "DUEL",
-                Description = "和平的交手切磋（进入不致命的战斗）。",
-                IsValid = (npc, player, agent) => agent != null,
-                Execute = (npc, player, agent) =>
-                {
-                    // 获取名字：如果有Hero用Hero名，否则用Agent名
-                    string targetName = npc != null ? npc.Name.ToString() : agent.Name.ToString();
-
-                    Action confirmFight = () => {
-                        // 尝试关闭对话UI (根据你的Mod实现可能需要调整)
-                        if (InteractionController.Instance != null && InteractionController.Instance._vm != null)
-                        {
-                            InteractionController.Instance._vm.Close();
-                        }
-                        AgentAIController.Instance.SendEventToAgent(agent, "order_attack", Agent.Main);
-                        // 开启战斗
-                    };
-
-                    // 本地化：切磋确认弹窗（标题/内容/按钮）
-                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_hint", "Notice"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_duel_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
+                    if (d == null) return;
+                    WriteMemory(d, "user",
+            // 记忆：被承诺（defender 侧）
+                        LWNTextHelper.ResolveCompound("LWN_plan_action_promised",
+                            "{NAME} 答应过我：{TEXT}", ("NAME", a?.Name?.ToString() ?? ""), ("TEXT", s ?? "")),
+                        a?.StringId ?? "");
                 }
             });
 
-            // 3. 结婚动作 MARRY_SUCCESS
+            // 4. 结婚动作 MARRY_SUCCESS（defender = 求婚对象；仅在场）
             _actions.Add(new ActionDefinition
             {
                 Code = "MARRY_SUCCESS",
-                Description = "同意对方的求婚（建立婚姻关系）。",
-                // 条件：异性 + 双方单身 + 年龄合适(可选)
+                Description = "同意对方的求婚（建立婚姻关系；仅当面）。",
+                Spaces = ActionSpace.InScene,
                 IsValid = (npc, player, agent) =>
                 {
-                    // [关键修改] 守卫不能结婚，必须是 Hero
-                    if (npc == null) return false;
-
+                    if (npc == null || player == null) return false;
                     bool differentGender = npc.IsFemale != player.IsFemale;
-                    // 注意：这里移除了临时的 true 赋值，恢复逻辑
                     bool npcSingle = npc.Spouse == null;
                     bool playerSingle = player.Spouse == null;
-
                     return differentGender && npcSingle && playerSingle;
                 },
-                Execute = (npc, player, agent) =>
+                Execute = (npc, player, agent, l, t, s) =>
                 {
-                    if (npc != null)
+                    if (npc != null && player != null)
                     {
                         MarriageAction.Apply(player, npc);
                         // 本地化：求婚成功消息
@@ -166,77 +342,488 @@ namespace LivingWorldNpcs
                 }
             });
 
-            // 4. 招募动作 JOIN_CLAN
+            // 5. 招募动作 JOIN_CLAN（defender = 招募对象；仅当面）
             _actions.Add(new ActionDefinition
             {
                 Code = "JOIN_CLAN",
-                Description = "接受招募，加入玩家的家族。",
-                // 条件：NPC是流浪者(Wanderer) 或者 没有家族
+                Description = "接受招募，加入玩家的家族（仅当面）。",
+                Spaces = ActionSpace.InScene,
                 IsValid = (npc, player, agent) =>
                 {
-                    if (npc == null) return false; // 守卫通常不能直接变为家族成员
+                    if (npc == null) return false;
                     return npc.Clan == null || npc.IsWanderer;
                 },
-                Execute = (npc, player, agent) =>
+                Execute = (npc, player, agent, l, t, s) =>
                 {
                     if (npc != null)
                     {
-                        // 具体的招募逻辑 (示例)                        
+                        // 具体的招募逻辑 (示例)
                         // 本地化：招募加入家族消息
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_join_clan", ("NAME", npc.Name.ToString())), Colors.Blue));
                     }
                 }
             });
 
-            // ... 在这里扩展更多动作
+            // ── 物理对抗类（InScene；高风险 → 确认弹窗兜底 + 单步 Plan 通道）──
+
+            // 6. 攻击动作 ATTACK（target = defender；FightEnemyAction）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "ATTACK",
+                Description = "恼羞成怒，发起攻击（进入战斗；仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
+                    Action confirmFight = () =>
+                    {
+                        ChatActionFlow.TryExecute(agent, "order_attack", targetName, null, null);
+                        // 当面对话 UI 关闭（IM 场景由弹窗与 IM 模态共存处理）
+                        if (InteractionController.Instance != null && InteractionController.Instance._vm != null)
+                            InteractionController.Instance._vm.Close();
+                    };
+                    // 本地化：攻击确认弹窗（标题/内容/按钮）
+                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_attack_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
+                }
+            });
+
+            // 7. 决斗 DUEL（与 ATTACK 同执行：FightEnemyAction；当面对话既有行为一致）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "DUEL",
+                Description = "和平的交手切磋（进入不致命的战斗；仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
+                    Action confirmFight = () =>
+                    {
+                        if (InteractionController.Instance != null && InteractionController.Instance._vm != null)
+                            InteractionController.Instance._vm.Close();
+                        ChatActionFlow.TryExecute(agent, "order_attack", targetName, null, null);
+                    };
+                    // 本地化：切磋确认弹窗（标题/内容/按钮）
+                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_hint", "Notice"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_duel_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
+                }
+            });
+
+            // 8. 背后击晕 KNOCKOUT（target = defender；高风险确认弹窗）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "KNOCKOUT",
+                Description = "背后击晕对方（仅当面；高风险）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
+                    Action confirm = () => ChatActionFlow.TryExecute(agent, "knockout", targetName, null, null);
+                    // 本地化：击晕确认弹窗（标题/内容/按钮）
+                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_knockout_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirm, null));
+                }
+            });
+
+            // 9. 扒窃 STEAL_ATTEMPT（target = defender；人变体；高风险确认弹窗 → 既有偷窃系统反应链）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "STEAL_ATTEMPT",
+                Description = "偷走对方身上的钱（仅当面；高风险）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
+                    Action confirm = () => ChatActionFlow.TryExecute(agent, "steal_attempt", targetName, null, null);
+                    // 本地化：扒窃确认弹窗（标题/内容/按钮）
+                    InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_steal_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirm, null));
+                }
+            });
+
+            // ── InScene 原子动作库平移（§5.3：单步 Plan 通道，执行层零新代码）──
+
+            // 10. EMOTE 演出（level = 动画 key；白名单 9 动画在 EmoteInlineState）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "EMOTE",
+                Description = "做出一个手势/动作（nod 点头/shake 摇头/wave 招手/cheer 欢呼/bow 鞠躬/shrug 耸肩/point 指路/threaten 威胁手势/disappointed 沮丧；仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "emote", null, l, null)
+            });
+
+            // 11. FACE 面向 / LOOK_AT 注视（target = defender）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "FACE",
+                Description = "转身面向对方（仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string name = defender != null ? defender.Name.ToString() : t;
+                    ChatActionFlow.TryExecute(agent, "face", name, null, null);
+                }
+            });
+            _actions.Add(new ActionDefinition
+            {
+                Code = "LOOK_AT",
+                Description = "注视对方片刻（仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string name = defender != null ? defender.Name.ToString() : t;
+                    ChatActionFlow.TryExecute(agent, "look_at", name, null, null);
+                }
+            });
+
+            // 12. FOLLOW / STOP_FOLLOWING（target = defender；无限保持）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "FOLLOW",
+                Description = "跟到对方身边（保持跟随，直到对方离开；仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string name = defender != null ? defender.Name.ToString() : t;
+                    ChatActionFlow.TryExecute(agent, "follow", name, null, null);
+                }
+            });
+            _actions.Add(new ActionDefinition
+            {
+                Code = "STOP_FOLLOWING",
+                Description = "停止跟随对方（仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "stop_following", null, null, null)
+            });
+
+            // 13. SIGNAL_PLAYER 信号（无参）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "SIGNAL_PLAYER",
+                Description = "向玩家发出一个信号（仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "signal_player", null, null, null)
+            });
+
+            // 14. GIVE_GOLD 给钱（守恒：attacker 钱包 → 玩家；金额档位 C# 定）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "GIVE_GOLD",
+                Description = "掏出自己的钱给玩家（档位 small=50 / medium=150 / large=500 金币；仅当面）。",
+                Spaces = ActionSpace.InScene,
+                NeedsCooldown = true,
+                IsValid = (npc, player, agent) => agent != null && npc != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    if (attacker == null || Hero.MainHero == null) return;
+                    int amount = ChatActionFlow.GoldLevelAmount(l);
+                    if (attacker.Gold < amount)
+                    {
+                        DebugLogger.Log($"[ActionHandler] GIVE_GOLD {attacker.Name} 钱不够（{attacker.Gold}/{amount}）→ 降级 NONE");
+                        return;
+                    }
+                    // 守恒转移（铁律 4：一方扣一方加；与计划模式 GiveInlineState 的赃物移交语义区分——闲聊 = 随从个人钱包直付）
+                    AgentControlHelper.TransferGold(attacker, Hero.MainHero, amount);
+                    DebugLogger.Log($"[ActionHandler] GIVE_GOLD {attacker.Name} → 玩家 {amount} 金币");
+                }
+            });
+
+            // 15. MOVE_TO 走到 targetText 处（agent 名/语义 tag zone，C# 解析）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "MOVE_TO",
+                Description = "走到对方身边/某个地方（仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    // target 文本 → C# 解析（TryResolvePosition 链：agent 名 → 语义 tag zone）
+                    string name = !string.IsNullOrWhiteSpace(t) ? t
+                        : (defender != null ? defender.Name.ToString() : null);
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        DebugLogger.Log($"[ActionHandler] MOVE_TO 无目标文本 → 降级 NONE");
+                        return;
+                    }
+                    ChatActionFlow.TryExecute(agent, "move_to", name, null, null);
+                }
+            });
+
+            // 16. SAY_TO 转头对 defender 转述（v1 = IM 回复正文复述，一句话两用）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "SAY_TO",
+                Description = "转头对目标当面说这句话（仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    string name = defender != null ? defender.Name.ToString() : t;
+                    ChatActionFlow.TryExecute(agent, "say_to", name, null, s);
+                }
+            });
+
+            // 17. MAKE_NOISE 喊叫（可选平移）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "MAKE_NOISE",
+                Description = "大喊一声引人注意（仅当面）。",
+                Spaces = ActionSpace.InScene,
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "make_noise", null, null, null)
+            });
+
+            // ── Party 部队动作（玩家在 Campaign；资格守卫：仅玩家家族且有 party 者）──
+
+            // 18. PARTY_PATROL：defender party 巡逻其所在 settlement
+            _actions.Add(new ActionDefinition
+            {
+                Code = "PARTY_PATROL",
+                Description = "率部在所在城镇周边巡逻（大地图）。",
+                Spaces = ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (npc, player, agent) => npc != null && npc.Clan == Clan.PlayerClan && npc.PartyBelongedTo != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    if (defender == null || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null) return;
+                    var settlement = defender.PartyBelongedTo.CurrentSettlement;
+                    if (settlement == null)
+                    {
+                        DebugLogger.Log($"[ActionHandler] PARTY_PATROL {defender.Name} 无当前定居点 → 降级 NONE");
+                        return;
+                    }
+                    // 巡逻目标 C# 确定（不解析 LLM 文本）
+                    V.PatrolAround(defender.PartyBelongedTo, settlement);
+                    DebugLogger.Log($"[ActionHandler] PARTY_PATROL {defender.Name} 巡逻 {settlement.Name}");
+                }
+            });
+
+            // 19. GATHER_TO_PLAYER：defender party 移向玩家 party（集结/护送语义）
+            _actions.Add(new ActionDefinition
+            {
+                Code = "GATHER_TO_PLAYER",
+                Description = "率部集结到玩家身边（大地图）。",
+                Spaces = ActionSpace.Party,
+                NeedsCooldown = true,
+                IsValid = (npc, player, agent) => npc != null && npc.Clan == Clan.PlayerClan && npc.PartyBelongedTo != null,
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    if (defender == null || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null) return;
+                    // 集结 = 护送玩家部队（SetPartyAiAction.EscortParty：跟随玩家 party 移动，反编译确认语义）
+                    V.GatherToPlayer(defender.PartyBelongedTo);
+                    DebugLogger.Log($"[ActionHandler] GATHER_TO_PLAYER {defender.Name} 集结到玩家部队");
+                }
+            });
         }
 
         /// <summary>
-        /// 获取当前可用的动作空间 Prompt
+        /// 空间裁决（§5.2，C# 确定性）：由 defender 的空间关系决定动作空间。
+        /// 复用既有轮子 ImChatManager.IsPresentInMission（Q3 已建）。
         /// </summary>
-        public static string GetActionSpacePrompt(Hero npcHero, Hero playerHero, Agent npcAgent)
+        public static ActionSpace ResolveSpace(Hero defender)
         {
+            if (Mission.Current == null) return ActionSpace.Party;   // 玩家在 Campaign：部队动作为主
+            if (defender != null && ImChatManager.IsPresentInMission(defender.StringId))
+                return ActionSpace.InScene;                          // 随从/在场 NPC：场景内可执行
+            return ActionSpace.ImRemote;                             // 不在场：远距语义
+        }
+
+        /// <summary>
+        /// 获取当前空间可用的动作空间 Prompt（当面对话 LLM 与 IM 回复共用；按空间裁剪，LLM 无空间概念）。
+        /// </summary>
+        public static string GetActionSpacePrompt(Hero attacker, Hero defender, Agent agent)
+        {
+            var space = ResolveSpace(defender);
             StringBuilder sb = new StringBuilder();
-
-            // [修改] 传入 agent 进行判断
-            var availableActions = _actions.Where(a => a.IsValid(npcHero, playerHero, npcAgent));
-
-            foreach (var action in availableActions)
+            // 标题/纪律段是增强（缺 key 返回空串不崩，铁律 1）
+            string title = LWNTextHelper.ResolvePrompt("LWN_im_action_space_title");
+            if (!string.IsNullOrEmpty(title)) sb.AppendLine(title);
+            foreach (var action in _actions)
             {
+                if (action == null || action.Code == "NONE") continue;
+                if ((action.Spaces & space) == 0) continue;   // 空间裁剪
                 sb.AppendLine($"- \"{action.Code}\": {action.Description}");
             }
-
+            // 动作空间纪律段（LLM 输入）
+            string rule = LWNTextHelper.ResolvePrompt("LWN_im_action_rule");
+            if (!string.IsNullOrEmpty(rule)) sb.AppendLine(rule);
             return sb.ToString();
         }
 
         /// <summary>
-        /// 执行动作
+        /// 执行动作（当面对话 + IM 共用入口）。
+        /// 流程：空间裁剪（Spaces 位掩码）→ 频率冷却（关系/声望/party 类）→ IsValid → Execute。
         /// </summary>
-        public static void HandleAction(string actionCode, Hero npcHero, Hero playerHero, Agent npcAgent)
+        public static void HandleAction(string actionCode, Hero attacker, Hero defender, Agent agent,
+            string level = null, string targetText = null, string sayText = null)
         {
             if (string.IsNullOrEmpty(actionCode)) return;
-
-            // 查找对应的动作定义
-            var actionDef = _actions.FirstOrDefault(a => a.Code.ToUpper() == actionCode.ToUpper());
-
-            if (actionDef != null)
+            var actionDef = _actions.FirstOrDefault(a => a.Code.Equals(actionCode, StringComparison.OrdinalIgnoreCase));
+            if (actionDef == null)
             {
-                // [修改] 再次校验时传入 Agent
-                if (actionDef.IsValid(npcHero, playerHero, npcAgent))
+                DebugLogger.Log($"[ActionHandler] 未知动作代码: {actionCode} → 降级 NONE");
+                return;
+            }
+            // 空间裁剪（§5.2）：动作空间不含当前空间 → 降级 NONE（LLM 硬选场景外动作，IsValid 兜底前再拦一层）
+            var space = ResolveSpace(defender);
+            if ((actionDef.Spaces & space) == 0)
+            {
+                DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 不适用于空间 {space} → 降级 NONE");
+                return;
+            }
+            // 频率纪律（§5.2）：关系/声望/party 类同对冷却；演出类/高风险类不参与
+            if (actionDef.NeedsCooldown)
+            {
+                string ak = attacker?.StringId ?? "";
+                string dk = defender?.StringId ?? "";
+                if (!IsCooledDown(ak, dk))
                 {
-                    // 即使 npcHero 为 null，Execute 方法内部现在也能处理了
-                    actionDef.Execute(npcHero, playerHero, npcAgent);
+                    DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 冷却中（{ak}→{dk}）→ 降级 NONE");
+                    return;
                 }
-                else
-                {
-                    // 本地化：动作执行失败消息
-                    InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_action_fail", ("CODE", actionCode)), Colors.Red));
-                }
+            }
+            if (actionDef.IsValid(attacker, defender, agent))
+            {
+                actionDef.Execute(attacker, defender, agent, level, targetText, sayText);
             }
             else
             {
-                // 处理未知的动作代码
+                DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 条件不满足 → 降级 NONE");
             }
+        }
+
+        /// <summary>记忆写入（C2 记忆类动作用）：defender/attacker 的恩怨记录（后续对话 LLM 上下文接得住）。
+        /// role = "user"（对方言行）；模板 NPC 走 TEMP 记忆兜底（GetMemoryForAgent）。</summary>
+        private static void WriteMemory(Hero hero, string role, string content, string speakerId)
+        {
+            if (hero == null || string.IsNullOrWhiteSpace(content)) return;
+            try
+            {
+                var memory = AllNpcMemoryManager.GetMemory(hero.StringId)
+                    ?? AllNpcMemoryManager.GetMemoryForAgent(null);
+                if (memory != null) memory.AddHistory(role, content, string.IsNullOrEmpty(speakerId) ? hero.StringId : speakerId);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ActionHandler] 记忆写入失败 {hero.Name}: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// IM 闲聊回复动作投递（§5.1/§5.2）：attacker = 回复的 NPC（IM 中说话者），
+        /// defender 解析（§四优先级：名字文本 → 群聊成员/私聊对方/世界 Hero → 兜底玩家）。
+        /// agent = attacker 的物理载体（InScene 动作执行者；不在场 = null → 物理动作 IsValid 拦截）。
+        /// sayText = IM 回复正文（记忆类动作的台词来源：威胁/承诺的具体内容）。
+        /// </summary>
+        public static void HandleImAction(string actionCode, string attackerHeroId, string attackerName,
+            string targetText, string level, ImConversation conv, string sayText = null)
+        {
+            if (string.IsNullOrEmpty(actionCode) || actionCode == "NONE") return;
+
+            // attacker 解析（IM 回复者必须有 Hero——IM 侧天然全 Hero，模板 NPC 不进 IM）
+            Hero attacker = null;
+            try { attacker = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == attackerHeroId); } catch { }
+            if (attacker == null)
+            {
+                DebugLogger.Log($"[ActionHandler] IM 动作 {actionCode} 的 attacker 无 Hero（{attackerHeroId}）→ 降级 NONE");
+                return;
+            }
+
+            // defender 解析：目标名字文本（长度≥2 防单字误伤）→ 群聊成员/私聊对象/世界 Hero → 兜底玩家
+            Hero defender = ResolveImDefender(attacker, targetText, conv);
+            // agent = attacker 的物理载体
+            Agent agent = FindAgentByHeroId(attackerHeroId);
+
+            HandleAction(actionCode, attacker, defender, agent, level, targetText, sayText);
+        }
+
+        /// <summary>IM 动作 defender 解析（§四优先级：名字文本 → 群聊成员候选匹配 → 私聊对象 → 世界 Hero；兜底玩家）。
+        /// 排除说话者自己（attacker 不能对自己用动作）。</summary>
+        private static Hero ResolveImDefender(Hero attacker, string targetText, ImConversation conv)
+        {
+            string t = targetText?.Trim();
+            if (!string.IsNullOrEmpty(t) && t.Length >= 2)
+            {
+                try
+                {
+                    // 1) 玩家自己
+                    if (Hero.MainHero != null && NameMatchesHero(Hero.MainHero, t)) return Hero.MainHero;
+                    // 2) 群聊成员候选匹配（@提及语义：成员名/称号/FirstName 优先命中）
+                    if (conv != null && conv.Type != ImConversationType.Direct)
+                    {
+                        var member = FindChannelMemberMatching(conv, t);
+                        if (member != null) return member;
+                    }
+                    // 3) 私聊对象（私聊里说对方名字 → 对方）
+                    if (conv != null && conv.Type == ImConversationType.Direct)
+                    {
+                        var partner = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == conv.PartnerHeroId);
+                        if (partner != null && NameMatchesHero(partner, t)) return partner;
+                    }
+                    // 4) 世界 Hero（名字/FirstName 匹配，排除说话者自己）
+                    foreach (var h in Hero.AllAliveHeroes)
+                    {
+                        if (h == attacker) continue;
+                        if (NameMatchesHero(h, t)) return h;
+                    }
+                }
+                catch { }
+            }
+            // 兜底：默认玩家（消息接收者）
+            return Hero.MainHero;
+        }
+
+        /// <summary>群聊成员名字匹配（@提及候选：全名/去引号全名/引号内称号/FirstName——ImTopicMatcher 同款候选集）。</summary>
+        private static Hero FindChannelMemberMatching(ImConversation conv, string text)
+        {
+            var members = ImChatManager.GetChannelMembers(conv.Type);
+            foreach (var h in members)
+            {
+                if (h == null) continue;
+                if (NameMatchesHero(h, text)) return h;
+                // 引号内称号（「百草药僧」斯唐纳夫 → 称号匹配）
+                string name = h.Name?.ToString() ?? "";
+                int q1 = name.IndexOf('“'); int q2 = name.IndexOf('”');
+                if (q1 >= 0 && q2 > q1)
+                {
+                    string title = name.Substring(q1 + 1, q2 - q1 - 1);
+                    if (title.Equals(text, StringComparison.OrdinalIgnoreCase) || title.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0)
+                        return h;
+                }
+                if (h.Name != null && h.Name.ToString() == text) return h;
+            }
+            return null;
+        }
+
+        private static bool NameMatchesHero(Hero hero, string text)
+        {
+            if (hero == null || string.IsNullOrEmpty(text)) return false;
+            try
+            {
+                string name = hero.Name?.ToString() ?? "";
+                if (name.Equals(text, StringComparison.OrdinalIgnoreCase)) return true;
+                if (name.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                string first = hero.FirstName?.ToString() ?? "";
+                return !string.IsNullOrEmpty(first) && first.Equals(text, StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
+        }
+
+        private static Agent FindAgentByHeroId(string heroId)
+        {
+            if (string.IsNullOrEmpty(heroId) || Mission.Current == null) return null;
+            foreach (var a in Mission.Current.Agents)
+            {
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero != null && hero.StringId == heroId) return a;
+            }
+            return null;
         }
     }
 
@@ -1935,7 +2522,7 @@ namespace LivingWorldNpcs
                 AgentControlHelper.SetPose(_targetAgent, _matcher.GetAnimByEmotion(emotion));
             }
 
-            // 触发执行Action
+            // 触发执行Action（2026-08-10 升级：defender 双向化——attacker=说话 NPC，defender=玩家；空间由内部裁决）
             if (!string.IsNullOrEmpty(action) && _targetHero != null)
             {
                 ActionHandler.HandleAction(action, _targetHero, Hero.MainHero, _targetAgent);

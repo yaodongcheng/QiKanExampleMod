@@ -11,6 +11,8 @@ namespace LivingWorldNpcs
         Clan,       // 家族频道（玩家 + 同家族 Hero）
         Kingdom,    // 王国频道（仅玩家是族长时可见：各家族组长）
         Direct,     // 私聊（单个 Hero）
+        Nearby,     // 🔴 2026-08-10（§5.7）：附近频道——Mission 级非持久会话（固定 ID "nearby"），
+                    // 场景内所有冒泡台词实时流入；玩家可在频道喊话（响应不确定）。Campaign 隐藏。
     }
 
     /// <summary>IM 消息类型。</summary>
@@ -19,6 +21,8 @@ namespace LivingWorldNpcs
         Text,       // 普通文本（闲聊/密令文本都算）
         System,     // 系统消息（居中灰字：执行开始/完成/中止）
         PlanCard,   // 密令计划卡片（摘要 + 同意/拒绝/中止按钮）
+        Generating, // 🔴 2026-08-10（§3.3）：计划生成中占位行（阶段文案 + 模拟进度条；卡片上屏/失败时被替换）
+        Proposal,   // 🔴 2026-08-10（§四 Q4）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线）
     }
 
     /// <summary>
@@ -60,7 +64,24 @@ namespace LivingWorldNpcs
         public string PlanIntent;        // 意图类型（PlanIntent.intent_type）
 
         [JsonProperty("pe")]
-        public string ExecutorId;        // 执行随从 Hero StringId：空=待批准；"rejected"/"done"=已了结；其他=执行中
+        public string ExecutorId;        // 执行随从 Hero StringId：空=待批准；"rejected"/"done"/"superseded"=已了结；其他=执行中
+
+        // 🔴 2026-08-10（im-command-action-upgrade.md Q2/Q3）：
+        [JsonProperty("pm")]
+        public int PlanModifyCount;      // 修改版计数（0=初版；>0 = 「修改版 vN」徽标；上限 2，与 Replan 额度同语义）
+
+        [JsonProperty("pn")]
+        public string Narration;         // LLM 口语化计划陈述（§3.1，卡片上方的 NPC 消息，走消息流管道）
+
+        [JsonProperty("pd")]
+        public string PlanDetailText;    // 卡片详情（§3.2）：C# 确定性渲染的步骤/应急/安全网文本（不信任 LLM 文案）
+
+        // 🔴 2026-08-10（§3.3）：生成中占位行（Generating 消息专用）
+        [JsonProperty("gp")]
+        public float Progress;           // 0~100 模拟进度（面板重开按已耗时重映射，纯展示值）
+
+        [JsonProperty("gt")]
+        public string GenerateText;      // 阶段文案（「正在推演步骤…」等）
 
         [JsonIgnore]
         public bool IsSelf => SenderHeroId == ImChatManager.PlayerId;
@@ -70,6 +91,21 @@ namespace LivingWorldNpcs
 
         [JsonIgnore]
         public bool IsSystem => Kind == ImMessageKind.System;
+
+        [JsonIgnore]
+        public bool IsGenerating => Kind == ImMessageKind.Generating;
+
+        /// <summary>🔴 2026-08-10：卡片是否「修改版」（PlanModifyCount > 0）。</summary>
+        [JsonIgnore]
+        public bool IsModifiedPlan => IsPlanCard && PlanModifyCount > 0;
+
+        /// <summary>🔴 2026-08-10（Q4）：是否 NPC 主动提议（批准 → 走计划管线）。</summary>
+        [JsonIgnore]
+        public bool IsProposal => Kind == ImMessageKind.Proposal;
+
+        /// <summary>🔴 Q4：提议是否已了结（ExecutorId 非空 = 已批准进入计划管线 / 已拒绝）。</summary>
+        [JsonIgnore]
+        public bool IsProposalResolved => IsProposal && !string.IsNullOrEmpty(ExecutorId);
 
         public ImMessage() { } // JSON 反序列化用
 

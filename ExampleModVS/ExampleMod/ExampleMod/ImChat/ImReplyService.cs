@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -54,6 +56,10 @@ namespace LivingWorldNpcs
         {
             public PendingReply P;
             public string Reply;
+            // 🔴 2026-08-10（§5.1）：闲聊动作（LLM JSON 输出，生成线程解析、主线程投递后执行）
+            public string ActionCode;
+            public string ActionTarget;
+            public string ActionLevel;
             // v4.1：入队时的频道消息数（群聊）——投递时若频道已更新则丢弃（玩家发新消息作废旧链条）
             public int EnqueueMsgCount = -1;
         }
@@ -208,6 +214,21 @@ namespace LivingWorldNpcs
                         if (it.P?.Conv != null && !string.IsNullOrWhiteSpace(it.Reply))
                         {
                             ImChatManager.DeliverNpcMessage(it.P.Conv, it.P.HeroId, it.P.HeroName, it.Reply);
+                            // 🔴 2026-08-10 闲聊动作（§5.1）：投递后执行动作（主线程）。
+                            // attacker = 说话者；defender 解析（名字文本 → 实体识别 → 兜底玩家）+ 空间裁决
+                            // （ResolveSpace）+ 空间裁剪 + 频率冷却 全在 ActionHandler 内部（§5.2/§六）
+                            if (!string.IsNullOrEmpty(it.ActionCode) && it.ActionCode != "NONE")
+                            {
+                                try
+                                {
+                                    ActionHandler.HandleImAction(it.ActionCode, it.P.HeroId, it.P.HeroName,
+                                        it.ActionTarget, it.ActionLevel, it.P.Conv, it.Reply);
+                                }
+                                catch (Exception ex)
+                                {
+                                    DebugLogger.Log($"[ImReply] 闲聊动作执行失败 {it.ActionCode}: {ex.Message}");
+                                }
+                            }
                             // 沉寂补偿数据源：记录本次回复时间（群聊选人用）
                             ImHeatTracker.RecordReply(it.P.HeroId);
                             // 🔴 群聊活力·拌嘴 v2 延迟调度：主回复者投递后，跟随者才生成——
@@ -261,8 +282,11 @@ namespace LivingWorldNpcs
             try
             {
                 string reply = null;
+                string actCode = null;
+                string actTarget = null;
+                string actLevel = null;
 
-                // 铁律 1：LLM 未配置直接降级模板
+                // 铁律 1：LLM 未配置直接降级模板（动作强制 NONE——确定性优先，模板不做动作）
                 if (Settings.Instance.IsLLMConfigured)
                 {
                     var memory = AllNpcMemoryManager.GetMemory(p.HeroId);
@@ -279,8 +303,10 @@ namespace LivingWorldNpcs
                         string channelRecent = BuildChannelRecentSection(p.Conv);
                         // 🔴 群聊活力·拌嘴：跟随回复者带同僚互动段（两人关系档位 → 捧/呛/打岔）
                         string peerInteraction = BuildPeerInteraction(p);
+                        // 🔴 2026-08-10 闲聊动作（§5.1/§5.2）：按空间裁剪的动作空间注入（LLM 只看到当前空间合法动作）
+                        string actionSpace = BuildActionSpace(p);
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
-                            memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction);
+                            memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction, actionSpace);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）
@@ -288,16 +314,36 @@ namespace LivingWorldNpcs
                         DebugLogger.Log($"[ImReply] 请求发出({p.HeroName}): {promptLog}");
                         // ChatOnceAsync：单次请求、12s 预算（IM 异步可放宽到 2s 之外），失败静默 null、429 内建冷却
                         // 🔴 2026-08-10 8s→12s：日志实锤 8s 超时取消（A task was canceled）→ 模板降级 → 重复台词
-                        reply = await LLMService.Instance.ChatOnceAsync(prompt, 150, 0.8f, disableReasoning: true, timeoutMs: 12000);
+                        // 🔴 2026-08-10（§5.1）：needJson=true 结构化输出（npc_reply/npc_action/action_target/action_level），
+                        // max_tokens 150→220（JSON 格式开销）
+                        string raw = await LLMService.Instance.ChatOnceAsync(prompt, 220, 0.8f, disableReasoning: true, timeoutMs: 12000, needJson: true);
                         // 🔴 回包落日志（LLM 失败/超时回 null，走下方降级）
-                        DebugLogger.Log($"[ImReply] {p.HeroName} 回包: {reply ?? "<null>"}");
+                        DebugLogger.Log($"[ImReply] {p.HeroName} 回包: {raw ?? "<null>"}");
+                        if (!string.IsNullOrWhiteSpace(raw))
+                        {
+                            // JSON 解析（复用 LLMResponse_Casual，null-guard；铁律 2）：
+                            // 解析失败/无台词 → 原文当纯文本、动作强制 NONE（降级链，不崩）
+                            var resp = TryParseCasual(raw);
+                            if (resp != null && !string.IsNullOrWhiteSpace(resp.NpcReply))
+                            {
+                                reply = resp.NpcReply;
+                                actCode = resp.NpcAction;
+                                actTarget = resp.ActionTarget;
+                                actLevel = resp.ActionLevel;
+                            }
+                            else
+                            {
+                                reply = raw;
+                            }
+                        }
                     }
                 }
 
                 if (string.IsNullOrWhiteSpace(reply))
                 {
                     reply = GetFallbackLine(p);
-                    // 🔴 降级路径落日志（区分 LLM 失败与模板回复）
+                    // 🔴 降级路径落日志（区分 LLM 失败与模板回复）；模板降级动作强制 NONE
+                    actCode = null;
                     DebugLogger.Log($"[ImReply] {p.HeroName} 模板降级: {reply}");
                 }
 
@@ -311,7 +357,15 @@ namespace LivingWorldNpcs
                 lock (_lock)
                 {
                     if (!string.IsNullOrWhiteSpace(reply) && p.Conv != null)
-                        _deliverQueue.Add(new DeliverItem { P = p, Reply = reply, EnqueueMsgCount = msgCount });
+                        _deliverQueue.Add(new DeliverItem
+                        {
+                            P = p,
+                            Reply = reply,
+                            ActionCode = actCode,
+                            ActionTarget = actTarget,
+                            ActionLevel = actLevel,
+                            EnqueueMsgCount = msgCount,
+                        });
                 }
             }
             catch (Exception ex)
@@ -322,6 +376,51 @@ namespace LivingWorldNpcs
             {
                 ClearTyping(p.Conv?.Id, p.HeroName);
             }
+        }
+
+        /// <summary>LLM JSON 回复解析（§5.1）：CleanJson + 反序列化 LLMResponse_Casual；失败 → null（调用方当纯文本）。</summary>
+        private static LLMResponse_Casual TryParseCasual(string raw)
+        {
+            try
+            {
+                string cleaned = LLMService.CleanJson(raw);
+                return JsonConvert.DeserializeObject<LLMResponse_Casual>(cleaned);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImReply] 回复 JSON 解析失败（当纯文本处理，动作 NONE）: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>动作空间注入（§5.2）：attacker = 回复 NPC，defender = 玩家（默认接收者），agent = attacker 物理载体。
+        /// 空间裁决（ResolveSpace）在 ActionHandler.GetActionSpacePrompt 内部。</summary>
+        private static string BuildActionSpace(PendingReply p)
+        {
+            try
+            {
+                Hero attacker = null;
+                try { attacker = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == p.HeroId); } catch { }
+                if (attacker == null) return null;
+                Agent agent = FindAgentByHeroId(p.HeroId);
+                return ActionHandler.GetActionSpacePrompt(attacker, Hero.MainHero, agent);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImReply] BuildActionSpace 失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        private static Agent FindAgentByHeroId(string heroId)
+        {
+            if (string.IsNullOrEmpty(heroId) || Mission.Current == null) return null;
+            foreach (var a in Mission.Current.Agents)
+            {
+                var hero = (a.Character as CharacterObject)?.HeroObject;
+                if (hero != null && hero.StringId == heroId) return a;
+            }
+            return null;
         }
 
         /// <summary>会话成员是否队伍成员（动态知识注入的可见性裁剪：队伍/位置事实只给同行者）。</summary>

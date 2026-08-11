@@ -461,8 +461,10 @@ namespace LivingWorldNpcs
         /// <summary>轻量单次请求（ReactiveAgent 实时回应专用）：无重试、短超时、失败静默返回 null。
         /// 区别于 ChatAsync（3 次重试 + 失败弹连接提示）——实时对话必须在 2s 预算内返回，
         /// 超时/失败由调用方降级（职业模板台词），不打扰玩家（BC-006）。
-        /// 429 限流 → 触发全局冷却（RespondRateLimitCooldownS 内所有回应请求直接降级，防连发撞限流）。</summary>
-        public async Task<string> ChatOnceAsync(string systemPrompt, int maxTokens = 80, float temperature = 0.7f, bool disableReasoning = true, int timeoutMs = 2000)
+        /// 429 限流 → 触发全局冷却（RespondRateLimitCooldownS 内所有回应请求直接降级，防连发撞限流）。
+        /// 🔴 2026-08-10（im-command-action-upgrade.md §5.1）：needJson 可选——IM 闲聊回复管线
+        /// 需要结构化动作输出（npc_action/action_target/action_level）时传 true；既有调用默认 false 不变。</summary>
+        public async Task<string> ChatOnceAsync(string systemPrompt, int maxTokens = 80, float temperature = 0.7f, bool disableReasoning = true, int timeoutMs = 2000, bool needJson = false)
         {
             if (!Settings.Instance.IsLLMConfigured) return null;
             if (IsRespondRateLimited()) return null;
@@ -478,6 +480,7 @@ namespace LivingWorldNpcs
                 ["max_tokens"] = maxTokens,
             };
             if (disableReasoning) requestBody["reasoning_effort"] = "none";
+            if (needJson) requestBody["response_format"] = new { type = "json_object" };
             try
             {
                 var json = JsonConvert.SerializeObject(requestBody);

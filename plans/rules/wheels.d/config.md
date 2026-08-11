@@ -204,7 +204,7 @@ Settings.Instance.AlertDialogueMode  // AlertDialogueMode — StoryVM（默认�
 |------|---------|------|
 | v1.2.12 | `Modules/1.2.12DLL/` | 旧 API 签名 |
 | v1.3.15 | `Modules/1.3.15DLL/`（或当前游戏目录） | 中间形态签名 |
-| v1.4.6 | `Modules/1.4.6DLL/` | Latest 签名（=1.4.7） |
+| v1.4.6 | `Modules/1.4.6DLL/` | Latest 签名（=1.4.8，本机实测） |
 
 **🔴 铁律：遇到"1.3.x 与 1.2.12 相同、1.4.x 不同"的 API，必须写 `MB2_GE_140` 三分支**，不能沿用 `!MB2_V1212` 二分——
 override 签名不匹配基类会直接编译失败（踩过：`CommissionHubIssue.CanPlayerTakeQuestConditions`）。

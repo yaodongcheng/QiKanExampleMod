@@ -24,30 +24,19 @@ namespace LivingWorldNpcs
     }
 
     /// <summary>say_to：单句模式（text，现状）/ 对话模式（outline + topic，多轮 LLM 实时对话）。
-    /// 对话模式（BC-006 v3）：计划期只定话题与走向，执行期双方每句 LLM 生成——
-    /// 开场（预写 text 或 LLM 生成）→ 广播 spoken_to（带 topic/走向段）→ 轮询目标记忆等回应
-    /// → 走向下一段生成随从台词 → 广播 → …… outline 走完 → 步骤完成。</summary>
+    /// 🔴 2026-08-11（§5.6 四槽位体系）：对话模式状态机平移为 SayToSlot（DialogueComponent）——
+    /// 本类变薄壳：单句模式保留原逻辑，对话模式委托 SayToSlot.Tick（BC-006 行为等价）。</summary>
     public class SayInlineState : IInlineStep
     {
         private readonly Agent _agent;
         private readonly Agent _target;
         private readonly PlanStep _step;
         private readonly PlanExecutor _executor;
-        private readonly SingNpcMemorySystem _memory;   // 目标的三层记忆（对话双方共享；轮询尾部判断"对方回应了"）
-        private readonly List<string> _outline;         // 对话模式走向段；null = 单句模式
+        private readonly SayToSlot _chatSlot;   // 🔴 对话模式插槽（2026-08-11：ChatPhase 状态机平移）
         private float _timer;
         private float _duration;
         private bool _said;
         private bool _broadcastDone;
-        private int _outlineIndex;          // 对话模式：当前走向段下标
-        private int _lastSeenHistoryCount;  // 对话模式：上次看到的记忆条数（增量轮询）
-        private string _pendingLine;        // 对话模式：待播放的随从台词（LLM 异步生成结果）
-        private float _broadcastTimer;      // 对话模式：广播延迟计时（台词播完冒泡后再广播，间隔 ≥3s 防网关限速）
-        private float _replyDelayTimer;     // 对话模式：对方回应后延迟计时（等对方冒泡播完再续话）
-        private const float BroadcastDelayS = 2.5f;   // 台词播放后到广播的延迟（对方"听完"再响应）
-        private const float ReplyDelayS = 2.5f;       // 对方回应后到续话的延迟（等对方冒泡播完）
-        private enum ChatPhase { None, Opening, PendingBroadcast, WaitReply, ReplyDelay, GenerateNext, Done }
-        private ChatPhase _phase = ChatPhase.None;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
 
@@ -65,14 +54,11 @@ namespace LivingWorldNpcs
                 return;
             }
             Ok = true;
-            // 对话模式：outline 2+ 段 → 多轮对话；需要目标记忆驱动（轮询对方回应）
-            _outline = step.IsChatMode ? step.OutlineSegments : null;
-            if (_outline != null)
+            // 🔴 对话模式（outline 2+ 段）→ SayToSlot 插槽（状态机平移，行为等价）；单句模式保留原逻辑
+            if (step.IsChatMode)
             {
-                _memory = AllNpcMemoryManager.GetMemoryForAgent(_target);
-                if (_memory == null) { Ok = false; return; }   // 无记忆系统无法驱动对话流
-                _phase = ChatPhase.Opening;
-                _lastSeenHistoryCount = _memory.RecentHistory.Count;
+                _chatSlot = new SayToSlot(executor, cursor, step);
+                if (_chatSlot.Finished) { Finished = true; return; }
                 return;
             }
             // 单句模式（现状不变）：冒泡时长按文本长度估算（"N 秒内必须播完"兜底由步骤 timeout 负责）
@@ -83,10 +69,14 @@ namespace LivingWorldNpcs
         public void OnTick(float dt)
         {
             if (Finished || !Ok) return;
-            // ── 对话模式（多轮 LLM 实时对话）──
-            if (_phase != ChatPhase.None)
+            // 🔴 对话模式 → SayToSlot 插槽驱动（2026-08-11 架构收敛：统一 DialogueSession，每帧调 Slot.OnTick）
+            if (_chatSlot != null)
             {
-                TickChatMode(dt);
+                var session = _chatSlot.Session;
+                if (session != null && session.Slot != null)
+                    session.Slot.OnTick(session, dt);
+                if (_chatSlot.Finished)
+                    Finished = true;   // 行为等价：对话模式完成仅置 Finished，执行器 CompleteStep 推进
                 return;
             }
             // ── 单句模式（现状）──
@@ -116,123 +106,19 @@ namespace LivingWorldNpcs
             }
         }
 
-        // ═══════════════════════════════════════════════════════════
-        // 对话模式状态机：Opening → WaitReply → GenerateNext → Done
-        // ═══════════════════════════════════════════════════════════
-
-        private void TickChatMode(float dt)
-        {
-            switch (_phase)
-            {
-                case ChatPhase.Opening:
-                    // 开场白：预写 text 直接播；否则 LLM 生成（异步，结果进 _pendingLine）
-                    if (!_said)
-                    {
-                        _said = true;
-                        if (!string.IsNullOrEmpty(_step.TextOrContent))
-                        {
-                            PlayLine(_step.TextOrContent);
-                            _phase = ChatPhase.PendingBroadcast;
-                            return;
-                        }
-                        // 开场 = outline[0]（寒暄段），不用占位符（修复 "（开场）" 硬编码 + outline[0] 浪费）
-                        GenerateNextLine(0, _outline[0]);
-                        return;
-                    }
-                    if (_pendingLine != null)
-                    {
-                        string line = _pendingLine;
-                        _pendingLine = null;
-                        PlayLine(line);
-                        _phase = ChatPhase.PendingBroadcast;
-                    }
-                    break;
-
-                case ChatPhase.PendingBroadcast:
-                    // 台词冒泡播完后再广播（请求间隔 ≥3s，防网关隐性限速——日志实测密集请求全超时）
-                    _broadcastTimer += dt;
-                    if (_broadcastTimer >= BroadcastDelayS)
-                    {
-                        _broadcastTimer = 0f;
-                        BroadcastSpokenTo(LastPlayedLine, _outlineIndex < _outline.Count ? _outline[_outlineIndex] : null);
-                        _phase = ChatPhase.WaitReply;
-                        _lastSeenHistoryCount = _memory.RecentHistory.Count;
-                    }
-                    break;
-
-                case ChatPhase.WaitReply:
-                    // 轮询目标记忆：respond（成功/降级都写入 history）→ 对方回应了 → 延迟后再续话
-                    if (_memory.RecentHistory.Count > _lastSeenHistoryCount)
-                        _phase = ChatPhase.ReplyDelay;
-                    break;
-
-                case ChatPhase.ReplyDelay:
-                    // 等对方冒泡播完再续话（同样防密集请求；真人对话节奏）
-                    _replyDelayTimer += dt;
-                    if (_replyDelayTimer >= ReplyDelayS)
-                    {
-                        _replyDelayTimer = 0f;
-                        _outlineIndex++;
-                        if (_outlineIndex >= _outline.Count)
-                        {
-                            _phase = ChatPhase.Done;
-                            Finished = true;
-                            break;
-                        }
-                        _phase = ChatPhase.GenerateNext;
-                        GenerateNextLine(_outlineIndex, _outline[_outlineIndex]);
-                    }
-                    break;
-
-                case ChatPhase.GenerateNext:
-                    if (_pendingLine != null)
-                    {
-                        string line = _pendingLine;
-                        _pendingLine = null;
-                        PlayLine(line);
-                        _phase = ChatPhase.PendingBroadcast;
-                    }
-                    break;
-            }
-        }
-
-        private string LastPlayedLine = "";
-
-        /// <summary>播放随从台词（face + 冒泡）；广播延迟到 PendingBroadcast 阶段（间隔控制）。</summary>
-        private void PlayLine(string line)
-        {
-            try
-            {
-                if (_target != null && _target.IsActive())
-                    AgentControlHelper.FaceToActor(_agent, _target);
-                if (!string.IsNullOrEmpty(line))
-                    AgentHudMissionView.AgentSay(_agent, line);
-                LastPlayedLine = line;
-                DebugLogger.Log($"[PlanExecutor] 对话模式 {_agent.Name} → {_target.Name}（第 {_outlineIndex + 1}/{_outline?.Count ?? 0} 段）: {line}");
-            }
-            catch { }
-        }
-
-        /// <summary>广播 spoken_to（Args[1]=随从台词、Args[2]=主题、Args[3]=当前走向段）；ask:follow 照旧。</summary>
+        /// <summary>广播 spoken_to（Args[1]=随从台词、Args[2]=主题、Args[3]=当前走向段）；ask:follow 照旧。
+        /// 🔴 §5.6（2026-08-10）：说话广播收敛到 DialogueComponent.HandleDialogue（含旁观者 seen_speaking 插话广播）。</summary>
         private void BroadcastSpokenTo(string line, string outlineStep)
         {
             // ask: follow → 广播 asked_to_follow(target)（ReactiveAgent"跟不跟"演算的触发词）
             if (!string.IsNullOrEmpty(_step.Ask) && _step.Ask == "follow" && _target != null)
                 AgentAIController.Instance?.SendEventToAgent(_target, "asked_to_follow", _agent);
-            // 通用 spoken_to 广播；Args[1]=随从台词、Args[2]=主题（对话模式用 topic，否则计划摘要）、Args[3]=当前走向段
+            // 通用 spoken_to 广播 + 旁观者 seen_speaking（统一入口；Args[2]=主题（对话模式用 topic，否则计划摘要））
             if (_target != null)
             {
                 string topic = !string.IsNullOrEmpty(_step.Topic) ? _step.Topic : _executor?.Summary;
-                AgentAIController.Instance?.SendEventToAgent(_target, "spoken_to", _agent, line, topic, outlineStep);
+                DialogueComponent.HandleDialogue(_agent, _target, topic, line, outlineStep);
             }
-        }
-
-        /// <summary>对话模式：异步生成随从下一句（话题 + 走向段 + 双方历史；LLM 失败 → 走向模板兜底）。</summary>
-        private void GenerateNextLine(int index, string outlineStep)
-        {
-            _pendingLine = null;
-            ReactiveAgent.GenerateCompanionLine(_agent, _target, _memory, _step.Topic ?? _executor?.Summary,
-                outlineStep, index, _outline.Count, result => _pendingLine = result);
         }
     }
 

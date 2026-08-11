@@ -142,10 +142,13 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 消息读取（UI 用） ─────────────────────────
 
-        /// <summary>会话消息列表：群聊 → store；私聊 → 对方记忆 im_ 行 + store（命令模式消息）按时间戳合并。</summary>
+        /// <summary>会话消息列表：群聊 → store；私聊 → 对方记忆 im_ 行 + store（命令模式消息）按时间戳合并；
+        /// 🔴 2026-08-10（§5.7）附近频道 → NearbyFeed（Mission 级瞬态，不占存档）。</summary>
         public static List<ImMessage> GetMessages(ImConversation conv)
         {
             if (conv == null) return new List<ImMessage>();
+            if (conv.Type == ImConversationType.Nearby)
+                return NearbyFeed.GetMessages();
             if (conv.Type == ImConversationType.Direct)
                 return GetDirectMessages(conv.PartnerHeroId);
             return ImChatStore.GetGroupMessages(conv.Id);

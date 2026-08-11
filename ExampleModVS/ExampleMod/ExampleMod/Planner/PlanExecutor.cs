@@ -118,6 +118,9 @@ namespace LivingWorldNpcs
 
         public event Action<PlanExecutor> OnFinished;       // 收尾通知（brain 恢复 Following）
         public event Action<PlanExecutor, string> OnAborted; // 中止通知（Replan 低频重入监听，§7.2）
+        // 🔴 2026-08-10（im-command-action-upgrade.md §2.1）：步骤执行完成事件——全部步骤完成路径的
+        // 唯一汇合点（CompleteStep）。IM 侧挂接写执行者记忆（plan_step 单向链条），零侵入既有执行器逻辑。
+        public event Action<PlanExecutor, Agent, PlanStep> OnStepCompleted;   // (executor, 完成该步的执行者 agent, step)
 
         /// <summary>原命令文本（Replan 上下文；PlanCommandFlow 批准时传入）。</summary>
         public string OriginalCommand;
@@ -585,6 +588,9 @@ namespace LivingWorldNpcs
             _stepStartTime = Elapsed;
             _world.MarkStepComplete(step.Id, Elapsed);
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {step.Id} 完成（{step.Action}）");
+            // 🔴 2026-08-10（§2.1）：步骤完成事件（实际发生的事实，按执行顺序逐条追加 = 单向链条；
+            // IM 侧挂接写执行者记忆 plan_step 行，与密令聊天流不写记忆的偏差②两不相扰）
+            try { OnStepCompleted?.Invoke(this, cursor.Agent, step); } catch (Exception ex) { DebugLogger.Log($"[PlanExecutor] OnStepCompleted 异常: {ex.Message}"); }
             // 事件队列不整体清空：步骤切换后，本步期间到达的决策事件（say_to 广播 → 守卫演算）留给下一步 on_event 消费
             // （消费逻辑按 _stepStartTime 过滤过期事件）
 

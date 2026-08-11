@@ -4025,7 +4025,8 @@
     <string id="LWN_plan_loot" text="赃物" />
     <string id="LWN_plan_gold" text="金币" />
     <!-- ── IM 传讯系统（LWN_im_*）── -->
-    <string id="LWN_im_channel_party" text="队伍" />
+        <string id="LWN_im_channel_nearby" text="附近" />
+<string id="LWN_im_channel_party" text="队伍" />
     <string id="LWN_im_channel_clan" text="家族" />
     <string id="LWN_im_channel_kingdom" text="王国" />
     <string id="LWN_im_typing" text="{NAMES}正在输入…" />
@@ -4051,6 +4052,57 @@
     <string id="LWN_im_cmd_started" text="{NAME}开始执行命令。" />
     <string id="LWN_im_cmd_aborted" text="命令已中止。" />
     <string id="LWN_im_cmd_done" text="命令已经办妥。" />
+        <string id="LWN_im_btn_propose_approve" text="准了" />
+    <string id="LWN_im_btn_propose_reject" text="不必了" />
+<string id="LWN_im_btn_modify" text="修改" />
+    <string id="LWN_im_btn_submit_modify" text="提交修改" />
+    <string id="LWN_im_input_placeholder_modify" text="修改计划：…" />
+    <string id="LWN_im_badge_modified" text="修改版 v{N}" />
+    <string id="LWN_im_btn_detail_expand" text="详情" />
+    <string id="LWN_im_btn_detail_collapse" text="收起详情" />
+    <string id="LWN_im_cmd_modify_pending" text="随从正在按你的意见重拟计划…" />
+    <string id="LWN_im_cmd_modify_exhausted" text="计划修改次数已达上限，请批准或重新下达。" />
+    <string id="LWN_im_cmd_modify_need_mission" text="修改计划需要随从在场，请先进到场景里。" />
+    <string id="LWN_im_cmd_unavailable_here" text="此刻无法传讯。" />
+    <string id="LWN_im_cmd_no_direct" text="这位随从无法通过传讯联系。" />
+    <string id="LWN_im_npc_companion" text="随从" />
+    <string id="LWN_im_gen_observe" text="正在观察地形…" />
+    <string id="LWN_im_gen_plan" text="正在推演步骤…" />
+    <string id="LWN_im_gen_check" text="正在核对细节…" />
+    <string id="LWN_plan_detail_steps" text="步骤：" />
+    <string id="LWN_plan_detail_timeout" text="    超时 → {TARGET}" />
+    <string id="LWN_plan_detail_contingencies" text="应急安排：" />
+    <string id="LWN_plan_detail_contingency_line" text="    若 {COND} 则 {THEN}" />
+    <string id="LWN_plan_detail_guardrail" text="    安全网：意外威胁会暂停计划；停止键随时召回随从。" />
+    <string id="LWN_plan_step_memory" text="按主公吩咐，{ACTION} {TARGET}，已完成。" />
+    <string id="LWN_plan_action_move_to" text="前往" />
+    <string id="LWN_plan_action_follow" text="跟随" />
+    <string id="LWN_plan_action_stop_following" text="停止跟随" />
+    <string id="LWN_plan_action_order_attack" text="攻击" />
+    <string id="LWN_plan_action_knockout" text="击晕" />
+    <string id="LWN_plan_action_lead" text="带路" />
+    <string id="LWN_plan_action_face" text="面向" />
+    <string id="LWN_plan_action_look_at" text="注视" />
+    <string id="LWN_plan_action_say_to" text="搭话" />
+    <string id="LWN_plan_action_wait" text="等待" />
+    <string id="LWN_plan_action_emote" text="做出动作" />
+    <string id="LWN_plan_action_make_noise" text="呼喊" />
+    <string id="LWN_plan_action_signal_player" text="发出信号" />
+    <string id="LWN_plan_action_steal_attempt" text="偷窃" />
+    <string id="LWN_plan_action_give_item" text="交上" />
+    <string id="LWN_plan_action_give_gold" text="送上" />
+    <string id="LWN_plan_action_deliver_item" text="送达" />
+    <string id="LWN_plan_action_shadow" text="跟踪" />
+    <string id="LWN_plan_action_negotiate" text="交涉" />
+    <string id="LWN_plan_action_duel" text="切磋" />
+    <string id="LWN_plan_action_end_plan" text="收尾" />
+    <string id="LWN_plan_action_rumor" text="{NAME}在背后说我的坏话" />
+    <string id="LWN_plan_action_rumor_self" text="我在背后说了 {NAME} 的坏话" />
+    <string id="LWN_plan_action_threatened" text="{NAME} 威胁过我：{TEXT}" />
+    <string id="LWN_plan_action_threaten_default" text="你最好小心点。" />
+    <string id="LWN_plan_action_promised" text="{NAME} 答应过我：{TEXT}" />
+
+
     <!-- ── IM 闲聊回复降级模板（LLM 不可用时按主题回）── -->
     <string id="LWN_speech_im_reply_combat" text="刀兵之事非同儿戏，把话说清楚。" />
     <string id="LWN_speech_im_reply_trade" text="等路上生意太平了，再谈买卖不迟。" />

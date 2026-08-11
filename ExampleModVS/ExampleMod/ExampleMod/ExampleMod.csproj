@@ -322,6 +322,9 @@
     <Compile Include="Interaction\NpcInfoVM.cs" />
     <Compile Include="Interaction\StoryDialogVM.cs" />
     <Compile Include="Interaction\PlanCommandFlow.cs" />
+    <Compile Include="Interaction\ChatActionFlow.cs" />
+    <Compile Include="ImChat\NearbyFeed.cs" />
+    <Compile Include="Planner\DialogueComponent.cs" />
     <Compile Include="Interaction\Dialogue\CrimeDialogueBuilder.cs" />
     <Compile Include="Interaction\Dialogue\PlaceholderResolver.cs" />
     <Compile Include="Interaction\Dialogue\NpcSpeechResolver.cs" />

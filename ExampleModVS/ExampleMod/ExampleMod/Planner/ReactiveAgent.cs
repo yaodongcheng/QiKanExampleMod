@@ -72,10 +72,15 @@ namespace LivingWorldNpcs
 
         private static readonly Dictionary<int, ReactiveAgent> _registry = new Dictionary<int, ReactiveAgent>();
 
-        // ── 实时回应（BC-006 v2）：目标 respond 的 LLM 请求结果队列（后台线程入队，主线程 TickAll 消费播放）──
-        private static readonly ConcurrentQueue<(Agent Agent, Agent Requester, string Text)> _pendingReplies = new ConcurrentQueue<(Agent, Agent, string)>();
+        // ── 实时回应（BC-006 v2 → §5.6 统一管线）：respond 的台词 + 动作结果队列
+        // （后台线程入队，主线程 TickAll 消费播放 + 执行动作）──
+        private static readonly ConcurrentQueue<(Agent Agent, Agent Requester, string Text, string ActionCode, string ActionTarget, string ActionLevel)> _pendingReplies =
+            new ConcurrentQueue<(Agent, Agent, string, string, string, string)>();
         private const int MaxDialogueRounds = 6;   // 会话回合上限（"聊天不会太长"：超限用模板短回应）
         private const int RespondTimeoutMs = 2000; // LLM 回应预算：2s 内必须返回，否则降级模板
+
+        // ── 行动提议（Q4，2026-08-10）：propose_plan 的 LLM 提议结果队列（后台线程入队，主线程 TickAll 投递 IM）──
+        private static readonly ConcurrentQueue<(Agent Agent, string Text)> _pendingProposals = new ConcurrentQueue<(Agent, string)>();
 
         // ── 默认人格模板（职业兜底，§6.4）──
         private static readonly Dictionary<string, ReactivePersonality> DefaultPersonalities =
@@ -278,6 +283,9 @@ namespace LivingWorldNpcs
             "listen", "consider", "respond", "refuse", "follow_for_a_bit", "investigate",
             "return_post", "stare", "alert_raise", "attack", "call_guards",
             "ignore", "relay_message", "pay", "hand_over_item", "flee",
+            // 🔴 2026-08-10（im-command-action-upgrade.md §四 Q4）：propose_plan = 被搭话后想做自己的事
+            // （NPC 主动提议 → 私聊消息 → 玩家批准后走 PlanCard 管线——Q2 三态闭环的 NPC 侧入口）
+            "propose_plan",
         };
 
         /// <summary>反应动作封闭词表（校验用，由 ReactionActionsInPromptOrder 派生，勿单独修改）。</summary>
@@ -357,6 +365,9 @@ namespace LivingWorldNpcs
                 case "ignore": return 1f - p.Social * 0.3f;
                 case "warn_away": return 1f + p.Duty * 0.3f;
                 case "consider": return 1f;
+                // 🔴 2026-08-10（Q4）：propose_plan = 尽职者被搭话后想做自己的事（duty 高 → 权重高，
+                // 与 respond/ignore 竞争最高分；概率适中，不喧宾夺主）
+                case "propose_plan": return 0.6f + p.Duty * 0.4f;
                 default: return 1f;
             }
         }
@@ -380,6 +391,10 @@ namespace LivingWorldNpcs
                     // **演算意图（score：公式算出的意愿度，决定台词态度）**；
                     // 2s 预算内返回 → 队列播放；超时/失败 → 职业模板台词降级。随从台词/主题在 args[1]/args[2]。
                     StartRespond(brain, ra, requester, args, score, triggerEvent);
+                    break;
+                case "propose_plan":
+                    // 🔴 2026-08-10（Q4）：被搭话后想做自己的事 → 提议行动（LLM 生成提议 → 私聊消息 → 玩家批准后走 PlanCard）
+                    StartProposal(brain, ra, requester);
                     break;
                 case "refuse":
                     // 本地化：拒绝台词（被叫方/对手方）
@@ -449,6 +464,57 @@ namespace LivingWorldNpcs
         // 上下文 = 身份/人格 + 主题 + 对话历史（含上一句）；2s 预算，失败降级模板。
         // ═══════════════════════════════════════════════════════════════
 
+        /// <summary>
+        /// 🔴 2026-08-10（Q4）：行动提议——被搭话后想做自己的事（propose_plan）。
+        /// LLM 生成一句「主公，我想去…」→ 入队 → 主线程 TickAll 投递到 NPC 的私聊会话（Proposal 消息，
+        /// 带批准/拒绝按钮）→ 玩家批准后走 PlanCard 管线（Q2 三态闭环的 NPC 侧入口）。
+        /// 降级：LLM 失败/超时/未配置 → 静默不投递（提议是增强不是承诺）。
+        /// 记忆纪律：提议是聊天流消息（偏差②），不写 NPC 记忆。
+        /// </summary>
+        private static async void StartProposal(AgentBrain brain, ReactiveAgent ra, Agent requester)
+        {
+            try
+            {
+                var agent = brain.Owner;
+                if (agent == null || !agent.IsActive()) return;
+                // 铁律 1：LLM 未配置 → 静默（提议是增强）
+                if (!Settings.Instance.IsLLMConfigured) return;
+                // 仅 Hero 可提议（IM 私聊会话按 Hero StringId 索引；模板 NPC 无法进 IM，既有决策）
+                var hero = (agent.Character as CharacterObject)?.HeroObject;
+                if (hero == null || string.IsNullOrEmpty(hero.StringId)) return;
+
+                DebugLogger.Log($"[ReactivePropose] {agent.Name} 演算 propose_plan（被 {requester?.Name ?? "?"} 搭话后）");
+
+                var memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
+                string identity = ClassifyOccupation(agent);
+                // 本地化：职业名（提议身份段）
+                string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + identity, identity);
+                string persona = memory != null ? memory.GetPersonaPrompt() : "";
+                // 提议 prompt：世界观 + 身份 + 人设 + 指令（想做自己的事，一句话）
+                string prompt = string.Join("\n",
+                // 本地化：世界观段标题（提议 prompt）
+                    ResolvePromptFallback("LWN_plan_section_world", "【世界观】") + (Settings.Instance?.WorldDescription ?? ""),
+                // 本地化：身份段标题（提议 prompt）
+                    ResolvePromptFallback("LWN_plan_respond_section_identity", "【你的身份】") + occName,
+                    string.IsNullOrEmpty(persona) ? "" : persona,
+            // 提议 prompt 纪律（LLM 输入）
+                // 本地化：提议 prompt 纪律（LLM 输入）
+                    ResolvePromptFallback("LWN_plan_propose_rule",
+                        "【行动提议】你刚被人搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向主公提出，格式：主公，我想去…（10~30 字，直接说，不要解释）。"));
+                string proposal = await LLMService.Instance.ChatOnceAsync(prompt, 80, 0.8f, disableReasoning: true, timeoutMs: 8000);
+                if (string.IsNullOrWhiteSpace(proposal))
+                {
+                    DebugLogger.Log($"[ReactivePropose] {agent.Name} 提议生成失败 → 静默");
+                    return;
+                }
+                _pendingProposals.Enqueue((agent, proposal.Trim().Trim('"', '“', '”', '「', '」')));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ReactivePropose] 异常: {ex.Message}");
+            }
+        }
+
         /// <summary>发起实时回应请求（fire-and-forget；结果入队，主线程 TickAll 消费播放）。
         /// score = 人格演算选中 respond 的权重分（公式算出的意愿度 → 台词态度）；triggerEvent = 本次触发词。
         /// 记忆（§八）：上下文与写入统一走 AllNpcMemoryManager 三层记忆（目标对任意人的对话历史）；简易 DialogueHistory 已退役。</summary>
@@ -482,16 +548,44 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(companionLine))
                     memory.AddHistory("user", $"{requester?.Name}: {companionLine}", requester != null ? GetAgentId(requester) : null);
 
-                string prompt = BuildRespondPrompt(agent, ra, memory, topic, requester, score, triggerEvent, outlineStep);
-                var result = await LLMService.Instance.ChatOnceAsync(prompt, maxTokens: 80, temperature: 0.7f, disableReasoning: true, timeoutMs: RespondTimeoutMs);
+                // 🔴 §5.6 统一管线（DialogueComponent）：段计算 → GenerateLine（JSON 通道带动作）
+                string occ = ClassifyOccupation(agent);
+                string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
+                string identity = string.Format(
+                    // LWN_plan_respond_identity_template：身份模板
+                    ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
+                    occName, DescribePersonality(ra.Personality));
+                string otherId = requester != null ? GetAgentId(requester) : null;
+                string lastLine = GetLastLineWith(memory, otherId);
+                // 演算意图 → 台词态度（公式算出的意愿度，台词必须与之一致：热情/正常/敷衍）
+                string intention = ResolvePromptFallback("LWN_plan_respond_section_attitude", "【你此刻的态度】")
+                    + DescribeIntention(score, triggerEvent);
+                string other = requester != null && requester.IsActive() ? requester.Name.ToString() : "";
+                string actionSpace = ActionHandler.GetActionSpacePrompt(
+                    (agent.Character as CharacterObject)?.HeroObject,
+                    (requester?.Character as CharacterObject)?.HeroObject,
+                    agent);
+                var dline = await DialogueComponent.GenerateLine(
+                    Settings.Instance?.WorldDescription ?? "", identity, intention,
+                    string.IsNullOrEmpty(topic) ? "闲聊" : topic,
+                    ra.DialogueRound > 1 ? $"（第 {ra.DialogueRound} 轮）" : "",
+                    string.IsNullOrEmpty(outlineStep) ? ""
+                        : ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + outlineStep,
+                    string.IsNullOrEmpty(other) ? "一个陌生人" : other + "（对方是主动来和你搭话的人）",
+                    PromptBuilder.GetPrompt_RespondContext(memory, otherId), lastLine,
+                    "LWN_plan_respond_rule_json",
+                    "【要求】用一句话口语化回应对方（10-40 字），符合身份、性格与此刻的态度，顺着对方的话接，直接说台词本身——不要引号、不要解释、不要动作描写。",
+                    actionSpace, maxTokens: 220, timeoutMs: 8000);
+                string result = dline != null ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "") : null;
                 if (!string.IsNullOrWhiteSpace(result))
                 {
-                    // 写入自己的回应（Role=assistant 惯例）
+                    // 🔴 台词/记忆纪律（§5.6）：LLM 实时生成 → 写记忆（user/assistant 接力，对话续得上）
                     memory.AddHistory("assistant", $"{agent.Name}: {result}", GetAgentId(agent));
-                    _pendingReplies.Enqueue((agent, requester, result));
+                    _pendingReplies.Enqueue((agent, requester, result, dline.ActionCode, dline.ActionTarget, dline.ActionLevel));
                 }
                 else
                 {
+                    // 模板降级（无 LLM / 超时 / 失败）：台词模板 → 不写记忆（§5.6 裁定）
                     PlayRespondFallback(agent, requester, memory);
                 }
             }
@@ -503,46 +597,9 @@ namespace LivingWorldNpcs
 
         /// <summary>回应请求 prompt（静态骨架走本地化 LWN_plan_respond_*，动态上下文拼接；单一事实源纪律）。
         /// 上下文八层：世界观 → 身份 → 态度（演算意图）→ 主题/轮次 → **走向段（对话模式）** → 对方 → 记忆裁剪 → 对方刚说。</summary>
-        private static string BuildRespondPrompt(Agent agent, ReactiveAgent ra, SingNpcMemorySystem memory, string topic, Agent requester, float score, string triggerEvent, string outlineStep = null)
-        {
-            string occ = ClassifyOccupation(agent);
-            // 职业本地化名（LLM 身份段）
-            string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
-            // 身份模板：{0}=职业名，{1}=人格描述
-            string identity = string.Format(
-                // LWN_plan_respond_identity_template：身份模板
-                ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
-                occName, DescribePersonality(ra.Personality));
-            string otherId = requester != null ? GetAgentId(requester) : null;
-            string lastLine = GetLastLineWith(memory, otherId);
-            string world = Settings.Instance?.WorldDescription ?? "";
-            // 演算意图 → 台词态度（公式算出的意愿度，台词必须与之一致：热情/正常/敷衍）
-            string intention = ResolvePromptFallback("LWN_plan_respond_section_attitude", "【你此刻的态度】")
-                + DescribeIntention(score, triggerEvent);
-            // 对方是谁（名字 + 关系提示）
-            string other = requester != null && requester.IsActive() ? requester.Name.ToString() : "";
-            // 回应 prompt 骨架（世界观 → 身份 → 态度 → 主题 → 走向段 → 对方 → 记忆 → 对方刚说 → 要求）
-            return string.Join("\n",
-                // LWN_plan_section_world：世界观段
-                ResolvePromptFallback("LWN_plan_section_world", "【世界观】") + world,
-                ResolvePromptFallback("LWN_plan_respond_section_identity", "【你的身份】") + identity,
-                intention,
-                // LWN_plan_respond_section_topic：对话主题（含轮次）
-                ResolvePromptFallback("LWN_plan_respond_section_topic", "【对话主题】")
-                    + (string.IsNullOrEmpty(topic) ? "闲聊" : topic)
-                    + (ra.DialogueRound > 1 ? $"（第 {ra.DialogueRound} 轮）" : ""),
-                // LWN_plan_respond_section_outline：对话模式当前走向段（对方正在聊的方向）
-                (string.IsNullOrEmpty(outlineStep) ? "" : ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + outlineStep),
-                ResolvePromptFallback("LWN_plan_respond_section_other", "【对方】")
-                    + (string.IsNullOrEmpty(other) ? "一个陌生人" : other + "（对方是主动来和你搭话的人）"),
-                PromptBuilder.GetPrompt_RespondContext(memory, otherId),
-                // LWN_plan_respond_section_last：对方刚说（记忆过滤后最后一句）
-                ResolvePromptFallback("LWN_plan_respond_section_last", "【对方刚说】") + lastLine,
-                ResolvePromptFallback("LWN_plan_respond_rule",
-                    "【要求】用一句话口语化回应对方（10-40 字），符合身份、性格与此刻的态度，顺着对方的话接，直接说台词本身——不要引号、不要解释、不要动作描写。"));
-        }
 
-        /// <summary>随从台词生成（对话模式，BC-006 v3）：LLM 实时生成随从的下一句（话题 + 走向段 + 双方历史）；
+        /// <summary>随从台词生成（对话模式，BC-006 v3 → §5.6 统一管线）：LLM 实时生成随从的下一句
+        /// （话题 + 走向段 + 双方历史）——走 DialogueComponent.GenerateLine（纯文本通道，动作空间不注入）；
         /// 2s 预算失败 → 走向模板兜底（开场 = 正常开场白模板，非"对了，{段}"）。fire-and-forget，结果回调 onResult。</summary>
         public static void GenerateCompanionLine(Agent companion, Agent target, SingNpcMemorySystem memory,
             string topic, string outlineStep, int index, int total, Action<string> onResult)
@@ -551,8 +608,26 @@ namespace LivingWorldNpcs
             {
                 try
                 {
-                    string prompt = BuildCompanionPrompt(companion, target, memory, topic, outlineStep, index, total);
-                    var result = await LLMService.Instance.ChatOnceAsync(prompt, maxTokens: 80, temperature: 0.7f, disableReasoning: true, timeoutMs: 2000);
+                    var dline = await DialogueComponent.GenerateLine(
+                        Settings.Instance?.WorldDescription ?? "",
+                        string.Format(
+                            // LWN_plan_respond_identity_template：身份模板（随从 = 名字 + 随从身份）
+                            ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
+                            companion?.Name?.ToString() ?? "随从",
+                            ResolvePromptFallback("LWN_trait_companion", "随从")),
+                        "",   // 无演算意图（随从推进对话，态度由走向决定）
+                        string.IsNullOrEmpty(topic) ? "闲聊" : topic, "",
+                        ResolvePromptFallback("LWN_plan_respond_section_outline", "【对话走向】")
+                            + $"第 {index + 1}/{total} 段：{outlineStep}",
+                        target?.Name?.ToString() ?? "对方",
+                        PromptBuilder.GetPrompt_RespondContext(memory, GetAgentId(target)),
+                        GetLastLineWith(memory, GetAgentId(target)),
+                        "LWN_plan_respond_rule",
+                        "【要求】用一句话口语化对对方说（10-40 字），符合随从身份，顺着当前走向推进对话，直接说台词本身——不要引号、不要解释、不要动作描写。",
+                        null, maxTokens: 80, timeoutMs: 2000);
+                    string result = dline != null && dline.FromLlm
+                        ? DialogueComponent.Sanitize(dline.Reply, companion?.Name?.ToString() ?? "")
+                        : null;
                     if (!string.IsNullOrWhiteSpace(result))
                         onResult(result);
                     else
@@ -568,36 +643,6 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>随从台词请求 prompt（对话模式）：身份 + 话题 + 走向进度 + 双方历史 + 对方刚说。</summary>
-        private static string BuildCompanionPrompt(Agent companion, Agent target, SingNpcMemorySystem memory,
-            string topic, string outlineStep, int index, int total)
-        {
-            string name = companion?.Name?.ToString() ?? "随从";
-            string identity = string.Format(
-                // LWN_plan_respond_identity_template：身份模板（随从 = 名字 + 随从身份）
-                ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
-                name, ResolvePromptFallback("LWN_trait_companion", "随从"));
-            string world = Settings.Instance?.WorldDescription ?? "";
-            string otherName = target?.Name?.ToString() ?? "对方";
-            // 随从视角：历史/对方刚说 = 目标（老板）说的话（otherId = target）
-            string history = PromptBuilder.GetPrompt_RespondContext(memory, GetAgentId(target));
-            string lastLine = GetLastLineWith(memory, GetAgentId(target));
-            // 随从台词骨架：世界观 → 身份 → 主题 → 走向 → 对方 → 记忆 → 对方刚说 → 要求
-            return string.Join("\n",
-                // LWN_plan_section_world：世界观段
-                ResolvePromptFallback("LWN_plan_section_world", "【世界观】") + world,
-                ResolvePromptFallback("LWN_plan_respond_section_identity", "【你的身份】") + identity,
-                ResolvePromptFallback("LWN_plan_respond_section_topic", "【对话主题】")
-                    + (string.IsNullOrEmpty(topic) ? "闲聊" : topic),
-                // LWN_plan_respond_section_outline：当前走向段 + 进度
-                ResolvePromptFallback("LWN_plan_respond_section_outline", "【对话走向】")
-                    + $"第 {index + 1}/{total} 段：{outlineStep}",
-                ResolvePromptFallback("LWN_plan_respond_section_other", "【对方】") + otherName,
-                history,
-                // LWN_plan_respond_section_last：对方刚说（目标最后一句）
-                ResolvePromptFallback("LWN_plan_respond_section_last", "【对方刚说】") + lastLine,
-                ResolvePromptFallback("LWN_plan_respond_rule",
-                    "【要求】用一句话口语化对对方说（10-40 字），符合随从身份，顺着当前走向推进对话，直接说台词本身——不要引号、不要解释、不要动作描写。"));
-        }
 
         /// <summary>走向模板兜底（随从台词 LLM 失败时）：开场 = 正常开场白；续话 = "对了，{段}……"（用户拍板方案）。
         /// 模板含 {0} 占位 → 走 ResolvePrompt 纯字典读取（TextObject 会把 {…} 当变量，pitfalls 铁律）。</summary>
@@ -618,8 +663,9 @@ namespace LivingWorldNpcs
             catch { return "嗯。"; }
         }
 
-        /// <summary>说话人标识（与 AllNpcMemoryManager.GetMemoryForAgent 的 uniqueId 同算法，保证过滤匹配一致）。</summary>
-        private static string GetAgentId(Agent agent)
+        /// <summary>说话人标识（与 AllNpcMemoryManager.GetMemoryForAgent 的 uniqueId 同算法，保证过滤匹配一致）。
+        /// internal：DialogueComponent 续话器（SocialSlot 轮询目标记忆）复用。</summary>
+        internal static string GetAgentId(Agent agent)
         {
             if (agent?.Character == null) return null;
             if (agent.Character.IsHero && agent.Character is CharacterObject co && co.HeroObject != null)
@@ -627,8 +673,9 @@ namespace LivingWorldNpcs
             return $"TEMP_AGENT_{agent.Index}_{agent.Name}";
         }
 
-        /// <summary>"对方刚说"：记忆里与对方相关的最后一句（无 SpeakerId 的旧行也保留，玩家对话同源）。</summary>
-        private static string GetLastLineWith(SingNpcMemorySystem memory, string otherId)
+        /// <summary>"对方刚说"：记忆里与对方相关的最后一句（无 SpeakerId 的旧行也保留，玩家对话同源）。
+        /// internal：DialogueComponent 续话器（SocialSlot）复用。</summary>
+        internal static string GetLastLineWith(SingNpcMemorySystem memory, string otherId)
         {
             if (memory == null) return "";
             for (int i = memory.RecentHistory.Count - 1; i >= 0; i--)
@@ -657,7 +704,9 @@ namespace LivingWorldNpcs
                 "你其实不太想搭理对方（意愿度低），但出于礼貌还是回一句——语气要敷衍冷淡，简短了事。");
         }
 
-        /// <summary>降级：LLM 未配置/超时/失败 → 职业模板台词（铁律 1：不崩、对话不卡死）。降级台词也写入记忆（历史完整）。</summary>
+        /// <summary>降级：LLM 未配置/超时/失败 → 职业模板台词（铁律 1：不崩、对话不卡死）。
+        /// 🔴 §5.6 记忆纪律（2026-08-10 用户裁定）：模板降级 → **不写记忆**——模板是重复无个性内容，
+        /// 写进记忆会稀释真实事件记忆、且污染续话轮询（GetLastLineWith 会把它当真实回应接住）。</summary>
         private static void PlayRespondFallback(Agent agent, Agent requester, SingNpcMemorySystem memory)
         {
             try
@@ -669,9 +718,8 @@ namespace LivingWorldNpcs
                     // LWN_reactive_respond_default：默认模板兜底（fallback 英文惯例）
                     LWNTextHelper.ResolveText("LWN_reactive_respond_default", "I see."));
                 if (string.IsNullOrEmpty(text)) text = "嗯，知道了。";
-                if (memory != null)
-                    memory.AddHistory("assistant", $"{agent.Name}: {text}", GetAgentId(agent));
-                _pendingReplies.Enqueue((agent, requester, text));
+                // 🔴 §5.6：模板不写记忆（见上方纪律）
+                _pendingReplies.Enqueue((agent, requester, text, null, null, null));
             }
             catch { }
         }
@@ -693,7 +741,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>主线程消费回应结果（AgentAIController.OnMissionTick → ReactiveAgent.TickAll）：
-        /// **接管目标 brain**（face + stay：面向对方保持，对话期间停下来说话——用户要求"两个人面对面"）→ 冒泡。</summary>
+        /// **接管目标 brain**（face + stay：面向对方保持，对话期间停下来说话——用户要求"两个人面对面"）→ 冒泡。
+        /// 🔴 2026-08-10（§5.6）：播放后执行动作决策（JSON 通道，与 IM 群聊同构——空间由 ActionHandler 裁决）。
+        /// 🔴 2026-08-10（Q4）：顺带消费行动提议（_pendingProposals → 私聊 Proposal 消息）。</summary>
         public static void TickAll(float dt)
         {
             while (_pendingReplies.TryDequeue(out var item))
@@ -711,6 +761,45 @@ namespace LivingWorldNpcs
                             AgentControlHelper.FaceToActor(item.Agent, item.Requester);
                     }
                     AgentHudMissionView.AgentSay(item.Agent, item.Text);
+                    // 🔴 §5.6 动作决策执行（说话带动作：威胁手势/拔刀/做表情…；空间+冷却+IsValid 全在 ActionHandler 内部）
+                    if (!string.IsNullOrEmpty(item.ActionCode) && item.ActionCode != "NONE")
+                    {
+                        try
+                        {
+                            ActionHandler.HandleAction(item.ActionCode,
+                                (item.Agent.Character as CharacterObject)?.HeroObject,
+                                (item.Requester?.Character as CharacterObject)?.HeroObject,
+                                item.Agent, item.ActionLevel, item.ActionTarget, item.Text);
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"[ReactiveRespond] 动作执行失败 {item.ActionCode}: {ex.Message}");
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            // 🔴 Q4：行动提议投递（NPC 主动提议 → 私聊 Proposal 消息 → 玩家批准后走 PlanCard）
+            while (_pendingProposals.TryDequeue(out var p))
+            {
+                try
+                {
+                    if (p.Agent == null || !p.Agent.IsActive()) continue;
+                    var hero = (p.Agent.Character as CharacterObject)?.HeroObject;
+                    if (hero == null || string.IsNullOrEmpty(hero.StringId)) continue;
+                    if (string.IsNullOrWhiteSpace(p.Text)) continue;
+                    // 会话定位（私聊 direct_{heroId}；不存在 → 运行时索引建立——既有机制）
+                    ImChatStore.TouchDirectChat(hero.StringId, ImChatManager.NowUnixMs());
+                    var conv = ImChatManager.GetDirectConversation(hero.StringId);
+                    if (conv == null) continue;
+                    ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(hero.StringId, hero.Name?.ToString() ?? "Companion", p.Text, ImMessageKind.Proposal)
+                    {
+                        ConvId = conv.Id,
+                    });
+                    ImChatStore.IncUnread(conv.Id);
+                    ImChatManager.BroadcastMessageArrived(conv);
+                    DebugLogger.Log($"[ReactivePropose] {p.Agent.Name} 提议已投递私聊: {p.Text}");
                 }
                 catch { }
             }

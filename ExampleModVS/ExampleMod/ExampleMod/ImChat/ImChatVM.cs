@@ -164,8 +164,99 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsPlanCard => _msg != null && _msg.IsPlanCard;
 
+        // ── 🔴 2026-08-10（Q4）：NPC 主动提议（Proposal 消息 + 批准/拒绝按钮）──
+
+        [DataSourceProperty]
+        public bool IsProposal => _msg != null && _msg.IsProposal;
+
+        /// <summary>批准可用：提议未了结。</summary>
+        [DataSourceProperty]
+        public bool CanProposeApprove => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved;
+
+        /// <summary>拒绝可用：提议未了结。</summary>
+        [DataSourceProperty]
+        public bool CanProposeReject => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved;
+
+            // 提议按钮：批准
+        [DataSourceProperty]
+            // 提议按钮：批准
+        public string ProposeApproveText => LWNTextHelper.ResolveText("LWN_im_btn_propose_approve", "Go ahead");
+
+            // 提议按钮：拒绝
+        [DataSourceProperty]
+            // 提议按钮：拒绝
+        public string ProposeRejectText => LWNTextHelper.ResolveText("LWN_im_btn_propose_reject", "No need");
+
+        /// <summary>批准提议 → 走计划管线（RequestCommand：NPC 提议文本即命令，玩家批准后执行）。</summary>
+        public void ExecuteProposeApprove() => ImChatView.HandleProposal(_msg, approve: true);
+
+        public void ExecuteProposeReject() => ImChatView.HandleProposal(_msg, approve: false);
+
         [DataSourceProperty]
         public string PlanSummary => _msg?.PlanSummary ?? "";
+
+        // ── 🔴 2026-08-10（im-command-action-upgrade.md Q2/Q3/§3.3）：生成中占位 / 修改版 / 详情 ──
+
+        /// <summary>生成中占位行（§3.3）：灰底卡片 + 阶段文案 + 进度条（色条 Widget 宽度绑定方案）。</summary>
+        [DataSourceProperty]
+        public bool IsGenerating => _msg != null && _msg.IsGenerating;
+
+        /// <summary>进度 0~100（色条宽度 % × MaxWidth）。</summary>
+        [DataSourceProperty]
+        public float Progress => _msg != null ? MathF.Clamp(_msg.Progress, 0f, 100f) : 0f;
+
+        /// <summary>进度条色条宽度（Progress% × 440px 满宽；XML SuggestedWidth 绑定）。</summary>
+        [DataSourceProperty]
+        public float ProgressBarWidth => Progress * 4.4f;
+
+        /// <summary>进度百分比文本（"37%"）。</summary>
+        [DataSourceProperty]
+        public string ProgressText => $"{(int)Progress}%";
+
+        /// <summary>生成中阶段文案（「正在推演步骤…」等）。</summary>
+        [DataSourceProperty]
+        public string GenerateText => _msg?.GenerateText ?? "";
+
+        /// <summary>修改可用（Q2）：卡片待批或执行中，且修改额度未用尽（≤2）。</summary>
+        [DataSourceProperty]
+        public bool CanModify => _msg != null && _msg.IsPlanCard
+            && _msg.PlanModifyCount < ImCommandFlow.MaxModifyCount
+            && (string.IsNullOrEmpty(_msg.ExecutorId) || ImCommandFlow.IsExecuting(_msg));
+
+        /// <summary>「修改版 vN」徽标（Q2）。</summary>
+        [DataSourceProperty]
+        public bool IsModifiedPlan => _msg != null && _msg.IsModifiedPlan;
+
+        /// <summary>徽标文本（修改版 v{N}）。</summary>
+        [DataSourceProperty]
+        public string ModifiedBadgeText => _msg != null && _msg.PlanModifyCount > 0
+            // 修改版徽标（Q2）
+            ? LWNTextHelper.ResolveCompound("LWN_im_badge_modified", "Revised v{N}", ("N", _msg.PlanModifyCount.ToString()))
+            : "";
+
+        /// <summary>卡片详情（§3.2：C# 确定性渲染的步骤/应急/安全网；可展开）。</summary>
+        [DataSourceProperty]
+        public string PlanDetailText => _msg?.PlanDetailText ?? "";
+
+        /// <summary>详情是否展开（默认收起，卡片不膨胀）。</summary>
+        [DataSourceProperty]
+        public bool IsDetailExpanded { get; private set; }
+
+        /// <summary>详情按钮文案（展开/收起切换）。</summary>
+        [DataSourceProperty]
+        public string DetailToggleText => IsDetailExpanded
+            // 详情按钮：收起
+            ? LWNTextHelper.ResolveText("LWN_im_btn_detail_collapse", "Collapse details")
+            // 详情按钮：展开
+            : LWNTextHelper.ResolveText("LWN_im_btn_detail_expand", "Details");
+
+        /// <summary>详情展开/收起切换。</summary>
+        public void ExecuteToggleDetail()
+        {
+            IsDetailExpanded = !IsDetailExpanded;
+            OnPropertyChanged(nameof(IsDetailExpanded));
+            OnPropertyChanged(nameof(DetailToggleText));
+        }
 
         /// <summary>批准可用：计划卡片、尚未下发（无 ExecutorId）、有 Plan JSON。</summary>
         [DataSourceProperty]
@@ -180,17 +271,25 @@ namespace LivingWorldNpcs
         public bool CanAbort => _msg != null && ImCommandFlow.IsExecuting(_msg);
 
         // ── 计划卡片按钮文案（本地化）──
+        // 计划卡片按钮：同意
         [DataSourceProperty]
         // 计划卡片按钮：同意
         public string ApproveText => LWNTextHelper.ResolveText("LWN_im_btn_approve", "Approve");
 
+        // 计划卡片按钮：拒绝
         [DataSourceProperty]
         // 计划卡片按钮：拒绝
         public string RejectText => LWNTextHelper.ResolveText("LWN_im_btn_reject", "Reject");
 
+        // 计划卡片按钮：中止
         [DataSourceProperty]
         // 计划卡片按钮：中止
         public string AbortText => LWNTextHelper.ResolveText("LWN_im_btn_abort", "Abort");
+
+        // 计划卡片按钮：修改（Q2）
+        [DataSourceProperty]
+        // 计划卡片按钮：修改（Q2）
+        public string ModifyText => LWNTextHelper.ResolveText("LWN_im_btn_modify", "Revise");
 
         public ImMessageVM(ImMessage msg)
         {
@@ -202,6 +301,9 @@ namespace LivingWorldNpcs
         public void ExecuteReject() => ImChatView.HandlePlanAction(_msg, approve: false);
 
         public void ExecuteAbort() => ImChatView.HandlePlanAction(_msg, approve: false, abort: true);
+
+        /// <summary>修改按钮：进入修改输入态（输入框聚焦 + placeholder 联动「修改计划：…」）。</summary>
+        public void ExecuteModify() => ImChatView.BeginModify(_msg);
     }
 
     /// <summary>
@@ -226,6 +328,9 @@ namespace LivingWorldNpcs
         private bool _isEmpty;
         private string _emptyHint = "";
         private bool _hasNewMessageHint;
+
+        // 🔴 2026-08-10（Q2）：修改输入态——点卡片【修改】后底部输入框聚焦 + placeholder「修改计划：…」
+        private bool _isModifying;
 
         [DataSourceProperty]
         public string Title
@@ -252,12 +357,21 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>输入框 placeholder（微信：「输入消息」灰字提示；DefaultSearchText 官方属性）。
-        /// 随模式联动：闲聊="输入消息…" / 密令="下达密令…"（让玩家在输入区也感知当前模式）。</summary>
+        /// 随模式联动：闲聊="输入消息…" / 密令="下达密令…"（让玩家在输入区也感知当前模式）。
+        /// 🔴 Q2：修改输入态 = 「修改计划：…」（ImChatView.RefreshDynamic 联动）。</summary>
         [DataSourceProperty]
         public string PlaceholderText
         {
             get => _placeholderText;
             set { if (_placeholderText != value) { _placeholderText = value; OnPropertyChangedWithValue(value, nameof(PlaceholderText)); } }
+        }
+
+        /// <summary>🔴 Q2 修改输入态：true = 玩家点了卡片【修改】，发送走 RequestModify。</summary>
+        [DataSourceProperty]
+        public bool IsModifying
+        {
+            get => _isModifying;
+            set { if (_isModifying != value) { _isModifying = value; OnPropertyChangedWithValue(value, nameof(IsModifying)); } }
         }
 
         /// <summary>发送按钮可用（非空输入才可发，微信置灰语义）。</summary>
@@ -329,6 +443,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>「有新消息」提示条文案。</summary>
+        // 新消息提示条文案
         [DataSourceProperty]
         // 新消息提示条文案
         public string NewMessageHintText => LWNTextHelper.ResolveText("LWN_im_new_message", "New messages");

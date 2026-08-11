@@ -224,6 +224,8 @@ namespace LivingWorldNpcs
             PlanExecutor.TickAll(dt);
             // 密谋命令系统：ReactiveAgent 实时回应结果消费（BC-006：respond 的 LLM 台词主线程播放）
             ReactiveAgent.TickAll(dt);
+            // 🔴 2026-08-11 续话器：活跃对话的续话/中止策略调度（SocialSlot 威胁/NPC 闲聊跟进）
+            DialogueComponent.TickContinuations(dt);
         }
 
         public override void OnRemoveBehavior()
@@ -232,6 +234,10 @@ namespace LivingWorldNpcs
             PlanExecutor.ShutdownAll();
             FinalizePendingWorldEvent();
             CombatManager.OnMissionEnd();
+            // 🔴 §5.7 附近频道：Mission 结束消息流归档（重进场景新流，agent.Index 身份不复用）
+            NearbyFeed.Clear();
+            // 🔴 2026-08-11 续话器：Mission 结束清理活跃对话（OnEnd 收尾）
+            DialogueComponent.ClearContinuations();
             base.OnRemoveBehavior();
         }
 
