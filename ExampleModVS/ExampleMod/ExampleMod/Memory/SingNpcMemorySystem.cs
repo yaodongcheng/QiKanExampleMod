@@ -273,6 +273,25 @@ namespace LivingWorldNpcs
             _ = MaintainMemoryAsync();
         }
 
+        /// <summary>
+        /// 🔴 2026-08-11：同步写入一条动态记忆（主线程确定性事件用：战斗结果/切磋胜负等）。
+        /// 与 LLM 总结管道（AddDynamicMemory）的区别：不触发耗时的 fade 重总结，锁内 FIFO + 超限淘汰。
+        /// 通道语义：动态记忆进 prompt 的【近期回忆】段（GetPrompt_RespondContext 最新 2 条，
+        /// IM 私聊/当面对话都带），且**不渲染为私聊聊天行**（GetDirectMessages 只认 im_user/im_npc 角色）——
+        /// 战斗结果这样"NPC 该知道但没说出口"的事实正适合走这里，交给 LLM 用自己口吻说出来。
+        /// </summary>
+        public void RecordDynamicMemory(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return;
+            double now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            lock (_lock)
+            {
+                DynamicMemories.AddLast(new RecentMemory(content, now, now));
+                if (DynamicMemories.Count > MaxDynamicMemoryCount)
+                    DynamicMemories.RemoveFirst();
+            }
+        }
+
         /// <summary>读档重建（MyBehavior.SyncData → AllNpcMemoryManager.DeserializeSlot 调用）。</summary>
         public void RestoreFromSave(List<ChatMessage> history, List<RecentMemory> dynamic, string permanent,
             string backgroundStory = null, string personality = null, string specialty = null)

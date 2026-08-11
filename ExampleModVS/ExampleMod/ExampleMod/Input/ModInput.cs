@@ -283,12 +283,14 @@ namespace LivingWorldNpcs
         /// 帧窗口：先清上一帧未消费的触发标志 → 再处理本帧输入 → 消费点（HandleInput/TickStealBar）
         /// 在同帧内读取；未消费的标志下一帧自动过期（模态覆盖期间的按压不会陈旧触发）。
         /// 🔴 模态门控：Input.IsKeyDown 是物理键轮询，Gauntlet 层 InputRestrictions 拦不住——
-        /// ① 密谋命令流程激活（PlanCommandFlow.IsActive：inquiry 输入框打字期间）整体暂停，
-        ///    按 H 打字不会误触发探查等玩法行；② 系统弹窗（TopScreen 含 Inquiry）同样暂停。
+        /// ① IM 聊天面板打开（ImChatView.IsOpen：打字/点卡片/翻历史/点按钮）整体暂停——密令已 IM 化，
+        ///    面板打开就是旧 PlanCommandFlow 弹窗的模态等价（2026-08-11：旧门控没跟着迁过来，实机
+        ///    面板打字时 F 探查等玩法行仍触发）；② 当面对话密谋流程激活（PlanCommandFlow.IsActive）
+        ///    同样暂停；③ 系统弹窗（TopScreen 含 Inquiry）同样暂停。
         /// </summary>
         public static void Tick(float dt)
         {
-            if (IsSystemModalActive() || PlanCommandFlow.IsActive)
+            if (IsSystemModalActive() || PlanCommandFlow.IsActive || ImChatView.IsOpen)
             {
                 ResetAll();   // 清空按住/触发状态，弹窗期间松开也不会陈旧触发
                 return;

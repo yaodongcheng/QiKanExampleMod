@@ -58,11 +58,17 @@ namespace LivingWorldNpcs
             public ActionSpace Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party;   // 空间位掩码（§5.2）
             public bool AffectsBoth = false;    // 防御性效果开关（v1 全部默认 false：谣言只单向往 defender 声望；CS0649 显式初始化）
             public bool NeedsCooldown;  // 频率纪律（§5.2）：关系/声望/party 类 60s 冷却
+            // 🔴 2026-08-11（IM 闲聊动作 → 提议卡片）：高风险物理动作标记——IM 路径（HandleImAction）
+            // 拦截为 Proposal 卡片（同意/拒绝），当面对话路径（ReactiveAgent → HandleAction）保留原生弹窗。
+            public bool RequiresConfirm;
             // 执行委托：(attacker, defender, agent, level, targetText, sayText)
             //   agent = attacker 的物理载体（InScene 动作执行者）；level = 档位（small/medium/large，LLM 只选档位不选数值）；
             //   targetText = LLM 目标名字文本（MOVE_TO/SAY_TO 用，C# 解析）；sayText = SAY_TO 台词（IM 回复正文复述）。
             public Func<Hero, Hero, Agent, bool> IsValid { get; set; }
             public Action<Hero, Hero, Agent, string, string, string> Execute { get; set; }
+            // 🔴 2026-08-11：核心执行（RequiresConfirm 动作专用）——Execute = 当面对话的原生弹窗包装，
+            // 卡片批准后的 IM 路径直接跑 ExecuteCore（不再弹第二次确认）。
+            public Action<Hero, Hero, Agent, string, string, string> ExecuteCore { get; set; }
         }
 
         // 静态列表存储所有可能的动作
@@ -372,7 +378,18 @@ namespace LivingWorldNpcs
                 Code = "ATTACK",
                 Description = "恼羞成怒，发起攻击（进入战斗；仅当面）。",
                 Spaces = ActionSpace.InScene,
+                RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
                 IsValid = (npc, player, agent) => agent != null,
+                // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）
+                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                {
+                    Agent target = (defender != null && defender != Hero.MainHero)
+                        ? FindAgentByHeroId(defender.StringId)
+                        : Agent.Main;
+                    if (target == null) target = Agent.Main;   // 兜底（InScene 空间前提 = defender 在场）
+                    if (agent != null && target != null && agent.IsActive() && target.IsActive())
+                        AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
+                },
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
                     string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
@@ -382,12 +399,8 @@ namespace LivingWorldNpcs
                         //（ClearAllActions → FightEnemyAction，儿童逃离，CombatManager 队伍管理），
                         // 与当面对话拔刀（SendEventToAgent(NPC, order_attack, 玩家)）同构；
                         // 不走单步 Plan——战斗是持续行为，由 Brain 管理生命周期，执行器不该介入。
-                        Agent target = (defender != null && defender != Hero.MainHero)
-                            ? FindAgentByHeroId(defender.StringId)
-                            : Agent.Main;
-                        if (target == null) target = Agent.Main;   // 兜底（InScene 空间前提 = defender 在场）
-                        if (agent != null && target != null && agent.IsActive() && target.IsActive())
-                            AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
+                        // 核心执行已抽到 ExecuteCore（IM 卡片路径复用，避免二次确认弹窗）
+                        RunActionCore("ATTACK", attacker, defender, agent, l, t, s);
                     };
                     // 本地化：攻击确认弹窗（标题/内容/按钮）
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_attack_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
@@ -400,19 +413,25 @@ namespace LivingWorldNpcs
                 Code = "DUEL",
                 Description = "和平的交手切磋（进入不致命的战斗；仅当面）。",
                 Spaces = ActionSpace.InScene,
+                RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
                 IsValid = (npc, player, agent) => agent != null,
+                // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）
+                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                {
+                    Agent target = (defender != null && defender != Hero.MainHero)
+                        ? FindAgentByHeroId(defender.StringId)
+                        : Agent.Main;
+                    if (target == null) target = Agent.Main;
+                    if (agent != null && target != null && agent.IsActive() && target.IsActive())
+                        AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
+                },
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
                     string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
                     Action confirmFight = () =>
                     {
                         // 🔴 2026-08-11 用户裁定：同上——order_attack 事件 → AgentBrain 既有战斗链
-                        Agent target = (defender != null && defender != Hero.MainHero)
-                            ? FindAgentByHeroId(defender.StringId)
-                            : Agent.Main;
-                        if (target == null) target = Agent.Main;
-                        if (agent != null && target != null && agent.IsActive() && target.IsActive())
-                            AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
+                        RunActionCore("DUEL", attacker, defender, agent, l, t, s);
                     };
                     // 本地化：切磋确认弹窗（标题/内容/按钮）
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_hint", "Notice"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_duel_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
@@ -425,11 +444,18 @@ namespace LivingWorldNpcs
                 Code = "KNOCKOUT",
                 Description = "背后击晕对方（仅当面；高风险）。",
                 Spaces = ActionSpace.InScene,
+                RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
                 IsValid = (npc, player, agent) => agent != null,
+                // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）
+                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                {
+                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
+                    ChatActionFlow.TryExecute(agent, "knockout", targetName, null, null);
+                },
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
                     string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
-                    Action confirm = () => ChatActionFlow.TryExecute(agent, "knockout", targetName, null, null);
+                    Action confirm = () => RunActionCore("KNOCKOUT", attacker, defender, agent, l, t, s);
                     // 本地化：击晕确认弹窗（标题/内容/按钮）
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_knockout_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirm, null));
                 }
@@ -441,11 +467,18 @@ namespace LivingWorldNpcs
                 Code = "STEAL_ATTEMPT",
                 Description = "偷走对方身上的钱（仅当面；高风险）。",
                 Spaces = ActionSpace.InScene,
+                RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
                 IsValid = (npc, player, agent) => agent != null,
+                // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）
+                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                {
+                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
+                    ChatActionFlow.TryExecute(agent, "steal_attempt", targetName, null, null);
+                },
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
                     string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
-                    Action confirm = () => ChatActionFlow.TryExecute(agent, "steal_attempt", targetName, null, null);
+                    Action confirm = () => RunActionCore("STEAL_ATTEMPT", attacker, defender, agent, l, t, s);
                     // 本地化：扒窃确认弹窗（标题/内容/按钮）
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_steal_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirm, null));
                 }
@@ -698,9 +731,11 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 执行动作（当面对话 + IM 共用入口）。
         /// 流程：空间裁剪（Spaces 位掩码）→ 频率冷却（关系/声望/party 类）→ IsValid → Execute。
+        /// 🔴 2026-08-11：alreadyConfirmed=true（IM 卡片批准后的再执行）→ 直接跑 ExecuteCore
+        /// （RequiresConfirm 动作的核心逻辑），不再弹原生确认窗（确认已在卡片上完成）。
         /// </summary>
         public static void HandleAction(string actionCode, Hero attacker, Hero defender, Agent agent,
-            string level = null, string targetText = null, string sayText = null)
+            string level = null, string targetText = null, string sayText = null, bool alreadyConfirmed = false)
         {
             if (string.IsNullOrEmpty(actionCode)) return;
             var actionDef = _actions.FirstOrDefault(a => a.Code.Equals(actionCode, StringComparison.OrdinalIgnoreCase));
@@ -729,12 +764,29 @@ namespace LivingWorldNpcs
             }
             if (actionDef.IsValid(attacker, defender, agent))
             {
-                actionDef.Execute(attacker, defender, agent, level, targetText, sayText);
+                // 已确认路径（IM 卡片批准）：直接执行核心逻辑；缺 ExecuteCore（普通动作）→ 回退 Execute
+                if (alreadyConfirmed && actionDef.ExecuteCore != null)
+                    actionDef.ExecuteCore(attacker, defender, agent, level, targetText, sayText);
+                else
+                    actionDef.Execute(attacker, defender, agent, level, targetText, sayText);
             }
             else
             {
                 DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 条件不满足 → 降级 NONE");
             }
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-11：按动作码执行核心逻辑（ExecuteCore，缺省回退 Execute）——
+        /// 当面对话弹窗的确认回调复用（Execute 包装弹窗，回调时跑核心，避免两份逻辑漂移）。
+        /// 仅在弹窗回调运行期调用（此时 _actions 已完整构建），IM 卡片批准路径走
+        /// HandleAction(alreadyConfirmed:true) 直接 ExecuteCore，不经本方法。
+        /// </summary>
+        private static void RunActionCore(string code, Hero attacker, Hero defender, Agent agent,
+            string level, string targetText, string sayText)
+        {
+            var def = _actions.FirstOrDefault(a => a.Code.Equals(code, StringComparison.OrdinalIgnoreCase));
+            (def?.ExecuteCore ?? def?.Execute)?.Invoke(attacker, defender, agent, level, targetText, sayText);
         }
 
         /// <summary>记忆写入（C2 记忆类动作用）：defender/attacker 的恩怨记录（后续对话 LLM 上下文接得住）。
@@ -759,9 +811,11 @@ namespace LivingWorldNpcs
         /// defender 解析（§四优先级：名字文本 → 群聊成员/私聊对方/世界 Hero → 兜底玩家）。
         /// agent = attacker 的物理载体（InScene 动作执行者；不在场 = null → 物理动作 IsValid 拦截）。
         /// sayText = IM 回复正文（记忆类动作的台词来源：威胁/承诺的具体内容）。
+        /// 🔴 2026-08-11：RequiresConfirm 动作 → 拦截为 Proposal 卡片（PostActionProposal）；
+        /// bypassConfirm=true = 玩家已批准卡片的再执行（HandleProposal 调用），直接执行不再拦截。
         /// </summary>
         public static void HandleImAction(string actionCode, string attackerHeroId, string attackerName,
-            string targetText, string level, ImConversation conv, string sayText = null)
+            string targetText, string level, ImConversation conv, string sayText = null, bool bypassConfirm = false)
         {
             if (string.IsNullOrEmpty(actionCode) || actionCode == "NONE") return;
 
@@ -779,7 +833,64 @@ namespace LivingWorldNpcs
             // agent = attacker 的物理载体
             Agent agent = FindAgentByHeroId(attackerHeroId);
 
-            HandleAction(actionCode, attacker, defender, agent, level, targetText, sayText);
+            // 🔴 2026-08-11（IM 闲聊动作 → 提议卡片）：高风险动作（RequiresConfirm）不弹原生确认窗，
+            // 改为在当前会话投递 Proposal 卡片（同意/拒绝）——与密令/NPC 主动提议同一套确认 UI。
+            // 当面对话路径（ReactiveAgent → HandleAction 直接）不受影响，仍走原生弹窗。
+            // bypassConfirm=true（玩家已批准卡片的再执行）→ 跳过拦截直接执行，防死循环。
+            var actionDef = _actions.FirstOrDefault(a => a.Code.Equals(actionCode, StringComparison.OrdinalIgnoreCase));
+            if (actionDef != null && actionDef.RequiresConfirm && !bypassConfirm)
+            {
+                PostActionProposal(conv, attacker, attackerName, defender, actionDef, actionCode, targetText, level, agent);
+                return;
+            }
+
+            HandleAction(actionCode, attacker, defender, agent, level, targetText, sayText, alreadyConfirmed: bypassConfirm);
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-11：IM 高风险动作 → 提议卡片（RequiresConfirm 动作专用）。
+        /// 卡片文案复用各动作的确认弹窗本地化 key（零新增）；玩家同意 → ImChatView.HandleProposal
+        /// 调回 HandleImAction 重新执行（空间/冷却/IsValid 全保留，NPC 已离场自然降级）；拒绝 → 卡片了结。
+        /// 投递前预检（空间裁剪 + IsValid）：当前不可用则不发卡（避免"同意后无法执行"的死卡），
+        /// 与 HandleAction 的降级 NONE 同语义，玩家在频道里只看到台词、看不到无效动作。
+        /// </summary>
+        private static void PostActionProposal(ImConversation conv, Hero attacker, string attackerName, Hero defender,
+            ActionDefinition actionDef, string actionCode, string targetText, string level, Agent agent)
+        {
+            try
+            {
+                if (conv == null || attacker == null) return;
+                var space = ResolveSpace(defender);
+                if ((actionDef.Spaces & space) == 0 || !actionDef.IsValid(attacker, defender, agent))
+                {
+                    DebugLogger.Log($"[ActionProposal] 动作 {actionCode} 当前不可用（空间/条件不满足）→ 不发卡");
+                    return;
+                }
+                string targetName = defender?.Name?.ToString() ?? targetText;
+                string content = actionCode switch
+                {
+                    "ATTACK" => LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_attack_msg", ("NAME", targetName)),
+                    "DUEL" => LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_duel_msg", ("NAME", targetName)),
+                    "KNOCKOUT" => LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_knockout_msg", ("NAME", targetName)),
+                    "STEAL_ATTEMPT" => LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_steal_msg", ("NAME", targetName)),
+                    _ => targetText,
+                };
+                var msg = new ImMessage(attacker.StringId, attackerName, content, ImMessageKind.Proposal)
+                {
+                    ConvId = conv.Id,
+                    ActionCode = actionCode,
+                    ActionTarget = targetText,
+                    ActionLevel = level,
+                };
+                ImChatStore.AppendGroupMessage(conv.Id, msg);
+                ImChatStore.IncUnread(conv.Id);
+                ImChatManager.BroadcastMessageArrived(conv);
+                DebugLogger.Log($"[ActionProposal] {attackerName} 提议 {actionCode}（目标 {targetName}）→ 玩家确认");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ActionProposal] 提议卡片投递失败: {ex.Message}");
+            }
         }
 
         /// <summary>IM 动作 defender 解析（§四优先级：名字文本 → 群聊成员候选匹配 → 私聊对象 → 世界 Hero；兜底玩家）。
