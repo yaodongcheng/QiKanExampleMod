@@ -322,9 +322,11 @@ namespace LivingWorldNpcs
                 string.Equals(r.Event, aiEvent.EventType, StringComparison.OrdinalIgnoreCase));
 
             // 固定反应（不靠权重）：left_post_seconds → return_post（§6.1 权重 1.0）
+            // 原 ReactiveReturnPostAction 已并入 MoveToPositionAction（2026-08-11 参数化合并）
             if (aiEvent.EventType == "left_post_seconds")
             {
-                brain.RunReactiveAction(new ReactiveReturnPostAction(ra.PostPos, agent));
+                brain.RunReactiveAction(new MoveToPositionAction(ra.PostPos, Vec2.Zero, run: false, stopDistance: 1.5f,
+                    endBehavior: MoveToPositionAction.EndBehavior.Unlock));
                 return true;
             }
 
@@ -412,20 +414,33 @@ namespace LivingWorldNpcs
                         if (requester == null) break;
                         // 跟随时长按 duty 运行时定（§6.4：duty 高 → 折返快）
                         float followTime = MathF.Max(8f, 28f - ra.Personality.Duty * 18f);
-                        brain.RunReactiveAction(new ReactiveFollowAction(requester, ra.PostPos, followTime, agent));
+                        // 🔴 原 ReactiveFollowAction 已拆两步入队（附章③，2026-08-11）：
+                        // ① FollowAgentAction(optionalDuration) 跟走——目标消失/到时自然完成，
+                        //    目标没了 → IsFinished → 自然推进折返（语义等价）；
+                        // ② MoveToPositionAction 折返岗点（20s 兜底 = 原 followTime+20s 安全网）
+                        brain.RunReactiveAction(
+                            new FollowAgentAction(requester, run: false, optionalDuration: followTime),
+                            new MoveToPositionAction(ra.PostPos, Vec2.Zero, run: false, stopDistance: 1.5f,
+                                maxTime: 20f, skipGetupDelay: true,
+                                endBehavior: MoveToPositionAction.EndBehavior.Unlock));
                         // 决策结果广播（跟走）
                         AgentAIController.Instance?.SendEventToAgent(requester, "plan_decision", "followed", agent);
                         break;
                     }
                 case "investigate":
                     {
-                        // 走向目标区域 + 盯着（复用 move_to + look_at）
+                        // 走向目标区域 + 盯着（原 ReactiveInvestigateAction 已并入 MoveToPositionAction 的
+                        // lookTarget 参数，2026-08-11 参数化合并：walk/2f/30s 超时/解锁收尾 + 边走边盯）
                         Vec3 pos = requester?.Position ?? agent.Position;
-                        brain.RunReactiveAction(new ReactiveInvestigateAction(pos, requester ?? Agent.Main, agent));
+                        brain.RunReactiveAction(new MoveToPositionAction(pos, Vec2.Zero, run: false, stopDistance: 2f,
+                            maxTime: 30f, skipGetupDelay: true,
+                            endBehavior: MoveToPositionAction.EndBehavior.Unlock,
+                            lookTarget: requester ?? Agent.Main));
                         break;
                     }
                 case "return_post":
-                    brain.RunReactiveAction(new ReactiveReturnPostAction(ra.PostPos, agent));
+                    brain.RunReactiveAction(new MoveToPositionAction(ra.PostPos, Vec2.Zero, run: false, stopDistance: 1.5f,
+                        endBehavior: MoveToPositionAction.EndBehavior.Unlock));
                     break;
                 case "stare":
                     brain.RunReactiveAction(new LookAtAction(requester ?? Agent.Main, 5f));
@@ -446,10 +461,14 @@ namespace LivingWorldNpcs
                     break;
                 case "flee":
                     // 跑离现场（恐慌反应 §6.2：远离触发者一段距离后停下；恐慌传播链 v2）
+                    // 原 ReactiveFleeAction 已并入 MoveToPositionAction（2026-08-11 参数化合并）
                     if (requester != null)
                     {
                         Vec3 away = agent.Position + (agent.Position - requester.Position).NormalizedCopy() * 20f;
-                        brain.RunReactiveAction(new ReactiveFleeAction(away, agent));
+                        brain.RunReactiveAction(new MoveToPositionAction(away, Vec2.Zero, run: true, stopDistance: 2f,
+                            maxTime: 15f, skipGetupDelay: true,
+                            endBehavior: MoveToPositionAction.EndBehavior.Unlock,
+                            narration: "吓得逃走了"));
                     }
                     break;
                 case "ignore":

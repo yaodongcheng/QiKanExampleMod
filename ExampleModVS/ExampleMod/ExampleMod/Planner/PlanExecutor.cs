@@ -53,7 +53,11 @@ namespace LivingWorldNpcs
     //   report 可选 = 当面报告（恢复默认跟随走回玩家 ~3m 冒泡转述后再彻底收尾）。
     //
     // 驱动：AgentAIController.OnMissionTick → PlanExecutor.TickAll(dt)；
-    //       brain 队列持有 ExecutePlanAction（IsFinished = 执行器完成）。
+    // 🔴 单脑化重构（D1/D4b）：执行器降级为纯排序器——一切表现层动作（移动/朝向/视线/
+    // 战斗/姿势）入队由 brain 驱动（OnStart/OnTick/OnEnd/IsFinished 生命周期归脑），
+    // 执行器只做 100ms 轮询完成检测 + 三路径判定（IsFinished 正常完成 / IsActionAlive
+    // 外部清除 / RequestInterrupt 主动中断）。占位动作 ExecutePlanAction 已删，
+    // "计划执行中"哨兵 = ExecutingCommand 意图（AgentBrain D2 空窗守卫）。
     // ═══════════════════════════════════════════════════════════════
 
     public class PlanExecutor
@@ -113,10 +117,10 @@ namespace LivingWorldNpcs
         public string EndMessage;       // 收尾消息（报告文本）
         public string CurrentSummary;   // 执行摘要（HUD 状态行）
         public float Elapsed;
-        public bool IsFinished { get; private set; }        // ExecutePlanAction 轮询
+        public bool IsFinished { get; private set; }        // 收尾标记（Finish 置位；TickInner 据此停摆）
         public bool IsPlayerInModalUi { get; private set; } // R7
 
-        public event Action<PlanExecutor> OnFinished;       // 收尾通知（brain 恢复 Following）
+        public event Action<PlanExecutor> OnFinished;       // 收尾通知（brain 意图复位 None）
         public event Action<PlanExecutor, string> OnAborted; // 中止通知（Replan 低频重入监听，§7.2）
         // 🔴 2026-08-10（im-command-action-upgrade.md §2.1）：步骤执行完成事件——全部步骤完成路径的
         // 唯一汇合点（CompleteStep）。IM 侧挂接写执行者记忆（plan_step 单向链条），零侵入既有执行器逻辑。
@@ -265,6 +269,12 @@ namespace LivingWorldNpcs
 
         private void TickInner(float dt)
         {
+            // 🔴 全局战斗模式门控（D6 v3 修正）：IsInteractionDisabled 期间脑不 tick、队列动作不被驱动
+            // → 执行器也必须整体冻结（含 StepElapsed 冻结——否则 bounded step 会被超时中止而非暂停，
+            // 与"脑恢复 tick 后继续"的门控语义矛盾）。脑恢复 tick 后计划自然继续（特性非 bug）。
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
+
             // 当面报告流程（收尾后置阶段：走回玩家旁冒泡转述）
             if (_reportPending)
             {
@@ -473,7 +483,7 @@ namespace LivingWorldNpcs
                 cursor.Sequence = PlanExecutorHelpers.CollectLoopSteps(Plan, cursor.ActorId);
                 cursor.Index = 0;
                 cursor.StepElapsed = 0f;
-                cursor.ClearSubAction();
+                cursor.DetachSubAction();   // 循环入口：尚无已入队动作（防御性摘引用）
                 return;
             }
 
@@ -481,7 +491,7 @@ namespace LivingWorldNpcs
             if (step == null)
             {
                 cursor.Done = true;
-                cursor.ClearSubAction();
+                cursor.DetachSubAction();
                 return;
             }
 
@@ -538,11 +548,19 @@ namespace LivingWorldNpcs
                 }
                 if (cursor.SubAction != null)
                 {
-                    cursor.SubAction.OnStart(cursor.Agent);
-                    // 🔴 经历旁白（2026-08-11）：密谋子动作绕过脑队列 → 在此接入统一翻译
-                    // （与脑出队点同源 RecordActionNarration → 各动作 GetNarration），
-                    // 否则密谋执行的动作（如攻击）永远没有旁白记录。
-                    AgentAIController.GetBrainForAgent(cursor.Agent)?.RecordActionNarration(cursor.SubAction);
+                    // M2（D4b）：不再 OnStart——动作生命周期归脑。入队后由脑驱动
+                    // （OnStart/OnTick/OnEnd/IsFinished 全部脑侧；经历旁白在脑出队点统一记录）。
+                    var brain = AgentAIController.GetBrainForAgent(cursor.Agent);
+                    if (brain == null)
+                    {
+                        // 无脑（异常路径：如玩家被指定为 actor，玩家永不注册 brain）→
+                        // 动作从未入队 → TeardownSubAction 兜底补 OnEnd + 步骤失败
+                        DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: {cursor.ActorId}（{cursor.Agent?.Name}）无脑 → 步骤 {step.Id} 无法入队，按失败处理");
+                        cursor.TeardownSubAction();
+                        HandleStepTimeout(cursor, step);
+                        return;
+                    }
+                    brain.EnqueuePlanAction(cursor.SubAction);
                 }
             }
 
@@ -561,11 +579,11 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // 内联步骤驱动
-            if (cursor.Inline != null)
+            // 非行为性内联驱动（排序器侧直接驱动：纯逻辑/通信——计时/冒泡台词/事件广播/音效/跳转，不写表现层）
+            if (cursor.Inline != null && !cursor.Inline.IsBehavioral)
             {
                 cursor.Inline.OnTick(dt);
-                // 内联步骤的 OnTick 可能同步完成计划（end_plan → Finish → ClearSubAction 清空 Inline），
+                // 内联步骤的 OnTick 可能同步完成计划（end_plan → Finish → DetachSubAction 清空 Inline），
                 // 此时 cursor.Inline 已为 null——直接返回，由 IsFinished 收尾，禁止二次解引用（NRE 修复）。
                 if (cursor.Inline == null) return;
                 if (cursor.Inline.Finished)
@@ -575,21 +593,79 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // 子动作驱动
+            // 入队动作完成检测（100ms 轮询节奏；三路径判定 D4——🔴 先 IsFinished 再 IsActionAlive：
+            // 动作被脑完成后同样不在队列，必须先查 IsFinished 才能区分"完成了"与"被清了"）
             if (cursor.SubAction != null)
             {
-                cursor.SubAction.OnTick(cursor.Agent, dt);
+                // ① 正常完成（脑已 OnEnd 出队）→ CompleteStep（只摘引用，不再 OnEnd）
                 if (cursor.SubAction.IsFinished(cursor.Agent))
                 {
                     CompleteStep(cursor, step);
                     return;
                 }
+                // ② 外部清除（被 ClearAllActions 清掉 = 计划中止 + 收尾报告）
+                if (!IsCursorActionAlive(cursor))
+                {
+                    OnExternalClear(cursor, step);
+                    return;
+                }
             }
+        }
+
+        /// <summary>D4 路径 ②：动作被脑 ClearAllActions 清掉（战斗/护主/击晕/ReactiveAgent 搭话/目击围观）
+        /// → 计划中止（graceful，走既有 @abort_gracefully 词汇）+ 收尾报告立即发。
+        /// 玩家在场且脱得开身 → 当面报告（needFaceReport：玩家就在旁边却收密信出戏）；
+        /// 战斗中/击晕（脱不开身）→ 密信通道。</summary>
+        private void OnExternalClear(ActorCursor cursor, PlanStep step)
+        {
+            DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {step.Id}（{step.Action}）动作被外部清除 → 计划中止");
+            bool canFaceReport = true;
+            var brain = AgentAIController.GetBrainForAgent(cursor.Agent);
+            if (brain != null && (brain.IsInCombat || AgentBrain.IsKnockedOut(cursor.Agent)))
+                canFaceReport = false;   // 脱不开身 → 密信（不打断战斗/不叫晕着的人起来转述）
+            Finish(ExecutorState.Aborted, PlanTexts.Aborted, needFaceReport: canFaceReport);
+        }
+
+        /// <summary>动作是否仍由 actor 的脑持有（D4 外部清除判定）。</summary>
+        private static bool IsCursorActionAlive(ActorCursor cursor)
+        {
+            var brain = AgentAIController.GetBrainForAgent(cursor.Agent);
+            return brain != null && brain.IsActionAlive(cursor.SubAction);
+        }
+
+        /// <summary>D4b 统一迁移收口：迁移/终止当前步骤（跳转/超时/循环退出）→
+        /// 对当前动作 RequestInterrupt（脑下一帧见 IsFinished 自清出队；中断标记使动作 OnTick
+        /// 直接结束、不会真执行——无僵尸动作）+ 摘引用（不调 OnEnd——teardown 归脑）。
+        /// 已由脑完成/尚未入队的动作：interrupt 为空操作，摘引用即可。</summary>
+        private static void InterruptAndDetach(ActorCursor cursor)
+        {
+            if (cursor.SubAction != null)
+            {
+                try { cursor.SubAction.RequestInterrupt(); } catch { }
+            }
+            cursor.DetachSubAction();
         }
 
         private void CompleteStep(ActorCursor cursor, PlanStep step)
         {
-            cursor.ClearSubAction();
+            // D4b 生命周期收口：脑已完成的动作（IsFinished 路径）只摘引用、不再 OnEnd
+            // （脑已调过 OnEnd——再调 = 双 OnEnd，MoveEndAndInteractPrepare/CombatManager 清理双触发）；
+            // until/on_event 提前完成 → 动作仍存活在脑队列 → RequestInterrupt（脑下一帧见
+            // IsFinished 自清出队；中断标记使动作 OnTick 直接结束、不会真执行——无僵尸动作）。
+            if (cursor.SubAction != null)
+            {
+                var brain = AgentAIController.GetBrainForAgent(cursor.Agent);
+                if (brain != null && brain.IsActionAlive(cursor.SubAction))
+                {
+                    try { cursor.SubAction.RequestInterrupt(); } catch { }
+                }
+                cursor.DetachSubAction();
+            }
+            else if (cursor.Inline != null)
+            {
+                // 非行为性内联完成：排序器侧状态直接丢弃
+                cursor.Inline = null;
+            }
             cursor.StepElapsed = 0f;
             _stepStartTime = Elapsed;
             _world.MarkStepComplete(step.Id, Elapsed);
@@ -660,7 +736,9 @@ namespace LivingWorldNpcs
 
         private void HandleStepTimeout(ActorCursor cursor, PlanStep step)
         {
-            cursor.ClearSubAction();
+            // D4b：超时迁移 = 对当前动作 RequestInterrupt（脑下一帧自清出队，中断标记使动作不真执行）
+            // + 摘引用（不调 OnEnd——teardown 归脑）
+            InterruptAndDetach(cursor);
             cursor.StepElapsed = 0f;
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {step.Id} 超时");
 
@@ -692,7 +770,7 @@ namespace LivingWorldNpcs
             cursor.Sequence = CollectStepsForActor(Plan, cursor.ActorId, cursor.Agent);
             cursor.Index = 0;
             cursor.Done = cursor.Sequence.Count == 0;
-            cursor.ClearSubAction();
+            InterruptAndDetach(cursor);
             // 循环正常退出 → goal 检查（N/P 的 goal = count 归零）
             CheckGoal();
         }
@@ -722,7 +800,7 @@ namespace LivingWorldNpcs
                         cursor.Sequence = entry;
                         cursor.Index = 0;
                         cursor.StepElapsed = 0f;
-                        cursor.ClearSubAction();
+                        InterruptAndDetach(cursor);
                         return;
                     }
                 }
@@ -736,7 +814,7 @@ namespace LivingWorldNpcs
                     {
                         cursor.Index = i;
                         cursor.StepElapsed = 0f;
-                        cursor.ClearSubAction();
+                        InterruptAndDetach(cursor);
                         return;
                     }
                 }
@@ -751,7 +829,7 @@ namespace LivingWorldNpcs
                     cursor.Sequence = mainSeq;
                     cursor.Index = i;
                     cursor.StepElapsed = 0f;
-                    cursor.ClearSubAction();
+                    InterruptAndDetach(cursor);
                     return;
                 }
             }
@@ -786,16 +864,22 @@ namespace LivingWorldNpcs
                     return true;
                 case "emote":
                     cursor.Inline = new EmoteInlineState(agent, step);
+                    cursor.SubAction = new InlinePlanAction(cursor.Inline);
                     return true;
                 case "make_noise":
                     cursor.Inline = new MakeNoiseInlineState(this, cursor);
                     return true;
                 case "lead":
                     cursor.Inline = new LeadInlineState(this, cursor, step);
-                    return cursor.Inline.Ok;
+                    if (!cursor.Inline.Ok) return false;
+                    // M2（D3）：行为性内联 → InlinePlanAction 适配器入队由脑驱动
+                    cursor.SubAction = new InlinePlanAction(cursor.Inline);
+                    return true;
                 case "steal_attempt":
                     cursor.Inline = new StealAttemptInlineState(this, cursor, step);
-                    return cursor.Inline.Ok;
+                    if (!cursor.Inline.Ok) return false;
+                    cursor.SubAction = new InlinePlanAction(cursor.Inline);
+                    return true;
                 case "give_item":
                 case "give_gold":
                     cursor.Inline = new GiveInlineState(this, cursor, step);
@@ -805,7 +889,9 @@ namespace LivingWorldNpcs
                     return cursor.Inline.Ok;
                 case "knockout":
                     cursor.Inline = new KnockoutInlineState(this, cursor, step);
-                    return cursor.Inline.Ok;
+                    if (!cursor.Inline.Ok) return false;
+                    cursor.SubAction = new InlinePlanAction(cursor.Inline);
+                    return true;
             }
 
             // ── IAtomicAction 子动作（复用引擎级原子行为）──
@@ -1049,14 +1135,21 @@ namespace LivingWorldNpcs
             if (State == ExecutorState.Paused) return;
             State = ExecutorState.Paused;
             PauseReason = reason;
-            // 只清原子动作（SubAction），保留内联步骤状态（Inline）——恢复后 say_to 不重播、wait 不重计时（§5.4 Paused 可恢复）
+            // D5（v3 修正）：对当前已入队动作 RequestInterrupt（脑下一帧 OnEnd 清出队）+ 摘除引用——
+            // SubAction（含行为性内联的 InlinePlanAction 适配器）与行为性内联的 cursor.Inline 都要摘；
+            // 非行为性内联（say_to/wait/end_plan）保留状态跨 Pause（恢复后不重播、不重计时，与现状一致）。
+            // 🔴 v3 实锤：不摘引用 → Resume 后首轮询见 IsFinished==true → 误判"正常完成"→ 跳步
+            // （前进到下一步而非重跑本步）。摘除后 Resume 的创建块会为同一步骤重建（行为性内联 =
+            // 全新状态机——Interrupt 不可逆，复用旧实例 = 立即 IsFinished 死路）。
             foreach (var c in _cursors)
             {
                 if (c.SubAction != null)
                 {
-                    try { c.SubAction.OnEnd(c.Agent); } catch { }
+                    try { c.SubAction.RequestInterrupt(); } catch { }
                     c.SubAction = null;
                 }
+                if (c.Inline != null && c.Inline.IsBehavioral)
+                    c.Inline = null;
             }
             CurrentSummary = reason;
             DebugLogger.Log($"[PlanExecutor] 暂停: {reason}");
@@ -1068,6 +1161,8 @@ namespace LivingWorldNpcs
             State = ExecutorState.Executing;
             PauseReason = null;
             CurrentSummary = Summary ?? "";
+            // 同一步骤的重新入队由 TickCursor 创建块自动处理（SubAction/行为性 Inline 已摘 →
+            // 重建全新动作/状态机，步骤重跑——与现状「Pause 清 SubAction、Resume 重创建」等价）
             DebugLogger.Log($"[PlanExecutor] 恢复执行");
         }
 
@@ -1111,7 +1206,7 @@ namespace LivingWorldNpcs
             EndMessage = message;
             IsFinished = true;
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 计划结束（{state}）: {message}");
-            foreach (var c in _cursors) c.ClearSubAction();
+            foreach (var c in _cursors) FinalizeCursor(c);
 
             if (silent || string.IsNullOrEmpty(message))
             {
@@ -1134,6 +1229,31 @@ namespace LivingWorldNpcs
                 // 密信报告（脱不开身 / 紧急中断）
                 SignalPlayer(message);
                 FinalizeExecutor(message);
+            }
+        }
+
+        /// <summary>D4b：收尾时各游标的动作收口——生命周期归脑：
+        /// 脑仍会 tick（Agent 活跃）→ RequestInterrupt + 摘引用（脑下一帧见 IsFinished 自清出队，
+        /// 中断标记使动作不真执行——无僵尸动作；teardown 归脑不调 OnEnd）；
+        /// 脑已死（Agent 不活跃，brain 不再 tick，OnEnd 永远不会被调）→ TeardownSubAction 补 OnEnd
+        /// （异常兜底，不会双跑——脑不会再调）。</summary>
+        private static void FinalizeCursor(ActorCursor c)
+        {
+            if (c.SubAction != null)
+            {
+                if (c.Agent != null && c.Agent.IsActive())
+                {
+                    try { c.SubAction.RequestInterrupt(); } catch { }
+                    c.DetachSubAction();
+                }
+                else
+                {
+                    c.TeardownSubAction();
+                }
+            }
+            else
+            {
+                c.Inline = null;
             }
         }
 
@@ -1353,7 +1473,19 @@ namespace LivingWorldNpcs
 
         public PlanStep Current => Index >= 0 && Index < Sequence.Count ? Sequence[Index] : null;
 
-        public void ClearSubAction()
+        /// <summary>正常迁移（D4b）：只摘引用，teardown（OnEnd）归脑——动作生命周期已被脑接管。
+        /// 脑侧完成出队 / 迁移终止时一律走此路径，禁止再调 OnEnd（双 OnEnd 会让
+        /// MoveEndAndInteractPrepare / CombatManager 清理双触发）。</summary>
+        public void DetachSubAction()
+        {
+            SubAction = null;
+            Inline = null;
+        }
+
+        /// <summary>异常兜底（D4b）：动作从未入队/脑已死时补 OnEnd，防资源泄漏。
+        /// 只用于脑永远不会再驱动该动作的路径（无脑入队失败 / Agent 已不活跃），
+        /// 不会与脑的 OnEnd 双跑——脑不会再调。</summary>
+        public void TeardownSubAction()
         {
             if (SubAction != null)
             {
@@ -1382,8 +1514,9 @@ namespace LivingWorldNpcs
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ExecutePlanAction — brain 队列挂载（IAtomicAction）
+    // 原 ExecutePlanAction（brain 队列占位挂载）已随单脑化重构 D1 删除（2026-08-11）：
+    // 执行器不再挂脑队列占位——order_execute_plan / plan_debug 直接 executor.Start +
+    // ExecutingCommand 意图哨兵（AgentBrain D2 空窗守卫），行为步骤由执行器逐个入队。
+    // 行为性内联入队适配器 InlinePlanAction（D3）定义于 AI/Actions/AtomicAction.cs。
     // ═══════════════════════════════════════════════════════════════
-
-    // ExecutePlanAction 已迁移至 AI/Actions/AtomicAction.cs（2026-08-11 统一——所有 IAtomicAction 实现集中一处）。
 }

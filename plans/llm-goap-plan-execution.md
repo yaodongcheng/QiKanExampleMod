@@ -1511,7 +1511,7 @@ Executing ──(安全网/预案命中)──▶ Paused（等待条件解除）
 | 现有部件 | 用途 | 改动 |
 |---------|------|------|
 | `AgentBrain` 动作队列 + `IAtomicAction` | 所有参与 NPC 的执行底层 | 加 `order_execute_plan` 事件分支；执行器挂 Tick |
-| `NpcIntent` / `AgentBrain.SetNpcIntent`（`NpcIntent.cs`） | 执行期 NPC 状态显示（互斥状态机，**唯一运行时意图体系**） | **统一架构（无桥接）**：`NpcIntentType` 新增 `ExecutingCommand` + 字段 `CommandIntentType? CommandDetail`（复用既有 `InterceptDetail` 模式，两 detail 按 Type 互斥生效）。**显示**：`ToString` 拼接 = "执行计划中·引开→守卫"（typeName + detailStr + targetStr，与既有 Confronting 同构，key = `LWN_ui_npcintent_executingcommand` + `LWN_ui_commandintent_*`）；细粒度步骤细节 = 执行摘要（AgentHudVM 随从状态行，§5.4）。**值优先**：战斗中 → Fighting、被击晕 → KnockedOut、跟随 → Following（既有值自然表达，不因计划内而变）；计划特有行为（引开/望风/传话/带路…）→ ExecutingCommand(detail)。计划收尾 → 恢复 Following。ReactiveAgent 长时行为走既有值，短时反应（investigate/return_post/say）不设（None） |
+| `NpcIntent` / `AgentBrain.SetNpcIntent`（`NpcIntent.cs`） | 执行期 NPC 状态显示（互斥状态机，**唯一运行时意图体系**） | **统一架构（无桥接）**：`NpcIntentType` 新增 `ExecutingCommand` + 字段 `CommandIntentType? CommandDetail`（复用既有 `InterceptDetail` 模式，两 detail 按 Type 互斥生效）。**显示**：`ToString` 拼接 = "执行计划中·引开→守卫"（typeName + detailStr + targetStr，与既有 Confronting 同构，key = `LWN_ui_npcintent_executingcommand` + `LWN_ui_commandintent_*`）；细粒度步骤细节 = 执行摘要（AgentHudVM 随从状态行，§5.4）。**值优先**：战斗中 → Fighting、被击晕 → KnockedOut、跟随 → Following（既有值自然表达，不因计划内而变）；计划特有行为（引开/望风/传话/带路…）→ ExecutingCommand(detail)。计划收尾 → 意图复位 None（实施修正 2026-08-11：护卫跟随已注释，恢复 Following 无对应动作）。ReactiveAgent 长时行为走既有值，短时反应（investigate/return_post/say）不设（None） |
 | `AgentControlHelper.MoveTo/LookAtAgent/FaceToActor/ForceUnlockAgent` | 原子行为底层 | 无 |
 | `AgentHudMissionView.AgentSay` | say_to 冒泡（非原版对话流） | 无 |
 | `NpcSightSystem.CanAgentSeeTarget/GetObserversOf` | 视野矩阵 + 角色表"谁在盯着" | 无 |

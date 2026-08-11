@@ -197,10 +197,12 @@ namespace LivingWorldNpcs
             if (brain == null) return "error: agent has no brain";
             brain.SetNpcIntent(NpcIntentType.ExecutingCommand, null,
                 commandDetail: PlanExecutor.ParseIntentType(plan.Intent?.IntentType));
-            brain.ClearAllActionsInternal();
-            brain.EnqueueActionInternal(new ExecutePlanAction(executor));
+            brain.ClearAllActions();
+            // D1（单脑化重构）：占位动作 ExecutePlanAction 已删——执行器直接启动（不入队），
+            // 行为步骤由执行器逐步入队（脑队列持有真实动作）。
+            executor.Start(agent);
             var exRef = executor;
-            executor.OnFinished += e => brain.OnPlanFinishedDebug(exRef);
+            executor.OnFinished += e => brain.OnPlanExecutorFinished(exRef);
             // Replan 接线（调试注入同样支持意外重入）
             PlanReplan.Wire(executor, plan.Summary ?? "（调试命令）", plan.Intent?.IntentType);
 

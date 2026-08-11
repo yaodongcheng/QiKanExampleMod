@@ -135,21 +135,8 @@ namespace LivingWorldNpcs
                 ShowDamage = false;
             }
 
-            // 🆕 NpcIntent 调试文本（玩家自己/战场中不显示——玩家无 AI Intent；MCM 开关 ShowNpcIntent 默认开）
-            {
-                var brain = AgentAIController.GetBrainForAgent(TargetAgent);
-                var intent = brain?.CurrentIntent;
-                // 空闲意图（None）不算"有内容"：啥也没干的 NPC 不显示意图文本（防满屏"空闲"）
-                // 意图文本只在正经状态（战斗/质问/跟随/击晕…）时作为 HUD 附加注释出现
-                bool hasMeaningfulIntent = intent != null && intent.Type != NpcIntentType.None;
-                NpcIntentDebugText = hasMeaningfulIntent ? intent.ToString() : "";
-                ShowIntentDebug = Settings.Instance.ShowNpcIntent
-                    && !TargetAgent.IsMainAgent
-                    && !Settings.Instance.IsInteractionDisabled()
-                    && !string.IsNullOrWhiteSpace(NpcIntentDebugText);
-            }
-
             // 🆕 计划执行摘要（执行器每步动态细节；玩家可见 = 反馈明确原则）
+            // 🔴 放在意图块之前：ShowIntentDebug 的互斥条件（&& !ShowPlanSummary）依赖本块先算
             {
                 var executor = PlanExecutor.GetExecutorFor(TargetAgent);
                 if (executor != null && !string.IsNullOrWhiteSpace(executor.CurrentSummary))
@@ -162,6 +149,26 @@ namespace LivingWorldNpcs
                     PlanSummaryText = "";
                     ShowPlanSummary = false;
                 }
+            }
+
+            // 🆕 NpcIntent 调试文本（玩家自己/战场中不显示——玩家无 AI Intent；MCM 开关 ShowNpcIntent 默认开）
+            {
+                var brain = AgentAIController.GetBrainForAgent(TargetAgent);
+                var intent = brain?.CurrentIntent;
+                // 空闲意图（None）不算"有内容"：啥也没干的 NPC 不显示意图文本（防满屏"空闲"）
+                // 意图文本只在正经状态（战斗/质问/跟随/击晕…）时作为 HUD 附加注释出现
+                bool hasMeaningfulIntent = intent != null && intent.Type != NpcIntentType.None;
+                NpcIntentDebugText = hasMeaningfulIntent ? intent.ToString() : "";
+                // 🔴 显示互斥一行（单脑化重构）：计划执行中摘要行独占、意图行让位——重构后
+                // ExecutingCommand 意图降级为 D2 空窗守卫内部哨兵不再上屏，HUD 行为来源 =
+                // 执行器 CurrentSummary（真实步骤进展），消除「意图行说执行命令、实际在走路」的状态分歧；
+                // 计划收尾意图复位 None 后（无意义意图）意图行自然隐藏。玩家刚下令已知在执行命令，意图行零新信息，
+                // 两行叠加 = 反馈冗余。
+                ShowIntentDebug = Settings.Instance.ShowNpcIntent
+                    && !TargetAgent.IsMainAgent
+                    && !Settings.Instance.IsInteractionDisabled()
+                    && !string.IsNullOrWhiteSpace(NpcIntentDebugText)
+                    && !ShowPlanSummary;
             }
 
             // 5. 名字总领规则：FOV 内任意元素真的显示时浮现名字
