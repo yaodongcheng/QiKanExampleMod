@@ -273,6 +273,7 @@ ActionSpace ResolveSpace(Hero defender) {
 **目标类型路由（职责契约）**：
 - **静止目标（gameentity tag / zone / 坐标）→ `move_to` 分支**（`TryResolvePosition` 既有解析链，一次性寻路到点）——`follow` 分支**只接会动的 agent**。当前 `ResolveStepAgent` 天然如此（静止实体解析不出 agent），本设计将契约固化：静止实体永不进 FollowAgentAction。
 - **会动的 agent → `FollowAgentAction` + 动态间隔**（下方）。
+- 🔴 **2026-08-11 落地（用户裁定，修正快照错误设计）**：`move_to` 步骤目标解析为 agent（找人/找玩家）→ **FollowAgentAction(keepFollow:false, stopDistance=within)**——追踪式追到身边，目标在动也不走空点；只有确定坐标点（逃跑点/物件/区域/query）才用 MoveToPositionAction。此前 move_to 对 agent 目标截位置快照（PlanExecutor.cs `move_to` 分支）是错误实现，已修；ReactiveAgent `investigate` 反应同规修正（requester 是 agent → FollowAgentAction，Unlock 收尾）。
 
 **动态重算间隔**（目标速度 + 距离双因子，C# 确定性）：
 

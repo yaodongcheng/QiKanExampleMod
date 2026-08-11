@@ -429,13 +429,23 @@ namespace LivingWorldNpcs
                     }
                 case "investigate":
                     {
-                        // 走向目标区域 + 盯着（原 ReactiveInvestigateAction 已并入 MoveToPositionAction 的
-                        // lookTarget 参数，2026-08-11 参数化合并：walk/2f/30s 超时/解锁收尾 + 边走边盯）
-                        Vec3 pos = requester?.Position ?? agent.Position;
-                        brain.RunReactiveAction(new MoveToPositionAction(pos, Vec2.Zero, run: false, stopDistance: 2f,
-                            maxTime: 30f, skipGetupDelay: true,
-                            endBehavior: MoveToPositionAction.EndBehavior.Unlock,
-                            lookTarget: requester ?? Agent.Main));
+                        // 🔴 2026-08-11 目标类型分派（用户裁定，修正错误路由）：目标 = requester（agent）
+                        // → FollowAgentAction，不用位置快照（快照会走空点）。到 2m 内自然停下盯住目标
+                        // （FollowAgentAction 停位后 SetLookAgent 目标）；Unlock 收尾 = 调查完回归日常。
+                        // 原 30s 放弃超时由 keepFollow=false 的 5s 追赶瞬移兜底取代（追不上 → 贴到身边）。
+                        if (requester != null)
+                        {
+                            brain.RunReactiveAction(new FollowAgentAction(requester, run: false, stopDistance: 2f,
+                                endBehavior: MoveToPositionAction.EndBehavior.Unlock));
+                        }
+                        else
+                        {
+                            // requester 缺失（防御）：原地完成 + 盯着玩家（保持原兜底行为）
+                            brain.RunReactiveAction(new MoveToPositionAction(agent.Position, Vec2.Zero, run: false, stopDistance: 2f,
+                                maxTime: 30f, skipGetupDelay: true,
+                                endBehavior: MoveToPositionAction.EndBehavior.Unlock,
+                                lookTarget: Agent.Main));
+                        }
                         break;
                     }
                 case "return_post":

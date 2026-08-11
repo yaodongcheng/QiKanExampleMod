@@ -640,8 +640,11 @@ namespace LivingWorldNpcs
 
         private readonly float _optionalDuration;   // 跟走模式时长（>0 = 到时 IsFinished，忽略距离判定）
         private float _moveStartTimer;              // 开始移动时刻（_timer 基准；起身预支 2s 不计入时长）
+        private float _debugLogTimer;               // 位移诊断周期日志（每秒一次，跟走模式排查用）
+        private readonly MoveToPositionAction.EndBehavior _endBehavior;   // 收尾行为（同 MoveToPositionAction：InteractPrepare 默认 / Unlock 回岗）
 
-        public FollowAgentAction(Agent target, bool run, float radius = 0.0f, float angleOffset = 0f, float stopDistance = 3.5f, float buffer = 1.5f, bool keepFollow = false, float optionalDuration = 0f)
+        public FollowAgentAction(Agent target, bool run, float radius = 0.0f, float angleOffset = 0f, float stopDistance = 3.5f, float buffer = 1.5f, bool keepFollow = false, float optionalDuration = 0f,
+            MoveToPositionAction.EndBehavior endBehavior = MoveToPositionAction.EndBehavior.InteractPrepare)
         {
             _target = target;
             _run = run;
@@ -659,6 +662,8 @@ namespace LivingWorldNpcs
             // 🔴 跟走模式（附章③，2026-08-11）：optionalDuration > 0 = 跟走一段后到时完成
             // （原 ReactiveFollowAction 的 Follow 阶段——一直追目标，不因距离完成）
             _optionalDuration = optionalDuration;
+
+            _endBehavior = endBehavior;
 
             _timer = 0f;
             _maxTime = 5f;
@@ -680,6 +685,8 @@ namespace LivingWorldNpcs
             if (!needsDelay)
                 _timer = 2.0f;
             _moveStartTimer = _timer;   // 起身预支不计入跟走时长/超时预算（基准 = 实际开始移动时刻）
+            if (_optionalDuration > 0f)
+                DebugLogger.Log($"[Follow] {agent.Name}(Idx={agent.Index}) 跟走开始 | 目标={_target?.Name} | 初始距离={agent.Position.Distance(_target?.Position ?? agent.Position):F1}m | 时长={_optionalDuration:F1}s | needsDelay={needsDelay}");
         }
 
         public void OnTick(Agent agent, float dt)
@@ -694,7 +701,18 @@ namespace LivingWorldNpcs
             }
 
             _currentIdealPosition = CalculateIdealPosition();
-            _currentDistanceSq = agent.Position.DistanceSquared(_currentIdealPosition);       
+            _currentDistanceSq = agent.Position.DistanceSquared(_currentIdealPosition);
+
+            // 位移诊断（跟走模式每秒一次：区分 原地挂机 / 追了没追上 / 瞬移跟随）
+            if (_optionalDuration > 0f)
+            {
+                _debugLogTimer += dt;
+                if (_debugLogTimer >= 1f)
+                {
+                    _debugLogTimer = 0f;
+                    DebugLogger.Log($"[Follow] {agent.Name}(Idx={agent.Index}) 跟走中 | 距目标 {MathF.Sqrt(_currentDistanceSq):F1}m | isMoving={_isMoving} | t={_timer:F1}s");
+                }
+            }
 
             // --- 状态机逻辑 ---
 
@@ -850,6 +868,9 @@ namespace LivingWorldNpcs
 
         public void OnEnd(Agent agent)
         {
+            if (_optionalDuration > 0f)
+                DebugLogger.Log($"[Follow] {agent.Name}(Idx={agent.Index}) 跟走结束 | 距目标 {MathF.Sqrt(_currentDistanceSq):F1}m | isMoving={_isMoving} | t={_timer:F1}s");
+
             _isMoving = false;
             // 不瞬移：NPC 已在 stopDistance 内（ComeHere 默认 0.5m），
             // 几十厘米的偏差肉眼不可见，瞬移反而比到位的视觉跳变更突兀。
@@ -858,7 +879,12 @@ namespace LivingWorldNpcs
                 Vec3 targetDir = (_target.Position - agent.Position).NormalizedCopy();
                 agent.SetMovementDirection(targetDir.AsVec2);
             }
-            AgentControlHelper.MoveEndAndInteractPrepare(agent);
+            // 收尾行为参数化（2026-08-11 新增，同 MoveToPositionAction）：持续跟随 = 准备互动；
+            // 调查/回岗类 = 解锁恢复原版 AI
+            if (_endBehavior == MoveToPositionAction.EndBehavior.Unlock)
+                AgentControlHelper.ForceUnlockAgent(agent);
+            else
+                AgentControlHelper.MoveEndAndInteractPrepare(agent);
         }
     }
 
