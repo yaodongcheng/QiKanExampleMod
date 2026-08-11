@@ -63,6 +63,29 @@ AgentAIController.Instance.SendEventToAgent(target, "事件名", args);
 - **什么才该放进原子 Action 库**：只有**高可复用**（多种行为链都会用到，如移动、朝向、播放动画）或**不可再拆分**（最小行为单元，拆了就没意义）的行为，才进 `AtomicAction.cs`。一次性的、只服务某个具体玩法的复合流程**不要**塞进来——那应该是「多个原子 Action 入队组合」。
 - 复杂行为 = 多个原子 Action 入队组合，而不是写一个大 Action。
 
+### 🔴 移动目标类型分派（找 agent 只允许 FollowAgentAction）— 2026-08-11 用户裁定
+
+**规则**：
+- 目标 = **确定坐标点**（逃跑点/回岗点/围观位/物件/区域/query）→ `MoveToPositionAction`（快照寻路到点）
+- 目标 = **agent**（找人/找玩家/调查某人）→ **只允许 `FollowAgentAction`**（`keepFollow:false, stopDistance=within`）——追踪式追到身边，目标在动也不走空点。
+- **禁止**对 agent 目标截位置快照走 MoveToPositionAction（PlanExecutor `move_to` 分支曾犯此错——agent 走开就走到空点，2026-08-11 已修；ReactiveAgent `investigate` 反应同规修正）。
+
+```csharp
+// PlanExecutor.move_to 步骤分派范本（PlanExecutor.cs）
+if (ResolveStepAgent(step, cursor, out Agent target) && target != cursor.Agent)
+    cursor.SubAction = new FollowAgentAction(target, false, stopDistance: within, keepFollow: false);
+else {
+    ResolveStepTarget(step, cursor, out Vec3 pos, out Vec2 dir); // 坐标点/self
+    cursor.SubAction = new MoveToPositionAction(pos, dir, false, within);
+}
+```
+
+**注意**：
+- `FollowAgentAction` 新增 `EndBehavior` 收尾参数（2026-08-11，同 MoveToPositionAction）：`Unlock` = 解锁回原版 AI（调查/回岗类）；默认 `InteractPrepare` = 准备互动（持续跟随/对峙类）。
+- keepFollow=false 的 5s 追赶瞬移兜底 = "追不上贴到身边"语义（区别于 MoveToPositionAction 的卡死瞬移）；目标快速移动（骑马玩家）时可能触发，观感突兀需调 `_maxTime`。
+- 契约文档：`plans/im-command-action-upgrade.md` §5.4 目标类型路由。
+- **文件位置**：`Planner/PlanExecutor.cs`（move_to 分派）、`Planner/ReactiveAgent.cs`（investigate）、`AI/Actions/AtomicAction.cs`（FollowAgentAction/MoveToPositionAction）。
+
 
 ---
 

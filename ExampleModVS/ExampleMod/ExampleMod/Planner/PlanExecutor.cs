@@ -899,8 +899,18 @@ namespace LivingWorldNpcs
             {
                 case "move_to":
                     {
-                        if (!ResolveStepTarget(step, cursor, out Vec3 pos, out Vec2 dir)) return false;
                         float within = step.Within > 0f ? step.Within : 2.0f;
+                        // 🔴 2026-08-11 目标类型分派（用户裁定，修正"位置快照"错误设计）：
+                        // 目标 = agent（找人/找玩家）→ FollowAgentAction(keepFollow:false)——追踪式追到 within 内，
+                        // 目标在动也不走空点（对齐 im-command-action-upgrade.md §5.4 契约：会动的 agent → FollowAgentAction）；
+                        // 目标 = 确定坐标点（逃跑点/物件/区域/query）→ MoveToPositionAction（快照寻路到点）。
+                        // self 无移动意义 → 落 MoveToPositionAction 原位（dist=0 瞬完）。
+                        if (ResolveStepAgent(step, cursor, out Agent target) && target != cursor.Agent)
+                        {
+                            cursor.SubAction = new FollowAgentAction(target, false, stopDistance: within, keepFollow: false);
+                            return true;
+                        }
+                        if (!ResolveStepTarget(step, cursor, out Vec3 pos, out Vec2 dir)) return false;
                         cursor.SubAction = new MoveToPositionAction(pos, dir, false, within);
                         return true;
                     }
