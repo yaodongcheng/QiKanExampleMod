@@ -537,7 +537,13 @@ namespace LivingWorldNpcs
                     return;
                 }
                 if (cursor.SubAction != null)
+                {
                     cursor.SubAction.OnStart(cursor.Agent);
+                    // 🔴 经历旁白（2026-08-11）：密谋子动作绕过脑队列 → 在此接入统一翻译
+                    // （与脑出队点同源 RecordActionNarration → 各动作 GetNarration），
+                    // 否则密谋执行的动作（如攻击）永远没有旁白记录。
+                    AgentAIController.GetBrainForAgent(cursor.Agent)?.RecordActionNarration(cursor.SubAction);
+                }
             }
 
             // until 提前完成（动作步骤）或退出条件（wait 步骤）
@@ -842,6 +848,7 @@ namespace LivingWorldNpcs
                     {
                         if (!ResolveStepAgent(step, cursor, out Agent target)) return false;
                         cursor.SubAction = new FightEnemyAction(target);
+                        // 旁白在子动作 OnStart 处统一记录（RecordActionNarration 分发，见本类 Tick 执行点）
                         return true;
                     }
                 case "face":
@@ -1378,39 +1385,5 @@ namespace LivingWorldNpcs
     // ExecutePlanAction — brain 队列挂载（IAtomicAction）
     // ═══════════════════════════════════════════════════════════════
 
-    public class ExecutePlanAction : IAtomicAction
-    {
-        private readonly PlanExecutor _executor;
-        public PlanExecutor Executor => _executor;
-
-        public ExecutePlanAction(PlanExecutor executor)
-        {
-            _executor = executor;
-        }
-
-        public void OnStart(Agent agent)
-        {
-            _executor?.Start(agent);
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            // 执行器由 AgentAIController.TickAll 统一驱动（与队列解耦，报告流程也能跑）
-        }
-
-        public bool IsFinished(Agent agent)
-        {
-            return _executor == null || _executor.IsFinished;
-        }
-
-        public void OnEnd(Agent agent)
-        {
-            // brain 标准清理后：恢复默认行为由 DecideDefaultBehavior 自动处理
-        }
-
-        public void RequestInterrupt()
-        {
-            _executor?.RequestInterrupt();
-        }
-    }
+    // ExecutePlanAction 已迁移至 AI/Actions/AtomicAction.cs（2026-08-11 统一——所有 IAtomicAction 实现集中一处）。
 }

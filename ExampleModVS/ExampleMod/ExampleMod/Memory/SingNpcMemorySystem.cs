@@ -292,6 +292,110 @@ namespace LivingWorldNpcs
             }
         }
 
+        // ── 经历旁白（Experience Narration，2026-08-11）──
+        // 会话级（不存档）：AgentBrain 事件决策点写入的第一人称经历（"我遭到X的攻击"），
+        // prompt【近期经历】段直接读最新几条；超限 → MaintainNarrationAsync 总结进 DynamicMemories（持久化）。
+        private readonly List<RecentMemory> _narration = new List<RecentMemory>();
+        /// <summary>旁白容量：超过 2× 触发 LLM 总结；硬上限 3× 丢弃最旧（防 LLM 故障期无界增长）。</summary>
+        public const int MaxNarrationCount = 20;
+        private volatile bool _isNarrating = false;
+
+        /// <summary>
+        /// 🔴 2026-08-11：主线程同步写入一条经历旁白（AgentBrain 事件决策点调用）。
+        /// 通道语义：旁白进 prompt 的【近期经历】段（GetPrompt_RespondContext 最新 3 条），
+        /// 且**不渲染为私聊聊天行**（GetDirectMessages 只认 im_user/im_npc 角色）——
+        /// "NPC 亲身经历但没说出口"的事实（被攻击/目击/奉命）走这里，写 RecentHistory 会出现玩家没见过的幽灵消息。
+        /// 内容 = 第一人称 LLM prompt 材料（豁免铁律 13），中性表述交给 LLM 调口吻。
+        /// 不阻塞主线程：LLM 总结 fire-and-forget，LLM 不可用时静默失败（铁律 1）。
+        /// </summary>
+        public void RecordNarration(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return;
+            double now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            lock (_lock)
+            {
+                _narration.Add(new RecentMemory(content, now, now));
+                // 硬上限保护（LLM 故障期旁白不会无界增长）：超 3× 丢最旧到 2×
+                if (_narration.Count > MaxNarrationCount * 3)
+                {
+                    _narration.RemoveRange(0, _narration.Count - MaxNarrationCount * 2);
+                    DebugLogger.Log($"[Narration] {_profile?.Name} 旁白硬裁剪（LLM 总结未跟上）→ {_narration.Count} 条");
+                }
+                if (_narration.Count >= MaxNarrationCount * 2)
+                    _ = MaintainNarrationAsync();
+            }
+        }
+
+        /// <summary>线程安全的旁白快照（prompt 读取用；与 SnapshotDynamicMemories 同理）。</summary>
+        public List<RecentMemory> SnapshotNarrationLog()
+        {
+            lock (_lock)
+            {
+                return _narration.ToList();
+            }
+        }
+
+        /// <summary>
+        /// 旁白总结（镜像 MaintainMemoryAsync 模式）：取最旧一批（count - MaxNarrationCount）→
+        /// LLM 总结 → 成功才移除（解析失败作废保留，防污染，同对话历史纪律）→ 进 DynamicMemories（持久化）。
+        /// </summary>
+        private async Task MaintainNarrationAsync()
+        {
+            List<RecentMemory> linesToSummarize = null;
+            double timeStamp_Start = 0, timeStamp_End = 0;
+            lock (_lock)
+            {
+                if (_narration.Count > MaxNarrationCount)
+                    linesToSummarize = _narration.Take(_narration.Count - MaxNarrationCount).ToList();
+            }
+            if (linesToSummarize == null || linesToSummarize.Count == 0) return;
+            if (_isNarrating) return;
+            _isNarrating = true;
+            try
+            {
+                foreach (var m in linesToSummarize)
+                {
+                    if (timeStamp_Start == 0 || m.TimeStamp_Start < timeStamp_Start) timeStamp_Start = m.TimeStamp_Start;
+                    if (m.TimeStamp_End > timeStamp_End) timeStamp_End = m.TimeStamp_End;
+                }
+                string summaryPrompt = PromptBuilder.BuildPromptForNarrationSummary(this, linesToSummarize);
+                string jsonResponse = await LLMService.Instance.SummarizeAsync(summaryPrompt, showFailureAlert: !SuppressFailureAlerts);
+                jsonResponse = LLMService.CleanJson(jsonResponse);
+                LLSSummaryResponse response;
+                try
+                {
+                    response = JsonConvert.DeserializeObject<LLSSummaryResponse>(jsonResponse);
+                    if (response == null) throw new Exception("Empty JSON");
+                }
+                catch (Exception)
+                {
+                    // 🔴 同对话历史总结纪律：解析失败 → 作废本轮总结（旁白保留，下次超限重试）
+                    DebugLogger.Log($"[警告] 旁白总结 JSON 解析失败，作废本轮（旁白保留）：{jsonResponse}");
+                    return;
+                }
+                string summaryContent = response.Summary;
+                if (string.IsNullOrWhiteSpace(summaryContent)) return;
+                lock (_lock)
+                {
+                    int countToRemove = linesToSummarize.Count;
+                    if (_narration.Count >= countToRemove)
+                    {
+                        _narration.RemoveRange(0, countToRemove);
+                        DebugLogger.Log($"[Narration] {_profile?.Name} 旁白总结完成，移除 {countToRemove} 条 → {_narration.Count} 条");
+                    }
+                }
+                await AddDynamicMemory(new RecentMemory(summaryContent, timeStamp_Start, timeStamp_End));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Narration] {_profile?.Name} 旁白总结失败: {ex.Message}");
+            }
+            finally
+            {
+                _isNarrating = false;
+            }
+        }
+
         /// <summary>读档重建（MyBehavior.SyncData → AllNpcMemoryManager.DeserializeSlot 调用）。</summary>
         public void RestoreFromSave(List<ChatMessage> history, List<RecentMemory> dynamic, string permanent,
             string backgroundStory = null, string personality = null, string specialty = null)

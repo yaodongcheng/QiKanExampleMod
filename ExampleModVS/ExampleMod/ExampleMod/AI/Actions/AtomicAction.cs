@@ -29,10 +29,22 @@ namespace LivingWorldNpcs
         /// 比外部直接捅 _currentAction=null 安全：不会跳过 OnEnd 导致资源泄漏。
         /// </summary>
         void RequestInterrupt();
+
+        /// <summary>
+        /// 经历旁白（2026-08-11）：出队翻译（AgentBrain.RecordActionNarration 调用）。
+        /// **每个动作在自身定义处声明**——值得记住的经历（"我遭到X的攻击，与他交战"/"吓得逃走了"）
+        /// 返回第一人称文本（LLM prompt 材料，豁免铁律 13）；机械动作返回 null = 不记录（零噪声）。
+        /// owner = 正在执行本动作的 Agent；需要被攻击语境时经 AgentAIController.GetBrainForAgent(owner)
+        /// 调 ConsumeAttackContext()（消费式，一次交战只补一次语境）。
+        /// </summary>
+        string GetNarration(Agent owner);
     }
     // 这个Action负责"点火"，即启动LLM生成任务
     public class PrepareOpeningAction : IAtomicAction
     {
+        /// <summary>机械/台词类动作：不产生旁白（内容进对话历史）。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private Agent self;
         private SingNpcMemorySystem memory;
         InitiativeType Type;
@@ -127,6 +139,9 @@ namespace LivingWorldNpcs
     }
     public class ForceTalkAction : IAtomicAction
     {
+        /// <summary>机械/台词类动作：不产生旁白（内容进对话历史）。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private bool _isFinished = false;
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
@@ -292,6 +307,9 @@ namespace LivingWorldNpcs
     }
     public class DrawWeaponAction : IAtomicAction
     {
+        /// <summary>机械/台词类动作：不产生旁白（后续交战记录覆盖）。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private bool _isFinished = false;
         private bool _interrupted;
         public void RequestInterrupt() { _interrupted = true; }
@@ -326,6 +344,9 @@ namespace LivingWorldNpcs
     }
     public class TurnToDirectionAction : IAtomicAction
     {
+        /// <summary>机械动作：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private Vec2 _targetDir;
         private float _precision;
         private bool _isFinished;
@@ -402,6 +423,9 @@ namespace LivingWorldNpcs
     // 1. 移动到坐标动作
     public class MoveToPositionAction : IAtomicAction
     {
+        /// <summary>机械动作：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private Vec3 _targetPos;
         private Vec2 _targetDir;
         private bool _run;
@@ -510,6 +534,9 @@ namespace LivingWorldNpcs
     // 不战斗、单纯逃离。跑完恢复原版 AI（不像 MoveToPositionAction 那样锁定进对话）。
     public class FleeFromAction : IAtomicAction
     {
+        /// <summary>经历旁白（2026-08-11）：逃跑。"被攻击"由事件层记录（event_agent_damaged 事件事实）。</summary>
+        public string GetNarration(Agent owner) => "吓得逃走了";
+
         private readonly Agent _threat;
         private Vec3 _targetPos;
         private bool _foundTarget;
@@ -587,6 +614,9 @@ namespace LivingWorldNpcs
     // 2. 跟随/追逐目标动作
     public class FollowAgentAction : IAtomicAction
     {
+        /// <summary>持续状态动作：不产生旁白（跟随是状态不是事件）。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private Agent _target;
         private bool _run;
         private float _stopDistance;
@@ -822,6 +852,9 @@ namespace LivingWorldNpcs
     // 3. 看向某人
     public class LookAtAction : IAtomicAction
     {
+        /// <summary>机械动作：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private Agent _target;
         private float _duration;
         private float _timer;
@@ -864,6 +897,9 @@ namespace LivingWorldNpcs
     // 4. 播放动画动作
     public class PlayAnimAction : IAtomicAction
     {
+        /// <summary>机械动作：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private string _animName;
         private bool _hasStarted = false;
 
@@ -908,6 +944,13 @@ namespace LivingWorldNpcs
 
     public class FightEnemyAction : IAtomicAction
     {
+        /// <summary>经历旁白（2026-08-11）：交战开始。"被攻击"由事件层记录（event_agent_damaged 事件事实）。</summary>
+        public string GetNarration(Agent owner)
+        {
+            string targetName = _targetEnemy?.Name?.ToString() ?? "对手";
+            return $"与{targetName}交战";
+        }
+
         private Agent _targetEnemy;
         private bool _isFinished;
         private bool _interrupted;
@@ -1065,6 +1108,9 @@ namespace LivingWorldNpcs
 
     public class StayAction : IAtomicAction
     {
+        /// <summary>机械动作（含击晕占位）：不产生旁白（击晕本身由事件记录）。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private Agent _lookTarget; // 要盯着谁看
         private bool _keepRotating; // 是否要时刻调整朝向
         private Vec3 stayPos;
@@ -1126,6 +1172,9 @@ namespace LivingWorldNpcs
 
     public class ReactionDecisionAction : IAtomicAction
     {
+        /// <summary>内部决策动作：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
         private float _delayTimer;
         private Action<Agent> _onDecisionTime; // 延迟结束后执行的逻辑
         private bool _isFinished = false;
@@ -1177,6 +1226,9 @@ namespace LivingWorldNpcs
     /// </summary>
     public class AlertForceConversationAction : IAtomicAction
     {
+        /// <summary>台词/对话类动作：不产生旁白（质问内容进对话历史）。</summary>
+        public string GetNarration(Agent owner) => null;
+
         /// <summary>正在等待对话结束的 NPC。Patch 在 ConversationManager.EndConversation 时读取并清理。</summary>
         internal static Agent ActiveConversationAgent;
 
@@ -1291,6 +1343,301 @@ namespace LivingWorldNpcs
                     ActiveConversationAgent = null;
                 }
             }
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 反应链动作（ReactiveAgent 反应系统使用，原定义于 ReactiveAgent.cs，
+    // 2026-08-11 迁移统一——所有 IAtomicAction 实现集中在本文件）
+    // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>反应台词：冒泡一句话后结束（refuse/ignore/warn_away 用）。</summary>
+    public class ReactiveSayAction : IAtomicAction
+    {
+        /// <summary>台词类动作：不产生旁白（内容进对话历史）。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        private readonly Agent _agent;
+        private readonly string _text;
+        private readonly float _duration;
+        private float _timer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
+        public ReactiveSayAction(Agent agent, string text, float duration = 2.5f)
+        {
+            _agent = agent;
+            _text = text;
+            _duration = duration;
+        }
+
+        public void OnStart(Agent agent)
+        {
+            if (!string.IsNullOrEmpty(_text))
+                AgentHudMissionView.AgentSay(agent, _text);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _timer += dt;
+        }
+
+        public bool IsFinished(Agent agent) => _interrupted || _timer >= _duration;
+
+        public void OnEnd(Agent agent) { }
+    }
+
+    /// <summary>跟走一段后折返回岗位（follow_for_a_bit + return_post 一体化；duty 决定时长）。</summary>
+    public class ReactiveFollowAction : IAtomicAction
+    {
+        /// <summary>持续状态动作：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        private enum Phase { Follow, Return, Done }
+        private readonly Agent _target;
+        private readonly Vec3 _postPos;
+        private readonly float _followTime;
+        private Phase _phase = Phase.Follow;
+        private float _timer;
+        private float _fixedTimer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
+        /// <summary>是否仍在"跟随"阶段（following 谓词判定用：true = 守卫正在跟走）。</summary>
+        internal bool IsFollowingNow => _phase == Phase.Follow && !_interrupted;
+
+        /// <summary>跟随目标（following 谓词判定用）。</summary>
+        internal Agent TargetAgent => _target;
+
+        public ReactiveFollowAction(Agent target, Vec3 postPos, float followTime, Agent owner)
+        {
+            _target = target;
+            _postPos = postPos;
+            _followTime = followTime;
+        }
+
+        public void OnStart(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+            _timer = 0f;
+            _fixedTimer = 0f;
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _timer += dt;
+            _fixedTimer += dt;
+            if (_interrupted) { _phase = Phase.Done; return; }
+
+            switch (_phase)
+            {
+                case Phase.Follow:
+                    // 跟随目标（跟走）
+                    if (_fixedTimer >= 0.2f)
+                    {
+                        _fixedTimer = 0f;
+                        if (_target != null && _target.IsActive())
+                            AgentControlHelper.ScriptedMoveToPoint(agent, _target.Position, false);
+                        else
+                            _phase = Phase.Return;   // 目标没了 → 折返
+                    }
+                    if (_timer >= _followTime)
+                        _phase = Phase.Return;       // 到点折返（left_post_seconds 语义）
+                    break;
+                case Phase.Return:
+                    if (_fixedTimer >= 0.2f)
+                    {
+                        _fixedTimer = 0f;
+                        AgentControlHelper.ScriptedMoveToPoint(agent, _postPos, false);
+                    }
+                    if (agent.Position.Distance(_postPos) < 1.5f || _timer > _followTime + 20f)
+                        _phase = Phase.Done;
+                    break;
+            }
+        }
+
+        public bool IsFinished(Agent agent) => _phase == Phase.Done || _interrupted;
+
+        public void OnEnd(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+    }
+
+    /// <summary>折返回岗位（return_post 反应）。</summary>
+    public class ReactiveReturnPostAction : IAtomicAction
+    {
+        /// <summary>机械动作（回岗）：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        private readonly Vec3 _postPos;
+        private bool _done;
+        private float _fixedTimer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
+        public ReactiveReturnPostAction(Vec3 postPos, Agent owner)
+        {
+            _postPos = postPos;
+        }
+
+        public void OnStart(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _fixedTimer += dt;
+            if (_interrupted) { _done = true; return; }
+            if (_fixedTimer >= 0.2f)
+            {
+                _fixedTimer = 0f;
+                AgentControlHelper.ScriptedMoveToPoint(agent, _postPos, false);
+            }
+            if (agent.Position.Distance(_postPos) < 1.5f) _done = true;
+        }
+
+        public bool IsFinished(Agent agent) => _done || _interrupted;
+
+        public void OnEnd(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+    }
+
+    /// <summary>调查（investigate）：走向目标位置 + 盯着。</summary>
+    public class ReactiveInvestigateAction : IAtomicAction
+    {
+        /// <summary>机械动作（调查）：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        private readonly Vec3 _pos;
+        private readonly Agent _lookTarget;
+        private bool _done;
+        private float _fixedTimer;
+        private float _totalTimer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
+        public ReactiveInvestigateAction(Vec3 pos, Agent lookTarget, Agent owner)
+        {
+            _pos = pos;
+            _lookTarget = lookTarget;
+        }
+
+        public void OnStart(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+            if (_lookTarget != null) AgentControlHelper.LookAtAgent(agent, _lookTarget);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _fixedTimer += dt;
+            _totalTimer += dt;
+            if (_interrupted) { _done = true; return; }
+            if (_fixedTimer >= 0.2f)
+            {
+                _fixedTimer = 0f;
+                AgentControlHelper.ScriptedMoveToPoint(agent, _pos, false);
+            }
+            if (agent.Position.Distance(_pos) < 2f || _totalTimer > 30f) _done = true;
+        }
+
+        public bool IsFinished(Agent agent) => _done || _interrupted;
+
+        public void OnEnd(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+    }
+
+    /// <summary>跑离现场（flee 恐慌反应）：跑向远离点，到达或超时结束。</summary>
+    public class ReactiveFleeAction : IAtomicAction
+    {
+        /// <summary>经历旁白（2026-08-11）：反应链逃跑。"被攻击"由事件层记录。</summary>
+        public string GetNarration(Agent owner) => "吓得逃走了";
+
+        private readonly Vec3 _awayPos;
+        private bool _done;
+        private float _fixedTimer;
+        private float _totalTimer;
+        private bool _interrupted;
+        public void RequestInterrupt() { _interrupted = true; }
+
+        public ReactiveFleeAction(Vec3 awayPos, Agent owner)
+        {
+            _awayPos = awayPos;
+        }
+
+        public void OnStart(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            _fixedTimer += dt;
+            _totalTimer += dt;
+            if (_interrupted) { _done = true; return; }
+            if (_fixedTimer >= 0.2f)
+            {
+                _fixedTimer = 0f;
+                AgentControlHelper.ScriptedMoveToPoint(agent, _awayPos, true); // 跑（sprinting）
+            }
+            if (agent.Position.Distance(_awayPos) < 2f || _totalTimer > 15f) _done = true;
+        }
+
+        public bool IsFinished(Agent agent) => _done || _interrupted;
+
+        public void OnEnd(Agent agent)
+        {
+            AgentControlHelper.ForceUnlockAgent(agent);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // 密谋计划执行动作（PlanExecutor 使用，原定义于 PlanExecutor.cs，
+    // 2026-08-11 迁移统一）
+    // ═══════════════════════════════════════════════════════════════
+
+    public class ExecutePlanAction : IAtomicAction
+    {
+        /// <summary>内部驱动动作：不产生旁白（密谋子步骤单独记录）。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        private readonly PlanExecutor _executor;
+        public PlanExecutor Executor => _executor;
+
+        public ExecutePlanAction(PlanExecutor executor)
+        {
+            _executor = executor;
+        }
+
+        public void OnStart(Agent agent)
+        {
+            _executor?.Start(agent);
+        }
+
+        public void OnTick(Agent agent, float dt)
+        {
+            // 执行器由 AgentAIController.TickAll 统一驱动（与队列解耦，报告流程也能跑）
+        }
+
+        public bool IsFinished(Agent agent)
+        {
+            return _executor == null || _executor.IsFinished;
+        }
+
+        public void OnEnd(Agent agent)
+        {
+            // brain 标准清理后：恢复默认行为由 DecideDefaultBehavior 自动处理
+        }
+
+        public void RequestInterrupt()
+        {
+            _executor?.RequestInterrupt();
         }
     }
 }
