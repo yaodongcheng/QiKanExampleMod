@@ -66,6 +66,29 @@ AgentAIController.Instance.SendEventToAgent(target, "事件名", args);
 
 ---
 
+## 🔴 战斗结果 → 当事人记忆 + 队伍广播（FightEnemyAction.OnEnd）— 2026-08-11
+
+**解决**：玩家参与的战斗结束后 NPC 不知道结果（LLM 对"切磋结果怎么样"只能瞎编——实机 11:36:18 NPC 答"多半是您占了上风"实际玩家已阵亡）。
+
+```csharp
+// FightEnemyAction.OnEnd 开头调用（_targetEnemy 尚未置空）：
+RecordFightResultIfPlayerInvolved(agent);   // AtomicAction.cs 内私有方法，模式如下
+```
+
+**模式**（两条腿，缺一不可）：
+1. **当事人确定性记忆**：`AllNpcMemoryManager.GetMemory(heroId)?.RecordDynamicMemory("刚与{对手}交手，我赢了。")` — 保证**当事人**（如切磋对手）在私聊/当面对话回答正确（进 prompt【近期回忆】）。
+2. **队伍感知广播**：`ImEventBroadcaster.BroadcastPlayerEvent(won ? "battle_win" : "battle_lose", "主公方才与{对手}交手，落败被打晕了过去")` — 队伍群聊议论（LLM 评论 + 参与度记忆 + 30% 接话；`custom.im_test_event` 同入口，防刷屏闸门 180s/300s/每日10条）。
+
+**判定与边界**：
+- 胜负判定：一方倒下（`!IsActive() || Health <= 0`）即定局；双方都站着（打断/撤退）不记录。
+- 只处理玩家参与的战斗（`_targetEnemy == Agent.Main`）。
+- ⚠️ **执行者倒下时 OnEnd 不触发**（AgentAIController 只 tick 活跃 Owner，AgentAIController.cs:217）→ "玩家胜、执行者败"的输家记忆/胜利广播天然缺位，可接受不作补救。
+- 触发点**不要**用 `CampaignEvents.OnPlayerBattleEnd`——那是大地图 MapEvent 事件，Mission 内切磋倒下不触发；Mission 战斗必须在自己战斗链的收尾点（如 OnEnd）补调。
+- 描述带对手名让 LLM 评论更具体；描述文本是 LLM prompt 材料（豁免铁律 13）。
+
+
+---
+
 ## 🔴 玩家 agent 永不进入 mod AI 管线（AgentBrain 玩家排除纪律）— 2026-08-09
 
 **问题**：玩家被当 NPC 处理 —— `OnAgentCreated` 给玩家也注册了 AgentBrain → 玩家被打时 `event_agent_damaged` 直发到玩家脑 → 护主/参战链（`Owner == victim` → shouldHelp）触发 → BubbleSay NPC 参战台词（"你这小子！你敢打本官？！"，PlaceholderResolver 按 speaker=玩家 填自称/称呼）+ `SuspendVanillaAI` 禁用玩家 DailyBehaviorGroup。`Brain.Tick` 有 `Owner == Agent.Main` 守卫所以 FightEnemyAction 永不执行，但 **Suspend 已生效且永不撤销**（只有行为结束才 Resume）→ 玩家整场 Mission 无法移动（致命 bug）。

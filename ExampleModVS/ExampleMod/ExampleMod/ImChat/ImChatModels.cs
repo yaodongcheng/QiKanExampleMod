@@ -107,6 +107,18 @@ namespace LivingWorldNpcs
         [JsonIgnore]
         public bool IsProposalResolved => IsProposal && !string.IsNullOrEmpty(ExecutorId);
 
+        // 🔴 2026-08-11（闲聊高风险动作 → 提议卡片）：动作载荷——Proposal 卡片携带闲聊动作码，
+        // 玩家批准后 ActionHandler.HandleImAction 直接执行（不走 RequestCommand 计划管线）。
+        // 空 = 既有 NPC 主动提议（批准 → 提议文本走计划管线，行为不变）。
+        [JsonProperty("a2")]
+        public string ActionCode;
+
+        [JsonProperty("a3")]
+        public string ActionTarget;      // LLM 动作目标名字文本（HandleImAction 重新解析 defender）
+
+        [JsonProperty("a4")]
+        public string ActionLevel;       // 档位 small/medium/large
+
         public ImMessage() { } // JSON 反序列化用
 
         public ImMessage(string senderHeroId, string senderName, string content, ImMessageKind kind)

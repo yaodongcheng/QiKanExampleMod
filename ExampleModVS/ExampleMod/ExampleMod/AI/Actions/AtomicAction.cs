@@ -1003,6 +1003,10 @@ namespace LivingWorldNpcs
 
         public void OnEnd(Agent agent)
         {
+            // 🔴 2026-08-11：玩家参与且分出胜负的战斗 → ①当事人动态记忆（NPC 知道"和谁打、谁赢"，
+            // 后续 IM/当面对话的【近期回忆】接得住，不再瞎编结果）②ImEventBroadcaster 队伍广播
+            // （框架复用：群聊议论 + 参与度记忆 + 接话，custom.im_test_event 同入口）。
+            RecordFightResultIfPlayerInvolved(agent);
             // 完整结束战斗（注销战斗者 + 移回原始队伍）
             // UnregisterCombatant 对非玩家战斗是 no-op，SetTeam 恢复总是需要的
             CombatManager.EndFight(agent);
@@ -1014,6 +1018,43 @@ namespace LivingWorldNpcs
             // 战斗结束警戒值归零，避免 NPC 立刻重新进入 Alarmed → 再次质问玩家
             AgentAIController.GetBrainForAgent(agent)?.ClearAllAlerts();
             DebugLogger.Log($"[FightEnd] {agent.Name}(Idx={agent.Index}) 战斗结束，收起武器，且警戒值归零");
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-11：玩家参与的定局战斗结果记录。胜负判定：一方倒下（不活跃或 HP≤0）即定局；
+        /// 双方都站着（打断/撤退/目标变更）→ 不记录。
+        /// 覆盖范围说明：本动作由 NPC Brain 执行，AgentAIController 只 tick 活跃 Owner
+        /// （AgentAIController.cs:217）——执行者倒下时 OnEnd 不触发，"玩家胜、执行者败"的
+        /// 输家记忆/胜利广播天然缺位（切磋胜方是玩家时玩家自己知道结果，可接受，不作补救）。
+        /// </summary>
+        private void RecordFightResultIfPlayerInvolved(Agent agent)
+        {
+            try
+            {
+                if (_targetEnemy == null || _targetEnemy != Agent.Main) return;   // 只处理玩家参与的战斗
+                if (Hero.MainHero == null) return;
+                bool targetDown = !_targetEnemy.IsActive() || _targetEnemy.Health <= 0;
+                bool selfDown = !agent.IsActive() || agent.Health <= 0;
+                if (targetDown == selfDown) return;                               // 未分胜负
+
+                bool executorWon = targetDown;
+                string playerName = Hero.MainHero.Name?.ToString() ?? "主公";
+                // ① 当事人确定性记忆（第一人称，LLM prompt 材料；走【近期回忆】不污染私聊 UI）
+                var hero = (agent.Character as CharacterObject)?.HeroObject;
+                if (hero != null)
+                    AllNpcMemoryManager.GetMemory(hero.StringId)?.RecordDynamicMemory(
+                        executorWon ? $"刚与{playerName}交手，我赢了。" : $"刚与{playerName}交手，我输了。");
+                // ② 队伍感知（ImEventBroadcaster 框架复用）：玩家败 → battle_lose / 玩家胜 → battle_win；
+                //    描述带对手名让 LLM 评论更具体（如"主公与阿速甘切磋落败"）
+                ImEventBroadcaster.BroadcastPlayerEvent(executorWon ? "battle_lose" : "battle_win",
+                    executorWon
+                        ? $"主公方才与{agent.Name}交手，落败被打晕了过去"
+                        : $"主公方才与{agent.Name}交手，占了上风");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[FightResult] 记录失败: {ex.Message}");
+            }
         }
 
         public bool IsFinished(Agent agent)

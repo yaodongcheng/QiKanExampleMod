@@ -93,3 +93,30 @@ score = Σ 命中主题×职业亲和 + @提及(5) + 相似度(bigram×3) + 热�
 - **沉寂补偿**：没回过话 +2.5（新人必开口）；久未回话按墙钟递增
 - **热度上限 4→2.5**：热度衰减按游戏日（同一天会话内恒定），高互动者会永久垄断
 - **随机 + 保底**：跟随 25% 随机 + 满 N 条消息必触发（`ImFollowUpGuaranteeEvery`）——纯随机 0.75⁷≈13% 连不中实机出现过，体验不能靠赌
+
+---
+
+## 🔴 闲聊高风险动作 → Proposal 提议卡片（IM 确认面板复用）— 2026-08-11
+
+**解决**：NPC 闲聊回复带高风险动作（ATTACK/DUEL/KNOCKOUT/STEAL）时，原生 `ShowInquiry` 弹窗只有一个"来战！"按钮（玩家不能拒绝），且与 IM 聊天流割裂。改为投递 **Proposal 卡片**（同意/拒绝）——与密令 PlanCard、NPC 主动提议（ReactiveAgent）同一套确认 UI。
+
+```csharp
+// ActionDefinition 新字段（InteractionController.cs）：
+RequiresConfirm = true;   // 高风险物理动作：IM 路径拦截为卡片
+ExecuteCore = ...;        // 核心执行（卡片批准后直接跑，不再弹二次确认）
+// Execute = 当面对话的原生弹窗包装，确认回调 → RunActionCore("CODE", ...)
+// HandleAction(..., alreadyConfirmed: true) → 直接 ExecuteCore
+
+// HandleImAction（IM 入口）：RequiresConfirm && !bypassConfirm → PostActionProposal（投卡片 return）
+// ImChatView.HandleProposal：msg.ActionCode 非空 → 同意 = HandleImAction(bypassConfirm: true)
+//   直接执行（空间/冷却/IsValid 复检全保留，NPC 离场自然降级）；拒绝 = ExecutorId="done" 了结
+```
+
+**关键纪律**：
+- **两条路径彻底分离**：IM 路径（`HandleImAction`）拦截为卡片；当面对话路径（ReactiveAgent → `HandleAction` 直接）保留原生弹窗。拦截只放 `HandleImAction`，`HandleAction` 不动。
+- **防死循环**：批准后的再执行必须 `bypassConfirm: true`（否则二次拦截 → 无限投卡）。
+- **防二次弹窗**：批准后走 `ExecuteCore`（`alreadyConfirmed: true`），否则 Execute 的弹窗包装又弹一次。
+- **文案复用**：卡片 Content = 各动作现有确认弹窗 key（`LWN_ui_interact_inquiry_duel_msg` 等），零新增本地化。
+- **发卡前预检**：空间裁剪（`ResolveSpace`）+ `IsValid` 不过 → 不发卡（防"同意后无法执行"的死卡），与 HandleAction 降级 NONE 同语义。
+- **载荷字段**：`ImMessage` 加 `ActionCode/ActionTarget/ActionLevel`（全 JSON 存档，向后兼容；空 ActionCode = 既有 NPC 主动提议 → RequestCommand 计划管线，行为不变）。
+- 卡片投递：`ImChatStore.AppendGroupMessage(conv.Id, ...)` + `IncUnread` + `BroadcastMessageArrived`（私聊/群聊通用，与 ReactiveAgent 提议同款）。

@@ -15,6 +15,23 @@ AllNpcMemoryManager.ClearTemporaryMemories();   // 清临时士兵记忆，防�
 
 ---
 
+## 🔴 确定性事件写记忆：`RecordDynamicMemory`（同步入口）— 2026-08-11
+
+**解决**：战斗结果等主线程确定性事件要让 NPC 知道（LLM 总结管道 `AddDynamicMemory` 是 private async，且依赖对话历史素材）。
+
+```csharp
+mem.RecordDynamicMemory("刚与努勒丹交手，我赢了。");   // 锁内 FIFO + 超限淘汰，不触发耗时重总结
+```
+
+**通道语义（关键）**：
+- 动态记忆进 prompt 的【近期回忆】段（`GetPrompt_RespondContext` 最新 2 条，IM 私聊/当面对话都带）→ LLM 用自己口吻说出来，**不要**硬编码台词。
+- 动态记忆**不渲染为私聊聊天行**（`GetDirectMessages` 只认 RecentHistory 的 `im_user`/`im_npc` 角色）→ "NPC 该知道但没说出口"的事实（胜负/目击）走这里，写 RecentHistory 会出现玩家没见过的幽灵消息。
+- 内容 = 第一人称 LLM prompt 材料（豁免铁律 13），中性表述交给 LLM 调口吻。
+- 调用范例：`FightEnemyAction.OnEnd` 的战斗结果记录（见 agent.md「战斗结果 → 当事人记忆 + 队伍广播」）。
+
+
+---
+
 ## 叙事迁移 — QuestManager 硬编码字串清理
 
 `QuestManager.GetQuestDescription()` 的 ~120 行日本战国硬编码字串已替换为通用简化描述。`GetQuestTitle()` 同步清理。叙事全部走 `NarrativeResolver` → CSV 管道。

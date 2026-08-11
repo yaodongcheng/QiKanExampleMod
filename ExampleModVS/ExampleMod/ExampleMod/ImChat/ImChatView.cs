@@ -704,12 +704,35 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>🔴 Q4：NPC 主动提议处理——批准 = 提议文本作为命令走计划管线（RequestCommand → PlanCard → 玩家批准后执行）；
-        /// 拒绝 = 提议了结。计划元数据不写 NPC 记忆（裁定：批准/修改/拒绝不构成经历）。</summary>
+        /// 拒绝 = 提议了结。计划元数据不写 NPC 记忆（裁定：批准/修改/拒绝不构成经历）。
+        /// 🔴 2026-08-11：带 ActionCode 的动作提议（闲聊高风险动作卡片）——批准 = 直接执行该动作
+        /// （空间/冷却/IsValid 复检在 ActionHandler 内，NPC 已离场自然降级）；拒绝 = 了结。</summary>
         public static void HandleProposal(ImMessage msg, bool approve)
         {
             if (msg == null || !msg.IsProposal || msg.IsProposalResolved) return;
             var conv = ConversationOf(msg.ConvId);
             if (conv == null) return;
+
+            // 动作提议分支（闲聊高风险动作）：不走计划管线，批准即执行
+            if (!string.IsNullOrEmpty(msg.ActionCode))
+            {
+                msg.ExecutorId = "done";
+                RefreshMessages();
+                if (!approve) return;
+                try
+                {
+                    // bypassConfirm=true：玩家已批准，直接执行（空间/冷却/IsValid 复检在 ActionHandler 内）
+                    ActionHandler.HandleImAction(msg.ActionCode, msg.SenderHeroId, msg.SenderName,
+                        msg.ActionTarget, msg.ActionLevel, conv, msg.Content, bypassConfirm: true);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[ImChat] 动作提议执行失败 {msg.ActionCode}: {ex.Message}");
+                }
+                // 消息列表重建（提议按钮消失 + 可能的动作副作用刷新）
+                if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+                return;
+            }
 
             if (!approve)
             {
