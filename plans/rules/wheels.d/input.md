@@ -36,6 +36,23 @@ ModInput.Glyph(id);        // 按最近设备返回键盘/Xbox/PS 字形
 - **阈值**：玩法级 `HoldMs`（>0 覆盖）→ 全局 `Settings.LongPressDurationMs`（默认 450ms，KCD 手感）。
 - **同键同按法冲突检查在"上下文构建时"而非加载时**：默认配置 F/Long 挂 6 行但各上下文互斥（永不同时可用），加载时检查会刷屏；改为 available 列表变化时对"同键同按法且同时可用"的行对告警，只在真实危险时发声。
 
+**🔴 模态门控：全屏自绘层（IM 面板等）打开期间玩法行必须暂停 — 2026-08-11**：
+
+`Input.IsKeyDown` 是物理键轮询，Gauntlet 层 InputRestrictions 拦不住——任何全屏自绘层打开期间，玩法行必须显式暂停，否则面板打字/点按钮会误触发探查/偷窃/击晕等玩法行（实机踩坑：IM 面板打字时按 F 探查仍响应）。
+
+```csharp
+// ModInput.Tick 顶部 = 唯一的模态闸门，全玩法行统一暂停：
+if (IsSystemModalActive() || PlanCommandFlow.IsActive || ImChatView.IsOpen)
+{
+    ResetAll();   // 清空按住/触发状态，弹窗期间松开也不会陈旧触发
+    return;
+}
+```
+
+- **门控清单（三个模态等价物，缺一必踩坑）**：① 系统弹窗（`TopScreen` 类型名含 `"Inquiry"`，`IsSystemModalActive()`）② 当面对话密谋流程（`PlanCommandFlow.IsActive`）③ **IM 聊天面板（`ImChatView.IsOpen`）**。③ 是 2026-08-11 实机踩坑：密令流程 IM 化后旧门控（密令 inquiry 弹窗）没跟着迁到 IM 面板，面板打开时玩法行照常触发。
+- **新增全屏模态 UI 时**：检查它是否有 `IsOpen` 等价物（GauntletLayer 非空）→ 有就加进 `ModInput.Tick` 门控条件，并在上面对齐注释更新。
+- **关闭路径不受影响**：IM 面板关闭走 ESC/手柄 B 全局轮询（ImChatView.Tick 内，不经 ModInput），ResetAll 不误伤关闭；"打开"走 `ShortFired(IM) && !IsOpen`——面板关着时门控条件为 false，状态机正常跑。
+
 **上下文唯一真相源**（`InteractionMissionView`）：`PerformPerformanceHeavyLogic` 构建一次 `_availableIds`（可用玩法列表），**同一份列表同时驱动 UI 显示（`_uiItems`）与输入响应**（`HandleInput` 遍历 available，`ExecuteInteraction(id)` 静态 switch 分发）——杜绝"显示不响应 / 响应不显示"。门控 = `available 非空`（`IsVisible` 只管 UI 显示）：无目标场景 `available=[Inspect]` 且 UI 隐藏时探查键照常响应"看自己"。列表变化 → **退出项与进入项均 `Reset`**（退出 = 长按作废、进度框消退、不误触发；进入 = 清零跨上下文继承的按住电荷——状态机按物理键计时，同键挂多行同时计时，若沿用上一上下文的电荷会"对话长按 → 目标转身 → 击晕凭空满金、松手犯罪"；新电荷从该行在本上下文重新按下算起，不影响"满框待命"）。偷窃条（StealAttempt/StealLeave）= **独立输入通道**（available 体系之外，开条时先 Reset 清陈旧状态）。
 
 **文件位置**：`Input/ModInput.cs`（InteractionIds/ModInputPressMode/InteractionBinding/状态机/别名表）、`Core/Settings.cs`（`InteractionBindingConfig` + `DefaultInteractions` + `LongPressDurationMs`）、`Interaction/InteractionMissionView.cs`（available 上下文构建 + ExecuteInteraction 分发 + SyncAvailable）、`Interaction/InteractionVM.cs`（`InteractionItemVM` 玩法行绑定 + 4 段方框进度）。
