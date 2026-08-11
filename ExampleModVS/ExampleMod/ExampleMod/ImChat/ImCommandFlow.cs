@@ -74,6 +74,19 @@ namespace LivingWorldNpcs
 
         private static readonly List<PendingWire> _pendingWires = new List<PendingWire>();
 
+        // 🔴 计划讲解（2026-08-11 用户裁定：按钮 = 确定性事件 → LLM 人话讲解，不靠玩家打字识别意图）。
+        // LLM 回包在异步线程只入队（lock），主线程 Tick 消费：成功 = NPC 讲解消息上屏；失败 = 展开 C# 详情。
+        private class ExplainJob
+        {
+            public string ConvId;
+            public string SenderId, SenderName;
+            public string Line;          // 讲解文本（null/空 = LLM 失败 → 降级展开 C# 详情）
+            public Action<bool> OnDone;  // 主线程回调（Tick 消费时执行）
+        }
+
+        private static readonly List<ExplainJob> _explainQueue = new List<ExplainJob>();
+        private static readonly object _explainLock = new object();
+
         /// <summary>是否有请求在途（互斥：一次只处理一条命令）。</summary>
         public static bool IsBusy => _pending != null || _resultReady;
 
@@ -283,6 +296,24 @@ namespace LivingWorldNpcs
                     if (executor == null) continue;
                     SubscribeExecutor(executor, wire.Conv, wire.Card);
                     _pendingWires.RemoveAt(i);
+                }
+            }
+
+            // 🔴 计划讲解投递（主线程：成功 = NPC 讲解消息上屏 [IM-Store 自动记录]；失败 = onDone(false) → 展开 C# 详情）
+            if (_explainQueue.Count > 0)
+            {
+                List<ExplainJob> jobs;
+                lock (_explainLock)
+                {
+                    jobs = new List<ExplainJob>(_explainQueue);
+                    _explainQueue.Clear();
+                }
+                foreach (var job in jobs)
+                {
+                    if (job != null && !string.IsNullOrWhiteSpace(job.Line))
+                        ImChatStore.AppendGroupMessage(job.ConvId,
+                            new ImMessage(job.SenderId, job.SenderName, job.Line, ImMessageKind.Text));
+                    try { job?.OnDone?.Invoke(job != null && !string.IsNullOrWhiteSpace(job.Line)); } catch { }
                 }
             }
         }
@@ -601,6 +632,64 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolveText("LWN_plan_detail_guardrail",
                 "  Safety: unexpected threats pause the plan; the stop key recalls the companion."));
             return sb.ToString();
+        }
+
+        // ───────────────────────── 计划讲解（🔴 2026-08-11 用户裁定）─────────────────────────
+
+        /// <summary>
+        /// 玩家点「讲解计划」按钮（**确定性事件**，不靠玩家打字让 LLM 识别「解释计划」意图）
+        /// → 执行者 LLM 口语化讲解：要做什么、分几步、出岔子怎么办（步骤 + 异常条件，人话）。
+        /// prompt 只喂 C# 确定性渲染的计划内容（<see cref="BuildPlanDetail"/>：动作标签表 + 目标 + 应急 +
+        /// 安全网），纪律 = 只许转述（同 narration，防幻觉，铁律 2 延伸）。
+        /// 异步：回包入队（_explainQueue，lock 线程安全），主线程 Tick 消费——成功 = NPC 讲解消息上屏
+        /// （[IM-Store] 自动记录）；失败 = onDone(false) → VM 展开 C# 详情兜底（铁律 1/2）。
+        /// 讲解消息 = 聊天流，不写 NPC 记忆（同 narration 偏差②）；叙事 = 执行者自述（当事人，非上帝视角）。
+        /// </summary>
+        public static void RequestPlanExplain(ImMessage card, Action<bool> onDone)
+        {
+            if (card == null || !card.IsPlanCard) { try { onDone?.Invoke(false); } catch { } return; }
+            Plan plan = null;
+            try
+            {
+                string json = !string.IsNullOrEmpty(card.PlanJson) ? card.PlanJson : card.ResponseJson;
+                if (!string.IsNullOrEmpty(json))
+                    plan = JsonConvert.DeserializeObject<Plan>(LLMService.CleanJson(json));
+            }
+            catch { }
+            if (plan == null) { try { onDone?.Invoke(false); } catch { } return; }   // 无计划可讲 → 降级 C# 详情
+
+            string detail = BuildPlanDetail(plan);
+            if (string.IsNullOrWhiteSpace(detail)) { try { onDone?.Invoke(false); } catch { } return; }
+
+            // 讲解人 = 卡片发送者（生成计划的 NPC，SenderName 恒有值；空兜底不出现中文字面量——铁律 13）
+            string senderName = card.SenderName ?? "";
+            // prompt 归口 PromptBuilder（LLM prompt 单一事实源；讲解 = C# 确定性渲染 + 转述纪律）
+            string prompt = PromptBuilder.BuildPrompt_PlanExplain(senderName, detail);
+
+            async void Run()
+            {
+                string line = null;
+                try
+                {
+                    string raw = await LLMService.Instance.ChatOnceAsync(prompt, 220, 0.7f, disableReasoning: true, timeoutMs: 8000);
+                    if (!string.IsNullOrWhiteSpace(raw))
+                        line = DialogueComponent.Sanitize(raw, senderName);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[ImCommandFlow] 计划讲解失败: {ex.Message}");
+                }
+                lock (_explainLock)
+                    _explainQueue.Add(new ExplainJob
+                    {
+                        ConvId = card.ConvId,
+                        SenderId = card.SenderHeroId,
+                        SenderName = senderName,
+                        Line = line,
+                        OnDone = onDone,
+                    });
+            }
+            Run();
         }
 
         private static string RenderStepTargetText(PlanStep s)

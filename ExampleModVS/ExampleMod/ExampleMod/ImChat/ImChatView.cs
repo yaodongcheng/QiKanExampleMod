@@ -396,14 +396,17 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>密令模式可用性：Plot 总闸 + LLM + 会话类型（队伍频道 / 私聊随从）。
-        /// Q5b：Campaign 大地图私聊「有独立 party 的 Hero」也可用——行军令（规则解析，非 LLM 密令）。</summary>
+        /// Q5b：Campaign 大地图私聊「有独立 party 的 Hero」也可用——行军令（规则解析，非 LLM 密令）。
+        /// 🔴 临时止血（2026-08-11 用户裁定）：队伍频道/随从私聊仅 Mission 可切计划模式——
+        /// Campaign 下频道密令无执行载体（行军令仅私聊+独立 party 有效），随从密令被 MainParty 拦截，
+        /// 都是无效入口，禁掉避免玩家误点（家族/王国频道本就不开放）。</summary>
         public static bool IsCommandModeAvailable(ImConversation conv)
         {
             if (conv == null) return false;
             // 🔴 §5.7：附近频道无密令（场景喊话不走计划管线）
             if (conv.Type == ImConversationType.Nearby) return false;
             if (!Settings.Instance.PlotEnabled || !Settings.Instance.IsLLMConfigured) return false;
-            if (conv.Type == ImConversationType.Party) return true;
+            if (conv.Type == ImConversationType.Party) return Mission.Current != null;   // 队伍频道：仅 Mission（临时止血）
             if (conv.Type == ImConversationType.Direct)
             {
                 try
@@ -411,7 +414,7 @@ namespace LivingWorldNpcs
                     var hero = TaleWorlds.CampaignSystem.Hero.AllAliveHeroes
                         .FirstOrDefault(h => h.StringId == conv.PartnerHeroId);
                     if (hero == null) return false;
-                    if (FriendlinessHelper.IsPlayerPartyMember(hero)) return true;   // 随从：Mission 内完整密令
+                    if (FriendlinessHelper.IsPlayerPartyMember(hero)) return Mission.Current != null; // 随从：仅 Mission（临时止血）
                     if (Mission.Current == null && hero.PartyBelongedTo != null) return true; // 行军令
                 }
                 catch { return false; }

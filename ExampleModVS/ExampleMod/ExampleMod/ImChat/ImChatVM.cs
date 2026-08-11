@@ -242,20 +242,55 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsDetailExpanded { get; private set; }
 
-        /// <summary>详情按钮文案（展开/收起切换）。</summary>
+        /// <summary>讲解生成中（🔴 2026-08-11：按钮 = 确定性事件 → LLM 人话讲解；生成中禁重复点）。</summary>
         [DataSourceProperty]
-        public string DetailToggleText => IsDetailExpanded
-            // 详情按钮：收起
-            ? LWNTextHelper.ResolveText("LWN_im_btn_detail_collapse", "Collapse details")
-            // 详情按钮：展开
-            : LWNTextHelper.ResolveText("LWN_im_btn_detail_expand", "Details");
+        public bool IsExplainPending { get; private set; }
 
-        /// <summary>详情展开/收起切换。</summary>
+        /// <summary>讲解按钮可点（生成中禁用）。</summary>
+        [DataSourceProperty]
+        public bool CanToggleDetail => !IsExplainPending;
+
+        /// <summary>讲解/详情按钮文案：讲解中 → 「讲解中…」；已降级展开 → 「收起」；默认 → 「讲解计划」。</summary>
+        [DataSourceProperty]
+        public string DetailToggleText => IsExplainPending
+            // 讲解中…
+            ? LWNTextHelper.ResolveText("LWN_im_btn_explaining", "Explaining…")
+            : IsDetailExpanded
+                // 详情按钮：收起（LLM 讲解失败降级展开后）
+                ? LWNTextHelper.ResolveText("LWN_im_btn_detail_collapse", "Collapse details")
+                // 讲解按钮：讲解计划
+                : LWNTextHelper.ResolveText("LWN_im_btn_explain", "Explain plan");
+
+        /// <summary>
+        /// 讲解/详情（🔴 2026-08-11 用户裁定）：点击 = 确定性事件 → LLM 生成执行者口语化讲解
+        /// （计划步骤 + 异常条件，人话），NPC 讲解消息上屏；LLM 失败/未配置 → 降级展开 C# 确定性详情兜底。
+        /// 回调由 ImCommandFlow.Tick 主线程执行（异步回包只入队，不在此线程碰 UI）。
+        /// </summary>
         public void ExecuteToggleDetail()
         {
-            IsDetailExpanded = !IsDetailExpanded;
-            OnPropertyChanged(nameof(IsDetailExpanded));
+            if (_msg == null || !_msg.IsPlanCard) return;
+            if (IsExplainPending) return;                          // 讲解中禁重复点
+            if (IsDetailExpanded)                                  // 降级展开态 → 收起
+            {
+                IsDetailExpanded = false;
+                OnPropertyChanged(nameof(IsDetailExpanded));
+                OnPropertyChanged(nameof(DetailToggleText));
+                return;
+            }
+            IsExplainPending = true;
+            OnPropertyChanged(nameof(IsExplainPending));
+            OnPropertyChanged(nameof(CanToggleDetail));
             OnPropertyChanged(nameof(DetailToggleText));
+            ImCommandFlow.RequestPlanExplain(_msg, ok =>
+            {
+                // 主线程回调（ImCommandFlow.Tick 消费讲解队列时执行）
+                IsExplainPending = false;
+                if (!ok) IsDetailExpanded = true;                  // LLM 失败 → C# 详情兜底（铁律 1/2）
+                OnPropertyChanged(nameof(IsExplainPending));
+                OnPropertyChanged(nameof(CanToggleDetail));
+                OnPropertyChanged(nameof(IsDetailExpanded));
+                OnPropertyChanged(nameof(DetailToggleText));
+            });
         }
 
         /// <summary>批准可用：计划卡片、尚未下发（无 ExecutorId）、有 Plan JSON。</summary>

@@ -4060,6 +4060,8 @@
     <string id="LWN_im_badge_modified" text="修改版 v{N}" />
     <string id="LWN_im_btn_detail_expand" text="详情" />
     <string id="LWN_im_btn_detail_collapse" text="收起详情" />
+    <string id="LWN_im_btn_explain" text="讲解计划" />
+    <string id="LWN_im_btn_explaining" text="讲解中…" />
     <string id="LWN_im_cmd_modify_pending" text="随从正在按你的意见重拟计划…" />
     <string id="LWN_im_cmd_modify_exhausted" text="计划修改次数已达上限，请批准或重新下达。" />
     <string id="LWN_im_cmd_modify_need_mission" text="修改计划需要随从在场，请先进到场景里。" />

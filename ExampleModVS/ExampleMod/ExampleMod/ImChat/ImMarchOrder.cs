@@ -36,7 +36,7 @@ namespace LivingWorldNpcs
             {
                 // 行军令：仅私聊有效
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_channel_only",
-                    "Marching orders can only be sent to a single hero. Channel orders require a scene."));
+                    "Plans can only be sent to a single hero. Channel plans require a scene."));
                 return;
             }
 
@@ -55,7 +55,7 @@ namespace LivingWorldNpcs
             {
                 // 行军令：自己队伍成员请在场景中当面下密令
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_in_party",
-                    "That hero marches with you — give orders in person, in a scene."));
+                    "That hero marches with you - give orders in person, in a scene."));
                 return;
             }
             if (IsAtWarWithPlayer(party))
@@ -94,7 +94,7 @@ namespace LivingWorldNpcs
                 {
                     // 行军令：地名未找到
                     PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_no_place",
-                        "The messenger does not know that place. Marching orders: follow / hold position / march to a settlement."));
+                        "The messenger does not know that place. Plans: follow / hold position / march to a settlement."));
                     return;
                 }
                 V.SetMoveToTown(party, target);
@@ -108,7 +108,7 @@ namespace LivingWorldNpcs
             {
                 // 行军令：词表外诚实拒绝（不装懂）
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_unclear",
-                    "The messenger cannot make sense of this order. Marching orders: follow / hold position / march to a settlement."));
+                    "The messenger cannot make sense of this order. Plans: follow / hold position / march to a settlement."));
                 return;
             }
 

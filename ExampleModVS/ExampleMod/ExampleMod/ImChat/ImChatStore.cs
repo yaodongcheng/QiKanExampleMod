@@ -55,6 +55,11 @@ namespace LivingWorldNpcs
         public static void AppendGroupMessage(string channelId, ImMessage msg)
         {
             if (msg == null) return;
+            // 🔴 玩家视角日志（2026-08-11 用户裁定）：全部 IM 消息统一落日志——一行 = 玩家面板看到的一条。
+            // 排查/复盘时按时间顺序重建玩家视角（[IM-Store] 前缀；Content 空回退 PlanSummary；换行转义保一行一条）。
+            string text = string.IsNullOrWhiteSpace(msg.Content) ? (msg.PlanSummary ?? "") : msg.Content;
+            text = text.Replace("\r", "\\r").Replace("\n", "\\n");
+            DebugLogger.Log($"[IM-Store] {channelId} {msg.SenderName} [{msg.Kind}]: {text}");
             lock (_lock)
             {
                 if (!_groupMessages.TryGetValue(channelId, out var list))
