@@ -80,8 +80,20 @@ namespace LivingWorldNpcs
             public string ConvId;
             public string SenderId, SenderName;
             public string Line;              // 讲解文本（null/空 = LLM 失败 → 摘要口述）
+            public bool FoundIssue;          // 自查发现问题（结构化输出，写回卡片 → 重拟按钮显示条件）
+            public ImMessage Card;           // 所属卡片（主线程写回 ReviewFoundIssue/ReviewLine）
             public string BubbleHeroId;      // 场景内冒泡口述的执行者 HeroId（主线程解析 Agent——后台线程禁碰 native 句柄）
             public Action<bool> OnDone;      // 主线程回调（Tick 消费时执行）
+        }
+
+        /// <summary>讲解 LLM 结构化输出（铁律 2：字段全 null-guard）。</summary>
+        private class ExplainResult
+        {
+            [JsonProperty("line")]
+            public string Line;
+
+            [JsonProperty("found_issue")]
+            public bool FoundIssue;
         }
 
         private static readonly List<ExplainJob> _explainQueue = new List<ExplainJob>();
@@ -246,10 +258,13 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                // 🔴 §3.1 计划陈述：narration = 卡片上方的 NPC 消息（当事人自述，非上帝视角；null 兜底 = 摘要）
-                string narration = !string.IsNullOrWhiteSpace(response.Narration) ? response.Narration : null;
-                if (narration != null)
-                    PostNpcMessage(conv, narration);
+                // 🔴 §3.1 计划陈述：narration = 卡片上方的 NPC 消息（当事人自述，非上帝视角）。
+                // 🔴 2026-08-12（用户裁定：卡片去描述，计划文本完全由 NPC 说）：陈述缺省 → 摘要兜底，
+                // 保证卡片上屏时总有一条 NPC 描述（卡片本身只留按钮）。
+                string narration = !string.IsNullOrWhiteSpace(response.Narration)
+                    ? response.Narration
+                    : (response.Plan?.Summary ?? LWNTextHelper.ResolveText("LWN_plan_default_summary", "I have a plan. Shall I go?"));
+                PostNpcMessage(conv, narration);
 
                 // 计划卡片
                 string summary = !string.IsNullOrEmpty(response.Plan.Summary) ? response.Plan.Summary
@@ -309,6 +324,12 @@ namespace LivingWorldNpcs
                     if (job != null && !string.IsNullOrWhiteSpace(job.Line))
                         ImChatStore.AppendGroupMessage(job.ConvId,
                             new ImMessage(job.SenderId, job.SenderName, job.Line, ImMessageKind.Text));
+                    // 🔴 2026-08-12：自查结果写回卡片（重拟按钮显示条件；重拟定向上下文）——主线程，安全
+                    if (job?.Card != null)
+                    {
+                        job.Card.ReviewFoundIssue = job.FoundIssue;
+                        job.Card.ReviewLine = job.Line;
+                    }
                     // 🔴 2026-08-12：场景内执行者在场 → 冒泡口述（主线程解析 Agent + 说话并联——
                     // 后台线程禁碰 Agent native 句柄；远距离密信 = 仅聊天流）
                     if (job != null && !string.IsNullOrEmpty(job.Line) && !string.IsNullOrEmpty(job.BubbleHeroId)
@@ -605,6 +626,11 @@ namespace LivingWorldNpcs
             // 原命令原样重跑（不带修改意见——输入框发送才合并意见）
             string original = FindOriginalCommand(conv, card);
             if (string.IsNullOrWhiteSpace(original)) original = card.PlanSummary ?? "";
+            // 🔴 2026-08-12（用户裁定：重拟文本与前次雷同）：讲解自查点名的问题作为定向上下文传入——
+            // 同命令盲重roll 大概率产出相似计划；带上问题让 LLM 明确避开（重拟按钮仅在 ReviewFoundIssue=true 时显示，
+            // 此时 ReviewLine 必有值）
+            if (!string.IsNullOrWhiteSpace(card.ReviewLine))
+                original = $"{original}（重拟要求：讲解自查发现「{card.ReviewLine}」——重新拟一个避开这些问题的方案）";  // lwn-ignore: A
 
             // 重拟提示
             PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_regenerating", "The companion is working out a new plan."));
@@ -796,11 +822,27 @@ namespace LivingWorldNpcs
             async void Run()
             {
                 string line = null;
+                bool foundIssue = false;
                 try
                 {
                     string raw = await LLMService.Instance.ChatOnceAsync(prompt, 320, 0.7f, disableReasoning: true, timeoutMs: 8000);
                     if (!string.IsNullOrWhiteSpace(raw))
-                        line = DialogueComponent.Sanitize(raw, senderName);
+                    {
+                        // 🔴 2026-08-12 结构化输出 {"line","found_issue"}：重拟按钮显示条件的数据源。
+                        // 铁律 2：解析失败 → 整段当台词、found_issue=false（不信任 LLM 结构）
+                        try
+                        {
+                            var parsed = JsonConvert.DeserializeObject<ExplainResult>(LLMService.CleanJson(raw));
+                            if (parsed != null && !string.IsNullOrWhiteSpace(parsed.Line))
+                            {
+                                line = DialogueComponent.Sanitize(parsed.Line, senderName);
+                                foundIssue = parsed.FoundIssue;
+                            }
+                        }
+                        catch { }
+                        if (string.IsNullOrWhiteSpace(line))
+                            line = DialogueComponent.Sanitize(raw, senderName);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -822,6 +864,8 @@ namespace LivingWorldNpcs
                         SenderId = heroId,
                         SenderName = senderName,
                         Line = line,
+                        FoundIssue = foundIssue,
+                        Card = card,
                         BubbleHeroId = heroId,
                         OnDone = onDone,
                     });

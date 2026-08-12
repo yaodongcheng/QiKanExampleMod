@@ -80,6 +80,13 @@ namespace LivingWorldNpcs
         [JsonProperty("gt")]
         public string GenerateText;      // 思考中文案（「{NAME}正在输入…」）
 
+        // 🔴 2026-08-12：讲解自查结果（讲解轮结构化输出）——重拟按钮显示条件与重拟定向上下文
+        [JsonProperty("fi")]
+        public bool? ReviewFoundIssue;   // 讲解自查发现问题（true → 重拟按钮显示；null = 未讲解）
+
+        [JsonProperty("rl")]
+        public string ReviewLine;        // 讲解台词（含隐患点名的原话；重拟时作为定向上下文传给 LLM）
+
         [JsonIgnore]
         public bool IsSelf => SenderHeroId == ImChatManager.PlayerId;
 

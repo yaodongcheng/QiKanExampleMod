@@ -286,6 +286,8 @@ namespace LivingWorldNpcs
                 OnPropertyChanged(nameof(IsExplainPending));
                 OnPropertyChanged(nameof(CanToggleDetail));
                 OnPropertyChanged(nameof(DetailToggleText));
+                // 🔴 2026-08-12：自查结果写回卡片后重拟按钮显隐联动
+                OnPropertyChanged(nameof(CanRegenerate));
             });
         }
 
@@ -327,9 +329,11 @@ namespace LivingWorldNpcs
         // 计划卡片按钮：重拟（2026-08-12）
         public string RegenerateText => LWNTextHelper.ResolveText("LWN_im_btn_regenerate", "Regenerate");
 
-        /// <summary>重拟可用：卡片待批（与 CanApprove 同窗口——重拟只对未下发的计划有意义）。</summary>
+        /// <summary>重拟可用（🔴 2026-08-12 用户裁定）：仅当「讲解过且自查发现问题」才显示——
+        /// 其他时候重拟没必要（有意见用输入框改，没问题直接同意）。讲解完成回调 OnPropertyChanged 联动。</summary>
         [DataSourceProperty]
-        public bool CanRegenerate => _msg != null && _msg.IsPlanCard && string.IsNullOrEmpty(_msg.ExecutorId);
+        public bool CanRegenerate => _msg != null && _msg.IsPlanCard && string.IsNullOrEmpty(_msg.ExecutorId)
+            && _msg.ReviewFoundIssue == true;
 
         public ImMessageVM(ImMessage msg)
         {

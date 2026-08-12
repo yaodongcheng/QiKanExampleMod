@@ -1246,6 +1246,11 @@ namespace LivingWorldNpcs
             EndMessage = message;
             IsFinished = true;
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 计划结束（{state}）: {message}");
+            // 🔴 2026-08-12（用户裁定：BRING 成功 → 被请者开口，不能无声离开）：
+            // 成功收尾时"正跟随执行者的人" = 被带来的那个人（BRING 目标跟在随从身后到达），
+            // 冒泡问玩家一句（尾巴对话）——人带到了总得有个交代；玩家可当面接话。
+            if (state == ExecutorState.Succeeded && IntentType == CommandIntentType.Bring)
+                SpeakBringTail();
             foreach (var c in _cursors) FinalizeCursor(c);
 
             if (silent || string.IsNullOrEmpty(message))
@@ -1269,6 +1274,33 @@ namespace LivingWorldNpcs
                 // 密信报告（脱不开身 / 紧急中断）
                 SignalPlayer(message);
                 FinalizeExecutor(message);
+            }
+        }
+
+        /// <summary>BRING 成功尾巴（2026-08-12 用户裁定）：被请者冒泡问玩家"召我来有何事"——
+        /// 对第一个正跟随执行者的人说（= 被带到面前的那个人）；说话并联框架（plan_report 刺激），
+        /// 不占队列不接管 brain；找不到跟随者（防御）→ 静默跳过。</summary>
+        private void SpeakBringTail()
+        {
+            if (OwnerAgent == null || Mission.Current == null) return;
+            try
+            {
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsActive() || a == OwnerAgent || a == Agent.Main) continue;
+                    if (!_world.IsFollowing(a, OwnerAgent)) continue;
+                    SpeechChannel.Say(a,
+                        LWNTextHelper.ResolveText("LWN_plan_bring_tail",
+                            "You summoned me, my lord. How may I serve?"),
+                        SpeechPriority.Dialogue,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(a), Agent.Main, "plan_report",
+                            LWNTextHelper.ResolveText("LWN_plan_bring_tail_topic", "Brought before the master")));
+                    return;
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PlanExecutor] BRING 尾巴对话失败: {ex.Message}");
             }
         }
 

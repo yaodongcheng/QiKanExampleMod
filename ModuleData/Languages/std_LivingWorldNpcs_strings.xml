@@ -3995,6 +3995,8 @@
     <string id="LWN_im_btn_propose_reject" text="No need" />
 <string id="LWN_im_btn_modify" text="Revise" />
     <string id="LWN_im_btn_regenerate" text="Regenerate" />
+    <string id="LWN_plan_bring_tail" text="You summoned me, my lord. How may I serve?" />
+    <string id="LWN_plan_bring_tail_topic" text="Brought before the master" />
     <string id="LWN_im_btn_submit_modify" text="Submit" />
     <string id="LWN_im_input_placeholder_modify" text="Revise the plan: ..." />
     <string id="LWN_im_badge_modified" text="Revised v{N}" />
