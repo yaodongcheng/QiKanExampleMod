@@ -86,8 +86,37 @@ namespace LivingWorldNpcs
         }
     }
 
+    /// <summary>
+    /// 🔴 2026-08-12（用户裁定：计划模式按钮 = 通用交互结构）：决策卡片通用按钮的数据项。
+    /// 计划卡片（自审/重拟/同意/拒绝/中止）与提议卡片（同意/拒绝）共用同一按钮行——
+    /// XML 按钮行 DataSource="{CardButtons}" + ItemTemplate，每按钮 Command.Click="Execute" 绑本类。
+    /// </summary>
+    public class ImButtonVM : ViewModel
+    {
+        private readonly string _text;
+        private readonly bool _isEnabled;
+        private readonly Action _onClick;
+
+        public ImButtonVM(string text, Action onClick, bool isEnabled = true)
+        {
+            _text = text ?? "";
+            _onClick = onClick;
+            _isEnabled = isEnabled;
+        }
+
+        [DataSourceProperty]
+        public string Text => _text;
+
+        /// <summary>置灰（自审在途时禁点等）。</summary>
+        [DataSourceProperty]
+        public bool IsEnabled => _isEnabled;
+
+        public void Execute() => _onClick?.Invoke();
+    }
+
     /// <summary>消息气泡 VM。他人左对齐 / 自己右对齐（IsSelf/IsNotSelf 双份互斥，规避对齐枚举绑定）。
-    /// PlanCard 分支：摘要 + 同意/拒绝/中止按钮（Command.Click 绑 ExecuteXxx）。
+    /// 🔴 2026-08-12（用户裁定：决策卡片统一）：卡片气泡分支（ShowCardBubble）= 计划卡片/生成中占位/
+    /// 讲解消息/NPC 提议/闲聊动作卡片共用的 NPC 自述形态，按钮行数据驱动（CardButtons）。
     /// 微信标准优化：消息时间小字（TimeText）+ 群聊发送者成员色（NameColor 按人哈希）。</summary>
     public class ImMessageVM : ViewModel
     {
@@ -150,16 +179,16 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsNotSelf => _msg != null && !_msg.IsSelf;
 
-        /// <summary>他人气泡显示：普通文本消息（非自己 且 非系统 且 非计划消息——计划消息走计划气泡分支）。
-        /// 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：生成中占位/计划卡片/讲解消息（链消息）
-        /// 统一归「计划气泡」分支（ShowPlanBubble）渲染，不再走普通气泡。</summary>
+        /// <summary>他人气泡显示：普通文本消息（非自己 且 非系统 且 非卡片消息——卡片消息走卡片气泡分支）。
+        /// 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：生成中占位/计划卡片/讲解消息（链消息）/
+        /// NPC 提议/闲聊动作卡片 统一归「卡片气泡」分支（ShowCardBubble）渲染，不再走普通气泡。</summary>
         [DataSourceProperty]
-        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage;
+        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage && !IsProposal;
 
-        /// <summary>自己气泡显示：是自己 且 非系统/计划卡片/生成中占位（旧格式卡片 SenderHeroId="player"
+        /// <summary>自己气泡显示：是自己 且 非系统/计划卡片/生成中占位/提议（旧格式卡片 SenderHeroId="player"
         /// 走 IsLegacyPlanCard 旧居中卡片控件兜底，不能走气泡分支）。</summary>
         [DataSourceProperty]
-        public bool ShowSelfBubble => IsSelf && !IsSystem && !IsPlanCard && !IsGenerating;
+        public bool ShowSelfBubble => IsSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsProposal;
 
         [DataSourceProperty]
         public bool IsSystem => _msg != null && _msg.IsSystem;
@@ -167,18 +196,19 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsPlanCard => _msg != null && _msg.IsPlanCard;
 
-        /// <summary>🔴 2026-08-12：计划链消息（讲解消息 = 带 ChainId 的 NPC 文本）——计划气泡分支渲染。</summary>
+        /// <summary>🔴 2026-08-12：计划链消息（讲解消息 = 带 ChainId 的 NPC 文本）——卡片气泡分支渲染。</summary>
         [DataSourceProperty]
         public bool IsPlanChainMessage => _msg != null && _msg.IsPlanChainMessage;
 
-        /// <summary>🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：计划气泡分支——
-        /// NPC 自述形态（名字行 + 正文 + 按钮行）：新格式计划卡片 / 生成中占位 / 讲解消息（链消息）。
+        /// <summary>🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 决策卡片统一）：卡片气泡分支——
+        /// NPC 自述形态（名字行 + 正文 + 通用按钮行）：计划卡片 / 生成中占位 / 讲解消息（链消息）/
+        /// NPC 提议 / 闲聊动作卡片 五类共用。
         /// 旧格式（SenderHeroId=player）IsSelf → 走 IsLegacyPlanCard 旧居中卡片控件兜底。</summary>
         [DataSourceProperty]
-        public bool ShowPlanBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage);
+        public bool ShowCardBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage || IsProposal);
 
         /// <summary>🔴 2026-08-12：旧格式计划卡片/生成中占位（SenderHeroId=player）——旧居中卡片控件渲染兜底
-        ///（旧存档兼容；新消息一律走计划气泡分支）。</summary>
+        ///（旧存档兼容；新消息一律走卡片气泡分支）。</summary>
         [DataSourceProperty]
         public bool IsLegacyPlanCard => _msg != null && (_msg.IsPlanCard || _msg.IsGenerating) && _msg.IsSelf;
 
@@ -187,48 +217,66 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsProposal => _msg != null && _msg.IsProposal;
 
-        // 🔴 2026-08-11（Q2）：同会话多张未决提议 → UI 全保留（流式），效用上只有最新一张的按钮有效。
-        // 由 ImChatView.UpdateLatestProposalFlag 在消息流刷新时标记（最后一条未决 Proposal = true，其余 false）。
-        private bool _isLatestProposal;
+        // ── 🔴 2026-08-12（用户裁定：决策卡片统一）：卡片按钮锚点 + 数据驱动按钮行 ──
+
+        /// <summary>按钮行显示标记（ImChatView.UpdateCardAnchors 每次刷新重算）：本消息是
+        /// 会话内「最新可操作卡片」的锚点位置——计划链 = 链内最新一条；提议 = 卡片自身。
+        /// 旧卡片按钮行 IsVisible=false（视觉保留、不可点），与旧 IsLatestProposal 同款纪律。</summary>
+        private bool _isCardAnchor;
 
         [DataSourceProperty]
-        public bool IsLatestProposal
+        public bool IsCardAnchor
         {
-            get => _isLatestProposal;
+            get => _isCardAnchor;
             set
             {
-                if (_isLatestProposal != value)
+                if (_isCardAnchor != value)
                 {
-                    _isLatestProposal = value;
-                    OnPropertyChangedWithValue(value, nameof(IsLatestProposal));
-                    OnPropertyChanged(nameof(CanProposeApprove));
-                    OnPropertyChanged(nameof(CanProposeReject));
+                    _isCardAnchor = value;
+                    OnPropertyChangedWithValue(value, nameof(IsCardAnchor));
                 }
             }
         }
 
-        /// <summary>批准可用：提议未了结 且 是会话内最新一张未决提议（旧卡片按钮隐藏 = 不可点，视觉保留）。</summary>
-        [DataSourceProperty]
-        public bool CanProposeApprove => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved && IsLatestProposal;
+        /// <summary>决策卡片按钮行（数据驱动）：计划卡片 = 自审/重拟?/同意/拒绝（执行中=中止）；
+        /// 提议卡片 = 同意/拒绝。按钮数据按 AnchorCard 状态重建（RebuildCardButtons）。</summary>
+        public MBBindingList<ImButtonVM> CardButtons { get; } = new MBBindingList<ImButtonVM>();
 
-        /// <summary>拒绝可用：同上（最新未决才可点）。</summary>
-        [DataSourceProperty]
-        public bool CanProposeReject => _msg != null && _msg.IsProposal && !_msg.IsProposalResolved && IsLatestProposal;
+        /// <summary>🔴 2026-08-12：按锚点卡片种类/状态重建按钮行（待批/执行中/已了结 三态）。
+        /// 状态变动的入口（AnchorCard 变更 / 自审回调 / 讲解完成）统一调 NotifyPlanState → 这里。</summary>
+        public void RebuildCardButtons()
+        {
+            CardButtons.Clear();
+            var anchor = AnchorCard;
+            if (anchor == null) return;
+            if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); return; }
+            if (anchor.IsProposal) { RebuildProposalButtons(anchor); }
+        }
 
-            // 提议按钮：批准
-        [DataSourceProperty]
-            // 提议按钮：批准
-        public string ProposeApproveText => LWNTextHelper.ResolveText("LWN_im_btn_propose_approve", "Go ahead");
+        /// <summary>计划卡片按钮（与原硬编码按钮同语义：待批 = 自审/重拟?/同意/拒绝；执行中 = 中止）。</summary>
+        private void RebuildPlanCardButtons(ImMessage card)
+        {
+            if (string.IsNullOrEmpty(card.ExecutorId))
+            {
+                // 自审：始终有（计划自审 → 自审中…）；重拟仅讲解自查发现问题时出现
+                CardButtons.Add(new ImButtonVM(DetailToggleText, ExecuteToggleDetail, isEnabled: CanToggleDetail));
+                if (CanRegenerate) CardButtons.Add(new ImButtonVM(RegenerateText, ExecuteRegenerate));
+                if (CanApprove) CardButtons.Add(new ImButtonVM(ApproveText, ExecuteApprove));
+                if (CanReject) CardButtons.Add(new ImButtonVM(RejectText, ExecuteReject));
+            }
+            else if (ImCommandFlow.IsExecuting(card))
+            {
+                CardButtons.Add(new ImButtonVM(AbortText, ExecuteAbort));
+            }
+        }
 
-            // 提议按钮：拒绝
-        [DataSourceProperty]
-            // 提议按钮：拒绝
-        public string ProposeRejectText => LWNTextHelper.ResolveText("LWN_im_btn_propose_reject", "No need");
-
-        /// <summary>批准提议 → 走计划管线（RequestCommand：NPC 提议文本即命令，玩家批准后执行）。</summary>
-        public void ExecuteProposeApprove() => ImChatView.HandleProposal(_msg, approve: true);
-
-        public void ExecuteProposeReject() => ImChatView.HandleProposal(_msg, approve: false);
+        /// <summary>提议卡片按钮（NPC 主动提议 / 闲聊动作卡片 共用）：同意/拒绝 —— 与计划卡片同构。</summary>
+        private void RebuildProposalButtons(ImMessage card)
+        {
+            if (card.IsProposalResolved) return;
+            CardButtons.Add(new ImButtonVM(ApproveText, () => ImChatView.HandleProposal(card, approve: true)));
+            CardButtons.Add(new ImButtonVM(RejectText, () => ImChatView.HandleProposal(card, approve: false)));
+        }
 
         [DataSourceProperty]
         public string PlanSummary => _msg?.PlanSummary ?? "";
@@ -237,8 +285,8 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 按钮锚点跟随）：所有按钮状态改读 AnchorCard——
         // 计划卡片消息 = 自身；讲解消息 = 所属卡片（按钮渲染在锚点消息下方，数据仍在卡片上）。
 
-        /// <summary>链锚点卡（ImChatView.UpdatePlanAnchors 每次刷新重算）：按钮状态的数据源。
-        /// 计划卡片消息 → 自身；讲解消息（链消息）→ 所属卡片；普通消息 → null（按钮全部隐藏）。</summary>
+        /// <summary>链锚点卡（ImChatView.UpdateCardAnchors 每次刷新重算）：按钮状态的数据源。
+        /// 计划卡片消息 → 自身；讲解消息（链消息）→ 所属卡片；提议卡片 → 自身；普通消息 → null（无按钮）。</summary>
         public ImMessage AnchorCard
         {
             get => _anchorCard;
@@ -247,31 +295,12 @@ namespace LivingWorldNpcs
                 if (_anchorCard != value)
                 {
                     _anchorCard = value;
-                    // 按钮状态全是 AnchorCard 的计算属性——变更即全量通知（含增量追加路径）
+                    // 按钮状态全是 AnchorCard 的计算属性——变更即全量通知 + 按钮行重建（含增量追加路径）
                     NotifyPlanState();
                 }
             }
         }
         private ImMessage _anchorCard;
-
-        /// <summary>🔴 2026-08-12：按钮锚点标记（ImChatView.UpdatePlanAnchors 每次刷新重算）：
-        /// 该链卡片是会话内最新可操作卡片 && 本消息是链内最新一条 → 按钮行渲染在本消息下方。
-        /// （旧格式卡片无链消息，自身即锚点——沿用原行为）</summary>
-        private bool _isPlanChainAnchor;
-
-        [DataSourceProperty]
-        public bool IsPlanChainAnchor
-        {
-            get => _isPlanChainAnchor;
-            set
-            {
-                if (_isPlanChainAnchor != value)
-                {
-                    _isPlanChainAnchor = value;
-                    OnPropertyChangedWithValue(value, nameof(IsPlanChainAnchor));
-                }
-            }
-        }
 
         /// <summary>生成中占位行：NPC 思考气泡（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一；
         /// 名字行保留——谁在思考要可见，正文纯「正在思考中…」无名字，不冗余）。</summary>
@@ -331,9 +360,8 @@ namespace LivingWorldNpcs
             if (card == null || !card.IsPlanCard) return;
             if (card.ExplainPending) return;                          // 讲解中禁重复点
             card.ExplainPending = true;
-            OnPropertyChanged(nameof(IsExplainPending));
-            OnPropertyChanged(nameof(CanToggleDetail));
-            OnPropertyChanged(nameof(DetailToggleText));
+            // 🔴 2026-08-12：自审按钮文案「自审中…」+ 置灰 → 重建按钮行
+            RebuildCardButtons();
             ImCommandFlow.RequestPlanExplain(card, ok =>
             {
                 // 主线程回调（ImCommandFlow.Tick 消费讲解队列时执行）；降级已在管线内用摘要口述，无需展开 JSON
@@ -392,7 +420,7 @@ namespace LivingWorldNpcs
             _msg = msg;
         }
 
-        /// <summary>🔴 2026-08-12：通知计划按钮状态刷新（AnchorCard 变更 / 讲解完成回调）。
+        /// <summary>🔴 2026-08-12：通知计划按钮状态刷新（AnchorCard 变更 / 讲解完成回调）+ 重建按钮行。
         /// 讲解回调时锚点可能已是讲解消息的新 VM——ImChatView.NotifyPlanStateChanged 对所有挂载 VM 调用。</summary>
         public void NotifyPlanState()
         {
@@ -406,6 +434,8 @@ namespace LivingWorldNpcs
             OnPropertyChanged(nameof(CanReject));
             OnPropertyChanged(nameof(CanAbort));
             OnPropertyChanged(nameof(CanRegenerate));
+            // 讲解完成 → 自查结果可能翻转重拟按钮显示/按钮文案（自审中→计划自审）→ 全量重建
+            RebuildCardButtons();
         }
 
         public void ExecuteApprove() { if (AnchorCard != null) ImChatView.HandlePlanAction(AnchorCard, approve: true); }

@@ -3992,9 +3992,7 @@
     <string id="LWN_im_cmd_started" text="{NAME} has begun carrying out the order." />
     <string id="LWN_im_cmd_aborted" text="The order has been called off." />
     <string id="LWN_im_cmd_done" text="The order has been carried out." />
-        <string id="LWN_im_btn_propose_approve" text="Go ahead" />
-    <string id="LWN_im_btn_propose_reject" text="No need" />
-<string id="LWN_im_btn_modify" text="Revise" />
+    <string id="LWN_im_btn_modify" text="Revise" />
     <string id="LWN_im_btn_regenerate" text="Regenerate" />
     <string id="LWN_plan_bring_tail" text="You summoned me, my lord. How may I serve?" />
     <string id="LWN_plan_bring_tail_topic" text="Brought before the master" />

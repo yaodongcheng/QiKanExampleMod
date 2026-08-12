@@ -4084,9 +4084,7 @@
     <string id="LWN_im_cmd_started" text="{NAME}开始执行命令。" />
     <string id="LWN_im_cmd_aborted" text="命令已中止。" />
     <string id="LWN_im_cmd_done" text="命令已经办妥。" />
-        <string id="LWN_im_btn_propose_approve" text="准了" />
-    <string id="LWN_im_btn_propose_reject" text="不必了" />
-<string id="LWN_im_btn_modify" text="修改" />
+    <string id="LWN_im_btn_modify" text="修改" />
     <string id="LWN_im_btn_regenerate" text="重拟" />
     <string id="LWN_plan_bring_tail" text="主公召我来，不知有何吩咐？" />
     <string id="LWN_plan_bring_tail_topic" text="带到主人面前" />
