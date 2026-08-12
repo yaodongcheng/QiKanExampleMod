@@ -286,8 +286,7 @@ namespace LivingWorldNpcs
                 _vm.Messages.Clear();
                 foreach (var m in msgs) _vm.Messages.Add(new ImMessageVM(m));
                 _vm.IsEmpty = false;
-                UpdateLatestProposalFlag();
-                UpdatePlanAnchors();
+                UpdateCardAnchors();
                 RefreshChannelsDynamic();
                 return;
             }
@@ -302,10 +301,8 @@ namespace LivingWorldNpcs
                 for (int i = _vm.Messages.Count; i < msgs.Count; i++)
                     _vm.Messages.Add(new ImMessageVM(msgs[i]));
             }
-            // 🔴 2026-08-11（Q2）：最新未决提议标记（新增卡片后旧卡片按钮失效）
-            UpdateLatestProposalFlag();
-            // 🔴 2026-08-12（用户裁定）：计划链按钮锚点重算（讲解消息上屏 → 按钮下移）
-            UpdatePlanAnchors();
+            // 🔴 2026-08-12（用户裁定：决策卡片统一）：卡片按钮锚点重算（新卡片上屏/讲解消息上屏 → 锚点移动）
+            UpdateCardAnchors();
             // 空会话引导（UI 优化：新频道无消息时给玩家一个提示而非空白）
             _vm.IsEmpty = msgs.Count == 0;
             // 🔴 九轮：新消息处理二分——玩家在底部（未上拉）→ 自动滚底把新消息弹出来（贴底闭环兜底）；
@@ -367,43 +364,27 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 🔴 2026-08-11（Q2）：同会话多张未决提议 → UI 全保留（流式历史），效用上只有最新一张的按钮有效。
-        /// 遍历消息流找最后一条未决（IsProposal && ExecutorId 空）→ 标记 IsLatestProposal=true，其余清除；
-        /// CanProposeApprove/CanProposeReject 同时要求该标记 → 旧卡片按钮 IsVisible=false（视觉保留、不可点）。
-        /// 每次消息流刷新（含增量追加）后调用——新卡片上屏即"老卡作废"。
-        /// </summary>
-        private static void UpdateLatestProposalFlag()
-        {
-            if (_vm == null) return;
-            ImMessageVM latest = null;
-            foreach (var vm in _vm.Messages)
-            {
-                // IsProposalResolved 只依赖 ExecutorId，不依赖标记——筛选条件独立，无循环依赖
-                if (vm.Message != null && vm.Message.IsProposal && !vm.Message.IsProposalResolved)
-                    latest = vm;
-            }
-            foreach (var vm in _vm.Messages)
-                vm.IsLatestProposal = vm == latest;
-        }
-
-        /// <summary>
-        /// 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 按钮锚点跟随）：计划链按钮锚点计算。
-        /// 链 = 计划卡片 + 讲解消息（同 ChainId）。锚点规则（与 IsLatestProposal 同款纪律）：
-        /// ① 锚点消息 = 链内最新一条（讲解正文上屏 → 按钮移动到讲解消息下方）；
-        /// ② 且链卡片必须是会话内「最新可操作卡片」（待批或执行中）——叠放命令时旧链按钮隐藏。
-        /// 每次消息流刷新后调用（含增量追加——新讲解消息上屏即锚点下移）。
+        /// 🔴 2026-08-12（用户裁定：决策卡片统一，计划按钮 = 通用交互结构）：卡片按钮锚点计算
+        ///（计划卡片 + NPC 提议/闲聊动作卡片共用，合并旧 UpdateLatestProposalFlag + UpdatePlanAnchors）。
+        /// 规则（与旧两套纪律同款合并）：
+        /// ① 会话内「最新可操作卡片」= 最新未决 Proposal（ExecutorId 空）或最新待批/执行中 PlanCard
+        ///    （扫描顺序天然最新优先——两种卡片并存时新者接管，旧卡按钮隐藏、仍可回流）；
+        /// ② 锚点消息 = 计划链 = 链内最新一条（讲解正文上屏 → 按钮移动到讲解消息下方）；
+        ///    提议无链 = 卡片自身。
+        /// 每次消息流刷新后调用（含增量追加——新卡片/新讲解消息上屏即锚点移动）。
         /// 旧格式卡片（无 ChainId）自身即锚点，沿用原行为。
         /// </summary>
-        private static void UpdatePlanAnchors()
+        private static void UpdateCardAnchors()
         {
             if (_vm == null || _selected == null) return;
             var msgs = ImChatManager.GetMessages(_selected);
-            // 会话内最新可操作卡片（待批 = ExecutorId 空；执行中 = IsExecuting）
+            // 会话内最新可操作卡片
             ImMessage latestCard = null;
             foreach (var m in msgs)
             {
-                if (m != null && m.IsPlanCard && (string.IsNullOrEmpty(m.ExecutorId) || ImCommandFlow.IsExecuting(m)))
-                    latestCard = m;
+                if (m == null) continue;
+                if (m.IsProposal && !m.IsProposalResolved) latestCard = m;
+                else if (m.IsPlanCard && (string.IsNullOrEmpty(m.ExecutorId) || ImCommandFlow.IsExecuting(m))) latestCard = m;
             }
             foreach (var vm in _vm.Messages)
             {
@@ -411,7 +392,7 @@ namespace LivingWorldNpcs
                 ImMessage card = null;
                 if (m != null)
                 {
-                    if (m.IsPlanCard)
+                    if (m.IsPlanCard || m.IsProposal)
                         card = m;
                     else if (m.IsPlanChainMessage)
                     {
@@ -422,18 +403,19 @@ namespace LivingWorldNpcs
                     }
                 }
                 vm.AnchorCard = card;
-                vm.IsPlanChainAnchor = card != null
+                vm.IsCardAnchor = card != null
                     && card == latestCard
-                    && IsLastChainMessage(m, card, msgs);
+                    && IsCardAnchorPosition(m, card, msgs);
             }
         }
 
-        /// <summary>本消息是否为链内最新一条（🔴 2026-08-12 修复：只扫 m **之后**的消息——
-        /// 原实现扫全表，卡片自身同链 → 讲解消息永远判定「后面还有同链消息」→ 按钮全消失）。
-        /// 旧格式卡片无 ChainId = 仅自身。</summary>
-        private static bool IsLastChainMessage(ImMessage m, ImMessage card, List<ImMessage> msgs)
+        /// <summary>本消息是否为卡片锚点位置：提议 = 自身；计划 = 链内最新一条（🔴 2026-08-12 修复：
+        /// 只扫 m **之后**的消息——原实现扫全表，卡片自身同链 → 讲解消息永远判定「后面还有同链消息」
+        /// → 按钮全消失）。旧格式卡片无 ChainId = 仅自身。</summary>
+        private static bool IsCardAnchorPosition(ImMessage m, ImMessage card, List<ImMessage> msgs)
         {
             if (m == null || card == null) return false;
+            if (card.IsProposal) return true;                 // 提议无链：卡片自身即锚点
             if (string.IsNullOrEmpty(card.ChainId)) return true;
             int mIdx = msgs.IndexOf(m);
             if (mIdx < 0) return false;
@@ -817,8 +799,8 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrEmpty(msg.ActionCode))
             {
                 msg.ExecutorId = "done";
-                // 🔴 2026-08-11（Q2）：CanProposeApprove/CanProposeReject 是计算属性，增量追加不会刷新
-                // 已存在消息的按钮状态 → 全量重建（本卡按钮消失 + 前一卡成为最新未决恢复可点）
+                // 🔴 2026-08-11（Q2）：按钮行是重建式数据（CardButtons/IsCardAnchor），增量追加不会刷新
+                // 已存在消息 → 全量重建（本卡按钮消失 + 前一卡成为最新未决恢复可点）
                 if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
                 if (!approve) return;
                 try

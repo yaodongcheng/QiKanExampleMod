@@ -220,7 +220,8 @@
                                            StackLayout.LayoutMethod="VerticalBottomToTop"
                                            DoNotAcceptEvents="true">
                                   <ItemTemplate>
-                                    <!-- 消息行：他人气泡（左）/ 自己气泡（右）/ 系统消息（居中）/ 计划卡片（居中）四分支互斥 -->
+                                    <!-- 消息行：他人气泡（左）/ 自己气泡（右）/ 卡片气泡（左，决策卡片统一）/ 系统消息（居中）/
+                                         旧格式计划卡片（居中，旧存档兜底）多分支互斥（ShowOtherBubble 已排除卡片类） -->
                                     <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                             MarginBottom="6"
                                             DoNotAcceptEvents="true">
@@ -319,15 +320,17 @@
                                           </Children>
                                         </Widget>
 
-                                        <!-- 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：计划气泡 = NPC 自述形态——
-                                             生成中占位 / 计划卡片（NPC 简述+按钮）/ 讲解消息（按钮锚点跟随链最新消息）三态共用：
-                                             名字行 → [修改版徽标] → 正文 → 按钮行（仅锚点消息 IsPlanChainAnchor 显示）。
+                                        <!-- 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 决策卡片统一，计划按钮 = 通用交互结构）：
+                                             卡片气泡 = NPC 自述形态——计划卡片 / 生成中占位 / 讲解消息（链消息）/
+                                             NPC 主动提议 / 闲聊动作卡片（决斗等）五类共用：
+                                             名字行 → [修改版徽标(仅计划)] → 正文 → 通用按钮行（数据驱动 CardButtons，
+                                             锚点消息 IsCardAnchor 显示）。与旧提议卡片（绿色卡）同构统一。
                                              布局纪律：内部垂直 ListPanel 堆叠（ui.md「贴内容气泡」同坑），MaxWidth 只放
                                              TextWidget，按钮行禁 VerticalAlignment。宽度 584 > 普通气泡 520——
                                              按钮行 5×96 + 间距 ≈ 530 才放得下。 -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="584"
                                                 HorizontalAlignment="Left"
-                                                IsVisible="@ShowPlanBubble"
+                                                IsVisible="@ShowCardBubble"
                                                 DoNotAcceptEvents="true">
                                           <Children>
                                             <!-- 气泡：贴内容。内部必须用垂直 ListPanel 堆叠（同坑：普通 Widget 子元素
@@ -337,7 +340,7 @@
                                                     Sprite="BlankWhiteSquare_9" Color="#1A1A3AEE"
                                                     DoNotAcceptEvents="true">
                                               <Children>
-                                                <ListPanel Id="LWN_ImChat_BubblePlan" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                <ListPanel Id="LWN_ImChat_BubbleCard" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                            StackLayout.LayoutMethod="VerticalBottomToTop"
                                                            DoNotAcceptEvents="true">
                                                   <Children>
@@ -359,86 +362,44 @@
                                                                     DoNotAcceptEvents="true"/>
                                                       </Children>
                                                     </ListPanel>
-                                                    <!-- 修改版徽标（Q2：PlanModifyCount > 0；读 AnchorCard） -->
+                                                    <!-- 修改版徽标（Q2：PlanModifyCount > 0；读 AnchorCard，仅计划卡片显示） -->
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 Text="@ModifiedBadgeText" Brush="MyBrush_16_Left" Brush.FontSize="13" Brush.FontColor="#E8C55AFF"
                                                                 HorizontalAlignment="Left"
                                                                 IsVisible="@IsModifiedPlan"
                                                                 MarginLeft="12" MarginTop="6"
                                                                 DoNotAcceptEvents="true"/>
-                                                    <!-- 正文：思考中 = 「XX 正在构思计划…」；就绪 = NPC 简述 / 讲解正文（Content） -->
+                                                    <!-- 正文：思考中 = 「XX 正在构思计划…」；就绪 = NPC 简述 / 讲解正文 / 提议文本（Content） -->
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 MaxWidth="560"
                                                                 Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Left"
                                                                 WordWrapping="Wrap"
                                                                 MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
                                                                 DoNotAcceptEvents="true"/>
-                                                    <!-- 按钮行（🔴 仅锚点消息显示；按钮状态读 AnchorCard——讲解后锚点移到
-                                                         讲解消息，按钮行随之渲染到最新回复下方。垂直堆叠内禁 VerticalAlignment） -->
+                                                    <!-- 通用按钮行（🔴 仅锚点消息 IsCardAnchor 显示；数据驱动：DataSource="{CardButtons}"，
+                                                         ItemTemplate 每按钮 Command.Click="Execute" 绑 ImButtonVM.Execute）。
+                                                         按钮集随卡片种类/状态由 VM 重建——计划卡片 = 自审/重拟?/同意/拒绝（执行中=中止）；
+                                                         提议卡片 = 同意/拒绝。垂直堆叠内禁 VerticalAlignment） -->
                                                     <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                StackLayout.LayoutMethod="HorizontalLeftToRight"
                                                                HorizontalAlignment="Right"
-                                                               IsVisible="@IsPlanChainAnchor"
+                                                               IsVisible="@IsCardAnchor"
+                                                               DataSource="{CardButtons}"
                                                                MarginRight="10" MarginBottom="8" MarginTop="4"
                                                                DoNotAcceptEvents="true">
-                                                      <Children>
+                                                      <ItemTemplate>
                                                         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
                                                                       Brush="Test.Button3"
-                                                                      Command.Click="ExecuteToggleDetail"
-                                                                      IsVisible="@CanApprove" IsEnabled="@CanToggleDetail" MarginRight="10">
+                                                                      Command.Click="Execute"
+                                                                      IsEnabled="@IsEnabled" MarginRight="10">
                                                           <Children>
                                                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                        Text="@DetailToggleText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                        Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
                                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                         DoNotAcceptEvents="true"/>
                                                           </Children>
                                                         </ButtonWidget>
-                                                        <!-- 重拟（2026-08-12：讲解自查发现问题时才显示——CanRegenerate） -->
-                                                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                      Brush="Test.Button3"
-                                                                      Command.Click="ExecuteRegenerate"
-                                                                      IsVisible="@CanRegenerate" MarginRight="10">
-                                                          <Children>
-                                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                        Text="@RegenerateText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                        DoNotAcceptEvents="true"/>
-                                                          </Children>
-                                                        </ButtonWidget>
-                                                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                      Brush="Test.Button3"
-                                                                      Command.Click="ExecuteApprove"
-                                                                      IsVisible="@CanApprove" MarginRight="10">
-                                                          <Children>
-                                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                        Text="@ApproveText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                        DoNotAcceptEvents="true"/>
-                                                          </Children>
-                                                        </ButtonWidget>
-                                                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                      Brush="Test.Button3"
-                                                                      Command.Click="ExecuteReject"
-                                                                      IsVisible="@CanReject" MarginRight="10">
-                                                          <Children>
-                                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                        Text="@RejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                        DoNotAcceptEvents="true"/>
-                                                          </Children>
-                                                        </ButtonWidget>
-                                                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                      Brush="Test.Button3"
-                                                                      Command.Click="ExecuteAbort"
-                                                                      IsVisible="@CanAbort">
-                                                          <Children>
-                                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                        Text="@AbortText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                        DoNotAcceptEvents="true"/>
-                                                          </Children>
-                                                        </ButtonWidget>
-                                                      </Children>
+                                                      </ItemTemplate>
                                                     </ListPanel>
                                                   </Children>
                                                 </ListPanel>
@@ -456,8 +417,8 @@
                                                     DoNotAcceptEvents="true"/>
 
                                         <!-- 旧格式计划卡片（🔴 2026-08-12：仅旧存档兜底——SenderHeroId=player 的卡片/占位
-                                             走居中卡片渲染；新消息一律走 ShowPlanBubble 计划气泡分支）。
-                                             思考中 = 灰字「{随从}正在思考中…」；就绪态 = 修改版徽标 + 按钮。
+                                             走居中卡片渲染；新消息一律走 ShowCardBubble 卡片气泡分支）。
+                                             思考中 = 灰字「{随从}正在思考中…」；就绪态 = 修改版徽标 + 通用按钮行（同构）。
                                              内部必须垂直 ListPanel 堆叠（普通 Widget 子元素同 rect 会重叠）。 -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="560"
                                                 HorizontalAlignment="Center"
@@ -483,150 +444,38 @@
                                                             IsVisible="@IsModifiedPlan"
                                                             MarginLeft="14" MarginTop="8"
                                                             DoNotAcceptEvents="true"/>
-                                                <!-- 按钮行（🔴 垂直堆叠内禁 VerticalAlignment——与布局方向冲突会盖内容；只留水平对齐） -->
+                                                <!-- 通用按钮行（🔴 2026-08-12：与卡片气泡同构——数据驱动 CardButtons + 锚点纪律；
+                                                     旧存档卡片在此渲染，按钮集/锚点规则与新卡片完全一致。
+                                                     垂直堆叠内禁 VerticalAlignment——与布局方向冲突会盖内容；只留水平对齐） -->
                                                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                            StackLayout.LayoutMethod="HorizontalLeftToRight"
                                                            HorizontalAlignment="Right"
-                                                           IsVisible="@IsPlanCard"
+                                                           IsVisible="@IsCardAnchor"
+                                                           DataSource="{CardButtons}"
                                                            MarginRight="10" MarginBottom="8" MarginTop="8"
                                                            DoNotAcceptEvents="true">
-                                                  <Children>
+                                                  <ItemTemplate>
                                                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
                                                                   Brush="Test.Button3"
-                                                                  Command.Click="ExecuteToggleDetail"
-                                                                  IsVisible="@CanApprove" IsEnabled="@CanToggleDetail" MarginRight="10">
+                                                                  Command.Click="Execute"
+                                                                  IsEnabled="@IsEnabled" MarginRight="10">
                                                       <Children>
                                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@DetailToggleText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                    Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
                                                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                     DoNotAcceptEvents="true"/>
                                                       </Children>
                                                     </ButtonWidget>
-                                                    <!-- 重拟（2026-08-12：讲解自查发现问题时才显示——CanRegenerate） -->
-                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                  Brush="Test.Button3"
-                                                                  Command.Click="ExecuteRegenerate"
-                                                                  IsVisible="@CanRegenerate" MarginRight="10">
-                                                      <Children>
-                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@RegenerateText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                    DoNotAcceptEvents="true"/>
-                                                      </Children>
-                                                    </ButtonWidget>
-                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                  Brush="Test.Button3"
-                                                                  Command.Click="ExecuteApprove"
-                                                                  IsVisible="@CanApprove" MarginRight="10">
-                                                      <Children>
-                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@ApproveText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                    DoNotAcceptEvents="true"/>
-                                                      </Children>
-                                                    </ButtonWidget>
-                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                  Brush="Test.Button3"
-                                                                  Command.Click="ExecuteReject"
-                                                                  IsVisible="@CanReject" MarginRight="10">
-                                                      <Children>
-                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@RejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                    DoNotAcceptEvents="true"/>
-                                                      </Children>
-                                                    </ButtonWidget>
-                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                  Brush="Test.Button3"
-                                                                  Command.Click="ExecuteAbort"
-                                                                  IsVisible="@CanAbort">
-                                                      <Children>
-                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@AbortText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                    DoNotAcceptEvents="true"/>
-                                                      </Children>
-                                                    </ButtonWidget>
-                                                  </Children>
+                                                  </ItemTemplate>
                                                 </ListPanel>
                                               </Children>
                                             </ListPanel>
                                           </Children>
                                         </Widget>
 
-                                        <!-- 🔴 Q4（2026-08-10）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线）
-                                             🔴 2026-08-11（Q1 重叠修复）：内部必须 ListPanel 垂直堆叠——普通 Widget 的子元素
-                                             全部 Layout 到同一 rect（ui.md「贴内容气泡」同坑），名字行与内容文本叠在一起；
-                                             现 = 名字行 → 内容 → 按钮 流式占位，卡片在消息流中占据真实行高、把上方气泡顶上去。
-                                             Id 带 LWN_ 前缀 → StackLayout swap patch（v1.3.0+）→ 实际 TopToBottom（名字在上）。
-                                             🔴 2026-08-12（用户裁定：与计划气泡同套视觉语言）：改左对齐（原居中）。 -->
-                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="520"
-                                                HorizontalAlignment="Left"
-                                                Sprite="BlankWhiteSquare_9" Color="#3DA53D22" MarginTop="2"
-                                                IsVisible="@IsProposal"
-                                                DoNotAcceptEvents="true">
-                                          <Children>
-                                            <ListPanel Id="LWN_ImChat_ProposalBody" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                       StackLayout.LayoutMethod="VerticalBottomToTop"
-                                                       DoNotAcceptEvents="true">
-                                              <Children>
-                                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                                           MarginLeft="14" MarginTop="6"
-                                                           DoNotAcceptEvents="true">
-                                                  <Children>
-                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
-                                                                DoNotAcceptEvents="true"/>
-                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                Text="@TimeText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
-                                                                MarginLeft="8" VerticalAlignment="Center"
-                                                                DoNotAcceptEvents="true"/>
-                                                  </Children>
-                                                </ListPanel>
-                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                            Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#DDEEDDFF"
-                                                            WordWrapping="Wrap"
-                                                            MarginLeft="14" MarginRight="14" MarginTop="4"
-                                                            DoNotAcceptEvents="true"/>
-                                                <!-- 🔴 2026-08-11（Q1 二次修复）：按钮行禁止 VerticalAlignment——
-                                                    垂直 ListPanel 堆叠中 VerticalAlignment 与布局方向冲突（按钮被定位到
-                                                    父 rect 底部而非流式堆叠位：要么盖在内容上、要么撑出底部空白），
-                                                    与气泡（BubbleOther）已验证模式一致：内部子项只留水平对齐。 -->
-                                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                                           HorizontalAlignment="Right"
-                                                           MarginRight="10" MarginBottom="4" MarginTop="4"
-                                                           DoNotAcceptEvents="true">
-                                                  <Children>
-                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                  Brush="Test.Button3"
-                                                                  Command.Click="ExecuteProposeApprove"
-                                                                  IsVisible="@CanProposeApprove" MarginRight="10">
-                                                      <Children>
-                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@ProposeApproveText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                    DoNotAcceptEvents="true"/>
-                                                      </Children>
-                                                    </ButtonWidget>
-                                                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                  Brush="Test.Button3"
-                                                                  Command.Click="ExecuteProposeReject"
-                                                                  IsVisible="@CanProposeReject">
-                                                      <Children>
-                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@ProposeRejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                    DoNotAcceptEvents="true"/>
-                                                      </Children>
-                                                    </ButtonWidget>
-                                                  </Children>
-                                                </ListPanel>
-                                              </Children>
-                                            </ListPanel>
-                                          </Children>
-                                        </Widget>
+                                        <!-- 🔴 2026-08-12（决策卡片统一）：NPC 主动提议 / 闲聊动作卡片（决斗等）
+                                             已并入上方 ShowCardBubble 卡片气泡分支渲染（同一套 NPC 自述形态 + 通用按钮行），
+                                             本分支删除。 -->
 
                                       </Children>
                                     </Widget>

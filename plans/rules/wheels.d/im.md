@@ -96,32 +96,35 @@ score = Σ 命中主题×职业亲和 + @提及(5) + 相似度(bigram×3) + 热�
 
 ---
 
-## 🔴 闲聊高风险动作 → Proposal 提议卡片（IM 确认面板复用）— 2026-08-11
+## 🔴 闲聊高风险动作 → 决策卡片（IM 确认面板复用，与计划卡片同构）— 2026-08-11 / 2026-08-12
 
-**解决**：NPC 闲聊回复带高风险动作（ATTACK/DUEL/KNOCKOUT/STEAL）时，原生 `ShowInquiry` 弹窗只有一个"来战！"按钮（玩家不能拒绝），且与 IM 聊天流割裂。改为投递 **Proposal 卡片**（同意/拒绝）——与密令 PlanCard、NPC 主动提议（ReactiveAgent）同一套确认 UI。
+**解决**：NPC 闲聊回复带高风险动作（ATTACK/DUEL/KNOCKOUT/STEAL）时，原生 `ShowInquiry` 弹窗只有一个"来战！"按钮（玩家不能拒绝），且与 IM 聊天流割裂。改为投递 **决策卡片**（同意/拒绝）——与密令 PlanCard、NPC 主动提议（ReactiveAgent）同一套确认 UI。
+
+🔴 **2026-08-12（用户裁定：计划模式消息按钮 = 通用交互结构）**：闲聊决策卡片 / NPC 主动提议 / 计划卡片 三套 UI 合并为**一张「卡片气泡」**——NPC 自述形态（名字行 → [修改版徽标(仅计划)] → 正文 → 通用按钮行），按钮行**数据驱动**：
 
 ```csharp
-// ActionDefinition 新字段（InteractionController.cs）：
-RequiresConfirm = true;   // 高风险物理动作：IM 路径拦截为卡片
-ExecuteCore = ...;        // 核心执行（卡片批准后直接跑，不再弹二次确认）
-// Execute = 当面对话的原生弹窗包装，确认回调 → RunActionCore("CODE", ...)
-// HandleAction(..., alreadyConfirmed: true) → 直接 ExecuteCore
-
-// HandleImAction（IM 入口）：RequiresConfirm && !bypassConfirm → PostActionProposal（投卡片 return）
-// ImChatView.HandleProposal：msg.ActionCode 非空 → 同意 = HandleImAction(bypassConfirm: true)
-//   直接执行（空间/冷却/IsValid 复检全保留，NPC 离场自然降级）；拒绝 = ExecutorId="done" 了结
+// ImButtonVM（ImChatVM.cs）：通用按钮数据项
+//   Text / IsEnabled（置灰）/ Execute()（Command.Click="Execute" 绑定）——一个按钮一个委托
+// ImMessageVM.CardButtons（MBBindingList<ImButtonVM>）：按钮集按 AnchorCard 种类/状态重建
+//   RebuildCardButtons()：计划卡片 = 自审/重拟?/同意/拒绝（执行中 = 中止）；
+//                         提议卡片 = 同意/拒绝（批准 = HandleProposal(approve:true) → 直接执行动作或走计划管线）
+// ImMessageVM.IsCardAnchor：按钮行可见性（ImChatView.UpdateCardAnchors 每次刷新重算）
+// 锚点规则（合并旧 UpdateLatestProposalFlag + UpdatePlanAnchors 为 UpdateCardAnchors 单规则）：
+//   会话内「最新可操作卡片」（最新未决 Proposal 或最新待批/执行中 PlanCard）→ 锚点消息 =
+//   计划链 = 链内最新一条（讲解后按钮下移）；提议无链 = 卡片自身。旧卡按钮行隐藏（视觉保留）。
+//   两种卡片并存时新者接管锚点，旧卡未了结、回流后恢复可点。
 ```
 
 **关键纪律**：
 - **两条路径彻底分离**：IM 路径（`HandleImAction`）拦截为卡片；当面对话路径（ReactiveAgent → `HandleAction` 直接）保留原生弹窗。拦截只放 `HandleImAction`，`HandleAction` 不动。
 - **防死循环**：批准后的再执行必须 `bypassConfirm: true`（否则二次拦截 → 无限投卡）。
 - **防二次弹窗**：批准后走 `ExecuteCore`（`alreadyConfirmed: true`），否则 Execute 的弹窗包装又弹一次。
-- **文案复用**：卡片 Content = 各动作现有确认弹窗 key（`LWN_ui_interact_inquiry_duel_msg` 等），零新增本地化。
+- **文案复用**：卡片 Content = 各动作现有确认弹窗 key（`LWN_ui_interact_inquiry_duel_msg` 等），零新增本地化。按钮文案 = 计划卡片同款 同意/拒绝（`LWN_im_btn_approve/reject`）。
 - **发卡前预检**：空间裁剪（`ResolveSpace`）+ `IsValid` 不过 → 不发卡（防"同意后无法执行"的死卡），与 HandleAction 降级 NONE 同语义。
 - **载荷字段**：`ImMessage` 加 `ActionCode/ActionTarget/ActionLevel`（全 JSON 存档，向后兼容；空 ActionCode = 既有 NPC 主动提议 → RequestCommand 计划管线，行为不变）。
-- 卡片投递：`ImChatStore.AppendGroupMessage(conv.Id, ...)` + `IncUnread` + `BroadcastMessageArrived`（私聊/群聊通用，与 ReactiveAgent 提议同款）。
+- 卡片投递：`ImChatStore.AppendGroupMessage(conv.Id, ...)` + `IncUnread` + `BroadcastMessageArrived`（私聊/群聊通用——**频道群聊中某人对玩家做动作同样走此结构**）。
 
-**UI 层三条纪律（2026-08-11 实机三修）**：
-1. **卡片内部必须 ListPanel 垂直堆叠**（名字行 → 内容 → 按钮）——普通 Widget 子元素全部 Layout 到同一 rect 会叠字（ui.md「贴内容气泡」同坑；Proposal 分支曾名字+内容叠成一片、行高失真）。Id 带 `LWN_` 前缀 + `VerticalBottomToTop` 声明（走 StackLayout swap patch，v1.2.12/v1.3+ 一致）。
-2. **多卡并存：UI 全保留（流式历史），效用上仅最新未决卡按钮有效**——`ImMessageVM.IsLatestProposal` 标记（ImChatView.UpdateLatestProposalFlag 每次刷新重算：最后一条未决 = true，其余 false），CanProposeApprove/CanProposeReject 同时要求标记 → 旧卡按钮 IsVisible=false 隐藏不可点；作废卡片置 `ExecutorId="done"` 后**必须全量重建消息列表**（按钮状态是计算属性，增量追加不刷新已存在消息）。
+**UI 层纪律（2026-08-11 实机三修 + 2026-08-12 统一）**：
+1. **卡片内部必须 ListPanel 垂直堆叠**（名字行 → 内容 → 按钮行）——普通 Widget 子元素全部 Layout 到同一 rect 会叠字（ui.md「贴内容气泡」同坑）。Id 带 `LWN_` 前缀 + `VerticalBottomToTop` 声明（走 StackLayout swap patch，v1.2.12/v1.3+ 一致）。
+2. **多卡并存：UI 全保留（流式历史），效用上仅最新未决卡按钮有效**——`ImMessageVM.IsCardAnchor`（UpdateCardAnchors 每次刷新重算：最新可操作卡片 + 锚点位置 = 链内最新/自身），旧卡按钮行 IsVisible=false 隐藏不可点；作废卡片置 `ExecutorId="done"` 后**必须全量重建消息列表**（按钮行是重建式数据，增量追加不刷新已存在消息）。
 3. **同意后自动 `Close()`**（拒绝不关）——执行完动作直接关面板，开打了玩家该盯屏幕。
