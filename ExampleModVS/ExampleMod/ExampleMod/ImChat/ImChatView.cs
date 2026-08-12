@@ -28,6 +28,8 @@ namespace LivingWorldNpcs
 #endif
         private static ImConversation _selected;
         private static float _refreshTimer;
+        // 🔴 2026-08-12：思考中占位是否存在于上一帧（转态帧检测 → 全量重建，防旧占位行残留）
+        private static bool _hadGenerating;
         private static bool _subscribed;
         private static bool _welcomed;   // 首次打开引导提示（会话内一次）
 
@@ -266,10 +268,13 @@ namespace LivingWorldNpcs
         {
             if (_vm == null || _selected == null) return;
             var msgs = ImChatManager.GetMessages(_selected);
-            // 🔴 2026-08-12：生成中占位行存在时全量重建（占位被替换/移除的帧消息列表收缩，增量逻辑处理不了）
+            // 🔴 2026-08-12：思考中→就绪转态（生成消息被移除、卡片上屏）→ 全量重建。
+            // 原增量逻辑在转态帧只追加新行、旧占位行残留 → 实机"两张卡片"（思考中的还在）。
             bool hasGenerating = false;
             foreach (var m in msgs) { if (m.IsGenerating) { hasGenerating = true; break; } }
-            if (hasGenerating)
+            bool transition = _hadGenerating && !hasGenerating;
+            _hadGenerating = hasGenerating;
+            if (hasGenerating || transition)
             {
                 _vm.Messages.Clear();
                 foreach (var m in msgs) _vm.Messages.Add(new ImMessageVM(m));

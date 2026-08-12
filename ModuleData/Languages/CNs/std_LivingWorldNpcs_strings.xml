@@ -4087,6 +4087,8 @@
     <string id="LWN_im_btn_propose_reject" text="不必了" />
 <string id="LWN_im_btn_modify" text="修改" />
     <string id="LWN_im_btn_regenerate" text="重拟" />
+    <string id="LWN_plan_bring_tail" text="主公召我来，不知有何吩咐？" />
+    <string id="LWN_plan_bring_tail_topic" text="带到主人面前" />
     <string id="LWN_im_btn_submit_modify" text="提交修改" />
     <string id="LWN_im_input_placeholder_modify" text="修改计划：…" />
     <string id="LWN_im_badge_modified" text="修改版 v{N}" />
