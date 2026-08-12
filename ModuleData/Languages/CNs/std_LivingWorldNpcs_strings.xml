@@ -474,19 +474,47 @@
     <!-- NpcSpeech — 警戒气泡 / L3 质问台词                -->
     <!-- ═══════════════════════════════════════════ -->
     <string id="LWN_speech_alertbubble_crouching_suspicious" text="（嘀咕）{PLAYER}在这做什么……" />
+    <string id="LWN_speech_alertbubble_crouching_suspicious_v1" text="（低声）{PLAYER}鬼鬼祟祟的……" />
+    <string id="LWN_speech_alertbubble_crouching_suspicious_v2" text="（嘀咕）大白天的蹲着干什么……" />
     <string id="LWN_speech_alertbubble_crouching_cautious" text="（提高声音）喂！{PLAYER}！蹲着干什么！" />
+    <string id="LWN_speech_alertbubble_crouching_cautious_v1" text="（厉声）{SPEAKER_PLAYER_ADDR}！起来！别蹲在那里！" />
+    <string id="LWN_speech_alertbubble_crouching_cautious_v2" text="（皱眉）{SPEAKER_PLAYER_ADDR}！你蹲着做什么？！" />
     <string id="LWN_speech_alertbubble_weapondrawn_suspicious" text="（不安地看了一眼）怎么还拔{ITEM}了……" />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v1" text="（多看了几眼）{PLAYER}怎么还握着{ITEM}……" />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v2" text="（留意着）{PLAYER}的{ITEM}一直没收……" />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious" text="（后退半步）{SPEAKER_PLAYER_ADDR}！把{ITEM}收起来！" />
+    <string id="LWN_speech_alertbubble_weapondrawn_cautious_v1" text="（沉声）{SPEAKER_PLAYER_ADDR}！收{ITEM}！这里不是战场！" />
+    <string id="LWN_speech_alertbubble_weapondrawn_cautious_v2" text="（喝止）{SPEAKER_PLAYER_ADDR}！把{ITEM}收回去！" />
     <string id="LWN_speech_alertbubble_stealuiopen_suspicious" text="（瞟了一眼）在翻什么呢……" />
+    <string id="LWN_speech_alertbubble_stealuiopen_suspicious_v1" text="（侧目）这是在找什么……" />
+    <string id="LWN_speech_alertbubble_stealuiopen_suspicious_v2" text="（疑惑）翻人家的东西做什么……" />
     <string id="LWN_speech_alertbubble_stealuiopen_cautious" text="（盯着）喂！{SPEAKER_PLAYER_ADDR}！你在翻什么！" />
+    <string id="LWN_speech_alertbubble_stealuiopen_cautious_v1" text="（逼近一步）{SPEAKER_PLAYER_ADDR}！把手拿出来！" />
+    <string id="LWN_speech_alertbubble_stealuiopen_cautious_v2" text="（瞪眼）{SPEAKER_PLAYER_ADDR}！你在动人家的东西！" />
     <string id="LWN_speech_alertbubble_steal_suspicious" text="咦，{TARGET}的{ITEM}呢？" />
+    <string id="LWN_speech_alertbubble_steal_suspicious_v1" text="（嘀咕）{TARGET}的{ITEM}去哪了……" />
+    <string id="LWN_speech_alertbubble_steal_suspicious_v2" text="（纳闷）刚才还在的{ITEM}呢？" />
     <string id="LWN_speech_alertbubble_steal_cautious" text="（惊呼）{SPEAKER_PLAYER_ADDR}！你偷了{ITEM}！" />
+    <string id="LWN_speech_alertbubble_steal_cautious_v1" text="（怒喝）{SPEAKER_PLAYER_ADDR}！放下{ITEM}！那是{TARGET}的！" />
+    <string id="LWN_speech_alertbubble_steal_cautious_v2" text="（惊怒）抓贼！{SPEAKER_PLAYER_ADDR}偷了{ITEM}！" />
     <string id="LWN_speech_alertbubble_attackally_suspicious" text="（惊）怎么回事？！" />
+    <string id="LWN_speech_alertbubble_attackally_suspicious_v1" text="（愣住）怎么自己人打起来了……" />
+    <string id="LWN_speech_alertbubble_attackally_suspicious_v2" text="（错愕）{PLAYER}在对{TARGET}动手？！" />
     <string id="LWN_speech_alertbubble_attackally_cautious" text="（后退一步，手按刀柄）{SPEAKER_PLAYER_ADDR}！住手！再打我可要动手了！" />
+    <string id="LWN_speech_alertbubble_attackally_cautious_v1" text="（握紧武器）{SPEAKER_PLAYER_ADDR}！别打了！{TARGET}是自己人！" />
+    <string id="LWN_speech_alertbubble_attackally_cautious_v2" text="（喝止）{SPEAKER_PLAYER_ADDR}！再打我就不客气了！" />
     <string id="LWN_speech_alertbubble_attackcivilian_suspicious" text="（皱眉）当街打起来了……" />
+    <string id="LWN_speech_alertbubble_attackcivilian_suspicious_v1" text="（回头）怎么回事？有人打人……" />
+    <string id="LWN_speech_alertbubble_attackcivilian_suspicious_v2" text="（蹙眉）当街动武，成何体统……" />
     <string id="LWN_speech_alertbubble_attackcivilian_cautious" text="（上前一步，手按刀柄）{SPEAKER_PLAYER_ADDR}！住手！别在街上动手，不然我不客气了！" />
+    <string id="LWN_speech_alertbubble_attackcivilian_cautious_v1" text="（逼近）{SPEAKER_PLAYER_ADDR}！放开{TARGET}！这是街上！" />
+    <string id="LWN_speech_alertbubble_attackcivilian_cautious_v2" text="（沉声警告）{SPEAKER_PLAYER_ADDR}！住手！否则别怪我刀下无情！" />
     <string id="LWN_speech_alertbubble_knockout_suspicious" text="（惊恐）出人命了……" />
+    <string id="LWN_speech_alertbubble_knockout_suspicious_v1" text="（骇然）打、打死了？！" />
+    <string id="LWN_speech_alertbubble_knockout_suspicious_v2" text="（失色）{TARGET}不动了……" />
     <string id="LWN_speech_alertbubble_knockout_cautious" text="来人！{SPEAKER_PLAYER_ADDR}把{TARGET}打倒了！" />
+    <string id="LWN_speech_alertbubble_knockout_cautious_v1" text="（急呼）快来人！出事了！{SPEAKER_PLAYER_ADDR}伤了{TARGET}！" />
+    <string id="LWN_speech_alertbubble_knockout_cautious_v2" text="（怒指）{SPEAKER_PLAYER_ADDR}！你竟敢当众行凶！" />
     <string id="LWN_speech_l3_deter_weapondrawn" text="（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！" />
     <string id="LWN_speech_l3_deter_crouching" text="（{SPEAKER_EMOTION}地）喂！{SPEAKER_PLAYER_ADDR}！蹲在那鬼鬼祟祟干什么？" />
     <string id="LWN_speech_l3_search_stealuiopen" text="（{SPEAKER_EMOTION}地）{SPEAKER_PLAYER_ADDR}在翻什么？把手拿开，让{SPEAKER_SELF}看看你的包。" />
