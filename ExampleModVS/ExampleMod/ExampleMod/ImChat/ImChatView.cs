@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.GauntletUI.BaseTypes;
@@ -274,12 +275,19 @@ namespace LivingWorldNpcs
             foreach (var m in msgs) { if (m.IsGenerating) { hasGenerating = true; break; } }
             bool transition = _hadGenerating && !hasGenerating;
             _hadGenerating = hasGenerating;
-            if (hasGenerating || transition)
+            // 🔴 2026-08-12 双保险：UI 已显示占位行但 store 已无（RemoveGenerating 历史 bug 的存档残留）→ 也全量重建
+            bool uiHasGenerating = false;
+            foreach (var vm in _vm.Messages)
+            {
+                if (vm.Message != null && vm.Message.IsGenerating) { uiHasGenerating = true; break; }
+            }
+            if (hasGenerating || transition || (uiHasGenerating && !hasGenerating))
             {
                 _vm.Messages.Clear();
                 foreach (var m in msgs) _vm.Messages.Add(new ImMessageVM(m));
                 _vm.IsEmpty = false;
                 UpdateLatestProposalFlag();
+                UpdatePlanAnchors();
                 RefreshChannelsDynamic();
                 return;
             }
@@ -296,6 +304,8 @@ namespace LivingWorldNpcs
             }
             // 🔴 2026-08-11（Q2）：最新未决提议标记（新增卡片后旧卡片按钮失效）
             UpdateLatestProposalFlag();
+            // 🔴 2026-08-12（用户裁定）：计划链按钮锚点重算（讲解消息上屏 → 按钮下移）
+            UpdatePlanAnchors();
             // 空会话引导（UI 优化：新频道无消息时给玩家一个提示而非空白）
             _vm.IsEmpty = msgs.Count == 0;
             // 🔴 九轮：新消息处理二分——玩家在底部（未上拉）→ 自动滚底把新消息弹出来（贴底闭环兜底）；
@@ -374,6 +384,79 @@ namespace LivingWorldNpcs
             }
             foreach (var vm in _vm.Messages)
                 vm.IsLatestProposal = vm == latest;
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 按钮锚点跟随）：计划链按钮锚点计算。
+        /// 链 = 计划卡片 + 讲解消息（同 ChainId）。锚点规则（与 IsLatestProposal 同款纪律）：
+        /// ① 锚点消息 = 链内最新一条（讲解正文上屏 → 按钮移动到讲解消息下方）；
+        /// ② 且链卡片必须是会话内「最新可操作卡片」（待批或执行中）——叠放命令时旧链按钮隐藏。
+        /// 每次消息流刷新后调用（含增量追加——新讲解消息上屏即锚点下移）。
+        /// 旧格式卡片（无 ChainId）自身即锚点，沿用原行为。
+        /// </summary>
+        private static void UpdatePlanAnchors()
+        {
+            if (_vm == null || _selected == null) return;
+            var msgs = ImChatManager.GetMessages(_selected);
+            // 会话内最新可操作卡片（待批 = ExecutorId 空；执行中 = IsExecuting）
+            ImMessage latestCard = null;
+            foreach (var m in msgs)
+            {
+                if (m != null && m.IsPlanCard && (string.IsNullOrEmpty(m.ExecutorId) || ImCommandFlow.IsExecuting(m)))
+                    latestCard = m;
+            }
+            foreach (var vm in _vm.Messages)
+            {
+                var m = vm.Message;
+                ImMessage card = null;
+                if (m != null)
+                {
+                    if (m.IsPlanCard)
+                        card = m;
+                    else if (m.IsPlanChainMessage)
+                    {
+                        foreach (var x in msgs)
+                        {
+                            if (x != null && x.IsPlanCard && x.ChainId == m.ChainId) { card = x; break; }
+                        }
+                    }
+                }
+                vm.AnchorCard = card;
+                vm.IsPlanChainAnchor = card != null
+                    && card == latestCard
+                    && IsLastChainMessage(m, card, msgs);
+            }
+        }
+
+        /// <summary>本消息是否为链内最新一条（🔴 2026-08-12 修复：只扫 m **之后**的消息——
+        /// 原实现扫全表，卡片自身同链 → 讲解消息永远判定「后面还有同链消息」→ 按钮全消失）。
+        /// 旧格式卡片无 ChainId = 仅自身。</summary>
+        private static bool IsLastChainMessage(ImMessage m, ImMessage card, List<ImMessage> msgs)
+        {
+            if (m == null || card == null) return false;
+            if (string.IsNullOrEmpty(card.ChainId)) return true;
+            int mIdx = msgs.IndexOf(m);
+            if (mIdx < 0) return false;
+            for (int i = mIdx + 1; i < msgs.Count; i++)
+            {
+                if (msgs[i] != null && msgs[i].ChainId == card.ChainId)
+                    return false;   // 后面还有同链消息 → 本消息不是锚点
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-12：讲解完成/失败后通知所有挂载该卡片的 VM（锚点可能已移到讲解消息——新 VM 实例，
+        /// 只通知本 VM 会漏）。调用方在主线程（ImCommandFlow.Tick 消费讲解队列），安全触碰 UI。
+        /// </summary>
+        public static void NotifyPlanStateChanged(ImMessage card)
+        {
+            if (_vm == null || card == null) return;
+            foreach (var vm in _vm.Messages)
+            {
+                if (vm != null && vm.AnchorCard == card)
+                    vm.NotifyPlanState();
+            }
         }
 
         /// <summary>动态项：标题带正在思考 + 模式状态/切换按钮 + 输入区联动（0.3s 节流调）。</summary>

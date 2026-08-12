@@ -20,8 +20,9 @@ namespace LivingWorldNpcs
     {
         Text,       // 普通文本（闲聊/密令文本都算）
         System,     // 系统消息（居中灰字：执行开始/完成/中止）
-        PlanCard,   // 密令计划卡片（摘要 + 同意/拒绝/中止按钮）
-        Generating, // 🔴 2026-08-12：计划生成中占位行（思考中文案；卡片上屏/失败时被替换）
+        PlanCard,   // 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：计划消息 = NPC 自述的简述气泡
+                    //（Sender = 随从/通用发言人，Content = LLM 简述）+ 按钮行（讲解/重拟/同意/拒绝/中止）
+        Generating, // 🔴 2026-08-12：计划生成中占位（NPC 气泡「XX 正在构思计划…」；卡片上屏/失败时被替换）
         Proposal,   // 🔴 2026-08-10（§四 Q4）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线）
     }
 
@@ -76,9 +77,21 @@ namespace LivingWorldNpcs
         [JsonProperty("pd")]
         public string PlanDetailText;    // 卡片详情（§3.2）：C# 确定性渲染的步骤/应急/安全网文本（不信任 LLM 文案）
 
-        // 🔴 2026-08-12：生成中占位行（Generating 消息专用；删进度条，文案 = 输入栏「正在输入」同款）
+        // 🔴 2026-08-12：生成中占位行（Generating 消息专用；文案 = 输入栏「正在输入」同款。
+        // 新格式：Content 直接承载思考中文案（NPC 气泡渲染走 Content）；本字段保留给旧存档/旧渲染兜底）
         [JsonProperty("gt")]
         public string GenerateText;      // 思考中文案（「{NAME}正在输入…」）
+
+        // 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 按钮锚点跟随）：计划链 ID。
+        // 新卡片生成时发 GUID；讲解消息（NPC 详解）复制卡片同链 id。按钮锚点 = 链内最新一条消息
+        //（讲解后按钮移动到讲解消息下方）。旧存档无此字段 = 非链消息，按钮留在原卡片（legacy 渲染兜底）。
+        [JsonProperty("ch")]
+        public string ChainId;
+
+        // 🔴 2026-08-12：讲解在途标记（运行时态，不存档——VM 每次 0.3s 重建，标记必须活在消息对象上
+        // 才能跨重建保活；锚点移到讲解消息后，讲解中状态仍正确显示在锚点上）。
+        [JsonIgnore]
+        public bool ExplainPending;
 
         // 🔴 2026-08-12：讲解自查结果（讲解轮结构化输出）——重拟按钮显示条件与重拟定向上下文
         [JsonProperty("fi")]
@@ -92,6 +105,11 @@ namespace LivingWorldNpcs
 
         [JsonIgnore]
         public bool IsPlanCard => Kind == ImMessageKind.PlanCard;
+
+        /// <summary>🔴 2026-08-12：计划链消息（讲解消息 = 带 ChainId 的普通文本）——按钮锚点候选。
+        /// 卡片自身也算链消息（IsPlanCard 分支）；旧存档（无 ChainId）不在此列。</summary>
+        [JsonIgnore]
+        public bool IsPlanChainMessage => !string.IsNullOrEmpty(ChainId) && Kind == ImMessageKind.Text;
 
         [JsonIgnore]
         public bool IsSystem => Kind == ImMessageKind.System;

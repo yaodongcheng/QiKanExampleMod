@@ -258,20 +258,18 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                // 🔴 §3.1 计划陈述：narration = 卡片上方的 NPC 消息（当事人自述，非上帝视角）。
-                // 🔴 2026-08-12（用户裁定：卡片去描述，计划文本完全由 NPC 说）：陈述缺省 → 摘要兜底，
-                // 保证卡片上屏时总有一条 NPC 描述（卡片本身只留按钮）。
+                // 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：计划消息 = NPC 自述消息——
+                // Sender = 随从（私聊）/通用发言人（群聊），Content = LLM 简述（原独立 narration 消息并入本条），
+                // 按钮行渲染在气泡内、锚点跟随链最新消息（讲解后按钮移动）。
+                // 🔴 2026-08-12（原「卡片去描述」）：陈述缺省 → 摘要兜底，保证上屏时总有一条 NPC 简述。
                 string narration = !string.IsNullOrWhiteSpace(response.Narration)
                     ? response.Narration
                     : (response.Plan?.Summary ?? LWNTextHelper.ResolveText("LWN_plan_default_summary", "I have a plan. Shall I go?"));
-                PostNpcMessage(conv, narration);
-
-                // 计划卡片
                 string summary = !string.IsNullOrEmpty(response.Plan.Summary) ? response.Plan.Summary
                     // 计划摘要缺省文案
                     : LWNTextHelper.ResolveText("LWN_plan_default_summary", "I have a plan. Shall I go?");
-                var card = new ImMessage(ImChatManager.PlayerId,
-                    Hero.MainHero?.Name?.ToString() ?? "You", summary, ImMessageKind.PlanCard)
+                ResolveSpeaker(conv, out string heroId, out string senderName);
+                var card = new ImMessage(heroId, senderName, narration, ImMessageKind.PlanCard)
                 {
                     ConvId = conv?.Id ?? "",
                     ResponseJson = JsonConvert.SerializeObject(response,
@@ -284,6 +282,8 @@ namespace LivingWorldNpcs
                     PlanModifyCount = modifyCount,
                     Narration = narration,
                     PlanDetailText = BuildPlanDetail(response.Plan),
+                    // 🔴 2026-08-12：计划链锚点（按钮跟随链最新消息；讲解消息复制同 id）
+                    ChainId = Guid.NewGuid().ToString(),
                 };
                 ImChatStore.AppendGroupMessage(card.ConvId, card);
                 ImChatStore.IncUnread(card.ConvId);
@@ -323,7 +323,11 @@ namespace LivingWorldNpcs
                 {
                     if (job != null && !string.IsNullOrWhiteSpace(job.Line))
                         ImChatStore.AppendGroupMessage(job.ConvId,
-                            new ImMessage(job.SenderId, job.SenderName, job.Line, ImMessageKind.Text));
+                            new ImMessage(job.SenderId, job.SenderName, job.Line, ImMessageKind.Text)
+                            {
+                                // 🔴 2026-08-12：链标记——按钮锚点随讲解消息下移（讲解正文 = 链最新消息）
+                                ChainId = job.Card?.ChainId,
+                            });
                     // 🔴 2026-08-12：自查结果写回卡片（重拟按钮显示条件；重拟定向上下文）——主线程，安全
                     if (job?.Card != null)
                     {
@@ -341,7 +345,7 @@ namespace LivingWorldNpcs
                             if (agent != null && agent.IsActive())
                                 SpeechChannel.Say(agent, job.Line, SpeechPriority.Dialogue,
                                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), Agent.Main, "plan_report",
-                                        LWNTextHelper.ResolveText("LWN_im_btn_explain", "Explain plan")));
+                                        LWNTextHelper.ResolveText("LWN_im_btn_review", "Self-review")));
                         }
                         catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 讲解冒泡失败: {ex.Message}"); }
                     }
@@ -570,7 +574,9 @@ namespace LivingWorldNpcs
             }
             if (anchor < 0) { ImChatStore.RemoveMessageRange(conv.Id, cardIdx, 1); return; }   // 防御：只删卡片
 
-            // 向前追溯修改链（严格边界见方法注释）
+            // 向后追溯修改链（严格边界见方法注释）：
+            // 新结构（2026-08-12）：命令 → 计划卡片（NPC 简述自述）→ [讲解消息]；修改链 =
+            // 命令1 → 卡片1(superseded) → [讲解1] → 命令2(修改) → 卡片2 → [讲解2] …
             int start = anchor;
             while (start > 0)
             {
@@ -579,15 +585,42 @@ namespace LivingWorldNpcs
                 if (m.IsSystem) { start--; continue; }
                 if (m.IsPlanCard && m.ExecutorId == Superseded) { start--; continue; }
                 if (m.Kind == ImMessageKind.Text && m.SenderHeroId != ImChatManager.PlayerId
-                    && msgs[start].IsPlanCard && msgs[start].ExecutorId == Superseded) { start--; continue; }
+                    && msgs[start].IsPlanCard && msgs[start].ExecutorId == Superseded) { start--; continue; }   // 旧结构：陈述在卡片前
                 if (m.Kind == ImMessageKind.Text && m.SenderHeroId == ImChatManager.PlayerId
                     && msgs[start].Kind == ImMessageKind.Text && msgs[start].SenderHeroId != ImChatManager.PlayerId
                     && start + 1 < msgs.Count && msgs[start + 1].IsPlanCard
-                    && msgs[start + 1].ExecutorId == Superseded) { start--; continue; }
+                    && msgs[start + 1].ExecutorId == Superseded) { start--; continue; }                         // 旧结构：命令→陈述→卡片
+                if (m.Kind == ImMessageKind.Text && m.SenderHeroId == ImChatManager.PlayerId
+                    && msgs[start].IsPlanCard && msgs[start].ExecutorId == Superseded) { start--; continue; }   // 新结构：命令直接在卡片前
+                // 🔴 2026-08-12：讲解消息（带 ChainId 的 NPC 文本）——仅当所属卡片已 superseded 才并入抹除
+                //（叠放命令场景：讲解属于仍待批的卡片 → 保留，break 停在这里）
+                if (m.Kind == ImMessageKind.Text && !string.IsNullOrEmpty(m.ChainId))
+                {
+                    ImMessage owner = null;
+                    foreach (var x in msgs)
+                    {
+                        if (x != null && x.IsPlanCard && x.ChainId == m.ChainId) { owner = x; break; }
+                    }
+                    if (owner != null && owner.ExecutorId == Superseded) { start--; continue; }
+                }
                 break;
             }
-            ImChatStore.RemoveMessageRange(conv.Id, start, cardIdx - start + 1);
-            DebugLogger.Log($"[ImCommandFlow] 拒绝抛弃计划：抹除 store 消息 {cardIdx - start + 1} 条（会话 {conv.Id}）");
+
+            // 🔴 2026-08-12：向前追溯讲解消息（卡片后同链消息：详解正文）——拒绝 = 整条计划交易抹除。
+            // 只扫连续段：中间插入其他消息（叠放命令的新链）即停——那些不是被拒的这条计划
+            //（此时被拒卡片的按钮已因锚点规则隐藏，叠放 + 拒旧卡组合在 UI 上不可达，防御即可）。
+            // 🔴 旧格式卡片无 ChainId（null == null 会误伤全表）——必须跳过。
+            int end = cardIdx;
+            if (!string.IsNullOrEmpty(card.ChainId))
+            {
+                for (int i = cardIdx + 1; i < msgs.Count; i++)
+                {
+                    if (msgs[i] != null && msgs[i].ChainId == card.ChainId) end = i;
+                    else break;
+                }
+            }
+            ImChatStore.RemoveMessageRange(conv.Id, start, end - start + 1);
+            DebugLogger.Log($"[ImCommandFlow] 拒绝抛弃计划：抹除 store 消息 {end - start + 1} 条（会话 {conv.Id}）");
         }
 
         /// <summary>
@@ -654,27 +687,17 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 生成中占位行（🔴 2026-08-12：删进度条，文案与「正在输入」统一）─────────────────────────
 
-        /// <summary>占位行：消息流内灰色卡片（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一——LWN_im_typing 同款）。</summary>
+        /// <summary>占位行：消息流内 NPC 思考气泡（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一；
+        /// 🔴 2026-08-12（用户裁定：融入 NPC 气泡）：Sender = 随从/通用发言人；
+        /// 🔴 2026-08-12（用户反馈）：思考气泡不带名字前缀——正文纯「正在思考中…」（新 key），
+        /// 名字行在 XML 中按 IsGenerating 隐藏；GenerateText 保留给旧存档渲染兜底）。</summary>
         private static void AppendGenerating(ImConversation conv)
         {
             if (conv == null) return;
-            // 思考中文案：私聊 = 随从名（「阿速甘正在输入…」，与输入栏灰字同一句）；兜底「对方」
-            string thinker = "";
-            if (conv.Type == ImConversationType.Direct)
-            {
-                try
-                {
-                    thinker = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == conv.PartnerHeroId)?.Name?.ToString() ?? "";
-                }
-                catch { }
-            }
-            if (string.IsNullOrEmpty(thinker))
-                thinker = LWNTextHelper.ResolveText("LWN_im_npc_companion", "Companion");
-            string thinkingText = LWNTextHelper.ResolveCompound("LWN_im_generating",
-                "{NAMES} is thinking...", ("NAMES", thinker));
-            // 🔴 2026-08-12：SenderName 用思考者名（原硬编码 "System"——消息流气泡泄漏
-            // 时显示「System」，玩家反馈；气泡泄漏本身已在 ImChatVM.ShowSelfBubble 修复）
-            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId, thinker, "", ImMessageKind.Generating)
+            ResolveSpeaker(conv, out string heroId, out string senderName);
+            // 思考中文案：无名字前缀（用户反馈——名字行/正文都去掉，微信「对方正在输入」语义）
+            string thinkingText = LWNTextHelper.ResolveText("LWN_im_generating_plain", "Thinking...");
+            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(heroId, senderName, thinkingText, ImMessageKind.Generating)
             {
                 ConvId = conv.Id,
                 GenerateText = thinkingText,
@@ -682,7 +705,9 @@ namespace LivingWorldNpcs
             ImChatManager.BroadcastMessageArrived(conv);
         }
 
-        /// <summary>移除会话最后一条生成中占位（卡片上屏/失败时替换）。</summary>
+        /// <summary>移除会话最后一条生成中占位（卡片上屏/失败时替换）。
+        /// 🔴 2026-08-12 修复：GetGroupMessages 返回副本，直接 RemoveAt 只改副本——store 占位行残留，
+        /// 导致「思考气泡 + 计划气泡」双显（hasGenerating 恒 true，转态重建不触发）。走 RemoveMessageRange 真删。</summary>
         private static void RemoveGenerating(ImConversation conv)
         {
             if (conv == null) return;
@@ -691,7 +716,7 @@ namespace LivingWorldNpcs
             {
                 if (msgs[i].IsGenerating)
                 {
-                    msgs.RemoveAt(i);
+                    ImChatStore.RemoveMessageRange(conv.Id, i, 1);
                     return;
                 }
             }
@@ -767,7 +792,8 @@ namespace LivingWorldNpcs
         // ───────────────────────── 计划讲解（🔴 2026-08-11 用户裁定）─────────────────────────
 
         /// <summary>
-        /// 玩家点「讲解计划」按钮（**确定性事件**，不靠玩家打字让 LLM 识别「解释计划」意图）
+        /// 计划自审（🔴 2026-08-11 用户裁定 → 2026-08-12 改名）：玩家点「计划自审」按钮（**确定性事件**，
+        /// 不靠玩家打字让 LLM 识别「自审计划」意图）
         /// → 执行者 LLM 口语化讲解：要做什么、分几步、出岔子怎么办（步骤 + 异常条件，人话）。
         /// prompt 只喂 C# 确定性渲染的计划内容（<see cref="BuildPlanDetail"/>：动作标签表 + 目标 + 应急 +
         /// 安全网），纪律 = 只许转述（同 narration，防幻觉，铁律 2 延伸）。
@@ -1119,9 +1145,22 @@ namespace LivingWorldNpcs
         private static void PostNpcMessage(ImConversation conv, string content)
         {
             if (conv == null || string.IsNullOrWhiteSpace(content)) return;
-            string heroId = conv.Type == ImConversationType.Direct ? conv.PartnerHeroId : "";
-            string senderName = "";
-            if (conv.Type == ImConversationType.Direct)
+            ResolveSpeaker(conv, out string heroId, out string senderName);
+            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(heroId, senderName, content, ImMessageKind.Text)
+            {
+                ConvId = conv.Id,
+            });
+            ImChatStore.IncUnread(conv.Id);
+            ImChatManager.BroadcastMessageArrived(conv);
+        }
+
+        /// <summary>会话发言人解析（🔴 2026-08-12 抽取，计划消息/占位/讲解/澄清共用）：
+        /// 私聊 = 随从 Hero（Id + 名）；群聊 = 无 Hero 语义 → 通用发言人兜底（LWN_im_npc_companion）。</summary>
+        private static void ResolveSpeaker(ImConversation conv, out string heroId, out string senderName)
+        {
+            heroId = conv?.Type == ImConversationType.Direct ? conv.PartnerHeroId : "";
+            senderName = "";
+            if (conv?.Type == ImConversationType.Direct)
             {
                 try
                 {
@@ -1130,14 +1169,8 @@ namespace LivingWorldNpcs
                 catch { }
             }
             if (string.IsNullOrEmpty(senderName))
-            // 本地化：通用发言人兜底名
+                // 本地化：通用发言人兜底名
                 senderName = LWNTextHelper.ResolveText("LWN_im_npc_companion", "Companion");
-            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(heroId, senderName, content, ImMessageKind.Text)
-            {
-                ConvId = conv.Id,
-            });
-            ImChatStore.IncUnread(conv.Id);
-            ImChatManager.BroadcastMessageArrived(conv);
         }
 
         private static void PostHint(ImConversation conv, string content)

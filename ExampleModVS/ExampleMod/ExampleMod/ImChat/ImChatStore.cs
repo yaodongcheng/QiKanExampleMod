@@ -188,6 +188,13 @@ namespace LivingWorldNpcs
                     // 异常存档超限兜底：恢复时重新按上限收缩（防读档后消息数越界）
                     while (list.Count > MaxGroupMessages)
                         list.RemoveAt(0);
+                    // 🔴 2026-08-12 清扫：Generating 占位行是 Mission 瞬态（buggy 构建的 RemoveGenerating
+                    // 副本 bug 会让它残留在存档里）——读档一律丢弃，避免「思考中…」气泡永远卡在历史里
+                    for (int i = list.Count - 1; i >= 0; i--)
+                    {
+                        if (list[i] != null && list[i].Kind == ImMessageKind.Generating)
+                            list.RemoveAt(i);
+                    }
                     _groupMessages[channelId] = list;
                 }
             }

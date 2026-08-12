@@ -4061,6 +4061,7 @@
     <string id="LWN_im_channel_kingdom" text="王国" />
     <string id="LWN_im_typing" text="{NAMES}正在输入…" />
     <string id="LWN_im_generating" text="{NAMES}正在思考中…" />
+    <string id="LWN_im_generating_plain" text="正在思考中…" />
     <string id="LWN_im_mode_chat" text="闲聊" />
     <string id="LWN_im_mode_command" text="计划" />
     <string id="LWN_im_mode_unavailable" text="此处无法下达计划。" />
@@ -4094,8 +4095,8 @@
     <string id="LWN_im_badge_modified" text="修改版 v{N}" />
     <string id="LWN_im_btn_detail_expand" text="详情" />
     <string id="LWN_im_btn_detail_collapse" text="收起详情" />
-    <string id="LWN_im_btn_explain" text="讲解计划" />
-    <string id="LWN_im_btn_explaining" text="讲解中…" />
+    <string id="LWN_im_btn_review" text="计划自审" />
+    <string id="LWN_im_btn_reviewing" text="自审中…" />
     <string id="LWN_im_cmd_modify_pending" text="随从正在按你的意见重拟计划…" />
     <string id="LWN_im_cmd_regenerating" text="随从正在重拟计划…" />
     <string id="LWN_im_cmd_modify_exhausted" text="计划修改次数已达上限，请批准或重新下达。" />
