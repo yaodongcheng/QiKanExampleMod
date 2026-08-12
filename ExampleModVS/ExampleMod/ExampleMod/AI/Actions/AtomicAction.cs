@@ -218,10 +218,13 @@ namespace LivingWorldNpcs
 
             // 使用 NarrativeResolver 获取叙事文本
             string openingBubble = NarrativeResolver.GetDialogue("Steal_Caught", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-            AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(openingBubble)
+            // 🔴 统一说话框架 + M4 双轨润色：偷窃质问开场（Warning 前因=目击犯罪）
+            SpeechChannel.SayPolished(victim, string.IsNullOrEmpty(openingBubble)
                 // 冒泡台词：当场抓住偷窃的开场白（NarrativeResolver 无结果时兜底）
                 ? LWNTextHelper.ResolveText("LWN_action_steal_caught_opening", "Ha! You dare steal from me?! You will answer for this!")
-                : openingBubble);
+                : openingBubble,
+                SpeechPriority.Warning,
+                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(victim), Agent.Main, "see_crime", null));
 
             // UI 弹窗标题：{NAME} 发现了你的偷窃行为
             string inquiryTitle = LWNTextHelper.ResolveCompound("LWN_action_steal_caught_inquiry_title", ("NAME", victimName));
@@ -244,10 +247,13 @@ namespace LivingWorldNpcs
                     {
                         AgentControlHelper.TransferGold(Hero.MainHero, victimHeroObj, compensationGold, notify: false);
                         string payBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(payBubble)
+                        // 🔴 统一说话框架 + M4 双轨润色：赔钱收尾（前因=目击犯罪）
+                        SpeechChannel.SayPolished(victim, string.IsNullOrEmpty(payBubble)
                             // 冒泡台词：赔钱成功（NarrativeResolver 无结果时兜底）
                             ? LWNTextHelper.ResolveText("LWN_action_steal_caught_pay_success", "Hmph. At least you know what's good for you.")
-                            : payBubble);
+                            : payBubble,
+                            SpeechPriority.Dialogue,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(victim), Agent.Main, "see_crime", null));
                         string payNarrator = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{GIVER}", compensationGold.ToString())
                             .Replace("{NPC}", victimName);
@@ -258,10 +264,13 @@ namespace LivingWorldNpcs
                     else
                     {
                         string tooPoorBubble = NarrativeResolver.GetDialogue("Steal_Caught_PayGold_TooPoor", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(tooPoorBubble)
+                        // 🔴 统一说话框架 + M4 双轨润色：赔不起（Warning 前因=目击犯罪）
+                        SpeechChannel.SayPolished(victim, string.IsNullOrEmpty(tooPoorBubble)
                             // 冒泡台词：想赔钱但钱不够（NarrativeResolver 无结果时兜底）
                             ? LWNTextHelper.ResolveText("LWN_action_steal_caught_too_poor", "Steal with no coin to pay? Then pay with your life!")
-                            : tooPoorBubble);
+                            : tooPoorBubble,
+                            SpeechPriority.Warning,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(victim), Agent.Main, "see_crime", null));
                         // 赔不起钱飘字：{NAME} 见玩家没钱大怒拔刀
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_too_poor_fight", ("NAME", victimName)), Colors.Red));
                         AgentAIController.Instance?.SendEventToAgent(victim, "order_attack", Agent.Main);
@@ -274,10 +283,13 @@ namespace LivingWorldNpcs
                     if (returned > 0)
                     {
                         string returnBubble = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(returnBubble)
+                        // 🔴 统一说话框架 + M4 双轨润色：归还收尾（前因=目击犯罪）
+                        SpeechChannel.SayPolished(victim, string.IsNullOrEmpty(returnBubble)
                             // 冒泡台词：归还赃物成功（NarrativeResolver 无结果时兜底）
                             ? LWNTextHelper.ResolveText("LWN_action_steal_caught_return_success", "Get lost! Don't let me see you again.")
-                            : returnBubble);
+                            : returnBubble,
+                            SpeechPriority.Dialogue,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(victim), Agent.Main, "see_crime", null));
                         string returnNarrator = NarrativeResolver.GetDialogue("Steal_Caught_ReturnItems_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{COUNT}", returned.ToString())
                             .Replace("{NPC}", victimName);
@@ -288,10 +300,13 @@ namespace LivingWorldNpcs
                     else
                     {
                         string refuseBubble = NarrativeResolver.GetDialogue("Steal_Caught_Refuse", DialogueFactors.FromContext(null), out _, victimHeroObj, victim);
-                        AgentHudMissionView.AgentSay(victim, string.IsNullOrEmpty(refuseBubble)
+                        // 🔴 统一说话框架 + M4 双轨润色：拒绝归还（Warning 前因=目击犯罪）
+                        SpeechChannel.SayPolished(victim, string.IsNullOrEmpty(refuseBubble)
                             // 冒泡台词：拒绝归还赃物（NarrativeResolver 无结果时兜底）
                             ? LWNTextHelper.ResolveText("LWN_action_steal_caught_refuse", "Trying to weasel out of it?")
-                            : refuseBubble);
+                            : refuseBubble,
+                            SpeechPriority.Warning,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(victim), Agent.Main, "see_crime", null));
                         string refuseNarrator = NarrativeResolver.GetDialogue("Steal_Caught_Refuse_Narrator", DialogueFactors.FromContext(null), out _)
                             .Replace("{NPC}", victimName);
                         InformationManager.DisplayMessage(new InformationMessage(refuseNarrator, Colors.Red));
@@ -1000,6 +1015,9 @@ namespace LivingWorldNpcs
 
         /// <summary>残血认输已触发标记（每次创建新实例重置）</summary>
         private bool _surrenderTriggered = false;
+        /// <summary>受伤喊话已触发标记（每场战斗最多 1 次；M0 说话并联）</summary>
+        private bool _hurtShoutTriggered = false;
+        private float _lastHealth;
         /// <summary>
         /// 战斗行为：锁定并攻击指定敌人
         /// </summary>
@@ -1029,7 +1047,11 @@ namespace LivingWorldNpcs
             //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
             //玩家阵营1，自己阵营2，这里之后再看
             CombatManager.StartFight(agent, _targetEnemy,2,1);
-
+            // 🔴 M0 战斗喊话（说话并联）+ M4 双轨润色：开战宣言（Combat 优先级，有 LLM 润色/无则模板）
+            _lastHealth = agent.Health;
+            SpeechChannel.SayPolished(agent,
+                LWNTextHelper.ResolveText("LWN_action_combat_start", "You want to die?!"), SpeechPriority.Combat,
+                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
         }
 
         public void OnTick(Agent agent, float dt)
@@ -1063,11 +1085,30 @@ namespace LivingWorldNpcs
                 {
                     _surrenderTriggered = true;
                     AgentAIController.Instance?.SendEventToAgent(agent, "event_npc_surrender", Agent.Main);
-                    AgentHudMissionView.AgentSay(agent,
+                    // 🔴 认输喊话统一走 SpeechChannel + M4 双轨润色（说话并联框架，前因=战斗认输；
+                    // Combat 优先级抢占任何低优先级播放，终局时敏 = budgetS 1s 短预算，超时模板兜底）
+                    SpeechChannel.SayPolished(agent,
                         // 冒泡台词：残血认输喊话
-                        LWNTextHelper.ResolveText("LWN_action_surrender_bubble", "I surrender! Stop!"));
+                        LWNTextHelper.ResolveText("LWN_action_surrender_bubble", "I surrender! Stop!"),
+                        SpeechPriority.Combat,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"),
+                        budgetS: 1f);
                 }
             }
+
+            // 🔴 M0 战斗喊话 + M4 双轨润色：受伤喊话——血量下降超 15% 上限时喊一句（每场最多 1 次；
+            // 认输喊话已触发则不再喊，避免台词打架）
+            if (!_hurtShoutTriggered && !_surrenderTriggered)
+            {
+                if (agent.HealthLimit > 0f && _lastHealth - agent.Health > agent.HealthLimit * 0.15f)
+                {
+                    _hurtShoutTriggered = true;
+                    SpeechChannel.SayPolished(agent,
+                        LWNTextHelper.ResolveText("LWN_action_combat_hurt", "Agh!"), SpeechPriority.Combat,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
+                }
+            }
+            _lastHealth = agent.Health;
 
             // 某些情况下引擎会重置目标（比如被另一个人砍了一刀），这里做一个强制纠偏
             // 每 0.5 秒检查并重申一次目标，不需要每帧都设
@@ -1089,6 +1130,13 @@ namespace LivingWorldNpcs
             // 后续 IM/当面对话的【近期回忆】接得住，不再瞎编结果）②ImEventBroadcaster 队伍广播
             // （框架复用：群聊议论 + 参与度记忆 + 接话，custom.im_test_event 同入口）。
             RecordFightResultIfPlayerInvolved(agent);
+            // 🔴 M0 战斗喊话 + M4 双轨润色：胜利宣言——对方已倒下且自己仍站立时播（被清队列/自己倒下不喊）
+            bool enemyDown = _targetEnemy == null || !_targetEnemy.IsActive() || _targetEnemy.Health <= 0f;
+            bool selfUp = agent.IsActive() && agent.Health > 0f;
+            if (enemyDown && selfUp)
+                SpeechChannel.SayPolished(agent,
+                    LWNTextHelper.ResolveText("LWN_action_combat_end", "Hmph. Overconfident fool."), SpeechPriority.Combat,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
             // 完整结束战斗（注销战斗者 + 移回原始队伍）
             // UnregisterCombatant 对非玩家战斗是 no-op，SetTeam 恢复总是需要的
             CombatManager.EndFight(agent);
@@ -1340,18 +1388,24 @@ namespace LivingWorldNpcs
                 else
                 {
                     DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动失败: MissionConversationLogic=null");
-                    AgentHudMissionView.AgentSay(agent,
+                    // 🔴 统一说话框架 + M4 双轨润色：强制对话失败喊住玩家（Warning 前因=approach_by）
+                    SpeechChannel.SayPolished(agent,
                         // 冒泡台词：强制对话启动失败时喊住玩家
-                        LWNTextHelper.ResolveText("LWN_action_alert_force_callout", "Hey! You there!"));
+                        LWNTextHelper.ResolveText("LWN_action_alert_force_callout", "Hey! You there!"),
+                        SpeechPriority.Warning,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), Agent.Main, "approach_by", null));
                 }
             }
             catch (Exception ex)
             {
                 ActiveConversationAgent = null; // 启动失败 → 清理，防止残留
                 DebugLogger.Log($"[AlertForceConv] {agent.Name}(Idx={agent.Index}) 启动异常: {ex.Message} ActiveConversationAgent 变成null");
-                AgentHudMissionView.AgentSay(agent,
+                // 🔴 统一说话框架 + M4 双轨润色：强制对话失败喊住玩家（Warning 前因=approach_by）
+                SpeechChannel.SayPolished(agent,
                     // 冒泡台词：强制对话启动失败时喊住玩家
-                    LWNTextHelper.ResolveText("LWN_action_alert_force_callout", "Hey! You there!"));
+                    LWNTextHelper.ResolveText("LWN_action_alert_force_callout", "Hey! You there!"),
+                    SpeechPriority.Warning,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), Agent.Main, "approach_by", null));
             }
         }
 
@@ -1390,41 +1444,9 @@ namespace LivingWorldNpcs
     // 2026-08-11 迁移统一——所有 IAtomicAction 实现集中在本文件）
     // ═══════════════════════════════════════════════════════════════
 
-    /// <summary>反应台词：冒泡一句话后结束（refuse/ignore/warn_away 用）。</summary>
-    public class ReactiveSayAction : IAtomicAction
-    {
-        /// <summary>台词类动作：不产生旁白（内容进对话历史）。</summary>
-        public string GetNarration(Agent owner) => null;
-
-        private readonly Agent _agent;
-        private readonly string _text;
-        private readonly float _duration;
-        private float _timer;
-        private bool _interrupted;
-        public void RequestInterrupt() { _interrupted = true; }
-
-        public ReactiveSayAction(Agent agent, string text, float duration = 2.5f)
-        {
-            _agent = agent;
-            _text = text;
-            _duration = duration;
-        }
-
-        public void OnStart(Agent agent)
-        {
-            if (!string.IsNullOrEmpty(_text))
-                AgentHudMissionView.AgentSay(agent, _text);
-        }
-
-        public void OnTick(Agent agent, float dt)
-        {
-            _timer += dt;
-        }
-
-        public bool IsFinished(Agent agent) => _interrupted || _timer >= _duration;
-
-        public void OnEnd(Agent agent) { }
-    }
+    /// <summary>反应台词：冒泡一句话后结束（refuse/ignore/warn_away 用）。
+    /// 🔴 2026-08-11（M0，说话并联）已废弃：占队列播 2.5s 的说话语义被 SpeechChannel
+    /// （说话并联通道，不占 CurrentAction）取代。调用点已全部迁移，本类删除。</summary>
 
     // ═══════════════════════════════════════════════════════════════
     // 行为性内联队列适配器（单脑化重构 M0/D3，原 ExecutePlanAction 已于 D1 删除）

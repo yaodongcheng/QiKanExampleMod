@@ -1295,7 +1295,10 @@ namespace LivingWorldNpcs
                     try
                     {
                         AgentControlHelper.FaceToActor(OwnerAgent, player);
-                        AgentHudMissionView.AgentSay(OwnerAgent, _pendingReport);
+                        // 🔴 统一说话框架：当面报告（前因=plan_report）。
+                        // 文本 _pendingReport 已是 LLM 生成 → 不再 SayPolished（避免嵌套 LLM 请求）
+                        SpeechChannel.Say(OwnerAgent, _pendingReport, SpeechPriority.Dialogue,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(OwnerAgent), player, "plan_report", null));
                         DebugLogger.Log($"[PlanExecutor] 当面报告: {_pendingReport}");
                     }
                     catch { }

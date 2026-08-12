@@ -237,6 +237,7 @@
     <Compile Include="AI\Actions\AtomicAction.cs" />
     <Compile Include="AI\AgentAIController.cs" />
     <Compile Include="AI\AgentBrain.cs" />
+    <Compile Include="AI\SpeechChannel.cs" />
     <Compile Include="AI\AlertTypes.cs" />
     <Compile Include="AI\NpcIntent.cs" />
     <Compile Include="AI\AiSuspendPatch.cs" />
@@ -286,6 +287,8 @@
     <Compile Include="ImChat\ImChatModels.cs" />
     <Compile Include="ImChat\ImChatStore.cs" />
     <Compile Include="ImChat\ImChatManager.cs" />
+    <Compile Include="ImChat\CampaignSession.cs" />
+    <Compile Include="ImChat\AutonomyProposal.cs" />
     <Compile Include="ImChat\ImHeatTracker.cs" />
     <Compile Include="ImChat\ImTopicMatcher.cs" />
     <Compile Include="ImChat\ImReplyService.cs" />
@@ -299,6 +302,7 @@
     <!-- Interaction -->
     <Compile Include="Interaction\Dialogue\DialogueInjector.cs" />
     <Compile Include="Interaction\InteractionController.cs" />
+    <Compile Include="Interaction\Dialogue\SessionDialogueTemplates.cs" />
     <Compile Include="Interaction\Intents\IntentContext.cs" />
     <Compile Include="Interaction\Intents\IntentBase.cs" />
     <Compile Include="Interaction\Intents\IntentRegistry.cs" />
@@ -325,6 +329,7 @@
     <Compile Include="Interaction\ChatActionFlow.cs" />
     <Compile Include="ImChat\NearbyFeed.cs" />
     <Compile Include="Planner\DialogueComponent.cs" />
+    <Compile Include="Planner\PersuadeSlot.cs" />
     <Compile Include="Interaction\Dialogue\CrimeDialogueBuilder.cs" />
     <Compile Include="Interaction\Dialogue\PlaceholderResolver.cs" />
     <Compile Include="Interaction\Dialogue\NpcSpeechResolver.cs" />

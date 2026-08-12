@@ -120,6 +120,16 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// English 桶是否存在该 key（模板选择器用：候选 key 只收 XML 真实存在的条目，
+        /// 避免选中"代码枚举了但 XML 未配"的 key 显示 key 名——逐级回落语义下缺档是常态）。
+        /// </summary>
+        public static bool HasEnglishKey(string key)
+        {
+            if (string.IsNullOrEmpty(key)) return false;
+            return GetEnglishFallback(key) != null;
+        }
+
+        /// <summary>
         /// 从 English 语言桶取 key 对应的英文文本。未加载或 key 不存在返回 null。
         /// </summary>
         private static string GetEnglishFallback(string key)

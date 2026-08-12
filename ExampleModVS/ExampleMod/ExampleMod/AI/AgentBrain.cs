@@ -310,9 +310,12 @@ namespace LivingWorldNpcs
             {
                 Agent targetAgent = (Agent)aiEvent.Args[0];
                 SetNpcIntent(NpcIntentType.Interacting, Agent.Main);
-                AgentHudMissionView.AgentSay(Owner,
+                // 🔴 统一说话框架 + M4 双轨润色：被喊名字回应（前因=spoken_to）
+                SpeechChannel.SayPolished(Owner,
                     // 冒泡回复：被喊名字时的回应（{NAME}=喊话的人）
-                    LWNTextHelper.ResolveCompound("LWN_brain_comehere_reply", ("NAME", targetAgent.Name)));
+                    LWNTextHelper.ResolveCompound("LWN_brain_comehere_reply", ("NAME", targetAgent.Name)),
+                    SpeechPriority.Dialogue,
+                    SpeechContext.FromBrain(this, targetAgent, "spoken_to", null));
                 InteractedAgent = targetAgent;
                 ClearAllActions();
                 EnqueueAction(new LookAtAction(targetAgent, 0.3f));
@@ -351,7 +354,10 @@ namespace LivingWorldNpcs
                 if (executor == null)
                 {
                     // 本地化：计划校验未通过 → 诚实回应（词表外命令拒绝）
-                    AgentHudMissionView.AgentSay(Owner, LWNTextHelper.ResolveText("LWN_plan_reject", "I cannot do this."));
+                    // 🔴 统一说话框架 + M4 双轨润色：计划拒绝（前因=order_execute_plan）
+                    SpeechChannel.SayPolished(Owner, LWNTextHelper.ResolveText("LWN_plan_reject", "I cannot do this."),
+                        SpeechPriority.Dialogue,
+                        SpeechContext.FromBrain(this, Agent.Main, "order_execute_plan", null));
                     return;
                 }
                 SetNpcIntent(NpcIntentType.ExecutingCommand, target,
@@ -1350,13 +1356,14 @@ namespace LivingWorldNpcs
         // 🆕 BubbleSay（Phase 2）
         // ═══════════════════════════════════════════════════════════════
 
-        /// <summary>通用 BubbleSay 入口。传入已组装好的文本，直接显示冒泡。</summary>
+        /// <summary>通用 BubbleSay 入口。传入已组装好的文本，直接显示冒泡。
+        /// 🔴 2026-08-12 统一说话框架：收编进 SpeechChannel（说话并联，不占行动队列；前因=通用冒泡）。</summary>
         public void BubbleSay(string text)
         {
             if (!string.IsNullOrEmpty(text))
             {
-                DebugLogger.Log($"[BubbleSay] {Owner.Name}(Idx={Owner.Index}): \"{text}\"");
-                AgentHudMissionView.AgentSay(Owner, text);
+                SpeechChannel.Say(Owner, text, SpeechPriority.Chat,
+                    SpeechContext.FromBrain(this, null, "bubble", null));
             }
         }
 

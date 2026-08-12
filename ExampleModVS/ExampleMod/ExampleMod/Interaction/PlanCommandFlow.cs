@@ -89,8 +89,10 @@ namespace LivingWorldNpcs
             _companion = companion;
             _isActive = true;
 
-            // 本地化：密谋开场白（随从头顶冒泡示意，仪式感保留）
-            AgentHudMissionView.AgentSay(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."));
+            // 🔴 统一说话框架 + M4 双轨润色：密谋开场白（随从头顶冒泡示意，仪式感保留；前因=密令发起）
+            SpeechChannel.SayPolished(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."),
+                SpeechPriority.Dialogue,
+                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
 
             // 私聊会话定位：随从必须有 Hero（direct 私聊按 Hero StringId 索引；模板 NPC 无法建私聊 → 降级）
             var hero = (companion.Character as CharacterObject)?.HeroObject;
@@ -125,8 +127,10 @@ namespace LivingWorldNpcs
             float dist = companion.Position.Distance(Agent.Main?.Position ?? companion.Position);
             if (dist < 6f)
             {
-                // 本地化：停止键当面喊停（冒泡）
-                AgentHudMissionView.AgentSay(companion, LWNTextHelper.ResolveText("LWN_plan_stop_face", "As you say. Stopping."));
+                // 🔴 统一说话框架 + M4 双轨润色：停止键当面喊停（前因=plan_command）
+                SpeechChannel.SayPolished(companion, LWNTextHelper.ResolveText("LWN_plan_stop_face", "As you say. Stopping."),
+                    SpeechPriority.Dialogue,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
             }
             else
             {

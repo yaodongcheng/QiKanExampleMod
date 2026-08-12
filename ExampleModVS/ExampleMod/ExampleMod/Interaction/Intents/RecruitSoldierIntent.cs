@@ -45,7 +45,9 @@ namespace LivingWorldNpcs
                 string emotion;
                 var factors = DialogueFactors.FromContext(ctx);
                 string line = DialogueTemplateHelper.Get("RecruitSoldier_AlreadyRecruited", factors, out emotion, ctx.Speaker, ctx.Agent);
-                AgentHudMissionView.AgentSay(ctx.Agent, line);
+                // 🔴 统一说话框架 + M4 双轨润色：招募对话台词（前因=spoken_to）
+                SpeechChannel.SayPolished(ctx.Agent, line, SpeechPriority.Dialogue,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(ctx.Agent), Agent.Main, "spoken_to", "招募"));
                 ctx.Controller.ShowNpcLineKeepMenu(ctx.Agent, line, emotion);
                 return;
             }
@@ -168,7 +170,11 @@ namespace LivingWorldNpcs
                     else
                         farewell = DialogueTemplateHelper.Get("RecruitHero", true, out emotion, ctx.Speaker, ctx.Agent);
                     if (!string.IsNullOrEmpty(farewell))
-                        AgentHudMissionView.AgentSay(ctx.Agent, farewell);
+                    {
+                        // 🔴 统一说话框架 + M4 双轨润色：招募成功告别台词（前因=spoken_to）
+                        SpeechChannel.SayPolished(ctx.Agent, farewell, SpeechPriority.Dialogue,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(ctx.Agent), Agent.Main, "spoken_to", "招募"));
+                    }
 
                     ctx.Controller._vm.Close();
                     if (Agent.Main != null)
