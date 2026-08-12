@@ -648,6 +648,11 @@ namespace LivingWorldNpcs
         private float _timer;
         private float _maxTime;
         private bool _interrupted;
+        // 🔴 2026-08-12 卡死兜底（对齐 MoveToPositionAction 纪律）：进度采样 + 动态预算，仅卡死才瞬移
+        private float _sampleTimer;
+        private float _lastDist;
+        private float _lastProgressTime;
+        private bool _teleportOnEnd;
         public void RequestInterrupt() { _interrupted = true; }
 
         /// <summary>跟随目标（执行器 following 谓词判定用）。</summary>
@@ -700,6 +705,18 @@ namespace LivingWorldNpcs
             if (!needsDelay)
                 _timer = 2.0f;
             _moveStartTimer = _timer;   // 起身预支不计入跟走时长/超时预算（基准 = 实际开始移动时刻）
+
+            // 🔴 2026-08-12：卡死预算按"距离/速度"算（对齐 MoveToPositionAction）——原固定 5s，
+            // 远距目标正常步行（12m ≈ 8s）也会超预算 → 到点瞬移（实机可见）。走 ~1.5m/s ×1.5 余量，下限 5s；
+            // 进度采样保证"正在走"永不瞬移，预算只用于"卡墙/寻路死角"判定。
+            float distToTarget = _target != null && _target.IsActive()
+                ? agent.Position.Distance(_target.Position) : 0f;
+            _maxTime = Math.Max(5f, distToTarget / 1.5f * 1.5f);
+            _lastDist = distToTarget;
+            _lastProgressTime = 0f;
+            _sampleTimer = 0f;
+            _teleportOnEnd = false;
+
             if (_optionalDuration > 0f)
                 DebugLogger.Log($"[Follow] {agent.Name}(Idx={agent.Index}) 跟走开始 | 目标={_target?.Name} | 初始距离={agent.Position.Distance(_target?.Position ?? agent.Position):F1}m | 时长={_optionalDuration:F1}s | needsDelay={needsDelay}");
         }
@@ -731,14 +748,22 @@ namespace LivingWorldNpcs
 
             // --- 状态机逻辑 ---
 
-            // 🔴 追赶瞬移仅限持续跟随（keepFollow=true 抑制以外）——跟走模式（optionalDuration > 0）
-            // 禁止瞬移：跟走语义 = "跟不上就落后，到时自然结束"（原 ReactiveFollowAction 无瞬移，
-            // 2026-08-11 并入后若不抑制，玩家跑/骑马跑远 → 守卫 5s 后穿墙瞬移——可见 bug）
-            if (_timer - _moveStartTimer > _maxTime && _currentDistanceSq > _stopDistanceSq
-                && _optionalDuration <= 0f)
+            // 🔴 2026-08-12：瞬移只作"卡死兜底"（对齐 MoveToPositionAction 纪律）——原实现"追 5s 没到就瞬移"，
+            // 慢走远距目标必中招 → 实机可见瞬移。现在 = 每 0.5s 采样进度：仍在接近（有速度）→ 永不瞬移；
+            // 无进展超预算 3s（卡墙/寻路死角）→ 标记 _teleportOnEnd，由 OnEnd 瞬移兜底（正常到达不瞬移）。
+            // 跟走模式（optionalDuration>0）与持续跟随（keepFollow）维持抑制：跟走语义 = "跟不上就落后，到时自然结束"。
+            _sampleTimer += dt;
+            if (_sampleTimer >= 0.5f)
             {
-                if(!_keepFollow)
-                    agent.TeleportToPosition(_currentIdealPosition);
+                _sampleTimer = 0f;
+                float dist = MathF.Sqrt(_currentDistanceSq);
+                if (_lastDist - dist > 0.2f) { _lastDist = dist; _lastProgressTime = _timer; }
+            }
+            if (_isMoving && _optionalDuration <= 0f && !_keepFollow
+                && _timer - _moveStartTimer > _maxTime && _timer - _lastProgressTime > 3f)
+            {
+                _teleportOnEnd = true;
+                // IsFinished → OnEnd 瞬移（不在本帧瞬移，对齐 MoveToPositionAction 收尾路径）
             }
 
             if (_isMoving)
@@ -877,6 +902,9 @@ namespace LivingWorldNpcs
             {
                 if (_currentDistanceSq <= _stopDistanceSq )
                     return true;
+                // 🔴 2026-08-12：卡死兜底（OnTick 标记）→ 走 OnEnd 瞬移
+                if (_teleportOnEnd)
+                    return true;
             }
             return false;
         }
@@ -887,6 +915,10 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Follow] {agent.Name}(Idx={agent.Index}) 跟走结束 | 距目标 {MathF.Sqrt(_currentDistanceSq):F1}m | isMoving={_isMoving} | t={_timer:F1}s");
 
             _isMoving = false;
+            // 🔴 2026-08-12：卡死兜底瞬移移到 OnEnd（对齐 MoveToPositionAction——正常到达不瞬移，
+            // 卡墙/寻路死角才瞬移；跟走模式/持续跟随永不标记 _teleportOnEnd）
+            if (_teleportOnEnd && agent.IsActive() && _target != null && _target.IsActive())
+                agent.TeleportToPosition(_currentIdealPosition);
             // 不瞬移：NPC 已在 stopDistance 内（ComeHere 默认 0.5m），
             // 几十厘米的偏差肉眼不可见，瞬移反而比到位的视觉跳变更突兀。
             if (_target != null && _target.IsActive())

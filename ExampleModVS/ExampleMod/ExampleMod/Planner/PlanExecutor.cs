@@ -907,7 +907,13 @@ namespace LivingWorldNpcs
                         // self 无移动意义 → 落 MoveToPositionAction 原位（dist=0 瞬完）。
                         if (ResolveStepAgent(step, cursor, out Agent target) && target != cursor.Agent)
                         {
-                            cursor.SubAction = new FollowAgentAction(target, false, stopDistance: within, keepFollow: false);
+                            float withinMove = within;
+                            // 🔴 2026-08-12（BRING 几何修正，实机验证）：被请者跟在后侧 ~1.8m，
+                            // 计划 goal 是"被请者距玩家 < 3m"——执行者必须贴到玩家近前（≤1m），
+                            // 被请者才能落进目标圈；原 within=3.0 → 执行者停在 3m 外 → 目标圈永不成立 → 误报"没来"。
+                            if (target == Agent.Main && IntentType == CommandIntentType.Bring)
+                                withinMove = Math.Min(withinMove, 1.0f);
+                            cursor.SubAction = new FollowAgentAction(target, false, stopDistance: withinMove, keepFollow: false);
                             return true;
                         }
                         if (!ResolveStepTarget(step, cursor, out Vec3 pos, out Vec2 dir)) return false;
@@ -1013,6 +1019,12 @@ namespace LivingWorldNpcs
             foreach (var c in Plan.Contingencies)
             {
                 if (c?.When == null || string.IsNullOrEmpty(c.Then)) continue;
+                // 🔴 2026-08-12（实机误报：BRING 计划「seeing(self, 被请者, false) 掉线检测」）：
+                // 被请者同意后跟在执行者身后（跟随关系成立），但执行者走路时对方落在身后视野锥外
+                // （120° FOV + 视线遮挡）→ "看不见他"持续 5s → contingency 触发 → 报告"他不肯来"，
+                // 而对方实际一直在跟（玩家实机：守卫跟到 0.5m 贴身，随从却报"没来"）。
+                // 语义：正在跟随我们 = "跟着走"，不是"丢了"——此类掉线 contingency 直接跳过。
+                if (IsLostTargetContingency(c.When, OwnerAgent)) continue;
                 bool now = _world.Evaluate(c.When, OwnerAgent);
                 bool prev = _contingencyPrev.TryGetValue(c, out bool p) && p;
                 _contingencyPrev[c] = now;
@@ -1026,6 +1038,24 @@ namespace LivingWorldNpcs
                 Jump(_selfCursor, c.Then);
                 if (State != ExecutorState.Executing) return;
             }
+        }
+
+        /// <summary>
+        /// 掉线误报防御（2026-08-12）：结构 = seeing(self, X, op≠true) 且 X 正跟随 self → 目标没丢。
+        /// LLM 会给 BRING/带路类计划写"掉线检测"（目标消失就失败），但被请者跟在执行者身后时
+        /// 往往在视野锥外（120° FOV + 视线遮挡）——"看不见" ≠ "丢了"。跟随关系成立期间抑制，
+        /// 一旦对方停止跟随（如折返岗点）→ 恢复检测。
+        /// </summary>
+        private bool IsLostTargetContingency(Condition cond, Agent owner)
+        {
+            if (cond == null) return false;
+            // 只识别裸 seeing 条件（and/or 包裹的复杂形态不处理——保持最小侵入）
+            if (!string.Equals(cond.Type, "seeing", StringComparison.OrdinalIgnoreCase)) return false;
+            if (string.Equals(cond.Op, "true", StringComparison.OrdinalIgnoreCase)) return false;
+            string watcher = cond.A ?? "";
+            if (!string.Equals(watcher, "self", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!_world.TryResolveAgent(cond.B, owner, out Agent subject)) return false;
+            return _world.IsFollowing(subject, owner);
         }
 
         private void TickTriggers()

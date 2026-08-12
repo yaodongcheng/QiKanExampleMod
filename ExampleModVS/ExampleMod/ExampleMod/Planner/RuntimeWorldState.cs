@@ -242,13 +242,16 @@ namespace LivingWorldNpcs
         {
             if (!TryResolveAgent(c.A, actorContext, out Agent follower)) return false;
             if (!TryResolveAgent(c.B, actorContext, out Agent leader)) return false;
+            return IsFollowing(follower, leader);
+        }
 
-            // 通道①：ReactiveAgent 登记（M3 广播 registered）
+        /// <summary>跟随关系判定（执行器掉线误报防御用）：follower 当前正跟随 leader。
+        /// 通道①：ReactiveAgent 登记（M3 广播 registered）——
+        /// 通道②：brain 当前动作是跟随该目标 / 意图是跟随该目标。</summary>
+        public bool IsFollowing(Agent follower, Agent leader)
+        {
+            if (follower == null || leader == null || !follower.IsActive() || !leader.IsActive()) return false;
             if (FollowPairs.Contains((follower.Index, leader.Index))) return true;
-
-            // 通道②：brain 当前动作是跟随该目标
-            // （原 ReactiveFollowAction 分支已删，附章③ 2026-08-11：跟走 = FollowAgentAction(optionalDuration)
-            // 执行中；折返 = 下一步 MoveToPositionAction——CurrentAction 类型自然区分两个阶段）
             var brain = AgentAIController.GetBrainForAgent(follower);
             if (brain?.CurrentAction is FollowAgentAction fa && fa.TargetAgent == leader)
                 return true;

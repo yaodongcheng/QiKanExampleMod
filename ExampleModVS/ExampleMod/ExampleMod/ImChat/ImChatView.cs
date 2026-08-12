@@ -41,8 +41,7 @@ namespace LivingWorldNpcs
         // 内容增长会让 max 变大、offset 漂移出新消息）；玩家上拉翻历史解锁
         private static bool _pinnedToBottom;
 
-        // 🔴 Q2（2026-08-10）：修改输入态——当前待修改的卡片（发送时走 RequestModify 管线）
-        private static ImMessage _modifyingMsg;
+        // 🔴 Q2（2026-08-10）修改输入态已废除（2026-08-12 用户裁定：输入框即修改，见 ExecuteSend）
 
         public static bool IsOpen => _layer != null;
 
@@ -134,9 +133,6 @@ namespace LivingWorldNpcs
         {
             // 🔴 Q1：IM 关闭 = 密谋输入阶段结束（Talk 行互斥恢复；执行中的计划不受影响——StopPlan 独立判断）
             PlanCommandFlow.End();
-            // 🔴 Q2：修改输入态清理
-            _modifyingMsg = null;
-            if (_vm != null) _vm.IsModifying = false;
             if (_layer != null)
             {
                 try
@@ -168,9 +164,6 @@ namespace LivingWorldNpcs
         public static void SelectConversation(ImConversation conv)
         {
             _selected = conv;
-            // 🔴 Q2：切会话清修改输入态（修改意见属于原会话）
-            _modifyingMsg = null;
-            if (_vm != null) _vm.IsModifying = false;
             // 🔴 十一轮：切会话默认贴底（IM 惯例：打开会话看最新；面板引用首帧才解析，
             // ScrollToBottom 的 val=max 由 Tick 里的贴底闭环持续补上）
             _pinnedToBottom = true;
@@ -401,20 +394,22 @@ namespace LivingWorldNpcs
                 ("MODE", isCommand ? commandModeName : chatModeName));
             _vm.SwitchModeButtonText = LWNTextHelper.ResolveCompound("LWN_im_btn_switch_mode", "Switch to {MODE}",
                 ("MODE", isCommand ? chatModeName : commandModeName));
-            // 输入区随模式联动（双重反馈：placeholder + 发送按钮文案）；🔴 Q2 修改态优先级最高
-            bool isModifying = _vm.IsModifying && _modifyingMsg != null;
-            _vm.PlaceholderText = isModifying
+            // 输入区随模式联动（双重反馈：placeholder + 发送按钮文案）。
+            // 🔴 2026-08-12（用户裁定：修改按钮废除 → 输入框即修改）：待批计划卡片存在时，
+            // placeholder/发送键提示「发送 = 修改该计划」（复用原修改态文案键）。
+            bool hasPendingCard = isCommand && Mission.Current != null && ImCommandFlow.FindLatestPendingCard(_selected) != null;
+            _vm.PlaceholderText = hasPendingCard
             // 修改态输入框 placeholder
                 ? LWNTextHelper.ResolveText("LWN_im_input_placeholder_modify", "Revise the plan: ...")
                 : isCommand
                     ? LWNTextHelper.ResolveText("LWN_im_input_placeholder_cmd", "Type a command...")
                     : LWNTextHelper.ResolveText("LWN_im_input_placeholder", "Type a message...");
-            _vm.SendText = isModifying
+            _vm.SendText = isCommand
+                ? (hasPendingCard
             // 修改态发送按钮
-                ? LWNTextHelper.ResolveText("LWN_im_btn_submit_modify", "Submit")
-                : isCommand
-                    ? LWNTextHelper.ResolveText("LWN_im_btn_order", "Order")
-                    : LWNTextHelper.ResolveText("LWN_im_btn_send", "Send");
+                    ? LWNTextHelper.ResolveText("LWN_im_btn_submit_modify", "Submit")
+                    : LWNTextHelper.ResolveText("LWN_im_btn_order", "Order"))
+                : LWNTextHelper.ResolveText("LWN_im_btn_send", "Send");
         }
 
         /// <summary>密令模式可用性：Plot 总闸 + LLM + 会话类型（队伍频道 / 私聊随从）。
@@ -598,18 +593,6 @@ namespace LivingWorldNpcs
             if (string.IsNullOrWhiteSpace(text)) return;
             _vm.InputText = "";
 
-            // 🔴 Q2：修改输入态 → 修改管线（发送的是修改意见）
-            if (_modifyingMsg != null)
-            {
-                var target = _modifyingMsg;
-                _modifyingMsg = null;
-                _vm.IsModifying = false;
-                ImCommandFlow.RequestModify(target, text.Trim());
-                RefreshMessages();
-                ScrollToBottom();
-                return;
-            }
-
             // 🔴 玩家消息落日志（上下文分析用，对齐 [VanillaDialog] Player says 惯例；闲聊/密令两路径都经过这里）
             DebugLogger.Log($"[ImChat] Player → {_selected.Title}: \"{text.Trim()}\"");
 
@@ -626,7 +609,14 @@ namespace LivingWorldNpcs
             // 密令模式 → 命令管线（Phase 4）；闲聊 → 常规发送
             if (ImChatStore.GetMode(_selected.Id) == ImMode.Command)
             {
-                ImCommandFlow.RequestCommand(_selected, text.Trim());
+                // 🔴 2026-08-12（用户裁定：修改按钮废除）：会话内存在待批计划卡片时，
+                // 输入框发送 = 修改该计划（原命令+意见重拟，额度 ≤2）；无待批卡片 → 全新命令。
+                // 想彻底换命令：先拒绝/批准当前卡片，再输入新命令。
+                var pendingCard = ImCommandFlow.FindLatestPendingCard(_selected);
+                if (pendingCard != null)
+                    ImCommandFlow.RequestModify(pendingCard, text.Trim());
+                else
+                    ImCommandFlow.RequestCommand(_selected, text.Trim());
             }
             else
             {
@@ -635,22 +625,6 @@ namespace LivingWorldNpcs
             RefreshMessages();
             // 🔴 八轮：发消息后自动滚底（玩家翻历史后发消息，新消息必须可见）
             ScrollToBottom();
-        }
-
-        /// <summary>🔴 Q2 修改入口（ImMessageVM.ExecuteModify）：进入修改输入态——输入框聚焦 +
-        /// placeholder 联动「修改计划：…」；发送走 RequestModify。额度用尽/非命令模式 → 提示。</summary>
-        public static void BeginModify(ImMessage msg)
-        {
-            if (_vm == null || _selected == null || msg == null || !msg.IsPlanCard) return;
-            if (msg.PlanModifyCount >= ImCommandFlow.MaxModifyCount)
-            {
-            // 修改额度用尽提示
-                ShowHint(LWNTextHelper.ResolveText("LWN_im_cmd_modify_exhausted", "The plan has been revised too many times. Approve it or start over."));
-                return;
-            }
-            _modifyingMsg = msg;
-            _vm.IsModifying = true;
-            RefreshDynamic();
         }
 
         /// <summary>切换按钮：切到闲聊模式（点击非当前模式才有效，否则无操作）。</summary>
@@ -722,6 +696,22 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ImChat] HandlePlanAction 失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>🔴 2026-08-12（重拟按钮）：二次校验发现问题 → 同命令重新生成（RequestRegenerate）。</summary>
+        public static void HandleRegenerate(ImMessage msg)
+        {
+            if (msg == null) return;
+            try
+            {
+                ImCommandFlow.RequestRegenerate(msg);
+                if (_vm != null) _vm.Messages.Clear();
+                RefreshMessages();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] HandleRegenerate 失败: {ex.Message}");
             }
         }
 

@@ -121,8 +121,15 @@ namespace LivingWorldNpcs
                     ra.HasPost = true;
                     ra.PostPos = responderAgent.Position;
                 }
+                // 🔴 2026-08-12（实机：守卫贴身 0.5m + 14s 跟随时长盖不住带人全程）：
+                // ① radius=1.8 + angle=180（跟在后侧）——原 radius=0 → 理想点 = 目标正站位置，
+                //    到站后滑步冲到目标身上（0.5m 贴身，玩家实机反馈）；偏移点让被请者停在发起者
+                //    身后自然距离；② optionalDuration 30s（原 14s 硬编码）——说服发生在计划中段，
+                //    带人回程 + 到位确认（sustained 5s）加起来常超 14s，跟随时长先耗尽 → 折返 → 计划误报失败
+                float followTime = MathF.Max(30f, 28f - ra.Personality.Duty * 18f);
                 brain.RunReactiveAction(
-                    new FollowAgentAction(initiator, run: false, optionalDuration: 14f),
+                    new FollowAgentAction(initiator, run: false, radius: 1.8f, angleOffset: 180f,
+                        stopDistance: 2.5f, buffer: 1.5f, optionalDuration: followTime),
                     new MoveToPositionAction(ra.PostPos, Vec2.Zero, run: false, stopDistance: 1.5f,
                         maxTime: 20f, skipGetupDelay: true,
                         endBehavior: MoveToPositionAction.EndBehavior.Unlock));
