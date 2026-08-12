@@ -1240,7 +1240,13 @@ namespace LivingWorldNpcs
             if (_alertBreakdown.Count == 0) return;
 
             float alertTotal = AlertValue;  // Sum() 按需计算
-            float totalDecay = dt * 0.15f;
+            // 衰减 0.08/s（2026-08-12 用户裁定：原 0.15/s 过快）。依据（日志实锤）：
+            // 旁观脉冲 0.5/刀 + 无抑制冻结 → 原速率下 0.5 掉回 Normal 只要 ~1.7s（Suspicious 阈值 0.25），
+            // 守卫看着当街斗殴 3 次都来不及升级喝止（Cautious ≥ 1.0 永远够不到）。
+            // 0.08/s：单刀 Suspicious 维持 ~3s（与 _pulseSuppressedUntil 3s 窗口同长）；
+            // 3s 窗口内 2~3 刀可叠过 1.0 → Cautious 喝止。副作用：拔刀持续源净增益 0.20-0.08=0.12/s，
+            // 拔刀 ~8s 达 Cautious（原 ~20s）——守卫生效更早，符合"多看了一眼就该警告"的节奏。
+            float totalDecay = dt * 0.08f;
             if (alertTotal <= 0.0001f) { _alertBreakdown.Clear(); return; }
 
             var keys = new List<PlayerActionType>(_alertBreakdown.Keys);
@@ -1488,6 +1494,8 @@ namespace LivingWorldNpcs
             }
 
             // 所有占位符（含 {TARGET}/{ITEM}）统一走 PlaceholderResolver
+            // variantSeed = Owner.Index：同一 agent 同一情景台词稳定（人格一致），不同 agent 选不同
+            // 变体 → 同屏多 NPC 冒泡不再全员复读同一句（2026-08-12 日志实锤：4 个守卫同帧"怎么回事？！"）
             return NpcSpeechResolver.Resolve(
                 $"AlertBubble_{action}_{phase}",
                 speaker: (Owner.Character as CharacterObject)?.HeroObject,
@@ -1495,7 +1503,8 @@ namespace LivingWorldNpcs
                 evt: null,
                 targetName: targetName,
                 itemName: itemName,
-                speakerCharacter: Owner.Character as CharacterObject
+                speakerCharacter: Owner.Character as CharacterObject,
+                variantSeed: (uint)Owner.Index
             );
         }
 

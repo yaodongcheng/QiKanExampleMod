@@ -439,19 +439,47 @@
     
     
     <string id="LWN_speech_alertbubble_crouching_suspicious" text="*muttering* What is {PLAYER} doing here..." />
+    <string id="LWN_speech_alertbubble_crouching_suspicious_v1" text="*muttering* {PLAYER} is up to something..." />
+    <string id="LWN_speech_alertbubble_crouching_suspicious_v2" text="*muttering* Crouching here in broad daylight..." />
     <string id="LWN_speech_alertbubble_crouching_cautious" text="*raising voice* Hey! {PLAYER}! What are you crouching there for!" />
+    <string id="LWN_speech_alertbubble_crouching_cautious_v1" text="*sharply* {SPEAKER_PLAYER_ADDR}! Get up! Stop crouching there!" />
+    <string id="LWN_speech_alertbubble_crouching_cautious_v2" text="*frowning* {SPEAKER_PLAYER_ADDR}! What are you crouching for?!" />
     <string id="LWN_speech_alertbubble_weapondrawn_suspicious" text="*glances uneasily* Why is that {ITEM} drawn..." />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v1" text="*glances over* {PLAYER} still holding that {ITEM}..." />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v2" text="*keeping an eye* {PLAYER} hasn't put that {ITEM} away..." />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious" text="*takes a step back* {SPEAKER_PLAYER_ADDR}! Put that {ITEM} away!" />
+    <string id="LWN_speech_alertbubble_weapondrawn_cautious_v1" text="*low voice* {SPEAKER_PLAYER_ADDR}! Sheathe that {ITEM}! This is not a battlefield!" />
+    <string id="LWN_speech_alertbubble_weapondrawn_cautious_v2" text="*warningly* {SPEAKER_PLAYER_ADDR}! Put that {ITEM} away, now!" />
     <string id="LWN_speech_alertbubble_stealuiopen_suspicious" text="*casts a glance* What are you rummaging for..." />
+    <string id="LWN_speech_alertbubble_stealuiopen_suspicious_v1" text="*side-eye* Looking for something..." />
+    <string id="LWN_speech_alertbubble_stealuiopen_suspicious_v2" text="*puzzled* What are you rummaging through..." />
     <string id="LWN_speech_alertbubble_stealuiopen_cautious" text="*staring* Hey! {SPEAKER_PLAYER_ADDR}! What are you rummaging for!" />
+    <string id="LWN_speech_alertbubble_stealuiopen_cautious_v1" text="*steps closer* {SPEAKER_PLAYER_ADDR}! Hands out of there!" />
+    <string id="LWN_speech_alertbubble_stealuiopen_cautious_v2" text="*glaring* {SPEAKER_PLAYER_ADDR}! What are you touching?!" />
     <string id="LWN_speech_alertbubble_steal_suspicious" text="Eh? Where's {TARGET}'s {ITEM}?" />
+    <string id="LWN_speech_alertbubble_steal_suspicious_v1" text="*muttering* Where did {TARGET}'s {ITEM} go..." />
+    <string id="LWN_speech_alertbubble_steal_suspicious_v2" text="*puzzled* What happened to that {ITEM}..." />
     <string id="LWN_speech_alertbubble_steal_cautious" text="*gasps* {SPEAKER_PLAYER_ADDR}! You stole {ITEM}!" />
+    <string id="LWN_speech_alertbubble_steal_cautious_v1" text="*roars* {SPEAKER_PLAYER_ADDR}! Put that {ITEM} down! It belongs to {TARGET}!" />
+    <string id="LWN_speech_alertbubble_steal_cautious_v2" text="*furious* Thief! {SPEAKER_PLAYER_ADDR} stole {ITEM}!" />
     <string id="LWN_speech_alertbubble_attackally_suspicious" text="*startled* What's going on?!" />
+    <string id="LWN_speech_alertbubble_attackally_suspicious_v1" text="*stunned* They're fighting each other..." />
+    <string id="LWN_speech_alertbubble_attackally_suspicious_v2" text="*taken aback* Is {PLAYER} attacking {TARGET}?!" />
     <string id="LWN_speech_alertbubble_attackally_cautious" text="*steps back, hand on hilt* {SPEAKER_PLAYER_ADDR}! Stop! Keep fighting and I will draw my blade!" />
+    <string id="LWN_speech_alertbubble_attackally_cautious_v1" text="*grips weapon* {SPEAKER_PLAYER_ADDR}! Stop! {TARGET} is one of us!" />
+    <string id="LWN_speech_alertbubble_attackally_cautious_v2" text="*warning* {SPEAKER_PLAYER_ADDR}! Push it any further and I won't hold back!" />
     <string id="LWN_speech_alertbubble_attackcivilian_suspicious" text="*frowning* A brawl in the street..." />
+    <string id="LWN_speech_alertbubble_attackcivilian_suspicious_v1" text="*turns head* What's this? Someone being beaten..." />
+    <string id="LWN_speech_alertbubble_attackcivilian_suspicious_v2" text="*frowning* Violence in the streets, disgraceful..." />
     <string id="LWN_speech_alertbubble_attackcivilian_cautious" text="*steps forward, hand on hilt* {SPEAKER_PLAYER_ADDR}! Stop! No fighting in the street, or I will not hold back!" />
+    <string id="LWN_speech_alertbubble_attackcivilian_cautious_v1" text="*closes in* {SPEAKER_PLAYER_ADDR}! Let {TARGET} go! This is a public street!" />
+    <string id="LWN_speech_alertbubble_attackcivilian_cautious_v2" text="*low warning* {SPEAKER_PLAYER_ADDR}! Stop! Or I will not be gentle!" />
     <string id="LWN_speech_alertbubble_knockout_suspicious" text="*terrified* Someone's been killed..." />
+    <string id="LWN_speech_alertbubble_knockout_suspicious_v1" text="*horrified* Is... is {TARGET} dead?!" />
+    <string id="LWN_speech_alertbubble_knockout_suspicious_v2" text="*pale* {TARGET} isn't moving..." />
     <string id="LWN_speech_alertbubble_knockout_cautious" text="Someone come! {SPEAKER_PLAYER_ADDR} has knocked {TARGET} down!" />
+    <string id="LWN_speech_alertbubble_knockout_cautious_v1" text="*urgently* Someone come! {SPEAKER_PLAYER_ADDR} hurt {TARGET}!" />
+    <string id="LWN_speech_alertbubble_knockout_cautious_v2" text="*points angrily* {SPEAKER_PLAYER_ADDR}! You dare strike in public!" />
     <string id="LWN_speech_l3_deter_weapondrawn" text="*{SPEAKER_EMOTION}* Put that {ITEM} away! {SPEAKER_PLAYER_ADDR}! This is a village, not a battlefield!" />
     <string id="LWN_speech_l3_deter_crouching" text="*{SPEAKER_EMOTION}* Hey! {SPEAKER_PLAYER_ADDR}! What are you skulking there for?" />
     <string id="LWN_speech_l3_search_stealuiopen" text="*{SPEAKER_EMOTION}* What are you rummaging through, {SPEAKER_PLAYER_ADDR}? Step back and let {SPEAKER_SELF} see your pack." />
