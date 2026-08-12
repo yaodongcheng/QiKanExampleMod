@@ -705,6 +705,27 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>🔴 2026-08-12（模板 NPC 密信点名）：强制发起 respond——绕过人格演算的 ignore/无条目兜底
+        ///（soldier 等职业默认反应表 spoken_to 无 respond 条目 → 只 LookAt 抬头）。密信点名 = 玩家明确指定目标，
+        /// 必回应。复用 StartRespond 同款管线（TEMP 记忆 + 职业人格 + LLM 台词 / 模板降级），零新逻辑。</summary>
+        public static void ForceRespond(Agent self, Agent requester, string line, string topic = null)
+        {
+            try
+            {
+                if (self == null || !self.IsActive() || requester == null) return;
+                var brain = AgentAIController.GetBrainForAgent(self);
+                if (brain == null) return;
+                var ra = Get(self);
+                if (ra == null) return;
+                object[] args = new object[] { null, line, topic ?? "nearby", null };
+                StartRespond(brain, ra, requester, args, 1f, "spoken_to");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ReactiveAgent] ForceRespond 异常: {ex.Message}");
+            }
+        }
+
         /// <summary>发起实时回应请求（fire-and-forget；结果入队，主线程 TickAll 消费播放）。
         /// score = 人格演算选中 respond 的权重分（公式算出的意愿度 → 台词态度）；triggerEvent = 本次触发词。
         /// 记忆（§八）：上下文与写入统一走 AllNpcMemoryManager 三层记忆（目标对任意人的对话历史）；简易 DialogueHistory 已退役。</summary>
