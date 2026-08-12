@@ -134,6 +134,30 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public string SenderName => _msg?.SenderName ?? "";
 
+        /// <summary>🔴 2026-08-12（队伍频道在场标记）：消息流显示名——队伍频道里 Hero 消息在名字旁加
+        /// 「（在场）/（他处）」括号标记（IsPresentInMission 动态计算，渲染时实时反映 NPC 当前是否在场景——
+        /// 不写进 SenderName 存档快照，读档/离场后标记自动跟随现状）。玩家消息/私聊/群聊/附近频道原样。</summary>
+        [DataSourceProperty]
+        public string DisplaySenderName
+        {
+            get
+            {
+                if (_msg == null) return "";
+                if (_msg.ConvId == ImChatStore.ChannelParty && !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId))
+                {
+                    bool present = ImChatManager.IsPresentInMission(_msg.SenderHeroId);
+                    // 在场/他处标记文案（复用左栏既有 key）
+                    string tag = present
+                    // 在场标记文案
+                        ? LWNTextHelper.ResolveText("LWN_im_status_present", "present")
+                    // 他处标记文案
+                        : LWNTextHelper.ResolveText("LWN_im_status_away", "away");
+                    return $"{_msg.SenderName}（{tag}）";
+                }
+                return _msg.SenderName;
+            }
+        }
+
         /// <summary>发送者名字颜色：按 SenderHeroId 哈希取成员色（自己 = 亮白）。</summary>
         [DataSourceProperty]
         public string NameColor
@@ -301,7 +325,7 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议消息按钮（制定计划/先不用）——
-        /// NPC 回复消息底部通用按钮行。制定计划 → RequestCommand（Mission 计划管线 / Campaign 行军令）；
+        /// NPC 回复消息底部通用按钮行。制定计划 → RequestCommand（Mission 计划管线 / Campaign 规则解析计划）；
         /// 先不用 → 了结回闲聊。</summary>
         private void RebuildSuggestionButtons(ImMessage card)
         {

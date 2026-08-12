@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
@@ -46,14 +47,17 @@ namespace LivingWorldNpcs
         /// 同 sender 200ms 合并（防刷屏；场景事件台词低频，仅为保险）。
         /// 🔴 2026-08-11 距离过滤（NearbyHearRadius，默认 30m = 引擎 FarHearDistance 的"远处听到"语义）：
         /// 距玩家超过可听半径的冒泡不进频道——"附近"由转发时点的距离判定保证，玩家听不到的话就不该在频道里。
+        /// 🔴 2026-08-12（用户裁定：远处不弹屏幕消息）：AgentSay 远处分支（>30m 视野外）改调
+        /// Forward(force: true) 强制进频道——远处说话也进消息流（可回看，不打断），屏幕消息退役。
         /// </summary>
-        public static void Forward(Agent agent, string text)
+        public static void Forward(Agent agent, string text, bool force = false)
         {
             if (agent == null || string.IsNullOrWhiteSpace(text)) return;
             if (Mission.Current == null) return;
 
             // 🔴 距离过滤：玩家自己的冒泡恒进；其他 NPC 距玩家 > NearbyHearRadius → 玩家听不到，不进频道
-            if (agent != Agent.Main && Agent.Main != null && Agent.Main.IsActive())
+            //（force = 远处"听觉"转发：AgentSay 远处分支调用，绕过距离过滤——屏幕消息退役后远处说话也进频道）
+            if (!force && agent != Agent.Main && Agent.Main != null && Agent.Main.IsActive())
             {
                 try
                 {
@@ -88,9 +92,10 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    // 模板 NPC：TEMP 键（同源）+ 显示名「名字 #Index」（同名 NPC 靠编号区分，@提及命中）
+                    // 模板 NPC：TEMP 键（同源）+ 统一显示名「名字#Index」（AgentIdentity——与 HUD/交互区同源；
+                    // 无空格，用户裁定 2026-08-12；@提及命中依赖此格式）
                     heroId = ReactiveAgent.GetAgentId(agent) ?? $"TEMP_AGENT_{agent.Index}_{agent.Name}";
-                    senderName = $"{agent.Name} #{agent.Index}";
+                    senderName = AgentControlHelper.GetDisplayName(agent);
                 }
             }
 
@@ -125,6 +130,8 @@ namespace LivingWorldNpcs
             if (string.IsNullOrWhiteSpace(text)) return;
             try
             {
+                // 🔴 2026-08-12（队伍成员在场认知）：玩家喊话 = 在场队伍成员亲历 → 写记忆（私聊能接住）
+                WritePresenceToPartyMembers(text);
                 float radius = Settings.Instance.NearbyRespondRadius;
                 Agent nearest = null;
                 float best = radius;
@@ -172,6 +179,37 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[NearbyFeed] 喊话广播异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>🔴 2026-08-12（队伍成员在场认知，实机反馈）：玩家在附近频道喊话 = 在场的队伍成员**亲历**
+        ///（真的听到了）→ 写他们的记忆（有限子集：队伍成员 Hero 且 IsPresentInMission；Role=channel_nearby，
+        /// 与 im_user/im_npc 隔离）。后续私聊/频道问起「主公刚才跟谁说话」能接住（实机：日志里问他不知道，
+        /// 因为频道消息本不进记忆——本方法补上「在场者亲历」这个缺口）。
+        /// 纪律：只写队伍成员（数量少）；模板 NPC 目标走 ForceRespond 的 TEMP 记忆（StartRespond 既有写入）；非队伍 NPC 不写。</summary>
+        private static void WritePresenceToPartyMembers(string text)
+        {
+            try
+            {
+                if (Mission.Current == null || Agent.Main == null || string.IsNullOrWhiteSpace(text)) return;
+                string playerName = Hero.MainHero?.Name?.ToString() ?? "You";
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || a == Agent.Main || !a.IsActive()) continue;
+                    var hero = (a.Character as CharacterObject)?.HeroObject;
+                    if (hero == null || string.IsNullOrEmpty(hero.StringId)) continue;
+                    if (!FriendlinessHelper.IsPlayerPartyMember(hero)) continue;
+                    if (!ImChatManager.IsPresentInMission(hero.StringId)) continue;
+                    var memory = AllNpcMemoryManager.GetMemory(hero.StringId);
+                    // 记忆内容模板走 LWN key（铁律 13 同款纪律：LWN_nearby_shout_memory，{NAME}/{TEXT} 变量）
+                    string content = LWNTextHelper.ResolveCompound("LWN_nearby_shout_memory", "{NAME} shouted nearby: {TEXT}",
+                        ("NAME", playerName), ("TEXT", text));
+                    memory?.AddHistory("channel_nearby", content, ImChatManager.PlayerId);
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[NearbyFeed] WritePresenceToPartyMembers 异常: {ex.Message}");
             }
         }
 
@@ -283,6 +321,20 @@ namespace LivingWorldNpcs
             if (target == null || !target.IsActive() || string.IsNullOrWhiteSpace(text)) return;
             try
             {
+                // 🔴 2026-08-12（远距离守卫，实机反馈）：目标距玩家超过可听半径（NearbyHearRadius）→
+                // 他收不到，明确提示（不再静默）；消息照常进频道（玩家喊了但没人听见——符合"收不到"）
+                float hearRadius = Settings.Instance.NearbyHearRadius;
+                if (target.Position.Distance(Agent.Main.Position) > hearRadius)
+                {
+                    InformationManager.DisplayMessage(new InformationMessage(
+                    // 本地化：@目标不在附近提示（LWN_nearby_mention_too_far）
+                        LWNTextHelper.ResolveCompound("LWN_nearby_mention_too_far", "{NAME} is too far away to hear you.",
+                            ("NAME", AgentControlHelper.GetDisplayName(target))), Colors.Red));
+                    DebugLogger.Log($"[NearbyFeed] 定向喊话取消：{target.Name} 距玩家 {target.Position.Distance(Agent.Main.Position):F0}m > {hearRadius:F0}m");
+                    return;
+                }
+                // 🔴 2026-08-12（队伍成员在场认知）：点名喊话同样是在场队伍成员的亲历 → 写记忆
+                WritePresenceToPartyMembers(text);
                 // topic "nearby"：与附近会话既有约定一致（PersuadeSlot 会话 topic 即 "nearby"）
                 ReactiveAgent.ForceRespond(target, Agent.Main, text.Trim(), "nearby");
                 DebugLogger.Log($"[NearbyFeed] 定向喊话 → {target.Name} #{target.Index}: \"{text.Trim()}\"");

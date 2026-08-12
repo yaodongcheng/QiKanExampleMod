@@ -179,6 +179,15 @@ namespace LivingWorldNpcs
             _pinnedToBottom = true;
             if (conv != null)
                 ImChatStore.ClearUnread(conv.Id);
+            // 🔴 2026-08-12（粘性 @ 按会话）：@前缀只在附近频道保留——切走时输入框若还是纯前缀 → 清空
+            //（不丢玩家打字内容）；切回附近频道 → 恢复前缀（用户裁定：切到队伍前缀自动空、切回又有了）
+            if (_vm != null)
+            {
+                if (conv != null && conv.Type == ImConversationType.Nearby && _lastMentionPrefix != null)
+                    _vm.InputText = _lastMentionPrefix;
+                else if (_lastMentionPrefix != null && _vm.InputText == _lastMentionPrefix)
+                    _vm.InputText = "";
+            }
             RefreshAll();
         }
 
@@ -495,9 +504,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>密令模式可用性：Plot 总闸 + LLM + 会话类型（队伍频道 / 私聊随从）。
-        /// Q5b：Campaign 大地图私聊「有独立 party 的 Hero」也可用——行军令（规则解析，非 LLM 密令）。
+        /// Q5b：Campaign 大地图私聊「有独立 party 的 Hero」也可用——规则解析计划（零 LLM）。
         /// 🔴 临时止血（2026-08-11 用户裁定）：队伍频道/随从私聊仅 Mission 可切计划模式——
-        /// Campaign 下频道密令无执行载体（行军令仅私聊+独立 party 有效），随从密令被 MainParty 拦截，
+        /// Campaign 下频道计划无执行载体（规则解析计划仅私聊+独立 party 有效），随从计划被 MainParty 拦截，
         /// 都是无效入口，禁掉避免玩家误点（家族/王国频道本就不开放）。</summary>
         public static bool IsCommandModeAvailable(ImConversation conv)
         {
@@ -514,7 +523,7 @@ namespace LivingWorldNpcs
                         .FirstOrDefault(h => h.StringId == conv.PartnerHeroId);
                     if (hero == null) return false;
                     if (FriendlinessHelper.IsPlayerPartyMember(hero)) return Mission.Current != null; // 随从：仅 Mission（临时止血）
-                    if (Mission.Current == null && hero.PartyBelongedTo != null) return true; // 行军令
+                    if (Mission.Current == null && hero.PartyBelongedTo != null) return true; // Campaign 规则解析计划
                 }
                 catch { return false; }
                 return false;
@@ -841,7 +850,7 @@ namespace LivingWorldNpcs
 
         /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（制定计划/先不用）。
         /// 制定计划 → RequestCommand（命令 = 玩家原话 CommandText，私聊玩家消息不在 store 必须冗余存；
-        /// Mission = LLM 计划管线；Campaign = 行军令）；先不用 → 了结回闲聊（密谋互斥释放，同「切回闲聊」语义）。
+        /// Mission = LLM 计划管线；Campaign = 规则解析计划）；先不用 → 了结回闲聊（密谋互斥释放，同「切回闲聊」语义）。
         /// 命令批准后的互斥释放由既有 Resolve 处理（End），此处不重复调。</summary>
         public static void HandleSuggestion(ImMessage msg, bool makePlan)
         {

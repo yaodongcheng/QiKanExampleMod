@@ -229,8 +229,10 @@
                                                                MarginLeft="12" MarginTop="8"
                                                                DoNotAcceptEvents="true">
                                                       <Children>
+                                                        <!-- 🔴 2026-08-12（队伍频道在场标记）：DisplaySenderName = 队伍频道 Hero 消息
+                                                             名字旁动态加（在场/他处）括号标记；其余会话 = 原 SenderName -->
                                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                                                    Text="@DisplaySenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
                                                                     HorizontalAlignment="Left"
                                                                     DoNotAcceptEvents="true"/>
                                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"

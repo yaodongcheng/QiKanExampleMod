@@ -9,11 +9,12 @@ using TaleWorlds.Core;
 namespace LivingWorldNpcs
 {
     /// <summary>
-    /// Campaign 大地图行军令（Q5b：密令拓展到 Campaign 的其他 party）。
-    /// 密令（PlanExecutor 行动计划）需要 Mission 场景 Agent——大地图没有；行军令是它的规则版补充：
+    /// Campaign 大地图计划（Q5b：计划模式在 Campaign 的规则解析分支——合并闲聊/计划模式后，
+    /// 「制定计划」在 Campaign 私聊有独立 party 的 Hero 时落到本类）。
+    /// 计划（PlanExecutor 行动计划）需要 Mission 场景 Agent——大地图没有；规则解析计划是它的补充：
     /// 玩家私聊任意「有独立 party 的 Hero」（非玩家队伍），下达行军指令（跟随/待命/前往定居点），
     /// 直接走 Campaign 层 Party AI API（V.SetMove* / Ai.SetDoNotMakeNewDecisions）。
-    /// 零 LLM、零 Mission 依赖；词表外诚实拒绝（与密令「意图层拒绝」同语义）。
+    /// 零 LLM、零 Mission 依赖；词表外诚实拒绝（与计划「意图层拒绝」同语义）。
     /// 叙事边界：只对非敌对的 party 生效（使者不敢接近敌军）。
     /// </summary>
     public static class ImMarchOrder
@@ -31,10 +32,10 @@ namespace LivingWorldNpcs
         {
             if (conv == null || string.IsNullOrWhiteSpace(command)) return;
 
-            // 行军令只对单个 Hero 有效（对方需有独立 party）；频道内请进场景下密令
+            // Campaign 计划只对单个 Hero 有效（对方需有独立 party）；频道内请进场景下计划
             if (conv.Type != ImConversationType.Direct)
             {
-                // 行军令：仅私聊有效
+                // Campaign 计划：仅私聊有效
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_channel_only",
                     "Plans can only be sent to a single hero. Channel plans require a scene."));
                 return;
@@ -47,20 +48,20 @@ namespace LivingWorldNpcs
             var party = hero.PartyBelongedTo;
             if (party == null)
             {
-                // 行军令：对方无部队
+                // Campaign 计划：对方无部队
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_no_party", "That hero has no army to command."));
                 return;
             }
             if (party == MobileParty.MainParty)
             {
-                // 行军令：自己队伍成员请在场景中当面下密令
+                // Campaign 计划：自己队伍成员请在场景中当面下密令
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_in_party",
                     "That hero marches with you - give orders in person, in a scene."));
                 return;
             }
             if (IsAtWarWithPlayer(party))
             {
-                // 行军令：敌方拒绝（叙事边界：使者不敢接近敌军）
+                // Campaign 计划：敌方拒绝（叙事边界：使者不敢接近敌军）
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_enemy",
                     "The messenger dares not approach an enemy army."));
                 return;
@@ -71,19 +72,19 @@ namespace LivingWorldNpcs
 
             if (ContainsAny(text, FollowKeywords))
             {
-                // 行军令：汇合（{NAME} 的部队向你的位置靠拢）
+                // Campaign 计划：汇合（{NAME} 的部队向你的位置靠拢）
                 V.SetMoveEscort(party, MobileParty.MainParty);
                 party.Ai.SetDoNotMakeNewDecisions(false);
-                // 行军令：汇合回报
+                // Campaign 计划：汇合回报
                 result = LWNTextHelper.ResolveCompound("LWN_im_march_follow",
                     "{NAME}'s army is marching to join you.", ("NAME", hero.Name?.ToString() ?? "?"));
             }
             else if (ContainsAny(text, HoldKeywords))
             {
-                // 行军令：原地待命（{NAME} 的部队原地驻扎）
+                // Campaign 计划：原地待命（{NAME} 的部队原地驻扎）
                 party.Ai.SetDoNotMakeNewDecisions(true);
                 V.SetMoveTo(party, V.Pos(party));
-                // 行军令：待命回报
+                // Campaign 计划：待命回报
                 result = LWNTextHelper.ResolveCompound("LWN_im_march_hold",
                     "{NAME}'s army holds position.", ("NAME", hero.Name?.ToString() ?? "?"));
             }
@@ -92,21 +93,21 @@ namespace LivingWorldNpcs
                 var target = FindSettlement(text);
                 if (target == null)
                 {
-                    // 行军令：地名未找到
+                    // Campaign 计划：地名未找到
                     PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_no_place",
                         "The messenger does not know that place. Plans: follow / hold position / march to a settlement."));
                     return;
                 }
                 V.SetMoveToTown(party, target);
                 party.Ai.SetDoNotMakeNewDecisions(false);
-                // 行军令：前往（{NAME} 的部队开赴 {PLACE}）
+                // Campaign 计划：前往（{NAME} 的部队开赴 {PLACE}）
                 result = LWNTextHelper.ResolveCompound("LWN_im_march_move",
                     "{NAME}'s army is marching to {PLACE}.",
                     ("NAME", hero.Name?.ToString() ?? "?"), ("PLACE", target.Name?.ToString() ?? "?"));
             }
             else
             {
-                // 行军令：词表外诚实拒绝（不装懂）
+                // Campaign 计划：词表外诚实拒绝（不装懂）
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_march_unclear",
                     "The messenger cannot make sense of this order. Plans: follow / hold position / march to a settlement."));
                 return;
