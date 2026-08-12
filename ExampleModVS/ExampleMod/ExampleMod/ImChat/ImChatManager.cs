@@ -225,8 +225,11 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 玩家发送 ─────────────────────────
 
-        /// <summary>玩家发送一条消息（闲聊模式）。密令模式由 Phase 4 ImCommandFlow 接管（本方法入口不变）。</summary>
-        public static void SendPlayerMessage(ImConversation conv, string text)
+        /// <summary>玩家发送一条消息（🔴 2026-08-12 合并闲聊/计划模式：所有玩家消息恒走本方法，
+        /// 计划动作由 NPC 回复判定 need_plan/adjust_plan 驱动，不再有模式路由）。
+        /// 🔴 2026-08-12（执行期说话 → 计划调整）：发送时捕获执行上下文（当前执行中计划摘要+步骤），
+        /// 注入该次回复的 prompt——LLM 判定 adjust_plan 后可修改计划。</summary>
+        public static void SendPlayerMessage(ImConversation conv, string text, bool suppressNeedPlan = false)
         {
             if (conv == null || string.IsNullOrWhiteSpace(text)) return;
             string trimmed = text.Trim();
@@ -249,10 +252,15 @@ namespace LivingWorldNpcs
                 if (autHero != null) AutonomyProposal.TryFromPlayerMessage(autHero, trimmed);
                 if (persuaded) { RaiseMessageArrived(conv); return; }
 
-                // 调度 NPC 回复
+                // 调度 NPC 回复（执行上下文：仅当该 NPC 就是执行者时注入）
                 var hero = GetHero(conv.PartnerHeroId);
                 if (hero != null)
-                    ImReplyService.ScheduleReply(conv.PartnerHeroId, hero.Name?.ToString() ?? conv.PartnerHeroId, trimmed, conv);
+                {
+                    var ctx = ImCommandFlow.BuildExecutionContext(conv);
+                    ImReplyService.ScheduleReply(conv.PartnerHeroId, hero.Name?.ToString() ?? conv.PartnerHeroId, trimmed, conv,
+                        suppressNeedPlan: suppressNeedPlan,
+                        ctx: (ctx != null && ctx.ExecutorHeroId == conv.PartnerHeroId) ? ctx : null);
+                }
             }
             else
             {
@@ -282,8 +290,13 @@ namespace LivingWorldNpcs
                     // 🔴 群聊活力·拌嘴（2026-08-10 v2 延迟调度）：followUp 不立即调度——
                     // 挂到 primary 待回任务上，primary 回包投递后再调度（ImReplyService.Tick 内），
                     // 这样跟随者生成时能看到 primary 的实际台词，真正"接话"（v1 并行生成接无可接）。
+                    // 🔴 2026-08-12（执行期说话 → 计划调整）：执行上下文仅注入执行者本人的回复
+                    //（群聊多人协作时跟随者不注入，防非执行者误判 adjust_plan）
+                    var ctx = ImCommandFlow.BuildExecutionContext(conv);
                     ImReplyService.ScheduleReply(primary.StringId, primary.Name?.ToString() ?? primary.StringId, trimmed, conv,
-                        followUp?.StringId, followUp?.Name?.ToString());
+                        followUp?.StringId, followUp?.Name?.ToString(),
+                        suppressNeedPlan: suppressNeedPlan,
+                        ctx: (ctx != null && ctx.ExecutorHeroId == primary.StringId) ? ctx : null);
                 }
             }
 

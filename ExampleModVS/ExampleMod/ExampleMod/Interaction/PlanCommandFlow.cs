@@ -13,8 +13,9 @@ namespace LivingWorldNpcs
     // ═══════════════════════════════════════════════════════════════
     // PlanCommandFlow.cs — 密谋命令流程入口（IM 版，2026-08-10 升级）
     //
-    // 流程：Plot 交互（G 长按）→ 随从冒泡开场（仪式感保留）→ 直接呼出 IM 面板定位该随从
-    //     → 私聊会话并切「密令」模式 → 玩家在 IM 输入框下达命令 → ImCommandFlow 现有管线
+    // 流程：Plot 交互（G 长按）→ 随从冒泡开场（仪式感保留）→ 呼出 IM 面板定位该随从私聊
+    //     → 🔴 2026-08-12（合并闲聊/计划模式）不再切「密令」模式——默认闲聊，玩家说话后
+    //       NPC 回复判 need_plan → 消息底部「制定计划」按钮 → ImCommandFlow 现有管线
     //     （LLM 计划 / PlanCard 三态 / 执行 / 回报）全复用。
     //
     // 🔴 2026-08-10 IM 化改造（plans/im-command-action-upgrade.md Q1）：退役 vanilla 三通道
@@ -94,14 +95,21 @@ namespace LivingWorldNpcs
                 SpeechPriority.Dialogue,
                 SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
 
-            // 私聊会话定位：随从必须有 Hero（direct 私聊按 Hero StringId 索引；模板 NPC 无法建私聊 → 降级）
+            // 会话定位：随从（有 Hero）→ direct 私聊；模板 NPC（无 Hero）→ 🔴 2026-08-12 密信分支：
+            // 打开 IM 定位「附近」频道 + 输入框预填「@名字 #编号 」前缀（玩家可删掉转普通喊话）。
+            // 模板 NPC 的回复走 respond（TEMP 记忆 + 职业人格）→ 冒泡流入附近频道，v1 不做计划。
             var hero = (companion.Character as CharacterObject)?.HeroObject;
             if (hero == null || string.IsNullOrEmpty(hero.StringId))
             {
-                DebugLogger.Log($"[PlanCommandFlow] 随从无 Hero，无法建立 IM 私聊，降级退出");
-                End();
-                // 本地化：模板随从无法传讯联系
-                InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_im_cmd_no_direct", "This companion cannot be reached by message."), Colors.Red));
+                bool opened = ImChatView.Open(NearbyFeed.Conversation, prefill: $"@{companion.Name} #{companion.Index} ");
+                if (!opened)
+                {
+                    DebugLogger.Log($"[PlanCommandFlow] 模板 NPC 密信：面板未能打开，降级退出");
+                    End();
+                    return;
+                }
+                _activeConvId = NearbyFeed.ChannelId;   // 互斥按会话放行（IsActiveForOtherConv 语义保留）
+                DebugLogger.Log($"[PlanCommandFlow] 模板 NPC 密信：{companion.Name} #{companion.Index} → 附近频道 + @预填");
                 return;
             }
             ImChatStore.TouchDirectChat(hero.StringId, ImChatManager.NowUnixMs());
@@ -113,8 +121,9 @@ namespace LivingWorldNpcs
                 return;
             }
             _activeConvId = conv.Id;
-            // 呼出 IM 定位该随从私聊 + 切「密令」模式（vanilla 输入框/批准弹窗已退役）
-            ImChatView.Open(conv, ImMode.Command);
+            // 🔴 2026-08-12（合并闲聊/计划模式）：只打开私聊，不再强制切「密令」模式——
+            // 玩家说话 → NPC 回复时判 needPlan → 消息底部按钮「制定计划」进计划管线
+            ImChatView.Open(conv);
         }
 
         /// <summary>停止键（§8.1）：对执行中的随从喊停（当面/密信双通道）。</summary>

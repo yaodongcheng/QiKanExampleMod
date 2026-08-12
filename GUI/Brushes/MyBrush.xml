@@ -96,6 +96,9 @@
                    TextShadowAngle="60"
 				   FontSize="16"
                     />
+            <!-- 🔴 2026-08-12（模板 NPC 密信）：@提及染色（微信同款蓝）。文本里写
+                 <span style="Mention">@守卫 #12</span>，RichTextWidget 按 span 名解析到本 Style。 -->
+            <Style Name="Mention" FontColor="#6495EDFF" />
         </Styles>
     </Brush>
 	

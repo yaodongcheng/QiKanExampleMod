@@ -40,6 +40,19 @@ namespace LivingWorldNpcs
         private static readonly ConcurrentQueue<(string HeroId, string Name, string Text)> _deliverQueue =
             new ConcurrentQueue<(string, string, string)>();
 
+        // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议互斥——本轮玩家请求 NPC 已判 need_plan
+        // （回复消息底部挂了「制定计划/先不用」），同轮不再投自主提议（防双卡）。
+        // 投递时命中则丢弃该 hero 排队提议（触发点在回复生成后才知 needPlan，只能在投递点拦截）。
+        private static readonly HashSet<string> _suppressed =
+            new HashSet<string>(StringComparer.Ordinal);
+
+        /// <summary>🔴 2026-08-12：needPlan 建议已打标 → 抑制该 hero 排队中的自主提议（主线程调用）。</summary>
+        public static void Suppress(string heroId)
+        {
+            if (string.IsNullOrEmpty(heroId)) return;
+            _suppressed.Add(heroId);
+        }
+
         /// <summary>玩家对单个 NPC 说话 → 可能触发自主提议（统一入口：私聊/附近共用）。主线程调用。</summary>
         public static void TryFromPlayerMessage(Hero hero, string playerText)
         {
@@ -88,6 +101,13 @@ namespace LivingWorldNpcs
                 try
                 {
                     if (string.IsNullOrWhiteSpace(item.Text)) continue;
+                    // 🔴 2026-08-12：needPlan 建议互斥——命中抑制则丢弃排队提议（一次性，投递后清除）
+                    if (_suppressed.Contains(item.HeroId))
+                    {
+                        _suppressed.Remove(item.HeroId);
+                        DebugLogger.Log($"[AutonomyProposal] 提议丢弃（needPlan 建议已接管本轮）: {item.Name}");
+                        continue;
+                    }
                     // 会话定位（私聊 direct_{heroId}；不存在 → 运行时索引建立——既有机制）
                     ImChatStore.TouchDirectChat(item.HeroId, ImChatManager.NowUnixMs());
                     var conv = ImChatManager.GetDirectConversation(item.HeroId);

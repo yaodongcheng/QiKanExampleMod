@@ -42,10 +42,12 @@ namespace LivingWorldNpcs
         // 设置归入一个组（LWN_mcm_grp_main），彻底消除标题错位观感。
         // ⚠️ Order 按「显示倒序」赋值：期望显示 地址→密钥→模型→复仇队→回血，
         //    Order 就必须反过来（回血=0 … 地址=4），显示时才能恢复正序。
-        // ── 密令玩法总闸（行动密令；默认关闭，透传核心 Settings）──
+        // ── 密信玩法总闸（默认关闭，透传核心 Settings）──
         // Order = 5：显示倒序 → Order 最大 = 列表最顶部（玩法总闸置顶）
-        [SettingPropertyBool("{=LWN_mcm_plot_enabled}Action Orders", Order = 5, RequireRestart = false,
-            HintText = "{=LWN_mcm_plot_enabled_hint}When enabled, companions can receive natural-language action orders (press the order key near a companion). Disabled by default; when off, the order entry is hidden but already-running plans can still be stopped.")]
+        // 🔴 2026-08-12（合并闲聊/计划模式）：入口文案随交互行统一为「密信」——
+        // 打开私聊后默认闲聊，NPC 判 need_plan 才进计划管线
+        [SettingPropertyBool("{=LWN_mcm_plot_enabled}Secret Letters", Order = 5, RequireRestart = false,
+            HintText = "{=LWN_mcm_plot_enabled_hint}When enabled, you can write natural-language secret letters to companions (press the letter key near a companion). Disabled by default; when off, the letter entry is hidden but already-running plans can still be stopped.")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public bool PlotEnabled
         {

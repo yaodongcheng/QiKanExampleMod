@@ -643,8 +643,8 @@ namespace LivingWorldNpcs
             }
             else if (isAlive)
             {
-                // ── 密谋命令系统（§8.1）：Plot（对随从下命令）/ StopPlan（对执行中的随从喊停）──
-                // 战斗意图除外；正面背后都可用——跟随中的随从常站玩家身后，背后分支也要接得住
+                // ── 密信系统（§8.1）：Plot（对随从/模板 NPC 写密信）/ StopPlan（对执行中的随从喊停）──
+                // 战斗意图除外；随从正面背后都可用——跟随中的随从常站玩家身后，背后分支也要接得住
                 if (intent != NpcIntentType.Fighting && intent != NpcIntentType.Surrendering)
                 {
                     var targetBrain = AgentAIController.GetBrainForAgent(currentAgent);
@@ -653,12 +653,18 @@ namespace LivingWorldNpcs
                             || targetBrain.CurrentIntent?.Type == NpcIntentType.Following
                             || targetBrain.CurrentIntent?.Type == NpcIntentType.ExecutingCommand);
                     bool executing = PlanExecutor.GetExecutorFor(currentAgent) != null;
-                    // 显示门控：密令玩法开关 + 随从关系 + LLM 已配置（IsLLMConfigured）
-                    if (Settings.Instance.PlotEnabled && isCompanion && !executing && !PlanCommandFlow.IsActiveFor(currentAgent)
-                        && Settings.Instance.IsLLMConfigured)
+                    // 🔴 2026-08-12（模板 NPC 密信）：无 Hero 的士兵/村民/守卫也可写密信——走附近频道 + @提及
+                    // （无 direct 私聊）。门控 = Talk 行同款（活/人/非动物/正面；本块已保证 isAlive && 非动物 &&
+                    // 非战斗意图，剩余条件 = 无 Hero && 正面）。随从行为零变化（正面背后都可用）。
+                    bool isTemplateNpc = (currentAgent.Character as CharacterObject)?.HeroObject == null;
+                    bool isTemplatePlotEligible = isTemplateNpc && !isBehind;
+                    // 显示门控：密信玩法开关 + 随从关系或模板 NPC + LLM 已配置（IsLLMConfigured）
+                    if (Settings.Instance.PlotEnabled && !executing && !PlanCommandFlow.IsActiveFor(currentAgent)
+                        && Settings.Instance.IsLLMConfigured
+                        && (isCompanion || isTemplatePlotEligible))
                     {
-                        // 本地化：密谋交互按钮（对随从下达自然语言命令）
-                        AddInteractionRow(InteractionIds.Plot, LWNTextHelper.ResolveText("LWN_ui_interact_plot", "Plot: give an order"));
+                        // 本地化：密信交互按钮（对随从/模板 NPC 写密信）
+                        AddInteractionRow(InteractionIds.Plot, LWNTextHelper.ResolveText("LWN_ui_interact_plot", "Secret Letter"));
                     }
                     if (executing)
                     {

@@ -38,7 +38,6 @@ namespace LivingWorldNpcs
 
         // ── 运行时状态（不存档）──
         private static readonly Dictionary<string, int> _unread = new Dictionary<string, int>();
-        private static readonly Dictionary<string, ImMode> _modes = new Dictionary<string, ImMode>();
 
         // ───────────────────────── 群聊 ─────────────────────────
 
@@ -148,22 +147,8 @@ namespace LivingWorldNpcs
             }
         }
 
-        public static ImMode GetMode(string convId)
-        {
-            lock (_lock)
-            {
-                return _modes.TryGetValue(convId, out var m) ? m : ImMode.Chat;
-            }
-        }
-
-        public static void SetMode(string convId, ImMode mode)
-        {
-            if (string.IsNullOrEmpty(convId)) return;
-            lock (_lock)
-            {
-                _modes[convId] = mode;
-            }
-        }
+        // 🔴 2026-08-12（合并闲聊/计划模式）：ImMode/GetMode/SetMode/_modes 已整体删除——
+        // 模式指示文本改为从会话状态派生（ImCommandFlow.GetPhase），玩家消息恒走闲聊管线。
 
         // ───────────────────────── 存档 ─────────────────────────
 
@@ -230,12 +215,5 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[ImChatStore] DeserializeDirectIndex 失败: {ex.Message}");
             }
         }
-    }
-
-    /// <summary>IM 会话模式（闲聊 / 密令）。</summary>
-    public enum ImMode
-    {
-        Chat,       // 闲聊：普通消息 → NPC LLM 回复
-        Command,    // 密令：文本 → LLM 计划 → 批准卡片 → 执行（仅 Mission 内可用）
     }
 }

@@ -102,6 +102,17 @@ namespace LivingWorldNpcs
         [JsonProperty("rl")]
         public string ReviewLine;        // 讲解台词（含隐患点名的原话；重拟时作为定向上下文传给 LLM）
 
+        // 🔴 2026-08-12（用户裁定：合并闲聊/计划模式）：NeedPlan 建议 = NPC 回复消息（kind 保持 Text）打标——
+        // 不走新卡片类型，渲染复用既有 ShowCardBubble（NPC 自述气泡）+ 通用按钮行（CardButtons），
+        // 底部挂「制定计划/先不用」。ExecutorId 状态复用：空 = 待决；"done" = 制定计划/先不用了结；
+        // "superseded" = 作废（玩家发新消息 / 新建议到达）。「执行中」语义仅 PlanCard 分支会读，此处不适用。
+        [JsonProperty("sb")]
+        public bool IsPlanSuggest;       // 本消息底部挂「制定计划/先不用」按钮（needPlan 判定命中）
+
+        [JsonProperty("ct")]
+        public string CommandText;       // 玩家原始请求（制定计划 → RequestCommand 的命令文本；
+                                        // 私聊玩家消息不走 store，必须冗余存这里；群聊可兜底 FindOriginalCommand）
+
         [JsonIgnore]
         public bool IsSelf => SenderHeroId == ImChatManager.PlayerId;
 
@@ -130,6 +141,10 @@ namespace LivingWorldNpcs
         /// <summary>🔴 Q4：提议是否已了结（ExecutorId 非空 = 已批准进入计划管线 / 已拒绝）。</summary>
         [JsonIgnore]
         public bool IsProposalResolved => IsProposal && !string.IsNullOrEmpty(ExecutorId);
+
+        /// <summary>🔴 2026-08-12（needPlan 建议）：是否已了结/作废（ExecutorId 非空 → 按钮随锚点重算消失）。</summary>
+        [JsonIgnore]
+        public bool IsSuggestionResolved => IsPlanSuggest && !string.IsNullOrEmpty(ExecutorId);
 
         // 🔴 2026-08-11（闲聊高风险动作 → 提议卡片）：动作载荷——Proposal 卡片携带闲聊动作码，
         // 玩家批准后 ActionHandler.HandleImAction 直接执行（不走 RequestCommand 计划管线）。

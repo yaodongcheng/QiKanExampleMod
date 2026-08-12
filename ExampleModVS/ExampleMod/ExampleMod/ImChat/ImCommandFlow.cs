@@ -53,6 +53,23 @@ namespace LivingWorldNpcs
             public int Round;        // 已完成澄清轮数（≥2 时再收到 questions → 诚实放弃）
         }
 
+        // 🔴 2026-08-12（合并闲聊/计划模式）：执行期说话 → 计划调整（方案 A，用户裁定）。
+        // 玩家在计划执行期间发消息，主线程捕获执行上下文（字符串快照），随闲聊回复管线
+        // 传到后台 prompt 注入 → LLM 回包判定 adjust_plan → 主线程投递点转 RequestModify。
+        // 只存字符串，无 Agent/native 句柄——后台线程安全。
+        public class ImExecutionContext
+        {
+            public string ConvId;          // 执行中卡片所在会话
+            public string ExecutorHeroId;  // 执行者（执行中卡片 ExecutorId）
+            public string PlanSummary;     // 卡片 PlanSummary（计划摘要）
+            public string CurrentStep;     // PlanExecutor.CurrentSummary（当前步骤摘要）
+            public string Intent;          // 卡片 PlanIntent
+        }
+
+        /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：会话计划状态（模式指示文本派生 + 输入路由）。
+        /// 建议按钮待决不改变 phase（闲聊层）。优先级：Generating > Executing > PendingPlan > Chat。</summary>
+        public enum ImSessionPhase { Chat, Generating, PendingPlan, Executing }
+
         // LLM 结果回主线程消费（PlanCommandFlow 同款 _pendingResult/_resultReady 模式）
         private static PendingRequest _pending;
         private static ImConversation _lastConv;   // 结果归属会话（FinishWith 清 _pending 后仍可定位）
@@ -448,10 +465,11 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 玩家修改计划（Q2）：卡片【修改】→ 输入框 → 修改意见 → 原命令 + 修改意见拼成新命令
         /// → 走同一条 LLM 计划管线 → 新 PlanCard（「修改版 vN」徽标）→ 再批准。
-        /// 额度：修改 ≤ MaxModifyCount（2 次，成功产出才消耗——复用 Replan 语义，防无限修改刷 LLM）。
+        /// <summary>修改额度：修改 ≤ MaxModifyCount（2 次，成功产出才消耗——复用 Replan 语义，防无限修改刷 LLM）。
         /// 覆盖两态：批准前（卡片待批）与执行中（先中止当前执行，CancelByPlayer 不触发 Replan 自动重入）。
-        /// </summary>
-        public static void RequestModify(ImMessage msg, string text)
+        /// 🔴 2026-08-12（执行期调整 appendPlayerText）：群聊路径玩家消息已被 SendPlayerMessage 写入 store
+        /// （公区事实源），adjust 触发时再追加会重复——传 false；私聊路径玩家消息走记忆层不在 store，传 true。</summary>
+        public static void RequestModify(ImMessage msg, string text, bool appendPlayerText = true)
         {
             if (msg == null || !msg.IsPlanCard || string.IsNullOrWhiteSpace(text)) return;
             var conv = ConversationOf(msg.ConvId);
@@ -490,11 +508,14 @@ namespace LivingWorldNpcs
             string cmd = $"{original}（修改：{text.Trim()}）";  // lwn-ignore: A
 
             // 玩家修改意见入会话（store；不写 NPC 记忆——密令瞬态）
-            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId,
-                Hero.MainHero?.Name?.ToString() ?? "You", text.Trim(), ImMessageKind.Text)
+            if (appendPlayerText)
             {
-                ConvId = conv.Id,
-            });
+                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId,
+                    Hero.MainHero?.Name?.ToString() ?? "You", text.Trim(), ImMessageKind.Text)
+                {
+                    ConvId = conv.Id,
+                });
+            }
             // 本地化：修改重拟提示
             PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_pending", "The companion is working out a revised plan."));
             if (Mission.Current == null)
@@ -543,6 +564,183 @@ namespace LivingWorldNpcs
                     return m;
             }
             return null;
+        }
+
+        // ───────────────────────── 🔴 2026-08-12（合并闲聊/计划模式）：派生状态 + needPlan 建议 + 执行期调整 ─────────────────────────
+
+        /// <summary>会话是否有挂起的澄清轮（计划生成在等玩家澄清回答——该会话的发送走 RequestCommand 合并，不掺建议）。</summary>
+        public static bool HasPendingClarify(ImConversation conv)
+        {
+            return _pendingClarify != null && _pendingClarify.Conv?.Id == conv?.Id;
+        }
+
+        /// <summary>会话内最新一张执行中计划卡片（ExecutorId = 执行者 heroId）。</summary>
+        public static ImMessage FindLatestExecutingCard(ImConversation conv)
+        {
+            if (conv == null) return null;
+            var msgs = ImChatStore.GetGroupMessages(conv.Id);
+            for (int i = msgs.Count - 1; i >= 0; i--)
+            {
+                var m = msgs[i];
+                if (m != null && m.IsPlanCard && IsExecuting(m))
+                    return m;
+            }
+            return null;
+        }
+
+        /// <summary>会话内最新一张**指定执行者**的执行中卡片（执行期调整定位用——ctx 带 heroId 无歧义，
+        /// 防群聊多人协作时找错执行者；执行已了结/回报在途 → 返回 null，只回台词不产生孤儿修改链）。</summary>
+        public static ImMessage FindLatestExecutingCardByHeroId(ImConversation conv, string heroId)
+        {
+            if (conv == null || string.IsNullOrEmpty(heroId)) return null;
+            var msgs = ImChatStore.GetGroupMessages(conv.Id);
+            for (int i = msgs.Count - 1; i >= 0; i--)
+            {
+                var m = msgs[i];
+                if (m != null && m.IsPlanCard && IsExecuting(m) && m.ExecutorId == heroId)
+                    return m;
+            }
+            return null;
+        }
+
+        /// <summary>会话是否有执行中计划（needPlan 建议抑制规则之一：执行期只走 adjustPlan 通道）。</summary>
+        public static bool HasExecutingCard(ImConversation conv) => FindLatestExecutingCard(conv) != null;
+
+        /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：会话计划状态派生（模式指示文本 + 输入路由）。
+        /// 优先级：Generating（最瞬态）> Executing > PendingPlan > Chat。建议按钮待决不改变 phase（闲聊层）。
+        /// 旧卡（rejected/done/superseded）跳过——只有最新活动状态才反映到指示文本。</summary>
+        public static ImSessionPhase GetPhase(ImConversation conv)
+        {
+            if (conv == null) return ImSessionPhase.Chat;
+            var msgs = ImChatStore.GetGroupMessages(conv.Id);
+            for (int i = msgs.Count - 1; i >= 0; i--)
+            {
+                var m = msgs[i];
+                if (m == null) continue;
+                if (m.IsGenerating) return ImSessionPhase.Generating;
+                if (m.IsPlanCard && IsExecuting(m)) return ImSessionPhase.Executing;
+                if (m.IsPlanCard && string.IsNullOrEmpty(m.ExecutorId)) return ImSessionPhase.PendingPlan;
+            }
+            return ImSessionPhase.Chat;
+        }
+
+        /// <summary>玩家发新消息 → 同会话全部待决建议按钮作废（ExecutorId="superseded"，按钮随锚点重算消失）。</summary>
+        public static void InvalidateSuggestions(ImConversation conv)
+        {
+            if (conv == null) return;
+            try
+            {
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                foreach (var m in msgs)
+                {
+                    if (m != null && m.IsPlanSuggest && string.IsNullOrEmpty(m.ExecutorId))
+                        m.ExecutorId = Superseded;
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImCommandFlow] InvalidateSuggestions 异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>🔴 2026-08-12（needPlan 建议 → 通用消息底部按钮，用户裁定不用计划卡片）：
+        /// LLM 判定 need_plan 后，给**刚投递的 NPC 回复消息**打标（IsPlanSuggest + CommandText），
+        /// 渲染复用既有 ShowCardBubble + 通用按钮行（制定计划/先不用）。主线程投递点调用
+        /// （投递循环内顺序执行，store 最后一条 = 刚投递的 NPC 消息，无竞态）。
+        /// 抑制规则（任一命中不打标，NPC 台词照常投递）：
+        /// ① !IsCommandModeAvailable —— 一网打尽：附近/家族/王国频道、Plot 总闸、无 LLM、Campaign 无 party Hero
+        /// ② IsBusy —— 计划生成中防并发（全局锁，保守）
+        /// ③ HasPendingClarify —— 澄清轮挂起（回答走 RequestCommand 合并，不掺建议）
+        /// ④ FindLatestExecutingCard —— 执行期只走 adjustPlan 通道</summary>
+        public static void TryAttachSuggestion(ImConversation conv, string heroId, string heroName, string playerText)
+        {
+            try
+            {
+                if (conv == null || string.IsNullOrEmpty(heroId)) return;
+                if (!ImChatView.IsCommandModeAvailable(conv)) return;
+                if (IsBusy) return;
+                if (HasPendingClarify(conv)) return;
+                if (FindLatestExecutingCard(conv) != null) return;
+
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                ImMessage target = null;
+                for (int i = msgs.Count - 1; i >= 0; i--)
+                {
+                    var m = msgs[i];
+                    if (m != null && m.Kind == ImMessageKind.Text && m.SenderHeroId == heroId
+                        && !string.IsNullOrWhiteSpace(m.Content))
+                    {
+                        target = m;
+                        break;
+                    }
+                }
+                if (target == null)
+                {
+                    DebugLogger.Log($"[ImCommandFlow] 建议打标失败: 找不到 {heroName} 刚投递的消息");
+                    return;
+                }
+
+                InvalidateSuggestions(conv);   // 同会话旧待决建议作废，只留一张
+                target.IsPlanSuggest = true;
+                target.CommandText = string.IsNullOrWhiteSpace(playerText) ? target.Content : playerText.Trim();
+                AutonomyProposal.Suppress(heroId);   // 本轮互斥：已有建议，不再投自主提议（防双卡）
+                DebugLogger.Log($"[ImCommandFlow] needPlan 建议已打标: {heroName} → \"{target.Content}\"");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImCommandFlow] TryAttachSuggestion 异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>🔴 2026-08-12（执行期说话 → 计划调整，方案 A）：主线程捕获执行上下文
+        /// （纯字符串快照，后台线程安全）。无执行中计划返回 null。</summary>
+        public static ImExecutionContext BuildExecutionContext(ImConversation conv)
+        {
+            if (conv == null || Mission.Current == null) return null;
+            var card = FindLatestExecutingCard(conv);
+            if (card == null) return null;
+            string currentStep = "";
+            try
+            {
+                Agent agent = FindAgentByHeroId(card.ExecutorId);
+                var executor = agent != null ? PlanExecutor.GetExecutorFor(agent) : null;
+                currentStep = executor?.CurrentSummary ?? "";
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImCommandFlow] BuildExecutionContext 异常: {ex.Message}");
+            }
+            return new ImExecutionContext
+            {
+                ConvId = conv.Id,
+                ExecutorHeroId = card.ExecutorId,
+                PlanSummary = card.PlanSummary,
+                CurrentStep = currentStep,
+                Intent = card.PlanIntent,
+            };
+        }
+
+        /// <summary>🔴 2026-08-12（执行期说话 → 计划调整）：LLM 判定 adjust_plan 后，主线程投递点调用。
+        /// 全部前置复查（铁律 2 双保险）：Mission 才有执行器；IsBusy 防并发生成；按 heroId 复查执行中
+        /// （执行已了结/回报在途 → 只回台词）；修改额度 ≤2（成功产出才消耗）。通过 → RequestModify
+        /// 出「修改版」卡片 → 玩家批准 → 重执行（全程复用既有管线，CancelByPlayer 不触发 Replan 自动重入）。</summary>
+        public static void TryAdjustFromExecution(ImExecutionContext ctx, string playerText)
+        {
+            try
+            {
+                if (ctx == null || string.IsNullOrWhiteSpace(playerText)) return;
+                if (Mission.Current == null || IsBusy) return;
+                var conv = ConversationOf(ctx.ConvId);
+                if (conv == null) return;
+                var card = FindLatestExecutingCardByHeroId(conv, ctx.ExecutorHeroId);
+                if (card == null || !IsExecuting(card)) return;
+                if (card.PlanModifyCount >= MaxModifyCount) return;
+                RequestModify(card, playerText, appendPlayerText: conv.Type != ImConversationType.Direct);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImCommandFlow] TryAdjustFromExecution 异常: {ex.Message}");
+            }
         }
 
         /// <summary>

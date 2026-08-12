@@ -37,35 +37,13 @@
                                 IsVisible="@IsTypingVisible"
                                 DoNotAcceptEvents="true"/>
 
-                    <!-- 模式切换（2026-08-10 终版）：状态文本 + 单按钮并排（ListPanel 防重叠）。
-                         左侧 = 当前模式静态文本（「当前：计划模式」）；右侧 = 单个按钮，文本随模式变量切换
-                         （「切换到计划」⇄「切换到闲聊」，点击路由由 View 按当前模式决定——Command.Click 固定方法绑定，
-                         故用单方法 ExecuteSwitchMode 内部路由）。
-                         密令侧模式名随上下文（Mission=计划 / 大地图=计划）；仅密令可用会话显示（IsModeControlVisible）。 -->
-                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                               StackLayout.LayoutMethod="HorizontalLeftToRight"
-                               VerticalAlignment="Center" MarginLeft="8" MarginRight="8"
-                               IsVisible="@IsModeControlVisible">
-                      <Children>
-                        <!-- 当前模式静态文本（按钮左侧） -->
-                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                    Text="@ModeStatusText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#C8C8C8FF"
-                                    VerticalAlignment="Center"
-                                    DoNotAcceptEvents="true"/>
-                        <!-- 单个切换按钮：文本随模式变量切换，点击内部路由 -->
-                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="32"
-                                      Brush="Test.Button3"
-                                      Command.Click="ExecuteSwitchMode"
-                                      VerticalAlignment="Center" MarginLeft="10">
-                          <Children>
-                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                        Text="@SwitchModeButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
-                                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                                        DoNotAcceptEvents="true"/>
-                          </Children>
-                        </ButtonWidget>
-                      </Children>
-                    </ListPanel>
+                    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：模式切换按钮已删除——玩家恒走闲聊，
+                          NPC 判 needPlan 后消息底部挂「制定计划/先不用」按钮进计划管线。
+                          本文本 = 会话状态派生的模式指示（闲聊/计划生成中/计划待批准/计划执行中），常显。 -->
+                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                Text="@ModeStatusText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#C8C8C8FF"
+                                VerticalAlignment="Center" MarginLeft="8" MarginRight="8"
+                                DoNotAcceptEvents="true"/>
 
                     <!-- 关闭按钮 -->
                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
@@ -307,9 +285,12 @@
                                                                     DoNotAcceptEvents="true"/>
                                                       </Children>
                                                     </ListPanel>
-                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                    <!-- 🔴 2026-08-12（@提及染色）：RichTextWidget + DisplayContent——
+                                                         玩家 nearby 消息的 @名字 #编号 前缀按 span style="Mention" 染蓝
+                                                         （MyBrush_16_Left 新增 Style；其余消息 DisplayContent=原文，行为不变） -->
+                                                    <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 MaxWidth="520"
-                                                                Text="@Content" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Right"
+                                                                Text="@DisplayContent" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.TextHorizontalAlignment="Right"
                                                                 WordWrapping="Wrap"
                                                                 MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
                                                                 DoNotAcceptEvents="true"/>

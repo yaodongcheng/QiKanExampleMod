@@ -3895,7 +3895,7 @@
     
     
     <string id="LWN_ui_npcintent_executingcommand" text="Carrying out your order" />
-    <string id="LWN_ui_interact_plot" text="Give Orders" />
+    <string id="LWN_ui_interact_plot" text="Secret Letter" />
     <string id="LWN_ui_interact_stopplan" text="Stop Action" />
     <string id="LWN_plan_no_llm" text="The companion cannot think of a plan right now." />
     <string id="LWN_plan_opening" text="Quiet... tell me what you need." />
@@ -3958,8 +3958,8 @@
     <string id="LWN_plan_lead_waiting" text="Are you coming or not?" />
     <string id="LWN_plan_loot" text="loot" />
     <string id="LWN_plan_gold" text="gold" />
-    <string id="LWN_mcm_plot_enabled" text="Action Orders(tested)" />
-    <string id="LWN_mcm_plot_enabled_hint" text="When enabled, companions can receive natural-language action orders (press the order key near a companion). Disabled by default; when off, the order entry is hidden but already-running plans can still be stopped." />
+    <string id="LWN_mcm_plot_enabled" text="Secret Letters(tested)" />
+    <string id="LWN_mcm_plot_enabled_hint" text="When enabled, you can write natural-language secret letters to companions (press the letter key near a companion). Disabled by default; when off, the letter entry is hidden but already-running plans can still be stopped." />
     <string id="LWN_mcm_hostile_on_allies" text="Allow Hostile Interactions on Allies" />
     <string id="LWN_mcm_hostile_on_allies_hint" text="When disabled, knockout/pickpocket/loot/attack are blocked on allies — friendly definition: config.json `FriendlyRelationCriteria` (default: same party + same clan) and `FriendlyRelationThreshold` (relation value). Enabled by default (hostile interactions require a long press). Allies always ignore your crimes against strangers, regardless of this setting." />
     <!-- ── IM 传讯系统（LWN_im_*）── -->
@@ -3971,10 +3971,16 @@
     <string id="LWN_im_generating" text="{NAMES} is thinking..." />
     <string id="LWN_im_generating_plain" text="Thinking..." />
     <string id="LWN_im_mode_chat" text="Chat" />
-    <string id="LWN_im_mode_command" text="Plan" />
+    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：派生模式指示文本（会话状态 → GetPhase） -->
+    <string id="LWN_im_mode_generating" text="Planning..." />
+    <string id="LWN_im_mode_pending" text="Plan awaiting approval" />
+    <string id="LWN_im_mode_executing" text="Executing" />
     <string id="LWN_im_mode_unavailable" text="Plan mode is unavailable here." />
     <string id="LWN_im_mode_need_mission" text="Plans must be given in person - enter a scene first." />
     <string id="LWN_im_mode_plot_active" text="Another secret order is already being discussed." />
+    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（NPC 回复消息底部通用按钮行） -->
+    <string id="LWN_im_btn_make_plan" text="Make a plan" />
+    <string id="LWN_im_btn_skip" text="Not now" />
     <string id="LWN_im_time_justnow" text="just now" />
     <string id="LWN_im_time_minutes" text="{N} min ago" />
     <string id="LWN_im_time_hours" text="{N} h ago" />
@@ -4059,7 +4065,6 @@
     <string id="LWN_im_first_open" text="Messaging (IM) - talk to heroes across the land, or give orders to companions. Open with the configured key (default O); close with ESC, B, or by clicking outside the panel." />
     <string id="LWN_im_status_present" text="present" />
     <string id="LWN_im_status_away" text="away" />
-    <string id="LWN_im_mode_march" text="Plan" />
     <string id="LWN_im_march_channel_only" text="Plans can only be sent to a single hero. Channel plans require a scene." />
     <string id="LWN_im_march_no_party" text="That hero has no army to command." />
     <string id="LWN_im_march_in_party" text="That hero marches with you - give orders in person, in a scene." />
@@ -4073,10 +4078,7 @@
     <string id="LWN_im_group_directs" text="Recent" />
     <string id="LWN_im_empty_hint" text="No messages yet. Say something to break the silence..." />
     <string id="LWN_im_input_placeholder" text="Type a message..." />
-    <string id="LWN_im_input_placeholder_cmd" text="Type a plan..." />
-    <string id="LWN_im_btn_order" text="Order" />
     <string id="LWN_im_mode_status" text="Mode: {MODE}" />
-    <string id="LWN_im_btn_switch_mode" text="Switch to {MODE}" />
     <string id="LWN_im_new_message" text="New messages" />
     <!-- Persuasion session templates (npc-dialogue-session-plan.md §5.3.1) -->
     <!-- Category-first: move_req (moving/following) / affair (a task) / combat (force) / chat (idle) -->

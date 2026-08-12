@@ -340,8 +340,11 @@ namespace LivingWorldNpcs
         /// 知识注入段同样按可见性裁剪（队伍成员才见队伍现状）。
         /// 🔴 2026-08-10（im-command-action-upgrade.md §5.1）：actionSpace 段 = 按空间裁剪的动作空间
         /// （ActionHandler.GetActionSpacePrompt），输出格式为 JSON（npc_reply/npc_action/action_target/action_level）。
+        /// 🔴 2026-08-12（合并闲聊/计划模式）：executionContext 段 = 计划执行期间玩家传讯 → 注入【当前计划执行中】
+        /// （PlanSummary + CurrentStep，C# 快照），LLM 判定 adjust_plan（问进度=false，明确改做法=true）；
+        /// isCampaign = 大地图能力提示段（只建议行军类计划，防「我去暗杀谁」）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -423,6 +426,37 @@ namespace LivingWorldNpcs
             {
                 sb.AppendLine(actionSpace);
                 sb.AppendLine();
+            }
+
+            // 🔴 2026-08-12（合并闲聊/计划模式）：执行期说话 → 计划调整（方案 A）——注入【当前计划执行中】段。
+            // 文案单一事实源（strings XML LWN_prompt_im_execution_ctx，{SUMMARY}/{STEP} 变量）；
+            // 纪律：问进度/闲聊/催促 → adjust_plan=false；玩家明确要求改变做法 → adjust_plan=true
+            //（且 need_plan 必须 false）。无执行上下文 → 段缺省（普通闲聊，无调整判定）。
+            if (executionContext != null)
+            {
+                // 执行上下文段（文案单一事实源：LWN_prompt_im_execution_ctx，{SUMMARY}/{STEP} 变量）
+                string exec = LWNTextHelper.ResolveCompound("LWN_prompt_im_execution_ctx",
+                    "## Current Plan in Progress\nYou are currently carrying out your lord's order: {SUMMARY}\nCurrent progress: {STEP}\nThe lord just sent you another message. If it only asks for progress or chats, answer normally (adjust_plan=false). Only if the lord explicitly wants you to change what you are doing (different target, order, or approach) set adjust_plan=true. When adjust_plan=true, need_plan must be false.",
+                    ("SUMMARY", executionContext.PlanSummary),
+                    ("STEP", executionContext.CurrentStep));
+                if (!string.IsNullOrWhiteSpace(exec))
+                {
+                    sb.AppendLine(exec);
+                    sb.AppendLine();
+                }
+            }
+
+            // 🔴 2026-08-12（合并闲聊/计划模式）：Campaign 大地图能力提示段——无战场场景，NPC 只能建议
+            // 行军类计划（跟随/待命/前往定居点）；防「我去暗杀谁」式无法执行的建议（出戏）。
+            if (isCampaign)
+            {
+                // 大地图能力提示（文案单一事实源：LWN_prompt_im_capability_campaign）
+                string cap = LWNTextHelper.ResolvePrompt("LWN_prompt_im_capability_campaign");
+                if (!string.IsNullOrWhiteSpace(cap))
+                {
+                    sb.AppendLine(cap);
+                    sb.AppendLine();
+                }
             }
 
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）

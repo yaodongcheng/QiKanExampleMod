@@ -37,6 +37,11 @@ namespace LivingWorldNpcs
             // 🔴 v4 斗嘴往返（2026-08-10）：标记"这是往返的第二轮"——主回复者被 bounce 回来
             // 再回一句后，不再继续调度（防无限循环）
             public bool IsBounceReply;
+            // 🔴 2026-08-12（合并闲聊/计划模式）：计划生成中发消息 → 本轮抑制 needPlan 建议（防并发双计划）
+            public bool SuppressNeedPlan;
+            // 🔴 2026-08-12（执行期说话 → 计划调整）：主线程捕获的执行上下文快照（仅主回复者注入，
+            // 且需 StringId == 执行者；跟随者/往返/事件接话默认 null）
+            public ImCommandFlow.ImExecutionContext ExecutionCtx;
         }
 
         private static readonly object _lock = new object();
@@ -60,6 +65,10 @@ namespace LivingWorldNpcs
             public string ActionCode;
             public string ActionTarget;
             public string ActionLevel;
+            // 🔴 2026-08-12（合并闲聊/计划模式）：need_plan/adjust_plan 判定（生成线程解析、主线程投递点消费：
+            // 打标建议按钮 / 转 RequestModify 修改版）
+            public bool NeedPlan;
+            public bool AdjustPlan;
             // v4.1：入队时的频道消息数（群聊）——投递时若频道已更新则丢弃（玩家发新消息作废旧链条）
             public int EnqueueMsgCount = -1;
         }
@@ -119,8 +128,12 @@ namespace LivingWorldNpcs
         /// </summary>
         /// <param name="followUpHeroId">群聊活力·拌嘴 v2（2026-08-10）：跟随回复者挂到主回复者任务上，
         /// 主回复者投递后再调度（延迟调度，跟随者能看到主回复者实际台词）；主回复者传 null。</param>
+        /// <param name="suppressNeedPlan">🔴 2026-08-12：计划生成中发消息 → 本轮抑制 need_plan 建议（防并发双计划）。</param>
+        /// <param name="ctx">🔴 2026-08-12：执行期说话 → 计划调整（方案 A）：执行上下文快照
+        /// （仅 StringId == 执行者的主回复者传；跟随者/往返/事件接话默认 null 零改动）。</param>
         public static void ScheduleReply(string npcHeroId, string npcName, string lastPlayerText, ImConversation conv,
-            string followUpHeroId = null, string followUpHeroName = null)
+            string followUpHeroId = null, string followUpHeroName = null,
+            bool suppressNeedPlan = false, ImCommandFlow.ImExecutionContext ctx = null)
         {
             if (string.IsNullOrEmpty(npcHeroId)) return;
             lock (_lock)
@@ -129,6 +142,8 @@ namespace LivingWorldNpcs
                 {
                     existing.RespondText = lastPlayerText;
                     existing.Conv = conv;
+                    existing.SuppressNeedPlan = suppressNeedPlan;
+                    existing.ExecutionCtx = ctx;
                     return;
                 }
                 _pending[npcHeroId] = new PendingReply
@@ -139,6 +154,8 @@ namespace LivingWorldNpcs
                     Conv = conv,
                     FollowUpHeroId = followUpHeroId,
                     FollowUpHeroName = followUpHeroName,
+                    SuppressNeedPlan = suppressNeedPlan,
+                    ExecutionCtx = ctx,
                 };
             }
         }
@@ -214,6 +231,31 @@ namespace LivingWorldNpcs
                         if (it.P?.Conv != null && !string.IsNullOrWhiteSpace(it.Reply))
                         {
                             ImChatManager.DeliverNpcMessage(it.P.Conv, it.P.HeroId, it.P.HeroName, it.Reply);
+                            // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan/adjustPlan 主线程投递点消费——
+                            // 顺序在 DeliverNpcMessage 之后（TryAttachSuggestion 定位 store 最后一条 = 刚投递消息）。
+                            // 建议只挂「主回复者」的回复（跟随/往返/接话是对旧链条的回应，不判 needPlan）。
+                            if (it.NeedPlan && string.IsNullOrEmpty(it.P.FollowUpHeroId) && string.IsNullOrEmpty(it.P.PriorPeerId))
+                            {
+                                try
+                                {
+                                    ImCommandFlow.TryAttachSuggestion(it.P.Conv, it.P.HeroId, it.P.HeroName, it.P.RespondText);
+                                }
+                                catch (Exception ex)
+                                {
+                                    DebugLogger.Log($"[ImReply] needPlan 建议打标失败: {ex.Message}");
+                                }
+                            }
+                            if (it.AdjustPlan)
+                            {
+                                try
+                                {
+                                    ImCommandFlow.TryAdjustFromExecution(it.P.ExecutionCtx, it.P.RespondText);
+                                }
+                                catch (Exception ex)
+                                {
+                                    DebugLogger.Log($"[ImReply] adjustPlan 执行期调整失败: {ex.Message}");
+                                }
+                            }
                             // 🔴 2026-08-10 闲聊动作（§5.1）：投递后执行动作（主线程）。
                             // attacker = 说话者；defender 解析（名字文本 → 实体识别 → 兜底玩家）+ 空间裁决
                             // （ResolveSpace）+ 空间裁剪 + 频率冷却 全在 ActionHandler 内部（§5.2/§六）
@@ -285,6 +327,10 @@ namespace LivingWorldNpcs
                 string actCode = null;
                 string actTarget = null;
                 string actLevel = null;
+                // 🔴 2026-08-12（合并闲聊/计划模式）：need_plan/adjust_plan 判定（bool 默认 false，铁律 2；
+                // 模板降级路径无 JSON → 恒 false，建议/调整天然消失）
+                bool needPlan = false;
+                bool adjustPlan = false;
 
                 // 铁律 1：LLM 未配置直接降级模板（动作强制 NONE——确定性优先，模板不做动作）
                 if (Settings.Instance.IsLLMConfigured)
@@ -305,8 +351,12 @@ namespace LivingWorldNpcs
                         string peerInteraction = BuildPeerInteraction(p);
                         // 🔴 2026-08-10 闲聊动作（§5.1/§5.2）：按空间裁剪的动作空间注入（LLM 只看到当前空间合法动作）
                         string actionSpace = BuildActionSpace(p);
+                        // 🔴 2026-08-12（合并闲聊/计划模式）：执行期说话 → prompt 注入【当前计划执行中】段
+                        //（PlanSummary + CurrentStep）；Campaign 大地图 → 能力提示段（只建议行军类计划）
+                        bool isCampaign = Mission.Current == null;
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
-                            memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction, actionSpace);
+                            memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction, actionSpace,
+                            executionContext: p.ExecutionCtx, isCampaign: isCampaign);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）
@@ -330,6 +380,8 @@ namespace LivingWorldNpcs
                                 actCode = resp.NpcAction;
                                 actTarget = resp.ActionTarget;
                                 actLevel = resp.ActionLevel;
+                                needPlan = !p.SuppressNeedPlan && resp.NeedPlan;
+                                adjustPlan = resp.AdjustPlan;
                             }
                             else
                             {
@@ -364,6 +416,8 @@ namespace LivingWorldNpcs
                             ActionCode = actCode,
                             ActionTarget = actTarget,
                             ActionLevel = actLevel,
+                            NeedPlan = needPlan,
+                            AdjustPlan = adjustPlan,
                             EnqueueMsgCount = msgCount,
                         });
                 }
