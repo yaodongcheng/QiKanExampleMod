@@ -28,11 +28,14 @@ namespace LivingWorldNpcs
     /// 统一对话实例（2026-08-11 架构收敛：一段对话的全部通用状态，两种驱动共用）。
     /// 驱动方式：执行器驱动（say_to：SayInlineState 持有 session 每帧调 OnTick）/
     ///           续话器驱动（social：注册表持有 session，TickContinuations 每帧调 OnTick）。
+    /// 🔴 2026-08-11（npc-dialogue-session-plan.md §5，M1）：新增说服会话字段——
+    /// PersuadeSlot（说服会话）复用本容器：Agree/Stance/Intent/Outcome 由说服槽驱动演化；
+    /// 既有 SayToSlot/SocialSlot 不使用这些字段（无影响）。
     /// </summary>
     public class DialogueSession
     {
-        public Agent Initiator;         // 发起方（续话者）
-        public Agent Target;            // 应答方
+        public Agent Initiator;         // 发起方（续话者/劝说者）
+        public Agent Target;            // 应答方（被劝说者）
         public string Topic;            // 话题（"threat"/"praise"/计划 topic…）
         public List<string> Outline;    // 走向段（say_to 用；null = 自由对话）
         public int OutlineIndex;        // 当前走向段下标
@@ -40,6 +43,23 @@ namespace LivingWorldNpcs
         public float LastResponseAt;    // 目标最后回应时刻（超时判定；Mission 时间）
         public float LastResponseCheck; // 上次轮询游标（增量判断"对方回应了"）
         public IDialogueSlot Slot;      // 生命周期策略（差异化实现）
+
+        // ── 说服会话（M1，PersuadeSlot 驱动）──
+        public Stance Stance;           // 接受者坚守（人格 × 涉己度 → 抵抗度；agree 会话内演化）
+        public string Intent;           // 发起者目的（BRING/TALK_TO/DELIVER/… → 模板分类）
+        public ISessionOutcome Outcome; // 兑现策略（层专属：Mission 动作 / Campaign 计划）
+        public bool IsPersuade;         // 是否说服会话（PersuadeSlot 标记）
+        public float LastActivityAt;    // 最后活动时刻（冷场超时基准；Mission 时间）
+
+        /// <summary>会话时长（秒；LastActivityAt 与当前时间差）。</summary>
+        public float IdleSeconds
+        {
+            get
+            {
+                if (Mission.Current == null) return 0f;
+                return Mission.Current.CurrentTime - LastActivityAt;
+            }
+        }
     }
 
     /// <summary>
@@ -131,7 +151,9 @@ namespace LivingWorldNpcs
                             : null;
                         if (string.IsNullOrWhiteSpace(result) || s.Initiator == null || !s.Initiator.IsActive()) return;
                         // 续话 = 发起方再说话（播放 + 广播——对方 respond 新一轮）
-                        AgentHudMissionView.AgentSay(s.Initiator, result);
+                        // 🔴 统一说话框架：社交续话（前因=spoken_to；SpeechChannel 线程安全，LLM 回调可直调）
+                        SpeechChannel.Say(s.Initiator, result, SpeechPriority.Dialogue,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(s.Initiator), s.Target, "spoken_to", s.Topic));
                         DialogueComponent.HandleDialogue(s.Initiator, s.Target, s.Topic, result, null);
                         DebugLogger.Log($"[DialogueComponent] 社交续话（第 {s.Round} 轮）: {s.Initiator.Name}: {result}");
                     });
@@ -312,7 +334,8 @@ namespace LivingWorldNpcs
         /// <summary>④ 结束决策：步骤收尾（与单句模式一致：仅 Finished，执行器 CompleteStep 推进）。</summary>
         public void OnEnd(DialogueSession s) { }
 
-        /// <summary>播放随从台词（face + 冒泡）；广播延迟到 PendingBroadcast 阶段（间隔控制）。</summary>
+        /// <summary>播放随从台词（face + 冒泡）；广播延迟到 PendingBroadcast 阶段（间隔控制）。
+        /// 🔴 统一说话框架：对话模式台词走 SpeechChannel（前因=spoken_to）。</summary>
         private void PlayLine(string line)
         {
             try
@@ -320,7 +343,8 @@ namespace LivingWorldNpcs
                 if (_target != null && _target.IsActive())
                     AgentControlHelper.FaceToActor(_agent, _target);
                 if (!string.IsNullOrEmpty(line))
-                    AgentHudMissionView.AgentSay(_agent, line);
+                    SpeechChannel.Say(_agent, line, SpeechPriority.Dialogue,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(_agent), _target, "spoken_to", Session?.Topic));
                 _lastPlayedLine = line;
                 DebugLogger.Log($"[PlanExecutor] 对话模式 {_agent.Name} → {_target.Name}（第 {Session?.OutlineIndex + 1}/{Session?.Outline?.Count ?? 0} 段）: {line}");
             }
@@ -512,17 +536,37 @@ namespace LivingWorldNpcs
                 {
                     if (s.Initiator == initiator && s.Target == target) return;
                 }
-                var session = new DialogueSession
-                {
-                    Initiator = initiator,
-                    Target = target,
-                    Topic = topic,
-                    Slot = slot,
-                };
+                var session = slot is PersuadeSlot ps && ps.Session != null
+                    ? ps.Session                          // 说服会话：PersuadeSlot 自建 Session（含 Stance/Intent/Outcome）
+                    : new DialogueSession
+                    {
+                        Initiator = initiator,
+                        Target = target,
+                        Topic = topic,
+                        Slot = slot,
+                    };
                 _active.Add(session);
                 try { slot.OnStart(session); } catch { }
             }
             DebugLogger.Log($"[DialogueComponent] 注册对话 session: {initiator.Name} → {target.Name}（{topic}）");
+        }
+
+        /// <summary>查找活跃的说服会话（玩家喊话续话用：同对已有说服会话 → 注入玩家台词而非新建）。
+        /// null = 无（调用方新建）。🔴 注意：RegisterSession 会包一层新 DialogueSession，而 PersuadeSlot
+        /// 构造时自带 Session——续话器驱动时以注册表 session 为准（Slot 持有的 Session 为自引用，
+        /// 两者 Slot 相同，PersuadeSlot.Session 是权威状态容器，见 PersuadeSlot 构造）。</summary>
+        public static DialogueSession FindPersuadeSession(Agent initiator, Agent target)
+        {
+            if (initiator == null || target == null) return null;
+            lock (_lock)
+            {
+                foreach (var s in _active)
+                {
+                    if (s.Initiator == initiator && s.Target == target && s.Slot is PersuadeSlot)
+                        return s;
+                }
+            }
+            return null;
         }
 
         /// <summary>主线程每帧驱动（AgentAIController.OnMissionTick 挂接）：活跃 session 的 Slot.OnTick（推进逻辑槽内自决）。</summary>

@@ -86,6 +86,14 @@ namespace LivingWorldNpcs
         public override void OnMissionBehaviorInitialize(Mission mission)
         {
             base.OnMissionBehaviorInitialize(mission);
+
+            // 🔴 非战役模式（自定义战斗 / 联机 / 主菜单试玩等）不挂载任何行为：
+            // 没有 Campaign 时 Settlement.CurrentSettlement、Hero.MainHero 等战役 API 会 NRE
+            // （实测 2026-08-12：自定义战斗 AgentAIController.AfterStart 崩，getter 内部访问
+            //   MobileParty.MainParty 无 null 保护），本 mod 全部行为都依赖战役上下文。
+            if (Campaign.Current == null)
+                return;
+
             //召唤某个英雄并且和他对话功能
             mission.AddMissionBehavior(new HeroSpawnerMissionBehavior());
 

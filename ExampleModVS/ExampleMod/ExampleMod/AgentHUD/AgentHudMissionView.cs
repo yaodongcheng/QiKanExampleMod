@@ -311,11 +311,21 @@ namespace LivingWorldNpcs
         ///   &gt;30m 且视野外  → 只弹屏幕消息「远处传来声音」（听觉语义，既有兜底保留）
         ///   &gt;30m 但视野内  → 无声（原版语义：远处看得见但听不见，无字幕）
         /// 玩家自己的冒泡恒播放（距离 0）。远处跳过不影响逻辑——记忆写入/执行器在调用方（respond/计划）侧。</summary>
-        public static void AgentSay(Agent agent, string text)
+        /// <summary>
+        /// 说话统一出口（所有路径汇聚：SpeechChannel 并联通道 / 对话回应 / 密令开场 / 招募 / 投降…）。
+        /// 🔴 前因日志（2026-08-11）：入口处记录"谁在什么时候说了什么"——覆盖全部说话路径，
+        /// 包括未走 SpeechChannel 的旧调用点（那些路径无 SpeechContext，前因为空属正常；
+        /// 新体系 SpeechChannel 会传序列化好的前因串）。
+        /// </summary>
+        /// <param name="reason">前因（可空；SpeechChannel 传入，旧调用点省略）</param>
+        public static void AgentSay(Agent agent, string text, string reason = null)
         {
             if (Mission.Current == null) return;
             if (agent == null) return;
             if (Instance == null) return;
+
+            // 🔴 统一说话日志（近处/远处都打；前因可空）
+            try { DebugLogger.Log($"[Say] {agent.Name}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
 
             // 🔴 距离分层前置：远处（> FarHearDistance）不冒泡不进频道
             bool isFar = Agent.Main != null && agent != Agent.Main && Agent.Main.IsActive()
@@ -337,16 +347,16 @@ namespace LivingWorldNpcs
             Instance.AddSpeech(agent, text);
             // 🔴 §5.7 附近频道转发（场景内真实冒泡流入玩家 IM；同 sender 200ms 合并防刷屏）
             try { NearbyFeed.Forward(agent, text); } catch { }
-            DebugLogger.Log($"[AgentSay] {agent.Name}: {text}");
         }
 
-        /// <summary>静态快捷方法：按 StringId 让 Agent 说话</summary>
-        public static void AgentSay(string agentStringId, string text)
+        /// <summary>静态快捷方法：按 StringId 让 Agent 说话（入口同样打 [Say] 统一说话日志）</summary>
+        public static void AgentSay(string agentStringId, string text, string reason = null)
         {
             if (Mission.Current == null) return;
 
             if (agentStringId == "player")
             {
+                try { DebugLogger.Log($"[Say] {agentStringId}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
                 Instance.AddSpeech(Mission.Current.MainAgent, text);
                 if (Settings.Instance.ShowDebugMessages)
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_said",
@@ -358,6 +368,7 @@ namespace LivingWorldNpcs
             {
                 if (agent.IsActive() && agent.Character != null && agent.Character.StringId == agentStringId)
                 {
+                    try { DebugLogger.Log($"[Say] {agent.Name}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
                     Instance.AddSpeech(agent, text);
                     if (Settings.Instance.ShowDebugMessages)
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_said",

@@ -222,6 +222,13 @@ namespace LivingWorldNpcs
                 TheftLedger.Deserialize(theftLedgerJson);
 
             // ═══ IM 传讯 / Hero 记忆存档（用户决策 3：进存档 + 记忆总结 + 上限 + 动态容量）═══
+            // 🔴 读档先清 Campaign 会话注册表（私聊劝说/群聊动议是内存态，不持久化——旧档残留会话
+            // 会错认新档消息；HeroStanceStore 缓存同理，立场继承权威在记忆旁白，读档即弃缓存）
+            if (dataStore.IsLoading)
+            {
+                CampaignPersuadeHub.Clear();
+                HeroStanceStore.Clear();
+            }
             // Hero 记忆 24 槽分片：单槽 ≤ 30KB 防 Strings 表溢出（SaveStringGuard 数组裁剪兜底丢最老记录）；
             // 槽 = FNV-1a 稳定哈希 % 24（跨存档稳定，不随 NPC 数量/顺序漂移）。
             for (int slot = 0; slot < AllNpcMemoryManager.SaveSlots; slot++)

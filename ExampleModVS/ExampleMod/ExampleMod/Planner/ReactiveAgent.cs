@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -69,6 +70,7 @@ namespace LivingWorldNpcs
         public bool HasPost;
         public int DialogueRound;            // 实时回应会话回合计数（防无限请求；历史在 SingNpcMemorySystem 三层记忆）
         public float LastDialogueTime;       // 会话内最后互动时间（>60s 无互动 = 新会话，轮次重置）
+        public float LastInterjectTime;      // 旁观插嘴 15s 闸门（M2：防刷屏）
 
         private static readonly Dictionary<int, ReactiveAgent> _registry = new Dictionary<int, ReactiveAgent>();
 
@@ -77,7 +79,12 @@ namespace LivingWorldNpcs
         private static readonly ConcurrentQueue<(Agent Agent, Agent Requester, string Text, string ActionCode, string ActionTarget, string ActionLevel)> _pendingReplies =
             new ConcurrentQueue<(Agent, Agent, string, string, string, string)>();
         private const int MaxDialogueRounds = 6;   // 会话回合上限（"聊天不会太长"：超限用模板短回应）
-        private const int RespondTimeoutMs = 2000; // LLM 回应预算：2s 内必须返回，否则降级模板
+        private const float RespondTimeoutMs = 2000; // LLM 回应预算：2s 内必须返回，否则降级模板
+
+        // ── 旁观插嘴（M2，npc-dialogue-session-plan.md §5.5）：seen_speaking 中签后的插嘴台词队列
+        // （后台线程 LLM 润色入队，主线程 TickAll 消费 → SpeechChannel Interject 优先级，不打断行动）──
+        private static readonly ConcurrentQueue<(Agent Agent, string Text)> _pendingInterjects =
+            new ConcurrentQueue<(Agent, string)>();
 
         // ── 行动提议（Q4，2026-08-10）：propose_plan 的 LLM 提议结果队列（后台线程入队，主线程 TickAll 投递 IM）──
         private static readonly ConcurrentQueue<(Agent Agent, string Text)> _pendingProposals = new ConcurrentQueue<(Agent, string)>();
@@ -184,14 +191,48 @@ namespace LivingWorldNpcs
             return created;
         }
 
-        /// <summary>LLM 注入反应计划（计划批准时应用；覆盖默认模板）。</summary>
+        /// <summary>LLM 注入反应计划（计划批准时应用）。
+        /// 🔴 2026-08-11（npc-dialogue-session-plan.md §4.2）：responses 注入从**整体替换改为合并**——
+        /// LLM 只写本次任务触发词 → 通用触发词（spoken_to/approach_by）被抹掉 → 被搭话的 NPC 零表现
+        /// （实机 2026-08-11 20:26:48 守卫被搭话无任何反应）。合并语义：LLM responses 覆盖同名事件，
+        /// 缺失事件保留默认模板。</summary>
         public static void ApplyPlan(Agent agent, ReactivePlan plan)
         {
             if (agent == null || plan == null) return;
             var ra = Get(agent);
             if (plan.Personality != null) ra.Personality = plan.Personality;
-            if (plan.Responses != null && plan.Responses.Count > 0) ra.Responses = plan.Responses;
+            if (plan.Responses != null && plan.Responses.Count > 0)
+            {
+                // 🔴 合并（4.2）：LLM 覆盖同名事件；缺失事件保留默认（深拷贝防共享污染）
+                var merged = ra.Responses ?? new List<ReactiveResponse>();
+                foreach (var pr in plan.Responses)
+                {
+                    if (pr == null || string.IsNullOrEmpty(pr.Event)) continue;
+                    var existing = merged.FirstOrDefault(r =>
+                        string.Equals(r.Event, pr.Event, StringComparison.OrdinalIgnoreCase));
+                    if (existing != null)
+                    {
+                        existing.Reactions = CloneReactions(pr.Reactions);
+                    }
+                    else
+                    {
+                        merged.Add(new ReactiveResponse { Event = pr.Event, Reactions = CloneReactions(pr.Reactions) });
+                    }
+                }
+                ra.Responses = merged;
+            }
             ra.HasPost = false;   // 岗位以本次触发时的位置为准
+        }
+
+        private static List<ReactiveResponse.ReactiveReaction> CloneReactions(List<ReactiveResponse.ReactiveReaction> source)
+        {
+            var result = new List<ReactiveResponse.ReactiveReaction>();
+            if (source != null)
+            {
+                foreach (var rr in source)
+                    result.Add(new ReactiveResponse.ReactiveReaction { Action = rr.Action, Weight = rr.Weight });
+            }
+            return result;
         }
 
         /// <summary>移除（Agent 删除时）。</summary>
@@ -231,7 +272,8 @@ namespace LivingWorldNpcs
             return result;
         }
 
-        private static string ClassifyOccupation(Agent agent)
+        /// <summary>职业分类（PersuadeSlot 等外部复用：模板职业风味档）。</summary>
+        internal static string ClassifyOccupation(Agent agent)
         {
             try
             {
@@ -317,6 +359,16 @@ namespace LivingWorldNpcs
             // 请求方（决策结果广播目标）：触发事件带 Args[0] = 请求方 agent
             Agent requester = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as Agent : null;
 
+            // 🔴 M2 旁观插嘴（npc-dialogue-session-plan.md §5.5）：seen_speaking 中签（广播层已按
+            // 距离加权概率）→ 独立演算是否开口：距离 ≤ 10m × social ≥ 0.5 × 30% 概率（用户拍板点 2）
+            // + 15s 插嘴闸门。插嘴不占发言权（不参与会话回合）；只写"听到话题"记忆，不写对话全文
+            // （叙事铁律：围观者只知话题不知细节——情报必须来自渠道）。
+            if (aiEvent.EventType == "seen_speaking")
+            {
+                TryBystanderInterject(brain, ra, requester);
+                return true;
+            }
+
             // 找匹配反应条目
             var response = ra.Responses?.FirstOrDefault(r =>
                 string.Equals(r.Event, aiEvent.EventType, StringComparison.OrdinalIgnoreCase));
@@ -335,7 +387,15 @@ namespace LivingWorldNpcs
                 // 无反应条目 → 默认：不理（listen 一下）——对抗性由默认模板兜底
                 if (aiEvent.EventType == "asked_to_follow")
                 {
-                    brain.RunReactiveAction(new ReactiveSayAction(agent, "…", 1.5f));
+                    // 🔴 M0 说话并联：原 ReactiveSayAction（占队列 2.5s）→ SpeechChannel（并联不占队列）
+                    SpeechChannel.Say(agent, "…", SpeechPriority.Chat,
+                        SpeechContext.FromBrain(brain, requester, aiEvent.EventType, null));
+                }
+                else if (aiEvent.EventType == "spoken_to")
+                {
+                    // 🔴 4.2 spoken_to 默认兜底：被搭话至少"抬头看你"（修复 spoken_to 静默——
+                    // 即使 LLM 合并没有该触发词、默认表也没有，也保证有视线回应）
+                    brain.RunReactiveAction(new LookAtAction(requester ?? Agent.Main, 2f));
                 }
                 return true;
             }
@@ -374,6 +434,103 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 旁观插嘴演算（M2，npc-dialogue-session-plan.md §5.5 拍板点 2）：
+        /// 距离 ≤ 10m × social ≥ 0.5 × 30% 概率 + 15s 闸门 → SpeechChannel Interject 优先级播放。
+        /// 插嘴不占发言权（会话回合不变）；台词 LLM 润色（话题 + 旁观者身份）→ 模板兜底（"听见了"类）。
+        /// 围观者只写"听到话题"记忆，不写对话全文（叙事铁律：情报必须来自渠道）。
+        /// </summary>
+        private static void TryBystanderInterject(AgentBrain brain, ReactiveAgent ra, Agent speaker)
+        {
+            try
+            {
+                var agent = brain?.Owner;
+                if (agent == null || !agent.IsActive() || ra == null) return;
+
+                // 距离 ≤ 10m（拍板点 2）
+                float dist = speaker != null && speaker.IsActive()
+                    ? agent.Position.Distance(speaker.Position)
+                    : float.MaxValue;
+                if (dist > 10f) return;
+
+                // social ≥ 0.5（拍板点 2：社交高的旁观者才插嘴）
+                if ((ra.Personality?.Social ?? 0.5f) < 0.5f) return;
+
+                // 30% 概率（拍板点 2）
+                if (MBRandom.RandomFloat >= 0.3f) return;
+
+                // 15s 闸门（拍板点 3：插嘴频率上限）
+                float now = Mission.Current != null ? Mission.Current.CurrentTime : 0f;
+                if (now - ra.LastInterjectTime < 15f) return;
+                ra.LastInterjectTime = now;
+
+                // 🔴 M2 拍板点 3 落实：围观者只写"听到话题"记忆，不写对话全文（叙事铁律：情报必须来自
+                // 渠道——旁观者只知"谁在说话"，不知对话细节）。旁白 = 第一人称 LLM prompt 材料（铁律 13
+                // 豁免），RecordNarration 自带硬上限 + LLM 总结节流；15s 闸门同步节流记忆写入频率。
+                try
+                {
+                    string heard = speaker != null
+                        ? $"听到{speaker.Name}和人在交谈"
+                        : "听到附近有人在交谈";
+                    AllNpcMemoryManager.GetMemoryForAgent(agent)?.RecordNarration(heard);
+                }
+                catch { }
+
+                DebugLogger.Log($"[Interject] {agent.Name} 旁观插嘴（距 {speaker?.Name} {dist:F1}m）");
+
+                // LLM 润色（注入话题 + 旁观者身份；fire-and-forget → 主线程 TickAll 消费）
+                if (Settings.Instance.IsLLMConfigured)
+                {
+                    async void Run()
+                    {
+                        try
+                        {
+                            if (agent == null || !agent.IsActive()) return;
+                            string occ = ClassifyOccupation(agent);
+                            string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
+                            string identity = string.Format(
+                                ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
+                                occName, DescribePersonality(ra.Personality));
+                            var dline = await DialogueComponent.GenerateLine(
+                                Settings.Instance?.WorldDescription ?? "", identity, "",
+                                "旁观话题",
+                                "",
+                                ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + "两人在交谈，你只是路过旁听",
+                                speaker?.Name?.ToString() ?? "说话的人",
+                                "", "",
+                                "LWN_plan_respond_rule",
+                                "【要求】用一句话表达你旁听到交谈后的反应（10-30 字），像路人的随口一评。直接说台词本身——不要引号、不要解释、不要动作描写。",
+                                null, maxTokens: 80, timeoutMs: 2000);
+                            string result = dline != null && dline.FromLlm
+                                ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "")
+                                : null;
+                            _pendingInterjects.Enqueue((agent, !string.IsNullOrWhiteSpace(result)
+                                ? result
+                                : SessionDialogueTemplates.Resolve(0.7f, "bystander", null, occ, 1, null) ?? "嗯？"));
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"[Interject] 插嘴生成异常: {ex.Message}");
+                        }
+                    }
+                    Run();
+                }
+                else
+                {
+                    // 模板降级（"听见了"类；bystander 档——只知话题不知细节）
+                    string occ = ClassifyOccupation(agent);
+                    string line = SessionDialogueTemplates.Resolve(0.7f, "bystander", null, occ, 1, null);
+                    if (!string.IsNullOrWhiteSpace(line))
+                        SpeechChannel.Say(agent, line, SpeechPriority.Interject,
+                            SpeechContext.FromBrain(brain, speaker, "seen_speaking", "旁观话题"));
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Interject] 插嘴演算异常: {ex.Message}");
+            }
+        }
+
         private static void ExecuteReaction(AgentBrain brain, ReactiveAgent ra, string action, Agent requester, string triggerEvent, object[] args = null, float score = 0f)
         {
             var agent = brain.Owner;
@@ -400,14 +557,18 @@ namespace LivingWorldNpcs
                     break;
                 case "refuse":
                     // 本地化：拒绝台词（被叫方/对手方）
-                    brain.RunReactiveAction(new ReactiveSayAction(agent, LWNTextHelper.ResolveText("LWN_reactive_refuse", "No, I cannot do that."), 2.5f));
+                    // 🔴 M0 说话并联 + M4 双轨润色：原 ReactiveSayAction → SpeechChannel Warning 优先级
+                    SpeechChannel.SayPolished(agent, LWNTextHelper.ResolveText("LWN_reactive_refuse", "No, I cannot do that."), SpeechPriority.Warning,
+                        SpeechContext.FromBrain(brain, requester, triggerEvent, null));
                     // 决策结果广播（统一事件名 refused，拒绝任何请求）
                     if (requester != null)
                         AgentAIController.Instance?.SendEventToAgent(requester, "plan_decision", "refused", agent);
                     break;
                 case "warn_away":
                     // 本地化：警告台词（守卫警告靠近者）
-                    brain.RunReactiveAction(new ReactiveSayAction(agent, LWNTextHelper.ResolveText("LWN_reactive_warnaway", "Stay back! Do not come closer."), 2.5f));
+                    // 🔴 M0 说话并联 + M4 双轨润色：原 ReactiveSayAction → SpeechChannel Warning 优先级
+                    SpeechChannel.SayPolished(agent, LWNTextHelper.ResolveText("LWN_reactive_warnaway", "Stay back! Do not come closer."), SpeechPriority.Warning,
+                        SpeechContext.FromBrain(brain, requester, triggerEvent, null));
                     break;
                 case "follow_for_a_bit":
                     {
@@ -753,6 +914,13 @@ namespace LivingWorldNpcs
             catch { }
         }
 
+        /// <summary>人格数值 → 一句话描述（LLM 身份段用；世界观中性词，走本地化）。
+        /// public 包装（PersuadeSlot 说服会话 LLM 身份段复用）。</summary>
+        public static string DescribePersonalityForPrompt(ReactivePersonality p)
+        {
+            return DescribePersonality(p);
+        }
+
         /// <summary>人格数值 → 一句话描述（LLM 身份段用；世界观中性词，走本地化）。</summary>
         private static string DescribePersonality(ReactivePersonality p)
         {
@@ -789,7 +957,9 @@ namespace LivingWorldNpcs
                         else
                             AgentControlHelper.FaceToActor(item.Agent, item.Requester);
                     }
-                    AgentHudMissionView.AgentSay(item.Agent, item.Text);
+                    // 🔴 统一说话框架：respond 台词播放（前因=spoken_to 触发词响应；Dialogue 优先级）
+                    SpeechChannel.Say(item.Agent, item.Text, SpeechPriority.Dialogue,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(item.Agent), item.Requester, "spoken_to", null));
                     // 🔴 §5.6 动作决策执行（说话带动作：威胁手势/拔刀/做表情…；空间+冷却+IsValid 全在 ActionHandler 内部）
                     if (!string.IsNullOrEmpty(item.ActionCode) && item.ActionCode != "NONE")
                     {
@@ -805,6 +975,20 @@ namespace LivingWorldNpcs
                             DebugLogger.Log($"[ReactiveRespond] 动作执行失败 {item.ActionCode}: {ex.Message}");
                         }
                     }
+                }
+                catch { }
+            }
+
+            // 🔴 M2 旁观插嘴消费（LLM 结果 → SpeechChannel Interject 优先级；插嘴不接管 brain——
+            // 与 _pendingReplies 的 RunReactiveAction 接管语义相反，旁观者插嘴不应打断自己的行动）
+            while (_pendingInterjects.TryDequeue(out var ij))
+            {
+                try
+                {
+                    if (ij.Agent == null || !ij.Agent.IsActive()) continue;
+                    if (string.IsNullOrWhiteSpace(ij.Text)) continue;
+                    SpeechChannel.Say(ij.Agent, ij.Text, SpeechPriority.Interject,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(ij.Agent), null, "seen_speaking", "旁观话题"));
                 }
                 catch { }
             }

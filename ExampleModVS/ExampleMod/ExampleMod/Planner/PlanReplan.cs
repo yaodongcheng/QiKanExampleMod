@@ -109,7 +109,11 @@ namespace LivingWorldNpcs
 
             // 新计划：玩家无需重新批准，但 summary 播报（§7.2）
             // 本地化：Replan 新计划摘要播报
-            AgentHudMissionView.AgentSay(owner, LWNTextHelper.ResolveCompound("LWN_plan_replan_summary", ("SUMMARY", response.Plan.Summary ?? "")));
+            // 🔴 统一说话框架：重规划摘要（前因=plan_replan；SpeechChannel 线程安全，LLM 回调可直调）。
+            // 摘要 response.Plan.Summary 已是 LLM 生成 → 不再 SayPolished（避免嵌套 LLM 请求）
+            SpeechChannel.Say(owner, LWNTextHelper.ResolveCompound("LWN_plan_replan_summary", ("SUMMARY", response.Plan.Summary ?? "")),
+                SpeechPriority.Dialogue,
+                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(owner), Agent.Main, "plan_replan", null));
             DebugLogger.Log($"[PlanReplan] 新计划下发: {response.Plan.Summary}");
 
             // 反应计划更新

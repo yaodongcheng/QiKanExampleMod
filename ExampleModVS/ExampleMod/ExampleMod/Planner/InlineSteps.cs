@@ -50,7 +50,10 @@ namespace LivingWorldNpcs
         bool IsBehavioral { get; }
     }
 
-    /// <summary>say_to：单句模式（text，现状）/ 对话模式（outline + topic，多轮 LLM 实时对话）。
+    /// <summary>say_to：单句模式（text，现状）/ 对话模式（outline + topic，多轮 LLM 实时对话）/
+    /// 🔴 M1 说服模式（persuade: true，npc-dialogue-session-plan.md §5）：多轮说服会话——
+    /// 接受者 agree 逐轮演化，同意/拒绝兑现 + plan_decision 回流；无 LLM 走 XML 模板会话。
+    /// 对话模式状态机平移为 SayToSlot（DialogueComponent）；说服模式 = PersuadeSlot。
     /// 🔴 2026-08-11（§5.6 四槽位体系）：对话模式状态机平移为 SayToSlot（DialogueComponent）——
     /// 本类变薄壳：单句模式保留原逻辑，对话模式委托 SayToSlot.Tick（BC-006 行为等价）。</summary>
     public class SayInlineState : IInlineStep
@@ -60,6 +63,7 @@ namespace LivingWorldNpcs
         private readonly PlanStep _step;
         private readonly PlanExecutor _executor;
         private readonly SayToSlot _chatSlot;   // 🔴 对话模式插槽（2026-08-11：ChatPhase 状态机平移）
+        private readonly PersuadeSlot _persuadeSlot; // 🔴 M1 说服模式插槽（多轮说服会话）
         private float _timer;
         private float _duration;
         private bool _said;
@@ -87,6 +91,17 @@ namespace LivingWorldNpcs
                 return;
             }
             Ok = true;
+            // 🔴 M1 说服模式（persuade: true）：多轮说服会话（发起者=随从自动驱动，论据=outline 段数）
+            if (step.Persuade)
+            {
+                _persuadeSlot = new PersuadeSlot(_agent, _target,
+                    !string.IsNullOrEmpty(step.Topic) ? step.Topic : executor?.Summary,
+                    (executor != null ? executor.IntentType.ToString() : null) ?? (string.IsNullOrEmpty(step.Ask) ? null : step.Ask),
+                    MissionSessionOutcome.Instance,
+                    playerDriven: false, autoDriveInit: true,
+                    outlineCount: step.OutlineSegments?.Count ?? 0);
+                return;
+            }
             // 🔴 对话模式（outline 2+ 段）→ SayToSlot 插槽（状态机平移，行为等价）；单句模式保留原逻辑
             if (step.IsChatMode)
             {
@@ -102,6 +117,16 @@ namespace LivingWorldNpcs
         public void OnTick(float dt)
         {
             if (Finished || !Ok) return;
+            // 🔴 M1 说服模式 → PersuadeSlot 插槽驱动（多轮说服：agree 演化 → 兑现 → plan_decision 回流）
+            if (_persuadeSlot != null)
+            {
+                var session = _persuadeSlot.Session;
+                if (session != null && session.Slot != null)
+                    session.Slot.OnTick(session, dt);
+                if (_persuadeSlot.Finished)
+                    Finished = true;
+                return;
+            }
             // 🔴 对话模式 → SayToSlot 插槽驱动（2026-08-11 架构收敛：统一 DialogueSession，每帧调 Slot.OnTick）
             if (_chatSlot != null)
             {
@@ -121,8 +146,11 @@ namespace LivingWorldNpcs
                 {
                     if (_target != null && _target.IsActive())
                         AgentControlHelper.FaceToActor(_agent, _target);
+                    // 🔴 统一说话框架：say_to 单句模式（前因=plan step 台词）。
+                    // 文本是计划期 LLM 生成的密令台词 → 不再 SayPolished（执行期重润色会偏离计划原意）
                     if (!string.IsNullOrEmpty(_step.TextOrContent))
-                        AgentHudMissionView.AgentSay(_agent, _step.TextOrContent);
+                        SpeechChannel.Say(_agent, _step.TextOrContent, SpeechPriority.Dialogue,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(_agent), _target, "say_to", _step.Topic));
                 }
                 catch { }
             }
@@ -335,8 +363,10 @@ namespace LivingWorldNpcs
             _agent = cursor.Agent;
             try
             {
-                // 本地化：喊叫台词（COMMOTION 引众围观）
-                AgentHudMissionView.AgentSay(_agent, LWNTextHelper.ResolveText("LWN_plan_noise", "Hey! Over here! Look at this!"));
+                // 🔴 统一说话框架 + M4 双轨润色：喊叫台词（COMMOTION 引众围观；Warning 前因=make_noise）
+                SpeechChannel.SayPolished(_agent, LWNTextHelper.ResolveText("LWN_plan_noise", "Hey! Over here! Look at this!"),
+                    SpeechPriority.Warning,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(_agent), null, "make_noise", null));
                 // 围观聚集：WitnessCrime 事件（criminal=self 非玩家 → 不加犯罪脉冲，纯围观）
                 AgentAIController.Instance?.BroadcastEventInRange(
                     _agent.Position, 20f, "WitnessCrime",
@@ -747,8 +777,10 @@ namespace LivingWorldNpcs
                     // 赃物移交（箱子记账语义：随从把偷到的财物当面交到玩家手上）
                     if (_executor.StolenItem != null)
                     {
-                        // 本地化：移交赃物台词
-                        AgentHudMissionView.AgentSay(_agent, LWNTextHelper.ResolveText("LWN_plan_handover", "Here, take it."));
+                        // 🔴 统一说话框架 + M4 双轨润色：移交赃物台词（前因=give_item）
+                        SpeechChannel.SayPolished(_agent, LWNTextHelper.ResolveText("LWN_plan_handover", "Here, take it."),
+                            SpeechPriority.Dialogue,
+                            SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(_agent), Agent.Main, "give_item", null));
                         InformationManager.DisplayMessage(new InformationMessage(
                             // 本地化：随从移交赃物提示
                             LWNTextHelper.ResolveCompound("LWN_plan_handover_msg", ("NAME", _agent.Name?.ToString() ?? ""), ("ITEM", _executor.StolenItem)), Colors.Green));

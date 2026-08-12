@@ -74,7 +74,10 @@ namespace LivingWorldNpcs
             }
 
             // ── PendingWorldEvent 初始化 ──
-            var settlement = Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement;
+            // 非战役模式（自定义战斗等）无 Campaign：Settlement.CurrentSettlement 的
+            // getter 内部直接访问 MobileParty.MainParty，无 null 保护会抛 NRE，
+            // 先判 Campaign.Current（兜底，正常流程已被 MySubModule 注册闸门挡住）
+            var settlement = Campaign.Current == null ? null : (Settlement.CurrentSettlement ?? Hero.MainHero?.CurrentSettlement);
             if (settlement != null)
             {
                 string sceneLoc = WorldEvent.ResolveSceneLocationName(CampaignMission.Current?.Location?.StringId);
@@ -202,6 +205,8 @@ namespace LivingWorldNpcs
 
         public override void OnAgentDeleted(Agent agent)
         {
+            // 说话并联通道清理（M0：agent 删除 → 注册表移除）
+            SpeechChannel.Remove(agent);
             if (_brains.TryGetValue(agent.Index, out var brain))
             {
                 if (IsDebugMode)
@@ -226,6 +231,8 @@ namespace LivingWorldNpcs
             ReactiveAgent.TickAll(dt);
             // 🔴 2026-08-11 续话器：活跃对话的续话/中止策略调度（SocialSlot 威胁/NPC 闲聊跟进）
             DialogueComponent.TickContinuations(dt);
+            // 🔴 M0 说话并联通道：气泡队列推进（与动作队列完全并联，不占 CurrentAction）
+            SpeechChannel.TickAll(dt);
         }
 
         public override void OnRemoveBehavior()
@@ -238,6 +245,8 @@ namespace LivingWorldNpcs
             NearbyFeed.Clear();
             // 🔴 2026-08-11 续话器：Mission 结束清理活跃对话（OnEnd 收尾）
             DialogueComponent.ClearContinuations();
+            // 🔴 M0 说话并联通道：Mission 结束清注册表（气泡不跨场景）
+            SpeechChannel.ClearAll();
             base.OnRemoveBehavior();
         }
 

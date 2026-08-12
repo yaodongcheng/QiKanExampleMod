@@ -75,6 +75,13 @@ namespace LivingWorldNpcs
         // ── 调试消息全局开关（工作时打开，发布前关掉）──
         public bool ShowDebugMessages { get; set; } = true;
 
+        // ── 说话 LLM 润色开关（默认开启；config.json 侧调试项）──
+        // 能力已全量升级（2026-08-12）：战斗喊话/质问/拒绝/警告等所有说话调用点都有 LLM 实时润色
+        // 路径（fire-and-forget，预算超时/失败/无配置 → 原模板立即兜底，铁律 1）。此开关 = 是否启用
+        // 润色；关掉后所有台词走离线模板（= 升级前的行为）。总闸另有 IsLLMConfigured（LLM 未配置 =
+        // 天然不润色，无需额外处理）。
+        public bool PolishSpeechEnabled { get; set; } = true;
+
         // ── 目击系统开关（默认开启，关掉后偷窃/犯罪不会被目击）──
         public bool WitnessSystemEnabled { get; set; } = true;
 
@@ -215,6 +222,9 @@ namespace LivingWorldNpcs
         /// <summary>当前 Mission 是否应关闭非战斗互动（视野感知/警戒/击晕/偷窃/对话）</summary>
         public bool IsInteractionDisabled()
         {
+            // 非战役模式（自定义战斗等）无 Campaign：Settlement.CurrentSettlement getter 内部
+            // 访问 MobileParty.MainParty 会 NRE（getter 无 null 保护，?. 救不了），直接禁用互动
+            if (Campaign.Current == null) return true;
             if (Mission.Current == null) return true;
             if (DisabledInteractionMissionModes.Contains(Mission.Current.Mode.ToString())) return true;
             // 新手训练场（tutorial_training_field）不适用 MissionMode 过滤（其 Mode 为 StartUp 与城镇相同），

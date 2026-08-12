@@ -240,6 +240,15 @@ namespace LivingWorldNpcs
                 ImChatStore.TouchDirectChat(conv.PartnerHeroId, NowUnixMs());
                 ImHeatTracker.Add(conv.PartnerHeroId, 1f);
 
+                // 🔴 M3 私聊劝说会话（npc-dialogue-session-plan.md §5.6）：句式命中 → 进入劝说会话，
+                // 回应由会话容器投递（agree 演化 → 承诺/拒绝兑现）——**不叠加**通用回复管线（避免双回应）
+                bool persuaded = CampaignPersuadeHub.OnDirectMessage(conv.PartnerHeroId, trimmed);
+                // 🔴 NPC 自主行动提议（2026-08-12）：玩家对 NPC 说话（任何方式）都可能激活 NPC 自主
+                // 行动提议（概率 + 冷却 + 卡片批准；与劝说会话/通用回复并行，独立一层不抢回复）
+                var autHero = GetHero(conv.PartnerHeroId);
+                if (autHero != null) AutonomyProposal.TryFromPlayerMessage(autHero, trimmed);
+                if (persuaded) { RaiseMessageArrived(conv); return; }
+
                 // 调度 NPC 回复
                 var hero = GetHero(conv.PartnerHeroId);
                 if (hero != null)
@@ -258,6 +267,11 @@ namespace LivingWorldNpcs
                 // 非 LLM 语义检索挑回复者（用户决策 1）+ 25% 概率跟随回复
                 // 热度只给被挑中的回复者（防全频道成员批量加分集体升 Hot 档——「互动多者容量大」应指实际互动者）
                 var members = GetChannelMembers(conv.Type);
+                // 🔴 M3 群聊动议（§5.6 议题模式）：句式命中 → 各成员独立 stance 表态（不影响通用回复管线，
+                // 动议接话与普通回复并行——议题是额外一层，不抢正常聊天）
+                CampaignPersuadeHub.OnGroupMessage(conv, trimmed);
+                // 🔴 NPC 自主行动提议（2026-08-12）：群聊里玩家说话 → 热度最高成员可能提议（卡片批准）
+                AutonomyProposal.TryFromGroupMessage(conv, trimmed);
                 // 🔴 跟随保底：传 channelId 让 PickRepliers 做"满 N 条必跟随"（2026-08-10）
                 var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed, conv.Id);
                 if (primary != null)
@@ -492,7 +506,12 @@ namespace LivingWorldNpcs
             var agent = FindAgentByHeroId(npcHeroId);
             if (agent != null && AgentHudMissionView.Instance != null)
             {
-                try { AgentHudMissionView.AgentSay(agent, content); }
+                try
+                {
+                    // 🔴 统一说话框架：IM 消息送达冒泡（前因=im_message；Chat 优先级）
+                    SpeechChannel.Say(agent, content, SpeechPriority.Chat,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), null, "im_message", null));
+                }
                 catch (Exception ex) { DebugLogger.Log($"[ImChat] 送达冒泡失败: {ex.Message}"); }
             }
 
@@ -537,6 +556,10 @@ namespace LivingWorldNpcs
             ImReplyService.Tick();
             ImCommandFlow.Tick();
             ImEventBroadcaster.Tick();
+            // 🔴 M3 Campaign 会话驱动（私聊劝说冷场兑现 + 群聊动议冷场兑现 + 投递队列消费）
+            CampaignPersuadeHub.Tick();
+            // 🔴 NPC 自主行动提议投递（后台生成 → 主线程投递）
+            AutonomyProposal.Tick();
         }
 
         // ───────────────────────── 工具 ─────────────────────────

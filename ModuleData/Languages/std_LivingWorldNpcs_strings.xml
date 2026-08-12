@@ -1,4 +1,4 @@
-﻿<?xml version='1.0' encoding='utf-8'?>
+<?xml version='1.0' encoding='utf-8'?>
 <base type="string">
   <tags>
     <tag language="English" />
@@ -1924,9 +1924,9 @@
     <string id="LWN_notify_escalated_short" text="⚠ Situation Soured · {LOC}" />
     <string id="LWN_notify_escalated_far" text="Rumor has it the situation in {LOC} keeps worsening... and has been for some time now." />
     
-    <string id="LWN_notify_resolved_banditraid" text="✅ The brigand trouble in {LOC} has been quelled. The folk can finally rest easy." />
-    <string id="LWN_notify_resolved_default" text="✅ The affair in {LOC} has been resolved." />
-    <string id="LWN_notify_resolved_short" text="✅ Affair Resolved · {LOC}" />
+    <string id="LWN_notify_resolved_banditraid" text="▣ The brigand trouble in {LOC} has been quelled. The folk can finally rest easy." />
+    <string id="LWN_notify_resolved_default" text="▣ The affair in {LOC} has been resolved." />
+    <string id="LWN_notify_resolved_short" text="▣ Affair Resolved · {LOC}" />
     <string id="LWN_notify_resolved_far" text="Word is someone has already settled the trouble over in {LOC}." />
     
     <string id="LWN_notify_severity_urgent" text="Urgent — " />
@@ -2034,7 +2034,7 @@
     
     <string id="LWN_notify_resolved_victim_line" text="Victim: {VICTIM}&amp;#10;" />
     <string id="LWN_notify_resolved_body" text="════ Event Resolved ════&amp;#10;&amp;#10;{MSG}&amp;#10;&amp;#10;——&amp;#10;Location: {LOC}&amp;#10;Type: {TYPE}&amp;#10;Severity: {SEVERITY}/100&amp;#10;Instigator: {INSTIGATOR}&amp;#10;{VICTIM_LINE}&amp;#10;This matter is settled and no longer requires your intervention." />
-    <string id="LWN_notify_resolved_title" text="✅ {LOC} — {TYPE} (Resolved)" />
+    <string id="LWN_notify_resolved_title" text="▣ {LOC} — {TYPE} (Resolved)" />
     
     
     
@@ -4047,5 +4047,97 @@
     <string id="LWN_im_mode_status" text="Mode: {MODE}" />
     <string id="LWN_im_btn_switch_mode" text="Switch to {MODE}" />
     <string id="LWN_im_new_message" text="New messages" />
-</strings>
+    <!-- Persuasion session templates (npc-dialogue-session-plan.md §5.3.1) -->
+    <!-- Category-first: move_req (moving/following) / affair (a task) / combat (force) / chat (idle) -->
+    <!-- Roles: initiator / responder / bystander; Tiers: refuse / waver / near / agree -->
+    <string id="LWN_dialog_move_req_responder_refuse_1" text="I am on duty, I cannot leave." />
+    <string id="LWN_dialog_move_req_responder_refuse_2" text="Do not press me, sir." />
+    <string id="LWN_dialog_move_req_responder_waver_1" text="...This must be reported to my superior first." />
+    <string id="LWN_dialog_move_req_responder_waver_2" text="Let me think it over." />
+    <string id="LWN_dialog_move_req_responder_near_1" text="If your lord summons... let me settle my post first." />
+    <string id="LWN_dialog_move_req_responder_near_2" text="...Well, I could come with you, I suppose." />
+    <string id="LWN_dialog_move_req_responder_agree_1" text="Very well, I will come with you." />
+    <string id="LWN_dialog_move_req_responder_agree_2" text="Fine, lead the way." />
+    <string id="LWN_dialog_move_req_initiator_refuse_1" text="Very well, since it is too much to ask, forget it." />
+    <string id="LWN_dialog_move_req_initiator_refuse_2" text="I will trouble you no further. Farewell." />
+    <string id="LWN_dialog_move_req_initiator_waver_1" text="Will you not reconsider?" />
+    <string id="LWN_dialog_move_req_initiator_waver_2" text="My lord's sincerity should be plain to you." />
+    <string id="LWN_dialog_move_req_initiator_near_1" text="Sir, my lord will reward you handsomely." />
+    <string id="LWN_dialog_move_req_initiator_near_2" text="It is only one trip. Say yes." />
+    <string id="LWN_dialog_move_req_initiator_agree_1" text="Good, let us be off at once." />
+    <string id="LWN_dialog_move_req_initiator_agree_2" text="With your word, my lord will not forget it." />
+    <!-- move_req x guard occupation flavor -->
+    <string id="LWN_dialog_move_req_guard_responder_refuse_1" text="Orders are iron. I must refuse." />
+    <string id="LWN_dialog_move_req_guard_responder_refuse_2" text="I am bound by duty. I cannot follow." />
+    <string id="LWN_dialog_move_req_guard_responder_waver_1" text="...My orders stand, but let me think." />
+    <string id="LWN_dialog_move_req_guard_responder_near_1" text="If it is a matter of business... let me hand over my post." />
+    <string id="LWN_dialog_move_req_guard_responder_agree_1" text="If it is urgent, I will come with you." />
+    <!-- affair category: willing to handle the task (refuse="I cannot decide this", agree="I will arrange it") -->
+    <string id="LWN_dialog_affair_responder_refuse_1" text="This is beyond my authority. Ask another day." />
+    <string id="LWN_dialog_affair_responder_refuse_2" text="I have my hands full. No time." />
+    <string id="LWN_dialog_affair_responder_waver_1" text="...Let me think." />
+    <string id="LWN_dialog_affair_responder_waver_2" text="This needs careful thought." />
+    <string id="LWN_dialog_affair_responder_near_1" text="If there is no hurry, I will see to it in a day or two." />
+    <string id="LWN_dialog_affair_responder_near_2" text="Very well, give me time to prepare." />
+    <string id="LWN_dialog_affair_responder_agree_1" text="Very well, I will arrange it." />
+    <string id="LWN_dialog_affair_responder_agree_2" text="Done. Leave it to me." />
+    <string id="LWN_dialog_affair_initiator_refuse_1" text="Then forget it. Sorry for troubling you." />
+    <string id="LWN_dialog_affair_initiator_refuse_2" text="Since it cannot be, I will find another way." />
+    <string id="LWN_dialog_affair_initiator_waver_1" text="It would benefit you too. Think again?" />
+    <string id="LWN_dialog_affair_initiator_waver_2" text="I can offer some payment." />
+    <string id="LWN_dialog_affair_initiator_near_1" text="Only your word is needed now." />
+    <string id="LWN_dialog_affair_initiator_near_2" text="There will be a reward when it is done." />
+    <string id="LWN_dialog_affair_initiator_agree_1" text="Good, then I rely on you." />
+    <string id="LWN_dialog_affair_initiator_agree_2" text="I await good news." />
+    <!-- combat category: replies under threat of force (mostly refusal: "Want a fight?") -->
+    <string id="LWN_dialog_combat_responder_refuse_1" text="Want a fight? I will oblige." />
+    <string id="LWN_dialog_combat_responder_refuse_2" text="If it is blows you want, spare me the talk." />
+    <string id="LWN_dialog_combat_responder_agree_1" text="...Very well, I yield." />
+    <string id="LWN_dialog_combat_initiator_refuse_1" text="My apologies, I spoke out of turn." />
+    <string id="LWN_dialog_combat_initiator_agree_1" text="Agreed, then." />
+    <!-- chat category: neutral small talk (no tier evolution) -->
+    <string id="LWN_dialog_chat_responder_refuse_1" text="Mm, I see." />
+    <string id="LWN_dialog_chat_responder_refuse_2" text="(A dismissive grunt)" />
+    <string id="LWN_dialog_chat_responder_agree_1" text="I see, I see." />
+    <string id="LWN_dialog_chat_responder_agree_2" text="Interesting. Do tell." />
+    <string id="LWN_dialog_chat_initiator_refuse_1" text="Then I will not keep you." />
+    <string id="LWN_dialog_chat_initiator_agree_1" text="Just chatting." />
+    <string id="LWN_dialog_chat_initiator_agree_2" text="What do you make of the recent matter?" />
+    <!-- bystander interjections (heard the topic, no details - narrative law) -->
+    <string id="LWN_dialog_move_req_bystander_agree_1" text="(Hears talk of a journey, pricks up ears)" />
+    <string id="LWN_dialog_affair_bystander_agree_1" text="(Hears them discussing some business, looks over)" />
+    <string id="LWN_dialog_chat_bystander_agree_1" text="(Hears the talk, draws near)" />
+    <string id="LWN_dialog_bystander_refuse_1" text="(Not my business. Pays no mind)" />
+    <string id="LWN_dialog_bystander_agree_1" text="(Heard the conversation over there)" />
+    <string id="LWN_dialog_bystander_agree_2" text="What are they discussing over there?" />
+    <!-- Neutral fallback (must be purpose-free - no specific meaning) -->
+    <string id="LWN_dialog_responder_refuse_1" text="Let me think it over." />
+    <string id="LWN_dialog_responder_refuse_2" text="I am afraid I must decline." />
+    <string id="LWN_dialog_responder_waver_1" text="...Let me consider it." />
+    <string id="LWN_dialog_responder_waver_2" text="This is a difficult spot." />
+    <string id="LWN_dialog_responder_near_1" text="...Well, it is not entirely out of the question." />
+    <string id="LWN_dialog_responder_near_2" text="Give me a moment to weigh it." />
+    <string id="LWN_dialog_responder_agree_1" text="Very well, as you say." />
+    <string id="LWN_dialog_responder_agree_2" text="If that is so, then it is settled." />
+    <string id="LWN_dialog_initiator_refuse_1" text="Very well, never mind." />
+    <string id="LWN_dialog_initiator_refuse_2" text="Sorry to have troubled you." />
+    <string id="LWN_dialog_initiator_waver_1" text="Will you not reconsider?" />
+    <string id="LWN_dialog_initiator_waver_2" text="I ask you in good faith." />
+    <string id="LWN_dialog_initiator_near_1" text="Only your word is needed." />
+    <string id="LWN_dialog_initiator_near_2" text="If you doubt me, I will put it in writing." />
+    <string id="LWN_dialog_initiator_agree_1" text="Good, then it is settled." />
+    <string id="LWN_dialog_initiator_agree_2" text="My thanks for agreeing." />
+    <!-- Combat shouts (M0: start / hurt / victory; parallel SpeechChannel Combat priority) -->
+    <string id="LWN_action_combat_start" text="You are asking for death!" />
+    <string id="LWN_action_combat_hurt" text="Agh!" />
+    <string id="LWN_action_combat_end" text="Hmph. Overconfident fool." />
+    <!-- Session settle broadcast (M2: party group chat) -->
+    <string id="LWN_dialog_settle_broadcast" text="Nearby, folk are murmuring: the matter of {TOPIC} seems to have been {RESULT}." />    <!-- Campaign persuasion sessions (M3: direct promise + group motion; word-deed consistency) -->
+    <string id="LWN_campaign_persuade_agree" text="Very well, I have noted it. {TOPIC} I will see to it." />
+    <string id="LWN_campaign_persuade_refuse" text="This I cannot grant. Do not raise {TOPIC} again." />
+    <string id="LWN_campaign_persuade_settle_agree" text="Very well then, as you say." />
+    <string id="LWN_campaign_persuade_settle_refuse" text="Speak of this no more." />
+    <string id="LWN_campaign_motion_pass" text="It is settled then. Let us all comply." />
+    <string id="LWN_campaign_motion_fail" text="Let us weigh this another day." />    <string id="LWN_dialog_bystander_refuse_2" text="(Shakes head, walks off)" />
+    <string id="LWN_dialog_chat_initiator_refuse_2" text="...I spoke out of turn." /></strings>
 </base>

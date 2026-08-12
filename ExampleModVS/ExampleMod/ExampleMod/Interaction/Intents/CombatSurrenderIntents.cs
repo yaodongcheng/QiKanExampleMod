@@ -245,8 +245,11 @@ namespace LivingWorldNpcs
                 case "refuse":
                     // 拒绝认输 → NPC 战后重回战斗（两阶段：对话中只标记，EndConversation 消费）
                     FightOnIntent.PendingSurrenderRefusedAgent = ctx.Agent;
-                    // NPC 拒绝投降的喊话气泡
-                    AgentHudMissionView.AgentSay(ctx.Agent, LWNTextHelper.ResolveText("LWN_intent_surrender_npc_refused_say", "No——!!"));
+                    // 🔴 统一说话框架 + M4 双轨润色：NPC 拒绝投降喊话（Combat 前因=combat；终局时敏 = 1s 短预算）
+                    SpeechChannel.SayPolished(ctx.Agent, LWNTextHelper.ResolveText("LWN_intent_surrender_npc_refused_say", "No——!!"),
+                        SpeechPriority.Combat,
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(ctx.Agent), Agent.Main, "combat", "战斗"),
+                        budgetS: 1f);
                     DebugLogger.Log("[Combat] ResolveNpcSurrender: refuse (标记战后重回战斗)");
                     break;
             }

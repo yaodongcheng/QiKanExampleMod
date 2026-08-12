@@ -108,6 +108,8 @@ namespace LivingWorldNpcs
         [JsonProperty("topic")] public string Topic;      // say_to 对话模式：聊天话题（LLM 计划期定，真实对话执行期生成）
         [JsonProperty("outline")] public JToken Outline;  // say_to 对话模式：走向数组 ["寒暄","问生意",...]（2-5 段；JToken 容错 LLM 类型错误）
         [JsonProperty("ask")] public string Ask;          // say_to 可选：follow = 邀请跟随
+        [JsonProperty("persuade")] public bool Persuade;  // say_to 可选：true = 多轮说服会话（npc-dialogue-session-plan.md §5，M1：
+                                                          // 接受者 agree 逐轮演化 → 同意/拒绝兑现 → plan_decision 回流；无 LLM 走 XML 模板会话）
         [JsonProperty("seconds")] public float Seconds;   // wait 纯等待（与 until 互斥）
         [JsonProperty("until")] public Condition Until;   // wait 退出条件 / 动作步骤提前完成条件
         [JsonProperty("when")] public Condition When;     // GATE 前置门控

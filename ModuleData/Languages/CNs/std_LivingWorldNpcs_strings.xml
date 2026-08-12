@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <base xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" type="string">
   <tags>
     <tag language="简体中文" />
@@ -2003,9 +2003,9 @@
     <string id="LWN_notify_escalated_short" text="⚠ 局势恶化 · {LOC}" />
     <string id="LWN_notify_escalated_far" text="传闻{LOC}的局势正在恶化……已经持续了好一阵了。" />
     <!-- 解决通知（OnEventResolved） -->
-    <string id="LWN_notify_resolved_banditraid" text="✅ {LOC} 的匪患已平息。百姓终于能睡个安稳觉了。" />
-    <string id="LWN_notify_resolved_default" text="✅ {LOC} 的事件已解决。" />
-    <string id="LWN_notify_resolved_short" text="✅ 事件解决 · {LOC}" />
+    <string id="LWN_notify_resolved_banditraid" text="▣ {LOC} 的匪患已平息。百姓终于能睡个安稳觉了。" />
+    <string id="LWN_notify_resolved_default" text="▣ {LOC} 的事件已解决。" />
+    <string id="LWN_notify_resolved_short" text="▣ 事件解决 · {LOC}" />
     <string id="LWN_notify_resolved_far" text="听说{LOC}那边的事已经有人摆平了。" />
     <!-- 中距消息（BuildMidRangeMessage） -->
     <string id="LWN_notify_severity_urgent" text="紧急——" />
@@ -2113,7 +2113,7 @@
     <!-- 事件已解决弹窗（ShowResolvedInquiry） -->
     <string id="LWN_notify_resolved_victim_line" text="受害者：{VICTIM}&#10;" />
     <string id="LWN_notify_resolved_body" text="════ 事件已解决 ════&#10;&#10;{MSG}&#10;&#10;——&#10;地点：{LOC}&#10;类型：{TYPE}&#10;严重度：{SEVERITY}/100&#10;加害方：{INSTIGATOR}&#10;{VICTIM_LINE}&#10;此事件已了结，不再需要你的介入。" />
-    <string id="LWN_notify_resolved_title" text="✅ {LOC} — {TYPE}（已解决）" />
+    <string id="LWN_notify_resolved_title" text="▣ {LOC} — {TYPE}（已解决）" />
 
     <!-- ═══════════════════════════════════════════ -->
     <!-- WorldEventDirector — 路途拦截/传闻/开场白         -->
@@ -4139,5 +4139,102 @@
     <string id="LWN_im_mode_status" text="当前：{MODE}模式" />
     <string id="LWN_im_btn_switch_mode" text="切换到{MODE}" />
     <string id="LWN_im_new_message" text="有新消息" />
-</strings>
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- 说服会话模板（npc-dialogue-session-plan.md §5.3.1）    -->
+    <!-- 意图分类为主维度：move_req（移动/跟走）/ affair（办事）/ combat（武力）/ chat（寒暄） -->
+    <!-- 角色：initiator（劝说句）/ responder（回应句）/ bystander（插嘴句） -->
+    <!-- 档位：refuse(agree<0.35) / waver(0.35~0.5) / near(0.5~0.65) / agree(≥0.65) -->
+    <!-- ═══════════════════════════════════════════ -->
+    <!-- move_req 分类：是否愿意"移动/跟着走"（拒绝="走不开"，同意="我随你去"） -->
+    <string id="LWN_dialog_move_req_responder_refuse_1" text="军务在身，不便擅离。" />
+    <string id="LWN_dialog_move_req_responder_refuse_2" text="莫要为难在下。" />
+    <string id="LWN_dialog_move_req_responder_waver_1" text="……此事需禀报上官方可。" />
+    <string id="LWN_dialog_move_req_responder_waver_2" text="容我思量思量。" />
+    <string id="LWN_dialog_move_req_responder_near_1" text="既是主人有请……容我交代一下。" />
+    <string id="LWN_dialog_move_req_responder_near_2" text="……罢了，我随你走一趟也不是不可。" />
+    <string id="LWN_dialog_move_req_responder_agree_1" text="好，我便随你走一趟。" />
+    <string id="LWN_dialog_move_req_responder_agree_2" text="行，带路吧。" />
+    <string id="LWN_dialog_move_req_initiator_refuse_1" text="好吧，既是为难，那便算了。" />
+    <string id="LWN_dialog_move_req_initiator_refuse_2" text="打扰了，告辞。" />
+    <string id="LWN_dialog_move_req_initiator_waver_1" text="你再考虑考虑？" />
+    <string id="LWN_dialog_move_req_initiator_waver_2" text="我家主人的诚意，你该看得出。" />
+    <string id="LWN_dialog_move_req_initiator_near_1" text="这位军爷，我家主人必有重谢。" />
+    <string id="LWN_dialog_move_req_initiator_near_2" text="就差这一趟，应了吧。" />
+    <string id="LWN_dialog_move_req_initiator_agree_1" text="好，我们这就动身。" />
+    <string id="LWN_dialog_move_req_initiator_agree_2" text="有你这句话，主人定会记你的情。" />
+    <!-- move_req × 守卫职业风味（军务在身 → 更难劝） -->
+    <string id="LWN_dialog_move_req_guard_responder_refuse_1" text="军令如山，恕难从命。" />
+    <string id="LWN_dialog_move_req_guard_responder_refuse_2" text="军务在身，恕不相从。" />
+    <string id="LWN_dialog_move_req_guard_responder_waver_1" text="……军令在身，容我斟酌。" />
+    <string id="LWN_dialog_move_req_guard_responder_near_1" text="既要办事……待我交代一下岗务。" />
+    <string id="LWN_dialog_move_req_guard_responder_agree_1" text="既是要务，我便随你走一趟。" />
+    <!-- affair 分类：是否愿意"办这件事"（拒绝="我做不了主"，同意="我会安排"） -->
+    <string id="LWN_dialog_affair_responder_refuse_1" text="此事我做不了主，改日再说。" />
+    <string id="LWN_dialog_affair_responder_refuse_2" text="我手上还有事，抽不开身。" />
+    <string id="LWN_dialog_affair_responder_waver_1" text="……让我想想。" />
+    <string id="LWN_dialog_affair_responder_waver_2" text="此事需从长计议。" />
+    <string id="LWN_dialog_affair_responder_near_1" text="若是不急，我过两日安排。" />
+    <string id="LWN_dialog_affair_responder_near_2" text="也罢，容我打点一下。" />
+    <string id="LWN_dialog_affair_responder_agree_1" text="好，此事我会安排。" />
+    <string id="LWN_dialog_affair_responder_agree_2" text="行，包在我身上。" />
+    <string id="LWN_dialog_affair_initiator_refuse_1" text="那便算了，多有打扰。" />
+    <string id="LWN_dialog_affair_initiator_refuse_2" text="既然不成，我另寻他法。" />
+    <string id="LWN_dialog_affair_initiator_waver_1" text="此事对你也有好处，再想想？" />
+    <string id="LWN_dialog_affair_initiator_waver_2" text="我愿出些酬劳。" />
+    <string id="LWN_dialog_affair_initiator_near_1" text="就差你点头了。" />
+    <string id="LWN_dialog_affair_initiator_near_2" text="事成之后，必有答谢。" />
+    <string id="LWN_dialog_affair_initiator_agree_1" text="好，那就有劳了。" />
+    <string id="LWN_dialog_affair_initiator_agree_2" text="静候佳音。" />
+    <!-- combat 分类：武力冲突下的回应（拒绝为主："想动手？"） -->
+    <string id="LWN_dialog_combat_responder_refuse_1" text="想动手？我奉陪。" />
+    <string id="LWN_dialog_combat_responder_refuse_2" text="要打便打，废话少说。" />
+    <string id="LWN_dialog_combat_responder_agree_1" text="……既如此，我认了。" />
+    <string id="LWN_dialog_combat_initiator_refuse_1" text="是我唐突了。" />
+    <string id="LWN_dialog_combat_initiator_agree_1" text="一言为定。" />
+    <!-- chat 分类：中性寒暄（无档位演化，仅接话） -->
+    <string id="LWN_dialog_chat_responder_refuse_1" text="嗯，知道了。" />
+    <string id="LWN_dialog_chat_responder_refuse_2" text="（敷衍地应了一声）" />
+    <string id="LWN_dialog_chat_responder_agree_1" text="原来如此。" />
+    <string id="LWN_dialog_chat_responder_agree_2" text="有意思，说来听听。" />
+    <string id="LWN_dialog_chat_initiator_refuse_1" text="那就不打扰了。" />
+    <string id="LWN_dialog_chat_initiator_agree_1" text="随便聊聊。" />
+    <string id="LWN_dialog_chat_initiator_agree_2" text="方才的事，你怎么看？" />
+    <!-- bystander 插嘴（听见话题的接话，不涉细节——叙事铁律：围观者只知话题） -->
+    <string id="LWN_dialog_move_req_bystander_agree_1" text="（听见那边说起随行的事，侧耳听了一听）" />
+    <string id="LWN_dialog_affair_bystander_agree_1" text="（听见那边在商量什么事，看了过去）" />
+    <string id="LWN_dialog_chat_bystander_agree_1" text="（听见那边的谈话，凑了过来）" />
+    <string id="LWN_dialog_bystander_refuse_1" text="（不关己事，未作理会）" />
+    <string id="LWN_dialog_bystander_agree_1" text="（听见了那边的对话）" />
+    <string id="LWN_dialog_bystander_agree_2" text="那边在谈论什么事？" />
+    <!-- 中性兜底（必须目的无关——"此事容我再想想"，禁止带具体语义） -->
+    <string id="LWN_dialog_responder_refuse_1" text="此事容我再想想。" />
+    <string id="LWN_dialog_responder_refuse_2" text="恕难从命。" />
+    <string id="LWN_dialog_responder_waver_1" text="……容我斟酌。" />
+    <string id="LWN_dialog_responder_waver_2" text="这倒是个难处。" />
+    <string id="LWN_dialog_responder_near_1" text="……倒也不是不能商量。" />
+    <string id="LWN_dialog_responder_near_2" text="容我思量一番。" />
+    <string id="LWN_dialog_responder_agree_1" text="好，就依你所言。" />
+    <string id="LWN_dialog_responder_agree_2" text="既是如此，便这么定了。" />
+    <string id="LWN_dialog_initiator_refuse_1" text="那便罢了。" />
+    <string id="LWN_dialog_initiator_refuse_2" text="多有打扰。" />
+    <string id="LWN_dialog_initiator_waver_1" text="你不再考虑考虑？" />
+    <string id="LWN_dialog_initiator_waver_2" text="我此番是诚心相请。" />
+    <string id="LWN_dialog_initiator_near_1" text="就差你一句应承了。" />
+    <string id="LWN_dialog_initiator_near_2" text="你若不放心，我可立个字据。" />
+    <string id="LWN_dialog_initiator_agree_1" text="好，那便说定了。" />
+    <string id="LWN_dialog_initiator_agree_2" text="多谢应允。" />
+    <!-- 战斗喊话（M0：开战/受伤/胜利宣言；说话并联 Combat 优先级） -->
+    <string id="LWN_action_combat_start" text="你这是在找死！" />
+    <string id="LWN_action_combat_hurt" text="啊！" />
+    <string id="LWN_action_combat_end" text="哼，不自量力。" />
+    <!-- 会话终结议论（M2：队伍群聊） -->
+    <string id="LWN_dialog_settle_broadcast" text="在附近听到有人议论：{TOPIC}的事，好像{RESULT}。" />
+    <!-- Campaign 层说服会话（M3：私聊承诺 + 群聊动议兑现；言行一致——只兑现承诺不假扮行为） -->
+    <string id="LWN_campaign_persuade_agree" text="好，此事我记下了。{TOPIC}，我会照办的。" />
+    <string id="LWN_campaign_persuade_refuse" text="此事恕我不能应允，{TOPIC}休要再提。" />
+    <string id="LWN_campaign_persuade_settle_agree" text="罢了，就依你所言。" />
+    <string id="LWN_campaign_persuade_settle_refuse" text="此事不必再劝了。" />
+    <string id="LWN_campaign_motion_pass" text="就这么定了，大家照办。" />
+    <string id="LWN_campaign_motion_fail" text="此事还是从长计议吧。" />    <string id="LWN_dialog_bystander_refuse_2" text="（摇了摇头，自顾自走开）" />
+    <string id="LWN_dialog_chat_initiator_refuse_2" text="……是我多嘴了。" /></strings>
 </base>
