@@ -273,10 +273,10 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>定向喊话（🔴 2026-08-12 模板 NPC 密信，@提及命中）：玩家头顶冒泡已由调用方 AgentSay 播放；
-        /// 此处直接 broadcast spoken_to 给**点名目标** → ReactiveAgent respond（TEMP 记忆 + 职业人格 + LLM/模板）
-        /// → 回复冒泡 → Forward 流入频道（带编号显示名）。
-        /// 不走 DialogueComponent.HandleDialogue——避免 seen_speaking 旁观者插话（密信语义 = 点名，
-        /// 只有被点名者回应）。目标中途死亡/离场 → 静默（玩家消息已在频道，无红字）。</summary>
+        /// 此处直接强制 respond（ForceRespond）——绕过人格演算的 ignore/无条目兜底（soldier 等职业 spoken_to
+        /// 默认只 LookAt，密信点名语义要求必回应）→ TEMP 记忆 + 职业人格 + LLM/模板台词 → 回复冒泡流入频道
+        /// （带编号显示名）。不走 DialogueComponent.HandleDialogue——避免 seen_speaking 旁观者插话（密信语义 = 点名）。
+        /// 目标中途死亡/离场 → 静默（玩家消息已在频道，无红字）。</summary>
         public static void BroadcastPlayerCallTo(Agent target, string text)
         {
             if (Mission.Current == null || Agent.Main == null) return;
@@ -284,7 +284,7 @@ namespace LivingWorldNpcs
             try
             {
                 // topic "nearby"：与附近会话既有约定一致（PersuadeSlot 会话 topic 即 "nearby"）
-                AgentAIController.Instance?.SendEventToAgent(target, "spoken_to", Agent.Main, text.Trim(), "nearby", null);
+                ReactiveAgent.ForceRespond(target, Agent.Main, text.Trim(), "nearby");
                 DebugLogger.Log($"[NearbyFeed] 定向喊话 → {target.Name} #{target.Index}: \"{text.Trim()}\"");
             }
             catch (Exception ex)

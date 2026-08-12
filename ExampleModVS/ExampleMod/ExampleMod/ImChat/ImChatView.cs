@@ -33,6 +33,9 @@ namespace LivingWorldNpcs
         private static bool _hadGenerating;
         private static bool _subscribed;
         private static bool _welcomed;   // 首次打开引导提示（会话内一次）
+        // 🔴 2026-08-12（模板 NPC 密信 · 粘性 @）：最近一次定向喊话的 @前缀（含尾随空格，如「@守卫 #12 」）——
+        // @命中发送后回填输入框，连发多条给同一 NPC 不用重复打 @；玩家删掉前缀发普通喊话 → 解除。
+        private static string _lastMentionPrefix;
 
         // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
         // 「查看模式」按钮规避贴底+滚轮冲突；这里直接从 UIContext 找 ScrollablePanel 操作 ValueFloat）
@@ -677,17 +680,25 @@ namespace LivingWorldNpcs
 
             // 🔴 §5.7 附近频道：玩家喊话（头顶冒泡 + 广播 spoken_to 给最近 NPC → 响应不确定）
             // 🔴 2026-08-12（模板 NPC 密信）：@提及前缀（@名字 #编号）→ 定向喊话给点名目标
-            //（BroadcastPlayerCallTo → respond → 回复冒泡流入频道）；无 @ / 匹配失败 → 普通喊话。
-            // 玩家消息进频道走 AgentSay → Forward（SenderHeroId=player），**天然带完整 @ 前缀**显示。
+            //（ForceRespond → 回复冒泡流入频道）；无 @ / 匹配失败 → 普通喊话。
+            // 🔴 2026-08-12（粘性 @）：@命中后记录前缀并回填输入框——连发多条给同一 NPC 不用重复打 @；
+            // 玩家删掉前缀发普通喊话 → 粘性解除。玩家消息进频道走 AgentSay → Forward，天然带完整 @ 前缀。
             if (_selected.Type == ImConversationType.Nearby)
             {
                 string full = text.Trim();
                 AgentHudMissionView.AgentSay(Agent.Main, full);
                 var mention = NearbyFeed.TryResolveMention(full);
                 if (mention != null && !string.IsNullOrWhiteSpace(mention.Value.body))
+                {
                     NearbyFeed.BroadcastPlayerCallTo(mention.Value.target, mention.Value.body);
+                    _lastMentionPrefix = mention.Value.prefix;   // 记录含尾随空格的 @前缀（如「@守卫 #12 」）
+                    if (_vm != null) _vm.InputText = _lastMentionPrefix;   // 自动续上，直接回车连发
+                }
                 else
+                {
+                    _lastMentionPrefix = null;
                     NearbyFeed.BroadcastPlayerCall(full);
+                }
                 RefreshMessages();
                 ScrollToBottom();
                 return;

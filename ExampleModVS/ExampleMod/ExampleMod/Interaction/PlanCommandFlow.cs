@@ -90,17 +90,17 @@ namespace LivingWorldNpcs
             _companion = companion;
             _isActive = true;
 
-            // 🔴 统一说话框架 + M4 双轨润色：密谋开场白（随从头顶冒泡示意，仪式感保留；前因=密令发起）
-            SpeechChannel.SayPolished(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."),
-                SpeechPriority.Dialogue,
-                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
-
             // 会话定位：随从（有 Hero）→ direct 私聊；模板 NPC（无 Hero）→ 🔴 2026-08-12 密信分支：
             // 打开 IM 定位「附近」频道 + 输入框预填「@名字 #编号 」前缀（玩家可删掉转普通喊话）。
-            // 模板 NPC 的回复走 respond（TEMP 记忆 + 职业人格）→ 冒泡流入附近频道，v1 不做计划。
+            // 模板 NPC 的回复走 ForceRespond（TEMP 记忆 + 职业人格）→ 冒泡流入附近频道，v1 不做计划。
             var hero = (companion.Character as CharacterObject)?.HeroObject;
             if (hero == null || string.IsNullOrEmpty(hero.StringId))
             {
+                // 🔴 开场直接模板播放（不用 SayPolished）：plan_command 语境会被 LLM 润色成「遵命，我这就去办」
+                // ——玩家还没下命令，开场是「你有什么需要」的仪式感（实机 2026-08-12 日志实锤）
+                SpeechChannel.Say(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."),
+                    SpeechPriority.Dialogue,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
                 bool opened = ImChatView.Open(NearbyFeed.Conversation, prefill: $"@{companion.Name} #{companion.Index} ");
                 if (!opened)
                 {
@@ -112,6 +112,12 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[PlanCommandFlow] 模板 NPC 密信：{companion.Name} #{companion.Index} → 附近频道 + @预填");
                 return;
             }
+
+            // 随从路径：统一说话框架 + M4 双轨润色（开场白头顶冒泡示意，仪式感保留；前因=密令发起）
+            SpeechChannel.SayPolished(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."),
+                SpeechPriority.Dialogue,
+                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
+
             ImChatStore.TouchDirectChat(hero.StringId, ImChatManager.NowUnixMs());
             var conv = ImChatManager.GetDirectConversation(hero.StringId);
             if (conv == null)
