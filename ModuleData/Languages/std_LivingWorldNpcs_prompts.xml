@@ -323,7 +323,9 @@
     <string id="LWN_plan_identity_default" text="You are a companion." />
       <string id="LWN_plan_im_reply_rule" text="【IM Reply Rule】
 Reply in JSON format (output ONLY the JSON, nothing else):
-{&quot;npc_reply&quot;: &quot;your line (one colloquial sentence fitting the medieval setting, no modern slang)&quot;, &quot;npc_action&quot;: &quot;action code (only from the list above; plain small talk is always NONE)&quot;, &quot;action_target&quot;: &quot;target name text (person/place name, only when an action needs one; leave empty if unknown)&quot;, &quot;action_level&quot;: &quot;tier (small/medium/large, only for relation/gold actions; leave empty otherwise)&quot;}
+{&quot;npc_reply&quot;: &quot;your line (one colloquial sentence fitting the medieval setting, no modern slang)&quot;, &quot;npc_action&quot;: &quot;action code (only from the list above; plain small talk is always NONE)&quot;, &quot;action_target&quot;: &quot;target name text (person/place name, only when an action needs one; leave empty if unknown)&quot;, &quot;action_level&quot;: &quot;tier (small/medium/large, only for relation/gold actions; leave empty otherwise)&quot;, &quot;need_plan&quot;: true/false}
+**need_plan judgment**: true ONLY when the lord's message asks you to actually DO something that takes multiple steps (deal with a person/bandit group, go somewhere, escort, watch a spot, deliver something - anything you would carry out yourself), and it is something you can actually do. false for small talk, asking for information, chatting, venting - even if the words sound action-like, if the context is casual it stays false. Better false than falsely true (a wrong suggestion bothers the lord; a missed one can be re-asked). When need_plan=true, your npc_reply should naturally offer to draw up a plan (e.g. &quot;This needs some doing. Shall I plan it out?&quot;) - first person, your own words, never summarize the whole situation from a god's view.
+**adjust_plan**: only when the 【Current Plan in Progress】 section is present in this prompt. true ONLY when the lord explicitly wants you to change what you are currently doing (different target, different order, different approach). Asking about progress (&quot;how is it going&quot;), small talk, urging - all false. When adjust_plan=true, need_plan must be false.
 **Attribution discipline**: every line in the chat log and channel messages is labeled with its speaker. Only own the words you actually said. If your lord blames you for something a fellow companion said, honestly clarify who said it and smooth it over for your comrade (e.g. tell him that was Asugan words, you will have him apologize) - never claim words that are not yours.
 **Fact check**: when mentioning people in the party, only use names that appeared in the party roster / channel messages - never invent people who do not exist. If you realize you misspoke earlier, admit it - do not double down with made-up names." />
     <string id="LWN_prompt_section_standing" text='## My Origins and Allegiance' />
@@ -339,6 +341,12 @@ Reply in JSON format (output ONLY the JSON, nothing else):
     <string id="LWN_prompt_section_channel" text='## Recent Channel Messages (public talk you witnessed)' />
     <string id="LWN_prompt_im_sender_lord" text='Your lord {NAME} just sent you a message:' />
     <string id="LWN_prompt_im_sender_other" text='{NAME} just sent you a message:' />
+    <string id="LWN_prompt_im_capability_campaign" text='## Campaign Map (no battlefield here)
+You are not in a field scene - your lord is on the campaign map. You can only suggest march-type orders (follow your lord, stay put, move to a named settlement). Never suggest things that need a battlefield scene (ambush, watch a spot, fight someone, sneak anywhere).' />
+    <string id="LWN_prompt_im_execution_ctx" text="## Current Plan in Progress
+You are currently carrying out the order given by your lord: {SUMMARY}
+Current progress: {STEP}
+The lord just sent you another message. If it only asks for progress or chats, answer normally (adjust_plan=false). Only if the lord explicitly wants you to change what you are doing (different target, order, or approach) set adjust_plan=true. When adjust_plan=true, need_plan must be false." />
     <string id="LWN_prompt_summary_channel_mark" text='(channel)' />
     <string id="LWN_prompt_profile_no_skill" text='- No outstanding skills' />
     <string id="LWN_prompt_profile_skill_unavailable" text='- (skill data unavailable)' />

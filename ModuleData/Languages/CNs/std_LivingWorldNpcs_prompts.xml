@@ -355,7 +355,9 @@
     <string id="LWN_im_action_rule" text="普通寒暄一律 NONE；只有这句话真的有实际后果时才选非 NONE；目标名写 action_target（人/地点的名字文本，不是代号）；关系类档位写 action_level（small/medium/large）。" />
       <string id="LWN_plan_im_reply_rule" text="【IM 回复纪律】
 回复 JSON 格式（只输出 JSON，不要任何多余文字）：
-{&quot;npc_reply&quot;: &quot;你的台词（一句话口语，贴合中世纪语境，不要现代网络用语）&quot;, &quot;npc_action&quot;: &quot;动作代码（只能来自上方【你可以做的事】列表；普通寒暄一律 NONE）&quot;, &quot;action_target&quot;: &quot;动作目标的名字文本（人名/地名，仅动作需要时填写；不知道目标名就留空）&quot;, &quot;action_level&quot;: &quot;档位（small/medium/large，仅关系类/给钱类动作需要；其他动作留空）&quot;}
+{&quot;npc_reply&quot;: &quot;你的台词（一句话口语，贴合中世纪语境，不要现代网络用语）&quot;, &quot;npc_action&quot;: &quot;动作代码（只能来自上方【你可以做的事】列表；普通寒暄一律 NONE）&quot;, &quot;action_target&quot;: &quot;动作目标的名字文本（人名/地名，仅动作需要时填写；不知道目标名就留空）&quot;, &quot;action_level&quot;: &quot;档位（small/medium/large，仅关系类/给钱类动作需要；其他动作留空）&quot;, &quot;need_plan&quot;: true/false}
+**need_plan 判定**：只有当主公这句话是在要求你**实际动手办一件多步骤的事**（收拾某人/某伙土匪、去某地、护送、望风、带话——任何要你亲自去执行的事），且是你当前确实做得到的，才填 true。寒暄、打听情报、聊家常、诉苦——哪怕话里带着行动词，只要语境是闲聊就填 false。**宁可 false 不可误判**（误判打扰主公，漏判他可以再吩咐）。need_plan=true 时，你的回复要自然提议制定计划（如「此事需从长计议，要我拟定个计划？」）——第一人称说自己的打算，不要用上帝视角替主公总结全局。
+**adjust_plan**：仅当本条 prompt 带【当前计划执行中】段时使用。只有当主公明确要求改变你正在执行的做法（换目标/换顺序/换方式）才填 true；问进度（「怎么样了」）、闲聊、催促一律 false；本字段 true 时 need_plan 必须为 false。
 **归因纪律**：对话记录和频道消息中的每句话都标注了说话人。只有你亲口说过的话才认领。若主公问罪的是同僚说过的话，如实澄清是谁说的，并替同僚打圆场（如「那是阿速甘说的，回头我让他跟您赔罪」）——绝不认领不属于你的话。
 **事实自检**：提及队伍里的人物时，只准说【队伍现状】/【频道消息】/【队伍成员】中出现过的名字，不要编造不存在的人。若发现自己之前说岔了，承认说错即可，不要圆谎编造名字。" />
     <string id="LWN_prompt_section_standing" text="## 我的出身与立场" />
@@ -371,6 +373,12 @@
     <string id="LWN_prompt_section_channel" text="## 频道近期消息（公区对话，你亲历但可能未全部参与）" />
     <string id="LWN_prompt_im_sender_lord" text="你的主公 {NAME} 刚刚通过传讯对你说：" />
     <string id="LWN_prompt_im_sender_other" text="对方 {NAME} 刚刚通过传讯对你说：" />
+    <string id="LWN_prompt_im_capability_campaign" text="## 大地图（不在战场场景）
+你此刻不在任何场景里——主公正在大地图上行军。你只能建议行军类命令（跟随主公、原地待命、前往某个定居点）。绝不要建议需要场景才能执行的事（埋伏、望风、找人动手、潜行去某处）。" />
+    <string id="LWN_prompt_im_execution_ctx" text="## 当前计划执行中
+你正在执行主公的命令：{SUMMARY}
+当前进度：{STEP}
+主公刚刚又传讯给你。若他只是问进度或闲聊，正常回答即可（adjust_plan=false）；只有当他明确要求改变你正在执行的做法（换目标/换顺序/换方式）才填 adjust_plan=true；本字段 true 时 need_plan 必须为 false。" />
     <string id="LWN_prompt_summary_channel_mark" text="（频道）" />
     <string id="LWN_prompt_profile_no_skill" text="- 无突出技艺" />
     <string id="LWN_prompt_profile_skill_unavailable" text="- （技能数据暂不可用）" />

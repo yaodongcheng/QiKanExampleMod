@@ -48,9 +48,10 @@ namespace LivingWorldNpcs
                                && !string.IsNullOrWhiteSpace(LLMApiKey)
                                && !string.IsNullOrWhiteSpace(LLMModel);
 
-        // ── 密令玩法总闸（行动密令，默认关闭）──
+        // ── 密信玩法总闸（🔴 2026-08-12 改名：行动密令 → 密信，入口语义 = 打开私聊默认闲聊，
+        //    玩家说话后 NPC 判 need_plan 才进计划管线；默认关闭）──
         // [JsonIgnore]：唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读。
-        // 关闭 = 密令入口（Plot）隐藏；已执行中的计划仍可用 StopPlan 停止（自由感：不被旧命令困住）。
+        // 关闭 = 密信入口（Plot）隐藏；已执行中的计划仍可用 StopPlan 停止（自由感：不被旧命令困住）。
         [Newtonsoft.Json.JsonIgnore]
         public bool PlotEnabled { get; set; } = false;
 

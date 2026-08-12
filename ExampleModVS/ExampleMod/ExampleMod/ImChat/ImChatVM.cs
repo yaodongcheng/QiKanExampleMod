@@ -173,6 +173,22 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public string Content => _msg?.Content ?? "";
 
+        /// <summary>🔴 2026-08-12（模板 NPC 密信 @染色）：显示用内容——玩家自己的 nearby 普通文本消息，
+        /// 开头 @提及前缀（@名字 #编号）染蓝（富文本 span style="Mention"，微信同款）；
+        /// 其余消息原文返回（NPC 台词/系统/卡片不染，防误染）。预览/通知/LLM 上下文继续用原文 Content，
+        /// 富文本标签零污染。</summary>
+        [DataSourceProperty]
+        public string DisplayContent
+        {
+            get
+            {
+                if (_msg == null) return "";
+                if (_msg.IsSelf && _msg.Kind == ImMessageKind.Text && _msg.ConvId == NearbyFeed.ChannelId)
+                    return NearbyFeed.HighlightMention(_msg.Content ?? "");
+                return _msg.Content ?? "";
+            }
+        }
+
         [DataSourceProperty]
         public bool IsSelf => _msg != null && _msg.IsSelf;
 
@@ -181,9 +197,9 @@ namespace LivingWorldNpcs
 
         /// <summary>他人气泡显示：普通文本消息（非自己 且 非系统 且 非卡片消息——卡片消息走卡片气泡分支）。
         /// 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：生成中占位/计划卡片/讲解消息（链消息）/
-        /// NPC 提议/闲聊动作卡片 统一归「卡片气泡」分支（ShowCardBubble）渲染，不再走普通气泡。</summary>
+        /// NPC 提议/闲聊动作卡片/needPlan 建议消息 统一归「卡片气泡」分支（ShowCardBubble）渲染，不再走普通气泡。</summary>
         [DataSourceProperty]
-        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage && !IsProposal;
+        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage && !IsProposal && !IsPlanSuggest;
 
         /// <summary>自己气泡显示：是自己 且 非系统/计划卡片/生成中占位/提议（旧格式卡片 SenderHeroId="player"
         /// 走 IsLegacyPlanCard 旧居中卡片控件兜底，不能走气泡分支）。</summary>
@@ -200,12 +216,17 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsPlanChainMessage => _msg != null && _msg.IsPlanChainMessage;
 
+        /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议消息（NPC 回复底部挂「制定计划/先不用」）——
+        /// 卡片气泡分支渲染（通用消息底部按钮结构，用户裁定不用计划卡片）。</summary>
+        [DataSourceProperty]
+        public bool IsPlanSuggest => _msg != null && _msg.IsPlanSuggest;
+
         /// <summary>🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 决策卡片统一）：卡片气泡分支——
         /// NPC 自述形态（名字行 + 正文 + 通用按钮行）：计划卡片 / 生成中占位 / 讲解消息（链消息）/
-        /// NPC 提议 / 闲聊动作卡片 五类共用。
+        /// NPC 提议 / 闲聊动作卡片 / needPlan 建议消息 六类共用。
         /// 旧格式（SenderHeroId=player）IsSelf → 走 IsLegacyPlanCard 旧居中卡片控件兜底。</summary>
         [DataSourceProperty]
-        public bool ShowCardBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage || IsProposal);
+        public bool ShowCardBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage || IsProposal || IsPlanSuggest);
 
         /// <summary>🔴 2026-08-12：旧格式计划卡片/生成中占位（SenderHeroId=player）——旧居中卡片控件渲染兜底
         ///（旧存档兼容；新消息一律走卡片气泡分支）。</summary>
@@ -250,7 +271,8 @@ namespace LivingWorldNpcs
             var anchor = AnchorCard;
             if (anchor == null) return;
             if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); return; }
-            if (anchor.IsProposal) { RebuildProposalButtons(anchor); }
+            if (anchor.IsProposal) { RebuildProposalButtons(anchor); return; }
+            if (anchor.IsPlanSuggest) { RebuildSuggestionButtons(anchor); return; }
         }
 
         /// <summary>计划卡片按钮（与原硬编码按钮同语义：待批 = 自审/重拟?/同意/拒绝；执行中 = 中止）。</summary>
@@ -277,6 +299,26 @@ namespace LivingWorldNpcs
             CardButtons.Add(new ImButtonVM(ApproveText, () => ImChatView.HandleProposal(card, approve: true)));
             CardButtons.Add(new ImButtonVM(RejectText, () => ImChatView.HandleProposal(card, approve: false)));
         }
+
+        /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议消息按钮（制定计划/先不用）——
+        /// NPC 回复消息底部通用按钮行。制定计划 → RequestCommand（Mission 计划管线 / Campaign 行军令）；
+        /// 先不用 → 了结回闲聊。</summary>
+        private void RebuildSuggestionButtons(ImMessage card)
+        {
+            if (card.IsSuggestionResolved) return;
+            CardButtons.Add(new ImButtonVM(MakePlanText, () => ImChatView.HandleSuggestion(card, makePlan: true)));
+            CardButtons.Add(new ImButtonVM(SkipText, () => ImChatView.HandleSuggestion(card, makePlan: false)));
+        }
+
+        // 建议按钮文案（🔴 2026-08-12，本地化）
+        [DataSourceProperty]
+        // 建议按钮：制定计划
+        public string MakePlanText => LWNTextHelper.ResolveText("LWN_im_btn_make_plan", "Make a plan");
+
+        // 建议按钮：先不用
+        [DataSourceProperty]
+        // 建议按钮：先不用
+        public string SkipText => LWNTextHelper.ResolveText("LWN_im_btn_skip", "Not now");
 
         [DataSourceProperty]
         public string PlanSummary => _msg?.PlanSummary ?? "";
@@ -463,8 +505,6 @@ namespace LivingWorldNpcs
         private string _typingText = "";
         private bool _isTypingVisible;
         private string _modeStatusText = "";
-        private string _switchModeButtonText = "";
-        private bool _isModeControlVisible;
         private string _placeholderText = "";
         private string _sendText = "";
         private bool _isEmpty;
@@ -525,7 +565,8 @@ namespace LivingWorldNpcs
             set { if (_isTypingVisible != value) { _isTypingVisible = value; OnPropertyChangedWithValue(value, nameof(IsTypingVisible)); } }
         }
 
-        /// <summary>模式状态静态文本（2026-08-10：分段控件改「状态文本 + 切换按钮」——玩家先看到当前模式，按钮表达动作）。</summary>
+        /// <summary>模式状态静态文本（🔴 2026-08-12 合并闲聊/计划模式：改为从会话状态派生的指示文本——
+        /// 闲聊/计划生成中/计划待批准/计划执行中；不再可手动切换）。</summary>
         [DataSourceProperty]
         public string ModeStatusText
         {
@@ -533,23 +574,7 @@ namespace LivingWorldNpcs
             set { if (_modeStatusText != value) { _modeStatusText = value; OnPropertyChangedWithValue(value, nameof(ModeStatusText)); } }
         }
 
-        /// <summary>模式切换按钮文案（动作语义：「切换到XX」，目标 = 非当前模式）。</summary>
-        [DataSourceProperty]
-        public string SwitchModeButtonText
-        {
-            get => _switchModeButtonText;
-            set { if (_switchModeButtonText != value) { _switchModeButtonText = value; OnPropertyChangedWithValue(value, nameof(SwitchModeButtonText)); } }
-        }
-
-        /// <summary>模式控件可见性（密令可用会话 + Plot 总闸 + LLM 已配置；不可用时整个控件隐藏）。</summary>
-        [DataSourceProperty]
-        public bool IsModeControlVisible
-        {
-            get => _isModeControlVisible;
-            set { if (_isModeControlVisible != value) { _isModeControlVisible = value; OnPropertyChangedWithValue(value, nameof(IsModeControlVisible)); } }
-        }
-
-        /// <summary>发送按钮文案（随模式联动：闲聊=Send / 密令=Order）。</summary>
+        /// <summary>发送按钮文案（随计划状态联动：待批计划卡片存在 = Submit（发送即修改），否则 Send）。</summary>
         [DataSourceProperty]
         public string SendText
         {
@@ -590,9 +615,6 @@ namespace LivingWorldNpcs
         public void ExecuteSend() => ImChatView.ExecuteSend();
 
         public void ExecuteClose() => ImChatView.Close();
-
-        /// <summary>单切换按钮：内部按当前模式路由（闲聊→密令 含可用性检查；密令→闲聊 直接切）。</summary>
-        public void ExecuteSwitchMode() => ImChatView.ExecuteSwitchMode();
 
         /// <summary>「有新消息」提示条点击：滚到消息流底部并清除提示。</summary>
         public void ExecuteNewMessageClick() => ImChatView.ExecuteNewMessageClick();

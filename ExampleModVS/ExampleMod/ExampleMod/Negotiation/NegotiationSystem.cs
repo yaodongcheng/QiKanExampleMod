@@ -1787,6 +1787,17 @@ namespace LivingWorldNpcs
         [JsonProperty("action_level")]
         public string ActionLevel { get; set; }
 
+        // 🔴 2026-08-12（合并闲聊/计划模式）：NeedPlan/AdjustPlan 判定字段——bool 默认 false，
+        // 解析失败/缺字段天然安全（铁律 2）。
+        // need_plan：玩家这句是「需要实际行动的多步请求」→ 回复消息底部挂「制定计划/先不用」按钮；
+        // adjust_plan：仅执行期 prompt 注入【当前计划执行中】段时有效——玩家明确要求改变正在执行的做法
+        // → 复用 RequestModify 出「修改版」卡片；问进度/闲聊/催促一律 false；true 时 need_plan 必须 false。
+        [JsonProperty("need_plan")]
+        public bool NeedPlan { get; set; }
+
+        [JsonProperty("adjust_plan")]
+        public bool AdjustPlan { get; set; }
+
         [JsonProperty("suggest_negotiation_start")]
         public bool SuggestNegotiationStart { get; set; }
 

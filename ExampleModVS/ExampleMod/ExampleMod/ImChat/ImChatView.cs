@@ -86,13 +86,16 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 打开 IM 面板并定位会话。
-        /// 🔴 2026-08-10（im-command-action-upgrade.md Q1）：新增 mode 参数——Plot 入口
-        /// （PlanCommandFlow.Start）呼出面板后直接切「密令」模式，省去玩家手动切换。
+        /// 打开 IM 面板并定位会话。返回 true = 已打开。
+        /// 🔴 2026-08-12（合并闲聊/计划模式）：mode 参数已删除——不再有手动模式切换，
+        /// 玩家恒走闲聊管线，needPlan 建议由 NPC 判定驱动（Plot 入口只打开私聊）。
+        /// 🔴 2026-08-12（模板 NPC 密信）：prefill 参数 = 打开后输入框预填文本（G 长按模板 NPC →
+        /// 定位附近频道 + 预填「@名字 #编号 」前缀，玩家可删掉转普通喊话）；SelectConversation 之后
+        /// 设置（_vm 已创建 + LoadMovie 完成，双向绑定会把文本推给控件，无时序空隙）。
         /// </summary>
-        public static void Open(ImConversation selectConv = null, ImMode? mode = null)
+        public static bool Open(ImConversation selectConv = null, string prefill = null)
         {
-            if (IsOpen || !CanOpen()) return;
+            if (IsOpen || !CanOpen()) return false;
             EnsureSubscribed();
 
             try
@@ -122,13 +125,14 @@ namespace LivingWorldNpcs
                     ScreenManager.TopScreen.AddLayer(_layer);
 
                 SelectConversation(selectConv ?? BuildDefaultConversation());
-                // 🔴 Q1：Plot 入口指定模式（如 Command）→ 打开后立即切换，输入框 placeholder 同步
-                if (mode.HasValue) SetMode(mode.Value);
+                if (prefill != null && _vm != null) _vm.InputText = prefill;
+                return true;
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ImChat] Open 失败: {ex.Message}");
                 Close();
+                return false;
             }
         }
 
@@ -385,6 +389,8 @@ namespace LivingWorldNpcs
                 if (m == null) continue;
                 if (m.IsProposal && !m.IsProposalResolved) latestCard = m;
                 else if (m.IsPlanCard && (string.IsNullOrEmpty(m.ExecutorId) || ImCommandFlow.IsExecuting(m))) latestCard = m;
+                // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议消息（待决）参与锚点竞争——最新者接管
+                else if (m.IsPlanSuggest && !m.IsSuggestionResolved) latestCard = m;
             }
             foreach (var vm in _vm.Messages)
             {
@@ -392,7 +398,7 @@ namespace LivingWorldNpcs
                 ImMessage card = null;
                 if (m != null)
                 {
-                    if (m.IsPlanCard || m.IsProposal)
+                    if (m.IsPlanCard || m.IsProposal || m.IsPlanSuggest)
                         card = m;
                     else if (m.IsPlanChainMessage)
                     {
@@ -409,13 +415,13 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>本消息是否为卡片锚点位置：提议 = 自身；计划 = 链内最新一条（🔴 2026-08-12 修复：
+        /// <summary>本消息是否为卡片锚点位置：提议/建议 = 自身；计划 = 链内最新一条（🔴 2026-08-12 修复：
         /// 只扫 m **之后**的消息——原实现扫全表，卡片自身同链 → 讲解消息永远判定「后面还有同链消息」
         /// → 按钮全消失）。旧格式卡片无 ChainId = 仅自身。</summary>
         private static bool IsCardAnchorPosition(ImMessage m, ImMessage card, List<ImMessage> msgs)
         {
             if (m == null || card == null) return false;
-            if (card.IsProposal) return true;                 // 提议无链：卡片自身即锚点
+            if (card.IsProposal || card.IsPlanSuggest) return true;   // 提议/建议无链：自身即锚点
             if (string.IsNullOrEmpty(card.ChainId)) return true;
             int mIdx = msgs.IndexOf(m);
             if (mIdx < 0) return false;
@@ -441,7 +447,9 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>动态项：标题带正在思考 + 模式状态/切换按钮 + 输入区联动（0.3s 节流调）。</summary>
+        /// <summary>动态项：标题带正在思考 + 模式指示文本（会话状态派生）+ 输入区联动（0.3s 节流调）。
+        /// 🔴 2026-08-12（合并闲聊/计划模式）：模式文本不再可切换——按 ImCommandFlow.GetPhase 派生
+        ///（闲聊 / 计划生成中 / 计划待批准 / 计划执行中），输入区按待批计划卡片联动（发送 = 修改）。</summary>
         private static void RefreshDynamic()
         {
             if (_vm == null || _selected == null) return;
@@ -451,34 +459,35 @@ namespace LivingWorldNpcs
             _vm.IsTypingVisible = _selected.Type == ImConversationType.Direct && !string.IsNullOrWhiteSpace(typing);
             _vm.TypingText = typing;
 
-            bool modeVisible = IsCommandModeAvailable(_selected);
-            _vm.IsModeControlVisible = modeVisible;
-            bool isCommand = ImChatStore.GetMode(_selected.Id) == ImMode.Command;
-            // 密令侧模式名：Mission = 密令；Campaign 大地图 = 行军令（Q5b）
-            string commandModeName = Mission.Current == null
-                ? LWNTextHelper.ResolveText("LWN_im_mode_march", "March")   // 模式名：行军令
-                : LWNTextHelper.ResolveText("LWN_im_mode_command", "Order"); // 模式名：密令
-            string chatModeName = LWNTextHelper.ResolveText("LWN_im_mode_chat", "Chat"); // 模式名：闲聊
-            // 状态静态文本：「当前：XX模式」；按钮动作文本：「切换到XX」（目标 = 非当前模式）
+            // 模式指示文本：从会话计划状态派生（GetPhase 只反映「最新活动状态」）
+            var phase = ImCommandFlow.GetPhase(_selected);
+            string modeName = phase switch
+            {
+                // 模式名：计划生成中（GetPhase=Generating）
+                ImCommandFlow.ImSessionPhase.Generating => LWNTextHelper.ResolveText("LWN_im_mode_generating", "Planning…"),
+                // 模式名：计划待批准（GetPhase=PendingPlan）
+                ImCommandFlow.ImSessionPhase.PendingPlan => LWNTextHelper.ResolveText("LWN_im_mode_pending", "Plan awaiting approval"),
+                // 模式名：计划执行中（GetPhase=Executing）
+                ImCommandFlow.ImSessionPhase.Executing => LWNTextHelper.ResolveText("LWN_im_mode_executing", "Executing"),
+                // 模式名：闲聊（默认）
+                _ => LWNTextHelper.ResolveText("LWN_im_mode_chat", "Chat"),
+            };
+            // 模式指示文本：「当前：{MODE}模式」（会话状态派生，常显）
             _vm.ModeStatusText = LWNTextHelper.ResolveCompound("LWN_im_mode_status", "Mode: {MODE}",
-                ("MODE", isCommand ? commandModeName : chatModeName));
-            _vm.SwitchModeButtonText = LWNTextHelper.ResolveCompound("LWN_im_btn_switch_mode", "Switch to {MODE}",
-                ("MODE", isCommand ? chatModeName : commandModeName));
-            // 输入区随模式联动（双重反馈：placeholder + 发送按钮文案）。
+                ("MODE", modeName));
+            // 输入区联动（双重反馈：placeholder + 发送按钮文案）。
             // 🔴 2026-08-12（用户裁定：修改按钮废除 → 输入框即修改）：待批计划卡片存在时，
             // placeholder/发送键提示「发送 = 修改该计划」（复用原修改态文案键）。
-            bool hasPendingCard = isCommand && Mission.Current != null && ImCommandFlow.FindLatestPendingCard(_selected) != null;
+            bool hasPendingCard = Mission.Current != null && ImCommandFlow.FindLatestPendingCard(_selected) != null;
             _vm.PlaceholderText = hasPendingCard
-            // 修改态输入框 placeholder
+            // 修改态输入框 placeholder（待批卡片存在时，发送 = 修改该计划）
                 ? LWNTextHelper.ResolveText("LWN_im_input_placeholder_modify", "Revise the plan: ...")
-                : isCommand
-                    ? LWNTextHelper.ResolveText("LWN_im_input_placeholder_cmd", "Type a command...")
-                    : LWNTextHelper.ResolveText("LWN_im_input_placeholder", "Type a message...");
-            _vm.SendText = isCommand
-                ? (hasPendingCard
-            // 修改态发送按钮
-                    ? LWNTextHelper.ResolveText("LWN_im_btn_submit_modify", "Submit")
-                    : LWNTextHelper.ResolveText("LWN_im_btn_order", "Order"))
+                // 闲聊输入框 placeholder
+                : LWNTextHelper.ResolveText("LWN_im_input_placeholder", "Type a message...");
+            _vm.SendText = hasPendingCard
+            // 修改态发送按钮（Submit）
+                ? LWNTextHelper.ResolveText("LWN_im_btn_submit_modify", "Submit")
+                // 普通发送按钮（Send）
                 : LWNTextHelper.ResolveText("LWN_im_btn_send", "Send");
         }
 
@@ -667,87 +676,69 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[ImChat] Player → {_selected.Title}: \"{text.Trim()}\"");
 
             // 🔴 §5.7 附近频道：玩家喊话（头顶冒泡 + 广播 spoken_to 给最近 NPC → 响应不确定）
+            // 🔴 2026-08-12（模板 NPC 密信）：@提及前缀（@名字 #编号）→ 定向喊话给点名目标
+            //（BroadcastPlayerCallTo → respond → 回复冒泡流入频道）；无 @ / 匹配失败 → 普通喊话。
+            // 玩家消息进频道走 AgentSay → Forward（SenderHeroId=player），**天然带完整 @ 前缀**显示。
             if (_selected.Type == ImConversationType.Nearby)
             {
-                AgentHudMissionView.AgentSay(Agent.Main, text.Trim());
-                NearbyFeed.BroadcastPlayerCall(text.Trim());
+                string full = text.Trim();
+                AgentHudMissionView.AgentSay(Agent.Main, full);
+                var mention = NearbyFeed.TryResolveMention(full);
+                if (mention != null && !string.IsNullOrWhiteSpace(mention.Value.body))
+                    NearbyFeed.BroadcastPlayerCallTo(mention.Value.target, mention.Value.body);
+                else
+                    NearbyFeed.BroadcastPlayerCall(full);
                 RefreshMessages();
                 ScrollToBottom();
                 return;
             }
 
-            // 密令模式 → 命令管线（Phase 4）；闲聊 → 常规发送
-            if (ImChatStore.GetMode(_selected.Id) == ImMode.Command)
+            // 🔴 2026-08-12（合并闲聊/计划模式）：不再有模式路由——全部走闲聊管线，
+            // 按会话派生状态路由（决策表）：
+            //   ① 澄清轮挂起       → RequestCommand 并入命令上下文重生成（既有合并路径）
+            //   ② 计划生成中       → 闲聊回复但本轮抑制 needPlan（防并发双计划）
+            //   ③ PlanCard 待批    → RequestModify（保留「输入即修改」语义）
+            //   ④ 计划执行中       → 闲聊回复 + 执行上下文注入（adjustPlan 判定可改计划）
+            //   ⑤ 其他（闲聊/建议待决）→ 建议作废 + 闲聊回复（needPlan 正常启用）
+            if (ImCommandFlow.HasPendingClarify(_selected))
             {
-                // 🔴 2026-08-12（用户裁定：修改按钮废除）：会话内存在待批计划卡片时，
-                // 输入框发送 = 修改该计划（原命令+意见重拟，额度 ≤2）；无待批卡片 → 全新命令。
-                // 想彻底换命令：先拒绝/批准当前卡片，再输入新命令。
+                ImCommandFlow.RequestCommand(_selected, text.Trim());
+            }
+            else if (HasGeneratingPlaceholder(_selected))
+            {
+                ImChatManager.SendPlayerMessage(_selected, text.Trim(), suppressNeedPlan: true);
+            }
+            else
+            {
                 var pendingCard = ImCommandFlow.FindLatestPendingCard(_selected);
                 if (pendingCard != null)
                     ImCommandFlow.RequestModify(pendingCard, text.Trim());
                 else
-                    ImCommandFlow.RequestCommand(_selected, text.Trim());
-            }
-            else
-            {
-                ImChatManager.SendPlayerMessage(_selected, text.Trim());
+                {
+                    // 建议待决 + 玩家发新消息 → 旧建议作废（按钮消失），新消息按新请求判定
+                    ImCommandFlow.InvalidateSuggestions(_selected);
+                    ImChatManager.SendPlayerMessage(_selected, text.Trim());
+                }
             }
             RefreshMessages();
             // 🔴 八轮：发消息后自动滚底（玩家翻历史后发消息，新消息必须可见）
             ScrollToBottom();
         }
 
-        /// <summary>切换按钮：切到闲聊模式（点击非当前模式才有效，否则无操作）。</summary>
-        public static void ExecuteSwitchToChat()
+        /// <summary>会话是否有计划生成中占位（Generating 消息存在于 store；生成中发消息 → 抑制 needPlan 防并发）。</summary>
+        private static bool HasGeneratingPlaceholder(ImConversation conv)
         {
-            if (_vm == null || _selected == null) return;
-            if (ImChatStore.GetMode(_selected.Id) != ImMode.Command) return;
-            SetMode(ImMode.Chat);
-        }
-
-        /// <summary>切换按钮（2026-08-10 终版：单按钮 + 文本变量「切换到密令」⇄「切换到闲聊」）。
-        /// Command.Click 固定方法绑定 → 单方法内部按当前模式路由。</summary>
-        public static void ExecuteSwitchMode()
-        {
-            if (_vm == null || _selected == null) return;
-            if (ImChatStore.GetMode(_selected.Id) == ImMode.Command)
-                SetMode(ImMode.Chat);
-            else
-                ExecuteSwitchToCommand();   // 含可用性 + 互斥检查
-        }
-
-        /// <summary>切到密令模式（含可用性 + 互斥检查）。</summary>
-        public static void ExecuteSwitchToCommand()
-        {
-            if (_vm == null || _selected == null) return;
-            if (ImChatStore.GetMode(_selected.Id) == ImMode.Command) return;
-            var conv = _selected;
-
-            if (!IsCommandModeAvailable(conv))
+            if (conv == null) return false;
+            try
             {
-                // 提示：密令不可用
-                ShowHint(LWNTextHelper.ResolveText("LWN_im_mode_unavailable", "Command mode is unavailable here."));
-                return;
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                for (int i = msgs.Count - 1; i >= 0; i--)
+                {
+                    if (msgs[i] != null && msgs[i].IsGenerating) return true;
+                }
             }
-            // Campaign 大地图 = 行军令模式（IsCommandModeAvailable 已把关：私聊有 party 的 Hero）；
-            // Mission 内还需互斥检查（PlanCommandFlow 面谈进行中，本会话除外——Plot 入口已切 Command 模式）
-            if (Mission.Current != null && PlanCommandFlow.IsActiveForOtherConv(conv))
-            {
-                // 提示：另有密谋进行中
-                ShowHint(LWNTextHelper.ResolveText("LWN_im_mode_plot_active", "Another secret order is already being discussed."));
-                return;
-            }
-
-            SetMode(ImMode.Command);
-        }
-
-        private static void SetMode(ImMode mode)
-        {
-            if (_vm == null || _selected == null) return;
-            ImChatStore.SetMode(_selected.Id, mode);
-            // 🔴 Q1：切回闲聊 = 放弃密谋输入阶段（互斥解除；命令已批准的执行不受影响）
-            if (mode != ImMode.Command) PlanCommandFlow.End();
-            RefreshDynamic();
+            catch { }
+            return false;
         }
 
         /// <summary>密令卡片操作（Phase 4 ImCommandFlow 处理）。</summary>
@@ -835,6 +826,29 @@ namespace LivingWorldNpcs
             ImCommandFlow.RequestCommand(conv, msg.Content);
             // 消息列表重建（提议按钮消失）
             if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+        }
+
+        /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（制定计划/先不用）。
+        /// 制定计划 → RequestCommand（命令 = 玩家原话 CommandText，私聊玩家消息不在 store 必须冗余存；
+        /// Mission = LLM 计划管线；Campaign = 行军令）；先不用 → 了结回闲聊（密谋互斥释放，同「切回闲聊」语义）。
+        /// 命令批准后的互斥释放由既有 Resolve 处理（End），此处不重复调。</summary>
+        public static void HandleSuggestion(ImMessage msg, bool makePlan)
+        {
+            if (msg == null || !msg.IsPlanSuggest || msg.IsSuggestionResolved) return;
+            var conv = ConversationOf(msg.ConvId);
+            if (conv == null) return;
+            msg.ExecutorId = "done";
+            // 按钮行是重建式数据 → 全量重建（本消息按钮消失 + 前一张未决卡恢复可点）
+            if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+            if (!makePlan)
+            {
+                // 先不用：放弃密谋输入阶段（互斥解除；已批准的执行不受影响）
+                PlanCommandFlow.End();
+                return;
+            }
+            string command = string.IsNullOrWhiteSpace(msg.CommandText) ? msg.Content : msg.CommandText;
+            if (string.IsNullOrWhiteSpace(command)) return;
+            ImCommandFlow.RequestCommand(conv, command);
         }
 
         private static ImConversation ConversationOf(string convId)
