@@ -4060,6 +4060,7 @@
     <string id="LWN_im_channel_clan" text="家族" />
     <string id="LWN_im_channel_kingdom" text="王国" />
     <string id="LWN_im_typing" text="{NAMES}正在输入…" />
+    <string id="LWN_im_generating" text="{NAMES}正在思考中…" />
     <string id="LWN_im_mode_chat" text="闲聊" />
     <string id="LWN_im_mode_command" text="计划" />
     <string id="LWN_im_mode_unavailable" text="此处无法下达计划。" />
@@ -4085,6 +4086,7 @@
         <string id="LWN_im_btn_propose_approve" text="准了" />
     <string id="LWN_im_btn_propose_reject" text="不必了" />
 <string id="LWN_im_btn_modify" text="修改" />
+    <string id="LWN_im_btn_regenerate" text="重拟" />
     <string id="LWN_im_btn_submit_modify" text="提交修改" />
     <string id="LWN_im_input_placeholder_modify" text="修改计划：…" />
     <string id="LWN_im_badge_modified" text="修改版 v{N}" />
@@ -4093,6 +4095,7 @@
     <string id="LWN_im_btn_explain" text="讲解计划" />
     <string id="LWN_im_btn_explaining" text="讲解中…" />
     <string id="LWN_im_cmd_modify_pending" text="随从正在按你的意见重拟计划…" />
+    <string id="LWN_im_cmd_regenerating" text="随从正在重拟计划…" />
     <string id="LWN_im_cmd_modify_exhausted" text="计划修改次数已达上限，请批准或重新下达。" />
     <string id="LWN_im_cmd_modify_need_mission" text="修改计划需要随从在场，请先进到场景里。" />
     <string id="LWN_im_cmd_unavailable_here" text="此刻无法传讯。" />

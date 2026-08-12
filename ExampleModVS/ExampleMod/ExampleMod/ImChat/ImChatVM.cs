@@ -150,19 +150,26 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsNotSelf => _msg != null && !_msg.IsSelf;
 
-        /// <summary>他人气泡显示：非自己 且 非系统/计划卡片（卡片与系统消息有独立分支，避免与气泡双渲染）。</summary>
+        /// <summary>他人气泡显示：非自己 且 非系统/计划卡片/生成中占位（卡片与系统消息有独立分支，避免与气泡双渲染）。
+        /// 🔴 2026-08-12：生成中占位（SenderHeroId=player 且 SenderName="System"）不走气泡分支——
+        /// 否则灰色占位卡上方多渲染一个「System」名字气泡（玩家实机反馈）。</summary>
         [DataSourceProperty]
-        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard;
+        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating;
 
-        /// <summary>自己气泡显示：是自己 且 非系统/计划卡片（SenderHeroId="player" 的卡片/系统消息不能走气泡分支）。</summary>
+        /// <summary>自己气泡显示：是自己 且 非系统/计划卡片/生成中占位（SenderHeroId="player" 的卡片/系统消息不能走气泡分支）。</summary>
         [DataSourceProperty]
-        public bool ShowSelfBubble => IsSelf && !IsSystem && !IsPlanCard;
+        public bool ShowSelfBubble => IsSelf && !IsSystem && !IsPlanCard && !IsGenerating;
 
         [DataSourceProperty]
         public bool IsSystem => _msg != null && _msg.IsSystem;
 
         [DataSourceProperty]
         public bool IsPlanCard => _msg != null && _msg.IsPlanCard;
+
+        /// <summary>🔴 2026-08-12（用户裁定）：生成中/计划就绪 = 同一卡片控件两态——
+        /// 思考中 → 计划就绪视觉连续（灰卡与计划卡共用一套卡片框架）。</summary>
+        [DataSourceProperty]
+        public bool IsPlanCardOrGenerating => _msg != null && (_msg.IsPlanCard || _msg.IsGenerating);
 
         // ── 🔴 2026-08-10（Q4）：NPC 主动提议（Proposal 消息 + 批准/拒绝按钮）──
 
@@ -242,14 +249,6 @@ namespace LivingWorldNpcs
             ? LWNTextHelper.ResolveCompound("LWN_im_badge_modified", "Revised v{N}", ("N", _msg.PlanModifyCount.ToString()))
             : "";
 
-        /// <summary>卡片详情（§3.2：C# 确定性渲染的步骤/应急/安全网；可展开）。</summary>
-        [DataSourceProperty]
-        public string PlanDetailText => _msg?.PlanDetailText ?? "";
-
-        /// <summary>详情是否展开（默认收起，卡片不膨胀）。</summary>
-        [DataSourceProperty]
-        public bool IsDetailExpanded { get; private set; }
-
         /// <summary>讲解生成中（🔴 2026-08-11：按钮 = 确定性事件 → LLM 人话讲解；生成中禁重复点）。</summary>
         [DataSourceProperty]
         public bool IsExplainPending { get; private set; }
@@ -258,45 +257,34 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool CanToggleDetail => !IsExplainPending;
 
-        /// <summary>讲解/详情按钮文案：讲解中 → 「讲解中…」；已降级展开 → 「收起」；默认 → 「讲解计划」。</summary>
+        /// <summary>讲解按钮文案：讲解中 → 「讲解中…」；默认 → 「讲解计划」
+        /// （🔴 2026-08-12：删 JSON 详情降级与收起态——口述失败用计划摘要，不展示 JSON）。</summary>
         [DataSourceProperty]
         public string DetailToggleText => IsExplainPending
             // 讲解中…
             ? LWNTextHelper.ResolveText("LWN_im_btn_explaining", "Explaining…")
-            : IsDetailExpanded
-                // 详情按钮：收起（LLM 讲解失败降级展开后）
-                ? LWNTextHelper.ResolveText("LWN_im_btn_detail_collapse", "Collapse details")
-                // 讲解按钮：讲解计划
-                : LWNTextHelper.ResolveText("LWN_im_btn_explain", "Explain plan");
+            // 讲解按钮：讲解计划
+            : LWNTextHelper.ResolveText("LWN_im_btn_explain", "Explain plan");
 
         /// <summary>
-        /// 讲解/详情（🔴 2026-08-11 用户裁定）：点击 = 确定性事件 → LLM 生成执行者口语化讲解
-        /// （计划步骤 + 异常条件，人话），NPC 讲解消息上屏；LLM 失败/未配置 → 降级展开 C# 确定性详情兜底。
+        /// 讲解（🔴 2026-08-11 用户裁定 → 2026-08-12 再裁定）：点击 = 确定性事件 → 执行者 NPC 口述讲解
+        /// （LLM 生成人话 → NPC 聊天消息 + 场景内冒泡；LLM 失败 → 用计划摘要口述，**绝不展示 JSON 详情**）。
         /// 回调由 ImCommandFlow.Tick 主线程执行（异步回包只入队，不在此线程碰 UI）。
         /// </summary>
         public void ExecuteToggleDetail()
         {
             if (_msg == null || !_msg.IsPlanCard) return;
             if (IsExplainPending) return;                          // 讲解中禁重复点
-            if (IsDetailExpanded)                                  // 降级展开态 → 收起
-            {
-                IsDetailExpanded = false;
-                OnPropertyChanged(nameof(IsDetailExpanded));
-                OnPropertyChanged(nameof(DetailToggleText));
-                return;
-            }
             IsExplainPending = true;
             OnPropertyChanged(nameof(IsExplainPending));
             OnPropertyChanged(nameof(CanToggleDetail));
             OnPropertyChanged(nameof(DetailToggleText));
             ImCommandFlow.RequestPlanExplain(_msg, ok =>
             {
-                // 主线程回调（ImCommandFlow.Tick 消费讲解队列时执行）
+                // 主线程回调（ImCommandFlow.Tick 消费讲解队列时执行）；降级已在管线内用摘要口述，无需展开 JSON
                 IsExplainPending = false;
-                if (!ok) IsDetailExpanded = true;                  // LLM 失败 → C# 详情兜底（铁律 1/2）
                 OnPropertyChanged(nameof(IsExplainPending));
                 OnPropertyChanged(nameof(CanToggleDetail));
-                OnPropertyChanged(nameof(IsDetailExpanded));
                 OnPropertyChanged(nameof(DetailToggleText));
             });
         }
@@ -334,6 +322,15 @@ namespace LivingWorldNpcs
         // 计划卡片按钮：修改（Q2）
         public string ModifyText => LWNTextHelper.ResolveText("LWN_im_btn_modify", "Revise");
 
+        // 计划卡片按钮：重拟（2026-08-12：二次校验发现问题 → 同命令重新生成）
+        [DataSourceProperty]
+        // 计划卡片按钮：重拟（2026-08-12）
+        public string RegenerateText => LWNTextHelper.ResolveText("LWN_im_btn_regenerate", "Regenerate");
+
+        /// <summary>重拟可用：卡片待批（与 CanApprove 同窗口——重拟只对未下发的计划有意义）。</summary>
+        [DataSourceProperty]
+        public bool CanRegenerate => _msg != null && _msg.IsPlanCard && string.IsNullOrEmpty(_msg.ExecutorId);
+
         public ImMessageVM(ImMessage msg)
         {
             _msg = msg;
@@ -345,8 +342,8 @@ namespace LivingWorldNpcs
 
         public void ExecuteAbort() => ImChatView.HandlePlanAction(_msg, approve: false, abort: true);
 
-        /// <summary>修改按钮：进入修改输入态（输入框聚焦 + placeholder 联动「修改计划：…」）。</summary>
-        public void ExecuteModify() => ImChatView.BeginModify(_msg);
+        /// <summary>🔴 2026-08-12（重拟按钮）：同命令重新生成（二次校验发现问题时的出口）。</summary>
+        public void ExecuteRegenerate() => ImChatView.HandleRegenerate(_msg);
     }
 
     /// <summary>
@@ -371,9 +368,6 @@ namespace LivingWorldNpcs
         private bool _isEmpty;
         private string _emptyHint = "";
         private bool _hasNewMessageHint;
-
-        // 🔴 2026-08-10（Q2）：修改输入态——点卡片【修改】后底部输入框聚焦 + placeholder「修改计划：…」
-        private bool _isModifying;
 
         [DataSourceProperty]
         public string Title
@@ -401,20 +395,12 @@ namespace LivingWorldNpcs
 
         /// <summary>输入框 placeholder（微信：「输入消息」灰字提示；DefaultSearchText 官方属性）。
         /// 随模式联动：闲聊="输入消息…" / 密令="下达密令…"（让玩家在输入区也感知当前模式）。
-        /// 🔴 Q2：修改输入态 = 「修改计划：…」（ImChatView.RefreshDynamic 联动）。</summary>
+        /// 🔴 2026-08-12：待批计划卡片存在时 = 「修改计划：…」（发送即修改，ImChatView.RefreshDynamic 联动）。</summary>
         [DataSourceProperty]
         public string PlaceholderText
         {
             get => _placeholderText;
             set { if (_placeholderText != value) { _placeholderText = value; OnPropertyChangedWithValue(value, nameof(PlaceholderText)); } }
-        }
-
-        /// <summary>🔴 Q2 修改输入态：true = 玩家点了卡片【修改】，发送走 RequestModify。</summary>
-        [DataSourceProperty]
-        public bool IsModifying
-        {
-            get => _isModifying;
-            set { if (_isModifying != value) { _isModifying = value; OnPropertyChangedWithValue(value, nameof(IsModifying)); } }
         }
 
         /// <summary>发送按钮可用（非空输入才可发，微信置灰语义）。</summary>

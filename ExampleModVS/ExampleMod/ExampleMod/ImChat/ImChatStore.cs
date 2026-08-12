@@ -73,6 +73,20 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>按索引区间移除（🔴 2026-08-12：拒绝计划 = 抛弃计划——命令→陈述→卡片整段抹除，
+        /// 不再进后续上下文（群聊【频道近期消息】）与 UI）。越界安全钳制。</summary>
+        public static void RemoveMessageRange(string channelId, int startIndex, int count)
+        {
+            if (count <= 0 || startIndex < 0) return;
+            lock (_lock)
+            {
+                if (!_groupMessages.TryGetValue(channelId, out var list)) return;
+                int end = Math.Min(startIndex + count, list.Count);
+                for (int i = end - 1; i >= startIndex; i--)
+                    list.RemoveAt(i);
+            }
+        }
+
         // ───────────────────────── 私聊索引 ─────────────────────────
 
         public static void TouchDirectChat(string heroId, double ts)

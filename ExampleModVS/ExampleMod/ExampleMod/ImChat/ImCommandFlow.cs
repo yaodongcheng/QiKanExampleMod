@@ -74,13 +74,14 @@ namespace LivingWorldNpcs
         private static readonly List<PendingWire> _pendingWires = new List<PendingWire>();
 
         // 🔴 计划讲解（2026-08-11 用户裁定：按钮 = 确定性事件 → LLM 人话讲解，不靠玩家打字识别意图）。
-        // LLM 回包在异步线程只入队（lock），主线程 Tick 消费：成功 = NPC 讲解消息上屏；失败 = 展开 C# 详情。
+        // LLM 回包在异步线程只入队（lock），主线程 Tick 消费：成功 = NPC 讲解消息上屏；失败 = 用计划摘要口述。
         private class ExplainJob
         {
             public string ConvId;
             public string SenderId, SenderName;
-            public string Line;          // 讲解文本（null/空 = LLM 失败 → 降级展开 C# 详情）
-            public Action<bool> OnDone;  // 主线程回调（Tick 消费时执行）
+            public string Line;              // 讲解文本（null/空 = LLM 失败 → 摘要口述）
+            public string BubbleHeroId;      // 场景内冒泡口述的执行者 HeroId（主线程解析 Agent——后台线程禁碰 native 句柄）
+            public Action<bool> OnDone;      // 主线程回调（Tick 消费时执行）
         }
 
         private static readonly List<ExplainJob> _explainQueue = new List<ExplainJob>();
@@ -308,6 +309,21 @@ namespace LivingWorldNpcs
                     if (job != null && !string.IsNullOrWhiteSpace(job.Line))
                         ImChatStore.AppendGroupMessage(job.ConvId,
                             new ImMessage(job.SenderId, job.SenderName, job.Line, ImMessageKind.Text));
+                    // 🔴 2026-08-12：场景内执行者在场 → 冒泡口述（主线程解析 Agent + 说话并联——
+                    // 后台线程禁碰 Agent native 句柄；远距离密信 = 仅聊天流）
+                    if (job != null && !string.IsNullOrEmpty(job.Line) && !string.IsNullOrEmpty(job.BubbleHeroId)
+                        && Mission.Current != null)
+                    {
+                        try
+                        {
+                            var agent = FindAgentByHeroId(job.BubbleHeroId);
+                            if (agent != null && agent.IsActive())
+                                SpeechChannel.Say(agent, job.Line, SpeechPriority.Dialogue,
+                                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), Agent.Main, "plan_report",
+                                        LWNTextHelper.ResolveText("LWN_im_btn_explain", "Explain plan")));
+                        }
+                        catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 讲解冒泡失败: {ex.Message}"); }
+                    }
                     try { job?.OnDone?.Invoke(job != null && !string.IsNullOrWhiteSpace(job.Line)); } catch { }
                 }
             }
@@ -329,6 +345,9 @@ namespace LivingWorldNpcs
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_cancelled", "Order cancelled."));
                 // 🔴 Q1：拒绝 = 密谋输入阶段结束（玩家可立即在该会话重发新命令）
                 PlanCommandFlow.End();
+                // 🔴 2026-08-12（用户裁定）：拒绝 = 计划彻底抛弃——命令/陈述/卡片从 store 抹除，
+                // 不再进入后续上下文（群聊【频道近期消息】）与 UI；私聊命令本就"不写 NPC 记忆"（Mission 级瞬态）。
+                ScrubRejectedPlan(conv, msg);
                 return;
             }
 
@@ -366,6 +385,10 @@ namespace LivingWorldNpcs
                     "{NAME} has begun carrying out the order.", ("NAME", names)));
                 // 🔴 Q1：批准 = 密谋输入阶段结束（执行阶段独立，StopPlan 行按执行器状态显示）
                 PlanCommandFlow.End();
+                // 🔴 2026-08-12（用户反馈）：批准后关闭 IM 面板——玩家直接观察执行，
+                // 不再被面板挡着；执行进度走执行摘要 HUD（AgentHud）与当面/密信回报。
+                // HandlePlanAction 在 Resolve 返回后对 _vm 判空，Close 置空 _vm 安全。
+                ImChatView.Close();
             }
             catch (Exception ex)
             {
@@ -482,6 +505,127 @@ namespace LivingWorldNpcs
             return card.PlanSummary ?? "";
         }
 
+        /// <summary>会话内最新一张待批计划卡片（ExecutorId 空）。🔴 2026-08-12（用户裁定：
+        /// 修改按钮废除 → 输入框发送即修改）：待批卡片存在时，命令模式的发送走 RequestModify 而非新命令。</summary>
+        public static ImMessage FindLatestPendingCard(ImConversation conv)
+        {
+            if (conv == null) return null;
+            var msgs = ImChatStore.GetGroupMessages(conv.Id);
+            for (int i = msgs.Count - 1; i >= 0; i--)
+            {
+                var m = msgs[i];
+                if (m != null && m.IsPlanCard && string.IsNullOrEmpty(m.ExecutorId))
+                    return m;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 拒绝 = 抛弃计划（2026-08-12 用户裁定）：把本次计划交易从 store 整段抹除——
+        /// 玩家命令 → NPC 陈述 → 计划卡片（含修改链：命令1→陈述1→卡片1(superseded)→…→当前卡片）。
+        /// 群聊：不再进后续 LLM 的【频道近期消息】；私聊：UI 同步清掉（命令本就瞬态，不写 NPC 记忆）。
+        /// 「密令已撤回」系统消息（在卡片之后）保留——通用通知，非计划内容。
+        /// 🔴 追溯安全边界：只跨 superseded 卡片（同一条计划的修改链）；遇到「另一张待批卡片」
+        /// （叠放命令）或「已执行卡片」（ExecutorId=随从）即停——那些不是被拒的这条计划。
+        /// </summary>
+        private static void ScrubRejectedPlan(ImConversation conv, ImMessage card)
+        {
+            if (conv == null || card == null) return;
+            var msgs = ImChatStore.GetGroupMessages(conv.Id);
+            int cardIdx = msgs.FindIndex(m => m == card);
+            if (cardIdx < 0) return;
+
+            // 锚点 = 卡片前最近一条玩家命令（FindOriginalCommand 同源语义）
+            int anchor = -1;
+            for (int i = cardIdx - 1; i >= 0; i--)
+            {
+                var m = msgs[i];
+                if (m.SenderHeroId == ImChatManager.PlayerId && m.Kind == ImMessageKind.Text
+                    && !string.IsNullOrWhiteSpace(m.Content))
+                {
+                    anchor = i;
+                    break;
+                }
+            }
+            if (anchor < 0) { ImChatStore.RemoveMessageRange(conv.Id, cardIdx, 1); return; }   // 防御：只删卡片
+
+            // 向前追溯修改链（严格边界见方法注释）
+            int start = anchor;
+            while (start > 0)
+            {
+                var m = msgs[start - 1];
+                if (m.IsGenerating) { start--; continue; }
+                if (m.IsSystem) { start--; continue; }
+                if (m.IsPlanCard && m.ExecutorId == Superseded) { start--; continue; }
+                if (m.Kind == ImMessageKind.Text && m.SenderHeroId != ImChatManager.PlayerId
+                    && msgs[start].IsPlanCard && msgs[start].ExecutorId == Superseded) { start--; continue; }
+                if (m.Kind == ImMessageKind.Text && m.SenderHeroId == ImChatManager.PlayerId
+                    && msgs[start].Kind == ImMessageKind.Text && msgs[start].SenderHeroId != ImChatManager.PlayerId
+                    && start + 1 < msgs.Count && msgs[start + 1].IsPlanCard
+                    && msgs[start + 1].ExecutorId == Superseded) { start--; continue; }
+                break;
+            }
+            ImChatStore.RemoveMessageRange(conv.Id, start, cardIdx - start + 1);
+            DebugLogger.Log($"[ImCommandFlow] 拒绝抛弃计划：抹除 store 消息 {cardIdx - start + 1} 条（会话 {conv.Id}）");
+        }
+
+        /// <summary>
+        /// 重拟（🔴 2026-08-12 用户裁定：二次校验发现问题时给玩家"同命令重新生成"的出口）：
+        /// 原命令原样重走一遍 LLM 计划管线（不合并修改意见——那是输入框发送的语义）。
+        /// 与修改共用额度（PlanModifyCount ≤ 2，成功产出才消耗）——防无限重拟刷 LLM；
+        /// 新卡片带「修改版 vN」徽标，旧卡片标记 superseded（按钮消失）。
+        /// </summary>
+        public static void RequestRegenerate(ImMessage card)
+        {
+            if (card == null || !card.IsPlanCard || !string.IsNullOrEmpty(card.ExecutorId)) return;
+            var conv = ConversationOf(card.ConvId);
+            if (conv == null) return;
+            if (card.PlanModifyCount >= MaxModifyCount)
+            {
+                // 修改额度用尽
+                PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_exhausted", "The plan has been revised too many times. Approve it or start over."));
+                return;
+            }
+            if (!ImChatView.IsCommandModeAvailable(conv))
+            {
+                // 提示：密令不可用
+                PostHint(conv, LWNTextHelper.ResolveText("LWN_im_mode_unavailable", "Command mode is unavailable here."));
+                return;
+            }
+            if (Mission.Current != null && IsBusy)
+            {
+                // 提示：上一条命令处理中
+                PostHint(conv, LWNTextHelper.ResolveText("LWN_im_cmd_busy", "Still thinking about your previous order..."));
+                return;
+            }
+
+            // 旧卡片标记已重拟（按钮消失；与修改同语义）
+            card.ExecutorId = Superseded;
+
+            // 原命令原样重跑（不带修改意见——输入框发送才合并意见）
+            string original = FindOriginalCommand(conv, card);
+            if (string.IsNullOrWhiteSpace(original)) original = card.PlanSummary ?? "";
+
+            // 重拟提示
+            PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_regenerating", "The companion is working out a new plan."));
+            if (Mission.Current == null)
+            {
+                // 行军令无重拟（Campaign 侧规则解析，零 LLM）
+                PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_need_mission", "You can only revise a plan while in the field."));
+                return;
+            }
+
+            _pending = new PendingRequest
+            {
+                Conv = conv,
+                Command = original,
+                IsModify = true,
+                ModifyCount = card.PlanModifyCount + 1,
+            };
+            AppendGenerating(conv);
+            _ = CallPlanAsync(_pending);
+        }
+
         // ───────────────────────── 生成中占位行（🔴 2026-08-12：删进度条，文案与「正在输入」统一）─────────────────────────
 
         /// <summary>占位行：消息流内灰色卡片（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一——LWN_im_typing 同款）。</summary>
@@ -500,9 +644,11 @@ namespace LivingWorldNpcs
             }
             if (string.IsNullOrEmpty(thinker))
                 thinker = LWNTextHelper.ResolveText("LWN_im_npc_companion", "Companion");
-            string thinkingText = LWNTextHelper.ResolveCompound("LWN_im_typing",
-                "{NAMES} is typing...", ("NAMES", thinker));
-            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId, "System", "", ImMessageKind.Generating)
+            string thinkingText = LWNTextHelper.ResolveCompound("LWN_im_generating",
+                "{NAMES} is thinking...", ("NAMES", thinker));
+            // 🔴 2026-08-12：SenderName 用思考者名（原硬编码 "System"——消息流气泡泄漏
+            // 时显示「System」，玩家反馈；气泡泄漏本身已在 ImChatVM.ShowSelfBubble 修复）
+            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId, thinker, "", ImMessageKind.Generating)
             {
                 ConvId = conv.Id,
                 GenerateText = thinkingText,
@@ -599,8 +745,15 @@ namespace LivingWorldNpcs
         /// → 执行者 LLM 口语化讲解：要做什么、分几步、出岔子怎么办（步骤 + 异常条件，人话）。
         /// prompt 只喂 C# 确定性渲染的计划内容（<see cref="BuildPlanDetail"/>：动作标签表 + 目标 + 应急 +
         /// 安全网），纪律 = 只许转述（同 narration，防幻觉，铁律 2 延伸）。
-        /// 异步：回包入队（_explainQueue，lock 线程安全），主线程 Tick 消费——成功 = NPC 讲解消息上屏
-        /// （[IM-Store] 自动记录）；失败 = onDone(false) → VM 展开 C# 详情兜底（铁律 1/2）。
+        /// 🔴 2026-08-12（讲解 = 二次校验）：讲解 prompt 内置「讲解前自查」——计划者本人复盘（当事人视角，
+        /// 非上帝视角）：步骤顺序/成功条件可达性/失败路径完备性/步骤矛盾。发现隐患 → 讲解开头点名，
+        /// 玩家听完讲解再决定 同意/拒绝/修改。三层防线分工：语法结构 = 确定性 PlanValidator（生成时）；
+        /// 语义可行性 = 本讲解轮（批准前，信息性，不硬门禁——硬门禁的 LLM 误报会卡住玩家）；
+        /// 运行时 = Guardrail R1-R7 + Replan。
+        /// 异步：回包入队（_explainQueue，lock 线程安全），主线程 Tick 消费——成功 = NPC 口述消息上屏
+        /// （[IM-Store] 自动记录）+ 场景内冒泡；失败 = 用计划摘要口述（人话，**绝不展示 JSON 详情**）。
+        /// 🔴 发言人与冒泡：讲解人 = 会话对方随从（原 bug：SenderName 用了卡片上的玩家名 →
+        /// 讲解以玩家自己的气泡上屏，玩家以为按钮没用）；冒泡在主线程 Tick 执行（后台线程禁碰 Agent）。
         /// 讲解消息 = 聊天流，不写 NPC 记忆（同 narration 偏差②）；叙事 = 执行者自述（当事人，非上帝视角）。
         /// </summary>
         public static void RequestPlanExplain(ImMessage card, Action<bool> onDone)
@@ -614,22 +767,38 @@ namespace LivingWorldNpcs
                     plan = JsonConvert.DeserializeObject<Plan>(LLMService.CleanJson(json));
             }
             catch { }
-            if (plan == null) { try { onDone?.Invoke(false); } catch { } return; }   // 无计划可讲 → 降级 C# 详情
+            if (plan == null) { try { onDone?.Invoke(false); } catch { } return; }   // 无计划可讲 → 失败
 
             string detail = BuildPlanDetail(plan);
             if (string.IsNullOrWhiteSpace(detail)) { try { onDone?.Invoke(false); } catch { } return; }
 
-            // 讲解人 = 卡片发送者（生成计划的 NPC，SenderName 恒有值；空兜底不出现中文字面量——铁律 13）
-            string senderName = card.SenderName ?? "";
-            // prompt 归口 PromptBuilder（LLM prompt 单一事实源；讲解 = C# 确定性渲染 + 转述纪律）
-            string prompt = PromptBuilder.BuildPrompt_PlanExplain(senderName, detail);
+            // 🔴 2026-08-12：讲解人 = 会话对方随从（私聊 = PartnerHero；群聊 = 通用发言人兜底）。
+            // 原实现用 card.SenderName（计划卡片 SenderHeroId=player）→ 讲解消息以玩家名义上屏 → 体验断裂。
+            var conv = ConversationOf(card.ConvId);
+            string heroId = conv?.Type == ImConversationType.Direct ? conv.PartnerHeroId : "";
+            string senderName = "";
+            if (conv?.Type == ImConversationType.Direct)
+            {
+                try
+                {
+                    senderName = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == conv.PartnerHeroId)?.Name?.ToString() ?? "";
+                }
+                catch { }
+            }
+            if (string.IsNullOrEmpty(senderName))
+                senderName = LWNTextHelper.ResolveText("LWN_im_npc_companion", "Companion");
+
+            // prompt 归口 PromptBuilder（LLM prompt 单一事实源；讲解 = C# 确定性渲染 + 转述纪律 +
+            // 二次校验——审查对照生成时同一份 LWN_plan_rules 纪律；原命令供"任务型 vs 保持型"判断）
+            string original = FindOriginalCommand(conv, card);
+            string prompt = PromptBuilder.BuildPrompt_PlanExplain(senderName, detail, original);
 
             async void Run()
             {
                 string line = null;
                 try
                 {
-                    string raw = await LLMService.Instance.ChatOnceAsync(prompt, 220, 0.7f, disableReasoning: true, timeoutMs: 8000);
+                    string raw = await LLMService.Instance.ChatOnceAsync(prompt, 320, 0.7f, disableReasoning: true, timeoutMs: 8000);
                     if (!string.IsNullOrWhiteSpace(raw))
                         line = DialogueComponent.Sanitize(raw, senderName);
                 }
@@ -637,13 +806,23 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[ImCommandFlow] 计划讲解失败: {ex.Message}");
                 }
+                // 🔴 2026-08-12：LLM 失败/超时/未配置 → 降级 = 计划摘要/陈述（卡片已有人话文本）口述，
+                // **不再展开 C# JSON 详情**（用户裁定）。onDone(true) 让按钮正常复位。
+                if (string.IsNullOrWhiteSpace(line))
+                    line = !string.IsNullOrWhiteSpace(card.Narration)
+                        ? card.Narration
+                        : (!string.IsNullOrWhiteSpace(card.PlanSummary)
+                            ? card.PlanSummary
+                            : LWNTextHelper.ResolveText("LWN_plan_default_summary", "I have a plan. Shall I go?"));
+                // 场景内冒泡由主线程 Tick 消费时执行（BubbleHeroId 传参；后台线程禁碰 Agent native 句柄）
                 lock (_explainLock)
                     _explainQueue.Add(new ExplainJob
                     {
                         ConvId = card.ConvId,
-                        SenderId = card.SenderHeroId,
+                        SenderId = heroId,
                         SenderName = senderName,
                         Line = line,
+                        BubbleHeroId = heroId,
                         OnDone = onDone,
                     });
             }

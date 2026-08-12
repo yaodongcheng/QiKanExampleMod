@@ -327,28 +327,22 @@
                                                     IsVisible="@IsSystem"
                                                     DoNotAcceptEvents="true"/>
 
-                                        <!-- 生成中占位行（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一；灰底卡片，卡片上屏/失败时被替换） -->
-                                        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="480"
-                                                HorizontalAlignment="Center"
-                                                Sprite="BlankWhiteSquare_9" Color="#1A1A3A88" MarginTop="2"
-                                                IsVisible="@IsGenerating"
-                                                DoNotAcceptEvents="true">
-                                          <Children>
-                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                        Text="@GenerateText" Brush="MyBrush_16_Left" Brush.FontSize="15" Brush.FontColor="#999999FF"
-                                                        WordWrapping="Wrap"
-                                                        MarginLeft="14" MarginRight="14" MarginTop="10" MarginBottom="10"
-                                                        DoNotAcceptEvents="true"/>
-                                          </Children>
-                                        </Widget>
-
-                                        <!-- 计划卡片：修改版徽标 + 摘要 + 详情（可展开）+ 同意/拒绝/中止/修改按钮 -->
+                                        <!-- 计划卡片（🔴 2026-08-12：合并生成中占位为同一控件两态——思考中 / 计划就绪）：
+                                             思考中 = 灰字「{随从}正在思考中…」（生成完成 → 消息被替换为 PlanCard，同框架切就绪态）；
+                                             就绪态 = 修改版徽标 + 摘要 + 讲解/同意/拒绝/中止按钮 -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="560"
                                                 HorizontalAlignment="Center"
                                                 Sprite="BlankWhiteSquare_9" Color="#1A1A3AEE" MarginTop="2"
-                                                IsVisible="@IsPlanCard"
+                                                IsVisible="@IsPlanCardOrGenerating"
                                                 DoNotAcceptEvents="true">
                                           <Children>
+                                            <!-- 思考中态：灰字（唯一子元素，撑起卡片高度；就绪态隐藏） -->
+                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                        Text="@GenerateText" Brush="MyBrush_16_Left" Brush.FontSize="15" Brush.FontColor="#999999FF"
+                                                        WordWrapping="Wrap"
+                                                        IsVisible="@IsGenerating"
+                                                        MarginLeft="14" MarginRight="14" MarginTop="10" MarginBottom="10"
+                                                        DoNotAcceptEvents="true"/>
                                             <!-- 修改版徽标（Q2：PlanModifyCount > 0） -->
                                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                         Text="@ModifiedBadgeText" Brush="MyBrush_16_Left" Brush.FontSize="13" Brush.FontColor="#E8C55AFF"
@@ -359,18 +353,13 @@
                                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                                         Text="@PlanSummary" Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#FFE9B0FF"
                                                         WordWrapping="Wrap"
+                                                        IsVisible="@IsPlanCard"
                                                         MarginLeft="14" MarginRight="14" MarginTop="10"
-                                                        DoNotAcceptEvents="true"/>
-                                            <!-- 详情区（§3.2：C# 确定性渲染的步骤/应急/安全网；默认收起） -->
-                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                        Text="@PlanDetailText" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#BBBBCCFF"
-                                                        WordWrapping="Wrap"
-                                                        IsVisible="@IsDetailExpanded"
-                                                        MarginLeft="14" MarginRight="14" MarginTop="8"
                                                         DoNotAcceptEvents="true"/>
                                             <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                        StackLayout.LayoutMethod="HorizontalLeftToRight"
                                                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                                                       IsVisible="@IsPlanCard"
                                                        MarginRight="10" MarginBottom="8" MarginTop="8"
                                                        DoNotAcceptEvents="true">
                                               <Children>
@@ -381,6 +370,18 @@
                                                   <Children>
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 Text="@DetailToggleText" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                DoNotAcceptEvents="true"/>
+                                                  </Children>
+                                                </ButtonWidget>
+                                                <!-- 重拟（2026-08-12：二次校验发现问题 → 同命令重新生成；与修改共用额度） -->
+                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
+                                                              Brush="Test.Button3"
+                                                              Command.Click="ExecuteRegenerate"
+                                                              IsVisible="@CanRegenerate" MarginRight="10">
+                                                  <Children>
+                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                Text="@RegenerateText" Brush="MyBrush_18_White" Brush.FontSize="16"
                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                 DoNotAcceptEvents="true"/>
                                                   </Children>
@@ -403,17 +404,6 @@
                                                   <Children>
                                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                 Text="@RejectText" Brush="MyBrush_18_White" Brush.FontSize="16"
-                                                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                DoNotAcceptEvents="true"/>
-                                                  </Children>
-                                                </ButtonWidget>
-                                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                              Brush="Test.Button3"
-                                                              Command.Click="ExecuteModify"
-                                                              IsVisible="@CanModify" MarginRight="10">
-                                                  <Children>
-                                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                Text="@ModifyText" Brush="MyBrush_18_White" Brush.FontSize="16"
                                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                 DoNotAcceptEvents="true"/>
                                                   </Children>

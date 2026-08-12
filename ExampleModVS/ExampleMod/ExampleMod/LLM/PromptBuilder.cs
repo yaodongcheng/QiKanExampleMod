@@ -435,18 +435,34 @@ namespace LivingWorldNpcs
         /// 输入 = C# 确定性渲染的计划内容（BuildPlanDetail：动作标签表 + 目标 + 应急 + 安全网），
         /// 纪律 = 只许转述（同 narration，防幻觉，铁律 2 延伸）；讲解人 = 执行者本人（当事人自述，叙事铁律）。
         /// </summary>
-        public static string BuildPrompt_PlanExplain(string speakerName, string planDetail)
+        public static string BuildPrompt_PlanExplain(string speakerName, string planDetail, string originalCommand = null)
         {
             var sb = new StringBuilder();
             sb.AppendLine("【世界观】" + (Settings.Instance?.WorldDescription ?? "卡拉迪亚中世纪世界"));
             sb.AppendLine($"【你的身份】你是 {speakerName}。");
+            if (!string.IsNullOrWhiteSpace(originalCommand))
+                sb.AppendLine($"【主公的命令】主公的原话是：「{originalCommand}」。");
             sb.AppendLine("【背景】主公看到了你拟定的计划，想听你亲口讲一讲。");
             sb.AppendLine("【计划内容】");
             sb.AppendLine(planDetail);
             sb.AppendLine();
-            sb.AppendLine("【要求】用第一人称口语化讲解这个计划：要做什么、分几步、出岔子怎么办。"
+            sb.AppendLine("【讲解要求】用第一人称口语化讲解这个计划：要做什么、分几步、出岔子怎么办。"
                 + "像对主公当面汇报一样，一句话 10-40 字，总共不超过 150 字。"
                 + "只许转述上面【计划内容】里的事，禁止编造计划外的新行动。");
+            // 🔴 2026-08-12（讲解 = 二次校验）：审查原则与生成时同一份（XML LWN_plan_rules 同源，
+            // 代码已查语法/结构，审查员只查代码查不出的语义问题——当事人复盘，非上帝视角）。
+            sb.AppendLine("【讲解前自查（二次校验，对照生成时的同一份计划纪律）】"
+                + "语法/结构（步骤 id、跳转指向、动作/谓词词表、fallbacks 格式、事件词误用）已由代码自动检查，你不用管；"
+                + "你只查代码查不出的【语义问题】，开口前逐条盘一遍："
+                + "①步骤顺序能不能走通（例：先请人跟你走、再把人带回主人面前——反了就是空跑；say_to 前没先走近对方）；"
+                + "②成功条件（goal/until）在现实里能不能达成（例：目标是跟你走的人，成功条件却写他出现在几米内——他跟在身后还落不落得进这个圈；目标不在场景里）；"
+                + "③任务型还是保持型（纪律 15：望风/压阵/缠住这类持续到玩家叫停的命令，计划却写了 goal 或 success 收尾 = 高频错误；请人/偷物/杀目标这类有成功时刻的命令，反过来必须有 goal + success 收尾）；"
+                + "④失败路径齐不齐（对方拒绝/找不到/中途被打断，有没有退路；on_timeout 有没有指向 fail 收尾——禁止把\"没等到\"写成成功）；"
+                + "⑤步骤之间、contingency 与主链之间有没有互相矛盾（例：一边等对方跟来、一边写\"看不见他就失败\"——他就在你身后跟着，这个 contingency 会误杀计划）；"
+                + "⑥掉线检测有没有 sustained_s 防抖（纪律 19：转头/被柱子挡一下不算丢，瞬时视线变化禁止当掉线）。"
+                + "发现问题 → 讲解开头用一句人话点出隐患（如「主公，我盘了一遍，有个地方悬：…」），"
+                + "讲完再开口向主公请示（如「主公，要不要我重拟一遍？」——**只请示、不擅动**，重拟与否由主公发话）；"
+                + "没发现问题 → 直接讲解，不要无病呻吟，也不要多嘴请示重拟。");
             return sb.ToString();
         }
 
