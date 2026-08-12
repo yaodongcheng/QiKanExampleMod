@@ -603,7 +603,8 @@ namespace LivingWorldNpcs
             // 开关打开（允许对友方动手）→ 不过滤。动物无友方概念，天然不命中。
             bool hostileBlocked = IsHostileBlockedOnFriendly(currentAgent);
 
-            // 目标名（动物用 agent.Name；人类用 Character.Name；死亡/昏迷加状态后缀）
+            // 目标名（动物用 agent.Name；人类用统一显示名 AgentIdentity——🔴 2026-08-12 模板 NPC 带 #Index；
+            // 死亡/昏迷加状态后缀）
             string name;
             if (isAnimal)
             {
@@ -613,8 +614,11 @@ namespace LivingWorldNpcs
             }
             else
             {
+                // AgentIdentity：Hero 原名 / 模板 NPC「名字#Index」（与 HUD/IM 同源）
+                name = AgentControlHelper.GetDisplayName(currentAgent);
+                if (string.IsNullOrWhiteSpace(name))
                 // 本地化：未知目标名兜底
-                name = currentAgent.Name != null ? currentAgent.Name.ToString().Trim() : LWNTextHelper.ResolveText("LWN_ui_name_unknown", "Unknown");
+                    name = LWNTextHelper.ResolveText("LWN_ui_name_unknown", "Unknown");
             }
             if (!currentAgent.IsActive())
             {

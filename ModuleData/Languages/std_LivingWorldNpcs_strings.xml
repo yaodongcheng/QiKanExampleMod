@@ -3925,7 +3925,7 @@
     <string id="LWN_reactive_respond_chief" text="Speak, I am listening." />
     <string id="LWN_reactive_respond_villager" text="Eh? What was that?" />
     <string id="LWN_reactive_respond_drunkard" text="*hic* Who're you?" />
-    <string id="LWN_hud_far_say" text="(From afar, {NAME} says): {TEXT}" />
+    <!-- 🔴 2026-08-12：LWN_hud_far_say 退役（用户裁定：远处说话直接进附近频道，不弹屏幕消息） -->
     <string id="LWN_ui_commandintent_distract" text="lure away" />
     <string id="LWN_ui_commandintent_bring" text="bring someone" />
     <string id="LWN_ui_commandintent_lookout" text="keep watch" />
@@ -4022,6 +4022,10 @@
     <string id="LWN_plan_detail_contingency_line" text="    if {COND} then {THEN}" />
     <string id="LWN_plan_detail_guardrail" text="    Safety: unexpected threats pause the plan; the stop key recalls the companion." />
     <string id="LWN_plan_step_memory" text="By my lord's order, {ACTION} {TARGET}, done." />
+    <!-- 🔴 2026-08-12（队伍成员在场认知）：玩家附近喊话的记忆行模板（{NAME} 玩家名 / {TEXT} 喊话全文） -->
+    <string id="LWN_nearby_shout_memory" text="{NAME} shouted nearby: {TEXT}" />
+    <!-- 🔴 2026-08-12（@远距离守卫）：@目标距玩家超过可听半径的提示（{NAME} = 目标统一显示名） -->
+    <string id="LWN_nearby_mention_too_far" text="{NAME} is too far away to hear you." />
     <string id="LWN_plan_action_move_to" text="moved to" />
     <string id="LWN_plan_action_follow" text="followed" />
     <string id="LWN_plan_action_stop_following" text="stopped following" />

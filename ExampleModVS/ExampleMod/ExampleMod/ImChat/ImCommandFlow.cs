@@ -121,7 +121,7 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 下达 ─────────────────────────
 
-        /// <summary>玩家在密令模式发送命令文本 → 追加消息 + 计划生成（Mission）/ 行军令（Campaign，Q5b）。
+        /// <summary>玩家在密令模式发送命令文本 → 追加消息 + 计划生成（Mission）/ 规则解析计划（Campaign，Q5b）。
         /// 🔴 Q1：若存在本会话的澄清轮（_pendingClarify），本条消息作为澄清回答并入命令上下文重新生成。</summary>
         public static void RequestCommand(ImConversation conv, string command)
         {
@@ -165,8 +165,8 @@ namespace LivingWorldNpcs
 
             if (Mission.Current == null)
             {
-                // Campaign 大地图：行军令（规则解析，零 LLM；私聊有 party 的 Hero）
-                _pendingClarify = null;   // 行军令无澄清轮
+                // Campaign 大地图：规则解析计划（零 LLM；私聊有 party 的 Hero）
+                _pendingClarify = null;   // Campaign 计划无澄清轮
                 ImMarchOrder.RequestMarchOrder(conv, cmd);
                 return;
             }
@@ -520,7 +520,7 @@ namespace LivingWorldNpcs
             PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_pending", "The companion is working out a revised plan."));
             if (Mission.Current == null)
             {
-                // 行军令无修改（Campaign 侧规则解析，零 LLM）
+                // Campaign 计划无修改（Campaign 侧规则解析，零 LLM）
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_need_mission", "You can only revise a plan while in the field."));
                 return;
             }
@@ -867,7 +867,7 @@ namespace LivingWorldNpcs
             PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_regenerating", "The companion is working out a new plan."));
             if (Mission.Current == null)
             {
-                // 行军令无重拟（Campaign 侧规则解析，零 LLM）
+                // Campaign 计划无重拟（Campaign 侧规则解析，零 LLM）
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_need_mission", "You can only revise a plan while in the field."));
                 return;
             }

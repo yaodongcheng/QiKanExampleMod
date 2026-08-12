@@ -962,5 +962,19 @@ namespace LivingWorldNpcs
                 ActionTransactionSystem.CommitTransaction();
             }
         }
+
+        // 🔴 2026-08-12（模板 NPC 统一显示名）：Hero → 原名；模板 NPC（无 Hero）→ 「名字#Index」——
+        // 场景内唯一标识。HUD 头顶 / 交互区标题 / IM 附近频道 / @预填 四处共用，保证"场景里谁在和我说话"
+        // 始终一致。格式：名字与 # 之间**无空格**（用户裁定 2026-08-12）；@提及正则已兼容无空格形式。
+
+        /// <summary>统一显示名：Hero → 原名；模板 NPC → 「名字#Index」。null/空名 → 空串（调用方兜底）。</summary>
+        public static string GetDisplayName(Agent agent)
+        {
+            if (agent == null) return "";
+            if (agent.Character is CharacterObject co && co.HeroObject != null)
+                return agent.Name?.ToString() ?? "";
+            string name = agent.Name?.ToString() ?? "";
+            return string.IsNullOrWhiteSpace(name) ? "" : $"{name}#{agent.Index}";
+        }
     }
 }

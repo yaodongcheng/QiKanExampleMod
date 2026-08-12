@@ -101,7 +101,7 @@ namespace LivingWorldNpcs
                 SpeechChannel.Say(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."),
                     SpeechPriority.Dialogue,
                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
-                bool opened = ImChatView.Open(NearbyFeed.Conversation, prefill: $"@{companion.Name} #{companion.Index} ");
+                bool opened = ImChatView.Open(NearbyFeed.Conversation, prefill: $"@{AgentControlHelper.GetDisplayName(companion)} ");
                 if (!opened)
                 {
                     DebugLogger.Log($"[PlanCommandFlow] 模板 NPC 密信：面板未能打开，降级退出");

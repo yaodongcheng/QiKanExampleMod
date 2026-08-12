@@ -286,7 +286,9 @@ namespace LivingWorldNpcs
                 return;
             TargetAgent = agent;
             _brushName = "MyBrush24";
-            AgentName = agent.Name;
+            // 🔴 2026-08-12（模板 NPC 统一显示名）：Hero → 原名；模板 NPC → 「名字#Index」——
+            // 与交互区/IM 附近频道同源（AgentIdentity），场景里谁在和我说话始终一致
+            AgentName = AgentControlHelper.GetDisplayName(agent);
 
             // 初始状态：全部隐藏
             IsVisible = false;

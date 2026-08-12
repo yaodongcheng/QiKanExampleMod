@@ -327,19 +327,14 @@ namespace LivingWorldNpcs
             // 🔴 统一说话日志（近处/远处都打；前因可空）
             try { DebugLogger.Log($"[Say] {agent.Name}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
 
-            // 🔴 距离分层前置：远处（> FarHearDistance）不冒泡不进频道
+            // 🔴 距离分层前置：远处（> FarHearDistance）不冒泡（3D 冒泡玩家看不见，创建 HUD 纯浪费）
             bool isFar = Agent.Main != null && agent != Agent.Main && Agent.Main.IsActive()
                 && agent.Position.Distance(Agent.Main.Position) > FarHearDistance;
             if (isFar)
             {
-                // 远处"听到"：视野外 → 屏幕消息（既有语义）；视野内 → 无声（原版无字幕）
-                try
-                {
-                    if (!NpcSightSystem.IsPlayerSeeing(agent))
-                        MBInformationManager.AddQuickInformation(new TextObject(LWNTextHelper.ResolveCompound("LWN_hud_far_say",
-                            "（远处传来{NAME}的声音）：{TEXT}", ("NAME", agent.Name.ToString()), ("TEXT", text))));
-                }
-                catch { }
+                // 🔴 2026-08-12（用户裁定）：远处说话不再弹屏幕消息（LWN_hud_far_say 退役）——
+                // 直接进附近频道（消息流可回看，不打断当前操作）。视野内远处 = 原版无声语义（看得见听不见）。
+                try { NearbyFeed.Forward(agent, text, force: true); } catch { }
                 DebugLogger.Log($"[AgentSay] {agent.Name}（远处 {agent.Position.Distance(Agent.Main.Position):F0}m）: {text}");
                 return;
             }
