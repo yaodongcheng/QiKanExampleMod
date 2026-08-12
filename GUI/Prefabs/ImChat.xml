@@ -327,7 +327,7 @@
                                                     IsVisible="@IsSystem"
                                                     DoNotAcceptEvents="true"/>
 
-                                        <!-- 生成中占位行（🔴 §3.3：阶段文案 + 模拟进度条；灰底卡片，卡片上屏/失败时被替换） -->
+                                        <!-- 生成中占位行（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一；灰底卡片，卡片上屏/失败时被替换） -->
                                         <Widget WidthSizePolicy="Fixed" HeightSizePolicy="CoverChildren" SuggestedWidth="480"
                                                 HorizontalAlignment="Center"
                                                 Sprite="BlankWhiteSquare_9" Color="#1A1A3A88" MarginTop="2"
@@ -337,24 +337,7 @@
                                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                                         Text="@GenerateText" Brush="MyBrush_16_Left" Brush.FontSize="15" Brush.FontColor="#999999FF"
                                                         WordWrapping="Wrap"
-                                                        MarginLeft="14" MarginRight="14" MarginTop="10"
-                                                        DoNotAcceptEvents="true"/>
-                                            <!-- 进度条：色条 Widget 宽度绑定方案（Progress% × 固定宽；无 ProgressBarWidget 先例，色条确定可行） -->
-                                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="440" SuggestedHeight="6"
-                                                    HorizontalAlignment="Left"
-                                                    MarginLeft="14" MarginRight="14" MarginTop="8"
-                                                    Sprite="BlankWhiteSquare_9" Color="#222222CC"
-                                                    DoNotAcceptEvents="true">
-                                              <Children>
-                                                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ProgressBarWidth" SuggestedHeight="6"
-                                                        HorizontalAlignment="Left"
-                                                        Sprite="BlankWhiteSquare_9" Color="#FFE9B0FF"
-                                                        DoNotAcceptEvents="true"/>
-                                              </Children>
-                                            </Widget>
-                                            <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                                        Text="@ProgressText" Brush="MyBrush_16_Left" Brush.FontSize="12" Brush.FontColor="#666666CC"
-                                                        MarginLeft="14" MarginRight="14" MarginTop="6" MarginBottom="10"
+                                                        MarginLeft="14" MarginRight="14" MarginTop="10" MarginBottom="10"
                                                         DoNotAcceptEvents="true"/>
                                           </Children>
                                         </Widget>

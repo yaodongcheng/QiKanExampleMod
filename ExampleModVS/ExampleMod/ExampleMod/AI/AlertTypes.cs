@@ -11,6 +11,7 @@ namespace LivingWorldNpcs
         StealUIOpen,    // 偷窃界面打开未确认
         Steal,          // 偷窃（脉冲）
         AttackAlly,     // 攻击友方（脉冲）
+        AttackCivilian, // 🔴 2026-08-12：攻击非友方平民（当街斗殴；脉冲 2.0 → Cautious 喝止 → 不听升级参战；暴徒豁免）
         Knockout,       // 击晕（脉冲）
         SuspectFlee,    // 嫌犯转身就走（对话流程专用——不作警戒累加，仅路由 L3 质问台词 L3_Stop_SuspectFlee）
     }

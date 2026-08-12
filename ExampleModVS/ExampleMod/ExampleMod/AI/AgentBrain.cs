@@ -436,6 +436,11 @@ namespace LivingWorldNpcs
                 // 受害者身份日志：区分自己是受害者（应反击）还是旁观者（看护主条件），排查小孩无法参战用
                 DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 'event_agent_damaged' | victim={victim.Name}(Idx={victim.Index}) | 是否自己={Owner == victim} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
 
+                // 🔴 2026-08-12 停战检测：玩家在打自己 → 刷新 FightEnemyAction 最后受击时间
+                // （玩家收刀 3s 停战的依据；被动反击专用，见 AtomicAction.FightEnemyAction）
+                if (Owner == victim && attacker == Agent.Main && EffectiveAction is FightEnemyAction hitFight)
+                    hitFight.NotifyHitByPlayer(Mission.Current?.CurrentTime ?? 0f);
+
                 if (Settings.Instance.ShowDebugMessages)
                     // 伤害目击飘字：{ATTACKER} 对 {VICTIM} 造成了伤害
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_brain_damage_seen",
@@ -483,41 +488,52 @@ namespace LivingWorldNpcs
                         }
                     }
 
+                    // 🔴 2026-08-12 用户裁定（当事人梯度，与围观者共享警戒机制、不同梯度）：
+                    // 玩家打我自己 → 第一刀不立即参战/不播参战宣言——只发 1.2 脉冲 → Cautious
+                    // （疑惑 + 警告冒泡「住手！再打我可要动手了！」）；玩家第二刀叠加 2.4 → Alarmed
+                    // → 立刻反击（无抑制，两刀就红）。节奏全权交给警戒系统。NPC 打我 → 立即反击（原逻辑）。
+                    bool playerAttackedSelf = attacker == Agent.Main && Owner == victim;
 
-                
-
-                    // BubbleSay 参战理由（走 NpcSpeech.csv + PlaceholderResolver 标准管道）
-                    string line;
-                    if (IsChildOwner)
+                    // BubbleSay 参战理由（走 NpcSpeech.csv + PlaceholderResolver 标准管道；
+                    // 🔴 2026-08-12 刺激=attacked/seen_crime → 润色 prompt 注入「你刚被打/目睹犯罪」处境；
+                    // 受害者被玩家打的第一刀不播——疑惑冒泡由 Cautious 模板接管）
+                    if (!playerAttackedSelf)
                     {
-                        // 儿童不参战：喊求救后逃离（不播大人参战台词）
-                        line = LWNTextHelper.ResolveText("LWN_brain_child_flee", "Waaah! Run!!");
+                        string line;
+                        if (IsChildOwner)
+                        {
+                            // 儿童不参战：喊求救后逃离（不播大人参战台词）
+                            line = LWNTextHelper.ResolveText("LWN_brain_child_flee", "Waaah! Run!!");
+                        }
+                        else
+                        {
+                            string templateId = Owner == victim
+                                ? "CombatJoin_Victim"
+                                : "CombatJoin_Bystander";
+                            line = NpcSpeechResolver.Resolve(templateId,
+                                speaker: (Owner.Character as CharacterObject)?.HeroObject,
+                                listener: Hero.MainHero);
+                            line ??= (Owner == victim
+                                // 冒泡兜底：受害者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
+                                ? LWNTextHelper.ResolveText("LWN_brain_combatjoin_victim", "You dare strike me?!")
+                                // 冒泡兜底：旁观者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
+                                : LWNTextHelper.ResolveText("LWN_brain_combatjoin_bystander", "You dare touch someone from our village?!"));
+                        }
+                        BubbleSay(line, Owner == victim ? "attacked" : "seen_crime", attacker);
                     }
-                    else
-                    {
-                        string templateId = Owner == victim
-                            ? "CombatJoin_Victim"
-                            : "CombatJoin_Bystander";
-                        line = NpcSpeechResolver.Resolve(templateId,
-                            speaker: (Owner.Character as CharacterObject)?.HeroObject,
-                            listener: Hero.MainHero);
-                        line ??= (Owner == victim
-                            // 冒泡兜底：受害者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
-                            ? LWNTextHelper.ResolveText("LWN_brain_combatjoin_victim", "You dare strike me?!")
-                            // 冒泡兜底：旁观者参战台词（主文本走 NpcSpeech.csv，这里只兜底）
-                            : LWNTextHelper.ResolveText("LWN_brain_combatjoin_bystander", "You dare touch someone from our village?!"));
-                    }
-                    BubbleSay(line);
 
-                    //时序处理： 受到玩家攻击 → 警戒值立即拉满（脉冲），不应慢慢爬
+                    //时序处理： 受到玩家攻击 → 警戒值脉冲（受害者 1.2/刀：第一刀 Cautious 疑惑，
+                    // 第二刀 2.4 → Alarmed 反击——2026-08-12 用户裁定，原 3.0 一刀拉满直接开打）
                     if (attacker == Agent.Main)
                     {
                         // 先写脉冲上下文再加值：受害者 = 真受害者——本人被攻击 → 上下文指向本人，
                         // 队友豁免（AddAlert 内判定）因此不豁免；队友围观玩家打别人 → 上下文指向他人 → 豁免。
                         SetPulseTarget(PlayerActionType.AttackAlly, victim.Name, null, victim.Index);
-                        if (AddAlert(PlayerActionType.AttackAlly, 3.0f))  // 队友围观豁免（false）→ 跳过阶段检查
+                        if (AddAlert(PlayerActionType.AttackAlly, 1.2f))  // 队友围观豁免（false）→ 跳过阶段检查
                             CheckPhaseTransition();
                     }
+                    // 玩家打非友方平民 → 走专用事件 'PlayerAttackedCivilian'（AttackTriggerMissionLogic 广播，
+                    // 周围 15m 围观者消费 → AttackCivilian 脉冲；不在 damaged 里处理——damaged 只直发受害者）
 
                     // 🔴 已在战斗中（正在打别人）：只感知不换目标（2026-08-09 改）——
                     // 索敌交给原版 AI（扫描敌对 Agent 按距离/威胁度排序，见 Knowledge/Agent_AI底层原理.md）。
@@ -526,15 +542,20 @@ namespace LivingWorldNpcs
                     if (EffectiveAction is FightEnemyAction)
                         return;
 
+                    // 🔴 玩家打我自己：不入队反击（第一刀留给 Cautious 疑惑；第二刀 Alarmed →
+                    // StartL3CombatJoin 入队 canCease=true——收刀停战保持）。NPC 打我 → 立即反击。
+                    if (playerAttackedSelf)
+                        return;
+
                     SetNpcIntent(NpcIntentType.Fighting, attacker);
                     InteractedAgent = attacker;
                     ClearAllActions();
                     AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack，FightEnemyAction 需要清除
-                    // 儿童不参战：恐惧逃离；大人才进战斗
+                    // 儿童不参战：恐惧逃离；大人才进战斗（被动反击 → 玩家收刀停战，见 FightEnemyAction 停战检测）
                     if (IsChildOwner)
                         EnqueueAction(MoveToPositionAction.FleeFrom(Owner, attacker));
                     else
-                        EnqueueAction(new FightEnemyAction(attacker));
+                        EnqueueAction(new FightEnemyAction(attacker, canCeaseOnPlayerSheathe: true));
                 }
             }
             if (aiEvent.EventType == "EndInteraction")
@@ -548,6 +569,47 @@ namespace LivingWorldNpcs
                     ResumeVanillaAI();
                     InteractedAgent = null;
                 }
+            }
+            // 🔴 2026-08-12（PlayerAttackedAlly）：玩家侵害友方（打随从/同伴/友军）→ 周围人警戒反应。
+            // AttackTriggerMissionLogic 广播（15m）；日志实锤：之前只有受害者本人知道，卫兵只看到拔刀。
+            // 玩家队伍成员（其他随从）排除——主公教训自己人是家事，信任主公（劝架另设）。
+            // 🔴 2026-08-12（用户裁定：Cautious 劝阻 + Alarmed 参战）：脉冲 1.5（不是 3.0）——
+            // 3.0 在 3s 抑制结束后仍 ≥2.0 自动 Alarmed（日志实锤：打一刀收手 3s 后卫兵照样围殴，
+            // 劝阻形同虚设）。1.5 + 3s 抑制：单刀收手 → 衰减停在 Cautious（劝阻，不参战）；
+            // 玩家继续打 → 每次命中重新广播叠加 + WeaponDrawn 持续 → 超 2.0 → Alarmed 执法参战。
+            if (aiEvent.EventType == "PlayerAttackedAlly")
+            {
+                Agent criminal = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as Agent : null;
+                Agent victim = aiEvent.Args != null && aiEvent.Args.Length > 1 ? aiEvent.Args[1] as Agent : null;
+                if (criminal == null || victim == null || criminal == Owner || victim == Owner) return;
+                if (IsPlayerTeammate(Owner)) return;
+                SetPulseTarget(PlayerActionType.AttackAlly, victim.Name, null, victim.Index);
+                RecordNarration($"我看见{criminal.Name}在打{victim.Name}");
+                if (AddAlert(PlayerActionType.AttackAlly, 0.5f))   // 0.5/刀（2026-08-12 用户裁定：攻击频率快）：3s 劝阻窗口内叠到 ~1.5 → Cautious；持续打 4 刀+WeaponDrawn 才 Alarmed
+                {
+                    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                    CheckPhaseTransition();
+                }
+                return;
+            }
+            // 🔴 2026-08-12（AttackCivilian）：玩家当街打非友方平民（AttackTriggerMissionLogic 广播，
+            // 15m 围观者消费；暴徒豁免在广播侧过滤）。设计（用户裁定：劝阻→升级→参战）：
+            // 脉冲 2.0 + 3s 抑制 → 只到 Cautious（BecomeCautious → 喝止冒泡「住手！」）；不听继续打 →
+            // 抑制结束 + WeaponDrawn 持续累加 → Alarmed 参战；打一下就走 → 衰减回 Normal（只被喝止）。
+            // 受害者本人不走本分支（damaged 直发已走反击链）；友方旁观者豁免由 AddAlert 内部判定。
+            if (aiEvent.EventType == "PlayerAttackedCivilian")
+            {
+                Agent criminal = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as Agent : null;
+                Agent victim = aiEvent.Args != null && aiEvent.Args.Length > 1 ? aiEvent.Args[1] as Agent : null;
+                if (criminal == null || victim == null || criminal == Owner || victim == Owner) return;
+                SetPulseTarget(PlayerActionType.AttackCivilian, victim.Name, null, victim.Index);
+                RecordNarration($"我看见{criminal.Name}在街上打{victim.Name}");
+                if (AddAlert(PlayerActionType.AttackCivilian, 0.5f))   // 0.5/刀（同 AttackAlly，2026-08-12 用户裁定）：第一刀 Suspicious 嘀咕 → 第二刀 Cautious 劝阻 → 持续打 Alarmed 参战
+                {
+                    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                    CheckPhaseTransition();
+                }
+                return;
             }
             if (aiEvent.EventType == "WitnessCrime_GatherOnLook")
             {
@@ -747,11 +809,15 @@ namespace LivingWorldNpcs
             }
             if (aiEvent.EventType == "BecomeCautious")
             {
-                // 大脑空闲（无当前动作且无排队）或只是待机 → 可以插入 LookAt
+                // 🔴 2026-08-12 用户裁定：Cautious = 上前靠近 + 说话劝阻（不攻击）——卫兵持续站到
+                // 玩家面前 4m 劝（FollowAgentAction：keepFollow 保持站位 + 抑制瞬移；angleOffset=0 =
+                // 玩家朝向正前 = 摄像机视角内，玩家转头必看见；静止时自带 SetLookAgent 看着玩家）。
+                // 玩家继续攻击 → 警戒涨到 Alarmed → 执法参战；玩家收手 → CalmDown(Normal) 清队列回岗。
                 if (EffectiveAction == null || EffectiveAction is StayAction)
                 {
-                    EnqueueAction(new LookAtAction(Agent.Main, 0.0f));
-                    EnqueueAction(new StayAction(Agent.Main));
+                    EnqueueAction(new FollowAgentAction(Agent.Main, run: false, radius: 4f, angleOffset: 0f,
+                        stopDistance: 3.5f, keepFollow: true,
+                        endBehavior: MoveToPositionAction.EndBehavior.Unlock));
                 }
                 BubbleSayOnce(AlarmPhase.Cautious);
             }
@@ -764,12 +830,12 @@ namespace LivingWorldNpcs
                 if (IsCurrentOrPending<FightEnemyAction>())
                     return;
 
-                // 玩家已经在战斗中 → 跳过质问，直接加入战斗
-                //可能有时序问题
-                if (CombatManager.IsPlayerInCombat )
+                // 🔴 2026-08-12 用户裁定：玩家已在战斗中 → 劝阻已失效（Cautious 上前劝过）→
+                // 跳过质问（强制对话会打断战斗，体验差）直接拔刀参战（StartL3CombatJoin →
+                // StartCombatAgainst → 执法到底 canCease=false）。原 return 导致卫兵喝止完就消失。
+                if (CombatManager.IsPlayerInCombat)
                 {
-                    //通过别的方式进入战斗，就不在这里了
-                    //StartL3CombatJoin();
+                    StartL3CombatJoin();
                     return;
                 }
 
@@ -1086,8 +1152,15 @@ namespace LivingWorldNpcs
                     AddAlert(PlayerActionType.Crouching, dt * 0.15f * distMult);
                     anySuspicious = true;
                 }
-                //玩家拔刀状态
-                if (IsPlayerWeaponDrawn())
+                //玩家拔刀状态（🔴 2026-08-12 降频 100ms：事件源 AgentAIController.PlayerWeaponDrawn 维护，
+                // 日志打在事件源；本脑只读缓存——之前每帧调 V.MainWpn + 逐脑打日志，浪费且爆炸）
+                if (Mission.Current != null && Mission.Current.CurrentTime - _lastWeaponPerceiveTime >= 0.1f)
+                {
+                    _lastWeaponPerceiveTime = Mission.Current.CurrentTime;
+                    _playerWeaponDrawnCached = AgentAIController.Instance?.PlayerWeaponDrawn ?? IsPlayerWeaponDrawn();
+                }
+                bool weaponDrawn = _playerWeaponDrawnCached;
+                if (weaponDrawn)
                 {
                     AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f * distMult);
                     anySuspicious = true;
@@ -1118,6 +1191,11 @@ namespace LivingWorldNpcs
         {
             return FriendlinessHelper.IsFriendlyToPlayer(agent);
         }
+
+        // 🔴 2026-08-12：玩家武器状态感知降频缓存（事件源 AgentAIController.PlayerWeaponDrawn 维护，
+        // 本脑每 100ms 读一次缓存——日志打在事件源，不再每帧翻转检测/逐脑打日志）
+        private float _lastWeaponPerceiveTime = -1f;
+        private bool _playerWeaponDrawnCached;
 
         /// <summary>
         /// 友方旁观者豁免判定（双向豁免核心，不读开关）：本脑（Owner）是玩家友方旁观者，
@@ -1357,13 +1435,17 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
 
         /// <summary>通用 BubbleSay 入口。传入已组装好的文本，直接显示冒泡。
-        /// 🔴 2026-08-12 统一说话框架：收编进 SpeechChannel（说话并联，不占行动队列；前因=通用冒泡）。</summary>
-        public void BubbleSay(string text)
+        /// 🔴 2026-08-12 统一说话框架：收编进 SpeechChannel（说话并联，不占行动队列；前因=通用冒泡）。
+        /// 🔴 2026-08-12 分级：stimulus 可注入处境（attacked/seen_crime 等）→ LLM 优先；
+        /// 纯氛围冒泡（bubble）→ 直接模板（零延迟）。
+        /// <param name="stimulus">刺激类型（润色 prompt 的「当前处境」段依据；bubble = 氛围冒泡走模板）</param>
+        /// <param name="speaker">刺激源（对方 agent；润色 prompt 的「对方关系」段依据，如攻击者=主公）</param></summary>
+        public void BubbleSay(string text, string stimulus = "bubble", Agent speaker = null)
         {
             if (!string.IsNullOrEmpty(text))
             {
-                SpeechChannel.Say(Owner, text, SpeechPriority.Chat,
-                    SpeechContext.FromBrain(this, null, "bubble", null));
+                SpeechChannel.SayPolished(Owner, text, SpeechPriority.Chat,
+                    SpeechContext.FromBrain(this, speaker, stimulus, null), budgetS: 1.5f);
             }
         }
 
@@ -1447,7 +1529,12 @@ namespace LivingWorldNpcs
             AgentControlHelper.ForceUnlockAgent(Owner); // ClearAllActions 会后置 DoNotRun|NoAttack（FightEnemyAction.OnStart 亦有兜底）
             // 儿童不参战：恐惧逃离
             if (IsChildOwner) { EnqueueAction(MoveToPositionAction.FleeFrom(Owner, target)); return; }
-            EnqueueAction(new FightEnemyAction(target));
+            // 🔴 2026-08-12：脉冲受害者 == 自己（被打才还手）→ 玩家收刀可停战（被动反击）；
+            // 旁观执法（见义勇为/Alarmed 管闲事）→ 执法到底。日志实锤：受害者被 AttackAlly 拉满
+            // Alarmed → 走本路径入队 canCease=false → 玩家收刀对方不停手——受害者被误当执法者。
+            bool selfIsVictim = _alertBreakdown.TryGetValue(PlayerActionType.AttackAlly, out var ae)
+                && ae.TargetAgentIndex == Owner.Index;
+            EnqueueAction(new FightEnemyAction(target, canCeaseOnPlayerSheathe: selfIsVictim));
         }
 
         /// <summary>
@@ -1493,7 +1580,7 @@ namespace LivingWorldNpcs
                 PlayerActionType.Steal => StealManager.HasStolenItemsFrom(Owner)
                     ? ConfrontationType.Recover   // 确实偷到了 → 追回赃物
                     : ConfrontationType.Deter,    // 偷窃未遂（红区手滑）→ 驱离警告
-                PlayerActionType.AttackAlly or PlayerActionType.Knockout => ConfrontationType.Stop,
+                PlayerActionType.AttackAlly or PlayerActionType.Knockout or PlayerActionType.AttackCivilian => ConfrontationType.Stop,
                 PlayerActionType.SuspectFlee => ConfrontationType.Stop,
                 _ => ConfrontationType.Deter
             });

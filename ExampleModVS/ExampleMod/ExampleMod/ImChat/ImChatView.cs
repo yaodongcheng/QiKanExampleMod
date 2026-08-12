@@ -273,8 +273,7 @@ namespace LivingWorldNpcs
         {
             if (_vm == null || _selected == null) return;
             var msgs = ImChatManager.GetMessages(_selected);
-            // 🔴 §3.3：生成中占位行的进度/阶段文案是动态值（消息对象已更新但 VM 是旧副本）——
-            // 存在 Generating 消息时全量重建（0.3s 节流驱动，消息量小成本可接受）
+            // 🔴 2026-08-12：生成中占位行存在时全量重建（占位被替换/移除的帧消息列表收缩，增量逻辑处理不了）
             bool hasGenerating = false;
             foreach (var m in msgs) { if (m.IsGenerating) { hasGenerating = true; break; } }
             if (hasGenerating)
