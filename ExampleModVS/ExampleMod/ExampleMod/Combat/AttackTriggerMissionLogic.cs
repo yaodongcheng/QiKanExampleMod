@@ -538,6 +538,25 @@ namespace LivingWorldNpcs
             // 以下为玩家门控逻辑（切磋为废弃分支）
             if (!attacker.IsMainAgent || victim.IsMainAgent) return;
 
+            // 🔴 2026-08-12（AttackCivilian）：玩家当街打非友方平民（暴徒豁免——原版语义打暴徒合法）→
+            // 广播围观者脉冲（劝阻→升级→参战）。不恢复 event_agent_damaged 范围广播（曾触发玩家脑
+            // 护主/参战链导致玩家无法移动，2026-08-09 修复），走专用轻事件：周围 15m 围观者收到后
+            // 走 AttackCivilian 警戒脉冲（2.0 + 3s 抑制 → Cautious 喝止；不听继续打 → 升级 Alarmed 参战）。
+            if (victim != null && !FriendlinessHelper.IsFriendlyToPlayer(victim))
+            {
+                bool isGangster = (victim.Character as CharacterObject)?.Occupation == Occupation.Gangster;
+                if (!isGangster)
+                    AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 15f, "PlayerAttackedCivilian", false, attacker, victim);
+            }
+            // 🔴 2026-08-12（PlayerAttackedAlly）：玩家侵害友方（打随从/同伴/友军）→ 同样广播周围——
+            // 日志实锤：之前只有受害者本人知道（damaged 直发），周围卫兵只看到拔刀、收刀后完全无反应。
+            // 犯罪体系（WorldEvent）已记账，但 mod 层警戒反应缺位。队友旁观者不涨警戒（IsPlayerTeammate
+            // 消费端排除；玩家教训自己人 = 家事，信任主公），卫兵/路人收到后喝止 → 升级参战。
+            else if (victim != null && FriendlinessHelper.IsFriendlyToPlayer(victim))
+            {
+                AgentAIController.Instance?.BroadcastEventInRange(victim.Position, 15f, "PlayerAttackedAlly", false, attacker, victim);
+            }
+
             // 【场景 1】当前正在切磋中
             if (_isDuelActive)
             {

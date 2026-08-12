@@ -447,7 +447,9 @@
     <string id="LWN_speech_alertbubble_steal_suspicious" text="Eh? Where's {TARGET}'s {ITEM}?" />
     <string id="LWN_speech_alertbubble_steal_cautious" text="*gasps* {SPEAKER_PLAYER_ADDR}! You stole {ITEM}!" />
     <string id="LWN_speech_alertbubble_attackally_suspicious" text="*startled* What's going on?!" />
-    <string id="LWN_speech_alertbubble_attackally_cautious" text="*backs away* {SPEAKER_PLAYER_ADDR} is striking people!" />
+    <string id="LWN_speech_alertbubble_attackally_cautious" text="*steps back, hand on hilt* {SPEAKER_PLAYER_ADDR}! Stop! Keep fighting and I will draw my blade!" />
+    <string id="LWN_speech_alertbubble_attackcivilian_suspicious" text="*frowning* A brawl in the street..." />
+    <string id="LWN_speech_alertbubble_attackcivilian_cautious" text="*steps forward, hand on hilt* {SPEAKER_PLAYER_ADDR}! Stop! No fighting in the street, or I will not hold back!" />
     <string id="LWN_speech_alertbubble_knockout_suspicious" text="*terrified* Someone's been killed..." />
     <string id="LWN_speech_alertbubble_knockout_cautious" text="Someone come! {SPEAKER_PLAYER_ADDR} has knocked {TARGET} down!" />
     <string id="LWN_speech_l3_deter_weapondrawn" text="*{SPEAKER_EMOTION}* Put that {ITEM} away! {SPEAKER_PLAYER_ADDR}! This is a village, not a battlefield!" />
@@ -3976,9 +3978,6 @@
     <string id="LWN_im_cmd_unavailable_here" text="You cannot send messages right now." />
     <string id="LWN_im_cmd_no_direct" text="This companion cannot be reached by message." />
     <string id="LWN_im_npc_companion" text="Companion" />
-    <string id="LWN_im_gen_observe" text="Surveying the area..." />
-    <string id="LWN_im_gen_plan" text="Working out the steps..." />
-    <string id="LWN_im_gen_check" text="Checking the details..." />
     <string id="LWN_plan_detail_steps" text="Steps:" />
     <string id="LWN_plan_detail_timeout" text="    timeout → {TARGET}" />
     <string id="LWN_plan_detail_contingencies" text="Contingencies:" />

@@ -28,6 +28,13 @@ namespace LivingWorldNpcs
         /// <summary>全局 Misconduct 事件序号，确保同小时内多次犯案 EventId 不撞车</summary>
         private static int _misconductSeq = 0;
 
+        // 🔴 2026-08-12：玩家武器状态（事件源维护）——Agent.OnMainAgentWieldedItemChange 只在玩家
+        // 武器切换时触发（引擎内 IsMainAgent 门控），NPC 感知/停战检测读本状态，不再每帧查武器。
+        public bool PlayerWeaponDrawn;             // 玩家主副手任一持械（拔刀=武器出鞘）
+        public float PlayerWeaponStateChangeTime;  // Mission 时间（最近一次拔刀/收刀时刻）
+        private bool _weaponEventHooked;
+        private bool _playerWeaponEventInited;     // 挂载时初始化一次状态（防首帧误判收刀）
+
         // ═══════════════════════════════════════════════════════════════
         // 🆕 PendingWorldEvent — Mission 作用域犯罪记录
         // ═══════════════════════════════════════════════════════════════
@@ -217,6 +224,10 @@ namespace LivingWorldNpcs
         }
         public override void OnMissionTick(float dt)
         {
+            // 🔴 2026-08-12：玩家武器切换事件源（lazy 挂载，防 Agent.Main 未就绪）——
+            // 拔刀/收刀全局状态 + 单条日志，替代 112 个 NPC 各自每帧翻转检测
+            EnsurePlayerWeaponHook();
+
             foreach (var brain in _brains.Values)
             {
                 if (brain.Owner.IsActive())
@@ -235,12 +246,48 @@ namespace LivingWorldNpcs
             SpeechChannel.TickAll(dt);
         }
 
+        // 🔴 2026-08-12：玩家武器切换事件源（lazy 挂载：Agent.Main 就绪后一次性挂 OnMainAgentWieldedItemChange——
+        // 引擎只在主玩家武器切换时触发，无每帧轮询；状态供 AgentBrain 感知 + FightEnemyAction 停战检测读取）
+        private void EnsurePlayerWeaponHook()
+        {
+            if (_weaponEventHooked) return;
+            var main = Agent.Main;
+            if (main == null) return;
+            main.OnMainAgentWieldedItemChange += OnPlayerWeaponChanged;
+            _weaponEventHooked = true;
+            // 挂载时同步一次初始状态（事件未触发过，但玩家可能已经拔着刀）
+            OnPlayerWeaponChanged();
+        }
+
+        private void OnPlayerWeaponChanged()
+        {
+            try
+            {
+                var main = Agent.Main;
+                if (main == null) return;
+                bool drawn = V.MainWpn(main) != EquipmentIndex.None
+                    || V.OffWpn(main) != EquipmentIndex.None;
+                if (_playerWeaponEventInited && drawn == PlayerWeaponDrawn) return;   // 防御重复触发
+                _playerWeaponEventInited = true;
+                PlayerWeaponDrawn = drawn;
+                PlayerWeaponStateChangeTime = Mission.Current?.CurrentTime ?? 0f;
+                DebugLogger.Log($"[PlayerWeapon] 玩家{(drawn ? "拔刀" : "收刀")} (Mission t={PlayerWeaponStateChangeTime:F2})");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PlayerWeapon] 事件处理异常: {ex.Message}");
+            }
+        }
+
         public override void OnRemoveBehavior()
         {
             // 密谋命令系统：Mission 结束 → 执行器统一收尾（OnMissionScreenFinalize 兜底纪律）
             PlanExecutor.ShutdownAll();
             FinalizePendingWorldEvent();
             CombatManager.OnMissionEnd();
+            // 🔴 2026-08-12：解挂玩家武器切换监听（实例随 Mission 销毁，防悬空引用）
+            try { if (Agent.Main != null) Agent.Main.OnMainAgentWieldedItemChange -= OnPlayerWeaponChanged; } catch { }
+            _weaponEventHooked = false;
             // 🔴 §5.7 附近频道：Mission 结束消息流归档（重进场景新流，agent.Index 身份不复用）
             NearbyFeed.Clear();
             // 🔴 2026-08-11 续话器：Mission 结束清理活跃对话（OnEnd 收尾）

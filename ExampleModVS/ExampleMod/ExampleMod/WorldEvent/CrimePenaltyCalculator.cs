@@ -92,6 +92,7 @@ namespace LivingWorldNpcs
                 PlayerActionType.StealUIOpen => 15,
                 PlayerActionType.Steal => 20,
                 PlayerActionType.AttackAlly => 30,
+                PlayerActionType.AttackCivilian => 20,
                 PlayerActionType.Knockout => 40,
                 _ => 10
             };
@@ -114,6 +115,7 @@ namespace LivingWorldNpcs
                 PlayerActionType.StealUIOpen => 15,
                 PlayerActionType.Steal => 20,
                 PlayerActionType.AttackAlly => 30,
+                PlayerActionType.AttackCivilian => 20,
                 PlayerActionType.Knockout => 40,
                 _ => 10
             };

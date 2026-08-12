@@ -38,7 +38,6 @@ namespace LivingWorldNpcs
         {
             public ImConversation Conv;
             public string Command;
-            public long StartMs;        // 🔴 §3.3 进度条：墙钟起点（LLM 无真实进度，按已耗时映射阶段）
             public bool IsModify;       // 🔴 Q2：修改管线（新卡片带「修改版」标记）
             public int ModifyCount;     // 🔴 Q2：修改版计数
         }
@@ -146,9 +145,8 @@ namespace LivingWorldNpcs
             {
                 Conv = conv,
                 Command = cmd,
-                StartMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             };
-            // 🔴 §3.3：生成中占位行（阶段文案 + 模拟进度条）——LLM 5~15s 零反馈的焦虑缓冲
+            // 生成中占位行（思考中文案，与「正在输入」同款）
             AppendGenerating(conv);
             _ = CallPlanAsync(_pending);
         }
@@ -190,9 +188,6 @@ namespace LivingWorldNpcs
         /// <summary>主线程消费（ImChatManager.Tick → 本方法）。</summary>
         public static void Tick()
         {
-            // 🔴 §3.3 生成中进度推进（LLM 无真实进度，游戏加载条同款模拟；阶段文案掩盖模拟单调）
-            TickGeneratingProgress();
-
             if (_resultReady)
             {
                 _resultReady = false;
@@ -465,7 +460,6 @@ namespace LivingWorldNpcs
             {
                 Conv = conv,
                 Command = cmd,
-                StartMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 IsModify = true,
                 ModifyCount = msg.PlanModifyCount + 1,
             };
@@ -488,19 +482,30 @@ namespace LivingWorldNpcs
             return card.PlanSummary ?? "";
         }
 
-        // ───────────────────────── 生成中占位行（🔴 §3.3，2026-08-10）─────────────────────────
+        // ───────────────────────── 生成中占位行（🔴 2026-08-12：删进度条，文案与「正在输入」统一）─────────────────────────
 
-        /// <summary>占位行：消息流内灰色卡片（阶段文案 + 进度条；面板重开按已耗时重映射，纯展示值）。</summary>
+        /// <summary>占位行：消息流内灰色卡片（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一——LWN_im_typing 同款）。</summary>
         private static void AppendGenerating(ImConversation conv)
         {
             if (conv == null) return;
-            // 本地化：生成中阶段文案（观察地形）
-            string stage = LWNTextHelper.ResolveText("LWN_im_gen_observe", "Surveying the area...");
+            // 思考中文案：私聊 = 随从名（「阿速甘正在输入…」，与输入栏灰字同一句）；兜底「对方」
+            string thinker = "";
+            if (conv.Type == ImConversationType.Direct)
+            {
+                try
+                {
+                    thinker = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == conv.PartnerHeroId)?.Name?.ToString() ?? "";
+                }
+                catch { }
+            }
+            if (string.IsNullOrEmpty(thinker))
+                thinker = LWNTextHelper.ResolveText("LWN_im_npc_companion", "Companion");
+            string thinkingText = LWNTextHelper.ResolveCompound("LWN_im_typing",
+                "{NAMES} is typing...", ("NAMES", thinker));
             ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId, "System", "", ImMessageKind.Generating)
             {
                 ConvId = conv.Id,
-                Progress = 0f,
-                GenerateText = stage,
+                GenerateText = thinkingText,
             });
             ImChatManager.BroadcastMessageArrived(conv);
         }
@@ -517,53 +522,6 @@ namespace LivingWorldNpcs
                     msgs.RemoveAt(i);
                     return;
                 }
-            }
-        }
-
-        /// <summary>阶段化模拟进度（§3.3）：LLM 无真实进度，按已耗时映射阶段文案 + 进度。
-        /// 0→10% 快照构建（秒级）；10→85% LLM 生成（每 1.5s +2~5% 抖动由整体线性模拟近似）；85→90 校验；封顶 90 等卡片。</summary>
-        private static void TickGeneratingProgress()
-        {
-            if (_pending == null || Mission.Current == null) return;
-            try
-            {
-                float elapsed = (float)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - _pending.StartMs) / 1000f;
-                float progress;
-                string stage;
-                if (elapsed < 1.2f)
-                {
-                    progress = elapsed / 1.2f * 10f;
-            // 本地化：生成中阶段文案（观察地形）
-                    stage = LWNTextHelper.ResolveText("LWN_im_gen_observe", "Surveying the area...");
-                }
-                else if (elapsed < 7f)
-                {
-                    progress = 10f + (elapsed - 1.2f) / 5.8f * 75f;
-            // 本地化：生成中阶段文案（推演步骤）
-                    stage = LWNTextHelper.ResolveText("LWN_im_gen_plan", "Working out the steps...");
-                }
-                else
-                {
-                    progress = 90f;   // 封顶：防长时间卡 99% 假象；卡片上屏瞬间 100%
-            // 本地化：生成中阶段文案（核对细节）
-                    stage = LWNTextHelper.ResolveText("LWN_im_gen_check", "Checking the details...");
-                }
-                // 写回 store（面板重开按已耗时重映射 = 读消息时重新计算，此处同步最新值供 UI 显示）
-                var msgs = ImChatStore.GetGroupMessages(_pending.Conv.Id);
-                for (int i = msgs.Count - 1; i >= 0; i--)
-                {
-                    var m = msgs[i];
-                    if (m.IsGenerating)
-                    {
-                        m.Progress = progress;
-                        m.GenerateText = stage;
-                        break;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[ImCommandFlow] 进度推进异常: {ex.Message}");
             }
         }
 

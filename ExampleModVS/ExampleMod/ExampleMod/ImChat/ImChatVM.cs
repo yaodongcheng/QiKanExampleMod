@@ -217,23 +217,11 @@ namespace LivingWorldNpcs
 
         // ── 🔴 2026-08-10（im-command-action-upgrade.md Q2/Q3/§3.3）：生成中占位 / 修改版 / 详情 ──
 
-        /// <summary>生成中占位行（§3.3）：灰底卡片 + 阶段文案 + 进度条（色条 Widget 宽度绑定方案）。</summary>
+        /// <summary>生成中占位行：灰底卡片 + 思考中文案（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一）。</summary>
         [DataSourceProperty]
         public bool IsGenerating => _msg != null && _msg.IsGenerating;
 
-        /// <summary>进度 0~100（色条宽度 % × MaxWidth）。</summary>
-        [DataSourceProperty]
-        public float Progress => _msg != null ? MathF.Clamp(_msg.Progress, 0f, 100f) : 0f;
-
-        /// <summary>进度条色条宽度（Progress% × 440px 满宽；XML SuggestedWidth 绑定）。</summary>
-        [DataSourceProperty]
-        public float ProgressBarWidth => Progress * 4.4f;
-
-        /// <summary>进度百分比文本（"37%"）。</summary>
-        [DataSourceProperty]
-        public string ProgressText => $"{(int)Progress}%";
-
-        /// <summary>生成中阶段文案（「正在推演步骤…」等）。</summary>
+        /// <summary>生成中文案（「{NAME}正在输入…」，与输入栏正在输入同款）。</summary>
         [DataSourceProperty]
         public string GenerateText => _msg?.GenerateText ?? "";
 

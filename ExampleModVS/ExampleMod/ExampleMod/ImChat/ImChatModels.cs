@@ -21,7 +21,7 @@ namespace LivingWorldNpcs
         Text,       // 普通文本（闲聊/密令文本都算）
         System,     // 系统消息（居中灰字：执行开始/完成/中止）
         PlanCard,   // 密令计划卡片（摘要 + 同意/拒绝/中止按钮）
-        Generating, // 🔴 2026-08-10（§3.3）：计划生成中占位行（阶段文案 + 模拟进度条；卡片上屏/失败时被替换）
+        Generating, // 🔴 2026-08-12：计划生成中占位行（思考中文案；卡片上屏/失败时被替换）
         Proposal,   // 🔴 2026-08-10（§四 Q4）：NPC 主动提议（「主公，我想去望风」+ 批准/拒绝按钮 → PlanCard 管线）
     }
 
@@ -76,12 +76,9 @@ namespace LivingWorldNpcs
         [JsonProperty("pd")]
         public string PlanDetailText;    // 卡片详情（§3.2）：C# 确定性渲染的步骤/应急/安全网文本（不信任 LLM 文案）
 
-        // 🔴 2026-08-10（§3.3）：生成中占位行（Generating 消息专用）
-        [JsonProperty("gp")]
-        public float Progress;           // 0~100 模拟进度（面板重开按已耗时重映射，纯展示值）
-
+        // 🔴 2026-08-12：生成中占位行（Generating 消息专用；删进度条，文案 = 输入栏「正在输入」同款）
         [JsonProperty("gt")]
-        public string GenerateText;      // 阶段文案（「正在推演步骤…」等）
+        public string GenerateText;      // 思考中文案（「{NAME}正在输入…」）
 
         [JsonIgnore]
         public bool IsSelf => SenderHeroId == ImChatManager.PlayerId;

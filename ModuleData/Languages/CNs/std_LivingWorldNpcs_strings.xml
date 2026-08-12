@@ -482,7 +482,9 @@
     <string id="LWN_speech_alertbubble_steal_suspicious" text="咦，{TARGET}的{ITEM}呢？" />
     <string id="LWN_speech_alertbubble_steal_cautious" text="（惊呼）{SPEAKER_PLAYER_ADDR}！你偷了{ITEM}！" />
     <string id="LWN_speech_alertbubble_attackally_suspicious" text="（惊）怎么回事？！" />
-    <string id="LWN_speech_alertbubble_attackally_cautious" text="（后退）{SPEAKER_PLAYER_ADDR}打人了！" />
+    <string id="LWN_speech_alertbubble_attackally_cautious" text="（后退一步，手按刀柄）{SPEAKER_PLAYER_ADDR}！住手！再打我可要动手了！" />
+    <string id="LWN_speech_alertbubble_attackcivilian_suspicious" text="（皱眉）当街打起来了……" />
+    <string id="LWN_speech_alertbubble_attackcivilian_cautious" text="（上前一步，手按刀柄）{SPEAKER_PLAYER_ADDR}！住手！别在街上动手，不然我不客气了！" />
     <string id="LWN_speech_alertbubble_knockout_suspicious" text="（惊恐）出人命了……" />
     <string id="LWN_speech_alertbubble_knockout_cautious" text="来人！{SPEAKER_PLAYER_ADDR}把{TARGET}打倒了！" />
     <string id="LWN_speech_l3_deter_weapondrawn" text="（{SPEAKER_EMOTION}地）把{ITEM}收起来！{SPEAKER_PLAYER_ADDR}！这是村子，不是战场！" />
@@ -4068,9 +4070,6 @@
     <string id="LWN_im_cmd_unavailable_here" text="此刻无法传讯。" />
     <string id="LWN_im_cmd_no_direct" text="这位随从无法通过传讯联系。" />
     <string id="LWN_im_npc_companion" text="随从" />
-    <string id="LWN_im_gen_observe" text="正在观察地形…" />
-    <string id="LWN_im_gen_plan" text="正在推演步骤…" />
-    <string id="LWN_im_gen_check" text="正在核对细节…" />
     <string id="LWN_plan_detail_steps" text="步骤：" />
     <string id="LWN_plan_detail_timeout" text="    超时 → {TARGET}" />
     <string id="LWN_plan_detail_contingencies" text="应急安排：" />

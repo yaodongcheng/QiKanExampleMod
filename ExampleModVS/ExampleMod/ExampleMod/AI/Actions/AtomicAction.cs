@@ -1018,15 +1018,26 @@ namespace LivingWorldNpcs
         /// <summary>受伤喊话已触发标记（每场战斗最多 1 次；M0 说话并联）</summary>
         private bool _hurtShoutTriggered = false;
         private float _lastHealth;
+        // 🔴 2026-08-12 停战检测（被动反击专用）：玩家收刀且 3s 未再攻击 → 停战恢复。
+        // 主动参战（Alarmed 执法/密令/见义勇为）保持默认 false——执法要打到分出结果，玩家收刀不算了结。
+        private readonly bool _canCeaseOnPlayerSheathe;
+        private float _lastHitByPlayerTime = -1f;   // Mission 时间；-1 = 玩家从未打过自己
         /// <summary>
         /// 战斗行为：锁定并攻击指定敌人
         /// </summary>
-        public FightEnemyAction(Agent targetEnemy)
+        public FightEnemyAction(Agent targetEnemy, bool canCeaseOnPlayerSheathe = false)
         {
             _targetEnemy = targetEnemy;
             _isFinished = false;
             _checkTimer = 0f;
+            _canCeaseOnPlayerSheathe = canCeaseOnPlayerSheathe;
         }
+
+        /// <summary>玩家命中自己时刷新受击时间（AgentBrain damaged 处理调用；停战检测依据）。</summary>
+        public void NotifyHitByPlayer(float missionTime) => _lastHitByPlayerTime = missionTime;
+
+        // 🔴 2026-08-12 停战检测降频缓存（每 100ms 检查一次；玩家武器状态读事件源全局值，不每帧查武器）
+        private float _ceaseCheckTimer;
 
         public void OnStart(Agent agent)
         {
@@ -1073,6 +1084,29 @@ namespace LivingWorldNpcs
             {
                 _isFinished = true;
                 return;
+            }
+
+            // 🔴 2026-08-12 停战检测（被动反击专用）：对方是玩家 && 玩家收刀（主副手都入鞘）
+            // && 3s 未再攻击自己（或从未被玩家打过）→ 停战恢复（OnEnd 完整清理：EndFight + 收刀 +
+            // 警戒归零）。场景：玩家当街打平民 → 平民反击 → 玩家收手 → 平民不再追打。
+            // 主动参战者（Alarmed 执法等）canCeaseOnPlayerSheathe=false 不受影响——执法到底。
+            // 降频 100ms；玩家武器状态读事件源（AgentAIController.PlayerWeaponDrawn，非每帧查武器）。
+            if (_canCeaseOnPlayerSheathe && !_surrenderTriggered && _targetEnemy == Agent.Main)
+            {
+                _ceaseCheckTimer += dt;
+                if (_ceaseCheckTimer >= 0.1f)
+                {
+                    _ceaseCheckTimer = 0f;
+                    bool playerSheathed = !(AgentAIController.Instance?.PlayerWeaponDrawn ?? true);
+                    float now = Mission.Current?.CurrentTime ?? 0f;
+                    bool recentlyHit = _lastHitByPlayerTime >= 0f && now - _lastHitByPlayerTime <= 3f;
+                    if (playerSheathed && !recentlyHit)
+                    {
+                        _isFinished = true;
+                        DebugLogger.Log($"[FightCease] {agent.Name}(Idx={agent.Index}) 玩家收刀 {(_lastHitByPlayerTime >= 0f ? $"{(now - _lastHitByPlayerTime):F1}s 未受击" : "从未被玩家攻击")} → 停战恢复");
+                        return;
+                    }
+                }
             }
 
             // --- 持续性指令 ---

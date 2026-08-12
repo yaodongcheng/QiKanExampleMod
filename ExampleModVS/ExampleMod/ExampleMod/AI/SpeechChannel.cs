@@ -111,7 +111,9 @@ namespace LivingWorldNpcs
         private bool _hasPlaying;
         private float _playTimer;
         private float _lastSayAt;                // Mission 时间（闸门基准）
-        private bool _polishing;                 // 润色单飞锁（同 agent 只允许 1 个进行中润色，防乱序/刷屏）
+        private bool _polishing;                 // 润色单飞锁（同 agent 只允许 1 个活跃润色任务）
+        private int _polishSeq;                  // 🔴 2026-08-12 抢占序号：新请求递增，旧任务完成时序号不符 → 结果作废不播
+        private SpeechPriority _polishPriority;  // 🔴 2026-08-12 在途任务优先级（抢占判定基准）
 
         private SpeechChannel(Agent owner)
         {
@@ -154,40 +156,69 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 统一双轨发声入口（模板调用点升级用，2026-08-12）：
-        /// 有 LLM 且开关开（IsLLMConfigured + Settings.PolishSpeechEnabled）→ **立即**发起润色
-        /// （fire-and-forget，budgetS 预算，超时/失败 → 原模板兜底）；无 LLM/开关关/Chat 优先级
-        /// → 直接播模板（= 升级前行为，零延迟）。🔴 先请求再播出：润色请求在入口发起，
-        /// 结果回来才入队——SpeechChannel 排队等的是气泡时机，不是 LLM。
+        /// 统一发声入口（模板调用点升级用，2026-08-12 重构）：
+        /// 🔴 分级（2026-08-12 用户裁定 + 实机验证）：**只有「有效互动」喊话走 LLM**——
+        ///   ① 高优先级（Combat/Warning/Dialogue：战斗喊话/警告质问/当面对话轮次）；
+        ///   ② Chat 冒泡但刺激可注入「当前处境」（被攻击/见义勇为/命令等 = 玩家关注的核心互动）。
+        ///   纯氛围冒泡（围观警戒等无处境上下文）→ 直接模板（零延迟零成本，模板按场景编写内容贴切；
+        ///   实机证明：围观者走 LLM 无上下文 → 台词跑题 + 白花额度，双输）。
+        /// 润色请求入口发起（fire-and-forget，预算 clamp 1.5s，超时/失败 → 原模板兜底）。
+        /// 单飞 + 抢占：同 agent 已有润色在途 → 高优先级抢占（旧结果作废）、低/等优先级**丢弃**
+        /// （不播模板——双轨根源 = 模板先播 + 润色后播，模板只用于超时/未配置）。
+        /// 🔴 先请求再播出：结果回来才入队——SpeechChannel 排队等的是气泡时机，不是 LLM。
         /// </summary>
         /// <param name="fallbackText">离线模板文本（永远存在：铁律 1 兜底）</param>
-        /// <param name="budgetS">LLM 预算秒数（默认 2s；终局时敏台词可传 1f）</param>
+        /// <param name="budgetS">LLM 预算秒数（上限 1.5s：用户要求 2s 内返回、尽量 1.5s；终局时敏台词可传更小）</param>
         public static void SayPolished(Agent agent, string fallbackText, SpeechPriority priority = SpeechPriority.Chat,
             SpeechContext context = default, float budgetS = 2f)
         {
             if (agent == null || string.IsNullOrWhiteSpace(fallbackText)) return;
-            // 无 LLM / 开关关 / Chat 优先级（高频低表现力）→ 直接模板（零延迟）
-            if (!Settings.Instance.IsLLMConfigured || !Settings.Instance.PolishSpeechEnabled
-                || (priority != SpeechPriority.Combat && priority != SpeechPriority.Warning && priority != SpeechPriority.Dialogue))
+            // 🔴 分级：非有效互动（无 LLM/开关关/纯氛围冒泡）→ 直接模板（零延迟）
+            if (!ShouldPolish(agent, priority, context))
             {
                 Say(agent, fallbackText, priority, context);
                 return;
             }
             var ch = Get(agent);
             if (ch == null) return;
+            int seq;
             lock (_syncLock)
             {
-                // 同 agent 单飞：已有润色进行中 → 本次直接模板（防乱序：开战/受伤几乎同时触发时
-                // 两句润色完成顺序不定会颠倒播放；也防刷屏——战斗喊话最多同时 1 个请求）
-                if (ch._polishing) { Say(agent, fallbackText, priority, context); return; }
-                ch._polishing = true;
+                // 同 agent 单飞 + 抢占（防乱序/刷屏，同时根治双轨）
+                if (ch._polishing)
+                {
+                    if (priority <= ch._polishPriority) return;   // 低/等优先级：丢弃（不播模板）
+                    ch._polishSeq++;                              // 高优先级：抢占（旧结果作废）
+                }
+                else
+                {
+                    ch._polishing = true;
+                    ch._polishSeq++;
+                }
+                ch._polishPriority = priority;
+                seq = ch._polishSeq;
             }
-            _ = PolishLineAsync(agent, fallbackText, priority, context, budgetS);
+            _ = PolishLineAsync(agent, fallbackText, priority, context, budgetS, seq);
         }
 
-        /// <summary>润色后台任务：预算内 LLM 润色 → 成功播润色版，否则播模板（finally 释放单飞锁）。</summary>
+        /// <summary>
+        /// 🔴 2026-08-12 分级判定：该喊话是否值得走 LLM（有效互动 vs 氛围冒泡）。
+        /// 高优先级（战斗/警告/对话轮次）必 LLM；Chat 冒泡仅当刺激能注入「当前处境」
+        /// （= 与玩家/事件的核心互动：被攻击/见义勇为/命令/传讯等）才 LLM；
+        /// 纯氛围冒泡（bubble 等无处境注入）→ false = 模板直接播。
+        /// </summary>
+        private static bool ShouldPolish(Agent agent, SpeechPriority priority, SpeechContext context)
+        {
+            if (!Settings.Instance.IsLLMConfigured || !Settings.Instance.PolishSpeechEnabled) return false;
+            if (priority >= SpeechPriority.Dialogue) return true;   // Dialogue/Warning/Combat
+            // Chat/Interject：有「当前处境」注入 = 有效互动
+            return BuildSituationLine(agent, context) != null;
+        }
+
+        /// <summary>润色后台任务：预算内 LLM 润色 → 成功播润色版，否则播模板（finally 释放单飞锁）。
+        /// 🔴 2026-08-12：seq 校验——被抢占的任务完成时不播、不释放（释放权归最新任务）。</summary>
         private static async Task PolishLineAsync(Agent agent, string fallback, SpeechPriority priority,
-            SpeechContext context, float budgetS)
+            SpeechContext context, float budgetS, int seq)
         {
             string polished = null;
             try
@@ -198,48 +229,65 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[Speech] 润色失败: {ex.Message}");
             }
-            finally
+            var ch = Get(agent);
+            if (ch == null) return;
+            lock (_syncLock)
             {
-                var ch = Get(agent);
-                if (ch != null) lock (_syncLock) { ch._polishing = false; }
+                // 已被抢占（更新 seq 的任务接管）→ 结果作废：不播、不释放
+                if (ch._polishSeq != seq) return;
+                ch._polishing = false;
             }
-            // 播放（成功 = 润色版；失败/超时/空 = 模板兜底）
+            // 播放（成功 = 润色版；失败/超时/空 = 模板兜底——用户裁定：模板只在这时用）
             Say(agent, string.IsNullOrWhiteSpace(polished) ? fallback : polished, priority, context);
         }
 
-        /// <summary>LLM 润色构造：身份（职业+人格）+ 语境（topic）+ 按优先级的语气要求。
-        /// 🔴 prompt 材料豁免铁律 13；注入 fallback 语义锚点防跑题（模板语义即意图锚）。</summary>
+        /// <summary>LLM 润色构造（🔴 2026-08-12 重构）：身份真名 + 对方关系 + 当前处境（刺激/意图/血量）
+        /// 注入——有效信息 = 说话者是谁/对方是谁/正在发生什么；模板语义仅作锚防跑题。
+        /// 体积控制：每段单行短句，max_tokens 60，预算 clamp 1.5s（用户要求 2s 内返回、尽量 1.5s）。
+        /// prompt 材料豁免铁律 13。</summary>
         private static async Task<string> BuildPolishedLine(Agent agent, string fallback, SpeechPriority priority,
             SpeechContext context, float budgetS)
         {
             if (agent == null || !agent.IsActive()) return null;
             try
             {
+                string name = agent.Name?.ToString() ?? "";
                 string occ = ReactiveAgent.ClassifyOccupation(agent);
                 string occName = LWNTextHelper.ResolvePrompt("LWN_prompt_trait_occupation_" + occ);
                 if (string.IsNullOrEmpty(occName)) occName = occ;
                 string personality = ReactiveAgent.DescribePersonalityForPrompt(ReactiveAgent.Get(agent)?.Personality);
+                // 身份：真名（职业、人格）——2026-08-12 升级：不再是无名「路人」
                 string identity = string.Format(
                     DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
-                    occName, personality);
+                    string.IsNullOrEmpty(name) ? occName : $"{name}（{occName}）", personality);
+
+                // 有效上下文段（关系 + 处境；null 跳过，单行短句控体积）
+                string relation = BuildRelationLine(agent, context.Speaker);
+                string situation = BuildSituationLine(agent, context);
+                string attitude = "";
+                if (!string.IsNullOrEmpty(relation)) attitude += relation + "\n";
+                if (!string.IsNullOrEmpty(situation)) attitude += situation;
+                if (string.IsNullOrWhiteSpace(attitude)) attitude = null;
+
                 // 语气按优先级（与计划 §3.3 优先级表对应）
                 string mood = priority switch
                 {
-                    SpeechPriority.Combat => "用一句符合你身份和人格的战斗喊话（8-25 字），语气激烈，贴合当下战况",
-                    SpeechPriority.Warning => "用一句符合你身份和人格的警告或质问（8-30 字），语气强硬",
-                    _ => "用一句符合你身份和人格的口语回应（8-30 字），自然贴合语境",
+                    SpeechPriority.Combat => "用一句符合你身份和处境的话回应（8-25 字），语气激烈，贴合战况",
+                    SpeechPriority.Warning => "用一句符合你身份和处境的话回应（8-30 字），语气强硬",
+                    SpeechPriority.Dialogue => "用一句符合你身份和处境的话回应（8-30 字），自然贴合语境",
+                    _ => "用一句符合你身份和处境的话回应（8-30 字），口语化，贴合当下",
                 };
                 string topic = string.IsNullOrEmpty(context.Topic) ? "说话" : context.Topic;
                 string anchor = string.IsNullOrEmpty(fallback) ? "" : $"（大意是：{fallback}，可以换更自然的说法，但别偏离意思）";
                 var dline = await DialogueComponent.GenerateLine(
-                    Settings.Instance?.WorldDescription ?? "", identity, "",
+                    Settings.Instance?.WorldDescription ?? "", identity, attitude,
                     topic, "",
                     "",
                     context.Speaker?.Name?.ToString() ?? "对方",
                     "", "",
                     "LWN_plan_respond_rule",
                     $"【要求】{mood}。{anchor}直接说台词本身——不要引号、不要解释、不要动作描写。",
-                    null, maxTokens: 80, timeoutMs: Math.Max(300, (int)(budgetS * 1000)));
+                    null, maxTokens: 60, timeoutMs: Math.Max(300, (int)(Math.Min(budgetS, 1.5f) * 1000)));
                 return dline != null && dline.FromLlm
                     ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "")
                     : null;
@@ -249,6 +297,65 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Speech] 润色构造异常: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>对方关系段（LLM prompt 材料，豁免铁律 13）：玩家主公 / 玩家 / 同伴 / 友善。null = 不注入。</summary>
+        private static string BuildRelationLine(Agent self, Agent other)
+        {
+            if (other == null) return null;
+            try
+            {
+                string otherName = other.Name?.ToString() ?? "对方";
+                if (other == Agent.Main)
+                {
+                    // 对方是玩家：自己是队伍成员 → 主公（主从关系是核心语境：被主公打 vs 被陌生人打）
+                    bool isCompanion = FriendlinessHelper.IsPlayerPartyMember(self);
+                    return isCompanion
+                        ? $"【对方关系】对方是你的主公{otherName}（玩家）"
+                        : $"【对方关系】对方是玩家{otherName}";
+                }
+                if (FriendlinessHelper.IsPlayerPartyMember(other))
+                    return $"【对方关系】对方是你的同伴{otherName}";
+                if (FriendlinessHelper.IsFriendlyToPlayer(other))
+                    return $"【对方关系】对方与你友善（{otherName}）";
+                return null;   // 敌对/陌生：不给多余关系（台词由处境段自然表达）
+            }
+            catch { return null; }
+        }
+
+        /// <summary>当前处境段（刺激/意图/血量 → 一句「正在发生什么」）。null = 不注入。</summary>
+        private static string BuildSituationLine(Agent self, SpeechContext context)
+        {
+            try
+            {
+                string hp = "";
+                if (self != null && self.IsActive() && self.HealthLimit > 0)
+                {
+                    float ratio = self.Health / self.HealthLimit;
+                    if (ratio < 0.3f) hp = "，你已筋疲力尽";
+                    else if (ratio < 0.6f) hp = "，你身上带伤";
+                }
+                string intent = context.Intent ?? "";
+                string action = context.CurrentAction ?? "";
+                string stim = context.StimulusType ?? "";
+                if (intent == "Surrendering")
+                    return $"【当前处境】你正在向对方认输求饶{hp}";
+                if (intent == "Fighting" || action == "FightEnemyAction")
+                    return $"【当前处境】你正在与对方厮杀{hp}";
+                switch (stim)
+                {
+                    case "attacked": return $"【当前处境】对方刚刚对你动手，你正要反击{hp}";
+                    case "combat": return $"【当前处境】战斗刚刚爆发，你正要出手{hp}";
+                    case "approach_by": return "【当前处境】对方正在向你靠近";
+                    case "seen_crime": return "【当前处境】你刚目睹了对方的不法行为";
+                    case "spoken_to": return "【当前处境】对方刚刚跟你搭话";
+                    case "plan_command": return "【当前处境】主公刚给你下达了命令";
+                    case "plan_report": return "【当前处境】你正在向主公汇报任务结果";
+                    case "im_message": return "【当前处境】对方刚给你发来消息";
+                    default: return null;
+                }
+            }
+            catch { return null; }
         }
 
         /// <summary>所有通道推进（AgentAIController.OnMissionTick 驱动）。</summary>
