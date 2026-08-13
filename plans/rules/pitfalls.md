@@ -35,6 +35,43 @@
 
 ---
 
+## 引擎回调栈内（OnAgentHit/OnRegisterBlow）同步触发 native 战斗状态重入 → AccessViolation
+
+**症状**（实机 2026-08-13 切磋判负崩溃）
+- `System.AccessViolationException`，HResult=0x80004003，`Source=<无法计算异常源>`（托管栈丢失）——异常从 native 泄漏上来。
+- 崩溃点在游戏主循环 `Mission.TickMission → TickMissionAux(..., asyncAITick: true)`，看不到 mod 侧堆栈。
+- 时机：切磋判负瞬间（OnAgentHit 内执行收场时）；**非必现**（竞态）——同一套代码早前跑过没崩。
+
+**根因**（代码链实锤）
+
+```
+OnAgentHit（引擎 HandleBlow 处理栈内）── 判负
+  └─ EndDuel 同步收场：
+       SetMortalityState ×2 / Health 写入（native）
+       └─ SendEventToAgent("event_stop_combat")  ← 同步（brain.ReceiveEvent 直接分发）
+            └─ ClearAllActions
+                 └─ FightEnemyAction.OnEnd
+                      └─ CombatManager.EndFight
+                           └─ RestoreSideFightMembers（全员 SetTeam）
+                           └─ InterruptCombatMotion（SetAttackState / SetMovementDirection / SetScriptedCombatFlags）
+                           └─ SetTargetAgent(null)
+       └─ 恢复 Mortal（native）
+```
+
+- 引擎的 blow 处理（HandleBlow）中途，我们**重入修改同一 agent 的战斗状态**（队伍/攻击状态机/索敌）——native 内部状态机被打断，后续访问损坏内存。
+- `asyncAITick: true` 时 agent 的行为 AI 在**后台线程** tick——主线程 blow 栈内改战斗状态与后台线程并发 → 竞态 AccessViolation（非必现的原因）。
+- ⚠️ 托管层看起来"按顺序调用"，崩溃却随机——因为损坏发生在 native 侧，下一次任意 native 调用才炸（栈丢失）。
+
+**规避**
+- **引擎回调栈内（OnAgentHit/OnRegisterBlow/OnAgentRemoved）只允许两类操作**：① 托管状态标记（bool/引用/时间戳）；② 保命类极小 native 操作（判负回血 `Health = HealthLimit` 必须在栈内——引擎 HandleBlow 在 OnAgentHit 之后检查 `if (Health < 1f) Die()`，延后 = 必死）。
+- **禁止在回调栈内同步触发任何会重入 agent 战斗状态的调用链**：`SetTeam` / `SetAttackState` / `SetMovementDirection` / `SetScriptedCombatFlags` / `SetTargetAgent` / `EndFight` / `StopAgentCombat`。
+- 收场类逻辑延后一帧：`_pendingDuel` 标记 → 下一帧 `MissionBehavior.OnMissionTick` 执行（正常 tick 栈，与引擎其他主线程操作同线程安全）。
+- 落地范例：`Combat/AttackTriggerMissionLogic.cs` → `OnDuelLoser`（blow 栈内保命 + 播报）/ `EndPendingDuel`（下一帧收场：停战事件 → 恢复 Mortal → 冷却登记）。
+- 判别口诀：**栈丢失的 AccessViolation + 崩溃点在主循环 = native 内存被更早的调用破坏了**——回头查"最近一次引擎回调里做了什么"，而不是查崩溃点本身。
+- 附带收益：拆段后"判负那一击的晚到伤害事件"到达时行为尚未清空（chivalry 早退不反击），防反击冷却反而更稳——回调栈内收场本身也是事件时序的隐患。
+
+---
+
 ## 对尸体/昏迷 Agent 调 `UpdateSpawnEquipmentAndRefreshVisuals` → AccessViolation
 
 **症状**

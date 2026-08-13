@@ -500,6 +500,20 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 准备攻击 {attacker.Name}(Idx={attacker.Index}) 救援 {victim.Name}(Idx={victim.Index})");
                 else
                     DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 不参战：victim={victim.Name}(Idx={victim.Index}) attacker={attacker.Name}(Idx={attacker.Index})");
+
+                // 🔴 2026-08-13 切磋收场冷却（AttackTriggerMissionLogic.EndDuel 配套）：
+                // 判负那一击的 event_agent_damaged 可能晚于停战事件到达——此时行为已被清空（null），
+                // 受害者护主逻辑把"切磋对手的命中"误判为被袭击 → 骑士精神反击 → 以 Peace=false
+                // 重新真打（无切磋登记、双方已恢复 Mortal）→ 一方被打死（实机 2026-08-13 15:21）。
+                // 攻击者 = 刚结束的切磋对手（3s 窗口）→ 不反击，让切磋真正点到为止。
+                // 第三方攻击照常反击；玩家 order_attack 走 "attack" 事件不经此路径，不受影响。
+                if (Owner == victim
+                    && AttackTriggerMissionLogic.Instance?.IsRecentDuelPair(attacker, Owner) == true)
+                {
+                    DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 切磋收场冷却（{attacker.Name} 是刚结束的切磋对手），不反击");
+                    return;
+                }
+
                 if (shouldHelp)
                 {
                     if (EffectiveAction is FightEnemyAction currentFight)

@@ -4050,7 +4050,14 @@
     <string id="LWN_plan_abort_toolong" text="拖太久了，先撤。" />
     <string id="LWN_plan_abort_interrupted" text="计划被打断了。" />
     <string id="LWN_plan_abort_generic" text="计划作罢了。" />
-    <string id="LWN_plan_abort_timeout" text="有一步拖太久了，先撤。" />
+    <string id="LWN_plan_abort_timeout" text="{OWNER} {STEP}，拖太久没成，先作罢了。" />
+    <string id="LWN_plan_step_move_to" text="前往目标地点" />
+    <string id="LWN_plan_step_talk" text="去说：{TEXT}" />
+    <string id="LWN_plan_step_wait" text="等待时机" />
+    <string id="LWN_plan_step_fight" text="正在交手" />
+    <string id="LWN_plan_step_report" text="准备报告" />
+    <string id="LWN_plan_step_steal" text="准备下手" />
+    <string id="LWN_plan_step_doing" text="执行中（{ACTION}）" />
     <string id="LWN_plan_abort_badjump" text="计划出了岔子，先撤。" />
     <string id="LWN_plan_goal_notmet" text="事情没办成。" />
     <string id="LWN_plan_lead_waiting" text="你走不走啊？" />

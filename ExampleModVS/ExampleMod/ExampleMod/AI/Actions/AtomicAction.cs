@@ -635,6 +635,12 @@ namespace LivingWorldNpcs
         private float _fixedTimer; // 
         // 内部状态，记录当前是否正在移动
         private bool _isMoving = false;
+        /// <summary>🔴 2026-08-13 死区修复：是否曾经到位过（StopMoving 置位）。静止分支区分两种语义——
+        /// ① 已到位后被拉开（防抖 buffer 生效，stop~start 区间内不重追）；
+        /// ② 初始从未移动且未到位（OnStart 时距离落在 (stopDistance, stopDistance+buffer] 之间——
+        /// 实机：move_to 玩家 2.2m 起步，2.0m 停止距离 + 1.5m buffer → 既不移动（<3.5m 启动阈值）
+        /// 也不完成（>2.0m）→ 卡死 30s 超时中止，玩家以为"没来"）。② 必须补启动，否则永远追不上。</summary>
+        private bool _everMoved = false;
         private float _stopDistanceSq;  // 停止距离的平方
         private float _startDistanceSq; // 开始移动距离的平方 (StopDistance + Buffer)
         private bool _keepFollow;
@@ -693,6 +699,7 @@ namespace LivingWorldNpcs
         {
             // 刚开始不知道距离，先不做操作，交给 OnTick 判断
             _isMoving = false;
+            _everMoved = false;
 
             // 只有自然站立/走路的 NPC 才跳过 2 秒起身延迟；
             // 坐椅子、蹲着、躺着（自定义 pose）的都需要过渡动画时间。
@@ -794,7 +801,11 @@ namespace LivingWorldNpcs
             {
                 // 2. 如果是静止状态，判断是否被拉开太远，需要重新开始追
                 // 注意这里用 _startDistanceSq (包含缓冲)，防止抖动
-                if (_currentDistanceSq > _startDistanceSq)
+                // 🔴 2026-08-13 死区修复：启动条件补上"从未到位且未进停止距离"——
+                // 初始距离落在 (stop, start] 区间时旧逻辑永不启动（实机：2.2m 起步的 move_to
+                // 卡死到超时中止）。已到位过（_everMoved）才走防抖语义，不动。
+                if (_currentDistanceSq > _startDistanceSq
+                    || (!_everMoved && _currentDistanceSq > _stopDistanceSq))
                 {
                     StartMoving(agent);
                 }
@@ -885,6 +896,7 @@ namespace LivingWorldNpcs
         private void StopMoving(Agent agent)
         {
             _isMoving = false;
+            _everMoved = true;   // 到位刹车 = 曾经到位过（之后静止是防抖语义，不是死区）
             // 清除移动指令，让 Agent 停下
             agent.ClearTargetFrame();
         }

@@ -3954,7 +3954,14 @@
     <string id="LWN_plan_abort_toolong" text="This is taking too long. Falling back." />
     <string id="LWN_plan_abort_interrupted" text="The plan was interrupted." />
     <string id="LWN_plan_abort_generic" text="The plan is called off." />
-    <string id="LWN_plan_abort_timeout" text="A step took too long. Falling back." />
+    <string id="LWN_plan_abort_timeout" text="{OWNER} {STEP} — taking too long, calling it off." />
+    <string id="LWN_plan_step_move_to" text="Heading to target" />
+    <string id="LWN_plan_step_talk" text="Talking: {TEXT}" />
+    <string id="LWN_plan_step_wait" text="Waiting" />
+    <string id="LWN_plan_step_fight" text="Fighting" />
+    <string id="LWN_plan_step_report" text="Preparing to report" />
+    <string id="LWN_plan_step_steal" text="Preparing to steal" />
+    <string id="LWN_plan_step_doing" text="Carrying out ({ACTION})" />
     <string id="LWN_plan_abort_badjump" text="The plan went wrong. Falling back." />
     <string id="LWN_plan_goal_notmet" text="It did not work out." />
     <string id="LWN_plan_lead_waiting" text="Are you coming or not?" />
