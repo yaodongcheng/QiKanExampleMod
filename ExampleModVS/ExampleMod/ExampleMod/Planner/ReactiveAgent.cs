@@ -697,7 +697,15 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ReactivePropose] {agent.Name} 提议生成失败 → 静默");
                     return;
                 }
-                _pendingProposals.Enqueue((agent, proposal.Trim().Trim('"', '“', '”', '「', '」')));
+                string trimmedProposal = proposal.Trim().Trim('"', '“', '”', '「', '」');
+                // 🔴 2026-08-13：propose_rule XML 规则要求"无可提之事输出「无」"——回包为「无」→ 静默丢弃
+                //（与 AutonomyProposal 同规则，不投递"无"提议卡片）
+                if (AutonomyProposal.IsNothingProposal(trimmedProposal))
+                {
+                    DebugLogger.Log($"[ReactivePropose] {agent.Name} 无可提之事（「无」回包）→ 静默");
+                    return;
+                }
+                _pendingProposals.Enqueue((agent, trimmedProposal));
             }
             catch (Exception ex)
             {

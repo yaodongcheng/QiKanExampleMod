@@ -1692,6 +1692,9 @@ namespace LivingWorldNpcs
             // 输出格式 BRING 完整模板（XML LWN_plan_template_bring）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_template_bring"));
             sb.AppendLine();
+            // GUIDE 带路示范（XML LWN_plan_template_guide；lead 用法：先 move_to 目标，再 lead 等主公跟上）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_template_guide"));
+            sb.AppendLine();
             // 批量目标 loop 段示范（XML LWN_plan_template_loop）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_template_loop"));
             sb.AppendLine();

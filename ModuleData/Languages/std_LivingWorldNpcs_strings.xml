@@ -4071,6 +4071,8 @@
     <string id="LWN_im_first_open" text="Messaging (IM) - talk to heroes across the land, or give orders to companions. Open with the configured key (default O); close with ESC, B, or by clicking outside the panel." />
     <string id="LWN_im_status_present" text="present" />
     <string id="LWN_im_status_away" text="away" />
+    <string id="LWN_im_status_outside" text="outside" />
+    <string id="LWN_im_status_far" text="far away" />
     <string id="LWN_im_march_channel_only" text="Plans can only be sent to a single hero. Channel plans require a scene." />
     <string id="LWN_im_march_no_party" text="That hero has no army to command." />
     <string id="LWN_im_march_in_party" text="That hero marches with you - give orders in person, in a scene." />

@@ -4163,6 +4163,8 @@
     <string id="LWN_im_first_open" text="传讯（IM）——可与远方的英雄通信，或给随从下达密令。按配置键（默认 O）打开；ESC / 手柄 B / 点击面板外关闭。" />
     <string id="LWN_im_status_present" text="在场" />
     <string id="LWN_im_status_away" text="他处" />
+    <string id="LWN_im_status_outside" text="城外" />
+    <string id="LWN_im_status_far" text="远处" />
     <string id="LWN_im_march_channel_only" text="计划只能发给单个英雄；频道内下达计划需进入场景。" />
     <string id="LWN_im_march_no_party" text="此人麾下并无军队可令。" />
     <string id="LWN_im_march_in_party" text="此人正随你行军——请在场景中当面下密令。" />

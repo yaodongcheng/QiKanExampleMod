@@ -147,8 +147,9 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>语义 tag 探测：Scene.FindEntityWithTag 尝试常见语义 tag，命中即注册为区域（半径 8m）。
-        /// 查不到 = 区域不存在 → 计划里 zone(名称) 解析失败走失败路径（诚实报告），不硬编码坐标。</summary>
-        private static readonly string[] SemanticZoneTags =
+        /// 查不到 = 区域不存在 → 计划里 zone(名称) 解析失败走失败路径（诚实报告），不硬编码坐标。
+        /// 🔴 internal：WorldFactProvider 位置描述（最近语义区域附加）复用同源列表。</summary>
+        internal static readonly string[] SemanticZoneTags =
         {
             "door", "gate", "entrance", "exit", "alley", "river", "bridge",
             "meet_point", "watch_point", "market", "well",

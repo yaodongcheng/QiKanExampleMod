@@ -164,6 +164,18 @@ namespace LivingWorldNpcs
             var result = new List<ImMessage>();
             if (string.IsNullOrEmpty(heroId)) return result;
 
+            // 命令模式消息（store：PlanCard/System/密令文本）——提前读取建去重键：
+            // 🔴 2026-08-13（lead 带路链路）：DeliverNpcMessage 私聊分支现在也写 store Text，
+            // im_npc 记忆行与 store 行双源重复。按 (SenderName, content) 去重——保留 store 行
+            //（可能带 need_plan 建议标记/按钮），跳过同源记忆行（防双显）。
+            var storeMsgs = ImChatStore.GetGroupMessages($"direct_{heroId}");
+            var storeKeys = new HashSet<(string Name, string Content)>();
+            foreach (var sm in storeMsgs)
+            {
+                if (sm == null || string.IsNullOrWhiteSpace(sm.Content) || string.IsNullOrEmpty(sm.SenderName)) continue;
+                storeKeys.Add((sm.SenderName.Trim(), sm.Content.Trim()));
+            }
+
             var memory = AllNpcMemoryManager.GetMemory(heroId);
             if (memory != null)
             {
@@ -174,6 +186,7 @@ namespace LivingWorldNpcs
                     if (m.Role != "im_user" && m.Role != "im_npc") continue;
 
                     var (name, content) = SplitNameContent(m.Content);
+                    if (storeKeys.Contains((name, content))) continue;   // store 已有同源行 → 记忆行跳过
                     string sender = (m.SpeakerId == PlayerId || m.Role == "im_user") ? PlayerId : (m.SpeakerId ?? heroId);
                     result.Add(new ImMessage(sender, name, content, ImMessageKind.Text)
                     {
@@ -202,8 +215,8 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 命令模式消息（store：PlanCard/System/密令文本）
-            result.AddRange(ImChatStore.GetGroupMessages($"direct_{heroId}"));
+            // 命令模式消息（store：PlanCard/System/密令文本）——用提前读取的 storeMsgs（含去重键）
+            result.AddRange(storeMsgs);
 
             // 时间戳合并排序（记忆与 store 双源交错）
             result.Sort((a, b) => a.TimeStamp.CompareTo(b.TimeStamp));
@@ -278,10 +291,11 @@ namespace LivingWorldNpcs
                 // 🔴 M3 群聊动议（§5.6 议题模式）：句式命中 → 各成员独立 stance 表态（不影响通用回复管线，
                 // 动议接话与普通回复并行——议题是额外一层，不抢正常聊天）
                 CampaignPersuadeHub.OnGroupMessage(conv, trimmed);
-                // 🔴 NPC 自主行动提议（2026-08-12）：群聊里玩家说话 → 热度最高成员可能提议（卡片批准）
-                AutonomyProposal.TryFromGroupMessage(conv, trimmed);
                 // 🔴 跟随保底：传 channelId 让 PickRepliers 做"满 N 条必跟随"（2026-08-10）
                 var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed, conv.Id);
+                // 🔴 NPC 自主行动提议（2026-08-13）：移到 PickRepliers 之后，只允许话题主回复者（primary）
+                // 提议——玩家点名/问话时旁观者不插嘴；上下文 = 玩家消息 + 频道近期消息（AutonomyProposal 内注入）
+                AutonomyProposal.TryFromGroupMessage(conv, trimmed, primary);
                 if (primary != null)
                 {
                     ImHeatTracker.Add(primary.StringId, 1f);
@@ -504,6 +518,11 @@ namespace LivingWorldNpcs
                 memory?.AddHistory("im_npc", $"{npcName}: {content}", npcHeroId);
                 ImChatStore.TouchDirectChat(conv.PartnerHeroId, NowUnixMs());
                 ImHeatTracker.Add(conv.PartnerHeroId, 1f);
+                // 🔴 2026-08-13（lead 带路链路）：私聊 NPC 回复也写 store（与群聊一致）——
+                // TryAttachSuggestion 在 store 找刚投递的消息打 need_plan 建议；原私聊只写记忆不写
+                // store → 打标必失败（日志实锤「建议打标失败: 找不到 … 刚投递的消息」），私聊
+                // 「带我走XX」永远建不起计划。GetDirectMessages 已按 (senderName, content) 去重防双显。
+                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(npcHeroId, npcName, content, ImMessageKind.Text));
             }
             else
             {
@@ -537,6 +556,46 @@ namespace LivingWorldNpcs
         {
             if (string.IsNullOrEmpty(heroId) || Mission.Current == null) return false;
             return FindAgentByHeroId(heroId) != null;
+        }
+
+        /// <summary>私聊对象到玩家的当前场景距离（米）；不在场/无玩家/异常 → null（队伍频道「xx米外」标记用）。</summary>
+        public static float? GetMissionDistanceMeters(string heroId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(heroId) || Mission.Current == null || Agent.Main == null) return null;
+                var a = FindAgentByHeroId(heroId);
+                if (a == null || !a.IsActive()) return null;
+                return a.Position.Distance(Agent.Main.Position);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>不在场成员的归属描述（队伍/家族频道标记，🔴 2026-08-13 用户裁定）：
+        /// 随从在主队（PartyBelongedTo == MainParty，玩家进城了他留在城外）→ 「城外」；
+        /// 家族/其他 Hero → 所在定居点名（人就在城里）；不在任何定居点（行军途中/旷野）→ 「远处」；
+        /// 未知 Hero → 「他处」。返回纯文本（无括号，调用方拼（{}））；定居点名走引擎本地化。</summary>
+        public static string DescribeAwayLocation(string heroId)
+        {
+            try
+            {
+                Hero hero = null;
+                if (!string.IsNullOrEmpty(heroId))
+                    hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == heroId);
+                if (hero == null)
+                    return LWNTextHelper.ResolveText("LWN_im_status_away", "away");
+                // 随从在主队：队伍在城外扎营，他没进场景
+                if (MobileParty.MainParty != null && hero.PartyBelongedTo == MobileParty.MainParty)
+                    return LWNTextHelper.ResolveText("LWN_im_status_outside", "outside");
+                // 其他 Hero（家族成员等）：所在定居点优先（部队所在 → 本人所在）；都不在城里 → 远处
+                var party = hero.PartyBelongedTo;
+                if (party != null && party.CurrentSettlement != null)
+                    return party.CurrentSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
+                if (hero.CurrentSettlement != null)
+                    return hero.CurrentSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
+                return LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
+            }
+            catch { return LWNTextHelper.ResolveText("LWN_im_status_away", "away"); }
         }
 
         /// <summary>按 Hero StringId 找当前 Mission 中的 Agent。</summary>

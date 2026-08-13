@@ -6,7 +6,11 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
+using TaleWorlds.MountAndBlade;
+using TaleWorlds.MountAndBlade.View.Screens;
 using TaleWorlds.ObjectSystem;
+using TaleWorlds.ScreenSystem;
 
 namespace LivingWorldNpcs
 {
@@ -311,9 +315,16 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>实体位置（🔴 情报分级）：与玩家交战的阵营 → 传闻级（不给精确下落）；否则定居点/行军目标级。
+        /// 🔴 2026-08-13（场景内优先）：目标在当前 Mission 有 Agent → 场景内相对方位描述（"你左侧约 58 米"）——
+        /// 骑砍2 场景无区域划分标记（语义 tag 原生场景多为空），相对方位是唯一可靠的位置语义；
+        /// 区域锚点作可选附加（探测到才说，探测不到纯相对描述）。
         /// 分级是 C# 确定性逻辑（王国比对 + IsAtWarWith），LLM 只拿分级后的文本做措辞。</summary>
         private static string QueryHeroLocationFact(Hero hero)
         {
+            // 场景内优先：同场 NPC 的位置用相对方位（坐标玩家不可用，念坐标也出戏）
+            string inScene = QueryInSceneLocation(hero);
+            if (inScene != null) return inScene;
+
             string where = null;
             var party = hero.PartyBelongedTo;
             if (party != null)
@@ -329,6 +340,96 @@ namespace LivingWorldNpcs
                 // 敌国：传闻级（交战国的军情是机密，精确下落不可知）
                 return $"- 传闻 {hero.Name} 正在领兵在外，行踪难料。";
             return $"- {hero.Name} 眼下{where}。";
+        }
+
+        /// <summary>场景内位置：目标在当前 Mission 有存活 Agent → 相对玩家方位+距离；无 → null（落大地图逻辑）。
+        /// 骑砍2 场景无区域划分标记，语义 tag 原生场景多为空——相对方位（左/右/前/后）+ 距离是唯一可靠位置语义；
+        /// 最近语义区域只作附加（探测到才说，探测不到 → 纯相对描述）。</summary>
+        private static string QueryInSceneLocation(Hero hero)
+        {
+            try
+            {
+                if (hero?.CharacterObject == null) return null;
+                if (Mission.Current == null || Agent.Main == null) return null;
+                Agent target = null;
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsActive() || a == Agent.Main) continue;
+                    if (a.Character == hero.CharacterObject) { target = a; break; }
+                }
+                if (target == null) return null;
+                var player = Agent.Main;
+                float dist = target.Position.Distance(player.Position);
+                if (dist < 3f) return $"- {hero.Name} 眼下就在你跟前。";
+                string dir = DirectionDesc(player, target.Position);
+                string zone = NearestSemanticZoneDesc(target.Position, out float zoneDist);
+                if (zone != null && zoneDist <= 12f)
+                    return $"- {hero.Name} 眼下在{zone}附近，{dir}约 {dist:0} 米。";
+                return $"- {hero.Name} 眼下{dir}约 {dist:0} 米处。";
+            }
+            catch { return null; }
+        }
+
+        /// <summary>相对方位（8 向）：按玩家**摄像机**水平朝向分前/后/左/右/斜向。</summary>
+        private static string DirectionDesc(Agent player, Vec3 targetPos)
+        {
+            try
+            {
+                Vec3 diff = targetPos - player.Position;
+                diff.z = 0f;
+                float len = diff.Length;
+                if (len < 1.5f) return "正对面";
+                Vec3 fwd = GetPlayerForward();
+                Vec3 right = new Vec3(-fwd.y, fwd.x, 0f);
+                float f = Vec3.DotProduct(diff, fwd) / len;
+                float r = Vec3.DotProduct(diff, right) / len;
+                string lat = r > 0.35f ? "右侧" : (r < -0.35f ? "左侧" : "");
+                string lon = f > 0.35f ? "前方" : (f < -0.35f ? "后方" : "");
+                if (lat.Length == 0 && lon.Length == 0) return "正对面";
+                if (lat.Length == 0) return lon;
+                if (lon.Length == 0) return lat;
+                return lat + lon;
+            }
+            catch { return "附近"; }
+        }
+
+        /// <summary>玩家水平正前方 = 摄像机朝向（CustomCamera ?? Mission.GetCameraFrame() 既有范式，水平投影）。
+        /// 🔴 不用 Agent.LookDirection：自由视角（按住 F 环绕镜头）时角色朝向 ≠ 玩家视角方向，方位描述会错。</summary>
+        private static Vec3 GetPlayerForward()
+        {
+            try
+            {
+                if (Mission.Current == null || Agent.Main == null)
+                    return new Vec3(0f, 1f, 0f);
+                var cam = (ScreenManager.TopScreen as MissionScreen)?.CustomCamera;
+                Vec3 fwd = cam != null ? cam.Frame.rotation.f : Mission.Current.GetCameraFrame().rotation.f;
+                fwd.z = 0f;
+                if (fwd.LengthSquared < 0.01f)
+                    return Agent.Main.LookDirection;
+                fwd.Normalize();
+                return fwd;
+            }
+            catch { return new Vec3(0f, 1f, 0f); }
+        }
+
+        /// <summary>最近语义区域（SceneSnapshot 同源 tag 列表；原生场景多探测不到 → null 纯相对描述）。</summary>
+        private static string NearestSemanticZoneDesc(Vec3 pos, out float zoneDist)
+        {
+            zoneDist = float.MaxValue;
+            try
+            {
+                if (Mission.Current?.Scene == null) return null;
+                string best = null;
+                foreach (var tag in SceneSnapshot.SemanticZoneTags)
+                {
+                    var entity = Mission.Current.Scene.FindEntityWithTag(tag);
+                    if (entity == null) continue;
+                    float d = entity.GlobalPosition.Distance(pos);
+                    if (d < zoneDist) { zoneDist = d; best = tag; }
+                }
+                return best;
+            }
+            catch { return null; }
         }
 
         /// <summary>玩家阵营 vs 目标阵营是否交战（双方无王国 → 非交战）。</summary>
