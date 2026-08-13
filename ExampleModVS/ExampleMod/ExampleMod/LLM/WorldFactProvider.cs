@@ -364,6 +364,8 @@ namespace LivingWorldNpcs
                 if (target == null) return null;
                 var player = Agent.Main;
                 float dist = target.Position.Distance(player.Position);
+                DebugLogger.Log($"[SceneDir-Hero] {hero.Name}: target=({target.Position.x:F1},{target.Position.y:F1},{target.Position.z:F1}) " +
+                    $"player=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F1}) dist={dist:F1}");
                 if (dist < 3f) return $"- {hero.Name} 眼下就在你跟前。";
                 string dir = DirectionDesc(player, target.Position);
                 string zone = NearestSemanticZoneDesc(target.Position, out float zoneDist);
@@ -374,7 +376,11 @@ namespace LivingWorldNpcs
             catch { return null; }
         }
 
-        /// <summary>相对方位（8 向）：按玩家**摄像机**水平朝向分前/后/左/右/斜向。</summary>
+        /// <summary>相对方位（8 向）：按玩家**摄像机**水平朝向分前/后/左/右/斜向。
+        /// 🔴 2026-08-13（实机验证）：right 必须用引擎官方 Side 轴（frame.rotation.s，+X 为右）——
+        /// 手算 (-fwd.y, fwd.x) 在引擎左手系（Side=+X/Forward=+Y/Up=+Z，Vec3.Side 常量）下是**左向量**，
+        /// 实测 prompt 报"左前方"而 NPC 实际从玩家右前方跑来，左右整体翻转。
+        /// 🔴 调试日志：本函数只被问坐标路径调用，每次打印几何数据供回查。</summary>
         private static string DirectionDesc(Agent player, Vec3 targetPos)
         {
             try
@@ -384,17 +390,40 @@ namespace LivingWorldNpcs
                 float len = diff.Length;
                 if (len < 1.5f) return "正对面";
                 Vec3 fwd = GetPlayerForward();
-                Vec3 right = new Vec3(-fwd.y, fwd.x, 0f);
+                MatrixFrame frame = GetPlayerCameraFrame();
+                Vec3 right = frame.rotation.s;          // 引擎官方 Side 轴（+X 为右）
+                right.z = 0f;
+                if (right.LengthSquared < 0.01f) right = new Vec3(-fwd.y, fwd.x, 0f);
+                else right.Normalize();
                 float f = Vec3.DotProduct(diff, fwd) / len;
                 float r = Vec3.DotProduct(diff, right) / len;
                 string lat = r > 0.35f ? "右侧" : (r < -0.35f ? "左侧" : "");
                 string lon = f > 0.35f ? "前方" : (f < -0.35f ? "后方" : "");
-                if (lat.Length == 0 && lon.Length == 0) return "正对面";
-                if (lat.Length == 0) return lon;
-                if (lon.Length == 0) return lat;
-                return lat + lon;
+                string result;
+                if (lat.Length == 0 && lon.Length == 0) result = "正对面";
+                else if (lat.Length == 0) result = lon;
+                else if (lon.Length == 0) result = lat;
+                else result = lat + lon;
+                DebugLogger.Log($"[SceneDir] target=({targetPos.x:F1},{targetPos.y:F1},{targetPos.z:F1}) " +
+                    $"player=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F1}) " +
+                    $"diff=({diff.x:F1},{diff.y:F1}) dist={len:F1} " +
+                    $"camFwd=({fwd.x:F2},{fwd.y:F2}) camSide=({right.x:F2},{right.y:F2}) → \"{result}\"");
+                return result;
             }
             catch { return "附近"; }
+        }
+
+        /// <summary>玩家摄像机帧（CustomCamera ?? Mission.GetCameraFrame() 既有范式）。
+        /// 🔴 右向量必须取 frame.rotation.s（引擎 Side 轴），禁止手算 (-fwd.y, fwd.x)（左手系下左右翻转）。</summary>
+        private static MatrixFrame GetPlayerCameraFrame()
+        {
+            try
+            {
+                if (Mission.Current == null) return MatrixFrame.Identity;
+                var cam = (ScreenManager.TopScreen as MissionScreen)?.CustomCamera;
+                return cam != null ? cam.Frame : Mission.Current.GetCameraFrame();
+            }
+            catch { return MatrixFrame.Identity; }
         }
 
         /// <summary>玩家水平正前方 = 摄像机朝向（CustomCamera ?? Mission.GetCameraFrame() 既有范式，水平投影）。
@@ -405,8 +434,7 @@ namespace LivingWorldNpcs
             {
                 if (Mission.Current == null || Agent.Main == null)
                     return new Vec3(0f, 1f, 0f);
-                var cam = (ScreenManager.TopScreen as MissionScreen)?.CustomCamera;
-                Vec3 fwd = cam != null ? cam.Frame.rotation.f : Mission.Current.GetCameraFrame().rotation.f;
+                Vec3 fwd = GetPlayerCameraFrame().rotation.f;
                 fwd.z = 0f;
                 if (fwd.LengthSquared < 0.01f)
                     return Agent.Main.LookDirection;
@@ -463,8 +491,8 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(locName))
                     place = string.IsNullOrEmpty(place) ? locName : $"{place}（{locName}）";
                 sb.AppendLine("【此刻处境】" + (string.IsNullOrEmpty(place) ? "你和主公同处一场景。" : $"你此刻在 {place}。"));
-                // 主公相对本 NPC 的方位（以 NPC 朝向为基准，水平投影）
-                string rel = DescribePlayerRelative(self);
+                // 主公相对本 NPC 的方位（以主公视线方向为基准，水平投影）
+                string rel = DescribePlayerRelative(self, heroId);
                 if (!string.IsNullOrEmpty(rel)) sb.AppendLine(rel);
                 return sb.ToString();
             }
@@ -473,7 +501,7 @@ namespace LivingWorldNpcs
 
         /// <summary>本 NPC 相对主公的方位距离（🔴 以主公视线方向为基准——NPC 转述零视角反转，
         /// 玩家听到"我就在您左前方约 73 米"就是玩家该走的方向；以前 NPC 朝向为基准需反转易错）。</summary>
-        private static string DescribePlayerRelative(Agent self)
+        private static string DescribePlayerRelative(Agent self, string heroId)
         {
             try
             {
@@ -481,6 +509,8 @@ namespace LivingWorldNpcs
                 Vec3 diff = player.Position - self.Position;
                 diff.z = 0f;
                 float dist = diff.Length;
+                DebugLogger.Log($"[SceneDir-IM] {heroId}: self=({self.Position.x:F1},{self.Position.y:F1},{self.Position.z:F1}) " +
+                    $"player=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F1}) dist={dist:F1}");
                 if (dist < 3f) return $"你就在主公跟前（约 {MathF.Ceiling(dist)} 米）。";
                 string dir = DirectionDesc(player, self.Position);   // NPC 相对玩家的方位（玩家朝向为基准）
                 return $"你正在主公{dir}约 {MathF.Ceiling(dist)} 米处。";
