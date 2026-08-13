@@ -488,6 +488,7 @@ namespace LivingWorldNpcs
         private readonly bool _variantItem;
         private readonly Random _rng = new Random();
         private float _amount;
+        private bool _posed;         // 偷窃姿态已播（Rolling 一次性）
         private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
@@ -520,8 +521,9 @@ namespace LivingWorldNpcs
             switch (_phase)
             {
                 case AttemptPhase.Approach:
-                    // 蹲下姿态（玩家靠视觉感知"他在偷"）——CrouchMode 只读，用动作表意
-                    try { AgentControlHelper.SetPose(_agent, "act_crouch"); } catch { }
+                    // 🔴 2026-08-13：原 SetPose("act_crouch") 双无效——action_types.xml 无此动作 ID
+                    //（ActionIndexCache.Create 返回 act_none，SetPose 静默 return）+ 移动中会被覆盖。
+                    // 蹲姿表意统一挪到 Rolling 阶段播有效动画（弯腰伸手）。
                     if (_variantItem)
                     {
                         // 物变体：接近目标物件（≤2m）
@@ -584,6 +586,24 @@ namespace LivingWorldNpcs
 
                 case AttemptPhase.Rolling:
                     {
+                        // 🔴 2026-08-13（玩家反馈：NPC 扒窃无视觉动作）——玩家扒窃有 UI 条 + 慢动作 +
+                        // 屏息叙事；NPC 原来 Rolling→Settled 全程站桩：玩家视角随从站着 3 秒然后报告"偷到了"。
+                        // 补弯腰伸手姿态（背后站位 + 面向目标 = 读作"蹲身摸口袋"）；Settled 的 StopAndReset 收姿。
+                        // ⚠️ ForcePlayAction 而非 SetPose：拾取动画村民 action set 运行时不可达（继承链陷阱，
+                        // 见 Knowledge/击晕机制…§二），SetPose 静默失败。
+                        if (!_posed)
+                        {
+                            _posed = true;
+                            try
+                            {
+                                if (!_variantItem
+                                    && _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent poseTarget))
+                                    AgentControlHelper.FaceToActor(_agent, poseTarget);
+                                AgentControlHelper.ForcePlayAction(_agent, "act_pickup_down_begin");
+                            }
+                            catch { }
+                        }
+
                         // 目击检查：有目击者（排除扒窃目标）→ 中断
                         var witnesses = StealManager.GetWitnesses(_agent, null, 15f, 120f);
                         if (!_variantItem)
@@ -837,11 +857,11 @@ namespace LivingWorldNpcs
         private KPhase _phase = KPhase.Approach;
         private float _timer;
         private bool _struck;
+        private KnockoutFlow.RollResult _roll;   // 共享管线掷点结果（Strike 起手前判定，起手后结算）
         private readonly PlanExecutor _executor;
         private readonly ActorCursor _cursor;
         private readonly Agent _agent;
         private readonly PlanStep _step;
-        private readonly Random _rng = new Random();
         private bool _interrupted;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
@@ -906,12 +926,19 @@ namespace LivingWorldNpcs
                     if (!_struck)
                     {
                         _struck = true;
-                        Strike(target);
+                        // 判定 + 挥击起手（共享管线 KnockoutFlow，NPC 上限 0.85；玩家路径同节奏：
+                        // 播动画 → 起手延迟 → 结算。原来一到位就瞬间结算，玩家视角像隔空施法）。
+                        _roll = KnockoutFlow.Roll(_agent, target, maxRate: 0.85f);
+                        KnockoutFlow.PlayStrikeAnim(_agent, target);
                     }
-                    if (_timer >= 1.2f)
+                    if (_timer >= 0.5f)
                     {
+                        // 挥击起手 ~0.5s（与玩家路径 400ms 同量级）→ 落点结算
                         _phase = KPhase.Settled;
                         _timer = 0f;
+                        // 结算（记账/击晕落地/反击/目击广播——共享管线）+ NPC 视角播报
+                        KnockoutFlow.Resolve(_agent, target, _roll);
+                        ReportResult(target);
                     }
                     break;
 
@@ -932,59 +959,14 @@ namespace LivingWorldNpcs
             }
         }
 
-        private void Strike(Agent target)
+        /// <summary>NPC 视角播报（结算已由 KnockoutFlow.Resolve 完成：记账/落地/反击/目击广播；
+        /// 本方法只负责玩家可见的成败播报——第一人称 vs 第三人称文案差异留在壳层）。</summary>
+        private void ReportResult(Agent target)
         {
             try
             {
-                AgentControlHelper.FaceToActor(_agent, target);
-
-                // 成功率：随从 Vigor/Control vs 目标
-                // 🔴 2026-08-13（公式重做，实机修复）：旧公式 0.25+(selfSum−tSum)×0.03 对模板 NPC 恒劣——
-                // 模板默认硬编码 10+10=20，而 Hero 属性每项上限 10（合计≤20）→ 随从对模板 NPC 成功率
-                // ≤25%，低属性直接钳到 5% 保底（实机：偷袭帝国农民「目标 95%」连败两次）。
-                // 对齐玩家路径 ComputeKnockoutChance：① 模板 NPC 按 Level 均分估算属性
-                //（(3+Level/3)/2，与玩家路径 GetAgentStats 同口径——农民 ≈4+4、女农民更低）；
-                // ② ratio 式 0.5×(selfSum/tSum)——属性劣势不致命，平民被偷袭合理偏高。
-                int selfVigor = 10, selfControl = 10;
-                int tVigor = 10, tControl = 10;
-                var selfHero = (_agent.Character as CharacterObject)?.HeroObject;
-                var tHero = (target.Character as CharacterObject)?.HeroObject;
-                var tChar = target.Character as CharacterObject;
-                if (selfHero != null)
+                if (_roll.Success)
                 {
-                    selfVigor = selfHero.GetAttributeValue(DefaultCharacterAttributes.Vigor);
-                    selfControl = selfHero.GetAttributeValue(DefaultCharacterAttributes.Control);
-                }
-                if (tHero != null)
-                {
-                    tVigor = tHero.GetAttributeValue(DefaultCharacterAttributes.Vigor);
-                    tControl = tHero.GetAttributeValue(DefaultCharacterAttributes.Control);
-                }
-                else if (tChar != null)
-                {
-                    // 模板 NPC 无 Hero → 按 Level 均分估算（玩家路径同口径）
-                    int half = (3 + tChar.Level / 3) / 2;
-                    tVigor = half;
-                    tControl = half;
-                }
-                int selfSum = selfVigor + selfControl;
-                int tSum = tVigor + tControl;
-                float successRate = tSum > 0
-                    ? MathF.Max(0.05f, MathF.Min(0.85f, 0.5f * (selfSum / (float)tSum)))
-                    : 0.85f;
-                double roll = _rng.NextDouble();
-                float threshold = 1f - successRate;
-                bool success = roll >= threshold;
-
-                // 出手即是袭击，记账（复用玩家击晕同款）
-                AgentAIController.Instance?.RecordAssaultVictim(target);
-
-                if (success && !AgentBrain.IsKnockedOut(target))
-                {
-                    // 成功：目标倒地 + 击晕事件（标记顺序与玩家路径一致：先标记再广播）
-                    AgentControlHelper.ForcePlayAction(target, "act_death_fall_front");
-                    target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
-                    AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
                     DebugLogger.Log($"[PlanExecutor] {_agent.Name} 击晕了 {target.Name}");
                     // 🔴 2026-08-13（玩家反馈）：NPC 执行击晕成败必须可见——玩家自己击晕有播报，
                     // 随从击晕原来只有 DebugLogger（日志实锤玩家分不清成功还是进战斗）
@@ -994,10 +976,18 @@ namespace LivingWorldNpcs
                             "{NAME} knocked {TARGET} out from behind!",
                             ("NAME", _agent.Name?.ToString() ?? ""), ("TARGET", target.Name?.ToString() ?? "")), Colors.Green));
                 }
+                else if (_roll.IsChild)
+                {
+                    // 儿童免疫：管线内不反击、目标躲开 → 随从本步失败（Settled 判定走 abort）
+                    DebugLogger.Log($"[PlanExecutor] {_agent.Name} 偷袭小孩失败，{target.Name} 躲开");
+                    InformationManager.DisplayMessage(
+                        // 本地化：小孩躲开击晕提示（与玩家路径同文案）
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_target_dodged",
+                            ("NAME", target.Name?.ToString() ?? "")), Colors.Gray));
+                }
                 else
                 {
-                    // 失败：目标察觉反击（受害者直接进战斗）
-                    AgentAIController.Instance?.SendEventToAgent(target, "event_agent_damaged", _agent, target);
+                    // 失败：目标察觉反击（反击事件已由 KnockoutFlow.Resolve 发出）
                     DebugLogger.Log($"[PlanExecutor] {_agent.Name} 击晕失败，{target.Name} 反击");
                     // 🔴 2026-08-13（玩家反馈）：失败 = 目标察觉反击 → 红字播报（随后计划 abort 还有
                     // 「打起来了，先撤！」黄字，两者并存：先见失败原因，再见撤离决定）
@@ -1008,19 +998,12 @@ namespace LivingWorldNpcs
                         new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_knockout_fail_retaliate",
                             "{NAME} failed to knock {TARGET} out — {TARGET} sensed it and strikes back! ({ROLL} < {THRESHOLD})",
                             ("NAME", _agent.Name?.ToString() ?? ""), ("TARGET", target.Name?.ToString() ?? ""),
-                            ("ROLL", $"{roll * 100:F0}%"), ("THRESHOLD", $"{threshold:P0}")), Colors.Red));
+                            ("ROLL", $"{_roll.Roll * 100:F0}%"), ("THRESHOLD", $"{_roll.Threshold:P0}")), Colors.Red));
                 }
-
-                // 第三方目击广播（受害者排除）
-                AgentAIController.Instance?.BroadcastEventInRange(
-                    target.Position, 20f, "WitnessCrime",
-                    exclude: new System.Collections.Generic.HashSet<Agent> { target },
-                    requireSight: true,
-                    _agent, target);
             }
             catch (Exception ex)
             {
-                DebugLogger.Log($"[PlanExecutor] knockout 执行异常: {ex.Message}");
+                DebugLogger.Log($"[PlanExecutor] knockout 播报异常: {ex.Message}");
             }
         }
     }

@@ -1723,57 +1723,16 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 获取Agent的 Vigor+Control 合计值（Bannerlord 版"力量+敏捷"）。
-        /// Hero 有属性记录 → 直接读；模板 NPC 无 Hero → 按 Level 估算。
-        /// </summary>
-        private static int GetAgentStatTotal(Agent agent)
-        {
-            var (v, c) = GetAgentStats(agent);
-            return v + c;
-        }
-
-        /// <summary>
-        /// 获取Agent的 Vigor 和 Control 各自的值。
-        /// Hero → 直接读属性；模板 NPC → 按 Level 估算（均分到两个属性）。
-        /// </summary>
-        private static (int vigor, int control) GetAgentStats(Agent agent)
-        {
-            if (agent == null) return (5, 5);
-
-            var character = agent.Character as CharacterObject;
-            var hero = character?.HeroObject;
-
-            if (hero != null)
-            {
-                return (hero.GetAttributeValue(DefaultCharacterAttributes.Vigor),
-                        hero.GetAttributeValue(DefaultCharacterAttributes.Control));
-            }
-
-            if (character != null)
-            {
-                // 模板 NPC 无 Hero → 按 Level 均分估算
-                int half = (3 + character.Level / 3) / 2;
-                return (half, half);
-            }
-
-            return (5, 5);
-        }
-
-        /// <summary>
-        /// 计算击晕成功率 + 难度文本（易/中/难）。
-        /// 基于玩家与目标的 Vigor+Control 比值：ratio = playerStats / targetStats，
-        /// successRate = clamp(0.05, 0.95, 0.5 * ratio)。
-        /// 小孩(human_child) difficulty 永远返回 "难"（实际在 TryKnockoutAgent 里 100% 免疫）。
+        /// 击晕成功率 + 难度文本（易/中/难）——UI 难度预览专用（BuildAgentContext 每帧调用，不掷点）。
+        /// 公式与执行共享 KnockoutFlow.ComputeSuccessRate（玩家上限 0.95），改公式只改管线。
+        /// 小孩(human_child) difficulty 永远返回 "难"（实际判定里 100% 免疫）。
         /// </summary>
         private static (float successRate, string difficulty) ComputeKnockoutChance(Agent target)
         {
             string monsterId = target?.Monster?.StringId;
 
-            int playerStats = GetAgentStatTotal(Agent.Main);
-            int targetStats = GetAgentStatTotal(target);
-
-            float ratio = targetStats > 0 ? (float)playerStats / targetStats : 3.0f;
-            float successRate = Math.Max(0.05f, Math.Min(0.95f, 0.5f * ratio));
+            // 共享管线公式（玩家视角：上限 0.95；与 TryKnockoutAgent 的 Roll 同口径）
+            float successRate = KnockoutFlow.ComputeSuccessRate(Agent.Main, target, maxRate: 0.95f);
 
             string difficulty;
             // 本地化：击晕难度标签（易/中/难）
@@ -1816,35 +1775,21 @@ namespace LivingWorldNpcs
             // 本地化：击晕目标名兜底
             string targetName = target.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
 
-            // 儿童（monster StringId 含 "child"，如 human_child）骨骼比例（臂长 0.6、眼高 1.2）与 adult 不同，
-            // death_fall_front 动画无法在其骨架上播放，成功率强制 0（100% 免疫）
-            string monsterId = target.Monster?.StringId;
-            bool isChild = monsterId?.Contains("child") == true;
-
-            // ── 击晕成功率判定：玩家 Vigor+Control vs 目标 Vigor+Control ──
+            // ── 击晕判定（共享管线 KnockoutFlow：玩家上限 0.95，与 NPC 路径同公式同口径）──
             // 🔴 2026-08-13（d20 风格，用户裁定）：掷点 ≥ 目标阈值 → 成功（高分成功直觉）。
             // 目标 = 1 − 成功率（成功率 45% → 目标 55%，掷出 ≥ 55% 成功）；概率不变。
-            var (knockSuccessRate, _) = ComputeKnockoutChance(target);
-            float knockRoll = MBRandom.RandomFloat;
-            float knockThreshold = 1f - knockSuccessRate;
-            bool knockSuccess = !isChild && knockRoll >= knockThreshold;
-            DebugLogger.Log($"[Knockout] {targetName}: isChild={isChild}, successRate={knockSuccessRate:F2}, roll={knockRoll:F2}, success={knockSuccess}");
-
-            string attackAnim = "act_1h_bash";
+            // 儿童（human_child 骨骼不兼容死亡动画）100% 免疫由管线内处理。
+            var roll = KnockoutFlow.Roll(Agent.Main, target, maxRate: 0.95f);
+            DebugLogger.Log($"[Knockout] {targetName}: isChild={roll.IsChild}, successRate={roll.SuccessRate:F2}, roll={roll.Roll:F2}, success={roll.Success}");
 
             try
             {
-                // 1. ★ 玩家攻击动作：无论成败，先播攻击动画
+                // 1. ★ 挥击起手（共享管线：玩家永远 as_human_warrior → SetPose，
+                // 避免不必要的 native AnimationSystemData 替换触发异步 AI tick 竞态）
                 Agent mainAgent = Agent.Main;
                 if (mainAgent != null && mainAgent.IsActive())
                 {
-                    AgentControlHelper.FaceToActor(mainAgent, target);
-
-                    EquipmentIndex mainWpn = V.MainWpn(mainAgent);
-                    attackAnim = mainWpn != EquipmentIndex.None ? "act_1h_bash" : "act_shield_bash";
-                    // 玩家永远是 as_human_warrior，直接用 SetPose 跳过 SetActionSet，
-                    // 避免不必要的 native AnimationSystemData 替换触发异步 AI tick 竞态
-                    AgentControlHelper.SetPose(mainAgent, attackAnim);
+                    KnockoutFlow.PlayStrikeAnim(mainAgent, target);
                     await Task.Delay(400);
                 }
 
@@ -1855,42 +1800,22 @@ namespace LivingWorldNpcs
                     return;
                 }
 
-                // ── 公共：无论成败，出手即是袭击，记账 ──
-                AgentAIController.Instance?.RecordAssaultVictim(target);
+                // 2. ★ 结算：袭击记账/击晕落地/反击/目击广播（共享管线 KnockoutFlow.Resolve）
+                // ★ 先标记受害者状态再广播第三方目击：否则证人 AgentBrain 处理
+                // WitnessCrime_GatherOnLook 时调用 IsKnockedOut(victim) 返回 false
+                //（event_agent_knocked_out 尚未入队），罪行被错误归类为 Steal。
+                KnockoutFlow.Resolve(mainAgent, target, roll);
 
-                // ★ 击晕成功时，必须先标记受害者状态，再广播第三方目击事件。
-                // 否则证人 AgentBrain 处理 WitnessCrime_GatherOnLook 时调用 IsKnockedOut(victim)
-                // 会返回 false（event_agent_knocked_out 尚未入队），罪行被错误归类为 Steal。
-                if (knockSuccess)
-                {
-                    // ── 成功：目标倒地 + 击晕事件 ──
-                    if (target.IsActive())
-                    {
-                        AgentControlHelper.ForcePlayAction(target, "act_death_fall_front");
-                        target.SetScriptedFlags(AIScriptedFrameFlags.DoNotRun | AIScriptedFrameFlags.NoAttack);
-                    }
-
-                    AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
-                }
-
-                // 第三方目击广播：受害者始终 exclude（击晕场景玩家在背后，sight check 必然 false，
-                // 受害者通过直接事件 event_agent_knocked_out 反应）
-                AgentAIController.Instance?.BroadcastEventInRange(
-                    target.Position, 20f, "WitnessCrime",
-                    exclude: new HashSet<Agent> { target },
-                    requireSight: true,
-                    Agent.Main, target);
-
-                if (knockSuccess)
+                if (roll.Success)
                 {
 
                     InformationManager.DisplayMessage(
                         // 本地化：击晕成功消息（d20：掷点 ≥ 目标）
-                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_success", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("THRESHOLD", $"{knockThreshold:P0}")), Colors.Green));
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_success", ("NAME", targetName), ("ROLL", $"{roll.Roll * 100:F0}%"), ("THRESHOLD", $"{roll.Threshold:P0}")), Colors.Green));
 
-                    DebugLogger.Log($"[Knockout] {Agent.Main.Name} knocked out {targetName} (anim: {attackAnim})");
+                    DebugLogger.Log($"[Knockout] {Agent.Main.Name} knocked out {targetName} (shared pipeline)");
                 }
-                else if (isChild)
+                else if (roll.IsChild)
                 {
                     // ── 小孩：100% 躲开，不反击（目击广播已发，周围成人会反应）──
                     DebugLogger.Log($"[Knockout] Child dodged: {targetName}");
@@ -1900,20 +1825,17 @@ namespace LivingWorldNpcs
                 }
                 else
                 {
-                    // ── 失败：目标察觉并反击 ──
+                    // ── 失败：目标察觉并反击（反击事件已由 KnockoutFlow.Resolve 发出）──
                     DebugLogger.Log($"[Knockout] Failed: {Agent.Main.Name} vs {targetName}");
                     int pVigor = Hero.MainHero.GetAttributeValue(DefaultCharacterAttributes.Vigor);
                     int pControl = Hero.MainHero.GetAttributeValue(DefaultCharacterAttributes.Control);
-                    var (tVigor, tControl) = GetAgentStats(target);
+                    var (tVigor, tControl) = AgentStatsHelper.GetAgentStats(target);
                     MBInformationManager.AddQuickInformation(
                         // 本地化：背后偷袭失败快速提示（属性对比；d20：目标难度 = 1 − 成功率）
-                        new TextObject(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_fail_quick", ("VIGOR", pVigor.ToString()), ("CONTROL", pControl.ToString()), ("NAME", targetName), ("TVIGOR", tVigor.ToString()), ("TCONTROL", tControl.ToString()), ("THRESHOLD", $"{knockThreshold:P0}"))));
+                        new TextObject(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_fail_quick", ("VIGOR", pVigor.ToString()), ("CONTROL", pControl.ToString()), ("NAME", targetName), ("TVIGOR", tVigor.ToString()), ("TCONTROL", tControl.ToString()), ("THRESHOLD", $"{roll.Threshold:P0}"))));
                     InformationManager.DisplayMessage(
                         // 本地化：目标察觉反击消息（d20：掷点 < 目标 → 失败）
-                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_target_retaliates", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("THRESHOLD", $"{knockThreshold:P0}")), Colors.Red));
-
-                    // 受害者直接进战斗（sight check 拦不住直接事件）
-                    AgentAIController.Instance?.SendEventToAgent(target, "event_agent_damaged", Agent.Main, target);
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_target_retaliates", ("NAME", targetName), ("ROLL", $"{roll.Roll * 100:F0}%"), ("THRESHOLD", $"{roll.Threshold:P0}")), Colors.Red));
                 }
 
                 // 隐藏交互 UI，重置状态

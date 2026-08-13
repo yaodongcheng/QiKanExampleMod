@@ -40,6 +40,51 @@
 
 **新增动作流程**（详见上方接入点第 1 条）：主表一行（Code/Description/标签/空间/布尔位/ChatOrder/IsValid/Execute）→ 执行语义落点 → py 词表加行 → 跑 `check_vocab_sync.py`。
 
+## 🔴 检定成功率公式（d20 风格全局统一）— `Planner/InlineSteps.cs` 击晕/偷窃 + `Interaction/InteractionMissionView.cs` — 2026-08-13
+
+**判定方向**（铁律 17，用户裁定）：`success = roll >= threshold`，`threshold = 1 − 成功率`——掷点越大越容易成功。播报只显示「掷点 {ROLL} vs 门槛 {THRESHOLD}」。
+
+**成功率公式**（随从路径，ratio 式，对齐玩家路径 `ComputeKnockoutChance`）：
+```csharp
+// 模板 NPC 属性按 Level 均分估算：(3 + Level/3) / 2（农民 ≈4+4、女农民更低；禁止硬编码 10+10）
+// ratio 式：0.5 × (己方 Vigor+Control ÷ 目标 Vigor+Control)，钳制 [5%, 85%]（随从）/ [5%, 95%]（玩家）
+```
+**踩坑**（实机两次连败）：旧公式 `0.25 + (selfSum − tSum)×0.03` 对模板 NPC 恒劣——模板默认 20 vs Hero 属性上限合计 20 → 成功率 ≤25%，低属性直接钳到 5% 保底（偷袭农民「门槛 95%」）。ratio 式后：农民 ≈60%、女农民 ≈85%（上限）、资深步兵 ≈30%，门槛数字 = 目标强度直观刻度（越弱门槛越小）。
+
+## 🔴 击晕单管线（玩家/NPC 平权范本，铁律 18）— `Combat/KnockoutFlow.cs` + `Core/AgentStatsHelper.cs` — 2026-08-13
+
+**解决**：玩家 `TryKnockoutAgent` 与 NPC `KnockoutInlineState` 曾各写一份判定公式 + 属性估算 + 结算（"同口径"注释 = 复制，改公式要改两遍）。现在**判定 + 结算全共享**，壳层只留动画节奏与播报。
+
+**关键签名**：
+```csharp
+public static class KnockoutFlow
+{
+    public sealed class RollResult { public bool Success; public float SuccessRate; public float Roll; public float Threshold; public bool IsChild; }
+    public static float ComputeSuccessRate(Agent attacker, Agent target, float maxRate = 0.85f);  // 纯计算（UI 预览用，不掷点）
+    public static RollResult Roll(Agent attacker, Agent target, float maxRate = 0.85f);            // 判定（MBRandom，儿童 100% 免疫）
+    public static void PlayStrikeAnim(Agent attacker, Agent target);  // 挥击：Main→SetPose / NPC→ForcePlayAction（内部判断 IsMainAgent）
+    public static void Resolve(Agent attacker, Agent target, RollResult r);  // 记账→击晕落地/反击→目击广播
+}
+public static class AgentStatsHelper
+{
+    public static (int vigor, int control) GetAgentStats(Agent agent);  // Hero 读属性 / 模板 (3+Level/3)/2
+}
+```
+
+**调用范式**（玩家 async 壳 vs NPC 状态机壳）：
+```csharp
+// 玩家：Roll（判定先行）→ PlayStrikeAnim → await 400ms → Resolve → 播报
+// NPC（KnockoutInlineState）：_roll = KnockoutFlow.Roll(...); PlayStrikeAnim → _timer 0.5s → Resolve → ReportResult
+```
+
+**必要差异化（参数化，不复制逻辑）**：① maxRate 玩家 0.95 / NPC 0.85 ② 挥击动画 Main→SetPose（避 async AI tick 竞态）/ NPC→ForcePlayAction（村民 action set 战斗动作不可达，SetPose 静默失败）③ 起手延迟 400ms / 0.5s ④ 播报文案第一人称 vs 第三人称（留壳）。**执行模型**：玩家 async+Task.Delay / NPC 脑驱动 OnTick 定时——共享层 = 判定+结算纯函数，节奏留壳。
+
+**顺带修复**：NPC 击晕儿童免疫（原可击晕儿童）、已晕目标不再误发反击事件、随机源统一 MBRandom（原 NPC 用 Random）。**新增 NPC 动作范本**：按此结构抽共享管线（判定+结算进管线，壳留节奏与播报），对齐铁律 18。
+
+## 执行期目标解析（快照匹配口径）— `Planner/SceneSnapshot.cs` FindAgent
+
+`TryResolveAgent` 解析链：self/player 特判 → `RoleAgents`（explicitTarget 注册的 "target"）→ 快照 `FindAgent`。快照匹配五层：① Role 精确 ② 显示名精确 ③ StringId/Character.Name 精确 ④ 职业关键词子串 ⑤ **显示名子串**（2026-08-13 加——与 defender 解析 `NameMatchesHero` 同口径；"那弥斯" ⊂ "卡诺洛斯的那弥斯"，多匹配取最近）。**纪律**：卡片阶段能解析的目标，执行期必须同口径解析——否则"卡片发出、执行瞬死"（实机 44.510→44.512）。
+
 **常用调用范例**：
 
 ```csharp

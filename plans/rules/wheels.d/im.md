@@ -155,3 +155,33 @@ score = Σ 命中主题×职业亲和 + @提及(5) + 相似度(bigram×3) + 热�
 - 异常 catch 进 DebugLogger，播报不炸执行链
 
 **新增本地化**：`LWN_plan_action_*` 补 11 个闲聊动作码标签（attack/relation_up/relation_down/praise/spread_rumor/threaten_verbal/promise/marry_success/join_clan/gather_to_player/party_patrol）+ `LWN_action_decide*` 4 键 + `LWN_action_level_*` 3 键 + `LWN_action_gold_unit`；`{PARAM}` 占位符已登记 `validate_localization.py` 白名单。
+
+---
+
+## 🔴 闲聊动作空间模型（ActionSpace 三态）— `Planner/ActionHandler.cs` ResolveSpace — 2026-08-13
+
+**解决**：动作空间由**执行人 attacker 与目标 defender 双方**是否在 Mission 内决定（不是玩家 `Mission.Current`——执行人/目标可能没进场景）：
+
+```csharp
+[Flags] enum ActionSpace { InScene=1, Remote=2, Party=4 }
+// InScene = 双方都在 Mission 内（场景动作：走位/物理/当面仪式——目标在不在跟前由动作自身
+//           IsValid/执行器判断，如 move_to 走过去即可，不进空间位掩码）
+// Remote  = 一人在 Mission 内、一人在 Mission 外（跨场景远程语义：关系/声望/记忆/传话）
+// Party   = 双方都在 Mission 外（Campaign 大地图：部队动作）
+ResolveSpace(attacker, defender)：双方 IsPresentInMission → (in,in)=InScene / (!in,!in)=Party / 其余=Remote
+```
+
+**动作 Spaces 归类**：物理动作（move_to/follow/knockout/steal/duel/emote/say_to 等 16 个）= `InScene` 只——目标不在场景天然降级（如场景内随从 A 找没进场景的 B → Remote → move_to 降级 NONE）；关系/声望/记忆类（relation_*/praise/spread_rumor/threaten/promise 等 8 个）= 全空间；部队动作（party_patrol/gather_to_player）= `Party`。
+
+**踩坑**：① 旧模型用玩家状态判空间 → 玩家在场景 IM 没进场景的随从被误判 InScene（执行人无 agent 载体，动作无法执行）；② `ImRemote` 概念（玩家在+对方不在场）被废除——"目标不在跟前"不是空间维度（场景内走过去即可），只有"不在 Mission 内"才是。
+
+---
+
+## 🔴 defender 解析：场景优先 + 执行期目标解析同口径 — `ActionHandler.ResolveImDefender` / `SceneSnapshot.FindAgent` — 2026-08-13
+
+**解决（实机两次失败修复）**：LLM 回包 `action_target` 是简称（"那弥斯"），从文本解析到目标 agent 要过两关，两关口径必须一致：
+
+1. **卡片阶段 `ResolveImDefender`**（名字→Hero）：**世界 Hero 匹配两轮——先匹配当前 Mission 场景内的同名 Hero，再全局兜底**。骑砍2 NPC 名 = 「地名+名字」组合（卡诺洛斯的那弥斯），多个村庄有同名乡绅——`AllAliveHeroes` 遍历先撞上别的村庄的同名 Hero（不在场景）→ `defenderIn=False` → Remote → knockout 拦截「不行动」（实机：匹配到 CharacterObject_1772 而非当前村的 2186）。
+2. **执行阶段 `SceneSnapshot.FindAgent`**（名字→agent）：**显示名子串匹配**（"那弥斯" ⊂ "卡诺洛斯的那弥斯"）——卡片阶段 `NameMatchesHero` 是子串匹配，执行期必须同口径；原来只精确匹配 → 卡片发出去、执行期解析失败 → 步骤 2ms 瞬死（实机：44.510 开始 → 44.512 超时）。多匹配取最近（bestDist 既有）。
+
+**纪律**：defender 解析与执行期目标解析必须同一匹配口径（子串）；模板 NPC（无 Hero）走 `FindTemplateNpcCandidates` 不经过 Hero 匹配。
