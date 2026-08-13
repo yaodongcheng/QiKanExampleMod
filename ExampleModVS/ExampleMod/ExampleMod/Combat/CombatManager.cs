@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
@@ -27,8 +28,9 @@ namespace LivingWorldNpcs
         //   ⚠️ 已知代价：被袭者的原版队友视 ta 为敌（队3↔队2 敌对所致）；犯罪/目击/守卫反应
         //     由 Brain 系统驱动，不走团队关系。
         //   🔴 切磋"点到为止"（2026-08-13 已实现）：duel 事件 → FightEnemyAction(IsDuel)
-        //     → StartFight(Peace:true) → StartDuel——双方 Invulnerable 底层无敌（native 拦死，
-        //     血条真实掉落、归零判负），EndDuel 回血复原。本模型只提供 1v1 隔离。
+        //     → StartFight(Peace:true) → RegisterDuel 登记双方；双方 Mortal 正常打，
+        //     不死 = 判负回血抢占死亡判定 + EndDuel 收场窗口 Invulnerable 兜底。
+        //     本模型只提供 1v1 隔离。
         private static Dictionary<int, Team> _factionTeams = new Dictionary<int, Team>();
 
         /// <summary>正在与玩家交战的 Agent 集合。用于判断玩家是否在战斗中。</summary>
@@ -225,6 +227,20 @@ namespace LivingWorldNpcs
             //       DailyBehaviorGroup 永远拿不回控制权，NPC 卡死不动）
             agent.SetWatchState(Agent.WatchState.Patrolling);
 
+            // ═══ 🔴【新增 2026-08-13】动作层收手（自 EndDuel 的 StopAgentCombat 收编）═══
+            // EndFight 原本只还原状态（队伍/WatchState），不碰动作层。本块新增：
+            // 清战斗 AI 标志 + 停移动 + 打断当前攻击动作 + 清索敌目标——"战斗结束 = 彻底收手"。
+            // 影响面：EndFight 仅两个调用方——
+            //   ① FightEnemyAction.OnEnd：目标死亡 / 玩家收刀停战 / 投降 / 切磋判负 / 命令打断 全路径；
+            //   ② EndAllFightsWithPlayer：玩家被制服/投降/被俘的一键收场。
+            // 对它们都是"更彻底收手"（断挥刀/停移动/清残留索敌），无方向性破坏；被新命令打断的
+            // 场景，新 action 下一帧重新下指令，中间一帧停顿无感知。EndAllFightsWithPlayer 里原有
+            // 显式 SetTargetAgent(null) 变冗余（幂等无害）。
+            // ⚠️ 若实机发现某收场路径异常，删本块即回滚到旧行为（只还原状态，不碰动作层）。
+            // ══════════════════════════════════════════════════════════════════════
+            InterruptCombatMotion(agent);
+            agent.SetTargetAgent(null);
+
             // 4. 恢复到进入战斗前的原始队伍
             if (_originalTeams.TryGetValue(agent.Index, out var originalTeam)
                 && originalTeam != null
@@ -239,6 +255,17 @@ namespace LivingWorldNpcs
             }
 
             _originalTeams.Remove(agent.Index);
+        }
+
+        /// <summary>战斗收场动作层打断（2026-08-13 自 AttackTriggerMissionLogic.StopAgentCombat 收编）：
+        /// 清战斗 AI 标志 + 停移动 + 打断当前攻击动作。玩家控制 agent 不打断（攻击是输入驱动，SetAttackState
+        /// 无效且可能干扰玩家输入）。</summary>
+        private static void InterruptCombatMotion(Agent agent)
+        {
+            if (agent == null || !agent.IsActive() || agent == Agent.Main) return;
+            agent.SetScriptedCombatFlags(Agent.AISpecialCombatModeFlags.None);
+            agent.SetMovementDirection(Vec2.Zero);
+            agent.SetAttackState(0);
         }
 
         /// <summary>
@@ -311,15 +338,15 @@ namespace LivingWorldNpcs
             if (mission == null) return;
 
             // 🔴 2026-08-13 切磋不死标记（Peace 参数驱动，跟随战斗发起方）：
-            // 谁参战谁不死——双方 SetMortalityState(Invulnerable)，native 层拦 Die
-            //（官方隐士 sp_hermit / 任务罪犯同款用法）：血条真实掉落、归零不死。
-            // 判负双方登记给仲裁者（AttackTriggerMissionLogic.OnAgentHit 判负需要知道
-            // "切磋双方是谁"）；"点到为止"的判负/回血/收场由仲裁者统一负责。
+            // 双方保持 Mortal 正常受击——血条真实掉落、伤害反馈全保留（实机证明
+            // Invulnerable 在 native 层连伤害一起拦了，全程不掉血，不能用来开打）。
+            // 不死由仲裁者保证：引擎 HandleBlow 内 OnAgentHit 早于 `if (Health < 1f) Die()`
+            //（反编译确认），血归零瞬间判负回满血 → 引擎走不到 Die；判负后 EndDuel 再以
+            // Invulnerable 兜底停战生效前的残余攻击（native 拦死）。
+            // 判负双方登记给仲裁者（OnAgentHit 判负需要知道"切磋双方是谁"）。
             // 旧 InitDuel 虚拟血量方案已废弃禁止使用。
             if (Peace)
             {
-                if (agentA.IsActive()) agentA.SetMortalityState(Agent.MortalityState.Invulnerable);
-                if (agentB.IsActive()) agentB.SetMortalityState(Agent.MortalityState.Invulnerable);
                 AttackTriggerMissionLogic.Instance?.RegisterDuel(agentA, agentB);
             }
 
@@ -486,7 +513,7 @@ namespace LivingWorldNpcs
             return $"team{team.TeamIndex}";
         }
 
-        /// <summary>侧模型战斗全部结束（计数归零）：全员还原原队 + 清警戒（玩家不设 WatchState）。</summary>
+        /// <summary>侧模型战斗全部结束（计数归零）：全员还原原队 + 清警戒 + 动作层打断（玩家不设 WatchState、不打断）。</summary>
         private static void RestoreSideFightMembers()
         {
             foreach (var kv in _sideFightMembers)
@@ -497,7 +524,11 @@ namespace LivingWorldNpcs
                     if (agent == null || !agent.IsActive() || agent.Team == kv.Value) continue;
                     agent.SetTeam(kv.Value, true);
                     if (agent != Agent.Main)
+                    {
                         agent.SetWatchState(Agent.WatchState.Patrolling);
+                        InterruptCombatMotion(agent);   // 侧模型收场同样做动作层打断（与 EndFight 遗留分支一致）
+                        agent.SetTargetAgent(null);
+                    }
                 }
                 catch (NullReferenceException)
                 {

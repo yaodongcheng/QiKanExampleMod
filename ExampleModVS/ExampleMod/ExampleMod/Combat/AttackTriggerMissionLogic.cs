@@ -17,10 +17,12 @@ namespace LivingWorldNpcs
     /// 目前承载五件事，全部围绕 OnAgentHit / OnRegisterBlow / OnAgentRemoved 三个引擎钩子：
     /// ① 尸体登记（可搜刮列表）；
     /// ② 玩家命中记录（战场血条过滤）；
-    /// ③ 🔴【2026-08-13 重写】切磋（Duel）判负 —— 底层无敌：双方 SetMortalityState(Invulnerable)
-    ///   （native 层拦 Die，血条真实掉落、归零不死——官方隐士 sp_hermit/任务罪犯同款用法），
-    ///   胜负 = 真实血量归零（OnAgentHit 早于引擎 `if (Health &lt; 1f) Die()`，判负即回满血，
-    ///   native 拦 Die 只是保险丝）。⚠️ 旧虚拟血量仲裁已彻底废弃：禁止调用 InitDuel/GetVirtualHealth；
+    /// ③ 🔴【2026-08-13 重写】切磋（Duel）判负 —— 双方保持 Mortal 正常受击（血条真实掉落、
+    ///   打击反馈全保留），不死由两层保证：主保证 = 引擎 HandleBlow 内 OnAgentHit 早于
+    ///   `if (Health &lt; 1f) Die()`（反编译确认），血归零瞬间判负回满血 → 引擎走不到 Die；
+    ///   兜底 = 判负后 EndDuel 立即设 Invulnerable（native 拦 Die）防停战生效前的残余攻击。
+    ///   ⚠️ 实机证明 Invulnerable 在 native 层连伤害一起拦（全程不掉血），不能用于开打；
+    ///   旧虚拟血量仲裁已彻底废弃：禁止调用 InitDuel/GetVirtualHealth；
     /// ④ 玩家在定居点里被打倒 → 结束 Mission 并把菜单落到定居点菜单，
     ///   由 <see cref="PlayerDetentionBehavior"/> 在那里给出"赔钱 / 认罚"选项。
     /// ⑤ 击杀回血 —— 玩家亲手击杀人类/儿童后回复 <see cref="HealValue"/> 血（MCM 选项
@@ -113,9 +115,8 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 切磋仲裁登记（2026-08-13）：记录切磋双方（OnAgentHit 判负检测用）。
-        /// 不死标记由 CombatManager.StartFight(Peace:true) 负责设置——双方
-        /// SetMortalityState(Invulnerable)，native 层拦 Die（官方隐士/任务罪犯同款）：
-        /// 血条真实掉落、归零不死；判负/回血/收场由本仲裁者统一负责。
+        /// 双方保持 Mortal 正常打（血条真实掉落）；不死 = 判负回血抢占引擎死亡判定
+        ///（OnAgentHit 早于 `if (Health &lt; 1f) Die()`）+ EndDuel 收场窗口 Invulnerable 兜底。
         /// ⚠️ 旧虚拟血量方案已彻底废弃：禁止调用 InitDuel/GetVirtualHealth。
         /// </summary>
         public void RegisterDuel(Agent a, Agent b)
@@ -255,10 +256,11 @@ namespace LivingWorldNpcs
             if (affectedAgent != _agentA && affectedAgent != _agentB) return;
 
             // 🔴 2026-08-13 切磋判负（替代虚拟血量，用户裁定禁止虚拟血量）：
-            // 双方已是 Invulnerable（native 拦 Die）——血条真实掉落、归零不死。
-            // 引擎 HandleBlow 内 OnAgentHit 早于 `if (Health < 1f) Die()`：
-            // 血归零即判负，EndDuel 里回满血 → 引擎根本走不到 Die（native 拦只是保险丝）。
-            // 不做第二套数值、不每击回血——真实血量掉落即打击反馈，判负一次回血即复原。
+            // 双方 Mortal 正常受击（血条真实掉落、打击反馈全保留——实机证明 Invulnerable
+            // native 拦伤害，全程不掉血，不能用来开打）。引擎 HandleBlow 内 OnAgentHit 早于
+            // `if (Health < 1f) Die()`（反编译确认）：血归零即判负，EndDuel 里回满血 →
+            // 引擎根本走不到 Die（不死主保证）。不做第二套数值、不每击回血——
+            // 真实血量掉落即打击反馈，判负一次回血即复原。
             if (affectedAgent.Health <= 0f)
             {
                 DebugLogger.Log($"[Duel] 判负: {affectedAgent.Name}(Idx={affectedAgent.Index}) 血量归零");
@@ -284,51 +286,43 @@ namespace LivingWorldNpcs
             }
             DebugLogger.Log($"[Duel] 切磋结束: winner={winner?.Name ?? "?"}(Idx={winner?.Index ?? -1}) loser={loser?.Name ?? "?"}(Idx={loser?.Index ?? -1})");
 
-            // 🔴 2026-08-13 完整收场（Invulnerable 方案）：
-            // ① 先回血再恢复 Mortal——顺序关键：0 血 + Mortal 后下一发 OnBlowReceived 直接 Die；
-            // ② 双方都发停战事件 → AgentBrain 清 FightEnemyAction → OnEnd → CombatManager.EndFight
-            //    （归还原队 + WatchState 恢复），比手动 StopAgentCombat 更完整（队伍还原）。
+            // 🔴 2026-08-13 完整收场（Mortal 正常打 + 判负回血方案）——本方法只留切磋特有逻辑：
+            // ① 先设 Invulnerable——兜底：判负回血后、停战事件生效前，残余攻击/同帧连击
+            //    可能继续掉血（native 层拦伤害拦死），避免 0 血 + Mortal 后 Die；
+            // ② 回血（点到为止：败者满血复原）——引擎 HandleBlow 在 OnAgentHit 之后才检查
+            //    `if (Health < 1f) Die()`，回满血 → 引擎走不到 Die（不死主保证）；
+            // ③ 发停战事件 → AgentBrain 同步清 FightEnemyAction → OnEnd → CombatManager.EndFight
+            //    （归还原队 + WatchState 恢复 + 收刀 + 动作层打断 + 清索敌——通用收场全在 EndFight，
+            //     EndDuel 不再各自实现）。
             foreach (var duelist in new[] { _agentA, _agentB })
             {
                 if (duelist == null) continue;
                 if (duelist.IsActive())
                 {
-                    duelist.Health = duelist.HealthLimit;   // 点到为止：败者满血复原
-                    duelist.SetMortalityState(Agent.MortalityState.Mortal);
-                    duelist.SetTargetAgent(null);
-                    duelist.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
-                    StopAgentCombat(duelist);
+                    duelist.SetMortalityState(Agent.MortalityState.Invulnerable); // ①
+                    duelist.Health = duelist.HealthLimit;                          // ②
                 }
                 try
                 {
-                    AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", duelist);
+                    AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", duelist); // ③ 同步
                 }
                 catch (Exception ex)
                 {
                     DebugLogger.Log($"[Duel] 停战事件失败: {ex.Message}");
                 }
             }
+            // ④ 停战已生效，关闭兜底窗口
+            foreach (var duelist in new[] { _agentA, _agentB })
+            {
+                if (duelist == null || !duelist.IsActive()) continue;
+                try { duelist.SetMortalityState(Agent.MortalityState.Mortal); }
+                catch (Exception ex) { DebugLogger.Log($"[Duel] 恢复 Mortal 失败: {ex.Message}"); }
+            }
 
             // 4. 【关键】清空引用，允许下一次攻击触发新的切磋
             _agentA = null;
             _agentB = null;
 
-        }
-
-        private void StopAgentCombat(Agent agent)
-        {
-            if (agent == null) return;
-
-            // 清除战斗 AI 标志
-            agent.SetScriptedCombatFlags(Agent.AISpecialCombatModeFlags.None);
-
-            // 让他停下移动
-            agent.SetMovementDirection(Vec2.Zero);
-            agent.SetAttackState(0); // 停止攻击状态
-
-            // 将队伍设为中立或移除队伍 (视具体情况而定，这里简单设为不攻击)
-            // 最暴力的停止方法是暂时设为无 AI，然后再恢复
-            // agent.Controller = Agent.ControllerType.None;
         }
 
         // ══════════════════════════════════════════════════════════════════════
