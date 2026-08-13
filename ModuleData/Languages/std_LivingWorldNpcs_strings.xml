@@ -4054,6 +4054,25 @@
     <string id="LWN_plan_action_threatened" text="{NAME} threatened me: {TEXT}" />
     <string id="LWN_plan_action_threaten_default" text="You had better watch yourself." />
     <string id="LWN_plan_action_promised" text="{NAME} promised me: {TEXT}" />
+    <string id="LWN_plan_action_attack" text="attack" />
+    <string id="LWN_plan_action_relation_up" text="raise opinion of" />
+    <string id="LWN_plan_action_relation_down" text="lower opinion of" />
+    <string id="LWN_plan_action_praise" text="praise" />
+    <string id="LWN_plan_action_spread_rumor" text="spread rumors about" />
+    <string id="LWN_plan_action_threaten_verbal" text="threaten" />
+    <string id="LWN_plan_action_promise" text="make a promise to" />
+    <string id="LWN_plan_action_marry_success" text="agree to marry" />
+    <string id="LWN_plan_action_join_clan" text="join the clan" />
+    <string id="LWN_plan_action_gather_to_player" text="march to assemble" />
+    <string id="LWN_plan_action_party_patrol" text="start patrolling" />
+    <string id="LWN_action_decide" text="{NAME} decided: {ACTION}." />
+    <string id="LWN_action_decide_target" text="{NAME} decided: {ACTION} (target: {TARGET})." />
+    <string id="LWN_action_decide_param" text="{NAME} decided: {ACTION} ({PARAM})." />
+    <string id="LWN_action_decide_target_param" text="{NAME} decided: {ACTION} (target: {TARGET}, {PARAM})." />
+    <string id="LWN_action_level_small" text="small" />
+    <string id="LWN_action_level_medium" text="medium" />
+    <string id="LWN_action_level_large" text="large" />
+    <string id="LWN_action_gold_unit" text="gold" />
 
 
     <!-- ── IM 闲聊回复降级模板（LLM 不可用时按主题回）── -->

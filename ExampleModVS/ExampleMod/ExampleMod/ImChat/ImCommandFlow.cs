@@ -923,12 +923,20 @@ namespace LivingWorldNpcs
         // ───────────────────────── 卡片详情（🔴 §3.2，C# 确定性渲染，不信任 LLM 文案）─────────────────────────
 
             // 本地化：动作名标签表（plan_step 记忆/详情渲染）
-        /// <summary>动作名 → 本地化标签（LWN_plan_action_*；渲染的是实际会被执行的逻辑——PlanExecutor 同一份 JSON）。</summary>
-        private static string PlanActionLabel(string action)
+        /// <summary>动作名 → 本地化标签（LWN_plan_action_*；渲染的是实际会被执行的逻辑——PlanExecutor 同一份 JSON）。
+        /// 🔴 2026-08-13：改为 internal static——ActionHandler 决策播报复用同表（闲聊动作码一致，防两份标签漂移）。</summary>
+        internal static string PlanActionLabel(string action)
         {
             if (string.IsNullOrEmpty(action)) return "";
-            // 本地化：动作名标签表（plan_step 记忆/详情渲染）
-            return LWNTextHelper.ResolveText("LWN_plan_action_" + action,
+            // 兼容别名（旧词表）：INCREASE/DECREASE_RELATION 与 RELATION_UP/DOWN 同款标签
+            string keyName = action switch
+            {
+                "increase_relation" => "relation_up",
+                "decrease_relation" => "relation_down",
+                _ => action,
+            };
+            // 本地化：动作名标签表（plan_step 记忆/详情渲染/决策播报共用）
+            return LWNTextHelper.ResolveText("LWN_plan_action_" + keyName,
                 action switch
                 {
                     "move_to" => "move to", "follow" => "follow", "stop_following" => "stop following",
@@ -937,7 +945,14 @@ namespace LivingWorldNpcs
                     "emote" => "gesture", "make_noise" => "shout", "signal_player" => "signal",
                     "steal_attempt" => "steal from", "give_item" => "hand over", "give_gold" => "give gold",
                     "deliver_item" => "deliver", "shadow" => "shadow", "negotiate" => "negotiate",
-                    "duel" => "duel", "end_plan" => "finish", _ => action,
+                    "duel" => "duel", "end_plan" => "finish",
+                    // 闲聊动作码（2026-08-13 补全，与 LWN_plan_action_* 新 key 一一对应）
+                    "attack" => "attack", "relation_up" => "raise opinion of", "relation_down" => "lower opinion of",
+                    "praise" => "praise", "spread_rumor" => "spread rumors about",
+                    "threaten_verbal" => "threaten", "promise" => "make a promise to",
+                    "marry_success" => "agree to marry", "join_clan" => "join the clan",
+                    "gather_to_player" => "march to assemble", "party_patrol" => "start patrolling",
+                    _ => action,
                 });
         }
 
