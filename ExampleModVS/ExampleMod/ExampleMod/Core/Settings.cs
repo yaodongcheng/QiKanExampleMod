@@ -143,13 +143,11 @@ namespace LivingWorldNpcs
         // ── IM 即时传讯系统（config.json 侧，不进 MCM：数值/概率类高级配置）──
         // 群聊跟随回复概率（用户决策 1：主回复者之外的第二人跟一句的概率，0~1）。
         // 🔴 2026-08-12 25%→15%：25% + 满4条保底叠加实测偏密（用户反馈"跟随说话频率有点高"）
-        public float ImGroupFollowUpChance { get; set; } = 0.15f;
-        // 跟随回复保底（2026-08-10）：每频道距上次跟随回复满 N 条消息时必触发一次（随机之外的经验保底，
-        // 0.75^7≈13% 的"7 连不中"实机出现过——纯随机体验靠赌不可接受）。0 = 关闭保底
-        // 🔴 2026-08-12 4→6：保底放宽（配合概率下调，跟随成为"偶尔的惊喜"而非常态）
-        public int ImFollowUpGuaranteeEvery { get; set; } = 6;
+        // 🔴 2026-08-13 15%→6%：玩家一条消息仍常带出「主回复+跟随+bounce」三条连发（实机日志），继续下调
+        public float ImGroupFollowUpChance { get; set; } = 0.06f;
         // 斗嘴往返概率（2026-08-10 v4）：跟随者回应后，主回复者再回一句的概率（0~1；0 = 关闭）
-        public float ImBounceChance { get; set; } = 0.5f;
+        // 🔴 2026-08-13 50%→25%：bounce 是"一条消息三条回复"链的放大器（主回复+跟随+bounce），减半
+        public float ImBounceChance { get; set; } = 0.25f;
         // 单 NPC 回复冷却（墙钟秒）：防玩家连发刷爆 LLM 限流。
         public float ImReplyCooldownSeconds { get; set; } = 5f;
         // 互动热度分档阈值（决定 NPC 记忆容量，Phase 5 生效）：heat >= Hot → 大容量；>= Normal → 现状；否则冷门小容量。

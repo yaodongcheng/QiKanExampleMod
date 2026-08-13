@@ -184,8 +184,12 @@ namespace LivingWorldNpcs
 
             // 质量诊断（纯报告，不拒收不改动）：对照输出质量要求逐条打分，
             // 抓结构校验覆盖不到的质量项（步数/预案数/contingencies/combat 与 SPAR 矛盾/goal 纪律）
-            foreach (var d in PlanValidator.Diagnose(plan, parsed))
-                DebugLogger.Log($"[PlanQuality] {d}");
+            // 🔴 2026-08-13：Custom 意图（闲聊动作单步包装，ChatActionFlow）跳过——任务型质量检查
+            // 对它无意义（按构造即 1 步无 goal），实机日志把「主链仅1步/缺goal」警告打在闲聊动作上，
+            // 误导排查误以为生成了需要批准的任务计划。LLM 计划路径在 ImCommandFlow 已拒收 CUSTOM 意图。
+            if (parsed != CommandIntentType.Custom)
+                foreach (var d in PlanValidator.Diagnose(plan, parsed))
+                    DebugLogger.Log($"[PlanQuality] {d}");
 
             var ex = new PlanExecutor
             {
@@ -231,7 +235,11 @@ namespace LivingWorldNpcs
             Elapsed = 0f;
             _stepStartTime = 0f;
             CurrentSummary = Summary ?? "";
-            DebugLogger.Log($"[PlanExecutor] 开始执行计划（{IntentType}）: {Summary}");
+            // 🔴 2026-08-13：Custom 意图 = 闲聊动作的单步机械包裹（ChatActionFlow）——日志显式标注，
+            // 与 LLM 生成的任务计划区分（实机日志曾误读为"模型生成了计划"；模型只给动作码，计划壳是 C# 包的）
+            string wrapperNote = IntentType == CommandIntentType.Custom
+                ? "（闲聊单动作包裹：非 LLM 计划，直接执行无需玩家批准）" : "";
+            DebugLogger.Log($"[PlanExecutor] 开始执行计划（{IntentType}）: {Summary}{wrapperNote}");
         }
 
         public void Tick(float dt)

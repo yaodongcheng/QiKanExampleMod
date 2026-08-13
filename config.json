@@ -22,13 +22,15 @@
   // ══════════════════════════════════════════════════════════════
   // IM 传讯系统（聊天面板，热键 O）数值配置
   //
-  // ImGroupFollowUpChance  群聊跟随回复概率（0~1）：主回复者之外第二人跟一句的概率，默认 0.1
+  // ImGroupFollowUpChance  群聊跟随回复概率（0~1）：主回复者之外第二人跟一句的概率，默认 0.06
+  // ImBounceChance         斗嘴往返概率（0~1）：跟随者回应后主回复者再回一句的概率，默认 0.25
   // ImReplyCooldownSeconds 单 NPC 回复冷却（墙钟秒）：防连发刷爆 LLM 限流，默认 5
   // ImHeatHotThreshold     互动热度分档阈值：热度 ≥ 此值 = 高频互动 → 该 NPC 记忆容量最大档
   // ImHeatNormalThreshold  互动热度分档阈值：热度 ≥ 此值 = 普通档（现状容量）；以下 = 冷门小容量
   // ImHeatDecayPerDay      每游戏日热度衰减量（互动多者保持档位，久不互动自然降档）
   // ══════════════════════════════════════════════════════════════
-  "ImGroupFollowUpChance": 0.1,
+  "ImGroupFollowUpChance": 0.06,
+  "ImBounceChance": 0.25,
   "ImReplyCooldownSeconds": 5,
   "ImHeatHotThreshold": 10,
   "ImHeatNormalThreshold": 3,

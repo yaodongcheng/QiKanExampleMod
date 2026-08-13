@@ -291,8 +291,8 @@ namespace LivingWorldNpcs
                 // 🔴 M3 群聊动议（§5.6 议题模式）：句式命中 → 各成员独立 stance 表态（不影响通用回复管线，
                 // 动议接话与普通回复并行——议题是额外一层，不抢正常聊天）
                 CampaignPersuadeHub.OnGroupMessage(conv, trimmed);
-                // 🔴 跟随保底：传 channelId 让 PickRepliers 做"满 N 条必跟随"（2026-08-10）
-                var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed, conv.Id);
+                // 🔴 跟随保底已移除（2026-08-13 用户裁定）：跟随回复纯随机，不做"满 N 条必跟随"
+                var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed);
                 // 🔴 NPC 自主行动提议（2026-08-13）：移到 PickRepliers 之后，只允许话题主回复者（primary）
                 // 提议——玩家点名/问话时旁观者不插嘴；上下文 = 玩家消息 + 频道近期消息（AutonomyProposal 内注入）
                 AutonomyProposal.TryFromGroupMessage(conv, trimmed, primary);

@@ -88,7 +88,9 @@ namespace LivingWorldNpcs
                     return false;
                 }
                 executor.Start(actor);
-                DebugLogger.Log($"[ChatActionFlow] {actor.Name} 执行闲聊动作: {actionCode}（target: {targetText ?? "-"}）");
+                // 🔴 2026-08-13：日志写明"包裹为单步计划"——区分 LLM 生成的任务计划
+                // （模型只决策动作码，计划壳由本方法确定性构造，无玩家批准环节）
+                DebugLogger.Log($"[ChatActionFlow] {actor.Name} 执行闲聊动作: {actionCode}（target: {targetText ?? "-"}）→ 包裹为单步 Custom 计划直接执行，无需批准");
                 return true;
             }
             catch (Exception ex)
