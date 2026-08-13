@@ -1045,6 +1045,11 @@ namespace LivingWorldNpcs
         // 【新增】公开只读属性，让 Brain 可以检查当前在打谁
         public Agent TargetEnemy => _targetEnemy;
 
+        /// <summary>🔴 2026-08-13 切磋模式（AgentBrain "duel" 事件）：OnStart 传 Peace=true →
+        /// CombatManager.StartDuel（双方 Invulnerable 底层无敌 + 真实血归零判负，点到为止）。
+        /// 切磋不飘"开始攻击"红字、不喊开战宣言、不触发残血认输对话——胜负由 EndDuel 统一收场。</summary>
+        private readonly bool _isDuel;
+
         /// <summary>残血认输已触发标记（每次创建新实例重置）</summary>
         private bool _surrenderTriggered = false;
         /// <summary>受伤喊话已触发标记（每场战斗最多 1 次；M0 说话并联）</summary>
@@ -1057,12 +1062,13 @@ namespace LivingWorldNpcs
         /// <summary>
         /// 战斗行为：锁定并攻击指定敌人
         /// </summary>
-        public FightEnemyAction(Agent targetEnemy, bool canCeaseOnPlayerSheathe = false)
+        public FightEnemyAction(Agent targetEnemy, bool canCeaseOnPlayerSheathe = false, bool isDuel = false)
         {
             _targetEnemy = targetEnemy;
             _isFinished = false;
             _checkTimer = 0f;
             _canCeaseOnPlayerSheathe = canCeaseOnPlayerSheathe;
+            _isDuel = isDuel;
         }
 
         /// <summary>玩家命中自己时刷新受击时间（AgentBrain damaged 处理调用；停战检测依据）。</summary>
@@ -1083,18 +1089,21 @@ namespace LivingWorldNpcs
             // 不能追人也不能出手（登记为战斗者却傻站着）。
             // 各事件处理器（order_attack / DeferredCombat / 目击反击）无需各自补 ForceUnlockAgent。
             AgentControlHelper.ForceUnlockAgent(agent);
-            if (Settings.Instance.ShowDebugMessages)
-                // 开战飘字：{NAME} 开始攻击 {ENEMY}
+            if (Settings.Instance.ShowDebugMessages && !_isDuel)
+                // 开战飘字：{NAME} 开始攻击 {ENEMY}（切磋不飘——点到为止非敌对）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_attack_start",
                     ("NAME", agent.Name.ToString()), ("INDEX", agent.Index.ToString()), ("ENEMY", _targetEnemy.Name.ToString())), Colors.Yellow));
             //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
             //玩家阵营1，自己阵营2，这里之后再看
-            CombatManager.StartFight(agent, _targetEnemy,2,1);
+            // 🔴 2026-08-13：切磋（IsDuel）→ Peace=true → StartDuel（Invulnerable 底层无敌，点到为止）
+            CombatManager.StartFight(agent, _targetEnemy, 2, 1, Peace: _isDuel);
             // 🔴 M0 战斗喊话（说话并联）+ M4 双轨润色：开战宣言（Combat 优先级，有 LLM 润色/无则模板）
+            // 切磋跳过宣言——"你想死吗？！"与点到为止的切磋语义相悖。
             _lastHealth = agent.Health;
-            SpeechChannel.SayPolished(agent,
-                LWNTextHelper.ResolveText("LWN_action_combat_start", "You want to die?!"), SpeechPriority.Combat,
-                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
+            if (!_isDuel)
+                SpeechChannel.SayPolished(agent,
+                    LWNTextHelper.ResolveText("LWN_action_combat_start", "You want to die?!"), SpeechPriority.Combat,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
         }
 
         public void OnTick(Agent agent, float dt)
@@ -1143,8 +1152,8 @@ namespace LivingWorldNpcs
 
             // --- 持续性指令 ---
 
-            // ── 残血认输：仅当目标是玩家时 ──
-            if (!_surrenderTriggered && _targetEnemy == Agent.Main)
+            // ── 残血认输：仅当目标是玩家时（切磋跳过——胜负由 EndDuel 判负统一收场，不打断切磋）──
+            if (!_surrenderTriggered && !_isDuel && _targetEnemy == Agent.Main)
             {
                 float healthRatio = agent.Health / agent.HealthLimit;
                 if (healthRatio < 0.30f)

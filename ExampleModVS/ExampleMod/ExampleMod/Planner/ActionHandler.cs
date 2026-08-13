@@ -305,10 +305,33 @@ namespace LivingWorldNpcs
                     return;
                 }
                 string targetName = defender?.Name?.ToString() ?? targetText;
-                // 卡片内容 = 各动作确认弹窗文案（InquiryMsgKey 承载；零新增 key）
-                string content = actionDef.InquiryMsgKey != null
-                    ? LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_" + actionDef.InquiryMsgKey + "_msg", ("NAME", targetName))
-                    : targetText;
+                // 🔴 2026-08-13：卡片文案按目标分流——原 key（"{NAME} 想与你…"）是当面对话
+                // 弹窗文案，玩家视角"你"= 玩家；群聊里 defender 是另一个 NPC 时语义全错
+                //（日志实锤：斯唐纳夫要对阿速甘出手，卡片却显示"阿速甘 想与你切磋"，
+                // 玩家以为冲自己来的）。规则：
+                //   defender=玩家 → 原 key，NAME=attacker 名（"「斯唐纳夫」想与你切磋"）
+                //   defender≠玩家 → *_npc 变体，NAME=attacker + TARGET=defender（"斯唐纳夫想与阿速甘切磋"）
+                // 文案变量顺序：先 NAME（谁要做）后 TARGET（对谁做）。
+                string content = targetText;
+                if (actionDef.InquiryMsgKey != null)
+                {
+                    bool targetIsPlayer = defender == null || defender == Hero.MainHero;
+                    string key = "LWN_ui_interact_inquiry_" + actionDef.InquiryMsgKey
+                        + (targetIsPlayer ? "" : "_npc") + "_msg";
+                    content = targetIsPlayer
+                        ? LWNTextHelper.ResolveCompound(key, ("NAME", attackerName))
+                        : LWNTextHelper.ResolveCompound(key, ("NAME", attackerName), ("TARGET", targetName));
+                }
+                // 🔴 2026-08-13：同会话去重——主回复者与跟随者常对同一对双方各发一张同动作卡
+                //（互为镜像：A→B 与 B→A），玩家看到两张卡、点两次 → StartFight 二次触发
+                //（侧模型 _sideFightCount 叠加，EndFight 一次不归零，队伍还原泄漏）。
+                // 规则：已有未决同动作卡且其发送者 == 本次 defender（镜像）→ 丢弃本卡，
+                // 玩家拒绝一张 = 整场切磋取消，语义一致。
+                if (HasPendingMirrorProposal(conv, attacker, defender, actionCode))
+                {
+                    DebugLogger.Log($"[ActionProposal] 丢弃重复提议: {attackerName} {actionCode}→{targetName}（已有未决同动作镜像卡）");
+                    return;
+                }
                 var msg = new ImMessage(attacker.StringId, attackerName, content, ImMessageKind.Proposal)
                 {
                     ConvId = conv.Id,
@@ -325,6 +348,27 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[ActionProposal] 提议卡片投递失败: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 同会话镜像卡去重（2026-08-13）：检查本 conv 是否已有「未决 + 同动作码 + 发送者 == 本次目标」
+        /// 的提议卡。A→B 发卡后 B 回包同动作 → 镜像 → 丢弃；同一 NPC 连发同动作卡也命中。
+        /// 已了结（批准/拒绝）的卡不算——玩家拒绝后再提同动作允许重发。
+        /// </summary>
+        private static bool HasPendingMirrorProposal(ImConversation conv, Hero attacker, Hero defender, string actionCode)
+        {
+            if (conv == null || defender == null) return false;
+            if (conv.Type == ImConversationType.Direct) return false;   // 私聊单方，无镜像可能
+            List<ImMessage> msgs;
+            try { msgs = ImChatManager.GetMessages(conv); } catch { return false; }
+            if (msgs == null) return false;
+            foreach (var m in msgs)
+            {
+                if (m == null || !m.IsProposal || m.IsProposalResolved) continue;
+                if (m.ActionCode != actionCode) continue;
+                if (m.SenderHeroId == defender.StringId) return true;
+            }
+            return false;
         }
 
         /// <summary>IM 动作 defender 解析（§四优先级：名字文本 → 群聊成员候选匹配 → 私聊对象 → 世界 Hero；兜底玩家）。

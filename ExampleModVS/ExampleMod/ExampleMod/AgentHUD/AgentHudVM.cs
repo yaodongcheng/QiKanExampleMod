@@ -49,9 +49,6 @@ namespace LivingWorldNpcs
         private string _eyeBgColor;
         private string _eyeFillColor;
 
-        // 缓存
-        private static AttackTriggerMissionLogic _cachedDuelLogic;
-
         // 位置平滑（解决上楼梯时血条上下抖动）
         private float _targetPosX;
         private float _targetPosY;
@@ -74,21 +71,9 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // 1. 获取血量
+            // 1. 获取血量（🔴 2026-08-13：旧虚拟血量显示段已删——切磋血条走真实血量，
+            // Invulnerable 底层无敌下真实掉落、归零判负，无需第二套数值）
             float currentHp = TargetAgent.Health;
-
-            if (_cachedDuelLogic == null) _cachedDuelLogic = AttackTriggerMissionLogic.Instance;
-
-            // 🔴【废弃】虚拟血量血条显示（旧切磋方案 2026-08-08 否决，保留仅参考；新切磋方案不走此路径）
-            if (_cachedDuelLogic != null)
-            {
-                float? virtualHp = _cachedDuelLogic.GetVirtualHealth(TargetAgent);
-                if (virtualHp.HasValue)
-                {
-                    currentHp = virtualHp.Value;
-                    if (currentHp < 0) currentHp = 0;
-                }
-            }
 
             // 2. 伤害判断
             if (Math.Abs(currentHp - _prevHealth) > 0.1f)

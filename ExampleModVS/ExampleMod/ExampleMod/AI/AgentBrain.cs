@@ -402,6 +402,29 @@ namespace LivingWorldNpcs
                 if (IsChildOwner) { EnqueueAction(MoveToPositionAction.FleeFrom(Owner, targetAgent)); return; }
                 EnqueueAction(new FightEnemyAction(targetAgent));
             }
+            if (aiEvent.EventType == "duel")
+            {
+                // 🔴 2026-08-13 切磋分支（ActionRegistry.duel 发 "duel" 事件，与 order_attack 真打区分）：
+                // FightEnemyAction(IsDuel=true) → OnStart 传 Peace:true → CombatManager.StartDuel
+                // → AttackTriggerMissionLogic（双方 Invulnerable 底层无敌 + 真实血归零判负，点到为止）。
+                // 不飘"开始攻击"红字（切磋非敌对）；判负由 EndDuel 统一收场（event_stop_combat）。
+                Agent targetAgent = aiEvent.Args[0] as Agent;
+                if (targetAgent == null || targetAgent == Owner) return;
+                SetNpcIntent(NpcIntentType.Fighting, targetAgent);
+                InteractedAgent = targetAgent;
+                ClearAllActions();
+                if (IsChildOwner) { EnqueueAction(MoveToPositionAction.FleeFrom(Owner, targetAgent)); return; }
+                EnqueueAction(new FightEnemyAction(targetAgent, isDuel: true));
+            }
+            if (aiEvent.EventType == "event_stop_combat")
+            {
+                // 🔴 2026-08-13 切磋判负收场（AttackTriggerMissionLogic.EndDuel 发）：立即停战。
+                // ClearAllActions → FightEnemyAction.OnEnd → CombatManager.EndFight
+                //（归还原队 + WatchState 恢复 + 收刀），与投降停战同款清理但不开对话。
+                SetNpcIntent(NpcIntentType.None);
+                ClearAllActions();
+                DebugLogger.Log($"[Brain-StopCombat] {Owner.Name}(Idx={Owner.Index}) 停战（切磋收场）");
+            }
             if (aiEvent.EventType == "DeferredCombat")
             {
                 var target = aiEvent.Args[0] as Agent;

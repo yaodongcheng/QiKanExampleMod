@@ -410,7 +410,7 @@ namespace LivingWorldNpcs
             },
 
             // 20. duel（原 DUEL；闲聊 ChatOrder=13；⚠️ 双语义一行承载：计划侧=判定型未实现；
-            // 闲聊侧=切磋开打经 ExecuteCore 发 order_attack 事件，互不干扰）
+            // 闲聊侧=切磋开打经 ExecuteCore 发 duel 事件，互不干扰）
             new ActionSpec
             {
                 Code = "duel",
@@ -424,7 +424,9 @@ namespace LivingWorldNpcs
                 ResultKeys = new HashSet<string> { "win", "draw", "lose" },
                 IsValid = (npc, player, agent) => agent != null,
                 // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）。
-                // 与 ATTACK 同执行（FightEnemyAction；当面对话既有行为一致）——发 order_attack 事件走 Brain 战斗链。
+                // 🔴 2026-08-13：发 "duel" 事件（与 order_attack 区分）→ AgentBrain 切磋分支
+                // → FightEnemyAction(IsDuel) → StartFight(Peace:true) → StartDuel（Invulnerable
+                // 底层无敌，点到为止）。旧实现发 order_attack 走真打链（无无敌，会打死人）。
                 ExecuteCore = (attacker, defender, agent, l, t, s) =>
                 {
                     Agent target = (defender != null && defender != Hero.MainHero)
@@ -432,14 +434,14 @@ namespace LivingWorldNpcs
                         : Agent.Main;
                     if (target == null) target = Agent.Main;
                     if (agent != null && target != null && agent.IsActive() && target.IsActive())
-                        AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
+                        AgentAIController.Instance?.SendEventToAgent(agent, "duel", target);
                 },
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
                     string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
                     Action confirmFight = () =>
                     {
-                        // 🔴 2026-08-11 用户裁定：同上——order_attack 事件 → AgentBrain 既有战斗链
+                        // 🔴 2026-08-13：同上——duel 事件 → AgentBrain 切磋分支 → StartDuel 无敌仲裁
                         ActionHandler.RunActionCore("duel", attacker, defender, agent, l, t, s);
                     };
                     // 本地化：切磋确认弹窗（标题/内容/按钮）

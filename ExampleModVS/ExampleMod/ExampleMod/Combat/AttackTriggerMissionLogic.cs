@@ -17,9 +17,10 @@ namespace LivingWorldNpcs
     /// 目前承载五件事，全部围绕 OnAgentHit / OnRegisterBlow / OnAgentRemoved 三个引擎钩子：
     /// ① 尸体登记（可搜刮列表）；
     /// ② 玩家命中记录（战场血条过滤）；
-    /// ③ 🔴【已废弃 2026-08-08】切磋（Duel）虚拟血量 —— 打不死，虚拟血见底判胜负
-    ///   （手法：引擎 HandleBlow 内 OnAgentHit 早于 `if (Health &lt; 1f) Die()`，在这里把血写回就能吃掉致命一击）。
-    ///   ⚠️ 虚拟血量仲裁已被否决：新切磋方案不再用它，代码保留仅作参考——新逻辑禁止调用 InitDuel/GetVirtualHealth；
+    /// ③ 🔴【2026-08-13 重写】切磋（Duel）判负 —— 底层无敌：双方 SetMortalityState(Invulnerable)
+    ///   （native 层拦 Die，血条真实掉落、归零不死——官方隐士 sp_hermit/任务罪犯同款用法），
+    ///   胜负 = 真实血量归零（OnAgentHit 早于引擎 `if (Health &lt; 1f) Die()`，判负即回满血，
+    ///   native 拦 Die 只是保险丝）。⚠️ 旧虚拟血量仲裁已彻底废弃：禁止调用 InitDuel/GetVirtualHealth；
     /// ④ 玩家在定居点里被打倒 → 结束 Mission 并把菜单落到定居点菜单，
     ///   由 <see cref="PlayerDetentionBehavior"/> 在那里给出"赔钱 / 认罚"选项。
     /// ⑤ 击杀回血 —— 玩家亲手击杀人类/儿童后回复 <see cref="HealValue"/> 血（MCM 选项
@@ -37,14 +38,10 @@ namespace LivingWorldNpcs
         /// <summary>战场中玩家攻击过的 Agent Index 集合（用于血条过滤）</summary>
         private HashSet<int> _playerAttackedAgents = new HashSet<int>();
 
-        // 🔴【废弃】旧切磋仲裁双方（虚拟血量方案，2026-08-08 否决——保留仅参考）
+        // 🔴 新切磋仲裁双方（2026-08-13：Invulnerable 底层无敌方案；旧虚拟血量字段已删）
         private Agent _agentA;
         private Agent _agentB;
         private bool _isDuelActive;
-
-        // 🔴【废弃】旧切磋虚拟血量（否决方案，保留仅参考）
-        private float _agentA_VirtualHP = 100;
-        private float _agentB_VirtualHP = 100;
 
         /// <summary>战斗广播冷却字典：同一对 (attacker.Index, victim.Index) 3秒内最多广播一次</summary>
         private static Dictionary<(int, int), float> _lastEventDamagedBroadcast = new Dictionary<(int, int), float>();
@@ -98,46 +95,37 @@ namespace LivingWorldNpcs
         }
 
 
-        public float? GetVirtualHealth(Agent agent)
-        {
-            // 🔴【废弃】虚拟血量切磋仲裁（2026-08-08 否决，保留仅参考）——新切磋方案禁止调用
-            if (!_isDuelActive || agent == null) return null;
-
-            if (agent == _agentA) return _agentA_VirtualHP;
-            if (agent == _agentB) return _agentB_VirtualHP;
-
-            return null; // 不是切磋双方
-        }
-
         /// <summary>查询某 Agent 是否被玩家攻击过（战场血条过滤用）</summary>
         public bool IsAgentAttackedByPlayer(Agent agent)
         {
             return agent != null && _playerAttackedAgents.Contains(agent.Index);
         }
-  
+
         public AttackTriggerMissionLogic(Agent a=null, Agent b = null)
         {
             Instance = this;
             _deadAgents = new HashSet<Agent>();
             if (a != null && b != null)
             {
-                InitDuel(a, b);
+                RegisterDuel(a, b);
             }
         }
-        /// <summary>🔴【废弃】旧切磋仲裁入口（虚拟血量方案，2026-08-08 否决——保留仅参考；新逻辑禁止调用）。</summary>
-        public void InitDuel(Agent a, Agent b)
-        {
-            if (_isDuelActive)
-            {
-                EndDuel(null); // 强制结束，无人胜出
-            }
 
+        /// <summary>
+        /// 切磋仲裁登记（2026-08-13）：记录切磋双方（OnAgentHit 判负检测用）。
+        /// 不死标记由 CombatManager.StartFight(Peace:true) 负责设置——双方
+        /// SetMortalityState(Invulnerable)，native 层拦 Die（官方隐士/任务罪犯同款）：
+        /// 血条真实掉落、归零不死；判负/回血/收场由本仲裁者统一负责。
+        /// ⚠️ 旧虚拟血量方案已彻底废弃：禁止调用 InitDuel/GetVirtualHealth。
+        /// </summary>
+        public void RegisterDuel(Agent a, Agent b)
+        {
+            if (a == null || b == null) return;
+            if (_isDuelActive) EndDuel(null); // 强制结束上一场（无人胜出）
             _agentA = a;
             _agentB = b;
             _isDuelActive = true;
-            // 初始化虚拟血量为当前的真实血量
-            _agentA_VirtualHP = a.Health;
-            _agentB_VirtualHP = b.Health;
+            DebugLogger.Log($"[Duel] 切磋登记: {a.Name}(Idx={a.Index}) vs {b.Name}(Idx={b.Index})");
         }
         public override void OnAgentRemoved(Agent affectedAgent, Agent affectedAgentAffectsCalc, AgentState affectedAgentState, KillingBlow blow)
         {
@@ -266,60 +254,15 @@ namespace LivingWorldNpcs
             if (!_isDuelActive || affectedAgent == null) return;
             if (affectedAgent != _agentA && affectedAgent != _agentB) return;
 
-            //作用二：切磋特殊的虚拟血量处理，以下内容，只有在切磋中，并且受伤者是切磋双方时才会执行
-
-            // 获取本次攻击造成的伤害值
-            float damage = blow.InflictedDamage;
-            // 如果伤害是0（比如被格挡了），就不处理逻辑了
-            if (damage <= 0) return;
-
-
-            // 3. 处理受害者逻辑
-            if (affectedAgent == _agentA)
+            // 🔴 2026-08-13 切磋判负（替代虚拟血量，用户裁定禁止虚拟血量）：
+            // 双方已是 Invulnerable（native 拦 Die）——血条真实掉落、归零不死。
+            // 引擎 HandleBlow 内 OnAgentHit 早于 `if (Health < 1f) Die()`：
+            // 血归零即判负，EndDuel 里回满血 → 引擎根本走不到 Die（native 拦只是保险丝）。
+            // 不做第二套数值、不每击回血——真实血量掉落即打击反馈，判负一次回血即复原。
+            if (affectedAgent.Health <= 0f)
             {
-                // 扣除“虚拟血量”用于判定胜负
-                _agentA_VirtualHP -= damage;
-
-                if (Settings.Instance.ShowDebugMessages)
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
-                            "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
-                            ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
-                            ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
-                            ("DAMAGE", damage.ToString("F1")),
-                            ("HP", _agentA_VirtualHP.ToString("F1"))),
-                        Colors.Yellow));
-            }
-            else if (affectedAgent == _agentB)
-            {
-                _agentB_VirtualHP -= damage;
-                if (Settings.Instance.ShowDebugMessages)
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveCompound("LWN_combat_duel_hit",
-                            "{ATTACKER} hit {VICTIM}, damage: {DAMAGE}, remaining virtual HP: {HP}",
-                            ("ATTACKER", attackerAgent.Name?.ToString() ?? ""),
-                            ("VICTIM", affectedAgent.Name?.ToString() ?? ""),
-                            ("DAMAGE", damage.ToString("F1")),
-                            ("HP", _agentB_VirtualHP.ToString("F1"))),
-                        Colors.Yellow));
-            }
-
-            // ==========================================
-            // 4. 【关键步骤】伪无敌：把扣掉的血加回去
-            // ==========================================
-            // 防止 Agent 因为这一击真的死掉（如果当前血量足以承受这一击）
-            if (affectedAgent.Health > 0)
-            {
-                // 计算回血后的值，不能超过血量上限
-                float newHealth = Math.Min(affectedAgent.Health + damage, affectedAgent.HealthLimit);
-                affectedAgent.Health = newHealth;
-            }
-
-
-            // 检查是否有人的虚拟血量归零
-            if (_agentA_VirtualHP <= 0 || _agentB_VirtualHP <= 0)
-            {
-                EndDuel(loser: (_agentA_VirtualHP <= 0) ? _agentA : _agentB);
+                DebugLogger.Log($"[Duel] 判负: {affectedAgent.Name}(Idx={affectedAgent.Index}) 血量归零");
+                EndDuel(affectedAgent);
             }
         }
         private void EndDuel(Agent loser)
@@ -327,34 +270,46 @@ namespace LivingWorldNpcs
             if (!_isDuelActive) return;
             _isDuelActive = false;
 
-            // 处理胜负逻辑（如果有 loser）
+            // 胜负播报（点到为止：无死亡，血条归零判负）——无条件显示（设计哲学①：反馈明确，
+            // 玩家是观众时必须知道谁赢了）
+            Agent winner = null;
             if (loser != null && _agentA != null && _agentB != null)
             {
-                Agent winner = (loser == _agentA) ? _agentB : _agentA;
-                if (Settings.Instance.ShowDebugMessages)
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveCompound("LWN_combat_duel_end",
-                            "Duel over, winner: {NAME}",
-                            ("NAME", winner.Name?.ToString() ?? "")),
-                        Colors.Green));
+                winner = (loser == _agentA) ? _agentB : _agentA;
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveCompound("LWN_combat_duel_end",
+                        "The duel is over — winner: {NAME}",
+                        ("NAME", winner.Name?.ToString() ?? "")),
+                    Colors.Green));
             }
+            DebugLogger.Log($"[Duel] 切磋结束: winner={winner?.Name ?? "?"}(Idx={winner?.Index ?? -1}) loser={loser?.Name ?? "?"}(Idx={loser?.Index ?? -1})");
 
-            // 3. 恢复 AI 状态
-            if (_agentA != null && _agentA.IsActive())
+            // 🔴 2026-08-13 完整收场（Invulnerable 方案）：
+            // ① 先回血再恢复 Mortal——顺序关键：0 血 + Mortal 后下一发 OnBlowReceived 直接 Die；
+            // ② 双方都发停战事件 → AgentBrain 清 FightEnemyAction → OnEnd → CombatManager.EndFight
+            //    （归还原队 + WatchState 恢复），比手动 StopAgentCombat 更完整（队伍还原）。
+            foreach (var duelist in new[] { _agentA, _agentB })
             {
-                _agentA.SetTargetAgent(null);
-                StopAgentCombat(_agentA);
-                _agentA.SetMortalityState(Agent.MortalityState.Mortal);
+                if (duelist == null) continue;
+                if (duelist.IsActive())
+                {
+                    duelist.Health = duelist.HealthLimit;   // 点到为止：败者满血复原
+                    duelist.SetMortalityState(Agent.MortalityState.Mortal);
+                    duelist.SetTargetAgent(null);
+                    duelist.TryToSheathWeaponInHand(Agent.HandIndex.MainHand, Agent.WeaponWieldActionType.Instant);
+                    StopAgentCombat(duelist);
+                }
+                try
+                {
+                    AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", duelist);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[Duel] 停战事件失败: {ex.Message}");
+                }
             }
 
-            if (_agentB != null && _agentB.IsActive())
-            {
-                _agentB.SetTargetAgent(null);
-                StopAgentCombat(_agentB);
-                _agentB.SetMortalityState(Agent.MortalityState.Mortal);
-            }
-
-            // 4. 【关键】清空引用，允许下一次攻击触发新的 Agent
+            // 4. 【关键】清空引用，允许下一次攻击触发新的切磋
             _agentA = null;
             _agentB = null;
 

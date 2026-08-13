@@ -850,9 +850,11 @@
     <!-- ═══════════════════════════════════════════ -->
     <string id="LWN_ui_interact_inquiry_danger" text="危险" />
     <string id="LWN_ui_interact_inquiry_attack_msg" text="{NAME} 即将对你发起攻击" />
+    <string id="LWN_ui_interact_inquiry_attack_npc_msg" text="{NAME} 想对 {TARGET} 发起攻击" />
     <string id="LWN_ui_interact_btn_fight" text="来战！" />
     <string id="LWN_ui_interact_inquiry_hint" text="提示" />
     <string id="LWN_ui_interact_inquiry_duel_msg" text="{NAME} 想与你切磋一场，你准备好了吗？" />
+    <string id="LWN_ui_interact_inquiry_duel_npc_msg" text="{NAME} 想与 {TARGET} 切磋一场，点到即止" />
     <string id="LWN_ui_interact_msg_marry_accept" text="{NAME} 接受了你的求婚！" />
     <string id="LWN_ui_interact_msg_join_clan" text="{NAME} 加入了你的家族。" />
     <string id="LWN_ui_interact_msg_action_fail" text="无法执行动作: {CODE} (条件不满足)" />

@@ -26,7 +26,9 @@ namespace LivingWorldNpcs
         //     成员死亡由 AttackTriggerMissionLogic 钩子提前收场，防计数泄漏。
         //   ⚠️ 已知代价：被袭者的原版队友视 ta 为敌（队3↔队2 敌对所致）；犯罪/目击/守卫反应
         //     由 Brain 系统驱动，不走团队关系。
-        //   ⚠️ 切磋的"点到为止"规则（友方保护豁免/判负/认输）另行设计，本模型只提供 1v1 隔离。
+        //   🔴 切磋"点到为止"（2026-08-13 已实现）：duel 事件 → FightEnemyAction(IsDuel)
+        //     → StartFight(Peace:true) → StartDuel——双方 Invulnerable 底层无敌（native 拦死，
+        //     血条真实掉落、归零判负），EndDuel 回血复原。本模型只提供 1v1 隔离。
         private static Dictionary<int, Team> _factionTeams = new Dictionary<int, Team>();
 
         /// <summary>正在与玩家交战的 Agent 集合。用于判断玩家是否在战斗中。</summary>
@@ -308,12 +310,17 @@ namespace LivingWorldNpcs
             Mission mission = Mission.Current;
             if (mission == null) return;
 
-            var oldArbiter = AttackTriggerMissionLogic.Instance;
-            if (oldArbiter != null && Peace)
+            // 🔴 2026-08-13 切磋不死标记（Peace 参数驱动，跟随战斗发起方）：
+            // 谁参战谁不死——双方 SetMortalityState(Invulnerable)，native 层拦 Die
+            //（官方隐士 sp_hermit / 任务罪犯同款用法）：血条真实掉落、归零不死。
+            // 判负双方登记给仲裁者（AttackTriggerMissionLogic.OnAgentHit 判负需要知道
+            // "切磋双方是谁"）；"点到为止"的判负/回血/收场由仲裁者统一负责。
+            // 旧 InitDuel 虚拟血量方案已废弃禁止使用。
+            if (Peace)
             {
-                // 🔴【废弃 2026-08-08】Peace=true → InitDuel 虚拟血量仲裁已被否决（旧切磋方案，
-                // 保留仅参考）。新切磋方案禁止走此分支——SPAR/DUEL 的"点到为止"另行设计。
-                oldArbiter.InitDuel(agentA, agentB);
+                if (agentA.IsActive()) agentA.SetMortalityState(Agent.MortalityState.Invulnerable);
+                if (agentB.IsActive()) agentB.SetMortalityState(Agent.MortalityState.Invulnerable);
+                AttackTriggerMissionLogic.Instance?.RegisterDuel(agentA, agentB);
             }
 
             // 1. 缓存清理：如果场景更换，旧的Team引用失效，必须清空
@@ -359,7 +366,10 @@ namespace LivingWorldNpcs
                 Agent sparOpponent = (sparKeeper == agentA) ? agentB : agentA;
                 RecordAndMove(sparKeeper, playerSide);
                 RecordAndMove(sparOpponent, opponentSide);
-                SweepAlliesOutOfPlayerSide(mission, playerSide);
+                // 🔴 2026-08-13：sweep 必须排除切磋双方。旧逻辑只排除玩家本人（假设切磋必有玩家），
+                // NPC vs NPC 切磋时 sparKeeper 不是玩家 → 刚进队2 就被扫回 PlayerTeam（日志实锤
+                // team 3→1），队2 变空 → 队4 的对手找不到敌对目标，双方拔刀呆站谁也不打谁。
+                SweepAlliesOutOfPlayerSide(mission, playerSide, sparKeeper, sparOpponent);
                 SetupMutualHostility(playerSide, opponentSide);
             }
             else
@@ -440,14 +450,17 @@ namespace LivingWorldNpcs
 
         /// <summary>切磋开战时把队2上的其他友方移回 PlayerTeam（旁观化）——防友方扑上来围殴对手。
         /// 🔴 必须排除玩家本人：玩家刚被移入队2（切磋对手在对面的队4），sweep 会把玩家也旁观化，
-        ///    导致队2 变空、切磋打不起来（2026-08-09 实测踩坑）。</summary>
-        private static void SweepAlliesOutOfPlayerSide(Mission mission, Team playerSide)
+        ///    导致队2 变空、切磋打不起来（2026-08-09 实测踩坑）。
+        /// 🔴 2026-08-13 必须排除切磋双方：NPC vs NPC 切磋时 sparKeeper 不是玩家，
+        ///    旧逻辑把 sparKeeper 也扫回 PlayerTeam（日志实锤），队2 空 → 对手无目标可打。</summary>
+        private static void SweepAlliesOutOfPlayerSide(Mission mission, Team playerSide, Agent sparKeeper = null, Agent sparOpponent = null)
         {
             Team playerTeam = mission.PlayerTeam;
             if (playerTeam == null) return;
             foreach (var ally in mission.Agents)
             {
                 if (ally == null || !ally.IsActive() || ally == Agent.Main) continue; // 玩家本人永不旁观化
+                if (ally == sparKeeper || ally == sparOpponent) continue;              // 切磋双方永不旁观化
                 if (ally.Team != playerSide) continue;
                 if (ally.IsUsingGameObject) continue;
                 RecordAndMove(ally, playerTeam);
