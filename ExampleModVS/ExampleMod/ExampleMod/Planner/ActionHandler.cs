@@ -437,6 +437,12 @@ namespace LivingWorldNpcs
                 string name = hero.Name?.ToString() ?? "";
                 if (name.Equals(text, StringComparison.OrdinalIgnoreCase)) return true;
                 if (name.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                // 🔴 2026-08-13：去引号全名匹配——LLM 回包 action_target 常省略引号
+                //（"求知客阿速甘" vs 全名"“求知客”阿速甘"）：全名含引号字符，子串 IndexOf 失败
+                // → defender 解析兜底到玩家（实机：切磋目标变努勒丹，斯唐纳夫拔刀砍玩家）。
+                // ImTopicMatcher.GetMentionCandidates 2026-08-10 已修同款问题，此处补上。
+                string clean = name.Replace("“", "").Replace("”", "").Replace("\"", "");
+                if (clean.Length >= 2 && clean.IndexOf(text, StringComparison.OrdinalIgnoreCase) >= 0) return true;
                 string first = hero.FirstName?.ToString() ?? "";
                 return !string.IsNullOrEmpty(first) && first.Equals(text, StringComparison.OrdinalIgnoreCase);
             }

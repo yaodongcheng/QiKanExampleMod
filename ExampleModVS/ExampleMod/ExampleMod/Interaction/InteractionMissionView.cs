@@ -678,7 +678,20 @@ namespace LivingWorldNpcs
                 }
 
                 // 战斗意图优先（正面背后都显示）
-                if (intent == NpcIntentType.Fighting || intent == NpcIntentType.Surrendering)
+                // 🔴 2026-08-13：认输键必须目标与玩家当前队伍真正敌对才显示——切磋/旁观时
+                // 目标 intent=Fighting 但是在和别人打（玩家没参与），认输键毫无意义
+                //（实机：让两个随从互殴，两个都冒出认输键）。
+                // Team 空安全：Team.Invalid 单例 != null，IsEnemyOf 内部解引用 null mission 必 NRE。
+                // 用 Agent.Main.Team（玩家当前所在队伍）而非 Mission.PlayerTeam——侧容器模型下
+                // 玩家被移入队2，只有队2↔队3 敌对，Mission.PlayerTeam 还是旁观队不敌对。
+                bool hostileToPlayer = false;
+                if (currentAgent.Team != null && currentAgent.Team.IsValid)
+                {
+                    var playerTeam = Agent.Main?.Team;
+                    if (playerTeam != null && playerTeam.IsValid && currentAgent.Team != playerTeam)
+                        hostileToPlayer = currentAgent.Team.IsEnemyOf(playerTeam);
+                }
+                if (hostileToPlayer && (intent == NpcIntentType.Fighting || intent == NpcIntentType.Surrendering))
                 {
                     // 本地化：认输交互按钮（玩家认输）
                     AddInteractionRow(InteractionIds.PlayerSurrender, LWNTextHelper.ResolveText("LWN_ui_interact_surrender", "Surrender"));
