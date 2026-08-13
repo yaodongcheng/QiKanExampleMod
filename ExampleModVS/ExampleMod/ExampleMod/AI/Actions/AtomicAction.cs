@@ -947,6 +947,74 @@ namespace LivingWorldNpcs
         }
     }
 
+    /// <summary>
+    /// 挂原版持续跟随（2026-08-13 用户裁定）：目标=玩家时走原版 FollowAgentBehavior 三连，
+    /// Brain 队列清空/计划结束后 NPC 依然由原版跟随接管。瞬时完成（PrepareOpeningAction 模式）——
+    /// OnStart 挂载即完成，跟随生命周期归原版行为组，不由本动作收尾。
+    /// </summary>
+    public class VanillaFollowAction : IAtomicAction
+    {
+        /// <summary>机械动作（跟随是状态不是事件）：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        private readonly Agent _target;
+        public void RequestInterrupt() { }   // 瞬时动作：中断无意义（对齐 PrepareOpeningAction 先例）
+
+        public VanillaFollowAction(Agent target) { _target = target; }
+
+        public void OnStart(Agent agent)
+        {
+            // 防御：对话进行中挂载可能被对话系统干扰——跳过并留日志（2026-08-13）
+            if (agent == null || _target == null || !agent.IsActive() || !_target.IsActive())
+            {
+                DebugLogger.Log($"[VanillaFollow] 跳过：目标或执行者不活跃（{agent?.Name ?? "?"} → {_target?.Name ?? "?"}）");
+                return;
+            }
+            if (AlertForceConversationAction.ActiveConversationAgent == agent)
+            {
+                DebugLogger.Log($"[VanillaFollow] {agent.Name}(Idx={agent.Index}) 跳过：对话进行中");
+                return;
+            }
+            AgentControlHelper.StartVanillaFollow(agent, _target);
+        }
+
+        public void OnTick(Agent agent, float dt) { }
+
+        // 瞬间完成，绝不阻塞（对齐 PrepareOpeningAction 模式）
+        public bool IsFinished(Agent agent) => true;
+
+        // 跟随由原版行为接管，无需收尾
+        public void OnEnd(Agent agent) { }
+    }
+
+    /// <summary>
+    /// 解挂原版持续跟随（2026-08-13）：stop_following 步骤执行体——
+    /// StopVanillaFollow 移除 FollowAgentBehavior + 恢复回岗行为，瞬时完成。
+    /// </summary>
+    public class VanillaUnfollowAction : IAtomicAction
+    {
+        /// <summary>机械动作：不产生旁白。</summary>
+        public string GetNarration(Agent owner) => null;
+
+        public void RequestInterrupt() { }   // 瞬时动作：中断无意义（对齐 PrepareOpeningAction 先例）
+
+        public void OnStart(Agent agent)
+        {
+            if (agent == null || !agent.IsActive())
+            {
+                DebugLogger.Log($"[VanillaFollow-Stop] 跳过：执行者不活跃（{agent?.Name ?? "?"}）");
+                return;
+            }
+            AgentControlHelper.StopVanillaFollow(agent);
+        }
+
+        public void OnTick(Agent agent, float dt) { }
+
+        public bool IsFinished(Agent agent) => true;
+
+        public void OnEnd(Agent agent) { }
+    }
+
     // 3. 看向某人
     public class LookAtAction : IAtomicAction
     {

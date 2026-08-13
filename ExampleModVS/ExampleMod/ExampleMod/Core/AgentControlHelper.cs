@@ -362,6 +362,74 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 挂原版持续跟随（FollowAgentBehavior 三连，2026-08-13 用户裁定）：
+        /// 跟随目标=玩家时走原版行为接管——Brain 队列清空/计划结束后 NPC 依然跟随，
+        /// 解除靠 stop_following 调 StopVanillaFollow。三连挂在 DailyBehaviorGroup 内，
+        /// 组级 Suspend/Resume（Brain 接管）不摘行为，天然实现"插队做事、做完继续跟"。
+        /// 反编译参照：SandBox.dll ClanMemberRolesCampaignBehavior.FollowMainAgent。
+        /// 已挂则幂等改目标 + 重发 SetScriptedBehavior 断言标志。
+        /// </summary>
+        public static bool StartVanillaFollow(Agent follower, Agent target)
+        {
+            if (follower == null || target == null || !follower.IsActive() || !target.IsActive())
+                return false;
+            if (follower == Agent.Main)
+                return false; // 永不接管玩家（对齐 SuspendVanillaAI 纪律）
+
+            // 清残留脚本帧/速度钳/LookAgent/控制器——自研 FollowAgentAction.OnEnd 的
+            // MoveEndAndInteractPrepare 会留 SetMaximumSpeedLimit(0f) + DoNotRun|NoAttack 锁，
+            // 原版 FollowAgentBehavior 不主动清，不清理会把跟随者钉死。
+            ForceUnlockAgent(follower);
+
+            var nav = follower.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            if (nav == null) return false;
+            var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+            if (daily == null) return false;
+
+            if (daily.GetBehavior<FollowAgentBehavior>() == null)
+            {
+                daily.AddBehavior<FollowAgentBehavior>();
+            }
+            daily.SetScriptedBehavior<FollowAgentBehavior>();   // 幂等断言（防外部覆盖）
+            daily.GetBehavior<FollowAgentBehavior>().SetTargetAgent(target);
+
+            DebugLogger.Log($"[VanillaFollow] {follower.Name}(Idx={follower.Index}) → 目标 {target.Name}");
+            return true;
+        }
+
+        /// <summary>
+        /// 解挂原版持续跟随 + 恢复原版日常行为（2026-08-13 用户裁定：回岗闲逛）。
+        /// 对齐原版 AdjustTheBehaviorsOfTheAgent 的解除语义：RemoveBehavior 会把
+        /// ScriptedBehavior 自动置 null 并 ForceThink（反编译 AgentBehaviorGroup 验证），
+        /// 行为组回到自由竞争（GetAvailability）——恢复 Script/Walking 的 IsActive 后
+        /// NPC 自然回岗闲逛（Walking 权重最高），无需也不存在"DailyBehavior"类型。
+        /// 不碰 daily.IsActive：组级开关归 AgentBrain Suspend/Resume 管。
+        /// </summary>
+        public static bool StopVanillaFollow(Agent follower)
+        {
+            if (follower == null || !follower.IsActive())
+                return false;
+            if (follower == Agent.Main)
+                return false;
+
+            var nav = follower.GetComponent<CampaignAgentComponent>()?.AgentNavigator;
+            if (nav == null) return false;
+            var daily = nav.GetBehaviorGroup<DailyBehaviorGroup>();
+            if (daily == null) return false;
+
+            daily.RemoveBehavior<FollowAgentBehavior>();   // 未挂载时返回 false，安全；ScriptedBehavior 自动置 null
+
+            var script = daily.GetBehavior<ScriptBehavior>();
+            if (script != null) script.IsActive = true;
+            var walking = daily.GetBehavior<WalkingBehavior>();
+            if (walking == null) walking = daily.AddBehavior<WalkingBehavior>();
+            walking.IsActive = true;
+
+            DebugLogger.Log($"[VanillaFollow-Stop] {follower.Name}(Idx={follower.Index}) 解挂原版跟随，回岗");
+            return true;
+        }
+
         // ===================================================================
         public static async Task MovePrepare(Agent npcAgent)
         {

@@ -319,6 +319,9 @@ namespace LivingWorldNpcs
                 InteractedAgent = targetAgent;
                 ClearAllActions();
                 EnqueueAction(new LookAtAction(targetAgent, 0.3f));
+                // 🔴 目标=玩家但语义是"走到面前说话"，不可换 VanillaFollowAction（2026-08-13 用户裁定）：
+                // ① WaitForAgentToSettle 依赖 CurrentAction is StayAction 判定到位，换瞬时动作会破坏对话前走位；
+                // ② 对话结束 Resume 后原版跟随会接管 → NPC 每次被喊过来都永远跟随（错误语义）。
                 EnqueueAction(new FollowAgentAction(targetAgent, false, radius: 2.0f, angleOffset: 0f, stopDistance: 1.0f));
                 //EnqueueAction(new LookAtAction(targetAgent, 0.5f));
                 EnqueueAction(new StayAction(targetAgent));
@@ -329,7 +332,11 @@ namespace LivingWorldNpcs
                 SetNpcIntent(NpcIntentType.Following, targetAgent);
                 InteractedAgent = targetAgent;
                 ClearAllActions();
-                EnqueueAction(new FollowAgentAction(targetAgent, run: true,keepFollow:true));
+                // 🔴 2026-08-13 用户裁定：跟随目标=玩家 → 挂原版持续跟随（FollowAgentBehavior 三连），
+                // Brain 队列清空后依然跟随；解除靠 stop_following。目标非玩家 → 自研 keepFollow 跟随（防御）。
+                EnqueueAction(targetAgent == Agent.Main
+                    ? (IAtomicAction)new VanillaFollowAction(Agent.Main)
+                    : new FollowAgentAction(targetAgent, run: true, keepFollow: true));
 
             }
             // ── 密谋命令系统：计划执行（§5.4 执行通道）──
@@ -850,6 +857,8 @@ namespace LivingWorldNpcs
                 // 玩家面前 4m 劝（FollowAgentAction：keepFollow 保持站位 + 抑制瞬移；angleOffset=0 =
                 // 玩家朝向正前 = 摄像机视角内，玩家转头必看见；静止时自带 SetLookAgent 看着玩家）。
                 // 玩家继续攻击 → 警戒涨到 Alarmed → 执法参战；玩家收手 → CalmDown(Normal) 清队列回岗。
+                // 🔴 目标=玩家但语义是"面前 4m 站位劝阻"，不可换 VanillaFollowAction（2026-08-13 用户裁定）：
+                // 原版跟随是贴人走，不是固定距离正面站位。
                 if (EffectiveAction == null || EffectiveAction is StayAction)
                 {
                     EnqueueAction(new FollowAgentAction(Agent.Main, run: false, radius: 4f, angleOffset: 0f,
@@ -1638,6 +1647,9 @@ namespace LivingWorldNpcs
 
             // RegisterWitness 已在 CheckPhaseTransition 进入 Alarmed 时调用，证词已入 PendingWorldEvent
             // 统一走 DialogueInjector 管道：CrimeDialogueBuilder 构建脚本 → DialogueInjector 注入 → 原版 ConversationManager
+            // 🔴 目标=玩家但语义是"对峙走近"（随后 AlertForceConversationAction 强开对话），
+            // 不可换 VanillaFollowAction（2026-08-13 用户裁定）：对话结束 Resume 后原版跟随会接管，
+            // 对峙 NPC 会变成永久跟随。
             EnqueueAction(new FollowAgentAction(player, false, radius: 2f, angleOffset: 0f, stopDistance: 1.5f));
             EnqueueAction(new LookAtAction(player, 0.0f));
             EnqueueAction(new AlertForceConversationAction());
