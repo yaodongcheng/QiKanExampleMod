@@ -184,15 +184,32 @@ namespace LivingWorldNpcs
 
         /// <summary>🔴 2026-08-12（队伍成员在场认知，实机反馈）：玩家在附近频道喊话 = 在场的队伍成员**亲历**
         ///（真的听到了）→ 写他们的记忆（有限子集：队伍成员 Hero 且 IsPresentInMission；Role=channel_nearby，
-        /// 与 im_user/im_npc 隔离）。后续私聊/频道问起「主公刚才跟谁说话」能接住（实机：日志里问他不知道，
-        /// 因为频道消息本不进记忆——本方法补上「在场者亲历」这个缺口）。
+        /// 与 im_user/im_npc 隔离）。后续私聊/频道问起「主公刚才跟谁说话」能接住。
+        /// 🔴 2026-08-12 实机修复：原样写「喊道：@帝国重装骑兵#33我来自中国」LLM 推断不出点名关系——
+        /// 改为显式化目标（mention 非空 → 「对帝国重装骑兵#33喊道：我来自中国」，LLM 直接看出主公和谁说话）。
         /// 纪律：只写队伍成员（数量少）；模板 NPC 目标走 ForceRespond 的 TEMP 记忆（StartRespond 既有写入）；非队伍 NPC 不写。</summary>
-        private static void WritePresenceToPartyMembers(string text)
+        private static void WritePresenceToPartyMembers(string text, (Agent target, string body)? mention = null)
         {
             try
             {
                 if (Mission.Current == null || Agent.Main == null || string.IsNullOrWhiteSpace(text)) return;
                 string playerName = Hero.MainHero?.Name?.ToString() ?? "You";
+                // 记忆内容模板走 LWN key（铁律 13：LWN_nearby_shout_memory / LWN_nearby_shout_to_memory，{NAME}/{TARGET}/{TEXT} 变量）
+                string content;
+                if (mention != null && !string.IsNullOrWhiteSpace(mention.Value.body))
+                {
+                    // 点名喊话：目标显式化（LLM 直接看到"主公对谁说话"）
+                    content = LWNTextHelper.ResolveCompound("LWN_nearby_shout_to_memory", "{NAME} shouted to {TARGET}: {TEXT}",
+                        ("NAME", playerName),
+                        ("TARGET", AgentControlHelper.GetDisplayName(mention.Value.target)),
+                        ("TEXT", mention.Value.body));
+                }
+                else
+                {
+                    // 普通喊话记忆行（LWN_nearby_shout_memory：{NAME}/{TEXT} 变量）
+                    content = LWNTextHelper.ResolveCompound("LWN_nearby_shout_memory", "{NAME} shouted nearby: {TEXT}",
+                        ("NAME", playerName), ("TEXT", text));
+                }
                 foreach (var a in Mission.Current.Agents)
                 {
                     if (a == null || a == Agent.Main || !a.IsActive()) continue;
@@ -201,9 +218,6 @@ namespace LivingWorldNpcs
                     if (!FriendlinessHelper.IsPlayerPartyMember(hero)) continue;
                     if (!ImChatManager.IsPresentInMission(hero.StringId)) continue;
                     var memory = AllNpcMemoryManager.GetMemory(hero.StringId);
-                    // 记忆内容模板走 LWN key（铁律 13 同款纪律：LWN_nearby_shout_memory，{NAME}/{TEXT} 变量）
-                    string content = LWNTextHelper.ResolveCompound("LWN_nearby_shout_memory", "{NAME} shouted nearby: {TEXT}",
-                        ("NAME", playerName), ("TEXT", text));
                     memory?.AddHistory("channel_nearby", content, ImChatManager.PlayerId);
                 }
             }
@@ -222,10 +236,12 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 🔴 2026-08-12（模板 NPC 密信）：@提及解析 + 定向喊话 ─────────────────────────
 
-        /// <summary>@提及前缀正则：@名字#编号（编号后随空白或行尾；名字与 # 之间空白可选——
-        /// 兼容预填「@守卫 #12 」与手打「@守卫#12」两种写法；懒惰匹配支持多词名）。
-        /// 与预填前缀（@{Name} #{Index} ）与显示名（{Name} #{Index}）同构。</summary>
-        private static readonly Regex MentionPattern = new Regex(@"^@(.+?)#(\d+)(?:\s+|$)", RegexOptions.Compiled);
+        /// <summary>@提及前缀正则：@名字#编号（编号后跟**非数字**或行尾——兼容「@守卫 #12 正文」「@守卫#12 正文」
+        /// 「@守卫#12正文」三种写法；懒惰匹配支持多词名）。
+        /// 🔴 2026-08-12 实机修复：原 (?:\s+|$) 要求编号后必须空白——玩家手打「@帝国重装骑兵#33我来自中国」
+        /// （编号后直接正文）不匹配 → 降级普通喊话（目标收不到）。改 (?=\D|$) 前瞻：编号后任意非数字即正文。
+        /// 与预填前缀（@{Name} #{Index} ）与显示名（{Name}#{Index}）同构。</summary>
+        private static readonly Regex MentionPattern = new Regex(@"^@(.+?)#(\d+)(?=\D|$)", RegexOptions.Compiled);
 
         /// <summary>@提及前缀解析（🔴 2026-08-12 模板 NPC 密信）：@名字 #编号 → 定向目标模板 NPC。
         /// 命中返回 (target, prefix, body)；未命中返回 null（调用方降级普通喊话）。</summary>
@@ -334,7 +350,8 @@ namespace LivingWorldNpcs
                     return;
                 }
                 // 🔴 2026-08-12（队伍成员在场认知）：点名喊话同样是在场队伍成员的亲历 → 写记忆
-                WritePresenceToPartyMembers(text);
+                //（传 target/body：记忆行显式化「对XX喊道」，LLM 直接看出主公和谁说话）
+                WritePresenceToPartyMembers(text, (target, text));
                 // topic "nearby"：与附近会话既有约定一致（PersuadeSlot 会话 topic 即 "nearby"）
                 ReactiveAgent.ForceRespond(target, Agent.Main, text.Trim(), "nearby");
                 DebugLogger.Log($"[NearbyFeed] 定向喊话 → {target.Name} #{target.Index}: \"{text.Trim()}\"");

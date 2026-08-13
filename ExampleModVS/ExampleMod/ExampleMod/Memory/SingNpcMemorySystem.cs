@@ -716,7 +716,22 @@ namespace LivingWorldNpcs
                 }
 
 
-                string summaryPrompt = PromptBuilder.BuildPromptForSummary(this,messagesToSummarize);
+                // 🔴 2026-08-12（用户裁定）：channel_nearby 行（玩家附近喊话亲历）是瞬时低价值信息——
+                // 不参与总结（从总结 prompt 剔除），随滚动自然淘汰——只在对话历史短暂保留，不进长期记忆。
+                var toSummarize = messagesToSummarize.Where(m => m == null || m.Role != "channel_nearby").ToList();
+                if (toSummarize.Count == 0)
+                {
+                    // 待归档全是瞬时亲历行：无总结价值，直接移除（不调 LLM）
+                    lock (_lock)
+                    {
+                        if (RecentHistory.Count >= messagesToSummarize.Count)
+                            RecentHistory.RemoveRange(0, messagesToSummarize.Count);
+                    }
+                    DebugLogger.Log($"记忆维护：仅瞬时亲历行（channel_nearby），直接淘汰 {messagesToSummarize.Count} 条，不总结。");
+                    _isSummarizing = false;
+                    return;
+                }
+                string summaryPrompt = PromptBuilder.BuildPromptForSummary(this, toSummarize);
                 // 获取 JSON 字符串（静默参数：随从对话触发的总结失败不弹玩家红字，D4）
                 string jsonResponse = await LLMService.Instance.SummarizeAsync(summaryPrompt, showFailureAlert: !SuppressFailureAlerts);
                 string summaryContent;

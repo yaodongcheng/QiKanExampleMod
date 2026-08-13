@@ -4024,6 +4024,8 @@
     <string id="LWN_plan_step_memory" text="By my lord's order, {ACTION} {TARGET}, done." />
     <!-- 🔴 2026-08-12（队伍成员在场认知）：玩家附近喊话的记忆行模板（{NAME} 玩家名 / {TEXT} 喊话全文） -->
     <string id="LWN_nearby_shout_memory" text="{NAME} shouted nearby: {TEXT}" />
+    <!-- 🔴 2026-08-12（点名喊话记忆行）：@点名目标的记忆行模板（{TARGET} 目标统一显示名——显式化让 LLM 直接看出主公和谁说话） -->
+    <string id="LWN_nearby_shout_to_memory" text="{NAME} shouted to {TARGET}: {TEXT}" />
     <!-- 🔴 2026-08-12（@远距离守卫）：@目标距玩家超过可听半径的提示（{NAME} = 目标统一显示名） -->
     <string id="LWN_nearby_mention_too_far" text="{NAME} is too far away to hear you." />
     <string id="LWN_plan_action_move_to" text="moved to" />
