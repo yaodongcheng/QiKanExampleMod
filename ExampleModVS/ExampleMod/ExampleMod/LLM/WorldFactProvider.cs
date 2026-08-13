@@ -471,7 +471,8 @@ namespace LivingWorldNpcs
             catch { return ""; }
         }
 
-        /// <summary>主公相对本 NPC 的方位距离（以 NPC 朝向为基准——NPC 亲历视角，非玩家上帝视角）。</summary>
+        /// <summary>本 NPC 相对主公的方位距离（🔴 以主公视线方向为基准——NPC 转述零视角反转，
+        /// 玩家听到"我就在您左前方约 73 米"就是玩家该走的方向；以前 NPC 朝向为基准需反转易错）。</summary>
         private static string DescribePlayerRelative(Agent self)
         {
             try
@@ -480,17 +481,9 @@ namespace LivingWorldNpcs
                 Vec3 diff = player.Position - self.Position;
                 diff.z = 0f;
                 float dist = diff.Length;
-                if (dist < 3f) return "主公就在你跟前。";
-                Vec3 fwd = self.LookDirection;
-                fwd.z = 0f;
-                fwd.Normalize();
-                Vec3 right = new Vec3(-fwd.y, fwd.x, 0f);
-                float f = Vec3.DotProduct(diff, fwd) / dist;
-                float r = Vec3.DotProduct(diff, right) / dist;
-                string lat = r > 0.35f ? "右侧" : (r < -0.35f ? "左侧" : "");
-                string lon = f > 0.35f ? "前方" : (f < -0.35f ? "后方" : "");
-                string dir = (lat.Length == 0 && lon.Length == 0) ? "正对面" : lat + lon;
-                return $"主公就在你{dir}约 {MathF.Ceiling(dist)} 米处。";
+                if (dist < 3f) return $"你就在主公跟前（约 {MathF.Ceiling(dist)} 米）。";
+                string dir = DirectionDesc(player, self.Position);   // NPC 相对玩家的方位（玩家朝向为基准）
+                return $"你正在主公{dir}约 {MathF.Ceiling(dist)} 米处。";
             }
             catch { return ""; }
         }
