@@ -55,15 +55,20 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 空间裁决（§5.2，C# 确定性）：由 defender 的空间关系决定动作空间。
-        /// 复用既有轮子 ImChatManager.IsPresentInMission（Q3 已建）。
+        /// 空间裁决（§5.2，C# 确定性）：🔴 2026-08-13（用户裁定）——由**执行人 attacker 与目标 defender
+        /// 双方**是否在 Mission 内决定（不是玩家 Mission.Current）：双方在内 = InScene（场景动作）；
+        /// 双方在外 = Party（大地图）；一内一外 = Remote（跨场景远程语义——物理动作对"不在场景的目标"
+        /// 无法执行，由动作的 Spaces 位掩码天然降级，如场景内随从 A 找没进场景的随从 B → move_to 降级）。
         /// </summary>
-        public static ActionSpace ResolveSpace(Hero defender)
+        public static ActionSpace ResolveSpace(Hero attacker, Hero defender)
         {
-            if (Mission.Current == null) return ActionSpace.Party;   // 玩家在 Campaign：部队动作为主
-            if (defender != null && ImChatManager.IsPresentInMission(defender.StringId))
-                return ActionSpace.InScene;                          // 随从/在场 NPC：场景内可执行
-            return ActionSpace.ImRemote;                             // 不在场：远距语义
+            bool aIn = attacker != null && Mission.Current != null
+                && ImChatManager.IsPresentInMission(attacker.StringId);
+            bool dIn = defender != null && Mission.Current != null
+                && ImChatManager.IsPresentInMission(defender.StringId);
+            if (aIn && dIn) return ActionSpace.InScene;
+            if (!aIn && !dIn) return ActionSpace.Party;
+            return ActionSpace.Remote;
         }
 
         /// <summary>
@@ -71,7 +76,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public static string GetActionSpacePrompt(Hero attacker, Hero defender, Agent agent)
         {
-            var space = ResolveSpace(defender);
+            var space = ResolveSpace(attacker, defender);
             StringBuilder sb = new StringBuilder();
             // 标题/纪律段是增强（缺 key 返回空串不崩，铁律 1）
             string title = LWNTextHelper.ResolvePrompt("LWN_im_action_space_title");
@@ -156,7 +161,8 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-11：alreadyConfirmed=true（IM 卡片批准后的再执行）→ 直接跑 ExecuteCore
         /// （RequiresConfirm 动作的核心逻辑），不再弹原生确认窗（确认已在卡片上完成）。
         /// 🔴 2026-08-13：explicitTarget = 模板 NPC 目标（玩家选定后直达执行器；无 Hero 对象，
-        /// defender 恒 null）→ 空间按 InScene 覆盖（ResolveSpace(null) 会误判 ImRemote 堵死 InScene 动作）。
+        /// defender 恒 null）→ 空间按 InScene 覆盖（模板 NPC 目标必然在场景内；新空间模型下
+        /// ResolveSpace 恒 InScene/Party，覆盖与裁决结果一致，为语义明确保留）。
         /// </summary>
         public static void HandleAction(string actionCode, Hero attacker, Hero defender, Agent agent,
             string level = null, string targetText = null, string sayText = null, bool alreadyConfirmed = false,
@@ -171,7 +177,7 @@ namespace LivingWorldNpcs
                 return;
             }
             // 空间裁剪（§5.2）：动作空间不含当前空间 → 降级 NONE（LLM 硬选场景外动作，IsValid 兜底前再拦一层）
-            var space = explicitTarget != null ? ActionSpace.InScene : ResolveSpace(defender);
+            var space = explicitTarget != null ? ActionSpace.InScene : ResolveSpace(attacker, defender);
             if ((actionDef.Spaces & space) == 0)
             {
                 DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 不适用于空间 {space} → 降级 NONE");
@@ -307,7 +313,11 @@ namespace LivingWorldNpcs
                 defender = null;
             }
             // agent = attacker 的物理载体
+            // 🔴 2026-08-13（诊断）：agent 解析结果落日志——IsValid(agent != null) 拦截时无法区分
+            // 是空间还是载体缺失，此行与 PostActionProposal 拦截日志配合一次定位。
             Agent agent = FindAgentByHeroId(attackerHeroId);
+            DebugLogger.Log($"[ActionHandler] {actionCode} 目标={targetText ?? "null"} heroHit={heroHit} " +
+                $"defender={defender?.StringId ?? "null"} agent={agent?.Character?.StringId ?? "null"}");
 
             // 🔴 2026-08-11（IM 闲聊动作 → 提议卡片）：高风险动作（RequiresConfirm）不弹原生确认窗，
             // 改为在当前会话投递 Proposal 卡片（同意/拒绝）——与密令/NPC 主动提议同一套确认 UI。
@@ -330,7 +340,7 @@ namespace LivingWorldNpcs
         /// 投递前预检（空间裁剪 + IsValid）：当前不可用则不发卡（避免"同意后无法执行"的死卡），
         /// 与 HandleAction 的降级 NONE 同语义，玩家在频道里只看到台词、看不到无效动作。
         /// 🔴 2026-08-13：templateTargetName = 模板 NPC 目标名（无 Hero，defender 恒 null）——
-        /// 空间按 InScene 覆盖（ResolveSpace(null) 误判 ImRemote）、文案走 _npc 变体（TARGET=模板名）、
+        /// 空间按 InScene 覆盖（模板 NPC 目标必然在场景内；新空间模型下与 ResolveSpace 结果一致）、文案走 _npc 变体（TARGET=模板名）、
         /// candidateIndex 拷入消息供批准后重扫锁定（执行期再解析）。
         /// internal：ImChatView.HandleTargetConfirm（宾语确认按钮选定后投递常规同意/拒绝卡）调用。
         /// </summary>
@@ -342,9 +352,17 @@ namespace LivingWorldNpcs
             {
                 if (conv == null || attacker == null) return;
                 // 模板 NPC 目标 = 场景内候选（InScene 是硬前提）；Hero 目标走既有 ResolveSpace
-                var space = templateTargetName != null ? ActionSpace.InScene : ResolveSpace(defender);
+                var space = templateTargetName != null ? ActionSpace.InScene : ResolveSpace(attacker, defender);
                 if ((actionDef.Spaces & space) == 0 || !actionDef.IsValid(attacker, defender, agent))
                 {
+                    // 🔴 2026-08-13（诊断）：拦截原因逐项落日志——空间判定（attacker/defender 双方 Mission 状态
+                    // vs 动作 Spaces）或 IsValid。实机：玩家让随从击晕刚对话完的 NPC，日志只见「空间/条件不满足」
+                    // 无法区分是哪一项、目标在不在场景。
+                    bool aIn = attacker != null && Mission.Current != null && ImChatManager.IsPresentInMission(attacker.StringId);
+                    bool dIn = defender != null && Mission.Current != null && ImChatManager.IsPresentInMission(defender.StringId);
+                    DebugLogger.Log($"[ActionProposal] 动作 {actionCode} 拦截: space={space} spaces={actionDef.Spaces} " +
+                        $"attackerIn={aIn}({attacker?.StringId ?? "null"}) defenderIn={dIn}({defender?.StringId ?? "null"}) " +
+                        $"isValid={actionDef.IsValid(attacker, defender, agent)} mission={Mission.Current != null}");
                     DebugLogger.Log($"[ActionProposal] 动作 {actionCode} 当前不可用（空间/条件不满足）→ 不发卡");
                     return;
                 }
@@ -447,6 +465,17 @@ namespace LivingWorldNpcs
                         if (partner != null && NameMatchesHero(partner, t)) { hit = true; return partner; }
                     }
                     // 4) 世界 Hero（名字/FirstName 匹配，排除说话者自己）
+                    // 🔴 2026-08-13（场景优先，实机修复）：骑砍2 NPC 名 = 「地名+名字」组合（卡诺洛斯的
+                    // 那弥斯）——多个村庄都有叫"那弥斯"的乡绅，AllAliveHeroes 遍历可能先撞上别的村庄的
+                    // 同名 Hero（实机：匹配到 CharacterObject_1772（不在场景）而非当前村庄的 2186 →
+                    // defenderIn=False → Remote → knockout 拦截「不行动」）。两轮：先匹配当前场景内的
+                    //（LLM/玩家提到的人大概率在场），再全局兜底。
+                    foreach (var h in Hero.AllAliveHeroes)
+                    {
+                        if (h == attacker) continue;
+                        if (Mission.Current != null && ImChatManager.IsPresentInMission(h.StringId)
+                            && NameMatchesHero(h, t)) { hit = true; return h; }
+                    }
                     foreach (var h in Hero.AllAliveHeroes)
                     {
                         if (h == attacker) continue;

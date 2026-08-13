@@ -85,7 +85,8 @@ namespace LivingWorldNpcs
             // ── 魅力砍价 ──
             int charm = Hero.MainHero.GetSkillValue(DefaultSkills.Charm);
             float charmChance = MathF.Clamp(0.30f + charm * 0.003f, 0.05f, 0.90f);
-            bool haggled = MBRandom.RandomFloat < charmChance;
+            // 🔴 2026-08-13（d20 风格全局统一）：掷点 ≥ 目标阈值成功（目标 = 1 − 成功率），概率不变
+            bool haggled = MBRandom.RandomFloat >= (1f - charmChance);
             float charmDiscount = haggled ? MathF.Clamp(0.25f + charm / 400f, 0.25f, 0.75f) : 0f;
             int finalCost = (int)(afterHonor * (1f - charmDiscount));
             if (finalCost < 0) finalCost = 0;

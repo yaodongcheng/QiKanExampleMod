@@ -176,9 +176,12 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>实际掷骰。</summary>
+        /// <summary>🔴 2026-08-13（d20 风格全局统一，用户裁定）：掷点 ≥ 目标阈值 → 成功。
+        /// 目标 = 1 − chance（成功率 85% → 目标 15%），掷点越高越好（高分成功直觉），
+        /// 成功概率不变。所有对话意图检定唯一入口——改这里即全局统一。</summary>
         public static bool Roll(float chance)
         {
-            return MBRandom.RandomFloat < chance;
+            return MBRandom.RandomFloat >= (1f - chance);
         }
 
         /// <summary>

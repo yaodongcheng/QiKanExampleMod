@@ -48,6 +48,7 @@ KNOWN_PLACEHOLDERS = {
     "ConfrontClosingLine",
     "RestitutionCost", "RestitutionCostOnSpot", "RestitutionCostHaggle",
     "RestitutionBreakdown", "AlertFineCost", "BountyAmount",
+    "THRESHOLD",
     "CharmReprieveUsed", "FailCount", "FailCountRemaining",
     "NPC", "WORLD", "TERM_LORD", "GIVER", "DEPOSIT", "DAYS", "PAYER",
     "INSTIGATOR", "VICTIM", "COUNT", "REWARD",

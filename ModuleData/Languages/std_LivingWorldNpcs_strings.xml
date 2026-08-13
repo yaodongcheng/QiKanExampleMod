@@ -684,13 +684,13 @@
     <string id="LWN_ui_steal_msg_animal_fail" text="Failed to steal the animal" />
     <string id="LWN_ui_steal_msg_nothing_to_steal" text="There's nothing on them worth stealing." />
     <string id="LWN_ui_steal_msg_hold_breath" text="You hold your breath and reach out quietly..." />
-    <string id="LWN_ui_steal_msg_knockout_success" text="You knocked {NAME} out from behind! *{ROLL} ≤ {CHANCE}*" />
+    <string id="LWN_ui_steal_msg_knockout_success" text="You knocked {NAME} out from behind! *{ROLL} ≥ {THRESHOLD}*" />
     <string id="LWN_ui_steal_msg_target_dodged" text="{NAME} is sharp-eyed and dodged your strike." />
-    <string id="LWN_ui_steal_msg_knockout_fail_quick" text="The back attack missed! Your *vigor {VIGOR}, control {CONTROL}* was no match for {NAME}'s *vigor {TVIGOR}, control {TCONTROL}* — only {CHANCE} chance of success" />
-    <string id="LWN_ui_steal_msg_target_retaliates" text="{NAME} sensed your intent! *{ROLL} &gt; {CHANCE}*" />
+    <string id="LWN_ui_steal_msg_knockout_fail_quick" text="The back attack missed! Your *vigor {VIGOR}, control {CONTROL}* was no match for {NAME}'s *vigor {TVIGOR}, control {TCONTROL}* — target difficulty only {THRESHOLD}" />
+    <string id="LWN_ui_steal_msg_target_retaliates" text="{NAME} sensed your intent! *{ROLL} &lt; {THRESHOLD}*" />
     <string id="LWN_ui_steal_msg_knockout_fail" text="Knockout failed" />
     <string id="LWN_npc_knockout_success" text="{NAME} knocked {TARGET} out from behind!" />
-    <string id="LWN_npc_knockout_fail_retaliate" text="{NAME} failed to knock {TARGET} out — {TARGET} sensed it and strikes back! ({ROLL} &gt; {CHANCE})" />
+    <string id="LWN_npc_knockout_fail_retaliate" text="{NAME} failed to knock {TARGET} out — {TARGET} sensed it and strikes back! ({ROLL} &lt; {THRESHOLD})" />
     <string id="LWN_ui_steal_msg_already_looted" text="{NAME} has already been looted." />
     <string id="LWN_ui_steal_msg_party_items" text="Seems {NAME} has {COUNT} more items in their party, not on their person" />
     <string id="LWN_ui_steal_msg_nothing_on_target" text="{NAME} has nothing on them." />
@@ -2687,7 +2687,7 @@
     
     <string id="LWN_dialogue_ellipsis" text="..." />
     
-    <string id="LWN_dialogue_check_fail" text="{SKILL} check failed: Your {SKILL} ({MYLEVEL}) vs {NPCNAME} ({NPLEVEL}), a gap of {GAP} points — only {CHANCE} chance of success" />
+    <string id="LWN_dialogue_check_fail" text="{SKILL} check failed: Your {SKILL} ({MYLEVEL}) vs {NPCNAME} ({NPLEVEL}), a gap of {GAP} points — target difficulty only {THRESHOLD}" />
     
     <string id="LWN_dialogue_placeholder_ellipsis" text="..." />
     

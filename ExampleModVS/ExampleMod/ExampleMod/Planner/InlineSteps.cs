@@ -565,8 +565,9 @@ namespace LivingWorldNpcs
                     catch { }
                     if (dist > 2.5f)
                     {
-                        // 还没到位 → 绕到目标背后
-                        AgentControlHelper.ScriptedMoveToPoint(_agent, target.Position, false);
+                        // 还没到位 → 绕到目标背后（🔴 2026-08-13：通用接近语义——>5m 跑、≤5m 走，
+                        // 近身收势；原实现全程走速，长距离接近拖时间且出戏）
+                        AgentControlHelper.ApproachAgent(_agent, target);
                     }
                     else if (behind)
                     {
@@ -598,6 +599,7 @@ namespace LivingWorldNpcs
                         }
 
                         // 成功率公式：随从 Roguery vs 目标警觉（§4）
+                        // 🔴 2026-08-13（d20 风格全局统一）：掷点 ≥ 目标阈值成功（目标 = 1 − 成功率），概率不变
                         float chance = 0.5f;
                         try
                         {
@@ -609,7 +611,7 @@ namespace LivingWorldNpcs
                             }
                         }
                         catch { }
-                        bool success = _rng.NextDouble() < chance;
+                        bool success = _rng.NextDouble() >= (1f - chance);
 
                         if (_variantItem)
                         {
@@ -885,10 +887,13 @@ namespace LivingWorldNpcs
             {
                 case KPhase.Approach:
                     // 接近目标（绕背盲区）
+                    // 🔴 2026-08-13（通用接近语义）：ApproachAgent = 距离 >5m 跑、≤5m 走——
+                    // 原实现全程走速，50 米目标撞 30s 默认超时（日志实锤「拖太久没成」）；
+                    // 近身 5m 内放慢脚步（偷袭收势）。跑到位后转 Strike 由 ForcePlayAction 接管表现。
                     float dist = _agent.Position.Distance(target.Position);
                     if (dist > 1.8f)
                     {
-                        AgentControlHelper.ScriptedMoveToPoint(_agent, target.Position, false);
+                        AgentControlHelper.ApproachAgent(_agent, target);
                     }
                     else
                     {
@@ -934,6 +939,11 @@ namespace LivingWorldNpcs
                 AgentControlHelper.FaceToActor(_agent, target);
 
                 // 成功率：随从 Vigor/Control vs 目标（模板 NPC 默认 10）
+                // 🔴 2026-08-13（负值修复）：属性差可把公式压到负值（实机：阿速甘 Vigor+Control=6 vs
+                // 模板默认 20 → 成功率 -20%，掷点 94% > -20% 必败还显示负数）。钳制下限 5%——背后偷袭
+                // 总有得手机会，对齐玩家路径 ComputeKnockoutChance 的 0.05 保底；上限 0.85 保持（随从上限）。
+                // 🔴 2026-08-13（d20 风格，用户裁定）：掷点 ≥ 目标阈值 → 成功（目标 = 1 − 成功率，
+                // 成功率 45% → 目标 55%）；概率不变。
                 int selfVigor = 10, selfControl = 10;
                 int tVigor = 10, tControl = 10;
                 var selfHero = (_agent.Character as CharacterObject)?.HeroObject;
@@ -948,9 +958,10 @@ namespace LivingWorldNpcs
                     tVigor = tHero.GetAttributeValue(DefaultCharacterAttributes.Vigor);
                     tControl = tHero.GetAttributeValue(DefaultCharacterAttributes.Control);
                 }
-                float successRate = MathF.Min(0.85f, 0.25f + (selfVigor + selfControl - tVigor - tControl) * 0.03f);
+                float successRate = MathF.Max(0.05f, MathF.Min(0.85f, 0.25f + (selfVigor + selfControl - tVigor - tControl) * 0.03f));
                 double roll = _rng.NextDouble();
-                bool success = roll < successRate;
+                float threshold = 1f - successRate;
+                bool success = roll >= threshold;
 
                 // 出手即是袭击，记账（复用玩家击晕同款）
                 AgentAIController.Instance?.RecordAssaultVictim(target);
@@ -977,15 +988,14 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[PlanExecutor] {_agent.Name} 击晕失败，{target.Name} 反击");
                     // 🔴 2026-08-13（玩家反馈）：失败 = 目标察觉反击 → 红字播报（随后计划 abort 还有
                     // 「打起来了，先撤！」黄字，两者并存：先见失败原因，再见撤离决定）
-                    // 🔴 2026-08-13（roll 透明）：带 ROLL/CHANCE 参数——玩家要看到败在哪
-                    //（掷点 71% > 成功率 45%），与玩家自己击晕的失败播报（LWN_ui_steal_msg_target_retaliates）
-                    // 同款信息量
+                    // 🔴 2026-08-13（roll 透明）：带 ROLL/THRESHOLD 参数——玩家要看到败在哪
+                    //（掷点 94% < 目标 55%），与玩家自己击晕的失败播报同款信息量（d20：掷点 ≥ 目标成功）
                     InformationManager.DisplayMessage(
                         // 本地化：随从击晕失败播报（目标察觉反击 + roll 原因）
                         new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_knockout_fail_retaliate",
-                            "{NAME} failed to knock {TARGET} out — {TARGET} sensed it and strikes back! ({ROLL} > {CHANCE})",
+                            "{NAME} failed to knock {TARGET} out — {TARGET} sensed it and strikes back! ({ROLL} < {THRESHOLD})",
                             ("NAME", _agent.Name?.ToString() ?? ""), ("TARGET", target.Name?.ToString() ?? ""),
-                            ("ROLL", $"{roll * 100:F0}%"), ("CHANCE", $"{successRate:P0}")), Colors.Red));
+                            ("ROLL", $"{roll * 100:F0}%"), ("THRESHOLD", $"{threshold:P0}")), Colors.Red));
                 }
 
                 // 第三方目击广播（受害者排除）

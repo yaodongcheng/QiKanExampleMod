@@ -231,6 +231,14 @@ namespace LivingWorldNpcs
                     else if (info.Occupation != null && info.Occupation.ToLowerInvariant().Contains(lower))
                         match = true;
                 }
+                // ⑤ 显示名子串匹配（🔴 2026-08-13 实机修复）：LLM 回包常用简称（"那弥斯" ⊂ "卡诺洛斯的
+                // 那弥斯"）——卡片阶段 defender 解析（NameMatchesHero）是子串匹配，执行期目标解析必须
+                // 同口径：原来快照只精确匹配 → 卡片发出去、执行期解析失败 → 步骤 2ms 瞬死（实机日志
+                // 44.510 开始 → 44.512 超时）。多匹配取最近（下方 bestDist 已有）。中文无空格，按
+                // 显示名包含判断；角色/职业/名字匹配在前保持优先级。
+                if (!match && info.DisplayName != null
+                    && info.DisplayName.ToLowerInvariant().Contains(lower))
+                    match = true;
                 if (!match) continue;
                 float d = info.Agent.Position.DistanceSquared(playerPos);
                 if (d < bestDist) { bestDist = d; best = info; }

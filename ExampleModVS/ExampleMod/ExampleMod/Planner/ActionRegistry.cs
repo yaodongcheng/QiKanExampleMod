@@ -16,13 +16,21 @@ namespace LivingWorldNpcs
     /// 动作空间不由「IM 还是当面对话」决定，而由 attacker 与 defender 的空间关系决定（C# 确定性裁决，
     /// 不交 LLM）。同一句 IM 消息，对方在不在场、玩家在不在大地图，LLM 能选的动作完全不同。
     /// 2026-08-13 重构：自 InteractionController.cs 随动作系统团聚迁入本文件（ActionSpace = 动作域概念）。
+    /// 🔴 2026-08-13（用户裁定：空间 = 执行人与目标双方在不在 Mission 内）：
+    ///   InScene = 双方都在 Mission 内（场景动作：走位/物理/当面仪式——目标在不在跟前由动作
+    ///             自身语义/IsValid 判断，如 move_to 走过去即可，不进空间位掩码）
+    ///   Remote  = 一人在 Mission 内、一人在 Mission 外（跨场景远程语义：关系/声望/记忆/传话——
+    ///             物理动作对"不在场景的目标"无法执行，天然降级）
+    ///   Party   = 双方都在 Mission 外（Campaign 大地图：部队动作）
+    /// 裁决输入是执行人 attacker 与目标 defender 双方，不是玩家（Mission.Current 只代表玩家在不在场景，
+    /// 执行人/目标可能没进场景——如玩家在场景里 IM 一个没进场景的随从）。
     /// </summary>
     [Flags]
     public enum ActionSpace
     {
-        InScene = 1,    // 玩家在 Mission + 对方同场景：物理动作 + 当面仪式最丰富
-        ImRemote = 2,   // 玩家在 Mission + 对方不在场：远距语义（关系/声望/记忆类）
-        Party = 4,      // 玩家在 Campaign 大地图：部队动作为主
+        InScene = 1,    // 执行人 + 目标 都在 Mission 内：场景动作
+        Remote = 2,     // 一人在 Mission 内、一人在 Mission 外：远程语义（关系/声望/记忆/传话）
+        Party = 4,      // 执行人 + 目标 都在 Mission 外（Campaign 大地图）：部队动作为主
     }
 
     /// <summary>
@@ -56,7 +64,7 @@ namespace LivingWorldNpcs
             public bool InPlanVocab;                     // 进计划词表（ActionsInPromptOrder 派生源）
             public bool InChatSpace;                     // 进闲聊动作空间（GetActionSpacePrompt）
             public int ChatOrder;                        // 闲聊 prompt 展示序（1..27；0 = 不进闲聊空间）
-            public ActionSpace Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party;   // 空间位掩码（§5.2）
+            public ActionSpace Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party;   // 空间位掩码（§5.2；默认全空间，仅计划动作不参与闲聊裁剪）
             public bool NeedsCooldown;                   // 频率纪律：关系/声望/party 类 60s 冷却
             public bool RequiresConfirm;                 // 高风险物理动作：IM 路径拦截为提议卡片
             public string InquiryTitleKey;               // 确认弹窗/卡片标题 key（LWN_ui_interact_inquiry_<key>）
@@ -88,10 +96,13 @@ namespace LivingWorldNpcs
             // ── 交集 14 行（计划序 1..20，闲聊 ChatOrder 钉死）──
 
             // 1. move_to（原 MOVE_TO；闲聊 ChatOrder=23）
+            // 🔴 2026-08-13（空间修复 + 模型重构）：Mission 内一律 InScene 可执行——move_to 核心语义
+            // 就是「走到目标身边」，远处目标走过去即可（实机日志：LLM 回 move_to 去找 67 米外的那弥斯
+            // → 旧 ImRemote 空间拦截「不适用于空间 ImRemote → 降级 NONE」→ NPC 口头答应但不动）。
             new ActionSpec
             {
                 Code = "move_to",
-                Description = "走到对方身边/某个地方（仅当面）。",
+                Description = "走到对方身边/某个地方（当面或远处目标均可）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 23,
                 Spaces = ActionSpace.InScene,
                 Aliases = new[] { "move" },
@@ -112,10 +123,11 @@ namespace LivingWorldNpcs
             },
 
             // 2. follow（原 FOLLOW；闲聊 ChatOrder=19；无限保持）
+            // 🔴 2026-08-13（空间修复 + 模型重构）：与 move_to 同——目标不在跟前时先走过去再保持跟随
             new ActionSpec
             {
                 Code = "follow",
-                Description = "跟到对方身边（保持跟随，直到对方离开；仅当面）。",
+                Description = "跟到对方身边（保持跟随，直到对方离开；当面或远处目标均可）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 19,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "follow", LabelFallback = "follow",
@@ -488,7 +500,7 @@ namespace LivingWorldNpcs
                 Code = "relation_up",
                 Description = "好感上升：你对对方印象变好（档位 small=+3 / medium=+5 / large=+10）。",
                 InChatSpace = true, ChatOrder = 2,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "relation_up", LabelFallback = "raise opinion of",
                 IsValid = (a, d, ag) => a != null && d != null,
@@ -517,7 +529,7 @@ namespace LivingWorldNpcs
                 Code = "relation_down",
                 Description = "好感下降：你对对方印象变差（档位 small=-3 / medium=-5 / large=-10）。",
                 InChatSpace = true, ChatOrder = 3,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "relation_down", LabelFallback = "lower opinion of",
                 IsValid = (a, d, ag) => a != null && d != null,
@@ -541,7 +553,7 @@ namespace LivingWorldNpcs
                 Code = "increase_relation",
                 Description = "好感度小幅上升（兼容旧词表）。",
                 InChatSpace = true, ChatOrder = 4,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "relation_up", LabelFallback = "raise opinion of",
                 IsValid = (a, d, ag) => a != null && d != null,
@@ -561,7 +573,7 @@ namespace LivingWorldNpcs
                 Code = "decrease_relation",
                 Description = "好感度小幅下降（兼容旧词表）。",
                 InChatSpace = true, ChatOrder = 5,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "relation_down", LabelFallback = "lower opinion of",
                 IsValid = (a, d, ag) => a != null && d != null,
@@ -581,7 +593,7 @@ namespace LivingWorldNpcs
                 Code = "praise",
                 Description = "夸赞对方：对方在当地声望小升（当众夸赞/背后说好话）。",
                 InChatSpace = true, ChatOrder = 6,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "praise", LabelFallback = "praise",
                 IsValid = (a, d, ag) => d != null,
@@ -613,7 +625,7 @@ namespace LivingWorldNpcs
                 Code = "spread_rumor",
                 Description = "散布关于对方的谣言：对方当地声望小降（背后说坏话）。",
                 InChatSpace = true, ChatOrder = 7,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "spread_rumor", LabelFallback = "spread rumors about",
                 IsValid = (a, d, ag) => d != null,
@@ -655,7 +667,7 @@ namespace LivingWorldNpcs
                 Code = "threaten_verbal",
                 Description = "出言威胁对方（对方会记住这次威胁；当面威胁对方可能当场翻脸）。",
                 InChatSpace = true, ChatOrder = 8,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "threaten_verbal", LabelFallback = "threaten",
                 IsValid = (a, d, ag) => d != null,
@@ -692,7 +704,7 @@ namespace LivingWorldNpcs
                 Code = "promise",
                 Description = "向对方作出承诺（对方会记住这次承诺）。",
                 InChatSpace = true, ChatOrder = 9,
-                Spaces = ActionSpace.InScene | ActionSpace.ImRemote | ActionSpace.Party,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "promise", LabelFallback = "make a promise to",
                 IsValid = (a, d, ag) => d != null,
