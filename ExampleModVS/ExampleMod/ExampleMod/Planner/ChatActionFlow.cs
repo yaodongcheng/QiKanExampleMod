@@ -37,7 +37,11 @@ namespace LivingWorldNpcs
         /// <param name="targetText">target 名字文本（agent 名/语义 tag zone；C# 解析，铁律 2）</param>
         /// <param name="level">档位：EMOTE=动画 key（白名单 9 动画）；GIVE_GOLD=金额档位；其余忽略</param>
         /// <param name="sayText">SAY_TO 台词（v1 = IM 回复正文复述，一句话两用）</param>
-        public static bool TryExecute(Agent actor, string actionCode, string targetText, string level, string sayText)
+        /// <param name="explicitTarget">🔴 2026-08-13：模板 NPC 目标精确锁定——同名多候选已由玩家选定后传入；
+        /// 非空时 step.Target="target" + roleAgents["target"]=该 agent → 执行器 TryResolveAgent("target")
+        /// 命中 RoleAgents（RuntimeWorldState.cs:421），不靠名字模糊匹配（多同名会取错）。</param>
+        public static bool TryExecute(Agent actor, string actionCode, string targetText, string level, string sayText,
+            Agent explicitTarget = null)
         {
             if (actor == null || !actor.IsActive() || string.IsNullOrEmpty(actionCode)) return false;
             if (Mission.Current == null) return false;
@@ -49,8 +53,13 @@ namespace LivingWorldNpcs
                     Id = "chat_1",
                     Action = actionCode,
                 };
-                // 目标文本（可选；不传 = 执行器缺省语义）
-                if (!string.IsNullOrEmpty(targetText))
+                // 目标文本（可选；不传 = 执行器缺省语义）；显式目标走角色名 "target"
+                if (explicitTarget != null && explicitTarget.IsActive())
+                {
+                    step.Target = "target";
+                    targetText = null;
+                }
+                else if (!string.IsNullOrEmpty(targetText))
                     step.Target = targetText;
                 // 🔴 2026-08-13：move_to/follow 给宽松超时——步骤校验的默认补时仅 30s（PlanGrammar
                 // 补 timeout_s 30s），追移动中的玩家/长距离步行经常超时 → "拖太久了，先撤" 中止
@@ -67,7 +76,10 @@ namespace LivingWorldNpcs
                     Summary = "chat action",
                     Steps = new List<PlanStep> { step },
                 };
-                var executor = PlanExecutor.Create(actor, plan, "CUSTOM");
+                var executor = PlanExecutor.Create(actor, plan, "CUSTOM",
+                    explicitTarget != null
+                        ? new Dictionary<string, Agent>(StringComparer.OrdinalIgnoreCase) { ["target"] = explicitTarget }
+                        : null);
                 if (executor == null)
                 {
                     DebugLogger.Log($"[ChatActionFlow] 单步计划构建失败: {actionCode}（目标: {targetText ?? "-"}）→ 降级 NONE");

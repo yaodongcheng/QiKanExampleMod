@@ -226,9 +226,10 @@ namespace LivingWorldNpcs
 
         /// <summary>他人气泡显示：普通文本消息（非自己 且 非系统 且 非卡片消息——卡片消息走卡片气泡分支）。
         /// 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：生成中占位/计划卡片/讲解消息（链消息）/
-        /// NPC 提议/闲聊动作卡片/needPlan 建议消息 统一归「卡片气泡」分支（ShowCardBubble）渲染，不再走普通气泡。</summary>
+        /// NPC 提议/闲聊动作卡片/needPlan 建议消息 统一归「卡片气泡」分支（ShowCardBubble）渲染，不再走普通气泡。
+        /// 🔴 2026-08-13：宾语确认消息（模板 NPC 目标）同归卡片气泡分支（按钮行挂底部）。</summary>
         [DataSourceProperty]
-        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage && !IsProposal && !IsPlanSuggest;
+        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage && !IsProposal && !IsPlanSuggest && !IsTargetConfirm;
 
         /// <summary>自己气泡显示：是自己 且 非系统/计划卡片/生成中占位/提议（旧格式卡片 SenderHeroId="player"
         /// 走 IsLegacyPlanCard 旧居中卡片控件兜底，不能走气泡分支）。</summary>
@@ -250,12 +251,18 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsPlanSuggest => _msg != null && _msg.IsPlanSuggest;
 
+        /// <summary>🔴 2026-08-13（模板 NPC 目标确认）：宾语确认消息（底部候选按钮行，用户裁定无新卡片）——
+        /// 卡片气泡分支渲染。</summary>
+        [DataSourceProperty]
+        public bool IsTargetConfirm => _msg != null && _msg.IsTargetConfirm;
+
         /// <summary>🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 决策卡片统一）：卡片气泡分支——
         /// NPC 自述形态（名字行 + 正文 + 通用按钮行）：计划卡片 / 生成中占位 / 讲解消息（链消息）/
         /// NPC 提议 / 闲聊动作卡片 / needPlan 建议消息 六类共用。
-        /// 旧格式（SenderHeroId=player）IsSelf → 走 IsLegacyPlanCard 旧居中卡片控件兜底。</summary>
+        /// 旧格式（SenderHeroId=player）IsSelf → 走 IsLegacyPlanCard 旧居中卡片控件兜底。
+        /// 🔴 2026-08-13：宾语确认消息同归此分支。</summary>
         [DataSourceProperty]
-        public bool ShowCardBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage || IsProposal || IsPlanSuggest);
+        public bool ShowCardBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage || IsProposal || IsPlanSuggest || IsTargetConfirm);
 
         /// <summary>🔴 2026-08-12：旧格式计划卡片/生成中占位（SenderHeroId=player）——旧居中卡片控件渲染兜底
         ///（旧存档兼容；新消息一律走卡片气泡分支）。</summary>
@@ -302,6 +309,7 @@ namespace LivingWorldNpcs
             if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); return; }
             if (anchor.IsProposal) { RebuildProposalButtons(anchor); return; }
             if (anchor.IsPlanSuggest) { RebuildSuggestionButtons(anchor); return; }
+            if (anchor.IsTargetConfirm) { RebuildTargetConfirmButtons(anchor); return; }
         }
 
         /// <summary>计划卡片按钮（与原硬编码按钮同语义：待批 = 自审/重拟?/同意/拒绝；执行中 = 中止）。</summary>
@@ -337,6 +345,22 @@ namespace LivingWorldNpcs
             if (card.IsSuggestionResolved) return;
             CardButtons.Add(new ImButtonVM(MakePlanText, () => ImChatView.HandleSuggestion(card, makePlan: true)));
             CardButtons.Add(new ImButtonVM(SkipText, () => ImChatView.HandleSuggestion(card, makePlan: false)));
+        }
+
+        /// <summary>🔴 2026-08-13（模板 NPC 目标确认，用户裁定：无新卡片）：宾语确认消息底部按钮行——
+        /// 每候选一个按钮（"① 右侧约10米"），点选 → ImChatView.HandleTargetConfirm → 投递常规同意/拒绝卡。
+        /// 已选定（TargetConfirmIndex 非空）→ 无按钮（常规卡接管）。</summary>
+        private void RebuildTargetConfirmButtons(ImMessage card)
+        {
+            if (card.IsTargetConfirmResolved) return;
+            var labels = card.TargetConfirmLabels;
+            if (labels == null) return;
+            for (int i = 0; i < labels.Count; i++)
+            {
+                int idx = i;
+                string label = labels[i];
+                CardButtons.Add(new ImButtonVM(label, () => ImChatView.HandleTargetConfirm(card, idx)));
+            }
         }
 
         // 建议按钮文案（🔴 2026-08-12，本地化）

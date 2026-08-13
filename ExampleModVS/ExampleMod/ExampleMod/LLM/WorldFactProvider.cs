@@ -380,8 +380,9 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-13（实机验证）：right 必须用引擎官方 Side 轴（frame.rotation.s，+X 为右）——
         /// 手算 (-fwd.y, fwd.x) 在引擎左手系（Side=+X/Forward=+Y/Up=+Z，Vec3.Side 常量）下是**左向量**，
         /// 实测 prompt 报"左前方"而 NPC 实际从玩家右前方跑来，左右整体翻转。
-        /// 🔴 调试日志：本函数只被问坐标路径调用，每次打印几何数据供回查。</summary>
-        private static string DirectionDesc(Agent player, Vec3 targetPos)
+        /// 🔴 调试日志：本函数只被问坐标路径调用，每次打印几何数据供回查。
+        /// internal：ActionHandler 模板 NPC 候选方位标签复用（选择卡按钮「① 右侧约10米」）。</summary>
+        internal static string DirectionDesc(Agent player, Vec3 targetPos)
         {
             try
             {

@@ -855,6 +855,12 @@
     <string id="LWN_ui_interact_inquiry_hint" text="提示" />
     <string id="LWN_ui_interact_inquiry_duel_msg" text="{NAME} 想与你切磋一场，你准备好了吗？" />
     <string id="LWN_ui_interact_inquiry_duel_npc_msg" text="{NAME} 想与 {TARGET} 切磋一场，点到即止" />
+    <string id="LWN_ui_interact_inquiry_knockout_msg" text="{NAME} 想击晕你" />
+    <string id="LWN_ui_interact_inquiry_knockout_npc_msg" text="{NAME} 想击晕 {TARGET}" />
+    <string id="LWN_ui_interact_inquiry_steal_msg" text="{NAME} 想偷你的钱" />
+    <string id="LWN_ui_interact_inquiry_steal_npc_msg" text="{NAME} 想偷 {TARGET} 的钱" />
+    <string id="LWN_ui_interact_target_select_msg" text="那边站着 {COUNT} 个{NAME}，您指的是哪个？" />
+    <string id="LWN_im_target_not_found" text="主公，那边没找到{NAME}。" />
     <string id="LWN_ui_interact_msg_marry_accept" text="{NAME} 接受了你的求婚！" />
     <string id="LWN_ui_interact_msg_join_clan" text="{NAME} 加入了你的家族。" />
     <string id="LWN_ui_interact_msg_action_fail" text="无法执行动作: {CODE} (条件不满足)" />

@@ -70,7 +70,9 @@ namespace LivingWorldNpcs
             public bool ExecutorImplemented = true;      // 计划侧执行器已实现（shadow/negotiate/duel=false → 步骤失败）
             public Func<Hero, Hero, Agent, bool> IsValid;      // 前置条件：(attacker, defender, agent)
             public Action<Hero, Hero, Agent, string, string, string> Execute;       // 闲聊入口点火 / hero/party 行为实现
-            public Action<Hero, Hero, Agent, string, string, string> ExecuteCore;   // RequiresConfirm 动作卡片批准后的核心执行
+            // 🔴 2026-08-13：7 参（尾加 Agent explicitTarget）——模板 NPC 目标（无 Hero）由玩家选定后
+            // 直达执行器（RoleAgents["target"]），不靠名字模糊匹配。旧调用点（当面对话弹窗）传 null。
+            public Action<Hero, Hero, Agent, string, string, string, Agent> ExecuteCore;   // RequiresConfirm 动作卡片批准后的核心执行
             public Action<PlanStep, string, string> FillParams;    // 单步 Plan 参数填充（ChatActionFlow，C# 确定）
             public Func<string, string> AnnounceParam;            // 决策播报参数（AnnounceDecision）
         }
@@ -158,11 +160,12 @@ namespace LivingWorldNpcs
                 // 不走单步 Plan——战斗是持续行为，由 Brain 管理生命周期，执行器不该介入。
                 // ⚠️ AIEvent 事件名 "order_attack" 是 Brain 层协议（AgentBrain.cs:387 白名单），
                 // 不等于本行动作码，此处只是桥接注释，不注册。
-                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
                 {
-                    Agent target = (defender != null && defender != Hero.MainHero)
-                        ? ActionHandler.FindAgentByHeroId(defender.StringId)
-                        : Agent.Main;
+                    // 🔴 2026-08-13：explicitTarget = 模板 NPC 目标（玩家选定后直达，不走 Hero 解析）
+                    Agent target = explicitTarget;
+                    if (target == null && defender != null && defender != Hero.MainHero)
+                        target = ActionHandler.FindAgentByHeroId(defender.StringId);
                     if (target == null) target = Agent.Main;   // 兜底（InScene 空间前提 = defender 在场）
                     if (agent != null && target != null && agent.IsActive() && target.IsActive())
                         AgentAIController.Instance?.SendEventToAgent(agent, "order_attack", target);
@@ -192,10 +195,14 @@ namespace LivingWorldNpcs
                 LabelKey = "knockout", LabelFallback = "knock out",
                 IsValid = (npc, player, agent) => agent != null,
                 // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）
-                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
                 {
-                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
-                    ChatActionFlow.TryExecute(agent, "knockout", targetName, null, null);
+                    // 🔴 2026-08-13：目标文本优先（模板 NPC 名/玩家选定候选），缺省回退 defender 名——
+                    // 修复 LLM action_target=帝国新兵 但 defender 兜底成玩家 → 执行打玩家的丢失（实机 16:49）。
+                    string targetName = explicitTarget != null ? "target"
+                        : (!string.IsNullOrWhiteSpace(t) ? t
+                            : (defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "")));
+                    ChatActionFlow.TryExecute(agent, "knockout", targetName, null, null, explicitTarget);
                 },
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
@@ -328,10 +335,13 @@ namespace LivingWorldNpcs
                 IsValid = (npc, player, agent) => agent != null,
                 FillParams = (step, level, sayText) => step.Variant = "pickpocket",   // 人变体（扒窃 defender；result 路由既有）
                 // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）
-                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
                 {
-                    string targetName = defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "");
-                    ChatActionFlow.TryExecute(agent, "steal_attempt", targetName, null, null);
+                    // 🔴 2026-08-13：与 knockout 同款——目标文本优先（模板 NPC 名/玩家选定候选），缺省回退 defender 名
+                    string targetName = explicitTarget != null ? "target"
+                        : (!string.IsNullOrWhiteSpace(t) ? t
+                            : (defender != null ? defender.Name.ToString() : (agent != null ? agent.Name.ToString() : "")));
+                    ChatActionFlow.TryExecute(agent, "steal_attempt", targetName, null, null, explicitTarget);
                 },
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
@@ -427,11 +437,12 @@ namespace LivingWorldNpcs
                 // 🔴 2026-08-13：发 "duel" 事件（与 order_attack 区分）→ AgentBrain 切磋分支
                 // → FightEnemyAction(IsDuel) → StartFight(Peace:true) → StartDuel（Invulnerable
                 // 底层无敌，点到为止）。旧实现发 order_attack 走真打链（无无敌，会打死人）。
-                ExecuteCore = (attacker, defender, agent, l, t, s) =>
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
                 {
-                    Agent target = (defender != null && defender != Hero.MainHero)
-                        ? ActionHandler.FindAgentByHeroId(defender.StringId)
-                        : Agent.Main;
+                    // 🔴 2026-08-13：explicitTarget = 模板 NPC 目标（玩家选定后直达，不走 Hero 解析）
+                    Agent target = explicitTarget;
+                    if (target == null && defender != null && defender != Hero.MainHero)
+                        target = ActionHandler.FindAgentByHeroId(defender.StringId);
                     if (target == null) target = Agent.Main;
                     if (agent != null && target != null && agent.IsActive() && target.IsActive())
                         AgentAIController.Instance?.SendEventToAgent(agent, "duel", target);
