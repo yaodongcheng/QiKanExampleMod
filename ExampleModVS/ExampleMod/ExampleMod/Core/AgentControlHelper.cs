@@ -184,6 +184,18 @@ namespace LivingWorldNpcs
             ScriptedMoveToPoint(agent, targetAgent.Position, isRun);
         }
 
+        /// <summary>
+        /// 🔴 2026-08-13（用户裁定：通用接近语义）：接近目标——距离 &gt; walkRadius 跑、≤ walkRadius 走。
+        /// 近身放慢脚步（偷袭/搭话接近的通用观感：长距离小跑赶路，到位前收势），击晕/偷窃等接近型
+        /// 动作统一走本方法，禁止各自硬编码走/跑（实机踩坑：全程走速 → 50 米目标撞 30s 超时中止）。
+        /// </summary>
+        public static void ApproachAgent(Agent agent, Agent target, float walkRadius = 5f)
+        {
+            if (agent == null || target == null || !agent.IsActive() || !target.IsActive()) return;
+            float dist = agent.Position.Distance(target.Position);
+            ScriptedMoveToPoint(agent, target.Position, dist > walkRadius);
+        }
+
         private static string GetAmmoIdForWeaponClass(TaleWorlds.Core.WeaponClass weaponClass)
         {
             switch (weaponClass)

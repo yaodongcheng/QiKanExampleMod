@@ -1822,9 +1822,12 @@ namespace LivingWorldNpcs
             bool isChild = monsterId?.Contains("child") == true;
 
             // ── 击晕成功率判定：玩家 Vigor+Control vs 目标 Vigor+Control ──
+            // 🔴 2026-08-13（d20 风格，用户裁定）：掷点 ≥ 目标阈值 → 成功（高分成功直觉）。
+            // 目标 = 1 − 成功率（成功率 45% → 目标 55%，掷出 ≥ 55% 成功）；概率不变。
             var (knockSuccessRate, _) = ComputeKnockoutChance(target);
             float knockRoll = MBRandom.RandomFloat;
-            bool knockSuccess = !isChild && knockRoll <= knockSuccessRate;
+            float knockThreshold = 1f - knockSuccessRate;
+            bool knockSuccess = !isChild && knockRoll >= knockThreshold;
             DebugLogger.Log($"[Knockout] {targetName}: isChild={isChild}, successRate={knockSuccessRate:F2}, roll={knockRoll:F2}, success={knockSuccess}");
 
             string attackAnim = "act_1h_bash";
@@ -1882,8 +1885,8 @@ namespace LivingWorldNpcs
                 {
 
                     InformationManager.DisplayMessage(
-                        // 本地化：击晕成功消息
-                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_success", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("CHANCE", $"{knockSuccessRate:P0}")), Colors.Green));
+                        // 本地化：击晕成功消息（d20：掷点 ≥ 目标）
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_success", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("THRESHOLD", $"{knockThreshold:P0}")), Colors.Green));
 
                     DebugLogger.Log($"[Knockout] {Agent.Main.Name} knocked out {targetName} (anim: {attackAnim})");
                 }
@@ -1903,11 +1906,11 @@ namespace LivingWorldNpcs
                     int pControl = Hero.MainHero.GetAttributeValue(DefaultCharacterAttributes.Control);
                     var (tVigor, tControl) = GetAgentStats(target);
                     MBInformationManager.AddQuickInformation(
-                        // 本地化：背后偷袭失败快速提示（属性对比）
-                        new TextObject(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_fail_quick", ("VIGOR", pVigor.ToString()), ("CONTROL", pControl.ToString()), ("NAME", targetName), ("TVIGOR", tVigor.ToString()), ("TCONTROL", tControl.ToString()), ("CHANCE", $"{knockSuccessRate:P0}"))));
+                        // 本地化：背后偷袭失败快速提示（属性对比；d20：目标难度 = 1 − 成功率）
+                        new TextObject(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_knockout_fail_quick", ("VIGOR", pVigor.ToString()), ("CONTROL", pControl.ToString()), ("NAME", targetName), ("TVIGOR", tVigor.ToString()), ("TCONTROL", tControl.ToString()), ("THRESHOLD", $"{knockThreshold:P0}"))));
                     InformationManager.DisplayMessage(
-                        // 本地化：目标察觉反击消息
-                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_target_retaliates", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("CHANCE", $"{knockSuccessRate:P0}")), Colors.Red));
+                        // 本地化：目标察觉反击消息（d20：掷点 < 目标 → 失败）
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_target_retaliates", ("NAME", targetName), ("ROLL", $"{knockRoll * 100:F0}%"), ("THRESHOLD", $"{knockThreshold:P0}")), Colors.Red));
 
                     // 受害者直接进战斗（sight check 拦不住直接事件）
                     AgentAIController.Instance?.SendEventToAgent(target, "event_agent_damaged", Agent.Main, target);

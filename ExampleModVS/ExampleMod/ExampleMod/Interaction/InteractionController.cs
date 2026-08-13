@@ -526,9 +526,9 @@ namespace LivingWorldNpcs
             if (skillCheckOption != null)
             {
 
-                // A2. 核心机制：C# 掷骰子
+                // A2. 核心机制：C# 掷骰子（🔴 2026-08-13 d20 风格：掷点 ≥ 目标阈值成功——目标 = 1 − 成功率）
                 float roll = MBRandom.RandomFloat;
-                bool isSuccess = roll < skillCheckOption.SuccessChance;
+                bool isSuccess = roll >= (1f - skillCheckOption.SuccessChance);
                 lock (_memory) { _memory.AddHistory("user", $"(尝试检定: {skillCheckOption.Text}) 结果: {(isSuccess?"成功":"失败")}"); }
                 // A3. 奖励经验值
                 if (isSuccess && Hero.MainHero != null && skillCheckOption.RelatedSkill != null)

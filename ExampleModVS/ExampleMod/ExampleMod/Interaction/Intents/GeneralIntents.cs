@@ -165,7 +165,8 @@ namespace LivingWorldNpcs
                 float charmBonus = (Hero.MainHero.GetSkillValue(DefaultSkills.Charm) / 300f) * 0.3f;
                 float rogueryBonus = (Hero.MainHero.GetSkillValue(DefaultSkills.Roguery) / 300f) * 0.2f;
                 float finalChance = baseChance + charmBonus + rogueryBonus;
-                bool success = MBRandom.RandomFloat < finalChance;
+                // 🔴 2026-08-13（d20 风格全局统一）：掷点 ≥ 目标阈值成功（目标 = 1 − 成功率），概率不变
+                bool success = MBRandom.RandomFloat >= (1f - finalChance);
 
                 if (success)
                 {

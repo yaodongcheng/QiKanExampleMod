@@ -937,7 +937,10 @@ namespace LivingWorldNpcs
                             }
                             // 原 BRING withinMove 特例（2026-08-12）已删：目标=玩家的 BRING 走
                             // 原版跟随，贴身距离天然满足"被请者距玩家 < 3m"目标圈。
-                            cursor.SubAction = new FollowAgentAction(target, false, stopDistance: within, keepFollow: false);
+                            // 🔴 2026-08-13（走改跑）：原 false（DoNotRun 走速）——找人目标几十米外时
+                            // 走速撞步骤 timeout（实机：71 米目标 + k1 timeout 30s → 超时中止「拖太久没成」）。
+                            // move_to = 赶路语义，跑过去（到位后 stopDistance 内自停）。
+                            cursor.SubAction = new FollowAgentAction(target, true, stopDistance: within, keepFollow: false);
                             return true;
                         }
                         if (!ResolveStepTarget(step, cursor, out Vec3 pos, out Vec2 dir)) return false;

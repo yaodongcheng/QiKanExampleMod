@@ -511,15 +511,16 @@ namespace LivingWorldNpcs
                                           // 对方
                                           ?? LWNTextHelper.ResolveText("LWN_dialogue_name_other", "the other person");
                             float gap = npcLevel - myLevel;
-                            // 检定失败提示：技能、双方等级差、成功率
+                            // 检定失败提示：技能、双方等级差、目标难度（🔴 2026-08-13 d20 风格：
+                            // 目标难度 = 1 − 成功率——成功率 45% → 目标难度 55%）
                             string msg = LWNTextHelper.ResolveCompound("LWN_dialogue_check_fail",
-                                "{SKILL} check failed: your {SKILL} ({MYLEVEL}) vs {NPCNAME} ({NPLEVEL}), gap {GAP} points, success rate only {CHANCE}",
+                                "{SKILL} check failed: your {SKILL} ({MYLEVEL}) vs {NPCNAME} ({NPLEVEL}), gap {GAP} points, target difficulty only {THRESHOLD}",
                                 ("SKILL", skill.Name.ToString()),
                                 ("MYLEVEL", myLevel.ToString("F0")),
                                 ("NPCNAME", npcName),
                                 ("NPLEVEL", npcLevel.ToString("F0")),
                                 ("GAP", gap.ToString("F0")),
-                                ("CHANCE", roll.Chance.ToString("P0")));
+                                ("THRESHOLD", (1f - roll.Chance).ToString("P0")));
                             MBInformationManager.AddQuickInformation(new TextObject(msg));
                         }
                         catch { }

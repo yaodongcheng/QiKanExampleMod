@@ -1100,7 +1100,8 @@ namespace LivingWorldNpcs
         private void TryBribeRaiders(int actualCost, int baseCost, float charmSkill, MapEvent mapEvent)
         {
             float charmSuccessChance = 0.3f + (charmSkill / 300f) * 0.4f;
-            bool charmSuccess = MBRandom.RandomFloat < charmSuccessChance;
+            // 🔴 2026-08-13（d20 风格全局统一）：掷点 ≥ 目标阈值成功（目标 = 1 − 成功率），概率不变
+            bool charmSuccess = MBRandom.RandomFloat >= (1f - charmSuccessChance);
             int finalCost = charmSuccess ? actualCost : baseCost;
 
             if (Hero.MainHero.Gold < finalCost)
@@ -2181,9 +2182,10 @@ namespace LivingWorldNpcs
                 () =>
                 {
                     // Charm 检定
+                    // 🔴 2026-08-13（d20 风格全局统一）：掷点 ≥ 目标阈值成功（目标 = 1 − 成功率），概率不变
                     float charmSkill = Hero.MainHero.GetSkillValue(DefaultSkills.Charm);
                     float chance = 0.3f + charmSkill / 300f * 0.4f;
-                    if (MBRandom.RandomFloat < chance)
+                    if (MBRandom.RandomFloat >= (1f - chance))
                     {
                         int halfDeposit = _data.DepositAmount / 2;
                         AgentControlHelper.TransferGold(Hero.MainHero, QuestGiver, halfDeposit);
