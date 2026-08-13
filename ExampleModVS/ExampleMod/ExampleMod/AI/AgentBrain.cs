@@ -949,6 +949,12 @@ namespace LivingWorldNpcs
                 // NPC 自己决定认输（残血触发）
                 RecordNarration($"我向{Agent.Main?.Name?.ToString() ?? "对手"}认输了");
                 SetNpcIntent(NpcIntentType.Surrendering, Agent.Main);
+                // 🔴 2026-08-13（投降平权）：认输 = 立即停战收刀——原来只喊话 + 改意图标签，
+                // FightEnemyAction 继续执行：NPC 一边喊"我投降"一边继续砍人（出戏）。
+                // 与玩家投降路径对称：ClearAllActions → FightEnemyAction.OnEnd（EndFight + 收刀）
+                // → StayAction 原地待命，等玩家处置（AcceptSurrender 对话 / 走开 / 再攻击则反击）。
+                ClearAllActions();
+                EnqueueAction(new StayAction(Agent.Main));
             }
 
             if (aiEvent.EventType == "event_player_surrendered")
