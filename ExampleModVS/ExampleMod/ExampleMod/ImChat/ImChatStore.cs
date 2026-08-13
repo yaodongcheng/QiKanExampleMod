@@ -54,6 +54,10 @@ namespace LivingWorldNpcs
         public static void AppendGroupMessage(string channelId, ImMessage msg)
         {
             if (msg == null) return;
+            // 🔴 2026-08-13（在场标记失效根因）：频道归属以参数为准统一写入——原 ImChatManager
+            // 玩家发言（:271）/ NPC 回复投递（:510）两处漏设 ConvId → DisplaySenderName 的
+            // ConvId=="party" 判断恒 false，队伍频道（在场/他处）标记不显示。写入点统一由 Store 兜底。
+            msg.ConvId = channelId;
             // 🔴 玩家视角日志（2026-08-11 用户裁定）：全部 IM 消息统一落日志——一行 = 玩家面板看到的一条。
             // 排查/复盘时按时间顺序重建玩家视角（[IM-Store] 前缀；Content 空回退 PlanSummary；换行转义保一行一条）。
             string text = string.IsNullOrWhiteSpace(msg.Content) ? (msg.PlanSummary ?? "") : msg.Content;

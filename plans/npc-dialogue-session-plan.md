@@ -357,7 +357,7 @@ public static ActionSpace ResolveSpace(Hero defender)
 | 需求 | 落点 |
 |---|---|
 | NPC 对话文本逐句进附近频道历史 | `NearbyFeed._messages` 追加（复用现有消息结构，玩家 IM 面板可回看） |
-| 玩家喊话 = 刺激源 | `NearbyFeed.BroadcastPlayerCall` 已走 `HandleDialogue` 统一入口 → 改为"发起会话"（M1） |
+| 玩家喊话 = 刺激源 | 🔴 **2026-08-13 用户裁定（回退 M1）**：~~改为"发起会话"（M1）~~ —— 普通喊话 = 一次性自然搭话（`NearbyFeed.BroadcastPlayerCall` 走 `HandleDialogue` → spoken_to → ReactiveAgent respond/ignore/refuse + 旁观者插话），**不再无条件进入说服会话**；说服只属于计划模式（plan step `persuade: true` → InlineSteps） |
 | 对话后的群聊议论 | 会话终结 → `ImEventBroadcaster.BroadcastPlayerEvent`（话题+结果，参与度记忆 + 30% 接话，沿用闸门） |
 | 玩家可插嘴/旁观 | 玩家在会话距离内 → 其喊话 = 插嘴刺激（进入会话历史） |
 | **私聊 = CampaignAdapter 会话**（M3） | 玩家私聊劝英雄做某事 → 议题 + agree 演化 → 兑现 = PlanCard 下发/拒绝消息（§5.4.1） |
