@@ -938,16 +938,18 @@ namespace LivingWorldNpcs
             {
                 AgentControlHelper.FaceToActor(_agent, target);
 
-                // 成功率：随从 Vigor/Control vs 目标（模板 NPC 默认 10）
-                // 🔴 2026-08-13（负值修复）：属性差可把公式压到负值（实机：阿速甘 Vigor+Control=6 vs
-                // 模板默认 20 → 成功率 -20%，掷点 94% > -20% 必败还显示负数）。钳制下限 5%——背后偷袭
-                // 总有得手机会，对齐玩家路径 ComputeKnockoutChance 的 0.05 保底；上限 0.85 保持（随从上限）。
-                // 🔴 2026-08-13（d20 风格，用户裁定）：掷点 ≥ 目标阈值 → 成功（目标 = 1 − 成功率，
-                // 成功率 45% → 目标 55%）；概率不变。
+                // 成功率：随从 Vigor/Control vs 目标
+                // 🔴 2026-08-13（公式重做，实机修复）：旧公式 0.25+(selfSum−tSum)×0.03 对模板 NPC 恒劣——
+                // 模板默认硬编码 10+10=20，而 Hero 属性每项上限 10（合计≤20）→ 随从对模板 NPC 成功率
+                // ≤25%，低属性直接钳到 5% 保底（实机：偷袭帝国农民「目标 95%」连败两次）。
+                // 对齐玩家路径 ComputeKnockoutChance：① 模板 NPC 按 Level 均分估算属性
+                //（(3+Level/3)/2，与玩家路径 GetAgentStats 同口径——农民 ≈4+4、女农民更低）；
+                // ② ratio 式 0.5×(selfSum/tSum)——属性劣势不致命，平民被偷袭合理偏高。
                 int selfVigor = 10, selfControl = 10;
                 int tVigor = 10, tControl = 10;
                 var selfHero = (_agent.Character as CharacterObject)?.HeroObject;
                 var tHero = (target.Character as CharacterObject)?.HeroObject;
+                var tChar = target.Character as CharacterObject;
                 if (selfHero != null)
                 {
                     selfVigor = selfHero.GetAttributeValue(DefaultCharacterAttributes.Vigor);
@@ -958,7 +960,18 @@ namespace LivingWorldNpcs
                     tVigor = tHero.GetAttributeValue(DefaultCharacterAttributes.Vigor);
                     tControl = tHero.GetAttributeValue(DefaultCharacterAttributes.Control);
                 }
-                float successRate = MathF.Max(0.05f, MathF.Min(0.85f, 0.25f + (selfVigor + selfControl - tVigor - tControl) * 0.03f));
+                else if (tChar != null)
+                {
+                    // 模板 NPC 无 Hero → 按 Level 均分估算（玩家路径同口径）
+                    int half = (3 + tChar.Level / 3) / 2;
+                    tVigor = half;
+                    tControl = half;
+                }
+                int selfSum = selfVigor + selfControl;
+                int tSum = tVigor + tControl;
+                float successRate = tSum > 0
+                    ? MathF.Max(0.05f, MathF.Min(0.85f, 0.5f * (selfSum / (float)tSum)))
+                    : 0.85f;
                 double roll = _rng.NextDouble();
                 float threshold = 1f - successRate;
                 bool success = roll >= threshold;
