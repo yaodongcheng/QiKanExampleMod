@@ -42,6 +42,9 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-12（执行期说话 → 计划调整）：主线程捕获的执行上下文快照（仅主回复者注入，
             // 且需 StringId == 执行者；跟随者/往返/事件接话默认 null）
             public ImCommandFlow.ImExecutionContext ExecutionCtx;
+            // 🔴 2026-08-13（场景认知注入）：主线程构建的处境段快照（在哪 + 主公方位）——
+            // 引擎对象（Mission/Agent/Settlement）只读主线程，生成线程直接用字符串
+            public string SceneAwareness;
         }
 
         private static readonly object _lock = new object();
@@ -136,6 +139,8 @@ namespace LivingWorldNpcs
             bool suppressNeedPlan = false, ImCommandFlow.ImExecutionContext ctx = null)
         {
             if (string.IsNullOrEmpty(npcHeroId)) return;
+            // 🔴 2026-08-13（场景认知注入）：主线程构建处境段快照（引擎对象只读主线程）
+            string sceneAwareness = WorldFactProvider.BuildSceneAwareness(npcHeroId);
             lock (_lock)
             {
                 if (_pending.TryGetValue(npcHeroId, out var existing))
@@ -144,6 +149,7 @@ namespace LivingWorldNpcs
                     existing.Conv = conv;
                     existing.SuppressNeedPlan = suppressNeedPlan;
                     existing.ExecutionCtx = ctx;
+                    existing.SceneAwareness = sceneAwareness;
                     return;
                 }
                 _pending[npcHeroId] = new PendingReply
@@ -156,6 +162,7 @@ namespace LivingWorldNpcs
                     FollowUpHeroName = followUpHeroName,
                     SuppressNeedPlan = suppressNeedPlan,
                     ExecutionCtx = ctx,
+                    SceneAwareness = sceneAwareness,
                 };
             }
         }
@@ -356,7 +363,7 @@ namespace LivingWorldNpcs
                         bool isCampaign = Mission.Current == null;
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
                             memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction, actionSpace,
-                            executionContext: p.ExecutionCtx, isCampaign: isCampaign);
+                            executionContext: p.ExecutionCtx, isCampaign: isCampaign, sceneAwareness: p.SceneAwareness);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）

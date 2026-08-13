@@ -5,6 +5,7 @@ using System.Text;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -59,7 +60,10 @@ namespace LivingWorldNpcs
             new FactTopic
             {
                 Id = "location", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_location"), NeedsPartyMember = true, // lwn-ignore: B
-                Keywords = new[] { "在哪", "位置", "何处", "何方", "哪里", "身在哪", "where", "location", "position" },
+                Keywords = new[] { "在哪", "位置", "何处", "何方", "哪里", "身在哪",
+                    // 🔴 2026-08-13 实锤补词：玩家问"波罗斯城离这多远"不命中 → 无位置注入 → NPC 答"四五日脚程"
+                    "距离", "多远", "远近", "路程", "脚程", "离这",
+                    "where", "location", "position", "how far", "distance", "far" },
                 Query = QueryLocationFact,
             },
             new FactTopic
@@ -430,6 +434,65 @@ namespace LivingWorldNpcs
                 return best;
             }
             catch { return null; }
+        }
+
+        /// <summary>🔴 2026-08-13（场景认知注入）：回复者当前在本场景 → 处境段
+        /// （"你此刻在 波罗斯（镇中心）。主公就在你左前方约 4 米处。"）。
+        /// 根治 IM 闲聊无场景认知（实锤：药僧在玩家 4 米外答"波罗斯城距您四五日脚程"）。
+        /// 在场即亲历（叙事铁律）；不在场返回空串（零注入）。
+        /// ⚠️ 主线程调用（引擎对象 Mission/Agent/Settlement 只读主线程）——ImReplyService.ScheduleReply 构建快照。</summary>
+        public static string BuildSceneAwareness(string heroId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(heroId) || Mission.Current == null || Agent.Main == null) return "";
+                Hero hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == heroId);
+                if (hero?.CharacterObject == null) return "";
+                Agent self = null;
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsActive() || a == Agent.Main) continue;
+                    if (a.Character == hero.CharacterObject) { self = a; break; }
+                }
+                if (self == null) return "";
+
+                var sb = new StringBuilder();
+                // 地点：定居点 + 子场景（Location.Name 引擎本地化）
+                string place = Settlement.CurrentSettlement?.Name?.ToString();
+                string locName = CampaignMission.Current?.Location?.Name?.ToString();
+                if (!string.IsNullOrEmpty(locName))
+                    place = string.IsNullOrEmpty(place) ? locName : $"{place}（{locName}）";
+                sb.AppendLine("【此刻处境】" + (string.IsNullOrEmpty(place) ? "你和主公同处一场景。" : $"你此刻在 {place}。"));
+                // 主公相对本 NPC 的方位（以 NPC 朝向为基准，水平投影）
+                string rel = DescribePlayerRelative(self);
+                if (!string.IsNullOrEmpty(rel)) sb.AppendLine(rel);
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>主公相对本 NPC 的方位距离（以 NPC 朝向为基准——NPC 亲历视角，非玩家上帝视角）。</summary>
+        private static string DescribePlayerRelative(Agent self)
+        {
+            try
+            {
+                var player = Agent.Main;
+                Vec3 diff = player.Position - self.Position;
+                diff.z = 0f;
+                float dist = diff.Length;
+                if (dist < 3f) return "主公就在你跟前。";
+                Vec3 fwd = self.LookDirection;
+                fwd.z = 0f;
+                fwd.Normalize();
+                Vec3 right = new Vec3(-fwd.y, fwd.x, 0f);
+                float f = Vec3.DotProduct(diff, fwd) / dist;
+                float r = Vec3.DotProduct(diff, right) / dist;
+                string lat = r > 0.35f ? "右侧" : (r < -0.35f ? "左侧" : "");
+                string lon = f > 0.35f ? "前方" : (f < -0.35f ? "后方" : "");
+                string dir = (lat.Length == 0 && lon.Length == 0) ? "正对面" : lat + lon;
+                return $"主公就在你{dir}约 {MathF.Ceiling(dist)} 米处。";
+            }
+            catch { return ""; }
         }
 
         /// <summary>玩家阵营 vs 目标阵营是否交战（双方无王国 → 非交战）。</summary>
