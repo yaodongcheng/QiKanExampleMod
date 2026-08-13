@@ -1,4 +1,3 @@
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using TaleWorlds.MountAndBlade;
@@ -53,28 +52,9 @@ namespace LivingWorldNpcs
                 // 目标文本（可选；不传 = 执行器缺省语义）
                 if (!string.IsNullOrEmpty(targetText))
                     step.Target = targetText;
-                // 参数（C# 确定，铁律 2）
-                switch (actionCode)
-                {
-                    case "emote":
-                        step.Text = level;   // EmoteInlineState 白名单校验（9 动画），非法 → 降级无动作
-                        break;
-                    case "look_at":
-                        step.Seconds = 2f;   // 时长默认 2s（§5.3）
-                        break;
-                    case "follow":
-                        step.TimeoutS = 0f;  // 无限保持（与密令 follow 省略 timeout 同语义）
-                        break;
-                    case "steal_attempt":
-                        step.Variant = "pickpocket";   // 人变体（扒窃 defender；result 路由既有）
-                        break;
-                    case "give_gold":
-                        step.Amount = new JValue(GoldLevelAmount(level));
-                        break;
-                    case "say_to":
-                        step.Text = sayText;   // v1：IM 回复正文复述（prompt 约束正文须可转述）
-                        break;
-                }
+                // 参数（C# 确定，铁律 2）——2026-08-13 重构：FillParams 查 ActionRegistry 主表
+                //（6 个参数化动作：emote/look_at/follow/steal_attempt/give_gold/say_to）
+                ActionRegistry.FindByCode(actionCode)?.FillParams?.Invoke(step, level, sayText);
 
                 var plan = new Plan
                 {

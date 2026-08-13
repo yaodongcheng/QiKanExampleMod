@@ -924,36 +924,18 @@ namespace LivingWorldNpcs
 
             // 本地化：动作名标签表（plan_step 记忆/详情渲染）
         /// <summary>动作名 → 本地化标签（LWN_plan_action_*；渲染的是实际会被执行的逻辑——PlanExecutor 同一份 JSON）。
-        /// 🔴 2026-08-13：改为 internal static——ActionHandler 决策播报复用同表（闲聊动作码一致，防两份标签漂移）。</summary>
+        /// 🔴 2026-08-13：改为 internal static——ActionHandler 决策播报复用同表（闲聊动作码一致，防两份标签漂移）。
+        /// 2026-08-13 重构：查 ActionRegistry 主表（FindByLabelCode，ByCode 优先回落别名；
+        /// increase_relation→relation_up 由 LabelKey 承载，order_attack→"attack" 统一标签）；
+        /// 未知码兜底 key 名 = 码本身（原行为保留）。</summary>
         internal static string PlanActionLabel(string action)
         {
             if (string.IsNullOrEmpty(action)) return "";
-            // 兼容别名（旧词表）：INCREASE/DECREASE_RELATION 与 RELATION_UP/DOWN 同款标签
-            string keyName = action switch
-            {
-                "increase_relation" => "relation_up",
-                "decrease_relation" => "relation_down",
-                _ => action,
-            };
-            // 本地化：动作名标签表（plan_step 记忆/详情渲染/决策播报共用）
-            return LWNTextHelper.ResolveText("LWN_plan_action_" + keyName,
-                action switch
-                {
-                    "move_to" => "move to", "follow" => "follow", "stop_following" => "stop following",
-                    "order_attack" => "attack", "knockout" => "knock out", "lead" => "lead the way",
-                    "face" => "face", "look_at" => "look at", "say_to" => "speak to", "wait" => "wait",
-                    "emote" => "gesture", "make_noise" => "shout", "signal_player" => "signal",
-                    "steal_attempt" => "steal from", "give_item" => "hand over", "give_gold" => "give gold",
-                    "deliver_item" => "deliver", "shadow" => "shadow", "negotiate" => "negotiate",
-                    "duel" => "duel", "end_plan" => "finish",
-                    // 闲聊动作码（2026-08-13 补全，与 LWN_plan_action_* 新 key 一一对应）
-                    "attack" => "attack", "relation_up" => "raise opinion of", "relation_down" => "lower opinion of",
-                    "praise" => "praise", "spread_rumor" => "spread rumors about",
-                    "threaten_verbal" => "threaten", "promise" => "make a promise to",
-                    "marry_success" => "agree to marry", "join_clan" => "join the clan",
-                    "gather_to_player" => "march to assemble", "party_patrol" => "start patrolling",
-                    _ => action,
-                });
+            var spec = ActionRegistry.FindByLabelCode(action);
+            if (spec != null && !string.IsNullOrEmpty(spec.LabelKey))
+                return LWNTextHelper.ResolveText("LWN_plan_action_" + spec.LabelKey, spec.LabelFallback);
+            // 未知码兜底（原行为保留：key 名 = 码本身）
+            return LWNTextHelper.ResolveText("LWN_plan_action_" + action, action);
         }
 
         /// <summary>C# 确定性详情渲染：步骤列表 + 应急行（contingencies/on_timeout）+ 安全网（guardrails 摘要）。

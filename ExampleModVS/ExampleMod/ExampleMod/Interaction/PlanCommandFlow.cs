@@ -241,8 +241,9 @@ namespace LivingWorldNpcs
 
         private static string BuildGrammar()
         {
-            // 词表动态拼接（单一事实源 = PlanVocab / ReactiveAgent 的 *InPromptOrder 数组）：
-            // 注册新动作/谓词/查询/触发词/反应动作 → 词表数组加一行，prompt 自动读到。
+            // 词表动态拼接（单一事实源 = ActionRegistry 主表 + PlanVocab / ReactiveAgent 派生数组）：
+            // 注册新动作 → ActionRegistry.cs 主表加一行（PlanVocab.ActionsInPromptOrder 自动派生）；
+            // 新谓词/查询/触发词/反应动作 → 对应 *InPromptOrder 数组加一行，prompt 自动读到。
             // 顺序 = 数组声明顺序（保持手写序，防 prompt 漂移——82% 回归基线是此顺序跑出来的）。
             return string.Join("\n",
                 "动作（action）：" + string.Join(" / ", PlanVocab.ActionsInPromptOrder)

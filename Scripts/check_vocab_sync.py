@@ -2,7 +2,9 @@
 """check_vocab_sync.py -- C# 词表 vs py 测试词表 一致性校验
 
 C# 侧（单一事实源，prompt 动态拼接）：
-  Planner/PlanGrammar.cs     PlanVocab.Actions / Predicates / Queries / ActionAliases
+  Planner/ActionRegistry.cs  动作主表 34 行（InPlanVocab / Aliases / ResultKeys）——
+                             PlanVocab 的 ActionsInPromptOrder / ActionAliases / AllowedResultKeys 均派生自它
+  Planner/PlanGrammar.cs     PlanVocab.Predicates / Queries（动作面已迁 ActionRegistry）
   Planner/ReactiveAgent.cs   ReactiveAgent.TriggerEvents / ReactionActions
 py 侧（test_llm_plan.py，回归测试用，双份维护）：
   ALLOWED_ACTIONS / PREDICATES / ACTION_ALIASES / REACTIVE_EVENTS / REACTIVE_ACTIONS / QUERIES
@@ -12,7 +14,7 @@ py 侧（test_llm_plan.py，回归测试用，双份维护）：
   python Scripts/check_vocab_sync.py -v   # 详细输出（一致也打印）
 
 注册新行为（动作/谓词/查询/触发词/反应动作）流程：
-  1. C# 词表加一行（PlanGrammar.cs / ReactiveAgent.cs）→ prompt 自动读到
+  1. C# 主表加一行（动作 → ActionRegistry.cs；谓词/查询 → PlanGrammar.cs；触发词/反应 → ReactiveAgent.cs）→ prompt 自动读到
   2. py 对应常量加一行（test_llm_plan.py）
   3. 跑本脚本确认一致（不一致会列出差异项）
 退出码：0 = 全部一致；1 = 有差异。
@@ -51,6 +53,50 @@ def extract_cs_set(file_path, set_name):
         return None
     body = m.group(1)
     return set(re.findall(r'"([^"]+)"', body))
+
+
+def extract_action_registry(file_path):
+    """提取 ActionRegistry 主表（34 行 ActionSpec）的动作信息：
+    (InPlanVocab 码集, 别名→正码集) —— PlanVocab 的 Actions/ActionAliases 均派生自主表，
+    校验脚本直接对主表提取（PlanGrammar.cs 只剩派生引用，无字面量可查）。
+
+    按大括号深度配对定位每个 ActionSpec 块（lambda 体/数组初始化含嵌套大括号，
+    `[^}]*` 式截断会提前终止；深度计数保证取到完整块）。块内提取：
+      Code = "..."（统一小写码）；InPlanVocab = true（进计划词表）；
+      Aliases = new[] { "a", "b" }（LLM 容错别名）。顺序无关（集合比较）。"""
+    src = open(file_path, encoding="utf-8").read()
+    codes = set()
+    aliases = {}
+    start = 0
+    while True:
+        i = src.find("new ActionSpec", start)
+        if i < 0:
+            break
+        brace = src.find("{", i)
+        if brace < 0:
+            break
+        depth = 0
+        j = brace
+        while j < len(src):
+            c = src[j]
+            if c == '{':
+                depth += 1
+            elif c == '}':
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        block = src[brace + 1:j]
+        code_m = re.search(r'Code\s*=\s*"([^"]+)"', block)
+        if code_m:
+            code = code_m.group(1)
+            if re.search(r'InPlanVocab\s*=\s*true', block):
+                codes.add(code)
+            for al in re.findall(r'Aliases\s*=\s*new\[\]\s*\{\s*([^}]*?)\s*\}', block):
+                for a in re.findall(r'"([^"]+)"', al):
+                    aliases[a] = code
+        start = j + 1
+    return codes, aliases
 
 
 def extract_cs_dict(file_path, dict_name):
@@ -104,16 +150,18 @@ def compare(name, cs_set, py_set, verbose):
 def main():
     verbose = "-v" in sys.argv
     plan_grammar = os.path.join(CSRC, "Planner", "PlanGrammar.cs")
+    action_registry = os.path.join(CSRC, "Planner", "ActionRegistry.cs")
     reactive = os.path.join(CSRC, "Planner", "ReactiveAgent.cs")
 
+    plan_codes, plan_aliases = extract_action_registry(action_registry)
     checks = [
-        ("Actions（动作词表）", extract_cs_set(plan_grammar, "ActionsInPromptOrder"),
+        ("Actions（动作词表）", plan_codes,
          extract_py_set("ALLOWED_ACTIONS")),
         ("Predicates（谓词词表）", extract_cs_set(plan_grammar, "PredicatesInPromptOrder"),
          extract_py_set("PREDICATES")),
         ("Queries（动态查询）", extract_cs_set(plan_grammar, "QueriesInPromptOrder"),
          extract_py_set("QUERIES")),
-        ("ActionAliases（动作别名）", extract_cs_dict(plan_grammar, "ActionAliases"),
+        ("ActionAliases（动作别名）", set(plan_aliases.keys()),
          extract_py_set("ACTION_ALIASES")),
         ("TriggerEvents（触发词）", extract_cs_set(reactive, "TriggerEventsInPromptOrder"),
          extract_py_set("REACTIVE_EVENTS")),
