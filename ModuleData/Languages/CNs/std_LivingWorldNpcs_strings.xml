@@ -725,13 +725,13 @@
     <string id="LWN_ui_steal_msg_animal_fail" text="偷动物失败" />
     <string id="LWN_ui_steal_msg_nothing_to_steal" text="他身上没什么可偷的。" />
     <string id="LWN_ui_steal_msg_hold_breath" text="你屏住呼吸，悄悄伸出了手..." />
-    <string id="LWN_ui_steal_msg_knockout_success" text="从背后击晕了 {NAME}！（掷点 {ROLL} ≥ 目标 {THRESHOLD}）" />
+    <string id="LWN_ui_steal_msg_knockout_success" text="从背后击晕了 {NAME}！（掷点 {ROLL} ≥ 门槛 {THRESHOLD}）" />
     <string id="LWN_ui_steal_msg_target_dodged" text="{NAME} 非常敏锐，躲开了你的攻击。" />
-    <string id="LWN_ui_steal_msg_knockout_fail_quick" text="背后偷袭失手！你(活力{VIGOR} 控制{CONTROL})不敌{NAME}(活力{TVIGOR} 控制{TCONTROL})，目标难度仅{THRESHOLD}" />
-    <string id="LWN_ui_steal_msg_target_retaliates" text="{NAME} 察觉了你的意图！（掷点 {ROLL} &lt; 目标 {THRESHOLD}）" />
+    <string id="LWN_ui_steal_msg_knockout_fail_quick" text="背后偷袭失手！你(活力{VIGOR} 控制{CONTROL})不敌{NAME}(活力{TVIGOR} 控制{TCONTROL})，门槛需 {THRESHOLD}" />
+    <string id="LWN_ui_steal_msg_target_retaliates" text="{NAME} 察觉了你的意图！（掷点 {ROLL} &lt; 门槛 {THRESHOLD}）" />
     <string id="LWN_ui_steal_msg_knockout_fail" text="击晕失败" />
     <string id="LWN_npc_knockout_success" text="{NAME} 从背后击晕了 {TARGET}！" />
-    <string id="LWN_npc_knockout_fail_retaliate" text="{NAME} 击晕 {TARGET} 失败，{TARGET} 察觉并反击！（掷点 {ROLL} &lt; 目标 {THRESHOLD}）" />
+    <string id="LWN_npc_knockout_fail_retaliate" text="{NAME} 击晕 {TARGET} 失败，{TARGET} 察觉并反击！（掷点 {ROLL} &lt; 门槛 {THRESHOLD}）" />
     <string id="LWN_ui_steal_msg_already_looted" text="{NAME} 已经被搜刮过了。" />
     <string id="LWN_ui_steal_msg_party_items" text="似乎{NAME}还有{COUNT}件东西在队伍里没带身上" />
     <string id="LWN_ui_steal_msg_nothing_on_target" text="{NAME} 身上啥也没有。" />
@@ -2782,8 +2782,8 @@
     <string id="LWN_dialogue_talk" text="对话" />
     <!-- 延迟弹出询问框按钮：省略号 -->
     <string id="LWN_dialogue_ellipsis" text="……" />
-    <!-- 检定失败屏幕提示：技能、双方等级差、目标难度（{SKILL}=技能名 {MYLEVEL}=玩家等级 {NPCNAME}=对方名 {NPLEVEL}=对方等级 {GAP}=等级差 {THRESHOLD}=目标难度 = 1−成功率） -->
-    <string id="LWN_dialogue_check_fail" text="{SKILL}检定失败: 你的{SKILL}({MYLEVEL}) vs {NPCNAME}({NPLEVEL})，差{GAP}点，目标难度仅{THRESHOLD}" />
+    <!-- 检定失败屏幕提示：技能、双方等级差、门槛所需点（{SKILL}=技能名 {MYLEVEL}=玩家等级 {NPCNAME}=对方名 {NPLEVEL}=对方等级 {GAP}=等级差 {THRESHOLD}=门槛所需点 = 1−成功率） -->
+    <string id="LWN_dialogue_check_fail" text="{SKILL}检定失败: 你的{SKILL}({MYLEVEL}) vs {NPCNAME}({NPLEVEL})，差{GAP}点，门槛需 {THRESHOLD}" />
     <!-- 惰性台词/选项文本占位符：求值前短暂显示的省略号 -->
     <string id="LWN_dialogue_placeholder_ellipsis" text="…" />
 
