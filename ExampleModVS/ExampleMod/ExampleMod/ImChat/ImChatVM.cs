@@ -291,25 +291,89 @@ namespace LivingWorldNpcs
                 {
                     _isCardAnchor = value;
                     OnPropertyChangedWithValue(value, nameof(IsCardAnchor));
+                    // 🔴 2026-08-13：按钮行组合可见性联动（横排 = 锚点 && 非竖排；竖排 = 锚点 && 竖排）
+                    OnPropertyChanged(nameof(IsHorizontalButtons));
+                    OnPropertyChanged(nameof(IsVerticalButtonsVisible));
                 }
             }
         }
 
         /// <summary>决策卡片按钮行（数据驱动）：计划卡片 = 自审/重拟?/同意/拒绝（执行中=中止）；
-        /// 提议卡片 = 同意/拒绝。按钮数据按 AnchorCard 状态重建（RebuildCardButtons）。</summary>
+        /// 提议卡片 = 同意/拒绝。按钮数据按 AnchorCard 状态重建（RebuildCardButtons）。
+        /// 🔴 2026-08-13（双面板数据互斥）：横排/竖排各绑独立集合——竖排模式时本集合清空，
+        /// 按钮全部移入 VerticalCardButtons（即使 IsVisible 绑定失效，空集合也渲染不出按钮）。</summary>
         public MBBindingList<ImButtonVM> CardButtons { get; } = new MBBindingList<ImButtonVM>();
 
+        /// <summary>🔴 2026-08-13（长文本按钮竖排）：竖排按钮行的独立数据源（与 CardButtons 互斥——
+        /// 竖排模式按钮移入本集合，横排模式清空）。竖排面板 DataSource 绑本集合。</summary>
+        public MBBindingList<ImButtonVM> VerticalCardButtons { get; } = new MBBindingList<ImButtonVM>();
+
+        /// <summary>🔴 2026-08-13（用户裁定：长文本按钮竖排）：按钮行布局自适应——任一按钮文本过长
+        /// （&gt; 6 字，固定宽 96 @ FontSize16 中文字宽 16px 放不下）→ 竖排（XML 双面板互斥显隐，
+        /// 竖排按钮 CoverChildren 自适应宽度）。宾语确认候选按钮（「① 右侧约10米」等）触发竖排。</summary>
+        private const int VerticalButtonTextThreshold = 6;
+
+        private bool _isVerticalButtons;
+
+        /// <summary>按钮行竖排判定：任一按钮文本超长 → true（横排固定宽 96 会截断文本）。</summary>
+        [DataSourceProperty]
+        public bool IsVerticalButtons
+        {
+            get => _isVerticalButtons;
+            private set
+            {
+                if (_isVerticalButtons != value)
+                {
+                    _isVerticalButtons = value;
+                    OnPropertyChangedWithValue(value, nameof(IsVerticalButtons));
+                    // 组合可见性联动（横排 = 锚点 && 非竖排；竖排 = 锚点 && 竖排）
+                    OnPropertyChanged(nameof(IsHorizontalButtons));
+                    OnPropertyChanged(nameof(IsVerticalButtonsVisible));
+                }
+            }
+        }
+
+        /// <summary>按钮行可见性·横排（🔴 仅锚点消息 && 短文本；与竖排互斥）。</summary>
+        [DataSourceProperty]
+        public bool IsHorizontalButtons => IsCardAnchor && !IsVerticalButtons;
+
+        /// <summary>按钮行可见性·竖排（🔴 仅锚点消息 && 长文本；与横排互斥）。</summary>
+        [DataSourceProperty]
+        public bool IsVerticalButtonsVisible => IsCardAnchor && IsVerticalButtons;
+
         /// <summary>🔴 2026-08-12：按锚点卡片种类/状态重建按钮行（待批/执行中/已了结 三态）。
-        /// 状态变动的入口（AnchorCard 变更 / 自审回调 / 讲解完成）统一调 NotifyPlanState → 这里。</summary>
+        /// 状态变动的入口（AnchorCard 变更 / 自审回调 / 讲解完成）统一调 NotifyPlanState → 这里。
+        /// 🔴 2026-08-13：重建末尾做布局判定——任一按钮文本超长 → 按钮全部移入 VerticalCardButtons
+        /// （双面板数据互斥：横排/竖排集合二选一，另一个为空——即使 IsVisible 绑定失效也不渲染）。</summary>
         public void RebuildCardButtons()
         {
             CardButtons.Clear();
+            VerticalCardButtons.Clear();
             var anchor = AnchorCard;
-            if (anchor == null) return;
-            if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); return; }
-            if (anchor.IsProposal) { RebuildProposalButtons(anchor); return; }
-            if (anchor.IsPlanSuggest) { RebuildSuggestionButtons(anchor); return; }
-            if (anchor.IsTargetConfirm) { RebuildTargetConfirmButtons(anchor); return; }
+            if (anchor == null) { IsVerticalButtons = false; return; }
+            if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); }
+            else if (anchor.IsProposal) { RebuildProposalButtons(anchor); }
+            else if (anchor.IsPlanSuggest) { RebuildSuggestionButtons(anchor); }
+            else if (anchor.IsTargetConfirm) { RebuildTargetConfirmButtons(anchor); }
+            // 布局判定：任一按钮文本超长（> 6 字，固定宽 96 @ FontSize16 放不下）→ 竖排
+            bool anyLong = false;
+            for (int i = 0; i < CardButtons.Count; i++)
+            {
+                var t = CardButtons[i]?.Text;
+                if (!string.IsNullOrEmpty(t) && t.Length > VerticalButtonTextThreshold)
+                {
+                    anyLong = true;
+                    break;
+                }
+            }
+            if (anyLong)
+            {
+                // 竖排模式：按钮移入竖排集合，横排集合清空（数据互斥，免疫 IsVisible 绑定失效）
+                foreach (var b in CardButtons)
+                    VerticalCardButtons.Add(b);
+                CardButtons.Clear();
+            }
+            IsVerticalButtons = anyLong;
         }
 
         /// <summary>计划卡片按钮（与原硬编码按钮同语义：待批 = 自审/重拟?/同意/拒绝；执行中 = 中止）。</summary>

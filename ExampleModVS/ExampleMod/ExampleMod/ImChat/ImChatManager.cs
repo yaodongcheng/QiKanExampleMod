@@ -259,10 +259,10 @@ namespace LivingWorldNpcs
                 // 🔴 M3 私聊劝说会话（npc-dialogue-session-plan.md §5.6）：句式命中 → 进入劝说会话，
                 // 回应由会话容器投递（agree 演化 → 承诺/拒绝兑现）——**不叠加**通用回复管线（避免双回应）
                 bool persuaded = CampaignPersuadeHub.OnDirectMessage(conv.PartnerHeroId, trimmed);
-                // 🔴 NPC 自主行动提议（2026-08-12）：玩家对 NPC 说话（任何方式）都可能激活 NPC 自主
-                // 行动提议（概率 + 冷却 + 卡片批准；与劝说会话/通用回复并行，独立一层不抢回复）
-                var autHero = GetHero(conv.PartnerHeroId);
-                if (autHero != null) AutonomyProposal.TryFromPlayerMessage(autHero, trimmed);
+                // 🔴 NPC 自主行动提议（2026-08-13 门控移走）：触发点从「玩家发消息」移到「回复管线投递点」
+                // （ImReplyService.Tick）——只有回复判定为纯寒暄（无动作/无计划/非执行期调整）才可能提议。
+                // 玩家下达命令（动作/计划）时回复必非纯寒暄 → 提议天然被门控，杜绝「刚下令击晕，
+                // NPC 却提议去望风」的双卡冲突（2026-08-13 日志实锤）。
                 if (persuaded) { RaiseMessageArrived(conv); return; }
 
                 // 调度 NPC 回复（执行上下文：仅当该 NPC 就是执行者时注入）
@@ -293,9 +293,9 @@ namespace LivingWorldNpcs
                 CampaignPersuadeHub.OnGroupMessage(conv, trimmed);
                 // 🔴 跟随保底已移除（2026-08-13 用户裁定）：跟随回复纯随机，不做"满 N 条必跟随"
                 var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed);
-                // 🔴 NPC 自主行动提议（2026-08-13）：移到 PickRepliers 之后，只允许话题主回复者（primary）
-                // 提议——玩家点名/问话时旁观者不插嘴；上下文 = 玩家消息 + 频道近期消息（AutonomyProposal 内注入）
-                AutonomyProposal.TryFromGroupMessage(conv, trimmed, primary);
+                // 🔴 NPC 自主行动提议（2026-08-13 门控移走）：群聊提议改由回复管线投递点触发
+                //（ImReplyService.Tick）——只允许「话题主回复者 + 纯寒暄回复」提议；玩家点名/问话
+                // 时旁观者不插嘴；玩家下令时（回复带动作/计划）不提议。
                 if (primary != null)
                 {
                     ImHeatTracker.Add(primary.StringId, 1f);

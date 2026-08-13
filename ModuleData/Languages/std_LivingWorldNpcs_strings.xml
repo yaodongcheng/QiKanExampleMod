@@ -689,6 +689,8 @@
     <string id="LWN_ui_steal_msg_knockout_fail_quick" text="The back attack missed! Your *vigor {VIGOR}, control {CONTROL}* was no match for {NAME}'s *vigor {TVIGOR}, control {TCONTROL}* — only {CHANCE} chance of success" />
     <string id="LWN_ui_steal_msg_target_retaliates" text="{NAME} sensed your intent! *{ROLL} &gt; {CHANCE}*" />
     <string id="LWN_ui_steal_msg_knockout_fail" text="Knockout failed" />
+    <string id="LWN_npc_knockout_success" text="{NAME} knocked {TARGET} out from behind!" />
+    <string id="LWN_npc_knockout_fail_retaliate" text="{NAME} failed to knock {TARGET} out — {TARGET} sensed it and strikes back! ({ROLL} &gt; {CHANCE})" />
     <string id="LWN_ui_steal_msg_already_looted" text="{NAME} has already been looted." />
     <string id="LWN_ui_steal_msg_party_items" text="Seems {NAME} has {COUNT} more items in their party, not on their person" />
     <string id="LWN_ui_steal_msg_nothing_on_target" text="{NAME} has nothing on them." />

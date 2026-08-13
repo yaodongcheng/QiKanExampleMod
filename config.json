@@ -28,6 +28,9 @@
   // ImHeatHotThreshold     互动热度分档阈值：热度 ≥ 此值 = 高频互动 → 该 NPC 记忆容量最大档
   // ImHeatNormalThreshold  互动热度分档阈值：热度 ≥ 此值 = 普通档（现状容量）；以下 = 冷门小容量
   // ImHeatDecayPerDay      每游戏日热度衰减量（互动多者保持档位，久不互动自然降档）
+  // AutonomyProposalEnabled  NPC 自主行动提议开关（默认 false）：玩家对 NPC 说话后，NPC 可能主动
+  //   提议「我想去…」（巡逻/望风/讨账等）→ 卡片批准后走计划管线。默认关闭（体验易出戏，
+  //   2026-08-13 用户裁定）；开启后仍有纯寒暄门控——命令/计划消息不会触发提议。
   // ══════════════════════════════════════════════════════════════
   "ImGroupFollowUpChance": 0.06,
   "ImBounceChance": 0.25,
@@ -35,6 +38,7 @@
   "ImHeatHotThreshold": 10,
   "ImHeatNormalThreshold": 3,
   "ImHeatDecayPerDay": 1,
+  "AutonomyProposalEnabled": false,
   // ══════════════════════════════════════════════════════════════
   // 友方定义（玩家改这里）——修改后保存即生效（下次启动读取）
   //
