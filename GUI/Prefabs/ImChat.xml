@@ -359,14 +359,14 @@
                                                                 WordWrapping="Wrap"
                                                                 MarginLeft="12" MarginRight="12" MarginTop="4" MarginBottom="8"
                                                                 DoNotAcceptEvents="true"/>
-                                                    <!-- 通用按钮行（🔴 仅锚点消息 IsCardAnchor 显示；数据驱动：DataSource="{CardButtons}"，
-                                                         ItemTemplate 每按钮 Command.Click="Execute" 绑 ImButtonVM.Execute）。
-                                                         按钮集随卡片种类/状态由 VM 重建——计划卡片 = 自审/重拟?/同意/拒绝（执行中=中止）；
-                                                         提议卡片 = 同意/拒绝。垂直堆叠内禁 VerticalAlignment） -->
+                                                    <!-- 通用按钮行·横排（🔴 2026-08-13：短文本默认；仅锚点消息 IsCardAnchor && 非竖排显示；
+                                                         数据驱动：DataSource="{CardButtons}"，ItemTemplate 每按钮 Command.Click="Execute"
+                                                         绑 ImButtonVM.Execute。按钮集随卡片种类/状态由 VM 重建——计划卡片 = 自审/重拟?/同意/拒绝
+                                                         （执行中=中止）；提议卡片 = 同意/拒绝。垂直堆叠内禁 VerticalAlignment） -->
                                                     <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                StackLayout.LayoutMethod="HorizontalLeftToRight"
                                                                HorizontalAlignment="Right"
-                                                               IsVisible="@IsCardAnchor"
+                                                               IsVisible="@IsHorizontalButtons"
                                                                DataSource="{CardButtons}"
                                                                MarginRight="10" MarginBottom="8" MarginTop="4"
                                                                DoNotAcceptEvents="true">
@@ -375,6 +375,34 @@
                                                                       Brush="Test.Button3"
                                                                       Command.Click="Execute"
                                                                       IsEnabled="@IsEnabled" MarginRight="10">
+                                                          <Children>
+                                                            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                        Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                        DoNotAcceptEvents="true"/>
+                                                          </Children>
+                                                        </ButtonWidget>
+                                                      </ItemTemplate>
+                                                    </ListPanel>
+                                                    <!-- 通用按钮行·竖排（🔴 2026-08-13：任一按钮文本超长（宾语确认候选等）→ 排成一列，
+                                                         按钮 CoverChildren 自适应宽度、右对齐，与横排互斥显隐（IsVerticalButtonsVisible）。
+                                                         声明 VerticalBottomToTop 走 StackLayout swap patch——item[0] 在顶部，
+                                                         双版本渲染一致。Id 带 LWN_ 前缀供 swap patch 识别。
+                                                         🔴 2026-08-13（数据互斥）：DataSource 绑 VerticalCardButtons——竖排模式按钮
+                                                         移入此集合、横排集合清空，即使 IsVisible 绑定失效也不会双显） -->
+                                                    <ListPanel Id="LWN_ImChat_CardButtonsV" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                               StackLayout.LayoutMethod="VerticalBottomToTop"
+                                                               HorizontalAlignment="Right"
+                                                               IsVisible="@IsVerticalButtonsVisible"
+                                                               DataSource="{VerticalCardButtons}"
+                                                               MarginRight="10" MarginBottom="8" MarginTop="4"
+                                                               DoNotAcceptEvents="true">
+                                                      <ItemTemplate>
+                                                        <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="42"
+                                                                      Brush="Test.Button3"
+                                                                      HorizontalAlignment="Right"
+                                                                      Command.Click="Execute"
+                                                                      IsEnabled="@IsEnabled" MarginTop="5" MarginBottom="5">
                                                           <Children>
                                                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                         Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
@@ -427,13 +455,14 @@
                                                             IsVisible="@IsModifiedPlan"
                                                             MarginLeft="14" MarginTop="8"
                                                             DoNotAcceptEvents="true"/>
-                                                <!-- 通用按钮行（🔴 2026-08-12：与卡片气泡同构——数据驱动 CardButtons + 锚点纪律；
+                                                <!-- 通用按钮行·横排（🔴 2026-08-12：与卡片气泡同构——数据驱动 CardButtons + 锚点纪律；
                                                      旧存档卡片在此渲染，按钮集/锚点规则与新卡片完全一致。
-                                                     垂直堆叠内禁 VerticalAlignment——与布局方向冲突会盖内容；只留水平对齐） -->
+                                                     垂直堆叠内禁 VerticalAlignment——与布局方向冲突会盖内容；只留水平对齐。
+                                                     🔴 2026-08-13：长文本按钮 → 竖排面板互斥显隐（IsHorizontalButtons）） -->
                                                 <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                            StackLayout.LayoutMethod="HorizontalLeftToRight"
                                                            HorizontalAlignment="Right"
-                                                           IsVisible="@IsCardAnchor"
+                                                           IsVisible="@IsHorizontalButtons"
                                                            DataSource="{CardButtons}"
                                                            MarginRight="10" MarginBottom="8" MarginTop="8"
                                                            DoNotAcceptEvents="true">
@@ -442,6 +471,31 @@
                                                                   Brush="Test.Button3"
                                                                   Command.Click="Execute"
                                                                   IsEnabled="@IsEnabled" MarginRight="10">
+                                                      <Children>
+                                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                    Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                    DoNotAcceptEvents="true"/>
+                                                      </Children>
+                                                    </ButtonWidget>
+                                                  </ItemTemplate>
+                                                </ListPanel>
+                                                <!-- 通用按钮行·竖排（🔴 2026-08-13：与卡片气泡同构；长文本按钮排成一列，
+                                                     按钮 CoverChildren 自适应宽度、右对齐，与横排互斥显隐；
+                                                     数据互斥：DataSource 绑 VerticalCardButtons（竖排时按钮移入此集合）） -->
+                                                <ListPanel Id="LWN_ImChat_PlanCardButtonsV" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                                                           HorizontalAlignment="Right"
+                                                           IsVisible="@IsVerticalButtonsVisible"
+                                                           DataSource="{VerticalCardButtons}"
+                                                           MarginRight="10" MarginBottom="8" MarginTop="8"
+                                                           DoNotAcceptEvents="true">
+                                                  <ItemTemplate>
+                                                    <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="42"
+                                                                  Brush="Test.Button3"
+                                                                  HorizontalAlignment="Right"
+                                                                  Command.Click="Execute"
+                                                                  IsEnabled="@IsEnabled" MarginTop="5" MarginBottom="5">
                                                       <Children>
                                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                                     Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"

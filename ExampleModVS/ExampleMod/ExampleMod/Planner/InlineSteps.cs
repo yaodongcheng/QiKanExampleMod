@@ -949,7 +949,8 @@ namespace LivingWorldNpcs
                     tControl = tHero.GetAttributeValue(DefaultCharacterAttributes.Control);
                 }
                 float successRate = MathF.Min(0.85f, 0.25f + (selfVigor + selfControl - tVigor - tControl) * 0.03f);
-                bool success = _rng.NextDouble() < successRate;
+                double roll = _rng.NextDouble();
+                bool success = roll < successRate;
 
                 // 出手即是袭击，记账（复用玩家击晕同款）
                 AgentAIController.Instance?.RecordAssaultVictim(target);
@@ -961,12 +962,30 @@ namespace LivingWorldNpcs
                     target.SetScriptedFlags(Agent.AIScriptedFrameFlags.DoNotRun | Agent.AIScriptedFrameFlags.NoAttack);
                     AgentAIController.Instance?.SendEventToAgent(target, "event_agent_knocked_out");
                     DebugLogger.Log($"[PlanExecutor] {_agent.Name} 击晕了 {target.Name}");
+                    // 🔴 2026-08-13（玩家反馈）：NPC 执行击晕成败必须可见——玩家自己击晕有播报，
+                    // 随从击晕原来只有 DebugLogger（日志实锤玩家分不清成功还是进战斗）
+                    InformationManager.DisplayMessage(
+                        // 本地化：随从击晕成功播报
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_knockout_success",
+                            "{NAME} knocked {TARGET} out from behind!",
+                            ("NAME", _agent.Name?.ToString() ?? ""), ("TARGET", target.Name?.ToString() ?? "")), Colors.Green));
                 }
                 else
                 {
                     // 失败：目标察觉反击（受害者直接进战斗）
                     AgentAIController.Instance?.SendEventToAgent(target, "event_agent_damaged", _agent, target);
                     DebugLogger.Log($"[PlanExecutor] {_agent.Name} 击晕失败，{target.Name} 反击");
+                    // 🔴 2026-08-13（玩家反馈）：失败 = 目标察觉反击 → 红字播报（随后计划 abort 还有
+                    // 「打起来了，先撤！」黄字，两者并存：先见失败原因，再见撤离决定）
+                    // 🔴 2026-08-13（roll 透明）：带 ROLL/CHANCE 参数——玩家要看到败在哪
+                    //（掷点 71% > 成功率 45%），与玩家自己击晕的失败播报（LWN_ui_steal_msg_target_retaliates）
+                    // 同款信息量
+                    InformationManager.DisplayMessage(
+                        // 本地化：随从击晕失败播报（目标察觉反击 + roll 原因）
+                        new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_knockout_fail_retaliate",
+                            "{NAME} failed to knock {TARGET} out — {TARGET} sensed it and strikes back! ({ROLL} > {CHANCE})",
+                            ("NAME", _agent.Name?.ToString() ?? ""), ("TARGET", target.Name?.ToString() ?? ""),
+                            ("ROLL", $"{roll * 100:F0}%"), ("CHANCE", $"{successRate:P0}")), Colors.Red));
                 }
 
                 // 第三方目击广播（受害者排除）

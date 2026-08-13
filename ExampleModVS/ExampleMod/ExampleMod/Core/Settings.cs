@@ -67,6 +67,12 @@ namespace LivingWorldNpcs
         public string FemaleSelfAddress { get; set; } = "";
         // IM 新消息系统通知（NinjaReport 顶部横幅）开关（config.json 侧）：面板打开且当前会话时不弹
         public bool ImNotifyEnabled { get; set; } = true;
+
+        // ── NPC 自主行动提议开关（默认关闭；config.json 侧，2026-08-13 用户裁定）──
+        // 玩家对 NPC 说话（私聊/群聊/附近喊话）后，NPC 可能主动提议「我想去…」（巡逻/望风/讨账等），
+        // 卡片批准后走计划管线。实机体验易出戏（玩家下令时小模型常把命令当话题顺着提，如「下令击晕 →
+        // 提议去望风」双卡），默认关闭；开启后仍有纯寒暄门控（命令/计划消息不提议）。关 = 完全静默。
+        public bool AutonomyProposalEnabled { get; set; } = false;
         // 货币单位（世界观参数化，config.json 侧）：默认解析原版本地化串 {=hYgmzZJX}
         // （CN="第纳尔" / EN="Denar"，随游戏语言自动变化，避免硬编码）；Mod B（如 TaikouContent）
         // 可在 MySubModule 注入"两"等自世界观货币名。

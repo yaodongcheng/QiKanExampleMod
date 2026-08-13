@@ -278,6 +278,27 @@ namespace LivingWorldNpcs
                                     DebugLogger.Log($"[ImReply] 闲聊动作执行失败 {it.ActionCode}: {ex.Message}");
                                 }
                             }
+                            // 🔴 2026-08-13（自主提议门控）：只有本轮回复判定为**纯寒暄**才允许自主提议——
+                            // 主回复者 + 无动作 + 无计划建议 + 非执行期调整（玩家消息是命令/计划任务时，
+                            // 提议与执行冲突，日志实锤「下令击晕 → NPC 却提议去望风」双卡）。触发点从
+                            // SendPlayerMessage（无条件 15% 掷骰）移到这里（回复决策已知后），
+                            // 时机 = 回复投递后再演算（+~1s），纯寒暄才有提议。
+                            if (string.IsNullOrEmpty(it.P.FollowUpHeroId) && string.IsNullOrEmpty(it.P.PriorPeerId)
+                                && it.P.ExecutionCtx == null
+                                && !it.NeedPlan && !it.AdjustPlan
+                                && (string.IsNullOrEmpty(it.ActionCode) || it.ActionCode == "NONE"))
+                            {
+                                try
+                                {
+                                    var autHero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == it.P.HeroId);
+                                    if (autHero != null)
+                                        AutonomyProposal.TryFromResolvedReply(autHero, it.P.RespondText, it.P.Conv);
+                                }
+                                catch (Exception ex)
+                                {
+                                    DebugLogger.Log($"[ImReply] 自主提议触发失败: {ex.Message}");
+                                }
+                            }
                             // 沉寂补偿数据源：记录本次回复时间（群聊选人用）
                             ImHeatTracker.RecordReply(it.P.HeroId);
                             // 🔴 群聊活力·拌嘴 v2 延迟调度：主回复者投递后，跟随者才生成——

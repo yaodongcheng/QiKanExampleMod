@@ -9,21 +9,26 @@ using TaleWorlds.MountAndBlade;
 namespace LivingWorldNpcs
 {
     // ═══════════════════════════════════════════════════════════════
-    // AutonomyProposal.cs — NPC 自主行动提议（玩家说话触发层，2026-08-12）
+    // AutonomyProposal.cs — NPC 自主行动提议（回复投递点触发层，2026-08-12 建 / 2026-08-13 门控改造）
     //
-    // 触发面：**任何时候玩家对 NPC 说话都可能激活**（用户裁定）——
-    //   私聊（ImChatManager.Direct）→ 对方 Hero 可能提议
-    //   群聊（ImChatManager.Group）  → 热度最高成员可能提议
-    //   附近喊话（NearbyFeed）        → 最近 Hero NPC 可能提议（模板 NPC 无 IM 卡片 → 静默）
+    // 触发面（🔴 2026-08-13 门控改造）：**玩家消息的回复判定为纯寒暄后**才可能激活——
+    //   私聊 / 群聊（ImReplyService.Tick 投递点）→ 话题主回复者可能提议
+    //   附近喊话（NearbyFeed，当面搭话）→ 目标 Hero 可能提议（模板 NPC 无 IM 卡片 → 静默）
+    // 🔴 门控纪律：玩家消息是命令（回复带非 NONE 动作 / need_plan 建议 / 执行期调整）→ 不提议。
+    //   日志实锤（2026-08-13）：「去击晕右边那个帝国资深步兵」→ 回复判定 knockout 前，提议已投递
+    //   「我想去右边望风」——命令与提议冲突双卡。修复：触发点移到回复决策已知之后（投递点），
+    //   纯寒暄（无动作/无计划/非执行期调整）才掷概率演算提议。
     // 投递：Proposal 卡片（私聊）→ 玩家批准/拒绝（ImChatView.HandleProposal）——
     //   批准 = 提议文本即命令 → LLM 生成计划（PlanCard）→ 批准/修改/拒绝 → order_execute_plan。
     //   与既有 propose_plan（NPC 被 NPC 搭话触发，ReactiveAgent.StartProposal）共用卡片/计划管线。
     //
     // 纪律：
+    //   - 🔴 总闸（2026-08-13 用户裁定）：Settings.AutonomyProposalEnabled 默认 false——开关关 = 完全
+    //     静默（入口唯一，TryFromPlayerMessage 处总闸即全局总闸）
     //   - LLM 不决策：是否提议 = C# 概率 + 冷却；LLM 只生成提议文本（润色）
     //   - 铁律 1：无 LLM 配置 → 静默（提议是增强功能，不打扰玩家）
     //   - 防刷屏：每 hero 冷却（90s）+ 15% 概率；触发判定即记录冷却（LLM 失败也冷却，防重试）
-    //   - 主线程纪律：触发判定在主线程（SendPlayerMessage/NearbyFeed）；LLM 生成后台
+    //   - 主线程纪律：触发判定在主线程（回复投递点/NearbyFeed）；LLM 生成后台
     //     fire-and-forget → 结果入队 → Tick（主线程）投递（ImReplyService 同款模式）
     // ═══════════════════════════════════════════════════════════════
 
@@ -59,6 +64,9 @@ namespace LivingWorldNpcs
         public static void TryFromPlayerMessage(Hero hero, string playerText, string channelContext = null)
         {
             if (hero == null || string.IsNullOrEmpty(hero.StringId)) return;
+            // 🔴 2026-08-13（用户裁定：默认关闭）：功能总闸——config.json 侧 AutonomyProposalEnabled=false
+            // 时完全静默（含私聊/群聊/附近喊话全部入口；入口唯一，此处总闸即全局总闸）
+            if (!Settings.Instance.AutonomyProposalEnabled) return;
             // 铁律 1：无 LLM → 静默（提议是增强）
             if (!Settings.Instance.IsLLMConfigured) return;
             if (string.IsNullOrWhiteSpace(playerText)) return;
@@ -75,27 +83,15 @@ namespace LivingWorldNpcs
             _ = GenerateAsync(heroId, name, playerText, channelContext);
         }
 
-        /// <summary>玩家群聊消息 → 话题主回复者（primary）且未冷却时可能提议。主线程调用。
-        /// 🔴 2026-08-13：候选收窄为 primary（话题匹配选中者）——玩家点名/问话时旁观者不插嘴提议。</summary>
-        public static void TryFromGroupMessage(ImConversation conv, string playerText, Hero primary = null)
+        /// <summary>🔴 2026-08-13（门控改造）：回复管线投递点调用——玩家消息的回复判定为纯寒暄
+        /// （无动作/无计划/非执行期调整）后才可能提议。群聊传 conv 构建频道近期消息上下文
+        /// （主线程构建字符串，后台线程只读——GetGroupMessages 返回副本）。主线程调用。</summary>
+        public static void TryFromResolvedReply(Hero hero, string playerText, ImConversation conv)
         {
-            if (conv == null || string.IsNullOrWhiteSpace(playerText)) return;
-            if (!Settings.Instance.IsLLMConfigured) return;
-            var members = ImChatManager.GetChannelMembers(conv.Type);
-            if (members == null || members.Count == 0) return;
-
-            // 候选 = 话题主回复者（primary；未算出的旧调用方传 null 退化为任意未冷却成员）
-            double now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var candidate = members
-                .Where(h => h != null && h != Hero.MainHero && !string.IsNullOrEmpty(h.StringId))
-                .Where(h => primary == null || h == primary)
-                .Where(h => !_cooldown.TryGetValue(h.StringId, out var last) || now - last >= CooldownS)
-                .OrderByDescending(h => ImHeatTracker.Get(h.StringId))
-                .ThenBy(x => MBRandom.RandomFloat)
-                .FirstOrDefault();
-            if (candidate == null) return;
-            // 频道近期消息上下文（主线程构建字符串，后台线程只读——GetGroupMessages 返回副本）
-            TryFromPlayerMessage(candidate, playerText, BuildChannelContext(conv, 6));
+            string channelContext = null;
+            if (conv != null && conv.Type != ImConversationType.Direct)
+                channelContext = BuildChannelContext(conv, 6);
+            TryFromPlayerMessage(hero, playerText, channelContext);
         }
 
         /// <summary>频道近期消息摘要（群聊提议上下文：玩家消息 + 频道最近 N 条公区对话）。</summary>
