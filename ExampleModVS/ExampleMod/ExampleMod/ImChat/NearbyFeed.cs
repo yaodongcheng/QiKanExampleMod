@@ -117,11 +117,11 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 玩家喊话（ImChatView.ExecuteSend 的 Nearby 分支）：头顶冒泡 + **发起说服会话**（M1，
-        /// npc-dialogue-session-plan.md §6：玩家喊话 = 刺激源，改为"发起会话"——最近 NPC 进入说服会话，
-        /// agree 逐轮演化 → 同意/拒绝兑现；玩家每次喊话 = 一轮劝说句）。
-        /// 🔴 M1 改造前：广播 spoken_to → ReactiveAgent 一次性演算（respond/ignore/refuse）；
-        /// 改造后：玩家喊话驱动 PersuadeSlot（playerDriven）——已有进行中会话 → 续话；否则创建。
+        /// 玩家喊话（ImChatView.ExecuteSend 的 Nearby 分支）：头顶冒泡 + **自然搭话**（广播 spoken_to →
+        /// 最近 NPC 进入 ReactiveAgent 一次性演算：respond/ignore/refuse 由人格决定，响应不确定）。
+        /// 🔴 2026-08-13（用户裁定：喊话 ≠ 说服）：M1 曾把玩家喊话改为无条件发起说服会话（PersuadeSlot，
+        /// playerDriven 多轮 agree 演化）——玩家没有明确劝说意图时不该进入说服。说服只属于计划模式
+        /// （plan step persuade: true → InlineSteps），附近喊话恢复为普通互动。
         /// 兼容兜底：范围内无 NPC → 频道静默（不变）。
         /// </summary>
         public static void BroadcastPlayerCall(string text)
@@ -147,19 +147,9 @@ namespace LivingWorldNpcs
                 }
                 if (nearest != null)
                 {
-                    // 🔴 M1 玩家喊话 = 说服会话：已有玩家驱动会话 → 续话；否则创建（无导演会话容器）
-                    var session = DialogueComponent.FindPersuadeSession(Agent.Main, nearest);
-                    if (session?.Slot is PersuadeSlot ps)
-                    {
-                        ps.OnPlayerSays(text);
-                    }
-                    else
-                    {
-                        var slot = new PersuadeSlot(Agent.Main, nearest, "nearby", "nearby",
-                            MissionSessionOutcome.Instance, playerDriven: true, autoDriveInit: false);
-                        DialogueComponent.RegisterSession(Agent.Main, nearest, "nearby", slot);
-                        slot.OnPlayerSays(text);
-                    }
+                    // 🔴 2026-08-13（用户裁定）：普通喊话 = 一次性自然搭话（ReactiveAgent 人格演算
+                    // respond/ignore/refuse + 旁观者 seen_speaking 插话）——不再自动进说服会话
+                    DialogueComponent.HandleDialogue(Agent.Main, nearest, "nearby", text);
                     // 🔴 NPC 自主行动提议（2026-08-12）：附近喊话 = 玩家对 NPC 说话 → 目标 Hero 可能提议
                     // （卡片批准；模板 NPC 无 Hero → 静默——既有决策"模板 NPC 不进 IM"）
                     try
@@ -169,7 +159,7 @@ namespace LivingWorldNpcs
                             AutonomyProposal.TryFromPlayerMessage(hero, text);
                     }
                     catch { }
-                    DebugLogger.Log($"[NearbyFeed] 玩家喊话 → 说服会话 {nearest.Name}（{best:F1}m）");
+                    DebugLogger.Log($"[NearbyFeed] 玩家喊话 → 自然搭话 {nearest.Name}（{best:F1}m）");
                 }
                 else
                 {
