@@ -326,7 +326,6 @@
     <Compile Include="Interaction\NpcInfoVM.cs" />
     <Compile Include="Interaction\StoryDialogVM.cs" />
     <Compile Include="Interaction\PlanCommandFlow.cs" />
-    <Compile Include="Interaction\ChatActionFlow.cs" />
     <Compile Include="ImChat\NearbyFeed.cs" />
     <Compile Include="Planner\DialogueComponent.cs" />
     <Compile Include="Planner\PersuadeSlot.cs" />
@@ -356,7 +355,10 @@
     <Compile Include="Notify\CustomNotify.cs" />
     <Compile Include="Notify\NinjaNotificationMissionView.cs" />
     <Compile Include="Notify\NinjaNotificationVM.cs" />
-    <!-- Planner（密谋命令系统：意图分类 → 计划生成 → 确定性执行） -->
+    <!-- Planner（密谋命令系统：意图分类 → 计划生成 → 确定性执行；含动作系统三件套） -->
+    <Compile Include="Planner\ActionRegistry.cs" />
+    <Compile Include="Planner\ActionHandler.cs" />
+    <Compile Include="Planner\ChatActionFlow.cs" />
     <Compile Include="Planner\PlanGrammar.cs" />
     <Compile Include="Planner\GoalTemplates.cs" />
     <Compile Include="Planner\SceneSnapshot.cs" />

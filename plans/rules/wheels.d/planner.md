@@ -15,10 +15,30 @@
 | 对抗方 | `Planner/ReactiveAgent.cs` | 触发词 `spoken_to`/`asked_to_follow`/`left_post_seconds`… → 人格演算（weight×修正取最高）→ 反应动作；决策结果广播 `plan_decision`（refused/followed）；职业默认模板兜底 |
 
 **新增玩法意图的接入点**（2026-08-08 重构为单一事实源：词表 = `*InPromptOrder` 数组，prompt 自动读到；注册后跑 `Scripts/check_vocab_sync.py` 验证 C#/py 词表一致）：
-1. **新动作**（如"下毒"）：`PlanGrammar.cs` `ActionsInPromptOrder` 加一行（`Actions` 自动派生，`BuildGrammar` 动态拼 → **prompt 自动读到**）→ `InlineSteps.ExecuteStep` 补执行 case → py `ALLOWED_ACTIONS` 加行（回归测试）
+1. **新动作**（如"下毒"）：🔴 2026-08-13 重构后 = **`ActionRegistry.cs` 主表加一行**（`InPlanVocab=true` 自动进计划词表，`InChatSpace=true` + ChatOrder 自动进闲聊空间；`ActionsInPromptOrder` 等全部派生）→ `InlineSteps.ExecuteStep` 补执行 case（闲聊侧如需单步点火则执行委托走 `ChatActionFlow.TryExecute`）→ py `ALLOWED_ACTIONS` 加行（回归测试）
 2. **新意图**：`GoalTemplates.cs` `CommandIntentType` 枚举加行 + `PlanCommandFlow.IntentPhrases` 加行（**prompt 意图词表自动读到**）→ `BuildIntentTable` 手写区补 few-shot 判定基准（分类示范知识）→ GoalTemplates 表（Success/Maintain）
 3. **新谓词/新查询**：`PlanGrammar.cs` `PredicatesInPromptOrder`/`QueriesInPromptOrder` 加行（**prompt 自动读到**）→ `RuntimeWorldState.Evaluate` 补求值实现 → py `PREDICATES`/`QUERIES` 加行
 4. **新触发词/新反应**：`ReactiveAgent.cs` `TriggerEventsInPromptOrder`/`ReactionActionsInPromptOrder` 加行（**prompt 自动读到**）→ `TryHandleEvent`/`ExecuteReaction` 补分支 → py `REACTIVE_EVENTS`/`REACTIVE_ACTIONS` 加行
+
+## 🔴 ActionRegistry 动作主表（2026-08-13 起为动作注册单一事实源）— `Planner/ActionRegistry.cs`
+
+**解决什么问题**：动作注册曾分散 6+ 处（PlanVocab 21 码 + ActionHandler 27 大写码 + 标签表 + prompt 注入 + 参数填充 switch + 播报 switch），新增动作改 5+ 处，且出现过词表注册但执行器未实现的失同步。现在 **34 行主表 = 全部事实，其余全派生**。
+
+**主表字段**（`ActionSpec`）：`Code`（统一小写码，计划/闲聊共用）/ `Description`（闲聊 prompt 描述）/ `LabelKey`+`LabelFallback`（标签表）/ `InPlanVocab`（进计划词表）/ `InChatSpace`（进闲聊空间）/ `ChatOrder`（闲聊展示序 1..27 钉死）/ `Spaces`（空间位掩码）/ `NeedsCooldown` / `RequiresConfirm`+`InquiryTitleKey`+`InquiryMsgKey`（确认弹窗/卡片）/ `Aliases[]`（计划侧 LLM 容错）/ `ResultKeys`（result 路由）/ `IsTerminal` / `ExecutorImplemented`（shadow/negotiate/duel=false）/ `IsValid` / `Execute`（闲聊点火或 hero/party 行为）/ `ExecuteCore`（卡片批准后核心执行）/ `FillParams(step, level, sayText)` / `AnnounceParam(level)`。
+
+**34 行结构**：前 21 行计划原序（82% LLM 回归基线，静态构造 `Debug.Assert` 钉死）+ 后 13 行闲聊-only。交集 14 行合并（如 `order_attack` 行 Aliases["attack"] 承载旧码、duel 双语义一行承载）。
+
+**派生面清单**（全部只读主表）：`PlanVocab.ActionsInPromptOrder/Actions/ActionAliases/AllowedResultKeys/TerminalActions`（PlanGrammar.cs）、`ActionHandler` 五入口（HandleAction/HandleImAction/GetActionSpacePrompt/AnnounceDecision/PostActionProposal + RunActionCore 第三处查找）、`PlanActionLabel`（ImCommandFlow.cs，FindByLabelCode 先 ByCode 回落别名）、`ChatActionFlow.TryExecute`（FindByCode?.FillParams）、`Scripts/check_vocab_sync.py`（按大括号深度配对提取 ActionSpec 块）。
+
+**关键纪律**：
+- **单码统一**：Code 全小写；旧存档大写码（`ImMessage.ActionCode="MOVE_TO"`）由 `FindByCode` 的 **OrdinalIgnoreCase** 兼容（漏 = 旧决策卡片批准后执行失败）
+- "NONE" 哨兵大写保留（三处跳过判据：HandleImAction 提前返回 / GetActionSpacePrompt 跳过 / AnnounceDecision 跳过）
+- **执行职责边界**：主表只注册 + 闲聊入口接线；agent 动作行为语义归 PlanExecutor（`Execute` = 包装单步 Plan 走 `ChatActionFlow.TryExecute` → 既有 TryCreateSubAction 分支）；hero/party 动作 `Execute` 才是行为实现。RequiresConfirm 的 `ExecuteCore` = 卡片批准后直接执行（不再二次确认）
+- **双身份**：`order_attack` 主表动作码 ≠ AIEvent 事件名（AgentBrain.cs:387 白名单协议）——Brain 层协议不注册，行注释标明桥接
+- 新动作若需新行为 = 主表一行 + AtomicAction/InlineState 新类 + TryCreateSubAction case；仅需已有行为 = 主表一行（Execute 委托指向既有通道）
+- 静态构造自检五连（🔴 失败只写日志不弹窗——Debug.Assert 实机 Debug 构建弹断言框崩游戏，2026-08-13 崩溃实录；ExecutorImplemented 字段默认值必须 `= true`，bool 默认 false 会让 34 行全判"未实现"）：计划 21 码字面量序 / ChatOrder 1..27 连续 / ExecutorImplemented=false=={shadow,negotiate,duel} / 别名无重复 / IsValid+闲聊空间行 Execute 非空
+
+**新增动作流程**（详见上方接入点第 1 条）：主表一行（Code/Description/标签/空间/布尔位/ChatOrder/IsValid/Execute）→ 执行语义落点 → py 词表加行 → 跑 `check_vocab_sync.py`。
 
 **常用调用范例**：
 

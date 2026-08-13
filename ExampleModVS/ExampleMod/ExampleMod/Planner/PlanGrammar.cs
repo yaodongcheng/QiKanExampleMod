@@ -311,38 +311,22 @@ namespace LivingWorldNpcs
     public static class PlanVocab
     {
         /// <summary>动作词表容错别名（§5.3 钳制精神）：模型常写缩写/口语变体 → 校验时规范为词表名。
-        /// 与 content→text 别名同源：形态修复，不放宽封闭语法。</summary>
-        public static readonly Dictionary<string, string> ActionAliases = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            { "attack", "order_attack" },      // 模型常把攻击写成 attack
-            { "move", "move_to" },
-            { "stop", "stop_following" },
-            { "speak", "say_to" },
-            { "give", "give_item" },
-            { "steal", "steal_attempt" },
-        };
+        /// 与 content→text 别名同源：形态修复，不放宽封闭语法。派生自 ActionRegistry 主表 Aliases。</summary>
+        public static readonly Dictionary<string, string> ActionAliases = ActionRegistry.BuildAliases();
 
         /// <summary>封闭动作词表（§4 原子行为表）——prompt 展示顺序 = 本数组顺序（保持手写序，
-        /// 模型对词表顺序敏感，82% 回归基线是此顺序跑出来的）。**注册新动作 = 本数组加一行**，
-        /// Actions 自动派生、prompt 自动读到；执行语义在 InlineSteps.ExecuteStep 补 case。</summary>
+        /// 模型对词表顺序敏感，82% 回归基线是此顺序跑出来的）。**派生自 ActionRegistry 主表**
+        ///（主表前 21 行 InPlanVocab 即本序，静态构造 Debug.Assert 钉死）。**注册新动作 =
+        /// ActionRegistry 主表加一行**，本数组自动派生；执行语义在 InlineSteps.ExecuteStep 补 case。</summary>
         public static readonly string[] ActionsInPromptOrder =
-        {
-            "move_to", "follow", "stop_following", "order_attack", "knockout", "lead",
-            "face", "look_at", "say_to", "wait", "emote", "make_noise", "signal_player",
-            "steal_attempt", "give_item", "give_gold", "deliver_item", "shadow",
-            "negotiate", "duel", "end_plan",
-        };
+            ActionRegistry.PlanActions.Select(s => s.Code).ToArray();
 
         /// <summary>封闭动作词表（校验用，由 ActionsInPromptOrder 派生，勿单独修改）。</summary>
         public static readonly HashSet<string> Actions = new HashSet<string>(ActionsInPromptOrder, StringComparer.Ordinal);
 
-        /// <summary>判定型/结算型动作（有 result 路由合法）——result 键必须在各动作允许集内。</summary>
-        public static readonly Dictionary<string, HashSet<string>> AllowedResultKeys = new Dictionary<string, HashSet<string>>
-        {
-            { "steal_attempt", new HashSet<string> { "success", "empty", "impossible", "interrupted" } },
-            { "negotiate", new HashSet<string> { "success", "partial", "fail" } },
-            { "duel", new HashSet<string> { "win", "draw", "lose" } },
-        };
+        /// <summary>判定型/结算型动作（有 result 路由合法）——result 键必须在各动作允许集内。
+        /// 派生自 ActionRegistry 主表 ResultKeys。</summary>
+        public static readonly Dictionary<string, HashSet<string>> AllowedResultKeys = ActionRegistry.BuildResultKeys();
 
         /// <summary>封闭谓词词表（§5.2）——prompt 展示顺序 = 本数组顺序。**注册新谓词 = 本数组加一行**。</summary>
         public static readonly string[] PredicatesInPromptOrder =
@@ -376,11 +360,8 @@ namespace LivingWorldNpcs
             "@abort_gracefully",
         };
 
-        /// <summary>保留端步骤（end_plan = 收尾，无跳转消费）。</summary>
-        public static readonly HashSet<string> TerminalActions = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "end_plan",
-        };
+        /// <summary>保留端步骤（end_plan = 收尾，无跳转消费）。派生自 ActionRegistry 主表 IsTerminal。</summary>
+        public static readonly HashSet<string> TerminalActions = ActionRegistry.BuildTerminalCodes();
     }
 
     // ═══════════════════════════════════════════════════════════════
