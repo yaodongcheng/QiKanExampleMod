@@ -134,25 +134,30 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public string SenderName => _msg?.SenderName ?? "";
 
-        /// <summary>🔴 2026-08-12（队伍频道在场标记）：消息流显示名——队伍频道里 Hero 消息在名字旁加
-        /// 「（在场）/（他处）」括号标记（IsPresentInMission 动态计算，渲染时实时反映 NPC 当前是否在场景——
-        /// 不写进 SenderName 存档快照，读档/离场后标记自动跟随现状）。玩家消息/私聊/群聊/附近频道原样。</summary>
+        /// <summary>🔴 2026-08-12（队伍频道在场标记）：消息流显示名——队伍/家族频道里 Hero 消息在名字旁加
+        /// 括号标记（动态计算，渲染时实时反映 NPC 当前状态——不写进 SenderName 存档快照，
+        /// 读档/离场后标记自动跟随现状）。玩家消息/私聊/群聊/附近频道原样。
+        /// 🔴 2026-08-13（用户裁定）：在场 → 实际距离「（xx米外）」；不在场按身份分级
+        /// （DescribeAwayLocation：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处）。</summary>
         [DataSourceProperty]
         public string DisplaySenderName
         {
             get
             {
                 if (_msg == null) return "";
-                if (_msg.ConvId == ImChatStore.ChannelParty && !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId))
+                bool isGroup = _msg.ConvId == ImChatStore.ChannelParty || _msg.ConvId == ImChatStore.ChannelClan;
+                if (isGroup && !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId))
                 {
-                    bool present = ImChatManager.IsPresentInMission(_msg.SenderHeroId);
-                    // 在场/他处标记文案（复用左栏既有 key）
-                    string tag = present
-                    // 在场标记文案
-                        ? LWNTextHelper.ResolveText("LWN_im_status_present", "present")
-                    // 他处标记文案
-                        : LWNTextHelper.ResolveText("LWN_im_status_away", "away");
-                    return $"{_msg.SenderName}（{tag}）";
+                    var dist = ImChatManager.GetMissionDistanceMeters(_msg.SenderHeroId);
+                    if (dist.HasValue)
+                    {
+                        int meters = MathF.Ceiling(dist.Value);
+                        if (meters < 1) meters = 1;
+                        return $"{_msg.SenderName}（{meters}米外）";
+                    }
+                    // 不在场：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处
+                    string away = ImChatManager.DescribeAwayLocation(_msg.SenderHeroId);
+                    return $"{_msg.SenderName}（{away}）";
                 }
                 return _msg.SenderName;
             }

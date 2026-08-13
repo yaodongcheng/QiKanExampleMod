@@ -53,8 +53,10 @@ namespace LivingWorldNpcs
             _suppressed.Add(heroId);
         }
 
-        /// <summary>玩家对单个 NPC 说话 → 可能触发自主提议（统一入口：私聊/附近共用）。主线程调用。</summary>
-        public static void TryFromPlayerMessage(Hero hero, string playerText)
+        /// <summary>玩家对单个 NPC 说话 → 可能触发自主提议（统一入口：私聊/附近共用）。主线程调用。
+        /// 🔴 2026-08-13（上下文注入）：channelContext = 频道近期消息（群聊时构建传入；私聊/附近为 null），
+        /// 提议 LLM 必须顺着当前话题，不再零上下文自由发挥（日志实锤「去集市」类离谱提议）。</summary>
+        public static void TryFromPlayerMessage(Hero hero, string playerText, string channelContext = null)
         {
             if (hero == null || string.IsNullOrEmpty(hero.StringId)) return;
             // 铁律 1：无 LLM → 静默（提议是增强）
@@ -70,27 +72,58 @@ namespace LivingWorldNpcs
             string name = hero.Name?.ToString() ?? heroId;
             DebugLogger.Log($"[AutonomyProposal] {name} 触发自主提议演算（玩家消息触发）");
 
-            _ = GenerateAsync(heroId, name);
+            _ = GenerateAsync(heroId, name, playerText, channelContext);
         }
 
-        /// <summary>玩家群聊消息 → 热度最高且未冷却的成员可能提议。主线程调用。</summary>
-        public static void TryFromGroupMessage(ImConversation conv, string playerText)
+        /// <summary>玩家群聊消息 → 话题主回复者（primary）且未冷却时可能提议。主线程调用。
+        /// 🔴 2026-08-13：候选收窄为 primary（话题匹配选中者）——玩家点名/问话时旁观者不插嘴提议。</summary>
+        public static void TryFromGroupMessage(ImConversation conv, string playerText, Hero primary = null)
         {
             if (conv == null || string.IsNullOrWhiteSpace(playerText)) return;
             if (!Settings.Instance.IsLLMConfigured) return;
             var members = ImChatManager.GetChannelMembers(conv.Type);
             if (members == null || members.Count == 0) return;
 
-            // 候选 = 非玩家、有 StringId、未在冷却中；按热度挑最高者
+            // 候选 = 话题主回复者（primary；未算出的旧调用方传 null 退化为任意未冷却成员）
             double now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var candidate = members
                 .Where(h => h != null && h != Hero.MainHero && !string.IsNullOrEmpty(h.StringId))
+                .Where(h => primary == null || h == primary)
                 .Where(h => !_cooldown.TryGetValue(h.StringId, out var last) || now - last >= CooldownS)
                 .OrderByDescending(h => ImHeatTracker.Get(h.StringId))
                 .ThenBy(x => MBRandom.RandomFloat)
                 .FirstOrDefault();
             if (candidate == null) return;
-            TryFromPlayerMessage(candidate, playerText);
+            // 频道近期消息上下文（主线程构建字符串，后台线程只读——GetGroupMessages 返回副本）
+            TryFromPlayerMessage(candidate, playerText, BuildChannelContext(conv, 6));
+        }
+
+        /// <summary>频道近期消息摘要（群聊提议上下文：玩家消息 + 频道最近 N 条公区对话）。</summary>
+        private static string BuildChannelContext(ImConversation conv, int count)
+        {
+            try
+            {
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                if (msgs == null || msgs.Count == 0) return null;
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("【频道近期消息】");
+                int start = Math.Max(0, msgs.Count - count);
+                for (int i = start; i < msgs.Count; i++)
+                {
+                    var m = msgs[i];
+                    if (m == null || string.IsNullOrWhiteSpace(m.Content)) continue;
+                    // 只看文本/提议（卡片/系统行跳过）
+                    if (m.Kind != ImMessageKind.Text && m.Kind != ImMessageKind.Proposal) continue;
+                    string senderName = m.SenderHeroId == ImChatManager.PlayerId ? "主公" : (m.SenderName ?? "某人");
+                    sb.AppendLine("- " + senderName + ": " + m.Content);
+                }
+                return sb.Length > 0 ? sb.ToString() : null;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[AutonomyProposal] 频道上下文构建异常: {ex.Message}");
+                return null;
+            }
         }
 
         /// <summary>主线程每帧驱动（ImChatManager.Tick 挂接）：投递队列消费（后台生成 → 主线程投递）。</summary>
@@ -127,8 +160,10 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>提议文本生成（后台线程）：身份 = 名字 + 人设；prompt 与 StartProposal 同源（LWN_plan_propose_rule）。</summary>
-        private static async System.Threading.Tasks.Task GenerateAsync(string heroId, string name)
+        /// <summary>提议文本生成（后台线程）：身份 = 名字 + 人设；prompt 与 StartProposal 同源（LWN_plan_propose_rule）。
+        /// 🔴 2026-08-13（上下文注入）：玩家刚说的话 + 频道近期消息入 prompt，提议必须顺着当前话题；
+        /// 无可提之事 → LLM 输出「无」→ 丢弃不投递。</summary>
+        private static async System.Threading.Tasks.Task GenerateAsync(string heroId, string name, string playerText, string channelContext)
         {
             string text = null;
             try
@@ -140,13 +175,20 @@ namespace LivingWorldNpcs
                 // 与 StartProposal 同源规则（LWN_plan_propose_rule 本地化 key；取空用 C# 兜底）
                 string rule = LWNTextHelper.ResolvePrompt("LWN_plan_propose_rule");
                 if (string.IsNullOrEmpty(rule))
-                    rule = "【行动提议】你刚被主公搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向主公提出，格式：主公，我想去…（10~30 字，直接说，不要解释）。";
-                string prompt = string.Join("\n",
-                    LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + (Settings.Instance?.WorldDescription ?? ""),
-                    identity,
-                    rule);
+                    rule = "【行动提议】你刚被主公搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向主公提出，格式：主公，我想去…（10~30 字，直接说，不要解释）。提议必须与当前话题相关——顺着主公刚说的话、频道里正聊的事想该做什么；当前话题下没有合适的事可提，只输出「无」。";
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + (Settings.Instance?.WorldDescription ?? ""));
+                sb.AppendLine(identity);
+                sb.AppendLine(rule);
+                // 当前话题上下文：玩家刚说的话 + 频道近期消息（无上下文 = 零上下文自由发挥，实锤「去集市」类离谱提议）
+                sb.AppendLine("【当前话题】主公刚说：" + (string.IsNullOrWhiteSpace(playerText) ? "（无）" : playerText));
+                if (!string.IsNullOrWhiteSpace(channelContext))
+                    sb.AppendLine(channelContext);
+                string prompt = sb.ToString();
                 string line = await LLMService.Instance.ChatOnceAsync(prompt, 80, 0.8f, disableReasoning: true, timeoutMs: 8000);
                 text = string.IsNullOrWhiteSpace(line) ? null : line.Trim().Trim('"', '“', '”', '「', '」');
+                // 🔴 2026-08-13：「无」回包 → 无可提之事，丢弃不投递
+                if (IsNothingProposal(text)) text = null;
             }
             catch (Exception ex)
             {
@@ -154,6 +196,24 @@ namespace LivingWorldNpcs
             }
             if (!string.IsNullOrWhiteSpace(text))
                 _deliverQueue.Enqueue((heroId, name, text));
+        }
+
+        /// <summary>「无可提之事」判定：LLM 按规则输出「无」类回包 → 丢弃（不打扰玩家）。
+        /// 🔴 public：ReactiveAgent（NPC-NPC 提议）同用——propose_rule XML 规则已要求无可提输出「无」。</summary>
+        public static bool IsNothingProposal(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return true;
+            string t = s.Trim().Trim('"', '“', '”', '「', '」', '，', ',', '。', '！', '!');
+            if (t.Length == 0) return true;
+            if (t.Length <= 8)
+            {
+                if (t == "无" || t == "没有" || t == "无话可说" || t == "无事可提" || t == "没啥可提") return true;
+                if (t.Equals("NONE", System.StringComparison.OrdinalIgnoreCase)
+                    || t.Equals("NO", System.StringComparison.OrdinalIgnoreCase)
+                    || t.Equals("NOTHING", System.StringComparison.OrdinalIgnoreCase)) return true;
+                if (t.StartsWith("无") || t.StartsWith("没")) return true;
+            }
+            return false;
         }
     }
 }
