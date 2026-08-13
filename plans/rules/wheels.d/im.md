@@ -128,3 +128,30 @@ score = Σ 命中主题×职业亲和 + @提及(5) + 相似度(bigram×3) + 热�
 1. **卡片内部必须 ListPanel 垂直堆叠**（名字行 → 内容 → 按钮行）——普通 Widget 子元素全部 Layout 到同一 rect 会叠字（ui.md「贴内容气泡」同坑）。Id 带 `LWN_` 前缀 + `VerticalBottomToTop` 声明（走 StackLayout swap patch，v1.2.12/v1.3+ 一致）。
 2. **多卡并存：UI 全保留（流式历史），效用上仅最新未决卡按钮有效**——`ImMessageVM.IsCardAnchor`（UpdateCardAnchors 每次刷新重算：最新可操作卡片 + 锚点位置 = 链内最新/自身），旧卡按钮行 IsVisible=false 隐藏不可点；作废卡片置 `ExecutorId="done"` 后**必须全量重建消息列表**（按钮行是重建式数据，增量追加不刷新已存在消息）。
 3. **同意后自动 `Close()`**（拒绝不关）——执行完动作直接关面板，开打了玩家该盯屏幕。
+
+---
+
+## 闲聊动作决策播报（谁决定要干嘛 + 参数）— `Interaction/InteractionController.cs`（ActionHandler）— 2026-08-13
+
+**解决**：LLM 回复 JSON 决策出非 NONE 动作时，玩家只看到台词（冒泡 / IM 消息流），不知道 NPC 决定要干嘛——DebugLogger 有 `[ChatActionFlow]` 行但玩家不可见。要求：**任何动作决策落地都 DisplayMessage 播报**「谁决定要干嘛 + 参数」。
+
+**挂点（唯一汇合点，一处覆盖所有入口）**：`ActionHandler.HandleAction` 内、`IsValid` 通过后、`Execute`/`ExecuteCore` 前。IM 回复（`HandleImAction`）/ 当面对话 respond / 说服会话（`PersuadeSlot`）/ 旧对话路径全部经过此处，零散播报点无需新增。
+
+**播报格式**（`LWN_action_decide*` 四键，铁律 13 全本地化）：
+```
+{NAME} 决定：{ACTION}（目标：{TARGET}，{PARAM}）。
+斯唐纳夫 决定：前往（目标：努勒丹）。   ← 日志示例：move_to（target: 努勒丹）
+阿速甘 决定：送上（150 金币）。
+```
+- **NAME** = attacker 名（`attacker?.Name`；模板 NPC 无 Hero 退回 agent 名，铁律 8）
+- **ACTION** = `ImCommandFlow.PlanActionLabel`（改为 internal 共用 `LWN_plan_action_*` 同表——闲聊动作码与计划步骤标签一份映射，防两份漂移）
+- **TARGET** = LLM 目标文本优先，缺省用解析出的 defender 名（私聊语境 LLM 常省略目标）
+- **PARAM** = 按动作码 C# 注入（铁律 2，LLM 只给档位）：`GIVE_GOLD`→金币数（`GoldLevelAmount` 换算）+ `LWN_action_gold_unit`；关系类→档位词（`LWN_action_level_*` 小/中/大）；`EMOTE`→动画 key
+
+**纪律**：
+- 只播**实际执行**的动作：IsValid 之后调用；降级 NONE（冷却中 / 空间不符 / 条件不满足）不播——没决策就没播报
+- 🔴 `alreadyConfirmed`（IM 决策卡片已批准）**不播**——卡片本身就是决策展示，双报刷屏
+- 高风险当面对话（ATTACK/DUEL/KNOCKOUT/STEAL）：播报 + 原生确认弹窗并存（弹窗确认回调走 `RunActionCore` 不再回 HandleAction，无二次播报）
+- 异常 catch 进 DebugLogger，播报不炸执行链
+
+**新增本地化**：`LWN_plan_action_*` 补 11 个闲聊动作码标签（attack/relation_up/relation_down/praise/spread_rumor/threaten_verbal/promise/marry_success/join_clan/gather_to_player/party_patrol）+ `LWN_action_decide*` 4 键 + `LWN_action_level_*` 3 键 + `LWN_action_gold_unit`；`{PARAM}` 占位符已登记 `validate_localization.py` 白名单。

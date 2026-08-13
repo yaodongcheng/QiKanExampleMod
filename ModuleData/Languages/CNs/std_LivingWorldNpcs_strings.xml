@@ -4146,6 +4146,25 @@
     <string id="LWN_plan_action_threatened" text="{NAME} 威胁过我：{TEXT}" />
     <string id="LWN_plan_action_threaten_default" text="你最好小心点。" />
     <string id="LWN_plan_action_promised" text="{NAME} 答应过我：{TEXT}" />
+    <string id="LWN_plan_action_attack" text="攻击" />
+    <string id="LWN_plan_action_relation_up" text="提升好感" />
+    <string id="LWN_plan_action_relation_down" text="降低好感" />
+    <string id="LWN_plan_action_praise" text="夸赞" />
+    <string id="LWN_plan_action_spread_rumor" text="散布谣言" />
+    <string id="LWN_plan_action_threaten_verbal" text="威胁" />
+    <string id="LWN_plan_action_promise" text="作出承诺" />
+    <string id="LWN_plan_action_marry_success" text="同意求婚" />
+    <string id="LWN_plan_action_join_clan" text="接受招募" />
+    <string id="LWN_plan_action_gather_to_player" text="前来集结" />
+    <string id="LWN_plan_action_party_patrol" text="开始巡逻" />
+    <string id="LWN_action_decide" text="{NAME} 决定：{ACTION}。" />
+    <string id="LWN_action_decide_target" text="{NAME} 决定：{ACTION}（目标：{TARGET}）。" />
+    <string id="LWN_action_decide_param" text="{NAME} 决定：{ACTION}（{PARAM}）。" />
+    <string id="LWN_action_decide_target_param" text="{NAME} 决定：{ACTION}（目标：{TARGET}，{PARAM}）。" />
+    <string id="LWN_action_level_small" text="小" />
+    <string id="LWN_action_level_medium" text="中" />
+    <string id="LWN_action_level_large" text="大" />
+    <string id="LWN_action_gold_unit" text="金币" />
 
 
     <!-- ── IM 闲聊回复降级模板（LLM 不可用时按主题回）── -->

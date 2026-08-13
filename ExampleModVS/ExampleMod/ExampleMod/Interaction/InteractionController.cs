@@ -729,6 +729,69 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 🔴 2026-08-13：LLM 决策播报——动作真正落地前（IsValid 通过）向玩家 DisplayMessage：
+        /// 「谁决定要干嘛 + 参数」（目标/档位/金额/表情 key）。铁律 13：全部走 LWN_* 本地化。
+        /// 纪律：① 只播实际执行的动作（IsValid 之后调用，降级 NONE 不播）；② NONE 不播；
+        /// ③ alreadyConfirmed（IM 卡片已批准）不播——卡片本身就是决策展示，不双报。
+        /// 动作标签复用 ImCommandFlow.PlanActionLabel（LWN_plan_action_* 同表，防两份标签漂移）。
+        /// </summary>
+        private static void AnnounceDecision(ActionDefinition actionDef, Hero attacker, Hero defender,
+            Agent agent, string level, string targetText)
+        {
+            try
+            {
+                if (actionDef == null || string.IsNullOrEmpty(actionDef.Code) || actionDef.Code == "NONE") return;
+                string name = attacker?.Name?.ToString() ?? agent?.Name?.ToString() ?? "";
+                if (string.IsNullOrEmpty(name)) return;
+                string actionLabel = ImCommandFlow.PlanActionLabel(actionDef.Code.ToLowerInvariant());
+                // 目标：LLM 目标文本优先，否则用解析出的 defender（私聊语境下 LLM 常省略目标）
+                string target = !string.IsNullOrWhiteSpace(targetText) ? targetText
+                    : (defender != null ? defender.Name?.ToString() : null);
+                // 参数：金额（give_gold）/ 档位词（关系类）/ 动画 key（emote），C# 确定（铁律 2）
+                string param = actionDef.Code switch
+                {
+                    "GIVE_GOLD" => $"{ChatActionFlow.GoldLevelAmount(level)} {LWNTextHelper.ResolveText("LWN_action_gold_unit", "gold")}",
+                    "RELATION_UP" or "RELATION_DOWN" or "INCREASE_RELATION" or "DECREASE_RELATION" => LevelWord(level),
+                    "EMOTE" => level,
+                    _ => null,
+                };
+
+                string msg;
+                if (!string.IsNullOrEmpty(target) && !string.IsNullOrEmpty(param))
+                    // 播报：谁决定要干嘛 + 目标 + 参数
+                    msg = LWNTextHelper.ResolveCompound("LWN_action_decide_target_param",
+                        ("NAME", name), ("ACTION", actionLabel), ("TARGET", target), ("PARAM", param));
+                else if (!string.IsNullOrEmpty(target))
+                    // 播报：谁决定要干嘛 + 目标
+                    msg = LWNTextHelper.ResolveCompound("LWN_action_decide_target",
+                        ("NAME", name), ("ACTION", actionLabel), ("TARGET", target));
+                else if (!string.IsNullOrEmpty(param))
+                    // 播报：谁决定要干嘛 + 参数
+                    msg = LWNTextHelper.ResolveCompound("LWN_action_decide_param",
+                        ("NAME", name), ("ACTION", actionLabel), ("PARAM", param));
+                else
+                    // 播报：谁决定要干嘛（无目标无参数）
+                    msg = LWNTextHelper.ResolveCompound("LWN_action_decide",
+                        ("NAME", name), ("ACTION", actionLabel));
+
+                InformationManager.DisplayMessage(new InformationMessage(msg));
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ActionHandler] 决策播报失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>档位词（small/medium/large）→ 本地化词（LWN_action_level_*）。</summary>
+        private static string LevelWord(string level)
+        {
+            string lv = level?.ToLowerInvariant();
+            if (lv == "small") return LWNTextHelper.ResolveText("LWN_action_level_small", "small");
+            if (lv == "large") return LWNTextHelper.ResolveText("LWN_action_level_large", "large");
+            return LWNTextHelper.ResolveText("LWN_action_level_medium", "medium");
+        }
+
+        /// <summary>
         /// 执行动作（当面对话 + IM 共用入口）。
         /// 流程：空间裁剪（Spaces 位掩码）→ 频率冷却（关系/声望/party 类）→ IsValid → Execute。
         /// 🔴 2026-08-11：alreadyConfirmed=true（IM 卡片批准后的再执行）→ 直接跑 ExecuteCore
@@ -764,6 +827,9 @@ namespace LivingWorldNpcs
             }
             if (actionDef.IsValid(attacker, defender, agent))
             {
+                // 🔴 2026-08-13：决策播报（谁决定要干嘛+参数）；已确认卡片路径不重复播（卡片即决策展示）
+                if (!alreadyConfirmed)
+                    AnnounceDecision(actionDef, attacker, defender, agent, level, targetText);
                 // 已确认路径（IM 卡片批准）：直接执行核心逻辑；缺 ExecuteCore（普通动作）→ 回退 Execute
                 if (alreadyConfirmed && actionDef.ExecuteCore != null)
                     actionDef.ExecuteCore(attacker, defender, agent, level, targetText, sayText);
