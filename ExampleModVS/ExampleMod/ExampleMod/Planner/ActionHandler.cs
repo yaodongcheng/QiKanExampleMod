@@ -155,9 +155,12 @@ namespace LivingWorldNpcs
         /// 流程：空间裁剪（Spaces 位掩码）→ 频率冷却（关系/声望/party 类）→ IsValid → Execute。
         /// 🔴 2026-08-11：alreadyConfirmed=true（IM 卡片批准后的再执行）→ 直接跑 ExecuteCore
         /// （RequiresConfirm 动作的核心逻辑），不再弹原生确认窗（确认已在卡片上完成）。
+        /// 🔴 2026-08-13：explicitTarget = 模板 NPC 目标（玩家选定后直达执行器；无 Hero 对象，
+        /// defender 恒 null）→ 空间按 InScene 覆盖（ResolveSpace(null) 会误判 ImRemote 堵死 InScene 动作）。
         /// </summary>
         public static void HandleAction(string actionCode, Hero attacker, Hero defender, Agent agent,
-            string level = null, string targetText = null, string sayText = null, bool alreadyConfirmed = false)
+            string level = null, string targetText = null, string sayText = null, bool alreadyConfirmed = false,
+            Agent explicitTarget = null)
         {
             if (string.IsNullOrEmpty(actionCode)) return;
             // FindByCode（OrdinalIgnoreCase：兼容旧存档/旧词表大写码 "ATTACK"/"MOVE_TO" 等）
@@ -168,7 +171,7 @@ namespace LivingWorldNpcs
                 return;
             }
             // 空间裁剪（§5.2）：动作空间不含当前空间 → 降级 NONE（LLM 硬选场景外动作，IsValid 兜底前再拦一层）
-            var space = ResolveSpace(defender);
+            var space = explicitTarget != null ? ActionSpace.InScene : ResolveSpace(defender);
             if ((actionDef.Spaces & space) == 0)
             {
                 DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 不适用于空间 {space} → 降级 NONE");
@@ -192,7 +195,7 @@ namespace LivingWorldNpcs
                     AnnounceDecision(actionDef, attacker, defender, agent, level, targetText);
                 // 已确认路径（IM 卡片批准）：直接执行核心逻辑；缺 ExecuteCore（普通动作）→ 回退 Execute
                 if (alreadyConfirmed && actionDef.ExecuteCore != null)
-                    actionDef.ExecuteCore(attacker, defender, agent, level, targetText, sayText);
+                    actionDef.ExecuteCore(attacker, defender, agent, level, targetText, sayText, explicitTarget);
                 else
                     actionDef.Execute(attacker, defender, agent, level, targetText, sayText);
             }
@@ -207,13 +210,18 @@ namespace LivingWorldNpcs
         /// 当面对话弹窗的确认回调复用（Execute 包装弹窗，回调时跑核心，避免两份逻辑漂移）。
         /// 仅在弹窗回调运行期调用（此时 ActionRegistry 已完整构建），IM 卡片批准路径走
         /// HandleAction(alreadyConfirmed:true) 直接 ExecuteCore，不经本方法。
+        /// 🔴 2026-08-13：explicitTarget（模板 NPC 目标）经卡片/选择链传入；当面对话弹窗回调恒 null。
         /// </summary>
         internal static void RunActionCore(string code, Hero attacker, Hero defender, Agent agent,
-            string level, string targetText, string sayText)
+            string level, string targetText, string sayText, Agent explicitTarget = null)
         {
             // FindByCode（OrdinalIgnoreCase：兼容旧大写码）
             var def = ActionRegistry.FindByCode(code);
-            (def?.ExecuteCore ?? def?.Execute)?.Invoke(attacker, defender, agent, level, targetText, sayText);
+            if (def == null) return;
+            if (def.ExecuteCore != null)
+                def.ExecuteCore(attacker, defender, agent, level, targetText, sayText, explicitTarget);
+            else
+                def.Execute(attacker, defender, agent, level, targetText, sayText);
         }
 
         /// <summary>RequiresConfirm 动作的当面对话确认弹窗（title=InquiryTitleKey，msg=InquiryMsgKey，按钮恒 fight）。
@@ -250,9 +258,13 @@ namespace LivingWorldNpcs
         /// sayText = IM 回复正文（记忆类动作的台词来源：威胁/承诺的具体内容）。
         /// 🔴 2026-08-11：RequiresConfirm 动作 → 拦截为 Proposal 卡片（PostActionProposal）；
         /// bypassConfirm=true = 玩家已批准卡片的再执行（HandleProposal 调用），直接执行不再拦截。
+        /// 🔴 2026-08-13：模板 NPC 目标路径（修复实机 16:49 击晕打到玩家）——目标文本非空且
+        /// 未命中任何 Hero → 0 候选告知 / 1 候选常规卡 / ≥2 候选宾语确认消息（按钮列方位），
+        /// 玩家选定后 explicitTarget+candidateIndex 直达执行器（RoleAgents["target"] 精确锁定）。
         /// </summary>
         public static void HandleImAction(string actionCode, string attackerHeroId, string attackerName,
-            string targetText, string level, ImConversation conv, string sayText = null, bool bypassConfirm = false)
+            string targetText, string level, ImConversation conv, string sayText = null, bool bypassConfirm = false,
+            Agent explicitTarget = null, int? candidateIndex = null)
         {
             if (string.IsNullOrEmpty(actionCode) || actionCode == "NONE") return;
 
@@ -265,8 +277,35 @@ namespace LivingWorldNpcs
                 return;
             }
 
+            var actionDef = ActionRegistry.FindByCode(actionCode);
             // defender 解析：目标名字文本（长度≥2 防单字误伤）→ 群聊成员/私聊对象/世界 Hero → 兜底玩家
-            Hero defender = ResolveImDefender(attacker, targetText, conv);
+            // out hit = 真实命中（非兜底玩家）——模板 NPC 名（"帝国新兵"）不命中任何 Hero → 模板路径
+            Hero defender = ResolveImDefender(attacker, targetText, conv, out bool heroHit);
+
+            // 🔴 2026-08-13：模板 NPC 目标路径（RequiresConfirm + 非空目标文本 + 未命中 Hero）
+            if (explicitTarget == null && actionDef != null && actionDef.RequiresConfirm
+                && !string.IsNullOrWhiteSpace(targetText) && targetText.Trim().Length >= 2 && !heroHit)
+            {
+                if (!bypassConfirm)
+                {
+                    // 卡片生成路径：0/1/≥2 候选分流
+                    HandleTemplateTarget(attacker, attackerName, actionDef, actionCode, targetText, level, conv, sayText);
+                    return;
+                }
+                // 卡片批准再执行：重扫候选锁定（candidateIndex 优先；单候选兜底）
+                var cands = FindTemplateNpcCandidates(targetText.Trim());
+                Agent pick = null;
+                if (candidateIndex != null && candidateIndex.Value >= 0 && candidateIndex.Value < cands.Count)
+                    pick = cands[candidateIndex.Value];
+                else if (cands.Count == 1) pick = cands[0];
+                if (pick == null)
+                {
+                    DebugLogger.Log($"[ActionHandler] 模板目标 {targetText} 再执行无候选 → 降级 NONE");
+                    return;
+                }
+                explicitTarget = pick;
+                defender = null;
+            }
             // agent = attacker 的物理载体
             Agent agent = FindAgentByHeroId(attackerHeroId);
 
@@ -275,14 +314,13 @@ namespace LivingWorldNpcs
             // 当面对话路径（ReactiveAgent → HandleAction 直接）不受影响，仍走原生弹窗。
             // bypassConfirm=true（玩家已批准卡片的再执行）→ 跳过拦截直接执行，防死循环。
             // FindByCode（OrdinalIgnoreCase：兼容旧存档大写码）
-            var actionDef = ActionRegistry.FindByCode(actionCode);
             if (actionDef != null && actionDef.RequiresConfirm && !bypassConfirm)
             {
                 PostActionProposal(conv, attacker, attackerName, defender, actionDef, actionCode, targetText, level, agent);
                 return;
             }
 
-            HandleAction(actionCode, attacker, defender, agent, level, targetText, sayText, alreadyConfirmed: bypassConfirm);
+            HandleAction(actionCode, attacker, defender, agent, level, targetText, sayText, alreadyConfirmed: bypassConfirm, explicitTarget: explicitTarget);
         }
 
         /// <summary>
@@ -291,14 +329,20 @@ namespace LivingWorldNpcs
         /// 调回 HandleImAction 重新执行（空间/冷却/IsValid 全保留，NPC 已离场自然降级）；拒绝 → 卡片了结。
         /// 投递前预检（空间裁剪 + IsValid）：当前不可用则不发卡（避免"同意后无法执行"的死卡），
         /// 与 HandleAction 的降级 NONE 同语义，玩家在频道里只看到台词、看不到无效动作。
+        /// 🔴 2026-08-13：templateTargetName = 模板 NPC 目标名（无 Hero，defender 恒 null）——
+        /// 空间按 InScene 覆盖（ResolveSpace(null) 误判 ImRemote）、文案走 _npc 变体（TARGET=模板名）、
+        /// candidateIndex 拷入消息供批准后重扫锁定（执行期再解析）。
+        /// internal：ImChatView.HandleTargetConfirm（宾语确认按钮选定后投递常规同意/拒绝卡）调用。
         /// </summary>
-        private static void PostActionProposal(ImConversation conv, Hero attacker, string attackerName, Hero defender,
-            ActionRegistry.ActionSpec actionDef, string actionCode, string targetText, string level, Agent agent)
+        internal static void PostActionProposal(ImConversation conv, Hero attacker, string attackerName, Hero defender,
+            ActionRegistry.ActionSpec actionDef, string actionCode, string targetText, string level, Agent agent,
+            string templateTargetName = null, int? candidateIndex = null)
         {
             try
             {
                 if (conv == null || attacker == null) return;
-                var space = ResolveSpace(defender);
+                // 模板 NPC 目标 = 场景内候选（InScene 是硬前提）；Hero 目标走既有 ResolveSpace
+                var space = templateTargetName != null ? ActionSpace.InScene : ResolveSpace(defender);
                 if ((actionDef.Spaces & space) == 0 || !actionDef.IsValid(attacker, defender, agent))
                 {
                     DebugLogger.Log($"[ActionProposal] 动作 {actionCode} 当前不可用（空间/条件不满足）→ 不发卡");
@@ -311,22 +355,24 @@ namespace LivingWorldNpcs
                 // 玩家以为冲自己来的）。规则：
                 //   defender=玩家 → 原 key，NAME=attacker 名（"「斯唐纳夫」想与你切磋"）
                 //   defender≠玩家 → *_npc 变体，NAME=attacker + TARGET=defender（"斯唐纳夫想与阿速甘切磋"）
+                // 模板 NPC 目标（templateTargetName）→ *_npc 变体，TARGET=模板名（defender=null 时
+                // 旧判定 `defender==null → targetIsPlayer=true` 会把模板目标错判成玩家——必须显式排除）。
                 // 文案变量顺序：先 NAME（谁要做）后 TARGET（对谁做）。
                 string content = targetText;
                 if (actionDef.InquiryMsgKey != null)
                 {
-                    bool targetIsPlayer = defender == null || defender == Hero.MainHero;
+                    bool targetIsPlayer = templateTargetName == null && (defender == null || defender == Hero.MainHero);
                     string key = "LWN_ui_interact_inquiry_" + actionDef.InquiryMsgKey
                         + (targetIsPlayer ? "" : "_npc") + "_msg";
                     content = targetIsPlayer
                         ? LWNTextHelper.ResolveCompound(key, ("NAME", attackerName))
-                        : LWNTextHelper.ResolveCompound(key, ("NAME", attackerName), ("TARGET", targetName));
+                        : LWNTextHelper.ResolveCompound(key, ("NAME", attackerName), ("TARGET", templateTargetName ?? targetName));
                 }
                 // 🔴 2026-08-13：同会话去重——主回复者与跟随者常对同一对双方各发一张同动作卡
                 //（互为镜像：A→B 与 B→A），玩家看到两张卡、点两次 → StartFight 二次触发
                 //（侧模型 _sideFightCount 叠加，EndFight 一次不归零，队伍还原泄漏）。
                 // 规则：已有未决同动作卡且其发送者 == 本次 defender（镜像）→ 丢弃本卡，
-                // 玩家拒绝一张 = 整场切磋取消，语义一致。
+                // 玩家拒绝一张 = 整场切磋取消，语义一致。（模板目标 defender=null → 天然跳过）
                 if (HasPendingMirrorProposal(conv, attacker, defender, actionCode))
                 {
                     DebugLogger.Log($"[ActionProposal] 丢弃重复提议: {attackerName} {actionCode}→{targetName}（已有未决同动作镜像卡）");
@@ -338,6 +384,9 @@ namespace LivingWorldNpcs
                     ActionCode = actionCode,
                     ActionTarget = targetText,
                     ActionLevel = level,
+                    // 🔴 2026-08-13：模板 NPC 目标——批准后重扫候选锁定（candidateIndex 0-based）
+                    TargetConfirmName = templateTargetName,
+                    TargetConfirmIndex = candidateIndex,
                 };
                 ImChatStore.AppendGroupMessage(conv.Id, msg);
                 ImChatStore.IncUnread(conv.Id);
@@ -372,39 +421,185 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>IM 动作 defender 解析（§四优先级：名字文本 → 群聊成员候选匹配 → 私聊对象 → 世界 Hero；兜底玩家）。
-        /// 排除说话者自己（attacker 不能对自己用动作）。</summary>
-        private static Hero ResolveImDefender(Hero attacker, string targetText, ImConversation conv)
+        /// 排除说话者自己（attacker 不能对自己用动作）。
+        /// 🔴 2026-08-13：out hit = 真实命中（非兜底）——模板 NPC 名（"帝国新兵"）不命中任何 Hero →
+        /// hit=false，调用方据此走模板 NPC 候选路径而不是拿玩家当目标（实机 16:49 击晕打到玩家的根因）。</summary>
+        private static Hero ResolveImDefender(Hero attacker, string targetText, ImConversation conv, out bool hit)
         {
+            hit = false;
             string t = targetText?.Trim();
             if (!string.IsNullOrEmpty(t) && t.Length >= 2)
             {
                 try
                 {
                     // 1) 玩家自己
-                    if (Hero.MainHero != null && NameMatchesHero(Hero.MainHero, t)) return Hero.MainHero;
+                    if (Hero.MainHero != null && NameMatchesHero(Hero.MainHero, t)) { hit = true; return Hero.MainHero; }
                     // 2) 群聊成员候选匹配（@提及语义：成员名/称号/FirstName 优先命中）
                     if (conv != null && conv.Type != ImConversationType.Direct)
                     {
                         var member = FindChannelMemberMatching(conv, t);
-                        if (member != null) return member;
+                        if (member != null) { hit = true; return member; }
                     }
                     // 3) 私聊对象（私聊里说对方名字 → 对方）
                     if (conv != null && conv.Type == ImConversationType.Direct)
                     {
                         var partner = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == conv.PartnerHeroId);
-                        if (partner != null && NameMatchesHero(partner, t)) return partner;
+                        if (partner != null && NameMatchesHero(partner, t)) { hit = true; return partner; }
                     }
                     // 4) 世界 Hero（名字/FirstName 匹配，排除说话者自己）
                     foreach (var h in Hero.AllAliveHeroes)
                     {
                         if (h == attacker) continue;
-                        if (NameMatchesHero(h, t)) return h;
+                        if (NameMatchesHero(h, t)) { hit = true; return h; }
                     }
                 }
                 catch { }
             }
             // 兜底：默认玩家（消息接收者）
             return Hero.MainHero;
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-13：场景内同名模板 NPC 候选枚举（铁律 8：模板 NPC 按显示名/CharacterObject 匹配，无 Hero）。
+        /// 匹配：Agent.Name / CharacterObject.Name 全等或包含（忽略大小写），排除玩家；
+        /// 返回按**距玩家近→远**排序——即"编号序"（① 最近 → ⑧ 最远），选择卡按钮与执行期再解析同源。
+        /// </summary>
+        internal static List<Agent> FindTemplateNpcCandidates(string name)
+        {
+            var result = new List<Agent>();
+            if (string.IsNullOrWhiteSpace(name) || Mission.Current == null) return result;
+            string low = name.Trim().ToLowerInvariant();
+            var player = Agent.Main;
+            foreach (var a in Mission.Current.Agents)
+            {
+                if (a == null || !a.IsActive() || a == player) continue;
+                if (!AgentControlHelper.IsHumanOrChild(a)) continue;
+                string dn = a.Name ?? "";
+                string cn = (a.Character as CharacterObject)?.Name?.ToString() ?? "";
+                string id = a.Character?.StringId ?? "";
+                bool match = dn.Equals(low, StringComparison.OrdinalIgnoreCase)
+                    || cn.Equals(low, StringComparison.OrdinalIgnoreCase)
+                    || dn.ToLowerInvariant().Contains(low)
+                    || cn.ToLowerInvariant().Contains(low)
+                    || id.ToLowerInvariant().Contains(low);
+                if (!match) continue;
+                result.Add(a);
+            }
+            if (player != null)
+            {
+                Vec3 p = player.Position;
+                result.Sort((x, y) => x.Position.DistanceSquared(p).CompareTo(y.Position.DistanceSquared(p)));
+            }
+            return result;
+        }
+
+        /// <summary>候选按钮标签："① 右侧约10米"（相机相对方位 + 距离；编号 = 距离序，与候选列表同源）。
+        /// 运行时场景数据（同 SceneDir/PositionDesc 类）→ 豁免本地化（铁律 13 运行时数据例外）。</summary>
+        private static string CandidateLabel(int index, Agent candidate)
+        {
+            string dir = "附近";
+            try
+            {
+                if (Mission.Current != null && Agent.Main != null)
+                    dir = WorldFactProvider.DirectionDesc(Agent.Main, candidate.Position);
+            }
+            catch { }
+            float dist = 0f;
+            if (Agent.Main != null) dist = candidate.Position.Distance(Agent.Main.Position);
+            string num = index switch
+            {
+                0 => "①", 1 => "②", 2 => "③", 3 => "④",
+                _ => $"#{index + 1}",
+            };
+            return $"{num} {dir}约{MathF.Ceiling(dist)}米";
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-13：模板 NPC 目标（无 Hero 对象）路径——LLM action_target 填"帝国新兵"这类种类名。
+        /// 0 候选 → 频道告知"没找到"（NPC 已应承"我去办"，补一句收尾）；1 候选 → 常规提议卡
+        ///（_npc 文案变体）；≥2 候选 → 宾语确认消息（消息底部按钮列候选方位，无新卡片——用户裁定），
+        /// 玩家选定（HandleTargetConfirm）后再发常规同意/拒绝卡。
+        /// </summary>
+        private static void HandleTemplateTarget(Hero attacker, string attackerName, ActionRegistry.ActionSpec actionDef,
+            string actionCode, string targetText, string level, ImConversation conv, string sayText)
+        {
+            try
+            {
+                if (conv == null || attacker == null) return;
+                Agent agent = FindAgentByHeroId(attacker.StringId);
+                // 🔴 预检（与 PostActionProposal 同语义）：执行者不在场 → InScene 动作不可执行，不发卡/不确认
+                //（避免"选定候选 → 同意 → 无法执行"的死链；NPC 已应承的话保留在频道，玩家可再问）
+                if (agent == null || !agent.IsActive())
+                {
+                    DebugLogger.Log($"[ActionHandler] 模板目标 {targetText} 执行者 {attackerName} 不在场 → 降级 NONE");
+                    return;
+                }
+                var candidates = FindTemplateNpcCandidates(targetText?.Trim());
+                if (candidates.Count == 0)
+                {
+                    // 0 候选：频道告知，不发卡
+                    var msg = new ImMessage(attacker.StringId, attackerName,
+                        LWNTextHelper.ResolveCompound("LWN_im_target_not_found", ("NAME", targetText?.Trim() ?? "")),
+                        ImMessageKind.Text) { ConvId = conv.Id };
+                    ImChatStore.AppendGroupMessage(conv.Id, msg);
+                    ImChatStore.IncUnread(conv.Id);
+                    ImChatManager.BroadcastMessageArrived(conv);
+                    DebugLogger.Log($"[ActionHandler] 模板目标 {targetText} 0 候选 → 告知玩家，不发卡");
+                    return;
+                }
+                if (candidates.Count == 1)
+                {
+                    // 单候选：直接常规提议卡（目标名 = 模板名；批准后重扫锁定该候选）
+                    PostActionProposal(conv, attacker, attackerName, null, actionDef, actionCode, targetText, level, agent,
+                        templateTargetName: targetText, candidateIndex: 0);
+                    return;
+                }
+                // ≥2 候选：宾语确认消息（按钮列方位，玩家选定后再发常规卡）
+                PostTargetConfirm(conv, attacker, attackerName, actionDef, actionCode, targetText, level, agent, candidates);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ActionHandler] 模板目标处理异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-13（用户裁定：禁止新卡片类型）：≥2 同名模板候选 → 宾语确认消息
+        ///（Kind=Text + IsTargetConfirm 标记，复用 IsPlanSuggest 同款"消息底部按钮行"形态）。
+        /// 玩家点某候选按钮 → ImChatView.HandleTargetConfirm → PostActionProposal 发常规同意/拒绝卡。
+        /// </summary>
+        private static void PostTargetConfirm(ImConversation conv, Hero attacker, string attackerName,
+            ActionRegistry.ActionSpec actionDef, string actionCode, string targetText, string level, Agent agent,
+            List<Agent> candidates)
+        {
+            try
+            {
+                if (conv == null || attacker == null) return;
+                int show = Math.Min(candidates.Count, 4);   // 按钮行上限 4 个（超出仅日志，编号仍按距离序）
+                var labels = new List<string>();
+                for (int i = 0; i < show; i++) labels.Add(CandidateLabel(i, candidates[i]));
+                if (candidates.Count > show)
+                    DebugLogger.Log($"[ActionHandler] 模板目标 {targetText} 候选 {candidates.Count} 个，按钮仅显示前 {show} 个");
+                string content = LWNTextHelper.ResolveCompound("LWN_ui_interact_target_select_msg",
+                    ("COUNT", candidates.Count.ToString()), ("NAME", targetText?.Trim() ?? ""));
+                var msg = new ImMessage(attacker.StringId, attackerName, content, ImMessageKind.Text)
+                {
+                    ConvId = conv.Id,
+                    ActionCode = actionCode,
+                    ActionTarget = targetText,
+                    ActionLevel = level,
+                    TargetConfirmName = targetText,
+                    TargetConfirmLabels = labels,
+                };
+                ImChatStore.AppendGroupMessage(conv.Id, msg);
+                ImChatStore.IncUnread(conv.Id);
+                ImChatManager.BroadcastMessageArrived(conv);
+                DebugLogger.Log($"[ActionHandler] 宾语确认: {attackerName} {actionCode} 目标 {targetText}（{candidates.Count} 候选）→ 玩家选定后发常规卡");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ActionHandler] 宾语确认消息投递失败: {ex.Message}");
+            }
         }
 
         /// <summary>群聊成员名字匹配（@提及候选：全名/去引号全名/引号内称号/FirstName——ImTopicMatcher 同款候选集）。</summary>

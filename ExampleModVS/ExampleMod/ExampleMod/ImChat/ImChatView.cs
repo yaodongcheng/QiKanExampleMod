@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.GauntletUI.BaseTypes;
 using TaleWorlds.GauntletUI.Data;
@@ -403,6 +404,8 @@ namespace LivingWorldNpcs
                 else if (m.IsPlanCard && (string.IsNullOrEmpty(m.ExecutorId) || ImCommandFlow.IsExecuting(m))) latestCard = m;
                 // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议消息（待决）参与锚点竞争——最新者接管
                 else if (m.IsPlanSuggest && !m.IsSuggestionResolved) latestCard = m;
+                // 🔴 2026-08-13（模板 NPC 目标确认）：宾语确认消息（待选）同参与竞争——最新者接管
+                else if (m.IsTargetConfirm && !m.IsTargetConfirmResolved) latestCard = m;
             }
             foreach (var vm in _vm.Messages)
             {
@@ -410,7 +413,7 @@ namespace LivingWorldNpcs
                 ImMessage card = null;
                 if (m != null)
                 {
-                    if (m.IsPlanCard || m.IsProposal || m.IsPlanSuggest)
+                    if (m.IsPlanCard || m.IsProposal || m.IsPlanSuggest || m.IsTargetConfirm)
                         card = m;
                     else if (m.IsPlanChainMessage)
                     {
@@ -433,7 +436,7 @@ namespace LivingWorldNpcs
         private static bool IsCardAnchorPosition(ImMessage m, ImMessage card, List<ImMessage> msgs)
         {
             if (m == null || card == null) return false;
-            if (card.IsProposal || card.IsPlanSuggest) return true;   // 提议/建议无链：自身即锚点
+            if (card.IsProposal || card.IsPlanSuggest || card.IsTargetConfirm) return true;   // 提议/建议/宾语确认无链：自身即锚点
             if (string.IsNullOrEmpty(card.ChainId)) return true;
             int mIdx = msgs.IndexOf(m);
             if (mIdx < 0) return false;
@@ -817,8 +820,10 @@ namespace LivingWorldNpcs
                 try
                 {
                     // bypassConfirm=true：玩家已批准，直接执行（空间/冷却/IsValid 复检在 ActionHandler 内）
+                    // 🔴 2026-08-13：candidateIndex（模板 NPC 目标）随卡透传 → 批准后重扫候选锁定
                     ActionHandler.HandleImAction(msg.ActionCode, msg.SenderHeroId, msg.SenderName,
-                        msg.ActionTarget, msg.ActionLevel, conv, msg.Content, bypassConfirm: true);
+                        msg.ActionTarget, msg.ActionLevel, conv, msg.Content, bypassConfirm: true,
+                        candidateIndex: msg.TargetConfirmIndex);
                 }
                 catch (Exception ex)
                 {
@@ -846,6 +851,34 @@ namespace LivingWorldNpcs
             ImCommandFlow.RequestCommand(conv, msg.Content);
             // 消息列表重建（提议按钮消失）
             if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+        }
+
+        /// <summary>🔴 2026-08-13（模板 NPC 目标确认，用户裁定：无新卡片）：玩家从宾语确认消息的
+        /// 按钮行选定候选（"① 右侧约10米"）→ 写入 TargetConfirmIndex（本消息按钮消失）→
+        /// 投递**常规同意/拒绝卡**（PostActionProposal，candidateIndex=选定项）——目标确认完毕，
+        /// 再走常规计划批准流程。批准后 HandleProposal → HandleImAction(candidateIndex) 重扫锁定。</summary>
+        public static void HandleTargetConfirm(ImMessage msg, int index)
+        {
+            if (msg == null || !msg.IsTargetConfirm || msg.IsTargetConfirmResolved) return;
+            var conv = ConversationOf(msg.ConvId);
+            if (conv == null) return;
+            msg.TargetConfirmIndex = index;
+            // 按钮行是重建式数据（CardButtons 按锚点重建）→ 全量重建（本消息按钮消失）
+            if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+            try
+            {
+                Hero attacker = null;
+                try { attacker = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == msg.SenderHeroId); } catch { }
+                if (attacker == null) return;
+                ActionHandler.PostActionProposal(conv, attacker, msg.SenderName, null,
+                    ActionRegistry.FindByCode(msg.ActionCode), msg.ActionCode, msg.ActionTarget, msg.ActionLevel,
+                    ActionHandler.FindAgentByHeroId(msg.SenderHeroId),
+                    templateTargetName: msg.TargetConfirmName, candidateIndex: index);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 宾语确认投递常规卡失败: {ex.Message}");
+            }
         }
 
         /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（制定计划/先不用）。

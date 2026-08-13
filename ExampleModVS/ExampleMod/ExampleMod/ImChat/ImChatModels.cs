@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using TaleWorlds.CampaignSystem;
 
 namespace LivingWorldNpcs
@@ -146,6 +147,16 @@ namespace LivingWorldNpcs
         [JsonIgnore]
         public bool IsSuggestionResolved => IsPlanSuggest && !string.IsNullOrEmpty(ExecutorId);
 
+        /// <summary>🔴 2026-08-13（模板 NPC 目标确认）：宾语确认消息 = 普通 Text + 候选按钮行。
+        /// 按钮锚点/渲染与 IsPlanSuggest 同构（ShowCardBubble + CardButtons）；旧存档无字段 → false。</summary>
+        [JsonIgnore]
+        public bool IsTargetConfirm => Kind == ImMessageKind.Text
+            && !string.IsNullOrEmpty(TargetConfirmName) && TargetConfirmLabels != null && TargetConfirmLabels.Count > 0;
+
+        /// <summary>🔴 2026-08-13：宾语确认是否已选定（TargetConfirmIndex 非空 → 按钮消失，常规卡接管）。</summary>
+        [JsonIgnore]
+        public bool IsTargetConfirmResolved => IsTargetConfirm && TargetConfirmIndex != null;
+
         // 🔴 2026-08-11（闲聊高风险动作 → 提议卡片）：动作载荷——Proposal 卡片携带闲聊动作码，
         // 玩家批准后 ActionHandler.HandleImAction 直接执行（不走 RequestCommand 计划管线）。
         // 空 = 既有 NPC 主动提议（批准 → 提议文本走计划管线，行为不变）。
@@ -157,6 +168,19 @@ namespace LivingWorldNpcs
 
         [JsonProperty("a4")]
         public string ActionLevel;       // 档位 small/medium/large
+
+        // 🔴 2026-08-13（模板 NPC 目标确认）：宾语确认消息（Kind=Text + TargetConfirmName 打标）——
+        // 场景内同名模板 NPC（如两个"帝国新兵"）目标歧义时，消息底部按钮行列候选方位让玩家挑选；
+        // 选定后 TargetConfirmIndex 写入并投递常规同意/拒绝卡（Proposal）。Proposal 卡同样携带
+        // TargetConfirmName/Index 供批准后重扫候选锁定（ActionHandler.HandleImAction candidateIndex）。
+        [JsonProperty("tc")]
+        public string TargetConfirmName;     // 模板 NPC 种类名（"帝国新兵"；非空 = 宾语确认消息）
+
+        [JsonProperty("tl")]
+        public List<string> TargetConfirmLabels;   // 候选按钮标签（"① 右侧约10米"；显示用，运行时数据）
+
+        [JsonProperty("ti")]
+        public int? TargetConfirmIndex;      // 玩家选定候选（0-based，距离序；null = 未定）
 
         public ImMessage() { } // JSON 反序列化用
 

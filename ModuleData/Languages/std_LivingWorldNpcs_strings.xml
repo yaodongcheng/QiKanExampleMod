@@ -811,6 +811,12 @@
     <string id="LWN_ui_interact_inquiry_hint" text="Notice" />
     <string id="LWN_ui_interact_inquiry_duel_msg" text="{NAME} wishes to spar with you. Are you ready?" />
     <string id="LWN_ui_interact_inquiry_duel_npc_msg" text="{NAME} wishes to spar with {TARGET}. Care to watch?" />
+    <string id="LWN_ui_interact_inquiry_knockout_msg" text="{NAME} is about to knock you out" />
+    <string id="LWN_ui_interact_inquiry_knockout_npc_msg" text="{NAME} wants to knock out {TARGET}" />
+    <string id="LWN_ui_interact_inquiry_steal_msg" text="{NAME} is about to pick your pocket" />
+    <string id="LWN_ui_interact_inquiry_steal_npc_msg" text="{NAME} wants to pick {TARGET}'s pocket" />
+    <string id="LWN_ui_interact_target_select_msg" text="There are {COUNT} {NAME}s over there, my lord — which one do you mean?" />
+    <string id="LWN_im_target_not_found" text="There is no {NAME} around here, my lord." />
     <string id="LWN_ui_interact_msg_marry_accept" text="{NAME} accepted your marriage proposal!" />
     <string id="LWN_ui_interact_msg_join_clan" text="{NAME} has joined your clan." />
     <string id="LWN_ui_interact_msg_action_fail" text="Cannot perform action: {CODE} (conditions not met)" />
