@@ -344,7 +344,7 @@ namespace LivingWorldNpcs
         /// （PlanSummary + CurrentStep，C# 快照），LLM 判定 adjust_plan（问进度=false，明确改做法=true）；
         /// isCampaign = 大地图能力提示段（只建议行军类计划，防「我去暗杀谁」）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -389,6 +389,15 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrWhiteSpace(worldFacts))
             {
                 sb.AppendLine(worldFacts);
+                sb.AppendLine();
+            }
+
+            // 🔴 2026-08-13（场景认知注入）：场景内回复者的处境段（在哪 + 主公相对方位）——
+            // 根治 IM 闲聊无场景认知（实锤：药僧在玩家 4 米外答"波罗斯城四五日脚程"）。
+            // 主线程构建（WorldFactProvider.BuildSceneAwareness），后台生成直接拼字符串。
+            if (!string.IsNullOrWhiteSpace(sceneAwareness))
+            {
+                sb.AppendLine(sceneAwareness);
                 sb.AppendLine();
             }
 
