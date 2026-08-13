@@ -33,6 +33,15 @@ namespace LivingWorldNpcs
         /// <summary>兜底主题（任何文本至少命中一个，保证总能打分）。</summary>
         private const string DefaultTopic = "default";
 
+        /// <summary>复数指代词（玩家对多人喊话）：命中且成员 ≥ 2 → 强制跟随回复（跳过随机）。
+        /// 用明确的复数人称词，避开"都/一起"这类泛词误伤（"我都在线"≠对多人说话）。
+        /// 2026-08-13：日志实锤"你们俩都过来我这" 跟随=无——复数语义未被识别。</summary>
+        private static readonly string[] PluralAddressWords = new[]
+        {
+            "你们", "你俩", "俩人", "两人", "二位", "两位", "几位", "各位",
+            "大家", "所有人", "全体", "诸位", "众位", "兄弟们", "姐妹们", "部下们", "随从们"
+        };
+
         /// <summary>职业（NPCProfile.Occupation 中文取值）→ 高亲和主题（2 分），其余主题 0.5 分。</summary>
         private static readonly Dictionary<string, string[]> OccupationTopics = new Dictionary<string, string[]>
         {
@@ -236,12 +245,17 @@ namespace LivingWorldNpcs
             // 2026-08-10 曾加"满 N 条必触发"保底（0.75^7≈13% 的 7 连不中实机出现过），
             // 但保底让跟随变成可预测的固定节拍（玩家发 N 句必然看到一句），假随机比真随机更出戏。
             // 保留纯随机：跟随 = 真正的偶尔惊喜，频道冷清由主回复者兜底（玩家消息必有回应）。
+            // 🔴 复数称呼例外（2026-08-13）：玩家说"你们/两位/大家" = 明确对多人喊话，
+            // 此时跟随不掷随机，必然触发（scored[1] 第二位）——否则"你们俩"只有一人应答（日志实锤）。
             Hero followUp = null;
+            bool pluralAddress = scored.Count >= 2
+                && !string.IsNullOrWhiteSpace(playerText)
+                && PluralAddressWords.Any(w => playerText.IndexOf(w, StringComparison.OrdinalIgnoreCase) >= 0);
             if (scored.Count >= 2
-                && MBRandom.RandomFloat < Settings.Instance.ImGroupFollowUpChance)
+                && (pluralAddress || MBRandom.RandomFloat < Settings.Instance.ImGroupFollowUpChance))
                 followUp = scored[1].hero;
 
-            DebugLogger.Log($"[ImTopic] → 主回复={primary?.Name} 跟随={followUp?.Name?.ToString() ?? "无"}");
+            DebugLogger.Log($"[ImTopic] → 主回复={primary?.Name} 跟随={followUp?.Name?.ToString() ?? "无"}{(pluralAddress ? "（复数称呼强制）" : "")}");
             return (primary, followUp);
         }
     }

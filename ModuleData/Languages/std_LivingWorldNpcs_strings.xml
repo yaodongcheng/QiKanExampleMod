@@ -806,9 +806,11 @@
     
     <string id="LWN_ui_interact_inquiry_danger" text="Danger" />
     <string id="LWN_ui_interact_inquiry_attack_msg" text="{NAME} is about to attack you" />
+    <string id="LWN_ui_interact_inquiry_attack_npc_msg" text="{NAME} is about to attack {TARGET}" />
     <string id="LWN_ui_interact_btn_fight" text="Have at you!" />
     <string id="LWN_ui_interact_inquiry_hint" text="Notice" />
     <string id="LWN_ui_interact_inquiry_duel_msg" text="{NAME} wishes to spar with you. Are you ready?" />
+    <string id="LWN_ui_interact_inquiry_duel_npc_msg" text="{NAME} wishes to spar with {TARGET}. Care to watch?" />
     <string id="LWN_ui_interact_msg_marry_accept" text="{NAME} accepted your marriage proposal!" />
     <string id="LWN_ui_interact_msg_join_clan" text="{NAME} has joined your clan." />
     <string id="LWN_ui_interact_msg_action_fail" text="Cannot perform action: {CODE} (conditions not met)" />
