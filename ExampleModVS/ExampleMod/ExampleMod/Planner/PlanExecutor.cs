@@ -927,13 +927,17 @@ namespace LivingWorldNpcs
                         // self 无移动意义 → 落 MoveToPositionAction 原位（dist=0 瞬完）。
                         if (ResolveStepAgent(step, cursor, out Agent target) && target != cursor.Agent)
                         {
-                            float withinMove = within;
-                            // 🔴 2026-08-12（BRING 几何修正，实机验证）：被请者跟在后侧 ~1.8m，
-                            // 计划 goal 是"被请者距玩家 < 3m"——执行者必须贴到玩家近前（≤1m），
-                            // 被请者才能落进目标圈；原 within=3.0 → 执行者停在 3m 外 → 目标圈永不成立 → 误报"没来"。
-                            if (target == Agent.Main && IntentType == CommandIntentType.Bring)
-                                withinMove = Math.Min(withinMove, 1.0f);
-                            cursor.SubAction = new FollowAgentAction(target, false, stopDistance: withinMove, keepFollow: false);
+                            // 🔴 2026-08-13 用户裁定：move_to 目标=玩家 → 挂原版持续跟随
+                            // （VanillaFollowAction → FollowAgentBehavior 三连），Brain 队列清空后
+                            // 依然跟随；目标=其他 agent → 自研单次追踪（下方 FollowAgentAction）。
+                            if (target == Agent.Main)
+                            {
+                                cursor.SubAction = new VanillaFollowAction(Agent.Main);
+                                return true;
+                            }
+                            // 原 BRING withinMove 特例（2026-08-12）已删：目标=玩家的 BRING 走
+                            // 原版跟随，贴身距离天然满足"被请者距玩家 < 3m"目标圈。
+                            cursor.SubAction = new FollowAgentAction(target, false, stopDistance: within, keepFollow: false);
                             return true;
                         }
                         if (!ResolveStepTarget(step, cursor, out Vec3 pos, out Vec2 dir)) return false;
@@ -943,6 +947,13 @@ namespace LivingWorldNpcs
                 case "follow":
                     {
                         if (!ResolveStepAgent(step, cursor, out Agent target)) return false;
+                        // 🔴 2026-08-13 用户裁定：follow 目标=玩家 → 原版持续跟随
+                        // （relPos behind/left/right/line 在原生跟随下丢弃——跟随语义本来就是贴人走，接受）
+                        if (target == Agent.Main)
+                        {
+                            cursor.SubAction = new VanillaFollowAction(Agent.Main);
+                            return true;
+                        }
                         float radius = 2.0f;
                         float angleOffset = 0f;
                         float stopDistance = 3.5f;
@@ -962,8 +973,10 @@ namespace LivingWorldNpcs
                     }
                 case "stop_following":
                     {
-                        // 执行器接管期间默认跟随不会启动；此步 = 语义化清理（原地等待）
-                        cursor.SubAction = new StayAction(null, false);
+                        // 🔴 2026-08-13 语义升级：真解挂原版跟随（RemoveBehavior<FollowAgentBehavior>
+                        // + 恢复回岗行为）。旧实现 StayAction 语义清理已不适用——原版跟随期间
+                        // Brain 是空脑（不 Suspend），NPC 处于原版接管状态，必须主动解挂。
+                        cursor.SubAction = new VanillaUnfollowAction();
                         return true;
                     }
                 case "order_attack":
