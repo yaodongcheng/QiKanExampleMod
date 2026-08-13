@@ -45,6 +45,22 @@ namespace LivingWorldNpcs
         private Agent _agentB;
         private bool _isDuelActive;
 
+        // 🔴 2026-08-13 崩溃修复（判负拆两段）：OnAgentHit（引擎 HandleBlow 栈内）只做保命
+        //（回血 + Invulnerable），完整收场（停战事件 → Brain 链 → EndFight 的 SetTeam/SetAttackState
+        // 等 native 重入 + 恢复 Mortal）延后到下一帧 OnMissionTick（正常 tick 栈）。
+        // 实机（2026-08-13）：判负时在 blow 栈内同步收场 → System.AccessViolationException
+        //（native 内存损坏；asyncAITick 后台线程并发 tick 同一 agent 的战斗状态）。
+        private bool _pendingDuel;
+
+        // 🔴 2026-08-13 切磋收场冷却（判负晚到伤害事件防反击）：EndDuel 记录刚结束的切磋对 + 结束时刻，
+        // AgentBrain 据此在短窗口内不把"切磋对手的命中"当袭击反击——实机（2026-08-13 15:21）：
+        // 判负后 4ms 的迟滞 event_agent_damaged 触发骑士精神反击 → 以 Peace=false 重新真打 → 一方被打死。
+        // 只匹配切磋双方互打（第三方攻击照常反击）；玩家 order_attack 走 "attack" 事件不经骑士精神，不受影响。
+        private Agent _duelEndA;
+        private Agent _duelEndB;
+        private float _duelEndTime = -100f;
+        private const float DuelEndGuardS = 3f;
+
         /// <summary>战斗广播冷却字典：同一对 (attacker.Index, victim.Index) 3秒内最多广播一次</summary>
         private static Dictionary<(int, int), float> _lastEventDamagedBroadcast = new Dictionary<(int, int), float>();
         private const float EVENT_DAMAGED_BROADCAST_COOLDOWN = 3.0f;
@@ -122,7 +138,11 @@ namespace LivingWorldNpcs
         public void RegisterDuel(Agent a, Agent b)
         {
             if (a == null || b == null) return;
-            if (_isDuelActive) EndDuel(null); // 强制结束上一场（无人胜出）
+            // 强制结束上一场（无人胜出）：判负待收场（_pendingDuel）→ 先走完收场再覆盖引用；
+            // 仅登记未判负 → 直接清状态（双方还在打，但新切磋接管仲裁）。
+            // 🔴 2026-08-13 崩溃修复后：RegisterDuel 不在 blow 栈内（Brain "duel" 事件链），
+            // 此处同步调 EndPendingDuel 线程安全。
+            if (_isDuelActive) { _isDuelActive = false; _pendingDuel = true; EndPendingDuel(); }
             _agentA = a;
             _agentB = b;
             _isDuelActive = true;
@@ -258,19 +278,33 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-13 切磋判负（替代虚拟血量，用户裁定禁止虚拟血量）：
             // 双方 Mortal 正常受击（血条真实掉落、打击反馈全保留——实机证明 Invulnerable
             // native 拦伤害，全程不掉血，不能用来开打）。引擎 HandleBlow 内 OnAgentHit 早于
-            // `if (Health < 1f) Die()`（反编译确认）：血归零即判负，EndDuel 里回满血 →
+            // `if (Health < 1f) Die()`（反编译确认）：血归零即判负，OnDuelLoser 里回满血 →
             // 引擎根本走不到 Die（不死主保证）。不做第二套数值、不每击回血——
             // 真实血量掉落即打击反馈，判负一次回血即复原。
             if (affectedAgent.Health <= 0f)
             {
                 DebugLogger.Log($"[Duel] 判负: {affectedAgent.Name}(Idx={affectedAgent.Index}) 血量归零");
-                EndDuel(affectedAgent);
+                OnDuelLoser(affectedAgent);
             }
         }
-        private void EndDuel(Agent loser)
+
+        /// <summary>
+        /// 🔴 2026-08-13 崩溃修复：判负拆两段——本方法（OnAgentHit 内，引擎 HandleBlow 栈上）
+        /// 只做**保命**（回血 + Invulnerable），完整收场延后到下一帧 <see cref="EndPendingDuel"/>
+        ///（OnMissionTick 调用，正常 tick 栈）。
+        /// 为什么拆：旧实现在此处同步发停战事件 → Brain 链（ClearAllActions → FightEnemyAction.OnEnd
+        /// → CombatManager.EndFight → SetTeam/SetAttackState/SetMovementDirection/SetScriptedCombatFlags
+        /// 等 native 重入）+ 恢复 Mortal，全部在 blow 处理栈内执行；asyncAITick 后台线程并发 tick
+        /// 同一 agent 的战斗状态 → 实机 System.AccessViolationException（判负时刻崩溃，2026-08-13）。
+        /// 拆段不改变安全语义：帧 N 内败者行为仍是 FightEnemyAction（晚到伤害事件的 chivalry 早退
+        /// 条件成立，不反击）；帧 N+1 收场登记冷却 → 迟滞伤害事件被冷却拦截
+        ///（原同步方案中"行为已清 + 晚到伤害"反而是反击链的触发窗口，见 IsRecentDuelPair）。
+        /// </summary>
+        private void OnDuelLoser(Agent loser)
         {
             if (!_isDuelActive) return;
             _isDuelActive = false;
+            _pendingDuel = true;
 
             // 胜负播报（点到为止：无死亡，血条归零判负）——无条件显示（设计哲学①：反馈明确，
             // 玩家是观众时必须知道谁赢了）
@@ -284,34 +318,43 @@ namespace LivingWorldNpcs
                         ("NAME", winner.Name?.ToString() ?? "")),
                     Colors.Green));
             }
-            DebugLogger.Log($"[Duel] 切磋结束: winner={winner?.Name ?? "?"}(Idx={winner?.Index ?? -1}) loser={loser?.Name ?? "?"}(Idx={loser?.Index ?? -1})");
+            DebugLogger.Log($"[Duel] 切磋结束: winner={winner?.Name ?? "?"}(Idx={winner?.Index ?? -1}) loser={loser?.Name ?? "?"}(Idx={loser?.Index ?? -1})（收场延后到下一帧）");
 
-            // 🔴 2026-08-13 完整收场（Mortal 正常打 + 判负回血方案）——本方法只留切磋特有逻辑：
-            // ① 先设 Invulnerable——兜底：判负回血后、停战事件生效前，残余攻击/同帧连击
-            //    可能继续掉血（native 层拦伤害拦死），避免 0 血 + Mortal 后 Die；
-            // ② 回血（点到为止：败者满血复原）——引擎 HandleBlow 在 OnAgentHit 之后才检查
-            //    `if (Health < 1f) Die()`，回满血 → 引擎走不到 Die（不死主保证）；
-            // ③ 发停战事件 → AgentBrain 同步清 FightEnemyAction → OnEnd → CombatManager.EndFight
-            //    （归还原队 + WatchState 恢复 + 收刀 + 动作层打断 + 清索敌——通用收场全在 EndFight，
-            //     EndDuel 不再各自实现）。
+            // 保命（必须在 blow 栈内完成——引擎 HandleBlow 在 OnAgentHit 之后才检查
+            // `if (Health < 1f) Die()`）：① 先设 Invulnerable（native 拦 Die，兜底窗口）② 回满血
+            // → 引擎走不到 Die。双方同时无敌：收场前的 ~1 帧窗口内不会再判负（另一方的打击不掉血）。
+            foreach (var duelist in new[] { _agentA, _agentB })
+            {
+                if (duelist == null || !duelist.IsActive()) continue;
+                try { duelist.SetMortalityState(Agent.MortalityState.Invulnerable); } // ①
+                catch (Exception ex) { DebugLogger.Log($"[Duel] 设无敌失败: {ex.Message}"); }
+                duelist.Health = duelist.HealthLimit;                                   // ②
+            }
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-13 崩溃修复：判负收场（下一帧主线程执行，脱离 blow 栈——见 OnDuelLoser 注释）。
+        /// ① 发停战事件 → AgentBrain 清 FightEnemyAction → OnEnd → CombatManager.EndFight
+        ///    （归还原队 + WatchState 恢复 + 收刀 + 动作层打断 + 清索敌——通用收场全在 EndFight）；
+        /// ② 恢复 Mortal（Invulnerable 兜底窗口关闭）；③ 冷却登记 + 清引用。
+        /// 调用点：OnMissionTick（判负下一帧）/ RegisterDuel（新切磋顶替未收场的旧切磋）。
+        /// </summary>
+        private void EndPendingDuel()
+        {
+            if (!_pendingDuel) return;
+            _pendingDuel = false;
+
+            // ① 发停战事件（Brain 链的 native 重入此刻在正常 tick 栈，线程安全）
             foreach (var duelist in new[] { _agentA, _agentB })
             {
                 if (duelist == null) continue;
                 if (duelist.IsActive())
                 {
-                    duelist.SetMortalityState(Agent.MortalityState.Invulnerable); // ①
-                    duelist.Health = duelist.HealthLimit;                          // ②
-                }
-                try
-                {
-                    AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", duelist); // ③ 同步
-                }
-                catch (Exception ex)
-                {
-                    DebugLogger.Log($"[Duel] 停战事件失败: {ex.Message}");
+                    try { AgentAIController.Instance?.SendEventToAgent(duelist, "event_stop_combat", duelist); }
+                    catch (Exception ex) { DebugLogger.Log($"[Duel] 停战事件失败: {ex.Message}"); }
                 }
             }
-            // ④ 停战已生效，关闭兜底窗口
+            // ② 停战已生效，关闭兜底窗口
             foreach (var duelist in new[] { _agentA, _agentB })
             {
                 if (duelist == null || !duelist.IsActive()) continue;
@@ -319,10 +362,32 @@ namespace LivingWorldNpcs
                 catch (Exception ex) { DebugLogger.Log($"[Duel] 恢复 Mortal 失败: {ex.Message}"); }
             }
 
+            // ③ 收场冷却登记：清引用前快照——供 AgentBrain 判断"迟滞伤害是否来自刚结束的切磋"
+            _duelEndA = _agentA;
+            _duelEndB = _agentB;
+            _duelEndTime = Mission.Current?.CurrentTime ?? -100f;
+
             // 4. 【关键】清空引用，允许下一次攻击触发新的切磋
             _agentA = null;
             _agentB = null;
+        }
 
+        /// <summary>
+        /// 🔴 2026-08-13 切磋收场冷却判定：a/b 是否"刚结束的切磋对"（3s 窗口内）。
+        /// 判负那一击的 event_agent_damaged 晚于停战事件到达 → 受害者 Brain 行为已清空，
+        /// 护主逻辑会把它当"被袭击" → 骑士精神反击 → 以 Peace=false 重新真打 → 一方被打死（实机）。
+        /// 窗口只匹配切磋双方互打：第三方攻击照常反击；玩家 order_attack 走 "attack" 事件，
+        /// 不经骑士精神，不受本冷却影响。
+        /// </summary>
+        public bool IsRecentDuelPair(Agent a, Agent b)
+        {
+            if (a == null || b == null || a == b) return false;
+            if (_duelEndA == null || _duelEndB == null) return false;
+            if (a != _duelEndA && a != _duelEndB) return false;
+            if (b != _duelEndA && b != _duelEndB) return false;
+            if (Mission.Current == null) return false;
+            if (Mission.Current.CurrentTime - _duelEndTime > DuelEndGuardS) return false;
+            return true;
         }
 
         // ══════════════════════════════════════════════════════════════════════
@@ -408,6 +473,9 @@ namespace LivingWorldNpcs
         public override void OnMissionTick(float dt)
         {
             base.OnMissionTick(dt);
+
+            // 🔴 2026-08-13 崩溃修复：判负收场延后帧（blow 栈内同步收场 → AccessViolation，见 OnDuelLoser 注释）
+            EndPendingDuel();
 
             // 队伍变更日志门禁：记录 Mission 起始时刻；门禁开启时打全场初始队伍基线
             CombatManager.OnCombatManagerTick(Mission.Current);

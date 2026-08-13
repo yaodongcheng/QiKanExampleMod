@@ -24,8 +24,6 @@ namespace LivingWorldNpcs
         public static string Interrupted => LWNTextHelper.ResolveText("LWN_plan_abort_interrupted", "The plan was interrupted.");
         // 本地化：@abort_gracefully 中止
         public static string Aborted => LWNTextHelper.ResolveText("LWN_plan_abort_generic", "The plan is called off.");
-        // 本地化：步骤超时中止
-        public static string StepTimeout => LWNTextHelper.ResolveText("LWN_plan_abort_timeout", "A step took too long. Falling back.");
         // 本地化：跳转目标缺失中止
         public static string BadJump => LWNTextHelper.ResolveText("LWN_plan_abort_badjump", "The plan went wrong. Falling back.");
         // 本地化：主链走完但 goal 未达成
@@ -314,16 +312,23 @@ namespace LivingWorldNpcs
             if (!playerCombat && State == ExecutorState.Paused && PauseReason == "玩家战斗中") { Resume(); return; }
 
             // R4 玩家走远（>30m）→ Pause 追回；豁免：当前步骤是远离玩家的独行任务
+            // 🔴 2026-08-13 追加豁免：move_to/follow 目标 = 任意 agent（"过来/跟着某人"）——
+            // 走 FollowAgentAction 追踪式跟随，目标在动也兼容；执行者离玩家 >30m 时暂停 +
+            // chaseback 是双重走路（先走回 30m 再开始正式跟随），暂停毫无意义。
+            // 实机（2026-08-13）：161m 外随从响应"过来"，计划一启动就被暂停 60s 追回，
+            // 玩家以为"第二次命令才响应"。
             if (State == ExecutorState.Paused && PauseReason == "玩家走远了")
             {
-                TickChaseBack(dt);
+                if (IsFollowAgentStep()) Resume();
+                else TickChaseBack(dt);
                 return;
             }
             if (State == ExecutorState.Executing && !IsCurrentStepRemote())
             {
                 var player = Agent.Main;
                 if (player != null && player.IsActive() && OwnerAgent.IsActive()
-                    && OwnerAgent.Position.Distance(player.Position) > 30f)
+                    && OwnerAgent.Position.Distance(player.Position) > 30f
+                    && !IsFollowAgentStep())
                 {
                     Pause("玩家走远了");
                     return;
@@ -769,7 +774,14 @@ namespace LivingWorldNpcs
                 return;
             }
             // 缺省 → @abort_gracefully
-            Abort(PlanTexts.StepTimeout);
+            // 🔴 2026-08-13：消息带"谁 + 在干什么"（玩家看不懂"有一步拖太久了，先撤"——
+            // 不写谁、不写什么事；实机 2026-08-13：随从追不上走动的玩家，30s 后冒这句密信）。
+            // 中文走 LWN_plan_abort_timeout 的 CN 翻译（带 {OWNER}/{STEP} 变量）。
+            string stepDesc = BuildStepSummary(step);
+            Abort(LWNTextHelper.ResolveCompound("LWN_plan_abort_timeout",
+                "{OWNER} {STEP} — taking too long, calling it off.",
+                ("OWNER", OwnerAgent?.Name?.ToString() ?? ""),
+                ("STEP", stepDesc)));
         }
 
         private void ExitLoop(ActorCursor cursor)
@@ -1434,15 +1446,19 @@ namespace LivingWorldNpcs
         private string BuildStepSummary(PlanStep step)
         {
             if (step == null) return Summary ?? "";
+            // 🔴 2026-08-13 本地化（原硬编码中文；现随超时消息进入玩家可见文本，铁律 13）
             switch (step.Action)
             {
-                case "move_to": return "正在前往目标地点";
-                case "say_to": return step.Text != null ? $"去说：{step.Text}" : "正在搭话";
-                case "wait": return "等待时机";
-                case "order_attack": return "正在交手";
-                case "signal_player": return "准备报告";
-                case "steal_attempt": return "准备下手";
-                default: return $"执行中（{step.Action}）";
+                case "move_to": return LWNTextHelper.ResolveText("LWN_plan_step_move_to", "Heading to target");
+                case "say_to":
+                    return step.Text != null
+                        ? LWNTextHelper.ResolveCompound("LWN_plan_step_talk", "Talking: {TEXT}", ("TEXT", step.Text))
+                        : LWNTextHelper.ResolveText("LWN_plan_step_talk", "Talking");
+                case "wait": return LWNTextHelper.ResolveText("LWN_plan_step_wait", "Waiting");
+                case "order_attack": return LWNTextHelper.ResolveText("LWN_plan_step_fight", "Fighting");
+                case "signal_player": return LWNTextHelper.ResolveText("LWN_plan_step_report", "Preparing to report");
+                case "steal_attempt": return LWNTextHelper.ResolveText("LWN_plan_step_steal", "Preparing to steal");
+                default: return LWNTextHelper.ResolveCompound("LWN_plan_step_doing", "Carrying out ({ACTION})", ("ACTION", step.Action));
             }
         }
 
@@ -1502,6 +1518,20 @@ namespace LivingWorldNpcs
         {
             if (IsFinished) return;
             Abort(message, allowReplan: true);
+        }
+
+        /// <summary>🔴 2026-08-13：当前步骤是"朝 agent 走/跟着 agent"（move_to/follow 且目标解析为
+        /// 任意 agent，含玩家）→ 豁免「玩家走远了」暂停（R4）。这类步骤走 FollowAgentAction 追踪式
+        /// 跟随，目标在动也兼容（重算间隔随目标速度自适应），执行者离玩家 >30m 时暂停 + chaseback
+        /// 是双重走路，暂停毫无意义。R4 该防的只有"往固定坐标点傻走"（MoveToPositionAction 快照
+        /// 寻路，玩家走了它仍走旧点）。判定与执行器 move_to/follow 分派完全对齐：
+        /// ResolveStepAgent 成功 = agent 目标（豁免）；失败 = 坐标点（不豁免，走既有 R4）。</summary>
+        private bool IsFollowAgentStep()
+        {
+            var step = _selfCursor?.Current;
+            if (step == null) return false;
+            if (step.Action != "move_to" && step.Action != "follow") return false;
+            return ResolveStepAgent(step, _selfCursor, out _);
         }
 
         /// <summary>R4 豁免：当前步骤 target/zone 远离玩家 > 30m（独行任务不叫回）。</summary>

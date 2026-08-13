@@ -52,6 +52,12 @@ namespace LivingWorldNpcs
                 // 目标文本（可选；不传 = 执行器缺省语义）
                 if (!string.IsNullOrEmpty(targetText))
                     step.Target = targetText;
+                // 🔴 2026-08-13：move_to/follow 给宽松超时——步骤校验的默认补时仅 30s（PlanGrammar
+                // 补 timeout_s 30s），追移动中的玩家/长距离步行经常超时 → "拖太久了，先撤" 中止
+                // （实机：让随从来身边，随从跟着走动的玩家追不上 → 30s 后中止 + 看不懂的密信）。
+                // 玩家走远 >30m 已有 PlanExecutor「玩家走远了」暂停追回兜底，120s 只是最后防线。
+                if (actionCode == "move_to" || actionCode == "follow")
+                    step.TimeoutS = 120f;
                 // 参数（C# 确定，铁律 2）——2026-08-13 重构：FillParams 查 ActionRegistry 主表
                 //（6 个参数化动作：emote/look_at/follow/steal_attempt/give_gold/say_to）
                 ActionRegistry.FindByCode(actionCode)?.FillParams?.Invoke(step, level, sayText);
