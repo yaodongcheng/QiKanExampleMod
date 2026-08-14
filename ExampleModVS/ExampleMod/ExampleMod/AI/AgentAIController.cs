@@ -295,9 +295,8 @@ namespace LivingWorldNpcs
             // 密谋命令系统：Mission 结束 → 执行器统一收尾（OnMissionScreenFinalize 兜底纪律）
             PlanExecutor.ShutdownAll();
             FinalizePendingWorldEvent();
-            // 🔴 Phase E（2026-08-13）：被执法逮捕且被击倒的随从 → 转押事件定居点（原版俘虏机制）。
-            // 时机在 MissionEnd 后、Campaign tick 前（仿 PlayerDetentionBehavior 注释：源头防生成）
-            TransferArrestedCompanionsToJail();
+            // 🔴 Phase E（2026-08-14 重构）：被捕随从转押已迁到 AttackTriggerMissionLogic
+            //（heroId 逮捕瞬间缓存 + Mission 结束只读大地图数据，零 teardown 期 Agent native 访问）。
             CombatManager.OnMissionEnd();
             // 🔴 2026-08-12：解挂玩家武器切换监听（实例随 Mission 销毁，防悬空引用）
             try { if (Agent.Main != null) Agent.Main.OnMainAgentWieldedItemChange -= OnPlayerWeaponChanged; } catch { }
@@ -500,58 +499,6 @@ namespace LivingWorldNpcs
             }
 
             WorldEventStore.AddOrMerge(pending);
-        }
-
-        /// <summary>
-        /// 随从逮捕转押（Phase E，2026-08-13）：Mission 结束时，被执法逮捕（ArrestedByLaw）且被击倒
-        /// （!IsActive 且 Health>0 = 击晕倒地；Health&lt;=0 = 真死，hero 死亡系统接管，不逮捕）的
-        /// 随从 → 转押事件定居点牢房（TakePrisonerAction 原版 hero 俘虏机制：进 settlement.PrisonRoster、
-        /// 从原队伍移除、原版 captivity 状态机接管）。**仅随从 Hero 非空才执行**（模板 NPC 随从无 Hero
-        /// → 跳过，仅 Mission 层倒地）。
-        /// 事件保持 Active（嫌疑人=随从）——玩家可回定居点赎回（CompanionDetentionBehavior 菜单）。
-        /// </summary>
-        void TransferArrestedCompanionsToJail()
-        {
-            if (Campaign.Current == null) return;
-            try
-            {
-                foreach (var b in _brains.Values)
-                {
-                    if (b == null || !b.ArrestedByLaw) continue;
-                    if (b.Owner == null || b.Owner.IsActive() || b.Owner.Health <= 0f) continue;  // 击晕倒地才转押
-                    var hero = (b.Owner.Character as CharacterObject)?.HeroObject;
-                    if (hero == null) continue;                                          // 模板 NPC 无 Hero → 跳过
-                    if (!FriendlinessHelper.IsPlayerPartyMember(hero)) continue;          // 只转押玩家随从
-
-                    // 事件定居点：PendingWorldEvent（本场 Mission 的犯罪事件）→ 持久化 store 兜底
-                    WorldEvent evt = null;
-                    if (PendingWorldEvent != null && !string.IsNullOrEmpty(PendingWorldEvent.TargetSettlementId))
-                        evt = WorldEventStore.FindOnGoing(PendingWorldEvent.TargetSettlementId) ?? PendingWorldEvent;
-                    else if (Settlement.CurrentSettlement != null)
-                        evt = WorldEventStore.FindOnGoing(Settlement.CurrentSettlement.StringId);
-                    if (evt == null || evt.TargetSettlement == null) continue;
-
-                    var settlement = evt.TargetSettlement;
-                    // 转押（原版 hero 俘虏机制）
-                    TakePrisonerAction.Apply(settlement.Party, hero);
-                    b.ArrestedByLaw = false;   // 已转押，防重复
-                    // 注册到赎回菜单（CompanionDetentionBehavior）
-                    CompanionDetentionBehavior.RegisterDetained(hero, settlement, evt.EventId);
-
-                    // 提示消息（铁律 13）：你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。
-                    InformationManager.DisplayMessage(new InformationMessage(
-                        LWNTextHelper.ResolveCompound("LWN_ui_arrest_msg",
-                            "Your companion {NAME} has been locked in the jail of {SETTLEMENT}.",
-                            ("NAME", hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target")),
-                            ("SETTLEMENT", settlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_detention_place_here", "here"))),
-                        Colors.Red));
-                    DebugLogger.Log($"[Arrest] 随从 {hero.Name}（{b.Owner.Name}）被转押 {settlement.Name}（事件 {evt.EventId}，嫌疑人=随从）");
-                }
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[Arrest] 转押失败: {ex.Message}");
-            }
         }
 
         /// <summary>

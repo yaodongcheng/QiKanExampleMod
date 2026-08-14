@@ -14,7 +14,8 @@ namespace LivingWorldNpcs
     /// <summary>
     /// 随从逮捕善后（Phase E，2026-08-13，hud-intent-unify-alert-suspect.md §2.8）：
     /// 随从犯法被执法击倒、玩家不调停离场 → MissionEnd 后随从被转押事件定居点牢房
-    /// （TakePrisonerAction 原版 hero 俘虏机制，转押动作在 AgentAIController.TransferArrestedCompanionsToJail）。
+    /// （TakePrisonerAction 原版 hero 俘虏机制，转押动作在 AttackTriggerMissionLogic.TransferArrestedCompanions，
+    /// 逮捕瞬间缓存 Hero + Mission 结束只读大地图数据，2026-08-14 重构）。
     ///
     /// 本类 = 释放路径（大地图层）：
     /// 在 village/town/castle 菜单注入「赎回随从」选项——
@@ -38,7 +39,7 @@ namespace LivingWorldNpcs
             Instance = this;
         }
 
-        /// <summary>转押登记（AgentAIController.TransferArrestedCompanionsToJail 调用）。</summary>
+        /// <summary>转押登记（AttackTriggerMissionLogic.TransferArrestedCompanions 调用）。</summary>
         public static void RegisterDetained(Hero hero, Settlement settlement, string eventId)
         {
             var inst = Instance;

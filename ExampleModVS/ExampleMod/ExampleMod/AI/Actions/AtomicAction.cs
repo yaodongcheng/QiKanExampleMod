@@ -1130,6 +1130,10 @@ namespace LivingWorldNpcs
         /// 切磋不飘"开始攻击"红字、不喊开战宣言、不触发残血认输对话——胜负由 EndDuel 统一收场。</summary>
         private readonly bool _isDuel;
 
+        /// <summary>起立剩余时长（秒）（2026-08-14）：击晕倒地参战先起立——OnStart 播起立动画后
+        /// 留出动画时长再 BeginFight（防原生战斗 AI 覆盖起立动画）。≤0 = 非起立窗口。</summary>
+        private float _riseRemaining;
+
         /// <summary>残血认输已触发标记（每次创建新实例重置）</summary>
         private bool _surrenderTriggered = false;
         /// <summary>受伤喊话已触发标记（每场战斗最多 1 次；M0 说话并联）</summary>
@@ -1169,17 +1173,34 @@ namespace LivingWorldNpcs
             // 不能追人也不能出手（登记为战斗者却傻站着）。
             // 各事件处理器（order_attack / DeferredCombat / 目击反击）无需各自补 ForceUnlockAgent。
             AgentControlHelper.ForceUnlockAgent(agent);
+            // 🔴 2026-08-14 击晕起身：脚本击晕（KnockoutFlow 播 act_death_fall_front）绕过了
+            // 引擎原生 knockdown 状态机，引擎不会自动起立。击晕倒地者参战 → 先起立
+            // （播 act_stand_up_to_front + 清 IsStunned），OnTick 等动画播完再 BeginFight——
+            // 否则原生战斗 AI 接管时动画通道仍卡在倒地姿势，人起不来（实机：随从躺着参战）。
+            // 🔴 单一漏斗：脑入队（order_attack/duel/目击反击/执法）/ 计划执行
+            // （PlanExecutor order_attack 直入队）/ ReactiveAgent 全走本 OnStart，无漏网。
+            if (AgentBrain.IsKnockedOut(agent))
+            {
+                _riseRemaining = KnockoutFlow.StandUp(agent);
+                if (_riseRemaining <= 0f) BeginFight(agent);   // 起立失败（agent 失效等）兜底：直接开战
+                return;
+            }
+            BeginFight(agent);
+        }
+
+        /// <summary>正式开战（起立动画播完 / 非击晕直接进入）：开战飘字 + 登记战斗 + 开战宣言。</summary>
+        private void BeginFight(Agent agent)
+        {
             if (Settings.Instance.ShowDebugMessages && !_isDuel)
                 // 开战飘字：{NAME} 开始攻击 {ENEMY}（切磋不飘——点到为止非敌对）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_action_attack_start",
                     ("NAME", agent.Name.ToString()), ("INDEX", agent.Index.ToString()), ("ENEMY", _targetEnemy.Name.ToString())), Colors.Yellow));
-            //AgentHudMissionView.AgentSay(agent, "别碰我的老大！");
             //玩家阵营1，自己阵营2，这里之后再看
             // 🔴 2026-08-13：切磋（IsDuel）→ Peace=true → StartDuel（Invulnerable 底层无敌，点到为止）
             CombatManager.StartFight(agent, _targetEnemy, 2, 1, Peace: _isDuel);
+            _lastHealth = agent.Health;
             // 🔴 M0 战斗喊话（说话并联）+ M4 双轨润色：开战宣言（Combat 优先级，有 LLM 润色/无则模板）
             // 切磋跳过宣言——"你想死吗？！"与点到为止的切磋语义相悖。
-            _lastHealth = agent.Health;
             if (!_isDuel)
                 SpeechChannel.SayPolished(agent,
                     LWNTextHelper.ResolveText("LWN_action_combat_start", "You want to die?!"), SpeechPriority.Combat,
@@ -1190,6 +1211,15 @@ namespace LivingWorldNpcs
         {
             // 如果已经结束，就不浪费算力了
             if (_isFinished) return;
+
+            // 🔴 2026-08-14 起立窗口：只倒数不打架（目标终止检查也跳过——敌人等着即可），
+            // 动画播完 → BeginFight 正式开战，再下一帧走正常战斗逻辑。
+            if (_riseRemaining > 0f)
+            {
+                _riseRemaining -= dt;
+                if (_riseRemaining > 0f) return;
+                BeginFight(agent);
+            }
 
             // --- 终止条件检查 ---
 

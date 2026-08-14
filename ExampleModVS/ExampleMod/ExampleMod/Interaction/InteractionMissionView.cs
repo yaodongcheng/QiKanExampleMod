@@ -581,15 +581,12 @@ namespace LivingWorldNpcs
 
             try
             {
-                // ① 守卫停战收刀 + 清嫌疑犯的逮捕标记（调停成功 → 转质问，不再转押）
+                // ① 守卫停战收刀 + 解除嫌疑犯的逮捕登记（调停成功 → 转质问，不再转押）
                 var suspectBeforeRemap = guardBrain.TopSuspectAgent();
                 guardBrain.AbortCurrentAction();   // 中断当前动作（FightEnemyAction 收刀）
                 guardBrain.ClearAllActions();      // 清队列（FightEnemyAction.OnEnd 自带收刀）
                 if (suspectBeforeRemap != null)
-                {
-                    var sb = AgentAIController.GetBrainForAgent(suspectBeforeRemap);
-                    if (sb != null) sb.ArrestedByLaw = false;
-                }
+                    AttackTriggerMissionLogic.Instance?.UnregisterArrestedCompanion(suspectBeforeRemap);
 
                 // ② 玩家冒泡认领
                 AgentHudMissionView.AgentSay(Agent.Main,
