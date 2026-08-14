@@ -4060,7 +4060,7 @@
     <string id="LWN_plan_abort_generic" text="计划作罢了。" />
     <string id="LWN_plan_abort_timeout" text="{OWNER} {STEP}，拖太久没成，先作罢了。" />
     <string id="LWN_plan_step_move_to" text="前往目标地点" />
-    <string id="LWN_plan_step_talk" text="去说：{TEXT}" />
+    <string id="LWN_plan_step_talk" text="交谈中" />
     <string id="LWN_plan_step_wait" text="等待时机" />
     <string id="LWN_plan_step_fight" text="正在交手" />
     <string id="LWN_plan_step_report" text="准备报告" />
@@ -4071,6 +4071,32 @@
     <string id="LWN_plan_lead_waiting" text="你走不走啊？" />
     <string id="LWN_plan_loot" text="赃物" />
     <string id="LWN_plan_gold" text="金币" />
+    <string id="LWN_hud_plan_executing" text="执行计划中：{STEP}" />
+    <string id="LWN_plan_step_decision" text="步骤 {STEP} 收到决策结果（{TYPE}）" />
+    <string id="LWN_plan_pause_modal" text="玩家在忙别的" />
+    <string id="LWN_plan_pause_fight" text="玩家战斗中" />
+    <string id="LWN_plan_pause_far" text="玩家走远了" />
+    <string id="LWN_plan_goal_done" text="目标达成" />
+    <string id="LWN_plan_chaseback" text="追上玩家" />
+    <string id="LWN_plan_done" text="完成了" />
+    <string id="LWN_plan_cancel_player" text="玩家叫停" />
+    <string id="LWN_brain_crime_shout" text="站住，{NAME}！" />
+    <string id="LWN_ui_interact_intervene" text="调停" />
+    <string id="LWN_ui_intervene_bubble" text="住手！他是我的人！" />
+    <string id="LWN_ui_arrest_msg" text="你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。" />
+    <string id="LWN_ui_companion_ransom" text="赎回随从 {LWN_COMPANION}——{LWN_COMPANION_FINE}{GOLD_ICON}" />
+    <string id="LWN_ui_companion_ransom_ack" text="你付了罚款，把 {NAME} 领了回来。" />
+    <string id="LWN_ui_companion_ransom_none" text="你的随从已经被放出来了。" />
+    <string id="LWN_dialogue_companion_crime_opening" text="你的随从 {NAME} 偷了我的东西！你有什么好说的？" />
+    <string id="LWN_dialogue_companion_crime_handover" text="带走他吧。随你处置。" />
+    <string id="LWN_dialogue_companion_crime_handover_ack" text="好。人归我们，这事就算了。" />
+    <string id="LWN_dialogue_companion_crime_pay" text="我替他赔钱。" />
+    <string id="LWN_dialogue_companion_crime_pay_ack" text="钱留下，这事就算了。" />
+    <string id="LWN_dialogue_companion_crime_deny" text="他不是我的人，我不认识他。" />
+    <string id="LWN_dialogue_companion_crime_deny_ack" text="胡说！全村都看见他跟着你！" />
+    <string id="LWN_dialogue_companion_crime_deny_ok" text="……行。那你走吧。让他别再踏进这里。" />
+    <string id="LWN_dialogue_companion_crime_handover_msg" text="你把 {NAME} 交给了守卫。" />
+    <string id="LWN_crime_suspect_unknown" text="你那个随从" />
     <!-- ── IM 传讯系统（LWN_im_*）── -->
         <string id="LWN_im_channel_nearby" text="附近" />
 <string id="LWN_im_channel_party" text="队伍" />

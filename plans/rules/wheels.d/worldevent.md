@@ -139,6 +139,15 @@ AgentAIController.Instance?.RegisterTheftWitnesses(heroIds, templates, itemId, i
 
 ---
 
+## 🔴 嫌疑人单一事实源（2026-08-14）— `AI/AgentAIController.cs` + `WorldEvent/WorldEvent.cs`
+
+嫌疑人来源只有两条：**目击者脑内**（`RegisterWitness` ← `brain.TopSuspectAgent()` 三态：null=玩家 / Hero=随从 / `""`=无名 unknown）与**玩家自首**（`ConfessIntent`）。**偷窃记账（`RegisterTheftWitnesses`）纯记账不锁嫌疑人**；`FinalizePendingWorldEvent` 不按证词写死玩家（无人拉满 → Dormant 过夜 → Emerging 无头案，证词只作调查资产：有真目击 → `InvestigationProgress=1.0`）。`TransitionStage` Active 分支三态：非空=锁定 / null=InferSuspect（InitiatorId 推断，既有兜底）/ `""`=显式 unknown 跳过推断。
+已知边界：Emerging 调查 `TryLockSuspect` 的目击者描述匹配返回 InitiatorId（PendingWorldEvent 创建时写死玩家，`AgentAIController.cs:122`）——随从犯法无人拉满的事件隔日调查可能查回玩家，待实机决策。
+
+## 🔴 随从逮捕转押链（Phase E，2026-08-13）— `WorldEvent/CompanionDetentionBehavior.cs` + `AI/AgentAIController.cs`
+
+守卫 `BecomeAlarmed` suspect 分支参战前设 `suspect brain.ArrestedByLaw = true`（执法语义非私刑）；MissionEnd 后 `TransferArrestedCompanionsToJail`：ArrestedByLaw + 击晕倒地（`!IsActive && Health>0`）+ 随从 Hero 非空 + `IsPlayerPartyMember` → `TakePrisonerAction.Apply(settlement.Party, hero)`（原版 hero 俘虏机制，从队伍移除）+ `CompanionDetentionBehavior.RegisterDetained` + 提示消息。释放：village/town/castle 菜单注入「赎回随从」——`CrimePenaltyCalculator.ComputeCost(evt, Restitution)`（≥50 保底）→ `AgentControlHelper.TransferGold`（收款=权威 NPC 或 world，铁律 4）→ `PrisonRoster.RemoveTroop` 释放 → 事件 Resolved；`SyncData` 存档 + `HourlyTick` 失效清理。城镇/城堡另有原版地牢救人路径。
+
 ## 消费点清单（新案情叙事禁止绕过）
 
 | 消费方 | 用法 |

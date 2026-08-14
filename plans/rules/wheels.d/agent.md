@@ -35,6 +35,19 @@ AgentControlHelper.HasResource(owner, ResourceCost.Of(item, n));            // �
 AgentControlHelper.ApplyMarriageLogic(h1, h2);  OnPlayerSelect_MarryNewLover(newLover);
 ```
 
+**引擎蹲姿（玩家 Z 键同机制）— 蹲姿是引擎姿态 flag，不是动画**（2026-08-14 实机反编译确认）：
+
+```csharp
+agent.SetCrouchMode(true);    // 蹲下 = SetScriptedFlags(flags | AIScriptedFrameFlags.Crouch)，瞬时
+agent.SetCrouchMode(false);   // 站起（同样瞬时；蹲姿保持到「站起」命令或脑接管自动清除）
+bool ok = agent.IsCrouchingAllowed();  // ⚠️ 1.2.12 无此 API（MB2_GE_130+ 才有，勿在低版本调用）
+```
+
+- **实机踩坑（2026-08-14）**：`SetPose("act_crouch")` 静默失败 ≠「蹲姿动画不存在」——蹲姿动画真实存在（`act_crouch_walk_idle_unarmed`），入口是 **Crouch flag**（native 播蹲姿 + 碰撞盒降低 `CrouchedBodyCapsulePoint`）。玩家按 Z 蹲下走的正是这条链。判定 API 归属别凭名字猜，先二进制 grep 再下结论。
+- **姿态生命周期免费管理**：蹲姿是 scripted flag——任何 `ForceUnlockAgent`（`SetScriptedFlags(None)`，脑接管/新移动指令/战斗）自动清 → 自然起身，无需手动补站起；蹲着收到移动命令引擎播蹲走动画（读作"猫腰潜行"）。
+- **版本兼容**：`SetCrouchMode` 1.2.12/1.3.15/1.4.6 三锚点全有（二进制实测），无版本分支；`IsCrouchingAllowed` 仅 1.3+。
+- **范本**：`Planner/InlineSteps.cs` `CrouchInlineState`（crouch/stand 免确认瞬时动作）+ 扒窃 Rolling 阶段「蹲身摸口袋」（引擎下蹲替换弯腰伸手假动画）。
+
 
 ---
 
@@ -365,6 +378,18 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 3. 其余 → `PlayerActionType.Steal` + `ConfrontationType.Recover`（兜底：偷窃）
 
 **文件位置**：`AI/AgentBrain.cs`（新增约 250 行警戒相关代码）
+
+**🔴 Suspect 化（2026-08-13 任何人犯法闭环 + 2026-08-14 嫌疑人单一事实源）**：
+- `AlertEntry.SuspectAgentIndex`（`AI/AlertTypes.cs`，**必须字段初始化器 -1**——`new AlertEntry()` 时 int 默认 0 会被误判为某 agent）
+- `brain.SetPulseTarget(type, name, item, targetIdx, suspectIdx = -1)` — **先 SetPulseTarget 后 AddAlert 约定**（AddAlert 内的友方豁免依赖脉冲上下文）
+- `TopSuspectAgentIndex` / `AlertTargetIsPlayer`（suspect 未知或=玩家 → true 暖色；随从犯法 → false 冷青蓝）/ `TopSuspectAgent()` / `RemapSuspectToPlayer()`（调停认领）/ `ArrestedByLaw`（执法逮捕标记，Phase E 转押用）
+- **任何人犯法闭环**：`AIEvent.IsCrime`（默认 true）+ `BroadcastEventInRange(isCrime:)` 透传；**仅两处传 false**（make_noise 随从喊一嗓子、NPC 投降广播）；`WitnessCrime_GatherOnLook` 分类块门控 `criminal != Owner && IsCrime`；`BecomeAlarmed` **suspect 分支必须插在 IsPlayerInCombat 检查之前**（否则玩家碰巧战斗时随从犯罪被抢走参战玩家）——顶条目 suspect 非玩家 → 冒泡「站住，{NAME}！」+ `StartCombatAgainst(suspect)` + 设 suspect brain `ArrestedByLaw=true`；`AddAlert` 豁免泛化 `IsSuspectHostile`（suspect 非玩家友方 → 不豁免，任何人犯法都涨警戒）
+- **嫌疑人三态单一事实源**（2026-08-14 修正）：`RegisterWitness`（目击者 Alarmed 时自动调用，`AI/AgentAIController.cs`）从 `TopSuspectAgent()` 推导——null=玩家（MainHero）/ Hero=随从 / `""` 哨兵=无名 unknown（模板随从不回落玩家）；`RegisterTheftWitnesses` 纯记账不锁嫌疑人；`TransitionStage` Active 分支 `""` 跳过 InferSuspect。玩家自首（ConfessIntent）是第二来源。详见 worldevent.md 同章节
+
+**🔴 广播视线锚点必须锚事件源而非玩家（2026-08-14 修复，勿回归）**：
+- 问题：`BroadcastEventInRange(center, radius, "WitnessCrime", ..., requireSight: true, criminal, victim)` 的视线检查原用 `CanNpcSeePlayer`（内部 `CanAgentSeeTarget(npc, Agent.Main, 15f, 120f)` **写死玩家**）——随从（NPC）执行计划犯罪时，旁观者能看到犯罪现场（随从打人）却看不见远处/背身的玩家 → 广播被误过滤 → 现场 NPC 收不到 WitnessCrime → 无人涨警戒（实机：阿速甘击晕那弥斯失败，旁观者零反应）。附带缺陷：距离 15f 硬编码 < 广播半径 20f，15-20m 旁观者被误杀。
+- 修复（`AI/AgentAIController.cs` `BroadcastEventInRangeCore`）：WitnessCrime 且 `args[0] is Agent anchor` → `CanAgentSeeTarget(brain.Owner, anchor, radius, 120f)`；其余事件保持 `CanNpcSeePlayer`。**args[0] 恒为事件源**是全部 WitnessCrime 调用点约定（KnockoutFlow=犯罪者 / StealManager=偷窃者 / InlineSteps=喊叫者 / AgentBrain 投降=投降者）——玩家犯罪时 args[0]==Agent.Main，与旧行为等价，安全。
+- 🔴 **静态视线查询不需要 `RegisterTrackedTarget` 注册**（易误解点）：`CanAgentSeeTarget` / `GetObserversOf` 是无状态按需查询，广播、StealManager 目击检测（`StealManager.cs:518`）都直接调，**与 tracked 列表无关**。`RegisterTrackedTarget` 只服务 tick 追踪事件（`OnAgentStartObserving` 等），该消费链当前已断（`AgentAIController.cs:138` 订阅 `return;` 禁用 + `StartObservingPlayer` 发送被注释）——**不要**因广播问题给随从加 tracked 注册，注册了也无行为变化。已注册的只有玩家（`MySubModule.cs:113` + `NpcSightSystem.cs:336` 首 tick 兜底）。
 
 
 ---

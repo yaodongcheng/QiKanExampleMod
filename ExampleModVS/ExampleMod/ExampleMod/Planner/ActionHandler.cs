@@ -115,8 +115,11 @@ namespace LivingWorldNpcs
                 // 标签取统一小写码（Code 已小写，无需 ToLowerInvariant）
                 string actionLabel = ImCommandFlow.PlanActionLabel(actionDef.Code);
                 // 目标：LLM 目标文本优先，否则用解析出的 defender（私聊语境下 LLM 常省略目标）
-                string target = !string.IsNullOrWhiteSpace(targetText) ? targetText
-                    : (defender != null ? defender.Name?.ToString() : null);
+                // 🔴 2026-08-14：SelfTargeted（自身状态切换）无目标语义 → 跳过目标拼装
+                //（crouch 播报「阿速甘 决定：蹲下」，而非「蹲下（目标：努勒丹）」）
+                string target = actionDef.SelfTargeted ? null
+                    : (!string.IsNullOrWhiteSpace(targetText) ? targetText
+                        : (defender != null ? defender.Name?.ToString() : null));
                 // 参数：金额（give_gold）/ 档位词（关系类）/ 动画 key（emote），C# 确定（铁律 2）
                 string param = actionDef.AnnounceParam?.Invoke(level);
 
@@ -177,7 +180,10 @@ namespace LivingWorldNpcs
                 return;
             }
             // 空间裁剪（§5.2）：动作空间不含当前空间 → 降级 NONE（LLM 硬选场景外动作，IsValid 兜底前再拦一层）
-            var space = explicitTarget != null ? ActionSpace.InScene : ResolveSpace(attacker, defender);
+            // 🔴 2026-08-14：SelfTargeted（自身状态切换）——defender 恒 null 会让 ResolveSpace 误判 Remote，
+            // 空间只看执行人（IsValid 已保证 agent 非空）
+            var space = actionDef.SelfTargeted ? ActionSpace.InScene
+                : (explicitTarget != null ? ActionSpace.InScene : ResolveSpace(attacker, defender));
             if ((actionDef.Spaces & space) == 0)
             {
                 DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 不适用于空间 {space} → 降级 NONE");
@@ -286,7 +292,19 @@ namespace LivingWorldNpcs
             var actionDef = ActionRegistry.FindByCode(actionCode);
             // defender 解析：目标名字文本（长度≥2 防单字误伤）→ 群聊成员/私聊对象/世界 Hero → 兜底玩家
             // out hit = 真实命中（非兜底玩家）——模板 NPC 名（"帝国新兵"）不命中任何 Hero → 模板路径
-            Hero defender = ResolveImDefender(attacker, targetText, conv, out bool heroHit);
+            // 🔴 2026-08-14：SelfTargeted（自身状态切换：蹲下/站起）——无 defender 目标语义，
+            // 不解析目标（LLM 填的 action_target 一律忽略），defender=null + heroHit=true 跳过模板路径
+            Hero defender;
+            bool heroHit;
+            if (actionDef != null && actionDef.SelfTargeted)
+            {
+                defender = null;
+                heroHit = true;
+            }
+            else
+            {
+                defender = ResolveImDefender(attacker, targetText, conv, out heroHit);
+            }
 
             // 🔴 2026-08-13：模板 NPC 目标路径（RequiresConfirm + 非空目标文本 + 未命中 Hero）
             if (explicitTarget == null && actionDef != null && actionDef.RequiresConfirm

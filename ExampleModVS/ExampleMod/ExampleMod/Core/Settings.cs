@@ -201,6 +201,9 @@ namespace LivingWorldNpcs
             [InteractionIds.StopPlan] = new InteractionBindingConfig { Keyboard = "G", Gamepad = "LB", PressMode = "Long" },
             // 传讯（IM 面板开关）：键盘 O 短按；手柄不占键（面板右下角通知点击打开）
             [InteractionIds.IM] = new InteractionBindingConfig { Keyboard = "O", Gamepad = "", PressMode = "Short" },
+            // 调停（随从犯法被执法时面向守卫按 F）：与 Talk 同键——上下文互斥替换（守卫警戒非玩家时
+            // Intervene 行替换 Talk 行，永不共存，无冲突警告）
+            [InteractionIds.Intervene] = new InteractionBindingConfig { Keyboard = "F", Gamepad = "Y", PressMode = "Short" },
         };
 
         /// <summary>玩法行配置（玩家在 config.json 覆盖/增删；PopulateObject 合并，删行 = 回落内置默认）。</summary>

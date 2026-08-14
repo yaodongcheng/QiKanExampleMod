@@ -408,6 +408,7 @@
     <Compile Include="WorldEvent\WorldEvent.cs" />
     <Compile Include="WorldEvent\CrimePenaltyCalculator.cs" />
     <Compile Include="WorldEvent\PlayerDetentionBehavior.cs" />
+    <Compile Include="WorldEvent\CompanionDetentionBehavior.cs" />
     <Compile Include="WorldEvent\InvestigationEngine.cs" />
     <Compile Include="WorldEvent\SocialEventManager.cs" />
     <!-- Script -->

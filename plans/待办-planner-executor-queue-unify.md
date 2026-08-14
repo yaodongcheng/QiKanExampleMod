@@ -1,6 +1,7 @@
 # PlanExecutor 单脑化重构 — 执行器降级为步骤排序器（彻底重构版 v3）
 
 > 状态：**已实施**（2026-08-11 落地，M0–M2 全部完成，M3 静态回归通过；Debug/Release 编译 0 错误）。
+> 加注（2026-08-13，hud-intent-unify-alert-suspect）：HUD 执行摘要由独立橙色行并入青蓝意图行（PlanExecutor.CurrentSummary 显示为「执行计划中：{STEP}」），PauseReason 改为状态常量（player_modal/player_fight/player_far），文本本地化映射在 Pause() 内完成；执行器侧其余中文（决策结果/目标达成/追上玩家/完成了/玩家叫停）全部 LWNTextHelper 本地化。
 > 🔴 落地偏差说明（2 处实现取舍，均已按设计文档意图收敛）：
 > ① D4 外部清除的报告通道：战斗/击晕中（脱不开身）→ 密信；其余（含 ReactiveAgent 搭话，玩家在场时）→ 当面报告（60s 超时密信兜底）——「玩家在场当面报告」是 D4 主表语义，D2 例外段落的"密信报告"按脱不开身场景收敛。
 > ② 无脑 actor（如玩家被指定为 actor，玩家永不注册 brain）：TeardownSubAction 兜底 + 步骤失败（on_timeout/abort），不再执行器直驱玩家（直驱本来就是"两个大脑"问题的玩家变体）。

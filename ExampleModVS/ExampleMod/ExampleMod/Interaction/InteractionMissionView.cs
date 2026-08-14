@@ -427,6 +427,9 @@ namespace LivingWorldNpcs
                 case InteractionIds.StopPlan:
                     if (_lastFocusedAgent != null) PlanCommandFlow.StopPlan(_lastFocusedAgent);
                     break;
+                case InteractionIds.Intervene:
+                    if (_lastFocusedAgent != null) ExecuteIntervene(_lastFocusedAgent);
+                    break;
             }
         }
 
@@ -537,8 +540,7 @@ namespace LivingWorldNpcs
 
         // ═══════════════════════ 上下文唯一真相源（available 列表 = 响应与显隐的同源数据） ═══════════════════════
 
-        /// <summary>
-        /// 友方敌意互动保护判定：MCM 开关关闭（默认）且目标是玩家友方（FriendlinessHelper，
+        /// <summary>友方敌意互动保护判定：MCM 开关关闭（默认）且目标是玩家友方（FriendlinessHelper，
         /// config.json FriendlyRelationCriteria）→ true（该目标的敌意互动应被拦截）。
         /// 消费点：BuildAgentContext 注册层（主拦截——不注册 = 显示与触发双断）
         /// 与 Try* 入口防御守卫（注册层之外的兜底路径）。
@@ -546,6 +548,73 @@ namespace LivingWorldNpcs
         private static bool IsHostileBlockedOnFriendly(Agent target)
             => !Settings.Instance.AllowHostileOnAllies
             && FriendlinessHelper.IsFriendlyToPlayer(target);
+
+        /// <summary>
+        /// 调停资格（2026-08-13 责任语义）：守卫的顶条目嫌疑犯 = 玩家友方（随从）且非玩家本人。
+        /// 玩家可以当众认领随从——守卫推理「随从是玩家的」→ 停战质问玩家（目击者推理，非上帝视角）。
+        /// </summary>
+        private static bool IsInterveneEligible(Agent guard)
+        {
+            var brain = AgentAIController.GetBrainForAgent(guard);
+            if (brain == null) return false;
+            var suspect = brain.TopSuspectAgent();
+            if (suspect == null || suspect == Agent.Main) return false;
+            return FriendlinessHelper.IsFriendlyToPlayer(suspect);
+        }
+
+        /// <summary>
+        /// 调停行为（2026-08-13 责任语义，hud-intent-unify-alert-suspect.md §2.6.3）：
+        /// 随从犯法被执法 → 玩家面向守卫按 F →
+        /// ① 守卫停战收刀（FightEnemyAction.OnEnd 自带收刀）+ 清逮捕标记；
+        /// ② 玩家冒泡认领（头顶气泡，铁律 13）；
+        /// ③ 嫌疑转移：breakdown 顶条目 suspect → 玩家 + PendingWorldEvent 嫌疑人 → 玩家
+        ///   （Confrontation 阶段接受嫌疑人更新，SuspectIsPlayer 由此置真 → 后续赔偿/犯罪等级链正常）；
+        /// ④ 守卫质问玩家（现有链：Follow(player)+LookAt+AlertForceConversationAction →
+        ///   原版对话流注入质问脚本 → 赔偿子树）。
+        /// 边界：不做「否认」分支——调停=认领；不调停=随从挨揍（铁律 12 出口有代价）。
+        /// </summary>
+        private void ExecuteIntervene(Agent guard)
+        {
+            if (guard == null || !guard.IsActive()) return;
+            var guardBrain = AgentAIController.GetBrainForAgent(guard);
+            if (guardBrain == null) return;
+
+            try
+            {
+                // ① 守卫停战收刀 + 清嫌疑犯的逮捕标记（调停成功 → 转质问，不再转押）
+                var suspectBeforeRemap = guardBrain.TopSuspectAgent();
+                guardBrain.AbortCurrentAction();   // 中断当前动作（FightEnemyAction 收刀）
+                guardBrain.ClearAllActions();      // 清队列（FightEnemyAction.OnEnd 自带收刀）
+                if (suspectBeforeRemap != null)
+                {
+                    var sb = AgentAIController.GetBrainForAgent(suspectBeforeRemap);
+                    if (sb != null) sb.ArrestedByLaw = false;
+                }
+
+                // ② 玩家冒泡认领
+                AgentHudMissionView.AgentSay(Agent.Main,
+                    LWNTextHelper.ResolveText("LWN_ui_intervene_bubble", "Stop! He's my man!"), "intervene");
+
+                // ③ 嫌疑转移：breakdown 顶条目 suspect → 玩家；WorldEvent 嫌疑人 → 玩家
+                guardBrain.RemapSuspectToPlayer();
+                var pending = AgentAIController.Instance?.PendingWorldEvent;
+                if (pending != null)
+                {
+                    WorldEventStore.TransitionStage(pending, EventStage.Confrontation, Hero.MainHero?.StringId,
+                        // 阶段升级原因：现场打了起来（会出现在赔款涨价说明里给玩家看）
+                        LWNTextHelper.ResolveText("LWN_brain_escalation_fighting", "a fight broke out"));
+                }
+
+                // ④ 守卫质问玩家（internal 化 StartL3Confrontation）
+                guardBrain.StartL3Confrontation();
+
+                DebugLogger.Log($"[Intervene] {guard.Name}(Idx={guard.Index}) 调停：停战 + 嫌疑转移 + 质问玩家");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Intervene] 调停失败: {ex.Message}");
+            }
+        }
 
         /// <summary>友方保护拦截提示（反馈明确，铁律 13 本地化）：{NAME} 是自己人——你不能这么做。</summary>
         private static void ShowFriendlyBlocked(Agent target)
@@ -730,8 +799,24 @@ namespace LivingWorldNpcs
                     // 密谋进行中该随从的 Talk 行移除（§8.2 互斥）
                     if (!PlanCommandFlow.IsActiveFor(currentAgent))
                     {
-                        // 本地化：对话交互按钮
-                        AddInteractionRow(InteractionIds.Talk, LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"));
+                        // 🆕 调停行（2026-08-13 责任语义）：守卫警戒针对非玩家（随从犯法被执法）
+                        // 且嫌疑犯是玩家友方（随从）且非玩家本人 → 用 Intervene 行替换 Talk 行
+                        //（同键 F/Y，上下文互斥永不共存，无冲突警告——仿 PlanCommandFlow.IsActiveFor 互斥写法）。
+                        // 玩家当众认领随从 → 守卫停战质问玩家（嫌疑转移，见 ExecuteIntervene）。
+                        var interveneBrain = AgentAIController.GetBrainForAgent(currentAgent);
+                        bool canIntervene = interveneBrain != null
+                            && !interveneBrain.AlertTargetIsPlayer
+                            && IsInterveneEligible(currentAgent);
+                        if (canIntervene)
+                        {
+                            // 本地化：调停交互按钮
+                            AddInteractionRow(InteractionIds.Intervene, LWNTextHelper.ResolveText("LWN_ui_interact_intervene", "Intervene"));
+                        }
+                        else
+                        {
+                            // 本地化：对话交互按钮
+                            AddInteractionRow(InteractionIds.Talk, LWNTextHelper.ResolveText("LWN_ui_interact_talk", "Talk"));
+                        }
                     }
                     // 本地化：探查交互按钮
                     AddInteractionRow(InteractionIds.Inspect, LWNTextHelper.ResolveText("LWN_ui_interact_inspect", "Inspect"));

@@ -50,10 +50,16 @@ namespace LivingWorldNpcs
     /// <summary>单条警戒条目：值 + 脉冲附加信息（供台词拼接）</summary>
     public struct AlertEntry
     {
+        /// <summary>字段初始化器需要显式构造函数（C# 12 struct 规则）；空构造 = 默认语义。</summary>
+        public AlertEntry() { }
+
         public float Value;
         public string TargetName;       // 脉冲事件附加：受害者名（持续累加时为空）
         public string ItemName;         // 脉冲事件附加：被盗物品名（持续累加时为空）
         public int TargetAgentIndex;    // 受害者 Agent.Index（-1 = 未设置），用于精确判断是否自指
+        /// <summary>嫌疑犯 Agent.Index（-1 = 玩家语义，见 AgentBrain.AlertTargetIsPlayer）。
+        /// 🔴 必须字段初始化器——struct 无参 new AlertEntry() 时 int 默认 0 会被误判为某 agent 的 Index。</summary>
+        public int SuspectAgentIndex = -1;
     }
 
     // ═══════════════════════════════════════════════════════════════

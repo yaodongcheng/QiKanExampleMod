@@ -26,7 +26,7 @@
 
 **主表字段**（`ActionSpec`）：`Code`（统一小写码，计划/闲聊共用）/ `Description`（闲聊 prompt 描述）/ `LabelKey`+`LabelFallback`（标签表）/ `InPlanVocab`（进计划词表）/ `InChatSpace`（进闲聊空间）/ `ChatOrder`（闲聊展示序 1..27 钉死）/ `Spaces`（空间位掩码）/ `NeedsCooldown` / `RequiresConfirm`+`InquiryTitleKey`+`InquiryMsgKey`（确认弹窗/卡片）/ `Aliases[]`（计划侧 LLM 容错）/ `ResultKeys`（result 路由）/ `IsTerminal` / `ExecutorImplemented`（shadow/negotiate/duel=false）/ `IsValid` / `Execute`（闲聊点火或 hero/party 行为）/ `ExecuteCore`（卡片批准后核心执行）/ `FillParams(step, level, sayText)` / `AnnounceParam(level)`。
 
-**34 行结构**：前 21 行计划原序（82% LLM 回归基线，静态构造 `Debug.Assert` 钉死）+ 后 13 行闲聊-only。交集 14 行合并（如 `order_attack` 行 Aliases["attack"] 承载旧码、duel 双语义一行承载）。
+**34 行结构**：前 21 行计划原序（82% LLM 回归基线，静态构造 `Debug.Assert` 钉死）+ 后 13 行闲聊-only。交集 14 行合并（如 `order_attack` 行 Aliases["attack"] 承载旧码、duel 双语义一行承载）。（2026-08-14 实测为 **36 行**：后 15 行闲聊-only，含 crouch/stand 瞬时姿态动作。）
 
 **派生面清单**（全部只读主表）：`PlanVocab.ActionsInPromptOrder/Actions/ActionAliases/AllowedResultKeys/TerminalActions`（PlanGrammar.cs）、`ActionHandler` 五入口（HandleAction/HandleImAction/GetActionSpacePrompt/AnnounceDecision/PostActionProposal + RunActionCore 第三处查找）、`PlanActionLabel`（ImCommandFlow.cs，FindByLabelCode 先 ByCode 回落别名）、`ChatActionFlow.TryExecute`（FindByCode?.FillParams）、`Scripts/check_vocab_sync.py`（按大括号深度配对提取 ActionSpec 块）。
 
@@ -39,6 +39,34 @@
 - 静态构造自检五连（🔴 失败只写日志不弹窗——Debug.Assert 实机 Debug 构建弹断言框崩游戏，2026-08-13 崩溃实录；ExecutorImplemented 字段默认值必须 `= true`，bool 默认 false 会让 34 行全判"未实现"）：计划 21 码字面量序 / ChatOrder 1..27 连续 / ExecutorImplemented=false=={shadow,negotiate,duel} / 别名无重复 / IsValid+闲聊空间行 Execute 非空
 
 **新增动作流程**（详见上方接入点第 1 条）：主表一行（Code/Description/标签/空间/布尔位/ChatOrder/IsValid/Execute）→ 执行语义落点 → py 词表加行 → 跑 `check_vocab_sync.py`。
+
+## 免确认瞬时动作（RequiresConfirm=false 白名单）— `Planner/ActionRegistry.cs` + `Planner/InlineSteps.cs` — 2026-08-14
+
+**解决什么问题**：玩家给随从下瞬时、可逆、零风险命令（蹲下/站起/手势/喊叫），不该走「提议卡片 → 玩家批准」重流程。34 行主表里 `RequiresConfirm=true` 只有 **4 个高风险动作**（order_attack / knockout / steal_attempt / duel——会进战斗或动钱包）；其余全默认 false = IM 下达**立即执行**（`HandleImAction` 拦截条件 `RequiresConfirm && !bypassConfirm` 不命中 → 直接 `HandleAction` → `ChatActionFlow.TryExecute` 单步计划，"无需批准"）。
+
+**新增免确认动作三步走**（crouch/stand 为范本）：
+1. 主表加行：`InChatSpace=true, ChatOrder=下一连续号, Spaces=InScene, RequiresConfirm` 留默认 false，`IsValid=(npc,player,agent)=>agent!=null`，`Execute = (…)=>ChatActionFlow.TryExecute(agent, "crouch", null, null, null)`；**注意静态自检 `ChatOrder 1..N` 连续序列要同步 +N**
+2. `Planner/InlineSteps.cs` 新 `XxxInlineState : IInlineStep`（瞬时动作 = 构造即执行 + OnTick 立即 Finished；降级语义照 EmoteInlineState：失败 Ok 保留 + Finished，装饰性动作不改世界状态）
+3. `PlanExecutor.TryCreateSubAction` switch 加 case → `cursor.SubAction = new InlinePlanAction(cursor.Inline)`（行为性内联经脑入队，与 emote/lead 同）
+
+**行为性 vs 非行为性**：驱动表现层（姿态/移动/动画）→ `IsBehavioral=true` 经脑入队（生命周期归脑，中断语义覆盖）；纯逻辑/通信（喊叫/传话）→ `false` 留排序器侧。
+
+🔴 **两个连带坑（2026-08-14 实机：crouch 被拦「未知动作」→ 随从没蹲）**：
+1. **计划校验词表源**：`PlanGrammar.ValidateStep` 动作合法性原查 `PlanVocab.Actions`（= 计划词表 21 码）——闲聊-only 动作此前从未走计划管线（ChatActionFlow 单动作包裹），crouch/stand 是第一个踩雷的，校验期被当未知动作丢弃。**已改查 `ActionRegistry.FindByCode`（单一事实源）**，仅保留 `ExecutorImplemented=false` 特判（shadow/negotiate/duel 仍丢弃）。
+2. **SelfTargeted 无目标语义**：瞬时自身状态切换（蹲下/站起）不应解析 defender——defender=null 会让 `HandleAction` 的 `ResolveSpace` 误判 Remote 再拦一次。三处联动：`ActionSpec.SelfTargeted=true` → `HandleImAction` 跳过 defender 解析（heroHit=true 防模板路径）→ `HandleAction` 空间特判 `SelfTargeted ? InScene` → `AnnounceDecision` 不拼目标（播报「决定：蹲下」而非「蹲下（目标：努勒丹）」）。新增此类动作照抄 crouch/stand 行。
+
+## 🔴 扒窃绕背走位（人变体 Behind 阶段死等修复）— `Planner/InlineSteps.cs` StealAttemptInlineState — 2026-08-14
+
+**实机 bug**：随从扒窃走到目标**侧面就原地不动**（日志：8.0s 整"完成"且无任何偷窃痕迹）。根因：`ApproachAgent` 目标点 = `target.Position`（直撞碰撞体停侧面）+ Behind 阶段 `dist≤2.5m 且不在背后` 时**不派发任何移动指令**（死等 8s 超时 → impossible → 单动作包裹无 result 路由 → 静默成功）。
+
+**修复**（绕背定位，设计文档原意落地）：
+```csharp
+// 未在背后（任何距离）→ 目标点 = 目标正后方 ~2.2m（必须 ≤ 2.5m 判定圈内，每帧重算跟随转身）
+Vec3 back = target.Position - new Vec3(target.LookDirection.X, target.LookDirection.Y, 0f) * 2.2f;
+AgentControlHelper.ScriptedMoveToPoint(_agent, back, dist > 5f);   // 跑/走切换沿用通用接近语义
+// behind && dist ≤ 2.5 → Rolling；8s 超时保留为诚实兜底（绕不到背后 = impossible）
+```
+**判据**：`behind = dot(target.LookDirection, toSelf) < -0.4`（目标面朝 113° 外）。击晕无背后要求（≤1.8m 直接挥击）——只有扒窃有。
 
 ## 🔴 检定成功率公式（d20 风格全局统一）— `Planner/InlineSteps.cs` 击晕/偷窃 + `Interaction/InteractionMissionView.cs` — 2026-08-13
 
@@ -97,10 +125,15 @@ PlanCommandFlow.StopPlan(companion);   // 当面冒泡 / 远距离密信，双�
 // 调试跑示例
 // custom.plan_debug run A_DISTRACT          → 注入并执行示例计划
 // custom.plan_debug snapshot / status / stop
-
 // 密谋对话壳入口（Plot 玩法行分发）
 PlanCommandFlow.Start(companion);       // 需 Settings.Instance.IsLLMConfigured（铁律 1 总闸）
 ```
+
+## 🔴 执行摘要本地化 + 意图行合并（2026-08-13）— `Planner/PlanExecutor.cs` + `AgentHUD/AgentHudVM.cs`
+
+- **PauseReason 是状态标识符**（Resume 匹配用），不可换本地化文本——改 key 常量 `PauseReasonModal/Fight/Far`（`player_modal/player_fight/player_far`），`Pause()` 内 switch 映射本地化后写 `CurrentSummary`（未知 reason 原样兜底）。
+- 执行器全部玩家可见文本 LWNTextHelper：`LWN_plan_step_decision` / `goal_done` / `chaseback` / `done` / `cancel_player` / `step_talk` / `abort_down`（CompanionDown）/ `goal_notmet`（GoalNotMet）。
+- **HUD 单行合并**：`AgentHudVM.UpdateLogic` 计划执行中（`executor.CurrentSummary` 非空）→ `NpcIntentDebugText = 执行计划中：{STEP}`；否则 → 意图文本。一行一开关 `ShowNpcIntent`（行为变化：计划行并入后受此开关门控）。XML 青蓝行 `FontSize=14`。
 
 **关键纪律**（踩过的坑）：
 - **实时回应（respond，BC-006）**：目标被搭话的回应 = 每回合一次 LLM（`ReactiveAgent` respond 分支 → `StartRespond` → `LLMService.ChatOnceAsync` 单次 2s 预算、失败静默 null）→ 结果入队 → `AgentAIController.OnMissionTick → ReactiveAgent.TickAll` 主线程 `FaceToActor` + `AgentSay` 播放（轻量冒泡不接管 brain）。**降级链**：LLM 未配置/超时/失败/回合超限（6 轮）→ 职业模板台词（`LWN_reactive_respond_*`）。**429 → 10s 全局冷却**（`ChatOnceAsync` 内建）。上下文 = 世界观 + 身份（职业+人格描述）+ **演算意图**（score→热情/正常/敷衍，台词与公式一致）+ 主题/轮次 + 对方 + **三层记忆裁剪**（`PromptBuilder.GetPrompt_RespondContext`，按 SpeakerId 过滤）。**记忆统一走 `AllNpcMemoryManager.GetMemoryForAgent`**（Hero 持久/TEMP 兜底），对话写入 `AddHistory(role, "名字: 台词", speakerId)`；随从对话置 `memory.SuppressFailureAlerts = true`（记忆维护失败静默，玩家对话路径不变）。详细见 `plans/npc-live-dialogue-memory-plan.md`。

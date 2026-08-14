@@ -148,6 +148,11 @@ DamageText, ShowDamage,
 AlertFillHeight, ShowAlert, EyeBgColor, EyeFillColor
 ```
 
+**🔴 意图行合并 + 警戒眼双色（2026-08-13 用户裁定）**：
+- **单行语义**：`NpcIntentDebugText` 一个文本变量——计划执行中（`PlanExecutor.GetExecutorFor(TargetAgent)` 的 CurrentSummary 非空）→ `LWN_hud_plan_executing`「执行计划中：{STEP}」；否则意图文本。一行一开关 `ShowNpcIntent`（旧橙色 `PlanSummaryText` 行已删，`ShowPlanSummary` 全仓库归零）。
+- **警戒眼双色**：`hud.AlertTargetIsPlayer`（普通属性**不加 [DataSourceProperty]**，参照 AlertValue 模式）——true=暖色（黄/红，针对玩家）/ false=冷青蓝（围观别人犯法）。颜色全 9 字符 `#RRGGBBAA`。**注入顺序纪律：先 `AlertTargetIsPlayer` 后 `AlertValue`**（setter 内部触发 UpdateAlertVisuals 读色系，反了晚一帧变错颜色）。
+- 名字总领规则三处联动：`ShowName` 含 `ShowIntentDebug`；FOV 外兜底隐藏 `ShowIntentDebug`；UpdateFrame 最终可见性检查含 `ShowIntentDebug`。
+
 
 ---
 

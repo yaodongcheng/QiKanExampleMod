@@ -8,7 +8,7 @@
 | 域 | 分卷 | 涵盖内容 |
 |----|------|---------|
 | 配置 / 双配置(MCM) / 版本兼容 | [wheels.d/config.md](wheels.d/config.md) | Settings 单例与世界观、MCMSettings（MCM 排序渲染坑）、DisabledInteractionMissionModes、设计数据 CSV、Emotion↔台词模板一致性、日志、控制台调试指令、Settings 新增开关、VersionCompat 三锚点 |
-| Agent 行为 / 警戒 / 移动 | [wheels.d/agent.md](wheels.d/agent.md) | AgentControlHelper 动作走位、🔴 **移动目标分派（找 agent → FollowAgentAction，坐标点 → MoveToPositionAction）**、AgentBrain 行为队列、儿童 human_child、SetPartyAiAction、SetScriptedPosition、战斗回调职责、警戒值系统与字段、AlertTypes、NpcSightSystem 清理 |
+| Agent 行为 / 警戒 / 移动 | [wheels.d/agent.md](wheels.d/agent.md) | AgentControlHelper 动作走位、🔴 **引擎蹲姿（SetCrouchMode = 玩家 Z 键同机制，非 SetPose）**、🔴 **移动目标分派（找 agent → FollowAgentAction，坐标点 → MoveToPositionAction）**、AgentBrain 行为队列、儿童 human_child、SetPartyAiAction、SetScriptedPosition、战斗回调职责、警戒值系统与字段、AlertTypes、NpcSightSystem 清理 |
 | NPC 互动意图 | [wheels.d/intents.md](wheels.d/intents.md) | 意图引擎（Evaluate/Goal/…）、IntentBase 新 API（NPC 平权）、BuildForNpc、IntentRegistry、Intent Tactic × ActionParam、NPC 主动意图、InteractionOptionType、SettlementHonorStore |
 | 对话 / 叙事注入 | [wheels.d/dialogue.md](wheels.d/dialogue.md) | 对话注入铁律、v2 新模型（Transition 路由）、CrimeDialogueBuilder（辅助方法/自包含/拦截）、AckNode 与 Transition 检定纪律、KCD2 轮次对话、NpcSpeechResolver（XML 模板台词）、PlaceholderResolver、大世界对话接入、延迟操作 |
 | 🔴 对话会话三件套 | [wheels.d/dialogue-session.md](wheels.d/dialogue-session.md) | 🔴 **双层边界与混合在场**（§0 必读：管道看渠道/认知共用/表现按在场裁剪）、**SpeechChannel 说话并联**（优先级/队列/闸门/线程安全/战斗喊话，全量收编 25 处直接 AgentSay）、**PersuadeSlot 说服会话**（agree 公式/兑现/打断/plan_decision 回流）、**SessionDialogueTemplates**（分类×职业×档位 key 回落链 + 无 LLM 完整模板会话）、**CampaignSession**（私聊劝说/群聊动议/立场继承，言行一致承诺兑现）、ApplyPlan 合并修复、旁观插嘴 |
@@ -20,7 +20,7 @@
 | 存档诊断 | [wheels.d/save.md](wheels.d/save.md) | SaveErrorReporter（新增 Saveable 后遇存档问题的第一取证入口） |
 | LLM | [wheels.d/llm.md](wheels.d/llm.md) | LLMService（重试/HttpClient 复用）、**连接失败五原因诊断 + 统一展示（ClassifyFailure/ShowConnectionMessage）**、PromptBuilder（静态 prompt 工厂）、**prompt 静态文本单一事实源（LWN_plan_* XML，py/C# 同源，改 prompt 只改 XML）** |
 | IM 传讯 / 群聊 | [wheels.d/im.md](wheels.d/im.md) | 群聊回复管线（延迟调度 + 三层丢弃纪律）、**群聊记忆方案 B（参与度写入）**、回应模式人格化（trait/画像/hash 加权）、事件广播线程模型（🔴 async-over-sync 死锁教训 + 三段式）、选人增强（@提及候选/bigram 相似度/沉寂补偿/随机+保底）、🔴 **决策卡片统一结构**（ImButtonVM/CardButtons 数据驱动按钮行、UpdateCardAnchors 单锚点规则；计划卡片/闲聊动作卡片/NPC 提议/群聊动作同构，含双路径分离 + 防死循环纪律）、🔴 **闲聊动作空间模型（ActionSpace 三态：执行人×目标 Mission 内外裁决）**、🔴 **defender 场景优先解析 + 执行期目标解析同口径** |
-| 密谋命令系统 | [wheels.d/planner.md](wheels.d/planner.md) | LLM 计划生成 + PlanExecutor 确定性执行（四件套：语法/世界状态/执行器/ReactiveAgent）、Plot 玩法行、plan_debug、Replan、执行摘要 HUD、🔴 **检定成功率公式（d20 风格：掷点≥门槛，ratio 式 + 模板 Level 估算属性）**、执行期目标解析（快照五层匹配）、🔴 **击晕单管线（KnockoutFlow：玩家/NPC 平权范本，判定+结算共享、壳留节奏与播报）** |
+| 密谋命令系统 | [wheels.d/planner.md](wheels.d/planner.md) | LLM 计划生成 + PlanExecutor 确定性执行（四件套：语法/世界状态/执行器/ReactiveAgent）、Plot 玩法行、plan_debug、Replan、执行摘要 HUD、🔴 **检定成功率公式（d20 风格：掷点≥门槛，ratio 式 + 模板 Level 估算属性）**、执行期目标解析（快照五层匹配）、🔴 **击晕单管线（KnockoutFlow：玩家/NPC 平权范本，判定+结算共享、壳留节奏与播报）**、🔴 **免确认瞬时动作（RequiresConfirm=false 白名单 + crouch/stand 范本）**、扒窃绕背走位 |
 | 按键映射 / 输入 | [wheels.d/input.md](wheels.d/input.md) | 输入三件套、当前映射表（改键唯一入口）、设备检测原理、UI 按键提示接入范式、🔴 模态门控（IM 面板/弹窗打开期间玩法行暂停） |
 | 🔴 废弃系统（别碰） | [wheels.d/deprecated.md](wheels.d/deprecated.md) | **旧对话 UI（StoryDialogVM/DialogChoice）+ 旧切磋 UI（DuelMissionView）**——已废弃勿加功能；IM 弹窗确认回调禁调 `_vm.Close()`（触发旧链 OnDialogClosed → GenerateEventAsync 必崩，实机 11:13:37）；现行对话 = 原版对话流 + IM/AgentSay，切磋 = CombatManager |
 

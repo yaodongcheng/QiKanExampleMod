@@ -120,48 +120,34 @@ namespace LivingWorldNpcs
                 ShowDamage = false;
             }
 
-            // 🆕 计划执行摘要（执行器每步动态细节；玩家可见 = 反馈明确原则）
-            // 🔴 放在意图块之前：ShowIntentDebug 的互斥条件（&& !ShowPlanSummary）依赖本块先算
+            // 🆕 意图/计划统一单行（2026-08-13 用户裁定：一条青蓝行、一个文本变量）：
+            // 计划执行中 → 显示「执行计划中：{步骤摘要}」；否则 → 意图文本。
+            // 一行一开关（ShowNpcIntent），不再互斥双行（旧 PlanSummaryText 橙色行已删）。
             {
                 var executor = PlanExecutor.GetExecutorFor(TargetAgent);
-                if (executor != null && !string.IsNullOrWhiteSpace(executor.CurrentSummary))
-                {
-                    PlanSummaryText = executor.CurrentSummary;
-                    ShowPlanSummary = !TargetAgent.IsMainAgent && !Settings.Instance.IsInteractionDisabled();
-                }
+                bool planActive = executor != null && !string.IsNullOrWhiteSpace(executor.CurrentSummary)
+                    && !TargetAgent.IsMainAgent && !Settings.Instance.IsInteractionDisabled();
+                if (planActive)
+                    NpcIntentDebugText = LWNTextHelper.ResolveCompound("LWN_hud_plan_executing",
+                        "Executing plan: {STEP}", ("STEP", executor.CurrentSummary));
                 else
                 {
-                    PlanSummaryText = "";
-                    ShowPlanSummary = false;
+                    var brain = AgentAIController.GetBrainForAgent(TargetAgent);
+                    var intent = brain?.CurrentIntent;
+                    // 空闲意图（None）不算"有内容"：啥也没干的 NPC 不显示意图文本（防满屏"空闲"）
+                    NpcIntentDebugText = (intent != null && intent.Type != NpcIntentType.None) ? intent.ToString() : "";
                 }
-            }
-
-            // 🆕 NpcIntent 调试文本（玩家自己/战场中不显示——玩家无 AI Intent；MCM 开关 ShowNpcIntent 默认开）
-            {
-                var brain = AgentAIController.GetBrainForAgent(TargetAgent);
-                var intent = brain?.CurrentIntent;
-                // 空闲意图（None）不算"有内容"：啥也没干的 NPC 不显示意图文本（防满屏"空闲"）
-                // 意图文本只在正经状态（战斗/质问/跟随/击晕…）时作为 HUD 附加注释出现
-                bool hasMeaningfulIntent = intent != null && intent.Type != NpcIntentType.None;
-                NpcIntentDebugText = hasMeaningfulIntent ? intent.ToString() : "";
-                // 🔴 显示互斥一行（单脑化重构）：计划执行中摘要行独占、意图行让位——重构后
-                // ExecutingCommand 意图降级为 D2 空窗守卫内部哨兵不再上屏，HUD 行为来源 =
-                // 执行器 CurrentSummary（真实步骤进展），消除「意图行说执行命令、实际在走路」的状态分歧；
-                // 计划收尾意图复位 None 后（无意义意图）意图行自然隐藏。玩家刚下令已知在执行命令，意图行零新信息，
-                // 两行叠加 = 反馈冗余。
                 ShowIntentDebug = Settings.Instance.ShowNpcIntent
                     && !TargetAgent.IsMainAgent
                     && !Settings.Instance.IsInteractionDisabled()
-                    && !string.IsNullOrWhiteSpace(NpcIntentDebugText)
-                    && !ShowPlanSummary;
+                    && !string.IsNullOrWhiteSpace(NpcIntentDebugText);
             }
 
             // 5. 名字总领规则：FOV 内任意元素真的显示时浮现名字
-            //    意图（ShowIntentDebug）与执行摘要（ShowPlanSummary）也在总领规则内——
-            //    意图单独显示时名字跟随浮现
+            //    意图（ShowIntentDebug）在总领规则内——意图单独显示时名字跟随浮现
             //    ShowAlert 在此处生效是因为 UpdateLogic 只在 FOV 内执行——
             //    FOV 外 NPC 的 ShowName 不会被计算，眼睛独立显示但不带名字
-            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug || ShowPlanSummary;
+            ShowName = ShowSpeech || ShowHealth || ShowDamage || ShowAlert || ShowIntentDebug;
 
             // 6. 容器可见性
             //    IsVisible = ShowName || ShowAlert（警戒眼睛可以独立触发容器显示）
@@ -226,13 +212,15 @@ namespace LivingWorldNpcs
 
             // 最终可见性检查
             // 如果没有任何东西要显示且不在警戒状态，关闭 IsVisible
-            if (!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert && !ShowIntentDebug && !ShowPlanSummary)
+            if (!ShowSpeech && !ShowDamage && !_showHealth && !ShowAlert && !ShowIntentDebug)
             {
                 IsVisible = false;
             }
         }
 
         // 警戒值计算（由 MissionView 每帧注入 AlertValue 后自动更新）
+        // 🔴 双色系（2026-08-13 用户裁定）：暖色（黄/红）= 警戒针对玩家本人；冷青蓝色 = 围观别人犯法。
+        // 注入顺序纪律：先 AlertTargetIsPlayer 后 AlertValue（setter 内部触发 UpdateAlertVisuals）。
         public void UpdateAlertVisuals()
         {
             float maxIconHeight = 20f;
@@ -245,22 +233,22 @@ namespace LivingWorldNpcs
             else if (_alertValue <= 1f)
             {
                 ShowAlert = true;
-                EyeBgColor = "#FFFFFFFF";    // 白底
-                EyeFillColor = "#FFD700FF";   // 黄进度
+                EyeBgColor = AlertTargetIsPlayer ? "#FFFFFFFF" : "#FFFFFFFF";    // 底：白 / 白
+                EyeFillColor = AlertTargetIsPlayer ? "#FFD700FF" : "#00FFBFFF";  // 填：黄 / 青
                 AlertFillHeight = _alertValue / 1f * maxIconHeight;
             }
             else if (_alertValue <= 2f)
             {
                 ShowAlert = true;
-                EyeBgColor = "#FFD700FF";    // 黄底
-                EyeFillColor = "#FF0000FF";   // 红进度
+                EyeBgColor = AlertTargetIsPlayer ? "#FFD700FF" : "#00FFBFFF";    // 底：黄 / 青
+                EyeFillColor = AlertTargetIsPlayer ? "#FF0000FF" : "#0040D0FF";  // 填：红 / 深蓝
                 AlertFillHeight = (_alertValue - 1f) / 1f * maxIconHeight;
             }
             else
             {
                 ShowAlert = true;
-                EyeBgColor = "#FF0000FF";    // 纯红
-                EyeFillColor = "#FF0000FF";
+                EyeBgColor = AlertTargetIsPlayer ? "#FF0000FF" : "#00FFBFFF";    // 纯红 / 纯青
+                EyeFillColor = AlertTargetIsPlayer ? "#FF0000FF" : "#00FFBFFF";
                 AlertFillHeight = maxIconHeight;
             }
         }
@@ -543,21 +531,9 @@ namespace LivingWorldNpcs
             set { if (value != _npcIntentDebugText) { _npcIntentDebugText = value; OnPropertyChangedWithValue(value, "NpcIntentDebugText"); } }
         }
 
-        // 🆕 计划执行摘要（密谋命令系统 §5.4：执行器每步一句动态细节）
-        private bool _showPlanSummary;
-        [DataSourceProperty]
-        public bool ShowPlanSummary
-        {
-            get => _showPlanSummary;
-            set { if (value != _showPlanSummary) { _showPlanSummary = value; OnPropertyChangedWithValue(value, "ShowPlanSummary"); } }
-        }
-
-        private string _planSummaryText;
-        [DataSourceProperty]
-        public string PlanSummaryText
-        {
-            get => _planSummaryText;
-            set { if (value != _planSummaryText) { _planSummaryText = value; OnPropertyChangedWithValue(value, "PlanSummaryText"); } }
-        }
+        /// <summary>警戒眼针对玩家本人（true = 暖色系黄/红）还是围观他人犯法（false = 冷青蓝色系）。
+        /// 普通属性（非 [DataSourceProperty]，参照 AlertValue 模式）：由 MissionView 每帧在
+        /// AlertValue 之前注入（setter 内部触发 UpdateAlertVisuals）。</summary>
+        public bool AlertTargetIsPlayer { get; set; } = true;
     }
 }

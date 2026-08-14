@@ -618,6 +618,9 @@ namespace LivingWorldNpcs
                     break;
                 case "alert_raise":
                     // 警戒脉冲（阶段穿越由 brain 认知更新自行处理）
+                    // 🔴 suspect = requester？——requester 是事件源（说话的人），不一定是犯罪者；
+                    // requester=null 回落 -1 = 玩家语义，与现状一致。
+                    brain.SetPulseTarget(PlayerActionType.AttackAlly, null, null, -1, requester?.Index ?? -1);
                     brain.AddAlert(PlayerActionType.AttackAlly, 2.0f);
                     break;
                 case "attack":

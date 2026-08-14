@@ -111,6 +111,10 @@ namespace LivingWorldNpcs
         public string Summary { get; private set; }
 
         public ExecutorState State = ExecutorState.Executing;
+        // 🔴 暂停原因是状态标识符（Resume/追回匹配用），禁止换本地化文本；玩家可见文本在 Pause() 内按常量映射本地化
+        public const string PauseReasonModal = "player_modal";
+        public const string PauseReasonFight = "player_fight";
+        public const string PauseReasonFar = "player_far";
         public string PauseReason;
         public string EndMessage;       // 收尾消息（报告文本）
         public string CurrentSummary;   // 执行摘要（HUD 状态行）
@@ -303,13 +307,13 @@ namespace LivingWorldNpcs
             // R7 玩家模态（偷窃条/对话/剧情演出）→ Pause；模态结束 → Resume
             bool modal = DetectPlayerModalUi();
             IsPlayerInModalUi = modal;
-            if (modal && State == ExecutorState.Executing) { Pause("玩家在忙别的"); return; }
-            if (!modal && State == ExecutorState.Paused && PauseReason == "玩家在忙别的") { Resume(); return; }
+            if (modal && State == ExecutorState.Executing) { Pause(PauseReasonModal); return; }
+            if (!modal && State == ExecutorState.Paused && PauseReason == PauseReasonModal) { Resume(); return; }
 
             // R1 玩家战斗 → Pause（随从护主由既有 event_agent_damaged 链处理）；战斗结束 → Resume
             bool playerCombat = IsPlayerInCombat();
-            if (playerCombat && State == ExecutorState.Executing) { Pause("玩家战斗中"); return; }
-            if (!playerCombat && State == ExecutorState.Paused && PauseReason == "玩家战斗中") { Resume(); return; }
+            if (playerCombat && State == ExecutorState.Executing) { Pause(PauseReasonFight); return; }
+            if (!playerCombat && State == ExecutorState.Paused && PauseReason == PauseReasonFight) { Resume(); return; }
 
             // R4 玩家走远（>30m）→ Pause 追回；豁免：当前步骤是远离玩家的独行任务
             // 🔴 2026-08-13 追加豁免：move_to/follow 目标 = 任意 agent（"过来/跟着某人"）——
@@ -317,7 +321,7 @@ namespace LivingWorldNpcs
             // chaseback 是双重走路（先走回 30m 再开始正式跟随），暂停毫无意义。
             // 实机（2026-08-13）：161m 外随从响应"过来"，计划一启动就被暂停 60s 追回，
             // 玩家以为"第二次命令才响应"。
-            if (State == ExecutorState.Paused && PauseReason == "玩家走远了")
+            if (State == ExecutorState.Paused && PauseReason == PauseReasonFar)
             {
                 if (IsFollowAgentStep()) Resume();
                 else TickChaseBack(dt);
@@ -330,7 +334,7 @@ namespace LivingWorldNpcs
                     && OwnerAgent.Position.Distance(player.Position) > 30f
                     && !IsFollowAgentStep())
                 {
-                    Pause("玩家走远了");
+                    Pause(PauseReasonFar);
                     return;
                 }
             }
@@ -536,7 +540,9 @@ namespace LivingWorldNpcs
                         var match = step.OnEvent.FirstOrDefault(e => e != null && string.Equals(e.Type, ev.Type, StringComparison.OrdinalIgnoreCase));
                         if (match != null && !string.IsNullOrEmpty(match.Then))
                         {
-                            CurrentSummary = $"{step.Id} 收到决策结果({ev.Type})";
+                            CurrentSummary = LWNTextHelper.ResolveCompound("LWN_plan_step_decision",
+                                "Step {STEP}: decision received ({TYPE})",
+                                ("STEP", step.Id), ("TYPE", ev.Type));
                             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: {step.Id} on_event {ev.Type} → {match.Then}");
                             _eventQueue.Clear();
                             Jump(cursor, match.Then);
@@ -740,7 +746,7 @@ namespace LivingWorldNpcs
                     // 预案尾完成 → 回收尾判定（不溢出到下一个预案）
                     cursor.Done = true;
                     if (_goalMet) Finish(ExecutorState.Succeeded, null);
-                    else Finish(ExecutorState.Failed, "事情没办成");
+                    else Finish(ExecutorState.Failed, PlanTexts.GoalNotMet);
                     return;
                 }
                 cursor.Done = true;
@@ -909,6 +915,13 @@ namespace LivingWorldNpcs
                     return cursor.Inline.Ok;
                 case "knockout":
                     cursor.Inline = new KnockoutInlineState(this, cursor, step);
+                    if (!cursor.Inline.Ok) return false;
+                    cursor.SubAction = new InlinePlanAction(cursor.Inline);
+                    return true;
+                case "crouch":
+                case "stand":
+                    // 引擎下蹲/站起（2026-08-14）：瞬时 flag 动作，经脑入队（行为性内联，与 emote 同级）
+                    cursor.Inline = new CrouchInlineState(agent, step);
                     if (!cursor.Inline.Ok) return false;
                     cursor.SubAction = new InlinePlanAction(cursor.Inline);
                     return true;
@@ -1227,7 +1240,13 @@ namespace LivingWorldNpcs
                 if (c.Inline != null && c.Inline.IsBehavioral)
                     c.Inline = null;
             }
-            CurrentSummary = reason;
+            CurrentSummary = PauseReason switch
+            {
+                PauseReasonModal => LWNTextHelper.ResolveText("LWN_plan_pause_modal", "The player is busy"),
+                PauseReasonFight => LWNTextHelper.ResolveText("LWN_plan_pause_fight", "The player is in combat"),
+                PauseReasonFar => LWNTextHelper.ResolveText("LWN_plan_pause_far", "The player is too far away"),
+                _ => reason,
+            };
             DebugLogger.Log($"[PlanExecutor] 暂停: {reason}");
         }
 
@@ -1243,10 +1262,12 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>玩家停止键/新命令（R3）：旧计划作废，收尾为中断。</summary>
-        public void CancelByPlayer(string reason = "玩家叫停")
+        public void CancelByPlayer(string reason = null)
         {
             if (IsFinished) return;
-            Finish(ExecutorState.Aborted, reason, needFaceReport: false, silent: true);
+            Finish(ExecutorState.Aborted,
+                reason ?? LWNTextHelper.ResolveText("LWN_plan_cancel_player", "Called off by the player"),
+                needFaceReport: false, silent: true);
         }
 
         /// <summary>外部打断（brain 队列中断）。</summary>
@@ -1377,7 +1398,7 @@ namespace LivingWorldNpcs
                 return;
             }
             Finish(success ? ExecutorState.Succeeded : ExecutorState.Failed,
-                report ?? "完成了", needFaceReport: !string.IsNullOrEmpty(report));
+                report ?? LWNTextHelper.ResolveText("LWN_plan_done", "Done"), needFaceReport: !string.IsNullOrEmpty(report));
         }
 
         private void TickReport(float dt)
@@ -1454,7 +1475,7 @@ namespace LivingWorldNpcs
             if (Plan?.Goal != null && _world.Evaluate(Plan.Goal, OwnerAgent))
             {
                 _goalMet = true;
-                CurrentSummary = "目标达成";
+                CurrentSummary = LWNTextHelper.ResolveText("LWN_plan_goal_done", "Goal achieved");
                 DebugLogger.Log($"[PlanExecutor] GOAL 达成");
             }
         }
@@ -1467,9 +1488,8 @@ namespace LivingWorldNpcs
             {
                 case "move_to": return LWNTextHelper.ResolveText("LWN_plan_step_move_to", "Heading to target");
                 case "say_to":
-                    return step.Text != null
-                        ? LWNTextHelper.ResolveCompound("LWN_plan_step_talk", "Talking: {TEXT}", ("TEXT", step.Text))
-                        : LWNTextHelper.ResolveText("LWN_plan_step_talk", "Talking");
+                    // 🔴 2026-08-13 文案去 {TEXT}（步骤摘要只报状态，不说台词内容）
+                    return LWNTextHelper.ResolveText("LWN_plan_step_talk", "Talking");
                 case "wait": return LWNTextHelper.ResolveText("LWN_plan_step_wait", "Waiting");
                 case "order_attack": return LWNTextHelper.ResolveText("LWN_plan_step_fight", "Fighting");
                 case "signal_player": return LWNTextHelper.ResolveText("LWN_plan_step_report", "Preparing to report");
@@ -1569,7 +1589,7 @@ namespace LivingWorldNpcs
         {
             var player = Agent.Main;
             if (player == null || !player.IsActive()) return;
-            if (!OwnerAgent.IsActive()) { Abort("随从倒下了"); return; }
+            if (!OwnerAgent.IsActive()) { Abort(PlanTexts.CompanionDown); return; }
             float dist = OwnerAgent.Position.Distance(player.Position);
             if (dist < 20f)
             {
@@ -1578,7 +1598,7 @@ namespace LivingWorldNpcs
             }
             // 追回玩家身边
             AgentControlHelper.ScriptedMoveToPoint(OwnerAgent, player.Position, true);
-            CurrentSummary = "追上玩家";
+            CurrentSummary = LWNTextHelper.ResolveText("LWN_plan_chaseback", "Catching up to the player");
         }
     }
 

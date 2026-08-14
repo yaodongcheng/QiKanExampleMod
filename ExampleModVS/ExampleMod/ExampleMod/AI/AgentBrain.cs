@@ -19,9 +19,15 @@ namespace LivingWorldNpcs
     // 事件数据包，可以携带任何参数
     public struct AIEvent
     {
+        /// <summary>字段初始化器需要显式构造函数（C# 12 struct 规则）；空构造 = 默认语义。</summary>
+        public AIEvent() { }
+
         public string EventType; // 例如 "WitnessCrime", "AttackOrder"
         public object Sender;    // 谁发的
         public object[] Args;    // 参数 (目标ID, 坐标等)
+        /// <summary>事件是否算犯罪（2026-08-13 泛化：true=任何嫌疑犯都走 WitnessCrime 分类；
+        /// false=非犯罪事件仅围观）。仅两个调用点传 false：make_noise（喊一嗓子）、NPC 投降广播。</summary>
+        public bool IsCrime = true;
     }
 
     public class AgentBrain
@@ -666,10 +672,11 @@ namespace LivingWorldNpcs
                     Vec2 turnDir = (Vec2)aiEvent.Args[3];
                     float delay = GroupStageManager.CalculateReactionDelay(Owner, criminal, victim);
 
-                    // 🆕 友方旁观者豁免（双向豁免核心，不读开关）：玩家对非友方犯罪，
+                    // 🆕 友方旁观者豁免（双向豁免核心，不读开关）：犯罪者=玩家友方（含玩家本人）对非友方犯罪，
                     // 友方旁观者无动于衷——不围观、不质问、不警戒（直接忽略本事件）。
                     // 受害者是玩家友方（开关开时玩家侵害友方）→ 不豁免，照常围观/质问。
-                    if (criminal == Agent.Main && IsAllyBystander(victim)) return;
+                    // 🔴 2026-08-13 泛化：随从（玩家友方）犯法，其他友方围观者同样豁免（代表玩家阵营）。
+                    if ((criminal == Agent.Main || FriendlinessHelper.IsFriendlyToPlayer(criminal)) && IsAllyBystander(victim)) return;
 
                     // ── 警戒脉冲：区分偷窃 vs 攻击 vs 击晕（criminal==玩家时）──
                     // 认输场景：受害者大脑的 PendingPostConversationCleanup 已置 true，
@@ -678,7 +685,11 @@ namespace LivingWorldNpcs
                     var victimBrain = victim != null ? AgentAIController.GetBrainForAgent(victim) : null;
                     bool isSurrenderScene = victimBrain?.PendingPostConversationCleanup == true;
 
-                    if (criminal == Agent.Main)
+                    // 🔴 2026-08-13 分类块泛化（任何人犯法闭环）：原 `criminal == Agent.Main` 门控只认玩家
+                    // ——随从犯罪被目击拉满后会质问玩家（体验 bug）。泛化条件 = 犯罪者非自己 + 犯罪标记
+                    // （make_noise/NPC 投降广播 isCrime=false 仅围观）。suspect 传 criminal.Index——
+                    // 玩家作案时 == Agent.Main.Index，AlertTargetIsPlayer 判定自然成立。
+                    if (criminal != null && criminal != Owner && aiEvent.IsCrime)
                     {
                         if (!isSurrenderScene)
                         {
@@ -687,7 +698,7 @@ namespace LivingWorldNpcs
                             // 队友本人被侵害（上下文 = 本人）照常分类 + 指控。
                             if (IsKnockedOut(victim))
                             {
-                                SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null, victim?.Index ?? -1);
+                                SetPulseTarget(PlayerActionType.Knockout, victim?.Name, null, victim?.Index ?? -1, criminal.Index);
                                 RecordNarration($"我看见{criminal.Name}打晕了{victim?.Name ?? "人"}");
                                 // 队友围观豁免（AddAlert 返回 false）→ 连带跳过质问意图
                                 if (AddAlert(PlayerActionType.Knockout, 3.0f))
@@ -699,7 +710,7 @@ namespace LivingWorldNpcs
                             else if (CombatManager.IsAgentFightingPlayer(victim) || CombatManager.IsPlayerInCombat)
                             {
                                 // 斗殴/攻击：victim 正在和玩家战斗，不是偷窃
-                                SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null, victim?.Index ?? -1);
+                                SetPulseTarget(PlayerActionType.AttackAlly, victim?.Name, null, victim?.Index ?? -1, criminal.Index);
                                 RecordNarration($"我看见{criminal.Name}在袭击{victim?.Name ?? "人"}");
                                 if (AddAlert(PlayerActionType.AttackAlly, 3.0f))  // 队友围观豁免 → 连带跳过质问意图
                                 {
@@ -711,7 +722,7 @@ namespace LivingWorldNpcs
                             {
                                 // 偷窃：立刻加警戒 + 3s 脉冲抑制
                                 // （受害者直接指控，目击者抑制后逐步升级 → 围观后质问）
-                                SetPulseTarget(PlayerActionType.Steal, victim?.Name, null, victim?.Index ?? -1);
+                                SetPulseTarget(PlayerActionType.Steal, victim?.Name, null, victim?.Index ?? -1, criminal.Index);
                                 RecordNarration($"我看见{criminal.Name}在偷窃");
                                 if (AddAlert(PlayerActionType.Steal, 3.0f))  // 队友围观豁免 → 连带跳过质问意图
                                 {
@@ -756,8 +767,9 @@ namespace LivingWorldNpcs
                         EnqueueAction(new StayAction(criminal));
                     }));
                     // 击晕：立即检查阶段穿越，确保 Alarmed 在衰减前触发
-                    // （放在 ReactionDecisionAction 入队之后，让 L3 质问覆盖围观动作）
-                    if (criminal == Agent.Main && IsKnockedOut(victim))
+                    // （放在 ReactionDecisionAction 入队之后，让 L3 质问/参战覆盖围观动作）
+                    // 🔴 2026-08-13 泛化：criminal 非玩家（随从击晕）同样立即检查——suspect 分支会参战
+                    if (criminal != null && criminal != Owner && aiEvent.IsCrime && IsKnockedOut(victim))
                     {
                         CheckPhaseTransition();
                     }
@@ -776,8 +788,8 @@ namespace LivingWorldNpcs
                     Agent victim = (Agent)aiEvent.Args[1];
                     float delay = GroupStageManager.CalculateReactionDelay(Owner, thief, victim);
 
-                    // 🆕 友方旁观者豁免（同 GatherOnLook）：玩家对非友方犯罪，友方旁观者无动于衷。
-                    if (thief == Agent.Main && IsAllyBystander(victim)) return;
+                    // 🆕 友方旁观者豁免（同 GatherOnLook）：犯罪者=玩家友方（含玩家本人）对非友方犯罪，友方旁观者无动于衷。
+                    if ((thief == Agent.Main || FriendlinessHelper.IsFriendlyToPlayer(thief)) && IsAllyBystander(victim)) return;
                    // InformationManager.DisplayMessage(new InformationMessage($"{Owner.Name} 没抢到位置，原地吃瓜。"));
                     ClearAllActions();
                     InteractedAgent = thief;
@@ -859,9 +871,12 @@ namespace LivingWorldNpcs
                 // 玩家继续攻击 → 警戒涨到 Alarmed → 执法参战；玩家收手 → CalmDown(Normal) 清队列回岗。
                 // 🔴 目标=玩家但语义是"面前 4m 站位劝阻"，不可换 VanillaFollowAction（2026-08-13 用户裁定）：
                 // 原版跟随是贴人走，不是固定距离正面站位。
+                // 🔴 2026-08-13 suspect 化：随从犯法被围观 → 对着嫌疑犯喝止（站位劝阻无对话 UI，铁律 18 允许）。
+                Agent cautionTarget = TopSuspectAgent() ?? Agent.Main;
+                if (cautionTarget == null) return;
                 if (EffectiveAction == null || EffectiveAction is StayAction)
                 {
-                    EnqueueAction(new FollowAgentAction(Agent.Main, run: false, radius: 4f, angleOffset: 0f,
+                    EnqueueAction(new FollowAgentAction(cautionTarget, run: false, radius: 4f, angleOffset: 0f,
                         stopDistance: 3.5f, keepFollow: true,
                         endBehavior: MoveToPositionAction.EndBehavior.Unlock));
                 }
@@ -875,6 +890,22 @@ namespace LivingWorldNpcs
                 // 已经在战斗中（当前或队列中）→ 不中断，让 FightEnemyAction 自然运行到终止
                 if (IsCurrentOrPending<FightEnemyAction>())
                     return;
+
+                // 🔴 2026-08-13 suspect 分支（必须插在 IsPlayerInCombat 检查之前——玩家碰巧在战斗时
+                // 随从犯罪会被抢走参战玩家）：顶条目嫌疑犯非玩家 → 直接对嫌疑犯执法参战（任何人犯法闭环）。
+                // 嫌疑犯从 _alertBreakdown 顶条目推导（suspect 化），不依赖易被覆盖的 InteractedAgent。
+                Agent suspect = TopSuspectAgent();
+                if (suspect != null && suspect != Agent.Main)
+                {
+                    // 守卫执法冒泡：站住，{NAME}！（{NAME}=嫌疑犯）
+                    BubbleSay(LWNTextHelper.ResolveCompound("LWN_brain_crime_shout", "Stop, {NAME}!", ("NAME", suspect.Name.ToString())), "seen_crime", suspect);
+                    StartCombatAgainst(suspect);
+                    // 🔴 逮捕标记打在嫌疑犯（随从）的 brain 上（守卫执法语义 = 逮捕而非私刑）：
+                    // 随从被击倒且玩家不调停离场 → AgentAIController.OnRemoveBehavior 转押定居点（Phase E）。
+                    var suspectBrain = AgentAIController.GetBrainForAgent(suspect);
+                    if (suspectBrain != null) suspectBrain.ArrestedByLaw = true;
+                    return;
+                }
 
                 // 🔴 2026-08-12 用户裁定：玩家已在战斗中 → 劝阻已失效（Cautious 上前劝过）→
                 // 跳过质问（强制对话会打断战斗，体验差）直接拔刀参战（StartL3CombatJoin →
@@ -990,8 +1021,10 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[Brain-Surrender] {Owner.Name}(Idx={Owner.Index}) NPC投降被接受 — 停战 + StayAction（对话结束后统一恢复）");
 
                 // 广播围观 + 启动对话
+                // 🔴 isCrime:false——NPC 投降不是犯罪（2026-08-13 suspect 化：仅围观不分类）
                 AgentAIController.Instance?.BroadcastEventInRange(
-                    Owner.Position, 20f, "WitnessCrime", true, Owner, Agent.Main);
+                    Owner.Position, 20f, "WitnessCrime",
+                    exclude: null, requireSight: true, isCrime: false, Owner, Agent.Main);
                 ConversationEntryPatch._pendingTrigger = DialogueTrigger.NpcSurrender;
                 ConfrontingBrain = this;
                 DebugLogger.Log($"[ConvLock] Acquire by {Owner.Name}(Idx={Owner.Index}) | reason=NpcSurrender");
@@ -1190,43 +1223,77 @@ namespace LivingWorldNpcs
             }
 
             // Npc看不到玩家 → 衰减
-            if (!NpcSightSystem.CanNpcSeePlayer(Owner))
+            bool canSeePlayer = NpcSightSystem.CanNpcSeePlayer(Owner);
+            bool anySuspicious = false;
+
+            // 🆕 可疑状态感知（2026-08-14 正规路线，用户裁定）：与玩家路径同构——sight 感知 + 读目标状态变量。
+            // 目标列表 = NpcSightSystem.TrackedTargets（玩家自动注册 + 随从 OnAgentCreated 注册，预期 ≤5）。
+            // 蹲姿：玩家读 Agent.Main.CrouchMode（vanilla AI 在跑，可信）/ NPC 读脑 CrouchPoseActive（人工记录，
+            // 设置点同步写入——native CrouchMode 对 Suspend NPC 不可信，反编译实锤 MBAPI 读取）。
+            // 拔刀：玩家读引擎事件源 AgentAIController.PlayerWeaponDrawn（OnMainAgentWieldedItemChange 驱动，
+            // 无需每帧查武器）/ NPC 读脑 WeaponDrawnActive（各脑 100ms 自报）。
+            // 先读状态（O(1) 不花钱），有可疑状态才做视线检查（RayCast 只对可疑者发生，通常 0-2 个）。
+            // suspect：玩家 = -1（玩家语义，暖色警戒眼）；他人 = 该 agent Index（冷色眼，双色系）。
+            // 独立于 canSeePlayer 门控：守卫可能看不到玩家、但看得到蹲在旁边/拔刀的随从。
+            // 友方围观豁免已由上方 IsPlayerTeammate 兜底（其他随从看到随从蹲着/拔刀不涨警戒）。
+            var sightTargets = NpcSightSystem.Instance?.TrackedTargets;
+            if (sightTargets != null)
             {
+                bool crouchHandled = false, weaponHandled = false;   // 同类型只跟第一个看到的人（原 break 语义）
+                foreach (var t in sightTargets)
+                {
+                    if (t == null || !t.IsActive() || t == Owner) continue;
+                    bool isPlayer = t == Agent.Main;
+                    bool crouching = isPlayer ? t.CrouchMode
+                        : AgentAIController.GetBrainForAgent(t)?.CrouchPoseActive == true;
+                    bool weaponDrawn = isPlayer
+                        ? (AgentAIController.Instance?.PlayerWeaponDrawn ?? false)
+                        : AgentAIController.GetBrainForAgent(t)?.WeaponDrawnActive == true;
+                    if ((!crouching || crouchHandled) && (!weaponDrawn || weaponHandled)) continue;
+                    bool visible = isPlayer ? canSeePlayer
+                        : NpcSightSystem.CanAgentSeeTarget(Owner, t, 15f, 120f);
+                    if (!visible) continue;
+                    int suspect = isPlayer ? -1 : t.Index;
+
+                    if (crouching && !crouchHandled)
+                    {
+                        // 钉 suspect 上下文（非瞬时脉冲——SetPulseTarget 不加值，只写条目元数据；
+                        // 加值是下方 AddAlert 的 0.15/s 持续小量）。不钉则条目默认 -1 = 玩家语义：
+                        // 随从蹲着时警戒眼会错成暖色（针对玩家）、BecomeAlarmed 打错人、豁免判定失效。
+                        SetPulseTarget(PlayerActionType.Crouching, t.Name?.ToString(), null, -1, suspect);
+                        float crouchAmt = dt * 0.15f * GetAlertDistanceMultiplier(t);
+                        AddAlert(PlayerActionType.Crouching, crouchAmt);
+                        // 1s 闸门降频（DebugLogger 无条件写）：验证节奏下确认感知链路；附带 tracked 总数
+                        // 定位「随从没注册进感知目标列表」型故障
+                        float now = Mission.Current?.CurrentTime ?? 0f;
+                        if (now - _lastCrouchLogTime >= 1f)
+                        {
+                            _lastCrouchLogTime = now;
+                            DebugLogger.Log($"[Brain-Crouch] {Owner.Name}(Idx={Owner.Index}) 看到 {(isPlayer ? "玩家" : t.Name)}(Idx={t.Index}) 蹲着 → +{crouchAmt:F3} 警戒, suspect={(isPlayer ? "-1(玩家)" : t.Index.ToString())}, tracked={sightTargets.Count}");
+                        }
+                        crouchHandled = true;
+                        anySuspicious = true;
+                    }
+                    if (weaponDrawn && !weaponHandled)
+                    {
+                        SetPulseTarget(PlayerActionType.WeaponDrawn, t.Name?.ToString(), null, -1, suspect);
+                        AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f * GetAlertDistanceMultiplier(t));
+                        weaponHandled = true;
+                        anySuspicious = true;
+                    }
+                }
+            }
+
+            // 玩家开启偷窃UI（玩家专属 UI 通道，铁律 18 排除平权；随从"偷窃中" = 蹲姿感知已覆盖
+            // + 得手被抓 3.0 脉冲 InlineSteps）
+            if (canSeePlayer && StealManager.IsUIOpen)
+            {
+                AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f * GetAlertDistanceMultiplier());
+                anySuspicious = true;
+            }
+            // 没有任何可疑行为 → 衰减（收刀/站起来/关UI 后警戒值会下降，不再冻结）
+            if (!anySuspicious)
                 DecayAlertBreakdown(dt);
-            }
-            else
-            {
-                float distMult = GetAlertDistanceMultiplier();
-                bool anySuspicious = false;
-                //玩家下蹲状态
-                if (Agent.Main.CrouchMode)
-                {
-                    AddAlert(PlayerActionType.Crouching, dt * 0.15f * distMult);
-                    anySuspicious = true;
-                }
-                //玩家拔刀状态（🔴 2026-08-12 降频 100ms：事件源 AgentAIController.PlayerWeaponDrawn 维护，
-                // 日志打在事件源；本脑只读缓存——之前每帧调 V.MainWpn + 逐脑打日志，浪费且爆炸）
-                if (Mission.Current != null && Mission.Current.CurrentTime - _lastWeaponPerceiveTime >= 0.1f)
-                {
-                    _lastWeaponPerceiveTime = Mission.Current.CurrentTime;
-                    _playerWeaponDrawnCached = AgentAIController.Instance?.PlayerWeaponDrawn ?? IsPlayerWeaponDrawn();
-                }
-                bool weaponDrawn = _playerWeaponDrawnCached;
-                if (weaponDrawn)
-                {
-                    AddAlert(PlayerActionType.WeaponDrawn, dt * 0.20f * distMult);
-                    anySuspicious = true;
-                }
-                //玩家开启偷窃UI
-                if (StealManager.IsUIOpen)
-                {
-                    AddAlert(PlayerActionType.StealUIOpen, dt * 0.30f * distMult);
-                    anySuspicious = true;
-                }
-                // 没有任何可疑行为 → 衰减（收刀/站起来/关UI 后警戒值会下降，不再冻结）
-                if (!anySuspicious)
-                    DecayAlertBreakdown(dt);
-            }
             // 阶段穿越检测（向上或向下）
             CheckPhaseTransition();
         }
@@ -1244,10 +1311,29 @@ namespace LivingWorldNpcs
             return FriendlinessHelper.IsFriendlyToPlayer(agent);
         }
 
-        // 🔴 2026-08-12：玩家武器状态感知降频缓存（事件源 AgentAIController.PlayerWeaponDrawn 维护，
-        // 本脑每 100ms 读一次缓存——日志打在事件源，不再每帧翻转检测/逐脑打日志）
-        private float _lastWeaponPerceiveTime = -1f;
-        private bool _playerWeaponDrawnCached;
+        // 🔴 2026-08-14：人工蹲姿状态（用户裁定方案）——SetCrouchMode 的 flag 对**被脑 Suspend 的
+        // NPC** 不可信：CrouchMode 属性反编译实锤 = MBAPI native 读取，flag 需 vanilla AI 消费（Suspend
+        // 后无人消费，InlineSteps 两轮实机「不渲染」）。蹲姿设置点全在 mod 自己代码（CrouchInlineState
+        // / 扒窃 Rolling），同步写本字段；感知侧（各脑 UpdateAlertCognition 遍历
+        // NpcSightSystem.TrackedTargets）读它。玩家路径不经脑，
+        // 仍走 Agent.Main.CrouchMode（玩家 vanilla AI 在跑，可信）。
+        /// <summary>Owner 当前是否处于蹲姿（人工记录，与 SetCrouchMode 同步置/清）。</summary>
+        public bool CrouchPoseActive;
+
+        /// <summary>Owner 当前是否拔刀（各脑 100ms 自报，见 Tick）——目击者脑遍历 TrackedTargets 读本字段
+        /// 感知"有人拔刀"（随从拔刀与玩家平权；玩家侧走引擎事件源 AgentAIController.PlayerWeaponDrawn）。</summary>
+        public bool WeaponDrawnActive;
+        private float _lastWpnRefreshTime = -1f;
+
+        /// <summary>同步写入某 agent 的脑蹲姿状态（无脑 = 忽略；玩家无脑走 CrouchMode 属性路径）。</summary>
+        public static void SetCrouchPose(Agent agent, bool crouching)
+        {
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            if (brain != null) brain.CrouchPoseActive = crouching;
+        }
+
+        // 蹲姿感知日志 1s 闸门（DebugLogger 无条件写，每帧刷屏会爆炸；只留验证节奏）
+        private float _lastCrouchLogTime = -1f;
 
         /// <summary>
         /// 友方旁观者豁免判定（双向豁免核心，不读开关）：本脑（Owner）是玩家友方旁观者，
@@ -1261,29 +1347,21 @@ namespace LivingWorldNpcs
                 && !FriendlinessHelper.IsFriendlyToPlayer(victim);
         }
 
-        //玩家拔刀状态：主手或副手有武器
-        bool IsPlayerWeaponDrawn()
-        {
-            var main = Agent.Main;
-            if (main == null) return false;
-            // MainWpn 主手 OffWpn 副手
-            return V.MainWpn(main) != EquipmentIndex.None
-                || V.OffWpn(main) != EquipmentIndex.None;
-        }
-
         /// <summary>
-        /// 距离倍率：NPC 离玩家越近，警戒值涨得越快；越远涨得越慢。
+        /// 距离倍率：NPC 离目标越近，警戒值涨得越快；越远涨得越慢。
         /// 0m→1.0x, 15m→0.0x, 线性插值。衰减不受此倍率影响。
+        /// 缺省目标 = 玩家（拔刀/偷窃UI 等玩家侧行为沿用）；蹲姿感知传蹲着者本人
+        /// （2026-08-14 泛化：随从蹲在 20m 外、守卫就站在随从身边 → 按随从距离算）。
         /// </summary>
-        float GetAlertDistanceMultiplier()
+        float GetAlertDistanceMultiplier(Agent target = null)
         {
-            var player = Agent.Main;
-            if (player == null || !player.IsActive()) return 1.0f;
+            var t = target ?? Agent.Main;
+            if (t == null || !t.IsActive()) return 1.0f;
 
-            float dist = Owner.Position.Distance(player.Position);
+            float dist = Owner.Position.Distance(t.Position);
             const float maxDist = 15f;
-            float t = MathF.Clamp(dist / maxDist, 0f, 1f);
-            return 1.0f - t;
+            float ratio = MathF.Clamp(dist / maxDist, 0f, 1f);
+            return 1.0f - ratio;
         }
 
         //随时间自然衰减的警戒值
@@ -1384,7 +1462,9 @@ namespace LivingWorldNpcs
             // 友方旁观者不因玩家的可疑/犯罪类行为涨警戒（信任玩家）；不读 AllowHostileOnAllies 开关。
             // 例外：脉冲上下文记录受害者是「玩家友方」（本人被侵害，或开关开时玩家侵害友方）→ 照常涨。
             // ⚠️ 前提约定：所有调用点先 SetPulseTarget 后 AddAlert（内部站点已统一此顺序）。
-            if (FriendlinessHelper.IsFriendlyToPlayer(Owner) && !IsVictimFriendlyPulse(type))
+            // 🔴 2026-08-13 泛化（任何人犯法闭环）：suspect 存在且**非**玩家友方 → 不豁免——
+            // 随从犯法被围观：其他随从（友方）豁免不涨警戒（代表玩家阵营）；非友方 NPC 照常涨。
+            if (FriendlinessHelper.IsFriendlyToPlayer(Owner) && !IsVictimFriendlyPulse(type) && !IsSuspectHostile(type))
                 return false;
 
             if (!_alertBreakdown.TryGetValue(type, out var entry))
@@ -1393,6 +1473,23 @@ namespace LivingWorldNpcs
             entry.Value += amount;
             _alertBreakdown[type] = entry;  // struct 是值类型，写回
             return true;
+        }
+
+        /// <summary>
+        /// 该类型条目的嫌疑犯是否「非玩家友方」——suspect 化后的豁免例外信号：
+        /// suspect 存在且非玩家友方 → true（不豁免，任何人犯法都要涨警戒）；
+        /// suspect 未知/玩家/玩家友方（随从）→ false（豁免：随从代表玩家阵营）。
+        /// 语义矩阵：suspect 未知 → -1 → 玩家语义 → 豁免；suspect=玩家本人 → 豁免（玩家路径原逻辑）；
+        /// suspect=随从（玩家友方）→ 豁免（玩家其他随从看到随从犯法不涨警戒）；
+        /// suspect=非友方 NPC → 不豁免（任何人犯法闭环）。与 IsVictimFriendlyPulse OR 关系。
+        /// </summary>
+        bool IsSuspectHostile(PlayerActionType type)
+        {
+            if (!_alertBreakdown.TryGetValue(type, out var entry)) return false;
+            if (entry.SuspectAgentIndex < 0) return false;   // -1 = 玩家语义
+            Agent suspect = FindAgentByIndex(entry.SuspectAgentIndex);
+            if (suspect == null) return false;
+            return !FriendlinessHelper.IsFriendlyToPlayer(suspect);
         }
 
         /// <summary>
@@ -1420,16 +1517,74 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>脉冲上下文：设置 AlertEntry 的 TargetName/TargetAgentIndex（不改变 Value，Value 由 AddAlert 加）。
-        /// ⚠️ 约定：先 SetPulseTarget 后 AddAlert——AddAlert 内的队友豁免依赖此受害者上下文。</summary>
-        public void SetPulseTarget(PlayerActionType type, string targetName, string itemName, int targetAgentIndex = -1)
+        /// ⚠️ 约定：先 SetPulseTarget 后 AddAlert——AddAlert 内的队友豁免依赖此受害者上下文。
+        /// <param name="suspectAgentIndex">嫌疑犯 Agent.Index；缺省 -1 = 玩家语义（AlertTargetIsPlayer 自然成立）。
+        /// 非玩家犯法（随从偷窃/攻击）时传作案者 Index，警戒眼变冷色系、BecomeAlarmed 直接参战打嫌疑犯。</param></summary>
+        public void SetPulseTarget(PlayerActionType type, string targetName, string itemName, int targetAgentIndex = -1,
+            int suspectAgentIndex = -1)
         {
             if (!_alertBreakdown.TryGetValue(type, out var entry))
                 entry = new AlertEntry();
             entry.TargetName = targetName;
             entry.ItemName = itemName;
             entry.TargetAgentIndex = targetAgentIndex;
+            entry.SuspectAgentIndex = suspectAgentIndex;
             _alertBreakdown[type] = entry;
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // 🆕 Suspect 化（2026-08-13：任何人犯法闭环）——警戒条目的嫌疑犯推导
+        // ═══════════════════════════════════════════════════════════════
+
+        /// <summary>顶条目（值最大）的嫌疑犯 Agent.Index；-1 = 未知/玩家语义。</summary>
+        public int TopSuspectAgentIndex
+        {
+            get
+            {
+                if (_alertBreakdown.Count == 0) return -1;
+                int bestIdx = -1;
+                float bestVal = -1f;
+                foreach (var kv in _alertBreakdown)
+                {
+                    if (kv.Value.Value > bestVal)
+                    {
+                        bestVal = kv.Value.Value;
+                        bestIdx = kv.Value.SuspectAgentIndex;
+                    }
+                }
+                return bestIdx;
+            }
+        }
+
+        /// <summary>警戒是否针对玩家本人：suspect 未知（-1）或 = 玩家 → true（暖色系）；
+        /// 随从犯法被围观 → false（冷青蓝色系，HUD 视觉区分「不是针对我」）。</summary>
+        public bool AlertTargetIsPlayer
+            => TopSuspectAgentIndex < 0
+            || (Agent.Main != null && TopSuspectAgentIndex == Agent.Main.Index);
+
+        /// <summary>顶条目的嫌疑犯 Agent（suspect 未知 → null）。Mission 内按 Index 查（复用 FindAgentByIndex）。</summary>
+        public Agent TopSuspectAgent()
+        {
+            int idx = TopSuspectAgentIndex;
+            return idx < 0 ? null : FindAgentByIndex(idx);
+        }
+
+        /// <summary>调停用：把全部条目的嫌疑犯重映射为玩家（玩家当众认领随从 → 守卫质问链随 suspect 指向玩家）。</summary>
+        public void RemapSuspectToPlayer()
+        {
+            if (Agent.Main == null || _alertBreakdown.Count == 0) return;
+            var keys = new List<PlayerActionType>(_alertBreakdown.Keys);
+            foreach (var key in keys)
+            {
+                var entry = _alertBreakdown[key];
+                entry.SuspectAgentIndex = Agent.Main.Index;
+                _alertBreakdown[key] = entry;
+            }
+        }
+
+        /// <summary>逮捕标记（Phase E）：本脑 = 执法守卫，已对嫌疑犯动手执法（逮捕语义而非私刑）。
+        /// 随从被击倒且玩家离场 → AgentAIController 转押定居点；调停成功后清除。</summary>
+        public bool ArrestedByLaw;
 
         /// <summary>清空所有警戒值 + 释放质问锁（赔钱/坐牢后调用）</summary>
         /// <summary>格式化警戒因素明细，供日志输出。如 "偷窃=0.50, 蹲下=0.10"；有脉冲目标时追加目标名。</summary>
@@ -1614,7 +1769,12 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[Brain-Alarmed] {Owner.Name}(Idx={Owner.Index}) 跳过质问直接加入战斗 | AlertValue={AlertValue:F2} | 模式={Settings.Instance.AlarmedDirectCombat}");
         }
 
-        void StartL3Confrontation()
+        /// <summary>
+        /// L3 质问：NPC 主动质问玩家（ConfrontingBrain 锁 + AlertForceConversationAction → 原版对话流）。
+        /// 🔴 internal（2026-08-13）：调停交互（ExecuteIntervene）复用本链质问玩家——守卫停战后
+        /// 走同一条质问管线（现有链：Follow+LookAt+强制对话 → 质问脚本 → 赔偿子树）。
+        /// </summary>
+        internal void StartL3Confrontation()
         {
             Agent player = Agent.Main;
             if (player == null) return;
@@ -1673,6 +1833,16 @@ namespace LivingWorldNpcs
             // （事件处理/行为队列/警戒认知/默认行为恢复 均无意义）
             if (Settings.Instance.IsInteractionDisabled())
                 return;
+
+            // 🔴 2026-08-14：自报武器状态（100ms 降频）——目击者脑遍历 TrackedTargets 读本字段
+            // 感知"有人拔刀"（随从拔刀与玩家平权；玩家侧走引擎事件源 AgentAIController.PlayerWeaponDrawn，
+            // 本字段只服务 NPC）。MainWpn 主手 / OffWpn 副手任一持械 = 拔刀。
+            if (Mission.Current != null && Mission.Current.CurrentTime - _lastWpnRefreshTime >= 0.1f)
+            {
+                _lastWpnRefreshTime = Mission.Current.CurrentTime;
+                WeaponDrawnActive = V.MainWpn(Owner) != EquipmentIndex.None
+                    || V.OffWpn(Owner) != EquipmentIndex.None;
+            }
 
             // 安全兜底：如果持锁者已不活跃，释放质问锁
             if (ConfrontingBrain == this && !Owner.IsActive())
