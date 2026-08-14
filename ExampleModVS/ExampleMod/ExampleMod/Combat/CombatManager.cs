@@ -326,6 +326,15 @@ namespace LivingWorldNpcs
             if (agentA == null || agentB == null || !agentA.IsActive() || !agentB.IsActive())
                 return;
 
+            // 🔴 2026-08-14 开战清除蹲姿：蹲姿感知读的是人工记录 CrouchPoseActive（native flag 对
+            // Suspend NPC 不自动清，ForceUnlockAgent 也不会发生在被脑接管者身上），蹲着开打会让
+            // Crouching 警戒因素在战斗中持续上涨（实机：阿速甘被质问开打后感知侧仍每轮 +警戒）。
+            // 统一在 StartFight 收口起身——所有战斗入口（玩家/NPC/切磋/质问）都经过这里。
+            if (agentA.CrouchMode) agentA.SetCrouchMode(false);
+            if (agentB.CrouchMode) agentB.SetCrouchMode(false);
+            AgentBrain.SetCrouchPose(agentA, false);
+            AgentBrain.SetCrouchPose(agentB, false);
+
             DebugLogger.Log($"[CombatManager] StartFight: {agentA.Name}(Idx={agentA.Index}) vs {agentB.Name}(Idx={agentB.Index}), factionA={factionIdA}, factionB={factionIdB}, Peace={Peace}");
 
             // 玩家参与的战斗 → 注册战斗者

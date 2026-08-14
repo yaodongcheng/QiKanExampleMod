@@ -438,15 +438,15 @@
     
     
     
-    <string id="LWN_speech_alertbubble_crouching_suspicious" text="*muttering* What is {PLAYER} doing here..." />
-    <string id="LWN_speech_alertbubble_crouching_suspicious_v1" text="*muttering* {PLAYER} is up to something..." />
+    <string id="LWN_speech_alertbubble_crouching_suspicious" text="*muttering* What is {TARGET} doing here..." />
+    <string id="LWN_speech_alertbubble_crouching_suspicious_v1" text="*muttering* {TARGET} is up to something..." />
     <string id="LWN_speech_alertbubble_crouching_suspicious_v2" text="*muttering* Crouching here in broad daylight..." />
-    <string id="LWN_speech_alertbubble_crouching_cautious" text="*raising voice* Hey! {PLAYER}! What are you crouching there for!" />
+    <string id="LWN_speech_alertbubble_crouching_cautious" text="*raising voice* Hey! {TARGET}! What are you crouching there for!" />
     <string id="LWN_speech_alertbubble_crouching_cautious_v1" text="*sharply* {SPEAKER_PLAYER_ADDR}! Get up! Stop crouching there!" />
     <string id="LWN_speech_alertbubble_crouching_cautious_v2" text="*frowning* {SPEAKER_PLAYER_ADDR}! What are you crouching for?!" />
     <string id="LWN_speech_alertbubble_weapondrawn_suspicious" text="*glances uneasily* Why is that {ITEM} drawn..." />
-    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v1" text="*glances over* {PLAYER} still holding that {ITEM}..." />
-    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v2" text="*keeping an eye* {PLAYER} hasn't put that {ITEM} away..." />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v1" text="*glances over* {TARGET} still holding that {ITEM}..." />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v2" text="*keeping an eye* {TARGET} hasn't put that {ITEM} away..." />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious" text="*takes a step back* {SPEAKER_PLAYER_ADDR}! Put that {ITEM} away!" />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious_v1" text="*low voice* {SPEAKER_PLAYER_ADDR}! Sheathe that {ITEM}! This is not a battlefield!" />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious_v2" text="*warningly* {SPEAKER_PLAYER_ADDR}! Put that {ITEM} away, now!" />

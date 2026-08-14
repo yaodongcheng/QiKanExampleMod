@@ -69,16 +69,19 @@ namespace LivingWorldNpcs
             base.AfterStart();
 
             // ── 自动随从关系兜底：OnAgentCreated 时 Agent.Main 可能未就绪（玩家 Agent 晚创建），
-            //    启动完成后给玩家队友（同伴/同部队）补设 Leader = Agent.Main。 ──
+            //    启动完成后给玩家队友（同伴/同部队）补设 Leader = Agent.Main，并补 NpcSightSystem
+            //    追踪注册——OnAgentCreated 可能因 Agent.Main 未就绪 / SightSystem 未初始化而漏注册
+            //    （2026-08-14 实机：随从同队却没进 TrackedTargets，感知侧永远不触发）。
+            //    RegisterTrackedTarget 自带防重复，重跑安全。 ──
             foreach (var kv in _brains)
             {
                 var b = kv.Value;
-                if (b.Leader == null && Agent.Main != null && FriendlinessHelper.IsPlayerPartyMember(b.Owner))
-                {
+                if (Agent.Main == null || !FriendlinessHelper.IsPlayerPartyMember(b.Owner)) continue;
+                if (b.Leader == null)
                     b.SetLeader(Agent.Main);
-                    if (IsDebugMode)
-                        DebugLogger.Log($"[随从关系-兜底] {b.Owner.Name} → Leader=玩家");
-                }
+                NpcSightSystem.Instance?.RegisterTrackedTarget(b.Owner, 15f, 50f);
+                if (IsDebugMode)
+                    DebugLogger.Log($"[随从关系-兜底] {b.Owner.Name} → Leader=玩家");
             }
 
             // ── PendingWorldEvent 初始化 ──

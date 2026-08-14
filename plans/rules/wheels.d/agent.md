@@ -44,7 +44,9 @@ bool ok = agent.IsCrouchingAllowed();  // ⚠️ 1.2.12 无此 API（MB2_GE_130+
 ```
 
 - **实机踩坑（2026-08-14）**：`SetPose("act_crouch")` 静默失败 ≠「蹲姿动画不存在」——蹲姿动画真实存在（`act_crouch_walk_idle_unarmed`），入口是 **Crouch flag**（native 播蹲姿 + 碰撞盒降低 `CrouchedBodyCapsulePoint`）。玩家按 Z 蹲下走的正是这条链。判定 API 归属别凭名字猜，先二进制 grep 再下结论。
-- **姿态生命周期免费管理**：蹲姿是 scripted flag——任何 `ForceUnlockAgent`（`SetScriptedFlags(None)`，脑接管/新移动指令/战斗）自动清 → 自然起身，无需手动补站起；蹲着收到移动命令引擎播蹲走动画（读作"猫腰潜行"）。
+- **姿态生命周期免费管理**：蹲姿是 scripted flag——任何 `ForceUnlockAgent`（`SetScriptedFlags(None)`，脑接管/新移动指令/战斗）自动清 → 自然起身，无需手动补站起；蹲着收到移动命令引擎播蹲走动画（读作"猫腰潜行"）。⚠️ **仅对 vanilla AI 在跑的 agent 成立**（玩家路径）；被脑 Suspend 的 NPC 无人消费 flag，见下条。
+- 🔴 **判定侧三指标实机结论（2026-08-14 酒馆场景，SRC 对照日志数百条全一致）**：感知某 NPC 是否蹲着，**只有人工记录 `AgentBrain.CrouchPoseActive` 可信**——引擎 `Agent.CrouchMode` 与 `GetScriptedFlags() & AIScriptedFrameFlags.Crouch` 对被脑 Suspend 的 NPC **恒为 False**（flag 需 vanilla AI 消费，Suspend 后无消费者；反编译实锤 CrouchMode = MBAPI 直读）。**判定代码**：`AgentBrain.UpdateAlertCognition` 遍历 `NpcSightSystem.TrackedTargets`，玩家读 `CrouchMode`（vanilla AI 在跑，可信）/ NPC 读 `GetBrainForAgent(t)?.CrouchPoseActive`。设置点统一走 `AgentBrain.SetCrouchPose(agent, bool)`（与 `SetCrouchMode` 同步写）。
+- 🔴 **开战必须清蹲姿（2026-08-14 实机）**：`CombatManager.StartFight` 统一收口站起（`SetCrouchMode(false)` + `SetCrouchPose(agent, false)`）——蹲着开打，Crouching 警戒因素在战斗中持续上涨（实机：阿速甘被质问开打后感知侧仍每轮 +警戒）。
 - **版本兼容**：`SetCrouchMode` 1.2.12/1.3.15/1.4.6 三锚点全有（二进制实测），无版本分支；`IsCrouchingAllowed` 仅 1.3+。
 - **范本**：`Planner/InlineSteps.cs` `CrouchInlineState`（crouch/stand 免确认瞬时动作）+ 扒窃 Rolling 阶段「蹲身摸口袋」（引擎下蹲替换弯腰伸手假动画）。
 
@@ -389,8 +391,25 @@ brain.BubbleSay("文本");  // 通用冒泡说话入口
 **🔴 广播视线锚点必须锚事件源而非玩家（2026-08-14 修复，勿回归）**：
 - 问题：`BroadcastEventInRange(center, radius, "WitnessCrime", ..., requireSight: true, criminal, victim)` 的视线检查原用 `CanNpcSeePlayer`（内部 `CanAgentSeeTarget(npc, Agent.Main, 15f, 120f)` **写死玩家**）——随从（NPC）执行计划犯罪时，旁观者能看到犯罪现场（随从打人）却看不见远处/背身的玩家 → 广播被误过滤 → 现场 NPC 收不到 WitnessCrime → 无人涨警戒（实机：阿速甘击晕那弥斯失败，旁观者零反应）。附带缺陷：距离 15f 硬编码 < 广播半径 20f，15-20m 旁观者被误杀。
 - 修复（`AI/AgentAIController.cs` `BroadcastEventInRangeCore`）：WitnessCrime 且 `args[0] is Agent anchor` → `CanAgentSeeTarget(brain.Owner, anchor, radius, 120f)`；其余事件保持 `CanNpcSeePlayer`。**args[0] 恒为事件源**是全部 WitnessCrime 调用点约定（KnockoutFlow=犯罪者 / StealManager=偷窃者 / InlineSteps=喊叫者 / AgentBrain 投降=投降者）——玩家犯罪时 args[0]==Agent.Main，与旧行为等价，安全。
-- 🔴 **静态视线查询不需要 `RegisterTrackedTarget` 注册**（易误解点）：`CanAgentSeeTarget` / `GetObserversOf` 是无状态按需查询，广播、StealManager 目击检测（`StealManager.cs:518`）都直接调，**与 tracked 列表无关**。`RegisterTrackedTarget` 只服务 tick 追踪事件（`OnAgentStartObserving` 等），该消费链当前已断（`AgentAIController.cs:138` 订阅 `return;` 禁用 + `StartObservingPlayer` 发送被注释）——**不要**因广播问题给随从加 tracked 注册，注册了也无行为变化。已注册的只有玩家（`MySubModule.cs:113` + `NpcSightSystem.cs:336` 首 tick 兜底）。
+- 🔴 **静态视线查询不需要 `RegisterTrackedTarget` 注册**（易误解点）：`CanAgentSeeTarget` / `GetObserversOf` 是无状态按需查询，广播、StealManager 目击检测（`StealManager.cs:518`）都直接调，**与 tracked 列表无关**。**不要**因广播问题给随从加 tracked 注册——广播/目击走静态查询，注册了也不改变广播行为。tracked 列表的**活消费方** = `AgentBrain.UpdateAlertCognition` 蹲姿/拔刀感知（2026-08-14 正规路线遍历 `TrackedTargets` 读 `CrouchPoseActive`/`WeaponDrawnActive`）；tick 追踪事件订阅（`OnAgentStartObserving` 等）仍禁用（`AgentAIController.cs:138` `return;`）。注册链见下方「感知目标注册链」节。
 
+
+---
+
+## NpcSightSystem 感知目标注册链（2026-08-14 实机修复）
+
+注册入口（`RegisterTrackedTarget` 内部按 Agent 判重，多入口重跑安全）：
+- **玩家**：`MySubModule.cs:113`（Mission 开始）+ `NpcSightSystem.OnMissionTick` 首 tick 兜底
+- **随从**（`FriendlinessHelper.IsPlayerPartyMember`）：① `AgentAIController.OnAgentCreated`（Agent.Main 就绪时）② `AgentAIController.AfterStart` 兜底循环（Leader 补设处同步补注册）③ **`NpcSightSystem` 首 tick 扫 `Mission.Current.Agents` 补注册（主保险，不依赖行为初始化顺序）**
+
+🔴 **坑一（最终根因）：`OnMissionBehaviorInitialize` 追加的行为永远拿不到 `OnBehaviorInitialize`（2026-08-14 实机，阿速甘事件）**：
+- 引擎事实（反编译 `Mission` 实锤）：Mission 初始化 **①先遍历已有行为调 `OnBehaviorInitialize()` → ②才调子模块 `OnMissionBehaviorInitialize(this)` → ③之后只调 `EarlyStart()`/`AfterStart()`**；且 `AddMissionBehavior` 内部只调 `missionBehavior.OnCreated()`。→ **在 ② 里 `AddMissionBehavior` 追加的行为，`OnBehaviorInitialize` 永不触发**。
+- 后果：凡在 `OnBehaviorInitialize` 里赋静态 `Instance` 的行为（NpcSightSystem 曾如此），静态单例恒为 null，所有 `X.Instance?.` 调用静默 no-op——注册/查询"看似在跑"，实际全空，且无任何日志。本次排查中「AfterStart 兜底无效」只是表象，根子在这。
+- 正确姿势（与 `AgentAIController` 同模式）：**追加型行为的静态 Instance 在构造函数赋值**；`OnBehaviorInitialize` 里的赋值可留作冗余（若将来行为改为 Mission 创建时声明仍生效）。
+- 自检信号：某个行为的 `OnBehaviorInitialize` 日志从未出现 = 它是追加型行为、走错了赋值位置。
+
+🔴 **坑二：跨行为补注册的 `?.` 静默吞注册**：
+- 教训：① 跨行为补注册不要依赖对方初始化时机——优先在**拥有者自身生命周期**兜底（`NpcSightSystem` 首帧自查，自身 tick 必然就绪）；② `?.` 吞 null 无日志，注册/状态写入的关键路径宁可用 `if (x == null) DebugLogger.Log(...)` 显式暴露，别让故障静默化。
 
 ---
 
