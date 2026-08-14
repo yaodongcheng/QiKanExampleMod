@@ -301,7 +301,10 @@ namespace LivingWorldNpcs
             if (Owner == Agent.Main)
                 return;
 
-            DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 '{aiEvent.EventType}' | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
+            // 通用事件追踪；event_agent_damaged 由下方受害分支专用日志接管（含 victim/是否自己，
+            // 2026-08-14 去重：原两条 [Brain-Receive] 同事件双打，噪音且难 grep）
+            if (aiEvent.EventType != "event_agent_damaged")
+                DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 '{aiEvent.EventType}' | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
 
             // ── ReactiveAgent 触发词分发（密谋命令系统 §6）──
             // 被叫方/对手方的人格演算：speaker 请求 → 演算 → 反应动作 + 决策结果广播。
@@ -814,6 +817,10 @@ namespace LivingWorldNpcs
                 IsStunned = true;
                 ClearAllActions();
                 EnqueueAction(new StayAction(null, false, isKnockout: true));
+                // 🔴 2026-08-14 被捕随从击倒捕获（缓存方案）：脚本击晕不改引擎 AgentState，
+                // OnAgentHit 的 Health<=0 捕不到——在击晕事件（Agent 存活的安全时机）标记 Down，
+                // Mission 结束转押判定用。
+                AttackTriggerMissionLogic.Instance?.NotifyAgentKnockedOut(Owner);
             }
 
             // ═══════════════════════════════════════════════════════════════
@@ -900,10 +907,12 @@ namespace LivingWorldNpcs
                     // 守卫执法冒泡：站住，{NAME}！（{NAME}=嫌疑犯）
                     BubbleSay(LWNTextHelper.ResolveCompound("LWN_brain_crime_shout", "Stop, {NAME}!", ("NAME", suspect.Name.ToString())), "seen_crime", suspect);
                     StartCombatAgainst(suspect);
-                    // 🔴 逮捕标记打在嫌疑犯（随从）的 brain 上（守卫执法语义 = 逮捕而非私刑）：
-                    // 随从被击倒且玩家不调停离场 → AgentAIController.OnRemoveBehavior 转押定居点（Phase E）。
-                    var suspectBrain = AgentAIController.GetBrainForAgent(suspect);
-                    if (suspectBrain != null) suspectBrain.ArrestedByLaw = true;
+                    // 🔴 逮捕登记（守卫执法语义 = 逮捕而非私刑；2026-08-14 重构）：
+                    // 逮捕瞬间缓存 Hero 引用到 AttackTriggerMissionLogic（Agent 存活的安全时机），
+                    // Mission 结束由它只读大地图数据转押——不再在 teardown 期读 Agent native 数据
+                    //（实机 2026-08-14：被移除 Agent 的 IsActive() 抛 NRE，整环中断）。
+                    // 随从被击倒且玩家不调停离场 → 转押定居点（Phase E）；调停 → Unregister。
+                    AttackTriggerMissionLogic.Instance?.RegisterArrestedCompanion(suspect);
                     return;
                 }
 
@@ -1581,10 +1590,6 @@ namespace LivingWorldNpcs
                 _alertBreakdown[key] = entry;
             }
         }
-
-        /// <summary>逮捕标记（Phase E）：本脑 = 执法守卫，已对嫌疑犯动手执法（逮捕语义而非私刑）。
-        /// 随从被击倒且玩家离场 → AgentAIController 转押定居点；调停成功后清除。</summary>
-        public bool ArrestedByLaw;
 
         /// <summary>清空所有警戒值 + 释放质问锁（赔钱/坐牢后调用）</summary>
         /// <summary>格式化警戒因素明细，供日志输出。如 "偷窃=0.50, 蹲下=0.10"；有脉冲目标时追加目标名。</summary>

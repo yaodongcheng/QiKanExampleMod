@@ -110,5 +110,25 @@ namespace LivingWorldNpcs
                 requireSight: true,
                 attacker, target);
         }
+
+        /// <summary>起立动画时长（秒）：act_stand_up_to_front 完整播放时长。起身期间禁止
+        /// 原生战斗 AI 接管——否则动画通道被移动/攻击动画覆盖，人起不来（实机：随从躺着参战）。</summary>
+        public const float RiseAnimDuration = 2.0f;
+
+        /// <summary>
+        /// 击晕起身（醒来释放路径共用，2026-08-14）：播放起立动画（act_stand_up_to_front，与倒地
+        /// act_death_fall_front 配对：面朝下倒地 → 面朝下起身）+ 清除脑的击晕标记（IsStunned）。
+        /// **返回起立动画时长（秒）**——调用方必须在该时长之后再入队战斗动作/交还原生 AI
+        /// （KnockoutFlow.Resolve 播的是纯脚本动画，引擎原生 knockdown 状态机未介入，不会自动起立）。
+        /// 调用方流程：ClearAllActions（清击晕 StayAction + 解锁旗标）→ StandUp → 延迟 → 战斗/回岗。
+        /// </summary>
+        public static float StandUp(Agent agent)
+        {
+            if (agent == null || !agent.IsActive()) return 0f;
+            var brain = AgentAIController.GetBrainForAgent(agent);
+            if (brain != null) brain.IsStunned = false;
+            AgentControlHelper.ForcePlayAction(agent, "act_stand_up_to_front");
+            return RiseAnimDuration;
+        }
     }
 }

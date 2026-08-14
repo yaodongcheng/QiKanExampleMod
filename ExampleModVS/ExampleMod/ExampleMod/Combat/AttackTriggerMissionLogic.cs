@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
@@ -71,6 +72,56 @@ namespace LivingWorldNpcs
         /// <summary>友方保护提示冷却：同一目标 2 秒内最多提示一次（防连续挥砍刷屏）。</summary>
         private static readonly Dictionary<int, float> _lastFriendlyBlockedHint = new Dictionary<int, float>();
         private const float FRIENDLY_BLOCKED_HINT_COOLDOWN = 2.0f;
+
+        // ══════════════════ 被捕随从名单（Phase E 转押，2026-08-14 分阶段）══════════════════
+        // 🔴 为什么缓存而非 teardown 期读 Agent：Mission 结束时部分 Agent 已被引擎提前移除
+        //（native _statePointer 失效），IsActive() 抛 NRE（实机 2026-08-14）。
+        // 两态模型（用户裁定）：① 注册 = 只列入名单（守卫开始执法 = 嫌疑人）；② Confirm =
+        // 最终确认（Agent 移除时带 Unconscious = 被打倒过且离场时仍倒地——引擎对倒地者做
+        // 身体清理，中途移除；站着离场的移除时是 Active，Confirm 不置位）。Mission 结束
+        // 只对 Confirm=true 的进牢，其余仅作 WorldEvent 嫌疑人（犯罪系统既有职责，不坐牢）。
+        /// <summary>被捕随从信息（键 = agent.Index，Mission 内唯一且 Agent 移除后索引仍可作键）。</summary>
+        private sealed class ArrestedCompanionInfo
+        {
+            public Hero Hero;       // 阶段①：逮捕瞬间缓存（Hero 是大地图持久对象，场景结束不销毁）
+            public bool Confirm;    // 阶段②：最终确认（OnAgentRemoved 移除时 Unconscious / 脚本击晕事件）
+        }
+        private readonly Dictionary<int, ArrestedCompanionInfo> _arrestedCompanions = new Dictionary<int, ArrestedCompanionInfo>();
+        private readonly object _arrestedLock = new object();
+
+        /// <summary>逮捕登记（AgentBrain BecomeAlarmed 嫌疑犯分支调用）：逮捕瞬间 Agent 存活，
+        /// 缓存 Hero 引用（仅玩家随从 Hero 非空者；模板 NPC 无 Hero → 不登记，仅 Mission 层倒地）。</summary>
+        public void RegisterArrestedCompanion(Agent agent)
+        {
+            if (agent == null) return;
+            var hero = (agent.Character as CharacterObject)?.HeroObject;
+            if (hero == null) return;
+            if (!FriendlinessHelper.IsPlayerPartyMember(hero)) return;
+            lock (_arrestedLock)
+            {
+                _arrestedCompanions[agent.Index] = new ArrestedCompanionInfo { Hero = hero };
+            }
+        }
+
+        /// <summary>解除逮捕登记（玩家调停成功 → 转质问，不再转押）。</summary>
+        public void UnregisterArrestedCompanion(Agent agent)
+        {
+            if (agent == null) return;
+            lock (_arrestedLock) { _arrestedCompanions.Remove(agent.Index); }
+        }
+
+        /// <summary>击倒最终确认（脚本击晕路径）：AgentBrain 击晕事件（agent_knocked_out）时调用——
+        /// 脚本击晕不改引擎 AgentState，OnAgentRemoved 的 Unconscious 判定确认不到，须在击晕事件
+        ///（Agent 存活的安全时机）置 Confirm。</summary>
+        public void NotifyAgentKnockedOut(Agent agent)
+        {
+            if (agent == null) return;
+            lock (_arrestedLock)
+            {
+                if (_arrestedCompanions.TryGetValue(agent.Index, out var info))
+                    info.Confirm = true;
+            }
+        }
 
         /// <summary>友方保护拦截提示（反馈明确，铁律 13 本地化）：{NAME} 是自己人——你不能这么做。</summary>
         private static void ShowFriendlyBlockedHint(Agent target)
@@ -181,6 +232,29 @@ namespace LivingWorldNpcs
                 {
                     _deadAgents.Add(affectedAgent);
                 }
+            }
+
+            // 🆕 被捕随从最终确认（2026-08-14 分阶段方案，用户裁定）：
+            // 阶段②——OnAgentRemoved 是「Agent 离开 Mission」的最终时刻，带引擎最终状态：
+            //   Unconscious = 最终确认（被打倒者被引擎身体清理中途移除 / teardown 移除时仍倒地）；
+            //   Active/其他 = 站着离场（打赢/逃跑/中途醒了）→ Confirm 不置位，不坐牢。
+            // 脚本击晕路径（mod 脚本动画不改引擎 State，移除时仍报 Active）走 NotifyAgentKnockedOut。
+            // Mission 正在结束且名单里有刚确认的 → 立即尝试转押（事件驱动，覆盖 Agent 在
+            // behavior 拆除后移除的顺序；OnRemoveBehavior 只做主触发）。
+            if (affectedAgent != null)
+            {
+                lock (_arrestedLock)
+                {
+                    if (_arrestedCompanions.TryGetValue(affectedAgent.Index, out var arrestedInfo)
+                        && affectedAgentState == AgentState.Unconscious)
+                    {
+                        arrestedInfo.Confirm = true;
+                    }
+                }
+                bool missionEnding = Mission.Current == null
+                    || Mission.Current.CurrentState != Mission.State.Continuing;
+                if (missionEnding)
+                    TryTransferArrestedCompanions();
             }
 
             // 玩家自己被打昏 → 交给大地图扣押流程（被打死则是原版的战役结束，不接管）
@@ -591,7 +665,92 @@ namespace LivingWorldNpcs
                 // 已经是敌人了，这是一次正常的攻击，直接返回，不触发新战斗逻辑
                 return;
             }
-        
+
+        }
+
+        // ══════════════════ 被捕随从转押（Phase E，2026-08-14 分阶段重构）══════════════════
+        // 玩家离开场景（Mission 结束）时，名单里 Confirm=true 的随从 → 转押事件定居点牢房
+        //（TakePrisonerAction 原版 hero 俘虏机制：进 settlement.PrisonRoster、从原队伍移除、
+        // 原版 captivity 状态机接管）。事件保持 Active（嫌疑人=随从）——玩家可回定居点赎回。
+        // 🔴 分阶段（用户裁定 2026-08-14）：① 逮捕启动 → RegisterArrestedCompanion 只列入名单；
+        // ② OnAgentRemoved 移除时 Unconscious / 脚本击晕事件 → Confirm=true；③ Mission 结束
+        //（OnRemoveBehavior 主触发 + OnAgentRemoved 事件驱动兜底）→ Confirm=true 的进牢，
+        // 其余仅作 WorldEvent 嫌疑人（犯罪系统职责，不坐牢）。
+        // 只读名单 + 大地图 Hero 数据，零 teardown 期 Agent native 访问（实机 2026-08-14：
+        // teardown 期 IsActive() 对已移除 Agent 抛 NRE）。转押成功即移出名单（幂等防双押）。
+        public override void OnRemoveBehavior()
+        {
+            base.OnRemoveBehavior();
+            // 阶段③ 主触发：Mission 结束 → Confirm=true 的进牢；未确认的保留在名单
+            //（其 OnAgentRemoved 可能在 behavior 拆除后才到，事件驱动路径会补转押）
+            TryTransferArrestedCompanions();
+        }
+
+        /// <summary>阶段③ 转押（幂等）：名单里 Confirm=true 且存活且玩家随从 → 进牢，
+        /// 成功转押即移出名单（防双押）；未确认条目保留（等 OnAgentRemoved 迟到确认）。
+        /// 名单是 MissionLogic 实例字段，Mission 结束随实例回收，无泄漏。</summary>
+        private void TryTransferArrestedCompanions()
+        {
+            if (Campaign.Current == null) return;
+            List<ArrestedCompanionInfo> snapshot;
+            lock (_arrestedLock)
+            {
+                if (_arrestedCompanions.Count == 0) return;
+                snapshot = new List<ArrestedCompanionInfo>(_arrestedCompanions.Values);
+            }
+
+            var jailed = new List<ArrestedCompanionInfo>();
+            foreach (var info in snapshot)
+            {
+                try
+                {
+                    if (info.Hero == null || !info.Confirm) continue;          // 未最终确认 → 仅嫌疑人，不坐牢
+                    if (!info.Hero.IsAlive) continue;                           // 兜底：Hero 死亡系统接管
+                    if (!FriendlinessHelper.IsPlayerPartyMember(info.Hero)) continue;
+
+                    // 事件定居点：PendingWorldEvent（本场 Mission 的犯罪事件）→ 持久化 store 兜底
+                    //（FindOnGoing 已内置 PendingWorldEvent 兜底，见铁律 9）
+                    WorldEvent evt = null;
+                    var pending = AgentAIController.Instance?.PendingWorldEvent;
+                    if (pending != null && !string.IsNullOrEmpty(pending.TargetSettlementId))
+                        evt = WorldEventStore.FindOnGoing(pending.TargetSettlementId);
+                    else if (Settlement.CurrentSettlement != null)
+                        evt = WorldEventStore.FindOnGoing(Settlement.CurrentSettlement.StringId);
+                    if (evt == null || evt.TargetSettlement == null) continue;
+
+                    var settlement = evt.TargetSettlement;
+                    // 转押（原版 hero 俘虏机制）
+                    TakePrisonerAction.Apply(settlement.Party, info.Hero);
+                    // 注册到赎回菜单（CompanionDetentionBehavior）
+                    CompanionDetentionBehavior.RegisterDetained(info.Hero, settlement, evt.EventId);
+
+                    // 提示消息（铁律 13）：你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_ui_arrest_msg",
+                            "Your companion {NAME} has been locked in the jail of {SETTLEMENT}.",
+                            ("NAME", info.Hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target")),
+                            ("SETTLEMENT", settlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_detention_place_here", "here"))),
+                        Colors.Red));
+                    jailed.Add(info);
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[Arrest] 转押失败: {ex.Message}");
+                }
+            }
+
+            if (jailed.Count > 0)
+            {
+                lock (_arrestedLock)
+                {
+                    foreach (var key in _arrestedCompanions
+                        .Where(kv => jailed.Contains(kv.Value))
+                        .Select(kv => kv.Key).ToList())
+                    {
+                        _arrestedCompanions.Remove(key);
+                    }
+                }
+            }
         }
     }
 }
