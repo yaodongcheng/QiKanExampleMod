@@ -233,6 +233,7 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 | [Agent_AI底层原理](Knowledge/Agent_AI底层原理.md) | Agent 装配管线、五层控制参数、战斗 AI 决策流、NavMesh | Mission 层 Agent 控制 |
 | [Agent_AI冲突解决与接管策略](Knowledge/Agent_AI冲突解决与接管策略.md) | SuspendVanillaAI/ResumeVanillaAI、AgentNavigator/DailyBehaviorGroup 接管机制 | NPC 行为接管、原子 Action 开发 |
 | [🔴 原版场景跟随系统分析](Knowledge/原版场景跟随系统分析.md) | 🔴 **队伍成员进场景跟随完整链路**：ClanMemberRolesCampaignBehavior 名单（触发时机表/资格条件/位置白名单）+ MissionAgentHandler 出生+挂载 + FollowAgentBehavior 源码分析（状态机/多跟随者排队/视线校验）、与本 mod AgentBrain 冲突点、复用 API | 实现「队友/随从常驻跟随」、理解原版跟随行为、避免与 Brain 接管打架 |
+| [🔴 原版地牢与劫狱机制分析](Knowledge/原版地牢与劫狱机制分析.md) | 🔴 **地牢实体 = settlement.Party.PrisonRoster**；俘虏进地牢 6 条路径；地牢场景 `sp_prisoner`/`sp_prison_break`/`stealth_agent` 刷点 tag 体系；进入权限模型（同阵营全通/中立贿赂/敌对乔装）；劫狱全流程（两阶段潜行/费用/7天CD/三种结局）；原版自动赎金（每日 10%~20%）；1.2.12 早期简化版 vs 1.3.15+ 成熟版对比 | 随从坐牢/赎回（CompanionDetentionBehavior）、玩家扣押、规划劫狱救随从/地牢释放玩法、理解被俘英雄怎么出来 |
 | [架势耐力系统_引擎能力与可行性研究](Knowledge/架势耐力系统_引擎能力与可行性研究.md) | 🔴 架势/耐力机制引擎能力边界、竞品分析（RBM/Stamina System）、决策：不自研，前置依赖 RBM | 战斗系统规划、架势崩防 × AgentBrain 联动设计 |
 | [原版骑砍2任务系统分析](Knowledge/原版骑砍2任务系统分析.md) | 🔴 **40 种 NPC 委托任务全览**，Issue→Quest 双层架构、三种解决路径、触发机制、IssueEffect 惩罚、对话集成 | 委托任务（CommissionQuest）系统设计，理解原版 Issue/Quest 边界 |
 | [AIInfluenceProject_技术实现分析](Knowledge/AIInfluenceProject_技术实现分析.md) | 参考 mod 的 DiplomacyManager 设计 | 外交系统参考 |

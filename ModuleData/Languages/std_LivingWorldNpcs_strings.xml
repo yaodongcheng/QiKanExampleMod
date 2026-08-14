@@ -3988,7 +3988,10 @@
     <string id="LWN_ui_interact_intervene" text="Intervene" />
     <string id="LWN_ui_intervene_bubble" text="Stop! He's my man!" />
     <string id="LWN_ui_arrest_msg" text="Your companion {NAME} has been locked in the jail of {SETTLEMENT}." />
-    <string id="LWN_ui_companion_ransom" text="Ransom {LWN_COMPANION} — {LWN_COMPANION_FINE}{GOLD_ICON}" />
+    <string id="LWN_ui_companion_ransom" text="Ransom companions" />
+    <string id="LWN_ui_companion_ransom_menu" text="The guards look you over. In the cells:" />
+    <string id="LWN_ui_companion_ransom_item" text="Ransom {LWN_COMPANION} — {LWN_COMPANION_FINE}{GOLD_ICON}" />
+    <string id="LWN_ui_companion_ransom_back" text="Leave" />
     <string id="LWN_ui_companion_ransom_ack" text="You pay the fine and take {NAME} back." />
     <string id="LWN_ui_companion_ransom_none" text="Your companion has already been released." />
     <string id="LWN_dialogue_companion_crime_opening" text="Your companion {NAME} stole my things! What do you have to say for yourself?" />
