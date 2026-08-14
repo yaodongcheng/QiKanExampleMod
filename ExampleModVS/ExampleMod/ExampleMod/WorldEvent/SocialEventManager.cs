@@ -488,7 +488,11 @@ namespace LivingWorldNpcs
             //统计事件总共传播到了哪些人，以及处理每个人之后和玩家话题（说服任务）
             PrintBroadcastSummary(report, evt);
 
-            AIStoryGeneratorBehavior.Instance.StartGeneration(evt, report);
+            // 🔴 2026-08-14 停用（用户裁定）：剧本自动生成管线（BuildDirectorPrompt/BuildShowPrompt → 两次 LLM 调用）
+            // 演出端 StoryEngine 只有控制台命令 custom.testAIStoryEvent 能启动，常规玩法用不到 → 白烧 token，
+            // 且无嫌疑人案件（suspect=none）会走 ERROR 守卫后继续调 BuildShowPrompt 触发 NRE（见 deprecated.md）。
+            // 恢复时必须在 GenerateTaskAsync 检测 "ERROR:" 短路 + BuildShowPrompt 加 null 守卫。
+            // AIStoryGeneratorBehavior.Instance.StartGeneration(evt, report);
             // _ = GenerateScreenPlayDirector(evt, report);
 
 

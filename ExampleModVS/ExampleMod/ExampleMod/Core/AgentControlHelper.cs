@@ -973,13 +973,14 @@ namespace LivingWorldNpcs
             {
                 targetHero.Spouse = null;
                 targetHeroSpouse.Spouse = null;
-                //好感变化
+                // 好感变化
                 ChangeRelationAction.ApplyRelationChangeBetweenHeroes(targetHero, targetHeroSpouse, -30);
-                //可能要做一个事件新闻
-                // 事务记录：强制离婚事件标签
-                ActionTransactionSystem.RecordAction(SocialEventType.Divorce, targetHero, targetHeroSpouse,
-                    // 强制离婚
-                    LWNTextHelper.ResolveText("LWN_info_action_divorce", "Forced divorce"));
+                // 🔴 2026-08-14 停用（用户裁定）：ActionTransactionSystem 婚姻新闻广播管线久未维护
+                // （见 deprecated.md）。注释仅停新闻广播；离婚本身/好感/公告照常。
+                // // 事务记录：强制离婚事件标签
+                // ActionTransactionSystem.RecordAction(SocialEventType.Divorce, targetHero, targetHeroSpouse,
+                //     // 强制离婚
+                //     LWNTextHelper.ResolveText("LWN_info_action_divorce", "Forced divorce"));
                 // 离婚公告：报出双方名字
                 InformationManager.DisplayMessage(new InformationMessage(
                     // {NAME1} 与 {NAME2} 离婚了。
@@ -995,12 +996,12 @@ namespace LivingWorldNpcs
             // ... 执行原版 MarriageAction.Apply ...
             MarriageAction.Apply(hero1, hero2);
 
-            // 记录到事务系统
-
-            // 事务记录：结婚事件标签
-            ActionTransactionSystem.RecordAction(SocialEventType.Marriage, hero1, hero2,
-                // 结婚
-                LWNTextHelper.ResolveText("LWN_info_action_marriage", "Marriage"));
+            // 🔴 2026-08-14 停用（用户裁定）：ActionTransactionSystem 婚姻新闻广播管线久未维护
+            // （见 deprecated.md）。注释仅停新闻广播；结婚本身照常。
+            // // 事务记录：结婚事件标签
+            // ActionTransactionSystem.RecordAction(SocialEventType.Marriage, hero1, hero2,
+            //     // 结婚
+            //     LWNTextHelper.ResolveText("LWN_info_action_marriage", "Marriage"));
         }
 
         public static void OnPlayerSelect_MarryNewLover(Hero newLover)
@@ -1009,8 +1010,10 @@ namespace LivingWorldNpcs
             Hero exSpouse = player.Spouse;
             Hero loverSpouse = newLover.Spouse;
 
-            // 1. 开启事务：告诉系统接下来的一系列操作是一个整体
-            ActionTransactionSystem.BeginTransaction();
+            // 🔴 2026-08-14 停用（用户裁定）：ActionTransactionSystem 婚姻新闻广播管线久未维护
+            // （见 deprecated.md）。事务 Begin/Commit 只为新闻广播服务，随管线一并停用。
+            // // 1. 开启事务：告诉系统接下来的一系列操作是一个整体
+            // ActionTransactionSystem.BeginTransaction();
 
             try
             {
@@ -1037,9 +1040,10 @@ namespace LivingWorldNpcs
             }
             finally
             {
-                // 5. 提交事务：系统分析刚才发生的 3 件事，发现符合 "ScandalousRemarriage" 模式
-                // 于是只广播一条 "玩家为了新欢抛弃发妻" 的重磅新闻，而不是三条零散新闻
-                ActionTransactionSystem.CommitTransaction();
+                // 🔴 2026-08-14 停用（用户裁定）：见上方 BeginTransaction 注释，Commit 随管线一并停用。
+                // // 5. 提交事务：系统分析刚才发生的 3 件事，发现符合 "ScandalousRemarriage" 模式
+                // // 于是只广播一条 "玩家为了新欢抛弃发妻" 的重磅新闻，而不是三条零散新闻
+                // ActionTransactionSystem.CommitTransaction();
             }
         }
 

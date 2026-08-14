@@ -4,9 +4,11 @@ using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameState;
+using TaleWorlds.CampaignSystem.Inventory;
 using TaleWorlds.CampaignSystem.Map;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Party.PartyComponents;
+using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
@@ -14,6 +16,7 @@ using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
+using Helpers; // v1.3.0+：InventoryManager 改名 InventoryScreenHelper，namespace 也改为 Helpers
 
 namespace LivingWorldNpcs
 {
@@ -55,10 +58,10 @@ namespace LivingWorldNpcs
     ///
     ///   [structural] — 多语句算法/功能模块跨版本完全不同的实现：
     ///     WorldEventSimulator.cs:1668,1719    AreFacesOnSameIsland 移除
-    ///     InteractionMissionView.cs:1909     搜刮 Loot 流（InventoryManager 不可用）
-    ///     InteractionMissionView.cs:2364     开箱搜刮流（同上）
     ///     MyCommands.cs:1619                  stealth_debug 命令（1.4.x only）
     ///     MyCommands.cs:30                    using SandBox.Missions（1.4.x only）
+    ///   （搜刮/开箱 Loot 流的 InventoryManager #if 已于 2026-08-14 移除：类在 v1.3.0 改名
+    ///     InventoryScreenHelper，签名一致，统一走 V.OpenLootScreen，不再裸 #if。）
     /// </summary>
     /// IMPORTANT: Compile BOTH Debug (LATEST) and Debug_v1.2.12 after every change to this file.
     /// </summary>
@@ -695,6 +698,22 @@ namespace LivingWorldNpcs
             mapState.Handler.StartCameraAnimation(new CampaignVec2(pos, true), duration);
 #else
             mapState.Handler.StartCameraAnimation(pos, duration);
+#endif
+        }
+
+        // ── Loot/inventory screen ────────────────────────────────────
+        // v1.2.12: InventoryManager.OpenScreenAsLoot(dict)（TaleWorlds.CampaignSystem.Inventory）
+        // v1.3.0+: 类整体改名 InventoryScreenHelper（namespace Helpers），方法签名不变。
+        //   打开"战利品挑选"库存界面；itemRosters 以 PartyBase.MainParty 为键，roster 会被原地修改。
+        //   使用场景：偷窃/搜刮/开箱的"自己挑选"（InteractionMissionView）。
+
+        public static void OpenLootScreen(Dictionary<PartyBase, ItemRoster> itemRosters)
+        {
+            if (itemRosters == null) return;
+#if MB2_GE_130
+            InventoryScreenHelper.OpenScreenAsLoot(itemRosters);
+#else
+            InventoryManager.OpenScreenAsLoot(itemRosters);
 #endif
         }
     }

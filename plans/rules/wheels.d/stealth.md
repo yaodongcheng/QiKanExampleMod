@@ -223,6 +223,28 @@ StealManager.HasAnythingToSteal(agent); // 任一装备槽或钱袋 → 开条�
 
 ---
 
+## 战利品挑选共享管线 — `InteractionMissionView.LootFlowSession`
+
+**保管箱 / 尸体 / 昏迷 / 活人偷窃 共用一条"自己挑选"管线**（2026-08-14 从两份平行实现合并，改挑选逻辑只动这一处）。
+
+```csharp
+// 工厂（快照 + 打开挑选界面；roster 会被引擎界面原地修改，存进会话等 Close 差值）
+LootFlowSession.OpenChest(view, chestRoster, pendingGold);   // 保管箱：金币先落袋暂存，Close 与物品一次记账
+LootFlowSession.OpenPerson(view, target, isStealing, isDead, pickRoster); // 死人只放防具（武器已掉地上）
+// 挑选界面关闭 → MissionTick 分发（_pendingLootSession != null）→ session.Close()
+```
+
+- **差值**：`Snapshot = StealManager.CloneItemRoster(roster)` 为基准 → 关闭后 `ComputeTaken()`（snapshot − 剩余 = 实际拿走的，返回 `(ItemObject, count)` 列表）。
+- **差异点 if 分支**（`Close()` 内按 `Kind`）：
+  - `Chest` → `DeductSettlementItemsOnly`（同步定居点库存）+ `RecordChestTheft` + `RemoveChestEntityIfEmpty`
+  - `Person` → `RecordUnconsciousLootTheft`（仅 `!IsStealing`）+ 标记 `_lootedCorpses`（防重复搜刮）+ `StripAgentEquipment(agent, true, true, remainingRoster)`（精准扒被拿走的槽；尸体/昏迷内部 IsActive 守卫自动跳过）
+- **🔴 活人偷窃挑选路径必须扒装备**：旧实现 `isStealing=true` 收尾空操作 → 目标装备不消失，可反复偷刷装备（已修）。`StripAgentEquipment` 的 remainingRoster 非 null = 只扒不在 roster 中的槽；null = 扒光（全部拿走路径）。
+- **IsUIOpen 贯穿**询问框 + 挑选界面全程，Close 末尾复位；换场景清理只置 `_pendingLootSession = null`。
+- **打开界面 API**：`V.OpenLootScreen(Dictionary<PartyBase, ItemRoster>)`（v1.3.0 起 `InventoryManager` 改名 `InventoryScreenHelper`，见 config.md 版本兼容卷）。
+
+
+---
+
 ## Animal 模式（抓动物）与「动物无 Brain」边界
 
 - 难度表达：动物**无 AgentBrain**（`AgentAIController` 只给 `IsHuman` 注册脑）→ 无警戒值 → 判定区不扣警戒、不游动，难度纯由体型定价（`_itemTierFactor`：大动物 0.6 / 小动物 1.0）；Roguery 减速浮标照常生效。

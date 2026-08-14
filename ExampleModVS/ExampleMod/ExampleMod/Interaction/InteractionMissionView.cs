@@ -63,10 +63,6 @@ namespace LivingWorldNpcs
         /// <summary>玩家控制是否被冻结（偷窃条子弹时间等模态；PlanExecutor R7 检测用）。</summary>
         internal bool IsPlayerControlFrozen => _playerControlFrozen;
 
-        // 箱子"自己挑选"路径：金币先落袋暂存，物品在 ProcessPendingChestLoot 一并记账
-        private int _pendingChestGold = 0;
-
-
         private int _tickCounter = 0;
 
         // 输入设备追踪（键盘↔手柄切换时刷新全部按键提示，ModInput 统一管理映射）
@@ -97,12 +93,12 @@ namespace LivingWorldNpcs
         private GameEntity _chestEntity = null;
         private bool _chestSpawned = false;
 
-        // 箱子"自己挑选"待处理状态（InventoryManager 关闭后处理）
-        private bool _chestLootPending = false;
-        private ItemRoster _pendingChestSnapshot = null;
-
         // 首次靠近箱子时给出提示（KCD2 风格沉浸引导）
         private bool _chestHintShown = false;
+
+        // ── 战利品挑选共享管线（LootFlowSession）：保管箱/尸体/昏迷/活人偷窃 共用 ──
+        //    打开挑选界面 → 关闭后快照差值记账收尾（差异点按 Kind/IsStealing 分支）
+        private LootFlowSession _pendingLootSession = null;
 
         // ── 上下文唯一真相源：当前可用玩法 ID 列表（同时驱动输入响应与 UI 显示，杜绝"显示与响应不同步"）──
         private readonly List<string> _availableIds = new List<string>();
@@ -986,17 +982,12 @@ namespace LivingWorldNpcs
             }
 
 
-            // ----------------- 0. 库存界面关闭后的搜刮收尾 -----------------
-            if (_pendingLootCorpse != null)
+            // ----------------- 0. 战利品挑选界面关闭后的统一收尾（保管箱/尸体/昏迷/活人） -----------------
+            if (_pendingLootSession != null)
             {
-                ProcessPendingLoot();
-                return;
-            }
-
-            // ----------------- 0b. 箱子挑选界面关闭后的收尾 -----------------
-            if (_chestLootPending)
-            {
-                ProcessPendingChestLoot();
+                var session = _pendingLootSession;
+                _pendingLootSession = null;
+                session.Close();
                 return;
             }
 
@@ -1453,9 +1444,7 @@ namespace LivingWorldNpcs
             StealManager.ChestEntity = null;
             StealManager.ChestItemRoster = new ItemRoster();
             _chestSpawned = false;
-            _chestLootPending = false;
-            _pendingChestSnapshot = null;
-            _pendingChestGold = 0;
+            _pendingLootSession = null; // 挑选界面待处理会话一并丢弃（界面关闭即废）
             _chestHintShown = false;
 
             // 清理财富分配
@@ -1936,13 +1925,6 @@ namespace LivingWorldNpcs
 
         private List<Agent> _lootedCorpses = new List<Agent>(); // 用于记录已经搜刮过的尸体，避免重复搜刮
 
-        // "自己挑选"库存界面关闭后的待处理状态
-        private Agent _pendingLootCorpse;
-        private ItemRoster _pendingLootRoster;
-        private bool _pendingIsStealing;
-        // "自己挑选"开库存界面时的完整物品快照（搜刮昏迷者记账用：快照 − 界面关闭后的剩余 = 实际拿走的）
-        private List<(string itemId, string itemName, int count)> _pendingLootAllItems;
-
         /// <summary>
         /// 目标是否为"昏迷未死"的活人（被击晕/失去意识）。搜刮此类目标 = 偷窃（走 RecordUnconsciousLootTheft）；
         /// 尸体（Killed）和战场搜刮不算偷窃，不触发。
@@ -1965,48 +1947,6 @@ namespace LivingWorldNpcs
                     items.Add((el.Item.StringId, el.Item.Name?.ToString(), 1));
             }
             return items;
-        }
-
-        /// <summary>
-        /// "自己挑选"库存界面关闭后的收尾：标记已搜刮 + 精准扒掉被玩家拿走的装备。
-        /// </summary>
-        private void ProcessPendingLoot()
-        {
-            Agent corpse = _pendingLootCorpse;
-            ItemRoster remainingRoster = _pendingLootRoster;
-            bool isStealing = _pendingIsStealing;
-            var allItems = _pendingLootAllItems;
-
-            _pendingLootCorpse = null;
-            _pendingLootRoster = null;
-            _pendingLootAllItems = null;
-
-            // 尸体可能已被清理（换场景等）
-            if (corpse == null) return;
-
-            if (!isStealing)
-            {
-                // 搜刮 = 偷窃（发布前统一：死/活均走犯罪记账）
-                if (allItems != null && allItems.Count > 0)
-                {
-                    var taken = new List<(string, string, int)>();
-                    foreach (var grp in allItems.GroupBy(t => t.itemId))
-                    {
-                        int remaining = remainingRoster?.GetItemNumber(
-                            TaleWorlds.ObjectSystem.MBObjectManager.Instance.GetObject<ItemObject>(grp.Key)) ?? 0;
-                        int takenCount = grp.Count() - remaining;
-                        for (int k = 0; k < takenCount; k++)
-                            taken.Add((grp.Key, grp.First().itemName, 1));
-                    }
-                    if (taken.Count > 0)
-                        StealManager.RecordUnconsciousLootTheft(corpse, taken, 0);
-                }
-
-                _lootedCorpses.Add(corpse);
-                // remainingRoster 已被 OpenScreenAsLoot 原地修改：玩家拿走的已被移除
-                // 传进去 → 只扒掉不在 roster 中的槽
-                StealManager.StripAgentEquipment(corpse, true, true, remainingRoster);
-            }
         }
 
         private void LootAgent(Agent targetAgent, bool isStealing)
@@ -2111,12 +2051,9 @@ namespace LivingWorldNpcs
             // 本地化：战利品询问框内容
             string contentText = LWNTextHelper.ResolveCompound("LWN_ui_interact_loot_content", ("NAME", targetAgent.Name.ToString()), ("ITEMS", itemsName), ("GOLD", goldPreview), ("PARTY", partyItems));
 
-#if MB2_V1212
-            bool showPickButton = targetAgent.IsActive();  // 只有活人偷窃时才有挑选界面；死人/昏迷不给
-#else
-            // Latest: InventoryManager.OpenScreenAsLoot 不可用，不显示"自己挑选"
-            bool showPickButton = false;
-#endif
+            // 只有活人偷窃时才有挑选界面；死人/昏迷不给。
+            // OpenScreenAsLoot 全版本可用（已反编译核实 v1.2.12/v1.3.15/v1.4.x 签名一致）
+            bool showPickButton = targetAgent.IsActive();
 
             InformationManager.ShowInquiry(new InquiryData(
                 titleText,
@@ -2180,55 +2117,24 @@ namespace LivingWorldNpcs
 
                     if (!lootRoster.IsEmpty())
                     {
-                        // 死人/昏迷者（!IsActive）：武器已由引擎掉在地上，只放防具进库存。
-                        // StripAgentEquipment 内置 agent.IsActive() 守卫，死人跳过
-                        // UpdateSpawnEquipmentAndRefreshVisuals → 不会 AccessViolation。
+                        // 死人/昏迷者（!IsActive）：武器引擎已掉地上，只放防具进挑选界面；
+                        // StripAgentEquipment 内置 IsActive 守卫，死人自动跳过，不会 AccessViolation。
                         bool isDead = !targetAgent.IsActive();
-#if MB2_V1212
-                        if (isDead)
+                        var pickRoster = isDead ? armorRoster : lootRoster;
+                        if (pickRoster.IsEmpty())
                         {
-                            // 死人：武器引擎已掉在地上，不管；只把防具进库存让玩家挑
-                            if (!armorRoster.IsEmpty())
+                            // 没有可挑的装备：直接标记搜刮收尾（武器视觉清理）
+                            if (!isStealing)
                             {
-                                _pendingLootCorpse = targetAgent;
-                                _pendingLootRoster = armorRoster;        // 只放防具
-                                _pendingIsStealing = isStealing;
-                                _pendingLootAllItems = CollectEquipmentItems(targetAgent);
-                                var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
-                                rosterDictionary.Add(PartyBase.MainParty, armorRoster);
-                                InventoryManager.OpenScreenAsLoot(rosterDictionary);
-                            }
-                            else
-                            {
-                                // 没有防具，扒装备收尾（武器视觉清理）
-                                if (!isStealing)
-                                {
-                                    _lootedCorpses.Add(targetAgent);
-                                    StealManager.StripAgentEquipment(targetAgent, true, true);
-                                }
+                                _lootedCorpses.Add(targetAgent);
+                                StealManager.StripAgentEquipment(targetAgent, true, true);
                             }
                         }
                         else
                         {
-                            // 活人：正常库存界面（偷窃场景）
-                            _pendingLootCorpse = targetAgent;
-                            _pendingLootRoster = lootRoster;
-                            _pendingIsStealing = isStealing;
-                            _pendingLootAllItems = CollectEquipmentItems(targetAgent);
-                            var rosterDictionary = new Dictionary<PartyBase, ItemRoster>();
-                            rosterDictionary.Add(PartyBase.MainParty, lootRoster);
-                            InventoryManager.OpenScreenAsLoot(rosterDictionary);
+                            // 统一走共享管线：快照 + 打开挑选界面，关闭后 LootFlowSession.Close 差值记账收尾
+                            _pendingLootSession = LootFlowSession.OpenPerson(this, targetAgent, isStealing, isDead, pickRoster);
                         }
-#else
-                        // Latest: InventoryManager.OpenScreenAsLoot 不可用，全部拿走
-                        MobileParty.MainParty.ItemRoster.Add(lootRoster);
-                        // 本地化：获得物品数量消息
-                        InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", lootRoster.Count.ToString())), Colors.Green));
-                        if (!isStealing)
-                            StealManager.RecordUnconsciousLootTheft(targetAgent, CollectEquipmentItems(targetAgent), lootedGold);
-                        if (!isStealing) _lootedCorpses.Add(targetAgent);
-                        StealManager.StripAgentEquipment(targetAgent, true, true);
-#endif
                     }
                     else if (!isStealing)
                     {
@@ -2631,62 +2537,26 @@ namespace LivingWorldNpcs
                 () =>
                 {
                     // ── 自己挑选 ──
-                    // 金币先入待记账（与物品一起在 ProcessPendingChestLoot 记录一次）
-                    _pendingChestGold = 0;
+                    // 金币先落袋暂存，与物品在挑选界面关闭后一次记账（LootFlowSession.Close）
+                    int pendingGold = 0;
                     if (gold > 0)
                     {
-                        _pendingChestGold = StealManager.LootStash(gold, settlement);
-                        if (_pendingChestGold > 0)
+                        pendingGold = StealManager.LootStash(gold, settlement);
+                        if (pendingGold > 0)
                             // 本地化：开箱挑选金币入账消息
-                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", _pendingChestGold.ToString())), Colors.Yellow));
+                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold", ("GOLD", pendingGold.ToString())), Colors.Yellow));
                     }
 
                     if (roster != null && !roster.IsEmpty())
                     {
-#if !MB2_V1212
-                        DebugLogger.Log("[Chest] InventoryManager not available in this version, taking all items instead");
-                        // Fallback: take everything
-                        var takenItems = new List<(string itemId, string itemName, int count)>();
-                        int totalItems = 0;
-                        for (int i = roster.Count - 1; i >= 0; i--)
-                        {
-                            var item = roster.GetItemAtIndex(i);
-                            int count = roster.GetElementNumber(i);
-                            if (item != null && count > 0)
-                            {
-                                int taken = StealManager.LootChestItem(item, count, settlement);
-                                totalItems += taken;
-                                if (taken > 0)
-                                    takenItems.Add((item.StringId, item.Name?.ToString() ?? item.StringId, taken));
-                            }
-                        }
-                        if (totalItems > 0)
-                            // 本地化：开箱获得物品数量消息
-                            InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_items", ("COUNT", totalItems.ToString())), Colors.Green));
-                        if (settlement != null && (_pendingChestGold > 0 || takenItems.Count > 0))
-                            StealManager.RecordChestTheft(settlement, takenItems, _pendingChestGold);
-                        _pendingChestGold = 0;
-                        RemoveChestEntityIfEmpty();
-                        StealManager.IsUIOpen = false;
-#else
-                        // 保存快照用于比较
-                        _pendingChestSnapshot = StealManager.CloneItemRoster(roster);
-
-                        // 打开战利品界面（roster 会被原地修改）
-                        var dict = new Dictionary<PartyBase, ItemRoster>();
-                        dict[PartyBase.MainParty] = roster;
-                        InventoryManager.OpenScreenAsLoot(dict);
-
-                        // 标记待处理（ProcessPendingChestLoot 收尾 + 记账 + IsUIOpen 复位）
-                        _chestLootPending = true;
-#endif
+                        // 统一走共享管线：快照 + 打开挑选界面（roster 会被界面原地修改）
+                        _pendingLootSession = LootFlowSession.OpenChest(this, roster, pendingGold);
                     }
                     else
                     {
                         // 纯金无物品：不开战利品界面，立即记账收尾
-                        if (settlement != null && _pendingChestGold > 0)
-                            StealManager.RecordChestTheft(settlement, new List<(string, string, int)>(), _pendingChestGold);
-                        _pendingChestGold = 0;
+                        if (settlement != null && pendingGold > 0)
+                            StealManager.RecordChestTheft(settlement, new List<(string, string, int)>(), pendingGold);
                         RemoveChestEntityIfEmpty();
                         StealManager.IsUIOpen = false;
                     }
@@ -2705,56 +2575,154 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>
-        /// 箱子"自己挑选"战利品界面关闭后的收尾：
-        /// 比较快照找出玩家拿走的物品，同步扣除定居点 ItemRoster，
-        /// 物品 + 暂存金币一次记账（RecordChestTheft），IsUIOpen 复位。
-        /// </summary>
-        private void ProcessPendingChestLoot()
+        /// <summary>战利品挑选场景类型（共享管线的差异分支点）。</summary>
+        private enum LootFlowKind
         {
-            _chestLootPending = false;
-            var snapshot = _pendingChestSnapshot;
-            _pendingChestSnapshot = null;
+            Chest,   // 保管箱：RecordChestTheft（定居点目击犯罪）+ 拆箱实体
+            Person,  // 尸体/昏迷/活人：RecordUnconsciousLootTheft（个体犯罪）+ 扒装备
+        }
 
-            var settlement = Settlement.CurrentSettlement;
-            int takenGold = _pendingChestGold;
-            _pendingChestGold = 0;
-            if (settlement == null || snapshot == null)
+        /// <summary>
+        /// 战利品挑选共享管线（保管箱 / 尸体 / 昏迷 / 活人偷窃 共用）：
+        /// 打开挑选界面前存快照 → 界面关闭后 Close() 快照差值 → 按 Kind/IsStealing 分支记账收尾。
+        /// 此前两条路径各写一份（ProcessPendingChestLoot / ProcessPendingLoot），2026-08-14 统一，
+        /// 后续改挑选逻辑只动这里。IsUIOpen 贯穿询问框 + 挑选界面全程，Close 末尾复位。
+        /// </summary>
+        private sealed class LootFlowSession
+        {
+            private readonly InteractionMissionView _view;
+
+            // ── 共用 ──
+            public LootFlowKind Kind;
+            public ItemRoster Snapshot;        // 打开界面前的快照（差值基准）
+            public ItemRoster RemainingRoster; // 界面关闭后的剩余（打开时传入的 roster 被引擎界面原地修改）
+            public int PendingGold;            // 保管箱金币：点击时已落袋，收尾与物品一次记账（人形恒 0）
+
+            // ── 人形路径 ──
+            public Agent TargetAgent;
+            public bool IsStealing;            // true = 活人偷窃（不记 RecordUnconsciousLootTheft，不标记尸体）
+            public bool TargetIsDead;          // 死人武器已掉地上，只挑了防具（扒装备由内部 IsActive 守卫跳过）
+
+            public LootFlowSession(InteractionMissionView view)
             {
-                StealManager.IsUIOpen = false;
-                return;
+                _view = view;
             }
 
-            var remaining = StealManager.ChestItemRoster;
-            var takenItems = new List<(string itemId, string itemName, int count)>();
-
-            try
+            /// <summary>打开战利品挑选界面（roster 会被引擎界面原地修改）。</summary>
+            private void LaunchScreen()
             {
-                for (int i = 0; i < snapshot.Count; i++)
+                var dict = new Dictionary<PartyBase, ItemRoster>();
+                dict[PartyBase.MainParty] = RemainingRoster;
+                V.OpenLootScreen(dict);
+            }
+
+            /// <summary>保管箱：金币先落袋暂存（PendingGold），物品 + 金币在 Close 一并记账。</summary>
+            public static LootFlowSession OpenChest(InteractionMissionView view, ItemRoster chestRoster, int pendingGold)
+            {
+                var s = new LootFlowSession(view)
                 {
-                    var item = snapshot.GetItemAtIndex(i);
-                    if (item == null) continue;
-                    int before = snapshot.GetElementNumber(i);
-                    int after = remaining?.GetItemNumber(item) ?? 0;
-                    int taken = before - after;
-                    if (taken > 0)
-                    {
-                        StealManager.DeductSettlementItemsOnly(settlement, item, taken);
-                        takenItems.Add((item.StringId, item.Name?.ToString() ?? item.StringId, taken));
-                    }
-                }
+                    Kind = LootFlowKind.Chest,
+                    Snapshot = StealManager.CloneItemRoster(chestRoster),
+                    RemainingRoster = chestRoster,
+                    PendingGold = pendingGold,
+                };
+                s.LaunchScreen();
+                return s;
             }
-            catch (Exception ex)
+
+            /// <summary>人形目标：死人只放防具进挑选界面（武器已被引擎掉在地上），活人放全装备。</summary>
+            public static LootFlowSession OpenPerson(InteractionMissionView view, Agent target, bool isStealing, bool isDead, ItemRoster pickRoster)
             {
-                DebugLogger.Log($"[Chest] ProcessPendingChestLoot error: {ex.Message}");
+                var s = new LootFlowSession(view)
+                {
+                    Kind = LootFlowKind.Person,
+                    Snapshot = StealManager.CloneItemRoster(pickRoster),
+                    RemainingRoster = pickRoster,
+                    TargetAgent = target,
+                    IsStealing = isStealing,
+                    TargetIsDead = isDead,
+                };
+                s.LaunchScreen();
+                return s;
             }
 
-            // 犯罪统一接线：目击检测 → 证词 → 围堵质问
-            if (takenGold > 0 || takenItems.Count > 0)
-                StealManager.RecordChestTheft(settlement, takenItems, takenGold);
+            /// <summary>快照差值：snapshot − 界面关闭后的剩余 = 玩家实际拿走的。</summary>
+            private List<(ItemObject item, int count)> ComputeTaken()
+            {
+                var taken = new List<(ItemObject, int)>();
+                if (Snapshot == null || RemainingRoster == null) return taken;
+                for (int i = 0; i < Snapshot.Count; i++)
+                {
+                    var item = Snapshot.GetItemAtIndex(i);
+                    if (item == null) continue;
+                    int n = Snapshot.GetElementNumber(i) - RemainingRoster.GetItemNumber(item);
+                    if (n > 0) taken.Add((item, n));
+                }
+                return taken;
+            }
 
-            RemoveChestEntityIfEmpty();
-            StealManager.IsUIOpen = false; // loot 收尾完成
+            private static List<(string itemId, string itemName, int count)> ToTuples(List<(ItemObject item, int count)> taken)
+            {
+                var list = new List<(string, string, int)>();
+                foreach (var (item, n) in taken)
+                    list.Add((item.StringId, item.Name?.ToString() ?? item.StringId, n));
+                return list;
+            }
+
+            /// <summary>
+            /// 挑选界面关闭后的统一收尾：差值 → 记账 → 清理（差异点按 Kind / IsStealing 分支）。
+            /// </summary>
+            public void Close()
+            {
+                var settlement = Settlement.CurrentSettlement;
+
+                if (Kind == LootFlowKind.Chest)
+                {
+                    if (settlement == null || Snapshot == null)
+                    {
+                        StealManager.IsUIOpen = false;
+                        return;
+                    }
+                    var taken = ComputeTaken();
+                    try
+                    {
+                        // 玩家拿走的物品同步扣除定居点 ItemRoster（箱子内容物已被界面原地扣过）
+                        foreach (var (item, count) in taken)
+                            StealManager.DeductSettlementItemsOnly(settlement, item, count);
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[Chest] LootFlowSession deduct error: {ex.Message}");
+                    }
+                    // 犯罪统一接线：目击检测 → 证词 → 围堵质问（物品 + 暂存金币一次记账）
+                    if (PendingGold > 0 || taken.Count > 0)
+                        StealManager.RecordChestTheft(settlement, ToTuples(taken), PendingGold);
+                    _view.RemoveChestEntityIfEmpty();
+                    StealManager.IsUIOpen = false;
+                    return;
+                }
+
+                // ── 人形：目标可能已被清理（换场景等）──
+                if (TargetAgent == null)
+                {
+                    StealManager.IsUIOpen = false;
+                    return;
+                }
+
+                var takenPerson = ComputeTaken();
+                if (!IsStealing)
+                {
+                    // 搜刮 = 偷窃（死/昏迷均走犯罪记账）
+                    if (takenPerson.Count > 0)
+                        StealManager.RecordUnconsciousLootTheft(TargetAgent, ToTuples(takenPerson), 0);
+                    _view._lootedCorpses.Add(TargetAgent);
+                }
+                // 搜刮与活人偷窃都要扒掉玩家实际拿走的装备：RemainingRoster 已被界面原地修改，
+                // 传进去 → 只扒掉不在 roster 中的槽（精准）；死人由 StripAgentEquipment 内部 IsActive 守卫跳过。
+                // 修复 2026-08-14：旧活人"自己挑选"路径漏扒 → 目标装备不消失，可反复偷刷装备。
+                StealManager.StripAgentEquipment(TargetAgent, true, true, RemainingRoster);
+                StealManager.IsUIOpen = false;
+            }
         }
 
 

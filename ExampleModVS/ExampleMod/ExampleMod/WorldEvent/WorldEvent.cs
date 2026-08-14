@@ -1418,13 +1418,17 @@ namespace LivingWorldNpcs
 
         private static void ProcessEmerging(WorldEvent evt, float now)
         {
-            // 喂给传播系统（仅一次）
-            if (!evt.WasBroadcast)
-            {
-                try { SocialEventManager.BroadcastWorldEvent(evt); }
-                catch (Exception ex) { DebugLogger.Log($"[WorldEvent] Broadcast failed: {ex.Message}"); }
-                evt.WasBroadcast = true;
-            }
+            // 🔴 2026-08-14 停用（用户裁定）：SocialEventManager 传闻广播管线久未维护（见 deprecated.md）。
+            // 原逻辑：未广播过的事件 → SocialEventManager.BroadcastWorldEvent → NewsSpreadSystem →
+            // ProcessHeroRecursively → NPC 记忆 ReceiveNews（KnownEvents）。停用后 NPC 不再通过此链
+            // "听说"犯罪事件；调查/目击/对质（InvestigationEngine/AgentBrain/Alert）不经此链，不受影响。
+            // AttitudeSystem/IM prompt 读 KnownEvents 有 ?. 兜底，退化为默认立场。恢复时取消注释即可。
+            //if (!evt.WasBroadcast)
+            //{
+            //    try { SocialEventManager.BroadcastWorldEvent(evt); }
+            //    catch (Exception ex) { DebugLogger.Log($"[WorldEvent] Broadcast failed: {ex.Message}"); }
+            //    evt.WasBroadcast = true;
+            //}
 
             // 每日推进 PublicAwareness
             evt.PublicAwareness += InvestigationEngine.GetDailySpreadRate(evt);
