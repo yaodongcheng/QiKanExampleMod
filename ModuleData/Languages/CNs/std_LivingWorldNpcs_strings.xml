@@ -473,15 +473,15 @@
     <!-- ═══════════════════════════════════════════ -->
     <!-- NpcSpeech — 警戒气泡 / L3 质问台词                -->
     <!-- ═══════════════════════════════════════════ -->
-    <string id="LWN_speech_alertbubble_crouching_suspicious" text="（嘀咕）{PLAYER}在这做什么……" />
-    <string id="LWN_speech_alertbubble_crouching_suspicious_v1" text="（低声）{PLAYER}鬼鬼祟祟的……" />
+    <string id="LWN_speech_alertbubble_crouching_suspicious" text="（嘀咕）{TARGET}在这做什么……" />
+    <string id="LWN_speech_alertbubble_crouching_suspicious_v1" text="（低声）{TARGET}鬼鬼祟祟的……" />
     <string id="LWN_speech_alertbubble_crouching_suspicious_v2" text="（嘀咕）大白天的蹲着干什么……" />
-    <string id="LWN_speech_alertbubble_crouching_cautious" text="（提高声音）喂！{PLAYER}！蹲着干什么！" />
+    <string id="LWN_speech_alertbubble_crouching_cautious" text="（提高声音）喂！{TARGET}！蹲着干什么！" />
     <string id="LWN_speech_alertbubble_crouching_cautious_v1" text="（厉声）{SPEAKER_PLAYER_ADDR}！起来！别蹲在那里！" />
     <string id="LWN_speech_alertbubble_crouching_cautious_v2" text="（皱眉）{SPEAKER_PLAYER_ADDR}！你蹲着做什么？！" />
     <string id="LWN_speech_alertbubble_weapondrawn_suspicious" text="（不安地看了一眼）怎么还拔{ITEM}了……" />
-    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v1" text="（多看了几眼）{PLAYER}怎么还握着{ITEM}……" />
-    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v2" text="（留意着）{PLAYER}的{ITEM}一直没收……" />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v1" text="（多看了几眼）{TARGET}怎么还握着{ITEM}……" />
+    <string id="LWN_speech_alertbubble_weapondrawn_suspicious_v2" text="（留意着）{TARGET}的{ITEM}一直没收……" />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious" text="（后退半步）{SPEAKER_PLAYER_ADDR}！把{ITEM}收起来！" />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious_v1" text="（沉声）{SPEAKER_PLAYER_ADDR}！收{ITEM}！这里不是战场！" />
     <string id="LWN_speech_alertbubble_weapondrawn_cautious_v2" text="（喝止）{SPEAKER_PLAYER_ADDR}！把{ITEM}收回去！" />

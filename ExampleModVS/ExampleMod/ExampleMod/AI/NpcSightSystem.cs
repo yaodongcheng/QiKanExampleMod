@@ -27,6 +27,16 @@ namespace LivingWorldNpcs
         // 单例：供 AgentHudMissionView / ProcessAgentCandidate 等处查询缓存
         public static NpcSightSystem Instance { get; private set; }
 
+        // 🔴 2026-08-14 实机修复：本行为在 MySubModule.OnMissionBehaviorInitialize 中追加——
+        // 引擎对追加行为只调 OnCreated()，不调 OnBehaviorInitialize（反编译 Mission.AddMissionBehavior
+        // 实锤：AddMissionBehavior → OnCreated；OnBehaviorInitialize 循环在此之前已跑完）。
+        // 静态 Instance 必须在构造函数赋值（与 AgentAIController 同模式），否则恒为 null，
+        // 所有 `NpcSightSystem.Instance?.` 静默 no-op（实机：全场景脑读 Instance=null）。
+        public NpcSightSystem()
+        {
+            Instance = this;
+        }
+
         // ============================================================
         // 静态查询（任意 Agent → 任意 Agent）
         // ============================================================
@@ -344,9 +354,21 @@ namespace LivingWorldNpcs
             if (!_firstTickDone)
             {
                 _firstTickDone = true;
-                if (_tracked.Count == 0 && Agent.Main != null)
-                {
+                if (Agent.Main != null)
                     RegisterTrackedTarget(Agent.Main, 15f, 50f);
+
+                // 🔴 2026-08-14 兜底补注册：AgentAIController.AfterStart 的随从补注册可能被吞——
+                // 本行为若晚于它初始化，Instance 为 null → `?.` 静默 no-op（实机：随从 member=True
+                // 却没进 TrackedTargets）。首帧统一扫玩家队伍成员补注册；
+                // RegisterTrackedTarget 自带防重复，已注册的直接 return。
+                if (Mission.Current != null)
+                {
+                    foreach (var agent in Mission.Current.Agents)
+                    {
+                        if (agent == Agent.Main || !AgentControlHelper.IsHumanOrChild(agent) || !agent.IsActive()) continue;
+                        if (FriendlinessHelper.IsPlayerPartyMember(agent))
+                            RegisterTrackedTarget(agent, 15f, 50f);
+                    }
                 }
             }
 
