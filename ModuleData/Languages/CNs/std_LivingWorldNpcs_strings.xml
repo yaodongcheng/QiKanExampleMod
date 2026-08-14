@@ -4084,7 +4084,10 @@
     <string id="LWN_ui_interact_intervene" text="调停" />
     <string id="LWN_ui_intervene_bubble" text="住手！他是我的人！" />
     <string id="LWN_ui_arrest_msg" text="你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。" />
-    <string id="LWN_ui_companion_ransom" text="赎回随从 {LWN_COMPANION}——{LWN_COMPANION_FINE}{GOLD_ICON}" />
+    <string id="LWN_ui_companion_ransom" text="赎回随从" />
+    <string id="LWN_ui_companion_ransom_menu" text="守卫打量着你。牢房里的关押者：" />
+    <string id="LWN_ui_companion_ransom_item" text="赎回 {LWN_COMPANION}——{LWN_COMPANION_FINE}{GOLD_ICON}" />
+    <string id="LWN_ui_companion_ransom_back" text="离开" />
     <string id="LWN_ui_companion_ransom_ack" text="你付了罚款，把 {NAME} 领了回来。" />
     <string id="LWN_ui_companion_ransom_none" text="你的随从已经被放出来了。" />
     <string id="LWN_dialogue_companion_crime_opening" text="你的随从 {NAME} 偷了我的东西！你有什么好说的？" />
