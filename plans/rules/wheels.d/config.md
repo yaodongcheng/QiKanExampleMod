@@ -226,6 +226,16 @@ override 签名不匹配基类会直接编译失败（踩过：`CommissionHubIss
 - `IssueBase.CanPlayerTakeQuestConditions`：4参 / 4参 / **5参**（唯一需要 `MB2_GE_140` 的 override）
 - 其余 25 个 V 方法 + 13 处注册表 #if：1.3.15 与 1.4.6 完全一致，`MB2_GE_130`/`MB2_V1212` 分支正确
 
+**🔴 `InventoryManager` 类改名**（2026-08-14 反编译验证，四版本二进制 grep + ilspycmd）：
+
+| | v1.2.12 | v1.3.15+ / v1.4.x |
+|---|---|---|
+| 物品级界面类 | `InventoryManager`（`TaleWorlds.CampaignSystem.Inventory`） | 改名 **`InventoryScreenHelper`**（`Helpers`） |
+| 部队级界面类 | 同在 InventoryManager | 拆到新类 **`PartyScreenHelper`**（`Helpers`） |
+
+物品级 `OpenScreen*` 方法签名全部不变（Loot/Stash/Warehouse/ReceiveItems/Inventory/Trade 逐一对得上）；部队级（TroopRoster 版 Loot/Ransom/ManageTroops）搬到 PartyScreenHelper。封装：`V.OpenLootScreen(Dictionary<PartyBase, ItemRoster>)`（`#if MB2_GE_130` → InventoryScreenHelper / `#else` → InventoryManager）。
+⚠️ **教训**：曾因只查 Latest DLL 找不到 `InventoryManager` 类名，误判"Latest 无此 API"，给开箱/搜刮"自己挑选"写回退全部拿走逻辑（实机跑了很久）——类改名 ≠ API 移除。给签名下结论前必须二进制 grep 类名字符串 + 三版本 ilspycmd 对比（本次流程见上文"反编译验证流程"）。
+
 **反编译验证流程**（给签名下结论前先跑）：
 ```bash
 # 1. 找类型全名（全名可能藏命名空间，如 MobileParty 是 TaleWorlds.CampaignSystem.Party.MobileParty）
