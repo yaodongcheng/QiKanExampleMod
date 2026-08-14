@@ -229,7 +229,9 @@ namespace LivingWorldNpcs
         private List<TrackedTarget> _tracked = new List<TrackedTarget>();
         private float _tickTimer;
 
-        /// <summary>注册一个需要持续追踪的重点 Agent（如玩家、随从）。</summary>
+        /// <summary>注册一个需要持续追踪的重点 Agent（如玩家、随从）。
+        /// 🔴 2026-08-14：注册列表即「感知目标列表」——AgentBrain.UpdateAlertCognition 蹲姿感知
+        /// 遍历它（玩家读 CrouchMode / NPC 读脑 CrouchPoseActive），与 TrackedTargets 同步维护。</summary>
         public void RegisterTrackedTarget(Agent target, float observerRadius, float viewRadius)
         {
             if (target == null) return;
@@ -242,12 +244,23 @@ namespace LivingWorldNpcs
                 ObserverRadius = observerRadius,
                 ViewRadius = viewRadius
             });
+            TrackedTargets.Add(target);
+            // 事件驱动低频日志：验证「感知目标列表」的注册情况（实机排查：随从没进列表 = 感知永远不触发）
+            DebugLogger.Log($"[SightTrack] 注册追踪: {target.Name}(Idx={target.Index}) | 当前 tracked={TrackedTargets.Count}");
         }
 
         public void UnregisterTrackedTarget(Agent target)
         {
             _tracked.RemoveAll(t => t.Agent == target);
+            TrackedTargets.Remove(target);
+            if (target != null)
+                DebugLogger.Log($"[SightTrack] 注销追踪: {target.Name}(Idx={target.Index}) | 当前 tracked={TrackedTargets.Count}");
         }
+
+        /// <summary>当前被追踪的目标 Agent 列表（玩家自动注册 + 随从 OnAgentCreated 注册，预期 ≤5）。
+        /// 感知侧消费：AgentBrain.UpdateAlertCognition 遍历本列表读各目标蹲姿，sight 职责统一归本类——
+        /// 不搞「每操作一个缓存列表」。</summary>
+        public List<Agent> TrackedTargets = new List<Agent>();
 
         // ── 事件 ──
         public event Action<Agent, Agent> OnAgentStartObserving;   // (observer, target)
@@ -337,13 +350,20 @@ namespace LivingWorldNpcs
                 }
             }
 
-            // 🆕 刷新玩家 tracked target 的 Agent 引用（防注册时 Agent.Main 尚未 spawn 导致引用过时）
+            // 🔴 刷新失效引用：注册时 Agent.Main 可能尚未 spawn，重进场景后引用过时。
+            // 只替换「引用失效」的目标（原逻辑 `t.Agent != Agent.Main 就替换` 会把注册的随从
+            // 全部误替换成玩家——随从注册后必踩，2026-08-14 修正）。随从引用失效靠 OnAgentDeleted 注销。
             foreach (var t in _tracked)
             {
-                if (t.Agent != Agent.Main && Agent.Main != null && Agent.Main.IsActive())
+                if (t.Agent == null || !t.Agent.IsActive())
                 {
-                    // Agent.Main 引用已更新，替换旧的
-                    t.Agent = Agent.Main;
+                    if (Agent.Main != null && Agent.Main.IsActive())
+                    {
+                        t.Agent = Agent.Main;
+                        for (int i = 0; i < TrackedTargets.Count; i++)
+                            if (TrackedTargets[i] == null || !TrackedTargets[i].IsActive())
+                                TrackedTargets[i] = Agent.Main;
+                    }
                 }
             }
 

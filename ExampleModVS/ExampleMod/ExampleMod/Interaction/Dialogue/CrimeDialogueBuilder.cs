@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Roster;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
@@ -222,18 +224,34 @@ namespace LivingWorldNpcs
             return npc == authority || (npc?.Occupation == Occupation.Headman || npc?.Occupation == Occupation.RuralNotable);
         }
 
+        /// <summary>嫌疑犯是玩家队伍随从（Phase F 大义灭亲对话触发判定）。</summary>
+        static bool IsCompanionSuspect(WorldEvent evt)
+        {
+            if (evt == null || string.IsNullOrEmpty(evt.SuspectHeroId)) return false;
+            var suspect = Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
+            return suspect != null && FriendlinessHelper.IsPlayerPartyMember(suspect);
+        }
+
+        /// <summary>嫌疑=随从的 Hero（大义灭亲对话结算用；未知 → null）。</summary>
+        static Hero CompanionSuspectHero(WorldEvent evt)
+        {
+            if (evt == null || string.IsNullOrEmpty(evt.SuspectHeroId)) return null;
+            return Hero.FindFirst(h => h.StringId == evt.SuspectHeroId);
+        }
+
         /// <summary>
         /// 该对话是否会生成 SkipVanillaOpening 脚本（= 必须在 StartConversation 评估 start token 之前注入）。
         /// 与 BuildAuthorityScript 的 skipOpening 条件同源——权威 NPC 在 Active+嫌犯=玩家 / Confrontation
         /// 阶段会把开场白直挂 start token（优先级 200）。Postfix 注入时 start 已被原版评估完毕，
         /// 注入的开场白永远不会播放、hero_main_options 也无入口，整场对话退化为纯原版，
         /// 玩家可经原版"我现在得走了"零后果离开。此谓词供 MissionConversationStartPatch.Prefix 提前注入用。
+        /// 🔴 2026-08-13 Phase F：嫌疑=玩家队伍随从（大义灭亲对话）同样 SkipVanillaOpening。
         /// </summary>
         public static bool NeedsEarlyInjection(Hero speaker, WorldEvent evt)
         {
             if (evt == null) return false;
             if (!IsAuthority(speaker, evt)) return false;
-            return (evt.Stage == EventStage.Active && evt.SuspectIsPlayer)
+            return (evt.Stage == EventStage.Active && (evt.SuspectIsPlayer || IsCompanionSuspect(evt)))
                 || evt.Stage == EventStage.Confrontation;
         }
 
@@ -273,6 +291,12 @@ namespace LivingWorldNpcs
                         //怀疑是玩家干的 — NPC 锁定玩家身份，不设 EntryOption，SkipVanillaOpening=true
                         BuildConfrontPlayerNode(nodes, r, ctx);
                     }
+                    else if (IsCompanionSuspect(evt))
+                    {
+                        // 🔴 Phase F（2026-08-13）：嫌疑=玩家队伍随从 → 大义灭亲对话
+                        //（交出随从 / 替随从赔钱 / 拒不认账，铁律 12 每个出口有代价）
+                        BuildCompanionCrimeNode(nodes, r, ctx);
+                    }
                     else
                     {
                         //是别的人干的，请求玩家去帮忙
@@ -296,7 +320,8 @@ namespace LivingWorldNpcs
             }           
 
             // NPC 锁定玩家身份 → SkipVanillaOpening=true，直接说正事；否则保留原版开场白
-            bool skipOpening = (evt.Stage == EventStage.Active && evt.SuspectIsPlayer)
+            // 🔴 Phase F：嫌疑=玩家随从（大义灭亲对话）同样跳过原版开场白
+            bool skipOpening = (evt.Stage == EventStage.Active && (evt.SuspectIsPlayer || IsCompanionSuspect(evt)))
                             || evt.Stage == EventStage.Confrontation;
 
             return new DialogueInjector.DialogueInjectScript
@@ -714,6 +739,121 @@ namespace LivingWorldNpcs
             nodes.Add(Node("bounty_accept_ack", LWNTextHelper.Resolve("LWN_crime_authority_bounty_accept_ack", r,
                 "Good! The matter is in {SpeakerPlayerAddr}'s hands."), "continue_chat"));
             AddContinueChatWithFarewell(nodes, r);
+        }
+
+        /// <summary>
+        /// 大义灭亲对话（Phase F，2026-08-13，hud-intent-unify-alert-suspect.md §2.9）：
+        /// 嫌疑=玩家队伍随从的犯罪事件（随从犯法后跟玩家跑了，Mission 内未被抓）→ 玩家与权威 NPC 对话时
+        /// 出现「随从犯法」话题。权威 NPC 开场「你的随从 {NAME} 偷了我的东西！」→ 三出口（铁律 12）：
+        ///   A 交出随从（大义灭亲）：TakePrisonerAction.Apply(settlement.Party, companion) + 事件 Resolved + 好感影响
+        ///   B 替随从赔钱：BuildRestitutionSubtree 复用（赔款从玩家金库扣，AgentControlHelper 归口）
+        ///   C 拒不认账：关系惩罚（权威对玩家好感下降）
+        /// </summary>
+        static void BuildCompanionCrimeNode(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)
+        {
+            WorldEvent evt = r.Event;
+            Hero companion = CompanionSuspectHero(evt);
+            string companionName = companion?.Name?.ToString()
+                ?? LWNTextHelper.ResolveText("LWN_crime_suspect_unknown", "that companion of yours");
+
+            DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
+            {
+                Id = "injectedStart",
+                // 权威NPC开场（随从犯案）：你的随从 {NAME} 偷了我的东西！你怎么说？
+                NpcLine = LWNTextHelper.ResolveCompound("LWN_dialogue_companion_crime_opening",
+                    "Your companion {NAME} stole my things! What do you have to say for yourself?",
+                    ("NAME", companionName)),
+                Transitions = new List<DialogueInjector.DialogueTransition>
+                {
+                    // A 交出随从（大义灭亲）——代价 = 失去随从（被关进牢房）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_dialogue_companion_crime_handover", "Take him. He is yours."), Action = "NONE", NextNodeOnSuccess = "companion_handover_ack" },
+                    // B 替随从赔钱（不标价，由 NPC 在 restitution_demand 开价——赔偿对话纪律）
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_dialogue_companion_crime_pay", "I'll make it right with gold."), Action = "NONE", NextNodeOnSuccess = "restitution_demand" },
+                    // C 拒不认账——代价 = 关系惩罚
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_dialogue_companion_crime_deny", "He is not mine. I do not know him."), Action = "NONE", NextNodeOnSuccess = "companion_deny_ack" },
+                }
+            };
+            nodes.Add(node);
+
+            // A ack：交人成功——关进牢房 + 事件 Resolved（副作用在首次求值时执行一次）
+            nodes.Add(new DialogueInjector.DialogueNode
+            {
+                Id = "companion_handover_ack",
+                LazyNpcLine = () =>
+                {
+                    HandoverCompanion(evt, companion);
+                    // 权威NPC：人归我们，这事就算了
+                    return LWNTextHelper.ResolveText("LWN_dialogue_companion_crime_handover_ack", "Good. Justice is served, and this matter is settled.");
+                },
+                Transitions = new List<DialogueInjector.DialogueTransition>
+                {
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."), Action = "NONE", NextNodeOnSuccess = "" },
+                }
+            });
+
+            // C ack：拒不认账——NPC 不信（当众看见随从跟着玩家）
+            nodes.Add(Node("companion_deny_ack", LWNTextHelper.ResolveText("LWN_dialogue_companion_crime_deny_ack", "Liar! The whole village saw him following you!"), "companion_deny_result"));
+            // C 结果：关系惩罚 + 放行（代价已付）
+            nodes.Add(new DialogueInjector.DialogueNode
+            {
+                Id = "companion_deny_result",
+                LazyNpcLine = () =>
+                {
+                    ApplyDenyConsequence(evt);
+                    // 权威NPC：……行。那你走吧。让他别再踏进这里。
+                    return LWNTextHelper.ResolveText("LWN_dialogue_companion_crime_deny_ok", "...Very well. Leave, then. But keep him away from here.");
+                },
+                Transitions = new List<DialogueInjector.DialogueTransition>
+                {
+                    new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."), Action = "NONE", NextNodeOnSuccess = "" },
+                }
+            });
+
+            BuildRestitutionSubtree(nodes, r, ctx);
+            AddContinueChatWithFarewell(nodes, r);
+        }
+
+        /// <summary>交出随从（大义灭亲结算）：关进事件定居点牢房（原版 hero 俘虏机制）+ 事件 Resolved + 提示。</summary>
+        static void HandoverCompanion(WorldEvent evt, Hero companion)
+        {
+            try
+            {
+                if (companion == null || evt?.TargetSettlement == null) return;
+                if (evt.Stage != EventStage.Resolved)
+                {
+                    TakePrisonerAction.Apply(evt.TargetSettlement.Party, companion);
+                    WorldEventStore.TransitionStage(evt, EventStage.Resolved, null, "companion_handed_over");
+                    // 提示消息（铁律 13）：你把 {NAME} 交给了守卫。
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_dialogue_companion_crime_handover_msg",
+                            "You hand over {NAME} to the guards.",
+                            ("NAME", companion.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target"))),
+                        Colors.Yellow));
+                    DebugLogger.Log($"[CompanionCrime] 大义灭亲：{companion.Name} 被关进 {evt.TargetSettlement.Name}，事件 {evt.EventId} Resolved");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CompanionCrime] 交人失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>拒不认账结算：权威对玩家好感下降（包庇随从的代价，铁律 12）。</summary>
+        static void ApplyDenyConsequence(WorldEvent evt)
+        {
+            try
+            {
+                var authority = WorldEventStore.GetAuthorityNpc(evt);
+                if (authority != null)
+                {
+                    ChangeRelationAction.ApplyPlayerRelation(authority, -10);
+                    DebugLogger.Log($"[CompanionCrime] 拒认代价：{authority.Name} 对玩家好感 -10");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CompanionCrime] 拒认结算失败: {ex.Message}");
+            }
         }
 
         private static void BuildRetaliationNode(List<DialogueInjector.DialogueNode> nodes, PlaceholderResolver r, IntentContext ctx)

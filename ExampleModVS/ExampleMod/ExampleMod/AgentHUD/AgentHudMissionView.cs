@@ -161,6 +161,9 @@ namespace LivingWorldNpcs
                 float alertValue = (Settings.Instance.IsInteractionDisabled() || inCombat)
                     ? 0f
                     : (brain?.AlertValue ?? 0f);
+                // 🔴 注入顺序纪律：先 AlertTargetIsPlayer 后 AlertValue（AlertValue setter 内部触发
+                // UpdateAlertVisuals 读色系）——顺序反了警戒眼会晚一帧变错颜色
+                hud.AlertTargetIsPlayer = brain?.AlertTargetIsPlayer ?? true;
                 hud.AlertValue = alertValue;  // VM 内部 UpdateAlertVisuals 自决 ShowAlert
 
                 // 警戒眼睛的屏幕位置（FOV 豁免：屏幕外 clamp 到边缘）
@@ -222,7 +225,6 @@ namespace LivingWorldNpcs
                     hud.ShowDamage = false;
                     hud.ShowName = false;           // 屏幕外不显示名字（防残留）
                     hud.ShowIntentDebug = false;    // 意图文本同样防残留（回 FOV 后由 UpdateLogic 重算）
-                    hud.ShowPlanSummary = false;    // 计划执行摘要防残留（同 ShowIntentDebug）
 
                     if (!hud.ShowAlert)
                     {

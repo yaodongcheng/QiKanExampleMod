@@ -153,6 +153,9 @@ namespace LivingWorldNpcs
                 // 玩家被当地人扣押（罚金 / 关几天）——复用原版俘虏菜单
                 campaignGameStarter.AddBehavior(new PlayerDetentionBehavior());
 
+                // 随从逮捕善后（Phase E）：被执法转押的随从 → 定居点菜单「赎回随从」（罚金）
+                campaignGameStarter.AddBehavior(new CompanionDetentionBehavior());
+
                 if (!_hasDumped)
                 {
                     //DumpAllActions();

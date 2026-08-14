@@ -671,3 +671,12 @@ if (script != null) DialogueInjector.InjectScript(script, "AlertL3_NpcName");
 ```
 
 **文件位置**：`Interaction/Dialogue/CrimeDialogueBuilder.cs`（新增约 200 行）
+
+## 大义灭亲对话（2026-08-13 Phase F）— 嫌疑=玩家队伍随从的犯罪对话
+
+`NeedsEarlyInjection` / `skipOpening` 在 `Active && (SuspectIsPlayer || IsCompanionSuspect(evt))` 时跳过原版开场（`IsCompanionSuspect` = SuspectHeroId 是玩家队伍成员）。`BuildCompanionCrimeNode` 权威 NPC 开场「你的随从 {NAME} 偷了我的东西！」→ 三出口（铁律 12 各有代价）：
+- A 交出随从：`TakePrisonerAction.Apply(settlement.Party, companion)` + 事件 Resolved（⚠️ 不注册赎回菜单——交人=自愿放弃，村庄牢房无赎回路，town/castle 可走原版地牢救人）
+- B 替随从赔钱：`NextNodeOnSuccess = "restitution_demand"` 复用 `BuildRestitutionSubtree`（铁律 10 不标价，NPC 开价）
+- C 拒不认账：`ApplyDenyConsequence` = 权威对玩家好感 -10（关系惩罚）
+
+触发入口 = 原版对话流注入管道（与既有犯罪对话同管道），对话目标 = `WorldEventStore.GetAuthorityNpc(evt)`。新 key `LWN_dialogue_companion_crime_*` 系列 EN/CN 双份。

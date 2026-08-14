@@ -3964,7 +3964,7 @@
     <string id="LWN_plan_abort_generic" text="The plan is called off." />
     <string id="LWN_plan_abort_timeout" text="{OWNER} {STEP} — taking too long, calling it off." />
     <string id="LWN_plan_step_move_to" text="Heading to target" />
-    <string id="LWN_plan_step_talk" text="Talking: {TEXT}" />
+    <string id="LWN_plan_step_talk" text="Talking" />
     <string id="LWN_plan_step_wait" text="Waiting" />
     <string id="LWN_plan_step_fight" text="Fighting" />
     <string id="LWN_plan_step_report" text="Preparing to report" />
@@ -3975,6 +3975,32 @@
     <string id="LWN_plan_lead_waiting" text="Are you coming or not?" />
     <string id="LWN_plan_loot" text="loot" />
     <string id="LWN_plan_gold" text="gold" />
+    <string id="LWN_hud_plan_executing" text="Executing plan: {STEP}" />
+    <string id="LWN_plan_step_decision" text="Step {STEP}: decision received ({TYPE})" />
+    <string id="LWN_plan_pause_modal" text="The player is busy" />
+    <string id="LWN_plan_pause_fight" text="The player is in combat" />
+    <string id="LWN_plan_pause_far" text="The player is too far away" />
+    <string id="LWN_plan_goal_done" text="Goal achieved" />
+    <string id="LWN_plan_chaseback" text="Catching up to the player" />
+    <string id="LWN_plan_done" text="Done" />
+    <string id="LWN_plan_cancel_player" text="Called off by the player" />
+    <string id="LWN_brain_crime_shout" text="Stop, {NAME}!" />
+    <string id="LWN_ui_interact_intervene" text="Intervene" />
+    <string id="LWN_ui_intervene_bubble" text="Stop! He's my man!" />
+    <string id="LWN_ui_arrest_msg" text="Your companion {NAME} has been locked in the jail of {SETTLEMENT}." />
+    <string id="LWN_ui_companion_ransom" text="Ransom {LWN_COMPANION} — {LWN_COMPANION_FINE}{GOLD_ICON}" />
+    <string id="LWN_ui_companion_ransom_ack" text="You pay the fine and take {NAME} back." />
+    <string id="LWN_ui_companion_ransom_none" text="Your companion has already been released." />
+    <string id="LWN_dialogue_companion_crime_opening" text="Your companion {NAME} stole my things! What do you have to say for yourself?" />
+    <string id="LWN_dialogue_companion_crime_handover" text="Take him. He is yours." />
+    <string id="LWN_dialogue_companion_crime_handover_ack" text="Good. Justice is served, and this matter is settled." />
+    <string id="LWN_dialogue_companion_crime_pay" text="I'll make it right with gold." />
+    <string id="LWN_dialogue_companion_crime_pay_ack" text="The gold stays. This matter is settled." />
+    <string id="LWN_dialogue_companion_crime_deny" text="He is not mine. I do not know him." />
+    <string id="LWN_dialogue_companion_crime_deny_ack" text="Liar! The whole village saw him following you!" />
+    <string id="LWN_dialogue_companion_crime_deny_ok" text="...Very well. Leave, then. But keep him away from here." />
+    <string id="LWN_dialogue_companion_crime_handover_msg" text="You hand over {NAME} to the guards." />
+    <string id="LWN_crime_suspect_unknown" text="that companion of yours" />
     <string id="LWN_mcm_plot_enabled" text="Secret Letters(tested)" />
     <string id="LWN_mcm_plot_enabled_hint" text="When enabled, you can write natural-language secret letters to companions (press the letter key near a companion). Disabled by default; when off, the letter entry is hidden but already-running plans can still be stopped." />
     <string id="LWN_mcm_hostile_on_allies" text="Allow Hostile Interactions on Allies" />

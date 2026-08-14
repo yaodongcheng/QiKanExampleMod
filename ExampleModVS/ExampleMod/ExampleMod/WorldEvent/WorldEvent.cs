@@ -1494,7 +1494,9 @@ namespace LivingWorldNpcs
         /// 阶段迁移（唯一入口）。
         /// 进入 Active 时必须传入 suspectHeroId；进入 Dormant/Emerging 时强制清空 SuspectHeroId。
         /// </summary>
-        /// <param name="suspectHeroId">进入 Active/Confrontation 时锁定此 Hero 为嫌疑人。null 时尝试从 InitiatorId 推断。</param>
+        /// <param name="suspectHeroId">进入 Active/Confrontation 时锁定此 Hero 为嫌疑人。三态语义：
+        /// 具体 Hero ID = 锁定该嫌疑人；null = 未提供（从 InitiatorId 推断，既有兜底）；
+        /// 空串 "" = 显式 unknown（无名随从犯案——不锁定、不推断，SuspectHeroId 保持空，SuspectIsPlayer=false）。</param>
         /// <param name="escalationReason">
         /// **玩家自己干了什么导致这次升级**（"你转身就走，没给钱" / "你拔剑动手"）。
         /// 升级会把赔款金额往上顶（CrimePenaltyCalculator.ComputeRestitution 的阶段倍率），
@@ -1520,10 +1522,15 @@ namespace LivingWorldNpcs
                     }
                     break;
                 case EventStage.Active:
-                    // 嫌疑人锁定阶段：优先用传入值，否则从 InitiatorId 推断
+                    // 嫌疑人锁定阶段：优先用传入值；显式 unknown（""）→ 保持空（不锁定、不推断——
+                    // 无名随从犯案，见 RegisterWitness）；未提供（null）→ 从 InitiatorId 推断
                     if (!string.IsNullOrEmpty(suspectHeroId))
                     {
                         evt.SuspectHeroId = suspectHeroId;
+                    }
+                    else if (suspectHeroId == "")
+                    {
+                        evt.SuspectHeroId = null;
                     }
                     else if (string.IsNullOrEmpty(evt.SuspectHeroId))
                     {

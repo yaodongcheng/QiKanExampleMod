@@ -35,7 +35,7 @@ namespace LivingWorldNpcs
 
     /// <summary>
     /// 🔴 动作注册单一事实源（action-registry-refactor.md，2026-08-13）：
-    /// 策划只维护这一张主表（34 行），其余全部派生——计划词表（PlanVocab）、闲聊动作空间
+    /// 策划只维护这一张主表（36 行），其余全部派生——计划词表（PlanVocab）、闲聊动作空间
     /// （ActionHandler）、标签表（PlanActionLabel）、单步参数填充（ChatActionFlow）、
     /// 校验脚本（check_vocab_sync.py）都只读本表。
     ///
@@ -44,9 +44,9 @@ namespace LivingWorldNpcs
     /// "NONE" 是空操作哨兵（大写保留，不进任何 prompt，三处跳过判据原样有效）。
     ///
     /// 行语义：InPlanVocab = 进计划词表（21 行，序 = 原 ActionsInPromptOrder 手写序，
-    /// 82% LLM 回归基线依赖此顺序）；InChatSpace = 进闲聊动作空间（27 行，ChatOrder 钉死
-    /// 1..27 = 闲聊 prompt 展示序）。14 个交集动作双 true；7 个仅计划（lead/wait/give_item/
-    /// deliver_item/shadow/negotiate/end_plan）；13 个仅闲聊。
+    /// 82% LLM 回归基线依赖此顺序）；InChatSpace = 进闲聊动作空间（29 行，ChatOrder 钉死
+    /// 1..29 = 闲聊 prompt 展示序）。14 个交集动作双 true；7 个仅计划（lead/wait/give_item/
+    /// deliver_item/shadow/negotiate/end_plan）；15 个仅闲聊（含 crouch/stand 瞬时姿态动作）。
     ///
     /// 执行职责边界：Execute 委托对 agent 载体动作 = 闲聊侧点火（包装单步 Plan 走
     /// ChatActionFlow → PlanExecutor 既有分支），行为语义仍归执行器；对 hero/party 载体
@@ -72,6 +72,7 @@ namespace LivingWorldNpcs
             public string[] Aliases;                     // 计划侧 LLM 容错别名（attack→order_attack 等，校验时规范为正码）
             public HashSet<string> ResultKeys;           // 判定型/结算型动作的合法 result 键
             public bool IsTerminal;                      // end_plan（收尾，无跳转消费）
+            public bool SelfTargeted;                    // 自身状态切换：无 defender 目标语义（蹲下/站起）——跳过目标解析与播报，空间只看执行人
             // 🔴 默认 true：绝大多数动作执行器已实现，仅 shadow/negotiate/duel 显式设 false。
             // 勿改回默认 false——bool 默认值是 false，34 行未显式赋值的行会全部变成"未实现"，
             // 静态构造自检直接炸（实机 2026-08-13 崩溃实录）。
@@ -833,6 +834,33 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] GATHER_TO_PLAYER {defender.Name} 集结到玩家部队");
                 }
             },
+
+            // 35. crouch（引擎下蹲：玩家 Z 键同机制 SetCrouchMode = AIScriptedFrameFlags.Crouch；
+            // 瞬时 flag 操作，零风险可逆 → 免确认直接执行，与 emote 同级。蹲姿保持到「站起」/脑接管自动清除）
+            new ActionSpec
+            {
+                Code = "crouch",
+                Description = "蹲下（保持蹲姿，直到命令站起；仅当面）。",
+                InChatSpace = true, ChatOrder = 28,
+                Spaces = ActionSpace.InScene,
+                SelfTargeted = true,
+                LabelKey = "crouch", LabelFallback = "crouch",
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "crouch", null, null, null)
+            },
+
+            // 36. stand（站起：解除引擎蹲姿，SetCrouchMode(false)；对称的瞬时免确认动作）
+            new ActionSpec
+            {
+                Code = "stand",
+                Description = "站起（从蹲姿恢复站立；仅当面）。",
+                InChatSpace = true, ChatOrder = 29,
+                Spaces = ActionSpace.InScene,
+                SelfTargeted = true,
+                LabelKey = "stand", LabelFallback = "stand up",
+                IsValid = (npc, player, agent) => agent != null,
+                Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "stand", null, null, null)
+            },
         };
 
         /// <summary>计划词表动作（InPlanVocab，按主表序 = 原 ActionsInPromptOrder 手写序）。</summary>
@@ -855,10 +883,10 @@ namespace LivingWorldNpcs
             };
             Check(PlanActions.Select(s => s.Code).SequenceEqual(expectedPlanOrder),
                 "[ActionRegistry] 计划 21 码顺序与基线不符（82% LLM 回归基线依赖此顺序）");
-            // ChatOrder 1..27 连续（闲聊 prompt 展示序钉死）
+            // ChatOrder 1..29 连续（闲聊 prompt 展示序钉死）
             var chatOrders = ChatActions.Select(s => s.ChatOrder).ToArray();
-            Check(chatOrders.SequenceEqual(Enumerable.Range(1, 27)),
-                "[ActionRegistry] ChatOrder 必须为 1..27 连续序列");
+            Check(chatOrders.SequenceEqual(Enumerable.Range(1, 29)),
+                "[ActionRegistry] ChatOrder 必须为 1..29 连续序列");
             // 未实现集合（计划侧执行器）
             var unimplemented = All.Where(s => !s.ExecutorImplemented).Select(s => s.Code).OrderBy(c => c).ToArray();
             Check(unimplemented.SequenceEqual(new[] { "duel", "negotiate", "shadow" }),

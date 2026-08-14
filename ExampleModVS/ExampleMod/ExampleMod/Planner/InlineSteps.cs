@@ -344,6 +344,56 @@ namespace LivingWorldNpcs
         }
     }
 
+    /// <summary>crouch / stand：NPC 下蹲/站起（玩家 Z 键同机制）。
+    /// 🔴 2026-08-14 两轮实机：`SetCrouchMode`（AIScriptedFrameFlags.Crouch）对**被脑 Suspend 的 NPC
+    /// 不渲染**——flag 由 vanilla AI 的移动/动画选择系统消费（原版犯人蹲地 = vanilla AI 在跑，反编译
+    /// SwitchPrisonerFollowingState 实锤），Suspend 后无人消费。改用 SetPose 直播蹲姿动画
+    ///（act_crouch_walk_idle_unarmed，真蹲姿 ID——曾误判"蹲姿不存在"）；flag 保留为双保险（AI 恢复时语义一致）。
+    /// 蹲姿保持到「站起」命令 / 移动指令覆盖（SetPose 被移动动画覆盖 = 自然起身）/ 脑接管清 flag。
+    /// 免确认动作（RequiresConfirm 默认 false）：IM 下达立即执行。</summary>
+    public class CrouchInlineState : IInlineStep
+    {
+        private readonly Agent _agent;
+        private readonly bool _crouch;
+        private bool _interrupted;
+        public bool Ok { get; private set; }
+        public bool Finished { get; private set; }
+        // 🔴 行为性内联（M0/D3）：SetPose 驱动表现层（姿态动画）→ 经 InlinePlanAction 入队由脑驱动
+        public bool IsBehavioral => true;
+        public bool Interrupted => _interrupted;
+        public void Interrupt() { _interrupted = true; Finished = true; }
+
+        public CrouchInlineState(Agent agent, PlanStep step)
+        {
+            _agent = agent;
+            _crouch = step.Action == "crouch";
+            if (agent == null || !agent.IsActive()) { Ok = false; return; }
+            Ok = true;
+            try
+            {
+                if (_crouch)
+                {
+                    AgentControlHelper.SetPose(agent, "act_crouch_walk_idle_unarmed");
+                    agent.SetCrouchMode(true);   // flag 双保险（AI 消费路径；Suspend 下无副作用）
+                    AgentBrain.SetCrouchPose(agent, true);   // 人工记录（native flag 对 Suspend NPC 不可信）
+                }
+                else
+                {
+                    AgentControlHelper.SetPose(agent, "act_walk_idle_unarmed");
+                    agent.SetCrouchMode(false);
+                    AgentBrain.SetCrouchPose(agent, false);
+                }
+            }
+            catch { Finished = true; }   // 姿态设置失败 → 降级无动作（不崩；装饰性动作不改世界状态）
+        }
+
+        public void OnTick(float dt)
+        {
+            if (Finished) return;
+            Finished = true;
+        }
+    }
+
     /// <summary>make_noise：喊叫 + 复用 WitnessCrime 围观聚集（criminal=随从 = 纯围观无犯罪副作用，§4）。</summary>
     public class MakeNoiseInlineState : IInlineStep
     {
@@ -368,9 +418,10 @@ namespace LivingWorldNpcs
                     SpeechPriority.Warning,
                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(_agent), null, "make_noise", null));
                 // 围观聚集：WitnessCrime 事件（criminal=self 非玩家 → 不加犯罪脉冲，纯围观）
+                // 🔴 isCrime:false——随从喊一嗓子不能算犯罪（2026-08-13 suspect 化：仅围观不分类）
                 AgentAIController.Instance?.BroadcastEventInRange(
                     _agent.Position, 20f, "WitnessCrime",
-                    exclude: null, requireSight: false,
+                    exclude: null, requireSight: false, isCrime: false,
                     _agent, null);
                 DebugLogger.Log($"[PlanExecutor] make_noise: {_agent.Name} 引起围观");
             }
@@ -495,8 +546,8 @@ namespace LivingWorldNpcs
         // 🔴 行为性内联（M0/D3）：SetPose/ScriptedMoveToPoint 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
         public bool IsBehavioral => true;
         public bool Interrupted => _interrupted;
-        /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行偷窃动作）。</summary>
-        public void Interrupt() { _interrupted = true; Finished = true; }
+        /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行偷窃动作）；顺带解除引擎蹲姿防残留。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; try { _agent?.SetCrouchMode(false); AgentBrain.SetCrouchPose(_agent, false); AgentControlHelper.SetPose(_agent, "act_walk_idle_unarmed"); } catch { } }
 
         public StealAttemptInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
@@ -565,13 +616,7 @@ namespace LivingWorldNpcs
                         behind = Vec2.DotProduct(look, toSelf) < -0.4f;
                     }
                     catch { }
-                    if (dist > 2.5f)
-                    {
-                        // 还没到位 → 绕到目标背后（🔴 2026-08-13：通用接近语义——>5m 跑、≤5m 走，
-                        // 近身收势；原实现全程走速，长距离接近拖时间且出戏）
-                        AgentControlHelper.ApproachAgent(_agent, target);
-                    }
-                    else if (behind)
+                    if (behind && dist <= 2.5f)
                     {
                         _phase = AttemptPhase.Rolling;
                         _timer = 0f;
@@ -582,15 +627,26 @@ namespace LivingWorldNpcs
                         _resultKey = "impossible";
                         _phase = AttemptPhase.Settled;
                     }
+                    else
+                    {
+                        // 🔴 2026-08-14（实机：随从扒窃走到目标侧面就原地不动）：原接近点 = target.Position
+                        // 直撞碰撞体停在侧/前方，且 ≤2.5m 不在背后时原实现不派发任何移动指令（死等 8s 超时假失败）。
+                        // 绕背定位：目标点 = 目标正后方 ~2.2m（≤2.5m 判定圈内，每帧重算，目标转身跟随走位）。
+                        try
+                        {
+                            Vec3 back = target.Position - new Vec3(target.LookDirection.X, target.LookDirection.Y, 0f) * 2.2f;
+                            AgentControlHelper.ScriptedMoveToPoint(_agent, back, dist > 5f);
+                        }
+                        catch { }
+                    }
                     break;
 
                 case AttemptPhase.Rolling:
                     {
                         // 🔴 2026-08-13（玩家反馈：NPC 扒窃无视觉动作）——玩家扒窃有 UI 条 + 慢动作 +
                         // 屏息叙事；NPC 原来 Rolling→Settled 全程站桩：玩家视角随从站着 3 秒然后报告"偷到了"。
-                        // 补弯腰伸手姿态（背后站位 + 面向目标 = 读作"蹲身摸口袋"）；Settled 的 StopAndReset 收姿。
-                        // ⚠️ ForcePlayAction 而非 SetPose：拾取动画村民 action set 运行时不可达（继承链陷阱，
-                        // 见 Knowledge/击晕机制…§二），SetPose 静默失败。
+                        // 2026-08-14 起改用引擎下蹲（SetCrouchMode，玩家 Z 键同机制），见下方姿态块注释；
+                        // Settled 出口统一收姿。
                         if (!_posed)
                         {
                             _posed = true;
@@ -599,10 +655,18 @@ namespace LivingWorldNpcs
                                 if (!_variantItem
                                     && _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent poseTarget))
                                     AgentControlHelper.FaceToActor(_agent, poseTarget);
-                                AgentControlHelper.ForcePlayAction(_agent, "act_pickup_down_begin");
+                                // 🔴 2026-08-14（两轮实机：SetCrouchMode 对 Suspend 的 NPC 不渲染）——
+                                // flag 需 vanilla AI 消费；改 SetPose 直播蹲姿（act_crouch_walk_idle_unarmed，
+                                // 真蹲姿 ID），flag 双保险。背后站位 + 面向目标 = 真"蹲身摸口袋"。
+                                // 原 act_pickup_down_begin 弯腰伸手是"没有蹲姿动画"的妥协（属误判）。
+                                _agent.SetCrouchMode(true);
+                                AgentBrain.SetCrouchPose(_agent, true);   // 人工记录（扒窃蹲姿，native flag 不可信）
+                                AgentControlHelper.SetPose(_agent, "act_crouch_walk_idle_unarmed");
                             }
                             catch { }
                         }
+                        // 起手延迟：蹲下 ~0.5s 后再摸口袋（对齐玩家扒窃条节奏；判定/结算时机同击晕 0.5s 起手）
+                        if (_timer < 0.5f) return;
 
                         // 目击检查：有目击者（排除扒窃目标）→ 中断
                         var witnesses = StealManager.GetWitnesses(_agent, null, 15f, 120f);
@@ -692,13 +756,19 @@ namespace LivingWorldNpcs
                                     if (wh != null) heroIds.Add(wh.StringId);
                                     else if (w.Character != null) templateWitness[w.Character.StringId] = 1;
                                     // 警戒脉冲（目击者警觉）
+                                    // 🔴 suspectAgentIndex = 作案随从（_agent）——目击者警戒指向随从而非玩家，
+                                    // 走 2026-08-13 suspect 化闭环（冷色眼 + Alarmed 参战打随从）。
+                                    // ⚠️ targetName 传目击者自己的名字是遗留笔误（仅日志/证词用途），不改动。
                                     var wb = AgentAIController.GetBrainForAgent(w);
-                                    wb?.SetPulseTarget(PlayerActionType.Steal, w.Name?.ToString() ?? "", "gold");
+                                    wb?.SetPulseTarget(PlayerActionType.Steal, w.Name?.ToString() ?? "", "gold", -1, _agent.Index);
                                     wb?.AddAlert(PlayerActionType.Steal, 3.0f);
                                 }
+                                // 🔴 2026-08-14 嫌疑人单一事实源：证词只记账（偷了什么），嫌疑人由目击者脑内
+                                // 警戒拉满时的 RegisterWitness 推导（TopSuspectAgent = 作案随从 _agent，
+                                // 有名随从锁随从 Hero，无名随从保持 unknown）——不在此处传嫌疑人。
                                 AgentAIController.Instance?.RegisterTheftWitnesses(heroIds, templateWitness,
                                     "gold", PlanTexts.Gold, targetName: PlanTexts.Gold, count: (int)_amount);
-                                DebugLogger.Log($"[PlanExecutor] 随从偷窃被目击 → 问责玩家（{finalWitnesses.Count} 名目击者）");
+                                DebugLogger.Log($"[PlanExecutor] 随从偷窃被目击 → 证词入档（{finalWitnesses.Count} 名目击者，嫌疑人由目击者脑内推导）");
                             }
                             else if (!_variantItem)
                             {
@@ -707,8 +777,9 @@ namespace LivingWorldNpcs
                             }
                         }
 
+                        // 保持蹲姿进 Settled（展示窗口）：收姿挪到 Settled 出口统一做——
+                        // 原此处 StopAndReset 会把刚下蹲的 Crouch 位清掉（ForceUnlockAgent → SetScriptedFlags(None)）
                         _phase = AttemptPhase.Settled;
-                        try { AgentControlHelper.StopAndReset(_agent); } catch { }
                         break;
                     }
 
@@ -716,6 +787,8 @@ namespace LivingWorldNpcs
                     if (_timer >= 2.0f)
                     {
                         _executor.SetStepResultKey(_resultKey);
+                        // 收姿：解除引擎蹲姿 + 恢复站姿 idle（SetPose 播的蹲姿 StopAndReset 不清，须显式覆盖）+ 复位移动锁
+                        try { _agent.SetCrouchMode(false); AgentBrain.SetCrouchPose(_agent, false); AgentControlHelper.SetPose(_agent, "act_walk_idle_unarmed"); AgentControlHelper.StopAndReset(_agent); } catch { }
                         Finished = true;
                     }
                     break;

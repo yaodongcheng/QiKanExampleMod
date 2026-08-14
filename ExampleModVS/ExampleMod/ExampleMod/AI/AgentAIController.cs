@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using SandBox;
 using SandBox.Missions.AgentBehaviors;
 using TaleWorlds.CampaignSystem;
+using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -196,6 +197,10 @@ namespace LivingWorldNpcs
                     if (Agent.Main != null && FriendlinessHelper.IsPlayerPartyMember(agent))
                     {
                         _brains[agent.Index].SetLeader(Agent.Main);
+                        // 🔴 2026-08-14（正规路线）：随从注册进 NpcSightSystem 追踪（与玩家同列），
+                        // AgentBrain 蹲姿感知遍历 TrackedTargets 读随从脑 CrouchPoseActive——
+                        // sight 职责统一归 NpcSightSystem，不搞每操作一个缓存列表。
+                        NpcSightSystem.Instance?.RegisterTrackedTarget(agent, 15f, 50f);
                         if (IsDebugMode)
                             DebugLogger.Log($"[随从关系] {agent.Name} → Leader=玩家（身份判定自动建立）");
                     }
@@ -214,6 +219,9 @@ namespace LivingWorldNpcs
         {
             // 说话并联通道清理（M0：agent 删除 → 注册表移除）
             SpeechChannel.Remove(agent);
+            // 🔴 2026-08-14：随从追踪注销（视线系统里玩家之外的注册目标）
+            if (agent != Agent.Main)
+                NpcSightSystem.Instance?.UnregisterTrackedTarget(agent);
             if (_brains.TryGetValue(agent.Index, out var brain))
             {
                 if (IsDebugMode)
@@ -284,6 +292,9 @@ namespace LivingWorldNpcs
             // 密谋命令系统：Mission 结束 → 执行器统一收尾（OnMissionScreenFinalize 兜底纪律）
             PlanExecutor.ShutdownAll();
             FinalizePendingWorldEvent();
+            // 🔴 Phase E（2026-08-13）：被执法逮捕且被击倒的随从 → 转押事件定居点（原版俘虏机制）。
+            // 时机在 MissionEnd 后、Campaign tick 前（仿 PlayerDetentionBehavior 注释：源头防生成）
+            TransferArrestedCompanionsToJail();
             CombatManager.OnMissionEnd();
             // 🔴 2026-08-12：解挂玩家武器切换监听（实例随 Mission 销毁，防悬空引用）
             try { if (Agent.Main != null) Agent.Main.OnMainAgentWieldedItemChange -= OnPlayerWeaponChanged; } catch { }
@@ -307,12 +318,21 @@ namespace LivingWorldNpcs
             var pending = PendingWorldEvent;
             if (pending == null) return;
 
-            // 🆕 目击者当场看到玩家作案 → 嫌疑人=玩家，直接 Active
+            // 🆕 目击者当场看到作案 → 嫌疑人 = 顶条目嫌疑犯（2026-08-14 三态单一事实源，不回落玩家）：
+            //   TopSuspectAgent() 为 null（-1 玩家语义）→ 玩家（MainHero）；
+            //   嫌疑犯有 Hero（玩家本人/有名随从）→ 该 Hero StringId；
+            //   嫌疑犯无 Hero（模板随从）→ 显式 unknown（"" 哨兵，TransitionStage 跳过 InferSuspect，不怪玩家）。
             // 不管之前是什么阶段（Dormant/Emerging），有人亲眼看见 → 嫌疑人明确，直接 Active。
             if (pending.Stage < EventStage.Active)
             {
-                WorldEventStore.TransitionStage(pending, EventStage.Active, Hero.MainHero?.StringId);
-                DebugLogger.Log($"[RegisterWitness] {brain.Owner.Name} witnessed crime → WorldEvent {pending.EventId} Stage → Active (suspect=player)");
+                string suspectId;
+                var suspectAgent = brain?.TopSuspectAgent();
+                if (suspectAgent == null)
+                    suspectId = Hero.MainHero?.StringId;   // -1 = 玩家语义
+                else
+                    suspectId = (suspectAgent.Character as CharacterObject)?.HeroObject?.StringId ?? "";  // 无名随从 = unknown
+                WorldEventStore.TransitionStage(pending, EventStage.Active, suspectId);
+                DebugLogger.Log($"[RegisterWitness] {brain.Owner.Name} witnessed crime → WorldEvent {pending.EventId} Stage → Active (suspect={(suspectAgent != null ? $"{suspectAgent.Name}(Idx={suspectAgent.Index})" : "player")})");
             }
 
             pending.WitnessTestimonies = pending.WitnessTestimonies ?? new List<WitnessTestimony>();
@@ -372,7 +392,11 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>偷窃目击者（StealManager 调用）：witnessHeroIds/templateWitness 来自 GetWitnesses()</summary>
+        /// <summary>偷窃目击者记账（StealManager/InlineSteps 调用）：witnessHeroIds/templateWitness 来自 GetWitnesses()
+        /// 🔴 纯记账——只记录赃物证词（谁看到偷了什么）。**不推进阶段、不锁定嫌疑人**（2026-08-14 嫌疑人单一事实源修正）：
+        /// 案件激活与嫌疑人完全由目击者脑内警戒拉满时的 RegisterWitness 推导（TopSuspectAgent），
+        /// 无人拉满（3s 抑制期内离场/友方豁免）→ 事件保持 Dormant 过夜走 Emerging 无头案，
+        /// 玩家自首（ConfessIntent）是另一独立来源。证词只承担「调查资产」语义（见 FinalizePendingWorldEvent）。</summary>
         /// <param name="count">数量/面额：gold = 第纳尔面额；普通物品 = 件数（默认 1）</param>
         public void RegisterTheftWitnesses(List<string> witnessHeroIds, Dictionary<string, int> templateWitness,
             string itemId, string itemName, string targetName = null, int count = 1)
@@ -386,10 +410,6 @@ namespace LivingWorldNpcs
                 AddStealAction(pending, heroId, null, itemId, itemName, targetName, count);
             foreach (var kv in templateWitness)
                 AddStealAction(pending, null, kv.Key, itemId, itemName, targetName, count);
-
-            // 有目击者当场看到玩家偷窃 → 嫌疑人=玩家，直接 Active
-            if (pending.Stage < EventStage.Active)
-                WorldEventStore.TransitionStage(pending, EventStage.Active, Hero.MainHero?.StringId);
         }
 
         static void AddStealAction(WorldEvent pending, string heroId, string templateId,
@@ -464,23 +484,71 @@ namespace LivingWorldNpcs
             var testimonies = pending.WitnessTestimonies;
             if (testimonies == null || testimonies.Count == 0) return;   // 无事发生，照丢
 
-            // 区分真目击（Alarmed NPC 证词）与系统暗账（无人目击的偷窃事实）
+            // 🔴 2026-08-14 嫌疑人单一事实源修正：不再按「有目击证词」强行激活并写死玩家嫌疑人。
+            // 案件激活只由目击者脑内警戒拉满时的 RegisterWitness 负责（嫌疑人从 TopSuspectAgent 推导）；
+            // 无人拉满（3s 抑制期内离场 / 友方豁免）→ 事件保持 Dormant 入档，过夜由 ProcessDormant
+            // 推进 Emerging 无头案（村民知道丢了东西，不知道是谁——调查引擎破案或冷案）。
+            // 证词只保留「调查资产」语义：有真目击 → 调查进度直接满（目击者描述是破案线索，TryLockSuspect 走证据链）。
             bool hasRealWitness = testimonies.Any(t => t.WitnessHeroId != null || t.TemplateId != null);
-
             if (hasRealWitness)
             {
-                // 有目击者 → 嫌疑人=玩家，直接 Active
-                if (pending.Stage < EventStage.Active)
-                {
-                    WorldEventStore.TransitionStage(pending, EventStage.Active, Hero.MainHero?.StringId);
-                }
                 pending.InvestigationProgress = 1.0f;
                 pending.PublicAwareness = 0.3f;
             }
-            // else: 只有暗账 → 保持 Dormant 入档，等 WorldEventStore.ProcessDormant 过夜被发现
-            //       （村民知道丢了什么，不知道是谁——调查/冷案/栽赃走既有的 Emerging 机器）
 
             WorldEventStore.AddOrMerge(pending);
+        }
+
+        /// <summary>
+        /// 随从逮捕转押（Phase E，2026-08-13）：Mission 结束时，被执法逮捕（ArrestedByLaw）且被击倒
+        /// （!IsActive 且 Health>0 = 击晕倒地；Health&lt;=0 = 真死，hero 死亡系统接管，不逮捕）的
+        /// 随从 → 转押事件定居点牢房（TakePrisonerAction 原版 hero 俘虏机制：进 settlement.PrisonRoster、
+        /// 从原队伍移除、原版 captivity 状态机接管）。**仅随从 Hero 非空才执行**（模板 NPC 随从无 Hero
+        /// → 跳过，仅 Mission 层倒地）。
+        /// 事件保持 Active（嫌疑人=随从）——玩家可回定居点赎回（CompanionDetentionBehavior 菜单）。
+        /// </summary>
+        void TransferArrestedCompanionsToJail()
+        {
+            if (Campaign.Current == null) return;
+            try
+            {
+                foreach (var b in _brains.Values)
+                {
+                    if (b == null || !b.ArrestedByLaw) continue;
+                    if (b.Owner == null || b.Owner.IsActive() || b.Owner.Health <= 0f) continue;  // 击晕倒地才转押
+                    var hero = (b.Owner.Character as CharacterObject)?.HeroObject;
+                    if (hero == null) continue;                                          // 模板 NPC 无 Hero → 跳过
+                    if (!FriendlinessHelper.IsPlayerPartyMember(hero)) continue;          // 只转押玩家随从
+
+                    // 事件定居点：PendingWorldEvent（本场 Mission 的犯罪事件）→ 持久化 store 兜底
+                    WorldEvent evt = null;
+                    if (PendingWorldEvent != null && !string.IsNullOrEmpty(PendingWorldEvent.TargetSettlementId))
+                        evt = WorldEventStore.FindOnGoing(PendingWorldEvent.TargetSettlementId) ?? PendingWorldEvent;
+                    else if (Settlement.CurrentSettlement != null)
+                        evt = WorldEventStore.FindOnGoing(Settlement.CurrentSettlement.StringId);
+                    if (evt == null || evt.TargetSettlement == null) continue;
+
+                    var settlement = evt.TargetSettlement;
+                    // 转押（原版 hero 俘虏机制）
+                    TakePrisonerAction.Apply(settlement.Party, hero);
+                    b.ArrestedByLaw = false;   // 已转押，防重复
+                    // 注册到赎回菜单（CompanionDetentionBehavior）
+                    CompanionDetentionBehavior.RegisterDetained(hero, settlement, evt.EventId);
+
+                    // 提示消息（铁律 13）：你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        LWNTextHelper.ResolveCompound("LWN_ui_arrest_msg",
+                            "Your companion {NAME} has been locked in the jail of {SETTLEMENT}.",
+                            ("NAME", hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target")),
+                            ("SETTLEMENT", settlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_detention_place_here", "here"))),
+                        Colors.Red));
+                    DebugLogger.Log($"[Arrest] 随从 {hero.Name}（{b.Owner.Name}）被转押 {settlement.Name}（事件 {evt.EventId}，嫌疑人=随从）");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Arrest] 转押失败: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -561,11 +629,27 @@ namespace LivingWorldNpcs
         /// <param name="requireSight">true=只看能看到玩家的 NPC（默认），false=范围内全部通知</param>
         public void BroadcastEventInRange(Vec3 center, float radius, string eventType, bool requireSight = true, params object[] args)
         {
-            BroadcastEventInRange(center, radius, eventType, null, requireSight, args);
+            BroadcastEventInRangeCore(center, radius, eventType, null, requireSight, true, args);
         }
 
         /// <param name="exclude">排除列表：这些 Agent 不会收到事件（如击晕受害者不参与围观）</param>
         public void BroadcastEventInRange(Vec3 center, float radius, string eventType, HashSet<Agent> exclude, bool requireSight, params object[] args)
+        {
+            BroadcastEventInRangeCore(center, radius, eventType, exclude, requireSight, true, args);
+        }
+
+        /// <summary>
+        /// 带犯罪标记的范围广播（2026-08-13 suspect 化专用重载）：isCrime=false = 非犯罪事件
+        /// （随从喊一嗓子 make_noise / NPC 投降），围观者只走行为不走 WitnessCrime 犯罪分类。
+        /// 仅两个调用点使用（InlineSteps make_noise、AgentBrain NPC 投降广播）；其余广播默认犯罪。
+        /// </summary>
+        public void BroadcastEventInRange(Vec3 center, float radius, string eventType, HashSet<Agent> exclude, bool requireSight, bool isCrime, params object[] args)
+        {
+            BroadcastEventInRangeCore(center, radius, eventType, exclude, requireSight, isCrime, args);
+        }
+
+        /// <summary>广播核心实现（isCrime 透传到 WitnessCrime 舞台分配的两个 AIEvent 构造）。</summary>
+        private void BroadcastEventInRangeCore(Vec3 center, float radius, string eventType, HashSet<Agent> exclude, bool requireSight, bool isCrime, params object[] args)
         {
             // 战斗模式下不发送 LLM 事件——原生 AI 接管所有战斗行为
             if (Settings.Instance.IsInteractionDisabled())
@@ -586,17 +670,30 @@ namespace LivingWorldNpcs
                     if (IsDebugMode)
                         DebugLogger.Log($"{brain.Owner.Name} 与事件中心高度差 {brain.Owner.Position.z - center.z:F1}m > {SAME_FLOOR_MAX_HEIGHT_DIFF}m，跨楼层拦截广播 '{eventType}'");
                       //InformationManager.DisplayMessage(new InformationMessage($"{brain.Owner.Name} 跨楼层拦截 '{eventType}' 高度差 {brain.Owner.Position.z - center.z:F1}m"));
-                      
+
                     continue;
                 }
                 if (exclude != null && exclude.Contains(brain.Owner)) continue;
 
-                // 视线过滤：requireSight 时跳过看不见玩家的 NPC
-                if (requireSight && !NpcSightSystem.CanNpcSeePlayer(brain.Owner))
+                // 视线过滤：requireSight 时跳过看不见事件源的 NPC
+                // 🔴 2026-08-14 修复：原锚点恒为玩家（CanNpcSeePlayer）——随从执行计划犯罪时，
+                // 旁观者能看到犯罪现场（随从打人）却看不见远处的玩家 → 广播被误过滤，
+                // 现场 NPC 收不到 WitnessCrime → 无人涨警戒（实机：阿速甘击晕那弥斯失败，无人拉满）。
+                // WitnessCrime 的 args[0] 恒为事件源（犯罪者/喊叫者/投降者，全调用点约定一致），
+                // 锚点改用事件源；距离用广播半径（原 15f 硬编码 < 广播 20f，边缘旁观者被误杀）。
+                if (requireSight)
                 {
-                    if (IsDebugMode)
-                        DebugLogger.Log($"{brain.Owner.Name} 看不见玩家，跳过广播 '{eventType}'");
-                    continue;
+                    bool canSeeEvent;
+                    if (eventType == "WitnessCrime" && args.Length > 0 && args[0] is Agent anchor)
+                        canSeeEvent = NpcSightSystem.CanAgentSeeTarget(brain.Owner, anchor, radius, 120f);
+                    else
+                        canSeeEvent = NpcSightSystem.CanNpcSeePlayer(brain.Owner);
+                    if (!canSeeEvent)
+                    {
+                        if (IsDebugMode)
+                            DebugLogger.Log($"{brain.Owner.Name} 看不见事件源，跳过广播 '{eventType}'");
+                        continue;
+                    }
                 }
 
                 brainsInRange.Add(brain);
@@ -657,6 +754,7 @@ namespace LivingWorldNpcs
                                 {
                                     EventType = "WitnessCrime_GatherOnLook",
                                     Sender = criminal,
+                                    IsCrime = isCrime,
                                     Args = new object[] { criminal,judge, assignedSpot.Position, assignedSpot.LookDirection }
                                 });
                             }
@@ -670,6 +768,7 @@ namespace LivingWorldNpcs
                                 {
                                     EventType = "WitnessCrime_StayStare",
                                     Sender = criminal,
+                                    IsCrime = isCrime,
                                     Args = args // 保持原样
                                 });
                             }
@@ -696,19 +795,11 @@ namespace LivingWorldNpcs
                     {
                         EventType = eventType,
                         Sender = null,
+                        IsCrime = isCrime,
                         Args = args
                     });
                 }
             }
-
-
-
-
-
-
-
-
-
         }
 
         /// <summary>

@@ -607,8 +607,14 @@ namespace LivingWorldNpcs
                 s.Action = canonical;
             }
 
-            // 动作词表
-            if (string.IsNullOrEmpty(s.Action) || !PlanVocab.Actions.Contains(s.Action))
+            // 动作词表（单一事实源 = ActionRegistry 主表）
+            // 🔴 2026-08-14（实机：crouch 闲聊-only 动作被拦「未知动作」→ 随从没蹲）：原查
+            // PlanVocab.Actions = 计划词表 21 码——闲聊-only 动作此前从未走计划管线（ChatActionFlow
+            // 单动作包裹），crouch/stand 是第一个踩雷的。改为查 ActionRegistry.FindByCode（主表 =
+            // 唯一事实源）；ExecutorImplemented=false 特判保留（shadow/negotiate/duel 计划侧未实现
+            // → 仍丢弃，校验期拦比执行期失败早）
+            var spec = string.IsNullOrEmpty(s.Action) ? null : ActionRegistry.FindByCode(s.Action);
+            if (spec == null || !spec.ExecutorImplemented)
             {
                 result.Warnings.Add($"未知动作 {s.Action}（id={s.Id}）→ 丢弃该步");
                 return true;

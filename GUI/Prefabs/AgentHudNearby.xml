@@ -62,22 +62,14 @@
                                       HorizontalAlignment="Center"
                                       Brush.FontSize="18"
                                       Brush.FontColor="#FFD700FF" />
-                        <!-- NpcIntent 调试文本 -->
+                        <!-- NpcIntent/计划摘要 统一青蓝行（2026-08-13：意图行并入计划分支，一行一文本变量） -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                             Brush="MyBrush_16_Left"
                                             Text="@NpcIntentDebugText"
                                             IsVisible="@ShowIntentDebug"
                                             HorizontalAlignment="Center"
-                                            Brush.FontSize="12"
+                                            Brush.FontSize="14"
                                             Brush.FontColor="#00FFBFFF" />
-                      <!-- 计划执行摘要（密谋命令系统；随从状态行动态细节） -->
-                      <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                            Brush="MyBrush_16_Left"
-                                            Text="@PlanSummaryText"
-                                            IsVisible="@ShowPlanSummary"
-                                            HorizontalAlignment="Center"
-                                            Brush.FontSize="12"
-                                            Brush.FontColor="#FFA500FF" />
                       <!-- 2. 说话文本 (中间) -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                       Brush="Brush_HeadText"
