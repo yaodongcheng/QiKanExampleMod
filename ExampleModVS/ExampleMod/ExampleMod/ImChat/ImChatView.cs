@@ -564,8 +564,8 @@ namespace LivingWorldNpcs
                 int unread = ImChatStore.GetUnread(_selected.Id);
                 if (unread > 0) selText = $"{selText} ({unread})";
             }
-            if (_vm.SelectedChannelText != selText)
-                _vm.SelectedChannelText = selText;
+            if (_vm.ChannelSelector.SelectedChannelText != selText)
+                _vm.ChannelSelector.SelectedChannelText = selText;
             // 每项选中高亮（Radio 视觉）
             for (int i = 0; i < _vm.ChannelSelector.ItemList.Count; i++)
             {
@@ -574,7 +574,7 @@ namespace LivingWorldNpcs
                     _vm.ChannelSelector.ItemList[i].IsSelected = isSel;
             }
             // 列表高度随项数自适应：每项 34px + 上下边距 16，钳制 [60, 348]
-            _vm.ChannelListHeight = MathF.Clamp(_vm.ChannelSelector.ItemList.Count * 34f + 16f, 60f, 348f);
+            _vm.ChannelSelector.ChannelListHeight = MathF.Clamp(_vm.ChannelSelector.ItemList.Count * 34f + 16f, 60f, 348f);
         }
 
         /// <summary>原版下拉选中（CurrentSelectedIndex → SelectedIndex 双向绑定回调）→ 切会话。
@@ -958,7 +958,7 @@ namespace LivingWorldNpcs
                 // 🔴 2026-08-15（性能）：SetInputRestrictions 只在 mask 变化时调用——每帧调用可能
                 // 触发输入上下文重置（用户反馈 UI 卡顿疑点之一）──
                 InputUsageMask mask = InputUsageMask.MouseButtons | InputUsageMask.Keyboardkeys;
-                if (_vm != null && _vm.IsChannelListOpen)
+                if (_vm != null && _vm.ChannelSelector.IsChannelListOpen)
                     mask |= InputUsageMask.MouseWheels;
                 if (mask != _lastCompactMask && _layer != null)
                 {
@@ -982,19 +982,19 @@ namespace LivingWorldNpcs
                 if (_layer != null && _layer.IsFocusedOnInput()
                     && Input.IsKeyPressed(InputKey.LeftMouseButton)
                     && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
-                    && (_vm == null || !_vm.IsChannelListOpen))
+                    && (_vm == null || !_vm.ChannelSelector.IsChannelListOpen))
                 {
                     _layer.UIContext.EventManager.ClearFocus();
                 }
 
                 // ── ② 频道下拉收起（点击面板矩形 ∪ 列表矩形外 = 场景；列表在标题行内向上展开，
                 //    可能溢出面板顶部 → 矩形判定用列表自身 GlobalPosition/Size）──
-                if (_vm != null && _vm.IsChannelListOpen
+                if (_vm != null && _vm.ChannelSelector.IsChannelListOpen
                     && Input.IsKeyPressed(InputKey.LeftMouseButton)
                     && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
                     && !IsPointInRect(mouse, _compactChannelList?.GlobalPosition ?? new Vec2(-1, -1), _compactChannelList?.Size ?? new Vec2(0, 0)))
                 {
-                    _vm.IsChannelListOpen = false;
+                    _vm.ChannelSelector.IsChannelListOpen = false;
                 }
             }
             catch (Exception ex)
@@ -1013,10 +1013,14 @@ namespace LivingWorldNpcs
                 _compactChannelList = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_ChannelList");
         }
 
-        /// <summary>🔴 2026-08-15（下拉点不开修复）：中心按钮直连切换列表显隐（弃用原版控件机制）。</summary>
+        /// <summary>🔴 2026-08-15（下拉点不开修复）：中心按钮直连切换列表显隐（弃用原版控件机制）。
+        /// 🔴 诊断日志（2026-08-15）：同时打印 VM 状态与列表 widget 实际 IsVisible——区分
+        /// 「点击没到 VM」（VM 不变）vs「绑定没生效」（VM=true 但 widget 仍不可见）。</summary>
         public static void ToggleChannelList()
         {
-            if (_vm != null) _vm.IsChannelListOpen = !_vm.IsChannelListOpen;
+            if (_vm != null)
+                _vm.ChannelSelector.IsChannelListOpen = !_vm.ChannelSelector.IsChannelListOpen;
+            DebugLogger.Log($"[CompactSelect] ToggleChannelList → open={_vm?.ChannelSelector.IsChannelListOpen} widgetVisible={_compactChannelList?.IsVisible}");
         }
 
         private static bool IsPointInRect(Vec2 p, Vec2 pos, Vec2 size)

@@ -164,6 +164,40 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>🔴 2026-08-15（绑定作用域修复）：频道列表显隐。属性必须长在本类——
+        /// XML 中频道列表/中心按钮都在 `DataSource="{ChannelSelector}"` 作用域内，
+        /// 绑在根 ImChatVM 上解析不到（作用域内不回落根 VM，同 HasCompactAnchor 坑）。</summary>
+        private bool _isChannelListOpen;
+
+        [DataSourceProperty]
+        public bool IsChannelListOpen
+        {
+            get => _isChannelListOpen;
+            set { if (_isChannelListOpen != value) { _isChannelListOpen = value; OnPropertyChangedWithValue(value, nameof(IsChannelListOpen)); } }
+        }
+
+        /// <summary>🔴 2026-08-15（绑定作用域修复）：中心按钮文本（选中频道标题 + 未读数；
+        /// RefreshChannelOptions 维护——列表不再由原版控件刷新文本，改 VM 驱动）。</summary>
+        private string _selectedChannelText = "";
+
+        [DataSourceProperty]
+        public string SelectedChannelText
+        {
+            get => _selectedChannelText;
+            set { if (_selectedChannelText != value) { _selectedChannelText = value; OnPropertyChangedWithValue(value, nameof(SelectedChannelText)); } }
+        }
+
+        /// <summary>🔴 2026-08-15：频道列表高度（随项数自适应，项数×34+16 钳制 [60, 348]；
+        /// 防 3 项也留大空白）。</summary>
+        private float _channelListHeight = 120f;
+
+        [DataSourceProperty]
+        public float ChannelListHeight
+        {
+            get => _channelListHeight;
+            set { if (MathF.Abs(_channelListHeight - value) > 0.5f) { _channelListHeight = value; OnPropertyChangedWithValue(value, nameof(ChannelListHeight)); } }
+        }
+
         /// <summary>左箭头：上一个频道（原版下拉三件套按钮命令）。</summary>
         public void ExecuteSelectPreviousItem() => ImChatView.SelectPreviousChannel();
 
@@ -917,39 +951,6 @@ namespace LivingWorldNpcs
         {
             get => _hasCompactLatest;
             set { if (_hasCompactLatest != value) { _hasCompactLatest = value; OnPropertyChangedWithValue(value, nameof(HasCompactLatest)); } }
-        }
-
-        /// <summary>🔴 2026-08-15（下拉点不开修复）：频道列表显隐（中心按钮 Command.Click 直连切换；
-        /// Tick 轮询外部点击收起）。</summary>
-        private bool _isChannelListOpen;
-
-        [DataSourceProperty]
-        public bool IsChannelListOpen
-        {
-            get => _isChannelListOpen;
-            set { if (_isChannelListOpen != value) { _isChannelListOpen = value; OnPropertyChangedWithValue(value, nameof(IsChannelListOpen)); } }
-        }
-
-        /// <summary>🔴 2026-08-15：中心按钮文本（选中频道标题 + 未读数；RefreshChannelOptions 维护——
-        /// 列表不再由原版控件刷新文本，改 VM 驱动）。</summary>
-        private string _selectedChannelText = "";
-
-        [DataSourceProperty]
-        public string SelectedChannelText
-        {
-            get => _selectedChannelText;
-            set { if (_selectedChannelText != value) { _selectedChannelText = value; OnPropertyChangedWithValue(value, nameof(SelectedChannelText)); } }
-        }
-
-        /// <summary>🔴 2026-08-15：频道列表高度（随项数自适应，项数×34+16 钳制 [60, 348]；
-        /// 防 3 项也留大空白）。</summary>
-        private float _channelListHeight = 120f;
-
-        [DataSourceProperty]
-        public float ChannelListHeight
-        {
-            get => _channelListHeight;
-            set { if (MathF.Abs(_channelListHeight - value) > 0.5f) { _channelListHeight = value; OnPropertyChangedWithValue(value, nameof(ChannelListHeight)); } }
         }
 
         // 缩略按钮（完整模式标题带，关闭按钮左侧）
