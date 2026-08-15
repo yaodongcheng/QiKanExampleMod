@@ -38,10 +38,10 @@
                                     Brush.TextHorizontalAlignment="Left" HorizontalAlignment="Left" VerticalAlignment="Center"
                                     MarginLeft="14" ClipContents="true"
                                     DoNotAcceptEvents="true"/>
-                        <!-- 放大按钮（回完整模式；图标 = MPGeneral\MPChat\resize_button，2026-08-15 用户裁定） -->
-                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="28" SuggestedHeight="26"
+                        <!-- 放大按钮（回完整模式；图标 = plus_button_*，2026-08-15 用户裁定） -->
+                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="26"
                                       VerticalAlignment="Center" MarginLeft="6"
-                                      Sprite="MPGeneral\MPChat\resize_button"
+                                      Brush="LWN_Btn_Expand"
                                       Command.Click="ExecuteExpand"/>
                         <!-- 关闭按钮 -->
                         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="26"
@@ -234,17 +234,21 @@
                           Brush="SPOptions.Dropdown.Left.Button"
                           Command.Click="ExecuteSelectPreviousItem"
                           VerticalAlignment="Center" MarginLeft="8" MarginRight="2"/>
-            <!-- 原版下拉中心（列表上开式） -->
-            <AnimatedDropdownWidget Id="LWN_ImChat_CompactDropdown" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                                    SuggestedWidth="150" SuggestedHeight="56" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    DoNotHandleDropdownListPanel="true"
-                                    DropdownContainerWidget="DropdownClipWidget\DropdownContainerWidget"
-                                    ListPanel="DropdownClipWidget\DropdownContainerWidget\ScrollablePanel\ClipRect\LWN_ImChat_ChannelSelectorList"
-                                    Button="DropdownButtonContainer\DropdownButton"
-                                    CurrentSelectedIndex="@SelectedIndex"
-                                    TextWidget="DropdownButtonContainer\DropdownButton\SelectedTextWidget"
-                                    DropdownClipWidget="DropdownClipWidget"
-                                    ScrollbarWidget="DropdownClipWidget\DropdownContainerWidget\VerticalScrollbar">
+            <!-- 原版下拉中心（列表上开式）。
+                 🔴 2026-08-15 实机修复（上拉不生效根因）：必须用 DropdownWidget（基类，ClanPartyRoleDropdown
+                 同款）——AnimatedDropdownWidget 不是它的子类，其 DropdownClipWidget setter 强制
+                 VerticalAlignment=Top + reparent 到 RelativeRoot，上开式布局被覆盖成下开；
+                 DoNotHandleDropdownListPanel 在 AnimatedDropdownWidget 上不存在（静默忽略）。
+                 DropdownWidget + DoNotHandleDropdownListPanel=true：列表不 reparent 不自动定位，
+                 留在 clip 内由 XML 布局（VerticalAlignment=Bottom + MarginBottom=58 向上展开）；
+                 选中/收起/文本刷新仍由控件处理。 -->
+            <DropdownWidget Id="LWN_ImChat_CompactDropdown" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                            SuggestedWidth="150" SuggestedHeight="56" HorizontalAlignment="Center" VerticalAlignment="Center"
+                            DoNotHandleDropdownListPanel="true"
+                            ListPanel="DropdownClipWidget\DropdownContainerWidget\ScrollablePanel\ClipRect\LWN_ImChat_ChannelSelectorList"
+                            Button="DropdownButtonContainer\DropdownButton"
+                            CurrentSelectedIndex="@SelectedIndex"
+                            TextWidget="DropdownButtonContainer\DropdownButton\SelectedTextWidget">
               <Children>
                 <!-- 中心按钮（原版 Options 下拉中心笔刷） -->
                 <Widget Id="DropdownButtonContainer" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
@@ -327,7 +331,7 @@
                   </Children>
                 </Widget>
               </Children>
-            </AnimatedDropdownWidget>
+            </DropdownWidget>
             <!-- 右箭头：下一个频道 -->
             <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="56"
                           Brush="SPOptions.Dropdown.Right.Button"
