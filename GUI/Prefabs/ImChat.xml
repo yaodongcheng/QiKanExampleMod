@@ -44,18 +44,12 @@
                                 VerticalAlignment="Center" MarginLeft="8" MarginRight="8"
                                 DoNotAcceptEvents="true"/>
 
-                    <!-- 🔴 2026-08-15（缩略模式）：切缩略面板按钮（关闭按钮左侧；战斗观察用，看场景不被遮挡） -->
-                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="66" SuggestedHeight="32"
+                    <!-- 🔴 2026-08-15（缩略模式）：切缩略面板按钮（关闭按钮左侧；战斗观察用，看场景不被遮挡）。
+                         图标 = minus_button_*（用户裁定资源），不再用文字按钮 -->
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"
                                   VerticalAlignment="Center" MarginLeft="8"
-                                  Brush="Test.Button3"
-                                  Command.Click="ExecuteToggleCompact">
-                      <Children>
-                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                    Text="@CompactButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
-                                    HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    DoNotAcceptEvents="true"/>
-                      </Children>
-                    </ButtonWidget>
+                                  Brush="LWN_Btn_Collapse"
+                                  Command.Click="ExecuteToggleCompact"/>
 
                     <!-- 关闭按钮 -->
                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
