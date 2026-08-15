@@ -20,7 +20,8 @@ namespace LivingWorldNpcs
 
             // 🔴 O 只负责「打开」：面板开着时输入 o 不触发任何动作（打字不误关）；
             // 关闭走 ESC / 手柄 B / 关闭按钮 / 面板外点击（ImChatView.Tick 内统一处理）
-            if (ModInput.ShortFired(InteractionIds.IM) && !ImChatView.IsOpen)
+            // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
+            if (ModInput.ShortFired(InteractionIds.IM) && !ImChatView.IsOpen && Settings.Instance.PlotEnabled)
                 ImChatView.Open();
 
             ImChatView.Tick(dt);

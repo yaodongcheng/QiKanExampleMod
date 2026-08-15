@@ -37,13 +37,25 @@
                                 IsVisible="@IsTypingVisible"
                                 DoNotAcceptEvents="true"/>
 
-                    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：模式切换按钮已删除——玩家恒走闲聊，
-                          NPC 判 needPlan 后消息底部挂「制定计划/先不用」按钮进计划管线。
-                          本文本 = 会话状态派生的模式指示（闲聊/计划生成中/计划待批准/计划执行中），常显。 -->
+                    <!-- 🔴 2026-08-15（缩略模式）：模式指示文本（闲聊/计划生成中/计划待批准/计划执行中），常显。
+                         会话状态派生，不可切换。 -->
                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                 Text="@ModeStatusText" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#C8C8C8FF"
                                 VerticalAlignment="Center" MarginLeft="8" MarginRight="8"
                                 DoNotAcceptEvents="true"/>
+
+                    <!-- 🔴 2026-08-15（缩略模式）：切缩略面板按钮（关闭按钮左侧；战斗观察用，看场景不被遮挡） -->
+                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="66" SuggestedHeight="32"
+                                  VerticalAlignment="Center" MarginLeft="8"
+                                  Brush="Test.Button3"
+                                  Command.Click="ExecuteToggleCompact">
+                      <Children>
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                    Text="@CompactButtonText" Brush="MyBrush_18_White" Brush.FontSize="15"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    DoNotAcceptEvents="true"/>
+                      </Children>
+                    </ButtonWidget>
 
                     <!-- 关闭按钮 -->
                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"

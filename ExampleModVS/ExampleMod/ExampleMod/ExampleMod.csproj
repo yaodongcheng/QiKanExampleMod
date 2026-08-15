@@ -363,6 +363,8 @@
     <Compile Include="Notify\CustomNotify.cs" />
     <Compile Include="Notify\NinjaNotificationMissionView.cs" />
     <Compile Include="Notify\NinjaNotificationVM.cs" />
+    <Compile Include="Notify\ImSecretNotifyManager.cs" />
+    <Compile Include="Notify\ImSecretNotifyVM.cs" />
     <!-- Planner（密谋命令系统：意图分类 → 计划生成 → 确定性执行；含动作系统三件套） -->
     <Compile Include="Planner\ActionRegistry.cs" />
     <Compile Include="Planner\ActionHandler.cs" />
