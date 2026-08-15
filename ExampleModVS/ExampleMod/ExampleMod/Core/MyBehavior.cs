@@ -266,6 +266,7 @@ namespace LivingWorldNpcs
             if (Input.IsKeyReleased(InputKey.H))
             {
                 if (Settings.Instance.ShowDebugMessages)
+                    // 本地化：LWN_sys_map_h_test（玩家可见文本）
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveText("LWN_sys_map_h_test", "H pressed on the map (test)")));
             }
         }
@@ -340,6 +341,7 @@ namespace LivingWorldNpcs
                 // 调试：部队生成成功提示
                 if (Settings.Instance.ShowDebugMessages)
                     InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_sys_party_spawned（玩家可见文本）
                         LWNTextHelper.ResolveCompound("LWN_sys_party_spawned",
                             "Successfully spawned {NAME}'s army!",
                             ("NAME", hero.Name?.ToString() ?? ""))));
@@ -381,6 +383,7 @@ namespace LivingWorldNpcs
                     SpawnIndependentPartyInWilderness(newHero);
                     if (Settings.Instance.ShowDebugMessages)
                         InformationManager.DisplayMessage(new InformationMessage(
+                            // 本地化：LWN_sys_party_appeared（玩家可见文本）
                             LWNTextHelper.ResolveCompound("LWN_sys_party_appeared",
                                 "A party led by {NAME} has appeared nearby!",
                                 ("NAME", newHero.Name?.ToString() ?? ""))));

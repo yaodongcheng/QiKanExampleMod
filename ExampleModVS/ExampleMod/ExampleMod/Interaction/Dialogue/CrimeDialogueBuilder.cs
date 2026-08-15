@@ -754,6 +754,7 @@ namespace LivingWorldNpcs
             WorldEvent evt = r.Event;
             Hero companion = CompanionSuspectHero(evt);
             string companionName = companion?.Name?.ToString()
+                // 本地化：LWN_crime_suspect_unknown（玩家可见文本）
                 ?? LWNTextHelper.ResolveText("LWN_crime_suspect_unknown", "that companion of yours");
 
             DialogueInjector.DialogueNode node = new DialogueInjector.DialogueNode
@@ -787,6 +788,7 @@ namespace LivingWorldNpcs
                 },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
+                    // 本地化：LWN_crime_player_leave（玩家可见文本）
                     new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."), Action = "NONE", NextNodeOnSuccess = "" },
                 }
             });
@@ -805,6 +807,7 @@ namespace LivingWorldNpcs
                 },
                 Transitions = new List<DialogueInjector.DialogueTransition>
                 {
+                    // 本地化：LWN_crime_player_leave（玩家可见文本）
                     new() { PlayerLine = LWNTextHelper.ResolveText("LWN_crime_player_leave", "I'm leaving."), Action = "NONE", NextNodeOnSuccess = "" },
                 }
             });
@@ -825,8 +828,10 @@ namespace LivingWorldNpcs
                     WorldEventStore.TransitionStage(evt, EventStage.Resolved, null, "companion_handed_over");
                     // 提示消息（铁律 13）：你把 {NAME} 交给了守卫。
                     InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_dialogue_companion_crime_handover_msg（玩家可见文本）
                         LWNTextHelper.ResolveCompound("LWN_dialogue_companion_crime_handover_msg",
                             "You hand over {NAME} to the guards.",
+                            // 本地化：LWN_ui_name_target（玩家可见文本）
                             ("NAME", companion.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target"))),
                         Colors.Yellow));
                     DebugLogger.Log($"[CompanionCrime] 大义灭亲：{companion.Name} 被关进 {evt.TargetSettlement.Name}，事件 {evt.EventId} Resolved");

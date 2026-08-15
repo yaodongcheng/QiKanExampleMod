@@ -37,6 +37,8 @@ ALLOWED_ACTIONS = {
     "face", "look_at", "say_to", "wait", "emote", "make_noise", "signal_player",
     "steal_attempt", "give_item", "give_gold", "deliver_item", "shadow",
     "negotiate", "duel", "end_plan",
+    # 2026-08-14（npc-risk-aware-planning.md M6/M7）：ask_help 分头配合 / steal_equipment 卸装备
+    "ask_help", "steal_equipment",
 }
 ACTION_ALIASES = {
     "attack": "order_attack", "move": "move_to", "stop": "stop_following",

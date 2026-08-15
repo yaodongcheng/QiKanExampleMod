@@ -586,6 +586,7 @@ namespace LivingWorldNpcs
 
                 // ② 玩家冒泡认领
                 AgentHudMissionView.AgentSay(Agent.Main,
+                    // 本地化：LWN_ui_intervene_bubble（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_ui_intervene_bubble", "Stop! He's my man!"), "intervene");
 
                 // ③ 嫌疑转移：breakdown 顶条目 suspect → 玩家；WorldEvent 嫌疑人 → 玩家
@@ -612,8 +613,10 @@ namespace LivingWorldNpcs
         /// <summary>友方保护拦截提示（反馈明确，铁律 13 本地化）：{NAME} 是自己人——你不能这么做。</summary>
         private static void ShowFriendlyBlocked(Agent target)
         {
+            // 本地化：LWN_ui_name_target（玩家可见文本）
             string name = target?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
             InformationManager.DisplayMessage(new InformationMessage(
+                // 本地化：LWN_ui_hostile_friendly_blocked（玩家可见文本）
                 LWNTextHelper.ResolveCompound("LWN_ui_hostile_friendly_blocked",
                     "{NAME} is on your side — you can't do that.",
                     ("NAME", name)),

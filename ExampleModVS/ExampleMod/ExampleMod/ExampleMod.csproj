@@ -102,8 +102,12 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
-    <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.13.0.4\lib\net45\Newtonsoft.Json.dll</HintPath>
+    <!-- 🔴 Newtonsoft.Json 必须引用游戏自带 DLL（$(MB2_CORE_REF)），禁止引用 NuGet 包——
+        编译目标 = 运行目标，任何新版本独有 API（如 13.0.2 的 JToken.ToString(Formatting) 单参重载）
+        编译期直接报错。教训：2026-08-15 存档失败（MissingMethodException 星星眼）。
+        引擎（TaleWorlds.Library 等）在 1.2.12/1.3.x/1.4.x 全部引用 Newtonsoft 13.0.0.0 → 必带 -->
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(MB2_CORE_REF)\Newtonsoft.Json.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SandBox">
@@ -369,6 +373,7 @@
     <Compile Include="Planner\RuntimeWorldState.cs" />
     <Compile Include="Planner\PlanExecutor.cs" />
     <Compile Include="Planner\InlineSteps.cs" />
+    <Compile Include="Planner\RiskAssessor.cs" />
     <Compile Include="Planner\ReactiveAgent.cs" />
     <Compile Include="Planner\PlanReplan.cs" />
     <!-- Properties -->

@@ -198,6 +198,7 @@ namespace LivingWorldNpcs
                 // 带队人兜底：村名 → "Village"
                 string partyName = authority?.Name?.ToString()
                     ?? evt.TargetSettlement?.Name?.ToString()
+                    // 本地化：LWN_investigation_village（玩家可见文本）
                     ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
                 // 报复部队名：{带队人名}'s Revenge Party
                 V.SetPartyName(party, new TaleWorlds.Localization.TextObject(LWNTextHelper.ResolveCompound("LWN_investigation_revenge_party", ("NAME", partyName))));
@@ -311,6 +312,7 @@ namespace LivingWorldNpcs
                 // 打手队名：挂权威 NPC 名字（他派来的打手，主使可见）；带队人兜底：村名 → "Village"
                 string partyName = authority?.Name?.ToString()
                     ?? evt.TargetSettlement?.Name?.ToString()
+                    // 本地化：LWN_investigation_village（玩家可见文本）
                     ?? LWNTextHelper.ResolveText("LWN_investigation_village", "Village");
                 // 打手队名：{权威 NPC 名}'s Thugs
                 V.SetPartyName(party, new TaleWorlds.Localization.TextObject(LWNTextHelper.ResolveCompound("LWN_investigation_thug_party", ("NAME", partyName))));

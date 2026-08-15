@@ -400,6 +400,55 @@ namespace LivingWorldNpcs
                 var exec = PlanExecutor.GetExecutorFor(Owner);
                 exec?.NotifyDecisionEvent(decisionType);
             }
+            // ── 多随从分头配合（2026-08-14 M6，npc-risk-aware-planning.md）：──
+            // 执行人 A 的 ask_help 步骤请求同袍 B 执行单个低危动作（白名单 make_noise/follow/emote）。
+            // B 侧：空闲校验（无计划/无战斗/非昏迷）→ 冒泡「交给我」→ ChatActionFlow 单步执行
+            //（复用免确认直发通道）→ 完成回调发 assist_done 回执给请求者 A（A 的步骤 on_event 继续）。
+            // 忙碌 → 忽略（A 的 ask_help 步骤 on_timeout 兜底，计划轮生成时写好）。
+            if (aiEvent.EventType == "assist_request")
+            {
+                string assistAction = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as string : null;
+                string assistTarget = aiEvent.Args.Length > 1 ? aiEvent.Args[1] as string : null;
+                Agent requester = aiEvent.Args.Length > 2 ? aiEvent.Args[2] as Agent : null;
+                if (string.IsNullOrEmpty(assistAction)
+                    || !AskHelpInlineState.AssistWhitelist.Contains(assistAction)) return;
+                // 配合者空闲校验（v1 范围：不生成计划、不风险审视——白名单低危单动作）
+                if (IsInCombat || AgentBrain.IsKnockedOut(Owner)
+                    || (_currentIntent != null && _currentIntent.Type == NpcIntentType.ExecutingCommand))
+                {
+                    DebugLogger.Log($"[Brain] assist_request 忽略（{Owner.Name} 忙碌: combat={IsInCombat} knockedOut={AgentBrain.IsKnockedOut(Owner)}）→ 请求者 on_timeout 兜底");
+                    return;
+                }
+                // 冒泡确认（think-aloud：B 侧配合可见）
+                try
+                {
+                    // 本地化：配合接受台词「交给我」（B 侧冒泡）
+                    SpeechChannel.SayPolished(Owner, LWNTextHelper.ResolveText("LWN_npc_assist_accept", "On it."),
+                        SpeechPriority.Dialogue,
+                        SpeechContext.FromBrain(this, requester, "assist_request", null));
+                }
+                catch { }
+                DebugLogger.Log($"[Brain] {Owner.Name} 接受配合请求: {assistAction}（目标 {assistTarget ?? "-"}，请求者 {requester?.Name}）");
+                // 单步执行（复用免确认直发通道）+ 完成回执 assist_done 给请求者
+                var requesterRef = requester;
+                ChatActionFlow.TryExecute(Owner, assistAction, assistTarget, null, null,
+                    onFinished: actor =>
+                    {
+                        if (requesterRef != null && requesterRef.IsActive())
+                        {
+                            AgentAIController.Instance?.SendEventToAgent(requesterRef, "assist_done", actor);
+                            DebugLogger.Log($"[Brain] {actor?.Name} 配合完成 → assist_done 回执给 {requesterRef.Name}");
+                        }
+                    });
+                return;
+            }
+            // ── 配合完成回执转发（B → A 的执行器事件通道；A 的 ask_help/wait 步骤 on_event 消费）──
+            if (aiEvent.EventType == "assist_done")
+            {
+                var exec = PlanExecutor.GetExecutorFor(Owner);
+                exec?.NotifyDecisionEvent("assist_done");
+                return;
+            }
             if(aiEvent.EventType == "order_attack")
             {
 

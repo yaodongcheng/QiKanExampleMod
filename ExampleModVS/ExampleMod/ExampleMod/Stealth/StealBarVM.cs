@@ -471,6 +471,7 @@ namespace LivingWorldNpcs
                 {
                     // 本地化：party 负重已满，无法再偷
                     InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_ui_steal_msg_overburdened（玩家可见文本）
                         LWNTextHelper.ResolveText("LWN_ui_steal_msg_overburdened",
                         "Your party is overburdened and cannot carry any more."), Colors.Red));
                     return; // 不转移物品，等玩家下次出手

@@ -215,8 +215,14 @@ namespace LivingWorldNpcs
 
             int fine = Math.Max(50, CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution));
             args.optionLeaveType = GameMenuOption.LeaveType.Bribe;
-            MBTextManager.SetTextVariable("LWN_COMPANION", hero.Name, false);
-            MBTextManager.SetTextVariable("LWN_COMPANION_FINE", fine);
+            // 🔴 2026-08-15（多条目显示串名根因修复，反编译实锤）：选项动态文本的正确机制 =
+            // 对 args.Text（该选项自己的 TextObject 实例，MenuCallbackArgs(menuContext, Text) 传入）
+            // 调**实例级** SetTextVariable——渲染时 TextObject 先查实例变量表再查全局表，
+            // 多选项实例变量独立互不干扰（修复 08:42 两个「赎回阿速甘」的全局变量覆盖）。
+            // ⚠️ 错误做法一：MBTextManager.SetTextVariable（全局表 → 多选项互相覆盖）；
+            // ⚠️ 错误做法二：args.Text = new TextObject(...)（引擎不回读 args.Text，选项文本永远是注册时实例）。
+            args.Text.SetTextVariable("LWN_COMPANION", hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target"));
+            args.Text.SetTextVariable("LWN_COMPANION_FINE", fine.ToString());
 
             if (Hero.MainHero.Gold < fine)
             {
@@ -255,33 +261,54 @@ namespace LivingWorldNpcs
                 catch (Exception ex) { DebugLogger.Log($"[CompanionDetention] receiver lookup failed: {ex.Message}"); }
                 AgentControlHelper.TransferGold(Hero.MainHero, receiver, fine);
 
-                // 释放：从牢房移除（hero 自动回原队伍——原版 prisoner roster 移除语义）
+                // ── 释放序列（M1 修复 2026-08-14，npc-risk-aware-planning.md）──
+                // 反编译实锤：PrisonRoster.RemoveTroop 只是计数操作，不会自动回原队伍；
+                // hero 入狱瞬间就被引擎从玩家队伍摘除（PartyBelongedTo = null）。
+                // 官方释放语义（EndCaptivityAction）：ChangeState(Released) 必须，否则英雄卡 Prisoner 状态。
+                // 反编译确认 Hero.ChangeState 无状态机校验（直接换状态 + 广播），Prisoner → Released 合法。
+                try { hero.ChangeState(Hero.CharacterStates.Released); } catch (Exception ex) { DebugLogger.Log($"[CompanionDetention] ChangeState(Released) failed: {ex.Message}"); }
                 settlement.Party.PrisonRoster.RemoveTroop(hero.CharacterObject, 1);
+                // 立即归队（交付感：玩家赎回 = 当场领人；不走原版 fugitive 潜逃数日——候选方案已否决）
+                if (hero.PartyBelongedTo == null)
+                {
+                    MobileParty.MainParty.MemberRoster.AddToCounts(hero.CharacterObject, 1);
+                    // AddToCounts 走 OnHeroAdded → PartyBelongedTo = MainParty（反编译确认）
+                    DebugLogger.Log($"[CompanionDetention] {hero.Name} 已归队（MemberRoster.AddToCounts，State={hero.HeroState}）");
+                }
                 _entries.Remove(entries[index]);
-
                 // 事件结案（随从已赎出，案件了结）
                 if (evt.Stage != EventStage.Resolved)
                     WorldEventStore.TransitionStage(evt, EventStage.Resolved, null, "companion_ransomed");
-
                 InformationManager.DisplayMessage(new InformationMessage(
+                    // 本地化：LWN_ui_companion_ransom_ack（玩家可见文本）
                     LWNTextHelper.ResolveCompound("LWN_ui_companion_ransom_ack",
                         "You pay the fine and take {NAME} back.",
+                        // 本地化：LWN_ui_name_target（玩家可见文本）
                         ("NAME", hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target"))),
                     Colors.Yellow));
                 DebugLogger.Log($"[CompanionDetention] 赎回 {hero.Name}：罚款 {fine} → {receiver?.Name?.ToString() ?? "world"}，事件 {evt.EventId} Resolved");
+
+                // 🔴 2026-08-15（赎回后菜单不实时更新，实机）：结算后重进菜单——选项条件实时重算，
+                // 已赎条目立即消失；仍有可赎 → 重进二级菜单（列表刷新，可连续赎回）；无 → 退回一级菜单。
+                // 旧实现结算后菜单选项是打开时构建的旧快照，玩家要退出重进才看到更新。
+                try
+                {
+                    GameMenu.SwitchToMenu(GetRansomableEntriesIn(settlement).Count > 0
+                        ? RANSOM_MENU_ID
+                        : PlayerDetentionBehavior.SettlementMenuIdOf(settlement));
+                }
+                catch (Exception ex) { DebugLogger.Log($"[CompanionDetention] 赎回后菜单刷新失败: {ex.Message}"); }
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[CompanionDetention] 赎回失败: {ex.Message}");
             }
         }
-
         private static bool RansomBackOnCondition(MenuCallbackArgs args)
         {
             args.optionLeaveType = GameMenuOption.LeaveType.Leave;
             return true;
         }
-
         private void RansomBackOnConsequence(MenuCallbackArgs args)
         {
             try

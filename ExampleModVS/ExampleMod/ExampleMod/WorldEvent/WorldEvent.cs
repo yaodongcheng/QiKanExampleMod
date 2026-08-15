@@ -821,6 +821,12 @@ namespace LivingWorldNpcs
                     hasNonAnimal = true;
                     continue;
                 }
+                // 聚合记录（CompactItemRecordsForSerialize）：不点名，只计入总量尾巴（"等 N 项财物"）
+                if (kv.Key == "__rest")
+                {
+                    totalCount += kv.Value;
+                    continue;
+                }
                 var item = MBObjectManager.Instance.GetObject<ItemObject>(kv.Key);
                 string name = item?.Name?.ToString() ?? kv.Key;
                 bool isAnimal = item?.Type == ItemObject.ItemTypeEnum.Animal;
@@ -2110,6 +2116,7 @@ namespace LivingWorldNpcs
             try
             {
                 TrimResolvedForSerialize();
+                CompactItemRecordsForSerialize();
                 var data = new Dictionary<string, object>
                 {
                     { "events", _allEvents },
@@ -2164,6 +2171,82 @@ namespace LivingWorldNpcs
 
             if (removedActive > 0 || removedResolved > 0)
                 DebugLogger.Log($"[WorldEventStore] Trim: 淘汰 {removedActive} 条 Dormant + {removedResolved} 条已结案事件 (活跃≤{MaxActiveEvents} 结案≤{MaxResolvedEvents})");
+        }
+
+        /// <summary>
+        /// 序列化前压缩单事件赃物清单（根因防线——2026-08-15 存档失败事故）：
+        /// Steal 记录按件记账（AddStealAction 一条一件），宝箱洗劫一次能记 135+ 条 →
+        /// 单事件 JSON ≈ 30KB，把 lwn_crime_events 顶到 Strings 表 short 上限（32767B）→
+        /// 存档报错（星星眼）。这里先按 ItemId 合并同种赃物（数量/面额求和，含 gold），
+        /// 再按合并后的总价值降序（见 EstimateStealValue）保留前 MaxItemRecords 种——
+        /// NPC 点名/叙述里保留"值钱的那几样"（10 万谷子合并后必然压过 1 匹马）
+        /// + 1 条聚合记录（ItemId="__rest"，Count=剩余种类数）。
+        /// 事件内清单只是叙事摘要（全量账本在 TheftLedger，见 WorldEvent 注释「去规范化摘要」），
+        /// 压缩不影响定罪/赔偿（ComputeCost 不读 StolenItems）/调查；BuildStolenItemsDescription
+        /// 对 "__rest" 有特判，计入总量尾巴。兼容旧档：已膨胀的旧事件下次存档即被压缩。
+        /// </summary>
+        private static void CompactItemRecordsForSerialize()
+        {
+            const int MaxItemRecords = 10;
+            foreach (var evt in _allEvents)
+            {
+                if (evt?.WitnessTestimonies == null) continue;
+                foreach (var t in evt.WitnessTestimonies)
+                {
+                    if (t?.Actions == null) continue;
+                    var steals = t.Actions
+                        .Where(a => a.ActionType == "Steal" && !string.IsNullOrEmpty(a.ItemId)).ToList();
+                    if (steals.Count <= MaxItemRecords) continue;
+
+                    // ① 同 ItemId 合并：多次偷同一种 → 数量/面额求和（含 gold），
+                    //    价值按合并后的总量算——100000 谷子 vs 1 匹马，谷子必然排前面。
+                    //    ItemName/TargetName 取首条（同种同案语义一致，清单只是摘要）。
+                    var merged = steals
+                        .GroupBy(a => a.ItemId)
+                        .Select(g => new ActionRecord
+                        {
+                            ActionType = "Steal",
+                            AlertValue = g.First().AlertValue,
+                            TargetName = g.First().TargetName,
+                            ItemId = g.Key,
+                            ItemName = g.First().ItemName,
+                            Count = g.Sum(a => Math.Max(1, a.Count)), // 旧档 Count=0 按 1 兜底
+                        }).ToList();
+
+                    // ② 按合并后总价值降序保留前 10 种（同价值时数量多的靠前）
+                    var ordered = merged
+                        .OrderByDescending(EstimateStealValue)
+                        .ThenByDescending(a => a.Count)
+                        .ToList();
+                    var kept = ordered.Take(MaxItemRecords).ToList();
+                    if (ordered.Count > MaxItemRecords)
+                    {
+                        kept.Add(new ActionRecord
+                        {
+                            ActionType = "Steal",
+                            AlertValue = 3.0f,
+                            ItemId = "__rest",
+                            Count = ordered.Count - MaxItemRecords, // 其余赃物种类数
+                        });
+                    }
+                    // ③ 替换：非 Steal 记录（无 ItemId 的脉冲语境记录）原样保留 + 压缩后的 Steal 记录
+                    t.Actions = t.Actions
+                        .Where(a => a.ActionType != "Steal" || string.IsNullOrEmpty(a.ItemId))
+                        .Concat(kept).ToList();
+                    DebugLogger.Log($"[WorldEventStore] ItemCompact: {evt.EventId} 赃物记录 {steals.Count} 条 → 合并 {merged.Count} 种 → 前 {MaxItemRecords} 种 + 其余 {ordered.Count - MaxItemRecords} 种");
+                }
+            }
+        }
+
+        /// <summary>赃物记录价值估算（压缩排序用，与 TotalStolenValue 同口径）：
+        /// gold 的 Count 即面额；物品 = ItemObject.Value × 数量（旧档 Count=0 按 1 兜底）；
+        /// 物品查不到（被其他 mod 屏蔽/已移除）按 0——排末尾但记录保留。</summary>
+        private static long EstimateStealValue(ActionRecord a)
+        {
+            if (a.ItemId == "gold") return a.Count;
+            var item = MBObjectManager.Instance.GetObject<ItemObject>(a.ItemId);
+            if (item == null) return 0;
+            return (long)item.Value * Math.Max(1, a.Count);
         }
 
         /// <summary>被活跃 Quest / 扣押流程引用的事件 ID 集合（绝不淘汰）。</summary>

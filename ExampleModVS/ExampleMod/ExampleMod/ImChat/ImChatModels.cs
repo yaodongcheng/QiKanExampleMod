@@ -114,6 +114,18 @@ namespace LivingWorldNpcs
         public string CommandText;       // 玩家原始请求（制定计划 → RequestCommand 的命令文本；
                                         // 私聊玩家消息不走 store，必须冗余存这里；群聊可兜底 FindOriginalCommand）
 
+        // 🔴 2026-08-15（plan_needed 全手动裁定）：随从战术方向（risk_analysis 原文）——
+        // plan_needed 挂「制定计划」按钮时随带存储，玩家点按钮 → RequestCommand(companionIntention)
+        // 进计划轮【随从的打算】段（M4 think-aloud：战术方向不因手动确认而丢失）。
+        [JsonProperty("ra")]
+        public string RiskAnalysisText;  // LLM 生成文本（豁免本地化）
+
+        // 🔴 2026-08-15（目标唯一标记，用户裁定）：回复轮已解析的目标（LLM action_target 原文，含 #N
+        // index 标记，如 "酒馆店主#3"）——玩家点「制定计划」后随命令进计划轮【目标指认】段，
+        // 计划轮 LLM 直接引用该标记写 target，不再二次解析玩家原话（"酒馆老板"→ 失配风险归零）。
+        [JsonProperty("rt")]
+        public string ResolvedTargetText;
+
         [JsonIgnore]
         public bool IsSelf => SenderHeroId == ImChatManager.PlayerId;
 

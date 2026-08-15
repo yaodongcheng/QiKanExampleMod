@@ -810,6 +810,7 @@ namespace LivingWorldNpcs
                 }
                 
                 if (Settings.Instance.ShowDebugMessages)
+                    // 本地化：LWN_ui_interact_msg_negotiation_calc（玩家可见文本）
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_negotiation_calc", ("BASE", tacticBaseScore.ToString()), ("CHIPS", chipsValue.ToString()), ("MULT", finalMultiplier.ToString()), ("TOTAL", calculatedDelta.ToString()))));
                 DebugLogger.Log($"【谈判计算】牌面效果：{tacticBaseScore} 筹码加成：{chipsValue} LLM 乘数：{finalMultiplier} 最终得分：{calculatedDelta}");
             }
@@ -1366,6 +1367,7 @@ namespace LivingWorldNpcs
 
 
             if (Settings.Instance.ShowDebugMessages)
+                // 本地化：LWN_ui_interact_msg_progress（玩家可见文本）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_progress", ("CURRENT", state.CurrentProgress.ToString()), ("TARGET", state.TargetThreshold.ToString()), ("GAIN", gainValue.ToString()), ("PCT", $"{gainPercent:F1}")), Colors.Green));
          
         }
@@ -1718,6 +1720,7 @@ namespace LivingWorldNpcs
             }
             _vm.Show(_targetAgent.Name.ToString(), reply);
             if (Settings.Instance.ShowDebugMessages)
+                // 本地化：LWN_ui_interact_msg_reply（玩家可见文本）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_ui_interact_msg_reply", ("NAME", _targetAgent.Name.ToString()), ("REPLY", reply)), Colors.Red));
             // 更新动画/表情动作
             if (!string.IsNullOrEmpty(emotion))

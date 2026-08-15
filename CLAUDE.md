@@ -240,6 +240,7 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 | [架势耐力系统_引擎能力与可行性研究](Knowledge/架势耐力系统_引擎能力与可行性研究.md) | 🔴 架势/耐力机制引擎能力边界、竞品分析（RBM/Stamina System）、决策：不自研，前置依赖 RBM | 战斗系统规划、架势崩防 × AgentBrain 联动设计 |
 | [原版骑砍2任务系统分析](Knowledge/原版骑砍2任务系统分析.md) | 🔴 **40 种 NPC 委托任务全览**，Issue→Quest 双层架构、三种解决路径、触发机制、IssueEffect 惩罚、对话集成 | 委托任务（CommissionQuest）系统设计，理解原版 Issue/Quest 边界 |
 | [AIInfluenceProject_技术实现分析](Knowledge/AIInfluenceProject_技术实现分析.md) | 参考 mod 的 DiplomacyManager 设计 | 外交系统参考 |
+| [BannerlordTalk_技术实现分析](Knowledge/BannerlordTalk_技术实现分析.md) | 🔴 **外部闲聊 mod 逆向**：双层 Prompt 分节预算+尾部保底、Presentation 合同、LiveFacts 带化量纲、世界事件记忆（分级评分/曝光冷却/聚合）、常识库 BM25 检索、Fish TTS 请求体、事件驱动闲聊设计 | 闲聊 prompt 工程、世界背景自动生成（Q3 方案）、事件驱动广播选人/防复读 |
 | [偷盗系统分析与优化方案](Knowledge/偷盗系统分析与优化方案.md) | 🔴 **偷盗系统全链路分析**：StealVM/StealManager/触发/博弈/结算/后果闭环，对标 Skyrim/DOS2/大侠立志传的乐趣差距诊断，P0-P2 优化路线图 | 偷盗系统优化、新玩法设计、沉浸感打磨 |
 | [原版Quest案例源码分析](Knowledge/quest_example.md) | 🔴 **5 个原版 Quest 源码级案例分析**：MerchantNeedsHelpWithOutlaws / NotableWantsDaughterFound / FamilyFeud / RevenueFarming / EscortMerchantCaravan，含完整调用链、反编译代码、横向对比、设计模板 | 新增 Issue/Quest 的架构参考、理解原版事件驱动模式 |
 | [🔴 原版40+任务完整分析](Knowledge/vanilla_quests/README.md) | 🔴 **40+ 任务全目录 + 可复用模式 + 完整 API 参考**：按表现力/进度/NPC/事件/经济/道德抉择/部队AI/资源互斥分类的可复用接口目录，43 个任务的快速参考卡，15 个深度分析 | **设计新任务/新委托前的第一站** — 查模式、找接口、copy API 签名 |

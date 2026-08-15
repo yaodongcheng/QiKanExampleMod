@@ -519,6 +519,493 @@ namespace LivingWorldNpcs
             catch { return ""; }
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // 🔴 2026-08-14（npc-risk-aware-planning.md M3）：命令注入场景感知（【目之所及】段）
+        // ═══════════════════════════════════════════════════════════
+        /// <summary>命令触发词表（中英双语，对齐 WorldFactProvider 主题表惯例）：命中 → 注入风险场景段；
+        /// 闲聊（无命令语义）零开销不注入。L0 低风险动作（move_to/emote/follow 等）不在此表。</summary>
+        private static readonly string[] RiskCommandKeywords =
+        {
+            "偷", "摸", "扒", "抢", "打", "揍", "敲", "杀", "击晕", "晕", "抓", "绑", "收拾",
+            "跟", "盯", "卸", "夺", "潜", "偷袭", "动手", "制服",
+            "steal", "pickpocket", "rob", "knock", "attack", "hit", "kill", "grab", "catch",
+            "strike", "ambush", "disarm", "seize", "take down", "beat", "follow", "trail",
+        };
+        /// <summary>
+        /// 🔴 2026-08-14（M3）：命令注入场景感知——命中动作命令关键词（偷/击晕/打/跟/抓/抢……）时，
+        /// 在 BuildSceneAwareness（此刻处境）基础上扩展返回【目之所及】段：该 NPC 一眼扫到的场面
+        ///（在场人员/目标位置与移动状态/视线/阵营/双方合计战力+武装档位/在场潜在援军）。
+        /// 用途 = M4 风险审视的输入 + 随从 think-aloud 的事实来源（拒绝/计划时理由有事实依据，
+        /// 把 P3 的"常识泛化"升级成"感知判断"）。
+        /// 叙事铁律：全是该 NPC 亲见（快照 = 它的眼睛）；背对的人视线状态按 CanSee 为准；
+        /// 阵营信息 = 同袍穿同款甲胄/熟面孔、守卫的制式装备——看得出来的。
+        /// 快慢变量分层：慢变量（人群构成/职业/阵营/守卫位置/战力合计）作判断依据；
+        /// 快变量（视线"正看着谁"、精确距离）弱化措辞（"此刻"/"随时会变"）。
+        /// ⚠️ 主线程调用（引擎对象只读主线程）——ImReplyService.ScheduleReply 构建快照。
+        /// </summary>
+        public static string BuildRiskSceneContext(string npcHeroId, string commandText)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(npcHeroId) || string.IsNullOrEmpty(commandText)
+                    || Mission.Current == null || Agent.Main == null) return "";
+                // 触发范围 = 命令（闲聊零开销）：命中动作命令关键词才注入
+                string cmd = commandText;
+                bool hit = false;
+                foreach (var kw in RiskCommandKeywords)
+                    if (cmd.IndexOf(kw, StringComparison.OrdinalIgnoreCase) >= 0) { hit = true; break; }
+                if (!hit) return "";
+                // 该 NPC 的物理载体（快照 = 它的眼睛）
+                Agent self = null;
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsActive() || a == Agent.Main) continue;
+                    var hero = (a.Character as CharacterObject)?.HeroObject;
+                    if (hero != null && hero.StringId == npcHeroId) { self = a; break; }
+                }
+                if (self == null) return "";
+                var snap = SceneSnapshot.Build(Mission.Current);
+                var sb = new StringBuilder();
+                // 本地化：【目之所及】段标题（M3 风险审视 prompt 段标题，铁律 13 走 LWN_fact_title_risk）
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_fact_title_risk",
+                    "【目之所及】（You are in the scene; this is what you see at a glance — people move around, the impression may be stale）"));
+                DebugLogger.Log($"[RiskScene] {npcHeroId} 命令命中注入（{cmd.Length} 字符，在场 {snap.Agents.Count} 人）");
+                // ── 目标解析：命令文本里出现的人名/角色名 → 快照五层匹配（复用 FindAgent 口径）──
+                SceneSnapshot.AgentInfo targetInfo = null;
+                foreach (var info in snap.Agents)
+                {
+                    if (info == null || info.Agent == null || info.Agent == self) continue;
+                    string name = info.DisplayName ?? "";
+                    string charName = info.Agent.Character?.Name?.ToString() ?? "";
+                    string role = info.Role ?? "";
+                    if ((!string.IsNullOrEmpty(name) && cmd.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
+                        || (!string.IsNullOrEmpty(charName) && cmd.IndexOf(charName, StringComparison.OrdinalIgnoreCase) >= 0)
+                        || (!string.IsNullOrEmpty(role) && role.Length >= 2 && cmd.IndexOf(role, StringComparison.OrdinalIgnoreCase) >= 0))
+                    {
+                        targetInfo = info;
+                        break;
+                    }
+                }
+                Agent target = targetInfo?.Agent;
+                DebugLogger.Log($"[RiskScene] 目标解析: {target?.Name?.ToString() ?? "无（只给在场概况）"}");
+                // ── 在场概况（🔴 2026-08-15 采样优化，用户裁定：楼层聚类 + 分层配额 + 优先级采样）──
+                // 旧实现全量按角色合并计数，无楼层概念、无个体多样性。新实现：候选池 → 楼层聚类（Position.Z）
+                // → 每层保底 1 + 按人数比例配额 → 层内优先级（目标 > Hero > 独特模板 > 近距 15m > 空间均匀随机）
+                // → 个体行 + 未采样者合并计数行。token 预算内信息价值最大化。
+                string presenceSample = BuildPresenceSample(snap, self, target);
+                if (!string.IsNullOrEmpty(presenceSample))
+                    sb.Append(presenceSample);
+                // ── 目标段（解析到目标才给；目标在走动 → 时效声明）──
+                if (target != null && target.IsActive())
+                {
+                    // 🔴 2026-08-15（目标唯一标记）：名字带 [#N] index 标记（引擎 Agent.Index，Mission 内稳定）——
+                    // LLM 基于场景语义指认目标（「酒馆老板」→ 场景里标着 [#N] 的「酒馆店主」），
+                    // action_target 输出带 index（如 酒馆店主#3）→ C# 精确解析，不靠字符串匹配。
+                    string tName = $"{target.Name?.ToString() ?? targetInfo?.DisplayName ?? "目标"}[#{target.Index}]";
+                    // 🔴 2026-08-15（楼层感知）：目标行标注所在楼层（「楼上」→ LLM 计划天然含上楼步骤）
+                    string tFloor = FloorLabelOf(target, self);
+                    if (!string.IsNullOrEmpty(tFloor)) tName += $"（{tFloor}）";
+                    // 目标相对本 NPC 的方位 + 距离（以 self 自身朝向为基准——亲见视角）
+                    string rel = DescribeTargetRelative(self, target);
+                    // 移动状态（RuntimeWorldState.cs:285 同口径：Velocity.LengthSquared > 0.25f = 走动中）
+                    bool moving = target.Velocity.LengthSquared > 0.25f;
+                    sb.AppendLine($"- {tName} {rel}" + (moving ? "，他正在走动（位置随时会变）" : "，他站着没动（位置大致稳定）") + "。");
+                    // 目标身边 3 米内人数
+                    int nearby = 0;
+                    foreach (var info in snap.Agents)
+                    {
+                        if (info == null || info.Agent == null || info.Agent == target || info.Agent == self) continue;
+                        if (info.Agent.Position.Distance(target.Position) <= 3f) nearby++;
+                    }
+                    if (nearby > 0)
+                        sb.AppendLine($"- 他身边 3 米内有 {nearby} 人站着。");
+                    // 视线（快变量：弱化措辞）——「至少有 N 人的视线落在他身上（此刻）」
+                    int watchers = 0;
+                    foreach (var info in snap.Agents)
+                    {
+                        if (info == null || info.Agent == null || info.Agent == target || info.Agent == self) continue;
+                        if (snap.CanSee(info.Agent, target)) watchers++;
+                    }
+                    if (watchers > 0)
+                        sb.AppendLine($"- 此刻至少有 {watchers} 人的视线落在他身上（转头就可能变）。");
+                    // 谁正看着本 NPC 自己（亲见：自己被盯着）
+                    int selfWatchers = 0;
+                    foreach (var info in snap.Agents)
+                    {
+                        if (info == null || info.Agent == null || info.Agent == self) continue;
+                        if (snap.CanSee(info.Agent, self)) selfWatchers++;
+                    }
+                    if (selfWatchers > 0)
+                        sb.AppendLine($"- 可能有 {selfWatchers} 人正看着你（你自己也会被看见）。");
+                }
+                // ── 阵营段（与 AgentBrain 实际行为同口径：友方旁观者豁免/护主参战/守卫站秩序/中立目击告发）──
+                var buddies = new List<string>();
+                var targetFriends = new List<string>();
+                int guards = 0;
+                var neutralNames = new List<string>();
+                foreach (var info in snap.Agents)
+                {
+                    if (info == null || info.Agent == null || info.Agent == self || info.Agent == Agent.Main) continue;
+                    if (info.Role == "guard") { guards++; continue; }
+                    // 🔴 2026-08-15（目标唯一标记）：名单带 [#N]——LLM 可引用「你的同袍#7」等指定任意在场者
+                    string label = $"{info.DisplayName ?? "同袍"}[#{info.Agent.Index}]";
+                    if (FriendlinessHelper.IsFriendlyToPlayer(info.Agent)) buddies.Add(label);
+                    else if (target != null && FriendlinessHelper.IsFriendlyBetween(target, info.Agent)) targetFriends.Add(label);
+                    else neutralNames.Add(label);
+                }
+                if (buddies.Count + targetFriends.Count + guards + neutralNames.Count > 0)
+                {
+                    sb.AppendLine("- 阵营（谁站谁那边——你犯事时他们的真实反应）：");
+                    if (buddies.Count > 0)
+                        sb.AppendLine($"  - 在场 {buddies.Count} 人是你的同袍（玩家队伍的人）：{string.Join("、", buddies.Take(4))}——你犯事他们假装没看见，你被打他们会帮你。");
+                    if (targetFriends.Count > 0)
+                        sb.AppendLine($"  - {tNameOf(target)}身边 {targetFriends.Count} 人是他的同伴：会帮他、会告发你。");
+                    if (guards > 0)
+                        sb.AppendLine($"  - 场上有 {guards} 名守卫：你若犯事他会抓你。");
+                    if (neutralNames.Count > 0)
+                        sb.AppendLine($"  - 其余 {neutralNames.Count} 人是中立旁观者：不参战，但会看见并告发。");
+                }
+                // ── 战力段（双方合计 + 武装档位 + 结论词；禁止给数字公式让 LLM 编——给结论词）──
+                int selfSide = AgentStatsHelper.GetAgentStatTotal(self);
+                int enemySide = 0;
+                if (target != null && target.IsActive()) enemySide += AgentStatsHelper.GetAgentStatTotal(target);
+                foreach (var info in snap.Agents)
+                {
+                    if (info == null || info.Agent == null || info.Agent == self || info.Agent == Agent.Main) continue;
+                    if (info.Role == "guard") { enemySide += AgentStatsHelper.GetAgentStatTotal(info.Agent); continue; }  // 守卫站秩序 = 随从犯事即敌（保守计入）
+                    if (target != null && FriendlinessHelper.IsFriendlyBetween(target, info.Agent))
+                        enemySide += AgentStatsHelper.GetAgentStatTotal(info.Agent);
+                    else if (FriendlinessHelper.IsFriendlyToPlayer(info.Agent))
+                        selfSide += AgentStatsHelper.GetAgentStatTotal(info.Agent);
+                }
+                // 本地化：战力结论五档词（双方合计比 → 结论词，LLM 只读结论不给数字公式）
+                string verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_even", "evenly matched");
+                // 本地化：敌方无战力 → 稳赢
+                if (enemySide <= 0) verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_overwhelming", "an overwhelming win");
+                else
+                {
+                    float ratio = (float)selfSide / enemySide;
+                    // 本地化：五档阈值分档（稳赢/略占上风/势均力敌/略处下风/悬殊）
+                    if (ratio >= 2.5f) verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_overwhelming", "an overwhelming win");
+                    // 本地化：略占上风
+                    else if (ratio >= 1.6f) verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_slight_advantage", "a slight advantage");
+                    // 本地化：势均力敌
+                    else if (ratio >= 0.85f) verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_even", "evenly matched");
+                    // 本地化：略处下风
+                    else if (ratio >= 0.5f) verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_slight_disadvantage", "a slight disadvantage");
+                    // 本地化：悬殊
+                    else verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_overwhelmed", "overwhelmingly outmatched");
+                }
+                sb.AppendLine("- 战力对比（真打起来算两边合计——你+在场同袍 vs 目标+他同伴+守卫）：");
+                string selfArmor = AgentStatsHelper.ArmorProfileWord(AgentStatsHelper.GetArmorProfile(self));
+                sb.AppendLine($"  - 你这边的总战力 vs 对面的总战力——结论：{verdict}。");
+                sb.AppendLine($"  - 你自己的状态：{selfArmor}，Vigor {AgentStatsHelper.GetAgentStats(self).vigor}/Control {AgentStatsHelper.GetAgentStats(self).control}。");
+                if (target != null && target.IsActive())
+                {
+                    string tArmor = AgentStatsHelper.ArmorProfileWord(AgentStatsHelper.GetArmorProfile(target));
+                    sb.AppendLine($"  - {target.Name?.ToString() ?? "目标"}[#{target.Index}]：{tArmor}，Vigor {AgentStatsHelper.GetAgentStats(target).vigor}/Control {AgentStatsHelper.GetAgentStats(target).control}。");
+                }
+                // ── 在场潜在援军（30m 内可能赶来的人，按阵营分列——IsFriendlyBetween 双向判定）──
+                var helpUs = new List<string>();
+                var helpThem = new List<string>();
+                var watchOnly = new List<string>();
+                foreach (var info in snap.Agents)
+                {
+                    if (info == null || info.Agent == null || info.Agent == self || info.Agent == Agent.Main) continue;
+                    if (target != null && info.Agent.Position.Distance(target.Position) <= 15f) continue;  // 已在目标区（上面算过）
+                    if (info.Agent.Position.Distance(self.Position) > 30f) continue;
+                    // 🔴 2026-08-15（目标唯一标记）：援军名单带 [#N]
+                    string label = $"{info.DisplayName ?? "友军"}[#{info.Agent.Index}]";
+                    if (FriendlinessHelper.IsFriendlyToPlayer(info.Agent)) helpUs.Add(label);
+                    else if (target != null && FriendlinessHelper.IsFriendlyBetween(target, info.Agent)) helpThem.Add(label);
+                    else watchOnly.Add(label);
+                }
+                if (helpUs.Count + helpThem.Count + watchOnly.Count > 0)
+                {
+                    sb.AppendLine("- 但附近 30 米内还有人（可能 10 秒内赶来）：");
+                    if (helpUs.Count > 0)
+                        sb.AppendLine($"  - 帮你的：{string.Join("、", helpUs.Take(3))}。");
+                    if (helpThem.Count > 0)
+                        sb.AppendLine($"  - 帮他的：{string.Join("、", helpThem.Take(3))}。");
+                    if (watchOnly.Count > 0)
+                        sb.AppendLine($"  - 中立观望的：{string.Join("、", watchOnly.Take(3))}。");
+                }
+                return sb.ToString();
+            }
+            catch { return ""; }
+        }
+        private static string tNameOf(Agent target)
+        {
+            return target?.Name?.ToString() ?? "目标";
+        }
+        // ═══════════════════════════════════════════════════════════
+        // 🔴 2026-08-15（用户裁定采样优化）：在场人员采样——楼层聚类 + 分层配额 + 优先级采样
+        // ═══════════════════════════════════════════════════════════
+
+        /// <summary>个体行预算（token 权衡：16 行 ≈ 550 token，flash 无压力；全量 27 人 ≈ 800+ token
+        /// 且镇民×14 高度重复助长幻觉——采样 + 合并计数正好防幻觉，prompt 明确其余人只是数量）。</summary>
+        private const int SightSampleBudget = 16;
+
+        /// <summary>楼层聚类容差（Z 差 ≤ 2m 归同层；骑砍层高 ~3.5-4m，同层地表起伏 < 2m）。</summary>
+        private const float FloorTolerance = 2.0f;
+
+        /// <summary>楼层标签阈值（相对 self 所在层）：±1m 内=本层；±4m 内=楼上/楼下；更远=更上层/更下层。</summary>
+        private const float FloorSameThreshold = 1.0f;
+        private const float FloorAdjacentThreshold = 4.0f;
+
+        /// <summary>运行时楼层词（prompt 段材料，铁律 13 豁免）。</summary>
+        private static readonly string[] FloorWords = { "本层", "楼上", "楼下", "更上层", "更下层" };
+
+        /// <summary>独特职业表（每个角色采样保底 1 个——用户裁定「每个模板的人都能采样到 1 个」；
+        /// 镇民/村民等大众职业不在此列，走空间随机兜底）。</summary>
+        private static readonly string[] UniqueRoleTable =
+        {
+            "tavernkeeper", "merchant", "musician", "bard", "drunkard", "gambler",
+            "ransom_broker", "taverngamehost", "guard", "priest", "blacksmith", "cook", "waiter", "chief",
+        };
+
+        /// <summary>通用模板名（名字 = 纯职业词 → 不算"独特名字"，走兜底采样）。</summary>
+        private static readonly HashSet<string> GenericTemplateNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "镇民", "村民", "女镇民", "农民", "市民", "士兵", "守卫", "卫兵", "侍女", "仆役", "学徒", "流浪汉",
+            "townsman", "townswoman", "villager", "peasant", "citizen", "soldier", "guard", "servant", "apprentice",
+        };
+
+        /// <summary>楼层标签（相对 self 所在层；self 为 null → 空串）。</summary>
+        private static string FloorLabelOf(Agent agent, Agent self)
+        {
+            if (agent == null || self == null) return "";
+            float dz = agent.Position.Z - self.Position.Z;
+            if (dz > FloorAdjacentThreshold) return FloorWords[3];
+            if (dz > FloorSameThreshold) return FloorWords[1];
+            if (dz < -FloorAdjacentThreshold) return FloorWords[4];
+            if (dz < -FloorSameThreshold) return FloorWords[2];
+            return FloorWords[0];
+        }
+
+        /// <summary>独特名字判定：非通用词集合 && 与职业/角色不全等（"酒馆店主"≠"店主"= 有具体身份 → 独特）。</summary>
+        private static bool IsDistinctiveName(SceneSnapshot.AgentInfo i)
+        {
+            if (i == null || string.IsNullOrEmpty(i.DisplayName)) return false;
+            string n = i.DisplayName.Trim();
+            if (GenericTemplateNames.Contains(n)) return false;
+            if (!string.IsNullOrEmpty(i.Occupation) && string.Equals(n, i.Occupation.Trim(), StringComparison.OrdinalIgnoreCase)) return false;
+            if (!string.IsNullOrEmpty(i.Role) && string.Equals(n, i.Role, StringComparison.OrdinalIgnoreCase)) return false;
+            return true;
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-15（采样优化，用户裁定）：在场人员采样——token 预算内个体行信息价值最大化。
+        /// 流水线：候选池（排除观察者 self 与玩家）→ 楼层聚类（Position.Z，容差 2m，防碎层）→
+        /// 层配额（每层保底 1 + 剩余按人数比例）→ 层内优先级采样：
+        ///   P0 目标（已解析 target，必含）> P1 Hero > P1.5 己方（IsFriendlyToPlayer，打架会帮忙）>
+        ///   P2 独特模板（独特职业表各取 1 + 独特名字）> P3 近距 15m（用户裁定身边范围）> P4 空间均匀随机
+        ///   （方位角 8 扇区 × 距离环，桶内随机取 1）
+        /// 输出：总览（人数 + 分层）+ 个体行（楼层/己方标记 + [#N] index）+ 未采样者合并计数行（防幻觉）。
+        /// 保底：总人数 ≤ 预算 → 全列个体；异常 → 返回 null（调用方回退现状）。
+        /// </summary>
+        private static string BuildPresenceSample(SceneSnapshot snap, Agent self, Agent target)
+        {
+            try
+            {
+                if (snap == null || self == null) return null;
+                // 🔴 2026-08-15（玩家在场信息，用户质询）：候选池**包含玩家**——随从的目之所及清单
+                // 缺了主公 = 叙事不完整（主公在场却不在清单；远距传讯时 LLM 不知道主公不在附近）。
+                // 玩家是 Hero → P1 必被采样，个体行带（主公）标记；self（随从自己）仍排除（不看自己）。
+                var candidates = snap.Agents
+                    .Where(i => i != null && i.Agent != null && i.Agent != self)
+                    .ToList();
+                int total = candidates.Count;
+                if (total == 0) return null;
+                // ── 楼层聚类（Z 排序贪心分组）──
+                var floors = new List<List<SceneSnapshot.AgentInfo>>();
+                foreach (var info in candidates.OrderBy(i => i.Agent.Position.Z))
+                {
+                    if (floors.Count > 0
+                        && Math.Abs(info.Agent.Position.Z - floors[floors.Count - 1][0].Agent.Position.Z) <= FloorTolerance)
+                        floors[floors.Count - 1].Add(info);
+                    else
+                        floors.Add(new List<SceneSnapshot.AgentInfo> { info });
+                }
+                // 防碎层：聚类出 5+ 层时，最小层并入最近层（山坡/台阶噪声）
+                while (floors.Count > 5)
+                {
+                    var smallest = floors.OrderBy(f => f.Count).First();
+                    float z = smallest[0].Agent.Position.Z;
+                    var nearest = floors.Where(f => f != smallest)
+                        .OrderBy(f => Math.Abs(f[0].Agent.Position.Z - z)).First();
+                    nearest.AddRange(smallest);
+                    floors.Remove(smallest);
+                }
+                // ── 层配额：每层保底 1，剩余按人数比例（余数给人数最多层）──
+                var quota = new Dictionary<List<SceneSnapshot.AgentInfo>, int>();
+                int remaining = Math.Min(SightSampleBudget, total);
+                foreach (var f in floors) { quota[f] = 1; remaining--; }
+                if (remaining > 0)
+                {
+                    var extra = new Dictionary<List<SceneSnapshot.AgentInfo>, int>();
+                    foreach (var f in floors)
+                        extra[f] = (int)Math.Floor(remaining * (double)f.Count / total);
+                    int used = extra.Values.Sum();
+                    foreach (var f in floors.OrderByDescending(f => f.Count))
+                    {
+                        if (used >= remaining) break;
+                        extra[f]++; used++;
+                    }
+                    foreach (var f in floors) quota[f] += extra[f];
+                }
+                // ── 层内采样 ──
+                var selected = new List<SceneSnapshot.AgentInfo>();
+                var selectedSet = new HashSet<SceneSnapshot.AgentInfo>();
+                foreach (var f in floors)
+                {
+                    var pool = new List<SceneSnapshot.AgentInfo>(f);
+                    SceneSnapshot.AgentInfo Pick(Func<SceneSnapshot.AgentInfo, bool> pred)
+                    {
+                        var hit = pool.FirstOrDefault(pred);
+                        if (hit != null) { pool.Remove(hit); return hit; }
+                        return null;
+                    }
+                    int quotaOf = quota[f];
+                    // P0 目标（已解析 → 必含；目标段单独描述，此处仅保证计入但不重复列——见下方输出跳过）
+                    Pick(i => target != null && i.Agent == target);
+                    // P1 Hero
+                    while (selected.Count < quotaOf)
+                    {
+                        var h = Pick(i => (i.Agent.Character as CharacterObject)?.HeroObject != null);
+                        if (h == null) break;
+                        if (!selectedSet.Contains(h)) { selected.Add(h); selectedSet.Add(h); }
+                    }
+                    // P1.5 己方（IsFriendlyToPlayer——打架会帮忙的人，必须可见）
+                    while (selected.Count < quotaOf)
+                    {
+                        var h = Pick(i => FriendlinessHelper.IsFriendlyToPlayer(i.Agent));
+                        if (h == null) break;
+                        selected.Add(h); selectedSet.Add(h);
+                    }
+                    // P2 独特职业表 各取 1（每个模板的人采样 1 个）
+                    foreach (var r in UniqueRoleTable)
+                    {
+                        if (selected.Count >= quotaOf) break;
+                        var h = Pick(i => string.Equals(i.Role, r, StringComparison.OrdinalIgnoreCase));
+                        if (h != null) { selected.Add(h); selectedSet.Add(h); }
+                    }
+                    // P2 独特名字（酒馆店主/带名字的模板 NPC）
+                    while (selected.Count < quotaOf)
+                    {
+                        var h = Pick(IsDistinctiveName);
+                        if (h == null) break;
+                        selected.Add(h); selectedSet.Add(h);
+                    }
+                    // P3 近距 15m（用户裁定身边范围）
+                    while (selected.Count < quotaOf)
+                    {
+                        var h = Pick(i => i.Agent.Position.Distance(self.Position) <= 15f);
+                        if (h == null) break;
+                        selected.Add(h); selectedSet.Add(h);
+                    }
+                    // P4 空间均匀随机：方位角 8 扇区桶，桶内随机取 1（确定性种子，防抖动）
+                    if (selected.Count < quotaOf && pool.Count > 0)
+                    {
+                        var rng = new Random(f.Count * 7919 + selected.Count * 131 + 17);
+                        var buckets = new Dictionary<int, List<SceneSnapshot.AgentInfo>>();
+                        foreach (var i in pool)
+                        {
+                            Vec2 d = i.Agent.Position.AsVec2 - self.Position.AsVec2;
+                            float ang = MathF.Atan2(d.Y, d.X);
+                            int sec = ((int)MathF.Floor((ang + MathF.PI) / (MathF.PI / 4))) % 8;
+                            if (!buckets.TryGetValue(sec, out var b)) { b = new List<SceneSnapshot.AgentInfo>(); buckets[sec] = b; }
+                            b.Add(i);
+                        }
+                        foreach (var sec in buckets.Keys.OrderBy(k => k))
+                        {
+                            if (selected.Count >= quotaOf) break;
+                            var b = buckets[sec];
+                            if (b.Count == 0) continue;
+                            var h = b[rng.Next(b.Count)];
+                            selected.Add(h); selectedSet.Add(h);
+                        }
+                    }
+                }
+                // ── 输出组装 ──
+                var sb = new StringBuilder();
+                // 合并计数行（未采样者；目标由目标段单独描述 → 排除，避免重复）——提前声明供统计用
+                var unselected = candidates
+                    .Where(c => !selectedSet.Contains(c) && !(target != null && c.Agent == target))
+                    .ToList();
+                // 统计口径（用户裁定：详写 vs 归入计数）：详写 = 个体行数 + 目标段（目标独立描述）；
+                // 合并 = 未采样者。total = 详写 + 合并（自洽）。
+                int listedRows = selected.Count(s => !(target != null && s.Agent == target))
+                    + (target != null && target.IsActive() ? 1 : 0);
+                int mergedCount = unselected.Count;
+                // 总览：人数 + 详写/合并比例 + 分层
+                var floorParts = floors.Select(f => $"{FloorLabelOf(f[0].Agent, self)} {f.Count} 人");
+                sb.AppendLine($"- 此处共 {total} 人在场（详写 {listedRows} 人、其余 {mergedCount} 人归入计数；{string.Join("、", floorParts)}）：");
+                DebugLogger.Log($"[RiskScene] 在场采样: 共 {total} 人，详写 {listedRows}，合并 {mergedCount}，楼层 {floors.Count}（{string.Join("、", floorParts)}）");
+                // 个体行（目标由目标段单独描述，此处跳过避免重复；楼层 + 己方标记 + [#N]）。
+                // 🔴 2026-08-15（视角修正，实机）：方位用 DescribeTargetRelative(self, …) 相对**随从自身**
+                // ——PositionDesc 是相对玩家的（"你东南侧"的"你"=玩家），而【目之所及】叙述视角是随从
+                //（"你"=随从），同一"你"指两人 = 视角串台。朝向 FacingDesc 保留（谁面朝主公，随从看得见）。
+                foreach (var sel in selected
+                    .Where(s => !(target != null && s.Agent == target))
+                    .OrderBy(s => s.Agent.Position.DistanceSquared(self.Position)))
+                {
+                    string floor = FloorLabelOf(sel.Agent, self);
+                    // 🔴 2026-08-15（玩家在场）：主公特殊标记——随从视角直接叫「主公」（名字即标记，
+                    // 不再重复标（主公））；其余己方标（己方）；中立无标记。
+                    string mark = sel.Agent == Agent.Main ? "" : FriendlinessHelper.IsFriendlyToPlayer(sel.Agent) ? "（己方）" : "";
+                    string name = sel.Agent == Agent.Main
+                        ? $"主公[#{sel.Agent.Index}]"
+                        : $"{sel.DisplayName ?? sel.Role ?? "某人"}[#{sel.Agent.Index}]";
+                    string occ = string.IsNullOrEmpty(sel.Occupation) ? "" : $"（{sel.Occupation}）";
+                    string rel = DescribeTargetRelative(self, sel.Agent);
+                    sb.AppendLine($"  - [{floor}] {name}{occ}{mark}：{rel}，{sel.FacingDesc}，{sel.State}");
+                }
+                // 合并计数行（未采样者；目标由目标段单独描述 → 排除，避免重复；unselected 已在上方声明）。
+                // 🔴 2026-08-15（叙事口吻，用户裁定）：收尾一句「看不过来」——把采样预算的技术限制转成
+                // 随从的亲见局限（铁律：情报来自渠道，禁止上帝视角——未列出的人只有数量没有底细）。
+                // 🔴 2026-08-15 人称统一（实机）：段首旁白是第二人称（"你是局中人"），内心独白改用
+                // **无主句**（"一眼看不过来"）——避免同一段"你"（旁白指随从）与"我"（独白自指）混用。
+                if (unselected.Count > 0)
+                {
+                    var groups = unselected
+                        .GroupBy(i => $"{FloorLabelOf(i.Agent, self)}|{i.Role ?? i.Occupation ?? "镇民"}")
+                        .OrderByDescending(g => g.Count());
+                    var parts = groups.Select(g =>
+                    {
+                        var label = g.First().Role ?? g.First().Occupation ?? "镇民";
+                        if (string.IsNullOrEmpty(label) || label == "hero") label = g.First().Occupation ?? "镇民";
+                        return $"{label}×{g.Count()}（{g.Key.Split('|')[0]}）";
+                    });
+                    sb.AppendLine($"  - 其余 {string.Join("、", parts)}——人太多，一眼看不过来，只留个印象。");
+                }
+                return sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[RiskScene] 在场采样失败: {ex.Message} → 回退现状");
+                return null;
+            }
+        }        /// <summary>目标相对本 NPC 的方位（以 self 自身朝向为基准——亲见视角，零视角反转）。</summary>
+        private static string DescribeTargetRelative(Agent self, Agent target)
+        {
+            try
+            {
+                Vec3 diff = target.Position - self.Position;
+                diff.z = 0f;
+                float dist = diff.Length;
+                if (dist < 2f) return "就在你跟前";
+                Vec2 look = self.LookDirection.AsVec2.Normalized();
+                Vec3 look3 = new Vec3(look.X, look.Y, 0f);
+                float f = Vec3.DotProduct(diff, look3) / dist;
+                float r = Vec3.DotProduct(diff, new Vec3(-look.Y, look.X, 0f)) / dist;
+                string lat = r > 0.35f ? "右" : (r < -0.35f ? "左" : "");
+                string lon = f > 0.35f ? "前方" : (f < -0.35f ? "后方" : "");
+                string dir = (lat.Length == 0 && lon.Length == 0) ? "正对面" : lat + lon;
+                return $"在你{dir}约 {MathF.Ceiling(dist)} 米处";
+            }
+            catch { return "在附近"; }
+        }
         /// <summary>玩家阵营 vs 目标阵营是否交战（双方无王国 → 非交战）。</summary>
         private static bool IsAtWarWithPlayer(Hero hero)
         {

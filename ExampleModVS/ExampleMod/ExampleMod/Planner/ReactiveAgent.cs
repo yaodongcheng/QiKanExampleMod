@@ -487,17 +487,21 @@ namespace LivingWorldNpcs
                         {
                             if (agent == null || !agent.IsActive()) return;
                             string occ = ClassifyOccupation(agent);
+                            // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
                             string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
                             string identity = string.Format(
+                                // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
                                 ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
                                 occName, DescribePersonality(ra.Personality));
                             var dline = await DialogueComponent.GenerateLine(
                                 Settings.Instance?.WorldDescription ?? "", identity, "",
                                 "旁观话题",
                                 "",
+                                // 本地化：LWN_plan_respond_section_outline（玩家可见文本）
                                 ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + "两人在交谈，你只是路过旁听",
                                 speaker?.Name?.ToString() ?? "说话的人",
                                 "", "",
+                                // 本地化：LWN_plan_respond_rule（玩家可见文本）
                                 "LWN_plan_respond_rule",
                                 "【要求】用一句话表达你旁听到交谈后的反应（10-30 字），像路人的随口一评。直接说台词本身——不要引号、不要解释、不要动作描写。",
                                 null, maxTokens: 80, timeoutMs: 2000);
@@ -772,6 +776,7 @@ namespace LivingWorldNpcs
 
                 // 🔴 §5.6 统一管线（DialogueComponent）：段计算 → GenerateLine（JSON 通道带动作）
                 string occ = ClassifyOccupation(agent);
+                // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
                 string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
                 string identity = string.Format(
                     // LWN_plan_respond_identity_template：身份模板
@@ -792,9 +797,11 @@ namespace LivingWorldNpcs
                     string.IsNullOrEmpty(topic) ? "闲聊" : topic,
                     ra.DialogueRound > 1 ? $"（第 {ra.DialogueRound} 轮）" : "",
                     string.IsNullOrEmpty(outlineStep) ? ""
+                        // 本地化：LWN_plan_respond_section_outline（玩家可见文本）
                         : ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + outlineStep,
                     string.IsNullOrEmpty(other) ? "一个陌生人" : other + "（对方是主动来和你搭话的人）",
                     PromptBuilder.GetPrompt_RespondContext(memory, otherId), lastLine,
+                    // 本地化：LWN_plan_respond_rule_json（玩家可见文本）
                     "LWN_plan_respond_rule_json",
                     "【要求】用一句话口语化回应对方（10-40 字），符合身份、性格与此刻的态度，顺着对方的话接，直接说台词本身——不要引号、不要解释、不要动作描写。",
                     actionSpace, maxTokens: 220, timeoutMs: 8000);
@@ -844,6 +851,7 @@ namespace LivingWorldNpcs
                         target?.Name?.ToString() ?? "对方",
                         PromptBuilder.GetPrompt_RespondContext(memory, GetAgentId(target)),
                         GetLastLineWith(memory, GetAgentId(target)),
+                        // 本地化：LWN_plan_respond_rule（玩家可见文本）
                         "LWN_plan_respond_rule",
                         "【要求】用一句话口语化对对方说（10-40 字），符合随从身份，顺着当前走向推进对话，直接说台词本身——不要引号、不要解释、不要动作描写。",
                         null, maxTokens: 80, timeoutMs: 2000);

@@ -34,6 +34,8 @@ namespace LivingWorldNpcs
         public static string Loot => LWNTextHelper.ResolveText("LWN_plan_loot", "loot");
         // 本地化：金币物品名（目击问责/暗账）
         public static string Gold => LWNTextHelper.ResolveText("LWN_plan_gold", "gold");
+        // 本地化：判定型动作结局默认成功出口（M5：有结局必有出口）
+        public static string Done => LWNTextHelper.ResolveText("LWN_plan_done", "It is done.");
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -99,17 +101,16 @@ namespace LivingWorldNpcs
         public static void ShutdownAll()
         {
             foreach (var e in ActiveExecutors.Values.ToList())
-                e.FinalizeExecutor("计划随场景结束而中止");
+                // 本地化：场景强制收尾消息（铁律 13 走 LWN_plan_abort_scene_end）
+                e.FinalizeExecutor(LWNTextHelper.ResolveText("LWN_plan_abort_scene_end", "The plan ended as the scene closed."));
             ActiveExecutors.Clear();
             Instance = null;
         }
-
         // ── 主执行者信息 ──
         public Agent OwnerAgent { get; private set; }
         public Plan Plan { get; private set; }
         public CommandIntentType IntentType { get; private set; }
         public string Summary { get; private set; }
-
         public ExecutorState State = ExecutorState.Executing;
         // 🔴 暂停原因是状态标识符（Resume/追回匹配用），禁止换本地化文本；玩家可见文本在 Pause() 内按常量映射本地化
         public const string PauseReasonModal = "player_modal";
@@ -121,20 +122,17 @@ namespace LivingWorldNpcs
         public float Elapsed;
         public bool IsFinished { get; private set; }        // 收尾标记（Finish 置位；TickInner 据此停摆）
         public bool IsPlayerInModalUi { get; private set; } // R7
-
         public event Action<PlanExecutor> OnFinished;       // 收尾通知（brain 意图复位 None）
         public event Action<PlanExecutor, string> OnAborted; // 中止通知（Replan 低频重入监听，§7.2）
         // 🔴 2026-08-10（im-command-action-upgrade.md §2.1）：步骤执行完成事件——全部步骤完成路径的
         // 唯一汇合点（CompleteStep）。IM 侧挂接写执行者记忆（plan_step 单向链条），零侵入既有执行器逻辑。
         public event Action<PlanExecutor, Agent, PlanStep> OnStepCompleted;   // (executor, 完成该步的执行者 agent, step)
-
         /// <summary>原命令文本（Replan 上下文；PlanCommandFlow 批准时传入）。</summary>
         public string OriginalCommand;
         /// <summary>同计划的 replan 次数（节流 ≤ 2）。</summary>
         public int ReplanCount;
         /// <summary>意外事件日志（Replan prompt 上下文："守卫与玩家发生战斗，s3 未能完成"）。</summary>
         public readonly List<string> EventLog = new List<string>();
-
         // ── 内部 ──
         private readonly RuntimeWorldState _world = new RuntimeWorldState();
         private readonly List<ActorCursor> _cursors = new List<ActorCursor>();
@@ -155,20 +153,18 @@ namespace LivingWorldNpcs
         private bool _finalized;
         private string _stepResultKey;                      // 判定型原子结果（result 路由）
         private float _stolenGold;                          // steal_attempt 成功所得（give_gold "stolen"）
-
+        // 🔴 2026-08-14（npc-risk-aware-planning.md M2d/M5）：钱袋路径当场移交标记 + 结局已播标记
+        private bool _goldHanded;                           // 模板 NPC 钱袋路径已守恒移交（give_gold 防双移交）
+        private bool _resultBroadcast;                      // 判定型结局已由 InlineSteps 播报（Finish 不重复播）
         public RuntimeWorldState World => _world;
-
         // ═══════════════════════════════════════════════════════════
         // 生命周期
         // ═══════════════════════════════════════════════════════════
-
         private PlanExecutor() { }
-
         /// <summary>从 LLM/示例 JSON 构建执行器（校验通过才返回；null = 拒收）。</summary>
         public static PlanExecutor Create(Agent ownerAgent, Plan plan, string intentType, Dictionary<string, Agent> roleAgents = null)
         {
             if (ownerAgent == null || plan == null) return null;
-
             string intentStr = intentType ?? plan.Intent?.IntentType;
             CommandIntentType parsed = ParseIntentType(intentStr);
             var validation = PlanValidator.Validate(plan, intentStr ?? "");
@@ -183,7 +179,6 @@ namespace LivingWorldNpcs
                 foreach (var w in validation.Warnings)
                     DebugLogger.Log($"[PlanExecutor] 计划校验警告: {w}");
             }
-
             // 质量诊断（纯报告，不拒收不改动）：对照输出质量要求逐条打分，
             // 抓结构校验覆盖不到的质量项（步数/预案数/contingencies/combat 与 SPAR 矛盾/goal 纪律）
             // 🔴 2026-08-13：Custom 意图（闲聊动作单步包装，ChatActionFlow）跳过——任务型质量检查
@@ -192,7 +187,6 @@ namespace LivingWorldNpcs
             if (parsed != CommandIntentType.Custom)
                 foreach (var d in PlanValidator.Diagnose(plan, parsed))
                     DebugLogger.Log($"[PlanQuality] {d}");
-
             var ex = new PlanExecutor
             {
                 OwnerAgent = ownerAgent,
@@ -202,7 +196,6 @@ namespace LivingWorldNpcs
             };
             ex._world.OwnerAgent = ownerAgent;
             ex._world.Owner = ex;
-
             // 角色表：快照自动打标 + 显式注入
             var snap = SceneSnapshot.Build(Mission.Current);
             ex._world.Snapshot = snap;
@@ -219,14 +212,11 @@ namespace LivingWorldNpcs
             }
             ex._world.RoleAgents["self"] = ownerAgent;
             if (Agent.Main != null) ex._world.RoleAgents["player"] = Agent.Main;
-
             // 区域注册（§5.0）：intent.zone/target 区域名 → 物件/区域解析注册（LOOKOUT 望风区等）
             ex.RegisterIntentZones(plan.Intent);
-
             ex.BuildCursors(ownerAgent);
             return ex;
         }
-
         /// <summary>启动执行（brain order_execute_plan 分支调用）。</summary>
         public void Start(Agent agent)
         {
@@ -240,10 +230,9 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-13：Custom 意图 = 闲聊动作的单步机械包裹（ChatActionFlow）——日志显式标注，
             // 与 LLM 生成的任务计划区分（实机日志曾误读为"模型生成了计划"；模型只给动作码，计划壳是 C# 包的）
             string wrapperNote = IntentType == CommandIntentType.Custom
-                ? "（闲聊单动作包裹：非 LLM 计划，直接执行无需玩家批准）" : "";
+                ? "（闲聊单动作包裹：非 LLM 计划，直接执行无需玩家批准）" : ""; // lwn-ignore: A 日志内容（249 行 DebugLogger 使用）
             DebugLogger.Log($"[PlanExecutor] 开始执行计划（{IntentType}）: {Summary}{wrapperNote}");
         }
-
         public void Tick(float dt)
         {
             // 心跳日志（1s 一次，放最开头）：诊断"原地不动"——Tick 只要被调用就会打，
@@ -254,7 +243,6 @@ namespace LivingWorldNpcs
                 _heartbeatAccum = 0f;
                 LogHeartbeat();
             }
-
             try
             {
                 TickInner(dt);
@@ -267,7 +255,6 @@ namespace LivingWorldNpcs
                 Finish(ExecutorState.Aborted, PlanTexts.Interrupted);
             }
         }
-
         private void LogHeartbeat()
         {
             var step = _selfCursor?.Current;
@@ -276,7 +263,6 @@ namespace LivingWorldNpcs
                 : (_selfCursor?.Inline != null ? _selfCursor.Inline.GetType().Name : "-");
             //DebugLogger.Log($"[PlanExecutor] 心跳 {Elapsed:F0}s | {State}{(PauseReason != null ? "(" + PauseReason + ")" : "")} | 步骤={stepInfo} | 子={subInfo} | 距目标={GetStepTargetDistance():F1}m");
         }
-
         private void TickInner(float dt)
         {
             // 🔴 全局战斗模式门控（D6 v3 修正）：IsInteractionDisabled 期间脑不 tick、队列动作不被驱动
@@ -284,7 +270,6 @@ namespace LivingWorldNpcs
             // 与"脑恢复 tick 后继续"的门控语义矛盾）。脑恢复 tick 后计划自然继续（特性非 bug）。
             if (Settings.Instance.IsInteractionDisabled())
                 return;
-
             // 当面报告流程（收尾后置阶段：走回玩家旁冒泡转述）
             if (_reportPending)
             {
@@ -292,7 +277,6 @@ namespace LivingWorldNpcs
                 return;
             }
             if (IsFinished) return;
-
             Elapsed += dt;
             _tickAccum += dt;
             if (_tickAccum < 0.1f) return;      // 100ms 节流
@@ -301,20 +285,16 @@ namespace LivingWorldNpcs
             // （起身 2s→12.5s、_maxTime 8s→50s、timeout 20s→125s，实机表现 = NPC 原地发呆）。
             float tickDt = _tickAccum;
             _tickAccum = 0f;
-
             _world.Tick(tickDt);
-
             // R7 玩家模态（偷窃条/对话/剧情演出）→ Pause；模态结束 → Resume
             bool modal = DetectPlayerModalUi();
             IsPlayerInModalUi = modal;
             if (modal && State == ExecutorState.Executing) { Pause(PauseReasonModal); return; }
             if (!modal && State == ExecutorState.Paused && PauseReason == PauseReasonModal) { Resume(); return; }
-
             // R1 玩家战斗 → Pause（随从护主由既有 event_agent_damaged 链处理）；战斗结束 → Resume
             bool playerCombat = IsPlayerInCombat();
             if (playerCombat && State == ExecutorState.Executing) { Pause(PauseReasonFight); return; }
             if (!playerCombat && State == ExecutorState.Paused && PauseReason == PauseReasonFight) { Resume(); return; }
-
             // R4 玩家走远（>30m）→ Pause 追回；豁免：当前步骤是远离玩家的独行任务
             // 🔴 2026-08-13 追加豁免：move_to/follow 目标 = 任意 agent（"过来/跟着某人"）——
             // 走 FollowAgentAction 追踪式跟随，目标在动也兼容；执行者离玩家 >30m 时暂停 +
@@ -338,20 +318,15 @@ namespace LivingWorldNpcs
                     return;
                 }
             }
-
             if (State != ExecutorState.Executing) return;
-
             // Guardrails R2/R5/R6
             TickGuardrails(tickDt);
             if (State != ExecutorState.Executing) return;
-
             // contingencies（EDGE 上升沿）
             TickContingencies();
             if (State != ExecutorState.Executing) return;
-
             // triggers（TRIGGER 上升沿 → signal_player，计划不结束）
             TickTriggers();
-
             // 游标推进（actor 间并行）
             bool anyActive = false;
             foreach (var cursor in _cursors)
@@ -365,7 +340,6 @@ namespace LivingWorldNpcs
             }
             if (!anyActive) FinishMainChain();
         }
-
         /// <summary>区域注册（§5.0）：intent.zone / watch_point 等区域名 → 物件/区域解析后注册为具名 zone
         /// （LOOKOUT 望风区、ANNIHILATE 清剿区等；解析不到 → 由运行时 query 兜底或诚实失败）。</summary>
         private void RegisterIntentZones(PlanIntent intent)
@@ -398,11 +372,9 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         // ═══════════════════════════════════════════════════════════
         // 游标
         // ═══════════════════════════════════════════════════════════
-
         private void BuildCursors(Agent owner)
         {
             var mainSteps = CollectStepsForActor(Plan, "self", owner);
@@ -415,7 +387,6 @@ namespace LivingWorldNpcs
             };
             _cursors.Add(cursor);
             _selfCursor = cursor;
-
             // subjects 多 actor（一带多）：subjects 列表角色 → 快照解析
             var subjects = Plan.Intent?.Subjects;
             if (subjects != null)
@@ -440,7 +411,6 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         /// <summary>收集该 actor 的主链步骤（缺省 self；"all" 广播 = 所有 actor）。</summary>
         private static List<PlanStep> CollectStepsForActor(Plan plan, string actorId, Agent actor)
         {
@@ -454,7 +424,6 @@ namespace LivingWorldNpcs
             }
             return result;
         }
-
         /// <summary>主链走完收尾判定：goal 达成 → 成功；无 goal（计划以步骤链定义成功，§2.3 回落）→ 主链走完即成功。</summary>
         private void FinishMainChain()
         {
@@ -463,11 +432,9 @@ namespace LivingWorldNpcs
             else
                 Finish(ExecutorState.Failed, PlanTexts.GoalNotMet);
         }
-
         // ═══════════════════════════════════════════════════════════
         // 步骤执行
         // ═══════════════════════════════════════════════════════════
-
         /// <summary>步骤目标的人类可读描述（日志用）：" → player" / " → query:nearest_enemy(self)" / 空。</summary>
         private static string RenderStepTarget(PlanStep step)
         {
@@ -477,7 +444,6 @@ namespace LivingWorldNpcs
                 return $" → query:{step.Target["query"]}";
             return "";
         }
-
         /// <summary>当前步骤目标与执行者的距离（心跳日志用；无目标/未解析 → -1）。</summary>
         private float GetStepTargetDistance()
         {
@@ -489,7 +455,6 @@ namespace LivingWorldNpcs
             if (!_world.TryResolvePosition(refName, OwnerAgent, out Vec3 pos)) return -1f;
             return OwnerAgent.Position.Distance(pos);
         }
-
         private void TickCursor(ActorCursor cursor, float dt)
         {
             // 循环段入口（loop 先于 steps 主链执行；§5.0 循环段）
@@ -503,7 +468,6 @@ namespace LivingWorldNpcs
                 cursor.DetachSubAction();   // 循环入口：尚无已入队动作（防御性摘引用）
                 return;
             }
-
             var step = cursor.Current;
             if (step == null)
             {
@@ -511,7 +475,6 @@ namespace LivingWorldNpcs
                 cursor.DetachSubAction();
                 return;
             }
-
             // when 前置门控（GATE）：不成立 = 等待（超时照常累计——门控步永不挂死，§5.4）
             if (step.When != null && !_world.Evaluate(step.When, cursor.Agent))
             {
@@ -522,7 +485,6 @@ namespace LivingWorldNpcs
                 }
                 return;
             }
-
             // 事件通道消费（本步执行期间收到决策结果事件 → 即时跳转；步骤开始前的事件 = 过期丢弃）
             if (_eventQueue.Count > 0)
             {
@@ -540,6 +502,7 @@ namespace LivingWorldNpcs
                         var match = step.OnEvent.FirstOrDefault(e => e != null && string.Equals(e.Type, ev.Type, StringComparison.OrdinalIgnoreCase));
                         if (match != null && !string.IsNullOrEmpty(match.Then))
                         {
+                            // 本地化：LWN_plan_step_decision（玩家可见文本）
                             CurrentSummary = LWNTextHelper.ResolveCompound("LWN_plan_step_decision",
                                 "Step {STEP}: decision received ({TYPE})",
                                 ("STEP", step.Id), ("TYPE", ev.Type));
@@ -551,10 +514,8 @@ namespace LivingWorldNpcs
                     }
                 }
             }
-
             cursor.StepElapsed += dt;
             CurrentSummary = BuildStepSummary(step);
-
             // 子动作/内联步骤创建（每步仅创建一次 → 恰好每步打一条开始日志）
             if (cursor.SubAction == null && cursor.Inline == null)
             {
@@ -582,14 +543,12 @@ namespace LivingWorldNpcs
                     brain.EnqueuePlanAction(cursor.SubAction);
                 }
             }
-
             // until 提前完成（动作步骤）或退出条件（wait 步骤）
             if (step.Until != null && _world.Evaluate(step.Until, cursor.Agent))
             {
                 CompleteStep(cursor, step);
                 return;
             }
-
             // 🔴 超时检查必须在子动作/内联驱动之前（保持型/无限等待豁免）：
             // 内联分支（wait 等）的 return 曾短路此检查 → wait 步骤条件不成立时永不超时（实机 b5 卡死，BC-006）
             if (step.TimeoutS > 0f && cursor.StepElapsed > step.TimeoutS && !PlanStep.IsUnboundedStep(step))
@@ -597,7 +556,6 @@ namespace LivingWorldNpcs
                 HandleStepTimeout(cursor, step);
                 return;
             }
-
             // 非行为性内联驱动（排序器侧直接驱动：纯逻辑/通信——计时/冒泡台词/事件广播/音效/跳转，不写表现层）
             if (cursor.Inline != null && !cursor.Inline.IsBehavioral)
             {
@@ -611,7 +569,6 @@ namespace LivingWorldNpcs
                 }
                 return;
             }
-
             // 入队动作完成检测（100ms 轮询节奏；三路径判定 D4——🔴 先 IsFinished 再 IsActionAlive：
             // 动作被脑完成后同样不在队列，必须先查 IsFinished 才能区分"完成了"与"被清了"）
             if (cursor.SubAction != null)
@@ -630,7 +587,6 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         /// <summary>D4 路径 ②：动作被脑 ClearAllActions 清掉（战斗/护主/击晕/ReactiveAgent 搭话/目击围观）
         /// → 计划中止（graceful，走既有 @abort_gracefully 词汇）+ 收尾报告立即发。
         /// 玩家在场且脱得开身 → 当面报告（needFaceReport：玩家就在旁边却收密信出戏）；
@@ -644,14 +600,12 @@ namespace LivingWorldNpcs
                 canFaceReport = false;   // 脱不开身 → 密信（不打断战斗/不叫晕着的人起来转述）
             Finish(ExecutorState.Aborted, PlanTexts.Aborted, needFaceReport: canFaceReport);
         }
-
         /// <summary>动作是否仍由 actor 的脑持有（D4 外部清除判定）。</summary>
         private static bool IsCursorActionAlive(ActorCursor cursor)
         {
             var brain = AgentAIController.GetBrainForAgent(cursor.Agent);
             return brain != null && brain.IsActionAlive(cursor.SubAction);
         }
-
         /// <summary>D4b 统一迁移收口：迁移/终止当前步骤（跳转/超时/循环退出）→
         /// 对当前动作 RequestInterrupt（脑下一帧见 IsFinished 自清出队；中断标记使动作 OnTick
         /// 直接结束、不会真执行——无僵尸动作）+ 摘引用（不调 OnEnd——teardown 归脑）。
@@ -664,7 +618,6 @@ namespace LivingWorldNpcs
             }
             cursor.DetachSubAction();
         }
-
         private void CompleteStep(ActorCursor cursor, PlanStep step)
         {
             // D4b 生命周期收口：脑已完成的动作（IsFinished 路径）只摘引用、不再 OnEnd
@@ -694,7 +647,6 @@ namespace LivingWorldNpcs
             try { OnStepCompleted?.Invoke(this, cursor.Agent, step); } catch (Exception ex) { DebugLogger.Log($"[PlanExecutor] OnStepCompleted 异常: {ex.Message}"); }
             // 事件队列不整体清空：步骤切换后，本步期间到达的决策事件（say_to 广播 → 守卫演算）留给下一步 on_event 消费
             // （消费逻辑按 _stepStartTime 过滤过期事件）
-
             // 判定型原子结果路由（steal_attempt/negotiate/duel 的 result{} 路由，§5.0 缺口 2）
             if (!string.IsNullOrEmpty(_stepResultKey))
             {
@@ -706,7 +658,6 @@ namespace LivingWorldNpcs
                     return;
                 }
             }
-
             // 循环段内：步骤完成 → 检查循环退出或回顶
             if (cursor.LoopMode)
             {
@@ -727,17 +678,14 @@ namespace LivingWorldNpcs
                 cursor.Index++;
                 return;
             }
-
             // 步骤完成 → goal 检查（收尾检查放在"步骤完成时"）
             CheckGoal();
-
             // on_success 显式跳转 / 缺省顺序下一歩
             if (!string.IsNullOrEmpty(step.OnSuccess))
             {
                 Jump(cursor, step.OnSuccess);
                 return;
             }
-
             cursor.Index++;
             if (cursor.Index >= cursor.Sequence.Count)
             {
@@ -752,7 +700,6 @@ namespace LivingWorldNpcs
                 cursor.Done = true;
             }
         }
-
         private void HandleStepTimeout(ActorCursor cursor, PlanStep step)
         {
             // D4b：超时迁移 = 对当前动作 RequestInterrupt（脑下一帧自清出队，中断标记使动作不真执行）
@@ -760,7 +707,6 @@ namespace LivingWorldNpcs
             InterruptAndDetach(cursor);
             cursor.StepElapsed = 0f;
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {step.Id} 超时");
-
             // 循环段内：超时 = 本步失败 → 回循环顶重新求值 loop.until（§5.0 四层退出②）
             if (cursor.LoopMode && string.IsNullOrEmpty(step.OnTimeout))
             {
@@ -773,7 +719,6 @@ namespace LivingWorldNpcs
                 cursor.Index = 0;
                 return;
             }
-
             if (!string.IsNullOrEmpty(step.OnTimeout))
             {
                 Jump(cursor, step.OnTimeout);
@@ -784,12 +729,12 @@ namespace LivingWorldNpcs
             // 不写谁、不写什么事；实机 2026-08-13：随从追不上走动的玩家，30s 后冒这句密信）。
             // 中文走 LWN_plan_abort_timeout 的 CN 翻译（带 {OWNER}/{STEP} 变量）。
             string stepDesc = BuildStepSummary(step);
+            // 本地化：LWN_plan_abort_timeout（玩家可见文本）
             Abort(LWNTextHelper.ResolveCompound("LWN_plan_abort_timeout",
                 "{OWNER} {STEP} — taking too long, calling it off.",
                 ("OWNER", OwnerAgent?.Name?.ToString() ?? ""),
                 ("STEP", stepDesc)));
         }
-
         private void ExitLoop(ActorCursor cursor)
         {
             cursor.LoopMode = false;
@@ -800,7 +745,6 @@ namespace LivingWorldNpcs
             // 循环正常退出 → goal 检查（N/P 的 goal = count 归零）
             CheckGoal();
         }
-
         /// <summary>跳转（on_timeout/on_success/on_event/contingency/result 路由共用）。</summary>
         private void Jump(ActorCursor cursor, string target)
         {
@@ -811,7 +755,6 @@ namespace LivingWorldNpcs
                 return;
             }
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 跳转 → {target}");
-
             // 优先找 fallback 入口（只允许跳入口步，S3）
             if (Plan.Fallbacks != null)
             {
@@ -863,16 +806,13 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[PlanExecutor] 跳转目标不存在: {target} → 计划中止");
             Abort(PlanTexts.BadJump);
         }
-
         // ═══════════════════════════════════════════════════════════
         // 子动作（原子行为 / 内联步骤）
         // ═══════════════════════════════════════════════════════════
-
         private bool TryCreateSubAction(ActorCursor cursor, PlanStep step)
         {
             var agent = cursor.Agent;
             if (agent == null) return false;
-
             // ── 执行器内联步骤（编排逻辑属于执行器）──
             switch (step.Action)
             {
@@ -925,8 +865,17 @@ namespace LivingWorldNpcs
                     if (!cursor.Inline.Ok) return false;
                     cursor.SubAction = new InlinePlanAction(cursor.Inline);
                     return true;
+                case "ask_help":
+                    // 🔴 2026-08-14（M6 多随从分头配合）：通信类内联（留排序器侧）
+                    cursor.Inline = new AskHelpInlineState(this, cursor, step);
+                    return cursor.Inline.Ok;
+                case "steal_equipment":
+                    // 🔴 2026-08-14（M7 偷装备）：复用扒窃判定管线（variant="equipment" 走共享结算）
+                    cursor.Inline = new StealAttemptInlineState(this, cursor, step);
+                    if (!cursor.Inline.Ok) return false;
+                    cursor.SubAction = new InlinePlanAction(cursor.Inline);
+                    return true;
             }
-
             // ── IAtomicAction 子动作（复用引擎级原子行为）──
             switch (step.Action)
             {
@@ -1029,7 +978,6 @@ namespace LivingWorldNpcs
                     return false;
             }
         }
-
         private bool ResolveStepTarget(PlanStep step, ActorCursor cursor, out Vec3 pos, out Vec2 dir)
         {
             pos = Vec3.Zero;
@@ -1047,7 +995,6 @@ namespace LivingWorldNpcs
             }
             return true;
         }
-
         private bool ResolveStepAgent(PlanStep step, ActorCursor cursor, out Agent target)
         {
             target = null;
@@ -1057,11 +1004,9 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(refName)) return false;
             return _world.TryResolveAgent(refName, cursor.Agent, out target);
         }
-
         // ═══════════════════════════════════════════════════════════
         // contingencies / triggers / guardrails
         // ═══════════════════════════════════════════════════════════
-
         private void TickContingencies()
         {
             if (Plan.Contingencies == null) return;
@@ -1088,7 +1033,6 @@ namespace LivingWorldNpcs
                 if (State != ExecutorState.Executing) return;
             }
         }
-
         /// <summary>
         /// 掉线误报防御（2026-08-12）：结构 = seeing(self, X, op≠true) 且 X 正跟随 self → 目标没丢。
         /// LLM 会给 BRING/带路类计划写"掉线检测"（目标消失就失败），但被请者跟在执行者身后时
@@ -1106,7 +1050,6 @@ namespace LivingWorldNpcs
             if (!_world.TryResolveAgent(cond.B, owner, out Agent subject)) return false;
             return _world.IsFollowing(subject, owner);
         }
-
         private void TickTriggers()
         {
             if (Plan.Triggers == null) return;
@@ -1125,7 +1068,6 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         private void TickGuardrails(float dt)
         {
             // R2: 执行者死亡/离场 → Abort（战斗意图：目标死亡 = GOAL 达成，不触发本规则）
@@ -1134,7 +1076,6 @@ namespace LivingWorldNpcs
                 Abort(PlanTexts.CompanionDown);
                 return;
             }
-
             // R5: 计划目标变为敌对 → Abort + 报告；豁免：战斗意图 / contingencies 已声明 combat
             if (!GoalTemplates.IsCombatIntent(IntentType) && !PlanDeclaresCombat())
             {
@@ -1160,14 +1101,12 @@ namespace LivingWorldNpcs
                     catch { }
                 }
             }
-
             // R6: 总时长 > 5 分钟 → Abort（事件驱动计划豁免：LOOKOUT/SHADOW 无限期待命）
             if (Elapsed > 300f && !GoalTemplates.IsEventDriven(IntentType))
             {
                 Abort(PlanTexts.TooLong);
             }
         }
-
         private bool PlanDeclaresCombat()
         {
             if (Plan.Contingencies == null) return false;
@@ -1177,7 +1116,6 @@ namespace LivingWorldNpcs
             }
             return false;
         }
-
         private static bool ContainsPredicate(Condition c, string type)
         {
             if (c == null) return false;
@@ -1187,7 +1125,6 @@ namespace LivingWorldNpcs
                     if (ContainsPredicate(sub, type)) return true;
             return false;
         }
-
         private static bool IsPlayerInCombat()
         {
             try
@@ -1197,7 +1134,6 @@ namespace LivingWorldNpcs
             }
             catch { return false; }
         }
-
         private static bool DetectPlayerModalUi()
         {
             try
@@ -1214,11 +1150,9 @@ namespace LivingWorldNpcs
             }
             catch { return false; }
         }
-
         // ═══════════════════════════════════════════════════════════
         // 暂停 / 恢复 / 中止 / 收尾
         // ═══════════════════════════════════════════════════════════
-
         public void Pause(string reason)
         {
             if (State == ExecutorState.Paused) return;
@@ -1242,14 +1176,16 @@ namespace LivingWorldNpcs
             }
             CurrentSummary = PauseReason switch
             {
+                // 本地化：LWN_plan_pause_modal（玩家可见文本）
                 PauseReasonModal => LWNTextHelper.ResolveText("LWN_plan_pause_modal", "The player is busy"),
+                // 本地化：LWN_plan_pause_fight（玩家可见文本）
                 PauseReasonFight => LWNTextHelper.ResolveText("LWN_plan_pause_fight", "The player is in combat"),
+                // 本地化：LWN_plan_pause_far（玩家可见文本）
                 PauseReasonFar => LWNTextHelper.ResolveText("LWN_plan_pause_far", "The player is too far away"),
                 _ => reason,
             };
             DebugLogger.Log($"[PlanExecutor] 暂停: {reason}");
         }
-
         public void Resume()
         {
             if (State != ExecutorState.Paused) return;
@@ -1260,41 +1196,37 @@ namespace LivingWorldNpcs
             // 重建全新动作/状态机，步骤重跑——与现状「Pause 清 SubAction、Resume 重创建」等价）
             DebugLogger.Log($"[PlanExecutor] 恢复执行");
         }
-
         /// <summary>玩家停止键/新命令（R3）：旧计划作废，收尾为中断。</summary>
         public void CancelByPlayer(string reason = null)
         {
             if (IsFinished) return;
             Finish(ExecutorState.Aborted,
+                // 本地化：LWN_plan_cancel_player（玩家可见文本）
                 reason ?? LWNTextHelper.ResolveText("LWN_plan_cancel_player", "Called off by the player"),
                 needFaceReport: false, silent: true);
         }
-
         /// <summary>外部打断（brain 队列中断）。</summary>
         public void RequestInterrupt()
         {
             if (IsFinished) return;
             Finish(ExecutorState.Aborted, PlanTexts.Interrupted, needFaceReport: false, silent: true);
         }
-
         private void Abort(string message, bool allowReplan = false)
         {
             if (IsFinished) return;
             DebugLogger.Log($"[PlanExecutor] 中止: {message}");
             if (allowReplan)
-                EventLog.Add($"{Elapsed:F0}s: {message}（步骤 {_selfCursor?.Current?.Id} 未能完成）");
+                EventLog.Add($"{Elapsed:F0}s: {message}（步骤 {_selfCursor?.Current?.Id} 未能完成）"); // lwn-ignore: A EventLog 调试日志
             Finish(ExecutorState.Aborted, message, needFaceReport: false);
             if (allowReplan)
                 OnAborted?.Invoke(this, message);
         }
-
         /// <summary>lead 等内联步骤的"当面报告后中止"路径。</summary>
         internal void AbortWithReport(string message)
         {
             if (IsFinished) return;
             Finish(ExecutorState.Failed, message, needFaceReport: true);
         }
-
         /// <summary>收尾三路一函数（成功/失败/中断统一收口）。</summary>
         private void Finish(ExecutorState state, string message, bool needFaceReport = false, bool silent = false)
         {
@@ -1303,19 +1235,24 @@ namespace LivingWorldNpcs
             EndMessage = message;
             IsFinished = true;
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 计划结束（{state}）: {message}");
+            // 🔴 2026-08-14（M5，npc-risk-aware-planning.md）：判定型动作（steal/knockout 有 _stepResultKey）
+            // Succeeded 收尾不允许静默——偷窃/击晕是有结局的动作，玩家必须看到结果；
+            // InlineSteps 已播报（_resultBroadcast）时视为已有出口，不重复播（聊天单步路径 M2a 已播）。
+            bool hasOutcome = state == ExecutorState.Succeeded && !string.IsNullOrEmpty(_stepResultKey);
+            if (hasOutcome && !_resultBroadcast && string.IsNullOrEmpty(message))
+                message = PlanTexts.Done;   // 有结局但未播报 → 补默认成功出口（收尾报告/密信）
             // 🔴 2026-08-12（用户裁定：BRING 成功 → 被请者开口，不能无声离开）：
             // 成功收尾时"正跟随执行者的人" = 被带来的那个人（BRING 目标跟在随从身后到达），
             // 冒泡问玩家一句（尾巴对话）——人带到了总得有个交代；玩家可当面接话。
             if (state == ExecutorState.Succeeded && IntentType == CommandIntentType.Bring)
                 SpeakBringTail();
             foreach (var c in _cursors) FinalizeCursor(c);
-
-            if (silent || string.IsNullOrEmpty(message))
+            // 🔴 2026-08-14（M5）：判定型动作有结局且未播报 → 不允许静默（走报告出口）
+            if ((silent || string.IsNullOrEmpty(message)) && !(hasOutcome && !_resultBroadcast))
             {
                 FinalizeExecutor(message);
                 return;
             }
-
             if (needFaceReport)
             {
                 // 当面报告：随从恢复默认跟随走回玩家 ~3m 冒泡转述再彻底收尾（§5.4）
@@ -1333,7 +1270,6 @@ namespace LivingWorldNpcs
                 FinalizeExecutor(message);
             }
         }
-
         /// <summary>BRING 成功尾巴（2026-08-12 用户裁定）：被请者冒泡问玩家"召我来有何事"——
         /// 对第一个正跟随执行者的人说（= 被带到面前的那个人）；说话并联框架（plan_report 刺激），
         /// 不占队列不接管 brain；找不到跟随者（防御）→ 静默跳过。</summary>
@@ -1347,10 +1283,12 @@ namespace LivingWorldNpcs
                     if (a == null || !a.IsActive() || a == OwnerAgent || a == Agent.Main) continue;
                     if (!_world.IsFollowing(a, OwnerAgent)) continue;
                     SpeechChannel.Say(a,
+                        // 本地化：LWN_plan_bring_tail（玩家可见文本）
                         LWNTextHelper.ResolveText("LWN_plan_bring_tail",
                             "You summoned me, my lord. How may I serve?"),
                         SpeechPriority.Dialogue,
                         SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(a), Agent.Main, "plan_report",
+                            // 本地化：LWN_plan_bring_tail_topic（玩家可见文本）
                             LWNTextHelper.ResolveText("LWN_plan_bring_tail_topic", "Brought before the master")));
                     return;
                 }
@@ -1360,7 +1298,6 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[PlanExecutor] BRING 尾巴对话失败: {ex.Message}");
             }
         }
-
         /// <summary>D4b：收尾时各游标的动作收口——生命周期归脑：
         /// 脑仍会 tick（Agent 活跃）→ RequestInterrupt + 摘引用（脑下一帧见 IsFinished 自清出队，
         /// 中断标记使动作不真执行——无僵尸动作；teardown 归脑不调 OnEnd）；
@@ -1385,7 +1322,6 @@ namespace LivingWorldNpcs
                 c.Inline = null;
             }
         }
-
         /// <summary>end_plan 步骤（result + report）。</summary>
         internal void ApplyEndPlan(PlanStep step, string result)
         {
@@ -1398,9 +1334,9 @@ namespace LivingWorldNpcs
                 return;
             }
             Finish(success ? ExecutorState.Succeeded : ExecutorState.Failed,
+                // 本地化：LWN_plan_done（玩家可见文本）
                 report ?? LWNTextHelper.ResolveText("LWN_plan_done", "Done"), needFaceReport: !string.IsNullOrEmpty(report));
         }
-
         private void TickReport(float dt)
         {
             _reportTimer += dt;
@@ -1434,7 +1370,6 @@ namespace LivingWorldNpcs
                 FinalizeExecutor(_pendingReport);
             }
         }
-
         private void FinalizeExecutor(string message)
         {
             if (_finalized) return;
@@ -1452,11 +1387,9 @@ namespace LivingWorldNpcs
             if (Instance == this) Instance = null;
             evt?.Invoke(this);
         }
-
         // ═══════════════════════════════════════════════════════════
         // 工具
         // ═══════════════════════════════════════════════════════════
-
         internal void SignalPlayer(string text)
         {
             if (string.IsNullOrEmpty(text)) return;
@@ -1468,36 +1401,40 @@ namespace LivingWorldNpcs
             }
             catch { }
         }
-
         private void CheckGoal()
         {
             if (_goalMet) return;
             if (Plan?.Goal != null && _world.Evaluate(Plan.Goal, OwnerAgent))
             {
                 _goalMet = true;
+                // 本地化：LWN_plan_goal_done（玩家可见文本）
                 CurrentSummary = LWNTextHelper.ResolveText("LWN_plan_goal_done", "Goal achieved");
                 DebugLogger.Log($"[PlanExecutor] GOAL 达成");
             }
         }
-
         private string BuildStepSummary(PlanStep step)
         {
             if (step == null) return Summary ?? "";
             // 🔴 2026-08-13 本地化（原硬编码中文；现随超时消息进入玩家可见文本，铁律 13）
             switch (step.Action)
             {
+                // 本地化：LWN_plan_step_move_to（玩家可见文本）
                 case "move_to": return LWNTextHelper.ResolveText("LWN_plan_step_move_to", "Heading to target");
                 case "say_to":
                     // 🔴 2026-08-13 文案去 {TEXT}（步骤摘要只报状态，不说台词内容）
                     return LWNTextHelper.ResolveText("LWN_plan_step_talk", "Talking");
+                // 本地化：LWN_plan_step_wait（玩家可见文本）
                 case "wait": return LWNTextHelper.ResolveText("LWN_plan_step_wait", "Waiting");
+                // 本地化：LWN_plan_step_fight（玩家可见文本）
                 case "order_attack": return LWNTextHelper.ResolveText("LWN_plan_step_fight", "Fighting");
+                // 本地化：LWN_plan_step_report（玩家可见文本）
                 case "signal_player": return LWNTextHelper.ResolveText("LWN_plan_step_report", "Preparing to report");
+                // 本地化：LWN_plan_step_steal（玩家可见文本）
                 case "steal_attempt": return LWNTextHelper.ResolveText("LWN_plan_step_steal", "Preparing to steal");
+                // 本地化：LWN_plan_step_doing（玩家可见文本）
                 default: return LWNTextHelper.ResolveCompound("LWN_plan_step_doing", "Carrying out ({ACTION})", ("ACTION", step.Action));
             }
         }
-
         internal static CommandIntentType ParseIntentType(string s)
         {
             if (string.IsNullOrEmpty(s)) return CommandIntentType.Custom;
@@ -1510,52 +1447,46 @@ namespace LivingWorldNpcs
             }
             return CommandIntentType.Custom;
         }
-
         internal void NotifyDecisionEvent(string eventType)
         {
             _eventQueue.Add((Elapsed, eventType));
         }
-
         internal void NotifySayDone(PlanStep step, Agent target)
         {
             // 占位：say_to 完成钩子（M3 ReactiveAgent 演算后的后续钩子）
         }
-
         internal void SetStepResultKey(string key) => _stepResultKey = key;
         internal void RecordStolenGold(float amount) => _stolenGold = amount;
         internal float StolenGold => _stolenGold;
-
+        // 🔴 2026-08-14（M2d/M5）：钱袋路径当场移交标记（give_gold 防双移交）+ 判定型结局已播标记（Finish 防重复播）
+        internal void MarkGoldHanded() => _goldHanded = true;
+        internal bool GoldHanded => _goldHanded;
+        internal void MarkResultBroadcast() => _resultBroadcast = true;
         // 批量击晕计数（收尾报告用）
         private int _knockoutCount;
         internal void IncrementKnockoutCount() => _knockoutCount++;
         internal int KnockoutCount => _knockoutCount;
-
         // 扒窃源（守恒转移用：目标 Hero 钱包 → 玩家）
         private TaleWorlds.CampaignSystem.Hero _stolenSource;
         internal void RecordStolenSource(TaleWorlds.CampaignSystem.Hero source) => _stolenSource = source;
         internal TaleWorlds.CampaignSystem.Hero StolenSource => _stolenSource;
-
         // 物变体赃物（箱子记账语义）
         private string _stolenItem;
         internal void RecordStolenItem(string id, string name) => _stolenItem = name;
         internal string StolenItem => _stolenItem;
-
         /// <summary>内联步骤显式失败（knockout 失败/目标离场等）：走步骤失败路径（on_timeout 或 abort）。</summary>
         internal void FailStep(ActorCursor cursor, PlanStep step)
         {
             HandleStepTimeout(cursor, step);
         }
-
         /// <summary>主执行者游标当前步骤序号（调试/step 指令用）。</summary>
         public int SelfCursorIndex => _selfCursor?.Index ?? 0;
-
         /// <summary>调试强制 replan（plan_debug replan 指令）：以 R5 语义中止并触发 Replan 链路。</summary>
         internal void AbortForReplanDebug(string message)
         {
             if (IsFinished) return;
             Abort(message, allowReplan: true);
         }
-
         /// <summary>🔴 2026-08-13：当前步骤是"朝 agent 走/跟着 agent"（move_to/follow 且目标解析为
         /// 任意 agent，含玩家）→ 豁免「玩家走远了」暂停（R4）。这类步骤走 FollowAgentAction 追踪式
         /// 跟随，目标在动也兼容（重算间隔随目标速度自适应），执行者离玩家 >30m 时暂停 + chaseback
@@ -1569,7 +1500,6 @@ namespace LivingWorldNpcs
             if (step.Action != "move_to" && step.Action != "follow") return false;
             return ResolveStepAgent(step, _selfCursor, out _);
         }
-
         /// <summary>R4 豁免：当前步骤 target/zone 远离玩家 > 30m（独行任务不叫回）。</summary>
         private bool IsCurrentStepRemote()
         {
@@ -1584,7 +1514,6 @@ namespace LivingWorldNpcs
                 return pos.Distance(player.Position) > 30f;
             return false;
         }
-
         private void TickChaseBack(float dt)
         {
             var player = Agent.Main;
@@ -1598,14 +1527,13 @@ namespace LivingWorldNpcs
             }
             // 追回玩家身边
             AgentControlHelper.ScriptedMoveToPoint(OwnerAgent, player.Position, true);
+            // 本地化：LWN_plan_chaseback（玩家可见文本）
             CurrentSummary = LWNTextHelper.ResolveText("LWN_plan_chaseback", "Catching up to the player");
         }
     }
-
     // ═══════════════════════════════════════════════════════════════
     // ActorCursor — 每 actor 一个游标（并行推进；actor 内串行）
     // ═══════════════════════════════════════════════════════════════
-
     public class ActorCursor
     {
         public string ActorId;
@@ -1619,9 +1547,7 @@ namespace LivingWorldNpcs
         public bool Done;
         public IAtomicAction SubAction;
         public IInlineStep Inline;
-
         public PlanStep Current => Index >= 0 && Index < Sequence.Count ? Sequence[Index] : null;
-
         /// <summary>正常迁移（D4b）：只摘引用，teardown（OnEnd）归脑——动作生命周期已被脑接管。
         /// 脑侧完成出队 / 迁移终止时一律走此路径，禁止再调 OnEnd（双 OnEnd 会让
         /// MoveEndAndInteractPrepare / CombatManager 清理双触发）。</summary>
@@ -1630,7 +1556,6 @@ namespace LivingWorldNpcs
             SubAction = null;
             Inline = null;
         }
-
         /// <summary>异常兜底（D4b）：动作从未入队/脑已死时补 OnEnd，防资源泄漏。
         /// 只用于脑永远不会再驱动该动作的路径（无脑入队失败 / Agent 已不活跃），
         /// 不会与脑的 OnEnd 双跑——脑不会再调。</summary>
@@ -1644,7 +1569,6 @@ namespace LivingWorldNpcs
             Inline = null;
         }
     }
-
     /// <summary>循环段步骤收集（loop.steps 按 actor 过滤）。</summary>
     public static class PlanExecutorHelpers
     {
@@ -1661,7 +1585,6 @@ namespace LivingWorldNpcs
             return result;
         }
     }
-
     // ═══════════════════════════════════════════════════════════════
     // 原 ExecutePlanAction（brain 队列占位挂载）已随单脑化重构 D1 删除（2026-08-11）：
     // 执行器不再挂脑队列占位——order_execute_plan / plan_debug 直接 executor.Start +

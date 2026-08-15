@@ -237,6 +237,7 @@ namespace LivingWorldNpcs
 
                 if (Settings.Instance.ShowDebugMessages)
                     InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_sys_actions_exported（玩家可见文本）
                         LWNTextHelper.ResolveCompound("LWN_sys_actions_exported",
                             "[LivingWorldNpcs] Actions exported to: {PATH}",
                             ("PATH", outputPath)),
@@ -246,6 +247,7 @@ namespace LivingWorldNpcs
             {
                 if (Settings.Instance.ShowDebugMessages)
                     InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_sys_actions_export_failed（玩家可见文本）
                         LWNTextHelper.ResolveCompound("LWN_sys_actions_export_failed",
                             "[LivingWorldNpcs] Export failed: {MESSAGE}",
                             ("MESSAGE", ex.Message)),

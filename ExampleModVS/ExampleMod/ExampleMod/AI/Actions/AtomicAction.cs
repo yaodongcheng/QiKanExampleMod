@@ -1203,6 +1203,7 @@ namespace LivingWorldNpcs
             // 切磋跳过宣言——"你想死吗？！"与点到为止的切磋语义相悖。
             if (!_isDuel)
                 SpeechChannel.SayPolished(agent,
+                    // 本地化：LWN_action_combat_start（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_action_combat_start", "You want to die?!"), SpeechPriority.Combat,
                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
         }
@@ -1289,6 +1290,7 @@ namespace LivingWorldNpcs
                 {
                     _hurtShoutTriggered = true;
                     SpeechChannel.SayPolished(agent,
+                        // 本地化：LWN_action_combat_hurt（玩家可见文本）
                         LWNTextHelper.ResolveText("LWN_action_combat_hurt", "Agh!"), SpeechPriority.Combat,
                         SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
                 }
@@ -1320,6 +1322,7 @@ namespace LivingWorldNpcs
             bool selfUp = agent.IsActive() && agent.Health > 0f;
             if (enemyDown && selfUp)
                 SpeechChannel.SayPolished(agent,
+                    // 本地化：LWN_action_combat_end（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_action_combat_end", "Hmph. Overconfident fool."), SpeechPriority.Combat,
                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), _targetEnemy, "combat", "战斗"));
             // 完整结束战斗（注销战斗者 + 移回原始队伍）

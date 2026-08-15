@@ -332,7 +332,7 @@
     <!-- DecoyMission -->
     <string id="LWN_narr_decoymission_closure_any_0_50_good" text="追兵被你引开了！我安全了。虽然你挂了几处彩……{REWARD}第纳尔，值了。你真的救了我一命。" />
     <!-- DecoyMission -->
-    <string id="LWN_narr_decoymission_closure_any_0_50_failed" text="你差点没逃出来……我也差点被追上。这计划太冒险了。{REWARD}还是给你——活着就好。" />
+    <string id="LWN_narr_decoymission_closure_any_0_50_failed" text="你差点没逃出来……我也差点被追上。这战术太冒险了。{REWARD}还是给你——活着就好。" />
     <!-- ProcurementAgent -->
     <string id="LWN_narr_procurementagent_closure_any_0_50_good" text="就是它——品相不错，价格也合适。{REWARD}第纳尔。你办事比我亲自去还利索。" />
     <!-- ProcurementAgent -->
@@ -862,7 +862,7 @@
     <string id="LWN_ui_interact_inquiry_steal_msg" text="{NAME} 想偷你的钱" />
     <string id="LWN_ui_interact_inquiry_steal_npc_msg" text="{NAME} 想偷 {TARGET} 的钱" />
     <string id="LWN_ui_interact_target_select_msg" text="那边站着 {COUNT} 个{NAME}，您指的是哪个？" />
-    <string id="LWN_im_target_not_found" text="主公，那边没找到{NAME}。" />
+    <string id="LWN_im_target_not_found" text="主公，此地没有你说的{NAME}。" />
     <string id="LWN_ui_interact_msg_marry_accept" text="{NAME} 接受了你的求婚！" />
     <string id="LWN_ui_interact_msg_join_clan" text="{NAME} 加入了你的家族。" />
     <string id="LWN_ui_interact_msg_action_fail" text="无法执行动作: {CODE} (条件不满足)" />
@@ -2634,7 +2634,7 @@
     <!-- 分组：设置（单组。MCM footer 式标题渲染下多组会错位，见 MCMSettings.cs 注释） -->
     <string id="LWN_mcm_grp_main" text="设置" />
     <string id="LWN_mcm_plot_enabled" text="密信(测试版)" />
-    <string id="LWN_mcm_plot_enabled_hint" text="开启后，可对随从发送自然语言密信（面向随从按下密信键）。默认关闭；关闭时密信入口隐藏，但已执行中的计划仍可用停止键终止。" />
+    <string id="LWN_mcm_plot_enabled_hint" text="开启后，可对随从发送自然语言密信（面向随从按下密信键）。默认关闭；关闭时密信入口隐藏，但已执行中的战术仍可用停止键终止。" />
     <string id="LWN_mcm_hostile_on_allies" text="允许对友方使用敌意互动" />
     <string id="LWN_mcm_hostile_on_allies_hint" text="关闭时，击晕/偷窃/搜刮/攻击将不能作用于友方——友方定义见 config.json 的 FriendlyRelationCriteria（默认：同队伍 + 同家族）与 FriendlyRelationThreshold（好感阈值）。默认开启（敌意互动均为长按蓄力触发，误触概率低）。无论开关，友方旁观者看到你对别人犯罪都会无动于衷。" />
     <!-- LLM API 地址 -->
@@ -2911,7 +2911,7 @@
     <!-- 弹窗选项：保持节奏 -->
 <string id="LWN_complication_keep_pace" text="保持节奏" />
     <!-- 任务日志：按原计划走避免出错 -->
-<string id="LWN_complication_keep_pace_log" text="按原计划走——急中出错更麻烦。" />
+<string id="LWN_complication_keep_pace_log" text="按原定战术走——急中出错更麻烦。" />
     <!-- 任务日志：驮马跛脚移速下降 -->
 <string id="LWN_complication_lame_pack_horse_log" text="商队的一头驮马跛了脚，移动速度暂时下降。" />
     <!-- 目标城镇名兜底（无法解析时显示"目标城镇"） -->
@@ -4031,7 +4031,7 @@
     <string id="LWN_reactive_respond_chief" text="嗯，说吧，我听着。" />
     <string id="LWN_reactive_respond_villager" text="啊？你说啥？" />
     <string id="LWN_reactive_respond_drunkard" text="嗝……你谁啊？" />
-    <!-- 🔴 2026-08-12：LWN_hud_far_say 退役（用户裁定：远处说话直接进附近频道，不弹屏幕消息） -->
+    <!-- [!] 2026-08-12：LWN_hud_far_say 退役（用户裁定：远处说话直接进附近频道，不弹屏幕消息） -->
     <string id="LWN_ui_commandintent_distract" text="引开" />
     <string id="LWN_ui_commandintent_bring" text="请人" />
     <string id="LWN_ui_commandintent_lookout" text="望风" />
@@ -4056,8 +4056,8 @@
     <string id="LWN_plan_abort_down" text="随从倒下了！" />
     <string id="LWN_plan_abort_fight" text="打起来了，先撤！" />
     <string id="LWN_plan_abort_toolong" text="拖太久了，先撤。" />
-    <string id="LWN_plan_abort_interrupted" text="计划被打断了。" />
-    <string id="LWN_plan_abort_generic" text="计划作罢了。" />
+    <string id="LWN_plan_abort_interrupted" text="战术被打断了。" />
+    <string id="LWN_plan_abort_generic" text="战术作罢了。" />
     <string id="LWN_plan_abort_timeout" text="{OWNER} {STEP}，拖太久没成，先作罢了。" />
     <string id="LWN_plan_step_move_to" text="前往目标地点" />
     <string id="LWN_plan_step_talk" text="交谈中" />
@@ -4066,12 +4066,12 @@
     <string id="LWN_plan_step_report" text="准备报告" />
     <string id="LWN_plan_step_steal" text="准备下手" />
     <string id="LWN_plan_step_doing" text="执行中（{ACTION}）" />
-    <string id="LWN_plan_abort_badjump" text="计划出了岔子，先撤。" />
+    <string id="LWN_plan_abort_badjump" text="战术出了岔子，先撤。" />
     <string id="LWN_plan_goal_notmet" text="事情没办成。" />
     <string id="LWN_plan_lead_waiting" text="你走不走啊？" />
     <string id="LWN_plan_loot" text="赃物" />
     <string id="LWN_plan_gold" text="金币" />
-    <string id="LWN_hud_plan_executing" text="执行计划中：{STEP}" />
+    <string id="LWN_hud_plan_executing" text="执行战术中：{STEP}" />
     <string id="LWN_plan_step_decision" text="步骤 {STEP} 收到决策结果（{TYPE}）" />
     <string id="LWN_plan_pause_modal" text="玩家在忙别的" />
     <string id="LWN_plan_pause_fight" text="玩家战斗中" />
@@ -4109,15 +4109,15 @@
     <string id="LWN_im_generating" text="{NAMES}正在思考中…" />
     <string id="LWN_im_generating_plain" text="正在思考中…" />
     <string id="LWN_im_mode_chat" text="闲聊" />
-    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：派生模式指示文本（会话状态 → GetPhase） -->
-    <string id="LWN_im_mode_generating" text="计划生成中" />
-    <string id="LWN_im_mode_pending" text="计划待批准" />
-    <string id="LWN_im_mode_executing" text="计划执行中" />
-    <string id="LWN_im_mode_unavailable" text="此处无法下达计划。" />
-    <string id="LWN_im_mode_need_mission" text="计划需当面下达——先进到场景里。" />
+    <!-- [!] 2026-08-12（合并闲聊/计划模式）：派生模式指示文本（会话状态 → GetPhase） -->
+    <string id="LWN_im_mode_generating" text="战术生成中" />
+    <string id="LWN_im_mode_pending" text="战术待批准" />
+    <string id="LWN_im_mode_executing" text="战术执行中" />
+    <string id="LWN_im_mode_unavailable" text="此处无法下达战术。" />
+    <string id="LWN_im_mode_need_mission" text="战术需当面下达——先进到场景里。" />
     <string id="LWN_im_mode_plot_active" text="另一桩密谋正在进行中。" />
-    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（NPC 回复消息底部通用按钮行） -->
-    <string id="LWN_im_btn_make_plan" text="制定计划" />
+    <!-- [!] 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（NPC 回复消息底部通用按钮行） -->
+    <string id="LWN_im_btn_make_plan" text="制定战术" />
     <string id="LWN_im_btn_skip" text="先不用" />
     <string id="LWN_im_time_justnow" text="刚刚" />
     <string id="LWN_im_time_minutes" text="{N} 分钟前" />
@@ -4141,16 +4141,16 @@
     <string id="LWN_plan_bring_tail" text="主公召我来，不知有何吩咐？" />
     <string id="LWN_plan_bring_tail_topic" text="带到主人面前" />
     <string id="LWN_im_btn_submit_modify" text="提交修改" />
-    <string id="LWN_im_input_placeholder_modify" text="修改计划：…" />
+    <string id="LWN_im_input_placeholder_modify" text="修改战术：…" />
     <string id="LWN_im_badge_modified" text="修改版 v{N}" />
     <string id="LWN_im_btn_detail_expand" text="详情" />
     <string id="LWN_im_btn_detail_collapse" text="收起详情" />
-    <string id="LWN_im_btn_review" text="计划自审" />
+    <string id="LWN_im_btn_review" text="战术自审" />
     <string id="LWN_im_btn_reviewing" text="自审中…" />
-    <string id="LWN_im_cmd_modify_pending" text="随从正在按你的意见重拟计划…" />
-    <string id="LWN_im_cmd_regenerating" text="随从正在重拟计划…" />
-    <string id="LWN_im_cmd_modify_exhausted" text="计划修改次数已达上限，请批准或重新下达。" />
-    <string id="LWN_im_cmd_modify_need_mission" text="修改计划需要随从在场，请先进到场景里。" />
+    <string id="LWN_im_cmd_modify_pending" text="随从正在按你的意见重拟战术…" />
+    <string id="LWN_im_cmd_regenerating" text="随从正在重拟战术…" />
+    <string id="LWN_im_cmd_modify_exhausted" text="战术修改次数已达上限，请批准或重新下达。" />
+    <string id="LWN_im_cmd_modify_need_mission" text="修改战术需要随从在场，请先进到场景里。" />
     <string id="LWN_im_cmd_unavailable_here" text="此刻无法传讯。" />
     <string id="LWN_im_cmd_no_direct" text="这位随从无法通过传讯联系。" />
     <string id="LWN_im_npc_companion" text="随从" />
@@ -4158,13 +4158,13 @@
     <string id="LWN_plan_detail_timeout" text="    超时 → {TARGET}" />
     <string id="LWN_plan_detail_contingencies" text="应急安排：" />
     <string id="LWN_plan_detail_contingency_line" text="    若 {COND} 则 {THEN}" />
-    <string id="LWN_plan_detail_guardrail" text="    安全网：意外威胁会暂停计划；停止键随时召回随从。" />
+    <string id="LWN_plan_detail_guardrail" text="    安全网：意外威胁会暂停战术；停止键随时召回随从。" />
     <string id="LWN_plan_step_memory" text="按主公吩咐，{ACTION} {TARGET}，已完成。" />
-    <!-- 🔴 2026-08-12（队伍成员在场认知）：玩家附近喊话的记忆行模板（{NAME} 玩家名 / {TEXT} 喊话全文） -->
+    <!-- [!] 2026-08-12（队伍成员在场认知）：玩家附近喊话的记忆行模板（{NAME} 玩家名 / {TEXT} 喊话全文） -->
     <string id="LWN_nearby_shout_memory" text="{NAME}在附近喊道：{TEXT}" />
-    <!-- 🔴 2026-08-12（点名喊话记忆行）：@点名目标的记忆行模板（{TARGET} 目标统一显示名——显式化让 LLM 直接看出主公和谁说话） -->
+    <!-- [!] 2026-08-12（点名喊话记忆行）：@点名目标的记忆行模板（{TARGET} 目标统一显示名——显式化让 LLM 直接看出主公和谁说话） -->
     <string id="LWN_nearby_shout_to_memory" text="{NAME}对{TARGET}喊道：{TEXT}" />
-    <!-- 🔴 2026-08-12（@远距离守卫）：@目标距玩家超过可听半径的提示（{NAME} = 目标统一显示名） -->
+    <!-- [!] 2026-08-12（@远距离守卫）：@目标距玩家超过可听半径的提示（{NAME} = 目标统一显示名） -->
     <string id="LWN_nearby_mention_too_far" text="{NAME}离得太远，听不到你的喊话。" />
     <string id="LWN_plan_action_move_to" text="前往" />
     <string id="LWN_plan_action_follow" text="跟随" />
@@ -4230,15 +4230,15 @@
     <string id="LWN_im_status_away" text="他处" />
     <string id="LWN_im_status_outside" text="城外" />
     <string id="LWN_im_status_far" text="远处" />
-    <string id="LWN_im_march_channel_only" text="计划只能发给单个英雄；频道内下达计划需进入场景。" />
+    <string id="LWN_im_march_channel_only" text="战术只能发给单个英雄；频道内下达战术需进入场景。" />
     <string id="LWN_im_march_no_party" text="此人麾下并无军队可令。" />
     <string id="LWN_im_march_in_party" text="此人正随你行军——请在场景中当面下密令。" />
     <string id="LWN_im_march_enemy" text="使者不敢接近敌军营地。" />
     <string id="LWN_im_march_follow" text="{NAME}的军队正向你的位置汇合。" />
     <string id="LWN_im_march_hold" text="{NAME}的军队原地驻扎。" />
     <string id="LWN_im_march_move" text="{NAME}的军队正开赴{PLACE}。" />
-    <string id="LWN_im_march_no_place" text="使者不识此地。计划：跟随 / 原地待命 / 前往某处定居点。" />
-    <string id="LWN_im_march_unclear" text="使者听不懂这道命令。计划：跟随 / 原地待命 / 前往某处定居点。" />
+    <string id="LWN_im_march_no_place" text="使者不识此地。战术：跟随 / 原地待命 / 前往某处定居点。" />
+    <string id="LWN_im_march_unclear" text="使者听不懂这道命令。战术：跟随 / 原地待命 / 前往某处定居点。" />
     <string id="LWN_im_group_channels" text="频道" />
     <string id="LWN_im_group_directs" text="私聊" />
     <string id="LWN_im_empty_hint" text="还没有消息，说点什么打破沉默吧…" />
@@ -4342,5 +4342,34 @@
     <string id="LWN_campaign_persuade_settle_refuse" text="此事不必再劝了。" />
     <string id="LWN_campaign_motion_pass" text="就这么定了，大家照办。" />
     <string id="LWN_campaign_motion_fail" text="此事还是从长计议吧。" />    <string id="LWN_dialog_bystander_refuse_2" text="（摇了摇头，自顾自走开）" />
+    <string id="LWN_npc_steal_success" text="{NAME} 从 {TARGET} 身上摸到了 {AMOUNT}{GOLD}。" />
+    <string id="LWN_npc_steal_equip_success" text="{NAME} 从 {TARGET} 身上摸走了 {ITEM}。" />
+    <string id="LWN_npc_steal_empty" text="{NAME} 在 {TARGET} 身上没摸到东西。" />
+    <string id="LWN_npc_steal_fail_roll" text="{NAME} 在 {TARGET} 身上没摸到东西。（掷点 {ROLL} vs 门槛 {THRESHOLD}）" />
+    <string id="LWN_npc_steal_impossible" text="{NAME} 绕不到 {TARGET} 背后，没法下手。" />
+    <string id="LWN_npc_steal_interrupted" text="{NAME} 被人看见，没敢下手，先撤了。" />
+    <string id="LWN_npc_steal_equip_fail" text="{NAME} 想卸掉 {TARGET} 的装备，被 {TARGET} 察觉了！" />
+    <string id="LWN_dialogue_ack_short" text="嗯。" />
+    <string id="LWN_im_sender_dist" text="{NAME}（{DIST}米外）" />
+    <string id="LWN_plan_abort_scene_end" text="战术随场景结束而中止。" />
+    <string id="LWN_armor_tier_unarmed" text="徒手" />
+    <string id="LWN_armor_tier_light" text="轻装（有武器无甲）" />
+    <string id="LWN_armor_tier_armed" text="武装（轻甲）" />
+    <string id="LWN_armor_tier_full" text="全副武装（重甲）" />
+    <string id="LWN_npc_assist_accept" text="交给我。" />
+    <string id="LWN_npc_assist_done" text="成了。" />
+    <string id="LWN_risk_verdict_overwhelming" text="稳赢" />
+    <string id="LWN_risk_verdict_slight_advantage" text="略占上风" />
+    <string id="LWN_risk_verdict_even" text="势均力敌" />
+    <string id="LWN_risk_verdict_slight_disadvantage" text="略处下风" />
+    <string id="LWN_risk_verdict_overwhelmed" text="悬殊" />
+    <string id="LWN_ui_interact_inquiry_attack_risk_msg" text="{NAME} 警告：{RISK}——仍要动手吗？" />
+    <string id="LWN_ui_interact_inquiry_attack_npc_risk_msg" text="{NAME} 警告：{RISK}——仍要对 {TARGET} 动手吗？" />
+    <string id="LWN_ui_interact_inquiry_knockout_risk_msg" text="{NAME} 警告：{RISK}——仍要下手吗？" />
+    <string id="LWN_ui_interact_inquiry_knockout_npc_risk_msg" text="{NAME} 警告：{RISK}——仍要对 {TARGET} 下手吗？" />
+    <string id="LWN_ui_interact_inquiry_steal_risk_msg" text="{NAME} 警告：{RISK}——仍要偷吗？" />
+    <string id="LWN_ui_interact_inquiry_steal_npc_risk_msg" text="{NAME} 警告：{RISK}——仍要从 {TARGET} 身上偷吗？" />
+    <string id="LWN_ui_interact_inquiry_duel_risk_msg" text="{NAME} 警告：{RISK}——仍要切磋吗？" />
+    <string id="LWN_ui_interact_inquiry_duel_npc_risk_msg" text="{NAME} 警告：{RISK}——仍要与 {TARGET} 切磋吗？" />
     <string id="LWN_dialog_chat_initiator_refuse_2" text="……是我多嘴了。" /></strings>
 </base>

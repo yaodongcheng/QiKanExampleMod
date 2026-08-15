@@ -356,6 +356,7 @@ namespace LivingWorldNpcs
                 try { DebugLogger.Log($"[Say] {agentStringId}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
                 Instance.AddSpeech(Mission.Current.MainAgent, text);
                 if (Settings.Instance.ShowDebugMessages)
+                    // 本地化：LWN_hud_agent_said（玩家可见文本）
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_said",
                         ("ID", agentStringId), ("TEXT", text))));
                 return;
@@ -368,6 +369,7 @@ namespace LivingWorldNpcs
                     try { DebugLogger.Log($"[Say] {agent.Name}: {text}{(string.IsNullOrEmpty(reason) ? "" : " ← " + reason)}"); } catch { }
                     Instance.AddSpeech(agent, text);
                     if (Settings.Instance.ShowDebugMessages)
+                        // 本地化：LWN_hud_agent_said（玩家可见文本）
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_said",
                             ("ID", agentStringId), ("TEXT", text))));
                     return;
@@ -375,6 +377,7 @@ namespace LivingWorldNpcs
             }
 
             if (Settings.Instance.ShowDebugMessages)
+                // 本地化：LWN_hud_agent_not_found（玩家可见文本）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_hud_agent_not_found",
                     ("ID", agentStringId))));
         }

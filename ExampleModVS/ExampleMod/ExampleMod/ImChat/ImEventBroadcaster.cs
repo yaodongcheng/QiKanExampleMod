@@ -214,6 +214,7 @@ namespace LivingWorldNpcs
         /// <summary>模板兜底（玩家可见文本 → 铁律 13）：fallback 英文，中文走 XML（LWN_im_event_*）。</summary>
         private static string GetFallback(string eventKey)
         {
+            // 本地化：LWN_im_event_（玩家可见文本）
             return LWNTextHelper.ResolveText("LWN_im_event_" + eventKey,
                 eventKey switch
                 {

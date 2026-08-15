@@ -516,9 +516,9 @@ namespace LivingWorldNpcs
         private static string TeamLabel(Team team)
         {
             if (team == null) return "null";
-            if (team == _playerSideTeam) return $"玩家侧容器(team{team.TeamIndex})";
-            if (team == _enemySideTeam) return $"敌方容器(team{team.TeamIndex})";
-            if (team == _opponentSideTeam) return $"切磋对手容器(team{team.TeamIndex})";
+            if (team == _playerSideTeam) return $"玩家侧容器(team{team.TeamIndex})"; // lwn-ignore: A 日志用队名
+            if (team == _enemySideTeam) return $"敌方容器(team{team.TeamIndex})"; // lwn-ignore: A 日志用队名
+            if (team == _opponentSideTeam) return $"切磋对手容器(team{team.TeamIndex})"; // lwn-ignore: A 日志用队名
             return $"team{team.TeamIndex}";
         }
 

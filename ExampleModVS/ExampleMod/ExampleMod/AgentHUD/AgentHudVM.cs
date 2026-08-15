@@ -128,6 +128,7 @@ namespace LivingWorldNpcs
                 bool planActive = executor != null && !string.IsNullOrWhiteSpace(executor.CurrentSummary)
                     && !TargetAgent.IsMainAgent && !Settings.Instance.IsInteractionDisabled();
                 if (planActive)
+                    // 本地化：LWN_hud_plan_executing（玩家可见文本）
                     NpcIntentDebugText = LWNTextHelper.ResolveCompound("LWN_hud_plan_executing",
                         "Executing plan: {STEP}", ("STEP", executor.CurrentSummary));
                 else

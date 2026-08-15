@@ -276,6 +276,7 @@ namespace LivingWorldNpcs
                         itemToSteal = new EquipmentElement(itemToSteal.Item, poorMod);
                         // 本地化：装备降质提示（品质前缀会显示在物品名上，这里只提醒玩家注意到）
                         InformationManager.DisplayMessage(new InformationMessage(
+                            // 本地化：LWN_ui_steal_msg_degraded（玩家可见文本）
                             LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_degraded",
                             ("ITEM", itemToSteal.Item.Name.ToString())),
                             new Color(0.85f, 0.65f, 0.35f)));
@@ -421,6 +422,40 @@ namespace LivingWorldNpcs
                     "gold", LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_gold_amount", ("GOLD", actual.ToString())), agent.Name?.ToString(), count: actual);
             }
             return actual;
+        }
+        /// <summary>
+        /// 🔴 2026-08-14（npc-risk-aware-planning.md M7）：随从「偷装备」动作的 NPC 侧结算——
+        /// 玩家路径 StealSpecificItem 的镜像薄包装（铁律 18 平权：判定公式 + 结算共享，不复制逻辑）。
+        /// 语义：从目标身上卸下一件装备（武器槽优先——削攻最直观），武器槽全空则护甲槽。
+        /// 结算全走 StealSpecificItem 既有管线（守恒：目标装备层清空 ↔ 玩家队伍背包 +1；
+        /// RecordStolen 归还复原共用；TheftLedger/暗账记账）。
+        /// </summary>
+        /// <returns>偷到的物品名；null = 目标身上没有可卸的装备。</returns>
+        public static string StealEquipmentForNpc(Agent target)
+        {
+            if (target == null) return null;
+            // 武器槽优先（削攻最直观）：WeaponItemBeginSlot..Weapon3 第一把
+            for (EquipmentIndex i = EquipmentIndex.WeaponItemBeginSlot; i <= EquipmentIndex.Weapon3; i++)
+            {
+                try
+                {
+                    if (!target.SpawnEquipment[i].IsEmpty)
+                        return StealSpecificItem(target, i);
+                }
+                catch { }
+            }
+            // 护甲槽（头/身/腿/手/披风）
+            var armorSlots = new[] { EquipmentIndex.Head, EquipmentIndex.Body, EquipmentIndex.Leg, EquipmentIndex.Gloves, EquipmentIndex.Cape };
+            foreach (var s in armorSlots)
+            {
+                try
+                {
+                    if (!target.SpawnEquipment[s].IsEmpty)
+                        return StealSpecificItem(target, s);
+                }
+                catch { }
+            }
+            return null;   // 目标无装备可偷（诚实摸空）
         }
         /// <summary>
         /// 扒掉 Agent 的装备。

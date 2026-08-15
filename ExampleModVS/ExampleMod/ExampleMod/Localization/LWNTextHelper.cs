@@ -188,7 +188,7 @@ namespace LivingWorldNpcs
                     return "English";
             }
             catch { }
-            return "简体中文";
+            return "简体中文"; // lwn-ignore: A 语言检测内部逻辑（非玩家可见文本）
         }
 
         /// <summary>
