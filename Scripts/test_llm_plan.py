@@ -39,6 +39,8 @@ ALLOWED_ACTIONS = {
     "negotiate", "duel", "end_plan",
     # 2026-08-14（npc-risk-aware-planning.md M6/M7）：ask_help 分头配合 / steal_equipment 卸装备
     "ask_help", "steal_equipment",
+    # 2026-08-15（等机会/抉择点询问主公）：ask_player 密信决策卡（撤退/强制执行 → on_event 路由）
+    "ask_player",
 }
 ACTION_ALIASES = {
     "attack": "order_attack", "move": "move_to", "stop": "stop_following",

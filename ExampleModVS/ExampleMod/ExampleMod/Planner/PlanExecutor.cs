@@ -869,6 +869,12 @@ namespace LivingWorldNpcs
                     // 🔴 2026-08-14（M6 多随从分头配合）：通信类内联（留排序器侧）
                     cursor.Inline = new AskHelpInlineState(this, cursor, step);
                     return cursor.Inline.Ok;
+                case "ask_player":
+                    // 🔴 2026-08-15（等机会/抉择点询问主公）：密信决策卡内联（通信类，排序器侧）。
+                    // 投递决策卡（撤退/强制执行）→ 步骤级 on_event 消费玩家点击（事件回投）→ 跳转；
+                    // 超时未答 → on_timeout 或 @abort_gracefully（默认撤退语义）。
+                    cursor.Inline = new AskPlayerInlineState(this, cursor, step);
+                    return cursor.Inline.Ok;
                 case "steal_equipment":
                     // 🔴 2026-08-14（M7 偷装备）：复用扒窃判定管线（variant="equipment" 走共享结算）
                     cursor.Inline = new StealAttemptInlineState(this, cursor, step);
@@ -1429,6 +1435,8 @@ namespace LivingWorldNpcs
                 case "order_attack": return LWNTextHelper.ResolveText("LWN_plan_step_fight", "Fighting");
                 // 本地化：LWN_plan_step_report（玩家可见文本）
                 case "signal_player": return LWNTextHelper.ResolveText("LWN_plan_step_report", "Preparing to report");
+                // 本地化：LWN_plan_step_ask_player（玩家可见文本）
+                case "ask_player": return LWNTextHelper.ResolveText("LWN_plan_step_ask_player", "Asking the lord for a decision");
                 // 本地化：LWN_plan_step_steal（玩家可见文本）
                 case "steal_attempt": return LWNTextHelper.ResolveText("LWN_plan_step_steal", "Preparing to steal");
                 // 本地化：LWN_plan_step_doing（玩家可见文本）
@@ -1450,6 +1458,53 @@ namespace LivingWorldNpcs
         internal void NotifyDecisionEvent(string eventType)
         {
             _eventQueue.Add((Elapsed, eventType));
+        }
+        /// <summary>
+        /// 🔴 2026-08-15（ask_player 询问步骤）：向玩家投递密信决策卡（主线程，AskPlayerInlineState 调用）。
+        /// 卡片 = 执行人私聊会话的 Text 消息 + 按钮行（撤退/强制执行，文案本地化；事件码固定 retreat/force，
+        /// 与 LLM 计划 on_event 的 type 逐字匹配）。玩家点击 → ImChatView.HandleAskPlayerOption →
+        /// 本方法所在执行器的 NotifyDecisionEvent(eventType) → 步骤 on_event 路由（TickCursor 事件通道消费）。
+        /// 执行人无 Hero（模板 NPC 无私聊会话）/会话不可达 → 静默跳过（计划继续走超时/失败路径）。
+        /// </summary>
+        internal void AskPlayer(string question)
+        {
+            try
+            {
+                if (OwnerAgent == null || Mission.Current == null) return;
+                var hero = (OwnerAgent.Character as TaleWorlds.CampaignSystem.CharacterObject)?.HeroObject;
+                if (hero == null || string.IsNullOrEmpty(hero.StringId)) return;
+                string heroId = hero.StringId;
+                string name = OwnerAgent.Name?.ToString() ?? heroId;
+                ImChatStore.TouchDirectChat(heroId, ImChatManager.NowUnixMs());
+                var conv = ImChatManager.GetDirectConversation(heroId);
+                if (conv == null) return;
+                var msg = new ImMessage(heroId, name,
+                    string.IsNullOrWhiteSpace(question)
+                        // 本地化：ask_player 默认提问文案（LWN_im_ask_player_default）
+                        ? LWNTextHelper.ResolveText("LWN_im_ask_player_default", "My lord, I need your decision.")
+                        : question,
+                    ImMessageKind.Text)
+                {
+                    ConvId = conv.Id,
+                    IsAskPlayer = true,
+                    // 按钮文案本地化（主线程可调 LWNTextHelper）；事件码固定白名单（on_event 匹配）
+                    AskPlayerOptions = new System.Collections.Generic.List<AskPlayerOption>
+                    {
+                        // 本地化：ask_player 撤退按钮（LWN_im_ask_player_retreat）
+                        new AskPlayerOption(LWNTextHelper.ResolveText("LWN_im_ask_player_retreat", "Fall back"), "retreat"),
+                        // 本地化：ask_player 强制执行按钮（LWN_im_ask_player_force）
+                        new AskPlayerOption(LWNTextHelper.ResolveText("LWN_im_ask_player_force", "Force it"), "force"),
+                    },
+                };
+                ImChatStore.AppendGroupMessage(conv.Id, msg);
+                ImChatStore.IncUnread(conv.Id);
+                ImChatManager.BroadcastMessageArrived(conv);
+                DebugLogger.Log($"[PlanExecutor] {name} ask_player → 密信决策卡已投递: {msg.Content}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PlanExecutor] ask_player 投递失败: {ex.Message}");
+            }
         }
         internal void NotifySayDone(PlanStep step, Agent target)
         {

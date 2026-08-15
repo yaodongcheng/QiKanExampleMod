@@ -112,7 +112,7 @@ namespace LivingWorldNpcs
                     _welcomed = true;
                     // 首次打开引导（LWN_im_first_open）
                     string hint = LWNTextHelper.ResolveText("LWN_im_first_open",
-                        "Messaging (IM) — talk to heroes across the land, or give orders to companions. Open/close with the configured key (default O).");
+                        "Secret messaging (IM) — talk to heroes across the land, or send secret orders to companions. Open/close with the configured key (default O).");
                     InformationManager.DisplayMessage(new InformationMessage(hint));
                 }
 
@@ -276,7 +276,29 @@ namespace LivingWorldNpcs
         private static void RefreshTitle()
         {
             if (_vm == null) return;
-            _vm.Title = _selected?.Title ?? "";
+            string title = _selected?.Title ?? "";
+            // 🔴 2026-08-15（私聊标题好感，用户需求）：私聊会话标题 = NPC 名字 + 当前好感
+            //（玩家视角 MainHero.GetRelation，正负都显示：+42 / -15）。左栏列表标题不动（空间有限，
+            // 预览行已够用）；只在打开会话后的顶部标题带显示。模板 NPC 无 Hero → 原样（防 null）。
+            if (_selected != null && _selected.Type == ImConversationType.Direct
+                && !string.IsNullOrEmpty(_selected.PartnerHeroId))
+            {
+                try
+                {
+                    var hero = TaleWorlds.CampaignSystem.Hero.AllAliveHeroes
+                        .FirstOrDefault(h => h.StringId == _selected.PartnerHeroId);
+                    if (hero != null && Hero.MainHero != null)
+                    {
+                        int rel = Hero.MainHero.GetRelation(hero);
+                        string relText = rel > 0 ? "+" + rel.ToString() : rel.ToString();
+                        // 本地化：私聊标题好感（LWN_im_title_relation，{NAME}/{REL} 变量）
+                        title = LWNTextHelper.ResolveCompound("LWN_im_title_relation",
+                            "{NAME} ({REL} relation)", ("NAME", title), ("REL", relText));
+                    }
+                }
+                catch { /* 好感获取失败 → 原样标题 */ }
+            }
+            _vm.Title = title;
             // 空会话引导文案（本地化）
             _vm.EmptyHint = LWNTextHelper.ResolveText("LWN_im_empty_hint",
                 "No messages yet. Say something to break the silence...");
@@ -383,6 +405,37 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 🔴 2026-08-15（按钮不显示根因修复，实机 08:56:03 日志复盘）：消息**上屏后**被打标
+        /// （needPlan 建议 TryAttachSuggestion / 宾语确认等运行时形态变化）→ 该消息 VM 的
+        /// ShowCardBubble（卡片气泡容器可见性）是计算属性，打标时无 OnPropertyChanged → 容器
+        /// 一直保持"普通气泡"渲染，按钮行（容器内）不可见；切面板重开 = 全量重建才恢复。
+        /// 本方法：打标后立即重算锚点（IsPlanSuggest 参与竞争）+ 广播形态属性，一帧内按钮可用。
+        /// </summary>
+        public static void NotifyMessageShapeChanged(ImMessage msg)
+        {
+            if (_vm == null || msg == null) return;
+            try
+            {
+                UpdateCardAnchors();
+                foreach (var vm in _vm.Messages)
+                {
+                    if (vm != null && vm.Message == msg)
+                    {
+                        vm.OnPropertyChanged(nameof(ImMessageVM.IsPlanSuggest));
+                        vm.OnPropertyChanged(nameof(ImMessageVM.IsTargetConfirm));
+                        vm.OnPropertyChanged(nameof(ImMessageVM.ShowCardBubble));
+                        vm.OnPropertyChanged(nameof(ImMessageVM.ShowOtherBubble));
+                        vm.OnPropertyChanged(nameof(ImMessageVM.ShowSelfBubble));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] NotifyMessageShapeChanged 异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>
         /// 🔴 2026-08-12（用户裁定：决策卡片统一，计划按钮 = 通用交互结构）：卡片按钮锚点计算
         ///（计划卡片 + NPC 提议/闲聊动作卡片共用，合并旧 UpdateLatestProposalFlag + UpdatePlanAnchors）。
         /// 规则（与旧两套纪律同款合并）：
@@ -408,6 +461,8 @@ namespace LivingWorldNpcs
                 else if (m.IsPlanSuggest && !m.IsSuggestionResolved) latestCard = m;
                 // 🔴 2026-08-13（模板 NPC 目标确认）：宾语确认消息（待选）同参与竞争——最新者接管
                 else if (m.IsTargetConfirm && !m.IsTargetConfirmResolved) latestCard = m;
+                // 🔴 2026-08-15（ask_player 询问步骤）：密信决策卡（待点选）同参与竞争——最新者接管
+                else if (m.IsAskPlayerCard && !m.IsAskPlayerCardResolved) latestCard = m;
             }
             foreach (var vm in _vm.Messages)
             {
@@ -415,7 +470,7 @@ namespace LivingWorldNpcs
                 ImMessage card = null;
                 if (m != null)
                 {
-                    if (m.IsPlanCard || m.IsProposal || m.IsPlanSuggest || m.IsTargetConfirm)
+                    if (m.IsPlanCard || m.IsProposal || m.IsPlanSuggest || m.IsTargetConfirm || m.IsAskPlayerCard)
                         card = m;
                     else if (m.IsPlanChainMessage)
                     {
@@ -458,7 +513,8 @@ namespace LivingWorldNpcs
         private static bool IsCardAnchorPosition(ImMessage m, ImMessage card, List<ImMessage> msgs)
         {
             if (m == null || card == null) return false;
-            if (card.IsProposal || card.IsPlanSuggest || card.IsTargetConfirm) return true;   // 提议/建议/宾语确认无链：自身即锚点
+            // 提议/建议/宾语确认/ask_player 无链：自身即锚点
+            if (card.IsProposal || card.IsPlanSuggest || card.IsTargetConfirm || card.IsAskPlayerCard) return true;
             if (string.IsNullOrEmpty(card.ChainId)) return true;
             int mIdx = msgs.IndexOf(m);
             if (mIdx < 0) return false;
@@ -928,6 +984,49 @@ namespace LivingWorldNpcs
             // 已解析目标（含 #N）随 ResolvedTargetText 传入计划轮【目标指认】段（不再二次解析玩家原话）。
             ImCommandFlow.RequestCommand(conv, command, companionIntention: msg.RiskAnalysisText,
                 resolvedTargetText: msg.ResolvedTargetText);
+        }
+
+        /// <summary>🔴 2026-08-15（ask_player 询问步骤）：玩家点选密信决策卡按钮（撤退/强制执行）→
+        /// 卡片了结（按钮消失）→ 事件回投执行者 PlanExecutor（NotifyDecisionEvent）→
+        /// 步骤 on_event 路由（retreat → 撤退收尾 / force → 强制执行步骤）。执行者已结束/离场 →
+        /// 事件丢弃（计划收尾语义不变，日志可查）。</summary>
+        public static void HandleAskPlayerOption(ImMessage msg, string eventType)
+        {
+            if (msg == null || !msg.IsAskPlayerCard || msg.IsAskPlayerCardResolved) return;
+            msg.ExecutorId = "done";
+            // 按钮行是重建式数据（CardButtons 按锚点重建）→ 全量重建（本消息按钮消失，锚点前移）
+            if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+            if (string.IsNullOrEmpty(eventType)) return;
+            try
+            {
+                PlanExecutor executor = null;
+                if (Mission.Current != null && !string.IsNullOrEmpty(msg.SenderHeroId))
+                {
+                    foreach (var a in Mission.Current.Agents)
+                    {
+                        if (a == null || !a.IsActive()) continue;
+                        var hero = (a.Character as CharacterObject)?.HeroObject;
+                        if (hero != null && hero.StringId == msg.SenderHeroId)
+                        {
+                            executor = PlanExecutor.GetExecutorFor(a);
+                            break;
+                        }
+                    }
+                }
+                if (executor != null && !executor.IsFinished)
+                {
+                    executor.NotifyDecisionEvent(eventType);
+                    DebugLogger.Log($"[ImChat] ask_player 决策: {msg.SenderName} → {eventType}");
+                }
+                else
+                {
+                    DebugLogger.Log($"[ImChat] ask_player 决策 {eventType} 丢弃: 执行者 {msg.SenderName} 已结束/离场");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] ask_player 决策回投失败: {ex.Message}");
+            }
         }
 
         private static ImConversation ConversationOf(string convId)

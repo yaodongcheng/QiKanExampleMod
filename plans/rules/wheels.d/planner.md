@@ -113,6 +113,27 @@ public static class AgentStatsHelper
 
 `TryResolveAgent` 解析链：self/player 特判 → `RoleAgents`（explicitTarget 注册的 "target"）→ 快照 `FindAgent`。快照匹配五层：① Role 精确 ② 显示名精确 ③ StringId/Character.Name 精确 ④ 职业关键词子串 ⑤ **显示名子串**（2026-08-13 加——与 defender 解析 `NameMatchesHero` 同口径；"那弥斯" ⊂ "卡诺洛斯的那弥斯"，多匹配取最近）。**纪律**：卡片阶段能解析的目标，执行期必须同口径解析——否则"卡片发出、执行瞬死"（实机 44.510→44.512）。
 
+## 🔴 Agent.Index 目标唯一标记（`[#N]`，2026-08-15 用户裁定）— `Core/AgentControlHelper.cs` + `SceneSnapshot.FindAgent` + `ActionHandler.FindTemplateNpcCandidates`
+
+**问题**：玩家/LLM 说法与场景角色名不一致（「酒馆老板」vs「酒馆店主」）→ 字符串匹配 0 候选 → 告知「没找到」+ 决策卡被拦（实机 08:40）。字符串归一化是死办法（覆盖不了所有别名）。
+
+**方案**：prompt 给**每个场景个体标 `[#N]`**（N = 引擎 `Agent.Index`，Mission 内稳定），LLM 基于**场景语义**指认（它知道「酒馆老板」= 场景里标着 [#3] 的「酒馆店主」），action_target 照抄标记 → C# 用 Index 精确查 Agent。
+
+**关键签名**：
+```csharp
+// Core/AgentControlHelper.cs —— 统一解析工具（剥 #N → Agent.Index 精确查；Mission null 直接未命中 = 非 InScene 无意义；失效回退 cleanName）
+public static bool TryResolveIndexedTarget(string text, out Agent agent, out string cleanName)
+```
+
+**解析链接入**（三处同口径）：
+- `SceneSnapshot.FindAgent`（#N 优先 → 失效回退名字）→ 执行器 `TryResolveAgent` **自动受益**
+- `ActionHandler.FindTemplateNpcCandidates`（#N 命中单候选直接返回）
+- `WorldFactProvider.BuildRiskSceneContext` 目标解析（输入是玩家命令文本，无 #N，天然不需要）
+
+**prompt 标注**：`【目之所及】/【场景当前人员】`个体行 `名字[#N]`；im_reply_rule 目标名纪律要求 LLM **照抄 #N**（「不在你眼前的人没有标记，只能用名字」——InScene 边界）。**plan_needed 目标传递**：回复轮 action_target（含 #N）存消息 `ResolvedTargetText` → 点按钮 → RequestCommand → 计划轮【目标指认】段（「玩家说的目标 = 场景里的 酒馆店主#3，target 直接写它」）——计划轮不再二次解析玩家原话。
+
+**别名归一化兜底**：`SceneSnapshot.NormalizeTargetAlias`（老板/掌柜→店主、卫兵→守卫、tavernkeeper/innkeeper→店主）保留作 #N 失效后的第三层兜底。
+
 **常用调用范例**：
 
 ```csharp

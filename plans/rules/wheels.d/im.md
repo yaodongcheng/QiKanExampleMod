@@ -185,3 +185,33 @@ ResolveSpace(attacker, defender)：双方 IsPresentInMission → (in,in)=InScene
 2. **执行阶段 `SceneSnapshot.FindAgent`**（名字→agent）：**显示名子串匹配**（"那弥斯" ⊂ "卡诺洛斯的那弥斯"）——卡片阶段 `NameMatchesHero` 是子串匹配，执行期必须同口径；原来只精确匹配 → 卡片发出去、执行期解析失败 → 步骤 2ms 瞬死（实机：44.510 开始 → 44.512 超时）。多匹配取最近（bestDist 既有）。
 
 **纪律**：defender 解析与执行期目标解析必须同一匹配口径（子串）；模板 NPC（无 Hero）走 `FindTemplateNpcCandidates` 不经过 Hero 匹配。
+
+## 🔴 多消息分时投递（说话节奏，2026-08-15 实机）— `ImChat/ImChatManager.cs` 延迟队列
+
+**问题**：回复链多条消息（npc_reply + risk_analysis + 告知/决策卡）同帧同步投递 → 11ms 三句齐发，像机关枪（实机 08:40）。
+
+**方案**：主线程延迟队列（Tick 消费），间隔**与前句字数挂钩 + 随机抖动**——模拟真人读句。
+
+**关键签名**：
+```csharp
+// 间隔估算：前句字数 × 0.05s + 0.3s 基准 + 随机 0~0.6s，钳制 [0.6, 3.5]s
+public static float SpeechPauseFor(string prevText);
+// 延迟投递 NPC 消息（到点 → DeliverNpcMessage）
+public static void ScheduleDelayedNpcMessage(ImConversation conv, string npcHeroId, string npcName, string content, float delaySec);
+// 延迟执行主线程动作（决策卡投递/动作执行；Mission 已切换由动作内部 null-guard 自保）
+public static void ScheduleDelayedAction(Action action, float delaySec);
+```
+
+**范式**（`RiskAssessor.RouteRisky` 范本）：npc_reply 立即投递 → 台词延迟 d1（= SpeechPauseFor(npc_reply)）→ 决策卡/执行再延迟 d2（= SpeechPauseFor(台词)）。
+
+## 🔴 卡片按钮可见性时序（2026-08-15 实机 08:38 两连 bug）— `ImChat/ImChatView.cs` + `ImChatVM.cs`
+
+**问题**：按钮数据构建成功（CardButtons=2）但按钮行不可见——`[SuggestBtn] 已构建 2 按钮 → IsCardAnchor=False` 而后 `[CardAnchor] anchor=True`。
+
+**根因**：`UpdateCardAnchors` 旧顺序 `vm.AnchorCard = card`（触发 NotifyPlanState → RebuildCardButtons，此时 IsCardAnchor 还是旧值 False）→ `vm.IsCardAnchor = true`（后设置）——按钮构建时可见性未就绪，联动丢失。
+
+**修复（双保险）**：
+1. **顺序反转**：先 `vm.IsCardAnchor = ...` 再 `vm.AnchorCard = card`——可见性先就绪，按钮数据后到（MBBindingList 添加自动刷新数据源）
+2. **构建后强制广播**：`RebuildCardButtons` 末尾 `OnPropertyChanged(IsHorizontalButtons)` + `OnPropertyChanged(IsVerticalButtonsVisible)`——无论构建时序，最终状态重评估
+
+**调试日志**：`[CardButtons]`（重建入口+锚点种类）/ `[SuggestBtn]`（构建判定变量+可见性）/ `[CardAnchor]`（锚点竞争结果，**节流：latestCard 引用变化才打**——UpdateCardAnchors 每 0.3s 轮询，不节流会刷屏）。

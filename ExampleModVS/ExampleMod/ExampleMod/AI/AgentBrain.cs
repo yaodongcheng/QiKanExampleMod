@@ -43,6 +43,9 @@ namespace LivingWorldNpcs
 
         private NpcIntent _currentIntent = new NpcIntent(NpcIntentType.None);
         private NpcIntent _previousIntent;
+        // 🔴 2026-08-15(用户需求:HUD 意图文本可排查):上次打日志的 HUD 文本——
+        // SetNpcIntent 只在 HUD 渲染文本变化时才打日志(防高频重复刷屏)
+        private string _lastIntentHudLog;
 
         /// <summary>NPC 当前高层意图。只读，变更必须走 SetNpcIntent。</summary>
         public NpcIntent CurrentIntent => _currentIntent;
@@ -198,6 +201,20 @@ namespace LivingWorldNpcs
         {
             _previousIntent = _currentIntent;
             _currentIntent = new NpcIntent(type, target, interceptDetail, commandDetail);
+            // 🔴 2026-08-15(用户需求:HUD 意图文本可排查):意图变更打日志——记录 AgentHudVM 实际
+            // 渲染的意图文本(它用 intent.ToString() 渲染 NpcIntentDebugText),HUD 文本变化才打
+            // (意图类型/目标/参数任一变化都会改变显示,防高频重复刷屏)。
+            try
+            {
+                string hudText = _currentIntent != null && _currentIntent.Type != NpcIntentType.None
+                    ? _currentIntent.ToString() : "";
+                if (hudText != _lastIntentHudLog)
+                {
+                    _lastIntentHudLog = hudText;
+                    DebugLogger.Log($"[Brain-Intent] {Owner?.Name}(Idx={Owner?.Index}) 意图: {_previousIntent?.Type} → {type} | HUD 文本: \"{hudText}\"");
+                }
+            }
+            catch { }
         }
 
         /// <summary>计划收尾 → 意图复位为 None（2026-08-11 修正：不再恢复 Following）。

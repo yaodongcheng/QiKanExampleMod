@@ -320,7 +320,7 @@ namespace LivingWorldNpcs
         /// 新体系 SpeechChannel 会传序列化好的前因串）。
         /// </summary>
         /// <param name="reason">前因（可空；SpeechChannel 传入，旧调用点省略）</param>
-        public static void AgentSay(Agent agent, string text, string reason = null)
+        public static void AgentSay(Agent agent, string text, string reason = null, bool forwardToNearby = true)
         {
             if (Mission.Current == null) return;
             if (agent == null) return;
@@ -336,14 +336,18 @@ namespace LivingWorldNpcs
             {
                 // 🔴 2026-08-12（用户裁定）：远处说话不再弹屏幕消息（LWN_hud_far_say 退役）——
                 // 直接进附近频道（消息流可回看，不打断当前操作）。视野内远处 = 原版无声语义（看得见听不见）。
-                try { NearbyFeed.Forward(agent, text, force: true); } catch { }
+                // 🔴 2026-08-15（私聊不进附近频道，UI 层过滤）：IM 密信送达冒泡传 forwardToNearby:false——
+                // 远处分支同样跳过转发（密信内容只留在私聊会话，NPC 记忆/对话历史链路不受影响）。
+                if (forwardToNearby) { try { NearbyFeed.Forward(agent, text, force: true); } catch { } }
                 DebugLogger.Log($"[AgentSay] {agent.Name}（远处 {agent.Position.Distance(Agent.Main.Position):F0}m）: {text}");
                 return;
             }
 
             Instance.AddSpeech(agent, text);
             // 🔴 §5.7 附近频道转发（场景内真实冒泡流入玩家 IM；同 sender 200ms 合并防刷屏）
-            try { NearbyFeed.Forward(agent, text); } catch { }
+            // 🔴 2026-08-15（私聊不进附近频道）：forwardToNearby=false（IM 密信送达冒泡）→ 3D 冒泡照播
+            //（NPC 确实开口了，场景事实），但不转发到附近频道消息流（密信 = 两人之间的私密消息）。
+            if (forwardToNearby) { try { NearbyFeed.Forward(agent, text); } catch { } }
         }
 
         /// <summary>静态快捷方法：按 StringId 让 Agent 说话（入口同样打 [Say] 统一说话日志）</summary>

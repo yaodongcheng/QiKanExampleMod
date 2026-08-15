@@ -678,6 +678,10 @@ namespace LivingWorldNpcs
                 target.RiskAnalysisText = riskAnalysis;          // 🔴 2026-08-15：战术方向随按钮存储（全手动裁定）
                 target.ResolvedTargetText = resolvedTargetText;  // 🔴 2026-08-15：已解析目标（含 #N）随按钮存储
                 AutonomyProposal.Suppress(heroId);   // 本轮互斥：已有建议，不再投自主提议（防双卡）
+                // 🔴 2026-08-15（按钮不显示根因修复）：打标发生在消息上屏之后——消息 VM 的
+                // ShowCardBubble（卡片气泡容器）是计算属性，直接改字段不触发绑定刷新，按钮行
+                //（容器内）不可见，直到切面板重开（全量重建）。这里通知 UI 立即重算锚点 + 广播形态。
+                ImChatView.NotifyMessageShapeChanged(target);
                 DebugLogger.Log($"[ImCommandFlow] needPlan 建议已打标: {heroName} → \"{target.Content}\"");
             }
             catch (Exception ex)
