@@ -224,6 +224,32 @@
             </Style>
         </Styles>
     </Brush>
+	<!-- 🔴 2026-08-15（密信通知）：密信图标（阴谋任务插图），与忍者（back_alley）区分；
+	     外层装饰环 = BlankWhiteCircleOutlined 暗金（ImSecretNotify.xml） -->
+	<Brush Name="Brush_CircleButton_SecretLetter">
+        <Layers>
+            <BrushLayer Name="Default"
+                        Sprite="SPGeneral\MapNotification\notification_illustration_conspiracy_quest"></BrushLayer>
+        </Layers>
+        <Styles>
+            <Style Name="Default">
+                <BrushLayer Name="Default"
+                            Color="#C89B4CFF"/>
+            </Style>
+            <Style Name="Hovered">
+                <BrushLayer Name="Default"
+                            Color="#E8C55AFF" />
+            </Style>
+            <Style Name="Pressed">
+                <BrushLayer Name="Default"
+                            ColorFactor="0.8" />
+            </Style>
+            <Style Name="Selected">
+                <BrushLayer Name="Default"
+                            Sprite="order_popup_card_selected_9"/>
+            </Style>
+        </Styles>
+    </Brush>
 		<Brush Name="Brush_CircleButton_Close">
         <Layers>
             <BrushLayer Name="Default"

@@ -4033,6 +4033,9 @@
     <string id="LWN_im_time_days" text="{N} d ago" />
     <string id="LWN_im_btn_send" text="Send" />
     <string id="LWN_im_btn_approve" text="Approve" />
+    <string id="LWN_im_btn_compact" text="Collapse" />
+    <string id="LWN_im_btn_expand" text="Expand" />
+    <string id="LWN_im_compact_pending" text="Pending" />
     <string id="LWN_im_btn_reject" text="Reject" />
     <string id="LWN_im_btn_abort" text="Abort" />
     <string id="LWN_im_info_btn_message" text="Send Message" />

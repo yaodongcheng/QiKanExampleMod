@@ -12,12 +12,21 @@ using TaleWorlds.ScreenSystem;
 
 namespace LivingWorldNpcs
 {
+    /// <summary>🔴 2026-08-15（缩略模式）：IM 面板形态——完整模式（1000x640 微信式）/ 缩略模式（贴底小面板，战斗观察用）。</summary>
+    public enum ImChatMode
+    {
+        Full,
+        Compact,
+    }
+
     /// <summary>
     /// IM 静态 UI 管理器（NinjaNotification 同款：TopScreen.AddLayer，Mission/Campaign 通吃，需求 1）。
     /// - 打开/关闭/切换：热键（ModInput IM 玩法行）与通知点击；
     /// - 战斗/模态禁开（用户决策 4）：Mission 内 IsInteractionDisabled() + 系统弹窗检查；
     /// - Tick 驱动（ImChatMissionView / ImChatCampaignBehavior）：回复管线 + 0.3s 增量刷新；
     /// - 新消息通知：IM 关闭时 NinjaNotification 圆环（点击打开定位会话）。
+    /// - 🔴 2026-08-15（缩略模式）：同一 layer 换 prefab 切换形态（SwitchMode）；
+    ///   缩略面板输入安全靠引擎 hit-test 门控（面板矩形外场景输入不被吞）+ ClearFocus 释放键盘。
     /// </summary>
     public static class ImChatView
     {
@@ -39,6 +48,19 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-12（模板 NPC 密信 · 粘性 @）：最近一次定向喊话的 @前缀（含尾随空格，如「@守卫 #12 」）——
         // @命中发送后回填输入框，连发多条给同一 NPC 不用重复打 @；玩家删掉前缀发普通喊话 → 解除。
         private static string _lastMentionPrefix;
+
+        // 🔴 2026-08-15（缩略模式）：形态状态 + 拖动状态 + 面板 widget 缓存
+        private static ImChatMode _mode = ImChatMode.Full;
+        private static Widget _compactPanel;        // 缩略面板（拖动/矩形判定）
+        private static Widget _compactDragHandle;   // 标题行拖动把手（拉伸容器，rect 排除按钮簇）
+        private static Widget _channelListPanel;    // 频道下拉浮层（外部点击收起判定）
+        private static float _compactPosX;          // 拖动位置（会话内记忆，模式切换后重放）
+        private static float _compactPosY;
+        private static bool _compactDragging;
+        private static Vec2 _dragStartMouse;
+        private static float _dragStartX;
+        private static float _dragStartY;
+        private static readonly List<ImConversation> _compactChannels = new List<ImConversation>(); // 下拉频道顺序（左右箭头循环用）
 
         // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
         // 「查看模式」按钮规避贴底+滚轮冲突；这里直接从 UIContext 找 ScrollablePanel 操作 ValueFloat）
@@ -66,11 +88,14 @@ namespace LivingWorldNpcs
 
         // ───────────────────────── 打开/关闭 ─────────────────────────
 
-        /// <summary>Mission/大地图均可开（需求 1）；战斗中/系统弹窗中禁开（用户决策 4）。</summary>
+        /// <summary>Mission/大地图均可开（需求 1）；战斗中/系统弹窗中禁开（用户决策 4）。
+        /// 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭时 O 无法呼出聊天——
+        /// 密聊入口整体隐藏（含通知点击路径，OpenCompact 也走 CanOpen）。</summary>
         public static bool CanOpen()
         {
             try
             {
+                if (!Settings.Instance.PlotEnabled) return false;
                 if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
                 if (ModInput.IsSystemModalActive()) return false;
                 return ScreenManager.TopScreen != null;
@@ -121,12 +146,18 @@ namespace LivingWorldNpcs
                 // MapBar+定居点菜单覆盖层(MapMenuOverlay) 202 / 地图对话 205 / 百科 310 / 系统菜单 4400。
                 // 原 20 会被定居点菜单和地图 HUD 盖住（玩家报告）；400 高于全部地图玩法 UI，低于系统菜单。
                 _layer = V.NewLayer(400, "ImChatLayer");
-                // LoadMovie 字符串 = GUI/Prefabs/ImChat.xml 文件名（不带后缀）；返回类型跨版本不同（同上 #if）
-                _movie = _layer.LoadMovie("ImChat", _vm);
+                // LoadMovie 字符串 = GUI/Prefabs/<名>.xml 文件名（不带后缀）；返回类型跨版本不同（同上 #if）
+                // 🔴 2026-08-15（缩略模式）：按 _mode 选 prefab（缩略 = ImChatCompact.xml）
+                _movie = _layer.LoadMovie(_mode == ImChatMode.Compact ? "ImChatCompact" : "ImChat", _vm);
                 // 🔴 输入限制：MouseButtons|MouseWheels|Keyboardkeys——滚轮必须留在 IM 层（含 MouseWheels 位，
                 // 否则穿透到地图层触发镜头缩放，六轮实机修复）；滚动派发由 MessageClip DoNotAcceptEvents 保证
-                // （EventManager.MouseScroll 只调用 hit test 命中的 widget，不冒泡）
-                _layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys);
+                // （EventManager.MouseScroll 只调用 hit test 命中的 widget，不冒泡）。
+                // 🔴 2026-08-15（缩略模式）：缩略层去掉 MouseWheels（面板无滚动内容，滚轮穿透到场景 = 镜头缩放，
+                // 下拉开时 Tick 内补上 MouseWheels 位给列表滚动）；键盘靠 FocusTest 门控（输入框聚焦才吃键）。
+                InputUsageMask mask = _mode == ImChatMode.Compact
+                    ? InputUsageMask.MouseButtons | InputUsageMask.Keyboardkeys
+                    : InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
+                _layer.InputRestrictions.SetInputRestrictions(true, mask);
                 if (ScreenManager.TopScreen != null)
                     ScreenManager.TopScreen.AddLayer(_layer);
 
@@ -168,6 +199,75 @@ namespace LivingWorldNpcs
             _vm = null;
             _selected = null;
             _messageScrollPanel = null;   // 层关闭后 widget 树失效，缓存清空
+            _compactPanel = null;         // 🔴 2026-08-15（缩略模式）：同埋——widget 树随层销毁
+            _compactDragHandle = null;
+            _channelListPanel = null;
+            _compactDragging = false;
+        }
+
+        // ───────────────────────── 模式切换（完整 ⇄ 缩略）─────────────────────────
+
+        /// <summary>
+        /// 🔴 2026-08-15（缩略模式）：模式切换集中清理（审查 P1-3），顺序不可乱：
+        /// ① ReleaseMovie 先于 LoadMovie（同 name 双 movie 并存会双面板叠显）；
+        /// ② _movie 必须赋新值（否则 Close() 的 ReleaseMovie 因 Contains=false 静默 no-op，新 movie 泄漏）；
+        /// ③ widget 缓存清空（HandleManualScroll 只在 null 时重查，旧引用指向已释放树 = 操作死 widget）；
+        /// ④ 清焦点防旧输入框悬挂；⑤ 重放拖动位置；⑥ 下拉状态复位（防新 prefab 加载即展开）；⑦ RefreshAll。
+        /// </summary>
+        private static void SwitchMode()
+        {
+            if (_layer == null || _vm == null) return;
+            try
+            {
+                if (_movie != null)
+                {
+                    _layer.ReleaseMovie(_movie);
+                    _movie = null;
+                }
+                if (_layer.UIContext?.EventManager != null)
+                    _layer.UIContext.EventManager.ClearFocus();
+                _movie = _layer.LoadMovie(_mode == ImChatMode.Compact ? "ImChatCompact" : "ImChat", _vm);
+                _messageScrollPanel = null;
+                _compactPanel = null;
+                _compactDragHandle = null;
+                _channelListPanel = null;
+                _compactDragging = false;
+                if (_vm != null) _vm.IsChannelListOpen = false;
+                RefreshAll();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 模式切换失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>完整模式 → 缩略模式（标题带「缩略」按钮，关闭按钮左侧）。</summary>
+        public static void ToggleCompact()
+        {
+            if (_mode == ImChatMode.Compact) return;
+            _mode = ImChatMode.Compact;
+            SwitchMode();
+        }
+
+        /// <summary>缩略模式 → 完整模式（缩略标题行「放大」按钮）。</summary>
+        public static void ToggleExpand()
+        {
+            if (_mode != ImChatMode.Compact) return;
+            _mode = ImChatMode.Full;
+            SwitchMode();
+        }
+
+        /// <summary>以缩略模式打开并定位会话（密信通知点击入口）。</summary>
+        public static void OpenCompact(ImConversation conv)
+        {
+            if (IsOpen)
+            {
+                ToggleCompact();
+                SelectConversation(conv);
+                return;
+            }
+            _mode = ImChatMode.Compact;
+            Open(conv);
         }
 
         // ───────────────────────── 会话选择与刷新 ─────────────────────────
@@ -329,6 +429,7 @@ namespace LivingWorldNpcs
                 _vm.IsEmpty = false;
                 UpdateCardAnchors();
                 RefreshChannelsDynamic();
+                RefreshCompact();
                 return;
             }
             bool hadNew = msgs.Count > _vm.Messages.Count;
@@ -358,6 +459,95 @@ namespace LivingWorldNpcs
                     _vm.HasNewMessageHint = true;
             }
             RefreshChannelsDynamic();
+            RefreshCompact();
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-15（缩略模式）：刷新缩略面板数据（消息区两行 + 频道下拉 + 待决徽标）。
+        /// 锚点行 = _vm.Messages 中 IsCardAnchor==true 的实例（含按钮行）；最新行 = 末条；
+        /// 同一消息不重复显示（用户裁定：共存时 2 条紧凑排布）。
+        /// 🔴 实例必须复用 _vm.Messages 的同一实例（审查 P1-2）——UpdateCardAnchors /
+        /// NotifyMessageShapeChanged / NotifyPlanStateChanged 的广播都打在那些实例上，
+        /// 独立新实例会漏广播 → 按钮不显示类 bug 复现。RefreshMessages 两个出口都调本方法。
+        /// </summary>
+        private static void RefreshCompact()
+        {
+            if (_vm == null || _selected == null) return;
+            // 锚点 vm（UpdateCardAnchors 已把最新可操作卡片的 IsCardAnchor 置 true）
+            ImMessageVM anchorVm = null;
+            for (int i = _vm.Messages.Count - 1; i >= 0; i--)
+            {
+                var vm = _vm.Messages[i];
+                if (vm != null && vm.IsCardAnchor) { anchorVm = vm; break; }
+            }
+            ImMessageVM latestVm = _vm.Messages.Count > 0 ? _vm.Messages[_vm.Messages.Count - 1] : null;
+            if (anchorVm != null && latestVm != null && anchorVm.Message == latestVm.Message) latestVm = null;
+
+            _vm.CompactAnchor = anchorVm;
+            _vm.HasCompactAnchor = anchorVm != null;
+            _vm.CompactLatest = latestVm;
+            _vm.HasCompactLatest = latestVm != null;
+            // 待决徽标（有锚点卡时提示可操作）
+            // 待决徽标（缩略模式标题带，本地化）
+            string pendingBadge = LWNTextHelper.ResolveText("LWN_im_compact_pending", "Pending");
+            _vm.CompactStatusText = anchorVm != null ? pendingBadge : "";
+
+            RefreshChannelOptions();
+            // 下拉按钮文本：选中频道标题 + 未读数
+            string sel = _selected.Title ?? "";
+            int unread = ImChatStore.GetUnread(_selected.Id);
+            if (unread > 0) sel = $"{sel} ({unread})";
+            _vm.SelectedChannelText = sel;
+        }
+
+        /// <summary>缩略模式频道下拉项重建（顺序与完整模式左栏一致：附近/队伍/家族/王国/私聊；
+        /// 同时维护 <see cref="_compactChannels"/> 供左右箭头循环切换）。</summary>
+        private static void RefreshChannelOptions()
+        {
+            if (_vm == null) return;
+            var convs = new List<ImConversation>();
+            if (Mission.Current != null) convs.Add(NearbyFeed.Conversation);
+            convs.Add(ImChatManager.GetGroupConversation(ImConversationType.Party));
+            convs.Add(ImChatManager.GetGroupConversation(ImConversationType.Clan));
+            if (ImChatManager.CanSeeKingdomChannel())
+                convs.Add(ImChatManager.GetGroupConversation(ImConversationType.Kingdom));
+            convs.AddRange(ImChatManager.GetRecentDirectConversations());
+
+            _compactChannels.Clear();
+            _vm.ChannelOptions.Clear();
+            foreach (var conv in convs)
+            {
+                if (conv == null) continue;
+                _compactChannels.Add(conv);
+                var item = new ImChannelOptionVM(conv);
+                string t = conv.Title ?? "";
+                int unread = ImChatStore.GetUnread(conv.Id);
+                if (unread > 0) t = $"{t} ({unread})";
+                item.StringItem = t;
+                _vm.ChannelOptions.Add(item);
+            }
+        }
+
+        /// <summary>收起缩略模式频道下拉（选中频道后调用）。</summary>
+        public static void CloseChannelList()
+        {
+            if (_vm != null) _vm.IsChannelListOpen = false;
+        }
+
+        /// <summary>左箭头：上一个频道（循环）。</summary>
+        public static void SelectPreviousChannel() => SelectRelativeChannel(-1);
+
+        /// <summary>右箭头：下一个频道（循环）。</summary>
+        public static void SelectNextChannel() => SelectRelativeChannel(1);
+
+        private static void SelectRelativeChannel(int delta)
+        {
+            if (_compactChannels.Count == 0 || _selected == null) return;
+            int idx = _compactChannels.FindIndex(c => c != null && c.Id == _selected.Id);
+            if (idx < 0) return;
+            int next = (idx + delta + _compactChannels.Count) % _compactChannels.Count;
+            SelectConversation(_compactChannels[next]);
+            CloseChannelList();
         }
 
         /// <summary>消息流是否在底部（🔴 十一轮：引擎 Bottom 对齐 offset=MaxValue-val——贴底 = offset=0 =
@@ -629,7 +819,8 @@ namespace LivingWorldNpcs
 
                 ModInput.Tick(dt);
                 // 🔴 O 只负责「打开」：面板开着时输入 o 不再触发任何动作（打字不误关）
-                if (ModInput.ShortFired(InteractionIds.IM) && !IsOpen)
+                // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
+                if (ModInput.ShortFired(InteractionIds.IM) && !IsOpen && Settings.Instance.PlotEnabled)
                     Open();
 
                 Tick(dt);
@@ -644,6 +835,9 @@ namespace LivingWorldNpcs
         public static void Tick(float dt)
         {
             ImChatManager.Tick(dt);
+            // 🔴 2026-08-15（密信通知）：通知层驱动（自动消失计时）挂在 IM Tick 上——
+            // 不依赖面板是否打开（提前 return 之前），Mission/Campaign 双端都到这里。
+            ImSecretNotifyManager.Tick(dt);
             if (!IsOpen) return;
 
             // 🔴 关闭改用独立键（用户要求）：ESC / 手柄 B——O 只负责打开，打字不再误关。
@@ -672,8 +866,184 @@ namespace LivingWorldNpcs
             if (_pinnedToBottom)
                 ScrollToBottom();
 
-            // 🔴 七轮：手动滚轮接管（引擎滚轮派发在模态层下不可靠）+ 滚动条件诊断日志
-            HandleManualScroll(dt);
+            // 🔴 2026-08-15（缩略模式）：缩略面板 = 拖动/焦点释放/下拉收起（无消息流滚动）；
+            // 完整模式 = 手动滚轮接管（七轮）
+            if (_mode == ImChatMode.Compact)
+                HandleCompactInput(dt);
+            else
+                HandleManualScroll(dt);
+        }
+
+        // ───────────────────────── 缩略模式输入（拖动/焦点/下拉收起）─────────────────────────
+
+        /// <summary>
+        /// 🔴 2026-08-15（缩略模式）缩略面板每帧处理：
+        /// ① 拖动（轮询全局 Input；位移阈值 4px 防点按钮误拖；clamp 保证面板不出屏）；
+        /// ② 输入框焦点释放（审查 P2-5）：输入框有焦点 && 点击面板外 && 下拉未开 → ClearFocus 键盘回游戏——
+        ///    只在「点击」时清（打字中鼠标悬停面板外不打断）；
+        /// ③ 频道下拉收起（审查 P2-2）：根无点击盾只能轮询——点击面板+下拉矩形外 → 收起；
+        /// ④ 下拉开时补 MouseWheels 位（列表滚动），关时去掉（滚轮穿透到场景 = 镜头缩放）。
+        /// 🔴 输入安全（审查 P0-2）：层 mask 常驻 MouseButtons|Keyboardkeys——引擎 hit-test 门控
+        /// （ScreenManager.EarlyUpdate）保证面板矩形外场景输入天然不被吞；面板矩形内被层吞（半模态岛）。
+        /// </summary>
+        private static void HandleCompactInput(float dt)
+        {
+            try
+            {
+                if (_compactPanel == null)
+                {
+                    FindCompactWidgets();
+                    if (_compactPanel == null) return;
+                }
+                // 🔴 布局诊断延迟到 ~1s（面板创建首帧布局未跑，GlobalPosition/Size 全 0，早打无意义）
+                _compactDiagTimer += dt;
+                if (_compactDiagTimer >= 1f)
+                {
+                    _compactDiagTimer = -100f;   // 只打一次
+                    LogCompactLayoutDiagnostic();
+                }
+                Vec2 mouse = Input.MousePositionPixel;
+
+                // ── ④ 下拉开 → 补 MouseWheels 位（列表滚轮滚动）──
+                InputUsageMask mask = InputUsageMask.MouseButtons | InputUsageMask.Keyboardkeys;
+                if (_vm != null && _vm.IsChannelListOpen)
+                    mask |= InputUsageMask.MouseWheels;
+                _layer?.InputRestrictions.SetInputRestrictions(true, mask);
+
+                // ── ① 拖动 ──
+                if (Input.IsKeyDown(InputKey.LeftMouseButton))
+                {
+                    if (!_compactDragging && _compactDragHandle != null
+                        && IsPointInRect(mouse, _compactDragHandle.GlobalPosition, _compactDragHandle.Size))
+                    {
+                        _compactDragging = true;
+                        _dragStartMouse = mouse;
+                        _dragStartX = _compactPanel.PositionXOffset;
+                        _dragStartY = _compactPanel.PositionYOffset;
+                    }
+                    if (_compactDragging)
+                    {
+                        float dx = mouse.X - _dragStartMouse.X;
+                        float dy = mouse.Y - _dragStartMouse.Y;
+                        // 位移阈值 4px：纯点击把手（无位移）不拖
+                        if (dx * dx + dy * dy >= 16f)
+                        {
+                            // clamp 由渲染矩形推导（面板 Center/Bottom 对齐 + MarginBottom=70）：
+                            //   x ∈ [-(usableW-panelW)/2, (usableW-panelW)/2]
+                            //   y ∈ [70-usableH, 70+panelH]（Bottom 基准 = usableH-70，offset 向下为正）
+                            Vec2 usable = ScreenManager.UsableArea;
+                            float panelW = _compactPanel.Size.X;
+                            float panelH = _compactPanel.Size.Y;
+                            float maxX = (usable.X - panelW) * 0.5f;
+                            float newX = MathF.Clamp(_dragStartX + dx, -maxX, maxX);
+                            float newY = MathF.Clamp(_dragStartY + dy, 70f - usable.Y, 70f + panelH);
+                            _compactPanel.PositionXOffset = newX;
+                            _compactPanel.PositionYOffset = newY;
+                            _compactPosX = newX;
+                            _compactPosY = newY;
+                            // 频道下拉浮层在根级（面板兄弟节点），拖动时手动同步偏移
+                            // （基准 -112 = 面板半宽 280 - 按钮 MarginLeft 8 - 浮层半宽 160，见 ImChatCompact.xml 注释）
+                            if (_channelListPanel != null)
+                            {
+                                _channelListPanel.PositionXOffset = newX - 107f;
+                                _channelListPanel.PositionYOffset = newY;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    _compactDragging = false;
+                }
+
+                // ── ② 输入框焦点释放（点击面板外 = 明确回游戏意图）──
+                if (_layer != null && _layer.IsFocusedOnInput()
+                    && Input.IsKeyPressed(InputKey.LeftMouseButton)
+                    && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
+                    && (_vm == null || !_vm.IsChannelListOpen))
+                {
+                    _layer.UIContext.EventManager.ClearFocus();
+                }
+
+                // ── ③ 频道下拉收起 ──
+                if (_vm != null && _vm.IsChannelListOpen
+                    && Input.IsKeyPressed(InputKey.LeftMouseButton)
+                    && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
+                    && !IsPointInChannelList(mouse))
+                {
+                    _vm.IsChannelListOpen = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 缩略模式输入异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>查找并缓存缩略面板 widget（LoadMovie 后懒加载；模式切换后缓存已清空）。</summary>
+        private static void FindCompactWidgets()
+        {
+            if (_layer?.UIContext?.Root == null) return;
+            if (_compactPanel == null)
+                _compactPanel = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactPanel");
+            if (_compactDragHandle == null)
+                _compactDragHandle = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactDragHandle");
+            if (_channelListPanel == null)
+                _channelListPanel = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_ChannelList");
+            // 重放拖动位置（模式切换后新 widget 树；下拉浮层同步偏移）
+            if (_compactPanel != null)
+            {
+                _compactPanel.PositionXOffset = _compactPosX;
+                _compactPanel.PositionYOffset = _compactPosY;
+                if (_channelListPanel != null)
+                {
+                    _channelListPanel.PositionXOffset = _compactPosX - 107f;
+                    _channelListPanel.PositionYOffset = _compactPosY;
+                }
+            }
+        }
+
+        private static bool IsPointInRect(Vec2 p, Vec2 pos, Vec2 size)
+        {
+            return p.X >= pos.X && p.X <= pos.X + size.X && p.Y >= pos.Y && p.Y <= pos.Y + size.Y;
+        }
+
+        private static bool IsPointInChannelList(Vec2 p)
+        {
+            if (_channelListPanel == null) return false;
+            return IsPointInRect(p, _channelListPanel.GlobalPosition, _channelListPanel.Size);
+        }
+
+        // 🔴 2026-08-15（缩略模式布局诊断）：延迟 ~1s 打印面板与 body 子元素的运行时位置/尺寸/顺序——
+        // 实机「消息显示不出来」等布局问题取证用（布局跑完后 GlobalPosition/Size 才有真实值）
+        private static float _compactDiagTimer;
+
+        private static void LogCompactLayoutDiagnostic()
+        {
+            try
+            {
+                var panel = _compactPanel ?? FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactPanel");
+                if (panel == null) return;
+                DebugLogger.Log($"[CompactDiag] panel pos=({panel.GlobalPosition.X:0},{panel.GlobalPosition.Y:0}) size=({panel.Size.X:0},{panel.Size.Y:0})");
+                var body = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactBody");
+                if (body != null)
+                {
+                    for (int i = 0; i < body.ChildCount; i++)
+                    {
+                        var c = body.GetChild(i);
+                        if (c == null) continue;
+                        DebugLogger.Log($"[CompactDiag] body child[{i}] id={c.Id} pos=({c.GlobalPosition.X:0},{c.GlobalPosition.Y:0}) size=({c.Size.X:0},{c.Size.Y:0}) visible={c.IsVisible}");
+                    }
+                }
+                else
+                {
+                    DebugLogger.Log("[CompactDiag] body 未找到！");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[CompactDiag] 异常: {ex.Message}");
+            }
         }
 
         // ───────────────────────── 手动滚轮接管（七轮）─────────────────────────
@@ -1069,17 +1439,25 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>IM 关闭时来消息 → NinjaNotification 圆环（点击打开并定位会话）。
-        /// 玩家体验完善（Q1a）：摘要带会话名（群聊能区分是哪个频道来的消息）。</summary>
+        /// <summary>IM 关闭时来消息 → 通知（点击打开并定位会话）。
+        /// 🔴 2026-08-15（密信通知分流）：私聊（密信）→ 新 ImSecretNotifyManager（ninjareport 形式、
+        /// Mission 内可用、点击打开缩略模式定位会话）；群聊 → 旧 NinjaNotification（Campaign only，
+        /// Mission 内被其自守卫跳过）。摘要带会话名（群聊能区分是哪个频道来的消息，Q1a）。
+        /// 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → 密聊入口整体隐藏，
+        /// 密信通知也不弹（点了也开不了，P2-3 语义）——未读计数照常累积。</summary>
         private static void NotifyIncoming(ImConversation conv)
         {
+            if (!Settings.Instance.PlotEnabled) return;
             var msgs = ImChatManager.GetMessages(conv);
             var last = msgs.LastOrDefault();
             if (last == null) return;
             string content = last.Content ?? "";
             if (content.Length > 24) content = content.Substring(0, 24) + "…";
             string summary = $"{conv.Title} · {last.SenderName}：{content}";
-            NinjaNotificationManager.Show(summary, () => { Open(conv); });
+            if (conv.Type == ImConversationType.Direct)
+                ImSecretNotifyManager.Show(summary, () => OpenCompact(conv));
+            else
+                NinjaNotificationManager.Show(summary, () => { Open(conv); });
         }
     }
 }
