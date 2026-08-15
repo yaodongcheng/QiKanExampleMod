@@ -1,0 +1,153 @@
+<!-- ═══ 输入行：频道下拉（原版 Options 控件，上开式）+ 输入框 + 发送（2026-08-15 用户裁定：同一行）═══
+     🔴 上开式改造：DoNotHandleDropdownListPanel=true（列表不 reparent 不自动定位，留在 clip 内）；
+     dropdown 高度 Fixed=56（列表打开时不撑高输入行 → 布局稳定）；
+     DropdownClipWidget VerticalAlignment=Bottom + MarginBottom=58 → 列表浮在按钮上方向上展开
+     （盖住消息区，不越屏）。列表项点击的选中/收起仍由原版控件处理（Radio + SelectedIndex 双向绑定）。 -->
+<Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62"
+        Sprite="BlankWhiteSquare_9" Color="#00000088"
+        DoNotAcceptEvents="true">
+  <Children>
+    <!-- 分隔线：输入行与消息区边界 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="2"
+            VerticalAlignment="Top"
+            Sprite="BlankWhiteSquare_9" Color="#FFFFFF33"
+            DoNotAcceptEvents="true"/>
+    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+               StackLayout.LayoutMethod="HorizontalLeftToRight"
+               DoNotAcceptEvents="true">
+      <Children>
+        <!-- 频道三件套（DataSource 只包这里：箭头命令与 CurrentSelectedIndex 解析到 SelectorVM；
+             输入框/发送保持在主 VM 上下文） -->
+        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                   DataSource="{ChannelSelector}"
+                   StackLayout.LayoutMethod="HorizontalLeftToRight"
+                   DoNotAcceptEvents="true">
+          <Children>
+            <!-- 左箭头：上一个频道 -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="56"
+                          Brush="SPOptions.Dropdown.Left.Button"
+                          Command.Click="ExecuteSelectPreviousItem"
+                          VerticalAlignment="Center" MarginLeft="8" MarginRight="2"/>
+            <!-- 原版下拉中心（列表上开式） -->
+            <AnimatedDropdownWidget Id="LWN_ImChat_CompactDropdown" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                    SuggestedWidth="150" SuggestedHeight="56" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    DoNotHandleDropdownListPanel="true"
+                                    DropdownContainerWidget="DropdownClipWidget\DropdownContainerWidget"
+                                    ListPanel="DropdownClipWidget\DropdownContainerWidget\ScrollablePanel\ClipRect\LWN_ImChat_ChannelSelectorList"
+                                    Button="DropdownButtonContainer\DropdownButton"
+                                    CurrentSelectedIndex="@SelectedIndex"
+                                    TextWidget="DropdownButtonContainer\DropdownButton\SelectedTextWidget"
+                                    DropdownClipWidget="DropdownClipWidget"
+                                    ScrollbarWidget="DropdownClipWidget\DropdownContainerWidget\VerticalScrollbar">
+              <Children>
+                <!-- 中心按钮（原版 Options 下拉中心笔刷） -->
+                <Widget Id="DropdownButtonContainer" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed"
+                        SuggestedHeight="56" HorizontalAlignment="Center" VerticalAlignment="Center">
+                  <Children>
+                    <ButtonWidget Id="DropdownButton" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                  DoNotPassEventsToChildren="true" Brush="SPOptions.Dropdown.Center">
+                      <Children>
+                        <TextWidget Id="SelectedTextWidget" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center" PositionYOffset="1"
+                                    Brush="SPOptions.Dropdown.Center.Text" ClipContents="true"/>
+                      </Children>
+                    </ButtonWidget>
+                  </Children>
+                </Widget>
+                <!-- 下拉列表浮层（🔴 上开式：底部对齐按钮上方 58px，向上溢出 dropdown 的 56px 盒子；
+                     高度随内容自适应：WidgetToCopyHeightFrom 复制 ScrollablePanel 高度） -->
+                <Widget Id="DropdownClipWidget" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed"
+                        HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="58"
+                        ClipContents="true" WidgetToCopyHeightFrom="DropdownContainerWidget\ScrollablePanel">
+                  <Children>
+                    <BrushWidget Id="DropdownContainerWidget" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                 VerticalAlignment="Bottom" SuggestedWidth="330" SuggestedHeight="380"
+                                 HorizontalAlignment="Center" Brush="SPOptions.Dropdown.Extension">
+                      <Children>
+                        <ScrollablePanel Id="ScrollablePanel" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                         AutoHideScrollBars="true" ClipRect="ClipRect" MarginBottom="20" VerticalAlignment="Bottom"
+                                         InnerPanel="ClipRect\LWN_ImChat_ChannelSelectorList"
+                                         VerticalScrollbar="..\VerticalScrollbar">
+                          <Children>
+                            <Widget Id="ClipRect" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                    ClipContents="true" MaxHeight="348">
+                              <Children>
+                                <ListPanel Id="LWN_ImChat_ChannelSelectorList" DataSource="{ItemList}"
+                                           WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           HorizontalAlignment="Center" StackLayout.LayoutMethod="VerticalBottomToTop"
+                                           DoNotAcceptEvents="true">
+                                  <ItemTemplate>
+                                    <!-- 项：原版单选结构（SoundBrush + Radio + UpdateChildrenStates 驱动
+                                         内层 ImageWidget 的 Hovered 高亮） -->
+                                    <ButtonWidget Id="DropdownItemButton" DoNotPassEventsToChildren="true"
+                                                  WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="29"
+                                                  MarginLeft="10" MarginRight="10" HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                                                  ButtonType="Radio" UpdateChildrenStates="true" IsEnabled="@CanBeSelected"
+                                                  Brush="Standard.DropdownItem.SoundBrush">
+                                      <Children>
+                                        <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                     MarginLeft="5" MarginRight="5"
+                                                     Brush="Standard.DropdownItem"
+                                                     DoNotAcceptEvents="true"/>
+                                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                    HorizontalAlignment="Center" MarginLeft="7" MarginRight="7" VerticalAlignment="Center"
+                                                    Brush="SPOptions.Dropdown.Item.Text" Text="@StringItem"
+                                                    IsVisible="@CanBeSelected" ClipContents="true"
+                                                    DoNotAcceptEvents="true"/>
+                                      </Children>
+                                    </ButtonWidget>
+                                  </ItemTemplate>
+                                </ListPanel>
+                              </Children>
+                            </Widget>
+                          </Children>
+                        </ScrollablePanel>
+                        <ScrollbarWidget Id="VerticalScrollbar" WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent"
+                                         SuggestedWidth="8" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                         MarginTop="8" MarginBottom="18" MarginRight="5" AlignmentAxis="Vertical"
+                                         Handle="VerticalScrollbarHandle" IsVisible="false" MaxValue="100" MinValue="0">
+                          <Children>
+                            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="4"
+                                    HorizontalAlignment="Center" Sprite="BlankWhiteSquare_9" AlphaFactor="0.2" Color="#5A4033FF"
+                                    DoNotAcceptEvents="true"/>
+                            <ImageWidget Id="VerticalScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                         SuggestedWidth="8" SuggestedHeight="10" HorizontalAlignment="Center"
+                                         Brush="FaceGen.Scrollbar.Handle"/>
+                          </Children>
+                        </ScrollbarWidget>
+                      </Children>
+                    </BrushWidget>
+                  </Children>
+                </Widget>
+              </Children>
+            </AnimatedDropdownWidget>
+            <!-- 右箭头：下一个频道 -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="56"
+                          Brush="SPOptions.Dropdown.Right.Button"
+                          Command.Click="ExecuteSelectNextItem"
+                          VerticalAlignment="Center" MarginLeft="2" MarginRight="6"/>
+          </Children>
+        </ListPanel>
+        <!-- 输入框（与完整模式同字段：切模式草稿保留） -->
+        <EditableTextWidget Id="LWN_ImChat_CompactInput" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Text="@InputText" DefaultSearchText="@PlaceholderText"
+                            TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="16"
+                            MarginRight="6" VerticalAlignment="Center"/>
+        <!-- 发送按钮 -->
+        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="34"
+                      Brush="Test.Button3"
+                      Command.Click="ExecuteSend"
+                      IsEnabled="@CanSend"
+                      VerticalAlignment="Center" MarginRight="8">
+          <Children>
+            <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        Text="@SendText" Brush="MyBrush_18_White" Brush.FontSize="14"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        DoNotAcceptEvents="true"/>
+          </Children>
+        </ButtonWidget>
+      </Children>
+    </ListPanel>
+  </Children>
+</Widget>
+

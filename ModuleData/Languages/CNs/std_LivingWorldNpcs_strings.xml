@@ -4132,7 +4132,6 @@
     <string id="LWN_im_btn_approve" text="同意" />
     <string id="LWN_im_btn_compact" text="缩略" />
     <string id="LWN_im_btn_expand" text="放大" />
-    <string id="LWN_im_compact_pending" text="待决" />
     <string id="LWN_im_btn_reject" text="拒绝" />
     <string id="LWN_im_btn_abort" text="中止" />
     <string id="LWN_im_info_btn_message" text="传信" />
