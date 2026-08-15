@@ -526,7 +526,11 @@ namespace LivingWorldNpcs
 
     /// <summary>steal_attempt：NPC 侧偷窃原子（§4 两个变体 + §4.1 责权归属）。
     /// 物变体（箱子）：接近 → 蹲下 + Intent 显示 → 成功率公式 → 得手/摸空；目击 → 中断/问责玩家。
-    /// 人变体（扒窃）：绕背定位（目标背后盲区 + 无目击者）→ 公式 → 从目标钱包守恒转移；无钱包 → 诚实 impossible。</summary>
+    /// 人变体（扒窃）：绕背定位（目标背后盲区 + 无目击者）→ 公式 → 从目标钱包守恒转移；无钱包 → 诚实 impossible。
+    /// 🔴 2026-08-14（npc-risk-aware-planning.md M2d/M7）：
+    ///   - 人变体按目标分叉：Hero 目标 → 现状（RecordStolenGold+StolenSource，give_gold 步骤 TransferGold
+    ///     个人钱包）；模板 NPC 目标（无 Hero）→ StealPurseGold 钱袋路径（当场守恒移交，无尾步骤，_goldHanded 防双移交）
+    ///   - 装备变体（variant="equipment"，M7 steal_equipment）：StealEquipmentForNpc 卸目标装备（武器槽优先）</summary>
     public class StealAttemptInlineState : IInlineStep
     {
         private enum AttemptPhase { Approach, Behind, Rolling, Settled }
@@ -537,10 +541,16 @@ namespace LivingWorldNpcs
         private readonly Agent _agent;
         private readonly PlanStep _step;
         private readonly bool _variantItem;
+        private readonly bool _variantEquipment;
         private readonly Random _rng = new Random();
         private float _amount;
         private bool _posed;         // 偷窃姿态已播（Rolling 一次性）
         private bool _interrupted;
+        private string _stolenItemName;  // 🔴 2026-08-14（M7）：装备变体得手物品名（播报用）
+        private bool _equipmentDetected; // 🔴 2026-08-14（M7）：装备变体失败 = 目标察觉（警戒脉冲 + 专属播报）
+        private float _rollValue;        // 🔴 2026-08-14（M2a roll 透明）：掷点（d20：掷点 ≥ 门槛成功）
+        private float _rollThreshold;    // 门槛（1 − 成功率）
+        private bool _rollRecorded;      // roll 已记录（empty 播报带 ROLL/THRESHOLD，interrupted 无——没到判定环节）
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
         // 🔴 行为性内联（M0/D3）：SetPose/ScriptedMoveToPoint 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
@@ -548,14 +558,14 @@ namespace LivingWorldNpcs
         public bool Interrupted => _interrupted;
         /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行偷窃动作）；顺带解除引擎蹲姿防残留。</summary>
         public void Interrupt() { _interrupted = true; Finished = true; try { _agent?.SetCrouchMode(false); AgentBrain.SetCrouchPose(_agent, false); AgentControlHelper.SetPose(_agent, "act_walk_idle_unarmed"); } catch { } }
-
         public StealAttemptInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
             _executor = executor;
             _agent = cursor.Agent;
             _step = step;
             _variantItem = step.Variant == "item";
-            // 目标解析（物 = 箱子物件；人 = 扒窃目标）
+            _variantEquipment = step.Variant == "equipment";
+            // 目标解析（物 = 箱子物件；人 = 扒窃目标；装备变体 = 人目标）
             string refName = PlanRefUtil.Normalize(step.Target, out string query);
             if (query != null) refName = query;
             if (string.IsNullOrEmpty(refName)) { Ok = false; return; }
@@ -564,7 +574,6 @@ namespace LivingWorldNpcs
                 : executor.World.TryResolveAgent(refName, cursor.Agent, out _);
             Ok = targetOk;
         }
-
         public void OnTick(float dt)
         {
             if (Finished || !Ok) return;
@@ -592,7 +601,6 @@ namespace LivingWorldNpcs
                         _phase = AttemptPhase.Behind;
                     }
                     break;
-
                 case AttemptPhase.Behind:
                     // 人变体：绕背定位（目标背后盲区 + 可达）
                     if (!_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent target))
@@ -640,7 +648,6 @@ namespace LivingWorldNpcs
                         catch { }
                     }
                     break;
-
                 case AttemptPhase.Rolling:
                     {
                         // 🔴 2026-08-13（玩家反馈：NPC 扒窃无视觉动作）——玩家扒窃有 UI 条 + 慢动作 +
@@ -667,10 +674,9 @@ namespace LivingWorldNpcs
                         }
                         // 起手延迟：蹲下 ~0.5s 后再摸口袋（对齐玩家扒窃条节奏；判定/结算时机同击晕 0.5s 起手）
                         if (_timer < 0.5f) return;
-
                         // 目击检查：有目击者（排除扒窃目标）→ 中断
                         var witnesses = StealManager.GetWitnesses(_agent, null, 15f, 120f);
-                        if (!_variantItem)
+                        if (!_variantItem && !_variantEquipment)
                         {
                             if (_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent t))
                                 witnesses.RemoveAll(w => w == t);
@@ -679,9 +685,17 @@ namespace LivingWorldNpcs
                         {
                             _resultKey = "interrupted";
                             _phase = AttemptPhase.Settled;
+                            // 🔴 2026-08-14（M2c）：目击者按「目睹蹲行靠近目标」给轻微怀疑脉冲——
+                            // 未遂不犯罪（不做犯罪脉冲），但目击者确实看到随从鬼鬼祟祟摸过去。
+                            foreach (var w in witnesses)
+                            {
+                                var wb = AgentAIController.GetBrainForAgent(w);
+                                if (wb == null) continue;
+                                wb.SetPulseTarget(PlayerActionType.Steal, _agent.Name?.ToString() ?? "", "gold", -1, _agent.Index);
+                                wb.AddAlert(PlayerActionType.Steal, 1.0f);
+                            }
                             return;
                         }
-
                         // 成功率公式：随从 Roguery vs 目标警觉（§4）
                         // 🔴 2026-08-13（d20 风格全局统一）：掷点 ≥ 目标阈值成功（目标 = 1 − 成功率），概率不变
                         float chance = 0.5f;
@@ -695,8 +709,13 @@ namespace LivingWorldNpcs
                             }
                         }
                         catch { }
-                        bool success = _rng.NextDouble() >= (1f - chance);
-
+                        // 🔴 2026-08-14（M2a roll 透明）：掷点值必须与判定用同一个随机数——
+                        // 先取 roll 再判定（success = roll ≥ threshold, threshold = 1 − chance）
+                        float roll = (float)_rng.NextDouble();
+                        _rollValue = roll;
+                        _rollThreshold = 1f - chance;
+                        _rollRecorded = true;
+                        bool success = roll >= _rollThreshold;
                         if (_variantItem)
                         {
                             // 物变体：得手 = 箱子财物（记账语义；箱子无真实库存）
@@ -712,6 +731,49 @@ namespace LivingWorldNpcs
                                 _resultKey = "empty";
                             }
                         }
+                        else if (_variantEquipment)
+                        {
+                            // 🔴 2026-08-14（M7 装备变体）：卸目标装备（武器槽优先，削攻最直观）——
+                            // StealEquipmentForNpc = 玩家路径 StealSpecificItem 的镜像薄包装
+                            //（守恒：目标装备层清空 ↔ 玩家队伍背包 +1；RecordStolen 归还复原共用）
+                            if (success)
+                            {
+                                Agent targetEq = null;
+                                _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out targetEq);
+                                if (targetEq != null)
+                                {
+                                    string itemName = StealManager.StealEquipmentForNpc(targetEq);
+                                    if (!string.IsNullOrEmpty(itemName))
+                                    {
+                                        _stolenItemName = itemName;
+                                        _resultKey = "success";
+                                    }
+                                    else
+                                    {
+                                        _resultKey = "empty";   // 目标身上没有可卸的装备 → 诚实摸空
+                                    }
+                                }
+                                else
+                                {
+                                    _resultKey = "impossible";
+                                }
+                            }
+                            else
+                            {
+                                // 🔴 2026-08-14（M7）：装备变体失败 = 目标察觉 → 警戒脉冲（目标警觉，
+                                // suspect 指向随从）+ 计划走 abort 撤退（既有路径）+ 专属播报
+                                Agent targetEq2 = null;
+                                _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out targetEq2);
+                                if (targetEq2 != null)
+                                {
+                                    var tBrain = AgentAIController.GetBrainForAgent(targetEq2);
+                                    tBrain?.SetPulseTarget(PlayerActionType.Steal, _agent?.Name?.ToString() ?? "", "equipment", -1, _agent.Index);
+                                    tBrain?.AddAlert(PlayerActionType.Steal, 2.0f);
+                                }
+                                _resultKey = "empty";
+                                _equipmentDetected = true;
+                            }
+                        }
                         else
                         {
                             // 人变体：得手 = 目标钱包守恒转移（目标有 Hero 才可转移）
@@ -724,8 +786,20 @@ namespace LivingWorldNpcs
                             }
                             else if (targetHero == null)
                             {
-                                // 目标无财产 → 诚实"没摸到钱"（守恒铁律：不凭空生成）
-                                _resultKey = "empty";
+                                // 🔴 2026-08-14（M2d 修正）：模板 NPC 目标（无 Hero，如酒馆店主）→ 钱袋路径
+                                // StealPurseGold 当场守恒移交（定居点金库扣、玩家钱包加）——分配金 > 0 → success
+                                //（整袋端走，无需尾步骤）；分配金 == 0（钱被先摸走/池耗尽）→ 诚实 empty。
+                                int purse = StealManager.StealPurseGold(target2);
+                                if (purse > 0)
+                                {
+                                    _amount = purse;
+                                    _resultKey = "success";
+                                    _executor.MarkGoldHanded();   // 钱已当场移交 → 计划尾 give_gold 步骤跳过（防双移交）
+                                }
+                                else
+                                {
+                                    _resultKey = "empty";
+                                }
                             }
                             else
                             {
@@ -735,7 +809,6 @@ namespace LivingWorldNpcs
                                 _resultKey = "success";
                             }
                         }
-
                         // 目击问责（§4.1）：roll 后重新查目击——"得手时被看到"才问责玩家
                         // （roll 前被看到 = interrupted 已返回；此处是得手瞬间的目击者）
                         if (_resultKey == "success")
@@ -766,8 +839,17 @@ namespace LivingWorldNpcs
                                 // 🔴 2026-08-14 嫌疑人单一事实源：证词只记账（偷了什么），嫌疑人由目击者脑内
                                 // 警戒拉满时的 RegisterWitness 推导（TopSuspectAgent = 作案随从 _agent，
                                 // 有名随从锁随从 Hero，无名随从保持 unknown）——不在此处传嫌疑人。
-                                AgentAIController.Instance?.RegisterTheftWitnesses(heroIds, templateWitness,
-                                    "gold", PlanTexts.Gold, targetName: PlanTexts.Gold, count: (int)_amount);
+                                // 🔴 2026-08-14（M7）：装备变体证词记装备（itemId=物品 StringId），钱/物变体记 gold
+                                if (_variantEquipment && !string.IsNullOrEmpty(_stolenItemName))
+                                {
+                                    AgentAIController.Instance?.RegisterTheftWitnesses(heroIds, templateWitness,
+                                        _stolenItemName, _stolenItemName, targetName: _stolenItemName, count: 1);
+                                }
+                                else
+                                {
+                                    AgentAIController.Instance?.RegisterTheftWitnesses(heroIds, templateWitness,
+                                        "gold", PlanTexts.Gold, targetName: PlanTexts.Gold, count: (int)_amount);
+                                }
                                 DebugLogger.Log($"[PlanExecutor] 随从偷窃被目击 → 证词入档（{finalWitnesses.Count} 名目击者，嫌疑人由目击者脑内推导）");
                             }
                             else if (!_variantItem)
@@ -776,17 +858,18 @@ namespace LivingWorldNpcs
                                 AgentAIController.Instance?.RegisterUnwitnessedTheft("gold", PlanTexts.Gold, count: (int)_amount);
                             }
                         }
-
                         // 保持蹲姿进 Settled（展示窗口）：收姿挪到 Settled 出口统一做——
                         // 原此处 StopAndReset 会把刚下蹲的 Crouch 位清掉（ForceUnlockAgent → SetScriptedFlags(None)）
                         _phase = AttemptPhase.Settled;
                         break;
                     }
-
                 case AttemptPhase.Settled:
                     if (_timer >= 2.0f)
                     {
                         _executor.SetStepResultKey(_resultKey);
+                        // 🔴 2026-08-14（M2a）：判定型动作有结局必须有玩家可见播报（对齐击晕 ReportResult，
+                        // 补 2026-08-13 击晕已修而偷窃漏掉的同一类修复）
+                        ReportResult();
                         // 收姿：解除引擎蹲姿 + 恢复站姿 idle（SetPose 播的蹲姿 StopAndReset 不清，须显式覆盖）+ 复位移动锁
                         try { _agent.SetCrouchMode(false); AgentBrain.SetCrouchPose(_agent, false); AgentControlHelper.SetPose(_agent, "act_walk_idle_unarmed"); AgentControlHelper.StopAndReset(_agent); } catch { }
                         Finished = true;
@@ -794,8 +877,95 @@ namespace LivingWorldNpcs
                     break;
             }
         }
+        /// <summary>🔴 2026-08-14（M2a）：NPC 侧偷窃结局播报（判定/结算已在上方 Rolling 完成；此处只负责
+        /// 玩家可见的成败播报）。播报纪律（铁律 17）：empty 带掷点/门槛（玩家要看到败在哪——与击晕失败
+        /// 同款信息量）；interrupted 无 ROLL（没到判定环节）。</summary>
+        private void ReportResult()
+        {
+            try
+            {
+                _executor.MarkResultBroadcast();   // 🔴 2026-08-14（M5）：结局已播 → Finish 不重复播
+                string targetName = PlanRefUtil.Normalize(_step.Target, out _) ?? "";   // JToken → 文本（query 形态解包）
+                try
+                {
+                    if (!_variantItem && _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent t))
+                        targetName = t.Name?.ToString() ?? targetName;
+                }
+                catch { }
+                string name = _agent?.Name?.ToString() ?? "";
+                switch (_resultKey)
+                {
+                    case "success":
+                        if (_variantEquipment)
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷装备成功播报
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_equip_success",
+                                    "{NAME} slipped {ITEM} off {TARGET}.",
+                                    ("NAME", name), ("TARGET", targetName), ("ITEM", _stolenItemName ?? "")), Colors.Green));
+                        }
+                        else
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷钱成功播报（{GOLD}=货币单位）
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_success",
+                                    "{NAME} lifted {AMOUNT}{GOLD} off {TARGET}.",
+                                    ("NAME", name), ("TARGET", targetName), ("AMOUNT", ((int)_amount).ToString()),
+                                    // 本地化：货币单位词（金）
+                                    ("GOLD", LWNTextHelper.ResolveText("LWN_action_gold_unit", " gold"))), Colors.Green));
+                        }
+                        break;
+                    case "empty":
+                        // 🔴 2026-08-14（M7）：装备变体失败 = 目标察觉（专属播报 + 警戒脉冲已在 Rolling 置）
+                        if (_variantEquipment && _equipmentDetected)
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷装备失败播报（目标察觉）
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_equip_fail",
+                                    "{NAME} tried to disarm {TARGET}, but {TARGET} noticed!",
+                                    ("NAME", name), ("TARGET", targetName)), Colors.Red));
+                        }
+                        else if (_rollRecorded)
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷窃摸空播报（带 roll 原因）
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_fail_roll",
+                                    "{NAME} found nothing on {TARGET}. (Rolled {ROLL} vs threshold {THRESHOLD})",
+                                    ("NAME", name), ("TARGET", targetName),
+                                    ("ROLL", $"{_rollValue * 100:F0}%"), ("THRESHOLD", $"{_rollThreshold:P0}")), Colors.Gray));
+                        }
+                        else
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷窃摸空播报（无 roll——钱袋路径摸空/目标无财可摸）
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_empty",
+                                    "{NAME} found nothing on {TARGET}.",
+                                    ("NAME", name), ("TARGET", targetName)), Colors.Gray));
+                        }
+                        break;
+                    case "impossible":
+                        InformationManager.DisplayMessage(
+                            // 本地化：随从偷窃站位不可行播报（绕不到背后）
+                            new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_impossible",
+                                "{NAME} could not get behind {TARGET} to make a move.",
+                                ("NAME", name), ("TARGET", targetName)), Colors.Gray));
+                        break;
+                    case "interrupted":
+                        InformationManager.DisplayMessage(
+                            // 本地化：随从偷窃被目击中断播报（未遂撤退）
+                            new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_interrupted",
+                                "{NAME} was seen and backed off without making a move.",
+                                ("NAME", name)), new Color(0.9f, 0.7f, 0.2f)));
+                        break;
+                }
+                DebugLogger.Log($"[PlanExecutor] {name} 偷窃结局: {_resultKey}（目标 {targetName}）");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PlanExecutor] steal 播报异常: {ex.Message}");
+            }
+        }
     }
-
     /// <summary>give_item / give_gold：移交玩家（铁律 4 守恒；Item==null = 金钱走 Hero 转移）。
     /// give_gold "stolen"：从扒窃源 Hero 钱包守恒转移；物变体（箱子记账）→ 直接记到手。</summary>
     public class GiveInlineState : IInlineStep
@@ -813,7 +983,6 @@ namespace LivingWorldNpcs
         public bool Interrupted => _interrupted;
         /// <summary>防御实现。</summary>
         public void Interrupt() { _interrupted = true; Finished = true; }
-
         public GiveInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
             _executor = executor;
@@ -823,7 +992,6 @@ namespace LivingWorldNpcs
             // 目标 = 玩家（铁律：移交对象是玩家）
             Ok = Agent.Main != null;
         }
-
         public void OnTick(float dt)
         {
             if (Finished) return;
@@ -836,18 +1004,19 @@ namespace LivingWorldNpcs
             }
             if (_applied) { Finished = true; return; }
             _applied = true;
-
             try
             {
                 var playerHero = Hero.MainHero;
                 if (_step.Action == "give_gold")
                 {
+                    // 🔴 2026-08-14（M2d 防双移交）：模板 NPC 钱袋路径已当场守恒移交
+                    //（StealPurseGold 金库→玩家）→ 本步直接成功跳过，避免 give_gold 双给
+                    if (_executor.GoldHanded) { Ok = true; Finished = true; return; }
                     float amount = PlanRefUtil.NumberOr(_step.Amount, 0f);
                     if (_step.Amount != null && _step.Amount.Type == Newtonsoft.Json.Linq.JTokenType.String
                         && (string)_step.Amount == "stolen")
                         amount = _executor.StolenGold;
                     if (amount <= 0f) { Ok = false; Finished = true; return; }   // 没摸到钱 → 该步失败
-
                     // 守恒转移：扒窃源 Hero 钱包 → 玩家钱包（铁律 4：一方扣一方加）
                     var sourceHero = _executor.StolenSource;
                     if (sourceHero != null && playerHero != null)
@@ -901,7 +1070,6 @@ namespace LivingWorldNpcs
             Finished = true;
         }
     }
-
     /// <summary>deliver_item：送物（v2；M4 后落地）。</summary>
     public class DeliverInlineState : IInlineStep
     {
@@ -912,16 +1080,13 @@ namespace LivingWorldNpcs
         public bool Interrupted => _interrupted;
         /// <summary>防御实现。</summary>
         public void Interrupt() { _interrupted = true; Finished = true; }
-
         public DeliverInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
             Ok = false;   // 未实现 → 步骤失败走 on_timeout/失败路径，不静默
             DebugLogger.Log($"[PlanExecutor] deliver_item 在 v2 排期，当前失败");
         }
-
         public void OnTick(float dt) { Finished = true; }
     }
-
     /// <summary>knockout：背后击晕（复用击晕轮子：ForcePlayAction + event_agent_knocked_out + 袭击记账）。
     /// 成功 = 目标击晕（GOAL/knocked_out 谓词判定）；失败 = 目标反击（event_agent_damaged）→ 本步失败走 on_timeout/abort。</summary>
     public class KnockoutInlineState : IInlineStep
@@ -943,7 +1108,6 @@ namespace LivingWorldNpcs
         public bool Interrupted => _interrupted;
         /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行击晕动作）。</summary>
         public void Interrupt() { _interrupted = true; Finished = true; }
-
         public KnockoutInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
             _executor = executor;
@@ -959,13 +1123,11 @@ namespace LivingWorldNpcs
             }
             Ok = true;
         }
-
         public void OnTick(float dt)
         {
             if (Finished || !Ok) return;
             _timer += dt;
             if (_agent == null || !_agent.IsActive()) { Finished = true; return; }
-
             string refName = PlanRefUtil.Normalize(_step.Target, out string q);
             if (q != null) refName = q;
             if (!_executor.World.TryResolveAgent(refName, _agent, out Agent target) || !target.IsActive())
@@ -975,7 +1137,6 @@ namespace LivingWorldNpcs
                 Finished = true;
                 return;
             }
-
             switch (_phase)
             {
                 case KPhase.Approach:
@@ -994,7 +1155,6 @@ namespace LivingWorldNpcs
                         _timer = 0f;
                     }
                     break;
-
                 case KPhase.Strike:
                     if (!_struck)
                     {
@@ -1014,7 +1174,6 @@ namespace LivingWorldNpcs
                         ReportResult(target);
                     }
                     break;
-
                 case KPhase.Settled:
                     // 判定：目标已击晕（GOAL 由谓词检查）；未击晕 → 反击已触发 → 本步失败
                     if (AgentBrain.IsKnockedOut(target))
@@ -1031,13 +1190,13 @@ namespace LivingWorldNpcs
                     break;
             }
         }
-
         /// <summary>NPC 视角播报（结算已由 KnockoutFlow.Resolve 完成：记账/落地/反击/目击广播；
         /// 本方法只负责玩家可见的成败播报——第一人称 vs 第三人称文案差异留在壳层）。</summary>
         private void ReportResult(Agent target)
         {
             try
             {
+                _executor.MarkResultBroadcast();   // 🔴 2026-08-14（M5）：结局已播 → Finish 不重复播
                 if (_roll.Success)
                 {
                     DebugLogger.Log($"[PlanExecutor] {_agent.Name} 击晕了 {target.Name}");
@@ -1078,6 +1237,91 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[PlanExecutor] knockout 播报异常: {ex.Message}");
             }
+        }
+    }
+    /// <summary>
+    /// 🔴 2026-08-14（npc-risk-aware-planning.md M6）：ask_help 多随从分头配合——
+    /// 执行人 A 的计划请求同袍 B 执行单个低危动作（引开/望风/手势示意），自己继续主任务。
+    /// 通信类内联（非行为性，留排序器侧）：构造即发 assist_request 事件给目标 B 的 agent
+    /// （Args：请求动作码 + 目标文本 + 请求者）；2s 收尾（请求已发出，等待由步骤 on_event
+    /// 通道负责——事件消费在步骤级，与 inline 存活无关）。
+    /// B 侧：AgentBrain 收到 assist_request → 白名单校验 → ChatActionFlow 单步执行 + 完成回执
+    /// assist_done → A 的 ask_help/wait 步骤 on_event: assist_done 继续。
+    /// 超时兜底：ask_help 步骤的 on_timeout 由计划轮生成时写好（prompt 示范），执行器无魔法。
+    /// v1 白名单 = make_noise/follow/emote（低危单动作；配合者不生成计划、不风险审视）。
+    /// </summary>
+    public class AskHelpInlineState : IInlineStep
+    {
+        private readonly PlanExecutor _executor;
+        private readonly Agent _agent;
+        private readonly PlanStep _step;
+        private float _timer;
+        private bool _sent;
+        private bool _interrupted;
+        public bool Ok { get; private set; } = true;
+        public bool Finished { get; private set; }
+        // 非行为性：通信（发事件）不写移动/姿态表现层
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
+        /// <summary>配合动作白名单（v1 刻意收窄：低危单动作——引开=喊叫 isCrime:false、望风=跟随、
+        /// 手势=emote 白名单 9 动画。高危配合动作（帮忙击晕/偷）v2 再说）。</summary>
+        public static readonly HashSet<string> AssistWhitelist = new HashSet<string>(StringComparer.Ordinal)
+            { "make_noise", "follow", "emote" };
+        public AskHelpInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
+        {
+            _executor = executor;
+            _agent = cursor.Agent;
+            _step = step;
+            _sent = false;
+            Ok = true;
+        }
+        public void OnTick(float dt)
+        {
+            if (Finished) return;
+            if (!_sent)
+            {
+                _sent = true;
+                try
+                {
+                    // 白名单校验（请求动作码由 LLM 填 step.Variant——复用既有变体字段，零模型改动）
+                    string assistAction = _step.Variant;
+                    if (string.IsNullOrEmpty(assistAction) || !AssistWhitelist.Contains(assistAction))
+                    {
+                        DebugLogger.Log($"[PlanExecutor] ask_help 动作码非法/缺失: {assistAction ?? "null"}（白名单: make_noise/follow/emote）→ 等待 on_timeout 兜底");
+                        return;
+                    }
+                    // 目标解析（同袍名字 → agent，快照同口径）
+                    string refName = PlanRefUtil.Normalize(_step.Target, out string query);
+                    if (query != null) refName = query;
+                    if (!_executor.World.TryResolveAgent(refName, _agent, out Agent buddy) || buddy == null || !buddy.IsActive())
+                    {
+                        DebugLogger.Log($"[PlanExecutor] ask_help 目标解析失败: {refName} → 等待 on_timeout 兜底");
+                        return;
+                    }
+                    // B 空闲校验（无计划/无战斗/非昏迷——忙碌 → 忽略 + on_timeout 兜底）
+                    var buddyBrain = AgentAIController.GetBrainForAgent(buddy);
+                    if (buddyBrain == null || buddyBrain.IsInCombat
+                        || AgentBrain.IsKnockedOut(buddy)
+                        || (buddyBrain.CurrentIntent != null && buddyBrain.CurrentIntent.Type == NpcIntentType.ExecutingCommand))
+                    {
+                        DebugLogger.Log($"[PlanExecutor] ask_help 目标 {buddy.Name} 忙碌（战斗/昏迷/执行中）→ 等待 on_timeout 兜底");
+                        return;
+                    }
+                    // 发送配合请求（Args：请求动作码 + 目标文本 + 请求者 agent）
+                    AgentAIController.Instance?.SendEventToAgent(buddy, "assist_request",
+                        assistAction, _step.Target, _agent);
+                    DebugLogger.Log($"[PlanExecutor] {_agent.Name} ask_help → {buddy.Name}（动作 {assistAction}，目标 {_step.Target}）");
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[PlanExecutor] ask_help 发送失败: {ex.Message}");
+                }
+            }
+            _timer += dt;
+            // 2s 收尾：请求已发出（通信类动作不留存；assist_done 事件在步骤级消费，与 inline 存活无关）
+            if (_timer >= 2f) Finished = true;
         }
     }
 }

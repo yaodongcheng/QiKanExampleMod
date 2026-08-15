@@ -78,17 +78,21 @@ namespace LivingWorldNpcs
                     // 文本走标准本地化：官方 key（str_*，引擎表已注册，命中各语言翻译）优先，
                     // fallback 走 LWN key 机制（英文条目注册于 std_LivingWorldNpcs_strings.xml）
                     string title = GameTexts.FindText("str_save_unsuccessful_title")?.ToString()
+                        // 本地化：LWN_save_error_title（玩家可见文本）
                         ?? LWNTextHelper.ResolveText("LWN_save_error_title", "Save Failed!");
                     string baseMsg = GameTexts.FindText("str_game_save_result", result.ToString())?.ToString()
+                        // 本地化：LWN_save_error_body（玩家可见文本）
                         ?? LWNTextHelper.ResolveText("LWN_save_error_body", "Cannot create save data.");
 
                     string detail = LastErrorDetail;
                     if (string.IsNullOrEmpty(detail))
+                        // 本地化：LWN_save_error_no_detail（玩家可见文本）
                         detail = LWNTextHelper.ResolveText("LWN_save_error_no_detail", "(no error detail captured)");
                     try
                     {
                         string platformErr = Common.PlatformFileHelper.GetError();
                         if (!string.IsNullOrEmpty(platformErr))
+                            // 本地化：LWN_save_error_platform（玩家可见文本）
                             detail += "\n" + LWNTextHelper.ResolveText("LWN_save_error_platform", "[Platform] ") + platformErr;
                     }
                     catch { }
@@ -102,6 +106,7 @@ namespace LivingWorldNpcs
                     InformationManager.ShowInquiry(new InquiryData(
                         title, body, true, false,
                         GameTexts.FindText("str_ok")?.ToString()
+                            // 本地化：LWN_save_error_ok（玩家可见文本）
                             ?? LWNTextHelper.ResolveText("LWN_save_error_ok", "OK"), "",
                         null, null), false, false);
 

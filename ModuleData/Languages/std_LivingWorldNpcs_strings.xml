@@ -298,7 +298,7 @@
     
     <string id="LWN_narr_decoymission_closure_any_0_50_good" text="You led the pursuers away! I'm safe. You took a few wounds for it... {REWARD} denars — worth every one. You truly saved my life." />
     
-    <string id="LWN_narr_decoymission_closure_any_0_50_failed" text="You barely escaped... and I nearly got caught myself. That plan was too dangerous. Take {REWARD} anyway — at least we're alive." />
+    <string id="LWN_narr_decoymission_closure_any_0_50_failed" text="You barely escaped... and I nearly got caught myself. That tactic was too dangerous. Take {REWARD} anyway — at least we're alive." />
     
     <string id="LWN_narr_procurementagent_closure_any_0_50_good" text="That's the one — fine quality, fair price. {REWARD} denars. You handle matters better than I could myself." />
     
@@ -3589,11 +3589,11 @@
     
     <string id="LWN_quest_commission_prison_located" text=" {TARGET} is held in the prison of {LOCATION}." />
     
-    <string id="LWN_quest_commission_prison_plan_a" text="  Plan A: bribe the guards *costs a few hundred denars* → walk openly into the dungeon → take the prisoner" />
+    <string id="LWN_quest_commission_prison_plan_a" text="  Tactic A: bribe the guards *costs a few hundred denars* → walk openly into the dungeon → take the prisoner" />
     
-    <string id="LWN_quest_commission_prison_plan_b" text="  Plan B: sneak into the dungeon *Roguery check* → high risk, saves money" />
+    <string id="LWN_quest_commission_prison_plan_b" text="  Tactic B: sneak into the dungeon *Roguery check* → high risk, saves money" />
     
-    <string id="LWN_quest_commission_prison_plan_c" text="  Plan C: diplomatic pressure *you must be a lord* → secure his release through negotiation" />
+    <string id="LWN_quest_commission_prison_plan_c" text="  Tactic C: diplomatic pressure *you must be a lord* → secure his release through negotiation" />
     
     <string id="LWN_quest_commission_prison_reminder" text="Tip: you are in {LOCATION} — find a way to sneak into the prison to free {TARGET}." />
     
@@ -3907,13 +3907,13 @@
     <string id="LWN_ui_npcintent_executingcommand" text="Carrying out your order" />
     <string id="LWN_ui_interact_plot" text="Secret Letter" />
     <string id="LWN_ui_interact_stopplan" text="Stop Action" />
-    <string id="LWN_plan_no_llm" text="The companion cannot think of a plan right now." />
+    <string id="LWN_plan_no_llm" text="The companion cannot think of a tactic right now." />
     <string id="LWN_plan_opening" text="Quiet... tell me what you need." />
     <string id="LWN_plan_stop_face" text="As you say. Stopping." />
     <string id="LWN_plan_stop_far" text="You signal the companion from afar: stop what you are doing." />
     <string id="LWN_plan_input_title" text="Plot an Order" />
     <string id="LWN_plan_input_prompt" text="Tell {NAME} what to do:" />
-    <string id="LWN_plan_fail_llm" text="I could not think of a plan. Tell me again in different words." />
+    <string id="LWN_plan_fail_llm" text="I could not think of a tactic. Tell me again in different words." />
     <string id="LWN_plan_btn_retry" text="Try again" />
     <string id="LWN_plan_btn_giveup" text="Never mind" />
     <string id="LWN_plan_clarify_default" text="What do you mean exactly?" />
@@ -3935,7 +3935,7 @@
     <string id="LWN_reactive_respond_chief" text="Speak, I am listening." />
     <string id="LWN_reactive_respond_villager" text="Eh? What was that?" />
     <string id="LWN_reactive_respond_drunkard" text="*hic* Who're you?" />
-    <!-- 🔴 2026-08-12：LWN_hud_far_say 退役（用户裁定：远处说话直接进附近频道，不弹屏幕消息） -->
+    <!-- [!] 2026-08-12：LWN_hud_far_say 退役（用户裁定：远处说话直接进附近频道，不弹屏幕消息） -->
     <string id="LWN_ui_commandintent_distract" text="lure away" />
     <string id="LWN_ui_commandintent_bring" text="bring someone" />
     <string id="LWN_ui_commandintent_lookout" text="keep watch" />
@@ -4017,14 +4017,14 @@
     <string id="LWN_im_generating" text="{NAMES} is thinking..." />
     <string id="LWN_im_generating_plain" text="Thinking..." />
     <string id="LWN_im_mode_chat" text="Chat" />
-    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：派生模式指示文本（会话状态 → GetPhase） -->
+    <!-- [!] 2026-08-12（合并闲聊/计划模式）：派生模式指示文本（会话状态 → GetPhase） -->
     <string id="LWN_im_mode_generating" text="Planning..." />
     <string id="LWN_im_mode_pending" text="Plan awaiting approval" />
     <string id="LWN_im_mode_executing" text="Executing" />
     <string id="LWN_im_mode_unavailable" text="Plan mode is unavailable here." />
     <string id="LWN_im_mode_need_mission" text="Plans must be given in person - enter a scene first." />
     <string id="LWN_im_mode_plot_active" text="Another secret order is already being discussed." />
-    <!-- 🔴 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（NPC 回复消息底部通用按钮行） -->
+    <!-- [!] 2026-08-12（合并闲聊/计划模式）：needPlan 建议按钮（NPC 回复消息底部通用按钮行） -->
     <string id="LWN_im_btn_make_plan" text="Make a plan" />
     <string id="LWN_im_btn_skip" text="Not now" />
     <string id="LWN_im_time_justnow" text="just now" />
@@ -4068,11 +4068,11 @@
     <string id="LWN_plan_detail_contingency_line" text="    if {COND} then {THEN}" />
     <string id="LWN_plan_detail_guardrail" text="    Safety: unexpected threats pause the plan; the stop key recalls the companion." />
     <string id="LWN_plan_step_memory" text="By my lord's order, {ACTION} {TARGET}, done." />
-    <!-- 🔴 2026-08-12（队伍成员在场认知）：玩家附近喊话的记忆行模板（{NAME} 玩家名 / {TEXT} 喊话全文） -->
+    <!-- [!] 2026-08-12（队伍成员在场认知）：玩家附近喊话的记忆行模板（{NAME} 玩家名 / {TEXT} 喊话全文） -->
     <string id="LWN_nearby_shout_memory" text="{NAME} shouted nearby: {TEXT}" />
-    <!-- 🔴 2026-08-12（点名喊话记忆行）：@点名目标的记忆行模板（{TARGET} 目标统一显示名——显式化让 LLM 直接看出主公和谁说话） -->
+    <!-- [!] 2026-08-12（点名喊话记忆行）：@点名目标的记忆行模板（{TARGET} 目标统一显示名——显式化让 LLM 直接看出主公和谁说话） -->
     <string id="LWN_nearby_shout_to_memory" text="{NAME} shouted to {TARGET}: {TEXT}" />
-    <!-- 🔴 2026-08-12（@远距离守卫）：@目标距玩家超过可听半径的提示（{NAME} = 目标统一显示名） -->
+    <!-- [!] 2026-08-12（@远距离守卫）：@目标距玩家超过可听半径的提示（{NAME} = 目标统一显示名） -->
     <string id="LWN_nearby_mention_too_far" text="{NAME} is too far away to hear you." />
     <string id="LWN_plan_action_move_to" text="moved to" />
     <string id="LWN_plan_action_follow" text="followed" />
@@ -4245,5 +4245,34 @@
     <string id="LWN_campaign_persuade_settle_refuse" text="Speak of this no more." />
     <string id="LWN_campaign_motion_pass" text="It is settled then. Let us all comply." />
     <string id="LWN_campaign_motion_fail" text="Let us weigh this another day." />    <string id="LWN_dialog_bystander_refuse_2" text="(Shakes head, walks off)" />
+    <string id="LWN_npc_steal_success" text="{NAME} lifted {AMOUNT}{GOLD} off {TARGET}." />
+    <string id="LWN_npc_steal_equip_success" text="{NAME} slipped {ITEM} off {TARGET}." />
+    <string id="LWN_npc_steal_empty" text="{NAME} found nothing on {TARGET}." />
+    <string id="LWN_npc_steal_fail_roll" text="{NAME} found nothing on {TARGET}. (Rolled {ROLL} vs threshold {THRESHOLD})" />
+    <string id="LWN_npc_steal_impossible" text="{NAME} could not get behind {TARGET} to make a move." />
+    <string id="LWN_npc_steal_interrupted" text="{NAME} was seen and backed off without making a move." />
+    <string id="LWN_npc_steal_equip_fail" text="{NAME} tried to disarm {TARGET}, but {TARGET} noticed!" />
+    <string id="LWN_dialogue_ack_short" text="Mm." />
+    <string id="LWN_im_sender_dist" text="{NAME} ({DIST} m away)" />
+    <string id="LWN_plan_abort_scene_end" text="The plan ended as the scene closed." />
+    <string id="LWN_armor_tier_unarmed" text="bare-handed" />
+    <string id="LWN_armor_tier_light" text="unarmored with a weapon" />
+    <string id="LWN_armor_tier_armed" text="armed (light armor)" />
+    <string id="LWN_armor_tier_full" text="fully armed (heavy armor)" />
+    <string id="LWN_npc_assist_accept" text="On it." />
+    <string id="LWN_npc_assist_done" text="Done." />
+    <string id="LWN_risk_verdict_overwhelming" text="an overwhelming win" />
+    <string id="LWN_risk_verdict_slight_advantage" text="a slight advantage" />
+    <string id="LWN_risk_verdict_even" text="evenly matched" />
+    <string id="LWN_risk_verdict_slight_disadvantage" text="a slight disadvantage" />
+    <string id="LWN_risk_verdict_overwhelmed" text="overwhelmingly outmatched" />
+    <string id="LWN_ui_interact_inquiry_attack_risk_msg" text="{NAME} warns: {RISK} — still strike?" />
+    <string id="LWN_ui_interact_inquiry_attack_npc_risk_msg" text="{NAME} warns: {RISK} — still strike at {TARGET}?" />
+    <string id="LWN_ui_interact_inquiry_knockout_risk_msg" text="{NAME} warns: {RISK} — still strike?" />
+    <string id="LWN_ui_interact_inquiry_knockout_npc_risk_msg" text="{NAME} warns: {RISK} — still strike at {TARGET}?" />
+    <string id="LWN_ui_interact_inquiry_steal_risk_msg" text="{NAME} warns: {RISK} — still steal?" />
+    <string id="LWN_ui_interact_inquiry_steal_npc_risk_msg" text="{NAME} warns: {RISK} — still steal from {TARGET}?" />
+    <string id="LWN_ui_interact_inquiry_duel_risk_msg" text="{NAME} warns: {RISK} — still duel?" />
+    <string id="LWN_ui_interact_inquiry_duel_npc_risk_msg" text="{NAME} warns: {RISK} — still duel {TARGET}?" />
     <string id="LWN_dialog_chat_initiator_refuse_2" text="...I spoke out of turn." /></strings>
 </base>

@@ -40,6 +40,11 @@ namespace LivingWorldNpcs
             public string Command;
             public bool IsModify;       // 🔴 Q2：修改管线（新卡片带「修改版」标记）
             public int ModifyCount;     // 🔴 Q2：修改版计数
+            // 🔴 2026-08-14（M4 风险审视 plan_needed）：随从战术方向（risk_analysis 第一人称）——
+            // BuildPlanPrompt 单独成段【随从的打算】，不混入【命令】段（防"谁的命令"语义混淆）
+            public string CompanionIntention;
+            // 🔴 2026-08-15（目标唯一标记）：回复轮已解析目标（含 #N）——计划轮【目标指认】段直接引用
+            public string ResolvedTargetText;
         }
 
         /// <summary>
@@ -123,10 +128,16 @@ namespace LivingWorldNpcs
 
         /// <summary>玩家在密令模式发送命令文本 → 追加消息 + 计划生成（Mission）/ 规则解析计划（Campaign，Q5b）。
         /// 🔴 Q1：若存在本会话的澄清轮（_pendingClarify），本条消息作为澄清回答并入命令上下文重新生成。</summary>
-        public static void RequestCommand(ImConversation conv, string command)
+        /// <param name="companionIntention">🔴 2026-08-14（M4）：随从战术方向（risk_analysis 第一人称，
+        /// 随从自己说的话）——计划轮 prompt 单独成段【随从的打算】，计划由计划轮 LLM 决定（他说的不算）。
+        /// 普通命令/「制定计划」按钮传 null（零行为变化）。</param>
+        /// <param name="resolvedTargetText">🔴 2026-08-15（目标唯一标记）：回复轮已解析的目标（LLM
+        /// action_target 原文，含 #N 如 "酒馆店主#3"）——计划轮【目标指认】段直接引用，不再二次解析
+        /// 玩家原话（「酒馆老板」→「酒馆店主#3」映射固定）。</param>
+        public static void RequestCommand(ImConversation conv, string command, string companionIntention = null,
+            string resolvedTargetText = null)
         {
             if (conv == null || string.IsNullOrWhiteSpace(command)) return;
-
             // 门控复查（UI 已查，铁律 2 风格双保险）
             if (!ImChatView.IsCommandModeAvailable(conv))
             {
@@ -146,7 +157,6 @@ namespace LivingWorldNpcs
                 PostHint(conv, LWNTextHelper.ResolveText("LWN_im_cmd_busy", "Still thinking about your previous order..."));
                 return;
             }
-
             // 澄清轮：玩家回复并入命令上下文（替代 vanilla 澄清输入框，≤2 轮）
             string cmd = command.Trim();
             if (_pendingClarify != null && _pendingClarify.Conv?.Id == conv.Id)
@@ -155,14 +165,20 @@ namespace LivingWorldNpcs
                 _pendingClarify.Command = cmd;
                 _pendingClarify.Round++;
             }
-
             // 命令文本入会话（store；不写 NPC 记忆——密令是 Mission 级瞬态）
-            ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId,
-                Hero.MainHero?.Name?.ToString() ?? "You", cmd, ImMessageKind.Text)
-            {
-                ConvId = conv.Id,
-            });
-
+            // 🔴 2026-08-15（私聊消息顺序修复配套）：玩家消息已由 SendPlayerMessage 发送时写入 store
+            //（私聊修复后同一命令会先经发送路径再走本方法）——写前查重防双写（同发送者同内容已有 → 跳过，
+            // 含自动触发时序：store 末条可能是刚投递的随从台词，必须全列表扫描）；
+            // 密令输入框/提议批准/needPlan 按钮等直通路径（消息未经发送路径）仍需写入。
+            bool alreadyStored = ImChatStore.GetGroupMessages(conv.Id).Any(m => m != null
+                && m.SenderHeroId == ImChatManager.PlayerId && m.Kind == ImMessageKind.Text
+                && string.Equals(m.Content?.Trim(), cmd.Trim(), StringComparison.Ordinal));
+            if (!alreadyStored)
+                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(ImChatManager.PlayerId,
+                    Hero.MainHero?.Name?.ToString() ?? "You", cmd, ImMessageKind.Text)
+                {
+                    ConvId = conv.Id,
+                });
             if (Mission.Current == null)
             {
                 // Campaign 大地图：规则解析计划（零 LLM；私聊有 party 的 Hero）
@@ -170,17 +186,17 @@ namespace LivingWorldNpcs
                 ImMarchOrder.RequestMarchOrder(conv, cmd);
                 return;
             }
-
             _pending = new PendingRequest
             {
                 Conv = conv,
                 Command = cmd,
+                CompanionIntention = companionIntention,
+                ResolvedTargetText = resolvedTargetText,
             };
             // 生成中占位行（思考中文案，与「正在输入」同款）
             AppendGenerating(conv);
             _ = CallPlanAsync(_pending);
         }
-
         /// <summary>LLM 一次调用（与 PlanCommandFlow.CallPlanAsync 同管线，意图/词表复用其 internal API）。</summary>
         private static async Task CallPlanAsync(PendingRequest req)
         {
@@ -192,7 +208,9 @@ namespace LivingWorldNpcs
                 string persona = BuildPersona(req.Conv);
                 string prompt = PromptBuilder.BuildPlanPrompt(
                     snapshot.ToPromptText(), req.Command, persona, "",
-                    PlanCommandFlow.IntentTableForPrompt(), PlanCommandFlow.GrammarForPrompt());
+                    PlanCommandFlow.IntentTableForPrompt(), PlanCommandFlow.GrammarForPrompt(),
+                    companionIntention: req.CompanionIntention,
+                    resolvedTargetText: req.ResolvedTargetText);
                 string json = await LLMService.Instance.ChatAsync(prompt, 4000, true, 0.4f, disableReasoning: true);
                 string cleaned = LLMService.CleanJson(json);
                 try { response = JsonConvert.DeserializeObject<PlanResponse>(cleaned); }
@@ -204,7 +222,6 @@ namespace LivingWorldNpcs
             }
             FinishWith(req, response);
         }
-
         private static void FinishWith(PendingRequest req, PlanResponse response)
         {
             _lastConv = req?.Conv;
@@ -214,7 +231,6 @@ namespace LivingWorldNpcs
             _pendingResult = response;
             _resultReady = true;
         }
-
         /// <summary>主线程消费（ImChatManager.Tick → 本方法）。</summary>
         public static void Tick()
         {
@@ -227,18 +243,16 @@ namespace LivingWorldNpcs
                 _lastConv = null;
                 int modifyCount = _lastModifyCount;
                 _lastModifyCount = 0;
-
                 // 占位行替换（无论成败：卡片上屏 / 失败系统消息）
                 RemoveGenerating(conv);
-
                 if (response == null)
                 {
                     // 密令失败：计划生成失败
                     _pendingClarify = null;
+                    // 本地化：LWN_im_cmd_fail（玩家可见文本）
                     PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_fail", "The companion could not form a plan. Rephrase your order."));
                     return;
                 }
-
                 // 澄清轮 IM 化（🔴 Q1）：NPC 问句 = 一条 NPC 消息，玩家回复并入命令上下文（RequestCommand 合并路径）。
                 // 铁律 2：needs_clarification 标志位不可信——只有 questions 真的带候选才进入澄清轮。
                 if (response.Questions != null && response.Questions.Count > 0)
@@ -263,7 +277,6 @@ namespace LivingWorldNpcs
                     return;
                 }
                 _pendingClarify = null;
-
                 // 词表外/无计划 → 诚实拒绝（与 PlanCommandFlow 同语义）
                 if (response.Plan == null || response.Intent == null
                     || string.IsNullOrEmpty(response.Intent.IntentType) || response.Intent.IntentType == "CUSTOM")
@@ -274,13 +287,13 @@ namespace LivingWorldNpcs
                         : response.Reply);
                     return;
                 }
-
                 // 🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡）：计划消息 = NPC 自述消息——
                 // Sender = 随从（私聊）/通用发言人（群聊），Content = LLM 简述（原独立 narration 消息并入本条），
                 // 按钮行渲染在气泡内、锚点跟随链最新消息（讲解后按钮移动）。
                 // 🔴 2026-08-12（原「卡片去描述」）：陈述缺省 → 摘要兜底，保证上屏时总有一条 NPC 简述。
                 string narration = !string.IsNullOrWhiteSpace(response.Narration)
                     ? response.Narration
+                    // 本地化：LWN_plan_default_summary（玩家可见文本）
                     : (response.Plan?.Summary ?? LWNTextHelper.ResolveText("LWN_plan_default_summary", "I have a plan. Shall I go?"));
                 string summary = !string.IsNullOrEmpty(response.Plan.Summary) ? response.Plan.Summary
                     // 计划摘要缺省文案
@@ -306,7 +319,6 @@ namespace LivingWorldNpcs
                 ImChatStore.IncUnread(card.ConvId);
                 ImChatManager.BroadcastMessageArrived(conv);
             }
-
             // 执行器补挂回报事件（executor 异步创建，轮询重试 ~5s 墙钟超时）
             if (_pendingWires.Count > 0)
             {
@@ -326,7 +338,6 @@ namespace LivingWorldNpcs
                     _pendingWires.RemoveAt(i);
                 }
             }
-
             // 🔴 计划讲解投递（主线程：成功 = NPC 讲解消息上屏 [IM-Store 自动记录]；失败 = onDone(false) → 展开 C# 详情）
             if (_explainQueue.Count > 0)
             {
@@ -362,6 +373,7 @@ namespace LivingWorldNpcs
                             if (agent != null && agent.IsActive())
                                 SpeechChannel.Say(agent, job.Line, SpeechPriority.Dialogue,
                                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), Agent.Main, "plan_report",
+                                        // 本地化：LWN_im_btn_review（玩家可见文本）
                                         LWNTextHelper.ResolveText("LWN_im_btn_review", "Self-review")));
                         }
                         catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 讲解冒泡失败: {ex.Message}"); }
@@ -370,16 +382,13 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         // ───────────────────────── 批准/拒绝/中止 ─────────────────────────
-
         /// <summary>批准/拒绝计划卡片（用户决策 2：批准在 IM 内完成）。</summary>
         public static void Resolve(ImMessage msg, bool approve)
         {
             if (msg == null || !msg.IsPlanCard || !string.IsNullOrEmpty(msg.ExecutorId)) return;
             var conv = ConversationOf(msg.ConvId);
             if (conv == null) return;
-
             if (!approve)
             {
                 msg.ExecutorId = Rejected;
@@ -392,7 +401,6 @@ namespace LivingWorldNpcs
                 ScrubRejectedPlan(conv, msg);
                 return;
             }
-
             PlanResponse response = null;
             try { response = JsonConvert.DeserializeObject<PlanResponse>(msg.ResponseJson); }
             catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 卡片响应解析失败: {ex.Message}"); }
@@ -403,7 +411,6 @@ namespace LivingWorldNpcs
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_fail", "The companion could not form a plan. Rephrase your order."));
                 return;
             }
-
             // 执行者解析（Q5 多人协作）：PlanExecutor 原生一带多（subjects → 多 ActorCursor），
             // owner = 第一个执行者（SendEventToAgent 目标），回报消息列出全部执行者
             var executors = ResolveExecutors(conv, response);
@@ -414,11 +421,9 @@ namespace LivingWorldNpcs
                 return;
             }
             Agent executor = executors[0];
-
             try
             {
                 ApplyPlan(conv, executor, response, msg);
-
                 var hero = (executor.Character as CharacterObject)?.HeroObject;
                 msg.ExecutorId = hero?.StringId ?? executor.Name;
                 string names = string.Join("、", executors.Select(a => a.Name?.ToString() ?? "?"));
@@ -438,7 +443,6 @@ namespace LivingWorldNpcs
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_fail", "The companion could not form a plan. Rephrase your order."));
             }
         }
-
         /// <summary>中止执行中的计划（R3 停止键语义，远距离 IM 通道）。</summary>
         public static void Abort(ImMessage msg)
         {
@@ -446,7 +450,6 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(msg.ExecutorId) || msg.ExecutorId == Rejected || msg.ExecutorId == Done || msg.ExecutorId == Superseded) return;
             var conv = ConversationOf(msg.ConvId);
             if (conv == null) return;
-
             Agent agent = FindAgentByHeroId(msg.ExecutorId);
             var executor = agent != null ? PlanExecutor.GetExecutorFor(agent) : null;
             if (executor != null)
@@ -459,9 +462,7 @@ namespace LivingWorldNpcs
             // 🔴 Q1：中止 = 密谋输入阶段结束（幂等保险）
             PlanCommandFlow.End();
         }
-
         // ───────────────────────── 修改计划（🔴 Q2，2026-08-10）─────────────────────────
-
         /// <summary>
         /// 玩家修改计划（Q2）：卡片【修改】→ 输入框 → 修改意见 → 原命令 + 修改意见拼成新命令
         /// → 走同一条 LLM 计划管线 → 新 PlanCard（「修改版 vN」徽标）→ 再批准。
@@ -492,7 +493,6 @@ namespace LivingWorldNpcs
                 PostHint(conv, LWNTextHelper.ResolveText("LWN_im_cmd_busy", "Still thinking about your previous order..."));
                 return;
             }
-
             // 执行中 → 中止当前执行（玩家中止路径不触发 Replan 自动重入——OnAborted 仅内部 allowReplan 触发）
             if (IsExecuting(msg))
             {
@@ -502,11 +502,9 @@ namespace LivingWorldNpcs
             }
             // 旧卡片标记已修改（按钮全部消失；执行中的中止报告不覆盖此状态）
             msg.ExecutorId = Superseded;
-
             // 原命令：卡片前最近一条玩家命令消息（PlanCard 摘要不足语义，命令文本在 store 里）
             string original = FindOriginalCommand(conv, msg);
             string cmd = $"{original}（修改：{text.Trim()}）";  // lwn-ignore: A
-
             // 玩家修改意见入会话（store；不写 NPC 记忆——密令瞬态）
             if (appendPlayerText)
             {
@@ -524,7 +522,6 @@ namespace LivingWorldNpcs
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_need_mission", "You can only revise a plan while in the field."));
                 return;
             }
-
             _pending = new PendingRequest
             {
                 Conv = conv,
@@ -535,7 +532,6 @@ namespace LivingWorldNpcs
             AppendGenerating(conv);
             _ = CallPlanAsync(_pending);
         }
-
         /// <summary>原命令文本：store 中卡片前最近一条玩家 Text 消息（命令文本确实入 store，RequestCommand 写入）。</summary>
         private static string FindOriginalCommand(ImConversation conv, ImMessage card)
         {
@@ -550,7 +546,6 @@ namespace LivingWorldNpcs
             }
             return card.PlanSummary ?? "";
         }
-
         /// <summary>会话内最新一张待批计划卡片（ExecutorId 空）。🔴 2026-08-12（用户裁定：
         /// 修改按钮废除 → 输入框发送即修改）：待批卡片存在时，命令模式的发送走 RequestModify 而非新命令。</summary>
         public static ImMessage FindLatestPendingCard(ImConversation conv)
@@ -565,15 +560,12 @@ namespace LivingWorldNpcs
             }
             return null;
         }
-
         // ───────────────────────── 🔴 2026-08-12（合并闲聊/计划模式）：派生状态 + needPlan 建议 + 执行期调整 ─────────────────────────
-
         /// <summary>会话是否有挂起的澄清轮（计划生成在等玩家澄清回答——该会话的发送走 RequestCommand 合并，不掺建议）。</summary>
         public static bool HasPendingClarify(ImConversation conv)
         {
             return _pendingClarify != null && _pendingClarify.Conv?.Id == conv?.Id;
         }
-
         /// <summary>会话内最新一张执行中计划卡片（ExecutorId = 执行者 heroId）。</summary>
         public static ImMessage FindLatestExecutingCard(ImConversation conv)
         {
@@ -587,7 +579,6 @@ namespace LivingWorldNpcs
             }
             return null;
         }
-
         /// <summary>会话内最新一张**指定执行者**的执行中卡片（执行期调整定位用——ctx 带 heroId 无歧义，
         /// 防群聊多人协作时找错执行者；执行已了结/回报在途 → 返回 null，只回台词不产生孤儿修改链）。</summary>
         public static ImMessage FindLatestExecutingCardByHeroId(ImConversation conv, string heroId)
@@ -602,10 +593,8 @@ namespace LivingWorldNpcs
             }
             return null;
         }
-
         /// <summary>会话是否有执行中计划（needPlan 建议抑制规则之一：执行期只走 adjustPlan 通道）。</summary>
         public static bool HasExecutingCard(ImConversation conv) => FindLatestExecutingCard(conv) != null;
-
         /// <summary>🔴 2026-08-12（合并闲聊/计划模式）：会话计划状态派生（模式指示文本 + 输入路由）。
         /// 优先级：Generating（最瞬态）> Executing > PendingPlan > Chat。建议按钮待决不改变 phase（闲聊层）。
         /// 旧卡（rejected/done/superseded）跳过——只有最新活动状态才反映到指示文本。</summary>
@@ -623,7 +612,6 @@ namespace LivingWorldNpcs
             }
             return ImSessionPhase.Chat;
         }
-
         /// <summary>玩家发新消息 → 同会话全部待决建议按钮作废（ExecutorId="superseded"，按钮随锚点重算消失）。</summary>
         public static void InvalidateSuggestions(ImConversation conv)
         {
@@ -642,7 +630,6 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[ImCommandFlow] InvalidateSuggestions 异常: {ex.Message}");
             }
         }
-
         /// <summary>🔴 2026-08-12（needPlan 建议 → 通用消息底部按钮，用户裁定不用计划卡片）：
         /// LLM 判定 need_plan 后，给**刚投递的 NPC 回复消息**打标（IsPlanSuggest + CommandText），
         /// 渲染复用既有 ShowCardBubble + 通用按钮行（制定计划/先不用）。主线程投递点调用
@@ -652,7 +639,14 @@ namespace LivingWorldNpcs
         /// ② IsBusy —— 计划生成中防并发（全局锁，保守）
         /// ③ HasPendingClarify —— 澄清轮挂起（回答走 RequestCommand 合并，不掺建议）
         /// ④ FindLatestExecutingCard —— 执行期只走 adjustPlan 通道</summary>
-        public static void TryAttachSuggestion(ImConversation conv, string heroId, string heroName, string playerText)
+        /// <summary>needPlan 建议打标：给 NPC 回复消息挂「制定计划/先不用」按钮（玩家确认后才生成计划）。
+        /// 🔴 2026-08-15（plan_needed 全手动裁定）：riskAnalysis 参数 = 随从战术方向（risk_analysis 原文）——
+        /// plan_needed 场景由 RiskAssessor 调本方法挂按钮并随带战术方向，玩家点「制定计划」后
+        /// RequestCommand(companionIntention) 进计划轮【随从的打算】段；普通 need_plan（无风险段）传 null。
+        /// 🔴 2026-08-15（目标唯一标记）：resolvedTargetText = 回复轮 LLM 的 action_target（含 #N，如
+        /// "酒馆店主#3"）——随按钮存储，计划轮【目标指认】段直接引用（不再二次解析玩家原话）。</summary>
+        public static void TryAttachSuggestion(ImConversation conv, string heroId, string heroName, string playerText,
+            string riskAnalysis = null, string resolvedTargetText = null)
         {
             try
             {
@@ -661,7 +655,6 @@ namespace LivingWorldNpcs
                 if (IsBusy) return;
                 if (HasPendingClarify(conv)) return;
                 if (FindLatestExecutingCard(conv) != null) return;
-
                 var msgs = ImChatStore.GetGroupMessages(conv.Id);
                 ImMessage target = null;
                 for (int i = msgs.Count - 1; i >= 0; i--)
@@ -679,10 +672,11 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ImCommandFlow] 建议打标失败: 找不到 {heroName} 刚投递的消息");
                     return;
                 }
-
                 InvalidateSuggestions(conv);   // 同会话旧待决建议作废，只留一张
                 target.IsPlanSuggest = true;
                 target.CommandText = string.IsNullOrWhiteSpace(playerText) ? target.Content : playerText.Trim();
+                target.RiskAnalysisText = riskAnalysis;          // 🔴 2026-08-15：战术方向随按钮存储（全手动裁定）
+                target.ResolvedTargetText = resolvedTargetText;  // 🔴 2026-08-15：已解析目标（含 #N）随按钮存储
                 AutonomyProposal.Suppress(heroId);   // 本轮互斥：已有建议，不再投自主提议（防双卡）
                 DebugLogger.Log($"[ImCommandFlow] needPlan 建议已打标: {heroName} → \"{target.Content}\"");
             }
@@ -691,7 +685,6 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[ImCommandFlow] TryAttachSuggestion 异常: {ex.Message}");
             }
         }
-
         /// <summary>🔴 2026-08-12（执行期说话 → 计划调整，方案 A）：主线程捕获执行上下文
         /// （纯字符串快照，后台线程安全）。无执行中计划返回 null。</summary>
         public static ImExecutionContext BuildExecutionContext(ImConversation conv)
@@ -719,7 +712,6 @@ namespace LivingWorldNpcs
                 Intent = card.PlanIntent,
             };
         }
-
         /// <summary>🔴 2026-08-12（执行期说话 → 计划调整）：LLM 判定 adjust_plan 后，主线程投递点调用。
         /// 全部前置复查（铁律 2 双保险）：Mission 才有执行器；IsBusy 防并发生成；按 heroId 复查执行中
         /// （执行已了结/回报在途 → 只回台词）；修改额度 ≤2（成功产出才消耗）。通过 → RequestModify
@@ -742,7 +734,6 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[ImCommandFlow] TryAdjustFromExecution 异常: {ex.Message}");
             }
         }
-
         /// <summary>
         /// 拒绝 = 抛弃计划（2026-08-12 用户裁定）：把本次计划交易从 store 整段抹除——
         /// 玩家命令 → NPC 陈述 → 计划卡片（含修改链：命令1→陈述1→卡片1(superseded)→…→当前卡片）。
@@ -757,7 +748,6 @@ namespace LivingWorldNpcs
             var msgs = ImChatStore.GetGroupMessages(conv.Id);
             int cardIdx = msgs.FindIndex(m => m == card);
             if (cardIdx < 0) return;
-
             // 锚点 = 卡片前最近一条玩家命令（FindOriginalCommand 同源语义）
             int anchor = -1;
             for (int i = cardIdx - 1; i >= 0; i--)
@@ -771,7 +761,6 @@ namespace LivingWorldNpcs
                 }
             }
             if (anchor < 0) { ImChatStore.RemoveMessageRange(conv.Id, cardIdx, 1); return; }   // 防御：只删卡片
-
             // 向后追溯修改链（严格边界见方法注释）：
             // 新结构（2026-08-12）：命令 → 计划卡片（NPC 简述自述）→ [讲解消息]；修改链 =
             // 命令1 → 卡片1(superseded) → [讲解1] → 命令2(修改) → 卡片2 → [讲解2] …
@@ -803,7 +792,6 @@ namespace LivingWorldNpcs
                 }
                 break;
             }
-
             // 🔴 2026-08-12：向前追溯讲解消息（卡片后同链消息：详解正文）——拒绝 = 整条计划交易抹除。
             // 只扫连续段：中间插入其他消息（叠放命令的新链）即停——那些不是被拒的这条计划
             //（此时被拒卡片的按钮已因锚点规则隐藏，叠放 + 拒旧卡组合在 UI 上不可达，防御即可）。
@@ -820,7 +808,6 @@ namespace LivingWorldNpcs
             ImChatStore.RemoveMessageRange(conv.Id, start, end - start + 1);
             DebugLogger.Log($"[ImCommandFlow] 拒绝抛弃计划：抹除 store 消息 {end - start + 1} 条（会话 {conv.Id}）");
         }
-
         /// <summary>
         /// 重拟（🔴 2026-08-12 用户裁定：二次校验发现问题时给玩家"同命令重新生成"的出口）：
         /// 原命令原样重走一遍 LLM 计划管线（不合并修改意见——那是输入框发送的语义）。
@@ -850,10 +837,8 @@ namespace LivingWorldNpcs
                 PostHint(conv, LWNTextHelper.ResolveText("LWN_im_cmd_busy", "Still thinking about your previous order..."));
                 return;
             }
-
             // 旧卡片标记已重拟（按钮消失；与修改同语义）
             card.ExecutorId = Superseded;
-
             // 原命令原样重跑（不带修改意见——输入框发送才合并意见）
             string original = FindOriginalCommand(conv, card);
             if (string.IsNullOrWhiteSpace(original)) original = card.PlanSummary ?? "";
@@ -862,7 +847,6 @@ namespace LivingWorldNpcs
             // 此时 ReviewLine 必有值）
             if (!string.IsNullOrWhiteSpace(card.ReviewLine))
                 original = $"{original}（重拟要求：讲解自查发现「{card.ReviewLine}」——重新拟一个避开这些问题的方案）";  // lwn-ignore: A
-
             // 重拟提示
             PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_regenerating", "The companion is working out a new plan."));
             if (Mission.Current == null)
@@ -871,7 +855,6 @@ namespace LivingWorldNpcs
                 PostSystem(conv, LWNTextHelper.ResolveText("LWN_im_cmd_modify_need_mission", "You can only revise a plan while in the field."));
                 return;
             }
-
             _pending = new PendingRequest
             {
                 Conv = conv,
@@ -882,9 +865,7 @@ namespace LivingWorldNpcs
             AppendGenerating(conv);
             _ = CallPlanAsync(_pending);
         }
-
         // ───────────────────────── 生成中占位行（🔴 2026-08-12：删进度条，文案与「正在输入」统一）─────────────────────────
-
         /// <summary>占位行：消息流内 NPC 思考气泡（🔴 2026-08-12：删进度条，文案与输入栏「正在输入」统一；
         /// 🔴 2026-08-12（用户裁定：融入 NPC 气泡）：Sender = 随从/通用发言人；
         /// 🔴 2026-08-12（用户反馈）：思考气泡不带名字前缀——正文纯「正在思考中…」（新 key），
@@ -902,7 +883,6 @@ namespace LivingWorldNpcs
             });
             ImChatManager.BroadcastMessageArrived(conv);
         }
-
         /// <summary>移除会话最后一条生成中占位（卡片上屏/失败时替换）。
         /// 🔴 2026-08-12 修复：GetGroupMessages 返回副本，直接 RemoveAt 只改副本——store 占位行残留，
         /// 导致「思考气泡 + 计划气泡」双显（hasGenerating 恒 true，转态重建不触发）。走 RemoveMessageRange 真删。</summary>
@@ -919,9 +899,7 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         // ───────────────────────── 卡片详情（🔴 §3.2，C# 确定性渲染，不信任 LLM 文案）─────────────────────────
-
             // 本地化：动作名标签表（plan_step 记忆/详情渲染）
         /// <summary>动作名 → 本地化标签（LWN_plan_action_*；渲染的是实际会被执行的逻辑——PlanExecutor 同一份 JSON）。
         /// 🔴 2026-08-13：改为 internal static——ActionHandler 决策播报复用同表（闲聊动作码一致，防两份标签漂移）。
@@ -933,11 +911,11 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(action)) return "";
             var spec = ActionRegistry.FindByLabelCode(action);
             if (spec != null && !string.IsNullOrEmpty(spec.LabelKey))
+                // 本地化：LWN_plan_action_（玩家可见文本）
                 return LWNTextHelper.ResolveText("LWN_plan_action_" + spec.LabelKey, spec.LabelFallback);
             // 未知码兜底（原行为保留：key 名 = 码本身）
             return LWNTextHelper.ResolveText("LWN_plan_action_" + action, action);
         }
-
         /// <summary>C# 确定性详情渲染：步骤列表 + 应急行（contingencies/on_timeout）+ 安全网（guardrails 摘要）。
         /// 玩家看到的 = 执行器跑的（杜绝演示计划 ≠ 执行计划）。</summary>
         private static string BuildPlanDetail(Plan plan)
@@ -983,9 +961,7 @@ namespace LivingWorldNpcs
                 "  Safety: unexpected threats pause the plan; the stop key recalls the companion."));
             return sb.ToString();
         }
-
         // ───────────────────────── 计划讲解（🔴 2026-08-11 用户裁定）─────────────────────────
-
         /// <summary>
         /// 计划自审（🔴 2026-08-11 用户裁定 → 2026-08-12 改名）：玩家点「计划自审」按钮（**确定性事件**，
         /// 不靠玩家打字让 LLM 识别「自审计划」意图）
@@ -1015,10 +991,8 @@ namespace LivingWorldNpcs
             }
             catch { }
             if (plan == null) { try { onDone?.Invoke(false); } catch { } return; }   // 无计划可讲 → 失败
-
             string detail = BuildPlanDetail(plan);
             if (string.IsNullOrWhiteSpace(detail)) { try { onDone?.Invoke(false); } catch { } return; }
-
             // 🔴 2026-08-12：讲解人 = 会话对方随从（私聊 = PartnerHero；群聊 = 通用发言人兜底）。
             // 原实现用 card.SenderName（计划卡片 SenderHeroId=player）→ 讲解消息以玩家名义上屏 → 体验断裂。
             var conv = ConversationOf(card.ConvId);
@@ -1033,13 +1007,12 @@ namespace LivingWorldNpcs
                 catch { }
             }
             if (string.IsNullOrEmpty(senderName))
+                // 本地化：LWN_im_npc_companion（玩家可见文本）
                 senderName = LWNTextHelper.ResolveText("LWN_im_npc_companion", "Companion");
-
             // prompt 归口 PromptBuilder（LLM prompt 单一事实源；讲解 = C# 确定性渲染 + 转述纪律 +
             // 二次校验——审查对照生成时同一份 LWN_plan_rules 纪律；原命令供"任务型 vs 保持型"判断）
             string original = FindOriginalCommand(conv, card);
             string prompt = PromptBuilder.BuildPrompt_PlanExplain(senderName, detail, original);
-
             async void Run()
             {
                 string line = null;
@@ -1076,6 +1049,7 @@ namespace LivingWorldNpcs
                         ? card.Narration
                         : (!string.IsNullOrWhiteSpace(card.PlanSummary)
                             ? card.PlanSummary
+                            // 本地化：LWN_plan_default_summary（玩家可见文本）
                             : LWNTextHelper.ResolveText("LWN_plan_default_summary", "I have a plan. Shall I go?"));
                 // 场景内冒泡由主线程 Tick 消费时执行（BubbleHeroId 传参；后台线程禁碰 Agent native 句柄）
                 lock (_explainLock)
@@ -1093,7 +1067,6 @@ namespace LivingWorldNpcs
             }
             Run();
         }
-
         private static string RenderStepTargetText(PlanStep s)
         {
             if (s == null || s.Target == null) return "";
@@ -1103,7 +1076,6 @@ namespace LivingWorldNpcs
                 return (string)s.Target["query"] ?? "";
             return "";
         }
-
         private static string RenderCondition(Condition c)
         {
             if (c == null || string.IsNullOrEmpty(c.Type)) return "";
@@ -1115,9 +1087,7 @@ namespace LivingWorldNpcs
             }
             return $"{c.Type}({c.A ?? ""},{c.B ?? ""}) {c.Op ?? ""} {c.Value}";
         }
-
         // ───────────────────────── 计划执行记忆纪律（🔴 §2.1 单向链条，2026-08-10）─────────────────────────
-
         /// <summary>
         /// 步骤执行完成 → 写执行者记忆（唯一写入点）。记忆只记录「实际发生过的事」：
         /// 计划生成/批准/修改/中止等元数据一律不写（树/网）；步骤完成按执行顺序逐条追加 = 单向链条。
@@ -1146,7 +1116,6 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[ImCommandFlow] plan_step 记忆写入异常: {ex.Message}");
             }
         }
-
         /// <summary>卡片是否执行中（中止按钮可见性；Superseded 已修改 = 非执行中）。</summary>
         public static bool IsExecuting(ImMessage msg)
         {
@@ -1154,7 +1123,6 @@ namespace LivingWorldNpcs
                 && !string.IsNullOrEmpty(msg.ExecutorId)
                 && msg.ExecutorId != Rejected && msg.ExecutorId != Done && msg.ExecutorId != Superseded;
         }
-
         /// <summary>执行器回报回 IM：executor 由 AgentBrain 异步 Create，走补挂队列（Tick 轮询）。</summary>
         private static void WireExecutorReports(ImConversation conv, Agent executorAgent, ImMessage card)
         {
@@ -1169,7 +1137,6 @@ namespace LivingWorldNpcs
                 StartMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             });
         }
-
         /// <summary>挂一次回报事件（OnFinished/OnAborted → IM 系统消息 + 卡片了结；原密信 DisplayMessage 保留双渠道）。
         /// 🔴 §2.1：OnStepCompleted 挂接——步骤完成写执行者记忆（plan_step 单向链条）。</summary>
         private static void SubscribeExecutor(PlanExecutor executor, ImConversation conv, ImMessage card)
@@ -1201,7 +1168,6 @@ namespace LivingWorldNpcs
                 catch (Exception e) { DebugLogger.Log($"[ImCommandFlow] 中止回报异常: {e.Message}"); }
             };
         }
-
         /// <summary>下发执行（PlanCommandFlow.ApplyPlan 同款：反应计划 + 意图 target 解析 + SendEventToAgent）。</summary>
         private static void ApplyPlan(ImConversation conv, Agent companion, PlanResponse response, ImMessage card)
         {
@@ -1216,7 +1182,6 @@ namespace LivingWorldNpcs
                         ReactiveAgent.ApplyPlan(info.Agent, rp);
                 }
             }
-
             // 意图 target 解析（角色表注入）
             Agent target = null;
             var intent = response.Intent;
@@ -1229,18 +1194,14 @@ namespace LivingWorldNpcs
                     target = info?.Agent;
                 }
             }
-
             string planJson = JsonConvert.SerializeObject(response.Plan,
                 new JsonSerializerSettings { NullValueHandling = NullValueHandling.Ignore });
             string intentType = intent?.IntentType;
             AgentAIController.Instance?.SendEventToAgent(companion, "order_execute_plan",
                 planJson, intentType, target, card.Content);
-
             WireExecutorReports(conv, companion, card);
         }
-
         // ───────────────────────── 辅助 ─────────────────────────
-
         /// <summary>
         /// 执行者解析（Q5 多人协作）：私聊 = 该随从；队伍频道 = 意图 subjects（"你们/你俩"）逐个解析，
         /// 兜底第一个玩家队伍成员。返回列表（[0] = owner = SendEventToAgent 目标；其余 = 协作执行者，
@@ -1250,14 +1211,12 @@ namespace LivingWorldNpcs
         {
             var list = new List<Agent>();
             if (Mission.Current == null) return list;
-
             if (conv.Type == ImConversationType.Direct)
             {
                 var a = FindAgentByHeroId(conv.PartnerHeroId);
                 if (a != null) list.Add(a);
                 return list;
             }
-
             // 队伍频道：subjects 优先，兜底第一个玩家队伍成员
             Agent owner = null;
             if (response?.Intent?.Subjects != null)
@@ -1283,7 +1242,6 @@ namespace LivingWorldNpcs
             if (owner != null && !list.Contains(owner)) list.Insert(0, owner);
             return list;
         }
-
         private static Agent FindAgentByHeroId(string heroId)
         {
             if (string.IsNullOrEmpty(heroId) || Mission.Current == null) return null;
@@ -1295,7 +1253,6 @@ namespace LivingWorldNpcs
             }
             return null;
         }
-
         private static ImConversation ConversationOf(string convId)
         {
             if (string.IsNullOrEmpty(convId)) return null;
@@ -1305,7 +1262,6 @@ namespace LivingWorldNpcs
                 ? ImConversationType.Clan
                 : convId == ImChatStore.ChannelKingdom ? ImConversationType.Kingdom : ImConversationType.Party);
         }
-
         private static string BuildPersona(ImConversation conv)
         {
             try
@@ -1323,7 +1279,6 @@ namespace LivingWorldNpcs
             }
             catch { return "你是一名随从。说话简短、务实，像游戏里的随从。"; }  // lwn-ignore: A
         }
-
         private static void PostSystem(ImConversation conv, string content)
         {
             if (conv == null || string.IsNullOrWhiteSpace(content)) return;
@@ -1334,7 +1289,6 @@ namespace LivingWorldNpcs
             ImChatStore.IncUnread(conv.Id);
             ImChatManager.BroadcastMessageArrived(conv);
         }
-
         /// <summary>NPC 消息入会话（🔴 Q1 澄清轮问句用：带发言人的普通消息，走消息流管道）。
         /// 私聊 = 随从 Hero 名义；群聊 = 无 Hero 语义的通用发言人名义（当前密令只走私聊/队伍频道）。</summary>
         private static void PostNpcMessage(ImConversation conv, string content)
@@ -1348,7 +1302,6 @@ namespace LivingWorldNpcs
             ImChatStore.IncUnread(conv.Id);
             ImChatManager.BroadcastMessageArrived(conv);
         }
-
         /// <summary>会话发言人解析（🔴 2026-08-12 抽取，计划消息/占位/讲解/澄清共用）：
         /// 私聊 = 随从 Hero（Id + 名）；群聊 = 无 Hero 语义 → 通用发言人兜底（LWN_im_npc_companion）。</summary>
         private static void ResolveSpeaker(ImConversation conv, out string heroId, out string senderName)
@@ -1367,7 +1320,6 @@ namespace LivingWorldNpcs
                 // 本地化：通用发言人兜底名
                 senderName = LWNTextHelper.ResolveText("LWN_im_npc_companion", "Companion");
         }
-
         private static void PostHint(ImConversation conv, string content)
         {
             if (string.IsNullOrWhiteSpace(content)) return;

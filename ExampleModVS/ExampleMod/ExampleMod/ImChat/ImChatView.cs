@@ -34,6 +34,8 @@ namespace LivingWorldNpcs
         private static bool _hadGenerating;
         private static bool _subscribed;
         private static bool _welcomed;   // 首次打开引导提示（会话内一次）
+        // 🔴 2026-08-15（按钮调试日志节流）：上次已打日志的 latestCard 引用——锚点竞争结果只打一次（防 0.3s 轮询刷屏）
+        private static ImMessage _lastAnchorLogCard;
         // 🔴 2026-08-12（模板 NPC 密信 · 粘性 @）：最近一次定向喊话的 @前缀（含尾随空格，如「@守卫 #12 」）——
         // @命中发送后回填输入框，连发多条给同一 NPC 不用重复打 @；玩家删掉前缀发普通喊话 → 解除。
         private static string _lastMentionPrefix;
@@ -423,10 +425,30 @@ namespace LivingWorldNpcs
                         }
                     }
                 }
-                vm.AnchorCard = card;
-                vm.IsCardAnchor = card != null
+                // 🔴 2026-08-15（按钮不显示根因，实机日志 08:38:42.962-964 实锤）：**先设 IsCardAnchor 再设
+                // AnchorCard**——旧顺序 AnchorCard 先触发 RebuildCardButtons（按钮构建时 IsCardAnchor 还是
+                // 旧值 False，[SuggestBtn] 日志显示 IsHorizontalButtons=False），随后 IsCardAnchor 才设 True，
+                // 可见性联动丢失。反转后：可见性先就绪，按钮数据后到（MBBindingList 添加自动刷新数据源）。
+                bool isAnchor = card != null
                     && card == latestCard
                     && IsCardAnchorPosition(m, card, msgs);
+                vm.IsCardAnchor = isAnchor;
+                vm.AnchorCard = card;
+            }
+            // 🔴 2026-08-15（按钮不显示调试，实机）：打印锚点竞争结果——latestCard 是谁、
+            // 被选中的消息是否就是玩家看到的建议消息（IsPlanSuggest + 未解决）。
+            // ⚠️ 节流：UpdateCardAnchors 每 0.3s 轮询跑一次，latestCard 不变时打印会刷屏——
+            // 只在 latestCard 变化（打标前 null → 打标后建议消息）时打一次。
+            if (latestCard != null && _lastAnchorLogCard != latestCard)
+            {
+                _lastAnchorLogCard = latestCard;
+                DebugLogger.Log($"[CardAnchor] latestCard={latestCard.Kind}(suggest={latestCard.IsPlanSuggest}, resolved={latestCard.IsSuggestionResolved}, exec={latestCard.ExecutorId ?? "空"}) 消息数={msgs.Count}");
+                foreach (var vm in _vm.Messages)
+                {
+                    var m = vm.Message;
+                    if (m != null && (m.IsPlanSuggest || m.IsProposal || m.IsPlanCard))
+                        DebugLogger.Log($"[CardAnchor]   vm: kind={m.Kind} sender={m.SenderName} content={(m.Content?.Length > 20 ? m.Content.Substring(0, 20) + "…" : m.Content)} anchor={vm.IsCardAnchor} card={vm.AnchorCard != null}");
+                }
             }
         }
 
@@ -901,7 +923,11 @@ namespace LivingWorldNpcs
             }
             string command = string.IsNullOrWhiteSpace(msg.CommandText) ? msg.Content : msg.CommandText;
             if (string.IsNullOrWhiteSpace(command)) return;
-            ImCommandFlow.RequestCommand(conv, command);
+            // 🔴 2026-08-15（plan_needed 全手动裁定）：战术方向（risk_analysis）随按钮存储于
+            // RiskAnalysisText——点「制定计划」时传入计划轮【随从的打算】段（M4 think-aloud 不丢失）；
+            // 已解析目标（含 #N）随 ResolvedTargetText 传入计划轮【目标指认】段（不再二次解析玩家原话）。
+            ImCommandFlow.RequestCommand(conv, command, companionIntention: msg.RiskAnalysisText,
+                resolvedTargetText: msg.ResolvedTargetText);
         }
 
         private static ImConversation ConversationOf(string convId)

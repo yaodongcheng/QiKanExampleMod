@@ -264,8 +264,10 @@ namespace LivingWorldNpcs
             switch (key)
             {
                 case InputKey.Space:
+                    // 本地化：LWN_input_key_space（玩家可见文本）
                     return LWNTextHelper.ResolveText("LWN_input_key_space", "Space");
                 case InputKey.Tab:
+                    // 本地化：LWN_input_key_tab（玩家可见文本）
                     return LWNTextHelper.ResolveText("LWN_input_key_tab", "Tab");
                 default:
                     return key.ToString();

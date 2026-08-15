@@ -417,7 +417,9 @@ namespace LivingWorldNpcs
         static void AddStealAction(WorldEvent pending, string heroId, string templateId,
             string itemId, string itemName, string targetName, int count = 1)
         {
-            //合并偷窃记录
+            // 合并偷窃记录：同目击者证词内同 ItemId 的 Steal 记录数量相加（gold 的 Count = 面额，同样相加）。
+            // 源头合并（语义正确 + 内存瘦身）；事件合并（MergeWitnessTestimonies）与旧档产生的
+            // 重复记录由序列化前的 CompactItemRecordsForSerialize 兜底归一。
 
             var testimony = pending.WitnessTestimonies.FirstOrDefault(t =>
                 (heroId != null && t.WitnessHeroId == heroId) || //某个英雄角色再次目击
@@ -434,6 +436,19 @@ namespace LivingWorldNpcs
                 pending.WitnessTestimonies.Add(testimony);
             }
             testimony.Actions = testimony.Actions ?? new List<ActionRecord>();
+
+            // 同种赃物合并（仅限有 ItemId 的赃物记录；无 ItemId 的脉冲语境记录不参与合并）
+            if (!string.IsNullOrEmpty(itemId))
+            {
+                var existing = testimony.Actions.FirstOrDefault(a =>
+                    a.ActionType == "Steal" && a.ItemId == itemId);
+                if (existing != null)
+                {
+                    existing.Count += Math.Max(1, count); // 旧档 Count=0 按 1 兜底
+                    if (string.IsNullOrEmpty(existing.ItemName)) existing.ItemName = itemName;
+                    return;
+                }
+            }
             testimony.Actions.Add(new ActionRecord
             {
                 ActionType = "Steal",

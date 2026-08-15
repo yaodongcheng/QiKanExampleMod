@@ -74,7 +74,10 @@ namespace LivingWorldNpcs
                 int totalBytes = 2; // "[]"
                 foreach (var item in arr)
                 {
-                    string itemStr = item.ToString(Formatting.None);
+                    // 🔴 禁止 item.ToString(Formatting)（单参重载）——Newtonsoft 13.0.2 才新增，
+                    // 而游戏自带 Newtonsoft.Json.dll 是 13.0.1（编译引用 packages 13.0.4）：
+                    // 编译过、运行期 MissingMethodException → 存档必崩（星星眼）。两参重载全版本都有。
+                    string itemStr = item.ToString(Formatting.None, (JsonConverter[])null);
                     int itemBytes = Encoding.UTF8.GetByteCount(itemStr);
                     int overhead = kept.Count == 0 ? 1 : 2; // 首元素无前导分隔，后续加 ","
                     if (totalBytes + overhead + itemBytes > maxBytes) break;
@@ -84,7 +87,7 @@ namespace LivingWorldNpcs
                 if (kept.Count == 0) return "[]";
                 if (kept.Count == arr.Count) return null; // 全部保留（不可能走到这，防御）
                 DebugLogger.Log($"[SyncDataGuard] 结构感知截断：保留 {kept.Count}/{arr.Count} 条完整记录");
-                return kept.ToString(Formatting.None);
+                return kept.ToString(Formatting.None, (JsonConverter[])null);
             }
             catch { return null; }
         }
@@ -119,11 +122,14 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[SaveStringGuard] 本次保存发生超长裁剪: {keys}");
                 InformationManager.ShowInquiry(new InquiryData(
+                    // 本地化：LWN_save_trim_title（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_save_trim_title", "Save Warning"),
+                    // 本地化：LWN_save_trim_body（玩家可见文本）
                     LWNTextHelper.ResolveCompound("LWN_save_trim_body",
                         "The save completed, but some data exceeded the safe size limit and was trimmed: {KEYS}. The oldest affected records were discarded.",
                         ("KEYS", keys)),
                     true, false,
+                    // 本地化：LWN_save_trim_ok（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_save_trim_ok", "OK"), "",
                     null, null), false, false);
             }

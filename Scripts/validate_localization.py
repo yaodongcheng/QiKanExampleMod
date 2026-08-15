@@ -86,6 +86,12 @@ KNOWN_PLACEHOLDERS = {
     "VICTIM_LINE", "VIGOR", "WAGERED", "WEIGHT", "WHERECLAUSE", "WIFE",
     "WITNESS", "WITNESS_CLAUSE", "WORLDDESC", "WORLD_DESCRIPTION",
     "WOUND", "WOUNDED",
+    # 🔴 2026-08-14（M4 risky 风险卡）：{RISK} = LLM risk_analysis 原文（LLM 生成文本豁免本地化）
+    "RISK",
+    # 🔴 2026-08-14 基线 WARN 清零：以下变量均为代码实际传值解析
+    #（ResolveCompound 显式变量 / MBTextManager.SetTextVariable 引擎变量），白名单补登
+    "COND", "THEN", "MODE", "PEER", "RESULT", "TOPIC",
+    "LWN_COMPANION", "LWN_COMPANION_FINE",
     # Prompt template placeholders (NPCProfile / ResolveCompound)
     "AGE", "ALCOHOL", "AMBITION", "ARMIES", "CASTLES", "CLAN_NAME",
     "CULTURE", "CURRENCY", "DECEASED", "DESIRE", "DESIRE_TYPE", "ENEMIES",
@@ -178,6 +184,28 @@ def check_cs_no_hardcoded_cjk():
         'WorldEventDirector.cs',# Comments only
         'WorldEventSimulator.cs',# Debug log only
         'InteractionController.cs', # Already migrated / LLM prompts only
+        'WorldFactProvider.cs', # LLM prompt assembly (SceneAwareness / RiskScene) only
+        # 🔴 2026-08-14 基线清理（A 检查）：以下文件 CJK 全部为 LLM prompt 段 / 记忆行模板 /
+        # IM 事件消息 / 内部判定词（玩家可见文本已全部走 LWN key）——铁律 13 LLM prompt 豁免
+        'AgentBrain.cs',        # 记忆行模板（目击/攻击叙述，进 LLM prompt）
+        'ImReplyService.cs',    # 同伴互动段 / 频道消息段（prompt 拼接）
+        'AutonomyProposal.cs',  # 【行动提议】【频道近期消息】prompt 段
+        'DialogueComponent.cs', # 身份/话题 prompt 段
+        'ReactiveAgent.cs',     # 旁观话题/记忆模板（prompt 材料）
+        'SceneSnapshot.cs',     # 【场景当前人员】prompt 段
+        'ActionRegistry.cs',    # 动作词表描述（进计划轮 prompt）
+        'PlanCommandFlow.cs',   # 意图→命令示例表（LLM 意图匹配材料）
+        'SpeechChannel.cs',     # 说话 prompt 指令（SpeechPriority → 台词生成）
+        'MyBehavior.cs',        # IM 事件消息（BroadcastPlayerEvent → NPC 记忆）
+        'PlanGrammar.cs',       # 校验警告日志 / 意图标签（非玩家可见）
+        'PersuadeSlot.cs',      # 说服 prompt 指令段 / 记忆行
+        'CampaignSession.cs',   # 说服/动议 prompt 指令段 / 意图词表
+        'AtomicAction.cs',      # 交战记忆旁白 / IM 事件消息
+        'ImChatManager.cs',     # 关系档位/回应模式（群聊 prompt 段）/ 人设匹配词
+        'ImMarchOrder.cs',       # 行军命令意图词表（LLM 匹配材料，中英双语）
+        'ImTopicMatcher.cs',    # 称呼词表 + 话题评分日志（内部匹配/日志）
+        'SessionDialogueTemplates.cs',  # 说服会话【态度】prompt 段
+        'PlanReplan.cs',        # replan 指令 prompt
     }
 
     found = 0
@@ -218,17 +246,20 @@ def check_cs_no_hardcoded_cjk():
                 in_block_comment = True
                 continue
 
-            # Skip lines that are purely debug/log output (not player-visible)
-            if re.search(r'^\s*DebugLogger\.|^\s*Debug\.Print',
-                         line):
+            # Skip lines that are purely debug/log output (not player-visible).
+            # 🔴 2026-08-14：行内任意位置含 DebugLogger（含 catch { DebugLogger.Log(...) } 同行写法）
+            if re.search(r'DebugLogger\.(Log|LogError|LogWarning)', line):
                 continue
 
             # Skip lwn-ignore markers
             if 'lwn-ignore: A' in line:
                 continue
 
-            # Extract string literals and check for CJK
-            str_literals = re.findall(r'"([^"]*)"', line)
+            # Extract string literals and check for CJK.
+            # 🔴 2026-08-14：先剔除行尾注释（// 之后），防止注释里的 "中文" 被当字符串字面量提取
+            #（如 `// 轮次上限（"聊天不会太长"）` 的注释内引号）。
+            code_part = line.split('//', 1)[0] if '//' in line else line
+            str_literals = re.findall(r'"([^"]*)"', code_part)
             for s in str_literals:
                 if CJK_PATTERN.search(s):
                     by_file[relpath].append(lineno)

@@ -541,6 +541,7 @@ namespace LivingWorldNpcs
             {
                 pixelWidth = MaxProgressBarWidth - ConflictBarWidth;
                 if (Settings.Instance.ShowDebugMessages)
+                    // 本地化：LWN_dialog_prediction_overflow（玩家可见文本）
                     InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_dialog_prediction_overflow",
                         ("MAXWIDTH", MaxProgressBarWidth.ToString("F1")), ("CURRENT", ConflictBarWidth.ToString("F1")), ("PIXEL", pixelWidth.ToString("F1"))), Color.FromUint(0xFFFFFF)));
             }

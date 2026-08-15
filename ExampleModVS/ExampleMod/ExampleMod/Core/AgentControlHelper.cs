@@ -23,6 +23,40 @@ namespace LivingWorldNpcs
 {
     public static class AgentControlHelper
     {
+        /// <summary>
+        /// 🔴 2026-08-15（目标唯一标记方案，用户裁定）：从目标文本解析 `[#N]` index 标记——LLM 基于场景
+        /// 语义指认目标（「酒馆老板」→ 场景里标着 [#3] 的「酒馆店主」），C# 用 Agent.Index 精确查 Agent，
+        /// 不依赖脆弱的字符串匹配。
+        /// 边界（用户裁定 2026-08-15）：仅 InScene 有意义——非场景（Mission 为 null）直接未命中；
+        /// 解析失败/agent 失效 → cleanName 输出剥离后的纯名字，调用方回退名字匹配（归一化兜底）。
+        /// </summary>
+        /// <param name="text">目标文本（可能含 "#N" 后缀，如 "酒馆店主#3"）。</param>
+        /// <param name="agent">命中：Mission 内 Index == N 的活跃 Agent；未命中：null。</param>
+        /// <param name="cleanName">剥离 "#N" 后的纯名字（未命中时供名字匹配回退）。</param>
+        public static bool TryResolveIndexedTarget(string text, out Agent agent, out string cleanName)
+        {
+            agent = null;
+            cleanName = text;
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            int hash = text.LastIndexOf('#');
+            if (hash < 0 || hash == text.Length - 1) return false;
+            string tail = text.Substring(hash + 1).Trim();
+            if (!int.TryParse(tail, out int idx)) return false;
+            cleanName = text.Substring(0, hash).Trim();
+            // 仅 InScene 有意义（用户裁定 2026-08-15）；不在场对象没有 index
+            if (Mission.Current == null) return false;
+            try
+            {
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsActive()) continue;
+                    if (a.Index == idx) { agent = a; return true; }
+                }
+            }
+            catch { }
+            return false;
+        }
+
         public static void SetPose(Agent agent, string actionId)
         {
             if (agent == null || string.IsNullOrEmpty(actionId))

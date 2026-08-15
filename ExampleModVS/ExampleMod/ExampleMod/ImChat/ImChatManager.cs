@@ -255,6 +255,11 @@ namespace LivingWorldNpcs
                 memory?.AddHistory("im_user", $"{playerName}: {trimmed}", PlayerId);
                 ImChatStore.TouchDirectChat(conv.PartnerHeroId, NowUnixMs());
                 ImHeatTracker.Add(conv.PartnerHeroId, 1f);
+                // 🔴 2026-08-15（私聊消息顺序修复，实机）：玩家私聊消息发送时立即写 store（与群聊一致）——
+                // 旧路径只在 RequestCommand（密令/自动计划触发）时冗余写入，时间戳 = 回复完成后，
+                // GetDirectMessages 按时间戳排序后随从台词反在玩家消息上方（实机 06:47:56 日志实锤）。
+                // 记忆行 im_user 与 store 行按 (SenderName, Content) 去重（GetDirectMessages 既有逻辑），不双显。
+                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(PlayerId, playerName, trimmed, ImMessageKind.Text));
 
                 // 🔴 M3 私聊劝说会话（npc-dialogue-session-plan.md §5.6）：句式命中 → 进入劝说会话，
                 // 回应由会话容器投递（agree 演化 → 承诺/拒绝兑现）——**不叠加**通用回复管线（避免双回应）
@@ -583,18 +588,24 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(heroId))
                     hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == heroId);
                 if (hero == null)
+                    // 本地化：LWN_im_status_away（玩家可见文本）
                     return LWNTextHelper.ResolveText("LWN_im_status_away", "away");
                 // 随从在主队：队伍在城外扎营，他没进场景
                 if (MobileParty.MainParty != null && hero.PartyBelongedTo == MobileParty.MainParty)
+                    // 本地化：LWN_im_status_outside（玩家可见文本）
                     return LWNTextHelper.ResolveText("LWN_im_status_outside", "outside");
                 // 其他 Hero（家族成员等）：所在定居点优先（部队所在 → 本人所在）；都不在城里 → 远处
                 var party = hero.PartyBelongedTo;
                 if (party != null && party.CurrentSettlement != null)
+                    // 本地化：LWN_im_status_far（玩家可见文本）
                     return party.CurrentSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
                 if (hero.CurrentSettlement != null)
+                    // 本地化：LWN_im_status_far（玩家可见文本）
                     return hero.CurrentSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
+                // 本地化：LWN_im_status_far（玩家可见文本）
                 return LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
             }
+            // 本地化：LWN_im_status_away（玩家可见文本）
             catch { return LWNTextHelper.ResolveText("LWN_im_status_away", "away"); }
         }
 
@@ -632,6 +643,96 @@ namespace LivingWorldNpcs
             CampaignPersuadeHub.Tick();
             // 🔴 NPC 自主行动提议投递（后台生成 → 主线程投递）
             AutonomyProposal.Tick();
+            TickDelayedMessages(dt);
+        }
+
+        // ───────────────────────── 分时投递（🔴 2026-08-15）─────────────────────────
+
+        /// <summary>
+        /// 🔴 2026-08-15（实机：npc_reply + risk_analysis + 告知三句 11ms 内连发，像机关枪）：
+        /// 回复链的多条消息按「前句字数 + 随机抖动」间隔陆续上屏，模拟真人说话节奏。
+        /// 用法：npc_reply 立即投递（既有 DeliverNpcMessage）→ risk_analysis 台词/决策卡用
+        /// ScheduleDelayedNpcMessage / ScheduleDelayedAction 排队，间隔 = SpeechPauseFor(前句内容)。
+        /// 队列由 Tick 主线程消费（Mission/Campaign 双端，与既有 Tick 驱动同源）。
+        /// </summary>
+        private class DelayedDelivery
+        {
+            public ImConversation Conv;
+            public string HeroId;
+            public string HeroName;
+            public string Content;         // 非空 = 消息投递；空 = 纯 Action
+            public Action DeferredAction;  // 非空 = 动作（决策卡/执行），在消息之后执行
+            public float DelaySec;         // 相对入队时刻的延迟（秒）
+        }
+        private static readonly List<DelayedDelivery> _delayed = new List<DelayedDelivery>();
+        private static readonly object _delayLock = new object();
+        private static readonly Random _delayRng = new Random();
+
+        /// <summary>说话间隔估算：前句字数 × 0.05s + 0.3s 基准 + 随机 0~0.6s，钳制 [0.6, 3.5]s
+        ///（字越多停顿越久——模拟真人读句）。</summary>
+        public static float SpeechPauseFor(string prevText)
+        {
+            int len = string.IsNullOrEmpty(prevText) ? 0 : prevText.Length;
+            float pause;
+            lock (_delayRng)
+                pause = len * 0.05f + 0.3f + (float)(_delayRng.NextDouble() * 0.6);
+            return Math.Max(0.6f, Math.Min(3.5f, pause));
+        }
+
+        /// <summary>延迟投递一条 NPC 消息（delaySec 后主线程 DeliverNpcMessage）。</summary>
+        public static void ScheduleDelayedNpcMessage(ImConversation conv, string npcHeroId, string npcName, string content, float delaySec)
+        {
+            if (conv == null || string.IsNullOrWhiteSpace(content)) return;
+            lock (_delayLock)
+            {
+                _delayed.Add(new DelayedDelivery
+                {
+                    Conv = conv, HeroId = npcHeroId, HeroName = npcName, Content = content,
+                    DelaySec = Math.Max(0f, delaySec),
+                });
+            }
+        }
+
+        /// <summary>延迟执行一个主线程动作（决策卡投递/动作执行等；Mission 已切换由动作内部 null-guard 自保）。</summary>
+        public static void ScheduleDelayedAction(Action action, float delaySec)
+        {
+            if (action == null) return;
+            lock (_delayLock)
+            {
+                _delayed.Add(new DelayedDelivery { DeferredAction = action, DelaySec = Math.Max(0f, delaySec) });
+            }
+        }
+
+        /// <summary>主线程消费延迟队列（Tick 调用；到点 → 投递消息/执行动作）。</summary>
+        private static void TickDelayedMessages(float dt)
+        {
+            if (_delayed.Count == 0) return;
+            List<DelayedDelivery> due = null;
+            lock (_delayLock)
+            {
+                for (int i = _delayed.Count - 1; i >= 0; i--)
+                {
+                    _delayed[i].DelaySec -= dt;
+                    if (_delayed[i].DelaySec <= 0f)
+                    {
+                        if (due == null) due = new List<DelayedDelivery>();
+                        due.Add(_delayed[i]);
+                        _delayed.RemoveAt(i);
+                    }
+                }
+            }
+            if (due == null) return;
+            foreach (var d in due)
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(d.Content))
+                        DeliverNpcMessage(d.Conv, d.HeroId, d.HeroName, d.Content);
+                    else
+                        d.DeferredAction?.Invoke();
+                }
+                catch (Exception ex) { DebugLogger.Log($"[ImChat] 延迟投递异常: {ex.Message}"); }
+            }
         }
 
         // ───────────────────────── 工具 ─────────────────────────

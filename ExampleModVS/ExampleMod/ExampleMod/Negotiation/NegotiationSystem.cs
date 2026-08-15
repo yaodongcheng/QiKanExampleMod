@@ -1798,6 +1798,14 @@ namespace LivingWorldNpcs
         [JsonProperty("adjust_plan")]
         public bool AdjustPlan { get; set; }
 
+        // 🔴 2026-08-14（npc-risk-aware-planning.md M4 风险审视）：每次玩家提出要求（命令）时，
+        // 回复轮 LLM 扩展两个字段——risk_analysis = 对局势的判断（1-2 句，含依据：人多人少/谁在看着/
+        // 打不打得过/被抓会怎样）；risk_verdict = feasible | plan_needed | risky | refuse。
+        // 深度分级：L0 低风险命令无【目之所及】段 → 无此二字段 → 裁决默认 feasible（现状直发）。
+        [JsonProperty("risk_analysis")]
+        public string RiskAnalysis { get; set; }
+        [JsonProperty("risk_verdict")]
+        public string RiskVerdict { get; set; }
         [JsonProperty("suggest_negotiation_start")]
         public bool SuggestNegotiationStart { get; set; }
 

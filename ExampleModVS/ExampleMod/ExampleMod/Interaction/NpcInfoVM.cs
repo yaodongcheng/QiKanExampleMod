@@ -55,6 +55,7 @@ namespace LivingWorldNpcs
 
             // ── 标题 ──
             string name = _profile?.Name ?? _agent?.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_info_name_unknown", "Unknown");
+            // 本地化：LWN_ui_info_title（玩家可见文本）
             TitleText = LWNTextHelper.ResolveCompound("LWN_ui_info_title", "{NAME}'s Info Panel", ("NAME", name));
 
             // ── 个人属性 ──

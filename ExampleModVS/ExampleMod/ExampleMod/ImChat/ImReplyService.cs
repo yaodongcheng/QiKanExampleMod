@@ -45,6 +45,9 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-13（场景认知注入）：主线程构建的处境段快照（在哪 + 主公方位）——
             // 引擎对象（Mission/Agent/Settlement）只读主线程，生成线程直接用字符串
             public string SceneAwareness;
+            // 🔴 2026-08-14（M3 命令注入场景感知）：主线程构建的【目之所及】风险段
+            //（动作命令才注入，闲聊零开销）——M4 风险审视的输入 + think-aloud 事实来源
+            public string RiskSceneContext;
         }
 
         private static readonly object _lock = new object();
@@ -72,6 +75,9 @@ namespace LivingWorldNpcs
             // 打标建议按钮 / 转 RequestModify 修改版）
             public bool NeedPlan;
             public bool AdjustPlan;
+            // 🔴 2026-08-14（M4 风险审视）：risk_analysis/risk_verdict（生成线程解析、主线程投递点 RiskAssessor 分流）
+            public string RiskAnalysis;
+            public string RiskVerdict;
             // v4.1：入队时的频道消息数（群聊）——投递时若频道已更新则丢弃（玩家发新消息作废旧链条）
             public int EnqueueMsgCount = -1;
         }
@@ -141,6 +147,8 @@ namespace LivingWorldNpcs
             if (string.IsNullOrEmpty(npcHeroId)) return;
             // 🔴 2026-08-13（场景认知注入）：主线程构建处境段快照（引擎对象只读主线程）
             string sceneAwareness = WorldFactProvider.BuildSceneAwareness(npcHeroId);
+            // 🔴 2026-08-14（M3）：命令注入场景感知——动作命令才注入【目之所及】段（闲聊零开销）
+            string riskScene = WorldFactProvider.BuildRiskSceneContext(npcHeroId, lastPlayerText);
             lock (_lock)
             {
                 if (_pending.TryGetValue(npcHeroId, out var existing))
@@ -150,6 +158,7 @@ namespace LivingWorldNpcs
                     existing.SuppressNeedPlan = suppressNeedPlan;
                     existing.ExecutionCtx = ctx;
                     existing.SceneAwareness = sceneAwareness;
+                    existing.RiskSceneContext = riskScene;
                     return;
                 }
                 _pending[npcHeroId] = new PendingReply
@@ -163,6 +172,7 @@ namespace LivingWorldNpcs
                     SuppressNeedPlan = suppressNeedPlan,
                     ExecutionCtx = ctx,
                     SceneAwareness = sceneAwareness,
+                    RiskSceneContext = riskScene,
                 };
             }
         }
@@ -238,44 +248,60 @@ namespace LivingWorldNpcs
                         if (it.P?.Conv != null && !string.IsNullOrWhiteSpace(it.Reply))
                         {
                             ImChatManager.DeliverNpcMessage(it.P.Conv, it.P.HeroId, it.P.HeroName, it.Reply);
-                            // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan/adjustPlan 主线程投递点消费——
-                            // 顺序在 DeliverNpcMessage 之后（TryAttachSuggestion 定位 store 最后一条 = 刚投递消息）。
-                            // 建议只挂「主回复者」的回复（跟随/往返/接话是对旧链条的回应，不判 needPlan）。
-                            if (it.NeedPlan && string.IsNullOrEmpty(it.P.FollowUpHeroId) && string.IsNullOrEmpty(it.P.PriorPeerId))
+                            // 🔴 2026-08-15（M4 双入口修复，实机 06:47:56 日志实锤）：risk 分流提前到
+                            // need_plan 建议打标**之前**——plan_needed 自动触发计划轮时，若先挂「制定计划」
+                            // 建议按钮再自动触发，玩家同时看到按钮 + 自动计划卡（双入口混淆，实机随从台词
+                            // 上挂 2 按钮）。riskTookOver = true（分流接管）→ 跳过建议打标/执行期调整/动作卡；
+                            // 分流未接管（feasible/字段缺失）→ 原有链路顺序不变。
+                            bool riskTookOver = false;
+                            if (!string.IsNullOrEmpty(it.RiskVerdict) && !string.IsNullOrEmpty(it.ActionCode)
+                                && it.ActionCode != "NONE")
                             {
-                                try
-                                {
-                                    ImCommandFlow.TryAttachSuggestion(it.P.Conv, it.P.HeroId, it.P.HeroName, it.P.RespondText);
-                                }
-                                catch (Exception ex)
-                                {
-                                    DebugLogger.Log($"[ImReply] needPlan 建议打标失败: {ex.Message}");
-                                }
+                                riskTookOver = RiskAssessor.Route(it.P.Conv, it.P.HeroId, it.P.HeroName,
+                                    it.P.RespondText, it.RiskAnalysis, it.RiskVerdict,
+                                    it.ActionCode, it.ActionTarget, it.ActionLevel);
                             }
-                            if (it.AdjustPlan)
+                            if (!riskTookOver)
                             {
-                                try
+                                // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan/adjustPlan 主线程投递点消费——
+                                // 顺序在 DeliverNpcMessage 之后（TryAttachSuggestion 定位 store 最后一条 = 刚投递消息）。
+                                // 建议只挂「主回复者」的回复（跟随/往返/接话是对旧链条的回应，不判 needPlan）。
+                                if (it.NeedPlan && string.IsNullOrEmpty(it.P.FollowUpHeroId) && string.IsNullOrEmpty(it.P.PriorPeerId))
                                 {
-                                    ImCommandFlow.TryAdjustFromExecution(it.P.ExecutionCtx, it.P.RespondText);
+                                    try
+                                    {
+                                        ImCommandFlow.TryAttachSuggestion(it.P.Conv, it.P.HeroId, it.P.HeroName, it.P.RespondText);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        DebugLogger.Log($"[ImReply] needPlan 建议打标失败: {ex.Message}");
+                                    }
                                 }
-                                catch (Exception ex)
+                                if (it.AdjustPlan)
                                 {
-                                    DebugLogger.Log($"[ImReply] adjustPlan 执行期调整失败: {ex.Message}");
+                                    try
+                                    {
+                                        ImCommandFlow.TryAdjustFromExecution(it.P.ExecutionCtx, it.P.RespondText);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        DebugLogger.Log($"[ImReply] adjustPlan 执行期调整失败: {ex.Message}");
+                                    }
                                 }
-                            }
-                            // 🔴 2026-08-10 闲聊动作（§5.1）：投递后执行动作（主线程）。
-                            // attacker = 说话者；defender 解析（名字文本 → 实体识别 → 兜底玩家）+ 空间裁决
-                            // （ResolveSpace）+ 空间裁剪 + 频率冷却 全在 ActionHandler 内部（§5.2/§六）
-                            if (!string.IsNullOrEmpty(it.ActionCode) && it.ActionCode != "NONE")
-                            {
-                                try
+                                // 🔴 2026-08-10 闲聊动作（§5.1）：投递后执行动作（主线程）。
+                                // attacker = 说话者；defender 解析（名字文本 → 实体识别 → 兜底玩家）+ 空间裁决
+                                // （ResolveSpace）+ 空间裁剪 + 频率冷却 全在 ActionHandler 内部（§5.2/§六）
+                                if (!string.IsNullOrEmpty(it.ActionCode) && it.ActionCode != "NONE")
                                 {
-                                    ActionHandler.HandleImAction(it.ActionCode, it.P.HeroId, it.P.HeroName,
-                                        it.ActionTarget, it.ActionLevel, it.P.Conv, it.Reply);
-                                }
-                                catch (Exception ex)
-                                {
-                                    DebugLogger.Log($"[ImReply] 闲聊动作执行失败 {it.ActionCode}: {ex.Message}");
+                                    try
+                                    {
+                                        ActionHandler.HandleImAction(it.ActionCode, it.P.HeroId, it.P.HeroName,
+                                            it.ActionTarget, it.ActionLevel, it.P.Conv, it.Reply);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        DebugLogger.Log($"[ImReply] 闲聊动作执行失败 {it.ActionCode}: {ex.Message}");
+                                    }
                                 }
                             }
                             // 🔴 2026-08-13（自主提议门控）：只有本轮回复判定为**纯寒暄**才允许自主提议——
@@ -345,7 +371,6 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         private static async Task GenerateAndDeliver(PendingReply p)
         {
             SetTyping(p.Conv?.Id, p.HeroName);
@@ -359,7 +384,9 @@ namespace LivingWorldNpcs
                 // 模板降级路径无 JSON → 恒 false，建议/调整天然消失）
                 bool needPlan = false;
                 bool adjustPlan = false;
-
+                // 🔴 2026-08-14（M4 风险审视）：risk_analysis/risk_verdict（缺字段 → null → 默认 feasible）
+                string riskAnalysis = null;
+                string riskVerdict = null;
                 // 铁律 1：LLM 未配置直接降级模板（动作强制 NONE——确定性优先，模板不做动作）
                 if (Settings.Instance.IsLLMConfigured)
                 {
@@ -381,10 +408,13 @@ namespace LivingWorldNpcs
                         string actionSpace = BuildActionSpace(p);
                         // 🔴 2026-08-12（合并闲聊/计划模式）：执行期说话 → prompt 注入【当前计划执行中】段
                         //（PlanSummary + CurrentStep）；Campaign 大地图 → 能力提示段（只建议行军类计划）
+                        // 🔴 2026-08-14（M3）：命令注入场景感知——【目之所及】段（动作命令才注入，
+                        // 闲聊零开销）+ 风险审视纪律段；随从 think-aloud 的事实来源
                         bool isCampaign = Mission.Current == null;
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
                             memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction, actionSpace,
-                            executionContext: p.ExecutionCtx, isCampaign: isCampaign, sceneAwareness: p.SceneAwareness);
+                            executionContext: p.ExecutionCtx, isCampaign: isCampaign, sceneAwareness: p.SceneAwareness,
+                            riskScene: p.RiskSceneContext);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）
@@ -393,8 +423,8 @@ namespace LivingWorldNpcs
                         // ChatOnceAsync：单次请求、12s 预算（IM 异步可放宽到 2s 之外），失败静默 null、429 内建冷却
                         // 🔴 2026-08-10 8s→12s：日志实锤 8s 超时取消（A task was canceled）→ 模板降级 → 重复台词
                         // 🔴 2026-08-10（§5.1）：needJson=true 结构化输出（npc_reply/npc_action/action_target/action_level），
-                        // max_tokens 150→220（JSON 格式开销）
-                        string raw = await LLMService.Instance.ChatOnceAsync(prompt, 220, 0.8f, disableReasoning: true, timeoutMs: 12000, needJson: true);
+                        // 🔴 2026-08-14（M4）：max_tokens 220→300——容纳 risk_analysis/risk_verdict 两字段
+                        string raw = await LLMService.Instance.ChatOnceAsync(prompt, 300, 0.8f, disableReasoning: true, timeoutMs: 12000, needJson: true);
                         // 🔴 回包落日志（LLM 失败/超时回 null，走下方降级）
                         DebugLogger.Log($"[ImReply] {p.HeroName} 回包: {raw ?? "<null>"}");
                         if (!string.IsNullOrWhiteSpace(raw))
@@ -410,6 +440,10 @@ namespace LivingWorldNpcs
                                 actLevel = resp.ActionLevel;
                                 needPlan = !p.SuppressNeedPlan && resp.NeedPlan;
                                 adjustPlan = resp.AdjustPlan;
+                                // 🔴 2026-08-14（M4 风险审视）：risk_analysis/risk_verdict（铁律 2 null-guard；
+                                // 缺字段 → 默认 feasible 现状直发）
+                                riskAnalysis = resp.RiskAnalysis;
+                                riskVerdict = resp.RiskVerdict;
                             }
                             else
                             {
@@ -418,7 +452,6 @@ namespace LivingWorldNpcs
                         }
                     }
                 }
-
                 if (string.IsNullOrWhiteSpace(reply))
                 {
                     reply = GetFallbackLine(p);
@@ -426,9 +459,7 @@ namespace LivingWorldNpcs
                     actCode = null;
                     DebugLogger.Log($"[ImReply] {p.HeroName} 模板降级: {reply}");
                 }
-
                 reply = SanitizeReply(reply, p.HeroName);
-
                 // 🔴 只入队，不在此线程操作 UI/记忆（await continuation 不在主线程）
                 // v4.1：入队时记录频道消息数（群聊）——投递时若频道已更新（玩家发了新消息）→ 丢弃过期链条
                 int msgCount = (p.Conv != null && p.Conv.Type != ImConversationType.Direct)
@@ -446,6 +477,8 @@ namespace LivingWorldNpcs
                             ActionLevel = actLevel,
                             NeedPlan = needPlan,
                             AdjustPlan = adjustPlan,
+                            RiskAnalysis = riskAnalysis,
+                            RiskVerdict = riskVerdict,
                             EnqueueMsgCount = msgCount,
                         });
                 }
@@ -459,7 +492,6 @@ namespace LivingWorldNpcs
                 ClearTyping(p.Conv?.Id, p.HeroName);
             }
         }
-
         /// <summary>LLM JSON 回复解析（§5.1）：CleanJson + 反序列化 LLMResponse_Casual；失败 → null（调用方当纯文本）。</summary>
         private static LLMResponse_Casual TryParseCasual(string raw)
         {
@@ -474,7 +506,6 @@ namespace LivingWorldNpcs
                 return null;
             }
         }
-
         /// <summary>动作空间注入（§5.2）：attacker = 回复 NPC，defender = 玩家（默认接收者），agent = attacker 物理载体。
         /// 空间裁决（ResolveSpace）在 ActionHandler.GetActionSpacePrompt 内部。</summary>
         private static string BuildActionSpace(PendingReply p)
@@ -493,7 +524,6 @@ namespace LivingWorldNpcs
                 return null;
             }
         }
-
         private static Agent FindAgentByHeroId(string heroId)
         {
             if (string.IsNullOrEmpty(heroId) || Mission.Current == null) return null;
@@ -504,7 +534,6 @@ namespace LivingWorldNpcs
             }
             return null;
         }
-
         /// <summary>会话成员是否队伍成员（动态知识注入的可见性裁剪：队伍/位置事实只给同行者）。</summary>
         private static bool IsPartyMemberContext(ImConversation conv)
         {
@@ -521,7 +550,6 @@ namespace LivingWorldNpcs
             }
             return false;
         }
-
         /// <summary>群聊活力·拌嘴 v3（2026-08-10 人格化）：跟随回复者拼入【同僚互动】段——
         /// 上一位同伴实际台词 + 两人关系档位 + **固定回应模式**（ImChatManager.GetResponseMode：
         /// 反驳/附和/阴阳/感同身受——C# 规则按 trait 推导，LLM 只按人设写台词）。
@@ -578,7 +606,6 @@ namespace LivingWorldNpcs
                 return null;
             }
         }
-
         /// <summary>群聊公区注入：频道近期消息（最近 8 条，带发言人）。
         /// 方案 B 即时层——旁观者没参与对话也能接住频道话题；细节沉淀由 ImChatManager 参与度写入负责。</summary>
         private static string BuildChannelRecentSection(ImConversation conv)
@@ -604,7 +631,6 @@ namespace LivingWorldNpcs
                 return null;
             }
         }
-
         /// <summary>降级模板：主回复按话题取 LWN_speech_im_reply_{topic}；
         /// 🔴 跟随/往返任务（PriorPeerId 非空）按**回应模式**取专用模板（引用对方的话 + 表态），
         /// 2026-08-10 日志实锤：原逻辑两人都命中同一话题模板 → 一模一样的降级台词。</summary>
@@ -620,6 +646,7 @@ namespace LivingWorldNpcs
                     string mode = (self != null && other != null) ? ImChatManager.GetResponseMode(self, other) : "附和";
                     string key = mode switch
                     {
+                        // 本地化：LWN_speech_im_reply_followup_refute（玩家可见文本）
                         "反驳" => "LWN_speech_im_reply_followup_refute",
                         "阴阳" => "LWN_speech_im_reply_followup_ironic",
                         "感同身受" => "LWN_speech_im_reply_followup_empath",
@@ -630,6 +657,7 @@ namespace LivingWorldNpcs
                     return LWNTextHelper.ResolveCompound(key, "That is fair to say, {PEER}.", ("PEER", peer));
                 }
                 catch { }
+                // 本地化：LWN_speech_im_reply_followup_agree（玩家可见文本）
                 return LWNTextHelper.ResolveCompound("LWN_speech_im_reply_followup_agree",
                     "That is fair to say, {PEER}.", ("PEER", peer));
             }
@@ -638,7 +666,6 @@ namespace LivingWorldNpcs
             return LWNTextHelper.ResolveText($"LWN_speech_im_reply_{topic}",
                 "I received your message. We will speak of this later.");
         }
-
         /// <summary>清理 LLM 常见画蛇添足：首尾引号/「XX说：」前缀/换行折叠。</summary>
         private static string SanitizeReply(string reply, string npcName)
         {
@@ -657,9 +684,7 @@ namespace LivingWorldNpcs
             if (text.Length > 200) text = text.Substring(0, 200);
             return string.IsNullOrWhiteSpace(text) ? null : text;
         }
-
         // ── 正在输入状态 ──
-
         private static void SetTyping(string convId, string heroName)
         {
             if (string.IsNullOrEmpty(convId) || string.IsNullOrEmpty(heroName)) return;
@@ -673,7 +698,6 @@ namespace LivingWorldNpcs
                 set.Add(heroName);
             }
         }
-
         private static void ClearTyping(string convId, string heroName)
         {
             if (string.IsNullOrEmpty(convId)) return;
@@ -686,7 +710,6 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         /// <summary>会话「正在输入」文本（UI 输入栏上方灰字）。多人依次拼。空 = 无。</summary>
         public static string GetTypingText(string convId)
         {
@@ -703,7 +726,6 @@ namespace LivingWorldNpcs
             }
             return "";
         }
-
         /// <summary>会话是否有回复在途（UI 需要时可用）。</summary>
         public static bool IsTyping(string convId) => !string.IsNullOrEmpty(GetTypingText(convId));
     }

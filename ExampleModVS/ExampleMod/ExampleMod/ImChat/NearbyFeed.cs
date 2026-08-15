@@ -39,6 +39,7 @@ namespace LivingWorldNpcs
         /// <summary>附近频道会话对象（运行时构建；标题本地化）。</summary>
         public static ImConversation Conversation =>
             new ImConversation(ChannelId, ImConversationType.Nearby,
+                // 本地化：LWN_im_channel_nearby（玩家可见文本）
                 LWNTextHelper.ResolveText("LWN_im_channel_nearby", "Nearby"));
 
         /// <summary>

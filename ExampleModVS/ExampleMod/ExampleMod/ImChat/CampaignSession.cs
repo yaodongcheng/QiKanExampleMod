@@ -89,13 +89,12 @@ namespace LivingWorldNpcs
                 string topic = session?.Topic;
                 // 同意 → 承诺消息（本地化；进场景后由既有计划管线执行——言行一致介质转换）
                 string line = LWNTextHelper.ResolveCompound("LWN_campaign_persuade_agree",
-                    "好，此事我记下了。{TOPIC}，我会照办的。", ("TOPIC", string.IsNullOrEmpty(topic) ? "" : "关于" + topic));
+                    "Very well, I will see to it. {TOPIC} will be handled.", ("TOPIC", string.IsNullOrEmpty(topic) ? "" : "关于" + topic));
                 ImChatManager.DeliverNpcMessage(conv, hero.StringId, name, line);
                 HeroStanceStore.Save(hero.StringId, 1f, 0f, topic, true);
             }
             catch (Exception ex) { DebugLogger.Log($"[CampaignSession] OnAgree 异常: {ex.Message}"); }
         }
-
         public void OnRefuse(SessionActor responder, DialogueSession session)
         {
             try
@@ -106,20 +105,19 @@ namespace LivingWorldNpcs
                 if (conv == null) return;
                 string name = hero.Name?.ToString() ?? hero.StringId;
                 string topic = session?.Topic;
+                // 本地化：LWN_campaign_persuade_refuse（玩家可见文本）
                 string line = LWNTextHelper.ResolveCompound("LWN_campaign_persuade_refuse",
-                    "此事恕我不能应允，{TOPIC}休要再提。", ("TOPIC", string.IsNullOrEmpty(topic) ? "" : "关于" + topic));
+                    "I cannot grant this. Let {TOPIC} rest.", ("TOPIC", string.IsNullOrEmpty(topic) ? "" : "关于" + topic));
                 ImChatManager.DeliverNpcMessage(conv, hero.StringId, name, line);
                 HeroStanceStore.Save(hero.StringId, 0f, 0.8f, topic, false);
             }
             catch (Exception ex) { DebugLogger.Log($"[CampaignSession] OnRefuse 异常: {ex.Message}"); }
         }
-
         public void OnAbort(DialogueSession session)
         {
             // 打断/冷场 → 不兑现（无消息，静默）
         }
     }
-
     /// <summary>群聊议题参与者（每参与者独立 stance——多对多 ≠ 一对一，无回合交替）。</summary>
     internal class MotionMember
     {
@@ -128,7 +126,6 @@ namespace LivingWorldNpcs
         public double LastSayAt;          // 各自 15s 发言闸门
         public bool HasSpoken;
     }
-
     /// <summary>
     /// 群聊议题模式（§5.6）：玩家群聊动议 → 议题 + 每参与者独立 stance（agree 各自演化）
     /// → 各自独立判断接话（60% 概率 + 闸门，错开投递）→ 冷场兑现 = 多数倾向 > 0.5 → 动议通过。
@@ -143,10 +140,8 @@ namespace LivingWorldNpcs
         public double LastActivityWall;              // 冷场基准（墙钟秒）
         public bool Settled;
         private int _replySeq;
-
         private const float MotionTimeoutS = 25f;   // 冷场超时（无新动议发言）
         private const float MemberSayGapS = 15f;    // 每成员发言闸门（防刷屏纪律）
-
         /// <summary>玩家动议消息 → 创建议题（选 2-3 成员，热度加权；每成员独立 stance）。</summary>
         public static GroupMotionSession Create(ImConversation conv, string motion)
         {
@@ -158,7 +153,6 @@ namespace LivingWorldNpcs
                 .Take(3)
                 .ToList();
             if (members == null || members.Count == 0) return null;
-
             var s = new GroupMotionSession
             {
                 ConvId = conv.Id,
@@ -179,13 +173,11 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[GroupMotion] 议题创建：{motion}（成员 {s.Members.Count} 人）");
             return s;
         }
-
         private static ReactivePersonality ToPersonality(SingNpcMemorySystem memory, Hero hero)
         {
             // MVP：记忆人格描述缺失时用默认中性（M3 遗留：接入既有回应模式人格化）
             return new ReactivePersonality { Gullibility = 0.5f, Duty = 0.5f, Temper = 0.5f, Social = 0.6f, Greed = 0.5f };
         }
-
         /// <summary>玩家追加发言（动议继续/新话题转向）：各成员再独立演化一次 + 闸门内接话。返回 true = 本动议继续活跃。</summary>
         public bool OnPlayerLine(string text)
         {
@@ -205,7 +197,6 @@ namespace LivingWorldNpcs
             }
             return true;
         }
-
         /// <summary>冷场兑现（Hub.Tick 调用）：所有成员都表过态（或超时）→ 多数倾向兑现。返回 true = 本动议已终结。</summary>
         public bool CheckSettle()
         {
@@ -213,7 +204,6 @@ namespace LivingWorldNpcs
             bool allSpoken = Members.All(m => m.HasSpoken);
             bool timeout = NowWall() - LastActivityWall > MotionTimeoutS;
             if (!allSpoken && !timeout) return false;
-
             Settled = true;
             // 兑现 = 动议结果（多数倾向 > 0.5 → 通过）
             int agreeCount = Members.Count(m => m.Stance.Agree > 0.5f);
@@ -229,10 +219,12 @@ namespace LivingWorldNpcs
                     if (speaker != null)
                     {
                         string line = passed
+                            // 本地化：LWN_campaign_motion_pass（玩家可见文本）
                             ? LWNTextHelper.ResolveCompound("LWN_campaign_motion_pass",
-                                "就这么定了，大家照办。", ("MOTION", Motion))
+                                "It is settled then. Let us all comply.", ("MOTION", Motion))
+                            // 本地化：LWN_campaign_motion_fail（玩家可见文本）
                             : LWNTextHelper.ResolveCompound("LWN_campaign_motion_fail",
-                                "此事还是从长计议吧。", ("MOTION", Motion));
+                                "Let us weigh this another day.", ("MOTION", Motion));
                         ImChatManager.DeliverNpcMessage(conv, speaker.Hero.StringId,
                             speaker.Hero.Name?.ToString() ?? speaker.Hero.StringId, line);
                     }
@@ -244,7 +236,6 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[GroupMotion] 动议终结：{Motion}（{agreeCount}/{Members.Count} 赞成 → {(passed ? "通过" : "否决")}）");
             return true;
         }
-
         /// <summary>成员接话（LLM 润色注入议题 + 各自倾向档位；模板降级 bystander/responder 档；延迟投递）。</summary>
         private void ScheduleMemberReply(MotionMember m, string lastPlayerText)
         {
@@ -253,7 +244,6 @@ namespace LivingWorldNpcs
             var conv = ImChatManager.GetGroupConversation(ConvType);
             if (conv == null) return;
             int seq = ++_replySeq;
-
             if (Settings.Instance.IsLLMConfigured)
             {
                 async void Run()
@@ -263,9 +253,12 @@ namespace LivingWorldNpcs
                         // 3s 预算；注入：议题 + 各自倾向（agree 档位）→ 台词态度与倾向一致
                         string dir = SessionDialogueTemplates.DescribeDirection(m.Stance.Agree);
                         string prompt = string.Join("\n",
+                            // 本地化：LWN_plan_section_world（玩家可见文本）
                             LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + (Settings.Instance?.WorldDescription ?? ""),
+                            // 本地化：LWN_plan_respond_section_identity（玩家可见文本）
                             LWNTextHelper.ResolvePrompt("LWN_plan_respond_section_identity") + name,
                             dir,
+                            // 本地化：LWN_plan_respond_section_topic（玩家可见文本）
                             LWNTextHelper.ResolvePrompt("LWN_plan_respond_section_topic") + Motion,
                             "【要求】在队伍群聊里对这个提议表态（10-30 字），态度与你此刻的倾向一致：倾向同意就附和，倾向拒绝就泼冷水。直接说——不要引号、不要解释。");
                         string line = await LLMService.Instance.ChatOnceAsync(prompt, 90, 0.8f, disableReasoning: true, timeoutMs: 3000);
@@ -285,18 +278,16 @@ namespace LivingWorldNpcs
                 _deliverQueue.Enqueue(new DeliverItem { Session = this, Hero = m.Hero, Text = Fallback(m) });
             }
         }
-
         /// <summary>模板降级（bystander 接话题 + responder 表态档；与 stance 一致——铁律 1 完整降级）。</summary>
         private string Fallback(MotionMember m)
         {
             string line = SessionDialogueTemplates.Resolve(m.Stance.Agree, "responder", null, null, 1, null)
                 ?? SessionDialogueTemplates.Resolve(m.Stance.Agree, "bystander", null, null, 1, null)
-                ?? "嗯。";
+                // 本地化：LWN_dialogue_ack_short（玩家可见文本）
+                ?? LWNTextHelper.ResolveText("LWN_dialogue_ack_short", "Mm.");
             return line;
         }
-
         private static double NowWall() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
         // ── 投递队列（后台线程入队 → Hub.Tick 主线程消费，ImReplyService 同款模式）──
         public class DeliverItem
         {
@@ -307,7 +298,6 @@ namespace LivingWorldNpcs
         internal static readonly System.Collections.Concurrent.ConcurrentQueue<DeliverItem> _deliverQueue =
             new System.Collections.Concurrent.ConcurrentQueue<DeliverItem>();
     }
-
     /// <summary>
     /// 私聊一对一劝说会话（§5.6：玩家私聊劝英雄 → 议题 + agree 演化 → 兑现 = 承诺/拒绝消息）。
     /// 回合 = 玩家私聊消息；无 Mission 依赖（LastActivity 用墙钟）；公式与 PersuadeSlot 同源。
@@ -322,10 +312,8 @@ namespace LivingWorldNpcs
         public double LastActivityWall;
         public bool Settled;
         private int _pendingReplies;
-
         private const float IdleTimeoutS = 120f;   // 冷场超时（无新消息 → 取整兑现）
         private const int MaxRounds = 6;           // 轮次上限（与 PersuadeSlot 一致）
-
         public static CampaignPersuadeSession Create(Hero hero, string firstLine)
         {
             if (hero == null || string.IsNullOrEmpty(hero.StringId)) return null;
@@ -344,7 +332,6 @@ namespace LivingWorldNpcs
                 s.Stance.Agree = MathF.Max(0.2f, MathF.Min(0.55f, s.Stance.Agree * 0.5f + inherited.Value * 0.5f));
             return s;
         }
-
         /// <summary>玩家劝说句 = 一轮（演化 + 回应）。返回 true = 会话仍活跃（未终结）。</summary>
         public bool OnPlayerLine(string text)
         {
@@ -358,17 +345,14 @@ namespace LivingWorldNpcs
             Stance.Agree = MathF.Clamp(Stance.Agree + delta, 0f, 1f);
             Round++;
             DebugLogger.Log($"[CampaignPersuade] {Hero.Name} 第 {Round} 轮 Δagree={delta:F3} → agree={Stance.Agree:F3}");
-
             // 兑现检查
             if (Stance.Agree >= 0.65f) { Settle(true); return false; }
             if (Stance.Agree <= 0.35f) { Settle(false); return false; }
             if (Round >= MaxRounds) { Settle(Stance.Agree > 0.5f); return false; }
-
             // 回应台词（LLM 润色注入倾向档位；模板降级；延迟投递）
             ScheduleReply(text);
             return true;
         }
-
         private void ScheduleReply(string lastPlayerText)
         {
             _pendingReplies++;
@@ -376,7 +360,6 @@ namespace LivingWorldNpcs
             string name = Hero.Name?.ToString() ?? heroId;
             var conv = ImChatManager.GetDirectConversation(heroId);
             if (conv == null) { _pendingReplies--; return; }
-
             if (Settings.Instance.IsLLMConfigured)
             {
                 async void Run()
@@ -385,10 +368,14 @@ namespace LivingWorldNpcs
                     {
                         string dir = SessionDialogueTemplates.DescribeDirection(Stance.Agree);
                         string prompt = string.Join("\n",
+                            // 本地化：LWN_plan_section_world（玩家可见文本）
                             LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + (Settings.Instance?.WorldDescription ?? ""),
+                            // 本地化：LWN_plan_respond_section_identity（玩家可见文本）
                             LWNTextHelper.ResolvePrompt("LWN_plan_respond_section_identity") + name,
                             dir,
+                            // 本地化：LWN_plan_respond_section_topic（玩家可见文本）
                             LWNTextHelper.ResolvePrompt("LWN_plan_respond_section_topic") + Topic,
+                            // 本地化：LWN_plan_respond_section_last（玩家可见文本）
                             LWNTextHelper.ResolvePrompt("LWN_plan_respond_section_last") + lastPlayerText,
                             "【要求】在私聊里回应对方的劝说（10-40 字），态度与你此刻的倾向一致：倾向答应就松动，倾向拒绝就推脱。直接说——不要引号、不要解释。");
                         string line = await LLMService.Instance.ChatOnceAsync(prompt, 110, 0.8f, disableReasoning: true, timeoutMs: 3000);
@@ -408,12 +395,11 @@ namespace LivingWorldNpcs
                 _deliverQueue.Enqueue(new DirectItem { HeroId = heroId, Name = name, Text = Fallback() });
             }
         }
-
         private string Fallback()
         {
-            return SessionDialogueTemplates.Resolve(Stance.Agree, "responder", null, null, Round, null) ?? "嗯。";
+            // 本地化：LWN_dialogue_ack_short（玩家可见文本）
+            return SessionDialogueTemplates.Resolve(Stance.Agree, "responder", null, null, Round, null) ?? LWNTextHelper.ResolveText("LWN_dialogue_ack_short", "Mm.");
         }
-
         /// <summary>冷场兑现（Hub.Tick 调用；无新消息超时 → 取整兑现，与 PersuadeSlot 一致）。</summary>
         public bool CheckSettle()
         {
@@ -425,7 +411,6 @@ namespace LivingWorldNpcs
             }
             return false;
         }
-
         private void Settle(bool agreed)
         {
             if (Settled) return;
@@ -438,10 +423,12 @@ namespace LivingWorldNpcs
                     string name = Hero.Name?.ToString() ?? HeroId;
                     // 结果句（本地化；兑现介质 = 承诺/拒绝消息——言行一致）
                     string line = agreed
+                        // 本地化：LWN_campaign_persuade_settle_agree（玩家可见文本）
                         ? LWNTextHelper.ResolveCompound("LWN_campaign_persuade_settle_agree",
-                            "罢了，就依你所言。", ("TOPIC", Topic))
+                            "Enough. I yield to your words.", ("TOPIC", Topic))
+                        // 本地化：LWN_campaign_persuade_settle_refuse（玩家可见文本）
                         : LWNTextHelper.ResolveCompound("LWN_campaign_persuade_settle_refuse",
-                            "此事不必再劝了。", ("TOPIC", Topic));
+                            "Do not press this matter further.", ("TOPIC", Topic));
                     ImChatManager.DeliverNpcMessage(conv, HeroId, name, line);
                 }
                 HeroStanceStore.Save(HeroId, agreed ? 1f : 0f, Stance.Resistance, Topic, agreed);
@@ -449,15 +436,12 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[CampaignPersuade] 兑现异常: {ex.Message}"); }
             DebugLogger.Log($"[CampaignPersuade] 会话终结：{Hero.Name} {Topic}（{(agreed ? "答应" : "拒绝")}）");
         }
-
         private static string TrimTopic(string line)
         {
             string t = line.Trim();
             return t.Length > 24 ? t.Substring(0, 24) + "…" : t;
         }
-
         private static double NowWall() => DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
         // ── 投递队列（后台线程入队 → Hub.Tick 主线程消费）──
         public class DirectItem
         {
@@ -468,7 +452,6 @@ namespace LivingWorldNpcs
         internal static readonly System.Collections.Concurrent.ConcurrentQueue<DirectItem> _deliverQueue =
             new System.Collections.Concurrent.ConcurrentQueue<DirectItem>();
     }
-
     /// <summary>
     /// Campaign 会话入口（被 ImChatManager.SendPlayerMessage 调用；Hub.Tick 由 ImChatManager.Tick 驱动）：
     /// 私聊劝说（一对一会话）+ 群聊动议（议题模式）。触发 = C# 启发式句式（LLM 不参与决策——
@@ -481,7 +464,6 @@ namespace LivingWorldNpcs
             new Dictionary<string, CampaignPersuadeSession>(StringComparer.Ordinal);
         private static readonly Dictionary<string, GroupMotionSession> _motionSessions =
             new Dictionary<string, GroupMotionSession>(StringComparer.Ordinal);
-
         // 触发句式（启发式；中英双语先例 = ImTopicMatcher 关键词表）
         private static readonly string[] PersuadeHints =
         {
@@ -491,7 +473,6 @@ namespace LivingWorldNpcs
         {
             "我们", "咱们", "大家", "我觉得应该", "要不要", "we should", "let us",
         };
-
         /// <summary>玩家私聊消息 → 劝说会话（ImChatManager.SendPlayerMessage Direct 分支调用）。
         /// 返回 true = 本消息已由劝说会话接管（调用方不再走通用回复管线）。</summary>
         public static bool OnDirectMessage(string heroId, string text)
@@ -514,7 +495,6 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[CampaignPersuade] 私聊劝说会话开始：{hero.Name}（{text}）");
             return true;
         }
-
         /// <summary>玩家群聊消息 → 动议/议题（ImChatManager.SendPlayerMessage 群聊分支调用）。</summary>
         public static void OnGroupMessage(ImConversation conv, string text)
         {
@@ -532,7 +512,6 @@ namespace LivingWorldNpcs
             created.OnPlayerLine(text);
             DebugLogger.Log($"[GroupMotion] 群聊动议开始：{text}");
         }
-
         /// <summary>每帧驱动（ImChatManager.Tick 调用）：冷场兑现 + 投递队列消费（主线程）。</summary>
         public static void Tick()
         {
@@ -557,7 +536,6 @@ namespace LivingWorldNpcs
                 }
                 foreach (var k in done) _motionSessions.Remove(k);
             }
-
             // 投递队列消费（后台线程入队 → 主线程投递，ImReplyService 同款模式）
             while (CampaignPersuadeSession._deliverQueue.TryDequeue(out var di))
             {
@@ -583,14 +561,12 @@ namespace LivingWorldNpcs
                 catch { }
             }
         }
-
         /// <summary>会话清理（读档/游戏重置；MySubModule 或 ImChatManager 生命周期调用）。</summary>
         public static void Clear()
         {
             _directSessions.Clear();
             _motionSessions.Clear();
         }
-
         private static bool MatchHints(string text, string[] hints)
         {
             if (string.IsNullOrEmpty(text)) return false;
@@ -602,7 +578,6 @@ namespace LivingWorldNpcs
             }
             return false;
         }
-
         private static Hero FindHero(string heroId)
         {
             try { return Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == heroId); }

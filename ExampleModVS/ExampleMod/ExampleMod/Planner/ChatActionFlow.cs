@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TaleWorlds.CampaignSystem;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
@@ -30,6 +31,26 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 🔴 2026-08-14（M2b）：偷窃目标是否为 Hero 的构建期判定（决定补不补 give_gold 尾步骤）。
+        /// 与执行期目标解析同口径（SceneSnapshot.FindAgent 五层匹配 / explicitTarget 角色锁定）：
+        /// 解析到 Hero → 补尾步骤；模板 NPC / 解析失败 → 不补（钱袋路径或失败路径内部处理）。
+        /// </summary>
+        private static bool StolenTargetIsHero(Agent actor, string targetText, Agent explicitTarget)
+        {
+            try
+            {
+                Agent target = explicitTarget;
+                if (target == null && !string.IsNullOrEmpty(targetText) && Mission.Current != null)
+                {
+                    var info = SceneSnapshot.Build(Mission.Current).FindAgent(targetText);
+                    target = info?.Agent;
+                }
+                if (target == null) return false;
+                return (target.Character as CharacterObject)?.HeroObject != null;
+            }
+            catch { return false; }
+        }
+        /// <summary>
         /// 执行单条闲聊动作（§5.3）。返回是否成功进入执行。
         /// </summary>
         /// <param name="actor">attacker 的物理载体（InScene 动作执行者）</param>
@@ -40,12 +61,13 @@ namespace LivingWorldNpcs
         /// <param name="explicitTarget">🔴 2026-08-13：模板 NPC 目标精确锁定——同名多候选已由玩家选定后传入；
         /// 非空时 step.Target="target" + roleAgents["target"]=该 agent → 执行器 TryResolveAgent("target")
         /// 命中 RoleAgents（RuntimeWorldState.cs:421），不靠名字模糊匹配（多同名会取错）。</param>
+        /// <param name="onFinished">🔴 2026-08-14（M6 分头配合）：执行完成回调（主线程，PlanExecutor.OnFinished
+        /// 触发）——B 侧配合完成后发 assist_done 回执给 A；普通闲聊动作不传（null）。</param>
         public static bool TryExecute(Agent actor, string actionCode, string targetText, string level, string sayText,
-            Agent explicitTarget = null)
+            Agent explicitTarget = null, Action<Agent> onFinished = null)
         {
             if (actor == null || !actor.IsActive() || string.IsNullOrEmpty(actionCode)) return false;
             if (Mission.Current == null) return false;
-
             try
             {
                 var step = new PlanStep
@@ -73,12 +95,27 @@ namespace LivingWorldNpcs
                 // 参数（C# 确定，铁律 2）——2026-08-13 重构：FillParams 查 ActionRegistry 主表
                 //（6 个参数化动作：emote/look_at/follow/steal_attempt/give_gold/say_to）
                 ActionRegistry.FindByCode(actionCode)?.FillParams?.Invoke(step, level, sayText);
-
                 var plan = new Plan
                 {
                     Summary = "chat action",
                     Steps = new List<PlanStep> { step },
                 };
+                // 🔴 2026-08-14（M2b，npc-risk-aware-planning.md）：聊天单步计划缺尾步骤，赃物到不了
+                // 玩家手上——按目标类型处理：
+                //   模板 NPC 目标（无 Hero）：StealAttemptInlineState 内部走 StealPurseGold 钱袋路径，
+                //     当场守恒移交（金库→玩家）→ 无尾步骤（MarkGoldHanded 防双移交）
+                //   Hero 目标：补 give_gold(stolen) 尾步骤（GiveInlineState 时 TransferGold 个人钱包）
+                if (actionCode == "steal_attempt" && StolenTargetIsHero(actor, targetText, explicitTarget))
+                {
+                    plan.Steps.Add(new PlanStep
+                    {
+                        Id = "chat_2",
+                        Action = "give_gold",
+                        Amount = new Newtonsoft.Json.Linq.JValue("stolen"),
+                        TimeoutS = 10f,
+                    });
+                    DebugLogger.Log($"[ChatActionFlow] {actor.Name} 偷窃目标为 Hero → 补 give_gold(stolen) 尾步骤（赃物移交）");
+                }
                 var executor = PlanExecutor.Create(actor, plan, "CUSTOM",
                     explicitTarget != null
                         ? new Dictionary<string, Agent>(StringComparer.OrdinalIgnoreCase) { ["target"] = explicitTarget }
@@ -87,6 +124,11 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[ChatActionFlow] 单步计划构建失败: {actionCode}（目标: {targetText ?? "-"}）→ 降级 NONE");
                     return false;
+                }
+                if (onFinished != null)
+                {
+                    var actorRef = actor;
+                    executor.OnFinished += _ => { try { onFinished(actorRef); } catch (Exception ex) { DebugLogger.Log($"[ChatActionFlow] onFinished 回调异常: {ex.Message}"); } };
                 }
                 executor.Start(actor);
                 // 🔴 2026-08-13：日志写明"包裹为单步计划"——区分 LLM 生成的任务计划

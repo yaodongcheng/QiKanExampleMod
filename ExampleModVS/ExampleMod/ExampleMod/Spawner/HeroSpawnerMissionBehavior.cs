@@ -98,11 +98,13 @@ namespace LivingWorldNpcs
                     {
                         SpawnHeroInFrontOfPlayer(newHero);
                         if (Settings.Instance.ShowDebugMessages)
+                            // 本地化：LWN_spawner_hero_appeared（玩家可见文本）
                             InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_appeared", ("NAME", newHero.Name.ToString()))));
                     }
                     else
                     {
                         if (Settings.Instance.ShowDebugMessages)
+                            // 本地化：LWN_spawner_hero_added_no_scene（玩家可见文本）
                             InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_spawner_hero_added_no_scene", ("NAME", newHero.Name.ToString()))));
                     }
 

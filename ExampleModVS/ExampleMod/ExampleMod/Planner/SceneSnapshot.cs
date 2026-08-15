@@ -28,6 +28,24 @@ namespace LivingWorldNpcs
         public List<ObjectInfo> Objects = new List<ObjectInfo>();
         public List<ZoneInfo> Zones = new List<ZoneInfo>();
 
+        /// <summary>
+        /// 🔴 2026-08-15（实机：玩家/LLM 说「酒馆老板」，快照角色名「酒馆店主」→ 目标解析 0 候选）：
+        /// 目标别名归一化——比较前把双方别名统一到规范词，使「老板/掌柜 ↔ 店主 ↔ tavernkeeper/innkeeper」
+        /// 互认。仅用于**匹配比较**，不改变显示名。调用方：FindAgent / ActionHandler 模板候选 /
+        /// WorldFactProvider 风险目标解析（三处同口径）。
+        /// </summary>
+        public static string NormalizeTargetAlias(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            string t = s.ToLowerInvariant();
+            // 中文别名词 → 规范词（老板/掌柜 → 店主；卫兵 → 守卫）
+            t = t.Replace("掌柜的", "店主").Replace("掌柜", "店主").Replace("老板", "店主").Replace("卫兵", "守卫");
+            // 英文职业 id → 中文规范词（使 "tavernkeeper" 与 「店主」互认）
+            if (t.Contains("tavernkeeper") || t.Contains("innkeeper")) return "店主";
+            if (t.Contains("guard") && !t.Contains("head")) return "守卫";
+            return t;
+        }
+
         /// <summary>可见性缓存：observer.Index → subject.Index → 是否可见（懒计算，会话内有效）。</summary>
         private readonly Dictionary<int, Dictionary<int, bool>> _visibilityCache = new Dictionary<int, Dictionary<int, bool>>();
         private readonly HashSet<(int, int)> _visibilityTested = new HashSet<(int, int)>();
@@ -201,34 +219,46 @@ namespace LivingWorldNpcs
             return null;
         }
 
-        /// <summary>按角色/名称/职业/子串匹配 Agent（多匹配取离玩家最近）。</summary>
+        /// <summary>按角色/名称/职业/子串匹配 Agent（多匹配取离玩家最近）。
+        /// 🔴 2026-08-15：各层匹配前双方做别名归一化（NormalizeTargetAlias）——「酒馆老板」↔「酒馆店主」
+        /// ↔「tavernkeeper」互认（实机：LLM 回包 action_target="酒馆老板"，快照角色名"酒馆店主"→ 解析失败）。</summary>
         public AgentInfo FindAgent(string roleOrName)
         {
             if (string.IsNullOrEmpty(roleOrName)) return null;
+            // 🔴 2026-08-15（目标唯一标记）：优先 #N index 精确指认（LLM 场景语义指认，用户裁定）——
+            // 命中快照内对应 Agent 直接返回；失效回退纯名字匹配。
+            if (AgentControlHelper.TryResolveIndexedTarget(roleOrName, out Agent indexedAgent, out string cleanName))
+            {
+                foreach (var info in Agents)
+                {
+                    if (info.Agent != null && info.Agent == indexedAgent) return info;
+                }
+            }
+            roleOrName = cleanName;
             var playerPos = Agent.Main?.Position ?? Vec3.Zero;
             AgentInfo best = null;
             float bestDist = float.MaxValue;
-            string lower = roleOrName.ToLowerInvariant();
+            string lower = NormalizeTargetAlias(roleOrName);
             foreach (var info in Agents)
             {
                 bool match = false;
-                // ① 角色精确匹配（快照自动打标：guard/villager/merchant…）
-                if (info.Role != null && string.Equals(info.Role, roleOrName, StringComparison.OrdinalIgnoreCase))
+                // ① 角色精确匹配（快照自动打标：guard/villager/merchant…；归一化后 "tavernkeeper"↔"店主"）
+                if (info.Role != null && string.Equals(NormalizeTargetAlias(info.Role), lower, StringComparison.OrdinalIgnoreCase))
                     match = true;
                 // ② 显示名精确匹配
-                if (!match && string.Equals(info.DisplayName, roleOrName, StringComparison.OrdinalIgnoreCase))
+                if (!match && string.Equals(NormalizeTargetAlias(info.DisplayName), lower, StringComparison.OrdinalIgnoreCase))
                     match = true;
                 if (!match && info.Agent?.Character != null)
                 {
                     // ③ StringId / 名称精确匹配
-                    if (string.Equals(info.Agent.Character.StringId, roleOrName, StringComparison.OrdinalIgnoreCase)
-                        || string.Equals(info.Agent.Character.Name?.ToString(), roleOrName, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(NormalizeTargetAlias(info.Agent.Character.StringId), lower, StringComparison.OrdinalIgnoreCase)
+                        || string.Equals(NormalizeTargetAlias(info.Agent.Character.Name?.ToString()), lower, StringComparison.OrdinalIgnoreCase))
                         match = true;
                     // ④ 职业关键词子串匹配（"guard" 匹配 "guard_empire_mace"；LLM 引用"守卫"这类语义词）
-                    else if (info.Agent.Character.StringId != null
-                        && info.Agent.Character.StringId.ToLowerInvariant().Contains(lower))
+                    else if (NormalizeTargetAlias(info.Agent.Character.StringId) != null
+                        && NormalizeTargetAlias(info.Agent.Character.StringId).Contains(lower))
                         match = true;
-                    else if (info.Occupation != null && info.Occupation.ToLowerInvariant().Contains(lower))
+                    else if (info.Occupation != null && NormalizeTargetAlias(info.Occupation).Contains(lower))
                         match = true;
                 }
                 // ⑤ 显示名子串匹配（🔴 2026-08-13 实机修复）：LLM 回包常用简称（"那弥斯" ⊂ "卡诺洛斯的
@@ -237,7 +267,7 @@ namespace LivingWorldNpcs
                 // 44.510 开始 → 44.512 超时）。多匹配取最近（下方 bestDist 已有）。中文无空格，按
                 // 显示名包含判断；角色/职业/名字匹配在前保持优先级。
                 if (!match && info.DisplayName != null
-                    && info.DisplayName.ToLowerInvariant().Contains(lower))
+                    && NormalizeTargetAlias(info.DisplayName).Contains(lower))
                     match = true;
                 if (!match) continue;
                 float d = info.Agent.Position.DistanceSquared(playerPos);
@@ -317,6 +347,10 @@ namespace LivingWorldNpcs
                     sb.Append("- ");
                     if (info.Role != null) sb.Append($"[{info.Role}] ");
                     sb.Append(info.DisplayName);
+                    // 🔴 2026-08-15（目标唯一标记）：单条人员带 [#N] index 标记（Agent.Index，Mission 内稳定）——
+                    // 计划轮 LLM 可直接引用（target: "酒馆店主#3"），执行器 TryResolveAgent 精确解析；
+                    // 同名同职业合并行不标（多人无法单一 #N 指认，走候选机制）。
+                    if (info.Agent != null) sb.Append($"[#{info.Agent.Index}]");
                     if (!string.IsNullOrEmpty(info.Occupation)) sb.Append($"（{info.Occupation}）");
                     sb.Append($"：{info.PositionDesc}，{info.FacingDesc}，{info.State}");
                     if (!string.IsNullOrEmpty(info.PersonalityHint)) sb.Append($"（{info.PersonalityHint}）");

@@ -253,11 +253,13 @@ namespace LivingWorldNpcs
             {
                 string name = agent.Name?.ToString() ?? "";
                 string occ = ReactiveAgent.ClassifyOccupation(agent);
+                // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
                 string occName = LWNTextHelper.ResolvePrompt("LWN_prompt_trait_occupation_" + occ);
                 if (string.IsNullOrEmpty(occName)) occName = occ;
                 string personality = ReactiveAgent.DescribePersonalityForPrompt(ReactiveAgent.Get(agent)?.Personality);
                 // 身份：真名（职业、人格）——2026-08-12 升级：不再是无名「路人」
                 string identity = string.Format(
+                    // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
                     DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
                     string.IsNullOrEmpty(name) ? occName : $"{name}（{occName}）", personality);
 
@@ -285,6 +287,7 @@ namespace LivingWorldNpcs
                     "",
                     context.Speaker?.Name?.ToString() ?? "对方",
                     "", "",
+                    // 本地化：LWN_plan_respond_rule（玩家可见文本）
                     "LWN_plan_respond_rule",
                     $"【要求】{mood}。{anchor}直接说台词本身——不要引号、不要解释、不要动作描写。",
                     null, maxTokens: 60, timeoutMs: Math.Max(300, (int)(Math.Min(budgetS, 1.5f) * 1000)));

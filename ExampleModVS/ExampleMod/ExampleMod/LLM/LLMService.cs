@@ -395,6 +395,7 @@ namespace LivingWorldNpcs
                     // ④' 401/403 无明确 key 错误信息：URL 或密钥都可能错（网关对错误路径也回 401）。
                     // 把玩家填的原始 baseurl 亮出来——v1 写成 v11 这种一眼就能看出来
                     var baseForMsg2 = Settings.Instance?.LLMBaseUrl;
+                    // 本地化：LWN_llm_fail_bad_url_or_key（玩家可见文本）
                     msg = LWNTextHelper.ResolveCompound("LWN_llm_fail_bad_url_or_key",
                         ("URL", string.IsNullOrWhiteSpace(baseForMsg2) ? ApiUrl : baseForMsg2.TrimEnd('/')));
                     break;

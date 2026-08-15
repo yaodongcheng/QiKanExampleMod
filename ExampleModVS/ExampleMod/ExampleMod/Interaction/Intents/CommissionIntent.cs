@@ -177,6 +177,7 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[CommissionIntent] StartIssueQuest exception: {ex.Message}");
                     if (Settings.Instance.ShowDebugMessages)
+                        // 本地化：LWN_intent_commission_failed_error（玩家可见文本）
                         InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_intent_commission_failed_error", ("MESSAGE", ex.Message)), Colors.Red));
                 }
 

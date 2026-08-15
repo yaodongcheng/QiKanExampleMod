@@ -43,10 +43,11 @@ namespace LivingWorldNpcs
     /// （ImMessage.ActionCode="MOVE_TO" 等）由 ByCode 的 OrdinalIgnoreCase 查询天然兼容。
     /// "NONE" 是空操作哨兵（大写保留，不进任何 prompt，三处跳过判据原样有效）。
     ///
-    /// 行语义：InPlanVocab = 进计划词表（21 行，序 = 原 ActionsInPromptOrder 手写序，
-    /// 82% LLM 回归基线依赖此顺序）；InChatSpace = 进闲聊动作空间（29 行，ChatOrder 钉死
-    /// 1..29 = 闲聊 prompt 展示序）。14 个交集动作双 true；7 个仅计划（lead/wait/give_item/
-    /// deliver_item/shadow/negotiate/end_plan）；15 个仅闲聊（含 crouch/stand 瞬时姿态动作）。
+    /// 行语义：InPlanVocab = 进计划词表（23 行，序 = 原 ActionsInPromptOrder 手写序，
+    /// 82% LLM 回归基线依赖此顺序；2026-08-14 末尾追加 ask_help/steal_equipment）；InChatSpace = 进闲聊动作空间
+    ///（29 行，ChatOrder 钉死 1..29 = 闲聊 prompt 展示序）。16 个交集动作双 true；
+    /// 7 个仅计划（lead/wait/give_item/deliver_item/shadow/negotiate/end_plan）+ 2 个战术新动作
+    ///（ask_help/steal_equipment）；15 个仅闲聊（含 crouch/stand 瞬时姿态动作）。
     ///
     /// 执行职责边界：Execute 委托对 agent 载体动作 = 闲聊侧点火（包装单步 Plan 走
     /// ChatActionFlow → PlanExecutor 既有分支），行为语义仍归执行器；对 hero/party 载体
@@ -85,7 +86,6 @@ namespace LivingWorldNpcs
             public Action<PlanStep, string, string> FillParams;    // 单步 Plan 参数填充（ChatActionFlow，C# 确定）
             public Func<string, string> AnnounceParam;            // 决策播报参数（AnnounceDecision）
         }
-
         // ─────────────────────────────────────────────────────────────
         // 主表 34 行：前 21 行 = 计划词表原序（严格按原 ActionsInPromptOrder 抄，82% 基线）；
         // 后 13 行 = 闲聊-only。14 个交集动作（计划码 + 旧闲聊大写码双身份）已合并为一行。
@@ -95,7 +95,6 @@ namespace LivingWorldNpcs
         public static readonly ActionSpec[] All =
         {
             // ── 交集 14 行（计划序 1..20，闲聊 ChatOrder 钉死）──
-
             // 1. move_to（原 MOVE_TO；闲聊 ChatOrder=23）
             // 🔴 2026-08-13（空间修复 + 模型重构）：Mission 内一律 InScene 可执行——move_to 核心语义
             // 就是「走到目标身边」，远处目标走过去即可（实机日志：LLM 回 move_to 去找 67 米外的那弥斯
@@ -122,7 +121,6 @@ namespace LivingWorldNpcs
                     ChatActionFlow.TryExecute(agent, "move_to", name, null, null);
                 }
             },
-
             // 2. follow（原 FOLLOW；闲聊 ChatOrder=19；无限保持）
             // 🔴 2026-08-13（空间修复 + 模型重构）：与 move_to 同——目标不在跟前时先走过去再保持跟随
             new ActionSpec
@@ -140,7 +138,6 @@ namespace LivingWorldNpcs
                     ChatActionFlow.TryExecute(agent, "follow", name, null, null);
                 }
             },
-
             // 3. stop_following（原 STOP_FOLLOWING；闲聊 ChatOrder=20）
             new ActionSpec
             {
@@ -153,7 +150,6 @@ namespace LivingWorldNpcs
                 IsValid = (npc, player, agent) => agent != null,
                 Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "stop_following", null, null, null)
             },
-
             // 4. order_attack（原 ATTACK；闲聊 ChatOrder=12；别名 attack 承载旧计划缩写）
             new ActionSpec
             {
@@ -195,7 +191,6 @@ namespace LivingWorldNpcs
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_attack_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
                 }
             },
-
             // 5. knockout（原 KNOCKOUT；闲聊 ChatOrder=14）
             new ActionSpec
             {
@@ -225,7 +220,6 @@ namespace LivingWorldNpcs
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_knockout_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirm, null));
                 }
             },
-
             // 6. lead（仅计划：执行器内联状态机）
             new ActionSpec
             {
@@ -234,7 +228,6 @@ namespace LivingWorldNpcs
                 LabelKey = "lead", LabelFallback = "lead the way",
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
             },
-
             // 7. face（原 FACE；闲聊 ChatOrder=17）
             new ActionSpec
             {
@@ -250,7 +243,6 @@ namespace LivingWorldNpcs
                     ChatActionFlow.TryExecute(agent, "face", name, null, null);
                 }
             },
-
             // 8. look_at（原 LOOK_AT；闲聊 ChatOrder=18；时长默认 2s）
             new ActionSpec
             {
@@ -267,7 +259,6 @@ namespace LivingWorldNpcs
                     ChatActionFlow.TryExecute(agent, "look_at", name, null, null);
                 }
             },
-
             // 9. say_to（原 SAY_TO；闲聊 ChatOrder=24；v1 = IM 回复正文复述，一句话两用）
             new ActionSpec
             {
@@ -285,7 +276,6 @@ namespace LivingWorldNpcs
                     ChatActionFlow.TryExecute(agent, "say_to", name, null, s);
                 }
             },
-
             // 10. wait（仅计划：执行器内联状态机）
             new ActionSpec
             {
@@ -294,7 +284,6 @@ namespace LivingWorldNpcs
                 LabelKey = "wait", LabelFallback = "wait",
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
             },
-
             // 11. emote（原 EMOTE；闲聊 ChatOrder=16；level = 动画 key，白名单 9 动画在 EmoteInlineState）
             new ActionSpec
             {
@@ -308,7 +297,6 @@ namespace LivingWorldNpcs
                 AnnounceParam = (level) => level,
                 Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "emote", null, l, null)
             },
-
             // 12. make_noise（原 MAKE_NOISE；闲聊 ChatOrder=25）
             new ActionSpec
             {
@@ -320,7 +308,6 @@ namespace LivingWorldNpcs
                 IsValid = (npc, player, agent) => agent != null,
                 Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "make_noise", null, null, null)
             },
-
             // 13. signal_player（原 SIGNAL_PLAYER；闲聊 ChatOrder=21；无参）
             new ActionSpec
             {
@@ -332,7 +319,6 @@ namespace LivingWorldNpcs
                 IsValid = (npc, player, agent) => agent != null,
                 Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "signal_player", null, null, null)
             },
-
             // 14. steal_attempt（原 STEAL_ATTEMPT；闲聊 ChatOrder=15；人变体扒窃）
             new ActionSpec
             {
@@ -364,7 +350,6 @@ namespace LivingWorldNpcs
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_danger", "Danger"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_steal_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirm, null));
                 }
             },
-
             // 15. give_item（仅计划：执行器内联状态机）
             new ActionSpec
             {
@@ -374,7 +359,6 @@ namespace LivingWorldNpcs
                 LabelKey = "give_item", LabelFallback = "hand over",
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
             },
-
             // 16. give_gold（原 GIVE_GOLD；闲聊 ChatOrder=22；守恒：attacker 钱包 → 玩家）
             new ActionSpec
             {
@@ -386,6 +370,7 @@ namespace LivingWorldNpcs
                 LabelKey = "give_gold", LabelFallback = "give gold",
                 IsValid = (npc, player, agent) => agent != null && npc != null,
                 FillParams = (step, level, sayText) => step.Amount = new JValue(ChatActionFlow.GoldLevelAmount(level)),
+                // 本地化：LWN_action_gold_unit（玩家可见文本）
                 AnnounceParam = (level) => $"{ChatActionFlow.GoldLevelAmount(level)} {LWNTextHelper.ResolveText("LWN_action_gold_unit", "gold")}",
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
@@ -401,7 +386,6 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] GIVE_GOLD {attacker.Name} → 玩家 {amount} 金币");
                 }
             },
-
             // 17. deliver_item（仅计划：执行器内联状态机）
             new ActionSpec
             {
@@ -410,7 +394,6 @@ namespace LivingWorldNpcs
                 LabelKey = "deliver_item", LabelFallback = "deliver",
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
             },
-
             // 18. shadow（仅计划；未实现 → 执行器步骤失败）
             new ActionSpec
             {
@@ -420,7 +403,6 @@ namespace LivingWorldNpcs
                 LabelKey = "shadow", LabelFallback = "shadow",
                 IsValid = (a, d, ag) => false,   // 未实现：永不通过
             },
-
             // 19. negotiate（仅计划；未实现 → 执行器步骤失败）
             new ActionSpec
             {
@@ -431,7 +413,6 @@ namespace LivingWorldNpcs
                 ResultKeys = new HashSet<string> { "success", "partial", "fail" },
                 IsValid = (a, d, ag) => false,   // 未实现：永不通过
             },
-
             // 20. duel（原 DUEL；闲聊 ChatOrder=13；⚠️ 双语义一行承载：计划侧=判定型未实现；
             // 闲聊侧=切磋开打经 ExecuteCore 发 duel 事件，互不干扰）
             new ActionSpec
@@ -472,7 +453,6 @@ namespace LivingWorldNpcs
                     InformationManager.ShowInquiry(new InquiryData(LWNTextHelper.ResolveText("LWN_ui_interact_inquiry_hint", "Notice"), LWNTextHelper.ResolveCompound("LWN_ui_interact_inquiry_duel_msg", ("NAME", targetName)), true, false, LWNTextHelper.ResolveText("LWN_ui_interact_btn_fight", "Come and fight!"), null, confirmFight, null));
                 }
             },
-
             // 21. end_plan（仅计划；IsTerminal 收尾）
             new ActionSpec
             {
@@ -482,9 +462,7 @@ namespace LivingWorldNpcs
                 LabelKey = "end_plan", LabelFallback = "finish",
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
             },
-
             // ── 仅闲聊 13 行（无计划词表；ChatOrder 2..27 衔接）──
-
             // 22. NONE 空操作哨兵（大写保留：三处跳过判据 actionCode == "NONE" 原样有效）
             new ActionSpec
             {
@@ -494,7 +472,6 @@ namespace LivingWorldNpcs
                 IsValid = (npc, player, agent) => true,
                 Execute = (n, p, a, l, t, s) => { /* Do nothing */ }
             },
-
             // 23. relation_up（原 RELATION_UP；好感上升，attacker 对 defender；NPC↔NPC 官方 API）
             new ActionSpec
             {
@@ -523,7 +500,6 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] RELATION_UP {a.Name}→{d.Name} {delta:+0;-0}");
                 }
             },
-
             // 24. relation_down（原 RELATION_DOWN；好感下降）
             new ActionSpec
             {
@@ -546,7 +522,6 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] RELATION_DOWN {a.Name}→{d.Name} {delta:+0;-0}");
                 }
             },
-
             // 25. increase_relation（兼容旧词表：RELATION 语义同款，缺省档位 medium=±5；
             // LabelKey 承载别名 → relation_up 同款标签）
             new ActionSpec
@@ -567,7 +542,6 @@ namespace LivingWorldNpcs
                     else ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
                 }
             },
-
             // 26. decrease_relation（兼容旧词表；LabelKey 承载别名 → relation_down 同款标签）
             new ActionSpec
             {
@@ -587,7 +561,6 @@ namespace LivingWorldNpcs
                     else ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
                 }
             },
-
             // 27. praise（夸赞：defender 本地声望小升；在场=当众夸 → 说话广播链）
             new ActionSpec
             {
@@ -619,7 +592,6 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] PRAISE {d.Name} 本地声望 +2");
                 }
             },
-
             // 28. spread_rumor（造谣：defender 本地声望小降 + 写双方记忆——恩怨后续对话接得住）
             new ActionSpec
             {
@@ -661,7 +633,6 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] SPREAD_RUMOR {a?.Name} 造谣 {d.Name}");
                 }
             },
-
             // 29. threaten_verbal（威胁：写 defender 记忆；InScene 版广播 → defender 人格演算反应）
             new ActionSpec
             {
@@ -698,7 +669,6 @@ namespace LivingWorldNpcs
                     }
                 }
             },
-
             // 30. promise（承诺：写 defender 记忆）
             new ActionSpec
             {
@@ -719,7 +689,6 @@ namespace LivingWorldNpcs
                         a?.StringId ?? "");
                 }
             },
-
             // 31. marry_success（结婚：defender = 求婚对象；仅当面）
             new ActionSpec
             {
@@ -746,7 +715,6 @@ namespace LivingWorldNpcs
                     }
                 }
             },
-
             // 32. join_clan（招募：defender = 招募对象；仅当面）
             new ActionSpec
             {
@@ -770,7 +738,6 @@ namespace LivingWorldNpcs
                     }
                 }
             },
-
             // 33. party_patrol（部队巡逻：defender party 巡逻其所在 settlement；🔴 资格守卫查 defender）
             new ActionSpec
             {
@@ -805,7 +772,6 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] PARTY_PATROL {defender.Name} 巡逻 {settlement.Name}");
                 }
             },
-
             // 34. gather_to_player（部队集结：defender party 移向玩家 party；资格守卫同 party_patrol）
             new ActionSpec
             {
@@ -834,7 +800,6 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] GATHER_TO_PLAYER {defender.Name} 集结到玩家部队");
                 }
             },
-
             // 35. crouch（引擎下蹲：玩家 Z 键同机制 SetCrouchMode = AIScriptedFrameFlags.Crouch；
             // 瞬时 flag 操作，零风险可逆 → 免确认直接执行，与 emote 同级。蹲姿保持到「站起」/脑接管自动清除）
             new ActionSpec
@@ -848,7 +813,6 @@ namespace LivingWorldNpcs
                 IsValid = (npc, player, agent) => agent != null,
                 Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "crouch", null, null, null)
             },
-
             // 36. stand（站起：解除引擎蹲姿，SetCrouchMode(false)；对称的瞬时免确认动作）
             new ActionSpec
             {
@@ -861,28 +825,54 @@ namespace LivingWorldNpcs
                 IsValid = (npc, player, agent) => agent != null,
                 Execute = (attacker, defender, agent, l, t, s) => ChatActionFlow.TryExecute(agent, "stand", null, null, null)
             },
+            // 37. ask_help（🔴 2026-08-14 M6，npc-risk-aware-planning.md：多随从分头配合）——
+            // 计划侧配合动作：执行人请求同袍执行单个低危动作（引开/望风/手势示意），自己继续主任务。
+            // v1 白名单 = make_noise/follow/emote（配合者不生成计划、不风险审视）；配合者忙碌 → on_timeout 兜底。
+            // InChatSpace=false：闲聊一句话不直接调多随从（v1 只允许计划语法出现）。
+            new ActionSpec
+            {
+                Code = "ask_help",
+                InPlanVocab = true,
+                LabelKey = "ask_help", LabelFallback = "ask a companion for help",
+                IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
+            },
+            // 38. steal_equipment（🔴 2026-08-14 M7，npc-risk-aware-planning.md：先削弱再打）——
+            // 计划侧战术动作：卸目标装备（武器槽优先，削攻最直观）→ 目标徒手 → 战力真实下降。
+            // 执行层复用扒窃判定管线（StealAttemptInlineState variant="equipment"）+ StealEquipmentForNpc 共享结算。
+            // RequiresConfirm=true 语义登记（扒窃目标本人 = 高危，同 steal_attempt）；
+            // InChatSpace=false：v1 只计划语法（闲聊一句话不直接触发）。
+            new ActionSpec
+            {
+                Code = "steal_equipment",
+                InPlanVocab = true,
+                Spaces = ActionSpace.InScene,
+                RequiresConfirm = true,
+                InquiryTitleKey = "danger", InquiryMsgKey = "steal",
+                LabelKey = "steal_equipment", LabelFallback = "disarm",
+                ResultKeys = new HashSet<string> { "success", "empty", "impossible", "interrupted" },
+                IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
+            },
         };
-
         /// <summary>计划词表动作（InPlanVocab，按主表序 = 原 ActionsInPromptOrder 手写序）。</summary>
         public static IEnumerable<ActionSpec> PlanActions => All.Where(s => s.InPlanVocab);
-
         /// <summary>闲聊空间动作（InChatSpace，按 ChatOrder 展示序；NONE 不进 prompt 由调用方跳过）。</summary>
         public static IEnumerable<ActionSpec> ChatActions => All.Where(s => s.InChatSpace).OrderBy(s => s.ChatOrder);
-
         static ActionRegistry()
         {
             // 🔴 自检五连：失败只写日志不弹窗（Debug.Assert 在实机 Debug 构建会弹断言框崩游戏——
             // 铁律 1；自检失败 = 表结构错误，降级继续跑，问题在 StoryEngine_RuntimeLog.txt 可见）
-            // 计划 21 码字面量序（82% LLM 回归基线依赖——派生数组必须逐字节一致）
+            // 计划 23 码字面量序（82% LLM 回归基线依赖——派生数组必须逐字节一致；
+            // 2026-08-14 追加 ask_help/steal_equipment 于末尾，既有 21 码顺序不动）
             string[] expectedPlanOrder =
             {
                 "move_to", "follow", "stop_following", "order_attack", "knockout", "lead",
                 "face", "look_at", "say_to", "wait", "emote", "make_noise", "signal_player",
                 "steal_attempt", "give_item", "give_gold", "deliver_item", "shadow",
                 "negotiate", "duel", "end_plan",
+                "ask_help", "steal_equipment",
             };
             Check(PlanActions.Select(s => s.Code).SequenceEqual(expectedPlanOrder),
-                "[ActionRegistry] 计划 21 码顺序与基线不符（82% LLM 回归基线依赖此顺序）");
+                "[ActionRegistry] 计划 23 码顺序与基线不符（82% LLM 回归基线依赖此顺序）");
             // ChatOrder 1..29 连续（闲聊 prompt 展示序钉死）
             var chatOrders = ChatActions.Select(s => s.ChatOrder).ToArray();
             Check(chatOrders.SequenceEqual(Enumerable.Range(1, 29)),
@@ -909,13 +899,11 @@ namespace LivingWorldNpcs
                 }
             }
         }
-
         /// <summary>自检失败 → 写运行日志（不抛异常不弹窗，铁律 1：游戏不能崩）。</summary>
         private static void Check(bool ok, string msg)
         {
             if (!ok) DebugLogger.Log(msg);
         }
-
         /// <summary>按码查动作（OrdinalIgnoreCase——兼容旧存档大写码 "ATTACK"/"MOVE_TO" 等）。</summary>
         public static ActionSpec FindByCode(string code)
         {
@@ -924,7 +912,6 @@ namespace LivingWorldNpcs
                 if (s.Code.Equals(code, StringComparison.OrdinalIgnoreCase)) return s;
             return null;
         }
-
         /// <summary>按标签码查动作（ByCode 优先，回落别名——PlanActionLabel 用；别名不区分大小写）。</summary>
         public static ActionSpec FindByLabelCode(string code)
         {
@@ -939,7 +926,6 @@ namespace LivingWorldNpcs
             }
             return null;
         }
-
         /// <summary>计划侧 LLM 容错别名表（attack→order_attack 等；PlanVocab.ActionAliases 派生源）。</summary>
         public static Dictionary<string, string> BuildAliases()
         {
@@ -952,7 +938,6 @@ namespace LivingWorldNpcs
             }
             return map;
         }
-
         /// <summary>判定型/结算型动作的 result 允许集（PlanVocab.AllowedResultKeys 派生源）。</summary>
         public static Dictionary<string, HashSet<string>> BuildResultKeys()
         {
@@ -964,7 +949,6 @@ namespace LivingWorldNpcs
             }
             return map;
         }
-
         /// <summary>终态动作码集（end_plan；PlanVocab.TerminalActions 派生源）。</summary>
         public static HashSet<string> BuildTerminalCodes()
         {

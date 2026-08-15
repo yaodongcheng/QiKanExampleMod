@@ -133,8 +133,10 @@ namespace LivingWorldNpcs
                 return;
             _lastFriendlyBlockedHint[target.Index] = now;
 
+            // 本地化：LWN_ui_name_target（玩家可见文本）
             string name = target.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target");
             InformationManager.DisplayMessage(new InformationMessage(
+                // 本地化：LWN_ui_hostile_friendly_blocked（玩家可见文本）
                 LWNTextHelper.ResolveCompound("LWN_ui_hostile_friendly_blocked",
                     "{NAME} is on your side — you can't do that.",
                     ("NAME", name)),
@@ -337,6 +339,7 @@ namespace LivingWorldNpcs
                         _deadAgents.Add(affectedAgent);
                         if (Settings.Instance.ShowDebugMessages)
                             InformationManager.DisplayMessage(new InformationMessage(
+                                // 本地化：LWN_combat_body_added（玩家可见文本）
                                 LWNTextHelper.ResolveCompound("LWN_combat_body_added",
                                     "Agent {NAME} added to corpse list",
                                     ("NAME", affectedAgent.Name?.ToString() ?? "")),
@@ -387,6 +390,7 @@ namespace LivingWorldNpcs
             {
                 winner = (loser == _agentA) ? _agentB : _agentA;
                 InformationManager.DisplayMessage(new InformationMessage(
+                    // 本地化：LWN_combat_duel_end（玩家可见文本）
                     LWNTextHelper.ResolveCompound("LWN_combat_duel_end",
                         "The duel is over — winner: {NAME}",
                         ("NAME", winner.Name?.ToString() ?? "")),
@@ -586,6 +590,7 @@ namespace LivingWorldNpcs
             if ((attacker.IsMainAgent || victim.IsMainAgent) && victim != attacker)
             {
                 
+                 // 本地化：LWN_combat_damage_log（玩家可见文本）
                  //   InformationManager.DisplayMessage(new InformationMessage(                       LWNTextHelper.ResolveCompound("LWN_combat_damage_log",                            "AttackTriggerMissionLogic - OnRegisterBlow: {ATTACKER} dealt {DAMAGE} damage to {VICTIM}",                            ("ATTACKER", attacker.Name?.ToString() ?? ""),                            ("VICTIM", victim.Name?.ToString() ?? ""),                            ("DAMAGE", b.InflictedDamage.ToString())),                        Colors.Yellow));
             }
 
@@ -726,9 +731,12 @@ namespace LivingWorldNpcs
 
                     // 提示消息（铁律 13）：你的随从 {NAME} 被关进了 {SETTLEMENT} 的牢房。
                     InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_ui_arrest_msg（玩家可见文本）
                         LWNTextHelper.ResolveCompound("LWN_ui_arrest_msg",
                             "Your companion {NAME} has been locked in the jail of {SETTLEMENT}.",
+                            // 本地化：LWN_ui_name_target（玩家可见文本）
                             ("NAME", info.Hero.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_name_target", "target")),
+                            // 本地化：LWN_ui_detention_place_here（玩家可见文本）
                             ("SETTLEMENT", settlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_detention_place_here", "here"))),
                         Colors.Red));
                     jailed.Add(info);

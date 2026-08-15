@@ -830,6 +830,7 @@ namespace LivingWorldNpcs
             _currentProgress += amount;
 
             if (Settings.Instance.ShowDebugMessages)
+                // 本地化：LWN_quest_debug_progress_added（玩家可见文本）
                 InformationManager.DisplayMessage(new InformationMessage(LWNTextHelper.ResolveCompound("LWN_quest_debug_progress_added",
                     ("PROGRESS", _currentProgress.ToString()), ("TARGET", _data.TargetCount.ToString()))));
             if (_progressLog != null)

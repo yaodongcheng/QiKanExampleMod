@@ -153,7 +153,9 @@ namespace LivingWorldNpcs
                     {
                         int meters = MathF.Ceiling(dist.Value);
                         if (meters < 1) meters = 1;
-                        return $"{_msg.SenderName}（{meters}米外）";
+                        // 本地化：IM 消息发送者距离标签（铁律 13 走 LWN_im_sender_dist）
+                        return LWNTextHelper.ResolveCompound("LWN_im_sender_dist",
+                            "{NAME} ({DIST} m away)", ("NAME", _msg.SenderName), ("DIST", meters.ToString()));
                     }
                     // 不在场：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处
                     string away = ImChatManager.DescribeAwayLocation(_msg.SenderHeroId);
@@ -350,6 +352,9 @@ namespace LivingWorldNpcs
             CardButtons.Clear();
             VerticalCardButtons.Clear();
             var anchor = AnchorCard;
+            // 🔴 2026-08-15（按钮不显示调试，实机）：重建入口日志——锚点种类决定走哪个分支。
+            if (anchor != null)
+                DebugLogger.Log($"[CardButtons] 重建入口: anchor=kind={anchor.Kind} suggest={anchor.IsPlanSuggest} resolved={anchor.IsSuggestionResolved} exec={anchor.ExecutorId ?? "空"}");
             if (anchor == null) { IsVerticalButtons = false; return; }
             if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); }
             else if (anchor.IsProposal) { RebuildProposalButtons(anchor); }
@@ -374,6 +379,11 @@ namespace LivingWorldNpcs
                 CardButtons.Clear();
             }
             IsVerticalButtons = anyLong;
+            // 🔴 2026-08-15（按钮不显示根因修复二重保险）：按钮构建完成后强制广播可见性——
+            // 构建期间 IsCardAnchor 可能尚未就绪（UpdateCardAnchors 旧顺序 AnchorCard 先于 IsCardAnchor），
+            // 构建后重新广播让 UI 用最终状态重评估按钮行（实机日志 08:38:42.963 IsHorizontalButtons=False）。
+            OnPropertyChanged(nameof(IsHorizontalButtons));
+            OnPropertyChanged(nameof(IsVerticalButtonsVisible));
         }
 
         /// <summary>计划卡片按钮（与原硬编码按钮同语义：待批 = 自审/重拟?/同意/拒绝；执行中 = 中止）。</summary>
@@ -406,9 +416,17 @@ namespace LivingWorldNpcs
         /// 先不用 → 了结回闲聊。</summary>
         private void RebuildSuggestionButtons(ImMessage card)
         {
+            // 🔴 2026-08-15（按钮不显示调试，实机）：按钮构建前打印全部判定变量——
+            // IsPlanSuggest（打标是否命中本消息）/ IsSuggestionResolved（是否已了结，了结 = 无按钮）/
+            // ExecutorId（非空即已解决）/ 两个按钮文案解析结果（本地化 key 是否命中）。
+            if (card != null)
+            {
+                DebugLogger.Log($"[SuggestBtn] 构建判定: IsPlanSuggest={card.IsPlanSuggest} Resolved={card.IsSuggestionResolved} ExecutorId={card.ExecutorId ?? "空"} 按钮文案=「{MakePlanText}」「{SkipText}」");
+            }
             if (card.IsSuggestionResolved) return;
             CardButtons.Add(new ImButtonVM(MakePlanText, () => ImChatView.HandleSuggestion(card, makePlan: true)));
             CardButtons.Add(new ImButtonVM(SkipText, () => ImChatView.HandleSuggestion(card, makePlan: false)));
+            DebugLogger.Log($"[SuggestBtn] 已构建 2 按钮 → CardButtons={CardButtons.Count} VerticalCardButtons={VerticalCardButtons.Count} IsCardAnchor={IsCardAnchor} IsHorizontalButtons={IsHorizontalButtons} IsVerticalButtonsVisible={IsVerticalButtonsVisible}");
         }
 
         /// <summary>🔴 2026-08-13（模板 NPC 目标确认，用户裁定：无新卡片）：宾语确认消息底部按钮行——

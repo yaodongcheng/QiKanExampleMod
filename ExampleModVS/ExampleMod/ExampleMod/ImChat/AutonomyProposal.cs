@@ -166,6 +166,7 @@ namespace LivingWorldNpcs
             {
                 var memory = AllNpcMemoryManager.GetMemory(heroId);
                 string persona = memory != null ? memory.GetPersonaPrompt() : "";
+                // 本地化：LWN_plan_respond_section_identity（玩家可见文本）
                 string identity = LWNTextHelper.ResolvePrompt("LWN_plan_respond_section_identity") + name
                     + (string.IsNullOrEmpty(persona) ? "" : "。" + persona);
                 // 与 StartProposal 同源规则（LWN_plan_propose_rule 本地化 key；取空用 C# 兜底）
@@ -173,6 +174,7 @@ namespace LivingWorldNpcs
                 if (string.IsNullOrEmpty(rule))
                     rule = "【行动提议】你刚被主公搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向主公提出，格式：主公，我想去…（10~30 字，直接说，不要解释）。提议必须与当前话题相关——顺着主公刚说的话、频道里正聊的事想该做什么；当前话题下没有合适的事可提，只输出「无」。";
                 var sb = new System.Text.StringBuilder();
+                // 本地化：LWN_plan_section_world（玩家可见文本）
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + (Settings.Instance?.WorldDescription ?? ""));
                 sb.AppendLine(identity);
                 sb.AppendLine(rule);

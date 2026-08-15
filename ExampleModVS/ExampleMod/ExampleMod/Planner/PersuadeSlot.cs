@@ -153,6 +153,7 @@ namespace LivingWorldNpcs
                 if (responderAgent == null || !responderAgent.IsActive()) return;
                 // 拒绝台词（说话并联 Warning 优先级，不占队列；前因 = 会话拒绝兑现）
                 SpeechChannel.Say(responderAgent,
+                    // 本地化：LWN_reactive_refuse（玩家可见文本）
                     LWNTextHelper.ResolveText("LWN_reactive_refuse", "No, I cannot do that."), SpeechPriority.Warning,
                     SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(responderAgent), initiator, "spoken_to", session?.Topic));
                 if (initiator != null && initiator.IsActive())
@@ -328,10 +329,10 @@ namespace LivingWorldNpcs
                             sess.Stance?.Agree ?? 0.4f, "initiator", _intent, _occupation, sess.Round, _usedKeys)
                             ?? "";
                         if (string.IsNullOrEmpty(_pendingInitLine))
-                            _pendingInitLine = "嗯……";
+                            // 本地化：LWN_dialogue_ack_short（玩家可见文本）
+                            _pendingInitLine = LWNTextHelper.ResolveText("LWN_dialogue_ack_short", "Mm.");
                     }
                 }
-
                 // ④ 接受者回应阶段
                 if (_phase == Phase.WaitGap)
                 {
@@ -378,17 +379,14 @@ namespace LivingWorldNpcs
                 End(SettleKind.Abort);
             }
         }
-
         public void OnEnd(DialogueSession s)
         {
             // 终结清理（兑现已在 End 内完成）
             _ended = true;
         }
-
         // ═══════════════════════════════════════════════════════════
         // 接受者独立判断（§5.3 核心：C# 确定性 + LLM 只润色）
         // ═══════════════════════════════════════════════════════════
-
         /// <summary>请求接受者台词：Δagree 演化 → 兑现检查 → 台词（LLM 润色 or 模板）。</summary>
         private void RequestResponderLine()
         {
@@ -396,7 +394,6 @@ namespace LivingWorldNpcs
             var s = Session;
             if (s?.Stance == null) { _pendingRespLine = ""; return; }
             var stance = s.Stance;
-
             // ── Δagree 公式（§5.3，C# 确定性；发起者魅力 social → persuadePower）──
             var initPersonality = ReactiveAgent.Get(_initiator)?.Personality ?? new ReactivePersonality();
             float persuadePower = 0.15f + initPersonality.Social * 0.2f;
@@ -409,13 +406,10 @@ namespace LivingWorldNpcs
             stance.Agree = MathF.Clamp(stance.Agree + delta, 0f, 1f);
             s.Round++;
             s.LastActivityAt = Mission.Current != null ? Mission.Current.CurrentTime : 0f;
-
             DebugLogger.Log($"[Persuade] 第 {s.Round} 轮 Δagree={delta:F3} → agree={stance.Agree:F3}（power={persuadePower:F2} bonus={argumentBonus:F2} resist={resistance:F2}）");
-
             // ── 兑现检查（台词档位要与最终结果一致——先检查，已终结则台词播"结果句"）──
             if (CheckSettle())
                 return;
-
             // ── 台词生成：LLM 润色（有配置走 2s 预算异步；无配置/失败 → 模板）──
             if (Settings.Instance.IsLLMConfigured && _responder != null && _responder.IsActive())
             {
@@ -428,21 +422,23 @@ namespace LivingWorldNpcs
                     stance.Agree, "responder", _intent, _occupation, s.Round, _usedKeys)
                     ?? "";
                 if (string.IsNullOrEmpty(_pendingRespLine))
-                    _pendingRespLine = "嗯。";
+                    // 本地化：LWN_dialogue_ack_short（玩家可见文本）
+                    _pendingRespLine = LWNTextHelper.ResolveText("LWN_dialogue_ack_short", "Mm.");
             }
         }
-
         /// <summary>接受者台词 LLM 润色（§5.3：注入 话题/轮次/agree 数值/方向/身份人格/对方上一句）。
         /// 动作空间按接受者 in-scene 注入（§5.4.2，复用 ActionHandler——LLM 只能在当前空间内选 action_code）。</summary>
         private void RequestLlmResponderLine()
         {
             var s = Session;
             string world = Settings.Instance?.WorldDescription ?? "";
+            // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
             string occName = LWNTextHelper.ResolvePrompt("LWN_prompt_trait_occupation_" + _occupation);
             if (string.IsNullOrEmpty(occName)) occName = _occupation;
             string personality = ReactiveAgent.DescribePersonalityForPrompt(
                 ReactiveAgent.Get(_responder)?.Personality);
             string identity = string.Format(
+                // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
                 DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
                 occName, personality);
             // 方向（Δ 正负 → 台词态度："你开始动摇" / "你态度坚决"）
@@ -457,13 +453,13 @@ namespace LivingWorldNpcs
             string history = mem != null
                 ? PromptBuilder.GetPrompt_RespondContext(mem, ReactiveAgent.GetAgentId(_initiator))
                 : "";
-
             _ = DialogueComponent.GenerateLine(
                 world, identity, direction,
                 string.IsNullOrEmpty(s.Topic) ? "闲聊" : s.Topic,
                 $"（第 {s.Round} 轮）", "",
                 otherName + "（对方正在劝你）",
                 history, lastLine,
+                // 本地化：LWN_plan_persuade_rule（玩家可见文本）
                 "LWN_plan_persuade_rule",
                 "【要求】用一句话口语化回应对方的劝说（10-40 字），态度与你此刻的倾向一致：倾向答应就松动，倾向拒绝就推脱。直接说台词本身——不要引号、不要解释、不要动作描写。",
                 actionSpace, maxTokens: 120, timeoutMs: 2000)
@@ -495,7 +491,8 @@ namespace LivingWorldNpcs
                         {
                             _pendingRespLine = SessionDialogueTemplates.Resolve(
                                 Session?.Stance?.Agree ?? 0.4f, "responder", _intent, _occupation, Session?.Round ?? 1, _usedKeys)
-                                ?? "嗯。";
+                                // 本地化：LWN_dialogue_ack_short（玩家可见文本）
+                                ?? LWNTextHelper.ResolveText("LWN_dialogue_ack_short", "Mm.");
                         }
                     }
                     catch (Exception ex)
@@ -503,11 +500,11 @@ namespace LivingWorldNpcs
                         DebugLogger.Log($"[Persuade] 接受者台词生成异常: {ex.Message}");
                         _pendingRespLine = SessionDialogueTemplates.Resolve(
                             Session?.Stance?.Agree ?? 0.4f, "responder", _intent, _occupation, Session?.Round ?? 1, _usedKeys)
-                            ?? "嗯。";
+                            // 本地化：LWN_dialogue_ack_short（玩家可见文本）
+                            ?? LWNTextHelper.ResolveText("LWN_dialogue_ack_short", "Mm.");
                     }
                 });
         }
-
         /// <summary>发起者劝说句（LLM 润色 or 模板 initiator 档；自动驱动模式）。</summary>
         private void RequestInitiatorLine()
         {
@@ -517,6 +514,7 @@ namespace LivingWorldNpcs
                 string world = Settings.Instance?.WorldDescription ?? "";
                 string initName = _initiator.Name?.ToString() ?? "随从";
                 string identity = string.Format(
+                    // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
                     DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
                     initName, DialogueComponent.ResolvePrompt("LWN_trait_companion", "随从"));
                 var mem = AllNpcMemoryManager.GetMemoryForAgent(_initiator);
@@ -529,6 +527,7 @@ namespace LivingWorldNpcs
                     $"（第 {s.Round + 1} 轮劝说）", "",
                     _responder?.Name?.ToString() ?? "对方",
                     history, _lastRespLine,
+                    // 本地化：LWN_plan_persuade_init_rule（玩家可见文本）
                     "LWN_plan_persuade_init_rule",
                     "【要求】用一句话继续劝说对方（10-40 字），根据对方的抗拒逐渐加码（讲道理/许诺/恳求），符合随从身份。直接说台词本身——不要引号、不要解释、不要动作描写。",
                     null, maxTokens: 100, timeoutMs: 2000)
@@ -563,7 +562,6 @@ namespace LivingWorldNpcs
                     ?? "";
             }
         }
-
         /// <summary>兑现检查：agree 阈值 / 轮次上限（终结返回 true）。</summary>
         private bool CheckSettle()
         {
@@ -574,9 +572,7 @@ namespace LivingWorldNpcs
             if (s.Round >= MaxPersuadeRounds) { End(SettleKind.RoundLimit); return true; }
             return false;
         }
-
         private enum SettleKind { Agree, Refuse, RoundLimit, Abort }
-
         /// <summary>会话终结：兑现 + 注销（幂等）。</summary>
         private void End(SettleKind kind)
         {
@@ -587,9 +583,7 @@ namespace LivingWorldNpcs
             var s = Session;
             if (s == null) return;
             var responder = SessionActor.FromAgent(s.Target);
-
             DebugLogger.Log($"[Persuade] 会话终结（{kind}）：{s.Initiator?.Name} ↔ {s.Target?.Name}，agree={s.Stance?.Agree:F2}，round={s.Round}");
-
             // 🔴 结果句（§5.3"台词档位要与最终结果一致"）：同意路径播同意档回应句——NPC 最后表态
             // 一句（SpeechChannel 并联不占队列，兑现行为随后执行：先表态、再行动，言行一致）。
             // 拒绝路径不播：OnRefuse 自带拒绝台词（LWN_reactive_refuse，Warning 优先级），避免双句。
@@ -607,7 +601,6 @@ namespace LivingWorldNpcs
                 }
                 catch { }
             }
-
             if (kind == SettleKind.Agree || kind == SettleKind.RoundLimit && s.Stance.Agree > 0.5f)
             {
                 s.Outcome?.OnAgree(responder, s);
@@ -620,14 +613,11 @@ namespace LivingWorldNpcs
             {
                 s.Outcome?.OnAbort(s);
             }
-
             // 会话终结 → 群聊议论（M2：话题 + 结果，参与度记忆 + 30% 接话）
             OnSettleNarration(s, kind);
-
             // 从续话器注销（续话器驱动时；执行器驱动时由执行器移除）
             DialogueComponent.EndSession(s);
         }
-
         /// <summary>终结判定：战斗/警戒/倒下/距离（遗留问题 1 拍板：战斗类直接终止不兑现）。</summary>
         private bool CheckInterrupt()
         {
@@ -652,7 +642,6 @@ namespace LivingWorldNpcs
             }
             return false;
         }
-
         /// <summary>旁观者广播（说话者视角：旁观者收到 seen_speaking；复用 HandleDialogue 的 15m 距离加权概率）。</summary>
         private void BroadcastToBystanders()
         {
@@ -673,7 +662,6 @@ namespace LivingWorldNpcs
             }
             catch { }
         }
-
         /// <summary>会话终结群聊议论（M2：ImEventBroadcaster 既有管线——话题 + 结果，参与度记忆 + 接话）。</summary>
         private void OnSettleNarration(DialogueSession s, SettleKind kind)
         {
