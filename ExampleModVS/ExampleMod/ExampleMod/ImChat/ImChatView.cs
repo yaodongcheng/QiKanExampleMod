@@ -49,17 +49,12 @@ namespace LivingWorldNpcs
         // @命中发送后回填输入框，连发多条给同一 NPC 不用重复打 @；玩家删掉前缀发普通喊话 → 解除。
         private static string _lastMentionPrefix;
 
-        // 🔴 2026-08-15（缩略模式）：形态状态 + 拖动状态 + 面板 widget 缓存
+        // 🔴 2026-08-15（缩略模式）：形态状态 + 面板 widget 缓存
         private static ImChatMode _mode = ImChatMode.Full;
-        private static Widget _compactPanel;        // 缩略面板（拖动/矩形判定）
-        private static Widget _compactDragHandle;   // 标题行拖动把手（拉伸容器，rect 排除按钮簇）
-        private static Widget _channelListPanel;    // 频道下拉浮层（外部点击收起判定）
-        private static float _compactPosX;          // 拖动位置（会话内记忆，模式切换后重放）
-        private static float _compactPosY;
-        private static bool _compactDragging;
-        private static Vec2 _dragStartMouse;
-        private static float _dragStartX;
-        private static float _dragStartY;
+        private static Widget _compactPanel;        // 缩略面板（矩形判定）
+        private static Widget _compactDropdown;     // 原版 AnimatedDropdownWidget（IsOpen 轮询收起/滚轮位）
+        private static Widget _compactChannelList;  // 原版下拉项列表（外部点击收起矩形判定）
+        private static InputUsageMask _lastCompactMask; // 🔴 2026-08-15（性能）：mask 缓存，变化才 SetInputRestrictions
         private static readonly List<ImConversation> _compactChannels = new List<ImConversation>(); // 下拉频道顺序（左右箭头循环用）
 
         // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
@@ -200,9 +195,6 @@ namespace LivingWorldNpcs
             _selected = null;
             _messageScrollPanel = null;   // 层关闭后 widget 树失效，缓存清空
             _compactPanel = null;         // 🔴 2026-08-15（缩略模式）：同埋——widget 树随层销毁
-            _compactDragHandle = null;
-            _channelListPanel = null;
-            _compactDragging = false;
         }
 
         // ───────────────────────── 模式切换（完整 ⇄ 缩略）─────────────────────────
@@ -229,11 +221,7 @@ namespace LivingWorldNpcs
                 _movie = _layer.LoadMovie(_mode == ImChatMode.Compact ? "ImChatCompact" : "ImChat", _vm);
                 _messageScrollPanel = null;
                 _compactPanel = null;
-                _compactDragHandle = null;
-                _channelListPanel = null;
-                _compactDragging = false;
-                if (_vm != null) _vm.IsChannelListOpen = false;
-                RefreshAll();
+                    RefreshAll();
             }
             catch (Exception ex)
             {
@@ -463,9 +451,10 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 🔴 2026-08-15（缩略模式）：刷新缩略面板数据（消息区两行 + 频道下拉 + 待决徽标）。
-        /// 锚点行 = _vm.Messages 中 IsCardAnchor==true 的实例（含按钮行）；最新行 = 末条；
-        /// 同一消息不重复显示（用户裁定：共存时 2 条紧凑排布）。
+        /// 🔴 2026-08-15（缩略模式）：刷新缩略面板数据（消息区两行 + 频道下拉）。
+        /// 锚点行 = _vm.Messages 中 IsCardAnchor==true 的实例（含按钮行）；
+        /// 行 B = 最近 1~2 条消息（用户裁定：有 2 条显示 2 条，给回复提供基础上下文；锚点消息本身
+        /// 不在列表里——行 A 有完整形态，列表取其之前的消息）。
         /// 🔴 实例必须复用 _vm.Messages 的同一实例（审查 P1-2）——UpdateCardAnchors /
         /// NotifyMessageShapeChanged / NotifyPlanStateChanged 的广播都打在那些实例上，
         /// 独立新实例会漏广播 → 按钮不显示类 bug 复现。RefreshMessages 两个出口都调本方法。
@@ -480,28 +469,44 @@ namespace LivingWorldNpcs
                 var vm = _vm.Messages[i];
                 if (vm != null && vm.IsCardAnchor) { anchorVm = vm; break; }
             }
-            ImMessageVM latestVm = _vm.Messages.Count > 0 ? _vm.Messages[_vm.Messages.Count - 1] : null;
-            if (anchorVm != null && latestVm != null && anchorVm.Message == latestVm.Message) latestVm = null;
-
             _vm.CompactAnchor = anchorVm;
             _vm.HasCompactAnchor = anchorVm != null;
-            _vm.CompactLatest = latestVm;
-            _vm.HasCompactLatest = latestVm != null;
-            // 待决徽标（有锚点卡时提示可操作）
-            // 待决徽标（缩略模式标题带，本地化）
-            string pendingBadge = LWNTextHelper.ResolveText("LWN_im_compact_pending", "Pending");
-            _vm.CompactStatusText = anchorVm != null ? pendingBadge : "";
+
+            // 行 B：最近 1~2 条非锚点消息（从最新往前取，锚点消息跳过；🔴 2026-08-15 用户裁定
+            // 修复：顺序反转——聊天流旧在上新在下，我原实现把最新放最上 = 后说的出现在上面）。
+            // 🔴 增量：集合内容不变时不 Clear+Add（MBBindingList 重建项 widget，0.3s 刷新会抖动）
+            var target = new List<ImMessageVM>();
+            for (int i = _vm.Messages.Count - 1; i >= 0 && target.Count < 2; i--)
+            {
+                var vm = _vm.Messages[i];
+                if (vm == null) continue;
+                if (anchorVm != null && vm.Message == anchorVm.Message) continue;
+                target.Add(vm);
+            }
+            target.Reverse();   // 旧 → 新（上 → 下）
+            bool changed = target.Count != _vm.CompactLatestMessages.Count;
+            if (!changed)
+            {
+                for (int k = 0; k < target.Count; k++)
+                {
+                    if (_vm.CompactLatestMessages[k] != target[k]) { changed = true; break; }
+                }
+            }
+            if (changed)
+            {
+                _vm.CompactLatestMessages.Clear();
+                foreach (var v in target) _vm.CompactLatestMessages.Add(v);
+            }
+            _vm.HasCompactLatest = target.Count > 0;
 
             RefreshChannelOptions();
-            // 下拉按钮文本：选中频道标题 + 未读数
-            string sel = _selected.Title ?? "";
-            int unread = ImChatStore.GetUnread(_selected.Id);
-            if (unread > 0) sel = $"{sel} ({unread})";
-            _vm.SelectedChannelText = sel;
         }
 
         /// <summary>缩略模式频道下拉项重建（顺序与完整模式左栏一致：附近/队伍/家族/王国/私聊；
-        /// 同时维护 <see cref="_compactChannels"/> 供左右箭头循环切换）。</summary>
+        /// 同时维护 <see cref="_compactChannels"/> 供左右箭头循环切换）。
+        /// 🔴 2026-08-15（用户裁定 hover 闪烁修复）：**增量刷新**——按 ConversationId 复用既有
+        /// ImChannelOptionVM 实例，只更新 StringItem（未读数）；0.3s 全量重建会让项 widget 被销毁重建，
+        /// hover 高亮每 0.3s 重置一次 = 底色闪烁。原版控件自己读 ItemList/SelectedIndex（双向绑定）。</summary>
         private static void RefreshChannelOptions()
         {
             if (_vm == null) return;
@@ -514,24 +519,54 @@ namespace LivingWorldNpcs
             convs.AddRange(ImChatManager.GetRecentDirectConversations());
 
             _compactChannels.Clear();
-            _vm.ChannelOptions.Clear();
             foreach (var conv in convs)
             {
                 if (conv == null) continue;
                 _compactChannels.Add(conv);
-                var item = new ImChannelOptionVM(conv);
+                // 增量：已存在的项复用实例（widget 不重建 → hover 稳定），只刷未读数
+                ImChannelOptionVM item = null;
+                for (int i = 0; i < _vm.ChannelSelector.ItemList.Count; i++)
+                {
+                    if (_vm.ChannelSelector.ItemList[i].ConversationId == conv.Id) { item = _vm.ChannelSelector.ItemList[i]; break; }
+                }
                 string t = conv.Title ?? "";
                 int unread = ImChatStore.GetUnread(conv.Id);
                 if (unread > 0) t = $"{t} ({unread})";
-                item.StringItem = t;
-                _vm.ChannelOptions.Add(item);
+                if (item == null)
+                    _vm.ChannelSelector.ItemList.Add(new ImChannelOptionVM(conv) { StringItem = t });
+                else
+                    item.StringItem = t;
             }
+            // 移除已不存在的项（会话列表变化）
+            for (int i = _vm.ChannelSelector.ItemList.Count - 1; i >= 0; i--)
+            {
+                bool stillExists = false;
+                for (int j = 0; j < convs.Count; j++)
+                {
+                    if (convs[j] != null && _vm.ChannelSelector.ItemList[i].ConversationId == convs[j].Id) { stillExists = true; break; }
+                }
+                if (!stillExists) _vm.ChannelSelector.ItemList.RemoveAt(i);
+            }
+            // 选中索引同步（原版控件 CurrentSelectedIndex 双向绑定）
+            int selIdx = -1;
+            if (_selected != null)
+            {
+                for (int i = 0; i < _compactChannels.Count; i++)
+                {
+                    if (_compactChannels[i].Id == _selected.Id) { selIdx = i; break; }
+                }
+            }
+            if (_vm.ChannelSelector.SelectedIndex != selIdx)
+                _vm.ChannelSelector.SelectedIndex = selIdx;
         }
 
-        /// <summary>收起缩略模式频道下拉（选中频道后调用）。</summary>
-        public static void CloseChannelList()
+        /// <summary>原版下拉选中（CurrentSelectedIndex → SelectedIndex 双向绑定回调）→ 切会话。
+        /// 🔴 2026-08-15（实机「第三项选不中」取证）：打印收到的索引与频道数。</summary>
+        public static void SelectChannelByIndex(int index)
         {
-            if (_vm != null) _vm.IsChannelListOpen = false;
+            DebugLogger.Log($"[CompactSelect] SelectChannelByIndex({index}) 频道数={_compactChannels.Count}");
+            if (index < 0 || index >= _compactChannels.Count) return;
+            SelectConversation(_compactChannels[index]);
         }
 
         /// <summary>左箭头：上一个频道（循环）。</summary>
@@ -547,7 +582,6 @@ namespace LivingWorldNpcs
             if (idx < 0) return;
             int next = (idx + delta + _compactChannels.Count) % _compactChannels.Count;
             SelectConversation(_compactChannels[next]);
-            CloseChannelList();
         }
 
         /// <summary>消息流是否在底部（🔴 十一轮：引擎 Bottom 对齐 offset=MaxValue-val——贴底 = offset=0 =
@@ -874,15 +908,14 @@ namespace LivingWorldNpcs
                 HandleManualScroll(dt);
         }
 
-        // ───────────────────────── 缩略模式输入（拖动/焦点/下拉收起）─────────────────────────
+        // ───────────────────────── 缩略模式输入（焦点/下拉收起）─────────────────────────
 
         /// <summary>
-        /// 🔴 2026-08-15（缩略模式）缩略面板每帧处理：
-        /// ① 拖动（轮询全局 Input；位移阈值 4px 防点按钮误拖；clamp 保证面板不出屏）；
-        /// ② 输入框焦点释放（审查 P2-5）：输入框有焦点 && 点击面板外 && 下拉未开 → ClearFocus 键盘回游戏——
+        /// 🔴 2026-08-15（缩略模式）缩略面板每帧处理（用户裁定：拖动已移除、标题行已去掉）：
+        /// ① 输入框焦点释放（审查 P2-5）：输入框有焦点 && 点击面板外 && 下拉未开 → ClearFocus 键盘回游戏——
         ///    只在「点击」时清（打字中鼠标悬停面板外不打断）；
-        /// ③ 频道下拉收起（审查 P2-2）：根无点击盾只能轮询——点击面板+下拉矩形外 → 收起；
-        /// ④ 下拉开时补 MouseWheels 位（列表滚动），关时去掉（滚轮穿透到场景 = 镜头缩放）。
+        /// ② 频道下拉收起（审查 P2-2）：根无点击盾只能轮询——点击面板+下拉矩形外 → 收起；
+        /// ③ 下拉开时补 MouseWheels 位（列表滚动），关时去掉（滚轮穿透到场景 = 镜头缩放）。
         /// 🔴 输入安全（审查 P0-2）：层 mask 常驻 MouseButtons|Keyboardkeys——引擎 hit-test 门控
         /// （ScreenManager.EarlyUpdate）保证面板矩形外场景输入天然不被吞；面板矩形内被层吞（半模态岛）。
         /// </summary>
@@ -904,74 +937,47 @@ namespace LivingWorldNpcs
                 }
                 Vec2 mouse = Input.MousePositionPixel;
 
-                // ── ④ 下拉开 → 补 MouseWheels 位（列表滚轮滚动）──
+                // ── ③ 下拉开 → 补 MouseWheels 位（列表滚轮滚动）。
+                // 🔴 2026-08-15（性能）：SetInputRestrictions 只在 mask 变化时调用——每帧调用可能
+                // 触发输入上下文重置（用户反馈 UI 卡顿疑点之一）──
                 InputUsageMask mask = InputUsageMask.MouseButtons | InputUsageMask.Keyboardkeys;
-                if (_vm != null && _vm.IsChannelListOpen)
+                if (IsCompactDropdownOpen())
                     mask |= InputUsageMask.MouseWheels;
-                _layer?.InputRestrictions.SetInputRestrictions(true, mask);
-
-                // ── ① 拖动 ──
-                if (Input.IsKeyDown(InputKey.LeftMouseButton))
+                if (mask != _lastCompactMask && _layer != null)
                 {
-                    if (!_compactDragging && _compactDragHandle != null
-                        && IsPointInRect(mouse, _compactDragHandle.GlobalPosition, _compactDragHandle.Size))
-                    {
-                        _compactDragging = true;
-                        _dragStartMouse = mouse;
-                        _dragStartX = _compactPanel.PositionXOffset;
-                        _dragStartY = _compactPanel.PositionYOffset;
-                    }
-                    if (_compactDragging)
-                    {
-                        float dx = mouse.X - _dragStartMouse.X;
-                        float dy = mouse.Y - _dragStartMouse.Y;
-                        // 位移阈值 4px：纯点击把手（无位移）不拖
-                        if (dx * dx + dy * dy >= 16f)
-                        {
-                            // clamp 由渲染矩形推导（面板 Center/Bottom 对齐 + MarginBottom=70）：
-                            //   x ∈ [-(usableW-panelW)/2, (usableW-panelW)/2]
-                            //   y ∈ [70-usableH, 70+panelH]（Bottom 基准 = usableH-70，offset 向下为正）
-                            Vec2 usable = ScreenManager.UsableArea;
-                            float panelW = _compactPanel.Size.X;
-                            float panelH = _compactPanel.Size.Y;
-                            float maxX = (usable.X - panelW) * 0.5f;
-                            float newX = MathF.Clamp(_dragStartX + dx, -maxX, maxX);
-                            float newY = MathF.Clamp(_dragStartY + dy, 70f - usable.Y, 70f + panelH);
-                            _compactPanel.PositionXOffset = newX;
-                            _compactPanel.PositionYOffset = newY;
-                            _compactPosX = newX;
-                            _compactPosY = newY;
-                            // 频道下拉浮层在根级（面板兄弟节点），拖动时手动同步偏移
-                            // （基准 -112 = 面板半宽 280 - 按钮 MarginLeft 8 - 浮层半宽 160，见 ImChatCompact.xml 注释）
-                            if (_channelListPanel != null)
-                            {
-                                _channelListPanel.PositionXOffset = newX - 107f;
-                                _channelListPanel.PositionYOffset = newY;
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    _compactDragging = false;
+                    _lastCompactMask = mask;
+                    _layer.InputRestrictions.SetInputRestrictions(true, mask);
                 }
 
-                // ── ② 输入框焦点释放（点击面板外 = 明确回游戏意图）──
+                // ── 🔴 2026-08-15（点击透传诊断）：按下帧打印鼠标位置 / 面板矩形 / 层 hit-test 结果——
+                //    实机「点 UI 透传到地图部队移动」取证：层命中 false 却点在面板矩形内 = 层没拦住
+                if (Input.IsKeyPressed(InputKey.LeftMouseButton))
+                {
+                    var panelPos = _compactPanel.GlobalPosition;
+                    var panelSize = _compactPanel.Size;
+                    bool layerHit = false;
+                    try { layerHit = _layer != null && _layer.HitTest(); } catch { }
+                    bool inPanel = IsPointInRect(mouse, panelPos, panelSize);
+                    DebugLogger.Log($"[CompactClickDiag] mouse=({mouse.X:0},{mouse.Y:0}) panel=({panelPos.X:0},{panelPos.Y:0},{panelSize.X:0},{panelSize.Y:0}) inPanel={inPanel} layerHit={layerHit}");
+                }
+
+                // ── ① 输入框焦点释放（点击面板外 = 明确回游戏意图；下拉开着时不打断）──
                 if (_layer != null && _layer.IsFocusedOnInput()
                     && Input.IsKeyPressed(InputKey.LeftMouseButton)
                     && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
-                    && (_vm == null || !_vm.IsChannelListOpen))
+                    && !IsCompactDropdownOpen())
                 {
                     _layer.UIContext.EventManager.ClearFocus();
                 }
 
-                // ── ③ 频道下拉收起 ──
-                if (_vm != null && _vm.IsChannelListOpen
+                // ── ② 频道下拉收起（原版控件只处理它看得到的点击；点击场景（层盲区）轮询收起：
+                //    面板矩形 ∪ 下拉列表矩形外 = 场景）──
+                if (IsCompactDropdownOpen()
                     && Input.IsKeyPressed(InputKey.LeftMouseButton)
                     && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
-                    && !IsPointInChannelList(mouse))
+                    && !IsPointInRect(mouse, _compactChannelList?.GlobalPosition ?? new Vec2(-1, -1), _compactChannelList?.Size ?? new Vec2(0, 0)))
                 {
-                    _vm.IsChannelListOpen = false;
+                    SetCompactDropdownOpen(false);
                 }
             }
             catch (Exception ex)
@@ -986,32 +992,27 @@ namespace LivingWorldNpcs
             if (_layer?.UIContext?.Root == null) return;
             if (_compactPanel == null)
                 _compactPanel = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactPanel");
-            if (_compactDragHandle == null)
-                _compactDragHandle = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactDragHandle");
-            if (_channelListPanel == null)
-                _channelListPanel = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_ChannelList");
-            // 重放拖动位置（模式切换后新 widget 树；下拉浮层同步偏移）
-            if (_compactPanel != null)
-            {
-                _compactPanel.PositionXOffset = _compactPosX;
-                _compactPanel.PositionYOffset = _compactPosY;
-                if (_channelListPanel != null)
-                {
-                    _channelListPanel.PositionXOffset = _compactPosX - 107f;
-                    _channelListPanel.PositionYOffset = _compactPosY;
-                }
-            }
+            if (_compactDropdown == null)
+                _compactDropdown = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactDropdown");
+            if (_compactChannelList == null)
+                _compactChannelList = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_ChannelSelectorList");
+        }
+
+        /// <summary>原版频道下拉是否展开（DropdownWidget.IsOpen，控件自管）。</summary>
+        private static bool IsCompactDropdownOpen()
+        {
+            return _compactDropdown is DropdownWidget dw && dw.IsOpen;
+        }
+
+        private static void SetCompactDropdownOpen(bool open)
+        {
+            if (_compactDropdown is DropdownWidget dw && dw.IsOpen != open)
+                dw.IsOpen = open;
         }
 
         private static bool IsPointInRect(Vec2 p, Vec2 pos, Vec2 size)
         {
             return p.X >= pos.X && p.X <= pos.X + size.X && p.Y >= pos.Y && p.Y <= pos.Y + size.Y;
-        }
-
-        private static bool IsPointInChannelList(Vec2 p)
-        {
-            if (_channelListPanel == null) return false;
-            return IsPointInRect(p, _channelListPanel.GlobalPosition, _channelListPanel.Size);
         }
 
         // 🔴 2026-08-15（缩略模式布局诊断）：延迟 ~1s 打印面板与 body 子元素的运行时位置/尺寸/顺序——

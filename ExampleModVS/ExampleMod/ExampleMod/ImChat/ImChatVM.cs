@@ -86,8 +86,9 @@ namespace LivingWorldNpcs
         }
     }
 
-    /// <summary>缩略模式频道下拉项 VM（自绘上开式下拉，数据项命令照 ImChannelVM.ExecuteSelect 先例）。
-    /// StringItem = 频道标题 + 未读数（微信会话列表语义）；点击 → SelectConversation。</summary>
+    /// <summary>缩略模式频道下拉项 VM（原版 SelectorItemVM 形态：StringItem + CanBeSelected + Hint）。
+    /// StringItem = 频道标题 + 未读数（微信会话列表语义）；选中走原版 Radio 机制（ListPanel SelectEvent
+    /// → DropdownWidget → SelectedIndex 双向绑定）。</summary>
     public class ImChannelOptionVM : ViewModel
     {
         private readonly ImConversation _conv;
@@ -102,18 +103,62 @@ namespace LivingWorldNpcs
             set { if (_stringItem != value) { _stringItem = value; OnPropertyChangedWithValue(value, nameof(StringItem)); } }
         }
 
+        /// <summary>可选（原版项模板 IsEnabled/@CanBeSelected；本项目恒可选）。</summary>
+        [DataSourceProperty]
+        public bool CanBeSelected => true;
+
+        /// <summary>悬停提示（原版项模板 HintWidget；无提示 = null）。</summary>
+        [DataSourceProperty]
+        public object Hint => null;
+
         public ImChannelOptionVM(ImConversation conv)
         {
             _conv = conv;
         }
 
+        /// <summary>🔴 2026-08-15（实机日志取证：Radio SelectEvent 链路首次选择后失效）：
+        /// 项点击直连切会话（Command.Click 绑定，绕开 SelectEvent/SelectedIndex 绑定链路）；
+        /// Radio 状态仅作视觉（选中高亮由 RefreshChannelOptions 的 SelectedIndex 同步驱动）。</summary>
         public void ExecuteSelect()
         {
+            DebugLogger.Log($"[CompactSelect] 项点击: {ConversationId}");
             if (_conv != null)
                 ImChatView.SelectConversation(_conv);
-            // 选中后收起下拉（自然交互）
-            ImChatView.CloseChannelList();
         }
+    }
+
+    /// <summary>🔴 2026-08-15（缩略模式）：频道下拉的数据源（SelectorVM 形态，供原版
+    /// AnimatedDropdownWidget 消费——用户提示：原版 Options 的 Control Block Direction 选项用的
+    /// Standard.DropdownWithHorizontalControl 就是这套：ItemList + SelectedIndex + 箭头命令）。
+    /// 项数据 = <see cref="ImChannelOptionVM"/>；选中回调走 ImChatView（切会话 + 收起）。</summary>
+    public class ImChannelSelectorVM : ViewModel
+    {
+        public MBBindingList<ImChannelOptionVM> ItemList { get; } = new MBBindingList<ImChannelOptionVM>();
+
+        private int _selectedIndex = -1;
+
+        /// <summary>选中项索引（下拉控件双向绑定；变更 → 切会话）。</summary>
+        [DataSourceProperty]
+        public int SelectedIndex
+        {
+            get => _selectedIndex;
+            set
+            {
+                if (_selectedIndex != value)
+                {
+                    _selectedIndex = value;
+                    OnPropertyChangedWithValue(value, nameof(SelectedIndex));
+                    if (value >= 0)
+                        ImChatView.SelectChannelByIndex(value);
+                }
+            }
+        }
+
+        /// <summary>左箭头：上一个频道（原版下拉三件套按钮命令）。</summary>
+        public void ExecuteSelectPreviousItem() => ImChatView.SelectPreviousChannel();
+
+        /// <summary>右箭头：下一个频道（原版下拉三件套按钮命令）。</summary>
+        public void ExecuteSelectNextItem() => ImChatView.SelectNextChannel();
     }
 
     /// <summary>
@@ -820,10 +865,12 @@ namespace LivingWorldNpcs
         /// <summary>「有新消息」提示条点击：滚到消息流底部并清除提示。</summary>
         public void ExecuteNewMessageClick() => ImChatView.ExecuteNewMessageClick();
 
-        // ── 🔴 2026-08-15（缩略模式）：频道下拉 + 两行消息区 + 模式切换按钮 ──
+        // ── 🔴 2026-08-15（缩略模式）：频道下拉（原版 AnimatedDropdownWidget）+ 消息区 + 模式切换按钮 ──
 
-        /// <summary>缩略模式频道下拉项列表（数据源，顺序与完整模式左栏一致）。</summary>
-        public MBBindingList<ImChannelOptionVM> ChannelOptions { get; } = new MBBindingList<ImChannelOptionVM>();
+        /// <summary>频道下拉数据源（原版 SelectorVM 形态；下拉控件双向绑定 SelectedIndex/ItemList）。
+        /// 🔴 2026-08-15 用户提示：改原版 Standard.DropdownWithHorizontalControl 控件后，
+        /// 展开/收起/选中高亮/自动收起全部由控件自身处理，VM 只供数据。</summary>
+        public ImChannelSelectorVM ChannelSelector { get; } = new ImChannelSelectorVM();
 
         /// <summary>缩略模式行 A：未决锚点卡（含按钮行；实例 = _vm.Messages 中 IsCardAnchor 的同一实例，
         /// 广播路径天然覆盖——🔴 2026-08-15 审查 P1-2：独立新实例会漏 UpdateCardAnchors/NotifyPlanStateChanged 广播）。</summary>
@@ -845,15 +892,10 @@ namespace LivingWorldNpcs
             set { if (_hasCompactAnchor != value) { _hasCompactAnchor = value; OnPropertyChangedWithValue(value, nameof(HasCompactAnchor)); } }
         }
 
-        /// <summary>缩略模式行 B：最新消息（与锚点卡共存时都显示，用户裁定 2026-08-15）。</summary>
-        private ImMessageVM _compactLatest;
-
-        [DataSourceProperty]
-        public ImMessageVM CompactLatest
-        {
-            get => _compactLatest;
-            set { if (_compactLatest != value) { _compactLatest = value; OnPropertyChangedWithValue(value, nameof(CompactLatest)); } }
-        }
+        /// <summary>缩略模式行 B：最近 1~2 条消息迷你气泡（用户裁定 2026-08-15：有 2 条显示 2 条，
+        /// 给回复提供基础上下文；锚点消息本身不在列表里——行 A 有完整形态）。
+        /// 实例复用 _vm.Messages 的同一实例（P1-2 广播纪律同 CompactAnchor）。</summary>
+        public MBBindingList<ImMessageVM> CompactLatestMessages { get; } = new MBBindingList<ImMessageVM>();
 
         private bool _hasCompactLatest;
 
@@ -864,59 +906,23 @@ namespace LivingWorldNpcs
             set { if (_hasCompactLatest != value) { _hasCompactLatest = value; OnPropertyChangedWithValue(value, nameof(HasCompactLatest)); } }
         }
 
-        /// <summary>频道下拉展开状态（点击下拉按钮切换；Tick 轮询外部点击收起）。</summary>
-        private bool _isChannelListOpen;
-
-        [DataSourceProperty]
-        public bool IsChannelListOpen
-        {
-            get => _isChannelListOpen;
-            set { if (_isChannelListOpen != value) { _isChannelListOpen = value; OnPropertyChangedWithValue(value, nameof(IsChannelListOpen)); } }
-        }
-
-        /// <summary>下拉按钮显示文本（选中频道标题 + 未读数）。</summary>
-        private string _selectedChannelText = "";
-
-        [DataSourceProperty]
-        public string SelectedChannelText
-        {
-            get => _selectedChannelText;
-            set { if (_selectedChannelText != value) { _selectedChannelText = value; OnPropertyChangedWithValue(value, nameof(SelectedChannelText)); } }
-        }
-
-        /// <summary>缩略模式标题带待决徽标（有未决锚点卡时显示，本地化）。</summary>
-        private string _compactStatusText = "";
-
-        [DataSourceProperty]
-        public string CompactStatusText
-        {
-            get => _compactStatusText;
-            set { if (_compactStatusText != value) { _compactStatusText = value; OnPropertyChangedWithValue(value, nameof(CompactStatusText)); } }
-        }
+        /// <summary>频道下拉展开状态（原版 DropdownWidget 自管；此处仅供 View 轮询外部点击收起/滚轮位）。</summary>
+        public bool IsChannelListOpen { get; set; }
 
         // 缩略按钮（完整模式标题带，关闭按钮左侧）
         [DataSourceProperty]
         // 缩略按钮文案
         public string CompactButtonText => LWNTextHelper.ResolveText("LWN_im_btn_compact", "Collapse");
 
-        // 放大按钮（缩略模式标题行）
+        // 放大按钮（缩略面板右上角）
         [DataSourceProperty]
         // 放大按钮文案
         public string ExpandButtonText => LWNTextHelper.ResolveText("LWN_im_btn_expand", "Expand");
 
-        /// <summary>下拉按钮点击：切换频道列表展开/收起。</summary>
-        public void ExecuteToggleChannelList() => IsChannelListOpen = !IsChannelListOpen;
-
-        /// <summary>左箭头：上一个频道（原版 Options 下拉三件套）。</summary>
-        public void ExecuteSelectPreviousChannel() => ImChatView.SelectPreviousChannel();
-
-        /// <summary>右箭头：下一个频道（原版 Options 下拉三件套）。</summary>
-        public void ExecuteSelectNextChannel() => ImChatView.SelectNextChannel();
-
         /// <summary>完整模式标题带「缩略」按钮 → 切缩略模式。</summary>
         public void ExecuteToggleCompact() => ImChatView.ToggleCompact();
 
-        /// <summary>缩略模式标题行「放大」按钮 → 切完整模式。</summary>
+        /// <summary>缩略面板右上角「放大」按钮 → 切完整模式。</summary>
         public void ExecuteExpand() => ImChatView.ToggleExpand();
     }
 }
