@@ -86,11 +86,16 @@
       </Children>
     </ListPanel>
     <!-- 频道列表（🔴 上开式：标题行内底部对齐按钮上方 52px，向上溢出标题行/面板盖住上方区域；
-         高度随项数自适应 @ChannelListHeight；原版 Extension 底 + 项 Radio 视觉 + 增量数据） -->
+         高度随项数自适应 @ChannelListHeight；原版 Extension 底 + 项 Radio 视觉 + 增量数据）
+         🔴 2026-08-15 绑定作用域修复：列表是 {ChannelSelector} 作用域外的兄弟节点，
+         根 VM 上没有 ItemList/IsChannelListOpen/ChannelListHeight（都在 ImChannelSelectorVM），
+         必须自包一层 DataSource="{ChannelSelector}" 让 IsVisible/高度/项数据在 SelectorVM 上解析；
+         自身属性绑定 = 同 widget DataSource 子上下文（同 HasCompactAnchor 坑的反向利用）。 -->
     <Widget Id="LWN_ImChat_ChannelList" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
             SuggestedWidth="330" SuggestedHeight="@ChannelListHeight"
             VerticalAlignment="Bottom" MarginBottom="52" HorizontalAlignment="Left" MarginLeft="8"
             Brush="SPOptions.Dropdown.Extension"
+            DataSource="{ChannelSelector}"
             IsVisible="@IsChannelListOpen"
             DoNotAcceptEvents="true">
       <Children>
