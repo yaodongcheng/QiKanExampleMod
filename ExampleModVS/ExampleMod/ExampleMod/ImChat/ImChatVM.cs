@@ -107,6 +107,16 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool CanBeSelected => true;
 
+        /// <summary>选中态（Radio 高亮；RefreshChannelOptions 维护——当前选中频道 true，其余 false）。</summary>
+        private bool _isSelected;
+
+        [DataSourceProperty]
+        public bool IsSelected
+        {
+            get => _isSelected;
+            set { if (_isSelected != value) { _isSelected = value; OnPropertyChangedWithValue(value, nameof(IsSelected)); } }
+        }
+
         /// <summary>悬停提示（原版项模板 HintWidget；无提示 = null）。</summary>
         [DataSourceProperty]
         public object Hint => null;
@@ -159,6 +169,9 @@ namespace LivingWorldNpcs
 
         /// <summary>右箭头：下一个频道（原版下拉三件套按钮命令）。</summary>
         public void ExecuteSelectNextItem() => ImChatView.SelectNextChannel();
+
+        /// <summary>🔴 2026-08-15（下拉点不开修复）：中心按钮直连 VM 显隐（弃用原版控件点击机制）。</summary>
+        public void ExecuteToggleChannelList() => ImChatView.ToggleChannelList();
     }
 
     /// <summary>
@@ -906,8 +919,38 @@ namespace LivingWorldNpcs
             set { if (_hasCompactLatest != value) { _hasCompactLatest = value; OnPropertyChangedWithValue(value, nameof(HasCompactLatest)); } }
         }
 
-        /// <summary>频道下拉展开状态（原版 DropdownWidget 自管；此处仅供 View 轮询外部点击收起/滚轮位）。</summary>
-        public bool IsChannelListOpen { get; set; }
+        /// <summary>🔴 2026-08-15（下拉点不开修复）：频道列表显隐（中心按钮 Command.Click 直连切换；
+        /// Tick 轮询外部点击收起）。</summary>
+        private bool _isChannelListOpen;
+
+        [DataSourceProperty]
+        public bool IsChannelListOpen
+        {
+            get => _isChannelListOpen;
+            set { if (_isChannelListOpen != value) { _isChannelListOpen = value; OnPropertyChangedWithValue(value, nameof(IsChannelListOpen)); } }
+        }
+
+        /// <summary>🔴 2026-08-15：中心按钮文本（选中频道标题 + 未读数；RefreshChannelOptions 维护——
+        /// 列表不再由原版控件刷新文本，改 VM 驱动）。</summary>
+        private string _selectedChannelText = "";
+
+        [DataSourceProperty]
+        public string SelectedChannelText
+        {
+            get => _selectedChannelText;
+            set { if (_selectedChannelText != value) { _selectedChannelText = value; OnPropertyChangedWithValue(value, nameof(SelectedChannelText)); } }
+        }
+
+        /// <summary>🔴 2026-08-15：频道列表高度（随项数自适应，项数×34+16 钳制 [60, 348]；
+        /// 防 3 项也留大空白）。</summary>
+        private float _channelListHeight = 120f;
+
+        [DataSourceProperty]
+        public float ChannelListHeight
+        {
+            get => _channelListHeight;
+            set { if (MathF.Abs(_channelListHeight - value) > 0.5f) { _channelListHeight = value; OnPropertyChangedWithValue(value, nameof(ChannelListHeight)); } }
+        }
 
         // 缩略按钮（完整模式标题带，关闭按钮左侧）
         [DataSourceProperty]
