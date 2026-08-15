@@ -414,7 +414,7 @@ namespace LivingWorldNpcs
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
                             memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction, actionSpace,
                             executionContext: p.ExecutionCtx, isCampaign: isCampaign, sceneAwareness: p.SceneAwareness,
-                            riskScene: p.RiskSceneContext);
+                            riskScene: p.RiskSceneContext, npcHeroId: p.HeroId);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）

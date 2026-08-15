@@ -4120,6 +4120,11 @@
     <string id="LWN_im_btn_make_plan" text="制定战术" />
     <string id="LWN_im_btn_skip" text="先不用" />
     <string id="LWN_im_time_justnow" text="刚刚" />
+    <string id="LWN_im_title_relation" text="{NAME}（好感 {REL}）" />
+    <string id="LWN_im_ask_player_default" text="主公，我需要您的决断。" />
+    <string id="LWN_im_ask_player_retreat" text="撤退" />
+    <string id="LWN_im_ask_player_force" text="强制执行" />
+    <string id="LWN_plan_step_ask_player" text="向主公请示" />
     <string id="LWN_im_time_minutes" text="{N} 分钟前" />
     <string id="LWN_im_time_hours" text="{N} 小时前" />
     <string id="LWN_im_time_days" text="{N} 天前" />
@@ -4151,8 +4156,8 @@
     <string id="LWN_im_cmd_regenerating" text="随从正在重拟战术…" />
     <string id="LWN_im_cmd_modify_exhausted" text="战术修改次数已达上限，请批准或重新下达。" />
     <string id="LWN_im_cmd_modify_need_mission" text="修改战术需要随从在场，请先进到场景里。" />
-    <string id="LWN_im_cmd_unavailable_here" text="此刻无法传讯。" />
-    <string id="LWN_im_cmd_no_direct" text="这位随从无法通过传讯联系。" />
+    <string id="LWN_im_cmd_unavailable_here" text="此刻无法发送密信。" />
+    <string id="LWN_im_cmd_no_direct" text="这位随从无法通过密信联系。" />
     <string id="LWN_im_npc_companion" text="随从" />
     <string id="LWN_plan_detail_steps" text="步骤：" />
     <string id="LWN_plan_detail_timeout" text="    超时 → {TARGET}" />
@@ -4224,8 +4229,8 @@
     <string id="LWN_speech_im_reply_location" text="身不由己，等能碰面的时候自然相见。" />
     <string id="LWN_speech_im_reply_greeting" text="收到你的信了，别来无恙。" />
     <string id="LWN_speech_im_reply_default" text="信已收到，此事容后详谈。" />
-    <string id="LWN_im_forgotten" text="更早的传讯已随时间淡忘。" />
-    <string id="LWN_im_first_open" text="传讯（IM）——可与远方的英雄通信，或给随从下达密令。按配置键（默认 O）打开；ESC / 手柄 B / 点击面板外关闭。" />
+    <string id="LWN_im_forgotten" text="更早的密信已随时间淡忘。" />
+    <string id="LWN_im_first_open" text="密信（IM）——可与远方的英雄通信，或给随从下达密令。按配置键（默认 O）打开；ESC / 手柄 B / 点击面板外关闭。" />
     <string id="LWN_im_status_present" text="在场" />
     <string id="LWN_im_status_away" text="他处" />
     <string id="LWN_im_status_outside" text="城外" />
@@ -4240,7 +4245,7 @@
     <string id="LWN_im_march_no_place" text="使者不识此地。战术：跟随 / 原地待命 / 前往某处定居点。" />
     <string id="LWN_im_march_unclear" text="使者听不懂这道命令。战术：跟随 / 原地待命 / 前往某处定居点。" />
     <string id="LWN_im_group_channels" text="频道" />
-    <string id="LWN_im_group_directs" text="私聊" />
+    <string id="LWN_im_group_directs" text="密信" />
     <string id="LWN_im_empty_hint" text="还没有消息，说点什么打破沉默吧…" />
     <string id="LWN_im_input_placeholder" text="输入消息…" />
     <string id="LWN_im_mode_status" text="当前：{MODE}模式" />

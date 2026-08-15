@@ -148,6 +148,30 @@ AgentAIController.Instance?.RegisterTheftWitnesses(heroIds, templates, itemId, i
 
 守卫 `BecomeAlarmed` suspect 分支参战前设 `suspect brain.ArrestedByLaw = true`（执法语义非私刑）；MissionEnd 后 `TransferArrestedCompanionsToJail`：ArrestedByLaw + 击晕倒地（`!IsActive && Health>0`）+ 随从 Hero 非空 + `IsPlayerPartyMember` → `TakePrisonerAction.Apply(settlement.Party, hero)`（原版 hero 俘虏机制，从队伍移除）+ `CompanionDetentionBehavior.RegisterDetained` + 提示消息。释放：village/town/castle 菜单注入「赎回随从」——`CrimePenaltyCalculator.ComputeCost(evt, Restitution)`（≥50 保底）→ `AgentControlHelper.TransferGold`（收款=权威 NPC 或 world，铁律 4）→ `PrisonRoster.RemoveTroop` 释放 → 事件 Resolved；`SyncData` 存档 + `HourlyTick` 失效清理。城镇/城堡另有原版地牢救人路径。
 
+## 🔴 原版 GameMenu 多动态选项文本机制（2026-08-15 踩坑实录，赎回菜单两连 bug）
+
+**场景**：赎回菜单按登记条目动态列出「赎回 {NAME}——{FINE}」，多个条目需要各自显示不同名字。
+
+**三个做法只有一个是正确的**（反编译 `TaleWorlds.CampaignSystem.GameMenus.GameMenuOption` 实锤）：
+
+| 做法 | 结果 |
+|---|---|
+| `MBTextManager.SetTextVariable(...)`（全局表） | ❌ 多选项**互相覆盖**——全部显示最后设置的值（实机 08:42：两个「赎回阿速甘」） |
+| `args.Text = new TextObject(...)`（替换文本） | ❌ **引擎不回读 args.Text**——`GetConditionsHold` 只回读 `IsEnabled/Tooltip/optionLeaveType/OptionQuestData`，选项文本永远是注册时的实例（实机 08:51：名字金额全空只剩图标） |
+| **`args.Text.SetTextVariable(...)`（实例级）** | ✅ 正确 |
+
+**正确机制**：`MenuCallbackArgs(menuContext, Text)`——**args.Text 就是该选项自己的 TextObject 实例**（注册时 `AddGameMenuOption` 的字符串参数各自 `new TextObject`，每选项独立实例）。渲染时 TextObject 先查**实例变量表**再查**全局表**——条件回调里对 args.Text 实例调 `SetTextVariable`，多选项各解析各的，天然隔离。
+
+**调用范例**（`WorldEvent/CompanionDetentionBehavior.cs` `RansomItemOnCondition`）：
+```csharp
+args.optionLeaveType = GameMenuOption.LeaveType.Bribe;
+// 实例级变量（模板 {=LWN_ui_companion_ransom_item}Ransom {LWN_COMPANION} — {LWN_COMPANION_FINE}{GOLD_ICON}.）
+args.Text.SetTextVariable("LWN_COMPANION", hero.Name?.ToString() ?? "target");
+args.Text.SetTextVariable("LWN_COMPANION_FINE", fine.ToString());
+```
+
+**适用**：任何原版 `AddGameMenuOption` 动态文本（多条目/多候选），优先实例级 SetTextVariable。
+
 ## 消费点清单（新案情叙事禁止绕过）
 
 | 消费方 | 用法 |

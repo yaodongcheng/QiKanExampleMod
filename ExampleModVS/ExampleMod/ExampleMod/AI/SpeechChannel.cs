@@ -90,6 +90,9 @@ namespace LivingWorldNpcs
         public SpeechPriority Priority;
         public SpeechContext Context;    // 语境（3.2）
         public float Duration;           // 冒泡时长（0 = 按文本长度自动估算）
+        // 🔴 2026-08-15（私聊不进附近频道，UI 层过滤）：false = 冒泡照播但不转发附近频道消息流
+        //（IM 密信送达冒泡）；NPC 记忆/对话历史链路不受影响（转发是纯 UI 层）。
+        public bool ForwardToNearby;     // 默认 true（场景说话 = 玩家亲耳可闻）
     }
 
     /// <summary>说话并联通道（每 agent 一个；静态注册表按 agent.Index）。</summary>
@@ -142,16 +145,18 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>统一发声入口（主线程或 LLM 回调线程；线程安全）。高优先级抢占当前播放；同优先级入队排队。</summary>
+        /// <summary>统一发声入口（主线程或 LLM 回调线程；线程安全）。高优先级抢占当前播放；同优先级入队排队。
+        /// 🔴 2026-08-15（私聊不进附近频道）：forwardToNearby=false = 冒泡照播但不进附近频道消息流
+        ///（IM 密信送达冒泡专用；其余调用点默认 true 行为不变）。</summary>
         public static void Say(Agent agent, string text, SpeechPriority priority = SpeechPriority.Chat,
-            SpeechContext context = default, float duration = 0f)
+            SpeechContext context = default, float duration = 0f, bool forwardToNearby = true)
         {
             if (agent == null || string.IsNullOrWhiteSpace(text)) return;
             var ch = Get(agent);
             if (ch == null) return;
             lock (_syncLock)
             {
-                ch.Enqueue(new SpeechRequest { Text = text, Priority = priority, Context = context, Duration = duration });
+                ch.Enqueue(new SpeechRequest { Text = text, Priority = priority, Context = context, Duration = duration, ForwardToNearby = forwardToNearby });
             }
         }
 
@@ -462,7 +467,7 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(c.Topic)) reason += $" 话题={c.Topic}";
                 if (c.Round > 0) reason += $" 轮次={c.Round}";
                 if (c.Agree > 0f) reason += $" 倾向={c.Agree:F2}";
-                AgentHudMissionView.AgentSay(_owner, req.Text, reason);
+                AgentHudMissionView.AgentSay(_owner, req.Text, reason, req.ForwardToNearby);
             }
             catch { }
         }

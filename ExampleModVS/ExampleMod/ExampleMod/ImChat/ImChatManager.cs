@@ -540,6 +540,10 @@ namespace LivingWorldNpcs
             }
 
             // 同场景送达反馈：对方 Agent 在当前 Mission → 头顶冒泡
+            // 🔴 2026-08-15（私聊不进附近频道，UI 层过滤）：私聊（Direct）的送达冒泡传
+            // forwardToNearby:false——密信内容只留在私聊会话消息流，不进附近频道；3D 冒泡照播
+            //（NPC 确实开口回应了），NPC 记忆/对话历史链路（im_user/im_npc 行）完全不动。
+            // 群聊（Party/Clan/Kingdom）保持现状（频道语义 = 队伍内部广播，成员在场说话可闻）。
             var agent = FindAgentByHeroId(npcHeroId);
             if (agent != null && AgentHudMissionView.Instance != null)
             {
@@ -547,7 +551,8 @@ namespace LivingWorldNpcs
                 {
                     // 🔴 统一说话框架：IM 消息送达冒泡（前因=im_message；Chat 优先级）
                     SpeechChannel.Say(agent, content, SpeechPriority.Chat,
-                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), null, "im_message", null));
+                        SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), null, "im_message", null),
+                        forwardToNearby: conv.Type != ImConversationType.Direct);
                 }
                 catch (Exception ex) { DebugLogger.Log($"[ImChat] 送达冒泡失败: {ex.Message}"); }
             }

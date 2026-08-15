@@ -231,7 +231,7 @@ namespace LivingWorldNpcs
         /// NPC 提议/闲聊动作卡片/needPlan 建议消息 统一归「卡片气泡」分支（ShowCardBubble）渲染，不再走普通气泡。
         /// 🔴 2026-08-13：宾语确认消息（模板 NPC 目标）同归卡片气泡分支（按钮行挂底部）。</summary>
         [DataSourceProperty]
-        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage && !IsProposal && !IsPlanSuggest && !IsTargetConfirm;
+        public bool ShowOtherBubble => IsNotSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsPlanChainMessage && !IsProposal && !IsPlanSuggest && !IsTargetConfirm && !IsAskPlayerCard;
 
         /// <summary>自己气泡显示：是自己 且 非系统/计划卡片/生成中占位/提议（旧格式卡片 SenderHeroId="player"
         /// 走 IsLegacyPlanCard 旧居中卡片控件兜底，不能走气泡分支）。</summary>
@@ -258,13 +258,19 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsTargetConfirm => _msg != null && _msg.IsTargetConfirm;
 
+        /// <summary>🔴 2026-08-15（ask_player 询问步骤）：执行中计划向玩家提问的密信决策卡
+        ///（按钮 = 撤退/强制执行，点击回投事件）——与 IsPlanSuggest/IsTargetConfirm 同构
+        ///（卡片气泡分支 + 通用按钮行）。</summary>
+        [DataSourceProperty]
+        public bool IsAskPlayerCard => _msg != null && _msg.IsAskPlayerCard;
+
         /// <summary>🔴 2026-08-12（用户裁定：卡片融入 NPC 气泡 + 决策卡片统一）：卡片气泡分支——
         /// NPC 自述形态（名字行 + 正文 + 通用按钮行）：计划卡片 / 生成中占位 / 讲解消息（链消息）/
         /// NPC 提议 / 闲聊动作卡片 / needPlan 建议消息 六类共用。
         /// 旧格式（SenderHeroId=player）IsSelf → 走 IsLegacyPlanCard 旧居中卡片控件兜底。
         /// 🔴 2026-08-13：宾语确认消息同归此分支。</summary>
         [DataSourceProperty]
-        public bool ShowCardBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage || IsProposal || IsPlanSuggest || IsTargetConfirm);
+        public bool ShowCardBubble => IsNotSelf && !IsSystem && (IsPlanCard || IsGenerating || IsPlanChainMessage || IsProposal || IsPlanSuggest || IsTargetConfirm || IsAskPlayerCard);
 
         /// <summary>🔴 2026-08-12：旧格式计划卡片/生成中占位（SenderHeroId=player）——旧居中卡片控件渲染兜底
         ///（旧存档兼容；新消息一律走卡片气泡分支）。</summary>
@@ -360,6 +366,7 @@ namespace LivingWorldNpcs
             else if (anchor.IsProposal) { RebuildProposalButtons(anchor); }
             else if (anchor.IsPlanSuggest) { RebuildSuggestionButtons(anchor); }
             else if (anchor.IsTargetConfirm) { RebuildTargetConfirmButtons(anchor); }
+            else if (anchor.IsAskPlayerCard) { RebuildAskPlayerButtons(anchor); }
             // 布局判定：任一按钮文本超长（> 6 字，固定宽 96 @ FontSize16 放不下）→ 竖排
             bool anyLong = false;
             for (int i = 0; i < CardButtons.Count; i++)
@@ -442,6 +449,22 @@ namespace LivingWorldNpcs
                 int idx = i;
                 string label = labels[i];
                 CardButtons.Add(new ImButtonVM(label, () => ImChatView.HandleTargetConfirm(card, idx)));
+            }
+        }
+
+        /// <summary>🔴 2026-08-15（ask_player 询问步骤）：密信决策卡按钮行——每选项一个按钮
+        ///（撤退/强制执行），点选 → ImChatView.HandleAskPlayerOption（事件回投执行器）。
+        /// 已点选（ExecutorId 非空）→ 无按钮。</summary>
+        private void RebuildAskPlayerButtons(ImMessage card)
+        {
+            if (card.IsAskPlayerCardResolved) return;
+            var options = card.AskPlayerOptions;
+            if (options == null) return;
+            foreach (var opt in options)
+            {
+                if (opt == null || string.IsNullOrEmpty(opt.EventType)) continue;
+                string evt = opt.EventType;
+                CardButtons.Add(new ImButtonVM(opt.Label ?? "", () => ImChatView.HandleAskPlayerOption(card, evt)));
             }
         }
 

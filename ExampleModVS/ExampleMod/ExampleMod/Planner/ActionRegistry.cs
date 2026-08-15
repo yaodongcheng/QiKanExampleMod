@@ -852,6 +852,19 @@ namespace LivingWorldNpcs
                 ResultKeys = new HashSet<string> { "success", "empty", "impossible", "interrupted" },
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
             },
+            // 39. ask_player（🔴 2026-08-15，等机会/抉择点询问主公）——
+            // 计划侧抉择原语：执行人向玩家投递密信决策卡（撤退/强制执行），玩家点击 →
+            // 事件回投 → 本步骤 on_event 路由（type 仅 retreat/force）；超时未答 → 默认撤退
+            //（on_timeout 或 @abort_gracefully）。典型用法：击晕/扒窃"等没人看"的 wait 步骤超时后，
+            // 不直接撤退，先问主公（宁可问也不擅自放弃主公的命令）。
+            // InChatSpace=false：仅计划语法（闲聊对话轮不出现）。
+            new ActionSpec
+            {
+                Code = "ask_player",
+                InPlanVocab = true,
+                LabelKey = "ask_player", LabelFallback = "ask the lord",
+                IsValid = (a, d, ag) => false,   // 计划语义（执行器内联），无闲聊入口 → 永不调用
+            },
         };
         /// <summary>计划词表动作（InPlanVocab，按主表序 = 原 ActionsInPromptOrder 手写序）。</summary>
         public static IEnumerable<ActionSpec> PlanActions => All.Where(s => s.InPlanVocab);
@@ -861,18 +874,19 @@ namespace LivingWorldNpcs
         {
             // 🔴 自检五连：失败只写日志不弹窗（Debug.Assert 在实机 Debug 构建会弹断言框崩游戏——
             // 铁律 1；自检失败 = 表结构错误，降级继续跑，问题在 StoryEngine_RuntimeLog.txt 可见）
-            // 计划 23 码字面量序（82% LLM 回归基线依赖——派生数组必须逐字节一致；
-            // 2026-08-14 追加 ask_help/steal_equipment 于末尾，既有 21 码顺序不动）
+            // 计划 24 码字面量序（82% LLM 回归基线依赖——派生数组必须逐字节一致；
+            // 2026-08-14 追加 ask_help/steal_equipment 于末尾，既有 21 码顺序不动；
+            // 2026-08-15 追加 ask_player 于末尾）
             string[] expectedPlanOrder =
             {
                 "move_to", "follow", "stop_following", "order_attack", "knockout", "lead",
                 "face", "look_at", "say_to", "wait", "emote", "make_noise", "signal_player",
                 "steal_attempt", "give_item", "give_gold", "deliver_item", "shadow",
                 "negotiate", "duel", "end_plan",
-                "ask_help", "steal_equipment",
+                "ask_help", "steal_equipment", "ask_player",
             };
             Check(PlanActions.Select(s => s.Code).SequenceEqual(expectedPlanOrder),
-                "[ActionRegistry] 计划 23 码顺序与基线不符（82% LLM 回归基线依赖此顺序）");
+                "[ActionRegistry] 计划 24 码顺序与基线不符（82% LLM 回归基线依赖此顺序）");
             // ChatOrder 1..29 连续（闲聊 prompt 展示序钉死）
             var chatOrders = ChatActions.Select(s => s.ChatOrder).ToArray();
             Check(chatOrders.SequenceEqual(Enumerable.Range(1, 29)),

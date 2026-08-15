@@ -344,7 +344,7 @@ namespace LivingWorldNpcs
         /// （PlanSummary + CurrentStep，C# 快照），LLM 判定 adjust_plan（问进度=false，明确改做法=true）；
         /// isCampaign = 大地图能力提示段（只建议行军类计划，防「我去暗杀谁」）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -352,6 +352,14 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + Settings.Instance.WorldDescription);
             sb.AppendLine(Settings.Instance.SpeechStyle);
             sb.AppendLine();
+            // 🔴 2026-08-15（好感影响语气，用户需求）：与主公的关系段——NPC 对玩家的好感数值注入，
+            // LLM 按数值定语气基调（亲近/友善/客气/冷淡/敌意）。仅 Hero 私聊/群聊注入（模板 NPC 无 Hero）。
+            string relationSection = BuildRelationToPlayerSection(npcHeroId);
+            if (!string.IsNullOrWhiteSpace(relationSection))
+            {
+                sb.AppendLine(relationSection);
+                sb.AppendLine();
+            }
             // 身份段：人设聚合（NPCProfile.GetPersonaPrompt：性格/动机/关系网）
             string persona = memory.GetPersonaPrompt();
             if (!string.IsNullOrWhiteSpace(persona))
@@ -419,8 +427,8 @@ namespace LivingWorldNpcs
             // NPC 是主公麾下 → "你的主公 X 传讯给你"，否则 "对方 X 传讯给你"。
             // （旧 bug：ImReplyService 误传 NPC 自己的名字 → "对方 阿速甘 传讯给你" 自我传讯出戏）
             string senderPrefix = memory?._profile?.IsPlayerSubordinate() == true
-                ? LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_lord", "Your lord {NAME} just sent you a message:", ("NAME", speakerName)) // lwn-ignore: B
-                : LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_other", "{NAME} just sent you a message:", ("NAME", speakerName)); // lwn-ignore: B
+                ? LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_lord", "Your lord {NAME} just sent you a secret letter:", ("NAME", speakerName)) // lwn-ignore: B
+                : LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_other", "{NAME} just sent you a secret letter:", ("NAME", speakerName)); // lwn-ignore: B
             if (!string.IsNullOrWhiteSpace(peerInteraction))
             {
                 // 🔴 v3.2（2026-08-10 用户反馈"两个NPC都在回我"）：跟随者改成**对主回复者说话**的对话流——
@@ -479,6 +487,28 @@ namespace LivingWorldNpcs
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_im_reply_rule"));
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-15（好感影响语气，用户需求）：NPC 对玩家的好感段——把好感数值注入 IM 回复 prompt，
+        /// LLM 按数值拿捏语气基调（亲近/友善/客气/冷淡/敌意），好感低时不再无差别热情。方向 = NPC 对玩家
+        /// （npc.GetRelation(player)——态度由"他怎么看你"决定）。Hero 缺失/异常/key 缺失 → null（零注入，铁律 2）。
+        /// 文案单一事实源：LWN_prompt_im_relation_section（{REL} 变量；EN/CN 同源）。
+        /// </summary>
+        private static string BuildRelationToPlayerSection(string npcHeroId)
+        {
+            if (string.IsNullOrEmpty(npcHeroId) || Hero.MainHero == null) return null;
+            try
+            {
+                var npc = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == npcHeroId);
+                if (npc == null) return null;
+                int rel = npc.GetRelation(Hero.MainHero);
+                // LLM prompt 材料（豁免铁律 13；单一事实源 = XML，缺失 → 零注入降级）
+                string section = LWNTextHelper.ResolvePrompt("LWN_prompt_im_relation_section");
+                if (string.IsNullOrWhiteSpace(section)) return null;
+                return section.Replace("{REL}", rel.ToString());
+            }
+            catch { return null; }
         }
         /// <summary>
         /// 计划讲解 prompt（🔴 2026-08-11 用户裁定：按钮 = 确定性事件 → LLM 人话讲解计划步骤 + 异常条件）。
@@ -1613,6 +1643,10 @@ namespace LivingWorldNpcs
             sb.AppendLine();
             // 分头配合示范（XML LWN_plan_example_assist；2026-08-14 M6/M7：ask_help + steal_equipment 战术）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_example_assist"));
+            sb.AppendLine();
+            // 等机会询问主公示范（XML LWN_plan_example_ask；2026-08-15：ask_player 密信决策卡，
+            // 等没人看超时 → 问主公撤还是硬来，禁止直接撤退）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_example_ask"));
             sb.AppendLine();
             // 判定型步骤示范（XML LWN_plan_example_result）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_example_result"));

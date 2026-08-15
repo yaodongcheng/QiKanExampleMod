@@ -583,6 +583,49 @@ def check_language_data_refs_exist():
     return issues
 
 
+def check_xml_strict_parse():
+    """--- J: Strict XML well-formedness ---
+    🔴 2026-08-15（实机事故复盘）：prompts XML 曾因未转义的双引号/尖括号整个解析失败
+    （游戏侧 LWNTextHelper 加载 prompts 全灭 → LLM 请求残缺 → API 400 → 模板降级），
+    而正则式 key 扫描（extract_keys_from_xml）不校验 XML 语法，漏报。
+    本检查对 Languages/ 下全部 XML 做严格解析：任何一个文件语法错误 → 报错。
+    （铁律 14 配套：emoji/BMP 外字符检查也在此处一并扫）"""
+    import xml.etree.ElementTree as ET
+    print("\n--- J: Strict XML well-formedness ---")
+    issues = 0
+    checked = 0
+    files = []
+    # 各语言子目录的 std_*.xml
+    for lang_dir in glob_mod.glob(os.path.join(LANGUAGES_DIR, "*")):
+        if os.path.isdir(lang_dir):
+            files += glob_mod.glob(os.path.join(lang_dir, "std_*.xml"))
+    # 根目录散 XML（英文 std_*.xml + language_data.xml，UTF-16 由 XML 声明自动识别）
+    files += glob_mod.glob(os.path.join(LANGUAGES_DIR, "*.xml"))
+    for xf in sorted(set(files)):
+        checked += 1
+        rel = os.path.relpath(xf, PROJECT_ROOT)
+        try:
+            ET.parse(xf)
+        except Exception as e:
+            error(f"{rel}: XML 语法错误: {e}")
+            issues += 1
+        # 铁律 14：emoji / BMP 外字符（引擎 UTF-16 解析器遇代理对直接崩语言加载）
+        try:
+            with open(xf, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            # language_data.xml 可能是 UTF-16 → 跳过字符级检查（语法已由 ET 校验）
+            continue
+        bad = [ch for ch in content if ord(ch) > 0xFFFF]
+        if bad:
+            shown = sorted({hex(ord(b)) for b in bad})
+            error(f"{rel}: 含 {len(bad)} 个 BMP 外字符（铁律 14，会崩语言加载）: {', '.join(shown)}")
+            issues += 1
+    if issues == 0:
+        print(f"  [PASS] All {checked} XML files well-formed, no non-BMP chars")
+    return issues
+
+
 # ═══════════════════════════════════════════════════════════
 # Main
 # ═══════════════════════════════════════════════════════════
@@ -605,6 +648,7 @@ def main():
         total_errors += check_cs_placeholder_resolver_clean()
 
     if all_checks or xml_only:
+        total_errors += check_xml_strict_parse()          # J：严格 XML 解析（语法 + 铁律 14 BMP 外字符）
         total_errors += check_xml_key_completeness()
         total_errors += check_xml_placeholder_consistency()
         total_warnings += check_xml_placeholder_whitelist()

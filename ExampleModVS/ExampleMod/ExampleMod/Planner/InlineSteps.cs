@@ -1324,4 +1324,41 @@ namespace LivingWorldNpcs
             if (_timer >= 2f) Finished = true;
         }
     }
+
+    /// <summary>
+    /// 🔴 2026-08-15（ask_player 询问步骤）：向玩家投递密信决策卡（撤退/强制执行）后**保持等待**——
+    /// 不自行收尾：玩家点击按钮 → 事件回投执行器（NotifyDecisionEvent）→ 本步骤 on_event 路由跳转
+    ///（TickCursor 事件通道在 OnTick 前消费）；超时未答 → 步骤级超时（on_timeout / @abort_gracefully
+    /// = 默认撤退语义）。与 AskHelpInlineState 同构：通信类内联（非行为性，排序器侧）。
+    /// </summary>
+    public class AskPlayerInlineState : IInlineStep
+    {
+        private readonly PlanExecutor _executor;
+        private readonly PlanStep _step;
+        private bool _sent;
+        private bool _interrupted;
+        public bool Ok { get; private set; } = true;
+        public bool Finished { get; private set; }
+        public bool IsBehavioral => false;
+        public bool Interrupted => _interrupted;
+        /// <summary>防御实现。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; }
+
+        public AskPlayerInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
+        {
+            _executor = executor;
+            _step = step;
+        }
+
+        public void OnTick(float dt)
+        {
+            if (Finished) return;
+            if (!_sent)
+            {
+                _sent = true;
+                _executor?.AskPlayer(_step.Text ?? "");
+            }
+            // 不 Finished：持续等待玩家决策（事件/超时由步骤级机制处理）
+        }
+    }
 }

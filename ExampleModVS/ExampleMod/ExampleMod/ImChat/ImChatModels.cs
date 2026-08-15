@@ -194,6 +194,24 @@ namespace LivingWorldNpcs
         [JsonProperty("ti")]
         public int? TargetConfirmIndex;      // 玩家选定候选（0-based，距离序；null = 未定）
 
+        // 🔴 2026-08-15（ask_player 询问步骤）：执行中计划向玩家提问的决策卡——
+        // 执行人投递密信消息 + 按钮行（每选项一个按钮），玩家点击 → 事件回投执行器 →
+        // 步骤 on_event 路由。与 IsPlanSuggest/TargetConfirm 同构（卡片气泡 + 通用按钮行）。
+        [JsonProperty("aq")]
+        public bool IsAskPlayer;             // 本消息 = ask_player 决策卡
+
+        [JsonProperty("ao")]
+        public List<AskPlayerOption> AskPlayerOptions;   // 按钮选项（文案 + 事件码）
+
+        /// <summary>ask_player 卡判定（选项非空才成立——JsonIgnore 读档兜底：群聊存档恢复后
+        /// AskPlayerOptions 存在则照常显示；为空 = 旧卡/损坏卡 → 按普通文本渲染）。</summary>
+        [JsonIgnore]
+        public bool IsAskPlayerCard => IsAskPlayer && AskPlayerOptions != null && AskPlayerOptions.Count > 0;
+
+        /// <summary>ask_player 卡是否已点选（ExecutorId 非空 = 已选 → 按钮随锚点重算消失）。</summary>
+        [JsonIgnore]
+        public bool IsAskPlayerCardResolved => IsAskPlayerCard && !string.IsNullOrEmpty(ExecutorId);
+
         public ImMessage() { } // JSON 反序列化用
 
         public ImMessage(string senderHeroId, string senderName, string content, ImMessageKind kind)
@@ -203,6 +221,26 @@ namespace LivingWorldNpcs
             Content = content;
             Kind = kind;
             TimeStamp = ImChatManager.NowUnixMs();
+        }
+    }
+
+    /// <summary>ask_player 决策卡选项（2026-08-15）：按钮文案 + 点击后回投执行器的事件码。
+    /// 事件码与步骤 on_event 的 type 逐字匹配（执行器侧固定白名单：retreat 撤退 / force 强制执行）。</summary>
+    [Serializable]
+    public class AskPlayerOption
+    {
+        [JsonProperty("l")]
+        public string Label;         // 按钮文案（构建时已本地化）
+
+        [JsonProperty("e")]
+        public string EventType;     // 回投事件码（on_event type 匹配用）
+
+        public AskPlayerOption() { } // JSON 反序列化用
+
+        public AskPlayerOption(string label, string eventType)
+        {
+            Label = label;
+            EventType = eventType;
         }
     }
 
