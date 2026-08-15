@@ -1,0 +1,134 @@
+<!-- ═══ 标题行（2026-08-15 用户裁定：频道切换进标题，标题不放文字）：
+     频道三件套（◀ 原版箭头 / 中心原版笔刷 + 上开列表 / ▶）+ 放大/关闭图标 ═══
+     🔴 下拉点不开修复（2026-08-15）：放弃原版 DropdownWidget 控件（Animated 强制 clip
+     顶对齐、Dropdown 点击链路在自定义层失效）——中心按钮 = 普通 ButtonWidget +
+     Command.Click 直连 VM 显隐（ExecuteToggleChannelList），列表 IsVisible=@IsChannelListOpen，
+     外观/笔刷/Radio 项全部保持原版。 -->
+<Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="56"
+        Sprite="BlankWhiteSquare_9" Color="#000000B3"
+        DoNotAcceptEvents="true">
+  <Children>
+    <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+               StackLayout.LayoutMethod="HorizontalLeftToRight"
+               DoNotAcceptEvents="true">
+      <Children>
+        <!-- 频道三件套（DataSource 包这里：箭头命令解析到 SelectorVM；中心按钮 Command 同样）
+             中心按钮文本 = SelectedChannelText（VM 维护，含未读数） -->
+        <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                   DataSource="{ChannelSelector}"
+                   StackLayout.LayoutMethod="HorizontalLeftToRight"
+                   DoNotAcceptEvents="true">
+          <Children>
+            <!-- 左箭头：上一个频道 -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
+                          Brush="SPOptions.Dropdown.Left.Button"
+                          Command.Click="ExecuteSelectPreviousItem"
+                          VerticalAlignment="Center" MarginLeft="8" MarginRight="2"/>
+            <!-- 中心按钮：显示当前频道，点击切换列表显隐（🔴 自定义直连，不再用原版控件点击机制） -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="50"
+                          Brush="SPOptions.Dropdown.Center"
+                          Command.Click="ExecuteToggleChannelList"
+                          VerticalAlignment="Center" MarginLeft="2" MarginRight="2">
+              <Children>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Text="@SelectedChannelText" Brush="SPOptions.Dropdown.Center.Text" Brush.FontSize="15"
+                            Brush.TextHorizontalAlignment="Center"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            MarginLeft="10" MarginRight="10" ClipContents="true"
+                            DoNotAcceptEvents="true"/>
+              </Children>
+            </ButtonWidget>
+            <!-- 右箭头：下一个频道 -->
+            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
+                          Brush="SPOptions.Dropdown.Right.Button"
+                          Command.Click="ExecuteSelectNextItem"
+                          VerticalAlignment="Center" MarginLeft="2" MarginRight="6"/>
+          </Children>
+        </ListPanel>
+        <!-- 占位拉伸（频道区与图标区之间的空隙） -->
+        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                DoNotAcceptEvents="true"/>
+        <!-- 放大按钮（回完整模式；plus_button_* 图标，用户裁定） -->
+        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
+                      VerticalAlignment="Center" MarginLeft="4"
+                      Brush="LWN_Btn_Expand"
+                      Command.Click="ExecuteExpand"/>
+        <!-- 关闭按钮 -->
+        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
+                      VerticalAlignment="Center" MarginLeft="4" MarginRight="10"
+                      Brush="Popup.CloseButton"
+                      Command.Click="ExecuteClose"/>
+      </Children>
+    </ListPanel>
+    <!-- 频道列表（🔴 上开式：标题行内底部对齐按钮上方 52px，向上溢出标题行/面板盖住上方区域；
+         高度随项数自适应 @ChannelListHeight；原版 Extension 底 + 项 Radio 视觉 + 增量数据） -->
+    <Widget Id="LWN_ImChat_ChannelList" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+            SuggestedWidth="330" SuggestedHeight="@ChannelListHeight"
+            VerticalAlignment="Bottom" MarginBottom="52" HorizontalAlignment="Left" MarginLeft="8"
+            Brush="SPOptions.Dropdown.Extension"
+            IsVisible="@IsChannelListOpen"
+            DoNotAcceptEvents="true">
+      <Children>
+        <ScrollablePanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                         AutoHideScrollBars="true"
+                         ClipRect="LWN_ImChat_ChannelClip" InnerPanel="LWN_ImChat_ChannelClip\LWN_ImChat_ChannelListInner"
+                         VerticalScrollbar="..\LWN_ImChat_ChannelScrollbar"
+                         MarginLeft="8" MarginRight="10" MarginTop="8" MarginBottom="8">
+          <Children>
+            <Widget Id="LWN_ImChat_ChannelClip" ClipContents="true"
+                    WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    DoNotAcceptEvents="true">
+              <Children>
+                <ListPanel Id="LWN_ImChat_ChannelListInner" DataSource="{ItemList}"
+                           WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                           DoNotAcceptEvents="true">
+                  <ItemTemplate>
+                    <!-- 项：原版单选视觉（Radio + UpdateChildrenStates 驱动 hover 高亮；
+                         选中态 = IsSelected 绑定，RefreshChannelOptions 维护；
+                         点击 = Command.Click 直连 ExecuteSelect（绕开原版 SelectEvent 链路）） -->
+                    <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                  ButtonType="Radio" UpdateChildrenStates="true" IsSelected="@IsSelected"
+                                  IsEnabled="@CanBeSelected"
+                                  Command.Click="ExecuteSelect"
+                                  Brush="Standard.DropdownItem.SoundBrush"
+                                  MarginLeft="4" MarginRight="4" MarginTop="2" MarginBottom="2">
+                      <Children>
+                        <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                     MarginLeft="5" MarginRight="5"
+                                     Brush="Standard.DropdownItem"
+                                     DoNotAcceptEvents="true"/>
+                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    Text="@StringItem" Brush="SPOptions.Dropdown.Item.Text" Brush.FontSize="14"
+                                    Brush.TextHorizontalAlignment="Left"
+                                    HorizontalAlignment="Left" VerticalAlignment="Center"
+                                    MarginLeft="10" MarginRight="10" ClipContents="true"
+                                    IsVisible="@CanBeSelected"
+                                    DoNotAcceptEvents="true"/>
+                      </Children>
+                    </ButtonWidget>
+                  </ItemTemplate>
+                </ListPanel>
+              </Children>
+            </Widget>
+          </Children>
+        </ScrollablePanel>
+        <ScrollbarWidget Id="LWN_ImChat_ChannelScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                         AlignmentAxis="Vertical" Handle="LWN_ImChat_ChannelScrollbarHandle"
+                         HorizontalAlignment="Right" MarginRight="2" MarginTop="4" MarginBottom="4"
+                         MaxValue="100" MinValue="0">
+          <Children>
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                    HorizontalAlignment="Center"
+                    Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                    DoNotAcceptEvents="true"/>
+            <ImageWidget Id="LWN_ImChat_ChannelScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                         MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                         HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle"/>
+          </Children>
+        </ScrollbarWidget>
+      </Children>
+    </Widget>
+  </Children>
+</Widget>
+

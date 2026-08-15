@@ -52,8 +52,7 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-15（缩略模式）：形态状态 + 面板 widget 缓存
         private static ImChatMode _mode = ImChatMode.Full;
         private static Widget _compactPanel;        // 缩略面板（矩形判定）
-        private static Widget _compactDropdown;     // 原版 AnimatedDropdownWidget（IsOpen 轮询收起/滚轮位）
-        private static Widget _compactChannelList;  // 原版下拉项列表（外部点击收起矩形判定）
+        private static Widget _compactChannelList;  // 频道列表（上开式，外部点击收起矩形判定）
         private static InputUsageMask _lastCompactMask; // 🔴 2026-08-15（性能）：mask 缓存，变化才 SetInputRestrictions
         private static readonly List<ImConversation> _compactChannels = new List<ImConversation>(); // 下拉频道顺序（左右箭头循环用）
 
@@ -547,7 +546,7 @@ namespace LivingWorldNpcs
                 }
                 if (!stillExists) _vm.ChannelSelector.ItemList.RemoveAt(i);
             }
-            // 选中索引同步（原版控件 CurrentSelectedIndex 双向绑定）
+            // 选中索引同步（中心文本 + 每项 IsSelected 高亮 + SelectedIndex）
             int selIdx = -1;
             if (_selected != null)
             {
@@ -558,6 +557,24 @@ namespace LivingWorldNpcs
             }
             if (_vm.ChannelSelector.SelectedIndex != selIdx)
                 _vm.ChannelSelector.SelectedIndex = selIdx;
+            // 中心按钮文本：选中频道标题 + 未读数
+            string selText = _selected?.Title ?? "";
+            if (_selected != null)
+            {
+                int unread = ImChatStore.GetUnread(_selected.Id);
+                if (unread > 0) selText = $"{selText} ({unread})";
+            }
+            if (_vm.SelectedChannelText != selText)
+                _vm.SelectedChannelText = selText;
+            // 每项选中高亮（Radio 视觉）
+            for (int i = 0; i < _vm.ChannelSelector.ItemList.Count; i++)
+            {
+                bool isSel = i == selIdx;
+                if (_vm.ChannelSelector.ItemList[i].IsSelected != isSel)
+                    _vm.ChannelSelector.ItemList[i].IsSelected = isSel;
+            }
+            // 列表高度随项数自适应：每项 34px + 上下边距 16，钳制 [60, 348]
+            _vm.ChannelListHeight = MathF.Clamp(_vm.ChannelSelector.ItemList.Count * 34f + 16f, 60f, 348f);
         }
 
         /// <summary>原版下拉选中（CurrentSelectedIndex → SelectedIndex 双向绑定回调）→ 切会话。
@@ -941,7 +958,7 @@ namespace LivingWorldNpcs
                 // 🔴 2026-08-15（性能）：SetInputRestrictions 只在 mask 变化时调用——每帧调用可能
                 // 触发输入上下文重置（用户反馈 UI 卡顿疑点之一）──
                 InputUsageMask mask = InputUsageMask.MouseButtons | InputUsageMask.Keyboardkeys;
-                if (IsCompactDropdownOpen())
+                if (_vm != null && _vm.IsChannelListOpen)
                     mask |= InputUsageMask.MouseWheels;
                 if (mask != _lastCompactMask && _layer != null)
                 {
@@ -965,19 +982,19 @@ namespace LivingWorldNpcs
                 if (_layer != null && _layer.IsFocusedOnInput()
                     && Input.IsKeyPressed(InputKey.LeftMouseButton)
                     && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
-                    && !IsCompactDropdownOpen())
+                    && (_vm == null || !_vm.IsChannelListOpen))
                 {
                     _layer.UIContext.EventManager.ClearFocus();
                 }
 
-                // ── ② 频道下拉收起（原版控件只处理它看得到的点击；点击场景（层盲区）轮询收起：
-                //    面板矩形 ∪ 下拉列表矩形外 = 场景）──
-                if (IsCompactDropdownOpen()
+                // ── ② 频道下拉收起（点击面板矩形 ∪ 列表矩形外 = 场景；列表在标题行内向上展开，
+                //    可能溢出面板顶部 → 矩形判定用列表自身 GlobalPosition/Size）──
+                if (_vm != null && _vm.IsChannelListOpen
                     && Input.IsKeyPressed(InputKey.LeftMouseButton)
                     && !IsPointInRect(mouse, _compactPanel.GlobalPosition, _compactPanel.Size)
                     && !IsPointInRect(mouse, _compactChannelList?.GlobalPosition ?? new Vec2(-1, -1), _compactChannelList?.Size ?? new Vec2(0, 0)))
                 {
-                    SetCompactDropdownOpen(false);
+                    _vm.IsChannelListOpen = false;
                 }
             }
             catch (Exception ex)
@@ -992,22 +1009,14 @@ namespace LivingWorldNpcs
             if (_layer?.UIContext?.Root == null) return;
             if (_compactPanel == null)
                 _compactPanel = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactPanel");
-            if (_compactDropdown == null)
-                _compactDropdown = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_CompactDropdown");
             if (_compactChannelList == null)
-                _compactChannelList = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_ChannelSelectorList");
+                _compactChannelList = FindWidgetById(_layer.UIContext.Root, "LWN_ImChat_ChannelList");
         }
 
-        /// <summary>原版频道下拉是否展开（DropdownWidget.IsOpen，控件自管）。</summary>
-        private static bool IsCompactDropdownOpen()
+        /// <summary>🔴 2026-08-15（下拉点不开修复）：中心按钮直连切换列表显隐（弃用原版控件机制）。</summary>
+        public static void ToggleChannelList()
         {
-            return _compactDropdown is DropdownWidget dw && dw.IsOpen;
-        }
-
-        private static void SetCompactDropdownOpen(bool open)
-        {
-            if (_compactDropdown is DropdownWidget dw && dw.IsOpen != open)
-                dw.IsOpen = open;
+            if (_vm != null) _vm.IsChannelListOpen = !_vm.IsChannelListOpen;
         }
 
         private static bool IsPointInRect(Vec2 p, Vec2 pos, Vec2 size)

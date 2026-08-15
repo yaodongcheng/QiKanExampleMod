@@ -226,29 +226,27 @@
     </Brush>
 	<!-- 🔴 2026-08-15（密信通知）：密信图标（阴谋任务插图），与忍者（back_alley）区分；
 	     外层装饰环 = BlankWhiteCircleOutlined 暗金（ImSecretNotify.xml） -->
-	<!-- 🔴 2026-08-15（缩略模式）：缩略/放大图标笔刷（用户裁定资源：StdAssets minus/plus_button_*，77x77） -->
+	<!-- 🔴 2026-08-15（缩略模式）：缩略/放大图标笔刷（用户裁定资源：StdAssets minus/plus_button_*，77x77）。
+	     🔴 2026-08-15 修复（图标暗沉灰/hover 无反应）：改用单 layer + Style 换 Sprite 模式
+	     （Brush_CircleButton_NinjaReport 验证过——Style 里可以换 Sprite；多 layer 写法样式切换不可靠） -->
 	<Brush Name="LWN_Btn_Collapse">
         <Layers>
             <BrushLayer Name="Default" Sprite="StdAssets\minus_button_default"/>
-            <BrushLayer Name="Hovered" Sprite="StdAssets\minus_button_hover"/>
-            <BrushLayer Name="Pressed" Sprite="StdAssets\minus_button_pressed"/>
         </Layers>
         <Styles>
             <Style Name="Default"><BrushLayer Name="Default"/></Style>
-            <Style Name="Hovered"><BrushLayer Name="Hovered"/></Style>
-            <Style Name="Pressed"><BrushLayer Name="Pressed"/></Style>
+            <Style Name="Hovered"><BrushLayer Name="Default" Sprite="StdAssets\minus_button_hover"/></Style>
+            <Style Name="Pressed"><BrushLayer Name="Default" Sprite="StdAssets\minus_button_pressed"/></Style>
         </Styles>
     </Brush>
 	<Brush Name="LWN_Btn_Expand">
         <Layers>
             <BrushLayer Name="Default" Sprite="StdAssets\plus_button_default"/>
-            <BrushLayer Name="Hovered" Sprite="StdAssets\plus_button_hover"/>
-            <BrushLayer Name="Pressed" Sprite="StdAssets\plus_button_pressed"/>
         </Layers>
         <Styles>
             <Style Name="Default"><BrushLayer Name="Default"/></Style>
-            <Style Name="Hovered"><BrushLayer Name="Hovered"/></Style>
-            <Style Name="Pressed"><BrushLayer Name="Pressed"/></Style>
+            <Style Name="Hovered"><BrushLayer Name="Default" Sprite="StdAssets\plus_button_hover"/></Style>
+            <Style Name="Pressed"><BrushLayer Name="Default" Sprite="StdAssets\plus_button_pressed"/></Style>
         </Styles>
     </Brush>
 	<Brush Name="Brush_CircleButton_SecretLetter">
