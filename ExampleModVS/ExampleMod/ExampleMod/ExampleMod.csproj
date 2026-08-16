@@ -298,7 +298,6 @@
     <Compile Include="ImChat\ImChatModels.cs" />
     <Compile Include="ImChat\ImChatStore.cs" />
     <Compile Include="ImChat\ImChatManager.cs" />
-    <Compile Include="ImChat\CampaignSession.cs" />
     <Compile Include="ImChat\AutonomyProposal.cs" />
     <Compile Include="ImChat\ChatClaimChecker.cs" />
     <Compile Include="ImChat\ImHeatTracker.cs" />

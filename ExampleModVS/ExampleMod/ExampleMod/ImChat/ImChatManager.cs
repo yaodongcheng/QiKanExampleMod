@@ -261,14 +261,10 @@ namespace LivingWorldNpcs
                 // 记忆行 im_user 与 store 行按 (SenderName, Content) 去重（GetDirectMessages 既有逻辑），不双显。
                 ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(PlayerId, playerName, trimmed, ImMessageKind.Text));
 
-                // 🔴 M3 私聊劝说会话（npc-dialogue-session-plan.md §5.6）：句式命中 → 进入劝说会话，
-                // 回应由会话容器投递（agree 演化 → 承诺/拒绝兑现）——**不叠加**通用回复管线（避免双回应）
-                bool persuaded = CampaignPersuadeHub.OnDirectMessage(conv.PartnerHeroId, trimmed);
                 // 🔴 NPC 自主行动提议（2026-08-13 门控移走）：触发点从「玩家发消息」移到「回复管线投递点」
                 // （ImReplyService.Tick）——只有回复判定为纯寒暄（无动作/无计划/非执行期调整）才可能提议。
                 // 玩家下达命令（动作/计划）时回复必非纯寒暄 → 提议天然被门控，杜绝「刚下令击晕，
                 // NPC 却提议去望风」的双卡冲突（2026-08-13 日志实锤）。
-                if (persuaded) { RaiseMessageArrived(conv); return; }
 
                 // 调度 NPC 回复（执行上下文：仅当该 NPC 就是执行者时注入）
                 var hero = GetHero(conv.PartnerHeroId);
@@ -293,9 +289,6 @@ namespace LivingWorldNpcs
                 // 非 LLM 语义检索挑回复者（用户决策 1）+ 25% 概率跟随回复
                 // 热度只给被挑中的回复者（防全频道成员批量加分集体升 Hot 档——「互动多者容量大」应指实际互动者）
                 var members = GetChannelMembers(conv.Type);
-                // 🔴 M3 群聊动议（§5.6 议题模式）：句式命中 → 各成员独立 stance 表态（不影响通用回复管线，
-                // 动议接话与普通回复并行——议题是额外一层，不抢正常聊天）
-                CampaignPersuadeHub.OnGroupMessage(conv, trimmed);
                 // 🔴 跟随保底已移除（2026-08-13 用户裁定）：跟随回复纯随机，不做"满 N 条必跟随"
                 var (primary, followUp) = ImTopicMatcher.PickRepliers(members, trimmed);
                 // 🔴 NPC 自主行动提议（2026-08-13 门控移走）：群聊提议改由回复管线投递点触发
@@ -650,8 +643,6 @@ namespace LivingWorldNpcs
             ImReplyService.Tick();
             ImCommandFlow.Tick();
             ImEventBroadcaster.Tick();
-            // 🔴 M3 Campaign 会话驱动（私聊劝说冷场兑现 + 群聊动议冷场兑现 + 投递队列消费）
-            CampaignPersuadeHub.Tick();
             // 🔴 NPC 自主行动提议投递（后台生成 → 主线程投递）
             AutonomyProposal.Tick();
             TickDelayedMessages(dt);

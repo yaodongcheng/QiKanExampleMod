@@ -4240,13 +4240,8 @@
     <string id="LWN_action_combat_hurt" text="Agh!" />
     <string id="LWN_action_combat_end" text="Hmph. Overconfident fool." />
     <!-- Session settle broadcast (M2: party group chat) -->
-    <string id="LWN_dialog_settle_broadcast" text="Nearby, folk are murmuring: the matter of {TOPIC} seems to have been {RESULT}." />    <!-- Campaign persuasion sessions (M3: direct promise + group motion; word-deed consistency) -->
-    <string id="LWN_campaign_persuade_agree" text="Very well, I have noted it. {TOPIC} I will see to it." />
-    <string id="LWN_campaign_persuade_refuse" text="This I cannot grant. Do not raise {TOPIC} again." />
-    <string id="LWN_campaign_persuade_settle_agree" text="Very well then, as you say." />
-    <string id="LWN_campaign_persuade_settle_refuse" text="Speak of this no more." />
-    <string id="LWN_campaign_motion_pass" text="It is settled then. Let us all comply." />
-    <string id="LWN_campaign_motion_fail" text="Let us weigh this another day." />    <string id="LWN_dialog_bystander_refuse_2" text="(Shakes head, walks off)" />
+    <string id="LWN_dialog_settle_broadcast" text="Nearby, folk are murmuring: the matter of {TOPIC} seems to have been {RESULT}." />
+    <string id="LWN_dialog_bystander_refuse_2" text="(Shakes head, walks off)" />
     <string id="LWN_npc_steal_success" text="{NAME} lifted {AMOUNT}{GOLD} off {TARGET}." />
     <string id="LWN_npc_steal_equip_success" text="{NAME} slipped {ITEM} off {TARGET}." />
     <string id="LWN_npc_steal_empty" text="{NAME} found nothing on {TARGET}." />

@@ -182,6 +182,23 @@ namespace LivingWorldNpcs
             return mainParty != null && hero.PartyBelongedTo == mainParty;
         }
 
+        /// <summary>严格同行判定（2026-08-16 用户裁定：注入看说话人身份，频道只管理回复人群）：
+        /// 此刻真正在主队（PartyBelongedTo == MainParty）。
+        /// 与 <see cref="IsPlayerPartyMember"/> 的区别：后者有 IsPlayerCompanion 捷径——留守家族随从
+        /// （不在队伍）也算队伍成员；本方法只认实际同行，用于注入层级判定——家族频道里的队伍成员
+        /// 同样 L1 全量；家族但不在队伍的成员 L4 遥距（位置/账目等队伍亲历级不注入，答"不清楚"
+        /// 是正确表现，实机 2026-08-16 阿速甘案）。分兵随从走 PartySplitFlow.IsSplitPartyLeader 另行判断。
+        /// 🔴 在押守卫（2026-08-16）：被俘随从 PartyBelongedToAsPrisoner 非空 = 关在牢里，
+        /// 不可能同行——即使引擎残留 PartyBelongedTo 也不当队伍成员（被俘认知由
+        /// BuildSelfAwareness 在押行注入，见 CompanionDetentionBehavior.GetDetentionSettlement）。</summary>
+        public static bool IsInMainParty(Hero hero)
+        {
+            if (hero == null || hero == Hero.MainHero || !hero.IsAlive) return false;
+            if (hero.PartyBelongedToAsPrisoner != null) return false;
+            var mainParty = Hero.MainHero?.PartyBelongedTo;
+            return mainParty != null && hero.PartyBelongedTo == mainParty;
+        }
+
         /// <summary>同王国判定（双 null-guard：玩家无王国或对方无王国 → false）。</summary>
         private static bool SameKingdom(Kingdom other)
         {

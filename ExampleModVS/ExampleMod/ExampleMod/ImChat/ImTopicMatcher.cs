@@ -82,8 +82,10 @@ namespace LivingWorldNpcs
             return 0.5f;
         }
 
-        /// <summary>@提及候选名：全名 / 去引号全名 / 引号内称号 / FirstName。
-        /// 玩家口头点名常用称号或简称，全名（含引号）IndexOf 必失败（2026-08-10 日志实锤）。</summary>
+        /// <summary>@提及候选名：全名 / 去引号全名 / 引号内称号 / 称号 2 字前缀 / FirstName。
+        /// 玩家口头点名常用称号或简称，全名（含引号）IndexOf 必失败（2026-08-10 日志实锤）；
+        /// 🔴 2026-08-16（实机：玩家打"百草 我们在哪"点名百草药僧，@提及=0 被远程加分者抢答）：
+        /// 称号 2 字前缀简称——"百草药僧"→"百草"，玩家点名常截前缀。</summary>
         private static IEnumerable<string> GetMentionCandidates(Hero h)
         {
             if (h == null) yield break;
@@ -97,6 +99,7 @@ namespace LivingWorldNpcs
             {
                 string title = full.Substring(q1 + 1, q2 - q1 - 1);
                 if (title.Length >= 2) yield return title;
+                if (title.Length >= 4) yield return title.Substring(0, 2);
             }
             string first = h.FirstName?.ToString() ?? "";
             if (!string.IsNullOrEmpty(first) && first.Length >= 2 && first != full) yield return first;

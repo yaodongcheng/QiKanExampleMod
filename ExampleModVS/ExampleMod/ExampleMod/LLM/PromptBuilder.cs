@@ -315,6 +315,9 @@ namespace LivingWorldNpcs
 
             // 3. 近期对话：优先取与 otherId 相关的行（最多 6 句）；无 SpeakerId 的旧行（玩家对话）也保留；
             //    不足 6 句 → 从最近行补足（保持上下文连续）
+            // 🔴 2026-08-16（prompt 精简）：跳过 channel_ 角色（群聊公区消息）——它们已由
+            //    【频道近期消息】段（BuildChannelRecentSection）全量承担，再进【对话历史】= 同一批对话打印两遍。
+            //    私聊线（im_user/im_npc）不受影响（群聊回复本就走 channelRecent 段）。
             if (memory.RecentHistory.Count > 0)
             {
                 var selected = new List<ChatMessage>();
@@ -322,6 +325,7 @@ namespace LivingWorldNpcs
                 {
                     var msg = memory.RecentHistory[i];
                     if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
+                    if (msg.Role != null && msg.Role.StartsWith("channel_", StringComparison.Ordinal)) continue;
                     if (string.IsNullOrEmpty(msg.SpeakerId) || msg.SpeakerId == otherId)
                         selected.Insert(0, msg);
                 }
@@ -331,6 +335,7 @@ namespace LivingWorldNpcs
                     {
                         var msg = memory.RecentHistory[i];
                         if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
+                        if (msg.Role != null && msg.Role.StartsWith("channel_", StringComparison.Ordinal)) continue;
                         if (!selected.Contains(msg))
                             selected.Insert(0, msg);
                     }
@@ -388,7 +393,7 @@ namespace LivingWorldNpcs
         /// （PlanSummary + CurrentStep，C# 快照），LLM 判定 adjust_plan（问进度=false，明确改做法=true）；
         /// isCampaign = 大地图能力提示段（只建议行军类计划，防「我去暗杀谁」）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null, string campaignAwareness = null, string selfAwareness = null, string currentStatusLine = null, string playerRelationSection = null, string partyRelationSection = null)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null, string campaignAwareness = null, string selfAwareness = null, string currentStatusLine = null, string playerRelationSection = null, string partyRelationSection = null, bool isPartyMember = true)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -547,8 +552,15 @@ namespace LivingWorldNpcs
             // 行军类计划（跟随/待命/前往定居点）；防「我去暗杀谁」式无法执行的建议（出戏）。
             if (isCampaign)
             {
-                // 大地图能力提示（文案单一事实源：LWN_prompt_im_capability_campaign）
-                string cap = LWNTextHelper.ResolvePrompt("LWN_prompt_im_capability_campaign");
+                // 🔴 2026-08-16（用户裁定：不在队伍就老实说不清楚）：能力段按回复者身份分流——
+                // 队伍成员/分兵随从用现文案（跟随主公/原地待命/前往定居点）；家族离队成员（不在队伍）
+                // 用 away 版：明确"主公队伍动向不知情，问位置/账目如实说不知道，禁止自称咱们/编地点"。
+                // 现文案假设回应者是主公军队一员，对离队成员是误导（实机 2026-08-16：阿速甘答
+                // "咱们正在卡拉迪亚大道上行进"——人设 away 文案单打独斗压不住能力段的"咱们"暗示）。
+                string capKey = isPartyMember
+                    ? "LWN_prompt_im_capability_campaign"
+                    : "LWN_prompt_im_capability_campaign_away";
+                string cap = LWNTextHelper.ResolvePrompt(capKey);
                 if (!string.IsNullOrWhiteSpace(cap))
                 {
                     sb.AppendLine(cap);
@@ -574,6 +586,14 @@ namespace LivingWorldNpcs
             }
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_im_reply_rule"));
+            // 🔴 2026-08-16（prompt 精简）：命令纪律/目标名纪律只在命令语境注入——riskScene（【目之所及】
+            // + 风险审视纪律）本来就是"动作命令才注入"的代理；闲聊/问句不背命令规则（原全量注入 ~430 字）
+            if (riskScene != null)
+            {
+                string commandRule = LWNTextHelper.ResolvePrompt("LWN_plan_im_command_rule");
+                if (!string.IsNullOrWhiteSpace(commandRule))
+                    sb.AppendLine(commandRule);
+            }
             return sb.ToString();
         }
 

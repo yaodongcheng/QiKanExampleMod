@@ -1241,25 +1241,42 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>与玩家的关系（队伍身份注入）：NPC 在玩家家族/队伍里时，明确告知玩家是其主公。
-        /// 解决"NPC 不知道自己在玩家队伍、玩家是其主公"的出戏（2026-08-10 日志实锤）。</summary>
+        /// 解决"NPC 不知道自己在玩家队伍、玩家是其主公"的出戏（2026-08-10 日志实锤）。
+        /// 🔴 2026-08-16（用户裁定：不在队伍就老老实实说不清楚）：三态化——同行（主队内）→
+        /// 原「正随他一同闯荡」文案；带队在外（分兵）→ 同左（原行为不变）；家族但不在队伍
+        /// （留守/他处）→ 新文案明确"不在队伍、对主公行踪所知有限"，禁止 LLM 自称同行答「咱们」
+        /// （实机 2026-08-16 阿速甘案：家族成员答"咱们眼下在卡拉迪亚的大道上"）。</summary>
         public string GetPartyRoleInfo()
         {
             if (BaseHero == null || Hero.MainHero == null || BaseHero == Hero.MainHero) return "";
             // 🔴 注意：本类有 string Clan 字段遮蔽类型名，静态访问必须全限定
             bool inPlayerClan = BaseHero.Clan != null && BaseHero.Clan == TaleWorlds.CampaignSystem.Clan.PlayerClan;
-            bool inPlayerParty = inPlayerClan || FriendlinessHelper.IsPlayerPartyMember(BaseHero);
-            if (!inPlayerParty) return "";
+            // 同行判定用严格口径（IsInMainParty），不用 IsPlayerPartyMember（IsPlayerCompanion
+            // 捷径把留守随从也算队伍成员）；分兵随从 = 带队在外，仍算"在队伍体系里"（原行为不变）
+            bool inPlayerParty = FriendlinessHelper.IsInMainParty(BaseHero)
+                || PartySplitFlow.IsSplitPartyLeader(BaseHero);
+            if (!inPlayerClan && !inPlayerParty) return "";
             string playerName = Hero.MainHero.Name.ToString();
             var sb = new StringBuilder();
             sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_lord", "## My Lord")); // lwn-ignore: B
-            if (inPlayerClan)
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_clan", // lwn-ignore: B
-                    "You are a member of the clan of {NAME} (your lord), traveling with him. He feeds and commands you, he is your lord.",
-                    ("NAME", playerName)));
+            if (inPlayerParty)
+            {
+                if (inPlayerClan)
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_clan", // lwn-ignore: B
+                        "You are a member of the clan of {NAME} (your lord), traveling with him. He feeds and commands you, he is your lord.",
+                        ("NAME", playerName)));
+                else
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_party", // lwn-ignore: B
+                        "You are in the party of {NAME} (your lord), his retainer on campaign.",
+                        ("NAME", playerName)));
+            }
             else
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_party", // lwn-ignore: B
-                    "You are in the party of {NAME} (your lord), his retainer on campaign.",
+            {
+                // 家族但不在队伍：老实承认不知行踪——位置认知边界（L4 遥距）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_clan_away", // lwn-ignore: B
+                    "You are a member of the clan of {NAME}. {NAME} is your lord, but you are not with his party right now — you know little of his current whereabouts.",
                     ("NAME", playerName)));
+            }
             return sb.ToString();
         }
 
