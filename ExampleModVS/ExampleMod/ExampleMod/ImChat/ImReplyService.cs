@@ -64,6 +64,9 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-16（方案 J3）：队伍私事注入许可（分兵随从 = L1 裁剪——位置/账目/主队物资
             // 不注入；RAG 主题表的 NeedsPartyMember 主题按此裁剪）
             public bool InjectPartyPrivates;
+            // 🔴 2026-08-16（方案 J3 补漏）：分兵随从自己的队伍状态快照（【分兵近况】——自己的
+            // party 位置/AI 行为/兵力，亲历级；主线程构建）
+            public string SplitPartyAwareness;
             // 🔴 2026-08-16（能力段分流）：回复者是否队伍成员（含分兵随从）——非队伍成员用
             // away 版大地图能力段（"主公队伍动向不知情，老实说不清楚"）
             public bool IsPartyMember;
@@ -191,6 +194,10 @@ namespace LivingWorldNpcs
             // 【队伍物资】/【主公的行头】属主队亲历级，分兵随从不注入；装备/等级/血况第一人称保留
             //（BuildSelfAwareness 内装备段不受此参数控制）
             string selfAwareness = WorldFactProvider.BuildSelfAwareness(npcHeroId, injectPartyPrivates);
+            // 🔴 2026-08-16（方案 J3 补漏）：分兵随从注入【分兵近况】——自己的 party 位置/AI 行为/兵力
+            //（亲历级，实机 18:05 答"在离主队不远处的旷野上扎营候命"与真实部队去向不符）；主队信息维持裁剪
+            string splitAwareness = (Mission.Current == null && isSplitLeader)
+                ? WorldFactProvider.BuildSplitPartyAwareness(npcHero) : null;
             // I1 现状行：历史提及检测（玩家本条消息 + 对话历史最近 12 条）——主线程取记忆快照；
             // 分兵随从不注入（主队账目/位置 = 亲历级）
             string currentStatusLine = null;
@@ -218,6 +225,7 @@ namespace LivingWorldNpcs
                     existing.RiskSceneContext = riskScene;
                     existing.CampaignAwareness = campaignAwareness;
                     existing.SelfAwareness = selfAwareness;
+                    existing.SplitPartyAwareness = splitAwareness;
                     existing.CurrentStatusLine = currentStatusLine;
                     existing.PlayerRelationSection = playerRelation;
                     existing.PartyRelationSection = partyRelation;
@@ -239,6 +247,7 @@ namespace LivingWorldNpcs
                     RiskSceneContext = riskScene,
                     CampaignAwareness = campaignAwareness,
                     SelfAwareness = selfAwareness,
+                    SplitPartyAwareness = splitAwareness,
                     CurrentStatusLine = currentStatusLine,
                     PlayerRelationSection = playerRelation,
                     PartyRelationSection = partyRelation,
@@ -493,6 +502,7 @@ namespace LivingWorldNpcs
                             executionContext: p.ExecutionCtx, isCampaign: isCampaign, sceneAwareness: p.SceneAwareness,
                             riskScene: p.RiskSceneContext, npcHeroId: p.HeroId,
                             campaignAwareness: p.CampaignAwareness, selfAwareness: p.SelfAwareness,
+                            splitPartyAwareness: p.SplitPartyAwareness,
                             currentStatusLine: p.CurrentStatusLine, playerRelationSection: p.PlayerRelationSection,
                             partyRelationSection: p.PartyRelationSection, isPartyMember: p.IsPartyMember);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）

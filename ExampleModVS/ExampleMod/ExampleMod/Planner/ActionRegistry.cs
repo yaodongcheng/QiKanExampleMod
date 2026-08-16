@@ -145,6 +145,16 @@ namespace LivingWorldNpcs
                                 DebugLogger.Log($"[ActionHandler] MOVE_TO(Party) {attacker?.Name} 率部前往 {target.Name}（{p.MemberRoster.TotalRegulars} 兵）");
                                 return;
                             }
+                            // 🔴 2026-08-16（归队兜底，实机 18:06/18:07 两连降级）：目标解析不到定居点，
+                            // 但目标是玩家本人（"归队/到我这来"语义——LLM 把 action_target 填成玩家名）→
+                            // 率部跟随玩家（escort），不再静默降级 NONE。真正"归队合并"走 gather_to_player
+                            //（IsValid 已补 attacker 侧），本兜底只覆盖"跟随"语义。
+                            if (defender != null && defender == Hero.MainHero)
+                            {
+                                V.GatherToPlayer(p);
+                                DebugLogger.Log($"[ActionHandler] MOVE_TO(Party) {attacker?.Name} 目标为主公 → 率部跟随玩家");
+                                return;
+                            }
                             DebugLogger.Log($"[ActionHandler] MOVE_TO(Party) 定居点解析失败: {name} → 降级 NONE");
                             return;
                         }
@@ -778,6 +788,8 @@ namespace LivingWorldNpcs
                 }
             },
             // 33. party_patrol（部队巡逻：defender party 巡逻其所在 settlement；🔴 资格守卫查 defender）
+            // 🔴 2026-08-16（同 gather_to_player 归队修复）：IsValid/Execute 加 attacker 侧——
+            // IM 对话 defender=玩家恒 false → 分兵随从永远没有巡逻可用（同族 bug，一并修复）
             new ActionSpec
             {
                 Code = "party_patrol",
@@ -786,13 +798,27 @@ namespace LivingWorldNpcs
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "party_patrol", LabelFallback = "start patrolling",
-                IsValid = (attacker, defender, agent) => defender != null
-                    && defender != Hero.MainHero
-                    && defender.Clan == Clan.PlayerClan
-                    && defender.PartyBelongedTo != null
-                    && defender.PartyBelongedTo != MobileParty.MainParty,
+                IsValid = (attacker, defender, agent) => PartySplitFlow.IsSplitPartyLeader(attacker)
+                    || (defender != null
+                        && defender != Hero.MainHero
+                        && defender.Clan == Clan.PlayerClan
+                        && defender.PartyBelongedTo != null
+                        && defender.PartyBelongedTo != MobileParty.MainParty),
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
+                    // 🔴 2026-08-16（同族修复）：分兵随从自己说话 → 巡逻自己的 party
+                    if (PartySplitFlow.IsSplitPartyLeader(attacker))
+                    {
+                        var sp = attacker.PartyBelongedTo;
+                        if (sp?.CurrentSettlement == null)
+                        {
+                            DebugLogger.Log($"[ActionHandler] PARTY_PATROL {attacker.Name} 无当前定居点 → 降级 NONE");
+                            return;
+                        }
+                        V.PatrolAround(sp, sp.CurrentSettlement);
+                        DebugLogger.Log($"[ActionHandler] PARTY_PATROL {attacker.Name} 巡逻 {sp.CurrentSettlement.Name}");
+                        return;
+                    }
                     if (defender == null || defender == Hero.MainHero
                         || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null
                         || defender.PartyBelongedTo == MobileParty.MainParty)
@@ -814,6 +840,10 @@ namespace LivingWorldNpcs
             // 34. gather_to_player（部队集结：defender party 移向玩家 party；资格守卫同 party_patrol）
             // 🔴 2026-08-16（方案 J 参数化）：随从独立 party → 归队合并（兵力归还 MemberRoster、
             // Hero 归队、销毁 party——PartySplitFlow.MergeBack）；非随从独立部队（领主等）→ 现状 escort 集结。
+            // 🔴 2026-08-16（归队修复，实机 18:06"百草 你归队吧"→ move_to 玩家名 → 解析失败降级 NONE）：
+            // IsValid/Execute 加 attacker 侧——IM 对话里 attacker = 说话 NPC、defender = 玩家（main_hero），
+            // 旧 IsValid 只查 defender → defender==MainHero 恒 false → 动作空间永远没有 gather_to_player，
+            // 分兵随从归队只能选 move_to 填玩家名。参照 move_to 的 dual-check 写法（IsSplitPartyLeader）。
             new ActionSpec
             {
                 Code = "gather_to_player",
@@ -822,13 +852,20 @@ namespace LivingWorldNpcs
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
                 LabelKey = "gather_to_player", LabelFallback = "march to assemble",
-                IsValid = (attacker, defender, agent) => defender != null
-                    && defender != Hero.MainHero
-                    && defender.Clan == Clan.PlayerClan
-                    && defender.PartyBelongedTo != null
-                    && defender.PartyBelongedTo != MobileParty.MainParty,
+                IsValid = (attacker, defender, agent) => PartySplitFlow.IsSplitPartyLeader(attacker)
+                    || (defender != null
+                        && defender != Hero.MainHero
+                        && defender.Clan == Clan.PlayerClan
+                        && defender.PartyBelongedTo != null
+                        && defender.PartyBelongedTo != MobileParty.MainParty),
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
+                    // 🔴 2026-08-16（归队修复）：分兵随从自己说话（attacker=分兵随从）→ 直接归队合并
+                    if (PartySplitFlow.IsSplitPartyLeader(attacker))
+                    {
+                        PartySplitFlow.MergeBack(attacker);
+                        return;
+                    }
                     if (defender == null || defender == Hero.MainHero
                         || defender.Clan != Clan.PlayerClan || defender.PartyBelongedTo == null
                         || defender.PartyBelongedTo == MobileParty.MainParty)

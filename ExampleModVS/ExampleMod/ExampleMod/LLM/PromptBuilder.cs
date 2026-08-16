@@ -393,7 +393,7 @@ namespace LivingWorldNpcs
         /// （PlanSummary + CurrentStep，C# 快照），LLM 判定 adjust_plan（问进度=false，明确改做法=true）；
         /// isCampaign = 大地图能力提示段（只建议行军类计划，防「我去暗杀谁」）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null, string campaignAwareness = null, string selfAwareness = null, string currentStatusLine = null, string playerRelationSection = null, string partyRelationSection = null, bool isPartyMember = true)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null, string campaignAwareness = null, string selfAwareness = null, string splitPartyAwareness = null, string currentStatusLine = null, string playerRelationSection = null, string partyRelationSection = null, bool isPartyMember = true)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -406,6 +406,13 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrWhiteSpace(selfAwareness))
             {
                 sb.AppendLine(selfAwareness);
+                sb.AppendLine();
+            }
+            // 🔴 2026-08-16（方案 J3 补漏）：分兵随从自己的队伍状态段（【分兵近况】——自己的
+            // party 位置/AI 行为/兵力，亲历级；补【此刻处境（大地图）】被裁后的自我定位空白）
+            if (!string.IsNullOrWhiteSpace(splitPartyAwareness))
+            {
+                sb.AppendLine(splitPartyAwareness);
                 sb.AppendLine();
             }
             // 🔴 2026-08-16（方案 E2）：campaign 版【目之所及】（大地图环境视野，队伍成员才注入）

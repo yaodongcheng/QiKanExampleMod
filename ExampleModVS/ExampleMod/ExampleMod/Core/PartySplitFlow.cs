@@ -90,6 +90,12 @@ namespace LivingWorldNpcs
                 }
                 // 6. 跟随主队（escort——分兵随从率部跟随玩家，V.GatherToPlayer = SetPartyAiAction.EscortParty）
                 try { V.GatherToPlayer(newParty); } catch (Exception ex) { DebugLogger.Log($"[Party] SPLIT_PARTY 跟随设置失败: {ex.Message}"); }
+                // 🔴 2026-08-16（跟随加固，卡诺普西斯堡案）：分兵部队锁定跟随——DoNotMakeNewDecisions
+                // 阻止 initiative 模型（反编译 MobilePartyAi.GetBehaviors 实锤：附近强敌 → avoidScore>1 →
+                // flee/engage 覆盖护航指令；9 兵小部队在战乱世界极易被触发）。玩家后续 SetMove* 指令
+                //（move_to/engage/patrol 走 SetPartyAiAction/SetMove* 直接写 DefaultBehavior）不走 initiative，
+                // 照常覆盖跟随。同 WorldEventSimulator 事件部队口径（1604 行同款）。
+                try { newParty.Ai.SetDoNotMakeNewDecisions(true); } catch (Exception ex) { DebugLogger.Log($"[Party] SPLIT_PARTY 锁定跟随失败: {ex.Message}"); }
                 try { newParty.SetPartyUsedByQuest(true); } catch { }
                 try { newParty.Party.SetVisualAsDirty(); } catch { }
                 // 🔴 2026-08-16（方案 L2）：分兵见闻旁白——第一人称亲历，写执行者本人记忆
