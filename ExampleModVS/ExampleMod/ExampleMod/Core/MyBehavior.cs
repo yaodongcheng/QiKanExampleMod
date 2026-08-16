@@ -100,8 +100,8 @@ namespace LivingWorldNpcs
         {
             try
             {
-                var kills = PlayerMissionEventLogic.TakeBattleKills();
-                var wounded = PlayerMissionEventLogic.TakeBattleWounded();
+                var kills = AttackTriggerMissionLogic.TakeBattleKills();
+                var wounded = AttackTriggerMissionLogic.TakeBattleWounded();
                 string place = WorldFactProvider.NearestSettlementName(15f);
                 string placeWord = place != null ? $"{place}附近" : "野外";
                 foreach (var hero in ImChatManager.GetChannelMembers(ImConversationType.Party))

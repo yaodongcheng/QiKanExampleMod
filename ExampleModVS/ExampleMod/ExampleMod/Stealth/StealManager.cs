@@ -217,7 +217,7 @@ namespace LivingWorldNpcs
         {
             if (victim == null || amount <= 0) return;
             // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知挂载点（玩家偷窃记账瞬间——同场景随从亲见）
-            PlayerMissionEventLogic.ReportPlayerMisconduct("Steal");
+            AttackTriggerMissionLogic.ReportPlayerMisconduct("Steal");
             _stolenLog.GetOrCreateValue(victim).Add(new StolenEntry { Gold = amount });
         }
 
@@ -260,7 +260,7 @@ namespace LivingWorldNpcs
         {
             if (agent == null || agent.SpawnEquipment[index].IsEmpty) return null;
             // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知挂载点（玩家扒窃物品瞬间——同场景随从亲见）
-            PlayerMissionEventLogic.ReportPlayerMisconduct("Steal");
+            AttackTriggerMissionLogic.ReportPlayerMisconduct("Steal");
 
             // 1. 获取物品数据
             EquipmentElement itemToSteal = agent.SpawnEquipment[index];
@@ -574,7 +574,7 @@ namespace LivingWorldNpcs
             try
             {
                 // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知挂载点（玩家偷动物瞬间——同场景随从亲见）
-                PlayerMissionEventLogic.ReportPlayerMisconduct("Steal");
+                AttackTriggerMissionLogic.ReportPlayerMisconduct("Steal");
                 // 目击系统开关：关闭时跳过目击检测
                 bool witnessSystemOn = Settings.Instance.WitnessSystemEnabled;
                 List<string> witnessHeroIds;
@@ -727,7 +727,7 @@ namespace LivingWorldNpcs
             {
                 if (settlement == null || Agent.Main == null) return;
                 // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知挂载点（玩家开箱偷窃瞬间——同场景随从亲见）
-                PlayerMissionEventLogic.ReportPlayerMisconduct("Steal");
+                AttackTriggerMissionLogic.ReportPlayerMisconduct("Steal");
 
                 bool wasWitnessed;
                 List<string> witnessHeroIds = null;
@@ -827,7 +827,7 @@ namespace LivingWorldNpcs
                 if (victim == null || Agent.Main == null) return;
                 if ((items == null || items.Count == 0) && gold <= 0) return;
                 // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知挂载点（玩家搜刮昏迷者瞬间——同场景随从亲见）
-                PlayerMissionEventLogic.ReportPlayerMisconduct("Steal");
+                AttackTriggerMissionLogic.ReportPlayerMisconduct("Steal");
 
                 // 本地化：昏迷受害者名兜底
                 string victimName = victim.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_ui_steal_name_unconscious", "the unconscious person");

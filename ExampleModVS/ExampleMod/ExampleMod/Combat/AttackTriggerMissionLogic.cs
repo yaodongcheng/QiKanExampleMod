@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
+using TaleWorlds.CampaignSystem.Party;
 using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Engine;
@@ -72,6 +73,19 @@ namespace LivingWorldNpcs
         /// <summary>友方保护提示冷却：同一目标 2 秒内最多提示一次（防连续挥砍刷屏）。</summary>
         private static readonly Dictionary<int, float> _lastFriendlyBlockedHint = new Dictionary<int, float>();
         private const float FRIENDLY_BLOCKED_HINT_COOLDOWN = 2.0f;
+
+        // ══════════════════ PlayerMissionEventLogic 并入（2026-08-16 用户裁定：Mission 层统一总线，
+        // 删除独立 MissionLogic——所有功能归位到事件源）══════════════════
+        // D1 mission 进出感知（首帧防重）
+        private bool _reported;
+        // K2 犯罪关切（静态延迟确认：记账瞬间证人可能尚未注册，下一帧再查）
+        private static string _pendingCrimeWord;
+        private static float _pendingCrimeCheckAt;
+        private static bool _crimeCareUsed;  // 同场犯罪只关切一次
+        // L1 战斗表现统计（Mission 期间累计；battle_win/lose 挂载点消费后清空）
+        private static readonly Dictionary<string, int> _battleKills = new Dictionary<string, int>();
+        private static readonly HashSet<string> _battleWounded = new HashSet<string>();
+        private static readonly object _battleStatLock = new object();
 
         // ══════════════════ 被捕随从名单（Phase E 转押，2026-08-14 分阶段）══════════════════
         // 🔴 为什么缓存而非 teardown 期读 Agent：Mission 结束时部分 Agent 已被引擎提前移除
@@ -223,6 +237,23 @@ namespace LivingWorldNpcs
                 affectedAgentAffectsCalc.Health = newHealth;
             }
 
+            // 🔴 2026-08-16（L1 战斗统计并入，原 PlayerMissionEventLogic.OnAgentRemoved）：队伍成员亲手
+            // 击杀（受害者非玩家、非友军）→ 计数（battle_win/lose 挂载点 TakeBattleKills 消费，L1 旁白素材）
+            if (affectedAgent != null && affectedAgentAffectsCalc != null
+                && affectedAgent != affectedAgentAffectsCalc && affectedAgent != Agent.Main
+                && !FriendlinessHelper.IsFriendlyToPlayer(affectedAgent)
+                && FriendlinessHelper.IsPlayerPartyMember(affectedAgentAffectsCalc))
+            {
+                var killerHero = (affectedAgentAffectsCalc.Character as CharacterObject)?.HeroObject;
+                if (killerHero != null)
+                {
+                    lock (_battleStatLock)
+                    {
+                        _battleKills[killerHero.StringId] = _battleKills.TryGetValue(killerHero.StringId, out var k) ? k + 1 : 1;
+                    }
+                }
+            }
+
             // 死亡的可靠信号：被击杀 / 击晕的人类计入可搜刮尸体列表。
             // 这是主入口（OnAgentHit 里的 Health<=0 只能兜住「最后一击恰好被本逻辑捕获」的情况，
             // 补刀、击晕、流血致死等都会漏）。_deadAgents 是 HashSet，重复 Add 自动去重。
@@ -301,6 +332,20 @@ namespace LivingWorldNpcs
 
         public override void OnAgentHit(Agent affectedAgent, Agent attackerAgent, in MissionWeapon attackerWeapon, in Blow blow, in AttackCollisionData attackCollisionData)
         {
+
+            // 🔴 2026-08-16（L1 负伤统计并入，事件驱动替代 tick 轮询——与 K1 同思路）：队伍成员受击
+            // 且血 <0.5 → 记负伤（battle_win/lose 挂载点 TakeBattleWounded 消费，L1 旁白素材）
+            if (affectedAgent != null && affectedAgent != Agent.Main
+                && affectedAgent.HealthLimit > 0f
+                && affectedAgent.Health / affectedAgent.HealthLimit < 0.5f
+                && FriendlinessHelper.IsPlayerPartyMember(affectedAgent))
+            {
+                var woundedHero = (affectedAgent.Character as CharacterObject)?.HeroObject;
+                if (woundedHero != null)
+                {
+                    lock (_battleStatLock) { _battleWounded.Add(woundedHero.StringId); }
+                }
+            }
 
             // 🆕 友方保护（主动攻击拦截）：MCM 开关关闭（默认）且目标是玩家友方 →
             // 伤害无效化（镜像切磋虚拟血回血手法：引擎 HandleBlow 内 OnAgentHit 早于死亡判定，
@@ -552,6 +597,11 @@ namespace LivingWorldNpcs
         {
             base.OnMissionTick(dt);
 
+            // 🔴 2026-08-16（PlayerMissionEventLogic 并入）：D1 mission 进出感知（首帧分类广播）+
+            // K2 犯罪关切延迟确认——全部 try/catch 各段独立
+            try { ReportMissionEntered(); } catch (Exception ex) { DebugLogger.Log($"[MissionSense] 首帧分类失败: {ex.Message}"); }
+            try { CheckPendingCrimeCare(); } catch (Exception ex) { DebugLogger.Log($"[Care] 犯罪关切异常: {ex.Message}"); }
+
             // 🔴 2026-08-13 崩溃修复：判负收场延后帧（blow 栈内同步收场 → AccessViolation，见 OnDuelLoser 注释）
             EndPendingDuel();
 
@@ -776,6 +826,244 @@ namespace LivingWorldNpcs
                         _arrestedCompanions.Remove(key);
                     }
                 }
+            }
+        }
+
+        // ══════════════════════════════════════════════════════════════════════
+        // 🔴 PlayerMissionEventLogic 并入（2026-08-16 用户裁定：删除独立 MissionLogic——
+        // Mission 层统一走本总线，功能归位到事件源）
+        // ══════════════════════════════════════════════════════════════════════
+
+        /// <summary>D1：Mission 首帧分类广播（实例级 _reported 防重；MissionLogic 随 Mission 销毁，恰一次）。
+        /// 分类（全部 try/catch，确定性 C#）：settlement = Settlement.CurrentSettlement（反编译确认 =
+        /// MainParty.CurrentSettlement）→ hideout/siege（攻守分流）/settlement（+子地点）；无 → battle
+        /// （最近定居点锚点 + 双方参战人数）。mission_* 频次高 → chatComment=false 只感知（话题预算留给大事）。</summary>
+        private void ReportMissionEntered()
+        {
+            if (_reported) return;
+            _reported = true;
+            // 🔴 跨 Mission 残留清理：旧 Mission 的犯罪延迟确认标记作废（新 Mission 的 PendingWorldEvent
+            // 是新实例，旧犯罪不该在新 Mission 里触发关切）
+            _pendingCrimeWord = null;
+            try
+            {
+                if (Hero.MainHero == null || Campaign.Current == null) return;
+                Settlement settlement = Settlement.CurrentSettlement;
+                string key;
+                string desc;
+                string name = settlement?.Name?.ToString() ?? "";
+                if (settlement != null)
+                {
+                    if (settlement.IsHideout)
+                    {
+                        key = "mission_hideout";
+                        desc = $"主公闯进了一处藏身处（{name}）";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                    }
+                    else if (settlement.SiegeEvent != null)
+                    {
+                        // 🔴 2026-08-16 审查修正：围城图标双方可见，攻守均为亲见——
+                        // BesiegerCamp.LeaderParty == MainParty → 攻城方"随军攻打"；否则守城/援军
+                        // "抵御围攻"（禁误报攻打自家城）。实锤：SiegeEvent.BesiegerCamp.LeaderParty（MobileParty）
+                        key = "mission_siege";
+                        bool attacker = settlement.SiegeEvent.BesiegerCamp?.LeaderParty == MobileParty.MainParty;
+                        desc = attacker ? $"主公随军攻打 {name}" : $"主公在 {name} 抵御围攻";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                    }
+                    else
+                    {
+                        key = "mission_settlement";
+                        string locName = CampaignMission.Current?.Location?.Name?.ToString();
+                        desc = string.IsNullOrEmpty(locName) ? $"主公进了 {name}" : $"主公进了 {name}（{locName}）";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                    }
+                }
+                else
+                {
+                    // 野战/无定居点关联场景（城门遇袭/村庄外等）：最近定居点锚点（方案 A helper 复用）
+                    key = "mission_battle";
+                    string near = WorldFactProvider.NearestSettlementName(15f);
+                    desc = near != null ? $"主公在 {near} 附近的旷野与人交战" : "主公在荒野与人交战";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                    // 双方参战人数（信息面 #29/#33 增强，亲见级）：IsEnemyOf(Agent.Main) 为假 = 我方
+                    try
+                    {
+                        int mine = 0, theirs = 0;
+                        if (Mission.Current?.Agents != null)
+                        {
+                            foreach (var a in Mission.Current.Agents)
+                            {
+                                if (a == null || !a.IsActive()) continue;
+                                if (Agent.Main != null && a.IsEnemyOf(Agent.Main)) theirs++;
+                                else mine++;
+                            }
+                        }
+                        int total = mine + theirs;
+                        if (total > 0)
+                            desc += $"，双方投入约 {total} 余人";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                    }
+                    catch { /* 人数异常不加（try/catch） */ }
+                }
+                DebugLogger.Log($"[Sense] mission 分类: {key}: {desc}");
+                ImEventBroadcaster.BroadcastPlayerEvent(key, desc, chatComment: false);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[MissionSense] mission 分类失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>K2 犯罪关切延迟确认（记账瞬间证人可能尚未注册，下一帧再查——原 PlayerMissionEventLogic
+        /// tick 轮询迁移；_pendingCrimeWord 非空才工作，无犯罪记账时零开销）。</summary>
+        private static void CheckPendingCrimeCare()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_pendingCrimeWord)) return;
+                if (Mission.Current == null || Agent.Main == null || !Agent.Main.IsActive()) return;
+                // 每帧确认窗口（记账后 ~2s 内有效）
+                float now = Mission.Current.CurrentTime;
+                if (_pendingCrimeCheckAt > 0f && now - _pendingCrimeCheckAt > 2f)
+                {
+                    _pendingCrimeWord = null;
+                    return;
+                }
+                var pending = AgentAIController.Instance?.PendingWorldEvent;
+                if (pending == null) return;
+                bool hasWitness = pending.WitnessTestimonies?.Any(t => t != null
+                    && (t.WitnessHeroId != null || t.TemplateId != null)) == true;
+                if (!hasWitness)
+                {
+                    DebugLogger.Log($"[Care] 犯罪关切跳过：无目击者（没人看见 = 随从没理由急）");
+                    _pendingCrimeWord = null;
+                    return;
+                }
+                if (_crimeCareUsed) return;
+                _crimeCareUsed = true;
+                if (MBRandom.RandomFloat >= 0.5f)
+                {
+                    DebugLogger.Log($"[Care] 犯罪关切未中签（概率 0.5）");
+                    _pendingCrimeWord = null;
+                    return;
+                }
+                Agent nearest = FriendlinessHelper.FindNearestPartyMemberAgent(Agent.Main);
+                if (nearest == null)
+                {
+                    DebugLogger.Log($"[Care] 犯罪关切跳过：无同场景队伍成员在场");
+                    _pendingCrimeWord = null;
+                    return;
+                }
+                // 本地化：LWN_im_care_crime（玩家可见文本；护主不告发——只关切/催促方向）
+                string line = LWNTextHelper.ResolveText("LWN_im_care_crime", "Run, my lord! The guard saw it!");
+                SpeechChannel.Say(nearest, line, SpeechPriority.Warning,
+                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(nearest), Agent.Main, "crime_witnessed", null));
+                DebugLogger.Log($"[Care] {nearest.Name} 犯罪关切: {line}");
+                _pendingCrimeWord = null;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Care] 犯罪关切失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 犯罪感知 + 犯罪当场关切（G3①/K2，2026-08-16）：犯罪记账瞬间（KnockoutFlow.Resolve /
+        /// StealManager 记账调用处）调用。
+        /// G3① 总是写：同场景队伍成员 RecordDynamicMemory（随从亲眼所见即亲历——"无第三方目击 →
+        /// PendingWorldEvent 不激活"只意味着系统层面无 Alarmed/无犯罪事件后续反应（没人看见 = 世界层面
+        /// 没发生），**不等于随从不感知**——叙事层面发生了，随从记忆照写）。
+        /// K2 概率关切：PendingWorldEvent 有目击者（没人看见 → 随从没理由急）→ 概率 0.5 + 同场一次 →
+        /// SpeechChannel 冒泡「主公快走，那守卫瞧见了！」（护主不告发——随从是同伙，看见守卫来抓
+        /// 不会喊"抓小偷"，模板只允许关切/催促方向）。证人注册可能晚于记账 → 延迟确认在
+        /// <see cref="CheckPendingCrimeCare"/>（记账后下一帧查）。
+        /// 罪行词 = 记账 ActionType 既有词（Steal/AttackAlly/Knockout → 复用 LWN_crime_witness_act_*
+        /// 描述模板，不新造罪行文案）。
+        /// </summary>
+        public static void ReportPlayerMisconduct(string actionTypeWord)
+        {
+            try
+            {
+                if (Hero.MainHero == null || Mission.Current == null) return;
+                // 罪行描述（复用 WorldEvent 域既有描述模板）
+                string crimeDesc = actionTypeWord switch
+                {
+                    // 本地化：crime_witness_act_steal（玩家可见文本）
+                    "Steal" => LWNTextHelper.ResolveText("LWN_crime_witness_act_steal", "stole something"),
+                    // 本地化：crime_witness_act_attack（玩家可见文本）
+                    "AttackAlly" => LWNTextHelper.ResolveText("LWN_crime_witness_act_attack", "started a fight"),
+                    // 本地化：crime_witness_act_knockout（玩家可见文本）
+                    "Knockout" => LWNTextHelper.ResolveText("LWN_crime_witness_act_knockout", "knocked someone out"),
+                    // 本地化：crime_witness_act_someone_stirring（玩家可见文本）
+                    _ => LWNTextHelper.ResolveText("LWN_crime_witness_act_someone_stirring", "was making trouble"),
+                };
+                // 地点锚点（方案 A helper 复用）
+                string near = WorldFactProvider.NearestSettlementName(15f);
+                string desc = near != null ? $"主公刚刚{crimeDesc}（{near}附近）" : $"主公刚刚{crimeDesc}";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                // 🔴 2026-08-16（方案 Q 补漏，P2）：犯罪计数（画像统计【主公的成色】）——
+                // 确定性聚合，与 battle_win/lose、imprison 同款挂钩（之前 RecordCrime 是死代码）
+                PlayerImageStore.RecordCrime();
+                // G3① 感知（总是，同场景随从——亲历者）
+                var members = ImChatManager.GetChannelMembers(ImConversationType.Party);
+                int written = 0;
+                foreach (var m in members)
+                {
+                    if (m == null || m == Hero.MainHero) continue;
+                    if (!ImChatManager.IsPresentInMission(m.StringId)) continue;
+                    AllNpcMemoryManager.GetMemory(m.StringId)?.RecordDynamicMemory(desc);
+                    written++;
+                }
+                DebugLogger.Log($"[Sense] 犯罪感知 {actionTypeWord}: 「{desc}」 → {written} 名同场景队伍成员");
+                // K2 延迟确认登记（证人可能尚未注册 → CheckPendingCrimeCare 下一帧查）
+                _pendingCrimeWord = actionTypeWord;
+                _pendingCrimeCheckAt = Mission.Current.CurrentTime;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Misconduct] 犯罪感知失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>G6① 战利品感知（2026-08-16，信息面 #30）：玩家打开战利品挑选界面 →
+        /// 同场景随从 RecordDynamicMemory（亲见——"主公正在翻拣战利品"）。挂载点 =
+        /// InteractionMissionView 的 LootFlowSession.OpenPerson/OpenChest 调用处。</summary>
+        public static void ReportLootOpen()
+        {
+            try
+            {
+                if (Mission.Current == null || Hero.MainHero == null) return;
+                string desc = "主公正在翻拣战利品";  // lwn-ignore: A（记忆描述 → LLM prompt 材料，铁律 13 豁免）
+                var members = ImChatManager.GetChannelMembers(ImConversationType.Party);
+                int written = 0;
+                foreach (var m in members)
+                {
+                    if (m == null || m == Hero.MainHero) continue;
+                    if (!ImChatManager.IsPresentInMission(m.StringId)) continue;
+                    AllNpcMemoryManager.GetMemory(m.StringId)?.RecordDynamicMemory(desc);
+                    written++;
+                }
+                DebugLogger.Log($"[Sense] 战利品感知 → {written} 名同场景队伍成员");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Sense] 战利品感知失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>取并清空本场战斗的击杀统计（battle_win/lose 挂载点调用，L1 旁白素材）。</summary>
+        public static Dictionary<string, int> TakeBattleKills()
+        {
+            lock (_battleStatLock)
+            {
+                var copy = new Dictionary<string, int>(_battleKills);
+                _battleKills.Clear();
+                return copy;
+            }
+        }
+
+        /// <summary>取并清空本场战斗的负伤名单（battle_win/lose 挂载点调用，L1 旁白素材）。</summary>
+        public static HashSet<string> TakeBattleWounded()
+        {
+            lock (_battleStatLock)
+            {
+                var copy = new HashSet<string>(_battleWounded);
+                _battleWounded.Clear();
+                return copy;
             }
         }
     }

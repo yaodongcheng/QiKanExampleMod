@@ -4249,6 +4249,9 @@
     <string id="LWN_im_dist_unit_km" text="{N}公里" />
     <string id="LWN_im_dist_unit_m" text="{N}米" />
     <string id="LWN_im_title_members" text="{NAME}（{COUNT}人）" />
+    <string id="LWN_cmd_not_in_settlement" text="错误：你当前不在定居点内。" />
+    <string id="LWN_story_generating" text="剧本正在生成中，请稍后..." />
+    <string id="LWN_story_generated" text="新的传闻剧本已生成！" />
     <!-- 2026-08-16（方案 C/D/K/R/S）：口嗨前缀 + 事件兜底 + 关切模板 + 求情/政治播报 -->
     <string id="LWN_im_bragging_tag" text="（吹牛）" />
     <string id="LWN_im_event_mission_settlement" text="主公进了一座城。" />

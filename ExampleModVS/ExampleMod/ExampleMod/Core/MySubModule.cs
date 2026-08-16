@@ -73,7 +73,7 @@ namespace LivingWorldNpcs
             StoryDataLoader.LoadEvents();
             var eventsMap = StoryDataLoader.eventsMap;
             if (Settings.Instance.ShowDebugMessages)
-                InformationManager.DisplayMessage(new InformationMessage("Story Load to check!"));
+                DebugLogger.Log("[MySubModule] Story Load to check!");
             //StoryEvent testEvent = StoryDataLoader.FindEvent("EP120500","0");
             //StoryDebugHelper.PrintEventInfo(testEvent);            
         }
@@ -98,7 +98,6 @@ namespace LivingWorldNpcs
             mission.AddMissionBehavior(new HeroSpawnerMissionBehavior());
             //🔴 2026-08-16（方案 D/K/L/P）：玩家 Mission 事件感知（首帧分类广播 + 血线关切 +
             // 犯罪感知/关切 + 战斗表现统计 + 行为亲见）
-            mission.AddMissionBehavior(new PlayerMissionEventLogic());
 
 
 

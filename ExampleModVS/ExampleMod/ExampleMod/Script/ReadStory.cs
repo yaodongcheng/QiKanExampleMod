@@ -177,7 +177,7 @@ namespace LivingWorldNpcs
             if (storyEvent == null)
             {
                 if (Settings.Instance.ShowDebugMessages)
-                    InformationManager.DisplayMessage(new InformationMessage("[StorySystem] Error: Event is null."));
+                    DebugLogger.Log("[StorySystem] Error: Event is null.");
                 return "[StorySystem] Error: Event is null.";
             }
 

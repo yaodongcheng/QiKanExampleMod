@@ -1114,6 +1114,11 @@ namespace LivingWorldNpcs
             // 身份判定 = DistressFlow.IsInDistress()。全部有代价（铁律 12）：赎金/罚金/贿赂钱 +
             // 贿赂检定可失败（钱没了罪还在）；赔偿对话纪律（铁律 10/11）：玩家不先开价，金额 = NPC 说了算）──
             // 44. pay_ransom（赎金求放——被俘场景；与看守/强盗头子对话）
+            // 🔴 2026-08-16（用户裁定：赎金是玩家点击的玩法，禁止出现在 NPC 决策空间）：
+            // IsValid 加 attacker == Hero.MainHero 守卫——求情动作是**玩家视角**（玩家被俘时对看守求放），
+            // IM/respond 的 attacker 恒为 NPC → 永不出现在 NPC 动作空间（实机 21:28:52：阿速甘（被俘 NPC）
+            // 选 pay_ransom → AcceptRansom 虚空扣玩家 15% 身家——探监场景被 IsPlayerCaptive 误判 + 无身份
+            // 守卫双重 bug）。玩家求情的入口 = 玩家侧输入（原版对话流注入/未来玩家动作），不走 NPC respond。
             new ActionSpec
             {
                 Code = "pay_ransom",
@@ -1122,7 +1127,7 @@ namespace LivingWorldNpcs
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 IdentityGated = true,
                 LabelKey = "pay_ransom", LabelFallback = "pay ransom",
-                IsValid = (attacker, defender, agent) => DistressFlow.IsPlayerCaptive(),
+                IsValid = (attacker, defender, agent) => attacker == Hero.MainHero && DistressFlow.IsPlayerCaptive(),
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
                     // 金额 = 对方说了算（RansomAmount：ComputeCost(Restitution) 统一入口或勒索基础值）
@@ -1133,6 +1138,7 @@ namespace LivingWorldNpcs
                 }
             },
             // 45. beg_mercy（求饶——犯罪被抓场景；认罚路径）
+            // 🔴 2026-08-16（同 pay_ransom）：attacker 身份守卫——玩家视角动作，不进 NPC 决策空间
             new ActionSpec
             {
                 Code = "beg_mercy",
@@ -1141,11 +1147,12 @@ namespace LivingWorldNpcs
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 IdentityGated = true,
                 LabelKey = "beg_mercy", LabelFallback = "beg for mercy",
-                IsValid = (attacker, defender, agent) => DistressFlow.IsPlayerCaught(),
+                IsValid = (attacker, defender, agent) => attacker == Hero.MainHero && DistressFlow.IsPlayerCaught(),
                 Execute = (attacker, defender, agent, l, t, s) =>
                     DistressFlow.BegMercy(defender != Hero.MainHero ? defender : null),
             },
             // 46. bribe_guard（贿赂——犯罪被抓场景；秘密转移 + 检定可失败：钱没了罪还在）
+            // 🔴 2026-08-16（同 pay_ransom）：attacker 身份守卫——玩家视角动作，不进 NPC 决策空间
             new ActionSpec
             {
                 Code = "bribe_guard",
@@ -1154,7 +1161,7 @@ namespace LivingWorldNpcs
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 IdentityGated = true,
                 LabelKey = "bribe_guard", LabelFallback = "bribe the guard",
-                IsValid = (attacker, defender, agent) => DistressFlow.IsPlayerCaught(),
+                IsValid = (attacker, defender, agent) => attacker == Hero.MainHero && DistressFlow.IsPlayerCaught(),
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
                     int amount = DistressFlow.RansomAmount() * 2;   // 贿赂 = 罚金两倍（买通代价更高）
