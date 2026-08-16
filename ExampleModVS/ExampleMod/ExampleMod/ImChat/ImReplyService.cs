@@ -468,8 +468,10 @@ namespace LivingWorldNpcs
                         // 🔴 2026-08-16（方案 J3）：分兵随从 → InjectPartyPrivates=false（位置/账目/
                         // 成员名单等 NeedsPartyMember 主题裁剪——分兵随从不亲历主队的事；普世主题保留）
                         // 🔴 2026-08-16（prompt 精简）：numericCovered = I1【此刻现状】已注入 → 世界概要跳过钱/粮/季节行
+                        // 🔴 2026-08-16（用户裁定：你们俩 = 频道最近两人）：传 p.Conv 供双实体查询兜底；
+                        // responderHeroId = 回复者本人（当事人放行裁剪，亲见自己的关系）
                         string facts = WorldFactProvider.BuildFactsForIm(p.RespondText, p.InjectPartyPrivates,
-                            numericCovered: p.CurrentStatusLine != null);
+                            numericCovered: p.CurrentStatusLine != null, conv: p.Conv, responderHeroId: p.HeroId);
                         // 🔴 2026-08-10 修复：speakerName 必须传「发送者」（=玩家）而不是 p.HeroName（NPC 自己）。
                         // 旧代码把 NPC 自己的名字传进去 → prompt 变成"对方 阿速甘 传讯给你"，
                         // NPC 以为自己在给自己传讯（日志实锤"他给他传讯"）。
