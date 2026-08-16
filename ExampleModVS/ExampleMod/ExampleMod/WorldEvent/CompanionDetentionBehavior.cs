@@ -60,6 +60,35 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 在押查询（prompt 认知注入用，2026-08-16 用户裁定：被俘随从必须知道自己被俘——实机
+        /// 百草药僧在押却答「主公，我在」，完全不知道自己被关着）。返回该随从当前被关押的定居点；
+        /// 不在押/被押在移动部队（无法定名）→ null。
+        /// 数据源：① mod 登记表 + 实况校验（hero.PartyBelongedToAsPrisoner == 登记 settlement 的 party——
+        /// 登记表可能含过期条目，小时清理是异步兜底，实况校验防误报）；② 引擎实况兜底（原版俘虏路径
+        /// 未被 mod 登记、但确实被关在定居点的俘虏，同样要知道自己被俘）。
+        /// </summary>
+        public static Settlement GetDetentionSettlement(Hero hero)
+        {
+            if (hero == null || Instance == null) return null;
+            try
+            {
+                foreach (var entry in Instance._entries)
+                {
+                    if (!SplitKey(entry, out var heroId, out var settlementId, out _)) continue;
+                    if (heroId != hero.StringId) continue;
+                    var s = Settlement.Find(settlementId);
+                    if (s != null && hero.PartyBelongedToAsPrisoner == s.Party) return s;
+                }
+                // 引擎实况兜底：被关在定居点的俘虏（非 mod 转押系统路径）
+                var holder = hero.PartyBelongedToAsPrisoner;
+                if (holder != null && holder.IsSettlement && holder.Settlement != null)
+                    return holder.Settlement;
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
         /// 该定居点所有**可赎回**的被关随从条目（按登记顺序）。过滤规则与赎回结算一致：
         /// 条目格式合法、hero 存在、事件存在——不满足即不可赎（小时清理会最终移除失效条目）。
         /// </summary>

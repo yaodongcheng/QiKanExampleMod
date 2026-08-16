@@ -546,7 +546,7 @@ namespace LivingWorldNpcs
                 }
                 var segs = new List<string>();
                 foreach (var s in PromptAuditSegmentMarkers)
-                    if (promptText.Contains(s)) segs.Add(s);
+                    if (PromptContainsSectionHeader(promptText, s)) segs.Add(s);
                 var ts = PromptAuditTsRegex.Matches(promptText)
                     .Cast<System.Text.RegularExpressions.Match>()
                     .Select(m => m.Groups[1].Value)
@@ -569,6 +569,16 @@ namespace LivingWorldNpcs
         /// <summary>I5 时间戳相对词（只匹配 [X] 括号形式——正文里的"今天"不误撞）。</summary>
         private static readonly System.Text.RegularExpressions.Regex PromptAuditTsRegex =
             new System.Text.RegularExpressions.Regex(@"\[(刚才|今天|昨天|几天前|上周|上个月|几个月前|很久以前)\]");
+
+        /// <summary>🔴 段标题只在行首匹配（2026-08-16 修复：原 Contains 全文本匹配导致 audit 与实际 prompt 不符——
+        /// 纪律正文里对段名的转述如「【近期回忆】与【对话历史】中提到的任何数值」被误报成注入段）。
+        /// 注入段标题恒为行首（PromptBuilder 每段 AppendLine 独立成行）；正文转述恒在句中。</summary>
+        private static bool PromptContainsSectionHeader(string text, string marker)
+        {
+            if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(marker)) return false;
+            if (text.StartsWith(marker, StringComparison.Ordinal)) return true;
+            return text.IndexOf("\n" + marker, StringComparison.Ordinal) >= 0;
+        }
 
         // ── 429 限流冷却（回应专用；冷却期内直接降级模板，不发请求）──
         private static float _respondRateLimitBlockedUntil;

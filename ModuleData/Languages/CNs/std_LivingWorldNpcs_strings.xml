@@ -4394,13 +4394,7 @@
     <string id="LWN_action_combat_end" text="哼，不自量力。" />
     <!-- 会话终结议论（M2：队伍群聊） -->
     <string id="LWN_dialog_settle_broadcast" text="在附近听到有人议论：{TOPIC}的事，好像{RESULT}。" />
-    <!-- Campaign 层说服会话（M3：私聊承诺 + 群聊动议兑现；言行一致——只兑现承诺不假扮行为） -->
-    <string id="LWN_campaign_persuade_agree" text="好，此事我记下了。{TOPIC}，我会照办的。" />
-    <string id="LWN_campaign_persuade_refuse" text="此事恕我不能应允，{TOPIC}休要再提。" />
-    <string id="LWN_campaign_persuade_settle_agree" text="罢了，就依你所言。" />
-    <string id="LWN_campaign_persuade_settle_refuse" text="此事不必再劝了。" />
-    <string id="LWN_campaign_motion_pass" text="就这么定了，大家照办。" />
-    <string id="LWN_campaign_motion_fail" text="此事还是从长计议吧。" />    <string id="LWN_dialog_bystander_refuse_2" text="（摇了摇头，自顾自走开）" />
+    <string id="LWN_dialog_bystander_refuse_2" text="（摇了摇头，自顾自走开）" />
     <string id="LWN_npc_steal_success" text="{NAME} 从 {TARGET} 身上摸到了 {AMOUNT}{GOLD}。" />
     <string id="LWN_npc_steal_equip_success" text="{NAME} 从 {TARGET} 身上摸走了 {ITEM}。" />
     <string id="LWN_npc_steal_empty" text="{NAME} 在 {TARGET} 身上没摸到东西。" />

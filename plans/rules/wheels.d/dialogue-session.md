@@ -104,6 +104,13 @@ LWN_dialog_{category}_{occupation}_{role}_{tier}_{n}  分类×职业风味（gua
 
 ## 4. CampaignSession —— Campaign 层适配（M3：私聊劝说 + 群聊动议 + 立场继承）
 
+> 🔴 **已删除（2026-08-16，用户裁决）**：私聊劝说 + 群聊动议是 AI 扩张产物，实机暴露双重负体验——
+> ①问句误判动议（"我们在哪里"含"我们"被当成提议，NPC 回"此事还是从长计议吧"否决一个问句）；
+> ②动议表态 LLM 请求 100% 浪费（`OnPlayerLine` 同步置 HasSpoken → 下一帧 Tick 立即冷场兑现模板消息，
+> 表态回包到达时 `Session.Settled == true` 被静默丢弃）；私聊劝说兑现空转（Settle 只有台词 + 立场缓存，
+> 文档声称的 PlanCard 下发未实现）。文件 `ImChat/CampaignSession.cs` 已删，`LWN_campaign_*` 8 key 已删。
+> **不要复活**；IM 私聊/群聊回复统一走 ImReplyService 通用管线。
+
 ```csharp
 // ImChat/CampaignSession.cs
 HeroStanceStore.GetInheritedAgree(heroId, intent) / Save(heroId, agree, resistance, intent, agreed)  // 跨会话立场：上次拒绝过的事下次更抗拒

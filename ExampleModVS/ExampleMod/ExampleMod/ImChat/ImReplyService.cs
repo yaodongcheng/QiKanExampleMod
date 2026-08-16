@@ -64,6 +64,9 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-16（方案 J3）：队伍私事注入许可（分兵随从 = L1 裁剪——位置/账目/主队物资
             // 不注入；RAG 主题表的 NeedsPartyMember 主题按此裁剪）
             public bool InjectPartyPrivates;
+            // 🔴 2026-08-16（能力段分流）：回复者是否队伍成员（含分兵随从）——非队伍成员用
+            // away 版大地图能力段（"主公队伍动向不知情，老实说不清楚"）
+            public bool IsPartyMember;
         }
 
         private static readonly object _lock = new object();
@@ -167,8 +170,12 @@ namespace LivingWorldNpcs
             string riskScene = WorldFactProvider.BuildRiskSceneContext(npcHeroId, lastPlayerText);
             // 🔴 2026-08-16（方案 E2/F2/I1/G10/T3a）：主线程构建认知快照（引擎对象只读主线程，
             // 生成线程直接用字符串）。认知边界：campaign 视野/自我物资段/人缘/关系网 = 同行亲见，
-            // 仅队伍成员（IsPartyMemberContext）注入；自我装备/等级段任何 Hero 注入（第一人称无边界）。
-            bool isPartyMember = IsPartyMemberContext(conv);
+            // 仅队伍成员注入；自我装备/等级段任何 Hero 注入（第一人称无边界）。
+            // 🔴 2026-08-16（用户裁定：注入看说话人身份，频道只管理回复人群）：队伍成员判定
+            // 改为严格"主队同行"口径（FriendlinessHelper.IsInMainParty）——家族频道里的队伍成员
+            // 同样 L1 全量；家族但不在队伍的成员 L4 遥距（普世 RAG only，位置/账目答"不清楚"
+            // 是正确表现，实机阿速甘案）。不用 IsPlayerPartyMember：其 IsPlayerCompanion 捷径
+            // 会把留守随从也算队伍成员。
             // 🔴 2026-08-16（方案 J3 口径裁决）：分兵随从 = "队伍成员，但独立行动"——认知注入由 L1
             // 全量降为 L1 裁剪：位置/账目/主队物资/感知记忆亲历级不注入（分兵随从不亲历主队的事），
             // 人尽皆知级（war/fief/renown/family/百科实体/关系）保留。
@@ -176,6 +183,7 @@ namespace LivingWorldNpcs
             Hero npcHero = null;
             try { npcHero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == npcHeroId); } catch { }
             bool isSplitLeader = PartySplitFlow.IsSplitPartyLeader(npcHero);
+            bool isPartyMember = isSplitLeader || FriendlinessHelper.IsInMainParty(npcHero);
             bool injectPartyPrivates = isPartyMember && !isSplitLeader;
             string campaignAwareness = (Mission.Current == null && injectPartyPrivates)
                 ? WorldFactProvider.BuildCampaignAwareness() : null;
@@ -214,6 +222,7 @@ namespace LivingWorldNpcs
                     existing.PlayerRelationSection = playerRelation;
                     existing.PartyRelationSection = partyRelation;
                     existing.InjectPartyPrivates = injectPartyPrivates;
+                    existing.IsPartyMember = isPartyMember;
                     return;
                 }
                 _pending[npcHeroId] = new PendingReply
@@ -234,6 +243,7 @@ namespace LivingWorldNpcs
                     PlayerRelationSection = playerRelation,
                     PartyRelationSection = partyRelation,
                     InjectPartyPrivates = injectPartyPrivates,
+                    IsPartyMember = isPartyMember,
                 };
             }
         }
@@ -457,7 +467,9 @@ namespace LivingWorldNpcs
                         // 动态知识注入（RAG）：命中「队伍/位置/时间」主题才拼事实段；队伍事实仅队伍成员可见
                         // 🔴 2026-08-16（方案 J3）：分兵随从 → InjectPartyPrivates=false（位置/账目/
                         // 成员名单等 NeedsPartyMember 主题裁剪——分兵随从不亲历主队的事；普世主题保留）
-                        string facts = WorldFactProvider.BuildFactsForIm(p.RespondText, p.InjectPartyPrivates);
+                        // 🔴 2026-08-16（prompt 精简）：numericCovered = I1【此刻现状】已注入 → 世界概要跳过钱/粮/季节行
+                        string facts = WorldFactProvider.BuildFactsForIm(p.RespondText, p.InjectPartyPrivates,
+                            numericCovered: p.CurrentStatusLine != null);
                         // 🔴 2026-08-10 修复：speakerName 必须传「发送者」（=玩家）而不是 p.HeroName（NPC 自己）。
                         // 旧代码把 NPC 自己的名字传进去 → prompt 变成"对方 阿速甘 传讯给你"，
                         // NPC 以为自己在给自己传讯（日志实锤"他给他传讯"）。
@@ -480,7 +492,7 @@ namespace LivingWorldNpcs
                             riskScene: p.RiskSceneContext, npcHeroId: p.HeroId,
                             campaignAwareness: p.CampaignAwareness, selfAwareness: p.SelfAwareness,
                             currentStatusLine: p.CurrentStatusLine, playerRelationSection: p.PlayerRelationSection,
-                            partyRelationSection: p.PartyRelationSection);
+                            partyRelationSection: p.PartyRelationSection, isPartyMember: p.IsPartyMember);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）
@@ -607,22 +619,6 @@ namespace LivingWorldNpcs
                 if (hero != null && hero.StringId == heroId) return a;
             }
             return null;
-        }
-        /// <summary>会话成员是否队伍成员（动态知识注入的可见性裁剪：队伍/位置事实只给同行者）。</summary>
-        private static bool IsPartyMemberContext(ImConversation conv)
-        {
-            if (conv == null) return false;
-            if (conv.Type == ImConversationType.Party) return true;
-            if (conv.Type == ImConversationType.Direct && !string.IsNullOrEmpty(conv.PartnerHeroId))
-            {
-                try
-                {
-                    var hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == conv.PartnerHeroId);
-                    return hero != null && FriendlinessHelper.IsPlayerPartyMember(hero);
-                }
-                catch { return false; }
-            }
-            return false;
         }
         /// <summary>群聊活力·拌嘴 v3（2026-08-10 人格化）：跟随回复者拼入【同僚互动】段——
         /// 上一位同伴实际台词 + 两人关系档位 + **固定回应模式**（ImChatManager.GetResponseMode：

@@ -225,7 +225,9 @@ namespace LivingWorldNpcs
             catch { return new List<KeyValuePair<string, string>>(); }
         }
 
-        public static string BuildFactsForIm(string playerText, bool isPartyMember)
+        /// <param name="numericCovered">🔴 2026-08-16（prompt 精简）：I1【此刻现状】已注入（数值话题命中）时
+        /// 世界概要跳过钱/粮/季节行——同一数值不在 prompt 里出现两遍；未命中则概要照常全量（问句兜底）。</param>
+        public static string BuildFactsForIm(string playerText, bool isPartyMember, bool numericCovered = false)
         {
             if (string.IsNullOrWhiteSpace(playerText)) return "";
             // 🔴 2026-08-16（方案 T）：双实体关系查询优先（文本命中两个不同 Hero + 关系词 → X↔Y 硬事实）
@@ -284,7 +286,7 @@ namespace LivingWorldNpcs
             if (!anyHit && IsQuestion(playerText))
             {
                 body.AppendLine(LWNTextHelper.ResolveText("LWN_fact_title_summary", "## World Overview (common facts you know)")); // lwn-ignore: B
-                body.AppendLine(QuerySummary(isPartyMember));
+                body.AppendLine(QuerySummary(isPartyMember, numericCovered));
                 body.AppendLine();
             }
             return body.ToString();
@@ -409,6 +411,24 @@ namespace LivingWorldNpcs
             // 场景内优先：同场 NPC 的位置用相对方位（坐标玩家不可用，念坐标也出戏）
             string inScene = QueryInSceneLocation(hero);
             if (inScene != null) return inScene;
+
+            // 🔴 2026-08-16（被俘 = 属于俘虏他的队伍，用户裁定）：被俘英雄 PartyBelongedTo 被引擎
+            // 清空，但 PartyBelongedToAsPrisoner 就是他**当前所属的队伍**——俘虏他的那支。
+            // 查询第一性 = "hero 属于什么 party"：被俘不是兜底，是主查询分支——必须答出
+            // 被哪个队伍俘虏（实机：阿速甘被吕卡隆俘获，同队百草被问"阿速甘在哪"应答
+            // "被吕卡隆的守军俘虏"，而非"无人知晓其下落"）。
+            var prisonParty = hero.PartyBelongedToAsPrisoner;
+            if (prisonParty != null)
+            {
+                // 被关在定居点（城镇/城堡/村庄的牢里）——俘虏者 = 该定居点守军
+                if (prisonParty.IsSettlement && prisonParty.Settlement != null)
+                    return $"- {hero.Name} 被{prisonParty.Settlement.Name}的守军俘虏，关押在那里。";
+                // 被移动部队俘虏押解（如"乌尔玻斯的部队"）——答出俘虏队伍
+                string captor = prisonParty.Name?.ToString();
+                return string.IsNullOrEmpty(captor)
+                    ? $"- {hero.Name} 被俘了，正被人押着行军。"
+                    : $"- {hero.Name} 被 {captor} 俘虏，正被押着行军。";
+            }
 
             string where = null;
             var party = hero.PartyBelongedTo;
@@ -1453,11 +1473,12 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>问句兜底概要：一行式核心状态（队伍成员版含同行者隐私，外人版只有普世事实）。</summary>
-        private static string QuerySummary(bool isPartyMember)
+        private static string QuerySummary(bool isPartyMember, bool numericCovered = false)
         {
             var sb = new StringBuilder();
             var party = MobileParty.MainParty;
-            if (isPartyMember && party != null)
+            // 🔴 2026-08-16（prompt 精简）：numericCovered（I1 已注入）→ 跳过队伍钱/粮/兵行（I1 有同值）
+            if (isPartyMember && party != null && !numericCovered)
             {
                 sb.AppendLine($"- 队伍现有 {party.MemberRoster.TotalRegulars} 名士兵、{party.MemberRoster.TotalHeroes} 名将领；" +
                               $"钱袋 {Hero.MainHero?.Gold ?? 0} {Settings.Instance.CurrencyName}；粮草约 {party.Food:0.0} 天。");
@@ -1478,7 +1499,9 @@ namespace LivingWorldNpcs
                 try { workshops = hero.OwnedWorkshops?.Count ?? 0; } catch { }
                 sb.AppendLine($"- 主公现为 {hero.Level} 级好手，年约 {hero.Age:0} 岁；名下商队 {caravans} 支、工坊 {workshops} 间。");
             }
-            sb.AppendLine($"- 现在是{GetSeasonName()}。");
+            // 🔴 2026-08-16（prompt 精简）：季节行同样被 I1 覆盖（I1 有"夏季、白天、午后、晴空万里"）
+            if (!numericCovered)
+                sb.AppendLine($"- 现在是{GetSeasonName()}。");
             return sb.ToString();
         }
 
@@ -1529,7 +1552,8 @@ namespace LivingWorldNpcs
         ///（方向词为 prompt 材料，豁免铁律 13）；距离单位转"里"（1 地图单位 ≈ 10 里：
         /// 行军约 4.5 单位/天 ≈ 40~50 里/天，2026-08-16 修正原稿 1 单位≈1 里量纲差）。
         /// 认知边界：仅队伍成员注入（同行=亲见，与方案 D 感知层、方案 A 可见性裁剪同口径）——
-        /// 调用方（ImReplyService.ScheduleReply）负责 IsPartyMemberContext 判定。
+        /// 调用方（ImReplyService.ScheduleReply）按回复者身份判定（IsInMainParty + 分兵，
+        /// 2026-08-16 裁定：注入看说话人身份不看频道）。
         /// 全部 try/catch（铁律 1）；构建行打 [CampaignSight] 日志（几定居点/几支部队，供调半径）。
         /// ⚠️ 主线程调用（引擎对象只读主线程）。
         /// </summary>
@@ -1745,12 +1769,14 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-16（方案 F + G2 + G7）：自我认知（第一人称亲见）
         // ═══════════════════════════════════════════════════════════
         /// <summary>
-        /// 🔴 2026-08-16（方案 F + G2 + G7）：自我认知——随从知道自己身上的装备、等级武艺、
+        /// 🔴 2026-08-16（方案 F + G2 + G7 + 在押认知）：自我认知——随从知道自己身上的装备、等级武艺、
         /// 队伍物资（物品可能很多，需合并简化），以及主公的行头（同行亲见）。
         /// 【我的状态】第一人称亲见——谁都知道自己穿什么、几斤几两，无认知边界，任何 Hero 对话注入；
         /// 【主公的行头】同行亲见，仅 isPartyMember 注入（玩家 UI 私密物品不注入，装备属外观亲见）；
         /// 【队伍物资】同行亲见，仅 isPartyMember 注入（物品多 → 5 类合并简化，防几百行刷屏）。
         /// G7 血况：mission 内且是 Agent → 血况三档（Agent.Health/HealthLimit；弹药仍不做——数据口径不稳）。
+        /// 🔴 在押认知（2026-08-16 用户裁定：被俘随从必须知道自己被俘）：第一人称亲见——被关在哪
+        /// 自己最清楚，无认知边界；实机百草药僧在押却答「主公，我在」，完全不知道自己被关着。
         /// 全部 try/catch；构建行打 [SelfAware] 日志。⚠️ 主线程调用（引擎对象只读主线程）。
         /// </summary>
         public static string BuildSelfAwareness(string heroId, bool isPartyMember)
@@ -1768,6 +1794,10 @@ namespace LivingWorldNpcs
                 sb.AppendLine(BuildLevelSkillLine(hero));
                 string wound = BuildSelfHealthLine(heroId);
                 if (!string.IsNullOrEmpty(wound)) sb.AppendLine(wound);
+                // 🔴 2026-08-16（在押认知）：被关押是随从自身处境（第一人称亲见）——答「我们在哪」
+                // 时应说「我被关在 X，主公的行踪我不知晓」，而不是报主公位置或假装正常
+                string detention = BuildDetentionLine(hero);
+                if (!string.IsNullOrEmpty(detention)) sb.AppendLine(detention);
                 if (isPartyMember && Hero.MainHero != null)
                 {
                     string lordGear = BuildEquipmentLine(Hero.MainHero, firstPerson: false);
@@ -1794,6 +1824,23 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[SelfAware] 构建失败: {ex.Message}");
                 return "";
             }
+        }
+
+        /// <summary>在押认知一行（第一人称亲见，prompt 材料豁免铁律 13）：
+        /// 「我如今被关押在 {X}，身陷囹圄，无法与主公的队伍同行。」
+        /// 数据源 = CompanionDetentionBehavior.GetDetentionSettlement（登记表 + 引擎实况校验）。
+        /// 不在押 → null（零开销）。⚠️ 主线程调用。</summary>
+        private static string BuildDetentionLine(Hero hero)
+        {
+            try
+            {
+                if (hero == null) return null;
+                var jail = CompanionDetentionBehavior.GetDetentionSettlement(hero);
+                if (jail == null) return null;
+                string jailName = jail.Name?.ToString() ?? "某处";
+                return $"我如今被关押在 {jailName}，身陷囹圄，无法与主公的队伍同行。";
+            }
+            catch { return null; }
         }
 
         /// <summary>装备一行式（部位枚举：头/身/腿/靴/武器0-2/坐骑；空部位省略；物品名引擎本地化）。
@@ -2158,7 +2205,7 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-16（方案 G10）：主公的人缘常态段——【主公的人缘】。
         /// Hero.AllAliveHeroes 遍历 GetRelationWithPlayer()，显著值 |rel|≥20 才上榜，按绝对值降序各取
         /// 前 4（友好/记恨），空集不注入（零开销）；人名走 Hero.Name 本地化。
-        /// 预算 ~40 token/轮（L1 常态；仅 IsPartyMemberContext=true 时注入——调用方负责）。
+        /// 预算 ~40 token/轮（L1 常态；仅队伍成员注入——调用方按回复者身份判定，2026-08-16 裁定）。
         /// 关系是酒馆传闻级信息（人尽皆知 + 随从亲见），认知边界无虞。
         /// </summary>
         public static string BuildPlayerRelationSection()

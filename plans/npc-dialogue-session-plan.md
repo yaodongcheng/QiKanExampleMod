@@ -2,6 +2,10 @@
 
 > 状态：设计定稿（2026-08-11，用户裁定四点设想 + 授权拍板点按正确选择）
 > 🔴 **M0-M3 已全部实施（2026-08-11，Debug 编译通过）**。轮子登记：`wheels.d/dialogue-session.md`。
+> 🔴 **M3 Campaign 适配（私聊劝说 + 群聊动议 + HeroStanceStore）已删除（2026-08-16，用户裁决）**：
+> 实机日志暴露①问句误判动议（"我们在哪里"→ 模板"否决"）②动议表态 LLM 请求必被丢弃（HasSpoken 同步置位
+> → 下帧冷场兑现 → 回包 Settled 丢弃）③私聊劝说兑现空转（承诺消息无 PlanCard 下发）。§5.6/§6/§8-M3 仅作
+> 历史记录保留，勿按此复活；IM 回复统一走 ImReplyService 通用管线。
 > 遗留问题裁定：①战斗打断不兑现 ✓ ②persuade 为新语法（`"persuade":true`），旧 ask:follow 兼容保留待回归 ③MVP 用 HeroStanceStore（缓存+记忆旁白）④campaign 兑现 = 承诺消息+记忆（进场景后走既有计划管线）⑤群聊单动议（新动议覆盖旧）。
 > 相关：`im-command-action-upgrade.md`（§5.6 统一管线 / Q4 / BC-006）、`wheels.d/im.md`（附近频道/群聊纪律）、`wheels.d/agent.md`（移动分派）、`Interaction/InteractionController.cs`（ActionHandler 动作空间 ResolveSpace/GetActionSpacePrompt/HandleAction）
 > 完成后登记：`wheels.d/im.md` 或新分卷（对话会话轮子）
