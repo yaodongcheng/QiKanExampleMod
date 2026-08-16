@@ -961,8 +961,8 @@ namespace LivingWorldNpcs
                 //    原生 DropdownWidget 靠 reparent 到 Root 绕开，但 Window 根级 child 的树链不可靠
                 //    （FindWidgetById 找不到，实机回归），已回退标题行内布局）。
                 //    与 HandleManualScroll 同思路：手动命中——按坐标算行号（项高 34 = 30+边距 4，
-                //    VerticalBottomToTop 项 0 在底），hover/pressed 视觉直接 SetState 到项内
-                //    ImageWidget（引擎不更新这些状态就不会覆盖），点选按下即触发 ExecuteSelect。
+                //    VerticalBottomToTop + LWN swap：child 0 在顶），hover/pressed 视觉直接 SetState
+                //    到项内 ImageWidget（引擎不更新这些状态就不会覆盖），点选按下即触发 ExecuteSelect。
                 if (_vm != null && _vm.ChannelSelector.IsChannelListOpen && _compactChannelList != null)
                 {
                     var inner = FindWidgetById(_compactChannelList, "LWN_ImChat_ChannelListInner");
@@ -974,8 +974,12 @@ namespace LivingWorldNpcs
                         int hoverIdx = -1;
                         if (IsPointInRect(mouse, listPos, listSize) && count > 0)
                         {
+                            // 🔴 2026-08-15（实机反馈修复）：hover 队伍却高亮阿速甘——索引倒置。
+                            // VerticalBottomToTop + LWN swap 补丁下 child 0 在列表顶部（知识文档
+                            // 实操建议：第一个 child = 屏幕顶部），直接按从顶向下算行号即可，
+                            // 不要 count-1-fromTop 反转（那是 child 0 在底的反向布局）。
                             int fromTop = (int)((mouse.Y - listPos.Y) / 34f);
-                            hoverIdx = count - 1 - fromTop;
+                            hoverIdx = fromTop;
                             if (hoverIdx < 0 || hoverIdx >= count) hoverIdx = -1;
                         }
                         bool pressing = Input.IsKeyPressed(InputKey.LeftMouseButton) && hoverIdx >= 0;
