@@ -149,3 +149,24 @@ sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_quality"));          // 质�
 **DebugLogger 前缀**：`[LocFact]`（最近定居点+距离，调半径用）/ `[CampaignSight]`（几定居点/几支部队）/ `[SelfAware]` / `[RelWeb]` / `[StaleFact]`（I3 need_fact 观察日志——LLM JSON 加 `need_fact` 字段，v1 只记日志不动作）。
 
 **分兵口径（J3）**：`PartySplitFlow.IsSplitPartyLeader(hero)` 判定独立 party 领导 → 认知注入 L1 裁剪（位置/账目/主队物资不注入，人尽皆知级保留）——**禁止改 `FriendlinessHelper.IsPlayerPartyMember` 共享判定**，注入组装层单独判断（`ImReplyService.InjectPartyPrivates`）。
+
+### 🔴 分兵近况段（2026-08-16 J3 补漏，卡诺普西斯堡案）— `LLM/WorldFactProvider.cs` + `ImChat/ImReplyService.cs` + `LLM/PromptBuilder.cs`
+
+**解决什么问题**：L1 裁剪把位置/账目一刀切裁掉后，分兵随从 prompt 里**自己队伍的**位置/AI 去向也丢了——问"你的队伍要去哪"只能靠分兵瞬间的旁白猜（实机答"在离主队不远处的旷野上扎营候命"，实际部队已自行他往）。分兵随从是自己的部队统帅，**自己队伍的状态属第一人称亲历级**，只应裁主队信息。
+
+**关键签名**：
+- `BuildSplitPartyAwareness(Hero hero)` — 【分兵近况】段：自己的 party 位置（方案 A 判定链，基准 = 自己 party）+ 兵力 + AI 行为词（`DescribePartyAi`：`DefaultBehavior` → 跟随主公/前往 X/围住 X/巡逻/追击 X/守卫 X/原地待命/躲避敌情）；主线程构建，`[Party]` 日志
+- `NearestSettlementName(MobileParty party, float radius)` — **参数化重载**（原版硬编码 MainParty 不可复用）；`NearestSettlementName(float)` 变薄封装转发
+- 注入链路：`ImReplyService.ScheduleReply` 对 `IsSplitPartyLeader` 且 `Mission.Current == null` 构建 → PendingReply.SplitPartyAwareness → `BuildPrompt_ImReply(splitPartyAwareness)` 插在【我的状态】后
+- 审计：`【分兵近况】` 已进 `LLMService.PromptAuditSegmentMarkers`（`[PromptAudit]` segs 一行核对）
+
+**调用范例**（Prompt 实机效果 2026-08-16 18:37）：
+```
+【分兵近况】
+- 我正率部在 萨戈拉 附近（旷野中）。
+- 我手下约 9 名兵。
+- 队伍眼下的差事：率部跟随主公。
+```
+→ 问"你的队伍在干嘛"答"小的带这九名弟兄在萨戈拉附近的旷野里跟着您行军"（引用注入段，不再编）。
+
+**认知边界**：只注入**自己的** party（位置/兵力/AI），主队位置/账目/物资维持 J3 裁剪——负面检查：分兵随从 prompt 不得出现【此刻处境（大地图）】/【队伍物资】/【此刻现状】。

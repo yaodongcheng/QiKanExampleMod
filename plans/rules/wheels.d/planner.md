@@ -203,3 +203,30 @@ PlanCommandFlow.Start(companion);       // 需 Settings.Instance.IsLLMConfigured
 - **L1 战斗表现旁白**：`PlayerMissionEventLogic`（Mission 期间累计击杀数（`OnAgentRemoved` + `Agent.KillCount` 引擎原生）+ 负伤（血 <0.5））→ `MyBehavior.WriteBattleNarration(won)` 消费（battle_win/lose 挂载点）：「我随主公在 {place} 打了一仗，砍翻了 N 个敌人，我负了伤」——第一人称只写本人记忆，不广播（与 D 的玩家视角广播双通道互补）
 - **L2 分兵见闻**：`PartySplitFlow.Execute`/`MergeBack` 写「我领了一队人马离了主队，跟着主公走」/「我带着队伍回来了」——归队后【近期经历】自然带出，玩家问「这趟怎么样」能答
 - **L3 差事所见**：`move_to(Party)` 执行写「我正带队前往 {X}，在那边等主公」；`engage` 写「我带队去追击 {X}」（ActionRegistry Execute 内）
+
+## 🔴 Party 动作 IsValid/Execute 的 attacker 侧 dual-check（2026-08-16 归队/巡逻修复）— `Planner/ActionRegistry.cs`
+
+**解决什么问题**：IM 闲聊动作的 attacker = 说话 NPC、defender = 解析目标（私聊/群聊语境下恒为 `Hero.MainHero`）。旧 `gather_to_player`/`party_patrol` 的 `IsValid` 只查 defender（`defender != Hero.MainHero && …独立 party`）→ **defender==MainHero 恒 false → 动作永远不进动作空间**——分兵随从想归队只能选 move_to 填玩家名 → 定居点解析失败 → 静默降级 NONE（实机 18:06/18:07 两连降级）。
+
+**关键模式**（范本：`move_to` 的 dual-check，2026-08-16 修复时给 gather_to_player/party_patrol 补上）：
+```csharp
+// IsValid：attacker 侧（分兵随从自己带队）OR defender 侧（命令他人部队）
+IsValid = (attacker, defender, agent) => PartySplitFlow.IsSplitPartyLeader(attacker)
+    || (defender != null && defender != Hero.MainHero && defender.Clan == Clan.PlayerClan
+        && defender.PartyBelongedTo != null && defender.PartyBelongedTo != MobileParty.MainParty),
+// Execute：attacker 分支**先于** defender 资格检查——分兵随从说话 → 直接动自己的 party
+Execute = (attacker, defender, agent, l, t, s) =>
+{
+    if (PartySplitFlow.IsSplitPartyLeader(attacker)) { PartySplitFlow.MergeBack(attacker); return; }  // gather
+    if (PartySplitFlow.IsSplitPartyLeader(attacker)) { V.PatrolAround(attacker.PartyBelongedTo, …); return; }  // patrol
+    …
+}
+```
+
+**配套兜底**：`move_to` 大地图分支——定居点解析失败但 `defender == Hero.MainHero`（LLM 把"归队"目标填成玩家名）→ `V.GatherToPlayer(p)` 跟随语义（**不是** MergeBack——拆散 vs 跟随语义分离，防"跟着我"误拆散部队）；真正合并走 gather_to_player。
+
+**判定链**：动作空间注入（`GetActionSpacePrompt` 第 91 行 `(action.Spaces & ActionSpace.Party) != 0 && !action.IsValid(attacker, defender, agent)`）与执行（`HandleImAction` → `HandleAction`）用同一 IsValid 约定。
+
+**DebugLogger 前缀**：`[ActionHandler]`（目标解析/资格降级）/ `[Party]`（分兵/归队/巡逻执行结果）。
+
+**教训**：新增 Party 空间动作时**两条腿都要查**——动作空间可见性（IsValid 进 prompt）和执行路径（Execute 资格）各查一次 attacker/defender；IM 语境 defender 恒为玩家，凡动作执行者是"队伍成员自己"的一律补 attacker 侧。

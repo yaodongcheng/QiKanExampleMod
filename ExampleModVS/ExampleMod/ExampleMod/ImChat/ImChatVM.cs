@@ -260,36 +260,31 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public string SenderName => _msg?.SenderName ?? "";
 
-        /// <summary>🔴 2026-08-12（队伍频道在场标记）：消息流显示名——队伍/家族频道里 Hero 消息在名字旁加
-        /// 括号标记（动态计算，渲染时实时反映 NPC 当前状态——不写进 SenderName 存档快照，
-        /// 读档/离场后标记自动跟随现状）。玩家消息/私聊/群聊/附近频道原样。
-        /// 🔴 2026-08-13（用户裁定）：在场 → 实际距离「（xx米外）」；不在场按身份分级
-        /// （DescribeAwayLocation：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处）。
-        /// 🔴 2026-08-16（方案 B）：DescribeAwayLocation 在大地图同行场景返回 null（同行无在场/不在场
-        /// 之分，标记无意义）→ 跳过括号拼接，防「名字（null）」。</summary>
+        /// <summary>🔴 2026-08-12（队伍频道在场标记）：消息流显示名——Hero 消息在名字旁加括号标记。
+        /// 玩家自己的消息原样。
+        /// 🔴 2026-08-13（用户裁定）：在场 → 实际距离「（xx米外）」；不在场按身份分级。
+        /// 🔴 2026-08-16（用户裁定：位置后缀与消息绑定 + 存储结构化数据）：**快照优先**——每条消息
+        /// 显示发出时刻的位置（历史不回漂，能看到每句话是从哪边发的）；旧消息（无快照）回退实时计算。
+        /// 统一走 ImChatManager.ResolveLocationSuffix 解析（存储 Kind+Name+Dist 结构化数据，
+        /// 显示文案按当前语言 LWN_* 本地化，不焊死字符串）。
+        /// 🔴 2026-08-16（用户问询：私聊/频道是否显示）：后缀适用**所有传书频道**（队伍/家族/王国/
+        /// 私聊——远处传书才需要知道对方从哪发信）；**附近频道（Nearby）除外**——场景内实时冒泡，
+        /// 人就在身边，频道本身已表达在场，无传书语义。</summary>
         [DataSourceProperty]
         public string DisplaySenderName
         {
             get
             {
                 if (_msg == null) return "";
-                bool isGroup = _msg.ConvId == ImChatStore.ChannelParty || _msg.ConvId == ImChatStore.ChannelClan;
-                if (isGroup && !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId))
+                bool showSuffix = !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId)
+                    && _msg.ConvId != NearbyFeed.ChannelId;
+                if (showSuffix)
                 {
-                    var dist = ImChatManager.GetMissionDistanceMeters(_msg.SenderHeroId);
-                    if (dist.HasValue)
-                    {
-                        int meters = MathF.Ceiling(dist.Value);
-                        if (meters < 1) meters = 1;
-                        // 本地化：IM 消息发送者距离标签（铁律 13 走 LWN_im_sender_dist）
-                        return LWNTextHelper.ResolveCompound("LWN_im_sender_dist",
-                            "{NAME} ({DIST} m away)", ("NAME", _msg.SenderName), ("DIST", meters.ToString()));
-                    }
-                    // 不在场：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处
-                    // 🔴 2026-08-16（方案 B）：null = 大地图同行（标记无意义）→ 跳过括号拼接
-                    string away = ImChatManager.DescribeAwayLocation(_msg.SenderHeroId);
-                    if (!string.IsNullOrEmpty(away))
-                        return $"{_msg.SenderName}（{away}）";
+                    // 快照优先（发出时定格）；旧消息（无字段）回退实时计算——同一解析路径，显示格式一致
+                    var loc = _msg.LocationSuffix ?? ImChatManager.BuildLocationSuffix(_msg.SenderHeroId);
+                    string suffix = ImChatManager.ResolveLocationSuffix(loc);
+                    if (!string.IsNullOrEmpty(suffix))
+                        return $"{_msg.SenderName}（{suffix}）";
                     return _msg.SenderName;
                 }
                 return _msg.SenderName;

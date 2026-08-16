@@ -126,6 +126,14 @@ namespace LivingWorldNpcs
         [JsonProperty("rt")]
         public string ResolvedTargetText;
 
+        // 🔴 2026-08-16（用户裁定：位置后缀与消息绑定 + 存储结构化数据）：消息发出时刻的位置后缀
+        // 快照（结构化——Kind + 参数，显示文案由 UI 层 ResolveLocationSuffix 按当前语言解析，
+        // 不焊死字符串：换语言/改文案不动历史数据）。发出后不再变更，历史里每句话能看到是从哪边发的。
+        // 构建点 = ImChatManager.DeliverNpcMessage（BuildLocationSuffix，主线程）；旧消息（无字段）
+        // → UI 回退实时计算。
+        [JsonProperty("ls")]
+        public ImLocationSuffix LocationSuffix;
+
         [JsonIgnore]
         public bool IsSelf => SenderHeroId == ImChatManager.PlayerId;
 
@@ -221,6 +229,38 @@ namespace LivingWorldNpcs
             Content = content;
             Kind = kind;
             TimeStamp = ImChatManager.NowUnixMs();
+        }
+    }
+
+    /// <summary>
+    /// 🔴 2026-08-16（用户裁定：位置后缀与消息绑定 + 存储结构化数据）：消息位置后缀快照——
+    /// 发出时定格（Kind + 参数），显示文案由 UI 层 ImChatManager.ResolveLocationSuffix 按当前语言
+    /// 解析（铁律 13 走 LWN_* 本地化），不焊死字符串：换语言/改文案不动历史数据。
+    /// Kind 取值：dist_m（{DIST}米外）/ in_party（在队伍中）/ outside_town（城外）/
+    /// outside_village（村外）/ outside_castle（堡外）/ outside_stronghold（据点外）/
+    /// prisoner_here（被关押在{NAME}——同城特殊化：玩家在关押据点内 mission）/
+    /// prisoner_dist（在{DIST}米外的{NAME}（俘虏中）——NAME=据点名或押解部队名）/ prisoner（被俘，兜底）/
+    /// from_dist（来自{DIST}米外的{NAME}）。
+    /// </summary>
+    [Serializable]
+    public class ImLocationSuffix
+    {
+        [JsonProperty("k")]
+        public string Kind;      // 见类注释取值表
+
+        [JsonProperty("n")]
+        public string Name;      // 据点名/部队名（引擎本地化名快照；无名字段为空串）
+
+        [JsonProperty("d")]
+        public int Dist;         // 米（dist_m / from_dist 用；构建时已按地图单位 ×5000 换算）
+
+        public ImLocationSuffix() { } // JSON 反序列化用
+
+        public ImLocationSuffix(string kind, string name = null, int dist = 0)
+        {
+            Kind = kind;
+            Name = name ?? "";
+            Dist = dist;
         }
     }
 
