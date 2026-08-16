@@ -116,7 +116,11 @@ namespace LivingWorldNpcs
             new FactTopic
             {
                 Id = "time", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_time"), NeedsPartyMember = false, // lwn-ignore: B
+                // 🔴 2026-08-16（修复）：补天气词——G1 天气词在 QueryTimeFact 内但主题关键词表没有
+                // "天气"，问天气 rag[] 空 → 天气答全靠 LLM 从"夏季"编（实机"旷野上正吹着干爽的风"）。
+                // I1 触发词表（NumericStatusKeywords）独立于本表，补词不影响 T05 聊天气零注入。
                 Keywords = new[] { "今天", "几号", "几月", "季节", "日期", "何时", "日子", "时辰", "是日",
+                    "天气", "晴", "雨", "雪", "weather", "rain", "snow",
                     "today", "date", "season", "month", "day", "when" },
                 Query = QueryTimeFact,
             },
@@ -1205,9 +1209,16 @@ namespace LivingWorldNpcs
         /// 复用此 helper（单一实现）。</summary>
         public static string NearestSettlementName(float radius)
         {
+            return NearestSettlementName(MobileParty.MainParty, radius);
+        }
+
+        /// <summary>同 NearestSettlementName，但以指定 party 的位置为基准（🔴 2026-08-16 分兵补漏：
+        /// 分兵随从自己的队伍位置锚点——自己 party 的位置是亲历级，主队版 helper 硬编码 MainParty
+        /// 不可复用）。</summary>
+        private static string NearestSettlementName(MobileParty party, float radius)
+        {
             try
             {
-                var party = MobileParty.MainParty;
                 if (party == null || Campaign.Current == null) return null;
                 Vec2 basePos = V.Pos(party);
                 Settlement best = null;
@@ -1669,6 +1680,93 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[CampaignSight] 构建失败: {ex.Message}");
                 return "";
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // 🔴 2026-08-16（方案 J3 补漏）：分兵随从自己的队伍状态（【分兵近况】）
+        // ═══════════════════════════════════════════════════════════
+        /// <summary>
+        /// 🔴 2026-08-16（方案 J3 补漏）：分兵随从自己的队伍状态——第一人称亲历（我是这支队伍的统帅，
+        /// 知道自己率部在哪、在干什么），补【此刻处境（大地图）】被 L1 裁剪后的自我定位空白。
+        /// 实机（2026-08-16 18:05）：分兵随从被问"你的队伍要去哪"答"就在离主队不远处的旷野上扎营候命"，
+        /// 实际部队已因 initiative flee 自行他往——prompt 里唯一的动态信息是分兵瞬间的旁白，AI 一偏离即失实。
+        /// 认知边界：只注入**自己的** party 状态（位置/AI 行为/兵力），主队信息（位置/账目/物资）维持裁剪。
+        /// 调用方（ImReplyService.ScheduleReply）按 PartySplitFlow.IsSplitPartyLeader 判定。
+        /// 全部 try/catch（铁律 1）；构建行打 [Party] 日志（与分兵/归队执行日志同标签，验证用）。
+        /// ⚠️ 主线程调用（引擎对象只读主线程）。
+        /// </summary>
+        public static string BuildSplitPartyAwareness(Hero hero)
+        {
+            try
+            {
+                if (hero == null || Campaign.Current == null) return "";
+                var party = hero.PartyBelongedTo;
+                if (party == null || party == MobileParty.MainParty) return "";
+                var sb = new StringBuilder();
+                sb.AppendLine("【分兵近况】");
+                // 自己的队伍位置（复用方案 A 判定链，基准 = 自己的 party）
+                if (party.CurrentSettlement != null)
+                    sb.AppendLine($"- 我正率部在 {party.CurrentSettlement.Name}。");
+                else if (party.TargetSettlement != null)
+                    sb.AppendLine($"- 我正率部行进在旷野中，前往 {party.TargetSettlement.Name}。");
+                else
+                {
+                    string near = NearestSettlementName(party, 15f);
+                    sb.AppendLine(near != null ? $"- 我正率部在 {near} 附近（旷野中）。" : "- 我正率部行进在旷野中。");
+                }
+                sb.AppendLine($"- 我手下约 {party.MemberRoster.TotalRegulars} 名兵。");
+                // AI 行为（DefaultBehavior → 中文词：跟随/前往/巡逻/追击/守卫/待命/躲避）
+                string ai = DescribePartyAi(party);
+                if (ai != null) sb.AppendLine(ai);
+                DebugLogger.Log($"[Party] BuildSplitPartyAwareness {hero.Name}（{party.MemberRoster.TotalRegulars} 兵，行为 {party.DefaultBehavior}）");
+                return sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Party] BuildSplitPartyAwareness 失败: {ex.Message}");
+                return "";
+            }
+        }
+
+        /// <summary>队伍 AI 行为 → 中文词（prompt 材料，豁免铁律 13；DefaultBehavior 反编译实锤
+        /// MobileParty.SetMoveEscortParty/SetMoveGoToSettlement 等直接写此字段）。</summary>
+        private static string DescribePartyAi(MobileParty party)
+        {
+            try
+            {
+                switch (party.DefaultBehavior)
+                {
+                    case AiBehavior.EscortParty:
+                        return "- 队伍眼下的差事：率部跟随主公。";
+                    case AiBehavior.GoToSettlement:
+                    case AiBehavior.RaidSettlement:
+                    case AiBehavior.BesiegeSettlement:
+                        var ts = party.TargetSettlement;
+                        if (ts != null)
+                            return party.DefaultBehavior == AiBehavior.GoToSettlement
+                                ? $"- 队伍眼下的差事：率部前往 {ts.Name}。"
+                                : $"- 队伍眼下的差事：率部围住 {ts.Name}。";
+                        return null;
+                    case AiBehavior.PatrolAroundPoint:
+                        return "- 队伍眼下的差事：率部在附近巡逻。";
+                    case AiBehavior.EngageParty:
+                        var tp = party.ShortTermTargetParty ?? party.TargetParty;
+                        return tp != null ? $"- 队伍眼下的差事：率部追击 {tp.Name}。" : "- 队伍眼下的差事：率部与敌交战。";
+                    case AiBehavior.DefendSettlement:
+                        var ds = party.TargetSettlement;
+                        return ds != null ? $"- 队伍眼下的差事：率部守卫 {ds.Name}。" : null;
+                    case AiBehavior.Hold:
+                    case AiBehavior.None:
+                        return "- 队伍眼下的差事：原地待命。";
+                    case AiBehavior.FleeToPoint:
+                    case AiBehavior.FleeToGate:
+                    case AiBehavior.FleeToParty:
+                        return "- 队伍眼下的差事：正在躲避敌情。";
+                    default:
+                        return null;
+                }
+            }
+            catch { return null; }
         }
 
         /// <summary>定居点视野行：方位 + 距离 + 名字 + 类型 + 所有者/敌我/被围（信息面 #2 增强）。
