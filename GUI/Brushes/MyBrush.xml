@@ -249,6 +249,22 @@
             <Style Name="Pressed"><BrushLayer Name="Default" Sprite="StdAssets\plus_button_pressed"/></Style>
         </Styles>
     </Brush>
+	<!-- 🔴 2026-08-15（缩略模式频道下拉项底色）：自绘下拉项笔刷——原版 Standard.DropdownItem
+	     Default 透明（用户裁定要有深色底）。状态层由按钮 UpdateChildrenStates 传播
+	     （ButtonWidget.RefreshState：Disabled/Selected/Pressed/Hovered/Default）：
+	     深蓝灰底 → hover 提亮 → pressed 更亮 → 选中暗金。 -->
+	<Brush Name="LWN_DropdownItem">
+        <Layers>
+            <BrushLayer Name="Default" Sprite="BlankWhiteSquare_9"/>
+        </Layers>
+        <Styles>
+            <Style Name="Default"><BrushLayer Name="Default" Color="#2A2A3AEE"/></Style>
+            <Style Name="Hovered"><BrushLayer Name="Default" Color="#465A8AEE"/></Style>
+            <Style Name="Pressed"><BrushLayer Name="Default" Color="#5E72B0EE"/></Style>
+            <Style Name="Selected"><BrushLayer Name="Default" Color="#8A6A2BEE"/></Style>
+            <Style Name="Disabled"><BrushLayer Name="Default" Color="#2A2A3A66"/></Style>
+        </Styles>
+    </Brush>
 	<Brush Name="Brush_CircleButton_SecretLetter">
         <Layers>
             <BrushLayer Name="Default"

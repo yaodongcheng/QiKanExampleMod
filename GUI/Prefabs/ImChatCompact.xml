@@ -29,7 +29,7 @@
      顶对齐、Dropdown 点击链路在自定义层失效）——中心按钮 = 普通 ButtonWidget +
      Command.Click 直连 VM 显隐（ExecuteToggleChannelList），列表 IsVisible=@IsChannelListOpen，
      外观/笔刷/Radio 项全部保持原版。 -->
-<Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="56"
+<Widget Id="LWN_ImChat_CompactTitleRow" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="56"
         Sprite="BlankWhiteSquare_9" Color="#000000B3"
         DoNotAcceptEvents="true">
   <Children>
@@ -90,7 +90,12 @@
          🔴 2026-08-15 绑定作用域修复：列表是 {ChannelSelector} 作用域外的兄弟节点，
          根 VM 上没有 ItemList/IsChannelListOpen/ChannelListHeight（都在 ImChannelSelectorVM），
          必须自包一层 DataSource="{ChannelSelector}" 让 IsVisible/高度/项数据在 SelectorVM 上解析；
-         自身属性绑定 = 同 widget DataSource 子上下文（同 HasCompactAnchor 坑的反向利用）。 -->
+         自身属性绑定 = 同 widget DataSource 子上下文（同 HasCompactAnchor 坑的反向利用）。
+         🔴 2026-08-15（根级方案回退）：列表不能放 Window 根级——FindWidgetById 从
+         UIContext.Root 找不到根级 child（Window 是 CustomWidgetType，树链不可靠），
+         显示/切换全断。浮出面板的列表收不到引擎事件（祖先矩形门控），交互走手动命中
+         （HandleManualScroll 同款：HandleCompactInput 里按坐标算行号，hover/pressed 视觉 +
+         点选派发）。 -->
     <Widget Id="LWN_ImChat_ChannelList" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
             SuggestedWidth="330" SuggestedHeight="@ChannelListHeight"
             VerticalAlignment="Bottom" MarginBottom="52" HorizontalAlignment="Left" MarginLeft="8"
@@ -114,9 +119,12 @@
                            StackLayout.LayoutMethod="VerticalBottomToTop"
                            DoNotAcceptEvents="true">
                   <ItemTemplate>
-                    <!-- 项：原版单选视觉（Radio + UpdateChildrenStates 驱动 hover 高亮；
-                         选中态 = IsSelected 绑定，RefreshChannelOptions 维护；
-                         点击 = Command.Click 直连 ExecuteSelect（绕开原版 SelectEvent 链路）） -->
+                    <!-- 项：Radio + UpdateChildrenStates 驱动 hover/pressed 高亮（引擎正常路径）；
+                         引擎事件被门控时由 HandleCompactInput 手动 SetState 驱动（互不冲突）。
+                         选中态 = IsSelected 绑定（RefreshChannelOptions 维护）；
+                         点击 = Command.Click 直连 ExecuteSelect（引擎路径）/ 手动点选派发。
+                         🔴 2026-08-15：ImageWidget 用自绘 LWN_DropdownItem（Default 深色底，
+                         原版 Standard.DropdownItem Default 透明 → 用户裁定要有底色） -->
                     <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30"
                                   ButtonType="Radio" UpdateChildrenStates="true" IsSelected="@IsSelected"
                                   IsEnabled="@CanBeSelected"
@@ -126,7 +134,7 @@
                       <Children>
                         <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                      MarginLeft="5" MarginRight="5"
-                                     Brush="Standard.DropdownItem"
+                                     Brush="LWN_DropdownItem"
                                      DoNotAcceptEvents="true"/>
                         <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                     Text="@StringItem" Brush="SPOptions.Dropdown.Item.Text" Brush.FontSize="14"

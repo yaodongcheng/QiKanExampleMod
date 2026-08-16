@@ -128,12 +128,16 @@ namespace LivingWorldNpcs
 
         /// <summary>🔴 2026-08-15（实机日志取证：Radio SelectEvent 链路首次选择后失效）：
         /// 项点击直连切会话（Command.Click 绑定，绕开 SelectEvent/SelectedIndex 绑定链路）；
-        /// Radio 状态仅作视觉（选中高亮由 RefreshChannelOptions 的 SelectedIndex 同步驱动）。</summary>
+        /// Radio 状态仅作视觉（选中高亮由 RefreshChannelOptions 的 SelectedIndex 同步驱动）。
+        /// 🔴 2026-08-15：切会话后收起列表（原版下拉「选中即收起」行为）。</summary>
         public void ExecuteSelect()
         {
             DebugLogger.Log($"[CompactSelect] 项点击: {ConversationId}");
             if (_conv != null)
+            {
                 ImChatView.SelectConversation(_conv);
+                ImChatView.CloseChannelList();
+            }
         }
     }
 
