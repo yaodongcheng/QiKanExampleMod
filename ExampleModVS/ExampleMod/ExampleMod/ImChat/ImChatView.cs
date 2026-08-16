@@ -52,7 +52,7 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-15（缩略模式）：形态状态 + 面板 widget 缓存
         private static ImChatMode _mode = ImChatMode.Full;
         private static Widget _compactPanel;        // 缩略面板（矩形判定）
-        private static Widget _compactChannelList;  // 频道列表（上开式，外部点击收起矩形判定）
+        private static Widget _compactChannelList;  // 频道列表（上开式，外部点击收起矩形判定 + 手动命中）
         private static InputUsageMask _lastCompactMask; // 🔴 2026-08-15（性能）：mask 缓存，变化才 SetInputRestrictions
         private static readonly List<ImConversation> _compactChannels = new List<ImConversation>(); // 下拉频道顺序（左右箭头循环用）
 
@@ -194,6 +194,7 @@ namespace LivingWorldNpcs
             _selected = null;
             _messageScrollPanel = null;   // 层关闭后 widget 树失效，缓存清空
             _compactPanel = null;         // 🔴 2026-08-15（缩略模式）：同埋——widget 树随层销毁
+            _compactChannelList = null;
         }
 
         // ───────────────────────── 模式切换（完整 ⇄ 缩略）─────────────────────────
@@ -220,6 +221,7 @@ namespace LivingWorldNpcs
                 _movie = _layer.LoadMovie(_mode == ImChatMode.Compact ? "ImChatCompact" : "ImChat", _vm);
                 _messageScrollPanel = null;
                 _compactPanel = null;
+                _compactChannelList = null;
                     RefreshAll();
             }
             catch (Exception ex)
@@ -954,6 +956,48 @@ namespace LivingWorldNpcs
                 }
                 Vec2 mouse = Input.MousePositionPixel;
 
+                // ── 🔴 2026-08-15（列表项交互手动化）：浮出面板的列表收不到引擎事件
+                //    （EventManager.CollectEnableWidgetsAt 祖先矩形门控：点 y<面板顶 时遍历在面板层断；
+                //    原生 DropdownWidget 靠 reparent 到 Root 绕开，但 Window 根级 child 的树链不可靠
+                //    （FindWidgetById 找不到，实机回归），已回退标题行内布局）。
+                //    与 HandleManualScroll 同思路：手动命中——按坐标算行号（项高 34 = 30+边距 4，
+                //    VerticalBottomToTop 项 0 在底），hover/pressed 视觉直接 SetState 到项内
+                //    ImageWidget（引擎不更新这些状态就不会覆盖），点选按下即触发 ExecuteSelect。
+                if (_vm != null && _vm.ChannelSelector.IsChannelListOpen && _compactChannelList != null)
+                {
+                    var inner = FindWidgetById(_compactChannelList, "LWN_ImChat_ChannelListInner");
+                    if (inner != null)
+                    {
+                        var listPos = _compactChannelList.GlobalPosition;
+                        var listSize = _compactChannelList.Size;
+                        int count = inner.ChildCount;
+                        int hoverIdx = -1;
+                        if (IsPointInRect(mouse, listPos, listSize) && count > 0)
+                        {
+                            int fromTop = (int)((mouse.Y - listPos.Y) / 34f);
+                            hoverIdx = count - 1 - fromTop;
+                            if (hoverIdx < 0 || hoverIdx >= count) hoverIdx = -1;
+                        }
+                        bool pressing = Input.IsKeyPressed(InputKey.LeftMouseButton) && hoverIdx >= 0;
+                        var opts = _vm.ChannelSelector.ItemList;
+                        for (int i = 0; i < count && i < opts.Count; i++)
+                        {
+                            var btn = inner.GetChild(i);
+                            if (btn == null || btn.ChildCount == 0) continue;
+                            string st = (pressing && i == hoverIdx) ? "Pressed"
+                                : i == hoverIdx ? "Hovered"
+                                : opts[i].IsSelected ? "Selected" : "Default";
+                            btn.GetChild(0).SetState(st);
+                        }
+                        if (pressing && hoverIdx < opts.Count)
+                        {
+                            var opt = opts[hoverIdx];
+                            DebugLogger.Log($"[CompactSelect] 手动项点击: {opt.ConversationId} idx={hoverIdx}");
+                            opt.ExecuteSelect();
+                        }
+                    }
+                }
+
                 // ── ③ 下拉开 → 补 MouseWheels 位（列表滚轮滚动）。
                 // 🔴 2026-08-15（性能）：SetInputRestrictions 只在 mask 变化时调用——每帧调用可能
                 // 触发输入上下文重置（用户反馈 UI 卡顿疑点之一）──
@@ -1021,6 +1065,12 @@ namespace LivingWorldNpcs
             if (_vm != null)
                 _vm.ChannelSelector.IsChannelListOpen = !_vm.ChannelSelector.IsChannelListOpen;
             DebugLogger.Log($"[CompactSelect] ToggleChannelList → open={_vm?.ChannelSelector.IsChannelListOpen} widgetVisible={_compactChannelList?.IsVisible}");
+        }
+
+        /// <summary>收起频道列表（点选频道后调用——原版下拉选中即收起行为）。</summary>
+        public static void CloseChannelList()
+        {
+            if (_vm != null) _vm.ChannelSelector.IsChannelListOpen = false;
         }
 
         private static bool IsPointInRect(Vec2 p, Vec2 pos, Vec2 size)
