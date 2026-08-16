@@ -393,7 +393,7 @@ namespace LivingWorldNpcs
         /// （PlanSummary + CurrentStep，C# 快照），LLM 判定 adjust_plan（问进度=false，明确改做法=true）；
         /// isCampaign = 大地图能力提示段（只建议行军类计划，防「我去暗杀谁」）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null, string campaignAwareness = null, string selfAwareness = null, string splitPartyAwareness = null, string currentStatusLine = null, string playerRelationSection = null, string partyRelationSection = null, bool isPartyMember = true)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null, string campaignAwareness = null, string selfAwareness = null, string splitPartyAwareness = null, string stayedAwareness = null, string currentStatusLine = null, string playerRelationSection = null, string partyRelationSection = null, bool isPartyMember = true)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -413,6 +413,13 @@ namespace LivingWorldNpcs
             if (!string.IsNullOrWhiteSpace(splitPartyAwareness))
             {
                 sb.AppendLine(splitPartyAwareness);
+                sb.AppendLine();
+            }
+            // 🔴 2026-08-16（留守处境）：主队随从留守城外时的自我定位段（【留守处境】——亲历级；
+            // 防 LLM 把主公的位置当自己的，实机 21:06 百草"我在吕卡隆城里"）
+            if (!string.IsNullOrWhiteSpace(stayedAwareness))
+            {
+                sb.AppendLine(stayedAwareness);
                 sb.AppendLine();
             }
             // 🔴 2026-08-16（方案 E2）：campaign 版【目之所及】（大地图环境视野，队伍成员才注入）

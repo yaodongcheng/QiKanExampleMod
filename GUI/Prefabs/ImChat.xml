@@ -342,7 +342,7 @@
                                                                DoNotAcceptEvents="true">
                                                       <Children>
                                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                                    Text="@SenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
+                                                                    Text="@DisplaySenderName" Brush="MyBrush_18_White" Brush.FontSize="16" Brush.FontColor="@NameColor"
                                                                     HorizontalAlignment="Left"
                                                                     DoNotAcceptEvents="true"/>
                                                         <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"

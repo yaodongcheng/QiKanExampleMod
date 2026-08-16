@@ -28,11 +28,6 @@ namespace LivingWorldNpcs
         // ── D1 首帧分类 ──
         private bool _reported;
 
-        // ── K1 血线关切状态（Mission 时间）──
-        private float _careCooldownUntil;
-        private bool _careLowTriggered;      // 挂彩档（<0.6）已触发
-        private bool _careHeavyTriggered;    // 重伤档（<0.35）已触发
-
         // ── K2 犯罪关切（静态延迟确认：记账瞬间证人可能尚未注册，下一帧再查）──
         private static string _pendingCrimeWord;
         private static float _pendingCrimeCheckAt;
@@ -47,13 +42,12 @@ namespace LivingWorldNpcs
         private static readonly object _battleStatLock = new object();
 
         // ═══════════════════════════════════════════════════════════
-        // D1 首帧分类 + K1 血线关切（每帧驱动）
+        // D1 首帧分类 + K2 犯罪关切（每帧驱动）
         // ═══════════════════════════════════════════════════════════
 
         public override void OnMissionTick(float dt)
         {
             try { ReportMissionEntered(); } catch (Exception ex) { DebugLogger.Log($"[MissionSense] 首帧分类失败: {ex.Message}"); }
-            try { CheckPlayerCare(); } catch (Exception ex) { DebugLogger.Log($"[Care] 血线关切异常: {ex.Message}"); }
             try { CheckPendingCrimeCare(); } catch (Exception ex) { DebugLogger.Log($"[Care] 犯罪关切异常: {ex.Message}"); }
             try { CheckPlayerBehaviorSense(); } catch (Exception ex) { DebugLogger.Log($"[Sense] 行为感知异常: {ex.Message}"); }
             try { TrackCompanionHealth(); } catch { }
@@ -132,87 +126,6 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[MissionSense] mission 分类失败: {ex.Message}");
             }
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // K1 血线关切（护主反应，P0）
-        // ═══════════════════════════════════════════════════════════
-
-        /// <summary>K1：玩家被打成残血 → 最近的在场景内队伍成员 SpeechChannel 即时冒泡关切。
-        /// 档位：&lt;0.6 挂彩 / &lt;0.35 重伤，每档触发一次；回血 ≥0.7 重置；冷却 90s（跨档位）；
-        /// 距离上限 ~15m（隔半个战场喊"主公挺住"出戏——够不到 = 没看见，与"没人在身边"同口径）。
-        /// 与 M（异步 LLM 情绪化长句）分工：K = 当场秒级确定性喊话，先到；M = 异步安抚，后到，互补不冲突。</summary>
-        private void CheckPlayerCare()
-        {
-            if (Mission.Current == null || Agent.Main == null || !Agent.Main.IsActive()) return;
-            // 必须存在队伍成员 agent 在场（FriendlinessHelper.IsPlayerPartyMember + 有 Agent 载体）
-            Agent nearest = FindNearestPartyMemberAgent(out float nearestDistSq);
-            if (nearest == null) return;
-            if (nearestDistSq > 15f * 15f)
-            {
-                DebugLogger.Log($"[Care] 跳过：最近队伍成员 {nearest.Name} 距离 {MathF.Sqrt(nearestDistSq):F1}m 超 15m");
-                return;
-            }
-            float now = Mission.Current.CurrentTime;
-            if (now < _careCooldownUntil)
-            {
-                DebugLogger.Log($"[Care] 冷却中（{_careCooldownUntil - now:F0}s 后恢复）");
-                return;
-            }
-            float hpRatio = Agent.Main.Health / Agent.Main.HealthLimit;
-            string line = null;
-            string levelWord = "";
-            if (hpRatio < 0.35f)
-            {
-                if (_careHeavyTriggered) return;
-                _careHeavyTriggered = true;
-                _careLowTriggered = true;
-                levelWord = "重伤";
-                // 重伤档双台词随机（LWN_im_care_heavy / LWN_im_care_retreat——防固定句式重复）
-                line = MBRandom.RandomFloat < 0.5f
-                    // 本地化：im_care_heavy（玩家可见文本）
-                    ? LWNTextHelper.ResolveText("LWN_im_care_heavy", "Hold on, my lord!")
-                    // 本地化：im_care_retreat（玩家可见文本）
-                    : LWNTextHelper.ResolveText("LWN_im_care_retreat", "You are badly hurt, my lord - fall back!");
-            }
-            else if (hpRatio < 0.6f)
-            {
-                if (_careLowTriggered) return;
-                _careLowTriggered = true;
-                levelWord = "挂彩";
-                // 本地化：LWN_im_care_low（玩家可见文本）
-                line = LWNTextHelper.ResolveText("LWN_im_care_low", "Careful, my lord!");
-            }
-            else
-            {
-                // 回血 ≥0.7 重置档位（防贴脸反复刷屏）
-                if (hpRatio >= 0.7f)
-                {
-                    _careLowTriggered = false;
-                    _careHeavyTriggered = false;
-                }
-                return;
-            }
-            _careCooldownUntil = now + 90f;
-            // 统一说话框架：关切 = 警戒级喊话（Warning 优先级，护主反应）
-            SpeechChannel.Say(nearest, line, SpeechPriority.Warning,
-                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(nearest), Agent.Main, "player_in_danger", null));
-            DebugLogger.Log($"[Care] {nearest.Name} 关切（{levelWord} hp={hpRatio:F2}）: {line}");
-        }
-
-        /// <summary>最近的在场景内队伍成员 agent（排除玩家；无 → null + 距离平方）。</summary>
-        private Agent FindNearestPartyMemberAgent(out float nearestDistSq)
-        {
-            nearestDistSq = float.MaxValue;
-            Agent nearest = null;
-            foreach (var a in Mission.Current?.Agents ?? Enumerable.Empty<Agent>())
-            {
-                if (a == null || !a.IsActive() || a == Agent.Main) continue;
-                if (!FriendlinessHelper.IsPlayerPartyMember(a)) continue;
-                float d = a.Position.DistanceSquared(Agent.Main.Position);
-                if (d < nearestDistSq) { nearestDistSq = d; nearest = a; }
-            }
-            return nearest;
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -302,8 +215,7 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[Care] 犯罪关切未中签（概率 0.5）");
                     return;
                 }
-                var inst = Mission.Current?.GetMissionBehavior<PlayerMissionEventLogic>();
-                Agent nearest = inst?.FindNearestPartyMemberAgent(out _);
+                Agent nearest = FriendlinessHelper.FindNearestPartyMemberAgent(Agent.Main);
                 if (nearest == null)
                 {
                     DebugLogger.Log($"[Care] 犯罪关切跳过：无同场景队伍成员在场");

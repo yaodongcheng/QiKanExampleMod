@@ -387,6 +387,20 @@ namespace LivingWorldNpcs
                 }
                 catch { /* 好感获取失败 → 原样标题 */ }
             }
+            // 🔴 2026-08-16（用户裁定：标题显示人数）：群聊频道（队伍/家族/王国）标题 = 频道名 + 当前
+            // 成员数（算上玩家自己）——人多人少一目了然。成员口径 = GetChannelMembers（队伍 = 主队 roster
+            // Hero，分兵随从掉出不计，与群聊成员口径一致）；切换频道时刷新（RefreshTitle 由 SelectConversation 驱动）。
+            if (_selected != null && _selected.Type != ImConversationType.Direct)
+            {
+                try
+                {
+                    int count = ImChatManager.GetChannelMembers(_selected.Type).Count + 1; // +1 玩家自己
+                    // 本地化：LWN_im_title_members（玩家可见文本）
+                    title = LWNTextHelper.ResolveCompound("LWN_im_title_members",
+                        "{NAME} ({COUNT})", ("NAME", title), ("COUNT", count.ToString()));
+                }
+                catch { /* 人数获取失败 → 原样标题 */ }
+            }
             _vm.Title = title;
             // 空会话引导文案（本地化）
             _vm.EmptyHint = LWNTextHelper.ResolveText("LWN_im_empty_hint",
