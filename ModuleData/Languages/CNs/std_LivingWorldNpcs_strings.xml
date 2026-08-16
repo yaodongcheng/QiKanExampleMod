@@ -4238,14 +4238,17 @@
     <string id="LWN_im_status_outside" text="城外" />
     <string id="LWN_im_status_far" text="远处" />
     <string id="LWN_im_status_in_party" text="在队伍中" />
-    <string id="LWN_im_status_dist_m" text="{DIST}米外" />
+    <string id="LWN_im_status_dist_m" text="{DIST}外" />
     <string id="LWN_im_status_outside_village" text="村外" />
     <string id="LWN_im_status_outside_castle" text="堡外" />
     <string id="LWN_im_status_outside_stronghold" text="据点外" />
-    <string id="LWN_im_status_from_dist" text="来自{DIST}米外的{NAME}" />
+    <string id="LWN_im_status_from_dist" text="来自{DIST}外的{NAME}" />
     <string id="LWN_im_status_prisoner_here" text="被关押在{NAME}" />
-    <string id="LWN_im_status_prisoner_dist" text="在{DIST}米外的{NAME}（俘虏中）" />
+    <string id="LWN_im_status_prisoner_dist" text="在{DIST}外的{NAME}（俘虏中）" />
     <string id="LWN_im_status_prisoner" text="被俘" />
+    <string id="LWN_im_dist_unit_km" text="{N}公里" />
+    <string id="LWN_im_dist_unit_m" text="{N}米" />
+    <string id="LWN_im_title_members" text="{NAME}（{COUNT}人）" />
     <!-- 2026-08-16（方案 C/D/K/R/S）：口嗨前缀 + 事件兜底 + 关切模板 + 求情/政治播报 -->
     <string id="LWN_im_bragging_tag" text="（吹牛）" />
     <string id="LWN_im_event_mission_settlement" text="主公进了一座城。" />

@@ -173,6 +173,29 @@ namespace LivingWorldNpcs
                 && po.Party == MobileParty.MainParty.Party;
         }
 
+        /// <summary>距 from 最近的在场景内队伍成员 agent（排除 from 本身；无 → null）。
+        /// 🔴 2026-08-16（K1/K2 共享单管线，平权纪律）：原 PlayerMissionEventLogic 实例私有版本
+        /// 提升为公共 helper——K1 血线关切（AttackTriggerMissionLogic 受击事件驱动）与 K2 犯罪关切
+        /// （PlayerMissionEventLogic）同源调用，禁止两侧各抄一份。</summary>
+        public static Agent FindNearestPartyMemberAgent(Agent from)
+        {
+            try
+            {
+                if (from == null || Mission.Current == null) return null;
+                Agent nearest = null;
+                float bestSq = float.MaxValue;
+                foreach (var a in Mission.Current.Agents)
+                {
+                    if (a == null || !a.IsActive() || a == from) continue;
+                    if (!IsPlayerPartyMember(a)) continue;
+                    float d = a.Position.DistanceSquared(from.Position);
+                    if (d < bestSq) { bestSq = d; nearest = a; }
+                }
+                return nearest;
+            }
+            catch { return null; }
+        }
+
         /// <summary>严格同队伍（Hero 版本）。</summary>
         public static bool IsPlayerPartyMember(Hero hero)
         {

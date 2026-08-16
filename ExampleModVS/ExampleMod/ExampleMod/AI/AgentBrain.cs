@@ -35,6 +35,13 @@ namespace LivingWorldNpcs
         /// <summary>已暂停原版 AI 的 Agent.Index 集合。AiSuspendPatch 读取以拦截 Navigator。</summary>
         internal static readonly HashSet<int> SuspendedAgentIndices = new HashSet<int>();
 
+        // 🔴 2026-08-16（K1 血线关切，事件驱动）：静态共享状态——多个随从同时收到玩家受击广播，
+        // 第一个触发后档位标记挡住其余（单喊）；墙钟秒冷却跨 Mission 天然正确（Mission 时间会归零）；
+        // 回血 ≥0.7 由事件检查自动重置（玩家满血受击 → 高血线分支清标记）。
+        private static double CareCooldownUntilWall;
+        private static bool CareLowTriggered;      // 挂彩档（<0.6）已触发
+        private static bool CareHeavyTriggered;    // 重伤档（<0.35）已触发
+
 
 
         // ═══════════════════════════════════════════════════════════════
@@ -540,6 +547,13 @@ namespace LivingWorldNpcs
 
                 // 受害者身份日志：区分自己是受害者（应反击）还是旁观者（看护主条件），排查小孩无法参战用
                 DebugLogger.Log($"[Brain-Receive] {Owner.Name}(Idx={Owner.Index}) 收到事件 'event_agent_damaged' | victim={victim.Name}(Idx={victim.Index}) | 是否自己={Owner == victim} | 当前行为={_currentAction?.GetType().Name ?? "null"} | 队列={_actionQueue.Count} | 阶段={_lastAlertPhase}");
+
+                // 🔴 2026-08-16（K1 血线关切，事件驱动重构，用户裁定）：受害者是玩家（主公被打）→ 血线关切。
+                // 事件来源 = AttackTriggerMissionLogic.OnRegisterBlow 定向广播（15m 内队伍成员才收到）；
+                // args[2] = 该击伤害（OnRegisterBlow 时血量未结算，Health - damage 预估结算后血线）。
+                // 护主参战由下方既有 shouldHelp 逻辑负责（victim==Agent.Main → 帮）；本分支只负责说话关切。
+                if (Owner != victim && victim == Agent.Main && attacker != Agent.Main)
+                    CheckPlayerCareOnDamaged(victim, args.Length > 2 && args[2] is float dmg ? dmg : 0f);
 
                 // 🔴 2026-08-12 停战检测：玩家在打自己 → 刷新 FightEnemyAction 最后受击时间
                 // （玩家收刀 3s 停战的依据；被动反击专用，见 AtomicAction.FightEnemyAction）
@@ -1371,6 +1385,69 @@ namespace LivingWorldNpcs
                 DecayAlertBreakdown(dt);
             // 阶段穿越检测（向上或向下）
             CheckPhaseTransition();
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-16（K1 血线关切，事件驱动重构，用户裁定）：玩家受击（event_agent_damaged 广播）
+        /// → 血线关切冒泡。档位：&lt;0.6 挂彩 / &lt;0.35 重伤，每档触发一次；回血 ≥0.7 重置；冷却 90s
+        /// （墙钟秒，跨 Mission 天然正确）；广播半径 15m 已保证距离上限（隔半个战场喊"主公挺住"出戏——
+        /// 够不到 = 没看见）；多随从同时收到 → 静态档位标记保证单喊。
+        /// 与 M（异步 LLM 情绪化长句）分工：K = 当场秒级确定性喊话，先到；M = 异步安抚，后到，互补不冲突。
+        /// 🔴 跳过原因不落日志（用户裁定删除——事件驱动无每帧刷屏，触发才打 [Care] 触发行）。
+        /// </summary>
+        private void CheckPlayerCareOnDamaged(Agent player, float incomingDamage)
+        {
+            try
+            {
+                if (player == null || !player.IsActive()) return;
+                double now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                if (now < CareCooldownUntilWall) return;
+                // OnRegisterBlow 广播时血量未结算 → Health - damage 预估结算后血线（防单击大伤害漏检）
+                float hp = MathF.Max(0f, player.Health - incomingDamage);
+                float hpRatio = hp / MathF.Max(1f, player.HealthLimit);
+                string line = null;
+                string levelWord = "";
+                if (hpRatio < 0.35f)
+                {
+                    if (CareHeavyTriggered) return;
+                    CareHeavyTriggered = true;
+                    CareLowTriggered = true;
+                    levelWord = "重伤";
+                    // 重伤档双台词随机（LWN_im_care_heavy / LWN_im_care_retreat——防固定句式重复）
+                    line = MBRandom.RandomFloat < 0.5f
+                        // 本地化：im_care_heavy（玩家可见文本）
+                        ? LWNTextHelper.ResolveText("LWN_im_care_heavy", "Hold on, my lord!")
+                        // 本地化：im_care_retreat（玩家可见文本）
+                        : LWNTextHelper.ResolveText("LWN_im_care_retreat", "You are badly hurt, my lord - fall back!");
+                }
+                else if (hpRatio < 0.6f)
+                {
+                    if (CareLowTriggered) return;
+                    CareLowTriggered = true;
+                    levelWord = "挂彩";
+                    // 本地化：LWN_im_care_low（玩家可见文本）
+                    line = LWNTextHelper.ResolveText("LWN_im_care_low", "Careful, my lord!");
+                }
+                else
+                {
+                    // 回血 ≥0.7 重置档位（防贴脸反复刷屏）
+                    if (hpRatio >= 0.7f)
+                    {
+                        CareLowTriggered = false;
+                        CareHeavyTriggered = false;
+                    }
+                    return;
+                }
+                CareCooldownUntilWall = now + 90f;
+                // 统一说话框架：关切 = 警戒级喊话（Warning 优先级，护主反应）
+                SpeechChannel.Say(Owner, line, SpeechPriority.Warning,
+                    SpeechContext.FromBrain(this, player, "player_in_danger", null));
+                DebugLogger.Log($"[Care] {Owner.Name} 关切（{levelWord} hp={hpRatio:F2}）: {line}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[Care] 血线关切失败: {ex.Message}");
+            }
         }
 
         /// <summary>

@@ -610,6 +610,24 @@ namespace LivingWorldNpcs
 
             if (victim != null && attacker != null && victim != attacker)
             {
+                // 🔴 2026-08-16（K1 血线关切，事件驱动重构，用户裁定）：玩家受击 → 定向同步给 15m 内
+                // 队伍成员（event_agent_damaged 既有事件链——AgentBrain 处理护主参战 + 血线关切）。
+                // 只发队伍成员（BroadcastEventInRange 无身份过滤会惊动围观平民；不恢复全局广播——
+                // 08-09 玩家脑 Suspend 裁定保持）。挂 OnRegisterBlow = 既有 NPC 受害直发同点（blow 生成栈，
+                // 同步 ReceiveEvent 安全；OnAgentHit 是 HandleBlow 栈内，同步调 brain 有 native 重入风险，
+                // 2026-08-13 教训）。血线预估：args[2] = blow.InflictedDamage——OnRegisterBlow 时血量未结算，
+                // 随从用 Health - damage（预估 = 结算后血线，防单击大伤害漏检）。Health>0 守卫：致命一击倒地不喊。
+                if (victim.IsMainAgent && victim.Health > 0f)
+                {
+                    foreach (var a in Mission.Current.Agents)
+                    {
+                        if (a == null || !a.IsActive() || a == victim || a == attacker) continue;
+                        if (a.Position.DistanceSquared(victim.Position) > 15f * 15f) continue;
+                        if (!FriendlinessHelper.IsPlayerPartyMember(a)) continue;
+                        AgentAIController.Instance?.SendEventToAgent(a, "event_agent_damaged", attacker, victim, b.InflictedDamage);
+                    }
+                }
+
                 // 🆕 直接受害者广播放行 NPC↔NPC：被打方的脑必须知道"谁在打我"才能转身还手。
                 // （旧代码整条事件链被 `!attacker.IsMainAgent` 门控掐死 → NPC 战斗中第三方攻击
                 //   完全无感，只会盯着开战时锁定的目标砍——学者背后捅纺织工 49 秒不回头，2026-08-09 实测）

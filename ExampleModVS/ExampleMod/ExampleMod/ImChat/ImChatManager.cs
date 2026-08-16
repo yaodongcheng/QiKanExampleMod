@@ -671,7 +671,9 @@ namespace LivingWorldNpcs
 
         /// <summary>🔴 2026-08-16（UI 层解析，铁律 13 走 LWN_* 本地化）：结构化后缀快照 → 当前语言显示文本
         ///（不含名字，调用方拼「名字（后缀）」）；null/未知 Kind → null（跳过括号拼接）。
-        /// 历史消息存的是 Kind+参数，语言切换/改文案随时重解析，不焊死字符串。</summary>
+        /// 历史消息存的是 Kind+参数，语言切换/改文案随时重解析，不焊死字符串。
+        /// 🔴 2026-08-16（用户裁定：千米单位）：大地图距离（from_dist/prisoner_dist）≥1000 米显示
+        /// 公里（如「40公里」），<1000 米保持米——显示层按数值换算，历史消息（存米）随时换单位。</summary>
         public static string ResolveLocationSuffix(ImLocationSuffix data)
         {
             try
@@ -682,7 +684,7 @@ namespace LivingWorldNpcs
                     case "dist_m":
                         // 本地化：LWN_im_status_dist_m（玩家可见文本）
                         return LWNTextHelper.ResolveCompound("LWN_im_status_dist_m",
-                            $"{data.Dist} m away", ("DIST", data.Dist.ToString()));
+                            $"{FormatDistText(data.Dist)} away", ("DIST", FormatDistText(data.Dist)));
                     case "in_party":
                         // 本地化：LWN_im_status_in_party（玩家可见文本）
                         return LWNTextHelper.ResolveText("LWN_im_status_in_party", "in the party");
@@ -705,21 +707,40 @@ namespace LivingWorldNpcs
                     case "prisoner_dist":
                         // 本地化：LWN_im_status_prisoner_dist（玩家可见文本）
                         return LWNTextHelper.ResolveCompound("LWN_im_status_prisoner_dist",
-                            $"captured at {data.Name}, {data.Dist} m away",
-                            ("NAME", data.Name ?? ""), ("DIST", data.Dist.ToString()));
+                            $"captured at {data.Name}, {FormatDistText(data.Dist)} away",
+                            ("NAME", data.Name ?? ""), ("DIST", FormatDistText(data.Dist)));
                     case "prisoner":
                         // 本地化：LWN_im_status_prisoner（玩家可见文本）
                         return LWNTextHelper.ResolveText("LWN_im_status_prisoner", "captured");
                     case "from_dist":
                         // 本地化：LWN_im_status_from_dist（玩家可见文本）
                         return LWNTextHelper.ResolveCompound("LWN_im_status_from_dist",
-                            $"from {data.Name}, {data.Dist} m away",
-                            ("NAME", data.Name ?? ""), ("DIST", data.Dist.ToString()));
+                            $"from {data.Name}, {FormatDistText(data.Dist)} away",
+                            ("NAME", data.Name ?? ""), ("DIST", FormatDistText(data.Dist)));
                     default:
                         return null;
                 }
             }
             catch { return null; }
+        }
+
+        /// <summary>距离文本：≥1000 米 → 公里（≥10 取整，<10 保留 1 位小数去尾 0，如 40公里/3.5公里）；
+        /// <1000 米 → 米。单位词走本地化（用户裁定：大地图距离用千米，40000米不直观）。</summary>
+        private static string FormatDistText(int meters)
+        {
+            try
+            {
+                if (meters >= 1000)
+                {
+                    double km = meters / 1000.0;
+                    string num = km >= 10 ? ((int)Math.Round(km)).ToString() : km.ToString("0.#");
+                    // 本地化：LWN_im_dist_unit_km（玩家可见文本）
+                    return LWNTextHelper.ResolveCompound("LWN_im_dist_unit_km", $"{num} km", ("N", num));
+                }
+                // 本地化：LWN_im_dist_unit_m（玩家可见文本）
+                return LWNTextHelper.ResolveCompound("LWN_im_dist_unit_m", $"{meters} m", ("N", meters.ToString()));
+            }
+            catch { return meters.ToString(); }
         }
 
         /// <summary>位置 ↔ 主队的地图距离转米（1 地图单位 ≈ 10 里 = 5000 米；方案 E 口径，取整下限 1）。</summary>

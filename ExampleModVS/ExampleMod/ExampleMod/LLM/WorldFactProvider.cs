@@ -1769,6 +1769,31 @@ namespace LivingWorldNpcs
             catch { return null; }
         }
 
+        // ═══════════════════════════════════════════════════════════
+        // 🔴 2026-08-16（留守处境）：主队随从留守城外时的自我定位
+        // ═══════════════════════════════════════════════════════════
+        /// <summary>
+        /// 🔴 2026-08-16（留守处境，实机 21:06 百草案）：玩家在 mission、主队随从留守城外时，
+        /// prompt 没有自己的位置段（【此刻处境】只给同场景者、E 段【此刻处境（大地图）】只给大地图）
+        /// → LLM 把主公的位置当自己的——【近期回忆】写了"主公进了吕卡隆"，随从就答"我在吕卡隆城里"，
+        /// 实际他在城外留守。本段注入自己的处境（第一人称亲历级：留守者知道自己留守）。
+        /// 调用方（ImReplyService.ScheduleReply）判定：Mission.Current != null && 主队随从 && 不在场。
+        /// 全部 try/catch（铁律 1）；主线程调用。
+        /// </summary>
+        public static string BuildStayedAwareness()
+        {
+            try
+            {
+                if (Mission.Current == null || Campaign.Current == null) return "";
+                var set = Settlement.CurrentSettlement;
+                string place = set?.Name?.ToString();
+                if (string.IsNullOrEmpty(place)) place = NearestSettlementName(15f) ?? "附近";
+                return "【留守处境】\n"
+                    + $"- 主公进了 {place}（进了场景），我留守在队伍里，此刻随队伍在 {place} 外候着。\n";
+            }
+            catch { return ""; }
+        }
+
         /// <summary>定居点视野行：方位 + 距离 + 名字 + 类型 + 所有者/敌我/被围（信息面 #2 增强）。
         /// 🔴 null 兜底（2026-08-16 审查）：OwnerClan 为 null（藏身处/无主定居点）→ 整段不写所有者，
         /// 禁止拼出"的城"破句；被围 = settlement.BesiegerCamp != null（玩家地图能看到围城图标，同行亲见）。</summary>

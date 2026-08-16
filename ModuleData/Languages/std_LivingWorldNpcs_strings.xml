@@ -4141,14 +4141,17 @@
     <string id="LWN_im_status_outside" text="outside" />
     <string id="LWN_im_status_far" text="far away" />
     <string id="LWN_im_status_in_party" text="in the party" />
-    <string id="LWN_im_status_dist_m" text="{DIST} m away" />
+    <string id="LWN_im_status_dist_m" text="{DIST} away" />
     <string id="LWN_im_status_outside_village" text="outside village" />
     <string id="LWN_im_status_outside_castle" text="outside castle" />
     <string id="LWN_im_status_outside_stronghold" text="outside stronghold" />
-    <string id="LWN_im_status_from_dist" text="from {NAME}, {DIST} m away" />
+    <string id="LWN_im_status_from_dist" text="from {NAME}, {DIST} away" />
     <string id="LWN_im_status_prisoner_here" text="captive in {NAME}" />
-    <string id="LWN_im_status_prisoner_dist" text="captured at {NAME}, {DIST} m away" />
+    <string id="LWN_im_status_prisoner_dist" text="captured at {NAME}, {DIST} away" />
     <string id="LWN_im_status_prisoner" text="captured" />
+    <string id="LWN_im_dist_unit_km" text="{N} km" />
+    <string id="LWN_im_dist_unit_m" text="{N} m" />
+    <string id="LWN_im_title_members" text="{NAME} ({COUNT})" />
     <string id="LWN_im_march_channel_only" text="Plans can only be sent to a single hero. Channel plans require a scene." />
     <string id="LWN_im_march_no_party" text="That hero has no army to command." />
     <string id="LWN_im_march_in_party" text="That hero marches with you - give orders in person, in a scene." />
