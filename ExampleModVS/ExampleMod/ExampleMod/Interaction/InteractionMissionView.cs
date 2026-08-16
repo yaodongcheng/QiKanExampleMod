@@ -2136,6 +2136,8 @@ namespace LivingWorldNpcs
                         else
                         {
                             // 统一走共享管线：快照 + 打开挑选界面，关闭后 LootFlowSession.Close 差值记账收尾
+                            // 🔴 2026-08-16（方案 G6①）：战利品感知——同场景随从亲见（"主公正在翻拣战利品"）
+                            PlayerMissionEventLogic.ReportLootOpen();
                             _pendingLootSession = LootFlowSession.OpenPerson(this, targetAgent, isStealing, isDead, pickRoster);
                         }
                     }
@@ -2553,6 +2555,8 @@ namespace LivingWorldNpcs
                     if (roster != null && !roster.IsEmpty())
                     {
                         // 统一走共享管线：快照 + 打开挑选界面（roster 会被界面原地修改）
+                        // 🔴 2026-08-16（方案 G6①）：战利品感知——同场景随从亲见
+                        PlayerMissionEventLogic.ReportLootOpen();
                         _pendingLootSession = LootFlowSession.OpenChest(this, roster, pendingGold);
                     }
                     else

@@ -264,7 +264,9 @@ namespace LivingWorldNpcs
         /// 括号标记（动态计算，渲染时实时反映 NPC 当前状态——不写进 SenderName 存档快照，
         /// 读档/离场后标记自动跟随现状）。玩家消息/私聊/群聊/附近频道原样。
         /// 🔴 2026-08-13（用户裁定）：在场 → 实际距离「（xx米外）」；不在场按身份分级
-        /// （DescribeAwayLocation：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处）。</summary>
+        /// （DescribeAwayLocation：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处）。
+        /// 🔴 2026-08-16（方案 B）：DescribeAwayLocation 在大地图同行场景返回 null（同行无在场/不在场
+        /// 之分，标记无意义）→ 跳过括号拼接，防「名字（null）」。</summary>
         [DataSourceProperty]
         public string DisplaySenderName
         {
@@ -284,8 +286,11 @@ namespace LivingWorldNpcs
                             "{NAME} ({DIST} m away)", ("NAME", _msg.SenderName), ("DIST", meters.ToString()));
                     }
                     // 不在场：随从 → 城外；家族成员 → 定居点名/远处；未知 → 他处
+                    // 🔴 2026-08-16（方案 B）：null = 大地图同行（标记无意义）→ 跳过括号拼接
                     string away = ImChatManager.DescribeAwayLocation(_msg.SenderHeroId);
-                    return $"{_msg.SenderName}（{away}）";
+                    if (!string.IsNullOrEmpty(away))
+                        return $"{_msg.SenderName}（{away}）";
+                    return _msg.SenderName;
                 }
                 return _msg.SenderName;
             }

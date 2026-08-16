@@ -39,6 +39,14 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════════
         // 🆕 PendingWorldEvent — Mission 作用域犯罪记录
         // ═══════════════════════════════════════════════════════════════
+
+        // 🔴 2026-08-16（方案 G3②）：在场随从缓存名单（纯 C#，无 Agent native 引用）——
+        // Mission 期间维护（OnAgentCreated 补录 + OnAgentDeleted 移除），OnRemoveBehavior 阶段
+        // 禁止访问 Agent native（项目纪律），犯罪评论只读此缓存挑在场随从。
+        private readonly List<Hero> _presentPartyMembers = new List<Hero>();
+
+        /// <summary>在场随从缓存快照（只读引用；G3② 犯罪评论 memberFilter 用）。</summary>
+        public IReadOnlyList<Hero> PresentPartyMembers => _presentPartyMembers;
         /// <summary>
         /// 本场 Mission 的待提交犯罪事件。NPC 进入 Alarmed 时注册目击证词；
         /// 离开场景时一次性持久化到 WorldEventStore。
@@ -80,6 +88,10 @@ namespace LivingWorldNpcs
                 if (b.Leader == null)
                     b.SetLeader(Agent.Main);
                 NpcSightSystem.Instance?.RegisterTrackedTarget(b.Owner, 15f, 50f);
+                // 🔴 2026-08-16（方案 G3②）：在场随从缓存补录（OnAgentCreated 时 Agent.Main 未就绪漏掉的）
+                var ph = (b.Owner.Character as CharacterObject)?.HeroObject;
+                if (ph != null && !_presentPartyMembers.Contains(ph))
+                    _presentPartyMembers.Add(ph);
                 if (IsDebugMode)
                     DebugLogger.Log($"[随从关系-兜底] {b.Owner.Name} → Leader=玩家");
             }
@@ -207,6 +219,13 @@ namespace LivingWorldNpcs
                         if (IsDebugMode)
                             DebugLogger.Log($"[随从关系] {agent.Name} → Leader=玩家（身份判定自动建立）");
                     }
+                    // 🔴 2026-08-16（方案 G3②）：在场随从缓存补录（纯 C# 名单，OnRemoveBehavior 犯罪评论用）
+                    if (FriendlinessHelper.IsPlayerPartyMember(agent))
+                    {
+                        var hero = (agent.Character as CharacterObject)?.HeroObject;
+                        if (hero != null && !_presentPartyMembers.Contains(hero))
+                            _presentPartyMembers.Add(hero);
+                    }
                 }
                 else
                 {
@@ -225,6 +244,10 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-14：随从追踪注销（视线系统里玩家之外的注册目标）
             if (agent != Agent.Main)
                 NpcSightSystem.Instance?.UnregisterTrackedTarget(agent);
+            // 🔴 2026-08-16（方案 G3②）：在场随从缓存移除（防把中途离场的随从算在场）
+            var delHero = (agent.Character as CharacterObject)?.HeroObject;
+            if (delHero != null)
+                _presentPartyMembers.Remove(delHero);
             if (_brains.TryGetValue(agent.Index, out var brain))
             {
                 if (IsDebugMode)
@@ -292,6 +315,10 @@ namespace LivingWorldNpcs
 
         public override void OnRemoveBehavior()
         {
+            // 🔴 2026-08-16（方案 G3②）：犯罪主动评论（40%，Mission 销毁前）——只读 C# 缓存
+            //（_presentPartyMembers），OnRemoveBehavior 阶段禁止访问 Agent native（项目纪律）。
+            // 顺序在 FinalizePendingWorldEvent 之前：有目击犯罪才评论（PendingWorldEvent 激活过）。
+            TryCommentCrime();
             // 密谋命令系统：Mission 结束 → 执行器统一收尾（OnMissionScreenFinalize 兜底纪律）
             PlanExecutor.ShutdownAll();
             FinalizePendingWorldEvent();
@@ -494,13 +521,51 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[Assault] {name} 身价={value} → 事件 {pending.EventId} AssaultValue={pending.AssaultValue}（赔偿基数 {pending.AssaultRestitutionValue}）");
         }
 
+        /// <summary>
+        /// G3② 犯罪主动评论（2026-08-16）：Mission 销毁前（OnRemoveBehavior）——
+        /// 有目击犯罪（PendingWorldEvent 激活过，hasRealWitness）且 MBRandom.RandomFloat < 0.4 →
+        /// BroadcastPlayerEvent("crime", desc, memberFilter: 在场名单)——只挑在场随从说话
+        /// （亲历者才有资格评论犯罪细节，如"主公，我瞧见你偷了那商人的钱袋"；场外随从不参与——
+        /// 无信息不编造，叙事铁律）。与 K2（当场秒级关切）互补：K=当场，G3=离场后 LLM 评论。
+        /// 罪行描述复用 WorldEvent 域既有描述模板（BuildWitnessedActionDescription，不新造文案）。
+        /// </summary>
+        private void TryCommentCrime()
+        {
+            try
+            {
+                var pending = PendingWorldEvent;
+                if (pending == null || _presentPartyMembers.Count == 0) return;
+                bool hasRealWitness = pending.WitnessTestimonies?.Any(t => t != null
+                    && (t.WitnessHeroId != null || t.TemplateId != null)) == true;
+                if (!hasRealWitness) return;   // 无人目击 = 世界层面没发生，无评论
+                if (MBRandom.RandomFloat >= 0.4f) return;
+                var testimony = pending.WitnessTestimonies?.FirstOrDefault(t => t != null
+                    && t.Actions != null && t.Actions.Count > 0);
+                string actDesc = testimony != null
+                    ? CrimeDialogueBuilder.BuildWitnessedActionDescription(testimony)
+                    // 本地化：LWN_crime_witness_act_someone_stirring（玩家可见文本兜底）
+                    : LWNTextHelper.ResolveText("LWN_crime_witness_act_someone_stirring", "someone was making trouble");
+                string near = WorldFactProvider.NearestSettlementName(15f);
+                string desc = near != null ? $"主公刚刚{actDesc}（{near}附近）" : $"主公刚刚{actDesc}";
+                var present = new HashSet<string>();
+                foreach (var h in _presentPartyMembers)
+                    if (h != null) present.Add(h.StringId);
+                ImEventBroadcaster.BroadcastPlayerEvent("crime", desc, chatComment: true,
+                    memberFilter: h => h != null && present.Contains(h.StringId));
+                DebugLogger.Log($"[ImEvent] 犯罪主动评论（40% 中签）: {desc}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImEvent] 犯罪评论失败: {ex.Message}");
+            }
+        }
+
         void FinalizePendingWorldEvent()
         {
             var pending = PendingWorldEvent;
             if (pending == null) return;
             var testimonies = pending.WitnessTestimonies;
             if (testimonies == null || testimonies.Count == 0) return;   // 无事发生，照丢
-
             // 🔴 2026-08-14 嫌疑人单一事实源修正：不再按「有目击证词」强行激活并写死玩家嫌疑人。
             // 案件激活只由目击者脑内警戒拉满时的 RegisterWitness 负责（嫌疑人从 TopSuspectAgent 推导）；
             // 无人拉满（3s 抑制期内离场 / 友方豁免）→ 事件保持 Dormant 入档，过夜由 ProcessDormant

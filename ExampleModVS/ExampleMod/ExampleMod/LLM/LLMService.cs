@@ -427,6 +427,10 @@ namespace LivingWorldNpcs
         /// reasoning_content 占 output 配额 60% 且慢 6-8 倍——计划生成调用必须关（实测 25s→3.5s、推理 token 归零）。</param>
         public async Task<string> ChatAsync(string systemPrompt, int max_tokens = 150, bool needJson = true, float temperature = 0.7f, bool disableReasoning = false)
         {
+            // 🔴 2026-08-16（PromptAudit）：完整 prompt 生成完毕、即将发往 LLM 前的注入审计——
+            // 记录本次请求的认知注入段（RAG 主题命中/快照段/时间戳），与 [ImReply] 请求发出的
+            // 完整 prompt 转储配合（审计行=索引，转储=全文）
+            LogPromptAudit("Chat", systemPrompt);
             var messages = new List<object>
             {
                 new { role = "system", content = systemPrompt }
@@ -482,6 +486,8 @@ namespace LivingWorldNpcs
             };
             if (disableReasoning) requestBody["reasoning_effort"] = "none";
             if (needJson) requestBody["response_format"] = new { type = "json_object" };
+            // 🔴 2026-08-16（PromptAudit）：respond 实时回应链路注入审计（同 ChatAsync）
+            LogPromptAudit("Respond", systemPrompt);
             try
             {
                 var json = JsonConvert.SerializeObject(requestBody);
@@ -522,6 +528,48 @@ namespace LivingWorldNpcs
             }
         }
 
+        // ── prompt 注入审计（2026-08-16）──
+        /// <summary>完整 prompt 生成完毕、即将发往 LLM 前的注入审计：记录本次请求里的认知注入段
+        ///（rag[命中 RAG 主题 Id] + segs[快照/记忆段标记] + ts[时间戳词]），打一行紧凑日志。
+        /// 与 [ImReply]/[ReactiveRespond] 请求发出的完整 prompt 转储配合——审计行 = 索引（RAG 命中
+        /// 与裁剪一眼可见），转储 = 全文。测试时 grep [PromptAudit] 即可核对 CLAUDE.md 检查纪律的
+        /// 注入矩阵（L1 应有段 vs L2 应无段），无需翻完整 prompt。</summary>
+        private static void LogPromptAudit(string tag, string promptText)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(promptText)) return;
+                var rag = new List<string>();
+                foreach (var kv in WorldFactProvider.GetTopicDescriptors())
+                {
+                    if (promptText.Contains(kv.Value)) rag.Add(kv.Key);
+                }
+                var segs = new List<string>();
+                foreach (var s in PromptAuditSegmentMarkers)
+                    if (promptText.Contains(s)) segs.Add(s);
+                var ts = PromptAuditTsRegex.Matches(promptText)
+                    .Cast<System.Text.RegularExpressions.Match>()
+                    .Select(m => m.Groups[1].Value)
+                    .Distinct()
+                    .ToList();
+                DebugLogger.Log($"[PromptAudit] {tag}: rag[{string.Join(",", rag)}] segs[{string.Join(",", segs)}] ts[{string.Join(",", ts)}]");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[PromptAudit] 失败: {ex.Message}"); }
+        }
+
+        /// <summary>注入段标题标记（与 PromptBuilder 的 prompt 段标题一一对应；RAG 主题段不在此表——
+        /// 走 GetTopicDescriptors 动态匹配，防两份清单漂移）。</summary>
+        private static readonly string[] PromptAuditSegmentMarkers =
+        {
+            "【此刻处境（大地图）】", "【此刻处境】", "【我的状态】", "【队伍物资】", "【主公的行头】",
+            "【主公的人缘】", "【咱们人的关系】", "【大事记】", "【此刻现状】", "【受困处境】",
+            "【目之所及】", "【近期回忆】", "【近期经历】", "【对话历史】", "【主公的成色】", "【时效纪律】",
+        };
+
+        /// <summary>I5 时间戳相对词（只匹配 [X] 括号形式——正文里的"今天"不误撞）。</summary>
+        private static readonly System.Text.RegularExpressions.Regex PromptAuditTsRegex =
+            new System.Text.RegularExpressions.Regex(@"\[(刚才|今天|昨天|几天前|上周|上个月|几个月前|很久以前)\]");
+
         // ── 429 限流冷却（回应专用；冷却期内直接降级模板，不发请求）──
         private static float _respondRateLimitBlockedUntil;
         private const float RespondRateLimitCooldownS = 10f;
@@ -556,11 +604,15 @@ namespace LivingWorldNpcs
             };
             if (disableReasoning) requestBody["reasoning_effort"] = "none";
 
+            // 🔴 2026-08-16（PromptAudit）：记忆总结链路注入审计（非玩家对话，仍可能含认知段）
+            LogPromptAudit("Summarize", systemPrompt);
             return await CallApiAsync(requestBody, showFailureAlert);
         }
 
         public async Task<string> MergeMemoryAsync(string systemPrompt, bool showFailureAlert = true)
         {
+            // 🔴 2026-08-16（PromptAudit）：记忆合并链路注入审计
+            LogPromptAudit("Merge", systemPrompt);
             var messages = new List<object>
             {
                     new { role = "system", content = systemPrompt },

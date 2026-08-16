@@ -269,6 +269,9 @@
     <Compile Include="Core\AgentStatsHelper.cs" />
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\MySubModule.cs" />
+    <Compile Include="Core\PlayerMissionEventLogic.cs" />
+    <Compile Include="Core\PartySplitFlow.cs" />
+    <Compile Include="Core\KingdomPoliticsFlow.cs" />
     <Compile Include="Core\SafeLordPartyComponent.cs" />
     <Compile Include="Core\CustomPartyComponent.cs" />
     <Compile Include="Core\Settings.cs" />
@@ -297,6 +300,7 @@
     <Compile Include="ImChat\ImChatManager.cs" />
     <Compile Include="ImChat\CampaignSession.cs" />
     <Compile Include="ImChat\AutonomyProposal.cs" />
+    <Compile Include="ImChat\ChatClaimChecker.cs" />
     <Compile Include="ImChat\ImHeatTracker.cs" />
     <Compile Include="ImChat\ImTopicMatcher.cs" />
     <Compile Include="ImChat\ImReplyService.cs" />
@@ -329,6 +333,7 @@
     <Compile Include="Interaction\InteractionOptionManager.cs" />
     <Compile Include="Interaction\InteractionVM.cs" />
     <Compile Include="Interaction\Dialogue\ConversationEntryPatch.cs" />
+    <Compile Include="Interaction\Dialogue\DistressFlow.cs" />
     <Compile Include="Interaction\Dialogue\MapEncounterDialogState.cs" />
     <Compile Include="Interaction\Dialogue\VanillaConversationLoggerPatch.cs" />
     <Compile Include="Interaction\NpcInfoVM.cs" />
@@ -350,6 +355,7 @@
     <Compile Include="LLM\WorldFactProvider.cs" />
     <!-- Memory (split from MemoryManager.cs) -->
     <Compile Include="Memory\AllNpcMemoryManager.cs" />
+    <Compile Include="Memory\PlayerImageStore.cs" />
     <Compile Include="Memory\ChatMessage.cs" />
     <Compile Include="Memory\NPCProfile.cs" />
     <Compile Include="Memory\PlayerGeneratedOption.cs" />

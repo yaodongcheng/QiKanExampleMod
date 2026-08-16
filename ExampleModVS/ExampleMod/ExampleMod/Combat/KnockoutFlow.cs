@@ -86,6 +86,10 @@ namespace LivingWorldNpcs
 
             // 出手即是袭击，记账（受害者身价累计进 PendingWorldEvent，赔偿基础值）
             AgentAIController.Instance?.RecordAssaultVictim(target);
+            // 🔴 2026-08-16（方案 G3①/K2）：犯罪感知（同场景随从记忆照写——亲历者，无第三方目击
+            // 只影响世界层反应不影响随从亲历）+ 犯罪当场关切（有目击者 → 概率冒泡，延迟确认在
+            // PlayerMissionEventLogic tick）。成功击晕 = Knockout 罪，失败反击 = AttackAlly 罪。
+            PlayerMissionEventLogic.ReportPlayerMisconduct(r.Success ? "Knockout" : "AttackAlly");
 
             if (r.Success && target.IsActive())
             {

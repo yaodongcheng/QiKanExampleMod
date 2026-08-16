@@ -4237,6 +4237,58 @@
     <string id="LWN_im_status_away" text="他处" />
     <string id="LWN_im_status_outside" text="城外" />
     <string id="LWN_im_status_far" text="远处" />
+    <!-- 2026-08-16（方案 C/D/K/R/S）：口嗨前缀 + 事件兜底 + 关切模板 + 求情/政治播报 -->
+    <string id="LWN_im_bragging_tag" text="（吹牛）" />
+    <string id="LWN_im_event_mission_settlement" text="主公进了一座城。" />
+    <string id="LWN_im_event_mission_hideout" text="主公闯进了一处藏身处。" />
+    <string id="LWN_im_event_mission_siege" text="主公正随军围攻一座城。" />
+    <string id="LWN_im_event_mission_battle" text="主公在旷野与人交战。" />
+    <string id="LWN_im_event_kingdom_created" text="主公建起了自己的王国，天下震动！" />
+    <string id="LWN_im_event_level_up" text="主公武艺精进，又上一层楼。" />
+    <string id="LWN_im_event_fief_granted" text="主公获封了新领地。" />
+    <string id="LWN_im_event_marriage" text="主公大婚，双喜临门。" />
+    <string id="LWN_im_event_child_born" text="主公府上添丁了。" />
+    <string id="LWN_im_event_crime" text="主公在附近犯了事。" />
+    <string id="LWN_im_event_relation_change" text="主公与人的关系起了变化。" />
+    <string id="LWN_im_care_low" text="主公当心！" />
+    <string id="LWN_im_care_heavy" text="主公挺住！" />
+    <string id="LWN_im_care_retreat" text="主公伤得不轻，快撤！" />
+    <string id="LWN_im_care_crime" text="主公快走，那守卫瞧见了！" />
+    <string id="LWN_im_event_kingdom_decision" text="王国议会就战和作出了裁决。" />
+    <!-- 2026-08-16（方案 J/R/S 补漏）：新动作播报标签（PlanActionLabel 同表，防标签漂移） -->
+    <string id="LWN_plan_action_split_party" text="分兵离队" />
+    <string id="LWN_plan_action_engage" text="追击敌军" />
+    <string id="LWN_plan_action_persuade_join" text="招揽入盟" />
+    <string id="LWN_plan_action_propose_war" text="提议宣战" />
+    <string id="LWN_plan_action_negotiate_peace" text="提议停战" />
+    <string id="LWN_plan_action_order_march" text="命令进军" />
+    <string id="LWN_plan_action_pay_ransom" text="交付赎金" />
+    <string id="LWN_plan_action_beg_mercy" text="恳求宽恕" />
+    <string id="LWN_plan_action_bribe_guard" text="贿赂守卫" />
+    <string id="LWN_distress_ransom_short" text="强盗们搜走了你身上所有的钱……可还是不够。" />
+    <string id="LWN_distress_fine_short" text="守卫数了数你的钱，摇了摇头——不够。你仍被收押着。" />
+    <string id="LWN_distress_bribe_short" text="你的钱袋见了底，守卫不为所动。" />
+    <string id="LWN_distress_bribe_ok" text="守卫把钱揣进怀里，扭头望向别处。你趁机脱身。" />
+    <string id="LWN_distress_bribe_fail" text="守卫收下你的钱……随后一把抓住你的手臂。你仍被收押着。" />
+    <string id="LWN_plan_action_persuade_ok" text="{NAME}宣誓效忠咱们的王国！" />
+    <string id="LWN_plan_action_persuade_fail" text="{NAME}断然拒绝了你的招揽，还记恨上了你（关系 -10）。" />
+    <string id="LWN_plan_action_war_noinfluence" text="国王摇了摇头：国库空虚，还不是时候。" />
+    <string id="LWN_plan_action_war_proposed" text="已向议会提交对{TARGET}的宣战议案（影响力 -200），静待表决。" />
+    <string id="LWN_plan_action_peace_proposed" text="已向议会提交与{TARGET}的停战议案（影响力 -200），静待表决。" />
+    <string id="LWN_ui_interact_inquiry_split_party_msg" text="{NAME}想分出一队人马单独行动。" />
+    <string id="LWN_ui_interact_inquiry_split_party_npc_msg" text="{NAME}想分出一队人马单独行动。" />
+    <string id="LWN_ui_interact_inquiry_propose_war_msg" text="{NAME}想向国王提议对某王国宣战。" />
+    <string id="LWN_ui_interact_inquiry_propose_war_npc_msg" text="{NAME}想向国王提议对{TARGET}宣战。" />
+    <string id="LWN_ui_interact_inquiry_negotiate_peace_msg" text="{NAME}想向国王提议停战。" />
+    <string id="LWN_ui_interact_inquiry_negotiate_peace_npc_msg" text="{NAME}想向国王提议与{TARGET}停战。" />
+    <string id="LWN_ui_interact_inquiry_persuade_join_msg" text="{NAME}想劝{TARGET}加入咱们的王国。" />
+    <string id="LWN_ui_interact_inquiry_persuade_join_npc_msg" text="{NAME}想劝{TARGET}加入咱们的王国。" />
+    <string id="LWN_ui_interact_inquiry_pay_ransom_msg" text="{NAME}愿意付赎金求放。" />
+    <string id="LWN_ui_interact_inquiry_pay_ransom_npc_msg" text="{NAME}愿意付赎金求放。" />
+    <string id="LWN_ui_interact_inquiry_beg_mercy_msg" text="{NAME}想向守卫求饶认罚。" />
+    <string id="LWN_ui_interact_inquiry_beg_mercy_npc_msg" text="{NAME}想向守卫求饶认罚。" />
+    <string id="LWN_ui_interact_inquiry_bribe_guard_msg" text="{NAME}想塞钱给守卫求放。" />
+    <string id="LWN_ui_interact_inquiry_bribe_guard_npc_msg" text="{NAME}想塞钱给守卫求放。" />
     <string id="LWN_im_march_channel_only" text="战术只能发给单个英雄；频道内下达战术需进入场景。" />
     <string id="LWN_im_march_no_party" text="此人麾下并无军队可令。" />
     <string id="LWN_im_march_in_party" text="此人正随你行军——请在场景中当面下密令。" />

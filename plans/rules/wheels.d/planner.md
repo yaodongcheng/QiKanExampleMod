@@ -180,3 +180,26 @@ PlanCommandFlow.Start(companion);       // 需 Settings.Instance.IsLLMConfigured
 - `InteractionMissionView.cs`：Plot/StopPlan 玩法行（available 条件 = 随从关系 `brain.Leader==Main || Following/ExecutingCommand`；密谋中该随从 Talk 行互斥移除）+ `PlanCommandFlow.Tick()`/`PlanReplan.Tick()`（主线程消费 LLM 结果）
 - `AgentHudVM.cs` + `AgentHudNearby.xml`：`ShowPlanSummary`/`PlanSummaryText` 执行摘要（三处联动 + FOV 外防残留）
 - `LLMService.ChatAsync(systemPrompt, max_tokens, needJson, temperature)`；`PromptBuilder.BuildPlanPrompt(snapshotText, command, persona, history, intentTable, grammar)`
+
+---
+
+## 🔴 respond 链路多对象认知注入（2026-08-16 方案 H + I + S2）— `Planner/ReactiveAgent.cs` + `Planner/DialogueComponent.cs`
+
+**解决什么问题**：当面对话/附近喊话（respond 链路）**完全没有 RAG 事实注入**（问战争/物价/位置答不了）——IM 侧有，respond 侧零。方案 H 把认知注入按**对话对象身份分级**（L1 同行全量 / L2 同场景普世+场景锚点 / L3 邻军互见（函数预留）/ L4 遥距现状）。
+
+**关键实现**：
+- `DialogueComponent.GenerateLine` 新可选参数：`worldFacts`（RAG 事实段）/ `sceneAnchor`（场景锚点）/ `distressSection`（S2 受困处境）——插在【对方】段后、记忆段前；既有调用点零改动
+- `ReactiveAgent.StartRespond` 主线程构建：
+  - `WorldFactProvider.BuildFactsForIm(companionLine, responderIsPartyMember)` — **同一个函数按对象身份传参**（随从被当面对话 → L1 全量；路人 → 普世裁剪；模板 NPC 无 Hero 记忆 → 只注入普世 RAG + 场景采样）
+  - `BuildCurrentStatusLine`（I1 触发式现状行，历史提及检测）+ `BuildPlayerRelationSection`/`BuildPartyRelationSection`（L1 常态段）
+  - 场景锚点：Hero → `BuildSceneAwareness(heroId)`；模板 NPC → `BuildSceneAwarenessForAgent(agent)`（无 Hero 入口）
+  - 身份互认增强 `BuildOtherIdentityDesc(requester, self, other)` — "主公是咱们队伍的首领" vs "你是瓦兰迪亚的兵" vs "敌国的人"（C# 确定性阵营判定）
+  - S2 受困处境：`DistressFlow.IsInDistress()` + 对象非队伍成员 → `BuildDistressSection(agent)`（看守的认知里玩家是囚犯 + 欠的账）
+- **口嗨检测接入**：respond 台词也过 `ChatClaimChecker.CheckAndMark(result, dline.ActionCode, …)`（当面对话同样声称 vs 决策比对）
+
+## 🔴 随从自身经历写入方（2026-08-16 方案 L）— `Memory/SingNpcMemorySystem.cs` + `Core/PlayerMissionEventLogic.cs` + `Core/PartySplitFlow.cs`
+
+**解决什么问题**：`RecordNarration` 通道存在（进【近期经历】段）但写入方只有 AgentBrain 的"被攻击/目击/奉命"——全是**被动承受**，随从像摄像头不像人。L 只补写入方（通道/注入/存档全复用）：
+- **L1 战斗表现旁白**：`PlayerMissionEventLogic`（Mission 期间累计击杀数（`OnAgentRemoved` + `Agent.KillCount` 引擎原生）+ 负伤（血 <0.5））→ `MyBehavior.WriteBattleNarration(won)` 消费（battle_win/lose 挂载点）：「我随主公在 {place} 打了一仗，砍翻了 N 个敌人，我负了伤」——第一人称只写本人记忆，不广播（与 D 的玩家视角广播双通道互补）
+- **L2 分兵见闻**：`PartySplitFlow.Execute`/`MergeBack` 写「我领了一队人马离了主队，跟着主公走」/「我带着队伍回来了」——归队后【近期经历】自然带出，玩家问「这趟怎么样」能答
+- **L3 差事所见**：`move_to(Party)` 执行写「我正带队前往 {X}，在那边等主公」；`engage` 写「我带队去追击 {X}」（ActionRegistry Execute 内）

@@ -23,6 +23,8 @@ namespace LivingWorldNpcs
         public string BackgroundStory { get; set; }
         public string Personality { get; set; }
         public string Specialty { get; set; }
+        // 🔴 2026-08-16（方案 N）：大事记槽（写入时 C# 白名单分级锚定；旧档无字段 → 空，不补写）
+        public List<string> ImportantEvents { get; set; }
 
         public NpcMemorySaveEntry() { }
 
@@ -31,12 +33,13 @@ namespace LivingWorldNpcs
             HeroId = heroId;
             RecentHistory = m.RecentHistory != null ? new List<ChatMessage>(m.RecentHistory) : new List<ChatMessage>();
             DynamicMemories = m.DynamicMemories != null
-                ? m.DynamicMemories.Select(x => new RecentMemory(x.Content, x.TimeStamp_Start, x.TimeStamp_End)).ToList()
+                ? m.DynamicMemories.Select(x => new RecentMemory(x.Content, x.TimeStamp_Start, x.TimeStamp_End, x.CampaignDay)).ToList()
                 : new List<RecentMemory>();
             PermanentMemory = m.PermanentMemory?.ToString() ?? "";
             BackgroundStory = m.BackgroundStory ?? "";
             Personality = m.Personality ?? "";
             Specialty = m.Specialty ?? "";
+            ImportantEvents = m.ImportantEvents != null ? new List<string>(m.ImportantEvents) : null;
         }
     }
 
@@ -188,7 +191,8 @@ namespace LivingWorldNpcs
                     && (m.PermanentMemory == null || m.PermanentMemory.Length == 0)
                     && string.IsNullOrEmpty(m.BackgroundStory)
                     && string.IsNullOrEmpty(m.Personality)
-                    && string.IsNullOrEmpty(m.Specialty))
+                    && string.IsNullOrEmpty(m.Specialty)
+                    && (m.ImportantEvents == null || m.ImportantEvents.Count == 0))
                     continue;
 
                 entries.Add(new NpcMemorySaveEntry(kv.Key, m));
@@ -225,7 +229,7 @@ namespace LivingWorldNpcs
             {
                 _pendingRestores.Remove(stringId);
                 memory.RestoreFromSave(entry.RecentHistory, entry.DynamicMemories, entry.PermanentMemory,
-                    entry.BackgroundStory, entry.Personality, entry.Specialty);
+                    entry.BackgroundStory, entry.Personality, entry.Specialty, entry.ImportantEvents);
             }
         }
 

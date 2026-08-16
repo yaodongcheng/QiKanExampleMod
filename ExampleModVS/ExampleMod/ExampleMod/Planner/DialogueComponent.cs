@@ -401,7 +401,8 @@ namespace LivingWorldNpcs
             string world, string identity, string attitude, string topic, string roundText,
             string outlineSection, string otherName, string history, string lastLine,
             string ruleKey, string ruleFallback, string actionSpace = null,
-            int maxTokens = 220, int timeoutMs = 8000)
+            int maxTokens = 220, int timeoutMs = 8000,
+            string worldFacts = null, string sceneAnchor = null, string distressSection = null)
         {
             var line = new DialogueLine();
             try
@@ -420,6 +421,27 @@ namespace LivingWorldNpcs
                     sb.AppendLine(outlineSection);
                 // 对方段（XML LWN_plan_respond_section_other）
                 sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_other", "【对方】") + otherName);
+                // 🔴 2026-08-16（方案 S2）：受困处境段（玩家被俘/被抓时看守的认知——对方身份 + 欠的账）
+                if (!string.IsNullOrEmpty(distressSection))
+                {
+                    sb.AppendLine(distressSection);
+                    sb.AppendLine();
+                }
+                // 🔴 2026-08-16（方案 H4.2）：respond 链路场景锚点（L2 同场景任意 agent，含模板 NPC）——
+                // 当面对话问"我们在哪/附近有什么"也答得准（方案 A 最近定居点兜底随此自动生效）
+                if (!string.IsNullOrEmpty(sceneAnchor))
+                {
+                    sb.AppendLine(sceneAnchor);
+                    sb.AppendLine();
+                }
+                // 🔴 2026-08-16（方案 H4.1/I1/G10/T3a）：respond 链路 RAG 事实注入——
+                // 同一个函数按对象身份传参（L2 普世 / 随从 L1 全量），不新写逻辑；
+                // 含触发式现状行（聊过数值才注入）与 L1 常态段（人缘/咱们人的关系）
+                if (!string.IsNullOrEmpty(worldFacts))
+                {
+                    sb.AppendLine(worldFacts);
+                    sb.AppendLine();
+                }
                 // 记忆裁剪段（与对方相关的近期对话；PromptBuilder 既有）
                 sb.AppendLine(history);
                 // 对方刚说（记忆过滤后最后一句）

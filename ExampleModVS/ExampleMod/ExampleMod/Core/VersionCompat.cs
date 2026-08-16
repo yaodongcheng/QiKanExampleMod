@@ -479,6 +479,22 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // ── Map weather ──────────────────────────────────────────────
+        // 天气（方案 G1，2026-08-16）：Campaign.Current.Models.MapWeatherModel.GetWeatherEventInPosition
+        // ✅ 反编译实锤 v1.2.12 / v1.4.8 均有；MapWeatherModel = ComponentInterfaces 命名空间，
+        // WeatherEvent = MapWeatherModel 嵌套枚举（Clear/LightRain/HeavyRain/Snowy/Blizzard/Storm）。
+        // 返回 MapWeatherModel.WeatherEvent 枚举（无模型/无 Campaign → Clear 兜底，调用方按词表映射措辞）。
+
+        public static TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent GetWeatherAt(Vec2 pos)
+        {
+            try
+            {
+                if (Campaign.Current?.Models?.MapWeatherModel == null) return TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Clear;
+                return Campaign.Current.Models.MapWeatherModel.GetWeatherEventInPosition(pos);
+            }
+            catch { return TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Clear; }
+        }
+
         // ── Freeze/unfreeze player control（偷窃条输入隔离）────────────
         // v1.2.12: agent.Controller = Agent.ControllerType.AI/Player 切换
         // Latest:  agent.Controller = AgentControllerType.AI/Player（类型从嵌套枚举改名，setter 仍可用）

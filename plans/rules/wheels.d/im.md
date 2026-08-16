@@ -215,3 +215,29 @@ public static void ScheduleDelayedAction(Action action, float delaySec);
 2. **构建后强制广播**：`RebuildCardButtons` 末尾 `OnPropertyChanged(IsHorizontalButtons)` + `OnPropertyChanged(IsVerticalButtonsVisible)`——无论构建时序，最终状态重评估
 
 **调试日志**：`[CardButtons]`（重建入口+锚点种类）/ `[SuggestBtn]`（构建判定变量+可见性）/ `[CardAnchor]`（锚点竞争结果，**节流：latestCard 引用变化才打**——UpdateCardAnchors 每 0.3s 轮询，不节流会刷屏）。
+
+---
+
+## 🔴 认知同步与反馈层（2026-08-16 方案 A/B/C/D/K/M/N/O/P/S/R）— `ImChat/` + `Core/PlayerMissionEventLogic.cs` + `ImChat/ImEventBroadcaster.cs`
+
+**解决什么问题**：随从"该知道但没人说出口"的事实无通道；玩家即时状态（残血/被抓现行）随从无秒级反应；事件广播只有事实没有情绪；大事被日常 FIFO 挤掉。本次补齐感知层 + 反馈层。
+
+**感知层（D2，机制核心）**：`BroadcastPlayerEvent(eventKey, description, chatComment = true, memberFilter = null, important = false)` 两段式——① 感知层（总是）：写入全部队伍成员 `RecordDynamicMemory`（进【近期回忆】段，不产生幽灵聊天行）；闸门独立于话题层（同 key 300s + 描述去重 + 每日 30 条，`[Sense]` 日志）；② 话题层（chatComment=true 才走）：既有防刷屏 → 挑最健谈者（`PickSpeaker(memberFilter)`）→ LLM 评论。**调用约定**：mission_*/level_up → `chatComment=false` 只感知；大事 → true。**分兵口径（J3）**：亲历级（mission_*/crime/level_up）只写主队成员；公开级（battle/王国/任务/关系）扩写分兵随从。
+
+**事件源**：
+- `Core/PlayerMissionEventLogic.cs`（MissionLogic，D1/K/P/L 统计）：首帧分类（settlement→hideout/siege 攻守分流（`SiegeEvent.BesiegerCamp.LeaderParty == MainParty` 才"随军攻打"，否则"抵御围攻"——实锤 `Settlement.BesiegerCamp` 不存在）/settlement(+子地点)；野战→mission_battle 带最近定居点锚点+参战人数）+ K1 血线关切（<0.6 挂彩/<0.35 重伤，每档一次，回血 ≥0.7 重置，90s 冷却，15m 距离上限，SpeechChannel Warning 优先级）+ G3①/K2 犯罪感知（`ReportPlayerMisconduct(actionTypeWord)`——Steal/AttackAlly/Knockout 复用 LWN_crime_witness_act_* 模板；同场景随从记忆照写，无第三方目击只影响世界层不影响随从亲历）+ P1 行为亲见（场景 tag smithy/tavern + 位置 + 静止，300s 冷却）+ L1 战斗统计（`OnAgentRemoved` 击杀计数 + 血 <0.5 负伤标记，`TakeBattleKills/TakeBattleWounded` 供 battle_win/lose 消费）
+- `MyBehavior.cs`（D3/O/Q）：5 个新事件挂载（实锤签名：`KingdomCreatedEvent(Kingdom)` / `HeroLevelledUp(Hero, bool)` / `OnSettlementOwnerChangedEvent(Settlement, bool, Hero, Hero, Hero, Detail)` / `BeforeHeroesMarried(Hero, Hero, bool)` / `OnChildConceivedEvent(Hero)`——只广播 MainHero 分支）+ O 关系动态（`HeroRelationChanged(Hero, Hero, int, bool, Detail, Hero, Hero)`——涉及 MainHero + |Δ|≥25 或跨档位（友好≥20↔中立↔反感≤-10），话题层 30%）+ Q 画像计数（`Memory/PlayerImageStore.cs`，SyncData JSON 小 key 纪律）
+
+**情绪推导（M）**：`EmotionClause(eventKey)` — C# 确定性映射（battle_lose→"（主公此刻心情低落…）"等 9 组），描述 = 事实 + 情绪句两段；GetFallback 纯事实不动（兜底不携带情绪）。
+
+**大事记（N）**：`SingNpcMemorySystem.RecordImportantMemory(desc)` — ≤12 FIFO，写入时 C# 白名单分级（kingdom_created/fief_granted/marriage/child_born/imprison/release + 限定版 battle_win——调用方传 `important:` 判定：攻城战胜利或大捷参战人数比 ≥2（`MapEvent.IsSiegeAssault` + `GetNumberOfInvolvedMen(side)`））；存档走 NpcMemorySaveEntry 新字段（旧档空 → 不补写）；prompt【大事记】段（GetPrompt_RespondContext 顶部）。
+
+**口嗨检测（C）**：`ChatClaimChecker.CheckAndMark(reply, actionCode, needPlan, adjustPlan, speakerName)` — 声称表（带路/请客/这就动身/时间承诺/包办/动手/去办某事/必当定当 + "我一定"+动作后缀收紧 + 英文兜底）× 守卫（前 4 字符内 否定/转述/过去时/条件式）→ 声称+零执行路径 → `LWN_im_bragging_tag` 前缀（（吹牛））+ `[Bragging]` 日志。接入点：ImReplyService（SanitizeReply 后）+ ReactiveAgent respond。**与 J/R 联动**：动作注册了才是真的、没注册就是吹牛。
+
+**即时关切（K）**：确定性模板 + SpeechChannel（护主不告发）；与 M（异步 LLM 情绪长句）分工：K 先到、M 后到。
+
+**政治动作空间（R）**：`Core/KingdomPoliticsFlow.cs` — 身份判定（`IsLord`/`IsKing`/`HasDefectionTendency`）+ 4 动作（persuade_join 检定 `SingleRollResolver.Roll` + `ChangeKingdomAction.ApplyByJoinToKingdom`（实锤 4 参）；propose_war/negotiate_peace 走原版决策管道（`DeclareWarDecision(Clan, IFaction)` / `MakePeaceKingdomDecision(Clan, IFaction, …)` + `Kingdom.AddDecision`——**禁止直改战争状态**）；order_march `SetPartyAiAction` 全家桶）；ActionRegistry 新增 `IdentityGated` 字段（GetActionSpacePrompt 任何空间跑 IsValid——身份维度过滤）。**决策结果广播（R 反馈链，2026-08-16 补）**：`CampaignEvents.KingdomDecisionConcluded`（实锤 `IMbEvent<KingdomDecision, DecisionOutcome, bool>`，类型在 `TaleWorlds.CampaignSystem.Election` 命名空间；1.2.12 亦存在）——`ProposerClan == Clan.PlayerClan` 才广播（他人提案不广播），outcome 实例化判断通过/否决（`DeclareWarDecisionOutcome.ShouldWarBeDeclared` / `MakePeaceDecisionOutcome.ShouldPeaceBeDeclared`），key=`kingdom_decision`——设计哲学原则一：投票 1-3 天出结果，结果必须让随从知道（禁止静默）。
+
+**受困求情（S）**：`Interaction/Dialogue/DistressFlow.cs` — `IsPlayerCaptive`（IsPrisoner/被押解/`sp_prisoner` tag）/`IsPlayerCaught`（PendingWorldEvent 有真实目击者）+【受困处境】段（respond 链路看守 prompt）+ 3 动作（pay_ransom/beg_mercy/bribe_guard——`IdentityGated` 受困门控；金额 = 对方说了算（`ComputeCost(Restitution)` 统一入口或勒索基础值）；转账守恒 `AgentControlHelper.TransferGold`（看守无 Hero → null 虚空 Sink，铁律 4 合法）+ 释放 `EndCaptivityAction.ApplyByRansom(character, facilitator)` 实锤；贿赂检定可失败：钱没了罪还在）。
+
+**DebugLogger 前缀**：`[Sense]`（感知写入+闸门）/ `[Care]`（关切触发+冷却+跳过原因）/ `[Bragging]` / `[StaleFact]` / `[Kingdom]` / `[Distress]` / `[Party]` / `[ImEvent]`。

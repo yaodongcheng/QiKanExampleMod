@@ -15,12 +15,18 @@ namespace LivingWorldNpcs
         //时间戳
         public double TimeStamp { get; set; }
 
+        /// <summary>游戏内日（🔴 2026-08-16 方案 I5）：写入时同步记录 CampaignTime.Now.ToDays——
+        /// 墙钟毫秒（TimeStamp）对游戏对话无意义（游戏内 1 天 ≈ 墙钟几分钟），不可转换；
+        /// 输出时转相对词（[3天前]）。0 = 旧存档条目（无游戏内日）→ 不标时间戳（契约兜底，宁模糊不编数）。</summary>
+        public float CampaignDay { get; set; }
+
         public ChatMessage(string role, string content, string speakerId = null)
         {
             Role = role;
             Content = content;
             SpeakerId = speakerId;
             TimeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            try { CampaignDay = TaleWorlds.CampaignSystem.Campaign.Current != null ? (float)TaleWorlds.CampaignSystem.CampaignTime.Now.ToDays : 0f; } catch { CampaignDay = 0f; }
         }
     }
 }

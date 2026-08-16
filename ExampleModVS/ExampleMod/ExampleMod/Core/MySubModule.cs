@@ -96,6 +96,9 @@ namespace LivingWorldNpcs
 
             //召唤某个英雄并且和他对话功能
             mission.AddMissionBehavior(new HeroSpawnerMissionBehavior());
+            //🔴 2026-08-16（方案 D/K/L/P）：玩家 Mission 事件感知（首帧分类广播 + 血线关切 +
+            // 犯罪感知/关切 + 战斗表现统计 + 行为亲见）
+            mission.AddMissionBehavior(new PlayerMissionEventLogic());
 
 
 
