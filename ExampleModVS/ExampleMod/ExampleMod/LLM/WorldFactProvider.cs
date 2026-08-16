@@ -123,7 +123,7 @@ namespace LivingWorldNpcs
             new FactTopic
             {
                 Id = "quest", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_quest"), NeedsPartyMember = true, // lwn-ignore: B
-                Keywords = new[] { "任务", "委托", "差事", "悬赏", "quest", "quests", "issue", "issues", "errand", "errands" },
+                Keywords = new[] { "任务", "委托", "差事", "悬赏", "村子", "村庄", "quest", "quests", "issue", "issues", "errand", "errands" },
                 Query = QueryQuestFact,
             },
             new FactTopic
@@ -1370,12 +1370,51 @@ namespace LivingWorldNpcs
             catch { return "天气如常"; }
         }
 
+        /// <summary>任务日志里的定居点链接（QuestJournal 转储实锤格式：
+        /// <a style="Link.Settlement" href="event:Settlement-village_ES3_2">特维亚</a>）——
+        /// 提取 StringId 后走 Settlement.Find（铁律 5 动态查找，不硬编码 ID）。</summary>
+        private static readonly System.Text.RegularExpressions.Regex QuestSettlementLinkRegex =
+            new System.Text.RegularExpressions.Regex(@"event:Settlement-([A-Za-z0-9_]+)", System.Text.RegularExpressions.RegexOptions.Compiled);
+
         private static string QueryQuestFact()
         {
             var qm = Campaign.Current?.QuestManager;
             if (qm == null || qm.Quests == null || qm.Quests.Count == 0) return "- 眼下没有进行中的委托。";
             var names = string.Join("、", qm.Quests.Take(3).Select(q => q.Title?.ToString() ?? "一桩委托"));
-            return $"- 进行中的委托 {qm.Quests.Count} 桩（如：{names}）。";
+            var sb = new StringBuilder();
+            sb.AppendLine($"- 进行中的委托 {qm.Quests.Count} 桩（如：{names}）。");
+            // 🔴 2026-08-16（追问详情防编造）：标题不够——玩家追问"哪个村子/什么差事"时 LLM 手头
+            // 只有标题，会把 E 段附近的村庄名当任务目标（实机：村民需要帮助 → LLM 答"萨戈拉"，
+            // 实际是特维亚）。QuestBase 无 TargetSettlement（ilspycmd 实锤），目标地取两路：
+            // ① QuestGiver.CurrentSettlement（委托人所在地，村老在村、贵族在堡；村民任务委托人是
+            // "男孩"非 Hero 时会 null）；② 任务日志里的定居点链接 <a href="event:Settlement-{StringId}">
+            // （QuestJournal 转储实锤格式）→ 正则提取 StringId → Settlement.Find 本地化村名（铁律 5）。
+            foreach (var q in qm.Quests.Take(3))
+            {
+                string place = null;
+                try
+                {
+                    if (q?.QuestGiver?.CurrentSettlement != null)
+                        place = q.QuestGiver.CurrentSettlement.Name?.ToString();
+                    if (place == null && q?.JournalEntries != null)
+                    {
+                        foreach (var entry in q.JournalEntries)
+                        {
+                            // JournalLog.LogText（反编译实锤属性名，非 Text）
+                            var m = QuestSettlementLinkRegex.Match(entry?.LogText?.ToString() ?? "");
+                            if (m.Success)
+                            {
+                                var s = Settlement.Find(m.Groups[1].Value);
+                                if (s != null) { place = s.Name?.ToString(); break; }
+                            }
+                        }
+                    }
+                }
+                catch { }
+                if (!string.IsNullOrEmpty(place))
+                    sb.AppendLine($"- {q.Title} 的差事在 {place}。");
+            }
+            return sb.ToString();
         }
 
         /// <summary>技能等级：动态遍历 MBObjectManager 已注册技能（铁律 5 第二轮策略，非硬编码 ID），
