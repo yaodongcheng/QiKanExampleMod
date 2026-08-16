@@ -227,11 +227,18 @@ namespace LivingWorldNpcs
 
         /// <param name="numericCovered">🔴 2026-08-16（prompt 精简）：I1【此刻现状】已注入（数值话题命中）时
         /// 世界概要跳过钱/粮/季节行——同一数值不在 prompt 里出现两遍；未命中则概要照常全量（问句兜底）。</param>
-        public static string BuildFactsForIm(string playerText, bool isPartyMember, bool numericCovered = false)
+        /// <param name="conv">🔴 2026-08-16（用户裁定：你们俩 = 频道最近两人）：群聊会话——"你们俩/两位"
+        /// 没点名时从频道消息尾部取最近两个不同 NPC 发言人作双实体查询；respond 链路（当面对话）传 null
+        /// 不启用（无群聊语境）。</param>
+        /// <param name="responderHeroId">🔴 2026-08-16（当事人放行）：回复者本人 StringId——pair 含本人时
+        /// 不受 NeedsPartyMember 裁剪（问"你俩关系怎么样"的当事人亲见自己的关系，第一人称无边界；
+        /// 裁剪只挡第三方路人打听队伍成员关系）。</param>
+        public static string BuildFactsForIm(string playerText, bool isPartyMember, bool numericCovered = false,
+            ImConversation conv = null, string responderHeroId = null)
         {
             if (string.IsNullOrWhiteSpace(playerText)) return "";
             // 🔴 2026-08-16（方案 T）：双实体关系查询优先（文本命中两个不同 Hero + 关系词 → X↔Y 硬事实）
-            var pair = ResolvePairQuery(playerText, isPartyMember);
+            var pair = ResolvePairQuery(playerText, isPartyMember, conv, responderHeroId);
             if (pair != null)
             {
                 string fact = QueryHeroPairFact(pair.Value.Item1, pair.Value.Item2);
@@ -2170,11 +2177,23 @@ namespace LivingWorldNpcs
             "how are", "relation between", "relationship between", "get along",
         };
 
+        /// <summary>双实体指代词（2026-08-16 用户裁定：你们俩 = 频道最近两人）：
+        /// 关系语境下玩家没点名（"你们俩之间的关系怎么样"）→ 从当前频道消息尾部取最近两个
+        /// 不同 NPC 发言人作查询对象（微信群聊语义：指最近说话的两个人）。</summary>
+        private static readonly string[] PairAddressKeywords =
+        {
+            "你们俩", "你俩", "二位", "两位", "这俩", "那俩", "他俩",
+        };
+
         /// <summary>识别双实体关系问题：文本命中两个不同 Hero + 关系词 → (Hero, Hero)；否则 null。
         /// 可见性裁剪：两 Hero 任一在队伍 → NeedsPartyMember=true（同行亲见——队伍成员关系是亲见级）；
         /// 两 Hero 均为外人 → 普世（传闻级人尽皆知，路人也能说，与 QueryHeroRelationFact 同口径）。
-        /// 单命中 → 回落现状单实体查询（ResolveEntityQuery）。</summary>
-        private static (Hero, Hero)? ResolvePairQuery(string text, bool isPartyMember)
+        /// 单命中 → 回落现状单实体查询（ResolveEntityQuery）。
+        /// 🔴 2026-08-16（用户裁定：你们俩 = 频道最近两人）：文本找不到两个 Hero 名但命中指代词
+        /// （你们俩/两位…）→ 从当前群聊频道取最近两个不同 NPC 发言人（群聊语义：指最近说话的两人，
+        /// 实机"你们俩之间的关系怎么样"被当默认主题零注入，LLM 靠语境猜无数值支撑）。</summary>
+        private static (Hero, Hero)? ResolvePairQuery(string text, bool isPartyMember, ImConversation conv = null,
+            string responderHeroId = null)
         {
             try
             {
@@ -2193,16 +2212,87 @@ namespace LivingWorldNpcs
                         && !found.Contains(hero)) found.Add(hero);
                     if (found.Count >= 2) break;
                 }
-                if (found.Count < 2) return null;
-                var a = found[0];
-                var b = found[1];
+                (Hero, Hero)? pair = null;
+                if (found.Count >= 2)
+                {
+                    pair = (found[0], found[1]);
+                }
+                else if (ContainsAny(text, PairAddressKeywords))
+                {
+                    // 没点名 + 指代词 → 频道最近两个不同 NPC 发言人
+                    pair = GetRecentPairFromChannel(conv);
+                    if (pair == null && found.Count == 1)
+                    {
+                        // 频道凑不齐两人：已点名的那个 + 频道最近另一个不同的
+                        var one = GetRecentPeerOf(found[0], conv);
+                        if (one != null) pair = (found[0], one);
+                    }
+                }
+                if (pair == null) return null;
+                var a = pair.Value.Item1;
+                var b = pair.Value.Item2;
                 // 可见性裁剪：任一在队伍 → 需要队伍成员身份
                 bool anyInParty = ImChatManager.GetChannelMembers(ImConversationType.Party)
                     .Any(m => m != null && (m == a || m == b));
-                if (anyInParty && !isPartyMember) return null;
+                // 🔴 2026-08-16（当事人放行）：pair 含回复者本人 → 第一人称亲见自己的关系，无情报边界，
+                // 不裁剪（实机 2026-08-16：阿速甘被问"你俩关系怎么样"——他就是当事人之一，却被
+                // NeedsPartyMember 整段裁剪 → 编"牢里同难之交"→ 被质问后圆谎；裁剪只挡第三方路人）
+                bool selfInvolved = !string.IsNullOrEmpty(responderHeroId)
+                    && (a.StringId == responderHeroId || b.StringId == responderHeroId);
+                if (anyInParty && !isPartyMember && !selfInvolved) return null;
+                return pair;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>频道最近两个不同 NPC 发言人（2026-08-16 用户裁定「你们俩」语义）：
+        /// 群聊消息尾部往前扫，排除玩家/系统/非 Hero 发送者，取两个不同的人；
+        /// 私聊或无群聊上下文 → null（"你们俩"在私聊里没意义）。</summary>
+        private static (Hero, Hero)? GetRecentPairFromChannel(ImConversation conv)
+        {
+            try
+            {
+                if (conv == null || conv.Type == ImConversationType.Direct) return null;
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                if (msgs == null) return null;
+                Hero a = null, b = null;
+                for (int i = msgs.Count - 1; i >= 0 && b == null; i--)
+                {
+                    var m = msgs[i];
+                    if (m == null || m.IsSystem || string.IsNullOrEmpty(m.SenderHeroId)) continue;
+                    if (m.SenderHeroId == ImChatManager.PlayerId) continue; // 玩家自己不算
+                    Hero h = null;
+                    try { h = Hero.FindFirst(x => x.StringId == m.SenderHeroId); } catch { }
+                    if (h == null) continue;
+                    if (a == null) a = h;
+                    else if (h.StringId != a.StringId) b = h;
+                }
+                if (a == null || b == null) return null;
                 return (a, b);
             }
             catch { return null; }
+        }
+
+        /// <summary>频道最近一个与指定 Hero 不同的 NPC 发言人（「你俩」点名一人的兜底配对）。</summary>
+        private static Hero GetRecentPeerOf(Hero self, ImConversation conv)
+        {
+            try
+            {
+                if (self == null || conv == null || conv.Type == ImConversationType.Direct) return null;
+                var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                if (msgs == null) return null;
+                for (int i = msgs.Count - 1; i >= 0; i--)
+                {
+                    var m = msgs[i];
+                    if (m == null || m.IsSystem || string.IsNullOrEmpty(m.SenderHeroId)) continue;
+                    if (m.SenderHeroId == ImChatManager.PlayerId || m.SenderHeroId == self.StringId) continue;
+                    Hero h = null;
+                    try { h = Hero.FindFirst(x => x.StringId == m.SenderHeroId); } catch { }
+                    if (h != null) return h;
+                }
+            }
+            catch { }
+            return null;
         }
 
         /// <summary>双实体关系硬事实（方案 T3b/T4）：任意两 Hero 的关系——等级词（QueryHeroRelationFact
@@ -2330,16 +2420,20 @@ namespace LivingWorldNpcs
         // ═══════════════════════════════════════════════════════════
 
         /// <summary>数值类关键词（gold/food/morale/party/prisoner/wounded/time 主题 Keywords 并集——
-        /// 复用 RAG 主题表，不新维护词表）。</summary>
+        /// 复用 RAG 主题表，不新维护词表）。
+        /// 🔴 2026-08-16（触发词收紧）：删「队伍/部队/人马」——NPC 回复高频泛称（"我随队伍在旷野里"、
+        /// E 段"西北有支部队"），历史 12 条检测几乎总命中 → 【此刻现状】常态化注入，违背 I1
+        /// 「不聊零开销」（实机"我们周围什么情况"误触发）；删「天气」——T05 用例要求聊天气零注入
+        /// （天气走 time RAG 即时查，无旧值引用问题）。</summary>
         private static readonly string[] NumericStatusKeywords =
         {
             "钱", "金币", "第纳尔", "金子", "积蓄", "盘缠", "gold", "coin", "coins", "money", "denar", "denars",
             "粮食", "食物", "口粮", "粮草", "补给", "food", "supply", "provision", "ration",
             "士气", "军心", "morale", "spirit",
-            "队伍", "部队", "兵力", "多少人", "士兵", "人马", "troop", "troops", "army", "soldier",
+            "兵力", "多少人", "士兵", "troop", "troops", "army", "soldier",
             "俘虏", "囚犯", "prisoner", "prisoners", "captive",
             "伤员", "伤兵", "wounded", "injured",
-            "今天", "几号", "季节", "日期", "时辰", "天气", "today", "date", "season", "weather", "when",
+            "今天", "几号", "季节", "日期", "时辰", "today", "date", "season",
         };
 
         /// <summary>
