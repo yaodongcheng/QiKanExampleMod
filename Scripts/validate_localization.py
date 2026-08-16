@@ -206,6 +206,15 @@ def check_cs_no_hardcoded_cjk():
         'ImTopicMatcher.cs',    # 称呼词表 + 话题评分日志（内部匹配/日志）
         'SessionDialogueTemplates.cs',  # 说服会话【态度】prompt 段
         'PlanReplan.cs',        # replan 指令 prompt
+        # 🔴 2026-08-16（认知同步方案 A-T 新增文件）：感知记忆描述 / 事件描述 / 情绪句 / 旁白模板 /
+        # 声称短语表 / 画像行 / 受困处境段——全部为 LLM prompt 材料或内部匹配词表（铁律 13 豁免）
+        'PlayerMissionEventLogic.cs',  # 感知记忆描述（进 NPC 记忆 → prompt）/ 关切判定词
+        'PartySplitFlow.cs',           # 分兵/归队旁白模板（RecordNarration → prompt）
+        'ChatClaimChecker.cs',         # 口嗨声称短语表 + 守卫词（内部匹配词表）
+        'ImEventBroadcaster.cs',       # 事件描述 + 情绪句（进 NPC 记忆 → prompt）
+        'DistressFlow.cs',             # 受困处境 prompt 段 / 赎金勒索内部判定
+        'PlayerImageStore.cs',         # 【主公的成色】画像行（prompt 材料）
+        'AgentAIController.cs',        # 犯罪评论 desc（进 NPC 记忆 → prompt）
     }
 
     found = 0

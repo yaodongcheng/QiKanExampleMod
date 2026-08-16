@@ -584,7 +584,10 @@ namespace LivingWorldNpcs
         /// <summary>不在场成员的归属描述（队伍/家族频道标记，🔴 2026-08-13 用户裁定）：
         /// 随从在主队（PartyBelongedTo == MainParty，玩家进城了他留在城外）→ 「城外」；
         /// 家族/其他 Hero → 所在定居点名（人就在城里）；不在任何定居点（行军途中/旷野）→ 「远处」；
-        /// 未知 Hero → 「他处」。返回纯文本（无括号，调用方拼（{}））；定居点名走引擎本地化。</summary>
+        /// 未知 Hero → 「他处」。返回纯文本（无括号，调用方拼（{}））；定居点名走引擎本地化。
+        /// 🔴 2026-08-16（用户裁定，方案 B）：玩家在大地图（Mission.Current == null）时，主队随从
+        /// 与玩家同行，没有在场/不在场之分——「城外」标记无意义（只有玩家进场景、随从留守队伍才需要）。
+        /// 此时返回 null，调用方跳过括号拼接（ImChatVM.DisplaySenderName 已接 null 分支）。</summary>
         public static string DescribeAwayLocation(string heroId)
         {
             try
@@ -595,6 +598,9 @@ namespace LivingWorldNpcs
                 if (hero == null)
                     // 本地化：LWN_im_status_away（玩家可见文本）
                     return LWNTextHelper.ResolveText("LWN_im_status_away", "away");
+                // 🔴 2026-08-16（方案 B 门控）：玩家在大地图时主队随从 = 同行，标记无意义 → null
+                if (Mission.Current == null && MobileParty.MainParty != null && hero.PartyBelongedTo == MobileParty.MainParty)
+                    return null;
                 // 随从在主队：队伍在城外扎营，他没进场景
                 if (MobileParty.MainParty != null && hero.PartyBelongedTo == MobileParty.MainParty)
                     // 本地化：LWN_im_status_outside（玩家可见文本）

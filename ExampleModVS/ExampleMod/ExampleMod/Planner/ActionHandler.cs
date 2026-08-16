@@ -89,6 +89,10 @@ namespace LivingWorldNpcs
                 // 招募同伴 Clan==PlayerClan 但 PartyBelongedTo==玩家 party（无独立部队），旧注入直接给 LLM
                 //（实机日志 09:58:55 游民同伴被注入 PARTY_PATROL/GATHER_TO_PLAYER）；资格不符不再进 prompt。
                 if ((action.Spaces & ActionSpace.Party) != 0 && !action.IsValid(attacker, defender, agent)) continue;
+                // 🔴 2026-08-16（方案 R）：身份门控动作（政治动作组）任何空间都过 IsValid——
+                // L2 领主 → persuade_join/order_march；L3 国王 → propose_war/negotiate_peace；
+                // 村民/流浪者无政治动作（身份过滤验证：动作空间无 propose_war）
+                if (action.IdentityGated && !action.IsValid(attacker, defender, agent)) continue;
                 sb.AppendLine($"- \"{action.Code}\": {action.Description}");
             }
             // 动作空间纪律段（LLM 输入）

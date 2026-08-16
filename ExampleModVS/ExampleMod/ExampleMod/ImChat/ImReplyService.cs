@@ -48,6 +48,22 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-14（M3 命令注入场景感知）：主线程构建的【目之所及】风险段
             //（动作命令才注入，闲聊零开销）——M4 风险审视的输入 + think-aloud 事实来源
             public string RiskSceneContext;
+            // 🔴 2026-08-16（方案 E2）：campaign 版【目之所及】（大地图环境视野快照）——
+            // 仅队伍成员注入（同行=亲见，认知边界）；主线程构建
+            public string CampaignAwareness;
+            // 🔴 2026-08-16（方案 F2）：自我认知快照（装备/等级技能 + 主公行头 + 队伍物资）——
+            // 任何 Hero 注入装备/等级段；队伍物资段仅队伍成员
+            public string SelfAwareness;
+            // 🔴 2026-08-16（方案 I1）：触发式现状行【此刻现状】（聊过数值才注入，零词表）——
+            // 主线程按 玩家本条消息 + 对话历史最近 12 条 命中数值类关键词判定
+            public string CurrentStatusLine;
+            // 🔴 2026-08-16（方案 G10/T3a）：L1 常态段（主公的人缘 + 咱们人的关系）——
+            // 仅队伍成员注入；主线程构建字符串
+            public string PlayerRelationSection;
+            public string PartyRelationSection;
+            // 🔴 2026-08-16（方案 J3）：队伍私事注入许可（分兵随从 = L1 裁剪——位置/账目/主队物资
+            // 不注入；RAG 主题表的 NeedsPartyMember 主题按此裁剪）
+            public bool InjectPartyPrivates;
         }
 
         private static readonly object _lock = new object();
@@ -149,6 +165,39 @@ namespace LivingWorldNpcs
             string sceneAwareness = WorldFactProvider.BuildSceneAwareness(npcHeroId);
             // 🔴 2026-08-14（M3）：命令注入场景感知——动作命令才注入【目之所及】段（闲聊零开销）
             string riskScene = WorldFactProvider.BuildRiskSceneContext(npcHeroId, lastPlayerText);
+            // 🔴 2026-08-16（方案 E2/F2/I1/G10/T3a）：主线程构建认知快照（引擎对象只读主线程，
+            // 生成线程直接用字符串）。认知边界：campaign 视野/自我物资段/人缘/关系网 = 同行亲见，
+            // 仅队伍成员（IsPartyMemberContext）注入；自我装备/等级段任何 Hero 注入（第一人称无边界）。
+            bool isPartyMember = IsPartyMemberContext(conv);
+            // 🔴 2026-08-16（方案 J3 口径裁决）：分兵随从 = "队伍成员，但独立行动"——认知注入由 L1
+            // 全量降为 L1 裁剪：位置/账目/主队物资/感知记忆亲历级不注入（分兵随从不亲历主队的事），
+            // 人尽皆知级（war/fief/renown/family/百科实体/关系）保留。
+            // 禁止改 FriendlinessHelper.IsPlayerPartyMember 共享判定本身（全局行为变更）——注入组装层单独判断。
+            Hero npcHero = null;
+            try { npcHero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == npcHeroId); } catch { }
+            bool isSplitLeader = PartySplitFlow.IsSplitPartyLeader(npcHero);
+            bool injectPartyPrivates = isPartyMember && !isSplitLeader;
+            string campaignAwareness = (Mission.Current == null && injectPartyPrivates)
+                ? WorldFactProvider.BuildCampaignAwareness() : null;
+            // 🔴 2026-08-16（方案 J3 口径补漏，P1）：分兵随从传 injectPartyPrivates（而非 isPartyMember）——
+            // 【队伍物资】/【主公的行头】属主队亲历级，分兵随从不注入；装备/等级/血况第一人称保留
+            //（BuildSelfAwareness 内装备段不受此参数控制）
+            string selfAwareness = WorldFactProvider.BuildSelfAwareness(npcHeroId, injectPartyPrivates);
+            // I1 现状行：历史提及检测（玩家本条消息 + 对话历史最近 12 条）——主线程取记忆快照；
+            // 分兵随从不注入（主队账目/位置 = 亲历级）
+            string currentStatusLine = null;
+            if (injectPartyPrivates)
+            {
+                try
+                {
+                    var mem = AllNpcMemoryManager.GetMemory(npcHeroId);
+                    currentStatusLine = WorldFactProvider.BuildCurrentStatusLine(lastPlayerText,
+                        mem?.SnapshotRecentHistory());
+                }
+                catch { }
+            }
+            string playerRelation = isPartyMember ? WorldFactProvider.BuildPlayerRelationSection() : null;
+            string partyRelation = isPartyMember ? WorldFactProvider.BuildPartyRelationSection() : null;
             lock (_lock)
             {
                 if (_pending.TryGetValue(npcHeroId, out var existing))
@@ -159,6 +208,12 @@ namespace LivingWorldNpcs
                     existing.ExecutionCtx = ctx;
                     existing.SceneAwareness = sceneAwareness;
                     existing.RiskSceneContext = riskScene;
+                    existing.CampaignAwareness = campaignAwareness;
+                    existing.SelfAwareness = selfAwareness;
+                    existing.CurrentStatusLine = currentStatusLine;
+                    existing.PlayerRelationSection = playerRelation;
+                    existing.PartyRelationSection = partyRelation;
+                    existing.InjectPartyPrivates = injectPartyPrivates;
                     return;
                 }
                 _pending[npcHeroId] = new PendingReply
@@ -173,6 +228,12 @@ namespace LivingWorldNpcs
                     ExecutionCtx = ctx,
                     SceneAwareness = sceneAwareness,
                     RiskSceneContext = riskScene,
+                    CampaignAwareness = campaignAwareness,
+                    SelfAwareness = selfAwareness,
+                    CurrentStatusLine = currentStatusLine,
+                    PlayerRelationSection = playerRelation,
+                    PartyRelationSection = partyRelation,
+                    InjectPartyPrivates = injectPartyPrivates,
                 };
             }
         }
@@ -394,7 +455,9 @@ namespace LivingWorldNpcs
                     if (memory != null)
                     {
                         // 动态知识注入（RAG）：命中「队伍/位置/时间」主题才拼事实段；队伍事实仅队伍成员可见
-                        string facts = WorldFactProvider.BuildFactsForIm(p.RespondText, IsPartyMemberContext(p.Conv));
+                        // 🔴 2026-08-16（方案 J3）：分兵随从 → InjectPartyPrivates=false（位置/账目/
+                        // 成员名单等 NeedsPartyMember 主题裁剪——分兵随从不亲历主队的事；普世主题保留）
+                        string facts = WorldFactProvider.BuildFactsForIm(p.RespondText, p.InjectPartyPrivates);
                         // 🔴 2026-08-10 修复：speakerName 必须传「发送者」（=玩家）而不是 p.HeroName（NPC 自己）。
                         // 旧代码把 NPC 自己的名字传进去 → prompt 变成"对方 阿速甘 传讯给你"，
                         // NPC 以为自己在给自己传讯（日志实锤"他给他传讯"）。
@@ -414,7 +477,10 @@ namespace LivingWorldNpcs
                         string prompt = PromptBuilder.BuildPrompt_ImReply(
                             memory, ImChatManager.PlayerId, playerName, p.RespondText, facts, channelRecent, peerInteraction, actionSpace,
                             executionContext: p.ExecutionCtx, isCampaign: isCampaign, sceneAwareness: p.SceneAwareness,
-                            riskScene: p.RiskSceneContext, npcHeroId: p.HeroId);
+                            riskScene: p.RiskSceneContext, npcHeroId: p.HeroId,
+                            campaignAwareness: p.CampaignAwareness, selfAwareness: p.SelfAwareness,
+                            currentStatusLine: p.CurrentStatusLine, playerRelationSection: p.PlayerRelationSection,
+                            partyRelationSection: p.PartyRelationSection);
                         // 🔴 请求体落日志（上下文分析用，对齐 [ReactiveRespond] 请求发出 惯例）
                         // 🔴 2026-08-10：换行转义单行打印，**不截断**——诊断 prompt 拼装问题必须看全
                         // （曾截断 300 字导致"队伍人数/记忆段是否注入"无从查证，用户反馈日志看不到完整 prompt）
@@ -444,6 +510,10 @@ namespace LivingWorldNpcs
                                 // 缺字段 → 默认 feasible 现状直发）
                                 riskAnalysis = resp.RiskAnalysis;
                                 riskVerdict = resp.RiskVerdict;
+                                // 🔴 2026-08-16（方案 I3 观察出口）：need_fact 只记 [StaleFact] 日志——
+                                // LLM 想引用某数值但【此刻现状】没有（迭代触发窗口/关键词表的数据源）
+                                if (!string.IsNullOrWhiteSpace(resp.NeedFact))
+                                    DebugLogger.Log($"[StaleFact] {p.HeroName} 缺数据声明: {resp.NeedFact}");
                             }
                             else
                             {
@@ -460,6 +530,10 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ImReply] {p.HeroName} 模板降级: {reply}");
                 }
                 reply = SanitizeReply(reply, p.HeroName);
+                // 🔴 2026-08-16（口嗨检测，方案 C）：声称行动 vs 决策比对——声称而零执行路径 → 加（吹牛）前缀。
+                // 覆盖：私聊/队伍群聊/家族群聊/跟随回复/斗嘴往返（全部经此管线）；
+                // 模板降级路径天然豁免（actCode=null 且台词无声称短语）。
+                reply = ChatClaimChecker.CheckAndMark(reply, actCode, needPlan, adjustPlan, p.HeroName);
                 // 🔴 只入队，不在此线程操作 UI/记忆（await continuation 不在主线程）
                 // v4.1：入队时记录频道消息数（群聊）——投递时若频道已更新（玩家发了新消息）→ 丢弃过期链条
                 int msgCount = (p.Conv != null && p.Conv.Type != ImConversationType.Direct)

@@ -792,6 +792,52 @@ namespace LivingWorldNpcs
                     (agent.Character as CharacterObject)?.HeroObject,
                     (requester?.Character as CharacterObject)?.HeroObject,
                     agent);
+                // 🔴 2026-08-16（方案 H4.4 身份互认增强）：对方段补阵营/敌我词——
+                // "主公是咱们队伍的首领" vs "你是瓦兰迪亚的兵" 视角各归各（C# 确定性判定）
+                string otherDesc = BuildOtherIdentityDesc(requester, agent, other);
+                // 🔴 2026-08-16（方案 H4.1/I1/G10/T3a）：respond 链路补 RAG 事实注入——
+                // 同一个函数按对象身份传参（L2 普世 / 随从 L1 全量），不新写逻辑；
+                // 含触发式现状行（聊过数值才注入，历史提及检测）与 L1 常态段（人缘/咱们人的关系）
+                string worldFacts = "";
+                try
+                {
+                    bool responderIsPartyMember = requester != null && FriendlinessHelper.IsPlayerPartyMember(agent);
+                    string facts = WorldFactProvider.BuildFactsForIm(companionLine ?? "", responderIsPartyMember);
+                    // 🔴 2026-08-16（方案 H3 口径修正，P1）：现状行含主队钱/粮/账目 = 队伍私事——
+                    // 只给队伍成员（L1 全量）；L2 路人/模板 NPC 不注入（与 IM 链路 injectPartyPrivates 守卫同口径，
+                    // 防止"路人聊数值被注入队伍账目"的认知越界）
+                    string statusLine = responderIsPartyMember
+                        ? WorldFactProvider.BuildCurrentStatusLine(companionLine ?? "", memory.SnapshotRecentHistory())
+                        : null;
+                    string g10 = responderIsPartyMember ? WorldFactProvider.BuildPlayerRelationSection() : null;
+                    string t3 = responderIsPartyMember ? WorldFactProvider.BuildPartyRelationSection() : null;
+                    worldFacts = string.Join("\n", new[] { facts, statusLine, g10, t3 }.Where(s => !string.IsNullOrWhiteSpace(s)));
+                }
+                catch (Exception ex) { DebugLogger.Log($"[ReactiveRespond] worldFacts 构建失败: {ex.Message}"); }
+                // 🔴 2026-08-16（方案 H4.2）：respond 链路补场景锚点（L2 同场景任意 agent，含模板 NPC——
+                // 无 Hero 用 Agent 版入口；方案 A 的最近定居点兜底随此自动生效）
+                string sceneAnchor = null;
+                try
+                {
+                    var selfHero = (agent.Character as CharacterObject)?.HeroObject;
+                    sceneAnchor = selfHero != null
+                        ? WorldFactProvider.BuildSceneAwareness(selfHero.StringId)
+                        : WorldFactProvider.BuildSceneAwarenessForAgent(agent);
+                }
+                catch { }
+                // 🔴 2026-08-16（方案 S2）：受困处境段——玩家被俘/被抓时与看守/守卫对话，看守 prompt 注入
+                //（看守的认知里玩家是囚犯：身份 + 欠的账——铁律 11 统一入口；对象非队伍成员才注入）
+                string distress = "";
+                try
+                {
+                    if (requester != null && requester == Agent.Main
+                        && DistressFlow.IsInDistress()
+                        && !FriendlinessHelper.IsPlayerPartyMember(agent))
+                    {
+                        distress = DistressFlow.BuildDistressSection(agent) ?? "";
+                    }
+                }
+                catch { }
                 var dline = await DialogueComponent.GenerateLine(
                     Settings.Instance?.WorldDescription ?? "", identity, intention,
                     string.IsNullOrEmpty(topic) ? "闲聊" : topic,
@@ -799,15 +845,19 @@ namespace LivingWorldNpcs
                     string.IsNullOrEmpty(outlineStep) ? ""
                         // 本地化：LWN_plan_respond_section_outline（玩家可见文本）
                         : ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + outlineStep,
-                    string.IsNullOrEmpty(other) ? "一个陌生人" : other + "（对方是主动来和你搭话的人）",
+                    string.IsNullOrEmpty(other) ? "一个陌生人" : otherDesc,
                     PromptBuilder.GetPrompt_RespondContext(memory, otherId), lastLine,
                     // 本地化：LWN_plan_respond_rule_json（玩家可见文本）
                     "LWN_plan_respond_rule_json",
                     "【要求】用一句话口语化回应对方（10-40 字），符合身份、性格与此刻的态度，顺着对方的话接，直接说台词本身——不要引号、不要解释、不要动作描写。",
-                    actionSpace, maxTokens: 220, timeoutMs: 8000);
+                    actionSpace, maxTokens: 220, timeoutMs: 8000,
+                    worldFacts: worldFacts, sceneAnchor: sceneAnchor, distressSection: distress);
                 string result = dline != null ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "") : null;
                 if (!string.IsNullOrWhiteSpace(result))
                 {
+                    // 🔴 2026-08-16（口嗨检测，方案 C）：当面对话 respond 同样声称行动 vs 决策比对——
+                    // 声称而零执行路径 → 加（吹牛）前缀（当面对话动作空间由 dline.ActionCode 承载）
+                    result = ChatClaimChecker.CheckAndMark(result, dline?.ActionCode, false, false, agent.Name?.ToString() ?? "");
                     // 🔴 台词/记忆纪律（§5.6）：LLM 实时生成 → 写记忆（user/assistant 接力，对话续得上）
                     memory.AddHistory("assistant", $"{agent.Name}: {result}", GetAgentId(agent));
                     _pendingReplies.Enqueue((agent, requester, result, dline.ActionCode, dline.ActionTarget, dline.ActionLevel));
@@ -822,6 +872,40 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[ReactiveRespond] 异常: {ex.Message}");
             }
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-16（方案 H4.4 身份互认增强）：对方段描述——按双方身份/阵营给"对方是谁"：
+        /// 随从视角叫主公；非队伍成员 NPC 视角 = 外乡人/同袍/敌国的人（C# 确定性判定，prompt 材料豁免铁律 13）。
+        /// </summary>
+        private static string BuildOtherIdentityDesc(Agent requester, Agent self, string otherName)
+        {
+            try
+            {
+                if (requester == null || requester == Agent.Main || (requester.Character as CharacterObject)?.HeroObject == Hero.MainHero)
+                {
+                    // 对方 = 玩家
+                    if (self != null && FriendlinessHelper.IsPlayerPartyMember(self))
+                        return $"{otherName}（主公，咱们队伍的首领）";
+                    return $"{otherName}（来路不明的外乡人）";
+                }
+                if (self == null) return otherName + "（主动来和你搭话的人）";
+                // 对方 = 其他 NPC
+                var selfHero = (self.Character as CharacterObject)?.HeroObject;
+                var otherHero = (requester.Character as CharacterObject)?.HeroObject;
+                if (selfHero != null && otherHero != null && selfHero.Clan != null && selfHero.Clan == otherHero.Clan)
+                    return $"{otherName}（你的同袍）";
+                try
+                {
+                    if (selfHero?.Clan?.Kingdom != null && otherHero?.Clan?.Kingdom != null
+                        && selfHero.Clan.Kingdom != otherHero.Clan.Kingdom
+                        && selfHero.Clan.Kingdom.IsAtWarWith(otherHero.Clan.Kingdom))
+                        return $"{otherName}（敌国的人）";
+                }
+                catch { }
+                return otherName + "（主动来和你搭话的人）";
+            }
+            catch { return otherName; }
         }
 
         /// <summary>回应请求 prompt（静态骨架走本地化 LWN_plan_respond_*，动态上下文拼接；单一事实源纪律）。

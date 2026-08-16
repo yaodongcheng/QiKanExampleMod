@@ -310,6 +310,7 @@
     <string id="LWN_plan_respond_section_other" text="【对方】" />
     <string id="LWN_plan_respond_section_history" text="【对话历史】" />
     <string id="LWN_plan_respond_section_perm" text="【你记得的旧事】" />
+    <string id="LWN_plan_respond_section_important" text="【大事记】（你记得的主公人生大事）" />
     <string id="LWN_plan_respond_section_recall" text="【近期回忆】" />
     <string id="LWN_plan_respond_section_experience" text="【近期经历】" />
     <string id="LWN_plan_respond_section_last" text="【对方刚说】" />
@@ -321,7 +322,8 @@
     <string id="LWN_plan_respond_attitude_normal" text="对方主动搭话，你愿意回应（意愿度中等）——正常寒暄即可。" />
     <string id="LWN_plan_respond_attitude_reluctant" text="你其实不太想搭理对方（意愿度低），但出于礼貌还是回一句——语气要敷衍冷淡，简短了事。" />
     <string id="LWN_plan_respond_rule" text="【要求】用一句话口语化回应对方（10-40 字），符合身份与性格，直接说台词本身——不要引号、不要解释、不要动作描写。" />
-    <string id="LWN_plan_respond_rule_json" text="【要求】用一句话口语化回应对方（10-40 字），符合身份与性格，顺着对方的话接。回复 JSON 格式（只输出 JSON）：{&quot;npc_reply&quot;: &quot;你的台词（直接说台词本身，不要引号、不要解释、不要动作描写）&quot;, &quot;npc_action&quot;: &quot;动作代码（只能来自上方【你可以做的事】列表；普通回应一律 NONE）&quot;, &quot;action_target&quot;: &quot;动作目标的名字文本（仅动作需要时填写；不知道目标名就留空）&quot;, &quot;action_level&quot;: &quot;档位（small/medium/large，仅关系类/给钱类动作需要；其他动作留空）&quot;}" />
+    <string id="LWN_plan_respond_rule_json" text="【要求】用一句话口语化回应对方（10-40 字），符合身份与性格，顺着对方的话接。回复 JSON 格式（只输出 JSON）：{&quot;npc_reply&quot;: &quot;你的台词（直接说台词本身，不要引号、不要解释、不要动作描写）&quot;, &quot;npc_action&quot;: &quot;动作代码（只能来自上方【你可以做的事】列表；普通回应一律 NONE）&quot;, &quot;action_target&quot;: &quot;动作目标的名字文本（仅动作需要时填写；不知道目标名就留空）&quot;, &quot;action_level&quot;: &quot;档位（small/medium/large，仅关系类/给钱类动作需要；其他动作留空）&quot;}
+**时效纪律**：凡数值（钱/粮/兵/士气/时间/位置/天气）一律以【此刻现状】段为准；【近期回忆】与【对话历史】中提到的任何数值都是过去的快照，引用它们等于报旧账；想引用的数值不在【此刻现状】段 → 宁可说「那是几天前的账了，眼下没细看」，禁止编具体数。" />
 
   
 
@@ -384,8 +386,14 @@
     <string id="LWN_plan_section_history" text="【澄清历史】（之前的对话，追加改述时参考）" />
     <string id="LWN_plan_section_intent" text="【意图分类】你只能从以下意图中选择 intent_type（严禁创造未定义类型）：" />
     <string id="LWN_plan_section_grammar" text="【动作词表与谓词词表】" />
+    <string id="LWN_fact_title_tournament" text="## 比武信息（你听说的）" />
+    <string id="LWN_fact_title_market" text="## 市场行情（你看到的）" />
+    <string id="LWN_fact_title_moneymaking" text="## 赚钱路子（你的见识）" />
+    <string id="LWN_fact_title_outlaw" text="## 通缉状态（你听说的）" />
+    <string id="LWN_fact_title_record" text="## 主公的成色（你的亲历）" />
     <string id="LWN_im_action_space_title" text="## 你可以做的事（按当前情境筛选；用不到就选 NONE）" />
     <string id="LWN_im_action_rule" text="普通寒暄一律 NONE；只有这句话真的有实际后果时才选非 NONE；目标名写 action_target（人/地点的名字文本，不是代号）；关系类档位写 action_level（small/medium/large）。" />
+      <string id="LWN_plan_im_freshness_rule" text="【时效纪律】凡数值（钱/粮/兵/士气/时间/位置/天气）一律以【此刻现状】段为准；【近期回忆】与【对话历史】中提到的任何数值都是过去的快照，引用它们等于报旧账；想引用的数值不在【此刻现状】段 → 宁可说「那是几天前的账了，眼下没细看」，禁止编具体数。" />
       <string id="LWN_plan_im_reply_rule" text="【IM 回复纪律】
 回复 JSON 格式（只输出 JSON，不要任何多余文字）：
 {&quot;npc_reply&quot;: &quot;你的台词（一句话口语，贴合中世纪语境，不要现代网络用语）&quot;, &quot;npc_action&quot;: &quot;动作代码（只能来自上方【你可以做的事】列表；普通寒暄一律 NONE）&quot;, &quot;action_target&quot;: &quot;动作目标的名字文本（人名/地名，仅动作需要时填写；不知道目标名就留空）&quot;, &quot;action_level&quot;: &quot;档位（small/medium/large，仅关系类/给钱类动作需要；其他动作留空）&quot;, &quot;need_plan&quot;: true/false, &quot;risk_analysis&quot;: &quot;你对局势的判断（1-2 句，含依据：人多人少/谁在看着/打不打得过/被抓会怎样；仅主公下命令时填，寒暄留空）&quot;, &quot;risk_verdict&quot;: &quot;feasible | plan_needed | risky | refuse（仅主公下命令时填，寒暄留空）&quot;}
@@ -397,7 +405,8 @@
 **事实自检**：提及队伍里的人物时，只准说【队伍现状】/【频道消息】/【队伍成员】中出现过的名字，不要编造不存在的人。若发现自己之前说岔了，承认说错即可，不要圆谎编造名字。
 **场景事实纪律**：你掌握的唯一的场景事实就是【此刻处境】/【目之所及】里写明的（地点、附近的人、相对方位）。禁止编造 prompt 没提供的环境细节——像摊位、水井、建筑、路人、身边人在做什么这类，一律不许无中生有。不知道自己具体在哪儿，就说得含糊些（「我在城里」），不要说具体（「我在药摊边上」）。
 **距离纪律**：被问「在哪/多远」时，直接转述【此刻处境】/【目之所及】里的米数（如「约 5 米」）——禁止换算成别的单位（步、丈、尺），禁止模糊化（几步远、不远处），更禁止编造 prompt 里没有的数字。「米」在这世上就是平常的说法，直接说。
-**地点禁造**：随身物品（如药箱）和你的营生（如行医）不等于地点。可以说你带着药箱，不能说「我在药摊/药铺旁」——除非【此刻处境】/【目之所及】里写明有这样的地方。" />
+**地点禁造**：随身物品（如药箱）和你的营生（如行医）不等于地点。可以说你带着药箱，不能说「我在药摊/药铺旁」——除非【此刻处境】/【目之所及】里写明有这样的地方。
+**时效纪律（2026-08-16）**：凡数值（钱/粮/兵/士气/时间/位置/天气）一律以【此刻现状】/【此刻处境】段为准；【近期回忆】与【对话历史】中提到的任何数值都是过去的快照，引用它们等于报旧账；想引用的数值不在眼前段里 → 宁可说「那是几天前的账了，眼下没细看」，禁止编具体数。" />
     <string id="LWN_prompt_section_standing" text="## 我的出身与立场" />
     <string id="LWN_prompt_standing_family" text="- 家族：{TEXT}" />
     <string id="LWN_prompt_standing_kingdom" text="- 国家：{TEXT}" />

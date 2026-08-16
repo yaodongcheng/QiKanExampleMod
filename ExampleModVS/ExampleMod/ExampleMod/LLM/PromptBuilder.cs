@@ -253,8 +253,22 @@ namespace LivingWorldNpcs
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
+            // 🔴 2026-08-16（方案 N1）：大事记段——写入时 C# 白名单分级锚定的重要事件（建国/获封/
+            // 大婚/添丁/被俘/获释/大捷），平行于 LLM 淘汰晋升；L1 全量注入（2~6 行展示，条目 = desc 原文）
+            if (memory.ImportantEvents != null && memory.ImportantEvents.Count > 0)
+            {
+                // 本地化：plan_respond_section_important（玩家可见文本）
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_plan_respond_section_important", "【大事记】"));
+                int shown = 0;
+                for (int i = memory.ImportantEvents.Count - 1; i >= 0 && shown < 6; i--, shown++)
+                {
+                    if (!string.IsNullOrEmpty(memory.ImportantEvents[i]))
+                        sb.AppendLine("- " + memory.ImportantEvents[i]);
+                }
+                sb.AppendLine();
+            }
 
-            // 1. 永久记忆（截断，防 token 膨胀拖慢 2s 预算）
+            // 1. 永久记忆（截断，防 token 膨胀拖慢 2s 预算）——旧事段天然陈旧，不加时间戳（I5）
             if (memory.PermanentMemory.Length > 0)
             {
                 string perm = memory.PermanentMemory.ToString();
@@ -267,6 +281,8 @@ namespace LivingWorldNpcs
             // 1.5 近期经历（旁白，2026-08-11）：AgentBrain 事件决策点写入的第一人称经历
             // （"我遭到X的攻击"/"我看见X偷窃"/"我奉命攻击X"），最新 3 条，新→旧。
             // 比【近期回忆】更即时——它是原始事件，回忆是总结产物。
+            // 🔴 2026-08-16（I5）：每行带 [相对词] 时间戳前缀（游戏内日 → 相对词；旧存档 CampaignDay==0
+            // 不标——契约兜底，宁模糊不编数）
             var narration = memory.SnapshotNarrationLog();
             if (narration.Count > 0)
             {
@@ -275,7 +291,7 @@ namespace LivingWorldNpcs
                 for (int i = narration.Count - 1; i >= 0 && i >= narration.Count - 3; i--)
                 {
                     if (!string.IsNullOrEmpty(narration[i].Content))
-                        sb.AppendLine("- " + narration[i].Content);
+                        sb.AppendLine("- " + RelativeDayPrefix(narration[i].CampaignDay) + narration[i].Content);
                 }
             }
 
@@ -290,7 +306,7 @@ namespace LivingWorldNpcs
                 {
                     if (!string.IsNullOrEmpty(recent.Value.Content))
                     {
-                        sb.AppendLine("- " + recent.Value.Content);
+                        sb.AppendLine("- " + RelativeDayPrefix(recent.Value.CampaignDay) + recent.Value.Content);
                         shown++;
                     }
                     recent = recent.Previous;
@@ -326,11 +342,39 @@ namespace LivingWorldNpcs
                     // LWN_plan_respond_section_history：对话历史段标题
                     sb.AppendLine(LWNTextHelper.ResolveText("LWN_plan_respond_section_history", "【对话历史】"));
                     foreach (var msg in selected)
-                        sb.AppendLine("- " + msg.Content);
+                        sb.AppendLine("- " + RelativeDayPrefix(msg.CampaignDay) + msg.Content);
                 }
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-16（方案 I5）：游戏内日 → 相对词前缀（契约的证据——「[3天前] 钱袋 5000」让模型
+        /// 真正区分新旧；回应"那是几天前的账了"有据可依）。词表 8 档（差 = 当前 ToDays − 条目 CampaignDay）：
+        /// 刚才(&lt;0.25 天) / 今天(&lt;1) / 昨天(&lt;2) / 几天前(&lt;4) / 上周(&lt;8) / 上个月(&lt;30) /
+        /// 几个月前(&lt;90) / 很久以前(其余)。CampaignDay==0（旧存档）→ 空串不标（契约兜底，宁模糊不编数）。
+        /// </summary>
+        private static string RelativeDayPrefix(float campaignDay)
+        {
+            if (campaignDay <= 0f) return "";
+            try
+            {
+                float now = (float)CampaignTime.Now.ToDays;
+                float diff = now - campaignDay;
+                if (diff < 0f) diff = 0f;
+                string word;
+                if (diff < 0.25f) word = "刚才";
+                else if (diff < 1f) word = "今天";
+                else if (diff < 2f) word = "昨天";
+                else if (diff < 4f) word = "几天前";
+                else if (diff < 8f) word = "上周";
+                else if (diff < 30f) word = "上个月";
+                else if (diff < 90f) word = "几个月前";
+                else word = "很久以前";
+                return $"[{word}] ";
+            }
+            catch { return ""; }
         }
 
         /// <summary>
@@ -344,7 +388,7 @@ namespace LivingWorldNpcs
         /// （PlanSummary + CurrentStep，C# 快照），LLM 判定 adjust_plan（问进度=false，明确改做法=true）；
         /// isCampaign = 大地图能力提示段（只建议行军类计划，防「我去暗杀谁」）。
         /// </summary>
-        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null)
+        public static string BuildPrompt_ImReply(SingNpcMemorySystem memory, string otherId, string speakerName, string lastPlayerText, string worldFacts = null, string channelRecent = null, string peerInteraction = null, string actionSpace = null, ImCommandFlow.ImExecutionContext executionContext = null, bool isCampaign = false, string sceneAwareness = null, string riskScene = null, string npcHeroId = null, string campaignAwareness = null, string selfAwareness = null, string currentStatusLine = null, string playerRelationSection = null, string partyRelationSection = null)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -352,6 +396,30 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + Settings.Instance.WorldDescription);
             sb.AppendLine(Settings.Instance.SpeechStyle);
             sb.AppendLine();
+            // 🔴 2026-08-16（方案 F2）：自我认知段（【我的状态】+【主公的行头】+【队伍物资】）——
+            // 独立段插在 sceneAwareness 前（第一人称亲见：谁都知道自己穿什么、几斤几两）
+            if (!string.IsNullOrWhiteSpace(selfAwareness))
+            {
+                sb.AppendLine(selfAwareness);
+                sb.AppendLine();
+            }
+            // 🔴 2026-08-16（方案 E2）：campaign 版【目之所及】（大地图环境视野，队伍成员才注入）
+            if (!string.IsNullOrWhiteSpace(campaignAwareness))
+            {
+                sb.AppendLine(campaignAwareness);
+                sb.AppendLine();
+            }
+            // 🔴 2026-08-16（方案 G10/T3a）：L1 常态段（主公的人缘 + 咱们人的关系）——队伍成员才注入
+            if (!string.IsNullOrWhiteSpace(playerRelationSection))
+            {
+                sb.AppendLine(playerRelationSection);
+                sb.AppendLine();
+            }
+            if (!string.IsNullOrWhiteSpace(partyRelationSection))
+            {
+                sb.AppendLine(partyRelationSection);
+                sb.AppendLine();
+            }
             // 🔴 2026-08-15（好感影响语气，用户需求）：与主公的关系段——NPC 对玩家的好感数值注入，
             // LLM 按数值定语气基调（亲近/友善/客气/冷淡/敌意）。仅 Hero 私聊/群聊注入（模板 NPC 无 Hero）。
             string relationSection = BuildRelationToPlayerSection(npcHeroId);
@@ -377,6 +445,7 @@ namespace LivingWorldNpcs
             // 频道公区近期消息（群聊回复注入；旁观者没参与也能接住"刚才聊了什么"——方案 B 即时层）
             if (!string.IsNullOrWhiteSpace(channelRecent))
             {
+                // 本地化：prompt_section_channel（玩家可见文本）
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_channel", "## Recent Channel Messages (public talk you witnessed)")); // lwn-ignore: B
                 sb.AppendLine(channelRecent);
                 sb.AppendLine();
@@ -427,7 +496,9 @@ namespace LivingWorldNpcs
             // NPC 是主公麾下 → "你的主公 X 传讯给你"，否则 "对方 X 传讯给你"。
             // （旧 bug：ImReplyService 误传 NPC 自己的名字 → "对方 阿速甘 传讯给你" 自我传讯出戏）
             string senderPrefix = memory?._profile?.IsPlayerSubordinate() == true
+                // 本地化：prompt_im_sender_lord（玩家可见文本）
                 ? LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_lord", "Your lord {NAME} just sent you a secret letter:", ("NAME", speakerName)) // lwn-ignore: B
+                // 本地化：prompt_im_sender_other（玩家可见文本）
                 : LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_other", "{NAME} just sent you a secret letter:", ("NAME", speakerName)); // lwn-ignore: B
             if (!string.IsNullOrWhiteSpace(peerInteraction))
             {
@@ -483,6 +554,23 @@ namespace LivingWorldNpcs
                     sb.AppendLine(cap);
                     sb.AppendLine();
                 }
+            }
+            // 🔴 2026-08-16（方案 I1）：触发式现状行【此刻现状】——聊过数值才注入（历史提及检测），
+            // 未命中零注入（prompt 不膨胀）。【此刻现状】是当前值的唯一权威来源（与 I2 时效契约配合）
+            if (!string.IsNullOrWhiteSpace(currentStatusLine))
+            {
+                sb.AppendLine(currentStatusLine);
+                sb.AppendLine();
+            }
+            // 🔴 2026-08-16（方案 I2）：prompt 时效契约（主解，零 token，永远生效）——
+            // 凡数值一律以【此刻现状】段为准；【近期回忆】与【对话历史】中的数值都是过去的快照；
+            // 想引用的数值不在【此刻现状】段 → 宁可模糊化，禁止编具体数。
+            // 不注入时 LLM 自然模糊化（随从记不清旧账反而真实）；注入时用当前值。
+            string freshness = LWNTextHelper.ResolvePrompt("LWN_plan_im_freshness_rule");
+            if (!string.IsNullOrWhiteSpace(freshness))
+            {
+                sb.AppendLine(freshness);
+                sb.AppendLine();
             }
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_im_reply_rule"));
@@ -1333,12 +1421,14 @@ namespace LivingWorldNpcs
                         .Select(s => $"{s.Name} {hero.GetSkillValue(s)}")
                         .ToList();
                     if (skills.Count == 0)
+                        // 本地化：prompt_profile_no_skill（玩家可见文本）
                         sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_profile_no_skill", "- No outstanding skills")); // lwn-ignore: B
                     else
                         sb.AppendLine("- " + string.Join("、", skills));
                 }
                 catch
                 {
+                    // 本地化：prompt_profile_skill_unavailable（玩家可见文本）
                     sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_profile_skill_unavailable", "- (skill data unavailable)")); // lwn-ignore: B
                 }
             }

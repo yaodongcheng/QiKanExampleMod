@@ -85,6 +85,10 @@ namespace LivingWorldNpcs
             public Action<Hero, Hero, Agent, string, string, string, Agent> ExecuteCore;   // RequiresConfirm 动作卡片批准后的核心执行
             public Action<PlanStep, string, string> FillParams;    // 单步 Plan 参数填充（ChatActionFlow，C# 确定）
             public Func<string, string> AnnounceParam;            // 决策播报参数（AnnounceDecision）
+            // 🔴 2026-08-16（方案 R）：身份门控动作（政治动作组）——GetActionSpacePrompt 对 IdentityGated
+            // 动作在**任何空间**都跑 IsValid（身份维度过滤：L2 领主 → persuade_join/order_march；
+            // L3 国王 → propose_war/negotiate_peace；村民/流浪者无政治动作——正确，村民没有王国权力）
+            public bool IdentityGated;
         }
         // ─────────────────────────────────────────────────────────────
         // 主表 34 行：前 21 行 = 计划词表原序（严格按原 ActionsInPromptOrder 抄，82% 基线）；
@@ -99,26 +103,61 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-13（空间修复 + 模型重构）：Mission 内一律 InScene 可执行——move_to 核心语义
             // 就是「走到目标身边」，远处目标走过去即可（实机日志：LLM 回 move_to 去找 67 米外的那弥斯
             // → 旧 ImRemote 空间拦截「不适用于空间 ImRemote → 降级 NONE」→ NPC 口头答应但不动）。
+            // 🔴 2026-08-16（方案 J）：Spaces 扩为 InScene | Party——大地图下"率部前往定居点"有执行路径
+            //（口嗨联动：LLM 声称"我去 X 城打听"→ Party 空间 move_to 命中 → 有执行路径豁免（C1 注）；
+            // 无目标/无对应动作的空声称仍口嗨）。Execute 按空间分流：大地图 + 有人有独立 party →
+            // 定居点解析（铁律 5 Settlement.All 动态遍历）→ SetMoveToTown；InScene → 现状走位。
             new ActionSpec
             {
                 Code = "move_to",
-                Description = "走到对方身边/某个地方（当面或远处目标均可）。",
+                Description = "走到对方身边/某个地方（当面或远处目标均可；大地图 = 率部前往某座城镇，在城里等你）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 23,
-                Spaces = ActionSpace.InScene,
+                Spaces = ActionSpace.InScene | ActionSpace.Party,
                 Aliases = new[] { "move" },
                 LabelKey = "move_to", LabelFallback = "move to",
-                IsValid = (npc, player, agent) => agent != null,
+                IsValid = (npc, player, agent) => agent != null
+                    || PartySplitFlow.IsSplitPartyLeader(npc)
+                    || PartySplitFlow.IsSplitPartyLeader(player),
                 Execute = (attacker, defender, agent, l, t, s) =>
                 {
-                    // target 文本 → C# 解析（TryResolvePosition 链：agent 名 → 语义 tag zone）
-                    string name = !string.IsNullOrWhiteSpace(t) ? t
+                    // 🔴 2026-08-16（方案 J）：大地图 + 有人有独立 party → 率部前往定居点
+                    if (Mission.Current == null)
+                    {
+                        MobileParty p = PartySplitFlow.IsSplitPartyLeader(attacker)
+                            ? attacker.PartyBelongedTo
+                            : (PartySplitFlow.IsSplitPartyLeader(defender) ? defender.PartyBelongedTo : null);
+                        if (p != null)
+                        {
+                            string name = !string.IsNullOrWhiteSpace(t) ? t
+                                : (defender != null ? defender.Name.ToString() : null);
+                            if (string.IsNullOrWhiteSpace(name))
+                            {
+                                DebugLogger.Log($"[ActionHandler] MOVE_TO(Party) 无目标文本 → 降级 NONE");
+                                return;
+                            }
+                            var target = PartySplitFlow.ResolveSettlementByName(name);
+                            if (target != null)
+                            {
+                                V.SetMoveToTown(p, target);
+                                // 🔴 2026-08-16（方案 L3）：差事行程旁白（第一人称，写执行者本人）
+                                if (attacker != null)
+                                    AllNpcMemoryManager.GetMemory(attacker.StringId)?.RecordNarration($"我正带队前往 {target.Name}，在那边等主公");
+                                DebugLogger.Log($"[ActionHandler] MOVE_TO(Party) {attacker?.Name} 率部前往 {target.Name}（{p.MemberRoster.TotalRegulars} 兵）");
+                                return;
+                            }
+                            DebugLogger.Log($"[ActionHandler] MOVE_TO(Party) 定居点解析失败: {name} → 降级 NONE");
+                            return;
+                        }
+                    }
+                    // InScene 现状：target 文本 → C# 解析（TryResolvePosition 链：agent 名 → 语义 tag zone）
+                    string name2 = !string.IsNullOrWhiteSpace(t) ? t
                         : (defender != null ? defender.Name.ToString() : null);
-                    if (string.IsNullOrWhiteSpace(name))
+                    if (string.IsNullOrWhiteSpace(name2))
                     {
                         DebugLogger.Log($"[ActionHandler] MOVE_TO 无目标文本 → 降级 NONE");
                         return;
                     }
-                    ChatActionFlow.TryExecute(agent, "move_to", name, null, null);
+                    ChatActionFlow.TryExecute(agent, "move_to", name2, null, null);
                 }
             },
             // 2. follow（原 FOLLOW；闲聊 ChatOrder=19；无限保持）
@@ -773,10 +812,12 @@ namespace LivingWorldNpcs
                 }
             },
             // 34. gather_to_player（部队集结：defender party 移向玩家 party；资格守卫同 party_patrol）
+            // 🔴 2026-08-16（方案 J 参数化）：随从独立 party → 归队合并（兵力归还 MemberRoster、
+            // Hero 归队、销毁 party——PartySplitFlow.MergeBack）；非随从独立部队（领主等）→ 现状 escort 集结。
             new ActionSpec
             {
                 Code = "gather_to_player",
-                Description = "率部集结到玩家身边（大地图）。",
+                Description = "率部集结到玩家身边（大地图）；随从的独立部队则归队合并（兵力归还主队）。",
                 InChatSpace = true, ChatOrder = 27,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
@@ -795,9 +836,82 @@ namespace LivingWorldNpcs
                         DebugLogger.Log($"[ActionHandler] GATHER_TO_PLAYER {defender?.Name} 资格不符（非玩家家族独立部队）→ 降级 NONE");
                         return;
                     }
-                    // 集结 = 护送玩家部队（SetPartyAiAction.EscortParty：跟随玩家 party 移动，反编译确认语义）
+                    // 🔴 2026-08-16（方案 J）：随从独立 party → 归队合并（分兵随从回主队）
+                    if (FriendlinessHelper.IsPlayerPartyMember(defender))
+                    {
+                        PartySplitFlow.MergeBack(defender);
+                        return;
+                    }
+                    // 其他独立部队：集结 = 护送玩家部队（SetPartyAiAction.EscortParty，反编译确认语义）
                     V.GatherToPlayer(defender.PartyBelongedTo);
                     DebugLogger.Log($"[ActionHandler] GATHER_TO_PLAYER {defender.Name} 集结到玩家部队");
+                }
+            },
+            // 🔴 2026-08-16（方案 J）：SPLIT_PARTY 分兵跟随玩家（A 级）——
+            // 随从从主队分离成独立 party 率部跟随；RequiresConfirm 卡片（决策卡片机制复用）；
+            // 资格：有 Hero、在主队、队伍兵数 > 档位下限（PartySplitFlow 内再校验）。
+            new ActionSpec
+            {
+                Code = "split_party",
+                Description = "分出一支队伍单独行动（从主队带兵离队，率部跟随玩家；大地图；档位 small≈10 / medium≈30 / large≈60 兵）。",
+                InChatSpace = true, ChatOrder = 30,
+                Spaces = ActionSpace.Party,
+                RequiresConfirm = true,   // 分兵 = 结构性动作：卡片确认
+                InquiryTitleKey = "hint", InquiryMsgKey = "split_party",
+                LabelKey = "split_party", LabelFallback = "split off a party",
+                IsValid = (attacker, defender, agent) => attacker != null
+                    && attacker != Hero.MainHero
+                    && MobileParty.MainParty != null
+                    && attacker.PartyBelongedTo == MobileParty.MainParty
+                    && MobileParty.MainParty.MemberRoster.TotalRegulars >= 10,
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
+                    PartySplitFlow.Execute(attacker, l),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                    PartySplitFlow.Execute(attacker, l),
+            },
+            // 🔴 2026-08-16（方案 J）：engage 追击部队（B 级）——
+            // 目标解析：部队名/类型词 → MobileParty.All 动态遍历匹配（铁律 5；可见性过滤 = 玩家视角
+            // IsVisible + 敌我 IsAtWarWith，只追可见敌方/匪徒）；执行 SetPartyAiAction engaging 全家桶
+            //（V.EngageParty = GetActionForEngagingParty）；战斗：原版 MapEvent 机制自理（mod 不接管）。
+            new ActionSpec
+            {
+                Code = "engage",
+                Description = "率部追击一支可见的部队（大地图：敌方/匪徒；追到后交战由原版自理）。",
+                InChatSpace = true, ChatOrder = 31,
+                Spaces = ActionSpace.Party,
+                NeedsCooldown = true,
+                LabelKey = "engage", LabelFallback = "engage",
+                IsValid = (attacker, defender, agent) =>
+                    PartySplitFlow.IsSplitPartyLeader(attacker)
+                    || PartySplitFlow.IsSplitPartyLeader(defender),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    MobileParty p = PartySplitFlow.IsSplitPartyLeader(attacker)
+                        ? attacker.PartyBelongedTo
+                        : (PartySplitFlow.IsSplitPartyLeader(defender) ? defender.PartyBelongedTo : null);
+                    if (p == null)
+                    {
+                        DebugLogger.Log($"[ActionHandler] ENGAGE 无独立 party 执行人 → 降级 NONE");
+                        return;
+                    }
+                    string name = !string.IsNullOrWhiteSpace(t) ? t
+                        : (defender != null ? defender.Name.ToString() : null);
+                    if (string.IsNullOrWhiteSpace(name))
+                    {
+                        DebugLogger.Log($"[ActionHandler] ENGAGE 无目标文本 → 降级 NONE");
+                        return;
+                    }
+                    var target = PartySplitFlow.ResolvePartyByName(name);
+                    if (target == null)
+                    {
+                        DebugLogger.Log($"[ActionHandler] ENGAGE 目标解析失败: {name}（无可见敌方/匪徒匹配）→ 降级 NONE");
+                        return;
+                    }
+                    V.EngageParty(p, target);
+                    // 🔴 2026-08-16（方案 L3）：差事见闻旁白（第一人称，写执行者本人）
+                    if (attacker != null)
+                        AllNpcMemoryManager.GetMemory(attacker.StringId)?.RecordNarration($"我带队去追击 {target.Name}");
+                    DebugLogger.Log($"[ActionHandler] ENGAGE {attacker?.Name} 率部追击 {target.Name}（{target.MemberRoster.TotalRegulars} 人）");
                 }
             },
             // 35. crouch（引擎下蹲：玩家 Z 键同机制 SetCrouchMode = AIScriptedFrameFlags.Crouch；
@@ -865,6 +979,151 @@ namespace LivingWorldNpcs
                 LabelKey = "ask_player", LabelFallback = "ask the lord",
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器内联），无闲聊入口 → 永不调用
             },
+            // ── 🔴 2026-08-16（方案 R）：政治动作空间（决策空间身份分级，H 的对偶）──
+            // 身份门控（IdentityGated）：GetActionSpacePrompt 任何空间都跑 IsValid——
+            // L2 领主 → persuade_join/order_march；L3 国王 → propose_war/negotiate_peace；
+            // 村民/流浪者无政治动作（IsValid 兜底拦截）。全部走原版王国决策管道（禁止对话直改战争状态）。
+            // 40. persuade_join（劝降/招募领主加入玩家王国）
+            new ActionSpec
+            {
+                Code = "persuade_join",
+                Description = "劝降对方：说服领主加入你的王国（你是国王 + 对方有叛逃倾向；判定成功加入，失败关系 -10）。",
+                InChatSpace = true, ChatOrder = 32,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
+                RequiresConfirm = true,
+                InquiryTitleKey = "hint", InquiryMsgKey = "persuade_join",
+                IdentityGated = true,
+                LabelKey = "persuade_join", LabelFallback = "persuade to join",
+                IsValid = (attacker, defender, agent) => defender != null && defender != Hero.MainHero
+                    && Clan.PlayerClan?.Kingdom != null
+                    && KingdomPoliticsFlow.IsLord(defender)
+                    && defender.Clan != Clan.PlayerClan
+                    && KingdomPoliticsFlow.HasDefectionTendency(defender),
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
+                    KingdomPoliticsFlow.PersuadeLord(defender),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    if (defender != null) KingdomPoliticsFlow.PersuadeLord(defender);
+                }
+            },
+            // 41. propose_war（提议宣战——对象 = 玩家所属王国国王，L3）
+            new ActionSpec
+            {
+                Code = "propose_war",
+                Description = "向国王提议对某王国宣战（你是王国成员；提案进议会投票，影响力 -200，被否/门槛不足代价真实）。",
+                InChatSpace = true, ChatOrder = 33,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
+                RequiresConfirm = true,
+                InquiryTitleKey = "hint", InquiryMsgKey = "propose_war",
+                IdentityGated = true,
+                LabelKey = "propose_war", LabelFallback = "propose war",
+                IsValid = (attacker, defender, agent) => defender != null && defender != Hero.MainHero
+                    && Clan.PlayerClan?.Kingdom != null
+                    && Clan.PlayerClan.Kingdom.Leader == defender
+                    && Clan.PlayerClan.Influence >= 200
+                    && defender.GetRelation(Hero.MainHero) >= 0,
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
+                    KingdomPoliticsFlow.ProposeWar(defender, t),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    if (defender != null) KingdomPoliticsFlow.ProposeWar(defender, t);
+                }
+            },
+            // 42. negotiate_peace（提议停战——propose_war 同款对称）
+            new ActionSpec
+            {
+                Code = "negotiate_peace",
+                Description = "向国王提议与某王国停战（你是王国成员；提案进议会投票，影响力 -200）。",
+                InChatSpace = true, ChatOrder = 34,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
+                RequiresConfirm = true,
+                InquiryTitleKey = "hint", InquiryMsgKey = "negotiate_peace",
+                IdentityGated = true,
+                LabelKey = "negotiate_peace", LabelFallback = "propose peace",
+                IsValid = (attacker, defender, agent) => defender != null && defender != Hero.MainHero
+                    && Clan.PlayerClan?.Kingdom != null
+                    && Clan.PlayerClan.Kingdom.Leader == defender
+                    && Clan.PlayerClan.Influence >= 200
+                    && defender.GetRelation(Hero.MainHero) >= 0,
+                ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
+                    KingdomPoliticsFlow.ProposePeace(defender, t),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    if (defender != null) KingdomPoliticsFlow.ProposePeace(defender, t);
+                }
+            },
+            // 43. order_march（命令己方领主行动：去 X 城/回领地防守/拦住那支商队）
+            new ActionSpec
+            {
+                Code = "order_march",
+                Description = "命令己方领主率部行动（去某座城/回领地防守/追击某支部队；大地图；无检定，冷却 1 天）。",
+                InChatSpace = true, ChatOrder = 35,
+                Spaces = ActionSpace.Party,
+                NeedsCooldown = true,
+                IdentityGated = true,
+                LabelKey = "order_march", LabelFallback = "order march",
+                IsValid = (attacker, defender, agent) => defender != null && defender != Hero.MainHero
+                    && defender.Clan == Clan.PlayerClan
+                    && defender.PartyBelongedTo != null
+                    && defender.PartyBelongedTo != MobileParty.MainParty
+                    && !FriendlinessHelper.IsPlayerPartyMember(defender),   // 随从独立 party 走 J 的 gather/move
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    if (defender?.PartyBelongedTo != null)
+                        KingdomPoliticsFlow.OrderMarch(defender.PartyBelongedTo, t);
+                }
+            },
+            // ── 🔴 2026-08-16（方案 S）：受困求情动作组（受困状态才注入——IdentityGated 门控复用：
+            // 身份判定 = DistressFlow.IsInDistress()。全部有代价（铁律 12）：赎金/罚金/贿赂钱 +
+            // 贿赂检定可失败（钱没了罪还在）；赔偿对话纪律（铁律 10/11）：玩家不先开价，金额 = NPC 说了算）──
+            // 44. pay_ransom（赎金求放——被俘场景；与看守/强盗头子对话）
+            new ActionSpec
+            {
+                Code = "pay_ransom",
+                Description = "愿意赎身（被俘时向看守求放；赎金由对方开价——你只答应不还价，金额对方说了算）。",
+                InChatSpace = true, ChatOrder = 36,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
+                IdentityGated = true,
+                LabelKey = "pay_ransom", LabelFallback = "pay ransom",
+                IsValid = (attacker, defender, agent) => DistressFlow.IsPlayerCaptive(),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    // 金额 = 对方说了算（RansomAmount：ComputeCost(Restitution) 统一入口或勒索基础值）
+                    int amount = DistressFlow.RansomAmount();
+                    Hero keeper = defender != Hero.MainHero ? defender : null;
+                    // 🔴 赔偿对话纪律：玩家先报价被驳回（金额只由 NPC 开价）——此处按 NPC 开价执行
+                    DistressFlow.AcceptRansom(keeper, amount);
+                }
+            },
+            // 45. beg_mercy（求饶——犯罪被抓场景；认罚路径）
+            new ActionSpec
+            {
+                Code = "beg_mercy",
+                Description = "向守卫求饶认罚（犯罪被抓时；罚金按罪计算——你只认罚不讨价，金额对方说了算）。",
+                InChatSpace = true, ChatOrder = 37,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
+                IdentityGated = true,
+                LabelKey = "beg_mercy", LabelFallback = "beg for mercy",
+                IsValid = (attacker, defender, agent) => DistressFlow.IsPlayerCaught(),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                    DistressFlow.BegMercy(defender != Hero.MainHero ? defender : null),
+            },
+            // 46. bribe_guard（贿赂——犯罪被抓场景；秘密转移 + 检定可失败：钱没了罪还在）
+            new ActionSpec
+            {
+                Code = "bribe_guard",
+                Description = "塞钱给守卫求放（犯罪被抓时；大笔封口费，守卫品格影响成败——可能收了钱照样抓你）。",
+                InChatSpace = true, ChatOrder = 38,
+                Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
+                IdentityGated = true,
+                LabelKey = "bribe_guard", LabelFallback = "bribe the guard",
+                IsValid = (attacker, defender, agent) => DistressFlow.IsPlayerCaught(),
+                Execute = (attacker, defender, agent, l, t, s) =>
+                {
+                    int amount = DistressFlow.RansomAmount() * 2;   // 贿赂 = 罚金两倍（买通代价更高）
+                    DistressFlow.BribeGuard(defender != Hero.MainHero ? defender : null, amount);
+                }
+            },
         };
         /// <summary>计划词表动作（InPlanVocab，按主表序 = 原 ActionsInPromptOrder 手写序）。</summary>
         public static IEnumerable<ActionSpec> PlanActions => All.Where(s => s.InPlanVocab);
@@ -887,10 +1146,12 @@ namespace LivingWorldNpcs
             };
             Check(PlanActions.Select(s => s.Code).SequenceEqual(expectedPlanOrder),
                 "[ActionRegistry] 计划 24 码顺序与基线不符（82% LLM 回归基线依赖此顺序）");
-            // ChatOrder 1..29 连续（闲聊 prompt 展示序钉死）
+            // ChatOrder 1..38 连续（闲聊 prompt 展示序钉死；2026-08-16 方案 J 追加 split_party=30/engage=31，
+            // 方案 R 追加 persuade_join=32/propose_war=33/negotiate_peace=34/order_march=35，
+            // 方案 S 追加 pay_ransom=36/beg_mercy=37/bribe_guard=38）
             var chatOrders = ChatActions.Select(s => s.ChatOrder).ToArray();
-            Check(chatOrders.SequenceEqual(Enumerable.Range(1, 29)),
-                "[ActionRegistry] ChatOrder 必须为 1..29 连续序列");
+            Check(chatOrders.SequenceEqual(Enumerable.Range(1, 38)),
+                "[ActionRegistry] ChatOrder 必须为 1..38 连续序列");
             // 未实现集合（计划侧执行器）
             var unimplemented = All.Where(s => !s.ExecutorImplemented).Select(s => s.Code).OrderBy(c => c).ToArray();
             Check(unimplemented.SequenceEqual(new[] { "duel", "negotiate", "shadow" }),

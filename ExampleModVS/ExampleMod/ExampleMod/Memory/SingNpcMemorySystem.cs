@@ -28,6 +28,29 @@ namespace LivingWorldNpcs
         public StringBuilder PermanentMemory { get; private set; } = new StringBuilder();
         private volatile bool _isSummarizing = false; // 新增标记
 
+        // 🔴 2026-08-16（方案 N）：大事记槽（≤12 条 FIFO）——写入时 C# 白名单分级锚定，
+        // 平行于 LLM 淘汰晋升（CheckAndPromoteToPermanent 保留不动）。建国/获封/大婚等大事
+        // 不被日常进城挤掉（D 感知闸门每日 30 条 vs 动态记忆 FIFO 8 条）。
+        // 存档按 save 纪律（AllNpcMemoryManager.NpcMemorySaveEntry）；旧档无字段 → 空（不补写，
+        // 正确——旧档玩家没有"大事记"记忆；空集 → prompt 不注入该段，零开销）。
+        private const int MaxImportantEvents = 12;
+        public List<string> ImportantEvents { get; private set; } = new List<string>();
+
+        /// <summary>写入一条大事记（方案 N1：D2 感知层大事双写——RecordDynamicMemory + RecordImportantMemory；
+        /// 大事 = kingdom_created/fief_granted/marriage/child_born/imprison/release/
+        /// 限定版 battle_win（攻城战胜利或大捷：参战人数比 ≥2 或 SiegeEvent 相关）才进大事记——
+        /// 防玩家打 12 仗后建国/获封被挤掉，N 的初衷（大事不被日常挤掉）自毁）。</summary>
+        public void RecordImportantMemory(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content)) return;
+            lock (_lock)
+            {
+                ImportantEvents.Add(content);
+                if (ImportantEvents.Count > MaxImportantEvents)
+                    ImportantEvents.RemoveAt(0);
+            }
+        }
+
         // ── 动态容量（用户决策 3：互动热度分档，Hot > Normal > Cold；模板 NPC 无热度维持 Normal 现状）──
         private bool? _isHeroMemory;
 
@@ -398,7 +421,8 @@ namespace LivingWorldNpcs
 
         /// <summary>读档重建（MyBehavior.SyncData → AllNpcMemoryManager.DeserializeSlot 调用）。</summary>
         public void RestoreFromSave(List<ChatMessage> history, List<RecentMemory> dynamic, string permanent,
-            string backgroundStory = null, string personality = null, string specialty = null)
+            string backgroundStory = null, string personality = null, string specialty = null,
+            List<string> importantEvents = null)
         {
             lock (_lock)
             {
@@ -426,6 +450,13 @@ namespace LivingWorldNpcs
                     Personality = personality;
                 if (!string.IsNullOrEmpty(specialty))
                     Specialty = specialty;
+                // 🔴 2026-08-16（方案 N）：大事记槽读档（旧档无字段 → 空，不补写——正确）
+                if (importantEvents != null)
+                {
+                    ImportantEvents = new List<string>(importantEvents);
+                    if (ImportantEvents.Count > MaxImportantEvents)
+                        ImportantEvents = ImportantEvents.GetRange(ImportantEvents.Count - MaxImportantEvents, MaxImportantEvents);
+                }
             }
         }
 

@@ -1806,6 +1806,11 @@ namespace LivingWorldNpcs
         public string RiskAnalysis { get; set; }
         [JsonProperty("risk_verdict")]
         public string RiskVerdict { get; set; }
+        // 🔴 2026-08-16（方案 I3 观察出口）：need_fact——LLM 想引用某数值但【此刻现状】没有 →
+        // 声明缺失事实。C# 只记 [StaleFact] 日志（对齐 [Bragging] 观察驱动），v1 不做任何动作
+        //（不补查、不重试）；数据积累后再决定扩注入窗口/关键词表。
+        [JsonProperty("need_fact")]
+        public string NeedFact { get; set; }
         [JsonProperty("suggest_negotiation_start")]
         public bool SuggestNegotiationStart { get; set; }
 

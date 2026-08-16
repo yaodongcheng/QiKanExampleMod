@@ -4276,5 +4276,37 @@
     <string id="LWN_ui_interact_inquiry_steal_npc_risk_msg" text="{NAME} warns: {RISK} — still steal from {TARGET}?" />
     <string id="LWN_ui_interact_inquiry_duel_risk_msg" text="{NAME} warns: {RISK} — still duel?" />
     <string id="LWN_ui_interact_inquiry_duel_npc_risk_msg" text="{NAME} warns: {RISK} — still duel {TARGET}?" />
-    <string id="LWN_dialog_chat_initiator_refuse_2" text="...I spoke out of turn." /></strings>
+    <string id="LWN_dialog_chat_initiator_refuse_2" text="...I spoke out of turn." />
+    <!-- 2026-08-16（认知同步计划 A-T）：口嗨前缀 + 事件兜底 + 关切模板 + 动作播报标签（与 CN 对齐，防 EN 玩家回落 fallback） -->
+    <string id="LWN_im_bragging_tag" text="(bragging) " />
+    <string id="LWN_im_event_mission_settlement" text="Our lord entered a town." />
+    <string id="LWN_im_event_mission_hideout" text="Our lord slipped into a hideout." />
+    <string id="LWN_im_event_mission_siege" text="Our lord is at a siege." />
+    <string id="LWN_im_event_mission_battle" text="Our lord is fighting in the open field." />
+    <string id="LWN_im_event_kingdom_created" text="Our lord has founded his own kingdom!" />
+    <string id="LWN_im_event_level_up" text="Our lord grows stronger each day." />
+    <string id="LWN_im_event_fief_granted" text="Our lord has been granted a new fief!" />
+    <string id="LWN_im_event_marriage" text="Our lord is married - a day of double joy!" />
+    <string id="LWN_im_event_child_born" text="A child is born to our lord's household!" />
+    <string id="LWN_im_event_crime" text="Our lord has gotten into trouble near here." />
+    <string id="LWN_im_event_relation_change" text="Our lord's standing with someone has changed." />
+    <string id="LWN_im_event_kingdom_decision" text="The council has decided on war and peace." />
+    <string id="LWN_im_care_low" text="Careful, my lord!" />
+    <string id="LWN_im_care_heavy" text="Hold on, my lord!" />
+    <string id="LWN_im_care_retreat" text="My lord, you are hurt - fall back!" />
+    <string id="LWN_im_care_crime" text="Run, my lord! The guard saw it!" />
+    <string id="LWN_plan_action_split_party" text="split off a party" />
+    <string id="LWN_plan_action_engage" text="engage the enemy" />
+    <string id="LWN_plan_action_persuade_join" text="persuade to join" />
+    <string id="LWN_plan_action_propose_war" text="propose war" />
+    <string id="LWN_plan_action_negotiate_peace" text="propose peace" />
+    <string id="LWN_plan_action_order_march" text="order the march" />
+    <string id="LWN_plan_action_pay_ransom" text="pay the ransom" />
+    <string id="LWN_plan_action_beg_mercy" text="beg for mercy" />
+    <string id="LWN_plan_action_bribe_guard" text="bribe the guard" />
+    <string id="LWN_plan_action_persuade_ok" text="{NAME} swore allegiance to our kingdom!" />
+    <string id="LWN_plan_action_persuade_fail" text="{NAME} flatly refused your offer and holds a grudge (relation -10)." />
+    <string id="LWN_plan_action_war_noinfluence" text="The king shakes his head: the treasury is empty - not now." />
+    <string id="LWN_plan_action_war_proposed" text="A declaration of war against {TARGET} has been put to the council (influence -200); awaiting the vote." />
+    <string id="LWN_plan_action_peace_proposed" text="A peace proposal with {TARGET} has been put to the council (influence -200); awaiting the vote." /></strings>
 </base>
