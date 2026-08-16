@@ -4,6 +4,7 @@ using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.CharacterDevelopment;
 using TaleWorlds.CampaignSystem.Party;
+using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
 
@@ -510,6 +511,11 @@ namespace LivingWorldNpcs
         {
             if (conv == null || string.IsNullOrWhiteSpace(content)) return;
 
+            // 🔴 2026-08-16（用户裁定：位置后缀与消息绑定）：发出时刻快照（结构化 Kind+Name+Dist）——
+            // 历史里每句话显示发出时的位置（在场米数/城外/来自N米外的X/俘虏），发出后不再变更。
+            // 显示层读 ImMessage.LocationSuffix 经 ResolveLocationSuffix 解析；旧消息（无字段）回退实时计算。
+            ImLocationSuffix locSuffix = BuildLocationSuffix(npcHeroId);
+
             if (conv.Type == ImConversationType.Direct)
             {
                 var memory = AllNpcMemoryManager.GetMemory(conv.PartnerHeroId);
@@ -520,11 +526,11 @@ namespace LivingWorldNpcs
                 // TryAttachSuggestion 在 store 找刚投递的消息打 need_plan 建议；原私聊只写记忆不写
                 // store → 打标必失败（日志实锤「建议打标失败: 找不到 … 刚投递的消息」），私聊
                 // 「带我走XX」永远建不起计划。GetDirectMessages 已按 (senderName, content) 去重防双显。
-                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(npcHeroId, npcName, content, ImMessageKind.Text));
+                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(npcHeroId, npcName, content, ImMessageKind.Text) { LocationSuffix = locSuffix });
             }
             else
             {
-                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(npcHeroId, npcName, content, ImMessageKind.Text));
+                ImChatStore.AppendGroupMessage(conv.Id, new ImMessage(npcHeroId, npcName, content, ImMessageKind.Text) { LocationSuffix = locSuffix });
                 // 方案 B：NPC 的频道发言同样按参与度写入成员记忆（其他成员看到他回了什么）
                 WriteGroupMessageToMemory(conv, npcHeroId, npcName, content);
                 ImHeatTracker.Add(npcHeroId, 1f);
@@ -574,43 +580,167 @@ namespace LivingWorldNpcs
             catch { return null; }
         }
 
-        /// <summary>不在场成员的归属描述（队伍/家族频道标记，🔴 2026-08-13 用户裁定）：
-        /// 随从在主队（PartyBelongedTo == MainParty，玩家进城了他留在城外）→ 「城外」；
-        /// 家族/其他 Hero → 所在定居点名（人就在城里）；不在任何定居点（行军途中/旷野）→ 「远处」；
-        /// 未知 Hero → 「他处」。返回纯文本（无括号，调用方拼（{}））；定居点名走引擎本地化。
-        /// 🔴 2026-08-16（用户裁定，方案 B）：玩家在大地图（Mission.Current == null）时，主队随从
-        /// 与玩家同行，没有在场/不在场之分——「城外」标记无意义（只有玩家进场景、随从留守队伍才需要）。
-        /// 此时返回 null，调用方跳过括号拼接（ImChatVM.DisplaySenderName 已接 null 分支）。</summary>
-        public static string DescribeAwayLocation(string heroId)
+        /// <summary>🔴 2026-08-16（用户裁定统一后缀规则）：消息发出时刻的位置后缀快照（结构化）——
+        /// 与消息绑定，发出后不再变更（历史里每句话能看到是从哪边发的）。规则：
+        /// - 玩家在 mission：同在 mission 的 NPC → dist_m（{N}米外，走 BuildLocationSuffix 在场分支）；
+        ///   本部队留守 → outside_town/village/castle/stronghold（按队伍所在定居点类型，藏身处等兜底据点外）；
+        ///   野外其他部队 → from_dist（来自{N}米外的{部队}）；在别的定居点 → from_dist（{据点名}）；
+        ///   俘虏 → prisoner_dist（在{N}米外的{据点/押解部队}（俘虏中））/ prisoner（无信息兜底）。
+        /// - 玩家在大地图：本队 NPC → in_party（在队伍中）；不在本队 → 与 mission 内一致。
+        /// 返回结构化数据（Kind + Name + Dist），显示文案由 <see cref="ResolveLocationSuffix"/> 按当前语言解析；
+        /// 异常/未知 Hero → null（无后缀，显示层跳过括号拼接）。</summary>
+        public static ImLocationSuffix DescribeAwayLocation(string heroId)
         {
             try
             {
                 Hero hero = null;
                 if (!string.IsNullOrEmpty(heroId))
                     hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == heroId);
-                if (hero == null)
-                    // 本地化：LWN_im_status_away（玩家可见文本）
-                    return LWNTextHelper.ResolveText("LWN_im_status_away", "away");
-                // 🔴 2026-08-16（方案 B 门控）：玩家在大地图时主队随从 = 同行，标记无意义 → null
-                if (Mission.Current == null && MobileParty.MainParty != null && hero.PartyBelongedTo == MobileParty.MainParty)
-                    return null;
-                // 随从在主队：队伍在城外扎营，他没进场景
-                if (MobileParty.MainParty != null && hero.PartyBelongedTo == MobileParty.MainParty)
-                    // 本地化：LWN_im_status_outside（玩家可见文本）
-                    return LWNTextHelper.ResolveText("LWN_im_status_outside", "outside");
-                // 其他 Hero（家族成员等）：所在定居点优先（部队所在 → 本人所在）；都不在城里 → 远处
+                if (hero == null) return null;
+                bool playerInMission = Mission.Current != null;
+                bool inMainParty = MobileParty.MainParty != null && hero.PartyBelongedTo == MobileParty.MainParty;
+                // 玩家在大地图 + 本队 → 同行，「在队伍中」（方案 B 门控的替代：有信息量而非无标记）
+                if (!playerInMission && inMainParty)
+                    return new ImLocationSuffix("in_party");
+                // 俘虏特殊标记（任何场景优先，用户裁定格式）：「在{DIST}米外的{据点/部队}（俘虏中）」——
+                // 被据点关押（有定居点，如阿速甘在吕卡隆）→ NAME=据点名；被部队押解（无定居点）→ NAME=部队名。
+                // 🔴 2026-08-16（同城特殊化，用户问询）：玩家正在关押据点内 mission（城镇大厅/酒馆/
+                // 主城等同城子地点，或守城战）→ 同城距离无意义 → 「被关押在{据点名}」（Settlement.
+                // CurrentSettlement == 关押据点）。地牢 mission 本人有 Agent → BuildLocationSuffix
+                // 在场分支先行（{N}米外，肉眼可见无需标记）。地牢子地点名（GetLocationWithId("dungeon")）
+                // 涉及双语拼接成本，暂不细化——据点名已表达「在哪座城」。
+                if (hero.IsPrisoner)
+                {
+                    Settlement ps = hero.PartyBelongedTo?.CurrentSettlement ?? hero.CurrentSettlement;
+                    if (ps != null)
+                    {
+                        if (Mission.Current != null && Settlement.CurrentSettlement == ps)
+                            return new ImLocationSuffix("prisoner_here", ps.Name?.ToString() ?? "");
+                        return new ImLocationSuffix("prisoner_dist", ps.Name?.ToString() ?? "", DistFromPlayerMeters(ps));
+                    }
+                    var pp = hero.PartyBelongedTo;
+                    if (pp != null && !string.IsNullOrEmpty(pp.Name?.ToString()))
+                        return new ImLocationSuffix("prisoner_dist", pp.Name.ToString(), DistFromPlayerMeters(pp));
+                    // 兜底（无据点无部队名，理论上被俘必有归属）
+                    return new ImLocationSuffix("prisoner");
+                }
+                // 本部队但玩家在 mission（留守队伍）：队伍所在定居点类型 → 城外/村外/堡外/据点外
+                if (inMainParty)
+                {
+                    var ms = MobileParty.MainParty.CurrentSettlement;
+                    if (ms != null && ms.IsCastle) return new ImLocationSuffix("outside_castle");
+                    if (ms != null && ms.IsVillage) return new ImLocationSuffix("outside_village");
+                    if (ms != null && ms.IsTown) return new ImLocationSuffix("outside_town");
+                    // 藏身处等非城非村非堡 / 旷野扎营 → 据点外兜底
+                    return new ImLocationSuffix("outside_stronghold");
+                }
+                // 其他部队/定居点（不在本队）：距离 = 部队/据点 ↔ 主队（1 地图单位 ≈ 10 里 = 5000 米）
                 var party = hero.PartyBelongedTo;
-                if (party != null && party.CurrentSettlement != null)
-                    // 本地化：LWN_im_status_far（玩家可见文本）
-                    return party.CurrentSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
-                if (hero.CurrentSettlement != null)
-                    // 本地化：LWN_im_status_far（玩家可见文本）
-                    return hero.CurrentSettlement.Name?.ToString() ?? LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
-                // 本地化：LWN_im_status_far（玩家可见文本）
-                return LWNTextHelper.ResolveText("LWN_im_status_far", "far away");
+                Settlement set = party?.CurrentSettlement ?? hero.CurrentSettlement;
+                if (set != null)
+                    return new ImLocationSuffix("from_dist", set.Name?.ToString() ?? "", DistFromPlayerMeters(set));
+                // 野外其他部队：分兵随从 →「XX的部队」；其他 party → party.Name；无 party → hero.Name
+                string pname;
+                if (PartySplitFlow.IsSplitPartyLeader(hero))
+                    pname = $"{hero.Name?.ToString()}的部队";
+                else if (party != null && !string.IsNullOrEmpty(party.Name?.ToString()))
+                    pname = party.Name.ToString();
+                else
+                    pname = hero.Name?.ToString() ?? "";
+                if (string.IsNullOrEmpty(pname)) return null;
+                return new ImLocationSuffix("from_dist", pname, DistFromPlayerMeters(party));
             }
-            // 本地化：LWN_im_status_away（玩家可见文本）
-            catch { return LWNTextHelper.ResolveText("LWN_im_status_away", "away"); }
+            catch { return null; }
+        }
+
+        /// <summary>🔴 2026-08-16（消息快照构建，主线程）：DeliverNpcMessage 发出时的位置后缀——
+        /// 同场景在场 → dist_m（GetMissionDistanceMeters 场景米数）；否则 DescribeAwayLocation 分级。
+        /// 返回结构化快照（不本地化——显示文案由 ResolveLocationSuffix 按当前语言解析）。
+        /// 异常 → null（无后缀，显示层跳过括号拼接）。</summary>
+        public static ImLocationSuffix BuildLocationSuffix(string npcHeroId)
+        {
+            try
+            {
+                var dist = GetMissionDistanceMeters(npcHeroId);
+                if (dist.HasValue)
+                    return new ImLocationSuffix("dist_m", null, Math.Max(1, (int)MathF.Ceiling(dist.Value)));
+                return DescribeAwayLocation(npcHeroId);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>🔴 2026-08-16（UI 层解析，铁律 13 走 LWN_* 本地化）：结构化后缀快照 → 当前语言显示文本
+        ///（不含名字，调用方拼「名字（后缀）」）；null/未知 Kind → null（跳过括号拼接）。
+        /// 历史消息存的是 Kind+参数，语言切换/改文案随时重解析，不焊死字符串。</summary>
+        public static string ResolveLocationSuffix(ImLocationSuffix data)
+        {
+            try
+            {
+                if (data == null || string.IsNullOrEmpty(data.Kind)) return null;
+                switch (data.Kind)
+                {
+                    case "dist_m":
+                        // 本地化：LWN_im_status_dist_m（玩家可见文本）
+                        return LWNTextHelper.ResolveCompound("LWN_im_status_dist_m",
+                            $"{data.Dist} m away", ("DIST", data.Dist.ToString()));
+                    case "in_party":
+                        // 本地化：LWN_im_status_in_party（玩家可见文本）
+                        return LWNTextHelper.ResolveText("LWN_im_status_in_party", "in the party");
+                    case "outside_town":
+                        // 本地化：LWN_im_status_outside（玩家可见文本）
+                        return LWNTextHelper.ResolveText("LWN_im_status_outside", "outside");
+                    case "outside_village":
+                        // 本地化：LWN_im_status_outside_village（玩家可见文本）
+                        return LWNTextHelper.ResolveText("LWN_im_status_outside_village", "outside village");
+                    case "outside_castle":
+                        // 本地化：LWN_im_status_outside_castle（玩家可见文本）
+                        return LWNTextHelper.ResolveText("LWN_im_status_outside_castle", "outside castle");
+                    case "outside_stronghold":
+                        // 本地化：LWN_im_status_outside_stronghold（玩家可见文本）
+                        return LWNTextHelper.ResolveText("LWN_im_status_outside_stronghold", "outside stronghold");
+                    case "prisoner_here":
+                        // 本地化：LWN_im_status_prisoner_here（玩家可见文本）
+                        return LWNTextHelper.ResolveCompound("LWN_im_status_prisoner_here",
+                            $"captive in {data.Name}", ("NAME", data.Name ?? ""));
+                    case "prisoner_dist":
+                        // 本地化：LWN_im_status_prisoner_dist（玩家可见文本）
+                        return LWNTextHelper.ResolveCompound("LWN_im_status_prisoner_dist",
+                            $"captured at {data.Name}, {data.Dist} m away",
+                            ("NAME", data.Name ?? ""), ("DIST", data.Dist.ToString()));
+                    case "prisoner":
+                        // 本地化：LWN_im_status_prisoner（玩家可见文本）
+                        return LWNTextHelper.ResolveText("LWN_im_status_prisoner", "captured");
+                    case "from_dist":
+                        // 本地化：LWN_im_status_from_dist（玩家可见文本）
+                        return LWNTextHelper.ResolveCompound("LWN_im_status_from_dist",
+                            $"from {data.Name}, {data.Dist} m away",
+                            ("NAME", data.Name ?? ""), ("DIST", data.Dist.ToString()));
+                    default:
+                        return null;
+                }
+            }
+            catch { return null; }
+        }
+
+        /// <summary>位置 ↔ 主队的地图距离转米（1 地图单位 ≈ 10 里 = 5000 米；方案 E 口径，取整下限 1）。</summary>
+        private static int DistFromPlayerMeters(Settlement settlement)
+        {
+            try
+            {
+                if (settlement == null || MobileParty.MainParty == null) return 1;
+                return Math.Max(1, (int)MathF.Round(V.Pos(settlement).Distance(V.Pos(MobileParty.MainParty)) * 5000f));
+            }
+            catch { return 1; }
+        }
+
+        private static int DistFromPlayerMeters(MobileParty party)
+        {
+            try
+            {
+                if (party == null || MobileParty.MainParty == null) return 1;
+                return Math.Max(1, (int)MathF.Round(V.Pos(party).Distance(V.Pos(MobileParty.MainParty)) * 5000f));
+            }
+            catch { return 1; }
         }
 
         /// <summary>按 Hero StringId 找当前 Mission 中的 Agent。</summary>

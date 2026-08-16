@@ -564,9 +564,11 @@ namespace LivingWorldNpcs
                 // 用 away 版：明确"主公队伍动向不知情，问位置/账目如实说不知道，禁止自称咱们/编地点"。
                 // 现文案假设回应者是主公军队一员，对离队成员是误导（实机 2026-08-16：阿速甘答
                 // "咱们正在卡拉迪亚大道上行进"——人设 away 文案单打独斗压不住能力段的"咱们"暗示）。
-                string capKey = isPartyMember
-                    ? "LWN_prompt_im_capability_campaign"
-                    : "LWN_prompt_im_capability_campaign_away";
+                string capKey;
+                // 本地化：LWN_prompt_im_capability_campaign（队伍成员能力段）
+                if (isPartyMember) capKey = "LWN_prompt_im_capability_campaign";
+                // 本地化：LWN_prompt_im_capability_campaign_away（离队成员能力段）
+                else capKey = "LWN_prompt_im_capability_campaign_away";
                 string cap = LWNTextHelper.ResolvePrompt(capKey);
                 if (!string.IsNullOrWhiteSpace(cap))
                 {
@@ -597,6 +599,7 @@ namespace LivingWorldNpcs
             // + 风险审视纪律）本来就是"动作命令才注入"的代理；闲聊/问句不背命令规则（原全量注入 ~430 字）
             if (riskScene != null)
             {
+                // 本地化：LWN_plan_im_command_rule（命令纪律段——动作命令语境才注入）
                 string commandRule = LWNTextHelper.ResolvePrompt("LWN_plan_im_command_rule");
                 if (!string.IsNullOrWhiteSpace(commandRule))
                     sb.AppendLine(commandRule);
