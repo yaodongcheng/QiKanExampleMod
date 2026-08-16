@@ -584,7 +584,9 @@ namespace LivingWorldNpcs
 
             if (Hero.MainHero.CurrentSettlement == null)
             {
-                InformationManager.DisplayMessage(new InformationMessage("错误：你当前不在定居点内。", Colors.Red));
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // 本地化：LWN_cmd_not_in_settlement（玩家可见文本）
+                    LWNTextHelper.ResolveText("LWN_cmd_not_in_settlement", "Error: you are not at a settlement."), Colors.Red));
                 return "Error: Not in a settlement.";
             }
 
@@ -1675,7 +1677,7 @@ namespace LivingWorldNpcs
                 if (arg == "reset")
                 {
                     disguiseLogic.PlayerSuspiciousLevel = 0f;
-                    InformationManager.DisplayMessage(new InformationMessage("[StealthDebug] SuspiciousLevel reset to 0"));
+                    DebugLogger.Log("[StealthDebug] SuspiciousLevel reset to 0");
                 }
                 else if (float.TryParse(arg, out float val))
                 {

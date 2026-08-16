@@ -4152,6 +4152,9 @@
     <string id="LWN_im_dist_unit_km" text="{N} km" />
     <string id="LWN_im_dist_unit_m" text="{N} m" />
     <string id="LWN_im_title_members" text="{NAME} ({COUNT})" />
+    <string id="LWN_cmd_not_in_settlement" text="Error: you are not at a settlement." />
+    <string id="LWN_story_generating" text="A new tale is being written, please wait..." />
+    <string id="LWN_story_generated" text="A new rumor tale has been written!" />
     <string id="LWN_im_march_channel_only" text="Plans can only be sent to a single hero. Channel plans require a scene." />
     <string id="LWN_im_march_no_party" text="That hero has no army to command." />
     <string id="LWN_im_march_in_party" text="That hero marches with you - give orders in person, in a scene." />

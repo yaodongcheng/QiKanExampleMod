@@ -355,7 +355,7 @@ namespace LivingWorldNpcs
        
         private void OpenUI()
         {
-            InformationManager.DisplayMessage(new InformationMessage("Prepare Open UI!"));
+            DebugLogger.Log("[CameraDebugger] Prepare Open UI!");
 
             if (_isActive) return;
 
@@ -379,11 +379,11 @@ namespace LivingWorldNpcs
                 // 添加 Layer 到屏幕
                 // MissionScreen.AddLayer(_gauntletLayer);
                 _isActive = true;
-                InformationManager.DisplayMessage(new InformationMessage("Open Camera UI Success!"));
+                DebugLogger.Log("[CameraDebugger] Open Camera UI Success!");
             }
             else
             {
-                InformationManager.DisplayMessage(new InformationMessage("Mission Screen Failed!"));
+                DebugLogger.Log("[CameraDebugger] Mission Screen Failed!");
             }
 
         }

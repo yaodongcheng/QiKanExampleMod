@@ -28,8 +28,11 @@ namespace LivingWorldNpcs
         // S1 受困状态判定（C# 确定性，不进 LLM）
         // ═══════════════════════════════════════════════════════════
 
-        /// <summary>玩家被俘判定链：IsPrisoner / 被押解（PartyBelongedTo 是敌方 party 且非主队）/
-        /// 地牢场景（sp_prisoner 场景 tag——Knowledge/原版地牢与劫狱机制分析.md 已分析进入/释放路径）。</summary>
+        /// <summary>玩家被俘判定链：IsPrisoner / 被押解（PartyBelongedTo 是敌方 party 且非主队）。
+        /// 🔴 2026-08-16（修复，实机 21:28:52）：原含「地牢场景 sp_prisoner tag」判定——玩家**自由走进
+        /// 地牢探监/劫狱**也命中 → 误判被俘 → 求情动作组泄漏进 NPC 决策空间（阿速甘选 pay_ransom 虚空扣
+        /// 玩家 15% 身家）。被俘玩家的 HeroState 必为 Prisoner（IsPrisoner true）→ sp_prisoner tag 判定
+        /// 冗余，删除；被押解过渡由 PartyBelongedTo 敌方判定覆盖。</summary>
         public static bool IsPlayerCaptive()
         {
             try
@@ -40,10 +43,6 @@ namespace LivingWorldNpcs
                 // 🔴 Hero.PartyBelongedTo 返回 MobileParty——被押解（敌方 party 且非主队）
                 var p = hero.PartyBelongedTo;
                 if (p != null && p != MobileParty.MainParty) return true;
-                if (Mission.Current?.Scene != null)
-                {
-                    try { if (Mission.Current.Scene.FindEntityWithTag("sp_prisoner") != null) return true; } catch { }
-                }
                 return false;
             }
             catch { return false; }
@@ -123,13 +122,20 @@ namespace LivingWorldNpcs
 
         /// <summary>接受赎金：转账守恒（看守有 Hero → TransferGold(玩家→看守)；无 Hero → 虚空 Sink——
         /// "赎金被强盗们收走"属单边 Sink，注释标注，非半截转移，铁律 4）+ 释放玩家（EndCaptivityAction
-        /// .ApplyByRansom 实锤签名）。钱不够 → 全扣光不释放（代价真实）。</summary>
+        /// .ApplyByRansom 实锤签名）。钱不够 → 全扣光不释放（代价真实）。
+        /// 🔴 2026-08-16（防御守卫，实机 21:28:52 阿速甘案）：玩家非被俘状态禁止执行——NPC 误选
+        /// pay_ransom 曾虚空扣玩家 15% 身家（IsValid 已加 attacker 守卫，此处兜底防未来误用）。</summary>
         public static void AcceptRansom(Hero keeper, int amount)
         {
             try
             {
                 var player = Hero.MainHero;
                 if (player == null || amount <= 0) return;
+                if (!IsPlayerCaptive())
+                {
+                    DebugLogger.Log($"[Distress] 赎金拒绝执行：玩家非被俘状态（防虚空扣钱，keeper={keeper?.Name?.ToString() ?? "null"}）");
+                    return;
+                }
                 int paid = AgentControlHelper.TransferGold(player, keeper, amount, notify: true);
                 if (paid < amount)
                 {
@@ -160,6 +166,12 @@ namespace LivingWorldNpcs
             {
                 var player = Hero.MainHero;
                 if (player == null) return;
+                // 🔴 2026-08-16（防御守卫，同 AcceptRansom）：玩家非被抓状态禁止执行（防 NPC 误选虚空扣钱）
+                if (!IsPlayerCaught())
+                {
+                    DebugLogger.Log($"[Distress] 认罚拒绝执行：玩家非被抓状态（guard={guard?.Name?.ToString() ?? "null"}）");
+                    return;
+                }
                 int cost = RansomAmount();
                 int paid = AgentControlHelper.TransferGold(player, guard, cost, notify: true);
                 if (paid < cost)
@@ -199,6 +211,12 @@ namespace LivingWorldNpcs
             {
                 var player = Hero.MainHero;
                 if (player == null || amount <= 0) return false;
+                // 🔴 2026-08-16（防御守卫，同 AcceptRansom）：玩家非被抓状态禁止执行（防 NPC 误选虚空扣钱）
+                if (!IsPlayerCaught())
+                {
+                    DebugLogger.Log($"[Distress] 贿赂拒绝执行：玩家非被抓状态（guard={guard?.Name?.ToString() ?? "null"}）");
+                    return false;
+                }
                 int paid = AgentControlHelper.TransferGold(player, guard, amount, notify: true);
                 if (paid < amount)
                 {

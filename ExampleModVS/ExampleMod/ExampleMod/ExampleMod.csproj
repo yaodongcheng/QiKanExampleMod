@@ -269,7 +269,6 @@
     <Compile Include="Core\AgentStatsHelper.cs" />
     <Compile Include="Core\MyBehavior.cs" />
     <Compile Include="Core\MySubModule.cs" />
-    <Compile Include="Core\PlayerMissionEventLogic.cs" />
     <Compile Include="Core\PartySplitFlow.cs" />
     <Compile Include="Core\KingdomPoliticsFlow.cs" />
     <Compile Include="Core\SafeLordPartyComponent.cs" />

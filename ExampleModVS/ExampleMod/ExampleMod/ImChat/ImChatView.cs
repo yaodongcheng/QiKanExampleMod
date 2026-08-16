@@ -155,7 +155,9 @@ namespace LivingWorldNpcs
                 if (ScreenManager.TopScreen != null)
                     ScreenManager.TopScreen.AddLayer(_layer);
 
-                SelectConversation(selectConv ?? BuildDefaultConversation());
+                // 🔴 2026-08-16（用户裁定：唤起保持上次频道）：selectConv 未指定时优先恢复上次选中
+                //（Close 保留的 _selected），无历史才回队伍兜底
+                SelectConversation(selectConv ?? _selected ?? BuildDefaultConversation());
                 if (prefill != null && _vm != null) _vm.InputText = prefill;
                 return true;
             }
@@ -191,7 +193,9 @@ namespace LivingWorldNpcs
                 _layer = null;
             }
             _vm = null;
-            _selected = null;
+            // 🔴 2026-08-16（用户裁定：唤起保持上次频道）：_selected **不置 null**——关闭时保留选中
+            // 会话（纯数据引用：Id/Type/Title，跨开关持久有效），再次 Open 恢复；Close 只销毁层与 VM。
+            // 旧行为每次唤起回队伍频道（BuildDefaultConversation），私聊/其他频道丢失。
             _messageScrollPanel = null;   // 层关闭后 widget 树失效，缓存清空
             _compactPanel = null;         // 🔴 2026-08-15（缩略模式）：同埋——widget 树随层销毁
             _compactChannelList = null;

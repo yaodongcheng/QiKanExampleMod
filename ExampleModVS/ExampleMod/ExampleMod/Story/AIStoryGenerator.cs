@@ -81,7 +81,9 @@ namespace LivingWorldNpcs
             if (Status == StoryGenStatus.Processing)
             {
                 if (Settings.Instance.ShowDebugMessages)
-                    InformationManager.DisplayMessage(new InformationMessage("剧本正在生成中，请稍后..."));
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_story_generating（玩家可见文本）
+                        LWNTextHelper.ResolveText("LWN_story_generating", "A new tale is being written, please wait...")));
                 return;
             }
 
@@ -138,7 +140,9 @@ namespace LivingWorldNpcs
                 }
 
                 if (Settings.Instance.ShowDebugMessages)
-                    InformationManager.DisplayMessage(new InformationMessage("新的传闻剧本已生成！", Colors.Green));
+                    InformationManager.DisplayMessage(new InformationMessage(
+                        // 本地化：LWN_story_generated（玩家可见文本）
+                        LWNTextHelper.ResolveText("LWN_story_generated", "A new rumor tale has been written!"), Colors.Green));
                 
             }
             catch (Exception ex)
