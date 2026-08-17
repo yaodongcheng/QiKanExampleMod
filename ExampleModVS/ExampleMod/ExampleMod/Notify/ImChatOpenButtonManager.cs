@@ -393,18 +393,23 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>0.3s 轮询兜底（查看会话 ClearUnread / 面板操作导致未读回落 → 数字更新）。</summary>
+        /// <summary>0.3s 轮询兜底（查看会话 ClearUnread / 面板操作导致未读回落 → 数字更新）。
+        /// 🔴 2026-08-17（实机：ask_player 消息徽标不显示）：**与 _lastTotalUnread 解耦**——
+        /// 旧逻辑 `total == _lastTotalUnread → return` 会被 OnMessageArrived 抢先更新短路（事件回调
+        /// 先设 _lastTotalUnread = 新值 → 轮询永远相等 → 徽标显示逻辑永不执行 → 新消息无提示）。
+        /// 现改为：每 0.3s 无条件读总数并同步显示（IsVisible/Text 只在变化时写，防 setter 刷屏）。</summary>
         private static void UpdateBadge(float dt)
         {
             _refreshTimer += dt;
-            if (_refreshTimer < RefreshIntervalSec && _lastTotalUnread >= 0) return;
+            if (_refreshTimer < RefreshIntervalSec) return;
             _refreshTimer = 0f;
             int total = ImChatStore.GetTotalUnread();
-            if (total == _lastTotalUnread) return;
             _lastTotalUnread = total;
             if (_badge == null || _badgeText == null) return;
-            _badge.IsVisible = total > 0;
-            _badgeText.Text = total > 99 ? "99+" : total.ToString();
+            bool show = total > 0;
+            if (_badge.IsVisible != show) _badge.IsVisible = show;
+            string t = total > 99 ? "99+" : total.ToString();
+            if (_badgeText.Text != t) _badgeText.Text = t;
         }
 
         /// <summary>脉冲跳动动画（C# 定时脉冲，无引擎动画依赖，可控可停）：
