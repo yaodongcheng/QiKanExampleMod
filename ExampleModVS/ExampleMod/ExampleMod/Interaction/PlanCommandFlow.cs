@@ -96,11 +96,8 @@ namespace LivingWorldNpcs
             var hero = (companion.Character as CharacterObject)?.HeroObject;
             if (hero == null || string.IsNullOrEmpty(hero.StringId))
             {
-                // 🔴 开场直接模板播放（不用 SayPolished）：plan_command 语境会被 LLM 润色成「遵命，我这就去办」
-                // ——玩家还没下命令，开场是「你有什么需要」的仪式感（实机 2026-08-12 日志实锤）
-                SpeechChannel.Say(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."),
-                    SpeechPriority.Dialogue,
-                    SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
+                // 🔴 2026-08-17（用户裁定）：开场白「小声——你说吧，我听着」（LWN_plan_opening）已删除——
+                // 每次密信必说，冗余仪式感；玩家点了密信本来就知道要说什么，直接打开面板即可。
                 bool opened = ImChatView.Open(NearbyFeed.Conversation, prefill: $"@{AgentControlHelper.GetDisplayName(companion)} ");
                 if (!opened)
                 {
@@ -113,13 +110,9 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            // 随从路径：统一说话框架（🔴 2026-08-16 修复：开场白**不走 LLM 润色**——SayPolished 的
-            // plan_command 语境段「主公刚给你下达了命令」会把开场白润色成「明白了主公，这事儿交给我」
-            // （实机 21:30:15 阿速甘案：玩家还没下命令，随从凭空答非所问）；模板 NPC 路径 08-12 已踩
-            // 同坑并改 Say，随从路径漏修。开场白是仪式感台词，模板直播即可）
-            SpeechChannel.Say(companion, LWNTextHelper.ResolveText("LWN_plan_opening", "Quiet... tell me what you need."),
-                SpeechPriority.Dialogue,
-                SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(companion), Agent.Main, "plan_command", null));
+            // 随从路径：直接打开私聊（🔴 2026-08-17 用户裁定：开场白已删除——见上；历史背景：
+            // 08-12 曾加「小声——你说吧」仪式感开场，08-16 修复开场白不走 LLM 润色（SayPolished 会把
+            // 开场白润色成「明白了主公这事儿交给我」答非所问），现整句删除，不再需要）
 
             ImChatStore.TouchDirectChat(hero.StringId, ImChatManager.NowUnixMs());
             var conv = ImChatManager.GetDirectConversation(hero.StringId);

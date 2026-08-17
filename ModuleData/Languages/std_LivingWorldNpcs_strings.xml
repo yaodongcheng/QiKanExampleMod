@@ -3908,7 +3908,6 @@
     <string id="LWN_ui_interact_plot" text="Secret Letter" />
     <string id="LWN_ui_interact_stopplan" text="Stop Action" />
     <string id="LWN_plan_no_llm" text="The companion cannot think of a tactic right now." />
-    <string id="LWN_plan_opening" text="Quiet... tell me what you need." />
     <string id="LWN_plan_stop_face" text="As you say. Stopping." />
     <string id="LWN_plan_stop_far" text="You signal the companion from afar: stop what you are doing." />
     <string id="LWN_plan_input_title" text="Plot an Order" />

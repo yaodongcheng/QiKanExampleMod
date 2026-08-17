@@ -12,6 +12,11 @@ namespace LivingWorldNpcs
         {
             base.OnMissionScreenInitialize();
             ImChatView.EnsureSubscribed();
+            // 🔴 2026-08-17（用户裁定：进/出 Mission 两边都关）：进入 Mission 最早期关闭 IM 面板——
+            // 大世界开着完整/缩略面板进 Mission → MissionScreen Push 全屏盖住面板（层挂 MapScreen 不可见
+            // 但 IsOpen=true）→ 呼出入口全被挡（实机「Mission 内无法呼出」）。在 Initialize 就关掉，
+            // 比 Tick 内 CheckMissionBoundary（第一帧才生效）更早；退出侧 OnMissionScreenFinalize 已有 Close。
+            ImChatView.Close();
         }
 
         public override void OnMissionTick(float dt)
@@ -22,8 +27,9 @@ namespace LivingWorldNpcs
             // 关闭走 ESC / 手柄 B / 关闭按钮 / 面板外点击（ImChatView.Tick 内统一处理）
             // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
             // 🔴 2026-08-17（Q4 手柄）：↑ 十字短按 = 手柄呼出键（与 O 完全等价，ModInput 玩法行）
-            if (ModInput.ShortFired(InteractionIds.IM) && !ImChatView.IsOpen && Settings.Instance.PlotEnabled)
-                ImChatView.Open();
+            // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略开着时 = 放大为完整模式
+            if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled)
+                ImChatView.OpenOrExpand();
 
             // 🔴 Q5（2026-08-17 呼出按钮）：Mission 侧驱动（Campaign 侧由 ImChatView.OnScreenFrameTick 驱动）
             ImChatOpenButtonManager.Tick(dt);

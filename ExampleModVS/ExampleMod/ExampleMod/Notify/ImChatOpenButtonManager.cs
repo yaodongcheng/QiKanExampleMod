@@ -274,10 +274,11 @@ namespace LivingWorldNpcs
         {
             try
             {
-                DebugLogger.Log("[ImChatOpenButton] 点击呼出按钮");
-                bool opened = ImChatView.Open();
+                // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略模式开着时点击 =
+                // 放大为完整模式（玩家点按钮的意图是看消息；旧行为 Open 返回 false 静默无反应）。
+                bool opened = ImChatView.OpenOrExpand();
                 if (!opened)
-                    DebugLogger.Log("[ImChatOpenButton] Open 未执行（IsOpen/CanOpen/PlotEnabled 门控）");
+                    DebugLogger.Log("[ImChatOpenButton] 呼出未执行（IsOpen/CanOpen/PlotEnabled 门控）");
             }
             catch (Exception ex)
             {

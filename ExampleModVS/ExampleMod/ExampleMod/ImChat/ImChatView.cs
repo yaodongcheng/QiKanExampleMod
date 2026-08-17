@@ -95,6 +95,46 @@ namespace LivingWorldNpcs
         /// <summary>当前选中会话（命令模式/通知定位用）。</summary>
         public static ImConversation Selected => _selected;
 
+        /// <summary>
+        /// 呼出入口统一逻辑（🔴 2026-08-17，实机「Mission 内无法呼出」根因修复）：
+        /// - 未开 → Open()（原行为）；
+        /// - 缩略开着 → ToggleExpand()（玩家点按钮/按 O 的意图是看消息 → 放大为完整模式；
+        ///   旧行为 Open 返回 false 静默无反应，配合「缩略层挂在被盖屏」场景 = 看起来呼不出）；
+        /// - 完整开着 → 无动作（打字不误关，原设计）。
+        /// </summary>
+        public static bool OpenOrExpand()
+        {
+            if (IsOpen)
+            {
+                if (_mode == ImChatMode.Compact)
+                {
+                    DebugLogger.Log("[ImChat] 呼出入口：缩略模式开着 → 放大为完整模式");
+                    ToggleExpand();
+                    return true;
+                }
+                return false;   // 完整模式开着：无动作（打字不误关）
+            }
+            return Open();
+        }
+
+        /// <summary>🔴 2026-08-17（实机「Mission 内无法呼出」根因）：Mission 边界 = IM 面板生命周期边界——
+        /// 大世界开着 IM（层挂 MapScreen）→ 进 Mission（MissionScreen Push 全屏盖住 MapScreen）→
+        /// 面板不可见但 IsOpen=true → 呼出入口全被挡。检测 Mission.Current 变化 → Close 面板
+        ///（场景切换后玩家重新打开；Mission 内打开的面板挂 MissionScreen，退出时 OnMissionScreenFinalize
+        /// 已 Close，此检测幂等兜底）。</summary>
+        private static Mission _lastMission;
+
+        private static void CheckMissionBoundary()
+        {
+            if (Mission.Current == _lastMission) return;
+            _lastMission = Mission.Current;
+            if (IsOpen)
+            {
+                DebugLogger.Log($"[ImChat] Mission 边界变化（{(Mission.Current == null ? "退出" : "进入")}），关闭 IM 面板");
+                Close();
+            }
+        }
+
         public static void EnsureSubscribed()
         {
             if (_subscribed) return;
@@ -1078,8 +1118,9 @@ namespace LivingWorldNpcs
                 ImChatOpenButtonManager.Tick(dt);
                 // 🔴 O 只负责「打开」：面板开着时输入 o 不再触发任何动作（打字不误关）
                 // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
-                if (ModInput.ShortFired(InteractionIds.IM) && !IsOpen && Settings.Instance.PlotEnabled)
-                    Open();
+                // 🔴 2026-08-17（实机「Mission 内无法呼出」）：OpenOrExpand——缩略开着时 O = 放大为完整模式
+                if (ModInput.ShortFired(InteractionIds.IM) && Settings.Instance.PlotEnabled)
+                    OpenOrExpand();
 
                 // 🔴 Q2（2026-08-17，密信入口「关屏再开」）：队伍/家族屏 PopScreen 后回大地图，
                 // 打开 IM 定位私聊。🔴 黑屏教训（方案 §2 + 实机复现 2026-08-17）：PopScreen 虽为同步
@@ -1132,6 +1173,8 @@ namespace LivingWorldNpcs
             // 不依赖面板是否打开（提前 return 之前），Mission/Campaign 双端都到这里。
             // 🔴 2026-08-17（用户裁定）：ImSecretNotify（ninjareport 密信圆环）已废除——私聊通知
             // 统一由呼出按钮徽标承担（ImChatOpenButtonManager 自行订阅 MessageArrived），此处不再驱动。
+            // 🔴 2026-08-17（实机「Mission 内无法呼出」根因）：Mission 边界检测放最前（面板可能开着）
+            CheckMissionBoundary();
             if (!IsOpen) return;
 
             // 🔴 2026-08-17（B'：层归属迁移提升到 Tick 顶层——原只在 HandleCompactInput（缩略分支），
@@ -1300,18 +1343,6 @@ namespace LivingWorldNpcs
                 {
                     _lastCompactMask = mask;
                     _layer.InputRestrictions.SetInputRestrictions(true, mask);
-                }
-
-                // ── 🔴 2026-08-15（点击透传诊断）：按下帧打印鼠标位置 / 面板矩形 / 层 hit-test 结果——
-                //    实机「点 UI 透传到地图部队移动」取证：层命中 false 却点在面板矩形内 = 层没拦住
-                if (Input.IsKeyPressed(InputKey.LeftMouseButton))
-                {
-                    var panelPos = _compactPanel.GlobalPosition;
-                    var panelSize = _compactPanel.Size;
-                    bool layerHit = false;
-                    try { layerHit = _layer != null && _layer.HitTest(); } catch { }
-                    bool inPanel = IsPointInRect(mouse, panelPos, panelSize);
-                    DebugLogger.Log($"[CompactClickDiag] mouse=({mouse.X:0},{mouse.Y:0}) panel=({panelPos.X:0},{panelPos.Y:0},{panelSize.X:0},{panelSize.Y:0}) inPanel={inPanel} layerHit={layerHit}");
                 }
 
                 // ── ① 输入框焦点释放（点击面板外 = 明确回游戏意图；下拉开着时不打断）──
