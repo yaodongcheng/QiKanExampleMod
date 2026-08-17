@@ -206,11 +206,16 @@ namespace LivingWorldNpcs
                 if (!Settings.Instance.IsLLMConfigured) { FinishWith(req, null); return; }
                 var snapshot = SceneSnapshot.Build(Mission.Current, agentLimit: 30);
                 string persona = BuildPersona(req.Conv);
+                // 世界观段切片（blob 单段，主线程现取——CallPlanAsync 在 async 上下文，GetWorldSection 纯查表线程安全；
+                // Direct 会话 PartnerHeroId 有值，群聊降级 null——全民同段，id 不参与裁剪）
+                string worldSection = WorldBackgroundProvider.GetWorldSection(
+                    req.Conv?.Type == ImConversationType.Direct ? req.Conv.PartnerHeroId : null);
                 string prompt = PromptBuilder.BuildPlanPrompt(
                     snapshot.ToPromptText(), req.Command, persona, "",
                     PlanCommandFlow.IntentTableForPrompt(), PlanCommandFlow.GrammarForPrompt(),
                     companionIntention: req.CompanionIntention,
-                    resolvedTargetText: req.ResolvedTargetText);
+                    resolvedTargetText: req.ResolvedTargetText,
+                    worldSection: worldSection);
                 string json = await LLMService.Instance.ChatAsync(prompt, 4000, true, 0.4f, disableReasoning: true);
                 string cleaned = LLMService.CleanJson(json);
                 try { response = JsonConvert.DeserializeObject<PlanResponse>(cleaned); }

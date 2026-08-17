@@ -50,6 +50,8 @@ namespace LivingWorldNpcs
                 string history = string.Join("\n", ex.EventLog);
                 string command = ex.OriginalCommand;
                 string intent = intentType;
+                // 世界观段切片（🔴 主线程现取——Task.Run 内构建 prompt 禁碰引擎对象）
+                string worldSection = WorldBackgroundProvider.GetWorldSection(owner);
 
                 _ = Task.Run(async () =>
                 {
@@ -62,7 +64,8 @@ namespace LivingWorldNpcs
                             "你是一名随从。计划上次出了意外，需要你重新想办法。",
                             history,
                             PlanCommandFlow.IntentTableForPrompt(),
-                            PlanCommandFlow.GrammarForPrompt());
+                            PlanCommandFlow.GrammarForPrompt(),
+                            worldSection: worldSection);
                         string json = await LLMService.Instance.ChatAsync(prompt, 4000, true, 0.4f, disableReasoning: true);
                         response = JsonConvert.DeserializeObject<PlanResponse>(LLMService.CleanJson(json));
                         ok = response != null && response.Plan != null;

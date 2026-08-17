@@ -31,6 +31,7 @@ namespace LivingWorldNpcs
     public static class SecretLetterButtonInjector
     {
         private const string ButtonId = "LWN_SecretLetterBtn";
+        // 本地化 key：密信按钮提示（LWN_im_secret_letter_hint）
         private const string HintKey = "LWN_im_secret_letter_hint";
         private const float ScanIntervalSec = 0.3f;
 

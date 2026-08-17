@@ -137,7 +137,7 @@ namespace LivingWorldNpcs
                 var initMem = AllNpcMemoryManager.GetMemoryForAgent(s.Initiator);
                 string lastLine = initMem != null ? ReactiveAgent.GetLastLineWith(initMem, ReactiveAgent.GetAgentId(s.Target)) : "";
                 _ = DialogueComponent.GenerateLine(
-                    Settings.Instance?.WorldDescription ?? "", identity, "",
+                    WorldBackgroundProvider.GetWorldSection(s.Initiator), identity, "",
                     string.IsNullOrEmpty(s.Topic) ? "闲聊" : s.Topic, "",
                     "", targetName,
                     initMem != null ? PromptBuilder.GetPrompt_RespondContext(initMem, ReactiveAgent.GetAgentId(s.Target)) : "",
@@ -145,7 +145,8 @@ namespace LivingWorldNpcs
                     // 本地化：LWN_plan_respond_rule（玩家可见文本）
                     "LWN_plan_respond_rule",
                     "【要求】用一句话口语化对对方说（10-40 字），顺着对方的话接，像随口闲聊/对峙回话，直接说台词本身——不要引号、不要解释、不要动作描写。",
-                    null, maxTokens: 80, timeoutMs: 4000)
+                    null, maxTokens: 80, timeoutMs: 4000,
+                    addressSection: PromptBuilder.BuildAddressAndKinshipSections(s.Initiator, s.Target))
                     .ContinueWith(t =>
                     {
                         string result = t.Status == TaskStatus.RanToCompletion && t.Result != null && t.Result.FromLlm
@@ -402,16 +403,26 @@ namespace LivingWorldNpcs
             string outlineSection, string otherName, string history, string lastLine,
             string ruleKey, string ruleFallback, string actionSpace = null,
             int maxTokens = 220, int timeoutMs = 8000,
-            string worldFacts = null, string sceneAnchor = null, string distressSection = null)
+            string worldFacts = null, string sceneAnchor = null, string distressSection = null,
+            string addressSection = null)
         {
             var line = new DialogueLine();
             try
             {
                 var sb = new StringBuilder();
-                // 世界观段（XML LWN_plan_section_world）
-                sb.AppendLine(ResolvePrompt("LWN_plan_section_world", "【世界观】") + world);
+                // 世界观段（XML LWN_plan_section_world；blob 空（未配置 LLM/生成失败）→ 标题+内容整段省略，
+                // 防标题残留——2026-08-17 静态 flavor 退场后调用点传 WorldBackgroundProvider 切片结果）
+                if (!string.IsNullOrEmpty(world))
+                    sb.AppendLine(ResolvePrompt("LWN_plan_section_world", "【世界观】") + world); // lwn-ignore: B
                 // 身份段（XML LWN_plan_respond_section_identity）
                 sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_identity", "【你的身份】") + identity);
+                // 🔴 2026-08-17（称呼纪律）：称呼 = LLM 现场发挥——【称呼纪律】段 + 亲缘认知段
+                //（respond 链调用点统一构建传入，含模板 NPC 的 CharacterObject 性别/年龄）
+                if (!string.IsNullOrEmpty(addressSection))
+                {
+                    sb.AppendLine(addressSection);
+                    sb.AppendLine();
+                }
                 if (!string.IsNullOrEmpty(attitude))
                     sb.AppendLine(attitude);
                 // 主题段（XML LWN_plan_respond_section_topic）+ 轮次

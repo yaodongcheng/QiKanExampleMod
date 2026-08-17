@@ -2869,7 +2869,7 @@
     <!-- 旅途事件标题：路边伤者 -->
 <string id="LWN_journey_injured_traveler_title" text="路边伤者" />
     <!-- LLM 提示词：给旅途事件生成风味描写（世界观名占位） -->
-<string id="LWN_journey_llm_flavor_prompt" text="给旅途事件加一句简短的风味描写（{WORLD_DESCRIPTION}世界观，30字以内）：" />
+<string id="LWN_journey_llm_flavor_prompt" text="给旅途事件加一句简短的风味描写（30字以内）：" />
     <!-- 旅途日志：礼貌拒绝独行更快 -->
 <string id="LWN_journey_log_declined" text="你礼貌地拒绝了——独行更快。" />
     <!-- 旅途日志：修好车轮收到谢礼 -->
@@ -3656,7 +3656,7 @@
     <!-- 传奇悬赏任务奖励提示 -->
 <string id="LWN_quest_commission_legendary_reward_hint" text="击败后可获得 {TARGET} 身上独一无二的装备。" />
     <!-- LLM 风味文本提示词：请求为委托描述添加简短风味描写 -->
-<string id="LWN_quest_commission_llm_flavor_prompt" text="给这句委托描述加一点简短的风味描写（{WORLDDESC}世界观，20字以内，不要改核心信息）：&#10;{TEXT}" />
+<string id="LWN_quest_commission_llm_flavor_prompt" text="给这句委托描述加一点简短的风味描写（20字以内，不要改核心信息）：&#10;{TEXT}" />
     <!-- 失物任务线索指向日志 -->
 <string id="LWN_quest_commission_lost_item_clue" text="线索指向 {LOCATION}。" />
     <!-- 高 Scout 技能玩家的直觉提示 -->

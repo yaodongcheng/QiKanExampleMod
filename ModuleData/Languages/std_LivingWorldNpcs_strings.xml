@@ -2772,7 +2772,7 @@
     
     <string id="LWN_journey_injured_traveler_title" text="An Injured Traveler" />
     
-    <string id="LWN_journey_llm_flavor_prompt" text="Add a brief flavor description to the journey event (in the {WORLD_DESCRIPTION} setting, within 30 characters):" />
+    <string id="LWN_journey_llm_flavor_prompt" text="Add a brief flavor description to the journey event (within 30 characters):" />
     
     <string id="LWN_journey_log_declined" text="You politely declined — traveling alone is faster." />
     
@@ -3557,7 +3557,7 @@
     
     <string id="LWN_quest_commission_legendary_reward_hint" text="Defeating him grants the unique equipment that {TARGET} carries." />
     
-    <string id="LWN_quest_commission_llm_flavor_prompt" text="Add a brief flavor description to this commission text *{WORLDDESC} world setting, within 20 characters, without changing the core information*:&amp;#10;{TEXT}" />
+    <string id="LWN_quest_commission_llm_flavor_prompt" text="Add a brief flavor description to this commission text (within 20 characters, without changing the core information):&amp;#10;{TEXT}" />
     
     <string id="LWN_quest_commission_lost_item_clue" text="The trail leads to {LOCATION}." />
     

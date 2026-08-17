@@ -483,8 +483,7 @@ namespace LivingWorldNpcs
                     $"你有一个委托需要玩家帮忙：{questTitle}。\n" +
                     $"任务原版说明：{vanillaExplanation}\n" +
                     $"{causalityPrompt}\n" +
-                    $"用第一人称，{Settings.Instance.SpeechStyle}，2-3句话请玩家帮忙。" +
-                    $"世界观背景：{Settings.Instance.WorldDescription}。";
+                    $"用第一人称，{Settings.Instance.SpeechStyle}，2-3句话请玩家帮忙。";
 
                 string result = LLMService.Instance.ChatAsync(prompt, 120, false)
                     .GetAwaiter().GetResult(); // 同步等待——此方法在 UI 线程调用但 LLM 必须阻塞

@@ -193,8 +193,9 @@ PRESET_COMMANDS = [
 ]
 
 
-# 世界观段（模拟 C# Settings.WorldDescription 实机默认文本；内容包注入的 flavor 不模拟）
-WORLD_DESC = "骑马与砍杀2 卡拉迪亚中世纪世界"
+# 世界观段（🔴 2026-08-17：静态 WorldDescription 退场——改为模拟 WorldBackgroundProvider.GetWorldSection
+# 的 LLM 自动生成 blob 单段；C# 侧 blob 空（未配置 LLM/生成失败）时【世界观】标题+内容整段省略）
+WORLD_DESC = "卡拉迪亚大陆群雄并立：帝国一分为三、瓦兰迪亚与库赛特虎视眈眈，各方文化风俗各异，战乱中众生浮沉。"
 
 # 身份段（模拟 C# BuildPersona 实机格式：你是 随从名，玩家名 的随从——2026-08-08 起主人=玩家名）
 PERSONA = ('你是 "铁匠"沃泰尔，奥斯帕克 的随从。说话简短、恭敬、务实，像游戏里的随从。')

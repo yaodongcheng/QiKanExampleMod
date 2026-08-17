@@ -31,6 +31,9 @@ namespace LivingWorldNpcs
     public static class ImChatView
     {
         private static GauntletLayer _layer;
+        /// <summary>层挂载时的 owner Screen（Open() 记录，Close() 置 null）——TopScreen 切换检测用
+        /// （GauntletLayer 无 Screen 属性，反编译 ScreenBase 核实；2026-08-17 家族 UI 崩溃修复）。</summary>
+        private static ScreenBase _layerOwnerScreen;
         private static ImChatVM _vm;
 #if !MB2_V1212
         private static GauntletMovieIdentifier _movie;
@@ -153,7 +156,10 @@ namespace LivingWorldNpcs
                     : InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
                 _layer.InputRestrictions.SetInputRestrictions(true, mask);
                 if (ScreenManager.TopScreen != null)
+                {
                     ScreenManager.TopScreen.AddLayer(_layer);
+                    _layerOwnerScreen = ScreenManager.TopScreen;
+                }
 
                 // 🔴 2026-08-16（用户裁定：唤起保持上次频道）：selectConv 未指定时优先恢复上次选中
                 //（Close 保留的 _selected），无历史才回队伍兜底
@@ -191,6 +197,7 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ImChat] Close 失败: {ex.Message}");
                 }
                 _layer = null;
+                _layerOwnerScreen = null;
             }
             _vm = null;
             // 🔴 2026-08-16（用户裁定：唤起保持上次频道）：_selected **不置 null**——关闭时保留选中
@@ -907,6 +914,9 @@ namespace LivingWorldNpcs
         /// <summary>Mission（ImChatMissionView.OnMissionTick）/ Campaign（OnScreenFrameTick）双端调用。</summary>
         public static void Tick(float dt)
         {
+            // 🔴 世界背景生成同样依赖墙钟帧（暂停也运转）——与 IM 同轮子（ImScreenFrameTickPatch）：
+            // CampaignEvents.TickEvent 暂停时 dt=0 停发，世界背景会永不生成（2026-08-17 实机教训）
+            WorldBackgroundBehavior.Instance?.OnFrameTick(dt);
             ImChatManager.Tick(dt);
             // 🔴 2026-08-15（密信通知）：通知层驱动（自动消失计时）挂在 IM Tick 上——
             // 不依赖面板是否打开（提前 return 之前），Mission/Campaign 双端都到这里。
@@ -962,6 +972,31 @@ namespace LivingWorldNpcs
         {
             try
             {
+                // 🔴 2026-08-17 崩溃修复（家族 UI 关闭场景，实机）：Open() 把层挂到当时的 TopScreen
+                //（ScreenManager.TopScreen.AddLayer）——在家族 UI 内打开 IM 时层在 ClanScreen 上；
+                // 点"完成"关家族 UI → PopScreen 销毁其层 → _layer C# 引用仍在但 native 已释放 →
+                // 后续 Tick 里 IsFocusedOnInput() 抛 NRE（日志：家族屏注入密信按钮 → Open → 关闭即崩）。
+                // ① 层归属检测：owner = Open() 挂载时的 TopScreen；TopScreen 已切换（家族 UI 关闭等）→ 迁移跟随；
+                // 失败（旧屏已 PopScreen 销毁层，native 释放）→ 关闭 IM。
+                if (_layer != null && _layerOwnerScreen != null && ScreenManager.TopScreen != null
+                    && _layerOwnerScreen != ScreenManager.TopScreen)
+                {
+                    try
+                    {
+                        // HasLayer 校验旧屏是否还持有层（层已销毁 → false，跳过摘除，AddLayer 抛异常兜底）
+                        if (_layerOwnerScreen.HasLayer(_layer))
+                            _layerOwnerScreen.RemoveLayer(_layer);
+                        ScreenManager.TopScreen.AddLayer(_layer);
+                        _layerOwnerScreen = ScreenManager.TopScreen;
+                        DebugLogger.Log($"[ImChat] 层归属迁移（TopScreen 切换）：挂到 {ScreenManager.TopScreen.GetType().Name}");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[ImChat] 层已失效（TopScreen 切换），关闭 IM: {ex.Message}");
+                        Close();
+                        return;
+                    }
+                }
                 if (_compactPanel == null)
                 {
                     FindCompactWidgets();

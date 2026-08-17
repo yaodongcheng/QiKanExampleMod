@@ -85,6 +85,8 @@ KNOWN_PLACEHOLDERS = {
     "TRUSTDESC", "TVIGOR", "TYPE", "TYPES", "UNIT", "URL", "VALUE", "VERB",
     "VICTIM_LINE", "VIGOR", "WAGERED", "WEIGHT", "WHERECLAUSE", "WIFE",
     "WITNESS", "WITNESS_CLAUSE", "WORLDDESC", "WORLD_DESCRIPTION",
+    # 自动世界观生成（LWN_worldbg_generate，2026-08-17）
+    "LANG",
     "WOUND", "WOUNDED",
     # 🔴 2026-08-14（M4 risky 风险卡）：{RISK} = LLM risk_analysis 原文（LLM 生成文本豁免本地化）
     "RISK",

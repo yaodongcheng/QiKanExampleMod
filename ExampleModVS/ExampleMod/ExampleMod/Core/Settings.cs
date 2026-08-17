@@ -55,11 +55,8 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool PlotEnabled { get; set; } = false;
 
-        // ── 世界观 flavor（硬编码卡拉迪亚默认，供 Mod B 代码覆盖）──
-        // 世界观描述默认值：通用卡拉迪亚中世纪世界
-        public string WorldDescription { get; set; } = LWNTextHelper.ResolveText("LWN_config_world_description", "Mount & Blade II: Calradia medieval world");
-        // 时代描述默认值：中世纪卡拉迪亚大陆
-        public string EraDescription { get; set; } = LWNTextHelper.ResolveText("LWN_config_era_description", "Medieval Calradia");
+        // ── 口吻参数（config.json 侧；世界观 flavor 已退场，2026-08-17：WorldDescription/EraDescription
+        // 删除——世界观改由 LLM 自动生成（WorldBackgroundBehavior），见 plans/world-background-auto-summary.md）──
         // 说话风格默认值：口语化、贴合中世纪背景，禁用现代网络用语
         public string SpeechStyle { get; set; } = LWNTextHelper.ResolveText("LWN_config_speech_style", "Speak in a colloquial style fitting the medieval setting. Do not use modern internet slang.");
         // 称谓用语默认值：使用"大人"、"爵士"等中世纪语境词汇

@@ -547,6 +547,9 @@ namespace LivingWorldNpcs
                 var segs = new List<string>();
                 foreach (var s in PromptAuditSegmentMarkers)
                     if (PromptContainsSectionHeader(promptText, s)) segs.Add(s);
+                // 🔴 2026-08-17（称呼纪律）：【主公的成色】段标题改为动态【X 的成色】（玩家名运行时拼），
+                // 静态标记匹配不到 → 单独 Contains 兜底（"的成色】"出现即注入）
+                if (promptText.Contains("的成色】")) segs.Add("【X的成色】");
                 var ts = PromptAuditTsRegex.Matches(promptText)
                     .Cast<System.Text.RegularExpressions.Match>()
                     .Select(m => m.Groups[1].Value)
@@ -558,13 +561,14 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>注入段标题标记（与 PromptBuilder 的 prompt 段标题一一对应；RAG 主题段不在此表——
-        /// 走 GetTopicDescriptors 动态匹配，防两份清单漂移）。</summary>
+        /// 走 GetTopicDescriptors 动态匹配，防两份清单漂移）。🔴 【主公的成色】已动态化（【X 的成色】），
+        /// 由 LogPromptAudit 内单独 Contains 兜底（2026-08-17 称呼纪律）。</summary>
         private static readonly string[] PromptAuditSegmentMarkers =
         {
             "【此刻处境（大地图）】", "【此刻处境】", "【我的状态】", "【队伍物资】", "【主公的行头】",
             "【主公的人缘】", "【咱们人的关系】", "【大事记】", "【此刻现状】", "【受困处境】",
             "【分兵近况】", "【留守处境】",
-            "【目之所及】", "【近期回忆】", "【近期经历】", "【对话历史】", "【主公的成色】", "【时效纪律】",
+            "【目之所及】", "【近期回忆】", "【近期经历】", "【对话历史】", "【时效纪律】",
         };
 
         /// <summary>I5 时间戳相对词（只匹配 [X] 括号形式——正文里的"今天"不误撞）。</summary>

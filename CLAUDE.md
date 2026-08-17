@@ -52,7 +52,7 @@
 | 【大事记】（N，建国/获封/大婚…） | ✅ 有大事才有 | ✅ | ❌ | 写入时白名单 |
 | 【近期回忆】/【近期经历】/【对话历史】（D/L + I5 时间戳） | ✅ | ✅ | ✅ 各自记忆 | 事件发生过才有；行首应带 `[N天前]` 式前缀 |
 | 【此刻现状】（I1，钱/粮/士气/兵…） | ✅ 聊过数值才注入 | ❌ 裁剪 | ❌ 禁止 | 本条或历史 12 条命中数值关键词 |
-| 【主公的成色】（Q，战绩计数） | ✅ 聊战绩才注入 | ✅ | ❌ | 触发式 |
+| 【主公的成色】（Q，战绩计数） | ✅ 聊战绩才注入 | ✅ | ❌ | 触发式；🔴 2026-08-17 段标题改【X 的成色】（运行时拼玩家名，称呼纪律 A 层） |
 | 普世 RAG 事实（war/fief/renown/time…） | ✅ | ✅ | ✅ | 问对应话题才查（BuildFactsForIm 主题表） |
 | 【受困处境】（S，看守视角） | — | — | ✅ 玩家受困时 | respond 链路 |
 
@@ -81,7 +81,7 @@
 15. 🔴**禁止手动调用 LoadLocalizationXmls** — 引擎在启动时**自动扫描**各模块 `Languages/` 子目录加载语言包，**不需要**在 `OnSubModuleLoad` 里手动调 `LocalizedTextManager.LoadLocalizationXmls()`。手动调反而会干扰全局语言注册表，导致 Native 的语言列表被挤掉、系统菜单退化为英文、可选语言只剩 mod 注册的语种。
 16. 🔴**废弃系统尽量别碰** — 旧对话 UI（`StoryDialogVM`/`DialogChoice.xml`/`InteractionController._vm`）与旧切磋 UI（`DuelMissionView`/`DuelUI`）已废弃。**不在上面加功能**；修 bug 前先确认路径是否还在现行调用链上。现行对话 = 原版对话流 + IM chat + AgentSay（DialogueComponent）；切磋 = CombatManager。🔴 **IM 弹窗确认回调（ATTACK/DUEL/KNOCKOUT/STEAL 的 confirmFight）禁止调 `_vm.Close()`**——触发旧链 `OnDialogClosed → OnDialogueEnded → GenerateEventAsync`，无当面对话时 `_memory` 为 null 必崩（实机 2026-08-11 11:13:37）。完整清单见 [wheels.d/deprecated.md](plans/rules/wheels.d/deprecated.md)。
 17. 🔴**所有玩家检定统一 d20 风格（掷点 ≥ 门槛成功）** — 全局设计裁定（2026-08-13）：检定判定方向统一为「掷点越大越容易成功」——`success = roll >= threshold`，其中 `threshold = 1 − 成功率`（成功率 60% → 门槛 40%，掷出 ≥40% 成功）。**适用**：击晕（玩家+随从）、偷窃（玩家+随从）、对话意图检定（`SingleRollResolver.Roll` 唯一入口）、谈判技能检定、赔偿砍价、招募砍价、劝降、贿赂 Charm 等一切玩家检定。**禁止**新增 roll-under（`roll < chance`）判定。**播报纪律**：检定结果 DisplayMessage 只显示「掷点 {ROLL} vs 门槛 {THRESHOLD}」（`掷点 72% ≥ 门槛 38%`），**禁止**显示成功率/目标难度类措辞；{CHANCE} 只留给事前概率展示（谈判选项等）。**成功率公式**：ratio 式 `0.5 × (己方属性合计 ÷ 目标属性合计)` 钳制 [5%, 85%]（随从）/ [5%, 95%]（玩家）；模板 NPC 属性按 Level 均分估算 `(3+Level/3)/2`，**禁止**硬编码 10+10（实机：偷袭农民成功率被压到 5% 保底）。
-18. 🔴**玩家与 NPC 平权：操作函数共享单管线，禁止两侧各抄一份** — 玩家能做的互动（击晕/扒窃/投降/对话等），NPC 执行同一语义时**必须复用同一套核心函数**，禁止在 NPC 侧复制一份玩家逻辑（2026-08-13 教训：击晕成功率公式、属性估算玩家/NPC 两侧各写一份，改公式要改两遍）。**共享边界**：判定公式 + 结算逻辑（记账/落地/目击广播）进共享管线（范本：`KnockoutFlow.Roll/PlayStrikeAnim/Resolve` + `AgentStatsHelper.GetAgentStats`）；**壳层只留必要差异化**（参数化/内部判断，不复制逻辑）——①挥击动画：玩家永远 as_human_warrior 走 `SetPose`（避 async AI tick 竞态）/ NPC 可能村民 action set 走 `ForcePlayAction`（切 warrior set，SetPose 静默失败）②成功率上限：玩家 95% / NPC 85% ③起手延迟：玩家 400ms / NPC 0.5s ④播报文案：第一人称 vs 第三人称（视角差异留壳）。**执行模型**：玩家 = `async void + Task.Delay`，NPC = 脑驱动 `OnTick(dt)` 定时状态机——共享层用「判定+结算纯函数」，动画节奏留在各自壳。**UI 专属通道排除平权范围**：原版对话流面板/扒窃条/慢动作是玩家专属 UI，NPC 侧对应物 = `AgentSay` 头顶冒泡 + IM 附近频道（`SpeechChannel` 单一出口），**禁止给 NPC 造玩家 UI**（NPC↔NPC 的 `StartConversation` 调用数为 0，禁止新增）。新增 NPC 可执行动作时，按此规则对照玩家路径逐条检查表现层（先播动画 → 延迟 → 判定 → 结算）。
+18. 🔴**玩家与 NPC 平权：操作函数共享单管线，禁止两侧各抄一份** — 玩家能做的互动（击晕/扒窃/投降/对话等），NPC 执行同一语义时**必须复用同一套核心函数**，禁止在 NPC 侧复制一份玩家逻辑（2026-08-13 教训：击晕成功率公式、属性估算玩家/NPC 两侧各写一份，改公式要改两遍）。**共享边界**：判定公式 + 结算逻辑（记账/落地/目击广播）进共享管线（范本：`KnockoutFlow.Roll/PlayStrikeAnim/Resolve` + `AgentStatsHelper.GetAgentStats`）；**壳层只留必要差异化**（参数化/内部判断，不复制逻辑）——①挥击动画：玩家永远 as_human_warrior 走 `SetPose`（避 async AI tick 竞态）/ NPC 可能村民 action set 走 `ForcePlayAction`（切 warrior set，SetPose 静默失败）②成功率上限：玩家 95% / NPC 85% ③起手延迟：玩家 400ms / NPC 0.5s ④播报文案：第一人称 vs 第三人称（视角差异留壳）。**执行模型**：玩家 = `async void + Task.Delay`，NPC = 脑驱动 `OnTick(dt)` 定时状态机——共享层用「判定+结算纯函数」，动画节奏留在各自壳。**UI 专属通道排除平权范围**：原版对话流面板/扒窃条/慢动作是玩家专属 UI，NPC 侧对应物 = `AgentSay` 头顶冒泡 + IM 附近频道（`SpeechChannel` 单一出口），**禁止给 NPC 造玩家 UI**（禁止 NPC 调 `StartConversation` 开原版对话面板——那是玩家专属 UI；**NPC↔NPC 说话不在此限**：IM 群聊同僚互回复 + SpeechChannel 附近频道合法且是唯一出口，范本 = 计划动作 `TalkTo` 交涉 → `SpeechChannel.Say/SayPolished`（PlanCommandFlow.cs:201）。新增 NPC 可执行动作时，按此规则对照玩家路径逐条检查表现层（先播动画 → 延迟 → 判定 → 结算）。
 
 ## 双配置体系 — `Core/MCMSettings.cs`（小白 UI） vs `Core/Settings.cs`（config.json 高级配置）
 
@@ -92,7 +92,7 @@
 | 面向用户 | 小白玩家：游戏内 选项 → Mod 选项 → Living World NPCs 改 | 高级玩家/开发者：手动编辑 `Modules/LivingWorldNpcs/config.json` |
 | 存储文件 | `{USERPROFILE}\Documents\Mount and Blade II Bannerlord\Configs\ModSettings\Global\LivingWorldNpcs\LivingWorldNpcsSettings_v1.json`（MCM json2，改即自动存） | `Modules/LivingWorldNpcs/config.json`（`JsonConvert.PopulateObject` 启动时加载，`Settings.Reload()` 热重载） |
 | 字段特征 | 玩家高频调整、需要即时反馈的开关/文本框 | 开发者调试、世界观参数、列表型配置、内容包（Mod B）注入 |
-| 目前字段 | `LLMBaseUrl` / `LLMApiKey` / `LLMModel` | 世界观 flavor（`WorldDescription` 等 5 个）、`DisabledInteractionMissionModes`、`ShowDebugMessages`、`WitnessSystemEnabled`、`AlertDialogueMode` |
+| 目前字段 | `LLMBaseUrl` / `LLMApiKey` / `LLMModel` | 口吻参数（`SpeechStyle`/`WarriorTerms`/`FemaleSelfAddress`/`CurrencyName`）、`DisabledInteractionMissionModes`、`ShowDebugMessages`、`WitnessSystemEnabled`、`AlertDialogueMode`。🔴 世界观 flavor（`WorldDescription`/`EraDescription`）已删除（2026-08-17）——世界观完全自动生成，见 [worldview.md](plans/rules/worldview.md) |
 
 **🔴 禁止交叉配置**：同一个配置项**只能**存在于一边——要么进 MCM UI，要么进 config.json。两边都写 = 玩家不知道哪个生效。LLM 三字段已用 `[JsonIgnore]` 从 config.json 侧切断（唯一来源 = MCM UI），新字段照此办理。
 
@@ -302,6 +302,6 @@ git pull && dotnet build -c Release   # → 该电脑游戏版本的 DLL
 
 ## 拆分架构
 
-- **LivingWorldNpcs**（本 mod）= 通用玩法引擎，卡拉迪亚世界观
-- **TaikouContent**（Mod B）= 纯内容包，往 Settings.Instance 注入日本战国 flavor
+- **LivingWorldNpcs**（本 mod）= 通用玩法引擎，卡拉迪亚世界观（🔴 世界观完全自动生成，无静态 flavor；数据型背景 mod 由指纹机制天然适配，见 [worldview.md](plans/rules/worldview.md)）
+- **TaikouContent**（Mod B，已删除）= 纯内容包——原通过覆盖 Settings.Instance 注入日本战国 flavor，该注入方式已随 WorldDescription/EraDescription 删除而失效（2026-08-17）；数据型背景 mod 改由世界观指纹机制适配
 - 完整计划：`plans/ai-2mod-2-zippy-puppy.md`

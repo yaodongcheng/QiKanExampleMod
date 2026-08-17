@@ -2527,9 +2527,11 @@ namespace LivingWorldNpcs
             try
             {
                 // LLM 风味文本提示词：请求为委托描述添加简短风味描写
+                // 🔴 2026-08-17：WorldDescription 退场——{WORLDDESC} 占位已从 XML 模板移除（EN/CN 双文件同步），
+                // C# 侧传空串（ResolveCompound 空值不注入变量）
                 string prompt = LWNTextHelper.ResolveCompound("LWN_quest_commission_llm_flavor_prompt",
-                    "Add a short flavor description to this commission text ({WORLDDESC} setting, within 20 words, do not change the core information):\n{TEXT}",
-                    ("WORLDDESC", Settings.Instance.WorldDescription), ("TEXT", baseText));
+                    "Add a short flavor description to this commission text (within 20 words, do not change the core information):\n{TEXT}",
+                    ("WORLDDESC", ""), ("TEXT", baseText));
                 string result = await LLMService.Instance.ChatAsync(prompt, 60, false);
                 if (!string.IsNullOrEmpty(result))
                     AddLog(new TextObject(result.Trim()));

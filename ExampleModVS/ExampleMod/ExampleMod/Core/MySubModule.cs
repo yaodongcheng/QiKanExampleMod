@@ -152,6 +152,9 @@ namespace LivingWorldNpcs
                 // 世界事件模拟器（BanditRaid 等）
                 campaignGameStarter.AddBehavior(new WorldEventSimulator());
 
+                // 自动世界观总结（LLM 生成 blob + 指纹判定 + 存档；未配置 LLM → Done 跳过，铁律 1）
+                campaignGameStarter.AddBehavior(new WorldBackgroundBehavior());
+
                 // 玩家被当地人扣押（罚金 / 关几天）——复用原版俘虏菜单
                 campaignGameStarter.AddBehavior(new PlayerDetentionBehavior());
 

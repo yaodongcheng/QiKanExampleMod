@@ -494,7 +494,7 @@ namespace LivingWorldNpcs
                                 ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
                                 occName, DescribePersonality(ra.Personality));
                             var dline = await DialogueComponent.GenerateLine(
-                                Settings.Instance?.WorldDescription ?? "", identity, "",
+                                WorldBackgroundProvider.GetWorldSection(agent), identity, "",
                                 "旁观话题",
                                 "",
                                 // 本地化：LWN_plan_respond_section_outline（玩家可见文本）
@@ -504,7 +504,8 @@ namespace LivingWorldNpcs
                                 // 本地化：LWN_plan_respond_rule（玩家可见文本）
                                 "LWN_plan_respond_rule",
                                 "【要求】用一句话表达你旁听到交谈后的反应（10-30 字），像路人的随口一评。直接说台词本身——不要引号、不要解释、不要动作描写。",
-                                null, maxTokens: 80, timeoutMs: 2000);
+                                null, maxTokens: 80, timeoutMs: 2000,
+                                addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, speaker));
                             string result = dline != null && dline.FromLlm
                                 ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "")
                                 : null;
@@ -687,17 +688,20 @@ namespace LivingWorldNpcs
                 // 本地化：职业名（提议身份段）
                 string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + identity, identity);
                 string persona = memory != null ? memory.GetPersonaPrompt() : "";
-                // 提议 prompt：世界观 + 身份 + 人设 + 指令（想做自己的事，一句话）
-                string prompt = string.Join("\n",
+                // 提议 prompt：世界观（blob 单段，空则整段省略防标题残留）+ 身份 + 人设 + 指令
+                var promptParts = new List<string>();
                 // 本地化：世界观段标题（提议 prompt）
-                    ResolvePromptFallback("LWN_plan_section_world", "【世界观】") + (Settings.Instance?.WorldDescription ?? ""),
+                string worldSection = WorldBackgroundProvider.GetWorldSection(hero.StringId);
+                if (!string.IsNullOrWhiteSpace(worldSection))
+                    promptParts.Add(ResolvePromptFallback("LWN_plan_section_world", "【世界观】") + worldSection); // lwn-ignore: B
                 // 本地化：身份段标题（提议 prompt）
-                    ResolvePromptFallback("LWN_plan_respond_section_identity", "【你的身份】") + occName,
-                    string.IsNullOrEmpty(persona) ? "" : persona,
-            // 提议 prompt 纪律（LLM 输入）
-                // 本地化：提议 prompt 纪律（LLM 输入）
-                    ResolvePromptFallback("LWN_plan_propose_rule",
-                        "【行动提议】你刚被人搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向主公提出，格式：主公，我想去…（10~30 字，直接说，不要解释）。"));
+                promptParts.Add(ResolvePromptFallback("LWN_plan_respond_section_identity", "【你的身份】") + occName);
+                if (!string.IsNullOrEmpty(persona)) promptParts.Add(persona);
+                // 提议 prompt 纪律（LLM 输入）
+                // 本地化：提议 prompt 纪律（LLM 输入）——2026-08-17 称呼纪律：不再硬编码"主公"
+                promptParts.Add(ResolvePromptFallback("LWN_plan_propose_rule",
+                    "【行动提议】你刚被人搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向对方提出，格式：我想去…（10~30 字，直接说，不要解释）。"));
+                string prompt = string.Join("\n", promptParts);
                 string proposal = await LLMService.Instance.ChatOnceAsync(prompt, 80, 0.8f, disableReasoning: true, timeoutMs: 8000);
                 if (string.IsNullOrWhiteSpace(proposal))
                 {
@@ -839,7 +843,7 @@ namespace LivingWorldNpcs
                 }
                 catch { }
                 var dline = await DialogueComponent.GenerateLine(
-                    Settings.Instance?.WorldDescription ?? "", identity, intention,
+                    WorldBackgroundProvider.GetWorldSection(agent), identity, intention,
                     string.IsNullOrEmpty(topic) ? "闲聊" : topic,
                     ra.DialogueRound > 1 ? $"（第 {ra.DialogueRound} 轮）" : "",
                     string.IsNullOrEmpty(outlineStep) ? ""
@@ -851,7 +855,8 @@ namespace LivingWorldNpcs
                     "LWN_plan_respond_rule_json",
                     "【要求】用一句话口语化回应对方（10-40 字），符合身份、性格与此刻的态度，顺着对方的话接，直接说台词本身——不要引号、不要解释、不要动作描写。",
                     actionSpace, maxTokens: 220, timeoutMs: 8000,
-                    worldFacts: worldFacts, sceneAnchor: sceneAnchor, distressSection: distress);
+                    worldFacts: worldFacts, sceneAnchor: sceneAnchor, distressSection: distress,
+                    addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, requester));
                 string result = dline != null ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "") : null;
                 if (!string.IsNullOrWhiteSpace(result))
                 {
@@ -922,7 +927,7 @@ namespace LivingWorldNpcs
                 try
                 {
                     var dline = await DialogueComponent.GenerateLine(
-                        Settings.Instance?.WorldDescription ?? "",
+                        WorldBackgroundProvider.GetWorldSection(companion),
                         string.Format(
                             // LWN_plan_respond_identity_template：身份模板（随从 = 名字 + 随从身份）
                             ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
@@ -938,7 +943,8 @@ namespace LivingWorldNpcs
                         // 本地化：LWN_plan_respond_rule（玩家可见文本）
                         "LWN_plan_respond_rule",
                         "【要求】用一句话口语化对对方说（10-40 字），符合随从身份，顺着当前走向推进对话，直接说台词本身——不要引号、不要解释、不要动作描写。",
-                        null, maxTokens: 80, timeoutMs: 2000);
+                        null, maxTokens: 80, timeoutMs: 2000,
+                        addressSection: PromptBuilder.BuildAddressAndKinshipSections(companion, target));
                     string result = dline != null && dline.FromLlm
                         ? DialogueComponent.Sanitize(dline.Reply, companion?.Name?.ToString() ?? "")
                         : null;

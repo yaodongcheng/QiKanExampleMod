@@ -472,9 +472,10 @@ namespace LivingWorldNpcs
             try
             {
                 // 世界名兜底：卡拉迪亚
+                // 🔴 2026-08-17：WorldDescription 字段已删除（静态 flavor 退场）——477 行原 try 兜底
+                // 引用随之移除，世界名兜底不变（"欢迎来到{世界}"不可空白碎 UI）；世界观正文由
+                // WorldBackgroundProvider 走 IM/对话注入
                 string world = LWNTextHelper.ResolveText("LWN_director_world_name", "Calradia");
-                // 卡拉迪亚
-                try { world = Settings.Instance?.WorldDescription ?? LWNTextHelper.ResolveText("LWN_director_world_name", "Calradia"); } catch { }
 
                 // 简短摘要（hover 显示，一行）：踏上了{世界}的土地
                 string shortSummary = LWNTextHelper.ResolveCompound("LWN_director_welcome_short", ("WORLD", world));

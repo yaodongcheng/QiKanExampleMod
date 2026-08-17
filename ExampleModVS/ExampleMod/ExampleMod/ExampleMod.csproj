@@ -352,6 +352,10 @@
     <Compile Include="LLM\LLMService.cs" />
     <Compile Include="LLM\PromptBuilder.cs" />
     <Compile Include="LLM\WorldFactProvider.cs" />
+    <Compile Include="LLM\WorldBackgroundStore.cs" />
+    <Compile Include="LLM\WorldBackgroundBehavior.cs" />
+    <Compile Include="LLM\WorldBackgroundProvider.cs" />
+    <Compile Include="LLM\NpcTierHelper.cs" />
     <!-- Memory (split from MemoryManager.cs) -->
     <Compile Include="Memory\AllNpcMemoryManager.cs" />
     <Compile Include="Memory\PlayerImageStore.cs" />

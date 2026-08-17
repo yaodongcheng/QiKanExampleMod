@@ -848,7 +848,8 @@ namespace LivingWorldNpcs
                 ?? agent?.Name?.ToString()
                 // NPC 名兜底：目标与 Agent 名都缺失时用本地化文本
                 ?? LWNTextHelper.ResolveText("LWN_ph_fallback_npc", "the other person");
-            string world = Settings.Instance?.WorldDescription ?? "";
+            // 🔴 2026-08-17：WorldDescription 退场——"欢迎来到{世界}"不能空白碎 UI，用世界名兜底
+            string world = LWNTextHelper.ResolveText("LWN_director_world_name", "Calradia");
 
             return raw
                 .Replace("{PLAYER}", playerName)

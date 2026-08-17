@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using TaleWorlds.CampaignSystem;
 
 namespace LivingWorldNpcs
 {
@@ -34,7 +35,9 @@ namespace LivingWorldNpcs
             if (Crimes > 0)
                 parts.Add($"犯过 {Crimes} 回事");
             if (parts.Count == 0) return "";
-            return "【主公的成色】" + string.Join("；", parts) + "。";
+            // 🔴 2026-08-17（称呼纪律 A 层）：段标题不再写死"主公"——【X 的成色】运行时拼玩家名
+            //（无主英雄时兜底"主公"，同 ImReplyService 玩家名兜底 B 层惯例）
+            return "【" + (Hero.MainHero?.Name?.ToString() ?? "主公") + "的成色】" + string.Join("；", parts) + "。";
         }
 
         public static string Serialize()

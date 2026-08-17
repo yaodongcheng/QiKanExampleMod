@@ -241,3 +241,24 @@ public static void ScheduleDelayedAction(Action action, float delaySec);
 **受困求情（S）**：`Interaction/Dialogue/DistressFlow.cs` — `IsPlayerCaptive`（IsPrisoner/被押解/`sp_prisoner` tag）/`IsPlayerCaught`（PendingWorldEvent 有真实目击者）+【受困处境】段（respond 链路看守 prompt）+ 3 动作（pay_ransom/beg_mercy/bribe_guard——`IdentityGated` 受困门控；金额 = 对方说了算（`ComputeCost(Restitution)` 统一入口或勒索基础值）；转账守恒 `AgentControlHelper.TransferGold`（看守无 Hero → null 虚空 Sink，铁律 4 合法）+ 释放 `EndCaptivityAction.ApplyByRansom(character, facilitator)` 实锤；贿赂检定可失败：钱没了罪还在）。
 
 **DebugLogger 前缀**：`[Sense]`（感知写入+闸门）/ `[Care]`（关切触发+冷却+跳过原因）/ `[Bragging]` / `[StaleFact]` / `[Kingdom]` / `[Distress]` / `[Party]` / `[ImEvent]`。
+
+## 🔴 墙钟驱动：后台任务禁止依赖 CampaignEvents.TickEvent（2026-08-17 二次踩坑）— `ImChat/ImScreenFrameTickPatch.cs` + `ImChat/ImChatView.cs` + `LLM/WorldBackgroundBehavior.cs`
+
+**解决什么问题**：`CampaignEvents.TickEvent` 的 dt 是 CampaignTime 增量——**游戏暂停（ESC/家族屏/任何菜单）时 dt=0 事件停发**。依赖它的后台任务在玩家暂停时永不运转（IM 08 月、世界背景生成 08-17 两次实机踩坑，日志零痕迹）。**墙钟轮子 = `ScreenBase.OnFrameTick`（Harmony postfix，引擎渲染循环 UI 层回调，暂停照常每帧触发）**——wheels 索引已登记，新后台任务先查这里。
+
+**双端入口（挂这里，一次覆盖 Mission + Campaign）**：
+- Campaign/菜单：`ImScreenFrameTickPatch`（`[HarmonyPatch(typeof(ScreenBase), "OnFrameTick")]` postfix → `ImChatView.OnScreenFrameTick`，门控：`Campaign.Current == null` 跳过 / `Mission.Current != null` 跳过（Mission 由 MissionView 驱动，防双驱动））
+- Mission：`ImChatMissionView.OnMissionTick`
+- 统一汇入 **`ImChatView.Tick(float dt)`**——后台任务都在这挂一行：`WorldBackgroundBehavior.Instance?.OnFrameTick(dt)`
+
+**WorldBackgroundBehavior 范式（后台 LLM 生成任务骨架，照抄）**：
+- **静态实例挂接**：CampaignBehaviorBase 的 `RegisterEvents` 设 `Instance = this`（SyncData 存档生命周期保留；退档悬挂由 `?.` 空安全兜底，进档新实例覆盖）
+- 状态机 `Idle / Generating / Done / Failed`（实例字段，进档天然复位；Failed = 本会话不再重试，防 LLM 宕机时重试风暴）
+- **快速首检 + 低频重试（2026-08-17 用户裁定）**：首次 `FirstCheckIntervalSeconds=5s`，之后 `GenerateIntervalSeconds=15s`；**Done/Failed 后停止轮询累积**（成功即收工；失败不重试）；未配置 LLM / 数据未就绪 → 保持 Idle 按 15s 重试（MCM 填好配置后下个 tick 自动触发，无需重进档）
+- 结果消费：LLM 线程池回写 → `lock` 入队 → 主线程每帧 `ConsumeResult`（async-over-sync 死锁纪律同「事件广播线程模型」三段式，wheels.d/im.md 本卷）
+- **指纹失效判定**：`culture/kingdom/hero(StringId 排序序列，每王国 ≤3 关键英雄)+lang` 指纹——blob 空或指纹变 → 重生成；结果回来**复核指纹 + 战役纪元**（`Campaign.Current` 实例引用比较）不符丢弃（语言切换/读档跨战役污染防护）；lang 口径必须 `LWNTextHelper.GetReplyLanguageInstruction()`（禁裸传 ActiveTextLanguage，口径错位误重生成）
+- 铁律 1：`!IsLLMConfigured` → 保持 Idle 等待
+
+**调试**：`custom.worldbg_status / regenerate / dump`；日志 `[WorldBg]`（读档初始化 blob/指纹 / 指纹匹配含**存档 vs 当前两个比对值** / 触发 / 生成成功 / 失败）。
+
+**小坑（validator A 节）**：`DebugLogger.Log($"...中文" + $"...")` **续行**里没有 `DebugLogger.` 字样会被误报硬编码 CJK——续行加 `// lwn-ignore: A`（WorldBackgroundBehavior.cs:139 实录）。
