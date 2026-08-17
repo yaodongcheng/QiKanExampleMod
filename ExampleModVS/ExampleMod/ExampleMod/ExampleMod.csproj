@@ -292,6 +292,7 @@
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
+    <Compile Include="GUI\SecretLetterButtonInjector.cs" />
     <Compile Include="GUI\StackLayoutVerticalSwapPatch.cs" />
     <!-- ImChat（IM 即时传讯系统：微信式聊天 + 密令下达通道） -->
     <Compile Include="ImChat\ImChatModels.cs" />

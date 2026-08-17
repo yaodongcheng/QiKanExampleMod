@@ -4010,6 +4010,8 @@
     <string id="LWN_mcm_hostile_on_allies_hint" text="When disabled, knockout/pickpocket/loot/attack are blocked on allies — friendly definition: config.json `FriendlyRelationCriteria` (default: same party + same clan) and `FriendlyRelationThreshold` (relation value). Enabled by default (hostile interactions require a long press). Allies always ignore your crimes against strangers, regardless of this setting." />
     <!-- ── IM 传讯系统（LWN_im_*）── -->
         <string id="LWN_im_channel_nearby" text="Nearby" />
+    <!-- 密信按钮 hover 提示（队伍屏/家族屏，SecretLetterButtonInjector）-->
+    <string id="LWN_im_secret_letter_hint" text="Secret letter: send a private message" />
 <string id="LWN_im_channel_party" text="Party" />
     <string id="LWN_im_channel_clan" text="Clan" />
     <string id="LWN_im_channel_kingdom" text="Kingdom" />
