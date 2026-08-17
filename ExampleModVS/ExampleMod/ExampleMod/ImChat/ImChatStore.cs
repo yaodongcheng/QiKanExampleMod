@@ -18,8 +18,8 @@ namespace LivingWorldNpcs
         /// <summary>群聊单频道消息上限（不可能无限存，需求 6）。</summary>
         public const int MaxGroupMessages = 100;
 
-        /// <summary>私聊左栏列表上限。</summary>
-        public const int MaxDirectList = 8;
+        /// <summary>私聊左栏列表显示上限（完整版+缩略版共用，2026-08-17 用户裁定 = 6；只裁剪显示，索引全量保留）。</summary>
+        public const int MaxDirectList = 6;
 
         public const string ChannelParty = "party";
         public const string ChannelClan = "clan";
@@ -106,10 +106,11 @@ namespace LivingWorldNpcs
                 {
                     entry.LastTimestamp = Math.Max(entry.LastTimestamp, ts);
                 }
-                // 按最后时间倒序；超上限丢最久
+                // 按最后时间倒序（新的在前）
                 _directIndex.Sort((a, b) => b.LastTimestamp.CompareTo(a.LastTimestamp));
-                while (_directIndex.Count > MaxDirectList)
-                    _directIndex.RemoveAt(_directIndex.Count - 1);
+                // 🔴 2026-08-17（用户裁定：容量上限只裁剪显示，不删数据）：
+                // 索引**全量保留**（数据还在，存档/重新打开都能找回）——显示层 GetRecentDirectChats(cap) 取前 N 个，
+                // 超限条目只是 UI 上看不到（先进先出：新的在前、旧的沉底）。
             }
         }
 

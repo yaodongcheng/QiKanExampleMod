@@ -132,11 +132,23 @@ namespace LivingWorldNpcs
                 if (x.Button.ParentWidget == slot.ParentWidget) return false;
             }
 
+            // 🔴 可见性锚：队伍行 = TalkButton 父容器（@IsTalkableCharacter）；
+            //   家族屏不能跟随 TalkToHeroButton 容器（@IsTalkVisible 在非本队成员行 = false——召回按钮显示时交谈按钮隐藏）
+            //   → 改为向上找「子树含 CharacterTableauWidget 的最近祖先」= 详情面板容器（@IsAnyValidMemberSelected，选中有效成员即显示）
+            Widget anchor = slot;
+            if (!isParty)
+            {
+                for (Widget p = slot.ParentWidget; p != null; p = p.ParentWidget)
+                {
+                    if (FindWidgetByType(p, "CharacterTableauWidget") != null) { anchor = p; break; }
+                }
+            }
+
             var btn = CreateButton(slot.Context);
             int idx = IndexOfChild(slot.ParentWidget, slot);
             if (idx < 0) return false;
             slot.ParentWidget.AddChildAtIndex(btn, idx + 1);
-            _live.Add(new Injected { Button = btn, VisibilityAnchor = slot, ClanRoot = isParty ? null : root, IsHeroTarget = ResolveIsHeroTarget(btn, isParty ? null : root) });
+            _live.Add(new Injected { Button = btn, VisibilityAnchor = anchor, ClanRoot = isParty ? null : root, IsHeroTarget = ResolveIsHeroTarget(btn, isParty ? null : root) });
             return true;
         }
 
@@ -346,6 +358,10 @@ namespace LivingWorldNpcs
 
             var conv = ImChatManager.GetDirectConversation(heroId);
             if (conv == null) { DebugLogger.Log($"[SecretLetter] 会话创建失败: {heroId}"); return; }
+
+            // 🔴 打开前 TouchDirectChat：左栏「最近私聊」列表来自 ImChatStore._directIndex（只有收发过消息才登记），
+            // GetDirectConversation 本身不写索引——不 touch 则左栏看不到该私聊频道（实测：完整模式无、发消息后缩略模式才出现）
+            ImChatStore.TouchDirectChat(heroId, ImChatManager.NowUnixMs());
 
             bool opened = ImChatView.Open(conv);
             DebugLogger.Log($"[SecretLetter] ImChatView.Open={opened}");
