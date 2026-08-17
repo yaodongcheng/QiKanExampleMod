@@ -17,6 +17,14 @@
                 DoNotAcceptEvents="false">
           <Children>
 
+            <!-- 🔴 Q4（2026-08-17 手柄导航）：scope 声明（同完整模式 ImChat.xml；ScopeParent=".." =
+                 CompactPanel 根）。频道三件套是横向按钮组 → AlternateScopeMovements="Horizontal"
+                 补横向移动（◀ 中心 ▶）。初始焦点 = 标题行左箭头（索引 1）。 -->
+            <NavigationScopeTargeter ScopeID="LWN_ImChatCompact_Scope" ScopeParent=".."
+                                     ScopeMovements="Vertical" AlternateScopeMovements="Horizontal"
+                                     HasCircularMovement="false"
+                                     IsDefaultNavigationScope="true"/>
+
             <!-- 竖向主体（LWN 惯例：VerticalBottomToTop + 子元素按屏幕从上到下书写） -->
             <ListPanel Id="LWN_ImChat_CompactBody" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                        StackLayout.LayoutMethod="VerticalBottomToTop"
@@ -48,11 +56,13 @@
             <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
                           Brush="SPOptions.Dropdown.Left.Button"
                           Command.Click="ExecuteSelectPreviousItem"
+                          GamepadNavigationIndex="1"
                           VerticalAlignment="Center" MarginLeft="8" MarginRight="2"/>
             <!-- 中心按钮：显示当前频道，点击切换列表显隐（🔴 自定义直连，不再用原版控件点击机制） -->
             <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="50"
                           Brush="SPOptions.Dropdown.Center"
                           Command.Click="ExecuteToggleChannelList"
+                          GamepadNavigationIndex="2"
                           VerticalAlignment="Center" MarginLeft="2" MarginRight="2">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
@@ -67,6 +77,7 @@
             <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
                           Brush="SPOptions.Dropdown.Right.Button"
                           Command.Click="ExecuteSelectNextItem"
+                          GamepadNavigationIndex="3"
                           VerticalAlignment="Center" MarginLeft="2" MarginRight="6"/>
           </Children>
         </ListPanel>
@@ -77,11 +88,13 @@
         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
                       VerticalAlignment="Center" MarginLeft="4"
                       Brush="LWN_Btn_Expand"
+                      GamepadNavigationIndex="4"
                       Command.Click="ExecuteExpand"/>
         <!-- 关闭按钮 -->
         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
                       VerticalAlignment="Center" MarginLeft="4" MarginRight="10"
                       Brush="Popup.CloseButton"
+                      GamepadNavigationIndex="5"
                       Command.Click="ExecuteClose"/>
       </Children>
     </ListPanel>
@@ -321,6 +334,14 @@
                   </Children>
                 </Widget>
 
+                <!-- 🔴 Q4（2026-08-17 手柄提示行）：输入行上方灰字（仅手柄设备；字形动态拼）。
+                     声明在输入行之前（LWN 惯例：VerticalBottomToTop + 子元素按屏幕从上到下书写）。 -->
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                            Text="@PadHintText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                            HorizontalAlignment="Left" MarginLeft="12" MarginTop="2" MarginBottom="2"
+                            IsVisible="@HasPadHint"
+                            DoNotAcceptEvents="true"/>
+
                 <!-- ═══ 输入行：输入框 + 发送（2026-08-15 用户裁定：频道切换在标题行，输入行独占最宽）═══ -->
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="50"
                         Sprite="BlankWhiteSquare_9" Color="#00000088"
@@ -339,12 +360,14 @@
                         <EditableTextWidget Id="LWN_ImChat_CompactInput" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                             Text="@InputText" DefaultSearchText="@PlaceholderText"
                                             TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="16"
+                                            GamepadNavigationIndex="6"
                                             MarginRight="6" VerticalAlignment="Center"/>
                         <!-- 发送按钮 -->
                         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="34"
                                       Brush="Test.Button3"
                                       Command.Click="ExecuteSend"
                                       IsEnabled="@CanSend"
+                                      GamepadNavigationIndex="7"
                                       VerticalAlignment="Center" MarginRight="8">
                           <Children>
                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"

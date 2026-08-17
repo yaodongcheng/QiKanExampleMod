@@ -14,6 +14,17 @@
                 DoNotAcceptEvents="true">
           <Children>
 
+            <!-- 🔴 Q4（2026-08-17 手柄导航）：NavigationScopeTargeter 声明导航 scope——引擎不会为没有
+                 scope 的层建导航图（反编译实锤 GauntletGamepadNavigationManager；原版先例
+                 EscapeMenu.xml:13 同款机制，prefab 系统按名字反射实例化，零 C# 引用改动）。
+                 ScopeParent=".." = 主面板根；IsDefaultNavigationScope=true = 初始焦点自动进入 scope
+                 （「激活」的真相）。scope 自动收集子树内 GamepadNavigationIndex != -1 的按钮；
+                 ItemTemplate 项（左栏频道行/卡片按钮行）靠引擎 sibling fallback 自动收编（验证点 6）。 -->
+            <NavigationScopeTargeter ScopeID="LWN_ImChat_Scope" ScopeParent=".."
+                                     ScopeMovements="HorizontalAndVertical"
+                                     HasCircularMovement="false"
+                                     IsDefaultNavigationScope="true"/>
+
             <!-- 标题带（🔴 五轮：改 ListPanel 横向布局——标题 + 正在思考 + 模式区 + 关闭 顺序排布，杜绝普通 Widget 子元素重叠） -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
                     VerticalAlignment="Top"
@@ -49,12 +60,14 @@
                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"
                                   VerticalAlignment="Center" MarginLeft="8"
                                   Brush="LWN_Btn_Collapse"
+                                  GamepadNavigationIndex="1"
                                   Command.Click="ExecuteToggleCompact"/>
 
                     <!-- 关闭按钮 -->
                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
                                   VerticalAlignment="Center" MarginLeft="8" MarginRight="18"
                                   Brush="Popup.CloseButton"
+                                  GamepadNavigationIndex="2"
                                   Command.Click="ExecuteClose"/>
                   </Children>
                 </ListPanel>
@@ -554,6 +567,7 @@
                                       HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="78"
                                       Brush="Test.Button3"
                                       Command.Click="ExecuteNewMessageClick"
+                                      GamepadNavigationIndex="3"
                                       IsVisible="@HasNewMessageHint">
                           <Children>
                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -593,11 +607,13 @@
                                 <EditableTextWidget Id="LWN_ImChat_Input" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                                     Text="@InputText" DefaultSearchText="@PlaceholderText"
                                                     TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="18"
+                                                    GamepadNavigationIndex="4"
                                                     MarginLeft="12" MarginRight="100" VerticalAlignment="Center"/>
                                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="90" SuggestedHeight="38"
                                               Brush="Test.Button3"
                                               Command.Click="ExecuteSend"
                                               IsEnabled="@CanSend"
+                                              GamepadNavigationIndex="5"
                                               HorizontalAlignment="Right" VerticalAlignment="Center" MarginRight="5">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -610,6 +626,16 @@
                             </Widget>
                           </Children>
                         </Widget>
+
+                        <!-- 🔴 Q4（2026-08-17 手柄提示行）：输入区上方 12px 灰字（仅手柄设备显示；
+                             字形经 ModInput.GlyphForKey 动态拼——A/✕ 确认 · B/○ 关闭 · ↑ 导航，PS 自动切字形）。
+                             声明在输入区之后 → 绘制在最上层（消息流底部边缘，不挡内容）。 -->
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                    Text="@PadHintText" Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#888888CC"
+                                    HorizontalAlignment="Left" VerticalAlignment="Bottom"
+                                    MarginBottom="78" MarginLeft="18"
+                                    IsVisible="@HasPadHint"
+                                    DoNotAcceptEvents="true"/>
 
                       </Children>
                     </Widget>

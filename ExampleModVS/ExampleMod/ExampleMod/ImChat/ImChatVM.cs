@@ -1,4 +1,5 @@
 using System;
+using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
 
 namespace LivingWorldNpcs
@@ -972,5 +973,38 @@ namespace LivingWorldNpcs
 
         /// <summary>缩略面板右上角「放大」按钮 → 切完整模式。</summary>
         public void ExecuteExpand() => ImChatView.ToggleExpand();
+
+        // ── 🔴 2026-08-17（手柄支持）：面板内提示行（设备感知，仅 UsingGamepad 时显示）──
+
+        /// <summary>
+        /// 手柄提示文案（「A 确认 · B 关闭 · 十字键导航」；字形经 ModInput.GlyphForKey 按最近设备动态拼，
+        /// 不写死字串——PS 系自动切 ✕/○）。位置 = 输入区上方 12px 灰字（两种模式 XML 各放一行）。
+        /// </summary>
+        [DataSourceProperty]
+        public string PadHintText
+        {
+            get
+            {
+                if (!ModInput.UsingGamepad) return "";
+                string a = ModInput.GlyphForKey(InputKey.ControllerRDown);
+                string b = ModInput.GlyphForKey(InputKey.ControllerRRight);
+                string dpad = ModInput.GlyphForKey(InputKey.ControllerLUp);
+                // 手柄提示文案（LWN_im_pad_hint）：{A} 确认 · {B} 关闭 · {DPAD} 导航，字形随设备动态
+                return LWNTextHelper.ResolveCompound("LWN_im_pad_hint",
+                    "{A} confirm · {B} close · {DPAD} navigate",
+                    ("A", a), ("B", b), ("DPAD", dpad));
+            }
+        }
+
+        /// <summary>手柄提示行可见性（仅手柄设备；鼠标/键盘玩家不显示）。</summary>
+        [DataSourceProperty]
+        public bool HasPadHint => ModInput.UsingGamepad && !string.IsNullOrEmpty(PadHintText);
+
+        /// <summary>设备切换（手柄↔键盘）时刷新手柄提示（ImChatView 检测 UsingGamepad 变化后调用）。</summary>
+        public void RefreshPadHint()
+        {
+            OnPropertyChanged(nameof(PadHintText));
+            OnPropertyChanged(nameof(HasPadHint));
+        }
     }
 }

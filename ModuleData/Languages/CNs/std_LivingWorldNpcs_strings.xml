@@ -4234,7 +4234,7 @@
     <string id="LWN_speech_im_reply_greeting" text="收到你的信了，别来无恙。" />
     <string id="LWN_speech_im_reply_default" text="信已收到，此事容后详谈。" />
     <string id="LWN_im_forgotten" text="更早的密信已随时间淡忘。" />
-    <string id="LWN_im_first_open" text="密信（IM）——可与远方的英雄通信，或给随从下达密令。按配置键（默认 O）打开；ESC / 手柄 B / 点击面板外关闭。" />
+    <string id="LWN_im_first_open" text="密信（IM）——可与远方的英雄通信，或给随从下达密令。按 {OPEN_KEY} 打开；ESC / 手柄 B / 点击面板外关闭。" />
     <string id="LWN_im_status_present" text="在场" />
     <string id="LWN_im_status_away" text="他处" />
     <string id="LWN_im_status_outside" text="城外" />
@@ -4441,5 +4441,7 @@
     <string id="LWN_ui_interact_inquiry_steal_npc_risk_msg" text="{NAME} 警告：{RISK}——仍要从 {TARGET} 身上偷吗？" />
     <string id="LWN_ui_interact_inquiry_duel_risk_msg" text="{NAME} 警告：{RISK}——仍要切磋吗？" />
     <string id="LWN_ui_interact_inquiry_duel_npc_risk_msg" text="{NAME} 警告：{RISK}——仍要与 {TARGET} 切磋吗？" />
-    <string id="LWN_dialog_chat_initiator_refuse_2" text="……是我多嘴了。" /></strings>
+    <string id="LWN_dialog_chat_initiator_refuse_2" text="……是我多嘴了。" />
+    <string id="LWN_im_open_button_hint" text="打开传讯（按键 {KEY}）" />
+    <string id="LWN_im_pad_hint" text="{A} 确认 · {B} 关闭 · {DPAD} 导航" /></strings>
 </base>

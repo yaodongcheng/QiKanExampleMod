@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Engine.GauntletUI;
+using TaleWorlds.GauntletUI;
 using TaleWorlds.GauntletUI.BaseTypes;
 using TaleWorlds.GauntletUI.Data;
+using TaleWorlds.GauntletUI.GamepadNavigation;
 using TaleWorlds.InputSystem;
 using TaleWorlds.Library;
 using TaleWorlds.MountAndBlade;
@@ -24,9 +26,12 @@ namespace LivingWorldNpcs
     /// - 打开/关闭/切换：热键（ModInput IM 玩法行）与通知点击；
     /// - 战斗/模态禁开（用户决策 4）：Mission 内 IsInteractionDisabled() + 系统弹窗检查；
     /// - Tick 驱动（ImChatMissionView / ImChatCampaignBehavior）：回复管线 + 0.3s 增量刷新；
-    /// - 新消息通知：IM 关闭时 NinjaNotification 圆环（点击打开定位会话）。
+    /// - 新消息通知（🔴 2026-08-17 用户裁定）：IM 关闭时来消息（私聊+群聊）统一由呼出按钮
+    ///   （ImChatOpenButtonManager）未读徽标跳动提示——ninjareport 圆环与 IM 消息 NinjaNotification
+    ///   横幅已一并废除（NinjaNotificationManager 本体保留：WorldEvent/Quest 通用通知仍在使用）。
     /// - 🔴 2026-08-15（缩略模式）：同一 layer 换 prefab 切换形态（SwitchMode）；
-    ///   缩略面板输入安全靠引擎 hit-test 门控（面板矩形外场景输入不被吞）+ ClearFocus 释放键盘。
+    ///   缩略面板输入安全靠引擎 hit-test 门控（面板矩形外场景输入不被吞）+ ClearFocus 释放键盘；
+    ///   🔴 2026-08-17（Q3）：门控对原始鼠标轮询不成立，缩略层 mask 改位置感知（HitTest 命中才拦 Mouse）。
     /// </summary>
     public static class ImChatView
     {
@@ -58,6 +63,20 @@ namespace LivingWorldNpcs
         private static Widget _compactChannelList;  // 频道列表（上开式，外部点击收起矩形判定 + 手动命中）
         private static InputUsageMask _lastCompactMask; // 🔴 2026-08-15（性能）：mask 缓存，变化才 SetInputRestrictions
         private static readonly List<ImConversation> _compactChannels = new List<ImConversation>(); // 下拉频道顺序（左右箭头循环用）
+
+        // 🔴 Q2（2026-08-17，密信入口「关屏再开」）：队伍/家族屏点密信 → PopScreen 后待打开的私聊目标
+        //（不立即 Open——PopScreen 后底层屏激活是帧边界异步的，过渡期内 IM 层叠在空屏上 = 黑屏，
+        //  实测 2026-08-17；覆盖式语义：连点多个按钮后点者胜；~2s 超时丢弃防永久卡住）
+        private static string _pendingSecretLetterHeroId;
+        private static float _pendingSecretLetterElapsed;
+        private const float PendingSecretLetterTimeoutSec = 2f;
+
+        // 🔴 Q4（2026-08-17，手柄支持）：
+        // 手柄模态（Mission 面板打开 = 角色输入整体冻结；设备切换自动解冻/冻结）
+        private static bool _lastUsingGamepad;
+        private static bool _playerFrozen;
+        // 手柄导航焦点视觉（LastTargetedWidget 轮询 → 高亮 Hovered 复用 hover 视觉；关闭/失焦复位）
+        private static Widget _lastPadFocus;
 
         // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
         // 「查看模式」按钮规避贴底+滚轮冲突；这里直接从 UIContext 找 ScrollablePanel 操作 ValueFloat）
@@ -129,12 +148,16 @@ namespace LivingWorldNpcs
             try
             {
                 // 玩家体验完善（Q1f）：首次打开引导提示（玩家可能不知道热键/功能存在）
+                // 🔴 2026-08-17（Q4 手柄）：{OPEN_KEY} 动态 = 当前设备呼出键字形（O / ↑）——
+                // 手柄设备玩家看到「↑ 打开」而非「O 打开」
                 if (!_welcomed)
                 {
                     _welcomed = true;
+                    string openKey = ModInput.Glyph(InteractionIds.IM);
                     // 首次打开引导（LWN_im_first_open）
-                    string hint = LWNTextHelper.ResolveText("LWN_im_first_open",
-                        "Secret messaging (IM) — talk to heroes across the land, or send secret orders to companions. Open/close with the configured key (default O).");
+                    string hint = LWNTextHelper.ResolveCompound("LWN_im_first_open",
+                        "Secret messaging (IM) — talk to heroes across the land, or send secret orders to companions. Open with {OPEN_KEY}; close with ESC, B, or by clicking outside the panel.",
+                        ("OPEN_KEY", openKey));
                     InformationManager.DisplayMessage(new InformationMessage(hint));
                 }
 
@@ -151,10 +174,16 @@ namespace LivingWorldNpcs
                 // （EventManager.MouseScroll 只调用 hit test 命中的 widget，不冒泡）。
                 // 🔴 2026-08-15（缩略模式）：缩略层去掉 MouseWheels（面板无滚动内容，滚轮穿透到场景 = 镜头缩放，
                 // 下拉开时 Tick 内补上 MouseWheels 位给列表滚动）；键盘靠 FocusTest 门控（输入框聚焦才吃键）。
+                // 🔴 2026-08-17（Q3 位置感知 mask 实锤）：缩略层不再常驻 Mouse——「hit-test 门控 → 面板矩形外
+                // 场景输入天然不被吞」只对 UI 事件分发成立，对原始轮询不成立：鼠标键在 native 层有「UI 捕获」
+                // 判定，与鼠标位置无关（pitfalls 2026-08-11 实机记录 + 用户反馈双证）。初始只挂 Keyboardkeys
+                //（键盘拦不住物理轮询，留着不影响 WASD），Mouse/MouseWheels 由 HandleCompactInput 每帧
+                // 位置感知修正（HitTest 命中面板才拦）。完整模式保持模态语义不变（三件套全拦）。
                 InputUsageMask mask = _mode == ImChatMode.Compact
-                    ? InputUsageMask.MouseButtons | InputUsageMask.Keyboardkeys
+                    ? InputUsageMask.Keyboardkeys
                     : InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
                 _layer.InputRestrictions.SetInputRestrictions(true, mask);
+                if (_mode == ImChatMode.Compact) _lastCompactMask = InputUsageMask.Keyboardkeys;
                 if (ScreenManager.TopScreen != null)
                 {
                     ScreenManager.TopScreen.AddLayer(_layer);
@@ -165,6 +194,13 @@ namespace LivingWorldNpcs
                 //（Close 保留的 _selected），无历史才回队伍兜底
                 SelectConversation(selectConv ?? _selected ?? BuildDefaultConversation());
                 if (prefill != null && _vm != null) _vm.InputText = prefill;
+
+                // 🔴 Q4（2026-08-17，手柄模态）：Mission 内面板打开 = 角色输入整体冻结（键盘已证
+                // InputRestrictions 拦不住手柄键，SetPlayerControlFrozen 是确定性方案；冻结只冻角色 Agent，
+                // 不冻 UI 层导航——实机验证点）；设备切换在 Tick 内检测（UpdateGamepadFreeze 幂等）。
+                _lastUsingGamepad = ModInput.UsingGamepad;
+                UpdateGamepadFreeze();
+                _vm?.RefreshPadHint();
                 return true;
             }
             catch (Exception ex)
@@ -179,6 +215,17 @@ namespace LivingWorldNpcs
         {
             // 🔴 Q1：IM 关闭 = 密谋输入阶段结束（Talk 行互斥恢复；执行中的计划不受影响——StopPlan 独立判断）
             PlanCommandFlow.End();
+            // 🔴 Q4（2026-08-17）：手柄模态解冻（关闭面板 = 角色输入还给玩家；Mission 可能已退出，
+            // Agent.Main 判空兜底）。幂等（_playerFrozen 门控）。
+            if (_playerFrozen)
+            {
+                _playerFrozen = false;
+                try { if (Agent.Main != null) V.SetPlayerControlFrozen(Agent.Main, false); } catch (Exception ex) { DebugLogger.Log($"[ImChat] 解冻失败: {ex.Message}"); }
+            }
+            // 🔴 Q2（2026-08-17）：手动关闭 → 待打开的密信目标作废（防关屏后再开 IM 的意外弹出）
+            _pendingSecretLetterHeroId = null;
+            _pendingSecretLetterElapsed = 0f;
+            _lastPadFocus = null;   // 面板关闭 → 焦点视觉缓存复位（widget 树销毁）
             if (_layer != null)
             {
                 try
@@ -188,7 +235,14 @@ namespace LivingWorldNpcs
                         _layer.ReleaseMovie(_movie);
                         _movie = null;
                     }
-                    if (ScreenManager.TopScreen != null)
+                    // 🔴 2026-08-17（实机崩溃修复）：从层实际挂载的屏摘（_layerOwnerScreen），不用
+                    // ScreenManager.TopScreen——层可能挂在非 TopScreen 的屏上（家族/队伍屏 Push 叠层），
+                    // 从 TopScreen 摘 = 摘错屏 + 层 Finalize 却残留在 owner 屏 _layers → owner 屏下次
+                    // 激活（PopScreen 回地图）遍历死层 → GauntletLayer.OnActivate NRE 崩溃（实机）。
+                    // HasLayer 校验：层可能已随屏销毁（PopScreen），跳过摘除。
+                    if (_layerOwnerScreen != null && _layerOwnerScreen.HasLayer(_layer))
+                        _layerOwnerScreen.RemoveLayer(_layer);
+                    else if (ScreenManager.TopScreen != null && ScreenManager.TopScreen.HasLayer(_layer))
                         ScreenManager.TopScreen.RemoveLayer(_layer);
                     _layer.InputRestrictions.ResetInputRestrictions();
                 }
@@ -206,6 +260,119 @@ namespace LivingWorldNpcs
             _messageScrollPanel = null;   // 层关闭后 widget 树失效，缓存清空
             _compactPanel = null;         // 🔴 2026-08-15（缩略模式）：同埋——widget 树随层销毁
             _compactChannelList = null;
+        }
+
+        // ───────────────────────── 层归属迁移 / 手柄模态 / 焦点视觉（2026-08-17）─────────────────────────
+
+        /// <summary>
+        /// 🔴 Q2（2026-08-17，密信入口「关屏再开」）：密信按钮点击后调用——先 PopScreen 关掉队伍/家族屏，
+        /// 目标 Hero 存入 pending（不立即 Open——PopScreen 后底层屏激活是帧边界异步的，过渡期内 IM 层叠在
+        /// 空屏上 = 黑屏实测）；OnScreenFrameTick 检测 TopScreen 已稳定（回 MapScreen）→ Open 定位私聊。
+        /// 覆盖式语义：连点多个密信按钮 → 后点者胜。TouchDirectChat 在此登记（关屏前），保证左栏私聊列表可寻。
+        /// </summary>
+        public static void SetPendingSecretLetter(string heroId)
+        {
+            _pendingSecretLetterHeroId = heroId;
+            _pendingSecretLetterElapsed = 0f;
+            if (!string.IsNullOrEmpty(heroId))
+                ImChatStore.TouchDirectChat(heroId, ImChatManager.NowUnixMs());
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-17（B'：层归属迁移提升）：Open() 把层挂到当时的 TopScreen——在家族/队伍屏打开 IM 时
+        /// 层叠在 ClanScreen/PartyScreen 上；点完成关屏 → PopScreen 销毁其层 → _layer C# 引用仍在但
+        /// native 已释放 → 后续 Tick 访问死 widget 抛 NRE（2026-08-17 家族 UI 崩溃修复，原只在缩略分支，
+        /// 完整模式无保护 → 滚动静默失效）。
+        /// 🔴 2026-08-17（实机崩溃修复第二弹，ImChatOpenButton 同根因）：**只看层是否还被 owner 屏持有**——
+        /// ① owner 屏 PopScreen 销毁层（HasLayer=false）→ Close（玩家重新打开 = 重建到当前屏）；
+        /// ② 家族/队伍屏 Push 叠层（层还活着）→ **不动**（面板被原版屏层序盖住属正常，关屏后自然回来）。
+        ///    旧逻辑「TopScreen 变了就 Close/迁移」会在 Push 时误杀 + Close 摘错屏（从 TopScreen 摘一个
+        ///    挂在 MapScreen 的层）→ 层 Finalize 却残留在 MapScreen._layers → PopScreen 回地图激活时
+        ///    遍历死层 → GauntletLayer.OnActivate NRE 崩溃（实机 2026-08-17，家族屏点密信复现）。
+        /// </summary>
+        private static void MigrateLayerIfNeeded()
+        {
+            if (_layer == null || _layerOwnerScreen == null) return;
+            bool held = false;
+            try { held = _layerOwnerScreen.HasLayer(_layer); } catch { }
+            if (held) return;   // 层还活着（owner 屏仍在，即使不是 TopScreen）→ 不动
+            DebugLogger.Log($"[ImChat] 层随屏销毁（owner {_layerOwnerScreen.GetType().Name} 已不持有层），关闭面板");
+            Close();
+        }
+
+        /// <summary>
+        /// 🔴 Q4（2026-08-17，手柄模态）：Mission 内面板打开且手柄在用 → 角色输入整体冻结
+        ///（SetPlayerControlFrozen，幂等——_playerFrozen 门控；冻结只冻角色 Agent，不冻 UI 层导航）。
+        /// 解冻时机 = 设备切回键盘/鼠标 / Close / Mission 退出（Close 路径已有，Mission 退出自动恢复）。
+        /// 大地图手柄不冻结：十字键分流（引擎导航方向只认十字键，左摇杆 = 地图移动照常，反编译实锤）
+        /// ——完美分流，无模态需求。
+        /// </summary>
+        private static void UpdateGamepadFreeze()
+        {
+            if (_layer == null) return;
+            bool shouldFreeze = ModInput.UsingGamepad && Mission.Current != null;
+            if (shouldFreeze == _playerFrozen) return;
+            _playerFrozen = shouldFreeze;
+            try
+            {
+                if (Agent.Main != null)
+                    V.SetPlayerControlFrozen(Agent.Main, shouldFreeze);
+                DebugLogger.Log($"[ImChat] 手柄模态 {(shouldFreeze ? "冻结" : "解冻")} 玩家控制");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 手柄模态冻结失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 🔴 Q4（2026-08-17，焦点视觉，用户裁定：焦点必须可见——否则玩家看不到光标在哪）：
+        /// 引擎 ButtonWidget.RefreshState 只处理 Disabled/Selected/Pressed/Hovered/Default，无 Focused 分支
+        ///（反编译实锤）——手柄导航聚焦不自动高亮。轮询 GauntletGamepadNavigationManager.Instance.LastTargetedWidget
+        ///（全局活跃 scope 的聚焦项，public 实锤），聚焦自己面板的按钮 → SetState("Hovered") 复用 hover
+        /// 视觉（零新 Brush）；旧焦点按身份复位（选中行回 Selected，其余回 Default）。
+        /// 🔴 守卫：① UsingGamepad 门控（鼠标 hover 由引擎自己管 + RefreshState，我们不碰，键盘/鼠标不跑此逻辑）；
+        /// ② IsOurPanelWidget 向上找 LWN 根——LastTargetedWidget 可能指向面板外原版按钮（鼠标在 scope 区域外移动），
+        ///    对原版按钮 SetState 会造成视觉错乱；③ null（引擎：鼠标不在聚焦按钮范围且无导航动画）→ 当焦点丢失复位。
+        /// 🔴 残留缝隙（设备切换瞬间）：动鼠标 → UsingGamepad 立即 false → 轮询停，最后高亮可能残留——本方法
+        /// 非手柄分支把 _lastPadFocus 置 null 即清理（下一帧引擎自己刷新原版按钮状态）。
+        /// </summary>
+        private static void UpdatePadFocus()
+        {
+            if (!ModInput.UsingGamepad)
+            {
+                _lastPadFocus = null;
+                return;
+            }
+            Widget padFocus = null;
+            try { padFocus = GauntletGamepadNavigationManager.Instance?.LastTargetedWidget; } catch { }
+            if (padFocus == _lastPadFocus) return;
+            if (_lastPadFocus != null && _lastPadFocus != padFocus)
+            {
+                try { _lastPadFocus.SetState(_lastPadFocus is ButtonWidget b && b.IsSelected ? "Selected" : "Default"); } catch { }
+            }
+            _lastPadFocus = padFocus;
+            if (padFocus != null)
+            {
+                if (IsOurPanelWidget(padFocus))
+                {
+                    try { padFocus.SetState("Hovered"); } catch { }
+                }
+                else
+                {
+                    _lastPadFocus = null;   // 外部 widget：不高亮（引擎自己管原版按钮状态）
+                }
+            }
+        }
+
+        /// <summary>焦点视觉守卫：widget 是否属于本 IM 面板树（向上找 Id="LWN" 的 Window 根）。</summary>
+        private static bool IsOurPanelWidget(Widget w)
+        {
+            for (Widget p = w; p != null; p = p.ParentWidget)
+            {
+                if (p.Id == "LWN") return true;
+            }
+            return false;
         }
 
         // ───────────────────────── 模式切换（完整 ⇄ 缩略）─────────────────────────
@@ -257,7 +424,9 @@ namespace LivingWorldNpcs
             SwitchMode();
         }
 
-        /// <summary>以缩略模式打开并定位会话（密信通知点击入口）。</summary>
+        /// <summary>以缩略模式打开并定位会话（密信通知点击入口）。
+        /// 🔴 2026-08-17（用户裁定）：ninjareport 密信通知已废除（私聊通知统一由呼出按钮徽标承担），
+        /// 本入口当前无调用者——保留为「缩略模式定位会话」的公开入口（未来缩略入口可复用）。</summary>
         public static void OpenCompact(ImConversation conv)
         {
             if (IsOpen)
@@ -898,10 +1067,44 @@ namespace LivingWorldNpcs
                 ModInput.Tick(dt);
                 // 🔴 队伍屏/家族屏密信按钮注入（纯 C# 动态插入，0.3s 扫描节流；仅 Party/ClanScreen 生效）
                 SecretLetterButtonInjector.TickInject(dt);
+                // 🔴 Q5（2026-08-17 呼出按钮）：Campaign 侧驱动（Mission 侧由 ImChatMissionView 驱动）
+                ImChatOpenButtonManager.Tick(dt);
                 // 🔴 O 只负责「打开」：面板开着时输入 o 不再触发任何动作（打字不误关）
                 // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
                 if (ModInput.ShortFired(InteractionIds.IM) && !IsOpen && Settings.Instance.PlotEnabled)
                     Open();
+
+                // 🔴 Q2（2026-08-17，密信入口「关屏再开」）：队伍/家族屏 PopScreen 后回大地图，
+                // 打开 IM 定位私聊。🔴 黑屏教训（方案 §2 + 实机复现 2026-08-17）：PopScreen 虽为同步
+                //（反编译 ScreenManager.PopScreen 实锤：HandleActivate 同栈执行），但「延迟 0.1s 再开」
+                // 仍被实测黑屏——保守化：要求 TopScreen 已是 MapScreen 且 IsActive 且稳定 ≥0.3s
+                //（18 帧，给地图恢复渲染留足时间）+ 打开前后诊断日志（再黑屏直接看日志定位断点）。
+                // 失败路径：CanOpen() false（过渡帧异常/模态残留）→ pending 保留，~2s 超时丢弃 + 日志
+                //（防永久卡住）；Close() 一并清 pending（手动关闭 = 目标作废）。
+                if (!string.IsNullOrEmpty(_pendingSecretLetterHeroId))
+                {
+                    _pendingSecretLetterElapsed += dt;
+                    string topName = ScreenManager.TopScreen?.GetType().Name ?? "";
+                    bool mapActive = false;
+                    try { mapActive = ScreenManager.TopScreen != null && ScreenManager.TopScreen.IsActive; } catch { }
+                    bool stable = topName.Contains("MapScreen") && mapActive
+                        && _pendingSecretLetterElapsed >= 0.3f;
+                    if (stable && CanOpen())
+                    {
+                        var conv = ImChatManager.GetDirectConversation(_pendingSecretLetterHeroId);
+                        _pendingSecretLetterHeroId = null;
+                        _pendingSecretLetterElapsed = 0f;
+                        DebugLogger.Log($"[SecretLetter] 关屏完成（TopScreen={topName} IsActive={mapActive} elapsed={_pendingSecretLetterElapsed:0.00}），打开 IM 定位私聊");
+                        bool opened = Open(conv);
+                        DebugLogger.Log($"[SecretLetter] pending 打开结果: {opened}");
+                    }
+                    else if (_pendingSecretLetterElapsed >= PendingSecretLetterTimeoutSec)
+                    {
+                        DebugLogger.Log($"[SecretLetter] 关屏后打开 IM 超时丢弃（TopScreen={topName} IsActive={mapActive} CanOpen={CanOpen()}）");
+                        _pendingSecretLetterHeroId = null;
+                        _pendingSecretLetterElapsed = 0f;
+                    }
+                }
 
                 Tick(dt);
             }
@@ -920,16 +1123,48 @@ namespace LivingWorldNpcs
             ImChatManager.Tick(dt);
             // 🔴 2026-08-15（密信通知）：通知层驱动（自动消失计时）挂在 IM Tick 上——
             // 不依赖面板是否打开（提前 return 之前），Mission/Campaign 双端都到这里。
-            ImSecretNotifyManager.Tick(dt);
+            // 🔴 2026-08-17（用户裁定）：ImSecretNotify（ninjareport 密信圆环）已废除——私聊通知
+            // 统一由呼出按钮徽标承担（ImChatOpenButtonManager 自行订阅 MessageArrived），此处不再驱动。
             if (!IsOpen) return;
+
+            // 🔴 2026-08-17（B'：层归属迁移提升到 Tick 顶层——原只在 HandleCompactInput（缩略分支），
+            // 完整模式无此保护：关屏后滚动缓存指向已释放树 → 滚动静默失效。Q5 呼出按钮层迁移复用同一模式）
+            MigrateLayerIfNeeded();
+
+            // 🔴 Q4（2026-08-17）：设备切换检测（input.md 范式：缓存逐帧对比）——
+            // 手柄→键盘/鼠标：解冻（UpdateGamepadFreeze）+ 焦点视觉轮询自行停摆；键盘→手柄：冻结（Mission）。
+            // 手柄提示行随设备刷新（PadHintText/HasPadHint 是计算属性，需显式广播）。
+            bool usingGamepad = ModInput.UsingGamepad;
+            if (usingGamepad != _lastUsingGamepad)
+            {
+                _lastUsingGamepad = usingGamepad;
+                _vm?.RefreshPadHint();
+                DebugLogger.Log($"[ImChat] 设备切换 → {(usingGamepad ? "手柄" : "键盘/鼠标")}");
+            }
+            UpdateGamepadFreeze();
+            UpdatePadFocus();
 
             // 🔴 关闭改用独立键（用户要求）：ESC / 手柄 B——O 只负责打开，打字不再误关。
             // 注：本层 InputRestrictions(All) 是模态掩码，ESC 已被层拦截（不会触发系统菜单，与 Inquiry 同理），
             // 这里轮询全局输入状态消费关闭动作。
-            if (Input.IsKeyReleased(InputKey.Escape) || Input.IsKeyReleased(InputKey.ControllerRRight))
+            // 🔴 2026-08-17（Q4 手柄）：B 键二分——缩略下拉打开中 = 先收下拉，再按才关面板（原版 UI 同款心智）
+            if (Input.IsKeyReleased(InputKey.Escape))
             {
                 Close();
                 return;
+            }
+            if (Input.IsKeyReleased(InputKey.ControllerRRight))
+            {
+                if (_mode == ImChatMode.Compact && _vm != null && _vm.ChannelSelector.IsChannelListOpen)
+                {
+                    CloseChannelList();
+                    DebugLogger.Log("[ImChat] 手柄 B：先收频道下拉");
+                }
+                else
+                {
+                    Close();
+                    return;
+                }
             }
 
             // UI 优化：回车发送（微信习惯；IM 打开时唯一键盘输入焦点就是输入框）
@@ -964,39 +1199,18 @@ namespace LivingWorldNpcs
         /// ① 输入框焦点释放（审查 P2-5）：输入框有焦点 && 点击面板外 && 下拉未开 → ClearFocus 键盘回游戏——
         ///    只在「点击」时清（打字中鼠标悬停面板外不打断）；
         /// ② 频道下拉收起（审查 P2-2）：根无点击盾只能轮询——点击面板+下拉矩形外 → 收起；
-        /// ③ 下拉开时补 MouseWheels 位（列表滚动），关时去掉（滚轮穿透到场景 = 镜头缩放）。
-        /// 🔴 输入安全（审查 P0-2）：层 mask 常驻 MouseButtons|Keyboardkeys——引擎 hit-test 门控
-        /// （ScreenManager.EarlyUpdate）保证面板矩形外场景输入天然不被吞；面板矩形内被层吞（半模态岛）。
+        /// ③ 位置感知 mask（🔴 2026-08-17 Q3 实锤）：以鼠标位置为开关——HitTest 命中面板才拦 Mouse
+        ///    （点按钮不挥刀）；移出面板 → 摘 Mouse → 攻击/格挡/滚轮/视角还给游戏（替换旧「常驻 Mouse」
+        ///    方案——pitfalls 2026-08-11 实机记录：任何 Gauntlet 层只要含 Mouse 拦截，战斗场景就是
+        ///    攻击/格挡杀手）；下拉开时补 MouseWheels 位（列表滚动），关时去掉。
         /// </summary>
         private static void HandleCompactInput(float dt)
         {
             try
             {
-                // 🔴 2026-08-17 崩溃修复（家族 UI 关闭场景，实机）：Open() 把层挂到当时的 TopScreen
-                //（ScreenManager.TopScreen.AddLayer）——在家族 UI 内打开 IM 时层在 ClanScreen 上；
-                // 点"完成"关家族 UI → PopScreen 销毁其层 → _layer C# 引用仍在但 native 已释放 →
-                // 后续 Tick 里 IsFocusedOnInput() 抛 NRE（日志：家族屏注入密信按钮 → Open → 关闭即崩）。
-                // ① 层归属检测：owner = Open() 挂载时的 TopScreen；TopScreen 已切换（家族 UI 关闭等）→ 迁移跟随；
-                // 失败（旧屏已 PopScreen 销毁层，native 释放）→ 关闭 IM。
-                if (_layer != null && _layerOwnerScreen != null && ScreenManager.TopScreen != null
-                    && _layerOwnerScreen != ScreenManager.TopScreen)
-                {
-                    try
-                    {
-                        // HasLayer 校验旧屏是否还持有层（层已销毁 → false，跳过摘除，AddLayer 抛异常兜底）
-                        if (_layerOwnerScreen.HasLayer(_layer))
-                            _layerOwnerScreen.RemoveLayer(_layer);
-                        ScreenManager.TopScreen.AddLayer(_layer);
-                        _layerOwnerScreen = ScreenManager.TopScreen;
-                        DebugLogger.Log($"[ImChat] 层归属迁移（TopScreen 切换）：挂到 {ScreenManager.TopScreen.GetType().Name}");
-                    }
-                    catch (Exception ex)
-                    {
-                        DebugLogger.Log($"[ImChat] 层已失效（TopScreen 切换），关闭 IM: {ex.Message}");
-                        Close();
-                        return;
-                    }
-                }
+                // 🔴 2026-08-17（B'）：层归属迁移已提升到 Tick() 顶层（MigrateLayerIfNeeded）——
+                // 两种模式同享保护，此处不再重复（旧代码：家族 UI 关闭 → PopScreen 销毁层 →
+                // _layer 引用指向已释放 native → 缩略分支 IsFocusedOnInput 抛 NRE 崩溃修复）
                 if (_compactPanel == null)
                 {
                     FindCompactWidgets();
@@ -1057,10 +1271,22 @@ namespace LivingWorldNpcs
                     }
                 }
 
-                // ── ③ 下拉开 → 补 MouseWheels 位（列表滚轮滚动）。
+                // ── ③ 位置感知 mask（🔴 2026-08-17 Q3 实锤，替换旧「常驻 Mouse」方案）：
+                //    引擎无区域化输入限制 API——鼠标键在 native 层有「UI 捕获」判定，与鼠标位置无关，
+                //    层 mask 常驻 Mouse = 位置无关地全局拦鼠标 = Mission 内攻击/格挡/滚轮/视角全死
+                //    （pitfalls 2026-08-11 实机记录 + 用户反馈双证）。
+                //    方案 = 以鼠标位置为开关的全局 mask（模拟半模态岛）：
+                //      HitTest 命中面板（含浮出的频道下拉，widget 命中天然覆盖）→ mask 含 Mouse
+                //      （点按钮不挥刀——维持现状可用行为）；
+                //      鼠标移出面板 → 摘 Mouse → 攻击/格挡/滚轮/视角还给游戏。
+                //    Keyboardkeys 常驻（键盘拦不住物理轮询，留着不影响 WASD）。
+                //    MouseWheels 一致性：下拉开时位置无关地补上（现状保留——拉开时间短，接受；实机不适再并入 overUi）。
                 // 🔴 2026-08-15（性能）：SetInputRestrictions 只在 mask 变化时调用——每帧调用可能
                 // 触发输入上下文重置（用户反馈 UI 卡顿疑点之一）──
-                InputUsageMask mask = InputUsageMask.MouseButtons | InputUsageMask.Keyboardkeys;
+                bool overUi = false;
+                try { overUi = _layer != null && _layer.HitTest(); } catch { }
+                InputUsageMask mask = InputUsageMask.Keyboardkeys;
+                if (overUi) mask |= InputUsageMask.MouseButtons;
                 if (_vm != null && _vm.ChannelSelector.IsChannelListOpen)
                     mask |= InputUsageMask.MouseWheels;
                 if (mask != _lastCompactMask && _layer != null)
@@ -1553,34 +1779,17 @@ namespace LivingWorldNpcs
                     RefreshChannelsDynamic();
                     return;
                 }
-                if (!IsOpen)
-                    NotifyIncoming(conv);
+                // 🔴 2026-08-17（用户裁定：IM 消息通知统一走呼出按钮）：IM 关闭时来消息（私聊+群聊）
+                // 不再弹 NinjaNotification 横幅——由 ImChatOpenButtonManager 未读徽标承担
+                //（它自行订阅 MessageArrived：徽标 +1 + 3s 脉冲，总未读口径，IM 关闭时按钮常显）。
+                // 原 NotifyIncoming（摘要横幅 + 点击定位会话）已删除——ninjareport 圆环与群聊
+                // NinjaNotification 横幅（IM 消息路径）一并废除；NinjaNotificationManager 本体保留
+                //（WorldEvent/Quest 等其他系统的通用通知横幅仍在使用）。
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ImChat] OnMessageArrived 异常: {ex.Message}");
             }
-        }
-
-        /// <summary>IM 关闭时来消息 → 通知（点击打开并定位会话）。
-        /// 🔴 2026-08-15（密信通知分流）：私聊（密信）→ 新 ImSecretNotifyManager（ninjareport 形式、
-        /// Mission 内可用、点击打开缩略模式定位会话）；群聊 → 旧 NinjaNotification（Campaign only，
-        /// Mission 内被其自守卫跳过）。摘要带会话名（群聊能区分是哪个频道来的消息，Q1a）。
-        /// 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → 密聊入口整体隐藏，
-        /// 密信通知也不弹（点了也开不了，P2-3 语义）——未读计数照常累积。</summary>
-        private static void NotifyIncoming(ImConversation conv)
-        {
-            if (!Settings.Instance.PlotEnabled) return;
-            var msgs = ImChatManager.GetMessages(conv);
-            var last = msgs.LastOrDefault();
-            if (last == null) return;
-            string content = last.Content ?? "";
-            if (content.Length > 24) content = content.Substring(0, 24) + "…";
-            string summary = $"{conv.Title} · {last.SenderName}：{content}";
-            if (conv.Type == ImConversationType.Direct)
-                ImSecretNotifyManager.Show(summary, () => OpenCompact(conv));
-            else
-                NinjaNotificationManager.Show(summary, () => { Open(conv); });
         }
     }
 }

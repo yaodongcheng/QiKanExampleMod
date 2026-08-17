@@ -4137,7 +4137,7 @@
     <string id="LWN_speech_im_reply_greeting" text="Greetings. Your message reached me." />
     <string id="LWN_speech_im_reply_default" text="I received your message. We will speak of this later." />
     <string id="LWN_im_forgotten" text="Older messages have faded from memory." />
-    <string id="LWN_im_first_open" text="Messaging (IM) - talk to heroes across the land, or give orders to companions. Open with the configured key (default O); close with ESC, B, or by clicking outside the panel." />
+    <string id="LWN_im_first_open" text="Messaging (IM) - talk to heroes across the land, or give orders to companions. Open with {OPEN_KEY}; close with ESC, B, or by clicking outside the panel." />
     <string id="LWN_im_status_present" text="present" />
     <string id="LWN_im_status_away" text="away" />
     <string id="LWN_im_status_outside" text="outside" />
@@ -4320,5 +4320,7 @@
     <string id="LWN_plan_action_persuade_fail" text="{NAME} flatly refused your offer and holds a grudge (relation -10)." />
     <string id="LWN_plan_action_war_noinfluence" text="The king shakes his head: the treasury is empty - not now." />
     <string id="LWN_plan_action_war_proposed" text="A declaration of war against {TARGET} has been put to the council (influence -200); awaiting the vote." />
-    <string id="LWN_plan_action_peace_proposed" text="A peace proposal with {TARGET} has been put to the council (influence -200); awaiting the vote." /></strings>
+    <string id="LWN_plan_action_peace_proposed" text="A peace proposal with {TARGET} has been put to the council (influence -200); awaiting the vote." />
+    <string id="LWN_im_open_button_hint" text="Open messaging (key: {KEY})" />
+    <string id="LWN_im_pad_hint" text="{A} confirm · {B} close · {DPAD} navigate" /></strings>
 </base>
