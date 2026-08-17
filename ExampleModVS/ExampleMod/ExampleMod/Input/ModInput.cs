@@ -26,7 +26,7 @@ namespace LivingWorldNpcs
         public const string StealLeave = "StealLeave";
         public const string Plot = "Plot";          // 密谋：对随从下达自然语言命令（G 长按）
         public const string StopPlan = "StopPlan";  // 停止键：对执行中的随从喊停（G 长按，与 Plot 同键；互斥不同时显示）
-        public const string IM = "IM";              // 传讯：打开/关闭 IM 聊天面板（键盘 O；手柄不占键，走通知点击）
+        public const string IM = "IM";              // 传讯：打开/关闭 IM 聊天面板（键盘 O；手柄 ↑ 十字短按 = 面板外唯一呼出键，2026-08-17）
         public const string Intervene = "Intervene"; // 调停：随从犯法被执法时面向守卫按 F（替换 Talk 行，上下文互斥）
     }
 
@@ -108,8 +108,10 @@ namespace LivingWorldNpcs
             ["RT"] = InputKey.ControllerRTrigger, ["R2"] = InputKey.ControllerRTrigger,
             ["L3"] = InputKey.ControllerLThumb,
             ["R3"] = InputKey.ControllerRThumb,
-            ["DUp"] = InputKey.ControllerLUp, ["DDown"] = InputKey.ControllerLDown,
-            ["DLeft"] = InputKey.ControllerLLeft, ["DRight"] = InputKey.ControllerLRight,
+            ["DUp"] = InputKey.ControllerLUp, ["LUp"] = InputKey.ControllerLUp,
+            ["DDown"] = InputKey.ControllerLDown, ["LDown"] = InputKey.ControllerLDown,
+            ["DLeft"] = InputKey.ControllerLLeft, ["LLeft"] = InputKey.ControllerLLeft,
+            ["DRight"] = InputKey.ControllerLRight, ["LRight"] = InputKey.ControllerLRight,
             ["View"] = InputKey.ControllerLOption, ["Touchpad"] = InputKey.ControllerLOption,
             ["Menu"] = InputKey.ControllerROption, ["Options"] = InputKey.ControllerROption,
         };
@@ -461,6 +463,18 @@ namespace LivingWorldNpcs
             if (!_bindings.TryGetValue(interactionId, out InteractionBinding b)) return "";
             if (!UsingGamepad) return b.KbGlyph;
             return IsPlayStation ? b.PsGlyph : b.XboxGlyph;
+        }
+
+        /// <summary>
+        /// 指定引擎键的当前设备提示字形（🔴 2026-08-17 public 化，手柄提示行拼接用）：
+        /// 手柄 = Xbox/PS 逻辑名（A/✕/↑…，_engineDisplay 表）；键盘 = 按键枚举名（手柄提示行仅在
+        /// UsingGamepad 时显示，键盘分支不落地但兜底不崩）。未映射键回退引擎枚举名。
+        /// </summary>
+        public static string GlyphForKey(InputKey key)
+        {
+            if (!UsingGamepad) return key.ToString();
+            var g = GlyphsFor(key);
+            return IsPlayStation ? g.ps : g.xbox;
         }
     }
 }

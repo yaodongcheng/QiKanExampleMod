@@ -187,12 +187,16 @@ namespace LivingWorldNpcs
             try { return Hero.AllAliveHeroes.Any(h => h.StringId == heroId); } catch { return false; }
         }
 
-        /// <summary>构造密信按钮：原版交谈槽位同款样式（Party.TalkSlot.Background + talk_icon 变体）。</summary>
+        /// <summary>构造密信按钮：原版交谈槽位同款样式（Party.TalkSlot.Background + talk_icon 变体）。
+        /// 🔴 2026-08-17（Q4 手柄）：GamepadNavigationIndex=999——注入按钮是纯 C# 动态插入，给显式索引
+        /// 让原版屏 NavigationScope 收编（手柄可聚焦；高值 = 排尾避免与原版按钮索引冲突——验证点，
+        /// 失败 → 探查板传信（L3 可达）为手柄入口）。</summary>
         private static ButtonWidget CreateButton(UIContext context)
         {
             var btn = new ButtonWidget(context)
             {
                 Id = ButtonId,
+                GamepadNavigationIndex = 999,
                 WidthSizePolicy = SizePolicy.Fixed,
                 HeightSizePolicy = SizePolicy.Fixed,
                 SuggestedWidth = 50f,
@@ -343,10 +347,16 @@ namespace LivingWorldNpcs
 
         /// <summary>
         /// 打开密信私聊（探查板 ExecuteSendMessage 同款链路）。
-        /// 🔴 层叠方案（2026-08-17 实机修复）：**不关屏**——IM 层（层序 400）直接叠在队伍屏/家族屏上。
-        ///   之前「PopScreen + 延迟 0.1s 开 IM」实测黑屏：PopScreen 后底层屏激活是帧边界异步的，
-        ///   过渡期内 TopScreen 存在但层未渲染，IM 层叠在空屏上（日志实锤：Open 成功+引导提示弹出，屏幕全黑）。
-        ///   层叠方案无屏幕切换时序；ESC 双消费（IM 与屏各自处理 ESC）实测后处理。
+        /// 🔴 2026-08-17（Q2 方案 A'：关屏再开，替换旧「层叠方案」）：**不层叠**——队伍/家族屏
+        ///   关闭，目标 Hero 写入 ImChatView pending，下一帧 TopScreen 稳定（回 MapScreen）后
+        ///   IM 打开定位私聊（层挂到地图屏，天然避开 PopScreen 过渡期黑屏——旧层叠方案的 ESC 语义
+        ///   不干净 + 完整模式滚动缓存失效隐患一并消除）。
+        /// 🔴 2026-08-17（黑屏两次复现的根治）：**关闭必须走原版路径**——裸 ScreenManager.PopScreen
+        ///   绕过 GameState 栈：CampaignGameState 不恢复 → 地图场景不渲染 → 黑屏（方案 §2 记录 +
+        ///   实机复现）。原版实锤：家族屏关闭 = GameStateManager.PopState（GauntletClanScreen
+        ///   OnExit/关闭按钮同款）；队伍屏 = PartyScreenHelper.CloseScreen（内部 PopState）。
+        ///   队伍屏有未应用变更 → 先走原版 Apply Changes? Inquiry（ExecuteTalk 同款链路，v1.4.8
+        ///   反编译实锤）；反射失败 → 降级直接关屏 + 日志（未保存变更会丢——风险表记录）。
         /// </summary>
         private static void OpenSecretLetter(string heroId)
         {
@@ -360,12 +370,189 @@ namespace LivingWorldNpcs
             var conv = ImChatManager.GetDirectConversation(heroId);
             if (conv == null) { DebugLogger.Log($"[SecretLetter] 会话创建失败: {heroId}"); return; }
 
-            // 🔴 打开前 TouchDirectChat：左栏「最近私聊」列表来自 ImChatStore._directIndex（只有收发过消息才登记），
-            // GetDirectConversation 本身不写索引——不 touch 则左栏看不到该私聊频道（实测：完整模式无、发消息后缩略模式才出现）
-            ImChatStore.TouchDirectChat(heroId, ImChatManager.NowUnixMs());
+            var top = ScreenManager.TopScreen;
+            if (top == null) { DebugLogger.Log("[SecretLetter] TopScreen 为空，无法关屏"); return; }
+            bool isParty = top.GetType().Name.Contains("PartyScreen");
 
-            bool opened = ImChatView.Open(conv);
-            DebugLogger.Log($"[SecretLetter] ImChatView.Open={opened}");
+            // 🔴 队伍屏：未应用变更 → 走原版 Apply Changes? 流程（反射，失败降级）。
+            // 确认回调 = 原版关屏 + 写 pending（密信不走 ExecuteOpenConversation——那是原版交谈按钮的路径）。
+            if (isParty)
+            {
+                bool handled = TryApplyPartyChangesThenPop(top, () =>
+                {
+                    ClosePartyScreenViaHelper();
+                    ImChatView.SetPendingSecretLetter(heroId);
+                });
+                if (handled) return;   // 反射成功：原版 Inquiry 接管（弹窗或已直接确认），密信按钮到此为止
+            }
+
+            // 家族屏（无未保存变更概念）：原版关闭路径 = GameStateManager.PopState（GauntletClanScreen
+            // OnExit/关闭按钮同款，反编译实锤）——裸 ScreenManager.PopScreen 绕过 GameState 栈 →
+            // CampaignGameState 不恢复 → 地图黑屏（两次实机复现）
+            CloseCurrentScreenViaGameState(isParty);
+            ImChatView.SetPendingSecretLetter(heroId);
+            DebugLogger.Log($"[SecretLetter] 关屏（{(isParty ? "队伍屏" : "家族屏")}），pending hero={heroId}");
+        }
+
+        /// <summary>队伍屏原版关闭。降级链（🔴 2026-08-17 黑屏教训：必须走 GameState 栈，裸 PopScreen 会黑屏）：
+        /// ① PartyScreenHelper.CloseScreen（原版实锤路径，内部 ClosePartyPresentation → GameStateManager.PopState；
+        ///    反射调用——v1.2.12 可能无此类/单参签名，Latest 双参）；② GameStateManager.PopState（家族屏同款，
+        ///    队伍屏的 PartyState 也是 GameState，直接弹等效）；③ ScreenManager.PopScreen（最后兜底，黑屏风险标注）。</summary>
+        private static void ClosePartyScreenViaHelper()
+        {
+            try
+            {
+                var helperType = Type.GetType("TaleWorlds.CampaignSystem.PartyScreenHelper, TaleWorlds.CampaignSystem");
+                if (helperType == null) { DebugLogger.Log("[SecretLetter] PartyScreenHelper 类型未找到（v1.2.12 兼容）"); }
+                else
+                {
+                    const BindingFlags flags = BindingFlags.Public | BindingFlags.Static;
+                    var m2 = helperType.GetMethod("CloseScreen", flags, null, new[] { typeof(bool), typeof(bool) }, null);
+                    if (m2 != null) { m2.Invoke(null, new object[] { false, false }); DebugLogger.Log("[SecretLetter] 队伍屏 PartyScreenHelper.CloseScreen 关闭"); return; }
+                    var m1 = helperType.GetMethod("CloseScreen", flags, null, new[] { typeof(bool) }, null);
+                    if (m1 != null) { m1.Invoke(null, new object[] { false }); DebugLogger.Log("[SecretLetter] 队伍屏 PartyScreenHelper.CloseScreen(单参) 关闭"); return; }
+                    DebugLogger.Log("[SecretLetter] CloseScreen 方法未找到（1参/2参均无）");
+                }
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SecretLetter] PartyScreenHelper.CloseScreen 反射失败: {ex.Message}");
+            }
+            // ② 降级：GameStateManager.PopState（家族屏已验证不黑屏的原版路径）
+            try
+            {
+                TaleWorlds.Core.Game.Current.GameStateManager.PopState(0);
+                DebugLogger.Log("[SecretLetter] 队伍屏降级 PopState 关闭");
+                return;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SecretLetter] PopState 降级失败: {ex.Message}");
+            }
+            // ③ 最后兜底
+            DebugLogger.Log("[SecretLetter] 降级 ScreenManager.PopScreen（⚠️ 绕过 GameState 栈，地图可能黑屏）");
+            ScreenManager.PopScreen();
+        }
+
+        /// <summary>家族/队伍屏原版关闭（GameState 栈路径）：家族 = GameStateManager.PopState（GauntletClanScreen
+        /// 关闭按钮同款，反编译实锤）；队伍 = 见 <see cref="ClosePartyScreenViaHelper"/>（本方法 isParty 分支兜底）。
+        /// PopState 会同步驱动屏幕栈 Pop——不需要再调 ScreenManager.PopScreen。</summary>
+        private static void CloseCurrentScreenViaGameState(bool isParty)
+        {
+            if (isParty)
+            {
+                ClosePartyScreenViaHelper();
+                return;
+            }
+            try
+            {
+                // GauntletClanScreen.OnExit 同款：GameStateManager.PopState(0)（默认参，双版本稳定）
+                TaleWorlds.Core.Game.Current.GameStateManager.PopState(0);
+                DebugLogger.Log("[SecretLetter] 家族屏 PopState 关闭（原版路径）");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SecretLetter] PopState 失败，降级 PopScreen: {ex.Message}");
+                ScreenManager.PopScreen();
+            }
+        }
+
+        /// <summary>
+        /// 🔴 Q2（2026-08-17）：队伍屏未应用变更 → 走原版 Apply Changes? Inquiry（反射实现，
+        /// ExecuteTalk 反编译链路实锤 v1.4.8：`IsThereAnyChanges && IsDoneActive → ShowInquiry(Apply Changes?)
+        /// → 确认后 DoneLogic(isForced:false)`）。反射目标跨版本稳定（PartyVM/PartyScreenLogic 多年未改名），
+        /// 失败 → 返回 false 由调用方降级（直接 PopScreen + 日志——未保存变更会丢，风险表记录）。
+        /// 确认回调 = 应用成功 → onConfirmed（关屏 + 写 pending）；应用失败 → 原版 Failed 弹窗。
+        /// 无变更 → 直接 onConfirmed（不弹窗）。</summary>
+        private static bool TryApplyPartyChangesThenPop(ScreenBase top, Action onConfirmed)
+        {
+            try
+            {
+                // ① PartyVM 实例：GauntletPartyScreen._dataSource（私有字段，反射读——反编译实锤 v1.4.8）
+                var vm = top.GetType().GetField("_dataSource", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(top);
+                if (vm == null) { DebugLogger.Log("[SecretLetter] Apply Changes 反射：PartyVM 获取失败"); return false; }
+                var vmType = vm.GetType();
+
+                // ② PartyScreenLogic 实例（PartyVM 属性/字段名不确定——反编译 v1.4.8 为驼峰私有字段
+                // partyScreenLogic；按类型名匹配遍历容错，属性优先）
+                object logic = null;
+                var prop = vmType.GetProperty("PartyScreenLogic", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                if (prop != null) logic = prop.GetValue(vm);
+                if (logic == null)
+                {
+                    var field = vmType.GetField("PartyScreenLogic", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    if (field != null) logic = field.GetValue(vm);
+                }
+                if (logic == null)
+                {
+                    foreach (var f in vmType.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                    {
+                        if (f.FieldType.Name == "PartyScreenLogic") { logic = f.GetValue(vm); break; }
+                    }
+                }
+                if (logic == null)
+                {
+                    foreach (var p in vmType.GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+                    {
+                        if (p.PropertyType.Name == "PartyScreenLogic") { logic = p.GetValue(vm); break; }
+                    }
+                }
+                if (logic == null) { DebugLogger.Log("[SecretLetter] Apply Changes 反射：PartyScreenLogic 获取失败"); return false; }
+                var logicType = logic.GetType();
+                const BindingFlags flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
+
+                // ③ 无变更 → 不弹窗，直接继续（关屏 + pending）
+                if (!((bool?)logicType.GetMethod("IsThereAnyChanges", flags)?.Invoke(logic, null) ?? false))
+                {
+                    onConfirmed?.Invoke();
+                    return true;
+                }
+                // IsDoneActive false（不能应用）→ Reset 语义复杂，直接降级关屏（原版 ExecuteTalk 的
+                // Reset Changes? 分支是「进对话前重置」——密信场景玩家意图是离开，等价关屏）
+                if (!((bool?)logicType.GetMethod("IsDoneActive", flags)?.Invoke(logic, null) ?? true))
+                {
+                    onConfirmed?.Invoke();
+                    return true;
+                }
+
+                // ④ 原版 Apply Changes? Inquiry（与 ExecuteTalk 完全一致：原版 key + yes/no + 确认回调；
+                // GameTexts 在 TaleWorlds.Core（SaveErrorReporter 先例），TextObject 在 TaleWorlds.Localization）
+                var yesText = TaleWorlds.Core.GameTexts.FindText("str_yes")?.ToString() ?? "Yes";
+                var noText = TaleWorlds.Core.GameTexts.FindText("str_no")?.ToString() ?? "No";
+                InformationManager.ShowInquiry(new InquiryData(
+                    new TaleWorlds.Localization.TextObject("{=pF0SqQxL}Apply Changes?").ToString(),
+                    new TaleWorlds.Localization.TextObject("{=6DuCoCc2}You need to confirm your changes in order to engage in a conversation.").ToString(),
+                    true, true, yesText, noText,
+                    () =>
+                    {
+                        try
+                        {
+                            var doneOk = logicType.GetMethod("DoneLogic", flags)?.Invoke(logic, new object[] { false });
+                            if (doneOk is bool b && b)
+                                onConfirmed?.Invoke();
+                            else
+                            {
+                                // 原版 Failed to Apply Changes 弹窗
+                                var okText = TaleWorlds.Core.GameTexts.FindText("str_ok")?.ToString() ?? "OK";
+                                InformationManager.ShowInquiry(new InquiryData(
+                                    new TaleWorlds.Localization.TextObject("{=1l4kpBDK}Failed to Apply Changes").ToString(),
+                                    new TaleWorlds.Localization.TextObject("{=sFseX1Ka}Could not apply changes.").ToString(),
+                                    true, false, okText, string.Empty, null, null));
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            DebugLogger.Log($"[SecretLetter] Apply Changes 确认回调异常: {ex.Message}");
+                        }
+                    },
+                    null));
+                return true;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[SecretLetter] Apply Changes 反射失败，降级直接关屏: {ex.Message}");
+                return false;
+            }
         }
 
         // ───────────────────────── 工具 ─────────────────────────

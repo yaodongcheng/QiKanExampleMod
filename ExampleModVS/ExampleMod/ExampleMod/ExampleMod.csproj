@@ -372,8 +372,9 @@
     <Compile Include="Notify\CustomNotify.cs" />
     <Compile Include="Notify\NinjaNotificationMissionView.cs" />
     <Compile Include="Notify\NinjaNotificationVM.cs" />
-    <Compile Include="Notify\ImSecretNotifyManager.cs" />
-    <Compile Include="Notify\ImSecretNotifyVM.cs" />
+    <!-- 🔴 Q5（2026-08-17）：IM 常驻呼出按钮（层序 350、零输入限制、未读徽标 + 脉冲跳动）；
+         ImSecretNotify（ninjareport 密信圆环）2026-08-17 用户裁定废除——私聊通知统一由呼出按钮徽标承担 -->
+    <Compile Include="Notify\ImChatOpenButtonManager.cs" />
     <!-- Planner（密谋命令系统：意图分类 → 计划生成 → 确定性执行；含动作系统三件套） -->
     <Compile Include="Planner\ActionRegistry.cs" />
     <Compile Include="Planner\ActionHandler.cs" />

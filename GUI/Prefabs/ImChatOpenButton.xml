@@ -1,0 +1,55 @@
+<Prefab>
+  <Window Id="LWN">
+    <!-- 🔴 Q5（2026-08-17）：IM 常驻呼出按钮层（层序 350，GUI/Prefabs/ImChatOpenButton.xml）。
+         🔴 零输入限制纪律：本层不调 SetInputRestrictions——全屏根 DoNotAcceptEvents=true 穿透，
+         点击靠引擎 hit-test 门控（层只在鼠标位于层内 DoNotAcceptEvents=false 的 widget 矩形时
+         获得鼠标输入）。常驻层任何输入拦截 = 常驻拦输入 = pitfalls 灾难（2026-08-11 拦鼠标教训）。
+         交互全部由 C# 驱动（ImChatOpenButtonManager：点击/hover/徽标/跳动动画），无 VM 绑定。 -->
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+            DoNotAcceptEvents="true">
+      <Children>
+
+        <!-- 🔴 按钮：右缘下部（VerticalAlignment=Bottom + MarginBottom 140，56×56）——
+             避让右缘中部的密信通知圆环带（ImSecretNotify.xml 实锤：右缘垂直居中 + MarginRight 20，
+             130×130）与 NinjaReport 金环，不重叠/不遮挡。
+             样式 = Party.TalkSlot.Background 槽位底 + conversation_icon 对话图标（2026-08-17 用户裁定：
+             与队伍屏/家族屏密信注入按钮同一视觉语言——conversation_icon = 「打开消息」语义，
+             不用 Brush_CircleButton_SecretLetter 阴谋插图——那是「有密信来了」的通知语义）。 -->
+        <ButtonWidget Id="LWN_ImChatOpenButton" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                      SuggestedWidth="56" SuggestedHeight="56"
+                      HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                      MarginRight="20" MarginBottom="140"
+                      Brush="Party.TalkSlot.Background"
+                      DoNotPassEventsToChildren="true"
+                      UpdateChildrenStates="true">
+          <Children>
+            <!-- 对话图标（与注入密信按钮同款：SPGeneral\GameMenu\conversation_icon） -->
+            <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                         SuggestedWidth="32" SuggestedHeight="32"
+                         HorizontalAlignment="Center" VerticalAlignment="Center"
+                         Sprite="SPGeneral\GameMenu\conversation_icon"
+                         DoNotAcceptEvents="true"/>
+            <!-- 未读徽标：按钮右上角小圆底 + 数字（总未读口径，ImChatStore.GetTotalUnread）。
+                 0 → 隐藏；>99 → 「99+」；新消息 → 3s 正弦脉冲跳动（C# 驱动 PositionYOffset + Alpha）。 -->
+            <Widget Id="LWN_ImChatOpenBadge" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                    SuggestedWidth="22" SuggestedHeight="22"
+                    HorizontalAlignment="Right" VerticalAlignment="Top"
+                    PositionXOffset="8" PositionYOffset="-6"
+                    Sprite="BlankWhiteCircle" Color="#CC2222FF"
+                    IsVisible="false"
+                    DoNotAcceptEvents="true">
+              <Children>
+                <TextWidget Id="LWN_ImChatOpenBadgeText" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#FFFFFFFF"
+                            Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                            Text=""
+                            DoNotAcceptEvents="true"/>
+              </Children>
+            </Widget>
+          </Children>
+        </ButtonWidget>
+
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

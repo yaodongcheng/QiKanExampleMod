@@ -152,6 +152,30 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>
+        /// 🔴 2026-08-17（呼出按钮徽标口径）：总未读数 = 三固定频道（party/clan/kingdom）
+        /// + 全部私聊索引（_directIndex 全量，非左栏显示上限 6）之和。查看会话后 ClearUnread → 数字回落。
+        /// </summary>
+        public static int GetTotalUnread()
+        {
+            lock (_lock)
+            {
+                int total = 0;
+                foreach (var cid in GroupChannelIds)
+                {
+                    _unread.TryGetValue(cid, out var v);
+                    total += v;
+                }
+                foreach (var e in _directIndex)
+                {
+                    if (e == null || string.IsNullOrEmpty(e.HeroId)) continue;
+                    _unread.TryGetValue("direct_" + e.HeroId, out var v);
+                    total += v;
+                }
+                return total;
+            }
+        }
+
         // 🔴 2026-08-12（合并闲聊/计划模式）：ImMode/GetMode/SetMode/_modes 已整体删除——
         // 模式指示文本改为从会话状态派生（ImCommandFlow.GetPhase），玩家消息恒走闲聊管线。
 
