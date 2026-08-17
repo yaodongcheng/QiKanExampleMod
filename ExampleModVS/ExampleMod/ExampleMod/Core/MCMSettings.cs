@@ -46,7 +46,7 @@ namespace LivingWorldNpcs
         // Order = 5：显示倒序 → Order 最大 = 列表最顶部（玩法总闸置顶）
         // 🔴 2026-08-12（合并闲聊/计划模式）：入口文案随交互行统一为「密信」——
         // 打开私聊后默认闲聊，NPC 判 need_plan 才进计划管线
-        [SettingPropertyBool("{=LWN_mcm_plot_enabled}Secret Letters", Order = 5, RequireRestart = false,
+        [SettingPropertyBool("{=LWN_mcm_plot_enabled}Messaging", Order = 5, RequireRestart = false,
             HintText = "{=LWN_mcm_plot_enabled_hint}When enabled, you can write natural-language secret letters to companions (press the letter key near a companion). Disabled by default; when off, the letter entry is hidden but already-running plans can still be stopped.")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public bool PlotEnabled

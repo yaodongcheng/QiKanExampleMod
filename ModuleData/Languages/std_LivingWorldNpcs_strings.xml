@@ -3905,7 +3905,7 @@
     
     
     <string id="LWN_ui_npcintent_executingcommand" text="Carrying out your order" />
-    <string id="LWN_ui_interact_plot" text="Secret Letter" />
+    <string id="LWN_ui_interact_plot" text="Message" />
     <string id="LWN_ui_interact_stopplan" text="Stop Action" />
     <string id="LWN_plan_no_llm" text="The companion cannot think of a tactic right now." />
     <string id="LWN_plan_stop_face" text="As you say. Stopping." />
@@ -4003,8 +4003,8 @@
     <string id="LWN_dialogue_companion_crime_deny_ok" text="...Very well. Leave, then. But keep him away from here." />
     <string id="LWN_dialogue_companion_crime_handover_msg" text="You hand over {NAME} to the guards." />
     <string id="LWN_crime_suspect_unknown" text="that companion of yours" />
-    <string id="LWN_mcm_plot_enabled" text="Secret Letters(tested)" />
-    <string id="LWN_mcm_plot_enabled_hint" text="When enabled, you can write natural-language secret letters to companions (press the letter key near a companion). Disabled by default; when off, the letter entry is hidden but already-running plans can still be stopped." />
+    <string id="LWN_mcm_plot_enabled" text="Messaging (tested)" />
+    <string id="LWN_mcm_plot_enabled_hint" text="When enabled, you can send natural-language messages to companions (press the message key near a companion). Disabled by default; when off, the messaging entry is hidden but already-running plans can still be stopped." />
     <string id="LWN_mcm_hostile_on_allies" text="Allow Hostile Interactions on Allies" />
     <string id="LWN_mcm_hostile_on_allies_hint" text="When disabled, knockout/pickpocket/loot/attack are blocked on allies — friendly definition: config.json `FriendlyRelationCriteria` (default: same party + same clan) and `FriendlyRelationThreshold` (relation value). Enabled by default (hostile interactions require a long press). Allies always ignore your crimes against strangers, regardless of this setting." />
     <!-- ── IM 传讯系统（LWN_im_*）── -->
@@ -4136,7 +4136,7 @@
     <string id="LWN_speech_im_reply_greeting" text="Greetings. Your message reached me." />
     <string id="LWN_speech_im_reply_default" text="I received your message. We will speak of this later." />
     <string id="LWN_im_forgotten" text="Older messages have faded from memory." />
-    <string id="LWN_im_first_open" text="Messaging (IM) - talk to heroes across the land, or give orders to companions. Open with {OPEN_KEY}; close with ESC, B, or by clicking outside the panel." />
+    <string id="LWN_im_first_open" text="Messaging - talk to heroes across the land, or give orders to companions. Open with {OPEN_KEY}; close with ESC, B, or by clicking outside the panel." />
     <string id="LWN_im_status_present" text="present" />
     <string id="LWN_im_status_away" text="away" />
     <string id="LWN_im_status_outside" text="outside" />
@@ -4321,5 +4321,6 @@
     <string id="LWN_plan_action_war_proposed" text="A declaration of war against {TARGET} has been put to the council (influence -200); awaiting the vote." />
     <string id="LWN_plan_action_peace_proposed" text="A peace proposal with {TARGET} has been put to the council (influence -200); awaiting the vote." />
     <string id="LWN_im_open_button_hint" text="Open messaging (key: {KEY})" />
-    <string id="LWN_im_pad_hint" text="{A} confirm · {B} close · {DPAD} navigate" /></strings>
+    <string id="LWN_im_pad_hint" text="{A} confirm · {B} close · {DPAD} navigate" />
+    <string id="LWN_im_compact_camera_hint" text="Compact panel active: mouse controls the panel, hold right mouse button to rotate the camera." /></strings>
 </base>
