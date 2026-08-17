@@ -1640,7 +1640,9 @@ namespace LivingWorldNpcs
             return false;
         }
 
-        /// <summary>密令卡片操作（Phase 4 ImCommandFlow 处理）。</summary>
+        /// <summary>密令卡片操作（Phase 4 ImCommandFlow 处理）。
+        /// 🔴 2026-08-17（用户裁定）：批准执行 → 自动切成缩略模式（玩家该盯屏幕看执行，不被完整
+        /// 面板挡住；拒绝/中止保持面板现状——玩家可能继续操作）。</summary>
         public static void HandlePlanAction(ImMessage msg, bool approve, bool abort = false)
         {
             if (msg == null) return;
@@ -1648,10 +1650,13 @@ namespace LivingWorldNpcs
             {
                 if (abort) ImCommandFlow.Abort(msg);
                 else ImCommandFlow.Resolve(msg, approve);
-                // 🔴 卡片状态变更后强制重建消息列表：CanApprove/CanReject/CanAbort 是只读计算属性，
+                // 卡片状态变更后强制重建消息列表：CanApprove/CanReject/CanAbort 是只读计算属性，
                 // 增量追加不会刷新已存在消息的按钮状态（批准后「同意/拒绝」会常驻、「中止」不出现）
                 if (_vm != null) _vm.Messages.Clear();
                 RefreshMessages();
+                // 🔴 2026-08-17（用户裁定）：批准执行 → 自动缩略（看执行）
+                if (approve && !abort && _mode == ImChatMode.Full)
+                    ToggleCompact();
             }
             catch (Exception ex)
             {
@@ -1705,8 +1710,9 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[ImChat] 动作提议执行失败 {msg.ActionCode}: {ex.Message}");
                 }
-                // 🔴 2026-08-11（Q3）：同意后自动关闭 IM——开打了玩家该盯屏幕，而不是手动关面板
-                Close();
+                // 🔴 2026-08-11（Q3）：同意后自动切缩略模式——开打了玩家该盯屏幕，而不是手动收面板
+                //（2026-08-17 用户裁定：改为缩略而非关闭——执行状态仍可见）
+                if (_mode == ImChatMode.Full) ToggleCompact();
                 return;
             }
 
