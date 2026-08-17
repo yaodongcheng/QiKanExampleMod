@@ -4322,5 +4322,8 @@
     <string id="LWN_plan_action_peace_proposed" text="A peace proposal with {TARGET} has been put to the council (influence -200); awaiting the vote." />
     <string id="LWN_im_open_button_hint" text="Open messaging (key: {KEY})" />
     <string id="LWN_im_pad_hint" text="{A} confirm · {B} close · {DPAD} navigate" />
-    <string id="LWN_im_compact_camera_hint" text="Compact panel active: mouse controls the panel, hold right mouse button to rotate the camera." /></strings>
+    <string id="LWN_im_compact_camera_hint" text="Compact panel active: mouse controls the panel, hold right mouse button to rotate the camera." />
+    <string id="LWN_im_open_button_pad_hint" text="Open messaging" />
+    <string id="LWN_im_compact_camera_restored" text="Mouse control restored: move the mouse to rotate the camera." />
+</strings>
 </base>

@@ -243,6 +243,9 @@ namespace LivingWorldNpcs
                 _lastUsingGamepad = ModInput.UsingGamepad;
                 UpdateGamepadFreeze();
                 _vm?.RefreshPadHint();
+                // 🔴 2026-08-17（用户反馈）：Mission 内直接以缩略模式打开（_mode 记忆——上次关闭时是
+                // 缩略，下一次开启仍是缩略）→ 同样提示镜头操作变化（不只「放大→缩略」路径）
+                ShowCompactCameraHintIfNeeded();
                 return true;
             }
             catch (Exception ex)
@@ -255,6 +258,16 @@ namespace LivingWorldNpcs
 
         public static void Close()
         {
+            // 🔴 2026-08-17（用户反馈：缩略模式下直接叉掉界面也要提示）：关闭面板（叉掉/ESC/B）时
+            // 若处于缩略模式 → 鼠标控制恢复提示（ToggleExpand 是缩略→完整，Close 是直接关——都要提示）。
+            // Mission 退出时 Mission.Current 可能已 null → 不提示（回大地图本来就是拖拽操作）。
+            if (_mode == ImChatMode.Compact && Mission.Current != null)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // 本地化：缩略模式镜头恢复提示（LWN_im_compact_camera_restored）
+                    LWNTextHelper.ResolveText("LWN_im_compact_camera_restored",
+                        "Mouse control restored: move the mouse to rotate the camera.")));
+            }
             // 🔴 Q1：IM 关闭 = 密谋输入阶段结束（Talk 行互斥恢复；执行中的计划不受影响——StopPlan 独立判断）
             PlanCommandFlow.End();
             // 🔴 Q4（2026-08-17）：手柄模态解冻（关闭面板 = 角色输入还给玩家；Mission 可能已退出，
@@ -460,27 +473,43 @@ namespace LivingWorldNpcs
 
         /// <summary>完整模式 → 缩略模式（标题带「缩略」按钮，关闭按钮左侧）。
         /// 🔴 2026-08-17（用户裁定：缩略 = UI 模式）：切缩略时 Mission 内提示镜头操作变化
-        ///（鼠标 = 面板操作，按住右键旋转镜头）——DisplayMessage 一次性提示，本地化。</summary>
+        ///（鼠标 = 面板操作，按住右键旋转镜头）——统一走 <see cref="ShowCompactCameraHintIfNeeded"/>
+        ///（覆盖「Mission 内直接以缩略打开」路径，见 Open）。</summary>
         public static void ToggleCompact()
         {
             if (_mode == ImChatMode.Compact) return;
             _mode = ImChatMode.Compact;
             SwitchMode();
-            if (Mission.Current != null)
-            {
-                // 本地化：缩略模式镜头提示（LWN_im_compact_camera_hint）
-                InformationManager.DisplayMessage(new InformationMessage(
-                    LWNTextHelper.ResolveText("LWN_im_compact_camera_hint",
-                        "Compact panel active: mouse controls the panel, hold right mouse button to rotate the camera.")));
-            }
+            ShowCompactCameraHintIfNeeded();
         }
 
-        /// <summary>缩略模式 → 完整模式（缩略标题行「放大」按钮）。</summary>
+        /// <summary>缩略模式 → 完整模式（缩略标题行「放大」按钮）。
+        /// 🔴 2026-08-17（用户反馈）：退出缩略模式 = 鼠标控制恢复 → Mission 内提示（光标模式下
+        /// 鼠标移动不转向，玩家需要知道恢复操作方式）。</summary>
         public static void ToggleExpand()
         {
             if (_mode != ImChatMode.Compact) return;
             _mode = ImChatMode.Full;
             SwitchMode();
+            if (Mission.Current != null)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(
+                    // 本地化：缩略模式镜头恢复提示（LWN_im_compact_camera_restored）
+                    LWNTextHelper.ResolveText("LWN_im_compact_camera_restored",
+                        "Mouse control restored: move the mouse to rotate the camera.")));
+            }
+        }
+
+        /// <summary>缩略模式镜头提示（🔴 2026-08-17 用户反馈：**所有进入缩略模式的路径**都要提示——
+        /// ① 放大→缩略（ToggleCompact）；② Mission 内直接以缩略打开（Open 按 _mode 记忆——上次关闭时
+        /// 是缩略，下一次开启仍是缩略）。大地图无镜头问题（地图拖拽），不提示。</summary>
+        private static void ShowCompactCameraHintIfNeeded()
+        {
+            if (_mode != ImChatMode.Compact || Mission.Current == null) return;
+            InformationManager.DisplayMessage(new InformationMessage(
+                // 本地化：缩略模式镜头提示（LWN_im_compact_camera_hint）
+                LWNTextHelper.ResolveText("LWN_im_compact_camera_hint",
+                    "Compact panel active: mouse controls the panel, hold right mouse button to rotate the camera.")));
         }
 
         /// <summary>以缩略模式打开并定位会话（密信通知点击入口）。

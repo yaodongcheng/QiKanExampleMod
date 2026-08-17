@@ -49,6 +49,36 @@
           </Children>
         </ButtonWidget>
 
+        <!-- 🔴 2026-08-17（按键绑定提示）：按钮下方键帽模式提示（InteractArea 同款视觉）——
+             [键帽 30×30 近白底纹 + 键名字形] + 动作名（「打开传讯」）。**所有设备都显示**（键鼠 = [O]，
+             手柄 = [↑]；字形经 ModInput.Glyph 按设备动态，config 改绑自动跟随——用户反馈 2026-08-17）。
+             C# 驱动 ImChatOpenButtonManager（可见性随按钮）；hover 提示（ShowHint）为补充详情。 -->
+        <ListPanel Id="LWN_ImChatOpenButtonPadHint" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                   StackLayout.LayoutMethod="HorizontalLeftToRight"
+                   HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                   MarginRight="20" MarginBottom="76"
+                   IsVisible="false"
+                   DoNotAcceptEvents="true">
+          <Children>
+            <!-- 键帽：30×30 近白底纹 + 键名（↑ 字形，C# 驱动） -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30">
+              <Children>
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                        Sprite="BlankWhiteSquare_9" Color="#E8E8E8FF" />
+                <TextWidget Id="LWN_ImChatOpenButtonPadHintKey" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Text="" Brush="MyBrush_24" TextColor="#000000FF"
+                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                            DoNotAcceptEvents="true"/>
+              </Children>
+            </Widget>
+            <!-- 动作名（「打开传讯」，本地化） -->
+            <TextWidget Id="LWN_ImChatOpenButtonPadHintText" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                        Text="" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#DDDDDDFF"
+                        VerticalAlignment="Center" MarginLeft="6"
+                        DoNotAcceptEvents="true"/>
+          </Children>
+        </ListPanel>
+
       </Children>
     </Widget>
   </Window>

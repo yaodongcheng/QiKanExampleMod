@@ -128,6 +128,12 @@ namespace LivingWorldNpcs
 
         public static InteractionMissionView Instance { get; private set; }
 
+        /// <summary>🔴 2026-08-17（呼出按钮避让）：InteractArea（玩法行 UI）是否可见——面向 NPC 时有
+        /// 可用玩法行 → 显示（右下角从底部 180 向上生长）。传讯呼出按钮（右缘下部 MarginBottom 140）
+        /// 与其位置重叠 → 按钮在该时段隐藏（互动结束自动恢复）。大世界 Instance 为 null → false。</summary>
+        public static bool IsInteractAreaVisible =>
+            Instance != null && Instance._interactVM != null && Instance._interactVM.IsVisible;
+
         public override void OnMissionScreenInitialize()
         {
             base.OnMissionScreenInitialize();
