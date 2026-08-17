@@ -16,8 +16,9 @@ namespace LivingWorldNpcs
     ///   双端每帧墙钟钩子，ImScreenFrameTickPatch → ScreenBase.OnFrameTick 同款轮子，
     ///   wheels.d/im.md）；Instance 由 RegisterEvents 挂接，入口 ?. 空安全
     /// - 墙钟帧 dt 累积 ≥15s 且数据就绪（Campaign + 王国 + 活英雄）→ 检查（15s = 用户裁定轮询间隔）
-    /// - Generating → 跳过（防重入）；Done（已生成指纹匹配）/ Failed（生成失败）→ 本会话不再重试
-    ///   （Failed 防 LLM 宕机时每 3s 打 API 的重试风暴；状态是 Behavior 实例字段，进档天然复位）
+    /// - Generating → 跳过（防重入）；Failed → 本会话不再重试（防 LLM 宕机时重试风暴；
+    ///   状态是 Behavior 实例字段，进档天然复位）；Done → 保留 300s 低频指纹巡检
+    ///   （会话内阵营覆灭/新建/领袖更替 → 指纹变 → 重新生成，动态世界漂移兜底）
     /// - 🔴 未配置 LLM（铁律 1）→ 保持 **Idle**（不做高成本枚举）——玩家在 MCM 填好配置后
     ///   下一个 tick **自动触发生成**，无需重进档（2026-08-17 用户询问触发时机后修正）
     /// - 指纹判定：blob 空 或 指纹 ≠ 当前指纹 → 生成；否则置 Done
@@ -37,6 +38,9 @@ namespace LivingWorldNpcs
         /// 15s 足够"配置就绪自动触发"的响应性，且把轮询成本摊薄 5 倍。结果消费仍每帧（lock + 状态判断零成本）。
         /// 首次若未成功（未配置/数据未就绪/失败），后续重复检查一律按 15s。</summary>
         private const float GenerateIntervalSeconds = 15f;
+        /// <summary>Done 后指纹巡检间隔（墙钟秒，2026-08-17 用户裁定 300s）：动态世界漂移兜底——
+        /// 会话内阵营覆灭/新建/领袖更替 → 指纹变 → 重新生成（一档连玩数小时不读档也保持新鲜）。</summary>
+        private const float RecheckIntervalSeconds = 300f;
         private const int MaxTokens = 600;
         private const int TimeoutMs = 30000;
 
@@ -45,6 +49,7 @@ namespace LivingWorldNpcs
 
         private float _accumDt;
         private bool _firstCheckPassed;  // 首次 5s 快速检查已执行过 → 之后一律 15s 间隔
+        private float _recheckDt;        // Done 后指纹巡检累积（≥RecheckIntervalSeconds 比对一次）
         private readonly object _lock = new object();
         private string _result;          // 线程池回写，主线程 Tick 消费
         private bool _resultReady;
@@ -83,16 +88,35 @@ namespace LivingWorldNpcs
 
         /// <summary>墙钟帧驱动（ImChatView.Tick 每帧调用——Mission/Campaign 双端，暂停也运转）。
         /// 首次 5s 快速检查，之后 15s 间隔（首次未成功后续一律 15s）；每帧先消费生成结果。
-        /// Done/Failed 后停止轮询（成功即收工；失败本会话不重试——进档状态复位重新开始）。</summary>
+        /// Failed 停止轮询（失败本会话不重试——进档状态复位重新开始）；Done 保留 300s 低频指纹巡检
+        /// （会话内阵营覆灭/新建/领袖更替 → 指纹变 → 重新生成，动态世界漂移兜底）。</summary>
         public void OnFrameTick(float dt)
         {
             try
             {
                 // 每帧消费生成结果（状态非 Generating 时零开销）
                 ConsumeResult();
-                // 🔴 成功/失败即收工：停止 15s 轮询累积（成功无需再检查；失败防重试风暴）
-                if (CurrentState == State.Done || CurrentState == State.Failed)
+                // 🔴 失败即收工：停止轮询（防 LLM 宕机重试风暴；进档状态复位重新开始）
+                if (CurrentState == State.Failed)
                     return;
+                // Done 后低频指纹巡检：300s 墙钟比对一次；指纹变（阵营覆灭/新建/领袖更替）→ 重新生成
+                if (CurrentState == State.Done)
+                {
+                    _recheckDt += dt;
+                    if (_recheckDt >= RecheckIntervalSeconds)
+                    {
+                        _recheckDt = 0f;
+                        string reFp = WorldBackgroundProvider.GetFingerprint();
+                        // 空指纹 = 枚举异常（GetFingerprint 内部兜底返回 ""）→ 跳过，防误重生成
+                        if (!string.IsNullOrEmpty(reFp) && reFp != WorldBackgroundStore.Fingerprint)
+                        {
+                            DebugLogger.Log($"[WorldBg] 指纹巡检（{RecheckIntervalSeconds}s）：存档指纹={WorldBackgroundStore.Fingerprint} 当前={reFp} 不同 → 重新生成");
+                            CurrentState = State.Idle;
+                            _accumDt = 0f;
+                        }
+                    }
+                    return;
+                }
                 float interval = _firstCheckPassed ? GenerateIntervalSeconds : FirstCheckIntervalSeconds;
                 _accumDt += dt;
                 if (_accumDt < interval) return;

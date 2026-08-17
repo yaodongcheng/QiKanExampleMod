@@ -254,7 +254,7 @@ public static void ScheduleDelayedAction(Action action, float delaySec);
 **WorldBackgroundBehavior 范式（后台 LLM 生成任务骨架，照抄）**：
 - **静态实例挂接**：CampaignBehaviorBase 的 `RegisterEvents` 设 `Instance = this`（SyncData 存档生命周期保留；退档悬挂由 `?.` 空安全兜底，进档新实例覆盖）
 - 状态机 `Idle / Generating / Done / Failed`（实例字段，进档天然复位；Failed = 本会话不再重试，防 LLM 宕机时重试风暴）
-- **快速首检 + 低频重试（2026-08-17 用户裁定）**：首次 `FirstCheckIntervalSeconds=5s`，之后 `GenerateIntervalSeconds=15s`；**Done/Failed 后停止轮询累积**（成功即收工；失败不重试）；未配置 LLM / 数据未就绪 → 保持 Idle 按 15s 重试（MCM 填好配置后下个 tick 自动触发，无需重进档）
+- **快速首检 + 低频重试（2026-08-17 用户裁定）**：首次 `FirstCheckIntervalSeconds=5s`，之后 `GenerateIntervalSeconds=15s`；**Done 后保留 300s 指纹巡检**（`RecheckIntervalSeconds`——会话内阵营覆灭/新建/领袖更替 → 指纹变 → 重新生成，动态世界漂移兜底；巡检空指纹跳过防误重生成）；Failed 停止轮询（失败不重试，防重试风暴）；未配置 LLM / 数据未就绪 → 保持 Idle 按 15s 重试（MCM 填好配置后下个 tick 自动触发，无需重进档）
 - 结果消费：LLM 线程池回写 → `lock` 入队 → 主线程每帧 `ConsumeResult`（async-over-sync 死锁纪律同「事件广播线程模型」三段式，wheels.d/im.md 本卷）
 - **指纹失效判定**：`culture/kingdom/hero(StringId 排序序列，每王国 ≤3 关键英雄)+lang` 指纹——blob 空或指纹变 → 重生成；结果回来**复核指纹 + 战役纪元**（`Campaign.Current` 实例引用比较）不符丢弃（语言切换/读档跨战役污染防护）；lang 口径必须 `LWNTextHelper.GetReplyLanguageInstruction()`（禁裸传 ActiveTextLanguage，口径错位误重生成）
 - 铁律 1：`!IsLLMConfigured` → 保持 Idle 等待
