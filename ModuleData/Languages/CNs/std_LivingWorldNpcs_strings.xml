@@ -4444,7 +4444,7 @@
     <string id="LWN_im_open_button_hint" text="打开传讯（按键 {KEY}）" />
     <string id="LWN_im_pad_hint" text="{A} 确认 · {B} 关闭 · {DPAD} 导航" />
     <string id="LWN_im_compact_camera_hint" text="缩略面板已开启：鼠标操作面板，按住右键旋转镜头。" />
-    <string id="LWN_im_open_button_pad_hint" text="打开传讯" />
+
     <string id="LWN_im_compact_camera_restored" text="鼠标控制已恢复：移动鼠标即可转向。" />
 </strings>
 </base>
