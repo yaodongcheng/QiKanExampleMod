@@ -4004,7 +4004,6 @@
     <string id="LWN_ui_interact_plot" text="密信" />
     <string id="LWN_ui_interact_stopplan" text="停止行动" />
     <string id="LWN_plan_no_llm" text="随从现在想不出主意。" />
-    <string id="LWN_plan_opening" text="小声——你说吧，我听着。" />
     <string id="LWN_plan_stop_face" text="是，这就收手。" />
     <string id="LWN_plan_stop_far" text="你远远地向随从打了个手势：停下。" />
     <string id="LWN_plan_input_title" text="密谋" />
