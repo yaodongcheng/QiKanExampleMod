@@ -4126,6 +4126,7 @@
     <string id="LWN_im_ask_player_retreat" text="撤退" />
     <string id="LWN_im_ask_player_force" text="强制执行" />
     <string id="LWN_plan_step_ask_player" text="向主公请示" />
+    <string id="LWN_plan_step_reporting" text="正在向你汇报" />
     <string id="LWN_im_time_minutes" text="{N} 分钟前" />
     <string id="LWN_im_time_hours" text="{N} 小时前" />
     <string id="LWN_im_time_days" text="{N} 天前" />

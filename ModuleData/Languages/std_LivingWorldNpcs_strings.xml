@@ -3969,6 +3969,8 @@
     <string id="LWN_plan_step_report" text="Preparing to report" />
     <string id="LWN_plan_step_steal" text="Preparing to steal" />
     <string id="LWN_plan_step_doing" text="Carrying out ({ACTION})" />
+    <string id="LWN_plan_step_ask_player" text="Asking the lord for a decision" />
+    <string id="LWN_plan_step_reporting" text="Reporting the result to you" />
     <string id="LWN_plan_abort_badjump" text="The plan went wrong. Falling back." />
     <string id="LWN_plan_goal_notmet" text="It did not work out." />
     <string id="LWN_plan_lead_waiting" text="Are you coming or not?" />

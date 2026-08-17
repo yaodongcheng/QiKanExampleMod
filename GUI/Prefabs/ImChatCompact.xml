@@ -183,12 +183,67 @@
   </Children>
 </Widget>
 
+                <!-- ═══ 行 B：最近 1~2 条消息迷你气泡（用户裁定 2026-08-15：有 2 条显示 2 条，
+                     给回复提供基础上下文；无按钮；与锚点卡共存时也显示。锚点消息本身不进本列表——
+                     它在行 A 有完整形态。🔴 IsVisible 绑外层容器（DataSource 同 widget 自身绑定失效）═══
+                     🔴 2026-08-17 用户裁定（时间顺序）：行 B 在上、行 A（锚点卡）在下——
+                     新询问/新卡片成为锚点后按时间出现在最底部，不再跳到顶部盖住旧卡。 -->
+                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                        IsVisible="@HasCompactLatest"
+                        MarginLeft="10" MarginRight="10" MarginTop="6"
+                        DoNotAcceptEvents="true">
+                  <Children>
+                    <ListPanel Id="LWN_ImChat_CompactLatestList" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                               DataSource="{CompactLatestMessages}"
+                               StackLayout.LayoutMethod="VerticalBottomToTop"
+                               DoNotAcceptEvents="true">
+                      <ItemTemplate>
+                        <!-- 迷你气泡：名字 + 单行截断正文 -->
+                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A" MarginBottom="4"
+                                DoNotAcceptEvents="true">
+                          <Children>
+                            <ListPanel Id="LWN_ImChat_CompactLatestRow" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                       StackLayout.LayoutMethod="VerticalBottomToTop"
+                                       DoNotAcceptEvents="true">
+                              <Children>
+                                <!-- 名字行（发送者成员色；🔴 2026-08-17 用户裁定：系统消息不显示
+                                     「System」发件人——硬编码英文不符合本地化纪律，完整模式本来就是居中灰字无发件人） -->
+                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                           HorizontalAlignment="Left"
+                                           IsVisible="@ShowCompactSenderName"
+                                           MarginLeft="10" MarginTop="4"
+                                           DoNotAcceptEvents="true">
+                                  <Children>
+                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                Text="@DisplaySenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                HorizontalAlignment="Left"
+                                                DoNotAcceptEvents="true"/>
+                                  </Children>
+                                </ListPanel>
+                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Left"
+                                            HorizontalAlignment="Left"
+                                            MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
+                                            DoNotAcceptEvents="true"/>
+                              </Children>
+                            </ListPanel>
+                          </Children>
+                        </Widget>
+                      </ItemTemplate>
+                    </ListPanel>
+                  </Children>
+                </Widget>
+
                 <!-- ═══ 行 A：未决锚点卡（含按钮行）。🔴 2026-08-15 用户裁定：与最新消息共存时
-                     显示 2 条紧凑排布——行 A = 锚点卡（可操作），行 B = 最新消息（可读）。
+                     显示 2 条紧凑排布——锚点卡（可操作）+ 最近消息（可读）。
                      DataSource="{CompactAnchor}" 单条 VM 绑定（ImMessageVM 实例 = _vm.Messages 同一实例，
                      广播路径天然覆盖——审查 P1-2）。按钮行照完整模式同构（IsCardAnchor 驱动）。
                      🔴 2026-08-15 实机修复：IsVisible 必须绑在外层容器——DataSource 在同一 widget 上时，
-                     自身属性绑定在子上下文（ImMessageVM）解析，HasCompactAnchor 不存在 → 恒 false 行隐藏。 -->
+                     自身属性绑定在子上下文（ImMessageVM）解析，HasCompactAnchor 不存在 → 恒 false 行隐藏。
+                     🔴 2026-08-17 用户裁定（时间顺序）：锚点卡移到行 B 之下、贴输入行上方——
+                     新卡按时间出现在最底部（与完整模式消息流语义一致）。 -->
                 <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                         IsVisible="@HasCompactAnchor"
                         MarginLeft="10" MarginRight="10" MarginTop="6"
@@ -283,54 +338,6 @@
                     </Widget>
                       </Children>
                     </Widget>
-                  </Children>
-                </Widget>
-
-                <!-- ═══ 行 B：最近 1~2 条消息迷你气泡（用户裁定 2026-08-15：有 2 条显示 2 条，
-                     给回复提供基础上下文；无按钮；与锚点卡共存时也显示。锚点消息本身不进本列表——
-                     它在行 A 有完整形态。🔴 IsVisible 绑外层容器（DataSource 同 widget 自身绑定失效）═══ -->
-                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                        IsVisible="@HasCompactLatest"
-                        MarginLeft="10" MarginRight="10" MarginTop="6"
-                        DoNotAcceptEvents="true">
-                  <Children>
-                    <ListPanel Id="LWN_ImChat_CompactLatestList" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                               DataSource="{CompactLatestMessages}"
-                               StackLayout.LayoutMethod="VerticalBottomToTop"
-                               DoNotAcceptEvents="true">
-                      <ItemTemplate>
-                        <!-- 迷你气泡：名字 + 单行截断正文 -->
-                        <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A" MarginBottom="4"
-                                DoNotAcceptEvents="true">
-                          <Children>
-                            <ListPanel Id="LWN_ImChat_CompactLatestRow" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                       StackLayout.LayoutMethod="VerticalBottomToTop"
-                                       DoNotAcceptEvents="true">
-                              <Children>
-                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                           HorizontalAlignment="Left"
-                                           MarginLeft="10" MarginTop="4"
-                                           DoNotAcceptEvents="true">
-                                  <Children>
-                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                Text="@DisplaySenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
-                                                HorizontalAlignment="Left"
-                                                DoNotAcceptEvents="true"/>
-                                  </Children>
-                                </ListPanel>
-                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Left"
-                                            HorizontalAlignment="Left"
-                                            MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
-                                            DoNotAcceptEvents="true"/>
-                              </Children>
-                            </ListPanel>
-                          </Children>
-                        </Widget>
-                      </ItemTemplate>
-                    </ListPanel>
                   </Children>
                 </Widget>
 
