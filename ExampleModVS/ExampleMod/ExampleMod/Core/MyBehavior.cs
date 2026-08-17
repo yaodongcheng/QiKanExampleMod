@@ -30,7 +30,15 @@ namespace LivingWorldNpcs
             // 🔴 群聊活力·事件驱动主动话题（2026-08-10）：玩家经历大事件 → 队伍频道 NPC 主动挑起话题
             CampaignEvents.OnPlayerBattleEndEvent.AddNonSerializedListener(this, this.OnPlayerBattleEnd);
             CampaignEvents.HeroPrisonerTaken.AddNonSerializedListener(this, this.OnHeroPrisonerTaken);
+#if MB2_GE_130
+            // 1.3.0+：HeroPrisonerReleased = IMbEvent<Hero, PartyBase, IFaction, EndCaptivityDetail, bool>（5参）
             CampaignEvents.HeroPrisonerReleased.AddNonSerializedListener(this, this.OnHeroPrisonerReleased);
+#else
+            // 🔴 v1.2.12：HeroPrisonerReleased = IMbEvent<Hero, PartyBase, IFaction, EndCaptivityDetail>（4参，无 bool）
+            //（三版本 ilspycmd 实锤 2026-08-17；尾部 isPlayer 参数是 1.3.0+ 加的）→ lambda 适配
+            CampaignEvents.HeroPrisonerReleased.AddNonSerializedListener(this,
+                (Hero h, PartyBase p, IFaction f, EndCaptivityDetail d) => OnHeroPrisonerReleased(h, p, f, d, true));
+#endif
             CampaignEvents.QuestLogAddedEvent.AddNonSerializedListener(this, this.OnQuestLogAdded);
             CampaignEvents.NewCompanionAdded.AddNonSerializedListener(this, this.OnNewCompanionAdded);
             CampaignEvents.VillageBeingRaided.AddNonSerializedListener(this, this.OnVillageRaided);
@@ -42,7 +50,14 @@ namespace LivingWorldNpcs
             CampaignEvents.KingdomCreatedEvent.AddNonSerializedListener(this, this.OnKingdomCreated);
             CampaignEvents.HeroLevelledUp.AddNonSerializedListener(this, this.OnHeroLevelledUp);
             CampaignEvents.OnSettlementOwnerChangedEvent.AddNonSerializedListener(this, this.OnSettlementOwnerChanged);
+#if MB2_GE_130
+            // 1.3.0+：BeforeHeroesMarried = IMbEvent<Hero, Hero, bool>（婚前触发）
             CampaignEvents.BeforeHeroesMarried.AddNonSerializedListener(this, this.OnHeroesMarried);
+#else
+            // 🔴 v1.2.12：无 BeforeHeroesMarried（1.3.0+ 才有）——同名同签名（IMbEvent<Hero, Hero, bool>）
+            // 的事件叫 HeroesMarried（婚后触发，三版本 ilspycmd 实锤 2026-08-17），叙事语义一致
+            CampaignEvents.HeroesMarried.AddNonSerializedListener(this, this.OnHeroesMarried);
+#endif
             CampaignEvents.OnChildConceivedEvent.AddNonSerializedListener(this, this.OnChildConceived);
             // 🔴 2026-08-16（方案 O）：关系动态感知（HeroRelationChanged 实锤签名：
             // Hero, Hero, int, bool, ChangeRelationAction.ChangeRelationDetail, Hero, Hero）

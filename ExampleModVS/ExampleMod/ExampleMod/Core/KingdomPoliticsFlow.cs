@@ -60,7 +60,8 @@ namespace LivingWorldNpcs
 
         /// <summary>劝降/招募领主加入玩家王国（persuade_join）：
         /// 玩家是国王 + defender 有叛逃倾向 → 检定（SingleRollResolver.Roll 统一入口，d20 风格）→
-        /// 成功：ChangeKingdomAction.ApplyByJoinToKingdom（实锤签名）；失败：关系 -10 + 冷却 7 天。
+        /// 成功：V.JoinKingdom（ChangeKingdomAction.ApplyByJoinToKingdom 实锤签名，
+        /// 🔴 1.2.12 = 3参 / 1.3+ = 4参，走 V 屏蔽）；失败：关系 -10 + 冷却 7 天。
         /// 后果（领主归属变更 = 全局事件）由原版自理（与原王国关系/战争状态）。</summary>
         public static void PersuadeLord(Hero lord)
         {
@@ -95,7 +96,7 @@ namespace LivingWorldNpcs
                 bool success = SingleRollResolver.Roll(chance);
                 if (success)
                 {
-                    ChangeKingdomAction.ApplyByJoinToKingdom(lord.Clan, playerKingdom, CampaignTime.Zero, true);
+                    V.JoinKingdom(lord.Clan, playerKingdom, true);
                     // 本地化：LWN_plan_action_persuade_ok（玩家可见文本）
                     InformationManager.DisplayMessage(new InformationMessage(
                         // 本地化：plan_action_persuade_ok（玩家可见文本）

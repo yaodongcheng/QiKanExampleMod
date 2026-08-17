@@ -225,6 +225,11 @@ override 签名不匹配基类会直接编译失败（踩过：`CommissionHubIss
 - `SetPartyAiAction.GetActionForRaidingSettlement`：2参 / **4参** / 5参（唯一需要 `MB2_GE_140` 的 V 方法）
 - `IssueBase.CanPlayerTakeQuestConditions`：4参 / 4参 / **5参**（唯一需要 `MB2_GE_140` 的 override）
 - 其余 25 个 V 方法 + 13 处注册表 #if：1.3.15 与 1.4.6 完全一致，`MB2_GE_130`/`MB2_V1212` 分支正确
+- **2026-08-17 三版本实锤新增**：`ChangeKingdomAction.ApplyByJoinToKingdom`（1.2.12=3参无 CampaignTime，1.3+=4参）→ `V.JoinKingdom`；
+  `EndCaptivityAction.ApplyByEscape`（1.2.12=2参，1.3+=3参带 showNotification）→ `V.EndCaptivityEscape`；
+  `MapWeatherModel.WeatherEvent.Storm`（枚举成员 1.3.0+ 新增，1.2.12 无）→ `V.WeatherWord`（Storm 分支 `#if MB2_GE_130`）；
+  `CampaignEvents.HeroPrisonerReleased`（1.2.12=4参，1.3+=5参带 bool）与 `CampaignEvents.BeforeHeroesMarried`（1.2.12 无，用同名同签名 `HeroesMarried`）
+  → 事件注册无法封装 V 方法，登记为 MyBehavior.cs:33,45 的 structural 裸 #if（lambda 适配）
 
 **🔴 `InventoryManager` 类改名**（2026-08-14 反编译验证，四版本二进制 grep + ilspycmd）：
 

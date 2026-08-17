@@ -81,6 +81,10 @@ $(MB2_PATH)\bin\Win64_Shipping_Client\Version.xml
 - `Mission.RayCastForClosestAgent(out 在最后)` / `Scene.RayCastForClosestEntityOrTerrain(out WeakGameEntity)` / `GetNavigationMeshForPosition(in, UIntPtr)`
 - `GauntletLayer(string, int)` 构造 / `LoadMovie` 返回 `GauntletMovieIdentifier`
 - `SetPartyAiAction.GetActionForPatrollingAroundSettlement(5参)` / `BesiegingSettlement(4参)` / `EngagingParty(4参)`
+- `ChangeKingdomAction.ApplyByJoinToKingdom`（4参带 CampaignTime）/ `EndCaptivityAction.ApplyByEscape`（3参带 showNotification）/
+  `CampaignEvents.HeroPrisonerReleased`（5参带 bool isPlayer）/ `CampaignEvents.BeforeHeroesMarried`（1.2.12 无此事件，同名同签名为 `HeroesMarried`）/
+  `MapWeatherModel.WeatherEvent.Storm`（枚举成员 1.3.0+ 新增，1.2.12 无）—— **2026-08-17 三版本 ilspycmd 实锤**，
+  新增 `V.JoinKingdom` / `V.EndCaptivityEscape` / `V.WeatherWord`（Storm 分支必须 `#if MB2_GE_130`）
 - `IMapScene.GetAccessiblePointNearPosition(in CampaignVec2)` / `GetFaceIndex(in CampaignVec2)` / `GetPathDistanceBetweenAIFaces(10参)`
 - `IMapStateHandler.StartCameraAnimation(CampaignVec2, float)`
 - 注册表各位置：`OnRegisterBlow(WeakGameEntity)` / `GetDefaultComponentBanner` / `GameMenu.MenuOverlayType` / `MissionObject.GameEntity→WeakGameEntity` / `AgentInteractionInterfaceVM(Missions.Interaction)` / `DisguiseMissionLogic`+`StealthFailCounterMissionLogic` / `MobilePartyHelper.FillPartyManuallyAfterCreation` / `SandBox.Missions` 命名空间
@@ -135,6 +139,7 @@ RaidingSettlement 的 4 参版本、CanPlayerTakeQuestConditions 的 4 参版本
 | Harmony | `InteractionMissionView.cs:2582` | 村庄交易日志补丁：`InventoryManager.OpenScreenAsTrade` 三版本都存在（1.2.12 第 4 参 `DoneLogicExtrasDelegate` vs 1.3.15+ `Action`），补丁只在 1.2.12 编译，功能缺失不影响 |
 | Harmony | `DebugLogger.cs:18` | `FillPartyStacks`→`FillPartyManuallyAfterCreation`（1.3.15 已验证 MobilePartyHelper 存在） |
 | structural | `WorldEventSimulator.cs:1668,1719` | `AreFacesOnSameIsland` 移除（1.3.15 已验证）；`GetPathDistanceBetweenAIFaces` 1.3.15 已是 10 参 |
+| structural | `MyBehavior.cs:33,45` | `CampaignEvents` 事件注册差异（2026-08-17 三版本实锤）：`HeroPrisonerReleased` 4参(1.2.12) / 5参(1.3+，lambda 适配)；`BeforeHeroesMarried` 1.3+ / 1.2.12 为同名同签名 `HeroesMarried`（婚后触发） |
 | structural | `InteractionMissionView.cs:1930,2385` | 搜刮 Loot 流（`InventoryManager.OpenScreenAsLoot` 1.2.12 only，1.3.15 走自研 fallback） |
 | structural | `MyCommands.cs:1619` | stealth_debug 命令（`DisguiseMissionLogic` 等 1.3.15 已存在，同 1.4.6） |
 | namespace | `MyCommands.cs:30` | `SandBox.Missions` 命名空间三版本都存在，仅 1.2.12 用不上 |
