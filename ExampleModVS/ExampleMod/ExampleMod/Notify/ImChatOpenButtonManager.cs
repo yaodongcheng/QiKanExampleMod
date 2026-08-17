@@ -196,14 +196,18 @@ namespace LivingWorldNpcs
                 // 🔴 2026-08-17（实机修复：点击没反应根因）：**必须调 SetInputRestrictions 激活输入接收**——
                 // 反编译 ScreenManager.EarlyUpdate 实锤：层要接收鼠标按钮，InputUsageMask 必须含
                 // MouseButtons 位（默认 Invalid = 永不分发鼠标输入 → 按钮点击永远到不了层）。
-                // SetInputRestrictions(true, MouseButtons)：mask 只声明「接收」，真正的拦截范围由
-                // hit-test 门控决定——全屏根 DoNotAcceptEvents=true → 只有按钮矩形 HitTest 命中时层才
-                // 获得鼠标（点按钮不挥刀）；鼠标移出按钮 → HitTest false → 游戏层照常接收（攻击/格挡/
-                // 视角全正常）。⚠️ 与 pitfalls 2026-08-11 教训的区别：那个灾难是全屏接收层 + 常驻 mask；
-                // 本层是「小矩形 hit-test 门控」，等效缩略面板 Q3 位置感知方案。
-                // 键盘不拦：EarlyUpdate 的键盘分发走 FocusTest（本层无焦点 widget → 不抢键盘，WASD 正常）。
+                // SetInputRestrictions(**false**, MouseButtons)：第一个参数 isMouseVisible=**false**——
+                // 🔴 2026-08-17（实机「进 Mission 镜头不随鼠标移动」根因）：UpdateMouseVisibility 聚合
+                // 实锤——**任何活跃层 MouseVisibility=true → 全局鼠标光标显示** → 场景视角模式被破坏
+                //（光标显示 = UI 模式，鼠标移动不转向，需按住右键拖拽）。按钮层 Mission 内常驻活跃，
+                // 必须声明鼠标不可见；点击仍有效（MouseButtons 位只影响输入分发，与光标显示无关；
+                // hover 提示走 ShowHint 文本，不依赖光标）。
+                // mask 只声明「接收」，真正的拦截范围由 hit-test 门控决定——全屏根 DoNotAcceptEvents=true
+                // → 只有按钮矩形 HitTest 命中时层才获得鼠标（点按钮不挥刀）；鼠标移出按钮 → HitTest false
+                // → 游戏层照常接收（攻击/格挡/视角全正常）。键盘不拦：EarlyUpdate 的键盘分发走 FocusTest
+                //（本层无焦点 widget → 不抢键盘，WASD 正常）。
                 // 🔴 放 AddLayer 之后 + try/catch 隔离：任何异常都不影响层挂载（挂载成功优先，输入激活次之）。
-                try { _layer.InputRestrictions.SetInputRestrictions(true, InputUsageMask.MouseButtons); }
+                try { _layer.InputRestrictions.SetInputRestrictions(false, InputUsageMask.MouseButtons); }
                 catch (Exception ex) { try { DebugLogger.Log($"[ImChatOpenButton] SetInputRestrictions 失败: {ex.Message}"); } catch { } }
                 _widgetsReady = false;   // widget 属性写入延迟到下一帧
                 DebugLogger.Log($"[ImChatOpenButton] 挂载（层序 {LayerOrder}，TopScreen={ScreenManager.TopScreen?.GetType().Name}）");

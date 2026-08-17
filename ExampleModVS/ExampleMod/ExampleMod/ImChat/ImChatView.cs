@@ -194,9 +194,9 @@ namespace LivingWorldNpcs
                 {
                     _welcomed = true;
                     string openKey = ModInput.Glyph(InteractionIds.IM);
-                    // 首次打开引导（LWN_im_first_open）
+                    // 首次打开引导（LWN_im_first_open；🔴 2026-08-17：「(IM)」字样已去除，通用称谓「传讯/Messaging」）
                     string hint = LWNTextHelper.ResolveCompound("LWN_im_first_open",
-                        "Secret messaging (IM) — talk to heroes across the land, or send secret orders to companions. Open with {OPEN_KEY}; close with ESC, B, or by clicking outside the panel.",
+                        "Messaging - talk to heroes across the land, or give orders to companions. Open with {OPEN_KEY}; close with ESC, B, or by clicking outside the panel.",
                         ("OPEN_KEY", openKey));
                     InformationManager.DisplayMessage(new InformationMessage(hint));
                 }
@@ -214,16 +214,18 @@ namespace LivingWorldNpcs
                 // （EventManager.MouseScroll 只调用 hit test 命中的 widget，不冒泡）。
                 // 🔴 2026-08-15（缩略模式）：缩略层去掉 MouseWheels（面板无滚动内容，滚轮穿透到场景 = 镜头缩放，
                 // 下拉开时 Tick 内补上 MouseWheels 位给列表滚动）；键盘靠 FocusTest 门控（输入框聚焦才吃键）。
-                // 🔴 2026-08-17（Q3 位置感知 mask 实锤）：缩略层不再常驻 Mouse——「hit-test 门控 → 面板矩形外
-                // 场景输入天然不被吞」只对 UI 事件分发成立，对原始轮询不成立：鼠标键在 native 层有「UI 捕获」
-                // 判定，与鼠标位置无关（pitfalls 2026-08-11 实机记录 + 用户反馈双证）。初始只挂 Keyboardkeys
-                //（键盘拦不住物理轮询，留着不影响 WASD），Mouse/MouseWheels 由 HandleCompactInput 每帧
-                // 位置感知修正（HitTest 命中面板才拦）。完整模式保持模态语义不变（三件套全拦）。
+                // 🔴 2026-08-17（用户裁定：缩略 = UI 模式）：**鼠标光标常驻**（MouseVisibility=true——
+                // 光标模式下鼠标移动不转镜头，鼠标专门操作面板；之前光标随位置显隐 = 鼠标用来转镜头 →
+                // 无法对缩略面板互动）+ **HitTest 门控限定接收范围**（mask 含 MouseButtons 但全屏根
+                // DoNotAcceptEvents=true → 只有面板矩形命中时层才接收鼠标：点按钮不挥刀；鼠标在面板外
+                // → HitTest false → 层不接收 → 左键攻击/右键旋转镜头照常——引擎无左右键独立 mask 位
+                //（InputUsageMask 实锤：MouseButtons=1 合并左右键），右键放行靠 HitTest 门控实现）。
+                // 键盘不拦（物理轮询拦不住，WASD 正常）。完整模式保持模态语义不变（三件套全拦）。
                 InputUsageMask mask = _mode == ImChatMode.Compact
-                    ? InputUsageMask.Keyboardkeys
+                    ? InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons
                     : InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
                 _layer.InputRestrictions.SetInputRestrictions(true, mask);
-                if (_mode == ImChatMode.Compact) _lastCompactMask = InputUsageMask.Keyboardkeys;
+                if (_mode == ImChatMode.Compact) _lastCompactMask = InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons;
                 if (ScreenManager.TopScreen != null)
                 {
                     ScreenManager.TopScreen.AddLayer(_layer);
@@ -441,6 +443,13 @@ namespace LivingWorldNpcs
                 _messageScrollPanel = null;
                 _compactPanel = null;
                 _compactChannelList = null;
+                // 🔴 2026-08-17（UI 模式）：模式切换后 mask 立即按新模式设置（防残留——旧行为依赖
+                // HandleCompactInput 首帧修正，完整模式无修正点会残留缩略 mask）
+                InputUsageMask switchMask = _mode == ImChatMode.Compact
+                    ? InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons
+                    : InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
+                _layer.InputRestrictions.SetInputRestrictions(true, switchMask);
+                _lastCompactMask = _mode == ImChatMode.Compact ? switchMask : InputUsageMask.Invalid;
                     RefreshAll();
             }
             catch (Exception ex)
@@ -449,12 +458,21 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>完整模式 → 缩略模式（标题带「缩略」按钮，关闭按钮左侧）。</summary>
+        /// <summary>完整模式 → 缩略模式（标题带「缩略」按钮，关闭按钮左侧）。
+        /// 🔴 2026-08-17（用户裁定：缩略 = UI 模式）：切缩略时 Mission 内提示镜头操作变化
+        ///（鼠标 = 面板操作，按住右键旋转镜头）——DisplayMessage 一次性提示，本地化。</summary>
         public static void ToggleCompact()
         {
             if (_mode == ImChatMode.Compact) return;
             _mode = ImChatMode.Compact;
             SwitchMode();
+            if (Mission.Current != null)
+            {
+                // 本地化：缩略模式镜头提示（LWN_im_compact_camera_hint）
+                InformationManager.DisplayMessage(new InformationMessage(
+                    LWNTextHelper.ResolveText("LWN_im_compact_camera_hint",
+                        "Compact panel active: mouse controls the panel, hold right mouse button to rotate the camera.")));
+            }
         }
 
         /// <summary>缩略模式 → 完整模式（缩略标题行「放大」按钮）。</summary>
@@ -1321,22 +1339,16 @@ namespace LivingWorldNpcs
                     }
                 }
 
-                // ── ③ 位置感知 mask（🔴 2026-08-17 Q3 实锤，替换旧「常驻 Mouse」方案）：
-                //    引擎无区域化输入限制 API——鼠标键在 native 层有「UI 捕获」判定，与鼠标位置无关，
-                //    层 mask 常驻 Mouse = 位置无关地全局拦鼠标 = Mission 内攻击/格挡/滚轮/视角全死
-                //    （pitfalls 2026-08-11 实机记录 + 用户反馈双证）。
-                //    方案 = 以鼠标位置为开关的全局 mask（模拟半模态岛）：
-                //      HitTest 命中面板（含浮出的频道下拉，widget 命中天然覆盖）→ mask 含 Mouse
-                //      （点按钮不挥刀——维持现状可用行为）；
-                //      鼠标移出面板 → 摘 Mouse → 攻击/格挡/滚轮/视角还给游戏。
-                //    Keyboardkeys 常驻（键盘拦不住物理轮询，留着不影响 WASD）。
-                //    MouseWheels 一致性：下拉开时位置无关地补上（现状保留——拉开时间短，接受；实机不适再并入 overUi）。
+                // ── ③ 缩略模式输入 mask（🔴 2026-08-17 用户裁定：UI 模式）：
+                //    鼠标光标常驻（SetInputRestrictions 第一参 true）→ 光标模式下鼠标移动不转镜头，
+                //    鼠标专门操作面板；mask 含 MouseButtons 但 **HitTest 门控限定接收范围**（全屏根
+                //    DoNotAcceptEvents=true → 只有面板矩形命中时层才接收：点按钮不挥刀；面板外 HitTest
+                //    false → 层不接收 → 左键攻击/右键旋转镜头照常——引擎无左右键独立 mask 位
+                //    （InputUsageMask 实锤 MouseButtons=1），右键放行靠 HitTest 门控实现）。
+                //    下拉开时补 MouseWheels 位（列表滚动）。键盘不拦（物理轮询拦不住，WASD 正常）。
                 // 🔴 2026-08-15（性能）：SetInputRestrictions 只在 mask 变化时调用——每帧调用可能
                 // 触发输入上下文重置（用户反馈 UI 卡顿疑点之一）──
-                bool overUi = false;
-                try { overUi = _layer != null && _layer.HitTest(); } catch { }
-                InputUsageMask mask = InputUsageMask.Keyboardkeys;
-                if (overUi) mask |= InputUsageMask.MouseButtons;
+                InputUsageMask mask = InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons;
                 if (_vm != null && _vm.ChannelSelector.IsChannelListOpen)
                     mask |= InputUsageMask.MouseWheels;
                 if (mask != _lastCompactMask && _layer != null)

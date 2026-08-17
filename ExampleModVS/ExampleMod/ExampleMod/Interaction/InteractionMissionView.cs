@@ -733,7 +733,7 @@ namespace LivingWorldNpcs
                         && (isCompanion || isTemplatePlotEligible))
                     {
                         // 本地化：密信交互按钮（对随从/模板 NPC 写密信）
-                        AddInteractionRow(InteractionIds.Plot, LWNTextHelper.ResolveText("LWN_ui_interact_plot", "Secret Letter"));
+                        AddInteractionRow(InteractionIds.Plot, LWNTextHelper.ResolveText("LWN_ui_interact_plot", "Message"));
                     }
                     if (executing)
                     {
