@@ -4102,6 +4102,8 @@
     <string id="LWN_crime_suspect_unknown" text="你那个随从" />
     <!-- ── IM 传讯系统（LWN_im_*）── -->
         <string id="LWN_im_channel_nearby" text="附近" />
+    <!-- 密信按钮 hover 提示（队伍屏/家族屏，SecretLetterButtonInjector）-->
+    <string id="LWN_im_secret_letter_hint" text="密信：向对方寄一封私密消息" />
 <string id="LWN_im_channel_party" text="队伍" />
     <string id="LWN_im_channel_clan" text="家族" />
     <string id="LWN_im_channel_kingdom" text="王国" />

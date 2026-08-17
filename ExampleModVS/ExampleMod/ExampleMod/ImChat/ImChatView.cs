@@ -889,6 +889,8 @@ namespace LivingWorldNpcs
                 EnsureSubscribed();
 
                 ModInput.Tick(dt);
+                // 🔴 队伍屏/家族屏密信按钮注入（纯 C# 动态插入，0.3s 扫描节流；仅 Party/ClanScreen 生效）
+                SecretLetterButtonInjector.TickInject(dt);
                 // 🔴 O 只负责「打开」：面板开着时输入 o 不再触发任何动作（打字不误关）
                 // 🔴 2026-08-15（用户裁定）：MCM 密聊开关（PlotEnabled）关闭 → O 无法呼出聊天
                 if (ModInput.ShortFired(InteractionIds.IM) && !IsOpen && Settings.Instance.PlotEnabled)
