@@ -60,6 +60,9 @@ namespace LivingWorldNpcs
     ///     WorldEventSimulator.cs:1668,1719    AreFacesOnSameIsland 移除
     ///     MyCommands.cs:1619                  stealth_debug 命令（1.4.x only）
     ///     MyCommands.cs:30                    using SandBox.Missions（1.4.x only）
+    ///     MyBehavior.cs:33,45                CampaignEvents 事件注册差异：HeroPrisonerReleased
+    ///                                         5参=1.3+ / 4参=1.2.12（lambda 适配）；BeforeHeroesMarried
+    ///                                         1.3+ / 1.2.12 为同名同签名 HeroesMarried（婚后触发）
     ///   （搜刮/开箱 Loot 流的 InventoryManager #if 已于 2026-08-14 移除：类在 v1.3.0 改名
     ///     InventoryScreenHelper，签名一致，统一走 V.OpenLootScreen，不再裸 #if。）
     /// </summary>
@@ -288,6 +291,33 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        // v1.2.12: ChangeKingdomAction.ApplyByJoinToKingdom(clan, toKingdom, bool showNotification)
+        // Latest:  ChangeKingdomAction.ApplyByJoinToKingdom(clan, toKingdom, CampaignTime, bool)
+
+        public static void JoinKingdom(Clan clan, Kingdom toKingdom, bool showNotification)
+        {
+            if (clan == null || toKingdom == null) return;
+#if MB2_GE_130
+            ChangeKingdomAction.ApplyByJoinToKingdom(clan, toKingdom, CampaignTime.Zero, showNotification);
+#else
+            ChangeKingdomAction.ApplyByJoinToKingdom(clan, toKingdom, showNotification);
+#endif
+        }
+
+        // ── Captivity release ─────────────────────────────────────
+        // v1.2.12: EndCaptivityAction.ApplyByEscape(hero, facilitator)
+        // Latest:  EndCaptivityAction.ApplyByEscape(hero, facilitator, bool showNotification)
+
+        public static void EndCaptivityEscape(Hero character, Hero facilitator)
+        {
+            if (character == null) return;
+#if MB2_GE_130
+            EndCaptivityAction.ApplyByEscape(character, facilitator, true);
+#else
+            EndCaptivityAction.ApplyByEscape(character, facilitator);
+#endif
+        }
+
         // ── Agent action name ─────────────────────────────────────
         // v1.2.12: agent.GetCurrentActionValue(channelIndex).Name
         // Latest:  agent.GetCurrentActionType(channelIndex) returns enum, use ToString
@@ -481,8 +511,9 @@ namespace LivingWorldNpcs
 
         // ── Map weather ──────────────────────────────────────────────
         // 天气（方案 G1，2026-08-16）：Campaign.Current.Models.MapWeatherModel.GetWeatherEventInPosition
-        // ✅ 反编译实锤 v1.2.12 / v1.4.8 均有；MapWeatherModel = ComponentInterfaces 命名空间，
-        // WeatherEvent = MapWeatherModel 嵌套枚举（Clear/LightRain/HeavyRain/Snowy/Blizzard/Storm）。
+        // ✅ 反编译实锤三版本均有；MapWeatherModel = ComponentInterfaces 命名空间，
+        // WeatherEvent = MapWeatherModel 嵌套枚举（Clear/LightRain/HeavyRain/Snowy/Blizzard；
+        // 🔴 Storm 为 v1.3.0+ 新增，v1.2.12 无此成员——WeatherWord 的 Storm 分支必须 #if MB2_GE_130）。
         // 返回 MapWeatherModel.WeatherEvent 枚举（无模型/无 Campaign → Clear 兜底，调用方按词表映射措辞）。
 
         public static TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent GetWeatherAt(Vec2 pos)
@@ -493,6 +524,23 @@ namespace LivingWorldNpcs
                 return Campaign.Current.Models.MapWeatherModel.GetWeatherEventInPosition(pos);
             }
             catch { return TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Clear; }
+        }
+
+        /// <summary>天气枚举 → 中文词（LLM prompt 材料，铁律 13 豁免；与方案 G1 词表同口径）。
+        /// 🔴 v1.2.12 枚举无 Storm（v1.3.0+ 新增），Storm 分支必须 #if MB2_GE_130。</summary>
+        public static string WeatherWord(TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent w)
+        {
+            switch (w)
+            {
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.LightRain: return "细雨绵绵";
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.HeavyRain: return "大雨滂沱";
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Snowy: return "白雪纷飞";
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Blizzard: return "风雪漫天";
+#if MB2_GE_130
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Storm: return "狂风暴雨";
+#endif
+                default: return "晴空万里";
+            }
         }
 
         // ── Freeze/unfreeze player control（偷窃条输入隔离）────────────

@@ -1368,22 +1368,15 @@ namespace LivingWorldNpcs
             catch { return "白日"; }
         }
 
-        /// <summary>天气词（prompt 材料，铁律 13 豁免；WeatherEvent 枚举 → 词）。</summary>
+        /// <summary>天气词（prompt 材料，铁律 13 豁免；WeatherEvent 枚举 → 词）。
+        /// 🔴 Storm 为 v1.3.0+ 新增枚举成员（1.2.12 无），映射走 V.WeatherWord 屏蔽版本差异。</summary>
         private static string GetWeatherWord()
         {
             try
             {
                 var party = MobileParty.MainParty;
                 if (party == null) return "天气如常";
-                return V.GetWeatherAt(V.Pos(party)) switch
-                {
-                    TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.LightRain => "细雨绵绵",
-                    TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.HeavyRain => "大雨滂沱",
-                    TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Snowy => "白雪纷飞",
-                    TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Blizzard => "风雪漫天",
-                    TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Storm => "狂风暴雨",
-                    _ => "晴空万里",
-                };
+                return V.WeatherWord(V.GetWeatherAt(V.Pos(party)));
             }
             catch { return "天气如常"; }
         }

@@ -194,7 +194,7 @@ namespace LivingWorldNpcs
                 if (guard != null)
                     EndCaptivityAction.ApplyByRansom(player, guard);
                 else
-                    EndCaptivityAction.ApplyByEscape(player, null, true);
+                    V.EndCaptivityEscape(player, null);   // 🔴 1.2.12 = 2参 / 1.3+ = 3参（showNotification），走 V 屏蔽
                 DebugLogger.Log($"[Distress] 认罚释放：{player.Name} 付 {cost} → 获释（guard={guard?.Name?.ToString() ?? "虚空"}）");
             }
             catch (Exception ex)
@@ -247,7 +247,7 @@ namespace LivingWorldNpcs
                     if (guard != null)
                         EndCaptivityAction.ApplyByRansom(player, guard);
                     else
-                        EndCaptivityAction.ApplyByEscape(player, null, true);
+                        V.EndCaptivityEscape(player, null);   // 🔴 1.2.12 = 2参 / 1.3+ = 3参（showNotification），走 V 屏蔽
                     InformationManager.DisplayMessage(new InformationMessage(
                         // 本地化：distress_bribe_ok（玩家可见文本）
                         LWNTextHelper.ResolveText("LWN_distress_bribe_ok",
