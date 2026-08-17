@@ -381,6 +381,12 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool IsSystem => _msg != null && _msg.IsSystem;
 
+        /// <summary>🔴 2026-08-17（用户裁定：本地化纪律）：缩略面板行 B 迷你气泡是否显示发件人行。
+        /// 系统消息不发（原样显示硬编码英文「System」= 出戏 + 未本地化；完整模式系统消息
+        /// 本来就是居中灰字无发件人，缩略模式对齐该语义）。</summary>
+        [DataSourceProperty]
+        public bool ShowCompactSenderName => !IsSystem;
+
         [DataSourceProperty]
         public bool IsPlanCard => _msg != null && _msg.IsPlanCard;
 

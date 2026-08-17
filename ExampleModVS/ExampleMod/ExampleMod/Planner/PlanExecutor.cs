@@ -1268,6 +1268,14 @@ namespace LivingWorldNpcs
                 _reportSpoken = false;
                 AgentControlHelper.ForceUnlockAgent(OwnerAgent);
                 // brain 队列已出队 → DecideDefaultBehavior 自动恢复跟随
+                // 🔴 2026-08-17（end_plan 60s 罚站修复，实机 20:24:06→20:25:06）：报告期必须释放
+                // 「计划执行中」哨兵——意图不复位 → D2 空窗守卫拦截 DecideDefaultBehavior →
+                // 随从不走回玩家 → 当面报告条件（<3m）永不满足 → 干等 60s 密信兜底，期间
+                // 卡片一直显示执行中、prompt 一直注入「执行中（end_plan）」。
+                // 守卫同 OnPlanExecutorFinished：新命令已覆盖意图时不抢。
+                var brain = AgentAIController.GetBrainForAgent(OwnerAgent);
+                if (brain != null && brain.CurrentIntent?.Type == NpcIntentType.ExecutingCommand)
+                    brain.SetNpcIntent(NpcIntentType.None);
             }
             else
             {
@@ -1369,9 +1377,10 @@ namespace LivingWorldNpcs
                     FinalizeExecutor(_pendingReport);
                 }
             }
-            else if (_reportTimer > 60f)
+            else if (_reportTimer > 30f)
             {
-                // 超时兜底：密信
+                // 超时兜底：密信（🔴 2026-08-17：60f→30f——报告期哨兵已释放、随从会走回玩家，
+                // 兜底只需覆盖「玩家走远/跨区/跟丢」场景；60s 罚站期间卡片执行态/意图全悬挂）
                 SignalPlayer(_pendingReport);
                 FinalizeExecutor(_pendingReport);
             }
@@ -1437,6 +1446,11 @@ namespace LivingWorldNpcs
                 case "signal_player": return LWNTextHelper.ResolveText("LWN_plan_step_report", "Preparing to report");
                 // 本地化：LWN_plan_step_ask_player（玩家可见文本）
                 case "ask_player": return LWNTextHelper.ResolveText("LWN_plan_step_ask_player", "Asking the lord for a decision");
+                // 🔴 2026-08-17（end_plan 技术代号泄漏修复）：原 default 兜底「执行中（{ACTION}）」
+                // 把 end_plan 原样漏进 prompt 注入段（【当前计划执行中】当前进度）与 HUD——
+                // LLM 不知道 end_plan 是什么，实机回复「plan 已定，只等您一声令下」。专属人性化摘要。
+                // 本地化：LWN_plan_step_reporting（玩家可见文本）
+                case "end_plan": return LWNTextHelper.ResolveText("LWN_plan_step_reporting", "Reporting the result to you");
                 // 本地化：LWN_plan_step_steal（玩家可见文本）
                 case "steal_attempt": return LWNTextHelper.ResolveText("LWN_plan_step_steal", "Preparing to steal");
                 // 本地化：LWN_plan_step_doing（玩家可见文本）
