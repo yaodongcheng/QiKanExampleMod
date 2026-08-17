@@ -460,6 +460,12 @@ namespace LivingWorldNpcs
                     _vm.InputText = _lastMentionPrefix;
                 else if (_lastMentionPrefix != null && _vm.InputText == _lastMentionPrefix)
                     _vm.InputText = "";
+                // 🔴 2026-08-17（实机：缩略模式单聊之间切换聊天记录不刷新）：**切会话必须清空消息流**——
+                // RefreshMessages 的增量逻辑只在「消息变少」或「generating 转态」时重建；切到消息数
+                // ≥ 旧会话的私聊 → 旧消息残留 + 新消息追加 = 显示旧会话记录（缩略模式行 B 也取
+                // _vm.Messages，同样残留）。群聊切频道恰好消息数少触发重建，掩盖了此 bug。
+                _vm.Messages.Clear();
+                _hadGenerating = false;   // 转态检测基线重置（防旧会话 generating 残留误判）
             }
             RefreshAll();
         }

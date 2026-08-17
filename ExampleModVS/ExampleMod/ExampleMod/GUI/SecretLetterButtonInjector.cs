@@ -245,7 +245,21 @@ namespace LivingWorldNpcs
                 // 可见性 = 原版槽位绑定结果（hero 条件）+ PlotEnabled 总闸（密聊开关关闭 → 按钮隐藏）。
                 // 🔴 暂恢复跟随 slot 锚（上一版行为）；IsHeroTarget 判定链路待日志验证后再替换
                 bool anchorVisible = it.VisibilityAnchor != null && it.VisibilityAnchor.IsVisible;
-                it.Button.IsVisible = anchorVisible && Settings.Instance.PlotEnabled;
+                bool isPlayerSelf = false;
+                if (anchorVisible && it.ClanRoot != null)
+                {
+                    // 🔴 2026-08-17（实机反馈）：家族屏详情面板选中**玩家自己**时也显示密信按钮——
+                    // 自己给自己发密信无意义，隐藏。每帧 ResolveRowHeroId（家族 = DFS 找 tableau +
+                    // 反射读属性）只在「有有效成员选中」时执行（其余帧 anchorVisible=false 短路跳过，
+                    // 零 DFS 开销）。
+                    try
+                    {
+                        string selfId = ResolveRowHeroId(it.Button, it.ClanRoot);
+                        isPlayerSelf = selfId != null && Hero.MainHero != null && selfId == Hero.MainHero.StringId;
+                    }
+                    catch { }
+                }
+                it.Button.IsVisible = anchorVisible && !isPlayerSelf && Settings.Instance.PlotEnabled;
 
                 // hover 提示（手动 hit-test，ImChatView 缩略模式同款）
                 bool over = it.Button.IsVisible && IsPointInRect(Input.MousePositionPixel, it.Button.GlobalPosition, it.Button.Size);
