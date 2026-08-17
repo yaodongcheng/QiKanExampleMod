@@ -14,11 +14,13 @@
              130×130）与 NinjaReport 金环，不重叠/不遮挡。
              样式 = Party.TalkSlot.Background 槽位底 + conversation_icon 对话图标（2026-08-17 用户裁定：
              与队伍屏/家族屏密信注入按钮同一视觉语言——conversation_icon = 「打开消息」语义，
-             不用 Brush_CircleButton_SecretLetter 阴谋插图——那是「有密信来了」的通知语义）。 -->
+             不用 Brush_CircleButton_SecretLetter 阴谋插图——那是「有密信来了」的通知语义）。
+             🔴 2026-08-17（用户反馈：键帽放按钮右侧）：MarginRight 20→58——给右侧键帽让位
+             （键帽贴右缘 MarginRight 20，组内顺序 = [按钮][键帽]）。 -->
         <ButtonWidget Id="LWN_ImChatOpenButton" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                       SuggestedWidth="56" SuggestedHeight="56"
                       HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                      MarginRight="20" MarginBottom="140"
+                      MarginRight="58" MarginBottom="140"
                       Brush="Party.TalkSlot.Background"
                       DoNotPassEventsToChildren="true"
                       UpdateChildrenStates="true">
@@ -49,35 +51,28 @@
           </Children>
         </ButtonWidget>
 
-        <!-- 🔴 2026-08-17（按键绑定提示）：按钮下方键帽模式提示（InteractArea 同款视觉）——
-             [键帽 30×30 近白底纹 + 键名字形] + 动作名（「打开传讯」）。**所有设备都显示**（键鼠 = [O]，
-             手柄 = [↑]；字形经 ModInput.Glyph 按设备动态，config 改绑自动跟随——用户反馈 2026-08-17）。
-             C# 驱动 ImChatOpenButtonManager（可见性随按钮）；hover 提示（ShowHint）为补充详情。 -->
-        <ListPanel Id="LWN_ImChatOpenButtonPadHint" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                   StackLayout.LayoutMethod="HorizontalLeftToRight"
-                   HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                   MarginRight="20" MarginBottom="76"
-                   IsVisible="false"
-                   DoNotAcceptEvents="true">
+        <!-- 🔴 2026-08-17（按键绑定提示）：键帽 [O]/[↑] **按钮右侧紧邻**（用户反馈：左侧是错的；
+             无动作名文字——只一个键帽字形）。组内顺序 = [按钮][键帽]，组贴右缘：键帽 MarginRight 20
+             （贴屏幕右缘）、按钮 MarginRight 58（让位）。字形经 ModInput.Glyph 按设备动态
+             （键盘 [O] / 手柄 [↑]，config 改绑自动跟随）；垂直对齐 = MarginBottom 153
+             （= 按钮 140 + (56-30)/2，与按钮垂直居中）。C# 驱动可见性（随按钮）。 -->
+        <Widget Id="LWN_ImChatOpenButtonPadHint" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                SuggestedWidth="30" SuggestedHeight="30"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                MarginRight="20" MarginBottom="153"
+                IsVisible="false"
+                DoNotAcceptEvents="true">
           <Children>
-            <!-- 键帽：30×30 近白底纹 + 键名（↑ 字形，C# 驱动） -->
-            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="30" SuggestedHeight="30">
-              <Children>
-                <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                        Sprite="BlankWhiteSquare_9" Color="#E8E8E8FF" />
-                <TextWidget Id="LWN_ImChatOpenButtonPadHintKey" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Text="" Brush="MyBrush_24" TextColor="#000000FF"
-                            HorizontalAlignment="Center" VerticalAlignment="Center"
-                            DoNotAcceptEvents="true"/>
-              </Children>
-            </Widget>
-            <!-- 动作名（「打开传讯」，本地化） -->
-            <TextWidget Id="LWN_ImChatOpenButtonPadHintText" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                        Text="" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="#DDDDDDFF"
-                        VerticalAlignment="Center" MarginLeft="6"
+            <!-- 键帽底：近白底纹（InteractArea 键帽同款） -->
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                    Sprite="BlankWhiteSquare_9" Color="#E8E8E8FF" />
+            <!-- 键名字形（@KeyText——VM 绑定自动求值，键盘 [O] / 手柄 [↑]，设备切换 VM Refresh 驱动） -->
+            <TextWidget Id="LWN_ImChatOpenButtonPadHintKey" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                        Text="@KeyText" Brush="MyBrush_24" TextColor="#000000FF"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
                         DoNotAcceptEvents="true"/>
           </Children>
-        </ListPanel>
+        </Widget>
 
       </Children>
     </Widget>

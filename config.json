@@ -82,8 +82,9 @@
     "Plot":            { "Keyboard": "G",     "Gamepad": "LB", "PressMode": "Long" },
     "StopPlan":        { "Keyboard": "G",     "Gamepad": "LB", "PressMode": "Long" },
     // IM 传讯：打开聊天面板（战场/对话中禁开；打开后关闭用 ESC / 手柄 B / 点面板外或关闭按钮——
-    // 注意 O 只负责打开，避免打字时误关。手柄不占打开键，走面板右下角通知点击）
-    "IM":              { "Keyboard": "O",     "Gamepad": "",   "PressMode": "Short" }
+    // 注意 O 只负责打开，避免打字时误关。手柄 ↑ 十字短按 = 面板外唯一呼出键（2026-08-17；
+    // ↑ 十字在 Mission 仅 Cheer 口哨、Campaign 无绑定，冲突最小——长按不用 = 原版表情菜单无法拦截）
+    "IM":              { "Keyboard": "O",     "Gamepad": "LUp", "PressMode": "Short" }
     // 可选：单独调阈值，如击晕想更久： "Knockout": { ..., "HoldMs": 600 }
   },
   "LongPressDurationMs": 650

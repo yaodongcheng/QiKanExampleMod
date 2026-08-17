@@ -42,12 +42,9 @@ namespace LivingWorldNpcs
         private const string ButtonId = "LWN_ImChatOpenButton";
         private const string BadgeId = "LWN_ImChatOpenBadge";
         private const string BadgeTextId = "LWN_ImChatOpenBadgeText";
-        // 🔴 Q4（2026-08-17 手柄支持）：手柄模式按键提示（键帽 [↑] + 动作名，InteractArea 同款模式）
+        // 🔴 2026-08-17（按键绑定提示）：键帽（[O]/[↑]，按钮右侧紧邻；无动作名文字——用户反馈；
+        // 字形走 XML 绑定 @KeyText，C# 只控制键帽容器可见性）
         private const string PadHintId = "LWN_ImChatOpenButtonPadHint";
-        private const string PadHintKeyId = "LWN_ImChatOpenButtonPadHintKey";
-        private const string PadHintTextId = "LWN_ImChatOpenButtonPadHintText";
-        // 本地化 key：手柄按键提示动作名（LWN_im_open_button_pad_hint）
-        private const string PadHintKey = "LWN_im_open_button_pad_hint";
         // 本地化 key：呼出按钮 hover 提示（LWN_im_open_button_hint，{KEY} 变量）
         private const string HintKey = "LWN_im_open_button_hint";
 
@@ -61,10 +58,9 @@ namespace LivingWorldNpcs
         private static ButtonWidget _button;
         private static Widget _badge;
         private static TextWidget _badgeText;
-        // 🔴 Q4（2026-08-17 手柄支持）：手柄模式按键提示（键帽 [↑] + 动作名）
+        // 🔴 2026-08-17（按键提示绑定化）：呼出按钮层 VM（键帽字形/动作名 XML 绑定，InteractArea 同款）
+        private static ImChatOpenButtonVM _vm;
         private static Widget _padHintContainer;
-        private static TextWidget _padHintKeyText;
-        private static TextWidget _padHintText;
         private static bool _lastUsingGamepad;
         private static Widget _hoverOn;            // 当前 hover 的按钮（防 ShowHint 刷屏）
         private static bool _subscribed;
@@ -81,8 +77,25 @@ namespace LivingWorldNpcs
         /// <summary>诊断：按钮布局打印倒计时（找到后 1s 打一次）。</summary>
         private static float _layoutDiagTimer;
 
-        /// <summary>空 VM（LoadMovie 需要 dataSource 参数；本 prefab 无绑定，纯 C# 驱动）。</summary>
-        private sealed class NoopVM : ViewModel { }
+        /// <summary>
+        /// 🔴 2026-08-17（按键提示绑定化，InteractArea 同款模式——用户指引）：呼出按钮层 VM。
+        /// 键帽字形走 **XML 绑定**（@KeyText——绑定系统自动求值，VM 构造时即正确，
+        /// 不依赖 C# 主动设置时机——之前 C# 设置 Text 依赖刷新调用，首帧空白）。
+        /// 2026-08-17 用户反馈：无动作名文字（只一个键帽 [O]）——HintText 已删。
+        /// 设备切换（手柄插拔/切鼠标）→ Manager 调 <see cref="Refresh"/>（OnPropertyChanged → 绑定刷新字形）。
+        /// </summary>
+        public class ImChatOpenButtonVM : ViewModel
+        {
+            /// <summary>键帽字形（键盘 "O" / Xbox "↑" / PS "↑"；ModInput.Glyph 按设备动态，config 改绑自动跟随）。</summary>
+            [DataSourceProperty]
+            public string KeyText => ModInput.Glyph(InteractionIds.IM);
+
+            /// <summary>设备切换/改绑后刷新（OnPropertyChanged → 绑定重取值）。</summary>
+            public void Refresh()
+            {
+                OnPropertyChanged(nameof(KeyText));
+            }
+        }
 
         public static void EnsureSubscribed()
         {
@@ -156,6 +169,10 @@ namespace LivingWorldNpcs
                 if (!_widgetsReady)
                 {
                     _widgetsReady = true;   // 挂载后下一帧才放行（首帧只挂引用 + 点击事件）
+                    // 初始提示可见性同步（键帽字形/动作名文字由 XML 绑定自动求值——VM 构造即正确，
+                    // 无需 C# 设置；InteractArea 同款模式，2026-08-17 用户指引）
+                    if (_padHintContainer != null)
+                        _padHintContainer.IsVisible = _button != null && _button.IsVisible;
                     return;
                 }
                 // 显示条件变化才设置（setter 触发 RefreshState，避免每帧刷）
@@ -168,12 +185,14 @@ namespace LivingWorldNpcs
                     if (_padHintContainer != null)
                         _padHintContainer.IsVisible = visible;
                 }
-                // 🔴 2026-08-17（设备切换，input.md 范式）：手柄插入/拔出/切鼠标 → 刷新键帽字形（O ↔ ↑）
+                // 🔴 2026-08-17（设备切换，input.md 范式）：手柄插入/拔出/切鼠标 → VM Refresh
+                //（OnPropertyChanged → 绑定重取值，键帽字形 O ↔ ↑；文字内容由 XML 绑定自动求值，
+                // 不再 C# 主动设置——InteractArea 同款模式）
                 bool usingGamepad = ModInput.UsingGamepad;
                 if (usingGamepad != _lastUsingGamepad)
                 {
                     _lastUsingGamepad = usingGamepad;
-                    RefreshKeyHint();
+                    _vm?.Refresh();
                 }
 
                 UpdateHover();
@@ -217,7 +236,8 @@ namespace LivingWorldNpcs
             try
             {
                 _layer = V.NewLayer(LayerOrder, "ImChatOpenButtonLayer");
-                _movie = _layer.LoadMovie("ImChatOpenButton", new NoopVM());
+                _vm = new ImChatOpenButtonVM();
+                _movie = _layer.LoadMovie("ImChatOpenButton", _vm);
                 if (ScreenManager.TopScreen != null)
                 {
                     ScreenManager.TopScreen.AddLayer(_layer);
@@ -283,26 +303,11 @@ namespace LivingWorldNpcs
             _badge = null;
             _badgeText = null;
             _padHintContainer = null;
-            _padHintKeyText = null;
-            _padHintText = null;
+            _vm = null;
             _widgetsReady = false;
         }
 
         // ───────────────────────── widget 查找 / 交互 ─────────────────────────
-
-        /// <summary>按键绑定提示刷新（键帽 [O]/[↑] + 动作名「打开传讯」，InteractArea 同款模式）：
-        /// 键名字形经 ModInput.Glyph(InteractionIds.IM) 按设备动态（键盘 "O" / Xbox "↑" / PS "↑"——
-        /// config 改绑自动跟随）；动作名本地化。**所有设备都显示**（键鼠玩家也要知道 O 键绑定——
-        /// 用户反馈 2026-08-17）；可见性 = 按钮可见。</summary>
-        private static void RefreshKeyHint()
-        {
-            if (_padHintContainer == null) return;
-            if (_padHintKeyText != null)
-                _padHintKeyText.Text = ModInput.Glyph(InteractionIds.IM);
-            if (_padHintText != null)
-                _padHintText.Text = LWNTextHelper.ResolveText(PadHintKey, "Open messaging");
-            _padHintContainer.IsVisible = _button != null && _button.IsVisible;
-        }
 
         private static void FindWidgets()
         {
@@ -311,8 +316,6 @@ namespace LivingWorldNpcs
             _badge = FindWidgetById(_layer.UIContext.Root, BadgeId);
             _badgeText = FindWidgetById(_layer.UIContext.Root, BadgeTextId) as TextWidget;
             _padHintContainer = FindWidgetById(_layer.UIContext.Root, PadHintId);
-            _padHintKeyText = FindWidgetById(_layer.UIContext.Root, PadHintKeyId) as TextWidget;
-            _padHintText = FindWidgetById(_layer.UIContext.Root, PadHintTextId) as TextWidget;
             if (_button != null)
             {
                 _button.ClickEventHandlers.Add(OnButtonClick);
