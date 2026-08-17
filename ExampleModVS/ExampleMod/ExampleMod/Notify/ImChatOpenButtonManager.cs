@@ -92,17 +92,17 @@ namespace LivingWorldNpcs
             {
                 EnsureSubscribed();
                 bool visible = ShouldShow();
-                // 🔴 层存活检测（2026-08-17 实机修复第二弹）：只看层是否还被 owner 屏持有——
-                // ① owner 屏 PopScreen/切换销毁层（HasLayer=false）→ Close + 下帧重挂；
-                // ② 家族/队伍屏 Push 叠在 MapScreen 上（层还活着）→ **不动**（按钮被原版屏层序盖住
-                //    属正常——350 低于原版屏，符合「不超过选项界面层次」；关屏后按钮自然回来）。
-                //    旧逻辑「TopScreen 变了就 Close」会在 Push 时误杀 + Close 摘错屏（从 TopScreen 摘
-                //    一个挂在 MapScreen 的层）→ 层 Finalize 却残留在 MapScreen._layers → 下次
-                //    PopScreen 激活 MapScreen 时遍历死层 → GauntletLayer.OnActivate NRE 崩溃。
+                // 🔴 层失效判定（2026-08-17 实机日志定位：挂载在 GameLoadingScreen → 加载完成屏销毁 →
+                // 层死但 HasLayer 误报 true（ScreenBase 销毁时层仍在 _layers 列表）→ 永不重挂 → 按钮消失）。
+                // 判定 = owner 屏已不是当前 TopScreen（加载屏销毁/家族屏 Push——按钮反正被原版屏盖住，
+                // 重挂零成本）|| 层已 Finalize（IsFinalized 是权威死层标志，反编译 AddLayer 实锤）。
+                // 通过 → Close + 下帧自动重挂到当前 TopScreen。
                 if (_layer != null && _layerOwnerScreen != null
-                    && !_layerOwnerScreen.HasLayer(_layer))
+                    && (ScreenManager.TopScreen == null
+                        || _layerOwnerScreen != ScreenManager.TopScreen
+                        || _layer.IsFinalized))
                 {
-                    DebugLogger.Log("[ImChatOpenButton] 层随屏销毁（HasLayer=false），重新挂载");
+                    DebugLogger.Log($"[ImChatOpenButton] 层失效（owner={_layerOwnerScreen.GetType().Name} Top={ScreenManager.TopScreen?.GetType().Name ?? "null"} Finalized={_layer.IsFinalized}），重新挂载");
                     Close();
                 }
                 if (visible && _layer == null)
@@ -164,15 +164,20 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>显示条件（与 O 键行为一致）：PlotEnabled 总闸 + 非战斗模式。
+        /// <summary>显示条件（与 O 键行为一致）：PlotEnabled 总闸 + 非战斗模式 + 非加载屏。
         /// 🔴 2026-08-17：不含 !ImChatView.IsOpen——IM 打开时按钮被 400 层全屏遮罩盖住 + 事件被拦
-        /// （层序红利 350 &lt; 400），零额外隐藏逻辑（方案 §5.1）；去掉该条件同时消灭「IM 打开 →
-        /// 隐藏按钮 setter」这个崩溃触发面。</summary>
+        /// （层序红利 350 &lt; 400），零额外隐藏逻辑（方案 §5.1）。
+        /// 🔴 2026-08-17（实机日志）：加载屏（GameLoadingScreen）期间不挂载——挂了也会随屏销毁重挂
+        /// （挂-杀循环浪费），等加载完成 TopScreen=MapScreen 再挂。</summary>
         private static bool ShouldShow()
         {
             if (!Settings.Instance.PlotEnabled) return false;
             if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
-            return ScreenManager.TopScreen != null;
+            var top = ScreenManager.TopScreen;
+            if (top == null) return false;
+            string name = top.GetType().Name;
+            if (name.Contains("Loading")) return false;   // 加载屏不挂（会随屏销毁）
+            return true;
         }
 
         // ───────────────────────── 挂载 / 关闭 ─────────────────────────

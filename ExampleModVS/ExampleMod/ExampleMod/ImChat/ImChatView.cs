@@ -283,20 +283,21 @@ namespace LivingWorldNpcs
         /// 层叠在 ClanScreen/PartyScreen 上；点完成关屏 → PopScreen 销毁其层 → _layer C# 引用仍在但
         /// native 已释放 → 后续 Tick 访问死 widget 抛 NRE（2026-08-17 家族 UI 崩溃修复，原只在缩略分支，
         /// 完整模式无保护 → 滚动静默失效）。
-        /// 🔴 2026-08-17（实机崩溃修复第二弹，ImChatOpenButton 同根因）：**只看层是否还被 owner 屏持有**——
-        /// ① owner 屏 PopScreen 销毁层（HasLayer=false）→ Close（玩家重新打开 = 重建到当前屏）；
-        /// ② 家族/队伍屏 Push 叠层（层还活着）→ **不动**（面板被原版屏层序盖住属正常，关屏后自然回来）。
-        ///    旧逻辑「TopScreen 变了就 Close/迁移」会在 Push 时误杀 + Close 摘错屏（从 TopScreen 摘一个
-        ///    挂在 MapScreen 的层）→ 层 Finalize 却残留在 MapScreen._layers → PopScreen 回地图激活时
-        ///    遍历死层 → GauntletLayer.OnActivate NRE 崩溃（实机 2026-08-17，家族屏点密信复现）。
+        /// 🔴 2026-08-17（实机日志定位）：判定 = **IsFinalized（权威死层标志）|| owner 屏已不持有层**——
+        /// HasLayer 单独使用有盲区（ScreenBase 销毁时层仍在 _layers 列表，对已 Finalize 的层误报 true）；
+        /// IsFinalized 捕捉死层，HasLayer 捕捉屏销毁。面板层**保留 Push 叠层不误杀**（家族/队伍屏
+        /// Push 时面板被原版屏层序盖住属正常，关屏后自然回来——与按钮层「重挂零成本」不同，面板
+        /// Close 会丢玩家状态，所以不按 TopScreen 判定）。
         /// </summary>
         private static void MigrateLayerIfNeeded()
         {
             if (_layer == null || _layerOwnerScreen == null) return;
             bool held = false;
             try { held = _layerOwnerScreen.HasLayer(_layer); } catch { }
-            if (held) return;   // 层还活着（owner 屏仍在，即使不是 TopScreen）→ 不动
-            DebugLogger.Log($"[ImChat] 层随屏销毁（owner {_layerOwnerScreen.GetType().Name} 已不持有层），关闭面板");
+            bool finalized = false;
+            try { finalized = _layer.IsFinalized; } catch { finalized = true; }
+            if (held && !finalized) return;   // 层还活着（owner 屏仍在，即使不是 TopScreen）→ 不动
+            DebugLogger.Log($"[ImChat] 层已失效（owner={_layerOwnerScreen.GetType().Name} held={held} Finalized={finalized}），关闭面板");
             Close();
         }
 
