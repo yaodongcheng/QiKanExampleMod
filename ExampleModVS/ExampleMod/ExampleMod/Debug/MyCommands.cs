@@ -2780,6 +2780,58 @@ namespace LivingWorldNpcs
             return "已模拟事件 " + type + "：" + desc + "（队伍频道将有 NPC 主动发言，注意防刷屏冷却）";
         }
 
+        /// <summary>
+        /// 自动世界观状态查询。
+        /// 用法: custom.worldbg_status
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("worldbg_status", "custom")]
+        public static string WorldBgStatus(List<string> args)
+        {
+            if (Campaign.Current == null) return "Error: Campaign not loaded.";
+            var behavior = Campaign.Current.GetCampaignBehavior<WorldBackgroundBehavior>();
+            string state = behavior != null ? behavior.CurrentState.ToString() : "(behavior 未注册)";
+            string fp = WorldBackgroundStore.Fingerprint ?? "";
+            string currentFp = "";
+            try { currentFp = WorldBackgroundProvider.GetFingerprint(); } catch { }
+            bool fpMatch = !string.IsNullOrEmpty(fp) && fp == currentFp;
+            var sb = new StringBuilder();
+            sb.AppendLine("=== WorldBackground Status ===");
+            sb.AppendLine($"State: {state}");
+            sb.AppendLine($"Blob: {(string.IsNullOrEmpty(WorldBackgroundStore.Blob) ? "(空)" : WorldBackgroundStore.Blob)}");
+            sb.AppendLine($"BlobLen: {WorldBackgroundStore.Blob?.Length ?? 0}");
+            sb.AppendLine($"Fingerprint: {fp}");
+            sb.AppendLine($"CurrentFingerprint: {currentFp}");
+            sb.AppendLine($"FingerprintMatch: {fpMatch}");
+            sb.AppendLine($"IsLLMConfigured: {Settings.Instance?.IsLLMConfigured}");
+            return sb.ToString();
+        }
+
+        /// <summary>
+        /// 清空 blob 强制重新生成世界观。
+        /// 用法: custom.worldbg_regenerate
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("worldbg_regenerate", "custom")]
+        public static string WorldBgRegenerate(List<string> args)
+        {
+            if (Campaign.Current == null) return "Error: Campaign not loaded.";
+            var behavior = Campaign.Current.GetCampaignBehavior<WorldBackgroundBehavior>();
+            if (behavior == null) return "Error: WorldBackgroundBehavior not registered.";
+            behavior.ForceRegenerate();
+            return "已清空 blob，下一 tick 重新生成（等 [WorldBg] 日志确认）";
+        }
+
+        /// <summary>
+        /// 转储世界观 blob 原文（验收用：查实时状态残留/点名在位者人名）。
+        /// 用法: custom.worldbg_dump
+        /// </summary>
+        [CommandLineFunctionality.CommandLineArgumentFunction("worldbg_dump", "custom")]
+        public static string WorldBgDump(List<string> args)
+        {
+            if (string.IsNullOrEmpty(WorldBackgroundStore.Blob))
+                return "（blob 为空：未生成/生成失败/未配置 LLM）";
+            return WorldBackgroundStore.Blob;
+        }
+
     }
 
 }

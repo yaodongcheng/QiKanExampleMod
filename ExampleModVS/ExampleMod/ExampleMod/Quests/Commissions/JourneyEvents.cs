@@ -114,8 +114,10 @@ namespace LivingWorldNpcs
         {
             try
             {
-                // LLM 提示词：给旅途事件生成一句话风味描写（世界观名占位）
-                string prompt = LWNTextHelper.ResolveCompound("LWN_journey_llm_flavor_prompt", "Add a short flavor description to this journey event ({WORLD_DESCRIPTION} world setting, within 30 characters):", ("WORLD_DESCRIPTION", Settings.Instance.WorldDescription));
+                // LLM 提示词：给旅途事件生成一句话风味描写
+                // 🔴 2026-08-17：WorldDescription 退场——{WORLD_DESCRIPTION} 占位已从 XML 模板移除
+                //（EN/CN 双文件同步），C# 侧传空串（ResolveCompound 空值不注入变量）
+                string prompt = LWNTextHelper.ResolveCompound("LWN_journey_llm_flavor_prompt", "Add a short flavor description to this journey event (within 30 characters):", ("WORLD_DESCRIPTION", ""));
                 string result = await LLMService.Instance.ChatAsync(prompt, 60, false);
                 if (!string.IsNullOrEmpty(result))
                     quest.AddLog(new TextObject(result.Trim()));

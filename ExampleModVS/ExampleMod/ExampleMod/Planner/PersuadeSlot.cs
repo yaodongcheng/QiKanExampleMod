@@ -431,7 +431,7 @@ namespace LivingWorldNpcs
         private void RequestLlmResponderLine()
         {
             var s = Session;
-            string world = Settings.Instance?.WorldDescription ?? "";
+            string world = WorldBackgroundProvider.GetWorldSection(_responder);
             // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
             string occName = LWNTextHelper.ResolvePrompt("LWN_prompt_trait_occupation_" + _occupation);
             if (string.IsNullOrEmpty(occName)) occName = _occupation;
@@ -462,7 +462,8 @@ namespace LivingWorldNpcs
                 // 本地化：LWN_plan_persuade_rule（玩家可见文本）
                 "LWN_plan_persuade_rule",
                 "【要求】用一句话口语化回应对方的劝说（10-40 字），态度与你此刻的倾向一致：倾向答应就松动，倾向拒绝就推脱。直接说台词本身——不要引号、不要解释、不要动作描写。",
-                actionSpace, maxTokens: 120, timeoutMs: 2000)
+                actionSpace, maxTokens: 120, timeoutMs: 2000,
+                addressSection: PromptBuilder.BuildAddressAndKinshipSections(_responder, _initiator))
                 .ContinueWith(t =>
                 {
                     try
@@ -511,7 +512,7 @@ namespace LivingWorldNpcs
             var s = Session;
             if (Settings.Instance.IsLLMConfigured && _initiator != null && _initiator.IsActive())
             {
-                string world = Settings.Instance?.WorldDescription ?? "";
+                string world = WorldBackgroundProvider.GetWorldSection(_initiator);
                 string initName = _initiator.Name?.ToString() ?? "随从";
                 string identity = string.Format(
                     // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
@@ -530,7 +531,8 @@ namespace LivingWorldNpcs
                     // 本地化：LWN_plan_persuade_init_rule（玩家可见文本）
                     "LWN_plan_persuade_init_rule",
                     "【要求】用一句话继续劝说对方（10-40 字），根据对方的抗拒逐渐加码（讲道理/许诺/恳求），符合随从身份。直接说台词本身——不要引号、不要解释、不要动作描写。",
-                    null, maxTokens: 100, timeoutMs: 2000)
+                    null, maxTokens: 100, timeoutMs: 2000,
+                    addressSection: PromptBuilder.BuildAddressAndKinshipSections(_initiator, _responder))
                     .ContinueWith(t =>
                     {
                         try

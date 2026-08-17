@@ -397,10 +397,24 @@ namespace LivingWorldNpcs
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
-            // 世界观段（与 BuildPlanPrompt 同源 key）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + Settings.Instance.WorldDescription);
+            // 世界观段（blob 单段注入，2026-08-17：静态 flavor 退场，LLM 自动生成；blob 空 =
+            // 未配置 LLM/生成失败/未就绪 → 标题+内容整段省略，防标题残留）
+            string worldSection = WorldBackgroundProvider.GetWorldSection(npcHeroId);
+            if (!string.IsNullOrWhiteSpace(worldSection))
+            {
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + worldSection); // lwn-ignore: B
+                sb.AppendLine();
+            }
             sb.AppendLine(Settings.Instance.SpeechStyle);
             sb.AppendLine();
+            // 🔴 2026-08-17（称呼纪律，用户裁定三版定稿）：称呼 = LLM 现场发挥（无预生成矩阵）——
+            // 双方性别年龄现取 + 对方（玩家）族长/队长身份；亲缘 NPC 附加第一人称亲缘段（那塔诺斯案）
+            string addressSection = BuildAddressAndKinshipSections(npcHeroId);
+            if (!string.IsNullOrWhiteSpace(addressSection))
+            {
+                sb.AppendLine(addressSection);
+                sb.AppendLine();
+            }
             // 🔴 2026-08-16（方案 F2）：自我认知段（【我的状态】+【主公的行头】+【队伍物资】）——
             // 独立段插在 sceneAwareness 前（第一人称亲见：谁都知道自己穿什么、几斤几两）
             if (!string.IsNullOrWhiteSpace(selfAwareness))
@@ -515,21 +529,21 @@ namespace LivingWorldNpcs
             // NPC 是主公麾下 → "你的主公 X 传讯给你"，否则 "对方 X 传讯给你"。
             // （旧 bug：ImReplyService 误传 NPC 自己的名字 → "对方 阿速甘 传讯给你" 自我传讯出戏）
             string senderPrefix = memory?._profile?.IsPlayerSubordinate() == true
-                // 本地化：prompt_im_sender_lord（玩家可见文本）
-                ? LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_lord", "Your lord {NAME} just sent you a secret letter:", ("NAME", speakerName)) // lwn-ignore: B
+                // 本地化：prompt_im_sender_lord（玩家可见文本）——2026-08-17 称呼纪律：抬头不再带"主公"
+                ? LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_lord", "{NAME} just sent you a secret letter:", ("NAME", speakerName)) // lwn-ignore: B
                 // 本地化：prompt_im_sender_other（玩家可见文本）
                 : LWNTextHelper.ResolveCompound("LWN_prompt_im_sender_other", "{NAME} just sent you a secret letter:", ("NAME", speakerName)); // lwn-ignore: B
             if (!string.IsNullOrWhiteSpace(peerInteraction))
             {
                 // 🔴 v3.2（2026-08-10 用户反馈"两个NPC都在回我"）：跟随者改成**对主回复者说话**的对话流——
                 // 主公是话题发起者，跟随者的重点是接主回复者的茬（风格见【同僚互动】段），不是再回一遍主公
-                sb.AppendLine($"【对话流】主公 {speakerName} 问：\"{lastPlayerText}\"。");
-                sb.AppendLine("现在轮到你说话——你针对上一位同伴的那句话回应他（你的回应风格见上方【同僚互动】段），主公的事可以顺带提一句，但主角是你们俩的你来我往。");
+                sb.AppendLine($"【对话流】{speakerName} 问：\"{lastPlayerText}\"。");
+                sb.AppendLine("现在轮到你说话——你针对上一位同伴的那句话回应他（你的回应风格见上方【同僚互动】段），对方的事可以顺带提一句，但主角是你们俩的你来我往。");
                 // 🔴 2026-08-13（实机：主公"你们俩都来我这"，跟随者只接话没动，主公再点名一次才动）：
                 // 接话归接话、办事归办事——主公的话点名了你/你们（"你们俩都来""百草过来"这类），
                 // 你在接完同僚的茬之后，照常执行对应的动作（move_to/follow/stop_following 等），
                 // npc_action 不许因为"正在回应同僚"就填 NONE；主公的话与你无关时才只接话不动手。
-                sb.AppendLine("若主公的话点名了你或你们（如「你们俩都来」「X过来」），你除了接同僚的茬，还必须照常执行对应的动作（move_to/follow/stop_following 等）——接话归接话、办事归办事，两件事都要做；主公的话与你无关时，才只接话不动手。");
+                sb.AppendLine("若对方的话点名了你或你们（如「你们俩都来」「X过来」），你除了接同僚的茬，还必须照常执行对应的动作（move_to/follow/stop_following 等）——接话归接话、办事归办事，两件事都要做；对方的话与你无关时，才只接话不动手。");
                 sb.AppendLine();
             }
             else
@@ -636,6 +650,140 @@ namespace LivingWorldNpcs
             catch { return null; }
         }
         /// <summary>
+        /// 🔴 2026-08-17（称呼纪律，用户裁定三版迭代定稿）：【称呼纪律】段 + 【亲缘与身份认知】段。
+        /// 称呼 = LLM 每次生成回复时按双方身份/阵营/阶级/性别/年龄**现场发挥**（生成产物，非配置参数）——
+        /// 不写死"主公"，称呼随世界观与关系自然呈现；【称呼纪律】段 = 双方性别年龄现取 + 对方（玩家）
+        /// 族长/队长身份（其余复用现有注入：persona 我方身份、与对方的关系段、对话历史、百科对方身份）。
+        /// 亲缘与身份认知独立保留：NPC 与对方（玩家）有亲缘时注入第一人称亲缘段（亲缘关系重点说明 +
+        /// 对方族长/队长身份），根治"否认兄弟关系"（2026-08-17 那塔诺斯案）。
+        /// IM/群聊入口：npcHeroId = 说话 NPC 的 StringId；对方恒为玩家。
+        /// </summary>
+        public static string BuildAddressAndKinshipSections(string npcHeroId)
+        {
+            Hero npc = null;
+            if (!string.IsNullOrEmpty(npcHeroId))
+            {
+                try { npc = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == npcHeroId); } catch { }
+            }
+            if (npc == null) return "";
+            return BuildAddressAndKinshipSections(
+                npc.IsFemale, npc.Age, npc,
+                Hero.MainHero?.IsFemale == true, Hero.MainHero?.Age ?? 0f, Hero.MainHero,
+                otherIsPlayer: true);
+        }
+
+        /// <summary>respond 链（当面对话/附近喊话/劝说/旁观插嘴）入口：self = 说话 NPC，other = 对话对象。
+        /// 模板 NPC（无 Hero）→ 亲缘段跳过（亲缘需要 Hero），称呼纪律用 CharacterObject 性别/年龄兜底。</summary>
+        public static string BuildAddressAndKinshipSections(Agent self, Agent other)
+        {
+            if (self == null) return "";
+            var selfChar = self.Character;
+            var otherChar = other?.Character;
+            Hero selfHero = (selfChar as CharacterObject)?.HeroObject;
+            Hero otherHero = (otherChar as CharacterObject)?.HeroObject;
+            return BuildAddressAndKinshipSections(
+                selfChar?.IsFemale == true, selfChar?.Age ?? 0f, selfHero,
+                otherChar?.IsFemale == true, otherChar?.Age ?? 0f, otherHero,
+                otherIsPlayer: other == Agent.Main);
+        }
+
+        /// <summary>核心构建：称呼纪律（双方性别年龄 + 对方族长/队长身份）+ 亲缘认知（有亲缘才注入）。
+        /// 空串 = 不注入（调用方判断 IsNullOrWhiteSpace 跳过）。</summary>
+        private static string BuildAddressAndKinshipSections(
+            bool npcIsFemale, float npcAge, Hero npcHero,
+            bool otherIsFemale, float otherAge, Hero otherHero, bool otherIsPlayer)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                // ── 【称呼纪律】段（普世：任何对话双方都注入；亲缘称呼优先，对方是族长/队长按职位敬称）──
+                sb.Append("【称呼纪律】称呼对方时按你们的关系与身份自然选择（亲缘称呼优先；对方是族长/队长时按职位敬称），沿用对话历史里你用过的称呼保持一致，不要生硬套用固定敬语。双方：你（");
+                sb.Append(npcIsFemale ? "女" : "男");
+                if (npcAge > 0) sb.Append("，" + ((int)npcAge) + " 岁");
+                sb.Append("），对方（");
+                sb.Append(otherIsFemale ? "女" : "男");
+                if (otherAge > 0) sb.Append("，" + ((int)otherAge) + " 岁");
+                sb.Append("）");
+                // 对方（玩家）身份：族长/无家族 + 队长（随从语境恒真，见 NpcTierHelper）
+                if (otherIsPlayer && otherHero != null)
+                    sb.Append("，" + BuildPlayerIdentityClause(otherHero));
+                sb.Append("。");
+                sb.AppendLine();
+                // ── 【亲缘与身份认知】段（有亲缘才注入；关系×性别×年龄封闭集规则生成）──
+                string kinship = BuildKinshipSection(npcHero, otherHero, otherIsPlayer);
+                if (!string.IsNullOrWhiteSpace(kinship))
+                {
+                    sb.AppendLine(kinship);
+                    sb.AppendLine();
+                }
+                return sb.ToString();
+            }
+            catch
+            {
+                return "";
+            }
+        }
+
+        /// <summary>对方（玩家）身份句：族长判定 = Clan.Leader == MainHero；无家族变体「尚未建立自己的家族」；
+        /// 队长 = 随从语境恒真（NPC 在玩家队伍/家族体系内，玩家必然是其队长）。</summary>
+        private static string BuildPlayerIdentityClause(Hero player)
+        {
+            string family = (player != null && player.Clan != null && player.Clan.Leader == player)
+                ? "是你们家族的族长"
+                : "尚未建立自己的家族";
+            return family + "，也是这支队伍的队长";
+        }
+
+        /// <summary>亲缘认知段（第一人称亲缘关系 + 对方身份）；无亲缘返回 null（零注入）。</summary>
+        private static string BuildKinshipSection(Hero npc, Hero other, bool otherIsPlayer)
+        {
+            if (npc == null || other == null || npc == other) return null;
+            string relation = DescribeKinship(npc, other);
+            if (relation == null) return null;
+            string playerName = other.Name?.ToString() ?? "对方";
+            string section = $"【亲缘与身份认知】你和 {playerName} {relation}。";
+            if (otherIsPlayer)
+                section += BuildPlayerIdentityClause(other) + "。";
+            return section;
+        }
+
+        /// <summary>亲缘关系描述（封闭集）：配偶 → 父母/子女 → 同胞（兄弟/姐妹/兄妹/姐弟 + 谁年长）。
+        /// 代词他/她按对方性别；称谓按本 NPC 性别与年长。</summary>
+        private static string DescribeKinship(Hero npc, Hero other)
+        {
+            string pronoun = other.IsFemale ? "她" : "他";
+            // 配偶
+            if (npc.Spouse == other)
+                return $"是夫妻，你是{pronoun}的{(npc.IsFemale ? "妻子" : "丈夫")}";
+            // 父母（对方是 NPC 的父母）
+            if (npc.Father == other || npc.Mother == other)
+            {
+                string pair = (other.IsFemale ? "母" : "父") + (npc.IsFemale ? "女" : "子");
+                return $"是{pair}，你是{pronoun}的{(npc.IsFemale ? "女儿" : "儿子")}";
+            }
+            // 子女（对方是 NPC 的子女）
+            if (npc.Children.Contains(other))
+            {
+                string pair = (npc.IsFemale ? "母" : "父") + (other.IsFemale ? "女" : "子");
+                return $"是{pair}，你是{pronoun}的{(npc.IsFemale ? "母亲" : "父亲")}";
+            }
+            // 同胞
+            if (npc.Siblings.Contains(other))
+            {
+                bool sameFather = npc.Father != null && npc.Father == other.Father;
+                bool sameMother = npc.Mother != null && npc.Mother == other.Mother;
+                string blood = sameFather && sameMother ? "同父同母的" : (sameFather ? "同父的" : (sameMother ? "同母的" : "同胞的"));
+                string type = npc.IsFemale
+                    ? (other.IsFemale ? "姐妹" : "姐弟")
+                    : (other.IsFemale ? "兄妹" : "兄弟");
+                bool npcElder = npc.Age >= other.Age;
+                string selfTitle = npc.IsFemale ? (npcElder ? "姐姐" : "妹妹") : (npcElder ? "哥哥" : "弟弟");
+                return $"是{blood}同胞{type}，你是{pronoun}的{selfTitle}";
+            }
+            return null;
+        }
+
+        /// <summary>
         /// 计划讲解 prompt（🔴 2026-08-11 用户裁定：按钮 = 确定性事件 → LLM 人话讲解计划步骤 + 异常条件）。
         /// 输入 = C# 确定性渲染的计划内容（BuildPlanDetail：动作标签表 + 目标 + 应急 + 安全网），
         /// 纪律 = 只许转述（同 narration，防幻觉，铁律 2 延伸）；讲解人 = 执行者本人（当事人自述，叙事铁律）。
@@ -643,16 +791,16 @@ namespace LivingWorldNpcs
         public static string BuildPrompt_PlanExplain(string speakerName, string planDetail, string originalCommand = null)
         {
             var sb = new StringBuilder();
-            sb.AppendLine("【世界观】" + (Settings.Instance?.WorldDescription ?? "卡拉迪亚中世纪世界"));
+            // 🔴 2026-08-17（轻量出口）：世界观段整段移除（静态 flavor 退场，讲解无需世界观 grounding）
             sb.AppendLine($"【你的身份】你是 {speakerName}。");
             if (!string.IsNullOrWhiteSpace(originalCommand))
-                sb.AppendLine($"【主公的命令】主公的原话是：「{originalCommand}」。");
-            sb.AppendLine("【背景】主公看到了你拟定的计划，想听你亲口讲一讲。");
+                sb.AppendLine($"【对方的命令】对方下的命令原话是：「{originalCommand}」。");
+            sb.AppendLine("【背景】对方看到了你拟定的计划，想听你亲口讲一讲。");
             sb.AppendLine("【计划内容】");
             sb.AppendLine(planDetail);
             sb.AppendLine();
             sb.AppendLine("【讲解要求】用第一人称口语化讲解这个计划：要做什么、分几步、出岔子怎么办。"
-                + "像对主公当面汇报一样，一句话 10-40 字，总共不超过 150 字。"
+                + "像对对方当面汇报一样，一句话 10-40 字，总共不超过 150 字。"
                 + "只许转述上面【计划内容】里的事，禁止编造计划外的新行动。");
             // 🔴 2026-08-12（讲解 = 二次校验）：审查原则与生成时同一份（XML LWN_plan_rules 同源，
             // 代码已查语法/结构，审查员只查代码查不出的语义问题——当事人复盘，非上帝视角）。
@@ -665,9 +813,9 @@ namespace LivingWorldNpcs
                 + "④失败路径齐不齐（对方拒绝/找不到/中途被打断，有没有退路；on_timeout 有没有指向 fail 收尾——禁止把\"没等到\"写成成功）；"
                 + "⑤步骤之间、contingency 与主链之间有没有互相矛盾（例：一边等对方跟来、一边写\"看不见他就失败\"——他就在你身后跟着，这个 contingency 会误杀计划）；"
                 + "⑥掉线检测有没有 sustained_s 防抖（纪律 19：转头/被柱子挡一下不算丢，瞬时视线变化禁止当掉线）。"
-                + "发现问题（found_issue=true）→ 讲解开头用一句人话点出隐患（如「主公，我盘了一遍，有个地方悬：…」），"
-                + "讲完再开口向主公请示（如「主公，要不要我重拟一遍？」——**只请示、不擅动**，重拟与否由主公发话）；"
-                + "没发现问题（found_issue=false）→ **简短确认即可**（如「主公，计划我盘过了，走通无碍。照这个办？」），"
+                + "发现问题（found_issue=true）→ 讲解开头用一句人话点出隐患（如「我盘了一遍，有个地方悬：…」），"
+                + "讲完再开口向对方请示（如「要不要我重拟一遍？」——**只请示、不擅动**，重拟与否由对方发话）；"
+                + "没发现问题（found_issue=false）→ **简短确认即可**（如「计划我盘过了，走通无碍。照这个办？」），"
                 + "不要逐条复述步骤、不要无病呻吟。");
             sb.AppendLine("【输出格式】只输出一个 JSON 对象（不要 Markdown、不要多余文字）："
                 + "{\"line\": \"讲解台词（按上面要求）\", \"found_issue\": true或false}。"
@@ -698,13 +846,18 @@ namespace LivingWorldNpcs
             string npcName = memory._profile.Name;
             string playerName = Hero.MainHero != null ? Hero.MainHero.Name.ToString() : "玩家";
             sb.AppendLine("【当前任务：闲聊】");
-            sb.AppendLine($"这里是骑马与砍杀2的AI模组。{S.EraDescription}。你的目标是扮演{npcName},不要表现像个人机。");
+            // 🔴 2026-08-17：静态时代描述退场——改拼 blob 世界观段（闲聊是玩家问"这世界什么样"的
+            // 高频链路，必须有 grounding；GetWorldSection(null) 全民同段纯字符串、无身份裁剪）
+            string worldSection = WorldBackgroundProvider.GetWorldSection((string)null);
+            if (!string.IsNullOrWhiteSpace(worldSection))
+                sb.AppendLine(worldSection);
+            sb.AppendLine($"你的目标是扮演{npcName},不要表现像个人机。");
             sb.AppendLine($"你需要重点基于玩家与你的最新互动记录，决定你的明面上的说话内容npc_reply、执行动作npc_action、你的情绪npc_emotion、你的内心吐槽或者沾沾自喜npc_thinking，以玩家的口吻来生成若干选项，并以Json格式输出。");
             sb.AppendLine("重要：如果你检测到玩家有很强的谈判目的（例如：求婚、索要等）。" +
                 "不管该意图是否符合当前的逻辑或事实（例如：即使你已婚，玩家依然可能发起求婚；即使你没有钱，玩家依然可能索要金钱），\r\n你都必须严格执行以下操作：\r\n" +
                 "1. 设置 suggest_negotiation_start 为 true。\r\n" +
                 "2. 设置 detected_nogotiation_goal 为对应的目的代码（如 ProposeMarriage）。\r\n" +
-                "3. npc_reply 依然可以根据你的性格进行斥责或拒绝，但 JSON 字段必须传递该意图。");            
+                "3. npc_reply 依然可以根据你的性格进行斥责或拒绝，但 JSON 字段必须传递该意图。");
             sb.AppendLine("4.一旦识别到玩家的谈判目的，请从以下列表中选择合适的detected_nogotiation_goal并填入JSON，严禁创造不存在的 detected_nogotiation_goal。");
             foreach (var kvp in NegotiationRegistry.Goal2Info)
             {
@@ -1072,7 +1225,8 @@ namespace LivingWorldNpcs
             }
             sb.AppendLine("【当前任务：协商博弈】");
             // 🔴 2026-08-10 修 bug：原为 "你是一个高自由度{S.WorldDescription}..." 漏 $ 插值，原样字符串打给 LLM
-            sb.AppendLine($"你是一个高自由度{S.WorldDescription}中的“上帝裁判”兼“NPC扮演者”。");
+            // 🔴 2026-08-17：WorldDescription 退场，删字段引用（上帝裁判无需世界观 grounding）
+            sb.AppendLine("你是一个高自由度世界中的“上帝裁判”兼“NPC扮演者”。");
             sb.AppendLine("你的任务是：");
             sb.AppendLine($"1. 扮演NPC{npcName}，根据人设和局势对玩家的话语做出反应。");
             sb.AppendLine("2. 作为裁判，基于玩家实际给出的筹码和玩家的话术，结合NPC自身顾虑，计算玩家本回合的谈判效果（进度暴击率）。");
@@ -1283,7 +1437,7 @@ namespace LivingWorldNpcs
                 // ... 同上，可以扩展 ...
             }
             // ==========================================================
-            sb.AppendLine("请根据以上关系，调整你对话中的称呼（例如将受害者称为“我妻子”、“我主公”等）。");
+            sb.AppendLine("请根据以上关系，调整你对话中的称呼（例如将受害者称为“我妻子”等）。");
             return sb.ToString();
         }
         public static string BuildPromptForSocialEvent(SingNpcMemorySystem memory,string historyStr, string memoryStr)
@@ -1333,7 +1487,8 @@ namespace LivingWorldNpcs
             string npcName = memory._profile.Name;
             StringBuilder sb = new StringBuilder();
             sb.AppendLine("【任务描述】");
-            sb.AppendLine($"你是生活在骑马与砍杀2{S.WorldDescription}中的{npcName}。你需要决定是否将一条即将遗忘的记忆存入你的永续记忆中。");
+            // 🔴 2026-08-17：WorldDescription 退场，删字段引用（记忆判定无需世界观 grounding）
+            sb.AppendLine($"你是{npcName}。你需要决定是否将一条即将遗忘的记忆存入你的永续记忆中。");
             sb.AppendLine("【记忆内容】");
             sb.AppendLine($"- 即将遗忘的记忆: {fadingMemory}");
             sb.AppendLine($"- 当前的永续记忆: {currentPermanentMemory}");
@@ -1430,7 +1585,7 @@ namespace LivingWorldNpcs
             sb.AppendLine($"你是{profile.Name}。请根据下面的【身份信息】【性格数值】【武艺技能】【对话记录】，用第一人称生成三段常驻人设。");
             sb.AppendLine("要求：");
             sb.AppendLine("1. 必须第一人称（我），是你说给别人听/自我介绍时的依据。");
-            sb.AppendLine("2. BackgroundStory（身世，30~60字）：你的过往——从对话记录中提取真实经历（如被主公招募的流浪者、提到过的家乡/牵挂），不要编造记录里不存在的内容。");
+            sb.AppendLine("2. BackgroundStory（身世，30~60字）：你的过往——从对话记录中提取真实经历（如被招募的流浪者、提到过的家乡/牵挂），不要编造记录里不存在的内容。");
             sb.AppendLine("3. Personality（性格，20~40字）：把【性格数值】翻译成人的性格描述（如：重荣誉、性急、见不得欺压弱小），不要罗列数字。");
             sb.AppendLine("4. Specialty（本事，20~40字）：把【武艺技能】翻译成你会做什么（如：长于弓术与骑术，马上功夫过得去），不要罗列技能名和数字。");
             sb.AppendLine("5. 不要用引号包裹整段。");
@@ -1499,10 +1654,10 @@ namespace LivingWorldNpcs
         {
             if (speaker == null) return "";
             var sb = new StringBuilder();
-            sb.AppendLine($"你是{speaker.Name}，{speaker.Name}是主公队伍里的随从。你刚刚听说了一件大事，想在队伍频道里说句话。");
+            sb.AppendLine($"你是{speaker.Name}，{speaker.Name}是这支队伍里的随从。你刚刚听说了一件大事，想在队伍频道里说句话。");
             sb.AppendLine($"事件：{description}");
             sb.AppendLine("要求：");
-            sb.AppendLine("1. 用第一人称，一句口语化的评论（20~40字），符合你对主公的立场（关心/骄傲/担忧/议论）。");
+            sb.AppendLine("1. 用第一人称，一句口语化的评论（20~40字），符合你的立场（关心/骄傲/担忧/议论）。");
             sb.AppendLine("2. 不要复述事件细节，就表达你的看法，像在队伍里随口说的一句。");
             sb.AppendLine("3. 只输出台词本身，不要引号、不要冒号、不要任何解释或 JSON。");
             return sb.ToString();
@@ -1688,12 +1843,17 @@ namespace LivingWorldNpcs
         /// 直接引用（玩家说的「酒馆老板」= 场景里的「酒馆店主#3」已固定，不再二次解析）。</summary>
         public static string BuildPlanPrompt(string snapshotText, string command, string persona,
             string history, string intentTable, string grammarRules, string companionIntention = null,
-            string resolvedTargetText = null)
+            string resolvedTargetText = null, string worldSection = null)
         {
             var sb = new StringBuilder();
-            // 世界观段标题（XML LWN_plan_section_world，双语）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + S.WorldDescription);
-            sb.AppendLine();
+            // 世界观段（blob 单段注入，2026-08-17：静态 flavor 退场；调用点传切片结果，null = 省略——
+            // 标题+内容一起条件化，blob 空 → 整段省略防标题残留）
+            if (!string.IsNullOrWhiteSpace(worldSection))
+            {
+                // 世界观段标题（XML LWN_plan_section_world，双语）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + worldSection);
+                sb.AppendLine();
+            }
             // 当前场景段标题（XML LWN_plan_section_scene）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_scene"));
             // 场景快照为空时的兜底文案（XML LWN_plan_section_scene_empty）

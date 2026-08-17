@@ -174,8 +174,10 @@ namespace LivingWorldNpcs
                 if (string.IsNullOrEmpty(rule))
                     rule = "【行动提议】你刚被主公搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向主公提出，格式：主公，我想去…（10~30 字，直接说，不要解释）。提议必须与当前话题相关——顺着主公刚说的话、频道里正聊的事想该做什么；当前话题下没有合适的事可提，只输出「无」。";
                 var sb = new System.Text.StringBuilder();
-                // 本地化：LWN_plan_section_world（玩家可见文本）
-                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + (Settings.Instance?.WorldDescription ?? ""));
+                // 本地化：LWN_plan_section_world（玩家可见文本）——blob 单段，空则整段省略防标题残留
+                string worldSection = WorldBackgroundProvider.GetWorldSection(heroId);
+                if (!string.IsNullOrWhiteSpace(worldSection))
+                    sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + worldSection); // lwn-ignore: B
                 sb.AppendLine(identity);
                 sb.AppendLine(rule);
                 // 当前话题上下文：玩家刚说的话 + 频道近期消息（无上下文 = 零上下文自由发挥，实锤「去集市」类离谱提议）

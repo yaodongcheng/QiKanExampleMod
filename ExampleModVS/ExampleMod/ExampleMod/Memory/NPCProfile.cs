@@ -638,13 +638,11 @@ namespace LivingWorldNpcs
         #endregion
 
         /// <summary>领主级判定（身份深度用，2026-08-10）：领主 / 阵营领袖 / 家族族长 才有
-        /// 家族与王国的百科级认知；平民保持坊间常识。</summary>
+        /// 家族与王国的百科级认知；平民保持坊间常识。
+        /// 🔴 2026-08-17（铁律 18 共享化）：判定公式抽到 NpcTierHelper.IsNoble（玩家/NPC 共用单管线）。</summary>
         private bool IsNobleTier()
         {
-            if (BaseHero == null) return false;
-            if (BaseHero.IsLord || BaseHero.IsFactionLeader) return true;
-            var clan = BaseHero.Clan;
-            return clan != null && clan.Leader == BaseHero;
+            return NpcTierHelper.IsNoble(BaseHero);
         }
 
         public string GetClanInfo()
@@ -1174,10 +1172,43 @@ namespace LivingWorldNpcs
             // 全量数据（领地/财富/国家实力/战争状态等）在玩家提到相关话题时由
             // GetMentionedBackgroundPrompt 按需拼入——平时零噪声，聊到了才给细节。
             sb.AppendLine(GetStandingSummary());
+            // 🔴 2026-08-17（自动世界观 §5 增量②）：NPC 自身文化百科拼入——引擎原产
+            // （CultureObject.EncyclopediaText，spcultures.xml 每文化 200+ 字 lore），天然贴合该 NPC
+            // 文化、零生成成本（每存档只跑一份世界格局生成，不可能按文化跑 8 份——文化内容对话时
+            // 从 NPC 自身文化百科直接拼入）。平民/领主/模板 NPC 全量注入（无身份裁剪）。
+            sb.AppendLine(GetCultureInfo());
             // 队伍身份：NPC 知道自己随主公同行（否则会答出"我不认识你"这种出戏回复）
             sb.AppendLine(GetPartyRoleInfo());
 
             return sb.ToString();
+        }
+
+        /// <summary>自身文化百科（引擎原产，2026-08-17）：Hero 用 Culture（兜底 Clan/Kingdom），
+        /// 模板 NPC 用 BaseCharacter?.Culture。文化名 + EncyclopediaText 拼入 persona（世界书层）。</summary>
+        public string GetCultureInfo()
+        {
+            try
+            {
+                CultureObject culture = null;
+                if (BaseHero != null)
+                {
+                    culture = BaseHero.Culture ?? BaseHero.Clan?.Culture ?? BaseHero.Clan?.Kingdom?.Culture;
+                }
+                else if (BaseCharacter != null)
+                {
+                    culture = BaseCharacter.Culture;
+                }
+                if (culture == null) return "";
+                string enc = culture.EncyclopediaText?.ToString();
+                // 模板 NPC（无 Hero）即使无百科也补文化名（§5 增量③）；Hero 无百科 → 零注入
+                //（StandingSummary 已有归属，不重复造"我是X人"行）
+                if (string.IsNullOrWhiteSpace(enc) && BaseHero != null) return "";
+                var sb = new StringBuilder();
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_culture", "## My People and Culture")); // lwn-ignore: B
+                sb.AppendLine($"我是{culture.Name}人。" + (string.IsNullOrWhiteSpace(enc) ? "" : enc));
+                return sb.ToString();
+            }
+            catch { return ""; }
         }
 
         /// <summary>一句话的出身与立场（家族/国家的自我认知，无具体数据）。
@@ -1258,7 +1289,9 @@ namespace LivingWorldNpcs
             if (!inPlayerClan && !inPlayerParty) return "";
             string playerName = Hero.MainHero.Name.ToString();
             var sb = new StringBuilder();
-            sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_lord", "## My Lord")); // lwn-ignore: B
+            // 🔴 2026-08-17（称呼纪律）：段标题不再写死"主公"——"## 你与 {NAME} 的关系"（{NAME} = 玩家名运行时拼）
+            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_section_lord",
+                "## Your Relationship with {NAME}", ("NAME", playerName))); // lwn-ignore: B
             if (inPlayerParty)
             {
                 if (inPlayerClan)

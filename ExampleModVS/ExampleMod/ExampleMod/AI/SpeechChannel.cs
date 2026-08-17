@@ -287,7 +287,7 @@ namespace LivingWorldNpcs
                 string topic = string.IsNullOrEmpty(context.Topic) ? "说话" : context.Topic;
                 string anchor = string.IsNullOrEmpty(fallback) ? "" : $"（大意是：{fallback}，可以换更自然的说法，但别偏离意思）";
                 var dline = await DialogueComponent.GenerateLine(
-                    Settings.Instance?.WorldDescription ?? "", identity, attitude,
+                    WorldBackgroundProvider.GetWorldSection(agent), identity, attitude,
                     topic, "",
                     "",
                     context.Speaker?.Name?.ToString() ?? "对方",
@@ -295,7 +295,8 @@ namespace LivingWorldNpcs
                     // 本地化：LWN_plan_respond_rule（玩家可见文本）
                     "LWN_plan_respond_rule",
                     $"【要求】{mood}。{anchor}直接说台词本身——不要引号、不要解释、不要动作描写。",
-                    null, maxTokens: 60, timeoutMs: Math.Max(300, (int)(Math.Min(budgetS, 1.5f) * 1000)));
+                    null, maxTokens: 60, timeoutMs: Math.Max(300, (int)(Math.Min(budgetS, 1.5f) * 1000)),
+                    addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, context.Speaker));
                 return dline != null && dline.FromLlm
                     ? DialogueComponent.Sanitize(dline.Reply, agent.Name?.ToString() ?? "")
                     : null;
