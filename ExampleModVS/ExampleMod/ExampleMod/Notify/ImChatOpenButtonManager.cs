@@ -42,6 +42,12 @@ namespace LivingWorldNpcs
         private const string ButtonId = "LWN_ImChatOpenButton";
         private const string BadgeId = "LWN_ImChatOpenBadge";
         private const string BadgeTextId = "LWN_ImChatOpenBadgeText";
+        // 🔴 Q4（2026-08-17 手柄支持）：手柄模式按键提示（键帽 [↑] + 动作名，InteractArea 同款模式）
+        private const string PadHintId = "LWN_ImChatOpenButtonPadHint";
+        private const string PadHintKeyId = "LWN_ImChatOpenButtonPadHintKey";
+        private const string PadHintTextId = "LWN_ImChatOpenButtonPadHintText";
+        // 本地化 key：手柄按键提示动作名（LWN_im_open_button_pad_hint）
+        private const string PadHintKey = "LWN_im_open_button_pad_hint";
         // 本地化 key：呼出按钮 hover 提示（LWN_im_open_button_hint，{KEY} 变量）
         private const string HintKey = "LWN_im_open_button_hint";
 
@@ -55,6 +61,11 @@ namespace LivingWorldNpcs
         private static ButtonWidget _button;
         private static Widget _badge;
         private static TextWidget _badgeText;
+        // 🔴 Q4（2026-08-17 手柄支持）：手柄模式按键提示（键帽 [↑] + 动作名）
+        private static Widget _padHintContainer;
+        private static TextWidget _padHintKeyText;
+        private static TextWidget _padHintText;
+        private static bool _lastUsingGamepad;
         private static Widget _hoverOn;            // 当前 hover 的按钮（防 ShowHint 刷屏）
         private static bool _subscribed;
 
@@ -152,6 +163,17 @@ namespace LivingWorldNpcs
                 {
                     DebugLogger.Log($"[ImChatOpenButton] 按钮可见性: {visible}（TopScreen={ScreenManager.TopScreen?.GetType().Name} Mission={Mission.Current != null}）");
                     _button.IsVisible = visible;
+                    // 🔴 2026-08-17（用户反馈：键鼠模式也要按键绑定提示）：按键提示与按钮可见性联动
+                    //（不限设备——键盘显示 [O]，手柄显示 [↑]，字形经 ModInput.Glyph 按设备动态）
+                    if (_padHintContainer != null)
+                        _padHintContainer.IsVisible = visible;
+                }
+                // 🔴 2026-08-17（设备切换，input.md 范式）：手柄插入/拔出/切鼠标 → 刷新键帽字形（O ↔ ↑）
+                bool usingGamepad = ModInput.UsingGamepad;
+                if (usingGamepad != _lastUsingGamepad)
+                {
+                    _lastUsingGamepad = usingGamepad;
+                    RefreshKeyHint();
                 }
 
                 UpdateHover();
@@ -168,11 +190,19 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-17：不含 !ImChatView.IsOpen——IM 打开时按钮被 400 层全屏遮罩盖住 + 事件被拦
         /// （层序红利 350 &lt; 400），零额外隐藏逻辑（方案 §5.1）。
         /// 🔴 2026-08-17（实机日志）：加载屏（GameLoadingScreen）期间不挂载——挂了也会随屏销毁重挂
-        /// （挂-杀循环浪费），等加载完成 TopScreen=MapScreen 再挂。</summary>
+        /// （挂-杀循环浪费），等加载完成 TopScreen=MapScreen 再挂。
+        /// 🔴 2026-08-17（用户反馈：与 InteractArea 重叠）：Mission 内面向 NPC 时玩法行 UI
+        ///（InteractArea，右下角从底部 180 向上生长）会盖住按钮（右缘下部 140）——该时段按钮隐藏
+        ///（互动结束自动恢复）。</summary>
         private static bool ShouldShow()
         {
             if (!Settings.Instance.PlotEnabled) return false;
-            if (Mission.Current != null && Settings.Instance.IsInteractionDisabled()) return false;
+            if (Mission.Current != null)
+            {
+                if (Settings.Instance.IsInteractionDisabled()) return false;
+                // 🔴 与 InteractArea 位置重叠避让（面向 NPC 有可用玩法行时隐藏）
+                if (InteractionMissionView.IsInteractAreaVisible) return false;
+            }
             var top = ScreenManager.TopScreen;
             if (top == null) return false;
             string name = top.GetType().Name;
@@ -252,10 +282,27 @@ namespace LivingWorldNpcs
             _button = null;
             _badge = null;
             _badgeText = null;
+            _padHintContainer = null;
+            _padHintKeyText = null;
+            _padHintText = null;
             _widgetsReady = false;
         }
 
         // ───────────────────────── widget 查找 / 交互 ─────────────────────────
+
+        /// <summary>按键绑定提示刷新（键帽 [O]/[↑] + 动作名「打开传讯」，InteractArea 同款模式）：
+        /// 键名字形经 ModInput.Glyph(InteractionIds.IM) 按设备动态（键盘 "O" / Xbox "↑" / PS "↑"——
+        /// config 改绑自动跟随）；动作名本地化。**所有设备都显示**（键鼠玩家也要知道 O 键绑定——
+        /// 用户反馈 2026-08-17）；可见性 = 按钮可见。</summary>
+        private static void RefreshKeyHint()
+        {
+            if (_padHintContainer == null) return;
+            if (_padHintKeyText != null)
+                _padHintKeyText.Text = ModInput.Glyph(InteractionIds.IM);
+            if (_padHintText != null)
+                _padHintText.Text = LWNTextHelper.ResolveText(PadHintKey, "Open messaging");
+            _padHintContainer.IsVisible = _button != null && _button.IsVisible;
+        }
 
         private static void FindWidgets()
         {
@@ -263,6 +310,9 @@ namespace LivingWorldNpcs
             _button = FindWidgetById(_layer.UIContext.Root, ButtonId) as ButtonWidget;
             _badge = FindWidgetById(_layer.UIContext.Root, BadgeId);
             _badgeText = FindWidgetById(_layer.UIContext.Root, BadgeTextId) as TextWidget;
+            _padHintContainer = FindWidgetById(_layer.UIContext.Root, PadHintId);
+            _padHintKeyText = FindWidgetById(_layer.UIContext.Root, PadHintKeyId) as TextWidget;
+            _padHintText = FindWidgetById(_layer.UIContext.Root, PadHintTextId) as TextWidget;
             if (_button != null)
             {
                 _button.ClickEventHandlers.Add(OnButtonClick);
