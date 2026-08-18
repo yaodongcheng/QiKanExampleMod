@@ -17,13 +17,8 @@
                 DoNotAcceptEvents="false">
           <Children>
 
-            <!-- 🔴 Q4（2026-08-17 手柄导航）：scope 声明（同完整模式 ImChat.xml；ScopeParent=".." =
-                 CompactPanel 根）。频道三件套是横向按钮组 → AlternateScopeMovements="Horizontal"
-                 补横向移动（◀ 中心 ▶）。初始焦点 = 标题行左箭头（索引 1）。 -->
-            <NavigationScopeTargeter ScopeID="LWN_ImChatCompact_Scope" ScopeParent=".."
-                                     ScopeMovements="Vertical" AlternateScopeMovements="Horizontal"
-                                     HasCircularMovement="false"
-                                     IsDefaultNavigationScope="true"/>
+            <!-- 🔴 2026-08-18（实机三连击根因修复）：NavigationScopeTargeter 已删除（同完整模式——
+                 引擎 scope 自动夺焦点 + 光标瞬移中心 → 手动导航停摆；手柄导航 = ImChatView 手动导航独占）。 -->
 
             <!-- 竖向主体（LWN 惯例：VerticalBottomToTop + 子元素按屏幕从上到下书写） -->
             <ListPanel Id="LWN_ImChat_CompactBody" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
@@ -52,14 +47,15 @@
                    StackLayout.LayoutMethod="HorizontalLeftToRight"
                    DoNotAcceptEvents="true">
           <Children>
-            <!-- 左箭头：上一个频道 -->
-            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
+            <!-- 左箭头：上一个频道（Id 2026-08-18 手柄手动导航：K1 焦点项 widget 定位） -->
+            <ButtonWidget Id="LWN_BtnPrev" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
                           Brush="SPOptions.Dropdown.Left.Button"
                           Command.Click="ExecuteSelectPreviousItem"
                           GamepadNavigationIndex="1"
                           VerticalAlignment="Center" MarginLeft="8" MarginRight="2"/>
-            <!-- 中心按钮：显示当前频道，点击切换列表显隐（🔴 自定义直连，不再用原版控件点击机制） -->
-            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="50"
+            <!-- 中心按钮：显示当前频道，点击切换列表显隐（🔴 自定义直连，不再用原版控件点击机制；
+                 Id 2026-08-18：K2 焦点项 widget 定位） -->
+            <ButtonWidget Id="LWN_BtnCenter" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="150" SuggestedHeight="50"
                           Brush="SPOptions.Dropdown.Center"
                           Command.Click="ExecuteToggleChannelList"
                           GamepadNavigationIndex="2"
@@ -73,8 +69,8 @@
                             DoNotAcceptEvents="true"/>
               </Children>
             </ButtonWidget>
-            <!-- 右箭头：下一个频道 -->
-            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
+            <!-- 右箭头：下一个频道（Id 2026-08-18 手柄手动导航：K3 焦点项 widget 定位） -->
+            <ButtonWidget Id="LWN_BtnNext" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="46" SuggestedHeight="50"
                           Brush="SPOptions.Dropdown.Right.Button"
                           Command.Click="ExecuteSelectNextItem"
                           GamepadNavigationIndex="3"
@@ -84,14 +80,14 @@
         <!-- 占位拉伸（频道区与图标区之间的空隙） -->
         <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                 DoNotAcceptEvents="true"/>
-        <!-- 放大按钮（回完整模式；plus_button_* 图标，用户裁定） -->
-        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
+        <!-- 放大按钮（回完整模式；plus_button_* 图标，用户裁定；Id 2026-08-18：K4 焦点项 widget 定位） -->
+        <ButtonWidget Id="LWN_BtnExpand" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
                       VerticalAlignment="Center" MarginLeft="4"
                       Brush="LWN_Btn_Expand"
                       GamepadNavigationIndex="4"
                       Command.Click="ExecuteExpand"/>
-        <!-- 关闭按钮 -->
-        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
+        <!-- 关闭按钮（Id 2026-08-18 手柄手动导航：K5 焦点项 widget 定位） -->
+        <ButtonWidget Id="LWN_BtnCloseC" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="32" SuggestedHeight="32"
                       VerticalAlignment="Center" MarginLeft="4" MarginRight="10"
                       Brush="Popup.CloseButton"
                       GamepadNavigationIndex="5"
@@ -369,8 +365,8 @@
                                             TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="16"
                                             GamepadNavigationIndex="6"
                                             MarginRight="6" VerticalAlignment="Center"/>
-                        <!-- 发送按钮 -->
-                        <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="34"
+                        <!-- 发送按钮（Id 2026-08-18 手柄手动导航：KS 焦点项 widget 定位） -->
+                        <ButtonWidget Id="LWN_BtnSendC" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="34"
                                       Brush="Test.Button3"
                                       Command.Click="ExecuteSend"
                                       IsEnabled="@CanSend"

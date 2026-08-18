@@ -32,6 +32,8 @@ namespace LivingWorldNpcs
     /// - 🔴 2026-08-15（缩略模式）：同一 layer 换 prefab 切换形态（SwitchMode）；
     ///   缩略面板输入安全靠引擎 hit-test 门控（面板矩形外场景输入不被吞）+ ClearFocus 释放键盘；
     ///   🔴 2026-08-17（Q3）：门控对原始鼠标轮询不成立，缩略层 mask 改位置感知（HitTest 命中才拦 Mouse）。
+    /// - 🔴 2026-08-18（Q4 手动导航落地）：引擎 scope 黑盒实测失败 → 手动导航（PadItem 焦点项 +
+    ///   ↑↓←→ 转移矩阵 + A 激活 + LB/RB 翻页 + 重建节流 + 焦点滚动跟随），详见 im-gamepad-navigation.md。
     /// </summary>
     public static class ImChatView
     {
@@ -62,6 +64,8 @@ namespace LivingWorldNpcs
         private static Widget _compactPanel;        // 缩略面板（矩形判定）
         private static Widget _compactChannelList;  // 频道列表（上开式，外部点击收起矩形判定 + 手动命中）
         private static InputUsageMask _lastCompactMask; // 🔴 2026-08-15（性能）：mask 缓存，变化才 SetInputRestrictions
+        // 🔴 2026-08-18：光标可见性缓存（手柄 = 隐藏；设备切换强制重算）
+        private static bool _lastCompactMaskVisible = true;
         private static readonly List<ImConversation> _compactChannels = new List<ImConversation>(); // 下拉频道顺序（左右箭头循环用）
 
         // 🔴 Q2（2026-08-17，密信入口「关屏再开」）：队伍/家族屏点密信 → PopScreen 后待打开的私聊目标
@@ -74,9 +78,40 @@ namespace LivingWorldNpcs
         // 🔴 Q4（2026-08-17，手柄支持）：
         // 手柄模态（Mission 面板打开 = 角色输入整体冻结；设备切换自动解冻/冻结）
         private static bool _lastUsingGamepad;
+        // 🔴 2026-08-19（实机 19:39:41 设备振荡实锤）：设备切换去抖——IsGamepadActive 在「手柄+光标可见」
+        // 时与 IsMouseActive 每帧互搏（86Hz 实测），我们若每帧跟手切换 mask/光标就成了振荡回路的一环。
+        // 新设备状态需稳定 0.2s 才提交；振荡期保持上一提交值。导航/冻结/光标全部用去抖后的
+        // _lastUsingGamepad，不再读裸 ModInput.UsingGamepad。
+        private static float _padDeviceDebounce;
+        private const float PadDeviceDebounceTime = 0.2f;
         private static bool _playerFrozen;
-        // 手柄导航焦点视觉（LastTargetedWidget 轮询 → 高亮 Hovered 复用 hover 视觉；关闭/失焦复位）
-        private static Widget _lastPadFocus;
+
+        // 🔴 Q4（2026-08-18，手柄手动导航）：引擎 scope 黑盒实测失败（2026-08-17：prefab 已声明
+        // NavigationScopeTargeter + GamepadNavigationIndex，但十字键无效果、无焦点视觉）→ 手动导航：
+        // 每个可聚焦元素 = PadItem，显式定义 ↑↓←→ 转移矩阵 + A 激活动作（用户裁定）。完整设计见
+        // plans/im-gamepad-navigation.md。焦点项表 + 焦点索引 + 重建门控（结构变化才重建，Fix 4 节流）
+        private static readonly List<PadItem> _padItems = new List<PadItem>();
+        private static int _padIndex = -1;                     // 唯一当前焦点（-1 = 无焦点）
+        private static bool _padNavDirty = true;               // 结构变化（锚点卡/按钮集/模式/会话/下拉）才重建
+        // 锚点卡结构缓存（引用 + 按钮数 + 横竖标记）——UpdateCardAnchors 每轮比对，任一变化 → 置 dirty
+        // （含横竖翻转——按钮数不变也触发；v3）
+        private static ImMessage _padNavAnchorRef;
+        private static int _padNavAnchorBtnCount;
+        private static bool _padNavAnchorVertical;
+        // 构建快照（矩阵决策用）：卡按钮数
+        private static int _padCardBtnCount;
+        // 长按重复（每键独立 hold/重复计时，抬起复位；0.4s 延迟后每 0.18s 重复）
+        private static bool _lastPadUp, _lastPadDown, _lastPadLeft, _lastPadRight, _lastPadA, _lastPadLB, _lastPadRB;
+        private static float _padHoldUp, _padHoldDown, _padHoldLeft, _padHoldRight, _padHoldLB, _padHoldRB;
+        private static float _padRepeatUp, _padRepeatDown, _padRepeatLeft, _padRepeatRight, _padRepeatLB, _padRepeatRB;
+        private const float PadHoldDelay = 0.4f;               // 长按延迟（按住 0.4s 后开始重复）
+        private const float PadRepeatInterval = 0.18f;         // 重复间隔（每 0.18s 移动一次）
+        // 软键盘回落（降级预案）：输入框聚焦期间导航暂停；检测到「软键盘曾经激活 → 已关闭」转态 →
+        // 主动 ClearFocus 恢复导航（不依赖引擎回填链路，🔴 待实机验证，见方案 §五/验证 14）
+        private static bool _padWasKeyboardActive;
+        // 🔴 2026-08-18（诊断日志防刷屏）：任意导航键按下沿闩锁——⛔ 门控/输入聚焦行只在按下沿打一次，
+        // 禁止每帧打（按住键 = 60 行/s 刷屏 + 同步磁盘写拖慢游戏）
+        private static bool _lastPadAnyKey;
 
         // 🔴 七轮：手动滚轮接管（引擎 ScrollablePanel 滚轮派发在模态层下不可靠——官方 SPChatLog 用
         // 「查看模式」按钮规避贴底+滚轮冲突；这里直接从 UIContext 找 ScrollablePanel 操作 ValueFloat）
@@ -221,16 +256,18 @@ namespace LivingWorldNpcs
                 // → HitTest false → 层不接收 → 左键攻击/右键旋转镜头照常——引擎无左右键独立 mask 位
                 //（InputUsageMask 实锤：MouseButtons=1 合并左右键），右键放行靠 HitTest 门控实现）。
                 // 键盘不拦（物理轮询拦不住，WASD 正常）。完整模式保持模态语义不变（三件套全拦）。
-                InputUsageMask mask = _mode == ImChatMode.Compact
-                    ? InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons
-                    : InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
-                _layer.InputRestrictions.SetInputRestrictions(true, mask);
-                if (_mode == ImChatMode.Compact) _lastCompactMask = InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons;
+                // 🔴 2026-08-18（实机：光标被原生手柄光标模式锁死在屏幕正中）：mask 随设备——
+                // 手柄在用 → 隐藏鼠标光标（原生引擎检测到「手柄 + 可见光标」即进入 gamepad cursor 模式：
+                // 光标锚定屏幕中心 + 右摇杆驱动，每帧覆盖 SetMousePosition；详见 ApplyInputMask）
+                ApplyInputMask();
                 if (ScreenManager.TopScreen != null)
                 {
                     ScreenManager.TopScreen.AddLayer(_layer);
                     _layerOwnerScreen = ScreenManager.TopScreen;
                 }
+                // 🔴 2026-08-18（实机三连击根因修复）：面板打开 = 引擎手柄导航整体屏蔽
+                //（prefab scope 已删；见 SetEngineGamepadNavBlocked）——手动导航独占十字键
+                SetEngineGamepadNavBlocked(true);
 
                 // 🔴 2026-08-16（用户裁定：唤起保持上次频道）：selectConv 未指定时优先恢复上次选中
                 //（Close 保留的 _selected），无历史才回队伍兜底
@@ -258,6 +295,9 @@ namespace LivingWorldNpcs
 
         public static void Close()
         {
+            // 🔴 2026-08-18（实机三连击根因修复）：先解除引擎导航屏蔽（widget 树还活着——
+            // UsedNavigationMovements=None 让引擎导航管理器从屏蔽列表移除本 widget，防残留引用）
+            SetEngineGamepadNavBlocked(false);
             // 🔴 2026-08-17（用户反馈：缩略模式下直接叉掉界面也要提示）：关闭面板（叉掉/ESC/B）时
             // 若处于缩略模式 → 鼠标控制恢复提示（ToggleExpand 是缩略→完整，Close 是直接关——都要提示）。
             // Mission 退出时 Mission.Current 可能已 null → 不提示（回大地图本来就是拖拽操作）。
@@ -280,7 +320,10 @@ namespace LivingWorldNpcs
             // 🔴 Q2（2026-08-17）：手动关闭 → 待打开的密信目标作废（防关屏后再开 IM 的意外弹出）
             _pendingSecretLetterHeroId = null;
             _pendingSecretLetterElapsed = 0f;
-            _lastPadFocus = null;   // 面板关闭 → 焦点视觉缓存复位（widget 树销毁）
+            // 🔴 Q4（2026-08-18，手动导航）：面板关闭 → 焦点复位 + 下次打开重建（widget 树销毁，无高亮残留）
+            ResetPadFocus();
+            _padNavDirty = true;
+            _padItems.Clear();
             if (_layer != null)
             {
                 try
@@ -357,16 +400,19 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 🔴 Q4（2026-08-17，手柄模态）：Mission 内面板打开且手柄在用 → 角色输入整体冻结
+        /// 🔴 Q4（2026-08-17，手柄模态）：Mission 内**完整模式**面板打开且手柄在用 → 角色输入整体冻结
         ///（SetPlayerControlFrozen，幂等——_playerFrozen 门控；冻结只冻角色 Agent，不冻 UI 层导航）。
-        /// 解冻时机 = 设备切回键盘/鼠标 / Close / Mission 退出（Close 路径已有，Mission 退出自动恢复）。
+        /// 🔴 2026-08-18（实机：Mission 缩略模式左摇杆被屏蔽）：缩略模式 = 半模态岛——玩家应继续
+        /// 操作角色（移动/镜头），**不冻结**；只有完整模式（模态）才冻结。
+        /// 解冻时机 = 设备切回键盘/鼠标 / 切缩略 / Close / Mission 退出（Close 路径已有，Mission 退出自动恢复）。
         /// 大地图手柄不冻结：十字键分流（引擎导航方向只认十字键，左摇杆 = 地图移动照常，反编译实锤）
         /// ——完美分流，无模态需求。
         /// </summary>
         private static void UpdateGamepadFreeze()
         {
             if (_layer == null) return;
-            bool shouldFreeze = ModInput.UsingGamepad && Mission.Current != null;
+            // 🔴 2026-08-19：冻结判定用去抖后的 _lastUsingGamepad（裸值振荡 = 每帧冻结/解冻角色，Mission 卡顿）
+            bool shouldFreeze = _lastUsingGamepad && Mission.Current != null && _mode == ImChatMode.Full;
             if (shouldFreeze == _playerFrozen) return;
             _playerFrozen = shouldFreeze;
             try
@@ -382,53 +428,1057 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 🔴 Q4（2026-08-17，焦点视觉，用户裁定：焦点必须可见——否则玩家看不到光标在哪）：
-        /// 引擎 ButtonWidget.RefreshState 只处理 Disabled/Selected/Pressed/Hovered/Default，无 Focused 分支
-        ///（反编译实锤）——手柄导航聚焦不自动高亮。轮询 GauntletGamepadNavigationManager.Instance.LastTargetedWidget
-        ///（全局活跃 scope 的聚焦项，public 实锤），聚焦自己面板的按钮 → SetState("Hovered") 复用 hover
-        /// 视觉（零新 Brush）；旧焦点按身份复位（选中行回 Selected，其余回 Default）。
-        /// 🔴 守卫：① UsingGamepad 门控（鼠标 hover 由引擎自己管 + RefreshState，我们不碰，键盘/鼠标不跑此逻辑）；
-        /// ② IsOurPanelWidget 向上找 LWN 根——LastTargetedWidget 可能指向面板外原版按钮（鼠标在 scope 区域外移动），
-        ///    对原版按钮 SetState 会造成视觉错乱；③ null（引擎：鼠标不在聚焦按钮范围且无导航动画）→ 当焦点丢失复位。
-        /// 🔴 残留缝隙（设备切换瞬间）：动鼠标 → UsingGamepad 立即 false → 轮询停，最后高亮可能残留——本方法
-        /// 非手柄分支把 _lastPadFocus 置 null 即清理（下一帧引擎自己刷新原版按钮状态）。
+        /// 🔴 2026-08-18：按设备 + 输入态重算层输入 mask（统一入口；Open / SwitchMode / Tick 设备切换 /
+        /// UpdatePadFocus 输入聚焦分支 / HandleCompactInput 逐帧调用，内部缓存只在变化时 SetInputRestrictions）。
+        /// 三态模型（实机裁决）：
+        /// ① 手柄 + 输入框聚焦（软键盘/打字态）→ **光标可见 + 放行 MouseBits**——原生光标速度模式接管
+        ///    （实机 2026-08-18：输入框聚焦时手柄左摇杆可自由移动光标，原生机制非锚定），面板可像鼠标
+        ///    一样点击（点频道切会话；背景点击 = 关面板，与鼠标语义一致；无软键盘时按十字键 = 退出
+        ///    输入态回导航，见 UpdatePadFocus）。本态导航暂停（软键盘），无冲突。
+        /// ② 手柄 + 普通导航态 → **光标隐藏 + mask 只留 Keyboardkeys**——原生「手柄 + 可见光标」锚定模式
+        ///    会把光标锁死屏幕中心并覆盖 SetMousePosition（十字键瞬移光标实测失败 2026-08-18），且模拟
+        ///    点击会误触背景层 Command.Click="ExecuteClose" 关面板；高亮走 SetState 焦点视觉，A = 激活。
+        /// ③ 鼠标在用 → 照常全 mask + 光标可见（含缩略下拉 MouseWheels 位）。
         /// </summary>
-        private static void UpdatePadFocus()
+        private static void ApplyInputMask()
         {
-            if (!ModInput.UsingGamepad)
+            if (_layer == null) return;
+            // 🔴 2026-08-19：用去抖后的 _lastUsingGamepad（裸值每帧振荡 → mask/光标每帧切换 = 振荡回路燃料）
+            bool gamepad = _lastUsingGamepad;
+            bool inputFocused = _layer.IsFocusedOnInput();
+            bool visible;
+            InputUsageMask mask;
+            if (gamepad)
             {
-                _lastPadFocus = null;
-                return;
-            }
-            Widget padFocus = null;
-            try { padFocus = GauntletGamepadNavigationManager.Instance?.LastTargetedWidget; } catch { }
-            if (padFocus == _lastPadFocus) return;
-            if (_lastPadFocus != null && _lastPadFocus != padFocus)
-            {
-                try { _lastPadFocus.SetState(_lastPadFocus is ButtonWidget b && b.IsSelected ? "Selected" : "Default"); } catch { }
-            }
-            _lastPadFocus = padFocus;
-            if (padFocus != null)
-            {
-                if (IsOurPanelWidget(padFocus))
+                if (inputFocused)
                 {
-                    try { padFocus.SetState("Hovered"); } catch { }
+                    visible = true;   // ① 输入框聚焦：原生光标速度模式 + 面板可点击
+                    mask = InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons;
                 }
                 else
                 {
-                    _lastPadFocus = null;   // 外部 widget：不高亮（引擎自己管原版按钮状态）
+                    visible = false;  // ② 导航态：隐藏光标，防原生锚定锁中 + 背景误关
+                    mask = InputUsageMask.Keyboardkeys;
+                }
+            }
+            else if (_mode == ImChatMode.Compact)
+            {
+                visible = true;       // ③ 鼠标玩家照常
+                mask = InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons;
+                if (_vm != null && _vm.ChannelSelector.IsChannelListOpen)
+                    mask |= InputUsageMask.MouseWheels;
+            }
+            else
+            {
+                visible = true;
+                mask = InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
+            }
+            if (mask != _lastCompactMask || visible != _lastCompactMaskVisible)
+            {
+                _layer.InputRestrictions.SetInputRestrictions(visible, mask);
+                _lastCompactMask = mask;
+                _lastCompactMaskVisible = visible;
+            }
+        }
+
+        // ───────────────────────── 手柄手动导航（🔴 2026-08-18，Q4 落地）─────────────────────────
+        // 引擎 scope 黑盒实测失败（2026-08-17：prefab 已声明 NavigationScopeTargeter + GamepadNavigationIndex
+        // 但十字键无效果、无焦点视觉）→ 手动导航：每个可聚焦元素显式定义 ↑↓←→ 转移矩阵 + A 激活动作
+        //（用户裁定：「设计下每一个按钮 hover 状态时候，下一个应该自动移动到什么地方，然后用 A 来按下」）。
+        // 完整设计见 plans/im-gamepad-navigation.md（转移矩阵/回落点 C_sel/重建节流/滚动跟随）。
+
+        /// <summary>手动导航焦点项：稳定 Id（重建映射）+ A 激活 + 视觉 widget 定位 + 组标识。</summary>
+        private sealed class PadItem
+        {
+            public string Id;              // 稳定身份：static = c1/c2/cm/input/send/k1..k5；channel = channel_{会话Id}；cardbtn = cardbtn_{锚点时间戳}_{序}；dd = dd_{会话Id}
+            public string Group;           // static / channel / cardbtn（横排）/ cardbtnv（竖排）/ dd
+            public Action OnActivate;      // A 激活动作（频道行 = 移动即激活，A 无附加动作）
+            public Func<Widget> GetWidget; // 视觉 widget 定位（null = 查找失败/频道行无独立视觉）
+            public Widget LastWidget;      // 上次已应用视觉的 widget（旧焦点按身份复位用）
+            public object Tag;             // 附加数据（频道会话 / 下拉项 VM）
+        }
+
+        /// <summary>
+        /// 🔴 Q4（2026-08-18，手动导航）：每帧导航驱动——取代引擎 scope 黑盒（实测 2026-08-17：
+        /// prefab 已声明 NavigationScopeTargeter 但十字键无效果、无焦点视觉）。
+        /// - 重建（RebuildPadNavigation）只在结构变化时（_padNavDirty：锚点卡引用/按钮集/模式/会话/下拉）——
+        ///   0.3s 轮询刷新不直接置 dirty（防焦点跳变与长按抖动，Fix 4）；
+        /// - 按下沿 + 长按重复（按住 0.4s 后每 0.18s 一次，每键独立计时，抬起复位）；
+        /// - 焦点视觉 = SetState("Hovered") 高亮（🔴 2026-08-18 实机裁决：十字键瞬移光标被原生锚定模式
+        ///   覆盖 → 光标跟随方案废弃；输入框聚焦时原生转速度模式 → 游标态放行鼠标位，见 ApplyInputMask）；
+        ///   A = 激活（OnActivate，与鼠标点击同效）；
+        /// - 下拉打开 = 焦点接管为下拉项[1..M]（↑↓ 循环 + A 选中收起 + B 收起）；
+        /// - 输入框聚焦（软键盘）期间导航暂停（引擎接管输入），软键盘关闭转态 → 主动 ClearFocus 恢复
+        ///   （降级预案：不依赖引擎回填链路，🔴 待实机验证）；
+        /// - 门控：仅 ModInput.UsingGamepad（设备切鼠标 → 焦点复位无残留高亮）。
+        /// </summary>
+        private static void UpdatePadFocus(float dt)
+        {
+            // 🔴 2026-08-18（诊断日志防刷屏）：按下沿闩锁先算——⛔ 行只在按键刚按下那帧打一次
+            bool anyKey = AnyPadKeyPressed();
+            bool anyKeyEdge = anyKey && !_lastPadAnyKey;
+            _lastPadAnyKey = anyKey;
+            // 🔴 2026-08-19：门控用去抖后的 _lastUsingGamepad（裸值每帧振荡时门控会反复 ResetPadFocus
+            // 把 _padIndex 打回 -1 → 过期项 + idx=-1 死锁，实机 19:39:41）；门控期间置 dirty——
+            // 真实切回手柄的下一帧立即重建（stale 项清零），防同类死锁复发
+            if (!_lastUsingGamepad)
+            {
+                // 🔴 2026-08-18（诊断日志）：门控吞键实锤——手柄玩家按键但设备未提交时，
+                // 这里按键按下沿打一行（证明「按键无反馈」是门控问题而非轮询问题）
+                if (anyKeyEdge)
+                {
+                    DebugLogger.Log("[Pad] ⛔ 门控:设备未激活 按键被忽略（手柄未提交/未连接）");
+                    PadScreenMsg("⛔ 设备未激活，按键被忽略");
+                }
+                _padNavDirty = true;
+                ResetPadFocus();   // 设备切鼠标：焦点复位 + 高亮清理（下一帧引擎刷新原版按钮状态）
+                return;
+            }
+            try
+            {
+                if (_padNavDirty) RebuildPadNavigation();
+                if (_padItems.Count == 0) { _padIndex = -1; return; }
+
+                bool dropdownOpen = _mode == ImChatMode.Compact && _vm != null && _vm.ChannelSelector.IsChannelListOpen;
+                bool inputFocused = _layer != null && _layer.IsFocusedOnInput();
+
+                // ── 输入框聚焦（软键盘）：引擎接管输入，导航不抢键；mask 切到「游标模式」──
+                if (inputFocused)
+                {
+                    if (anyKeyEdge) DebugLogger.Log("[Pad] ⛔ 输入聚焦:导航暂停（打字态，按键留给引擎）");
+
+                    // 🔴 2026-08-18（实机：输入框聚焦时手柄可自由移动光标 = 原生速度模式）：
+                    // 放行 MouseBits + 光标可见 → 面板可像鼠标一样点击（ApplyInputMask 内部缓存防抖）
+                    ApplyInputMask();
+                    // 降级预案：软键盘曾激活且已关闭（引擎回填链路未触发）→ 主动清焦点恢复导航；
+                    // 无软键盘时（鼠标点击聚焦路径）按十字键 = 退出输入态回导航（防卡死在输入态）
+                    bool kbActive = false;
+                    try { kbActive = Input.IsOnScreenKeyboardActive; } catch { }
+                    bool padPressed = Input.IsKeyPressed(InputKey.ControllerLUp) || Input.IsKeyPressed(InputKey.ControllerLDown)
+                        || Input.IsKeyPressed(InputKey.ControllerLLeft) || Input.IsKeyPressed(InputKey.ControllerLRight);
+                    if ((_padWasKeyboardActive && !kbActive) || (!kbActive && padPressed))
+                    {
+                        if (_layer != null) _layer.UIContext.EventManager.ClearFocus();
+                    }
+                    _padWasKeyboardActive = kbActive;
+                    ResetPadHoldTimers();
+                    return;
+                }
+                _padWasKeyboardActive = false;
+
+                // ── 下拉打开：焦点接管为下拉项（↑↓ 循环 + A 选中收起；B 收下拉在 Tick 既有 B 键分支；
+                //    ←→ 收下拉（v4 2026-08-18 用户裁定「每个方向都有通路」——下拉为纵向列表，横向 = 退出，
+                //    等同 B 语义）──
+                if (dropdownOpen)
+                {
+                    PollPadKey("↑", InputKey.ControllerLUp, ref _lastPadUp, ref _padHoldUp, ref _padRepeatUp, () => MovePad(0, -1), dt);
+                    PollPadKey("↓", InputKey.ControllerLDown, ref _lastPadDown, ref _padHoldDown, ref _padRepeatDown, () => MovePad(0, 1), dt);
+                    PollPadKey("←", InputKey.ControllerLLeft, ref _lastPadLeft, ref _padHoldLeft, ref _padRepeatLeft, () => CloseChannelList(), dt);
+                    PollPadKey("→", InputKey.ControllerLRight, ref _lastPadRight, ref _padHoldRight, ref _padRepeatRight, () => CloseChannelList(), dt);
+                    PollActivate();
+                    ApplyPadVisual();
+                    return;
+                }
+
+                // ── 正常导航：↑↓←→ 移动 + A 激活 + LB/RB 翻页滚动（仅完整模式）──
+                PollPadKey("↑", InputKey.ControllerLUp, ref _lastPadUp, ref _padHoldUp, ref _padRepeatUp, () => MovePad(0, -1), dt);
+                PollPadKey("↓", InputKey.ControllerLDown, ref _lastPadDown, ref _padHoldDown, ref _padRepeatDown, () => MovePad(0, 1), dt);
+                PollPadKey("←", InputKey.ControllerLLeft, ref _lastPadLeft, ref _padHoldLeft, ref _padRepeatLeft, () => MovePad(-1, 0), dt);
+                PollPadKey("→", InputKey.ControllerLRight, ref _lastPadRight, ref _padHoldRight, ref _padRepeatRight, () => MovePad(1, 0), dt);
+                PollActivate();
+                if (_mode == ImChatMode.Full)
+                {
+                    // LB/RB 翻页滚动（🔴 手柄滚消息 Fix 3；缩略模式无消息流滚动 → 无操作）
+                    PollPadKey("LB", InputKey.ControllerLBumper, ref _lastPadLB, ref _padHoldLB, ref _padRepeatLB, () => ScrollPage(-1f), dt);
+                    PollPadKey("RB", InputKey.ControllerRBumper, ref _lastPadRB, ref _padHoldRB, ref _padRepeatRB, () => ScrollPage(1f), dt);
+                }
+                ApplyPadVisual();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 手柄导航异常: {ex.Message}");
+            }
+        }
+
+        /// <summary>诊断日志用：当前导航状态快照（焦点索引 + 输入聚焦 + 下拉）。</summary>
+        private static string PadState()
+        {
+            bool dd = _mode == ImChatMode.Compact && _vm != null && _vm.ChannelSelector.IsChannelListOpen;
+            bool f = _layer != null && _layer.IsFocusedOnInput();
+            return $"idx={_padIndex}{(f ? " 输入聚焦" : "")}{(dd ? " 下拉" : "")}";
+        }
+
+        // ── 屏上调试（🔴 2026-08-19 用户要求：实机直接观察按键/焦点，弹屏不走日志）──
+        // 临时调试项，测完删除。动态调试文本走既有 debug 先例（MyCommands/CameraDebugger 裸字符串），
+        // 不参与本地化表（铁律 13 的 debug 豁免先例）。
+        private static void PadScreenMsg(string msg)
+        {
+            try { InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Yellow)); }
+            catch { }
+        }
+
+        /// <summary>诊断日志用：是否有任意导航键按下（十字键/A/B）——门控吞键检测。</summary>
+        private static bool AnyPadKeyPressed()
+        {
+            return Input.IsKeyPressed(InputKey.ControllerLUp) || Input.IsKeyPressed(InputKey.ControllerLDown)
+                || Input.IsKeyPressed(InputKey.ControllerLLeft) || Input.IsKeyPressed(InputKey.ControllerLRight)
+                || Input.IsKeyPressed(InputKey.ControllerRDown) || Input.IsKeyPressed(InputKey.ControllerRRight);
+        }
+
+        /// <summary>按下沿立即触发 + 长按重复（按住 PadHoldDelay 后每 PadRepeatInterval 一次；抬起复位）。
+        /// 🔴 2026-08-18（诊断日志）：每次按下/长按重复/抬起（hold≥80ms）都打日志——实机「按键无反馈」
+        /// 排查用：按键没打到 = 无日志；打到了没动 = 看焦点转移行；门控吞 = ⛔ 行。</summary>
+        private static void PollPadKey(string name, InputKey key, ref bool last, ref float hold, ref float repeat, Action act, float dt)
+        {
+            bool pressed = Input.IsKeyPressed(key);
+            if (pressed)
+            {
+                hold += dt;
+                if (!last)
+                {
+                    DebugLogger.Log($"[Pad] {name} 按下(edge) {PadState()}");
+                    PadScreenMsg($"🎮 {name} 按下 idx={_padIndex}");
+                    act(); repeat = 0f;                       // 按下沿：立即触发一次 + 计时起点
+                }
+                else if (hold > PadHoldDelay)                             // 长按重复
+                {
+                    repeat += dt;
+                    if (repeat >= PadRepeatInterval) { repeat = 0f; DebugLogger.Log($"[Pad] {name} 长按重复 {PadState()}"); act(); }
+                }
+            }
+            else
+            {
+                if (hold >= 0.08f) DebugLogger.Log($"[Pad] {name} 抬起 (hold={hold:F2}s)");
+                hold = 0f; repeat = 0f;                              // 抬起 → 复位
+            }
+            last = pressed;
+        }
+
+        /// <summary>A 激活（按下沿）：_padItems[_padIndex].OnActivate。</summary>
+        private static void PollActivate()
+        {
+            bool a = Input.IsKeyPressed(InputKey.ControllerRDown);
+            if (a && !_lastPadA)
+            {
+                DebugLogger.Log($"[Pad] A 按下(edge) {PadState()}");
+                ActivatePad();
+            }
+            _lastPadA = a;
+        }
+
+        private static void ActivatePad()
+        {
+            if (_padIndex < 0 || _padIndex >= _padItems.Count) return;
+            var item = _padItems[_padIndex];
+            DebugLogger.Log($"[Pad] A 激活 → {item.Id} ({item.Group})");
+            PadScreenMsg($"🅰 激活 {item.Id}");
+            try { item.OnActivate?.Invoke(); }
+            catch (Exception ex) { DebugLogger.Log($"[ImChat] 焦点激活异常: {ex.Message}"); }
+        }
+
+        /// <summary>
+        /// 按矩阵查表移动焦点（dx/dy 单轴 ±1，越界钳制）。落位后：频道行 = 移动即激活（微信式实时切会话，
+        /// 🔴 性能：长按重复每 0.18s 一次 RefreshAll——卡顿则切备选「长按只移焦点、松开落地」，见方案验证 12）；
+        /// 目标在视口外 → 焦点滚动跟随（§六.5）。
+        /// </summary>
+        private static void MovePad(int dx, int dy)
+        {
+            if (_padIndex < 0 || _padIndex >= _padItems.Count) return;
+            var cur = _padItems[_padIndex];
+            int target = dy < 0 ? PadUpTarget(cur)
+                : dy > 0 ? PadDownTarget(cur)
+                : dx < 0 ? PadLeftTarget(cur)
+                : PadRightTarget(cur);
+            if (target < 0 || target == _padIndex) return;
+            // 🔴 2026-08-18（诊断日志）：焦点转移行——按键后「动没动」的判定依据
+            string dir = dy < 0 ? "↑" : dy > 0 ? "↓" : dx < 0 ? "←" : "→";
+            DebugLogger.Log($"[Pad] 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
+            PadScreenMsg($"➤ 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
+            _padIndex = target;
+            var item = _padItems[target];
+            if (item.Group == "channel")
+            {
+                try { item.OnActivate?.Invoke(); } catch (Exception ex) { DebugLogger.Log($"[ImChat] 频道行激活失败: {ex.Message}"); }
+            }
+            ScrollPadIntoView(item);
+        }
+
+        /// <summary>LB/RB 翻页滚动（完整模式；复用 HandleManualScroll 的 scrollbar 语义——上翻解锁贴底，
+        /// 下翻到底重新锁定；页幅 0.4×MaxValue，常量可调）。</summary>
+        private static void ScrollPage(float dir)
+        {
+            try
+            {
+                if (_mode != ImChatMode.Full) return;
+                if (_messageScrollPanel == null)
+                {
+                    FindMessageScrollPanel();
+                    if (_messageScrollPanel == null) return;
+                }
+                var sb = _messageScrollPanel.VerticalScrollbar;
+                if (sb == null) return;
+                sb.ValueFloat = MathF.Clamp(sb.ValueFloat + dir * 0.4f * sb.MaxValue, 0f, sb.MaxValue);
+                if (dir < 0f) _pinnedToBottom = false;                      // 上翻：解锁贴底
+                else if (IsMessageAtBottom()) _pinnedToBottom = true;       // 下翻到底：重新锁定
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 翻页滚动异常: {ex.Message}");
+            }
+        }
+
+        // ── 转移矩阵（完整模式 ImChat.xml / 缩略模式 ImChatCompact.xml 各一套；回落点 C_sel）──
+
+        /// <summary>C_sel 回落点（Fix 1 / v3）：当前选中会话所在行（_selected.Id 在频道行列表中定位）；不在列表 → -1。</summary>
+        private static int CSelectedIdx()
+        {
+            if (_selected == null) return -1;
+            return Idx("channel_" + _selected.Id);
+        }
+
+        private static int CSelectedIdxOrC1()
+        {
+            int s = CSelectedIdx();
+            return s >= 0 ? s : Idx("c1");
+        }
+
+        private static int Idx(string id)
+        {
+            for (int i = 0; i < _padItems.Count; i++)
+                if (_padItems[i].Id == id) return i;
+            return -1;
+        }
+
+        /// <summary>第 n 个卡按钮（横排/竖排合并计数）在 _padItems 中的索引。</summary>
+        private static int CardBtnIdx(int n)
+        {
+            int seen = 0;
+            for (int i = 0; i < _padItems.Count; i++)
+            {
+                if (_padItems[i].Group == "cardbtn" || _padItems[i].Group == "cardbtnv")
+                {
+                    if (seen == n) return i;
+                    seen++;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>当前卡按钮在卡按钮组内的序号。</summary>
+        private static int CardBtnIndex(PadItem cur)
+        {
+            int idx = 0;
+            for (int i = 0; i < _padItems.Count; i++)
+            {
+                if (_padItems[i] == cur) return idx;
+                if (_padItems[i].Group == "cardbtn" || _padItems[i].Group == "cardbtnv") idx++;
+            }
+            return -1;
+        }
+
+        /// <summary>最后一个卡按钮的索引（无卡 → -1）。</summary>
+        private static int LastCardBtn()
+        {
+            int last = -1;
+            for (int i = 0; i < _padItems.Count; i++)
+                if (_padItems[i].Group == "cardbtn" || _padItems[i].Group == "cardbtnv") last = i;
+            return last;
+        }
+
+        /// <summary>第 n 个频道行的索引（无 → -1）。</summary>
+        private static int ChannelRowIdx(int n)
+        {
+            int seen = 0;
+            for (int i = 0; i < _padItems.Count; i++)
+            {
+                if (_padItems[i].Group == "channel")
+                {
+                    if (seen == n) return i;
+                    seen++;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>当前焦点项在频道行内的序号。</summary>
+        private static int ChannelRowIndex(PadItem cur)
+        {
+            int idx = 0;
+            for (int i = 0; i < _padItems.Count; i++)
+            {
+                if (_padItems[i] == cur) return idx;
+                if (_padItems[i].Group == "channel") idx++;
+            }
+            return -1;
+        }
+
+        private static int PadUpTarget(PadItem cur)
+        {
+            if (cur.Group == "dd")   // 下拉项：首项 → 末项循环
+            {
+                return _padIndex <= 0 ? _padItems.Count - 1 : _padIndex - 1;
+            }
+            if (_mode == ImChatMode.Compact)
+            {
+                switch (cur.Group)
+                {
+                    case "static":
+                        switch (cur.Id)
+                        {
+                            case "k1": return Idx("send");            // 垂直闭环（v4：最上↑→最下，与 KS↓→K1 成环；原标题行内 ↑ 循环移除）
+                            case "k2": return Idx("k3");
+                            case "k3": return Idx("k4");
+                            case "k4": return Idx("k5");
+                            case "k5": return Idx("k1");
+                            case "input": { int kbk = LastCardBtn(); return kbk >= 0 ? kbk : Idx("k1"); }   // KT ↑：上一项（KBK ? KBK : K1）
+                            case "send": return Idx("input");
+                        }
+                        return -1;
+                    case "cardbtn": return Idx("k1");                 // KB ↑ 回 K1（标题行是环，无回落误切风险）
+                    case "cardbtnv":
+                        { int j = CardBtnIndex(cur); return j <= 0 ? Idx("k1") : CardBtnIdx(j - 1); }
+                }
+                return -1;
+            }
+            // 完整模式
+            switch (cur.Group)
+            {
+                case "static":
+                    switch (cur.Id)
+                    {
+                        case "c1": return Idx("send");                // v5（2026-08-19 用户裁定）：缩略/关闭 按↑都是发送
+                        case "c2": return Idx("send");                // v5：关闭 ↑ → 发送
+                        case "cm": { int cbk = LastCardBtn(); if (cbk >= 0) return cbk; return CSelectedIdxOrC1(); }   // ↑：上一项（CBK 或 C_sel 或 C1）
+                        case "input":                                 // CT ↑：CM ? CM : CBK ? CBK : C_sel（无频道行 → C1）
+                        {
+                            int cm = Idx("cm");
+                            if (cm >= 0) return cm;
+                            int cbk = LastCardBtn();
+                            if (cbk >= 0) return cbk;
+                            return CSelectedIdxOrC1();
+                        }
+                        case "send": return Idx("input");
+                    }
+                    return -1;
+                case "channel":                                       // 频道列内部循环（v5 用户裁定：↑↓ 不出频道列，首行↑→末行）
+                {
+                    int i = ChannelRowIndex(cur);
+                    return i <= 0 ? ChannelRowIdx(ChannelRowCount() - 1) : ChannelRowIdx(i - 1);
+                }
+                case "cardbtn": return CSelectedIdxOrC1();            // 横排 ↑ → C_sel（选中行；无频道行 → C1）
+                case "cardbtnv":
+                    { int j = CardBtnIndex(cur); return j <= 0 ? CSelectedIdxOrC1() : CardBtnIdx(j - 1); }
+            }
+            return -1;
+        }
+
+        private static int PadDownTarget(PadItem cur)
+        {
+            if (cur.Group == "dd")   // 下拉项：末项 → 首项循环
+            {
+                return _padIndex >= _padItems.Count - 1 ? 0 : _padIndex + 1;
+            }
+            if (_mode == ImChatMode.Compact)
+            {
+                switch (cur.Group)
+                {
+                    case "static":
+                        switch (cur.Id)
+                        {
+                            case "k1": case "k2": case "k3": case "k4": case "k5":
+                                { int kb1 = CardBtnIdx(0); return kb1 >= 0 ? kb1 : Idx("input"); }   // 有锚点卡 ? KB1 : KT
+                            case "input": return Idx("send");
+                            case "send": return Idx("k1");            // 底部循环回标题行
+                        }
+                        return -1;
+                    case "cardbtn": return Idx("input");              // KB ↓ → KT
+                    case "cardbtnv":
+                        { int j = CardBtnIndex(cur); return j >= _padCardBtnCount - 1 ? Idx("input") : CardBtnIdx(j + 1); }
+                }
+                return -1;
+            }
+            // 完整模式
+            switch (cur.Group)
+            {
+                case "static":
+                    switch (cur.Id)
+                    {
+                        case "c1": case "c2":                         // v5（2026-08-19 用户裁定）：缩略/关闭 按↓都是发送
+                            return Idx("send");
+                        case "cm": return Idx("input");
+                        case "input": return Idx("send");
+                        case "send": return Idx("c1");                // 主干底部循环回顶部
+                    }
+                    return -1;
+                case "channel":                                       // 频道列内部循环（v5 用户裁定：末行↓→首行，不出列）
+                {
+                    int i = ChannelRowIndex(cur);
+                    return i >= ChannelRowCount() - 1 ? ChannelRowIdx(0) : ChannelRowIdx(i + 1);
+                }
+                case "cardbtn": return Idx("cm") >= 0 ? Idx("cm") : Idx("input");   // CM（有新消息条）? CM : CT
+                case "cardbtnv":
+                {
+                    int j = CardBtnIndex(cur);
+                    if (j >= _padCardBtnCount - 1)
+                    {
+                        int cm = Idx("cm");
+                        return cm >= 0 ? cm : Idx("input");
+                    }
+                    return CardBtnIdx(j + 1);
+                }
+            }
+            return -1;
+        }
+
+        private static int ChannelRowCount()
+        {
+            int n = 0;
+            for (int i = 0; i < _padItems.Count; i++) if (_padItems[i].Group == "channel") n++;
+            return n;
+        }
+
+        private static int PadLeftTarget(PadItem cur)
+        {
+            if (_mode == ImChatMode.Compact)
+            {
+                switch (cur.Group)
+                {
+                    case "static":
+                        switch (cur.Id)
+                        {
+                            case "k1": return Idx("k5");              // 标题行横向循环（← 逆序）
+                            case "k2": return Idx("k1");
+                            case "k3": return Idx("k2");
+                            case "k4": return Idx("k3");
+                            case "k5": return Idx("k4");
+                            case "input": return Idx("send");         // KT ← 与 → 对称成环（输入区）
+                            case "send": return Idx("input");
+                        }
+                        return -1;
+                    case "cardbtn":                                   // 横排双向（v4 2026-08-18：← 左移；KB1 ← 出口标题行）
+                    {
+                        int j = CardBtnIndex(cur);
+                        return j > 0 ? CardBtnIdx(j - 1) : Idx("k1");
+                    }
+                    case "cardbtnv": return Idx("k1");                // 竖排 ← 出口标题行
+                }
+                return -1;
+            }
+            // 完整模式
+            switch (cur.Group)
+            {
+                case "static":
+                    switch (cur.Id)
+                    {
+                        case "c1":                                    // ← 直达第一个频道（用户裁定 2026-08-18：缩略按钮左侧 = 频道列）
+                        {
+                            int first = ChannelRowIdx(0);
+                            if (first >= 0) return first;
+                            return CSelectedIdxOrC1();                // 无频道行 → C_sel 兜底
+                        }
+                        case "c2": return Idx("c1");
+                        case "cm": return CSelectedIdxOrC1();         // ← 回左栏选中行
+                        case "input": return Idx("send");             // CT ← 与 → 对称成环（输入区）
+                        case "send": return Idx("input");
+                    }
+                    return -1;
+                case "channel": { int cb1 = CardBtnIdx(0); return cb1 >= 0 ? cb1 : Idx("input"); }  // 左缘回绕进消息区（与 → 同；无卡 → CT）
+                case "cardbtn": { int sel = CSelectedIdx(); return sel >= 0 ? sel : -1; }   // ← 回选中行
+                case "cardbtnv": return CSelectedIdxOrC1();           // 竖排 ← 退出左栏
+            }
+            return -1;
+        }
+
+        private static int PadRightTarget(PadItem cur)
+        {
+            if (_mode == ImChatMode.Compact)
+            {
+                switch (cur.Group)
+                {
+                    case "static":
+                        switch (cur.Id)
+                        {
+                            case "k1": return Idx("k2");              // 标题行横向循环（→ 顺序）
+                            case "k2": return Idx("k3");
+                            case "k3": return Idx("k4");
+                            case "k4": return Idx("k5");
+                            case "k5": return Idx("k1");              // → 环完成（v4：K5 → 回 K1）
+                            case "input": return Idx("send");
+                            case "send": return Idx("input");         // KS → 与 ← 对称成环
+                        }
+                        return -1;
+                    case "cardbtn":
+                    {
+                        int j = CardBtnIndex(cur);
+                        return j >= _padCardBtnCount - 1 ? Idx("input") : CardBtnIdx(j + 1);   // 最后一个 → KT
+                    }
+                    case "cardbtnv": return Idx("input");             // 竖排 → 沿主干向下
+                }
+                return -1;
+            }
+            // 完整模式
+            switch (cur.Group)
+            {
+                case "static":
+                    switch (cur.Id)
+                    {
+                        case "c1": return Idx("c2");
+                        case "c2": return CSelectedIdxOrC1();         // v5（2026-08-19 用户裁定）：关闭 → 回频道（当前选中行，水平环闭合）
+                        case "cm": return Idx("send");                // → 右下发送
+                        case "input": return Idx("send");
+                        case "send": return Idx("input");             // CS → 与 ← 对称成环
+                    }
+                    return -1;
+                case "channel": return Idx("c1");                     // v5（2026-08-19 用户裁定）：频道 → 先到缩略（水平环起点）
+                case "cardbtn":
+                {
+                    int j = CardBtnIndex(cur);
+                    if (j >= _padCardBtnCount - 1)
+                    {
+                        int cm = Idx("cm");
+                        return cm >= 0 ? cm : Idx("input");           // 最后一个 → CM（有新消息条）? CM : CT
+                    }
+                    return CardBtnIdx(j + 1);
+                }
+                case "cardbtnv": { int cm = Idx("cm"); return cm >= 0 ? cm : Idx("input"); }   // 竖排 → 沿主干向下
+            }
+            return -1;
+        }
+
+        // ── 重建（RebuildPadNavigation）：结构变化时（_padNavDirty）──
+
+        /// <summary>
+        /// 重建焦点项表（锚点卡引用/按钮集/模式/会话/下拉变化时；Fix 4 节流——0.3s 轮询不置 dirty）。
+        /// 重建后焦点按稳定 Id 映射旧项（v3 §六.6，禁止裸索引保持——中间插入/删除会整体错位）；
+        /// 映射失败（项已消失）→ 钳制到相邻项；下拉收起 → 焦点回 K2；初始焦点 = 索引 0。
+        /// </summary>
+        private static void RebuildPadNavigation()
+        {
+            string oldId = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].Id : null;
+            int oldIdx = _padIndex;
+            bool wasDropdown = oldId != null && oldId.StartsWith("dd_");
+            if (_vm == null || _layer?.UIContext?.Root == null)
+            {
+                // 树未就绪（LoadMovie 首帧等）：保留 dirty，下一帧重试（否则导航永久停摆）
+                _padIndex = -1;
+                return;
+            }
+            _padNavDirty = false;
+            _padItems.Clear();
+            _padCardBtnCount = 0;
+
+            bool dropdownOpen = _mode == ImChatMode.Compact && _vm.ChannelSelector.IsChannelListOpen;
+            if (dropdownOpen) BuildDropdownPadItems();
+            else if (_mode == ImChatMode.Compact) BuildCompactPadItems();
+            else BuildFullPadItems();
+
+            if (_padItems.Count == 0) { _padIndex = -1; return; }
+
+            if (dropdownOpen)
+            {
+                // 下拉接管：初始焦点（v3）= 当前选中项（IsSelected 行；无 → 首项）——20+ 频道时落首项太远
+                int init = -1;
+                for (int i = 0; i < _padItems.Count; i++)
+                {
+                    if (_padItems[i].Tag is ImChannelOptionVM opt && opt.IsSelected) { init = i; break; }
+                }
+                _padIndex = init >= 0 ? init : 0;
+                ScrollPadIntoView(_padItems[_padIndex]);   // 选中项可能在列表视口外 → 滚到可见
+            }
+            else if (wasDropdown)
+            {
+                _padIndex = Idx("k2") >= 0 ? Idx("k2") : 0;   // 下拉收起 → 焦点回中心按钮
+            }
+            else if (oldId != null)
+            {
+                int mapped = Idx(oldId);
+                _padIndex = mapped >= 0 ? mapped : (int)MathF.Clamp(oldIdx, 0f, _padItems.Count - 1f);
+            }
+            else
+            {
+                _padIndex = 0;   // 初始焦点 = 索引 0（打开/模式切换后立即可见）
+            }
+            if (_padIndex < 0) _padIndex = 0;
+            // 🔴 2026-08-18（诊断日志）：重建结果 + 焦点映射（oldId → newId）——结构变化后焦点去向
+            string newId = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].Id : "无";
+            DebugLogger.Log($"[Pad] 重建: {_padItems.Count}项 old={oldId ?? "无"} → {newId}");
+            ApplyPadVisual();
+        }
+
+        /// <summary>完整模式焦点项：C1 缩略 / C2 关闭 / C3..CN 频道行 / CB 锚点卡按钮 / CM 新消息条 / CT 输入框 / CS 发送。</summary>
+        private static void BuildFullPadItems()
+        {
+            _padItems.Add(new PadItem { Id = "c1", Group = "static", OnActivate = ToggleCompact, GetWidget = WidgetLookup("LWN_BtnCompact") });
+            _padItems.Add(new PadItem { Id = "c2", Group = "static", OnActivate = Close, GetWidget = WidgetLookup("LWN_BtnClose") });
+            // 频道行（跳过分组标题；构建顺序 = 屏幕视觉顺序）
+            for (int i = 0; i < _vm.ChannelList.Count; i++)
+            {
+                var ch = _vm.ChannelList[i];
+                if (ch == null || ch.IsGroupHeader) continue;
+                var conv = ch.Conversation;
+                int listIdx = i;   // ChannelList 索引（含分组标题；ChannelRowWidget 按此取行）
+                _padItems.Add(new PadItem
+                {
+                    Id = "channel_" + conv.Id,
+                    Group = "channel",
+                    Tag = conv,
+                    // 移动即激活（微信式预览）；已在当前会话 → A/移动落点无操作
+                    OnActivate = () => { if (_selected != conv) SelectConversation(conv); },
+                    GetWidget = () => ChannelRowWidget(listIdx),
+                });
+            }
+            // 锚点卡按钮（🔴 数据源互斥：IsVerticalButtons ? VerticalCardButtons : CardButtons，v3）
+            var anchorVm = _vm.Messages.FirstOrDefault(vm => vm != null && vm.IsCardAnchor);
+            if (anchorVm != null && anchorVm.Message != null)
+            {
+                var btns = anchorVm.IsVerticalButtons ? anchorVm.VerticalCardButtons : anchorVm.CardButtons;
+                int msgIndex = _vm.Messages.IndexOf(anchorVm);
+                string stamp = anchorVm.Message.TimeStamp.ToString("F0", System.Globalization.CultureInfo.InvariantCulture);
+                _padCardBtnCount = btns.Count;
+                for (int j = 0; j < btns.Count; j++)
+                {
+                    var btn = btns[j];
+                    int jj = j;
+                    _padItems.Add(new PadItem
+                    {
+                        Id = $"cardbtn_{stamp}_{j}",
+                        Group = anchorVm.IsVerticalButtons ? "cardbtnv" : "cardbtn",
+                        OnActivate = () =>
+                        {
+                            try { btn.Execute(); } catch (Exception ex) { DebugLogger.Log($"[ImChat] 卡片按钮激活失败: {ex.Message}"); }
+                        },
+                        GetWidget = () => CardButtonWidget(msgIndex, jj, anchorVm),
+                    });
+                }
+            }
+            // CM 新消息条（仅可见时入列）
+            if (_vm.HasNewMessageHint)
+                _padItems.Add(new PadItem { Id = "cm", Group = "static", OnActivate = ExecuteNewMessageClick, GetWidget = WidgetLookup("LWN_BtnNewMsg") });
+            // CT 输入框 / CS 发送
+            _padItems.Add(new PadItem { Id = "input", Group = "static", OnActivate = FocusInputWidget, GetWidget = WidgetLookup("LWN_ImChat_Input") });
+            _padItems.Add(new PadItem { Id = "send", Group = "static", OnActivate = ExecuteSend, GetWidget = WidgetLookup("LWN_BtnSend") });
+        }
+
+        /// <summary>缩略模式焦点项：K1..K5 标题行 / KB 锚点卡按钮 / KT 输入框 / KS 发送。</summary>
+        private static void BuildCompactPadItems()
+        {
+            _padItems.Add(new PadItem { Id = "k1", Group = "static", OnActivate = SelectPreviousChannel, GetWidget = WidgetLookup("LWN_BtnPrev") });
+            _padItems.Add(new PadItem { Id = "k2", Group = "static", OnActivate = ToggleChannelList, GetWidget = WidgetLookup("LWN_BtnCenter") });
+            _padItems.Add(new PadItem { Id = "k3", Group = "static", OnActivate = SelectNextChannel, GetWidget = WidgetLookup("LWN_BtnNext") });
+            _padItems.Add(new PadItem { Id = "k4", Group = "static", OnActivate = ToggleExpand, GetWidget = WidgetLookup("LWN_BtnExpand") });
+            _padItems.Add(new PadItem { Id = "k5", Group = "static", OnActivate = Close, GetWidget = WidgetLookup("LWN_BtnCloseC") });
+            // 锚点卡按钮（与完整模式同构）
+            var anchorVm = _vm.Messages.FirstOrDefault(vm => vm != null && vm.IsCardAnchor);
+            if (anchorVm != null && anchorVm.Message != null)
+            {
+                var btns = anchorVm.IsVerticalButtons ? anchorVm.VerticalCardButtons : anchorVm.CardButtons;
+                string stamp = anchorVm.Message.TimeStamp.ToString("F0", System.Globalization.CultureInfo.InvariantCulture);
+                _padCardBtnCount = btns.Count;
+                for (int j = 0; j < btns.Count; j++)
+                {
+                    var btn = btns[j];
+                    int jj = j;
+                    _padItems.Add(new PadItem
+                    {
+                        Id = $"cardbtn_{stamp}_{j}",
+                        Group = anchorVm.IsVerticalButtons ? "cardbtnv" : "cardbtn",
+                        OnActivate = () =>
+                        {
+                            try { btn.Execute(); } catch (Exception ex) { DebugLogger.Log($"[ImChat] 卡片按钮激活失败: {ex.Message}"); }
+                        },
+                        GetWidget = () => CompactCardButtonWidget(jj, anchorVm),
+                    });
+                }
+            }
+            // KT 输入框 / KS 发送
+            _padItems.Add(new PadItem { Id = "input", Group = "static", OnActivate = FocusInputWidget, GetWidget = WidgetLookup("LWN_ImChat_CompactInput") });
+            _padItems.Add(new PadItem { Id = "send", Group = "static", OnActivate = ExecuteSend, GetWidget = WidgetLookup("LWN_BtnSendC") });
+        }
+
+        /// <summary>缩略模式下拉焦点项（仅 IsChannelListOpen 时构建；A = ExecuteSelect 选中 + 收起）。</summary>
+        private static void BuildDropdownPadItems()
+        {
+            var opts = _vm.ChannelSelector.ItemList;
+            for (int i = 0; i < opts.Count; i++)
+            {
+                var opt = opts[i];
+                if (opt == null) continue;
+                int ii = i;
+                _padItems.Add(new PadItem
+                {
+                    Id = "dd_" + opt.ConversationId,
+                    Group = "dd",
+                    Tag = opt,
+                    // 选中 + 收起（焦点回 K2 由重建映射：wasDropdown → k2）
+                    OnActivate = () =>
+                    {
+                        try { opt.ExecuteSelect(); } catch (Exception ex) { DebugLogger.Log($"[ImChat] 下拉项激活失败: {ex.Message}"); }
+                    },
+                    GetWidget = () => DropdownItemWidget(ii),
+                });
+            }
+        }
+
+        // ── 视觉 widget 定位 ──
+
+        /// <summary>静态按钮 lazy 查找（每次聚焦时从当前树找——模式切换后旧树失效自动换新，零缓存风险）。</summary>
+        private static Func<Widget> WidgetLookup(string id) => () =>
+        {
+            try { return FindWidgetById(_layer?.UIContext?.Root, id); } catch { return null; }
+        };
+
+        /// <summary>频道行 widget（完整模式左栏）：LWN_ImChat_ChannelInner 按 ChannelList 索引取行 →
+        /// 行内 child 1 = 频道行 ButtonWidget（child 0 = 分组标题）。</summary>
+        private static Widget ChannelRowWidget(int channelListIndex)
+        {
+            var inner = FindWidgetById(_layer?.UIContext?.Root, "LWN_ImChat_ChannelInner");
+            if (inner == null || channelListIndex < 0 || channelListIndex >= inner.ChildCount) return null;
+            var item = inner.GetChild(channelListIndex);
+            return item != null && item.ChildCount > 1 ? item.GetChild(1) : null;
+        }
+
+        /// <summary>
+        /// 锚点卡按钮行 widget（完整模式）。🔴 禁止 FindWidgetById("LWN_ImChat_BubbleCard")——ItemTemplate
+        /// 内每张卡重复，命中树中第一张旧卡 → 高亮错位（v3）。改按消息索引定位：
+        /// LWN_ImChat_MessageInner.GetChild(锚点在 _vm.Messages 中的索引) 取行 → 行内按锚点卡类型分叉：
+        /// 卡片气泡（非旧格式）= 行 child2（容器）→ 0（贴内容）→ 0（BubbleCard）→ child 3横/4竖 → GetChild(j)；
+        /// 旧格式计划卡 = 行 child4（容器）→ 0（PlanCardBody）→ child 2横/3竖 → GetChild(j)。
+        /// 查找失败（按钮行未构建/不可见）→ null（该项仍可 A 激活，视觉暂缺，重建后补齐）。
+        /// </summary>
+        private static Widget CardButtonWidget(int msgIndex, int btnIndex, ImMessageVM anchorVm)
+        {
+            var inner = FindWidgetById(_layer?.UIContext?.Root, "LWN_ImChat_MessageInner");
+            if (inner == null || msgIndex < 0 || msgIndex >= inner.ChildCount) return null;
+            var row = inner.GetChild(msgIndex);
+            if (row == null) return null;
+            ListPanel btnRow = null;
+            if (anchorVm != null && anchorVm.IsLegacyPlanCard)
+            {
+                var body = row.ChildCount > 4 ? row.GetChild(4)?.GetChild(0) : null;   // 旧格式卡容器 → LWN_ImChat_PlanCardBody
+                if (body != null)
+                    btnRow = body.GetChild(anchorVm.IsVerticalButtons ? 3 : 2) as ListPanel;
+            }
+            else
+            {
+                var bubble = row.ChildCount > 2 ? row.GetChild(2)?.GetChild(0)?.GetChild(0) : null;   // 卡片气泡容器 → 贴内容 → LWN_ImChat_BubbleCard
+                if (bubble != null)
+                    btnRow = bubble.GetChild(anchorVm.IsVerticalButtons ? 4 : 3) as ListPanel;
+            }
+            if (btnRow == null || btnIndex < 0 || btnIndex >= btnRow.ChildCount) return null;
+            return btnRow.GetChild(btnIndex);
+        }
+
+        /// <summary>锚点卡按钮行 widget（缩略模式）：LWN_ImChat_CompactCard 单卡全树唯一 → child 3横/4竖 → GetChild(j)。</summary>
+        private static Widget CompactCardButtonWidget(int btnIndex, ImMessageVM anchorVm)
+        {
+            var card = FindWidgetById(_layer?.UIContext?.Root, "LWN_ImChat_CompactCard");
+            if (card == null || anchorVm == null) return null;
+            var btnRow = card.GetChild(anchorVm.IsVerticalButtons ? 4 : 3) as ListPanel;
+            if (btnRow == null || btnIndex < 0 || btnIndex >= btnRow.ChildCount) return null;
+            return btnRow.GetChild(btnIndex);
+        }
+
+        /// <summary>下拉项 widget（缩略）：LWN_ImChat_ChannelListInner → GetChild(j) → child 0 = ImageWidget
+        ///（手动命中同款视觉目标——SetState 打 ImageWidget，引擎不覆盖）。</summary>
+        private static Widget DropdownItemWidget(int itemIndex)
+        {
+            var inner = FindWidgetById(_layer?.UIContext?.Root, "LWN_ImChat_ChannelListInner");
+            if (inner == null || itemIndex < 0 || itemIndex >= inner.ChildCount) return null;
+            var btn = inner.GetChild(itemIndex);
+            return btn != null && btn.ChildCount > 0 ? btn.GetChild(0) : null;
+        }
+
+        /// <summary>CT/KT 激活：聚焦输入框（EventManager.FocusedWidget public setter，反编译实锤——设为
+        /// EditableTextWidget 且控制器激活 → _isOnScreenKeyboardRequested = true → 自动弹软键盘）。</summary>
+        private static void FocusInputWidget()
+        {
+            try
+            {
+                var w = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].GetWidget?.Invoke() : null;
+                if (w != null) _layer.UIContext.EventManager.FocusedWidget = w;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 聚焦输入框失败: {ex.Message}");
+            }
+        }
+
+        // ── 焦点视觉（Hovered 复用 hover 视觉零新 Brush；旧焦点按身份复位）──
+
+        /// <summary>新焦点 SetState("Hovered")；旧焦点按身份复位（ButtonWidget.IsSelected ? "Selected" : "Default"）。
+        /// 频道行无独立视觉（自身 IsSelected 视觉即焦点视觉，移动即激活，不额外 SetState）。
+        /// 查找失败 → 视觉暂缺（不影响 A 激活，重建后补齐）。</summary>
+        private static void ApplyPadVisual()
+        {
+            for (int i = 0; i < _padItems.Count; i++)
+            {
+                var item = _padItems[i];
+                if (item.Group == "channel") continue;
+                if (i == _padIndex)
+                {
+                    Widget w = null;
+                    try { w = item.GetWidget?.Invoke(); } catch { }
+                    if (w == null) continue;
+                    if (w != item.LastWidget)
+                    {
+                        if (item.LastWidget != null) RestorePadVisual(item);
+                        item.LastWidget = w;
+                    }
+                    try { w.SetState("Hovered"); } catch { }
+                }
+                else if (item.LastWidget != null)
+                {
+                    RestorePadVisual(item);
+                    item.LastWidget = null;
                 }
             }
         }
 
-        /// <summary>焦点视觉守卫：widget 是否属于本 IM 面板树（向上找 Id="LWN" 的 Window 根）。</summary>
-        private static bool IsOurPanelWidget(Widget w)
+        /// <summary>旧焦点复位（身份复位：ButtonWidget 自身/父级选中态 → Selected，否则 Default）。</summary>
+        private static void RestorePadVisual(PadItem item)
         {
-            for (Widget p = w; p != null; p = p.ParentWidget)
+            if (item?.LastWidget == null) return;
+            try
             {
-                if (p.Id == "LWN") return true;
+                var w = item.LastWidget;
+                bool sel = w is ButtonWidget bw ? bw.IsSelected
+                    : (w.ParentWidget as ButtonWidget)?.IsSelected == true;
+                w.SetState(sel ? "Selected" : "Default");
             }
-            return false;
+            catch { }
+        }
+
+        /// <summary>设备切鼠标 / 面板关闭：焦点复位（高亮清理 + 索引 -1 + 计时器清零）。</summary>
+        private static void ResetPadFocus()
+        {
+            if (_padIndex >= 0)
+            {
+                for (int i = 0; i < _padItems.Count; i++)
+                {
+                    if (_padItems[i].LastWidget != null)
+                    {
+                        RestorePadVisual(_padItems[i]);
+                        _padItems[i].LastWidget = null;
+                    }
+                }
+                _padIndex = -1;
+            }
+            ResetPadHoldTimers();
+        }
+
+        private static void ResetPadHoldTimers()
+        {
+            _lastPadUp = _lastPadDown = _lastPadLeft = _lastPadRight = _lastPadA = _lastPadLB = _lastPadRB = false;
+            _padHoldUp = _padHoldDown = _padHoldLeft = _padHoldRight = _padHoldLB = _padHoldRB = 0f;
+            _padRepeatUp = _padRepeatDown = _padRepeatLeft = _padRepeatRight = _padRepeatLB = _padRepeatRB = 0f;
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-18（实机三连击根因修复）：引擎手柄导航整体屏蔽/解除。
+        /// 背景：prefab 原声明 NavigationScopeTargeter（IsDefaultNavigationScope=true）——引擎自动夺取
+        /// 导航焦点并把光标瞬移到 scope 中心/最近 widget（GainNavigationAfterFrames →
+        /// MoveCursorToFirstAvailableWidgetInScope / MoveCursorToBestAvailableScope，反编译实锤）；
+        /// 光标被引擎挪动 → Input.IsMouseActive → IsGamepadActive=false → 手动导航（UsingGamepad 门控）
+        /// 停摆；同时 D-pad 仍被原版下层 UI 的 scope 消费（campaign 地图按钮被十字键拨动）。
+        /// 修复：① prefab 删除 NavigationScopeTargeter（断光标瞬移源）；② 本方法 = 面板根 widget 声明
+        /// UsedNavigationMovements + IsUsingNavigation → GauntletGamepadNavigationManager.AnyWidgetUsingNavigation
+        /// → OnGamepadNavigation 早退（反编译实锤）——引擎导航整体冻结，手动导航独占十字键，
+        /// 原版下层 UI 不再响应 D-pad。Close 时解除（UsedNavigationMovements=None 从屏蔽列表移除）。
+        /// </summary>
+        private static void SetEngineGamepadNavBlocked(bool blocked)
+        {
+            try
+            {
+                var root = FindWidgetById(_layer?.UIContext?.Root, "LWN");
+                if (root == null) return;
+                root.UsedNavigationMovements = blocked
+                    ? (GamepadNavigationTypes.Horizontal | GamepadNavigationTypes.Vertical)
+                    : GamepadNavigationTypes.None;
+                root.IsUsingNavigation = blocked;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 引擎导航{(blocked ? "屏蔽" : "解除")}失败: {ex.Message}");
+            }
+        }
+
+        // ── 焦点滚动跟随（v3 §六.5）：焦点落位后目标在视口外 → 对应面板滚动把目标滚入视野 ──
+
+        /// <summary>频道行 → ChannelScroll；卡按钮 → MessageScroll；下拉项 → 下拉内 ScrollablePanel。
+        /// 像素→val 换算按 (内容高-可视高)/MaxValue 线性比例（方向两版本一致：val 增 = 内容上移 =
+        /// 靠底/靠新；经贴底语义反推）。只在目标真正不可见时触发一次，不干扰 LB/RB 手动翻页。</summary>
+        private static void ScrollPadIntoView(PadItem item)
+        {
+            if (item == null) return;
+            Widget w = null;
+            try { w = item.GetWidget?.Invoke(); } catch { }
+            if (w == null) return;
+            ScrollablePanel panel = null;
+            if (item.Group == "channel")
+                panel = FindWidgetById(_layer?.UIContext?.Root, "ChannelScroll") as ScrollablePanel;
+            else if (item.Group == "cardbtn" || item.Group == "cardbtnv")
+                panel = _messageScrollPanel;
+            else if (item.Group == "dd")
+            {
+                try { panel = _compactChannelList?.GetChild(0) as ScrollablePanel; } catch { }
+            }
+            if (panel == null || panel.VerticalScrollbar == null) return;
+            try
+            {
+                var sb = panel.VerticalScrollbar;
+                const float pad = 8f;
+                float vTop = panel.GlobalPosition.Y;
+                float vBottom = vTop + panel.Size.Y;
+                float tTop = w.GlobalPosition.Y;
+                float tBottom = tTop + w.Size.Y;
+                if (tTop >= vTop + pad && tBottom <= vBottom - pad) return;   // 已可见
+                float inner = panel.InnerPanel?.Size.Y ?? 0f;
+                float clip = panel.ClipRect?.Size.Y ?? 0f;
+                if (clip <= 0f || inner <= clip) return;                      // 无滚动空间
+                float ratio = sb.MaxValue / (inner - clip);
+                float deltaVal = tBottom > vBottom ? (tBottom - vBottom + pad) * ratio
+                    : (tTop - vTop - pad) * ratio;                             // 上溢出为负 → val 减小（往历史）
+                if (MathF.Abs(deltaVal) < 0.5f) return;
+                sb.ValueFloat = MathF.Clamp(sb.ValueFloat + deltaVal, 0f, sb.MaxValue);
+                // 贴底状态机协同：向上滚出解锁；向下滚到底重锁（与 HandleManualScroll 同语义）
+                if (deltaVal < 0f) _pinnedToBottom = false;
+                else if (IsMessageAtBottom()) _pinnedToBottom = true;
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 焦点滚动跟随异常: {ex.Message}");
+            }
+        }
+
+        // ── 重建节流（Fix 4 / v3）：锚点卡引用 + 按钮数 + 横竖标记 比对，任一变化 → 置 dirty ──
+
+        /// <summary>结构比对（UpdateCardAnchors / NotifyPlanStateChanged 末尾调用——结构变化的汇聚点）。
+        /// 锚点卡引用变 / 按钮集数量变 / IsVerticalButtons 横竖翻转（按钮数不变也触发）→ _padNavDirty。
+        /// 0.3s 轮询 RefreshMessages 本身不置 dirty——比对命中的结构变化才会（防焦点跳变与长按抖动）。</summary>
+        private static void CheckPadNavStructureChange()
+        {
+            if (_vm == null) return;
+            ImMessage anchorRef = null;
+            int btnCount = 0;
+            bool vertical = false;
+            foreach (var vm in _vm.Messages)
+            {
+                if (vm != null && vm.IsCardAnchor)
+                {
+                    anchorRef = vm.Message;
+                    var list = vm.IsVerticalButtons ? vm.VerticalCardButtons : vm.CardButtons;
+                    btnCount = list.Count;
+                    vertical = vm.IsVerticalButtons;
+                    break;
+                }
+            }
+            if (anchorRef != _padNavAnchorRef || btnCount != _padNavAnchorBtnCount || vertical != _padNavAnchorVertical)
+            {
+                _padNavAnchorRef = anchorRef;
+                _padNavAnchorBtnCount = btnCount;
+                _padNavAnchorVertical = vertical;
+                _padNavDirty = true;
+            }
         }
 
         // ───────────────────────── 模式切换（完整 ⇄ 缩略）─────────────────────────
@@ -456,13 +1506,16 @@ namespace LivingWorldNpcs
                 _messageScrollPanel = null;
                 _compactPanel = null;
                 _compactChannelList = null;
+                // 🔴 2026-08-18（实机三连击根因修复）：模式切换 = 新 prefab 树 → 重新屏蔽引擎导航
+                SetEngineGamepadNavBlocked(true);
+                // 🔴 Q4（2026-08-18，手动导航）：模式切换 → 焦点复位 + 重建（新 prefab 树；初始焦点 = 索引 0）
+                ResetPadFocus();
+                _padNavDirty = true;
+                _padItems.Clear();
                 // 🔴 2026-08-17（UI 模式）：模式切换后 mask 立即按新模式设置（防残留——旧行为依赖
                 // HandleCompactInput 首帧修正，完整模式无修正点会残留缩略 mask）
-                InputUsageMask switchMask = _mode == ImChatMode.Compact
-                    ? InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons
-                    : InputUsageMask.MouseButtons | InputUsageMask.MouseWheels | InputUsageMask.Keyboardkeys;
-                _layer.InputRestrictions.SetInputRestrictions(true, switchMask);
-                _lastCompactMask = _mode == ImChatMode.Compact ? switchMask : InputUsageMask.Invalid;
+                // 🔴 2026-08-18：模式切换后 mask 随设备立即生效（手柄 → 隐藏光标，防原生手柄光标模式锁死）
+                ApplyInputMask();
                     RefreshAll();
             }
             catch (Exception ex)
@@ -537,6 +1590,8 @@ namespace LivingWorldNpcs
             // 🔴 十一轮：切会话默认贴底（IM 惯例：打开会话看最新；面板引用首帧才解析，
             // ScrollToBottom 的 val=max 由 Tick 里的贴底闭环持续补上）
             _pinnedToBottom = true;
+            // 🔴 Q4（2026-08-18，手动导航）：切会话 = 结构变化（频道行/消息流/锚点卡全换）→ 重建
+            _padNavDirty = true;
             if (conv != null)
                 ImChatStore.ClearUnread(conv.Id);
             // 🔴 2026-08-12（粘性 @ 按会话）：@前缀只在附近频道保留——切走时输入框若还是纯前缀 → 清空
@@ -1036,6 +2091,8 @@ namespace LivingWorldNpcs
                         DebugLogger.Log($"[CardAnchor]   vm: kind={m.Kind} sender={m.SenderName} content={(m.Content?.Length > 20 ? m.Content.Substring(0, 20) + "…" : m.Content)} anchor={vm.IsCardAnchor} card={vm.AnchorCard != null}");
                 }
             }
+            // 🔴 Q4（2026-08-18，手动导航）：锚点卡结构比对（引用/按钮数/横竖标记）——任一变化 → 重建
+            CheckPadNavStructureChange();
         }
 
         /// <summary>本消息是否为卡片锚点位置：提议/建议 = 自身；计划 = 链内最新一条（🔴 2026-08-12 修复：
@@ -1069,6 +2126,8 @@ namespace LivingWorldNpcs
                 if (vm != null && vm.AnchorCard == card)
                     vm.NotifyPlanState();
             }
+            // 🔴 Q4（2026-08-18，手动导航）：讲解完成/自审回调 → RebuildCardButtons 可能改变按钮集 → 结构比对
+            CheckPadNavStructureChange();
         }
 
         /// <summary>动态项：标题带正在思考 + 模式指示文本（会话状态派生）+ 输入区联动（0.3s 节流调）。
@@ -1231,15 +2290,26 @@ namespace LivingWorldNpcs
             // 🔴 Q4（2026-08-17）：设备切换检测（input.md 范式：缓存逐帧对比）——
             // 手柄→键盘/鼠标：解冻（UpdateGamepadFreeze）+ 焦点视觉轮询自行停摆；键盘→手柄：冻结（Mission）。
             // 手柄提示行随设备刷新（PadHintText/HasPadHint 是计算属性，需显式广播）。
+            // 🔴 2026-08-19（去抖）：裸值振荡时绝不跟手——需稳定 PadDeviceDebounceTime 才提交，
+            // 振荡期保持旧值（实测 19:39:41 起 86Hz 互搏，旧实现每帧切换 → 门控反复 ResetPadFocus
+            // 把 _padIndex 打回 -1 → 导航死锁，见 §11.2 坑 10）
             bool usingGamepad = ModInput.UsingGamepad;
             if (usingGamepad != _lastUsingGamepad)
             {
-                _lastUsingGamepad = usingGamepad;
-                _vm?.RefreshPadHint();
-                DebugLogger.Log($"[ImChat] 设备切换 → {(usingGamepad ? "手柄" : "键盘/鼠标")}");
+                _padDeviceDebounce += dt;
+                if (_padDeviceDebounce >= PadDeviceDebounceTime)
+                {
+                    _padDeviceDebounce = 0f;
+                    _lastUsingGamepad = usingGamepad;
+                    _vm?.RefreshPadHint();
+                    // 🔴 2026-08-18：设备切换 → 光标可见性随动（手柄 = 隐藏，防原生手柄光标模式锁死正中）
+                    ApplyInputMask();
+                    DebugLogger.Log($"[ImChat] 设备切换(去抖{PadDeviceDebounceTime}s) → {(usingGamepad ? "手柄" : "键盘/鼠标")}");
+                }
             }
+            else _padDeviceDebounce = 0f;
             UpdateGamepadFreeze();
-            UpdatePadFocus();
+            UpdatePadFocus(dt);
 
             // 🔴 关闭改用独立键（用户要求）：ESC / 手柄 B——O 只负责打开，打字不再误关。
             // 注：本层 InputRestrictions(All) 是模态掩码，ESC 已被层拦截（不会触发系统菜单，与 Inquiry 同理），
@@ -1252,6 +2322,8 @@ namespace LivingWorldNpcs
             }
             if (Input.IsKeyReleased(InputKey.ControllerRRight))
             {
+                // 🔴 2026-08-18（诊断日志）：B 用抬起沿（IsKeyReleased），单独打日志——与 A 的按下沿区分
+                DebugLogger.Log($"[Pad] B 抬起(edge) {PadState()}");
                 if (_mode == ImChatMode.Compact && _vm != null && _vm.ChannelSelector.IsChannelListOpen)
                 {
                     CloseChannelList();
@@ -1375,16 +2447,9 @@ namespace LivingWorldNpcs
                 //    false → 层不接收 → 左键攻击/右键旋转镜头照常——引擎无左右键独立 mask 位
                 //    （InputUsageMask 实锤 MouseButtons=1），右键放行靠 HitTest 门控实现）。
                 //    下拉开时补 MouseWheels 位（列表滚动）。键盘不拦（物理轮询拦不住，WASD 正常）。
-                // 🔴 2026-08-15（性能）：SetInputRestrictions 只在 mask 变化时调用——每帧调用可能
-                // 触发输入上下文重置（用户反馈 UI 卡顿疑点之一）──
-                InputUsageMask mask = InputUsageMask.Keyboardkeys | InputUsageMask.MouseButtons;
-                if (_vm != null && _vm.ChannelSelector.IsChannelListOpen)
-                    mask |= InputUsageMask.MouseWheels;
-                if (mask != _lastCompactMask && _layer != null)
-                {
-                    _lastCompactMask = mask;
-                    _layer.InputRestrictions.SetInputRestrictions(true, mask);
-                }
+                // 🔴 2026-08-18：mask 统一走 ApplyInputMask（设备 + 输入态三态模型——手柄导航态隐藏光标
+                //   防原生锚定锁中；输入框聚焦放行鼠标位；鼠标玩家照常；内部缓存只在变化时 SetInputRestrictions）
+                ApplyInputMask();
 
                 // ── ① 输入框焦点释放（点击面板外 = 明确回游戏意图；下拉开着时不打断）──
                 if (_layer != null && _layer.IsFocusedOnInput()
@@ -1428,13 +2493,17 @@ namespace LivingWorldNpcs
         {
             if (_vm != null)
                 _vm.ChannelSelector.IsChannelListOpen = !_vm.ChannelSelector.IsChannelListOpen;
+            // 🔴 Q4（2026-08-18，手动导航）：下拉开关 = 焦点接管/释放（结构变化）→ 重建
+            _padNavDirty = true;
             DebugLogger.Log($"[CompactSelect] ToggleChannelList → open={_vm?.ChannelSelector.IsChannelListOpen} widgetVisible={_compactChannelList?.IsVisible}");
         }
 
-        /// <summary>收起频道列表（点选频道后调用——原版下拉选中即收起行为）。</summary>
+        /// <summary>收起频道列表（点选频道后调用——原版下拉选中即收起行为）。
+        /// 🔴 Q4（2026-08-18，手动导航）：收起 = 焦点释放回标题行 → 重建。</summary>
         public static void CloseChannelList()
         {
             if (_vm != null) _vm.ChannelSelector.IsChannelListOpen = false;
+            _padNavDirty = true;
         }
 
         private static bool IsPointInRect(Vec2 p, Vec2 pos, Vec2 size)
