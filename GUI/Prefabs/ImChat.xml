@@ -14,16 +14,10 @@
                 DoNotAcceptEvents="true">
           <Children>
 
-            <!-- 🔴 Q4（2026-08-17 手柄导航）：NavigationScopeTargeter 声明导航 scope——引擎不会为没有
-                 scope 的层建导航图（反编译实锤 GauntletGamepadNavigationManager；原版先例
-                 EscapeMenu.xml:13 同款机制，prefab 系统按名字反射实例化，零 C# 引用改动）。
-                 ScopeParent=".." = 主面板根；IsDefaultNavigationScope=true = 初始焦点自动进入 scope
-                 （「激活」的真相）。scope 自动收集子树内 GamepadNavigationIndex != -1 的按钮；
-                 ItemTemplate 项（左栏频道行/卡片按钮行）靠引擎 sibling fallback 自动收编（验证点 6）。 -->
-            <NavigationScopeTargeter ScopeID="LWN_ImChat_Scope" ScopeParent=".."
-                                     ScopeMovements="HorizontalAndVertical"
-                                     HasCircularMovement="false"
-                                     IsDefaultNavigationScope="true"/>
+            <!-- 🔴 2026-08-18（实机三连击根因修复）：NavigationScopeTargeter 已删除——引擎 scope 会自动
+                 夺取导航焦点并把光标瞬移到 scope 中心（IsDefaultNavigationScope gain 机制），光标被引擎
+                 挪动 → IsMouseActive → IsGamepadActive=false → 手动导航停摆 + 十字键被原版下层 UI 吞。
+                 手柄导航 = ImChatView 手动导航独占（面板根 IsUsingNavigation 屏蔽引擎导航）。 -->
 
             <!-- 标题带（🔴 五轮：改 ListPanel 横向布局——标题 + 正在思考 + 模式区 + 关闭 顺序排布，杜绝普通 Widget 子元素重叠） -->
             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="46"
@@ -56,15 +50,16 @@
                                 DoNotAcceptEvents="true"/>
 
                     <!-- 🔴 2026-08-15（缩略模式）：切缩略面板按钮（关闭按钮左侧；战斗观察用，看场景不被遮挡）。
-                         图标 = minus_button_*（用户裁定资源），不再用文字按钮 -->
-                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"
+                         图标 = minus_button_*（用户裁定资源），不再用文字按钮
+                         Id（2026-08-18 手柄手动导航）：C1 焦点项 widget 定位 -->
+                    <ButtonWidget Id="LWN_BtnCompact" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="34" SuggestedHeight="32"
                                   VerticalAlignment="Center" MarginLeft="8"
                                   Brush="LWN_Btn_Collapse"
                                   GamepadNavigationIndex="1"
                                   Command.Click="ExecuteToggleCompact"/>
 
-                    <!-- 关闭按钮 -->
-                    <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
+                    <!-- 关闭按钮（Id 2026-08-18 手柄手动导航：C2 焦点项 widget 定位） -->
+                    <ButtonWidget Id="LWN_BtnClose" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="38" SuggestedHeight="32"
                                   VerticalAlignment="Center" MarginLeft="8" MarginRight="18"
                                   Brush="Popup.CloseButton"
                                   GamepadNavigationIndex="2"
@@ -562,8 +557,9 @@
                           </Children>
                         </Widget>
 
-                        <!-- 「有新消息」提示条（🔴 八轮：翻历史时新消息到达 → 输入区分隔线上方悬浮提示；点击滚底清提示） -->
-                        <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                        <!-- 「有新消息」提示条（🔴 八轮：翻历史时新消息到达 → 输入区分隔线上方悬浮提示；点击滚底清提示）
+                             Id（2026-08-18 手柄手动导航）：CM 焦点项 widget 定位 -->
+                        <ButtonWidget Id="LWN_BtnNewMsg" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="30"
                                       HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="78"
                                       Brush="Test.Button3"
                                       Command.Click="ExecuteNewMessageClick"
@@ -609,7 +605,7 @@
                                                     TextColor="#FFFFFFFF" Brush="MyBrush_16_Left" Brush.FontSize="18"
                                                     GamepadNavigationIndex="4"
                                                     MarginLeft="12" MarginRight="100" VerticalAlignment="Center"/>
-                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="90" SuggestedHeight="38"
+                                <ButtonWidget Id="LWN_BtnSend" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="90" SuggestedHeight="38"
                                               Brush="Test.Button3"
                                               Command.Click="ExecuteSend"
                                               IsEnabled="@CanSend"
