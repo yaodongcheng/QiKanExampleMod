@@ -287,8 +287,7 @@
     <Compile Include="Debug\DisplayMessageLoggerPatch.cs" />
     <Compile Include="Debug\GameMenuLoggerPatch.cs" />
     <Compile Include="Debug\ShowInquiryLoggerPatch.cs" />
-    <Compile Include="Debug\SaveErrorReporter.cs" />
-    <Compile Include="Debug\SaveStringGuard.cs" />
+    <Compile Include="Debug\SaveGuard.cs" />
     <Compile Include="Debug\PlanDebugCommands.cs" />
     <Compile Include="Debug\MyCommands.cs" />
     <!-- GUI -->
