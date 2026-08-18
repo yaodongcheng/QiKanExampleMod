@@ -316,6 +316,12 @@ if (!_isDropdownOpen && !_isInputFocused)
 - 处置：**设备切换去抖 0.2s**——裸值变化只累积计时器，稳定 0.2s 才提交 `_lastUsingGamepad`；`UpdatePadFocus` 门控 / `UpdateGamepadFreeze` / `ApplyInputMask` 全部改用去抖值，振荡期保持旧值不再跟手。另加防御：门控分支置 `_padNavDirty = true`（真实切回手柄首帧立即重建，stale 项清零，防同型死锁复发）。日志改为 `设备切换(去抖0.2s)`。
 - 待确认：去抖后振荡是否彻底消失（若原生仍在 86Hz 翻，去抖只是隔离了我们的反应；若光标不再被我们每帧开关，回路可能自然熄灭）。⚠️ `ImChatOpenButtonManager` / `InteractionMissionView` 也读裸 `ModInput.UsingGamepad`，若实机仍有残余振荡会跟着闪——需要时同样改造。
 
+**坑 11（🔴 2026-08-18 实机：导航态准星锁中央 + alt+tab 出去鼠标被锁死——聚合规则 + 锚定失焦不停）**
+- 现象：手柄 ↑ 打开 IM 后导航正常（日志焦点转移全有），但系统准星一直显示并锁在屏幕中央；**alt+tab 到游戏外鼠标仍被钉死**（原生锚定模式失焦不停止），无法操作其他程序。
+- 根因链（反编译实锤）：① `ScreenManager.UpdateMouseVisibility()` 聚合规则 =「任一活跃层 `InputRestrictions.MouseVisibility=true` → 全局光标显示」——vanilla MapScreen 层恒 true（大地图光标悬停交互），IM 层 `SetInputRestrictions(false, ...)` **藏不住**；② 「手柄 + 可见光标」→ 坑 2 的 native 锚定模式（每帧 `set_cursor_position` 覆盖，失焦不停）——之前以为「导航态隐藏光标」已解决，实际 MapScreen 层在把光标拉回来。
+- 处置：**ImChatCursorHidePatch**（`[HarmonyPatch(typeof(ScreenManager), "UpdateMouseVisibility")]` Prefix）——门控 `ImChatView.ShouldForceHideCursor()`（IM 打开 + 去抖手柄值 + 非输入框聚焦）→ 强制 `SetMouseVisible(false)` + return false 跳过聚合，在**源头**掐断锚定。输入框聚焦态（速度模式需要光标）/ 鼠标态放行。补丁目标二进制 grep 验证存在。
+- 教训：`SetInputRestrictions(false)` 是"本层声明"，不是全局裁决——**藏光标要查聚合链上有没有别的层在拉**。已登记 wheels.d/im.md。
+
 ### 11.3 当前实现形态（三态模型，全部在 `ImChatView.cs` + 两个 prefab）
 
 | 状态 | 光标 | mask | 交互 |

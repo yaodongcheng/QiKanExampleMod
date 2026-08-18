@@ -306,6 +306,7 @@
     <Compile Include="ImChat\ImCommandFlow.cs" />
     <Compile Include="ImChat\ImMarchOrder.cs" />
     <Compile Include="ImChat\ImChatView.cs" />
+    <Compile Include="ImChat\ImChatCursorPatch.cs" />
     <Compile Include="ImChat\ImChatVM.cs" />
     <Compile Include="ImChat\ImChatMissionView.cs" />
     <Compile Include="ImChat\ImScreenFrameTickPatch.cs" />

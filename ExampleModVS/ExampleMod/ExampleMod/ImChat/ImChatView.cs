@@ -428,6 +428,21 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// 🔴 2026-08-18（实机：手柄 IM 导航态光标被原生锚定锁死屏幕中央 + alt+tab 失焦仍锁鼠标）：
+        /// 全局光标隐藏门控——供 ImChatCursorHidePatch（补丁 ScreenManager.UpdateMouseVisibility）判定。
+        /// 背景：ScreenManager.UpdateMouseVisibility 聚合规则 =「任一活跃层 MouseVisibility=true → 全局光标
+        /// 显示」，vanilla MapScreen 层恒 true → IM 层 SetInputRestrictions(false) 藏不住 →「手柄 + 可见光标」
+        /// → native 锚定模式（光标=中心+摇杆向量，每帧 set_cursor_position 覆盖，失焦不停）。
+        /// 门控 = IM 打开 + 手柄（去抖值）+ 非输入框聚焦（导航态）→ 强制隐藏；
+        /// 输入框聚焦态（原生速度模式，需要光标点击）与鼠标态放行原聚合逻辑。
+        /// </summary>
+        internal static bool ShouldForceHideCursor()
+        {
+            if (_layer == null) return false;
+            return _lastUsingGamepad && !_layer.IsFocusedOnInput();
+        }
+
+        /// <summary>
         /// 🔴 2026-08-18：按设备 + 输入态重算层输入 mask（统一入口；Open / SwitchMode / Tick 设备切换 /
         /// UpdatePadFocus 输入聚焦分支 / HandleCompactInput 逐帧调用，内部缓存只在变化时 SetInputRestrictions）。
         /// 三态模型（实机裁决）：
