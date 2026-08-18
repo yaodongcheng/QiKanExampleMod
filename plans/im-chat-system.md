@@ -384,7 +384,7 @@ MCMSettings **不加**（小白不需要调这些；热键改绑走玩法行 con
 | 执行入口 `SendEventToAgent(companion, "order_execute_plan", …)` + `PlanExecutor.OnFinished/OnAborted` | AgentAIController.cs:465 / PlanExecutor.cs |
 | Mission/Campaign 通吃层：`ScreenManager.TopScreen.AddLayer` | Notify/NinjaNotificationMissionView.cs:46-49 |
 | 弹窗构造/VM/列表绑定/输入框/ModInput 玩法行 | StealBar.xml / InteractArea.xml / PlanCommandFlow.cs:187 / ModInput.cs |
-| 存档：`MyBehavior.SyncData` + `SaveStringGuard.GuardJson`（数组裁剪）+ 分片 key | Core/MyBehavior.cs / Debug/SaveStringGuard.cs |
+| 存档：`MyBehavior.SyncData` + `SaveStringGuard.GuardJson`（数组裁剪）+ 分片 key | Core/MyBehavior.cs / Debug/SaveGuard.cs |
 | 战斗门控 `Settings.IsInteractionDisabled()` | Core/Settings.cs |
 
 ---

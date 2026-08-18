@@ -1,5 +1,8 @@
 # save — 轮子速查分卷（wheels.md 索引导航）
-## 存档错误诊断 — `Debug/SaveErrorReporter.cs`（含 SaveSerializeDiagPatch）
+
+> 🔴 **三合一（2026-08-18）**：原 `Debug/SaveErrorReporter.cs` + `Debug/SaveFileReadOnlyGuard.cs` 已并入 `Debug/SaveGuard.cs`（存档三合一防线：①字符串超长防护 ②错误诊断 ③只读属性防护），下文三节都指同一个文件。
+
+## 存档错误诊断 — `Debug/SaveGuard.cs`（含 SaveSerializeDiagPatch，三合一文件内）
 
 **🔴 常驻诊断工具（不删）。新增 Saveable 类型后遇存档问题（未注册类型 / 序列化 NRE / 字段丢失）的第一取证入口。** 玩家存档失败弹窗会追加 `[SaveDebug]` 诊断详情（结果码 + 引擎错误消息），序列化崩溃时日志定位到具体字段。Harmony 补丁，`PatchAll()` 自动注册，无调用点：
 
@@ -22,9 +25,9 @@
 
 **踩坑**：① Harmony `TargetMethod()` 必须 **public static**（private 静默跳过，补丁不生效）；② `MemberType=String` 的 null 合法不崩，只报 Object/Container/CustomStruct；③ 补丁目标方法是 internal（SaveSystem），用 `AccessTools.Method("Type:Method")` 动态绑定。
 
-**文件位置**：`Debug/SaveErrorReporter.cs`（两个诊断类同文件）；补注册入口 `Story/StoryContext.cs`（SaveDefiner）；排查范例 [plans/outnet_fix_plans/save-failure-fix.md](../outnet_fix_plans/save-failure-fix.md)。
+**文件位置**：`Debug/SaveGuard.cs`（存档三合一：错误诊断 + 字符串超长防护 + 只读防护）；补注册入口 `Story/StoryContext.cs`（SaveDefiner）；排查范例 [plans/outnet_fix_plans/save-failure-fix.md](../outnet_fix_plans/save-failure-fix.md)。
 
-## 存档字符串超长防护 — `Debug/SaveStringGuard.cs`（🔴 常驻：救档 + 双向监控 + 降级弹窗）
+## 存档字符串超长防护 — `Debug/SaveGuard.cs`（🔴 常驻：救档 + 双向监控 + 降级弹窗）
 
 **问题**：SaveSystem Strings 表每条字符串长度字段是 16 位 **signed short（上限 32767）**。单条字符串 > 32767 字节 → **写入时静默溢出成负数（不抛异常）** → 整张表错位 → 读档 `ReadBytes(负数)` → OverflowException 被吞 → 弹"载入存档时发生了一个错误"。**写入侧无异常、玩家无感知、新存档已写坏**——此 bug 最阴险的特征。
 
@@ -51,6 +54,20 @@ dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
 
 **日志关键词**：`[SyncDataGuard]`（裁剪到 key）、`[SaveStrGuard]`（全局超长）、`[LoadDiag-ReadBytes]`（溢出还原/SUSPICIOUS）、`[LoadDiag#n]`/`[SaveDiag#n]`（FirstChance）、`[TheftLedger] Trim`/`[WorldEventStore] Trim`（根因裁剪）、`[ExtPropsGuard]`。
 
-**文件位置**：`Debug/SaveStringGuard.cs`（Harmony `PatchAll()` 自动注册，无调用点）；接入点 `Core/MyBehavior.cs`；排查案例 [plans/save-string-overflow-fix.md](../../save-string-overflow-fix.md)。
+**文件位置**：`Debug/SaveGuard.cs`（Harmony `PatchAll()` 自动注册，无调用点）；接入点 `Core/MyBehavior.cs`；排查案例 [plans/save-string-overflow-fix.md](../../save-string-overflow-fix.md)。
 
 **离线体检/修复工具**：`Scripts/save_inspect.py`（解析 .sav → 体检 Strings 表 → `--dump=<key>` 查看具体 JSON → `--fix --apply` 定点手术修复，自动备份）。玩家发来坏档时先跑它定位超长 key，再决定游戏内修还是工具修。格式细节与实测数据见 [Knowledge/存档机制深度解析.md](../../../Knowledge/存档机制深度解析.md) 第 10/12/13 章。
+
+## 存档文件只读防护 — `SaveFileReadOnlyGuard`（防线③，同 `Debug/SaveGuard.cs` 文件内）
+
+**问题**：外部工具（杀软/备份/手动勾选）把 `.sav` 设为只读后，游戏覆盖写入被 Windows 拒绝，弹"存档失败！无法创建存档数据"。这是**原生文件层**错误（`PlatformFileHelperFailure` / `[Platform] Access denied`）——C# 侧 `SaveManager` 捕获不到，`[SaveDiag]` 显示 `successful=True` 但实际没写成，`SaveErrorReporter` 也拿不到详情（2026-08-18 实机案例）。
+
+**机制**：`FileDriver.Save` 是所有磁盘存档（含自动存档）的唯一出口，Prefix 写盘前检查目标 `.sav` 的 `ReadOnly` 属性并清除。路径经 `PlatformFilePath.FileFullPath` 走原生层解析（`Common.PlatformFileHelper.GetFileFullPath`），与引擎实际写盘路径严格一致——不猜 Documents 重定向，也不依赖 `GetSaveFilePath`（**1.2.12 里是 private**，1.3.15+ 才 public static）。
+
+**版本兼容**：`FileDriver.Save(string, int, MetaData, GameData)` 签名 + `PlatformFilePath.FileFullPath` + `PlatformFileType.User` 三锚点全一致（1.2.12/1.3.15/1.4.6 实测），无需 `#if`。
+
+**纪律**：只清 `ReadOnly`（症状修复），不保证外部工具不再设置（病因另查，`[SaveReadOnlyGuard]` 日志可定位复发）；全部 try/catch 不阻断存档；只动目标文件不批量改属性。
+
+**日志关键词**：`[SaveReadOnlyGuard]`（清除成功/失败）。
+
+**文件位置**：`Debug/SaveGuard.cs`（`SaveFileReadOnlyGuard.FileDriverSavePatch`，`PatchAll()` 自动注册）。
