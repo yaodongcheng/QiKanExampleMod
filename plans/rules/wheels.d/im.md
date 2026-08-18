@@ -262,3 +262,26 @@ public static void ScheduleDelayedAction(Action action, float delaySec);
 **调试**：`custom.worldbg_status / regenerate / dump`；日志 `[WorldBg]`（读档初始化 blob/指纹 / 指纹匹配含**存档 vs 当前两个比对值** / 触发 / 生成成功 / 失败）。
 
 **小坑（validator A 节）**：`DebugLogger.Log($"...中文" + $"...")` **续行**里没有 `DebugLogger.` 字样会被误报硬编码 CJK——续行加 `// lwn-ignore: A`（WorldBackgroundBehavior.cs:139 实录）。
+
+## 🔴 光标锚定止血补丁：全局光标可见性聚合规则（2026-08-18）— `ImChat/ImChatCursorPatch.cs` + `ImChatView.ShouldForceHideCursor`
+
+**解决什么问题**：手柄 IM 导航态下系统光标被原生锚定模式锁死屏幕中央，**alt+tab 到游戏外鼠标仍被锁死**（每帧 set_cursor_position，失焦不停），玩家无法正常做其他事。
+
+**根因链（反编译实锤）**：
+1. `ScreenManager.UpdateMouseVisibility()` 聚合规则 =「**任一活跃层 `InputRestrictions.MouseVisibility=true` → 全局光标显示**」（第一个命中即 return）——vanilla MapScreen 层恒 true（大地图光标悬停交互是原版设计），IM 层 `SetInputRestrictions(false, ...)` **藏不住**
+2. 「手柄在用 + 可见光标」→ native 锚定模式：光标 = 屏幕中心 + 摇杆向量，每帧覆盖 `SetMousePosition`（原生 `IInput` 无管理侧开关，见 im-gamepad-navigation.md §11.2 坑 2），且**失焦不停止**
+
+**轮子（在聚合源头拦截，层级藏不住）**：
+```csharp
+[HarmonyPatch(typeof(ScreenManager), "UpdateMouseVisibility")]   // internal static，字符串补丁
+static bool Prefix()
+{
+    if (!ImChatView.ShouldForceHideCursor()) return true;        // 放行原聚合
+    AccessTools.Method(typeof(ScreenManager), "SetMouseVisible") // private static，反射调
+        ?.Invoke(null, new object[] { false });
+    return false;                                                // 跳过聚合 → 破锚定
+}
+```
+门控 = `ShouldForceHideCursor()` = **IM 打开 + 手柄（去抖值 `_lastUsingGamepad`）+ 非输入框聚焦**（导航态）。**放行边界**：输入框聚焦态（原生速度模式，光标需要可见可点）/ 鼠标态 / IM 关闭。
+
+**教训**：`SetInputRestrictions(false)` 只是"本层声明"，全局光标可见性由 ScreenManager 按「任一活跃层 true」聚合——**想藏光标必须看有没有别的层在拉**。多版本兼容：ScreenSystem 的这两个方法各版本签名一致，无需 `#if`（编译时二进制 grep 验证过）。
