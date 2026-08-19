@@ -79,7 +79,7 @@ namespace LivingWorldNpcs
         // 🔴 Q4（2026-08-17，手柄支持）：
         // 手柄模态（Mission 面板打开 = 角色输入整体冻结；设备切换自动解冻/冻结）
         private static bool _lastUsingGamepad;
-        // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）：键鼠鼠标活动采样节流器
+        // 鼠标活动采样节流器（2026-08-19 起，[ImChatMouse] 挂 GamepadNavDebugLog 开关）
         private static float _mouseDiagTimer;
         // 🔴 2026-08-19（用户裁定：自监测最后输入来源）——判定已下沉到 ModInput.TickInputSource()
         //（全 Mod 共用：InteractArea 键帽/IM 提示行/呼出按钮/Mission 冻结同源），本类只消费
@@ -295,7 +295,7 @@ namespace LivingWorldNpcs
                 _lastUsingGamepad = ModInput.UsingGamepad;
                 UpdateGamepadFreeze();
                 _vm?.RefreshPadHint();
-                // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）
+                // 排查日志（2026-08-19 起）：打开时的模式 + 设备判定 + 输入框聚焦——配合 [ImChatMask]
                 DebugLogger.Log($"[ImChat] Open 完成 mode={_mode} gamepad={_lastUsingGamepad} inputFocused={_layer.IsFocusedOnInput()}");
                 // 🔴 2026-08-17（用户反馈）：Mission 内直接以缩略模式打开（_mode 记忆——上次关闭时是
                 // 缩略，下一次开启仍是缩略）→ 同样提示镜头操作变化（不只「放大→缩略」路径）
@@ -537,7 +537,8 @@ namespace LivingWorldNpcs
             if (mask != _lastCompactMask || visible != _lastCompactMaskVisible)
             {
                 _layer.InputRestrictions.SetInputRestrictions(visible, mask);
-                // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）：打印每次实际应用的 mask
+                // 排查日志（2026-08-19 起）：每次实际应用的 mask——「变化才应用」被跳过时无本行
+                //（层生命周期问题一查一个准；实机：第二次打开光标消失 = Close 未重置缓存）
                 DebugLogger.Log($"[ImChatMask] SetInputRestrictions(visible={visible}, mask={mask}) gamepad={gamepad} focused={inputFocused} mode={_mode}");
                 _lastCompactMask = mask;
                 _lastCompactMaskVisible = visible;
@@ -1878,7 +1879,7 @@ namespace LivingWorldNpcs
             if (_mode != ImChatMode.Compact) return;
             _mode = ImChatMode.Full;
             SwitchMode();
-            // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）
+            // 排查日志（2026-08-19 起）：缩略→完整切换入口确认（与 SwitchMode 内 [ImChatMask] 配合）
             DebugLogger.Log($"[ImChat] ToggleExpand → Full gamepad={ModInput.UsingGamepad}");
             if (Mission.Current != null)
             {
@@ -2646,21 +2647,25 @@ namespace LivingWorldNpcs
             UpdateGamepadFreeze();
             UpdatePadFocus(dt);
 
-            // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）：键鼠侧鼠标活动采样——
+            // 🔴 鼠标活动采样（2026-08-19 mission 鼠标转镜头排查产物，改挂调试开关）——
             // 2s 节流回答三个问题：①鼠标位移引擎是否上报（光标可见时 MouseMoveX 是否归零）
             // ②光标可见性（转镜头的直接机制 = MissionScreen.MouseVisible）③设备判定
-            _mouseDiagTimer -= dt;
-            if (_mouseDiagTimer <= 0f)
+            // 挂 GamepadNavDebugLog（= PadDbg，输入调试总开关：设备判定/手柄导航同源）。
+            if (PadDbg)
             {
-                _mouseDiagTimer = 2f;
-                Vec2 mouse = Input.MousePositionPixel;
-                try
+                _mouseDiagTimer -= dt;
+                if (_mouseDiagTimer <= 0f)
                 {
-                    DebugLogger.Log($"[ImChatMouse] gamepad={ModInput.UsingGamepad} move=({Input.MouseMoveX:0.0},{Input.MouseMoveY:0.0}) cursor={ScreenManager.GetMouseVisibility()} mouse=({mouse.X:0.0},{mouse.Y:0.0}) focused={_layer.IsFocusedOnInput()} mask=({_lastCompactMaskVisible},{_lastCompactMask})");
-                }
-                catch (Exception ex)
-                {
-                    DebugLogger.Log($"[ImChatMouse] 采样失败: {ex.Message}");
+                    _mouseDiagTimer = 2f;
+                    Vec2 mouse = Input.MousePositionPixel;
+                    try
+                    {
+                        DebugLogger.Log($"[ImChatMouse] gamepad={ModInput.UsingGamepad} move=({Input.MouseMoveX:0.0},{Input.MouseMoveY:0.0}) cursor={ScreenManager.GetMouseVisibility()} mouse=({mouse.X:0.0},{mouse.Y:0.0}) focused={_layer.IsFocusedOnInput()} mask=({_lastCompactMaskVisible},{_lastCompactMask})");
+                    }
+                    catch (Exception ex)
+                    {
+                        DebugLogger.Log($"[ImChatMouse] 采样失败: {ex.Message}");
+                    }
                 }
             }
 

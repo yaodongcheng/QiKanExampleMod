@@ -504,9 +504,6 @@ namespace LivingWorldNpcs
             CardButtons.Clear();
             VerticalCardButtons.Clear();
             var anchor = AnchorCard;
-            // 🔴 2026-08-15（按钮不显示调试，实机）：重建入口日志——锚点种类决定走哪个分支。
-            if (anchor != null)
-                DebugLogger.Log($"[CardButtons] 重建入口: anchor=kind={anchor.Kind} suggest={anchor.IsPlanSuggest} resolved={anchor.IsSuggestionResolved} exec={anchor.ExecutorId ?? "空"}");
             if (anchor == null) { IsVerticalButtons = false; return; }
             if (anchor.IsPlanCard) { RebuildPlanCardButtons(anchor); }
             else if (anchor.IsProposal) { RebuildProposalButtons(anchor); }
@@ -569,17 +566,9 @@ namespace LivingWorldNpcs
         /// 先不用 → 了结回闲聊。</summary>
         private void RebuildSuggestionButtons(ImMessage card)
         {
-            // 🔴 2026-08-15（按钮不显示调试，实机）：按钮构建前打印全部判定变量——
-            // IsPlanSuggest（打标是否命中本消息）/ IsSuggestionResolved（是否已了结，了结 = 无按钮）/
-            // ExecutorId（非空即已解决）/ 两个按钮文案解析结果（本地化 key 是否命中）。
-            if (card != null)
-            {
-                DebugLogger.Log($"[SuggestBtn] 构建判定: IsPlanSuggest={card.IsPlanSuggest} Resolved={card.IsSuggestionResolved} ExecutorId={card.ExecutorId ?? "空"} 按钮文案=「{MakePlanText}」「{SkipText}」");
-            }
             if (card.IsSuggestionResolved) return;
             CardButtons.Add(new ImButtonVM(MakePlanText, () => ImChatView.HandleSuggestion(card, makePlan: true)));
             CardButtons.Add(new ImButtonVM(SkipText, () => ImChatView.HandleSuggestion(card, makePlan: false)));
-            DebugLogger.Log($"[SuggestBtn] 已构建 2 按钮 → CardButtons={CardButtons.Count} VerticalCardButtons={VerticalCardButtons.Count} IsCardAnchor={IsCardAnchor} IsHorizontalButtons={IsHorizontalButtons} IsVerticalButtonsVisible={IsVerticalButtonsVisible}");
         }
 
         /// <summary>🔴 2026-08-13（模板 NPC 目标确认，用户裁定：无新卡片）：宾语确认消息底部按钮行——
