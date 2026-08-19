@@ -106,12 +106,13 @@ score = Σ 命中主题×职业亲和 + @提及(5) + 相似度(bigram×3) + 热�
 // ImButtonVM（ImChatVM.cs）：通用按钮数据项
 //   Text / IsEnabled（置灰）/ Execute()（Command.Click="Execute" 绑定）——一个按钮一个委托
 // ImMessageVM.CardButtons（MBBindingList<ImButtonVM>）：按钮集按 AnchorCard 种类/状态重建
-//   RebuildCardButtons()：计划卡片 = 自审/重拟?/同意/拒绝（执行中 = 中止）；
+//   RebuildCardButtons()：计划卡片 = 同意/拒绝（执行中 = 中止；🔴 2026-08-19 计划自审/重拟按钮已删，
+//                          PlanCard 自带 narration 即人话，语义问题交给执行期 Guardrail R1-R7 + Replan）；
 //                         提议卡片 = 同意/拒绝（批准 = HandleProposal(approve:true) → 直接执行动作或走计划管线）
 // ImMessageVM.IsCardAnchor：按钮行可见性（ImChatView.UpdateCardAnchors 每次刷新重算）
 // 锚点规则（合并旧 UpdateLatestProposalFlag + UpdatePlanAnchors 为 UpdateCardAnchors 单规则）：
 //   会话内「最新可操作卡片」（最新未决 Proposal 或最新待批/执行中 PlanCard）→ 锚点消息 =
-//   计划链 = 链内最新一条（讲解后按钮下移）；提议无链 = 卡片自身。旧卡按钮行隐藏（视觉保留）。
+//   计划卡片自身（链机制保留：拒绝抛弃时按 ChainId 抹除）；提议无链 = 卡片自身。旧卡按钮行隐藏（视觉保留）。
 //   两种卡片并存时新者接管锚点，旧卡未了结、回流后恢复可点。
 ```
 

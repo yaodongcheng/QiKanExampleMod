@@ -4146,7 +4146,6 @@
     <string id="LWN_im_cmd_aborted" text="命令已中止。" />
     <string id="LWN_im_cmd_done" text="命令已经办妥。" />
     <string id="LWN_im_btn_modify" text="修改" />
-    <string id="LWN_im_btn_regenerate" text="重拟" />
     <string id="LWN_plan_bring_tail" text="主公召我来，不知有何吩咐？" />
     <string id="LWN_plan_bring_tail_topic" text="带到主人面前" />
     <string id="LWN_im_btn_submit_modify" text="提交修改" />
@@ -4154,10 +4153,7 @@
     <string id="LWN_im_badge_modified" text="修改版 v{N}" />
     <string id="LWN_im_btn_detail_expand" text="详情" />
     <string id="LWN_im_btn_detail_collapse" text="收起详情" />
-    <string id="LWN_im_btn_review" text="战术自审" />
-    <string id="LWN_im_btn_reviewing" text="自审中…" />
     <string id="LWN_im_cmd_modify_pending" text="随从正在按你的意见重拟战术…" />
-    <string id="LWN_im_cmd_regenerating" text="随从正在重拟战术…" />
     <string id="LWN_im_cmd_modify_exhausted" text="战术修改次数已达上限，请批准或重新下达。" />
     <string id="LWN_im_cmd_modify_need_mission" text="修改战术需要随从在场，请先进到场景里。" />
     <string id="LWN_im_cmd_unavailable_here" text="此刻无法发送传讯。" />

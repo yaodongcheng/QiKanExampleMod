@@ -91,18 +91,6 @@ namespace LivingWorldNpcs
         [JsonProperty("ch")]
         public string ChainId;
 
-        // 🔴 2026-08-12：讲解在途标记（运行时态，不存档——VM 每次 0.3s 重建，标记必须活在消息对象上
-        // 才能跨重建保活；锚点移到讲解消息后，讲解中状态仍正确显示在锚点上）。
-        [JsonIgnore]
-        public bool ExplainPending;
-
-        // 🔴 2026-08-12：讲解自查结果（讲解轮结构化输出）——重拟按钮显示条件与重拟定向上下文
-        [JsonProperty("fi")]
-        public bool? ReviewFoundIssue;   // 讲解自查发现问题（true → 重拟按钮显示；null = 未讲解）
-
-        [JsonProperty("rl")]
-        public string ReviewLine;        // 讲解台词（含隐患点名的原话；重拟时作为定向上下文传给 LLM）
-
         // 🔴 2026-08-12（用户裁定：合并闲聊/计划模式）：NeedPlan 建议 = NPC 回复消息（kind 保持 Text）打标——
         // 不走新卡片类型，渲染复用既有 ShowCardBubble（NPC 自述气泡）+ 通用按钮行（CardButtons），
         // 底部挂「制定计划/先不用」。ExecutorId 状态复用：空 = 待决；"done" = 制定计划/先不用了结；

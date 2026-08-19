@@ -536,14 +536,11 @@ namespace LivingWorldNpcs
             OnPropertyChanged(nameof(IsVerticalButtonsVisible));
         }
 
-        /// <summary>计划卡片按钮（与原硬编码按钮同语义：待批 = 自审/重拟?/同意/拒绝；执行中 = 中止）。</summary>
+        /// <summary>计划卡片按钮（与原硬编码按钮同语义：待批 = 同意/拒绝；执行中 = 中止）。</summary>
         private void RebuildPlanCardButtons(ImMessage card)
         {
             if (string.IsNullOrEmpty(card.ExecutorId))
             {
-                // 自审：始终有（计划自审 → 自审中…）；重拟仅讲解自查发现问题时出现
-                CardButtons.Add(new ImButtonVM(DetailToggleText, ExecuteToggleDetail, isEnabled: CanToggleDetail));
-                if (CanRegenerate) CardButtons.Add(new ImButtonVM(RegenerateText, ExecuteRegenerate));
                 if (CanApprove) CardButtons.Add(new ImButtonVM(ApproveText, ExecuteApprove));
                 if (CanReject) CardButtons.Add(new ImButtonVM(RejectText, ExecuteReject));
             }
@@ -668,49 +665,6 @@ namespace LivingWorldNpcs
             ? LWNTextHelper.ResolveCompound("LWN_im_badge_modified", "Revised v{N}", ("N", AnchorCard.PlanModifyCount.ToString()))
             : "";
 
-        /// <summary>自审在途（🔴 2026-08-12：标志活在卡片消息上 [JsonIgnore]——0.3s VM 重建保活；
-        /// 锚点移到自审消息后仍正确显示「自审中…」）。</summary>
-        [DataSourceProperty]
-        public bool IsExplainPending => AnchorCard != null && AnchorCard.ExplainPending;
-
-        /// <summary>自审按钮可点（生成中禁用）。</summary>
-        [DataSourceProperty]
-        public bool CanToggleDetail => !IsExplainPending;
-
-        /// <summary>🔴 2026-08-12（用户裁定）：按钮 = 计划自审（讲解前自查的语义本名）——
-        /// 生成中 → 「自审中…」；默认 → 「计划自审」（讲解一次后按钮保留：可重复自审；
-        /// 自查发现问题 → 重拟按钮出现，LWN_im_btn_review 文案）。</summary>
-        [DataSourceProperty]
-        public string DetailToggleText => IsExplainPending
-            // 自审中…
-            ? LWNTextHelper.ResolveText("LWN_im_btn_reviewing", "Reviewing…")
-            // 计划自审按钮
-            : LWNTextHelper.ResolveText("LWN_im_btn_review", "Self-review");
-
-        /// <summary>
-        /// 计划自审（🔴 2026-08-11 用户裁定 → 2026-08-12 再裁定：按钮 = 确定性事件 → 执行者 NPC 口述自审
-        /// （LLM 生成人话 → NPC 聊天消息 + 场景内冒泡；LLM 失败 → 用计划摘要口述，**绝不展示 JSON 详情**）。
-        /// 🔴 2026-08-12：锚点移到自审消息后，按钮在自审消息上继续可用（再点 = 再自审一条，锚点再下移；
-        /// 用户裁定：自审一次后按钮保留——自查发现问题 → 重拟按钮出现）。
-        /// 回调由 ImCommandFlow.Tick 主线程执行（异步回包只入队，不在此线程碰 UI）。
-        /// </summary>
-        public void ExecuteToggleDetail()
-        {
-            var card = AnchorCard;
-            if (card == null || !card.IsPlanCard) return;
-            if (card.ExplainPending) return;                          // 讲解中禁重复点
-            card.ExplainPending = true;
-            // 🔴 2026-08-12：自审按钮文案「自审中…」+ 置灰 → 重建按钮行
-            RebuildCardButtons();
-            ImCommandFlow.RequestPlanExplain(card, ok =>
-            {
-                // 主线程回调（ImCommandFlow.Tick 消费讲解队列时执行）；降级已在管线内用摘要口述，无需展开 JSON
-                card.ExplainPending = false;
-                // 🔴 2026-08-12：锚点可能已移到讲解消息（新 VM 实例）——通知所有挂载本卡片的 VM
-                ImChatView.NotifyPlanStateChanged(card);
-            });
-        }
-
         /// <summary>批准可用：计划卡片、尚未下发（无 ExecutorId）、有 Plan JSON。</summary>
         [DataSourceProperty]
         public bool CanApprove => AnchorCard != null && AnchorCard.IsPlanCard && string.IsNullOrEmpty(AnchorCard.ExecutorId) && !string.IsNullOrEmpty(AnchorCard.PlanJson);
@@ -744,37 +698,20 @@ namespace LivingWorldNpcs
         // 计划卡片按钮：修改（Q2）
         public string ModifyText => LWNTextHelper.ResolveText("LWN_im_btn_modify", "Revise");
 
-        // 计划卡片按钮：重拟（2026-08-12：二次校验发现问题 → 同命令重新生成）
-        [DataSourceProperty]
-        // 计划卡片按钮：重拟（2026-08-12）
-        public string RegenerateText => LWNTextHelper.ResolveText("LWN_im_btn_regenerate", "Regenerate");
-
-        /// <summary>重拟可用（🔴 2026-08-12 用户裁定）：仅当「讲解过且自查发现问题」才显示——
-        /// 其他时候重拟没必要（有意见用输入框改，没问题直接同意）。讲解完成回调 OnPropertyChanged 联动。</summary>
-        [DataSourceProperty]
-        public bool CanRegenerate => AnchorCard != null && AnchorCard.IsPlanCard && string.IsNullOrEmpty(AnchorCard.ExecutorId)
-            && AnchorCard.ReviewFoundIssue == true;
-
         public ImMessageVM(ImMessage msg)
         {
             _msg = msg;
         }
 
-        /// <summary>🔴 2026-08-12：通知计划按钮状态刷新（AnchorCard 变更 / 讲解完成回调）+ 重建按钮行。
-        /// 讲解回调时锚点可能已是讲解消息的新 VM——ImChatView.NotifyPlanStateChanged 对所有挂载 VM 调用。</summary>
+        /// <summary>🔴 2026-08-12：通知计划按钮状态刷新（AnchorCard 变更）+ 重建按钮行。</summary>
         public void NotifyPlanState()
         {
             OnPropertyChanged(nameof(CanModify));
             OnPropertyChanged(nameof(IsModifiedPlan));
             OnPropertyChanged(nameof(ModifiedBadgeText));
-            OnPropertyChanged(nameof(IsExplainPending));
-            OnPropertyChanged(nameof(CanToggleDetail));
-            OnPropertyChanged(nameof(DetailToggleText));
             OnPropertyChanged(nameof(CanApprove));
             OnPropertyChanged(nameof(CanReject));
             OnPropertyChanged(nameof(CanAbort));
-            OnPropertyChanged(nameof(CanRegenerate));
-            // 讲解完成 → 自查结果可能翻转重拟按钮显示/按钮文案（自审中→计划自审）→ 全量重建
             RebuildCardButtons();
         }
 
@@ -783,9 +720,6 @@ namespace LivingWorldNpcs
         public void ExecuteReject() { if (AnchorCard != null) ImChatView.HandlePlanAction(AnchorCard, approve: false); }
 
         public void ExecuteAbort() { if (AnchorCard != null) ImChatView.HandlePlanAction(AnchorCard, approve: false, abort: true); }
-
-        /// <summary>🔴 2026-08-12（重拟按钮）：同命令重新生成（二次校验发现问题时的出口）。</summary>
-        public void ExecuteRegenerate() { if (AnchorCard != null) ImChatView.HandleRegenerate(AnchorCard); }
     }
 
     /// <summary>
@@ -925,7 +859,7 @@ namespace LivingWorldNpcs
         public ImChannelSelectorVM ChannelSelector { get; } = new ImChannelSelectorVM();
 
         /// <summary>缩略模式行 A：未决锚点卡（含按钮行；实例 = _vm.Messages 中 IsCardAnchor 的同一实例，
-        /// 广播路径天然覆盖——🔴 2026-08-15 审查 P1-2：独立新实例会漏 UpdateCardAnchors/NotifyPlanStateChanged 广播）。</summary>
+        /// 广播路径天然覆盖——🔴 2026-08-15 审查 P1-2：独立新实例会漏 UpdateCardAnchors 广播）。</summary>
         private ImMessageVM _compactAnchor;
 
         [DataSourceProperty]
