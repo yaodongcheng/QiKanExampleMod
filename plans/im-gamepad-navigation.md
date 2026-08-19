@@ -337,6 +337,15 @@ if (!_isDropdownOpen && !_isInputFocused)
 - 修复：`ActivatePad`（A 键统一入口）OnActivate 前先 `SetMouseToWidget(焦点项)` + `HideNavCursor()`——点击路径 = 无准星提交版逐字节一致；下一帧 `UpdateNavCursor` 按显示条件自动恢复。`FocusInputWidget` 内的重复 `SetMouseToWidget` 移除（单一入口，防止改一处漏一处）。
 - 坑中坑：`Input.MousePositionPixel` 在光标隐藏时是**冻结读数**（停在上次可见时的位置）——不能用来验证 SetMousePosition 是否生效；**A 键点击落在焦点项本体（焦点保持、无翻转）才是生效判据**。已登记 wheels.d/im.md。
 
+**坑 15（🔴 2026-08-19 用户裁定：设备判定重构——引擎 IsGamepadActive 粘性判定推翻，自监测最后输入来源）**
+- 现象：手柄发送消息后设备判键鼠（「⛔ 设备未激活」死循环，键帽变 [F]）；推摇杆时设备每 10-30ms 手柄/键鼠互搏（12:45:16 实机 40 次/秒）。
+- 根因（实机三证）：① 引擎 `IsGamepadActive = !IsMouseActive`——`IsMouseActive` 粘性 true（A 键模拟点击/锚定回拽持续 7+ 秒）→ 手柄键无法重新宣告身份；② A 键 native 模拟点击的**鼠标键沿跨帧 1-3 帧**出现（12:44:06/15 两证）→ 同帧忽略不够；③ 光标可见时引擎把手柄摇杆转成**鼠标移动事件**（输入聚焦速度模式/锚定回拽）→ 推摇杆时 `MouseMoveX ≠ 0` → 与摇杆持续输入每帧互搏平手判键鼠。
+- 修复（**判定下沉 `Input/ModInput.cs`，全 Mod 共用**——InteractArea 键帽/IM 提示行/呼出按钮/Mission 冻结同源）：
+  1. 自监测三原则（用户裁定）：任何手柄键沿 = 激活手柄（离散无抖动）；按键 > 持续输入、同帧冲突按键胜；持续输入晚者胜出（摇杆 vs 鼠标移动）
+  2. 两污染源过滤：手柄键沿后 0.25s 窗口内鼠标键沿 = 模拟点击（忽略）；`mouseMoved && !padHeld`（手柄在场移动增量 = 摇杆模拟，忽略）
+  3. 每帧入口 `ModInput.TickInputSource()` 挂 ImChatView.Tick 顶部（面板开闭都跑）
+- 已登记 wheels.d/input.md（完整实现 + 诊断日志格式）。坑 10（86Hz 互搏）/坑 12（padFocused 钉住）/坑 13（0.5s 键窗硬锚）的旧解法 = 给引擎粘性判定打的补丁，**已被自监测整体替代**（去抖/键窗/padFocused 三件套全删）。
+
 ### 11.3 当前实现形态（三态模型，全部在 `ImChatView.cs` + 两个 prefab）
 
 | 状态 | 光标 | mask | 交互 |

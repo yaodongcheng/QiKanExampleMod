@@ -143,8 +143,132 @@ namespace LivingWorldNpcs
             RebuildBindings();
         }
 
-        /// <summary>玩家最近一次输入是手柄（引擎原生追踪：手柄已连接且鼠标未活动）。</summary>
-        public static bool UsingGamepad => Input.IsGamepadActive && Input.IsControllerConnected;
+        /// <summary>
+        /// 🔴 2026-08-19（用户裁定：自监测最后输入来源，不信引擎 IsGamepadActive 粘性判定）：
+        /// 引擎 IsGamepadActive = IsControllerConnected && !IsMouseActive——IsMouseActive 粘性 true
+        ///（手柄 A 的 native 点击模拟 / 锚定回拽，实机 11:42:33-41 持续 7+ 秒）→ 手柄键无法重新
+        /// 宣告身份（「设备未激活」死循环）。自监测两源时间戳（墙钟，晚者胜出；初始 float.MinValue
+        /// = 无活动判键鼠），TickInputSource() 每帧更新：
+        ///   pad：任何手柄键按下沿（离散事件，无抖动，强信号——用户裁定「按下任何手柄键就是在
+        ///        激活手柄」）+ 任何手柄键按住（IsKeyDown：长按/摇杆方向 LStick*/RStick*/扳机）
+        ///   mouse：鼠标移动增量（MouseMoveX/Y ≥1px——程序 SetMousePosition 不算移动增量，实测）
+        ///         + 鼠标键沿（同帧存在手柄键沿 → 视为 A 键 native 模拟点击，忽略）
+        /// 裁决优先级（用户裁定：按键 > 持续性输入，同帧冲突按键胜）：
+        ///   ① 手柄键沿 → 手柄  ② 鼠标键沿 → 键鼠  ③ 无沿 → 持续输入晚者胜出
+        /// 全 Mod 共用（InteractArea 键帽 / IM 提示行 / 呼出按钮 / Mission 冻结全读本判定）。
+        /// </summary>
+        private static float _lastPadActivityTime = float.MinValue;
+        private static float _lastMouseActivityTime = float.MinValue;
+        private static bool _lastPadAnyKey;
+        // 🔴 2026-08-19（实锤跨帧模拟点击）：A 键 native 模拟点击的鼠标键沿在按键后 1-3 帧才出现
+        //（日志 12:44:06.476→487、15.268→306）——同帧忽略不够，用 PadClickWindow 窗口。
+        private static float _lastPadKeyTime = float.MinValue;
+        private const float PadClickWindow = 0.25f;
+        // 🔴 2026-08-19（用户要求：设备切换日志打印最近输入来源详情）：最后活动的具体来源描述。
+        private static string _lastPadDetail = "无";
+        private static string _lastMouseDetail = "无";
+
+        /// <summary>自监测裁决结果：玩家最近一次输入来自手柄（代替引擎 IsGamepadActive 粘性判定）。</summary>
+        public static bool UsingGamepad => _lastPadActivityTime > _lastMouseActivityTime;
+
+        /// <summary>诊断用：距上次手柄活动秒数（设备切换日志）。</summary>
+        public static float SecondsSincePadActivity
+        {
+            get
+            {
+                try { return TaleWorlds.Engine.Time.ApplicationTime - _lastPadActivityTime; } catch { return float.MaxValue; }
+            }
+        }
+
+        /// <summary>诊断用：距上次鼠标活动秒数（设备切换日志）。</summary>
+        public static float SecondsSinceMouseActivity
+        {
+            get
+            {
+                try { return TaleWorlds.Engine.Time.ApplicationTime - _lastMouseActivityTime; } catch { return float.MaxValue; }
+            }
+        }
+
+        /// <summary>诊断用：最后手柄活动来源描述（「手柄键沿」/「手柄按住/摇杆」/「无」）。</summary>
+        public static string LastPadActivityDetail => _lastPadDetail;
+
+        /// <summary>诊断用：最后鼠标活动来源描述（「鼠标键沿」/「鼠标移动」/「无」）。</summary>
+        public static string LastMouseActivityDetail => _lastMouseDetail;
+
+        /// <summary>
+        /// 🔴 2026-08-19（用户裁定）：每帧调用（游戏帧双端入口 = ImChatView.Tick 顶部，面板开闭都更新——
+        /// InteractArea 键帽等全 Mod 共用此判定）。更新两源时间戳 + 按键沿日志（含当前设备激活情况）。
+        /// </summary>
+        public static void TickInputSource()
+        {
+            float now;
+            try { now = TaleWorlds.Engine.Time.ApplicationTime; } catch { return; }
+            bool anyPadKey = AnyPadKeyPressed();
+            bool padKeyEdge = anyPadKey && !_lastPadAnyKey;
+            _lastPadAnyKey = anyPadKey;
+            bool padHeld = PadKeyHeld();
+            if (padKeyEdge)
+            {
+                _lastPadKeyTime = now;
+                _lastPadActivityTime = now;
+                _lastPadDetail = "手柄键沿";
+                DebugLogger.Log($"[Input] 手柄键沿 → 设备=手柄（距上次鼠标活动={SecondsSinceMouseActivity:0.0}s）");
+            }
+            else if (padHeld)
+            {
+                _lastPadActivityTime = now;
+                _lastPadDetail = "手柄按住/摇杆";
+            }
+            bool mouseMoved = MathF.Abs(Input.MouseMoveX) >= 1f || MathF.Abs(Input.MouseMoveY) >= 1f;
+            bool mouseKeyRaw = Input.IsKeyPressed(InputKey.LeftMouseButton) || Input.IsKeyPressed(InputKey.RightMouseButton);
+            // 🔴 2026-08-19（实锤两源污染，修复）：
+            // ① 跨帧模拟点击：手柄键沿后 PadClickWindow 内的鼠标键沿 = A 键 native 模拟点击
+            //   （1-3 帧延迟，日志 12:44:06/15 两证）——不刷新时间戳、不进裁决②；
+            // ② 摇杆模拟移动：光标可见时（输入聚焦速度模式/锚定回拽）引擎把摇杆转成鼠标移动事件
+            //   → MouseMoveX/Y ≠ 0 且手柄在场（padHeld）→ 视为摇杆模拟，忽略——否则推摇杆时
+            //   设备每帧「手柄/键鼠」互搏（实机 12:45:16 每 10-30ms 翻转 40 次/秒）。
+            bool mouseKeyEdge = mouseKeyRaw && now - _lastPadKeyTime > PadClickWindow;
+            bool mouseMoveReal = mouseMoved && !padHeld;
+            if (mouseKeyEdge || mouseMoveReal)
+            {
+                _lastMouseActivityTime = now;
+                _lastMouseDetail = mouseKeyEdge ? "鼠标键沿" : "鼠标移动";
+            }
+            if (mouseKeyEdge)
+                DebugLogger.Log($"[Input] 鼠标键沿 → 设备=键鼠（距上次手柄活动={SecondsSincePadActivity:0.0}s）");
+        }
+
+        /// <summary>任何手柄键按下沿（全键：十字键/ABXY/LB/RB/L3/R3/选项/扳机）。</summary>
+        private static bool AnyPadKeyPressed()
+        {
+            return Input.IsKeyPressed(InputKey.ControllerLUp) || Input.IsKeyPressed(InputKey.ControllerLDown)
+                || Input.IsKeyPressed(InputKey.ControllerLLeft) || Input.IsKeyPressed(InputKey.ControllerLRight)
+                || Input.IsKeyPressed(InputKey.ControllerRUp) || Input.IsKeyPressed(InputKey.ControllerRDown)
+                || Input.IsKeyPressed(InputKey.ControllerRLeft) || Input.IsKeyPressed(InputKey.ControllerRRight)
+                || Input.IsKeyPressed(InputKey.ControllerLBumper) || Input.IsKeyPressed(InputKey.ControllerRBumper)
+                || Input.IsKeyPressed(InputKey.ControllerLStick) || Input.IsKeyPressed(InputKey.ControllerRStick)
+                || Input.IsKeyPressed(InputKey.ControllerLThumb) || Input.IsKeyPressed(InputKey.ControllerRThumb)
+                || Input.IsKeyPressed(InputKey.ControllerLOption) || Input.IsKeyPressed(InputKey.ControllerROption)
+                || Input.IsKeyPressed(InputKey.ControllerLTrigger) || Input.IsKeyPressed(InputKey.ControllerRTrigger);
+        }
+
+        /// <summary>任何手柄键按住（持续输入：长按/摇杆方向/扳机——摇杆映射键过死区才 true，防漂移误报）。</summary>
+        private static bool PadKeyHeld()
+        {
+            return Input.IsKeyDown(InputKey.ControllerLUp) || Input.IsKeyDown(InputKey.ControllerLDown)
+                || Input.IsKeyDown(InputKey.ControllerLLeft) || Input.IsKeyDown(InputKey.ControllerLRight)
+                || Input.IsKeyDown(InputKey.ControllerRUp) || Input.IsKeyDown(InputKey.ControllerRDown)
+                || Input.IsKeyDown(InputKey.ControllerRLeft) || Input.IsKeyDown(InputKey.ControllerRRight)
+                || Input.IsKeyDown(InputKey.ControllerLBumper) || Input.IsKeyDown(InputKey.ControllerRBumper)
+                || Input.IsKeyDown(InputKey.ControllerLStick) || Input.IsKeyDown(InputKey.ControllerRStick)
+                || Input.IsKeyDown(InputKey.ControllerLThumb) || Input.IsKeyDown(InputKey.ControllerRThumb)
+                || Input.IsKeyDown(InputKey.ControllerLOption) || Input.IsKeyDown(InputKey.ControllerROption)
+                || Input.IsKeyDown(InputKey.ControllerLTrigger) || Input.IsKeyDown(InputKey.ControllerRTrigger)
+                || Input.IsKeyDown(InputKey.ControllerLStickUp) || Input.IsKeyDown(InputKey.ControllerLStickDown)
+                || Input.IsKeyDown(InputKey.ControllerLStickLeft) || Input.IsKeyDown(InputKey.ControllerLStickRight)
+                || Input.IsKeyDown(InputKey.ControllerRStickUp) || Input.IsKeyDown(InputKey.ControllerRStickDown)
+                || Input.IsKeyDown(InputKey.ControllerRStickLeft) || Input.IsKeyDown(InputKey.ControllerRStickRight);
+        }
 
         /// <summary>当前手柄是 PlayStation 系（DualShock/DualSense）。</summary>
         public static bool IsPlayStation => Input.ControllerType.IsPlaystation();
