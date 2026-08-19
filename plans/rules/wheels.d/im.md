@@ -286,6 +286,21 @@ static bool Prefix()
 
 **教训**：`SetInputRestrictions(false)` 只是"本层声明"，全局光标可见性由 ScreenManager 按「任一活跃层 true」聚合——**想藏光标必须看有没有别的层在拉**。多版本兼容：ScreenSystem 的这两个方法各版本签名一致，无需 `#if`（编译时二进制 grep 验证过）。
 
+## 🔴 mask 缓存跨层生命周期残留（2026-08-19 实机：IM 第二次打开光标消失）— `ImChatView.Close` 重置 `_lastCompactMask`
+
+**解决什么问题**：同进程内「开 IM → 关 → 再开」，第二次打开光标消失（Mission 内鼠标转镜头 + 光标钉屏幕中央）。第一次打开永远正常——**只有第二次及以后坏**。
+
+**根因链（日志实锤）**：
+1. 8-15 性能优化：`ApplyInputMask` 加缓存（`_lastCompactMask`/`_lastCompactMaskVisible`），**mask 变化才调 `SetInputRestrictions`**——每次 Open 都无条件调用改成了"变化才调用"
+2. **Close 只重置了层实例的 InputRestrictions（层随后销毁），静态缓存没重置**
+3. 第二次 Open：新建 GauntletLayer → `ApplyInputMask` 目标 mask == 残留缓存 → **`SetInputRestrictions` 被跳过** → 新层用**默认 InputRestrictions（光标隐藏）** → `ScreenManager.UpdateMouseVisibility` 聚合无层拉 true → 全局光标隐藏 → Mission 相机恢复 `GetMouseMoveX/Y` 转镜头
+
+**修复**：`Close()` 里层销毁处重置缓存（`_lastCompactMask = InputUsageMask.Invalid; _lastCompactMaskVisible = false;`）——层销毁 = 缓存失效，下次 Open 强制重新应用。
+
+**诊断方法**（本次实测流程，可复用）：在 `SetInputRestrictions` 调用处打无条件日志（`[ImChatMask]` 只在实际应用时打印）——**跳过时没有日志行 = 实锤缓存命中**；配合 2s 节流采样 `ScreenManager.GetMouseVisibility()`（`cursor=`）+ `Input.MousePositionPixel`（光标是否钉住）一眼定案。
+
+**通用纪律**：任何「变化才应用」的缓存（性能优化产物），**跨对象生命周期（层销毁/重建、屏切换）必须重置**——"变化才调用"的前提是缓存与对象状态同步；对象销毁后缓存成为孤儿，比较永远命中跳过。
+
 ## 🔴 手柄导航：光标跟随焦点（A 键 native 点击命中焦点项，2026-08-19 用户裁定）— `ImChatView.SetMouseToWidget` + `ImChatSoftKeyboardPatch`
 
 **解决什么问题**：手柄 A 键聚焦输入框/激活按钮后，设备判定翻键鼠 → 导航门控死锁（坑 13，实机 09:48/09:52/09:59 三证）。

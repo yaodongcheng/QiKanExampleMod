@@ -211,6 +211,14 @@ namespace LivingWorldNpcs
         [JsonProperty("ao")]
         public List<AskPlayerOption> AskPlayerOptions;   // 按钮选项（文案 + 事件码）
 
+        // 🔴 2026-08-19（澄清轮选项按钮化）：本消息 = 澄清轮选项卡（复用 IsAskPlayer +
+        // AskPlayerOptions 渲染管线，与 ask_player 决策卡同构的卡片气泡 + 消息底部锚定按钮行）。
+        // 与执行期决策卡的区别只在点击回调：澄清轮选项文本 → RequestCommand 合并路径
+        //（ImChatView.HandleClarifyOption），执行期决策卡事件码 → 回投执行器（HandleAskPlayerOption）。
+        // 旧存档无字段 → false → 走执行期决策卡回调（无澄清卡场景，行为不受影响）。
+        [JsonProperty("cl")]
+        public bool IsClarifyCard;           // 本消息 = 澄清轮选项卡
+
         /// <summary>ask_player 卡判定（选项非空才成立——JsonIgnore 读档兜底：群聊存档恢复后
         /// AskPlayerOptions 存在则照常显示；为空 = 旧卡/损坏卡 → 按普通文本渲染）。</summary>
         [JsonIgnore]

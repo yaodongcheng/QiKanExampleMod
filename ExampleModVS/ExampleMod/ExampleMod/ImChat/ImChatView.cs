@@ -79,6 +79,8 @@ namespace LivingWorldNpcs
         // 🔴 Q4（2026-08-17，手柄支持）：
         // 手柄模态（Mission 面板打开 = 角色输入整体冻结；设备切换自动解冻/冻结）
         private static bool _lastUsingGamepad;
+        // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）：键鼠鼠标活动采样节流器
+        private static float _mouseDiagTimer;
         // 🔴 2026-08-19（用户裁定：自监测最后输入来源）——判定已下沉到 ModInput.TickInputSource()
         //（全 Mod 共用：InteractArea 键帽/IM 提示行/呼出按钮/Mission 冻结同源），本类只消费
         // ModInput.UsingGamepad 并缓存 _lastUsingGamepad 做切换检测。原自建两源时间戳已删。
@@ -293,6 +295,8 @@ namespace LivingWorldNpcs
                 _lastUsingGamepad = ModInput.UsingGamepad;
                 UpdateGamepadFreeze();
                 _vm?.RefreshPadHint();
+                // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）
+                DebugLogger.Log($"[ImChat] Open 完成 mode={_mode} gamepad={_lastUsingGamepad} inputFocused={_layer.IsFocusedOnInput()}");
                 // 🔴 2026-08-17（用户反馈）：Mission 内直接以缩略模式打开（_mode 记忆——上次关闭时是
                 // 缩略，下一次开启仍是缩略）→ 同样提示镜头操作变化（不只「放大→缩略」路径）
                 ShowCompactCameraHintIfNeeded();
@@ -364,6 +368,12 @@ namespace LivingWorldNpcs
                 _layer = null;
                 _layerOwnerScreen = null;
             }
+            // 🔴 2026-08-19（实机：第二次打开鼠标消失——mask 缓存跨层生命周期残留）：
+            // 层销毁后静态缓存必须失效——否则下次 Open 目标 == 缓存 → SetInputRestrictions 被跳过，
+            // 新层用默认 InputRestrictions（光标隐藏）→ Mission 内光标消失 + 鼠标转镜头。
+            //（8-15 加缓存做性能优化时只改了 ApplyInputMask，漏了 Close 重置，8-19 日志实锤跳过）
+            _lastCompactMask = InputUsageMask.Invalid;
+            _lastCompactMaskVisible = false;
             _vm = null;
             // 🔴 2026-08-16（用户裁定：唤起保持上次频道）：_selected **不置 null**——关闭时保留选中
             // 会话（纯数据引用：Id/Type/Title，跨开关持久有效），再次 Open 恢复；Close 只销毁层与 VM。
@@ -527,6 +537,8 @@ namespace LivingWorldNpcs
             if (mask != _lastCompactMask || visible != _lastCompactMaskVisible)
             {
                 _layer.InputRestrictions.SetInputRestrictions(visible, mask);
+                // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）：打印每次实际应用的 mask
+                DebugLogger.Log($"[ImChatMask] SetInputRestrictions(visible={visible}, mask={mask}) gamepad={gamepad} focused={inputFocused} mode={_mode}");
                 _lastCompactMask = mask;
                 _lastCompactMaskVisible = visible;
             }
@@ -1866,6 +1878,8 @@ namespace LivingWorldNpcs
             if (_mode != ImChatMode.Compact) return;
             _mode = ImChatMode.Full;
             SwitchMode();
+            // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）
+            DebugLogger.Log($"[ImChat] ToggleExpand → Full gamepad={ModInput.UsingGamepad}");
             if (Mission.Current != null)
             {
                 InformationManager.DisplayMessage(new InformationMessage(
@@ -2632,6 +2646,24 @@ namespace LivingWorldNpcs
             UpdateGamepadFreeze();
             UpdatePadFocus(dt);
 
+            // 🔴 临时诊断（2026-08-19 mission 鼠标转镜头排查，测完删）：键鼠侧鼠标活动采样——
+            // 2s 节流回答三个问题：①鼠标位移引擎是否上报（光标可见时 MouseMoveX 是否归零）
+            // ②光标可见性（转镜头的直接机制 = MissionScreen.MouseVisible）③设备判定
+            _mouseDiagTimer -= dt;
+            if (_mouseDiagTimer <= 0f)
+            {
+                _mouseDiagTimer = 2f;
+                Vec2 mouse = Input.MousePositionPixel;
+                try
+                {
+                    DebugLogger.Log($"[ImChatMouse] gamepad={ModInput.UsingGamepad} move=({Input.MouseMoveX:0.0},{Input.MouseMoveY:0.0}) cursor={ScreenManager.GetMouseVisibility()} mouse=({mouse.X:0.0},{mouse.Y:0.0}) focused={_layer.IsFocusedOnInput()} mask=({_lastCompactMaskVisible},{_lastCompactMask})");
+                }
+                catch (Exception ex)
+                {
+                    DebugLogger.Log($"[ImChatMouse] 采样失败: {ex.Message}");
+                }
+            }
+
             // 🔴 关闭改用独立键（用户要求）：ESC / 手柄 B——O 只负责打开，打字不再误关。
             // 注：本层 InputRestrictions(All) 是模态掩码，ESC 已被层拦截（不会触发系统菜单，与 Inquiry 同理），
             // 这里轮询全局输入状态消费关闭动作。
@@ -3220,6 +3252,30 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ImChat] ask_player 决策回投失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>🔴 2026-08-19（澄清轮选项按钮化）：玩家点选澄清轮选项卡按钮 → 卡片了结（按钮消失）→
+        /// 选项文本作为玩家回复走 RequestCommand 合并路径（_pendingClarify 并入命令上下文重新生成，
+        /// 与玩家手打回复同语义）。区别于 HandleAskPlayerOption（执行期决策卡 → 事件回投执行器）。</summary>
+        public static void HandleClarifyOption(ImMessage msg, string optionText)
+        {
+            if (msg == null || !msg.IsAskPlayerCard || msg.IsAskPlayerCardResolved) return;
+            var conv = ConversationOf(msg.ConvId);
+            if (conv == null) return;
+            msg.ExecutorId = "done";
+            // 按钮行是重建式数据（CardButtons 按锚点重建）→ 全量重建（本消息按钮消失，锚点前移）
+            if (_vm != null) { _vm.Messages.Clear(); RefreshMessages(); }
+            if (string.IsNullOrWhiteSpace(optionText)) return;
+            try
+            {
+                // 选项文本 = 玩家回复（RequestCommand 内澄清合并：并入原命令上下文，≤2 轮上限不变）
+                ImCommandFlow.RequestCommand(conv, optionText.Trim());
+                DebugLogger.Log($"[ImChat] 澄清轮选择: {msg.SenderName} → {optionText.Trim()}");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChat] 澄清轮选择投递失败: {ex.Message}");
             }
         }
 

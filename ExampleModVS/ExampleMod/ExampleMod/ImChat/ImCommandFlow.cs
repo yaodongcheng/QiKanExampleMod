@@ -164,6 +164,17 @@ namespace LivingWorldNpcs
                 cmd = $"{_pendingClarify.Command}（{cmd}）";  // lwn-ignore: A
                 _pendingClarify.Command = cmd;
                 _pendingClarify.Round++;
+                // 🔴 2026-08-19（澄清轮选项按钮化）：回复已并入命令上下文 → 同会话未了结澄清卡作废
+                //（按钮随锚点重算消失，防玩家手打回复后旧选项按钮误触发新命令）
+                try
+                {
+                    foreach (var m in ImChatStore.GetGroupMessages(conv.Id))
+                    {
+                        if (m != null && m.IsClarifyCard && string.IsNullOrEmpty(m.ExecutorId))
+                            m.ExecutorId = Superseded;
+                    }
+                }
+                catch { }
             }
             // 命令文本入会话（store；不写 NPC 记忆——密令是 Mission 级瞬态）
             // 🔴 2026-08-15（私聊消息顺序修复配套）：玩家消息已由 SendPlayerMessage 发送时写入 store
@@ -260,6 +271,10 @@ namespace LivingWorldNpcs
                 }
                 // 澄清轮 IM 化（🔴 Q1）：NPC 问句 = 一条 NPC 消息，玩家回复并入命令上下文（RequestCommand 合并路径）。
                 // 铁律 2：needs_clarification 标志位不可信——只有 questions 真的带候选才进入澄清轮。
+                // 🔴 2026-08-19（澄清轮选项按钮化，用户裁定）：LLM 候选选项 = 消息底部锚定按钮行
+                //（复用 ask_player 卡的 IsAskPlayer + AskPlayerOptions 渲染管线——卡片气泡 + 通用按钮行，
+                // 与「制定战术/先不用」同构）——不再拼平铺文本。点击回调 = ImChatView.HandleClarifyOption
+                //（选项文本入命令上下文），区别于执行期决策卡（事件回投执行器）。
                 if (response.Questions != null && response.Questions.Count > 0)
                 {
                     // 澄清超轮（Round ≥ 2）→ 诚实放弃
@@ -276,9 +291,22 @@ namespace LivingWorldNpcs
                     var q = response.Questions[0];
                     // 澄清轮默认问句
                     string qText = q?.Q ?? LWNTextHelper.ResolveText("LWN_plan_clarify_default", "What do you mean exactly?");
-                    if (q != null && q.Options != null && q.Options.Count > 0)
-                        qText += "\n" + string.Join(" / ", q.Options.Select(o => $"「{o}」"));  // lwn-ignore: A
-                    PostNpcMessage(conv, qText);
+                    ResolveSpeaker(conv, out string clarifyHeroId, out string clarifyName);
+                    var clarify = new ImMessage(clarifyHeroId, clarifyName, qText, ImMessageKind.Text)
+                    {
+                        ConvId = conv.Id,
+                        // 按钮卡片标记：渲染 = 卡片气泡 + 消息底部锚定按钮行（ask_player 卡管线）
+                        IsAskPlayer = true,
+                        IsClarifyCard = true,
+                        // 选项文本 = 按钮文案 + 事件码（点击后选项文本作为玩家回复入命令上下文）
+                        AskPlayerOptions = (q?.Options ?? new List<string>())
+                            .Where(o => !string.IsNullOrWhiteSpace(o))
+                            .Select(o => new AskPlayerOption(o.Trim(), o.Trim()))
+                            .ToList(),
+                    };
+                    ImChatStore.AppendGroupMessage(conv.Id, clarify);
+                    ImChatStore.IncUnread(conv.Id);
+                    ImChatManager.BroadcastMessageArrived(conv);
                     return;
                 }
                 _pendingClarify = null;
