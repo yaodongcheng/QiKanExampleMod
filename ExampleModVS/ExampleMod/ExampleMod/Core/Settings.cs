@@ -79,6 +79,11 @@ namespace LivingWorldNpcs
         // ── 调试消息全局开关（工作时打开，发布前关掉）──
         public bool ShowDebugMessages { get; set; } = true;
 
+        // ── 手柄导航按键级诊断（config.json 侧调试项；默认关——排查按键/焦点/设备判定时开）──
+        // 盖住 [Pad]/[NavCursor]/[Input 设备沿] 按键级日志 + 🎮/➤/🅰 屏显黄字
+        // （每按一次键好几行，平时刷屏；关闭不影响功能与异常日志）。
+        public bool GamepadNavDebugLog { get; set; } = false;
+
         // ── 说话 LLM 润色开关（默认开启；config.json 侧调试项）──
         // 能力已全量升级（2026-08-12）：战斗喊话/质问/拒绝/警告等所有说话调用点都有 LLM 实时润色
         // 路径（fire-and-forget，预算超时/失败/无配置 → 原模板立即兜底，铁律 1）。此开关 = 是否启用

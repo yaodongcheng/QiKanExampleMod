@@ -580,7 +580,7 @@ namespace LivingWorldNpcs
             {
                 // 🔴 2026-08-18（诊断日志）：门控吞键实锤——手柄玩家按键但设备未提交时，
                 // 这里按键按下沿打一行（证明「按键无反馈」是门控问题而非轮询问题）
-                if (anyKeyEdge)
+                if (anyKeyEdge && PadDbg)
                 {
                     DebugLogger.Log("[Pad] ⛔ 门控:设备未激活 按键被忽略（手柄未提交/未连接）");
                     PadScreenMsg("⛔ 设备未激活，按键被忽略");
@@ -605,7 +605,7 @@ namespace LivingWorldNpcs
                         try
                         {
                             _layer.UIContext.EventManager.FocusedWidget = _reaffirmWidget;
-                            DebugLogger.Log($"[Pad] 焦点再固守 (剩余 {_focusReaffirmFrames}) IsFocusedOnInput={_layer.IsFocusedOnInput()}");
+                            if (PadDbg) DebugLogger.Log($"[Pad] 焦点再固守 (剩余 {_focusReaffirmFrames}) IsFocusedOnInput={_layer.IsFocusedOnInput()}");
                         }
                         catch (Exception ex) { DebugLogger.Log($"[ImChat] 焦点再固守失败: {ex.Message}"); }
                     }
@@ -635,7 +635,7 @@ namespace LivingWorldNpcs
                 {
                     if (_padIndex >= 0 && LeftStickActive())
                     {
-                        DebugLogger.Log($"[Pad] 左摇杆移动 → 退聚焦（A 还给游戏）{PadState()}");
+                        if (PadDbg) DebugLogger.Log($"[Pad] 左摇杆移动 → 退聚焦（A 还给游戏）{PadState()}");
                         _padIndex = -1;
                         HideNavCursor();
                         ResetPadHoldTimers();
@@ -646,7 +646,7 @@ namespace LivingWorldNpcs
                     {
                         if (AnyDpadPressed())
                         {
-                            DebugLogger.Log($"[Pad] 十字键按下 → 进入聚焦（初始索引 0）{PadState()}");
+                            if (PadDbg) DebugLogger.Log($"[Pad] 十字键按下 → 进入聚焦（初始索引 0）{PadState()}");
                             _padIndex = _padItems.Count > 0 ? 0 : -1;
                             if (_padItems.Count > 0) SetMouseToWidget(_padItems[0]);
                         }
@@ -664,7 +664,7 @@ namespace LivingWorldNpcs
                 // ── 输入框聚焦（软键盘）：引擎接管输入，导航不抢键；mask 切到「游标模式」──
                 if (inputFocused)
                 {
-                    if (anyKeyEdge) DebugLogger.Log("[Pad] ⛔ 输入聚焦:导航暂停（打字态，按键留给引擎）");
+                    if (anyKeyEdge && PadDbg) DebugLogger.Log("[Pad] ⛔ 输入聚焦:导航暂停（打字态，按键留给引擎）");
 
                     // 🔴 2026-08-18（实机：输入框聚焦时手柄可自由移动光标 = 原生速度模式）：
                     // 放行 MouseBits + 光标可见 → 面板可像鼠标一样点击（ApplyInputMask 内部缓存防抖）
@@ -832,8 +832,8 @@ namespace LivingWorldNpcs
                 float targetX = ctrlCX - boxW * 0.5f;
                 float targetY = ctrlCY - boxH * 0.5f;
                 // 🔴 2026-08-19（准星位置诊断）：位置/尺寸变化 >1px 才打——对比 gp(物理) vs size(逻辑) vs scale
-                if (Math.Abs(targetX - cursor.PositionXOffset) > 1f || Math.Abs(targetY - cursor.PositionYOffset) > 1f
-                    || Math.Abs(boxW - cursor.SuggestedWidth) > 1f || Math.Abs(boxH - cursor.SuggestedHeight) > 1f)
+                if (PadDbg && (Math.Abs(targetX - cursor.PositionXOffset) > 1f || Math.Abs(targetY - cursor.PositionYOffset) > 1f
+                    || Math.Abs(boxW - cursor.SuggestedWidth) > 1f || Math.Abs(boxH - cursor.SuggestedHeight) > 1f))
                     DebugLogger.Log($"[NavCursor] 焦点={_padItems[_padIndex].Id} 中心=({ctrlCX:0},{ctrlCY:0}) size=({sz.X:0},{sz.Y:0}) scale={scale:0.00} → 框左上=({targetX:0},{targetY:0} {boxW:0}x{boxH:0})");
                 cursor.PositionXOffset = targetX;
                 cursor.PositionYOffset = targetY;
@@ -854,8 +854,13 @@ namespace LivingWorldNpcs
         // ── 屏上调试（🔴 2026-08-19 用户要求：实机直接观察按键/焦点，弹屏不走日志）──
         // 临时调试项，测完删除。动态调试文本走既有 debug 先例（MyCommands/CameraDebugger 裸字符串），
         // 不参与本地化表（铁律 13 的 debug 豁免先例）。
+        // 🔴 2026-08-19（用户裁定：刷屏）：按键级诊断统一受 Settings.GamepadNavDebugLog 控制
+        //（config.json，默认关）——[Pad]/[NavCursor]/[Input 设备沿] 日志 + 🎮/➤/🅰 屏显全归它。
+        private static bool PadDbg => Settings.Instance.GamepadNavDebugLog;
+
         private static void PadScreenMsg(string msg)
         {
+            if (!PadDbg) return;   // 开关：屏显黄字也归诊断，默认不弹
             try { InformationManager.DisplayMessage(new InformationMessage(msg, Colors.Yellow)); }
             catch { }
         }
@@ -903,19 +908,22 @@ namespace LivingWorldNpcs
                 hold += dt;
                 if (!last)
                 {
-                    DebugLogger.Log($"[Pad] {name} 按下(edge) {PadState()}");
-                    PadScreenMsg($"🎮 {name} 按下 idx={_padIndex}");
+                    if (PadDbg)
+                    {
+                        DebugLogger.Log($"[Pad] {name} 按下(edge) {PadState()}");
+                        PadScreenMsg($"🎮 {name} 按下 idx={_padIndex}");
+                    }
                     act(); repeat = 0f;                       // 按下沿：立即触发一次 + 计时起点
                 }
                 else if (hold > PadHoldDelay)                             // 长按重复
                 {
                     repeat += dt;
-                    if (repeat >= PadRepeatInterval) { repeat = 0f; DebugLogger.Log($"[Pad] {name} 长按重复 {PadState()}"); act(); }
+                    if (repeat >= PadRepeatInterval) { repeat = 0f; if (PadDbg) DebugLogger.Log($"[Pad] {name} 长按重复 {PadState()}"); act(); }
                 }
             }
             else
             {
-                if (hold >= 0.08f) DebugLogger.Log($"[Pad] {name} 抬起 (hold={hold:F2}s)");
+                if (PadDbg && hold >= 0.08f) DebugLogger.Log($"[Pad] {name} 抬起 (hold={hold:F2}s)");
                 hold = 0f; repeat = 0f;                              // 抬起 → 复位
             }
             last = pressed;
@@ -927,7 +935,7 @@ namespace LivingWorldNpcs
             bool a = Input.IsKeyPressed(InputKey.ControllerRDown);
             if (a && !_lastPadA)
             {
-                DebugLogger.Log($"[Pad] A 按下(edge) {PadState()}");
+                if (PadDbg) DebugLogger.Log($"[Pad] A 按下(edge) {PadState()}");
                 ActivatePad();
             }
             _lastPadA = a;
@@ -947,8 +955,11 @@ namespace LivingWorldNpcs
             HideNavCursor();
             if (_padIndex < 0 || _padIndex >= _padItems.Count) return;
             var item = _padItems[_padIndex];
-            DebugLogger.Log($"[Pad] A 激活 → {item.Id} ({item.Group})");
-            PadScreenMsg($"🅰 激活 {item.Id}");
+            if (PadDbg)
+            {
+                DebugLogger.Log($"[Pad] A 激活 → {item.Id} ({item.Group})");
+                PadScreenMsg($"🅰 激活 {item.Id}");
+            }
             try { item.OnActivate?.Invoke(); }
             catch (Exception ex) { DebugLogger.Log($"[ImChat] 焦点激活异常: {ex.Message}"); }
         }
@@ -969,8 +980,11 @@ namespace LivingWorldNpcs
             if (target < 0 || target == _padIndex) return;
             // 🔴 2026-08-18（诊断日志）：焦点转移行——按键后「动没动」的判定依据
             string dir = dy < 0 ? "↑" : dy > 0 ? "↓" : dx < 0 ? "←" : "→";
-            DebugLogger.Log($"[Pad] 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
-            PadScreenMsg($"➤ 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
+            if (PadDbg)
+            {
+                DebugLogger.Log($"[Pad] 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
+                PadScreenMsg($"➤ 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
+            }
             _padIndex = target;
             var item = _padItems[target];
             if (item.Group == "channel")
@@ -1389,7 +1403,7 @@ namespace LivingWorldNpcs
             if (_padIndex < 0 && _mode != ImChatMode.Compact) _padIndex = 0;
             // 🔴 2026-08-18（诊断日志）：重建结果 + 焦点映射（oldId → newId）——结构变化后焦点去向
             string newId = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].Id : "无";
-            DebugLogger.Log($"[Pad] 重建: {_padItems.Count}项 old={oldId ?? "无"} → {newId}");
+            if (PadDbg) DebugLogger.Log($"[Pad] 重建: {_padItems.Count}项 old={oldId ?? "无"} → {newId}");
             ApplyPadVisual();
         }
 
@@ -1587,20 +1601,20 @@ namespace LivingWorldNpcs
                 // 设置成功（IsFocusedOnInput 立即 true）；区分「没聚焦」与「聚焦了但设备翻转搞死」
                 if (w == null)
                 {
-                    DebugLogger.Log("[Pad] 聚焦输入框失败: widget 查找为 null（静默跳过）");
+                if (PadDbg) DebugLogger.Log("[Pad] 聚焦输入框失败: widget 查找为 null（静默跳过）");
                     return;
                 }
                 // 🔴 2026-08-19（用户裁定）：光标挪位 + 准星隐藏已在 ActivatePad（A 键统一入口）完成——
                 // 本行鼠标位置应等于输入框中心（验证 SetMouseToWidget 生效；若仍显示屏幕中心 = 光标
                 // 冻结读数/锚定覆盖，据此判定是否需要 P/Invoke 兜底）。OsCursorStr = 真实 OS 光标，
                 // 与引擎读数对照：相等 = 光标真没动（锚定覆盖），不等 = 引擎读数冻结（光标已挪位）。
-                DebugLogger.Log($"[Pad] 聚焦输入框 → {w.Id} ({(w is EditableTextWidget ? "EditableText" : w.GetType().Name)}) 引擎光标={MousePosStr()} OS光标={OsCursorStr()} 输入框位置={WidgetPosStr(w)}");
+                if (PadDbg) DebugLogger.Log($"[Pad] 聚焦输入框 → {w.Id} ({(w is EditableTextWidget ? "EditableText" : w.GetType().Name)}) 引擎光标={MousePosStr()} OS光标={OsCursorStr()} 输入框位置={WidgetPosStr(w)}");
                 _layer.UIContext.EventManager.FocusedWidget = w;
                 // 🔴 2026-08-19（焦点再固守）：native 点击链的 click-up（锚定回拽后的屏幕中心）会在
                 // 1-2 帧内清掉焦点——登记 3 帧再固守（UpdatePadFocus 消费；只在焦点已被清时重设）
                 _focusReaffirmFrames = 3;
                 _reaffirmWidget = w;
-                DebugLogger.Log($"[Pad] FocusedWidget 设置完成 IsFocusedOnInput={_layer.IsFocusedOnInput()}");
+                if (PadDbg) DebugLogger.Log($"[Pad] FocusedWidget 设置完成 IsFocusedOnInput={_layer.IsFocusedOnInput()}");
             }
             catch (Exception ex)
             {
@@ -2610,7 +2624,7 @@ namespace LivingWorldNpcs
                 // 🔴 2026-08-18：设备切换 → 光标可见性随动（手柄 = 隐藏，防原生手柄光标模式锁死正中）
                 ApplyInputMask();
                 // 🔴 2026-08-19（用户要求：打印最近一次是什么输入让它判成键鼠/手柄——来源详情 + 时间）
-                DebugLogger.Log($"[ImChat] 设备切换 → {(usingGamepad ? "手柄" : "键盘/鼠标")}（最后手柄输入={ModInput.LastPadActivityDetail}@{ModInput.SecondsSincePadActivity:0.0}s前 最后鼠标输入={ModInput.LastMouseActivityDetail}@{ModInput.SecondsSinceMouseActivity:0.0}s前）");
+                if (PadDbg) DebugLogger.Log($"[ImChat] 设备切换 → {(usingGamepad ? "手柄" : "键盘/鼠标")}（最后手柄输入={ModInput.LastPadActivityDetail}@{ModInput.SecondsSincePadActivity:0.0}s前 最后鼠标输入={ModInput.LastMouseActivityDetail}@{ModInput.SecondsSinceMouseActivity:0.0}s前）");
                 // 🔴 2026-08-18（用户要求：切换必须可见，排查「点击后变鼠标感知」等怪象）：
                 // 设备判定切换屏显提示（调试豁免裸字符串，PadScreenMsg 先例——测试完按用户反馈决定去留）
                 PadScreenMsg($"🎮 设备判定 → {(usingGamepad ? "手柄" : "键鼠")}");
@@ -2630,7 +2644,7 @@ namespace LivingWorldNpcs
             if (Input.IsKeyReleased(InputKey.ControllerRRight))
             {
                 // 🔴 2026-08-18（诊断日志）：B 用抬起沿（IsKeyReleased），单独打日志——与 A 的按下沿区分
-                DebugLogger.Log($"[Pad] B 抬起(edge) {PadState()}");
+                if (PadDbg) DebugLogger.Log($"[Pad] B 抬起(edge) {PadState()}");
                 if (_mode == ImChatMode.Compact && _vm != null && _vm.ChannelSelector.IsChannelListOpen)
                 {
                     CloseChannelList();

@@ -212,7 +212,10 @@ namespace LivingWorldNpcs
                 _lastPadKeyTime = now;
                 _lastPadActivityTime = now;
                 _lastPadDetail = "手柄键沿";
-                DebugLogger.Log($"[Input] 手柄键沿 → 设备=手柄（距上次鼠标活动={SecondsSinceMouseActivity:0.0}s）");
+                // 🔴 2026-08-19（用户裁定：刷屏）：设备沿诊断受 Settings.GamepadNavDebugLog 控制
+                //（默认关——每次按键沿打一行太吵；需要排查设备判定时 config.json 开）
+                if (Settings.Instance.GamepadNavDebugLog)
+                    DebugLogger.Log($"[Input] 手柄键沿 → 设备=手柄（距上次鼠标活动={SecondsSinceMouseActivity:0.0}s）");
             }
             else if (padHeld)
             {
@@ -234,7 +237,7 @@ namespace LivingWorldNpcs
                 _lastMouseActivityTime = now;
                 _lastMouseDetail = mouseKeyEdge ? "鼠标键沿" : "鼠标移动";
             }
-            if (mouseKeyEdge)
+            if (mouseKeyEdge && Settings.Instance.GamepadNavDebugLog)
                 DebugLogger.Log($"[Input] 鼠标键沿 → 设备=键鼠（距上次手柄活动={SecondsSincePadActivity:0.0}s）");
         }
 
