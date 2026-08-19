@@ -336,3 +336,55 @@ public static class ChangeInteractionTextPatch
 ## 调停交互行（2026-08-13，责任语义）— `Interaction/InteractionMissionView.cs` + `Input/ModInput.cs`
 
 `InteractionIds.Intervene`（`ModInput.Intervene`，默认 F 短按，**与 Talk 同键**）——上下文互斥替换范式（仿 PlanCommandFlow.IsActiveFor）：守卫的顶条目嫌疑犯 = 玩家友方（随从）且非玩家本人时，**用「调停」行替换 Talk 行**（永不共存，无冲突警告）。`ExecuteIntervene(guard)`：守卫 `AbortCurrentAction`+`ClearAllActions`（FightEnemyAction.OnEnd 收刀）→ 清嫌疑犯 `ArrestedByLaw` → 玩家冒泡认领（`LWN_ui_intervene_bubble`）→ `RemapSuspectToPlayer()` + `TransitionStage(Confrontation, MainHero)` → `guardBrain.StartL3Confrontation()`（internal 化复用质问链 → 赔偿子树）。**调停=认领，无否认分支**（铁律 12：不调停=随从挨揍）。
+
+---
+
+## 🔴 Mission 内 IM 面板键占用拦截（2026-08-19，与大地图补丁并列的输入门控）— `ImChat/ImChatMissionInputPatch.cs`
+
+**解决什么问题**：IM 打开时手柄 A/十字键/LB/RB/B 的按键会漏到 vanilla 玩法动作（实机三连：缩略 IM 聚焦发送按钮按 A 角色跳跃、十字键导航触发骑马、按 B 关面板同时弹「离开战场」）。
+
+**三个关键认知（反编译实锤）**：
+1. **层 mask 拦不住手柄键**：`InputUsageMask` 只有 MouseButtons/MouseWheels/Keyboardkeys 三位（TaleWorlds.Library.dll）——`SetInputRestrictions` 对手柄键零拦截。ESC 能单发是因为 mask 有键盘位（`InputRestrictions(All)` 吞掉 ESC）；**手柄键吞键只能在 GameKey 层**。
+2. **两个漏斗都要拦**：`GameKey.IsDown`（按住）+ `GameKey.IsPressed`（按下沿）——跳跃走 `IsGameKeyPressed(14)`（MissionMainAgentController 24128 行 `EventControlFlag |= 8`），**只拦 IsDown 拦不住跳跃**（实机踩坑：A 仍跳）。
+3. **按物理键判拦，改绑免疫**：`GameKey.ControllerKey.InputKey`（`Key.InputKey` 公开属性）反映运行时改绑（BannerlordGameKeys.xml 覆盖）——玩家把 A 改绑到 Attack/骑马/跳跃任何动作都不漏。
+
+**两档门控**（`ShouldBlock` 共用，IsDown/IsPressed 两个 patch 类同逻辑）：
+- ① 战斗分类（`CombatHotKeyCategory`）+ ControllerKey ∈ {A, 十字键 4 向, LB, RB, B} → false，**仅面板占用态**（`ImChatView.IsPanelKeyOwner`）
+- ② **ESC 模型：B 全分类吞**——`Generic "Leave"`（GameKey 4 = Tab+B）→ Mission.OnTick（55953 行）`OnEndMissionRequest()`，友好 mission 按 B 关面板同时弹离开确认（实机）；B 任何聚焦态都吞（Tick 已消费关面板）
+
+**关键签名**：
+```csharp
+[HarmonyPatch(typeof(GameKey), "IsDown")]        // + "IsPressed" 同逻辑第二 patch 类
+static bool Prefix(GameKey __instance, ref bool __result)
+// 门控 = ImChatView.IsOpen && Mission.Current != null && ShouldBlock(__instance)
+// 与 ImChatMapInputPatch 同目标方法双 Prefix——条件互斥（地图 vs 战斗分类），无冲突
+```
+
+**刻意不拦**：左/右摇杆（移动/镜头）、扳机（攻击/格挡）、Y（互动/上马）、X（踢）——缩略半模态岛设计，面板只占 A/十字键/LB/RB/B。native 层 HotKey（武器槽换弹等）管不到，实机留意。
+
+## 🔴 缩略半模态聚焦门控（2026-08-19）— `ImChat/ImChatView.cs` UpdatePadFocus + `IsPanelKeyOwner`
+
+**解决什么问题**：缩略 IM = 半模态岛（玩家继续玩），但 A 被面板点击消费时不能同时跳跃——需要「聚焦态才占键、无焦点还键给游戏」。
+
+**三态模型**（`_padIndex` 驱动，-1 = 无焦点）：
+| 状态 | 触发 | A 的行为 |
+|---|---|---|
+| 无焦点（打开默认） | 打开 / 左摇杆推满（>0.5） | 还给游戏 → 跳跃 |
+| 进入聚焦 | 任意十字键按下沿（吞掉该按） | 焦点落索引 0 |
+| 聚焦态 | 聚焦中 | 面板点击/确认，跳跃被拦 |
+
+- **退聚焦 = 左摇杆推满**（`Input.GetKeyState(InputKey.ControllerLStick)` 幅度 >0.5）——「玩家在玩」信号，比空闲超时可靠（超时坑：想了 5 秒按 A 却变跳跃）
+- 完整模式 = 模态恒聚焦（角色已冻结，不参与门控）；下拉接管 = 天然聚焦态不参与
+- 补丁门控属性 `IsPanelKeyOwner`：完整恒 true；缩略 = `_padIndex >= 0 || _layer.IsFocusedOnInput()`
+- 🔴 坑：无焦点早退必须同步 `_lastPadA`（防跳跃中按十字键进聚焦产生假 A 按下沿）；`RebuildPadNavigation` 初始焦点缩略 = -1、完整 = 0，`if (_padIndex < 0)` 钳制只对完整模式
+- `ApplyPadVisual` 对 -1 = 全项高亮复位（既有语义，退聚焦复用）
+
+## 🔴 模态 UI 打开自动关 IM（2026-08-19）— `Stealth/StealManager.cs` IsUIOpen setter
+
+**解决**：偷窃条/撬锁/战利品是模态小游戏（子弹时间+控制冻结），IM 面板叠在上面抢输入挡视线。**打开沿（false→true）自动 `ImChatView.Close()`**——一个收口点覆盖全部打开路径（StealVM/撬锁/loot），复位 false 不动。
+
+```csharp
+public static bool IsUIOpen { get { return _isUIOpen; } set { if (value && !_isUIOpen) ImChatView.Close(); _isUIOpen = value; } }
+```
+
+**安全前提**：`ImChatView` 是静态类无 null 概念；`Close()` 幂等（`_layer == null` no-op——层销毁包在 `if (_layer != null)`，提示/解冻分支有判空/门控，`PlanCommandFlow.End()` 纯字段复位）。IM 从未打开时调用安全。

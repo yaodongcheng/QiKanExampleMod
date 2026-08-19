@@ -464,6 +464,21 @@ namespace LivingWorldNpcs
         internal static bool IsCurrentContext(UIContext ctx) => _layer != null && ctx != null && ctx == _layer.UIContext;
 
         /// <summary>
+        /// 🔴 2026-08-19（用户裁定：缩略半模态聚焦门控）：面板是否占用手柄键（A/十字键/LB/RB/B）——
+        /// ImChatMissionInputPatch 的拦键门控。完整模式 = 模态恒占用；缩略模式 = 聚焦态
+        ///（导航焦点 _padIndex ≥ 0 或输入框聚焦）才占用——无焦点时 A/D-pad 还给游戏（跳跃）。
+        /// </summary>
+        internal static bool IsPanelKeyOwner
+        {
+            get
+            {
+                if (_layer == null) return false;
+                if (_mode == ImChatMode.Full) return true;
+                return _padIndex >= 0 || _layer.IsFocusedOnInput();
+            }
+        }
+
+        /// <summary>
         /// 🔴 2026-08-18：按设备 + 输入态重算层输入 mask（统一入口；Open / SwitchMode / Tick 设备切换 /
         /// UpdatePadFocus 输入聚焦分支 / HandleCompactInput 逐帧调用，内部缓存只在变化时 SetInputRestrictions）。
         /// 三态模型（实机裁决）：
@@ -608,6 +623,42 @@ namespace LivingWorldNpcs
                 {
                     _lastInputFocusedState = inputFocused;
                     ApplyInputMask();
+                }
+
+                // 🔴 2026-08-19（用户裁定：缩略半模态聚焦门控）——聚焦态才占 A/十字键
+                //（ImChatMissionInputPatch 的 IsPanelKeyOwner 门控）；无焦点态 A 还给游戏（跳跃）：
+                //   ① 左摇杆移动 = 玩家在玩 → 退聚焦（准星隐藏、高亮全清、A 还给游戏）
+                //   ② 无焦点态按十字键（任意向）→ 进入聚焦（该按下沿被吞，不落游戏）
+                //   ③ 无焦点且没按面板键 → 本帧不消费任何键（A 跳、十字键下一按再进入）
+                // 下拉接管 = 天然聚焦态（按下沿即进列表），不参与门控；完整模式 = 模态恒聚焦。
+                if (_mode == ImChatMode.Compact && !inputFocused && !dropdownOpen)
+                {
+                    if (_padIndex >= 0 && LeftStickActive())
+                    {
+                        DebugLogger.Log($"[Pad] 左摇杆移动 → 退聚焦（A 还给游戏）{PadState()}");
+                        _padIndex = -1;
+                        HideNavCursor();
+                        ResetPadHoldTimers();
+                        ApplyPadVisual();   // index=-1 → 全项高亮复位
+                        return;
+                    }
+                    if (_padIndex < 0)
+                    {
+                        if (AnyDpadPressed())
+                        {
+                            DebugLogger.Log($"[Pad] 十字键按下 → 进入聚焦（初始索引 0）{PadState()}");
+                            _padIndex = _padItems.Count > 0 ? 0 : -1;
+                            if (_padItems.Count > 0) SetMouseToWidget(_padItems[0]);
+                        }
+                        else
+                        {
+                            ResetPadHoldTimers();
+                            // 同步 A 状态：无焦点早退不走 PollActivate，若玩家正按 A（跳跃中）且随后
+                            // 按十字键进聚焦，防 _lastPadA 陈旧 → 假按下沿误激活焦点项
+                            _lastPadA = Input.IsKeyPressed(InputKey.ControllerRDown);
+                            return;   // 无焦点：A/D-pad 不消费（补丁门控 IsPanelKeyOwner=false → 游戏跳跃照常）
+                        }
+                    }
                 }
 
                 // ── 输入框聚焦（软键盘）：引擎接管输入，导航不抢键；mask 切到「游标模式」──
@@ -819,6 +870,26 @@ namespace LivingWorldNpcs
                 || Input.IsKeyPressed(InputKey.ControllerRLeft) || Input.IsKeyPressed(InputKey.ControllerRRight)
                 || Input.IsKeyPressed(InputKey.ControllerLBumper) || Input.IsKeyPressed(InputKey.ControllerRBumper)
                 || Input.IsKeyPressed(InputKey.ControllerLStick);
+        }
+
+        /// <summary>🔴 2026-08-19（缩略半模态聚焦门控）：任意十字键按下沿（进入聚焦用——只认十字键，
+        /// 面键/肩键不进入：A 无焦点时 = 游戏跳跃）。</summary>
+        private static bool AnyDpadPressed()
+        {
+            return Input.IsKeyPressed(InputKey.ControllerLUp) || Input.IsKeyPressed(InputKey.ControllerLDown)
+                || Input.IsKeyPressed(InputKey.ControllerLLeft) || Input.IsKeyPressed(InputKey.ControllerLRight);
+        }
+
+        /// <summary>🔴 2026-08-19（缩略半模态聚焦门控）：左摇杆是否推满（幅度 &gt; 0.5）——「玩家在玩」
+        /// 信号：推摇杆移动 = 退出聚焦回玩态（A 还给游戏跳跃）。GetKeyState 对摇杆返回轴向量。</summary>
+        private static bool LeftStickActive()
+        {
+            try
+            {
+                var v = Input.GetKeyState(InputKey.ControllerLStick);
+                return (v.X * v.X + v.Y * v.Y) > 0.25f;
+            }
+            catch { return false; }
         }
 
         /// <summary>按下沿立即触发 + 长按重复（按住 PadHoldDelay 后每 PadRepeatInterval 一次；抬起复位）。
@@ -1309,9 +1380,13 @@ namespace LivingWorldNpcs
             }
             else
             {
-                _padIndex = 0;   // 初始焦点 = 索引 0（打开/模式切换后立即可见）
+                // 🔴 2026-08-19（用户裁定：缩略半模态聚焦门控）：缩略模式初始 = 无焦点（-1）——
+                // 打开后玩家继续玩（A 跳跃还给游戏），首次按十字键才进入聚焦（见 UpdatePadFocus）；
+                // 完整模式 = 模态恒聚焦（索引 0 立即可见）。
+                _padIndex = _mode == ImChatMode.Compact ? -1 : 0;
             }
-            if (_padIndex < 0) _padIndex = 0;
+            // 完整模式兜底钳制（缩略模式的 -1 = 合法的无焦点态，不许钳）
+            if (_padIndex < 0 && _mode != ImChatMode.Compact) _padIndex = 0;
             // 🔴 2026-08-18（诊断日志）：重建结果 + 焦点映射（oldId → newId）——结构变化后焦点去向
             string newId = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].Id : "无";
             DebugLogger.Log($"[Pad] 重建: {_padItems.Count}项 old={oldId ?? "无"} → {newId}");
