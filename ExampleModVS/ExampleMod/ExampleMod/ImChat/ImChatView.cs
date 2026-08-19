@@ -579,6 +579,9 @@ namespace LivingWorldNpcs
                 if (_padNavDirty) RebuildPadNavigation();
                 if (_padItems.Count == 0) { _padIndex = -1; return; }
 
+                // 🔴 2026-08-19（用户裁定）：导航准星每帧驱动（含输入聚焦分支——聚焦时隐藏，编辑器光标接管）
+                UpdateNavCursor();
+
                 bool dropdownOpen = _mode == ImChatMode.Compact && _vm != null && _vm.ChannelSelector.IsChannelListOpen;
                 bool inputFocused = _layer != null && _layer.IsFocusedOnInput();
                 // 🔴 2026-08-19（状态①残留根因修复）：聚焦状态边沿变化 → 立即 ApplyInputMask——
@@ -682,6 +685,81 @@ namespace LivingWorldNpcs
             try { var p = w.GlobalPosition; return $"({p.X:0},{p.Y:0})"; } catch { return "?"; }
         }
 
+        /// <summary>
+        /// 🔴 2026-08-19（用户裁定：准星不挡 native 点击）：A 键激活前强制隐藏导航准星。
+        /// 为什么必须隐藏：准星 = 根下最顶层 widget（prefab 根 Children 最后一位），visible 时盖在
+        /// 焦点项上，native 点击命中测试（CollectVisibleWidgetsAt 不检查 DoNotAcceptEvents，反编译
+        /// 实锤）先命中准星 → 点击焦点链被吸走 → 焦点被清 + 设备翻转死锁（实机 2026-08-19 10:38:10：
+        /// A 激活 input 后 0.5s 聚焦=False）。隐藏后点击路径 = 无准星提交版逐字节一致。
+        /// 显示恢复由 UpdateNavCursor 每帧驱动（仍处导航态 → 下一帧自动重新显示）。
+        /// </summary>
+        private static void HideNavCursor()
+        {
+            try
+            {
+                Widget cursor = FindWidgetById(_layer?.UIContext?.Root, "LWN_NavCursor");
+                if (cursor != null && !cursor.IsHidden) cursor.IsHidden = true;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-19（用户裁定：手柄导航准星）：自绘焦点指示器（LWN_NavCursor，prefab 根下最顶层）——
+        /// 系统光标必须隐藏（手柄+可见光标 = native 锚定锁中，坑 2），hover 高亮又看不清楚焦点；
+        /// 准星 = vanilla default_cursor sprite，导航态显示并跟随焦点 widget。
+        /// 显示条件：手柄（去抖值）+ 非输入聚焦 + 焦点项有 widget；其余隐藏。
+        /// 定位：PosOffset = 屏幕坐标 / UI Scale（PosOffset 是逻辑坐标，ScaledPositionOffset 只读 =
+        /// 逻辑 × scale；准星中心对齐焦点中心，28×28 半宽 14）。
+        /// 🔴 点击纪律：准星 visible 时会把 native 点击命中测试吸走（顶层遮挡），任何 A 键激活路径
+        /// 必须先调 HideNavCursor（ActivatePad 统一入口已做）。
+        /// </summary>
+        private static void UpdateNavCursor()
+        {
+            try
+            {
+                Widget cursor = FindWidgetById(_layer?.UIContext?.Root, "LWN_NavCursor");
+                if (cursor == null) return;
+                bool show = _lastUsingGamepad
+                    && _layer != null && !_layer.IsFocusedOnInput()
+                    && _padIndex >= 0 && _padIndex < _padItems.Count;
+                if (!show)
+                {
+                    if (!cursor.IsHidden) cursor.IsHidden = true;
+                    return;
+                }
+                var w = _padItems[_padIndex].GetWidget?.Invoke();
+                if (w == null)
+                {
+                    if (!cursor.IsHidden) cursor.IsHidden = true;
+                    return;
+                }
+                var gp = w.GlobalPosition;
+                var sz = w.Size;
+                float scale = 1f;
+                try { scale = _layer.UIContext.Scale; } catch { }
+                if (scale <= 0f) scale = 1f;
+                cursor.IsHidden = false;
+                // 🔴 2026-08-19（用户裁定：框中心对准控件中心）：frame_small_9 焦点框中心 = 焦点控件中心。
+                // 控件中心(逻辑) = gp(物理)/scale + size(逻辑)/2；框尺寸 = 控件尺寸 + 4px 余量（罩住控件），
+                // 框左上角 = 控件中心 - 框尺寸/2（数学上等价于「框罩控件」，但显式中心写法防误解）
+                float ctrlCX = gp.X / scale + sz.X * 0.5f;
+                float ctrlCY = gp.Y / scale + sz.Y * 0.5f;
+                float boxW = sz.X + 4f;
+                float boxH = sz.Y + 4f;
+                float targetX = ctrlCX - boxW * 0.5f;
+                float targetY = ctrlCY - boxH * 0.5f;
+                // 🔴 2026-08-19（准星位置诊断）：位置/尺寸变化 >1px 才打——对比 gp(物理) vs size(逻辑) vs scale
+                if (Math.Abs(targetX - cursor.PositionXOffset) > 1f || Math.Abs(targetY - cursor.PositionYOffset) > 1f
+                    || Math.Abs(boxW - cursor.SuggestedWidth) > 1f || Math.Abs(boxH - cursor.SuggestedHeight) > 1f)
+                    DebugLogger.Log($"[NavCursor] 焦点={_padItems[_padIndex].Id} 中心=({ctrlCX:0},{ctrlCY:0}) size=({sz.X:0},{sz.Y:0}) scale={scale:0.00} → 框左上=({targetX:0},{targetY:0} {boxW:0}x{boxH:0})");
+                cursor.PositionXOffset = targetX;
+                cursor.PositionYOffset = targetY;
+                cursor.SuggestedWidth = boxW;
+                cursor.SuggestedHeight = boxH;
+            }
+            catch { }
+        }
+
         /// <summary>诊断日志用：当前导航状态快照（焦点索引 + 输入聚焦 + 下拉）。</summary>
         private static string PadState()
         {
@@ -750,6 +828,16 @@ namespace LivingWorldNpcs
 
         private static void ActivatePad()
         {
+            // 🔴 2026-08-19（用户裁定：A = native 点击语义，准星不挡点击）：A 键按下即产生 native 点击
+            //（引擎层命中测试不受层 mask 过滤），OnActivate 前必须完成两件事：
+            // ① SetMouseToWidget——把系统光标挪到焦点项中心，点击命中项本体（引擎点击聚焦路径与
+            //    手动 FocusedWidget 一致；不挪则点击落在残留位置 → 焦点被清 + 设备翻转死锁）；
+            // ② HideNavCursor——准星 = 根下最顶层 widget，visible 时盖在焦点项上，native 点击命中
+            //    测试（CollectVisibleWidgetsAt 不检查 DoNotAcceptEvents，实锤反编译）先命中准星 →
+            //    点击焦点链被吸走 → 焦点 0.5s 后被清（实机 2026-08-19 10:38:10 三连日志）。隐藏后
+            //    点击路径 = 无准星提交版（HEAD）逐字节一致。下一帧 UpdateNavCursor 按条件自动恢复。
+            if (_padIndex >= 0 && _padIndex < _padItems.Count) SetMouseToWidget(_padItems[_padIndex]);
+            HideNavCursor();
             if (_padIndex < 0 || _padIndex >= _padItems.Count) return;
             var item = _padItems[_padIndex];
             DebugLogger.Log($"[Pad] A 激活 → {item.Id} ({item.Group})");
@@ -1391,10 +1479,10 @@ namespace LivingWorldNpcs
                     DebugLogger.Log("[Pad] 聚焦输入框失败: widget 查找为 null（静默跳过）");
                     return;
                 }
+                // 🔴 2026-08-19（用户裁定）：光标挪位 + 准星隐藏已在 ActivatePad（A 键统一入口）完成——
+                // 本行鼠标位置应等于输入框中心（验证 SetMouseToWidget 生效；若仍显示屏幕中心 = 光标
+                // 冻结读数/锚定覆盖，据此判定是否需要 P/Invoke 兜底）
                 DebugLogger.Log($"[Pad] 聚焦输入框 → {w.Id} ({(w is EditableTextWidget ? "EditableText" : w.GetType().Name)}) 鼠标位置={MousePosStr()} 输入框位置={WidgetPosStr(w)}");
-                // 🔴 2026-08-19（用户裁定）：聚焦前先把光标挪到输入框中心——A 键 native 点击命中输入框
-                // 本体（引擎点击聚焦路径，与手动 FocusedWidget 一致）→ 不清焦点、不产生面板外点击
-                SetMouseToWidget(_padItems[_padIndex]);
                 _layer.UIContext.EventManager.FocusedWidget = w;
                 DebugLogger.Log($"[Pad] FocusedWidget 设置完成 IsFocusedOnInput={_layer.IsFocusedOnInput()}");
             }
@@ -2418,7 +2506,7 @@ namespace LivingWorldNpcs
                 try { mouse = Input.IsMouseActive; } catch { }
                 try { gamepadActive = Input.IsGamepadActive; } catch { }
                 try { mouseVisible = TaleWorlds.ScreenSystem.ScreenManager.GetMouseVisibility(); } catch { }
-                DebugLogger.Log($"[ImChat] 设备翻转未保护: 裸值={usingGamepad} 聚焦={padFocused} IsGamepadActive={gamepadActive} IsMouseActive={mouse} 光标可见={mouseVisible} 鼠标位置={MousePosStr()} IsOnScreenKeyboardActive={osk}");
+                DebugLogger.Log($"[ImChat] 设备翻转未保护: 裸值={usingGamepad} 聚焦={padFocused} IsGamepadActive={gamepadActive} IsMouseActive={mouse} 光标可见={mouseVisible} 鼠标位置={MousePosStr()} 距上次手柄键={TaleWorlds.Engine.Time.ApplicationTime - _lastPadInputTime:0.0}s IsOnScreenKeyboardActive={osk}");
             }
             if (usingGamepad != _lastUsingGamepad)
             {

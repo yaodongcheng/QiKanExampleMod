@@ -394,6 +394,19 @@
           </Children>
         </Widget>
 
+        <!-- 🔴 2026-08-19（用户裁定：手柄导航准星）：焦点框指示器（同完整模式 ImChat.xml——
+             必须在全屏根 Children（PositionOffset 相对根 = 屏幕坐标；在面板 Children 里整体偏右下）。
+             对齐显式 Left/Top。UpdateNavCursor 驱动跟随焦点。
+             🔴 点击纪律（2026-08-19 实机）：DoNotAcceptEvents 只挡 managed 命中测试——native
+             点击命中测试（CollectVisibleWidgetsAt）不看该 flag，visible 时准星会先于焦点项命中
+             native 点击 → 焦点被清。A 键激活前必须 HideNavCursor（ActivatePad 统一入口已做）。 -->
+        <ImageWidget Id="LWN_NavCursor" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                     SuggestedWidth="28" SuggestedHeight="28"
+                     Sprite="frame_small_9"
+                     HorizontalAlignment="Left" VerticalAlignment="Top"
+                     IsHidden="true"
+                     DoNotAcceptEvents="true"/>
+
       </Children>
     </Widget>
   </Window>

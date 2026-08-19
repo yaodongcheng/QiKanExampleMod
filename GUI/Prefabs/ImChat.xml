@@ -649,6 +649,23 @@
 
           </Children>
         </Widget>
+
+        <!-- 🔴 2026-08-19（用户裁定：手柄导航准星）：焦点框指示器——🔴 必须在全屏根的 Children
+             （不是主面板的 Children）：PositionOffset 相对父 = 根(0,0) = 屏幕坐标；插在主面板
+             Children 里会整体加上面板居中偏移（实机整体偏右下）。对齐显式 Left/Top
+             （PositionOffset 是对齐后的偏移，默认对齐会推偏）。UpdateNavCursor 驱动：
+             IsHidden + 位置/尺寸跟随焦点（框中心 = 焦点控件中心）。
+             🔴 点击纪律（2026-08-19 实机）：DoNotAcceptEvents 只挡 managed 命中测试——native
+             点击命中测试（CollectVisibleWidgetsAt）不看该 flag，visible 时准星（根下最顶层）会
+             先于焦点项命中 native 点击 → 点击焦点链被吸走 → 焦点被清。A 键激活前必须
+             HideNavCursor（ActivatePad 统一入口已做），此处 DoNotAcceptEvents 仅防鼠标态误拦。 -->
+        <ImageWidget Id="LWN_NavCursor" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                     SuggestedWidth="28" SuggestedHeight="28"
+                     Sprite="frame_small_9"
+                     HorizontalAlignment="Left" VerticalAlignment="Top"
+                     IsHidden="true"
+                     DoNotAcceptEvents="true"/>
+
       </Children>
     </Widget>
   </Window>
