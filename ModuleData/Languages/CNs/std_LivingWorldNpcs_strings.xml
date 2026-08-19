@@ -4443,7 +4443,7 @@
     <string id="LWN_ui_interact_inquiry_duel_npc_risk_msg" text="{NAME} 警告：{RISK}——仍要与 {TARGET} 切磋吗？" />
     <string id="LWN_dialog_chat_initiator_refuse_2" text="……是我多嘴了。" />
     <string id="LWN_im_open_button_hint" text="打开传讯（按键 {KEY}）" />
-    <string id="LWN_im_pad_hint" text="{A} 确认 · {B} 关闭 · {DPAD} 导航" />
+    <string id="LWN_im_pad_hint" text="{DPAD} 十字键移动焦点 · {A} 点击确认 · {B} 关闭界面" />
     <string id="LWN_im_compact_camera_hint" text="缩略面板已开启：鼠标操作面板，按住右键旋转镜头。" />
 
     <string id="LWN_im_compact_camera_restored" text="鼠标控制已恢复：移动鼠标即可转向。" />
