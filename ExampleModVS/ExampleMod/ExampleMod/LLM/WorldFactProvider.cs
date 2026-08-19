@@ -708,24 +708,23 @@ namespace LivingWorldNpcs
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_fact_title_risk",
                     "【目之所及】（You are in the scene; this is what you see at a glance — people move around, the impression may be stale）"));
                 DebugLogger.Log($"[RiskScene] {npcHeroId} 命令命中注入（{cmd.Length} 字符，在场 {snap.Agents.Count} 人）");
-                // ── 目标解析：命令文本里出现的人名/角色名 → 快照五层匹配（复用 FindAgent 口径）──
+                // ── 目标解析：命令文本 → 快照多匹配（FindAgentCandidates：名字点名 / 别名归一 / 类型词表）
+                // 🔴 2026-08-19（实机：玩家说「士兵」→ 场景模板名「帝国步兵」单匹配 0 候选，无人可问）：
+                // 改为多匹配——唯一命中 → 既有【目标段】；多命中 → 【候选目标】段（回复轮 LLM 据此指认
+                // 类型，计划轮再由主公挑具体对象，目标名纪律闭环）
                 SceneSnapshot.AgentInfo targetInfo = null;
-                foreach (var info in snap.Agents)
+                List<SceneSnapshot.AgentInfo> targetCandidates = null;
+                try
                 {
-                    if (info == null || info.Agent == null || info.Agent == self) continue;
-                    string name = info.DisplayName ?? "";
-                    string charName = info.Agent.Character?.Name?.ToString() ?? "";
-                    string role = info.Role ?? "";
-                    if ((!string.IsNullOrEmpty(name) && cmd.IndexOf(name, StringComparison.OrdinalIgnoreCase) >= 0)
-                        || (!string.IsNullOrEmpty(charName) && cmd.IndexOf(charName, StringComparison.OrdinalIgnoreCase) >= 0)
-                        || (!string.IsNullOrEmpty(role) && role.Length >= 2 && cmd.IndexOf(role, StringComparison.OrdinalIgnoreCase) >= 0))
-                    {
-                        targetInfo = info;
-                        break;
-                    }
+                    targetCandidates = snap.FindAgentCandidates(cmd);
+                    // 排除执行者自己（原单匹配口径：info.Agent == self 跳过——NPC 不能偷自己的东西）
+                    if (targetCandidates != null)
+                        targetCandidates.RemoveAll(i => i == null || i.Agent == null || i.Agent == self);
                 }
+                catch { }
+                if (targetCandidates != null && targetCandidates.Count == 1) targetInfo = targetCandidates[0];
                 Agent target = targetInfo?.Agent;
-                DebugLogger.Log($"[RiskScene] 目标解析: {target?.Name?.ToString() ?? "无（只给在场概况）"}");
+                DebugLogger.Log($"[RiskScene] 目标解析: {target?.Name?.ToString() ?? (targetCandidates != null && targetCandidates.Count > 1 ? $"多候选×{targetCandidates.Count}" : "无（只给在场概况）")}");
                 // ── 在场概况（🔴 2026-08-15 采样优化，用户裁定：楼层聚类 + 分层配额 + 优先级采样）──
                 // 旧实现全量按角色合并计数，无楼层概念、无个体多样性。新实现：候选池 → 楼层聚类（Position.Z）
                 // → 每层保底 1 + 按人数比例配额 → 层内优先级（目标 > Hero > 独特模板 > 近距 15m > 空间均匀随机）
@@ -733,13 +732,36 @@ namespace LivingWorldNpcs
                 string presenceSample = BuildPresenceSample(snap, self, target);
                 if (!string.IsNullOrEmpty(presenceSample))
                     sb.Append(presenceSample);
+                // ── 候选目标段（命令对应多人：回复轮 LLM 不得自行指定具体对象，指认类型即可，
+                // 计划轮必须 questions 让主公挑——目标名纪律的 C# 侧素材）──
+                if (target == null && targetCandidates != null && targetCandidates.Count > 1)
+                {
+                    // 本地化：候选目标段标题（LWN_risk_section_target_candidates）
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_risk_section_target_candidates",
+                        "【Target candidates】(Your order matches several people here — do NOT pick one yourself; keep the target as a type and let the lord choose via questions in the plan round)"));
+                    foreach (var info in targetCandidates)
+                    {
+                        if (info?.Agent == null) continue;
+                        // 🔴 2026-08-19（统一标记格式）：GetDisplayName = Hero 原名 / 模板「名字#Index」
+                        //（无空格，与 HUD/交互区/附近频道/@预填 同构）——不再用 [ #N ] 括号自造格式
+                        string cName = AgentControlHelper.GetDisplayName(info.Agent);
+                        if (string.IsNullOrWhiteSpace(cName)) cName = info.DisplayName ?? "某人";
+                        string cFloor = FloorLabelOf(info.Agent, self);
+                        if (!string.IsNullOrEmpty(cFloor)) cName += $"（{cFloor}）";
+                        string rel = DescribeTargetRelative(self, info.Agent);
+                        bool moving = info.Agent.Velocity.LengthSquared > 0.25f;
+                        sb.AppendLine($"- {cName} {rel}" + (moving ? "，他正在走动（位置随时会变）" : "，他站着没动（位置大致稳定）") + "。");
+                    }
+                    sb.AppendLine();
+                }
                 // ── 目标段（解析到目标才给；目标在走动 → 时效声明）──
                 if (target != null && target.IsActive())
                 {
                     // 🔴 2026-08-15（目标唯一标记）：名字带 [#N] index 标记（引擎 Agent.Index，Mission 内稳定）——
                     // LLM 基于场景语义指认目标（「酒馆老板」→ 场景里标着 [#N] 的「酒馆店主」），
                     // action_target 输出带 index（如 酒馆店主#3）→ C# 精确解析，不靠字符串匹配。
-                    string tName = $"{target.Name?.ToString() ?? targetInfo?.DisplayName ?? "目标"}[#{target.Index}]";
+                    string tName = AgentControlHelper.GetDisplayName(target);
+                    if (string.IsNullOrWhiteSpace(tName)) tName = targetInfo?.DisplayName ?? "目标";
                     // 🔴 2026-08-15（楼层感知）：目标行标注所在楼层（「楼上」→ LLM 计划天然含上楼步骤）
                     string tFloor = FloorLabelOf(target, self);
                     if (!string.IsNullOrEmpty(tFloor)) tName += $"（{tFloor}）";
@@ -785,8 +807,9 @@ namespace LivingWorldNpcs
                 {
                     if (info == null || info.Agent == null || info.Agent == self || info.Agent == Agent.Main) continue;
                     if (info.Role == "guard") { guards++; continue; }
-                    // 🔴 2026-08-15（目标唯一标记）：名单带 [#N]——LLM 可引用「你的同袍#7」等指定任意在场者
-                    string label = $"{info.DisplayName ?? "同袍"}[#{info.Agent.Index}]";
+                    // 🔴 2026-08-19（统一标记格式）：GetDisplayName（Hero 原名 / 模板「名字#Index」）
+                    string dn = AgentControlHelper.GetDisplayName(info.Agent);
+                    string label = string.IsNullOrWhiteSpace(dn) ? (info.DisplayName ?? "同袍") : dn;
                     if (FriendlinessHelper.IsFriendlyToPlayer(info.Agent)) buddies.Add(label);
                     else if (target != null && FriendlinessHelper.IsFriendlyBetween(target, info.Agent)) targetFriends.Add(label);
                     else neutralNames.Add(label);
@@ -841,7 +864,9 @@ namespace LivingWorldNpcs
                 if (target != null && target.IsActive())
                 {
                     string tArmor = AgentStatsHelper.ArmorProfileWord(AgentStatsHelper.GetArmorProfile(target));
-                    sb.AppendLine($"  - {target.Name?.ToString() ?? "目标"}[#{target.Index}]：{tArmor}，Vigor {AgentStatsHelper.GetAgentStats(target).vigor}/Control {AgentStatsHelper.GetAgentStats(target).control}。");
+                    string tn = AgentControlHelper.GetDisplayName(target);
+                    if (string.IsNullOrWhiteSpace(tn)) tn = "目标";
+                    sb.AppendLine($"  - {tn}：{tArmor}，Vigor {AgentStatsHelper.GetAgentStats(target).vigor}/Control {AgentStatsHelper.GetAgentStats(target).control}。");
                 }
                 // ── 在场潜在援军（30m 内可能赶来的人，按阵营分列——IsFriendlyBetween 双向判定）──
                 var helpUs = new List<string>();
@@ -852,8 +877,9 @@ namespace LivingWorldNpcs
                     if (info == null || info.Agent == null || info.Agent == self || info.Agent == Agent.Main) continue;
                     if (target != null && info.Agent.Position.Distance(target.Position) <= 15f) continue;  // 已在目标区（上面算过）
                     if (info.Agent.Position.Distance(self.Position) > 30f) continue;
-                    // 🔴 2026-08-15（目标唯一标记）：援军名单带 [#N]
-                    string label = $"{info.DisplayName ?? "友军"}[#{info.Agent.Index}]";
+                    // 🔴 2026-08-19（统一标记格式）：GetDisplayName（Hero 原名 / 模板「名字#Index」）
+                    string dn = AgentControlHelper.GetDisplayName(info.Agent);
+                    string label = string.IsNullOrWhiteSpace(dn) ? (info.DisplayName ?? "友军") : dn;
                     if (FriendlinessHelper.IsFriendlyToPlayer(info.Agent)) helpUs.Add(label);
                     else if (target != null && FriendlinessHelper.IsFriendlyBetween(target, info.Agent)) helpThem.Add(label);
                     else watchOnly.Add(label);
@@ -875,6 +901,15 @@ namespace LivingWorldNpcs
         private static string tNameOf(Agent target)
         {
             return target?.Name?.ToString() ?? "目标";
+        }
+        /// <summary>在场采样行名字（2026-08-19 统一标记格式）：GetDisplayName（Hero 原名 /
+        /// 模板「名字#Index」），空名兜底 DisplayName/Role/某人。</summary>
+        private static string FormatSampledName(SceneSnapshot.AgentInfo sel)
+        {
+            if (sel?.Agent == null) return sel?.DisplayName ?? "某人";
+            string dn = AgentControlHelper.GetDisplayName(sel.Agent);
+            if (!string.IsNullOrWhiteSpace(dn)) return dn;
+            return sel.DisplayName ?? sel.Role ?? "某人";
         }
         // ═══════════════════════════════════════════════════════════
         // 🔴 2026-08-15（用户裁定采样优化）：在场人员采样——楼层聚类 + 分层配额 + 优先级采样
@@ -1091,10 +1126,12 @@ namespace LivingWorldNpcs
                     string floor = FloorLabelOf(sel.Agent, self);
                     // 🔴 2026-08-15（玩家在场）：主公特殊标记——随从视角直接叫「主公」（名字即标记，
                     // 不再重复标（主公））；其余己方标（己方）；中立无标记。
+                    // 🔴 2026-08-19（统一标记格式）：主公恒唯一不标 #N；其余用 GetDisplayName
+                    //（Hero 原名 / 模板「名字#Index」）——不再用 [ #N ] 括号格式
                     string mark = sel.Agent == Agent.Main ? "" : FriendlinessHelper.IsFriendlyToPlayer(sel.Agent) ? "（己方）" : "";
                     string name = sel.Agent == Agent.Main
-                        ? $"主公[#{sel.Agent.Index}]"
-                        : $"{sel.DisplayName ?? sel.Role ?? "某人"}[#{sel.Agent.Index}]";
+                        ? "主公"
+                        : FormatSampledName(sel);
                     string occ = string.IsNullOrEmpty(sel.Occupation) ? "" : $"（{sel.Occupation}）";
                     string rel = DescribeTargetRelative(self, sel.Agent);
                     sb.AppendLine($"  - [{floor}] {name}{occ}{mark}：{rel}，{sel.FacingDesc}，{sel.State}");

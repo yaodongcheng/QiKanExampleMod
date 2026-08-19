@@ -273,6 +273,7 @@
     <Compile Include="Core\AgentControlHelper.cs" />
     <Compile Include="Core\AgentStatsHelper.cs" />
     <Compile Include="Core\MyBehavior.cs" />
+    <Compile Include="Core\NameDisplayRules.cs" />
     <Compile Include="Core\MySubModule.cs" />
     <Compile Include="Core\PartySplitFlow.cs" />
     <Compile Include="Core\KingdomPoliticsFlow.cs" />

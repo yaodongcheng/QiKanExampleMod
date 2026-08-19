@@ -263,6 +263,9 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-12（模板 NPC 统一显示名）：Hero → 原名；模板 NPC → 「名字#Index」——
             // 与交互区/IM 附近频道同源（AgentIdentity），场景里谁在和我说话始终一致
             AgentName = AgentControlHelper.GetDisplayName(agent);
+            // 🔴 2026-08-19（统一规范，关系色）：头顶名字颜色 = 友方绿 / 敌对红 / 中立白
+            //（NameDisplayRules 同源，与 IM 名字色一致）
+            NameColor = NameDisplayRules.ResolveHudNameColor(agent);
 
             // 初始状态：全部隐藏
             IsVisible = false;
@@ -413,6 +416,15 @@ namespace LivingWorldNpcs
         {
             get => _agentName;
             set { if (value != _agentName) { _agentName = value; OnPropertyChangedWithValue(value, "AgentName"); } }
+        }
+
+        private string _nameColor;
+        /// <summary>头顶名字颜色（2026-08-19 关系色：友方绿 / 敌对红 / 中立白，NameDisplayRules 同源）。</summary>
+        [DataSourceProperty]
+        public string NameColor
+        {
+            get => _nameColor;
+            set { if (value != _nameColor) { _nameColor = value; OnPropertyChangedWithValue(value, "NameColor"); } }
         }
 
         [DataSourceProperty]

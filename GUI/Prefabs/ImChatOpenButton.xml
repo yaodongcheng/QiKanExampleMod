@@ -9,68 +9,77 @@
             DoNotAcceptEvents="true">
       <Children>
 
-        <!-- 🔴 按钮：右缘下部（VerticalAlignment=Bottom + MarginBottom 140，56×56）——
-             避让右缘中部的密信通知圆环带（ImSecretNotify.xml 实锤：右缘垂直居中 + MarginRight 20，
-             130×130）与 NinjaReport 金环，不重叠/不遮挡。
-             样式 = Party.TalkSlot.Background 槽位底 + conversation_icon 对话图标（2026-08-17 用户裁定：
-             与队伍屏/家族屏密信注入按钮同一视觉语言——conversation_icon = 「打开消息」语义，
-             不用 Brush_CircleButton_SecretLetter 阴谋插图——那是「有密信来了」的通知语义）。
-             🔴 2026-08-17（用户反馈：键帽放按钮右侧）：MarginRight 20→58——给右侧键帽让位
-             （键帽贴右缘 MarginRight 20，组内顺序 = [按钮][键帽]）。 -->
-        <ButtonWidget Id="LWN_ImChatOpenButton" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                      SuggestedWidth="56" SuggestedHeight="56"
-                      HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                      MarginRight="58" MarginBottom="140"
-                      Brush="Party.TalkSlot.Background"
-                      DoNotPassEventsToChildren="true"
-                      UpdateChildrenStates="true">
-          <Children>
-            <!-- 对话图标（与注入密信按钮同款：SPGeneral\GameMenu\conversation_icon） -->
-            <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                         SuggestedWidth="32" SuggestedHeight="32"
-                         HorizontalAlignment="Center" VerticalAlignment="Center"
-                         Sprite="SPGeneral\GameMenu\conversation_icon"
-                         DoNotAcceptEvents="true"/>
-            <!-- 未读徽标：按钮右上角小圆底 + 数字（总未读口径，ImChatStore.GetTotalUnread）。
-                 0 → 隐藏；>99 → 「99+」；新消息 → 3s 正弦脉冲跳动（C# 驱动 PositionYOffset + Alpha）。 -->
-            <Widget Id="LWN_ImChatOpenBadge" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                    SuggestedWidth="22" SuggestedHeight="22"
-                    HorizontalAlignment="Right" VerticalAlignment="Top"
-                    PositionXOffset="8" PositionYOffset="-6"
-                    Sprite="BlankWhiteCircle" Color="#CC2222FF"
-                    IsVisible="false"
-                    DoNotAcceptEvents="true">
-              <Children>
-                <TextWidget Id="LWN_ImChatOpenBadgeText" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#FFFFFFFF"
-                            Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
-                            Text=""
-                            DoNotAcceptEvents="true"/>
-              </Children>
-            </Widget>
-          </Children>
-        </ButtonWidget>
-
-        <!-- 🔴 2026-08-17（按键绑定提示）：键帽 [O]/[↑] **按钮右侧紧邻**（用户反馈：左侧是错的；
-             无动作名文字——只一个键帽字形）。组内顺序 = [按钮][键帽]，组贴右缘：键帽 MarginRight 20
-             （贴屏幕右缘）、按钮 MarginRight 58（让位）。字形经 ModInput.Glyph 按设备动态
-             （键盘 [O] / 手柄 [↑]，config 改绑自动跟随）；垂直对齐 = MarginBottom 153
-             （= 按钮 140 + (56-30)/2，与按钮垂直居中）。C# 驱动可见性（随按钮）。 -->
-        <Widget Id="LWN_ImChatOpenButtonPadHint" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                SuggestedWidth="30" SuggestedHeight="30"
+        <!-- 🔴 2026-08-19（高度隔离整体移动，用户裁定）：按钮 + 键帽包进公共组容器——
+             组容器贴底右对齐，MarginBottom 绑 @MarginBottom（InteractArea 可见时整体上移）。
+             原两兄弟各自贴底对齐（按钮 140 / 键帽 153）——只改按钮 = 键帽原地不动、两者分离（实机用户反馈）。 -->
+        <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                 HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                MarginRight="20" MarginBottom="153"
-                IsVisible="false"
+                MarginRight="20" MarginBottom="@MarginBottom"
                 DoNotAcceptEvents="true">
           <Children>
-            <!-- 键帽底：近白底纹（InteractArea 键帽同款） -->
-            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                    Sprite="BlankWhiteSquare_9" Color="#E8E8E8FF" />
-            <!-- 键名字形（@KeyText——VM 绑定自动求值，键盘 [O] / 手柄 [↑]，设备切换 VM Refresh 驱动） -->
-            <TextWidget Id="LWN_ImChatOpenButtonPadHintKey" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                        Text="@KeyText" Brush="MyBrush_24" TextColor="#000000FF"
-                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                        DoNotAcceptEvents="true"/>
+            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                       StackLayout.LayoutMethod="HorizontalLeftToRight"
+                       DoNotAcceptEvents="true">
+              <Children>
+                <!-- 🔴 按钮：组内左侧（MarginRight 8 = 与键帽间隙；原 58 是组外贴右缘的让位，组内归零）。
+                     样式 = Party.TalkSlot.Background 槽位底 + conversation_icon 对话图标（2026-08-17 用户裁定：
+                     与队伍屏/家族屏密信注入按钮同一视觉语言——conversation_icon = 「打开消息」语义，
+                     不用 Brush_CircleButton_SecretLetter 阴谋插图——那是「有密信来了」的通知语义）。 -->
+                <ButtonWidget Id="LWN_ImChatOpenButton" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                              SuggestedWidth="56" SuggestedHeight="56"
+                              MarginRight="8"
+                              Brush="Party.TalkSlot.Background"
+                              DoNotPassEventsToChildren="true"
+                              UpdateChildrenStates="true">
+                  <Children>
+                    <!-- 对话图标（与注入密信按钮同款：SPGeneral\GameMenu\conversation_icon） -->
+                    <ImageWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                 SuggestedWidth="32" SuggestedHeight="32"
+                                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                                 Sprite="SPGeneral\GameMenu\conversation_icon"
+                                 DoNotAcceptEvents="true"/>
+                    <!-- 未读徽标：按钮右上角小圆底 + 数字（总未读口径，ImChatStore.GetTotalUnread）。
+                         0 → 隐藏；>99 → 「99+」；新消息 → 3s 正弦脉冲跳动（C# 驱动 PositionYOffset + Alpha）。 -->
+                    <Widget Id="LWN_ImChatOpenBadge" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                            SuggestedWidth="22" SuggestedHeight="22"
+                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                            PositionXOffset="8" PositionYOffset="-6"
+                            Sprite="BlankWhiteCircle" Color="#CC2222FF"
+                            IsVisible="false"
+                            DoNotAcceptEvents="true">
+                      <Children>
+                        <TextWidget Id="LWN_ImChatOpenBadgeText" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                    Brush="MyBrush_18_White" Brush.FontSize="12" Brush.FontColor="#FFFFFFFF"
+                                    Brush.TextHorizontalAlignment="Center" Brush.TextVerticalAlignment="Center"
+                                    Text=""
+                                    DoNotAcceptEvents="true"/>
+                      </Children>
+                    </Widget>
+                  </Children>
+                </ButtonWidget>
+
+                <!-- 🔴 2026-08-17（按键绑定提示）：键帽 [O]/[↑] **按钮右侧紧邻**（组内第二位，VerticalAlignment
+                     Center 与 56 高按钮垂直居中；原 MarginBottom 153 的垂直偏移归组容器管）。字形经
+                     ModInput.Glyph 按设备动态（键盘 [O] / 手柄 [↑]，config 改绑自动跟随）。
+                     C# 驱动可见性（随按钮）。 -->
+                <Widget Id="LWN_ImChatOpenButtonPadHint" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                        SuggestedWidth="30" SuggestedHeight="30"
+                        VerticalAlignment="Center"
+                        IsVisible="false"
+                        DoNotAcceptEvents="true">
+                  <Children>
+                    <!-- 键帽底：近白底纹（InteractArea 键帽同款） -->
+                    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                            Sprite="BlankWhiteSquare_9" Color="#E8E8E8FF" />
+                    <!-- 键名字形（@KeyText——VM 绑定自动求值，键盘 [O] / 手柄 [↑]，设备切换 VM Refresh 驱动） -->
+                    <TextWidget Id="LWN_ImChatOpenButtonPadHintKey" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                Text="@KeyText" Brush="MyBrush_24" TextColor="#000000FF"
+                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+              </Children>
+            </ListPanel>
           </Children>
         </Widget>
 

@@ -84,6 +84,12 @@ namespace LivingWorldNpcs
         private static string _lastCommand;        // 上一条玩家命令（澄清轮挂起基准）
         private static int _lastModifyCount;       // 本请求的修改版计数（新卡片标记用）
 
+        // 🔴 2026-08-19（目标纪律硬兜底）：计划轮后置检查用（Tick 消费 _pendingResult 时重建全量快照
+        // 采集候选——命令文本 + 回复轮是否有目标声明）。FinishWith 随每次计划响应刷新。
+        private static string _lastTargetCheckCommand;
+        private static bool _lastTargetClaimed;
+        private static string _lastTargetClaimedText;
+
         // 等待执行器出现后补挂回报事件（executor 由 AgentBrain 异步 Create）
         private class PendingWire
         {
@@ -195,12 +201,45 @@ namespace LivingWorldNpcs
                 // Direct 会话 PartnerHeroId 有值，群聊降级 null——全民同段，id 不参与裁剪）
                 string worldSection = WorldBackgroundProvider.GetWorldSection(
                     req.Conv?.Type == ImConversationType.Direct ? req.Conv.PartnerHeroId : null);
+                // 🔴 2026-08-19（目标纪律）：命令对应多人 → 【目标候选】段注入（LLM 必须 questions 让主公
+                // 挑，禁止自行指定一个）；回复轮目标类型在本快照无匹配 → 诚实声明（人目标必须澄清，物件照常）。
+                // 不靠 LLM 自觉——Tick 后置检查（_lastTargetCheckCommand）兜底自动澄清卡。
+                string targetCandidatesText = null;
+                try
+                {
+                    var cands = snapshot.FindAgentCandidates(req.Command);
+                    if (cands != null && cands.Count > 1)
+                    {
+                        var lines = new List<string>();
+                        foreach (var ci in cands)
+                        {
+                            if (ci?.Agent == null) continue;
+                            // 🔴 2026-08-19（统一标记格式）：GetDisplayName（Hero 原名 / 模板「名字#Index」），
+                            // 与 HUD/交互区/附近频道同构——候选文本 = 显示名 + 方位（编号在前，方位可解析丢弃）
+                            string cl = AgentControlHelper.GetDisplayName(ci.Agent); // lwn-ignore: A
+                            if (string.IsNullOrWhiteSpace(cl)) cl = ci.DisplayName ?? "某人"; // lwn-ignore: A
+                            if (!string.IsNullOrWhiteSpace(ci.PositionDesc)) cl += $"（{ci.PositionDesc}）";   // lwn-ignore: A
+                            lines.Add(cl);
+                        }
+                        if (lines.Count > 1) targetCandidatesText = string.Join("\n", lines);
+                    }
+                    else if (!string.IsNullOrEmpty(req.ResolvedTargetText)
+                        && snapshot.FindAgentCandidates(req.ResolvedTargetText).Count == 0)
+                    {
+                        // 本地化：目标无匹配诚实段正文（XML LWN_plan_section_target_none_body，{TARGET} 变量）
+                        targetCandidatesText = LWNTextHelper.ResolveCompound("LWN_plan_section_target_none_body",
+                            "(\"{TARGET}\" has no match in the current scene — if the target is an object (chest/door), plan normally; if it is a person, you MUST ask via questions so the lord can name them — do NOT swap in a different person on your own)",
+                            ("TARGET", req.ResolvedTargetText ?? ""));
+                    }
+                }
+                catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 目标候选注入失败: {ex.Message}"); }
                 string prompt = PromptBuilder.BuildPlanPrompt(
                     snapshot.ToPromptText(), req.Command, persona, "",
                     PlanCommandFlow.IntentTableForPrompt(), PlanCommandFlow.GrammarForPrompt(),
                     companionIntention: req.CompanionIntention,
                     resolvedTargetText: req.ResolvedTargetText,
-                    worldSection: worldSection);
+                    worldSection: worldSection,
+                    targetCandidatesText: targetCandidatesText);
                 string json = await LLMService.Instance.ChatAsync(prompt, 4000, true, 0.4f, disableReasoning: true);
                 string cleaned = LLMService.CleanJson(json);
                 try { response = JsonConvert.DeserializeObject<PlanResponse>(cleaned); }
@@ -217,6 +256,10 @@ namespace LivingWorldNpcs
             _lastConv = req?.Conv;
             _lastCommand = req?.Command;   // 澄清轮挂起用（原命令基准）
             _lastModifyCount = req?.IsModify == true ? req.ModifyCount : 0;   // 修改版计数（新卡片标记）
+            // 🔴 2026-08-19（目标纪律兜底）：后置检查素材随响应刷新（Tick 消费时重建快照采集候选）
+            _lastTargetCheckCommand = req?.Command;
+            _lastTargetClaimed = !string.IsNullOrEmpty(req?.ResolvedTargetText);
+            _lastTargetClaimedText = req?.ResolvedTargetText;
             _pending = null;
             _pendingResult = response;
             _resultReady = true;
@@ -283,6 +326,50 @@ namespace LivingWorldNpcs
                     ImChatManager.BroadcastMessageArrived(conv);
                     return;
                 }
+                // 澄清轮数先捕获（目标纪律兜底的超轮检查要用；与 questions 分支同口径）
+                int clarifyRound = _pendingClarify?.Round ?? 0;
+                // 🔴 2026-08-19（目标纪律硬兜底，实机：命令「偷士兵的东西」→ 计划轮 LLM 自行指定
+                // 帝国资深步兵#41、questions 空 → 玩家全程没机会挑）：
+                // 命令对应多人 / 回复轮目标类型在场上无人匹配，而计划轮 LLM 没问（questions 空）
+                // → 自动投澄清卡（候选按钮，复用澄清轮卡片管线），禁止计划带病上屏。
+                if (response.Plan != null && response.Intent != null
+                    && !string.IsNullOrEmpty(response.Intent.IntentType)
+                    && IsPersonTargetingIntent(response.Intent.IntentType)
+                    && !string.IsNullOrEmpty(_lastTargetCheckCommand)
+                    && (response.Questions == null || response.Questions.Count == 0))
+                {
+                    var clarifyCandidates = CollectTargetCandidates(_lastTargetCheckCommand);
+                    // 🔴 2026-08-19（澄清卡误循环，实机：玩家点选候选后命令含 [#42] 标记 → 唯一解析 →
+                    // 但超轮检查在候选判定之前 → 第二轮就把有效计划误杀成「改日再说」）：
+                    // 先判候选——命令已唯一解析（含 #N）直接放行；只有仍歧义（多候选/无匹配+有声明）
+                    // 才走澄清，且只有澄清路径才受轮数上限约束。
+                    if (clarifyCandidates.Count > 1)
+                    {
+                        // 澄清超轮（Round ≥ 2）→ 诚实放弃（与 LLM questions 分支同款，防无限澄清）
+                        if (clarifyRound >= 2)
+                        {
+                            _pendingClarify = null;
+                            PostNpcMessage(conv, LWNTextHelper.ResolveText("LWN_plan_clarify_exhausted", "I still do not understand. Perhaps another time."));
+                            return;
+                        }
+                        // 多候选 → 澄清卡（候选按钮；点选并入命令上下文重拟计划）
+                        // 🔴 不清 _pendingClarify：PostTargetClarify 复用既有 pending，轮数 Round 持续累计
+                        PostTargetClarify(conv, clarifyCandidates, multi: true);
+                        return;
+                    }
+                    if (clarifyCandidates.Count == 0 && _lastTargetClaimed)
+                    {
+                        if (clarifyRound >= 2)
+                        {
+                            _pendingClarify = null;
+                            PostNpcMessage(conv, LWNTextHelper.ResolveText("LWN_plan_clarify_exhausted", "I still do not understand. Perhaps another time."));
+                            return;
+                        }
+                        // 回复轮声明了目标类型但场上无人匹配 → 诚实澄清（无按钮，玩家自由回答）
+                        PostTargetClarify(conv, clarifyCandidates, multi: false);
+                        return;
+                    }
+                }
                 _pendingClarify = null;
                 // 词表外/无计划 → 诚实拒绝（与 PlanCommandFlow 同语义）
                 if (response.Plan == null || response.Intent == null
@@ -345,6 +432,89 @@ namespace LivingWorldNpcs
                     _pendingWires.RemoveAt(i);
                 }
             }
+        }
+
+        // 🔴 2026-08-19（目标纪律硬兜底三件套）：IsPersonTargetingIntent（意图白名单）/
+        // CollectTargetCandidates（全量快照候选采集）/ PostTargetClarify（澄清卡投递，复用澄清轮卡片管线）
+        /// <summary>意图是否以「具体的人」为目标（目标纪律兜底只拦人目标——物件/区域/批量语义不适用）。
+        /// 词表外/CUSTOM/物件类（FETCH/INTERACT/COMMOTION/ANNIHILATE 等）不拦截。</summary>
+        private static bool IsPersonTargetingIntent(string intentType)
+        {
+            string norm = (intentType ?? "").ToUpperInvariant().Replace("_", "");
+            switch (norm)
+            {
+                case "STEAL": case "KNOCKOUT": case "ATTACK": case "DUEL": case "SPAR":
+                case "ENGAGE": case "DRIVEAWAY": case "FOLLOW": case "GUARD": case "BRING":
+                case "GUIDE": case "SHADOW": case "COLLECT": case "DISTRACT": case "TALKTO":
+                case "DELIVER":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>目标纪律兜底候选采集（主线程 Tick 调用；全量快照保证与玩家所见一致）。
+        /// 返回候选显示文本（名字#N + 方位），空 = 无匹配。</summary>
+        private static List<string> CollectTargetCandidates(string command)
+        {
+            var result = new List<string>();
+            try
+            {
+                if (Mission.Current == null) return result;
+                var snap = SceneSnapshot.Build(Mission.Current);
+                var cands = snap.FindAgentCandidates(command);
+                if (cands == null) return result;
+                foreach (var ci in cands)
+                {
+                    if (ci?.Agent == null) continue;
+                    // 🔴 2026-08-19（候选按钮文本）：GetDisplayName（Hero 原名 / 模板「名字#Index」）+
+                    // 相对方位（你西侧47米）——玩家据远近挑目标（选近的/远的）；点选后并入命令上下文，
+                    // TryResolveIndexedTarget 数字前缀解析（方位尾巴安全丢弃）。按钮长文本溢出已由
+                    // 竖排按钮 XML 加固兜底（MaxWidth + WordWrapping + 高度 CoverChildren）。
+                    string label = AgentControlHelper.GetDisplayName(ci.Agent); // lwn-ignore: A
+                    if (string.IsNullOrWhiteSpace(label)) label = ci.DisplayName ?? "某人"; // lwn-ignore: A
+                    if (!string.IsNullOrWhiteSpace(ci.PositionDesc)) label += $"（{ci.PositionDesc}）";   // lwn-ignore: A
+                    if (!result.Contains(label)) result.Add(label);
+                }
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 目标候选采集失败: {ex.Message}"); }
+            return result;
+        }
+
+        /// <summary>目标纪律澄清卡（复用澄清轮卡片管线：IsClarifyCard + AskPlayerOptions 按钮行；
+        /// 点选/手打回复 → HandleClarifyOption/RequestCommand 并入命令上下文重拟计划）。
+        /// multi=true → 候选按钮让玩家挑；multi=false → 诚实提问（无按钮，玩家自由回答）。</summary>
+        private static void PostTargetClarify(ImConversation conv, List<string> candidates, bool multi)
+        {
+            try
+            {
+                if (_pendingClarify == null || _pendingClarify.Conv?.Id != conv?.Id)
+                    _pendingClarify = new PendingClarify { Conv = conv, Command = _lastCommand, Round = 0 };
+                ResolveSpeaker(conv, out string heroId, out string name);
+                string qText = multi
+                    // 本地化：目标多候选澄清问句（LWN_plan_clarify_target_multi）
+                    ? LWNTextHelper.ResolveText("LWN_plan_clarify_target_multi",
+                        "Which one do you mean? Several people match what you said.")
+                    // 本地化：目标无匹配澄清问句（LWN_plan_clarify_target_none，{TARGET} 变量）
+                    : LWNTextHelper.ResolveCompound("LWN_plan_clarify_target_none",
+                        "There is no one matching \"{TARGET}\" here — who did you mean?",
+                        ("TARGET", _lastTargetClaimedText ?? ""));
+                var clarify = new ImMessage(heroId, name, qText, ImMessageKind.Text)
+                {
+                    ConvId = conv.Id,
+                    IsAskPlayer = true,
+                    IsClarifyCard = true,
+                    AskPlayerOptions = (candidates ?? new List<string>())
+                        .Where(o => !string.IsNullOrWhiteSpace(o))
+                        .Select(o => new AskPlayerOption(o.Trim(), o.Trim()))
+                        .ToList(),
+                };
+                ImChatStore.AppendGroupMessage(conv.Id, clarify);
+                ImChatStore.IncUnread(conv.Id);
+                ImChatManager.BroadcastMessageArrived(conv);
+                DebugLogger.Log($"[ImCommandFlow] 目标纪律兜底 → 澄清卡已投递（候选 {candidates?.Count ?? 0} 个）: {qText}");
+            }
+            catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 目标澄清卡投递失败: {ex.Message}"); }
         }
         // ───────────────────────── 批准/拒绝/中止 ─────────────────────────
         /// <summary>批准/拒绝计划卡片（用户决策 2：批准在 IM 内完成）。</summary>

@@ -31,7 +31,11 @@ namespace LivingWorldNpcs
         public bool IsNotGroupHeader => !_isGroupHeader;
 
         [DataSourceProperty]
-        public string Title => _isGroupHeader ? _headerTitle : (_conv?.Title ?? "");
+        public string Title => _isGroupHeader ? _headerTitle
+            // 🔴 2026-08-19（统一规范：频道列表标题截断）——长名字（带称号的随从名如 "百草药僧"斯唐纳夫
+            // 10 字 @17 ≈ 200px 超 174px 可用宽 → 引擎缩放字号 → 同列表字体不齐（实机用户反馈）。
+            // 走 NameDisplayRules.Truncate（9 字阈值按频道列表可用宽定），字体恒不缩放。
+            : NameDisplayRules.Truncate(_conv?.Title ?? "", NameDisplayRules.MaxChannelTitleChars);
 
         /// <summary>副标题（群聊 = 成员数，私聊 = 空）。</summary>
         [DataSourceProperty]
@@ -244,17 +248,10 @@ namespace LivingWorldNpcs
     /// <summary>消息气泡 VM。他人左对齐 / 自己右对齐（IsSelf/IsNotSelf 双份互斥，规避对齐枚举绑定）。
     /// 🔴 2026-08-12（用户裁定：决策卡片统一）：卡片气泡分支（ShowCardBubble）= 计划卡片/生成中占位/
     /// 讲解消息/NPC 提议/闲聊动作卡片共用的 NPC 自述形态，按钮行数据驱动（CardButtons）。
-    /// 微信标准优化：消息时间小字（TimeText）+ 群聊发送者成员色（NameColor 按人哈希）。</summary>
+    /// 微信标准优化：消息时间小字（TimeText）+ 发送者关系色（NameColor 走 NameDisplayRules 统一规范）。</summary>
     public class ImMessageVM : ViewModel
     {
         private readonly ImMessage _msg;
-
-        /// <summary>成员色板（微信群聊式：按发送者哈希固定着色；中世纪柔和色调）。</summary>
-        private static readonly string[] MemberColors =
-        {
-            "#E8C55AFF", "#55CC55FF", "#66AADDAA", "#E06055AA", "#CC88DDFF",
-            "#5AD4C8AA", "#E8964AAA", "#AABB66AA",
-        };
 
         public ImMessage Message => _msg;
 
@@ -279,30 +276,34 @@ namespace LivingWorldNpcs
                 if (_msg == null) return "";
                 bool showSuffix = !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId)
                     && _msg.ConvId != NearbyFeed.ChannelId;
+                string display;
                 if (showSuffix)
                 {
                     // 快照优先（发出时定格）；旧消息（无字段）回退实时计算——同一解析路径，显示格式一致
                     var loc = _msg.LocationSuffix ?? ImChatManager.BuildLocationSuffix(_msg.SenderHeroId);
                     string suffix = ImChatManager.ResolveLocationSuffix(loc);
-                    if (!string.IsNullOrEmpty(suffix))
-                        return $"{_msg.SenderName}（{suffix}）";
-                    return _msg.SenderName;
+                    display = !string.IsNullOrEmpty(suffix) ? $"{_msg.SenderName}（{suffix}）" : _msg.SenderName;
                 }
-                return _msg.SenderName;
+                else
+                {
+                    display = _msg.SenderName;
+                }
+                // 🔴 2026-08-19（统一规范：超长截断省略号）——名字行长度恒定，字体不因名字长短被压
+                //（引擎 TextWidget 受限宽度下会缩放字体，长名字的人字体被压扁、短的人正常）
+                return NameDisplayRules.Truncate(display);
             }
         }
 
-        /// <summary>发送者名字颜色：按 SenderHeroId 哈希取成员色（自己 = 亮白）。</summary>
+        /// <summary>发送者名字颜色（🔴 2026-08-19 统一规范，用户裁定关系色）：
+        /// 玩家金 / 友方绿 / 敌对红 / 中立白——替代旧「按 SenderHeroId 哈希取成员色」
+        ///（哈希彩色与关系无关，玩家看名字分不清谁站谁那边）。判定入口 = NameDisplayRules。</summary>
         [DataSourceProperty]
         public string NameColor
         {
             get
             {
-                if (_msg == null || _msg.IsSelf) return "#FFFFFFFF";
-                string id = _msg.SenderHeroId ?? "";
-                int hash = 0;
-                foreach (char c in id) hash = hash * 31 + c;
-                return MemberColors[(hash & 0x7FFFFFFF) % MemberColors.Length];
+                if (_msg == null) return NameDisplayRules.NeutralColor;
+                return NameDisplayRules.ResolveImSenderColor(_msg.SenderHeroId, _msg.IsSelf);
             }
         }
 

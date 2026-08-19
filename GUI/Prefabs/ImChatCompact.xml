@@ -314,14 +314,18 @@
                                        MarginRight="8" MarginBottom="6" MarginTop="4"
                                        DoNotAcceptEvents="true">
                               <ItemTemplate>
-                                <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="34"
+                                <!-- 🔴 2026-08-19（按钮完整包含文字）：TextWidget 加 MaxWidth + WordWrapping，
+                                     按钮高度 CoverChildren——长文本折行后按钮跟着长高，绝不溢出底纹（与完整模式同款） -->
+                                <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MinHeight="34"
                                               Brush="Test.Button3"
                                               HorizontalAlignment="Right"
                                               Command.Click="Execute"
                                               IsEnabled="@IsEnabled" MarginTop="4" MarginBottom="4">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                MaxWidth="480"
                                                 Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="14"
+                                                WordWrapping="Wrap"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 DoNotAcceptEvents="true"/>
                                   </Children>

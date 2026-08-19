@@ -54,14 +54,15 @@
                         </Children>
                       </Widget>
 
-                      <!-- 1. 名字 (最上方) -->
+                      <!-- 1. 名字 (最上方)（🔴 2026-08-19 统一规范：FontColor 绑 NameColor 关系色——
+                           友方绿 / 敌对红 / 中立白，替代硬编码金色；与 IM 名字色同源 NameDisplayRules） -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                       Brush="Brush_HeadName"
                                       Text="@AgentName"
                                       IsVisible="@ShowName"
                                       HorizontalAlignment="Center"
                                       Brush.FontSize="18"
-                                      Brush.FontColor="#FFD700FF" />
+                                      Brush.FontColor="@NameColor" />
                         <!-- NpcIntent/计划摘要 统一青蓝行（2026-08-13：意图行并入计划分支，一行一文本变量） -->
                       <RichTextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                             Brush="MyBrush_16_Left"

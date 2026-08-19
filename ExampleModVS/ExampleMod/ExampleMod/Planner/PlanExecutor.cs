@@ -502,6 +502,12 @@ namespace LivingWorldNpcs
                         var match = step.OnEvent.FirstOrDefault(e => e != null && string.Equals(e.Type, ev.Type, StringComparison.OrdinalIgnoreCase));
                         if (match != null && !string.IsNullOrEmpty(match.Then))
                         {
+                            // 🔴 2026-08-19（force 语义硬保障，实机：玩家选「强制执行」后 40s 超时再问，
+                            // 两次 force 白选）：强制执行 = 直接动手不再等——清掉跳转目标步骤的 when 门控
+                            //（等没人看正是 ask_player 的成因；带门控跳回去 = 门控永不成立 → 超时 → 再问
+                            // = 死循环）。C# 侧硬处理，不依赖 LLM 生成无门控步骤。
+                            if (string.Equals(ev.Type, "force", StringComparison.OrdinalIgnoreCase))
+                                ClearWhenGateOfJumpTarget(match.Then);
                             // 本地化：LWN_plan_step_decision（玩家可见文本）
                             CurrentSummary = LWNTextHelper.ResolveCompound("LWN_plan_step_decision",
                                 "Step {STEP}: decision received ({TYPE})",
@@ -806,6 +812,35 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[PlanExecutor] 跳转目标不存在: {target} → 计划中止");
             Abort(PlanTexts.BadJump);
         }
+        /// <summary>force 语义（玩家选「强制执行」= 直接动手不再等）：清掉跳转目标步骤的 when 门控。
+        /// 门控（等没人看/等落单）正是 ask_player 的原因——带门控跳回去 = 门控永不成立 → 超时 → 再问
+        /// （实机 2026-08-19：force → s3，s3 带 when → 40s 超时 → 回 q1 再问，两次 force 白选）。
+        /// 清门控后步骤立即启动，由动作自身判定（StealAttemptInlineState 目击检查等）承担后果。</summary>
+        private void ClearWhenGateOfJumpTarget(string target)
+        {
+            if (string.IsNullOrEmpty(target)) return;
+            var step = FindStepById(target);
+            if (step?.When == null) return;
+            DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: force 语义 → 清除 {step.Id} 的 when 门控");
+            step.When = null;
+        }
+        /// <summary>按步骤 id 全计划查找（fallbacks → loop → 主链，与 Jump 同口径）。</summary>
+        private PlanStep FindStepById(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            if (Plan?.Fallbacks != null)
+                foreach (var fb in Plan.Fallbacks)
+                    if (fb != null)
+                        foreach (var s in fb)
+                            if (s != null && s.Id == id) return s;
+            if (Plan?.Loop?.Steps != null)
+                foreach (var s in Plan.Loop.Steps)
+                    if (s != null && s.Id == id) return s;
+            if (Plan?.Steps != null)
+                foreach (var s in Plan.Steps)
+                    if (s != null && s.Id == id) return s;
+            return null;
+        }
         // ═══════════════════════════════════════════════════════════
         // 子动作（原子行为 / 内联步骤）
         // ═══════════════════════════════════════════════════════════
@@ -1025,6 +1060,11 @@ namespace LivingWorldNpcs
                 // 而对方实际一直在跟（玩家实机：守卫跟到 0.5m 贴身，随从却报"没来"）。
                 // 语义：正在跟随我们 = "跟着走"，不是"丢了"——此类掉线 contingency 直接跳过。
                 if (IsLostTargetContingency(c.When, OwnerAgent)) continue;
+                // 🔴 2026-08-19（实机：目标 93 米外，「seeing(self, 目标)=false」掉线检测秒触发，
+                // 把赶路中的计划拽去 ask_player——目标在视野半径外「看不见」是恒真，不是丢失）：
+                // seeing(A,B)=false 型掉线检测只在 B 处于 A 的视野半径内才有意义——超距直接跳过
+                //（执行者接近进入视野范围后检测恢复语义；等机会类场景仍由 wait 步骤的 until 表达）。
+                if (IsBeyondSightRangeContingency(c.When)) continue;
                 bool now = _world.Evaluate(c.When, OwnerAgent);
                 bool prev = _contingencyPrev.TryGetValue(c, out bool p) && p;
                 _contingencyPrev[c] = now;
@@ -1039,6 +1079,31 @@ namespace LivingWorldNpcs
                 if (State != ExecutorState.Executing) return;
             }
         }
+        /// <summary>掉线检测距离闸（2026-08-19）：seeing(A,B,op≠true) 且 A/B 距离超过视野半径
+        /// （NpcSightSystem.CanAgentSeeTarget 默认半径 15m 同款）→ 超距「看不见」恒真，掉线检测无意义
+        /// （目标还没走进视野，属于赶路期）。跳过，等执行者接近后检测恢复语义。
+        /// any/all watcher 语义是目击判定（内部自带 15m），不适用本闸。</summary>
+        private bool IsBeyondSightRangeContingency(Condition cond)
+        {
+            if (cond == null || !string.Equals(cond.Type, "seeing", StringComparison.OrdinalIgnoreCase)) return false;
+            if (string.Equals(cond.Op, "true", StringComparison.OrdinalIgnoreCase)) return false;
+            // was 修饰 = 目标曾被看见、现在不可见（真实丢失语义，目标可能已逃出视野半径）——距离闸不适用
+            if (cond.Was) return false;
+            string watcher = cond.A ?? "";
+            if (string.Equals(watcher, "any", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(watcher, "all", StringComparison.OrdinalIgnoreCase))
+                return false;
+            if (string.IsNullOrWhiteSpace(watcher) || string.IsNullOrWhiteSpace(cond.B)) return false;
+            try
+            {
+                if (!_world.TryResolveAgent(watcher, OwnerAgent, out Agent watcherAgent)) return false;
+                if (!_world.TryResolveAgent(cond.B, OwnerAgent, out Agent subject)) return false;
+                return watcherAgent.IsActive() && subject.IsActive()
+                    && watcherAgent.Position.Distance(subject.Position) > SightRangeForLossDetection;
+            }
+            catch { return false; }
+        }
+        private const float SightRangeForLossDetection = 15f;   // NpcSightSystem.CanAgentSeeTarget 默认半径同款
         /// <summary>
         /// 掉线误报防御（2026-08-12）：结构 = seeing(self, X, op≠true) 且 X 正跟随 self → 目标没丢。
         /// LLM 会给 BRING/带路类计划写"掉线检测"（目标消失就失败），但被请者跟在执行者身后时
@@ -1389,6 +1454,11 @@ namespace LivingWorldNpcs
         {
             if (_finalized) return;
             _finalized = true;
+            // 🔴 2026-08-19（实机：场景结束强制收尾播「命令已经办妥」）：ShutdownAll 直调本方法时
+            // Finish 从未执行 → EndMessage 为 null → OnFinished 兜底文案 LWN_im_cmd_done 误导玩家
+            //（实际战术被场景结束强制丢弃，什么都没办成）。message 参数落进 EndMessage——
+            // Finish/TickReport 路径已先置值，此处不覆盖。
+            if (string.IsNullOrEmpty(EndMessage)) EndMessage = message;
             var owner = OwnerAgent;
             // 收尾统一释放：清脚本锁（DecideDefaultBehavior 恢复跟随/原版 AI 不被残留锁卡住）
             try
