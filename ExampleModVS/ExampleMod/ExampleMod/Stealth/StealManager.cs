@@ -36,8 +36,19 @@ namespace LivingWorldNpcs
     public class StealManager
     {
         // ── 🆕 偷窃 UI 状态（Phase 1：AgentBrain.UpdateAlertCognition 中检测 StealUIOpen）──
-        /// <summary>偷窃/物品 UI 是否当前打开。由 StealVM / InteractionMissionView 设置。</summary>
-        public static bool IsUIOpen { get; set; }
+        /// <summary>偷窃/物品 UI 是否当前打开。由 StealVM / InteractionMissionView 设置。
+        /// 🔴 2026-08-19（用户裁定）：置 true（开偷窃条/撬锁/战利品界面）→ 自动关闭 IM 聊天——
+        /// 偷窃是模态小游戏（子弹时间+控制冻结），IM 面板叠在上面既抢输入又挡视线。</summary>
+        private static bool _isUIOpen;
+        public static bool IsUIOpen
+        {
+            get => _isUIOpen;
+            set
+            {
+                if (value && !_isUIOpen) ImChatView.Close();   // 打开沿关 IM（幂等；复位 false 不动）
+                _isUIOpen = value;
+            }
+        }
 
         // ----------------------------------------------------------------
         // 0. 失窃记录：本场 Mission 内玩家从某 victim 身上偷走的物品，用于「归还」。
