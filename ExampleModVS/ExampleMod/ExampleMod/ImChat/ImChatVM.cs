@@ -983,8 +983,10 @@ namespace LivingWorldNpcs
         // ── 🔴 2026-08-17（手柄支持）：面板内提示行（设备感知，仅 UsingGamepad 时显示）──
 
         /// <summary>
-        /// 手柄提示文案（「A 确认 · B 关闭 · 十字键导航」；字形经 ModInput.GlyphForKey 按最近设备动态拼，
-        /// 不写死字串——PS 系自动切 ✕/○）。位置 = 输入区上方 12px 灰字（两种模式 XML 各放一行）。
+        /// 手柄提示文案（「十字键移动焦点 · A 点击确认 · B 关闭界面」；字形经 ModInput.GlyphForKey
+        /// 按最近设备动态拼，不写死字串——PS 系自动切 ✕/○）。位置 = 输入区上方 12px 灰字
+        /// （两种模式 XML 各放一行）。🔴 2026-08-19：DPAD 字形 = 四向箭头（↑↓←→），
+        /// 「十字键」一眼可辨；B 只负责关闭（下拉开着先收下拉，再按才关面板），不承担展开。
         /// </summary>
         [DataSourceProperty]
         public string PadHintText
@@ -994,10 +996,13 @@ namespace LivingWorldNpcs
                 if (!ModInput.UsingGamepad) return "";
                 string a = ModInput.GlyphForKey(InputKey.ControllerRDown);
                 string b = ModInput.GlyphForKey(InputKey.ControllerRRight);
-                string dpad = ModInput.GlyphForKey(InputKey.ControllerLUp);
-                // 手柄提示文案（LWN_im_pad_hint）：{A} 确认 · {B} 关闭 · {DPAD} 导航，字形随设备动态
+                string dpad = ModInput.GlyphForKey(InputKey.ControllerLUp)
+                    + ModInput.GlyphForKey(InputKey.ControllerLDown)
+                    + ModInput.GlyphForKey(InputKey.ControllerLLeft)
+                    + ModInput.GlyphForKey(InputKey.ControllerLRight);
+                // 手柄提示文案（LWN_im_pad_hint）：{DPAD} 移动焦点 · {A} 点击确认 · {B} 关闭，字形随设备动态
                 return LWNTextHelper.ResolveCompound("LWN_im_pad_hint",
-                    "{A} confirm · {B} close · {DPAD} navigate",
+                    "{DPAD} moves focus · {A} click confirm · {B} close panel",
                     ("A", a), ("B", b), ("DPAD", dpad));
             }
         }
