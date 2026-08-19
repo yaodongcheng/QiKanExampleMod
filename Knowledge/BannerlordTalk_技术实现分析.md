@@ -1,9 +1,9 @@
-# BannerlordTalk v1.0.0 技术实现分析（外部模组逆向）
+# BannerlordTalk v1.0.3 技术实现分析（外部模组逆向）
 
-> 分析对象：`Modules/OtherMods/BannerlordTalk-v1.0.0-BL1.4.8`（独立大地图闲聊模组，纯展示定位）
-> 方法：README/功能说明/提示词文件 + `ilspycmd` 反编译 `BannerlordTalk.dll`（PromptBuilder / CampaignEventMemoryService / StandaloneKnowledgeRetriever / NativeHeroContextProvider / ChatterManagerDataSource / CampaignChatterBehavior / UserPromptBudget / ResponseParser / TTS 全家桶）
-> 🔴 **反编译原始快照**：`Knowledge/BannerlordTalk_逆向/v1.0.0/`（模组包整体替换后，按该目录 README 的更新流程 diff 并更新本文档）
-> 日期：2026-08-15（v1.0.0 / BL1.4.8 包）
+> 分析对象：`Modules/OtherMods/BannerlordTalk-v1.0.3-BL1.4.8`（独立大地图闲聊模组，纯展示定位）
+> 方法：README/功能说明/提示词文件 + `ilspycmd` 反编译 `BannerlordTalk.dll`（PromptBuilder / CampaignEventMemoryService / StandaloneKnowledgeRetriever / NativeHeroContextProvider / ChatterManagerDataSource / CampaignChatterBehavior / UserPromptBudget / ResponseParser / TTS 全家桶 / ChatterManagerVM / ManagerTextPreviewPolicy）
+> 🔴 **反编译原始快照**：`Knowledge/BannerlordTalk_逆向/v1.0.3/`（模组包整体替换后，按该目录 README 的更新流程 diff 并更新本文档）
+> 日期：2026-08-19（v1.0.3 / BL1.4.8 包）。**v1.0.0 → v1.0.3 增量**：核心 runtime 11 类型仅 `CampaignChatterBehavior` 变化 13 行（v1.0.1 Gemini 思考等级）；其余改动全部在管理面板 UI 层（v1.0.2 有界预览 + v1.0.3 常识页摘要/布局节流），见新增 §2.9。
 
 ---
 
@@ -84,6 +84,7 @@ dialogue 是日常默认，只返回 presentation+text——不要轮换格式�
 - 会话模式按人数随机选 → 首轮**按 chattiness 加权随机**选发言人 → 之后轮转游标
 - 会话 TurnsRemaining 上限；`AutoInitiate` 决定谁能在无人驾驶时主动开口
 - **请求快照纪律**：请求接受时固定地点/会话身份，生成期间地点变化 → `location_context_changed` 取消，不提交迟到台词、不推进发言人、不累计网络失败
+- **供应商分支（v1.0.1 起）**：请求构造含 `ReasoningEffort = ResolveGemini37ReasoningEffort(settings)`（`ChatReasoningEffort.Low/Medium/High`，MCM 三档思考等级默认 Low）——但**仅在严格限定的供应商分支**发送：Endpoint 精确为 `generativelanguage.googleapis.com` 且模型名精确 `gemini-3.7-flash` 时不发温度与多候选数（这两个字段会被 Google 拒绝）；Gemini 3.1 Pro / DeepSeek 等其余 OpenAI-compatible 模型保留既有请求字段。
 
 ### 2.7 TTS 实现（Fish Audio + MCI，Q1 答案）
 
@@ -97,6 +98,57 @@ dialogue 是日常默认，只返回 presentation+text——不要轮换格式�
 ### 2.8 表情/动画结论（Q2 答案）
 
 **没有任何角色表情/动画/姿态引擎 API**。二进制 grep `PlayAction/SetPose/ForcePlayAction/Emote/Animation/AgentVisuals/face/expression` 全部 0 命中。Presentation 合同里的 `action` 字段是**纯文本叙事**（≤160 字，「不得虚构游戏已执行的后果」），只作为旁白展示/可选项进 TTS 播报。人物表现力全靠文本。
+
+### 2.9 管理面板长文本 UI 纪律（v1.0.2 / v1.0.3 增量，ManagerTextPreviewPolicy）
+
+**问题**：公共常识库整库 6–9 万字全文绑进 RichTextWidget/多行编辑控件 → Gauntlet 排版长文本卡死 UI（v1.0.2 实机 bug）。
+
+**新类型 `ManagerTextPreviewPolicy`（internal static）**：
+
+```csharp
+const int KnowledgePreviewCharacterLimit = 6000;   // 有界预览上限
+const int KnowledgeSummaryCharacterLimit = 512;    // 常识页摘要上限
+CreateKnowledgeSummary(ruleCount, characterCount)  // 固定只读摘要：规则数/字符数/「正文不在本页渲染，点击复制当前整库」
+CreateKnowledgeLibraryPreview(v)                   // 整库预览 → CreateBoundedPreview
+CreateKnowledgeImportPreview(v)                    // 导入预览 → CreateBoundedPreview
+CreatePromptImportPreview(v)                       // 提示词导入预览 → CreateBoundedPreview
+```
+
+`CreateBoundedPreview` 截断三规则：①超 6000 字符截断，**UTF-16 代理对安全**（边界字符是 HighSurrogate+LowSurrogate 时前移一位，不截坏 emoji/生僻字）②后半段找到最近换行则回退到行首（不切半行）③追加「界面预览已截断；完整内容仍保存在当前战役/仍会完整导入」通告。
+
+**常识页（v1.0.3）**：`EditorText=""`/`SecondaryText=""` 不再装载全文；两个编辑器 `IsVisible="@ShowStandardEditors"`（`ShowStandardEditors => !IsKnowledgePage`）隐藏；新增固定 180 高度只读 TextWidget（`DoNotAcceptEvents="true"` + `ClipContents="true"`）显示摘要；`KnowledgeSummaryText` setter 再做一次 512 字符 Bound 且**值未变不发通知**。
+
+**预览与数据分离**：截断只影响游戏内显示——解析、校验、原子替换、战役存储、「复制当前整库」仍走完整文本（导入确认仍提供有界的统计/诊断/短预览）。
+
+**布局刷新节流（v1.0.3）**：`RefreshResponsiveLayout` 先算 7 个布局值（宽/高/边距/内容区/左右栏），**任一真正变化才触发 18 个 OnPropertyChanged**（v1.0.0 每帧无守卫全量通知）——分辨率与 UI 缩放未变时不再每帧重复触发布局刷新。
+
+### 2.10 闲聊窗 UI 设计（ChatterOverlayVM + BannerlordTalkOverlay.xml + ChatterOverlay）
+
+**GauntletLayer 2100 层序**，`IsFocusLayer=false` 常开、非模态：每帧 Tick 做**鼠标命中测试**，悬停窗口才 `SetInputRestrictions(true, 鼠标|键盘)` 抢输入，移出即 `ResetInputRestrictions` + `TryLoseFocus`——鼠标不进窗口完全不拦截大地图操作。🔴 **无手柄支持**（全 DLL 二进制 grep gamepad/joystick/controller/virtualcursor/IsGamepadActive = 0 命中；两个 prefab 无任何 GamepadNavigationIndex/AutomaticGamepadNavigation/IsFocusable 声明；命中测试基于 `Input.MousePositionPixel`，手柄无悬停概念进不去；`(InputUsageMask)3` 显式只含鼠标|键盘）——**「悬停命中才抢输入」不可直接抄到手柄友好的 ImChat**，借鉴时输入门控需换三态模型（手柄焦点在窗口内才接管），仅双高度 + IsContentVisible + 命中区域同步缩的视觉/状态模型可抄。
+
+**缩小模式（收起/展开）三层联动**：
+
+1. **VM 双高度模型**（`ChatterOverlayVM`）：`WindowHeight` = 展开完整高度（MCM 可配，响应式），`RenderedWindowHeight` = `IsCollapsed ? Math.Min(68, WindowHeight) : WindowHeight`（`CollapsedWindowHeight=68` 标题条）；`IsCollapsed`/`IsContentVisible`/`CollapseButtonText`（收起⇄展开）三属性 + `ExecuteToggleCollapsed` 翻转后广播并重布局
+2. **XML 三处绑定**：窗口容器 `SuggestedHeight="@RenderedWindowHeight"`；正文 ScrollablePanel + 滚动条均 `IsVisible="@IsContentVisible"`（收起整块不渲染不命中）；标题条固定 68px（标题 232 宽 + 状态副标题 + 右侧 4 按钮行 `－/＋/收起/管理`）
+3. **🔴 命中区域跟着缩**：`HitTestWindowPhysical` 矩形测试用 `RenderedWindowHeight` 而非 `WindowHeight`（v0.12 变更「不是单纯变透明」）；`WindowY` 屏幕边距 clamp 同用 `RenderedWindowHeight`（收起后贴边更近也安全）
+
+**可见性三态叠加**（`ChatterOverlay.Tick`）：
+
+```csharp
+visible = onMap && WindowEnabled
+       && (城镇菜单上下文 ? _settlementOverrideVisible : !_sessionHidden)
+       && !(paused && HideWhilePaused)
+```
+
+- `_sessionHidden`：Ctrl+H 会话级显隐（不关自动生成/记忆/TTS）
+- 进城镇菜单 → auto-hide 上下文激活并重置 override；城镇内 Ctrl+H 走 `_settlementOverrideVisible` 临时完整显示；离开城镇恢复进入前会话状态
+- 隐藏时 `IsFocusLayer=false` + `TryLoseFocus`，不渲染不命中不抢输入
+
+**窗口缩放（－/＋）**：`ResizeWindow(0.9/1.1)` — 120ms 节流 + clamp [480,1200]×[280,900] + 写回 MCM 设置持久化 + 重算布局。**锚点**：左/右可选（12px 边距），`ClampLogicalXWithSafeMargin`/`ClampLogicalYWithSafeMargin` 保持屏内安全边距。
+
+**响应式**：`UiCoordinateSpace(物理分辨率, UIContext.CustomScale)` 封装逻辑/物理换算；`ResponsiveWidth/Height(ref, min)` 按分辨率缩放；每帧 Tick `RefreshSettings` 重算但值未变不发通知（v1.0.3 节流同款）。**诊断**：`EnableDiagnosticLogging` 开关，`DescribeCoordinateMetrics` 一次打全（physical/logical/scale/rect/collapsed），与上次相同不重复打；命中状态变化打 `ui_overlay_hit`。
+
+**对 ImChat 的参考价值**：双高度 + IsContentVisible + 命中区域同步缩 + 悬停才抢输入——可解决 IM 窗口常驻挡大地图操作的问题（配合手柄导航：窗口不聚焦时不抢手柄）。
 
 ## 3. 与我们系统的对照
 
@@ -122,6 +174,7 @@ dialogue 是日常默认，只返回 presentation+text——不要轮换格式�
    - 「除非实时存档事实或近期已验证事件明确给出，不得凭空断言当前存在追兵/伏击/迫近威胁」
    - 「禁止为了展示知识而百科式讲解」（已有「禁固定句式」，补此条）
 4. **回复防代写检测**：TryParseCasual 加「LLM 输出他人名字开头的台词 → 裁剪/降级」（BT 对 speaker_id/姓名前缀整条拒绝）
+5. **UI 长文本纪律（ManagerTextPreviewPolicy 模式，v1.0.2/v1.0.3）**：任何长文本（大 prompt/长记忆/整库内容）**禁止全文绑进 Gauntlet 文本控件**——固定尺寸只读摘要 + 有界预览（6000 字符 + 代理对安全截断 + 行边界回退）+ 数据层保持全文、截断只在显示层；布局/属性刷新只在计算值真正变化时通知（防每帧重复触发布局）
 
 ### 4.2 立项评估
 
@@ -185,5 +238,5 @@ BT **没有动作空间模型**（纯展示，无动作）——它的对应物�
 
 ## 6. 文件位置
 
-- 模组包：`Modules/OtherMods/BannerlordTalk-v1.0.0-BL1.4.8/`（README.md / 模组功能说明.txt / 通用主聊天提示词.txt / KnowledgeLibraries/）
+- 模组包：`Modules/OtherMods/BannerlordTalk-v1.0.3-BL1.4.8/`（README.md / 模组功能说明.txt / 通用主聊天提示词.txt / KnowledgeLibraries/，含卡拉迪亚/战锤/权游三份常识库）
 - 分析对象 DLL：`BannerlordTalk/bin/Win64_Shipping_Client/BannerlordTalk.dll`

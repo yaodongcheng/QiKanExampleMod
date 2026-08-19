@@ -339,3 +339,19 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
 **调用范例**（`ImChat/ImChatView.cs`，2026-08-10 十一轮）：`IsMessageAtBottom()` 判 `val ≥ MaxValue-8`；`ScrollToBottom()` 设 `val=MaxValue` 并锁定；`RefreshMessages` 的 hadNew 分支用 `_pinnedToBottom` 而非数值判底；滚轮 clamp `[0, max]`（防 val 越界把内容顶出底部）。
 
 **关键文件**：`ImChat/ImChatView.cs`（Tick / HandleManualScroll / ScrollToBottom / IsMessageAtBottom）、`GUI/Prefabs/ImChat.xml`（MessageScroll：InnerPanel Bottom 对齐 + AutoHideScrollBars）。反编译出处：`ilspycmd bin/Win64_Shipping_Client/TaleWorlds.GauntletUI.dll -t TaleWorlds.GauntletUI.BaseTypes.ScrollablePanel`。完整排查记录：`plans/im-chat-system.md` 十轮/十一轮。
+
+---
+
+## 长文本 UI 显示纪律 — 有界预览 + 只读摘要 + 布局刷新节流（借鉴 BannerlordTalk ManagerTextPreviewPolicy）
+
+**问题**：6–9 万字长文本（常识整库/大 prompt/长记忆）全文绑进 RichTextWidget/多行编辑控件 → Gauntlet 排版持续处理长文本卡死 UI（BannerlordTalk v1.0.2 实机 bug；v1.0.3 根治）。
+
+**三件套**（`Knowledge/BannerlordTalk_逆向/v1.0.3/BannerlordTalk.UI.ManagerTextPreviewPolicy.decompiled.cs`，反编译范本）：
+
+1. **有界预览**：`CreateBoundedPreview(value, notice)` 超 6000 字符截断 + 追加「预览已截断；完整内容仍保存/仍会完整导入」通告。截断三规则：①**UTF-16 代理对安全**——边界字符是 HighSurrogate+LowSurrogate 时前移一位（不截坏 emoji/生僻字，游戏 XML 解析器同样不认代理对）②后半段找最近换行回退到行首（不切半行）③截断通告带完整字符数。
+2. **只读摘要**：`CreateKnowledgeSummary(ruleCount, charCount)` 固定尺寸摘要（512 上限），页面正文编辑器 `IsVisible=false` 隐藏，摘要 TextWidget 用 `DoNotAcceptEvents="true"` + `ClipContents="true"` + 固定高度——**预览与数据分离**：解析/校验/存储/复制仍走完整文本，截断只在显示层。
+3. **布局刷新节流**：`RefreshResponsiveLayout` 先算全部布局值，**任一真正变化才触发 OnPropertyChanged**（v1.0.0 每帧无守卫全量通知 18 个属性）——分辨率/UI 缩放未变时不再每帧触发布局。VM 属性 setter 同样「值未变不发通知」。
+
+**调用范例**：ChatterManagerVM（`Knowledge/BannerlordTalk_逆向/v1.0.3/BannerlordTalk.UI.ChatterManagerVM.decompiled.cs`）：知识页 RefreshPage 置 `EditorText=""`/`SecondaryText=""` + `KnowledgeSummaryText = CreateKnowledgeSummary(...)`；导入预览 `_importPreviewText = CreateKnowledgeImportPreview(FormatKnowledgePreview(...))`。
+
+**适用场景**：本 mod 任何把长文本绑进 Gauntlet 控件的地方（IM 长消息渲染、config 整库展示、LLM 大 prompt 预览）。先抄 ManagerTextPreviewPolicy 静态方法，再套刷新节流。

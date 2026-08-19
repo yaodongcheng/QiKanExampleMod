@@ -85,6 +85,16 @@ namespace LivingWorldNpcs
         private static float _padDeviceDebounce;
         private const float PadDeviceDebounceTime = 0.2f;
         private static bool _playerFrozen;
+        // 🔴 2026-08-18（A 键伪翻转硬锚）：最后一次手柄键按下沿的墙钟（TaleWorlds.Engine.Time.ApplicationTime）——
+        // native 把手柄 A 键当「点击」语义 → IsMouseActive 翻 true → 裸 UsingGamepad 翻 false（实锤）。
+        // 按下沿后 PadInputHoldTime 窗口内钉住手柄语义，防伪翻转提交（真实切鼠标无手柄键活动 → 过期放行）。
+        private static float _lastPadInputTime = float.MinValue;
+        private const float PadInputHoldTime = 0.5f;
+        // 🔴 2026-08-19（状态①残留根因修复）：上一帧输入聚焦状态——引擎清焦点（软键盘链）后
+        // inputFocused 边沿变化 → 立即 ApplyInputMask（导航态恢复隐藏光标），防「状态①光标可见残留 →
+        // IsMouseActive 持续 true → 窗口过期提交翻转」（实机 09:43:07.743 聚焦 → 08.244 聚焦=False
+        // IsMouseActive 持续 → 08.439 提交）。
+        private static bool _lastInputFocusedState;
 
         // 🔴 Q4（2026-08-18，手柄手动导航）：引擎 scope 黑盒实测失败（2026-08-17：prefab 已声明
         // NavigationScopeTargeter + GamepadNavigationIndex，但十字键无效果、无焦点视觉）→ 手动导航：
@@ -442,6 +452,14 @@ namespace LivingWorldNpcs
             return _lastUsingGamepad && !_layer.IsFocusedOnInput();
         }
 
+        /// <summary>🔴 2026-08-19：层实例判定——供 ImChatSoftKeyboardPatch（软键盘取消/完成回调跳过）门控。
+        /// 仅 IM 层跳过（其他层的 vanilla 软键盘回调不受影响）。</summary>
+        internal static bool IsCurrentLayer(GauntletLayer layer) => layer != null && layer == _layer;
+
+        /// <summary>🔴 2026-08-19：UIContext 实例判定——native 软键盘取消可能直接调 UIContext（不走层），
+        /// 补丁门控用（ImChatSoftKeyboardPatch 上下文版）。</summary>
+        internal static bool IsCurrentContext(UIContext ctx) => _layer != null && ctx != null && ctx == _layer.UIContext;
+
         /// <summary>
         /// 🔴 2026-08-18：按设备 + 输入态重算层输入 mask（统一入口；Open / SwitchMode / Tick 设备切换 /
         /// UpdatePadFocus 输入聚焦分支 / HandleCompactInput 逐帧调用，内部缓存只在变化时 SetInputRestrictions）。
@@ -533,10 +551,17 @@ namespace LivingWorldNpcs
             bool anyKey = AnyPadKeyPressed();
             bool anyKeyEdge = anyKey && !_lastPadAnyKey;
             _lastPadAnyKey = anyKey;
+            // 🔴 2026-08-18（A 键伪翻转硬锚）：手柄键按下沿记录墙钟（设备检测用——A 键按下 →
+            // native 当点击 → IsMouseActive 翻 → 需窗口钉住，见设备检测保护）
+            if (anyKeyEdge) _lastPadInputTime = TaleWorlds.Engine.Time.ApplicationTime;
             // 🔴 2026-08-19：门控用去抖后的 _lastUsingGamepad（裸值每帧振荡时门控会反复 ResetPadFocus
             // 把 _padIndex 打回 -1 → 过期项 + idx=-1 死锁，实机 19:39:41）；门控期间置 dirty——
             // 真实切回手柄的下一帧立即重建（stale 项清零），防同类死锁复发
-            if (!_lastUsingGamepad)
+            // 🔴 2026-08-18（坑 12 兜底）：**输入框聚焦期间不早退**——即使设备翻转为键盘/鼠标，
+            // 也放行进输入聚焦分支（ApplyInputMask 按真实设备重算 mask；降级预案：无软键盘时按
+            // 十字键 ClearFocus 退出输入态），防「聚焦输入框 → 设备翻转 → 输入态卡死」残余路径
+            bool inputFocusedNow = _layer != null && _layer.IsFocusedOnInput();
+            if (!_lastUsingGamepad && !inputFocusedNow)
             {
                 // 🔴 2026-08-18（诊断日志）：门控吞键实锤——手柄玩家按键但设备未提交时，
                 // 这里按键按下沿打一行（证明「按键无反馈」是门控问题而非轮询问题）
@@ -556,6 +581,14 @@ namespace LivingWorldNpcs
 
                 bool dropdownOpen = _mode == ImChatMode.Compact && _vm != null && _vm.ChannelSelector.IsChannelListOpen;
                 bool inputFocused = _layer != null && _layer.IsFocusedOnInput();
+                // 🔴 2026-08-19（状态①残留根因修复）：聚焦状态边沿变化 → 立即 ApplyInputMask——
+                // 引擎清焦点（软键盘链）后本帧不聚焦，若状态①的「光标可见+MouseBits」残留 → 手柄+可见
+                // 光标 → IsMouseActive 持续 true → 0.5s 窗口过期 → 设备翻转提交（实机 09:43:08.439）。
+                if (inputFocused != _lastInputFocusedState)
+                {
+                    _lastInputFocusedState = inputFocused;
+                    ApplyInputMask();
+                }
 
                 // ── 输入框聚焦（软键盘）：引擎接管输入，导航不抢键；mask 切到「游标模式」──
                 if (inputFocused)
@@ -613,6 +646,40 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[ImChat] 手柄导航异常: {ex.Message}");
             }
+        }
+
+        /// <summary>诊断用：鼠标像素位置（用户怀疑「A 键 = native 点击 → 点在鼠标位置（屏幕中央）→ 清焦点」验证）。</summary>
+        private static string MousePosStr()
+        {
+            try { var p = Input.MousePositionPixel; return $"({p.X:0},{p.Y:0})"; } catch { return "?"; }
+        }
+
+        /// <summary>
+        /// 🔴 2026-08-19（用户裁定：焦点变化 → 光标跟随）：把系统光标挪到 widget 中心。
+        /// A 键 = native「点击」语义，点击位置 = 鼠标位置——焦点转移时把光标挪到新焦点项，
+        /// 点击命中项本体（输入框=引擎点击聚焦路径 / 按钮=命中按钮）→ 不落空、不清焦点、不翻。
+        /// 光标隐藏时无锚定覆盖（坑 2 覆盖仅光标可见时），SetMousePosition 有效；十字键导航全程
+        /// 未触发 IsMouseActive 翻转（实测），说明程序 SetMousePosition 不算「鼠标活动」。
+        /// </summary>
+        private static void SetMouseToWidget(PadItem item)
+        {
+            if (item == null) return;
+            try
+            {
+                var w = item.GetWidget?.Invoke();
+                if (w == null) return;
+                var gp = w.GlobalPosition;
+                var sz = w.Size;
+                if (gp.X < 0 || gp.Y < 0) return;
+                Input.SetMousePosition((int)(gp.X + sz.X * 0.5f), (int)(gp.Y + sz.Y * 0.5f));
+            }
+            catch { }
+        }
+
+        /// <summary>诊断用：widget 全局像素位置（对比鼠标位置用）。</summary>
+        private static string WidgetPosStr(Widget w)
+        {
+            try { var p = w.GlobalPosition; return $"({p.X:0},{p.Y:0})"; } catch { return "?"; }
         }
 
         /// <summary>诊断日志用：当前导航状态快照（焦点索引 + 输入聚焦 + 下拉）。</summary>
@@ -715,6 +782,11 @@ namespace LivingWorldNpcs
             {
                 try { item.OnActivate?.Invoke(); } catch (Exception ex) { DebugLogger.Log($"[ImChat] 频道行激活失败: {ex.Message}"); }
             }
+            // 🔴 2026-08-19（用户裁定：焦点变化 → 光标跟随）：A 键 = native「点击」语义，点在鼠标位置
+            //（残留屏幕中央 960,540 → 命中面板空白 → 焦点被清 + IsMouseActive 持续 → 设备翻转死锁）。
+            // 焦点转移时把系统光标挪到新焦点 widget 中心 → A 键点击命中焦点项本体（输入框=引擎点击
+            // 聚焦路径，与手动 FocusedWidget 一致；按钮=命中按钮）→ 不落空、不清焦点、不翻。
+            SetMouseToWidget(item);
             ScrollPadIntoView(item);
         }
 
@@ -901,7 +973,9 @@ namespace LivingWorldNpcs
                         switch (cur.Id)
                         {
                             case "k1": case "k2": case "k3": case "k4": case "k5":
-                                { int kb1 = CardBtnIdx(0); return kb1 >= 0 ? kb1 : Idx("input"); }   // 有锚点卡 ? KB1 : KT
+                                // v6 2026-08-18 用户裁定：↓ 直达输入框（不再先落锚点卡按钮 KB1——
+                                // 有卡时 ↓ 落 KB1 视觉上是卡片按钮，玩家以为「不能选 input」）
+                                return Idx("input");
                             case "input": return Idx("send");
                             case "send": return Idx("k1");            // 底部循环回标题行
                         }
@@ -993,7 +1067,7 @@ namespace LivingWorldNpcs
                         }
                         case "c2": return Idx("c1");
                         case "cm": return CSelectedIdxOrC1();         // ← 回左栏选中行
-                        case "input": return Idx("send");             // CT ← 与 → 对称成环（输入区）
+                        case "input": return CSelectedIdxOrC1();      // v6（2026-08-18 用户裁定）：输入框 ← 到频道列（不再与 send 成环）
                         case "send": return Idx("input");
                     }
                     return -1;
@@ -1041,7 +1115,7 @@ namespace LivingWorldNpcs
                         case "c2": return CSelectedIdxOrC1();         // v5（2026-08-19 用户裁定）：关闭 → 回频道（当前选中行，水平环闭合）
                         case "cm": return Idx("send");                // → 右下发送
                         case "input": return Idx("send");
-                        case "send": return Idx("input");             // CS → 与 ← 对称成环
+                        case "send": return CSelectedIdxOrC1();       // v6（2026-08-18 用户裁定）：发送 → 频道列（不再与 input 成环）
                     }
                     return -1;
                 case "channel": return Idx("c1");                     // v5（2026-08-19 用户裁定）：频道 → 先到缩略（水平环起点）
@@ -1310,7 +1384,19 @@ namespace LivingWorldNpcs
             try
             {
                 var w = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].GetWidget?.Invoke() : null;
-                if (w != null) _layer.UIContext.EventManager.FocusedWidget = w;
+                // 🔴 2026-08-18（坑 12 诊断）：聚焦结果打日志——w 为 null（查找失败/静默跳过）vs
+                // 设置成功（IsFocusedOnInput 立即 true）；区分「没聚焦」与「聚焦了但设备翻转搞死」
+                if (w == null)
+                {
+                    DebugLogger.Log("[Pad] 聚焦输入框失败: widget 查找为 null（静默跳过）");
+                    return;
+                }
+                DebugLogger.Log($"[Pad] 聚焦输入框 → {w.Id} ({(w is EditableTextWidget ? "EditableText" : w.GetType().Name)}) 鼠标位置={MousePosStr()} 输入框位置={WidgetPosStr(w)}");
+                // 🔴 2026-08-19（用户裁定）：聚焦前先把光标挪到输入框中心——A 键 native 点击命中输入框
+                // 本体（引擎点击聚焦路径，与手动 FocusedWidget 一致）→ 不清焦点、不产生面板外点击
+                SetMouseToWidget(_padItems[_padIndex]);
+                _layer.UIContext.EventManager.FocusedWidget = w;
+                DebugLogger.Log($"[Pad] FocusedWidget 设置完成 IsFocusedOnInput={_layer.IsFocusedOnInput()}");
             }
             catch (Exception ex)
             {
@@ -2308,7 +2394,32 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-19（去抖）：裸值振荡时绝不跟手——需稳定 PadDeviceDebounceTime 才提交，
             // 振荡期保持旧值（实测 19:39:41 起 86Hz 互搏，旧实现每帧切换 → 门控反复 ResetPadFocus
             // 把 _padIndex 打回 -1 → 导航死锁，见 §11.2 坑 10）
+            // 🔴 2026-08-18（A 激活输入框死锁修复，坑 12）：**输入框聚焦期间钉住手柄语义**——
+            // 聚焦 EditableTextWidget → EventManager setter 请求软键盘（_isOnScreenKeyboardRequested →
+            // LateUpdate 里 Platform.OpenOnScreenKeyboard）→ native 输入判定翻转（IsMouseActive 翻 true）
+            // → 裸 UsingGamepad=false → 去抖提交 → 门控早退吞键 → 输入态卡死（实机 20:17:01：A 激活
+            // input → 0.3s 后「设备切换 → 键盘/鼠标」→ ⛔ 门控）。输入聚焦是我们自己设的，用它钉住
+            // 设备判定，退出输入态后恢复真实判定。鼠标玩家不受影响（_lastUsingGamepad=false 不触发保护）。
             bool usingGamepad = ModInput.UsingGamepad;
+            bool padFocused = _layer != null && _layer.IsFocusedOnInput();
+            // 🔴 2026-08-18（A 键伪翻转硬锚，坑 13 根治）：手柄键按下沿 0.5s 窗口 + 输入聚焦态 →
+            // 钉住手柄语义。实锤：native 把手柄 A 键（ControllerRDown）当「点击」语义 →
+            // IsMouseActive 翻 true → 裸值翻 false（用户实测：聚焦 input 按 A / 激活按钮按 A 都弹
+            // 「设备判定 → 键鼠」，纯十字键导航不弹）。窗口覆盖 A 键副作用；真实切鼠标时
+            // 无手柄键活动 → 窗口过期 → 正常放行（去抖 0.2s 在窗口之后接棒）。
+            bool padRecent = _lastUsingGamepad && TaleWorlds.Engine.Time.ApplicationTime - _lastPadInputTime < PadInputHoldTime;
+            if (padRecent || (_lastUsingGamepad && padFocused)) usingGamepad = true;
+            // 🔴 2026-08-18（坑 13 诊断）：手柄在用但裸值翻转且保护未命中 → 打全量现场
+            //（区分：聚焦被引擎清了？软键盘激活？鼠标判定翻？——实机 20:35:30 聚焦后 0.3s 仍提交翻转）
+            else if (usingGamepad != _lastUsingGamepad && _lastUsingGamepad)
+            {
+                bool osk = false; bool mouse = false; bool gamepadActive = false; bool mouseVisible = false;
+                try { osk = Input.IsOnScreenKeyboardActive; } catch { }
+                try { mouse = Input.IsMouseActive; } catch { }
+                try { gamepadActive = Input.IsGamepadActive; } catch { }
+                try { mouseVisible = TaleWorlds.ScreenSystem.ScreenManager.GetMouseVisibility(); } catch { }
+                DebugLogger.Log($"[ImChat] 设备翻转未保护: 裸值={usingGamepad} 聚焦={padFocused} IsGamepadActive={gamepadActive} IsMouseActive={mouse} 光标可见={mouseVisible} 鼠标位置={MousePosStr()} IsOnScreenKeyboardActive={osk}");
+            }
             if (usingGamepad != _lastUsingGamepad)
             {
                 _padDeviceDebounce += dt;
@@ -2320,6 +2431,9 @@ namespace LivingWorldNpcs
                     // 🔴 2026-08-18：设备切换 → 光标可见性随动（手柄 = 隐藏，防原生手柄光标模式锁死正中）
                     ApplyInputMask();
                     DebugLogger.Log($"[ImChat] 设备切换(去抖{PadDeviceDebounceTime}s) → {(usingGamepad ? "手柄" : "键盘/鼠标")}");
+                    // 🔴 2026-08-18（用户要求：切换必须可见，排查「点击后变鼠标感知」等怪象）：
+                    // 设备判定切换屏显提示（调试豁免裸字符串，PadScreenMsg 先例——测试完按用户反馈决定去留）
+                    PadScreenMsg($"🎮 设备判定 → {(usingGamepad ? "手柄" : "键鼠")}");
                 }
             }
             else _padDeviceDebounce = 0f;
