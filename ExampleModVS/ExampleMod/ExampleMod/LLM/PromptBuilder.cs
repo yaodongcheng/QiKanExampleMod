@@ -1801,10 +1801,12 @@ namespace LivingWorldNpcs
         /// 意图词表全表 + 动作/谓词封闭词表 + 角色表 + 人设 + 命令 + 澄清历史 + 完整 JSON 模板
         /// + 跳转双向校验纪律（§5.1 铁律）。
         /// 🔴 2026-08-15（目标唯一标记）：resolvedTargetText = 回复轮已解析目标（含 #N）——【目标指认】段
-        /// 直接引用（玩家说的「酒馆老板」= 场景里的「酒馆店主#3」已固定，不再二次解析）。</summary>
+        /// 直接引用（玩家说的「酒馆老板」= 场景里的「酒馆店主#3」已固定，不再二次解析）。
+        /// 🔴 2026-08-19（目标纪律）：targetCandidatesText = 命令对应多人的候选清单/目标类型无匹配的
+        /// 诚实声明——注入计划轮（LLM 必须 questions 让主公挑，禁止自行指定一个；无匹配不得偷换目标）。</summary>
         public static string BuildPlanPrompt(string snapshotText, string command, string persona,
             string history, string intentTable, string grammarRules, string companionIntention = null,
-            string resolvedTargetText = null, string worldSection = null)
+            string resolvedTargetText = null, string worldSection = null, string targetCandidatesText = null)
         {
             var sb = new StringBuilder();
             // 世界观段（blob 单段注入，2026-08-17：静态 flavor 退场；调用点传切片结果，null = 省略——
@@ -1848,6 +1850,15 @@ namespace LivingWorldNpcs
                 // 本地化：【目标指认】段标题（XML LWN_plan_section_target_id）
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_target_id"));
                 sb.AppendLine($"玩家说的目标 = 场景里的 {resolvedTargetText}（计划里 target 直接写 {resolvedTargetText}，不要按玩家原话另找）"); // lwn-ignore: A
+                sb.AppendLine();
+            }
+            // 🔴 2026-08-19（目标纪律）：命令对应多人/目标类型在场景无匹配 → 候选段注入
+            //（LLM 必须 questions 让主公挑，禁止自行指定；无匹配不得偷换目标，诚实澄清或按物件计划）
+            if (!string.IsNullOrWhiteSpace(targetCandidatesText))
+            {
+                // 本地化：目标候选段标题（XML LWN_plan_section_target_candidates，纪律文本随标题注入）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_target_candidates"));
+                sb.AppendLine(targetCandidatesText);
                 sb.AppendLine();
             }
             if (!string.IsNullOrEmpty(history))

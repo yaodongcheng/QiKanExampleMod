@@ -3916,6 +3916,11 @@
     <string id="LWN_plan_btn_retry" text="Try again" />
     <string id="LWN_plan_btn_giveup" text="Never mind" />
     <string id="LWN_plan_clarify_default" text="What do you mean exactly?" />
+    <!-- 2026-08-19（目标纪律硬兜底）：计划轮 LLM 未问而命令对应多人 / 目标类型场上无匹配 → 自动澄清卡问句 -->
+    <string id="LWN_plan_clarify_target_multi" text="Which one do you mean? Several people match what you said." />
+    <string id="LWN_plan_clarify_target_none" text="There is no one matching &quot;{TARGET}&quot; here — who did you mean?" />
+    <!-- 2026-08-19（风险审视【候选目标】段标题，prompt 材料） -->
+    <string id="LWN_risk_section_target_candidates" text="【Target candidates】(Your order matches several people here — do NOT pick one yourself; keep the target as a type and let the lord choose via questions in the plan round)" />
     <string id="LWN_plan_clarify_exhausted" text="I still do not understand. Perhaps another time." />
     <string id="LWN_plan_custom_reject" text="I cannot do this. Try something else." />
     <string id="LWN_plan_default_summary" text="I have a plan. Shall I go?" />

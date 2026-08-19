@@ -105,6 +105,9 @@ namespace LivingWorldNpcs
         private readonly List<string> _prevAvailableIds = new List<string>();
         private readonly List<(string action, string interactionId)> _uiItems = new List<(string, string)>();
         private string _uiTargetName = "";
+        // 🔴 2026-08-19（统一规范）：目标名颜色随上下文同步（玩家金/友方绿/敌对红/中立白，
+        // NameDisplayRules 同源，与 HUD/IM 一致；无目标/箱子等非 Agent 场景中立白）
+        private string _uiTargetColor = NameDisplayRules.NeutralColor;
         private bool _availableChanged = false;
 
 
@@ -129,10 +132,23 @@ namespace LivingWorldNpcs
         public static InteractionMissionView Instance { get; private set; }
 
         /// <summary>🔴 2026-08-17（呼出按钮避让）：InteractArea（玩法行 UI）是否可见——面向 NPC 时有
-        /// 可用玩法行 → 显示（右下角从底部 180 向上生长）。传讯呼出按钮（右缘下部 MarginBottom 140）
-        /// 与其位置重叠 → 按钮在该时段隐藏（互动结束自动恢复）。大世界 Instance 为 null → false。</summary>
+        /// 可用玩法行 → 显示（右下角从底部 180 向上生长）。大世界 Instance 为 null → false。</summary>
         public static bool IsInteractAreaVisible =>
             Instance != null && Instance._interactVM != null && Instance._interactVM.IsVisible;
+
+        /// <summary>🔴 2026-08-19（呼出按钮高度隔离，替代互斥隐藏——用户裁定：互斥会把 IM 新消息/
+        /// 决策卡提醒吞掉）：InteractArea 内容顶部距屏幕底部的估算高度（px）。布局 = 底部起点 180 +
+        /// 名字行 ~35 + 装饰线 ~20 + 玩法行 N×(行高30+gap10) + 列表 margin 5。呼出按钮据此上移。
+        /// InteractArea 不可见 → 0（按钮回默认位）。</summary>
+        public static float InteractAreaTopOffset
+        {
+            get
+            {
+                if (Instance == null || Instance._interactVM == null || !Instance._interactVM.IsVisible) return 0f;
+                int rows = Instance._interactVM.InteractionList.Count;
+                return 180f + 60f + rows * 40f;
+            }
+        }
 
         public override void OnMissionScreenInitialize()
         {
@@ -474,7 +490,7 @@ namespace LivingWorldNpcs
                 {
                     if (!_interactVM.IsVisible || _availableChanged)
                     {
-                        _interactVM.UpdateTarget(_uiTargetName, _uiItems);
+                        _interactVM.UpdateTarget(_uiTargetName, _uiItems, _uiTargetColor);
                         _interactVM.IsVisible = true;
                         IsHandlingInteraction = true;
                     }
@@ -526,7 +542,7 @@ namespace LivingWorldNpcs
 
             if (targetChanged || lifeStateChanged || behindStateChanged || crouchStateChanged || animalStateChanged || intentChanged || _availableChanged || !_interactVM.IsVisible)
             {
-                _interactVM.UpdateTarget(_uiTargetName, _uiItems);
+                _interactVM.UpdateTarget(_uiTargetName, _uiItems, _uiTargetColor);
                 _interactVM.IsVisible = true;
                 IsHandlingInteraction = true;
 
@@ -645,6 +661,7 @@ namespace LivingWorldNpcs
             _availableIds.Clear();
             _uiItems.Clear();
             _uiTargetName = "";
+            _uiTargetColor = NameDisplayRules.NeutralColor;
 
             if (nearChest)
             {
@@ -697,6 +714,8 @@ namespace LivingWorldNpcs
                 name += isAnimal ? LWNTextHelper.ResolveText("LWN_ui_state_dead", "(dead)") : (isKnockedOut ? LWNTextHelper.ResolveText("LWN_ui_state_unconscious", "(unconscious)") : LWNTextHelper.ResolveText("LWN_ui_state_injured", "(badly injured)"));
             }
             _uiTargetName = name;
+            // 🔴 2026-08-19（统一规范）：目标名关系色（玩家金 / 友方绿 / 敌对红 / 中立白）
+            _uiTargetColor = NameDisplayRules.ResolveHudNameColor(currentAgent);
 
             if (isAnimal)
             {

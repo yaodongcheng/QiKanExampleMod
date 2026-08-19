@@ -242,6 +242,16 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool HasTarget => !string.IsNullOrEmpty(_targetName);
 
+        private string _targetNameColor = NameDisplayRules.NeutralColor;
+        /// <summary>目标名颜色（🔴 2026-08-19 统一规范，关系色：玩家金 / 友方绿 / 敌对红 / 中立白，
+        /// NameDisplayRules 同源，与 HUD/IM 一致）。对应 XML TextColor="@TargetNameColor"。</summary>
+        [DataSourceProperty]
+        public string TargetNameColor
+        {
+            get => _targetNameColor;
+            set { if (value != _targetNameColor) { _targetNameColor = value; OnPropertyChangedWithValue(value, nameof(TargetNameColor)); } }
+        }
+
         [DataSourceProperty]
         public bool IsVisible
         {
@@ -269,9 +279,11 @@ namespace LivingWorldNpcs
         // === 辅助方法：用于游戏逻辑调用 ===
 
         // 用于外部刷新数据的方法（interactionId = 玩法 ID，键位/按法由 ModInput 从配置解析；null = 无键位提示）
-        public void UpdateTarget(string name, List<(string action, string interactionId)> actions)
+        public void UpdateTarget(string name, List<(string action, string interactionId)> actions, string color = null)
         {
             TargetName = name;
+            // 🔴 2026-08-19（统一规范）：目标名颜色随目标传入（null → 中立白兜底）
+            TargetNameColor = color ?? NameDisplayRules.NeutralColor;
             InteractionList.Clear();
             foreach (var act in actions)
             {

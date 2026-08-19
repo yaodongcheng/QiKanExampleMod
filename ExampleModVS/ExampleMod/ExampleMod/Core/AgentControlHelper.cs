@@ -41,7 +41,19 @@ namespace LivingWorldNpcs
             int hash = text.LastIndexOf('#');
             if (hash < 0 || hash == text.Length - 1) return false;
             string tail = text.Substring(hash + 1).Trim();
-            if (!int.TryParse(tail, out int idx)) return false;
+            // 🔴 2026-08-19（统一标记格式：GetDisplayName 的「名字#Index」无空格，全 Mod 同构）：
+            // 候选/选项文本可带方位尾巴（如 帝国步兵#42（你西侧47米））——数字前缀后允许
+            // 标点/空白/括号等分隔符，但**字母/CJK 文字尾随 = 不是 index 标记**（防「#47号房间」
+            // 这类把房间号误解析成 Agent.Index）。
+            int end = 0;
+            while (end < tail.Length && char.IsDigit(tail[end])) end++;
+            if (end == 0) return false;
+            if (end < tail.Length)
+            {
+                char c = tail[end];
+                if (char.IsLetter(c) || (c >= 0x3000 && c <= 0x9FFF)) return false;
+            }
+            if (!int.TryParse(tail.Substring(0, end), out int idx)) return false;
             cleanName = text.Substring(0, hash).Trim();
             // 仅 InScene 有意义（用户裁定 2026-08-15）；不在场对象没有 index
             if (Mission.Current == null) return false;

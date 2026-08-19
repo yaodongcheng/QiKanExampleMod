@@ -90,12 +90,36 @@ namespace LivingWorldNpcs
             [DataSourceProperty]
             public string KeyText => ModInput.Glyph(InteractionIds.IM);
 
+            private float _marginBottom = DefaultMarginBottom;
+            /// <summary>🔴 2026-08-19（高度隔离替代互斥隐藏，用户裁定）：InteractArea 可见时按钮上移到
+            /// 玩法行上方（MarginBottom = InteractAreaTopOffset + 间距），不可见回默认 140——
+            /// 按钮常显，新消息/决策卡提醒不因面向 NPC 被吞。对应 XML MarginBottom="@MarginBottom"。</summary>
+            [DataSourceProperty]
+            public float MarginBottom
+            {
+                get => _marginBottom;
+                set
+                {
+                    if (MathF.Abs(value - _marginBottom) > 0.5f)
+                    {
+                        _marginBottom = value;
+                        OnPropertyChanged(nameof(MarginBottom));
+                    }
+                }
+            }
+
             /// <summary>设备切换/改绑后刷新（OnPropertyChanged → 绑定重取值）。</summary>
             public void Refresh()
             {
                 OnPropertyChanged(nameof(KeyText));
             }
         }
+
+        /// <summary>按钮默认底部偏移（XML 原 MarginBottom=140：右缘下部，避让右缘中部密信通知圆环带）。
+        /// 🔴 2026-08-19（高度隔离）：InteractArea 可见时上移，不可见回此值。</summary>
+        private const float DefaultMarginBottom = 140f;
+        /// <summary>InteractArea 可见时按钮与玩法行顶部的间距（px）。</summary>
+        private const float InteractAreaGap = 16f;
 
         public static void EnsureSubscribed()
         {
@@ -198,6 +222,10 @@ namespace LivingWorldNpcs
                 UpdateHover();
                 UpdateBadge(dt);
                 UpdateBounce(dt);
+                // 🔴 2026-08-19（高度隔离替代互斥隐藏，用户裁定）：InteractArea 可见 → 按钮上移到
+                // 玩法行上方（间距 16）；不可见 → 回默认 140。每帧求值，VM setter 带阈值比较，零开销。
+                float interactTop = InteractionMissionView.InteractAreaTopOffset;
+                _vm.MarginBottom = interactTop > 0f ? interactTop + InteractAreaGap : DefaultMarginBottom;
             }
             catch (Exception ex)
             {
@@ -219,8 +247,8 @@ namespace LivingWorldNpcs
             if (Mission.Current != null)
             {
                 if (Settings.Instance.IsInteractionDisabled()) return false;
-                // 🔴 与 InteractArea 位置重叠避让（面向 NPC 有可用玩法行时隐藏）
-                if (InteractionMissionView.IsInteractAreaVisible) return false;
+                // 🔴 2026-08-19（高度隔离替代互斥隐藏，用户裁定）：不再因 InteractArea 可见而隐藏——
+                // 按钮上移到玩法行上方（Tick 更新 MarginBottom），新消息/决策卡提醒不丢。
             }
             var top = ScreenManager.TopScreen;
             if (top == null) return false;

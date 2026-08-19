@@ -40,11 +40,31 @@ namespace LivingWorldNpcs
             string t = s.ToLowerInvariant();
             // 中文别名词 → 规范词（老板/掌柜 → 店主；卫兵 → 守卫）
             t = t.Replace("掌柜的", "店主").Replace("掌柜", "店主").Replace("老板", "店主").Replace("卫兵", "守卫");
+            // 🔴 2026-08-19（实机：玩家说「士兵」，场景模板名「帝国步兵」→ 0 候选）：
+            // 口语泛称 → 模板名规范词（士兵 → 步兵，商人 → 商贩，村民 → 镇民）
+            t = t.Replace("士兵", "步兵").Replace("商人", "商贩").Replace("村民", "镇民");
             // 英文职业 id → 中文规范词（使 "tavernkeeper" 与 「店主」互认）
             if (t.Contains("tavernkeeper") || t.Contains("innkeeper")) return "店主";
             if (t.Contains("guard") && !t.Contains("head")) return "守卫";
             return t;
         }
+
+        /// <summary>
+        /// 🔴 2026-08-19（目标多候选）：通用目标类型词 → 场景名包含的规范词（玩家口语 → 模板职业名）。
+        /// 命令文本命中任一入口词，且场景名归一化后包含规范词 → 视为该类目标候选
+        ///（「士兵」→ 帝国步兵/资深步兵/军团步兵…；「守卫」→ 监狱守卫…）。
+        /// 仅用于匹配比较，不改变显示名。调用方：FindAgentCandidates（两处：风险目标解析 / 计划轮候选采集）。
+        /// </summary>
+        private static readonly (string[] words, string canonical)[] TargetTypeKeywords =
+        {
+            (new[] { "士兵", "步兵", "军士" }, "步兵"),
+            (new[] { "守卫", "卫兵", "哨兵" }, "守卫"),
+            (new[] { "商人", "商贩", "店主" }, "商贩"),
+            (new[] { "村民", "镇民" }, "镇民"),
+            (new[] { "弩手" }, "弩手"),
+            (new[] { "弓箭手", "弓手" }, "弓箭手"),
+            (new[] { "骑兵", "骑手" }, "骑兵"),
+        };
 
         /// <summary>可见性缓存：observer.Index → subject.Index → 是否可见（懒计算，会话内有效）。</summary>
         private readonly Dictionary<int, Dictionary<int, bool>> _visibilityCache = new Dictionary<int, Dictionary<int, bool>>();
@@ -276,6 +296,74 @@ namespace LivingWorldNpcs
             return best;
         }
 
+        /// <summary>
+        /// 🔴 2026-08-19（目标纪律，实机：玩家说「偷士兵的东西」→ 单匹配 0 候选，无人可问）：
+        /// 按角色/名称/职业/类型词匹配 Agent，收集**全部**命中（FindAgent 的多匹配版）。
+        /// 用途：命令/目标类型对应多人 → 候选清单（回复轮【候选目标】段 / 计划轮目标纪律兜底澄清卡）。
+        /// 匹配口径 = FindAgent 各层 + 类型词表（口语「士兵」→ 模板名「帝国步兵」）+ 方向 A
+        ///（命令点名「染工勒洛西翁」→ 该人唯一命中）。
+        /// </summary>
+        public List<AgentInfo> FindAgentCandidates(string roleOrName)
+        {
+            var result = new List<AgentInfo>();
+            if (string.IsNullOrEmpty(roleOrName)) return result;
+            // #N index 精确指认 → 唯一候选（玩家/LLM 已点名具体对象）
+            if (AgentControlHelper.TryResolveIndexedTarget(roleOrName, out Agent indexedAgent, out string cleanName))
+            {
+                foreach (var info in Agents)
+                    if (info.Agent != null && info.Agent == indexedAgent) { result.Add(info); break; }
+                return result;
+            }
+            string query = cleanName ?? roleOrName;
+            string lower = NormalizeTargetAlias(query) ?? "";
+            if (lower.Length == 0) return result;
+            foreach (var info in Agents)
+            {
+                if (info?.Agent == null) continue;
+                if (MatchTargetInfo(info, lower, query)) result.Add(info);
+            }
+            return result;
+        }
+
+        private static bool MatchTargetInfo(AgentInfo info, string lower, string rawQuery)
+        {
+            string aliasName = info.DisplayName != null ? NormalizeTargetAlias(info.DisplayName) : "";
+            string aliasRole = info.Role != null ? NormalizeTargetAlias(info.Role) : "";
+            string aliasId = info.Agent.Character != null ? NormalizeTargetAlias(info.Agent.Character.StringId) : "";
+            string aliasOcc = info.Occupation != null ? NormalizeTargetAlias(info.Occupation) : "";
+            // ① 精确匹配（角色/显示名/StringId）
+            if ((aliasRole.Length > 0 && aliasRole == lower)
+                || (aliasName.Length > 0 && aliasName == lower)
+                || (aliasId.Length > 0 && aliasId == lower))
+                return true;
+            // ② 子串方向 B：场景名包含查询词（「守卫」⊂「监狱守卫」；「步兵」⊂「帝国资深步兵」）
+            if ((aliasId.Length > 0 && aliasId.Contains(lower))
+                || (aliasOcc.Length > 0 && aliasOcc.Contains(lower))
+                || (aliasName.Length > 0 && aliasName.Contains(lower))
+                || (aliasRole.Length > 0 && aliasRole.Contains(lower)))
+                return true;
+            // ③ 子串方向 A：查询词（命令文本）包含场景名（命令点名「染工勒洛西翁」）
+            if (rawQuery != null && rawQuery.Length > 0
+                && ((aliasName.Length > 0 && rawQuery.IndexOf(aliasName, StringComparison.OrdinalIgnoreCase) >= 0)
+                    || (aliasId.Length > 0 && rawQuery.IndexOf(aliasId, StringComparison.OrdinalIgnoreCase) >= 0)
+                    || (aliasRole.Length > 0 && rawQuery.IndexOf(aliasRole, StringComparison.OrdinalIgnoreCase) >= 0)))
+                return true;
+            // ④ 类型词表：命令含口语类型词，且场景名包含规范词（「士兵」→「帝国步兵」）
+            foreach (var (words, canonical) in TargetTypeKeywords)
+            {
+                bool wordHit = false;
+                foreach (var w in words)
+                    if (rawQuery != null && rawQuery.IndexOf(w, StringComparison.OrdinalIgnoreCase) >= 0) { wordHit = true; break; }
+                if (!wordHit) continue;
+                if ((aliasId.Length > 0 && aliasId.Contains(canonical))
+                    || (aliasOcc.Length > 0 && aliasOcc.Contains(canonical))
+                    || (aliasName.Length > 0 && aliasName.Contains(canonical))
+                    || (aliasRole.Length > 0 && aliasRole.Contains(canonical)))
+                    return true;
+            }
+            return false;
+        }
+
         /// <summary>按名称/类型匹配可交互对象（多匹配取离玩家最近）。</summary>
         public ObjectInfo FindObject(string nameOrKind)
         {
@@ -347,10 +435,12 @@ namespace LivingWorldNpcs
                     sb.Append("- ");
                     if (info.Role != null) sb.Append($"[{info.Role}] ");
                     sb.Append(info.DisplayName);
-                    // 🔴 2026-08-15（目标唯一标记）：单条人员带 [#N] index 标记（Agent.Index，Mission 内稳定）——
-                    // 计划轮 LLM 可直接引用（target: "酒馆店主#3"），执行器 TryResolveAgent 精确解析；
-                    // 同名同职业合并行不标（多人无法单一 #N 指认，走候选机制）。
-                    if (info.Agent != null) sb.Append($"[#{info.Agent.Index}]");
+                    // 🔴 2026-08-15（目标唯一标记）：模板 NPC 单条带 #N index 标记（Agent.Index，Mission 内
+                    // 稳定）——计划轮 LLM 可直接引用（target: "酒馆店主#3"），执行器 TryResolveAgent 精确解析；
+                    // Hero 有唯一名字不标号（与 AgentControlHelper.GetDisplayName 同构：名字#Index 无空格，
+                    // 2026-08-19 统一格式，弃用 [ #N ] 括号写法）；同名同职业合并行不标（多人无法单一 #N 指认）。
+                    if (info.Agent != null && !(info.Agent.Character is CharacterObject heroCo && heroCo.HeroObject != null))
+                        sb.Append($"#{info.Agent.Index}");
                     if (!string.IsNullOrEmpty(info.Occupation)) sb.Append($"（{info.Occupation}）");
                     sb.Append($"：{info.PositionDesc}，{info.FacingDesc}，{info.State}");
                     if (!string.IsNullOrEmpty(info.PersonalityHint)) sb.Append($"（{info.PersonalityHint}）");

@@ -4012,6 +4012,11 @@
     <string id="LWN_plan_btn_retry" text="重说" />
     <string id="LWN_plan_btn_giveup" text="算了" />
     <string id="LWN_plan_clarify_default" text="你说的是哪个？" />
+    <!-- 2026-08-19（目标纪律硬兜底）：计划轮 LLM 未问而命令对应多人 / 目标类型场上无匹配 → 自动澄清卡问句 -->
+    <string id="LWN_plan_clarify_target_multi" text="您说的目标对应场上好几个人——要挑哪一位？" />
+    <string id="LWN_plan_clarify_target_none" text="场上没找到「{TARGET}」这样的人——您说的是谁？" />
+    <!-- 2026-08-19（风险审视【候选目标】段标题，prompt 材料） -->
+    <string id="LWN_risk_section_target_candidates" text="【候选目标】（你的命令对应场上好几个人——不得自行指定具体对象，指认类型即可；计划轮必须用 questions 让主公挑选）" />
     <string id="LWN_plan_clarify_exhausted" text="我还是没听明白，改日再说吧。" />
     <string id="LWN_plan_custom_reject" text="这个我做不来，你换个说法。" />
     <string id="LWN_plan_default_summary" text="我有个主意，要动手吗？" />

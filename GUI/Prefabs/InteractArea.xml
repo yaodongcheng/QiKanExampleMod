@@ -11,10 +11,14 @@
                    Id="LWN_MainList_InteractArea" LayoutMethod="VerticalBottomToTop">
             <Children>
 
+                 <!-- 🔴 2026-08-19（统一规范）：名字颜色绑 Brush.FontColor="@TargetNameColor" 关系色
+                      （玩家金/友方绿/敌对红/中立白，NameDisplayRules 同源）。🔴 用 Brush.FontColor 而非
+                      TextColor——项目惯例（ImChat/StealBar/AgentHudNearby 全部 FontColor 绑定），
+                      TextColor="@绑定" 引擎绑定静默失败保持白色（实机 2026-08-19 用户反馈）。 -->
                  <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                     Text="@TargetName" IsVisible="@HasTarget"
                                     Brush="MyBrush_24" MarginRight="0"
-                                    TextColor="#FFFFFFFF"
+                                    Brush.FontColor="@TargetNameColor"
                                     HorizontalAlignment="Center"/>
 
 	       <!-- 装饰线 -->

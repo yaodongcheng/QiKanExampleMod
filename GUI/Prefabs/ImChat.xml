@@ -130,9 +130,14 @@
                                                     VerticalAlignment="Top" MarginLeft="14" MarginRight="12" MarginTop="6"
                                                     DoNotAcceptEvents="true">
                                               <Children>
-                                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                                <!-- 🔴 2026-08-19（标题字体恒定，实机用户反馈：StretchToParent + 长名字 → 引擎缩字号，
+                                                     百草小/阿速甘正常）：改 CoverChildren（宽度=内容测量值，引擎无缩放空间）+
+                                                     MaxWidth 限制（不挤占未读徽标）+ ClipContents 兜底裁剪。
+                                                     超长省略号由 C# 侧 Truncate 负责（MaxChannelTitleChars=12）。 -->
+                                                <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                                            MaxWidth="210"
                                                             Text="@Title" Brush="MyBrush_18_White" Brush.FontSize="17" Brush.FontColor="@TitleColor"
-                                                            Brush.TextHorizontalAlignment="Left" HorizontalAlignment="Left" VerticalAlignment="Center" MarginRight="40"
+                                                            Brush.TextHorizontalAlignment="Left" HorizontalAlignment="Left" VerticalAlignment="Center" MarginRight="8"
                                                             ClipContents="true"
                                                             DoNotAcceptEvents="true"/>
                                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -412,14 +417,19 @@
                                                                MarginRight="10" MarginBottom="8" MarginTop="4"
                                                                DoNotAcceptEvents="true">
                                                       <ItemTemplate>
-                                                        <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="42"
+                                                        <!-- 🔴 2026-08-19（按钮完整包含文字）：TextWidget 加 MaxWidth + WordWrapping
+                                                             （ui.md 贴内容气泡同款：MaxWidth 必须放 TextWidget 上），按钮高度 CoverChildren——
+                                                             长文本（候选按钮 名字#N 等）折行后按钮跟着长高，绝不溢出底纹 -->
+                                                        <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MinHeight="42"
                                                                       Brush="Test.Button3"
                                                                       HorizontalAlignment="Right"
                                                                       Command.Click="Execute"
                                                                       IsEnabled="@IsEnabled" MarginTop="5" MarginBottom="5">
                                                           <Children>
                                                             <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                                        MaxWidth="520"
                                                                         Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="16"
+                                                                        WordWrapping="Wrap"
                                                                         HorizontalAlignment="Center" VerticalAlignment="Center"
                                                                         DoNotAcceptEvents="true"/>
                                                           </Children>
