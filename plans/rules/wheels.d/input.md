@@ -93,12 +93,28 @@ ModInput.IsPlayStation;                   // 手柄是否 PS 系
 
 ---
 
-## 设备检测原理（引擎原生，与原版 UI 判定一致）
+## 🔴 设备检测：自监测最后输入来源（2026-08-19 用户裁定，替代引擎 IsGamepadActive 粘性判定）— `Input/ModInput.cs`（`TickInputSource` / `UsingGamepad`）
 
-- 最近设备：`Input.IsGamepadActive`（= `IsControllerConnected && !IsMouseActive`，引擎每帧 `Input.Update()` 维护）——**不要自己造键盘/手柄检测**。
-- Xbox/PS 区分：`Input.ControllerType.IsPlaystation()`（DualShock/DualSense → true）。
-- PS 字形 □△✕○ 走 CJK 符号区，中文字体可渲染；若 ✕ 实机豆腐块，改映射表 `PsGlyph` 一行即可。
-- v1.2.12 / v1.4.6 双版本 API 一致（已核实），无需 `V.` 包装。
+**解决什么问题**：引擎 `IsGamepadActive = IsControllerConnected && !IsMouseActive`——`IsMouseActive` 是**粘性判定**（手柄 A 的 native 模拟点击 / 锚定回拽让它持续 true 7+ 秒，实机 11:42:33-41）→ 手柄键按下后设备仍判键鼠 → 手柄键永远无法重新宣告身份（「⛔ 设备未激活」死循环）。InteractArea 键帽/IM 提示行/呼出按钮全被同一坑坑到（点击后键帽变 [F]）。
+
+**自监测三原则（用户裁定）**：
+1. **任何手柄键按下沿 = 激活手柄**（离散事件，无抖动，强信号——全键：十字键/ABXY/LB/RB/L3/R3/选项/扳机）
+2. **按键 > 持续性输入**（摇杆、鼠标移动），同帧冲突按键胜
+3. **持续输入晚者胜出**（摇杆 LStick*/RStick* 方向键 IsKeyDown vs 鼠标移动增量 MouseMoveX/Y ≥1px）
+
+**裁决**（每帧 `TickInputSource()` 算完时间戳后）：① 手柄键沿 → 手柄；② 鼠标键沿 → 键鼠；③ 无沿 → 持续输入晚者胜出（初始 float.MinValue = 键鼠）。
+
+**🔴 两个污染源（实机踩坑，必须过滤——手柄输入会被自己模拟成鼠标输入）**：
+- **跨帧模拟点击**：A 键 native 模拟点击的鼠标键沿在按键后 **1-3 帧**才出现（日志 12:44:06.476→487、15.268→306 两证）——同帧忽略不够。过滤 = 手柄键沿后 **0.25s 窗口**（`PadClickWindow`）内的鼠标键沿视为模拟点击：不刷新时间戳、不进裁决②。
+- **摇杆模拟移动**：光标可见时（输入聚焦速度模式/锚定回拽）引擎把手柄摇杆转成鼠标移动事件 → `MouseMoveX ≠ 0` 且手柄在场（`padHeld`）→ 视为摇杆模拟，忽略。否则推摇杆时设备每帧「手柄/键鼠」互搏（实机 12:45:16 每 10-30ms 翻转 40 次/秒，无键沿日志——纯持续输入平手）。
+
+**每帧入口**：`ModInput.TickInputSource()` 挂 `ImChatView.Tick` 顶部（面板开闭都跑；游戏帧双端入口 = Mission `OnMissionTick` + Campaign `OnScreenFrameTick`）。**全 Mod 共用**：InteractArea 键帽 / IM 提示行 / 呼出按钮 / Mission 冻结 / Glyph 全部读 `ModInput.UsingGamepad`，一处改全部受益。
+
+**设计取舍（键盘不监测）**：手柄玩家输入框打字不会把设备拉成键鼠（打完字继续手柄操作）；纯键盘玩家初始 = 键鼠，不需要手柄判定。
+
+**诊断**：`[Input] 手柄键沿/鼠标键沿 → 设备=X（距上次活动=Xs）`（每次按键沿）；设备切换行打最后输入来源详情（`ModInput.LastPadActivityDetail` / `LastMouseActivityDetail`——一眼看出「手柄按住/摇杆 vs 鼠标移动」谁把它判成键鼠）。
+
+**旧结论推翻**：「最近设备 = `Input.IsGamepadActive` 引擎判定，不要自己造」——2026-08-19 实机推翻（粘性坑），已改为自监测。Xbox/PS 区分 `Input.ControllerType.IsPlaystation()` 不变；v1.2.12 / v1.4.6 API 一致（已核实）。
 
 
 ---
