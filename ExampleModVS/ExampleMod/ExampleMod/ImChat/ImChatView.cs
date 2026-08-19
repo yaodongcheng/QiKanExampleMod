@@ -1784,7 +1784,7 @@ namespace LivingWorldNpcs
 
         // ── 重建节流（Fix 4 / v3）：锚点卡引用 + 按钮数 + 横竖标记 比对，任一变化 → 置 dirty ──
 
-        /// <summary>结构比对（UpdateCardAnchors / NotifyPlanStateChanged 末尾调用——结构变化的汇聚点）。
+        /// <summary>结构比对（UpdateCardAnchors 末尾调用——结构变化的汇聚点）。
         /// 锚点卡引用变 / 按钮集数量变 / IsVerticalButtons 横竖翻转（按钮数不变也触发）→ _padNavDirty。
         /// 0.3s 轮询 RefreshMessages 本身不置 dirty——比对命中的结构变化才会（防焦点跳变与长按抖动）。</summary>
         private static void CheckPadNavStructureChange()
@@ -2137,7 +2137,7 @@ namespace LivingWorldNpcs
         /// 行 B = 最近 1~2 条消息（用户裁定：有 2 条显示 2 条，给回复提供基础上下文；锚点消息本身
         /// 不在列表里——行 A 有完整形态，列表取其之前的消息）。
         /// 🔴 实例必须复用 _vm.Messages 的同一实例（审查 P1-2）——UpdateCardAnchors /
-        /// NotifyMessageShapeChanged / NotifyPlanStateChanged 的广播都打在那些实例上，
+        /// NotifyMessageShapeChanged 的广播都打在那些实例上，
         /// 独立新实例会漏广播 → 按钮不显示类 bug 复现。RefreshMessages 两个出口都调本方法。
         /// </summary>
         private static void RefreshCompact()
@@ -2449,22 +2449,6 @@ namespace LivingWorldNpcs
                     return false;   // 后面还有同链消息 → 本消息不是锚点
             }
             return true;
-        }
-
-        /// <summary>
-        /// 🔴 2026-08-12：讲解完成/失败后通知所有挂载该卡片的 VM（锚点可能已移到讲解消息——新 VM 实例，
-        /// 只通知本 VM 会漏）。调用方在主线程（ImCommandFlow.Tick 消费讲解队列），安全触碰 UI。
-        /// </summary>
-        public static void NotifyPlanStateChanged(ImMessage card)
-        {
-            if (_vm == null || card == null) return;
-            foreach (var vm in _vm.Messages)
-            {
-                if (vm != null && vm.AnchorCard == card)
-                    vm.NotifyPlanState();
-            }
-            // 🔴 Q4（2026-08-18，手动导航）：讲解完成/自审回调 → RebuildCardButtons 可能改变按钮集 → 结构比对
-            CheckPadNavStructureChange();
         }
 
         /// <summary>动态项：标题带正在思考 + 模式指示文本（会话状态派生）+ 输入区联动（0.3s 节流调）。
@@ -3088,22 +3072,6 @@ namespace LivingWorldNpcs
             catch (Exception ex)
             {
                 DebugLogger.Log($"[ImChat] HandlePlanAction 失败: {ex.Message}");
-            }
-        }
-
-        /// <summary>🔴 2026-08-12（重拟按钮）：二次校验发现问题 → 同命令重新生成（RequestRegenerate）。</summary>
-        public static void HandleRegenerate(ImMessage msg)
-        {
-            if (msg == null) return;
-            try
-            {
-                ImCommandFlow.RequestRegenerate(msg);
-                if (_vm != null) _vm.Messages.Clear();
-                RefreshMessages();
-            }
-            catch (Exception ex)
-            {
-                DebugLogger.Log($"[ImChat] HandleRegenerate 失败: {ex.Message}");
             }
         }
 
