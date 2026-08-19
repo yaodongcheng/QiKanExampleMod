@@ -313,4 +313,15 @@ private static void SetMouseToWidget(PadItem item)   // MovePad 转移后 + Focu
 // ③ 设备硬锚：手柄键按下沿 0.5s 窗口 + 输入聚焦态 → 钉住手柄语义（真实切鼠标窗口过期放行）
 ```
 
-**坑中坑**：① Harmony **不能补丁抽象接口方法**（`ITwoDimensionPlatform.OpenOnScreenKeyboard`）——PatchAll 直接 HarmonyException 崩游戏启动；② 光标可见 = 锚定覆盖 SetMousePosition（坑 2），**光标隐藏时 SetMousePosition 有效**；③ 程序 SetMousePosition 不算「鼠标活动」（十字键导航全程实测未触发 IsMouseActive）；④ 诊断铁证格式：`设备翻转未保护: 裸值= False 聚焦=False IsMouseActive=True 光标可见=False 鼠标位置=(960,540)`——鼠标位置残留屏幕中央 = A 键点击打空。已登记 im-gamepad-navigation.md §11.2 坑 13。
+**坑中坑**：① Harmony **不能补丁抽象接口方法**（`ITwoDimensionPlatform.OpenOnScreenKeyboard`）——PatchAll 直接 HarmonyException 崩游戏启动；② 光标可见 = 锚定覆盖 SetMousePosition（坑 2），**光标隐藏时 SetMousePosition 有效**（⚠️ 诊断注意：光标隐藏时 `Input.MousePositionPixel` 读数是**冻结的旧值**——实机 A 键点击落在输入框本体证明 OS 光标已挪位，但读数停在 (960,540)，别据此误判 SetMousePosition 失败）；③ 程序 SetMousePosition 不算「鼠标活动」（十字键导航全程实测未触发 IsMouseActive）；④ 诊断铁证格式：`设备翻转未保护: 裸值= False 聚焦=False IsMouseActive=True 光标可见=False 鼠标位置=(960,540)`——鼠标位置残留屏幕中央 = A 键点击打空。已登记 im-gamepad-navigation.md §11.2 坑 13。
+
+## 🔴 手柄导航：自绘焦点准星（2026-08-19 用户裁定）— `ImChatView.UpdateNavCursor/HideNavCursor` + prefab `LWN_NavCursor`（GUI/Prefabs/ImChat.xml + ImChatCompact.xml）
+
+**解决什么问题**：导航态系统光标被强制隐藏（见上节坑 2），焦点辨识只剩 hover 高亮——手柄玩家看不清焦点在哪个项。自绘准星 = 焦点框指示器（frame_small_9 sprite），导航态显示并跟随焦点 widget，框中心对齐控件中心。
+
+**实现**：
+- prefab：`LWN_NavCursor` = ImageWidget（Fixed 28×28，Sprite=frame_small_9，对齐显式 Left/Top，初始 IsHidden）——🔴 必须放**全屏根 Children 最后一位**：PositionOffset 相对父 = 根(0,0) = 屏幕坐标；放面板 Children 里会整体加上面板居中偏移（实机偏右下）；对齐默认 Center 会推偏，必须显式 Left/Top
+- 定位：`PositionXOffset/YOffset` 是**逻辑坐标** = 屏幕物理坐标 / `UIContext.Scale`（`ScaledPositionOffset` 只读 = 逻辑×scale）——框左上 = 控件中心(物理/scale + size/2) − 框尺寸/2；框尺寸 = 控件尺寸 + 4px 余量
+- 驱动：`UpdateNavCursor()` 在 `UpdatePadFocus` 顶部每帧调——显示条件 = 手柄（去抖值）+ 非输入聚焦 + 焦点项 GetWidget 非 null；其余隐藏；位置变化 >1px 才打 `[NavCursor]` 诊断行
+
+**🔴 坑中坑（2026-08-19 实机 10:38:10 三连日志）**：准星 visible 时会把 **native 点击命中测试**吸走——`DoNotAcceptEvents="true"` 只挡 managed 命中（`EventManager.AnyWidgetsAt` 检查该 flag），**native 命中（`CollectVisibleWidgetsAt`，反编译实锤）不检查**；准星 = 根下最顶层 widget，盖在焦点项上时 A 键 native 点击先命中准星（ImageWidget 不可聚焦）→ 点击焦点链被吸走 → 手动设的 `FocusedWidget` 被清 → 0.5s A 键窗口过期 → 设备翻转死锁。**纪律：任何 A 键激活路径必须先 `SetMouseToWidget(焦点项)` + `HideNavCursor()` 再 OnActivate**——`ActivatePad` 统一入口已做（SetMouseToWidget 保点击命中项本体；HideNavCursor 保点击路径 = 无准星提交版逐字节一致；下一帧 UpdateNavCursor 自动恢复显示）。

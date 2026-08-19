@@ -1,4 +1,4 @@
-# IM 手柄手动导航 — 完整设计（逐按钮 × 方向转移矩阵）
+﻿# IM 手柄手动导航 — 完整设计（逐按钮 × 方向转移矩阵）
 
 > **状态**：🔧 已实现（2026-08-18，双版本编译通过；实机多轮测试后的方案判定/坑点复盘见 §十一，新 session 必读；待验证清单见 §十二）
 > **主题**：IM 面板（完整/缩略）手柄导航的**手动实现**——每个可聚焦元素定义「按 ↑↓←→ 各移动到哪 + A 激活动作」，确定性可控，替代引擎 `<NavigationScopeTargeter>` 黑盒（实测：prefab 已声明 scope 但十字键无效果、无焦点视觉）。
@@ -331,6 +331,12 @@ if (!_isDropdownOpen && !_isInputFocused)
   3. **设备硬锚**：手柄键按下沿 0.5s 窗口 + 输入聚焦态 → 钉住手柄语义
 - 坑中坑：① **Harmony 不能补丁抽象接口方法**（补丁 `ITwoDimensionPlatform.OpenOnScreenKeyboard` → PatchAll 崩游戏启动，实机即崩）；② 光标隐藏时 SetMousePosition 有效（锚定覆盖只在光标可见时）；③ 程序 SetMousePosition 不算鼠标活动（十字键导航实测全程未翻）。已登记 wheels.d/im.md。
 
+**坑 14（🔴 2026-08-19 实机三连日志：自绘焦点准星拦截 native 点击命中 → A 激活 input 后焦点被清 → 设备翻转死锁）**
+- 现象：加入 `LWN_NavCursor` 准星（prefab 全屏根 Children 最后一位 = 全树最顶层，`DoNotAcceptEvents="true"`）后，A 激活 input 不再工作——`FocusedWidget` 设置成功（`IsFocusedOnInput=True`，10:38:10.296）但 0.5s 内被引擎清掉（10:38:10.796 聚焦=False）→ A 键 0.5s 窗过期 → 设备翻转死锁。HEAD 提交版（无准星）同路径正常。
+- 根因（反编译实锤）：`DoNotAcceptEvents` 只挡 managed 命中测试（`EventManager.AnyWidgetsAt` 检查该 flag）——**native 命中测试 `CollectVisibleWidgetsAt` 不检查**，可见 widget 全收集（也不看 `DoNotPassEventsToChildren`）；准星 visible 时盖在焦点项上 → A 键 native 点击（命中测试在 managed tick 之后执行）先命中准星（ImageWidget 不可聚焦）→ 点击焦点链被吸走 → 手动设的 `FocusedWidget` 被引擎清掉。
+- 修复：`ActivatePad`（A 键统一入口）OnActivate 前先 `SetMouseToWidget(焦点项)` + `HideNavCursor()`——点击路径 = 无准星提交版逐字节一致；下一帧 `UpdateNavCursor` 按显示条件自动恢复。`FocusInputWidget` 内的重复 `SetMouseToWidget` 移除（单一入口，防止改一处漏一处）。
+- 坑中坑：`Input.MousePositionPixel` 在光标隐藏时是**冻结读数**（停在上次可见时的位置）——不能用来验证 SetMousePosition 是否生效；**A 键点击落在焦点项本体（焦点保持、无翻转）才是生效判据**。已登记 wheels.d/im.md。
+
 ### 11.3 当前实现形态（三态模型，全部在 `ImChatView.cs` + 两个 prefab）
 
 | 状态 | 光标 | mask | 交互 |
@@ -349,7 +355,7 @@ if (!_isDropdownOpen && !_isInputFocused)
 
 1. **原生光标模式锚定↔速度的精确切换条件**：观察规律 = 导航态锚定、输入框聚焦速度。是否与 mask/可见性设置相关未 100% 定论——验证时留意。
 2. **缩略模式与原版 UI 的 D-pad 融合**（原方案 A「光标归属制」）：光标隐藏后搁置；当前实际分工 = 左摇杆=游戏、十字键=面板。若要 D-pad 也能控原版 UI 需再议。
-3. **「高亮不清楚」（缩放/关闭键）**：待导航存活后重验；若仍不清楚 → 强化笔刷（描边 hover 态）。
+3. ~~**「高亮不清楚」（缩放/关闭键）**~~：✅ **已解决（2026-08-19 用户裁定）**——自绘焦点准星 `LWN_NavCursor`（frame_small_9 焦点框，`UpdateNavCursor` 每帧跟随焦点中心，详见坑 14 前方案）。导航态显示、输入聚焦隐藏；A 键激活前必须 `HideNavCursor()`（坑 14）。
 
 ## 十二、待验证清单（新 session 实机用）
 
@@ -367,6 +373,8 @@ if (!_isDropdownOpen && !_isInputFocused)
 11. 长按重复手感（0.4s/0.18s；频道行长按每 0.18s 一次 RefreshAll 的性能）
 12. 设备切换无残留高亮
 13. 回归：鼠标操作 / B / ESC / 背景关面板 / 缩略位置感知 mask / Mission 冻结解冻
+14. **准星 + A 键激活回归（坑 14）**：焦点移到 input → 准星盖住输入框 → 按 A → `聚焦输入框` 日志行鼠标位置 = 输入框中心 → `IsFocusedOnInput=True` 持续保持（**0.5s 后不弹「设备翻转未保护」**）→ 打字后按十字键退出输入态 → 准星恢复显示；按钮 A 激活同样验证（不双触发、不翻设备、焦点不丢）
+15. 准星显示纪律：输入聚焦时隐藏（编辑器光标接管）；鼠标态（状态③）隐藏；导航态跟随焦点中心对齐控件中心（框 = 控件 + 4px）
 
 **游标态（状态①，本次新增必测）：**
 14. A 聚焦输入框 → 左摇杆自由移光标 → 点频道切会话（输入框焦点保留）→ 按十字键退出回导航
