@@ -322,6 +322,15 @@ if (!_isDropdownOpen && !_isInputFocused)
 - 处置：**ImChatCursorHidePatch**（`[HarmonyPatch(typeof(ScreenManager), "UpdateMouseVisibility")]` Prefix）——门控 `ImChatView.ShouldForceHideCursor()`（IM 打开 + 去抖手柄值 + 非输入框聚焦）→ 强制 `SetMouseVisible(false)` + return false 跳过聚合，在**源头**掐断锚定。输入框聚焦态（速度模式需要光标）/ 鼠标态放行。补丁目标二进制 grep 验证存在。
 - 教训：`SetInputRestrictions(false)` 是"本层声明"，不是全局裁决——**藏光标要查聚合链上有没有别的层在拉**。已登记 wheels.d/im.md。
 
+**坑 13（🔴 2026-08-19 实机三证：A 键激活后设备判定翻键鼠 → 门控死锁——软键盘取消回调链 + 光标残留）**
+- 现象：完整模式聚焦 input（按 A）或激活按钮后，0.5s 后弹「设备判定 → 键鼠」，导航/输入态死锁（09:48/09:52/09:59 三证）。纯十字键导航不翻——**翻转触发 = A 键按下**。
+- 根因链（反编译全链实锤）：① `FocusedWidget = input` → setter 置 `_isOnScreenKeyboardRequested=true`；② `EventManager.LateUpdate` 消费 → `Platform.OpenOnScreenKeyboard` → **PC 无软键盘 → native 立即回调取消**；③ 取消回调（走 `GauntletLayer.OnOnScreenKeyboardCanceled` **或直接调 `UIContext`**，两层都要补丁）→ `CancelMouseClick()` → `ClearFocus` 清焦点 + 模拟鼠标抬起 → **`IsMouseActive` 持续 true**（诊断铁证：`光标可见=False 鼠标位置=(960,540) IsMouseActive=True`——光标残留屏幕中央 = A 键点击打空）；④ `IsGamepadActive = !IsMouseActive` → 裸值翻 false → 去抖提交 → 门控死锁。
+- 修复三件套（全在 `ImChatView.cs` + `ImChatSoftKeyboardPatch.cs` + `ImChatMapInputPatch.cs`）：
+  1. **🔴 核心（用户裁定：焦点变化 → 光标跟随）**：`SetMouseToWidget`——`MovePad` 转移后 + `FocusInputWidget` 前置，把系统光标挪到新焦点 widget 中心 → A 键 native 点击命中焦点项本体（输入框 = 引擎点击聚焦路径，与手动 FocusedWidget 一致）→ 不落空、不清焦点、不翻
+  2. **软键盘取消链双层补丁**：`GauntletLayer` + `UIContext` 的取消/完成回调，IM 层实例门控跳过（native 可能直接调 UIContext 不走层——只补层拦不住，09:59 证）
+  3. **设备硬锚**：手柄键按下沿 0.5s 窗口 + 输入聚焦态 → 钉住手柄语义
+- 坑中坑：① **Harmony 不能补丁抽象接口方法**（补丁 `ITwoDimensionPlatform.OpenOnScreenKeyboard` → PatchAll 崩游戏启动，实机即崩）；② 光标隐藏时 SetMousePosition 有效（锚定覆盖只在光标可见时）；③ 程序 SetMousePosition 不算鼠标活动（十字键导航实测全程未翻）。已登记 wheels.d/im.md。
+
 ### 11.3 当前实现形态（三态模型，全部在 `ImChatView.cs` + 两个 prefab）
 
 | 状态 | 光标 | mask | 交互 |

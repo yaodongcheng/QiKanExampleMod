@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Prefab>
+  <Window>
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Sprite="BlankWhiteSquare_9" Color="#77000000">
+      <Children>
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ManagerWidth" SuggestedHeight="@ManagerHeight" HorizontalAlignment="Center" VerticalAlignment="Center" Sprite="StdAssets\Popup\canvas">
+          <Children>
+            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="68" VerticalAlignment="Top" Sprite="General\CharacterCreation\character_creation_background_gradient" AlphaFactor="0.55" Color="#000000FF">
+              <Children>
+                <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="460" SuggestedHeight="46" MarginLeft="24" MarginTop="10" Brush="Popup.Title.Text" Brush.FontSize="@TitleFontSize" Text="@TitleText" />
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="92" SuggestedHeight="42" HorizontalAlignment="Right" MarginRight="18" MarginTop="12" Brush="Popup.Cancel.Button" Command.Click="ExecuteClose"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="关闭" /></Children></ButtonWidget>
+              </Children>
+            </Widget>
+            <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="46" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="22" MarginTop="76" StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <Children>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="42" MarginRight="8" Brush="Popup.Done.Button" Command.Click="ExecuteShowPersona"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@TabFontSize" Text="人格卡" /></Children></ButtonWidget>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="42" MarginRight="8" Brush="Popup.Done.Button" Command.Click="ExecuteShowLibrary"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@TabFontSize" Text="资料库" /></Children></ButtonWidget>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="42" MarginRight="8" Brush="Popup.Done.Button" Command.Click="ExecuteShowThought"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@TabFontSize" Text="思绪" /></Children></ButtonWidget>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="42" Brush="Popup.Done.Button" Command.Click="ExecuteShowPrompt"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@TabFontSize" Text="提示词" /></Children></ButtonWidget>
+              </Children>
+            </ListPanel>
+            <ListPanel IsVisible="@IsLibraryPage" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="34" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="22" MarginTop="122" StackLayout.LayoutMethod="HorizontalLeftToRight">
+              <Children>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="30" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecuteShowMemory"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="角色记忆" /></Children></ButtonWidget>
+                <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="30" Brush="Popup.Done.Button" Command.Click="ExecuteShowKnowledge"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="公共常识" /></Children></ButtonWidget>
+              </Children>
+            </ListPanel>
+            <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ManagerRightWidth" SuggestedHeight="32" HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="@ManagerHorizontalMargin" MarginTop="124" Brush="Popup.Title.Text" Brush.FontSize="@PageTitleFontSize" Text="@PageTitle" />
+
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ManagerLeftWidth" SuggestedHeight="@ManagerContentHeight" HorizontalAlignment="Left" VerticalAlignment="Top" MarginLeft="@ManagerHorizontalMargin" MarginTop="@ManagerContentTop" Sprite="BlankWhiteSquare_9" Color="#2B211AFF" AlphaFactor="0.92">
+              <Children>
+                <ScrollablePanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="10" MarginRight="24" MarginTop="10" MarginBottom="10" ClipRect="ItemClip" InnerPanel="ItemClip\ItemList" VerticalScrollbar="..\ItemScrollbar" AutoHideScrollBars="true">
+                  <Children>
+                    <Widget Id="ItemClip" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" ClipContents="true">
+                      <Children>
+                        <ListPanel Id="ItemList" DataSource="{Items}" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalTopToBottom">
+                          <ItemTemplate>
+                            <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="62" MarginBottom="5" Brush="Popup.Done.Button" Command.Click="ExecuteSelect">
+                              <Children>
+                                <TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="27" MarginLeft="8" MarginRight="8" VerticalAlignment="Top" PositionYOffset="8" Brush="Popup.Button.Text" Brush.FontSize="@ListTitleFontSize" Brush.TextVerticalAlignment="Center" Text="@TitleText" />
+                                <TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="23" MarginLeft="8" MarginRight="8" VerticalAlignment="Bottom" PositionYOffset="-4" Brush="Popup.Description.Text" Brush.FontSize="@ListSubtitleFontSize" Brush.TextVerticalAlignment="Center" Text="@SubtitleText" />
+                              </Children>
+                            </ButtonWidget>
+                          </ItemTemplate>
+                        </ListPanel>
+                      </Children>
+                    </Widget>
+                  </Children>
+                </ScrollablePanel>
+                <ScrollbarWidget Id="ItemScrollbar" WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="12" HorizontalAlignment="Right" MarginTop="12" MarginRight="6" MarginBottom="12" AlignmentAxis="Vertical" MinValue="0" MaxValue="100" Handle="ItemHandle"><Children><Widget Id="ItemHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="10" SuggestedHeight="22" Sprite="scroll_button_9" /></Children></ScrollbarWidget>
+              </Children>
+            </Widget>
+
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ManagerRightWidth" SuggestedHeight="@ManagerContentHeight" HorizontalAlignment="Right" VerticalAlignment="Top" MarginRight="@ManagerHorizontalMargin" MarginTop="@ManagerContentTop">
+              <Children>
+                <TextWidget IsVisible="@ShowStandardEditors" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="28" VerticalAlignment="Top" Brush="Popup.Description.Text" Brush.FontSize="@LabelFontSize" Text="@EditorLabel" />
+                <Widget IsVisible="@ShowStandardEditors" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="@PrimaryEditorHeight" VerticalAlignment="Top" MarginTop="@PrimaryEditorTop" Sprite="General\CharacterCreation\name_input_area">
+                  <Children>
+                    <ClipboardMultilineEditableTextWidget IsEnabled="@CanEditPrimary" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="12" MarginRight="12" MarginTop="10" MarginBottom="10" Brush="Review.NameInput.Text" Brush.FontSize="@EditorFontSize" Brush.TextHorizontalAlignment="Left" Brush.TextVerticalAlignment="Top" RealText="@EditorText" MaxLength="16777216" Command.FocusGained="StartTyping" Command.FocusLost="StopTyping" />
+                  </Children>
+                </Widget>
+                <TextWidget IsVisible="@ShowStandardEditors" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="28" VerticalAlignment="Top" MarginTop="@SecondaryLabelTop" Brush="Popup.Description.Text" Brush.FontSize="@LabelFontSize" Text="@SecondaryLabel" />
+                <Widget IsVisible="@ShowStandardEditors" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="@SecondaryEditorHeight" VerticalAlignment="Top" MarginTop="@SecondaryEditorTop" Sprite="General\CharacterCreation\name_input_area"><Children><ClipboardMultilineEditableTextWidget IsEnabled="@CanEditSecondary" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="10" MarginRight="10" MarginTop="8" MarginBottom="8" Brush="Review.NameInput.Text" Brush.FontSize="@EditorFontSize" Brush.TextHorizontalAlignment="Left" Brush.TextVerticalAlignment="Top" RealText="@SecondaryText" MaxLength="120000" Command.FocusGained="StartTyping" Command.FocusLost="StopTyping" /></Children></Widget>
+                <TextWidget IsVisible="@IsKnowledgePage" DoNotAcceptEvents="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="@ManagerRightWidth" SuggestedHeight="180" VerticalAlignment="Top" MarginTop="@PrimaryEditorTop" ClipContents="true" Brush="Popup.Description.Text" Brush.FontSize="@EditorFontSize" Brush.TextHorizontalAlignment="Left" Brush.TextVerticalAlignment="Top" Text="@KnowledgeSummaryText" />
+                <TextWidget IsVisible="@ShowValueControls" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="160" SuggestedHeight="30" VerticalAlignment="Top" MarginTop="@ValueControlTop" Brush="Popup.Description.Text" Brush.FontSize="@ValueFontSize" Text="@NumberLabel" />
+                <Widget IsVisible="@ShowValueControls" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="110" SuggestedHeight="38" VerticalAlignment="Top" MarginLeft="165" MarginTop="@ValueControlTop" Sprite="General\CharacterCreation\name_input_area"><Children><EditableTextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="8" MarginRight="8" Brush="Review.NameInput.Text" Brush.FontSize="@ValueFontSize" Brush.TextVerticalAlignment="Center" RealText="@NumberText" MaxLength="16" /></Children></Widget>
+                <ButtonWidget DoNotPassEventsToChildren="true" IsVisible="@ShowValueControls" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="190" SuggestedHeight="38" VerticalAlignment="Top" MarginLeft="285" MarginTop="@ValueControlTop" Brush="Popup.Done.Button" Command.Click="ExecuteToggleFlag"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="@FlagLabel" /></Children></ButtonWidget>
+                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="30" VerticalAlignment="Top" MarginTop="@StatusTop" Brush="Popup.Description.Text" Brush.FontSize="@StatusFontSize" Text="@StatusText" />
+                <ListPanel IsVisible="@ShowCrudButtons" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="38" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecuteNew"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="新建" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="38" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecuteSave"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="保存" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="104" SuggestedHeight="38" MarginRight="6" Brush="Popup.Cancel.Button" Command.Click="ExecuteDelete"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="@DeleteButtonText" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" IsVisible="@IsPersonaPage" IsEnabled="@CanGeneratePersona" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="106" SuggestedHeight="38" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecuteGeneratePersona"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="@PersonaGenerateButtonText" /></Children></ButtonWidget>
+                  </Children>
+                </ListPanel>
+                <ListPanel IsVisible="@IsKnowledgePage" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="148" SuggestedHeight="38" MarginRight="8" Brush="Popup.Done.Button" Command.Click="ExecutePreviewKnowledgeClipboard"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="读取整库剪贴板" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="38" Brush="Popup.Done.Button" Command.Click="ExecuteExport"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="复制当前整库" /></Children></ButtonWidget>
+                  </Children>
+                </ListPanel>
+                <ListPanel IsVisible="@IsPromptPage" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="42" HorizontalAlignment="Left" VerticalAlignment="Bottom" MarginBottom="44" StackLayout.LayoutMethod="HorizontalLeftToRight">
+                  <Children>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="38" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecutePreviewPromptTextClipboard"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="粘贴纯文本" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="38" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecutePreviewPromptJsonClipboard"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="导入完整JSON" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="38" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecuteExport"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="复制JSON" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="38" MarginRight="6" Brush="Popup.Done.Button" Command.Click="ExecuteImportFile"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="文件预览" /></Children></ButtonWidget>
+                    <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="38" Brush="Popup.Done.Button" Command.Click="ExecuteExportFile"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="另存为" /></Children></ButtonWidget>
+                  </Children>
+                </ListPanel>
+                <Widget IsVisible="@HasPersonaPreview" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="@PersonaPreviewHeight" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#18130FFF" AlphaFactor="0.98">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34" MarginLeft="12" MarginRight="12" MarginTop="8" Brush="Popup.Title.Text" Brush.FontSize="@PageTitleFontSize" Text="人格生成预览（尚未保存）" />
+                    <ScrollablePanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="12" MarginRight="28" MarginTop="48" MarginBottom="54" ClipRect="PersonaPreviewClip" InnerPanel="PersonaPreviewClip\PersonaPreviewText" VerticalScrollbar="..\PersonaPreviewScrollbar" AutoHideScrollBars="true">
+                      <Children><Widget Id="PersonaPreviewClip" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" ClipContents="true"><Children><RichTextWidget Id="PersonaPreviewText" DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" Brush="Popup.Description.Text" Brush.FontSize="@EditorFontSize" Text="@PersonaPreviewText" /></Children></Widget></Children>
+                    </ScrollablePanel>
+                    <ScrollbarWidget Id="PersonaPreviewScrollbar" WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="12" HorizontalAlignment="Right" MarginTop="50" MarginRight="8" MarginBottom="56" AlignmentAxis="Vertical" MinValue="0" MaxValue="100" Handle="PersonaPreviewHandle"><Children><Widget Id="PersonaPreviewHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="10" SuggestedHeight="22" Sprite="scroll_button_9" /></Children></ScrollbarWidget>
+                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="40" HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginRight="12" MarginBottom="8" StackLayout.LayoutMethod="HorizontalLeftToRight"><Children>
+                      <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="106" SuggestedHeight="36" MarginRight="8" Brush="Popup.Done.Button" Command.Click="ExecuteApplyPersonaPreview"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="采用草稿" /></Children></ButtonWidget>
+                      <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="36" Brush="Popup.Cancel.Button" Command.Click="ExecuteDiscardPersonaPreview"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="放弃" /></Children></ButtonWidget>
+                    </Children></ListPanel>
+                  </Children>
+                </Widget>
+                <Widget IsVisible="@HasImportPreview" WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="@ImportPreviewHeight" VerticalAlignment="Top" Sprite="BlankWhiteSquare_9" Color="#18130FFF" AlphaFactor="0.98">
+                  <Children>
+                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="34" MarginLeft="12" MarginRight="12" MarginTop="8" Brush="Popup.Title.Text" Brush.FontSize="@PageTitleFontSize" Text="@ImportPreviewTitle" />
+                    <ScrollablePanel WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" MarginLeft="12" MarginRight="28" MarginTop="48" MarginBottom="54" ClipRect="ImportPreviewClip" InnerPanel="ImportPreviewClip\ImportPreviewBody" VerticalScrollbar="..\ImportPreviewScrollbar" AutoHideScrollBars="true">
+                      <Children><Widget Id="ImportPreviewClip" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" ClipContents="true"><Children><RichTextWidget Id="ImportPreviewBody" DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" Brush="Popup.Description.Text" Brush.FontSize="@EditorFontSize" Text="@ImportPreviewText" /></Children></Widget></Children>
+                    </ScrollablePanel>
+                    <ScrollbarWidget Id="ImportPreviewScrollbar" WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="12" HorizontalAlignment="Right" MarginTop="50" MarginRight="8" MarginBottom="56" AlignmentAxis="Vertical" MinValue="0" MaxValue="100" Handle="ImportPreviewHandle"><Children><Widget Id="ImportPreviewHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="10" SuggestedHeight="22" Sprite="scroll_button_9" /></Children></ScrollbarWidget>
+                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="40" HorizontalAlignment="Right" VerticalAlignment="Bottom" MarginRight="12" MarginBottom="8" StackLayout.LayoutMethod="HorizontalLeftToRight"><Children>
+                      <ButtonWidget DoNotPassEventsToChildren="true" IsEnabled="@CanConfirmImport" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="112" SuggestedHeight="36" MarginRight="8" Brush="Popup.Done.Button" Command.Click="ExecuteConfirmImport"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="@ImportConfirmButtonText" /></Children></ButtonWidget>
+                      <ButtonWidget DoNotPassEventsToChildren="true" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="88" SuggestedHeight="36" Brush="Popup.Cancel.Button" Command.Click="ExecuteCancelImport"><Children><TextWidget DoNotAcceptEvents="true" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" Brush="Popup.Button.Text" Brush.FontSize="@ButtonFontSize" Text="取消" /></Children></ButtonWidget>
+                    </Children></ListPanel>
+                  </Children>
+                </Widget>
+              </Children>
+            </Widget>
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

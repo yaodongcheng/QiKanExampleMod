@@ -285,3 +285,32 @@ static bool Prefix()
 门控 = `ShouldForceHideCursor()` = **IM 打开 + 手柄（去抖值 `_lastUsingGamepad`）+ 非输入框聚焦**（导航态）。**放行边界**：输入框聚焦态（原生速度模式，光标需要可见可点）/ 鼠标态 / IM 关闭。
 
 **教训**：`SetInputRestrictions(false)` 只是"本层声明"，全局光标可见性由 ScreenManager 按「任一活跃层 true」聚合——**想藏光标必须看有没有别的层在拉**。多版本兼容：ScreenSystem 的这两个方法各版本签名一致，无需 `#if`（编译时二进制 grep 验证过）。
+
+## 🔴 手柄导航：光标跟随焦点（A 键 native 点击命中焦点项，2026-08-19 用户裁定）— `ImChatView.SetMouseToWidget` + `ImChatSoftKeyboardPatch`
+
+**解决什么问题**：手柄 A 键聚焦输入框/激活按钮后，设备判定翻键鼠 → 导航门控死锁（坑 13，实机 09:48/09:52/09:59 三证）。
+
+**根因链（反编译全链实锤）**：
+1. `FocusInputWidget` 设 `EventManager.FocusedWidget = input` → setter 里 `IsControllerActive && EditableTextWidget` → `_isOnScreenKeyboardRequested=true`
+2. 引擎 `EventManager.LateUpdate` 消费 → `Platform.OpenOnScreenKeyboard(...)` → **PC 无软键盘 → native 立即回调取消**
+3. 取消回调（可能走 `GauntletLayer.OnOnScreenKeyboardCanceled` 也可能**直接调 `UIContext`**——两层都要补丁）→ `CancelMouseClick()` → ① `ClearFocus()` 清掉我们的焦点 ② 模拟鼠标抬起 → **`IsMouseActive` 持续 true**
+4. `IsGamepadActive = IsControllerConnected && !IsMouseActive`（Input.Update 每帧）→ 裸值翻 false → 去抖 0.2s 提交 → 门控死锁
+
+**修复三件套**：
+```csharp
+// ① 核心（用户裁定：焦点变化 → 光标跟随）：A 键 = native「点击」语义，点在鼠标位置——
+//    焦点转移时把光标挪到新焦点 widget 中心 → 点击命中焦点项本体（输入框=引擎点击聚焦路径，
+//    与手动 FocusedWidget 一致）→ 不落空、不清焦点、不翻
+private static void SetMouseToWidget(PadItem item)   // MovePad 转移后 + FocusInputWidget 前置调用
+{
+    var w = item.GetWidget?.Invoke();
+    var gp = w.GlobalPosition; var sz = w.Size;
+    Input.SetMousePosition((int)(gp.X + sz.X * 0.5f), (int)(gp.Y + sz.Y * 0.5f));
+}
+// ② 软键盘取消链双层补丁（IM 层跳过）：GauntletLayer.OnOnScreenKeyboardCanceled/Done
+//    + UIContext.OnOnScreenKeyboardCanceled/OnOnScreenkeyboardTextInputDone
+//    （native 可能直接调 UIContext 不走层——只补层拦不住，实机 09:59 证）
+// ③ 设备硬锚：手柄键按下沿 0.5s 窗口 + 输入聚焦态 → 钉住手柄语义（真实切鼠标窗口过期放行）
+```
+
+**坑中坑**：① Harmony **不能补丁抽象接口方法**（`ITwoDimensionPlatform.OpenOnScreenKeyboard`）——PatchAll 直接 HarmonyException 崩游戏启动；② 光标可见 = 锚定覆盖 SetMousePosition（坑 2），**光标隐藏时 SetMousePosition 有效**；③ 程序 SetMousePosition 不算「鼠标活动」（十字键导航全程实测未触发 IsMouseActive）；④ 诊断铁证格式：`设备翻转未保护: 裸值= False 聚焦=False IsMouseActive=True 光标可见=False 鼠标位置=(960,540)`——鼠标位置残留屏幕中央 = A 键点击打空。已登记 im-gamepad-navigation.md §11.2 坑 13。

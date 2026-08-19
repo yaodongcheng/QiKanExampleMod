@@ -114,6 +114,11 @@
       <HintPath>$(MB2_SANDBOX_REF)\SandBox.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <!-- 🔴 2026-08-18：补丁 MapScreen.get_IsInMenu（缩略 IM 打开期间拦地图部队移动）——类在 SandBox.View.dll -->
+    <Reference Include="SandBox.View">
+      <HintPath>$(MB2_SANDBOX_REF)\SandBox.View.dll</HintPath>
+      <Private>False</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <!-- 🔴 GauntletUI 的 Widget.GlobalPosition 返回 System.Numerics.Vector2，必须显式引用 -->
@@ -307,6 +312,8 @@
     <Compile Include="ImChat\ImMarchOrder.cs" />
     <Compile Include="ImChat\ImChatView.cs" />
     <Compile Include="ImChat\ImChatCursorPatch.cs" />
+    <Compile Include="ImChat\ImChatMapInputPatch.cs" />
+    <Compile Include="ImChat\ImChatSoftKeyboardPatch.cs" />
     <Compile Include="ImChat\ImChatVM.cs" />
     <Compile Include="ImChat\ImChatMissionView.cs" />
     <Compile Include="ImChat\ImScreenFrameTickPatch.cs" />

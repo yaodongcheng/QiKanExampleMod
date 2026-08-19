@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Module>
+  <Name value="骑砍闲聊 | BannerlordTalk" />
+  <Id value="BannerlordTalk" />
+  <Version value="v1.0.3" />
+  <Official value="false" />
+  <DefaultModule value="false" />
+  <SingleplayerModule value="true" />
+  <MultiplayerModule value="false" />
+  <ModuleCategory value="Singleplayer" />
+  <ModuleType value="Community" />
+  <DependedModules>
+    <DependedModule Id="Bannerlord.MBOptionScreen" DependentVersion="v5.12.2" Optional="false" />
+    <DependedModule Id="Native" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="SandBoxCore" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="Sandbox" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="StoryMode" DependentVersion="v1.4.8" Optional="false" />
+    <DependedModule Id="AFBattleCommanderBridge" DependentVersion="v1.6.5" Optional="true" />
+  </DependedModules>
+  <DependedModuleMetadatas>
+    <DependedModuleMetadata id="Bannerlord.MBOptionScreen" order="LoadBeforeThis" version="v5.12.2" />
+    <DependedModuleMetadata id="Native" order="LoadBeforeThis" version="v1.4.8" />
+    <DependedModuleMetadata id="SandBoxCore" order="LoadBeforeThis" version="v1.4.8" />
+    <DependedModuleMetadata id="Sandbox" order="LoadBeforeThis" version="v1.4.8" />
+    <DependedModuleMetadata id="StoryMode" order="LoadBeforeThis" version="v1.4.8" />
+    <DependedModuleMetadata id="AFBattleCommanderBridge" order="LoadBeforeThis" version="v1.6.5" />
+  </DependedModuleMetadatas>
+  <SubModules>
+    <SubModule>
+      <Name value="BannerlordTalk" />
+      <DLLName value="BannerlordTalk.dll" />
+      <SubModuleClassType value="BannerlordTalk.SubModule" />
+      <Tags>
+        <Tag key="DedicatedServerType" value="none" />
+        <Tag key="IsNoRenderModeElement" value="false" />
+      </Tags>
+    </SubModule>
+  </SubModules>
+  <Assemblies>
+    <Assembly value="BannerlordTalk.dll" />
+  </Assemblies>
+</Module>
