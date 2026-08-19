@@ -610,7 +610,12 @@ namespace LivingWorldNpcs
             {
                 if (opt == null || string.IsNullOrEmpty(opt.EventType)) continue;
                 string evt = opt.EventType;
-                CardButtons.Add(new ImButtonVM(opt.Label ?? "", () => ImChatView.HandleAskPlayerOption(card, evt)));
+                // 🔴 2026-08-19（澄清轮选项按钮化）：澄清轮选项卡 → 选项文本入命令上下文（RequestCommand 合并）；
+                // 执行期决策卡 → 事件回投执行器（NotifyDecisionEvent）。渲染管线共用，回调分流。
+                if (card.IsClarifyCard)
+                    CardButtons.Add(new ImButtonVM(opt.Label ?? "", () => ImChatView.HandleClarifyOption(card, evt)));
+                else
+                    CardButtons.Add(new ImButtonVM(opt.Label ?? "", () => ImChatView.HandleAskPlayerOption(card, evt)));
             }
         }
 
