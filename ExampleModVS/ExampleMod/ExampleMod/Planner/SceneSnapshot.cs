@@ -556,21 +556,31 @@ namespace LivingWorldNpcs
             if (dist < 1.2f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_beside");
             else
             {
-                float ang = MathF.Atan2(dy, dx);
+                // 🔴 2026-08-20 勘误（反编译验证）：引擎世界坐标 北=+Y、东=+X（vanilla MapCameraView
+                // PartyMoveUpKey: X+=sinθ, Y+=cosθ，θ=0 时北=+Y）。旧公式 atan2(dy,dx) 把 +Y 当南 →
+                // 南北轴整体翻转 180°（实机 2026-08-20：delta=(-0.5,+1.5) 的随从被写成「你南侧2米」，
+                // 实际是玩家北方，与「面朝玩家站对面」的事实矛盾）。
+                // 改用代码库标准方位（与 AgentAIController.GetDirectionFromTo 同口径）：
+                // ang = atan2(dx, dy)，0°=北，顺时针为正（东=+90），22.5° 八方向。
+                float ang = MathF.Atan2(dx, dy);
                 float deg = ang * (180f / MathF.PI);
-                // 玩家面朝方向为正前——用屏幕方位近似（相对世界轴，简化：以玩家朝向为参考不做旋转，写方位词）
-                // 本地化：LWN_prompt_scene_pos_east/southeast/south/west/north/southwest（你东侧等，双桶）
-                if (MathF.Abs(deg) < 30f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_east");
-                // 本地化：LWN_prompt_scene_pos_southeast（双桶）
-                else if (deg >= 30f && deg < 90f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_southeast");
-                // 本地化：LWN_prompt_scene_pos_south（双桶）
-                else if (deg >= 90f && deg < 150f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_south");
-                // 本地化：LWN_prompt_scene_pos_west（双桶）
-                else if (deg >= 150f || deg <= -150f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_west");
-                // 本地化：LWN_prompt_scene_pos_north（双桶）
-                else if (deg < -90f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_north");
-                // 本地化：LWN_prompt_scene_pos_southwest（双桶）
-                else dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_southwest");
+                if (deg < 0f) deg += 360f;
+                // 本地化：LWN_prompt_scene_pos_north（你北侧等，双桶）
+                if (deg < 22.5f || deg >= 337.5f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_north");
+                // 本地化：LWN_prompt_scene_pos_northeast（你东北侧等，双桶）
+                else if (deg < 67.5f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_northeast");
+                // 本地化：LWN_prompt_scene_pos_east（你东侧等，双桶）
+                else if (deg < 112.5f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_east");
+                // 本地化：LWN_prompt_scene_pos_southeast（你东南侧等，双桶）
+                else if (deg < 157.5f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_southeast");
+                // 本地化：LWN_prompt_scene_pos_south（你南侧等，双桶）
+                else if (deg < 202.5f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_south");
+                // 本地化：LWN_prompt_scene_pos_southwest（你西南侧等，双桶）
+                else if (deg < 247.5f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_southwest");
+                // 本地化：LWN_prompt_scene_pos_west（你西侧等，双桶）
+                else if (deg < 292.5f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_west");
+                // 本地化：LWN_prompt_scene_pos_northwest（你西北侧等，双桶）
+                else dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_northwest");
             }
             // 本地化：LWN_prompt_scene_pos_line（{DIR}{DIST}米，双桶）
             return LWNTextHelper.ResolveCompound("LWN_prompt_scene_pos_line", ("DIR", dir), ("DIST", $"{dist:F0}"));

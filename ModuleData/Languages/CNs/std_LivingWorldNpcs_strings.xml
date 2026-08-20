@@ -2677,9 +2677,7 @@
 
     <!-- 顶部罗盘（Compass HUD） -->
     <string id="LWN_mcm_show_compass" text="显示罗盘" />
-    <string id="LWN_mcm_show_compass_hint" text="开启后，场景顶部显示老滚5 风格罗盘带：方向字母（北/东/南/西）、45° 刻度线，以及带有任务的重要人物图标。传讯面板或系统菜单打开时自动隐藏。" />
-    <string id="LWN_mcm_show_compass_icons" text="显示罗盘任务图标" />
-    <string id="LWN_mcm_show_compass_icons_hint" text="开启后，视野方向内有任务的重要人物图标（附距离文本）显示在罗盘带上。关闭则只保留方向字母和刻度线。" />
+    <string id="LWN_mcm_show_compass_hint" text="开启后，场景顶部显示老滚5 风格罗盘带：方向字母（北/东/南/西）、45° 刻度线，以及带有任务的重要人物图标。完整传讯面板或系统菜单打开时自动隐藏（缩略面板不隐藏）。" />
     <string id="LWN_compass_north" text="北" />
     <string id="LWN_compass_east" text="东" />
     <string id="LWN_compass_south" text="南" />

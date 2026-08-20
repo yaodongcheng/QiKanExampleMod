@@ -134,8 +134,8 @@ namespace LivingWorldNpcs
         public bool ShowCompass { get; set; } = true;
 
         // ── 罗盘重要人物图标开关（默认开启；关闭 = 只留刻度带与方向字母，不带任务图标）──
-        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取。
-        [Newtonsoft.Json.JsonIgnore]
+        // 🔴 2026-08-20（用户裁定）：MCM 侧开关已移除（跟随罗盘总开关），此字段归入
+        // config.json 高级配置（小白玩家不需要分开控制；想只留刻度带的改 config.json 此项）。
         public bool ShowCompassIcons { get; set; } = true;
 
         // ── 友方敌意互动保护开关（唯一来源 = MCM Mod 选项 UI，Core/MCMSettings.cs 写入）──
