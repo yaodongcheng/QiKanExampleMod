@@ -31,7 +31,12 @@ namespace LivingWorldNpcs
         /// <summary>频道列表条目标题最大字符数（🔴 2026-08-19 实机校准：9 字过早省略——用户实测
         /// 右侧还能容纳 3 字；可用宽 ≈ 214px @FontSize17 ≈ 12 字。CoverChildren + MaxWidth 210 后
         /// 引擎无从缩放字号（宽度=内容测量值），阈值只负责省略号时机）。</summary>
-        public const int MaxChannelTitleChars = 12;
+        public const int MaxChannelTitleChars = 14;
+
+        /// <summary>频道列表副标题（最后消息预览）最大字符数。🔴 2026-08-20（用户裁定：与标题
+        /// 同机制，统一走 <see cref="Truncate"/>）：原 13 → 32——预览内容短，字符截断几乎不触发；
+        /// 超宽由 XML ClipContents 像素裁剪兜底（StretchToParent 布局无压字号问题，裁剪即止）。</summary>
+        public const int MaxChannelSubtitleChars = 14;
 
         /// <summary>全模式气泡名字行最大字符数（含位置后缀）。🔴 2026-08-19（用户反馈：气泡右侧
         /// 明明大量空间，名字却被截成省略号；且各上下文可用宽不同，禁止共用一个上限）——

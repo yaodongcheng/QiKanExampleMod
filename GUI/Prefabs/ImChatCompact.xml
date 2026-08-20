@@ -139,7 +139,7 @@
                                   IsEnabled="@CanBeSelected"
                                   Command.Click="ExecuteSelect"
                                   Brush="Standard.DropdownItem.SoundBrush"
-                                  MarginLeft="4" MarginRight="4" MarginTop="2" MarginBottom="2">
+                                  MarginLeft="4" MarginRight="4" MarginTop="0" MarginBottom="0">
                       <Children>
                         <ImageWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                      MarginLeft="5" MarginRight="5"
