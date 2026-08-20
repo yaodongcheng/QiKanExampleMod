@@ -373,45 +373,22 @@
          BlankWhiteSquare_9 纯色方块任意尺寸无缝；染色走 Style Color（默认半透白
          与消息气泡 #FFFFFF1A 同族，悬停金色 #BFAD6FFF 与 Simple.Button.Bg 一致）。
          影响范围：全 mod 共用的 Test.Button3（缩略/完整模式按钮、StealBar）。 -->
-    <!-- 🔴 2026-08-20（消息按键专用 brush，用户点名素材组合）：原版主按钮素材 + Extend 9 宫格——
-         解决旧 Test.Button3 缺 Extend（Extend=0 → 整图拉伸，素材上下透明/阴影边缘在按钮之间
-         露出缝隙）的问题。Extend>0 即启用九宫格：角落原尺寸 + 边拉伸（BrushLayer 无 Type 属性，
-         原版 Main.xml 同款机制，反编译 BrushLayer 实证）。
-         素材 General\Button\main_button_* 均为 271×84；上下 Extend 12（参照原版 ButtonBrush2
-         矮按钮惯例 main_button_regular_big 480×64 → ExtendTop/Bottom=12）：26px 按钮中区
-         = 26−2×12 = 2px 非负，任意高度安全；左右 Extend 22（原版值，角落 44px ≤ 最小按钮宽 64）。
-         三态：Default=main_button_regular（深色）/ Hovered=main_button_done_hover（金色高亮）/
-         Pressed=main_button_done（金色按压缩暗）。 -->
+    <!-- 🔴 2026-08-20（用户裁定：简化笔刷结构）：单 Sprite + Style 染色区分状态——
+         素材保留原版主按钮 main_button_regular（271×84，Extend 九宫格必须保留，
+         否则 64×34/26px 按钮整图拉伸变形、透明边缘露缝隙——见旧注释踩坑）。
+         三态由染色实现：Default 原色深底 / Hovered 金色高亮（保留原 main_button_done_hover
+         金色语义）/ Pressed 暗金按压 / Selected 金色 / Disabled 半透明。 -->
     <Brush Name="LWN_Btn_Message">
         <Layers>
             <BrushLayer Name="Default" Sprite="General\Button\main_button_regular"
                         ExtendLeft="22" ExtendTop="12" ExtendRight="22" ExtendBottom="12" />
-            <BrushLayer Name="Hover" Sprite="General\Button\main_button_done_hover"
-                        ExtendLeft="22" ExtendTop="12" ExtendRight="22" ExtendBottom="12" />
-            <BrushLayer Name="Pressed" Sprite="General\Button\main_button_done"
-                        ExtendLeft="22" ExtendTop="12" ExtendRight="22" ExtendBottom="12" />
         </Layers>
         <Styles>
-            <Style Name="Default">
-                <BrushLayer Name="Default" IsHidden="false" />
-                <BrushLayer Name="Hover" IsHidden="true" />
-                <BrushLayer Name="Pressed" IsHidden="true" />
-            </Style>
-            <Style Name="Hovered">
-                <BrushLayer Name="Default" IsHidden="true" />
-                <BrushLayer Name="Hover" IsHidden="false" />
-                <BrushLayer Name="Pressed" IsHidden="true" />
-            </Style>
-            <Style Name="Pressed">
-                <BrushLayer Name="Default" IsHidden="true" />
-                <BrushLayer Name="Hover" IsHidden="true" />
-                <BrushLayer Name="Pressed" IsHidden="false" />
-            </Style>
-            <Style Name="Selected">
-                <BrushLayer Name="Default" IsHidden="true" />
-                <BrushLayer Name="Hover" IsHidden="false" />
-                <BrushLayer Name="Pressed" IsHidden="true" />
-            </Style>
+            <Style Name="Default"><BrushLayer Name="Default" Color="#FFFFFFFF"/></Style>
+            <Style Name="Hovered"><BrushLayer Name="Default" Color="#E8C55AFF"/></Style>
+            <Style Name="Pressed"><BrushLayer Name="Default" Color="#B08A3EFF"/></Style>
+            <Style Name="Selected"><BrushLayer Name="Default" Color="#C89B4CFF"/></Style>
+            <Style Name="Disabled"><BrushLayer Name="Default" Color="#FFFFFF66"/></Style>
         </Styles>
     </Brush>
 
