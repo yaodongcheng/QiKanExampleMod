@@ -131,6 +131,13 @@ namespace LivingWorldNpcs
 
         public static InteractionMissionView Instance { get; private set; }
 
+        /// <summary>
+        /// 顶部罗盘控制器（用户裁定 2026-08-20：挂载本 View）。
+        /// OnTick 在互动门控（IsInteractionDisabled）【之前】调用——战场/竞技场等场景罗盘照常工作；
+        /// 隐藏纪律（IM 打开 / 系统模态 / MCM 开关）在 CompassHud 内部处理。
+        /// </summary>
+        public CompassHud CompassHud { get; } = new CompassHud();
+
         /// <summary>🔴 2026-08-17（呼出按钮避让）：InteractArea（玩法行 UI）是否可见——面向 NPC 时有
         /// 可用玩法行 → 显示（右下角从底部 180 向上生长）。大世界 Instance 为 null → false。</summary>
         public static bool IsInteractAreaVisible =>
@@ -171,6 +178,9 @@ namespace LivingWorldNpcs
 
             // 订阅关闭事件，处理收尾工作
             _dialogueVM.OnDialogClosed += OnDialogueEnded;
+
+            // 顶部罗盘（层序 8：AgentHud=5 之上、InteractArea=10 之下；纯显示不吃事件）
+            CompassHud.OnInitialize(thisMissionScreen);
 
             Instance = this;
 
@@ -939,6 +949,10 @@ namespace LivingWorldNpcs
             // ── 计划执行层驱动（PlanCommandFlow 已 IM 化，无主线程消费——结果全部由 ImChatManager.Tick 消费）──
             PlanReplan.Tick();
 
+            // ── 顶部罗盘每帧驱动（🔴 必须在互动门控之前：战场/竞技场/对话等场景罗盘照常显示——
+            //    DisabledInteractionMissionModes 含 Battle/Tournament/Duel 等，放门控后罗盘会在战场上失效）──
+            CompassHud.OnTick(dt);
+
             // 战斗模式下跳过交互 UI 全部逻辑：大世界遭遇/箱子/射线检测/交互选项构建
             if (Settings.Instance.IsInteractionDisabled())
                 return;
@@ -1417,6 +1431,9 @@ namespace LivingWorldNpcs
         public override void OnMissionScreenFinalize()
         {
             base.OnMissionScreenFinalize();
+
+            // ── 顶部罗盘：移除层 + 清理（Mission 生命周期随本 View 收尾）──
+            CompassHud.OnFinalize();
 
             // ── 输入状态机兜底清理：Mission 结束全部玩法行复位（防按住状态泄漏到下一个 Mission）──
             ModInput.ResetAll();

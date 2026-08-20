@@ -127,6 +127,17 @@ namespace LivingWorldNpcs
         [Newtonsoft.Json.JsonIgnore]
         public bool ShowNpcIntent { get; set; } = true;
 
+        // ── 顶部罗盘开关（默认开启，Mission 内显示老滚5 风格方位罗盘）──
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取
+        // （[JsonIgnore] 双配置体系纪律：玩家高频调整的开关只在 MCM 一侧存在）。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowCompass { get; set; } = true;
+
+        // ── 罗盘重要人物图标开关（默认开启；关闭 = 只留刻度带与方向字母，不带任务图标）──
+        // 唯一来源 = MCM Mod 选项 UI（Core/MCMSettings.cs 写入），config.json 不读取。
+        [Newtonsoft.Json.JsonIgnore]
+        public bool ShowCompassIcons { get; set; } = true;
+
         // ── 友方敌意互动保护开关（唯一来源 = MCM Mod 选项 UI，Core/MCMSettings.cs 写入）──
         // true（默认）= 允许对友方使用敌意互动（保持原行为——敌意互动均为长按蓄力触发，
         // 误触概率低，不需要默认禁止）；false = 禁止（防误伤保护：击晕/偷窃/搜刮/主动攻击
