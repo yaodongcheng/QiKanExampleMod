@@ -77,6 +77,38 @@ namespace LivingWorldNpcs
 
         private static readonly object _lock = new object();
 
+        // 🔴 2026-08-20（用户裁定：随从偷一次摸空就回来）：重复偷窃意图词表（检测词典，豁免本地化）——
+        // 玩家消息命中 + 动作码 steal_attempt → C# 强制挂「制定计划」按钮（走计划轮出 retry 计划），
+        // 不靠 LLM 自觉 need_plan（实机：玩家说"直到偷到为止" LLM 回包 need_plan=false 单步偷一次）。
+        private static readonly string[] RepeatIntentWords =
+        {
+            "继续偷", "再偷", "多偷", "接着偷", "一直偷", "偷几次", "偷到为止", "直到偷到", "多摸", "再摸",
+            "keep stealing", "steal until", "steal again", "steal more",
+        };
+        private static readonly string[] RepeatGuardWords = { "不", "别", "没", "停", "算", "免" };
+
+        /// <summary>🔴 2026-08-20：玩家消息含重复偷窃意图（继续偷/多偷/直到偷到）且 LLM 回包偷窃动作
+        /// → 强制走计划轮（retry 计划），不靠 LLM 自觉 need_plan（实机：LLM 回 need_plan=false 单步偷一次）。
+        /// 否定守卫：匹配处前 4 字符内有 不/别/没/停/算/免 → 跳过（"别再偷了"不误伤）。</summary>
+        private static bool RepeatIntentForcesPlan(string respondText, string actionCode)
+        {
+            if (actionCode != "steal_attempt" || string.IsNullOrWhiteSpace(respondText)) return false;
+            foreach (var w in RepeatIntentWords)
+            {
+                int idx = respondText.IndexOf(w, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0) continue;
+                int from = Math.Max(0, idx - 4);
+                string ctx = respondText.Substring(from, idx - from);
+                bool guarded = false;
+                foreach (var g in RepeatGuardWords)
+                {
+                    if (ctx.IndexOf(g, StringComparison.Ordinal) >= 0) { guarded = true; break; }
+                }
+                if (!guarded) return true;
+            }
+            return false;
+        }
+
         // heroId → 待回复任务（一次一个）
         private static readonly Dictionary<string, PendingReply> _pending = new Dictionary<string, PendingReply>();
 
@@ -361,10 +393,14 @@ namespace LivingWorldNpcs
                             }
                             if (!riskTookOver)
                             {
+                                // 🔴 2026-08-20（用户裁定：偷一次摸空就回来）：玩家消息含重复偷窃意图
+                                // （继续偷/多偷/直到偷到）→ C# 强制进计划轮（挂「制定计划」按钮），同时
+                                // 抑制下方单步闲聊动作（防双入口：按钮 + 单步动作各执行一次 = M4 双卡教训）
+                                bool forcePlan = !it.NeedPlan && RepeatIntentForcesPlan(it.P?.RespondText, it.ActionCode);
                                 // 🔴 2026-08-12（合并闲聊/计划模式）：needPlan/adjustPlan 主线程投递点消费——
                                 // 顺序在 DeliverNpcMessage 之后（TryAttachSuggestion 定位 store 最后一条 = 刚投递消息）。
                                 // 建议只挂「主回复者」的回复（跟随/往返/接话是对旧链条的回应，不判 needPlan）。
-                                if (it.NeedPlan && string.IsNullOrEmpty(it.P.FollowUpHeroId) && string.IsNullOrEmpty(it.P.PriorPeerId))
+                                if ((it.NeedPlan || forcePlan) && string.IsNullOrEmpty(it.P.FollowUpHeroId) && string.IsNullOrEmpty(it.P.PriorPeerId))
                                 {
                                     try
                                     {
@@ -389,7 +425,9 @@ namespace LivingWorldNpcs
                                 // 🔴 2026-08-10 闲聊动作（§5.1）：投递后执行动作（主线程）。
                                 // attacker = 说话者；defender 解析（名字文本 → 实体识别 → 兜底玩家）+ 空间裁决
                                 // （ResolveSpace）+ 空间裁剪 + 频率冷却 全在 ActionHandler 内部（§5.2/§六）
-                                if (!string.IsNullOrEmpty(it.ActionCode) && it.ActionCode != "NONE")
+                                // 🔴 2026-08-20：forcePlan 时抑制——重复偷窃意图已挂「制定计划」按钮，单步
+                                // 闲聊动作（偷一次）与计划轮双入口冲突，禁止同轮执行
+                                if (!forcePlan && !string.IsNullOrEmpty(it.ActionCode) && it.ActionCode != "NONE")
                                 {
                                     try
                                     {

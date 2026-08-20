@@ -162,6 +162,7 @@ namespace LivingWorldNpcs
         [JsonProperty("result")] public JToken Result; // 判定型路由 {success: "s2",...} 或 end_plan 字符串 "success"/"fail"
         [JsonProperty("report")] public string Report;  // end_plan 收尾报告文本（当面报告）
         [JsonProperty("variant")] public string Variant;  // steal_attempt: item / pickpocket
+        [JsonProperty("retry")] public int? Retry;        // 判定型步骤总尝试次数（steal_attempt: 摸空重试，装备变体失败不重试；钳制 1-5）
         [JsonProperty("item")] public string Item;        // give_item / deliver_item
         [JsonProperty("amount")] public JToken Amount;    // give_gold: "stolen" 或数值
         [JsonProperty("rel_pos")] public string RelPos;   // follow: behind/line/left/right
@@ -691,6 +692,20 @@ namespace LivingWorldNpcs
             {
                 result.Warnings.Add($"sustained_s 超限（id={s.Id}）→ 钳制 {MaxSustained}");
                 s.Until.SustainedS = MaxSustained;
+            }
+            // retry（判定型步骤总尝试次数，🔴 2026-08-20：steal_attempt 摸空重试；钳制 1-5 防无限循环）
+            if (s.Retry.HasValue)
+            {
+                if (s.Retry.Value < 1)
+                {
+                    result.Warnings.Add($"retry 非法（id={s.Id} {s.Retry}）→ 钳制 1");
+                    s.Retry = 1;
+                }
+                else if (s.Retry.Value > 5)
+                {
+                    result.Warnings.Add($"retry 超限（id={s.Id} {s.Retry}）→ 钳制 5");
+                    s.Retry = 5;
+                }
             }
 
             // 谓词词表（until/when）

@@ -623,6 +623,9 @@ namespace LivingWorldNpcs
         private float _behindLastPick;
         // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：绕后卡住独白（每卡住周期一次）
         private bool _monologueSaid;
+        // 🔴 2026-08-20（用户裁定：随从偷一次摸空就回来）：retry 字段 = 判定型步骤总尝试次数
+        //（摸空 empty 重试——重新绕背再摸一把；装备变体失败 = 目标察觉不重试；最终结果只播报一次）
+        private int _attemptsLeft = 1;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
         // 🔴 行为性内联（M0/D3）：SetPose/ScriptedMoveToPoint 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
@@ -637,6 +640,7 @@ namespace LivingWorldNpcs
             _step = step;
             _variantItem = step.Variant == "item";
             _variantEquipment = step.Variant == "equipment";
+            _attemptsLeft = Math.Max(1, step.Retry ?? 1);   // validator 已钳制 1-5，此处防御性保底
             // 目标解析（物 = 箱子物件；人 = 扒窃目标；装备变体 = 人目标）
             string refName = PlanRefUtil.Normalize(step.Target, out string query);
             if (query != null) refName = query;
@@ -972,6 +976,25 @@ namespace LivingWorldNpcs
                                 // 无人目击扒窃 → 暗账（次日发现，保持 Dormant）
                                 AgentAIController.Instance?.RegisterUnwitnessedTheft("gold", PlanTexts.Gold, count: (int)_amount);
                             }
+                        }
+                        // 🔴 2026-08-20（用户裁定：偷一次摸空就回来 → 重试）：摸空（empty）且还有次数 →
+                        // 状态复位重走 Behind 再摸一把。不重试的失败：装备变体失败（_equipmentDetected，
+                        // TheftVictimized 已直发受害者、目标已察觉）、interrupted（被目击情境不对）、
+                        // impossible（站位不可行）。钱袋路径 purse==0 空转最坏被上限 5 兜住。
+                        if (_resultKey == "empty" && !_equipmentDetected && _attemptsLeft > 1)
+                        {
+                            _attemptsLeft--;
+                            string actorName = _agent?.Name?.ToString() ?? "";
+                            DebugLogger.Log($"[PlanExecutor] {actorName} 偷窃摸空，继续尝试（剩 {_attemptsLeft} 次）");
+                            _phase = AttemptPhase.Behind;
+                            _timer = 0f;
+                            _posed = false;
+                            _rollRecorded = false;
+                            _rollValue = 0f;
+                            _rollThreshold = 0f;
+                            _resultKey = null;
+                            _monologueSaid = false;
+                            break;   // 重走 Behind（目标仍背对 → 立即 Rolling，天然有节奏）
                         }
                         // 保持蹲姿进 Settled（展示窗口）：收姿挪到 Settled 出口统一做——
                         // 原此处 StopAndReset 会把刚下蹲的 Crouch 位清掉（ForceUnlockAgent → SetScriptedFlags(None)）

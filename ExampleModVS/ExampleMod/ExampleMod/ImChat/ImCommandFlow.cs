@@ -34,6 +34,76 @@ namespace LivingWorldNpcs
         /// <summary>修改额度上限（Q2：复用 PlanReplan 的 ≤2 次语义，防玩家无限修改刷 LLM）。</summary>
         public const int MaxModifyCount = 2;
 
+        // 🔴 2026-08-20（用户裁定：玩家说"换个人再偷"，随从仍偷原目标）：换目标意图词表（检测词典，
+        // 豁免本地化，同 ChatClaimChecker 词表模式）——命令命中 → 剥离已锁定目标（含 #N 的括号尾巴）
+        // 重采候选注入计划轮，不靠 LLM 自觉换人（实机：原命令并入带 #54，LLM 只能沿用）。
+        private static readonly string[] RetargetIntentWords =
+        {
+            "换个人", "换个", "换一个", "换人", "换目标", "换别人", "换别的", "换其他人", "换个人选", // lwn-ignore: A
+            "换别的目标", "换下一个人", "重新挑", "再挑一个", "另找一个", "另挑", "挑别的", // lwn-ignore: A
+            "switch to", "another", "different target", "change target", "someone else", "other target",
+        };
+        private static readonly string[] RetargetGuardWords = { "不", "别", "没", "等", "算", "免" }; // lwn-ignore: A
+
+        /// <summary>换目标意图判定（匹配处前 4 字符否定守卫防"别换人了"误伤）。</summary>
+        private static bool HasRetargetIntent(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return false;
+            foreach (var w in RetargetIntentWords)
+            {
+                int idx = text.IndexOf(w, StringComparison.OrdinalIgnoreCase);
+                if (idx < 0) continue;
+                int from = Math.Max(0, idx - 4);
+                string ctx = text.Substring(from, idx - from);
+                bool guarded = false;
+                foreach (var g in RetargetGuardWords)
+                {
+                    if (ctx.IndexOf(g, StringComparison.Ordinal) >= 0) { guarded = true; break; }
+                }
+                if (!guarded) return true;
+            }
+            return false;
+        }
+
+        /// <summary>剥离已锁定目标尾巴（模板 NPC 的「名字#N（方位）」括号片段，含内层方位括号），
+        /// 恢复目标类型词供重采候选。例：那换个人再偷（原命令：去偷士兵的东西（帝国弩手#54（你东侧17米）））
+        /// → 那换个人再偷（原命令：去偷士兵的东西）。#N 不在括号内 → 原样返回（无剥离语义）。
+        /// 根因（2026-08-20）：合并命令残留 #N 触发 FindAgentCandidates 的 TryResolveIndexedTarget
+        /// 唯一化短路（SceneSnapshot.cs:314）→ 候选注入与后置澄清检查全被绕过。</summary>
+        private static string StripResolvedTargetSuffix(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            string s = text;
+            while (true)
+            {
+                int hash = -1;
+                for (int i = 0; i < s.Length; i++)
+                {
+                    if (s[i] == '#' && i + 1 < s.Length && char.IsDigit(s[i + 1])) { hash = i; break; }
+                }
+                if (hash < 0) return s;
+                int open = -1;
+                for (int i = hash - 1; i >= 0; i--)
+                {
+                    if (s[i] == '（' || s[i] == '(') { open = i; break; }
+                }
+                if (open < 0) return s;
+                int depth = 0;
+                int close = -1;
+                for (int i = open; i < s.Length; i++)
+                {
+                    if (s[i] == '（' || s[i] == '(') depth++;
+                    else if (s[i] == '）' || s[i] == ')')
+                    {
+                        depth--;
+                        if (depth == 0) { close = i; break; }
+                    }
+                }
+                if (close < 0) return s;
+                s = s.Substring(0, open) + s.Substring(close + 1);
+            }
+        }
+
         private class PendingRequest
         {
             public ImConversation Conv;
@@ -207,7 +277,17 @@ namespace LivingWorldNpcs
                 string targetCandidatesText = null;
                 try
                 {
-                    var cands = snapshot.FindAgentCandidates(req.Command);
+                    // 🔴 2026-08-20（用户裁定：换个人再偷不照办）：换目标意图 → 剥离已锁定目标尾巴
+                    //（含 #N）重采候选——否则残留 #54 触发 FindAgentCandidates 唯一化短路（Count=1），
+                    // 候选注入条件（>1）不触发，LLM 只能沿用原目标。
+                    string candQuery = req.Command;
+                    if (HasRetargetIntent(req.Command))
+                    {
+                        string stripped = StripResolvedTargetSuffix(req.Command);
+                        if (!string.IsNullOrWhiteSpace(stripped)) candQuery = stripped;
+                        DebugLogger.Log($"[ImCommandFlow] 换目标意图 → 剥离锁定目标重采候选: 「{candQuery}」");
+                    }
+                    var cands = snapshot.FindAgentCandidates(candQuery);
                     if (cands != null && cands.Count > 1)
                     {
                         var lines = new List<string>();
@@ -249,8 +329,13 @@ namespace LivingWorldNpcs
                 string origCommand = _pendingClarify?.Command ?? _lastCommand;
                 if (!string.IsNullOrEmpty(origCommand) && origCommand != req.Command)
                 {
+                    // 🔴 2026-08-20（换目标重采配套）：换目标意图时原命令的锁定目标尾巴（含 #N）
+                    // 剥掉再并入——防 LLM 看到原命令里的 #54 继续沿用（实机：计划轮仍偷帝国弩手#54）
+                    string origForPrompt = HasRetargetIntent(req.Command)
+                        ? StripResolvedTargetSuffix(origCommand)
+                        : origCommand;
                     // 本地化：原命令并入段（玩家可见文本）——命令段内括号注释，LLM 视角 = 追问语境
-                    commandForPrompt = $"{req.Command}（原命令：{origCommand}）";
+                    commandForPrompt = $"{req.Command}（原命令：{origForPrompt}）";  // lwn-ignore: A
                     DebugLogger.Log($"[ImCommandFlow] 计划轮并入原命令: 「{req.Command}」→「{commandForPrompt}」");
                 }
                 string prompt = PromptBuilder.BuildPlanPrompt(
@@ -379,7 +464,9 @@ namespace LivingWorldNpcs
                     && !string.IsNullOrEmpty(_lastTargetCheckCommand)
                     && (response.Questions == null || response.Questions.Count == 0))
                 {
-                    var clarifyCandidates = CollectTargetCandidates(_lastTargetCheckCommand);
+                    var clarifyCandidates = CollectTargetCandidates(HasRetargetIntent(_lastTargetCheckCommand)
+                        ? StripResolvedTargetSuffix(_lastTargetCheckCommand)
+                        : _lastTargetCheckCommand);
                     // 🔴 2026-08-19（澄清卡误循环，实机：玩家点选候选后命令含 [#42] 标记 → 唯一解析 →
                     // 但超轮检查在候选判定之前 → 第二轮就把有效计划误杀成「改日再说」）：
                     // 先判候选——命令已唯一解析（含 #N）直接放行；只有仍歧义（多候选/无匹配+有声明）
