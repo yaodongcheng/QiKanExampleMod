@@ -234,7 +234,7 @@
                                                  rect 会重叠——「文字叠在一起」根因，2026-08-10 三轮修复）；MaxWidth 只放 TextWidget 上 -->
                                             <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                     HorizontalAlignment="Left"
-                                                    Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A"
+                                                    Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#FFFFFF55"
                                                     DoNotAcceptEvents="true">
                                               <Children>
                                                 <ListPanel Id="LWN_ImChat_BubbleOther" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -282,7 +282,7 @@
                                             <!-- 气泡：贴内容 + 右对齐；内部垂直 ListPanel 堆叠（同上）；MaxWidth 只放 TextWidget 上 -->
                                             <Widget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                     HorizontalAlignment="Right"
-                                                    Sprite="BlankWhiteSquare_9" Color="#3DA53D33"
+                                                    Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#3DA53D80"
                                                     DoNotAcceptEvents="true">
                                               <Children>
                                                 <ListPanel Id="LWN_ImChat_BubbleSelf" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
@@ -671,7 +671,7 @@
              HideNavCursor（ActivatePad 统一入口已做），此处 DoNotAcceptEvents 仅防鼠标态误拦。 -->
         <ImageWidget Id="LWN_NavCursor" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                      SuggestedWidth="28" SuggestedHeight="28"
-                     Sprite="frame_small_9"
+                     Sprite="highlight_gradient_9"
                      HorizontalAlignment="Left" VerticalAlignment="Top"
                      IsHidden="true"
                      DoNotAcceptEvents="true"/>
