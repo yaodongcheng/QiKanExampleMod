@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -22,6 +23,51 @@ namespace LivingWorldNpcs
     //   非行为性内联（say_to/wait/signal_player/end_plan/make_noise/give_*/deliver_*）：
     //   纯逻辑/通信，留在排序器侧直接驱动，Pause 时保留状态（恢复不重播/不重计时）。
     // ═══════════════════════════════════════════════════════════════
+
+    /// <summary>「迟迟不动手」的犹豫内心独白（括号包裹 = 说给自己听的心声；附近频道冒泡）。
+    /// 🔴 2026-08-19（用户裁定）：偷窃绕后卡住（Behind 相位 3s）/ 等「没人看见」wait 卡住（5s）共用——
+    /// 内容 = 当前会告发的目击者名单（GetWitnesses 已排除玩家/队友；被谁看见了说清楚）。
+    /// 在线 = SayPolished LLM 润色（StimulusType=plan_command 命中润色分级），离线 = 模板直播（铁律 1 兜底）。</summary>
+    internal static class StealHesitationMonologue
+    {
+        /// <summary>说一次（调用方保证节流：每卡住周期一次）。</summary>
+        public static void Say(Agent agent)
+        {
+            try
+            {
+                if (agent == null || !agent.IsActive()) return;
+                var witnesses = StealManager.GetWitnesses(agent, null, 15f, 120f);
+                string fallback;
+                if (witnesses.Count > 0)
+                {
+                    var names = witnesses
+                        .Where(w => w != null && w.Name != null)
+                        .Select(w => w.Name.ToString())
+                        .Where(n => !string.IsNullOrEmpty(n))
+                        .Distinct()
+                        .Take(3)
+                        .ToList();
+                    // 本地化：犹豫独白-有目击者（玩家可见文本）
+                    fallback = LWNTextHelper.ResolveCompound("LWN_npc_steal_monologue_spotted",
+                        "({NAMES} keeps watching me… I can't get behind him.)",
+                        ("NAMES", string.Join("、", names)));
+                }
+                else
+                {
+                    // 本地化：犹豫独白-无目击者（玩家可见文本）
+                    fallback = LWNTextHelper.ResolveText("LWN_npc_steal_monologue_blocked",
+                        "(I can't get behind him from here… need a better angle.)");
+                }
+                var ctx = SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), null, "plan_command", null);
+                ctx.Monologue = true;
+                SpeechChannel.SayPolished(agent, fallback, SpeechPriority.Chat, ctx, 2f);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[PlanExecutor] 犹豫独白失败: {ex.Message}");
+            }
+        }
+    }
 
     public interface IInlineStep
     {
@@ -186,9 +232,11 @@ namespace LivingWorldNpcs
     /// <summary>wait：seconds（纯等待）/ until（等世界状态，由游标检查）/ 两者皆省 = 无限保持。</summary>
     public class WaitInlineState : IInlineStep
     {
+        private readonly Agent _agent;
         private readonly PlanStep _step;
         private float _timer;
         private bool _interrupted;
+        private bool _monologueSaid;   // 🔴 2026-08-19：等「没人看见」卡住独白（每卡住周期一次）
         public bool Ok { get; private set; } = true;
         public bool Finished { get; private set; }
         public bool IsBehavioral => false;
@@ -196,20 +244,37 @@ namespace LivingWorldNpcs
         /// <summary>防御实现（wait 跨 Pause 保留计时不重计）。</summary>
         public void Interrupt() { _interrupted = true; Finished = true; }
 
-        public WaitInlineState(PlanStep step)
+        public WaitInlineState(Agent agent, PlanStep step)
         {
+            _agent = agent;
             _step = step;
         }
 
         public void OnTick(float dt)
         {
             if (Finished) return;
-            if (_step.Seconds > 0f)
+            _timer += dt;
+            if (_step.Seconds > 0f && _timer >= _step.Seconds) Finished = true;
+            // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：等「没人看见」型 wait
+            //（until = seeing(any, self)=false，如偷窃/击晕前等时机）卡住 5s → 说一次当前顾虑
+            //（被谁看见了；括号 = 内心独白；在线 LLM 润色 / 离线模板，见 StealHesitationMonologue）
+            if (!_monologueSaid && _timer > 5f && IsWaitingForNoWitness(_step))
             {
-                _timer += dt;
-                if (_timer >= _step.Seconds) Finished = true;
+                _monologueSaid = true;
+                StealHesitationMonologue.Say(_agent);
             }
             // until 由游标在 TickCursor 中统一检查；两者皆省 = 无限（结束 = R3 停止键）
+        }
+
+        /// <summary>结构判定：until 是否为「等没人看见我」（seeing(any, self)=false）——只有这种
+        /// wait 卡住才说犹豫独白（其他 wait 是正常待命，不打扰）。</summary>
+        private static bool IsWaitingForNoWitness(PlanStep step)
+        {
+            var u = step?.Until;
+            return u != null
+                && string.Equals(u.Type, "seeing", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(u.A, "any", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(u.Op, "false", StringComparison.OrdinalIgnoreCase);
         }
     }
 
@@ -551,6 +616,13 @@ namespace LivingWorldNpcs
         private float _rollValue;        // 🔴 2026-08-14（M2a roll 透明）：掷点（d20：掷点 ≥ 门槛成功）
         private float _rollThreshold;    // 门槛（1 − 成功率）
         private bool _rollRecorded;      // roll 已记录（empty 播报带 ROLL/THRESHOLD，interrupted 无——没到判定环节）
+        // 🔴 2026-08-19（用户质疑：单候选点正后方 navmesh 不可达时绕后永远无法执行，干等 8s 假失败）：
+        // 绕后多候选点——当前选中点 + 选点节流时间戳（NavMesh 查询每帧做 4 次太贵，0.25s 重选一次，
+        // 目标转身跟随走位；其余帧沿用选中点派发移动指令）
+        private Vec3 _behindPick;
+        private float _behindLastPick;
+        // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：绕后卡住独白（每卡住周期一次）
+        private bool _monologueSaid;
         public bool Ok { get; private set; }
         public bool Finished { get; private set; }
         // 🔴 行为性内联（M0/D3）：SetPose/ScriptedMoveToPoint 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
@@ -637,13 +709,51 @@ namespace LivingWorldNpcs
                     }
                     else
                     {
+                        // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：绕后卡住 3s
+                        // 没进 Rolling → 说一次当前顾虑（被谁看见了；括号 = 内心独白；在线 LLM
+                        // 润色 / 离线模板，见 StealHesitationMonologue）——玩家不用干看随从站着不动
+                        if (!_monologueSaid && _timer > 3f)
+                        {
+                            _monologueSaid = true;
+                            StealHesitationMonologue.Say(_agent);
+                        }
                         // 🔴 2026-08-14（实机：随从扒窃走到目标侧面就原地不动）：原接近点 = target.Position
                         // 直撞碰撞体停在侧/前方，且 ≤2.5m 不在背后时原实现不派发任何移动指令（死等 8s 超时假失败）。
                         // 绕背定位：目标点 = 目标正后方 ~2.2m（≤2.5m 判定圈内，每帧重算，目标转身跟随走位）。
+                        // 🔴 2026-08-19（用户质疑：单候选点——正后方 navmesh 不可达（目标贴墙/靠柜台）时
+                        // 绕后永远无法执行，干等 8s 假失败）：多候选点逐级尝试
+                        //（正后 2.2m → 后左 45° 2.5m → 后右 45° 2.5m → 正后 3.5m），取第一个
+                        // navmesh 可站立点；0.25s 节流重新选点（目标转身跟随），其余帧沿用选中点。
                         try
                         {
-                            Vec3 back = target.Position - new Vec3(target.LookDirection.X, target.LookDirection.Y, 0f) * 2.2f;
-                            AgentControlHelper.ScriptedMoveToPoint(_agent, back, dist > 5f);
+                            Vec3 look = new Vec3(target.LookDirection.X, target.LookDirection.Y, 0f);
+                            Vec3 back = -look;
+                            back.z = 0f;
+                            if (back.LengthSquared < 0.0001f) back = new Vec3(1f, 0f, 0f);
+                            back = back.NormalizedCopy();
+                            Vec3 targetPos = target.Position;
+                            if (_timer - _behindLastPick > 0.25f)
+                            {
+                                _behindLastPick = _timer;
+                                Vec3 pick = targetPos + back * 2.2f;   // 兜底：默认正后方（不验证；8s 超时兜底诚实报告）
+                                var scene = Mission.Current?.Scene;
+                                var candidates = new[]
+                                {
+                                    (back, 2.2f),
+                                    (RotateDir(back, 45f), 2.5f),
+                                    (RotateDir(back, -45f), 2.5f),
+                                    (back, 3.5f),
+                                };
+                                foreach (var (dir, d) in candidates)
+                                {
+                                    Vec3 p = targetPos + dir * d;
+                                    if (scene != null && !V.NavMesh(scene, p, out _)) continue;
+                                    pick = p;
+                                    break;
+                                }
+                                _behindPick = pick;
+                            }
+                            AgentControlHelper.ScriptedMoveToPoint(_agent, _behindPick, dist > 5f);
                         }
                         catch { }
                     }
@@ -685,15 +795,11 @@ namespace LivingWorldNpcs
                         {
                             _resultKey = "interrupted";
                             _phase = AttemptPhase.Settled;
-                            // 🔴 2026-08-14（M2c）：目击者按「目睹蹲行靠近目标」给轻微怀疑脉冲——
-                            // 未遂不犯罪（不做犯罪脉冲），但目击者确实看到随从鬼鬼祟祟摸过去。
-                            foreach (var w in witnesses)
-                            {
-                                var wb = AgentAIController.GetBrainForAgent(w);
-                                if (wb == null) continue;
-                                wb.SetPulseTarget(PlayerActionType.Steal, _agent.Name?.ToString() ?? "", "gold", -1, _agent.Index);
-                                wb.AddAlert(PlayerActionType.Steal, 1.0f);
-                            }
+                            // 🔴 2026-08-20（感知管线统一重构，用户裁定）：未遂中断 = 悄悄收手，零警戒后果
+                            // ——「可疑」由目击者 Brain 的蹲姿感知循环（[Brain-Crouch] 0.15/s）自行表达。
+                            // 原 2026-08-14 直拍目击者 Steal=1.0 恰好越过 Cautious 阈值 → 全场「抓贼」冒泡
+                            //（实机 2026-08-20：随从还没摸到任何东西，弓手就喊「你偷了gold」），且绕过
+                            // 感知管线。取消。真正的目击问责只在 roll 成功后由 WitnessCrime 广播承担。
                             return;
                         }
                         // 成功率公式：随从 Roguery vs 目标警觉（§4）
@@ -766,9 +872,11 @@ namespace LivingWorldNpcs
                                 _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out targetEq2);
                                 if (targetEq2 != null)
                                 {
-                                    var tBrain = AgentAIController.GetBrainForAgent(targetEq2);
-                                    tBrain?.SetPulseTarget(PlayerActionType.Steal, _agent?.Name?.ToString() ?? "", "equipment", -1, _agent.Index);
-                                    tBrain?.AddAlert(PlayerActionType.Steal, 2.0f);
+                                    // 🔴 2026-08-20（感知管线统一重构，用户裁定）：目标察觉 = 受害者自己的脑
+                                    // 处理（TheftVictimized 定向直发，量级查表 equipment_fail=2.0）；
+                                    // 原直拍 tBrain.SetPulseTarget/AddAlert(2.0) 绕过感知管线，已收敛。
+                                    AgentAIController.Instance?.SendEventToAgent(targetEq2, "TheftVictimized",
+                                        _agent, targetEq2, "equipment_fail", null);
                                 }
                                 _resultKey = "empty";
                                 _equipmentDetected = true;
@@ -821,20 +929,27 @@ namespace LivingWorldNpcs
                             }
                             if (finalWitnesses.Count > 0)
                             {
+                                // 🔴 2026-08-20（感知管线统一重构，用户裁定）：目击者警戒改走 WitnessCrime
+                                // 广播——每个目击者 Brain 自行分类加警戒（+3.0 + 围观 + suspect 化参战打随从）。
+                                // 原直拍 SetPulseTarget/AddAlert(3.0) 绕过感知管线（且 targetName 传目击者
+                                // 自己的名字是遗留笔误——把嫌疑人填进受害者字段）。广播侧视线过滤（锚点=作案
+                                // 随从，15m/120°）与证词名单（GetWitnesses 同款判定）一致；目标背对随从
+                                // 收不到广播 = 扒窃不被受害者当场察觉（体感察觉由 TheftVictimized 承担）。
+                                Agent stolenFrom = null;
+                                if (!_variantItem)
+                                    _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out stolenFrom);
+                                AgentAIController.Instance?.BroadcastEventInRange(
+                                    _agent.Position, 15f, "WitnessCrime",
+                                    exclude: null, requireSight: true, isCrime: true,
+                                    _agent, stolenFrom);
                                 var heroIds = new List<string>();
                                 var templateWitness = new Dictionary<string, int>();
                                 foreach (var w in finalWitnesses)
                                 {
+                                    // 🔴 2026-08-20：警戒脉冲已移除（见上）——foreach 只保留证词记账。
                                     var wh = (w.Character as CharacterObject)?.HeroObject;
                                     if (wh != null) heroIds.Add(wh.StringId);
                                     else if (w.Character != null) templateWitness[w.Character.StringId] = 1;
-                                    // 警戒脉冲（目击者警觉）
-                                    // 🔴 suspectAgentIndex = 作案随从（_agent）——目击者警戒指向随从而非玩家，
-                                    // 走 2026-08-13 suspect 化闭环（冷色眼 + Alarmed 参战打随从）。
-                                    // ⚠️ targetName 传目击者自己的名字是遗留笔误（仅日志/证词用途），不改动。
-                                    var wb = AgentAIController.GetBrainForAgent(w);
-                                    wb?.SetPulseTarget(PlayerActionType.Steal, w.Name?.ToString() ?? "", "gold", -1, _agent.Index);
-                                    wb?.AddAlert(PlayerActionType.Steal, 3.0f);
                                 }
                                 // 🔴 2026-08-14 嫌疑人单一事实源：证词只记账（偷了什么），嫌疑人由目击者脑内
                                 // 警戒拉满时的 RegisterWitness 推导（TopSuspectAgent = 作案随从 _agent，
@@ -964,6 +1079,14 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[PlanExecutor] steal 播报异常: {ex.Message}");
             }
+        }
+
+        /// <summary>2D 平面旋转（绕 Z 轴，角度制）——绕后候选点偏转（后左/后右 45°）用。</summary>
+        private static Vec3 RotateDir(Vec3 dir, float degrees)
+        {
+            float rad = MathF.PI * degrees / 180f;
+            float c = MathF.Cos(rad), s = MathF.Sin(rad);
+            return new Vec3(dir.x * c - dir.y * s, dir.x * s + dir.y * c, 0f);
         }
     }
     /// <summary>give_item / give_gold：移交玩家（铁律 4 守恒；Item==null = 金钱走 Hero 转移）。

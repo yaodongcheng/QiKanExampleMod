@@ -761,6 +761,23 @@ namespace LivingWorldNpcs
                 return;
             }
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 跳转 → {target}");
+            // 🔴 2026-08-20（实机：ask_player 的 retreat → 同预案第二步 fail 收尾，原只认预案
+            // 入口步 entry[0] → 「跳转目标不存在」→ 计划中止，收尾台词没播）：同预案内跳转放行——
+            // 当前游标所在 fallback entry 内的步骤（如 ask_player → 自己的 end_plan 收尾）允许直达；
+            // 跨预案仍只允许入口步（S3），防止跳过预案首步的进入条件。
+            if (cursor.InFallback && cursor.Sequence != null)
+            {
+                for (int i = 0; i < cursor.Sequence.Count; i++)
+                {
+                    if (cursor.Sequence[i]?.Id == target)
+                    {
+                        cursor.Index = i;
+                        cursor.StepElapsed = 0f;
+                        InterruptAndDetach(cursor);
+                        return;
+                    }
+                }
+            }
             // 优先找 fallback 入口（只允许跳入口步，S3）
             if (Plan.Fallbacks != null)
             {
@@ -855,7 +872,7 @@ namespace LivingWorldNpcs
                     cursor.Inline = new SayInlineState(this, cursor, step);
                     return cursor.Inline.Ok;
                 case "wait":
-                    cursor.Inline = new WaitInlineState(step);
+                    cursor.Inline = new WaitInlineState(cursor.Agent, step);
                     return true;
                 case "signal_player":
                     cursor.Inline = new SignalInlineState(this, step);
@@ -1065,6 +1082,11 @@ namespace LivingWorldNpcs
                 // seeing(A,B)=false 型掉线检测只在 B 处于 A 的视野半径内才有意义——超距直接跳过
                 //（执行者接近进入视野范围后检测恢复语义；等机会类场景仍由 wait 步骤的 until 表达）。
                 if (IsBeyondSightRangeContingency(c.When)) continue;
+                // 🔴 2026-08-19（实机：ask_player force → order_attack 开战瞬间被计划自带的
+                // combat contingency 中止——「战术作罢了」；计划主动发起的战斗不是意外）：
+                // 当前步骤 = order_attack（计划主动开战）时，跳过针对执行者自身的 combat 型
+                // contingency（combat(self)）；意外战斗检测（他人攻击 / combat(a,b) 双实体）不受影响。
+                if (CurrentStepIsOrderAttack() && IsSelfCombatContingency(c.When)) continue;
                 bool now = _world.Evaluate(c.When, OwnerAgent);
                 bool prev = _contingencyPrev.TryGetValue(c, out bool p) && p;
                 _contingencyPrev[c] = now;
@@ -1104,6 +1126,27 @@ namespace LivingWorldNpcs
             catch { return false; }
         }
         private const float SightRangeForLossDetection = 15f;   // NpcSightSystem.CanAgentSeeTarget 默认半径同款
+        /// <summary>当前步骤是否为 order_attack（计划主动开战）。主动战斗期间跳过战斗型 contingency，
+        /// 防「force 路径开战瞬间被计划自带的 combat contingency 中止」（实机 2026-08-19：
+        /// ask_player force → order_attack 开战 0.1s 后「战术作罢了」）。</summary>
+        private bool CurrentStepIsOrderAttack()
+        {
+            var cur = _selfCursor;
+            if (cur == null || cur.Sequence == null || cur.Index < 0 || cur.Index >= cur.Sequence.Count) return false;
+            return string.Equals(cur.Sequence[cur.Index]?.Action, "order_attack", StringComparison.OrdinalIgnoreCase);
+        }
+        /// <summary>combat(self/entity=self) 型 contingency（裸 combat 谓词，无双实体 B 参数）——
+        /// 只豁免执行者自己主动开战的场景；combat(a, b) 双实体型（他人战斗）不受影响。</summary>
+        private bool IsSelfCombatContingency(Condition cond)
+        {
+            if (cond == null || !string.Equals(cond.Type, "combat", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!string.IsNullOrEmpty(cond.B)) return false;
+            string who = cond.Entity ?? cond.A;
+            if (string.IsNullOrEmpty(who)) return false;
+            if (string.Equals(who, "self", StringComparison.OrdinalIgnoreCase)) return true;
+            try { return _world.TryResolveAgent(who, OwnerAgent, out Agent a) && a == OwnerAgent; }
+            catch { return false; }
+        }
         /// <summary>
         /// 掉线误报防御（2026-08-12）：结构 = seeing(self, X, op≠true) 且 X 正跟随 self → 目标没丢。
         /// LLM 会给 BRING/带路类计划写"掉线检测"（目标消失就失败），但被请者跟在执行者身后时
@@ -1595,6 +1638,10 @@ namespace LivingWorldNpcs
             // 占位：say_to 完成钩子（M3 ReactiveAgent 演算后的后续钩子）
         }
         internal void SetStepResultKey(string key) => _stepResultKey = key;
+        /// <summary>当前步骤结果 key（success/empty/interrupted/impossible；null = 普通完成）。
+        /// 🔴 2026-08-20：OnStepCompleted 回调在 CompleteStep 清空 _stepResultKey 之前触发，
+        /// 记忆写入可读此值区分「办成了」与「没办成」（实机：偷窃被目击中断却记成「已完成」）。</summary>
+        internal string StepResultKey => _stepResultKey;
         internal void RecordStolenGold(float amount) => _stolenGold = amount;
         internal float StolenGold => _stolenGold;
         // 🔴 2026-08-14（M2d/M5）：钱袋路径当场移交标记（give_gold 防双移交）+ 判定型结局已播标记（Finish 防重复播）

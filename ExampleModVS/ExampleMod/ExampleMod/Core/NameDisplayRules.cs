@@ -33,6 +33,18 @@ namespace LivingWorldNpcs
         /// 引擎无从缩放字号（宽度=内容测量值），阈值只负责省略号时机）。</summary>
         public const int MaxChannelTitleChars = 12;
 
+        /// <summary>全模式气泡名字行最大字符数（含位置后缀）。🔴 2026-08-19（用户反馈：气泡右侧
+        /// 明明大量空间，名字却被截成省略号；且各上下文可用宽不同，禁止共用一个上限）——
+        /// 全模式气泡（普通 520 / 卡片 584，名字行 FontSize 16）可用 ≈ 452px
+        /// （520 − 名字行左缘 12 − 时间列 ~48 − 间距 8）÷ 16px ≈ 28 字。28 字 = 448px，加时间列
+        /// 仍放得下，字体恒不压缩。缩略模式上限见 <see cref="MaxCompactBubbleSenderChars"/>。</summary>
+        public const int MaxFullBubbleSenderChars = 28;
+
+        /// <summary>缩略模式气泡名字行最大字符数（含位置后缀）。缩略面板 560 − 外层 Margin 10/10 −
+        /// 气泡内 Margin 10/10 ≈ 520px 可用，名字行 FontSize 14 → 520 ÷ 14 ≈ 37 字；32 字 = 448px
+        /// 留余量。与全模式（28）分开——两处可用宽度/字号不同，各自校准。</summary>
+        public const int MaxCompactBubbleSenderChars = 32;
+
         /// <summary>截断省略号（按 char 计；超长 → 前 N-1 字 + …）。maxChars 按显示位置可用宽度传入：
         /// 消息名字行 12 / 频道列表标题 9。</summary>
         public static string Truncate(string text, int maxChars = MaxDisplayNameChars)

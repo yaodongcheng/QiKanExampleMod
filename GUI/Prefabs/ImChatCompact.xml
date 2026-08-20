@@ -213,7 +213,7 @@
                                            DoNotAcceptEvents="true">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                Text="@DisplaySenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
                                                 HorizontalAlignment="Left"
                                                 DoNotAcceptEvents="true"/>
                                   </Children>
@@ -265,7 +265,7 @@
                                            DoNotAcceptEvents="true">
                               <Children>
                                 <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                            Text="@DisplaySenderName" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                            Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
                                             HorizontalAlignment="Left"
                                             DoNotAcceptEvents="true"/>
                               </Children>
@@ -292,13 +292,20 @@
                                        MarginRight="8" MarginBottom="6" MarginTop="4"
                                        DoNotAcceptEvents="true">
                               <ItemTemplate>
-                                <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="86" SuggestedHeight="28"
+                                <!-- 🔴 2026-08-19（用户反馈：选项高度窄/宽不包文本）：高 28→56（扩大一倍）、
+                                     固定宽 86 改 CoverChildren + MinWidth 96 + MaxWidth 240 + WordWrapping——
+                                     长文本折行后按钮跟着长高、绝不溢出底纹；短文本保底 96 宽（对齐完整模式手感）；
+                                     MarginRight 6→4（选项间空隙收紧）。 -->
+                                <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                              MinHeight="56" MinWidth="96" MaxWidth="240"
                                               Brush="Test.Button3"
                                               Command.Click="Execute"
-                                              IsEnabled="@IsEnabled" MarginRight="6">
+                                              IsEnabled="@IsEnabled" MarginRight="4">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                MaxWidth="220"
                                                 Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="14"
+                                                WordWrapping="Wrap"
                                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                                 DoNotAcceptEvents="true"/>
                                   </Children>
@@ -315,12 +322,14 @@
                                        DoNotAcceptEvents="true">
                               <ItemTemplate>
                                 <!-- 🔴 2026-08-19（按钮完整包含文字）：TextWidget 加 MaxWidth + WordWrapping，
-                                     按钮高度 CoverChildren——长文本折行后按钮跟着长高，绝不溢出底纹（与完整模式同款） -->
-                                <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MinHeight="34"
+                                     按钮高度 CoverChildren——长文本折行后按钮跟着长高，绝不溢出底纹（与完整模式同款）。
+                                     🔴 2026-08-19（用户反馈：选项高度窄/候选项空隙大）：MinHeight 34→68（扩大一倍）、
+                                     上下 Margin 4+4→2+2（候选项间空隙收紧）。 -->
+                                <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MinHeight="68"
                                               Brush="Test.Button3"
                                               HorizontalAlignment="Right"
                                               Command.Click="Execute"
-                                              IsEnabled="@IsEnabled" MarginTop="4" MarginBottom="4">
+                                              IsEnabled="@IsEnabled" MarginTop="2" MarginBottom="2">
                                   <Children>
                                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
                                                 MaxWidth="480"
