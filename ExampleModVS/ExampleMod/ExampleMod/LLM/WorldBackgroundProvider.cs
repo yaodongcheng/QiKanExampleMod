@@ -91,25 +91,35 @@ namespace LivingWorldNpcs
             try
             {
                 var sb = new StringBuilder();
-                sb.AppendLine("=== 文化 ==="); // lwn-ignore: A
+                // 本地化：LWN_worldbg_section_culture（=== 文化 ===，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_worldbg_section_culture"));
                 int ci = 1;
                 foreach (var culture in MBObjectManager.Instance.GetObjectTypeList<CultureObject>())
                 {
                     if (culture == null || string.IsNullOrEmpty(culture.Name?.ToString())) continue;
                     string enc = culture.EncyclopediaText?.ToString();
-                    sb.AppendLine($"{ci}. {culture.Name}：{Truncate(enc, 600)}");
+                    // 本地化：LWN_worldbg_culture_line（{NUM}. {NAME}：{TEXT}，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_worldbg_culture_line",
+                        ("NUM", ci.ToString()), ("NAME", culture.Name.ToString()), ("TEXT", Truncate(enc, 600))));
                     ci++;
                 }
 
                 sb.AppendLine();
-                sb.AppendLine("=== 王国 ==="); // lwn-ignore: A
+                // 本地化：LWN_worldbg_section_kingdom（=== 王国 ===，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_worldbg_section_kingdom"));
                 int ki = 1;
                 foreach (var kingdom in Kingdom.All)
                 {
                     if (kingdom == null || string.IsNullOrEmpty(kingdom.Name?.ToString())) continue;
-                    string leaderName = kingdom.RulingClan?.Leader?.Name?.ToString() ?? "（无在位领袖）"; // lwn-ignore: A
-                    string cult = kingdom.Culture?.Name?.ToString() ?? "（无文化）"; // lwn-ignore: A
-                    sb.AppendLine($"{ki}. {kingdom.Name}（文化：{cult}，领袖：{leaderName}）：{Truncate(kingdom.EncyclopediaText?.ToString(), 600)}"); // lwn-ignore: A
+                    // 本地化：LWN_worldbg_no_leader（无在位领袖，双桶）
+                    string leaderName = kingdom.RulingClan?.Leader?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_worldbg_no_leader");
+                    // 本地化：LWN_worldbg_no_culture（无文化，双桶）
+                    string cult = kingdom.Culture?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_worldbg_no_culture");
+                    // 本地化：LWN_worldbg_kingdom_line（{NUM}. {NAME}（文化：{CULT}，领袖：{LEADER}）：{TEXT}，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_worldbg_kingdom_line",
+                        ("NUM", ki.ToString()), ("NAME", kingdom.Name.ToString()),
+                        ("CULT", cult), ("LEADER", leaderName),
+                        ("TEXT", Truncate(kingdom.EncyclopediaText?.ToString(), 600))));
                     int hi = 1;
                     foreach (var hero in SelectKeyHeroes(kingdom))
                     {
@@ -118,7 +128,12 @@ namespace LivingWorldNpcs
                         string heroEnc = Truncate(hero.EncyclopediaText?.ToString(), 300);
                         string detail = !string.IsNullOrWhiteSpace(heroEnc) ? heroEnc : clanEnc;
                         if (string.IsNullOrWhiteSpace(detail)) continue;
-                        sb.AppendLine($"  关键人物{hi}. {hero.Name}（{hero.Clan?.Name?.ToString() ?? "无家族"}）：{detail}"); // lwn-ignore: A
+                        // 本地化：LWN_worldbg_no_clan（无家族，双桶）
+                        string clanName = hero.Clan?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_worldbg_no_clan");
+                        // 本地化：LWN_worldbg_key_person_line（关键人物{NUM}，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_worldbg_key_person_line",
+                            ("NUM", hi.ToString()), ("NAME", hero.Name.ToString()),
+                            ("CLAN", clanName), ("TEXT", detail)));
                         hi++;
                     }
                     ki++;
@@ -126,13 +141,15 @@ namespace LivingWorldNpcs
 
                 string result = sb.ToString();
                 if (result.Length > 8000)
-                    result = result.Substring(0, 8000) + "…（材料超长截断）"; // lwn-ignore: A
+                    // 本地化：LWN_worldbg_truncated（材料超长截断，双桶）
+                    result = result.Substring(0, 8000) + LWNTextHelper.ResolvePrompt("LWN_worldbg_truncated");
                 return result;
             }
             catch (Exception ex)
             {
                 DebugLogger.Log($"[WorldBg] BuildMaterialSnapshot 异常: {ex.Message} → 空快照");
-                return "（材料采集失败）"; // lwn-ignore: A
+                // 本地化：LWN_worldbg_failed（材料采集失败，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_worldbg_failed");
             }
         }
 
@@ -161,22 +178,17 @@ namespace LivingWorldNpcs
         {
             string rule = LWNTextHelper.ResolvePrompt("LWN_worldbg_generate"); // lwn-ignore: B
             if (string.IsNullOrWhiteSpace(rule))
-            {
-                rule = "你是这个世界观的生成者。根据下面提供的材料（文化百科、王国百科、关键人物百科），" // lwn-ignore: A
-                    + "用 {LANG} 写一段 100~150 字的【世界格局】概述。\n" // lwn-ignore: A
-                    + "要求：1. 只输出一段话，第一行写「=== 世界格局 ===」，第二行起是正文，不要输出标记以外的任何内容；" // lwn-ignore: A
-                    + "2. 内容是静态世界观 lore：主要阵营与文化的名称和特征、地理、知名历史人物（用身份泛称如「帝国皇帝」，不写具体人名）、文化风俗；" // lwn-ignore: A
-                    + "3. 禁止任何实时状态：势力强弱、存亡、战争、领地变动；" // lwn-ignore: A
-                    + "4. 禁止编造材料中没有的信息，只用下面提供的材料；" // lwn-ignore: A
-                    + "5. 语言：{LANG}。"; // lwn-ignore: A
-            }
+                // 本地化：LWN_worldbg_generate_fallback（生成规则 C# 兜底，双桶）
+                rule = LWNTextHelper.ResolvePrompt("LWN_worldbg_generate_fallback");
             rule = rule.Replace("{LANG}", lang);
-            return rule + "\n\n=== 材料 ===\n" + snapshot; // lwn-ignore: A
+            // 本地化：LWN_worldbg_materials_header（\n\n=== 材料 ===\n，双桶）
+            return rule + LWNTextHelper.ResolvePrompt("LWN_worldbg_materials_header") + snapshot;
         }
 
         private static string Truncate(string text, int max)
         {
-            if (string.IsNullOrEmpty(text)) return "（无百科）"; // lwn-ignore: A
+            // 本地化：LWN_worldbg_no_encyclopedia（无百科，双桶）
+            if (string.IsNullOrEmpty(text)) return LWNTextHelper.ResolvePrompt("LWN_worldbg_no_encyclopedia");
             return text.Length > max ? text.Substring(0, max) + "…" : text;
         }
     }

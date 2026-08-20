@@ -309,7 +309,8 @@ namespace LivingWorldNpcs
                             // 🔴 2026-08-20（实机：LLM options 只写名字没方位，玩家没法挑）：要求 options
                             // 直接照抄候选行原文（含编号与方位）——解析层还有按候选列表附加方位的兜底。
                             targetCandidatesText = string.Join("\n", lines)
-                                + "\n（以上为候选——必须用 questions 让主公挑选；questions 的 options 必须是字符串数组如 [\"候选1\",\"候选2\"]，禁止写对象数组；options 直接照抄上面候选行原文，含编号与方位（如 \"帝国军团步兵#50（你西侧48米）\"），禁止精简成光秃秃的名字）";
+                                // 本地化：LWN_prompt_target_candidates_note（候选纪律注，双桶）
+                                + LWNTextHelper.ResolvePrompt("LWN_prompt_target_candidates_note");
                         }
                     }
                     else if (!string.IsNullOrEmpty(req.ResolvedTargetText)
@@ -481,6 +482,7 @@ namespace LivingWorldNpcs
                         if (clarifyRound >= 2)
                         {
                             _pendingClarify = null;
+                            // 本地化：LWN_plan_clarify_exhausted（双桶）
                             PostNpcMessage(conv, LWNTextHelper.ResolveText("LWN_plan_clarify_exhausted", "I still do not understand. Perhaps another time."));
                             return;
                         }
@@ -494,6 +496,7 @@ namespace LivingWorldNpcs
                         if (clarifyRound >= 2)
                         {
                             _pendingClarify = null;
+                            // 本地化：LWN_plan_clarify_exhausted（双桶）
                             PostNpcMessage(conv, LWNTextHelper.ResolveText("LWN_plan_clarify_exhausted", "I still do not understand. Perhaps another time."));
                             return;
                         }
@@ -1243,14 +1246,17 @@ namespace LivingWorldNpcs
                 switch (resultKey)
                 {
                     case "interrupted":
+                        // 本地化：LWN_plan_step_memory_interrupted（双桶）
                         content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory_interrupted",
                             "By my lord's order, {ACTION} {TARGET} - I was seen and could not go through with it.", ("ACTION", action), ("TARGET", target)).Trim();
                         break;
                     case "empty":
+                        // 本地化：LWN_plan_step_memory_empty（双桶）
                         content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory_empty",
                             "By my lord's order, {ACTION} {TARGET} - there was nothing to take.", ("ACTION", action), ("TARGET", target)).Trim();
                         break;
                     case "impossible":
+                        // 本地化：LWN_plan_step_memory_impossible（双桶）
                         content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory_impossible",
                             "By my lord's order, {ACTION} {TARGET} - there was no way to do it.", ("ACTION", action), ("TARGET", target)).Trim();
                         break;

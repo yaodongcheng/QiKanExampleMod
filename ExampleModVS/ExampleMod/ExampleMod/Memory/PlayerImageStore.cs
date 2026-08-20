@@ -28,16 +28,27 @@ namespace LivingWorldNpcs
         {
             var parts = new System.Collections.Generic.List<string>();
             int battles = BattleWins + BattleLosses;
+            // 本地化：LWN_prompt_record_battles（咱们随您打了 {BATTLES} 仗，赢了 {WINS}，双桶）
             if (battles > 0)
-                parts.Add($"咱们随您打了 {battles} 仗，赢了 {BattleWins}");
+                // 本地化：LWN_prompt_record_battles（双桶）
+                parts.Add(LWNTextHelper.ResolveCompound("LWN_prompt_record_battles", ("BATTLES", battles.ToString()), ("WINS", BattleWins.ToString())));
+            // 本地化：LWN_prompt_record_imprisonments（您被擒过 {COUNT} 回，双桶）
             if (Imprisonments > 0)
-                parts.Add($"您被擒过 {Imprisonments} 回");
+                // 本地化：LWN_prompt_record_imprisonments（双桶）
+                parts.Add(LWNTextHelper.ResolveCompound("LWN_prompt_record_imprisonments", ("COUNT", Imprisonments.ToString())));
+            // 本地化：LWN_prompt_record_crimes（犯过 {COUNT} 回事，双桶）
             if (Crimes > 0)
-                parts.Add($"犯过 {Crimes} 回事");
+                // 本地化：LWN_prompt_record_crimes（双桶）
+                parts.Add(LWNTextHelper.ResolveCompound("LWN_prompt_record_crimes", ("COUNT", Crimes.ToString())));
             if (parts.Count == 0) return "";
             // 🔴 2026-08-17（称呼纪律 A 层）：段标题不再写死"主公"——【X 的成色】运行时拼玩家名
             //（无主英雄时兜底"主公"，同 ImReplyService 玩家名兜底 B 层惯例）
-            return "【" + (Hero.MainHero?.Name?.ToString() ?? "主公") + "的成色】" + string.Join("；", parts) + "。";
+            // 本地化：LWN_prompt_section_record（【{NAME}的成色】，双桶）
+            // 本地化：LWN_prompt_record_join（；）/ LWN_prompt_record_end（。），双桶
+            return LWNTextHelper.ResolveCompound("LWN_prompt_section_record", ("NAME", Hero.MainHero?.Name?.ToString() ?? "主公"))
+                + string.Join(LWNTextHelper.ResolvePrompt("LWN_prompt_record_join"), parts)
+                // 本地化：LWN_prompt_record_end（双桶）
+                + LWNTextHelper.ResolvePrompt("LWN_prompt_record_end");
         }
 
         public static string Serialize()

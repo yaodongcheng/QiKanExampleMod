@@ -93,6 +93,7 @@ namespace LivingWorldNpcs
                 // L2 领主 → persuade_join/order_march；L3 国王 → propose_war/negotiate_peace；
                 // 村民/流浪者无政治动作（身份过滤验证：动作空间无 propose_war）
                 if (action.IdentityGated && !action.IsValid(attacker, defender, agent)) continue;
+                // 本地化：LWN_action_desc_<code>（动作描述，ActionRegistry.Description 运行时读 XML 双桶）
                 sb.AppendLine($"- \"{action.Code}\": {action.Description}");
             }
             // 动作空间纪律段（LLM 输入）

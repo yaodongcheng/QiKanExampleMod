@@ -426,7 +426,8 @@ namespace LivingWorldNpcs
         {
             var sb = new StringBuilder();
             var playerPos = Agent.Main?.Position ?? Vec3.Zero;
-            sb.AppendLine($"【场景当前人员】（{Agents.Count} 人）");
+            // 本地化：LWN_prompt_section_scene_persons（【场景当前人员】（{COUNT} 人），双桶）
+            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_section_scene_persons", ("COUNT", Agents.Count.ToString())));
             // 同名同职业的模板 NPC 合并成一条（英雄逐条列）——省 token 且信息不丢：
             // 同一名字分布在多处 → "×N：大概方位（最近-最远距离）"
             foreach (var group in Agents.GroupBy(i => $"{i.DisplayName}|{i.Occupation}"))
@@ -435,46 +436,64 @@ namespace LivingWorldNpcs
                 if (list.Count == 1)
                 {
                     var info = list[0];
-                    sb.Append("- ");
-                    if (info.Role != null) sb.Append($"[{info.Role}] ");
-                    sb.Append(info.DisplayName);
+                    // 本地化：LWN_prompt_scene_occupation_suffix（（{OCC}），双桶）
+                    string occSuf = !string.IsNullOrEmpty(info.Occupation)
+                        // 本地化：LWN_prompt_scene_occupation_suffix（双桶）
+                        ? LWNTextHelper.ResolveCompound("LWN_prompt_scene_occupation_suffix", ("OCC", info.Occupation)) : "";
+                    // 本地化：LWN_prompt_scene_hint_suffix（（{HINT}），双桶）
+                    string hintSuf = !string.IsNullOrEmpty(info.PersonalityHint)
+                        // 本地化：LWN_prompt_scene_hint_suffix（双桶）
+                        ? LWNTextHelper.ResolveCompound("LWN_prompt_scene_hint_suffix", ("HINT", info.PersonalityHint)) : "";
                     // 🔴 2026-08-15（目标唯一标记）：模板 NPC 单条带 #N index 标记（Agent.Index，Mission 内
                     // 稳定）——计划轮 LLM 可直接引用（target: "酒馆店主#3"），执行器 TryResolveAgent 精确解析；
                     // Hero 有唯一名字不标号（与 AgentControlHelper.GetDisplayName 同构：名字#Index 无空格，
                     // 2026-08-19 统一格式，弃用 [ #N ] 括号写法）；同名同职业合并行不标（多人无法单一 #N 指认）。
-                    if (info.Agent != null && !(info.Agent.Character is CharacterObject heroCo && heroCo.HeroObject != null))
-                        sb.Append($"#{info.Agent.Index}");
-                    if (!string.IsNullOrEmpty(info.Occupation)) sb.Append($"（{info.Occupation}）");
-                    sb.Append($"：{info.PositionDesc}，{info.FacingDesc}，{info.State}");
-                    if (!string.IsNullOrEmpty(info.PersonalityHint)) sb.Append($"（{info.PersonalityHint}）");
-                    sb.AppendLine();
+                    string indexSuf = (info.Agent != null
+                        && !(info.Agent.Character is CharacterObject heroCo && heroCo.HeroObject != null))
+                        ? $"#{info.Agent.Index}" : "";
+                    // 本地化：LWN_prompt_scene_person_line（- {ROLE}{NAME}{INDEX}{OCC}：{POS}，{FACING}，{STATE}{HINT}，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_scene_person_line",
+                        ("ROLE", info.Role != null ? $"[{info.Role}] " : ""),
+                        ("NAME", info.DisplayName), ("INDEX", indexSuf), ("OCC", occSuf),
+                        ("POS", info.PositionDesc), ("FACING", info.FacingDesc), ("STATE", info.State), ("HINT", hintSuf)));
                 }
                 else
                 {
                     // 合并行：名字 + 人数 + 方位范围（方向取首条，距离取组内最近/最远）
-                    sb.Append("- ");
                     var role = list.FirstOrDefault(i => i.Role != null)?.Role;
-                    if (role != null) sb.Append($"[{role}] ");
-                    sb.Append(list[0].DisplayName);
-                    if (!string.IsNullOrEmpty(list[0].Occupation)) sb.Append($"（{list[0].Occupation}）");
+                    // 本地化：LWN_prompt_scene_occupation_suffix（（{OCC}），双桶）
+                    string occSuf = !string.IsNullOrEmpty(list[0].Occupation)
+                        // 本地化：LWN_prompt_scene_occupation_suffix（双桶）
+                        ? LWNTextHelper.ResolveCompound("LWN_prompt_scene_occupation_suffix", ("OCC", list[0].Occupation)) : "";
                     var dists = list
                         .Where(i => i.Agent != null)
                         .Select(i => i.Agent.Position.Distance(playerPos))
                         .OrderBy(d => d)
                         .ToList();
+                    // 本地化：LWN_prompt_scene_range_single（{DIST}米）/ LWN_prompt_scene_range_multi（{MIN}-{MAX}米），双桶
                     string range = dists.Count == 1
-                        ? $"{dists[0]:F0}米"
-                        : $"{dists[0]:F0}-{dists[dists.Count - 1]:F0}米";
+                        // 本地化：LWN_prompt_scene_range_single（双桶）
+                        ? LWNTextHelper.ResolveCompound("LWN_prompt_scene_range_single", ("DIST", $"{dists[0]:F0}"))
+                        // 本地化：LWN_prompt_scene_range_multi（双桶）
+                        : LWNTextHelper.ResolveCompound("LWN_prompt_scene_range_multi",
+                            ("MIN", $"{dists[0]:F0}"), ("MAX", $"{dists[dists.Count - 1]:F0}"));
                     string dirWord = DirWordOf(list[0].PositionDesc);
-                    sb.Append($"×{list.Count}：{dirWord}{range}");
-                    sb.AppendLine();
+                    // 本地化：LWN_prompt_scene_group_line（- {ROLE}{NAME}{OCC}×{COUNT}：{DIR}{RANGE}，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_scene_group_line",
+                        ("ROLE", role != null ? $"[{role}] " : ""),
+                        ("NAME", list[0].DisplayName), ("OCC", occSuf),
+                        ("COUNT", list.Count.ToString()), ("DIR", dirWord), ("RANGE", range)));
                 }
             }
             if (Zones.Count > 0)
             {
-                sb.AppendLine($"【场景区域锚点】（{Zones.Count} 个）");
+                // 本地化：LWN_prompt_section_scene_zones（【场景区域锚点】（{COUNT} 个），双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_section_scene_zones", ("COUNT", Zones.Count.ToString())));
                 foreach (var z in Zones)
-                    sb.AppendLine($"- {z.DisplayName ?? z.Id}：{BuildPositionDesc(z.Position, Agent.Main?.Position ?? Vec3.Zero)}");
+                    // 本地化：LWN_prompt_scene_zone_line（- {NAME}：{POS}，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_scene_zone_line",
+                        ("NAME", z.DisplayName ?? z.Id),
+                        ("POS", BuildPositionDesc(z.Position, Agent.Main?.Position ?? Vec3.Zero))));
             }
             return sb.ToString();
         }
@@ -494,27 +513,36 @@ namespace LivingWorldNpcs
 
         private static string BuildDisplayName(Agent a)
         {
-            if (a == Agent.Main) return "玩家";
+            // 本地化：LWN_prompt_scene_name_player（玩家，双桶）
+            if (a == Agent.Main) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_name_player");
             try
             {
                 var heroObj = (a.Character as CharacterObject)?.HeroObject;
                 if (heroObj != null && !string.IsNullOrWhiteSpace(heroObj.Name?.ToString()))
                     return heroObj.Name.ToString();
                 if (!string.IsNullOrWhiteSpace(a.Name)) return a.Name;
-                return a.Character?.Name?.ToString() ?? "路人";
+                // 本地化：LWN_prompt_scene_name_passby（路人，双桶）
+                return a.Character?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_prompt_scene_name_passby");
             }
-            catch { return a.Name ?? "路人"; }
+            // 本地化：LWN_prompt_scene_name_passby（路人，双桶）
+            catch { return a.Name ?? LWNTextHelper.ResolvePrompt("LWN_prompt_scene_name_passby"); }
         }
 
         private static string BuildObjectDisplayName(string kind, string id)
         {
+            // 本地化：LWN_prompt_scene_obj_chest/door/barrel/chair/other（物件显示名，双桶）
             switch (kind)
             {
-                case "chest": return "箱子";
-                case "door": return "门";
-                case "barrel": return "木桶";
-                case "chair": return "桌椅";
-                default: return "物件";
+                // 本地化：LWN_prompt_scene_obj_chest（双桶）
+                case "chest": return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_obj_chest");
+                // 本地化：LWN_prompt_scene_obj_door（双桶）
+                case "door": return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_obj_door");
+                // 本地化：LWN_prompt_scene_obj_barrel（双桶）
+                case "barrel": return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_obj_barrel");
+                // 本地化：LWN_prompt_scene_obj_chair（双桶）
+                case "chair": return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_obj_chair");
+                // 本地化：LWN_prompt_scene_obj_other（双桶）
+                default: return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_obj_other");
             }
         }
 
@@ -524,44 +552,58 @@ namespace LivingWorldNpcs
             float dy = pos.y - playerPos.y;
             float dist = MathF.Sqrt(dx * dx + dy * dy);
             string dir;
-            if (dist < 1.2f) dir = "你身旁";
+            // 本地化：LWN_prompt_scene_pos_beside（你身旁，双桶）
+            if (dist < 1.2f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_beside");
             else
             {
                 float ang = MathF.Atan2(dy, dx);
                 float deg = ang * (180f / MathF.PI);
                 // 玩家面朝方向为正前——用屏幕方位近似（相对世界轴，简化：以玩家朝向为参考不做旋转，写方位词）
-                if (MathF.Abs(deg) < 30f) dir = "你东侧";
-                else if (deg >= 30f && deg < 90f) dir = "你东南侧";
-                else if (deg >= 90f && deg < 150f) dir = "你南侧";
-                else if (deg >= 150f || deg <= -150f) dir = "你西侧";
-                else if (deg < -90f) dir = "你北侧";
-                else dir = "你西南侧";
+                // 本地化：LWN_prompt_scene_pos_east/southeast/south/west/north/southwest（你东侧等，双桶）
+                if (MathF.Abs(deg) < 30f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_east");
+                // 本地化：LWN_prompt_scene_pos_southeast（双桶）
+                else if (deg >= 30f && deg < 90f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_southeast");
+                // 本地化：LWN_prompt_scene_pos_south（双桶）
+                else if (deg >= 90f && deg < 150f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_south");
+                // 本地化：LWN_prompt_scene_pos_west（双桶）
+                else if (deg >= 150f || deg <= -150f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_west");
+                // 本地化：LWN_prompt_scene_pos_north（双桶）
+                else if (deg < -90f) dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_north");
+                // 本地化：LWN_prompt_scene_pos_southwest（双桶）
+                else dir = LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pos_southwest");
             }
-            return $"{dir}{dist:F0}米";
+            // 本地化：LWN_prompt_scene_pos_line（{DIR}{DIST}米，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_prompt_scene_pos_line", ("DIR", dir), ("DIST", $"{dist:F0}"));
         }
 
         private static string BuildFacingDesc(Agent a, Agent player)
         {
             try
             {
-                if (a == null) return "未知朝向";
+                // 本地化：LWN_prompt_scene_facing_unknown（未知朝向，双桶）
+                if (a == null) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_facing_unknown");
                 if (player != null)
                 {
                     Vec2 look = a.LookDirection.AsVec2.Normalized();
                     Vec2 toPlayer = (player.Position - a.Position).AsVec2.Normalized();
                     float dot = Vec2.DotProduct(look, toPlayer);
-                    if (dot > 0.6f) return "面朝玩家";
-                    if (dot < -0.6f) return "背对玩家";
-                    return "侧身对着玩家";
+                    // 本地化：LWN_prompt_scene_facing_toward（面朝玩家，双桶）
+                    if (dot > 0.6f) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_facing_toward");
+                    // 本地化：LWN_prompt_scene_facing_away（背对玩家，双桶）
+                    if (dot < -0.6f) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_facing_away");
+                    // 本地化：LWN_prompt_scene_facing_side（侧身对着玩家，双桶）
+                    return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_facing_side");
                 }
             }
             catch { }
-            return "朝向未知";
+            // 本地化：LWN_prompt_scene_facing_unknown2（朝向未知，双桶）
+            return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_facing_unknown2");
         }
 
         private static string BuildStateDesc(Agent a)
         {
-            if (a == null || !a.IsActive()) return "不在场";
+            // 本地化：LWN_prompt_scene_state_absent（不在场，双桶）
+            if (a == null || !a.IsActive()) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_absent");
             try
             {
                 var brain = AgentAIController.GetBrainForAgent(a);
@@ -570,24 +612,37 @@ namespace LivingWorldNpcs
                     var intent = brain.CurrentIntent;
                     if (intent != null)
                     {
-                        if (intent.Type == NpcIntentType.Fighting) return "战斗中";
-                        if (intent.Type == NpcIntentType.KnockedOut) return "昏迷";
-                        if (intent.Type == NpcIntentType.Confronting) return "警戒质问中";
-                        if (intent.Type == NpcIntentType.Following) return "跟随中";
-                        if (intent.Type == NpcIntentType.Interacting) return "互动中";
-                        if (intent.Type == NpcIntentType.ExecutingCommand) return "执行命令中";
-                        if (intent.Type == NpcIntentType.Surrendering) return "想认输";
+                        // 本地化：LWN_prompt_scene_state_fighting/knocked_out/confronting/following/interacting/executing/surrendering（意图状态，双桶）
+                        if (intent.Type == NpcIntentType.Fighting) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_fighting");
+                        // 本地化：LWN_prompt_scene_state_knocked_out（双桶）
+                        if (intent.Type == NpcIntentType.KnockedOut) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_knocked_out");
+                        // 本地化：LWN_prompt_scene_state_confronting（双桶）
+                        if (intent.Type == NpcIntentType.Confronting) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_confronting");
+                        // 本地化：LWN_prompt_scene_state_following（双桶）
+                        if (intent.Type == NpcIntentType.Following) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_following");
+                        // 本地化：LWN_prompt_scene_state_interacting（双桶）
+                        if (intent.Type == NpcIntentType.Interacting) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_interacting");
+                        // 本地化：LWN_prompt_scene_state_executing（双桶）
+                        if (intent.Type == NpcIntentType.ExecutingCommand) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_executing");
+                        // 本地化：LWN_prompt_scene_state_surrendering（双桶）
+                        if (intent.Type == NpcIntentType.Surrendering) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_surrendering");
                     }
                     var phase = brain.AlertPhase;
-                    if (phase == AlarmPhase.Alarmed) return "高度警戒";
-                    if (phase == AlarmPhase.Cautious) return "警惕";
-                    if (phase == AlarmPhase.Suspicious) return "起疑";
+                    // 本地化：LWN_prompt_scene_state_alarmed/cautious/suspicious（警戒度，双桶）
+                    if (phase == AlarmPhase.Alarmed) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_alarmed");
+                    // 本地化：LWN_prompt_scene_state_cautious（双桶）
+                    if (phase == AlarmPhase.Cautious) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_cautious");
+                    // 本地化：LWN_prompt_scene_state_suspicious（双桶）
+                    if (phase == AlarmPhase.Suspicious) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_suspicious");
                 }
-                if (a.CrouchMode) return "蹲着";
-                if (a.IsSitting()) return "坐着";
+                // 本地化：LWN_prompt_scene_state_crouch（蹲着，双桶）
+                if (a.CrouchMode) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_crouch");
+                // 本地化：LWN_prompt_scene_state_sitting（坐着，双桶）
+                if (a.IsSitting()) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_sitting");
             }
             catch { }
-            return "站着";
+            // 本地化：LWN_prompt_scene_state_standing（站着，双桶）
+            return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_state_standing");
         }
 
         private static string BuildOccupation(Agent a)
@@ -597,13 +652,19 @@ namespace LivingWorldNpcs
                 var c = a.Character;
                 if (c == null) return "";
                 if (a == Agent.Main) return "";   // 玩家行已有 [player] 标记，不再打"有名人物"标签
-                if ((c as CharacterObject)?.HeroObject != null) return "有名人物";
+                // 本地化：LWN_prompt_scene_occ_hero（有名人物，双桶）
+                if ((c as CharacterObject)?.HeroObject != null) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_occ_hero");
                 string id = c.StringId ?? "";
-                if (id.Contains("guard")) return "守卫";
-                if (id.Contains("villager")) return "村民";
-                if (id.Contains("merchant")) return "商人";
-                if (id.Contains("tavernkeeper")) return "酒馆老板";
-                if (id.Contains("notable") || id.Contains("headman")) return "村长/乡绅";
+                // 本地化：LWN_prompt_scene_occ_guard（守卫，双桶）
+                if (id.Contains("guard")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_occ_guard");
+                // 本地化：LWN_prompt_scene_occ_villager（村民，双桶）
+                if (id.Contains("villager")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_occ_villager");
+                // 本地化：LWN_prompt_scene_occ_merchant（商人，双桶）
+                if (id.Contains("merchant")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_occ_merchant");
+                // 本地化：LWN_prompt_scene_occ_tavernkeeper（酒馆老板，双桶）
+                if (id.Contains("tavernkeeper")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_occ_tavernkeeper");
+                // 本地化：LWN_prompt_scene_occ_notable（村长/乡绅，双桶）
+                if (id.Contains("notable") || id.Contains("headman")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_occ_notable");
                 return id.Replace('_', ' ');
             }
             catch { return ""; }
@@ -617,13 +678,19 @@ namespace LivingWorldNpcs
                 var c = a.Character;
                 if (c == null) return "";
                 if (a == Agent.Main) return "";   // 玩家是命令者，不需要行为提示
-                if ((c as CharacterObject)?.HeroObject != null) return "有名人物，行为可观测";
+                // 本地化：LWN_prompt_scene_pers_hero（有名人物，行为可观测，双桶）
+                if ((c as CharacterObject)?.HeroObject != null) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pers_hero");
                 string id = c.StringId ?? "";
-                if (id.Contains("guard")) return "尽职尽责，坚守岗位";
-                if (id.Contains("villager")) return "普通村民";
-                if (id.Contains("merchant")) return "精于算计";
-                if (id.Contains("tavernkeeper")) return "八面玲珑";
-                if (id.Contains("drunkard")) return "醉醺醺";
+                // 本地化：LWN_prompt_scene_pers_guard/villager/merchant/tavernkeeper/drunkard（职业人设提示，双桶）
+                if (id.Contains("guard")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pers_guard");
+                // 本地化：LWN_prompt_scene_pers_villager（双桶）
+                if (id.Contains("villager")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pers_villager");
+                // 本地化：LWN_prompt_scene_pers_merchant（双桶）
+                if (id.Contains("merchant")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pers_merchant");
+                // 本地化：LWN_prompt_scene_pers_tavernkeeper（双桶）
+                if (id.Contains("tavernkeeper")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pers_tavernkeeper");
+                // 本地化：LWN_prompt_scene_pers_drunkard（双桶）
+                if (id.Contains("drunkard")) return LWNTextHelper.ResolvePrompt("LWN_prompt_scene_pers_drunkard");
                 return "";
             }
             catch { return ""; }

@@ -72,6 +72,7 @@ namespace LivingWorldNpcs
             V.LoadMov(_layer, "Compass", _vm);
             missionScreen.AddLayer(_layer);
 
+            // 本地化：LWN_compass_dist（双桶）
             _distFormat = LWNTextHelper.ResolveText("LWN_compass_dist", "%DIST%m");
 
             _scanCounter = 0;
@@ -321,7 +322,7 @@ namespace LivingWorldNpcs
             {
                 Vec3 fwd = mission.GetCameraFrame().rotation.f;
                 float yawDeg = (float)(Math.Atan2(-fwd.X, fwd.Y) * 180.0 / Math.PI);
-                sb.AppendLine($"[Compass] yaw={yawDeg:F1} (0=+Y 朝北) visible={hud._vm.IsVisible} icons={hud._vm.IconItems.Count}");
+                sb.AppendLine($"[Compass] yaw={yawDeg:F1} (0=+Y 朝北) visible={hud._vm.IsVisible} icons={hud._vm.IconItems.Count}"); // lwn-ignore: A
                 Vec3 camPos = hud._missionScreen?.CombatCamera?.Position ?? Vec3.Zero;
                 foreach (var icon in hud._vm.IconItems)
                 {

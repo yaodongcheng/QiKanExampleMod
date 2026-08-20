@@ -128,23 +128,29 @@ namespace LivingWorldNpcs
                 s.LastResponseAt = Mission.Current != null ? Mission.Current.CurrentTime : 0f;
 
                 // 续话内容：发起方身份 + 话题延续 + 对方刚说（自由跟进）
-                string initiatorName = s.Initiator.Name?.ToString() ?? "随从";
-                string targetName = s.Target.Name?.ToString() ?? "对方";
+                // 本地化：LWN_trait_companion（随从兜底，双桶）
+                string initiatorName = s.Initiator.Name?.ToString() ?? DialogueComponent.ResolvePrompt("LWN_trait_companion", "");
+                // 本地化：LWN_word_person_other（对方兜底，双桶）
+                string targetName = s.Target.Name?.ToString() ?? DialogueComponent.ResolvePrompt("LWN_word_person_other", "");
+                // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖，缺 key 返回空串降级）
                 string identity = string.Format(
-                    // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
-                    DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
-                    initiatorName, DialogueComponent.ResolvePrompt("LWN_trait_companion", "随从"));
+                    // 本地化：LWN_plan_respond_identity_template（身份模板，双桶）
+                    DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", ""),
+                    // 本地化：LWN_trait_companion（双桶）
+                    initiatorName, DialogueComponent.ResolvePrompt("LWN_trait_companion", ""));
                 var initMem = AllNpcMemoryManager.GetMemoryForAgent(s.Initiator);
                 string lastLine = initMem != null ? ReactiveAgent.GetLastLineWith(initMem, ReactiveAgent.GetAgentId(s.Target)) : "";
                 _ = DialogueComponent.GenerateLine(
                     WorldBackgroundProvider.GetWorldSection(s.Initiator), identity, "",
-                    string.IsNullOrEmpty(s.Topic) ? "闲聊" : s.Topic, "",
+                    // 本地化：LWN_prompt_dialogcomp_topic_chat（闲聊话题兜底，双桶）
+                    string.IsNullOrEmpty(s.Topic) ? LWNTextHelper.ResolvePrompt("LWN_prompt_dialogcomp_topic_chat") : s.Topic, "",
                     "", targetName,
                     initMem != null ? PromptBuilder.GetPrompt_RespondContext(initMem, ReactiveAgent.GetAgentId(s.Target)) : "",
                     lastLine,
                     // 本地化：LWN_plan_respond_rule（玩家可见文本）
                     "LWN_plan_respond_rule",
-                    "【要求】用一句话口语化对对方说（10-40 字），顺着对方的话接，像随口闲聊/对峙回话，直接说台词本身——不要引号、不要解释、不要动作描写。",
+                    // 本地化：LWN_prompt_dialogcomp_rule_fallback（台词要求 C# 兜底，双桶）
+                    LWNTextHelper.ResolvePrompt("LWN_prompt_dialogcomp_rule_fallback"),
                     null, maxTokens: 80, timeoutMs: 4000,
                     addressSection: PromptBuilder.BuildAddressAndKinshipSections(s.Initiator, s.Target))
                     .ContinueWith(t =>
@@ -412,10 +418,12 @@ namespace LivingWorldNpcs
                 var sb = new StringBuilder();
                 // 世界观段（XML LWN_plan_section_world；blob 空（未配置 LLM/生成失败）→ 标题+内容整段省略，
                 // 防标题残留——2026-08-17 静态 flavor 退场后调用点传 WorldBackgroundProvider 切片结果）
+                // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖，缺 key 返回空串降级）
                 if (!string.IsNullOrEmpty(world))
-                    sb.AppendLine(ResolvePrompt("LWN_plan_section_world", "【世界观】") + world); // lwn-ignore: B
+                    // 本地化：LWN_plan_section_world（双桶）
+                    sb.AppendLine(ResolvePrompt("LWN_plan_section_world", "") + world);
                 // 身份段（XML LWN_plan_respond_section_identity）
-                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_identity", "【你的身份】") + identity);
+                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_identity", "") + identity);
                 // 🔴 2026-08-17（称呼纪律）：称呼 = LLM 现场发挥——【称呼纪律】段 + 亲缘认知段
                 //（respond 链调用点统一构建传入，含模板 NPC 的 CharacterObject 性别/年龄）
                 if (!string.IsNullOrEmpty(addressSection))
@@ -426,12 +434,14 @@ namespace LivingWorldNpcs
                 if (!string.IsNullOrEmpty(attitude))
                     sb.AppendLine(attitude);
                 // 主题段（XML LWN_plan_respond_section_topic）+ 轮次
-                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_topic", "【对话主题】") + topic + roundText);
+                // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖）
+                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_topic", "") + topic + roundText);
                 // 走向段（对话模式专用；XML LWN_plan_respond_section_outline）
                 if (!string.IsNullOrEmpty(outlineSection))
                     sb.AppendLine(outlineSection);
                 // 对方段（XML LWN_plan_respond_section_other）
-                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_other", "【对方】") + otherName);
+                // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖）
+                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_other", "") + otherName);
                 // 🔴 2026-08-16（方案 S2）：受困处境段（玩家被俘/被抓时看守的认知——对方身份 + 欠的账）
                 if (!string.IsNullOrEmpty(distressSection))
                 {
@@ -456,7 +466,8 @@ namespace LivingWorldNpcs
                 // 记忆裁剪段（与对方相关的近期对话；PromptBuilder 既有）
                 sb.AppendLine(history);
                 // 对方刚说（记忆过滤后最后一句）
-                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_last", "【对方刚说】") + lastLine);
+                // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖）
+                sb.AppendLine(ResolvePrompt("LWN_plan_respond_section_last", "") + lastLine);
                 // 动作空间（§5.6：respond 带动作，与 IM 群聊同构；LLM 只看到当前空间合法动作）
                 if (!string.IsNullOrEmpty(actionSpace))
                 {

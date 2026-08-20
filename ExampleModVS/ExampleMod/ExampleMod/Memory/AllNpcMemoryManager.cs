@@ -63,7 +63,8 @@ namespace LivingWorldNpcs
         /// </summary>
         public static string GetPlayerDescription(NPCProfile targetNpcProfile)
         {
-            if (Hero.MainHero == null) return "一个普通的旅行者。";
+            // 本地化：LWN_prompt_player_desc_fallback（无主英雄兜底，双桶）
+            if (Hero.MainHero == null) return LWNTextHelper.ResolvePrompt("LWN_prompt_player_desc_fallback");
 
             Hero player = Hero.MainHero;
             string playerId = player.StringId;
@@ -75,18 +76,36 @@ namespace LivingWorldNpcs
 
             StringBuilder sb = new StringBuilder();
 
-            sb.Append($"名字：{player.Name}。");
-            sb.Append($"身份：{(player.Clan != null ? player.Clan.Name.ToString() : "无家族")}的{(player.IsFemale ? "女武士" : "武士")}。");
+            // 本地化：LWN_prompt_player_desc_name（名字，双桶）
+            sb.Append(LWNTextHelper.ResolveCompound("LWN_prompt_player_desc_name", ("NAME", player.Name.ToString())) + " ");
+            // 本地化：LWN_prompt_player_desc_identity（身份：{CLAN}的{GENDER}，双桶）
+            // 本地化：LWN_prompt_player_desc_no_clan（无家族，双桶）
+            string clanText = player.Clan != null ? player.Clan.Name.ToString() : LWNTextHelper.ResolvePrompt("LWN_prompt_player_desc_no_clan");
+            // 本地化：LWN_prompt_player_desc_gender_female / LWN_prompt_player_desc_gender_male（性别称呼，双桶）
+            string genderText = player.IsFemale
+                // 本地化：LWN_prompt_player_desc_gender_female（双桶）
+                ? LWNTextHelper.ResolvePrompt("LWN_prompt_player_desc_gender_female")
+                // 本地化：LWN_prompt_player_desc_gender_male（双桶）
+                : LWNTextHelper.ResolvePrompt("LWN_prompt_player_desc_gender_male");
+            // 本地化：LWN_prompt_player_desc_identity（双桶）
+            sb.Append(LWNTextHelper.ResolveCompound("LWN_prompt_player_desc_identity",
+                ("CLAN", clanText), ("GENDER", genderText)) + " ");
 
             if (player.Clan?.Kingdom != null)
             {
-                sb.Append($"效忠于：{player.Clan.Kingdom.Name}。");
+                // 本地化：LWN_prompt_player_desc_kingdom（效忠于{KINGDOM}，双桶）
+                sb.Append(LWNTextHelper.ResolveCompound("LWN_prompt_player_desc_kingdom",
+                    ("KINGDOM", player.Clan.Kingdom.Name.ToString())) + " ");
             }
 
 
             // 简单通用描述
-            sb.Append($"荣誉值：{player.GetTraitLevel(DefaultTraits.Honor)}。");
-            sb.Append($"目前持有金钱：{player.Gold}。");
+            // 本地化：LWN_prompt_player_desc_honor（荣誉值，双桶）
+            sb.Append(LWNTextHelper.ResolveCompound("LWN_prompt_player_desc_honor",
+                ("HONOR", player.GetTraitLevel(DefaultTraits.Honor).ToString())) + " ");
+            // 本地化：LWN_prompt_player_desc_gold（持有金钱，双桶）
+            sb.Append(LWNTextHelper.ResolveCompound("LWN_prompt_player_desc_gold",
+                ("GOLD", player.Gold.ToString())));
 
             return sb.ToString();
         }

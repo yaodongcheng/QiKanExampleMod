@@ -98,6 +98,7 @@ namespace LivingWorldNpcs
         /// </summary>
         public void RefreshLetterTexts()
         {
+            // 本地化：LWN_compass_north（双桶）
             string[] letterKeys = { "LWN_compass_north", "LWN_compass_east", "LWN_compass_south", "LWN_compass_west" };
             string[] fallbacks = { "N", "E", "S", "W" };
             for (int i = 0; i < LetterItems.Count && i < letterKeys.Length; i++)

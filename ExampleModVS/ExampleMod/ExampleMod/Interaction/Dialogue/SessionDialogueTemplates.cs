@@ -128,16 +128,12 @@ namespace LivingWorldNpcs
             if (agree >= 0.5f)
             {
                 // 倾向松动：你开始动摇（LLM 态度段）
-                string s = LWNTextHelper.ResolvePrompt("LWN_plan_persuade_direction_waver");
-                return string.IsNullOrEmpty(s)
-                    ? "【你此刻的态度】你有些动摇，对方的话你听进去了，开始认真考虑。"
-                    : s;
+                // 本地化：LWN_plan_persuade_direction_waver（双桶；2026-08-20 prompt 双语化，去 C# 中文兜底）
+                return LWNTextHelper.ResolvePrompt("LWN_plan_persuade_direction_waver");
             }
             // 倾向抗拒：你态度坚决（LLM 态度段）
-            string firm = LWNTextHelper.ResolvePrompt("LWN_plan_persuade_direction_firm");
-            return string.IsNullOrEmpty(firm)
-                ? "【你此刻的态度】你态度坚决，不想答应对方，但出于礼貌还是回一句。"
-                : firm;
+            // 本地化：LWN_plan_persuade_direction_firm（双桶；2026-08-20 prompt 双语化，去 C# 中文兜底）
+            return LWNTextHelper.ResolvePrompt("LWN_plan_persuade_direction_firm");
         }
     }
 }

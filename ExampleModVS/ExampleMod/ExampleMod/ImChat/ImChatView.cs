@@ -295,7 +295,7 @@ namespace LivingWorldNpcs
                 _lastUsingGamepad = ModInput.UsingGamepad;
                 UpdateGamepadFreeze();
                 _vm?.RefreshPadHint();
-                // 排查日志（2026-08-19 起）：打开时的模式 + 设备判定 + 输入框聚焦——配合 [ImChatMask]
+ // lwn-ignore: A  排查日志（2026-08-19 起）：打开时的模式 + 设备判定 + 输入框聚焦——配合 [ImChatMask]
                 DebugLogger.Log($"[ImChat] Open 完成 mode={_mode} gamepad={_lastUsingGamepad} inputFocused={_layer.IsFocusedOnInput()}");
                 // 🔴 2026-08-17（用户反馈）：Mission 内直接以缩略模式打开（_mode 记忆——上次关闭时是
                 // 缩略，下一次开启仍是缩略）→ 同样提示镜头操作变化（不只「放大→缩略」路径）
@@ -595,8 +595,8 @@ namespace LivingWorldNpcs
                 // 这里按键按下沿打一行（证明「按键无反馈」是门控问题而非轮询问题）
                 if (anyKeyEdge && PadDbg)
                 {
-                    DebugLogger.Log("[Pad] ⛔ 门控:设备未激活 按键被忽略（手柄未提交/未连接）");
-                    PadScreenMsg("⛔ 设备未激活，按键被忽略");
+                    DebugLogger.Log("[Pad] ⛔ 门控:设备未激活 按键被忽略（手柄未提交/未连接）"); // lwn-ignore: A
+                    PadScreenMsg("⛔ 设备未激活，按键被忽略"); // lwn-ignore: A
                 }
                 _padNavDirty = true;
                 ResetPadFocus();   // 设备切鼠标：焦点复位 + 高亮清理（下一帧引擎刷新原版按钮状态）
@@ -878,7 +878,7 @@ namespace LivingWorldNpcs
             catch { }
         }
 
-        /// <summary>诊断 + 设备判定用：是否有任意手柄键按下（🔴 2026-08-19 用户裁定「任何手柄键都是
+ // lwn-ignore: A / <summary>诊断 + 设备判定用：是否有任意手柄键按下（🔴 2026-08-19 用户裁定「任何手柄键都是
         /// 在激活手柄模式」——十字键/A/B/Y/X/LB/RB/L3 全覆盖）。门控吞键检测 + 自监测输入来源。</summary>
         private static bool AnyPadKeyPressed()
         {
@@ -924,7 +924,7 @@ namespace LivingWorldNpcs
                     if (PadDbg)
                     {
                         DebugLogger.Log($"[Pad] {name} 按下(edge) {PadState()}");
-                        PadScreenMsg($"🎮 {name} 按下 idx={_padIndex}");
+                        PadScreenMsg($"🎮 {name} 按下 idx={_padIndex}"); // lwn-ignore: A
                     }
                     act(); repeat = 0f;                       // 按下沿：立即触发一次 + 计时起点
                 }
@@ -971,7 +971,7 @@ namespace LivingWorldNpcs
             if (PadDbg)
             {
                 DebugLogger.Log($"[Pad] A 激活 → {item.Id} ({item.Group})");
-                PadScreenMsg($"🅰 激活 {item.Id}");
+                PadScreenMsg($"🅰 激活 {item.Id}"); // lwn-ignore: A
             }
             try { item.OnActivate?.Invoke(); }
             catch (Exception ex) { DebugLogger.Log($"[ImChat] 焦点激活异常: {ex.Message}"); }
@@ -995,8 +995,8 @@ namespace LivingWorldNpcs
             string dir = dy < 0 ? "↑" : dy > 0 ? "↓" : dx < 0 ? "←" : "→";
             if (PadDbg)
             {
-                DebugLogger.Log($"[Pad] 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
-                PadScreenMsg($"➤ 焦点 {cur.Id} → {_padItems[target].Id} ({dir})");
+                DebugLogger.Log($"[Pad] 焦点 {cur.Id} → {_padItems[target].Id} ({dir})"); // lwn-ignore: A
+                PadScreenMsg($"➤ 焦点 {cur.Id} → {_padItems[target].Id} ({dir})"); // lwn-ignore: A
             }
             _padIndex = target;
             var item = _padItems[target];
@@ -1415,7 +1415,7 @@ namespace LivingWorldNpcs
             // 完整模式兜底钳制（缩略模式的 -1 = 合法的无焦点态，不许钳）
             if (_padIndex < 0 && _mode != ImChatMode.Compact) _padIndex = 0;
             // 🔴 2026-08-18（诊断日志）：重建结果 + 焦点映射（oldId → newId）——结构变化后焦点去向
-            string newId = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].Id : "无";
+            string newId = _padIndex >= 0 && _padIndex < _padItems.Count ? _padItems[_padIndex].Id : "无"; // lwn-ignore: A
             if (PadDbg) DebugLogger.Log($"[Pad] 重建: {_padItems.Count}项 old={oldId ?? "无"} → {newId}");
             ApplyPadVisual();
         }
@@ -2592,7 +2592,7 @@ namespace LivingWorldNpcs
         /// <summary>Mission（ImChatMissionView.OnMissionTick）/ Campaign（OnScreenFrameTick）双端调用。</summary>
         public static void Tick(float dt)
         {
-            // 🔴 2026-08-19（用户裁定：自监测输入来源每帧更新——必须在本类任何设备判定消费之前，
+ // lwn-ignore: A  🔴 2026-08-19（用户裁定：自监测输入来源每帧更新——必须在本类任何设备判定消费之前，
             // 且面板开闭都跑：InteractArea 键帽等全 Mod 共用 ModInput.UsingGamepad）
             ModInput.TickInputSource();
             // 🔴 世界背景生成同样依赖墙钟帧（暂停也运转）——与 IM 同轮子（ImScreenFrameTickPatch）：
@@ -2625,16 +2625,16 @@ namespace LivingWorldNpcs
                 // 🔴 2026-08-19（用户要求：打印最近一次是什么输入让它判成键鼠/手柄——来源详情 + 时间）
                 if (PadDbg) DebugLogger.Log($"[ImChat] 设备切换 → {(usingGamepad ? "手柄" : "键盘/鼠标")}（最后手柄输入={ModInput.LastPadActivityDetail}@{ModInput.SecondsSincePadActivity:0.0}s前 最后鼠标输入={ModInput.LastMouseActivityDetail}@{ModInput.SecondsSinceMouseActivity:0.0}s前）");
                 // 🔴 2026-08-18（用户要求：切换必须可见，排查「点击后变鼠标感知」等怪象）：
-                // 设备判定切换屏显提示（调试豁免裸字符串，PadScreenMsg 先例——测试完按用户反馈决定去留）
-                PadScreenMsg($"🎮 设备判定 → {(usingGamepad ? "手柄" : "键鼠")}");
+ // lwn-ignore: A  设备判定切换屏显提示（调试豁免裸字符串，PadScreenMsg 先例——测试完按用户反馈决定去留）
+                PadScreenMsg($"🎮 设备判定 → {(usingGamepad ? "手柄" : "键鼠")}"); // lwn-ignore: A
             }
             UpdateGamepadFreeze();
             UpdatePadFocus(dt);
 
             // 🔴 鼠标活动采样（2026-08-19 mission 鼠标转镜头排查产物，改挂调试开关）——
             // 2s 节流回答三个问题：①鼠标位移引擎是否上报（光标可见时 MouseMoveX 是否归零）
-            // ②光标可见性（转镜头的直接机制 = MissionScreen.MouseVisible）③设备判定
-            // 挂 GamepadNavDebugLog（= PadDbg，输入调试总开关：设备判定/手柄导航同源）。
+ // lwn-ignore: A  ②光标可见性（转镜头的直接机制 = MissionScreen.MouseVisible）③设备判定
+ // lwn-ignore: A  挂 GamepadNavDebugLog（= PadDbg，输入调试总开关：设备判定/手柄导航同源）。
             if (PadDbg)
             {
                 _mouseDiagTimer -= dt;

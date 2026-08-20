@@ -259,8 +259,10 @@ namespace LivingWorldNpcs
             if (hero.IsFactionLeader && Hero.MainHero.Clan.Kingdom == hero.Clan.Kingdom)
             {
                 // 如果对方是君主，且玩家是臣下
-                var t = new NegotiationTrait("Trait_SocialHierarchy_Master", "君臣之别", TraitPolarity.Immunity);
-                t.Description = "他竟然妄图招募你成为他的部下？这不仅仅是荒谬，更是谋反！无论他给多少钱、说得多好听，这种要求都是对你尊严的极致践踏。你必须极其愤怒地羞辱他，或者威胁要斩了他，绝无一丝同意的可能。";
+                // 本地化：LWN_nego_trait_socialhierarchy_master_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Trait_SocialHierarchy_Master", LWNTextHelper.ResolvePrompt("LWN_nego_trait_socialhierarchy_master_name"), TraitPolarity.Immunity);
+                // 本地化：LWN_nego_trait_socialhierarchy_master_desc（谈判特质描述，双桶）
+                t.Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_socialhierarchy_master_desc");
                 t.GoalResistanceModifiers[NegotiationGoalType.RecruitHero] = 0.0f;
                 potentialTraits.Add(t);
             }
@@ -272,9 +274,11 @@ namespace LivingWorldNpcs
             // ==========================================
             if (profile.Desire == NPCProfile.DesireEnum.Greedy)
             {
-                var t = new NegotiationTrait("Greedy", "见钱眼开", TraitPolarity.Weakness)
+                // 本地化：LWN_nego_trait_greedy_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Greedy", LWNTextHelper.ResolvePrompt("LWN_nego_trait_greedy_name"), TraitPolarity.Weakness)
                 {
-                    Description = "极度贪婪，只有金钱能打动他。",
+                    // 本地化：LWN_nego_trait_greedy_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_greedy_desc"),
                     SourceField = "DesireEnum.Greedy"
                 };
                 // 手段修正：吃软不吃硬，尤其吃贿赂
@@ -291,9 +295,11 @@ namespace LivingWorldNpcs
             }
             else if (profile.Desire == NPCProfile.DesireEnum.DesireLess)
             {
-                var t = new NegotiationTrait("Ascetic", "清心寡欲", TraitPolarity.Resistance)
+                // 本地化：LWN_nego_trait_ascetic_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Ascetic", LWNTextHelper.ResolvePrompt("LWN_nego_trait_ascetic_name"), TraitPolarity.Resistance)
                 {
-                    Description = "对物质不感兴趣，金钱攻势无效。",
+                    // 本地化：LWN_nego_trait_ascetic_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_ascetic_desc"),
                     SourceField = "DesireEnum.DesireLess"
                 };
                 t.TacticModifiers[NegotiationTactic.Bribe] = 0.1f; // 几乎无效
@@ -305,9 +311,11 @@ namespace LivingWorldNpcs
             // ==========================================
             if (profile.Spirit == NPCProfile.SpiritEnum.Timid)
             {
-                var t = new NegotiationTrait("Coward", "胆小如鼠", TraitPolarity.Weakness)
+                // 本地化：LWN_nego_trait_coward_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Coward", LWNTextHelper.ResolvePrompt("LWN_nego_trait_coward_name"), TraitPolarity.Weakness)
                 {
-                    Description = "生性懦弱，惧怕威胁。",
+                    // 本地化：LWN_nego_trait_coward_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_coward_desc"),
                     SourceField = "SpiritEnum.Timid"
                 };
                 t.TacticModifiers[NegotiationTactic.Threaten] = 2.0f; // 威胁暴击
@@ -316,9 +324,11 @@ namespace LivingWorldNpcs
             }
             else if (profile.Spirit == NPCProfile.SpiritEnum.Brave)
             {
-                var t = new NegotiationTrait("Fearless", "刚正不阿", TraitPolarity.Resistance)
+                // 本地化：LWN_nego_trait_fearless_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Fearless", LWNTextHelper.ResolvePrompt("LWN_nego_trait_fearless_name"), TraitPolarity.Resistance)
                 {
-                    Description = "软硬不吃，尤其痛恨威胁。",
+                    // 本地化：LWN_nego_trait_fearless_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_fearless_desc"),
                     SourceField = "SpiritEnum.Brave"
                 };
                 t.TacticModifiers[NegotiationTactic.Threaten] = 0.0f; // 威胁完全无效甚至反噬
@@ -330,9 +340,11 @@ namespace LivingWorldNpcs
             }
             if (profile.Ism == NPCProfile.IsmEnum.Ideal)
             {
-                var t = new NegotiationTrait("Idealist", "理想主义者", TraitPolarity.Neutral)
+                // 本地化：LWN_nego_trait_idealist_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Idealist", LWNTextHelper.ResolvePrompt("LWN_nego_trait_idealist_name"), TraitPolarity.Neutral)
                 {
-                    Description = "看重誓言与荣誉，轻视现实利益。",
+                    // 本地化：LWN_nego_trait_idealist_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_idealist_desc"),
                     SourceField = "IsmEnum.Ideal"
                 };
                 // 喜欢誓言，讨厌贿赂
@@ -345,9 +357,11 @@ namespace LivingWorldNpcs
             }
             else if (profile.Ism == NPCProfile.IsmEnum.Realistic)
             {
-                var t = new NegotiationTrait("Realist", "现实主义者", TraitPolarity.Neutral)
+                // 本地化：LWN_nego_trait_realist_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Realist", LWNTextHelper.ResolvePrompt("LWN_nego_trait_realist_name"), TraitPolarity.Neutral)
                 {
-                    Description = "只看重实实在在的利益，不相信空口承诺。",
+                    // 本地化：LWN_nego_trait_realist_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_realist_desc"),
                     SourceField = "IsmEnum.Realistic"
                 };
                 // 讨厌空话
@@ -364,9 +378,11 @@ namespace LivingWorldNpcs
             // ==========================================
             if (profile.theImportanceOfFriendship == NPCProfile.FriendshipImportanceEnum.Important)
             {
-                var t = new NegotiationTrait("LoyalFriend", "重情重义", TraitPolarity.Weakness)
+                // 本地化：LWN_nego_trait_loyalfriend_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("LoyalFriend", LWNTextHelper.ResolvePrompt("LWN_nego_trait_loyalfriend_name"), TraitPolarity.Weakness)
                 {
-                    Description = "极度看重人情，如果是朋友的请求很难拒绝。",
+                    // 本地化：LWN_nego_trait_loyalfriend_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_loyalfriend_desc"),
                     SourceField = "FriendshipImportance.Important"
                 };
                 t.TacticModifiers[NegotiationTactic.Plead] = 1.5f; // 恳求有效
@@ -378,9 +394,11 @@ namespace LivingWorldNpcs
             }
             else if (profile.theImportanceOfFriendship == NPCProfile.FriendshipImportanceEnum.NotImportant)
             {
-                var t = new NegotiationTrait("ColdBlooded", "冷酷", TraitPolarity.Resistance)
+                // 本地化：LWN_nego_trait_coldblooded_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("ColdBlooded", LWNTextHelper.ResolvePrompt("LWN_nego_trait_coldblooded_name"), TraitPolarity.Resistance)
                 {
-                    Description = "对他谈感情是浪费时间。",
+                    // 本地化：LWN_nego_trait_coldblooded_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_coldblooded_desc"),
                     SourceField = "FriendshipImportance.NotImportant"
                 };
                 t.TacticModifiers[NegotiationTactic.Plead] = 0.2f;
@@ -392,9 +410,11 @@ namespace LivingWorldNpcs
             // ==========================================
             if (profile.ActStyle == NPCProfile.ActStyleEnum.Flippancy)
             {
-                var t = new NegotiationTrait("Flippant", "轻浮浪子", TraitPolarity.Neutral)
+                // 本地化：LWN_nego_trait_flippant_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Flippant", LWNTextHelper.ResolvePrompt("LWN_nego_trait_flippant_name"), TraitPolarity.Neutral)
                 {
-                    Description = "喜欢听好听的话，讨厌严肃的说教。",
+                    // 本地化：LWN_nego_trait_flippant_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_flippant_desc"),
                     SourceField = "ActStyle.Flippancy"
                 };
                 t.TacticModifiers[NegotiationTactic.Flatter] = 1.5f; // 吃恭维
@@ -403,9 +423,11 @@ namespace LivingWorldNpcs
             }
             else if (profile.ActStyle == NPCProfile.ActStyleEnum.Considerate)
             {
-                var t = new NegotiationTrait("Cautious", "深思熟虑", TraitPolarity.Resistance)
+                // 本地化：LWN_nego_trait_cautious_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Cautious", LWNTextHelper.ResolvePrompt("LWN_nego_trait_cautious_name"), TraitPolarity.Resistance)
                 {
-                    Description = "行事稳重，不容易被忽悠，需要实打实的逻辑或利益。",
+                    // 本地化：LWN_nego_trait_cautious_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_cautious_desc"),
                     SourceField = "ActStyle.Considerate"
                 };
                 t.TacticModifiers[NegotiationTactic.Flatter] = 0.5f; // 恭维被看穿
@@ -419,9 +441,11 @@ namespace LivingWorldNpcs
             // ==========================================
             if (profile.AlcoholDesire == NPCProfile.AlcoholDesireEnum.Alcoholic)
             {
-                var t = new NegotiationTrait("Drunkard", "嗜酒如命", TraitPolarity.Weakness)
+                // 本地化：LWN_nego_trait_drunkard_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Drunkard", LWNTextHelper.ResolvePrompt("LWN_nego_trait_drunkard_name"), TraitPolarity.Weakness)
                 {
-                    Description = "只要有酒，什么都好说。",
+                    // 本地化：LWN_nego_trait_drunkard_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_drunkard_desc"),
                     SourceField = "AlcoholDesire.Alcoholic"
                 };
                 // 并没有单独的“送酒”Tactic，但归类为 Gift
@@ -439,9 +463,11 @@ namespace LivingWorldNpcs
 
                 if (relation <= -20)
                 {
-                    var t = new NegotiationTrait("Hostile", "敌视", TraitPolarity.Resistance)
+                    // 本地化：LWN_nego_trait_hostile_name（谈判特质名，双桶）
+                    var t = new NegotiationTrait("Hostile", LWNTextHelper.ResolvePrompt("LWN_nego_trait_hostile_name"), TraitPolarity.Resistance)
                     {
-                        Description = "仇人见面，分外眼红。",
+                        // 本地化：LWN_nego_trait_hostile_desc（谈判特质描述，双桶）
+                        Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_hostile_desc"),
                         SourceField = "Relation.Low"
                     };
                     // 全面抗性
@@ -452,9 +478,11 @@ namespace LivingWorldNpcs
                 }
                 else if (relation >= 20)
                 {
-                    var t = new NegotiationTrait("Friend", "友好", TraitPolarity.Weakness)
+                    // 本地化：LWN_nego_trait_friend_name（谈判特质名，双桶）
+                    var t = new NegotiationTrait("Friend", LWNTextHelper.ResolvePrompt("LWN_nego_trait_friend_name"), TraitPolarity.Weakness)
                     {
-                        Description = "由于良好的私交，他愿意给你行方便。",
+                        // 本地化：LWN_nego_trait_friend_desc（谈判特质描述，双桶）
+                        Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_friend_desc"),
                         SourceField = "Relation.High"
                     };
                     t.TacticModifiers[NegotiationTactic.Plead] = 1.5f;
@@ -471,9 +499,11 @@ namespace LivingWorldNpcs
 
             if (isClanLeader)
             {
-                var t = new NegotiationTrait("ClanLeader", "家族族长", TraitPolarity.Resistance)
+                // 本地化：LWN_nego_trait_clanleader_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("ClanLeader", LWNTextHelper.ResolvePrompt("LWN_nego_trait_clanleader_name"), TraitPolarity.Resistance)
                 {
-                    Description = "身居高位，责任重大，不会轻易背叛或做出有损家族利益的事。",
+                    // 本地化：LWN_nego_trait_clanleader_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_clanleader_desc"),
                     SourceField = "Role.ClanLeader"
                 };
                 // 很难被小利打动
@@ -489,9 +519,11 @@ namespace LivingWorldNpcs
             float estimatedValue = profile.CalculateEstimatedValue(); // 假设 NPCProfile 有这个方法
             if (estimatedValue > 500000)
             {
-                var t = new NegotiationTrait("Noble", "权贵", TraitPolarity.Resistance)
+                // 本地化：LWN_nego_trait_noble_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Noble", LWNTextHelper.ResolvePrompt("LWN_nego_trait_noble_name"), TraitPolarity.Resistance)
                 {
-                    Description = "眼界极高，普通筹码视若无睹。",
+                    // 本地化：LWN_nego_trait_noble_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_noble_desc"),
                     SourceField = "Status.High"
                 };
                 t.CostModifiers[NegotiationCostType.PersonalGold] = 0.5f; // 钱太少看不上
@@ -505,9 +537,11 @@ namespace LivingWorldNpcs
             // 如果求婚，但对方已婚
             if (goalType == NegotiationGoalType.ProposeMarriage && profile.BaseHero != null && profile.BaseHero.Spouse != null)
             {
-                var t = new NegotiationTrait("Married", "已婚", TraitPolarity.Immunity)
+                // 本地化：LWN_nego_trait_married_name（谈判特质名，双桶）
+                var t = new NegotiationTrait("Married", LWNTextHelper.ResolvePrompt("LWN_nego_trait_married_name"), TraitPolarity.Immunity)
                 {
-                    Description = "忠贞不渝（或者单纯是法律不允许）。",
+                    // 本地化：LWN_nego_trait_married_desc（谈判特质描述，双桶）
+                    Description = LWNTextHelper.ResolvePrompt("LWN_nego_trait_married_desc"),
                     SourceField = "Spouse"
                 };
                 // 阻力无限大
@@ -633,7 +667,8 @@ namespace LivingWorldNpcs
         // 生成给 LLM 看的描述
         public string GetDescription()
         {
-            if (chips.Count == 0) return "无实质筹码";
+            // 本地化：LWN_nego_chips_none（无筹码描述，双桶）
+            if (chips.Count == 0) return LWNTextHelper.ResolvePrompt("LWN_nego_chips_none");
             return string.Join(", ", chips.Select(x => $"{x.Name}"));
 
             //这里之后要补充筹码的总价值
@@ -676,8 +711,13 @@ namespace LivingWorldNpcs
     public class NegotiationGoalTemplate
     {
         public NegotiationGoalType Type { get; set; }
-        public string Name { get; set; }        // UI显示：求婚
-        public string Description { get; set; } // LLM提示词：玩家试图向NPC求婚
+        /// <summary>本地化 key（双桶 XML；2026-08-20 双语化：Name/Description 延迟解析——静态字典
+        /// 初始化无法调引擎本地化，getter 运行时求值；UI 名走 ResolveText，prompt 材料走 ResolvePrompt）</summary>
+        public string NameKey { get; set; }        // UI显示：求婚
+        public string DescKey { get; set; }        // LLM提示词：玩家试图向NPC求婚
+
+        public string Name => string.IsNullOrEmpty(NameKey) ? "" : LWNTextHelper.ResolveText(NameKey);
+        public string Description => string.IsNullOrEmpty(DescKey) ? "" : LWNTextHelper.ResolvePrompt(DescKey);
 
         //希望从对方这里获得什么
         public NegotiationCostType NeedType { get; set; }= NegotiationCostType.None;
@@ -979,7 +1019,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 1000f, // 基础单位
                 TargetAttributeCheck = "Greed",
                 HigherIsBetter = true,
-                DescriptionPrompt = "试图用个人的财富收买对方。对方越贪婪越容易成功。"
+                // 本地化：LWN_nego_tactic_bribe_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_bribe_desc"),
             }
         },
         {
@@ -992,7 +1033,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 1f, // 1个物品
                 TargetAttributeCheck = "Greed", // 后面要细分一下，对各类物品有不同的效果，比如武器、书画等
                 HigherIsBetter = true,
-                DescriptionPrompt = "交出特定的珍贵物品作为礼物。对方越贪婪越容易成功。"
+                // 本地化：LWN_nego_tactic_gift_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_gift_desc"),
             }
         },
 
@@ -1011,7 +1053,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 10f,
                 TargetAttributeCheck = "Bravery", // 对方越懦弱，越有效
                 HigherIsBetter = false,
-                DescriptionPrompt = "通过言语恐吓或展示武力逼迫对方就范。如果对方勇敢(Bravery高)，可能会相反效果。"
+                // 本地化：LWN_nego_tactic_threaten_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_threaten_desc"),
             }
         },
         {
@@ -1024,7 +1067,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 50f,
                 TargetAttributeCheck = "Scheming", // 也取决于对方的势力大小。对方如果是老谋深算的，可能不吃这一套或者需要更高影响力
                 HigherIsBetter = false,
-                DescriptionPrompt = "利用家族或势力的影响力进行施压。注意：这会消耗你在势力内的功勋点数。"
+                // 本地化：LWN_nego_tactic_coerce_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_coerce_desc"),
             }
         },
 
@@ -1041,7 +1085,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 20f, // 消耗好感度
                 TargetAttributeCheck = "Compassion", // 对方同情心越高越容易成功，或者越重视人情越容易成功
                 HigherIsBetter = true,
-                DescriptionPrompt = "基于过往的交情请求对方。这会消耗你们之间的好感度(Relation)。"
+                // 本地化：LWN_nego_tactic_plead_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_plead_desc"),
             }
         },        
 
@@ -1058,7 +1103,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 30f, // 大幅扣除名声
                 TargetAttributeCheck = "Pride", // 对方如果傲慢，会很享受这个
                 HigherIsBetter = true,
-                DescriptionPrompt = "放弃尊严，下跪或公开道歉以乞求怜悯。这会严重损害你的名声。"
+                // 本地化：LWN_nego_tactic_submisson_desc（谈判手段描述，双桶；保留枚举原拼写 Submisson）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_submisson_desc"),
             }
         },
         {
@@ -1071,7 +1117,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 0f,
                 TargetAttributeCheck = "Scheming", // 聪明人能识破
                 HigherIsBetter = false,
-                DescriptionPrompt = "纯粹的恭维和嘴炮。零成本，但失败率高，且容易被识破。"
+                // 本地化：LWN_nego_tactic_flatter_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_flatter_desc"),
             }
         },
         
@@ -1088,7 +1135,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 1f,
                 TargetAttributeCheck = "Scheming", // 野心家喜欢这个
                 HigherIsBetter=true,
-                DescriptionPrompt = "许诺给予对方收税权、兵权或领地。这是极高代价的战略资源交换。"
+                // 本地化：LWN_nego_tactic_offerpower_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_offerpower_desc"),
             }
         },
         {
@@ -1101,7 +1149,8 @@ namespace LivingWorldNpcs
                 BaseCostValue = 1f,
                 TargetAttributeCheck = "Trust", // 取决于信任度
                 HigherIsBetter = true,
-                DescriptionPrompt = "承诺完成一个艰难的任务(Quest)。如果未来未能完成，将面临严重后果，大幅降低名声，甚至可能会被逐出。"
+                // 本地化：LWN_nego_tactic_swear_desc（谈判手段描述，双桶）
+                DescriptionPrompt = LWNTextHelper.ResolvePrompt("LWN_nego_tactic_swear_desc"),
             }
         }
     };
@@ -1120,8 +1169,10 @@ namespace LivingWorldNpcs
                 new NegotiationGoalTemplate
                 {
                     Type = NegotiationGoalType.ResolveConflict_Apology,
-                    Name = "赔礼道歉",
-                    Description = "平息对方的怒火，消除负面事件的影响",
+                    // 本地化：LWN_nego_goal_apology_name（双桶）
+                    NameKey = "LWN_nego_goal_apology_name",
+                    // 本地化：LWN_nego_goal_apology_desc（双桶）
+                    DescKey = "LWN_nego_goal_apology_desc",
                     BaseDifficulty = 1.0f  //一般和身价相乘
                 }
             },
@@ -1130,8 +1181,10 @@ namespace LivingWorldNpcs
                 new NegotiationGoalTemplate
                 {
                     Type = NegotiationGoalType.ProposeMarriage,
-                    Name = "求婚",
-                    Description = "玩家希望与NPC结为夫妻。",
+                    // 本地化：LWN_nego_goal_marriage_name（双桶）
+                    NameKey = "LWN_nego_goal_marriage_name",
+                    // 本地化：LWN_nego_goal_marriage_desc（双桶）
+                    DescKey = "LWN_nego_goal_marriage_desc",
                     BaseDifficulty = 0.1f  //一般和身价相乘
                 }
             },
@@ -1140,8 +1193,10 @@ namespace LivingWorldNpcs
                 new NegotiationGoalTemplate
                 {
                     Type = NegotiationGoalType.EnterSettlement,
-                    Name = "通融",
-                    Description = "玩家希望守卫违反规定放行。",
+                    // 本地化：LWN_nego_goal_settlement_name（双桶）
+                    NameKey = "LWN_nego_goal_settlement_name",
+                    // 本地化：LWN_nego_goal_settlement_desc（双桶）
+                    DescKey = "LWN_nego_goal_settlement_desc",
                     BaseDifficulty = 1.0f // 相对简单，不和身价相乘
                 }
             },
@@ -1150,8 +1205,10 @@ namespace LivingWorldNpcs
                 new NegotiationGoalTemplate
                 {
                     Type = NegotiationGoalType.RecruitHero,
-                    Name = "招募",
-                    Description = "玩家希望NPC加入玩家队伍。",
+                    // 本地化：LWN_nego_goal_recruit_name（双桶）
+                    NameKey = "LWN_nego_goal_recruit_name",
+                    // 本地化：LWN_nego_goal_recruit_desc（双桶）
+                    DescKey = "LWN_nego_goal_recruit_desc",
                     // 🔴 身价即招募价（与 CalculateEstimatedValue 流浪者公式统一）：0.05 系数会导致
                     // prompt 自报身价 10500、实际招募只花 ~525 的两套数字，NPC 自抬身价出戏。
                     BaseDifficulty = 1.0f // 一般和身价相乘（1.0 = 招募花费 = 身价）
@@ -1162,8 +1219,10 @@ namespace LivingWorldNpcs
                 new NegotiationGoalTemplate
                 {
                     Type = NegotiationGoalType.None,
-                    Name = "无目的",
-                    Description = "玩家不带有任何目的，漫无边际的和Npc聊天。",
+                    // 本地化：LWN_nego_goal_none_name（双桶）
+                    NameKey = "LWN_nego_goal_none_name",
+                    // 本地化：LWN_nego_goal_none_desc（双桶）
+                    DescKey = "LWN_nego_goal_none_desc",
                     BaseDifficulty = 0.0f // 
                 }
             },
@@ -1437,7 +1496,8 @@ namespace LivingWorldNpcs
 
             var GoalInfo = NegotiationRegistry.GetGoalInfo(goalType);
             GoalType = GoalInfo.Type;
-            Name = $"谈判：{NegotiationRegistry.GetGoalInfo(goalType).Name}";
+            // 本地化：LWN_nego_state_name_format（谈判状态名格式，双桶）
+            Name = LWNTextHelper.ResolveCompound("LWN_nego_state_name_format", ("NAME", NegotiationRegistry.GetGoalInfo(goalType).Name));
             TargetAgent = targetAgent;
 
             // Null-safe: Agent may be unavailable in campaign-map conversations
@@ -1486,7 +1546,8 @@ namespace LivingWorldNpcs
 
             var GoalInfo = NegotiationRegistry.GetGoalInfo(goalType);
             GoalType = GoalInfo.Type;
-            Name = $"谈判：{NegotiationRegistry.GetGoalInfo(goalType).Name}";
+            // 本地化：LWN_nego_state_name_format（谈判状态名格式，双桶）
+            Name = LWNTextHelper.ResolveCompound("LWN_nego_state_name_format", ("NAME", NegotiationRegistry.GetGoalInfo(goalType).Name));
             TargetAgent = null;
             TargetHero = targetHero;
             TargetName = targetHero?.Name?.ToString() ?? "???";
@@ -1540,8 +1601,10 @@ namespace LivingWorldNpcs
 
             // 初始化 LLM 印象描述构建器 (给AI看的内容)
             StringBuilder impressionSb = new StringBuilder();
-            impressionSb.AppendLine("【开场印象判定】");
-            impressionSb.AppendLine("在谈判开始前，基于玩家的身份和你们的过往，你的初始心理活动如下：");
+            // 本地化：LWN_prompt_section_nego_impression（【开场印象判定】，双桶）
+            impressionSb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_nego_impression"));
+            // 本地化：LWN_prompt_negoimpress_intro（在谈判开始前…，双桶）
+            impressionSb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_negoimpress_intro"));
 
             // 实际上要根据玩家当前的条件来一个初始进度
             float progress = 0f;
@@ -1561,7 +1624,8 @@ namespace LivingWorldNpcs
                     CalculationLog.AppendLine($"[关系] 好感度：{relation}，加成：+{additiveBonus_Relation:F1}");
 
                     // --- 注入 Prompt ---
-                    impressionSb.AppendLine($"1. **私交甚笃**：玩家是你熟悉的朋友(关系值{relation})。见到熟人，你感到放松且开心，态度非常友善，愿意耐心倾听他的来意。贡献进度：高 (你的主要动力是念及旧情)");
+                    // 本地化：LWN_prompt_negoimpress_relation_high（1. **私交甚笃**…，双桶）
+                    impressionSb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_negoimpress_relation_high", ("RELATION", relation.ToString())));
                 }
                 else if (relation < -5)
                 {
@@ -1570,13 +1634,15 @@ namespace LivingWorldNpcs
                     CalculationLog.AppendLine($"[关系] 好感度：{relation}，扣除：{additiveBonus_Relation:F1}");
 
                     // --- 注入 Prompt ---
-                    impressionSb.AppendLine($"1. **心存芥蒂**：玩家是你讨厌的人(关系值{relation})。你对他怀有敌意或偏见，看到他出现让你感到不悦，语气应该冷淡甚至带刺。扣除进度：负分 (你看着他就来气)");
+                    // 本地化：LWN_prompt_negoimpress_relation_low（1. **心存芥蒂**…，双桶）
+                    impressionSb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_negoimpress_relation_low", ("RELATION", relation.ToString())));
                 }
                 else
                 {
                     CalculationLog.AppendLine($"[关系] 好感度：0，无加成");
                     // --- 注入 Prompt ---
-                    impressionSb.AppendLine($"1. **萍水相逢**：你与玩家并不熟悉(关系一般)，这只是一次公事公办的会面。保持礼貌但疏离的态度。");
+                    // 本地化：LWN_prompt_negoimpress_relation_neutral（1. **萍水相逢**…，双桶）
+                    impressionSb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_negoimpress_relation_neutral"));
                 }
             }
 
@@ -1589,7 +1655,8 @@ namespace LivingWorldNpcs
             // --- 注入 Prompt (只在魅力够高时提及，避免废话) ---
             if (charmLevel > 150)
             {
-                impressionSb.AppendLine($"2. **谈吐不凡**：玩家展现出的个人魅力(等级{charmLevel})让你如沐春风。你下意识地觉得他是个可信赖的人，愿意给他一些面子。");
+                // 本地化：LWN_prompt_negoimpress_charm（2. **谈吐不凡**…，双桶）
+                impressionSb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_negoimpress_charm", ("LEVEL", charmLevel.ToString())));
             }
 
             // 3. 声望压制 (Renown)
@@ -1605,18 +1672,21 @@ namespace LivingWorldNpcs
                     CalculationLog.AppendLine($"[压制] 声望高于对方，加成：+5.0");
 
                     // --- 注入 Prompt ---
-                    impressionSb.AppendLine($"3. **声名显赫**：玩家的家族声望远胜于你(高出{renownDiff:F0})。面对这样一位大人物，你内心深处即使不情愿，也不敢轻易得罪，态度表现得比较恭敬或谨慎。贡献进度：中 (你不得不给强者面子)");
+                    // 本地化：LWN_prompt_negoimpress_renown_higher（3. **声名显赫**…，双桶）
+                    impressionSb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_negoimpress_renown_higher", ("DIFF", $"{renownDiff:F0}")));
                 }
                 else
                 {
                     // --- 注入 Prompt ---
-                    impressionSb.AppendLine($"3. **颇有名望**：你听说过玩家的名号，知道他也是一方豪强，值得以礼相待。");
+                    // 本地化：LWN_prompt_negoimpress_renown_famous（3. **颇有名望**…，双桶）
+                    impressionSb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_negoimpress_renown_famous"));
                 }
             }
 
             if(progress > 50)
             {
-                impressionSb.AppendLine($"即使玩家有这么明显的优势，但是该走的流程还是要走，最多一开始给到50%的优惠进度，不然岂不是自己白送了。");
+                // 本地化：LWN_prompt_negoimpress_process_cap（流程仍要走，封顶 50%…，双桶）
+                impressionSb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_negoimpress_process_cap"));
             }
             
             float finalProgress = MathF.Clamp(progress, 0f, 50f);
@@ -1625,8 +1695,10 @@ namespace LivingWorldNpcs
 
             CalculationLog.AppendLine($"--- 最终初始进度：{finalProgress:F1}% ---");
 
-            impressionSb.AppendLine($">> 基于上述心理活动，你决定开局给玩家{finalProgress:F1}%的初始进度优惠。请在npc_reply生成你的第一句开场白（Greeting）。不要直接罗列数据，而是通过语气体现这些背景。");
-            impressionSb.AppendLine(">> 演绎指令：在 npc_reply 中，请明确提到得分最高的那一项作为你愿意谈判的理由。");
+            // 本地化：LWN_prompt_negoimpress_decision（>> 基于上述心理活动…，双桶）
+            impressionSb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_negoimpress_decision", ("PROGRESS", $"{finalProgress:F1}")));
+            // 本地化：LWN_prompt_negoimpress_acting（>> 演绎指令…，双桶）
+            impressionSb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_negoimpress_acting"));
             // 保存生成的 Prompt 文本到属性中
             this.InitialImpressionContext = impressionSb.ToString();
             return absoluteProgress;
@@ -1681,7 +1753,8 @@ namespace LivingWorldNpcs
                     if (TargetHero.Spouse != null)
                     {
                         finalThreshold *= 10f; // 基本上不可能，除非你能在谈判中先让她离婚
-                        PlayerGoalDescription += " (注意：对方已婚，难度极大)";
+                        // 本地化：LWN_nego_goal_married_hint（求婚已婚提示，双桶；CN 保留前导空格）
+                        PlayerGoalDescription += LWNTextHelper.ResolvePrompt("LWN_nego_goal_married_hint");
                         CalculationLog.AppendLine($"[状态] 对方已婚，系数修正：x10.0 ，修正后{finalThreshold}");
                     }
                 }

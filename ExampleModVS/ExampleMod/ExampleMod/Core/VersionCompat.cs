@@ -532,14 +532,20 @@ namespace LivingWorldNpcs
         {
             switch (w)
             {
-                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.LightRain: return "细雨绵绵";
-                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.HeavyRain: return "大雨滂沱";
-                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Snowy: return "白雪纷飞";
-                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Blizzard: return "风雪漫天";
+                // 本地化：LWN_word_weather_*（天气描述词，双桶）
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.LightRain: return LWNTextHelper.ResolveText("LWN_word_weather_drizzle");
+                // 本地化：LWN_word_weather_*（天气描述词，双桶）
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.HeavyRain: return LWNTextHelper.ResolveText("LWN_word_weather_heavyrain");
+                // 本地化：LWN_word_weather_*（天气描述词，双桶）
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Snowy: return LWNTextHelper.ResolveText("LWN_word_weather_snow");
+                // 本地化：LWN_word_weather_*（天气描述词，双桶）
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Blizzard: return LWNTextHelper.ResolveText("LWN_word_weather_blizzard");
 #if MB2_GE_130
-                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Storm: return "狂风暴雨";
+                // 本地化：LWN_word_weather_*（天气描述词，双桶）
+                case TaleWorlds.CampaignSystem.ComponentInterfaces.MapWeatherModel.WeatherEvent.Storm: return LWNTextHelper.ResolveText("LWN_word_weather_storm");
 #endif
-                default: return "晴空万里";
+                // 本地化：LWN_word_weather_*（天气描述词，双桶）
+                default: return LWNTextHelper.ResolveText("LWN_word_weather_clear");
             }
         }
 

@@ -102,7 +102,8 @@ namespace LivingWorldNpcs
                 var msgs = ImChatStore.GetGroupMessages(conv.Id);
                 if (msgs == null || msgs.Count == 0) return null;
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("【频道近期消息】");
+                // 本地化：LWN_prompt_section_channel_recent（## 频道近期消息，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_channel_recent"));
                 int start = Math.Max(0, msgs.Count - count);
                 for (int i = start; i < msgs.Count; i++)
                 {
@@ -110,7 +111,12 @@ namespace LivingWorldNpcs
                     if (m == null || string.IsNullOrWhiteSpace(m.Content)) continue;
                     // 只看文本/提议（卡片/系统行跳过）
                     if (m.Kind != ImMessageKind.Text && m.Kind != ImMessageKind.Proposal) continue;
-                    string senderName = m.SenderHeroId == ImChatManager.PlayerId ? "主公" : (m.SenderName ?? "某人");
+                    // 本地化：LWN_prompt_proposal_sender_lord（主公，双桶）/ LWN_prompt_proposal_sender_other（某人，双桶）
+                    string senderName = m.SenderHeroId == ImChatManager.PlayerId
+                        // 本地化：LWN_prompt_proposal_sender_lord（双桶）
+                        ? LWNTextHelper.ResolvePrompt("LWN_prompt_proposal_sender_lord")
+                        // 本地化：LWN_prompt_proposal_sender_other（双桶）
+                        : (m.SenderName ?? LWNTextHelper.ResolvePrompt("LWN_prompt_proposal_sender_other"));
                     sb.AppendLine("- " + senderName + ": " + m.Content);
                 }
                 return sb.Length > 0 ? sb.ToString() : null;
@@ -167,12 +173,15 @@ namespace LivingWorldNpcs
                 var memory = AllNpcMemoryManager.GetMemory(heroId);
                 string persona = memory != null ? memory.GetPersonaPrompt() : "";
                 // 本地化：LWN_plan_respond_section_identity（玩家可见文本）
+                // 本地化：LWN_prompt_proposal_identity_sep（身份段与 persona 分隔符，双桶）
                 string identity = LWNTextHelper.ResolvePrompt("LWN_plan_respond_section_identity") + name
-                    + (string.IsNullOrEmpty(persona) ? "" : "。" + persona);
+                    // 本地化：LWN_prompt_proposal_identity_sep（双桶）
+                    + (string.IsNullOrEmpty(persona) ? "" : LWNTextHelper.ResolvePrompt("LWN_prompt_proposal_identity_sep") + persona);
                 // 与 StartProposal 同源规则（LWN_plan_propose_rule 本地化 key；取空用 C# 兜底）
                 string rule = LWNTextHelper.ResolvePrompt("LWN_plan_propose_rule");
                 if (string.IsNullOrEmpty(rule))
-                    rule = "【行动提议】你刚被主公搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向主公提出，格式：主公，我想去…（10~30 字，直接说，不要解释）。提议必须与当前话题相关——顺着主公刚说的话、频道里正聊的事想该做什么；当前话题下没有合适的事可提，只输出「无」。";
+                    // 本地化：LWN_prompt_proposal_rule_fallback（行动提议规则 C# 兜底，双桶）
+                    rule = LWNTextHelper.ResolvePrompt("LWN_prompt_proposal_rule_fallback");
                 var sb = new System.Text.StringBuilder();
                 // 本地化：LWN_plan_section_world（玩家可见文本）——blob 单段，空则整段省略防标题残留
                 string worldSection = WorldBackgroundProvider.GetWorldSection(heroId);
@@ -181,7 +190,16 @@ namespace LivingWorldNpcs
                 sb.AppendLine(identity);
                 sb.AppendLine(rule);
                 // 当前话题上下文：玩家刚说的话 + 频道近期消息（无上下文 = 零上下文自由发挥，实锤「去集市」类离谱提议）
-                sb.AppendLine("【当前话题】主公刚说：" + (string.IsNullOrWhiteSpace(playerText) ? "（无）" : playerText));
+                // 本地化：LWN_prompt_section_current_topic（## 当前话题，双桶）/ LWN_prompt_proposal_current_topic（主公刚说：{TEXT}，双桶）
+                // 本地化：LWN_prompt_proposal_none（（无），双桶）
+                string playerSaid = string.IsNullOrWhiteSpace(playerText)
+                    // 本地化：LWN_prompt_proposal_none（双桶）
+                    ? LWNTextHelper.ResolvePrompt("LWN_prompt_proposal_none")
+                    : playerText;
+                // 本地化：LWN_prompt_section_current_topic（双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_current_topic"));
+                // 本地化：LWN_prompt_proposal_current_topic（双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_proposal_current_topic", ("TEXT", playerSaid)));
                 if (!string.IsNullOrWhiteSpace(channelContext))
                     sb.AppendLine(channelContext);
                 string prompt = sb.ToString();

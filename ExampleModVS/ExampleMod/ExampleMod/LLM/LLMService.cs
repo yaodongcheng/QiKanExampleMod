@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using TaleWorlds.Library;
+using TaleWorlds.Localization;
 using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
@@ -545,12 +546,12 @@ namespace LivingWorldNpcs
                     if (promptText.Contains(kv.Value)) rag.Add(kv.Key);
                 }
                 var segs = new List<string>();
-                foreach (var s in PromptAuditSegmentMarkers)
+                foreach (var s in GetAuditMarkers())
                     if (PromptContainsSectionHeader(promptText, s)) segs.Add(s);
                 // 🔴 2026-08-17（称呼纪律）：【主公的成色】段标题改为动态【X 的成色】（玩家名运行时拼），
-                // 静态标记匹配不到 → 单独 Contains 兜底（"的成色】"出现即注入）
-                if (promptText.Contains("的成色】")) segs.Add("【X的成色】");
-                var ts = PromptAuditTsRegex.Matches(promptText)
+                // 静态标记匹配不到 → 单独 Contains 兜底（"的成色】"出现即注入；2026-08-20 双语化补 EN "'s Record】"）
+                if (promptText.Contains("的成色】") || promptText.Contains("'s Record】")) segs.Add("【X的成色】");
+                var ts = GetAuditTsRegex().Matches(promptText)
                     .Cast<System.Text.RegularExpressions.Match>()
                     .Select(m => m.Groups[1].Value)
                     .Distinct()
@@ -560,20 +561,74 @@ namespace LivingWorldNpcs
             catch (Exception ex) { DebugLogger.Log($"[PromptAudit] 失败: {ex.Message}"); }
         }
 
-        /// <summary>注入段标题标记（与 PromptBuilder 的 prompt 段标题一一对应；RAG 主题段不在此表——
-        /// 走 GetTopicDescriptors 动态匹配，防两份清单漂移）。🔴 【主公的成色】已动态化（【X 的成色】），
-        /// 由 LogPromptAudit 内单独 Contains 兜底（2026-08-17 称呼纪律）。</summary>
-        private static readonly string[] PromptAuditSegmentMarkers =
+        /// <summary>注入段标题 key 表（与双桶 XML 的段标题 key 一一对应；RAG 主题段不在此表——
+        /// 走 GetTopicDescriptors 动态匹配，防两份清单漂移）。🔴 2026-08-20 双语化迁移：
+        /// 段标题已双语化（EN 模式为英文标题），静态中文数组失配 → 改按当前语言从 XML 动态解析
+        /// （GetAuditMarkers 缓存，语言变化自动重建）。【X 的成色】动态玩家名由 LogPromptAudit
+        /// 内单独 Contains 兜底（2026-08-17 称呼纪律）。</summary>
+        private static readonly string[] PromptAuditSegmentKeys =
         {
-            "【此刻处境（大地图）】", "【此刻处境】", "【我的状态】", "【队伍物资】", "【主公的行头】",
-            "【主公的人缘】", "【咱们人的关系】", "【大事记】", "【此刻现状】", "【受困处境】",
-            "【分兵近况】", "【留守处境】",
-            "【目之所及】", "【近期回忆】", "【近期经历】", "【对话历史】", "【时效纪律】",
+            // 本地化：LWN_prompt_section_campaign_situation（双桶）
+            "LWN_prompt_section_campaign_situation", "LWN_prompt_section_scene_situation",
+            // 本地化：LWN_prompt_section_self_state（双桶）
+            "LWN_prompt_section_self_state", "LWN_prompt_section_party_supplies", "LWN_prompt_section_lord_gear",
+            // 本地化：LWN_prompt_section_lord_relations（双桶）
+            "LWN_prompt_section_lord_relations", "LWN_prompt_section_party_relations",
+            // 本地化：LWN_plan_respond_section_important（双桶）
+            "LWN_plan_respond_section_important", "LWN_prompt_section_current_status", "LWN_prompt_section_distress",
+            // 本地化：LWN_prompt_section_split_party（双桶）
+            "LWN_prompt_section_split_party", "LWN_prompt_section_stayed",
+            // 本地化：LWN_fact_title_risk（双桶）
+            "LWN_fact_title_risk", "LWN_plan_respond_section_recall", "LWN_plan_respond_section_experience",
+            // 本地化：LWN_plan_respond_section_history（双桶）
+            "LWN_plan_respond_section_history", "LWN_plan_im_freshness_rule",
         };
 
-        /// <summary>I5 时间戳相对词（只匹配 [X] 括号形式——正文里的"今天"不误撞）。</summary>
-        private static readonly System.Text.RegularExpressions.Regex PromptAuditTsRegex =
-            new System.Text.RegularExpressions.Regex(@"\[(刚才|今天|昨天|几天前|上周|上个月|几个月前|很久以前)\]");
+        private static string[] _auditMarkers;
+        private static string _auditMarkersLang;
+
+        /// <summary>按当前语言解析段标题标记（缓存；语言变化自动重建）。缺 key 返回空串 → 跳过。</summary>
+        private static string[] GetAuditMarkers()
+        {
+            string lang = MBTextManager.ActiveTextLanguage;
+            if (_auditMarkers != null && _auditMarkersLang == lang) return _auditMarkers;
+            var list = new List<string>();
+            foreach (var k in PromptAuditSegmentKeys)
+            {
+                string t = LWNTextHelper.ResolvePrompt(k);
+                if (!string.IsNullOrWhiteSpace(t)) list.Add(t.Trim());
+            }
+            _auditMarkers = list.ToArray();
+            _auditMarkersLang = lang;
+            return _auditMarkers;
+        }
+
+        private static System.Text.RegularExpressions.Regex _auditTsRegex;
+        private static string _auditTsRegexLang;
+
+        /// <summary>I5 时间戳相对词正则（只匹配 [X] 括号形式——正文里的"今天"不误撞）。
+        /// 2026-08-20 双语化：词从 LWN_word_time_* 双桶 key 动态构建（EN 模式为英文词）。</summary>
+        private static System.Text.RegularExpressions.Regex GetAuditTsRegex()
+        {
+            string lang = MBTextManager.ActiveTextLanguage;
+            if (_auditTsRegex != null && _auditTsRegexLang == lang) return _auditTsRegex;
+            string[] words =
+            {
+                // 本地化：LWN_word_time_just（双桶）
+                LWNTextHelper.ResolvePrompt("LWN_word_time_just"), LWNTextHelper.ResolvePrompt("LWN_word_time_today"),
+                // 本地化：LWN_word_time_yesterday（双桶）
+                LWNTextHelper.ResolvePrompt("LWN_word_time_yesterday"), LWNTextHelper.ResolvePrompt("LWN_word_time_days_ago"),
+                // 本地化：LWN_word_time_last_week（双桶）
+                LWNTextHelper.ResolvePrompt("LWN_word_time_last_week"), LWNTextHelper.ResolvePrompt("LWN_word_time_last_month"),
+                // 本地化：LWN_word_time_months_ago（双桶）
+                LWNTextHelper.ResolvePrompt("LWN_word_time_months_ago"), LWNTextHelper.ResolvePrompt("LWN_word_time_long_ago"),
+            };
+            string joined = string.Join("|", words.Where(w => !string.IsNullOrWhiteSpace(w))
+                .Select(System.Text.RegularExpressions.Regex.Escape));
+            _auditTsRegex = new System.Text.RegularExpressions.Regex(@"\[(" + joined + @")\]");
+            _auditTsRegexLang = lang;
+            return _auditTsRegex;
+        }
 
         /// <summary>🔴 段标题只在行首匹配（2026-08-16 修复：原 Contains 全文本匹配导致 audit 与实际 prompt 不符——
         /// 纪律正文里对段名的转述如「【近期回忆】与【对话历史】中提到的任何数值」被误报成注入段）。
