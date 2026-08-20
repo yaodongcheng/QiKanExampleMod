@@ -387,6 +387,14 @@ namespace LivingWorldNpcs
         [DataSourceProperty]
         public bool ShowSelfBubble => IsSelf && !IsSystem && !IsPlanCard && !IsGenerating && !IsProposal;
 
+        /// <summary>🔴 2026-08-20（用户反馈：缩略版系统消息右对齐绿底出戏）：系统消息创建时
+        /// SenderHeroId = PlayerId → IsSelf=true，缩略面板行 B 模板按 IsSelf/IsNotSelf 双分支
+        /// 会把系统消息归入「自己」右对齐绿底分支。此属性 = 缩略版自己气泡专用判定，
+        /// 显式排除系统消息（系统消息走 ImChatCompact.xml 的 IsSystem 居中灰底分支，
+        /// 对齐完整模式「居中灰字无发件人」语义）。</summary>
+        [DataSourceProperty]
+        public bool ShowMiniSelfBubble => IsSelf && !IsSystem;
+
         [DataSourceProperty]
         public bool IsSystem => _msg != null && _msg.IsSystem;
 

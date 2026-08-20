@@ -639,7 +639,12 @@ namespace LivingWorldNpcs
             _agent = cursor.Agent;
             _step = step;
             _variantItem = step.Variant == "item";
-            _variantEquipment = step.Variant == "equipment";
+            // 🔴 2026-08-20（实机：steal_equipment 命令偷到了 44 金币钱袋而非装备）：
+            // LLM 的 steal_equipment 动作步骤不带 variant 字段（PlanGrammar 注释 variant 仅
+            // steal_attempt 的 item/pickpocket）→ 裸判 step.Variant 恒 false → 走了人变体（偷钱）
+            // 路径。动作名是单一事实源：action=steal_equipment 即装备变体（与 PlanExecutor
+            // case "steal_equipment" 同源，此处自洽兜底）。
+            _variantEquipment = step.Variant == "equipment" || step.Action == "steal_equipment";
             _attemptsLeft = Math.Max(1, step.Retry ?? 1);   // validator 已钳制 1-5，此处防御性保底
             // 目标解析（物 = 箱子物件；人 = 扒窃目标；装备变体 = 人目标）
             string refName = PlanRefUtil.Normalize(step.Target, out string query);
@@ -700,10 +705,20 @@ namespace LivingWorldNpcs
                         behind = Vec2.DotProduct(look, toSelf) < -0.4f;
                     }
                     catch { }
-                    if (behind && dist <= 2.5f)
+                    // 🔴 2026-08-20（用户反馈：偷窃瞬间与目标相对位置不对）：Behind→Rolling 必须
+                    // 已走到绕背点（1.0m 内）——原条件「behind && dist≤2.5f」在接近途中就触发
+                    //（2.5m 圈 + 后侧扇区过宽：可 2.5m 远、偏侧、还在走时进 Rolling），Rolling 内
+                    // FaceToActor + 下蹲与 ScriptedMoveToPoint 移动锁互相拉扯，偷窃点飘。
+                    // _behindLastPick > 0 = 已至少选过一次绕背点（首次 0.25s 内 pick 未定，不判到位）。
+                    bool arrivedAtBehind = _behindLastPick > 0f
+                        && _agent.Position.Distance(_behindPick) <= 1.0f;
+                    if (behind && arrivedAtBehind && dist <= 2.5f)
                     {
                         _phase = AttemptPhase.Rolling;
                         _timer = 0f;
+                        // 🔴 2026-08-20（诊断打印）：进偷窃姿态一瞬间自/目标坐标+朝向
+                        //（用户反馈：偷窃时相对位置不对——对账用；Log 标签 [StealPos]）
+                        DebugLogger.Log($"[StealPos] {_agent.Name} 进偷窃姿态: 自=({_agent.Position.x:F2},{_agent.Position.y:F2},{_agent.Position.z:F2}) 朝向=({_agent.LookDirection.X:F2},{_agent.LookDirection.Y:F2}) | 目标={target.Name} =({target.Position.x:F2},{target.Position.y:F2},{target.Position.z:F2}) 朝向=({target.LookDirection.X:F2},{target.LookDirection.Y:F2}) | 距离={dist:F2}m 绕背点=({_behindPick.x:F2},{_behindPick.y:F2}) 距绕背点={_agent.Position.Distance(_behindPick):F2}m");
                     }
                     else if (_timer > 8f)
                     {
@@ -821,6 +836,18 @@ namespace LivingWorldNpcs
                         catch { }
                         // 🔴 2026-08-14（M2a roll 透明）：掷点值必须与判定用同一个随机数——
                         // 先取 roll 再判定（success = roll ≥ threshold, threshold = 1 − chance）
+                        // 🔴 2026-08-20（诊断打印）：偷窃判定一瞬间自/目标坐标+朝向
+                        //（用户反馈：偷窃时相对位置不对——Rolling 起点与判定点双重对账；标签 [StealPos]）
+                        try
+                        {
+                            if (_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent stealDiag))
+                            {
+                                Vec2 diagLook = stealDiag.LookDirection.AsVec2.Normalized();
+                                Vec2 diagToSelf = (_agent.Position - stealDiag.Position).AsVec2.Normalized();
+                                DebugLogger.Log($"[StealPos] {_agent.Name} 偷窃判定瞬间: 自=({_agent.Position.x:F2},{_agent.Position.y:F2},{_agent.Position.z:F2}) 朝向=({_agent.LookDirection.X:F2},{_agent.LookDirection.Y:F2}) | 目标={stealDiag.Name} =({stealDiag.Position.x:F2},{stealDiag.Position.y:F2},{stealDiag.Position.z:F2}) 朝向=({stealDiag.LookDirection.X:F2},{stealDiag.LookDirection.Y:F2}) | 距离={_agent.Position.Distance(stealDiag.Position):F2}m behindDot={Vec2.DotProduct(diagLook, diagToSelf):F2}");
+                            }
+                        }
+                        catch { }
                         float roll = (float)_rng.NextDouble();
                         _rollValue = roll;
                         _rollThreshold = 1f - chance;
