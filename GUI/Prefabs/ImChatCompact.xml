@@ -196,7 +196,7 @@
                       <ItemTemplate>
                         <!-- 迷你气泡：名字 + 单行截断正文 -->
                         <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                Sprite="BlankWhiteSquare_9" Color="#FFFFFF1A" MarginBottom="4"
+                                Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#FFFFFF55" MarginBottom="4"
                                 DoNotAcceptEvents="true">
                           <Children>
                             <ListPanel Id="LWN_ImChat_CompactLatestRow" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
@@ -421,7 +421,7 @@
              native 点击 → 焦点被清。A 键激活前必须 HideNavCursor（ActivatePad 统一入口已做）。 -->
         <ImageWidget Id="LWN_NavCursor" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
                      SuggestedWidth="28" SuggestedHeight="28"
-                     Sprite="frame_small_9"
+                     Sprite="highlight_gradient_9"
                      HorizontalAlignment="Left" VerticalAlignment="Top"
                      IsHidden="true"
                      DoNotAcceptEvents="true"/>
