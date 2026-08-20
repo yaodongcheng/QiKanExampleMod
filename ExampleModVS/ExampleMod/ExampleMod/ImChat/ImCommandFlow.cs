@@ -466,7 +466,7 @@ namespace LivingWorldNpcs
                 {
                     var clarifyCandidates = CollectTargetCandidates(HasRetargetIntent(_lastTargetCheckCommand)
                         ? StripResolvedTargetSuffix(_lastTargetCheckCommand)
-                        : _lastTargetCheckCommand);
+                        : _lastTargetCheckCommand, maxCount: ClarifyCandidateMax);
                     // 🔴 2026-08-19（澄清卡误循环，实机：玩家点选候选后命令含 [#42] 标记 → 唯一解析 →
                     // 但超轮检查在候选判定之前 → 第二轮就把有效计划误杀成「改日再说」）：
                     // 先判候选——命令已唯一解析（含 #N）直接放行；只有仍歧义（多候选/无匹配+有声明）
@@ -584,9 +584,15 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>🔴 2026-08-20（缩略选人卡撑爆面板）：澄清卡候选按钮上限——
+        /// 全量候选（12+ 士兵）会撑满缩略面板高度；截断到最近 N 个，远处候选玩家可手打「名字#N」指名。</summary>
+        private const int ClarifyCandidateMax = 8;
+
         /// <summary>目标纪律兜底候选采集（主线程 Tick 调用；全量快照保证与玩家所见一致）。
-        /// 返回候选显示文本（名字#N + 方位），空 = 无匹配。</summary>
-        private static List<string> CollectTargetCandidates(string command)
+        /// 返回候选显示文本（名字#N + 方位），空 = 无匹配。
+        /// 🔴 2026-08-20（缩略选人卡 12 候选撑爆面板）：候选按距玩家近→远排序；
+        /// maxCount &gt; 0 截断到最近 N 个（澄清卡按钮上限；0 = 全量——方位兜底替换需完整清单）。</summary>
+        private static List<string> CollectTargetCandidates(string command, int maxCount = 0)
         {
             var result = new List<string>();
             try
@@ -595,6 +601,17 @@ namespace LivingWorldNpcs
                 var snap = SceneSnapshot.Build(Mission.Current);
                 var cands = snap.FindAgentCandidates(command);
                 if (cands == null) return result;
+                // 🔴 2026-08-20：近→远排序（FindAgentCandidates 返回场景序，93 米外的候选排前面会误导挑选）
+                if (cands.Count > 1)
+                {
+                    var playerPos = Agent.Main?.Position ?? Vec3.Zero;
+                    cands.Sort((x, y) =>
+                    {
+                        if (x?.Agent == null || y?.Agent == null) return 0;
+                        return x.Agent.Position.DistanceSquared(playerPos)
+                            .CompareTo(y.Agent.Position.DistanceSquared(playerPos));
+                    });
+                }
                 foreach (var ci in cands)
                 {
                     if (ci?.Agent == null) continue;
@@ -606,6 +623,10 @@ namespace LivingWorldNpcs
                     if (string.IsNullOrWhiteSpace(label)) label = ci.DisplayName ?? "某人"; // lwn-ignore: A
                     if (!string.IsNullOrWhiteSpace(ci.PositionDesc)) label += $"（{ci.PositionDesc}）";   // lwn-ignore: A
                     if (!result.Contains(label)) result.Add(label);
+                    // 🔴 2026-08-20（缩略选人卡撑爆面板）：截断到最近 N 个——12 候选 × 40px 仍超缩略面板
+                    // 高度预算，60m+ 的远处候选对「挑就近目标」类命令无意义；玩家仍可手打「名字#N」指名远处
+                    // 候选（澄清卡接受手打回复），自由感不损。
+                    if (maxCount > 0 && result.Count >= maxCount) break;
                 }
             }
             catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 目标候选采集失败: {ex.Message}"); }

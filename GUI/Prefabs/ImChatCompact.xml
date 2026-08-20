@@ -313,29 +313,31 @@
                               </ItemTemplate>
                             </ListPanel>
                             <!-- 通用按钮行·竖排（长文本按钮；数据互斥 VerticalCardButtons；LWN 前缀走 swap patch） -->
-                            <ListPanel Id="LWN_ImChat_CompactCardButtonsV" WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                            <ListPanel Id="LWN_ImChat_CompactCardButtonsV" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                        StackLayout.LayoutMethod="VerticalBottomToTop"
-                                       HorizontalAlignment="Right"
                                        IsVisible="@IsVerticalButtonsVisible"
                                        DataSource="{VerticalCardButtons}"
-                                       MarginRight="8" MarginBottom="6" MarginTop="4"
+                                       MarginLeft="10" MarginRight="10" MarginBottom="6" MarginTop="4"
                                        DoNotAcceptEvents="true">
                               <ItemTemplate>
-                                <!-- 🔴 2026-08-19（按钮完整包含文字）：TextWidget 加 MaxWidth + WordWrapping，
-                                     按钮高度 CoverChildren——长文本折行后按钮跟着长高，绝不溢出底纹（与完整模式同款）。
-                                     🔴 2026-08-19（用户反馈：选项高度窄/候选项空隙大）：MinHeight 34→68（扩大一倍）、
-                                     上下 Margin 4+4→2+2（候选项间空隙收紧）。 -->
-                                <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MinHeight="68"
+                                <!-- 🔴 2026-08-20（竖排按钮改为 Fixed 高度 + 零 Margin——无缝衔接）：
+                                     引擎机制（反编译 TaleWorlds.GauntletUI.dll 实证）：
+                                     · Widget.Measure：HeightSizePolicy=Fixed → 高度直接 = SuggestedHeight，不参与任何测量链
+                                       （CoverChildren 高度 = 子内容高度，受文本折行/字体行高影响，此前间隔全由它产生）；
+                                     · LayoutLinearVertical：VerticalBottomToTop 下逐项紧贴，num6 均分间距只在
+                                       VerticalSpaced 消费 → 项间距 = 按钮高 + Margin，Margin=0 → 完全无缝。
+                                     全宽（StretchToParent）+ 文本居中折行：右对齐参差/水平溢出同时消除。
+                                     候选项条数上限由 ImCommandFlow.CollectTargetCandidates(maxCount:8) 截断。 -->
+                                <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40"
                                               Brush="Test.Button3"
-                                              HorizontalAlignment="Right"
                                               Command.Click="Execute"
-                                              IsEnabled="@IsEnabled" MarginTop="2" MarginBottom="2">
+                                              IsEnabled="@IsEnabled" MarginTop="0" MarginBottom="0">
                                   <Children>
-                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                MaxWidth="480"
+                                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                                 Text="@Text" Brush="MyBrush_18_White" Brush.FontSize="14"
+                                                Brush.TextHorizontalAlignment="Center"
                                                 WordWrapping="Wrap"
-                                                HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                MarginLeft="8" MarginRight="8"
                                                 DoNotAcceptEvents="true"/>
                                   </Children>
                                 </ButtonWidget>
