@@ -391,7 +391,7 @@
                                                                DoNotAcceptEvents="true">
                                                       <ItemTemplate>
                                                         <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                      Brush="Test.Button3"
+                                                                      Brush="LWN_Btn_Message"
                                                                       Command.Click="Execute"
                                                                       IsEnabled="@IsEnabled" MarginRight="10">
                                                           <Children>
@@ -421,7 +421,7 @@
                                                              （ui.md 贴内容气泡同款：MaxWidth 必须放 TextWidget 上），按钮高度 CoverChildren——
                                                              长文本（候选按钮 名字#N 等）折行后按钮跟着长高，绝不溢出底纹 -->
                                                         <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" MinHeight="42"
-                                                                      Brush="Test.Button3"
+                                                                      Brush="LWN_Btn_Message"
                                                                       HorizontalAlignment="Right"
                                                                       Command.Click="Execute"
                                                                       IsEnabled="@IsEnabled" MarginTop="5" MarginBottom="5">
@@ -492,7 +492,7 @@
                                                            DoNotAcceptEvents="true">
                                                   <ItemTemplate>
                                                     <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="96" SuggestedHeight="34"
-                                                                  Brush="Test.Button3"
+                                                                  Brush="LWN_Btn_Message"
                                                                   Command.Click="Execute"
                                                                   IsEnabled="@IsEnabled" MarginRight="10">
                                                       <Children>
@@ -516,7 +516,7 @@
                                                            DoNotAcceptEvents="true">
                                                   <ItemTemplate>
                                                     <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="42"
-                                                                  Brush="Test.Button3"
+                                                                  Brush="LWN_Btn_Message"
                                                                   HorizontalAlignment="Right"
                                                                   Command.Click="Execute"
                                                                   IsEnabled="@IsEnabled" MarginTop="5" MarginBottom="5">
@@ -571,7 +571,7 @@
                              Id（2026-08-18 手柄手动导航）：CM 焦点项 widget 定位 -->
                         <ButtonWidget Id="LWN_BtnNewMsg" WidthSizePolicy="CoverChildren" HeightSizePolicy="Fixed" SuggestedHeight="30"
                                       HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="78"
-                                      Brush="Test.Button3"
+                                      Brush="LWN_Btn_Message"
                                       Command.Click="ExecuteNewMessageClick"
                                       GamepadNavigationIndex="3"
                                       IsVisible="@HasNewMessageHint">
@@ -616,7 +616,7 @@
                                                     GamepadNavigationIndex="4"
                                                     MarginLeft="12" MarginRight="100" VerticalAlignment="Center"/>
                                 <ButtonWidget Id="LWN_BtnSend" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="90" SuggestedHeight="38"
-                                              Brush="Test.Button3"
+                                              Brush="LWN_Btn_Message"
                                               Command.Click="ExecuteSend"
                                               IsEnabled="@CanSend"
                                               GamepadNavigationIndex="5"

@@ -355,3 +355,20 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
 **调用范例**：ChatterManagerVM（`Knowledge/BannerlordTalk_逆向/v1.0.3/BannerlordTalk.UI.ChatterManagerVM.decompiled.cs`）：知识页 RefreshPage 置 `EditorText=""`/`SecondaryText=""` + `KnowledgeSummaryText = CreateKnowledgeSummary(...)`；导入预览 `_importPreviewText = CreateKnowledgeImportPreview(FormatKnowledgePreview(...))`。
 
 **适用场景**：本 mod 任何把长文本绑进 Gauntlet 控件的地方（IM 长消息渲染、config 整库展示、LLM 大 prompt 预览）。先抄 ManagerTextPreviewPolicy 静态方法，再套刷新节流。
+
+---
+
+## Brush 素材缝隙 — Extend 才是 9 宫格开关（缺它 = 整图拉伸 = 按钮拼接缝）
+
+**问题**：竖排按钮 `MarginTop/Bottom=0` 布局本应无缝（反编译 `LayoutLinearVertical` 实证：`num2=num` 逐项紧贴，间距只来自 margin），但屏幕上按钮之间仍有明显缝隙——**缝隙不在布局，在 Brush 渲染**。
+
+**根因（反编译 `TaleWorlds.GauntletUI.dll` BrushLayer 实证）**：
+- **BrushLayer 没有 Type 属性**（不存在 `Type="Sliced"` 写法），`ExtendLeft/Top/Right/Bottom` 本身就是 9 宫格开关；
+- `Extend=0`（默认）= **整张素材均匀拉伸**进 widget → 素材顶部/底部的透明/阴影边缘跟着缩放露出来 → 相邻按钮之间拼出「缝」；
+- `Extend>0` = 九宫格：角落按原像素尺寸渲染、边拉伸、中间拉伸——素材边缘即按钮边缘，缝隙消失。
+
+**Extend 取值惯例**（参照原版 `Modules/Native/GUI/Brushes/Main.xml` ButtonBrush2）：大按钮 271×84 用四边 `Extend 22`；矮按钮 `main_button_regular_big`（480×64）用 `ExtendLeft/Right=22, ExtendTop/Bottom=12`。**🔴 上下 Extend 必须 ≤ 按钮高/2**（否则角落 2×Extend > 高 → 中区为负，native 渲染行为不可控）——26px 按钮取 12（中区 2px），任意高度安全。
+
+**调用范例**（`GUI/Brushes/MyBrush.xml` `LWN_Btn_Message`，2026-08-20）：三态三图层（Default=`main_button_regular` 深色 / Hovered=`main_button_done_hover` 金色高亮 / Pressed=`main_button_done` 按压缩暗），每层 Extend 22/12/22/12，Styles 用 IsHidden 切换图层。**三态素材的 Extend 必须一致**，否则 hover 时边框跳动。
+
+**关键文件**：`GUI/Brushes/MyBrush.xml`、`GUI/Prefabs/ImChat.xml` + `ImChatCompact.xml`（消息按钮 `Brush="LWN_Btn_Message"`）。

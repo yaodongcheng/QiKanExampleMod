@@ -432,8 +432,12 @@ namespace LivingWorldNpcs
                         IsAskPlayer = true,
                         IsClarifyCard = true,
                         // 选项文本 = 按钮文案 + 事件码（点击后选项文本作为玩家回复入命令上下文）
+                        // 🔴 2026-08-20（用户反馈：LLM 可能把全部候选写进 options → 十几个按钮）：
+                        // Take(3) 硬截断——UI 最多 3 个备选（铁律 2：不靠 LLM 自觉）；方位兜底用
+                        // 全量 optionCandidates 匹配，不受截断影响。
                         AskPlayerOptions = (q?.Options ?? new List<string>())
                             .Where(o => !string.IsNullOrWhiteSpace(o))
+                            .Take(3)
                             .Select(o => {
                                 string opt = o.Trim();
                                 // 🔴 2026-08-20（实机：options 只写名字没方位，玩家没法挑）：程序侧兜底——
@@ -585,8 +589,10 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>🔴 2026-08-20（缩略选人卡撑爆面板）：澄清卡候选按钮上限——
-        /// 全量候选（12+ 士兵）会撑满缩略面板高度；截断到最近 N 个，远处候选玩家可手打「名字#N」指名。</summary>
-        private const int ClarifyCandidateMax = 8;
+        /// 全量候选（12+ 士兵）会撑满缩略面板高度；截断到最近 N 个，远处候选玩家可手打「名字#N」指名。
+        /// 🔴 2026-08-20（用户反馈：选项出来十几个太恐怖）：8→3——玩家最多 3 个备选
+        ///（用户裁定），近→远排序下前 3 个就是最可能的目标；超出部分仍可手打指名。</summary>
+        private const int ClarifyCandidateMax = 3;
 
         /// <summary>目标纪律兜底候选采集（主线程 Tick 调用；全量快照保证与玩家所见一致）。
         /// 返回候选显示文本（名字#N + 方位），空 = 无匹配。
