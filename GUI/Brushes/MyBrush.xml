@@ -496,21 +496,14 @@
     <!-- ========================================== -->
     <Brush Name="ImChat.RowBg">
         <Layers>
-            <BrushLayer Name="Default" Sprite="BlankWhiteSquare_9" />
+            <BrushLayer Name="Default" Sprite="StdAssets\create_server_dropdown" />
         </Layers>
         <Styles>
-            <Style Name="Default">
-                <BrushLayer Name="Default" Color="#00000000" />
-            </Style>
-            <Style Name="Hovered">
-                <BrushLayer Name="Default" Color="#BFAD6FFF" />
-            </Style>
-            <Style Name="Pressed">
-                <BrushLayer Name="Default" Color="#000000FF" />
-            </Style>
-            <Style Name="Selected">
-                <BrushLayer Name="Default" Color="#2A4A7A66" />
-            </Style>
+           <Style Name="Default"><BrushLayer Name="Default" Color="#2A2A3AFF"/></Style>
+            <Style Name="Hovered"><BrushLayer Name="Default" Color="#465A8AFF"/></Style>
+            <Style Name="Pressed"><BrushLayer Name="Default" Color="#5E72B0FF"/></Style>
+            <Style Name="Selected"><BrushLayer Name="Default" Color="#8A6A2BFF"/></Style>
+            <Style Name="Disabled"><BrushLayer Name="Default" Color="#2A2A3A66"/></Style>
         </Styles>
     </Brush>
 </Brushes>
