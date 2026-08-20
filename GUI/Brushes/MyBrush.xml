@@ -255,13 +255,13 @@
 	     深蓝灰底 → hover 提亮 → pressed 更亮 → 选中暗金。 -->
 	<Brush Name="LWN_DropdownItem">
         <Layers>
-            <BrushLayer Name="Default" Sprite="BlankWhiteSquare_9"/>
+            <BrushLayer Name="Default" Sprite="StdAssets\create_server_dropdown"/>
         </Layers>
         <Styles>
-            <Style Name="Default"><BrushLayer Name="Default" Color="#2A2A3AEE"/></Style>
-            <Style Name="Hovered"><BrushLayer Name="Default" Color="#465A8AEE"/></Style>
-            <Style Name="Pressed"><BrushLayer Name="Default" Color="#5E72B0EE"/></Style>
-            <Style Name="Selected"><BrushLayer Name="Default" Color="#8A6A2BEE"/></Style>
+            <Style Name="Default"><BrushLayer Name="Default" Color="#2A2A3AFF"/></Style>
+            <Style Name="Hovered"><BrushLayer Name="Default" Color="#465A8AFF"/></Style>
+            <Style Name="Pressed"><BrushLayer Name="Default" Color="#5E72B0FF"/></Style>
+            <Style Name="Selected"><BrushLayer Name="Default" Color="#8A6A2BFF"/></Style>
             <Style Name="Disabled"><BrushLayer Name="Default" Color="#2A2A3A66"/></Style>
         </Styles>
     </Brush>
