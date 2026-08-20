@@ -1,0 +1,97 @@
+<Prefab>
+  <!-- 顶部罗盘（Compass HUD，一期：Mission 内）。纯显示层：整条 DoNotAcceptEvents，不吃任何事件。
+       VM↔XML 同步铁律：改 CompassVM/CompassIconVM 属性必须同步改本文件绑定。 -->
+  <Window Id="LWN_Compass">
+    <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+      <Children>
+        <!-- 罗盘带：宽 1000 高 64，顶部居中，全透明（纯定位容器）；ClipContents 裁掉 ±100° 窗口外的刻度/字母。
+             高 64 = 横轴(50-52) 下方留出端点箭头(40.5-61.5)的完整空间 -->
+        <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="1000" SuggestedHeight="64"
+                HorizontalAlignment="Center" VerticalAlignment="Top" PositionYOffset="6"
+                IsVisible="@IsVisible"
+                ClipContents="true" DoNotAcceptEvents="true">
+          <Children>
+
+            <!-- ① 刻度线 8 根（45° 间隔），位置注入：锚点 0×0 + 子 Widget PositionXOffset（AgentHud 同款模式） -->
+            <Widget DataSource="{TickItems}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="0" SuggestedHeight="0" DoNotAcceptEvents="true">
+                  <Children>
+                    <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="2" SuggestedHeight="12"
+                            PositionXOffset="@PosX" PositionYOffset="38"
+                            IsVisible="@IsVisible"
+                            Sprite="BlankWhiteSquare_9" Color="#FFFFFFAA" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </Widget>
+
+            <!-- ② 方向字母 4 个（北/东/南/西，本地化），位置注入（VM 已含 -20 中心偏移） -->
+            <Widget DataSource="{LetterItems}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="0" SuggestedHeight="0" DoNotAcceptEvents="true">
+                  <Children>
+                    <TextWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="40" SuggestedHeight="24"
+                                PositionXOffset="@PosX" PositionYOffset="6"
+                                IsVisible="@IsVisible"
+                                Text="@Text"
+                                Brush="MyBrush_16_Left" Brush.FontSize="16" Brush.FontColor="#FFFFFFFF"
+                                Brush.TextHorizontalAlignment="Center" DoNotAcceptEvents="true"/>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </Widget>
+
+            <!-- ③ 视野内任务人物图标（原版金色 ! 图标 + 距离文本），±90° 内显示（用户裁定：范围外不显示不贴边）；
+                 图标组下移贴近横轴：y=18 底 48（横线 50 上方 2px） -->
+            <Widget DataSource="{IconItems}" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" DoNotAcceptEvents="true">
+              <ItemTemplate>
+                <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="0" SuggestedHeight="0" DoNotAcceptEvents="true">
+                  <Children>
+                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                               PositionXOffset="@PosX" PositionYOffset="18"
+                               IsVisible="@IsVisible"
+                               StackLayout.LayoutMethod="HorizontalLeftToRight" DoNotAcceptEvents="true">
+                      <Children>
+                        <!-- 原版 Alt 标记同款图标：QuestMarkerBrushWidget + GameMenu.QuestMarker 笔刷
+                             （brush 全局按名解析，Native 模块常驻可跨模块引用——原版 NameMarker.xml 同款写法） -->
+                        <QuestMarkerBrushWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedHeight="30"
+                                                QuestMarkerType="@IconType" Brush="GameMenu.QuestMarker"
+                                                VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                    Text="@DistanceText"
+                                    Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.FontColor="#FFFFFFFF"
+                                    MarginLeft="2" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
+                      </Children>
+                    </ListPanel>
+                  </Children>
+                </Widget>
+              </ItemTemplate>
+            </Widget>
+
+            <!-- ④ 横轴（老滚5 尺子式）：全显式定位（左对齐 + 明确 x）——横线 x=9..991，
+                 左箭头中心 x=9、右箭头中心 x=991，横线两端正好插在箭头中心、不超出 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="982" SuggestedHeight="2"
+                    PositionXOffset="9" PositionYOffset="50" HorizontalAlignment="Left"
+                    Sprite="BlankWhiteSquare_9" Color="#FFFFFF66" DoNotAcceptEvents="true"/>
+            <!-- 左端点：朝左箭头（素材本色，直接 Sprite 引用；x=0..18 中心 9） -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="21"
+                    PositionXOffset="0" PositionYOffset="40.5" HorizontalAlignment="Left"
+                    Sprite="SPGeneral\SPOptions\standart_dropdown_with_arrows_left" DoNotAcceptEvents="true"/>
+            <!-- 右端点：朝右箭头（显式 x=982 左对齐 → x=982..1000 中心 991，与横线右端对齐） -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="21"
+                    PositionXOffset="982" PositionYOffset="40.5" HorizontalAlignment="Left"
+                    Sprite="SPGeneral\SPOptions\standart_dropdown_with_arrows_right" DoNotAcceptEvents="true"/>
+
+            <!-- ⑤ 中心金色刻度（本质是刻度，不是柱）：底压横轴(y=50)、顶 33 比白刻度顶(38)高一点、
+                 且低于字母底(30)不碰文字；宽度 4 稍宽于白刻度(2)突出金色 -->
+            <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="4" SuggestedHeight="17"
+                    PositionYOffset="33" HorizontalAlignment="Center"
+                    Sprite="BlankWhiteSquare_9" Color="#FFD700FF" DoNotAcceptEvents="true"/>
+
+          </Children>
+        </Widget>
+      </Children>
+    </Widget>
+  </Window>
+</Prefab>

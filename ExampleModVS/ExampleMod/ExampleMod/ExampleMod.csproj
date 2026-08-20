@@ -263,6 +263,10 @@
     <Compile Include="Camera\CameraDebuggerVM.cs" />
     <Compile Include="Camera\SpringArmCameraDebuggerVM.cs" />
     <Compile Include="Camera\SpringArmCameraView.cs" />
+    <!-- Compass -->
+    <Compile Include="Compass\CompassHud.cs" />
+    <Compile Include="Compass\CompassIconVM.cs" />
+    <Compile Include="Compass\CompassVM.cs" />
     <!-- Combat -->
     <Compile Include="Combat\AttackTriggerMissionLogic.cs" />
     <Compile Include="Combat\CombatManager.cs" />
