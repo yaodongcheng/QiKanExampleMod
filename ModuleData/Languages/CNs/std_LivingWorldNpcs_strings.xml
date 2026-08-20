@@ -4436,6 +4436,8 @@
     <!--  2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：括号 = 内心独白，显示在附近频道 -->
     <string id="LWN_npc_steal_monologue_spotted" text="（{NAMES}一直盯着我……绕不到他背后。）" />
     <string id="LWN_npc_steal_monologue_blocked" text="（这地方绕不到他背后……得换个角度。）" />
+    <!--  2026-08-20（用户裁定：独白必须符合实际情况——目标在走动） -->
+    <string id="LWN_npc_steal_monologue_moving" text="（他一直走来走去的……抓不住背身的机会。）" />
     <string id="LWN_dialogue_ack_short" text="嗯。" />
     <string id="LWN_im_sender_dist" text="{NAME}（{DIST}米外）" />
     <string id="LWN_plan_abort_scene_end" text="战术随场景结束而中止。" />

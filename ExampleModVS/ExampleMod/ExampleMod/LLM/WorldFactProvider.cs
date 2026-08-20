@@ -814,6 +814,21 @@ namespace LivingWorldNpcs
                 // 计划轮必须 questions 让主公挑——目标名纪律的 C# 侧素材）──
                 if (target == null && targetCandidates != null && targetCandidates.Count > 1)
                 {
+                    // 🔴 2026-08-20（用户反馈：随从感知不到附近 20 米士兵，去偷 180m 外的弩手）：
+                    // 原候选段按场景序（Agent.Index）列出——213m 的帝国弩手排在 23m 的帝国弓箭手
+                    // 前面，LLM 挑目标天然选列表头部 = 远处对象（实机：3 个候选全 180m+，而
+                    // 23~24m 处的弓箭手/重装骑兵/军团步兵排在后面被无视）。近→远排序（以 self
+                    // 为基准），最近的士兵排最前，LLM 优先看到身边的。
+                    try
+                    {
+                        targetCandidates.Sort((x, y) =>
+                        {
+                            if (x?.Agent == null || y?.Agent == null) return 0;
+                            return x.Agent.Position.DistanceSquared(self.Position)
+                                .CompareTo(y.Agent.Position.DistanceSquared(self.Position));
+                        });
+                    }
+                    catch { }
                     // 本地化：候选目标段标题（LWN_risk_section_target_candidates）
                     sb.AppendLine(LWNTextHelper.ResolveText("LWN_risk_section_target_candidates",
                         "【Target candidates】(Your order matches several people here — do NOT pick one yourself; keep the target as a type and let the lord choose via questions in the plan round)"));

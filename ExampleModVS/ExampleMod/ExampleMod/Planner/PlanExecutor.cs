@@ -507,7 +507,32 @@ namespace LivingWorldNpcs
                             //（等没人看正是 ask_player 的成因；带门控跳回去 = 门控永不成立 → 超时 → 再问
                             // = 死循环）。C# 侧硬处理，不依赖 LLM 生成无门控步骤。
                             if (string.Equals(ev.Type, "force", StringComparison.OrdinalIgnoreCase))
-                                ClearWhenGateOfJumpTarget(match.Then);
+                            {
+                                // 🔴 2026-08-20（实机：LLM 计划 force → s5 但 s5 不存在 → 计划中止，强制白选）：
+                                // LLM 常照抄 prompt 示范的 force→sN 结构却忘定义步骤（幻觉 ID，计划校验
+                                // 只警告不删除）。force 跳转目标缺失 → 兜底跳到主链中最近的偷窃/击晕步骤
+                                //（ask_player 之前必然刚执行过它）——「强制执行」不因计划缺陷落空，
+                                // force 语义（无视目击者硬偷）照常生效。
+                                string forceTarget = match.Then;
+                                if (FindStepById(forceTarget) == null && !forceTarget.StartsWith("@"))
+                                {
+                                    // 🔴 2026-08-20（force 兜底通用化，用户裁定）：不再硬编码动作名列表
+                                    //（steal/knockout…）——回跳「最近执行的真实动作步」（TickCursor 跟踪，
+                                    // ask_player 之前必然刚执行过它），对偷窃/击晕/撬锁等任何动作同样适用。
+                                    if (!string.IsNullOrEmpty(_lastActionStepId) && FindStepById(_lastActionStepId) != null)
+                                    {
+                                        DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: force 跳转目标 {forceTarget} 不存在 → 兜底跳主链步骤 {_lastActionStepId}（强制执行）");
+                                        forceTarget = _lastActionStepId;
+                                        match.Then = forceTarget;
+                                    }
+                                }
+                                ClearWhenGateOfJumpTarget(forceTarget);
+                                // 🔴 2026-08-20（force 语义升级，实机：连点 7 次强制全被目击中断）：
+                                // 原 force 只清 when 门控重试——steal 步骤 Rolling 的目击检查无条件，
+                                // 被看到照样收手 → 玩家白选。force 同时标记目标步骤「强制执行」：
+                                // 偷窃步骤据此跳过目击中断，后果由 roll 后的 WitnessCrime 广播承担。
+                                MarkForcedStep(forceTarget);
+                            }
                             // 本地化：LWN_plan_step_decision（玩家可见文本）
                             CurrentSummary = LWNTextHelper.ResolveCompound("LWN_plan_step_decision",
                                 "Step {STEP}: decision received ({TYPE})",
@@ -532,6 +557,16 @@ namespace LivingWorldNpcs
                     HandleStepTimeout(cursor, step);
                     return;
                 }
+                // 🔴 2026-08-20（force 语义通用化，用户裁定）：任何实现 IForceable 的内联动作
+                // 统一消费强制标记（玩家 ask_player 选「强制执行」→ force → 跳回本步骤）。
+                // 动作各自 ApplyForce 定义「强制 = 跳过什么安全检查」（偷窃 = Rolling 目击检查；
+                // 击晕/撬锁/搜刮未来引入「等没人看」类阻塞时实现 IForceable 即自动生效，零改动）。
+                if (cursor.Inline is IForceable forceable && ConsumeForcedStep(step.Id))
+                    forceable.ApplyForce();
+                // force 兜底跟踪：最近执行的真实动作步（行为性内联/原子动作 = 动手步骤；
+                // ask_player/wait 等通信步不跟踪）——force 跳转目标缺失（LLM 幻觉 ID）时回跳它。
+                if (cursor.SubAction != null || (cursor.Inline != null && cursor.Inline.IsBehavioral))
+                    _lastActionStepId = step.Id;
                 if (cursor.SubAction != null)
                 {
                     // M2（D4b）：不再 OnStart——动作生命周期归脑。入队后由脑驱动
@@ -778,19 +813,25 @@ namespace LivingWorldNpcs
                     }
                 }
             }
-            // 优先找 fallback 入口（只允许跳入口步，S3）
+            // 优先找 fallback 入口（S3 只跳入口步）
+            // 🔴 2026-08-20（实机：contingency 直指预案中间步 q2 → 「跳转目标不存在」→ 计划中止）：
+            // LLM 计划的 contingency/on_event 常直指预案内的 end_plan 收尾（如 alert 过高 → q2 撤，
+            // 「您发话了，我先撤」），原实现只认入口步 → 跨上下文（主链→预案中间）被拒 → 计划暴毙
+            // 「战术出了岔子」。放宽为预案任意步可跳：预案中间步均为 end_plan 终态（无副作用），
+            // 直达 = 尊重 LLM 意图（contingency 明写 q2 = 明确跳过 ask_player 直接收尾）。
             if (Plan.Fallbacks != null)
             {
                 for (int i = 0; i < Plan.Fallbacks.Count; i++)
                 {
                     var entry = Plan.Fallbacks[i];
                     if (entry == null || entry.Count == 0) continue;
-                    if (entry[0].Id == target)
+                    for (int j = 0; j < entry.Count; j++)
                     {
+                        if (entry[j]?.Id != target) continue;
                         cursor.InFallback = true;
                         cursor.LoopMode = false;
                         cursor.Sequence = entry;
-                        cursor.Index = 0;
+                        cursor.Index = j;
                         cursor.StepElapsed = 0f;
                         InterruptAndDetach(cursor);
                         return;
@@ -841,10 +882,33 @@ namespace LivingWorldNpcs
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: force 语义 → 清除 {step.Id} 的 when 门控");
             step.When = null;
         }
+        /// <summary>🔴 2026-08-20（force 语义升级）：玩家选「强制执行」标记的步骤 id 集合。
+        /// 一次性消费：目标步骤创建内联状态时 <see cref="ConsumeForcedStep"/> 读取并移除；计划结束清空。
+        /// 语义 = 无视目击者直接动手（偷窃跳过 Rolling 目击中断；后果由 roll 后的 WitnessCrime
+        /// 广播承担——目击者警戒/呼叫守卫/可能动手，正是「强制」的代价，铁律 12）。</summary>
+        private readonly HashSet<string> _forcedStepIds = new HashSet<string>();
+
+        /// <summary>最近执行的真实动作步 id（force 兜底：跳转目标缺失时回跳它）。
+        /// TickCursor 在创建行为性内联/原子动作时更新；ask_player/wait 等通信步不更新。</summary>
+        private string _lastActionStepId;
+
+        internal void MarkForcedStep(string stepId)
+        {
+            if (!string.IsNullOrEmpty(stepId)) _forcedStepIds.Add(stepId);
+        }
+
+        /// <summary>一次性消费步骤的强制标记（StealAttemptInlineState 构造时调用）。</summary>
+        internal bool ConsumeForcedStep(string stepId)
+        {
+            if (string.IsNullOrEmpty(stepId)) return false;
+            bool forced = _forcedStepIds.Remove(stepId);
+            if (forced)
+                DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {stepId} 强制执行（无视目击者）");
+            return forced;
+        }
         /// <summary>按步骤 id 全计划查找（fallbacks → loop → 主链，与 Jump 同口径）。</summary>
         private PlanStep FindStepById(string id)
-        {
-            if (string.IsNullOrEmpty(id)) return null;
+        {            if (string.IsNullOrEmpty(id)) return null;
             if (Plan?.Fallbacks != null)
                 foreach (var fb in Plan.Fallbacks)
                     if (fb != null)
@@ -1349,6 +1413,7 @@ namespace LivingWorldNpcs
             EndMessage = message;
             IsFinished = true;
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 计划结束（{state}）: {message}");
+            _forcedStepIds.Clear();   // 强制标记随计划结束清空（防残留污染后续步骤）
             // 🔴 2026-08-14（M5，npc-risk-aware-planning.md）：判定型动作（steal/knockout 有 _stepResultKey）
             // Succeeded 收尾不允许静默——偷窃/击晕是有结局的动作，玩家必须看到结果；
             // InlineSteps 已播报（_resultBroadcast）时视为已有出口，不重复播（聊天单步路径 M2a 已播）。
