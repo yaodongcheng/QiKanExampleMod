@@ -194,37 +194,82 @@
                                StackLayout.LayoutMethod="VerticalBottomToTop"
                                DoNotAcceptEvents="true">
                       <ItemTemplate>
-                        <!-- 迷你气泡：名字 + 单行截断正文 -->
+                        <!-- 🔴 2026-08-20（实机回归：玩家消息消失）：模板根必须是无 IsVisible 的
+                             普通容器 Widget，互斥分支放 Children 里（完整模式 ImChat.xml 同构——
+                             平铺两个根 widget 在 ItemTemplate 下，第二个根被引擎丢弃 → 玩家消息不显示） -->
                         <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#FFFFFF55" MarginBottom="4"
+                                MarginBottom="4"
                                 DoNotAcceptEvents="true">
                           <Children>
-                            <ListPanel Id="LWN_ImChat_CompactLatestRow" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                       StackLayout.LayoutMethod="VerticalBottomToTop"
-                                       DoNotAcceptEvents="true">
+                            <!-- 迷你气泡（他人/系统：左对齐白底）。系统消息同走本分支
+                                 （ShowCompactSenderName=false 无名字行） -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                    Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#FFFFFF55"
+                                    IsVisible="@IsNotSelf"
+                                    DoNotAcceptEvents="true">
                               <Children>
-                                <!-- 名字行（发送者成员色；🔴 2026-08-17 用户裁定：系统消息不显示
-                                     「System」发件人——硬编码英文不符合本地化纪律，完整模式本来就是居中灰字无发件人） -->
-                                <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                           StackLayout.LayoutMethod="HorizontalLeftToRight"
-                                           HorizontalAlignment="Left"
-                                           IsVisible="@ShowCompactSenderName"
-                                           MarginLeft="10" MarginTop="4"
+                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           StackLayout.LayoutMethod="VerticalBottomToTop"
                                            DoNotAcceptEvents="true">
                                   <Children>
-                                    <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                                Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                    <!-- 名字行（发送者成员色；🔴 2026-08-17 用户裁定：系统消息不显示
+                                         「System」发件人——硬编码英文不符合本地化纪律，完整模式本来就是居中灰字无发件人） -->
+                                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                               StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                               HorizontalAlignment="Left"
+                                               IsVisible="@ShowCompactSenderName"
+                                               MarginLeft="10" MarginTop="4"
+                                               DoNotAcceptEvents="true">
+                                      <Children>
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                    HorizontalAlignment="Left"
+                                                    DoNotAcceptEvents="true"/>
+                                      </Children>
+                                    </ListPanel>
+                                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Left"
                                                 HorizontalAlignment="Left"
+                                                MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
                                                 DoNotAcceptEvents="true"/>
                                   </Children>
                                 </ListPanel>
-                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
-                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Left"
-                                            HorizontalAlignment="Left"
-                                            MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
-                                            DoNotAcceptEvents="true"/>
                               </Children>
-                            </ListPanel>
+                            </Widget>
+                            <!-- 迷你气泡（自己：右对齐绿底）——完整模式自己气泡同款语义：
+                                 绿底 #3DA53D80（区别于 NPC 白泡）、名字行贴右、正文右对齐折行 -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                    Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#3DA53D80"
+                                    IsVisible="@IsSelf"
+                                    DoNotAcceptEvents="true">
+                              <Children>
+                                <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                           StackLayout.LayoutMethod="VerticalBottomToTop"
+                                           DoNotAcceptEvents="true">
+                                  <Children>
+                                    <!-- 名字行：贴右（完整模式自己气泡同构：名字在气泡内顶部右侧） -->
+                                    <ListPanel WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                               StackLayout.LayoutMethod="HorizontalLeftToRight"
+                                               HorizontalAlignment="Right"
+                                               IsVisible="@ShowCompactSenderName"
+                                               MarginRight="10" MarginTop="4"
+                                               DoNotAcceptEvents="true">
+                                      <Children>
+                                        <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                                    Text="@DisplaySenderNameCompact" Brush="MyBrush_18_White" Brush.FontSize="14" Brush.FontColor="@NameColor"
+                                                    HorizontalAlignment="Right"
+                                                    DoNotAcceptEvents="true"/>
+                                      </Children>
+                                    </ListPanel>
+                                    <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                                Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Right"
+                                                HorizontalAlignment="Right"
+                                                MarginLeft="10" MarginRight="10" MarginTop="2" MarginBottom="5"
+                                                DoNotAcceptEvents="true"/>
+                                  </Children>
+                                </ListPanel>
+                              </Children>
+                            </Widget>
                           </Children>
                         </Widget>
                       </ItemTemplate>
