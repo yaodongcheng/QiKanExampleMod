@@ -191,24 +191,15 @@ namespace LivingWorldNpcs
 
         // ── 顶部罗盘（透传核心 Settings）──
         // Order = -4：显示在意图开关（-2）与友方保护（-3）之后，列表最底部
+        // 🔴 2026-08-20（用户裁定）：罗盘任务图标不再提供 MCM 开关（跟随罗盘总开关），
+        // 高级玩家可改 config.json `ShowCompassIcons`（默认 true）。
         [SettingPropertyBool("{=LWN_mcm_show_compass}Show Compass", Order = -4, RequireRestart = false,
-            HintText = "{=LWN_mcm_show_compass_hint}When enabled, a Skyrim-style compass band appears at the top of the screen in missions, showing direction letters (N/E/S/W), tick marks, and icons for important people with quests. Hidden while the messaging panel or the system menu is open.")]
+            HintText = "{=LWN_mcm_show_compass_hint}When enabled, a Skyrim-style compass band appears at the top of the screen in missions, showing direction letters (N/E/S/W), tick marks, and icons for important people with quests. Hidden while the full messaging panel or the system menu is open.")]
         [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
         public bool ShowCompass
         {
             get => Settings.Instance.ShowCompass;
             set => Settings.Instance.ShowCompass = value;
-        }
-
-        // ── 罗盘图标（透传核心 Settings）──
-        // Order = -5：列表最底部
-        [SettingPropertyBool("{=LWN_mcm_show_compass_icons}Show Compass Quest Icons", Order = -5, RequireRestart = false,
-            HintText = "{=LWN_mcm_show_compass_icons_hint}When enabled, icons for important people with quests (with distance text) appear on the compass band inside the viewing direction. Disable to keep only the direction letters and tick marks.")]
-        [SettingPropertyGroup("{=LWN_mcm_grp_main}Settings")]
-        public bool ShowCompassIcons
-        {
-            get => Settings.Instance.ShowCompassIcons;
-            set => Settings.Instance.ShowCompassIcons = value;
         }
     }
 }

@@ -142,6 +142,10 @@ namespace LivingWorldNpcs
 
         public static bool IsOpen => _layer != null;
 
+        /// <summary>当前是否为缩略模式（底部小面板、相机仍可控）。全屏元素（如顶部罗盘）据此决定是否隐藏：
+        /// 缩略模式不遮挡 → 不隐藏；完整模式才隐藏（CompassHud 隐藏纪律，2026-08-20）。</summary>
+        public static bool IsCompactMode => _mode == ImChatMode.Compact;
+
         /// <summary>当前选中会话（命令模式/通知定位用）。</summary>
         public static ImConversation Selected => _selected;
 

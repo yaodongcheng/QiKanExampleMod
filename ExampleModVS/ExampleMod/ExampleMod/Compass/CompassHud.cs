@@ -21,10 +21,14 @@ namespace LivingWorldNpcs
     ///  - 中心金色指针固定；
     ///  - 图标：视野 ±90° 内带任务的人物（原版 Alt 标记同判定 CampaignUIHelper.GetQuestStateOfHero + QuestMarkerBrushWidget 金色 !）
     ///    + 距离文本；范围外不显示不贴边（用户裁定）；最多 8 个按距离近优先防挤；
-    ///  - 隐藏纪律：IM 打开（ImChatView.IsOpen）或系统模态（ModInput.IsSystemModalActive()）→ 整个罗盘隐藏。
+    ///  - 隐藏纪律：IM 完整模式打开（ImChatView.IsOpen && !IsCompactMode；缩略面板不隐藏，
+    ///    2026-08-20 实机修正）或系统模态（ModInput.IsSystemModalActive()）→ 整个罗盘隐藏。
     ///  - 分频：agents 扫描每 30 帧、图标位置/距离每 2 帧、刻度/字母注入每帧。
     ///
-    /// 角度约定（与 Vec2.RotationInRadians 同口径）：0° = +Y，顺时针为正。
+    /// 角度约定（0° = 北 = +Y，顺时针为正，东 = +90°；与引擎世界坐标一致——vanilla
+    /// MapCameraView PartyMoveUpKey: X+=sinθ, Y+=cosθ，θ=0 时北=+Y，反编译验证 2026-08-20）。
+    /// 🔴 禁止用 Vec2.RotationInRadians 直接算方位角：引擎实现是 atan2(-x, y)（符号相反），
+    /// 必须用 atan2(dx, dy)；yaw 同理用 atan2(fwd.X, fwd.Y)。实机 2026-08-20 镜像坑实录见 OnTick。
     /// 🔴 2026-08-20 勘误（反编译验证）：MissionScreen 无 CameraBearing（那是大地图 MapCameraView 的 protected 属性）；
     /// yaw 用 Mission.GetCameraFrame().rotation.f（forward）水平投影计算。
     /// </summary>
@@ -50,6 +54,7 @@ namespace LivingWorldNpcs
         private int _scanCounter;
         private int _iconCounter;
         private int _letterRefreshCounter;
+        private int _lastScanCount = -1;   // 扫描日志防刷屏：数量变化才打（2026-08-20）
 
         /// <summary>当前图标目标（排序后的 quest 人物，扫描时重建）。</summary>
         private readonly List<(Agent agent, int iconType)> _targets = new List<(Agent, int)>();
@@ -89,18 +94,25 @@ namespace LivingWorldNpcs
             var mission = Mission.Current;
             if (mission == null) return;
 
-            // ── 隐藏纪律：MCM 总开关 + IM 打开 / 系统模态（菜单、对话层等）→ 整个罗盘隐藏 ──
+            // ── 隐藏纪律：MCM 总开关 + IM **完整模式**打开 / 系统模态（菜单、对话层等）→ 整个罗盘隐藏。
+            // 🔴 2026-08-20（实机：缩略面板开启时头顶罗盘消失）：缩略模式是底部小面板、相机仍可控、
+            // 不遮挡顶部罗盘 → 不隐藏；只有完整模式（大面板半模态）才隐藏。
             bool visible = Settings.Instance.ShowCompass
-                && !ImChatView.IsOpen
+                && !(ImChatView.IsOpen && !ImChatView.IsCompactMode)
                 && !ModInput.IsSystemModalActive();
             if (visible != _vm.IsVisible) _vm.IsVisible = visible;
             if (!visible) return;
 
-            // ── 相机 yaw（forward 水平投影；0°=+Y，与 Vec2.RotationInRadians 同约定）──
+            // ── 相机 yaw（forward 水平投影；世界方位角：0°=北=+Y，顺时针为正，东=+90°）──
+            // 🔴 2026-08-20 勘误（反编译验证）：①引擎世界坐标 北=+Y（vanilla MapCameraView
+            // PartyMoveUpKey: X+=sinθ, Y+=cosθ，θ=0 时北=+Y）；②Vec2.RotationInRadians 是
+            // atan2(-x, y)（负号！），与罗盘字母角度约定（东=+90）符号相反——旧公式
+            // yaw=atan2(-fwd.X, fwd.Y) + bearing=RotationInRadians 双符号错 → 面朝正北时
+            // 图标左右镜像（西侧目标显示在东侧，实机 2026-08-20：NPC 说西、罗盘指东）。
             Vec3 fwd;
             try { fwd = mission.GetCameraFrame().rotation.f; }
             catch { return; }
-            float yawDeg = (float)(Math.Atan2(-fwd.X, fwd.Y) * 180.0 / Math.PI);
+            float yawDeg = (float)(Math.Atan2(fwd.X, fwd.Y) * 180.0 / Math.PI);
 
             // ── 每帧：刻度 + 字母位置注入 ──
             UpdateScale(yawDeg);
@@ -252,7 +264,13 @@ namespace LivingWorldNpcs
                 }
             }
 
-            DebugLogger.Log($"[Compass] scan: {_targets.Count} quest hero(es) on compass");
+            // 🔴 2026-08-20（日志刷屏修复）：只打数量变化——每 30 帧全量打 = 0.5s 一条刷屏
+            //（实机 18:33:34-35 连续 100+ 条）。数量不变 = 扫描无新变化，无需日志。
+            if (_targets.Count != _lastScanCount)
+            {
+                DebugLogger.Log($"[Compass] scan: {_targets.Count} quest hero(es) on compass");
+                _lastScanCount = _targets.Count;
+            }
         }
 
         /// <summary>每 2 帧：刷新图标位置（relAngle → x）+ 距离文本；±90° 外隐藏。</summary>
@@ -276,7 +294,9 @@ namespace LivingWorldNpcs
                 }
 
                 Vec2 delta = agent.Position.AsVec2 - camPos.AsVec2;
-                float targetBearingDeg = (float)(delta.RotationInRadians * 180.0 / Math.PI);
+                // 世界方位角（0°=北，东=+90°）：atan2(dx,dy)——⚠️ 禁止用 delta.RotationInRadians，
+                // 引擎实现是 atan2(-x, y)（符号与罗盘约定相反，实机 2026-08-20 镜像坑）
+                float targetBearingDeg = (float)(Math.Atan2(delta.X, delta.Y) * 180.0 / Math.PI);
                 float rel = NormalizeDeg(targetBearingDeg - yawDeg);
 
                 if (Math.Abs(rel) > IconShowWindowDeg)
@@ -321,15 +341,16 @@ namespace LivingWorldNpcs
             try
             {
                 Vec3 fwd = mission.GetCameraFrame().rotation.f;
-                float yawDeg = (float)(Math.Atan2(-fwd.X, fwd.Y) * 180.0 / Math.PI);
-                sb.AppendLine($"[Compass] yaw={yawDeg:F1} (0=+Y 朝北) visible={hud._vm.IsVisible} icons={hud._vm.IconItems.Count}"); // lwn-ignore: A
+                float yawDeg = (float)(Math.Atan2(fwd.X, fwd.Y) * 180.0 / Math.PI);
+                sb.AppendLine($"[Compass] yaw={yawDeg:F1} (0=北=+Y 顺时针为正) visible={hud._vm.IsVisible} " +
+                    $"setting={Settings.Instance.ShowCompass} icons={hud._vm.IconItems.Count}"); // lwn-ignore: A
                 Vec3 camPos = hud._missionScreen?.CombatCamera?.Position ?? Vec3.Zero;
                 foreach (var icon in hud._vm.IconItems)
                 {
                     var agent = icon.TargetAgent;
                     if (agent == null) continue;
                     Vec2 delta = agent.Position.AsVec2 - camPos.AsVec2;
-                    float bearingDeg = (float)(delta.RotationInRadians * 180.0 / Math.PI);
+                    float bearingDeg = (float)(Math.Atan2(delta.X, delta.Y) * 180.0 / Math.PI);
                     float rel = NormalizeDeg(bearingDeg - yawDeg);
                     int dist = (int)agent.Position.Distance(camPos);
                     sb.AppendLine($"[Compass]   {agent.Name} bearing={bearingDeg:F1} rel={rel:F1} dist={dist}m visible={icon.IsVisible}");
