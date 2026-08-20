@@ -237,10 +237,13 @@
                               </Children>
                             </Widget>
                             <!-- 迷你气泡（自己：右对齐绿底）——完整模式自己气泡同款语义：
-                                 绿底 #3DA53D80（区别于 NPC 白泡）、名字行贴右、正文右对齐折行 -->
+                                 绿底 #3DA53D80（区别于 NPC 白泡）、名字行贴右、正文右对齐折行
+                                 🔴 2026-08-20（用户反馈：系统消息误入此分支）：系统消息 SenderHeroId=
+                                 PlayerId → IsSelf=true，必须排除——改绑 ShowMiniSelfBubble（IsSelf && !IsSystem），
+                                 系统消息走下方 IsSystem 居中灰底分支。 -->
                             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
                                     Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#3DA53D80"
-                                    IsVisible="@IsSelf"
+                                    IsVisible="@ShowMiniSelfBubble"
                                     DoNotAcceptEvents="true">
                               <Children>
                                 <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
@@ -268,6 +271,22 @@
                                                 DoNotAcceptEvents="true"/>
                                   </Children>
                                 </ListPanel>
+                              </Children>
+                            </Widget>
+                            <!-- 迷你气泡（系统：居中灰底）。🔴 2026-08-20（用户反馈：系统消息右对齐绿底出戏）——
+                                 系统消息 SenderHeroId=PlayerId → IsSelf=true，原模板误归「自己」分支；
+                                 这里显式居中灰底（无发件人行），对齐完整模式「居中灰字无发件人」语义。
+                                 互斥：IsSelf 分支已改绑 ShowMiniSelfBubble（排除 IsSystem）。 -->
+                            <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                    Sprite="SPGeneral\SPScoreboard\bottom_button" Color="#555555CC"
+                                    IsVisible="@IsSystem"
+                                    DoNotAcceptEvents="true">
+                              <Children>
+                                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren"
+                                            Text="@CompactContent" Brush="MyBrush_16_Left" Brush.FontSize="14" Brush.TextHorizontalAlignment="Center"
+                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                            MarginLeft="10" MarginRight="10" MarginTop="4" MarginBottom="5"
+                                            DoNotAcceptEvents="true"/>
                               </Children>
                             </Widget>
                           </Children>
