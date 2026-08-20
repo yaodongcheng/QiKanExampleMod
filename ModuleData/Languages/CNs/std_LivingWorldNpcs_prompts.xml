@@ -370,7 +370,7 @@
     <string id="LWN_plan_section_companion_intention" text="【随从的打算】（这是随从自己的战术想法，第一人称——你拟定战术时参考它，但战术由你决定；他说的不算）" />
     <string id="LWN_plan_section_target_id" text="【目标指认】（对方的话已被指认为场景里的具体某人——计划里的 target 直接照抄该标记，不要按对方原话另行寻找）" />
     <!-- 2026-08-19（目标纪律）：命令对应多人 → 候选清单段（LLM 必须 questions 让主公挑，禁止自行指定） -->
-    <string id="LWN_plan_section_target_candidates" text="【目标候选】（你的命令对应场上好几个人——你必须用 questions 让主公挑选具体对象（把候选名写进 questions 的 options），禁止自行指定一个。只有主公挑定后，才能以那个人为 target）" />
+    <string id="LWN_plan_section_target_candidates" text="【目标候选】（你的命令对应场上好几个人——你必须用 questions 让主公挑选具体对象（把候选名写进 questions 的 options），禁止自行指定一个。只有主公挑定后，才能以那个人为 target。questions 的 options 最多写 3 个候选名（优先写最近的）——禁止把整份清单全写进去）" />
     <!-- 2026-08-19（目标纪律）：回复轮声明的目标类型在场景无匹配 → 诚实段正文（{TARGET} 变量） -->
     <string id="LWN_plan_section_target_none_body" text="（「{TARGET}」在场景快照里没有匹配的人——若命令目标是物品（箱子/门等）照常计划；若是人，必须用 questions 澄清，主公会在下一条消息告诉你目标是谁——禁止自行换一个目标）" />
     <string id="LWN_plan_example_assist" text="【分头配合示范（ask_help + 卸装备，照抄此结构）】「打那个全副武装的守卫」且随从徒手：先请同僚引开，再卸守卫装备（steal_equipment，目标守卫），然后动手（拳头对拳头）：

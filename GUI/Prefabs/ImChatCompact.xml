@@ -295,10 +295,12 @@
                                 <!-- 🔴 2026-08-19（用户反馈：选项高度窄/宽不包文本）：高 28→56（扩大一倍）、
                                      固定宽 86 改 CoverChildren + MinWidth 96 + MaxWidth 240 + WordWrapping——
                                      长文本折行后按钮跟着长高、绝不溢出底纹；短文本保底 96 宽（对齐完整模式手感）；
-                                     MarginRight 6→4（选项间空隙收紧）。 -->
+                                     MarginRight 6→4（选项间空隙收紧）。
+                                     🔴 2026-08-20（用户反馈：按钮高度远高于文字大小）：MinHeight 56→26
+                                     （文字 14px，26 = 文字 + 上下 4px padding；长文本折行时 CoverChildren 仍会撑高）。 -->
                                 <ButtonWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                              MinHeight="56" MinWidth="96" MaxWidth="240"
-                                              Brush="Test.Button3"
+                                              MinHeight="26" MinWidth="96" MaxWidth="240"
+                                              Brush="LWN_Btn_Message"
                                               Command.Click="Execute"
                                               IsEnabled="@IsEnabled" MarginRight="4">
                                   <Children>
@@ -327,9 +329,11 @@
                                      · LayoutLinearVertical：VerticalBottomToTop 下逐项紧贴，num6 均分间距只在
                                        VerticalSpaced 消费 → 项间距 = 按钮高 + Margin，Margin=0 → 完全无缝。
                                      全宽（StretchToParent）+ 文本居中折行：右对齐参差/水平溢出同时消除。
-                                     候选项条数上限由 ImCommandFlow.CollectTargetCandidates(maxCount:8) 截断。 -->
-                                <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="40"
-                                              Brush="Test.Button3"
+                                     🔴 2026-08-20（第二次调整）：高度 40→26（用户反馈：按钮高度远高于文字大小，
+                                     14px 文字行高约 18px，26px = 文字 + 上下各 4px padding）。
+                                     候选项条数上限由 ImCommandFlow.CollectTargetCandidates(maxCount:3) 截断。 -->
+                                <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="26"
+                                              Brush="LWN_Btn_Message"
                                               Command.Click="Execute"
                                               IsEnabled="@IsEnabled" MarginTop="0" MarginBottom="0">
                                   <Children>
@@ -382,7 +386,7 @@
                                             MarginRight="6" VerticalAlignment="Center"/>
                         <!-- 发送按钮（Id 2026-08-18 手柄手动导航：KS 焦点项 widget 定位） -->
                         <ButtonWidget Id="LWN_BtnSendC" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="64" SuggestedHeight="34"
-                                      Brush="Test.Button3"
+                                      Brush="LWN_Btn_Message"
                                       Command.Click="ExecuteSend"
                                       IsEnabled="@CanSend"
                                       GamepadNavigationIndex="7"
