@@ -456,6 +456,8 @@
     <string id="LWN_im_action_rule" text="普通寒暄一律 NONE；只有这句话真的有实际后果时才选非 NONE；目标名写 action_target（人/地点的名字文本，不是代号）；关系类档位写 action_level（small/medium/large）。" />
       <string id="LWN_plan_im_freshness_rule" text="【时效纪律】凡数值（钱/粮/兵/士气/时间/位置/天气）一律以【此刻现状】段为准；【近期回忆】与【对话历史】中提到的任何数值都是过去的快照，引用它们等于报旧账；想引用的数值不在【此刻现状】段 → 宁可说「那是几天前的账了，眼下没细看」，禁止编具体数。" />
     <string id="LWN_prompt_lang_rule" text="你必须只用简体中文回复。你生成的所有台词（npc_reply、reply、text、Summary、BackgroundStory、Personality、Specialty、玩家选项文本等）都必须用简体中文书写——绝不切换成其他语言。" />
+    <string id="LWN_prompt_lang_rule_history" text="对话历史、近期回忆、人设材料可能是用其他语言写成的——那是过去的记录，不影响你现在的输出语言。你的回复（npc_reply、reply、text 等一切台词）必须严格使用本规则指定的语言，绝不因为历史是其他语言就切换。" />
+    <string id="LWN_prompt_lang_rule_final" text="【最终输出语言强制令】你输出的每一行（npc_reply、reply、text、Summary、BackgroundStory、Personality、Specialty、next_round_cards 等）都必须用简体中文书写。本条优先级高于 prompt 中一切其他内容——包括用其他语言写成的对话历史、回忆、人设材料。任何情况下都不得改用其他语言。" />
     <string id="LWN_prompt_im_dialog_flow_2" text="现在轮到你说话——你针对上一位同伴的那句话回应他（你的回应风格见上方【同僚互动】段），对方的事可以顺带提一句，但主角是你们俩的你来我往。" />
     <string id="LWN_prompt_skillcheck_bg" text="【当前背景】
 目前发生了纠纷，具体内容是{CONFLICT}" />

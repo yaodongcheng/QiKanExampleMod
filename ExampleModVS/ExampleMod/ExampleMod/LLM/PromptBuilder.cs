@@ -97,6 +97,8 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_req_action",
                 ("ACTION_SPACE", ActionHandler.GetActionSpacePrompt(memory._profile.BaseHero, Hero.MainHero, targetAgent))));
 
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
 
@@ -150,6 +152,8 @@ namespace LivingWorldNpcs
             // 本地化：LWN_prompt_req_emotion（情绪枚举，双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_req_emotion"));
 
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
 
         }
@@ -428,6 +432,7 @@ namespace LivingWorldNpcs
             string worldSection = WorldBackgroundProvider.GetWorldSection(npcHeroId);
             if (!string.IsNullOrWhiteSpace(worldSection))
             {
+                // 本地化：LWN_plan_section_world（双桶）
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_world") + worldSection); // lwn-ignore: B
                 sb.AppendLine();
             }
@@ -645,6 +650,10 @@ namespace LivingWorldNpcs
             }
             // IM 回复纪律（XML 单一事实源：LWN_plan_im_reply_rule，EN/CN 同源）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_im_reply_rule"));
+            // 本地化：LWN_prompt_lang_rule_history（历史语言强化，双桶；2026-08-20 防历史中文带偏输出）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_history"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             // 🔴 2026-08-16（prompt 精简）：命令纪律/目标名纪律只在命令语境注入——riskScene（【目之所及】
             // + 风险审视纪律）本来就是"动作命令才注入"的代理；闲聊/问句不背命令规则（原全量注入 ~430 字）
             if (riskScene != null)
@@ -990,6 +999,8 @@ namespace LivingWorldNpcs
             // 本地化：LWN_prompt_chat_input_header（玩家输入段标题，双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_chat_input_header"));
             sb.AppendLine(playerInput);
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         // --- B. 谈判模式 (核心逻辑) ---
@@ -1556,6 +1567,8 @@ namespace LivingWorldNpcs
                 ("ACTION_SPACE", ActionHandler.GetActionSpacePrompt(memory._profile.BaseHero, Hero.MainHero, targetAgent))));
             // 4. JSON 约束；本地化：LWN_prompt_nego_json（JSON 示例，双桶；含 JSON 走 ResolvePrompt）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_nego_json"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         public static string GetRelationPrompt(SingNpcMemorySystem memory,string eventId)
@@ -1636,7 +1649,11 @@ namespace LivingWorldNpcs
             string playerName = Hero.MainHero.Name.ToString();
             StringBuilder sb = new StringBuilder();
             // 本地化：LWN_prompt_section_task_desc（任务描述段标题，双桶）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_section_task_desc（双桶）
+sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
             // 本地化：LWN_prompt_memory_social_task1/2/3/4（任务说明，双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_social_task1"));
             // 本地化：LWN_prompt_memory_social_task2（双桶）
@@ -1676,6 +1693,8 @@ namespace LivingWorldNpcs
             sb.AppendLine();
             // 本地化：LWN_prompt_memory_social_json（JSON 模板，双桶；含 JSON 走 ResolvePrompt）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_social_json"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         public static string BuildPromptForPermanentMemory(SingNpcMemorySystem memory, string fadingMemory, string currentPermanentMemory)
@@ -1683,7 +1702,11 @@ namespace LivingWorldNpcs
             string npcName = memory._profile.Name;
             StringBuilder sb = new StringBuilder();
             // 本地化：LWN_prompt_section_task_desc（任务描述段标题，双桶）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_section_task_desc（双桶）
+sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
             // 🔴 2026-08-17：WorldDescription 退场，删字段引用（记忆判定无需世界观 grounding）
             // 本地化：LWN_prompt_memory_perm_task（任务说明，双桶）
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_perm_task", ("NPC_NAME", npcName)));
@@ -1697,6 +1720,8 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_out_format"));
             // 本地化：LWN_prompt_memory_perm_json（JSON 模板，双桶；含 JSON 走 ResolvePrompt）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_perm_json"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         public static string BuildPromptForSummary(SingNpcMemorySystem memory, List<ChatMessage> messagesToSummarize)
@@ -1706,7 +1731,11 @@ namespace LivingWorldNpcs
             // （§八 任意人对话泛化的对方名提取不再需要：2026-08-10 起总结输入可能混合私聊与频道公开对话，
             //  任务描述改为通用表述，不再假定"和某一个人的对话"）
             // 本地化：LWN_prompt_section_task_desc（任务描述段标题，双桶）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_section_task_desc（双桶）
+sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
             // 本地化：LWN_prompt_memory_summary_task/goal（任务说明，双桶）
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_summary_task", ("NPC_NAME", npcName)));
             // 本地化：LWN_prompt_memory_summary_goal（双桶）
@@ -1737,6 +1766,8 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_summary_req4", ("STYLE", S.SpeechStyle)));
             // 本地化：LWN_prompt_memory_summary_req5（双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_summary_req5"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         /// <summary>
@@ -1749,7 +1780,11 @@ namespace LivingWorldNpcs
             StringBuilder sb = new StringBuilder();
             string npcName = memory._profile.Name;
             // 本地化：LWN_prompt_section_task_desc（任务描述段标题，双桶）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_section_task_desc（双桶）
+sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
             // 本地化：LWN_prompt_memory_narr_task/goal（任务说明，双桶）
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_narr_task", ("NPC_NAME", npcName)));
             // 本地化：LWN_prompt_memory_summary_goal（双桶）
@@ -1776,6 +1811,8 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_summary_req4", ("STYLE", S.SpeechStyle)));
             // 本地化：LWN_prompt_memory_summary_req5（双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_summary_req5"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         /// <summary>
@@ -1791,7 +1828,11 @@ namespace LivingWorldNpcs
             var hero = profile.BaseHero;
             var sb = new StringBuilder();
             // 本地化：LWN_prompt_section_task_desc（任务段标题，双桶）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_section_task_desc（双桶）
+sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task_desc"));
             // 本地化：LWN_prompt_memory_profile_task（任务说明，双桶）
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_profile_task", ("NAME", profile.Name)));
             // 本地化：LWN_prompt_memory_profile_req_head/req1-5（要求，双桶）
@@ -1869,6 +1910,8 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_out_format"));
             // 本地化：LWN_prompt_memory_profile_json（JSON 模板，双桶；含 JSON 走 ResolvePrompt）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_profile_json"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         /// <summary>
@@ -1881,6 +1924,10 @@ namespace LivingWorldNpcs
             if (speaker == null) return "";
             var sb = new StringBuilder();
             // 本地化：LWN_prompt_memory_comment_task（任务说明，双桶）
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_memory_comment_task（双桶）
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_comment_task", ("SPEAKER", speaker.Name.ToString())));
             // 本地化：LWN_prompt_memory_comment_event（事件行，双桶）
             sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_memory_comment_event", ("DESC", description)));
@@ -1892,6 +1939,8 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_comment_req2"));
             // 本地化：LWN_prompt_memory_comment_req3（双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_memory_comment_req3"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         /// <summary>从对话记录提取对方说话人名字（Content 惯例"名字: 台词"；排除本 NPC 自己）。
@@ -1922,7 +1971,11 @@ namespace LivingWorldNpcs
                 return LWNTextHelper.ResolvePrompt("LWN_prompt_director_error");
             StringBuilder sb = new StringBuilder();
             // 本地化：LWN_prompt_section_task（任务段标题，双桶）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task"));
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_section_task（双桶）
+sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task"));
             // 本地化：LWN_prompt_director_task（任务说明，双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_director_task"));
             SocialEvent evt = outline.SourceEvent;
@@ -2031,13 +2084,19 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_director_req3"));
             // 本地化：LWN_prompt_director_req4（双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_director_req4"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         public static string BuildShowPrompt(ScreenPlayOutline outline,string directorBook)
         {
             StringBuilder sb = new StringBuilder();
             // 本地化：LWN_prompt_section_task（任务段标题，双桶）
-            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task"));
+            // 语言规则（prompt 顶部强指令，双桶 XML LWN_prompt_lang_rule；2026-08-20 双语化迁移）
+            sb.AppendLine(LWNTextHelper.GetLanguageRule());
+            sb.AppendLine();
+// 本地化：LWN_prompt_section_task（双桶）
+sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task"));
             // 本地化：LWN_prompt_show_task/role（任务说明，双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_show_task"));
             // 本地化：LWN_prompt_show_role（双桶）
@@ -2090,6 +2149,8 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_show_req6"));
             // 本地化：LWN_prompt_show_req7（双桶）
             sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_show_req7"));
+            // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
             return sb.ToString();
         }
         /// <summary>密谋命令系统：意图分类 + 计划生成 prompt（§9）。

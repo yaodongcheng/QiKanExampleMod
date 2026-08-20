@@ -476,6 +476,10 @@ namespace LivingWorldNpcs
                 }
                 // 台词要求段（XML 单一事实源）
                 sb.AppendLine(ResolvePrompt(ruleKey, ruleFallback));
+                // 本地化：LWN_prompt_lang_rule_history（历史语言强化，双桶；2026-08-20 防历史中文带偏输出）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_history"));
+                // 本地化：LWN_prompt_lang_rule_final（最终输出语言强制令，双桶；2026-08-20 输出纪律处强指定语言）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_lang_rule_final"));
 
                 bool needJson = !string.IsNullOrEmpty(actionSpace);
                 string raw = await LLMService.Instance.ChatOnceAsync(
