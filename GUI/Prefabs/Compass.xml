@@ -74,14 +74,15 @@
             <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="982" SuggestedHeight="2"
                     PositionXOffset="9" PositionYOffset="50" HorizontalAlignment="Left"
                     Sprite="BlankWhiteSquare_9" Color="#FFFFFF66" DoNotAcceptEvents="true"/>
-            <!-- 左端点：朝左箭头（素材本色，直接 Sprite 引用；x=0..18 中心 9） -->
+            <!-- 左端点：朝左箭头（原生素材 SPOptions 系列，素材本体深灰黑——乘法染色提不亮；
+                 用户裁定 2026-08-20：禁止自绘素材，接受素材本色。Color 显式白防默认灰） -->
             <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="21"
                     PositionXOffset="0" PositionYOffset="40.5" HorizontalAlignment="Left"
-                    Sprite="SPGeneral\SPOptions\standart_dropdown_with_arrows_left" DoNotAcceptEvents="true"/>
-            <!-- 右端点：朝右箭头（显式 x=982 左对齐 → x=982..1000 中心 991，与横线右端对齐） -->
+                    Sprite="SPGeneral\SPOptions\standart_dropdown_with_arrows_left" Color="#00000000" DoNotAcceptEvents="true"/>
+            <!-- 右端点：朝右箭头 -->
             <Widget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="18" SuggestedHeight="21"
                     PositionXOffset="982" PositionYOffset="40.5" HorizontalAlignment="Left"
-                    Sprite="SPGeneral\SPOptions\standart_dropdown_with_arrows_right" DoNotAcceptEvents="true"/>
+                    Sprite="SPGeneral\SPOptions\standart_dropdown_with_arrows_right" Color="#00000000" DoNotAcceptEvents="true"/>
 
             <!-- ⑤ 中心金色刻度（本质是刻度，不是柱）：底压横轴(y=50)、顶 33 比白刻度顶(38)高一点、
                  且低于字母底(30)不碰文字；宽度 4 稍宽于白刻度(2)突出金色 -->
