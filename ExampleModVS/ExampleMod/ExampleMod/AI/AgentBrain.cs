@@ -744,6 +744,58 @@ namespace LivingWorldNpcs
                 }
                 return;
             }
+            // 🔴 2026-08-20（感知管线统一重构，用户裁定：所有警戒值由 Brain 感知事件自行增加，
+            // 执行端/UI 端禁止直接 AddAlert）：扒窃受害者「体感察觉」——被摸/被抓现行由受害者自己的
+            // 脑处理（SendEventToAgent 定向直发，不经视线——体感不需要看；背对偷窃的受害者靠此感知）。
+            // 量级按事件档位查表（原散落执行端的常量迁入）：perfect 0.1（隐约不对）/ normal 0.35（感觉被摸）/
+            // fail 3.0（手滑被抓现行）/ equipment_fail 2.0（随从卸装备被目标察觉）。
+            // 亲眼目击（旁观者）不在此分支——那是 WitnessCrime 广播的职责。
+            if (aiEvent.EventType == "TheftVictimized")
+            {
+                var args = aiEvent.Args;
+                if (args == null || args.Length < 3) return;
+                Agent thief = args[0] as Agent;
+                Agent victim = args[1] as Agent;
+                string resultType = args[2] as string;
+                if (victim == null || thief == null || victim != Owner) return;
+                if (!Owner.IsActive()) return;
+                string itemName = args.Length > 3 ? args[3] as string : null;
+                float amount = resultType switch
+                {
+                    "perfect" => 0.1f,          // 完美窃取：隐约觉得不对（原 StealBarVM 0.1）
+                    "normal" => 0.35f,          // 普通命中：感觉被摸（原 NormalHitVictimAlert）
+                    "fail" => 3.0f,             // 手滑失误：当场被抓现行（原 MissVictimAlert）
+                    "equipment_fail" => 2.0f,   // 卸装备失败：目标察觉（原 InlineSteps 2.0）
+                    _ => 0.35f,
+                };
+                SetPulseTarget(PlayerActionType.Steal, victim.Name, itemName, victim.Index,
+                    thief == Agent.Main ? -1 : thief.Index);
+                RecordNarration($"我被{thief.Name}碰了衣兜");
+                DebugLogger.Log($"[Brain-TheftVictim] {Owner.Name}(Idx={Owner.Index}) 察觉被偷（{resultType}，+{amount:F2}，窃贼={thief.Name}）");
+                if (AddAlert(PlayerActionType.Steal, amount))
+                {
+                    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                    CheckPhaseTransition();
+                }
+                return;
+            }
+            // 🔴 2026-08-20（感知管线统一重构，同 TheftVictimized 原则）：撬锁失误声响的「听觉感知」——
+            // 听到可疑动静由目击者脑自行加警戒（广播经视线过滤：能看到噪音源才被惊动；队友排除）。
+            // 原 StealBarVM 直拍 1.5（NoiseWitnessAlert）迁入本分支；0.5s 节流仍在 UI 端。
+            if (aiEvent.EventType == "TheftNoise")
+            {
+                Agent source = aiEvent.Args != null && aiEvent.Args.Length > 0 ? aiEvent.Args[0] as Agent : null;
+                if (source == null || source == Owner) return;
+                if (IsPlayerTeammate(Owner)) return;
+                SetPulseTarget(PlayerActionType.Steal, null, null, -1, source == Agent.Main ? -1 : source.Index);
+                DebugLogger.Log($"[Brain-Noise] {Owner.Name}(Idx={Owner.Index}) 听到可疑声响（源={source.Name}，+1.5）");
+                if (AddAlert(PlayerActionType.Steal, 1.5f))   // 撬锁失误：目击者 +1.5（Cautious 上沿，上前查看）
+                {
+                    _pulseSuppressedUntil = (Mission.Current?.CurrentTime ?? 0f) + 3.0f;
+                    CheckPhaseTransition();
+                }
+                return;
+            }
             if (aiEvent.EventType == "WitnessCrime_GatherOnLook")
             {
                 try

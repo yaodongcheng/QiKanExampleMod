@@ -268,30 +268,38 @@ namespace LivingWorldNpcs
         /// 🔴 2026-08-16（用户问询：私聊/频道是否显示）：后缀适用**所有传书频道**（队伍/家族/王国/
         /// 私聊——远处传书才需要知道对方从哪发信）；**附近频道（Nearby）除外**——场景内实时冒泡，
         /// 人就在身边，频道本身已表达在场，无传书语义。</summary>
+        /// <summary>全模式气泡名字行显示名。🔴 2026-08-19（上下文分治，用户裁定：各显示位置
+        /// 可用宽不同，禁止共用一套截断上限）——全模式气泡 ~452px @16 → MaxFullBubbleSenderChars=28；
+        /// 缩略模式用 <see cref="DisplaySenderNameCompact"/>（~520px @14 → 32）；
+        /// 频道列表标题另走 MaxChannelTitleChars=12（左栏 214px）。</summary>
         [DataSourceProperty]
-        public string DisplaySenderName
+        public string DisplaySenderNameFull => BuildDisplaySenderName(NameDisplayRules.MaxFullBubbleSenderChars);
+
+        /// <summary>缩略模式气泡名字行显示名（上限按缩略面板可用宽 ~520px @14 校准 = 32）。</summary>
+        [DataSourceProperty]
+        public string DisplaySenderNameCompact => BuildDisplaySenderName(NameDisplayRules.MaxCompactBubbleSenderChars);
+
+        /// <summary>发送者显示名公共构建：名字 + 位置后缀（快照优先，旧消息回退实时计算）+
+        /// 按调用上下文传入的截断上限。🔴 名字行长度恒定，字体不因名字长短被压
+        ///（引擎 TextWidget 受限宽度下会缩放字体，长名字的人字体被压扁、短的人正常）。</summary>
+        private string BuildDisplaySenderName(int maxChars)
         {
-            get
+            if (_msg == null) return "";
+            bool showSuffix = !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId)
+                && _msg.ConvId != NearbyFeed.ChannelId;
+            string display;
+            if (showSuffix)
             {
-                if (_msg == null) return "";
-                bool showSuffix = !_msg.IsSelf && !string.IsNullOrEmpty(_msg.SenderHeroId)
-                    && _msg.ConvId != NearbyFeed.ChannelId;
-                string display;
-                if (showSuffix)
-                {
-                    // 快照优先（发出时定格）；旧消息（无字段）回退实时计算——同一解析路径，显示格式一致
-                    var loc = _msg.LocationSuffix ?? ImChatManager.BuildLocationSuffix(_msg.SenderHeroId);
-                    string suffix = ImChatManager.ResolveLocationSuffix(loc);
-                    display = !string.IsNullOrEmpty(suffix) ? $"{_msg.SenderName}（{suffix}）" : _msg.SenderName;
-                }
-                else
-                {
-                    display = _msg.SenderName;
-                }
-                // 🔴 2026-08-19（统一规范：超长截断省略号）——名字行长度恒定，字体不因名字长短被压
-                //（引擎 TextWidget 受限宽度下会缩放字体，长名字的人字体被压扁、短的人正常）
-                return NameDisplayRules.Truncate(display);
+                // 快照优先（发出时定格）；旧消息（无字段）回退实时计算——同一解析路径，显示格式一致
+                var loc = _msg.LocationSuffix ?? ImChatManager.BuildLocationSuffix(_msg.SenderHeroId);
+                string suffix = ImChatManager.ResolveLocationSuffix(loc);
+                display = !string.IsNullOrEmpty(suffix) ? $"{_msg.SenderName}（{suffix}）" : _msg.SenderName;
             }
+            else
+            {
+                display = _msg.SenderName;
+            }
+            return NameDisplayRules.Truncate(display, maxChars);
         }
 
         /// <summary>发送者名字颜色（🔴 2026-08-19 统一规范，用户裁定关系色）：

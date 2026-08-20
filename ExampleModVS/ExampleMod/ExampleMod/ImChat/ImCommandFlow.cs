@@ -221,7 +221,16 @@ namespace LivingWorldNpcs
                             if (!string.IsNullOrWhiteSpace(ci.PositionDesc)) cl += $"（{ci.PositionDesc}）";   // lwn-ignore: A
                             lines.Add(cl);
                         }
-                        if (lines.Count > 1) targetCandidatesText = string.Join("\n", lines);
+                        if (lines.Count > 1)
+                        {
+                            // 🔴 2026-08-19（实机：LLM 把 questions 的 options 写成对象数组 [{label,target}]
+                            // → 解析抛异常 → 计划生成失败）：明确 options 必须是字符串数组（解析层已容错，
+                            // 双保险）。候选文本 = 每行一个候选（行首编号可解析丢弃）。
+                            // 🔴 2026-08-20（实机：LLM options 只写名字没方位，玩家没法挑）：要求 options
+                            // 直接照抄候选行原文（含编号与方位）——解析层还有按候选列表附加方位的兜底。
+                            targetCandidatesText = string.Join("\n", lines)
+                                + "\n（以上为候选——必须用 questions 让主公挑选；questions 的 options 必须是字符串数组如 [\"候选1\",\"候选2\"]，禁止写对象数组；options 直接照抄上面候选行原文，含编号与方位（如 \"帝国军团步兵#50（你西侧48米）\"），禁止精简成光秃秃的名字）";
+                        }
                     }
                     else if (!string.IsNullOrEmpty(req.ResolvedTargetText)
                         && snapshot.FindAgentCandidates(req.ResolvedTargetText).Count == 0)
@@ -233,8 +242,19 @@ namespace LivingWorldNpcs
                     }
                 }
                 catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 目标候选注入失败: {ex.Message}"); }
+                // 🔴 2026-08-19（实机：玩家催促「你怎么不去计划了」→ 计划轮只见催促词、不见原命令
+                // → LLM 误判 CUSTOM → plan null → 系统消息「随从想不出主意」）：澄清挂起/上一条命令
+                // 语境下把原命令并入命令段（「当前话（原命令：…）」），LLM 才能关联回偷窃/击晕意图。
+                string commandForPrompt = req.Command;
+                string origCommand = _pendingClarify?.Command ?? _lastCommand;
+                if (!string.IsNullOrEmpty(origCommand) && origCommand != req.Command)
+                {
+                    // 本地化：原命令并入段（玩家可见文本）——命令段内括号注释，LLM 视角 = 追问语境
+                    commandForPrompt = $"{req.Command}（原命令：{origCommand}）";
+                    DebugLogger.Log($"[ImCommandFlow] 计划轮并入原命令: 「{req.Command}」→「{commandForPrompt}」");
+                }
                 string prompt = PromptBuilder.BuildPlanPrompt(
-                    snapshot.ToPromptText(), req.Command, persona, "",
+                    snapshot.ToPromptText(), commandForPrompt, persona, "",
                     PlanCommandFlow.IntentTableForPrompt(), PlanCommandFlow.GrammarForPrompt(),
                     companionIntention: req.CompanionIntention,
                     resolvedTargetText: req.ResolvedTargetText,
@@ -306,8 +326,19 @@ namespace LivingWorldNpcs
                     if (_pendingClarify == null || _pendingClarify.Conv?.Id != conv?.Id)
                         _pendingClarify = new PendingClarify { Conv = conv, Command = _lastCommand, Round = 0 };
                     var q = response.Questions[0];
-                    // 澄清轮默认问句
-                    string qText = q?.Q ?? LWNTextHelper.ResolveText("LWN_plan_clarify_default", "What do you mean exactly?");
+                    // 澄清轮问句（🔴 2026-08-20：LLM 可能输出 q/question 任一字段名——QText 双兼容）
+                    string qText = q?.QText ?? LWNTextHelper.ResolveText("LWN_plan_clarify_default", "What do you mean exactly?");
+                    // 🔴 2026-08-20（实机：options 只写名字没方位——「帝国军团步兵#50」和「#57」光看名字
+                    // 分不清谁是谁，玩家没法挑）：程序侧兜底（铁律 2，不靠 LLM 自觉）——按原命令采集
+                    // 带方位的候选行（目标纪律澄清卡同款管线），LLM 选项缺方位时替换为完整行。
+                    List<string> optionCandidates = null;
+                    try
+                    {
+                        string pendingCmd = _pendingClarify?.Command ?? _lastCommand;
+                        if (!string.IsNullOrEmpty(pendingCmd))
+                            optionCandidates = CollectTargetCandidates(pendingCmd);
+                    }
+                    catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 澄清选项方位兜底失败: {ex.Message}"); }
                     ResolveSpeaker(conv, out string clarifyHeroId, out string clarifyName);
                     var clarify = new ImMessage(clarifyHeroId, clarifyName, qText, ImMessageKind.Text)
                     {
@@ -318,7 +349,17 @@ namespace LivingWorldNpcs
                         // 选项文本 = 按钮文案 + 事件码（点击后选项文本作为玩家回复入命令上下文）
                         AskPlayerOptions = (q?.Options ?? new List<string>())
                             .Where(o => !string.IsNullOrWhiteSpace(o))
-                            .Select(o => new AskPlayerOption(o.Trim(), o.Trim()))
+                            .Select(o => {
+                                string opt = o.Trim();
+                                // 🔴 2026-08-20（实机：options 只写名字没方位，玩家没法挑）：程序侧兜底——
+                                // 选项为「名字#编号」且未带方位时，从候选行（带方位）匹配并替换为完整行。
+                                if (optionCandidates != null && !opt.Contains("（") && !opt.Contains("("))
+                                {
+                                    var full = optionCandidates.FirstOrDefault(c => c.StartsWith(opt + "（", StringComparison.Ordinal));
+                                    if (!string.IsNullOrEmpty(full)) opt = full;
+                                }
+                                return new AskPlayerOption(opt, opt);
+                            })
                             .ToList(),
                     };
                     ImChatStore.AppendGroupMessage(conv.Id, clarify);
@@ -372,10 +413,13 @@ namespace LivingWorldNpcs
                 }
                 _pendingClarify = null;
                 // 词表外/无计划 → 诚实拒绝（与 PlanCommandFlow 同语义）
+                // 🔴 2026-08-20（实机：LLM 误判 CUSTOM 拒绝「偷士兵」→ reply 走 PostSystem 显示成
+                // 居中灰字系统行，玩家误以为系统日志顶替了随从台词）：拒绝台词 = 随从说的话，
+                // 必须以随从身份发言（PostNpcMessage），禁止 PostSystem 系统播报形态。
                 if (response.Plan == null || response.Intent == null
                     || string.IsNullOrEmpty(response.Intent.IntentType) || response.Intent.IntentType == "CUSTOM")
                 {
-                    PostSystem(conv, string.IsNullOrEmpty(response.Reply)
+                    PostNpcMessage(conv, string.IsNullOrEmpty(response.Reply)
                         // 密令被拒：词表外/无计划
                         ? LWNTextHelper.ResolveText("LWN_im_cmd_rejected", "The companion does not understand this order.")
                         : response.Reply);
@@ -1076,9 +1120,32 @@ namespace LivingWorldNpcs
             {
                 string action = PlanActionLabel(step.Action);
                 string target = RenderStepTargetText(step);
-            // 本地化：plan_step 记忆渲染
-                string content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory",
-                    "By my lord's order, {ACTION} {TARGET}, done.", ("ACTION", action), ("TARGET", target)).Trim();
+                // 🔴 2026-08-20（实机：偷窃被目击中断却记成「已完成」——NPC 以为自己偷成了）：
+                // 判定型步骤（steal_attempt/steal_equipment 等）按 result key 路由记忆文案——
+                // interrupted/empty/impossible 如实记「没办成」，其余（含普通步骤）才记「已完成」。
+                // result key 由 OnStepCompleted 回调在 CompleteStep 清空前读取（executor.StepResultKey）。
+                string resultKey = executor?.StepResultKey;
+                string content;
+                switch (resultKey)
+                {
+                    case "interrupted":
+                        content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory_interrupted",
+                            "By my lord's order, {ACTION} {TARGET} - I was seen and could not go through with it.", ("ACTION", action), ("TARGET", target)).Trim();
+                        break;
+                    case "empty":
+                        content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory_empty",
+                            "By my lord's order, {ACTION} {TARGET} - there was nothing to take.", ("ACTION", action), ("TARGET", target)).Trim();
+                        break;
+                    case "impossible":
+                        content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory_impossible",
+                            "By my lord's order, {ACTION} {TARGET} - there was no way to do it.", ("ACTION", action), ("TARGET", target)).Trim();
+                        break;
+                    default:
+                        // 本地化：plan_step 记忆渲染（成功/普通完成）
+                        content = LWNTextHelper.ResolveCompound("LWN_plan_step_memory",
+                            "By my lord's order, {ACTION} {TARGET}, done.", ("ACTION", action), ("TARGET", target)).Trim();
+                        break;
+                }
                 if (string.IsNullOrWhiteSpace(content)) return;
                 var memory = AllNpcMemoryManager.GetMemoryForAgent(agent);
                 if (memory == null) return;

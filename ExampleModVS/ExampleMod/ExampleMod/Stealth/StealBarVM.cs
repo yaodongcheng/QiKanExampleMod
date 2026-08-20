@@ -77,10 +77,9 @@ namespace LivingWorldNpcs
         private const float DriftMaxSpeed = 100f;               // 游动峰值速度上限 ≈浮标 0.38×
         private const float MaxInteractDistance = 4.5f;         // 目标走开强制收手距离
         private const float ResultFlashSeconds = 0.1f;          // 结果闪现时长（缩放秒——慢动作 0.35× 下 ≈0.3 真实秒；勿超 1，否则染色而非闪烁）
-        private const float NoisePulseCooldown = 0.5f;          // 撬锁噪音脉冲节流（防连按刷爆）
-        private const float NormalHitVictimAlert = 0.35f;       // 普通命中：受害者警戒脉冲
-        private const float MissVictimAlert = 3.0f;             // 失误：受害者警戒脉冲（红区手滑 → 立刻 Alarmed）
-        private const float NoiseWitnessAlert = 1.5f;           // 撬锁失误：目击者警戒脉冲（发布前平衡：0.5→1.5）
+        private const float NoisePulseCooldown = 0.5f;          // 撬锁噪音事件节流（防连按刷爆）
+        // 🔴 2026-08-20（感知管线统一重构）：NormalHitVictimAlert/MissVictimAlert/NoiseWitnessAlert
+        // 已迁入 AgentBrain 感知分支量级查表（TheftVictimized/TheftNoise），UI 端不再持有警戒量级。
         private const float PurseChance = 0.35f;                // 扒窃盲盒摸到钱袋的概率（身上有钱时）
         private const float AnimalLargeTierFactor = 0.6f;       // 大动物（猪/羊/牛）判定区定价：右扣 40%（小动物 1.0 不扣）
 
@@ -461,7 +460,8 @@ namespace LivingWorldNpcs
                 return;
             }
 
-            var brain = AgentAIController.GetBrainForAgent(_target);
+            // 🔴 2026-08-20（感知管线统一重构）：受害者警戒不再由 UI 直拍——全部走 SendEventToAgent
+            // TheftVictimized 定向直发（受害者脑自行感知），目击者走 WitnessCrime/TheftNoise 广播。
 
             if (HitTest(out bool perfect))
             {
@@ -488,20 +488,24 @@ namespace LivingWorldNpcs
                     }
                     else if (perfect)
                     {
-                        // 完美窃取：微量脉冲——NPC "隐约觉得不对"（发布前平衡：0→0.1）
-                        brain?.AddAlert(PlayerActionType.Steal, 0.1f);
+                        // 🔴 2026-08-20（感知管线统一重构，用户裁定）：完美窃取「隐约觉得不对」= 受害者脑的
+                        // TheftVictimized 感知（量级查表 perfect=0.1）；原直拍 brain.AddAlert(0.1) 已收敛。
+                        AgentAIController.Instance?.SendEventToAgent(_target, "TheftVictimized",
+                            Agent.Main, _target, "perfect", null);
                         // 本地化：完美窃取钱袋消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_perfect_gold", ("GOLD", gold.ToString())), ZoneColorPerfect, MsgColorPerfect);
-                        DebugLogger.Log($"[StealBar] 完美窃取钱袋 {gold} 第纳尔 ← {_target.Name}（微量脉冲 0.1）");
+                        DebugLogger.Log($"[StealBar] 完美窃取钱袋 {gold} 第纳尔 ← {_target.Name}（TheftVictimized perfect 0.1）");
                     }
                     else
                     {
-                        brain?.SetPulseTarget(PlayerActionType.Steal, _target?.Name?.ToString(), $"{gold} 第纳尔", _target?.Index ?? -1); // lwn-ignore: A (debug label)
-                        brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
+                        // 🔴 2026-08-20（感知管线统一重构）：受害者察觉 = TheftVictimized 定向直发
+                        //（normal=0.35）；目击者 = PulsePickpocketWitnesses 内 WitnessCrime 广播（脑自行 +3.0）。
+                        AgentAIController.Instance?.SendEventToAgent(_target, "TheftVictimized",
+                            Agent.Main, _target, "normal", "gold");
                         PulsePickpocketWitnesses("gold", $"{gold} 第纳尔"); // lwn-ignore: A (debug label)
                         // 本地化：窃取钱袋得手消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_gold_short", ("GOLD", gold.ToString())), ZoneColorSuccess, MsgColorSuccess);
-                        DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（受害者+{NormalHitVictimAlert}，目击者+3.0）");
+                        DebugLogger.Log($"[StealBar] 窃取钱袋 {gold} 第纳尔 ← {_target.Name}（受害者 normal 0.35，目击者 WitnessCrime +3.0）");
                     }
                 }
                 else
@@ -516,30 +520,34 @@ namespace LivingWorldNpcs
                     }
                     else if (perfect)
                     {
-                        // 完美窃取：微量脉冲——NPC "隐约觉得不对"（发布前平衡：0→0.1）
-                        brain?.AddAlert(PlayerActionType.Steal, 0.1f);
+                        // 🔴 2026-08-20（感知管线统一重构）：同钱袋完美——TheftVictimized perfect=0.1
+                        AgentAIController.Instance?.SendEventToAgent(_target, "TheftVictimized",
+                            Agent.Main, _target, "perfect", null);
                         // 本地化：完美窃取物品消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_perfect_item", ("ITEM", itemName)), ZoneColorPerfect, MsgColorPerfect);
-                        DebugLogger.Log($"[StealBar] 完美窃取 {itemName} ← {_target.Name}（微量脉冲 0.1）");
+                        DebugLogger.Log($"[StealBar] 完美窃取 {itemName} ← {_target.Name}（TheftVictimized perfect 0.1）");
                     }
                     else
                     {
-                        brain?.SetPulseTarget(PlayerActionType.Steal, _target?.Name?.ToString(), itemName, _target?.Index ?? -1);
-                        brain?.AddAlert(PlayerActionType.Steal, NormalHitVictimAlert);
+                        // 🔴 2026-08-20（感知管线统一重构）：受害者 = TheftVictimized normal=0.35；目击者 = WitnessCrime 广播
+                        AgentAIController.Instance?.SendEventToAgent(_target, "TheftVictimized",
+                            Agent.Main, _target, "normal", itemId ?? itemName);
                         PulsePickpocketWitnesses(itemId ?? itemName, itemName);
                         // 本地化：窃取物品得手消息
                         FlashResult(LWNTextHelper.ResolveCompound("LWN_ui_steal_msg_got_item", ("ITEM", itemName)), ZoneColorSuccess, MsgColorSuccess);
-                        DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（受害者+{NormalHitVictimAlert}，目击者+3.0）");
+                        DebugLogger.Log($"[StealBar] 窃取 {itemName} ← {_target.Name}（受害者 normal 0.35，目击者 WitnessCrime +3.0）");
                     }
                 }
                 NextPickpocketRound();
             }
             else
             {
-                brain?.AddAlert(PlayerActionType.Steal, MissVictimAlert);
+                // 🔴 2026-08-20（感知管线统一重构）：手滑被抓现行 = TheftVictimized fail=3.0（受害者脑立刻 Alarmed）
+                AgentAIController.Instance?.SendEventToAgent(_target, "TheftVictimized",
+                    Agent.Main, _target, "fail", null);
                 // 本地化：出手失误提示
                 FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_slipped", "Your hand slipped!"), ZoneColorFail, MsgColorFail);
-                DebugLogger.Log($"[StealBar] 扒窃失误 ← {_target.Name}（+{MissVictimAlert} 警戒）");
+                DebugLogger.Log($"[StealBar] 扒窃失误 ← {_target.Name}（TheftVictimized fail 3.0）");
             }
         }
 
@@ -595,16 +603,18 @@ namespace LivingWorldNpcs
             {
                 // 本地化：撬棍滑脱提示
                 FlashResult(LWNTextHelper.ResolveText("LWN_ui_steal_msg_crowbar_slip", "The crowbar slips!"), ZoneColorFail, MsgColorFail);
-                // 噪音脉冲：当前能看见玩家的观察者警戒 +0.5（节流防连按刷爆）
+                // 噪音事件：当前能看见玩家的观察者由自己的脑感知惊动（TheftNoise 广播，视线过滤在广播侧）
+                // 🔴 2026-08-20（感知管线统一重构）：原直拍目击者 AddAlert(NoiseWitnessAlert) 已收敛——
+                // 目击者脑自行 +1.5（节流防连按刷爆保留）
                 float now = Mission.Current?.CurrentTime ?? 0f;
                 if (now - _lastNoiseTime >= NoisePulseCooldown)
                 {
                     _lastNoiseTime = now;
-                    var witnesses = StealManager.GetWitnesses(Agent.Main, null, 15f);
-                    foreach (var w in witnesses)
-                        AgentAIController.GetBrainForAgent(w)?.AddAlert(PlayerActionType.Steal, NoiseWitnessAlert);
-                    if (witnesses.Count > 0)
-                        DebugLogger.Log($"[StealBar] 撬锁噪音 → {witnesses.Count} 名目击者警戒脉冲");
+                    AgentAIController.Instance?.BroadcastEventInRange(
+                        Agent.Main.Position, 15f, "TheftNoise",
+                        exclude: null, requireSight: true,
+                        Agent.Main, null);
+                    DebugLogger.Log($"[StealBar] 撬锁噪音 → TheftNoise 广播（15m 目击者脑自行警戒）");
                 }
             }
         }
@@ -712,14 +722,23 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 黄区偷窃得手后，向周围目击者发送警觉脉冲（+3.0）。
-        /// 受害者（在身后看不见玩家）仍只受 NormalHitVictimAlert(0.35)。
-        /// 目击者能亲眼看见玩家的手伸进别人口袋 → 立即确认偷窃行为 → 记录证词进 PendingWorldEvent。
+        /// 黄区偷窃得手后，向周围目击者宣告偷窃事件（WitnessCrime 广播——目击者脑自行分类加警戒
+        /// +3.0 + 围观/指控）+ 登记证词进 PendingWorldEvent。受害者（在身后看不见玩家）的体感察觉
+        /// 由调用方 TheftVictimized 直发承担（normal=0.35），不经本函数。
+        /// 🔴 2026-08-20（感知管线统一重构，用户裁定）：原直拍目击者 SetPulseTarget/AddAlert(3.0)
+        /// 已移除——警戒由每个目击者 Brain 的 WitnessCrime_GatherOnLook 分类块自行增加；
+        /// 本函数只做事件宣告 + 证词记账。
         /// </summary>
         private void PulsePickpocketWitnesses(string itemId, string itemName)
         {
             var witnesses = StealManager.GetWitnesses(Agent.Main, _target, maxDistance: 15f);
             if (witnesses.Count == 0) return;
+
+            // 目击警戒：WitnessCrime 广播（视线过滤 = 能看到玩家手伸进别人口袋的人；锚点=玩家）
+            AgentAIController.Instance?.BroadcastEventInRange(
+                Agent.Main.Position, 15f, "WitnessCrime",
+                exclude: null, requireSight: true, isCrime: true,
+                Agent.Main, _target);
 
             string victimName = _target?.Name?.ToString();
             var heroIds = new List<string>();
@@ -727,13 +746,7 @@ namespace LivingWorldNpcs
 
             foreach (var w in witnesses)
             {
-                var wBrain = AgentAIController.GetBrainForAgent(w);
-                if (wBrain == null) continue;
-
-                // 队友豁免由 AddAlert 内部判定（上下文受害者 ≠ 本人 → 豁免）；证词登记照常（村庄依然知道"有人看见"）
-                wBrain.SetPulseTarget(PlayerActionType.Steal, victimName, itemName);
-                wBrain.AddAlert(PlayerActionType.Steal, 3.0f);
-
+                // 🔴 2026-08-20：警戒脉冲已移除（见类注释）——foreach 只保留证词记账。
                 var hero = (w.Character as CharacterObject)?.HeroObject;
                 if (hero != null)
                     heroIds.Add(hero.StringId);
@@ -749,7 +762,7 @@ namespace LivingWorldNpcs
             {
                 AgentAIController.Instance?.RegisterTheftWitnesses(
                     heroIds, templateCounts, itemId, itemName, targetName: victimName);
-                DebugLogger.Log($"[StealBar] 目击者脉冲: {heroIds.Count}H + {templateCounts.Values.Sum()}T 看见偷窃 {itemName}，+3.0 警戒");
+                DebugLogger.Log($"[StealBar] 目击者证词: {heroIds.Count}H + {templateCounts.Values.Sum()}T 看见偷窃 {itemName}（警戒走 WitnessCrime 广播）");
             }
         }
 

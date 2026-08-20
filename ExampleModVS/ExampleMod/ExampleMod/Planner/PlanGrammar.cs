@@ -36,11 +36,54 @@ namespace LivingWorldNpcs
         [JsonProperty("narration")] public string Narration;
     }
 
-    /// <summary>澄清轮问题（意图歧义优先澄清，最多 2 轮）。</summary>
+    /// <summary>
+    /// options 字段容错转换器（🔴 2026-08-19 实机：LLM 把澄清轮候选写成对象数组
+    /// [{label, target}] → List&lt;string&gt; 反序列化抛异常 → 计划 JSON 解析失败 → 系统消息
+    /// 「随从想不出主意，换个说法再试」）：字符串直接收；对象取 label（缺 label 取 target）；
+    /// 其他类型字符串化兜底。铁律 2：LLM 输出不可信任，解析层必须宽容。
+    /// </summary>
+    public class ClarifyOptionsConverter : JsonConverter
+    {
+        public override bool CanConvert(Type objectType) => objectType == typeof(List<string>);
+
+        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        {
+            var result = new List<string>();
+            var arr = JArray.Load(reader);
+            foreach (var item in arr)
+            {
+                if (item == null) continue;
+                if (item.Type == JTokenType.String) { result.Add(item.Value<string>() ?? ""); continue; }
+                if (item.Type == JTokenType.Object)
+                {
+                    var obj = (JObject)item;
+                    var label = obj["label"] ?? obj["text"] ?? obj["target"];
+                    if (label != null) result.Add(label.ToString());
+                    continue;
+                }
+                result.Add(item.ToString());
+            }
+            return result;
+        }
+
+        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            => serializer.Serialize(writer, value);
+    }
+
+    /// <summary>澄清轮问题（意图歧义优先澄清，最多 2 轮）。
+    /// 🔴 2026-08-20（实机：LLM 输出 "question" 字段而旧定义只认 "q" → Q=null → 澄清问句
+    /// 回退默认文案「你说的是哪个？」，LLM 台词丢失）：双字段名兼容（q / question 都收），
+    /// 消费方一律用 QText（q ?? question）。</summary>
     public class ClarifyQuestion
     {
         [JsonProperty("q")] public string Q;
-        [JsonProperty("options")] public List<string> Options;
+        [JsonProperty("question")] public string Question;
+        [JsonProperty("options"), JsonConverter(typeof(ClarifyOptionsConverter))]
+        public List<string> Options;
+
+        /// <summary>问句文本（LLM 可能输出 q 或 question 任一字段名，都收）。</summary>
+        [JsonIgnore]
+        public string QText => string.IsNullOrWhiteSpace(Q) ? Question : Q;
     }
 
     /// <summary>意图分类结果（§2.2 CommandIntent）。intent_type 是 LLM 输出的字符串，C# 侧 Parse 成 CommandIntentType。</summary>

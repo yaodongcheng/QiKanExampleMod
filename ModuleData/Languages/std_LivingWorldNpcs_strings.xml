@@ -4074,6 +4074,10 @@
     <string id="LWN_plan_detail_contingency_line" text="    if {COND} then {THEN}" />
     <string id="LWN_plan_detail_guardrail" text="    Safety: unexpected threats pause the plan; the stop key recalls the companion." />
     <string id="LWN_plan_step_memory" text="By my lord's order, {ACTION} {TARGET}, done." />
+    <!-- 🔴 2026-08-20 (live: an interrupted theft was recorded as "done"): result-routed memory lines for decision steps -->
+    <string id="LWN_plan_step_memory_interrupted" text="By my lord's order, {ACTION} {TARGET} - I was seen and could not go through with it." />
+    <string id="LWN_plan_step_memory_empty" text="By my lord's order, {ACTION} {TARGET} - there was nothing to take." />
+    <string id="LWN_plan_step_memory_impossible" text="By my lord's order, {ACTION} {TARGET} - there was no way to do it." />
     <!-- [!] 2026-08-12（队伍成员在场认知）：玩家附近喊话的记忆行模板（{NAME} 玩家名 / {TEXT} 喊话全文） -->
     <string id="LWN_nearby_shout_memory" text="{NAME} shouted nearby: {TEXT}" />
     <!-- [!] 2026-08-12（点名喊话记忆行）：@点名目标的记忆行模板（{TARGET} 目标统一显示名——显式化让 LLM 直接看出主公和谁说话） -->
@@ -4268,6 +4272,9 @@
     <string id="LWN_npc_steal_impossible" text="{NAME} could not get behind {TARGET} to make a move." />
     <string id="LWN_npc_steal_interrupted" text="{NAME} was seen and backed off without making a move." />
     <string id="LWN_npc_steal_equip_fail" text="{NAME} tried to disarm {TARGET}, but {TARGET} noticed!" />
+    <!-- 🔴 2026-08-19 (user decision: hesitation monologue in the nearby channel when the NPC cannot move) -->
+    <string id="LWN_npc_steal_monologue_spotted" text="({NAMES} keeps watching me… I can't get behind him.)" />
+    <string id="LWN_npc_steal_monologue_blocked" text="(I can't get behind him from here… need a better angle.)" />
     <string id="LWN_dialogue_ack_short" text="Mm." />
     <string id="LWN_im_sender_dist" text="{NAME} ({DIST} m away)" />
     <string id="LWN_plan_abort_scene_end" text="The plan ended as the scene closed." />

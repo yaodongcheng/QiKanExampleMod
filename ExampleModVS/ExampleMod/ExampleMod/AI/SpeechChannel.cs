@@ -53,6 +53,9 @@ namespace LivingWorldNpcs
         public string LastLine;       // 上一句（对话接力）
         public float Agree;           // 会话内当前倾向（0~1；非对话语境 = 无关）
         public int Round;             // 会话轮次
+        // 🔴 2026-08-19（内心独白）：true = 说给自己听的心声（括号包裹，说出顾虑——
+        // 偷窃绕后卡住/等「没人看见」卡住时用）；润色 prompt 按此要求括号包裹，模板本身也带括号。
+        public bool Monologue;
 
         /// <summary>
         /// 从说话者的 brain 快照当前动作语境（null-guard 铁律 2）。
@@ -277,13 +280,22 @@ namespace LivingWorldNpcs
                 if (string.IsNullOrWhiteSpace(attitude)) attitude = null;
 
                 // 语气按优先级（与计划 §3.3 优先级表对应）
-                string mood = priority switch
+                string mood;
+                if (context.Monologue)
                 {
-                    SpeechPriority.Combat => "用一句符合你身份和处境的话回应（8-25 字），语气激烈，贴合战况",
-                    SpeechPriority.Warning => "用一句符合你身份和处境的话回应（8-30 字），语气强硬",
-                    SpeechPriority.Dialogue => "用一句符合你身份和处境的话回应（8-30 字），自然贴合语境",
-                    _ => "用一句符合你身份和处境的话回应（8-30 字），口语化，贴合当下",
-                };
+                    // 内心独白（偷窃卡住等）：必须括号包裹（说给自己听的心声），内容锚在 fallback 的顾虑上
+                    mood = "用一句符合你身份和处境的心声独白（8-25 字），整句必须用括号（）包裹，说出你当前的顾虑（谁在看着你、为什么下不了手），别偏离意思";
+                }
+                else
+                {
+                    mood = priority switch
+                    {
+                        SpeechPriority.Combat => "用一句符合你身份和处境的话回应（8-25 字），语气激烈，贴合战况",
+                        SpeechPriority.Warning => "用一句符合你身份和处境的话回应（8-30 字），语气强硬",
+                        SpeechPriority.Dialogue => "用一句符合你身份和处境的话回应（8-30 字），自然贴合语境",
+                        _ => "用一句符合你身份和处境的话回应（8-30 字），口语化，贴合当下",
+                    };
+                }
                 string topic = string.IsNullOrEmpty(context.Topic) ? "说话" : context.Topic;
                 string anchor = string.IsNullOrEmpty(fallback) ? "" : $"（大意是：{fallback}，可以换更自然的说法，但别偏离意思）";
                 var dline = await DialogueComponent.GenerateLine(
