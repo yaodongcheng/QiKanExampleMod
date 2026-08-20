@@ -118,7 +118,7 @@
                                                     DoNotAcceptEvents="true"/>
 
                                         <!-- 频道/私聊行：两行式（🔴 2026-08-10 UX 修复——标题与预览不再挤同一行：标题+未读在上、预览左对齐在下） -->
-                                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="52"
+                                        <ButtonWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="68"
                                                       Brush="ImChat.RowBg"
                                                       IsSelected="@IsSelected"
                                                       Command.Click="ExecuteSelect"
@@ -127,7 +127,7 @@
                                           <Children>
                                             <!-- 第一行：标题（左对齐）+ 未读徽标（右） -->
                                             <Widget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="24"
-                                                    VerticalAlignment="Top" MarginLeft="14" MarginRight="12" MarginTop="6"
+                                                    VerticalAlignment="Top" MarginLeft="14" MarginRight="12" MarginTop="12"
                                                     DoNotAcceptEvents="true">
                                               <Children>
                                                 <!-- 🔴 2026-08-19（标题字体恒定，实机用户反馈：StretchToParent + 长名字 → 引擎缩字号，
@@ -151,7 +151,7 @@
                                             <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="16"
                                                         Text="@Subtitle" Brush="MyBrush_18_White" Brush.FontSize="13" Brush.FontColor="#999999FF"
                                                         Brush.TextHorizontalAlignment="Left"
-                                                        VerticalAlignment="Bottom" MarginLeft="14" MarginRight="12" MarginBottom="4"
+                                                        VerticalAlignment="Bottom" MarginLeft="14" MarginRight="12" MarginBottom="12"
                                                         ClipContents="true"
                                                         DoNotAcceptEvents="true"/>
                                           </Children>
