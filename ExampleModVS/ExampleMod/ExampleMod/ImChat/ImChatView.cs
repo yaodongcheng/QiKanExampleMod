@@ -2016,9 +2016,11 @@ namespace LivingWorldNpcs
                 string preview = last.Content;
                 if (conv.Type != ImConversationType.Direct && last.SenderHeroId != ImChatManager.PlayerId)
                     preview = $"{last.SenderName}：{preview}";
-                // 🔴 2026-08-10 三轮：前缀拼完再整体截断 13 字符（中文字符 13px 宽，13 字 ≈169px 不超 240px 左栏可用宽；
-                //     ClipContents 兜底裁，C# 截断保证不触发溢出）
-                if (preview.Length > 13) preview = preview.Substring(0, 13) + "…";
+                // 🔴 2026-08-10 三轮：前缀拼完再整体截断（中文 13px 宽，13 字 ≈169px 不超 240px 左栏可用宽；
+                //     ClipContents 兜底裁，C# 截断保证不触发溢出）。
+                // 🔴 2026-08-20（用户裁定：与标题同机制统一走 NameDisplayRules.Truncate）：13 → 32——
+                //     StretchToParent 布局下超宽由 ClipContents 像素裁剪，字符截断仅兜底超长预览。
+                preview = NameDisplayRules.Truncate(preview, NameDisplayRules.MaxChannelSubtitleChars);
                 item.Subtitle = preview;
             }
             else
