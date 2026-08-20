@@ -490,20 +490,25 @@ namespace LivingWorldNpcs
                             // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
                             string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
                             string identity = string.Format(
-                                // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
-                                ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
+                                // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖，缺 key 返回空串降级）
+                                // 本地化：LWN_plan_respond_identity_template（身份模板，双桶）
+                                ResolvePromptFallback("LWN_plan_respond_identity_template", ""),
                                 occName, DescribePersonality(ra.Personality));
                             var dline = await DialogueComponent.GenerateLine(
                                 WorldBackgroundProvider.GetWorldSection(agent), identity, "",
                                 "旁观话题",
                                 "",
-                                // 本地化：LWN_plan_respond_section_outline（玩家可见文本）
-                                ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + "两人在交谈，你只是路过旁听",
+                                // 本地化：LWN_plan_respond_section_outline（走向段标题，双桶）
+                                // 本地化：LWN_prompt_interject_pass_by（路过旁听描述，双桶）
+                                ResolvePromptFallback("LWN_plan_respond_section_outline", "")
+                                    // 本地化：LWN_prompt_interject_pass_by（双桶）
+                                    + LWNTextHelper.ResolvePrompt("LWN_prompt_interject_pass_by"),
                                 speaker?.Name?.ToString() ?? "说话的人",
                                 "", "",
                                 // 本地化：LWN_plan_respond_rule（玩家可见文本）
                                 "LWN_plan_respond_rule",
-                                "【要求】用一句话表达你旁听到交谈后的反应（10-30 字），像路人的随口一评。直接说台词本身——不要引号、不要解释、不要动作描写。",
+                                // 本地化：LWN_prompt_interject_rule_fallback（旁听台词要求 C# 兜底，双桶）
+                                LWNTextHelper.ResolvePrompt("LWN_prompt_interject_rule_fallback"),
                                 null, maxTokens: 80, timeoutMs: 2000,
                                 addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, speaker));
                             string result = dline != null && dline.FromLlm
@@ -690,17 +695,19 @@ namespace LivingWorldNpcs
                 string persona = memory != null ? memory.GetPersonaPrompt() : "";
                 // 提议 prompt：世界观（blob 单段，空则整段省略防标题残留）+ 身份 + 人设 + 指令
                 var promptParts = new List<string>();
-                // 本地化：世界观段标题（提议 prompt）
+                // 本地化：世界观段标题（提议 prompt；🔴 2026-08-20 fallback 去中文——XML 双桶已覆盖）
                 string worldSection = WorldBackgroundProvider.GetWorldSection(hero.StringId);
                 if (!string.IsNullOrWhiteSpace(worldSection))
-                    promptParts.Add(ResolvePromptFallback("LWN_plan_section_world", "【世界观】") + worldSection); // lwn-ignore: B
-                // 本地化：身份段标题（提议 prompt）
-                promptParts.Add(ResolvePromptFallback("LWN_plan_respond_section_identity", "【你的身份】") + occName);
+                    // 本地化：LWN_plan_section_world（双桶）
+                    promptParts.Add(ResolvePromptFallback("LWN_plan_section_world", "") + worldSection);
+                // 本地化：身份段标题（提议 prompt；🔴 2026-08-20 fallback 去中文）
+                promptParts.Add(ResolvePromptFallback("LWN_plan_respond_section_identity", "") + occName);
                 if (!string.IsNullOrEmpty(persona)) promptParts.Add(persona);
                 // 提议 prompt 纪律（LLM 输入）
-                // 本地化：提议 prompt 纪律（LLM 输入）——2026-08-17 称呼纪律：不再硬编码"主公"
+                // 本地化：LWN_prompt_proposal_rule_npc_fallback（NPC 提议规则 C# 兜底，双桶）——2026-08-17 称呼纪律：不再硬编码"主公"
                 promptParts.Add(ResolvePromptFallback("LWN_plan_propose_rule",
-                    "【行动提议】你刚被人搭话，忽然想起一件自己该做的事（巡逻/望风/讨账/探望/采购等，符合你的身份与当前处境）。用一句话向对方提出，格式：我想去…（10~30 字，直接说，不要解释）。"));
+                    // 本地化：LWN_prompt_proposal_rule_npc_fallback（双桶）
+                    LWNTextHelper.ResolvePrompt("LWN_prompt_proposal_rule_npc_fallback")));
                 string prompt = string.Join("\n", promptParts);
                 string proposal = await LLMService.Instance.ChatOnceAsync(prompt, 80, 0.8f, disableReasoning: true, timeoutMs: 8000);
                 if (string.IsNullOrWhiteSpace(proposal))
@@ -783,13 +790,14 @@ namespace LivingWorldNpcs
                 // 本地化：LWN_prompt_trait_occupation_（玩家可见文本）
                 string occName = ResolvePromptFallback("LWN_prompt_trait_occupation_" + occ, occ);
                 string identity = string.Format(
-                    // LWN_plan_respond_identity_template：身份模板
-                    ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
+                    // LWN_plan_respond_identity_template：身份模板（🔴 2026-08-20 fallback 去中文——XML 双桶已覆盖）
+                    ResolvePromptFallback("LWN_plan_respond_identity_template", ""),
                     occName, DescribePersonality(ra.Personality));
                 string otherId = requester != null ? GetAgentId(requester) : null;
                 string lastLine = GetLastLineWith(memory, otherId);
                 // 演算意图 → 台词态度（公式算出的意愿度，台词必须与之一致：热情/正常/敷衍）
-                string intention = ResolvePromptFallback("LWN_plan_respond_section_attitude", "【你此刻的态度】")
+                // 🔴 2026-08-20 prompt 双语化：fallback 去中文（XML 双桶已覆盖）
+                string intention = ResolvePromptFallback("LWN_plan_respond_section_attitude", "")
                     + DescribeIntention(score, triggerEvent);
                 string other = requester != null && requester.IsActive() ? requester.Name.ToString() : "";
                 string actionSpace = ActionHandler.GetActionSpacePrompt(
@@ -847,13 +855,14 @@ namespace LivingWorldNpcs
                     string.IsNullOrEmpty(topic) ? "闲聊" : topic,
                     ra.DialogueRound > 1 ? $"（第 {ra.DialogueRound} 轮）" : "",
                     string.IsNullOrEmpty(outlineStep) ? ""
-                        // 本地化：LWN_plan_respond_section_outline（玩家可见文本）
-                        : ResolvePromptFallback("LWN_plan_respond_section_outline", "【对方正在聊】") + outlineStep,
+                        // 本地化：LWN_plan_respond_section_outline（走向段标题；🔴 2026-08-20 fallback 去中文）
+                        : ResolvePromptFallback("LWN_plan_respond_section_outline", "") + outlineStep,
                     string.IsNullOrEmpty(other) ? "一个陌生人" : otherDesc,
                     PromptBuilder.GetPrompt_RespondContext(memory, otherId), lastLine,
                     // 本地化：LWN_plan_respond_rule_json（玩家可见文本）
                     "LWN_plan_respond_rule_json",
-                    "【要求】用一句话口语化回应对方（10-40 字），符合身份、性格与此刻的态度，顺着对方的话接，直接说台词本身——不要引号、不要解释、不要动作描写。",
+                    // 本地化：LWN_prompt_respond_rule_json_fallback（回应台词要求 C# 兜底，双桶）
+                    LWNTextHelper.ResolvePrompt("LWN_prompt_respond_rule_json_fallback"),
                     actionSpace, maxTokens: 220, timeoutMs: 8000,
                     worldFacts: worldFacts, sceneAnchor: sceneAnchor, distressSection: distress,
                     addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, requester));
@@ -929,20 +938,25 @@ namespace LivingWorldNpcs
                     var dline = await DialogueComponent.GenerateLine(
                         WorldBackgroundProvider.GetWorldSection(companion),
                         string.Format(
-                            // LWN_plan_respond_identity_template：身份模板（随从 = 名字 + 随从身份）
-                            ResolvePromptFallback("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
+                            // LWN_plan_respond_identity_template：身份模板（随从 = 名字 + 随从身份；🔴 2026-08-20 fallback 去中文）
+                            ResolvePromptFallback("LWN_plan_respond_identity_template", ""),
                             companion?.Name?.ToString() ?? "随从",
-                            ResolvePromptFallback("LWN_trait_companion", "随从")),
+                            ResolvePromptFallback("LWN_trait_companion", "")),
                         "",   // 无演算意图（随从推进对话，态度由走向决定）
                         string.IsNullOrEmpty(topic) ? "闲聊" : topic, "",
-                        ResolvePromptFallback("LWN_plan_respond_section_outline", "【对话走向】")
-                            + $"第 {index + 1}/{total} 段：{outlineStep}",
+                        // 本地化：LWN_plan_respond_section_outline（走向段标题；🔴 2026-08-20 fallback 去中文）
+                        // 本地化：LWN_prompt_outline_segment_prefix（第{NUM}/{TOTAL}段：，双桶）
+                        ResolvePromptFallback("LWN_plan_respond_section_outline", "")
+                            // 本地化：LWN_prompt_outline_segment_prefix（双桶）
+                            + LWNTextHelper.ResolveCompound("LWN_prompt_outline_segment_prefix",
+                                ("NUM", (index + 1).ToString()), ("TOTAL", total.ToString())) + outlineStep,
                         target?.Name?.ToString() ?? "对方",
                         PromptBuilder.GetPrompt_RespondContext(memory, GetAgentId(target)),
                         GetLastLineWith(memory, GetAgentId(target)),
                         // 本地化：LWN_plan_respond_rule（玩家可见文本）
                         "LWN_plan_respond_rule",
-                        "【要求】用一句话口语化对对方说（10-40 字），符合随从身份，顺着当前走向推进对话，直接说台词本身——不要引号、不要解释、不要动作描写。",
+                        // 本地化：LWN_prompt_companion_rule_fallback（随从台词要求 C# 兜底，双桶）
+                        LWNTextHelper.ResolvePrompt("LWN_prompt_companion_rule_fallback"),
                         null, maxTokens: 80, timeoutMs: 2000,
                         addressSection: PromptBuilder.BuildAddressAndKinshipSections(companion, target));
                     string result = dline != null && dline.FromLlm
@@ -1012,16 +1026,13 @@ namespace LivingWorldNpcs
         private static string DescribeIntention(float score, string triggerEvent)
         {
             if (score >= 0.75f)
-                // 意愿度高：热情回应（LWN_plan_respond_attitude_hot）
-                return ResolvePromptFallback("LWN_plan_respond_attitude_hot",
-                    "对方主动搭话，你愿意聊下去（意愿度高）——回应热情些，顺着话题说。");
+                // 意愿度高：热情回应（LWN_plan_respond_attitude_hot；🔴 2026-08-20 fallback 去中文）
+                return ResolvePromptFallback("LWN_plan_respond_attitude_hot", "");
             if (score >= 0.55f)
-                // 意愿度中等：正常寒暄（LWN_plan_respond_attitude_normal）
-                return ResolvePromptFallback("LWN_plan_respond_attitude_normal",
-                    "对方主动搭话，你愿意回应（意愿度中等）——正常寒暄即可。");
-            // 意愿度低：敷衍冷淡（LWN_plan_respond_attitude_reluctant）
-            return ResolvePromptFallback("LWN_plan_respond_attitude_reluctant",
-                "你其实不太想搭理对方（意愿度低），但出于礼貌还是回一句——语气要敷衍冷淡，简短了事。");
+                // 意愿度中等：正常寒暄（LWN_plan_respond_attitude_normal；🔴 2026-08-20 fallback 去中文）
+                return ResolvePromptFallback("LWN_plan_respond_attitude_normal", "");
+            // 意愿度低：敷衍冷淡（LWN_plan_respond_attitude_reluctant；🔴 2026-08-20 fallback 去中文）
+            return ResolvePromptFallback("LWN_plan_respond_attitude_reluctant", "");
         }
 
         /// <summary>降级：LLM 未配置/超时/失败 → 职业模板台词（铁律 1：不崩、对话不卡死）。

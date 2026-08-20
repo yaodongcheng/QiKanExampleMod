@@ -702,9 +702,12 @@ namespace LivingWorldNpcs
                 if (self == null || peer == null) return null;
                 string relation = ImChatManager.DescribeRelation(self, peer);
                 string mode = ImChatManager.GetResponseMode(self, peer);
+                // 本地化：LWN_prompt_peer_just_said（刚说引述，双桶）
                 string line = !string.IsNullOrWhiteSpace(p.PriorPeerLine)
-                    ? $"{p.PriorPeerName}刚说：\"{p.PriorPeerLine}\"。"
-                    : $"{p.PriorPeerName}也在回应主公。";
+                    // 本地化：LWN_prompt_peer_just_said（双桶）
+                    ? LWNTextHelper.ResolveCompound("LWN_prompt_peer_just_said", ("PEER", p.PriorPeerName), ("TEXT", p.PriorPeerLine))
+                    // 本地化：LWN_prompt_peer_also_replying（也在回应主公，双桶）
+                    : LWNTextHelper.ResolveCompound("LWN_prompt_peer_also_replying", ("PEER", p.PriorPeerName));
                 // 🔴 v4 引用旧话（2026-08-10）：从频道消息里找对方最近的另一条发言——
                 // 抬杠有"历史包袱"（"你上次还说…这就改口了？"），附和能接旧梗
                 try
@@ -717,7 +720,8 @@ namespace LivingWorldNpcs
                             && m.Content != p.PriorPeerLine
                             && !string.IsNullOrEmpty(m.Content));
                         if (prev != null)
-                            line += $"他之前还说过：\"{prev.Content}\"。";
+                            // 本地化：LWN_prompt_peer_previously_said（旧话引述，双桶）
+                            line += LWNTextHelper.ResolveCompound("LWN_prompt_peer_previously_said", ("TEXT", prev.Content));
                     }
                 }
                 catch { }
@@ -726,17 +730,29 @@ namespace LivingWorldNpcs
                 // 要先找到他话里站不住脚的点（不切实际/吹牛/自相矛盾），再针对那个点怼
                 string modeInstruction = mode switch
                 {
-                    "反驳" => "你的回应风格是【反驳型】——先找出他话里的破绽（不切实际、吹牛、自相矛盾、站着说话不腰疼），然后抓住那个破绽怼他（玩笑式抬杠，给主公留面子）。",
-                    "附和" => "你的回应风格是【附和型】——找出他话里站得住脚的点，顺着它表示赞同，补一句自己的理由。",
-                    "阴阳" => "你的回应风格是【阴阳型】——表面顺着他的话，话里带刺地点出他话里的漏洞（比如夸他\"真是好本事\"，意思却是\"就你能\"）。",
-                    _ => "你的回应风格是【感同身受型】——接他话里的情绪（理解/心疼/同乐），再补一句自己的看法。",
+                    // 本地化：LWN_prompt_peer_mode_contradict（反驳型回应，双桶）
+                    "反驳" => LWNTextHelper.ResolvePrompt("LWN_prompt_peer_mode_contradict"),
+                    // 本地化：LWN_prompt_peer_mode_agree（附和型回应，双桶）
+                    "附和" => LWNTextHelper.ResolvePrompt("LWN_prompt_peer_mode_agree"),
+                    // 本地化：LWN_prompt_peer_mode_sarcastic（阴阳型回应，双桶）
+                    "阴阳" => LWNTextHelper.ResolvePrompt("LWN_prompt_peer_mode_sarcastic"),
+                    // 本地化：LWN_prompt_peer_mode_empathize（感同身受型回应，双桶）
+                    _ => LWNTextHelper.ResolvePrompt("LWN_prompt_peer_mode_empathize"),
                 };
                 // 🔴 v5 句式多样性（2026-08-10 日志实锤）：三条附和型跟随全是"X说得在理/这话说得实在"——
                 // 固定句式 = AI 味。禁止用"XX说得在理/这话实在/站不住脚"开头，强制每次换说法。
-                modeInstruction += "。**禁止用\"XX说得在理\"\"这话说得实在\"\"站不住脚\"这类固定句式开头——每次换一种说法（如\"要我说啊\"\"倒也是\"\"得了吧\"或直接亮观点），像真人随口接话，别像在念稿。**";
+                // 本地化：LWN_prompt_peer_style_ban（句式禁令，双桶）
+                modeInstruction += LWNTextHelper.ResolvePrompt("LWN_prompt_peer_style_ban");
                 DebugLogger.Log($"[ImTopic] 跟随者 {self.Name} 回应模式: {mode}（对 {peer.Name}，{relation}）");
                 // v3.1：接话强制化——先接他的茬，再回主公（"一句带过即可"给了 LLM 跳过接话的退路，日志实锤）
-                return $"## 同僚互动\n{line}\n你与{p.PriorPeerName}的关系：{relation}。\n{modeInstruction}\n你必须先用你的风格回应他那句话，再接主公的话——两件事都要做。";
+                // 本地化：LWN_prompt_section_peer（## 同僚互动，双桶）/ LWN_prompt_peer_relation_line（关系行，双桶）/ LWN_prompt_peer_two_actions（接话纪律，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_prompt_section_peer") + "\n" + line + "\n"
+                    // 本地化：LWN_prompt_peer_relation_line（双桶）
+                    + LWNTextHelper.ResolveCompound("LWN_prompt_peer_relation_line",
+                        ("PEER", p.PriorPeerName), ("RELATION", relation)) + "\n"
+                    + modeInstruction + "\n"
+                    // 本地化：LWN_prompt_peer_two_actions（双桶）
+                    + LWNTextHelper.ResolvePrompt("LWN_prompt_peer_two_actions");
             }
             catch (Exception ex)
             {

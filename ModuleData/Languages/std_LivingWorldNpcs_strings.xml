@@ -4085,7 +4085,7 @@
     <string id="LWN_plan_detail_contingency_line" text="    if {COND} then {THEN}" />
     <string id="LWN_plan_detail_guardrail" text="    Safety: unexpected threats pause the plan; the stop key recalls the companion." />
     <string id="LWN_plan_step_memory" text="By my lord's order, {ACTION} {TARGET}, done." />
-    <!-- 🔴 2026-08-20 (live: an interrupted theft was recorded as "done"): result-routed memory lines for decision steps -->
+    <!--  2026-08-20 (live: an interrupted theft was recorded as "done"): result-routed memory lines for decision steps -->
     <string id="LWN_plan_step_memory_interrupted" text="By my lord's order, {ACTION} {TARGET} - I was seen and could not go through with it." />
     <string id="LWN_plan_step_memory_empty" text="By my lord's order, {ACTION} {TARGET} - there was nothing to take." />
     <string id="LWN_plan_step_memory_impossible" text="By my lord's order, {ACTION} {TARGET} - there was no way to do it." />
@@ -4171,6 +4171,7 @@
     <string id="LWN_im_dist_unit_km" text="{N} km" />
     <string id="LWN_im_dist_unit_m" text="{N} m" />
     <string id="LWN_im_title_members" text="{NAME} ({COUNT})" />
+    <string id="LWN_im_title_relation" text="{NAME} (relation {REL})" />
     <string id="LWN_cmd_not_in_settlement" text="Error: you are not at a settlement." />
     <string id="LWN_story_generating" text="A new tale is being written, please wait..." />
     <string id="LWN_story_generated" text="A new rumor tale has been written!" />
@@ -4283,7 +4284,7 @@
     <string id="LWN_npc_steal_impossible" text="{NAME} could not get behind {TARGET} to make a move." />
     <string id="LWN_npc_steal_interrupted" text="{NAME} was seen and backed off without making a move." />
     <string id="LWN_npc_steal_equip_fail" text="{NAME} tried to disarm {TARGET}, but {TARGET} noticed!" />
-    <!-- 🔴 2026-08-19 (user decision: hesitation monologue in the nearby channel when the NPC cannot move) -->
+    <!--  2026-08-19 (user decision: hesitation monologue in the nearby channel when the NPC cannot move) -->
     <string id="LWN_npc_steal_monologue_spotted" text="({NAMES} keeps watching me… I can't get behind him.)" />
     <string id="LWN_npc_steal_monologue_blocked" text="(I can't get behind him from here… need a better angle.)" />
     <string id="LWN_dialogue_ack_short" text="Mm." />
@@ -4346,5 +4347,30 @@
     <string id="LWN_im_compact_camera_hint" text="Compact panel active: mouse controls the panel, hold right mouse button to rotate the camera." />
 
     <string id="LWN_im_compact_camera_restored" text="Mouse control restored: move the mouse to rotate the camera." />
+    <string id="LWN_worldevent_escalation_reason_workoff_breach" text="You failed to finish the work you promised" />
+    <string id="LWN_ui_option_work_off_debt" text="Work Off Debt — I have no money, but I can work for the locals" />
+    <string id="LWN_ui_interact_inquiry_split_party_npc_msg" text="{NAME} wants to split off a group to act independently." />
+    <string id="LWN_ui_interact_inquiry_split_party_msg" text="{NAME} wants to split off a group to act independently." />
+    <string id="LWN_ui_interact_inquiry_propose_war_npc_msg" text="{NAME} wants to propose war against {TARGET} to the king." />
+    <string id="LWN_ui_interact_inquiry_propose_war_msg" text="{NAME} wants to propose war against a kingdom to the king." />
+    <string id="LWN_ui_interact_inquiry_persuade_join_npc_msg" text="{NAME} wants to persuade {TARGET} to join our kingdom." />
+    <string id="LWN_ui_interact_inquiry_persuade_join_msg" text="{NAME} wants to persuade {TARGET} to join our kingdom." />
+    <string id="LWN_ui_interact_inquiry_pay_ransom_npc_msg" text="{NAME} is willing to pay the ransom for release." />
+    <string id="LWN_ui_interact_inquiry_pay_ransom_msg" text="{NAME} is willing to pay the ransom for release." />
+    <string id="LWN_ui_interact_inquiry_negotiate_peace_npc_msg" text="{NAME} wants to propose peace with {TARGET} to the king." />
+    <string id="LWN_ui_interact_inquiry_negotiate_peace_msg" text="{NAME} wants to propose peace to the king." />
+    <string id="LWN_ui_interact_inquiry_bribe_guard_npc_msg" text="{NAME} wants to slip the guards money for release." />
+    <string id="LWN_ui_interact_inquiry_bribe_guard_msg" text="{NAME} wants to slip the guards money for release." />
+    <string id="LWN_ui_interact_inquiry_beg_mercy_npc_msg" text="{NAME} wants to beg the guards for mercy and accept punishment." />
+    <string id="LWN_ui_interact_inquiry_beg_mercy_msg" text="{NAME} wants to beg the guards for mercy and accept punishment." />
+    <string id="LWN_intent_accountability_workoff_message" text="[Work Off Debt] Return to {PLACE} to work every day for 3 days; break your word and face the consequences." />
+    <string id="LWN_im_ask_player_retreat" text="Retreat" />
+    <string id="LWN_im_ask_player_force" text="Force it" />
+    <string id="LWN_im_ask_player_default" text="My lord, I need your decision." />
+    <string id="LWN_distress_ransom_short" text="The bandits strip you of every coin you carry... still not enough." />
+    <string id="LWN_distress_fine_short" text="The guard counts your coin and shakes his head — not enough. You are still locked up." />
+    <string id="LWN_distress_bribe_short" text="Your purse runs dry, and the guard stays unmoved." />
+    <string id="LWN_distress_bribe_ok" text="The guard tucks the coins away and looks elsewhere. You slip free." />
+    <string id="LWN_distress_bribe_fail" text="The guard pockets your money... then seizes your arm. You are still locked up." />
 </strings>
 </base>

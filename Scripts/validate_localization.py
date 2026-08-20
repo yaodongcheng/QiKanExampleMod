@@ -103,6 +103,26 @@ KNOWN_PLACEHOLDERS = {
     "SHORT_GOAL", "SPIRIT", "STATUS", "STRENGTH", "STYLE",
     "TEMPER", "TOWNS", "VAL", "WAR", "WEALTH", "WEAPON",
     "PCT", "TIER", "HP", "SPOUSE", "ROLE", "CLAN",
+    # 2026-08-20 双桶对称修复后补登（SaveGuard 调试行/裁剪提示、UI 按键提示）
+    "DETAIL", "DPAD", "KEYS", "LWN_DAYS_LEFT", "OPEN_KEY",
+    # 2026-08-20 prompt 双语化迁移新增占位符（PromptBuilder 对话类）
+    "ACTION_SPACE", "CONFLICT", "OPTION_TEXT", "INPUT", "ADDR",
+    # 2026-08-20 谈判 prompt 迁移新增占位符
+    "RATIO", "REACTION", "SCORE", "TURN", "TURNS", "TACTIC", "MOOD", "CHIP", "PATIENCE",
+    "COUNT_H", "COUNT_L", "COST_TYPE", "NOTO", "REP",
+    # 2026-08-20 称呼纪律/亲缘段迁移新增占位符
+    "KIND", "PARENT", "PRONOUN", "BLOOD", "SELFTITLE", "AGE", "IDENTITY",
+    # 2026-08-20 记忆类 prompt 迁移新增占位符
+    "CALC", "FADING", "HISTORY", "MEMORY", "MERCY", "VALOR",
+    # 2026-08-20 导演类 prompt 迁移新增占位符
+    "ACCUSED", "ACCUSER", "BOOK", "GALLERY", "PERSONA", "QUOTE",
+    # 2026-08-20 WorldFactProvider/14 文件迁移新增占位符
+    "BATTLES", "CULT", "DIFF", "FACING", "LEADER", "MIN", "NUM", "POS", "RANGE", "STATE", "WINS",
+    # 2026-08-20 WorldFactProvider Query 正文迁移新增占位符
+    "ARMOR", "BOND", "CAPTOR", "CARAVANS", "DAY", "DAYNIGHT", "FLOOR", "FLOORS", "FOOD",
+    "INFLUENCE", "LI", "LISTED", "MARK", "MARKS", "MERGED", "MORALE", "NAME_A", "NAME_B",
+    "PARTS", "REGULARS", "SCALE", "SEASON", "SIDE", "SIEGE", "TOWN", "TROOPS", "VERDICT",
+    "VILLAGES", "WAYS", "WEATHER", "WHERE", "WORKSHOPS", "ZONE", "ANCHOR",
 }
 
 # Files exempt from {=!} check (known legacy code pending migration)
@@ -439,21 +459,40 @@ def extract_keys_from_xml_with_text(filepath):
         results.append((m.group(1), m.group(2)))
     return results
 
+def _collect_languages():
+    """返回 [(lang_id, dir_path)]：English = 根目录（language_data 惯例 id），
+    其余 = 各子目录（读各自 language_data.xml 的 id，读不到用目录名兜底）。
+    🔴 2026-08-20：检查 C/D/E/F/H 原只遍历子目录，根目录 English 桶从不参与
+    校验（English 桶缺 key 一直未被捕获）——统一走本 helper。"""
+    result = [("English", LANGUAGES_DIR)]
+    if not os.path.exists(LANGUAGES_DIR):
+        return result
+    for d in sorted(os.listdir(LANGUAGES_DIR)):
+        full = os.path.join(LANGUAGES_DIR, d)
+        if not os.path.isdir(full):
+            continue
+        lang_id = d
+        ld_path = os.path.join(full, "language_data.xml")
+        if os.path.exists(ld_path):
+            try:
+                import xml.etree.ElementTree as ET
+                root = ET.parse(ld_path).getroot()
+                if root is not None and root.get("id"):
+                    lang_id = root.get("id")
+            except Exception:
+                pass
+        result.append((lang_id, full))
+    return result
+
 def check_xml_key_completeness():
     print("\n--- C: XML key completeness across languages ---")
-    if not os.path.exists(LANGUAGES_DIR):
-        warn("Languages dir not found")
-        return 0
-
-    lang_dirs = [d for d in os.listdir(LANGUAGES_DIR)
-                 if os.path.isdir(os.path.join(LANGUAGES_DIR, d))]
+    lang_dirs = _collect_languages()
     if len(lang_dirs) <= 1:
         print(f"  [SKIP] Only {len(lang_dirs)} language(s), nothing to compare")
         return 0
 
     lang_keys = {}
-    for lang in lang_dirs:
-        lang_path = os.path.join(LANGUAGES_DIR, lang)
+    for lang, lang_path in lang_dirs:
         xml_files = glob_mod.glob(os.path.join(lang_path, "std_*.xml"))
         keys = set()
         for xf in xml_files:
@@ -462,7 +501,7 @@ def check_xml_key_completeness():
 
     all_keys = set().union(*lang_keys.values())
     issues = 0
-    for lang in lang_dirs:
+    for lang, _ in lang_dirs:
         missing = all_keys - lang_keys[lang]
         for k in sorted(missing):
             error(f"{lang} missing key: {k}")
@@ -474,17 +513,13 @@ def check_xml_key_completeness():
 
 def check_xml_placeholder_consistency():
     print("\n--- D: Placeholder consistency across languages ---")
-    if not os.path.exists(LANGUAGES_DIR):
-        return 0
-    lang_dirs = [d for d in os.listdir(LANGUAGES_DIR)
-                 if os.path.isdir(os.path.join(LANGUAGES_DIR, d))]
+    lang_dirs = _collect_languages()
     if len(lang_dirs) <= 1:
         print(f"  [SKIP] Only {len(lang_dirs)} language(s)")
         return 0
 
     all_keys = defaultdict(lambda: defaultdict(set))
-    for lang in lang_dirs:
-        lang_path = os.path.join(LANGUAGES_DIR, lang)
+    for lang, lang_path in lang_dirs:
         for xf in glob_mod.glob(os.path.join(lang_path, "std_*.xml")):
             for key, text in extract_keys_from_xml_with_text(xf):
                 ph = set(PLACEHOLDER_PATTERN.findall(text))
@@ -513,10 +548,8 @@ def check_xml_placeholder_consistency():
 def check_xml_placeholder_whitelist():
     print("\n--- E: Placeholder whitelist ---")
     all_phs = set()
-    for lang_dir in glob_mod.glob(os.path.join(LANGUAGES_DIR, "*")):
-        if not os.path.isdir(lang_dir):
-            continue
-        for xf in glob_mod.glob(os.path.join(lang_dir, "*.xml")):
+    for _, lang_path in _collect_languages():
+        for xf in glob_mod.glob(os.path.join(lang_path, "std_*.xml")):
             for _, text in extract_keys_from_xml_with_text(xf):
                 all_phs.update(PLACEHOLDER_PATTERN.findall(text))
 
@@ -531,10 +564,8 @@ def check_xml_placeholder_whitelist():
 def check_xml_key_naming():
     print("\n--- F: Key naming (LWN_ convention) ---")
     issues = 0
-    for lang_dir in glob_mod.glob(os.path.join(LANGUAGES_DIR, "*")):
-        if not os.path.isdir(lang_dir):
-            continue
-        for xf in glob_mod.glob(os.path.join(lang_dir, "std_*.xml")):
+    for _, lang_path in _collect_languages():
+        for xf in glob_mod.glob(os.path.join(lang_path, "std_*.xml")):
             relpath = os.path.relpath(xf, PROJECT_ROOT)
             for key in extract_keys_from_xml(xf):
                 if not KEY_PATTERN.match(key):
@@ -547,11 +578,9 @@ def check_xml_key_naming():
 def check_xml_no_duplicate_keys():
     print("\n--- H: No duplicate XML keys ---")
     issues = 0
-    for lang_dir in glob_mod.glob(os.path.join(LANGUAGES_DIR, "*")):
-        if not os.path.isdir(lang_dir):
-            continue
+    for _, lang_path in _collect_languages():
         seen = {}
-        for xf in glob_mod.glob(os.path.join(lang_dir, "std_*.xml")):
+        for xf in glob_mod.glob(os.path.join(lang_path, "std_*.xml")):
             relpath = os.path.relpath(xf, PROJECT_ROOT)
             for key in extract_keys_from_xml(xf):
                 if key in seen:

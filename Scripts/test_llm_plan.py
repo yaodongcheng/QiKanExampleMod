@@ -204,9 +204,14 @@ PERSONA = ('你是 "铁匠"沃泰尔，奥斯帕克 的随从。说话简短、�
 def build_prompt(scene, command):
     # 与 C# BuildPlanPrompt 逐段同构（2026-08-08 同步）：
     # 世界观 → 场景 → 身份 → 命令 →（历史 py 不模拟）→ 意图表 → 语法
-    return ("【世界观】" + WORLD_DESC + "\n\n【当前场景】\n" + scene
-            + "\n\n【你的身份】\n" + PERSONA
-            + "\n\n【玩家命令】\n" + command + "\n"
+    # 🔴 2026-08-20：段标题改从同一 XML 读（LWN_plan_section_*，py/C# 同源；缺 key 回落旧硬编码）
+    world_h = _PLAN_PROMPTS.get("LWN_plan_section_world", "【世界观】")
+    scene_h = _PLAN_PROMPTS.get("LWN_plan_section_scene", "【当前场景】")
+    identity_h = _PLAN_PROMPTS.get("LWN_plan_section_identity", "【你的身份】")
+    command_h = _PLAN_PROMPTS.get("LWN_plan_section_command", "【玩家命令】")
+    return (world_h + WORLD_DESC + "\n\n" + scene_h + "\n" + scene
+            + "\n\n" + identity_h + "\n" + PERSONA
+            + "\n\n" + command_h + "\n" + command + "\n"
             + INTENT_TABLE + "\n" + GRAMMAR)
 
 

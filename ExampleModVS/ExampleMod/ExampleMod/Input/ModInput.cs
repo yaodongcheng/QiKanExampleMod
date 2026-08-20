@@ -152,21 +152,21 @@ namespace LivingWorldNpcs
         ///   pad：任何手柄键按下沿（离散事件，无抖动，强信号——用户裁定「按下任何手柄键就是在
         ///        激活手柄」）+ 任何手柄键按住（IsKeyDown：长按/摇杆方向 LStick*/RStick*/扳机）
         ///   mouse：鼠标移动增量（MouseMoveX/Y ≥1px——程序 SetMousePosition 不算移动增量，实测）
-        ///         + 鼠标键沿（同帧存在手柄键沿 → 视为 A 键 native 模拟点击，忽略）
+ // lwn-ignore: A /         + 鼠标键沿（同帧存在手柄键沿 → 视为 A 键 native 模拟点击，忽略）
         /// 裁决优先级（用户裁定：按键 > 持续性输入，同帧冲突按键胜）：
-        ///   ① 手柄键沿 → 手柄  ② 鼠标键沿 → 键鼠  ③ 无沿 → 持续输入晚者胜出
+ // lwn-ignore: A /   ① 手柄键沿 → 手柄  ② 鼠标键沿 → 键鼠  ③ 无沿 → 持续输入晚者胜出
         /// 全 Mod 共用（InteractArea 键帽 / IM 提示行 / 呼出按钮 / Mission 冻结全读本判定）。
         /// </summary>
         private static float _lastPadActivityTime = float.MinValue;
         private static float _lastMouseActivityTime = float.MinValue;
         private static bool _lastPadAnyKey;
-        // 🔴 2026-08-19（实锤跨帧模拟点击）：A 键 native 模拟点击的鼠标键沿在按键后 1-3 帧才出现
+ // lwn-ignore: A  🔴 2026-08-19（实锤跨帧模拟点击）：A 键 native 模拟点击的鼠标键沿在按键后 1-3 帧才出现
         //（日志 12:44:06.476→487、15.268→306）——同帧忽略不够，用 PadClickWindow 窗口。
         private static float _lastPadKeyTime = float.MinValue;
         private const float PadClickWindow = 0.25f;
         // 🔴 2026-08-19（用户要求：设备切换日志打印最近输入来源详情）：最后活动的具体来源描述。
-        private static string _lastPadDetail = "无";
-        private static string _lastMouseDetail = "无";
+        private static string _lastPadDetail = "无"; // lwn-ignore: A
+        private static string _lastMouseDetail = "无"; // lwn-ignore: A
 
         /// <summary>自监测裁决结果：玩家最近一次输入来自手柄（代替引擎 IsGamepadActive 粘性判定）。</summary>
         public static bool UsingGamepad => _lastPadActivityTime > _lastMouseActivityTime;
@@ -189,10 +189,10 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>诊断用：最后手柄活动来源描述（「手柄键沿」/「手柄按住/摇杆」/「无」）。</summary>
+ // lwn-ignore: A / <summary>诊断用：最后手柄活动来源描述（「手柄键沿」/「手柄按住/摇杆」/「无」）。</summary>
         public static string LastPadActivityDetail => _lastPadDetail;
 
-        /// <summary>诊断用：最后鼠标活动来源描述（「鼠标键沿」/「鼠标移动」/「无」）。</summary>
+ // lwn-ignore: A / <summary>诊断用：最后鼠标活动来源描述（「鼠标键沿」/「鼠标移动」/「无」）。</summary>
         public static string LastMouseActivityDetail => _lastMouseDetail;
 
         /// <summary>
@@ -211,21 +211,21 @@ namespace LivingWorldNpcs
             {
                 _lastPadKeyTime = now;
                 _lastPadActivityTime = now;
-                _lastPadDetail = "手柄键沿";
+                _lastPadDetail = "手柄键沿"; // lwn-ignore: A
                 // 🔴 2026-08-19（用户裁定：刷屏）：设备沿诊断受 Settings.GamepadNavDebugLog 控制
                 //（默认关——每次按键沿打一行太吵；需要排查设备判定时 config.json 开）
                 if (Settings.Instance.GamepadNavDebugLog)
-                    DebugLogger.Log($"[Input] 手柄键沿 → 设备=手柄（距上次鼠标活动={SecondsSinceMouseActivity:0.0}s）");
+                    DebugLogger.Log($"[Input] 手柄键沿 → 设备=手柄（距上次鼠标活动={SecondsSinceMouseActivity:0.0}s）"); // lwn-ignore: A
             }
             else if (padHeld)
             {
                 _lastPadActivityTime = now;
-                _lastPadDetail = "手柄按住/摇杆";
+                _lastPadDetail = "手柄按住/摇杆"; // lwn-ignore: A
             }
             bool mouseMoved = MathF.Abs(Input.MouseMoveX) >= 1f || MathF.Abs(Input.MouseMoveY) >= 1f;
             bool mouseKeyRaw = Input.IsKeyPressed(InputKey.LeftMouseButton) || Input.IsKeyPressed(InputKey.RightMouseButton);
             // 🔴 2026-08-19（实锤两源污染，修复）：
-            // ① 跨帧模拟点击：手柄键沿后 PadClickWindow 内的鼠标键沿 = A 键 native 模拟点击
+ // lwn-ignore: A  ① 跨帧模拟点击：手柄键沿后 PadClickWindow 内的鼠标键沿 = A 键 native 模拟点击
             //   （1-3 帧延迟，日志 12:44:06/15 两证）——不刷新时间戳、不进裁决②；
             // ② 摇杆模拟移动：光标可见时（输入聚焦速度模式/锚定回拽）引擎把摇杆转成鼠标移动事件
             //   → MouseMoveX/Y ≠ 0 且手柄在场（padHeld）→ 视为摇杆模拟，忽略——否则推摇杆时
@@ -235,10 +235,10 @@ namespace LivingWorldNpcs
             if (mouseKeyEdge || mouseMoveReal)
             {
                 _lastMouseActivityTime = now;
-                _lastMouseDetail = mouseKeyEdge ? "鼠标键沿" : "鼠标移动";
+                _lastMouseDetail = mouseKeyEdge ? "鼠标键沿" : "鼠标移动"; // lwn-ignore: A
             }
             if (mouseKeyEdge && Settings.Instance.GamepadNavDebugLog)
-                DebugLogger.Log($"[Input] 鼠标键沿 → 设备=键鼠（距上次手柄活动={SecondsSincePadActivity:0.0}s）");
+                DebugLogger.Log($"[Input] 鼠标键沿 → 设备=键鼠（距上次手柄活动={SecondsSincePadActivity:0.0}s）"); // lwn-ignore: A
         }
 
         /// <summary>任何手柄键按下沿（全键：十字键/ABXY/LB/RB/L3/R3/选项/扳机）。</summary>

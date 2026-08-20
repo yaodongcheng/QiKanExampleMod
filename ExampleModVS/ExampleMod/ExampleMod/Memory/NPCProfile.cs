@@ -1205,7 +1205,9 @@ namespace LivingWorldNpcs
                 if (string.IsNullOrWhiteSpace(enc) && BaseHero != null) return "";
                 var sb = new StringBuilder();
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_culture", "## My People and Culture")); // lwn-ignore: B
-                sb.AppendLine($"我是{culture.Name}人。" + (string.IsNullOrWhiteSpace(enc) ? "" : enc));
+                // 本地化：LWN_prompt_culture_member（我是{NAME}人，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_culture_member", ("NAME", culture.Name.ToString()))
+                    + (string.IsNullOrWhiteSpace(enc) ? "" : enc));
                 return sb.ToString();
             }
             catch { return ""; }
@@ -1219,18 +1221,23 @@ namespace LivingWorldNpcs
             sb.AppendLine(LWNTextHelper.ResolveText("LWN_prompt_section_standing", "## My Origins and Allegiance")); // lwn-ignore: B
             if (BaseHero == null && BaseCharacter == null)
             {
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", "出身不明，孤身一人。"))); // lwn-ignore: B
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", ("TEXT", "不效忠任何国家。"))); // lwn-ignore: B
+                // 本地化：LWN_prompt_standing_origin_unknown（出身不明，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", LWNTextHelper.ResolvePrompt("LWN_prompt_standing_origin_unknown")))); // lwn-ignore: B
+                // 本地化：LWN_prompt_standing_kingdom_none（不效忠任何国家，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", ("TEXT", LWNTextHelper.ResolvePrompt("LWN_prompt_standing_kingdom_none")))); // lwn-ignore: B
                 return sb.ToString();
             }
             if (BaseHero == null)
             {
                 // 模板 NPC（士兵/村民）：一介平民的自我认知
                 string role = LocalizeRole(BaseCharacter.IsSoldier);
+                // 本地化：LWN_prompt_standing_template_serving（服役谋生，双桶）
                 sb.AppendLine(ClanId != ""
-                    ? LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", $"我是一介{role}，在 {Clan} 麾下服役谋生。")) // lwn-ignore: B
-                    : LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", $"我是一介{role}，出身平民。"))); // lwn-ignore: B
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", ("TEXT", "不效忠任何国家。"))); // lwn-ignore: B
+                    ? LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", LWNTextHelper.ResolveCompound("LWN_prompt_standing_template_serving", ("ROLE", role), ("CLAN", Clan)))) // lwn-ignore: B
+                    // 本地化：LWN_prompt_standing_template_commoner（出身平民，双桶）
+                    : LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", LWNTextHelper.ResolveCompound("LWN_prompt_standing_template_commoner", ("ROLE", role))))); // lwn-ignore: B
+                // 本地化：LWN_prompt_standing_kingdom_none（不效忠任何国家，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", ("TEXT", LWNTextHelper.ResolvePrompt("LWN_prompt_standing_kingdom_none")))); // lwn-ignore: B
                 return sb.ToString();
             }
             // Hero 版
@@ -1249,25 +1256,35 @@ namespace LivingWorldNpcs
                 else
                     selfStatus = LWNTextHelper.ResolveText("LWN_prompt_clan_status_member"); // lwn-ignore: B
                 // "家族家臣/同伴"等状态文本自带"家族"前缀，用"地位"措辞避免"家族的家族X"重复
+                // 本地化：LWN_prompt_standing_clan_status（家族地位，双桶）
                 sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", // lwn-ignore: B
-                    ("TEXT", $"我属于 {clan.Name} 家族。我在家族中的地位：{selfStatus}。")));
+                    // 本地化：LWN_prompt_standing_clan_status（双桶）
+                    ("TEXT", LWNTextHelper.ResolveCompound("LWN_prompt_standing_clan_status",
+                        ("CLAN", clan.Name.ToString()), ("STATUS", selfStatus)))));
             }
             else if (BaseHero.IsWanderer)
             {
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", "我是无家可归的游民，独自闯荡。"))); // lwn-ignore: B
+                // 本地化：LWN_prompt_standing_wanderer（游民，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", LWNTextHelper.ResolvePrompt("LWN_prompt_standing_wanderer")))); // lwn-ignore: B
             }
             else
             {
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", "我没有什么显赫的家族背景。"))); // lwn-ignore: B
+                // 本地化：LWN_prompt_standing_no_background（无显赫背景，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_family", "- Family: {TEXT}", ("TEXT", LWNTextHelper.ResolvePrompt("LWN_prompt_standing_no_background")))); // lwn-ignore: B
             }
 
             Kingdom kingdom = clan?.Kingdom;
             if (kingdom != null)
+                // 本地化：LWN_prompt_standing_kingdom_serve（效忠{KINGDOM}，双桶）
                 sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
-                    ("TEXT", $"我效忠于 {kingdom.Name}。")));
+                    // 本地化：LWN_prompt_standing_kingdom_serve（双桶）
+                    ("TEXT", LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom_serve",
+                        ("KINGDOM", kingdom.Name.ToString())))));
             else
+                // 本地化：LWN_prompt_standing_kingdom_free（自由之身，双桶）
                 sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
-                    ("TEXT", "我不效忠任何国家，是自由之身。")));
+                    // 本地化：LWN_prompt_standing_kingdom_free（双桶）
+                    ("TEXT", LWNTextHelper.ResolvePrompt("LWN_prompt_standing_kingdom_free"))));
             return sb.ToString();
         }
 
@@ -1323,15 +1340,19 @@ namespace LivingWorldNpcs
         }
 
         // 家族/国家话题触发词（提到才拼全量背景；与 WorldFactProvider 主题注册表同思路）
-        private static readonly string[] FamilyTopicKeywords =
-        {
-            "家族", "家世", "出身", "门第", "家门", "你家", "家底", "族人", "family", "clan", "lineage", "background",
-        };
-        private static readonly string[] KingdomTopicKeywords =
-        {
-            "王国", "国家", "效忠", "主公", "君主", "国王", "陛下", "阵营", "势力", "王国归属",
-            "kingdom", "king", "liege", "lord", "faction", "loyalty",
-        };
+        // 本地化：LWN_prompt_family_topic_kw（家族话题关键词表，双桶，逗号分隔）——功能性匹配词表，
+        // 运行时按当前语言取词（CN 桶中文词 / EN 桶英文词），禁止静态缓存（语言可能热切换）
+        private static string[] LoadTopicKeywords(string key) =>
+            LWNTextHelper.ResolvePrompt(key)
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+        private static string[] FamilyTopicKeywords =>
+            // 本地化：LWN_prompt_family_topic_kw（双桶）
+            LoadTopicKeywords("LWN_prompt_family_topic_kw");
+
+        private static string[] KingdomTopicKeywords =>
+            // 本地化：LWN_prompt_kingdom_topic_kw（双桶）
+            LoadTopicKeywords("LWN_prompt_kingdom_topic_kw");
 
         /// <summary>玩家提到家族/国家话题时，才拼入全量背景（GetClanInfo/GetKingdomInfo）。
         /// 平时人设只有 GetStandingSummary 的一句自我认知，零噪声。调用方：IM 回复 / 当面闲聊 / 谈判。</summary>

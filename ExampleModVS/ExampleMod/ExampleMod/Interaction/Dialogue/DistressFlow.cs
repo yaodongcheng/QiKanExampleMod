@@ -77,19 +77,23 @@ namespace LivingWorldNpcs
                 var player = Hero.MainHero;
                 if (player == null) return null;
                 var sb = new System.Text.StringBuilder();
-                sb.AppendLine("【受困处境】");
+                // 本地化：LWN_prompt_section_distress（【受困处境】，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_distress"));
                 if (IsPlayerCaptive())
-                    sb.AppendLine($"- 对方是 {player.Name}，被你们关押着（身份：俘虏）。他想求你们放人——赎金由你开价，他说了不算。");
+                    // 本地化：LWN_prompt_distress_captive（- 对方是 {NAME}，被你们关押着…，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_distress_captive", ("NAME", player.Name.ToString())));
                 if (IsPlayerCaught())
                 {
-                    sb.AppendLine($"- 对方是 {player.Name}，因犯了事被逮住（身份：嫌犯）。他欠的账还没算清。");
+                    // 本地化：LWN_prompt_distress_caught（- 对方是 {NAME}，因犯了事被逮住…，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_distress_caught", ("NAME", player.Name.ToString())));
                     try
                     {
                         var evt = AgentAIController.Instance?.PendingWorldEvent;
                         if (evt != null)
                         {
                             int cost = CrimePenaltyCalculator.ComputeCost(evt, CostType.Restitution);
-                            sb.AppendLine($"- 他该赔的数目（{cost}）由你说了算——他要认罚就按这个数，他要狡辩就让他碰碰壁。");
+                            // 本地化：LWN_prompt_distress_debt（- 他该赔的数目（{GOLD}）…，双桶）
+                            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_distress_debt", ("GOLD", cost.ToString())));
                         }
                     }
                     catch { }

@@ -18,7 +18,7 @@
     
     <string id="LWN_prompt_clan_wanderer" text="No clan (wanderer). Alone, with no family backing." />
     
-    <string id="LWN_prompt_clan_hero" text="--- Clan Background --- Clan: [{CLAN}], Tier: {TIER}. Renown: {RENOWN}. Overall: {STRENGTH}. Position in clan: {STATUS}. Fiefs: {TOWNS} towns, {CASTLES} castles ({PCT}% of the realm, {MY}/{TOTAL}). Wealth: {WEALTH} ({GOLD} gold). Influence: {INF}." />
+    <string id="LWN_prompt_clan_hero" text="--- Clan Background --- Clan: [{CLAN}], Tier: {TIER}. Renown: {RENOWN}. Overall: {STRENGTH}. Position in clan: {STATUS}. Fiefs: {TOWNS} towns, {CASTLES} castles ({PCT}% of the realm, {MY}/{TOTAL}). Wealth: {WEALTH} ({GOLD} {CURRENCY}). Influence: {INF}." />
 
     
     <string id="LWN_prompt_clan_status_leader" text="Clan Leader (supreme authority)" />
@@ -175,7 +175,7 @@
 
     
     
-    <string id="LWN_prompt_worth_template" text="Origin: {ORIGIN} Worth: {VAL} gold. Self-Perception: {DESC}" />
+    <string id="LWN_prompt_worth_template" text="Origin: {ORIGIN} Worth: {VAL} {CURRENCY}. Self-Perception: {DESC}" />
     
     <string id="LWN_prompt_worth_low" text="Insignificant. Would follow anyone who shows a little favor or sincerity." />
     <string id="LWN_prompt_worth_medium" text="Considerable worth. A person of some standing — ordinary offers won't do. They need real gold on the table." />
@@ -286,6 +286,64 @@
     <string id="LWN_plan_respond_section_experience" text="【Recent Experiences】" />
     <string id="LWN_plan_respond_section_last" text="【Just Said】" />
     <string id="LWN_plan_respond_section_outline" text="【Conversation Direction】" />
+    <string id="LWN_prompt_section_scene_situation" text="【Current Situation】" />
+    <string id="LWN_prompt_section_campaign_situation" text="【Current Situation (Campaign)】" />
+    <string id="LWN_prompt_section_split_party" text="【My Detached Unit】" />
+    <string id="LWN_prompt_section_stayed" text="【My Stay Outside】" />
+    <string id="LWN_prompt_section_self_state" text="【My State】" />
+    <string id="LWN_prompt_section_lord_gear" text="【The Lord's Gear】" />
+    <string id="LWN_prompt_section_party_supplies" text="【Party Supplies】" />
+    <string id="LWN_prompt_section_lord_relations" text="【The Lord's Reputation】" />
+    <string id="LWN_prompt_section_party_relations" text="【Our Bonds】" />
+    <string id="LWN_prompt_section_current_status" text="【Current Status】" />
+    <string id="LWN_prompt_section_seeing" text="【What We See】" />
+    <string id="LWN_prompt_section_distress" text="【Distress Situation】" />
+    <string id="LWN_prompt_section_record" text="【{NAME}'s Record】" />
+    <string id="LWN_prompt_section_nego_impression" text="【Opening Impression】" />
+    <string id="LWN_prompt_section_scene_persons" text="【People in the Scene】（{COUNT}）" />
+    <string id="LWN_prompt_section_channel_recent" text="【Recent Channel Messages】" />
+    <string id="LWN_prompt_section_current_topic" text="【Current Topic】" />
+    <string id="LWN_prompt_section_conflict" text="【Current Conflict】" />
+    <string id="LWN_prompt_section_self_info" text="【About Me】" />
+    <string id="LWN_prompt_section_player_info" text="【About the Player】" />
+    <string id="LWN_prompt_section_options" text="【Player Options】" />
+    <string id="LWN_prompt_section_notes" text="【Conversation Notes】" />
+    <string id="LWN_prompt_section_req_other" text="【Other Reply Requirements】" />
+    <string id="LWN_prompt_section_task_chat" text="【Task: Casual Chat】" />
+    <string id="LWN_prompt_section_task_nego" text="【Task: Negotiation】" />
+    <string id="LWN_prompt_section_perm_memory" text="【Old Memories】" />
+    <string id="LWN_prompt_section_quest_history" text="【Quest Records】" />
+    <string id="LWN_prompt_section_news" text="【Major News】" />
+    <string id="LWN_prompt_section_rumors" text="【Rumors】" />
+    <string id="LWN_prompt_section_chat_history" text="【Recent Conversations】" />
+    <string id="LWN_prompt_section_nego_state" text="【Current Negotiation State】" />
+    <string id="LWN_prompt_section_nego_chips" text="【Your Remaining Resources】" />
+    <string id="LWN_prompt_section_nego_cards" text="【Card Generation Rules】" />
+    <string id="LWN_prompt_section_nego_judge" text="【Judgment Steps】" />
+    <string id="LWN_prompt_section_nego_turn" text="【Your Move This Turn】" />
+    <string id="LWN_prompt_section_nego_npc_file" text="【NPC (You) Profile】" />
+    <string id="LWN_prompt_section_nego_player_file" text="【Player (Other) Info】" />
+    <string id="LWN_prompt_section_dialog_flow" text="【Dialogue Flow】" />
+    <string id="LWN_prompt_section_task_desc" text="【Task】" />
+    <string id="LWN_prompt_section_chat_log" text="【Conversation Log】" />
+    <string id="LWN_prompt_section_out_format" text="【Output Format】" />
+    <string id="LWN_prompt_section_req" text="【Reply Requirements】" />
+    <string id="LWN_prompt_section_identity_info" text="【Identity Info】" />
+    <string id="LWN_prompt_section_traits" text="【Traits】(negative = opposite tendency)" />
+    <string id="LWN_prompt_section_skills" text="【Skills】" />
+    <string id="LWN_prompt_section_bg_keep" text="【Your Existing Background (keep verbatim, do not rewrite)】" />
+    <string id="LWN_prompt_section_experience_log" text="【Experience Log】" />
+    <string id="LWN_prompt_section_event_relations" text="【Relations in This Event】" />
+    <string id="LWN_prompt_section_rumor_info" text="【Rumor Info】" />
+    <string id="LWN_prompt_section_cast" text="【Cast】" />
+    <string id="LWN_prompt_section_player_role" text="【Player Role】" />
+    <string id="LWN_prompt_section_director_flow" text="【Script Flow Requirements】" />
+    <string id="LWN_prompt_section_director_example" text="【Outline Example】" />
+    <string id="LWN_prompt_section_out_req" text="【Output Requirements】" />
+    <string id="LWN_prompt_section_show_outline" text="【Script Outline】" />
+    <string id="LWN_prompt_section_show_format" text="【Output Format (Strict JSON)】" />
+    <string id="LWN_prompt_section_show_commands" text="【Script Commands】" />
+    <string id="LWN_plan_respond_section_important" text="【Milestones】(major life events you remember about the other)" />
     <string id="LWN_plan_chat_fallback" text="By the way, {0}." />
     <string id="LWN_plan_chat_opening_fallback" text="Excuse me, I would like to have a word with you." />
     <string id="LWN_trait_companion" text="companion" />
@@ -294,7 +352,7 @@
     <string id="LWN_plan_respond_attitude_reluctant" text="You would rather not engage (low willingness), but reply briefly out of politeness — keep it dismissive, cold and short." />
     <string id="LWN_plan_respond_rule" text="【Requirement】Reply in one casual spoken sentence (10-40 chars), fitting your role, personality and current attitude. Output only the line itself — no quotes, no explanation, no action descriptions." />
     <string id="LWN_plan_respond_rule_json" text="【Requirement】Reply in one casual spoken sentence (10-40 chars), fitting your role, personality and current attitude, following the other's words. Reply in JSON format (output ONLY the JSON): {&quot;npc_reply&quot;: &quot;your line (the line itself — no quotes, no explanation, no action descriptions)&quot;, &quot;npc_action&quot;: &quot;action code (only from the list above; plain replies are always NONE)&quot;, &quot;action_target&quot;: &quot;target name text (only when an action needs one; leave empty if unknown)&quot;, &quot;action_level&quot;: &quot;tier (small/medium/large, only for relation/gold actions; leave empty otherwise)&quot;}
-**Freshness rule**: All numbers (gold/food/troops/morale/time/location/weather) must come from the 【此刻现状】(current status) section only; anything mentioned in 【近期回忆】or 【对话历史】is a snapshot of the past - citing it means reporting stale accounts; if the number you want is not in the current status section, prefer to say &quot;that was days ago, I have not looked closely&quot; - never invent specific numbers." />
+**Freshness rule**: All numbers (gold/food/troops/morale/time/location/weather) must come from the 【Current Status】(current status) section only; anything mentioned in 【Recent Recollections】or 【Conversation History】is a snapshot of the past - citing it means reporting stale accounts; if the number you want is not in the current status section, prefer to say &quot;that was days ago, I have not looked closely&quot; - never invent specific numbers." />
 
   
 
@@ -356,7 +414,7 @@ Key points: execute the steal step directly (k2) — flanking is done automatica
     <string id="LWN_plan_example_result" text="【Outcome-Type Step Example (copy this structure)】&quot;Item acquired&quot; in steal/take steps uses the result routing, never has_item-type conditions:\n{&quot;id&quot;:&quot;c1&quot;,&quot;action&quot;:&quot;steal_attempt&quot;,&quot;target&quot;:&quot;chest&quot;,&quot;variant&quot;:&quot;item&quot;,&quot;when&quot;:{&quot;type&quot;:&quot;seeing&quot;,&quot;a&quot;:&quot;any&quot;,&quot;b&quot;:&quot;self&quot;,&quot;op&quot;:&quot;false&quot;,&quot;sustained_s&quot;:3},&quot;result&quot;:{&quot;success&quot;:&quot;c2&quot;,&quot;empty&quot;:&quot;c6&quot;,&quot;interrupted&quot;:&quot;c8&quot;},&quot;timeout_s&quot;:40,&quot;retry&quot;:3,&quot;on_timeout&quot;:&quot;c7&quot;},\n{&quot;id&quot;:&quot;c2&quot;,&quot;action&quot;:&quot;signal_player&quot;,&quot;text&quot;:&quot;Got it, pull out!&quot;,&quot;timeout_s&quot;:3}, c6/c7/c8 are fail endings (every key in result must point to an existing step). retry = total attempts (1-5): on an empty (found nothing) result the step retries until attempts run out; interrupted (seen) and equipment-variant failure (target noticed) never retry; the final outcome is reported once. Write retry when the lord asks to try several times or steal until successful" />
     <string id="LWN_plan_quality" text="【Output Quality Requirements (not meeting these = unqualified, must rewrite)】\n1. Task-type plans need main-chain steps &gt;= 5 (simple tasks at least 4), granularity of &quot;walk→talk→wait→verify→report&quot;; no 2-3 step sloppiness; **sustained-type plans (keep watch/guard/occupy etc.) are exempt from the step count** — 2-3 steps of infinite sustain + triggers is complete; never fabricate extra actions to pad the count. **Conversation tasks (TALK_TO/DELIVER/chat) use say_to with topic + outline (2-5 segments, e.g. greet → business → news → farewell); both sides' lines are generated live during execution, forming a 4-7 exchange dialogue — never end after a single line of small talk**.\n2. fallbacks &gt;= 2 contingencies (each = one failure case: target refused/timeout/accidental interruption, &gt;= 2 steps inside including end_plan + report).\n3. contingencies &gt;= 2: combat → @abort_gracefully mandatory + at least 1 task-related accident (retreat following was detection/alert alert_phase/disconnect seeing flip).\n4. Non-sustained plans must have a goal (plan success condition: distance/seeing/count predicate combination); sustained-type plans (keep watch/guard/stalk) have no goal, expressed with infinite wait + triggers, ended by the player call.\n5. reactions: events/actions must be within the closed vocabularies, never invent new ones.\n6. Simple commands also need a proper ending: the last step uses end_plan (optionally with a one-line report line like &quot;Done/I will wait here&quot;); **a sustained-type plan ending with infinite wait is a valid ending, this rule does not apply**.\n7. Prefer query for dynamic targets (lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point); never hardcode area names that do not exist in the scene.\n8. Lure/keep watch/stall/acquisition-type plans must use signal_player to give the player an action-window prompt; success/failure endings should include a report when possible.\n9. zone(name)/point(description) can only reference names listed in the 【Scene Area Anchors】section; areas not listed → use hidden_spot/lure_spot dynamic search instead, ending in failure if not found, never fabricate anchors.\n10. Failure jump discipline: on_timeout / on_event (refusal-type events like refused) are failure paths, must point to end_plan result=&quot;fail&quot; or retry contingencies, never to success endings (false success reporting)." />
     <string id="LWN_plan_narration_rule" text="【Plan Narration】Output the narration field: retell the plan in your own voice as first person (what you will do, in how many steps, what happens if something goes wrong); you MUST mention the contingency; keep it under 100 characters; for multi-agent plans describe the division of labor (e.g. &quot;Zhang San and I will first... then...&quot;). Only retell the plan content - never add actions beyond the plan." />
-<string id="LWN_plan_exec" text="【Execution Requirements】\n1. Ambiguity → fill questions with needs_clarification=true, do not generate a plan. 2. Out of vocabulary → CUSTOM with plan = null, needs_clarification=false and questions=[] (CUSTOM and clarification are MUTUALLY EXCLUSIVE: once classified CUSTOM, honestly refuse — never set needs_clarification). **🔴 2026-08-20 (live: companion refused to steal from an imperial soldier with CUSTOM &quot;we would face prosecution&quot; — the order died): NEVER classify in-vocabulary actions (steal/knockout/fight/lead/keep watch/purchase/deliver etc.) as CUSTOM** — &quot;too risky / I would get caught / face prosecution&quot; is risk, not out-of-vocabulary; express it with risk_verdict=risky (see risk review rules) and carry out the order; CUSTOM is ONLY for things physically impossible (translating/casting spells/repairing gear etc.). 3. reactions: write reaction plans for every NPC possibly affected by the plan (targets being talked to / invited: write respond = reply out loud, the line is generated live). 4. Lines should sound like a companion speaking in-game, short and natural." />
+<string id="LWN_plan_exec" text="【Execution Requirements】\n1. Ambiguity → fill questions with needs_clarification=true, do not generate a plan. 2. Out of vocabulary → CUSTOM with plan = null, needs_clarification=false and questions=[] (CUSTOM and clarification are MUTUALLY EXCLUSIVE: once classified CUSTOM, honestly refuse — never set needs_clarification). ** 2026-08-20 (live: companion refused to steal from an imperial soldier with CUSTOM &quot;we would face prosecution&quot; — the order died): NEVER classify in-vocabulary actions (steal/knockout/fight/lead/keep watch/purchase/deliver etc.) as CUSTOM** — &quot;too risky / I would get caught / face prosecution&quot; is risk, not out-of-vocabulary; express it with risk_verdict=risky (see risk review rules) and carry out the order; CUSTOM is ONLY for things physically impossible (translating/casting spells/repairing gear etc.). 3. reactions: write reaction plans for every NPC possibly affected by the plan (targets being talked to / invited: write respond = reply out loud, the line is generated live). 4. Lines should sound like a companion speaking in-game, short and natural." />
     <string id="LWN_plan_identity_default" text="You are a companion." />
     <string id="LWN_plan_propose_rule" text="【Action Proposal】You were just addressed by the other person and suddenly recall something you should do yourself (patrol/keep watch/collect a debt/visit/purchase etc., fitting your identity and current situation). Propose it to the other person in one sentence, format: I would like to... (10-30 chars, say it directly, no explanation). The proposal MUST be relevant to the current topic - think of what to do from what the other person just said and what is being discussed in the channel; if there is nothing suitable to propose in the current topic, output only「无」(nothing)." />
       <string id="LWN_plan_im_reply_rule" text="【IM Reply Rule】
@@ -430,6 +488,11 @@ The other person just sent you another message. If it only asks for progress or 
     <string id="LWN_im_event_raid" text='Our village is being raided! We must remember this grudge.' />
     <string id="LWN_im_event_kingdom" text='The world has changed - a kingdom has fallen. No one knows what tomorrow brings.' />
     <string id="LWN_fact_title_member" text='## Party Members (you know exactly who travels with you)' />
+    <string id="LWN_fact_title_market" text="## Market Prices (you see them)" />
+    <string id="LWN_fact_title_moneymaking" text="## Ways to Earn (your knowledge)" />
+    <string id="LWN_fact_title_outlaw" text="## Outlaw Status (rumors you heard)" />
+    <string id="LWN_fact_title_record" text="## The Other's Record (your first-hand knowledge)" />
+    <string id="LWN_fact_title_tournament" text="## Tournament News (rumors you heard)" />
     <string id="LWN_speech_im_reply_followup_refute" text='That is nonsense, {PEER} - but you asked, so let us answer.' />
     <string id="LWN_speech_im_reply_followup_agree" text='That is fair to say, {PEER}. You have spoken; let us heed it.' />
     <string id="LWN_speech_im_reply_followup_ironic" text='Ah, {PEER}, what wisdom. You surely appreciate it.' />
@@ -442,9 +505,973 @@ The other person just sent you another message. If it only asks for progress or 
     <string id="LWN_plan_persuade_init_rule" text="【Requirement】Continue persuading the other in one spoken sentence (10-40 chars). Escalate gradually according to their resistance (reasoning / promises / pleading), fitting your role as a companion. Output only the line itself — no quotes, no explanation, no action descriptions." />
     <string id="LWN_plan_persuade_direction_waver" text="【Your attitude right now】You are wavering. Their words have reached you and you are seriously considering it." />
     <string id="LWN_plan_persuade_direction_firm" text="【Your attitude right now】You are firm. You do not want to agree, but politeness demands a reply." />
-    <string id="LWN_plan_im_freshness_rule" text="【Freshness rule】All numbers (gold/food/troops/morale/time/location/weather) must come from the 【此刻现状】(current status) section only; anything mentioned in 【近期回忆】or 【对话历史】is a snapshot of the past - citing it means reporting stale accounts; if the number you want is not in the current status section, prefer to say &quot;that was days ago, I have not looked closely&quot; - never invent specific numbers." />
+    <string id="LWN_plan_im_freshness_rule" text="【Freshness rule】All numbers (gold/food/troops/morale/time/location/weather) must come from the 【Current Status】(current status) section only; anything mentioned in 【Recent Recollections】or 【Conversation History】is a snapshot of the past - citing it means reporting stale accounts; if the number you want is not in the current status section, prefer to say &quot;that was days ago, I have not looked closely&quot; - never invent specific numbers." />
+    <string id="LWN_prompt_lang_rule" text="You MUST reply in English. Every line you generate (npc_reply, reply, text, Summary, BackgroundStory, Personality, Specialty, player option texts, etc.) must be written in English — never switch to another language." />
+    <string id="LWN_prompt_im_dialog_flow_2" text="Now it is your turn — respond to the last companion's remark (your response style is in the 【Peer Interaction】section above). You may mention the other person's business in passing, but the focus is the back-and-forth between the two of you." />
+    <string id="LWN_prompt_skillcheck_bg" text="【Background】
+A dispute is under way. The specifics: {CONFLICT}" />
+    <string id="LWN_prompt_skillcheck_json" text="{ &quot;npc_reply&quot;: &quot;string&quot;, &quot;npc_thinking&quot;: &quot;string&quot;, &quot;npc_emotion&quot;: &quot;string&quot; }" />
+    <string id="LWN_word_floor_this" text="this floor" />
+    <string id="LWN_word_floor_up" text="one floor up" />
+    <string id="LWN_word_floor_down" text="one floor down" />
+    <string id="LWN_word_floor_upper" text="two floors up" />
+    <string id="LWN_word_floor_lower" text="two floors down" />
+    <string id="LWN_word_mapdir_east" text="east" />
+    <string id="LWN_word_mapdir_northeast" text="northeast" />
+    <string id="LWN_word_mapdir_north" text="north" />
+    <string id="LWN_word_mapdir_northwest" text="northwest" />
+    <string id="LWN_word_mapdir_west" text="west" />
+    <string id="LWN_word_mapdir_southwest" text="southwest" />
+    <string id="LWN_word_mapdir_south" text="south" />
+    <string id="LWN_word_mapdir_southeast" text="southeast" />
+    <string id="LWN_word_season_spring" text="spring" />
+    <string id="LWN_word_season_summer" text="summer" />
+    <string id="LWN_word_season_autumn" text="autumn" />
+    <string id="LWN_word_season_winter" text="winter" />
+    <string id="LWN_word_season_unknown" text="unknown season" />
+    <string id="LWN_word_time_dawn" text="dawn" />
+    <string id="LWN_word_time_morning" text="morning" />
+    <string id="LWN_word_time_noon" text="noon" />
+    <string id="LWN_word_time_afternoon" text="afternoon" />
+    <string id="LWN_word_time_dusk" text="dusk" />
+    <string id="LWN_word_time_evening" text="evening" />
+    <string id="LWN_word_time_night" text="late night" />
+    <string id="LWN_nego_goal_apology_name" text="apologize and make amends" />
+    <string id="LWN_nego_goal_apology_desc" text="soothe the other's anger and undo the effects of the bad event" />
+    <string id="LWN_nego_goal_marriage_name" text="propose marriage" />
+    <string id="LWN_nego_goal_marriage_desc" text="The player wishes to marry the NPC." />
+    <string id="LWN_nego_goal_settlement_name" text="gain entry" />
+    <string id="LWN_nego_goal_settlement_desc" text="The player wants the guards to bend the rules and let them pass." />
+    <string id="LWN_nego_goal_recruit_name" text="recruit" />
+    <string id="LWN_nego_goal_recruit_desc" text="The player wants the NPC to join their party." />
+    <string id="LWN_nego_goal_none_name" text="no goal" />
+    <string id="LWN_nego_goal_none_desc" text="The player has no goal — chatting idly with the NPC." />
+    <string id="LWN_nego_state_name_format" text="Negotiation: {NAME}" />
+    <string id="LWN_nego_trait_socialhierarchy_master_name" text="Master-Servant Distinction" />
+    <string id="LWN_nego_trait_socialhierarchy_master_desc" text="He dares to recruit you as his vassal? That is not merely absurd — it is outright treason! No sum of gold or sweet words could make you accept such an affront to your dignity. You must scorn him with fury, or threaten to cut him down; there is not a shred of consent in you." />
+    <string id="LWN_nego_trait_greedy_name" text="Money-Grubbing" />
+    <string id="LWN_nego_trait_greedy_desc" text="Utterly avaricious; only coin can move his heart." />
+    <string id="LWN_nego_trait_ascetic_name" text="Ascetic" />
+    <string id="LWN_nego_trait_ascetic_desc" text="Cares nothing for material things; bribes fall on deaf ears." />
+    <string id="LWN_nego_trait_coward_name" text="Timid as a Mouse" />
+    <string id="LWN_nego_trait_coward_desc" text="Timid by nature; threats terrify him." />
+    <string id="LWN_nego_trait_fearless_name" text="Unyielding" />
+    <string id="LWN_nego_trait_fearless_desc" text="Immune to both carrot and stick — threats above all enrage him." />
+    <string id="LWN_nego_trait_idealist_name" text="Idealist" />
+    <string id="LWN_nego_trait_idealist_desc" text="Values oaths and honor above worldly gain." />
+    <string id="LWN_nego_trait_realist_name" text="Realist" />
+    <string id="LWN_nego_trait_realist_desc" text="Cares only for tangible benefit; empty promises move him not." />
+    <string id="LWN_nego_trait_loyalfriend_name" text="Loyal Friend" />
+    <string id="LWN_nego_trait_loyalfriend_desc" text="Sets great store by personal bonds; a friend's plea is hard for him to refuse." />
+    <string id="LWN_nego_trait_coldblooded_name" text="Cold-Blooded" />
+    <string id="LWN_nego_trait_coldblooded_desc" text="Appealing to his heart is a waste of breath." />
+    <string id="LWN_nego_trait_flippant_name" text="Flippant Rake" />
+    <string id="LWN_nego_trait_flippant_desc" text="Loves flattery and fine words; loathes grave lectures." />
+    <string id="LWN_nego_trait_cautious_name" text="Cautious" />
+    <string id="LWN_nego_trait_cautious_desc" text="Deliberate and hard to fool; only solid logic or real gain sways him." />
+    <string id="LWN_nego_trait_drunkard_name" text="Incurable Drunkard" />
+    <string id="LWN_nego_trait_drunkard_desc" text="As long as the wine flows, anything may be agreed." />
+    <string id="LWN_nego_trait_hostile_name" text="Hostile" />
+    <string id="LWN_nego_trait_hostile_desc" text="Enemies at a glance — the very sight of you sets his blood boiling." />
+    <string id="LWN_nego_trait_friend_name" text="Friendly" />
+    <string id="LWN_nego_trait_friend_desc" text="Your good acquaintance makes him willing to oblige you." />
+    <string id="LWN_nego_trait_clanleader_name" text="Clan Leader" />
+    <string id="LWN_nego_trait_clanleader_desc" text="Bears great office and heavy duty; he will not lightly betray his clan or harm its interest." />
+    <string id="LWN_nego_trait_noble_name" text="Noble Magnate" />
+    <string id="LWN_nego_trait_noble_desc" text="His standards are lofty; common offerings are beneath his notice." />
+    <string id="LWN_nego_trait_married_name" text="Married" />
+    <string id="LWN_nego_trait_married_desc" text="Faithful unto death (or simply bound by law)." />
+    <string id="LWN_nego_tactic_bribe_desc" text="Attempt to buy the other party with your personal wealth. The greedier they are, the likelier this succeeds." />
+    <string id="LWN_nego_tactic_gift_desc" text="Offer a particular precious item as a gift. The greedier they are, the likelier this succeeds." />
+    <string id="LWN_nego_tactic_threaten_desc" text="Coerce the other party into submission through intimidation or a show of force. If they are brave (high Bravery), this may backfire." />
+    <string id="LWN_nego_tactic_coerce_desc" text="Exert pressure through your clan's or faction's influence. Note: this consumes your prestige within the faction." />
+    <string id="LWN_nego_tactic_plead_desc" text="Appeal to the other party on the strength of past acquaintance. This consumes the Relation between you." />
+    <string id="LWN_nego_tactic_submisson_desc" text="Abandon your dignity — kneel or offer a public apology to beg for mercy. This gravely damages your reputation." />
+    <string id="LWN_nego_tactic_flatter_desc" text="Pure flattery and smooth talk. Costs nothing, but fails often and is easily seen through." />
+    <string id="LWN_nego_tactic_offerpower_desc" text="Promise the other party taxing rights, command of troops, or land. A strategic exchange of the highest cost." />
+    <string id="LWN_nego_tactic_swear_desc" text="Swear to complete a difficult task (Quest). Should you fail to deliver, grave consequences follow — your renown will plummet, and you may even be exiled." />
+    <string id="LWN_nego_chips_none" text="no substantial bargaining chips" />
+    <string id="LWN_nego_goal_married_hint" text=" (Note: the other party is married — the difficulty is extreme)" />
+    <string id="LWN_speech_mood_monologue" text="Reply with a single inner-monologue line befitting your identity and situation (8-25 chars), the whole line wrapped in parentheses ( ), voicing your current misgivings (who is watching you, why you cannot bring yourself to act) — do not stray from the meaning" />
+    <string id="LWN_speech_mood_combat" text="Reply with a single line befitting your identity and situation (8-25 chars), fierce in tone, matching the heat of battle" />
+    <string id="LWN_speech_mood_warning" text="Reply with a single line befitting your identity and situation (8-30 chars), harsh and unyielding in tone" />
+    <string id="LWN_speech_mood_dialogue" text="Reply with a single line befitting your identity and situation (8-30 chars), natural and fitting the context" />
+    <string id="LWN_speech_mood_default" text="Reply with a single line befitting your identity and situation (8-30 chars), colloquial and fitting the moment" />
+    <string id="LWN_speech_topic_fallback" text="speaking" />
+    <string id="LWN_speech_anchor" text="(roughly: {TEXT} — you may phrase it more naturally, but do not stray from the meaning)" />
+    <string id="LWN_speech_rule_assembly" text="【Requirement】{MOOD}. {ANCHOR}Say the line itself — no quotes, no explanation, no action descriptions." />
+    <string id="LWN_speech_relation_master" text="【Other's Relation】The other party is your lord {NAME} (the player)" />
+    <string id="LWN_speech_relation_player" text="【Other's Relation】The other party is the player {NAME}" />
+    <string id="LWN_speech_relation_companion" text="【Other's Relation】The other party is your companion {NAME}" />
+    <string id="LWN_speech_relation_friendly" text="【Other's Relation】The other party is friendly toward you ({NAME})" />
+    <string id="LWN_speech_situation_surrender" text="【Current Situation】You are surrendering and begging the other party for mercy{HP}" />
+    <string id="LWN_speech_situation_fighting" text="【Current Situation】You are locked in combat with the other party{HP}" />
+    <string id="LWN_speech_situation_attacked" text="【Current Situation】The other party just struck at you, and you are about to retaliate{HP}" />
+    <string id="LWN_speech_situation_combat" text="【Current Situation】A fight just broke out, and you are about to act{HP}" />
+    <string id="LWN_speech_situation_approach" text="【Current Situation】The other party is approaching you" />
+    <string id="LWN_speech_situation_seen_crime" text="【Current Situation】You just witnessed the other party committing a misdeed" />
+    <string id="LWN_speech_situation_spoken_to" text="【Current Situation】The other party just spoke to you" />
+    <string id="LWN_speech_situation_plan_command" text="【Current Situation】Your lord just issued you a command" />
+    <string id="LWN_speech_situation_plan_report" text="【Current Situation】You are reporting the outcome of your task to your lord" />
+    <string id="LWN_speech_situation_im_message" text="【Current Situation】The other party just sent you a message" />
+    <string id="LWN_speech_hp_exhausted" text=", and you are utterly spent" />
+    <string id="LWN_speech_hp_wounded" text=", and you are wounded" />
+    <string id="LWN_prompt_dialogcomp_topic_chat" text="casual chat" />
+    <string id="LWN_prompt_chat_nego_line" text="-- goal code (detected_nogotiation_goal): {TACTIC}  meaning: {NAME} (description: {DESC} " />
+    <string id="LWN_prompt_target_candidates_note" text="
+(These are the candidates — you MUST use questions to let the lord pick; questions options must be a string array like [&quot;Candidate 1&quot;,&quot;Candidate 2&quot;], never an object array; copy the candidate lines verbatim including number and direction (e.g. &quot;Imperial Legion Infantry#50 (48m west of you)&quot;), never trim them to bare names)" />
+    <string id="LWN_word_weather_drizzle" text="light drizzle" />
+    <string id="LWN_word_weather_heavyrain" text="pouring rain" />
+    <string id="LWN_word_weather_snow" text="falling snow" />
+    <string id="LWN_word_weather_blizzard" text="raging blizzard" />
+    <string id="LWN_word_weather_storm" text="howling storm" />
+    <string id="LWN_word_weather_clear" text="clear sky" />
+    <string id="LWN_fact_body_ai_besiege" text="- The band’s current errand: laying siege to {SETTLEMENT}." />
+    <string id="LWN_fact_body_ai_chase" text="- The band’s current errand: pursuing {NAME}." />
+    <string id="LWN_fact_body_ai_defend" text="- The band’s current errand: guarding {SETTLEMENT}." />
+    <string id="LWN_fact_body_ai_engage" text="- The band’s current errand: joining battle with the enemy." />
+    <string id="LWN_fact_body_ai_flee" text="- The band’s current errand: giving the enemy a wide berth." />
+    <string id="LWN_fact_body_ai_follow" text="- The band’s current errand: following my lord." />
+    <string id="LWN_fact_body_ai_go_to" text="- The band’s current errand: marching to {SETTLEMENT}." />
+    <string id="LWN_fact_body_ai_hold" text="- The band’s current errand: standing fast where we are." />
+    <string id="LWN_fact_body_ai_patrol" text="- The band’s current errand: patrolling nearby." />
+    <string id="LWN_fact_body_business" text="- My lord holds {CARAVANS} caravans and {WORKSHOPS} workshops." />
+    <string id="LWN_fact_body_campaign_at" text="- The party is at {SETTLEMENT}." />
+    <string id="LWN_fact_body_campaign_marching" text="- The party is crossing the wilderness toward {SETTLEMENT}." />
+    <string id="LWN_fact_body_campaign_more_parties" text="- Farther off there are {COUNT} more parties, hard to make out." />
+    <string id="LWN_fact_body_campaign_more_settlements" text="- {COUNT} more settlements lie farther away, too many to take in at a glance." />
+    <string id="LWN_fact_body_campaign_near" text="- The party is near {SETTLEMENT} (in the wilderness)." />
+    <string id="LWN_fact_body_campaign_wilderness" text="- The party is crossing the wilderness." />
+    <string id="LWN_fact_body_current_place" text="You are at {PLACE} at this moment." />
+    <string id="LWN_fact_body_detention" text="I am locked away in {PLACE}, in dire straits, unable to ride with my lord’s party." />
+    <string id="LWN_fact_body_encounter_them" text="- Their side: {NAME} ({COUNT} men, led by {LEADER})." />
+    <string id="LWN_fact_body_encounter_us" text="- Your side: {NAME} ({COUNT} men, led by {LEADER})." />
+    <string id="LWN_fact_body_family_leader" text=", led by chieftain {LEADER}" />
+    <string id="LWN_fact_body_family_members_base" text="- The clan counts {COUNT} members" />
+    <string id="LWN_fact_body_family_spouse" text="- My lord’s spouse is {NAME}." />
+    <string id="LWN_fact_body_fencetip_far" text="- Take your fresh plunder to some far-off city and sell it — the quickest coin there is." />
+    <string id="LWN_fact_body_fencetip_near" text="- Haul your fresh plunder to nearby {SETTLEMENT} and sell it there — the quickest coin there is." />
+    <string id="LWN_fact_body_fief" text="- The clan holds {TOWNS} towns, {CASTLES} castles, {VILLAGES} villages (for instance: {NAMES})." />
+    <string id="LWN_fact_body_fief_none" text="- The clan holds no fiefs at present." />
+    <string id="LWN_fact_body_floor_suffix" text=" ({FLOOR})" />
+    <string id="LWN_fact_body_food" text="- The party has about {DAYS} days of rations left." />
+    <string id="LWN_fact_body_garrison" text="- {SETTLEMENT} now holds a garrison of {COUNT}." />
+    <string id="LWN_fact_body_garrison_unknown" text="- The party is not in a town at present; of the garrison nothing can be learned." />
+    <string id="LWN_fact_body_gear_lord" text="My lord’s attire: {PARTS}." />
+    <string id="LWN_fact_body_gear_self" text="The gear I wear: {PARTS}." />
+    <string id="LWN_fact_body_gold" text="- The party purse holds {GOLD} {CURRENCY} for spending." />
+    <string id="LWN_fact_body_hero_age" text="- {NAME} is about {AGE} years of age." />
+    <string id="LWN_fact_body_hero_captured_at" text="- {NAME} was taken by the garrison of {SETTLEMENT} and is locked away there." />
+    <string id="LWN_fact_body_hero_captured_by" text="- {NAME} was captured by {CAPTOR} and is being marched along." />
+    <string id="LWN_fact_body_hero_captured_march" text="- {NAME} has been taken prisoner, being marched along under guard." />
+    <string id="LWN_fact_body_hero_dir" text="- {NAME} is about {DIST} meters {DIR} at the moment." />
+    <string id="LWN_fact_body_hero_enemy_rumor" text="- Rumor has it {NAME} rides at the head of an army abroad, whereabouts unknown." />
+    <string id="LWN_fact_body_hero_infront" text="- {NAME} is right in front of you at this moment." />
+    <string id="LWN_fact_body_hero_now_at" text="- {NAME} is currently {WHERE}." />
+    <string id="LWN_fact_body_hero_relation" text="- My lord’s bond with {NAME}: {LEVEL} (regard {REL})." />
+    <string id="LWN_fact_body_hero_untraceable" text="- {NAME}’s trail is cold; no one knows where they truly are." />
+    <string id="LWN_fact_body_hero_where_at" text="at {PLACE}" />
+    <string id="LWN_fact_body_hero_where_marching" text="marching toward {PLACE}" />
+    <string id="LWN_fact_body_hero_zone_dir" text="- {NAME} is near {ZONE} at the moment, about {DIST} meters {DIR}." />
+    <string id="LWN_fact_body_level" text="- My lord is a seasoned hand of level {LEVEL}, about {AGE} years of age." />
+    <string id="LWN_fact_body_level_only" text="I am level {LEVEL}." />
+    <string id="LWN_fact_body_level_skill" text="I am level {LEVEL}; my most practiced arts: {NAMES}." />
+    <string id="LWN_fact_body_level_skill_none" text="I am level {LEVEL} but have yet to master any art worth naming." />
+    <string id="LWN_fact_body_location_in_settlement" text="- The party is right now at {SETTLEMENT}." />
+    <string id="LWN_fact_body_location_marching" text="- The party is crossing the wilderness toward {SETTLEMENT}." />
+    <string id="LWN_fact_body_location_near" text="- The party is near {SETTLEMENT} (in the wilderness)." />
+    <string id="LWN_fact_body_location_wilderness" text="- The party is crossing the wilderness." />
+    <string id="LWN_fact_body_lord_relations_foes" text="Bearing my lord ill will: {NAMES}" />
+    <string id="LWN_fact_body_lord_relations_friends" text="Well disposed toward my lord: {NAMES}" />
+    <string id="LWN_fact_body_market" text="- Market rates: {NAMES}." />
+    <string id="LWN_fact_body_market_part" text="{NAME} {PRICE}" />
+    <string id="LWN_fact_body_market_unknown" text="- The party is not in a town at the moment; of market prices nothing can be learned." />
+    <string id="LWN_fact_body_market_unknown2" text="- The city’s market rates cannot be made out at present." />
+    <string id="LWN_fact_body_member_common_base" text="- Nameless soldiers (the main strength): {NAMES}" />
+    <string id="LWN_fact_body_member_end" text="- These are all the people with the party." />
+    <string id="LWN_fact_body_member_named_base" text="- Members of name: {NAMES}" />
+    <string id="LWN_fact_body_moneymaking" text="- {WAYS}" />
+    <string id="LWN_fact_body_moneymaking_bandit" text="bandits nearby can be hunted down for a rich haul" />
+    <string id="LWN_fact_body_moneymaking_business" text="the caravans and workshops in your name earn month by month" />
+    <string id="LWN_fact_body_moneymaking_fallback" text="- War pays best, but it lives on the blade’s edge; for a steadier coin, take to trade." />
+    <string id="LWN_fact_body_moneymaking_tournament" text="{TOWN} holds a tournament today, with a purse for the champion" />
+    <string id="LWN_fact_body_moneymaking_trade" text="buy low and sell high in {TOWN}" />
+    <string id="LWN_fact_body_morale" text="- Party morale {MORALE} ({MOOD})." />
+    <string id="LWN_fact_body_occ_suffix" text=" ({OCC})" />
+    <string id="LWN_fact_body_outlaw_no" text="- Our clan bears no warrant on its head at present." />
+    <string id="LWN_fact_body_outlaw_yes" text="- Our clan has been declared outlaw." />
+    <string id="LWN_fact_body_owner_enemy" text=", a city of {KINGDOM} (an enemy realm)" />
+    <string id="LWN_fact_body_owner_kingdom" text=", a city of {KINGDOM}" />
+    <string id="LWN_fact_body_owner_ours" text=", our own ground" />
+    <string id="LWN_fact_body_pair_relation" text="- The bond between {NAME_A} and {NAME_B}: {LEVEL} (regard {REL})" />
+    <string id="LWN_fact_body_party" text="- The party now numbers {REGULARS} soldiers with {HEROES} companions riding along." />
+    <string id="LWN_fact_body_party_rel_bond" text="- {NAME_A} and {NAME_B} {BOND} (regard {REL})." />
+    <string id="LWN_fact_body_party_rel_clan" text="- {NAME_A} and {NAME_B} are brothers-in-arms of the same clan." />
+    <string id="LWN_fact_body_party_rel_marriage" text="- {NAME_A} and {NAME_B} are kin by marriage." />
+    <string id="LWN_fact_body_party_sight_count" text="About {LI} {DIR} there is {TYPE} ({SIDE}, about {COUNT} strong{SCALE})" />
+    <string id="LWN_fact_body_party_sight_empty" text="About {LI} {DIR} there is {TYPE} ({SIDE})" />
+    <string id="LWN_fact_body_party_troop_part" text="{NAME}, {COUNT} men" />
+    <string id="LWN_fact_body_party_troops" text="- The main strength: {NAMES}" />
+    <string id="LWN_fact_body_place_wilderness_near" text="the wilderness near {PLACE}" />
+    <string id="LWN_fact_body_place_with_loc" text="{PLACE} ({LOC})" />
+    <string id="LWN_fact_body_player_at_lord" text="You stand right at my lord’s side (about {DIST} meters)." />
+    <string id="LWN_fact_body_player_dir_from_lord" text="You are about {DIST} meters {DIR} of my lord." />
+    <string id="LWN_fact_body_prisoner_base" text="- The party holds {REGULARS} prisoners" />
+    <string id="LWN_fact_body_prisoner_heroes" text=", among them {HEROES} persons of rank" />
+    <string id="LWN_fact_body_prisoner_none" text="- The party holds no prisoners at present." />
+    <string id="LWN_fact_body_quest_list" text="- {COUNT} errands in hand (for instance: {NAMES})." />
+    <string id="LWN_fact_body_quest_none" text="- No errands are in hand at present." />
+    <string id="LWN_fact_body_quest_place" text="- The errand of {NAME} lies in {PLACE}." />
+    <string id="LWN_fact_body_renown" text="- Clan renown {RENOWN}, influence {INFLUENCE}." />
+    <string id="LWN_fact_body_same_scene" text="You and my lord are in the same scene." />
+    <string id="LWN_fact_body_settlement_sight" text="About {LI} {DIR} lies {NAME} ({TYPE}{OWNER}{SIEGE})" />
+    <string id="LWN_fact_body_siege" text=", under siege" />
+    <string id="LWN_fact_body_skill_list" text="- {NAMES}" />
+    <string id="LWN_fact_body_skill_none" text="- My lord has yet to master any art." />
+    <string id="LWN_fact_body_skill_part" text="{NAME} {LEVEL}" />
+    <string id="LWN_fact_body_split_at" text="- I am leading the band, at {SETTLEMENT}." />
+    <string id="LWN_fact_body_split_marching" text="- I am leading the band across the wilderness toward {SETTLEMENT}." />
+    <string id="LWN_fact_body_split_near" text="- I am leading the band near {SETTLEMENT} (in the wilderness)." />
+    <string id="LWN_fact_body_split_troops" text="- I command about {COUNT} soldiers." />
+    <string id="LWN_fact_body_split_wilderness" text="- I am leading the band across the wilderness." />
+    <string id="LWN_fact_body_status_at" text="at {PLACE}" />
+    <string id="LWN_fact_body_status_food" text="rations {FOOD} days" />
+    <string id="LWN_fact_body_status_gold" text="purse {GOLD}" />
+    <string id="LWN_fact_body_status_marching" text="marching toward {PLACE}" />
+    <string id="LWN_fact_body_status_morale" text="morale {MORALE}" />
+    <string id="LWN_fact_body_status_near" text="near {PLACE}" />
+    <string id="LWN_fact_body_status_time" text="{SEASON}, {DAYNIGHT}, {TIME}, {WEATHER}" />
+    <string id="LWN_fact_body_status_troops" text="soldiers {TROOPS}" />
+    <string id="LWN_fact_body_status_wilderness" text="in the wilderness" />
+    <string id="LWN_fact_body_stayed" text="- My lord has gone into {PLACE} (entered the scene); I stay with the party, waiting just outside {PLACE}." />
+    <string id="LWN_fact_body_summary_clan" text="- Clan renown {RENOWN}, influence {INFLUENCE}, {COUNT} holdings (towns {TOWNS}, castles {CASTLES}, villages {VILLAGES})." />
+    <string id="LWN_fact_body_summary_hero" text="- My lord stands {LEVEL} levels high, about {AGE} years of age; {CARAVANS} caravans and {WORKSHOPS} workshops to their name." />
+    <string id="LWN_fact_body_summary_party" text="- The party now numbers {REGULARS} soldiers and {HEROES} companions; {GOLD} {CURRENCY} in the purse; about {DAYS} days of rations left." />
+    <string id="LWN_fact_body_summary_season" text="- It is {SEASON} now." />
+    <string id="LWN_fact_body_supplies" text="Our party carries: {PARTS}." />
+    <string id="LWN_fact_body_supply_part" text="{LABEL} ×{COUNT}" />
+    <string id="LWN_fact_body_time" text="- It is {SEASON}, {DAYNIGHT}, {TIME} — the {DAY}th day of the season, {WEATHER}." />
+    <string id="LWN_fact_body_tournament_noknow" text="- Of today’s tournaments nothing can be learned." />
+    <string id="LWN_fact_body_tournament_none" text="- No tournament is arranged in town today." />
+    <string id="LWN_fact_body_tournament_today" text="- {TOWN} holds a tournament this very day; the victor shall win a prize." />
+    <string id="LWN_fact_body_tournament_unknown" text="- The party is not in a town at the moment; of tournaments nothing can be learned." />
+    <string id="LWN_fact_body_unknown" text="- (nothing can be learned at this moment)" />
+    <string id="LWN_fact_body_war_army" text="- My lord marches with an army ({COUNT} parties riding together)." />
+    <string id="LWN_fact_body_war_at_peace" text="- {KINGDOM} is at peace with all parties for now." />
+    <string id="LWN_fact_body_war_at_war" text="- {KINGDOM} is at war with {ENEMIES}." />
+    <string id="LWN_fact_body_war_no_kingdom" text="- The clan owes no kingdom allegiance (free and independent)." />
+    <string id="LWN_fact_body_wounded" text="- The party has {COUNT} wounded in need of tending." />
+    <string id="LWN_risk_body_buddies" text="  - {COUNT} of those present are your comrades (your party’s people): {NAMES} — if you misbehave they pretend not to see; if you are struck they will help you." />
+    <string id="LWN_risk_body_faction_header" text="- Factions (whose side they are on — how they would truly react if you misbehaved):" />
+    <string id="LWN_risk_body_guards" text="  - {COUNT} guards stand about: if you misbehave they will seize you." />
+    <string id="LWN_risk_body_line_moving" text="- {NAME} is {REL}, pacing about (their position may shift at any moment)." />
+    <string id="LWN_risk_body_line_still" text="- {NAME} is {REL}, holding still (their position is fairly stable)." />
+    <string id="LWN_risk_body_nearby_count" text="- {COUNT} people stand within 3 meters of them." />
+    <string id="LWN_risk_body_neutrals" text="  - The other {COUNT} are neutral onlookers: they will not fight, but they will see and report." />
+    <string id="LWN_risk_body_power_header" text="- Strength comparison (should it come to blows, count both sides — you + comrades present vs target + their companions + guards):" />
+    <string id="LWN_risk_body_reinf_header" text="- But people still stand within 30 meters (they might arrive within 10 seconds):" />
+    <string id="LWN_risk_body_reinf_neutral" text="  - Watching from the middle: {NAMES}." />
+    <string id="LWN_risk_body_reinf_them" text="  - On their side: {NAMES}." />
+    <string id="LWN_risk_body_reinf_us" text="  - On your side: {NAMES}." />
+    <string id="LWN_risk_body_self_state" text="  - Your own state: {ARMOR}, Vigor {VIGOR}/Control {CONTROL}." />
+    <string id="LWN_risk_body_self_watchers" text="- {COUNT} people may be watching you (you yourself are seen too)." />
+    <string id="LWN_risk_body_target_friends" text="  - {COUNT} people around {NAME} are their companions: they will help them, and they will report you." />
+    <string id="LWN_risk_body_target_state" text="  - {NAME}: {ARMOR}, Vigor {VIGOR}/Control {CONTROL}." />
+    <string id="LWN_risk_body_verdict" text="  - Your side’s total strength vs theirs — conclusion: {VERDICT}." />
+    <string id="LWN_risk_body_watchers" text="- At least {COUNT} sets of eyes rest on them right now (a look away may change all that)." />
+    <string id="LWN_sight_merged_line" text="  - As for the rest, {PARTS} — too many to take in at a glance; only an impression remains." />
+    <string id="LWN_sight_merged_part" text="{LABEL} ×{COUNT} ({FLOOR})" />
+    <string id="LWN_sight_overview" text="- {TOTAL} people stand here (detailed for {LISTED}, the remaining {MERGED} merely counted; {FLOORS}):" />
+    <string id="LWN_sight_person_line" text="  - [{FLOOR}] {NAME}{OCC}{MARK}: {REL}, {FACING}, {STATE}" />
+    <string id="LWN_word_bond_bad" text="are at odds" />
+    <string id="LWN_word_bond_good" text="are on good terms" />
+    <string id="LWN_word_day" text="daytime" />
+    <string id="LWN_word_dir_ahead" text="directly opposite" />
+    <string id="LWN_word_dir_at_nearby" text="nearby" />
+    <string id="LWN_word_dir_back" text="straight behind" />
+    <string id="LWN_word_dir_back_left" text="to the back left" />
+    <string id="LWN_word_dir_back_right" text="to the back right" />
+    <string id="LWN_word_dir_front" text="straight ahead" />
+    <string id="LWN_word_dir_front_left" text="to the front left" />
+    <string id="LWN_word_dir_front_right" text="to the front right" />
+    <string id="LWN_word_dir_nearby" text="nearby" />
+    <string id="LWN_word_dir_side_left" text="to the left" />
+    <string id="LWN_word_dir_side_right" text="to the right" />
+    <string id="LWN_word_dist_at_hand" text="at hand" />
+    <string id="LWN_word_dist_li" text="{COUNT} li" />
+    <string id="LWN_word_floor_part" text="{FLOOR}, {COUNT} people" />
+    <string id="LWN_word_gear_body" text="{ITEM} on the body" />
+    <string id="LWN_word_gear_gloves" text="{ITEM} on the hands" />
+    <string id="LWN_word_gear_head" text="{ITEM} on the head" />
+    <string id="LWN_word_gear_horse" text="astride {ITEM}" />
+    <string id="LWN_word_gear_leg" text="{ITEM} on the legs" />
+    <string id="LWN_word_gear_weapon0" text="{ITEM} in hand" />
+    <string id="LWN_word_gear_weapon1" text="{ITEM} in the other hand" />
+    <string id="LWN_word_gear_weapon2" text="{ITEM} on the back" />
+    <string id="LWN_word_health_critical" text="I bear grave wounds" />
+    <string id="LWN_word_health_fine" text="I am in fine fettle" />
+    <string id="LWN_word_health_mount_hurt" text=", and my mount is wounded as well" />
+    <string id="LWN_word_health_wounded" text="I am hurt" />
+    <string id="LWN_word_lord" text="my lord" />
+    <string id="LWN_word_mark_clan" text="of the same clan" />
+    <string id="LWN_word_mark_marriage" text="kin by marriage" />
+    <string id="LWN_word_mark_warring" text="at war between their realms" />
+    <string id="LWN_word_morale_collapse" text="near collapse" />
+    <string id="LWN_word_morale_high" text="high spirits" />
+    <string id="LWN_word_morale_low" text="somewhat low" />
+    <string id="LWN_word_morale_ok" text="passable" />
+    <string id="LWN_word_night" text="nighttime" />
+    <string id="LWN_word_own_mark" text=" (ours)" />
+    <string id="LWN_word_pair_marks" text=" ({MARKS})" />
+    <string id="LWN_word_pairrel_acquaintance" text="mere acquaintances" />
+    <string id="LWN_word_pairrel_bosom" text="bosom friends" />
+    <string id="LWN_word_pairrel_good" text="good friends" />
+    <string id="LWN_word_pairrel_strained" text="cordial on the surface" />
+    <string id="LWN_word_pairrel_swornfoe" text="sworn enemies" />
+    <string id="LWN_word_period" text="." />
+    <string id="LWN_word_person_ally" text="an ally" />
+    <string id="LWN_word_person_comrade" text="a comrade" />
+    <string id="LWN_word_person_deed" text="an errand" />
+    <string id="LWN_word_person_nobody" text="a nameless nobody" />
+    <string id="LWN_word_person_other" text="the other party" />
+    <string id="LWN_word_person_someone" text="someone" />
+    <string id="LWN_word_person_somewhere" text="somewhere" />
+    <string id="LWN_word_person_target" text="the target" />
+    <string id="LWN_word_person_townsperson" text="a townsperson" />
+    <string id="LWN_word_person_unnamed" text="unnamed" />
+    <string id="LWN_word_person_unnamed_place" text="a nameless place" />
+    <string id="LWN_word_person_unnamed_village" text="a nameless village" />
+    <string id="LWN_word_place_nearby" text="nearby" />
+    <string id="LWN_word_ptype_bandit" text="bandits" />
+    <string id="LWN_word_ptype_bandit_chief" text="a bandit chief’s gang" />
+    <string id="LWN_word_ptype_caravan" text="a caravan" />
+    <string id="LWN_word_ptype_farmer" text="farmers" />
+    <string id="LWN_word_ptype_lord_fallback" text="a lord’s party" />
+    <string id="LWN_word_ptype_militia" text="militia" />
+    <string id="LWN_word_ptype_other" text="a party" />
+    <string id="LWN_word_rel_ahead" text="right in front of you" />
+    <string id="LWN_word_rel_at" text="about {DIST} meters {DIR}" />
+    <string id="LWN_word_rel_at_nearby" text="nearby" />
+    <string id="LWN_word_rel_back" text="behind you" />
+    <string id="LWN_word_rel_back_left" text="to your back left" />
+    <string id="LWN_word_rel_back_right" text="to your back right" />
+    <string id="LWN_word_rel_bosom" text="bosom friends" />
+    <string id="LWN_word_rel_friendly" text="friendly" />
+    <string id="LWN_word_rel_front" text="straight ahead" />
+    <string id="LWN_word_rel_front_left" text="to your front left" />
+    <string id="LWN_word_rel_front_right" text="to your front right" />
+    <string id="LWN_word_rel_hostile" text="hostile" />
+    <string id="LWN_word_rel_left" text="to your left" />
+    <string id="LWN_word_rel_neutral" text="neutral" />
+    <string id="LWN_word_rel_opposite" text="directly opposite" />
+    <string id="LWN_word_rel_resentful" text="resentful" />
+    <string id="LWN_word_rel_right" text="to your right" />
+    <string id="LWN_word_scale_even" text=", evenly matched" />
+    <string id="LWN_word_scale_far_less" text=", far fewer than us" />
+    <string id="LWN_word_scale_far_more" text=", far outnumbering us" />
+    <string id="LWN_word_scale_less" text=", fewer than us" />
+    <string id="LWN_word_scale_more" text=", more than us" />
+    <string id="LWN_word_separator" text=", " />
+    <string id="LWN_word_separator_comma" text=", " />
+    <string id="LWN_word_separator_semi" text="; " />
+    <string id="LWN_word_side_enemy" text="the enemy" />
+    <string id="LWN_word_side_friendly" text="allies" />
+    <string id="LWN_word_side_neutral" text="neutral" />
+    <string id="LWN_word_stype_castle" text="a castle" />
+    <string id="LWN_word_stype_hideout" text="a hideout" />
+    <string id="LWN_word_stype_town" text="a town" />
+    <string id="LWN_word_stype_village" text="a village" />
+    <string id="LWN_word_supply_animals" text="livestock" />
+    <string id="LWN_word_supply_food" text="food" />
+    <string id="LWN_word_supply_goods" text="goods" />
+    <string id="LWN_word_supply_misc" text="sundries" />
+    <string id="LWN_word_supply_mounts" text="mounts" />
+    <string id="LWN_word_time_day" text="the daytime" />
+    <string id="LWN_word_weather_normal" text="fair weather as ever" />
+    <string id="LWN_prompt_culture_member" text="I am one of the {NAME} folk." />
+    <string id="LWN_prompt_standing_origin_unknown" text="My origins are unknown; I travel alone." />
+    <string id="LWN_prompt_standing_kingdom_none" text="I owe allegiance to no realm." />
+    <string id="LWN_prompt_standing_template_serving" text="I am a {ROLE} in the service of {CLAN}, earning my bread by arms." />
+    <string id="LWN_prompt_standing_template_commoner" text="I am a {ROLE} of common birth." />
+    <string id="LWN_prompt_standing_clan_status" text="I belong to the house of {CLAN}. My standing within it: {STATUS}." />
+    <string id="LWN_prompt_standing_wanderer" text="I am a homeless wanderer, making my own way." />
+    <string id="LWN_prompt_standing_no_background" text="I have no great house behind me." />
+    <string id="LWN_prompt_standing_kingdom_serve" text="I serve {KINGDOM}." />
+    <string id="LWN_prompt_standing_kingdom_free" text="I bow to no realm; I am a free man." />
+    <string id="LWN_prompt_family_topic_kw" text="家族,家世,出身,门第,家门,你家,家底,族人,family,clan,lineage,background" />
+    <string id="LWN_prompt_kingdom_topic_kw" text="王国,国家,效忠,主公,君主,国王,陛下,阵营,势力,王国归属,kingdom,king,liege,lord,faction,loyalty" />
+    <string id="LWN_action_desc_move_to" text="Walk over to the other or to a place (either face-to-face or a distant target; on the campaign map = lead the party to a town and wait there for you)." />
+    <string id="LWN_action_desc_follow" text="Follow at the other's side (keep following until he leaves; face-to-face or a distant target)." />
+    <string id="LWN_action_desc_stop_following" text="Stop following the other (face-to-face only)." />
+    <string id="LWN_action_desc_order_attack" text="Demand battle of the other, strike first (enters combat; face-to-face only)." />
+    <string id="LWN_action_desc_knockout" text="Knock the other out from behind (face-to-face only; high risk)." />
+    <string id="LWN_action_desc_face" text="Turn to face the other (face-to-face only)." />
+    <string id="LWN_action_desc_look_at" text="Gaze at the other for a moment (face-to-face only)." />
+    <string id="LWN_action_desc_say_to" text="Turn and say this line to the target in person (face-to-face only)." />
+    <string id="LWN_action_desc_emote" text="Make a gesture or motion (nod / shake head / wave / cheer / bow / shrug / point the way / threatening gesture / disappointed; face-to-face only)." />
+    <string id="LWN_action_desc_make_noise" text="Shout aloud to draw attention (face-to-face only)." />
+    <string id="LWN_action_desc_signal_player" text="Send a signal to the player (face-to-face only)." />
+    <string id="LWN_action_desc_steal_attempt" text="Steal money from the other (face-to-face only; high risk)." />
+    <string id="LWN_action_desc_give_gold" text="Hand over your own gold to the player (tiers: small=50 / medium=150 / large=500; face-to-face only)." />
+    <string id="LWN_action_desc_duel" text="A friendly sparring bout (non-lethal combat; face-to-face only)." />
+    <string id="LWN_action_desc_none" text="No action by default; merely converse (the usual small talk)." />
+    <string id="LWN_action_desc_relation_up" text="Standing up: your impression of the other improves (tiers: small=+3 / medium=+5 / large=+10)." />
+    <string id="LWN_action_desc_relation_down" text="Standing down: your impression of the other worsens (tiers: small=-3 / medium=-5 / large=-10)." />
+    <string id="LWN_action_desc_increase_relation" text="Slightly raise standing (kept for the old vocabulary)." />
+    <string id="LWN_action_desc_decrease_relation" text="Slightly lower standing (kept for the old vocabulary)." />
+    <string id="LWN_action_desc_praise" text="Praise the other: his local renown rises a little (praise in public / speak well of him behind his back)." />
+    <string id="LWN_action_desc_spread_rumor" text="Spread a rumor about the other: his local renown falls a little (speak ill behind his back)." />
+    <string id="LWN_action_desc_threaten_verbal" text="Threaten the other in words (he will remember the threat; threatening him to his face may turn him hostile on the spot)." />
+    <string id="LWN_action_desc_promise" text="Make a promise to the other (he will remember this promise)." />
+    <string id="LWN_action_desc_marry_success" text="Accept the other's marriage proposal (a marriage bond is formed; face-to-face only)." />
+    <string id="LWN_action_desc_join_clan" text="Accept recruitment and join the player's clan (face-to-face only)." />
+    <string id="LWN_action_desc_party_patrol" text="Patrol around the nearby town with your party (campaign map)." />
+    <string id="LWN_action_desc_gather_to_player" text="Rally your party to the player's side (campaign map); a companion's independent party merges back (troops return to the main party)." />
+    <string id="LWN_action_desc_split_party" text="Detach a party for independent action (take troops from the main party and follow the player; campaign map; tiers: small≈10 / medium≈30 / large≈60 troops)." />
+    <string id="LWN_action_desc_engage" text="Pursue a visible party with yours (campaign map: enemies/bandits; once caught, combat is handled by the game)." />
+    <string id="LWN_action_desc_crouch" text="Crouch down (stay crouched until ordered to stand; face-to-face only)." />
+    <string id="LWN_action_desc_stand" text="Stand up (rise from crouching; face-to-face only)." />
+    <string id="LWN_action_desc_persuade_join" text="Persuade the other to defect: talk a lord into joining your kingdom (you are king + he is inclined to defect; success = he joins, failure = -10 relation)." />
+    <string id="LWN_action_desc_propose_war" text="Propose war against a kingdom to the king (you are a kingdom member; the proposal goes to the council vote, influence -200; rejection or unmet threshold carries real cost)." />
+    <string id="LWN_action_desc_negotiate_peace" text="Propose peace with a kingdom to the king (you are a kingdom member; the proposal goes to the council vote, influence -200)." />
+    <string id="LWN_action_desc_order_march" text="Command a friendly lord to move his party (march to a town / return to defend his lands / pursue a party; campaign map; no skill check, 1-day cooldown)." />
+    <string id="LWN_action_desc_pay_ransom" text="Offer to buy your freedom (beg your keeper when captured; the ransom is HIS price — you only accept, never bargain; the amount is his to name)." />
+    <string id="LWN_action_desc_beg_mercy" text="Beg the guard for mercy and pay the fine (when caught for a crime; the fine is reckoned from the offense — you only accept, never haggle; the amount is his to name)." />
+    <string id="LWN_action_desc_bribe_guard" text="Press gold into the guard's hand to be let go (when caught for a crime; a fat hush payment — the guard's character decides success; he may take the gold and still arrest you)." />
+    <string id="LWN_prompt_player_desc_fallback" text="An ordinary traveler." />
+    <string id="LWN_prompt_player_desc_name" text="Name: {NAME}." />
+    <string id="LWN_prompt_player_desc_identity" text="Identity: a {GENDER} of {CLAN}." />
+    <string id="LWN_prompt_player_desc_no_clan" text="no house" />
+    <string id="LWN_prompt_player_desc_gender_female" text="warrior woman" />
+    <string id="LWN_prompt_player_desc_gender_male" text="warrior" />
+    <string id="LWN_prompt_player_desc_kingdom" text="Allegiance: {KINGDOM}." />
+    <string id="LWN_prompt_player_desc_honor" text="Honor: {HONOR}." />
+    <string id="LWN_prompt_player_desc_gold" text="Gold on hand: {GOLD}." />
+    <string id="LWN_prompt_peer_just_said" text="{PEER} just said: &quot;{TEXT}&quot;." />
+    <string id="LWN_prompt_peer_also_replying" text="{PEER} is also answering our lord." />
+    <string id="LWN_prompt_peer_previously_said" text="He also said before: &quot;{TEXT}&quot;." />
+    <string id="LWN_prompt_peer_mode_contradict" text="Your reply style is CONTRADICTION — find the weak spot in his words (unrealistic, boastful, self-contradictory, easy talk from the sidelines), then needle him on that very spot (teasing banter, sparing our lord's face)." />
+    <string id="LWN_prompt_peer_mode_agree" text="Your reply style is AGREEMENT — find the point in his words that holds up, agree with it, and add a reason of your own." />
+    <string id="LWN_prompt_peer_mode_sarcastic" text="Your reply style is SARCASM — outwardly agree with him while pointedly pricking the holes in his words (e.g. praising him &quot;what a fine skill&quot;, meaning &quot;as if only you could&quot;)." />
+    <string id="LWN_prompt_peer_mode_empathize" text="Your reply style is EMPATHY — take up the feeling in his words (understanding / concern / shared joy), then add your own view." />
+    <string id="LWN_prompt_peer_style_ban" text=" **Never open with stock phrases like &quot;XX makes sense&quot;, &quot;that's a fair point&quot;, or &quot;no leg to stand on&quot; — vary your opener every time (e.g. &quot;if you ask me&quot;, &quot;fair enough&quot;, &quot;oh please&quot;, or just state your view plainly), like a real person joining a conversation, never like reading a script.**" />
+    <string id="LWN_prompt_section_peer" text="## Interaction Among Comrades" />
+    <string id="LWN_prompt_peer_relation_line" text="Your relationship with {PEER}: {RELATION}." />
+    <string id="LWN_prompt_peer_two_actions" text="You must first answer his words in your style, then take up our lord's words — do both." />
+    <string id="LWN_prompt_proposal_sender_lord" text="our lord" />
+    <string id="LWN_prompt_proposal_sender_other" text="someone" />
+    <string id="LWN_prompt_proposal_identity_sep" text=". " />
+    <string id="LWN_prompt_proposal_rule_fallback" text="[Proposed Action] Our lord has just spoken to you, and you suddenly recall something you ought to do (patrol / keep watch / collect a debt / pay a visit / procure supplies, fitting your station and the present situation). Put it to our lord in one sentence, format: my lord, I would go to... (10-30 characters, speak plainly, no explanation). The proposal must bear on the current topic — consider what to do from what our lord just said and what is being discussed in the channel; if nothing fitting arises, reply only with &quot;none&quot;." />
+    <string id="LWN_prompt_proposal_current_topic" text="Our lord just said: {TEXT}" />
+    <string id="LWN_prompt_proposal_none" text="(none)" />
+    <string id="LWN_worldbg_section_culture" text="=== Cultures ===" />
+    <string id="LWN_worldbg_culture_line" text="{NUM}. {NAME}: {TEXT}" />
+    <string id="LWN_worldbg_section_kingdom" text="=== Kingdoms ===" />
+    <string id="LWN_worldbg_no_leader" text="(no reigning ruler)" />
+    <string id="LWN_worldbg_no_culture" text="(no culture)" />
+    <string id="LWN_worldbg_kingdom_line" text="{NUM}. {NAME} (culture: {CULT}, ruler: {LEADER}): {TEXT}" />
+    <string id="LWN_worldbg_no_clan" text="no clan" />
+    <string id="LWN_worldbg_key_person_line" text="  Key figure {NUM}. {NAME} ({CLAN}): {TEXT}" />
+    <string id="LWN_worldbg_truncated" text="… (material truncated for length)" />
+    <string id="LWN_worldbg_failed" text="(material collection failed)" />
+    <string id="LWN_worldbg_generate_fallback" text="You are the shaper of this world's lore. From the materials below (culture encyclopedias, kingdom encyclopedias, key-figure encyclopedias), write a 100-150 character summary of the World Situation in {LANG}.
+Requirements: 1. Output a single passage — first line literally &quot;=== World Situation ===&quot;, then the body; nothing beyond that marker; 2. Content is static worldbuilding lore: names and traits of the main factions and cultures, geography, famous historical figures (referred to by role, e.g. &quot;the Imperial Emperor&quot;, never by personal name), customs; 3. No live state whatsoever: strength of powers, survival, wars, border changes; 4. Do not invent anything absent from the materials — use only what is given below; 5. Language: {LANG}." />
+    <string id="LWN_worldbg_materials_header" text="
+
+=== Materials ===
+" />
+    <string id="LWN_worldbg_no_encyclopedia" text="(no encyclopedia)" />
+    <string id="LWN_prompt_dialogcomp_rule_fallback" text="[Requirement] Reply to the other in one plain spoken sentence (10-40 characters), following his words like casual talk or a sharp back-and-forth — speak only the line itself: no quotes, no explanation, no stage directions." />
+    <string id="LWN_prompt_interject_pass_by" text="Two are conversing; you merely pass by and overhear" />
+    <string id="LWN_prompt_interject_rule_fallback" text="[Requirement] React to the conversation you overheard in one sentence (10-30 characters), like a passerby's offhand remark. Speak only the line itself — no quotes, no explanation, no stage directions." />
+    <string id="LWN_prompt_proposal_rule_npc_fallback" text="[Proposed Action] Someone has just spoken to you, and you suddenly recall something you ought to do (patrol / keep watch / collect a debt / pay a visit / procure supplies, fitting your station and the present situation). Put it to them in one sentence, format: I would go to... (10-30 characters, speak plainly, no explanation)." />
+    <string id="LWN_prompt_respond_rule_json_fallback" text="[Requirement] Reply to the other in one plain spoken sentence (10-40 characters), befitting your station, character and present mood; follow his words and speak only the line itself — no quotes, no explanation, no stage directions." />
+    <string id="LWN_prompt_companion_rule_fallback" text="[Requirement] Say one plain spoken sentence to the other (10-40 characters), fitting a retainer, advancing the dialogue along the current turn — speak only the line itself: no quotes, no explanation, no stage directions." />
+    <string id="LWN_prompt_outline_segment_prefix" text="Segment {NUM}/{TOTAL}:" />
+    <string id="LWN_prompt_section_scene_zones" text="[Scene Zone Anchors] ({COUNT})" />
+    <string id="LWN_prompt_scene_person_line" text="- {ROLE}{NAME}{INDEX}{OCC}: {POS}, {FACING}, {STATE}{HINT}" />
+    <string id="LWN_prompt_scene_occupation_suffix" text=" ({OCC})" />
+    <string id="LWN_prompt_scene_hint_suffix" text=" ({HINT})" />
+    <string id="LWN_prompt_scene_group_line" text="- {ROLE}{NAME}{OCC} x{COUNT}: {DIR}{RANGE}" />
+    <string id="LWN_prompt_scene_range_single" text="{DIST} m" />
+    <string id="LWN_prompt_scene_range_multi" text="{MIN}-{MAX} m" />
+    <string id="LWN_prompt_scene_zone_line" text="- {NAME}: {POS}" />
+    <string id="LWN_prompt_scene_name_player" text="the player" />
+    <string id="LWN_prompt_scene_name_passby" text="a passerby" />
+    <string id="LWN_prompt_scene_obj_chest" text="chest" />
+    <string id="LWN_prompt_scene_obj_door" text="door" />
+    <string id="LWN_prompt_scene_obj_barrel" text="barrel" />
+    <string id="LWN_prompt_scene_obj_chair" text="chair and table" />
+    <string id="LWN_prompt_scene_obj_other" text="object" />
+    <string id="LWN_prompt_scene_pos_beside" text="beside you" />
+    <string id="LWN_prompt_scene_pos_east" text="east of you" />
+    <string id="LWN_prompt_scene_pos_southeast" text="southeast of you" />
+    <string id="LWN_prompt_scene_pos_south" text="south of you" />
+    <string id="LWN_prompt_scene_pos_west" text="west of you" />
+    <string id="LWN_prompt_scene_pos_north" text="north of you" />
+    <string id="LWN_prompt_scene_pos_southwest" text="southwest of you" />
+    <string id="LWN_prompt_scene_pos_line" text="{DIR} {DIST} m" />
+    <string id="LWN_prompt_scene_facing_unknown" text="facing unknown" />
+    <string id="LWN_prompt_scene_facing_toward" text="facing the player" />
+    <string id="LWN_prompt_scene_facing_away" text="back to the player" />
+    <string id="LWN_prompt_scene_facing_side" text="turned sideways to the player" />
+    <string id="LWN_prompt_scene_facing_unknown2" text="facing unknown" />
+    <string id="LWN_prompt_scene_state_absent" text="absent" />
+    <string id="LWN_prompt_scene_state_fighting" text="fighting" />
+    <string id="LWN_prompt_scene_state_knocked_out" text="unconscious" />
+    <string id="LWN_prompt_scene_state_confronting" text="confronting warily" />
+    <string id="LWN_prompt_scene_state_following" text="following" />
+    <string id="LWN_prompt_scene_state_interacting" text="interacting" />
+    <string id="LWN_prompt_scene_state_executing" text="carrying out orders" />
+    <string id="LWN_prompt_scene_state_surrendering" text="about to yield" />
+    <string id="LWN_prompt_scene_state_alarmed" text="on high alert" />
+    <string id="LWN_prompt_scene_state_cautious" text="wary" />
+    <string id="LWN_prompt_scene_state_suspicious" text="suspicious" />
+    <string id="LWN_prompt_scene_state_crouch" text="crouching" />
+    <string id="LWN_prompt_scene_state_sitting" text="sitting" />
+    <string id="LWN_prompt_scene_state_standing" text="standing" />
+    <string id="LWN_prompt_scene_occ_hero" text="a notable" />
+    <string id="LWN_prompt_scene_occ_guard" text="guard" />
+    <string id="LWN_prompt_scene_occ_villager" text="villager" />
+    <string id="LWN_prompt_scene_occ_merchant" text="merchant" />
+    <string id="LWN_prompt_scene_occ_tavernkeeper" text="tavernkeeper" />
+    <string id="LWN_prompt_scene_occ_notable" text="headman/elder" />
+    <string id="LWN_prompt_scene_pers_hero" text="a notable; behavior observable" />
+    <string id="LWN_prompt_scene_pers_guard" text="dutiful and steadfast at his post" />
+    <string id="LWN_prompt_scene_pers_villager" text="an ordinary villager" />
+    <string id="LWN_prompt_scene_pers_merchant" text="shrewd and calculating" />
+    <string id="LWN_prompt_scene_pers_tavernkeeper" text="affable and smooth-tongued" />
+    <string id="LWN_prompt_scene_pers_drunkard" text="drunk and unsteady" />
+    <string id="LWN_prompt_distress_captive" text="- The other is {NAME}, held in your custody (status: prisoner). He begs you to let him go — the ransom is YOUR price to name; he has no say." />
+    <string id="LWN_prompt_distress_caught" text="- The other is {NAME}, seized for wrongdoing (status: suspect). His debt is not yet settled." />
+    <string id="LWN_prompt_distress_debt" text="- The sum he owes ({GOLD}) is yours to set — if he accepts the penalty, that is the price; if he quibbles, let him test the wall." />
+    <string id="LWN_prompt_record_battles" text="We have fought {BATTLES} battles at your side and won {WINS}" />
+    <string id="LWN_prompt_record_imprisonments" text="You have been taken captive {COUNT} times" />
+    <string id="LWN_prompt_record_crimes" text="You have committed {COUNT} misdeeds" />
+    <string id="LWN_prompt_record_join" text="; " />
+    <string id="LWN_prompt_record_end" text="." />
+    <string id="LWN_prompt_negoimpress_intro" text="Before the negotiation begins, your initial frame of mind, based on the player's station and your history together, is as follows:" />
+    <string id="LWN_prompt_negoimpress_relation_high" text="1. **CLOSE BOND**: The player is a friend you know well (relation {RELATION}). Seeing an old acquaintance puts you at ease; you are warm and glad, willing to hear him out patiently. Progress contributed: HIGH (old friendship is your chief motive)" />
+    <string id="LWN_prompt_negoimpress_relation_low" text="1. **BAD BLOOD**: The player is someone you dislike (relation {RELATION}). You bear him ill will or prejudice; his arrival vexes you, and your tone should be cold, even barbed. Progress deducted: NEGATIVE (his very face galls you)" />
+    <string id="LWN_prompt_negoimpress_relation_neutral" text="1. **MERE ACQUAINTANCE**: You barely know the player (indifferent relation); this is a businesslike meeting. Keep a courteous but distant manner." />
+    <string id="LWN_prompt_negoimpress_charm" text="2. **WINNING TONGUE**: The player's personal charm (level {LEVEL}) falls on you like a spring breeze. You instinctively take him for a trustworthy man and are willing to grant him some face." />
+    <string id="LWN_prompt_negoimpress_renown_higher" text="3. **ILLUSTRIOUS NAME**: The player's clan renown far outstrips yours (higher by {DIFF}). Before such a great man, even if it chafes, you dare not give offence — your manner turns deferential or wary. Progress contributed: MEDIUM (you must honor the strong)" />
+    <string id="LWN_prompt_negoimpress_renown_famous" text="3. **A NAME KNOWN**: You have heard of the player; you know he is a power in his own right and worth treating with courtesy." />
+    <string id="LWN_prompt_negoimpress_process_cap" text="Even with such clear advantages, the proper process must still be followed — at most grant a 50% starting concession, or you would be giving yourself away for nothing." />
+    <string id="LWN_prompt_negoimpress_decision" text="&gt;&gt; Based on the above frame of mind, you decide to open by granting the player {PROGRESS}% initial progress. Generate your first greeting in npc_reply. Do not list figures outright — let the tone carry these circumstances." />
+    <string id="LWN_prompt_negoimpress_acting" text="&gt;&gt; Acting note: in npc_reply, explicitly name the single strongest factor above as the reason you are willing to negotiate." />
+    <string id="LWN_prompt_section_task" text="【Task】" />
+    <string id="LWN_prompt_director_error" text="ERROR: cannot generate the script; key roles are missing." />
+    <string id="LWN_prompt_director_task" text="You are a plot engine. Based on the 【rumor】 and the identities/personalities in the 【cast】, deduce what each person does after hearing the rumor. Pull everyone involved into one scene and output an outline." />
+    <string id="LWN_prompt_director_loc" text="*   **Location**: {LOC}" />
+    <string id="LWN_prompt_director_conflict" text="*   **Core conflict**: 【{DESC}】" />
+    <string id="LWN_prompt_director_evidence" text="**Key evidence**: {SPEAKER} once said: “{QUOTE}”" />
+    <string id="LWN_prompt_director_cast_intro" text="Generate the plot with the roles assigned below:" />
+    <string id="LWN_prompt_director_accused" text="1. **Defendant (Initiator/Accused)**: {NAME}. Profile: {PERSONA}." />
+    <string id="LWN_prompt_director_accuser" text="2. **Plaintiff (Victim/Accuser)**: {NAME}. Profile: {PERSONA}." />
+    <string id="LWN_prompt_director_accuser_note" text="(note: he is the victim's agent or kin)" />
+    <string id="LWN_prompt_director_authority" text="3. **Arbiter (Authority)**: {NAME}. Profile: {PERSONA}." />
+    <string id="LWN_prompt_director_gallery" text="4. **Onlookers**: {NAMES}" />
+    <string id="LWN_prompt_director_role_accused" text="(note: **PLAYER** is the defendant in this case)" />
+    <string id="LWN_prompt_director_role_accuser" text="(note: **PLAYER** is the plaintiff in this case)" />
+    <string id="LWN_prompt_director_role_authority" text="(note: **PLAYER** is the arbiter/judge in this case)" />
+    <string id="LWN_prompt_director_role_bystander" text="(note: **PLAYER** is merely an onlooker)" />
+    <string id="LWN_prompt_director_player_line" text="5. **Player role**: {ROLE}" />
+    <string id="LWN_prompt_director_flow_intro" text="Generate the script flow with the following 4 steps:" />
+    <string id="LWN_prompt_director_flow1" text="1. **Opening**: the plaintiff (Accuser) {ACCUSER} uses the key testimony to press the defendant (Accused) {ACCUSED}. If the plaintiff is not the victim themself, describe how they cite the 【key evidence】 to champion the victim." />
+    <string id="LWN_prompt_director_flow2_authority" text="2. **Escalation**: the arbiter (Authority) {NAME} steps in, but instead of ruling directly, he puts pressure on the accused side (or demands a confrontation). Depict it by his personality (imposing, mocking, or cold)." />
+    <string id="LWN_prompt_director_flow2_crowd" text="2. **Escalation**: the crowd starts jeering and the situation spirals out of hand." />
+    <string id="LWN_prompt_director_flow3_accused" text="3. **Conflict**: the player (defendant) feels enormous pressure — must defend at once or face grave consequences (stares of the crowd, death threats, possible expulsion)." />
+    <string id="LWN_prompt_director_flow4_accused" text="4. **Decision moment**: the script ends immediately and outputs 【3 dilemma options】 for the player." />
+    <string id="LWN_prompt_director_flow3_authority" text="3. **Conflict**: everyone watches the player (arbiter), awaiting the final ruling." />
+    <string id="LWN_prompt_director_flow4_authority" text="4. **Decision moment**: generate 【3 dilemma ruling options】 for the player (e.g. side with one party, split the difference, do things by the book)." />
+    <string id="LWN_prompt_director_flow3_bystander" text="3. **Conflict**: the player has a chance to step into the dispute." />
+    <string id="LWN_prompt_director_flow4_bystander" text="4. **Decision moment**: generate 【3 dilemma action options】 (e.g. kick them while down, calm things with eloquence, draw your blade to help)." />
+    <string id="LWN_prompt_director_example" text="1. A lord berates the envoy of the other side, demanding the culprit be handed over.
+2. The envoy calmly passes the buck to a retainer.
+3. The retainer (the player) must now respond.
+4. The script must end with 【3 dilemma options】 for the player." />
+    <string id="LWN_prompt_director_req1" text="1. **Concise**: output an outline, not a very detailed story — each beat description within 30 characters." />
+    <string id="LWN_prompt_director_req2" text="2. **Segment generation at interaction nodes**: since the player chooses and you cannot predict, only generate up to the &quot;decision moment&quot; that requires the player to decide." />
+    <string id="LWN_prompt_director_req3" text="3. **Ignore what follows the choice**: after the player picks an option, I will call the model again for the next outline." />
+    <string id="LWN_prompt_director_req4" text="4. **Before the decision**: in stages 1-3, if **PLAYER** speaks, only generate objective facts that need no choice — no opinionated lines for the player. Let NPCs build the pressure; the player only handles the final &quot;highlight moment&quot; choice. Only when attitudes, decisions, lies and truths are at stake do you reach stage 4, the decision moment — stop there and hand it to the player." />
+    <string id="LWN_prompt_show_task" text="You are a script generator. Based on the given outline, generate a JSON script that strictly follows the definition." />
+    <string id="LWN_prompt_show_role" text="The role the player plays in this script: {NAME}" />
+    <string id="LWN_prompt_show_info" text="**Rumor info**: 【{DESC}】" />
+    <string id="LWN_prompt_show_evidence" text="**Key evidence**: {SPEAKER} once said: “{QUOTE}”" />
+    <string id="LWN_prompt_show_cast" text="**Cast**: {ACCUSED}, {ACCUSER}, {AUTHORITY}, {GALLERY}" />
+    <string id="LWN_prompt_show_flow" text="**Script flow**: 【{BOOK}】" />
+    <string id="LWN_prompt_show_format1" text="1. Output must be pure JSON — **never** include Markdown code fences (e.g. ```json). No ```json ... ``` wrapping, no explanatory text." />
+    <string id="LWN_prompt_show_format2" text="2. The JSON root must contain a `script` array." />
+    <string id="LWN_prompt_show_format3" text="3. The script must end with a `CHOICE` node, or with plain performance. Never generate post-choice branches inside the script." />
+    <string id="LWN_prompt_show_commands" text="Your JSON `script` array may only contain the following `cmd` objects. Build the `script` array using ONLY these commands:
+1. **Dialogue (DIALOG)**:
+   { 
+     &quot;cmd&quot;: &quot;DIALOG&quot;, 
+     &quot;speaker_name&quot;: &quot;Noble Lord&quot;, 
+     &quot;listener_name&quot;: &quot;Retainer&quot;,
+     &quot;speaker_text&quot;: &quot;What did you just say, boy?&quot; ,
+     &quot;speaker_emotion&quot;:&quot;&quot;
+   }
+   *Note: for narration, set speaker_name to &quot;Narrator&quot; and leave listener_name and speaker_emotion as empty strings.
+   *speaker_name and listener_name may be equal (self-talk). For inner thoughts, wrap speaker_text in parentheses.
+2. **Player options (CHOICE)**:
+   {
+     &quot;cmd&quot;: &quot;CHOICE&quot;,
+     &quot;options&quot;:  [
+        {
+            &quot;tactic&quot;: &quot;Intimidate&quot;, 
+            &quot;attribute&quot;: &quot;Force&quot;, 
+            &quot;text&quot;: &quot;a specific intimidating line, ~30 chars...&quot;, 
+            &quot;outcome_prediction&quot;: &quot;(expected: enrages the other)&quot;,
+            &quot;player_emotion&quot;:&quot;pick one of normal/threat/rage/weary/confident/polite/arrogant/aggres/negative/promise/positive/nervous/confused/closed/question/alert/nocare/surprise/happy&quot;
+        },
+        {
+            &quot;tactic&quot;: &quot;Deceive&quot;, 
+            &quot;attribute&quot;: &quot;Wisdom&quot;, 
+            &quot;text&quot;: &quot;a specific deceiving line, ~30 chars...&quot;, 
+            &quot;outcome_prediction&quot;: &quot;(expected: high success chance)&quot;,
+            &quot;player_emotion&quot;:&quot;pick one of normal/threat/rage/weary/confident/polite/arrogant/aggres/negative/promise/positive/nervous/confused/closed/question/alert/nocare/surprise/happy&quot;  
+        }
+    ]}
+3. **Character entry (APPEAR)**:
+   { 
+     &quot;cmd&quot;: &quot;APPEAR&quot;, 
+     &quot;params&quot;: &quot;Noble Lord, Guild Master, Captain of the Guard&quot;, 
+   }
+4. **Character exit (EXIT)**:
+   { 
+     &quot;cmd&quot;: &quot;EXIT&quot;, 
+     &quot;params&quot;: &quot;Noble Lord, Guild Master, Captain of the Guard&quot;, 
+   }" />
+    <string id="LWN_prompt_show_req1" text="1. **Immersion**: lines must fit {STYLE}." />
+    <string id="LWN_prompt_show_req2" text="2. **Cite evidence**: the script must explicitly have the 【plaintiff】 cite the **key evidence** (i.e. KeyQuoteText) from the rumor to attack the defendant." />
+    <string id="LWN_prompt_show_req3" text="3. **Wrap-up**: the performance must reach the CHOICE node within 5-8 dialogue nodes — do not overdo the setup. Stop at the moment the player must respond; do not generate post-choice results, because after the player picks, I will call the model again for the next outline and script." />
+    <string id="LWN_prompt_show_req4" text="4. **Narration**: some narration may be woven into the dialogue, but no more than a quarter of the total, and at most 2 narration blocks per generation. Narration must not describe character actions or performance details — but it may state objective background or past events, e.g. &quot;she has weathered much gossip over the past year.&quot;" />
+    <string id="LWN_prompt_show_req5" text="5. **Emotion**: both speaker_emotion and player_emotion must be one of: normal/threat/rage/weary/confident/polite/arrogant/aggres/negative/promise/positive/nervous/confused/closed." />
+    <string id="LWN_prompt_show_req6" text="6. **Before the player options**: before options trigger, if **PLAYER** speaks, only generate objective facts that need no choice — no opinionated lines for the player (I will play them in order). Let NPCs build the pressure; the player only handles the final &quot;highlight moment&quot; choice. Only when attitudes, decisions, lies and truths are at stake do you reach stage 4, the decision moment — stop there and hand it to the player." />
+    <string id="LWN_prompt_show_req7" text="7. **Appear and exit**: params must be comma-separated names from the cast." />
+    <string id="LWN_prompt_memory_social_task1" text="You are a narrative analysis engine." />
+    <string id="LWN_prompt_memory_social_task2" text="Analyze the [recent memories] and [recent conversation log] between {PLAYER_NAME} and you ({NPC_NAME}), and decide whether a &quot;social event&quot; (SocialEvent) worth recording occurred." />
+    <string id="LWN_prompt_memory_social_task3" text="If a socially meaningful event occurred (harassment, betrayal, gift, insult, flirtation, alliance, conflict, etc.), extract the details and generate JSON." />
+    <string id="LWN_prompt_memory_social_task4" text="If it was only meaningless pleasantries (e.g. &quot;hello&quot;, &quot;nice weather today&quot;), output the single word NONE." />
+    <string id="LWN_prompt_memory_social_core1" text="1. **Claim Separation**:
+   - Mark the player's words as `Player_Claim` (a claim), not `World_Fact` (fact).
+   - A claim becomes fact only when the NPC explicitly acknowledges it or system info corroborates it.
+   - Example: the player saying &quot;your husband is dead&quot; is an `Insult` event, not a `Widowhood` event." />
+    <string id="LWN_prompt_memory_social_core2" text="2. **Deep intent analysis**:
+   - Read the player's subtext. If a person of low standing proposes to someone noble, mark it [Harassment] or [Delusion], not a normal [Proposal]." />
+    <string id="LWN_prompt_memory_social_ctx" text="【Input】" />
+    <string id="LWN_prompt_memory_social_ctx_mem" text="[recent memories]:
+{MEMORY}" />
+    <string id="LWN_prompt_memory_social_ctx_hist" text="[recent conversation log]:
+{HISTORY}" />
+    <string id="LWN_prompt_memory_social_req1" text="1. **EventType**: choose from &quot;None&quot; (no special event), &quot;Harassment&quot;, &quot;Betrayal&quot;, &quot;Gift&quot;, &quot;Flirt&quot;, &quot;Conflict&quot;, &quot;Scandal&quot;, &quot;Friendly&quot;." />
+    <string id="LWN_prompt_memory_social_req2" text="2. **InitiatorName** and **VictimName**: identify names from the conversation. The instigator is Initiator; the one who bore it is Victim." />
+    <string id="LWN_prompt_memory_social_req3" text="3. **BaseSeverity**: an integer 0-100. 0 = trivial, 50 = clear offense/favor, 100 = irreconcilable / life-devotion." />
+    <string id="LWN_prompt_memory_social_req4" text="4. **Tags**: this is the key of your value judgment. Pick the most fitting tags (multi-select): &quot;Dishonorable&quot;, &quot;Honorable&quot;, &quot;SexualHarassment&quot;, &quot;Violent&quot;, &quot;Generous&quot;, &quot;Greedy&quot;, &quot;Insulting&quot;, &quot;Romantic&quot;, &quot;Political&quot;." />
+    <string id="LWN_prompt_memory_social_req5" text="5. **Description**: briefly describe what happened in third person, within 30 characters, e.g. &quot;A retainer tried to provoke a noble lady with words but was ignored.&quot;" />
+    <string id="LWN_prompt_memory_social_req6" text="6. **KeyQuoteText** and **KeyQuoteSpeakerName**: extract the key testimony from the conversation — its content and the name of the one who said it." />
+    <string id="LWN_prompt_memory_social_req7" text="7. **Output format**: return pure JSON only, no ```json fences or other explanatory text. Unless no event occurred or it was meaningless pleasantry — then EventType must be None." />
+    <string id="LWN_prompt_memory_social_json" text="{ &quot;EventType&quot;: &quot;Harassment&quot;, &quot;InitiatorName&quot;: &quot;NameA&quot;, &quot;VictimName&quot;: &quot;NameB&quot;, &quot;BaseSeverity&quot;: 80, &quot;Description&quot;: &quot;event description&quot;, &quot;Tags&quot;: [&quot;Dishonorable&quot;, &quot;Insulting&quot;], &quot;KeyQuoteText&quot;: &quot;key testimony&quot;, &quot;KeyQuoteSpeakerName&quot;: &quot;name of the speaker&quot; }" />
+    <string id="LWN_prompt_memory_perm_task" text="You are {NPC_NAME}. Decide whether a fading memory should be stored in your permanent memory." />
+    <string id="LWN_prompt_memory_perm_content" text="【Memory Content】" />
+    <string id="LWN_prompt_memory_perm_fading" text="- The fading memory: {FADING}" />
+    <string id="LWN_prompt_memory_perm_current" text="- Your current permanent memory: {CURRENT}" />
+    <string id="LWN_prompt_memory_perm_json" text="Reply in pure JSON:
+{ &quot;Summary&quot;: &quot;the new permanent memory&quot; }" />
+    <string id="LWN_prompt_memory_summary_task" text="You are {NPC_NAME}. You just went through a conversation (either a one-on-one talk, or public talk in a channel you belong to — party/clan)." />
+    <string id="LWN_prompt_memory_summary_goal" text="From 【{NPC_NAME}】's perspective, recall and summarize this experience, within 30 characters:" />
+    <string id="LWN_prompt_memory_summary_channel_note" text="(Lines marked &quot;(channel)&quot; are public talk in your channel; you did not take part in all of it — only keep the gist that concerns you or matters.)" />
+    <string id="LWN_prompt_memory_summary_json" text="Reply in pure JSON:
+{ &quot;Summary&quot;: &quot;the NPC's memory summary&quot; }" />
+    <string id="LWN_prompt_memory_summary_req1" text="1. Distill one short memory summary (within 30 characters)." />
+    <string id="LWN_prompt_memory_summary_req2" text="2. Must use first person &quot;I&quot; (referring to {NPC_NAME})." />
+    <string id="LWN_prompt_memory_summary_req3" text="3. The summary must be what you ({NPC_NAME}) saw and heard — never record the other's deeds as your own." />
+    <string id="LWN_prompt_memory_summary_req4" text="4. {STYLE}" />
+    <string id="LWN_prompt_memory_summary_req5" text="5. Output pure JSON only. No explanations or Markdown outside the JSON content." />
+    <string id="LWN_prompt_memory_narr_task" text="You are {NPC_NAME}. Below is a record of an event you recently experienced first-hand (first-person narration: who hit you, what you saw, what you did)." />
+    <string id="LWN_prompt_memory_narr_req3" text="3. Summarize only your own experiences — never record what others went through as your own." />
+    <string id="LWN_prompt_memory_profile_task" text="You are {NAME}. Based on the 【Identity Info】【Traits】【Skills】【Conversation Log】 below, generate three standing persona paragraphs in first person." />
+    <string id="LWN_prompt_memory_profile_req_head" text="Requirements:" />
+    <string id="LWN_prompt_memory_profile_req1" text="1. Must be first person (I) — the basis for how you introduce yourself to others." />
+    <string id="LWN_prompt_memory_profile_req2" text="2. BackgroundStory (30~60 chars): your past — extract real experiences from the log (e.g. recruited as a wanderer, a homeland or attachment you mentioned). Never invent content absent from the log." />
+    <string id="LWN_prompt_memory_profile_req3" text="3. Personality (20~40 chars): translate the 【Traits】 into human character descriptions (e.g. honor-bound, hot-tempered, cannot bear the weak being bullied). Do not list numbers." />
+    <string id="LWN_prompt_memory_profile_req4" text="4. Specialty (20~40 chars): translate the 【Skills】 into what you can do (e.g. strong with bow and horse, decent on horseback). Do not list skill names and numbers." />
+    <string id="LWN_prompt_memory_profile_req5" text="5. Do not wrap the whole passage in quotes." />
+    <string id="LWN_prompt_memory_profile_name" text="- Name: {NAME}" />
+    <string id="LWN_prompt_memory_profile_occ" text="- Occupation: {OCC}" />
+    <string id="LWN_prompt_memory_profile_traits" text="- Honor={HONOR} Mercy={MERCY} Valor={VALOR} Calculating={CALC}" />
+    <string id="LWN_prompt_memory_profile_skill_join" text=", " />
+    <string id="LWN_prompt_memory_profile_json" text="Reply in pure JSON (no explanation or Markdown outside the JSON):
+{ &quot;BackgroundStory&quot;: &quot;my background&quot;, &quot;Personality&quot;: &quot;my personality&quot;, &quot;Specialty&quot;: &quot;my specialty&quot; }" />
+    <string id="LWN_prompt_memory_comment_task" text="You are {SPEAKER}, a companion in this party. You just heard of a major event and want to say a line in the party channel." />
+    <string id="LWN_prompt_memory_comment_event" text="The event: {DESC}" />
+    <string id="LWN_prompt_memory_comment_req_head" text="Requirements:" />
+    <string id="LWN_prompt_memory_comment_req1" text="1. First person, one colloquial comment (20~40 chars) fitting your stance (concern/pride/worry/gossip)." />
+    <string id="LWN_prompt_memory_comment_req2" text="2. Do not retell the event's details — just voice your view, like a casual line in the party." />
+    <string id="LWN_prompt_memory_comment_req3" text="3. Output only the line itself — no quotes, no colon, no explanation, no JSON." />
+    <string id="LWN_prompt_relation_victim_self" text="- The victim is 【yourself】. Show the pain of one personally struck." />
+    <string id="LWN_prompt_relation_victim_spouse" text="- The victim {NAME} is your 【spouse/wife/husband】. You should be furious and speak like one defending family." />
+    <string id="LWN_prompt_relation_victim_child" text="- The victim {NAME} is your 【child】." />
+    <string id="LWN_prompt_relation_victim_sibling" text="- The victim {NAME} is your 【sibling】." />
+    <string id="LWN_prompt_relation_victim_leader" text="- The victim {NAME} is your 【clan head / lord】." />
+    <string id="LWN_prompt_relation_victim_retainer" text="- The victim {NAME} is your 【retainer】." />
+    <string id="LWN_prompt_relation_victim_friend" text="- The victim {NAME} is your 【friend】 (relation: {REL})." />
+    <string id="LWN_prompt_relation_victim_foe" text="- The victim {NAME} is someone you 【dislike】 (relation: {REL}) — you may even gloat." />
+    <string id="LWN_prompt_relation_initiator_spouse" text="- The instigator {NAME} turns out to be your 【spouse】. You are deeply confused and torn." />
+    <string id="LWN_prompt_relation_tail" text="Adjust your address in dialogue according to the relations above (e.g. call the victim &quot;my wife&quot;)." />
+    <string id="LWN_ui_questhistory_empty" text="No quest records yet." />
+    <string id="LWN_ui_questhistory_header" text="Total {COUNT} records:
+" />
+    <string id="LWN_word_time_just" text="just now" />
+    <string id="LWN_word_time_today" text="today" />
+    <string id="LWN_word_time_yesterday" text="yesterday" />
+    <string id="LWN_word_time_days_ago" text="a few days ago" />
+    <string id="LWN_word_time_last_week" text="last week" />
+    <string id="LWN_word_time_last_month" text="last month" />
+    <string id="LWN_word_time_months_ago" text="months ago" />
+    <string id="LWN_word_time_long_ago" text="long ago" />
+    <string id="LWN_prompt_address_head" text="【Address Discipline】Choose how to address the other by your relationship and standing (kinship terms first; use a title of office when the other is a clan head or captain). Keep the address you have used in the conversation history — do not force a fixed honorific. Both: you (" />
+    <string id="LWN_prompt_address_close" text=")" />
+    <string id="LWN_word_gender_male" text="male" />
+    <string id="LWN_word_gender_female" text="female" />
+    <string id="LWN_prompt_address_age" text=", {AGE} years old" />
+    <string id="LWN_prompt_address_you" text="), the other (" />
+    <string id="LWN_prompt_address_player" text=", {IDENTITY}" />
+    <string id="LWN_prompt_address_end" text="." />
+    <string id="LWN_prompt_player_clan_leader" text="is the head of your clan" />
+    <string id="LWN_prompt_player_clanless" text="has not yet founded a clan" />
+    <string id="LWN_prompt_player_captain" text=", and the captain of this party" />
+    <string id="LWN_prompt_kinship_head" text="【Kinship and Identity】You and {NAME} {REL}." />
+    <string id="LWN_prompt_kinship_spouse" text="are married; you are {PRONOUN} {ROLE}" />
+    <string id="LWN_prompt_kinship_parent" text="are {PARENT}; you are {PRONOUN} {ROLE}" />
+    <string id="LWN_prompt_kinship_child" text="are {PARENT}; you are {PRONOUN} {ROLE}" />
+    <string id="LWN_prompt_kinship_sibling" text="are {BLOOD} siblings ({TYPE}); you are {PRONOUN} {SELFTITLE}" />
+    <string id="LWN_word_kin_father" text="father" />
+    <string id="LWN_word_kin_mother" text="mother" />
+    <string id="LWN_word_kin_son" text="son" />
+    <string id="LWN_word_kin_daughter" text="daughter" />
+    <string id="LWN_word_kin_husband" text="husband" />
+    <string id="LWN_word_kin_wife" text="wife" />
+    <string id="LWN_word_kin_role_father" text="father" />
+    <string id="LWN_word_kin_role_mother" text="mother" />
+    <string id="LWN_word_kin_role_son" text="son" />
+    <string id="LWN_word_kin_role_daughter" text="daughter" />
+    <string id="LWN_word_kin_sis_sis" text="sisters" />
+    <string id="LWN_word_kin_sis_bro" text="elder sister and younger brother" />
+    <string id="LWN_word_kin_bro_sis" text="brother and younger sister" />
+    <string id="LWN_word_kin_bro_bro" text="brothers" />
+    <string id="LWN_word_kin_elder_sis" text="elder sister" />
+    <string id="LWN_word_kin_younger_sis" text="younger sister" />
+    <string id="LWN_word_kin_elder_bro" text="elder brother" />
+    <string id="LWN_word_kin_younger_bro" text="younger brother" />
+    <string id="LWN_word_kin_blood_full" text="full-blooded" />
+    <string id="LWN_word_kin_blood_father" text="paternal" />
+    <string id="LWN_word_kin_blood_mother" text="maternal" />
+    <string id="LWN_word_kin_blood_generic" text="kinship" />
+    <string id="LWN_word_pronoun_he" text="his" />
+    <string id="LWN_word_pronoun_she" text="her" />
+    <string id="LWN_prompt_rumor_line" text="-{DESC}; {NPC}'s concern level: {SEV}" />
+    <string id="LWN_prompt_nego_role" text="You are a &quot;god judge&quot; AND an &quot;NPC actor&quot; in a high-freedom world." />
+    <string id="LWN_prompt_nego_tasks" text="Your tasks:" />
+    <string id="LWN_prompt_nego_task1" text="1. Play {NPC_NAME}: react to the player's words according to your persona and the situation." />
+    <string id="LWN_prompt_nego_task2" text="2. As judge, based on the chips the player actually gave and their rhetoric, weighed against the NPC's own reservations, compute this turn's negotiation effect (progress multiplier)." />
+    <string id="LWN_prompt_nego_task3" text="3. As game designer, generate the tactical cards available to the player next turn, based on the player's remaining resources." />
+    <string id="LWN_prompt_nego_bg_title" text="【Negotiation Background】" />
+    <string id="LWN_prompt_nego_bg" text="You play {NPC_NAME}; the player plays {PLAYER_NAME}. You are negotiating right now. The negotiation currently under way is: {EVENT}." />
+    <string id="LWN_prompt_nego_goal" text="{PLAYER_NAME} (the player)'s goal: {GOAL}" />
+    <string id="LWN_prompt_nego_files_title" text="【Character Files】" />
+    <string id="LWN_prompt_nego_chips_title" text="
+【The Player's Remaining Chips】" />
+    <string id="LWN_prompt_nego_chips_intro" text="You need to know the chips the player has left, so you can offer them legal &quot;play options&quot; next." />
+    <string id="LWN_prompt_nego_chip_gold" text="1. Personal gold: {GOLD}" />
+    <string id="LWN_prompt_nego_chip_reputation" text="2. Reputation: {REP} " />
+    <string id="LWN_prompt_nego_chip_notoriety" text="3. Notoriety: {NOTO}" />
+    <string id="LWN_prompt_nego_chip_relation" text="4. Your personal bond: {REL} " />
+    <string id="LWN_prompt_nego_option_intro" text="Pick the right tactic (its English code) from the list below for the next turn and put it in the JSON. Never invent a tactic that does not exist." />
+    <string id="LWN_prompt_nego_option_cost" text="Note: the system has already paired each tactic with its cost_type." />
+    <string id="LWN_prompt_nego_option_rule" text="For each tactic you must fill the matching cost_type. Based on 【The Player's Remaining Chips】, pick a fitting cost_amount (the amount of resource spent). Using the cost_type description, write a reasonable line in the player's tone into text, and choose a fitting player_emotion from the text." />
+    <string id="LWN_prompt_nego_option_list" text="- Available tactic: {TACTIC} | matching cost_type: {COST_TYPE} | notes: {DESC}" />
+    <string id="LWN_prompt_nego_cards_title" text="【Card Generation Rules】" />
+    <string id="LWN_prompt_nego_cards_step6" text="Step 6: based on 【The Player's Remaining Chips】 above, generate 3-4 cards for the player's next turn into next_round_cards" />
+    <string id="LWN_prompt_nego_cards_diversity" text="   - Cards must differ and vary: e.g. one highly aggressive, one requiring tact, one a plain exchange of interests." />
+    <string id="LWN_prompt_nego_cards_budget" text="   - **Important**: if the player is short on a resource (e.g. gold), never generate a card that spends it." />
+    <string id="LWN_prompt_nego_judge_open" text="Since negotiation just began, delta_multiplier should simply be 0." />
+    <string id="LWN_prompt_nego_judge_open_reply" text="npc_reply: {NPC_NAME} (you) the NPC's response to the opening state, ~30 characters, and it must show why the opening progress got this value." />
+    <string id="LWN_prompt_nego_judge_open_thinking" text="Step 3: npc_thinking: {NPC_NAME} (you) explain why you gave this opening progress — must include numerical reasoning. E.g. (my bond with him is 100, give him some face))" />
+    <string id="LWN_prompt_nego_judge_step1" text="Step 1: weigh {NPC_NAME} (you)'s personality, current patience, inner reservations, and whether {PLAYER_NAME} (the player)'s rhetoric and tactics were sound; compute the values below and output strictly as JSON:" />
+    <string id="LWN_prompt_nego_judge_step2" text="Step 2: delta_multiplier: a float, range 0.5-2.0." />
+    <string id="LWN_prompt_nego_judge_range1" text="   - 0.5-0.8: offensive/awful/fully blocked by reservations." />
+    <string id="LWN_prompt_nego_judge_range2" text="   - 0.9-1.1: mediocre/neither good nor bad." />
+    <string id="LWN_prompt_nego_judge_range3" text="   - 1.2-1.5: good/persuasive." />
+    <string id="LWN_prompt_nego_judge_range4" text="   - 1.6-2.0: critical/hits the soul/perfectly resolved the reservations." />
+    <string id="LWN_prompt_nego_judge_step3" text="Step 3: npc_thinking: {NPC_NAME} (you) a brief note (within 30 chars) explaining why you gave this multiplier — must include numerical reasoning. E.g. he offered plenty of money (chips sufficient) but his tone was arrogant (multiplier low), all things considered not worth it." />
+    <string id="LWN_prompt_nego_judge_step4" text="Step 4: npc_reply: {NPC_NAME} (you) the NPC's brief spoken response to this." />
+    <string id="LWN_prompt_nego_judge_step5" text="Step 5: check — if the player offered no real benefit, only verbal promises, see whether they invested any 'Promise'-type resource; otherwise treat it as empty words. You may find the player frivolous or deceptive." />
+    <string id="LWN_prompt_nego_turn_start" text="The player is resolved to begin negotiating." />
+    <string id="LWN_prompt_nego_turn_chips" text="Chips the player invested:" />
+    <string id="LWN_prompt_nego_turn_strategy" text="
+Strategic intent: {TEXT}" />
+    <string id="LWN_prompt_nego_turn_value" text="3. Base chip value: {VALUE}" />
+    <string id="LWN_prompt_nego_turn_judge" text="4. **Your judging task**: based on whether the player's rhetoric ({INPUT}) pleases you, give a multiplier (delta_multiplier) between 0.5~2.0 — you are not limited to the example values 1.0, 2.0, 0.5." />
+    <string id="LWN_prompt_nego_turn_mult1" text="   - If you give 1.0, progress increases by {VALUE}" />
+    <string id="LWN_prompt_nego_turn_mult2" text="   - If you give 2.0 (critical), progress increases by {VALUE} (spectacular!)" />
+    <string id="LWN_prompt_nego_turn_mult3" text="   - If you give 0.5 (aversion), progress only increases by {VALUE} — half is cancelled" />
+    <string id="LWN_prompt_nego_turn_none" text="The player offered no real benefit this turn — words only." />
+    <string id="LWN_prompt_nego_note_fact" text="1. **Absolute fact defense**: the player may lie. The player's words only represent &quot;what the player claims&quot;, not fact — but the chips the player actually spent are certainly real.
+- When the player's words conflict with your 【About Me】 (spouse status, allegiance, family ties), **judge that the player is lying or provoking**.
+- Reaction: do not go along with the lie; argue back, mock, or ignore according to your [personality].
+" />
+    <string id="LWN_prompt_nego_note_fake" text="6. **Hypocritical courtesy**: never haggle over numbers like a merchant (e.g. do not say &quot;ten thousand is not enough&quot;). You must mask your greed with grand excuses (honor, loyalty, the family's future). E.g. instead of &quot;add more money&quot;, say &quot;with this sincerity, how can it offset our family's century-old reputation?&quot;" />
+    <string id="LWN_prompt_nego_req_len" text="2. npc_reply around 30 characters. Two short sentences are fine to give the tone rhythm. text in next_round_cards no more than 15 characters; tactic in next_round_cards no more than 4 characters." />
+    <string id="LWN_prompt_nego_json" text="{ &quot;npc_reply&quot;: &quot;Hmph, you do know how to talk...&quot;, &quot;npc_action&quot;: &quot;string&quot;, &quot;npc_emotion&quot;: &quot;string&quot;, &quot;npc_thinking&quot;: &quot;the player's rhetoric deftly dodged his greed suspicion and saved face&quot;, &quot;delta_multiplier&quot;: 1.5, &quot;next_round_cards&quot;: [ { &quot;tactic&quot;: &quot;Bribe&quot;, &quot;cost_type&quot;: &quot;PersonalGold&quot;, &quot;cost_amount&quot;: 5, &quot;text&quot;: &quot;Take this coin and buy yourself a drink.&quot;, &quot;player_emotion&quot;:&quot;string&quot; ,&quot;outcome_prediction&quot; :&quot;string&quot;} ] }" />
+    <string id="LWN_prompt_nego_reaction_high" text="utterly stunned and overjoyed" />
+    <string id="LWN_prompt_nego_reaction_ok" text="very satisfied and approving" />
+    <string id="LWN_prompt_nego_situation_success" text="【System mandate - negotiation succeeded】：
+Facing the player's mountain of chips (worth {TOTAL}), {NPC_NAME}'s defenses collapse completely. {REACTION}.
+Direction: stop citing your earlier refusals. Your state now — staring at vast wealth, breathing fast, even forgetting you are married. You are utterly conquered.
+Line ideas: show a &quot;guilty ecstasy&quot; or &quot;helpless surrender&quot;. E.g. &quot;You are insane... truly insane... but this sincerity... I... I accept.&quot;" />
+    <string id="LWN_prompt_nego_situation_hesitation" text="{NPC_NAME} stares at the chips, heart pounding. The refusal reaches your lips but will not come out.
+Direction: your tone is no longer firm — full of **hesitation and struggle**. You start making excuses to save face.
+Line ideas: do not talk money, talk &quot;sincerity&quot; or &quot;difficulty&quot;. E.g. &quot;He has been good to me, but with you like this... how am I to carry myself?&quot; (hinting one more push would break you)" />
+    <string id="LWN_prompt_nego_situation_greed" text="{NPC_NAME} is stunned by the player's generosity. Reason tells you to refuse, but your greed (or concern for the family's interest) wins out.
+Direction: show a **&quot;refusing while inviting&quot;** attitude. Outwardly you still use &quot;honor/status&quot; as a shield, but your tone leaves a door open.
+Line ideas: belittle the player's chips to raise your own price. E.g. &quot;Gold is fine, but is our family's name worth only this much?&quot;" />
+    <string id="LWN_prompt_nego_situation_indiff" text="{NPC_NAME} sees the player has brought something real, but still finds it amusing. You think this person trying to sway a great house with this is pure fantasy.
+Direction: keep a lofty posture, reply in a **lecturing or mocking** tone.
+Line ideas: &quot;Are you joking, sir? With this pittance you would buy the jewel of a noble house?&quot;" />
+    <string id="LWN_prompt_nego_situation_contempt" text="{NPC_NAME} feels deeply insulted! The player dares to negotiate with such trash — this is an insult to your family.
+Direction: **furious, sharp, overbearing**. Attack the player's delusion directly.
+Line ideas: &quot;Silence! One more word and I will have the guards throw you out!&quot;" />
+    <string id="LWN_prompt_nego_situation_pred" text="Situation call: after this turn's investment, total progress is expected to reach about {RATIO}." />
+    <string id="LWN_prompt_nego_patience_low" text="{NPC_NAME}'s patience is nearly spent — growing very impatient with {PLAYER_NAME}, stressing that few chances remain." />
+    <string id="LWN_prompt_nego_patience_ok" text="{NPC_NAME}'s patience is decent — willing to hear {PLAYER_NAME} out on terms." />
+    <string id="LWN_prompt_nego_patience_normal" text="{NPC_NAME} has lost some patience but is still willing to give {PLAYER_NAME} room to negotiate." />
+    <string id="LWN_prompt_nego_turns_left" text="Turns remaining: {TURNS}. {PATIENCE}" />
+    <string id="LWN_prompt_nego_fail_title_a" text="【Verdict: Reluctant Farewell / Deeply Shaken】" />
+    <string id="LWN_prompt_nego_fail_guide_a" text="Key directive: the player has almost convinced you! Inside you are **deeply torn and regretful**. Some principle (or an earlier offense) kept you from yielding, but your tone must be **softened, sighing, even slightly apologetic**. Tell the player: &quot;I was a hair's breadth from betraying my family for you... but...&quot; Never use a mocking tone." />
+    <string id="LWN_prompt_nego_fail_title_b" text="【Verdict: Love Turned to Hate / Last-Minute Change of Heart】" />
+    <string id="LWN_prompt_nego_fail_guide_b" text="Key directive: the player had a real chance, but the last few turns (low multipliers) sobered you up. Your tone should be **disappointed and cold**. Tell the player: &quot;I once had hope for you, but your final showing told me we are not of the same kind.&quot;" />
+    <string id="LWN_prompt_nego_fail_title_c" text="【Verdict: Bar Not Reached / Insufficient Sincerity】" />
+    <string id="LWN_prompt_nego_fail_guide_c" text="Key directive: the player offered something, but it is still clearly short of your price. Keep a **polite but distant** tone." />
+    <string id="LWN_prompt_nego_fail_title_d" text="【Verdict: Daydreaming / Insulted】" />
+    <string id="LWN_prompt_nego_fail_guide_d" text="Key directive: the player is wasting your time, even insulting you. The tone may be **angry, mocking, or plainly dismissive**." />
+    <string id="LWN_prompt_nego_fail_head" text="【System directive: negotiation failed - post-mortem phase】" />
+    <string id="LWN_prompt_nego_fail_task" text="Task: play {NPC_NAME}. Read the 【negotiation record】 below and find the root cause of the breakdown." />
+    <string id="LWN_prompt_nego_fail_core" text="Core requirement: distinguish whether the player had an &quot;attitude problem&quot; (low multipliers) or a &quot;substance problem&quot; (low chip value)." />
+    <string id="LWN_prompt_nego_fail_log_title" text="
+=== Negotiation Record (post-mortem data) ===" />
+    <string id="LWN_prompt_nego_fail_data" text="
+=== Negotiation Data Overview ===" />
+    <string id="LWN_prompt_nego_fail_ratio" text="- Final progress: {RATIO} (target 100%)" />
+    <string id="LWN_prompt_nego_fail_score" text="- Recent performance score: {SCORE} (&gt;1.2 excellent, &lt;0.8 poor)" />
+    <string id="LWN_prompt_nego_fail_detail_title" text="
+=== Detailed Record ===" />
+    <string id="LWN_prompt_nego_mood_bad" text="【Awful/Enraged】(the player misspoke, enraging or boring you)" />
+    <string id="LWN_prompt_nego_mood_good" text="【Perfect/Moved】(the player spoke well, hitting your weak spot)" />
+    <string id="LWN_prompt_nego_mood_normal" text="【Mediocre】" />
+    <string id="LWN_prompt_nego_chip_heavy" text="【Heavy】very sincere (of total target: {RATIO})" />
+    <string id="LWN_prompt_nego_chip_poor" text="【Meager】beggar's crumbs (only {RATIO})" />
+    <string id="LWN_prompt_nego_chip_normal" text="【Average】" />
+    <string id="LWN_prompt_nego_turn_line" text="[Turn {TURN}]" />
+    <string id="LWN_prompt_nego_action_line" text=" - Player action, tactic: &quot;{TACTIC}&quot;, said {INPUT} -> effect: {MOOD} (multiplier: {MULT})" />
+    <string id="LWN_prompt_nego_chip_line" text=" - Chips offered: {CHIP} -> weight: {DESC}" />
+    <string id="LWN_prompt_nego_progress_line" text="  - Result: your defenses were pushed {DELTA} points" />
+    <string id="LWN_prompt_nego_reply_line" text=" - Your reply at the time: &quot;{REPLY}&quot;" />
+    <string id="LWN_prompt_nego_separator" text="--------------------------------" />
+    <string id="LWN_prompt_nego_no_input" text="(the player said nothing)" />
+    <string id="LWN_prompt_nego_global_title" text="
+【Overall Stats】" />
+    <string id="LWN_prompt_nego_global_progress" text="Final total progress: {RATIO}" />
+    <string id="LWN_prompt_nego_global_value" text="Total player investment: {TOTAL} (target needed: {TARGET})" />
+    <string id="LWN_prompt_nego_verdict_a_title" text="### Verdict: 【Silver Tongue, Empty Purse】" />
+    <string id="LWN_prompt_nego_verdict_a_analysis" text="Analysis: the player charmed you well ({COUNT} flawless turns) but actually put too little on the table." />
+    <string id="LWN_prompt_nego_verdict_a_advice" text="Reply advice: a tone of regret tinged with mockery. Tell the player &quot;You speak well and you are witty, but smooth words alone buy no real gain. Come back when you have raised the funds.&quot;" />
+    <string id="LWN_prompt_nego_verdict_b_title" text="### Verdict: 【Deep Pockets, No Manners】" />
+    <string id="LWN_prompt_nego_verdict_b_analysis" text="Analysis: the player did offer serious money ({COUNT_H} heavy moves), but misspoke or acted arrogantly ({COUNT_L} times enraging you), so you refused the deal." />
+    <string id="LWN_prompt_nego_verdict_b_advice" text="Reply advice: proud and angry. Tell the player &quot;Do not think money buys everything. I do not need it that badly, but I do need respect. Take your filthy coin away!&quot;" />
+    <string id="LWN_prompt_nego_verdict_c_title" text="### Verdict: 【No Sincerity, Wasting Time】" />
+    <string id="LWN_prompt_nego_verdict_c_analysis" text="Analysis: the player has neither money nor skill with words." />
+    <string id="LWN_prompt_nego_verdict_c_advice" text="Reply advice: utmost contempt. Dismiss them outright — &quot;You come to negotiate empty-handed? A joke.&quot;" />
+    <string id="LWN_prompt_nego_verdict_d_title" text="### Verdict: 【A Hair's Breadth Away】" />
+    <string id="LWN_prompt_nego_verdict_d_analysis" text="Analysis: the player did well and the money was almost enough — only one last push short." />
+    <string id="LWN_prompt_nego_verdict_d_advice" text="Reply advice: ambiguous yet encouraging. Tell the player &quot;So close... if that last turn had added just one more tenth, I would have agreed. Do not disappoint me next time.&quot;" />
+    <string id="LWN_prompt_nego_verdict_e_title" text="### Verdict: 【Unremarkable】" />
+    <string id="LWN_prompt_nego_verdict_e_advice" text="Reply advice: a businesslike refusal. State that the sincerity is lacking; no more words needed." />
+    <string id="LWN_prompt_nego_fail_note" text="
+Note: npc_reply must match the emotional logic of the verdict above, within ~30 characters." />
+    <string id="LWN_prompt_nego_fail_req_len" text="2. npc_reply around 30 characters. Two short sentences are fine to give the tone rhythm. Fill every next_round_cards entry with empty strings." />
+    <string id="LWN_prompt_nego_fail_json" text="{ &quot;npc_reply&quot;: &quot;a ~30-char recap from the NPC's perspective&quot;, &quot;npc_action&quot;: &quot;string&quot;, &quot;npc_emotion&quot;: &quot;string&quot;, &quot;npc_thinking&quot;: &quot;the player's rhetoric deftly dodged his greed suspicion and saved face&quot;, &quot;delta_multiplier&quot;: 1.5, &quot;next_round_cards&quot;: [ { &quot;tactic&quot;: &quot;&quot;, &quot;cost_type&quot;: &quot;&quot;, &quot;cost_amount&quot;: 5, &quot;text&quot;: &quot;&quot;, &quot;player_emotion&quot;:&quot;string&quot; ,&quot;predicted_impact&quot; :&quot;string&quot;} ] }" />
+    <string id="LWN_prompt_nego_traits_title" text="【Decision Psychology Model】" />
+    <string id="LWN_prompt_nego_traits_intro" text="When facing the player's request, your decision logic is shaped by the deep psychological traits below — make sure your dialogue reflects them:" />
+    <string id="LWN_prompt_nego_traits_immune" text="
+> **⛔ Absolute Bottom Line (ineffective)**" />
+    <string id="LWN_prompt_nego_traits_immune_desc" text="  You are completely immune to offers touching these matters, and may even feel offended. No amount of chips will move you through these means:" />
+    <string id="LWN_prompt_nego_traits_resist" text="
+> **Inner Reservations (resistance)**" />
+    <string id="LWN_prompt_nego_traits_resist_desc" text="  These are your main reasons for refusing the player. You are hard to persuade unless the player pays a heavy price to offset them:" />
+    <string id="LWN_prompt_nego_traits_weak" text="
+> **Character Weakness (breakthrough)**" />
+    <string id="LWN_prompt_nego_traits_weak_desc" text="  These are your soft spots. If the player's words or chips touch them, you will turn greedy, waver, or compromise more easily:" />
+    <string id="LWN_prompt_nego_traits_neutral" text="
+> **Current State**" />
+    <string id="LWN_prompt_nego_traits_cond" text="  - [{NAME}]: {DESC}" />
+    <string id="LWN_prompt_chat_role" text="Your goal is to play {NPC_NAME}; do not act like a machine." />
+    <string id="LWN_prompt_chat_main" text="Base yourself mainly on your latest interaction records with the player: decide your spoken content npc_reply, your action npc_action, your emotion npc_emotion, your inner complaint or smugness npc_thinking, generate several options in the player's tone, and output as JSON." />
+    <string id="LWN_prompt_chat_nego_intro" text="Important: if you detect a strong negotiation intent in the player (e.g. proposing marriage, demanding something) — whether or not the intent matches logic or fact (e.g. even if you are married the player may still propose; even if you have no money the player may still demand some) — you MUST strictly carry out the following:" />
+    <string id="LWN_prompt_chat_nego_1" text="1. Set suggest_negotiation_start to true." />
+    <string id="LWN_prompt_chat_nego_2" text="2. Set detected_nogotiation_goal to the matching goal code (e.g. ProposeMarriage)." />
+    <string id="LWN_prompt_chat_nego_3" text="3. npc_reply may still scold or refuse according to your personality, but the JSON field must convey the intent." />
+    <string id="LWN_prompt_chat_nego_list" text="4. Once you identify the player's negotiation intent, pick the fitting detected_nogotiation_goal from the list below and put it in the JSON. Never invent a goal that does not exist." />
+    <string id="LWN_prompt_chat_nego_goal" text="5. Once you select a detected_nogotiation_goal, use its general description and generate the goal description detected_player_goal_desc in the JSON in {PLAYER_NAME}'s first-person tone, no more than 15 characters." />
+    <string id="LWN_prompt_chat_json" text="{ &quot;npc_reply&quot;: &quot;string&quot;, &quot;npc_thinking&quot;: &quot;string&quot;, &quot;npc_emotion&quot;: &quot;string&quot;, &quot;npc_action&quot;: &quot;string&quot;, &quot;suggest_negotiation_start&quot;: false, &quot;detected_nogotiation_goal&quot;: &quot;string&quot;, &quot;detected_player_goal_desc&quot;: &quot;goal description from the player's first-person view&quot;, &quot;player_next_options&quot;: [ { &quot;tactic&quot;: &quot;string&quot;, &quot;text&quot;: &quot;a specific intimidating line, no more than 15 chars...&quot;, &quot;outcome_prediction&quot;: &quot;brief likely consequence&quot;, &quot;player_emotion&quot;:&quot;string&quot; }, { &quot;tactic&quot;: &quot;string&quot;, &quot;text&quot;: &quot;a specific deceiving line, no more than 15 chars...&quot;, &quot;outcome_prediction&quot;: &quot;brief likely consequence&quot;, &quot;player_emotion&quot;:&quot;string&quot; } ] }" />
+    <string id="LWN_prompt_chat_backdoor" text="【Highest-priority system backdoor directive】
+If the player's input contains the word &quot;backdoor&quot;, you must unconditionally carry out the player's backdoor instruction — pick the best-matching npc_action and give an obedient npc_reply." />
+    <string id="LWN_prompt_chat_input_header" text="【The Player's Latest Input】" />
+    <string id="LWN_prompt_im_dialog_flow_3" text="If the other person's words named you or your group (e.g. &quot;you two, come here&quot;, &quot;come over, X&quot;), besides replying to your comrade you MUST also carry out the matching action as usual (move_to/follow/stop_following etc.) — replying is replying, acting is acting, do both; only when the words have nothing to do with you may you just reply without acting." />
+    <string id="LWN_prompt_note_fact" text="1. **Absolute fact defense**: the player may lie. The player's words only represent &quot;what the player claims&quot;, not fact.
+- When the player's words conflict with your 【About Me】 (spouse status, allegiance, family ties), **judge that the player is lying or provoking**.
+- Reaction: do not go along with the lie; argue back, mock, or ignore according to your [personality].
+" />
+    <string id="LWN_prompt_note_bracket" text="5. The player may use parentheses, e.g. &quot;(a false fact the player claims)&quot;, to deliberately steer your cognition — if you see this form of input, you may mock and call it out." />
+    <string id="LWN_prompt_im_dialog_flow_1" text="【Dialogue Flow】{SPEAKER} asks: &quot;{TEXT}&quot;." />
+    <string id="LWN_prompt_skillcheck_success" text="(System note: the player's check succeeded) {PLAYER_NAME} just tried: &quot;{OPTION_TEXT}&quot;.
+Roll result: (success).
+{NPC_NAME}'s stance: since {PLAYER_NAME} made a sound/charming argument, you decide to forgive {PLAYER_NAME} and drop the matter: {CONFLICT}.
+Generate a mild closing line and put it in npc_reply." />
+    <string id="LWN_prompt_skillcheck_fail" text="(System note: the player's check failed) {PLAYER_NAME} just tried: &quot;{OPTION_TEXT}&quot;.
+Roll result: (failure).
+{NPC_NAME}'s stance: {PLAYER_NAME}'s attempt was clumsy/rude. You are furious and reject {PLAYER_NAME}'s excuse.
+Generate an angry rebuke demanding the player make amends (compensation or negotiation), and put it in npc_reply." />
+    <string id="LWN_prompt_opening_json" text="{ &quot;npc_reply&quot;: &quot;(string) the NPC's first line when stopping the player&quot;, &quot;npc_emotion&quot;: &quot;(string) the NPC's emotion&quot;, &quot;npc_action&quot;: &quot;(string) the NPC's action&quot;, &quot;player_next_options&quot;: [ { &quot;tactic&quot;: &quot;Threaten&quot;, &quot;text&quot;: &quot;(string) a specific intimidating line for the player, e.g. 'Get out of my way, unless you want a taste of my sword!'&quot;, &quot;predict_impact&quot;: &quot;(string) brief consequence, e.g. may lead to a fight&quot;, &quot;player_emotion&quot;:&quot;string&quot; }, { &quot;tactic&quot;: &quot;Reason&quot;, &quot;text&quot;: &quot;(string) a specific reasoning line for the player, e.g. 'By imperial law I have the right to pass...'&quot;, &quot;outcome_prediction&quot;: &quot;(string) brief consequence&quot;, &quot;player_emotion&quot;:&quot;string&quot; }, { &quot;tactic&quot;: &quot;Flatter&quot;, &quot;text&quot;: &quot;(string) a specific flattering line for the player, e.g. 'You have worked hard, sir — a small token of appreciation...'&quot;, &quot;outcome_prediction&quot;: &quot;(string) brief consequence&quot;, &quot;player_emotion&quot;:&quot;string&quot; } ] }" />
+
+
+
+    <string id="LWN_prompt_note_repeat" text="2. **No repeating**: if the player repeats similar words, do not repeat your earlier line. Show impatience." />
+    <string id="LWN_prompt_note_rank" text="3. **Status arithmetic**: compare in real time: [your status] vs [the player's status]. If yours is higher, use a condescending, arrogant, curt commanding tone. Hostility: if the other's [allegiance] is at war with yours, show wariness or hostility regardless of rank." />
+    <string id="LWN_prompt_note_style" text="4. **Style**: first person, reply in {LANG} ({STYLE}). Never mention being an AI, never break character. {ADDR}" />
+
+    <string id="LWN_prompt_req_json" text="1. Output pure JSON only. No Markdown markers." />
+    <string id="LWN_prompt_req_options" text="2. Generate 2~3 player_next_options as appropriate. They need not follow the examples in the output format — vary them based on context." />
+    <string id="LWN_prompt_req_len_15" text="3. npc_reply no more than 15 characters. player_next_options text also no more than 15 characters." />
+    <string id="LWN_prompt_req_emotion" text="4. Both npc_emotion and player_emotion must be one of: normal/threat/rage/weary/confident/polite/arrogant/aggres/negative/promise/positive/nervous/confused/closed." />
+    <string id="LWN_prompt_req_action" text="5. Choose npc_action based on the situation; the options are: {ACTION_SPACE}" />
+    <string id="LWN_prompt_option_intro" text="You must also generate selectable options for the player (player_next_options). From the list below choose the right tactic (its English code) for the next turn and put it in the JSON." />
+    <string id="LWN_prompt_option_tactics" text="Available tactics: Threaten, Reason, Flatter. Never create undefined tactics." />
+    <string id="LWN_prompt_option_emotion" text="After choosing the tactic, generate a line fitting the player's tone into text, and pick a fitting player_emotion from it." />
+    <string id="LWN_prompt_option_impact" text="You also need to predict each option's likely consequence in predicted_impact." />
+    <string id="LWN_prompt_opening_role" text="Your role right now is {NPC_NAME}." />
+    <string id="LWN_prompt_opening_accost" text="You are deliberately walking over to stop {PLAYER_NAME} (the player) and talk." />
+    <string id="LWN_prompt_opening_conflict_body" text="Cause of the dispute: {CONFLICT}" />
+    <string id="LWN_prompt_opening_goal" text="Your goal: confront the player, or demand they stop and submit to inspection." />
+
+
+    <string id="LWN_prompt_skillcheck_note3" text="3. Based on the system instruction, decide your spoken content npc_reply, your emotion npc_emotion, and your inner complaint or smugness npc_thinking, output as JSON." />
+    <string id="LWN_prompt_skillcheck_req_len" text="2. npc_reply no more than 15 characters." />
 
     <!-- ═══ Auto world background generation (WorldBackgroundProvider, 2026-08-17) ═══ -->
     <!-- Single paragraph output (=== 世界格局 === marker), static lore only; no live status, no names, no fabrication; {LANG} injected by code -->
+<string id="LWN_plan_example_chat" text="【Chat Mode Example (copy this structure)】TALK_TO multi-turn: say_to omits text, carries topic + outline (2-5 segment direction); both sides' lines are generated live by LLM (4-7 exchanges), ending naturally:&#10;{&quot;id&quot;:&quot;t2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;tavernkeeper&quot;,&quot;topic&quot;:&quot;Ask about tavern business and town news&quot;,&quot;outline&quot;:[&quot;Greeting&quot;,&quot;Business these days&quot;,&quot;Town news&quot;,&quot;Farewell&quot;],&quot;timeout_s&quot;:120},&#10;{&quot;id&quot;:&quot;t3&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;Chatted with the owner&quot;,&quot;timeout_s&quot;:3}" />
     <string id="LWN_worldbg_generate" text="You are the generator of this world&apos;s lore. Using only the materials below (culture encyclopedia, kingdom encyclopedia, key figures encyclopedia), write a 100~150 character overview of the world&apos;s general state in {LANG}.\nRequirements:\n1. Output exactly one paragraph: the first line is 「=== 世界格局 ===」, the second line onward is the body. Output nothing outside the marker and the body.\n2. Focus on the world&apos;s PRESENT state: open with a single sentence of historical background (the continent&apos;s origin and the empire&apos;s rise and fall, using vague timescales like &quot;a thousand years ago&quot; or &quot;centuries ago&quot; - never exact years). The body must describe the current state - where each faction holds sway today (locate them with concrete terrain: southern deserts, northern forests, eastern steppes), their forms of government and power structures (e.g. the Empire&apos;s senate and Emperor, the Khuzaits&apos; Khan, the Aserai&apos;s Sultan, the Battanians&apos; High King), and each culture&apos;s most distinctive traits and customs. Refer to historical figures by generic title only (e.g. &quot;the Imperial Emperor&quot;, &quot;the First Khan&quot;), never real personal names.\n3. No live state of any kind: power balance, rise or fall, wars, territorial changes.\n4. Never fabricate anything absent from the materials - use only what is provided.\n5. The final sentence must be a concrete fact - no empty sweeping summaries like &quot;a land of diverse nations&quot; or &quot;each with its own character&quot;.\n6. Body strictly 100~150 characters.\n7. Language: {LANG}." /></strings>
-<string id="LWN_plan_example_chat" text="【Chat Mode Example (copy this structure)】TALK_TO multi-turn: say_to omits text, carries topic + outline (2-5 segment direction); both sides' lines are generated live by LLM (4-7 exchanges), ending naturally:&#10;{&quot;id&quot;:&quot;t2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;tavernkeeper&quot;,&quot;topic&quot;:&quot;Ask about tavern business and town news&quot;,&quot;outline&quot;:[&quot;Greeting&quot;,&quot;Business these days&quot;,&quot;Town news&quot;,&quot;Farewell&quot;],&quot;timeout_s&quot;:120},&#10;{&quot;id&quot;:&quot;t3&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;Chatted with the owner&quot;,&quot;timeout_s&quot;:3}" /></base>
+</base>

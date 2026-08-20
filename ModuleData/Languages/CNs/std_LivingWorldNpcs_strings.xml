@@ -510,7 +510,7 @@
     <string id="LWN_speech_alertbubble_attackcivilian_cautious_v1" text="（逼近）{SPEAKER_PLAYER_ADDR}！放开{TARGET}！这是街上！" />
     <string id="LWN_speech_alertbubble_attackcivilian_cautious_v2" text="（沉声警告）{SPEAKER_PLAYER_ADDR}！住手！否则别怪我刀下无情！" />
     <string id="LWN_speech_alertbubble_knockout_suspicious" text="（惊恐）出人命了……" />
-    <string id="LWN_speech_alertbubble_knockout_suspicious_v1" text="（骇然）打、打死了？！" />
+    <string id="LWN_speech_alertbubble_knockout_suspicious_v1" text="（骇然）{TARGET}被、被打死了？！" />
     <string id="LWN_speech_alertbubble_knockout_suspicious_v2" text="（失色）{TARGET}不动了……" />
     <string id="LWN_speech_alertbubble_knockout_cautious" text="来人！{SPEAKER_PLAYER_ADDR}把{TARGET}打倒了！" />
     <string id="LWN_speech_alertbubble_knockout_cautious_v1" text="（急呼）快来人！出事了！{SPEAKER_PLAYER_ADDR}伤了{TARGET}！" />
@@ -530,7 +530,7 @@
     <!-- ═══════════════════════════════════════════ -->
     <string id="LWN_ui_detention_pay_fine" text="赔钱了事 —— 交 {LWN_FINE}{GOLD_ICON} 罚金给{LWN_SETTLEMENT}的人。" />
     <string id="LWN_ui_detention_accept_jail" text="认罚 —— 在{LWN_LOCKUP}里关{LWN_DAYS}天。" />
-    <string id="LWN_ui_detention_pay_while_jailed" text="托人带话，交 {LWN_FINE}{GOLD_ICON} 罚金赎身。" />
+    <string id="LWN_ui_detention_pay_while_jailed" text="托人带话，交 {LWN_FINE}{GOLD_ICON} 罚金赎身，或再等 {LWN_DAYS_LEFT} 天。" />
     <string id="LWN_ui_detention_release_continue" text="继续……" />
     <string id="LWN_ui_detention_place_here" text="这里" />
     <string id="LWN_ui_detention_release_menu" text="放人" />
@@ -4181,7 +4181,7 @@
     <string id="LWN_plan_detail_contingency_line" text="    若 {COND} 则 {THEN}" />
     <string id="LWN_plan_detail_guardrail" text="    安全网：意外威胁会暂停战术；停止键随时召回随从。" />
     <string id="LWN_plan_step_memory" text="按主公吩咐，{ACTION} {TARGET}，已完成。" />
-    <!-- 🔴 2026-08-20（实机：偷窃被目击中断却记成「已完成」）：判定型步骤按 result 路由的记忆文案 -->
+    <!--  2026-08-20（实机：偷窃被目击中断却记成「已完成」）：判定型步骤按 result 路由的记忆文案 -->
     <string id="LWN_plan_step_memory_interrupted" text="按主公吩咐，{ACTION} {TARGET}，被人看见没得手。" />
     <string id="LWN_plan_step_memory_empty" text="按主公吩咐，{ACTION} {TARGET}，没摸到东西。" />
     <string id="LWN_plan_step_memory_impossible" text="按主公吩咐，{ACTION} {TARGET}，没法下手。" />
@@ -4435,7 +4435,7 @@
     <string id="LWN_npc_steal_impossible" text="{NAME} 绕不到 {TARGET} 背后，没法下手。" />
     <string id="LWN_npc_steal_interrupted" text="{NAME} 被人看见，没敢下手，先撤了。" />
     <string id="LWN_npc_steal_equip_fail" text="{NAME} 想卸掉 {TARGET} 的装备，被 {TARGET} 察觉了！" />
-    <!-- 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：括号 = 内心独白，显示在附近频道 -->
+    <!--  2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：括号 = 内心独白，显示在附近频道 -->
     <string id="LWN_npc_steal_monologue_spotted" text="（{NAMES}一直盯着我……绕不到他背后。）" />
     <string id="LWN_npc_steal_monologue_blocked" text="（这地方绕不到他背后……得换个角度。）" />
     <string id="LWN_dialogue_ack_short" text="嗯。" />
@@ -4466,5 +4466,15 @@
     <string id="LWN_im_compact_camera_hint" text="缩略面板已开启：鼠标操作面板，按住右键旋转镜头。" />
 
     <string id="LWN_im_compact_camera_restored" text="鼠标控制已恢复：移动鼠标即可转向。" />
+    <string id="LWN_save_trim_title" text="存档警告" />
+    <string id="LWN_save_trim_ok" text="确定" />
+    <string id="LWN_save_trim_body" text="存档已完成，但部分数据超出安全大小限制，已被裁剪：{KEYS}。最早受影响的数据已丢弃。" />
+    <string id="LWN_save_error_title" text="存档失败！" />
+    <string id="LWN_save_error_platform" text="[平台] " />
+    <string id="LWN_save_error_ok" text="确定" />
+    <string id="LWN_save_error_no_detail" text="（未捕获错误详情）" />
+    <string id="LWN_save_error_debug_line" text="[SaveDebug] 结果={RESULT}
+{DETAIL}" />
+    <string id="LWN_save_error_body" text="无法创建存档数据。" />
 </strings>
 </base>

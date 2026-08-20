@@ -267,8 +267,8 @@ namespace LivingWorldNpcs
                 string personality = ReactiveAgent.DescribePersonalityForPrompt(ReactiveAgent.Get(agent)?.Personality);
                 // 身份：真名（职业、人格）——2026-08-12 升级：不再是无名「路人」
                 string identity = string.Format(
-                    // 本地化：LWN_plan_respond_identity_template（玩家可见文本）
-                    DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", "你是{0}。{1}。"),
+                    // 本地化：LWN_plan_respond_identity_template（双桶；2026-08-20 prompt 双语化，去 C# 中文兜底）
+                    DialogueComponent.ResolvePrompt("LWN_plan_respond_identity_template", ""),
                     string.IsNullOrEmpty(name) ? occName : $"{name}（{occName}）", personality);
 
                 // 有效上下文段（关系 + 处境；null 跳过，单行短句控体积）
@@ -284,29 +284,38 @@ namespace LivingWorldNpcs
                 if (context.Monologue)
                 {
                     // 内心独白（偷窃卡住等）：必须括号包裹（说给自己听的心声），内容锚在 fallback 的顾虑上
-                    mood = "用一句符合你身份和处境的心声独白（8-25 字），整句必须用括号（）包裹，说出你当前的顾虑（谁在看着你、为什么下不了手），别偏离意思";
+                    // 本地化：LWN_speech_mood_monologue（独白语气指令，双桶）
+                    mood = LWNTextHelper.ResolvePrompt("LWN_speech_mood_monologue");
                 }
                 else
                 {
                     mood = priority switch
                     {
-                        SpeechPriority.Combat => "用一句符合你身份和处境的话回应（8-25 字），语气激烈，贴合战况",
-                        SpeechPriority.Warning => "用一句符合你身份和处境的话回应（8-30 字），语气强硬",
-                        SpeechPriority.Dialogue => "用一句符合你身份和处境的话回应（8-30 字），自然贴合语境",
-                        _ => "用一句符合你身份和处境的话回应（8-30 字），口语化，贴合当下",
+                        // 本地化：LWN_speech_mood_combat（战斗语气指令，双桶）
+                        SpeechPriority.Combat => LWNTextHelper.ResolvePrompt("LWN_speech_mood_combat"),
+                        // 本地化：LWN_speech_mood_warning（警告语气指令，双桶）
+                        SpeechPriority.Warning => LWNTextHelper.ResolvePrompt("LWN_speech_mood_warning"),
+                        // 本地化：LWN_speech_mood_dialogue（对话语气指令，双桶）
+                        SpeechPriority.Dialogue => LWNTextHelper.ResolvePrompt("LWN_speech_mood_dialogue"),
+                        // 本地化：LWN_speech_mood_default（默认语气指令，双桶）
+                        _ => LWNTextHelper.ResolvePrompt("LWN_speech_mood_default"),
                     };
                 }
-                string topic = string.IsNullOrEmpty(context.Topic) ? "说话" : context.Topic;
-                string anchor = string.IsNullOrEmpty(fallback) ? "" : $"（大意是：{fallback}，可以换更自然的说法，但别偏离意思）";
+                // 本地化：LWN_speech_topic_fallback（话题兜底词，双桶）
+                string topic = string.IsNullOrEmpty(context.Topic) ? LWNTextHelper.ResolvePrompt("LWN_speech_topic_fallback") : context.Topic;
+                // 本地化：LWN_speech_anchor（大意锚定模板，双桶；{TEXT} = 模板台词原文）
+                string anchor = string.IsNullOrEmpty(fallback) ? "" : LWNTextHelper.ResolveCompound("LWN_speech_anchor", ("TEXT", fallback));
                 var dline = await DialogueComponent.GenerateLine(
                     WorldBackgroundProvider.GetWorldSection(agent), identity, attitude,
                     topic, "",
                     "",
-                    context.Speaker?.Name?.ToString() ?? "对方",
+                    // 本地化：LWN_word_person_other（对方兜底，双桶）
+                    context.Speaker?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_other"),
                     "", "",
                     // 本地化：LWN_plan_respond_rule（玩家可见文本）
                     "LWN_plan_respond_rule",
-                    $"【要求】{mood}。{anchor}直接说台词本身——不要引号、不要解释、不要动作描写。",
+                    // 本地化：LWN_speech_rule_assembly（要求段拼装，双桶；{MOOD} = 语气指令，{ANCHOR} = 大意锚定，可空）
+                    LWNTextHelper.ResolveCompound("LWN_speech_rule_assembly", ("MOOD", mood), ("ANCHOR", anchor)),
                     null, maxTokens: 60, timeoutMs: Math.Max(300, (int)(Math.Min(budgetS, 1.5f) * 1000)),
                     addressSection: PromptBuilder.BuildAddressAndKinshipSections(agent, context.Speaker));
                 return dline != null && dline.FromLlm
@@ -326,19 +335,24 @@ namespace LivingWorldNpcs
             if (other == null) return null;
             try
             {
-                string otherName = other.Name?.ToString() ?? "对方";
+                // 本地化：LWN_word_person_other（对方兜底，双桶）
+                string otherName = other.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_other");
                 if (other == Agent.Main)
                 {
                     // 对方是玩家：自己是队伍成员 → 主公（主从关系是核心语境：被主公打 vs 被陌生人打）
                     bool isCompanion = FriendlinessHelper.IsPlayerPartyMember(self);
-                    return isCompanion
-                        ? $"【对方关系】对方是你的主公{otherName}（玩家）"
-                        : $"【对方关系】对方是玩家{otherName}";
+                    if (isCompanion)
+                        // 本地化：LWN_speech_relation_master（对方为主公，双桶；{NAME} = 对方名）
+                        return LWNTextHelper.ResolveCompound("LWN_speech_relation_master", ("NAME", otherName));
+                    // 本地化：LWN_speech_relation_player（对方为玩家，双桶；{NAME} = 对方名）
+                    return LWNTextHelper.ResolveCompound("LWN_speech_relation_player", ("NAME", otherName));
                 }
                 if (FriendlinessHelper.IsPlayerPartyMember(other))
-                    return $"【对方关系】对方是你的同伴{otherName}";
+                    // 本地化：LWN_speech_relation_companion（对方为同伴，双桶；{NAME} = 对方名）
+                    return LWNTextHelper.ResolveCompound("LWN_speech_relation_companion", ("NAME", otherName));
                 if (FriendlinessHelper.IsFriendlyToPlayer(other))
-                    return $"【对方关系】对方与你友善（{otherName}）";
+                    // 本地化：LWN_speech_relation_friendly（对方友善，双桶；{NAME} = 对方名）
+                    return LWNTextHelper.ResolveCompound("LWN_speech_relation_friendly", ("NAME", otherName));
                 return null;   // 敌对/陌生：不给多余关系（台词由处境段自然表达）
             }
             catch { return null; }
@@ -353,26 +367,36 @@ namespace LivingWorldNpcs
                 if (self != null && self.IsActive() && self.HealthLimit > 0)
                 {
                     float ratio = self.Health / self.HealthLimit;
-                    if (ratio < 0.3f) hp = "，你已筋疲力尽";
-                    else if (ratio < 0.6f) hp = "，你身上带伤";
+                    // 本地化：LWN_speech_hp_exhausted（血量低于30%后缀，双桶）
+                    if (ratio < 0.3f) hp = LWNTextHelper.ResolvePrompt("LWN_speech_hp_exhausted");
+                    // 本地化：LWN_speech_hp_wounded（血量低于60%后缀，双桶）
+                    else if (ratio < 0.6f) hp = LWNTextHelper.ResolvePrompt("LWN_speech_hp_wounded");
                 }
                 string intent = context.Intent ?? "";
                 string action = context.CurrentAction ?? "";
                 string stim = context.StimulusType ?? "";
-                if (intent == "Surrendering")
-                    return $"【当前处境】你正在向对方认输求饶{hp}";
-                if (intent == "Fighting" || action == "FightEnemyAction")
-                    return $"【当前处境】你正在与对方厮杀{hp}";
+                // 本地化：LWN_speech_situation_surrender（认输求饶处境，双桶；{HP} = 血况后缀，可空）
+                if (intent == "Surrendering") return LWNTextHelper.ResolveCompound("LWN_speech_situation_surrender", ("HP", hp));
+                // 本地化：LWN_speech_situation_fighting（厮杀处境，双桶；{HP} = 血况后缀，可空）
+                if (intent == "Fighting" || action == "FightEnemyAction") return LWNTextHelper.ResolveCompound("LWN_speech_situation_fighting", ("HP", hp));
                 switch (stim)
                 {
-                    case "attacked": return $"【当前处境】对方刚刚对你动手，你正要反击{hp}";
-                    case "combat": return $"【当前处境】战斗刚刚爆发，你正要出手{hp}";
-                    case "approach_by": return "【当前处境】对方正在向你靠近";
-                    case "seen_crime": return "【当前处境】你刚目睹了对方的不法行为";
-                    case "spoken_to": return "【当前处境】对方刚刚跟你搭话";
-                    case "plan_command": return "【当前处境】主公刚给你下达了命令";
-                    case "plan_report": return "【当前处境】你正在向主公汇报任务结果";
-                    case "im_message": return "【当前处境】对方刚给你发来消息";
+                    // 本地化：LWN_speech_situation_attacked（被攻击处境，双桶；{HP} = 血况后缀，可空）
+                    case "attacked": return LWNTextHelper.ResolveCompound("LWN_speech_situation_attacked", ("HP", hp));
+                    // 本地化：LWN_speech_situation_combat（战斗爆发处境，双桶；{HP} = 血况后缀，可空）
+                    case "combat": return LWNTextHelper.ResolveCompound("LWN_speech_situation_combat", ("HP", hp));
+                    // 本地化：LWN_speech_situation_approach（靠近处境，双桶）
+                    case "approach_by": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_approach");
+                    // 本地化：LWN_speech_situation_seen_crime（目击不法处境，双桶）
+                    case "seen_crime": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_seen_crime");
+                    // 本地化：LWN_speech_situation_spoken_to（被搭话处境，双桶）
+                    case "spoken_to": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_spoken_to");
+                    // 本地化：LWN_speech_situation_plan_command（主公下令处境，双桶）
+                    case "plan_command": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_plan_command");
+                    // 本地化：LWN_speech_situation_plan_report（汇报任务处境，双桶）
+                    case "plan_report": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_plan_report");
+                    // 本地化：LWN_speech_situation_im_message（收到消息处境，双桶）
+                    case "im_message": return LWNTextHelper.ResolvePrompt("LWN_speech_situation_im_message");
                     default: return null;
                 }
             }

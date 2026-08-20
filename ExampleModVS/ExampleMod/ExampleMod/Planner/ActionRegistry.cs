@@ -59,7 +59,9 @@ namespace LivingWorldNpcs
         public sealed class ActionSpec
         {
             public string Code;                          // 统一小写码（计划词表与闲聊动作空间共用）
-            public string Description;                   // 闲聊 prompt 描述（LLM 决定用）
+            /// <summary>闲聊 prompt 描述（LLM 决定用）。🔴 2026-08-20 prompt 双语化：运行时从 XML 读
+            /// LWN_action_desc_&lt;code&gt;（双桶 CN/EN，缺 key 返回空串，铁律 1 不崩）。</summary>
+            public string Description => LWNTextHelper.ResolvePrompt("LWN_action_desc_" + Code.ToLowerInvariant());
             public string LabelKey;                      // 标签本地化 key 后缀（LWN_plan_action_<LabelKey>）
             public string LabelFallback;                 // 标签英文 fallback
             public bool InPlanVocab;                     // 进计划词表（ActionsInPromptOrder 派生源）
@@ -110,7 +112,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "move_to",
-                Description = "走到对方身边/某个地方（当面或远处目标均可；大地图 = 率部前往某座城镇，在城里等你）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 23,
                 Spaces = ActionSpace.InScene | ActionSpace.Party,
                 Aliases = new[] { "move" },
@@ -175,7 +176,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "follow",
-                Description = "跟到对方身边（保持跟随，直到对方离开；当面或远处目标均可）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 19,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "follow", LabelFallback = "follow",
@@ -191,7 +191,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "stop_following",
-                Description = "停止跟随对方（仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 20,
                 Spaces = ActionSpace.InScene,
                 Aliases = new[] { "stop" },
@@ -203,7 +202,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "order_attack",
-                Description = "要求对方战斗，发起攻击（进入战斗；仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 12,
                 Spaces = ActionSpace.InScene,
                 RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
@@ -244,7 +242,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "knockout",
-                Description = "背后击晕对方（仅当面；高风险）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 14,
                 Spaces = ActionSpace.InScene,
                 RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
@@ -281,7 +278,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "face",
-                Description = "转身面向对方（仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 17,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "face", LabelFallback = "face",
@@ -296,7 +292,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "look_at",
-                Description = "注视对方片刻（仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 18,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "look_at", LabelFallback = "look at",
@@ -312,7 +307,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "say_to",
-                Description = "转头对目标当面说这句话（仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 24,
                 Spaces = ActionSpace.InScene,
                 Aliases = new[] { "speak" },
@@ -337,7 +331,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "emote",
-                Description = "做出一个手势/动作（nod 点头/shake 摇头/wave 招手/cheer 欢呼/bow 鞠躬/shrug 耸肩/point 指路/threaten 威胁手势/disappointed 沮丧；仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 16,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "emote", LabelFallback = "gesture",
@@ -350,7 +343,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "make_noise",
-                Description = "大喊一声引人注意（仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 25,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "make_noise", LabelFallback = "shout",
@@ -361,7 +353,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "signal_player",
-                Description = "向玩家发出一个信号（仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 21,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "signal_player", LabelFallback = "signal",
@@ -372,7 +363,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "steal_attempt",
-                Description = "偷走对方身上的钱（仅当面；高风险）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 15,
                 Spaces = ActionSpace.InScene,
                 RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
@@ -412,7 +402,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "give_gold",
-                Description = "掏出自己的钱给玩家（档位 small=50 / medium=150 / large=500 金币；仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 22,
                 Spaces = ActionSpace.InScene,
                 NeedsCooldown = true,
@@ -467,7 +456,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "duel",
-                Description = "和平的交手切磋（进入不致命的战斗；仅当面）。",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 13,
                 Spaces = ActionSpace.InScene,
                 RequiresConfirm = true,   // 高风险：IM 路径走提议卡片
@@ -516,7 +504,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "NONE",
-                Description = "默认无动作，仅进行对话（普通寒暄必选）。",
                 InChatSpace = true, ChatOrder = 1,
                 IsValid = (npc, player, agent) => true,
                 Execute = (n, p, a, l, t, s) => { /* Do nothing */ }
@@ -525,7 +512,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "relation_up",
-                Description = "好感上升：你对对方印象变好（档位 small=+3 / medium=+5 / large=+10）。",
                 InChatSpace = true, ChatOrder = 2,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -553,7 +539,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "relation_down",
-                Description = "好感下降：你对对方印象变差（档位 small=-3 / medium=-5 / large=-10）。",
                 InChatSpace = true, ChatOrder = 3,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -576,7 +561,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "increase_relation",
-                Description = "好感度小幅上升（兼容旧词表）。",
                 InChatSpace = true, ChatOrder = 4,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -595,7 +579,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "decrease_relation",
-                Description = "好感度小幅下降（兼容旧词表）。",
                 InChatSpace = true, ChatOrder = 5,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -614,7 +597,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "praise",
-                Description = "夸赞对方：对方在当地声望小升（当众夸赞/背后说好话）。",
                 InChatSpace = true, ChatOrder = 6,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -645,7 +627,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "spread_rumor",
-                Description = "散布关于对方的谣言：对方当地声望小降（背后说坏话）。",
                 InChatSpace = true, ChatOrder = 7,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -686,7 +667,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "threaten_verbal",
-                Description = "出言威胁对方（对方会记住这次威胁；当面威胁对方可能当场翻脸）。",
                 InChatSpace = true, ChatOrder = 8,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -722,7 +702,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "promise",
-                Description = "向对方作出承诺（对方会记住这次承诺）。",
                 InChatSpace = true, ChatOrder = 9,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 NeedsCooldown = true,
@@ -742,7 +721,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "marry_success",
-                Description = "同意对方的求婚（建立婚姻关系；仅当面）。",
                 InChatSpace = true, ChatOrder = 10,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "marry_success", LabelFallback = "agree to marry",
@@ -768,7 +746,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "join_clan",
-                Description = "接受招募，加入玩家的家族（仅当面）。",
                 InChatSpace = true, ChatOrder = 11,
                 Spaces = ActionSpace.InScene,
                 LabelKey = "join_clan", LabelFallback = "join the clan",
@@ -793,7 +770,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "party_patrol",
-                Description = "率部在所在城镇周边巡逻（大地图）。",
                 InChatSpace = true, ChatOrder = 26,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
@@ -847,7 +823,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "gather_to_player",
-                Description = "率部集结到玩家身边（大地图）；随从的独立部队则归队合并（兵力归还主队）。",
                 InChatSpace = true, ChatOrder = 27,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
@@ -890,7 +865,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "split_party",
-                Description = "分出一支队伍单独行动（从主队带兵离队，率部跟随玩家；大地图；档位 small≈10 / medium≈30 / large≈60 兵）。",
                 InChatSpace = true, ChatOrder = 30,
                 Spaces = ActionSpace.Party,
                 RequiresConfirm = true,   // 分兵 = 结构性动作：卡片确认
@@ -913,7 +887,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "engage",
-                Description = "率部追击一支可见的部队（大地图：敌方/匪徒；追到后交战由原版自理）。",
                 InChatSpace = true, ChatOrder = 31,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
@@ -956,7 +929,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "crouch",
-                Description = "蹲下（保持蹲姿，直到命令站起；仅当面）。",
                 InChatSpace = true, ChatOrder = 28,
                 Spaces = ActionSpace.InScene,
                 SelfTargeted = true,
@@ -968,7 +940,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "stand",
-                Description = "站起（从蹲姿恢复站立；仅当面）。",
                 InChatSpace = true, ChatOrder = 29,
                 Spaces = ActionSpace.InScene,
                 SelfTargeted = true,
@@ -1024,7 +995,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "persuade_join",
-                Description = "劝降对方：说服领主加入你的王国（你是国王 + 对方有叛逃倾向；判定成功加入，失败关系 -10）。",
                 InChatSpace = true, ChatOrder = 32,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 RequiresConfirm = true,
@@ -1047,7 +1017,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "propose_war",
-                Description = "向国王提议对某王国宣战（你是王国成员；提案进议会投票，影响力 -200，被否/门槛不足代价真实）。",
                 InChatSpace = true, ChatOrder = 33,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 RequiresConfirm = true,
@@ -1070,7 +1039,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "negotiate_peace",
-                Description = "向国王提议与某王国停战（你是王国成员；提案进议会投票，影响力 -200）。",
                 InChatSpace = true, ChatOrder = 34,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 RequiresConfirm = true,
@@ -1093,7 +1061,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "order_march",
-                Description = "命令己方领主率部行动（去某座城/回领地防守/追击某支部队；大地图；无检定，冷却 1 天）。",
                 InChatSpace = true, ChatOrder = 35,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
@@ -1122,7 +1089,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "pay_ransom",
-                Description = "愿意赎身（被俘时向看守求放；赎金由对方开价——你只答应不还价，金额对方说了算）。",
                 InChatSpace = true, ChatOrder = 36,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 IdentityGated = true,
@@ -1142,7 +1108,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "beg_mercy",
-                Description = "向守卫求饶认罚（犯罪被抓时；罚金按罪计算——你只认罚不讨价，金额对方说了算）。",
                 InChatSpace = true, ChatOrder = 37,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 IdentityGated = true,
@@ -1156,7 +1121,6 @@ namespace LivingWorldNpcs
             new ActionSpec
             {
                 Code = "bribe_guard",
-                Description = "塞钱给守卫求放（犯罪被抓时；大笔封口费，守卫品格影响成败——可能收了钱照样抓你）。",
                 InChatSpace = true, ChatOrder = 38,
                 Spaces = ActionSpace.InScene | ActionSpace.Remote | ActionSpace.Party,
                 IdentityGated = true,

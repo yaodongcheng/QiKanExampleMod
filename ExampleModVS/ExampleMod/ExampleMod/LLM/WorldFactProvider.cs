@@ -384,7 +384,8 @@ namespace LivingWorldNpcs
         /// <summary>实体事实段标题（按属性给"信息来源"标注，LLM 措辞贴合来源级别）。</summary>
         private static string GetEntityTitle(EntityQuery eq)
         {
-            string name = eq.Hero?.Name?.ToString() ?? "对方";
+            // 本地化：LWN_word_person_other（对方称呼兜底，双桶）
+            string name = eq.Hero?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_other");
             string key = eq.Property switch
             {
                 "location" => "LWN_fact_title_hero_location", // lwn-ignore: B
@@ -433,29 +434,49 @@ namespace LivingWorldNpcs
             {
                 // 被关在定居点（城镇/城堡/村庄的牢里）——俘虏者 = 该定居点守军
                 if (prisonParty.IsSettlement && prisonParty.Settlement != null)
-                    return $"- {hero.Name} 被{prisonParty.Settlement.Name}的守军俘虏，关押在那里。";
+                {
+                    // 本地化：LWN_fact_body_hero_captured_at（英雄被定居点守军俘获，双桶）
+                    return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_captured_at",
+                        ("NAME", hero.Name?.ToString()), ("SETTLEMENT", prisonParty.Settlement.Name?.ToString()));
+                }
                 // 被移动部队俘虏押解（如"乌尔玻斯的部队"）——答出俘虏队伍
                 string captor = prisonParty.Name?.ToString();
-                return string.IsNullOrEmpty(captor)
-                    ? $"- {hero.Name} 被俘了，正被人押着行军。"
-                    : $"- {hero.Name} 被 {captor} 俘虏，正被押着行军。";
+                if (string.IsNullOrEmpty(captor))
+                {
+                    // 本地化：LWN_fact_body_hero_captured_march（英雄被俘押解，双桶）
+                    return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_captured_march", ("NAME", hero.Name?.ToString()));
+                }
+                // 本地化：LWN_fact_body_hero_captured_by（英雄被某部队俘获押解，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_captured_by",
+                    ("NAME", hero.Name?.ToString()), ("CAPTOR", captor));
             }
 
             string where = null;
             var party = hero.PartyBelongedTo;
             if (party != null)
             {
-                if (party.CurrentSettlement != null) where = $"正在 {party.CurrentSettlement.Name}";
-                else if (party.TargetSettlement != null) where = $"正行军前往 {party.TargetSettlement.Name}";
+                // 本地化：LWN_fact_body_hero_where_at / LWN_fact_body_hero_where_marching（英雄所在/行军去向，双桶）
+                if (party.CurrentSettlement != null) where = LWNTextHelper.ResolveCompound("LWN_fact_body_hero_where_at", ("PLACE", party.CurrentSettlement.Name?.ToString()));
+                // 本地化：LWN_fact_body_hero_where_marching（双桶）
+                else if (party.TargetSettlement != null) where = LWNTextHelper.ResolveCompound("LWN_fact_body_hero_where_marching", ("PLACE", party.TargetSettlement.Name?.ToString()));
             }
-            if (where == null && hero.CurrentSettlement != null) where = $"正在 {hero.CurrentSettlement.Name}";
+            // 本地化：LWN_fact_body_hero_where_at（双桶）
+            if (where == null && hero.CurrentSettlement != null) where = LWNTextHelper.ResolveCompound("LWN_fact_body_hero_where_at", ("PLACE", hero.CurrentSettlement.Name?.ToString()));
             if (where == null)
-                return $"- {hero.Name} 行踪不定，无人知晓其确切下落。";
+            {
+                // 本地化：LWN_fact_body_hero_untraceable（英雄行踪不定，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_untraceable", ("NAME", hero.Name?.ToString()));
+            }
 
             if (IsAtWarWithPlayer(hero))
+            {
                 // 敌国：传闻级（交战国的军情是机密，精确下落不可知）
-                return $"- 传闻 {hero.Name} 正在领兵在外，行踪难料。";
-            return $"- {hero.Name} 眼下{where}。";
+                // 本地化：LWN_fact_body_hero_enemy_rumor（敌国英雄传闻级下落，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_enemy_rumor", ("NAME", hero.Name?.ToString()));
+            }
+            // 本地化：LWN_fact_body_hero_now_at（英雄眼下所在，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_now_at",
+                ("NAME", hero.Name?.ToString()), ("WHERE", where));
         }
 
         /// <summary>场景内位置：目标在当前 Mission 有存活 Agent → 相对玩家方位+距离；无 → null（落大地图逻辑）。
@@ -478,12 +499,18 @@ namespace LivingWorldNpcs
                 float dist = target.Position.Distance(player.Position);
                 DebugLogger.Log($"[SceneDir-Hero] {hero.Name}: target=({target.Position.x:F1},{target.Position.y:F1},{target.Position.z:F1}) " +
                     $"player=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F1}) dist={dist:F1}");
-                if (dist < 3f) return $"- {hero.Name} 眼下就在你跟前。";
+                // 本地化：LWN_fact_body_hero_infront（英雄近在眼前，双桶）
+                if (dist < 3f) return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_infront", ("NAME", hero.Name?.ToString()));
                 string dir = DirectionDesc(player, target.Position);
                 string zone = NearestSemanticZoneDesc(target.Position, out float zoneDist);
+                // 本地化：LWN_fact_body_hero_zone_dir（英雄在某区域附近方位距离，双桶）
                 if (zone != null && zoneDist <= 12f)
-                    return $"- {hero.Name} 眼下在{zone}附近，{dir}约 {dist:0} 米。";
-                return $"- {hero.Name} 眼下{dir}约 {dist:0} 米处。";
+                    // 本地化：LWN_fact_body_hero_zone_dir（双桶）
+                    return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_zone_dir",
+                        ("NAME", hero.Name?.ToString()), ("ZONE", zone), ("DIR", dir), ("DIST", dist.ToString("0")));
+                // 本地化：LWN_fact_body_hero_dir（英雄相对方位距离，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_dir",
+                    ("NAME", hero.Name?.ToString()), ("DIR", dir), ("DIST", dist.ToString("0")));
             }
             catch { return null; }
         }
@@ -501,7 +528,8 @@ namespace LivingWorldNpcs
                 Vec3 diff = targetPos - player.Position;
                 diff.z = 0f;
                 float len = diff.Length;
-                if (len < 1.5f) return "正对面";
+                // 本地化：LWN_word_dir_ahead（正对面，双桶）
+                if (len < 1.5f) return LWNTextHelper.ResolvePrompt("LWN_word_dir_ahead");
                 Vec3 fwd = GetPlayerForward();
                 MatrixFrame frame = GetPlayerCameraFrame();
                 Vec3 right = frame.rotation.s;          // 引擎官方 Side 轴（+X 为右）
@@ -510,20 +538,50 @@ namespace LivingWorldNpcs
                 else right.Normalize();
                 float f = Vec3.DotProduct(diff, fwd) / len;
                 float r = Vec3.DotProduct(diff, right) / len;
-                string lat = r > 0.35f ? "右侧" : (r < -0.35f ? "左侧" : "");
-                string lon = f > 0.35f ? "前方" : (f < -0.35f ? "后方" : "");
+                string lat = r > 0.35f ? "R" : (r < -0.35f ? "L" : "");
+                string lon = f > 0.35f ? "F" : (f < -0.35f ? "B" : "");
                 string result;
-                if (lat.Length == 0 && lon.Length == 0) result = "正对面";
-                else if (lat.Length == 0) result = lon;
-                else if (lon.Length == 0) result = lat;
-                else result = lat + lon;
+                if (lat.Length == 0 && lon.Length == 0)
+                {
+                    // 本地化：LWN_word_dir_ahead（正对面，双桶）
+                    result = LWNTextHelper.ResolvePrompt("LWN_word_dir_ahead");
+                }
+                else if (lat.Length == 0)
+                {
+                    // 本地化：LWN_word_dir_front / LWN_word_dir_back（正前/正后方，双桶）
+                    result = lon == "F" ? LWNTextHelper.ResolvePrompt("LWN_word_dir_front") : LWNTextHelper.ResolvePrompt("LWN_word_dir_back");
+                }
+                else if (lon.Length == 0)
+                {
+                    // 本地化：LWN_word_dir_side_right / LWN_word_dir_side_left（右侧/左侧，双桶）
+                    result = lat == "R" ? LWNTextHelper.ResolvePrompt("LWN_word_dir_side_right") : LWNTextHelper.ResolvePrompt("LWN_word_dir_side_left");
+                }
+                else
+                {
+                    // 本地化：LWN_word_dir_front_right 等斜向方位（双桶）
+                    result = (lat, lon) switch
+                    {
+                        // 本地化：LWN_word_dir_front_right（双桶）
+                        ("R", "F") => LWNTextHelper.ResolvePrompt("LWN_word_dir_front_right"),
+                        // 本地化：LWN_word_dir_back_right（双桶）
+                        ("R", "B") => LWNTextHelper.ResolvePrompt("LWN_word_dir_back_right"),
+                        // 本地化：LWN_word_dir_front_left（双桶）
+                        ("L", "F") => LWNTextHelper.ResolvePrompt("LWN_word_dir_front_left"),
+                        // 本地化：LWN_word_dir_back_left（双桶）
+                        _ => LWNTextHelper.ResolvePrompt("LWN_word_dir_back_left"),
+                    };
+                }
                 DebugLogger.Log($"[SceneDir] target=({targetPos.x:F1},{targetPos.y:F1},{targetPos.z:F1}) " +
                     $"player=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F1}) " +
                     $"diff=({diff.x:F1},{diff.y:F1}) dist={len:F1} " +
                     $"camFwd=({fwd.x:F2},{fwd.y:F2}) camSide=({right.x:F2},{right.y:F2}) → \"{result}\"");
                 return result;
             }
-            catch { return "附近"; }
+            catch
+            {
+                // 本地化：LWN_word_dir_at_nearby（方位不可知时"在附近"，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_word_dir_at_nearby");
+            }
         }
 
         /// <summary>玩家摄像机帧（CustomCamera ?? Mission.GetCameraFrame() 既有范式）。
@@ -616,16 +674,33 @@ namespace LivingWorldNpcs
                 // 地点：定居点 + 子场景（Location.Name 引擎本地化）
                 string place = Settlement.CurrentSettlement?.Name?.ToString();
                 string locName = CampaignMission.Current?.Location?.Name?.ToString();
+                // 本地化：LWN_fact_body_place_with_loc（定居点+子场景组合，双桶）
                 if (!string.IsNullOrEmpty(locName))
-                    place = string.IsNullOrEmpty(place) ? locName : $"{place}（{locName}）";
+                    // 本地化：LWN_fact_body_place_with_loc（双桶）
+                    place = string.IsNullOrEmpty(place) ? locName : LWNTextHelper.ResolveCompound("LWN_fact_body_place_with_loc",
+                        ("PLACE", place), ("LOC", locName));
                 // 🔴 2026-08-16（方案 A）：场景无定居点锚点（野战/城门遇袭场景无 CurrentSettlement）→
                 // 最近定居点兜底（"X 附近的旷野"）；仍为空才保留"同处一场景"（真正无锚点的场景）
                 if (string.IsNullOrEmpty(place))
                 {
                     string near = NearestSettlementName(15f);
-                    if (near != null) place = $"{near}附近的旷野";
+                    // 本地化：LWN_fact_body_place_wilderness_near（最近定居点附近的旷野，双桶）
+                    if (near != null) place = LWNTextHelper.ResolveCompound("LWN_fact_body_place_wilderness_near", ("PLACE", near));
                 }
-                sb.AppendLine("【此刻处境】" + (string.IsNullOrEmpty(place) ? "你和主公同处一场景。" : $"你此刻在 {place}。"));
+                // 本地化：LWN_prompt_section_scene_situation（此刻处境段标题，双桶）
+                string situationTitle = LWNTextHelper.ResolvePrompt("LWN_prompt_section_scene_situation");
+                string situationBody;
+                if (string.IsNullOrEmpty(place))
+                {
+                    // 本地化：LWN_fact_body_same_scene（与主公同处一场景，双桶）
+                    situationBody = LWNTextHelper.ResolvePrompt("LWN_fact_body_same_scene");
+                }
+                else
+                {
+                    // 本地化：LWN_fact_body_current_place（你此刻在某地，双桶）
+                    situationBody = LWNTextHelper.ResolveCompound("LWN_fact_body_current_place", ("PLACE", place));
+                }
+                sb.AppendLine(situationTitle + situationBody);
                 // 🔴 2026-08-16（方案 G8 确认不可用，P3）：quest 目标锚点行不实现——ilspycmd 反编译
                 // v1.4.8 实锤 QuestBase 无 TargetSettlement 公开属性（任务目标定居点散落在各任务子类/
                 // JournalLog 变量，无统一公开 API），按计划「不可用则跳过该行」口径跳过；
@@ -650,9 +725,12 @@ namespace LivingWorldNpcs
                 float dist = diff.Length;
                 DebugLogger.Log($"[SceneDir-IM] {heroId}: self=({self.Position.x:F1},{self.Position.y:F1},{self.Position.z:F1}) " +
                     $"player=({player.Position.x:F1},{player.Position.y:F1},{player.Position.z:F1}) dist={dist:F1}");
-                if (dist < 3f) return $"你就在主公跟前（约 {MathF.Ceiling(dist)} 米）。";
+                // 本地化：LWN_fact_body_player_at_lord（你就在主公跟前，双桶）
+                if (dist < 3f) return LWNTextHelper.ResolveCompound("LWN_fact_body_player_at_lord", ("DIST", MathF.Ceiling(dist).ToString()));
                 string dir = DirectionDesc(player, self.Position);   // NPC 相对玩家的方位（玩家朝向为基准）
-                return $"你正在主公{dir}约 {MathF.Ceiling(dist)} 米处。";
+                // 本地化：LWN_fact_body_player_dir_from_lord（你正在主公某方位约 X 米处，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_player_dir_from_lord",
+                    ("DIR", dir), ("DIST", MathF.Ceiling(dist).ToString()));
             }
             catch { return ""; }
         }
@@ -745,12 +823,19 @@ namespace LivingWorldNpcs
                         // 🔴 2026-08-19（统一标记格式）：GetDisplayName = Hero 原名 / 模板「名字#Index」
                         //（无空格，与 HUD/交互区/附近频道/@预填 同构）——不再用 [ #N ] 括号自造格式
                         string cName = AgentControlHelper.GetDisplayName(info.Agent);
-                        if (string.IsNullOrWhiteSpace(cName)) cName = info.DisplayName ?? "某人";
+                        // 本地化：LWN_word_person_someone（无名者称呼兜底，双桶）
+                        if (string.IsNullOrWhiteSpace(cName)) cName = info.DisplayName ?? LWNTextHelper.ResolvePrompt("LWN_word_person_someone");
                         string cFloor = FloorLabelOf(info.Agent, self);
-                        if (!string.IsNullOrEmpty(cFloor)) cName += $"（{cFloor}）";
+                        // 本地化：LWN_fact_body_floor_suffix（楼层括注后缀，双桶）
+                        if (!string.IsNullOrEmpty(cFloor)) cName += LWNTextHelper.ResolveCompound("LWN_fact_body_floor_suffix", ("FLOOR", cFloor));
                         string rel = DescribeTargetRelative(self, info.Agent);
                         bool moving = info.Agent.Velocity.LengthSquared > 0.25f;
-                        sb.AppendLine($"- {cName} {rel}" + (moving ? "，他正在走动（位置随时会变）" : "，他站着没动（位置大致稳定）") + "。");
+                        // 本地化：LWN_risk_body_line_moving / LWN_risk_body_line_still（目标走动/静止状态行，双桶）
+                        sb.AppendLine(moving
+                            // 本地化：LWN_risk_body_line_moving（双桶）
+                            ? LWNTextHelper.ResolveCompound("LWN_risk_body_line_moving", ("NAME", cName), ("REL", rel))
+                            // 本地化：LWN_risk_body_line_still（双桶）
+                            : LWNTextHelper.ResolveCompound("LWN_risk_body_line_still", ("NAME", cName), ("REL", rel)));
                     }
                     sb.AppendLine();
                 }
@@ -761,15 +846,22 @@ namespace LivingWorldNpcs
                     // LLM 基于场景语义指认目标（「酒馆老板」→ 场景里标着 [#N] 的「酒馆店主」），
                     // action_target 输出带 index（如 酒馆店主#3）→ C# 精确解析，不靠字符串匹配。
                     string tName = AgentControlHelper.GetDisplayName(target);
-                    if (string.IsNullOrWhiteSpace(tName)) tName = targetInfo?.DisplayName ?? "目标";
+                    // 本地化：LWN_word_person_target（目标称呼兜底，双桶）
+                    if (string.IsNullOrWhiteSpace(tName)) tName = targetInfo?.DisplayName ?? LWNTextHelper.ResolvePrompt("LWN_word_person_target");
                     // 🔴 2026-08-15（楼层感知）：目标行标注所在楼层（「楼上」→ LLM 计划天然含上楼步骤）
                     string tFloor = FloorLabelOf(target, self);
-                    if (!string.IsNullOrEmpty(tFloor)) tName += $"（{tFloor}）";
+                    // 本地化：LWN_fact_body_floor_suffix（楼层括注后缀，双桶）
+                    if (!string.IsNullOrEmpty(tFloor)) tName += LWNTextHelper.ResolveCompound("LWN_fact_body_floor_suffix", ("FLOOR", tFloor));
                     // 目标相对本 NPC 的方位 + 距离（以 self 自身朝向为基准——亲见视角）
                     string rel = DescribeTargetRelative(self, target);
                     // 移动状态（RuntimeWorldState.cs:285 同口径：Velocity.LengthSquared > 0.25f = 走动中）
                     bool moving = target.Velocity.LengthSquared > 0.25f;
-                    sb.AppendLine($"- {tName} {rel}" + (moving ? "，他正在走动（位置随时会变）" : "，他站着没动（位置大致稳定）") + "。");
+                    // 本地化：LWN_risk_body_line_moving / LWN_risk_body_line_still（目标走动/静止状态行，双桶）
+                    sb.AppendLine(moving
+                        // 本地化：LWN_risk_body_line_moving（双桶）
+                        ? LWNTextHelper.ResolveCompound("LWN_risk_body_line_moving", ("NAME", tName), ("REL", rel))
+                        // 本地化：LWN_risk_body_line_still（双桶）
+                        : LWNTextHelper.ResolveCompound("LWN_risk_body_line_still", ("NAME", tName), ("REL", rel)));
                     // 目标身边 3 米内人数
                     int nearby = 0;
                     foreach (var info in snap.Agents)
@@ -778,7 +870,10 @@ namespace LivingWorldNpcs
                         if (info.Agent.Position.Distance(target.Position) <= 3f) nearby++;
                     }
                     if (nearby > 0)
-                        sb.AppendLine($"- 他身边 3 米内有 {nearby} 人站着。");
+                    {
+                        // 本地化：LWN_risk_body_nearby_count（目标身边人数，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_nearby_count", ("COUNT", nearby.ToString())));
+                    }
                     // 视线（快变量：弱化措辞）——「至少有 N 人的视线落在他身上（此刻）」
                     int watchers = 0;
                     foreach (var info in snap.Agents)
@@ -787,7 +882,10 @@ namespace LivingWorldNpcs
                         if (snap.CanSee(info.Agent, target)) watchers++;
                     }
                     if (watchers > 0)
-                        sb.AppendLine($"- 此刻至少有 {watchers} 人的视线落在他身上（转头就可能变）。");
+                    {
+                        // 本地化：LWN_risk_body_watchers（目标被注视人数，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_watchers", ("COUNT", watchers.ToString())));
+                    }
                     // 谁正看着本 NPC 自己（亲见：自己被盯着）
                     int selfWatchers = 0;
                     foreach (var info in snap.Agents)
@@ -796,7 +894,10 @@ namespace LivingWorldNpcs
                         if (snap.CanSee(info.Agent, self)) selfWatchers++;
                     }
                     if (selfWatchers > 0)
-                        sb.AppendLine($"- 可能有 {selfWatchers} 人正看着你（你自己也会被看见）。");
+                    {
+                        // 本地化：LWN_risk_body_self_watchers（自己被注视人数，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_self_watchers", ("COUNT", selfWatchers.ToString())));
+                    }
                 }
                 // ── 阵营段（与 AgentBrain 实际行为同口径：友方旁观者豁免/护主参战/守卫站秩序/中立目击告发）──
                 var buddies = new List<string>();
@@ -809,22 +910,40 @@ namespace LivingWorldNpcs
                     if (info.Role == "guard") { guards++; continue; }
                     // 🔴 2026-08-19（统一标记格式）：GetDisplayName（Hero 原名 / 模板「名字#Index」）
                     string dn = AgentControlHelper.GetDisplayName(info.Agent);
-                    string label = string.IsNullOrWhiteSpace(dn) ? (info.DisplayName ?? "同袍") : dn;
+                    // 本地化：LWN_word_person_comrade（匿名同袍兜底名，双桶）
+                    string label = string.IsNullOrWhiteSpace(dn) ? (info.DisplayName ?? LWNTextHelper.ResolvePrompt("LWN_word_person_comrade")) : dn;
                     if (FriendlinessHelper.IsFriendlyToPlayer(info.Agent)) buddies.Add(label);
                     else if (target != null && FriendlinessHelper.IsFriendlyBetween(target, info.Agent)) targetFriends.Add(label);
                     else neutralNames.Add(label);
                 }
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
                 if (buddies.Count + targetFriends.Count + guards + neutralNames.Count > 0)
                 {
-                    sb.AppendLine("- 阵营（谁站谁那边——你犯事时他们的真实反应）：");
+                    // 本地化：LWN_risk_body_faction_header（阵营段标题，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_risk_body_faction_header"));
                     if (buddies.Count > 0)
-                        sb.AppendLine($"  - 在场 {buddies.Count} 人是你的同袍（玩家队伍的人）：{string.Join("、", buddies.Take(4))}——你犯事他们假装没看见，你被打他们会帮你。");
+                    {
+                        // 本地化：LWN_risk_body_buddies（同袍行，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_buddies",
+                            ("COUNT", buddies.Count.ToString()), ("NAMES", string.Join(sep, buddies.Take(4)))));
+                    }
                     if (targetFriends.Count > 0)
-                        sb.AppendLine($"  - {tNameOf(target)}身边 {targetFriends.Count} 人是他的同伴：会帮他、会告发你。");
+                    {
+                        // 本地化：LWN_risk_body_target_friends（目标同伴行，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_target_friends",
+                            ("NAME", tNameOf(target)), ("COUNT", targetFriends.Count.ToString())));
+                    }
                     if (guards > 0)
-                        sb.AppendLine($"  - 场上有 {guards} 名守卫：你若犯事他会抓你。");
+                    {
+                        // 本地化：LWN_risk_body_guards（守卫行，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_guards", ("COUNT", guards.ToString())));
+                    }
                     if (neutralNames.Count > 0)
-                        sb.AppendLine($"  - 其余 {neutralNames.Count} 人是中立旁观者：不参战，但会看见并告发。");
+                    {
+                        // 本地化：LWN_risk_body_neutrals（中立旁观者行，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_neutrals", ("COUNT", neutralNames.Count.ToString())));
+                    }
                 }
                 // ── 战力段（双方合计 + 武装档位 + 结论词；禁止给数字公式让 LLM 编——给结论词）──
                 int selfSide = AgentStatsHelper.GetAgentStatTotal(self);
@@ -857,16 +976,27 @@ namespace LivingWorldNpcs
                     // 本地化：悬殊
                     else verdict = LWNTextHelper.ResolveText("LWN_risk_verdict_overwhelmed", "overwhelmingly outmatched");
                 }
-                sb.AppendLine("- 战力对比（真打起来算两边合计——你+在场同袍 vs 目标+他同伴+守卫）：");
+                // 本地化：LWN_risk_body_power_header（战力对比段标题，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_risk_body_power_header"));
                 string selfArmor = AgentStatsHelper.ArmorProfileWord(AgentStatsHelper.GetArmorProfile(self));
-                sb.AppendLine($"  - 你这边的总战力 vs 对面的总战力——结论：{verdict}。");
-                sb.AppendLine($"  - 你自己的状态：{selfArmor}，Vigor {AgentStatsHelper.GetAgentStats(self).vigor}/Control {AgentStatsHelper.GetAgentStats(self).control}。");
+                // 本地化：LWN_risk_body_verdict（战力结论行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_verdict", ("VERDICT", verdict)));
+                // 本地化：LWN_risk_body_self_state（自身战力状态行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_self_state",
+                    ("ARMOR", selfArmor),
+                    ("VIGOR", AgentStatsHelper.GetAgentStats(self).vigor.ToString()),
+                    ("CONTROL", AgentStatsHelper.GetAgentStats(self).control.ToString())));
                 if (target != null && target.IsActive())
                 {
                     string tArmor = AgentStatsHelper.ArmorProfileWord(AgentStatsHelper.GetArmorProfile(target));
                     string tn = AgentControlHelper.GetDisplayName(target);
-                    if (string.IsNullOrWhiteSpace(tn)) tn = "目标";
-                    sb.AppendLine($"  - {tn}：{tArmor}，Vigor {AgentStatsHelper.GetAgentStats(target).vigor}/Control {AgentStatsHelper.GetAgentStats(target).control}。");
+                    // 本地化：LWN_word_person_target（目标称呼兜底，双桶）
+                    if (string.IsNullOrWhiteSpace(tn)) tn = LWNTextHelper.ResolvePrompt("LWN_word_person_target");
+                    // 本地化：LWN_risk_body_target_state（目标战力状态行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_target_state",
+                        ("NAME", tn), ("ARMOR", tArmor),
+                        ("VIGOR", AgentStatsHelper.GetAgentStats(target).vigor.ToString()),
+                        ("CONTROL", AgentStatsHelper.GetAgentStats(target).control.ToString())));
                 }
                 // ── 在场潜在援军（30m 内可能赶来的人，按阵营分列——IsFriendlyBetween 双向判定）──
                 var helpUs = new List<string>();
@@ -879,20 +1009,31 @@ namespace LivingWorldNpcs
                     if (info.Agent.Position.Distance(self.Position) > 30f) continue;
                     // 🔴 2026-08-19（统一标记格式）：GetDisplayName（Hero 原名 / 模板「名字#Index」）
                     string dn = AgentControlHelper.GetDisplayName(info.Agent);
-                    string label = string.IsNullOrWhiteSpace(dn) ? (info.DisplayName ?? "友军") : dn;
+                    // 本地化：LWN_word_person_ally（匿名友军兜底名，双桶）
+                    string label = string.IsNullOrWhiteSpace(dn) ? (info.DisplayName ?? LWNTextHelper.ResolvePrompt("LWN_word_person_ally")) : dn;
                     if (FriendlinessHelper.IsFriendlyToPlayer(info.Agent)) helpUs.Add(label);
                     else if (target != null && FriendlinessHelper.IsFriendlyBetween(target, info.Agent)) helpThem.Add(label);
                     else watchOnly.Add(label);
                 }
                 if (helpUs.Count + helpThem.Count + watchOnly.Count > 0)
                 {
-                    sb.AppendLine("- 但附近 30 米内还有人（可能 10 秒内赶来）：");
+                    // 本地化：LWN_risk_body_reinf_header（潜在援军段标题，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_risk_body_reinf_header"));
                     if (helpUs.Count > 0)
-                        sb.AppendLine($"  - 帮你的：{string.Join("、", helpUs.Take(3))}。");
+                    {
+                        // 本地化：LWN_risk_body_reinf_us（援军-己方行，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_reinf_us", ("NAMES", string.Join(sep, helpUs.Take(3)))));
+                    }
                     if (helpThem.Count > 0)
-                        sb.AppendLine($"  - 帮他的：{string.Join("、", helpThem.Take(3))}。");
+                    {
+                        // 本地化：LWN_risk_body_reinf_them（援军-敌方行，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_reinf_them", ("NAMES", string.Join(sep, helpThem.Take(3)))));
+                    }
                     if (watchOnly.Count > 0)
-                        sb.AppendLine($"  - 中立观望的：{string.Join("、", watchOnly.Take(3))}。");
+                    {
+                        // 本地化：LWN_risk_body_reinf_neutral（援军-中立行，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_risk_body_reinf_neutral", ("NAMES", string.Join(sep, watchOnly.Take(3)))));
+                    }
                 }
                 return sb.ToString();
             }
@@ -900,16 +1041,19 @@ namespace LivingWorldNpcs
         }
         private static string tNameOf(Agent target)
         {
-            return target?.Name?.ToString() ?? "目标";
+            // 本地化：LWN_word_person_target（目标称呼兜底，双桶）
+            return target?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_target");
         }
         /// <summary>在场采样行名字（2026-08-19 统一标记格式）：GetDisplayName（Hero 原名 /
         /// 模板「名字#Index」），空名兜底 DisplayName/Role/某人。</summary>
         private static string FormatSampledName(SceneSnapshot.AgentInfo sel)
         {
-            if (sel?.Agent == null) return sel?.DisplayName ?? "某人";
+            // 本地化：LWN_word_person_someone（无名者称呼兜底，双桶）
+            if (sel?.Agent == null) return sel?.DisplayName ?? LWNTextHelper.ResolvePrompt("LWN_word_person_someone");
             string dn = AgentControlHelper.GetDisplayName(sel.Agent);
             if (!string.IsNullOrWhiteSpace(dn)) return dn;
-            return sel.DisplayName ?? sel.Role ?? "某人";
+            // 本地化：LWN_word_person_someone（双桶）
+            return sel.DisplayName ?? sel.Role ?? LWNTextHelper.ResolvePrompt("LWN_word_person_someone");
         }
         // ═══════════════════════════════════════════════════════════
         // 🔴 2026-08-15（用户裁定采样优化）：在场人员采样——楼层聚类 + 分层配额 + 优先级采样
@@ -926,8 +1070,9 @@ namespace LivingWorldNpcs
         private const float FloorSameThreshold = 1.0f;
         private const float FloorAdjacentThreshold = 4.0f;
 
-        /// <summary>运行时楼层词（prompt 段材料，铁律 13 豁免）。</summary>
-        private static readonly string[] FloorWords = { "本层", "楼上", "楼下", "更上层", "更下层" };
+        /// <summary>运行时楼层词（prompt 段材料，铁律 13 豁免；双桶：LWN_word_floor_*）。</summary>
+        // 本地化：LWN_word_floor_*（楼层词表，双桶）
+        private static readonly string[] FloorWords = { "LWN_word_floor_this", "LWN_word_floor_up", "LWN_word_floor_down", "LWN_word_floor_upper", "LWN_word_floor_lower" };
 
         /// <summary>独特职业表（每个角色采样保底 1 个——用户裁定「每个模板的人都能采样到 1 个」；
         /// 镇民/村民等大众职业不在此列，走空间随机兜底）。</summary>
@@ -949,11 +1094,12 @@ namespace LivingWorldNpcs
         {
             if (agent == null || self == null) return "";
             float dz = agent.Position.Z - self.Position.Z;
-            if (dz > FloorAdjacentThreshold) return FloorWords[3];
-            if (dz > FloorSameThreshold) return FloorWords[1];
-            if (dz < -FloorAdjacentThreshold) return FloorWords[4];
-            if (dz < -FloorSameThreshold) return FloorWords[2];
-            return FloorWords[0];
+            // 本地化：LWN_word_floor_*（楼层词按调用时语言解析，双桶）
+            if (dz > FloorAdjacentThreshold) return LWNTextHelper.ResolvePrompt(FloorWords[3]);
+            if (dz > FloorSameThreshold) return LWNTextHelper.ResolvePrompt(FloorWords[1]);
+            if (dz < -FloorAdjacentThreshold) return LWNTextHelper.ResolvePrompt(FloorWords[4]);
+            if (dz < -FloorSameThreshold) return LWNTextHelper.ResolvePrompt(FloorWords[2]);
+            return LWNTextHelper.ResolvePrompt(FloorWords[0]);
         }
 
         /// <summary>独特名字判定：非通用词集合 && 与职业/角色不全等（"酒馆店主"≠"店主"= 有具体身份 → 独特）。</summary>
@@ -1112,8 +1258,15 @@ namespace LivingWorldNpcs
                     + (target != null && target.IsActive() ? 1 : 0);
                 int mergedCount = unselected.Count;
                 // 总览：人数 + 详写/合并比例 + 分层
-                var floorParts = floors.Select(f => $"{FloorLabelOf(f[0].Agent, self)} {f.Count} 人");
-                sb.AppendLine($"- 此处共 {total} 人在场（详写 {listedRows} 人、其余 {mergedCount} 人归入计数；{string.Join("、", floorParts)}）：");
+                // 本地化：LWN_word_floor_part（单层人数词组，双桶）
+                var floorParts = floors.Select(f => LWNTextHelper.ResolveCompound("LWN_word_floor_part",
+                    ("FLOOR", FloorLabelOf(f[0].Agent, self)), ("COUNT", f.Count.ToString())));
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+                // 本地化：LWN_sight_overview（在场总览行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_sight_overview",
+                    ("TOTAL", total.ToString()), ("LISTED", listedRows.ToString()),
+                    ("MERGED", mergedCount.ToString()), ("FLOORS", string.Join(sep, floorParts))));
                 DebugLogger.Log($"[RiskScene] 在场采样: 共 {total} 人，详写 {listedRows}，合并 {mergedCount}，楼层 {floors.Count}（{string.Join("、", floorParts)}）");
                 // 个体行（目标由目标段单独描述，此处跳过避免重复；楼层 + 己方标记 + [#N]）。
                 // 🔴 2026-08-15（视角修正，实机）：方位用 DescribeTargetRelative(self, …) 相对**随从自身**
@@ -1128,13 +1281,20 @@ namespace LivingWorldNpcs
                     // 不再重复标（主公））；其余己方标（己方）；中立无标记。
                     // 🔴 2026-08-19（统一标记格式）：主公恒唯一不标 #N；其余用 GetDisplayName
                     //（Hero 原名 / 模板「名字#Index」）——不再用 [ #N ] 括号格式
-                    string mark = sel.Agent == Agent.Main ? "" : FriendlinessHelper.IsFriendlyToPlayer(sel.Agent) ? "（己方）" : "";
+                    // 本地化：LWN_word_own_mark（己方括注标记，双桶）
+                    string mark = sel.Agent == Agent.Main ? "" : FriendlinessHelper.IsFriendlyToPlayer(sel.Agent) ? LWNTextHelper.ResolvePrompt("LWN_word_own_mark") : "";
+                    // 本地化：LWN_word_lord（主公称呼，双桶）
                     string name = sel.Agent == Agent.Main
-                        ? "主公"
+                        // 本地化：LWN_word_lord（双桶）
+                        ? LWNTextHelper.ResolvePrompt("LWN_word_lord")
                         : FormatSampledName(sel);
-                    string occ = string.IsNullOrEmpty(sel.Occupation) ? "" : $"（{sel.Occupation}）";
+                    // 本地化：LWN_fact_body_occ_suffix（职业括注后缀，双桶）
+                    string occ = string.IsNullOrEmpty(sel.Occupation) ? "" : LWNTextHelper.ResolveCompound("LWN_fact_body_occ_suffix", ("OCC", sel.Occupation));
                     string rel = DescribeTargetRelative(self, sel.Agent);
-                    sb.AppendLine($"  - [{floor}] {name}{occ}{mark}：{rel}，{sel.FacingDesc}，{sel.State}");
+                    // 本地化：LWN_sight_person_line（在场个体行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_sight_person_line",
+                        ("FLOOR", floor), ("NAME", name), ("OCC", occ), ("MARK", mark),
+                        ("REL", rel), ("FACING", sel.FacingDesc), ("STATE", sel.State)));
                 }
                 // 合并计数行（未采样者；目标由目标段单独描述 → 排除，避免重复；unselected 已在上方声明）。
                 // 🔴 2026-08-15（叙事口吻，用户裁定）：收尾一句「看不过来」——把采样预算的技术限制转成
@@ -1143,16 +1303,21 @@ namespace LivingWorldNpcs
                 // **无主句**（"一眼看不过来"）——避免同一段"你"（旁白指随从）与"我"（独白自指）混用。
                 if (unselected.Count > 0)
                 {
+                    // 本地化：LWN_word_person_townsperson（镇民泛称兜底，双桶）
+                    var townsperson = LWNTextHelper.ResolvePrompt("LWN_word_person_townsperson");
                     var groups = unselected
-                        .GroupBy(i => $"{FloorLabelOf(i.Agent, self)}|{i.Role ?? i.Occupation ?? "镇民"}")
+                        .GroupBy(i => $"{FloorLabelOf(i.Agent, self)}|{i.Role ?? i.Occupation ?? townsperson}")
                         .OrderByDescending(g => g.Count());
                     var parts = groups.Select(g =>
                     {
-                        var label = g.First().Role ?? g.First().Occupation ?? "镇民";
-                        if (string.IsNullOrEmpty(label) || label == "hero") label = g.First().Occupation ?? "镇民";
-                        return $"{label}×{g.Count()}（{g.Key.Split('|')[0]}）";
+                        var label = g.First().Role ?? g.First().Occupation ?? townsperson;
+                        if (string.IsNullOrEmpty(label) || label == "hero") label = g.First().Occupation ?? townsperson;
+                        // 本地化：LWN_sight_merged_part（合并计数词组：类别×数量（楼层），双桶）
+                        return LWNTextHelper.ResolveCompound("LWN_sight_merged_part",
+                            ("LABEL", label), ("COUNT", g.Count().ToString()), ("FLOOR", g.Key.Split('|')[0]));
                     });
-                    sb.AppendLine($"  - 其余 {string.Join("、", parts)}——人太多，一眼看不过来，只留个印象。");
+                    // 本地化：LWN_sight_merged_line（合并计数行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_sight_merged_line", ("PARTS", string.Join(sep, parts))));
                 }
                 return sb.ToString();
             }
@@ -1169,17 +1334,30 @@ namespace LivingWorldNpcs
                 Vec3 diff = target.Position - self.Position;
                 diff.z = 0f;
                 float dist = diff.Length;
-                if (dist < 2f) return "就在你跟前";
+                // 本地化：LWN_word_rel_ahead（就在你跟前，双桶）
+                if (dist < 2f) return LWNTextHelper.ResolvePrompt("LWN_word_rel_ahead");
                 Vec2 look = self.LookDirection.AsVec2.Normalized();
                 Vec3 look3 = new Vec3(look.X, look.Y, 0f);
                 float f = Vec3.DotProduct(diff, look3) / dist;
                 float r = Vec3.DotProduct(diff, new Vec3(-look.Y, look.X, 0f)) / dist;
-                string lat = r > 0.35f ? "右" : (r < -0.35f ? "左" : "");
-                string lon = f > 0.35f ? "前方" : (f < -0.35f ? "后方" : "");
-                string dir = (lat.Length == 0 && lon.Length == 0) ? "正对面" : lat + lon;
-                return $"在你{dir}约 {MathF.Ceiling(dist)} 米处";
+                string lat = r > 0.35f ? "R" : (r < -0.35f ? "L" : "");
+                string lon = f > 0.35f ? "F" : (f < -0.35f ? "B" : "");
+                // 本地化：LWN_word_rel_opposite（正对面，双桶）
+                if (lat.Length == 0 && lon.Length == 0) return LWNTextHelper.ResolveCompound("LWN_word_rel_at", ("DIR", LWNTextHelper.ResolvePrompt("LWN_word_rel_opposite")), ("DIST", MathF.Ceiling(dist).ToString()));
+                // 本地化：LWN_word_rel_front / LWN_word_rel_back（正前/正后方，双桶）
+                if (lat.Length == 0) return LWNTextHelper.ResolveCompound("LWN_word_rel_at", ("DIR", lon == "F" ? LWNTextHelper.ResolvePrompt("LWN_word_rel_front") : LWNTextHelper.ResolvePrompt("LWN_word_rel_back")), ("DIST", MathF.Ceiling(dist).ToString()));
+                // 本地化：LWN_word_rel_right / LWN_word_rel_left（右侧/左侧，双桶）
+                if (lon.Length == 0) return LWNTextHelper.ResolveCompound("LWN_word_rel_at", ("DIR", lat == "R" ? LWNTextHelper.ResolvePrompt("LWN_word_rel_right") : LWNTextHelper.ResolvePrompt("LWN_word_rel_left")), ("DIST", MathF.Ceiling(dist).ToString()));
+                // 本地化：LWN_word_rel_front_right 等斜向方位（双桶）
+                if (lat == "R") return LWNTextHelper.ResolveCompound("LWN_word_rel_at", ("DIR", lon == "F" ? LWNTextHelper.ResolvePrompt("LWN_word_rel_front_right") : LWNTextHelper.ResolvePrompt("LWN_word_rel_back_right")), ("DIST", MathF.Ceiling(dist).ToString()));
+                // 本地化：LWN_word_rel_at（双桶）
+                return LWNTextHelper.ResolveCompound("LWN_word_rel_at", ("DIR", lon == "F" ? LWNTextHelper.ResolvePrompt("LWN_word_rel_front_left") : LWNTextHelper.ResolvePrompt("LWN_word_rel_back_left")), ("DIST", MathF.Ceiling(dist).ToString()));
             }
-            catch { return "在附近"; }
+            catch
+            {
+                // 本地化：LWN_word_rel_at_nearby（方位不可知时"在附近"，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_word_rel_at_nearby");
+            }
         }
         /// <summary>玩家阵营 vs 目标阵营是否交战（双方无王国 → 非交战）。</summary>
         private static bool IsAtWarWithPlayer(Hero hero)
@@ -1194,19 +1372,29 @@ namespace LivingWorldNpcs
         private static string QueryHeroRelationFact(Hero hero)
         {
             int rel = Hero.MainHero.GetRelation(hero);
+            // 本地化：LWN_word_rel_bosom 等关系五档词（双桶）
             string level;
-            if (rel >= 50) level = "挚友";
-            else if (rel >= 20) level = "友好";
-            else if (rel >= -5) level = "中立";
-            else if (rel >= -30) level = "反感";
-            else level = "仇视";
-            return $"- 主公与 {hero.Name} 的交情：{level}（情谊 {rel}）。";
+            // 本地化：LWN_word_rel_bosom（双桶）
+            if (rel >= 50) level = LWNTextHelper.ResolvePrompt("LWN_word_rel_bosom");
+            // 本地化：LWN_word_rel_friendly（双桶）
+            else if (rel >= 20) level = LWNTextHelper.ResolvePrompt("LWN_word_rel_friendly");
+            // 本地化：LWN_word_rel_neutral（双桶）
+            else if (rel >= -5) level = LWNTextHelper.ResolvePrompt("LWN_word_rel_neutral");
+            // 本地化：LWN_word_rel_resentful（双桶）
+            else if (rel >= -30) level = LWNTextHelper.ResolvePrompt("LWN_word_rel_resentful");
+            // 本地化：LWN_word_rel_hostile（双桶）
+            else level = LWNTextHelper.ResolvePrompt("LWN_word_rel_hostile");
+            // 本地化：LWN_fact_body_hero_relation（主公与某人的交情行，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_relation",
+                ("NAME", hero.Name?.ToString()), ("LEVEL", level), ("REL", rel.ToString()));
         }
 
         /// <summary>实体年龄（普世）。</summary>
         private static string QueryHeroAgeFact(Hero hero)
         {
-            return $"- {hero.Name} 年约 {hero.Age:0} 岁。";
+            // 本地化：LWN_fact_body_hero_age（英雄年龄行，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_hero_age",
+                ("NAME", hero.Name?.ToString()), ("AGE", hero.Age.ToString("0")));
         }
 
         // ── 查询函数（全部实时读 Campaign 对象；异常兜底「无从查知」防崩）──
@@ -1214,28 +1402,46 @@ namespace LivingWorldNpcs
         private static string QueryPartyFacts()
         {
             var party = MobileParty.MainParty;
-            if (party == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (party == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             int regulars = party.MemberRoster.TotalRegulars;
             int heroes = party.MemberRoster.TotalHeroes;
             var sb = new StringBuilder();
-            sb.AppendLine($"- 队伍现有 {regulars} 名士兵、{heroes} 名将领随行。");
+            // 本地化：LWN_fact_body_party（队伍兵力段正文，双桶）
+            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_party",
+                ("REGULARS", regulars.ToString()), ("HEROES", heroes.ToString())));
+            // 本地化：LWN_word_separator（枚举分隔符，双桶）
+            string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+            // 本地化：LWN_word_person_nobody（无名之辈称呼兜底，双桶）
             var top = party.MemberRoster.GetTroopRoster()
                 .Where(e => e.Number > 0)
                 .OrderByDescending(e => e.Number)
                 .Take(3)
-                .Select(e => $"{e.Character?.Name?.ToString() ?? "无名之辈"} {e.Number} 人")
+                // 本地化：LWN_fact_body_party_troop_part（双桶）
+                .Select(e => LWNTextHelper.ResolveCompound("LWN_fact_body_party_troop_part",
+                    // 本地化：LWN_word_person_nobody（双桶）
+                    ("NAME", e.Character?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_nobody")),
+                    ("COUNT", e.Number.ToString())))
                 .ToList();
             if (top.Count > 0)
-                sb.AppendLine("- 主要兵力：" + string.Join("、", top) + "。");
+            {
+                // 本地化：LWN_fact_body_party_troops（主要兵力行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_party_troops", ("NAMES", string.Join(sep, top)))
+                    // 本地化：LWN_word_period（双桶）
+                    + LWNTextHelper.ResolvePrompt("LWN_word_period"));
+            }
             return sb.ToString();
         }
 
         private static string QueryGoldFact()
         {
             var hero = Hero.MainHero;
-            if (hero == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (hero == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             // 货币单位走 Settings（默认原版 hYgmzZJX 本地化：第纳尔/Denar；Mod B 可注入"两"）
-            return $"- 队伍钱袋现有 {hero.Gold} 枚{Settings.Instance.CurrencyName}可供开销。";
+            // 本地化：LWN_fact_body_gold（队伍钱袋正文，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_gold",
+                ("GOLD", hero.Gold.ToString()), ("CURRENCY", Settings.Instance.CurrencyName));
         }
 
         /// <summary>最近定居点（城镇/城堡/村庄/藏身处，Settlement.All 动态遍历，铁律 5）：
@@ -1280,75 +1486,119 @@ namespace LivingWorldNpcs
         private static string QueryLocationFact()
         {
             var party = MobileParty.MainParty;
-            if (party == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (party == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
+            // 本地化：LWN_fact_body_location_in_settlement（队伍在某定居点，双桶）
             if (party.CurrentSettlement != null)
-                return $"- 此刻队伍正在 {party.CurrentSettlement.Name}。";
+                // 本地化：LWN_fact_body_location_in_settlement（双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_location_in_settlement", ("SETTLEMENT", party.CurrentSettlement.Name?.ToString()));
+            // 本地化：LWN_fact_body_location_marching（队伍行军前往某定居点，双桶）
             if (party.TargetSettlement != null)
-                return $"- 此刻队伍行进在旷野中，正前往 {party.TargetSettlement.Name}。";
+                // 本地化：LWN_fact_body_location_marching（双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_location_marching", ("SETTLEMENT", party.TargetSettlement.Name?.ToString()));
             // 🔴 2026-08-16（方案 A）：定居点附近但未进入（路过/藏身处/城门遇袭）→ 最近定居点兜底，
             // 禁止答"旷野"（实机：玩家在吕卡隆附近，随从答"旷野"且 LLM 编造"荒草连天"）
             string near = NearestSettlementName(15f);
             if (near != null)
-                return $"- 此刻队伍在 {near} 附近（旷野中）。";
-            return "- 此刻队伍行进在旷野中。";
+            {
+                // 本地化：LWN_fact_body_location_near（队伍在某定居点附近旷野，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_location_near", ("SETTLEMENT", near));
+            }
+            // 本地化：LWN_fact_body_location_wilderness（队伍行进在旷野中，双桶）
+            return LWNTextHelper.ResolvePrompt("LWN_fact_body_location_wilderness");
         }
 
         private static string QueryFoodFact()
         {
             var party = MobileParty.MainParty;
-            if (party == null) return "- （此刻无从查知）";
-            return $"- 队伍粮草还剩约 {party.Food:0.0} 天的口粮。";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (party == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
+            // 本地化：LWN_fact_body_food（队伍粮草正文，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_food", ("DAYS", party.Food.ToString("0.0")));
         }
 
         private static string QueryPrisonerFact()
         {
             var party = MobileParty.MainParty;
-            if (party == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (party == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             int regulars = party.PrisonRoster.TotalRegulars;
             int heroes = party.PrisonRoster.TotalHeroes;
-            if (regulars + heroes == 0) return "- 队伍眼下没有押着战俘。";
-            return $"- 队伍押着 {regulars} 名战俘" + (heroes > 0 ? $"，其中 {heroes} 名贵人" : "") + "。";
+            // 本地化：LWN_fact_body_prisoner_none（无战俘，双桶）
+            if (regulars + heroes == 0) return LWNTextHelper.ResolvePrompt("LWN_fact_body_prisoner_none");
+            // 本地化：LWN_fact_body_prisoner_base / LWN_fact_body_prisoner_heroes（战俘基数+贵人后缀，双桶）
+            string p = LWNTextHelper.ResolveCompound("LWN_fact_body_prisoner_base", ("REGULARS", regulars.ToString()));
+            // 本地化：LWN_fact_body_prisoner_heroes（双桶）
+            if (heroes > 0) p += LWNTextHelper.ResolveCompound("LWN_fact_body_prisoner_heroes", ("HEROES", heroes.ToString()));
+            // 本地化：LWN_word_period（双桶）
+            return p + LWNTextHelper.ResolvePrompt("LWN_word_period");
         }
 
         private static string QueryWoundedFact()
         {
             var party = MobileParty.MainParty;
-            if (party == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (party == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             int wounded = party.MemberRoster.GetTroopRoster().Sum(e => e.WoundedNumber);
-            return $"- 队伍现有 {wounded} 名伤员待照料。";
+            // 本地化：LWN_fact_body_wounded（伤员数正文，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_wounded", ("COUNT", wounded.ToString()));
         }
 
         private static string QueryFiefFact()
         {
             var clan = Clan.PlayerClan;
-            if (clan == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (clan == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             int towns = clan.Fiefs?.Count(t => t.IsTown) ?? 0;
             int castles = clan.Fiefs?.Count(t => t.IsCastle) ?? 0;
             int villages = clan.Villages?.Count ?? 0;
-            if (towns + castles + villages == 0) return "- 家族名下暂无领地。";
+            // 本地化：LWN_fact_body_fief_none（无领地，双桶）
+            if (towns + castles + villages == 0) return LWNTextHelper.ResolvePrompt("LWN_fact_body_fief_none");
+            // 本地化：LWN_word_person_unnamed_place / LWN_word_person_unnamed_village（无名之地/无名村庄兜底，双桶）
             var names = new List<string>();
-            if (clan.Fiefs != null) names.AddRange(clan.Fiefs.Take(3).Select(f => f.Name?.ToString() ?? "无名之地"));
-            if (clan.Villages != null) names.AddRange(clan.Villages.Take(2).Select(v => v.Name?.ToString() ?? "无名村庄"));
-            return $"- 家族名下现有 {towns} 城镇、{castles} 城堡、{villages} 村庄（如：{string.Join("、", names)}）。";
+            // 本地化：LWN_word_person_unnamed_place（双桶）
+            if (clan.Fiefs != null) names.AddRange(clan.Fiefs.Take(3).Select(f => f.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_unnamed_place")));
+            // 本地化：LWN_word_person_unnamed_village（双桶）
+            if (clan.Villages != null) names.AddRange(clan.Villages.Take(2).Select(v => v.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_unnamed_village")));
+            // 本地化：LWN_word_separator（枚举分隔符，双桶）
+            string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+            // 本地化：LWN_fact_body_fief（领地正文，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_fief",
+                ("TOWNS", towns.ToString()), ("CASTLES", castles.ToString()), ("VILLAGES", villages.ToString()),
+                ("NAMES", string.Join(sep, names)));
         }
 
         private static string QueryRenownFact()
         {
             var clan = Clan.PlayerClan;
-            if (clan == null) return "- （此刻无从查知）";
-            return $"- 家族声望 {clan.Renown:0}，影响力 {clan.Influence:0}。";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (clan == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
+            // 本地化：LWN_fact_body_renown（家族声望正文，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_renown",
+                ("RENOWN", clan.Renown.ToString("0")), ("INFLUENCE", clan.Influence.ToString("0")));
         }
 
         private static string QueryFamilyFact()
         {
             var hero = Hero.MainHero;
             var clan = Clan.PlayerClan;
-            if (hero == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (hero == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             var sb = new StringBuilder();
             string spouse = hero.Spouse?.Name?.ToString();
-            if (!string.IsNullOrEmpty(spouse)) sb.AppendLine($"- 主公的配偶是 {spouse}。");
+            if (!string.IsNullOrEmpty(spouse))
+            {
+                // 本地化：LWN_fact_body_family_spouse（主公配偶行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_family_spouse", ("NAME", spouse)));
+            }
             int members = clan?.Heroes?.Count ?? 0;
-            sb.AppendLine($"- 家族共有 {members} 名成员" + (clan?.Leader != null ? $"，族长是 {clan.Leader.Name}" : "") + "。");
+            // 本地化：LWN_fact_body_family_members_base / LWN_fact_body_family_leader（成员基数+族长后缀，双桶）
+            string line = LWNTextHelper.ResolveCompound("LWN_fact_body_family_members_base", ("COUNT", members.ToString()));
+            if (clan?.Leader != null)
+                // 本地化：LWN_fact_body_family_leader（双桶）
+                line += LWNTextHelper.ResolveCompound("LWN_fact_body_family_leader", ("LEADER", clan.Leader.Name?.ToString()));
+            // 本地化：LWN_word_period（双桶）
+            sb.AppendLine(line + LWNTextHelper.ResolvePrompt("LWN_word_period"));
             return sb.ToString();
         }
 
@@ -1358,7 +1608,8 @@ namespace LivingWorldNpcs
             var sb = new StringBuilder();
             if (kingdom == null)
             {
-                sb.AppendLine("- 家族不属于任何王国（独立自由之身）。");
+                // 本地化：LWN_fact_body_war_no_kingdom（无王国，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_fact_body_war_no_kingdom"));
                 return sb.ToString();
             }
             try
@@ -1366,14 +1617,26 @@ namespace LivingWorldNpcs
                 var atWar = Kingdom.All.Where(k => k != kingdom && k.IsAtWarWith(kingdom))
                     .Select(k => k.Name?.ToString()).ToList();
                 if (atWar.Count > 0)
-                    sb.AppendLine($"- {kingdom.Name} 正与 {string.Join("、", atWar.Take(5))} 交战。");
+                {
+                    // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                    string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+                    // 本地化：LWN_fact_body_war_at_war（王国交战行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_war_at_war",
+                        ("KINGDOM", kingdom.Name?.ToString()), ("ENEMIES", string.Join(sep, atWar.Take(5)))));
+                }
                 else
-                    sb.AppendLine($"- {kingdom.Name} 眼下与各方相安无事。");
+                {
+                    // 本地化：LWN_fact_body_war_at_peace（王国相安无事行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_war_at_peace", ("KINGDOM", kingdom.Name?.ToString())));
+                }
             }
             catch { /* 阵营数据异常时跳过战争段 */ }
             var army = MobileParty.MainParty?.Army;
             if (army != null)
-                sb.AppendLine($"- 主公正随军团行动（{army.Parties?.Count ?? 0} 支部队同行）。");
+            {
+                // 本地化：LWN_fact_body_war_army（随军团行动行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_war_army", ("COUNT", (army.Parties?.Count ?? 0).ToString())));
+            }
             return sb.ToString();
         }
 
@@ -1381,8 +1644,15 @@ namespace LivingWorldNpcs
         {
             // 🔴 2026-08-16（方案 A3 + G1）：时辰词表（5-7/8-10/11-13/14-16/17-19/20-22/23-4 →
             // 清晨/上午/正午/午后/黄昏/入夜/深夜）+ 天气词（V.GetWeatherAt，信息面 #36 增强）
-            return $"- 现在是{GetSeasonName()}、{(CampaignTime.Now.IsDayTime ? "白天" : "夜里")}、{GetTimeOfDayWord()}，" +
-                   $"本季第 {CampaignTime.Now.GetDayOfSeason + 1} 天，{GetWeatherWord()}。";
+            // 本地化：LWN_fact_body_time（当前时间正文，双桶）
+            // 本地化：LWN_word_day / LWN_word_night（白天/夜里，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_time",
+                ("SEASON", GetSeasonName()),
+                // 本地化：LWN_word_day（双桶）
+                ("DAYNIGHT", CampaignTime.Now.IsDayTime ? LWNTextHelper.ResolvePrompt("LWN_word_day") : LWNTextHelper.ResolvePrompt("LWN_word_night")),
+                ("TIME", GetTimeOfDayWord()),
+                ("DAY", (CampaignTime.Now.GetDayOfSeason + 1).ToString()),
+                ("WEATHER", GetWeatherWord()));
         }
 
         /// <summary>时辰词（prompt 材料，铁律 13 豁免；与方向词同口径）。</summary>
@@ -1391,18 +1661,26 @@ namespace LivingWorldNpcs
             try
             {
                 int hour = (int)(CampaignTime.Now.ToHours % 24);
-                return hour switch
+                // 本地化：LWN_word_time_*（时辰词表：清晨/上午/正午/午后/黄昏/入夜/深夜，双桶）
+                string[] words = { "LWN_word_time_dawn", "LWN_word_time_morning", "LWN_word_time_noon", "LWN_word_time_afternoon", "LWN_word_time_dusk", "LWN_word_time_evening", "LWN_word_time_night" };
+                int idx = hour switch
                 {
-                    >= 5 and <= 7 => "清晨",
-                    >= 8 and <= 10 => "上午",
-                    >= 11 and <= 13 => "正午",
-                    >= 14 and <= 16 => "午后",
-                    >= 17 and <= 19 => "黄昏",
-                    >= 20 and <= 22 => "入夜",
-                    _ => "深夜",
+                    >= 5 and <= 7 => 0,
+                    >= 8 and <= 10 => 1,
+                    >= 11 and <= 13 => 2,
+                    >= 14 and <= 16 => 3,
+                    >= 17 and <= 19 => 4,
+                    >= 20 and <= 22 => 5,
+                    _ => 6,
                 };
+                // 本地化：LWN_word_time_*（时辰词按调用时语言解析，双桶）
+                return LWNTextHelper.ResolvePrompt(words[idx]);
             }
-            catch { return "白日"; }
+            catch
+            {
+                // 本地化：LWN_word_time_day（时辰不可知时"白日"，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_word_time_day");
+            }
         }
 
         /// <summary>天气词（prompt 材料，铁律 13 豁免；WeatherEvent 枚举 → 词）。
@@ -1412,10 +1690,15 @@ namespace LivingWorldNpcs
             try
             {
                 var party = MobileParty.MainParty;
-                if (party == null) return "天气如常";
+                // 本地化：LWN_word_weather_normal（天气如常兜底，双桶）
+                if (party == null) return LWNTextHelper.ResolvePrompt("LWN_word_weather_normal");
                 return V.WeatherWord(V.GetWeatherAt(V.Pos(party)));
             }
-            catch { return "天气如常"; }
+            catch
+            {
+                // 本地化：LWN_word_weather_normal（天气如常兜底，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_word_weather_normal");
+            }
         }
 
         /// <summary>任务日志里的定居点链接（QuestJournal 转储实锤格式：
@@ -1427,10 +1710,16 @@ namespace LivingWorldNpcs
         private static string QueryQuestFact()
         {
             var qm = Campaign.Current?.QuestManager;
-            if (qm == null || qm.Quests == null || qm.Quests.Count == 0) return "- 眼下没有进行中的委托。";
-            var names = string.Join("、", qm.Quests.Take(3).Select(q => q.Title?.ToString() ?? "一桩委托"));
+            // 本地化：LWN_fact_body_quest_none（无进行中委托，双桶）
+            if (qm == null || qm.Quests == null || qm.Quests.Count == 0) return LWNTextHelper.ResolvePrompt("LWN_fact_body_quest_none");
+            // 本地化：LWN_word_separator（枚举分隔符，双桶）
+            string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+            // 本地化：LWN_word_person_deed（一桩委托兜底，双桶）
+            var names = string.Join(sep, qm.Quests.Take(3).Select(q => q.Title?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_deed")));
             var sb = new StringBuilder();
-            sb.AppendLine($"- 进行中的委托 {qm.Quests.Count} 桩（如：{names}）。");
+            // 本地化：LWN_fact_body_quest_list（进行中委托清单行，双桶）
+            sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_quest_list",
+                ("COUNT", qm.Quests.Count.ToString()), ("NAMES", names)));
             // 🔴 2026-08-16（追问详情防编造）：标题不够——玩家追问"哪个村子/什么差事"时 LLM 手头
             // 只有标题，会把 E 段附近的村庄名当任务目标（实机：村民需要帮助 → LLM 答"萨戈拉"，
             // 实际是特维亚）。QuestBase 无 TargetSettlement（ilspycmd 实锤），目标地取两路：
@@ -1460,7 +1749,11 @@ namespace LivingWorldNpcs
                 }
                 catch { }
                 if (!string.IsNullOrEmpty(place))
-                    sb.AppendLine($"- {q.Title} 的差事在 {place}。");
+                {
+                    // 本地化：LWN_fact_body_quest_place（委托差事地点行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_quest_place",
+                        ("NAME", q.Title?.ToString()), ("PLACE", place)));
+                }
             }
             return sb.ToString();
         }
@@ -1470,48 +1763,77 @@ namespace LivingWorldNpcs
         private static string QuerySkillFact()
         {
             var hero = Hero.MainHero;
-            if (hero == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (hero == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             try
             {
                 var skills = MBObjectManager.Instance.GetObjectTypeList<SkillObject>()
                     .Where(s => s != null && !string.IsNullOrEmpty(s.Name?.ToString()) && hero.GetSkillValue(s) > 0)
                     .OrderByDescending(s => hero.GetSkillValue(s))
                     .Take(8)
-                    .Select(s => $"{s.Name} {hero.GetSkillValue(s)}")
+                    // 本地化：LWN_fact_body_skill_part（双桶）
+                    .Select(s => LWNTextHelper.ResolveCompound("LWN_fact_body_skill_part",
+                        ("NAME", s.Name?.ToString()), ("LEVEL", hero.GetSkillValue(s).ToString())))
                     .ToList();
-                if (skills.Count == 0) return "- 主公尚未精研任何技艺。";
-                return "- " + string.Join("、", skills) + "。";
+                // 本地化：LWN_fact_body_skill_none（未精研技艺，双桶）
+                if (skills.Count == 0) return LWNTextHelper.ResolvePrompt("LWN_fact_body_skill_none");
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+                // 本地化：LWN_fact_body_skill_list（技能清单行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_skill_list", ("NAMES", string.Join(sep, skills)))
+                    // 本地化：LWN_word_period（双桶）
+                    + LWNTextHelper.ResolvePrompt("LWN_word_period");
             }
-            catch { return "- （此刻无从查知）"; }
+            catch
+            {
+                // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
+            }
         }
 
         /// <summary>等级 + 年龄（队伍成员看在眼里）。</summary>
         private static string QueryLevelFact()
         {
             var hero = Hero.MainHero;
-            if (hero == null) return "- （此刻无从查知）";
-            return $"- 主公现为 {hero.Level} 级的历练好手，年约 {hero.Age:0} 岁。";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (hero == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
+            // 本地化：LWN_fact_body_level（主公等级年龄行，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_level",
+                ("LEVEL", hero.Level.ToString()), ("AGE", hero.Age.ToString("0")));
         }
 
         /// <summary>商队数 + 工坊数（玩家产业）。</summary>
         private static string QueryBusinessFact()
         {
             var hero = Hero.MainHero;
-            if (hero == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (hero == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             int caravans = 0, workshops = 0;
             try { caravans = MobileParty.All.Count(p => p.IsCaravan && p.Owner == hero); } catch { }
             try { workshops = hero.OwnedWorkshops?.Count ?? 0; } catch { }
-            return $"- 主公名下现有 {caravans} 支商队、{workshops} 间工坊。";
+            // 本地化：LWN_fact_body_business（主公产业行，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_business",
+                ("CARAVANS", caravans.ToString()), ("WORKSHOPS", workshops.ToString()));
         }
 
         /// <summary>部队士气（队伍成员可见）：数值 + 档位形容词。</summary>
         private static string QueryMoraleFact()
         {
             var party = MobileParty.MainParty;
-            if (party == null) return "- （此刻无从查知）";
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (party == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
             float morale = party.Morale;
-            string mood = morale >= 75 ? "士气高昂" : morale >= 50 ? "尚可" : morale >= 25 ? "有些低迷" : "濒临崩溃";
-            return $"- 队伍士气 {morale:0}（{mood}）。";
+            // 本地化：LWN_word_morale_high 等士气四档词（双桶）
+            string mood = morale >= 75 ? LWNTextHelper.ResolvePrompt("LWN_word_morale_high")
+                // 本地化：LWN_word_morale_ok（双桶）
+                : morale >= 50 ? LWNTextHelper.ResolvePrompt("LWN_word_morale_ok")
+                // 本地化：LWN_word_morale_low（双桶）
+                : morale >= 25 ? LWNTextHelper.ResolvePrompt("LWN_word_morale_low")
+                // 本地化：LWN_word_morale_collapse（双桶）
+                : LWNTextHelper.ResolvePrompt("LWN_word_morale_collapse");
+            // 本地化：LWN_fact_body_morale（队伍士气行，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_morale",
+                ("MORALE", morale.ToString("0")), ("MOOD", mood));
         }
 
         /// <summary>当前所在定居点的驻军规模（普世——城头甲兵人尽皆知；不在城里则无从查知）。</summary>
@@ -1519,8 +1841,12 @@ namespace LivingWorldNpcs
         {
             var settlement = MobileParty.MainParty?.CurrentSettlement;
             var town = settlement?.Town;
-            if (town == null || town.GarrisonParty == null) return "- 队伍眼下不在城中，驻军事宜无从查知。";
-            return $"- {settlement.Name} 现有驻军 {town.GarrisonParty.MemberRoster.TotalRegulars} 人。";
+            // 本地化：LWN_fact_body_garrison_unknown（不在城中无从查知，双桶）
+            if (town == null || town.GarrisonParty == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_garrison_unknown");
+            // 本地化：LWN_fact_body_garrison（驻军规模行，双桶）
+            return LWNTextHelper.ResolveCompound("LWN_fact_body_garrison",
+                ("SETTLEMENT", settlement.Name?.ToString()),
+                ("COUNT", town.GarrisonParty.MemberRoster.TotalRegulars.ToString()));
         }
 
         /// <summary>队伍成员名单（幻觉修复）：有名有姓的 Hero 成员 + 无名士兵按兵种构成。
@@ -1530,12 +1856,22 @@ namespace LivingWorldNpcs
         private static string QueryMemberFact()
         {
             var sb = new StringBuilder();
+            // 本地化：LWN_word_separator（枚举分隔符，双桶）
+            string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
             try
             {
                 // 有名有姓的成员（频道成员 = roster 里的 Hero，实时取）
                 var members = ImChatManager.GetChannelMembers(ImConversationType.Party);
                 if (members != null && members.Count > 0)
-                    sb.AppendLine("- 有名有姓的成员：" + string.Join("、", members.Select(m => m.Name?.ToString() ?? "无名")) + "。");
+                {
+                    // 本地化：LWN_fact_body_member_named_base（有名有姓成员行首，双桶）
+                    // 本地化：LWN_word_person_unnamed（无名称呼兜底，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_member_named_base",
+                            // 本地化：LWN_word_person_unnamed（双桶）
+                            ("NAMES", string.Join(sep, members.Select(m => m.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_unnamed")))))
+                        // 本地化：LWN_word_period（双桶）
+                        + LWNTextHelper.ResolvePrompt("LWN_word_period"));
+                }
             }
             catch { }
             // 无名士兵按兵种（复用 QueryPartyFacts 的构成逻辑，实时取）
@@ -1548,14 +1884,23 @@ namespace LivingWorldNpcs
                         .Where(e => e.Number > 0 && e.Character != null && !e.Character.IsHero)
                         .OrderByDescending(e => e.Number)
                         .Take(3)
-                        .Select(e => $"{e.Character.Name} {e.Number} 人")
+                        // 本地化：LWN_fact_body_party_troop_part（双桶）
+                        .Select(e => LWNTextHelper.ResolveCompound("LWN_fact_body_party_troop_part",
+                            ("NAME", e.Character.Name?.ToString()), ("COUNT", e.Number.ToString())))
                         .ToList();
                     if (top.Count > 0)
-                        sb.AppendLine("- 无名士兵（主要兵力）：" + string.Join("、", top) + "。");
+                    {
+                        // 本地化：LWN_fact_body_member_common_base（无名士兵行首，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_member_common_base",
+                                ("NAMES", string.Join(sep, top)))
+                            // 本地化：LWN_word_period（双桶）
+                            + LWNTextHelper.ResolvePrompt("LWN_word_period"));
+                    }
                 }
             }
             catch { }
-            sb.AppendLine("- 队伍里的人就这些了。");
+            // 本地化：LWN_fact_body_member_end（成员名单收尾行，双桶）
+            sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_fact_body_member_end"));
             return sb.ToString();
         }
 
@@ -1567,8 +1912,13 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-16（prompt 精简）：numericCovered（I1 已注入）→ 跳过队伍钱/粮/兵行（I1 有同值）
             if (isPartyMember && party != null && !numericCovered)
             {
-                sb.AppendLine($"- 队伍现有 {party.MemberRoster.TotalRegulars} 名士兵、{party.MemberRoster.TotalHeroes} 名将领；" +
-                              $"钱袋 {Hero.MainHero?.Gold ?? 0} {Settings.Instance.CurrencyName}；粮草约 {party.Food:0.0} 天。");
+                // 本地化：LWN_fact_body_summary_party（概要-队伍行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_summary_party",
+                    ("REGULARS", party.MemberRoster.TotalRegulars.ToString()),
+                    ("HEROES", party.MemberRoster.TotalHeroes.ToString()),
+                    ("GOLD", (Hero.MainHero?.Gold ?? 0).ToString()),
+                    ("CURRENCY", Settings.Instance.CurrencyName),
+                    ("DAYS", party.Food.ToString("0.0"))));
             }
             var clan = Clan.PlayerClan;
             if (clan != null)
@@ -1576,7 +1926,11 @@ namespace LivingWorldNpcs
                 int towns = clan.Fiefs?.Count(t => t.IsTown) ?? 0;
                 int castles = clan.Fiefs?.Count(t => t.IsCastle) ?? 0;
                 int villages = clan.Villages?.Count ?? 0;
-                sb.AppendLine($"- 家族声望 {clan.Renown:0}，影响力 {clan.Influence:0}，领地 {towns + castles + villages} 处（城镇 {towns}、城堡 {castles}、村庄 {villages}）。");
+                // 本地化：LWN_fact_body_summary_clan（概要-家族行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_summary_clan",
+                    ("RENOWN", clan.Renown.ToString("0")), ("INFLUENCE", clan.Influence.ToString("0")),
+                    ("COUNT", (towns + castles + villages).ToString()),
+                    ("TOWNS", towns.ToString()), ("CASTLES", castles.ToString()), ("VILLAGES", villages.ToString())));
             }
             var hero = Hero.MainHero;
             if (hero != null)
@@ -1584,24 +1938,34 @@ namespace LivingWorldNpcs
                 int caravans = 0, workshops = 0;
                 try { caravans = MobileParty.All.Count(p => p.IsCaravan && p.Owner == hero); } catch { }
                 try { workshops = hero.OwnedWorkshops?.Count ?? 0; } catch { }
-                sb.AppendLine($"- 主公现为 {hero.Level} 级好手，年约 {hero.Age:0} 岁；名下商队 {caravans} 支、工坊 {workshops} 间。");
+                // 本地化：LWN_fact_body_summary_hero（概要-主公行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_summary_hero",
+                    ("LEVEL", hero.Level.ToString()), ("AGE", hero.Age.ToString("0")),
+                    ("CARAVANS", caravans.ToString()), ("WORKSHOPS", workshops.ToString())));
             }
             // 🔴 2026-08-16（prompt 精简）：季节行同样被 I1 覆盖（I1 有"夏季、白天、午后、晴空万里"）
             if (!numericCovered)
-                sb.AppendLine($"- 现在是{GetSeasonName()}。");
+            {
+                // 本地化：LWN_fact_body_summary_season（概要-季节行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_summary_season", ("SEASON", GetSeasonName())));
+            }
             return sb.ToString();
         }
 
         private static string GetSeasonName()
         {
-            return CampaignTime.Now.GetSeasonOfYear switch
+            // 本地化：LWN_word_season_*（季节词表，双桶）
+            string[] words = { "LWN_word_season_spring", "LWN_word_season_summer", "LWN_word_season_autumn", "LWN_word_season_winter", "LWN_word_season_unknown" };
+            int idx = CampaignTime.Now.GetSeasonOfYear switch
             {
-                CampaignTime.Seasons.Spring => "春季",
-                CampaignTime.Seasons.Summer => "夏季",
-                CampaignTime.Seasons.Autumn => "秋季",
-                CampaignTime.Seasons.Winter => "冬季",
-                _ => "不明季节",
+                CampaignTime.Seasons.Spring => 0,
+                CampaignTime.Seasons.Summer => 1,
+                CampaignTime.Seasons.Autumn => 2,
+                CampaignTime.Seasons.Winter => 3,
+                _ => 4,
             };
+            // 本地化：LWN_word_season_*（季节词按调用时语言解析，双桶）
+            return LWNTextHelper.ResolvePrompt(words[idx]);
         }
 
         private static bool IsQuestion(string text)
@@ -1651,16 +2015,25 @@ namespace LivingWorldNpcs
                 if (Campaign.Current == null || MobileParty.MainParty == null) return "";
                 var party = MobileParty.MainParty;
                 var sb = new StringBuilder();
-                sb.AppendLine("【此刻处境（大地图）】");
+                // 本地化：LWN_prompt_section_campaign_situation（此刻处境大地图段标题，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_campaign_situation"));
                 // 当前位置（复用方案 A 判定链）
+                // 本地化：LWN_fact_body_campaign_at / LWN_fact_body_campaign_marching（队伍所在/行军去向，双桶）
                 if (party.CurrentSettlement != null)
-                    sb.AppendLine($"- 队伍正在 {party.CurrentSettlement.Name}。");
+                    // 本地化：LWN_fact_body_campaign_at（双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_campaign_at", ("SETTLEMENT", party.CurrentSettlement.Name?.ToString())));
                 else if (party.TargetSettlement != null)
-                    sb.AppendLine($"- 队伍行进在旷野中，正前往 {party.TargetSettlement.Name}。");
+                    // 本地化：LWN_fact_body_campaign_marching（双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_campaign_marching", ("SETTLEMENT", party.TargetSettlement.Name?.ToString())));
                 else
                 {
                     string near = NearestSettlementName(15f);
-                    sb.AppendLine(near != null ? $"- 队伍在 {near} 附近（旷野中）。" : "- 队伍行进在旷野中。");
+                    // 本地化：LWN_fact_body_campaign_near / LWN_fact_body_campaign_wilderness（附近旷野/旷野，双桶）
+                    sb.AppendLine(near != null
+                        // 本地化：LWN_fact_body_campaign_near（双桶）
+                        ? LWNTextHelper.ResolveCompound("LWN_fact_body_campaign_near", ("SETTLEMENT", near))
+                        // 本地化：LWN_fact_body_campaign_wilderness（双桶）
+                        : LWNTextHelper.ResolvePrompt("LWN_fact_body_campaign_wilderness"));
                 }
                 Vec2 basePos = V.Pos(party);
                 // ── 望得见的定居点（半径 25，IsVisible 过滤，按距离排序取前 5）──
@@ -1681,7 +2054,10 @@ namespace LivingWorldNpcs
                     sb.AppendLine("- " + BuildSettlementSightLine(s, MathF.Sqrt(d)));
                 }
                 if (settlements.Count > shownS)
-                    sb.AppendLine($"- 还有 {settlements.Count - shownS} 处更远的定居点，一眼看不过来。");
+                {
+                    // 本地化：LWN_fact_body_campaign_more_settlements（更远定居点计数行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_campaign_more_settlements", ("COUNT", (settlements.Count - shownS).ToString())));
+                }
                 // ── 望得见的部队（半径 15，IsVisible 过滤，排除主队自身与守军；取前 5）──
                 var parties = new List<(MobileParty p, float d)>();
                 foreach (var p in MobileParty.All)
@@ -1701,7 +2077,10 @@ namespace LivingWorldNpcs
                     sb.AppendLine("- " + BuildPartySightLine(p, MathF.Sqrt(d)));
                 }
                 if (parties.Count > shownP)
-                    sb.AppendLine($"- 更远处还有 {parties.Count - shownP} 支部队，看不太清。");
+                {
+                    // 本地化：LWN_fact_body_campaign_more_parties（更远部队计数行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_campaign_more_parties", ("COUNT", (parties.Count - shownP).ToString())));
+                }
                 DebugLogger.Log($"[CampaignSight] 定居点 {settlements.Count}（详写 {shownS}）、部队 {parties.Count}（详写 {shownP}）");
                 return sb.ToString();
             }
@@ -1733,18 +2112,28 @@ namespace LivingWorldNpcs
                 var party = hero.PartyBelongedTo;
                 if (party == null || party == MobileParty.MainParty) return "";
                 var sb = new StringBuilder();
-                sb.AppendLine("【分兵近况】");
+                // 本地化：LWN_prompt_section_split_party（分兵近况段标题，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_split_party"));
                 // 自己的队伍位置（复用方案 A 判定链，基准 = 自己的 party）
+                // 本地化：LWN_fact_body_split_at / LWN_fact_body_split_marching（率部所在/行军去向，双桶）
                 if (party.CurrentSettlement != null)
-                    sb.AppendLine($"- 我正率部在 {party.CurrentSettlement.Name}。");
+                    // 本地化：LWN_fact_body_split_at（双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_split_at", ("SETTLEMENT", party.CurrentSettlement.Name?.ToString())));
                 else if (party.TargetSettlement != null)
-                    sb.AppendLine($"- 我正率部行进在旷野中，前往 {party.TargetSettlement.Name}。");
+                    // 本地化：LWN_fact_body_split_marching（双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_split_marching", ("SETTLEMENT", party.TargetSettlement.Name?.ToString())));
                 else
                 {
                     string near = NearestSettlementName(party, 15f);
-                    sb.AppendLine(near != null ? $"- 我正率部在 {near} 附近（旷野中）。" : "- 我正率部行进在旷野中。");
+                    // 本地化：LWN_fact_body_split_near / LWN_fact_body_split_wilderness（率部附近旷野/旷野，双桶）
+                    sb.AppendLine(near != null
+                        // 本地化：LWN_fact_body_split_near（双桶）
+                        ? LWNTextHelper.ResolveCompound("LWN_fact_body_split_near", ("SETTLEMENT", near))
+                        // 本地化：LWN_fact_body_split_wilderness（双桶）
+                        : LWNTextHelper.ResolvePrompt("LWN_fact_body_split_wilderness"));
                 }
-                sb.AppendLine($"- 我手下约 {party.MemberRoster.TotalRegulars} 名兵。");
+                // 本地化：LWN_fact_body_split_troops（率部兵力行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_split_troops", ("COUNT", party.MemberRoster.TotalRegulars.ToString())));
                 // AI 行为（DefaultBehavior → 中文词：跟随/前往/巡逻/追击/守卫/待命/躲避）
                 string ai = DescribePartyAi(party);
                 if (ai != null) sb.AppendLine(ai);
@@ -1767,31 +2156,46 @@ namespace LivingWorldNpcs
                 switch (party.DefaultBehavior)
                 {
                     case AiBehavior.EscortParty:
-                        return "- 队伍眼下的差事：率部跟随主公。";
+                        // 本地化：LWN_fact_body_ai_follow（跟随主公，双桶）
+                        return LWNTextHelper.ResolvePrompt("LWN_fact_body_ai_follow");
                     case AiBehavior.GoToSettlement:
                     case AiBehavior.RaidSettlement:
                     case AiBehavior.BesiegeSettlement:
                         var ts = party.TargetSettlement;
                         if (ts != null)
+                        {
+                            // 本地化：LWN_fact_body_ai_go_to / LWN_fact_body_ai_besiege（前往/围住某地，双桶）
                             return party.DefaultBehavior == AiBehavior.GoToSettlement
-                                ? $"- 队伍眼下的差事：率部前往 {ts.Name}。"
-                                : $"- 队伍眼下的差事：率部围住 {ts.Name}。";
+                                // 本地化：LWN_fact_body_ai_go_to（双桶）
+                                ? LWNTextHelper.ResolveCompound("LWN_fact_body_ai_go_to", ("SETTLEMENT", ts.Name?.ToString()))
+                                // 本地化：LWN_fact_body_ai_besiege（双桶）
+                                : LWNTextHelper.ResolveCompound("LWN_fact_body_ai_besiege", ("SETTLEMENT", ts.Name?.ToString()));
+                        }
                         return null;
                     case AiBehavior.PatrolAroundPoint:
-                        return "- 队伍眼下的差事：率部在附近巡逻。";
+                        // 本地化：LWN_fact_body_ai_patrol（附近巡逻，双桶）
+                        return LWNTextHelper.ResolvePrompt("LWN_fact_body_ai_patrol");
                     case AiBehavior.EngageParty:
                         var tp = party.ShortTermTargetParty ?? party.TargetParty;
-                        return tp != null ? $"- 队伍眼下的差事：率部追击 {tp.Name}。" : "- 队伍眼下的差事：率部与敌交战。";
+                        // 本地化：LWN_fact_body_ai_chase / LWN_fact_body_ai_engage（追击/交战，双桶）
+                        return tp != null
+                            // 本地化：LWN_fact_body_ai_chase（双桶）
+                            ? LWNTextHelper.ResolveCompound("LWN_fact_body_ai_chase", ("NAME", tp.Name?.ToString()))
+                            // 本地化：LWN_fact_body_ai_engage（双桶）
+                            : LWNTextHelper.ResolvePrompt("LWN_fact_body_ai_engage");
                     case AiBehavior.DefendSettlement:
                         var ds = party.TargetSettlement;
-                        return ds != null ? $"- 队伍眼下的差事：率部守卫 {ds.Name}。" : null;
+                        // 本地化：LWN_fact_body_ai_defend（守卫某地，双桶）
+                        return ds != null ? LWNTextHelper.ResolveCompound("LWN_fact_body_ai_defend", ("SETTLEMENT", ds.Name?.ToString())) : null;
                     case AiBehavior.Hold:
                     case AiBehavior.None:
-                        return "- 队伍眼下的差事：原地待命。";
+                        // 本地化：LWN_fact_body_ai_hold（原地待命，双桶）
+                        return LWNTextHelper.ResolvePrompt("LWN_fact_body_ai_hold");
                     case AiBehavior.FleeToPoint:
                     case AiBehavior.FleeToGate:
                     case AiBehavior.FleeToParty:
-                        return "- 队伍眼下的差事：正在躲避敌情。";
+                        // 本地化：LWN_fact_body_ai_flee（躲避敌情，双桶）
+                        return LWNTextHelper.ResolvePrompt("LWN_fact_body_ai_flee");
                     default:
                         return null;
                 }
@@ -1817,9 +2221,13 @@ namespace LivingWorldNpcs
                 if (Mission.Current == null || Campaign.Current == null) return "";
                 var set = Settlement.CurrentSettlement;
                 string place = set?.Name?.ToString();
-                if (string.IsNullOrEmpty(place)) place = NearestSettlementName(15f) ?? "附近";
-                return "【留守处境】\n"
-                    + $"- 主公进了 {place}（进了场景），我留守在队伍里，此刻随队伍在 {place} 外候着。\n";
+                // 本地化：LWN_word_place_nearby（"附近"位置兜底，双桶）
+                if (string.IsNullOrEmpty(place)) place = NearestSettlementName(15f) ?? LWNTextHelper.ResolvePrompt("LWN_word_place_nearby");
+                // 本地化：LWN_prompt_section_stayed（留守处境段标题，双桶）
+                // 本地化：LWN_fact_body_stayed（留守处境正文，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_prompt_section_stayed") + "\n"
+                    // 本地化：LWN_fact_body_stayed（双桶）
+                    + LWNTextHelper.ResolveCompound("LWN_fact_body_stayed", ("PLACE", place)) + "\n";
             }
             catch { return ""; }
         }
@@ -1833,30 +2241,46 @@ namespace LivingWorldNpcs
             {
                 string dir = MapDirectionWord(V.Pos(MobileParty.MainParty), V.Pos(s));
                 string li = MapDistLi(distMapUnits);
-                string type = s.IsTown ? "城镇" : s.IsCastle ? "城堡" : s.IsVillage ? "村庄" : "藏身处";
+                // 本地化：LWN_word_stype_*（定居点类型词，双桶）
+                string type = s.IsTown ? LWNTextHelper.ResolvePrompt("LWN_word_stype_town")
+                    // 本地化：LWN_word_stype_castle（双桶）
+                    : s.IsCastle ? LWNTextHelper.ResolvePrompt("LWN_word_stype_castle")
+                    // 本地化：LWN_word_stype_village（双桶）
+                    : s.IsVillage ? LWNTextHelper.ResolvePrompt("LWN_word_stype_village")
+                    // 本地化：LWN_word_stype_hideout（双桶）
+                    : LWNTextHelper.ResolvePrompt("LWN_word_stype_hideout");
                 string ownerPart = "";
                 try
                 {
                     if (s.OwnerClan != null)
                     {
+                        // 本地化：LWN_fact_body_owner_ours（咱们的地盘后缀，双桶）
                         if (s.OwnerClan == Clan.PlayerClan)
-                            ownerPart = "，咱们的地盘";
+                            // 本地化：LWN_fact_body_owner_ours（双桶）
+                            ownerPart = LWNTextHelper.ResolvePrompt("LWN_fact_body_owner_ours");
                         else
                         {
                             string kName = s.OwnerClan.Kingdom?.Name?.ToString();
+                            // 本地化：LWN_fact_body_owner_enemy / LWN_fact_body_owner_kingdom（敌国/他国城镇后缀，双桶）
                             if (kName != null && IsKingdomAtWarWithPlayer(s.OwnerClan.Kingdom))
-                                ownerPart = $"，{kName}（敌国）的城";
+                                // 本地化：LWN_fact_body_owner_enemy（双桶）
+                                ownerPart = LWNTextHelper.ResolveCompound("LWN_fact_body_owner_enemy", ("KINGDOM", kName));
                             else if (kName != null)
-                                ownerPart = $"，{kName}的城";
+                                // 本地化：LWN_fact_body_owner_kingdom（双桶）
+                                ownerPart = LWNTextHelper.ResolveCompound("LWN_fact_body_owner_kingdom", ("KINGDOM", kName));
                             // 无王国领主（独立/雇佣兵）→ 不写所有者段
                         }
                     }
                 }
                 catch { }
                 string siege = "";
-                try { if (s.SiegeEvent != null) siege = "，正被围"; } catch { }
-                string name = s.Name?.ToString() ?? "无名之地";
-                return $"{dir}约 {li} 外是 {name}（{type}{ownerPart}{siege}）";
+                // 本地化：LWN_fact_body_siege（被围后缀，双桶）
+                try { if (s.SiegeEvent != null) siege = LWNTextHelper.ResolvePrompt("LWN_fact_body_siege"); } catch { }
+                // 本地化：LWN_word_person_unnamed_place（无名之地兜底，双桶）
+                string name = s.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_unnamed_place");
+                // 本地化：LWN_fact_body_settlement_sight（定居点视野行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_settlement_sight",
+                    ("DIR", dir), ("LI", li), ("NAME", name), ("TYPE", type), ("OWNER", ownerPart), ("SIEGE", siege));
             }
             catch { return ""; }
         }
@@ -1871,28 +2295,43 @@ namespace LivingWorldNpcs
             {
                 string dir = MapDirectionWord(V.Pos(MobileParty.MainParty), V.Pos(p));
                 string li = MapDistLi(distMapUnits);
+                // 本地化：LWN_word_ptype_*（部队类型词，双桶）
                 string type;
-                if (p.IsCaravan) type = "商队";
-                else if (p.IsBandit) type = p.IsBanditBossParty ? "匪首的匪帮" : "匪徒";
-                else if (p.IsVillager) type = "农夫";
-                else if (p.IsLordParty) type = p.Name?.ToString() ?? "领主部队";
-                else if (p.IsMilitia) type = "民兵";
-                else type = "部队";
+                // 本地化：LWN_word_ptype_caravan（双桶）
+                if (p.IsCaravan) type = LWNTextHelper.ResolvePrompt("LWN_word_ptype_caravan");
+                // 本地化：LWN_word_ptype_bandit_chief（双桶）
+                else if (p.IsBandit) type = p.IsBanditBossParty ? LWNTextHelper.ResolvePrompt("LWN_word_ptype_bandit_chief") : LWNTextHelper.ResolvePrompt("LWN_word_ptype_bandit");
+                // 本地化：LWN_word_ptype_farmer（双桶）
+                else if (p.IsVillager) type = LWNTextHelper.ResolvePrompt("LWN_word_ptype_farmer");
+                // 本地化：LWN_word_ptype_lord_fallback（领主部队名兜底，双桶）
+                else if (p.IsLordParty) type = p.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_ptype_lord_fallback");
+                // 本地化：LWN_word_ptype_militia（双桶）
+                else if (p.IsMilitia) type = LWNTextHelper.ResolvePrompt("LWN_word_ptype_militia");
+                // 本地化：LWN_word_ptype_other（双桶）
+                else type = LWNTextHelper.ResolvePrompt("LWN_word_ptype_other");
+                // 本地化：LWN_word_side_*（敌我中立词，双桶）
                 string side;
                 try
                 {
                     if (p.MapFaction != null && p.MapFaction.IsAtWarWith(Clan.PlayerClan))
-                        side = "敌军";
+                        // 本地化：LWN_word_side_enemy（双桶）
+                        side = LWNTextHelper.ResolvePrompt("LWN_word_side_enemy");
                     else if (p.MapFaction == Clan.PlayerClan
                         || (Clan.PlayerClan?.Kingdom != null && p.MapFaction == Clan.PlayerClan.Kingdom))
-                        side = "友军";
-                    else side = "中立";
+                        // 本地化：LWN_word_side_friendly（双桶）
+                        side = LWNTextHelper.ResolvePrompt("LWN_word_side_friendly");
+                    // 本地化：LWN_word_side_neutral（双桶）
+                    else side = LWNTextHelper.ResolvePrompt("LWN_word_side_neutral");
                 }
-                catch { side = "中立"; }
+                // 本地化：LWN_word_side_neutral（双桶）
+                catch { side = LWNTextHelper.ResolvePrompt("LWN_word_side_neutral"); }
                 int enemyCount = 0;
                 try { enemyCount = p.MemberRoster.TotalRegulars + p.MemberRoster.TotalHeroes; } catch { }
+                // 本地化：LWN_fact_body_party_sight_empty（无兵力部队视野行，双桶）
                 if (enemyCount <= 0)
-                    return $"{dir}约 {li} 外有一支{type}（{side}）";
+                    // 本地化：LWN_fact_body_party_sight_empty（双桶）
+                    return LWNTextHelper.ResolveCompound("LWN_fact_body_party_sight_empty",
+                        ("DIR", dir), ("LI", li), ("TYPE", type), ("SIDE", side));
                 string scale = "";
                 try
                 {
@@ -1900,12 +2339,23 @@ namespace LivingWorldNpcs
                     if (myCount > 0)
                     {
                         float ratio = enemyCount / (float)myCount;
-                        scale = ratio >= 2.5f ? "，远超咱们人多" : ratio >= 1.3f ? "，比咱们人多"
-                            : ratio >= 0.8f ? "，势均力敌" : ratio >= 0.4f ? "，不如咱们" : "，比咱们差得远";
+                        // 本地化：LWN_word_scale_*（战力对比五档词，双桶）
+                        scale = ratio >= 2.5f ? LWNTextHelper.ResolvePrompt("LWN_word_scale_far_more")
+                            // 本地化：LWN_word_scale_more（双桶）
+                            : ratio >= 1.3f ? LWNTextHelper.ResolvePrompt("LWN_word_scale_more")
+                            // 本地化：LWN_word_scale_even（双桶）
+                            : ratio >= 0.8f ? LWNTextHelper.ResolvePrompt("LWN_word_scale_even")
+                            // 本地化：LWN_word_scale_less（双桶）
+                            : ratio >= 0.4f ? LWNTextHelper.ResolvePrompt("LWN_word_scale_less")
+                            // 本地化：LWN_word_scale_far_less（双桶）
+                            : LWNTextHelper.ResolvePrompt("LWN_word_scale_far_less");
                     }
                 }
                 catch { }
-                return $"{dir}约 {li} 外有一支{type}（{side}，约 {enemyCount} 人{scale}）";
+                // 本地化：LWN_fact_body_party_sight_count（有兵力部队视野行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_party_sight_count",
+                    ("DIR", dir), ("LI", li), ("TYPE", type), ("SIDE", side),
+                    ("COUNT", enemyCount.ToString()), ("SCALE", scale));
             }
             catch { return ""; }
         }
@@ -1917,18 +2367,25 @@ namespace LivingWorldNpcs
             try
             {
                 float ang = MathF.Atan2(to.Y - from.Y, to.X - from.X);
-                string[] words = { "东边", "东北", "北边", "西北", "西边", "西南", "南边", "东南" };
+                // 本地化：LWN_word_mapdir_*（地图八向词表，双桶）
+                string[] words = { "LWN_word_mapdir_east", "LWN_word_mapdir_northeast", "LWN_word_mapdir_north", "LWN_word_mapdir_northwest", "LWN_word_mapdir_west", "LWN_word_mapdir_southwest", "LWN_word_mapdir_south", "LWN_word_mapdir_southeast" };
                 int idx = (int)MathF.Round(ang / (MathF.PI / 4)) & 7;
-                return words[idx];
+                // 本地化：LWN_word_mapdir_*（地图方向词按调用时语言解析，双桶）
+                return LWNTextHelper.ResolvePrompt(words[idx]);
             }
-            catch { return "附近"; }
+            catch
+            {
+                // 本地化：LWN_word_dir_nearby（方位不可知时"附近"，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_word_dir_nearby");
+            }
         }
 
         /// <summary>地图距离 → "里"（1 地图单位 ≈ 10 里：行军约 4.5 单位/天 ≈ 40~50 里/天，2026-08-16 修正）。</summary>
         private static string MapDistLi(float distMapUnits)
         {
             int li = (int)MathF.Round(distMapUnits * 10f);
-            return li <= 0 ? "跟前" : $"{li} 里";
+            // 本地化：LWN_word_dist_at_hand / LWN_word_dist_li（跟前/里数，双桶）
+            return li <= 0 ? LWNTextHelper.ResolvePrompt("LWN_word_dist_at_hand") : LWNTextHelper.ResolveCompound("LWN_word_dist_li", ("COUNT", li.ToString()));
         }
 
         /// <summary>王国是否与玩家王国交战（双方无王国 → 非交战）。</summary>
@@ -1955,10 +2412,21 @@ namespace LivingWorldNpcs
             {
                 if (other == null || MobileParty.MainParty == null) return "";
                 var sb = new StringBuilder();
-                sb.AppendLine("【互见】");
+                // 本地化：LWN_prompt_section_seeing（互见段标题，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_seeing"));
                 var main = MobileParty.MainParty;
-                sb.AppendLine($"- 你方：{main.Name}（{main.MemberRoster.TotalRegulars} 人，首领 {main.LeaderHero?.Name?.ToString() ?? Hero.MainHero?.Name?.ToString()}）。");
-                sb.AppendLine($"- 对方：{other.Name}（{other.MemberRoster.TotalRegulars} 人，首领 {other.LeaderHero?.Name?.ToString() ?? "无名"}）。");
+                // 本地化：LWN_fact_body_encounter_us（我方概况行，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_encounter_us",
+                    ("NAME", main.Name?.ToString()),
+                    ("COUNT", main.MemberRoster.TotalRegulars.ToString()),
+                    ("LEADER", main.LeaderHero?.Name?.ToString() ?? Hero.MainHero?.Name?.ToString())));
+                // 本地化：LWN_fact_body_encounter_them（对方概况行，双桶）
+                // 本地化：LWN_word_person_unnamed（无名称呼兜底，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_encounter_them",
+                    ("NAME", other.Name?.ToString()),
+                    ("COUNT", other.MemberRoster.TotalRegulars.ToString()),
+                    // 本地化：LWN_word_person_unnamed（双桶）
+                    ("LEADER", other.LeaderHero?.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_unnamed"))));
                 return sb.ToString();
             }
             catch { return ""; }
@@ -1987,7 +2455,8 @@ namespace LivingWorldNpcs
                 try { hero = Hero.AllAliveHeroes.FirstOrDefault(h => h.StringId == heroId); } catch { }
                 if (hero == null) return "";
                 var sb = new StringBuilder();
-                sb.AppendLine("【我的状态】");
+                // 本地化：LWN_prompt_section_self_state（我的状态段标题，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_self_state"));
                 string gear = BuildEquipmentLine(hero, firstPerson: true);
                 if (!string.IsNullOrEmpty(gear)) sb.AppendLine(gear);
                 sb.AppendLine(BuildLevelSkillLine(hero));
@@ -2002,7 +2471,8 @@ namespace LivingWorldNpcs
                     string lordGear = BuildEquipmentLine(Hero.MainHero, firstPerson: false);
                     if (!string.IsNullOrEmpty(lordGear))
                     {
-                        sb.AppendLine("【主公的行头】");
+                        // 本地化：LWN_prompt_section_lord_gear（主公的行头段标题，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_lord_gear"));
                         sb.AppendLine(lordGear);
                     }
                 }
@@ -2011,7 +2481,8 @@ namespace LivingWorldNpcs
                     string supplies = BuildPartySuppliesLine(hero);
                     if (!string.IsNullOrEmpty(supplies))
                     {
-                        sb.AppendLine("【队伍物资】");
+                        // 本地化：LWN_prompt_section_party_supplies（队伍物资段标题，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_party_supplies"));
                         sb.AppendLine(supplies);
                     }
                 }
@@ -2036,8 +2507,10 @@ namespace LivingWorldNpcs
                 if (hero == null) return null;
                 var jail = CompanionDetentionBehavior.GetDetentionSettlement(hero);
                 if (jail == null) return null;
-                string jailName = jail.Name?.ToString() ?? "某处";
-                return $"我如今被关押在 {jailName}，身陷囹圄，无法与主公的队伍同行。";
+                // 本地化：LWN_word_person_somewhere（某处兜底，双桶）
+                string jailName = jail.Name?.ToString() ?? LWNTextHelper.ResolvePrompt("LWN_word_person_somewhere");
+                // 本地化：LWN_fact_body_detention（在押认知行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_detention", ("PLACE", jailName));
             }
             catch { return null; }
         }
@@ -2064,27 +2537,40 @@ namespace LivingWorldNpcs
                 }
                 var parts = new List<string>();
                 string head = Get(EquipmentIndex.Head);
-                if (!string.IsNullOrEmpty(head)) parts.Add($"头戴{head}");
+                // 本地化：LWN_word_gear_*（装备部位词：头戴/身穿/脚蹬/手戴/手持/另一手/背着/跨下，双桶）
+                if (!string.IsNullOrEmpty(head)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_head", ("ITEM", head)));
                 string body = Get(EquipmentIndex.Body);
-                if (!string.IsNullOrEmpty(body)) parts.Add($"身穿{body}");
+                // 本地化：LWN_word_gear_body（双桶）
+                if (!string.IsNullOrEmpty(body)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_body", ("ITEM", body)));
                 string leg = Get(EquipmentIndex.Leg);
-                if (!string.IsNullOrEmpty(leg)) parts.Add($"脚蹬{leg}");
+                // 本地化：LWN_word_gear_leg（双桶）
+                if (!string.IsNullOrEmpty(leg)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_leg", ("ITEM", leg)));
                 // 🔴 2026-08-16（方案 F 补漏，P3）：手套部位（ilspycmd 实锤 EquipmentIndex 无 Boots 位——
                 // 靴子/护腿挂在 Leg 槽，已由上面 leg 覆盖；Gloves 位存在）
                 string gloves = Get(EquipmentIndex.Gloves);
-                if (!string.IsNullOrEmpty(gloves)) parts.Add($"手戴{gloves}");
+                // 本地化：LWN_word_gear_gloves（双桶）
+                if (!string.IsNullOrEmpty(gloves)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_gloves", ("ITEM", gloves)));
                 string w0 = Get(EquipmentIndex.Weapon0);
-                if (!string.IsNullOrEmpty(w0)) parts.Add($"手持{w0}");
+                // 本地化：LWN_word_gear_weapon0（双桶）
+                if (!string.IsNullOrEmpty(w0)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_weapon0", ("ITEM", w0)));
                 string w1 = Get(EquipmentIndex.Weapon1);
-                if (!string.IsNullOrEmpty(w1)) parts.Add($"另一手{w1}");
+                // 本地化：LWN_word_gear_weapon1（双桶）
+                if (!string.IsNullOrEmpty(w1)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_weapon1", ("ITEM", w1)));
                 string w2 = Get(EquipmentIndex.Weapon2);
-                if (!string.IsNullOrEmpty(w2)) parts.Add($"背着{w2}");
+                // 本地化：LWN_word_gear_weapon2（双桶）
+                if (!string.IsNullOrEmpty(w2)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_weapon2", ("ITEM", w2)));
                 string horse = Get(EquipmentIndex.Horse);
-                if (!string.IsNullOrEmpty(horse)) parts.Add($"跨下{horse}");
+                // 本地化：LWN_word_gear_horse（双桶）
+                if (!string.IsNullOrEmpty(horse)) parts.Add(LWNTextHelper.ResolveCompound("LWN_word_gear_horse", ("ITEM", horse)));
                 if (parts.Count == 0) return null;
+                // 本地化：LWN_word_separator_comma（逗号分隔符，双桶）
+                string comma = LWNTextHelper.ResolvePrompt("LWN_word_separator_comma");
+                // 本地化：LWN_fact_body_gear_self / LWN_fact_body_gear_lord（装备一览行，双桶）
                 return firstPerson
-                    ? $"我这身行头：{string.Join("，", parts)}。"
-                    : $"主公的打扮：{string.Join("，", parts)}。";
+                    // 本地化：LWN_fact_body_gear_self（双桶）
+                    ? LWNTextHelper.ResolveCompound("LWN_fact_body_gear_self", ("PARTS", string.Join(comma, parts)))
+                    // 本地化：LWN_fact_body_gear_lord（双桶）
+                    : LWNTextHelper.ResolveCompound("LWN_fact_body_gear_lord", ("PARTS", string.Join(comma, parts)));
             }
             catch { return null; }
         }
@@ -2098,13 +2584,25 @@ namespace LivingWorldNpcs
                     .Where(s => s != null && !string.IsNullOrEmpty(s.Name?.ToString()) && hero.GetSkillValue(s) > 0)
                     .OrderByDescending(s => hero.GetSkillValue(s))
                     .Take(3)
-                    .Select(s => $"{s.Name} {hero.GetSkillValue(s)}")
+                    // 本地化：LWN_fact_body_skill_part（双桶）
+                    .Select(s => LWNTextHelper.ResolveCompound("LWN_fact_body_skill_part",
+                        ("NAME", s.Name?.ToString()), ("LEVEL", hero.GetSkillValue(s).ToString())))
                     .ToList();
+                // 本地化：LWN_fact_body_level_skill_none（未精研技艺，双桶）
                 if (skills.Count == 0)
-                    return $"我如今 {hero.Level} 级，还没精研出什么拿手的技艺。";
-                return $"我如今 {hero.Level} 级，练得最熟的几手：{string.Join("、", skills)}。";
+                    // 本地化：LWN_fact_body_level_skill_none（双桶）
+                    return LWNTextHelper.ResolveCompound("LWN_fact_body_level_skill_none", ("LEVEL", hero.Level.ToString()));
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+                // 本地化：LWN_fact_body_level_skill（等级+技艺行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_level_skill",
+                    ("LEVEL", hero.Level.ToString()), ("NAMES", string.Join(sep, skills)));
             }
-            catch { return $"我如今 {hero.Level} 级。"; }
+            catch
+            {
+                // 本地化：LWN_fact_body_level_only（仅等级行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_level_only", ("LEVEL", hero.Level.ToString()));
+            }
         }
 
         /// <summary>G7 自身血况（mission 内且是 Agent）：&lt;0.3 重伤 / &lt;0.7 挂彩 / 否则状态正好；
@@ -2121,15 +2619,24 @@ namespace LivingWorldNpcs
                     if (h == null || h.StringId != heroId) continue;
                     if (a.HealthLimit <= 0f) return null;
                     float ratio = a.Health / a.HealthLimit;
-                    string line = ratio < 0.3f ? "我带着重伤" : ratio < 0.7f ? "我挂了彩" : "我状态正好";
+                    // 本地化：LWN_word_health_*（血况三档词，双桶）
+                    string line = ratio < 0.3f ? LWNTextHelper.ResolvePrompt("LWN_word_health_critical")
+                        // 本地化：LWN_word_health_wounded（双桶）
+                        : ratio < 0.7f ? LWNTextHelper.ResolvePrompt("LWN_word_health_wounded")
+                        // 本地化：LWN_word_health_fine（双桶）
+                        : LWNTextHelper.ResolvePrompt("LWN_word_health_fine");
                     try
                     {
                         if (a.HasMount && a.MountAgent != null && a.MountAgent.HealthLimit > 0f
                             && a.MountAgent.Health / a.MountAgent.HealthLimit < 0.7f)
-                            line += "，跨下的马也受了伤";
+                        {
+                            // 本地化：LWN_word_health_mount_hurt（坐骑受伤后缀，双桶）
+                            line += LWNTextHelper.ResolvePrompt("LWN_word_health_mount_hurt");
+                        }
                     }
                     catch { }
-                    return line + "。";
+                    // 本地化：LWN_word_period（句号，双桶）
+                    return line + LWNTextHelper.ResolvePrompt("LWN_word_period");
                 }
                 return "";
             }
@@ -2170,15 +2677,27 @@ namespace LivingWorldNpcs
                     else misc += n;
                 }
                 var cats = new List<(string label, long count)>();
-                if (food > 0) cats.Add(("食物", food));
-                if (mounts > 0) cats.Add(("坐骑", mounts));
-                if (animals > 0) cats.Add(("牲畜", animals));
-                if (goods > 0) cats.Add(("货物", goods));
-                if (misc > 0) cats.Add(("杂物", misc));
+                // 本地化：LWN_word_supply_*（物资类别词，双桶）
+                if (food > 0) cats.Add((LWNTextHelper.ResolvePrompt("LWN_word_supply_food"), food));
+                // 本地化：LWN_word_supply_mounts（双桶）
+                if (mounts > 0) cats.Add((LWNTextHelper.ResolvePrompt("LWN_word_supply_mounts"), mounts));
+                // 本地化：LWN_word_supply_animals（双桶）
+                if (animals > 0) cats.Add((LWNTextHelper.ResolvePrompt("LWN_word_supply_animals"), animals));
+                // 本地化：LWN_word_supply_goods（双桶）
+                if (goods > 0) cats.Add((LWNTextHelper.ResolvePrompt("LWN_word_supply_goods"), goods));
+                // 本地化：LWN_word_supply_misc（双桶）
+                if (misc > 0) cats.Add((LWNTextHelper.ResolvePrompt("LWN_word_supply_misc"), misc));
                 cats.Sort((a, b) => b.count.CompareTo(a.count));
                 cats = cats.Take(5).ToList();
                 if (cats.Count == 0) return null;
-                return $"咱们队伍带着：{string.Join("、", cats.Select(c => $"{c.label} ×{c.count}"))}。";
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+                // 本地化：LWN_fact_body_supplies（队伍物资一览行，双桶）
+                // 本地化：LWN_fact_body_supply_part（单类物资词组：类别×数量，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_supplies",
+                    // 本地化：LWN_fact_body_supply_part（双桶）
+                    ("PARTS", string.Join(sep, cats.Select(c => LWNTextHelper.ResolveCompound("LWN_fact_body_supply_part",
+                        ("LABEL", c.label), ("COUNT", c.count.ToString()))))));
             }
             catch { return null; }
         }
@@ -2193,14 +2712,22 @@ namespace LivingWorldNpcs
         private static string QueryTournamentFact()
         {
             var town = MobileParty.MainParty?.CurrentSettlement?.Town;
-            if (town == null) return "- 队伍眼下不在城中，比武的消息无从查知。";
+            // 本地化：LWN_fact_body_tournament_unknown（不在城中无从查知，双桶）
+            if (town == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_tournament_unknown");
             try
             {
-                return town.HasTournament
-                    ? $"- {town.Name} 今日正有一场比武，冠军可得奖赏。"
-                    : "- 今日城里没有比武的安排。";
+                // 本地化：LWN_fact_body_tournament_today（今日比武行，双桶）
+                if (town.HasTournament)
+                    // 本地化：LWN_fact_body_tournament_today（双桶）
+                    return LWNTextHelper.ResolveCompound("LWN_fact_body_tournament_today", ("TOWN", town.Name?.ToString()));
+                // 本地化：LWN_fact_body_tournament_none（今日无比武，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_fact_body_tournament_none");
             }
-            catch { return "- 今日比武的消息无从查知。"; }
+            catch
+            {
+                // 本地化：LWN_fact_body_tournament_noknow（比武消息无从查知，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_fact_body_tournament_noknow");
+            }
         }
 
         /// <summary>G5 市场物价（信息面 #23）：仅在城内（CurrentSettlement 为城镇）注入——
@@ -2211,7 +2738,8 @@ namespace LivingWorldNpcs
         private static string QueryMarketFact()
         {
             var town = MobileParty.MainParty?.CurrentSettlement?.Town;
-            if (town == null || town.MarketData == null) return "- 队伍眼下不在城中，物价无从查知。";
+            // 本地化：LWN_fact_body_market_unknown（不在城中物价无从查知，双桶）
+            if (town == null || town.MarketData == null) return LWNTextHelper.ResolvePrompt("LWN_fact_body_market_unknown");
             try
             {
                 var items = new List<ItemObject>();
@@ -2244,14 +2772,24 @@ namespace LivingWorldNpcs
                     try
                     {
                         int price = town.MarketData.GetPrice(it, MobileParty.MainParty, false, null);
-                        parts.Add($"{it.Name} {price}");
+                        // 本地化：LWN_fact_body_market_part（单样物价词组：物品 价格，双桶）
+                        parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_market_part",
+                            ("NAME", it.Name?.ToString()), ("PRICE", price.ToString())));
                     }
                     catch { }
                 }
-                if (parts.Count == 0) return "- 城里的行情一时问不清楚。";
-                return "- 市场行情：" + string.Join("、", parts) + "。";
+                // 本地化：LWN_fact_body_market_unknown2（行情问不清楚，双桶）
+                if (parts.Count == 0) return LWNTextHelper.ResolvePrompt("LWN_fact_body_market_unknown2");
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+                // 本地化：LWN_fact_body_market（市场行情行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_market", ("NAMES", string.Join(sep, parts)));
             }
-            catch { return "- 城里的行情一时问不清楚。"; }
+            catch
+            {
+                // 本地化：LWN_fact_body_market_unknown2（行情问不清楚，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_fact_body_market_unknown2");
+            }
         }
 
         /// <summary>G9 玩法建议（赚钱途径，信息面基础认知）：普世途径清单（派生式组装——从已有事实取，
@@ -2263,14 +2801,16 @@ namespace LivingWorldNpcs
                 var ways = new List<string>();
                 var town = MobileParty.MainParty?.CurrentSettlement?.Town;
                 // 附近城镇今日有比武（G4）
-                try { if (town != null && town.HasTournament) ways.Add($"{town.Name} 今日有比武，冠军有赏钱"); } catch { }
+                // 本地化：LWN_fact_body_moneymaking_tournament（比武来钱途径，双桶）
+                try { if (town != null && town.HasTournament) ways.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_moneymaking_tournament", ("TOWN", town.Name?.ToString()))); } catch { }
                 // 附近有匪徒/敌军（E 部队段口径：半径 15 可见匪徒）
                 try
                 {
                     var basePos = V.Pos(MobileParty.MainParty);
                     bool banditNear = MobileParty.All.Any(p => p != null && p != MobileParty.MainParty
                         && p.IsBandit && basePos.DistanceSquared(V.Pos(p)) <= 15f * 15f);
-                    if (banditNear) ways.Add("附近有匪徒可以讨伐，缴获不少");
+                    // 本地化：LWN_fact_body_moneymaking_bandit（讨伐匪徒来钱途径，双桶）
+                    if (banditNear) ways.Add(LWNTextHelper.ResolvePrompt("LWN_fact_body_moneymaking_bandit"));
                 }
                 catch { }
                 // 名下有商队/工坊（business）
@@ -2278,16 +2818,29 @@ namespace LivingWorldNpcs
                 {
                     int caravans = MobileParty.All.Count(p => p.IsCaravan && p.Owner == Hero.MainHero);
                     int workshops = Hero.MainHero?.OwnedWorkshops?.Count ?? 0;
-                    if (caravans + workshops > 0) ways.Add("名下商队工坊月月进账");
+                    // 本地化：LWN_fact_body_moneymaking_business（商队工坊来钱途径，双桶）
+                    if (caravans + workshops > 0) ways.Add(LWNTextHelper.ResolvePrompt("LWN_fact_body_moneymaking_business"));
                 }
                 catch { }
                 // 城里有买卖可做（G5 物价）
-                try { if (town != null && town.MarketData != null) ways.Add($"去 {town.Name} 低买高卖"); } catch { }
+                // 本地化：LWN_fact_body_moneymaking_trade（低买高卖来钱途径，双桶）
+                try { if (town != null && town.MarketData != null) ways.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_moneymaking_trade", ("TOWN", town.Name?.ToString()))); } catch { }
+                // 本地化：LWN_fact_body_moneymaking_fallback（常识兜底，双桶）
                 if (ways.Count == 0)
-                    return "- 打仗最来钱，但刀头舔血；安稳些就做买卖。";
-                return "- " + string.Join("；", ways) + "。";
+                    // 本地化：LWN_fact_body_moneymaking_fallback（双桶）
+                    return LWNTextHelper.ResolvePrompt("LWN_fact_body_moneymaking_fallback");
+                // 本地化：LWN_word_separator_semi（分号分隔符，双桶）
+                string semi = LWNTextHelper.ResolvePrompt("LWN_word_separator_semi");
+                // 本地化：LWN_fact_body_moneymaking（来钱途径清单行，双桶）
+                return LWNTextHelper.ResolveCompound("LWN_fact_body_moneymaking", ("WAYS", string.Join(semi, ways)))
+                    // 本地化：LWN_word_period（双桶）
+                    + LWNTextHelper.ResolvePrompt("LWN_word_period");
             }
-            catch { return "- 打仗最来钱，但刀头舔血；安稳些就做买卖。"; }
+            catch
+            {
+                // 本地化：LWN_fact_body_moneymaking_fallback（常识兜底，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_fact_body_moneymaking_fallback");
+            }
         }
 
         /// <summary>G9 L1 附加（仅队伍成员，QueryMemberOnly）：赃物处理建议——"把刚弄到手的赃物带到
@@ -2297,9 +2850,12 @@ namespace LivingWorldNpcs
             try
             {
                 string near = NearestSettlementName(15f);
+                // 本地化：LWN_fact_body_fencetip_near / LWN_fact_body_fencetip_far（赃物脱手建议，双桶）
                 return near != null
-                    ? $"- 把刚弄到手的赃物带到附近的 {near} 卖了，来钱最快。"
-                    : "- 把刚弄到手的赃物找座远点的城卖了，来钱最快。";
+                    // 本地化：LWN_fact_body_fencetip_near（双桶）
+                    ? LWNTextHelper.ResolveCompound("LWN_fact_body_fencetip_near", ("SETTLEMENT", near))
+                    // 本地化：LWN_fact_body_fencetip_far（双桶）
+                    : LWNTextHelper.ResolvePrompt("LWN_fact_body_fencetip_far");
             }
             catch { return null; }
         }
@@ -2312,9 +2868,12 @@ namespace LivingWorldNpcs
             if (clan == null) return null;
             try
             {
+                // 本地化：LWN_fact_body_outlaw_yes / LWN_fact_body_outlaw_no（通缉状态行，双桶）
                 return clan.IsOutlaw
-                    ? "- 咱们家族已被宣告为法外之徒。"
-                    : "- 咱们家族眼下没有背着通缉令。";
+                    // 本地化：LWN_fact_body_outlaw_yes（双桶）
+                    ? LWNTextHelper.ResolvePrompt("LWN_fact_body_outlaw_yes")
+                    // 本地化：LWN_fact_body_outlaw_no（双桶）
+                    : LWNTextHelper.ResolvePrompt("LWN_fact_body_outlaw_no");
             }
             catch { return null; }
         }
@@ -2457,24 +3016,45 @@ namespace LivingWorldNpcs
             try
             {
                 int rel = a.GetRelation(b);
+                // 本地化：LWN_word_pairrel_*（双人关系五档词：挚友/交好/泛泛之交/面和心不和/仇深似海，双桶）
                 string level;
-                if (rel >= 50) level = "挚友";
-                else if (rel >= 20) level = "交好";
-                else if (rel >= -5) level = "泛泛之交";
-                else if (rel >= -50) level = "面和心不和";
-                else level = "仇深似海";
+                // 本地化：LWN_word_pairrel_bosom（双桶）
+                if (rel >= 50) level = LWNTextHelper.ResolvePrompt("LWN_word_pairrel_bosom");
+                // 本地化：LWN_word_pairrel_good（双桶）
+                else if (rel >= 20) level = LWNTextHelper.ResolvePrompt("LWN_word_pairrel_good");
+                // 本地化：LWN_word_pairrel_acquaintance（双桶）
+                else if (rel >= -5) level = LWNTextHelper.ResolvePrompt("LWN_word_pairrel_acquaintance");
+                // 本地化：LWN_word_pairrel_strained（双桶）
+                else if (rel >= -50) level = LWNTextHelper.ResolvePrompt("LWN_word_pairrel_strained");
+                // 本地化：LWN_word_pairrel_swornfoe（双桶）
+                else level = LWNTextHelper.ResolvePrompt("LWN_word_pairrel_swornfoe");
                 var marks = new List<string>();
-                if (a.Spouse == b) marks.Add("姻亲");
-                if (a.Clan != null && a.Clan == b.Clan) marks.Add("同族");
+                // 本地化：LWN_word_mark_marriage（姻亲标记，双桶）
+                if (a.Spouse == b) marks.Add(LWNTextHelper.ResolvePrompt("LWN_word_mark_marriage"));
+                // 本地化：LWN_word_mark_clan（同族标记，双桶）
+                if (a.Clan != null && a.Clan == b.Clan) marks.Add(LWNTextHelper.ResolvePrompt("LWN_word_mark_clan"));
                 try
                 {
                     var ka = a.Clan?.Kingdom;
                     var kb = b.Clan?.Kingdom;
-                    if (ka != null && kb != null && ka != kb && ka.IsAtWarWith(kb)) marks.Add("敌国交战");
+                    // 本地化：LWN_word_mark_warring（敌国交战标记，双桶）
+                    if (ka != null && kb != null && ka != kb && ka.IsAtWarWith(kb)) marks.Add(LWNTextHelper.ResolvePrompt("LWN_word_mark_warring"));
                 }
                 catch { }
-                string markStr = marks.Count > 0 ? "（" + string.Join("、", marks) + "）" : "";
-                return $"- {a.Name} 与 {b.Name} 的关系：{level}（情谊 {rel}）{markStr}。";
+                // 本地化：LWN_fact_body_pair_relation（双人关系行，双桶）
+                string result = LWNTextHelper.ResolveCompound("LWN_fact_body_pair_relation",
+                    ("NAME_A", a.Name?.ToString()), ("NAME_B", b.Name?.ToString()),
+                    ("LEVEL", level), ("REL", rel.ToString()));
+                if (marks.Count > 0)
+                {
+                    // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                    string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
+                    // 本地化：LWN_word_pair_marks（关系标记括注，双桶）
+                    result += LWNTextHelper.ResolveCompound("LWN_word_pair_marks", ("MARKS", string.Join(sep, marks)));
+                }
+                // 本地化：LWN_word_period（句号，双桶）
+                result += LWNTextHelper.ResolvePrompt("LWN_word_period");
+                return result;
             }
             catch { return null; }
         }
@@ -2510,13 +3090,26 @@ namespace LivingWorldNpcs
                 }
                 if (friends.Count == 0 && foes.Count == 0) return "";
                 var sb = new StringBuilder();
-                sb.AppendLine("【主公的人缘】");
+                // 本地化：LWN_prompt_section_lord_relations（主公的人缘段标题，双桶）
+                sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_lord_relations"));
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                string sep = LWNTextHelper.ResolvePrompt("LWN_word_separator");
                 if (friends.Count > 0)
-                    sb.AppendLine("与主公交好的：" + string.Join("、",
-                        friends.OrderByDescending(f => f.rel).Take(4).Select(f => $"{f.h.Name}")) + "。");
+                {
+                    // 本地化：LWN_fact_body_lord_relations_friends（友好名单行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_lord_relations_friends",
+                        ("NAMES", string.Join(sep, friends.OrderByDescending(f => f.rel).Take(4).Select(f => $"{f.h.Name}"))))
+                        // 本地化：LWN_word_period（双桶）
+                        + LWNTextHelper.ResolvePrompt("LWN_word_period"));
+                }
                 if (foes.Count > 0)
-                    sb.AppendLine("记恨主公的：" + string.Join("、",
-                        foes.OrderBy(f => f.rel).Take(4).Select(f => $"{f.h.Name}")) + "。");
+                {
+                    // 本地化：LWN_fact_body_lord_relations_foes（记恨名单行，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_fact_body_lord_relations_foes",
+                        ("NAMES", string.Join(sep, foes.OrderBy(f => f.rel).Take(4).Select(f => $"{f.h.Name}"))))
+                        // 本地化：LWN_word_period（双桶）
+                        + LWNTextHelper.ResolvePrompt("LWN_word_period"));
+                }
                 return sb.ToString();
             }
             catch { return ""; }
@@ -2547,23 +3140,36 @@ namespace LivingWorldNpcs
                             int rel = a.GetRelation(b);
                             if (a.Spouse == b)
                             {
-                                lines.Add($"- {a.Name} 与 {b.Name} 是姻亲。");
+                                // 本地化：LWN_fact_body_party_rel_marriage（队伍姻亲行，双桶）
+                                lines.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_party_rel_marriage",
+                                    ("NAME_A", a.Name?.ToString()), ("NAME_B", b.Name?.ToString())));
                                 continue;
                             }
                             if (a.Clan != null && a.Clan == b.Clan)
                             {
-                                lines.Add($"- {a.Name} 与 {b.Name} 是同族的袍泽。");
+                                // 本地化：LWN_fact_body_party_rel_clan（队伍同族行，双桶）
+                                lines.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_party_rel_clan",
+                                    ("NAME_A", a.Name?.ToString()), ("NAME_B", b.Name?.ToString())));
                                 continue;
                             }
                             if (Math.Abs(rel) >= 20)
-                                lines.Add($"- {a.Name} 和 {b.Name} {(rel > 0 ? "交好" : "不对付")}（情谊 {rel}）。");
+                            {
+                                // 本地化：LWN_fact_body_party_rel_bond（队伍交情行，双桶）
+                                // 本地化：LWN_word_bond_good / LWN_word_bond_bad（交好/不对付，双桶）
+                                lines.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_party_rel_bond",
+                                    ("NAME_A", a.Name?.ToString()), ("NAME_B", b.Name?.ToString()),
+                                    // 本地化：LWN_word_bond_good（双桶）
+                                    ("BOND", rel > 0 ? LWNTextHelper.ResolvePrompt("LWN_word_bond_good") : LWNTextHelper.ResolvePrompt("LWN_word_bond_bad")),
+                                    ("REL", rel.ToString())));
+                            }
                         }
                         catch { }
                     }
                 }
                 if (lines.Count == 0) return "";
                 DebugLogger.Log($"[RelWeb] 咱们人的关系 {lines.Count} 行（成员 {members.Count} 人）");
-                return "【咱们人的关系】\n" + string.Join("\n", lines) + "\n";
+                // 本地化：LWN_prompt_section_party_relations（咱们人的关系段标题，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_prompt_section_party_relations") + "\n" + string.Join("\n", lines) + "\n";
             }
             catch { return ""; }
         }
@@ -2603,25 +3209,51 @@ namespace LivingWorldNpcs
                 if (!NumericTopicHit(playerText) && !HistoryHitsNumericTopic(recentHistory)) return "";
                 var parts = new List<string>();
                 // 时间/天气（复用 QueryTimeFact 的取数逻辑 → 简短版）
-                parts.Add($"{GetSeasonName()}、{(CampaignTime.Now.IsDayTime ? "白天" : "夜里")}、{GetTimeOfDayWord()}、{GetWeatherWord()}");
+                // 本地化：LWN_fact_body_status_time（现状时间天气组，双桶）
+                parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_status_time",
+                    ("SEASON", GetSeasonName()),
+                    // 本地化：LWN_word_day（双桶）
+                    ("DAYNIGHT", CampaignTime.Now.IsDayTime ? LWNTextHelper.ResolvePrompt("LWN_word_day") : LWNTextHelper.ResolvePrompt("LWN_word_night")),
+                    ("TIME", GetTimeOfDayWord()),
+                    ("WEATHER", GetWeatherWord())));
                 // 位置（方案 A 判定链）
                 var party = MobileParty.MainParty;
                 if (party != null)
                 {
-                    if (party.CurrentSettlement != null) parts.Add($"在 {party.CurrentSettlement.Name}");
-                    else if (party.TargetSettlement != null) parts.Add($"正前往 {party.TargetSettlement.Name}");
+                    if (party.CurrentSettlement != null)
+                    {
+                        // 本地化：LWN_fact_body_status_at（现状在城部分，双桶）
+                        parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_status_at", ("PLACE", party.CurrentSettlement.Name?.ToString())));
+                    }
+                    else if (party.TargetSettlement != null)
+                    {
+                        // 本地化：LWN_fact_body_status_marching（现状前往部分，双桶）
+                        parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_status_marching", ("PLACE", party.TargetSettlement.Name?.ToString())));
+                    }
                     else
                     {
                         string near = NearestSettlementName(15f);
-                        parts.Add(near != null ? $"在 {near} 附近" : "在旷野");
+                        // 本地化：LWN_fact_body_status_near / LWN_fact_body_status_wilderness（现状附近/旷野部分，双桶）
+                        parts.Add(near != null
+                            // 本地化：LWN_fact_body_status_near（双桶）
+                            ? LWNTextHelper.ResolveCompound("LWN_fact_body_status_near", ("PLACE", near))
+                            // 本地化：LWN_fact_body_status_wilderness（双桶）
+                            : LWNTextHelper.ResolvePrompt("LWN_fact_body_status_wilderness"));
                     }
                 }
                 // 数值（逐段 try/catch）
-                try { if (Hero.MainHero != null) parts.Add($"钱袋 {Hero.MainHero.Gold}"); } catch { }
-                try { if (party != null) parts.Add($"粮 {party.Food:0.0} 天"); } catch { }
-                try { if (party != null) parts.Add($"士气 {party.Morale:0}"); } catch { }
-                try { if (party != null) parts.Add($"兵 {party.MemberRoster.TotalRegulars}"); } catch { }
-                return "【此刻现状】" + string.Join("、", parts) + "。";
+                // 本地化：LWN_fact_body_status_gold（现状钱袋部分，双桶）
+                try { if (Hero.MainHero != null) parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_status_gold", ("GOLD", Hero.MainHero.Gold.ToString()))); } catch { }
+                // 本地化：LWN_fact_body_status_food（现状粮草部分，双桶）
+                try { if (party != null) parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_status_food", ("FOOD", party.Food.ToString("0.0")))); } catch { }
+                // 本地化：LWN_fact_body_status_morale（现状士气部分，双桶）
+                try { if (party != null) parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_status_morale", ("MORALE", party.Morale.ToString("0")))); } catch { }
+                // 本地化：LWN_fact_body_status_troops（现状兵力部分，双桶）
+                try { if (party != null) parts.Add(LWNTextHelper.ResolveCompound("LWN_fact_body_status_troops", ("TROOPS", party.MemberRoster.TotalRegulars.ToString()))); } catch { }
+                // 本地化：LWN_prompt_section_current_status（此刻现状段标题，双桶）
+                // 本地化：LWN_word_separator（枚举分隔符，双桶）
+                // 本地化：LWN_word_period（句号，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_prompt_section_current_status") + string.Join(LWNTextHelper.ResolvePrompt("LWN_word_separator"), parts) + LWNTextHelper.ResolvePrompt("LWN_word_period");
             }
             catch { return ""; }
         }

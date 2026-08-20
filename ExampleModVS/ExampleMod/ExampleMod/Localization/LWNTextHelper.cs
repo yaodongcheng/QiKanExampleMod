@@ -192,6 +192,20 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
+        /// LLM prompt 语言规则强句（2026-08-20 prompt 全量双语化迁移）：
+        /// 读 XML LWN_prompt_lang_rule（双桶分桶，CN 中文 / EN 英文），注入所有 Build*Prompt 顶部。
+        /// 缺 key → 兜底单词形式（铁律 1 不崩）；GetReplyLanguageInstruction() 保留给
+        /// WorldBackgroundProvider 语言指纹等非 prompt 用途。
+        /// </summary>
+        public static string GetLanguageRule()
+        {
+            // 本地化：LWN_prompt_lang_rule（双桶）
+            string rule = ResolvePrompt("LWN_prompt_lang_rule");
+            if (!string.IsNullOrWhiteSpace(rule)) return rule;
+            return "Reply ONLY in " + GetReplyLanguageInstruction() + ".";
+        }
+
+        /// <summary>
         /// LLM prompt 原始文本解析（🔴 不走 TextObject）。
         /// 为什么必须绕过 TextObject：prompt 静态块含大量 JSON 大括号（{"type": ...}），
         /// TextObject 的 Tokenizer 会把 {…} 当变量表达式解析，而 JSON 引号没有对应 token
