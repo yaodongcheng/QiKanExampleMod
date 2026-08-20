@@ -538,22 +538,20 @@ namespace LivingWorldNpcs
                 result.Add(indexed);
                 return result;
             }
-            name = cleanName;
-            string low = SceneSnapshot.NormalizeTargetAlias(name.Trim());
+            // 🔴 2026-08-20（实机：「帝国熟练弩手」0 候选——LLM 拼出场景不存在的完整模板名）：
+            // 原循环只做「场景名包含查询词」单向子串 + 精确匹配，LLM 加修饰词（熟练/资深/军团）
+            // 就失配（帝国熟练弩手 ⊉ 帝国弩手）。统一走 SceneSnapshot.FindAgentCandidates——
+            // 双向子串 + 口语类型词表（弩手/弓箭手/士兵…）+ 别名归一，与回复轮【候选目标】段
+            // 同口径：一个匹配语义，两个入口（实机该查询命中 帝国弩手/帝国军士弩手）。
+            var snap = SceneSnapshot.Build(Mission.Current);
+            var infos = snap.FindAgentCandidates(cleanName ?? name.Trim());
             var player = Agent.Main;
-            foreach (var a in Mission.Current.Agents)
+            foreach (var info in infos)
             {
-                if (a == null || !a.IsActive() || a == player) continue;
+                if (info?.Agent == null) continue;
+                var a = info.Agent;
+                if (!a.IsActive() || a == player) continue;
                 if (!AgentControlHelper.IsHumanOrChild(a)) continue;
-                string dn = SceneSnapshot.NormalizeTargetAlias(a.Name ?? "");
-                string cn = SceneSnapshot.NormalizeTargetAlias((a.Character as CharacterObject)?.Name?.ToString() ?? "");
-                string id = SceneSnapshot.NormalizeTargetAlias(a.Character?.StringId ?? "");
-                bool match = dn.Equals(low, StringComparison.OrdinalIgnoreCase)
-                    || cn.Equals(low, StringComparison.OrdinalIgnoreCase)
-                    || dn.Contains(low)
-                    || cn.Contains(low)
-                    || id.Contains(low);
-                if (!match) continue;
                 result.Add(a);
             }
             if (player != null)

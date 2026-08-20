@@ -77,11 +77,14 @@ namespace LivingWorldNpcs
         /// v1：仅 RequiresConfirm 动作走风险卡；非确认动作 → 台词已讲透风险，直接执行（低危动作 risky 几乎不出现）。
         /// 🔴 2026-08-15（三句连发实机）：risk_analysis 台词与决策卡/执行**分时投递**——间隔按前句字数估算
         /// + 随机抖动（ImChatManager.SpeechPauseFor），npc_reply（ImReplyService 已同步投递）→ 台词 →
-        /// 卡片/动作，模拟真人说话节奏，不再 11ms 三句齐发。</summary>
+        /// 卡片/动作，模拟真人说话节奏，不再 11ms 三句齐发。
+        /// 🔴 2026-08-20（用户反馈：问一个问题随从回答多句）：risky 时 npc_reply（ImReplyService 已投递）
+        /// + 风险台词（本方法）+ 决策卡 = 一句问话两条消息。风险台词删除——风险摘要已在决策卡上
+        ///（riskSummary 变体文案），一句话 + 一张卡，信息不损、话不重复。</summary>
         private static void RouteRisky(ImConversation conv, string heroId, string heroName,
             string riskAnalysis, string actionCode, string actionTarget, string actionLevel)
         {
-            // 前句 = 刚投递的 npc_reply 台词（store 最后一条 Text）
+            // 前句 = 刚投递的 npc_reply 台词（store 最后一条 Text）——卡片间隔仍按前句字数挂钩
             string prev = "";
             try
             {
@@ -93,20 +96,13 @@ namespace LivingWorldNpcs
                 }
             }
             catch { }
-            // 风险台词延迟投递（think-aloud：玩家先看到"它的判断"，间隔 = 前句字数挂钩）
-            float d1 = ImChatManager.SpeechPauseFor(prev);
-            if (!string.IsNullOrWhiteSpace(riskAnalysis))
-            {
-                DebugLogger.Log($"[RiskAssessor] {heroName} risky 台词延迟投递（{d1:F1}s 后）");
-                ImChatManager.ScheduleDelayedNpcMessage(conv, heroId, heroName, riskAnalysis, d1);
-            }
             if (string.IsNullOrEmpty(actionCode) || actionCode == "NONE")
             {
                 DebugLogger.Log($"[RiskAssessor] {heroName} risky 但无动作（npc_action=NONE）→ 只讲风险");
                 return;
             }
-            // 决策卡/直接执行在台词之后（间隔 = risk_analysis 字数）
-            float d2 = ImChatManager.SpeechPauseFor(riskAnalysis);
+            // 决策卡在台词之后（间隔 = 前句字数；风险摘要 riskSummary 随卡携带，不再单独投风险台词）
+            float d1 = ImChatManager.SpeechPauseFor(prev);
             var actionDef = ActionRegistry.FindByCode(actionCode);
             if (actionDef != null && actionDef.RequiresConfirm)
             {
@@ -119,8 +115,8 @@ namespace LivingWorldNpcs
                             explicitTarget: null, candidateIndex: null, riskSummary: riskAnalysis);
                     }
                     catch (Exception ex) { DebugLogger.Log($"[RiskAssessor] risky 决策卡投递失败: {ex.Message}"); }
-                }, d1 + d2);
-                DebugLogger.Log($"[RiskAssessor] {heroName} risky → 决策卡带风险摘要延迟投递（{(d1 + d2):F1}s 后）");
+                }, d1);
+                DebugLogger.Log($"[RiskAssessor] {heroName} risky → 决策卡带风险摘要延迟投递（{d1:F1}s 后，风险台词并入卡片）");
             }
             else
             {
@@ -132,8 +128,8 @@ namespace LivingWorldNpcs
                             actionTarget, actionLevel, conv, null, bypassConfirm: false);
                     }
                     catch (Exception ex) { DebugLogger.Log($"[RiskAssessor] risky 非确认动作执行失败: {ex.Message}"); }
-                }, d1 + d2);
-                DebugLogger.Log($"[RiskAssessor] {heroName} risky → 非确认动作延迟执行（{(d1 + d2):F1}s 后）");
+                }, d1);
+                DebugLogger.Log($"[RiskAssessor] {heroName} risky → 非确认动作延迟执行（{d1:F1}s 后）");
             }
         }
 

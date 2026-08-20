@@ -579,7 +579,9 @@ namespace LivingWorldNpcs
                 var fb = FindFallbackEntry(plan, t);
                 if (fb >= 0 && fb != 0)
                 {
-                    result.Warnings.Add($"跳转进入预案中间步: {t} → 忽略该跳转");
+                    // 🔴 2026-08-20（语义放宽）：Jump 已允许直达预案任意步（中间步均为 end_plan 终态，
+                    // 实机：contingency → q2 曾被拒 → 计划中止）。此处仅保留提示性警告（不再声称忽略）。
+                    result.Warnings.Add($"跳转进入预案中间步: {t} → 已放行（预案中间步 = end_plan 终态，直达无副作用）");
                 }
             }
 

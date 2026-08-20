@@ -27,11 +27,18 @@ namespace LivingWorldNpcs
     /// <summary>「迟迟不动手」的犹豫内心独白（括号包裹 = 说给自己听的心声；附近频道冒泡）。
     /// 🔴 2026-08-19（用户裁定）：偷窃绕后卡住（Behind 相位 3s）/ 等「没人看见」wait 卡住（5s）共用——
     /// 内容 = 当前会告发的目击者名单（GetWitnesses 已排除玩家/队友；被谁看见了说清楚）。
-    /// 在线 = SayPolished LLM 润色（StimulusType=plan_command 命中润色分级），离线 = 模板直播（铁律 1 兜底）。</summary>
+    /// 🔴 2026-08-20（用户反馈：随从冒出一句「好嘞，我这就去备药」——润色跑题）：原走
+    /// SayPolished LLM 润色，弱模型把「大意锚定」当自由发挥起点 + 医者人设 → 两次实机
+    ///（19:44/20:36）都发明出与任务无关的台词（备药）。内心独白语义必须精确（被谁看见/
+    /// 为什么下不了手），模板已本地化且贴切——**不走润色，直播模板**（零延迟零成本零跑题）。
+    /// 🔴 2026-08-20（用户裁定：独白必须符合 NPC 面临的实际情况）：绕背相位细分卡住原因——
+    /// 有目击者 → 点名；无目击者但目标在走动 → 「抓不住背身」；目标静止仍绕不到 → 角度不可行；
+    /// 距目标 >5m（还在赶路）→ 不播（没到卡住的程度，避免「下不了手」误报）。</summary>
     internal static class StealHesitationMonologue
     {
-        /// <summary>说一次（调用方保证节流：每卡住周期一次）。</summary>
-        public static void Say(Agent agent)
+        /// <summary>说一次（调用方保证节流：每卡住周期一次）。
+        /// <paramref name="target"/> = 偷窃目标（Behind 相位传入以细分卡住原因；wait 卡住传 null 走点名/兜底）。</summary>
+        public static void Say(Agent agent, Agent target = null)
         {
             try
             {
@@ -52,15 +59,34 @@ namespace LivingWorldNpcs
                         "({NAMES} keeps watching me… I can't get behind him.)",
                         ("NAMES", string.Join("、", names)));
                 }
+                else if (target != null)
+                {
+                    // 🔴 2026-08-20（实际情况细分）：还在赶路（>5m）→ 不播独白（调用方已按
+                    // dist≤5m 门控，此处双保险）；目标在走动 → 抓不住背身；目标静止仍绕不到 → 角度不可行。
+                    if (agent.Position.Distance(target.Position) > 5f) return;
+                    if (target.IsActive() && target.Velocity.LengthSquared > 0.25f)
+                    {
+                        // 本地化：犹豫独白-目标在走动（玩家可见文本）
+                        fallback = LWNTextHelper.ResolveText("LWN_npc_steal_monologue_moving",
+                            "(He keeps moving… I can't get behind him.)");
+                    }
+                    else
+                    {
+                        // 本地化：犹豫独白-绕背不可行（玩家可见文本）
+                        fallback = LWNTextHelper.ResolveText("LWN_npc_steal_monologue_blocked",
+                            "(I can't get behind him from here… need a better angle.)");
+                    }
+                }
                 else
                 {
-                    // 本地化：犹豫独白-无目击者（玩家可见文本）
+                    // 本地化：犹豫独白-无目击者兜底（玩家可见文本）
                     fallback = LWNTextHelper.ResolveText("LWN_npc_steal_monologue_blocked",
                         "(I can't get behind him from here… need a better angle.)");
                 }
                 var ctx = SpeechContext.FromBrain(AgentAIController.GetBrainForAgent(agent), null, "plan_command", null);
                 ctx.Monologue = true;
-                SpeechChannel.SayPolished(agent, fallback, SpeechPriority.Chat, ctx, 2f);
+                // 🔴 2026-08-20：直播模板（Say），不走 SayPolished 润色——见类注释（润色两次跑题实机）
+                SpeechChannel.Say(agent, fallback, SpeechPriority.Chat, ctx);
             }
             catch (Exception ex)
             {
@@ -94,6 +120,22 @@ namespace LivingWorldNpcs
         /// 留在排序器侧直接驱动。
         /// </summary>
         bool IsBehavioral { get; }
+    }
+
+    /// <summary>
+    /// 🔴 2026-08-20（force 语义通用化，用户裁定）：可强制执行的动作标记。
+    /// 玩家 ask_player 选「强制执行」→ executor 标记目标步骤 → 创建内联状态时统一分发
+    /// （PlanExecutor.TickCursor 单一出口：`inline is IForceable f && ConsumeForcedStep(step.Id)`
+    /// → f.ApplyForce()）——动作各自定义「强制 = 跳过什么安全检查」：
+    ///   · 偷窃（StealAttemptInlineState）：跳过 Rolling 目击中断，直接下手（后果由 WitnessCrime 承担）
+    ///   · 击晕/撬锁/搜刮：目前无目击/安全窗口类阻塞（击晕设计上无目击检查），暂不实现；
+    ///     未来引入「等没人看」类阻塞时实现本接口即自动获得 force 语义，无需改 executor。
+    /// 实现约定：ApplyForce 只置内部标记（构造时字段已初始化），OnTick 据此走强制分支。
+    /// </summary>
+    public interface IForceable
+    {
+        /// <summary>强制执行：跳过本动作的「安全窗口/目击检查」类阻塞，直接动手。</summary>
+        void ApplyForce();
     }
 
     /// <summary>say_to：单句模式（text，现状）/ 对话模式（outline + topic，多轮 LLM 实时对话）/
@@ -596,7 +638,7 @@ namespace LivingWorldNpcs
     ///   - 人变体按目标分叉：Hero 目标 → 现状（RecordStolenGold+StolenSource，give_gold 步骤 TransferGold
     ///     个人钱包）；模板 NPC 目标（无 Hero）→ StealPurseGold 钱袋路径（当场守恒移交，无尾步骤，_goldHanded 防双移交）
     ///   - 装备变体（variant="equipment"，M7 steal_equipment）：StealEquipmentForNpc 卸目标装备（武器槽优先）</summary>
-    public class StealAttemptInlineState : IInlineStep
+    public class StealAttemptInlineState : IInlineStep, IForceable
     {
         private enum AttemptPhase { Approach, Behind, Rolling, Settled }
         private AttemptPhase _phase = AttemptPhase.Approach;
@@ -607,6 +649,10 @@ namespace LivingWorldNpcs
         private readonly PlanStep _step;
         private readonly bool _variantItem;
         private readonly bool _variantEquipment;
+        /// <summary>🔴 2026-08-20（force 语义通用化）：玩家选「强制执行」→ executor 统一分发
+        /// IForceable.ApplyForce（本类置 true）——无视目击者硬偷（跳过 Rolling 目击中断；
+        /// 后果由 roll 后 WitnessCrime 广播承担——铁律 12 有代价出口）。</summary>
+        private bool _forced;
         private readonly Random _rng = new Random();
         private float _amount;
         private bool _posed;         // 偷窃姿态已播（Rolling 一次性）
@@ -631,8 +677,9 @@ namespace LivingWorldNpcs
         // 🔴 行为性内联（M0/D3）：SetPose/ScriptedMoveToPoint 直接驱动表现层 → 经 InlinePlanAction 入队由脑驱动
         public bool IsBehavioral => true;
         public bool Interrupted => _interrupted;
-        /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行偷窃动作）；顺带解除引擎蹲姿防残留。</summary>
-        public void Interrupt() { _interrupted = true; Finished = true; try { _agent?.SetCrouchMode(false); AgentBrain.SetCrouchPose(_agent, false); AgentControlHelper.SetPose(_agent, "act_walk_idle_unarmed"); } catch { } }
+        /// <summary>中断：标记使 Finished 立即为真（脑下一帧自清出队，不再执行偷窃动作）；顺带解除引擎蹲姿防残留。
+        /// 🔴 2026-08-20：同步恢复速度上限（Rolling 钉了 0 防 AI 走位）——中断不清会原地钉死到下次移动指令。</summary>
+        public void Interrupt() { _interrupted = true; Finished = true; try { _agent?.SetCrouchMode(false); AgentBrain.SetCrouchPose(_agent, false); AgentControlHelper.SetPose(_agent, "act_walk_idle_unarmed"); _agent?.SetMaximumSpeedLimit(-1f, false); } catch { } }
         public StealAttemptInlineState(PlanExecutor executor, ActorCursor cursor, PlanStep step)
         {
             _executor = executor;
@@ -655,6 +702,8 @@ namespace LivingWorldNpcs
                 : executor.World.TryResolveAgent(refName, cursor.Agent, out _);
             Ok = targetOk;
         }
+        /// <summary>IForceable：强制执行 = 无视目击者硬偷（Rolling 目击检查跳过，见 OnTick）。</summary>
+        public void ApplyForce() => _forced = true;
         public void OnTick(float dt)
         {
             if (Finished || !Ok) return;
@@ -706,12 +755,15 @@ namespace LivingWorldNpcs
                     }
                     catch { }
                     // 🔴 2026-08-20（用户反馈：偷窃瞬间与目标相对位置不对）：Behind→Rolling 必须
-                    // 已走到绕背点（1.0m 内）——原条件「behind && dist≤2.5f」在接近途中就触发
+                    // 已走到绕背点（0.5m 内）——原条件「behind && dist≤2.5m」在接近途中就触发
                     //（2.5m 圈 + 后侧扇区过宽：可 2.5m 远、偏侧、还在走时进 Rolling），Rolling 内
                     // FaceToActor + 下蹲与 ScriptedMoveToPoint 移动锁互相拉扯，偷窃点飘。
                     // _behindLastPick > 0 = 已至少选过一次绕背点（首次 0.25s 内 pick 未定，不判到位）。
+                    // 🔴 2026-08-20 实机对账（[StealPos] 7 次尝试）：1.0m 圈太松——随从在
+                    // 距绕背点 0.36~0.98m 处即触发（距目标仅 1.38~1.99m、偏东 0.25~0.8m），
+                    // 且 force 重试在绕背点旁原地触发。收紧到 0.5m（= 目标正后 1.7~2.7m 环带）。
                     bool arrivedAtBehind = _behindLastPick > 0f
-                        && _agent.Position.Distance(_behindPick) <= 1.0f;
+                        && _agent.Position.Distance(_behindPick) <= 0.5f;
                     if (behind && arrivedAtBehind && dist <= 2.5f)
                     {
                         _phase = AttemptPhase.Rolling;
@@ -730,11 +782,14 @@ namespace LivingWorldNpcs
                     {
                         // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：绕后卡住 3s
                         // 没进 Rolling → 说一次当前顾虑（被谁看见了；括号 = 内心独白；在线 LLM
-                        // 润色 / 离线模板，见 StealHesitationMonologue）——玩家不用干看随从站着不动
-                        if (!_monologueSaid && _timer > 3f)
+                        // 润色 / 离线模板，见 StealHesitationMonologue）——玩家不用干看随从站着不动。
+                        // 🔴 2026-08-20（用户裁定：独白必须符合实际情况）：dist ≤ 5m 才算「卡住」——
+                        // 目标还在远处（>5m）时随从仍在赶路，此时说「下不了手」是误报，不播；
+                        // 独白内部按 目击者/目标走动/绕背不可行 细分文案。
+                        if (!_monologueSaid && _timer > 3f && dist <= 5f)
                         {
                             _monologueSaid = true;
-                            StealHesitationMonologue.Say(_agent);
+                            StealHesitationMonologue.Say(_agent, target);
                         }
                         // 🔴 2026-08-14（实机：随从扒窃走到目标侧面就原地不动）：原接近点 = target.Position
                         // 直撞碰撞体停在侧/前方，且 ≤2.5m 不在背后时原实现不派发任何移动指令（死等 8s 超时假失败）。
@@ -790,7 +845,21 @@ namespace LivingWorldNpcs
                             {
                                 if (!_variantItem
                                     && _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent poseTarget))
+                                {
+                                    // 🔴 2026-08-20（用户反馈：随从一会向左一会向前——转身被移动锁覆盖）：
+                                    // 绕背阶段每帧发的 ScriptedMoveToPoint（GoToPosition）在 Rolling 期间
+                                    // 仍然激活——native AI 每帧把 Agent 拉向绕背点、面朝移动方向，与
+                                    // FaceToActor 的 SetMovementDirection（面朝目标）互相覆盖 → 面朝向抖动。
+                                    // 先停走（StopAndReset 取消脚本移动），再转身，转身才稳定生效。
+                                    AgentControlHelper.StopAndReset(_agent);
                                     AgentControlHelper.FaceToActor(_agent, poseTarget);
+                                    // 🔴 2026-08-20（实机：判定瞬间 behindDot=-0.04——随从漂到目标侧面）：
+                                    // StopAndReset 恢复 vanilla AI + FaceToActor 的 SetMovementDirection
+                                    // 会让 AI 朝目标走（从绕背点走 ~2m 撞进目标侧面再挤住）。钉死速度上限
+                                    //（0 = 原地，转身动画不受影响）；Settled 出口 StopAndReset 已恢复 -1，
+                                    // Interrupt 同步恢复（防中断后原地钉死）。
+                                    _agent.SetMaximumSpeedLimit(0f, false);
+                                }
                                 // 🔴 2026-08-14（两轮实机：SetCrouchMode 对 Suspend 的 NPC 不渲染）——
                                 // flag 需 vanilla AI 消费；改 SetPose 直播蹲姿（act_crouch_walk_idle_unarmed，
                                 // 真蹲姿 ID），flag 双保险。背后站位 + 面向目标 = 真"蹲身摸口袋"。
@@ -812,17 +881,31 @@ namespace LivingWorldNpcs
                         }
                         if (witnesses.Count > 0)
                         {
-                            _resultKey = "interrupted";
-                            _phase = AttemptPhase.Settled;
-                            // 🔴 2026-08-20（感知管线统一重构，用户裁定）：未遂中断 = 悄悄收手，零警戒后果
-                            // ——「可疑」由目击者 Brain 的蹲姿感知循环（[Brain-Crouch] 0.15/s）自行表达。
-                            // 原 2026-08-14 直拍目击者 Steal=1.0 恰好越过 Cautious 阈值 → 全场「抓贼」冒泡
-                            //（实机 2026-08-20：随从还没摸到任何东西，弓手就喊「你偷了gold」），且绕过
-                            // 感知管线。取消。真正的目击问责只在 roll 成功后由 WitnessCrime 广播承担。
-                            return;
+                            if (!_forced)
+                            {
+                                _resultKey = "interrupted";
+                                _phase = AttemptPhase.Settled;
+                                // 🔴 2026-08-20（感知管线统一重构，用户裁定）：未遂中断 = 悄悄收手，零警戒后果
+                                // ——「可疑」由目击者 Brain 的蹲姿感知循环（[Brain-Crouch] 0.15/s）自行表达。
+                                // 原 2026-08-14 直拍目击者 Steal=1.0 恰好越过 Cautious 阈值 → 全场「抓贼」冒泡
+                                //（实机 2026-08-20：随从还没摸到任何东西，弓手就喊「你偷了gold」），且绕过
+                                // 感知管线。取消。真正的目击问责只在 roll 成功后由 WitnessCrime 广播承担。
+                                return;
+                            }
+                            // 🔴 2026-08-20（force 语义升级，用户反馈：点强制还被目击收手）：
+                            // 强制执行 = 无视目击者硬偷——跳过中断，roll 照常进行；
+                            // 代价由 roll 成功后的 WitnessCrime 广播承担（目击者 +3.0 警戒/
+                            // 呼叫守卫/可能动手，铁律 12：强制是有代价的选择，不是白嫖）。
+                            DebugLogger.Log($"[PlanExecutor] {_agent.Name} 强制执行：无视 {witnesses.Count} 名目击者，照偷");
                         }
-                        // 成功率公式：随从 Roguery vs 目标警觉（§4）
-                        // 🔴 2026-08-13（d20 风格全局统一）：掷点 ≥ 目标阈值成功（目标 = 1 − 成功率），概率不变
+                        // 成功率公式：随从 Roguery vs 目标警觉（铁律 17 ratio 式，d20：掷点 ≥ 门槛成功）
+                        // 🔴 2026-08-20（用户反馈：偷窃总失败——旧公式未随 2026-08-13 全局统一迁移）：
+                        // 旧式 0.3 + Roguery/300×0.55 三个缺陷：①完全不看目标（偷新兵/偷重装骑兵
+                        // 同为 35%，门槛失去「目标强度刻度」语义）②无 5% 保底钳制 ③与 wheels.d/planner.md
+                        // 的 ratio 式（0.5 × 己方÷目标，钳 [5%,85%]）不一致（击晕 2026-08-13 已统一，偷窃漏网）。
+                        // ratio 式：0.5 × (己方 Roguery ÷ 目标警觉)，目标警觉 = 3 × Level
+                        //（农民 Lv3 → 9，极易得手；帝国新兵 Lv4 → 12；资深步兵 Lv15 → 45 ≈30%；
+                        // 重装骑兵 Lv18 → 54 ≈25%——门槛 = 目标强度直观刻度），钳制 [5%, 85%]（随从）。
                         float chance = 0.5f;
                         try
                         {
@@ -830,7 +913,14 @@ namespace LivingWorldNpcs
                             if (hero != null)
                             {
                                 float roguery = hero.GetSkillValue(DefaultSkills.Roguery);
-                                chance = MathF.Min(0.85f, 0.3f + roguery / 300f * 0.55f);
+                                float tLevel = 0f;
+                                if (_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent t2))
+                                {
+                                    var tCo = t2.Character as CharacterObject;
+                                    tLevel = tCo?.HeroObject?.Level ?? tCo?.Level ?? 0f;
+                                }
+                                float vigilance = MathF.Max(3f, 3f * tLevel);
+                                chance = MathF.Min(0.85f, MathF.Max(0.05f, 0.5f * (roguery / vigilance)));
                             }
                         }
                         catch { }

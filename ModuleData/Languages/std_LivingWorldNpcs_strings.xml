@@ -4285,6 +4285,8 @@
     <!--  2026-08-19 (user decision: hesitation monologue in the nearby channel when the NPC cannot move) -->
     <string id="LWN_npc_steal_monologue_spotted" text="({NAMES} keeps watching me… I can't get behind him.)" />
     <string id="LWN_npc_steal_monologue_blocked" text="(I can't get behind him from here… need a better angle.)" />
+    <!--  2026-08-20 (user decision: monologue must match the actual situation — target is moving) -->
+    <string id="LWN_npc_steal_monologue_moving" text="(He keeps moving… I can't get behind him.)" />
     <string id="LWN_dialogue_ack_short" text="Mm." />
     <string id="LWN_im_sender_dist" text="{NAME} ({DIST} m away)" />
     <string id="LWN_plan_abort_scene_end" text="The plan ended as the scene closed." />
