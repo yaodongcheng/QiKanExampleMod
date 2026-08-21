@@ -161,9 +161,15 @@ namespace LivingWorldNpcs
         [JsonProperty("on_event")] public List<StepEvent> OnEvent; // 决策结果事件 → 即时跳转
         [JsonProperty("result")] public JToken Result; // 判定型路由 {success: "s2",...} 或 end_plan 字符串 "success"/"fail"
         [JsonProperty("report")] public string Report;  // end_plan 收尾报告文本（当面报告）
-        [JsonProperty("variant")] public string Variant;  // steal_attempt: item / pickpocket
-        [JsonProperty("retry")] public int? Retry;        // 判定型步骤总尝试次数（steal_attempt: 摸空重试，装备变体失败不重试；钳制 1-5）
-        [JsonProperty("item")] public string Item;        // give_item / deliver_item
+        // 🔴 2026-08-21（命名规范）：variant 不再承担偷窃语义——仅 ask_help 配合动作白名单
+        //（make_noise/follow/emote）+ 旧 LLM 输出兼容；偷窃语义见 from/item
+        [JsonProperty("variant")] public string Variant;
+        [JsonProperty("retry")] public int? Retry;        // 判定型步骤总尝试次数（steal_attempt: 摸空重试，偷装备失败不重试；钳制 1-5）
+        // 🔴 2026-08-21（命名规范）：item = 要偷的东西，与来源解耦——从谁（from）那都能偷。
+        // give_item/deliver_item 沿用同字段（给/送什么）；steal_attempt/steal_equipment 取
+        // "gold"（钱，默认）/ "equipment"（装备）/ 物品名
+        [JsonProperty("item")] public string Item;        // give_item / deliver_item；steal_attempt / steal_equipment 要偷的东西
+        [JsonProperty("from")] public JToken From;        // 🔴 2026-08-21（命名规范）：偷窃来源（人或宝箱）——steal_attempt/steal_equipment 用
         [JsonProperty("amount")] public JToken Amount;    // give_gold: "stolen" 或数值
         [JsonProperty("rel_pos")] public string RelPos;   // follow: behind/line/left/right
         [JsonProperty("script")] public ScriptBlock Script; // 结算型步骤台本（negotiate/duel）

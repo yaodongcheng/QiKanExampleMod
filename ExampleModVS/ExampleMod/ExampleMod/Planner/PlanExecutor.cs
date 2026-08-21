@@ -118,6 +118,10 @@ namespace LivingWorldNpcs
         public const string PauseReasonFar = "player_far";
         public string PauseReason;
         public string EndMessage;       // 收尾消息（报告文本）
+        /// <summary>🔴 2026-08-21（用户反馈：强制下手总说「被人围着」）：最近一次偷窃中断的实时详情
+        ///（目击者名单/数量/目标察觉）——AskPlayer 投递密信决策卡时优先用它，替代 LLM 预设模板台词
+        ///（模板可能夸张成「被人围着」，与判定瞬间实际目击不符）。一次性消费，消费后置 null。</summary>
+        internal string LastInterruptContext;
         public string CurrentSummary;   // 执行摘要（HUD 状态行）
         public float Elapsed;
         public bool IsFinished { get; private set; }        // 收尾标记（Finish 置位；TickInner 据此停摆）
@@ -265,17 +269,34 @@ namespace LivingWorldNpcs
         }
         private void TickInner(float dt)
         {
-            // 🔴 全局战斗模式门控（D6 v3 修正）：IsInteractionDisabled 期间脑不 tick、队列动作不被驱动
-            // → 执行器也必须整体冻结（含 StepElapsed 冻结——否则 bounded step 会被超时中止而非暂停，
-            // 与"脑恢复 tick 后继续"的门控语义矛盾）。脑恢复 tick 后计划自然继续（特性非 bug）。
-            if (Settings.Instance.IsInteractionDisabled())
+            // 🔴 死亡看门狗（2026-08-21 实机）：执行者倒下/离场 → 立即收尾。
+            // 原 R2（TickGuardrails）只在 Executing 态检查——报告期（_reportPending）与追回期
+            // （Paused/Far）无人拦截，死 agent 的引用会流到 FinalizeExecutor 才被查，
+            // 而 agent 移除后 native 指针已释放，IsActive() 调用即抛（VS 调试器 first-chance 断点）。
+            // 报告期（IsFinished 已置位）直接 FinalizeExecutor 跳过当面报告（人倒了报告不了）；
+            // 执行中走 Abort → 密信「随从倒下了」+ 收尾。放 IsInteractionDisabled 之前：
+            // 玩家在对话面板里时随从倒下同样要收尾，与玩家模态无关。
+            if (!IsAgentActive(OwnerAgent))
+            {
+                if (IsFinished) FinalizeExecutor(EndMessage);
+                else Abort(PlanTexts.CompanionDown);
                 return;
+            }
             // 当面报告流程（收尾后置阶段：走回玩家旁冒泡转述）
+            // 🔴 2026-08-21（实机：成功收尾进报告期后玩家开 IM 面板 → IsInteractionDisabled 冻结报告期 →
+            // 报告 Tip 不发、卡片一直显示「执行中 + 中止按钮」）：报告期 = 收尾装饰（冒泡一句+3s 后收尾），
+            // 不随玩家模态冻结——面板操作中照常推进：随从走回玩家 → Tip + 3s 后 FinalizeExecutor
+            //（OnFinished → 卡片置 Done → 中止按钮消失）；30s 密信超时兜底照常。
             if (_reportPending)
             {
                 TickReport(dt);
                 return;
             }
+            // 🔴 全局战斗模式门控（D6 v3 修正）：IsInteractionDisabled 期间脑不 tick、队列动作不被驱动
+            // → 执行器也必须整体冻结（含 StepElapsed 冻结——否则 bounded step 会被超时中止而非暂停，
+            // 与"脑恢复 tick 后继续"的门控语义矛盾）。脑恢复 tick 后计划自然继续（特性非 bug）。
+            if (Settings.Instance.IsInteractionDisabled())
+                return;
             if (IsFinished) return;
             Elapsed += dt;
             _tickAccum += dt;
@@ -310,7 +331,7 @@ namespace LivingWorldNpcs
             if (State == ExecutorState.Executing && !IsCurrentStepRemote())
             {
                 var player = Agent.Main;
-                if (player != null && player.IsActive() && OwnerAgent.IsActive()
+                if (IsAgentActive(player) && IsAgentActive(OwnerAgent)
                     && OwnerAgent.Position.Distance(player.Position) > 30f
                     && !IsFollowAgentStep())
                 {
@@ -331,7 +352,7 @@ namespace LivingWorldNpcs
             bool anyActive = false;
             foreach (var cursor in _cursors)
             {
-                if (!cursor.Done && cursor.Agent != null && cursor.Agent.IsActive())
+                if (!cursor.Done && IsAgentActive(cursor.Agent))
                 {
                     anyActive = true;
                     TickCursor(cursor, tickDt);
@@ -448,7 +469,7 @@ namespace LivingWorldNpcs
         private float GetStepTargetDistance()
         {
             var step = _selfCursor?.Current;
-            if (step == null || step.Target == null || OwnerAgent == null || !OwnerAgent.IsActive()) return -1f;
+            if (step == null || step.Target == null || !IsAgentActive(OwnerAgent)) return -1f;
             string refName = PlanRefUtil.Normalize(step.Target, out string query);
             if (query != null) refName = query;
             if (string.IsNullOrEmpty(refName)) return -1f;
@@ -571,7 +592,9 @@ namespace LivingWorldNpcs
                 // 统一消费强制标记（玩家 ask_player 选「强制执行」→ force → 跳回本步骤）。
                 // 动作各自 ApplyForce 定义「强制 = 跳过什么安全检查」（偷窃 = Rolling 目击检查；
                 // 击晕/撬锁/搜刮未来引入「等没人看」类阻塞时实现 IForceable 即自动生效，零改动）。
-                if (cursor.Inline is IForceable forceable && ConsumeForcedStep(step.Id))
+                // 🔴 2026-08-21：_forceActive 持续标记兜底——force 后的重试/后续动作同样以强制状态
+                // 执行，被目击不再中断回问（实机连点 7 次强制的死循环根因）。
+                if (cursor.Inline is IForceable forceable && (ConsumeForcedStep(step.Id) || _forceActive))
                     forceable.ApplyForce();
                 // force 兜底跟踪：最近执行的真实动作步（行为性内联/原子动作 = 动手步骤；
                 // ask_player/wait 等通信步不跟踪）——force 跳转目标缺失（LLM 幻觉 ID）时回跳它。
@@ -909,6 +932,12 @@ namespace LivingWorldNpcs
         /// 语义 = 无视目击者直接动手（偷窃跳过 Rolling 目击中断；后果由 roll 后的 WitnessCrime
         /// 广播承担——目击者警戒/呼叫守卫/可能动手，正是「强制」的代价，铁律 12）。</summary>
         private readonly HashSet<string> _forcedStepIds = new HashSet<string>();
+        /// <summary>🔴 2026-08-21（用户反馈：点强制还反复询问——实机曾连点 7 次强制全被目击中断）：
+        /// force 本计划持续标记。原 force 标记一次性消费：硬偷一次若再被目击 → interrupted →
+        /// 回 ask_player → 再问 → 死循环。玩家点过一次「强制执行」= 本计划内不再问第二次——
+        /// 置位后任何可强制动作步骤及其重试全部以强制状态执行（被目击不中断、照偷；
+        /// 后果 WitnessCrime 承担）。计划结束随 _forcedStepIds 一并清空。</summary>
+        private bool _forceActive;
 
         /// <summary>最近执行的真实动作步 id（force 兜底：跳转目标缺失时回跳它）。
         /// TickCursor 在创建行为性内联/原子动作时更新；ask_player/wait 等通信步不更新。</summary>
@@ -917,6 +946,8 @@ namespace LivingWorldNpcs
         internal void MarkForcedStep(string stepId)
         {
             if (!string.IsNullOrEmpty(stepId)) _forcedStepIds.Add(stepId);
+            _forceActive = true;   // 🔴 2026-08-21：force 持续到计划结束（点过一次不再问第二次）
+            DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: force 激活（本计划持续，后续不再反复询问）");
         }
 
         /// <summary>一次性消费步骤的强制标记（StealAttemptInlineState 构造时调用）。</summary>
@@ -1221,7 +1252,7 @@ namespace LivingWorldNpcs
             {
                 if (!_world.TryResolveAgent(watcher, OwnerAgent, out Agent watcherAgent)) return false;
                 if (!_world.TryResolveAgent(cond.B, OwnerAgent, out Agent subject)) return false;
-                return watcherAgent.IsActive() && subject.IsActive()
+                return IsAgentActive(watcherAgent) && IsAgentActive(subject)
                     && watcherAgent.Position.Distance(subject.Position) > SightRangeForLossDetection;
             }
             catch { return false; }
@@ -1286,7 +1317,8 @@ namespace LivingWorldNpcs
         private void TickGuardrails(float dt)
         {
             // R2: 执行者死亡/离场 → Abort（战斗意图：目标死亡 = GOAL 达成，不触发本规则）
-            if (!OwnerAgent.IsActive())
+            // （顶部死亡看门狗已先拦一手，此处为纵深防御——Pause 分支早退路径的兜底）
+            if (!IsAgentActive(OwnerAgent))
             {
                 Abort(PlanTexts.CompanionDown);
                 return;
@@ -1298,7 +1330,7 @@ namespace LivingWorldNpcs
                 {
                     var a = kv.Value;
                     if (a == null || a == OwnerAgent || a == Agent.Main) continue;
-                    if (!a.IsActive()) continue;
+                    if (!IsAgentActive(a)) continue;
                     var brain = AgentAIController.GetBrainForAgent(a);
                     if (brain == null) continue;
                     try
@@ -1451,6 +1483,7 @@ namespace LivingWorldNpcs
             IsFinished = true;
             DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 计划结束（{state}）: {message}");
             _forcedStepIds.Clear();   // 强制标记随计划结束清空（防残留污染后续步骤）
+            _forceActive = false;     // 🔴 2026-08-21：force 持续标记同清（新计划不继承旧计划的强制）
             // 🔴 2026-08-14（M5，npc-risk-aware-planning.md）：判定型动作（steal/knockout 有 _stepResultKey）
             // Succeeded 收尾不允许静默——偷窃/击晕是有结局的动作，玩家必须看到结果；
             // InlineSteps 已播报（_resultBroadcast）时视为已有出口，不重复播（聊天单步路径 M2a 已播）。
@@ -1504,7 +1537,7 @@ namespace LivingWorldNpcs
             {
                 foreach (var a in Mission.Current.Agents)
                 {
-                    if (a == null || !a.IsActive() || a == OwnerAgent || a == Agent.Main) continue;
+                    if (!IsAgentActive(a) || a == OwnerAgent || a == Agent.Main) continue;
                     if (!_world.IsFollowing(a, OwnerAgent)) continue;
                     SpeechChannel.Say(a,
                         // 本地化：LWN_plan_bring_tail（玩家可见文本）
@@ -1531,7 +1564,7 @@ namespace LivingWorldNpcs
         {
             if (c.SubAction != null)
             {
-                if (c.Agent != null && c.Agent.IsActive())
+                if (IsAgentActive(c.Agent))
                 {
                     try { c.SubAction.RequestInterrupt(); } catch { }
                     c.DetachSubAction();
@@ -1565,7 +1598,7 @@ namespace LivingWorldNpcs
         {
             _reportTimer += dt;
             var player = Agent.Main;
-            if (player != null && player.IsActive() && OwnerAgent.IsActive()
+            if (IsAgentActive(player) && IsAgentActive(OwnerAgent)
                 && OwnerAgent.Position.Distance(player.Position) < 3.0f)
             {
                 if (!_reportSpoken)
@@ -1584,6 +1617,7 @@ namespace LivingWorldNpcs
                 }
                 if (_reportTimer > 3f)
                 {
+                    DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 当面报告完成 → 收尾");
                     FinalizeExecutor(_pendingReport);
                 }
             }
@@ -1591,6 +1625,7 @@ namespace LivingWorldNpcs
             {
                 // 超时兜底：密信（🔴 2026-08-17：60f→30f——报告期哨兵已释放、随从会走回玩家，
                 // 兜底只需覆盖「玩家走远/跨区/跟丢」场景；60s 罚站期间卡片执行态/意图全悬挂）
+                DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 当面报告 30s 超时 → 密信兜底收尾");
                 SignalPlayer(_pendingReport);
                 FinalizeExecutor(_pendingReport);
             }
@@ -1605,17 +1640,29 @@ namespace LivingWorldNpcs
             // Finish/TickReport 路径已先置值，此处不覆盖。
             if (string.IsNullOrEmpty(EndMessage)) EndMessage = message;
             var owner = OwnerAgent;
+            DebugLogger.Log($"[PlanExecutor] {owner?.Name}: 收尾（{message}）");
             // 收尾统一释放：清脚本锁（DecideDefaultBehavior 恢复跟随/原版 AI 不被残留锁卡住）
             try
             {
-                if (owner != null && owner.IsActive())
+                if (IsAgentActive(owner))
                     AgentControlHelper.ForceUnlockAgent(owner);
             }
             catch { }
             var evt = OnFinished;
-            ActiveExecutors.Remove(owner);
+            if (owner != null) ActiveExecutors.Remove(owner);
             if (Instance == this) Instance = null;
             evt?.Invoke(this);
+        }
+        /// <summary>安全访问 agent 状态（2026-08-21 实机）：Agent.IsActive()/Position 等走 native 指针
+        /// （State → AgentHelper.GetAgentState(_statePointer)），agent 已移除/场景结束时内部指针释放——
+        /// 对象非 null 但调用即抛 NRE（VS 调试器 first-chance 断点；release 被 catch 吞掉但流程走歪）。
+        /// 统一「Mission.Current 前置 + try/catch」收敛于此，禁止散落裸调。IsActive 返回 true 时
+        /// 指针必有效，同帧内可安全访问 Position 等其余 native 成员。</summary>
+        private static bool IsAgentActive(Agent a)
+        {
+            if (a == null || Mission.Current == null) return false;
+            try { return a.IsActive(); }
+            catch { return false; }
         }
         // ═══════════════════════════════════════════════════════════
         // 工具
@@ -1805,8 +1852,8 @@ namespace LivingWorldNpcs
         private void TickChaseBack(float dt)
         {
             var player = Agent.Main;
-            if (player == null || !player.IsActive()) return;
-            if (!OwnerAgent.IsActive()) { Abort(PlanTexts.CompanionDown); return; }
+            if (!IsAgentActive(player)) return;
+            if (!IsAgentActive(OwnerAgent)) { Abort(PlanTexts.CompanionDown); return; }
             float dist = OwnerAgent.Position.Distance(player.Position);
             if (dist < 20f)
             {

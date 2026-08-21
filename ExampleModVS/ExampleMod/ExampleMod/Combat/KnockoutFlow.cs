@@ -32,10 +32,14 @@ namespace LivingWorldNpcs
             public bool IsChild;      // 儿童 100% 免疫（骨骼不兼容死亡动画，见 Knowledge/击晕机制…§三）
         }
 
-        /// <summary>成功率（纯计算，不掷点）：UI 难度预览与 Roll 共用同一公式。</summary>
+        /// <summary>成功率（纯计算，不掷点）：UI 难度预览与 Roll 共用同一公式。
+        /// 🔴 2026-08-21（debug 覆盖）：StealSuccessRateOverride ≥ 0 → 强制成功率（跳过公式与 maxRate 钳制，
+        /// 调试语义：设多少就是多少；-1 = 关闭）。热改：custom.plan_debug steal_rate。</summary>
         public static float ComputeSuccessRate(Agent attacker, Agent target, float maxRate = 0.85f)
         {
             if (attacker == null || target == null) return 0.5f;
+            float ov = Settings.Instance.StealSuccessRateOverride;
+            if (ov >= 0f) return MathF.Max(0.05f, MathF.Min(0.95f, ov));
             var (aVigor, aControl) = AgentStatsHelper.GetAgentStats(attacker);
             var (tVigor, tControl) = AgentStatsHelper.GetAgentStats(target);
             float aSum = aVigor + aControl;

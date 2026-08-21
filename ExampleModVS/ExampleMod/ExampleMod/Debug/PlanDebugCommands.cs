@@ -60,6 +60,8 @@ namespace LivingWorldNpcs
                     return StepDetail(args);
                 case "replan":
                     return ForceReplan(args);
+                case "steal_rate":
+                    return SetStealRate(args);
                 default:
                     return Usage();
             }
@@ -67,7 +69,24 @@ namespace LivingWorldNpcs
 
         private static string Usage()
         {
-            return "usage: custom.plan_debug <snapshot|list|run <name> [agentId]|status [agentId]|stop [agentId]|role <role> [agentId]|step [agentId]|replan [agentId]>";
+            return "usage: custom.plan_debug <snapshot|list|run <name> [agentId]|status [agentId]|stop [agentId]|role <role> [agentId]|step [agentId]|replan [agentId]|steal_rate <0.05~0.95|off>>";
+        }
+
+        /// <summary>调试（2026-08-21）：偷窃/击晕成功率强制覆盖（本地调试：NPC 偷窃老失败时锁概率）。
+        /// 随从偷窃（InlineSteps）+ KnockoutFlow 共享管线（玩家/NPC 击晕）都吃；off 恢复原公式。</summary>
+        private static string SetStealRate(List<string> args)
+        {
+            if (args.Count < 2) return "usage: custom.plan_debug steal_rate <0.05~0.95|off>";
+            string v = args[1].ToLowerInvariant();
+            if (v == "off" || v == "none" || v == "0")
+            {
+                Settings.Instance.StealSuccessRateOverride = -1f;
+                return $"偷窃/击晕成功率覆盖已关闭（走原公式）";
+            }
+            if (!float.TryParse(v, out float rate) || rate < 0.05f || rate > 0.95f)
+                return "error: 值须在 0.05~0.95 之间（或 off）";
+            Settings.Instance.StealSuccessRateOverride = rate;
+            return $"偷窃/击晕成功率强制为 {rate:P0}（随从偷窃 + 击晕共享管线生效）";
         }
 
         /// <summary>当前步骤详情（§12 调试：执行器游标位置/步骤动作/摘要）。</summary>

@@ -445,7 +445,14 @@ namespace LivingWorldNpcs
         }
         public static void ForceUnlockAgent(Agent agent)
         {
-            if (agent == null || !agent.IsActive()) return;
+            if (agent == null) return;
+            // 🔴 2026-08-21（实机）：Agent.IsActive() 走 native 指针（State → GetAgentState(_statePointer)），
+            // agent 已移除/场景结束时指针释放——对象非 null 但调用即抛 NRE。共享管线入口必须永不抛。
+            try
+            {
+                if (!agent.IsActive()) return;
+            }
+            catch { return; }
 
             // 1. 禁用之前 MoveTo 设置的脚本化移动 (解除 SetScriptedPosition 的锁定)
             agent.DisableScriptedMovement();
