@@ -478,7 +478,7 @@ namespace LivingWorldNpcs
             bool held = false;
             try { held = _layerOwnerScreen.HasLayer(_layer); } catch { }
             bool finalized = false;
-            try { finalized = _layer.IsFinalized; } catch { finalized = true; }
+            try { finalized = V.LayerFinalized(_layer); } catch { finalized = true; }
             if (held && !finalized) return;   // 层还活着（owner 屏仍在，即使不是 TopScreen）→ 不动
             DebugLogger.Log($"[ImChat] 层已失效（owner={_layerOwnerScreen.GetType().Name} held={held} Finalized={finalized}），关闭面板");
             Close();
@@ -679,7 +679,7 @@ namespace LivingWorldNpcs
                     {
                         try
                         {
-                            _layer.UIContext.EventManager.FocusedWidget = _reaffirmWidget;
+                            V.SetFocusedWidget(_layer.UIContext.EventManager, _reaffirmWidget);
                             if (PadDbg) DebugLogger.Log($"[Pad] 焦点再固守 (剩余 {_focusReaffirmFrames}) IsFocusedOnInput={_layer.IsFocusedOnInput()}");
                         }
                         catch (Exception ex) { DebugLogger.Log($"[ImChat] 焦点再固守失败: {ex.Message}"); }
@@ -747,7 +747,7 @@ namespace LivingWorldNpcs
                     // 降级预案：软键盘曾激活且已关闭（引擎回填链路未触发）→ 主动清焦点恢复导航；
                     // 无软键盘时（鼠标点击聚焦路径）按十字键 = 退出输入态回导航（防卡死在输入态）
                     bool kbActive = false;
-                    try { kbActive = Input.IsOnScreenKeyboardActive; } catch { }
+                    try { kbActive = V.IsOnScreenKeyboardActive(); } catch { }
                     bool padPressed = Input.IsKeyPressed(InputKey.ControllerLUp) || Input.IsKeyPressed(InputKey.ControllerLDown)
                         || Input.IsKeyPressed(InputKey.ControllerLLeft) || Input.IsKeyPressed(InputKey.ControllerLRight);
                     if ((_padWasKeyboardActive && !kbActive) || (!kbActive && padPressed))
@@ -1684,7 +1684,7 @@ namespace LivingWorldNpcs
                 // 冻结读数/锚定覆盖，据此判定是否需要 P/Invoke 兜底）。OsCursorStr = 真实 OS 光标，
                 // 与引擎读数对照：相等 = 光标真没动（锚定覆盖），不等 = 引擎读数冻结（光标已挪位）。
                 if (PadDbg) DebugLogger.Log($"[Pad] 聚焦输入框 → {w.Id} ({(w is EditableTextWidget ? "EditableText" : w.GetType().Name)}) 引擎光标={MousePosStr()} OS光标={OsCursorStr()} 输入框位置={WidgetPosStr(w)}");
-                _layer.UIContext.EventManager.FocusedWidget = w;
+                V.SetFocusedWidget(_layer.UIContext.EventManager, w);
                 // 🔴 2026-08-19（焦点再固守）：native 点击链的 click-up（锚定回拽后的屏幕中心）会在
                 // 1-2 帧内清掉焦点——登记 3 帧再固守（UpdatePadFocus 消费；只在焦点已被清时重设）
                 _focusReaffirmFrames = 3;

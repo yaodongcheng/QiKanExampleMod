@@ -230,6 +230,11 @@ override 签名不匹配基类会直接编译失败（踩过：`CommissionHubIss
   `MapWeatherModel.WeatherEvent.Storm`（枚举成员 1.3.0+ 新增，1.2.12 无）→ `V.WeatherWord`（Storm 分支 `#if MB2_GE_130`）；
   `CampaignEvents.HeroPrisonerReleased`（1.2.12=4参，1.3+=5参带 bool）与 `CampaignEvents.BeforeHeroesMarried`（1.2.12 无，用同名同签名 `HeroesMarried`）
   → 事件注册无法封装 V 方法，登记为 MyBehavior.cs:33,45 的 structural 裸 #if（lambda 适配）
+- **2026-08-21 UI 层三件套实锤新增**（1.2.12 编译 CS 错误逐个反编译定位，阈值均 `MB2_GE_130`，使用点 = IM 层死层判定/焦点再固守/软键盘探测）：
+  `ScreenLayer.Finalized` → `ScreenLayer.IsFinalized`（🔴 类名是 **ScreenLayer** 不是 Layer，两版本同名，`GauntletLayer : ScreenLayer`）→ `V.LayerFinalized(layer)`；
+  `EventManager.FocusedWidget` setter 1.2.12 是 **private set**（1.3+ 公开，带软键盘守卫逻辑；`SetWidgetFocused(w, fromClick)` 方法仅 1.2.12 存在，1.3+ 删除）→ `V.SetFocusedWidget(em, w)`（1.2.12 走 SetWidgetFocused，语义等价：OnLoseFocus/OnGainFocus + 控制器激活弹软键盘）；
+  `Input.IsOnScreenKeyboardActive` 1.2.12 **无此 API**（InputSystem.dll 二进制 grep "OnScreenKeyboard" 0 命中）→ `V.IsOnScreenKeyboardActive()` 恒 false 降级（1.2.12 无软键盘机制，"十字键退出输入态"路径不受影响）；
+  🔴 **Widget 类两版本都在 `TaleWorlds.GauntletUI.BaseTypes` 命名空间**（不在 `TaleWorlds.GauntletUI` 下——1.2.12 编译 CS0234 实锤，V 方法参数类型必须写 `TaleWorlds.GauntletUI.BaseTypes.Widget`）
 
 **🔴 `InventoryManager` 类改名**（2026-08-14 反编译验证，四版本二进制 grep + ilspycmd）：
 
