@@ -50,6 +50,8 @@ namespace LivingWorldNpcs
 #endif
         private static ImConversation _selected;
         private static float _refreshTimer;
+        // 🔴 2026-08-21（用户裁定：好感变化标题实时刷新）：私聊标题好感节流计时（Tick 内 1s 节流）
+        private static float _titleRefreshTimer;
         // 🔴 2026-08-12：思考中占位是否存在于上一帧（转态帧检测 → 全量重建，防旧占位行残留）
         private static bool _hadGenerating;
         private static bool _subscribed;
@@ -2038,9 +2040,11 @@ namespace LivingWorldNpcs
         {
             if (_vm == null) return;
             string title = _selected?.Title ?? "";
-            // 🔴 2026-08-15（私聊标题好感，用户需求）：私聊会话标题 = NPC 名字 + 当前好感
-            //（玩家视角 MainHero.GetRelation，正负都显示：+42 / -15）。左栏列表标题不动（空间有限，
-            // 预览行已够用）；只在打开会话后的顶部标题带显示。模板 NPC 无 Hero → 原样（防 null）。
+            // 🔴 2026-08-15（私聊标题好感，用户需求）：私聊会话标题 = NPC 名字 + 当前好感。
+            // 🔴 2026-08-21（用户裁定：好感 = NPC 对玩家的好感）：读数改 hero.GetRelation(MainHero)
+            //（NPC 侧——与 vanilla toast VALUE、NPC 好感 prompt「你对对方的好感」同侧）；
+            // 原 MainHero.GetRelation(hero) 是玩家侧：无玩法意义、relation_up 动作也不写它 → 标题恒旧值。
+            // 正负都显示（+42 / -15）。左栏列表标题不动（空间有限，预览行已够用）；模板 NPC 无 Hero → 原样（防 null）。
             if (_selected != null && _selected.Type == ImConversationType.Direct
                 && !string.IsNullOrEmpty(_selected.PartnerHeroId))
             {
@@ -2050,7 +2054,7 @@ namespace LivingWorldNpcs
                         .FirstOrDefault(h => h.StringId == _selected.PartnerHeroId);
                     if (hero != null && Hero.MainHero != null)
                     {
-                        int rel = Hero.MainHero.GetRelation(hero);
+                        int rel = hero.GetRelation(Hero.MainHero);   // NPC 对玩家的好感（2026-08-21 用户裁定口径）
                         string relText = rel > 0 ? "+" + rel.ToString() : rel.ToString();
                         // 本地化：私聊标题好感（LWN_im_title_relation，{NAME}/{REL} 变量）
                         title = LWNTextHelper.ResolveCompound("LWN_im_title_relation",
@@ -2612,6 +2616,16 @@ namespace LivingWorldNpcs
             // 🔴 2026-08-17（实机「Mission 内无法呼出」根因）：Mission 边界检测放最前（面板可能开着）
             CheckMissionBoundary();
             if (!IsOpen) return;
+
+            // 🔴 2026-08-21（用户裁定：好感变化标题实时刷新）：私聊标题好感节流刷新——
+            // RefreshTitle 原只在 SelectConversation 跑，好感变化（IM 动作/礼物/事件）时标题是旧值；
+            // 1s 节流（读 AllAliveHeroes + GetRelation，成本可忽略），覆盖一切好感变化来源
+            _titleRefreshTimer += dt;
+            if (_titleRefreshTimer >= 1.0f)
+            {
+                _titleRefreshTimer = 0f;
+                RefreshTitle();
+            }
 
             // 🔴 2026-08-17（B'：层归属迁移提升到 Tick 顶层——原只在 HandleCompactInput（缩略分支），
             // 完整模式无此保护：关屏后滚动缓存指向已释放树 → 滚动静默失效。Q5 呼出按钮层迁移复用同一模式）

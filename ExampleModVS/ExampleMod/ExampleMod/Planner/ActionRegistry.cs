@@ -380,7 +380,7 @@ namespace LivingWorldNpcs
                 LabelKey = "steal_attempt", LabelFallback = "steal from",
                 ResultKeys = new HashSet<string> { "success", "empty", "impossible", "interrupted" },
                 IsValid = (npc, player, agent) => agent != null,
-                FillParams = (step, level, sayText) => step.Variant = "pickpocket",   // 人变体（扒窃 defender；result 路由既有）
+                FillParams = (step, level, sayText) => step.Item = "gold",   // 偷钱（目标 = 扒窃对象；result 路由既有）
                 // 核心执行（IM 卡片批准后直接跑；当面对话走 Execute 的弹窗包装）
                 ExecuteCore = (attacker, defender, agent, l, t, s, explicitTarget) =>
                 {

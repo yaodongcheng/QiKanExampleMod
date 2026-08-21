@@ -79,6 +79,13 @@ namespace LivingWorldNpcs
         // ── 调试消息全局开关（工作时打开，发布前关掉）──
         public bool ShowDebugMessages { get; set; } = true;
 
+        // ── 🔴 偷窃/击晕成功率强制覆盖（config.json 侧调试项；默认 -1 = 关闭）──
+        // 本地调试用：NPC 偷窃/击晕老失败时直接锁成功率，不用反复改公式重编译。
+        // 取值 0.05~0.95 = 强制成功率（所有判定都按这个概率掷点）；-1 = 走原公式。
+        // 随从偷窃（InlineSteps）与 KnockoutFlow 共享管线（玩家击晕/NPC 击晕）都吃。
+        // 运行时热改指令：custom.plan_debug steal_rate <0.05~0.95|off>
+        public float StealSuccessRateOverride { get; set; } = -1f;
+
         // ── 手柄导航按键级诊断（config.json 侧调试项；默认关——排查按键/焦点/设备判定时开）──
         // 盖住 [Pad]/[NavCursor]/[Input 设备沿] 按键级日志 + 🎮/➤/🅰 屏显黄字
         // （每按一次键好几行，平时刷屏；关闭不影响功能与异常日志）。
