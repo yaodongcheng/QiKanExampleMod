@@ -297,22 +297,20 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 🔴 2026-08-11：同步写入一条动态记忆（主线程确定性事件用：战斗结果/切磋胜负等）。
-        /// 与 LLM 总结管道（AddDynamicMemory）的区别：不触发耗时的 fade 重总结，锁内 FIFO + 超限淘汰。
-        /// 通道语义：动态记忆进 prompt 的【近期回忆】段（GetPrompt_RespondContext 最新 2 条，
-        /// IM 私聊/当面对话都带），且**不渲染为私聊聊天行**（GetDirectMessages 只认 im_user/im_npc 角色）——
-        /// 战斗结果这样"NPC 该知道但没说出口"的事实正适合走这里，交给 LLM 用自己口吻说出来。
+        /// 🔴 2026-08-21（用户裁定）：同步写入一条事件事实（主线程确定性事件用：战斗结果/切磋胜负/感知等）。
+        /// 通道语义变更：不再直接写 DynamicMemories（短期记忆）——短期记忆必须是从对话历史 LLM 提炼的，
+        /// 裸事件（未总结）进对话历史（Role="system"），由既有 MaintainMemoryAsync 总结管道提炼进短期记忆
+        /// （与 channel_nearby 的"剔除不总结"相反——事件是有价值事实，必须参与总结）。
+        /// SpeakerId="system" 的理由：
+        ///   · respond 选行（PromptBuilder：IsNullOrEmpty(SpeakerId) 或 == otherId 才入选）→ 事件行只在
+        ///     补足轮进【对话历史】段——真实对话优先，事件兜底，高频事件不挤占对话预算；
+        ///   · IM 渲染（GetDirectMessages 只认 im_user/im_npc 角色）→ 不显示为聊天行（无幽灵消息）。
+        /// 延迟语义：事件要等对话历史超 2× 上限被总结才进短期记忆——期间由【对话历史】段兜底可见。
         /// </summary>
         public void RecordDynamicMemory(string content)
         {
             if (string.IsNullOrWhiteSpace(content)) return;
-            double now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-            lock (_lock)
-            {
-                DynamicMemories.AddLast(new RecentMemory(content, now, now));
-                if (DynamicMemories.Count > MaxDynamicMemoryCount)
-                    DynamicMemories.RemoveFirst();
-            }
+            AddHistory("system", content, "system");
         }
 
         // ── 经历旁白（Experience Narration，2026-08-11）──
@@ -458,6 +456,12 @@ namespace LivingWorldNpcs
                         ImportantEvents = ImportantEvents.GetRange(ImportantEvents.Count - MaxImportantEvents, MaxImportantEvents);
                 }
             }
+            // 🔴 2026-08-21：读档恢复后钳制调试编号计数器——防进程重启后新条目与恢复条目的 SeqId 撞号
+            // （旧档条目 SeqId=0 不参与钳制，恢复后新条目从 1 起编，显示 #0 = 旧数据）
+            if (history != null)
+                foreach (var m in history) ChatMessage.EnsureSeqCounterAbove(m.SeqId);
+            if (dynamic != null)
+                foreach (var d in dynamic) RecentMemory.EnsureSeqCounterAbove(d.SeqId);
         }
 
         /// <summary>
@@ -479,6 +483,33 @@ namespace LivingWorldNpcs
             lock (_lock)
             {
                 return DynamicMemories.ToList();
+            }
+        }
+
+        /// <summary>线程安全的永久记忆快照（UI 记忆调试面板用；MergeMemoryAsync 在线程池写 StringBuilder）。</summary>
+        public string SnapshotPermanentMemory()
+        {
+            lock (_lock)
+            {
+                return PermanentMemory.ToString();
+            }
+        }
+
+        /// <summary>线程安全的大事记快照（UI 记忆调试面板用；RecordImportantMemory 锁内写）。</summary>
+        public List<string> SnapshotImportantEvents()
+        {
+            lock (_lock)
+            {
+                return ImportantEvents.ToList();
+            }
+        }
+
+        /// <summary>线程安全的委托记录快照（UI 记忆调试面板用；AddQuestRecord 锁内写）。</summary>
+        public List<QuestRecord> SnapshotQuestHistory()
+        {
+            lock (_lock)
+            {
+                return QuestHistory.ToList();
             }
         }
 

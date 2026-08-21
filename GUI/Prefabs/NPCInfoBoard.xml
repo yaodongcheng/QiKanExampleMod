@@ -31,7 +31,7 @@
               <Children>
                 <!-- Tab 1: 个人属性 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240" 
-                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectPersonal" MarginRight="5">
+                              Brush="LWN_Btn_Message" Command.Click="ExecuteSelectPersonal" MarginRight="5">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                 Text="@TabPersonalLabel" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
@@ -40,7 +40,7 @@
 
                 <!-- Tab 2: 家族信息 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240" 
-                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectClan" MarginRight="5">
+                              Brush="LWN_Btn_Message" Command.Click="ExecuteSelectClan" MarginRight="5">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
                                 Text="@TabClanLabel" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
@@ -49,7 +49,7 @@
 
                 <!-- Tab 3: 势力信息 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240" 
-                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectKingdom" MarginRight="5">
+                              Brush="LWN_Btn_Message" Command.Click="ExecuteSelectKingdom" MarginRight="5">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
                                 Text="@TabKingdomLabel" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
@@ -58,7 +58,7 @@
 
                 <!-- Tab 4: 人际关系 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240" 
-                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectRelation" MarginRight="5">
+                              Brush="LWN_Btn_Message" Command.Click="ExecuteSelectRelation" MarginRight="5">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
                                 Text="@TabRelationLabel" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
@@ -67,7 +67,7 @@
 
                 <!-- Tab 5: 记忆 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240" 
-                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectMemory" MarginRight="5">
+                              Brush="LWN_Btn_Message" Command.Click="ExecuteSelectMemory" MarginRight="5">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
                                 Text="@TabMemoryLabel" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
@@ -76,7 +76,7 @@
 
                 <!-- Tab 6: 背包物品 -->
                 <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240" 
-                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectInventory">
+                              Brush="LWN_Btn_Message" Command.Click="ExecuteSelectInventory">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" 
                                 Text="@TabInventoryLabel" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
@@ -84,7 +84,7 @@
                 </ButtonWidget>
 				
 				<ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="240"
-                              Brush="Simple.Button.Bg" Command.Click="ExecuteSelectParty">
+                              Brush="LWN_Btn_Message" Command.Click="ExecuteSelectParty">
                   <Children>
                     <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                 Text="@TabPartyLabel" Brush="MyBrush_24" HorizontalAlignment="Center" VerticalAlignment="Center" DoNotAcceptEvents="true"/>
@@ -180,20 +180,10 @@
               </Children>
             </Widget>
 
-            <!-- D. 底部关闭按钮 + IM 传信按钮（传信仅 Hero 显示，需求 3：模板 NPC 不进 IM） -->
-            <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="80"
-                          HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20" MarginLeft="-320"
-                          Brush="Simple.Button.Bg" Command.Click="ExecuteSendMessage"
-                          IsVisible="@IsMessengerVisible">
-              <Children>
-                <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
-                            Text="@MessengerButtonLabel" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center"
-                            DoNotAcceptEvents="true"/>
-              </Children>
-            </ButtonWidget>
+            <!-- D. 底部关闭按钮（2026-08-21：删掉 IM 传信按钮——探查板不再开私聊，传信走密信/IM 面板入口） -->
             <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="80"
                           HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20"
-                          Brush="Simple.Button.Bg" Command.Click="ExecuteClose">
+                          Brush="LWN_Btn_Message" Command.Click="ExecuteClose">
               <Children>
                 <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                             Text="@CloseButtonLabel" Brush="Standard.Text" HorizontalAlignment="Center" VerticalAlignment="Center"

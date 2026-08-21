@@ -1756,6 +1756,19 @@
     <string id="LWN_ui_info_title" text="{NAME}的信息面板" />
     <!-- 个人属性 Tab：模板 NPC 无详细人设的兜底文案 -->
     <string id="LWN_ui_info_no_persona" text="（非英雄单位，无详细人设）" />
+    <!-- 记忆 Tab 调试全量视图（2026-08-21）：段标题 -->
+    <string id="LWN_ui_info_mem_perm" text="长期记忆" />
+    <string id="LWN_ui_info_mem_dynamic" text="短期记忆" />
+    <string id="LWN_ui_info_mem_history" text="对话历史" />
+    <string id="LWN_ui_info_mem_persona" text="人设" />
+    <string id="LWN_ui_info_persona_line" text="{LABEL}：{VALUE}" />
+    <string id="LWN_ui_info_persona_bg" text="身世" />
+    <string id="LWN_ui_info_persona_personality" text="性格" />
+    <string id="LWN_ui_info_persona_specialty" text="本事" />
+    <string id="LWN_ui_info_mem_important" text="大事记" />
+    <string id="LWN_ui_info_mem_quests" text="委托记录" />
+    <string id="LWN_ui_info_mem_news" text="重大新闻" />
+    <string id="LWN_ui_info_mem_rumors" text="相关传闻" />
     <!-- 金钱 Tab：可偷现金+家族资金两行（{STEAL}=可偷现金，{CLAN}=家族资金） -->
     <string id="LWN_ui_info_gold_steal_and_clan" text="可偷窃现金: {STEAL} 第纳尔&#10;家族资金: {CLAN} 第纳尔" />
     <!-- 金钱 Tab：仅可偷现金（{STEAL}=可偷现金） -->

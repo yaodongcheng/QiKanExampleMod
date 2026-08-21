@@ -1688,7 +1688,21 @@
     <string id="LWN_ui_info_title" text="{NAME}'s Info Panel" />
     
     <string id="LWN_ui_info_no_persona" text="*Non-hero unit; no detailed persona*" />
-    
+
+    <!-- 记忆 Tab 调试全量视图（2026-08-21）：段标题 -->
+    <string id="LWN_ui_info_mem_perm" text="Long-term Memory" />
+    <string id="LWN_ui_info_mem_dynamic" text="Short-term Memories" />
+    <string id="LWN_ui_info_mem_history" text="Dialogue History" />
+    <string id="LWN_ui_info_mem_persona" text="Persona" />
+    <string id="LWN_ui_info_persona_line" text="{LABEL}: {VALUE}" />
+    <string id="LWN_ui_info_persona_bg" text="Background" />
+    <string id="LWN_ui_info_persona_personality" text="Personality" />
+    <string id="LWN_ui_info_persona_specialty" text="Specialty" />
+    <string id="LWN_ui_info_mem_important" text="Milestones" />
+    <string id="LWN_ui_info_mem_quests" text="Commission Records" />
+    <string id="LWN_ui_info_mem_news" text="Global News" />
+    <string id="LWN_ui_info_mem_rumors" text="Rumors" />
+
     <string id="LWN_ui_info_gold_steal_and_clan" text="Stealable cash: {STEAL} denars&amp;#10;Clan funds: {CLAN} denars" />
     
     <string id="LWN_ui_info_gold_stealable" text="Stealable cash: {STEAL} denars" />

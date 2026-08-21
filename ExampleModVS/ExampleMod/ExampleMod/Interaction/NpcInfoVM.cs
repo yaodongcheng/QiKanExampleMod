@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
@@ -43,8 +46,6 @@ namespace LivingWorldNpcs
             TabPartyLabel = LWNTextHelper.ResolveText("LWN_ui_info_tab_party", "Party");
             // 探查面板按钮：关闭面板
             CloseButtonLabel = LWNTextHelper.ResolveText("LWN_ui_info_btn_close", "Close");
-            // IM 传信按钮：仅 Hero 可见（需求 3：模板 NPC 不进 IM）
-            IsMessengerVisible = _hero != null;
 
             RefreshValues();
         }
@@ -102,9 +103,10 @@ namespace LivingWorldNpcs
             KingdomInfoText = _profile?.GetKingdomInfo() ?? LWNTextHelper.ResolveText("LWN_ui_info_no_kingdom", "(Non-hero unit: no kingdom info)");
 
             // ── 记忆 ──
-            // 记忆 Tab：模板 NPC 无记忆数据的兜底文案
+            // 记忆 Tab（2026-08-21 改为调试全量视图）：对话历史/短期记忆/长期记忆/人设/大事记全量展开；
+            // 模板 NPC 无记忆数据的兜底文案
             MemoryInfoText = _memory != null
-                ? PromptBuilder.GetPrompt_History_Memory_Events(_memory)
+                ? BuildMemoryDebugText(_memory)
                 // （非英雄单位，无记忆数据）
                 : LWNTextHelper.ResolveText("LWN_ui_info_no_memory", "(Non-hero unit: no memory data)");
 
@@ -169,19 +171,132 @@ namespace LivingWorldNpcs
                 : LWNTextHelper.ResolveText("LWN_ui_info_no_party", "(Non-hero unit: no party info)");
         }
 
+        /// <summary>
+        /// 记忆 Tab 调试全量视图（2026-08-21）：长期记忆/短期记忆/对话历史/人设/大事记/委托记录/新闻/传闻
+        /// 全部展开，段头带「当前数/容量上限」，可直接核对读档钳制（plan D）与人设持久化（plan A 修复目标）。
+        /// 只读快照（Snapshot* 走实例锁，LLM 后台线程写时安全）；段标题走 LWN 本地化，内容为动态数据豁免。
+        /// 调试视图绝不抛异常——构建失败降级为兜底文案 + 日志，保证探查面板永远可开。
+        /// </summary>
+        private static string BuildMemoryDebugText(SingNpcMemorySystem memory)
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                string heroId = memory._profile?.StringId ?? "";
+                if (!string.IsNullOrEmpty(heroId))
+                    sb.AppendLine("ID: " + heroId);   // 数据行：跨存档定位（与 save_inspect dump 对照）
+
+                // 1. 长期记忆（远期记忆，含 字符数/上限）
+                string perm = memory.SnapshotPermanentMemory();
+                // 本地化：LWN_ui_info_mem_perm（记忆段：长期记忆标题）
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_perm", "Long-term Memory") + $" ({perm.Length}/{memory.MaxPermanentLength})");
+                sb.AppendLine(string.IsNullOrEmpty(perm) ? LWNTextHelper.ResolveText("LWN_ui_info_none", "None") : perm);
+                sb.AppendLine();
+
+                // 2. 短期记忆（动态记忆，含 条数/上限；行首带相对日前缀，I5 词表与 prompt 一致）
+                var dynamics = memory.SnapshotDynamicMemories();
+                // 本地化：LWN_ui_info_mem_dynamic（记忆段：短期记忆标题）
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_dynamic", "Short-term Memories") + $" ({dynamics.Count}/{memory.MaxDynamicMemoryCount})");
+                foreach (var d in dynamics)
+                {
+                    if (string.IsNullOrEmpty(d.Content)) continue;
+                    sb.AppendLine($"- #{d.SeqId} " + PromptBuilder.RelativeDayPrefix(d.CampaignDay) + d.Content);
+                }
+                sb.AppendLine();
+
+                // 3. 对话历史（含 条数/上限；行 = 相对日 + Role + 内容）
+                var history = memory.SnapshotRecentHistory();
+                // 本地化：LWN_ui_info_mem_history（记忆段：对话历史标题）
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_history", "Dialogue History") + $" ({history.Count}/{memory.MaxRecentHistoryCount})");
+                foreach (var msg in history)
+                {
+                    if (string.IsNullOrEmpty(msg.Content)) continue;
+                    string stamp = PromptBuilder.RelativeDayPrefix(msg.CampaignDay);
+                    string role = string.IsNullOrEmpty(msg.Role) ? "" : msg.Role + ": ";
+                    sb.AppendLine($"- #{msg.SeqId} " + stamp + role + msg.Content);
+                }
+                sb.AppendLine();
+
+                // 4. 人设三字段（常驻人设 = 存档关键字段，调试存档修复（plan A）是否生效用）
+                // 本地化：LWN_ui_info_mem_persona（记忆段：人设标题）
+                sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_persona", "Persona"));
+                // 本地化：LWN_ui_info_persona_line（人设行 {LABEL}: {VALUE}，双桶）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_ui_info_persona_line", "{LABEL}: {VALUE}",
+                    ("LABEL", LWNTextHelper.ResolveText("LWN_ui_info_persona_bg", "Background")),
+                    ("VALUE", string.IsNullOrEmpty(memory.BackgroundStory) ? LWNTextHelper.ResolveText("LWN_ui_info_none", "None") : memory.BackgroundStory)));
+                // 本地化：LWN_ui_info_persona_line（人设行）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_ui_info_persona_line", "{LABEL}: {VALUE}",
+                    ("LABEL", LWNTextHelper.ResolveText("LWN_ui_info_persona_personality", "Personality")),
+                    ("VALUE", string.IsNullOrEmpty(memory.Personality) ? LWNTextHelper.ResolveText("LWN_ui_info_none", "None") : memory.Personality)));
+                // 本地化：LWN_ui_info_persona_line（人设行）
+                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_ui_info_persona_line", "{LABEL}: {VALUE}",
+                    ("LABEL", LWNTextHelper.ResolveText("LWN_ui_info_persona_specialty", "Specialty")),
+                    ("VALUE", string.IsNullOrEmpty(memory.Specialty) ? LWNTextHelper.ResolveText("LWN_ui_info_none", "None") : memory.Specialty)));
+                sb.AppendLine();
+
+                // 5. 大事记（方案 N，≤12 条）
+                var important = memory.SnapshotImportantEvents();
+                if (important.Count > 0)
+                {
+                    // 本地化：LWN_ui_info_mem_important（记忆段：大事记标题）
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_important", "Milestones") + $" ({important.Count})");
+                    foreach (var evt in important)
+                    {
+                        if (!string.IsNullOrEmpty(evt)) sb.AppendLine("- " + evt);
+                    }
+                    sb.AppendLine();
+                }
+
+                // 6. 委托记录（结构化历史）
+                var quests = memory.SnapshotQuestHistory();
+                if (quests.Count > 0)
+                {
+                    // 本地化：LWN_ui_info_mem_quests（记忆段：委托记录标题）
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_quests", "Commission Records") + $" ({quests.Count})");
+                    for (int i = quests.Count - 1; i >= 0; i--)
+                        sb.AppendLine("- " + quests[i].GetDisplaySummary());
+                    sb.AppendLine();
+                }
+
+                // 7. 重大新闻（外部注入）
+                if (!string.IsNullOrEmpty(memory.GlobalNews))
+                {
+                    // 本地化：LWN_ui_info_mem_news（记忆段：重大新闻标题）
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_news", "Global News"));
+                    sb.AppendLine(memory.GlobalNews);
+                    sb.AppendLine();
+                }
+
+                // 8. 事件传闻（调试视图：EventId + 感知严重度 + 描述，不按玩家相关性裁剪）
+                var known = memory.KnownEvents?.ToList();
+                if (known != null && known.Count > 0)
+                {
+                    // 本地化：LWN_ui_info_mem_rumors（记忆段：相关传闻标题）
+                    sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_rumors", "Rumors") + $" ({known.Count})");
+                    foreach (var evt in known.OrderByDescending(e => e.PerceivedSeverity))
+                    {
+                        string desc = "";
+                        try
+                        {
+                            var se = NewsSpreadSystem.Instance?.GetEventById(evt.EventId);
+                            if (se != null) desc = se.Description;
+                        }
+                        catch { }
+                        sb.AppendLine($"- [{evt.PerceivedSeverity:0.#}] {evt.EventId} {desc}");
+                    }
+                }
+                return sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[NPCInfo] 记忆调试视图构建失败: {ex.Message}");
+                return LWNTextHelper.ResolveText("LWN_ui_info_no_memory", "(Non-hero unit: no memory data)");
+            }
+        }
+
         public void ExecuteClose()
         {
             _onClose?.Invoke();
-        }
-
-        /// <summary>探查板「传信」：关闭信息板 → 打开 IM 并定位到与该 Hero 的私聊（需求 3：仅 Hero 可用）。</summary>
-        public void ExecuteSendMessage()
-        {
-            if (_hero == null) return;
-            var conv = ImChatManager.GetDirectConversation(_hero.StringId);
-            if (conv == null) return;
-            _onClose?.Invoke();
-            ImChatView.Open(conv);
         }
 
         // ================= Tab 切换逻辑 =================
@@ -207,25 +322,6 @@ namespace LivingWorldNpcs
         // ================= 属性定义 (Data Source Properties) =================
         [DataSourceProperty]
         public string TitleText { get; set; }
-
-        // ── IM 传信按钮（仅 Hero 可见，需求 3）──
-        private bool _isMessengerVisible;
-        [DataSourceProperty]
-        public bool IsMessengerVisible
-        {
-            get => _isMessengerVisible;
-            set
-            {
-                if (_isMessengerVisible != value)
-                {
-                    _isMessengerVisible = value;
-                    OnPropertyChangedWithValue(value, nameof(IsMessengerVisible));
-                }
-            }
-        }
-        [DataSourceProperty]
-        // 探查面板按钮：传信（仅 Hero 可见）
-        public string MessengerButtonLabel => LWNTextHelper.ResolveText("LWN_im_info_btn_message", "Send Message");
 
         // ── Tab 标签属性 ──
         [DataSourceProperty]

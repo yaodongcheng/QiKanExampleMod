@@ -1360,7 +1360,7 @@ namespace LivingWorldNpcs
 
                 bool executorWon = targetDown;
                 string playerName = Hero.MainHero.Name?.ToString() ?? "主公";
-                // ① 当事人确定性记忆（第一人称，LLM prompt 材料；走【近期回忆】不污染私聊 UI）
+                // ① 当事人确定性记忆（第一人称，LLM prompt 材料；走对话历史→LLM 总结进【近期回忆】，不污染私聊 UI）
                 var hero = (agent.Character as CharacterObject)?.HeroObject;
                 if (hero != null)
                     AllNpcMemoryManager.GetMemory(hero.StringId)?.RecordDynamicMemory(
