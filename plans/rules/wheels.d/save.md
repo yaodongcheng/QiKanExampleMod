@@ -71,3 +71,28 @@ dataStore.SyncData("lwn_theft_ledger", ref theftLedgerJson);
 **日志关键词**：`[SaveReadOnlyGuard]`（清除成功/失败）。
 
 **文件位置**：`Debug/SaveGuard.cs`（`SaveFileReadOnlyGuard.FileDriverSavePatch`，`PatchAll()` 自动注册）。
+
+
+---
+
+## 🔴 记忆存档读档周期（`AllNpcMemoryManager`）— 2026-08-21 实施
+
+**解决**：读档后未互动 NPC 的记忆静默丢失——`SerializeSlot` 只遍历 `_activeMemories`（static，新进程读档为空）→ 保存只写本会话互动过的 NPC → 未互动 NPC 记忆逐轮覆盖丢失（实机实证：147藏身处.sav party store 19.6KB 幸存、npc_mem 全空；频道消息在 store 而记忆无 = 本 bug）。
+
+**四件套**（对应 [plans/npc-memory-save-restore-fix.md](../../../plans/npc-memory-save-restore-fix.md) A/B/C/D）：
+1. **A 双源写回**：`SerializeSlot` = `_pendingRestores`（读档权威数据）优先写回 + `_activeMemories` 补写 + `seen` HashSet 防同 NPC 双写（`TryMergePendingRestore` 合并即移除 → pending/active 互斥）；`IsEmptyEntry` 双签名（NpcMemorySaveEntry / SingNpcMemorySystem 两套字段）。
+2. **B 读档清双字典**：`ResetActiveMemories(bool clearPendingRestores = true)`——SyncData IsLoading 分支**循环外**清双字典；**🔴 `CampaignEvents.OnGameLoadedEvent` 在 SyncData 之后触发，二次清空只能清 `_activeMemories`（`clearPendingRestores: false`）——清 pending = 读档记忆全丢**（实机 History=0 根因，2026-08-21）。事件名经反编译核实。
+3. **C 槽内排序**：`LastActivityOf`（历史/记忆最大时间戳）降序——GuardJson 结构感知截断"丢尾部 = 丢最老"语义成立。
+4. **D 读档钳制**：写回前 `ClampEntryToCap`（`CapsFor` 与 `ComputeCap` 同公式，save 时点 heat 可信）+ `RestoreFromSave` 末尾硬钳（动态 FIFO + 永久截断，无 LLM）——**钳制不能放 DeserializeSlot**（heat key 在 mem 槽之后反序列化，读档瞬间档位不可信，过度裁剪 = 数据丢失）。
+
+**🔴 锁纪律**：`_dictLock` 覆盖 `_activeMemories`/`_pendingRestores` 全部读写（GetMemory 查-建-加原子化——LLM 回调/IM 后台线程会并发写）；锁序 `_dictLock` → 实例 `_lock` 单向（防死锁）。
+
+**日志关键词**：`[NPCInfo-Mem]`（面板记忆快照）、`[ImChatStore]`（IM 打开频道状态）——对时间戳判断先后。
+
+---
+
+## 🔴 `save_inspect.py --keys` 大小显示不可靠 — 2026-08-21 实证
+
+**症状**：`--keys` 显示 `lwn_im_group_party (22B)` 实际 19,624B（49 条消息）、`lwn_npc_mem_20 (18B)` 实际 5,248B——疑似 key/值 entry 取错（key 与值成对相邻，--keys 取到了相邻 entry 大小）。
+
+**纪律**：排查存档内容一律用 `--dump=<key>`（按 key 定位值 entry，实测准确）；`--keys` 只用于看 key 是否存在。修复待办。

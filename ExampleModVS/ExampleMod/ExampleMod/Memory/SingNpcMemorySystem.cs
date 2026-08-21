@@ -85,8 +85,11 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>对话历史容量（轮数）：Hot 20 / Normal 10（现状）/ Cold 4。</summary>
-        public int MaxRecentHistoryCount => ComputeCap(20, 10, 4);
+        /// <summary>对话历史容量（轮数）：🔴 2026-08-21（用户裁定：太频繁）Hot 40 / Normal 20 / Cold 8——
+        /// 旧值 20/10/4 对聊天软件太紧：Cold 档每 4 条新消息就触发一次 LLM 总结。
+        /// 总结触发 = 超 2× 容量（显示区间 [X, 2X+1]：Hot 40~81 / Normal 20~41 / Cold 8~17），
+        /// 总结后回落到 X 条；全量历史 prompt 路径（GetPrompt_History_Memory_Events）已按最近 30 条截断防爆。</summary>
+        public int MaxRecentHistoryCount => ComputeCap(40, 20, 8);
 
         /// <summary>动态记忆容量（条数）：Hot 8 / Normal 5（现状）/ Cold 2。</summary>
         public int MaxDynamicMemoryCount => ComputeCap(8, 5, 2);

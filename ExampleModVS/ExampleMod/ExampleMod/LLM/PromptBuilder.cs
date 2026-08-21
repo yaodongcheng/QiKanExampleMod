@@ -220,15 +220,19 @@ namespace LivingWorldNpcs
                 sb.AppendLine($"{memory.GlobalNews}");
             }
 
-            // E. 近期对话历史
+            // E. 近期对话历史（🔴 2026-08-21：截断最近 30 条——容量翻倍（Hot 40/Normal 20/Cold 8）
+            // 后全量输出会到 80+ 条 ≈ 7000 token 超预算；respond 6 句路径不受影响，只保护全量路径）
             if (memory.RecentHistory.Count > 0)
             {
                 // 本地化：LWN_prompt_section_chat_history（近期对话段标题，双桶）
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_chat_history"));
 
-
-                foreach (var msg in memory.RecentHistory)
+                var history = memory.RecentHistory;
+                int from = Math.Max(0, history.Count - 30);
+                for (int i = from; i < history.Count; i++)
                 {
+                    var msg = history[i];
+                    if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
                     sb.AppendLine($"-{msg.Content}");
                 }
             }
