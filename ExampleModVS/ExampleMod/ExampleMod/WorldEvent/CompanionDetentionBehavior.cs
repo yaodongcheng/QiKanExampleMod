@@ -8,6 +8,7 @@ using TaleWorlds.CampaignSystem.Settlements;
 using TaleWorlds.Core;
 using TaleWorlds.Library;
 using TaleWorlds.Localization;
+using TaleWorlds.MountAndBlade;
 
 namespace LivingWorldNpcs
 {
@@ -57,6 +58,20 @@ namespace LivingWorldNpcs
                 inst._entries.Add(key);
                 DebugLogger.Log($"[CompanionDetention] 登记被关随从: {hero.Name} → {settlement.Name}（事件 {eventId ?? "?"}）");
             }
+        }
+
+        /// <summary>在押便捷判定（Hero 版）：非 null = 关在牢里（动作空间/执行守卫用，2026-08-21）。</summary>
+        public static bool IsDetained(Hero hero)
+        {
+            return hero != null && GetDetentionSettlement(hero) != null;
+        }
+
+        /// <summary>在押便捷判定（Agent 版，模板 NPC 无 Hero 恒 false——在押的都是 Hero 随从）。</summary>
+        public static bool IsDetained(Agent agent)
+        {
+            if (agent == null) return false;
+            var hero = (agent.Character as CharacterObject)?.HeroObject;
+            return IsDetained(hero);
         }
 
         /// <summary>

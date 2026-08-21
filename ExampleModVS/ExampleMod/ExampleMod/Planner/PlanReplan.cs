@@ -52,6 +52,9 @@ namespace LivingWorldNpcs
                 string intent = intentType;
                 // 世界观段切片（🔴 主线程现取——Task.Run 内构建 prompt 禁碰引擎对象）
                 string worldSection = WorldBackgroundProvider.GetWorldSection(owner);
+                // 🔴 2026-08-21（在押词表裁剪）：主线程判定在押（Campaign 数据主线程安全），
+                // Task.Run 内用裁剪后的词表——在押执行者的 replan 同样选不到移动动作
+                bool detained = CompanionDetentionBehavior.IsDetained(owner);
 
                 _ = Task.Run(async () =>
                 {
@@ -64,7 +67,7 @@ namespace LivingWorldNpcs
                             "你是一名随从。计划上次出了意外，需要你重新想办法。",
                             history,
                             PlanCommandFlow.IntentTableForPrompt(),
-                            PlanCommandFlow.GrammarForPrompt(),
+                            PlanCommandFlow.GrammarForPrompt(detentionFiltered: detained),
                             worldSection: worldSection);
                         string json = await LLMService.Instance.ChatAsync(prompt, 4000, true, 0.4f, disableReasoning: true);
                         response = JsonConvert.DeserializeObject<PlanResponse>(LLMService.CleanJson(json));

@@ -4281,6 +4281,8 @@
     <string id="LWN_npc_steal_fail_roll" text="{NAME} found nothing on {TARGET}. (Rolled {ROLL} vs threshold {THRESHOLD})" />
     <string id="LWN_npc_steal_impossible" text="{NAME} could not get behind {TARGET} to make a move." />
     <string id="LWN_npc_steal_interrupted" text="{NAME} was seen and backed off without making a move." />
+    <string id="LWN_npc_steal_interrupted_witness" text="{NAME} was spotted by {WITNESS} and backed off without making a move." />
+    <string id="LWN_npc_steal_interrupted_target" text="{NAME} was noticed by {TARGET} and backed off without making a move." />
     <string id="LWN_npc_steal_equip_fail" text="{NAME} tried to disarm {TARGET}, but {TARGET} noticed!" />
     <!--  2026-08-19 (user decision: hesitation monologue in the nearby channel when the NPC cannot move) -->
     <string id="LWN_npc_steal_monologue_spotted" text="({NAMES} keeps watching me… I can't get behind him.)" />

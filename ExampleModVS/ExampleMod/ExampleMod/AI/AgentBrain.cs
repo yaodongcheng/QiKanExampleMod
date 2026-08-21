@@ -574,7 +574,22 @@ namespace LivingWorldNpcs
                 if (Owner == victim)
                 {
                     // 受害者本人：任何人被打都反抗（含玩家侵害友方时受害者反抗——不豁免）
-                    shouldHelp = true;
+                    // 🔴 2026-08-20 用户裁定（同阵营误伤不反击）：攻击者非玩家且与我同阵营
+                    // （同队/同家族/同王国，走 FriendlinessHelper.IsFriendlyBetween 共享管线）→
+                    // 不反击，除非有明确攻击意图（引擎索敌锁定我 = 故意打我；误伤刮擦时锁的是
+                    // 别人——实机：帝国熟练步兵与随从互殴的挥砍刮到帝国具装骑兵，骑兵被煽动反击）。
+                    // 玩家攻击同阵营的照旧反击（下方 playerAttackedSelf 分支，不受本豁免影响）。
+                    if (attacker != Agent.Main
+                        && FriendlinessHelper.IsFriendlyBetween(attacker, Owner)
+                        && attacker.GetTargetAgent() != Owner)
+                    {
+                        DebugLogger.Log($"[Brain-Chivalry] {Owner.Name}(Idx={Owner.Index}) 同阵营误伤（{attacker.Name} 未锁我为目标），不反击");
+                        shouldHelp = false;
+                    }
+                    else
+                    {
+                        shouldHelp = true;
+                    }
                 }
                 //护卫模式下，领导被攻击（NPC 领袖的贴身护卫，与友方判定无关）
                 else if (Leader != null && victim == Leader )

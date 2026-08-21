@@ -819,21 +819,28 @@ namespace LivingWorldNpcs
                     // 前面，LLM 挑目标天然选列表头部 = 远处对象（实机：3 个候选全 180m+，而
                     // 23~24m 处的弓箭手/重装骑兵/军团步兵排在后面被无视）。近→远排序（以 self
                     // 为基准），最近的士兵排最前，LLM 优先看到身边的。
+                    // 🔴 2026-08-21（M4 风险排序补全，用户裁定）：纯距离排序升级为
+                    // rankScore = 距离 + 风险分×K 综合排序（TargetRiskEvaluator：3m 目击者/视线/
+                    // 站位/战力四维整数计分）——低风险近目标排最前，高风险近目标（守卫环伺/贴墙/
+                    // 战力悬殊）被压到更远的低风险候选之后；每行尾追加等级词（低/中/高）。
+                    // 🔴 2026-08-21（M4 明细讲解）：行尾升级为「等级 + 紧凑明细」（身边几人/被谁盯/
+                    // 身后无位/战力悬殊）——玩家问"这些士兵怎么样"时随从能逐人讲解（按钮链仍只标等级，
+                    // 见 TargetRiskEvaluator.DetailSuffix 注释）。
+                    bool stealCtx = TargetRiskEvaluator.IsStealContext(cmd);
+                    List<TargetRiskEvaluator.TargetAssessment> assessments = null;
                     try
                     {
-                        targetCandidates.Sort((x, y) =>
-                        {
-                            if (x?.Agent == null || y?.Agent == null) return 0;
-                            return x.Agent.Position.DistanceSquared(self.Position)
-                                .CompareTo(y.Agent.Position.DistanceSquared(self.Position));
-                        });
+                        assessments = TargetRiskEvaluator.AssessAll(snap, self, targetCandidates,
+                            ci => ci?.Agent != null ? ci.Agent.Position.Distance(self.Position) : 0f, stealCtx);
+                        TargetRiskEvaluator.SortByRank(assessments);
                     }
-                    catch { }
+                    catch (Exception ex) { DebugLogger.Log($"[RiskScene] 候选风险评估失败（回落距离序）: {ex.Message}"); }
                     // 本地化：候选目标段标题（LWN_risk_section_target_candidates）
                     sb.AppendLine(LWNTextHelper.ResolveText("LWN_risk_section_target_candidates",
                         "【Target candidates】(Your order matches several people here — do NOT pick one yourself; keep the target as a type and let the lord choose via questions in the plan round)"));
-                    foreach (var info in targetCandidates)
+                    foreach (var a in assessments ?? new List<TargetRiskEvaluator.TargetAssessment>())
                     {
+                        var info = a.Info;
                         if (info?.Agent == null) continue;
                         // 🔴 2026-08-19（统一标记格式）：GetDisplayName = Hero 原名 / 模板「名字#Index」
                         //（无空格，与 HUD/交互区/附近频道/@预填 同构）——不再用 [ #N ] 括号自造格式
@@ -846,12 +853,17 @@ namespace LivingWorldNpcs
                         string rel = DescribeTargetRelative(self, info.Agent);
                         bool moving = info.Agent.Velocity.LengthSquared > 0.25f;
                         // 本地化：LWN_risk_body_line_moving / LWN_risk_body_line_still（目标走动/静止状态行，双桶）
+                        // 🔴 2026-08-21（M4）：行尾追加「等级 + 紧凑明细」——玩家问候选情况时逐人讲解的依据
+                        string detailSuf = TargetRiskEvaluator.DetailSuffix(a, stealCtx);
                         sb.AppendLine(moving
                             // 本地化：LWN_risk_body_line_moving（双桶）
-                            ? LWNTextHelper.ResolveCompound("LWN_risk_body_line_moving", ("NAME", cName), ("REL", rel))
+                            ? LWNTextHelper.ResolveCompound("LWN_risk_body_line_moving", ("NAME", cName), ("REL", rel)) + detailSuf
                             // 本地化：LWN_risk_body_line_still（双桶）
-                            : LWNTextHelper.ResolveCompound("LWN_risk_body_line_still", ("NAME", cName), ("REL", rel)));
+                            : LWNTextHelper.ResolveCompound("LWN_risk_body_line_still", ("NAME", cName), ("REL", rel)) + detailSuf);
                     }
+                    // 🔴 2026-08-21（M4 风险排序补全）：段尾纪律句——LLM 优先低风险、全场高风险如实上报
+                    // 本地化：LWN_risk_body_tier_discipline（双桶）
+                    sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_risk_body_tier_discipline"));
                     sb.AppendLine();
                 }
                 // ── 目标段（解析到目标才给；目标在走动 → 时效声明）──
@@ -872,11 +884,16 @@ namespace LivingWorldNpcs
                     // 移动状态（RuntimeWorldState.cs:285 同口径：Velocity.LengthSquared > 0.25f = 走动中）
                     bool moving = target.Velocity.LengthSquared > 0.25f;
                     // 本地化：LWN_risk_body_line_moving / LWN_risk_body_line_still（目标走动/静止状态行，双桶）
+                    // 🔴 2026-08-21（M4）：目标行尾追加风险等级词——回复轮 LLM 的 risk_verdict 有实据，
+                    // 不再凭断言「落单」（实机：23 候选纯距离排列，LLM 谎称落单选中后被目击）
+                    string tierSuf = TargetRiskEvaluator.TierSuffix(TargetRiskEvaluator.Assess(
+                        snap, self, targetInfo, self.Position.Distance(target.Position),
+                        TargetRiskEvaluator.IsStealContext(cmd)).Tier);
                     sb.AppendLine(moving
                         // 本地化：LWN_risk_body_line_moving（双桶）
-                        ? LWNTextHelper.ResolveCompound("LWN_risk_body_line_moving", ("NAME", tName), ("REL", rel))
+                        ? LWNTextHelper.ResolveCompound("LWN_risk_body_line_moving", ("NAME", tName), ("REL", rel)) + tierSuf
                         // 本地化：LWN_risk_body_line_still（双桶）
-                        : LWNTextHelper.ResolveCompound("LWN_risk_body_line_still", ("NAME", tName), ("REL", rel)));
+                        : LWNTextHelper.ResolveCompound("LWN_risk_body_line_still", ("NAME", tName), ("REL", rel)) + tierSuf);
                     // 目标身边 3 米内人数
                     int nearby = 0;
                     foreach (var info in snap.Agents)

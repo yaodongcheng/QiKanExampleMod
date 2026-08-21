@@ -235,9 +235,12 @@ namespace LivingWorldNpcs
             for (int i = _live.Count - 1; i >= 0; i--)
             {
                 var it = _live[i];
-                if (it.Button.ParentWidget == null)
+                // 屏幕/树已销毁 → 自清理。🔴 Context 判据不可省：销毁窗口期（EventManager.OnFinalize
+                // 已置 _widgetContainers=null 但 widget 树尚未拆完）ParentWidget 仍非 null，
+                // 此时设 IsVisible 会触发 RefreshState → RegisterWidgetForEvent NRE（2026-08-21 实机
+                // 家族屏设军需官点完成后崩；详情见下方 catch 注释）。
+                if (it.Button.ParentWidget == null || it.Button.Context == null)
                 {
-                    // 屏幕/树已销毁 → 自清理
                     if (_hoverOn == it.Button) { MBInformationManager.HideInformations(); _hoverOn = null; }
                     _live.RemoveAt(i);
                     continue;
@@ -259,7 +262,21 @@ namespace LivingWorldNpcs
                     }
                     catch { }
                 }
-                it.Button.IsVisible = anchorVisible && !isPlayerSelf && Settings.Instance.PlotEnabled;
+                try
+                {
+                    it.Button.IsVisible = anchorVisible && !isPlayerSelf && Settings.Instance.PlotEnabled;
+                }
+                catch (Exception ex)
+                {
+                    // 🔴 2026-08-21（实机）：家族屏设军需官点完成后崩。屏幕销毁窗口期
+                    // EventManager.OnFinalize 已置 _widgetContainers=null，树上残留 widget 的
+                    // RefreshState → RegisterWidgetForEvent NRE。树已死 → 自清理；若只是面板
+                    // 刷新重建（非关屏），0.3s 后 Scan 幂等重注入，无需每帧重试。
+                    if (_hoverOn == it.Button) { MBInformationManager.HideInformations(); _hoverOn = null; }
+                    _live.RemoveAt(i);
+                    DebugLogger.Log($"[SecretLetter] 可见性设置失败（树销毁窗口），自清理: {ex.Message}");
+                    continue;
+                }
 
                 // hover 提示（手动 hit-test，ImChatView 缩略模式同款）
                 bool over = it.Button.IsVisible && IsPointInRect(Input.MousePositionPixel, it.Button.GlobalPosition, it.Button.Size);

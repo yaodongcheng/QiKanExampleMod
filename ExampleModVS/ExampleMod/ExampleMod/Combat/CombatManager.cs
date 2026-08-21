@@ -365,6 +365,13 @@ namespace LivingWorldNpcs
             // 2. 模型选择：定居点场景 + 任一方是玩家侧（玩家/友方/已在侧容器）→ 侧容器模型
             int sideA = SideOf(agentA);
             int sideB = SideOf(agentB);
+            // 🔴 2026-08-20 未知侧按对手推导（误伤反击/见义勇为等新参战者 side=0 时）：
+            // 进哪边由对手决定——对手在玩家侧 → 自己进敌方；对手在敌方侧 → 自己进玩家侧。
+            // 旧逻辑把 0 一律映射敌方容器，只在"新参战者打玩家侧"时碰巧正确；新参战者攻击
+            // 已在敌方容器的目标时双方落同一队 → 引擎视作友军，锁了目标也打不出（实机：
+            // 帝国具装骑兵 Chivalry 反击帝国熟练步兵，双双落敌方容器干瞪眼不打人）。
+            if (sideA == 0 && sideB != 0) sideA = sideB == 1 ? 2 : 1;
+            if (sideB == 0 && sideA != 0) sideB = sideA == 1 ? 2 : 1;
             if (!Settings.Instance.IsInteractionDisabled() && (sideA != 0 || sideB != 0))
             {
                 StartSideFight(mission, agentA, agentB, sideA, sideB);

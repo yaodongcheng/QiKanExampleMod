@@ -605,3 +605,44 @@ using (var stream = req.GetRequestStream())
 - 辨识三步：① 看调用堆栈顶部帧是不是当前方法（多半不是）② 看 $exception 是否存在（无 = 不是该帧异常）③ F5 继续看是否正常（正常 = 无 bug）。
 - 第四步（最终确认）：**脱离调试器（直接 Steam 启动）复测**——正常 = 100% 确认与代码无关（2026-08-08 实测）。
 - 规避：VS 异常设置只留 User-unhandled；代码侧 catch 全打日志——日志无痕 = 无异常。
+
+---
+
+## 屏幕销毁窗口期给 widget 设 IsVisible → GauntletUI 内部 NRE（`_widgetContainers` 已置 null）
+
+**症状**（实机 2026-08-21）
+- `System.NullReferenceException`，`Source=TaleWorlds.GauntletUI`，栈：
+  ```
+  EventManager.RegisterWidgetForEvent(ContainerType, Widget)
+  → ImageWidget.RefreshState → ButtonWidget.RefreshState
+  → Widget.set_IsHidden → Widget.set_IsVisible
+  → LivingWorldNpcs.SecretLetterButtonInjector.UpdateLive（第 262 行，`it.Button.IsVisible = ...`）
+  ```
+- 触发：家族屏给随从设置军需官 → 点「完成」→ 屏幕/面板收尾销毁时崩。
+- 前置征兆日志（同帧）：`[SecretLetter] 家族 tableau 定位成功但 CharStringId 读不到: tableau=False`——详情面板已从树中消失，销毁已开始。
+
+**根因**（反编译 `TaleWorlds.GauntletUI.dll` 确认）
+
+```
+EventManager.OnFinalize()（UIContext/GauntletLayer 销毁，屏幕关闭时触发）
+  └─ _widgetContainers = null                 // 容器字典整体置空
+
+其后窗口期内（widget 树尚未拆完）：
+it.Button.IsVisible = ...                     // 注入型 UI 的每帧可见性同步
+  └─ IsHidden setter → RefreshState()
+        └─ ButtonWidget.RefreshState → ImageWidget.RefreshState → SetState(...)
+              └─ EventManager.RegisterWidgetForEvent(Update, widget)
+                    └─ _widgetContainers[type].Add(widget)   // 已 null → NRE
+```
+
+- 关键盲点：销毁窗口期 widget 的 **`ParentWidget` 仍然非 null**（树拆到一半），`ParentWidget == null` 存活检查会被骗过。
+- 可靠判据：`Widget.EventManager => Context.EventManager`（反编译确认），`Context == null` = 已脱离活树。
+
+**规避**
+- 注入型 UI 每帧操作 widget 属性前，存活检查加 `Context == null`：
+  ```csharp
+  if (btn.ParentWidget == null || btn.Context == null) { 自清理; continue; }
+  ```
+- 保险丝：会触发 `RefreshState` 的属性写入（IsVisible/IsHidden 等）用 try/catch 包裹——捕获 = 树已死 → 从注入列表自清理（含 hover 清理），**不要每帧重试**；若只是面板刷新（非关屏），节流 Scan 幂等重注入即可恢复。
+- 落地范例：`GUI/SecretLetterButtonInjector.cs` → `UpdateLive`（2026-08-21 实踩：家族屏设军需官点完成后崩）。
+- 判别口诀：**栈底是自己代码的 `IsVisible =` 赋值 + 栈顶是引擎 `RegisterWidgetForEvent` 内部 NRE = 屏幕销毁窗口期**——不是字段判空漏了，是别碰即将销毁的树。

@@ -93,12 +93,21 @@ namespace LivingWorldNpcs
                 // L2 领主 → persuade_join/order_march；L3 国王 → propose_war/negotiate_peace；
                 // 村民/流浪者无政治动作（身份过滤验证：动作空间无 propose_war）
                 if (action.IdentityGated && !action.IsValid(attacker, defender, agent)) continue;
+                // 🔴 2026-08-21（用户裁定：在押随从无法执行任何移动类操作）：移动门控动作——
+                // attacker 在押（CompanionDetentionBehavior）→ 闲聊空间不注入（LLM 看不到就没法选；
+                // 计划轮可能绕过动作空间 → 执行侧另有 HandleAction/PlanExecutor 双层守卫）
+                if (action.DetentionGated && CompanionDetentionBehavior.IsDetained(attacker)) continue;
                 // 本地化：LWN_action_desc_<code>（动作描述，ActionRegistry.Description 运行时读 XML 双桶）
                 sb.AppendLine($"- \"{action.Code}\": {action.Description}");
             }
             // 动作空间纪律段（LLM 输入）
             string rule = LWNTextHelper.ResolvePrompt("LWN_im_action_rule");
             if (!string.IsNullOrEmpty(rule)) sb.AppendLine(rule);
+            // 🔴 2026-08-21（用户裁定）：自我能力认知段——被问「你能做什么/能不能办某件事」时
+            // 照列表如实回答（世界内语言，禁念代码/数值）；列表没有 = 办不到 + 说明原因。
+            // 防 LLM 把动作空间当纯指令段（只用于选码），被问能力时只能角色扮演编借口（实机：阿速甘答「钱花完了」）
+            string selfKnow = LWNTextHelper.ResolvePrompt("LWN_im_action_self_knowledge");
+            if (!string.IsNullOrEmpty(selfKnow)) sb.AppendLine(selfKnow);
             return sb.ToString();
         }
 
@@ -207,6 +216,13 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 冷却中（{ak}→{dk}）→ 降级 NONE");
                     return;
                 }
+            }
+            // 🔴 2026-08-21（用户裁定：在押随从无法执行任何移动类操作）：执行守卫——attacker 在押
+            // + 移动门控动作 → 降级 NONE（LLM 可能经计划轮/口嗨路径绕过动作空间注入，此处兜底）
+            if (actionDef.DetentionGated && CompanionDetentionBehavior.IsDetained(attacker))
+            {
+                DebugLogger.Log($"[ActionHandler] 动作 {actionCode} 在押（{attacker?.Name}）→ 降级 NONE");
+                return;
             }
             if (actionDef.IsValid(attacker, defender, agent))
             {

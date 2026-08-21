@@ -334,22 +334,33 @@ namespace LivingWorldNpcs
             string aliasRole = info.Role != null ? NormalizeTargetAlias(info.Role) : "";
             string aliasId = info.Agent.Character != null ? NormalizeTargetAlias(info.Agent.Character.StringId) : "";
             string aliasOcc = info.Occupation != null ? NormalizeTargetAlias(info.Occupation) : "";
-            // ① 精确匹配（角色/显示名/StringId）
+            // 🔴 2026-08-21（实机：玩家点名自己「来我这里」→ 计划轮注入矛盾——【目标指认】要 target 写
+            // 努勒丹、【目标候选】却判「努勒丹无匹配」，LLM 只能回「这里没有叫努勒丹的人」）：
+            // Character.Name（角色真名）层补上——FindAgent（执行期/单目标）第③层一直匹配 Character.Name，
+            // MatchTargetInfo 却只有 DisplayName/StringId——玩家 [player] 条目 DisplayName="玩家"、
+            // StringId="main_hero"，真名「努勒丹」匹配不上 → FindAgentCandidates 误判 0 匹配 →
+            // ImCommandFlow 无匹配诚实段误触发。补齐后两口径一致。
+            string aliasCharName = info.Agent?.Character?.Name != null
+                ? NormalizeTargetAlias(info.Agent.Character.Name.ToString()) : "";
+            // ① 精确匹配（角色/显示名/StringId/角色真名）
             if ((aliasRole.Length > 0 && aliasRole == lower)
                 || (aliasName.Length > 0 && aliasName == lower)
-                || (aliasId.Length > 0 && aliasId == lower))
+                || (aliasId.Length > 0 && aliasId == lower)
+                || (aliasCharName.Length > 0 && aliasCharName == lower))
                 return true;
             // ② 子串方向 B：场景名包含查询词（「守卫」⊂「监狱守卫」；「步兵」⊂「帝国资深步兵」）
             if ((aliasId.Length > 0 && aliasId.Contains(lower))
                 || (aliasOcc.Length > 0 && aliasOcc.Contains(lower))
                 || (aliasName.Length > 0 && aliasName.Contains(lower))
-                || (aliasRole.Length > 0 && aliasRole.Contains(lower)))
+                || (aliasRole.Length > 0 && aliasRole.Contains(lower))
+                || (aliasCharName.Length > 0 && aliasCharName.Contains(lower)))
                 return true;
             // ③ 子串方向 A：查询词（命令文本）包含场景名（命令点名「染工勒洛西翁」）
             if (rawQuery != null && rawQuery.Length > 0
                 && ((aliasName.Length > 0 && rawQuery.IndexOf(aliasName, StringComparison.OrdinalIgnoreCase) >= 0)
                     || (aliasId.Length > 0 && rawQuery.IndexOf(aliasId, StringComparison.OrdinalIgnoreCase) >= 0)
-                    || (aliasRole.Length > 0 && rawQuery.IndexOf(aliasRole, StringComparison.OrdinalIgnoreCase) >= 0)))
+                    || (aliasRole.Length > 0 && rawQuery.IndexOf(aliasRole, StringComparison.OrdinalIgnoreCase) >= 0)
+                    || (aliasCharName.Length > 0 && rawQuery.IndexOf(aliasCharName, StringComparison.OrdinalIgnoreCase) >= 0)))
                 return true;
             // ④ 类型词表：命令含口语类型词，且场景名包含规范词（「士兵」→「帝国步兵」）
             foreach (var (words, canonical) in TargetTypeKeywords)

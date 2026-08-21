@@ -399,6 +399,7 @@
     <Compile Include="Planner\PlanExecutor.cs" />
     <Compile Include="Planner\InlineSteps.cs" />
     <Compile Include="Planner\RiskAssessor.cs" />
+    <Compile Include="Planner\TargetRiskEvaluator.cs" />
     <Compile Include="Planner\ReactiveAgent.cs" />
     <Compile Include="Planner\PlanReplan.cs" />
     <!-- Properties -->

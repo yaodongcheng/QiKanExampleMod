@@ -575,7 +575,8 @@ namespace LivingWorldNpcs
         public void OnEnd(Agent agent)
         {
             // 仅卡死兜底才瞬移；正常到达保留原位（几十厘米偏差肉眼不可见，瞬移反而突兀）
-            if (_teleportOnEnd && agent.IsActive())
+            // 🔴 2026-08-21（在押守卫）：在押随从禁止瞬移——移动卡死 → TeleportToPosition = 越狱路径
+            if (_teleportOnEnd && agent.IsActive() && !CompanionDetentionBehavior.IsDetained(agent))
                 agent.TeleportToPosition(_targetPos);
             // 朝向守卫：逃跑/回岗传 Vec2.Zero（无意义方向）→ 跳过，避免零向量下发给引擎（解锁后原版 AI 接管）
             if (_targetDir.LengthSquared > 0.01f)
@@ -929,7 +930,9 @@ namespace LivingWorldNpcs
             _isMoving = false;
             // 🔴 2026-08-12：卡死兜底瞬移移到 OnEnd（对齐 MoveToPositionAction——正常到达不瞬移，
             // 卡墙/寻路死角才瞬移；跟走模式/持续跟随永不标记 _teleportOnEnd）
-            if (_teleportOnEnd && agent.IsActive() && _target != null && _target.IsActive())
+            // 🔴 2026-08-21（在押守卫）：在押随从禁止瞬移（越狱路径）
+            if (_teleportOnEnd && agent.IsActive() && _target != null && _target.IsActive()
+                && !CompanionDetentionBehavior.IsDetained(agent))
                 agent.TeleportToPosition(_currentIdealPosition);
             // 不瞬移：NPC 已在 stopDistance 内（ComeHere 默认 0.5m），
             // 几十厘米的偏差肉眼不可见，瞬移反而比到位的视觉跳变更突兀。

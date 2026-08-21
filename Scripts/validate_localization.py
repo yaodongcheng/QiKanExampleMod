@@ -80,7 +80,7 @@ KNOWN_PLACEHOLDERS = {
     "REMAINING", "REPLY", "ROLE", "ROLL", "SCENE", "SELF", "SETTLEMENT",
     "SEV", "SEVERITY", "SKILL", "SLOT", "SOURCES", "SPOUSE", "STEAL", "STEP",
     "TAIL", "TARGET_NAME", "TASK_DESC", "TASK_GIVEN", "TASK_MSG",
-    "TCONTROL", "TERMS", "TEXT", "TGT", "THEFT", "TIER", "TIERDESC",
+    "TCONTROL", "TERMS", "TEXT", "TGT", "THEFT", "TIER", "TIERDESC", "DETAILS",
     "TIME", "TIMES", "TITLE", "TOOLTIP", "TOTAL", "TROOP", "TRUSTDELTA",
     "TRUSTDESC", "TVIGOR", "TYPE", "TYPES", "UNIT", "URL", "VALUE", "VERB",
     "VICTIM_LINE", "VIGOR", "WAGERED", "WEIGHT", "WHERECLAUSE", "WIFE",
@@ -207,6 +207,7 @@ def check_cs_no_hardcoded_cjk():
         'WorldEventSimulator.cs',# Debug log only
         'InteractionController.cs', # Already migrated / LLM prompts only
         'WorldFactProvider.cs', # LLM prompt assembly (SceneAwareness / RiskScene) only
+        'TargetRiskEvaluator.cs', # 风险词表（内部匹配关键词）+ 候选行等级词经 LWN key 本地化（铁律 13）
         # 🔴 2026-08-14 基线清理（A 检查）：以下文件 CJK 全部为 LLM prompt 段 / 记忆行模板 /
         # IM 事件消息 / 内部判定词（玩家可见文本已全部走 LWN key）——铁律 13 LLM prompt 豁免
         'AgentBrain.cs',        # 记忆行模板（目击/攻击叙述，进 LLM prompt）
