@@ -33,7 +33,7 @@ namespace LivingWorldNpcs
             HeroId = heroId;
             RecentHistory = m.RecentHistory != null ? new List<ChatMessage>(m.RecentHistory) : new List<ChatMessage>();
             DynamicMemories = m.DynamicMemories != null
-                ? m.DynamicMemories.Select(x => new RecentMemory(x.Content, x.TimeStamp_Start, x.TimeStamp_End, x.CampaignDay)).ToList()
+                ? m.DynamicMemories.Select(x => new RecentMemory(x.Content, x.TimeStamp_Start, x.TimeStamp_End, x.CampaignDay) { SeqId = x.SeqId }).ToList()  // 拷贝时保留调试编号（跨存档稳定）
                 : new List<RecentMemory>();
             PermanentMemory = m.PermanentMemory?.ToString() ?? "";
             BackgroundStory = m.BackgroundStory ?? "";

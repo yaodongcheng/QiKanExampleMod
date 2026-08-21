@@ -379,7 +379,7 @@ namespace LivingWorldNpcs
         /// 刚才(&lt;0.25 天) / 今天(&lt;1) / 昨天(&lt;2) / 几天前(&lt;4) / 上周(&lt;8) / 上个月(&lt;30) /
         /// 几个月前(&lt;90) / 很久以前(其余)。CampaignDay==0（旧存档）→ 空串不标（契约兜底，宁模糊不编数）。
         /// </summary>
-        private static string RelativeDayPrefix(float campaignDay)
+        public static string RelativeDayPrefix(float campaignDay)
         {
             if (campaignDay <= 0f) return "";
             try

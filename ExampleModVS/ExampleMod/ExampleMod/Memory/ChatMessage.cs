@@ -1,10 +1,31 @@
 ﻿using Newtonsoft.Json;
 using System;
+using System.Threading;
 
 namespace LivingWorldNpcs
 {
     public class ChatMessage
     {
+        /// <summary>
+        /// 会话内唯一调试编号（🔴 2026-08-21）：构造时自增分配；存档随 JSON 保留；
+        /// 读档恢复后调 <see cref="EnsureSeqCounterAbove"/> 钳制计数器防进程重启后与新条目撞号。
+        /// 用途：区分"同一编号 UI 显示多次"（UI bug）vs "不同编号内容重复"（重复写入）。
+        /// 旧档条目无此字段 → 0（显示 #0）。
+        /// </summary>
+        public long SeqId { get; set; }
+
+        private static long _seqCounter;
+
+        public static void EnsureSeqCounterAbove(long id)
+        {
+            while (true)
+            {
+                long cur = Interlocked.Read(ref _seqCounter);
+                if (id < cur) return;
+                if (Interlocked.CompareExchange(ref _seqCounter, id + 1, cur) == cur) return;
+            }
+        }
+
         public string Role { get; set; } // "user" or "assistant"（自由字符串；NPC-NPC 对话 = 对方/自己）
         public string Content { get; set; }  // 惯例拼"说话人名字: 台词"（prompt 全量输出，LLM 自行理解说话人）
 
@@ -26,6 +47,7 @@ namespace LivingWorldNpcs
             Content = content;
             SpeakerId = speakerId;
             TimeStamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            SeqId = Interlocked.Increment(ref _seqCounter);
             try { CampaignDay = TaleWorlds.CampaignSystem.Campaign.Current != null ? (float)TaleWorlds.CampaignSystem.CampaignTime.Now.ToDays : 0f; } catch { CampaignDay = 0f; }
         }
     }
