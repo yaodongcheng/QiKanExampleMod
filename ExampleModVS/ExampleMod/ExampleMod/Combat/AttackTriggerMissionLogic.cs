@@ -137,6 +137,26 @@ namespace LivingWorldNpcs
             }
         }
 
+        /// <summary>竞技场战斗判定（友方保护放行，2026-08-21）：竞技场大赛/决斗（Tournament/Duel MissionMode）
+        /// 或竞技场练习（arena_ 场景，Mode=StartUp 不在 Mode 过滤内）。
+        /// 🔴 为什么放行：竞技场队伍按轮次随机重组——社交关系（Party/Clan/好感）≠ 竞技场队伍，
+        /// 同家族/高好感的对手会被 IsFriendlyToPlayer 误判友方 → 友方保护把伤害无效化（实机 bug：
+        /// 竞技场里打"自己人"对手不受伤害）。口径与 Settings.IsInteractionDisabled() 的竞技场部分
+        /// 一致（Mode + arena_ 前缀 + ArenaPracticeFightMissionController behavior，后者 #if 兜底
+        /// 1.2.12 无 SandBox 引用）。</summary>
+        private static bool IsArenaCombat()
+        {
+            if (Mission.Current == null) return false;
+            if (Mission.Current.Mode == MissionMode.Duel || Mission.Current.Mode == MissionMode.Tournament) return true;
+            if (Mission.Current.SceneName?.StartsWith("arena_") == true) return true;
+#if !MB2_V1212
+            // 竞技场练习 behavior 标志语义最准（覆盖 arena_ 前缀判不到的变体场景）；
+            // 前缀兜底低版本（1.2.12 无 SandBox 引用）
+            if (Mission.Current.HasMissionBehavior<SandBox.Missions.MissionLogics.Arena.ArenaPracticeFightMissionController>()) return true;
+#endif
+            return false;
+        }
+
         /// <summary>友方保护拦截提示（反馈明确，铁律 13 本地化）：{NAME} 是自己人——你不能这么做。</summary>
         private static void ShowFriendlyBlockedHint(Agent target)
         {
@@ -351,8 +371,10 @@ namespace LivingWorldNpcs
             // 伤害无效化（镜像切磋虚拟血回血手法：引擎 HandleBlow 内 OnAgentHit 早于死亡判定，
             // 写回能吃掉致命一击）+ 冷却提示；不进入死亡登记/犯罪广播链。
             // 开关打开（允许对友方动手）→ 不拦，正常结算与后果。
+            // 竞技场（IsArenaCombat）→ 不拦：竞技场队伍按轮次随机重组，社交友方 = 场上的对手。
             if (attackerAgent?.IsMainAgent == true && affectedAgent != null && !affectedAgent.IsMainAgent
                 && !Settings.Instance.AllowHostileOnAllies
+                && !IsArenaCombat()
                 && FriendlinessHelper.IsFriendlyToPlayer(affectedAgent))
             {
                 affectedAgent.Health = MathF.Min(affectedAgent.Health + blow.InflictedDamage, affectedAgent.HealthLimit);
@@ -647,7 +669,10 @@ namespace LivingWorldNpcs
             // 🆕 友方保护：玩家攻击友方 → 不广播 event_agent_damaged
             // （NPC 攻击者不适用，条件自带 IsMainAgent；伤害无效化在 OnAgentHit）。
             // 开关打开（允许对友方动手）→ 广播照常（友方受害者/旁观者正常反应）。
-            if (attacker.IsMainAgent && !Settings.Instance.AllowHostileOnAllies && FriendlinessHelper.IsFriendlyToPlayer(victim))
+            // 竞技场（IsArenaCombat）→ 不拦：社交友方 = 场上对手（脑在 IsInteractionDisabled 下
+            // 不处理事件，广播无接收者消费，无害）。
+            if (attacker.IsMainAgent && !Settings.Instance.AllowHostileOnAllies
+                && !IsArenaCombat() && FriendlinessHelper.IsFriendlyToPlayer(victim))
             {
                 ShowFriendlyBlockedHint(victim);   // 反馈明确：拦截提示（2s 冷却，与 OnAgentHit 共享防刷屏）
                 return;
