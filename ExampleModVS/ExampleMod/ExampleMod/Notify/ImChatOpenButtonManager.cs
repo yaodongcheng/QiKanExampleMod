@@ -148,9 +148,9 @@ namespace LivingWorldNpcs
                 if (_layer != null && _layerOwnerScreen != null
                     && (ScreenManager.TopScreen == null
                         || _layerOwnerScreen != ScreenManager.TopScreen
-                        || _layer.IsFinalized))
+                        || V.LayerFinalized(_layer)))
                 {
-                    DebugLogger.Log($"[ImChatOpenButton] 层失效（owner={_layerOwnerScreen.GetType().Name} Top={ScreenManager.TopScreen?.GetType().Name ?? "null"} Finalized={_layer.IsFinalized}），重新挂载");
+                    DebugLogger.Log($"[ImChatOpenButton] 层失效（owner={_layerOwnerScreen.GetType().Name} Top={ScreenManager.TopScreen?.GetType().Name ?? "null"} Finalized={V.LayerFinalized(_layer)}），重新挂载");
                     Close();
                 }
                 if (visible && _layer == null)

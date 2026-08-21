@@ -838,5 +838,47 @@ namespace LivingWorldNpcs
             InventoryManager.OpenScreenAsLoot(itemRosters);
 #endif
         }
+
+        // ── UI 层死层判定 / 焦点设置 / 软键盘（2026-08-21，1.2.12 兼容）────────────────────────
+        // v1.2.12: Layer.Finalized / EventManager.SetWidgetFocused(w)（setter private）/
+        //          无软键盘 API（InputSystem.dll 无 OnScreenKeyboard 字样，二进制 grep 实锤）
+        // v1.3.0+: Layer.IsFinalized / EventManager.FocusedWidget 公开 setter / Input.IsOnScreenKeyboardActive
+        // 使用场景：IM 层归属迁移（IsFinalized 权威死层标志）、手柄焦点再固守 + CT/KT 聚焦输入框、
+        //          软键盘降级预案（1.2.12 恒 false = 无软键盘 → 十字键退出输入态路径照常）。
+
+        /// <summary>层是否已 Finalize（死层权威标志）。v1.2.12 属性名 Finalized，v1.3.0+ 改名 IsFinalized
+        ///（类 = ScreenLayer，两版本同名——GauntletLayer : ScreenLayer）。</summary>
+        public static bool LayerFinalized(TaleWorlds.ScreenSystem.ScreenLayer layer)
+        {
+#if MB2_GE_130
+            return layer.IsFinalized;
+#else
+            return layer.Finalized;
+#endif
+        }
+
+        /// <summary>设置 EventManager 焦点 widget。v1.2.12 公开 setter 不存在（private set），
+        /// 用 SetWidgetFocused（同语义：OnLoseFocus/OnGainFocus + 控制器激活时弹软键盘）；v1.3.0+ 用公开 setter。
+        /// Widget 类两版本都在 TaleWorlds.GauntletUI.BaseTypes 命名空间（TaleWorlds.GauntletUI 下无 Widget，
+        /// 1.2.12 编译实锤 CS0234）。</summary>
+        public static void SetFocusedWidget(TaleWorlds.GauntletUI.EventManager eventManager, TaleWorlds.GauntletUI.BaseTypes.Widget w)
+        {
+            if (eventManager == null) return;
+#if MB2_GE_130
+            eventManager.FocusedWidget = w;
+#else
+            eventManager.SetWidgetFocused(w);
+#endif
+        }
+
+        /// <summary>软键盘是否激活。v1.2.12 无此 API → 恒 false（1.2.12 无软键盘机制）。</summary>
+        public static bool IsOnScreenKeyboardActive()
+        {
+#if MB2_GE_130
+            return TaleWorlds.InputSystem.Input.IsOnScreenKeyboardActive;
+#else
+            return false;
+#endif
+        }
     }
 }
