@@ -4432,6 +4432,8 @@
     <string id="LWN_npc_steal_fail_roll" text="{NAME} 在 {TARGET} 身上没摸到东西。（掷点 {ROLL} vs 门槛 {THRESHOLD}）" />
     <string id="LWN_npc_steal_impossible" text="{NAME} 绕不到 {TARGET} 背后，没法下手。" />
     <string id="LWN_npc_steal_interrupted" text="{NAME} 被人看见，没敢下手，先撤了。" />
+    <string id="LWN_npc_steal_interrupted_witness" text="{NAME} 被 {WITNESS} 看见了，没敢下手，先撤了。" />
+    <string id="LWN_npc_steal_interrupted_target" text="{NAME} 被 {TARGET} 发现了，没敢下手，先撤了。" />
     <string id="LWN_npc_steal_equip_fail" text="{NAME} 想卸掉 {TARGET} 的装备，被 {TARGET} 察觉了！" />
     <!--  2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：括号 = 内心独白，显示在附近频道 -->
     <string id="LWN_npc_steal_monologue_spotted" text="（{NAMES}一直盯着我……绕不到他背后。）" />

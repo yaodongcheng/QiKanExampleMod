@@ -69,6 +69,57 @@ namespace LivingWorldNpcs
             return false;
         }
 
+        /// <summary>
+        /// 🔴 2026-08-21（M4 风险评估 + 铁律 18 共享管线）：目标背后可站立点探测——
+        /// 四候选逐级（正后 2.2m → 后左 45° 2.5m → 后右 45° 2.5m → 正后 3.5m），返回首个
+        /// V.NavMesh 可站立点。true = 存在可站立点（spot = 第一个）；false = 四候选均不可站
+        ///（spot = 未验证的默认正后 2.2m，仅作调用方兜底参考）。
+        /// 源实现迁自 Planner/InlineSteps.cs StealAttemptInlineState Behind 阶段——
+        /// 判定（TargetRiskEvaluator 风险评估）与结算（绕后执行）共享同一探测，禁止复制逻辑。
+        /// 主线程调用（引擎 Scene 只读主线程）。
+        /// </summary>
+        public static bool TryFindBehindSpot(Agent target, out Vec3 spot)
+        {
+            spot = Vec3.Zero;
+            if (target == null) return false;
+            try
+            {
+                Vec3 look = new Vec3(target.LookDirection.X, target.LookDirection.Y, 0f);
+                Vec3 back = -look;
+                back.z = 0f;
+                if (back.LengthSquared < 0.0001f) back = new Vec3(1f, 0f, 0f);
+                back = back.NormalizedCopy();
+                Vec3 targetPos = target.Position;
+                spot = targetPos + back * 2.2f;   // 兜底默认：正后方（不验证；调用方 8s 超时诚实报告）
+                var scene = Mission.Current?.Scene;
+                var candidates = new[]
+                {
+                    (back, 2.2f),
+                    (RotateDir(back, 45f), 2.5f),
+                    (RotateDir(back, -45f), 2.5f),
+                    (back, 3.5f),
+                };
+                foreach (var (dir, d) in candidates)
+                {
+                    Vec3 p = targetPos + dir * d;
+                    if (scene != null && !V.NavMesh(scene, p, out _)) continue;
+                    spot = p;
+                    return true;
+                }
+                return false;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>2D 平面旋转（绕 Z 轴，角度制）——绕后候选点偏转（后左/后右 45°）用。
+        /// 自 Planner/InlineSteps.cs 迁入共享（铁律 18）。</summary>
+        public static Vec3 RotateDir(Vec3 dir, float degrees)
+        {
+            float rad = MathF.PI * degrees / 180f;
+            float c = MathF.Cos(rad), s = MathF.Sin(rad);
+            return new Vec3(dir.x * c - dir.y * s, dir.x * s + dir.y * c, 0f);
+        }
+
         public static void SetPose(Agent agent, string actionId)
         {
             if (agent == null || string.IsNullOrEmpty(actionId))
@@ -563,10 +614,12 @@ namespace LivingWorldNpcs
             }
 
             // 6. 超时处理 (如果卡住了，瞬移最后一段距离)
+            // 🔴 2026-08-21（在押守卫）：在押随从禁止瞬移（移动卡死 → TeleportToPosition = 越狱路径）
 
             // 保持朝向瞬移
             Vec3 finalPos = targetVec;
-            npcAgent.TeleportToPosition(finalPos);
+            if (!CompanionDetentionBehavior.IsDetained(npcAgent))
+                npcAgent.TeleportToPosition(finalPos);
             npcAgent.SetMovementDirection(targetDir);
 
 

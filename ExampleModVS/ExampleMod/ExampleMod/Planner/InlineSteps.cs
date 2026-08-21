@@ -669,6 +669,10 @@ namespace LivingWorldNpcs
         private float _behindLastPick;
         // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：绕后卡住独白（每卡住周期一次）
         private bool _monologueSaid;
+        // 🔴 2026-08-21（用户反馈：周围没人却说「被人看见」，且不点名）：中断原因拆分——
+        // 第三方目击者（点名播报）vs 目标本人察觉（她转身看到蹲身后的随从，点名播报）
+        private Agent _interruptedBy;   // 第三方目击者（null = 目标察觉中断）
+        private bool _targetAware;      // 目标本人察觉（CanAgentSeeTarget(目标, 随从)）
         // 🔴 2026-08-20（用户裁定：随从偷一次摸空就回来）：retry 字段 = 判定型步骤总尝试次数
         //（摸空 empty 重试——重新绕背再摸一把；装备变体失败 = 目标察觉不重试；最终结果只播报一次）
         private int _attemptsLeft = 1;
@@ -798,34 +802,15 @@ namespace LivingWorldNpcs
                         // 绕后永远无法执行，干等 8s 假失败）：多候选点逐级尝试
                         //（正后 2.2m → 后左 45° 2.5m → 后右 45° 2.5m → 正后 3.5m），取第一个
                         // navmesh 可站立点；0.25s 节流重新选点（目标转身跟随），其余帧沿用选中点。
+                        // 🔴 2026-08-21（铁律 18 共享管线）：探测本体迁至
+                        // AgentControlHelper.TryFindBehindSpot——风险评估（TargetRiskEvaluator）
+                        // 与绕后执行共用同一探测，禁止复制逻辑；0.25s 节流/选中点状态留本状态机。
                         try
                         {
-                            Vec3 look = new Vec3(target.LookDirection.X, target.LookDirection.Y, 0f);
-                            Vec3 back = -look;
-                            back.z = 0f;
-                            if (back.LengthSquared < 0.0001f) back = new Vec3(1f, 0f, 0f);
-                            back = back.NormalizedCopy();
-                            Vec3 targetPos = target.Position;
                             if (_timer - _behindLastPick > 0.25f)
                             {
                                 _behindLastPick = _timer;
-                                Vec3 pick = targetPos + back * 2.2f;   // 兜底：默认正后方（不验证；8s 超时兜底诚实报告）
-                                var scene = Mission.Current?.Scene;
-                                var candidates = new[]
-                                {
-                                    (back, 2.2f),
-                                    (RotateDir(back, 45f), 2.5f),
-                                    (RotateDir(back, -45f), 2.5f),
-                                    (back, 3.5f),
-                                };
-                                foreach (var (dir, d) in candidates)
-                                {
-                                    Vec3 p = targetPos + dir * d;
-                                    if (scene != null && !V.NavMesh(scene, p, out _)) continue;
-                                    pick = p;
-                                    break;
-                                }
-                                _behindPick = pick;
+                                AgentControlHelper.TryFindBehindSpot(target, out _behindPick);
                             }
                             AgentControlHelper.ScriptedMoveToPoint(_agent, _behindPick, dist > 5f);
                         }
@@ -872,18 +857,24 @@ namespace LivingWorldNpcs
                         }
                         // 起手延迟：蹲下 ~0.5s 后再摸口袋（对齐玩家扒窃条节奏；判定/结算时机同击晕 0.5s 起手）
                         if (_timer < 0.5f) return;
-                        // 目击检查：有目击者（排除扒窃目标）→ 中断
-                        var witnesses = StealManager.GetWitnesses(_agent, null, 15f, 120f);
-                        if (!_variantItem && !_variantEquipment)
-                        {
-                            if (_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent t))
-                                witnesses.RemoveAll(w => w == t);
-                        }
-                        if (witnesses.Count > 0)
+                        // 目击检查：会告发的第三方目击者（GetWitnesses 传目标 = 恒排除目标本人——
+                        // 受害者察觉是单独语义，🔴 2026-08-21 用户反馈：女镇民周围没人却说「被人看见」，
+                        // 钱袋变体原实现不排除目标 → 目标本人被当成目击者 → 播报误导）
+                        Agent rollTarget = null;
+                        _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out rollTarget);
+                        var witnesses = StealManager.GetWitnesses(_agent, rollTarget, 15f, 120f);
+                        // 目标本人察觉（转身/走动中看到蹲身后的随从）→ 中断（同 interrupted 出口，
+                        // 播报点名「她发现你了」——不是第三方目击）
+                        bool targetAware = rollTarget != null
+                            && rollTarget.IsActive()
+                            && NpcSightSystem.CanAgentSeeTarget(rollTarget, _agent);
+                        if (witnesses.Count > 0 || targetAware)
                         {
                             if (!_forced)
                             {
                                 _resultKey = "interrupted";
+                                _interruptedBy = witnesses.Count > 0 ? witnesses[0] : null;
+                                _targetAware = targetAware;
                                 _phase = AttemptPhase.Settled;
                                 // 🔴 2026-08-20（感知管线统一重构，用户裁定）：未遂中断 = 悄悄收手，零警戒后果
                                 // ——「可疑」由目击者 Brain 的蹲姿感知循环（[Brain-Crouch] 0.15/s）自行表达。
@@ -896,7 +887,7 @@ namespace LivingWorldNpcs
                             // 强制执行 = 无视目击者硬偷——跳过中断，roll 照常进行；
                             // 代价由 roll 成功后的 WitnessCrime 广播承担（目击者 +3.0 警戒/
                             // 呼叫守卫/可能动手，铁律 12：强制是有代价的选择，不是白嫖）。
-                            DebugLogger.Log($"[PlanExecutor] {_agent.Name} 强制执行：无视 {witnesses.Count} 名目击者，照偷");
+                            DebugLogger.Log($"[PlanExecutor] {_agent.Name} 强制执行：无视 {witnesses.Count} 名目击者{(targetAware ? "+目标察觉" : "")}，照偷");
                         }
                         // 成功率公式：随从 Roguery vs 目标警觉（铁律 17 ratio 式，d20：掷点 ≥ 门槛成功）
                         // 🔴 2026-08-20（用户反馈：偷窃总失败——旧公式未随 2026-08-13 全局统一迁移）：
@@ -1206,11 +1197,32 @@ namespace LivingWorldNpcs
                                 ("NAME", name), ("TARGET", targetName)), Colors.Gray));
                         break;
                     case "interrupted":
-                        InformationManager.DisplayMessage(
-                            // 本地化：随从偷窃被目击中断播报（未遂撤退）
-                            new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_interrupted",
-                                "{NAME} was seen and backed off without making a move.",
-                                ("NAME", name)), new Color(0.9f, 0.7f, 0.2f)));
+                        // 🔴 2026-08-21（用户反馈：不说被谁看到）：中断播报点名——第三方目击者
+                        //（「被 帝国守卫#5 看见了」）vs 目标本人察觉（「她发现你了」）；两者都无 = 旧兜底
+                        if (_interruptedBy != null && _interruptedBy.IsActive())
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷窃被第三方目击中断播报（点名目击者）
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_interrupted_witness",
+                                    "{NAME} was spotted by {WITNESS} and backed off without making a move.",
+                                    ("NAME", name), ("WITNESS", _interruptedBy.Name.ToString())), new Color(0.9f, 0.7f, 0.2f)));
+                        }
+                        else if (_targetAware)
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷窃目标察觉中断播报（点名目标）
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_interrupted_target",
+                                    "{NAME} was noticed by {TARGET} and backed off without making a move.",
+                                    ("NAME", name), ("TARGET", targetName)), new Color(0.9f, 0.7f, 0.2f)));
+                        }
+                        else
+                        {
+                            InformationManager.DisplayMessage(
+                                // 本地化：随从偷窃被目击中断播报（未遂撤退）
+                                new InformationMessage(LWNTextHelper.ResolveCompound("LWN_npc_steal_interrupted",
+                                    "{NAME} was seen and backed off without making a move.",
+                                    ("NAME", name)), new Color(0.9f, 0.7f, 0.2f)));
+                        }
                         break;
                 }
                 DebugLogger.Log($"[PlanExecutor] {name} 偷窃结局: {_resultKey}（目标 {targetName}）");
@@ -1219,14 +1231,6 @@ namespace LivingWorldNpcs
             {
                 DebugLogger.Log($"[PlanExecutor] steal 播报异常: {ex.Message}");
             }
-        }
-
-        /// <summary>2D 平面旋转（绕 Z 轴，角度制）——绕后候选点偏转（后左/后右 45°）用。</summary>
-        private static Vec3 RotateDir(Vec3 dir, float degrees)
-        {
-            float rad = MathF.PI * degrees / 180f;
-            float c = MathF.Cos(rad), s = MathF.Sin(rad);
-            return new Vec3(dir.x * c - dir.y * s, dir.x * s + dir.y * c, 0f);
         }
     }
     /// <summary>give_item / give_gold：移交玩家（铁律 4 守恒；Item==null = 金钱走 Hero 转移）。

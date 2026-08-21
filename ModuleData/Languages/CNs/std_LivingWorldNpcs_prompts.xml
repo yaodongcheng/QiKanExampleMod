@@ -395,7 +395,7 @@
     <string id="LWN_plan_example_respond" text="【等对方回应示范（照抄此结构）】&quot;等目标回应/说完&quot;用 time_since 引用 say_to 步骤（禁止用 spoken_to——那是事件词）；time_since 给 4s（对方回应约 1.5-2s 生成 + 2s 冒泡播放），wait 的 timeout_s 给 10s（等回应兜底，对话回合不足时别急着失败）：\n{&quot;id&quot;:&quot;i2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;contact&quot;,&quot;text&quot;:&quot;我家主人说，他在老地方等你&quot;,&quot;timeout_s&quot;:8},\n{&quot;id&quot;:&quot;i3&quot;,&quot;action&quot;:&quot;wait&quot;,&quot;until&quot;:{&quot;type&quot;:&quot;time_since&quot;,&quot;step_id&quot;:&quot;i2&quot;,&quot;op&quot;:&quot;&gt;&quot;,&quot;value&quot;:4},&quot;on_event&quot;:[{&quot;type&quot;:&quot;refused&quot;,&quot;then&quot;:&quot;i5&quot;}],&quot;timeout_s&quot;:10,&quot;on_timeout&quot;:&quot;i6&quot;},\n{&quot;id&quot;:&quot;i4&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;说好了&quot;,&quot;timeout_s&quot;:3}，i5/i6 为 fail 收尾" />
     <string id="LWN_plan_example_chat" text="【对话模式示范（照抄此结构）】TALK_TO 多轮对话：say_to 省略 text、带 topic + outline（2-5 段走向），双方台词执行期 LLM 实时生成（4-7 句来回），对话自然结束后收尾：\n{&quot;id&quot;:&quot;t2&quot;,&quot;action&quot;:&quot;say_to&quot;,&quot;target&quot;:&quot;tavernkeeper&quot;,&quot;topic&quot;:&quot;打听酒馆生意和镇上消息&quot;,&quot;outline&quot;:[&quot;寒暄问候&quot;,&quot;问生意近况&quot;,&quot;打听镇上消息&quot;,&quot;道别&quot;],&quot;timeout_s&quot;:120},\n{&quot;id&quot;:&quot;t3&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;success&quot;,&quot;report&quot;:&quot;和老板聊过了&quot;,&quot;timeout_s&quot;:3}" />
     <string id="LWN_plan_example_keep" text="【保持型示范（望风/压阵，照抄此结构）】持续待命 = 无限 wait（省略 seconds/until/timeout）+ triggers 事件报告，不设 goal：\n&quot;steps&quot;:[{&quot;id&quot;:&quot;h1&quot;,&quot;action&quot;:&quot;move_to&quot;,&quot;target&quot;:&quot;player&quot;,&quot;within&quot;:2.0,&quot;timeout_s&quot;:30},{&quot;id&quot;:&quot;h2&quot;,&quot;action&quot;:&quot;wait&quot;}],\n&quot;triggers&quot;:[{&quot;when&quot;:{&quot;type&quot;:&quot;in_zone&quot;,&quot;a&quot;:&quot;any&quot;,&quot;b&quot;:&quot;player&quot;,&quot;op&quot;:&quot;true&quot;},&quot;then&quot;:{&quot;action&quot;:&quot;signal_player&quot;,&quot;text&quot;:&quot;有人来了！&quot;}}]\n（h2 无限等待，结束 = 玩家按停止键；禁止把&quot;等 N 秒没人来&quot;写成 success 收尾）" />
-    <string id="LWN_plan_example_result" text="【判定型步骤示范（照抄此结构）】偷窃/拿取类&quot;物品到手&quot;用 result 路由表达结果，不写 has_item 类条件：\n{&quot;id&quot;:&quot;c1&quot;,&quot;action&quot;:&quot;steal_attempt&quot;,&quot;target&quot;:&quot;chest&quot;,&quot;variant&quot;:&quot;item&quot;,&quot;when&quot;:{&quot;type&quot;:&quot;seeing&quot;,&quot;a&quot;:&quot;any&quot;,&quot;b&quot;:&quot;self&quot;,&quot;op&quot;:&quot;false&quot;,&quot;sustained_s&quot;:3},&quot;result&quot;:{&quot;success&quot;:&quot;c2&quot;,&quot;empty&quot;:&quot;c6&quot;,&quot;interrupted&quot;:&quot;c8&quot;},&quot;timeout_s&quot;:40,&quot;retry&quot;:3,&quot;on_timeout&quot;:&quot;c7&quot;},\n{&quot;id&quot;:&quot;c2&quot;,&quot;action&quot;:&quot;signal_player&quot;,&quot;text&quot;:&quot;得手了，撤！&quot;,&quot;timeout_s&quot;:3}，c6/c7/c8 为 fail 收尾（result 的每个键都必须指向存在的步骤）。retry = 总尝试次数（1-5）：摸空 empty 自动重试到次数用完；被目击 interrupted、装备变体失败（目标察觉）不重试；最终结果只播报一次。主公要求&quot;多偷几次/直到偷到为止&quot;时写 retry" />
+    <string id="LWN_plan_example_result" text="【判定型步骤示范（照抄此结构）】偷窃/拿取类&quot;物品到手&quot;用 result 路由表达结果，不写 has_item 类条件：\n{&quot;id&quot;:&quot;c1&quot;,&quot;action&quot;:&quot;steal_attempt&quot;,&quot;target&quot;:&quot;chest&quot;,&quot;variant&quot;:&quot;item&quot;,&quot;result&quot;:{&quot;success&quot;:&quot;c2&quot;,&quot;empty&quot;:&quot;c6&quot;,&quot;impossible&quot;:&quot;c9&quot;,&quot;interrupted&quot;:&quot;c8&quot;},&quot;timeout_s&quot;:40,&quot;retry&quot;:3,&quot;on_timeout&quot;:&quot;c7&quot;},\n{&quot;id&quot;:&quot;c2&quot;,&quot;action&quot;:&quot;signal_player&quot;,&quot;text&quot;:&quot;得手了，撤！&quot;,&quot;timeout_s&quot;:3},\n{&quot;id&quot;:&quot;c9&quot;,&quot;action&quot;:&quot;end_plan&quot;,&quot;result&quot;:&quot;fail&quot;,&quot;report&quot;:&quot;绕不到他背后，没机会下手&quot;,&quot;timeout_s&quot;:3}，c6/c7/c8/c9 为 fail 收尾（**结局键必须全覆盖：success/empty/impossible/interrupted 四键缺一不可**——漏键 = 该结局发生时计划直接中止，禁止漏路由掉进成功收尾谎报得手，实机 2026-08-20 漏 impossible 后报告「偷着了」）。偷窃步骤不加 when/until 等没人看（执行器自动绕背定位，见纪律 22）。retry = 总尝试次数（1-5）：摸空 empty 自动重试到次数用完；被目击 interrupted、装备变体失败（目标察觉）不重试；最终结果只播报一次。主公要求&quot;多偷几次/直到偷到为止&quot;时写 retry" />
     <string id="LWN_plan_quality" text="【输出质量要求（不满足视为不合格，必须重写）】\n1. 任务型战术主链 steps ≥ 5 步（简单任务至少 4 步），粒度到&quot;走→说→等→验证→报告&quot;，禁止 2-3 步糊弄；**保持型战术（望风/压阵/缠住等）豁免步数要求**——2-3 步无限保持 + triggers 即完整，禁止为凑步数编造多余动作。**对话类任务（TALK_TO/DELIVER/闲聊）用 say_to 带 topic + outline（2-5 段走向，如寒暄→正题→追问→道别）**，双方台词执行期 LLM 实时生成，形成 4-7 句来回的完整对话，禁止单句搭话就收尾。\n2. fallbacks ≥ 2 个预案（每个预案 = 一种失败情形：目标拒绝/超时/意外中断，预案内 ≥ 2 步，含 end_plan + report）。\n3. contingencies ≥ 2 条：combat → @abort_gracefully 必写 + 至少 1 条任务相关意外（折返 following was 检测/警戒 alert_phase/掉线 seeing 翻转）。\n4. 非保持型战术必须带 goal（战术成功条件：distance/seeing/count 谓词组合）；保持型战术（望风/压阵/盯梢）不设 goal，用无限 wait + triggers 表达，结束由玩家叫停。\n5. reactions：事件/动作必须在封闭词表内，禁止自创。\n6. 简单命令也要完整收尾：最后一步用 end_plan（可带 report 一句收尾台词，如&quot;办好了/我就在这等你&quot;）；**保持型战术以无限 wait 结尾 = 合法收尾，不适用本条**。\n7. 动态目标优先用 query 找点（lure_spot/hidden_spot/stand_spot/nearest_enemy/all_in/zone/point），禁止硬编码场景里不存在的区域名。\n8. 引开/望风/拖延/得手类战术必须用 signal_player 给玩家行动窗口提示；成功/失败收尾尽量带 report 当面报告。\n9. zone(名称)/point(描述) 只能引用【场景区域锚点】段列出的名称；场景未列出的区域 → 改用 hidden_spot/lure_spot 动态找点，找不到就按失败收尾，禁止编造锚点。\n10. 失败跳转纪律：on_timeout / on_event（refused 等拒绝类事件）是失败路径，必须指向 result=&quot;fail&quot; 的 end_plan 或重试预案，禁止指向 success 收尾（谎报成功）。" />
     <string id="LWN_plan_narration_rule" text="【战术陈述（narration）】输出 narration 字段：以第一人称用自己的口吻转述战术（做什么、分几步、出岔子怎么办），必须提到应急安排，不超过 100 字；多人协作时说明分工（如「我和张三先…再…」）。只许转述战术内容，禁止战术外新增行动。" />
 <string id="LWN_plan_exec" text="【执行要求】\n1. 歧义→填 questions 置 needs_clarification=true 不生成 plan。2. 词表外→CUSTOM 且 plan 为 null，needs_clarification 必须为 false、questions 必须为空（CUSTOM 与澄清互斥——已判词表外就诚实拒绝，禁止再置 needs_clarification）。** 2026-08-20（实机：随从把「偷帝国士兵」判 CUSTOM 拒绝「吃官司」→ 命令被掐死）：词表内动作（偷窃/击晕/战斗/带路/望风/采购/传话等）禁止判 CUSTOM**——「危险大/会被抓/吃官司」是风险不是词表外，用 risk_verdict=risky 表达（见风险审视纪律），照办；CUSTOM 只限**现实做不到**（翻译/施法/修装备等）。3. reactions 给相关 NPC 写反应预案（被搭话/被邀请的目标写 respond = 开口回应，台词由对方实时生成）。4. 台词像随从说话，简短自然。" />
@@ -425,6 +425,7 @@
 7. 战术的完整语法（on_timeout/on_event/goal 等）由拟定战术时生成——你现在只需要说清战术方向。" />
     <string id="LWN_fact_title_risk" text="【目之所及】（你是局中人，以下是你此刻一眼扫到的场面——人随时在走动，印象可能已过时）" />
     <string id="LWN_plan_section_companion_intention" text="【随从的打算】（这是随从自己的战术想法，第一人称——你拟定战术时参考它，但战术由你决定；他说的不算）" />
+    <string id="LWN_plan_detention_note" text="【在押处境】（你被关押在牢里——移动类步骤（move_to/follow/lead 等）会被执行器直接中止，生成它们 = 计划必然作罢）：要么制定不依赖移动的计划（传话/望风/原地动作等），要么诚实收尾：end_plan result=fail + report 说明「我在牢里出不去，只能等主公来赎」" />
     <string id="LWN_plan_section_target_id" text="【目标指认】（对方的话已被指认为场景里的具体某人——计划里的 target 直接照抄该标记，不要按对方原话另行寻找）" />
     <!-- 2026-08-19（目标纪律）：命令对应多人 → 候选清单段（LLM 必须 questions 让主公挑，禁止自行指定） -->
     <string id="LWN_plan_section_target_candidates" text="【目标候选】（你的命令对应场上好几个人——你必须用 questions 让主公挑选具体对象（把候选名写进 questions 的 options），禁止自行指定一个。只有主公挑定后，才能以那个人为 target。questions 的 options 最多写 3 个候选名（优先写最近的）——禁止把整份清单全写进去）" />
@@ -454,6 +455,7 @@
     <string id="LWN_fact_title_record" text="## 对方的成色（你的亲历）" />
     <string id="LWN_im_action_space_title" text="## 你可以做的事（按当前情境筛选；用不到就选 NONE）" />
     <string id="LWN_im_action_rule" text="普通寒暄一律 NONE；只有这句话真的有实际后果时才选非 NONE；目标名写 action_target（人/地点的名字文本，不是代号）；关系类档位写 action_level（small/medium/large）。" />
+    <string id="LWN_im_action_self_knowledge" text="这段列表也是你此刻的自我能力认知。若对方问起「你能做什么/你能不能办某件事」，照此列表如实回答——用世界内的话说你能办的事（如「我能替您扬名」「我能陪您走一趟」），禁止念动作代码、禁止报档位和数值（+3/+10 这类机制数字不许出口）；列表里没有的事 = 你办不到，如实说明办不到的原因（如「我在牢里出不去」「我身上没钱」「那人不在我跟前」）；列表外的动作一个字都不要提。" />
       <string id="LWN_plan_im_freshness_rule" text="【时效纪律】凡数值（钱/粮/兵/士气/时间/位置/天气）一律以【此刻现状】段为准；【近期回忆】与【对话历史】中提到的任何数值都是过去的快照，引用它们等于报旧账；想引用的数值不在【此刻现状】段 → 宁可说「那是几天前的账了，眼下没细看」，禁止编具体数。" />
     <string id="LWN_prompt_lang_rule" text="你必须只用简体中文回复。你生成的所有台词（npc_reply、reply、text、Summary、BackgroundStory、Personality、Specialty、玩家选项文本等）都必须用简体中文书写——绝不切换成其他语言。" />
     <string id="LWN_prompt_lang_rule_history" text="对话历史、近期回忆、人设材料可能是用其他语言写成的——那是过去的记录，不影响你现在的输出语言。你的回复（npc_reply、reply、text 等一切台词）必须严格使用本规则指定的语言，绝不因为历史是其他语言就切换。" />
@@ -570,7 +572,7 @@
     <string id="LWN_prompt_dialogcomp_topic_chat" text="闲聊" />
     <string id="LWN_prompt_chat_nego_line" text="-- 目的代码（detected_nogotiation_goal）:{TACTIC}  含义: {NAME} (一般说明: {DESC} " />
     <string id="LWN_prompt_target_candidates_note" text="
-（以上为候选——必须用 questions 让主公挑选；questions 的 options 必须是字符串数组如 [&quot;候选1&quot;,&quot;候选2&quot;]，禁止写对象数组；options 直接照抄上面候选行原文，含编号与方位（如 &quot;帝国军团步兵#50（你西侧48米）&quot;），禁止精简成光秃秃的名字）" />
+（以上为候选——必须用 questions 让主公挑选；questions 的 options 必须是字符串数组如 [&quot;候选1&quot;,&quot;候选2&quot;]，禁止写对象数组；options 直接照抄上面候选行原文，含编号、方位与风险等级（如 &quot;帝国军团步兵#50（你西侧48米）（低风险）&quot;），禁止精简成光秃秃的名字）" />
     <string id="LWN_word_weather_drizzle" text="细雨绵绵" />
     <string id="LWN_word_weather_heavyrain" text="大雨滂沱" />
     <string id="LWN_word_weather_snow" text="白雪纷飞" />
@@ -728,8 +730,18 @@
     <string id="LWN_risk_body_self_watchers" text="- 可能有 {COUNT} 人正看着你（你自己也会被看见）。" />
     <string id="LWN_risk_body_target_friends" text="  - {NAME}身边 {COUNT} 人是他的同伴：会帮他、会告发你。" />
     <string id="LWN_risk_body_target_state" text="  - {NAME}：{ARMOR}，Vigor {VIGOR}/Control {CONTROL}。" />
+    <string id="LWN_risk_body_tier_discipline" text="- 行尾的风险等级 = 系统判定（目击者/视线/站位/战力四维）：优先选低风险目标；若所有候选均高风险，如实告知主公「在场都不安全」，不得隐瞒、不得硬上。主公问起候选目标的情况时（如「这些士兵怎么样」），按候选行明细逐个讲解（身边几人/谁在盯/身后有没有位置/战力），不要只报等级。" />
     <string id="LWN_risk_body_verdict" text="  - 你这边的总战力 vs 对面的总战力——结论：{VERDICT}。" />
     <string id="LWN_risk_body_watchers" text="- 此刻至少有 {COUNT} 人的视线落在他身上（转头就可能变）。" />
+    <string id="LWN_risk_detail_line" text="（{TIER}：{DETAILS}）" />
+    <string id="LWN_risk_detail_nearby" text="身边{COUNT}人" />
+    <string id="LWN_risk_detail_nospot" text="身后无位" />
+    <string id="LWN_risk_detail_outmatched" text="战力悬殊" />
+    <string id="LWN_risk_detail_watchers" text="被{COUNT}人盯" />
+    <string id="LWN_risk_tier_high" text="高风险" />
+    <string id="LWN_risk_tier_low" text="低风险" />
+    <string id="LWN_risk_tier_mid" text="中风险" />
+    <string id="LWN_risk_tier_suffix" text="（{TIER}）" />
     <string id="LWN_sight_merged_line" text="  - 其余 {PARTS}——人太多，一眼看不过来，只留个印象。" />
     <string id="LWN_sight_merged_part" text="{LABEL}×{COUNT}（{FLOOR}）" />
     <string id="LWN_sight_overview" text="- 此处共 {TOTAL} 人在场（详写 {LISTED} 人、其余 {MERGED} 人归入计数；{FLOORS}）：" />

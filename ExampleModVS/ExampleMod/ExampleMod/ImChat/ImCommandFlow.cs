@@ -291,14 +291,28 @@ namespace LivingWorldNpcs
                     if (cands != null && cands.Count > 1)
                     {
                         var lines = new List<string>();
-                        foreach (var ci in cands)
+                        // 🔴 2026-08-21（M4 风险排序补全）：候选行按 rankScore 综合排序（原为场景序，
+                        // 93 米外的候选排前面会误导 LLM 抄进 options）+ 行尾追加风险等级词——
+                        // LLM 照抄候选行进 questions options 后，玩家按钮即按风险序呈现。
+                        // 执行者解析与 CollectTargetCandidates 同口径（私聊 = 对方随从；群聊兜底玩家）。
+                        var playerPos = Agent.Main?.Position ?? Vec3.Zero;
+                        Agent self = null;
+                        if (req.Conv?.Type == ImConversationType.Direct) self = FindAgentByHeroId(req.Conv.PartnerHeroId);
+                        if (self == null) self = Agent.Main;
+                        bool stealCtx = TargetRiskEvaluator.IsStealContext(candQuery);
+                        var asses = TargetRiskEvaluator.AssessAll(snapshot, self, cands,
+                            ci => ci?.Agent != null ? ci.Agent.Position.Distance(playerPos) : 0f, stealCtx);
+                        TargetRiskEvaluator.SortByRank(asses);
+                        foreach (var a in asses)
                         {
+                            var ci = a.Info;
                             if (ci?.Agent == null) continue;
                             // 🔴 2026-08-19（统一标记格式）：GetDisplayName（Hero 原名 / 模板「名字#Index」），
                             // 与 HUD/交互区/附近频道同构——候选文本 = 显示名 + 方位（编号在前，方位可解析丢弃）
                             string cl = AgentControlHelper.GetDisplayName(ci.Agent); // lwn-ignore: A
                             if (string.IsNullOrWhiteSpace(cl)) cl = ci.DisplayName ?? "某人"; // lwn-ignore: A
                             if (!string.IsNullOrWhiteSpace(ci.PositionDesc)) cl += $"（{ci.PositionDesc}）";   // lwn-ignore: A
+                            cl += TargetRiskEvaluator.TierSuffix(a.Tier);
                             lines.Add(cl);
                         }
                         if (lines.Count > 1)
@@ -340,12 +354,24 @@ namespace LivingWorldNpcs
                     DebugLogger.Log($"[ImCommandFlow] 计划轮并入原命令: 「{req.Command}」→「{commandForPrompt}」");
                 }
                 string prompt = PromptBuilder.BuildPlanPrompt(
-                    snapshot.ToPromptText(), commandForPrompt, persona, "",
-                    PlanCommandFlow.IntentTableForPrompt(), PlanCommandFlow.GrammarForPrompt(),
+                    snapshot.ToPromptText(), commandForPrompt, persona,
+                    // 🔴 2026-08-21（实机：计划轮 history 恒空——玩家「制定一个计划过来」被 LLM 理解成
+                    // 「制定计划」→ 编出「找马维农闲聊探底细」的计划，与「过来」毫无关系）：注入最近
+                    // 对话历史，LLM 才能关联「制定计划过来」= 到玩家身边（回复轮一直有【对话历史】段，
+                    // 计划轮漏了）。
+                    BuildPlanHistory(req.Conv),
+                    PlanCommandFlow.IntentTableForPrompt(),
+                    // 🔴 2026-08-21（用户质疑：动作空间过滤只管回复轮，计划轮词表全量——在押时
+                    // LLM 仍能选 move_to）：计划轮词表按在押裁剪（DetentionGated 动作剔除），
+                    // prompt 里根本没有移动选项 → LLM 无从生成注定中止的移动计划。
+                    PlanCommandFlow.GrammarForPrompt(detentionFiltered: IsDetainedCompanion(req.Conv)),
                     companionIntention: req.CompanionIntention,
                     resolvedTargetText: req.ResolvedTargetText,
                     worldSection: worldSection,
-                    targetCandidatesText: targetCandidatesText);
+                    targetCandidatesText: targetCandidatesText,
+                    // 🔴 2026-08-21（在押纪律，用户裁定）：执行者在押 → 注入在押纪律段——移动步骤会被
+                    // 执行器中止（DetentionGated 守卫），prompt 先告知 LLM 别生成注定中止的移动计划。
+                    detentionNote: BuildDetentionNote(req.Conv));
                 string json = await LLMService.Instance.ChatAsync(prompt, 4000, true, 0.4f, disableReasoning: true);
                 string cleaned = LLMService.CleanJson(json);
                 try { response = JsonConvert.DeserializeObject<PlanResponse>(cleaned); }
@@ -422,7 +448,8 @@ namespace LivingWorldNpcs
                     {
                         string pendingCmd = _pendingClarify?.Command ?? _lastCommand;
                         if (!string.IsNullOrEmpty(pendingCmd))
-                            optionCandidates = CollectTargetCandidates(pendingCmd);
+                            // 🔴 2026-08-21（M4）：传 conv——候选排序按执行者视角评估风险（战力分量）
+                            optionCandidates = CollectTargetCandidates(pendingCmd, conv: conv);
                     }
                     catch (Exception ex) { DebugLogger.Log($"[ImCommandFlow] 澄清选项方位兜底失败: {ex.Message}"); }
                     ResolveSpeaker(conv, out string clarifyHeroId, out string clarifyName);
@@ -471,7 +498,7 @@ namespace LivingWorldNpcs
                 {
                     var clarifyCandidates = CollectTargetCandidates(HasRetargetIntent(_lastTargetCheckCommand)
                         ? StripResolvedTargetSuffix(_lastTargetCheckCommand)
-                        : _lastTargetCheckCommand, maxCount: ClarifyCandidateMax);
+                        : _lastTargetCheckCommand, maxCount: ClarifyCandidateMax, conv: conv);
                     // 🔴 2026-08-19（澄清卡误循环，实机：玩家点选候选后命令含 [#42] 标记 → 唯一解析 →
                     // 但超轮检查在候选判定之前 → 第二轮就把有效计划误杀成「改日再说」）：
                     // 先判候选——命令已唯一解析（含 #N）直接放行；只有仍歧义（多候选/无匹配+有声明）
@@ -597,11 +624,85 @@ namespace LivingWorldNpcs
         ///（用户裁定），近→远排序下前 3 个就是最可能的目标；超出部分仍可手打指名。</summary>
         private const int ClarifyCandidateMax = 3;
 
+        /// <summary>计划轮对话历史（最近 6 条 Text/PlanCard/Proposal 消息，格式「名字: 内容」；
+        /// System/Generating 跳过；空 = 无历史）。🔴 2026-08-21 新增——计划轮此前 history 恒空，
+        /// LLM 只看到当前命令导致意图漂移（实机：把「制定一个计划过来」编成找马维农闲聊的计划）。
+        /// 主线程调用（ImChatManager.GetMessages 引擎对象只读主线程）。</summary>
+        private static string BuildPlanHistory(ImConversation conv)
+        {
+            try
+            {
+                if (conv == null) return null;
+                var msgs = ImChatManager.GetMessages(conv);
+                if (msgs == null || msgs.Count == 0) return null;
+                var lines = new List<string>();
+                foreach (var m in msgs.OrderByDescending(x => x?.TimeStamp ?? 0d))
+                {
+                    if (m == null || string.IsNullOrWhiteSpace(m.Content)) continue;
+                    if (m.Kind != ImMessageKind.Text
+                        && m.Kind != ImMessageKind.PlanCard
+                        && m.Kind != ImMessageKind.Proposal) continue;
+                    string who = string.IsNullOrWhiteSpace(m.SenderName) ? "?" : m.SenderName;
+                    lines.Add($"{who}: {m.Content}"); // lwn-ignore: A 计划轮 prompt 材料
+                    if (lines.Count >= 6) break;
+                }
+                if (lines.Count == 0) return null;
+                lines.Reverse();   // 升序（早→晚）呈现
+                return string.Join("\n", lines);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImCommandFlow] 计划轮历史构建失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>执行者在押判定（私聊 = 对话对方；群聊执行者不定 → false——C# 守卫仍兜底）。
+        /// 🔴 2026-08-21 用户裁定：在押随从无法执行移动类操作——计划轮词表裁剪 + 纪律段共用此判定。</summary>
+        private static bool IsDetainedCompanion(ImConversation conv)
+        {
+            try
+            {
+                if (conv?.Type != ImConversationType.Direct || string.IsNullOrEmpty(conv.PartnerHeroId))
+                    return false;
+                var hero = Hero.FindFirst(h => h.StringId == conv.PartnerHeroId);
+                return CompanionDetentionBehavior.IsDetained(hero);
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImCommandFlow] 在押判定失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>在押纪律段（执行者在押 → 注入计划轮 prompt）：移动类步骤（move_to/follow/lead）
+        /// 会被执行器 DetentionGated 守卫中止——prompt 先告知 LLM 别生成注定中止的移动计划，要么做
+        /// 不依赖移动的事（传话/望风/原地动作），要么诚实收尾 fail + report「我在牢里出不去」。
+        /// 词表裁剪（GrammarForPrompt detentionFiltered）已让移动动作不在词表——本段负责引导
+        /// 「能做什么 + 诚实收尾」。🔴 2026-08-21 用户裁定。</summary>
+        private static string BuildDetentionNote(ImConversation conv)
+        {
+            try
+            {
+                if (!IsDetainedCompanion(conv)) return null;
+                // 本地化：LWN_plan_detention_note（在押纪律段，双桶）
+                return LWNTextHelper.ResolvePrompt("LWN_plan_detention_note");
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImCommandFlow] 在押纪律段构建失败: {ex.Message}");
+                return null;
+            }
+        }
+
         /// <summary>目标纪律兜底候选采集（主线程 Tick 调用；全量快照保证与玩家所见一致）。
-        /// 返回候选显示文本（名字#N + 方位），空 = 无匹配。
+        /// 返回候选显示文本（名字#N + 方位 + 风险等级），空 = 无匹配。
         /// 🔴 2026-08-20（缩略选人卡 12 候选撑爆面板）：候选按距玩家近→远排序；
-        /// maxCount &gt; 0 截断到最近 N 个（澄清卡按钮上限；0 = 全量——方位兜底替换需完整清单）。</summary>
-        private static List<string> CollectTargetCandidates(string command, int maxCount = 0)
+        /// maxCount &gt; 0 截断到最近 N 个（澄清卡按钮上限；0 = 全量——方位兜底替换需完整清单）。
+        /// 🔴 2026-08-21（M4 风险排序补全，用户裁定）：纯距离排序升级为 rankScore = 距离 + 风险×K
+        /// 综合排序（TargetRiskEvaluator：3m 目击者/视线/站位/战力四维）——低风险近目标排最前，
+        /// 高风险近目标（守卫环伺/贴墙/战力悬殊）被压后；按钮文本尾追加等级词（明细不进按钮）。</summary>
+        private static List<string> CollectTargetCandidates(string command, int maxCount = 0, ImConversation conv = null)
         {
             var result = new List<string>();
             try
@@ -610,31 +711,39 @@ namespace LivingWorldNpcs
                 var snap = SceneSnapshot.Build(Mission.Current);
                 var cands = snap.FindAgentCandidates(command);
                 if (cands == null) return result;
-                // 🔴 2026-08-20：近→远排序（FindAgentCandidates 返回场景序，93 米外的候选排前面会误导挑选）
-                if (cands.Count > 1)
+                // 距离基准 = 玩家（现状 UI 语义：按钮方位是玩家相对）；风险以执行者视角评估——
+                // 执行者解析（与 ResolveExecutors 同口径）：私聊 = 对话对方（随从）；群聊 = 场景内
+                // 首个队伍成员；兜底玩家（战力分量局限，注释记录）。
+                var playerPos = Agent.Main?.Position ?? Vec3.Zero;
+                Agent self = null;
+                if (conv?.Type == ImConversationType.Direct) self = FindAgentByHeroId(conv.PartnerHeroId);
+                if (self == null)
                 {
-                    var playerPos = Agent.Main?.Position ?? Vec3.Zero;
-                    cands.Sort((x, y) =>
-                    {
-                        if (x?.Agent == null || y?.Agent == null) return 0;
-                        return x.Agent.Position.DistanceSquared(playerPos)
-                            .CompareTo(y.Agent.Position.DistanceSquared(playerPos));
-                    });
+                    foreach (var a in Mission.Current.Agents)
+                        if (FriendlinessHelper.IsPlayerPartyMember(a)) { self = a; break; }
                 }
-                foreach (var ci in cands)
+                if (self == null) self = Agent.Main;
+                bool stealCtx = TargetRiskEvaluator.IsStealContext(command);
+                var asses = TargetRiskEvaluator.AssessAll(snap, self, cands,
+                    ci => ci?.Agent != null ? ci.Agent.Position.Distance(playerPos) : 0f, stealCtx);
+                TargetRiskEvaluator.SortByRank(asses);
+                foreach (var a in asses)
                 {
+                    var ci = a.Info;
                     if (ci?.Agent == null) continue;
                     // 🔴 2026-08-19（候选按钮文本）：GetDisplayName（Hero 原名 / 模板「名字#Index」）+
                     // 相对方位（你西侧47米）——玩家据远近挑目标（选近的/远的）；点选后并入命令上下文，
                     // TryResolveIndexedTarget 数字前缀解析（方位尾巴安全丢弃）。按钮长文本溢出已由
                     // 竖排按钮 XML 加固兜底（MaxWidth + WordWrapping + 高度 CoverChildren）。
+                    // 🔴 2026-08-21（M4）：尾追加风险等级词（（风险低/中/高），第二括号组不干扰解析）。
                     string label = AgentControlHelper.GetDisplayName(ci.Agent); // lwn-ignore: A
                     if (string.IsNullOrWhiteSpace(label)) label = ci.DisplayName ?? "某人"; // lwn-ignore: A
                     if (!string.IsNullOrWhiteSpace(ci.PositionDesc)) label += $"（{ci.PositionDesc}）";   // lwn-ignore: A
+                    label += TargetRiskEvaluator.TierSuffix(a.Tier);
                     if (!result.Contains(label)) result.Add(label);
-                    // 🔴 2026-08-20（缩略选人卡撑爆面板）：截断到最近 N 个——12 候选 × 40px 仍超缩略面板
-                    // 高度预算，60m+ 的远处候选对「挑就近目标」类命令无意义；玩家仍可手打「名字#N」指名远处
-                    // 候选（澄清卡接受手打回复），自由感不损。
+                    // 🔴 2026-08-20（缩略选人卡撑爆面板）：截断到 rank 最低 N 个——12 候选 × 40px
+                    // 仍超缩略面板高度预算；远处低风险可顶替近处高风险（本需求语义）；玩家仍可
+                    // 手打「名字#N」指名远处候选（澄清卡接受手打回复），自由感不损。
                     if (maxCount > 0 && result.Count >= maxCount) break;
                 }
             }

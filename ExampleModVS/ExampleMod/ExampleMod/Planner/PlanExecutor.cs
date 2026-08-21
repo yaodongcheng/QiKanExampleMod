@@ -550,6 +550,16 @@ namespace LivingWorldNpcs
             // 子动作/内联步骤创建（每步仅创建一次 → 恰好每步打一条开始日志）
             if (cursor.SubAction == null && cursor.Inline == null)
             {
+                // 🔴 2026-08-21（用户裁定：在押随从无法执行任何移动类操作）：计划轮 LLM 可能绕过
+                // 动作空间生成移动步骤——步骤启动处守卫：移动门控动作（move_to/follow/lead/
+                // party_patrol/gather_to_player/engage）+ 执行者在押 → 计划中止（诚实报告，不瞬移不越狱）
+                if (ActionRegistry.FindByCode(step.Action)?.DetentionGated == true
+                    && CompanionDetentionBehavior.IsDetained(cursor.Agent))
+                {
+                    DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 在押无法执行移动步骤 {step.Id}（{step.Action}）→ 计划中止");
+                    Abort(PlanTexts.Aborted);
+                    return;
+                }
                 DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: ▶ 步骤 {step.Id} 开始（{step.Action}{RenderStepTarget(step)}）");
                 if (!TryCreateSubAction(cursor, step))
                 {
@@ -691,11 +701,23 @@ namespace LivingWorldNpcs
             // 判定型原子结果路由（steal_attempt/negotiate/duel 的 result{} 路由，§5.0 缺口 2）
             if (!string.IsNullOrEmpty(_stepResultKey))
             {
-                var route = step.ResultRoute(_stepResultKey);
+                var outcome = _stepResultKey;
+                var route = step.ResultRoute(outcome);
                 _stepResultKey = null;
                 if (!string.IsNullOrEmpty(route))
                 {
                     Jump(cursor, route);
+                    return;
+                }
+                // 🔴 2026-08-20（实机：随从偷帝国资深步兵绕不到背后 → 结局 impossible 未被 LLM 的
+                // result{} 收录 → 漏路由 → 掉进快乐路径 end_plan success 报「偷着了，快走」）：
+                // 判定型步骤产出负面结局（empty/impossible/interrupted）但计划没给路由 → 禁止顺着
+                // 主链谎报成功——与「跳转目标缺失」同级处理：计划中止（graceful，@abort_gracefully
+                // 同词）。success 未路由 = 步骤本身成功了 → 照旧掉进主链（语义正确）。
+                if (outcome != "success")
+                {
+                    DebugLogger.Log($"[PlanExecutor] {OwnerAgent?.Name}: 步骤 {step.Id}（{step.Action}）结局 {outcome} 无路由 → 计划中止（防谎报成功）");
+                    Abort(PlanTexts.Aborted);
                     return;
                 }
             }
@@ -1132,6 +1154,12 @@ namespace LivingWorldNpcs
         private void TickContingencies()
         {
             if (Plan.Contingencies == null) return;
+            // 🔴 2026-08-21（实机：偷窃被中断 → ask_player 决策卡等待期，LLM 自带的
+            // seeing(self,player)=false 持续 10s contingency 触发 → 计划 fail「您发话了，我先撤」
+            // → 玩家后点「强制执行」被丢弃）：ask_player 是玩家回合——玩家正在决策，
+            // 意外检测不该把计划带走（玩家答完前 contingencies 冻结；卡死由步骤 timeout 兜底）。
+            // 同类先例：CurrentStepIsOrderAttack 豁免（2026-08-19）。
+            if (IsAskPlayerPending()) return;
             foreach (var c in Plan.Contingencies)
             {
                 if (c?.When == null || string.IsNullOrEmpty(c.Then)) continue;
@@ -1165,6 +1193,15 @@ namespace LivingWorldNpcs
                 if (State != ExecutorState.Executing) return;
             }
         }
+        /// <summary>ask_player 决策卡等待中（玩家回合）：当前游标步骤是 ask_player 且内联状态存活——
+        /// 玩家正在做决策，contingency 意外检测冻结（🔴 2026-08-21，见 TickContingencies 注释）。
+        /// 卡死由步骤 timeout_s 兜底（LLM 给的 ask_player 通常 60s）。</summary>
+        private bool IsAskPlayerPending()
+        {
+            var c = _selfCursor;
+            return c != null && !c.Done && !IsFinished && c.Inline is AskPlayerInlineState;
+        }
+
         /// <summary>掉线检测距离闸（2026-08-19）：seeing(A,B,op≠true) 且 A/B 距离超过视野半径
         /// （NpcSightSystem.CanAgentSeeTarget 默认半径 15m 同款）→ 超距「看不见」恒真，掉线检测无意义
         /// （目标还没走进视野，属于赶路期）。跳过，等执行者接近后检测恢复语义。

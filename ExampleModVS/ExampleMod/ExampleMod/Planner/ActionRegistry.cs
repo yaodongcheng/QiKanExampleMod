@@ -91,6 +91,12 @@ namespace LivingWorldNpcs
             // 动作在**任何空间**都跑 IsValid（身份维度过滤：L2 领主 → persuade_join/order_march；
             // L3 国王 → propose_war/negotiate_peace；村民/流浪者无政治动作——正确，村民没有王国权力）
             public bool IdentityGated;
+            // 🔴 2026-08-21（用户裁定：在押随从无法执行任何移动类操作）：移动门控动作——
+            // GetActionSpacePrompt 对 DetentionGated 动作在 attacker 在押时跳过（闲聊空间看不到）；
+            // HandleAction 执行入口 + PlanExecutor 步骤启动双层守卫（计划轮 LLM 可能绕过动作空间）；
+            // 移动卡死瞬移兜底 = 越狱路径（在押走不动 → 3s 无进展 → TeleportToPosition 目标点），
+            // 瞬移点另行在押守卫（AtomicAction/AgentControlHelper.MoveTo）。
+            public bool DetentionGated;
         }
         // ─────────────────────────────────────────────────────────────
         // 主表 34 行：前 21 行 = 计划词表原序（严格按原 ActionsInPromptOrder 抄，82% 基线）；
@@ -114,6 +120,7 @@ namespace LivingWorldNpcs
                 Code = "move_to",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 23,
                 Spaces = ActionSpace.InScene | ActionSpace.Party,
+                DetentionGated = true,   // 🔴 2026-08-21 在押门控（用户裁定：牢里不能走）
                 Aliases = new[] { "move" },
                 LabelKey = "move_to", LabelFallback = "move to",
                 IsValid = (npc, player, agent) => agent != null
@@ -178,6 +185,7 @@ namespace LivingWorldNpcs
                 Code = "follow",
                 InPlanVocab = true, InChatSpace = true, ChatOrder = 19,
                 Spaces = ActionSpace.InScene,
+                DetentionGated = true,   // 🔴 2026-08-21 在押门控（用户裁定：牢里不能走）
                 LabelKey = "follow", LabelFallback = "follow",
                 IsValid = (npc, player, agent) => agent != null,
                 FillParams = (step, level, sayText) => step.TimeoutS = 0f,   // 无限保持（与密令 follow 省略 timeout 同语义）
@@ -271,6 +279,7 @@ namespace LivingWorldNpcs
             {
                 Code = "lead",
                 InPlanVocab = true,
+                DetentionGated = true,   // 🔴 2026-08-21 在押门控（带路 = 执行者移动）
                 LabelKey = "lead", LabelFallback = "lead the way",
                 IsValid = (a, d, ag) => false,   // 计划语义（执行器），无闲聊入口 → 永不调用
             },
@@ -524,8 +533,13 @@ namespace LivingWorldNpcs
                     int delta = ActionHandler.LevelDelta(l, +1);
                     if (d == Hero.MainHero)
                     {
-                        // 玩家侧：官方玩家关系 API（showQuickNotification：玩家可见反馈，§5.2 裁定例外）
-                        ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                        // 🔴 2026-08-21 修复：原 ApplyPlayerRelation(d) = ApplyInternal(MainHero, MainHero)
+                        // 自对写入——引擎 SetHeroRelation 对 hero1==hero2 直接 Debug.FailedAssert 拒绝，
+                        // 好感根本没入账（实机 toast「你与努勒丹的关系+3，现为0」即铁证）。
+                        // 统一 ApplyRelationChangeBetweenHeroes(a, d)：改 attacker 对 defender 的好感
+                        //（动作语义「你对对方印象变好」）；showQuickNotification=true 生成玩家可见 toast
+                        //（SandBox OnRelationChanged 的 VALUE 读非玩家侧，自洽显示变化后数值）
+                        ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, true);
                     }
                     else
                     {
@@ -550,7 +564,7 @@ namespace LivingWorldNpcs
                     if (a == null || d == null) return;
                     int delta = ActionHandler.LevelDelta(l, -1);
                     if (d == Hero.MainHero)
-                        ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                        ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, true);   // 🔴 2026-08-21 修复：自对写入 bug 同 relation_up
                     else
                         ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
                     DebugLogger.Log($"[ActionHandler] RELATION_DOWN {a.Name}→{d.Name} {delta:+0;-0}");
@@ -571,7 +585,7 @@ namespace LivingWorldNpcs
                 {
                     if (a == null || d == null) return;
                     int delta = ActionHandler.LevelDelta(null, +1);
-                    if (d == Hero.MainHero) ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                    if (d == Hero.MainHero) ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, true);   // 🔴 2026-08-21 修复：自对写入 bug 同 relation_up
                     else ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
                 }
             },
@@ -589,7 +603,7 @@ namespace LivingWorldNpcs
                 {
                     if (a == null || d == null) return;
                     int delta = ActionHandler.LevelDelta(null, -1);
-                    if (d == Hero.MainHero) ChangeRelationAction.ApplyPlayerRelation(d, delta, true, true);
+                    if (d == Hero.MainHero) ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, true);   // 🔴 2026-08-21 修复：自对写入 bug 同 relation_up
                     else ChangeRelationAction.ApplyRelationChangeBetweenHeroes(a, d, delta, false);
                 }
             },
@@ -773,6 +787,7 @@ namespace LivingWorldNpcs
                 InChatSpace = true, ChatOrder = 26,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
+                DetentionGated = true,   // 🔴 2026-08-21 在押门控（部队移动，在押者无部队自由）
                 LabelKey = "party_patrol", LabelFallback = "start patrolling",
                 IsValid = (attacker, defender, agent) => PartySplitFlow.IsSplitPartyLeader(attacker)
                     || (defender != null
@@ -826,6 +841,7 @@ namespace LivingWorldNpcs
                 InChatSpace = true, ChatOrder = 27,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
+                DetentionGated = true,   // 🔴 2026-08-21 在押门控（归队 = 部队移动）
                 LabelKey = "gather_to_player", LabelFallback = "march to assemble",
                 IsValid = (attacker, defender, agent) => PartySplitFlow.IsSplitPartyLeader(attacker)
                     || (defender != null
@@ -890,6 +906,7 @@ namespace LivingWorldNpcs
                 InChatSpace = true, ChatOrder = 31,
                 Spaces = ActionSpace.Party,
                 NeedsCooldown = true,
+                DetentionGated = true,   // 🔴 2026-08-21 在押门控（缠住/追击 = 部队移动）
                 LabelKey = "engage", LabelFallback = "engage",
                 IsValid = (attacker, defender, agent) =>
                     PartySplitFlow.IsSplitPartyLeader(attacker)

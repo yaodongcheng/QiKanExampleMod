@@ -342,7 +342,7 @@ namespace LivingWorldNpcs
             {
                 Vec3 fwd = mission.GetCameraFrame().rotation.f;
                 float yawDeg = (float)(Math.Atan2(fwd.X, fwd.Y) * 180.0 / Math.PI);
-                sb.AppendLine($"[Compass] yaw={yawDeg:F1} (0=北=+Y 顺时针为正) visible={hud._vm.IsVisible} " +
+                sb.AppendLine($"[Compass] yaw={yawDeg:F1} (0=北=+Y 顺时针为正) visible={hud._vm.IsVisible} " + // lwn-ignore: A
                     $"setting={Settings.Instance.ShowCompass} icons={hud._vm.IconItems.Count}"); // lwn-ignore: A
                 Vec3 camPos = hud._missionScreen?.CombatCamera?.Position ?? Vec3.Zero;
                 foreach (var icon in hud._vm.IconItems)

@@ -161,10 +161,13 @@ namespace LivingWorldNpcs
             return BuildIntentTable();
         }
 
-        /// <summary>语法词表（Replan 复用）。</summary>
-        internal static string GrammarForPrompt()
+        /// <summary>语法词表（Replan 复用）。detentionFiltered = 执行者在押 → 动作词表剔除
+        /// DetentionGated 移动动作（move_to/follow/lead 等）——计划轮 prompt 里根本没有这些选项，
+        /// LLM 无从生成注定中止的移动计划（🔴 2026-08-21 用户质疑：动作空间过滤只管回复轮闲聊空间，
+        /// 计划轮词表是全量的，纪律段只是劝说；词表裁剪才是硬约束）。</summary>
+        internal static string GrammarForPrompt(bool detentionFiltered = false)
         {
-            return BuildGrammar();
+            return BuildGrammar(detentionFiltered);
         }
 
         /// <summary>意图注册表（单一事实源）：注册新意图 = 枚举加一行（GoalTemplates.cs）+ 此处加一行话术，
@@ -235,14 +238,21 @@ namespace LivingWorldNpcs
             return sb.ToString();
         }
 
-        private static string BuildGrammar()
+        private static string BuildGrammar(bool detentionFiltered = false)
         {
             // 词表动态拼接（单一事实源 = ActionRegistry 主表 + PlanVocab / ReactiveAgent 派生数组）：
             // 注册新动作 → ActionRegistry.cs 主表加一行（PlanVocab.ActionsInPromptOrder 自动派生）；
             // 新谓词/查询/触发词/反应动作 → 对应 *InPromptOrder 数组加一行，prompt 自动读到。
             // 顺序 = 数组声明顺序（保持手写序，防 prompt 漂移——82% 回归基线是此顺序跑出来的）。
+            // 🔴 2026-08-21（在押词表裁剪）：detentionFiltered 时剔除 DetentionGated 动作——
+            // 在押执行者的计划轮动作词表没有移动选项（move_to/follow/lead/party_patrol/
+            // gather_to_player/engage），LLM 选不到 = 不会生成；纪律段（LWN_plan_detention_note）
+            // 负责引导"诚实收尾/不依赖移动的计划"。谓词/反应词表不动（flee 是防御性逃跑，保留）。
+            var actions = PlanVocab.ActionsInPromptOrder;
+            if (detentionFiltered)
+                actions = actions.Where(c => ActionRegistry.FindByCode(c)?.DetentionGated != true).ToArray();
             return string.Join("\n",
-                "动作（action）：" + string.Join(" / ", PlanVocab.ActionsInPromptOrder)
+                "动作（action）：" + string.Join(" / ", actions)
                     + "（攻击动作必须写 order_attack，禁止缩写 attack）",
                 "谓词（type）：" + string.Join(" / ", PlanVocab.PredicatesInPromptOrder),
                 "谓词修饰：sustained_s（连续成立 N 秒）、was（曾成立过）",

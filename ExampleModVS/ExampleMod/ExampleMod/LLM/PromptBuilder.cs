@@ -2162,7 +2162,8 @@ sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task"));
         /// 诚实声明——注入计划轮（LLM 必须 questions 让主公挑，禁止自行指定一个；无匹配不得偷换目标）。</summary>
         public static string BuildPlanPrompt(string snapshotText, string command, string persona,
             string history, string intentTable, string grammarRules, string companionIntention = null,
-            string resolvedTargetText = null, string worldSection = null, string targetCandidatesText = null)
+            string resolvedTargetText = null, string worldSection = null, string targetCandidatesText = null,
+            string detentionNote = null)
         {
             var sb = new StringBuilder();
             // 世界观段（blob 单段注入，2026-08-17：静态 flavor 退场；调用点传切片结果，null = 省略——
@@ -2196,6 +2197,15 @@ sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_prompt_section_task"));
                 // 本地化：【随从的打算】段标题（XML LWN_plan_section_companion_intention）
                 sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_section_companion_intention"));
                 sb.AppendLine(companionIntention);
+                sb.AppendLine();
+            }
+            // 🔴 2026-08-21（用户裁定：在押随从无法执行移动类操作）：【在押纪律】段——执行者在押时
+            // 注入（ImCommandFlow 判定）。C# 执行器会中止移动步骤（move_to/follow/lead），prompt 先
+            // 告知 LLM 别生成注定中止的计划：要么做不依赖移动的事（传话/望风/原地动作），要么诚实
+            // 收尾 fail + report「我在牢里出不去」。
+            if (!string.IsNullOrWhiteSpace(detentionNote))
+            {
+                sb.AppendLine(detentionNote);
                 sb.AppendLine();
             }
             // 🔴 2026-08-15（目标唯一标记，用户裁定）：【目标指认】段——回复轮已把玩家的模糊说法
