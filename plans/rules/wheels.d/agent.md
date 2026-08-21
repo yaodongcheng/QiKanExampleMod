@@ -13,6 +13,8 @@ await AgentControlHelper.MoveTo(agent, targetVec, targetDir, stopDistance = 0.5f
 await AgentControlHelper.MoveToActor(npc, actor, stopDistance = 0.5f);
 await AgentControlHelper.MovePrepare(npc);          // 移动前清 AI/停交互
 AgentControlHelper.MoveEndAndInteractPrepare(npc[, initPos]);  // 到位后锁定进对话
+// 🔴 移动避障（卡门/顶人）：目标点近处被实体/目标本人挡住时横向偏移寻路终点（详见下方专节）
+AgentControlHelper.SmartMoveToPoint(agent, goal, run, stopDistance[, goalAgent]);
 // 朝向 / 锁定
 AgentControlHelper.LookAtAgent(agent, target);  StopLooking(agent);
 AgentControlHelper.FaceToActor(turnAgent, targetAgent);
@@ -247,6 +249,73 @@ agent.SetScriptedPositionAndDirection(...);
 **控制台对照**：`agent.goto [AgentIndex] [X] [Y] [Z]` → 内部调 `MBAPI.IMBAgent.SetScriptedPosition`。C# 层只能看到函数签名，实现是 native C++。
 
 **文件位置**：`Core/AgentControlHelper.cs`（已封装），底层 `TaleWorlds.MountAndBlade.dll` → `Agent.SetScriptedPosition`。
+
+---
+
+## 🔴 移动避障入口 — `AgentControlHelper.SmartMoveToPoint`（2026-08-21，plans/movement-avoidance.md）
+
+**解决**：引擎寻路两个盲区——① **navmesh 通、物理堵（门洞）**：路径直线穿门被碰撞体顶住几十秒（navmesh 认为通 ≠ 物理通）；② **寻路终点就在目标本人身上**（绕背点直线穿目标身体）：局部避障把目标当「终点」不当「障碍」，正面顶住到不了位。方案 = **航点偏移启发式**（waypoint nudging）：只在直线被挡时把终点横挪，清楚时归零。不选 ORCA：与引擎原生 steering 避让互相拉扯、不对症（目标不避你，互惠语义反而两方都不到位）。
+
+**关键签名**：
+```csharp
+// Core/AgentControlHelper.cs
+public static void SmartMoveToPoint(Agent agent, Vec3 goal, bool run,
+    float stopDistance, Agent goalAgent = null)
+```
+
+**三闸门**（依次）：
+1. **贴脸直发**：`agent→goal ≤ stopDistance + 0.5m` → 直发不避障（目标近前碰撞体自然停在 ~0.5-1m）。🔴 保护带曾用 +1.5m——实机教训（2026-08-21 吕卡隆）：「距终点 4m 内」不代表路径通，近程恰恰最需要绕，直发 = 顶上去；收窄 +0.5m 后近程留给闸门 2/3
+2. **目标本人视野锥检测**（goalAgent 非 null 且活跃）：**agent 在目标前方视野锥内（dot ≥ 0.5，与 Behind 闸门 InlineSteps.cs:775 同口径）且「你→目标点」直线距目标 < 1.5m** → 终点横挪 1.2m 到侧翼。🔴 原判据「线段穿碰撞圆柱 < 0.7m」只治正面直冲（侧向接近静默 → 顶目标面前 8s 超时），2026-08-21 用户裁定改视野锥判据
+3. **前方实体检测（近程专用）**：**距终点 ≤ 4m 才打眼高射线**（用户裁定：4m 外不需要射线检测——还早着呢路径几何没定）；命中即向命中点两侧各探 1.5m 短射线选通侧，终点横挪 1.2m；两侧都堵 → 保持原向（交卡死瞬移兜底）。RayCast 复用 `V.RayCastForClosestEntityOrTerrain` + `BodyFlags.CommonCollisionExcludeFlags`（与目击遮挡 `NpcSightSystem.IsOccluded` 同套路）。🔴 **闸门 2 已 nudge 时跳过闸门 3**（叠两层 1.2+1.2 过头）
+
+**调用范例**（3 处接入，全部改走本入口，禁止旁路 ScriptedMoveToPoint）：
+```csharp
+// FollowAgentAction.MoveToTarget（repath 时）——带目标本人
+AgentControlHelper.SmartMoveToPoint(agent, _currentIdealPosition, _run, _stopDistance, _target);
+// MoveToPositionAction.OnTick（200ms）——坐标点目标
+AgentControlHelper.SmartMoveToPoint(agent, _targetPos, _run, _stopDistance);
+// InlineSteps Behind 相位（绕背走位，每帧）——带扒窃目标
+AgentControlHelper.SmartMoveToPoint(_agent, _behindPick, dist > 5f, 2.5f, target);
+```
+
+**完成判定零改动**：偏移只影响「本帧下发的寻路终点」，IsFinished 仍用调用方的真实目标点（`_currentDistanceSq` / `_targetPos` / 真实 `dist`）。
+
+**纪律与坑**：
+- 🔴 **禁止动 `ScriptedMoveToPoint` 本体**——逃跑（FleeFrom）/回岗/脚本移动等既有调用零影响（爆炸半径最小化）
+- **性能**：闸门 3 的 RayCast 只在 repath 间隔打——每 agent 0.2s 内部节流缓存（其余帧复用上次偏移，纯性能缓存不承载转向语义；Agent 死亡/换 Mission 后随 256 条上限清理）；闸门 2 纯 2D 数学每帧可算
+- **时间源**：节流用 `TaleWorlds.Engine.Time.ApplicationTime`（`Mission.Time` 不存在；单调递增跨 Mission 自动过期旧条目）
+- **日志**：避障发生时 `[MoveAvoid] {agent.Name}(Idx=N) 避障: 距终点Xm 偏移Ym`，每 agent 1s 至多 1 条（防绕行期间刷屏；DebugLogger 豁免铁律 13）
+- ⚠️ **门 flag 待实机验证**：`CommonCollisionExcludeFlags` 若拦不住 Moveable flag 的门（射线穿门），照 `GroupStageManager.cs:87` 惯例补 `BodyFlags.Moveable`（一行）
+- **兜底不变**：真·封死的门（navmesh 通、物理完全封死、两侧无缝隙）任何 nudge 都无效 → 保留既有卡死瞬移兜底（无进展 3s → 瞬移）
+
+**文件位置**：`Core/AgentControlHelper.cs`（SmartMoveToPoint + PointToSegmentDist2D + `_moveAvoidCache`/`_moveAvoidLog` 节流字典）；接入点 `AI/Actions/AtomicAction.cs`（MoveToPositionAction.OnTick / FollowAgentAction.MoveToTarget）、`Planner/InlineSteps.cs`（Behind 相位）
+
+---
+
+## 🔴 绕背选点探测 — `TryFindBehindSpot` / `IsBehindSpotValid`（2026-08-21 用户裁定重写）
+
+**解决**：绕背点 = **目标视野外（dot < BehindConeDot = cos75° ≈ 0.2588，150° FOV 外，用户裁定 2026-08-21——原 120° 让侧面 60°~90° 点也算背后，NPC 有身体一转脸就看见）全扇区 × 距离带 0.5~3m 内任意可达点**，不是死磕正后。
+原实现只有「正后 2.2m / 后左 45° 2.5m / 后右 45° 2.5m / 正后 3.5m」四个固定点——实机（吕卡隆）两个死法：
+① agent 必须绕过 target 本人才能到正后点，target 转头时绕背点漂移、agent 追不上（距终点恒 3.2~4m）→ 8s 超时 impossible；
+② 45° 侧后候选点 dot=0.707 ≥ 0.5 在视野锥内，选了也进不了 Behind 闸门（死结）。
+
+**关键签名**：
+```csharp
+// Core/AgentControlHelper.cs
+public static bool TryFindBehindSpot(Agent target, out Vec3 spot);  // 探测（评估/执行共享，铁律 18）
+public static bool IsBehindSpotValid(Agent target, Vec3 spot);       // 防抖合法性（距离带 + 视野外）
+```
+
+**采样**：7 方向（正后 → 两侧 30° 步进至 ±90°；±105° 是视野边界 dot=cos75° 不含）× 6 距离（0.5~3.0m，0.5m 步进）网格，**距离升序优先近点**，首个 `V.NavMesh` 可站立点。全不可站 → false（spot = 未验证正后 2.2m 兜底，调用方 8s 超时诚实报告）。
+
+**Behind 相位配合纪律**（InlineSteps.cs Behind 相位）：
+- **视野口径 BehindConeDot = 0.2588**（150° FOV 半角 75° 余弦，`AgentControlHelper.BehindConeDot` 常量，Behind 闸门 / 闸门 2 / IsBehindSpotValid 三处同源）——⚠️ 绕背专用口径，与目击检查 `NpcSightSystem.CanAgentSeeTarget`（仍 120°）独立：绕背站位比目击判定更保守
+- **防抖**：0.25s 重选时旧点仍合法（`IsBehindSpotValid`：距离带 + dot < BehindConeDot）→ 沿用——目标转小角度 agent 不用追
+- **首帧**：`_behindPicked` 未选前不发移动指令（治实机 [MoveAvoid] 距终点 596.5m 指向原点——`_behindPick` 默认 (0,0) 附近）
+- **闸门距离带 0.5~3.0m**（用户裁定，与选点对齐；近端 0.5 由碰撞圆柱 ~0.7m 自然顶开）
+- **移动指令走 SmartMoveToPoint**（闸门 2 目标本人视野锥检测兜底侧翼 nudge）
+
+**文件位置**：`Core/AgentControlHelper.cs`（TryFindBehindSpot / IsBehindSpotValid / RotateDir）；`Planner/InlineSteps.cs`（Behind 相位选点防抖 + 闸门距离带）；`Planner/TargetRiskEvaluator.cs`（BehindSpotOk 只吃 bool，不看 spot）
 
 ---
 

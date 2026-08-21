@@ -361,6 +361,7 @@
     <!-- Dialogue (dynamic dialogue injection pipeline) -->
     <!-- Input (UE4-style action mapping: keyboard/gamepad glyphs) -->
     <Compile Include="Input\ModInput.cs" />
+    <Compile Include="Input\EditableTextImePatch.cs" />
     <!-- LLM -->
     <Compile Include="LLM\LLMService.cs" />
     <Compile Include="LLM\PromptBuilder.cs" />

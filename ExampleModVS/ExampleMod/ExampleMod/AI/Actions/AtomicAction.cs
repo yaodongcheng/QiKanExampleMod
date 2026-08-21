@@ -541,7 +541,9 @@ namespace LivingWorldNpcs
             if (fixedTimer > 0.2f)
             {
                 fixedTimer = 0;
-                AgentControlHelper.ScriptedMoveToPoint(agent, _targetPos, _run);
+                // 🔴 2026-08-21（移动避障，plans/movement-avoidance.md）：共享避障入口——
+                // 目标点近处被门/墙挡住时横向偏移寻路终点；完成判定仍用 _targetPos（IsFinished 不受影响）
+                AgentControlHelper.SmartMoveToPoint(agent, _targetPos, _run, _stopDistance);
             }
 
             // 进度采样（每 0.5s）：仍在接近 = 有速度 → 记"最近有进展时刻"，永不瞬移
@@ -891,7 +893,11 @@ namespace LivingWorldNpcs
         }
         private void MoveToTarget(Agent agent)
         {
-            AgentControlHelper.ScriptedMoveToPoint(agent, _currentIdealPosition, _run,true);
+            // 🔴 2026-08-21（移动避障，plans/movement-avoidance.md）：共享避障入口 + 目标本人贴身检测——
+            // 直线穿目标身体（绕背点/贴脸点）时终点横挪到身侧；完成判定仍用 _currentDistanceSq（不受影响）。
+            // 原第 4 参 hasNav=true（_currentIdealPosition 已被 CalculateIdealPosition 做 navmesh 修正）；
+            // SmartMoveToPoint 内部会对偏移后的终点再走一遍 navmesh 修正，合法点上是无操作。
+            AgentControlHelper.SmartMoveToPoint(agent, _currentIdealPosition, _run, _stopDistance, _target);
         }
 
         private void StopMoving(Agent agent)

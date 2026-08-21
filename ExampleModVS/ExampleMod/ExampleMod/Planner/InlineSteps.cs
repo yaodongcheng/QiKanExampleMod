@@ -672,6 +672,11 @@ namespace LivingWorldNpcs
         // 目标转身跟随走位；其余帧沿用选中点派发移动指令）
         private Vec3 _behindPick;
         private float _behindLastPick;
+        // 🔴 2026-08-21（用户裁定：绕背点放开视野外全扇区 + 防抖）：绕背点已选标志——
+        // 首帧未选前不发移动指令（治实机 [MoveAvoid] 距终点 596.5m 指向原点异常）；
+        // 旧点仍合法（IsBehindSpotValid）时沿用，目标转小角度不必重选（治「目标转头 →
+        // 绕背点漂移 → agent 追不上」→ 8s 超时 impossible 实机）
+        private bool _behindPicked;
         // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：绕后卡住独白（每卡住周期一次）
         private bool _monologueSaid;
         // 🔴 2026-08-21（用户反馈：周围没人却说「被人看见」，且不点名）：中断原因拆分——
@@ -774,20 +779,27 @@ namespace LivingWorldNpcs
                     {
                         Vec2 look = target.LookDirection.AsVec2.Normalized();
                         Vec2 toSelf = (_agent.Position - target.Position).AsVec2.Normalized();
-                        behind = Vec2.DotProduct(look, toSelf) < -0.4f;
+                        // 🔴 2026-08-21（用户裁定：背后 = 站在目标 150° 视野圆锥之外）：
+                        // 原 -0.4（正后 ~113° 窄扇区）把侧位（60°~113°）也判「绕不到」。
+                        // 🔴 2026-08-21（用户裁定：120° → 150°）：原 120° FOV（半角 60°，
+                        // dot < 0.5 = 背后）让侧面 60°~90° 的点也算背后——但 NPC 有身体，
+                        // 侧翼贴太近一转脸就看见，不算真背后。收紧到 150°（半角 75°，
+                        // dot < cos75° ≈ 0.2588 = BehindConeDot）。此口径绕背专用（三处同源），
+                        // 与目击检查（NpcSightSystem 仍 120°）独立——绕背站位比目击判定更保守。
+                        behind = Vec2.DotProduct(look, toSelf) < AgentControlHelper.BehindConeDot;
                     }
                     catch { }
-                    // 🔴 2026-08-20（用户反馈：偷窃瞬间与目标相对位置不对）：Behind→Rolling 必须
-                    // 已走到绕背点（0.5m 内）——原条件「behind && dist≤2.5m」在接近途中就触发
-                    //（2.5m 圈 + 后侧扇区过宽：可 2.5m 远、偏侧、还在走时进 Rolling），Rolling 内
-                    // FaceToActor + 下蹲与 ScriptedMoveToPoint 移动锁互相拉扯，偷窃点飘。
-                    // _behindLastPick > 0 = 已至少选过一次绕背点（首次 0.25s 内 pick 未定，不判到位）。
-                    // 🔴 2026-08-20 实机对账（[StealPos] 7 次尝试）：1.0m 圈太松——随从在
-                    // 距绕背点 0.36~0.98m 处即触发（距目标仅 1.38~1.99m、偏东 0.25~0.8m），
-                    // 且 force 重试在绕背点旁原地触发。收紧到 0.5m（= 目标正后 1.7~2.7m 环带）。
-                    bool arrivedAtBehind = _behindLastPick > 0f
-                        && _agent.Position.Distance(_behindPick) <= 0.5f;
-                    if (behind && arrivedAtBehind && dist <= 2.5f)
+                    // 🔴 2026-08-21（用户裁定：距离带 + 已停步，替代「精确到绕背点」）：
+                    // 原 arrivedAtBehind（距绕背点 ≤0.5m）把「比绕背点（正后 2.2m）更近」的合法
+                    // 站位判死（实机：停在 1.2~1.8m 背后、距点 0.4~1.0m → 8s 超时 impossible）。
+                    // 改为：视野圆锥外 + 距离带 + 已停步（MovementVelocity < 0.5m/s——拦「赶路
+                    // 途中进 Rolling」的旧病，偷窃点不飘）。
+                    // 🔴 2026-08-21（用户裁定：绕背点放开视野外全扇区 0.5~3m）：距离带对齐选点
+                    // 范围——近端 0.5m（碰撞圆柱 ~0.7m 会自然顶开，视觉到位）/ 远端 3.0m
+                    //（比原 2.5 放宽，侧翼点容差）。
+                    // 8s 超时兜底保留：站位真的不可行仍诚实报告「绕不到背后」。
+                    bool stopped = _agent.MovementVelocity.Length < 0.5f;
+                    if (behind && stopped && dist >= 0.5f && dist <= 3.0f)
                     {
                         _phase = AttemptPhase.Rolling;
                         _timer = 0f;
@@ -829,9 +841,23 @@ namespace LivingWorldNpcs
                             if (_timer - _behindLastPick > 0.25f)
                             {
                                 _behindLastPick = _timer;
-                                AgentControlHelper.TryFindBehindSpot(target, out _behindPick);
+                                // 🔴 2026-08-21（用户裁定：绕背点放开视野外全扇区 + 防抖）：
+                                // 旧点仍合法（距离带 + 视野外，IsBehindSpotValid）→ 沿用——目标
+                                // 转小角度不必重选（治实机「目标转头 → 绕背点漂移 → agent 追不上」
+                                // → 8s 超时 impossible）；首帧未选先选点（治 596.5m 指向原点异常）。
+                                if (!_behindPicked || !AgentControlHelper.IsBehindSpotValid(target, _behindPick))
+                                    _behindPicked = AgentControlHelper.TryFindBehindSpot(target, out _behindPick);
                             }
-                            AgentControlHelper.ScriptedMoveToPoint(_agent, _behindPick, dist > 5f);
+                            // 🔴 2026-08-21：首帧未选到点（TryFindBehindSpot 全候选不可站）不发
+                            // 移动指令，等下一轮重选——agent 原地等 Behind 闸门（若已站在带内+
+                            // 视野外直接进 Rolling）
+                            if (_behindPicked)
+                            {
+                                // 🔴 2026-08-21（移动避障，plans/movement-avoidance.md）：共享避障入口——
+                                // 治「绕背点直线穿目标身体，正面顶住到不了绕背点」：闸门 2 把终点横挪
+                                // 到目标身侧；闸门 1 保护带保证贴脸可达。Behind 闸门判定仍用真实 dist。
+                                AgentControlHelper.SmartMoveToPoint(_agent, _behindPick, dist > 5f, 2.5f, target);
+                            }
                         }
                         catch { }
                     }
