@@ -309,6 +309,7 @@ public static bool IsBehindSpotValid(Agent target, Vec3 spot);       // 防抖�
 **采样**：7 方向（正后 → 两侧 30° 步进至 ±90°；±105° 是视野边界 dot=cos75° 不含）× 6 距离（0.5~3.0m，0.5m 步进）网格，**距离升序优先近点**，首个 `V.NavMesh` 可站立点。全不可站 → false（spot = 未验证正后 2.2m 兜底，调用方 8s 超时诚实报告）。
 
 **Behind 相位配合纪律**（InlineSteps.cs Behind 相位）：
+- 🔴 **目标引用统一走 `_stealRefName`**（构造时 `step.From ?? step.Target` 归一化，含 query 解包）——偷窃步骤 from/target 二选一，LLM 可能只写 from（实机 2026-08-21：帝国重装骑兵#49 只写 from → 相位裸读 `_step.Target`=null → 2s 即 impossible「绕不到（空）背后」）；**禁止在相位内裸读 `_step.Target`**
 - **视野口径 BehindConeDot = 0.2588**（150° FOV 半角 75° 余弦，`AgentControlHelper.BehindConeDot` 常量，Behind 闸门 / 闸门 2 / IsBehindSpotValid 三处同源）——⚠️ 绕背专用口径，与目击检查 `NpcSightSystem.CanAgentSeeTarget`（仍 120°）独立：绕背站位比目击判定更保守
 - **防抖**：0.25s 重选时旧点仍合法（`IsBehindSpotValid`：距离带 + dot < BehindConeDot）→ 沿用——目标转小角度 agent 不用追
 - **首帧**：`_behindPicked` 未选前不发移动指令（治实机 [MoveAvoid] 距终点 596.5m 指向原点——`_behindPick` 默认 (0,0) 附近）
