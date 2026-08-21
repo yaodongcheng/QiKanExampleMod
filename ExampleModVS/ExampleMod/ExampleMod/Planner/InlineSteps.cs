@@ -677,6 +677,11 @@ namespace LivingWorldNpcs
         // 旧点仍合法（IsBehindSpotValid）时沿用，目标转小角度不必重选（治「目标转头 →
         // 绕背点漂移 → agent 追不上」→ 8s 超时 impossible 实机）
         private bool _behindPicked;
+        // 🔴 2026-08-21（实机：LLM 偷窃步骤只写 from 不写 target → Behind 相位解析 _step.Target=null
+        // → 直接 impossible「绕不到（空）背后」，2s 即败）：统一目标引用 = 构造时
+        //（step.From ?? step.Target）归一化结果——Behind/Rolling/判定全部相位共用，禁止再裸读
+        // _step.Target（from/target 二选一的语法下 target 可能为 null）。
+        private string _stealRefName;
         // 🔴 2026-08-19（用户裁定：迟迟不动手 → 附近频道内心独白）：绕后卡住独白（每卡住周期一次）
         private bool _monologueSaid;
         // 🔴 2026-08-21（用户反馈：周围没人却说「被人看见」，且不点名）：中断原因拆分——
@@ -714,6 +719,9 @@ namespace LivingWorldNpcs
             string refName = PlanRefUtil.Normalize(sourceToken, out string query);
             if (query != null) refName = query;
             if (string.IsNullOrEmpty(refName)) { Ok = false; return; }
+            // 🔴 2026-08-21（from/target 二选一）：统一目标引用存字段——LLM 可能只写 from 不写
+            // target（实机：帝国重装骑兵#49），Behind/Rolling/判定相位禁止裸读 _step.Target
+            _stealRefName = refName;
             _fromIsAgent = executor.World.TryResolveAgent(refName, cursor.Agent, out _);
             bool targetOk = _fromIsAgent
                 ? true
@@ -738,9 +746,7 @@ namespace LivingWorldNpcs
                     if (!_fromIsAgent)
                     {
                         // 接近来源物件（≤2m）
-                        string refName = PlanRefUtil.Normalize(_step.Target, out string q);
-                        if (q != null) refName = q;
-                        if (!string.IsNullOrEmpty(refName) && _executor.World.TryResolvePosition(refName, _agent, out Vec3 pos))
+                        if (!string.IsNullOrEmpty(_stealRefName) && _executor.World.TryResolvePosition(_stealRefName, _agent, out Vec3 pos))
                         {
                             if (_agent.Position.Distance(pos) > 2f)
                                 AgentControlHelper.ScriptedMoveToPoint(_agent, pos, false);
@@ -761,7 +767,7 @@ namespace LivingWorldNpcs
                     break;
                 case AttemptPhase.Behind:
                     // 来源是人：绕背定位（目标背后盲区 + 可达）
-                    if (!_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent target))
+                    if (!_executor.World.TryResolveAgent(_stealRefName, _agent, out Agent target))
                     {
                         _resultKey = "impossible";
                         _phase = AttemptPhase.Settled;
@@ -874,7 +880,7 @@ namespace LivingWorldNpcs
                             try
                             {
                                 if (_fromIsAgent
-                                    && _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent poseTarget))
+                                    && _executor.World.TryResolveAgent(_stealRefName, _agent, out Agent poseTarget))
                                 {
                                     // 🔴 2026-08-20（用户反馈：随从一会向左一会向前——转身被移动锁覆盖）：
                                     // 绕背阶段每帧发的 ScriptedMoveToPoint（GoToPosition）在 Rolling 期间
@@ -897,7 +903,7 @@ namespace LivingWorldNpcs
                                 _agent.SetCrouchMode(true);
                                 AgentBrain.SetCrouchPose(_agent, true);   // 人工记录（扒窃蹲姿，native flag 不可信）
                                 AgentControlHelper.SetPose(_agent, "act_crouch_walk_idle_unarmed");
-                                DebugLogger.Log($"[StealPhase] {_agent.Name} 蹲下摸口袋（目标 {_step.Target}）");
+                                DebugLogger.Log($"[StealPhase] {_agent.Name} 蹲下摸口袋（目标 {_stealRefName}）");
                             }
                             catch { }
                         }
@@ -909,7 +915,7 @@ namespace LivingWorldNpcs
                         // 受害者察觉是单独语义，🔴 2026-08-21 用户反馈：女镇民周围没人却说「被人看见」，
                         // 摸钱包分支原实现不排除目标 → 目标本人被当成目击者 → 播报误导）
                         Agent rollTarget = null;
-                        _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out rollTarget);
+                        _executor.World.TryResolveAgent(_stealRefName, _agent, out rollTarget);
                         var witnesses = StealManager.GetWitnesses(_agent, rollTarget, 15f, 120f);
                         // 目标本人察觉（转身/走动中看到蹲身后的随从）→ 中断（同 interrupted 出口，
                         // 播报点名「她发现你了」——不是第三方目击）
@@ -977,7 +983,7 @@ namespace LivingWorldNpcs
                                 {
                                     float roguery = hero.GetSkillValue(DefaultSkills.Roguery);
                                     float tLevel = 0f;
-                                    if (_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent t2))
+                                    if (_executor.World.TryResolveAgent(_stealRefName, _agent, out Agent t2))
                                     {
                                         var tCo = t2.Character as CharacterObject;
                                         tLevel = tCo?.HeroObject?.Level ?? tCo?.Level ?? 0f;
@@ -994,7 +1000,7 @@ namespace LivingWorldNpcs
                         //（用户反馈：偷窃时相对位置不对——Rolling 起点与判定点双重对账；标签 [StealPos]）
                         try
                         {
-                            if (_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent stealDiag))
+                            if (_executor.World.TryResolveAgent(_stealRefName, _agent, out Agent stealDiag))
                             {
                                 Vec2 diagLook = stealDiag.LookDirection.AsVec2.Normalized();
                                 Vec2 diagToSelf = (_agent.Position - stealDiag.Position).AsVec2.Normalized();
@@ -1030,7 +1036,7 @@ namespace LivingWorldNpcs
                             if (success)
                             {
                                 Agent targetEq = null;
-                                _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out targetEq);
+                                _executor.World.TryResolveAgent(_stealRefName, _agent, out targetEq);
                                 if (targetEq != null)
                                 {
                                     string itemName = StealManager.StealEquipmentForNpc(targetEq);
@@ -1054,7 +1060,7 @@ namespace LivingWorldNpcs
                                 // 🔴 2026-08-14（M7）：偷装备失败 = 目标察觉 → 警戒脉冲（目标警觉，
                                 // suspect 指向随从）+ 计划走 abort 撤退（既有路径）+ 专属播报
                                 Agent targetEq2 = null;
-                                _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out targetEq2);
+                                _executor.World.TryResolveAgent(_stealRefName, _agent, out targetEq2);
                                 if (targetEq2 != null)
                                 {
                                     // 🔴 2026-08-20（感知管线统一重构，用户裁定）：目标察觉 = 受害者自己的脑
@@ -1071,7 +1077,7 @@ namespace LivingWorldNpcs
                         {
                             // 来源是人：得手 = 目标钱包守恒转移（目标有 Hero 才可转移）
                             Agent target2 = null;
-                            _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out target2);
+                            _executor.World.TryResolveAgent(_stealRefName, _agent, out target2);
                             var targetHero = (target2?.Character as CharacterObject)?.HeroObject;
                             if (!success)
                             {
@@ -1109,7 +1115,7 @@ namespace LivingWorldNpcs
                             var finalWitnesses = StealManager.GetWitnesses(_agent, null, 15f, 120f);
                             if (_fromIsAgent)
                             {
-                                if (_executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent t))
+                                if (_executor.World.TryResolveAgent(_stealRefName, _agent, out Agent t))
                                     finalWitnesses.RemoveAll(w => w == t);
                             }
                             if (finalWitnesses.Count > 0)
@@ -1122,7 +1128,7 @@ namespace LivingWorldNpcs
                                 // 收不到广播 = 扒窃不被受害者当场察觉（体感察觉由 TheftVictimized 承担）。
                                 Agent stolenFrom = null;
                                 if (_fromIsAgent)
-                                    _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out stolenFrom);
+                                    _executor.World.TryResolveAgent(_stealRefName, _agent, out stolenFrom);
                                 AgentAIController.Instance?.BroadcastEventInRange(
                                     _agent.Position, 15f, "WitnessCrime",
                                     exclude: null, requireSight: true, isCrime: true,
@@ -1209,10 +1215,10 @@ namespace LivingWorldNpcs
             try
             {
                 _executor.MarkResultBroadcast();   // 🔴 2026-08-14（M5）：结局已播 → Finish 不重复播
-                string targetName = PlanRefUtil.Normalize(_step.Target, out _) ?? "";   // JToken → 文本（query 形态解包）
+                string targetName = _stealRefName ?? "";   // JToken → 文本（query 形态解包）
                 try
                 {
-                    if (_fromIsAgent && _executor.World.TryResolveAgent(PlanRefUtil.Normalize(_step.Target, out _), _agent, out Agent t))
+                    if (_fromIsAgent && _executor.World.TryResolveAgent(_stealRefName, _agent, out Agent t))
                         targetName = t.Name?.ToString() ?? targetName;
                 }
                 catch { }

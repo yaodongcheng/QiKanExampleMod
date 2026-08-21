@@ -29,6 +29,14 @@
 | Behind 首帧用未初始化 `_behindPick` 发移动指令 | [MoveAvoid] 距终点 596.5m 指向原点（一帧即覆盖，无害但日志难看） | 首帧未选点不发移动指令（`_behindPicked` 标志） |
 | 绕背视野口径 120°（dot < 0.5 = 背后） | 侧面 60°~90° 的点也算背后——NPC 有身体，侧翼贴太近一转脸就看见，不算真背后 | **150° FOV**（半角 75°，dot < cos75° ≈ 0.2588 = `BehindConeDot` 常量，Behind 闸门/闸门 2/IsBehindSpotValid 三处同源）；⚠️ 与目击检查（NpcSightSystem 仍 120°）独立，绕背站位比目击判定更保守 |
 
+## 🔴 2026-08-21 三测修订（实机四测 + 用户质疑「明明有侧后方」，已落地）
+
+四测实机（吕卡隆，偷帝国重装骑兵#49）：**2 秒即 impossible 且目标名空**（「绕不到（空）背后」）——不是绕背失败，是**解析失败**：LLM 偷窃步骤只写了 `"from": "帝国重装骑兵#49"` 没写 `target`（from/target 二选一语法），构造时 `step.From ?? step.Target` 解析成功，但 Behind/Rolling/判定相位裸读 `_step.Target`（= null）→ `TryResolveAgent(null)` 直接 false → 绕背根本没进。用户视角「明明有侧后方」——确实有，但代码没走到选点。
+
+| 问题 | 修订 |
+|---|---|
+| 偷窃步骤 from/target 二选一，相位裸读 `_step.Target`（可能 null） | `_stealRefName` 字段：构造时统一 `from ?? target` 归一化（含 query 解包），Behind/Rolling/判定/Approach 全部相位共用；**禁止再裸读 `_step.Target`** |
+
 ## 一、两个实机问题
 
 ### A. NPC 找人的时候被大门卡住
