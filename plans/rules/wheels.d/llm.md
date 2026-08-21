@@ -170,3 +170,21 @@ sb.AppendLine(LWNTextHelper.ResolvePrompt("LWN_plan_quality"));          // 质�
 → 问"你的队伍在干嘛"答"小的带这九名弟兄在萨戈拉附近的旷野里跟着您行军"（引用注入段，不再编）。
 
 **认知边界**：只注入**自己的** party（位置/兵力/AI），主队位置/账目/物资维持 J3 裁剪——负面检查：分兵随从 prompt 不得出现【此刻处境（大地图）】/【队伍物资】/【此刻现状】。
+
+### 🔴 职务认知注入（2026-08-21，军需官案）— `Memory/NPCProfile.cs`（GetPartyRoleInfo / GetStandingSummary）+ `Core/VersionCompat.cs`
+
+**解决什么问题**：玩家在家族屏任命军需官等职位后，NPC 的 LLM prompt 完全不知道自己的职务——问"军需官，粮草如何"答非所问（任命是队伍内公开信息，不注入反违叙事铁律）；国王 NPC 自称"我效忠于{王国}"出戏（国王效忠自己）；留守总督处境无认知。
+
+**关键签名**：
+- `V.GetPartyRoleKeys(MobileParty party, Hero hero)` → `List<string>` — 职位枚举名列表（版本兼容统一入口）：1.4.x 走 `party.GetHeroPartyRoles(hero)`（含船长 Captain/FirstMate/Navigator）；1.2.12/1.3.15 无此 API，用 `EffectiveQuartermaster/Scout/Surgeon/Engineer` 手动比对（全版本存在，带 PartyBelongedTo 校验，留守者天然无职位）。null-guard：空列表 = 无职位
+- `GetPartyRoleInfo()` — 队伍身份段追加职位行：`BaseHero.PartyBelongedTo` 查职位，逐条输出"你担任队伍的{ROLE}"（多职多行）。**口径天然正确**：主队随从查主队 / 分兵随从查分兵部队（J3 不越界）/ 留守者 PartyBelongedTo 为 null 无职位
+- `GetStandingSummary()` — 国王分支（`kingdom.Leader == hero` → "我是{KINGDOM}的国王"，替代"效忠"文案，与 LifeGoal 的 isKing 同口径）+ 总督分支（`BaseHero.GovernorOf != null` → "我是{TOWN}的总督"，与留守文案互补）
+
+**🔴 引擎坑三连（反编译实锤，2026-08-21）**：
+1. **1.4.x 的 `MobileParty` 是 `sealed class MobileParty : CampaignObjectBase`，不继承 PartyBase**——`Hero.PartyBelongedTo` 全版本直接返回 `MobileParty`（1.2.12/1.3.15/1.4.8 签名一致），**不要再试 `?.MobileParty`**（编译报 CS1061 而非运行时问题）
+2. **引擎 `role` 文本组不可依赖**：只有英文源（Native `module_strings.xml`，CN 翻译缺失）且**无 FirstMate/Navigator 条目**——职位名必须自建 `LWN_prompt_role_*` 双桶（军需官/斥候/医生/工程师/船长/大副/领航员）
+3. **职位 API 版本边界**：`GetHeroPartyRoles` = 1.4.0+ 才有；1.2.12 **无 `PartyRole` 枚举**（Effective 四职位手动比对）；1.3.15 有枚举（含 Captain）无 API；FirstMate/Navigator 仅 1.4.x——差异全部封装进 `V.GetPartyRoleKeys`，业务代码零裸 #if
+
+**DLC 安全（战帆 War Sails）**：船长/大副/领航员是战帆 DLC 职位，但 DLC 是"代码全在、购买只解锁内容"——没买 DLC 的玩家同版本 DLL，`FirstMate/Navigator` 字段（私有 SaveableProperty）恒为 null，`GetHeroPartyRoles` 正常返回四职位或空 → 只读职位字段零风险、零注入、不穿帮。若以后做海战**玩法**（买船/跑商船）才需要 DLC 拥有判断 + 降级路径。
+
+**审计**：职位行注入在 GetPersonaPrompt 的【你与{玩家}的关系】/【我的出身与立场】段内，无独立 PromptAudit 段标记；验证 = `[ImReply] 请求发出` prompt 转储搜"你担任队伍的"。角色名兜底 = 枚举名（英文），`LWNTextHelper.ResolvePrompt` 取不到时返回空串。

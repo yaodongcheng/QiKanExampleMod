@@ -52,6 +52,15 @@ namespace LivingWorldNpcs
                     "army", "troop", "troops", "soldier", "soldiers", "manpower", "men", "party", "companion", "companions" },
                 Query = QueryPartyFacts,
             },
+            // 🔴 2026-08-21（实机：队伍频道问"谁是军需官"零命中 → 答不出）：职位主题——
+            // 正向反查 职位→任职者（EffectiveXxx，全版本公开；留守/分兵者不报，口径同 Effective 校验）
+            new FactTopic
+            {
+                Id = "roles", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_roles"), NeedsPartyMember = true, // lwn-ignore: B
+                Keywords = new[] { "军需官", "斥候", "医生", "工程师", "船长", "大副", "领航员", "职位", "职务", "谁在管", "谁管",
+                    "quartermaster", "scout", "surgeon", "engineer", "captain", "navigator", "position", "roles" },
+                Query = QueryPartyRolesFact,
+            },
             new FactTopic
             {
                 Id = "gold", Title = LWNTextHelper.ResolvePrompt("LWN_fact_title_gold"), NeedsPartyMember = true, // lwn-ignore: B
@@ -1463,6 +1472,25 @@ namespace LivingWorldNpcs
                     + LWNTextHelper.ResolvePrompt("LWN_word_period"));
             }
             return sb.ToString();
+        }
+
+        /// <summary>队伍职位事实（2026-08-21）：玩家问"谁是军需官"等——正向反查 职位→任职者。
+        /// EffectiveXxx 带 PartyBelongedTo 校验：人在队且有实职才报；留守/被分兵者不算数
+        /// （军需官被分兵出去后，主队成员答"队伍没有军需官"是正确口径）。职位名复用
+        /// LWN_prompt_role_* 双桶（与 NPCProfile 职务认知同源，防两种叫法）。</summary>
+        private static string QueryPartyRolesFact()
+        {
+            var roles = V.GetPartyRoleHeroes(MobileParty.MainParty);
+            // 本地化：LWN_fact_body_unknown（无从查知兜底，双桶）
+            if (roles == null || roles.Count == 0) return LWNTextHelper.ResolvePrompt("LWN_fact_body_unknown");
+            var sb = new StringBuilder();
+            foreach (var (key, name) in roles)
+            {
+                string roleName = LWNTextHelper.ResolvePrompt("LWN_prompt_role_" + key.ToLowerInvariant());
+                if (string.IsNullOrEmpty(roleName)) roleName = key;
+                sb.AppendLine($"{roleName}: {name}");
+            }
+            return sb.ToString().TrimEnd();
         }
 
         private static string QueryGoldFact()

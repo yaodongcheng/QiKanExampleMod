@@ -342,7 +342,9 @@ namespace LivingWorldNpcs
                     string id = prop?.GetValue(tableau) as string;
                     if (string.IsNullOrWhiteSpace(id))
                     {
-                        DebugLogger.Log($"[SecretLetter] 家族 tableau 定位成功但 CharStringId 读不到: tableau={tableau != null} propNull={prop == null} id='{id ?? "null"}'");
+                        // 🔴 2026-08-21（用户裁定）：tableau 缺失 = 面板刷新/屏幕销毁窗口期的
+                        // **正常中间态**（pitfalls.md:622 前置征兆），不是错误，每帧路径不打日志；
+                        // 点击失败由 OnClicked 的 heroId=null 日志覆盖（那才是真异常）。
                         return null;
                     }
                     return id.Trim();

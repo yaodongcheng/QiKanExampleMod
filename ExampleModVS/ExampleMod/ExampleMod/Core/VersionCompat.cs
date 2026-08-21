@@ -715,6 +715,58 @@ namespace LivingWorldNpcs
 #endif
         }
 
+        /// <summary>
+        /// party 上所有有实职的 职位→任职者 名列表（版本兼容，2026-08-21）：正向反查（职位→人），
+        /// 与 GetPartyRoleKeys（人→职位）互补。用 Effective 四职位（全版本公开、带 PartyBelongedTo
+        /// 校验，留守/失效职位天然排除）；船职位 1.4.x 独有（#if）。RoleKey = PartyRole 枚举名
+        /// （对应 LWN_prompt_role_* 本地化键）；HeroName 为空串 = 取不到名（理论不发生）。
+        /// 返回空列表 = 无职位或输入无效，调用方整段跳过即可。
+        /// </summary>
+        public static List<(string RoleKey, string HeroName)> GetPartyRoleHeroes(MobileParty party)
+        {
+            var result = new List<(string, string)>();
+            if (party == null) return result;
+            void Add(Hero h, string key)
+            {
+                if (h != null) result.Add((key, h.Name?.ToString() ?? ""));
+            }
+            Add(party.EffectiveQuartermaster, "Quartermaster");
+            Add(party.EffectiveScout, "Scout");
+            Add(party.EffectiveSurgeon, "Surgeon");
+            Add(party.EffectiveEngineer, "Engineer");
+#if MB2_GE_140
+            Add(party.EffectiveFirstMate, "FirstMate");
+            Add(party.EffectiveNavigator, "Navigator");
+#endif
+            return result;
+        }
+
+        /// <summary>
+        /// hero 在指定部队中担任的职位键列表（版本兼容，2026-08-21）：
+        /// v1.4.0+ 用 MobileParty.GetHeroPartyRoles 原生查询（含船长 Captain/FirstMate/Navigator）；
+        /// v1.2.12/v1.3.x 无此 API，用 Effective 四职位手动比对（全版本存在，带 PartyBelongedTo 校验，
+        /// 留守/驻扎者天然无职位）。返回枚举名字符串（"Quartermaster" 等），调用方用
+        /// GameTexts.FindText("role", key) 取引擎本地化职位名（CampaignUIHelper.GetHeroClanRoleText 同源）。
+        /// 返回空列表 = 无职位或输入无效，调用方直接跳过即可。
+        /// </summary>
+        public static List<string> GetPartyRoleKeys(MobileParty party, Hero hero)
+        {
+            var result = new List<string>();
+            if (party == null || hero == null) return result;
+#if MB2_GE_140
+            var roles = party.GetHeroPartyRoles(hero);
+            if (roles != null)
+                result.AddRange(roles.Select(r => r.ToString()));
+#else
+            // 四职位：EffectiveXxx 全版本存在（v1.2.12/v1.3.x 无 GetHeroPartyRoles 且无船职位）
+            if (party.EffectiveQuartermaster == hero) result.Add("Quartermaster");
+            if (party.EffectiveScout == hero) result.Add("Scout");
+            if (party.EffectiveSurgeon == hero) result.Add("Surgeon");
+            if (party.EffectiveEngineer == hero) result.Add("Engineer");
+#endif
+            return result;
+        }
+
         // ── Navigation mesh snap (in/ref + return-type difference) ──
         // v1.2.12: scene.GetNavigationMeshForPosition(ref pos, out faceIndex) → bool
         // v1.3.0+: scene.GetNavigationMeshForPosition(in pos, out faceIndex, 1.5f, false) → UIntPtr
