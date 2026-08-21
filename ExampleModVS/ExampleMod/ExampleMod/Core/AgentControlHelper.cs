@@ -70,10 +70,15 @@ namespace LivingWorldNpcs
         }
 
         /// <summary>
-        /// 🔴 2026-08-21（M4 风险评估 + 铁律 18 共享管线）：目标背后可站立点探测——
-        /// 四候选逐级（正后 2.2m → 后左 45° 2.5m → 后右 45° 2.5m → 正后 3.5m），返回首个
-        /// V.NavMesh 可站立点。true = 存在可站立点（spot = 第一个）；false = 四候选均不可站
-        ///（spot = 未验证的默认正后 2.2m，仅作调用方兜底参考）。
+        /// 🔴 2026-08-21（用户裁定：绕背点放开到「视野外全扇区 × 距离带 0.5~3m」）：
+        /// 目标可绕背点探测——候选 = 目标视野外（与 look 夹角 > 60°，即 dot < 0.5，与 Behind
+        /// 闸门 InlineSteps 同口径）的 7 方向（正后 0° → 两侧 30° 步进至 ±90°）× 6 距离
+        /// （0.5~3.0m，0.5m 步进）网格，距离升序优先近点，返回首个 V.NavMesh 可站立点。
+        /// 原实现只有「正后 ±45° 四个固定点」——实机（吕卡隆）agent 必须绕过 target 本人
+        /// 才能到正后，target 转头时绕背点漂移、agent 追不上 → 8s 超时 impossible。侧翼点
+        ///（±90°，dot=0）同样算视野外，agent 从正面两步就到。
+        /// true = 存在可站立点（spot = 第一个）；false = 全不可站（spot = 未验证的默认正后
+        /// 2.2m，仅作调用方兜底参考）。
         /// 源实现迁自 Planner/InlineSteps.cs StealAttemptInlineState Behind 阶段——
         /// 判定（TargetRiskEvaluator 风险评估）与结算（绕后执行）共享同一探测，禁止复制逻辑。
         /// 主线程调用（引擎 Scene 只读主线程）。
@@ -92,21 +97,45 @@ namespace LivingWorldNpcs
                 Vec3 targetPos = target.Position;
                 spot = targetPos + back * 2.2f;   // 兜底默认：正后方（不验证；调用方 8s 超时诚实报告）
                 var scene = Mission.Current?.Scene;
-                var candidates = new[]
+
+                // 方向：正后 → 两侧 30° 步进至 ±90°（夹角 90° > 75° 稳在 150° 视野外；
+                // ±105° 是视野边界 dot=cos75° 不含）。距离升序优先近点（agent 少走），每环内正后优先。
+                var dirs = new[]
                 {
-                    (back, 2.2f),
-                    (RotateDir(back, 45f), 2.5f),
-                    (RotateDir(back, -45f), 2.5f),
-                    (back, 3.5f),
+                    back,
+                    RotateDir(back, 30f), RotateDir(back, -30f),
+                    RotateDir(back, 60f), RotateDir(back, -60f),
+                    RotateDir(back, 90f), RotateDir(back, -90f),
                 };
-                foreach (var (dir, d) in candidates)
+                for (float d = 0.5f; d <= 3.001f; d += 0.5f)
                 {
-                    Vec3 p = targetPos + dir * d;
-                    if (scene != null && !V.NavMesh(scene, p, out _)) continue;
-                    spot = p;
-                    return true;
+                    foreach (var dir in dirs)
+                    {
+                        Vec3 p = targetPos + dir * d;
+                        if (scene != null && !V.NavMesh(scene, p, out _)) continue;
+                        spot = p;
+                        return true;
+                    }
                 }
                 return false;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>绕背点合法性检查（Behind 相位防抖用）：到目标距离 ∈ [0.5, 3.0] 且目标视野外
+        ///（dot < BehindConeDot，150° 视野外，与 Behind 闸门同口径）。目标转头后旧点是否仍可沿用由它判定。</summary>
+        public static bool IsBehindSpotValid(Agent target, Vec3 spot)
+        {
+            if (target == null) return false;
+            try
+            {
+                float dist = spot.Distance(target.Position);
+                if (dist < 0.5f || dist > 3.0f) return false;
+                Vec3 look = new Vec3(target.LookDirection.X, target.LookDirection.Y, 0f);
+                Vec3 toSpot = spot - target.Position;
+                toSpot.z = 0f;
+                if (toSpot.LengthSquared < 0.0001f) return false;
+                return Vec3.DotProduct(look.NormalizedCopy(), toSpot.NormalizedCopy()) < BehindConeDot;
             }
             catch { return false; }
         }
@@ -271,6 +300,184 @@ namespace LivingWorldNpcs
             // 4. 下达指令 (只执行一次)
             agent.SetScriptedPosition(ref targetPos, false, moveFlags);
         }
+
+        // ── 移动避障：SmartMoveToPoint（2026-08-21，plans/movement-avoidance.md）──────────────
+        // 引擎寻路两个盲区（实机：吕卡隆偷窃三连 + 卡门）：
+        // ① navmesh 通、物理堵（门洞）：路径直线穿门，被碰撞体顶住几十秒（navmesh 认为通 ≠ 物理通）；
+        // ② 寻路终点就在目标本人身上（绕背点直线穿目标身体）：局部避障把目标当「终点」不当「障碍」。
+        // 本入口在「终点近处被实体/目标本人挡住」时把寻路终点横向挪开（航点偏移启发式，waypoint nudging），
+        // 完成判定仍用调用方的真实目标点（IsFinished 不受影响）——偏移只是 steering 的临时终点。
+        // 🔴 不动 ScriptedMoveToPoint 本体——逃跑/回岗/脚本移动等既有调用零影响（爆炸半径最小化）。
+        /// <summary>
+        /// 移动避障：目标点被近处实体（门/墙）或目标本人挡住时，横向偏移寻路终点绕开。
+        /// 闸门 1 贴脸直发（≤ stopDistance + 0.5m）；闸门 2 目标本人视野锥内 → 终点挪侧翼；
+        /// 闸门 3 距终点 ≤ 4m 时射线命中实体 → 两侧探测选通侧（近程专用，远程不射）。
+        /// 偏移只影响「本帧下发的寻路终点」，完成判定仍用真实目标点（IsFinished 不受影响）。
+        /// </summary>
+        /// <param name="goal">真实寻路目标点（避障只挪终点，不改语义）。</param>
+        /// <param name="stopDistance">调用方的停止距离（闸门 1 贴脸直发基准：stopDistance + 0.5m）。</param>
+        /// <param name="goalAgent">跟随/绕背的目标本人（闸门 2 视野锥检测用；坐标点目标传 null）。</param>
+        public static void SmartMoveToPoint(Agent agent, Vec3 goal, bool run,
+            float stopDistance, Agent goalAgent = null)
+        {
+            if (agent == null || !agent.IsActive()) return;
+
+            Vec3 goalOriginal = goal;   // 避障日志用：记录偏移量
+            bool avoided = false;   // 本帧是否发生了避障（日志用；防刷屏按 agent 节流）
+            bool blocked = false;   // 闸门 3 命中实体但两侧都堵 → 保持原向（日志区分「射不到门」vs「绕不过门」）
+
+            float dist = agent.Position.Distance(goal);
+            // 闸门 1：真正贴脸才直发（≤ stopDistance + 0.5m）——目标近前直接冲，
+            // 物理碰撞体自然停在 ~0.5-1m（视觉 = 到位）。
+            // 🔴 2026-08-21（用户裁定修正）：原 +1.5m 保护带（≤4m 直发）把近程障碍（门/目标本人）
+            // 一起吞掉——「距终点 4m 内」不代表路径通，近程恰恰最需要绕；4m 外反而不用射线检测
+            //（还早着呢，路径几何没定，命中说明不了什么）。保护带收窄到 +0.5m：近程留给闸门 2/3 绕，
+            // 远程只做纯数学的闸门 2（每帧重算不浪费）。
+            if (dist <= stopDistance + 0.5f)
+            {
+                ScriptedMoveToPoint(agent, goal, run);
+                return;
+            }
+
+            // 闸门 2：目标本人贴身检测——agent 在目标前方视野锥内（dot ≥ BehindConeDot，150° 视野，
+            // 与 Behind 闸门 InlineSteps.cs:775 同口径）且「你→目标点」直线距目标 < 1.5m（即将从
+            // 目标身侧/正面擦过）→ 终点横挪 1.2m 到侧翼（引擎局部避障把目标当终点不当障碍，不会绕）。
+            // 🔴 2026-08-21（用户裁定修正）：原「线段穿碰撞圆柱 < 0.7m」只治正面直冲——实机
+            //（吕卡隆偷窃三连）：agent 从侧向接近时直线全程距目标 > 0.7m → 闸门静默 → 顶在目标
+            // 面前 8s 超时 impossible。视野锥判据覆盖正面 + 侧向接近（目标转身低频，nudge 跳变可接受）。
+            // 2D 计算（XZ 平面 .AsVec2 丢 z，代码既有惯例）：碰撞体是竖圆柱，只看水平距离。
+            bool nudgedByTarget = false;
+            if (goalAgent != null && goalAgent.IsActive())
+            {
+                try
+                {
+                    Vec2 look = goalAgent.LookDirection.AsVec2.Normalized();
+                    Vec2 toSelf = (agent.Position - goalAgent.Position).AsVec2;
+                    if (toSelf.LengthSquared > 1e-6f
+                        && Vec2.DotProduct(look, toSelf.Normalized()) >= BehindConeDot
+                        && PointToSegmentDist2D(goalAgent.Position.AsVec2,
+                            agent.Position.AsVec2, goal.AsVec2) < 1.5f)
+                    {
+                        Vec2 seg = (goal - agent.Position).AsVec2;
+                        Vec2 side = new Vec2(-seg.y, seg.x).Normalized();
+                        goal += new Vec3(side.x, side.y, 0f) * 1.2f;
+                        avoided = true;
+                        nudgedByTarget = true;
+                    }
+                }
+                catch { }
+            }
+
+            // 闸门 3：前方实体检测（🔴 2026-08-21 用户裁定：近程专用——4m 外不需要射线，
+            // 还早着呢路径几何没定）——距终点 ≤ 4m 时眼高射线打终点，命中即向命中点两侧各探
+            // 1.5m 短射线选通侧横挪 1.2m；两侧都堵 → 保持原向（交调用方卡死瞬移兜底）。
+            // 复用 V.RayCastForClosestEntityOrTerrain 版本兼容封装 + CommonCollisionExcludeFlags，
+            // 与目击遮挡（NpcSightSystem.IsOccluded）同套路；若实机发现门不拦射线（Moveable flag），
+            // 照 GroupStageManager.cs:87 补 BodyFlags.Moveable。
+            // 只在 repath 间隔打（0.2s/agent 节流，其余帧复用上次偏移——纯性能缓存，无持久转向语义）。
+            // 闸门 2 已 nudge（目标本人在场）时跳过——目标挡住射线时再叠一层会把终点推出距离带
+            //（1.2+1.2 = 2.4m 过头）。
+            if (!nudgedByTarget && dist <= 4f && Mission.Current?.Scene != null)
+            {
+                // 缓存上限守卫：Agent 死亡/换 Mission 后条目滞留，超限时顺手清理失效项
+                if (_moveAvoidCache.Count > 256)
+                {
+                    foreach (Agent dead in _moveAvoidCache.Keys.Where(a => !a.IsActive()).ToList())
+                    {
+                        _moveAvoidCache.Remove(dead);
+                        _moveAvoidLog.Remove(dead);
+                    }
+                }
+                // 单调应用时钟（Mission.Time 不存在；ApplicationTime 跨 Mission 单调递增，旧条目自动过期）
+                float now = TaleWorlds.Engine.Time.ApplicationTime;
+                if (_moveAvoidCache.TryGetValue(agent, out var cache)
+                    && now - cache.Time < MoveAvoidRaycastInterval)
+                {
+                    goal += cache.Offset;   // 节流窗内沿用上次偏移，RayCast 归零
+                    avoided |= cache.Offset.LengthSquared > 0.01f;
+                }
+                else
+                {
+                    Vec3 from = agent.GetEyeGlobalPosition();
+                    if (V.RayCastForClosestEntityOrTerrain(from, goal,
+                            out float _, out Vec3 hitPoint,
+                            0.01f, BodyFlags.CommonCollisionExcludeFlags))
+                    {
+                        Vec2 seg = (goal - agent.Position).AsVec2;
+                        Vec2 perp = new Vec2(-seg.y, seg.x).Normalized();
+                        Vec3 offset = Vec3.Zero;    // 两侧都堵 → 保持原向
+                        for (int i = 0; i < 2; i++)
+                        {
+                            Vec2 s = i == 0 ? perp : new Vec2(-perp.x, -perp.y);
+                            Vec3 probeEnd = hitPoint + new Vec3(s.x, s.y, 0f) * 1.5f;
+                            if (!V.RayCastForClosestEntityOrTerrain(hitPoint, probeEnd,
+                                    out float _, out Vec3 _,
+                                    0.01f, BodyFlags.CommonCollisionExcludeFlags))
+                            {
+                                offset = new Vec3(s.x, s.y, 0f) * 1.2f;
+                                break;
+                            }
+                        }
+                        goal += offset;
+                        _moveAvoidCache[agent] = (now, offset);
+                        if (offset.LengthSquared > 0.01f)
+                            avoided = true;
+                        else
+                            blocked = true;   // 命中但两侧都堵 → 保持原向（交卡死瞬移兜底），记日志便于区分
+                    }
+                    else
+                    {
+                        _moveAvoidCache[agent] = (now, Vec3.Zero);
+                    }
+                }
+            }
+
+            ScriptedMoveToPoint(agent, goal, run);
+
+            // 避障日志（DebugLogger 豁免铁律 13）：每 agent 至多 1 条/s，防绕行期间刷屏
+            if (avoided || blocked)
+            {
+                float now = TaleWorlds.Engine.Time.ApplicationTime;
+                if (!_moveAvoidLog.TryGetValue(agent, out float lastLog)
+                    || now - lastLog >= MoveAvoidLogInterval)
+                {
+                    _moveAvoidLog[agent] = now;
+                    if (blocked)
+                        DebugLogger.Log($"[MoveAvoid] {agent.Name}(Idx={agent.Index}) 前方实体挡住且两侧都堵，保持原向（交卡死瞬移兜底） 距终点{agent.Position.Distance(goal):F1}m");
+                    else
+                        DebugLogger.Log($"[MoveAvoid] {agent.Name}(Idx={agent.Index}) 避障: 距终点{agent.Position.Distance(goal):F1}m 偏移{goalOriginal.Distance(goal):F2}m 终点=({goal.x:F1},{goal.y:F1})");
+                }
+            }
+        }
+
+        /// <summary>2D 点到线段最近距离（闸门 2 用；线段退化时按点到端点算）。</summary>
+        private static float PointToSegmentDist2D(Vec2 p, Vec2 a, Vec2 b)
+        {
+            Vec2 ab = b - a;
+            float lenSq = ab.LengthSquared;
+            if (lenSq < 1e-6f) return p.Distance(a);
+            float t = Vec2.DotProduct(p - a, ab) / lenSq;
+            t = MathF.Clamp(t, 0f, 1f);
+            return p.Distance(a + ab * t);
+        }
+
+        // 🔴 2026-08-21（用户裁定：绕背视野口径 120° → 150°）：「背后」= 站在目标 150° 视野之外
+        //（与 look 夹角 > 75°，dot < cos75° ≈ 0.2588）。原 120°（dot < 0.5）让侧面 60°~90° 的点
+        // 也算背后——但 NPC 还有身体，侧翼贴太近目标一转脸就看见，不算真背后。收紧后绕背点站得
+        // 更靠后。注意：此口径是绕背专用（Behind 闸门 / 闸门 2 / IsBehindSpotValid 三处同源），
+        // 与目击检查 NpcSightSystem.CanAgentSeeTarget（仍 120°）独立——绕背站位比目击判定更保守。
+        public const float BehindConeDot = 0.2588f;
+
+        // 🔴 SmartMoveToPoint 闸门 3 的 RayCast 节流缓存（每 agent 0.2s 最多 1 组射线；
+        // 其余帧复用上次偏移——纯性能缓存，不承载转向语义；Agent 消失后随上限清理）。
+        private static readonly Dictionary<Agent, (float Time, Vec3 Offset)> _moveAvoidCache
+            = new Dictionary<Agent, (float Time, Vec3 Offset)>();
+        private const float MoveAvoidRaycastInterval = 0.2f;
+        // 🔴 避障日志节流（每 agent 1s 至多 1 条 [MoveAvoid]——绕行期间不刷屏）
+        private static readonly Dictionary<Agent, float> _moveAvoidLog
+            = new Dictionary<Agent, float>();
+        private const float MoveAvoidLogInterval = 1.0f;
+
         public static void ScriptedMoveToAgent(Agent agent, Agent targetAgent, bool isRun)
         {
             if (agent == null || targetAgent == null) return;

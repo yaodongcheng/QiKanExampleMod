@@ -62,6 +62,11 @@ namespace LivingWorldNpcs
         // 🔴 2026-08-12（模板 NPC 密信 · 粘性 @）：最近一次定向喊话的 @前缀（含尾随空格，如「@守卫 #12 」）——
         // @命中发送后回填输入框，连发多条给同一 NPC 不用重复打 @；玩家删掉前缀发普通喊话 → 解除。
         private static string _lastMentionPrefix;
+        // 🔴 2026-08-21（IME 组合态 · Enter 双沿）：组合期间按 Enter = 输入法上屏候选字，不是发送——
+        // 按下沿在组合态（EditableTextImePatch 已吞按键处理），但**抬起沿在组合结束后一帧才到**，
+        // 轮询 Enter 抬起仍会误发——按「按下时是否在组合」标记，抬起沿吞掉。
+        // 归零条件：不在组合 && Enter 已松开（组合结束/关面板残留都能收敛）。
+        private static bool _imeEnterHeld;
 
         // 🔴 2026-08-15（缩略模式）：形态状态 + 面板 widget 缓存
         private static ImChatMode _mode = ImChatMode.Full;
@@ -2750,8 +2755,29 @@ namespace LivingWorldNpcs
             }
 
             // UI 优化：回车发送（微信习惯；IM 打开时唯一键盘输入焦点就是输入框）
+            // 🔴 2026-08-21（IME 组合态）：组合期间按 Enter = 上屏候选字，不是发送。按下沿标记，
+            // 抬起沿吞掉（组合结束一帧后抬起沿才到，只能按按下时的组合态判定，见 _imeEnterHeld）。
+            bool imeComposing = ImeCompositionHelper.IsComposing();
+            if (imeComposing && Input.IsKeyPressed(InputKey.Enter))
+            {
+                _imeEnterHeld = true;
+            }
+            else if (!imeComposing && !Input.IsKeyDown(InputKey.Enter))
+            {
+                _imeEnterHeld = false; // 组合结束且 Enter 已松开 → 状态归零（关面板残留也能收敛）
+            }
             if (Input.IsKeyReleased(InputKey.Enter))
-                ExecuteSend();
+            {
+                if (_imeEnterHeld)
+                {
+                    _imeEnterHeld = false;
+                    DebugLogger.Log("[ImChat] IME 组合态吞 Enter（上屏候选字，不发送）");
+                }
+                else
+                {
+                    ExecuteSend();
+                }
+            }
 
             _refreshTimer += dt;
             if (_refreshTimer >= 0.3f)
