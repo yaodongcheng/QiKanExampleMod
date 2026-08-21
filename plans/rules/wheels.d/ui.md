@@ -342,6 +342,28 @@ else if (IsMessageAtBottom()) _pinnedToBottom = true;
 
 ---
 
+## ScrollablePanel 滚动三件套 — 🔴 holder 必须兄弟节点 + AutoHideScrollBars 超限才显
+
+**问题**：静态长文本面板（NPC 探查板各 Tab：记忆/背包/部队）需要可滚动；`ClipRect/InnerPanel/VerticalScrollbar` 三件套有两个路径坑 + 一个行为误解。引擎没有「文本+滚动条」一体控件，ScrollablePanel+TextWidget 就是标准做法（Native SPChatlog 同构）。
+
+**引擎路径解析（反编译 `TaleWorlds.GauntletUI.PrefabSystem.dll` WidgetExtensions.SetWidgetAttributeFromStringAux + `TaleWorlds.GauntletUI.dll` Widget.FindChild，v1.4.8 实测）**：Widget 类型属性（ClipRect/InnerPanel/VerticalScrollbar/Handle）的字符串值按 `BindingPath` 在**属性宿主控件**上解析——`..` = **跳到宿主父级**再按 Id 找直接子级，`\` 分隔，找不到返回 null（静默，不报错）。
+
+- 🔴 **坑一（holder 必须是 ScrollablePanel 的兄弟节点）**：`VerticalScrollbar="..\Holder\Bar"` 的 `..` 指向 ScrollablePanel 的**父级**——holder 若放在面板**内部**，路径解析 null → `VerticalScrollbar=null` → `UpdateScrollablePanel` 竖向分支**整个跳过** + `OnMouseScroll` 滚轮输入被吞 → 滚动条画着但完全无用（NPCInfoBoard 记忆 Tab 2026-08-21 实录；与 ImChat 七轮 InnerPanel 路径 null 同族事故——**凡是 Widget 引用属性，先模拟 FindChild 验证路径**）。
+- 🔴 **坑二（InnerPanel 路径必须与实际 ListPanel Id 完全一致）**：路径错 → InnerPanel=null → 引擎滚动更新异常中断（ImChat 七轮，日志 `inner=-1` 确诊）。
+- **Handle 同理**：ScrollbarWidget 的 `Handle` 属性相对自身解析，Handle 必须是 ScrollbarWidget 的直接子级。
+
+**AutoHideScrollBars 行为（误解高发）**：内容高度 ≤ ClipRect 高度时滚动条**自动隐藏**（`UpdateScrollablePanel` 里 `if (AutoHideScrollBars) flag3=false`）——「面板里没看到滚动条」= **内容没超限，正常**，不是 bug。对照验证法：长内容 Tab（如记忆调试全量视图）有滚动条 + 短内容 Tab 没有 = 系统正常。想常显改 `AutoHideScrollBars="false"`（内容短时挂空轨道，不推荐）。
+
+**文本高度测量（单文本框也能驱动滚动）**：TextWidget `HeightSizePolicy="CoverChildren"` + `WordWrapping="Wrap"` 由 `TextLayout.MeasureChildren → _text.GetPreferredSize(fixedWidth, x, fixedHeight=false, …)` 返回**完整换行高度**（TextLayout 反编译 v1.4.8）——不必把长文本拆成多行控件，单个 TextWidget 高度正确时滚动范围按实际文本高度计算。`IsVisible` 要放 ScrollablePanel 上（隐藏时 `Measure` 直接返回 Zero 不测子级；切回 Tab 当帧自愈）。
+
+**调用范例**（`GUI/Prefabs/NPCInfoBoard.xml`，7 个 Tab 全同构）：ScrollablePanel `LWN_InfoBoard_{Tab}Scroll`（IsVisible 绑定 + AutoHideScrollBars + `ClipRect="{Tab}Clip" InnerPanel="{Tab}Clip\{Tab}Inner" VerticalScrollbar="..\{Tab}ScrollbarHolder\{Tab}Scrollbar"`）→ 子级 ClipRect（ClipContents="true" + DoNotAcceptEvents）→ 内 ListPanel（CoverChildren 高度）；**holder 是 ScrollablePanel 的兄弟节点**（同内容区下），内部 ScrollbarWidget `AlignmentAxis="Vertical"` + Handle 直接子级 + Native `SPChatlog.Scrollbar.Handle` 笔刷。
+
+**编辑纪律（脚本化替换 XML 事故实录）**：用 Python 按注释 header 做块替换时，end marker（如 `</Children>`）必须**唯一且位于 start 之后**——`str.index()` 会匹配到文件**更早处**的相同缩进标签（如标题栏的 `</Children>`），导致整段文件被重组复制（840 行事故，2026-08-21）。改完必须：①`xml.dom.minidom` 语法校验 ②模拟 FindChild 逐属性验证 ③Id 全局唯一检查。
+
+**关键文件**：`GUI/Prefabs/NPCInfoBoard.xml`（7 Tab 滚动化范本）、`GUI/Prefabs/ImChat.xml`（MessageScroll + MessageScrollbarHolder 同构出处）。反编译出处：`ilspycmd bin/Win64_Shipping_Client/TaleWorlds.GauntletUI.PrefabSystem.dll`（SetWidgetAttributeFromStringAux 路径解析）、`TaleWorlds.GauntletUI.dll`（ScrollablePanel/Widget.FindChild/TextLayout）。
+
+---
+
 ## 长文本 UI 显示纪律 — 有界预览 + 只读摘要 + 布局刷新节流（借鉴 BannerlordTalk ManagerTextPreviewPolicy）
 
 **问题**：6–9 万字长文本（常识整库/大 prompt/长记忆）全文绑进 RichTextWidget/多行编辑控件 → Gauntlet 排版持续处理长文本卡死 UI（BannerlordTalk v1.0.2 实机 bug；v1.0.3 根治）。

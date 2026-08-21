@@ -24,7 +24,7 @@
               </Children>
             </Widget>
 
-            <!-- B. 导航栏 (Tab页签) -->
+                <!-- B. 导航栏 (Tab页签) -->
             <ListPanel WidthSizePolicy="StretchToParent" HeightSizePolicy="Fixed" SuggestedHeight="60" 
                        MarginTop="85" HorizontalAlignment="Center"
                        StackLayout.LayoutMethod="HorizontalLeftToRight">
@@ -98,65 +98,209 @@
                     MarginTop="160" MarginBottom="100" MarginLeft="50" MarginRight="50">
               <Children>
 
-                <!-- ================= Tab 1: 个人属性 ================= -->
+                                <!-- ================= Tab 1: 个人属性 =================
+                     🔴 2026-08-21 统一滚动化：全部 Tab 同构 ScrollablePanel 三件套（记忆 Tab 修复实录，
+                     滚动条 holder 必须与 ScrollablePanel 同级） -->
 
-							
-				<ListPanel Id="LWN_InfoBoard_Personal" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsPersonalSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                <ScrollablePanel Id="LWN_InfoBoard_PersonalScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                 IsVisible="@IsPersonalSelected"
+                                 AutoHideScrollBars="true"
+                                 ClipRect="LWN_InfoBoard_PersonalClip" InnerPanel="LWN_InfoBoard_PersonalClip\LWN_InfoBoard_PersonalInner"
+                                 VerticalScrollbar="..\LWN_InfoBoard_PersonalScrollbarHolder\LWN_InfoBoard_PersonalScrollbar">
                     <Children>
-               
-                     <!-- 左对齐：HorizontalAlignment="Left" + MarginLeft="20" -->
-                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="500" SuggestedHeight="80"
-                                 Text="@SelfCognitionText" Brush="MyBrush_22_Left"  TextColor="#EEEEEEFF" WordWrapping="Wrap"
-                                 HorizontalAlignment="Left" MarginLeft="20"/>
-                     
-                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="500" SuggestedHeight="80"
-                                 Text="@MotivationText" Brush="MyBrush_22_Left"  TextColor="#EEEEEEFF" WordWrapping="Wrap"
-                                 HorizontalAlignment="Left" MarginLeft="20"/>
-                     
-                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="500" SuggestedHeight="80"
-                                 Text="@AgentStateText" Brush="MyBrush_22_Left"  TextColor="#00FF00FF" WordWrapping="Wrap"
-                                 HorizontalAlignment="Left" MarginLeft="20"/>
+                      <Widget Id="LWN_InfoBoard_PersonalClip" ClipContents="true"
+                              WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                              DoNotAcceptEvents="true">
+                        <Children>
+                          <ListPanel Id="LWN_InfoBoard_PersonalInner" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalBottomToTop">
+                            <Children>
+                              <!-- 左对齐：HorizontalAlignment="Left" + MarginLeft="20" -->
+                              <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="500" SuggestedHeight="80"
+                                          Text="@SelfCognitionText" Brush="MyBrush_22_Left"  TextColor="#EEEEEEFF" WordWrapping="Wrap"
+                                          HorizontalAlignment="Left" MarginLeft="20"/>
+                              <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="500" SuggestedHeight="80"
+                                          Text="@MotivationText" Brush="MyBrush_22_Left"  TextColor="#EEEEEEFF" WordWrapping="Wrap"
+                                          HorizontalAlignment="Left" MarginLeft="20"/>
+                              <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren" SuggestedWidth="500" SuggestedHeight="80"
+                                          Text="@AgentStateText" Brush="MyBrush_22_Left"  TextColor="#00FF00FF" WordWrapping="Wrap"
+                                          HorizontalAlignment="Left" MarginLeft="20"/>
+                              <!-- 身上带的钱（金色 #FFD700） -->
+                              <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
+                                          SuggestedWidth="500" SuggestedHeight="40"
+                                          Text="@GoldInfoText" Brush="MyBrush_22_Left"
+                                          TextColor="#FFD700FF" WordWrapping="Wrap"
+                                          HorizontalAlignment="Left" MarginLeft="20"/>
 
-                     <!-- 身上带的钱（金色 #FFD700） -->
-                     <TextWidget WidthSizePolicy="CoverChildren" HeightSizePolicy="CoverChildren"
-                                 SuggestedWidth="500" SuggestedHeight="40"
-                                 Text="@GoldInfoText" Brush="MyBrush_22_Left"
-                                 TextColor="#FFD700FF" WordWrapping="Wrap"
-                                 HorizontalAlignment="Left" MarginLeft="20"/>
-                  </Children>
-				  </ListPanel>
-                
-          
-				
-				<!-- ================= Tab 3: 家族信息 ================= -->
-                <ListPanel Id="LWN_InfoBoard_Clan" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsClanSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
-                    <Children>
-                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
-                                    Text="@ClanInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+                            </Children>
+                          </ListPanel>
+                        </Children>
+                      </Widget>
                     </Children>
-                </ListPanel>
-				
-
-                <!-- ================= Tab 3: 王国信息 ================= -->
-                <ListPanel Id="LWN_InfoBoard_Kingdom" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsKingdomSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                  </ScrollablePanel>
+                  <!-- 滚动条 holder（兄弟节点，见记忆 Tab 注释②） -->
+                  <Widget Id="LWN_InfoBoard_PersonalScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                          HorizontalAlignment="Right" DoNotAcceptEvents="true">
                     <Children>
-                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
-                                    Text="@KingdomInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+                      <ScrollbarWidget Id="LWN_InfoBoard_PersonalScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                       AlignmentAxis="Vertical" Handle="LWN_InfoBoard_PersonalScrollbarHandle"
+                                       MaxValue="100" MinValue="0">
+                        <Children>
+                          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                  HorizontalAlignment="Center"
+                                  Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                  DoNotAcceptEvents="true"/>
+                          <ImageWidget Id="LWN_InfoBoard_PersonalScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                       HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                        </Children>
+                      </ScrollbarWidget>
                     </Children>
-                </ListPanel>
+                  </Widget>
 
-                <!-- ================= Tab 4: 人际关系 ================= -->
-                <ListPanel Id="LWN_InfoBoard_Relation" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsRelationSelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                <!-- ================= Tab 2: 家族信息 =================
+                     🔴 2026-08-21 统一滚动化：全部 Tab 同构 ScrollablePanel 三件套（记忆 Tab 修复实录，
+                     滚动条 holder 必须与 ScrollablePanel 同级） -->
+
+                <ScrollablePanel Id="LWN_InfoBoard_ClanScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                 IsVisible="@IsClanSelected"
+                                 AutoHideScrollBars="true"
+                                 ClipRect="LWN_InfoBoard_ClanClip" InnerPanel="LWN_InfoBoard_ClanClip\LWN_InfoBoard_ClanInner"
+                                 VerticalScrollbar="..\LWN_InfoBoard_ClanScrollbarHolder\LWN_InfoBoard_ClanScrollbar">
                     <Children>
-                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
-                                    Text="@RelationInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+                      <Widget Id="LWN_InfoBoard_ClanClip" ClipContents="true"
+                              WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                              DoNotAcceptEvents="true">
+                        <Children>
+                          <ListPanel Id="LWN_InfoBoard_ClanInner" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalBottomToTop">
+                            <Children>
+                              <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
+                                          Text="@ClanInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+
+                            </Children>
+                          </ListPanel>
+                        </Children>
+                      </Widget>
                     </Children>
-                </ListPanel>
+                  </ScrollablePanel>
+                  <!-- 滚动条 holder（兄弟节点，见记忆 Tab 注释②） -->
+                  <Widget Id="LWN_InfoBoard_ClanScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                          HorizontalAlignment="Right" DoNotAcceptEvents="true">
+                    <Children>
+                      <ScrollbarWidget Id="LWN_InfoBoard_ClanScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                       AlignmentAxis="Vertical" Handle="LWN_InfoBoard_ClanScrollbarHandle"
+                                       MaxValue="100" MinValue="0">
+                        <Children>
+                          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                  HorizontalAlignment="Center"
+                                  Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                  DoNotAcceptEvents="true"/>
+                          <ImageWidget Id="LWN_InfoBoard_ClanScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                       HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                        </Children>
+                      </ScrollbarWidget>
+                    </Children>
+                  </Widget>
+
+                <!-- ================= Tab 3: 王国信息 =================
+                     🔴 2026-08-21 统一滚动化：全部 Tab 同构 ScrollablePanel 三件套（记忆 Tab 修复实录，
+                     滚动条 holder 必须与 ScrollablePanel 同级） -->
+
+                <ScrollablePanel Id="LWN_InfoBoard_KingdomScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                 IsVisible="@IsKingdomSelected"
+                                 AutoHideScrollBars="true"
+                                 ClipRect="LWN_InfoBoard_KingdomClip" InnerPanel="LWN_InfoBoard_KingdomClip\LWN_InfoBoard_KingdomInner"
+                                 VerticalScrollbar="..\LWN_InfoBoard_KingdomScrollbarHolder\LWN_InfoBoard_KingdomScrollbar">
+                    <Children>
+                      <Widget Id="LWN_InfoBoard_KingdomClip" ClipContents="true"
+                              WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                              DoNotAcceptEvents="true">
+                        <Children>
+                          <ListPanel Id="LWN_InfoBoard_KingdomInner" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalBottomToTop">
+                            <Children>
+                              <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
+                                          Text="@KingdomInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+
+                            </Children>
+                          </ListPanel>
+                        </Children>
+                      </Widget>
+                    </Children>
+                  </ScrollablePanel>
+                  <!-- 滚动条 holder（兄弟节点，见记忆 Tab 注释②） -->
+                  <Widget Id="LWN_InfoBoard_KingdomScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                          HorizontalAlignment="Right" DoNotAcceptEvents="true">
+                    <Children>
+                      <ScrollbarWidget Id="LWN_InfoBoard_KingdomScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                       AlignmentAxis="Vertical" Handle="LWN_InfoBoard_KingdomScrollbarHandle"
+                                       MaxValue="100" MinValue="0">
+                        <Children>
+                          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                  HorizontalAlignment="Center"
+                                  Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                  DoNotAcceptEvents="true"/>
+                          <ImageWidget Id="LWN_InfoBoard_KingdomScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                       HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                        </Children>
+                      </ScrollbarWidget>
+                    </Children>
+                  </Widget>
+
+                <!-- ================= Tab 4: 人际关系 =================
+                     🔴 2026-08-21 统一滚动化：全部 Tab 同构 ScrollablePanel 三件套（记忆 Tab 修复实录，
+                     滚动条 holder 必须与 ScrollablePanel 同级） -->
+
+                <ScrollablePanel Id="LWN_InfoBoard_RelationScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                 IsVisible="@IsRelationSelected"
+                                 AutoHideScrollBars="true"
+                                 ClipRect="LWN_InfoBoard_RelationClip" InnerPanel="LWN_InfoBoard_RelationClip\LWN_InfoBoard_RelationInner"
+                                 VerticalScrollbar="..\LWN_InfoBoard_RelationScrollbarHolder\LWN_InfoBoard_RelationScrollbar">
+                    <Children>
+                      <Widget Id="LWN_InfoBoard_RelationClip" ClipContents="true"
+                              WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                              DoNotAcceptEvents="true">
+                        <Children>
+                          <ListPanel Id="LWN_InfoBoard_RelationInner" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalBottomToTop">
+                            <Children>
+                              <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
+                                          Text="@RelationInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+
+                            </Children>
+                          </ListPanel>
+                        </Children>
+                      </Widget>
+                    </Children>
+                  </ScrollablePanel>
+                  <!-- 滚动条 holder（兄弟节点，见记忆 Tab 注释②） -->
+                  <Widget Id="LWN_InfoBoard_RelationScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                          HorizontalAlignment="Right" DoNotAcceptEvents="true">
+                    <Children>
+                      <ScrollbarWidget Id="LWN_InfoBoard_RelationScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                       AlignmentAxis="Vertical" Handle="LWN_InfoBoard_RelationScrollbarHandle"
+                                       MaxValue="100" MinValue="0">
+                        <Children>
+                          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                  HorizontalAlignment="Center"
+                                  Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                  DoNotAcceptEvents="true"/>
+                          <ImageWidget Id="LWN_InfoBoard_RelationScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                       HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                        </Children>
+                      </ScrollbarWidget>
+                    </Children>
+                  </Widget>
 
                 <!-- ================= Tab 5: 记忆 =================
-                     🔴 2026-08-21（用户：担心显示不下）：改 ScrollablePanel 滚动（IM 消息流同款结构——
-                     ClipRect/InnerPanel/VerticalScrollbar 三件套；InnerPanel 路径必须与 ListPanel Id
-                     完全一致（ImChat 七轮根因教训），滚动条用 Native SPChatlog.Scrollbar.Handle） -->
+                     🔴 2026-08-21 滚动条修复（实录）：ScrollablePanel 滚动三件套——
+                     ClipRect/InnerPanel/VerticalScrollbar。两个坑：
+                     ① InnerPanel 路径必须与实际 ListPanel Id 完全一致（ImChat 七轮根因教训）；
+                     ② 🔴 VerticalScrollbar 路径 "..\Holder\Bar" 的 ".." 指 ScrollablePanel 的父级，
+                        **滚动条 holder 必须是 ScrollablePanel 的兄弟节点**（不能放面板内部）——
+                        放内部 = 路径解析 null = VerticalScrollbar 为 null = 引擎竖向滚动分支整个跳过，
+                        滚轮无响应（反编译 ScrollablePanel.UpdateScrollablePanel/OnMouseScroll 证实）。
+                        滚动条用 Native SPChatlog.Scrollbar.Handle。 -->
                  <ScrollablePanel Id="LWN_InfoBoard_MemoryScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
                                   IsVisible="@IsMemorySelected"
                                   AutoHideScrollBars="true"
@@ -175,47 +319,122 @@
                           </ListPanel>
                         </Children>
                       </Widget>
-                      <Widget Id="LWN_InfoBoard_MemoryScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
-                              HorizontalAlignment="Right" DoNotAcceptEvents="true">
+                    </Children>
+                  </ScrollablePanel>
+                  <!-- 滚动条 holder：必须与 ScrollablePanel 同级（见上注释②；ImChat MessageScrollbarHolder 同构） -->
+                  <Widget Id="LWN_InfoBoard_MemoryScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                          HorizontalAlignment="Right" DoNotAcceptEvents="true">
+                    <Children>
+                      <ScrollbarWidget Id="LWN_InfoBoard_MemoryScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                       AlignmentAxis="Vertical" Handle="LWN_InfoBoard_MemoryScrollbarHandle"
+                                       MaxValue="100" MinValue="0">
                         <Children>
-                          <ScrollbarWidget Id="LWN_InfoBoard_MemoryScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
-                                           AlignmentAxis="Vertical" Handle="LWN_InfoBoard_MemoryScrollbarHandle"
-                                           MaxValue="100" MinValue="0">
+                          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                  HorizontalAlignment="Center"
+                                  Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                  DoNotAcceptEvents="true"/>
+                          <ImageWidget Id="LWN_InfoBoard_MemoryScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                       HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                        </Children>
+                      </ScrollbarWidget>
+                    </Children>
+                  </Widget>
+
+                <!-- ================= Tab 6: 背包和辎重物品 =================
+                     🔴 2026-08-21 统一滚动化：全部 Tab 同构 ScrollablePanel 三件套（记忆 Tab 修复实录，
+                     滚动条 holder 必须与 ScrollablePanel 同级） -->
+
+                <ScrollablePanel Id="LWN_InfoBoard_InventoryScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                 IsVisible="@IsInventorySelected"
+                                 AutoHideScrollBars="true"
+                                 ClipRect="LWN_InfoBoard_InventoryClip" InnerPanel="LWN_InfoBoard_InventoryClip\LWN_InfoBoard_InventoryInner"
+                                 VerticalScrollbar="..\LWN_InfoBoard_InventoryScrollbarHolder\LWN_InfoBoard_InventoryScrollbar">
+                    <Children>
+                      <Widget Id="LWN_InfoBoard_InventoryClip" ClipContents="true"
+                              WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                              DoNotAcceptEvents="true">
+                        <Children>
+                          <ListPanel Id="LWN_InfoBoard_InventoryInner" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalBottomToTop">
                             <Children>
-                              <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
-                                      HorizontalAlignment="Center"
-                                      Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
-                                      DoNotAcceptEvents="true"/>
-                              <ImageWidget Id="LWN_InfoBoard_MemoryScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
-                                           MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
-                                           HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                              <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
+                                          Text="@InventoryInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+
                             </Children>
-                          </ScrollbarWidget>
+                          </ListPanel>
                         </Children>
                       </Widget>
                     </Children>
                   </ScrollablePanel>
+                  <!-- 滚动条 holder（兄弟节点，见记忆 Tab 注释②） -->
+                  <Widget Id="LWN_InfoBoard_InventoryScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                          HorizontalAlignment="Right" DoNotAcceptEvents="true">
+                    <Children>
+                      <ScrollbarWidget Id="LWN_InfoBoard_InventoryScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                       AlignmentAxis="Vertical" Handle="LWN_InfoBoard_InventoryScrollbarHandle"
+                                       MaxValue="100" MinValue="0">
+                        <Children>
+                          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                  HorizontalAlignment="Center"
+                                  Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                  DoNotAcceptEvents="true"/>
+                          <ImageWidget Id="LWN_InfoBoard_InventoryScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                       HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                        </Children>
+                      </ScrollbarWidget>
+                    </Children>
+                  </Widget>
 
-                <!-- ================= Tab 6: 背包和辎重物品 ================= -->
-                 <ListPanel Id="LWN_InfoBoard_Inventory" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsInventorySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                <!-- ================= Tab 7: 部队信息 =================
+                     🔴 2026-08-21 统一滚动化：全部 Tab 同构 ScrollablePanel 三件套（记忆 Tab 修复实录，
+                     滚动条 holder 必须与 ScrollablePanel 同级） -->
+
+                <ScrollablePanel Id="LWN_InfoBoard_PartyScroll" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                                 IsVisible="@IsPartySelected"
+                                 AutoHideScrollBars="true"
+                                 ClipRect="LWN_InfoBoard_PartyClip" InnerPanel="LWN_InfoBoard_PartyClip\LWN_InfoBoard_PartyInner"
+                                 VerticalScrollbar="..\LWN_InfoBoard_PartyScrollbarHolder\LWN_InfoBoard_PartyScrollbar">
                     <Children>
-                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
-                                    Text="@InventoryInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+                      <Widget Id="LWN_InfoBoard_PartyClip" ClipContents="true"
+                              WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent"
+                              DoNotAcceptEvents="true">
+                        <Children>
+                          <ListPanel Id="LWN_InfoBoard_PartyInner" WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" StackLayout.LayoutMethod="VerticalBottomToTop">
+                            <Children>
+                              <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
+                                          Text="@PartyInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+
+                            </Children>
+                          </ListPanel>
+                        </Children>
+                      </Widget>
                     </Children>
-                </ListPanel>
-				
-				<!-- ================= Tab 7: 部队信息 ================= -->
-                 <ListPanel Id="LWN_InfoBoard_Party" WidthSizePolicy="StretchToParent" HeightSizePolicy="StretchToParent" IsVisible="@IsPartySelected" StackLayout.LayoutMethod="VerticalBottomToTop">
+                  </ScrollablePanel>
+                  <!-- 滚动条 holder（兄弟节点，见记忆 Tab 注释②） -->
+                  <Widget Id="LWN_InfoBoard_PartyScrollbarHolder" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                          HorizontalAlignment="Right" DoNotAcceptEvents="true">
                     <Children>
-                        <TextWidget WidthSizePolicy="StretchToParent" HeightSizePolicy="CoverChildren" SuggestedHeight="60" WordWrapping="Wrap"
-                                    Text="@PartyInfoText" Brush="MyBrush_22_Left"  HorizontalAlignment="Left" MarginLeft="20"/>
+                      <ScrollbarWidget Id="LWN_InfoBoard_PartyScrollbar" WidthSizePolicy="CoverChildren" HeightSizePolicy="StretchToParent"
+                                       AlignmentAxis="Vertical" Handle="LWN_InfoBoard_PartyScrollbarHandle"
+                                       MaxValue="100" MinValue="0">
+                        <Children>
+                          <Widget WidthSizePolicy="Fixed" HeightSizePolicy="StretchToParent" SuggestedWidth="2"
+                                  HorizontalAlignment="Center"
+                                  Sprite="BlankWhiteSquare_9" Color="#A37434FF" MarginTop="5" MarginBottom="5" AlphaFactor="0.7"
+                                  DoNotAcceptEvents="true"/>
+                          <ImageWidget Id="LWN_InfoBoard_PartyScrollbarHandle" WidthSizePolicy="Fixed" HeightSizePolicy="Fixed"
+                                       MinHeight="15" SuggestedHeight="10" SuggestedWidth="14"
+                                       HorizontalAlignment="Center" Brush="SPChatlog.Scrollbar.Handle" />
+                        </Children>
+                      </ScrollbarWidget>
                     </Children>
-                </ListPanel>
+                  </Widget>
 
               </Children>
             </Widget>
 
-            <!-- D. 底部关闭按钮（2026-08-21：删掉 IM 传信按钮——探查板不再开私聊，传信走密信/IM 面板入口） -->
+                <!-- D. 底部关闭按钮（2026-08-21：删掉 IM 传信按钮——探查板不再开私聊，传信走密信/IM 面板入口） -->
             <ButtonWidget WidthSizePolicy="Fixed" HeightSizePolicy="Fixed" SuggestedWidth="300" SuggestedHeight="80"
                           HorizontalAlignment="Center" VerticalAlignment="Bottom" MarginBottom="20"
                           Brush="LWN_Btn_Message" Command.Click="ExecuteClose">
@@ -228,6 +447,7 @@
 
           </Children>
         </Widget>
+
       </Children>
     </Widget>
   </Window>
