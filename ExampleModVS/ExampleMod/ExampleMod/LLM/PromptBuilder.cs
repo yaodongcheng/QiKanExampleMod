@@ -267,8 +267,12 @@ namespace LivingWorldNpcs
         /// <summary>respond 实时回应的裁剪版记忆上下文（BC-006 v2 / plan D3）：
         /// 永久记忆（截断 200 字）+ 动态记忆最新 2 条 + 与 otherId 相关的近期对话（最多 6 句，不足补最近行）。
         /// 不复用 GetPrompt_History_Memory_Events（玩家对话全量版，对 2s 预算太重）。
-        /// otherId = 当前搭话方标识（Hero StringId / TEMP_AGENT 键），null = 不过滤。</summary>
-        public static string GetPrompt_RespondContext(SingNpcMemorySystem memory, string otherId)
+        /// otherId = 当前搭话方标识（Hero StringId / TEMP_AGENT 键），null = 不过滤。
+        /// 🔴 includeChannelRows（2026-08-21）：群聊回复传 false（频道行已由【频道近期消息】段全量承担，
+        /// 再进【对话历史】= 同一批对话打印两遍）；私聊/无频道段的路径传 true——否则 NPC 私聊时
+        /// 完全看不到玩家刚在频道里说的话（实机：私聊"你知道我刚刚说什么了吗"答"没听真切"）。
+        /// 传入 true 时 channel_ 行不跳过，按 SpeakerId 过滤（玩家在频道的发言 SpeakerId=PlayerId 直接入选）。</summary>
+        public static string GetPrompt_RespondContext(SingNpcMemorySystem memory, string otherId, bool includeChannelRows = false)
         {
             if (memory == null) return "";
             var sb = new StringBuilder();
@@ -334,8 +338,10 @@ namespace LivingWorldNpcs
 
             // 3. 近期对话：优先取与 otherId 相关的行（最多 6 句）；无 SpeakerId 的旧行（玩家对话）也保留；
             //    不足 6 句 → 从最近行补足（保持上下文连续）
-            // 🔴 2026-08-16（prompt 精简）：跳过 channel_ 角色（群聊公区消息）——它们已由
-            //    【频道近期消息】段（BuildChannelRecentSection）全量承担，再进【对话历史】= 同一批对话打印两遍。
+            // 🔴 2026-08-16（prompt 精简）：群聊路径（includeChannelRows=false）跳过 channel_ 角色
+            //    （群聊公区消息）——它们已由【频道近期消息】段（BuildChannelRecentSection）全量承担，
+            //    再进【对话历史】= 同一批对话打印两遍。私聊路径（includeChannelRows=true）不跳过——
+            //    私聊没有频道段，NPC 必须从记忆里看到玩家刚在频道说的话（2026-08-21 用户实机修复）。
             //    私聊线（im_user/im_npc）不受影响（群聊回复本就走 channelRecent 段）。
             if (memory.RecentHistory.Count > 0)
             {
@@ -344,7 +350,7 @@ namespace LivingWorldNpcs
                 {
                     var msg = memory.RecentHistory[i];
                     if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
-                    if (msg.Role != null && msg.Role.StartsWith("channel_", StringComparison.Ordinal)) continue;
+                    if (!includeChannelRows && msg.Role != null && msg.Role.StartsWith("channel_", StringComparison.Ordinal)) continue;
                     if (string.IsNullOrEmpty(msg.SpeakerId) || msg.SpeakerId == otherId)
                         selected.Insert(0, msg);
                 }
@@ -354,7 +360,7 @@ namespace LivingWorldNpcs
                     {
                         var msg = memory.RecentHistory[i];
                         if (msg == null || string.IsNullOrEmpty(msg.Content)) continue;
-                        if (msg.Role != null && msg.Role.StartsWith("channel_", StringComparison.Ordinal)) continue;
+                        if (!includeChannelRows && msg.Role != null && msg.Role.StartsWith("channel_", StringComparison.Ordinal)) continue;
                         if (!selected.Contains(msg))
                             selected.Insert(0, msg);
                     }
@@ -500,7 +506,10 @@ namespace LivingWorldNpcs
                 sb.AppendLine();
             }
             // 记忆裁剪段（永久记忆 + 动态回忆 + 与对方相关的近期对话）
-            string ctx = GetPrompt_RespondContext(memory, otherId);
+            // 🔴 2026-08-21（用户实机修复）：私聊（channelRecent 为空 = 无频道段）时【对话历史】必须
+            // 包含 channel_ 行——NPC 私聊时才能接住玩家刚在频道说的话（"你知道我刚刚说什么了吗"）。
+            // 群聊（channelRecent 非空）保持跳过——频道段已全量承担，防同一批对话打印两遍。
+            string ctx = GetPrompt_RespondContext(memory, otherId, includeChannelRows: string.IsNullOrEmpty(channelRecent));
             if (!string.IsNullOrWhiteSpace(ctx))
             {
                 sb.AppendLine(ctx);

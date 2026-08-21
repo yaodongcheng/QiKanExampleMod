@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.Engine.GauntletUI;
 using TaleWorlds.GauntletUI;
@@ -303,6 +304,10 @@ namespace LivingWorldNpcs
                 _vm?.RefreshPadHint();
  // lwn-ignore: A  排查日志（2026-08-19 起）：打开时的模式 + 设备判定 + 输入框聚焦——配合 [ImChatMask]
                 DebugLogger.Log($"[ImChat] Open 完成 mode={_mode} gamepad={_lastUsingGamepad} inputFocused={_layer.IsFocusedOnInput()}");
+                // 🔴 2026-08-21（排查：频道发言 vs 记忆先后关系）：打开时 dump 各频道现有聊天记录
+                //（store 视角——IM UI 显示的就是它）——与 NpcInfoVM 的 [NPCInfo-Mem] 记忆快照日志
+                // 对比时间戳即可判断"频道消息存在"与"面板看到记忆"的先后
+                LogChannelState();
                 // 🔴 2026-08-17（用户反馈）：Mission 内直接以缩略模式打开（_mode 记忆——上次关闭时是
                 // 缩略，下一次开启仍是缩略）→ 同样提示镜头操作变化（不只「放大→缩略」路径）
                 ShowCompactCameraHintIfNeeded();
@@ -314,6 +319,52 @@ namespace LivingWorldNpcs
                 Close();
                 return false;
             }
+        }
+
+        /// <summary>打开时 dump 各频道现有消息（store 视角：群聊最近 3 条 / 私聊最近 2 条，截断防刷屏）。
+        /// 🔴 2026-08-21（排查：频道发言 vs 记忆先后关系）：与 NpcInfoVM 的 [NPCInfo-Mem] 记忆快照
+        /// 对比时间戳判断先后——频道里有消息而记忆里没有 channel_ 行 = 记忆写入问题；两者都没有 = 时序。</summary>
+        private static void LogChannelState()
+        {
+            try
+            {
+                var sb = new StringBuilder();
+                foreach (var t in new[] { ImConversationType.Party, ImConversationType.Clan, ImConversationType.Kingdom })
+                {
+                    var conv = ImChatManager.GetGroupConversation(t);
+                    if (conv == null) continue;
+                    var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                    sb.AppendLine($"[ImChatStore] {conv.Id}: {msgs.Count} 条");
+                    for (int i = Math.Max(0, msgs.Count - 3); i < msgs.Count; i++)
+                    {
+                        var m = msgs[i];
+                        if (m == null) continue;
+                        sb.AppendLine($"    {Shorten(m.SenderName, 12)}: {Shorten(m.Content, 60)}");
+                    }
+                }
+                foreach (var conv in ImChatManager.GetRecentDirectConversations(3))
+                {
+                    var msgs = ImChatStore.GetGroupMessages(conv.Id);
+                    sb.AppendLine($"[ImChatStore] {conv.Id}: {msgs.Count} 条");
+                    for (int i = Math.Max(0, msgs.Count - 2); i < msgs.Count; i++)
+                    {
+                        var m = msgs[i];
+                        if (m == null) continue;
+                        sb.AppendLine($"    {Shorten(m.SenderName, 12)}: {Shorten(m.Content, 60)}");
+                    }
+                }
+                DebugLogger.Log(sb.ToString());
+            }
+            catch (Exception ex)
+            {
+                DebugLogger.Log($"[ImChatStore] 频道状态 dump 失败: {ex.Message}");
+            }
+        }
+
+        private static string Shorten(string s, int max)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Length <= max ? s : s.Substring(0, max) + "…";
         }
 
         public static void Close()
