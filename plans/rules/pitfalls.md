@@ -608,6 +608,39 @@ using (var stream = req.GetRequestStream())
 
 ---
 
+## 中文输入法组词期间退格删掉已上屏的字 → 消息路由盲区 + 轮询延迟（IME 三坑）
+
+**症状**（实机 2026-08-21，搜狗输入法）
+- 输入框已有上屏文字（如"你好"），用搜狗打"nihao"组合到一半按退格改拼音 → **已上屏的"你好"被删掉**。
+- 组合期间的 Enter 还会误触发发送/确认（上屏候选字被当成回车）。
+
+**根因**（三层，全实锤，缺一必漏检）
+
+```
+① TSF 型输入法（搜狗/微软拼音）不走 IMM32 上下文：
+   ImmGetCompositionString(GCS_COMPSTR) 返回 0 → 单 IMM32 轮询检测漏检（静默！）
+② WM_IME 消息路由有盲区：
+   用户组合 "nihao"+2退格（~2s）期间，主窗口 WndProc 钩子只收到一对 14ms 的 START/END——
+   组合消息根本不完整到达主窗口（TSF 消息路由不同/被 native 层消耗）→ 依赖组合消息门控从根上错
+③ 游戏轮询比物理键晚 1~2 帧：
+   Input.IsKeyPressed(BackSpace) 的沿在按键后 1~2 帧才出现——
+   「上一帧组合、这一帧结束」的帧级过渡判定错过沿，必漏
+```
+
+- 骑砍2 输入是**原始按键轮询**：`EditableTextWidget.HandleInput` 用 `Input.IsKeyPressed(BackSpace)` 删字（反编译实锤）——IME 消费退格（改拼音）的同时，游戏轮询也看到退格 → 删已上屏的字。
+- 三个坑叠加：检测不到组合（①/②）+ 检测到了也挡不住延迟沿（③）。
+
+**规避**（落地：`Input/EditableTextImePatch.cs`，三信号 + 前缀吞键）
+
+- **主信号 = VK_PROCESSKEY 按键消费**：被输入法消费的键，`WM_KEYDOWN` 的 wParam = 0xE5（非真实 VK 码）——**按键级、事件时刻、与消息路由无关**（键盘消息必到聚焦窗口）。最近一次 VK_PROCESSKEY 后 **150ms 宽限**内门关闭：覆盖轮询延迟 1~2 帧的残余沿；组合结束后的新按键（人类反应 >200ms）不受影响。
+- 叠加信号：WM_IME 消息组合态 + IMM32 轮询（经典输入法）+ 武装键（组合结束瞬间 `GetAsyncKeyState` 读物理按下键，按住期间锁门）。
+- **WndProc 子类化纪律**：委托/函数指针静态保活（GC 回收后回调崩）；钩**本进程全部顶层窗口**（`EnumWindows` 按 PID 过滤——消息路由到哪个窗口不确定）；组合中 >5s 无 IME 消息 = 超时开门（防钩子失效后永久锁死输入）。
+- **Enter 双沿**：IM/确认路径有自己的 `IsKeyReleased(Enter)` 轮询，补丁挡不住抬起沿——按「按下时是否组合」标记（`_imeEnterHeld`）吞掉上屏候选字的 Enter。
+- 排查口诀：**"组合期间删字"先别怀疑代码路径，先查组合检测信号在不在**——日志 `[ImeInput]` 的 `按键被输入法消费 vk=0xE5` 行是主证据（组合期间每个字母/退格都该有一条）；没有 = 检测信号没触发；有但删字 = 补丁未生效。
+- 版本兼容：补丁目标 `EditableTextWidget.HandleInput(IReadOnlyList<int>)` + 命名空间 + `InputKey` 成员 + `Input.IsKeyDown/IsKeyPressed` 三锚点（1.2.12/1.3.15/1.4.6）一致，无需 `#if`。
+
+---
+
 ## 屏幕销毁窗口期给 widget 设 IsVisible → GauntletUI 内部 NRE（`_widgetContainers` 已置 null）
 
 **症状**（实机 2026-08-21）

@@ -93,6 +93,54 @@ ModInput.IsPlayStation;                   // 手柄是否 PS 系
 
 ---
 
+## 🔴 IME 组合态吞键（中文输入法退格删已上屏文字）— `Input/EditableTextImePatch.cs`（2026-08-21 实机验证通过）
+
+**解决什么问题**：中文输入法组词期间（拼音未上屏），退格/回车/方向键由输入法消费（改拼音/翻候选/上屏），但骑砍2 输入系统是**原始按键轮询**（`Input.IsKeyPressed`），物理按键照单全收——输入框把「输入法里的退格」当成删字处理，**已上屏的字被删**；Enter 上屏候选字还会误发消息。vanilla `EditableTextWidget.HandleInput` 对退格/Delete/方向键/Home/End/Enter 全部走轮询（反编译实锤：`Input.IsKeyPressed(InputKey.BackSpace)` → `DeleteChar()`）。
+
+**核心判定——三信号（任一命中 = 组合态）**：
+
+| 信号 | 机制 | 覆盖 |
+|---|---|---|
+| 🔴 **VK_PROCESSKEY 按键消费**（主） | 被输入法消费的键，窗口收到的 `WM_KEYDOWN` wParam = 0xE5 而非真实 VK 码——**按键级、事件时刻、路由无关**。最近一次 VK_PROCESSKEY 后 150ms 宽限内门关闭（覆盖游戏轮询延迟 1~2 帧的残余沿；组合结束后新按键反应时间 >200ms 不受影响） | 搜狗/微软拼音等 TSF 型 |
+| WM_IME 消息跟踪 | WndProc 子类化跟踪 STARTCOMPOSITION/ENDCOMPOSITION（TSF 输入法兼容模式会发这套消息） | TSF 型补充 |
+| IMM32 轮询 | `ImmGetCompositionString(GCS_COMPSTR) > 0` | 经典 IMM32 型 |
+
+**门控落地**（吞掉 vanilla 轮询的按键）：
+
+```csharp
+[HarmonyPatch(typeof(EditableTextWidget), "HandleInput")]   // TaleWorlds.GauntletUI.BaseTypes
+public static class EditableTextImePatch
+{
+    [HarmonyPrefix]
+    public static bool Prefix(IReadOnlyList<int> lastKeysPressed)
+    {
+        if (!ImeCompositionHelper.IsComposing()) return true;          // 不在组合：原版行为不变
+        for (int i = 0; i < lastKeysPressed.Count; i++)                 // 组合期间的可打印字符
+            if (IsPrintableChar(lastKeysPressed[i])) return true;       // = 上屏帧 → 放行让汉字上屏
+        return false;                                                   // 否则跳过整个方法：轮询按键全无效
+    }
+}
+```
+
+**关键 API**：`ImeCompositionHelper.IsComposing()`（主信号：`Environment.TickCount - _lastVkProcessKeyTick < 150`）、`ImeCompositionHelper.DiagState()`（诊断串）。
+
+**三条实机教训（全踩过，勿重蹈）**：
+1. **TSF 型输入法不走 IMM32**——搜狗/微软拼音下 `ImmGetCompositionString` 返回 0，单 IMM32 检测必漏检。
+2. **WM_IME 消息路由有盲区**——用户组合 "nihao"+2退格（~2s）期间主窗口钩子只收到一对 14ms 的 START/END，组合消息根本不完整到主窗口；依赖它做门控从根上错。
+3. **游戏轮询比物理键晚 1~2 帧**——帧级过渡判定（"上一帧组合、这一帧结束"）会错过按键沿，必漏。事件时刻的判定必须用消息层（VK_PROCESSKEY）/物理层（GetAsyncKeyState）信号。
+
+**WndProc 子类化纪律**：委托与函数指针必须静态保活（GC 回收后回调崩溃）；钩到**本进程全部顶层窗口**（`EnumWindows` 按 PID 过滤——组合消息路由到哪个窗口不确定）；组合中 >5s 无 IME 消息 = 超时兜底开门（防钩子失效后永久锁死输入）。**native 回调内绝不允许异常传播**（WndProcHook 整体 try/catch 吞掉继续转发 + 5s 节流日志；`IsPhysDown`/`Imm32Poll` 各自 try/catch 降级）。
+
+**SteamDeck / Wine-Proton 行为（2026-08-21 分析）**：P/Invoke 解析到 Wine 的 user32/imm32 实现（导出齐全，游戏本体靠它们运行）——不崩。但检测信号大概率全失效（Wine imm32 是 stub、Steam 虚拟键盘不走 Win32 IME 消息流、无 IME 时 VK_PROCESSKEY 不出现）→ 降级为不拦截 = 原版行为。**这正是期望行为**：Steam 键盘直接提交最终文本、无组合期，本就没有这个 bug；且 150ms 宽限只在 VK_PROCESSKEY 出现时触发，无 IME 场景零误吞。桌面模式 Wine+fcitx 配置了 IME 时，WM_IME 信号反而可能生效。加固 = 异常全降级、消息全转发，最坏情况 = 与原版逐字节一致。
+
+**三锚点版本兼容（已核实，无需 #if）**：补丁目标 `EditableTextWidget.HandleInput(IReadOnlyList<int>)` 与命名空间 `TaleWorlds.GauntletUI.BaseTypes` 在 1.2.12/1.3.15/1.4.6 一致；`InputKey` 枚举成员（BackSpace/Delete/Enter/NumpadEnter/Left/Right/Up/Down/Home/End）与 `Input.IsKeyDown/IsKeyPressed` 签名三版本一致；WinAPI（user32/imm32 P/Invoke）与 .NET Framework API 是 OS 级/框架级，与游戏版本无关。
+
+**诊断**：`[ImeInput]` 前缀日志——`按键被输入法消费 vk=0xE5 scan=0x..`（组合期间每个字母/退格一条）、`组合态吞键`（门激活）、`MSG START/ENDCOMPOSITION`（消息序列）。
+
+**相关纪律**：IM 的 Enter 发送有自己的轮询（`ImChatView.Tick` `IsKeyReleased(Enter)`）——补丁挡不住抬起沿，需按「按下时是否组合」标记 `_imeEnterHeld` 双沿吞掉（上屏候选字 ≠ 发送）。
+
+---
+
 ## 🔴 设备检测：自监测最后输入来源（2026-08-19 用户裁定，替代引擎 IsGamepadActive 粘性判定）— `Input/ModInput.cs`（`TickInputSource` / `UsingGamepad`）
 
 **解决什么问题**：引擎 `IsGamepadActive = IsControllerConnected && !IsMouseActive`——`IsMouseActive` 是**粘性判定**（手柄 A 的 native 模拟点击 / 锚定回拽让它持续 true 7+ 秒，实机 11:42:33-41）→ 手柄键按下后设备仍判键鼠 → 手柄键永远无法重新宣告身份（「⛔ 设备未激活」死循环）。InteractArea 键帽/IM 提示行/呼出按钮全被同一坑坑到（点击后键帽变 [F]）。
