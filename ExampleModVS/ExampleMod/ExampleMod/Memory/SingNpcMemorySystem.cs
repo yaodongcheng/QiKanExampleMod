@@ -455,6 +455,14 @@ namespace LivingWorldNpcs
                     if (ImportantEvents.Count > MaxImportantEvents)
                         ImportantEvents = ImportantEvents.GetRange(ImportantEvents.Count - MaxImportantEvents, MaxImportantEvents);
                 }
+                // 🔴 读档容量钳制（plan D②，2026-08-21）：合并路径的硬钳——防热度档位变化后超限状态
+                // 长期存在（Hot 20/8/500 掉到 Cold 4/2/100 时超量数据要等下次 AddHistory 才延迟自愈）。
+                // 只做无 LLM 的硬钳制；RecentHistory 不硬裁（超量只是 prompt 变长，等 AddHistory 自然总结，
+                // 避免读档即触发 LLM + 弹窗打扰）。写回侧钳制在 AllNpcMemoryManager.ClampEntryToCap（D①）。
+                while (DynamicMemories.Count > MaxDynamicMemoryCount)
+                    DynamicMemories.RemoveFirst();
+                if (PermanentMemory.Length > MaxPermanentLength)
+                    PermanentMemory.Remove(MaxPermanentLength, PermanentMemory.Length - MaxPermanentLength);
             }
             // 🔴 2026-08-21：读档恢复后钳制调试编号计数器——防进程重启后新条目与恢复条目的 SeqId 撞号
             // （旧档条目 SeqId=0 不参与钳制，恢复后新条目从 1 起编，显示 #0 = 旧数据）

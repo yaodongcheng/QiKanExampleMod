@@ -1,6 +1,7 @@
 # NPC 记忆存档读档周期修复计划（读档后未互动 NPC 记忆静默丢失）
 
-> 状态：**待实施**（2026-08-21 定案；同日评估修正版：B 补清 `_pendingRestores`（P0）、D 钳制时点修正、Reset 竞态窗口二次清空、锁清单补全）
+> 状态：**✅ 已实施**（2026-08-21 代码落地：A/B/C/D 全量；同日评估修正版——B 补清 `_pendingRestores`（P0）、D 钳制时点修正、Reset 竞态窗口二次清空、锁清单补全）
+> 实机实证（2026-08-21）：147藏身处.sav —— party 频道 store 19.6KB（49 条幸存）而 npc_mem 记忆逐轮丢失（读档后未互动 NPC 不写回被覆盖）→ 本计划修复目标实锤。
 > 触发：`AllNpcMemoryManager` 存档链路全面检查（对话历史/短期记忆/长期记忆的存档方式、容量管理、超限裁剪统一性）
 > 关联背景：[plans/save-string-overflow-fix.md](save-string-overflow-fix.md)（Strings 表单条 32767B 上限）、[Knowledge/存档机制深度解析.md](../Knowledge/存档机制深度解析.md) §10.4、`plans/rules/wheels.d/save.md`（存档字符串超长防护）
 
@@ -238,3 +239,4 @@ if (PermanentMemory.Length > MaxPermanentLength)
 14. **锁覆盖清单补全**：加锁点除原列表外必须含 `ClearTemporaryMemories`（InteractionMissionView.cs:1481，Mission 结束时遍历+移除）；`GetMemory` 加锁须覆盖"查-建-加"全流程（含 Hero 查找）才能与 Reset 同锁压缩竞态窗口。锁序 `_dictLock` → 实例 `_lock` 单向，SingNpcMemorySystem 无反向调用（grep 验证），锁序纪律写进代码注释。
 15. **小项**：① A 写回 pending 分支补 TEMP 前缀防御过滤（存档内本不应有）② D 的 `Substring/Remove` 按 UTF-16 code unit 截，非 BMP 代理对会切出孤立代理项（JSON.NET 转义保存、读回复原，不崩；记忆为中文生成，实际无风险，记录即可）③ 验证项 5 的异常名是 `InvalidOperationException`（Dictionary 并发），非 Java 的 `ConcurrentModificationException` ④ 验证项 2 必须真走"同进程读 B 档（B 无 X）"路径才覆盖 P0 场景。
 16. **存档侧相容性确认（无新增风险）**：本方案不新增持久化字符串类型（NpcMemorySaveEntry 走 JSON 字符串，无需 SaveDefiner 注册）；24 个 `lwn_npc_mem_*` key 数量不变，容量语义不变（GuardJson 30KB 兜底仍在接线点）；无 schema 变更，旧档 null 字段有 `RestoreFromSave` 的 `if (xxx != null)` 守卫，写回原样带 null 无害；与 SaveGuard 五件套（ReadBytesFix / GuardJson / 写入侧 watchdog / FirstChance / trim 弹窗）无冲突。
+17. **🔴 工具 bug（2026-08-21 排查实证发现）**：`Scripts/save_inspect.py --keys` 对部分 key 显示的大小不可靠——`lwn_im_group_party` 显示 22B 实际 19,624B（49 条消息）、`lwn_npc_mem_20` 显示 18B 实际 5,248B（有真实内容）——疑似 key/值 entry 取错（key 与值成对相邻，--keys 取到了相邻 entry 大小）。**排查存档内容一律用 `--dump=<key>`**（按 key 定位值 entry，实测准确）。--keys 的显示修复待办。

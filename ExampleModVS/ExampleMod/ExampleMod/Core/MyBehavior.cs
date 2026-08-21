@@ -23,6 +23,13 @@ namespace LivingWorldNpcs
     {
         public override void RegisterEvents()
         {
+            // 🔴 2026-08-21（plan B 竞态窗口收口）：读档完成时点清一次 _activeMemories——
+            // 读档过程中上一世界残留的 LLM 后台任务可能经 GetMemory 把旧世界 NPC 重新加回
+            // _activeMemories（SyncData 的 Reset 之后）。🔴 实机修复（2026-08-21）：OnGameLoadedEvent
+            // 在 SyncData **之后**触发，此时 _pendingRestores 已填充新档数据——必须保留（clearPendingRestores:false），
+            // 否则读档记忆全丢（实机 History=0 根因）。事件名经反编译核实：CampaignEvents.OnGameLoadedEvent。
+            CampaignEvents.OnGameLoadedEvent.AddNonSerializedListener(this,
+                _ => AllNpcMemoryManager.ResetActiveMemories(clearPendingRestores: false));
             CampaignEvents.DailyTickEvent.AddNonSerializedListener(this, this.DailyTick);
             CampaignEvents.TickEvent.AddNonSerializedListener(this, this.OnTick);
             CampaignEvents.OnSettlementLeftEvent.AddNonSerializedListener(this, this.OnSettlementLeft);
@@ -449,6 +456,10 @@ namespace LivingWorldNpcs
             // ═══ IM 传讯 / Hero 记忆存档（用户决策 3：进存档 + 记忆总结 + 上限 + 动态容量）═══
             // Hero 记忆 24 槽分片：单槽 ≤ 30KB 防 Strings 表溢出（SaveStringGuard 数组裁剪兜底丢最老记录）；
             // 槽 = FNV-1a 稳定哈希 % 24（跨存档稳定，不随 NPC 数量/顺序漂移）。
+            // 🔴 2026-08-21（plan B）：读档入口先清空双字典（_activeMemories + _pendingRestores）——
+            // 防跨档残留污染；随后 DeserializeSlot 从新档重新填充。必须在循环外（只清一次）。
+            if (dataStore.IsLoading)
+                AllNpcMemoryManager.ResetActiveMemories();
             for (int slot = 0; slot < AllNpcMemoryManager.SaveSlots; slot++)
             {
                 string memJson = SaveStringGuard.GuardJson($"lwn_npc_mem_{slot}", AllNpcMemoryManager.SerializeSlot(slot));

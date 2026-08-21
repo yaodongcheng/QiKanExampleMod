@@ -761,7 +761,9 @@ namespace LivingWorldNpcs
             }
         }
         /// <summary>群聊公区注入：频道近期消息（最近 8 条，带发言人）。
-        /// 方案 B 即时层——旁观者没参与对话也能接住频道话题；细节沉淀由 ImChatManager 参与度写入负责。</summary>
+        /// 方案 B 即时层——旁观者没参与对话也能接住频道话题；细节沉淀由 ImChatManager 参与度写入负责。
+        /// 🔴 2026-08-21（用户实机：NPC 不知道自己在哪个频道说话——阿速甘把家族频道答成"队伍说话的公区"）：
+        /// 首行标注频道名（conv.Title = 本地化名），LLM 才能区分队伍/家族/王国频道。</summary>
         private static string BuildChannelRecentSection(ImConversation conv)
         {
             if (conv == null || conv.Type == ImConversationType.Direct) return null;
@@ -770,6 +772,7 @@ namespace LivingWorldNpcs
                 var msgs = ImChatStore.GetGroupMessages(conv.Id);
                 if (msgs == null || msgs.Count == 0) return null;
                 var sb = new StringBuilder();
+                sb.AppendLine($"（这里是{conv.Title ?? conv.Id}）");  // 频道身份标注（LLM prompt 材料，铁律 13 豁免）
                 int from = Math.Max(0, msgs.Count - 8);
                 for (int i = from; i < msgs.Count; i++)
                 {

@@ -193,27 +193,26 @@ namespace LivingWorldNpcs
                 sb.AppendLine(string.IsNullOrEmpty(perm) ? LWNTextHelper.ResolveText("LWN_ui_info_none", "None") : perm);
                 sb.AppendLine();
 
-                // 2. 短期记忆（动态记忆，含 条数/上限；行首带相对日前缀，I5 词表与 prompt 一致）
+                // 2. 短期记忆（动态记忆，含 条数/上限；行首带 现实时间（MM-dd HH:mm:ss）+ 游戏世界时间（D游戏日 时:分），绝对格式）
                 var dynamics = memory.SnapshotDynamicMemories();
                 // 本地化：LWN_ui_info_mem_dynamic（记忆段：短期记忆标题）
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_dynamic", "Short-term Memories") + $" ({dynamics.Count}/{memory.MaxDynamicMemoryCount})");
                 foreach (var d in dynamics)
                 {
                     if (string.IsNullOrEmpty(d.Content)) continue;
-                    sb.AppendLine($"- #{d.SeqId} " + PromptBuilder.RelativeDayPrefix(d.CampaignDay) + d.Content);
+                    sb.AppendLine($"- #{d.SeqId} {FormatWallTime(d.TimeStamp_Start)} · {FormatGameTime(d.CampaignDay)} {d.Content}");
                 }
                 sb.AppendLine();
 
-                // 3. 对话历史（含 条数/上限；行 = 相对日 + Role + 内容）
+                // 3. 对话历史（含 条数/上限；行 = 现实时间 + 游戏世界时间 + Role + 内容）
                 var history = memory.SnapshotRecentHistory();
                 // 本地化：LWN_ui_info_mem_history（记忆段：对话历史标题）
                 sb.AppendLine(LWNTextHelper.ResolveText("LWN_ui_info_mem_history", "Dialogue History") + $" ({history.Count}/{memory.MaxRecentHistoryCount})");
                 foreach (var msg in history)
                 {
                     if (string.IsNullOrEmpty(msg.Content)) continue;
-                    string stamp = PromptBuilder.RelativeDayPrefix(msg.CampaignDay);
                     string role = string.IsNullOrEmpty(msg.Role) ? "" : msg.Role + ": ";
-                    sb.AppendLine($"- #{msg.SeqId} " + stamp + role + msg.Content);
+                    sb.AppendLine($"- #{msg.SeqId} {FormatWallTime(msg.TimeStamp)} · {FormatGameTime(msg.CampaignDay)} {role}{msg.Content}");
                 }
                 sb.AppendLine();
 
@@ -285,6 +284,20 @@ namespace LivingWorldNpcs
                         sb.AppendLine($"- [{evt.PerceivedSeverity:0.#}] {evt.EventId} {desc}");
                     }
                 }
+                // 🔴 2026-08-21（排查：频道发言 vs 记忆先后关系）：面板打开构建记忆视图时 dump 记忆快照
+                //（记忆视角——面板显示的就是它）——与 ImChatView 的 [ImChatStore] 打开时频道状态日志
+                // 对比时间戳判断先后：频道里有消息而记忆无 channel_ 行 = 记忆写入问题；两者皆无 = 时序
+                try
+                {
+                    var logSb = new StringBuilder();
+                    logSb.AppendLine($"[NPCInfo-Mem] {memory._profile?.Name} 记忆快照: History={history.Count}/{memory.MaxRecentHistoryCount}, Dynamic={dynamics.Count}/{memory.MaxDynamicMemoryCount}, Perm={perm.Length}字符");
+                    foreach (var msg in history)
+                        logSb.AppendLine($"  #{msg.SeqId} {FormatWallTime(msg.TimeStamp)} · {FormatGameTime(msg.CampaignDay)} {msg.Role ?? "?"}: {Shorten(msg.Content, 50)}");
+                    foreach (var d in dynamics)
+                        logSb.AppendLine($"  #{d.SeqId} {FormatWallTime(d.TimeStamp_Start)} · {FormatGameTime(d.CampaignDay)} [DYN]: {Shorten(d.Content, 50)}");
+                    DebugLogger.Log(logSb.ToString());
+                }
+                catch { }
                 return sb.ToString();
             }
             catch (Exception ex)
@@ -292,6 +305,38 @@ namespace LivingWorldNpcs
                 DebugLogger.Log($"[NPCInfo] 记忆调试视图构建失败: {ex.Message}");
                 return LWNTextHelper.ResolveText("LWN_ui_info_no_memory", "(Non-hero unit: no memory data)");
             }
+        }
+
+        private static string Shorten(string s, int max)
+        {
+            if (string.IsNullOrEmpty(s)) return "";
+            return s.Length <= max ? s : s.Substring(0, max) + "…";
+        }
+
+        /// <summary>现实（墙钟）绝对时间：MM-dd HH:mm:ss（本地时区）。0/旧档条目 → 空串（无时间戳不编数）。</summary>
+        private static string FormatWallTime(double unixMs)
+        {
+            if (unixMs <= 0) return "";
+            try
+            {
+                return DateTimeOffset.FromUnixTimeMilliseconds((long)unixMs).ToLocalTime().ToString("MM-dd HH:mm:ss");
+            }
+            catch { return ""; }
+        }
+
+        /// <summary>游戏世界绝对时间：D{游戏日} 时:分（CampaignDay 小数部分换算时:分）。0/旧档条目 → 空串。</summary>
+        private static string FormatGameTime(float campaignDay)
+        {
+            if (campaignDay <= 0f) return "";
+            try
+            {
+                int day = (int)campaignDay;
+                double frac = campaignDay - day;
+                int hour = (int)(frac * 24);
+                int min = (int)((frac * 24 - hour) * 60);
+                return $"D{day} {hour:00}:{min:00}";
+            }
+            catch { return ""; }
         }
 
         public void ExecuteClose()
