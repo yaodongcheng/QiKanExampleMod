@@ -1275,16 +1275,37 @@ namespace LivingWorldNpcs
 
             Kingdom kingdom = clan?.Kingdom;
             if (kingdom != null)
-                // 本地化：LWN_prompt_standing_kingdom_serve（效忠{KINGDOM}，双桶）
-                sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
-                    // 本地化：LWN_prompt_standing_kingdom_serve（双桶）
-                    ("TEXT", LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom_serve",
-                        ("KINGDOM", kingdom.Name.ToString())))));
+            {
+                // 🔴 国王自我认知（2026-08-21）：王国领袖不说"我效忠于{王国}"，而是"我是国王"——
+                // 与 LifeGoal 的 isKing 判定同口径（kingdom.Leader == hero）
+                if (kingdom.Leader == BaseHero)
+                    // 本地化：LWN_prompt_standing_king_ruler（我是{KINGDOM}的国王，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
+                        // 本地化：LWN_prompt_standing_king_ruler（双桶）
+                        ("TEXT", LWNTextHelper.ResolveCompound("LWN_prompt_standing_king_ruler",
+                            ("KINGDOM", kingdom.Name.ToString())))));
+                else
+                    // 本地化：LWN_prompt_standing_kingdom_serve（效忠{KINGDOM}，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
+                        // 本地化：LWN_prompt_standing_kingdom_serve（双桶）
+                        ("TEXT", LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom_serve",
+                            ("KINGDOM", kingdom.Name.ToString())))));
+            }
             else
                 // 本地化：LWN_prompt_standing_kingdom_free（自由之身，双桶）
                 sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_kingdom", "- Kingdom: {TEXT}", // lwn-ignore: B
                     // 本地化：LWN_prompt_standing_kingdom_free（双桶）
                     ("TEXT", LWNTextHelper.ResolvePrompt("LWN_prompt_standing_kingdom_free"))));
+            // 🔴 总督自我认知（2026-08-21）：担任城镇总督的 Hero 必须知道自己在治理哪座城——
+            // 与 GetPartyRoleInfo 的"家族但不在队伍"文案互补（留守总督的处境 = 我在治理{TOWN}）
+            if (BaseHero.GovernorOf != null)
+            {
+                string townName = BaseHero.GovernorOf.Name?.ToString() ?? "";
+                if (!string.IsNullOrEmpty(townName))
+                    // 本地化：LWN_prompt_standing_governor（我是{TOWN}的总督，双桶）
+                    sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_standing_governor",
+                        ("TOWN", townName)));
+            }
             return sb.ToString();
         }
 
@@ -1319,6 +1340,27 @@ namespace LivingWorldNpcs
                     sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_lord_party", // lwn-ignore: B
                         "You are in the party of {NAME} (your lord), his retainer on campaign.",
                         ("NAME", playerName)));
+                // 🔴 职务认知（2026-08-21）：玩家任命军需官等职位后，NPC 必须知道自己的职务——
+                // 查询 Hero 当前所属部队的职位（主队 = MainParty / 分兵 = 分兵部队，PartyBelongedTo
+                // 天然指向各自部队，J3 口径不越界；留守/驻扎者 Effective 校验 = 无职位，不自称在队）。
+                // V.GetPartyRoleKeys 内部做版本兼容（1.4.x 原生查询含船长 / 旧版 Effective 四职位）。
+                // 🔴 Hero.PartyBelongedTo 全版本直接返回 MobileParty（1.4.x 的 MobileParty 是独立类，
+                // 不继承 PartyBase——别再试 .MobileParty 属性）；被俘/驻扎时可能为 null。
+                var mp = BaseHero.PartyBelongedTo;
+                if (mp != null)
+                {
+                    foreach (var role in V.GetPartyRoleKeys(mp, BaseHero))
+                    {
+                        // 🔴 职位名自建双桶（LWN_prompt_role_*，CN/EN 各一份）——引擎 role 文本组
+                        // 只有英文源（CN 翻译缺失）且无 FirstMate/Navigator 条目，不可依赖（2026-08-21）；
+                        // 兜底 = 枚举名（英文）
+                        string roleName = LWNTextHelper.ResolvePrompt("LWN_prompt_role_" + role.ToLowerInvariant());
+                        if (string.IsNullOrEmpty(roleName)) roleName = role;
+                        // 本地化：LWN_prompt_party_role_line（你担任队伍的{ROLE}，双桶）
+                        sb.AppendLine(LWNTextHelper.ResolveCompound("LWN_prompt_party_role_line",
+                            ("ROLE", roleName)));
+                    }
+                }
             }
             else
             {

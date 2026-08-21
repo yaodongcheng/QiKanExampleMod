@@ -460,6 +460,7 @@ The other person just sent you another message. If it only asks for progress or 
     <string id="LWN_prompt_profile_no_skill" text='- No outstanding skills' />
     <string id="LWN_prompt_profile_skill_unavailable" text='- (skill data unavailable)' />
     <string id="LWN_fact_title_party" text='## The Party (you see it with your own eyes)' />
+    <string id="LWN_fact_title_roles" text='## Party Roles (you see them with your own eyes)' />
     <string id="LWN_fact_title_gold" text='## Funds (shared by the party, you know roughly)' />
     <string id="LWN_fact_title_location" text='## Current Location (you travel with the party)' />
     <string id="LWN_fact_title_food" text='## Provisions (party supplies, you see them)' />
@@ -912,6 +913,16 @@ A dispute is under way. The specifics: {CONFLICT}" />
     <string id="LWN_prompt_standing_no_background" text="I have no great house behind me." />
     <string id="LWN_prompt_standing_kingdom_serve" text="I serve {KINGDOM}." />
     <string id="LWN_prompt_standing_kingdom_free" text="I bow to no realm; I am a free man." />
+    <string id="LWN_prompt_standing_king_ruler" text="I am the king of {KINGDOM}." />
+    <string id="LWN_prompt_standing_governor" text="I am the governor of {TOWN}." />
+    <string id="LWN_prompt_party_role_line" text="You serve as the party's {ROLE}." />
+    <string id="LWN_prompt_role_quartermaster" text="Quartermaster" />
+    <string id="LWN_prompt_role_scout" text="Scout" />
+    <string id="LWN_prompt_role_surgeon" text="Surgeon" />
+    <string id="LWN_prompt_role_engineer" text="Engineer" />
+    <string id="LWN_prompt_role_captain" text="Captain" />
+    <string id="LWN_prompt_role_firstmate" text="First Mate" />
+    <string id="LWN_prompt_role_navigator" text="Navigator" />
     <string id="LWN_prompt_family_topic_kw" text="家族,家世,出身,门第,家门,你家,家底,族人,family,clan,lineage,background" />
     <string id="LWN_prompt_kingdom_topic_kw" text="王国,国家,效忠,主公,君主,国王,陛下,阵营,势力,王国归属,kingdom,king,liege,lord,faction,loyalty" />
     <string id="LWN_action_desc_move_to" text="Walk over to the other or to a place (either face-to-face or a distant target; on the campaign map = lead the party to a town and wait there for you)." />

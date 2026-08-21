@@ -861,6 +861,16 @@
     <string id="LWN_prompt_standing_no_background" text="我没有什么显赫的家族背景。" />
     <string id="LWN_prompt_standing_kingdom_serve" text="我效忠于 {KINGDOM}。" />
     <string id="LWN_prompt_standing_kingdom_free" text="我不效忠任何国家，是自由之身。" />
+    <string id="LWN_prompt_standing_king_ruler" text="我是 {KINGDOM} 的国王。" />
+    <string id="LWN_prompt_standing_governor" text="我是 {TOWN} 的总督。" />
+    <string id="LWN_prompt_party_role_line" text="你担任队伍的 {ROLE}。" />
+    <string id="LWN_prompt_role_quartermaster" text="军需官" />
+    <string id="LWN_prompt_role_scout" text="斥候" />
+    <string id="LWN_prompt_role_surgeon" text="医生" />
+    <string id="LWN_prompt_role_engineer" text="工程师" />
+    <string id="LWN_prompt_role_captain" text="船长" />
+    <string id="LWN_prompt_role_firstmate" text="大副" />
+    <string id="LWN_prompt_role_navigator" text="领航员" />
     <string id="LWN_prompt_family_topic_kw" text="家族,家世,出身,门第,家门,你家,家底,族人,family,clan,lineage,background" />
     <string id="LWN_prompt_kingdom_topic_kw" text="王国,国家,效忠,主公,君主,国王,陛下,阵营,势力,王国归属,kingdom,king,liege,lord,faction,loyalty" />
     <string id="LWN_action_desc_move_to" text="走到对方身边/某个地方（当面或远处目标均可；大地图 = 率部前往某座城镇，在城里等你）。" />
@@ -1475,6 +1485,7 @@
     <string id="LWN_prompt_profile_no_skill" text="- 无突出技艺" />
     <string id="LWN_prompt_profile_skill_unavailable" text="- （技能数据暂不可用）" />
     <string id="LWN_fact_title_party" text="## 队伍现状（你亲眼所见，如实作答）" />
+    <string id="LWN_fact_title_roles" text="## 队伍职位（你亲眼所见，如实作答）" />
     <string id="LWN_fact_title_gold" text="## 钱财（队伍共有，你大致知晓）" />
     <string id="LWN_fact_title_location" text="## 当前位置（你与主人同行，亲眼所见）" />
     <string id="LWN_fact_title_food" text="## 粮草（队伍辎重，你亲眼所见）" />
