@@ -341,3 +341,39 @@ private static void SetMouseToWidget(PadItem item)   // MovePad 转移后 + Focu
 - 驱动：`UpdateNavCursor()` 在 `UpdatePadFocus` 顶部每帧调——显示条件 = 手柄（去抖值）+ 非输入聚焦 + 焦点项 GetWidget 非 null；其余隐藏；位置变化 >1px 才打 `[NavCursor]` 诊断行
 
 **🔴 坑中坑（2026-08-19 实机 10:38:10 三连日志）**：准星 visible 时会把 **native 点击命中测试**吸走——`DoNotAcceptEvents="true"` 只挡 managed 命中（`EventManager.AnyWidgetsAt` 检查该 flag），**native 命中（`CollectVisibleWidgetsAt`，反编译实锤）不检查**；准星 = 根下最顶层 widget，盖在焦点项上时 A 键 native 点击先命中准星（ImageWidget 不可聚焦）→ 点击焦点链被吸走 → 手动设的 `FocusedWidget` 被清 → 0.5s A 键窗口过期 → 设备翻转死锁。**纪律：任何 A 键激活路径必须先 `SetMouseToWidget(焦点项)` + `HideNavCursor()` 再 OnActivate**——`ActivatePad` 统一入口已做（SetMouseToWidget 保点击命中项本体；HideNavCursor 保点击路径 = 无准星提交版逐字节一致；下一帧 UpdateNavCursor 自动恢复显示）。
+
+
+---
+
+## 🔴 私聊频道上下文：`GetPrompt_RespondContext(includeChannelRows)` — 2026-08-21 实机修复
+
+**解决**：玩家在频道里说话后私聊 NPC"你知道我刚刚说什么了吗"，NPC 答"没听真切"——私聊 prompt 完全看不到频道消息。
+
+**根因（两层过滤叠加）**：① `BuildChannelRecentSection` 对 Direct 会话直接 return null（私聊无【频道近期消息】段）；② 【对话历史】段显式跳过 `channel_` 角色行（设计是"频道段全量承担"——但私聊没有频道段）。
+
+**修复**：`GetPrompt_RespondContext(memory, otherId, includeChannelRows)`——**群聊传 false**（有频道段，跳过防"同一批对话打印两遍"）；**私聊/无频道段传 true**（`BuildPrompt_ImReply` 按 `string.IsNullOrEmpty(channelRecent)` 判定）。true 时 channel_ 行不跳过，按 SpeakerId 过滤（玩家在频道的发言 `SpeakerId=PlayerId` 直接入选第一轮，NPC 自己发的走补足轮）。
+
+**验证锚点**（实机）：私聊"我刚刚在说什么话" → NPC 完整复述"您方才说的是要偷那帝国弩手#55的兵器，又问我这频道是什么地界儿"。
+
+---
+
+## 🔴 频道段频道名标注 — 2026-08-21 实机修复
+
+**解决**：玩家在家族频道问"这里是什么频道"，NPC 答"队伍说话的公区"——LLM 猜错频道身份。
+
+**根因**：`BuildChannelRecentSection` 只拼消息行（`- {SenderName}: {Content}`），段标题固定"## Recent Channel Messages"——**prompt 里没有任何频道身份信息**。
+
+**修复**：`ImReplyService.BuildChannelRecentSection` 内容首行标注 `（这里是{conv.Title ?? conv.Id}）`（`conv.Title` = 本地化频道名：队伍频道/家族频道/王国频道）。LLM 从此能区分三个频道。
+
+**验证锚点**（实机）：家族频道问 → "咱们家族的密信频道"；队伍频道问 → "随从凑在一块儿说话的地界儿"。
+
+---
+
+## 🔴 私聊显示 = 记忆同源（无独立容量）— 2026-08-21 确认
+
+**解决**：理解"私聊能显示多少条"——`GetDirectMessages`（ImChatManager）**从对方记忆 `RecentHistory` 的 im_user/im_npc 行构建**（需求 6：显示与记忆同步，上限随记忆容量）+ 本会话 store 命令消息（PlanCard/System）按时间戳合并去重（`(SenderName, Content)` 键，store 优先）。记忆总结断层 → 插入「淡忘」系统行。
+
+**语义**：
+- **私聊没有独立容量**——`RecentHistory` 是单一容器（私聊/频道/事件/计划/当面混装，上限 = `MaxRecentHistoryCount` 热度分档 40/20/8），私聊显示条数 = 容器内 im_* 行份额（频道活跃 NPC 的私聊行会被挤掉）。
+- 前端消息流**全量渲染无二次截断**（`foreach msgs Add(new ImMessageVM)` + 滚动）——"后端取出多少，前端显示多少"；唯一 Take 是左栏索引 `Take(6)` 与预览字符串。
+- 群聊显示 = store（每频道上限 100 条 FIFO，读档恢复同样收缩）——与记忆 tab 数据源不同是设计（公区流水全量 vs 参与度过滤 + 总结沉淀）。
