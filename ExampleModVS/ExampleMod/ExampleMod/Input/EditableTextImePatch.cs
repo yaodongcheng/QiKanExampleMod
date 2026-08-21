@@ -56,6 +56,9 @@ namespace LivingWorldNpcs
         // ── 信号 3：武装键（组合结束瞬间物理按下的导航键掩码，bit: 0=Back 1=Delete 2=Enter 3=Left 4=Up 5=Right 6=Down 7=Home 8=End）──
         private static int _armedKeys;
 
+        // ── WndProc 回调异常节流（native 回调内绝不传播异常）──
+        private static int _hookErrorTick;
+
         // ── WndProc 子类化（**所有顶层窗口**——组合消息路由到哪个窗口不确定，全挂；委托与
         // 函数指针必须静态保活，否则 GC 回收后回调崩溃）──
         private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -154,10 +157,19 @@ namespace LivingWorldNpcs
             }
         }
 
-        /// <summary>物理键是否处于按下状态（GetAsyncKeyState 高位置位；键盘事件即时刷新，无游戏轮询延迟）。</summary>
+        /// <summary>物理键是否处于按下状态（GetAsyncKeyState 高位置位；键盘事件即时刷新，无游戏轮询延迟）。
+        /// 🔴 P/Invoke 必须 try/catch——Wine/Proton（SteamDeck）等兼容层下 DLL 导出可能有差异，
+        /// 失败 = 降级「未按下」（不拦截 = 原版行为），绝不传播异常。</summary>
         private static bool IsPhysDown(int vk)
         {
-            return (GetAsyncKeyState(vk) & 0x8000) != 0;
+            try
+            {
+                return (GetAsyncKeyState(vk) & 0x8000) != 0;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>🔴 诊断串（排查用，2026-08-21）：按键消费宽限/消息组合态/武装掩码/距最近 IME 消息毫秒/
@@ -213,42 +225,55 @@ namespace LivingWorldNpcs
 
         private static IntPtr WndProcHook(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
         {
-            switch (msg)
+            try
             {
-                case WM_KEYDOWN:
-                    // 🔴 信号 1：输入法消费的键 = VK_PROCESSKEY——组合期间每个字母/退格都会到
-                    if (wParam.ToInt32() == VK_PROCESSKEY)
-                    {
-                        _lastVkProcessKeyTick = Environment.TickCount;
-                        DebugLogger.Log($"[ImeInput] 按键被输入法消费 vk=0xE5 scan=0x{(lParam.ToInt64() >> 16) & 0xFF:X} hwnd={hWnd}");
-                    }
-                    break;
-                case WM_IME_STARTCOMPOSITION:
-                    _lastImeMsgTick = Environment.TickCount;
-                    DebugLogger.Log($"[ImeInput] MSG STARTCOMPOSITION hwnd={hWnd}");
-                    SetMsgComposing(true, "WM_IME_STARTCOMPOSITION");
-                    break;
-                case WM_IME_ENDCOMPOSITION:
-                    _lastImeMsgTick = Environment.TickCount;
-                    DebugLogger.Log($"[ImeInput] MSG ENDCOMPOSITION hwnd={hWnd}");
-                    SetMsgComposing(false, "WM_IME_ENDCOMPOSITION");
-                    ArmKeysDownAtCompositionEnd(); // 组合结束瞬间武装物理按下的导航键
-                    break;
-                case WM_IME_COMPOSITION:
-                    // lParam = 0 表示组合被清空（部分输入法不发 ENDCOMPOSITION 直接清空）；
-                    // GCS_COMPSTR 位 = 组合字符串在变（部分输入法漏发 STARTCOMPOSITION，用它兜底）
-                    _lastImeMsgTick = Environment.TickCount;
-                    DebugLogger.Log($"[ImeInput] MSG COMPOSITION lParam=0x{lParam.ToInt64():X} hwnd={hWnd}");
-                    if (lParam == IntPtr.Zero)
-                    {
-                        SetMsgComposing(false, "WM_IME_COMPOSITION(清空)");
-                        ArmKeysDownAtCompositionEnd();
-                    }
-                    else if ((lParam.ToInt64() & GCS_COMPSTR) != 0)
-                    {
-                        SetMsgComposing(true, "WM_IME_COMPOSITION(GCS_COMPSTR)");
-                    }
-                    break;
+                switch (msg)
+                {
+                    case WM_KEYDOWN:
+                        // 🔴 信号 1：输入法消费的键 = VK_PROCESSKEY——组合期间每个字母/退格都会到
+                        if (wParam.ToInt32() == VK_PROCESSKEY)
+                        {
+                            _lastVkProcessKeyTick = Environment.TickCount;
+                            DebugLogger.Log($"[ImeInput] 按键被输入法消费 vk=0xE5 scan=0x{(lParam.ToInt64() >> 16) & 0xFF:X} hwnd={hWnd}");
+                        }
+                        break;
+                    case WM_IME_STARTCOMPOSITION:
+                        _lastImeMsgTick = Environment.TickCount;
+                        DebugLogger.Log($"[ImeInput] MSG STARTCOMPOSITION hwnd={hWnd}");
+                        SetMsgComposing(true, "WM_IME_STARTCOMPOSITION");
+                        break;
+                    case WM_IME_ENDCOMPOSITION:
+                        _lastImeMsgTick = Environment.TickCount;
+                        DebugLogger.Log($"[ImeInput] MSG ENDCOMPOSITION hwnd={hWnd}");
+                        SetMsgComposing(false, "WM_IME_ENDCOMPOSITION");
+                        ArmKeysDownAtCompositionEnd(); // 组合结束瞬间武装物理按下的导航键
+                        break;
+                    case WM_IME_COMPOSITION:
+                        // lParam = 0 表示组合被清空（部分输入法不发 ENDCOMPOSITION 直接清空）；
+                        // GCS_COMPSTR 位 = 组合字符串在变（部分输入法漏发 STARTCOMPOSITION，用它兜底）
+                        _lastImeMsgTick = Environment.TickCount;
+                        DebugLogger.Log($"[ImeInput] MSG COMPOSITION lParam=0x{lParam.ToInt64():X} hwnd={hWnd}");
+                        if (lParam == IntPtr.Zero)
+                        {
+                            SetMsgComposing(false, "WM_IME_COMPOSITION(清空)");
+                            ArmKeysDownAtCompositionEnd();
+                        }
+                        else if ((lParam.ToInt64() & GCS_COMPSTR) != 0)
+                        {
+                            SetMsgComposing(true, "WM_IME_COMPOSITION(GCS_COMPSTR)");
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                // 🔴 native 回调内绝不允许异常传播（Wine/Proton 兼容层下 P/Invoke 行为可能异常）——
+                // 吞掉继续转发原消息；重复异常节流防刷屏
+                if (Environment.TickCount - _hookErrorTick > 5000)
+                {
+                    _hookErrorTick = Environment.TickCount;
+                    DebugLogger.Log($"[ImeInput] WndProc 处理异常（已吞，不影响窗口）: {ex.Message}");
+                }
             }
             IntPtr oldProc;
             return _oldProcByHwnd.TryGetValue(hWnd, out oldProc)
