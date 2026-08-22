@@ -679,3 +679,39 @@ it.Button.IsVisible = ...                     // 注入型 UI 的每帧可见性
 - 保险丝：会触发 `RefreshState` 的属性写入（IsVisible/IsHidden 等）用 try/catch 包裹——捕获 = 树已死 → 从注入列表自清理（含 hover 清理），**不要每帧重试**；若只是面板刷新（非关屏），节流 Scan 幂等重注入即可恢复。
 - 落地范例：`GUI/SecretLetterButtonInjector.cs` → `UpdateLive`（2026-08-21 实踩：家族屏设军需官点完成后崩）。
 - 判别口诀：**栈底是自己代码的 `IsVisible =` 赋值 + 栈顶是引擎 `RegisterWidgetForEvent` 内部 NRE = 屏幕销毁窗口期**——不是字段判空漏了，是别碰即将销毁的树。
+
+---
+
+## `Environment.TickCount - int.MinValue` 溢出为负 → 时间窗比较恒成立（状态机永久锁死）
+
+**症状**（实机 2026-08-22，PC 上 MCM 文本框）
+- 输入框**打字（123）正常，退格/Delete/方向键/Enter 全部失效**；粘贴也受影响。
+- 日志：游戏启动后第一帧即出现「组合态吞键」，**全程无任何 WM_IME 消息、无输入法活动**——状态机从启动起就永远判定"组合中"。
+- 可打印字符正常（被按"组合中上屏"放行），非可打印轮询键（退格等）全被吞。
+
+**根因**（代码级实锤，[Input/EditableTextImePatch.cs](ExampleModVS/ExampleMod/ExampleMod/Input/EditableTextImePatch.cs)）
+
+```csharp
+private static int _lastVkProcessKeyTick = int.MinValue;              // 初始哨兵
+if (Environment.TickCount - _lastVkProcessKeyTick < 150) return true;  // ❌
+```
+
+- `Environment.TickCount`（int，uptime ms）减去 `int.MinValue` 必然 **int 溢出为负数**（`TickCount - (-2147483648)` 超出 int 上界回绕）。
+- **负数 `< 150` 恒成立** → 时间窗判断永远命中 → 组合态从启动起永远 true。
+- 该模式常用于"最近一次事件 X 后 N ms 内"的门控——哨兵初始值 + 直接相减 = 一启动就锁死，直到 24.8 天 uptime TickCount 翻转才可能偶发自愈（实为随机）。
+- 症状伪装性极强：**一半逻辑正常（可打印字符放行）、一半失效（轮询键被吞）**，看起来像输入法在组合、像按键被拦截，实际是时间窗误判。
+
+**规避**
+
+- 哨兵值必须先排除，差值比较用 `(uint)` 转换（无符号回绕 = 时间差正确语义，同时免疫 TickCount 翻转）：
+
+```csharp
+private static int _lastEventTick = int.MinValue;                    // 哨兵：从未发生
+if (_lastEventTick != int.MinValue
+    && (uint)(Environment.TickCount - _lastEventTick) < windowMs)     // ✅ 哨兵跳过 + 无符号差值
+    return true;   // 窗口内
+```
+
+- 初始值不用哨兵也可用 `int.MinValue + 1` 等不影响判断的"远古时间"，但**哨兵跳过最明确**。
+- 新建任何 `TickCount` 时间窗/冷却/宽限/节流字段时按此模板写；`>=` 反向判断（如"超过 5s 超时"）同样受溢出影响——初始哨兵 `int.MinValue` 时 `TickCount - 哨兵 < 0` 恒负，`< 5000` 恒真。
+- 排查口诀：**「启动即处于某时间窗状态 + 日志无对应事件」= 先查哨兵初始值与 TickCount 相减**。同类模式全项目扫描（`int.MinValue` grep）：`ImeCompositionHelper._lastVkProcessKeyTick`（本坑）与 `ImChatSoftKeyboardContextDonePatch.FillVerifyWindowStart`（诊断窗口常开刷屏，同修）已修复。

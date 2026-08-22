@@ -55,18 +55,26 @@ namespace LivingWorldNpcs
     /// <summary>补丁 A：Deck 上任何 EditableTextWidget 获得焦点（非手柄路径）→ 请求引擎软键盘弹窗。
     /// 点击聚焦唯一入口 = GauntletEvent.MousePressed → FocusedWidget setter（反编译实锤），MCM/vanilla/IM 全覆盖。
     /// 引擎消费块原参（EventManager.Update 反编译）：Text/KeyboardInfoText/MaxLength/
-    /// IsObfuscationEnabled→type 2（密码）、IntegerInputTextWidget/FloatInputTextWidget→type 1。</summary>
+    /// IsObfuscationEnabled→type 2（密码）、IntegerInputTextWidget/FloatInputTextWidget→type 1。
+    /// 🔴 诊断（2026-08-22）：每次点击 EditableTextWidget 都打一行（含早退原因）——Deck 上弹窗
+    /// 时有时无，必须区分是哪个守卫拦的。</summary>
     [HarmonyPatch(typeof(EventManager), "set_FocusedWidget")]
     public static class SteamDeckEditableKeyboardPatch
     {
         [HarmonyPostfix]
         public static void Postfix(EventManager __instance, Widget value)
         {
-            if (!SteamDeckKeyboard.IsSteamDeck()) return;
+            // 只有 EditableTextWidget 聚焦才打（非输入框点击=按钮/列表项，不打防刷屏）
             if (!(value is EditableTextWidget)) return;
-            if (__instance.FocusedWidget != value) return;          // setter 拒绝（不可聚焦）→ 焦点未生效
-            if (__instance.IsControllerActive) return;              // 手柄路径：引擎已置请求标志，自己会弹（防双发）
-            if (V.IsOnScreenKeyboardActive()) return;               // 软键盘已开
+            bool deck = SteamDeckKeyboard.IsSteamDeck();
+            bool focused = __instance.FocusedWidget == value;
+            bool controller = __instance.IsControllerActive;
+            bool kbActive = false;
+            try { kbActive = V.IsOnScreenKeyboardActive(); } catch { }
+            // 🔴 诊断：EditableTextWidget 获得焦点就无条件打一行——deck=False（检测失败）也看得见
+            DebugLogger.Log($"[KbDiag] 输入框聚焦 deck={deck} focused={focused} controller={controller} "
+                + $"kbActive={kbActive} widget={value.GetType().Name}");
+            if (!deck || !focused || controller || kbActive) return;
             try
             {
                 var ew = (EditableTextWidget)value;
