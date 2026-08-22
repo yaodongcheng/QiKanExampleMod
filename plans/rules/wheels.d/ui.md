@@ -260,6 +260,44 @@ Mission 侧（同 DLL 实测）：NameMarker=1、MissionQuestBar/AlarmState=10�
 
 **关键文件**：`Core/VersionCompat.cs`（V.NewLayer）、`ImChat/ImChatView.cs:90`。查表出处：`ilspycmd Modules/SandBox/bin/Win64_Shipping_Client/SandBox.GauntletUI.dll | grep "new GauntletLayer("`。
 
+## 🔴 GauntletLayer 摘层纪律 — 已 Finalize 的层禁止任何引擎操作（1.2.12 二次 Finalize = NRE）
+
+**问题**：层随屏销毁被 `HandleFinalize` 后，`Close()` 里再 `RemoveLayer` → 崩溃。实机堆栈（2026-08-22，1.2.12）：`EventManager.OnFinalize → UIContext.OnFinalize → GauntletLayer.OnFinalize → ScreenBase.RemoveLayer → ImChatOpenButtonManager.Close`，NRE 在 `EventManager.OnFinalize` 的 `foreach (_widgetContainers)`（`_widgetContainers` 已置 null）。
+
+**引擎事实（版本差异，反编译实锤）**：
+
+| | 1.2.12 | 1.4.8 |
+|---|---|---|
+| `ScreenLayer.HandleFinalize` | `OnFinalize(); Finalized = true;` — **无幂等防护**，二次调 = 二次 `OnFinalize` | `if (IsFinalized) { FailedAssert; return; }` — 有防护 |
+| `GauntletLayer.OnFinalize` | **不置 `UIContext = null`** → 二次 Finalize 能一路进到 `EventManager.OnFinalize()` 内部 → foreach null 字典 NRE | `ClearContext()` 里置 `UIContext = null` → 二次 Finalize 在 `UIContext.EventManager` 访问处 NRE |
+
+**屏销毁不清 `_layers`**：`ScreenBase.HandleFinalize` 对 `_layers` 里每层调 `HandleFinalize()` 但**不移除**——层 Finalize 后 `HasLayer` 仍误报 true（`_layers.Contains` 只看列表）。1.2.12 的 `ScreenLayer.HandleFinalize` 无防护时，`HasLayer=true → RemoveLayer` 必然二次 Finalize。
+
+**摘层守卫三件套（全部要）**：`HasLayer`（层可能已随屏销毁）+ `!V.LayerFinalized(_layer)`（**已死层跳过一切引擎操作**）+ try/catch（native 侧 double-release 仍有兜底风险）。已 Finalize 的层：`ReleaseMovie` / `RemoveLayer` / `InputRestrictions.ResetInputRestrictions` **全部禁止**——层死即引擎资源已释放，引用置空、下帧重挂新层即可（层残留屏 `_layers` 无影响，屏也已销毁）。
+
+**调用范例**（`ImChatOpenButtonManager.Close` / `ImChatView.Close` / `NinjaNotificationMissionView.Close` 三处同款，2026-08-22）：
+```csharp
+bool layerDead = V.LayerFinalized(_layer);
+try
+{
+    if (!layerDead)
+    {
+        if (_movie != null) { _layer.ReleaseMovie(_movie); _movie = null; }
+        if (_layerOwnerScreen != null && _layerOwnerScreen.HasLayer(_layer))
+            _layerOwnerScreen.RemoveLayer(_layer);
+        else if (ScreenManager.TopScreen != null && ScreenManager.TopScreen.HasLayer(_layer))
+            ScreenManager.TopScreen.RemoveLayer(_layer);
+        _layer.InputRestrictions.ResetInputRestrictions();   // 按需
+    }
+}
+catch (Exception ex) { try { DebugLogger.Log($"[X] Close 失败: {ex.Message}"); } catch { } }
+_layer = null; _layerOwnerScreen = null; _movie = null;
+```
+
+**排查提示**：已 Finalize 层二次摘层，1.4.8 表现为 FailedAssert（弹窗/日志「Screen layer is already finalized」），1.2.12 直接 NRE——两版本都要按三件套守卫，不能只在 1.4.8 验证通过就以为安全。
+
+**关键文件**：`Notify/ImChatOpenButtonManager.cs`（Close）、`ImChat/ImChatView.cs`（Close + MigrateLayerIfNeeded 判定）、`Notify/NinjaNotificationMissionView.cs`（Close）、`Core/VersionCompat.cs`（V.LayerFinalized）。
+
 
 ---
 

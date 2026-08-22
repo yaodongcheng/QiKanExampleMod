@@ -409,23 +409,33 @@ namespace LivingWorldNpcs
             _padItems.Clear();
             if (_layer != null)
             {
+                // 🔴 2026-08-22（1.2.12 实机崩溃修复，ImChatOpenButtonManager 同款）：层已 Finalize
+                //（随屏销毁被 HandleFinalize）时，EventManager._widgetContainers 已置 null、movie 已释放——
+                // 再 ReleaseMovie/RemoveLayer/ResetInputRestrictions = 二次 HandleFinalize → 二次 OnFinalize →
+                // EventManager.OnFinalize 二次执行 → foreach null 字典 → NRE（1.2.12 的 HandleFinalize
+                // 无 IsFinalized 防护）。已死层跳过一切引擎操作，引用置空即可（层残留屏 _layers 无影响，
+                // 屏也已销毁）。
+                bool layerDead = V.LayerFinalized(_layer);
                 try
                 {
-                    if (_movie != null)
+                    if (!layerDead)
                     {
-                        _layer.ReleaseMovie(_movie);
-                        _movie = null;
+                        if (_movie != null)
+                        {
+                            _layer.ReleaseMovie(_movie);
+                            _movie = null;
+                        }
+                        // 🔴 2026-08-17（实机崩溃修复）：从层实际挂载的屏摘（_layerOwnerScreen），不用
+                        // ScreenManager.TopScreen——层可能挂在非 TopScreen 的屏上（家族/队伍屏 Push 叠层），
+                        // 从 TopScreen 摘 = 摘错屏 + 层 Finalize 却残留在 owner 屏 _layers → owner 屏下次
+                        // 激活（PopScreen 回地图）遍历死层 → GauntletLayer.OnActivate NRE 崩溃（实机）。
+                        // HasLayer 校验：层可能已随屏销毁（PopScreen），跳过摘除。
+                        if (_layerOwnerScreen != null && _layerOwnerScreen.HasLayer(_layer))
+                            _layerOwnerScreen.RemoveLayer(_layer);
+                        else if (ScreenManager.TopScreen != null && ScreenManager.TopScreen.HasLayer(_layer))
+                            ScreenManager.TopScreen.RemoveLayer(_layer);
+                        _layer.InputRestrictions.ResetInputRestrictions();
                     }
-                    // 🔴 2026-08-17（实机崩溃修复）：从层实际挂载的屏摘（_layerOwnerScreen），不用
-                    // ScreenManager.TopScreen——层可能挂在非 TopScreen 的屏上（家族/队伍屏 Push 叠层），
-                    // 从 TopScreen 摘 = 摘错屏 + 层 Finalize 却残留在 owner 屏 _layers → owner 屏下次
-                    // 激活（PopScreen 回地图）遍历死层 → GauntletLayer.OnActivate NRE 崩溃（实机）。
-                    // HasLayer 校验：层可能已随屏销毁（PopScreen），跳过摘除。
-                    if (_layerOwnerScreen != null && _layerOwnerScreen.HasLayer(_layer))
-                        _layerOwnerScreen.RemoveLayer(_layer);
-                    else if (ScreenManager.TopScreen != null && ScreenManager.TopScreen.HasLayer(_layer))
-                        ScreenManager.TopScreen.RemoveLayer(_layer);
-                    _layer.InputRestrictions.ResetInputRestrictions();
                 }
                 catch (Exception ex)
                 {
@@ -433,6 +443,7 @@ namespace LivingWorldNpcs
                 }
                 _layer = null;
                 _layerOwnerScreen = null;
+                _movie = null;
             }
             // 🔴 2026-08-19（实机：第二次打开鼠标消失——mask 缓存跨层生命周期残留）：
             // 层销毁后静态缓存必须失效——否则下次 Open 目标 == 缓存 → SetInputRestrictions 被跳过，
